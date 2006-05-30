@@ -2,6 +2,7 @@
 
 .SUFFIXES: .c .asm .obj .rc .res
 
+CC = icc
 AS = nasm -fobj
 LB = ilib /nobackup /quiet /nologo
 LI = implib /nologo
