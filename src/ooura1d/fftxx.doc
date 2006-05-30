@@ -1,0 +1,553 @@
+General Purpose FFT (Fast Fourier/Cosine/Sine Transform) Package
+
+
+[Description]
+
+    A package to calculate Discrete Fourier/Cosine/Sine Transforms of 
+    1-dimensional sequences of length 2^N.
+
+
+[Files]
+
+    fft2f.c    : FFT Package in C       - Easy Version
+    fft2f.f    : FFT Package in Fortran - Easy Version
+    fft2ft.c   : Test Program of "fft2f.c"
+    fft2ft.f   : Test Program of "fft2f.f"
+    fft4f.c    : FFT Package in C       - Normal Version
+    fft4f.f    : FFT Package in Fortran - Normal Version
+    fft4g.c    : FFT Package in C       - Fast Version
+    fft4g.f    : FFT Package in Fortran - Fast Version
+    fft4xt.c   : Test Program of "fft4*.c"
+    fft4xt.f   : Test Program of "fft4*.f"
+    fftxx.doc  : Document of "fft*.*"
+    fftxxj.doc : Document of "fft*.*" (Japanese)
+
+
+[Difference of Files]
+
+    C and Fortran versions are same.
+    Easy versions use no work area.
+    Normal and Fast versions use work areas.
+    Specifications of Normal and Fast versions are same.
+
+
+[Routines in the Package]
+
+    cdft: Complex Discrete Fourier Transform
+    rdft: Real Discrete Fourier Transform
+    ddct: Discrete Cosine Transform
+    ddst: Discrete Sine Transform
+    dfct: Cosine Transform of RDFT (Real Symmetric DFT)
+    dfst: Sine Transform of RDFT (Real Anti-symmetric DFT)
+
+
+[Usage]
+
+    Comments :
+        Brief explanations are in block comments of each packages.
+        The examples are given in the test programs.
+        The cos/sin table and work areas are not necessary if you use 
+        "fft2f.*".
+
+    -------- Complex DFT (Discrete Fourier Transform) --------
+        <CASE1>
+            X[k] = sum_j=0^n-1 x[j]*exp(2*pi*i*j*k/n), 0<=k<n
+        <CASE2>
+            X[k] = sum_j=0^n-1 x[j]*exp(-2*pi*i*j*k/n), 0<=k<n
+        (notes: sum_j=0^n-1 is a summation from j=0 to n-1)
+
+        [usage]
+            in fft2f.c
+                <CASE1>
+                    cdft(2*n, cos(M_PI/n), sin(M_PI/n), a);
+                <CASE2>
+                    cdft(2*n, cos(M_PI/n), -sin(M_PI/n), a);
+            in fft2f.f
+                <CASE1>
+                    call cdft(2*n, cos(pi/n), sin(pi/n), a)
+                <CASE2>
+                    call cdft(2*n, cos(pi/n), -sin(pi/n), a)
+            in fft4*.c
+                <CASE1>
+                    ip[0] = 0; // first time only
+                    cdft(2*n, 1, a, ip, w);
+                <CASE2>
+                    ip[0] = 0; // first time only
+                    cdft(2*n, -1, a, ip, w);
+            in fft4*.f
+                <CASE1>
+                    ip(0) = 0  ! first time only
+                    call cdft(2*n, 1, a, ip, w)
+                <CASE2>
+                    ip(0) = 0  ! first time only
+                    call cdft(2*n, -1, a, ip, w)
+
+        [arguments]
+            2*n : real data length (n is a complex data length)
+                      type   : integer
+                      detail : n >= 1, n = power of 2
+            a   : input/output data
+                      type   : double real array
+                      size   : from 0 to 2*n-1
+                      detail : input data
+                                   a[2*j] = Re(x[j]), 
+                                   a[2*j+1] = Im(x[j]), 0<=j<n
+                               output data
+                                   a[2*k] = Re(X[k]), 
+                                   a[2*k+1] = Im(X[k]), 0<=k<n
+
+            ip  : work area for bit reversal
+                      type   : integer array
+                      size   : from 0 to 1+sqrt(n)
+                               strictly, 
+                               length of ip >= 2+sqrt(n)  ; if sqrt(n)==int
+                                               2+sqrt(n/2); otherwise
+                      detail : ip[2...*] is the work area, ip[0],ip[1] are 
+                               pointers of the cos/sin table.
+            w   : cos/sin table
+                      type   : double real array
+                      size   : from 0 to n/2-1
+                      detail : w[] is calculated if ip[0] == 0.
+                               If you call this function repeatedly, the 
+                               recalculation of the table is not necessary.
+
+        [caution!]
+            Conventional definitions of DFT / Inverse of DFT are :
+                a) CASE1 defines backward, 1/n scaled CASE2 defines forward
+                b) CASE1 defines forward, 1/n scaled CASE2 defines backward
+                c) 1/n scaled CASE1 defines backward, CASE2 defines forward
+                d) 1/n scaled CASE1 defines forward, CASE2 defines backward
+                e) etc.
+            You must know which one you use.
+
+    -------- Real DFT / Inverse of Real DFT --------
+        <CASE1> (RDFT)
+            R[k] = sum_j=0^n-1 a[j]*cos(2*pi*j*k/n), 0<=k<=n/2
+            I[k] = sum_j=0^n-1 a[j]*sin(2*pi*j*k/n), 0<k<n/2
+        <CASE2> (IRDFT)
+            A[k] = (R[0] + R[n/2]*cos(pi*k))/2 + 
+                   sum_j=1^n/2-1 R[j]*cos(2*pi*j*k/n) + 
+                   sum_j=1^n/2-1 I[j]*sin(2*pi*j*k/n), 0<=k<n
+
+        [usage]
+            in fft2f.c
+                <CASE1>
+                    rdft(n, cos(M_PI/n), sin(M_PI/n), a);
+                <CASE2>
+                    rdft(n, cos(M_PI/n), -sin(M_PI/n), a);
+            in fft2f.f
+                <CASE1>
+                    call rdft(n, cos(pi/n), sin(pi/n), a)
+                <CASE2>
+                    call rdft(n, cos(pi/n), -sin(pi/n), a)
+            in fft4*.c
+                <CASE1>
+                    ip[0] = 0; // first time only
+                    rdft(n, 1, a, ip, w);
+                <CASE2>
+                    ip[0] = 0; // first time only
+                    rdft(n, -1, a, ip, w);
+            in fft4*.f
+                <CASE1>
+                    ip(0) = 0  ! first time only
+                    call rdft(n, 1, a, ip, w)
+                <CASE2>
+                    ip(0) = 0  ! first time only
+                    call rdft(n, -1, a, ip, w)
+
+        [arguments]
+            n   : real data length
+                      type   : integer
+                      detail : n >= 2, n = power of 2
+            a   : input/output data
+                      type   : double real array
+                      size   : from 0 to n-1
+                      detail : output data in CASE1
+                                   a[2*k] = R[k], 0<=k<n/2
+                                   a[2*k+1] = I[k], 0<k<n/2
+                                   a[1] = R[n/2]
+                               input data in CASE2
+                                   a[2*j] = R[j], 0<=j<n/2
+                                   a[2*j+1] = I[j], 0<j<n/2
+                                   a[1] = R[n/2]
+
+            ip  : work area for bit reversal
+                      type   : integer array
+                      size   : from 0 to 1+sqrt(n/2)
+                               strictly, 
+                               length of ip >= 2+sqrt(n/2); if sqrt(n/2)==int
+                                               2+sqrt(n/4); otherwise
+                      detail : ip[2...*] is the work area, ip[0],ip[1] are 
+                               pointers of the cos/sin table.
+            w   : cos/sin table
+                      type   : double real array
+                      size   : from 0 to n/2-1
+                      detail : w[] is calculated if ip[0] == 0.
+                               If you call this function repeatedly, the 
+                               recalculation of the table is not necessary.
+
+        [remark]
+            Inverse of the transform CASE1 is equal to the transform CASE2 
+            with scaling :
+                a[j] = a[j] * 2/n, 0<=j<n.
+
+    -------- DCT (Discrete Cosine Transform) / Inverse of DCT --------
+        <CASE1> (IDCT)
+            C[k] = sum_j=0^n-1 a[j]*cos(pi*j*(k+1/2)/n), 0<=k<n
+        <CASE2> (DCT)
+            C[k] = sum_j=0^n-1 a[j]*cos(pi*(j+1/2)*k/n), 0<=k<n
+
+        [usage]
+            in fft2f.c
+                <CASE1>
+                    ddct(n, cos(M_PI/n/2), sin(M_PI/n/2), a);
+                <CASE2>
+                    ddct(n, cos(M_PI/n/2), -sin(M_PI/n/2), a);
+            in fft2f.f
+                <CASE1>
+                    call ddct(n, cos(pi/n/2), sin(pi/n/2), a)
+                <CASE2>
+                    call ddct(n, cos(pi/n/2), -sin(pi/n/2), a)
+            in fft4*.c
+                <CASE1>
+                    ip[0] = 0; // first time only
+                    ddct(n, 1, a, ip, w);
+                <CASE2>
+                    ip[0] = 0; // first time only
+                    ddct(n, -1, a, ip, w);
+            in fft4*.f
+                <CASE1>
+                    ip(0) = 0  ! first time only
+                    call ddct(n, 1, a, ip, w)
+                <CASE2>
+                    ip(0) = 0  ! first time only
+                    call ddct(n, -1, a, ip, w)
+
+        [arguments]
+            n   : data length
+                      type   : integer
+                      detail : n >= 2, n = power of 2
+            a   : input/output data
+                      type   : double real array
+                      size   : from 0 to n-1
+                      detail : output data
+                                   a[k] = C[k], 0<=k<n
+
+            ip  : work area for bit reversal
+                      type   : integer array
+                      size   : from 0 to 1+sqrt(n/2)
+                               strictly, 
+                               length of ip >= 2+sqrt(n/2); if sqrt(n/2)==int
+                                               2+sqrt(n/4); otherwise
+                      detail : ip[2...*] is the work area, ip[0],ip[1] are 
+                               pointers of the cos/sin table.
+            w   : cos/sin table
+                      type   : double real array
+                      size   : from 0 to n*5/4-1
+                      detail : w[] is calculated if ip[0] == 0.
+                               If you call this function repeatedly, the 
+                               recalculation of the table is not necessary.
+
+        [remark]
+            Inverse of the transform CASE2 is equal to the transform CASE1 
+            with scaling :
+                a[0] = a[0] * 1/n, a[j] = a[j] * 2/n, 0<j<n.
+
+    -------- DST (Discrete Sine Transform) / Inverse of DST --------
+        <CASE1> (IDST)
+            S[k] = sum_j=1^n A[j]*sin(pi*j*(k+1/2)/n), 0<=k<n
+        <CASE2> (DST)
+            S[k] = sum_j=0^n-1 a[j]*sin(pi*(j+1/2)*k/n), 0<k<=n
+
+        [usage]
+            in fft2f.c
+                <CASE1>
+                    ddst(n, cos(M_PI/n/2), sin(M_PI/n/2), a);
+                <CASE2>
+                    ddst(n, cos(M_PI/n/2), -sin(M_PI/n/2), a);
+            in fft2f.f
+                <CASE1>
+                    call ddst(n, cos(pi/n/2), sin(pi/n/2), a)
+                <CASE2>
+                    call ddst(n, cos(pi/n/2), -sin(pi/n/2), a)
+            in fft4*.c
+                <CASE1>
+                    ip[0] = 0; // first time only
+                    ddst(n, 1, a, ip, w);
+                <CASE2>
+                    ip[0] = 0; // first time only
+                    ddst(n, -1, a, ip, w);
+            in fft4*.f
+                <CASE1>
+                    ip(0) = 0  ! first time only
+                    call ddst(n, 1, a, ip, w)
+                <CASE2>
+                    ip(0) = 0  ! first time only
+                    call ddst(n, -1, a, ip, w)
+
+        [arguments]
+            n   : data length
+                      type   : integer
+                      detail : n >= 2, n = power of 2
+            a   : input/output data
+                      type   : double real array
+                      size   : from 0 to n-1
+                      detail : input data in CASE1
+                                   a[j] = A[j], 0<j<n
+                                   a[0] = A[n]
+                               output data in CASE2
+                                   a[k] = S[k], 0<k<n
+                                   a[0] = S[n]
+
+            ip  : work area for bit reversal
+                      type   : integer array
+                      size   : from 0 to 1+sqrt(n/2)
+                               strictly, 
+                               length of ip >= 2+sqrt(n/2); if sqrt(n/2)==int
+                                               2+sqrt(n/4); otherwise
+                      detail : ip[2...*] is the work area, ip[0],ip[1] are 
+                               pointers of the cos/sin table.
+            w   : cos/sin table
+                      type   : double real array
+                      size   : from 0 to n*5/4-1
+                      detail : w[] is calculated if ip[0] == 0.
+                               If you call this function repeatedly, the 
+                               recalculation of the table is not necessary.
+
+        [remark]
+            Inverse of the transform CASE2 is equal to the transform CASE1 
+            with scaling :
+                a[0] = a[0] * 1/n, a[j] = a[j] * 2/n, 0<j<n.
+
+    -------- Cosine Transform of RDFT --------
+            C[k] = sum_j=0^n a[j]*cos(pi*j*k/n), 0<=k<=n
+
+        [usage]
+            in fft2f.c
+                dfct(n, cos(M_PI/n), sin(M_PI/n), a);
+            in fft2f.f
+                call dfct(n, cos(pi/n), sin(pi/n), a)
+            in fft4*.c
+                ip[0] = 0; // first time only
+                dfct(n, a, t, ip, w);
+            in fft4*.f
+                ip(0) = 0  ! first time only
+                call dfct(n, a, t, ip, w)
+
+        [arguments]
+            n   : data length - 1
+                      type   : integer
+                      detail : n >= 2, n = power of 2
+            a   : input/output data
+                      type   : double real array
+                      size   : from 0 to n (not n-1)
+                      detail : output data
+                                   a[k] = C[k], 0<=k<=n
+
+            t   : temporary work area
+                      type   : double real array
+                      size   : from 0 to n/2
+            ip  : work area for bit reversal
+                      type   : integer array
+                      size   : from 0 to 1+sqrt(n/4)
+                               strictly, 
+                               length of ip >= 2+sqrt(n/4); if sqrt(n/4)==int
+                                               2+sqrt(n/8); otherwise
+                      detail : ip[2...*] is the work area, ip[0],ip[1] are 
+                               pointers of the cos/sin table.
+            w   : cos/sin table
+                      type   : double real array
+                      size   : from 0 to n*5/8-1
+                      detail : w[] is calculated if ip[0] == 0.
+                               If you call this function repeatedly, the 
+                               recalculation of the table is not necessary.
+
+        [remark]
+            Inverse of this transform with scaling :
+                a[0] = a[0] * 1/2, a[n] = a[n] * 1/2
+            is equal to this transform with scaling :
+                a[0] = a[0] * 1/n, a[n] = a[n] * 1/n, 
+                a[j] = a[j] * 2/n, 0<j<n.
+
+    -------- Sine Transform of RDFT --------
+            S[k] = sum_j=1^n-1 a[j]*sin(pi*j*k/n), 0<k<n
+
+        [usage]
+            in fft2f.c
+                dfst(n, cos(M_PI/n), sin(M_PI/n), a);
+            in fft2f.f
+                call dfst(n, cos(pi/n), sin(pi/n), a)
+            in fft4*.c
+                ip[0] = 0; // first time only
+                dfst(n, a, t, ip, w);
+            in fft4*.f
+                ip(0) = 0  ! first time only
+                call dfst(n, a, t, ip, w)
+
+        [arguments]
+            n   : data length + 1
+                      type   : integer
+                      detail : n >= 2, n = power of 2
+            a   : input/output data
+                      type   : double real array
+                      size   : from 0 to n-1 (a[0] is used for a work area)
+                      detail : output data
+                                   a[k] = S[k], 0<k<n
+
+            t   : temporary work area
+                      type   : double real array
+                      size   : from 0 to n/2-1
+            ip  : work area for bit reversal
+                      type   : integer array
+                      size   : from 0 to 1+sqrt(n/4)
+                               strictly, 
+                               length of ip >= 2+sqrt(n/4); if sqrt(n/4)==int
+                                               2+sqrt(n/8); otherwise
+                      detail : ip[2...*] is the work area, ip[0],ip[1] are 
+                               pointers of the cos/sin table.
+            w   : cos/sin table
+                      type   : double real array
+                      size   : from 0 to n*5/8-1
+                      detail : w[] is calculated if ip[0] == 0.
+                               If you call this function repeatedly, the 
+                               recalculation of the table is not necessary.
+
+        [remark]
+            Inverse of this transform is equal to this transform 
+            with scaling :
+                a[j] = a[j] * 2/n, 0<j<n.
+
+    Appendix :
+        If n is not chosen a power of 2, no operation is guaranteed.
+        The cos/sin table is recalculated when the larger table required.
+        You can calculate the cos/sin table of enough size by using the 
+        initializing routine (see program). w[] and ip[] are compatible 
+        with all routines.
+
+
+[Method]
+
+    -------- cdft --------
+        [in fft2f.*]
+            A method of in-place, radix 2, Sande-Tukey (decimation in 
+            frequency). The butterfly loop is unrolled to use the 
+            trigonometric recursion :
+                cos((k+1)*h) = -(2*sin(h)) * sin(k*h) + cos((k-1)*h), 
+                sin((k+1)*h) = (2*sin(h)) * cos(k*h) + sin((k-1)*h).
+            The bit reversal operation is reduced to n/4 by using 
+            the fact :
+                pairs of bit reversal are 
+                    2*j              and  (2*j)~, 
+                    n-1 - 2*j        and  n-1 - (2*j)~, 
+                    2*j + 1          and  n/2 + (2*j)~, 
+                    n-1 - (2*j + 1)  and  n-1 - (n/2 + (2*j)~), 
+                (k~ is a bit reversal of k), 0<=j<n/4.
+
+        [in fft4*.*]
+            A method of in-place, radix 2 & 4, Sande-Tukey (decimation in 
+            frequency). Index of the arrays in the loops is in bit reverse 
+            order. The bit reversal operation is reduced to sqrt(n) by 
+            using the fact :
+                if m = sqrt(n) is integer, 
+                    pairs of bit reversal are 
+                        j~ + k      and  k~ + j
+                if m = sqrt(n/2) is integer, 
+                    pairs of bit reversal are 
+                        j~ + k      and  k~ + j, 
+                        j~ + m + k  and  k~ + m + j
+                (k~ is a bit reversal of k), 0<=j<m, 0<=k<m.
+
+    -------- rdft --------
+        A method with a following butterfly operation appended to "cdft".
+        In forward transform :
+            A[k] = sum_j=0^n-1 a[j]*W(n)^(j*k), 0<=k<=n/2, 
+                W(n) = exp(2*pi*i/n), 
+        this routine makes an array x[] :
+            x[j] = a[2*j] + i*a[2*j+1], 0<=j<n/2
+        and calls "cdft" of length n/2 :
+            X[k] = sum_j=0^n/2-1 x[j] * W(n/2)^(j*k), 0<=k<n.
+        The result A[k] are :
+            A[k]     = X[k]     - (1+i*W(n)^k)/2 * (X[k]-conjg(X[n/2-k])), 
+            A[n/2-k] = X[n/2-k] + (1+i*W(n)^k)/2 * (X[k]-conjg(X[n/2-k])), 
+                0<=k<=n/2
+            (notes: conjg() is a complex conjugate, X[n/2]=X[0]).
+
+    -------- ddct --------
+        A method with a following butterfly operation appended to "rdft".
+        In backward transform :
+            C[k] = sum_j=0^n-1 a[j]*cos(pi*j*(k+1/2)/n), 0<=k<n, 
+        this routine makes an array r[] :
+            r[0] = a[0], 
+            r[j]   = Re((a[j] - i*a[n-j]) * W(4*n)^j*(1+i)/2), 
+            r[n-j] = Im((a[j] - i*a[n-j]) * W(4*n)^j*(1+i)/2), 
+                0<j<=n/2
+        and calls "rdft" of length n :
+            A[k] = sum_j=0^n-1 r[j]*W(n)^(j*k), 0<=k<=n/2, 
+                W(n) = exp(2*pi*i/n).
+        The result C[k] are :
+            C[2*k]   =  Re(A[k] * (1-i)), 
+            C[2*k-1] = -Im(A[k] * (1-i)).
+
+    -------- ddst --------
+        A method with a following butterfly operation appended to "rdft".
+        In backward transform :
+            S[k] = sum_j=1^n A[j]*sin(pi*j*(k+1/2)/n), 0<=k<n, 
+        this routine makes an array r[] :
+            r[0] = a[0], 
+            r[j]   = Im((a[n-j] - i*a[j]) * W(4*n)^j*(1+i)/2), 
+            r[n-j] = Re((a[n-j] - i*a[j]) * W(4*n)^j*(1+i)/2), 
+                0<j<=n/2
+        and calls "rdft" of length n :
+            A[k] = sum_j=0^n-1 r[j]*W(n)^(j*k), 0<=k<=n/2, 
+                W(n) = exp(2*pi*i/n).
+        The result S[k] are :
+            S[2*k]   =  Re(A[k] * (1+i)), 
+            S[2*k-1] = -Im(A[k] * (1+i)).
+
+    -------- dfct --------
+        A method to split into "dfct" and "ddct" of half length.
+        The transform :
+            C[k] = sum_j=0^n a[j]*cos(pi*j*k/n), 0<=k<=n
+        is divided into :
+            C[2*k]   = sum'_j=0^n/2  (a[j]+a[n-j])*cos(pi*j*k/(n/2)), 
+            C[2*k+1] = sum_j=0^n/2-1 (a[j]-a[n-j])*cos(pi*j*(k+1/2)/(n/2))
+            (sum' is a summation whose last term multiplies 1/2).
+        This routine uses "ddct" recursively.
+        In fft2f.*, the data are sorted by using bit reversal.
+        In fft4*.*, the data are sorted by using work area.
+
+    -------- dfst --------
+        A method to split into "dfst" and "ddst" of half length.
+        The transform :
+            S[k] = sum_j=1^n-1 a[j]*sin(pi*j*k/n), 0<k<n
+        is divided into :
+            S[2*k]   = sum_j=1^n/2-1 (a[j]-a[n-j])*sin(pi*j*k/(n/2)), 
+            S[2*k+1] = sum'_j=1^n/2  (a[j]+a[n-j])*sin(pi*j*(k+1/2)/(n/2))
+            (sum' is a summation whose last term multiplies 1/2).
+        This routine uses "ddst" recursively.
+        In fft2f.*, the data are sorted by using bit reversal.
+        In fft4*.*, the data are sorted by using work area.
+
+
+[Others]
+
+    -------- Reference --------
+        Masatake MORI, Makoto NATORI, Tatuo TORII: Suchikeisan, 
+        Iwanamikouzajyouhoukagaku18, Iwanami, 1982 (Japanese)
+
+        Henri J. Nussbaumer: Fast Fourier Transform and Convolution 
+        Algorithms, Springer Verlag, 1982
+
+    -------- Copyright --------
+        Takuya OOURA (email: ooura@mmm.t.u-tokyo.ac.jp)
+
+    -------- History --------
+        ...
+        Dec. 1995  : edit of the General Purpose FFT
+        Mar. 1996  : change of the specification
+        Jun. 1996  : change of the method of trigonometric function table
+        Sep. 1996  : modification of the documents
+        Feb. 1997  : change of the butterfly loops
+        Dec. 1997  : modification of the documents
+        Dec. 1997  : edit of "fft4g.*"
+

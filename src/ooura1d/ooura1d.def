@@ -1,0 +1,11 @@
+LIBRARY ooura1d INITINSTANCE TERMINSTANCE
+DESCRIPTION ' OOURA''s (Fast Fourier / Cosine / Sine Transform) - 1 dimension - ooura@mmm.t.u-tokyo.ac.jp'
+PROTMODE
+DATA MULTIPLE NONSHARED LOADONCALL
+EXPORTS
+   cdft @1
+   rdft @2
+   ddct @3
+   ddst @4
+   dfct @5
+   dfst @6

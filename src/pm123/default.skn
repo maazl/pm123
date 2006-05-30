@@ -1,0 +1,8 @@
+;
+; PM123 default skin file (c) 1998 Taneli Lepp„ <rosmo@kalja.com>
+; For a good example, see WinAmp skin.
+;
+; Why is this file empty? Because PM123 restores defaults prior
+; to loading a new skin. That's why an empty skin files restores
+; everything to default. Neat, isn't it?
+;

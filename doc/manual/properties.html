@@ -1,0 +1,90 @@
+<html resid=1015>
+<head>
+   <title>Configuration Dialog</title>
+</head>
+<body>
+<b><font size=+2>PM123's Configuration Dialog</font></b>
+
+<blockquote>
+<img SRC="images/prop1.gif"><br>
+</blockquote>
+This proporties dialog can be accessed from the <a href="mainmenu.html">main
+menu.</a> In the dialog you can configure PM123's audio engine and interface.
+<dl>
+<dt><b>Start playing on file load</b>
+<dd>Automatically starts playing when you load a file.
+<dt><b>Auto 'use playlist' on add</b>
+<dd>Automatically selects "Use this playlist" when adding files or directories to the playlist.
+<dt><b>Auto 'play' on 'use playlist</b>
+<dd>Automatically starts playing on "Use playlist".
+<dt><b>Select played file</b>
+<dd>Automatically selects currently playing file in the playlist.
+<dt><b>Trash buffers on seek</b>
+<dd>This option provides a much faster response on seek operations (fast forward, rewind, jump to position), but consumes more CPU time during the seek.
+<p>
+<dt><b>Scroll / Infinite</b>
+<dd>Keeps scrolling the display forth and back until you start feeling sick :-)
+<dt><b>Scroll / Once</b>
+<dd>Scrolls the display forth and back once.
+<dt><b>Scroll / Disable</b>
+<dd>Prevents the display from scrolling. Useful if you are scroll-sick.
+<p>
+<dt><b>Default display / Filename</b>
+<dd>Display the filename by default.
+<dt><b>Default display / ID3 tag</b>
+<dd>Display the ID3 tag by default.
+<dt><b>Default display / File info</b>
+<dd>Display the file information by default (bitrate, frequency, mode).
+<p>
+<dt><b>Dock playlist window to x pixels</b>
+<dd>This will allow the playlist to dock into the main window so that when 
+then main window is moved, the playlist follows. Specify the distance in 
+pixels to allow for docking..
+<p>
+<dt><b>HTTP proxy URL</b>
+<dd>Specify your HTTP proxy here.
+<dt><b>HTTP auth</b>
+<dd>This is your HTTP authentication string in format username:password.
+<dt><b>Buffer size</b>
+<dd>Specifies the read ahead buffer size (useful when plaing across a network or from a streaming source).
+<dt><b>Fill buffer before playing</b>
+<dd>Fills the buffer (see above) before playing.
+</dl>
+<blockquote>
+<img SRC="images/prop2.gif"><br>
+</blockquote>
+This dialog is divided into two parts - one for the visual plug-ins
+and the second for decoder plug-ins.
+<dl>
+<dt><b>Enable/Disable</b>
+<dd>Enables/disables the selected plugin.
+<dt><b>Unload</b>
+<dd>Unloads the plugin completely.
+<dt><b>Configure</b>
+<dd>Avalaible only if the plugin is configurable. Click this button to set plugin's settings.
+<dt><b>Add</b>
+<dd>Add a plugin (some visual plugins are skin specific, see <a href="analyzer.html">PM123 sound visualization</a>).
+</dl>
+<blockquote>
+<img SRC="images/prop3.gif"><br>
+</blockquote>
+<p>This dialog is also divided into two parts - in filter plugins part,
+you can add a filter, in output plugins part you can use a output plugins.
+<dl>
+<dt><b>Enable/Disable</b>
+<dd>Enables/disables the selected plugin.
+<dt><b>Unload</b>
+<dd>Unloads the plugin completely.
+<dt><b>Configure</b>
+<dd>Avalaible only if the plugin is configurable. Click this button to set plugin's settings.
+<dt><b>Add</b>
+<dd>Add a plugin.
+<dt><b>Activate</b>
+<dd>Activate an output plugin. There must be always one active output plug-in. With wavout
+plugin, you can save the music to a WAV file. Wavout plugin is very useful for gabbing CD 
+audio tracks... ;-)
+</dl>
+<p>Last properties dialog is About dialog. There are some info about PM123, 
+author etc.
+</body>
+</html>

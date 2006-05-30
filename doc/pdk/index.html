@@ -1,0 +1,72 @@
+<html>
+<head>
+   <title>PM123 Plug-in Developer's Guide</title>
+</head>
+<body>
+<b><font size=+2>Developing PM123 Plug-ins</font></b>
+<p>
+PM123 supports four kinds of plug-ins: visual, decoder,
+output and filter. Visual plug-ins are used to peek at the data
+currently being heard (or not) by the user through the output plug-in
+and visually produce data from it back to the user.  Decoder plug-ins
+are used to decode different types of files, tracks or streams the user
+can play. Output plug-ins is the final destination of the decoded data.
+It can be rerouted to a sound card, to the hard disk or anywhere else
+appropriate. The data is in standard PCM format. Filter plug-ins are
+chained between the decoder and the output plug-in to modify the PCM
+data before getting to the output plug-in.
+<p>
+Visual plug-in interface has not been changed since version 1.0,
+eventhough they could be ameliorated in the future. Currently, Visual
+plug-ins allow the creation of internal or external windows and they can
+tap into PM123 in several ways: they can retrieve currently playing
+samples, control PM123 and so on. Plug-ins are Dynamic Linked Libraries,
+DLLs, which PM123 loads on use.  Note that visual plug-ins cannot be
+loaded via PM123's Properties dialog because they are skin specific.
+They can of course be loaded when loading a new skin.
+<p>
+<i>plugin.h</i> contains the necessary structures for all pm123 plug-ins.
+A plug-in must have a function that identifies it as a plug-in:
+<pre>
+     int _System plugin_query( PPLUGIN_QUERYPARAM param );
+</pre>
+The plug-in will then have to fill the variables in the <i>param</i> structure, for example:
+<pre>
+     param->type         = PLUGIN_VISUAL; 
+     /* Identify the plug-in as visual plug-in. Types can be ORred to
+        include multiple plug-in types in the same DLL. */
+
+     param->author       = "Matti Meik&auml;l&auml;inen";
+      /* Author of the plug-in */
+
+     param->desc         = "Example plug-in";
+      /* A short description of the plug-in */
+
+     param->configurable = TRUE;
+      /* Toggles plug-in configurability via PM123 Properties dialog */
+</pre>
+If you set <i>param->configurable = TRUE</i>, configuration dialog
+should appear when PM123 calls
+<pre>
+     int _System plugin_configure( HWND hwnd, HMODULE module );
+</pre>
+where <i>hwnd</i> is the notebook or player window so that you can "lock" your
+window on it if you want and where <i>module</i> can be used to load
+a resource from your DLL
+<p>Visual plug-ins should deinitialize and destroy their windows and free allocated
+memory when receiving a
+<pre>
+     int _System plugin_deinit( int unload );
+</pre>
+It can also be used to save settings in your INI file for other sort of plug-ins.
+<p>
+<b>Now, which type of plug-in to you want to program?</b>
+<ul>
+<li><a href="visual_plug.html">Visual Plug-ins</a>
+<li><a href="decode_plug.html">Decoder Plug-ins</a>
+<li><a href="output_plug.html">Output Plug-ins</a>
+<li><a href="filter_plug.html">Filter Plug-ins</a>
+</ul>
+</body>
+</html>
+

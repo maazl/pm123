@@ -1,0 +1,149 @@
+<html>
+<head>
+   <title>Decoder Plug-ins</title>
+</head>
+<body>
+<b><font size=+2>PM123 Decoder Plug-ins</font></b>
+<p>
+Decoder plug-ins must implement and export the functions defined in
+decoder_plug.h.
+<pre>
+     int  _System decoder_init  ( void **w )
+     BOOL _System decoder_uninit( void *w  )
+</pre><ul>
+<li>w : Allocate any chunk of memory necessary for the decoder's
+function. This pointer will be passed to the other functions.
+<li>return value : -1 means the decoder was not initialized
+successfully.
+</ul>
+<p>
+Init function is called when PM123 needs the specified decoder
+to play the stream demanded by the user. So only one decoder plug-in is
+active at any given time. It should initialize the necessary semaphores
+and threads. <i>decoder_uninit</i> is called when another decoder
+than yours is needed, and should destroy the decoder's thread,
+semaphores, other opened handles and free allocated memory for <i>w</i>.
+<pre>
+     ULONG _System decoder_command( void *w, ULONG msg, DECODER_PARAMS *params )
+</pre>
+<ul>
+<li>msg: one of the following:
+<ul>
+<li>DECODER_PLAY start playing the given filename, URL or others.
+<li>DECODER_STOP stop playing.
+<li>DECODER_FFWD engage in ffwd mode (ie.: play faster or skip when playing).
+<li>DECODER_REW  engage rewind mode.
+<li>DECODER_JUMPTO jump and start decoding at the given time position.
+<li>DECODER_SETUP setup various parameters such as the output plugin
+functions, hwnd where to send messages and an optional play semaphore.
+<li>DECODER_EQ usually only useful for MPEG decoding where frequency
+equalization is cheap.
+<li>DECODER_BUFFER reports the reader buffer status.
+<li>DECODER_SAVEDATA tells the decoder to start saving the stream to HD.
+</ul>
+<li>params: structure that contains the parameters needed by the preceding
+commands.
+<li>return value:<br>
+0 -> ok.<br>
+1 -> command unsupported.<br>
+1xx -> msg specific.<br>
+</ul>
+<p>
+There is a lot of commands to implement for this function. Parameters
+needed for each of the are described in the definition of the structure
+in the .h file.
+<p>
+The decoder plug-in MUST <i>WinPostMsg()</i> the following messages to <i>hwnd</i>:
+<ul>
+<li>WM_PLAYSTOP when the stream has finished decoding.
+<li>WM_PLAYERROR when a playback error occured so that PM123 should know to
+stop immediately.
+<li>WM_SEEKSTOP when a JUMPTO operation is completed (ie.: when no buffers
+from before the seek is sent to the output plugin anymore).
+<li>WM_CHANGEBR is sent whenever you want PM123 to change the display
+of the current bitrate. mp1 = current bitrate in kbit/s.
+<li>WM_METADATA is sent whenever streaming metadata is updated and
+contains the pointer to the streaming metadata in mp1. This pointer
+should be the same one that is passed with DECODER_SETUP because it is
+garanteed to be available to PM123 without memory leaking.
+</ul>
+<p>
+Streaming metadata currently is for SHOUTcast (and icecast is using the same
+method), so it is a string with the following format:
+<pre>
+     StreamingTitle='blah blah';StreamingURL='more useless information';
+</pre>
+Only StreamingTitle is used by PM123.
+<pre>
+     ULONG _System decoder_status( void *w )
+</pre>
+<ul>
+<li>return value - One of the following:<br>
+DECODER_STOPPED<br>
+DECODER_PLAYING<br>
+DECODER_STARTING<br>
+</ul>
+<pre>
+     ULONG _System decoder_length( void *w )
+</pre>
+<ul>
+<li>return value - number of milliseconds the stream lasts (you can
+report -1 if unknown).
+</ul>
+<p>
+The call to this function must be valid even if <i>DECODER_STARTING</i> or
+<i>DECODER_STOPPED</i> is reported (when the stream plays too fast for
+example).
+<pre>
+     ULONG _System decoder_fileinfo ( char *filename, DECODER_INFO *info )
+     ULONG _System decoder_trackinfo( char *drive, int track, DECODER_INFO *info )
+</pre>
+<ul>
+<li>filename : full path or URL to the desired stream.
+<li>drive : ie.: "X:"
+<li>track : CD tracks start from 1.
+<li>info : this structure must be filled with the required information.
+<li>return value:<br>
+0 = everything's perfect, structure is set.<br>
+100 = error reading file (too small?).<br>
+200 = decoder can't play that.<br>
+1001 = http error occured.<br>
+other values = errno.
+</ul>
+<p>
+<i>decoder_fileinfo</i> and <i>decoder_trackinfo</i> (for CD
+decoders) must be independant from the current status of the decoder.
+It should always be functionnaly and give consistent results in any
+conditions.
+<pre>
+     ULONG _System decoder_cdinfo( char *drive, DECODER_CDINFO *info )
+</pre>
+<ul>
+<li>drive: ...
+<lI>info: required info on the number of tracks available from the
+decoder.</lI>
+</ul>
+<p>
+This is used by PM123 before calling <i>decoder_trackinfo</i>.
+<pre>
+    ULONG _System decoder_support( char *fileext[], int *size )
+</pre>
+<ul>
+<li>fileext: fill this array with all the wildcard expression matching
+filenames this decoder can play (each element is a 8 bytes char array).
+<li>size: number of wildcard expressions returned (if this value is not
+big enough, ie.: 0, return the appropriate size without filling
+fileext).
+<li>return value: return what kind of stream can the decoder play:<br>
+DECODER_FILENAME<br>
+DECODER_URL<br>
+DECODER_TRACK<br>
+DECODER_OTHER
+</ul>
+<p>
+This is used by PM123 to suggest to the user what he can play with the
+decoder. Extentions can be for example "*.MOD".
+</body>
+</html>
+
+

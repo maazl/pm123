@@ -1,0 +1,53 @@
+<html resid=1018>
+<head>
+   <title>Skin Utility</title>
+</head>
+<body>
+<b><font size=+2>PM123's Skin Utility (WinAmp Skins)</font></b>
+<p>PM123 comes with a skin utility (<tt>SKINUTIL.EXE</tt>),
+which can converts <a href="http://www.winamp.com">WinAmp</a> skins to
+PM123 skins. Here's an example how to convert a WinAmp skin (<tt>SKIN.ZIP</tt>):
+<pre>
+        [c:\pm123] md skin
+        [c:\pm123] cd skin
+        [c:\pm123\skin] unzip -j c:\files\skin.zip
+        Archive: c:/files/skin.zip
+          inflating: Viscolor.txt
+          inflating: Position.bmp
+          inflating: Main.BMP
+          inflating: Text.BMP
+          inflating: option.bmp
+          inflating: Cbuttons.bmp
+          inflating: Titlebar.BMP
+          inflating: Monoster.bmp
+          inflating: Posbar.bmp
+          inflating: Shufrep.bmp
+          inflating: Volume.BMP
+          inflating: Numbers.BMP
+          inflating: Playpaus.bmp
+        [c:\pm123\skin] cd ..
+        [c:\pm123] skinutil convert skin
+        PM123 Skin Utility (c) 1998 Taneli Leppä &lt;rosmo@sektori.com>
+        Processing skin/cbuttons.bmp.......
+        Processing skin/titlebar.bmp..........
+        Processing skin/text.bmp: abcdefghijklmnopqrstuvwxyz_-()&amp;.:0123456789öä ,+%[]
+        Processing skin/posbar.bmp..
+        Processing skin/volume.bmp...
+        Processing skin/shufrep.bmp:....
+        Processing skin/monoster.bmp:..
+        Processing skin/numbers.bmp:............
+        Processing skin/main.bmp:.
+        Creating skin.dat...
+        Creating skin.pak
+        Bundling...
+        124 images, total 212444 bytes (207 kB).
+        Creating skin.skn
+        Cleaning up...
+</pre>
+There you go. You can now load <tt>skin.skn</tt> from PM123. The skin utility
+also created files <tt>skin.pak</tt> and <tt>skin.dat</tt> that are required
+if you use the skin. You can also bundle your old skins with lots of small
+files into two files. Run <tt>skinutil.exe</tt> without any parameters
+to see help.
+</body>
+</html>

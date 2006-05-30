@@ -1,0 +1,13 @@
+
+/* BitchX */
+eval ^set format_version \$0+\$4\$5/\$2 \$3 : pm123/add-on
+
+/* PM123 irc script */
+
+alias pm123 {
+  ^exec -name query querysong
+  ^on ^exec "query *" {
+   //me is now playing: $1- [pm123]
+   echo [pm123] Playing file: $1-
+   }
+}

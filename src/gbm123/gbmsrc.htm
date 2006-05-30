@@ -1,0 +1,106 @@
+<HTML>
+<HEAD>
+<TITLE>Source for Generalised Bitmap Module</TITLE>
+<LINK REL="stylesheet" TYPE="text/css" HREF="gbm.css" MEDIA="all">
+</HEAD>
+<BODY>
+
+<H1>Source for Generalised Bitmap Module</H1>
+
+<P>This document should be used in conjunction with the
+main <A HREF="gbm.htm">documentation</A>.
+
+<!--...sPortability:0:-->
+<H2>Portability</H2>
+
+<P>This is all portable 32 bit C code.
+
+<P>The source has recently been compiled on
+OS/2 using VisualAge C++ 3.0 (with CTC306, CTD302 and CTU304),
+Win32 using Visual C++ (version 4.0, 4.2, 5.0 and 6.0),
+32 bit DOS using Watcom C/C++ version (10.6 and 11.0b) + CauseWay 1.3,
+AIX using xlc,
+and Linux using gcc 2.7.2.3 and egcs.
+
+<P>It should port to any modern 32 bit platform easily enough.
+<!--...e-->
+<!--...sPlatform specific customisation:0:-->
+<H2>Platform specific customisation</H2>
+
+<P>When you unzip the source package, you get a directory full of
+platform independant source files, and a few subdirectories containing
+platform dependant files.
+So your first step before building should be to copy the appropriate
+subdirectory into the main directory.
+eg: when building OS2
+
+<P>
+<PRE>
+  copy os2
+  nmake
+</PRE>
+
+<P>The platform dependant files are basically just <CODE>makefile</CODE>s,
+and the configuration file for the JPEG source.
+
+<P>The UNIX <CODE>makefile</CODE> supports a variety of different UNIXes.
+By default it supports Linux, but can be made to work on other UNIXes
+such as AIX, HP-UX and SunOS by invoking GNU make with a macro defined.
+eg: to make for HP-UX :-
+
+<P>
+<PRE>
+  make HP=1
+</PRE>
+
+<P>On platforms which don't support <CODE>ifdef</CODE> etc. in their make
+programs (like GNU make does), you can use my Make Pre-Processor script,
+called <CODE>mpp</CODE>, to produce a suitable <CODE>makefile</CODE>.
+<CODE>mpp</CODE> is just a little <CODE>awk</CODE> script which evaluates
+<CODE>ifdef</CODE>s.
+It is available from my home page.
+eg:
+
+<P>
+<PRE>
+  mpp makefile HP &gt; makefile.HP
+  make -f makefile.HP
+</PRE>
+<!--...e-->
+<!--...sJPEG support:0:-->
+<H2>JPEG support</H2>
+
+<P>To build with JPEG support, you need the Independant JPEG Groups library
+version 6a installed in a directory somewhere.
+
+<P>You then edit/check that the makefile you are using references this
+directory correctly.
+There is a make variable called <CODE>IJG</CODE> which must point to the
+correct directory.
+On UNIX, use of this directory is indicated by passing JPEG=1 to make.
+On PCs, you uncomment the <CODE>IJG</CODE> definition to make it active.
+
+<P>When building with JPEG support, the build process works by copying
+a shrunk down <CODE>makefile</CODE> called <CODE>makeijgo</CODE> to
+wherever the IJG 6a is installed, and also a configuration file.
+It then builds the library using compiler switches suitable for
+building objects which are to be a part of the main GBM library.
+
+<P>So, to build GBM for AIX, with JPEG support, assuming that IJG points
+to a suitable directory, remembering that vanilla <CODE>make</CODE> on AIX
+doesn't support <CODE>ifdef</CODE> :-
+
+<P>
+<PRE>
+  mpp makefile AIX JPEG &gt; makefile.AIX
+  make -f makefile.AIX
+</PRE>
+<!--...e-->
+<!--...sAuthor:0:-->
+<HR>
+This documentation was written by the GBM author, Andy Key
+<ADDRESS>ak@nyangau.fsnet.co.uk</ADDRESS>
+<!--...e-->
+
+</BODY>
+</HTML>

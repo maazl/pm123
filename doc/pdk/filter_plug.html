@@ -1,0 +1,50 @@
+<html>
+<head>
+   <title>Filter Plug-ins</title>
+</head>
+<body>
+<b><font size=+2>PM123 Filter Plug-ins</font></b>
+<p>
+Filter plug-ins must implement and export the functions defined in
+filter_plug.h. The interface for the filter plug-in is simple compared
+to the other types of plug-ins.<P>
+<pre>
+     ULONG _System filter_init  ( void **f, FILTER_PARAMS *params )
+     BOOL  _System filter_uninit( void *f )
+</pre>
+<ul>
+<li>f : Allocate any chunk of memory necessary for the filter's
+function.  This pointer will be passed to the other filter_play_samples.
+At the very least, you need to allocate memory to keep the in memory
+the location of output_play_samples() and it's parameter "a". 
+<li>return value : 0 means the filter was initialized successfully.
+</ul>
+<p>
+Init function is called when filter plug-in is about to be used.
+Multiple filter plug-ins are chained, so the pointers to
+output_play_samples() and it's parameter "a", might belong to another
+filter plug-in and not necessarily to the active output plug-in.
+<pre>
+     int _System filter_play_samples( void *f, FORMAT_INFO *format, char *buf,
+                                      int len, int posmarker )
+</pre>
+<ul>
+<li>format - format of buf.
+<li>buf - data to play.
+<li>len - length of buf.
+<li>posmarker = position marker to return with output_playing_pos.
+<li>return value: the number of bytes from len processed. ie.: 0 == error.
+</ul>
+<p>
+This function is called by the decoder or a previous in chain filter plug-in
+to filter samples.  Note that this function's prototype is identical to
+output_play_samples. This makes it possible to chain filter plug-ins.
+<p>
+Once you have modified the data in satisfactory way, call the
+output_play_samples() function with it's parameter "a" received from the
+init function, and use it with the modified samples of your filter
+plug-in. 
+</body>
+</html>
+
+

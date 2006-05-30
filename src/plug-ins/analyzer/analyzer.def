@@ -1,0 +1,9 @@
+LIBRARY analyzer INITINSTANCE TERMINSTANCE
+DESCRIPTION 'PM123 Spectrum Analyzer'
+PROTMODE
+DATA MULTIPLE NONSHARED LOADONCALL
+EXPORTS
+  vis_init          @1
+  plugin_query      @2
+  plugin_configure  @3
+  plugin_deinit     @4

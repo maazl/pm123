@@ -1,0 +1,50 @@
+<html resid=1012>
+<head>
+   <title>Netscape Navigator &amp; Mozilla Configuration</title>
+</head>
+<body>
+<b><font size=+2>PM123 Netscape Navigator &amp; Mozilla Configuration</font></b>
+<p>The procedure explains in details how to configure Netscape Navigator
+4.x and Mozilla in OS/2.  The MIME Types are the same than the ones that
+can be used in Netscape 2.x, but the menus and configuration dialogs are
+not the same.
+<p>To configure Netscape Navigator 4.x or Mozilla for OS/2 to use PM123 as
+a helper application for M3U type playlists, you will have to add the
+MIME type "audio/x-mpegurl".  And for SHOUTcast type playlists, you will
+have to add the type "audio/x-scpls". To add MIME Types, follow this
+procedure:
+<ul>
+<li>Open the <b>Edit</b> menu, and the
+<b>Preferences</b> submenu.  You will be presented with the
+Preferences dialog. </li>
+<li>In the <b>Navigator -> (Helper) Applications</b> Category are
+listed the different file types supported by your current
+configuration.</li>
+<li>Press the <b>New Type</b> button and add the required
+information. The screenshot below shows an example to configure
+SHOUTcast.</li>
+</ul>
+<p>NOTE: Netscape Navigator 4.x and Mozilla do not switch the session's
+path to the EXE's path.  Therefore, PM123 will not be able to find
+gbm123.dll and other DLLs installed by default in the PM123's directory.
+You will have to start PM123 in advance (thus preloading all needed
+DLLs) or you will have to add PM123's path to your LIBPATH CONFIG.SYS.
+<blockquote>
+<img src="images/netpref.gif">
+</blockquote>
+<p><b><font size=+2>Recommended settings</font></b>
+<blockquote>
+<b>Description of type:</b> MP3 Playlist<br>
+<b>File extension:</b> M3U PLS LST<br>
+<b>MIME Type:</b> audio/x-mpegurl<br>
+<b>Application to use:</b> x:\path\pm123.exe<br>
+<p>
+<b>Description of type:</b> SHOUTcast<br>
+<b>File extension:</b> PLS<br>
+<b>MIME Type:</b> audio/x-scpls<br>
+<b>Application to use:</b> x:\path\pm123.exe<br>
+</blockquote>
+Test it at <a href="http://www.shoutcast.com">SHOUTcast</a>!
+
+</body>
+</html>

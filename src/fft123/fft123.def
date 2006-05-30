@@ -1,0 +1,47 @@
+LIBRARY fft123 INITINSTANCE TERMINSTANCE
+PROTMODE
+DATA MULTIPLE NONSHARED LOADONCALL
+EXPORTS
+
+  fftwf_plan_dft                @1
+  fftwf_plan_dft_1d 	        @2
+  fftwf_plan_dft_2d 	        @3
+  fftwf_plan_dft_3d 	        @4
+  fftwf_plan_many_dft 	        @5
+  fftwf_plan_guru_dft 	        @6
+  fftwf_plan_guru_split_dft     @7
+  fftwf_plan_dft_r2c            @8 
+  fftwf_plan_dft_r2c_1d         @9 
+  fftwf_plan_dft_r2c_2d         @10
+  fftwf_plan_dft_r2c_3d         @11
+  fftwf_plan_many_dft_r2c       @12
+  fftwf_plan_guru_dft_r2c       @13
+  fftwf_plan_guru_split_dft_r2c	@14
+  fftwf_plan_dft_c2r            @15
+  fftwf_plan_dft_c2r_1d         @16
+  fftwf_plan_dft_c2r_2d         @17
+  fftwf_plan_dft_c2r_3d         @18
+  fftwf_plan_many_dft_c2r       @19
+  fftwf_plan_guru_dft_c2r       @20
+  fftwf_plan_guru_split_dft_c2r	@21
+  fftwf_plan_r2r                @22
+  fftwf_plan_r2r_1d             @23
+  fftwf_plan_r2r_2d             @24
+  fftwf_plan_r2r_3d             @25
+  fftwf_plan_many_r2r 	        @26
+  fftwf_plan_guru_r2r 	        @27
+
+  fftwf_execute                 @100
+  fftwf_execute_dft             @101
+  fftwf_execute_split_dft       @102
+  fftwf_execute_dft_r2c         @103
+  fftwf_execute_split_dft_r2c   @104
+  fftwf_execute_dft_c2r         @105
+  fftwf_execute_split_dft_c2r   @106
+  fftwf_execute_r2r             @107
+
+  fftwf_destroy_plan            @150
+  fftwf_cleanup                 @151
+
+  fftwf_malloc                  @200
+  fftwf_free                    @201
