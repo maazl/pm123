@@ -1,0 +1,1038 @@
+/*
+ * Copyright 1997-2003 Samuel Audet <guardia@step.polymtl.ca>
+ *                     Taneli Lepp„ <rosmo@sektori.com>
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are met:
+ *
+ *    1. Redistributions of source code must retain the above copyright notice,
+ *       this list of conditions and the following disclaimer.
+ *
+ *    2. Redistributions in binary form must reproduce the above copyright
+ *       notice, this list of conditions and the following disclaimer in the
+ *       documentation and/or other materials provided with the distribution.
+ *
+ *    3. The name of the author may not be used to endorse or promote products
+ *       derived from this software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR IMPLIED
+ * WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+ * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO
+ * EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+ * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
+ * OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+ * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+ * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
+ * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
+
+#define  INCL_WIN
+#include <os2.h>
+
+#include "pm123.h"
+#include "pfreq.h"
+#include "bookmark.h"
+#include "properties.h"
+#include "playlist.h"
+#include "skin.h"
+
+/* Small digits. */
+BITMAP DIG_SMALL        bmp\small_digit0.bmp
+BITMAP 1101             bmp\small_digit1.bmp
+BITMAP 1102             bmp\small_digit2.bmp
+BITMAP 1103             bmp\small_digit3.bmp
+BITMAP 1104             bmp\small_digit4.bmp
+BITMAP 1105             bmp\small_digit5.bmp
+BITMAP 1106             bmp\small_digit6.bmp
+BITMAP 1107             bmp\small_digit7.bmp
+BITMAP 1108             bmp\small_digit8.bmp
+BITMAP 1109             bmp\small_digit9.bmp
+
+/* Big digits. */
+BITMAP DIG_BIG          bmp\digit0.bmp
+BITMAP 1201             bmp\digit1.bmp
+BITMAP 1202             bmp\digit2.bmp
+BITMAP 1203             bmp\digit3.bmp
+BITMAP 1204             bmp\digit4.bmp
+BITMAP 1205             bmp\digit5.bmp
+BITMAP 1206             bmp\digit6.bmp
+BITMAP 1207             bmp\digit7.bmp
+BITMAP 1208             bmp\digit8.bmp
+BITMAP 1209             bmp\digit9.bmp
+BITMAP 1210             bmp\dotdot.bmp
+BITMAP 1211             bmp\nodotdot.bmp
+
+/* Digits for playlist total/index displays. */
+BITMAP DIG_PL_INDEX     bmp\small_digit0.bmp
+BITMAP 1661             bmp\small_digit1.bmp
+BITMAP 1662             bmp\small_digit2.bmp
+BITMAP 1663             bmp\small_digit3.bmp
+BITMAP 1664             bmp\small_digit4.bmp
+BITMAP 1665             bmp\small_digit5.bmp
+BITMAP 1666             bmp\small_digit6.bmp
+BITMAP 1667             bmp\small_digit7.bmp
+BITMAP 1668             bmp\small_digit8.bmp
+BITMAP 1669             bmp\small_digit9.bmp
+
+/* Digits for time and playlist left timers. */
+BITMAP DIG_TINY         bmp\small_digit0.bmp
+BITMAP 1641             bmp\small_digit1.bmp
+BITMAP 1642             bmp\small_digit2.bmp
+BITMAP 1643             bmp\small_digit3.bmp
+BITMAP 1644             bmp\small_digit4.bmp
+BITMAP 1645             bmp\small_digit5.bmp
+BITMAP 1646             bmp\small_digit6.bmp
+BITMAP 1647             bmp\small_digit7.bmp
+BITMAP 1648             bmp\small_digit8.bmp
+BITMAP 1649             bmp\small_digit9.bmp
+BITMAP 1650             bmp\small_digitd.bmp
+BITMAP 1651             bmp\small_digit0dark.bmp
+BITMAP 1652             bmp\small_digitddark.bmp
+
+/* Buttons. */
+BITMAP BMP_PLAY         bmp\play_down.bmp
+BITMAP BMP_PAUSE        bmp\pause_down.bmp
+BITMAP BMP_REW          bmp\rew_down.bmp
+BITMAP BMP_FWD          bmp\fwd_down.bmp
+BITMAP BMP_POWER        bmp\power_down.bmp
+BITMAP BMP_PREV         bmp\prev_down.bmp
+BITMAP BMP_NEXT         bmp\next_down.bmp
+BITMAP BMP_SHUFFLE      bmp\shuffle_down.bmp
+BITMAP BMP_REPEAT       bmp\repeat_down.bmp
+BITMAP BMP_PL           bmp\list_down.bmp
+BITMAP BMP_FLOAD        bmp\fload_down.bmp
+
+BITMAP BMP_N_PLAY       bmp\play_up.bmp
+BITMAP BMP_N_PAUSE      bmp\pause_up.bmp
+BITMAP BMP_N_REW        bmp\rew_up.bmp
+BITMAP BMP_N_FWD        bmp\fwd_up.bmp
+BITMAP BMP_N_POWER      bmp\power_up.bmp
+BITMAP BMP_N_PREV       bmp\prev_up.bmp
+BITMAP BMP_N_NEXT       bmp\next_up.bmp
+BITMAP BMP_N_SHUFFLE    bmp\shuffle_up.bmp
+BITMAP BMP_N_REPEAT     bmp\repeat_up.bmp
+BITMAP BMP_N_PL         bmp\list_up.bmp
+BITMAP BMP_N_FLOAD      bmp\fload_up.bmp
+
+/* Font 1 */
+BITMAP BMP_FONT1        bmp\font1\a.bmp
+BITMAP 1401             bmp\font1\b.bmp
+BITMAP 1402             bmp\font1\c.bmp
+BITMAP 1403             bmp\font1\d.bmp
+BITMAP 1404             bmp\font1\e.bmp
+BITMAP 1405             bmp\font1\f.bmp
+BITMAP 1406             bmp\font1\g.bmp
+BITMAP 1407             bmp\font1\h.bmp
+BITMAP 1408             bmp\font1\i.bmp
+BITMAP 1409             bmp\font1\j.bmp
+BITMAP 1410             bmp\font1\k.bmp
+BITMAP 1411             bmp\font1\l.bmp
+BITMAP 1412             bmp\font1\m.bmp
+BITMAP 1413             bmp\font1\n.bmp
+BITMAP 1414             bmp\font1\o.bmp
+BITMAP 1415             bmp\font1\p.bmp
+BITMAP 1416             bmp\font1\q.bmp
+BITMAP 1417             bmp\font1\r.bmp
+BITMAP 1418             bmp\font1\s.bmp
+BITMAP 1419             bmp\font1\t.bmp
+BITMAP 1420             bmp\font1\u.bmp
+BITMAP 1421             bmp\font1\v.bmp
+BITMAP 1422             bmp\font1\w.bmp
+BITMAP 1423             bmp\font1\x.bmp
+BITMAP 1424             bmp\font1\y.bmp
+BITMAP 1425             bmp\font1\z.bmp
+BITMAP 1426             bmp\font1\line.bmp
+BITMAP 1427             bmp\font1\_.bmp
+BITMAP 1428             bmp\font1\et.bmp
+BITMAP 1429             bmp\font1\dot.bmp
+BITMAP 1430             bmp\font1\sdigit0.bmp
+BITMAP 1431             bmp\font1\sdigit1.bmp
+BITMAP 1432             bmp\font1\sdigit2.bmp
+BITMAP 1433             bmp\font1\sdigit3.bmp
+BITMAP 1434             bmp\font1\sdigit4.bmp
+BITMAP 1435             bmp\font1\sdigit5.bmp
+BITMAP 1436             bmp\font1\sdigit6.bmp
+BITMAP 1437             bmp\font1\sdigit7.bmp
+BITMAP 1438             bmp\font1\sdigit8.bmp
+BITMAP 1439             bmp\font1\sdigit9.bmp
+BITMAP 1440             bmp\font1\space.bmp
+BITMAP 1441             bmp\font1\parenl.bmp
+BITMAP 1442             bmp\font1\parenr.bmp
+BITMAP 1443             bmp\font1\ae.bmp
+BITMAP 1444             bmp\font1\oe.bmp
+BITMAP 1445             bmp\font1\fl.bmp
+BITMAP 1446             bmp\font1\plat.bmp
+BITMAP 1447             bmp\font1\plus.bmp
+BITMAP 1448             bmp\font1\percent.bmp
+BITMAP 1449             bmp\font1\2parenl.bmp
+BITMAP 1450             bmp\font1\2parenr.bmp
+
+/* Font 2 */
+BITMAP BMP_FONT2        bmp\font2\a.bmp
+BITMAP 4401             bmp\font2\b.bmp
+BITMAP 4402             bmp\font2\c.bmp
+BITMAP 4403             bmp\font2\d.bmp
+BITMAP 4404             bmp\font2\e.bmp
+BITMAP 4405             bmp\font2\f.bmp
+BITMAP 4406             bmp\font2\g.bmp
+BITMAP 4407             bmp\font2\h.bmp
+BITMAP 4408             bmp\font2\i.bmp
+BITMAP 4409             bmp\font2\j.bmp
+BITMAP 4410             bmp\font2\k.bmp
+BITMAP 4411             bmp\font2\l.bmp
+BITMAP 4412             bmp\font2\m.bmp
+BITMAP 4413             bmp\font2\n.bmp
+BITMAP 4414             bmp\font2\o.bmp
+BITMAP 4415             bmp\font2\p.bmp
+BITMAP 4416             bmp\font2\q.bmp
+BITMAP 4417             bmp\font2\r.bmp
+BITMAP 4418             bmp\font2\s.bmp
+BITMAP 4419             bmp\font2\t.bmp
+BITMAP 4420             bmp\font2\u.bmp
+BITMAP 4421             bmp\font2\v.bmp
+BITMAP 4422             bmp\font2\w.bmp
+BITMAP 4423             bmp\font2\x.bmp
+BITMAP 4424             bmp\font2\y.bmp
+BITMAP 4425             bmp\font2\z.bmp
+BITMAP 4426             bmp\font2\line.bmp
+BITMAP 4427             bmp\font2\_.bmp
+BITMAP 4428             bmp\font2\et.bmp
+BITMAP 4429             bmp\font2\dot.bmp
+BITMAP 4430             bmp\font2\sdigit0.bmp
+BITMAP 4431             bmp\font2\sdigit1.bmp
+BITMAP 4432             bmp\font2\sdigit2.bmp
+BITMAP 4433             bmp\font2\sdigit3.bmp
+BITMAP 4434             bmp\font2\sdigit4.bmp
+BITMAP 4435             bmp\font2\sdigit5.bmp
+BITMAP 4436             bmp\font2\sdigit6.bmp
+BITMAP 4437             bmp\font2\sdigit7.bmp
+BITMAP 4438             bmp\font2\sdigit8.bmp
+BITMAP 4439             bmp\font2\sdigit9.bmp
+BITMAP 4440             bmp\font2\space.bmp
+BITMAP 4441             bmp\font2\parenl.bmp
+BITMAP 4442             bmp\font2\parenr.bmp
+BITMAP 4443             bmp\font2\ae.bmp
+BITMAP 4444             bmp\font2\oe.bmp
+BITMAP 4445             bmp\font2\fl.bmp
+BITMAP 4446             bmp\font2\plat.bmp
+BITMAP 4447             bmp\font2\plus.bmp
+BITMAP 4448             bmp\font2\percent.bmp
+BITMAP 4449             bmp\font2\2parenl.bmp
+BITMAP 4450             bmp\font2\2parenr.bmp
+
+/* Misc. */
+BITMAP BMP_LED          bmp\led.bmp
+BITMAP BMP_N_LED        bmp\noled.bmp
+BITMAP BMP_STEREO       bmp\stereo.bmp
+BITMAP BMP_MONO         bmp\mono.bmp
+BITMAP BMP_NO_CHANNELS  bmp\nochannels.bmp
+BITMAP BMP_SLIDER       bmp\slider.bmp
+BITMAP BMP_S_BGROUND    bmp\smallbg.bmp
+BITMAP BMP_VOLBAR       bmp\volbar.bmp
+BITMAP BMP_SINGLEPLAY   bmp\singleplay.bmp
+BITMAP BMP_LISTPLAY     bmp\listplay.bmp
+BITMAP BMP_NOFILE       bmp\nofile.bmp
+
+BITMAP BMP_BPS          bmp\norate.bmp
+BITMAP 1801             bmp\bps032.bmp
+BITMAP 1802             bmp\bps048.bmp
+BITMAP 1803             bmp\bps056.bmp
+BITMAP 1804             bmp\bps064.bmp
+BITMAP 1805             bmp\bps080.bmp
+BITMAP 1806             bmp\bps096.bmp
+BITMAP 1807             bmp\bps112.bmp
+BITMAP 1808             bmp\bps128.bmp
+BITMAP 1809             bmp\bps144.bmp
+BITMAP 1810             bmp\bps160.bmp
+BITMAP 1811             bmp\bps176.bmp
+BITMAP 1812             bmp\bps192.bmp
+BITMAP 1813             bmp\bps224.bmp
+BITMAP 1814             bmp\bps256.bmp
+BITMAP 1815             bmp\bps320.bmp
+
+BITMAP BMP_R_BGROUND    bmp\background.bmp
+BITMAP BMP_NOTL         bmp\timeleft_dark.bmp
+BITMAP BMP_TL           bmp\timeleft.bmp
+BITMAP BMP_NOPLIST      bmp\timeleft_dark.bmp
+BITMAP BMP_PLIST        bmp\timeleft.bmp
+
+/* Icons. */
+ICON   ICO_MAIN     pm123.ico
+ICON   ICO_MP3      mp3.ico
+ICON   ICO_MP3PLAY  mp3play.ico
+ICON   ICO_BOOKMARK bookmark.ico
+
+/* Playlist window ;-) */
+
+DLGTEMPLATE DLG_PLAYLIST
+BEGIN
+   DIALOG "PM123 Playlist", DLG_PLAYLIST, 4, 4, 400, 200,
+          WS_SAVEBITS | WS_CLIPCHILDREN | FS_SIZEBORDER,
+          FCF_TITLEBAR | FCF_SYSMENU | FCF_HIDEMAX | FCF_TASKLIST |
+          FCF_NOBYTEALIGN | FCF_SHELLPOSITION
+   BEGIN
+      CONTROL "", CNR_PLAYLIST, 0, 0, 0, 0, WC_CONTAINER,
+                  CCS_EXTENDSEL |  CCS_READONLY | CCS_MINIICONS | WS_TABSTOP | WS_VISIBLE
+   END
+END
+
+ACCELTABLE ACL_PLAYLIST
+BEGIN
+   "u",       IDM_PL_USE,         AF_CHAR | AF_CONTROL
+   VK_INSERT, IDM_PL_LOAD,        AF_VIRTUALKEY
+   "u",       IDM_PL_URL,         AF_CHAR | AF_ALT
+   "t",       IDM_PL_TRACK,       AF_CHAR | AF_ALT
+   "c",       IDM_PL_CLEAR,       AF_CHAR | AF_CONTROL
+   "s",       IDM_PL_LST_SAVE,    AF_CHAR | AF_CONTROL
+   "o",       IDM_PL_LOADL,       AF_CHAR | AF_CONTROL
+   "e",       IDM_PL_S_TAG,       AF_CHAR | AF_CONTROL
+   "w",       IDM_PL_S_DTAG,      AF_CHAR | AF_CONTROL
+   VK_DELETE, IDM_PL_S_DEL,       AF_VIRTUALKEY
+   VK_DELETE, IDM_PL_S_KILL,      AF_VIRTUALKEY | AF_CONTROL
+
+   VK_ESC,    SC_CLOSE,           AF_VIRTUALKEY | AF_SYSCOMMAND
+   VK_F10,    IDM_PL_MENUCONT,    AF_VIRTUALKEY | AF_SHIFT
+   VK_SPACE,  IDM_PL_MENU,        AF_VIRTUALKEY
+END
+
+MENU MNU_PLAYLIST
+{
+   MENUITEM "~Use this Playlist\tCtrl+U", IDM_PL_USE
+   SUBMENU "~Add...\tIns",                IDM_PL_ADD
+   {
+     MENUITEM "~Files...\tIns",           IDM_PL_LOAD
+     MENUITEM "~URL...\tAlt+U",           IDM_PL_URL
+     MENUITEM "~Tracks...\tAlt+T",        IDM_PL_TRACK
+   }
+   MENUITEM "~Clear\tCtrl+C",             IDM_PL_CLEAR
+   MENUITEM SEPARATOR
+   SUBMENU "Sort",                        IDM_PL_SORT
+   {
+     MENUITEM "Si~ze",                    IDM_PL_SORT_SIZE
+     MENUITEM "~Playing time",            IDM_PL_SORT_PLTIME
+     MENUITEM "~Filename",                IDM_PL_SORT_NAME
+     MENUITEM "~Songname",                IDM_PL_SORT_SONG
+     MENUITEM "~Random",                  IDM_PL_SORT_RANDOM
+   }
+   MENUITEM SEPARATOR
+   SUBMENU  "~Open...\tCtrl+O",           IDM_PL_OPEN
+   {
+     MENUITEM "~Playlist...\tCtrl+O",     IDM_PL_LOADL
+   }
+   SUBMENU  "~Save...\tCtrl+S",           IDM_PL_SAVE
+   {
+     MENUITEM "~LST playlist (PM123 format)...\tCtrl+S", IDM_PL_LST_SAVE
+     MENUITEM "~M3U playlist...",                        IDM_PL_M3U_SAVE
+   }
+}
+
+MENU MNU_RECORD
+{
+   MENUITEM "~Load\tEnter",                 IDM_PL_S_PLAY
+   MENUITEM "~Remove from list\tDel",       IDM_PL_S_DEL
+   MENUITEM SEPARATOR
+   MENUITEM "~Delete file\tCtrl+Del",       IDM_PL_S_KILL
+   MENUITEM SEPARATOR
+   MENUITEM "~Edit Tag...\tCtrl+E",         IDM_PL_S_TAG
+   MENUITEM "~Wipe Tag...\tCtrl+W",         IDM_PL_S_DTAG
+}
+
+ACCELTABLE ACL_MAIN
+BEGIN
+   "p",        IDM_M_PLAYLIST,  AF_CHAR | AF_CONTROL
+   "o",        IDM_M_LOADFILE,  AF_CHAR | AF_CONTROL
+   "u",        IDM_M_URL,       AF_CHAR | AF_ALT
+   "t",        IDM_M_TRACK,     AF_CHAR | AF_ALT
+   "e",        IDM_M_TAG,       AF_CHAR | AF_CONTROL
+   "s",        IDM_M_SAVE,      AF_CHAR | AF_CONTROL
+   "b",        IDM_M_ADDBOOK,   AF_CHAR | AF_CONTROL
+   "b",        IDM_M_EDITBOOK,  AF_CHAR | AF_ALT
+   "q",        IDM_M_EQUALIZE,  AF_CHAR | AF_CONTROL
+   "m",        IDM_M_MANAGER,   AF_CHAR | AF_CONTROL
+   "+",        IDM_M_VOL_RAISE, AF_CHAR
+   "=",        IDM_M_VOL_RAISE, AF_CHAR
+   "-",        IDM_M_VOL_LOWER, AF_CHAR
+    76,        BMP_PAUSE,       AF_SCANCODE
+
+   VK_F4 ,     BMP_POWER,       AF_VIRTUALKEY | AF_ALT
+   VK_F9 ,     IDM_M_MINIMIZE,  AF_VIRTUALKEY | AF_ALT
+   VK_F11,     IDM_M_MINIMIZE,  AF_VIRTUALKEY | AF_ALT
+   VK_ENTER,   BMP_PLAY,        AF_VIRTUALKEY
+   VK_NEWLINE, BMP_PLAY,        AF_VIRTUALKEY
+   VK_RIGHT,   BMP_FWD,         AF_VIRTUALKEY
+   VK_LEFT,    BMP_REW,         AF_VIRTUALKEY
+   VK_DOWN,    BMP_NEXT,        AF_VIRTUALKEY
+   VK_UP,      BMP_PREV,        AF_VIRTUALKEY
+   VK_SPACE,   IDM_M_MENU,      AF_VIRTUALKEY
+END
+
+MENU MNU_MAIN
+{
+   SUBMENU "~Load...\tCtrl+O",              IDM_M_LOAD
+   {
+     MENUITEM "~File...\tCtrl+O",           IDM_M_LOADFILE
+     MENUITEM "~URL...\tAlt+U",             IDM_M_URL
+     MENUITEM "~Track...\tAlt+T",           IDM_M_TRACK
+   }
+   MENUITEM "~Edit Tag...\tCtrl+E",         IDM_M_TAG
+   SUBMENU  "~Bookmarks",                   IDM_M_BOOKMARKS
+   {
+     MENUITEM "~Add current as bookmark\tCtrl+B", IDM_M_ADDBOOK
+     MENUITEM "~Edit bookmarks...\tAlt+B",        IDM_M_EDITBOOK
+   }
+   MENUITEM SEPARATOR
+   MENUITEM "Edit ~Playlist\tCtrl+P",       IDM_M_PLAYLIST
+   MENUITEM "E~qualizer...\tCtrl+Q",        IDM_M_EQUALIZE
+   MENUITEM "Playlist ~Manager...\tCtrl+M", IDM_M_MANAGER
+   MENUITEM SEPARATOR
+   MENUITEM "P~roperties...",               IDM_M_CFG
+   SUBMENU  "Pl~ayback",                    IDM_M_PLAYBACK
+   {
+     MENUITEM "P~lay/Stop\tEnter",          BMP_PLAY
+     MENUITEM "~Pause\tPad 5",              BMP_PAUSE
+     MENUITEM "Fast ~forward\tLeft",        BMP_FWD
+     MENUITEM "Fast ~backward\tRight",      BMP_REW
+     MENUITEM "~Next\tDown",                BMP_NEXT
+     MENUITEM "Pre~vious\tUp",              BMP_PREV
+     MENUITEM SEPARATOR
+     MENUITEM "~Raise volume\t+",           IDM_M_VOL_RAISE
+     MENUITEM "~Lower volume\t-",           IDM_M_VOL_LOWER
+   }
+   SUBMENU "Plu~g-ins",                     IDM_M_PLUG
+   {
+     MENUITEM "No plug-ins",                (IDM_M_PLUG + 1)
+   }
+   SUBMENU "Sk~ins",                        IDM_M_SKIN
+   {
+     MENUITEM "Load Sk~in...",              IDM_M_SKINLOAD
+     MENUITEM SEPARATOR
+     SUBMENU "Font",                        IDM_M_FONT
+     {
+       MENUITEM "Font ~1",                  IDM_M_FONT1
+       MENUITEM "Font ~2",                  IDM_M_FONT2
+     }
+     SUBMENU "Size",                        IDM_M_SIZE
+     {
+       MENUITEM "~Regular",                 IDM_M_NORMAL
+       MENUITEM "S~mall",                   IDM_M_SMALL
+       MENUITEM "~Tiny",                    IDM_M_TINY
+     }
+   }
+   MENUITEM SEPARATOR
+   MENUITEM "~Save Stream...\tCtrl+S",      IDM_M_SAVE
+   MENUITEM "~Float on Top",                IDM_M_FLOAT
+   MENUITEM "~Hide Window\tAlt+F9",         IDM_M_MINIMIZE
+}
+
+HELPTABLE HLP_MAIN
+{
+   HELPITEM WIN_MAIN,      HLP_MAIN_TABLE, IDH_MAIN_WINDOW
+   HELPITEM DLG_URL,       HLP_NULL_TABLE, IDH_MAIN
+   HELPITEM DLG_TRACK,     HLP_NULL_TABLE, IDH_MAIN
+   HELPITEM DLG_ID3TAG,    HLP_NULL_TABLE, IDH_ID3_EDITOR
+   HELPITEM DLG_CONFIG,    HLP_NULL_TABLE, IDH_PROPERTIES
+   HELPITEM DLG_BOOKMARKS, HLP_NULL_TABLE, IDH_MAIN
+   HELPITEM DLG_BM_ADD,    HLP_NULL_TABLE, IDH_MAIN
+   HELPITEM DLG_PLAYLIST,  HLP_NULL_TABLE, IDH_PL
+   HELPITEM DLG_PM,        HLP_NULL_TABLE, IDH_PM
+}
+
+HELPSUBTABLE HLP_MAIN_TABLE
+{
+   HELPSUBITEM IDM_M_LOAD,      IDH_MAIN_MENU
+   HELPSUBITEM IDM_M_SHUFFLE,   IDH_MAIN_MENU
+   HELPSUBITEM IDM_M_ABOUT,     IDH_MAIN_MENU
+   HELPSUBITEM IDM_M_CFG,       IDH_MAIN_MENU
+   HELPSUBITEM IDM_M_LOADFILE,  IDH_MAIN_MENU
+   HELPSUBITEM IDM_M_PLAYLIST,  IDH_MAIN_MENU
+   HELPSUBITEM IDM_M_MINIMIZE,  IDH_MAIN_MENU
+   HELPSUBITEM IDM_M_SMALL,     IDH_MAIN_MENU
+   HELPSUBITEM IDM_M_TINY,      IDH_MAIN_MENU
+   HELPSUBITEM IDM_M_NORMAL,    IDH_MAIN_MENU
+   HELPSUBITEM IDM_M_URL,       IDH_MAIN_MENU
+   HELPSUBITEM IDM_M_FONT1,     IDH_MAIN_MENU
+   HELPSUBITEM IDM_M_FONT2,     IDH_MAIN_MENU
+   HELPSUBITEM IDM_M_FONT,      IDH_MAIN_MENU
+   HELPSUBITEM IDM_M_SIZE,      IDH_MAIN_MENU
+   HELPSUBITEM IDM_M_SKIN,      IDH_MAIN_MENU
+   HELPSUBITEM IDM_M_SKINLOAD,  IDH_MAIN_MENU
+   HELPSUBITEM IDM_M_FLOAT,     IDH_MAIN_MENU
+   HELPSUBITEM IDM_M_EQUALIZE,  IDH_MAIN_MENU
+   HELPSUBITEM IDM_M_TAG,       IDH_MAIN_MENU
+   HELPSUBITEM IDM_M_MANAGER,   IDH_MAIN_MENU
+   HELPSUBITEM IDM_M_TRACK,     IDH_MAIN_MENU
+   HELPSUBITEM IDM_M_SAVE,      IDH_MAIN_MENU
+   HELPSUBITEM IDM_M_ADDBOOK,   IDH_MAIN_MENU
+   HELPSUBITEM IDM_M_EDITBOOK,  IDH_MAIN_MENU
+   HELPSUBITEM IDM_M_PLAYBACK,  IDH_MAIN_MENU
+   HELPSUBITEM IDM_M_VOL_RAISE, IDH_MAIN_MENU
+   HELPSUBITEM IDM_M_VOL_LOWER, IDH_MAIN_MENU
+}
+
+HELPSUBTABLE HLP_NULL_TABLE
+{
+}
+
+DLGTEMPLATE DLG_CONFIG
+BEGIN
+   DIALOG "PM123 Properties", DLG_CONFIG, 0, 0, 279, 206,
+          NOT WS_SAVEBITS | FS_SIZEBORDER | WS_CLIPCHILDREN,
+          FCF_TITLEBAR | FCF_SYSMENU | FCF_MAXBUTTON | FCF_TASKLIST | FCF_NOBYTEALIGN
+          PRESPARAMS PP_FONTNAMESIZE "8.Helv"
+   BEGIN
+        CONTROL "", NB_CONFIG, 3, 21, 273, 182,
+                    WC_NOTEBOOK, BKS_BACKPAGESTR | BKS_MAJORTABTOP | BKS_TABBEDDIALOG |
+                    WS_GROUP | WS_TABSTOP | WS_VISIBLE
+        CONTROL "~Undo", PB_UNDO, 80, 4, 35, 13, WC_BUTTON,
+                BS_PUSHBUTTON | WS_VISIBLE | WS_GROUP | WS_TABSTOP
+        CONTROL "~Default", PB_DEFAULT, 117, 4, 35, 13, WC_BUTTON,
+                BS_PUSHBUTTON | WS_VISIBLE | WS_GROUP | WS_TABSTOP
+        CONTROL "~Help", PB_HELP, 153, 4, 35, 13, WC_BUTTON,
+                BS_PUSHBUTTON | WS_VISIBLE | WS_GROUP | WS_TABSTOP
+   END
+END
+
+DLGTEMPLATE CFG_PAGE1
+BEGIN
+   DIALOG "Config", CFG_PAGE1, 13, 27, 260, 154, NOT FS_DLGBORDER | FS_NOBYTEALIGN
+   PRESPARAMS PP_FONTNAMESIZE "8.Helv"
+   BEGIN
+        CONTROL "Behaviour", GB_BEHAVIOUR, 6, 62, 244, 76, WC_STATIC,
+                SS_GROUPBOX | DT_LEFT | DT_TOP | DT_MNEMONIC | WS_VISIBLE
+        PRESPARAMS PP_FONTNAMESIZE "9.WarpSans Bold"
+        CONTROL "Play & load ", ST_PLAYANDLOAD, 11, 121, 45, 8, WC_STATIC,
+                SS_TEXT | DT_LEFT | DT_TOP | DT_MNEMONIC | WS_VISIBLE | WS_GROUP
+        PRESPARAMS PP_FONTNAMESIZE "9.WarpSans Bold"
+        PRESPARAMS PP_FOREGROUNDCOLOR , 0x0L
+
+        CONTROL "Sta~rt playing on file load", CB_PLAYONLOAD, 11, 111, 91, 10, WC_BUTTON,
+                BS_AUTOCHECKBOX | WS_VISIBLE | WS_TABSTOP
+        CONTROL "Auto 'us~e playlist' on add", CB_AUTOUSEPL, 11, 101, 86, 10, WC_BUTTON,
+                BS_AUTOCHECKBOX | WS_VISIBLE | WS_TABSTOP
+        CONTROL "Auto '~play' on 'use playlist'", CB_AUTOPLAYPL, 11, 91, 93, 10, WC_BUTTON,
+                BS_AUTOCHECKBOX | WS_VISIBLE | WS_TABSTOP
+        CONTROL "~Select played file", CB_SELECTPLAYED, 11, 81, 93, 10, WC_BUTTON,
+                BS_AUTOCHECKBOX | WS_VISIBLE | WS_TABSTOP
+        CONTROL "~Trash buffers on seek", CB_TRASHONSEEK, 11, 71, 77, 10, WC_BUTTON,
+                BS_AUTOCHECKBOX | WS_VISIBLE | WS_TABSTOP
+
+        CONTROL "Scroll", ST_SCROLL, 109, 121, 45, 8, WC_STATIC,
+                SS_TEXT | DT_LEFT | DT_TOP | DT_MNEMONIC | WS_VISIBLE | WS_GROUP
+        PRESPARAMS PP_FONTNAMESIZE "9.WarpSans Bold"
+        PRESPARAMS PP_FOREGROUNDCOLOR , 0x0L
+        CONTROL "~Infinite", RB_SCROLL_INFINITE, 109, 111, 39, 10, WC_BUTTON,
+                 BS_AUTORADIOBUTTON | WS_VISIBLE | WS_TABSTOP | WS_GROUP
+        CONTROL "~Once", RB_SCROLL_ONCE, 109, 101, 39, 10, WC_BUTTON,
+                 BS_AUTORADIOBUTTON | WS_VISIBLE
+        CONTROL "Disa~ble", RB_SCROLL_DISABLE, 109, 91, 39, 10, WC_BUTTON,
+                 BS_AUTORADIOBUTTON | WS_VISIBLE
+
+        CONTROL "Default display", ST_DISPLAY, 170, 121, 57, 8, WC_STATIC,
+                SS_TEXT | DT_LEFT | DT_TOP | DT_MNEMONIC | WS_VISIBLE | WS_GROUP
+        PRESPARAMS PP_FOREGROUNDCOLOR , 0x0L
+        PRESPARAMS PP_FONTNAMESIZE "9.WarpSans Bold"
+        CONTROL "~Filename", RB_DISP_FILENAME, 170, 111, 50, 9, WC_BUTTON,
+                BS_AUTORADIOBUTTON | WS_VISIBLE | WS_TABSTOP | WS_GROUP
+        CONTROL "~ID3 Tag", RB_DISP_ID3TAG, 170, 101, 50, 9, WC_BUTTON,
+                BS_AUTORADIOBUTTON | WS_VISIBLE
+        CONTROL "Fil~e Info", RB_DISP_FILEINFO, 170, 91, 50, 9, WC_BUTTON,
+                BS_AUTORADIOBUTTON | WS_VISIBLE
+
+        CONTROL "~Charset", ST_CHARSET, 109, 78, 28, 10, WC_STATIC,
+                SS_TEXT | DT_LEFT | DT_VCENTER | WS_VISIBLE | DT_MNEMONIC
+        PRESPARAMS PP_FOREGROUNDCOLOR, 0x0L
+        CONTROL "",  CB_CHARSET, 138, 23, 106, 65, WC_COMBOBOX,
+                CBS_DROPDOWNLIST | WS_GROUP | WS_TABSTOP | WS_VISIBLE
+
+        CONTROL "~Dock playlist window at", CB_DOCK, 109, 65, 80, 10, WC_BUTTON,
+                BS_AUTOCHECKBOX | WS_VISIBLE | WS_TABSTOP
+        CONTROL "", EF_DOCK, 191, 66, 10, 8, WC_ENTRYFIELD,
+                ES_LEFT | ES_AUTOSCROLL | ES_MARGIN |  WS_VISIBLE | WS_TABSTOP
+        CTLDATA 8, 2, 0, 0
+        CONTROL "pixels", ST_PIXELS, 205, 65, 30, 10, WC_STATIC,
+                SS_TEXT | DT_LEFT | DT_VCENTER | WS_VISIBLE
+        PRESPARAMS PP_FOREGROUNDCOLOR, 0x0L
+
+        CONTROL "Streaming audio", GB_STREAMING, 6, 6, 244, 55, WC_STATIC,
+                SS_GROUPBOX | DT_LEFT | DT_TOP | DT_MNEMONIC | WS_VISIBLE | WS_GROUP
+        PRESPARAMS PP_FONTNAMESIZE "9.WarpSans Bold"
+
+        CONTROL "HTTP proxy URL", ST_PROXY_URL, 13, 43, 51, 8, WC_STATIC,
+                SS_TEXT | DT_RIGHT | DT_VCENTER | DT_MNEMONIC | WS_VISIBLE
+        PRESPARAMS PP_FOREGROUNDCOLOR, 0x0L
+        CONTROL "", EF_PROXY_URL, 69, 43, 173, 8, WC_ENTRYFIELD,
+                ES_LEFT | ES_AUTOSCROLL | ES_MARGIN |  WS_VISIBLE | WS_TABSTOP
+        CTLDATA 8, 1024, 0, 0
+        CONTROL "HTTP auth", ST_HTTP_AUTH, 13, 29, 51, 8, WC_STATIC,
+                SS_TEXT | DT_RIGHT | DT_VCENTER | DT_MNEMONIC | WS_VISIBLE
+        PRESPARAMS PP_FOREGROUNDCOLOR , 0x0L
+        CONTROL "", EF_HTTP_AUTH, 69, 29, 173, 8, WC_ENTRYFIELD,
+                ES_LEFT | ES_AUTOSCROLL | ES_MARGIN |  WS_VISIBLE | WS_TABSTOP
+        CTLDATA 8, 256, 0, 0
+
+        CONTROL "Buffer size", ST_BUFFERSIZE, 14, 12, 35, 8, WC_STATIC,
+                SS_TEXT | DT_RIGHT | DT_VCENTER | DT_MNEMONIC | WS_VISIBLE
+        PRESPARAMS PP_FOREGROUNDCOLOR, 0x0L
+        CONTROL "", SB_BUFFERSIZE, 55, 11, 39, 12, WC_SPINBUTTON,
+                SPBS_MASTER | SPBS_NUMERICONLY | SPBS_JUSTLEFT | WS_VISIBLE | WS_TABSTOP
+        CONTROL "kB", ST_KB, 98, 12, 14, 8, WC_STATIC,
+                SS_TEXT | DT_LEFT | DT_VCENTER | DT_MNEMONIC | WS_VISIBLE
+        PRESPARAMS PP_FOREGROUNDCOLOR , 0x0L
+        CONTROL "Fi~ll buffer before playing", CB_FILLBUFFER, 120, 11, 86, 10, WC_BUTTON,
+                BS_AUTOCHECKBOX | WS_VISIBLE | WS_TABSTOP
+   END
+END
+
+DLGTEMPLATE CFG_PAGE2
+BEGIN
+   DIALOG "Config", CFG_PAGE2, 13, 27, 260, 138, NOT FS_DLGBORDER | FS_NOBYTEALIGN
+   PRESPARAMS PP_FONTNAMESIZE "8.Helv"
+   BEGIN
+        CONTROL "Visual Plugins", GB_VISUALPLUGINS, 6, 63, 245, 56, WC_STATIC,
+                SS_GROUPBOX | DT_LEFT | DT_TOP | DT_MNEMONIC | WS_VISIBLE
+        PRESPARAMS PP_FONTNAMESIZE "9.WarpSans Bold"
+        CONTROL "", LB_VISPLUG, 13, 68, 102, 44, WC_LISTBOX,
+                WS_VISIBLE | WS_GROUP | WS_TABSTOP
+        CONTROL "~Enable", PB_VIS_ENABLE, 119, 100, 32, 12, WC_BUTTON,
+                BS_PUSHBUTTON | WS_VISIBLE | WS_GROUP | WS_TABSTOP
+        CONTROL "U~nload", PB_VIS_UNLOAD, 152, 100, 31, 12, WC_BUTTON,
+                BS_PUSHBUTTON | WS_VISIBLE | WS_TABSTOP
+        CONTROL "Author: <none>", ST_VIS_AUTHOR, 122, 92, 123, 7, WC_STATIC,
+                SS_TEXT | DT_LEFT | DT_TOP | DT_MNEMONIC | WS_VISIBLE
+        PRESPARAMS PP_FOREGROUNDCOLOR , 0x0L
+        CONTROL "Desc: <none>", ST_VIS_DESC, 122, 84, 123, 7, WC_STATIC,
+                SS_TEXT | DT_LEFT | DT_TOP | DT_MNEMONIC | WS_VISIBLE
+        PRESPARAMS PP_FOREGROUNDCOLOR , 0x0L
+        CONTROL "~Configure", PB_VIS_CONFIG , 119, 65, 44, 12, WC_BUTTON,
+                BS_PUSHBUTTON | WS_VISIBLE | WS_TABSTOP
+        CONTROL "~Add", PB_VIS_ADD, 164, 65, 44, 12, WC_BUTTON,
+                BS_PUSHBUTTON | WS_VISIBLE | WS_TABSTOP
+
+        CONTROL "Decoder Plugins ", GB_DECODERPLUGINS, 6, 5, 245, 56, WC_STATIC,
+                SS_GROUPBOX | DT_LEFT | DT_TOP | DT_MNEMONIC | WS_VISIBLE
+        PRESPARAMS PP_FONTNAMESIZE "9.WarpSans Bold"
+        CONTROL "", LB_DECPLUG, 13, 10, 102, 44, WC_LISTBOX,
+                WS_VISIBLE | WS_GROUP | WS_TABSTOP
+        CONTROL "~Enable", PB_DEC_ENABLE, 119, 42, 32, 12, WC_BUTTON,
+                BS_PUSHBUTTON | WS_VISIBLE | WS_GROUP | WS_TABSTOP
+        CONTROL "U~nload", PB_DEC_UNLOAD, 152, 42, 31, 12, WC_BUTTON,
+                BS_PUSHBUTTON | WS_VISIBLE | WS_TABSTOP
+        CONTROL "Author: <none>", ST_DEC_AUTHOR, 122, 35, 123, 7, WC_STATIC,
+                SS_TEXT | DT_LEFT | DT_TOP | DT_MNEMONIC | WS_VISIBLE
+        PRESPARAMS PP_FOREGROUNDCOLOR , 0x0L
+        CONTROL "Desc: <none>", ST_DEC_DESC, 122, 27, 123, 7, WC_STATIC,
+                SS_TEXT | DT_LEFT | DT_TOP | DT_MNEMONIC | WS_VISIBLE
+        PRESPARAMS PP_FOREGROUNDCOLOR , 0x0L
+        CONTROL "~Configure", PB_DEC_CONFIG , 119, 7, 44, 12, WC_BUTTON,
+                BS_PUSHBUTTON | WS_VISIBLE | WS_TABSTOP
+        CONTROL "~Add", PB_DEC_ADD, 164, 7, 44, 12, WC_BUTTON,
+                BS_PUSHBUTTON | WS_VISIBLE | WS_TABSTOP
+   END
+END
+
+DLGTEMPLATE CFG_PAGE3
+BEGIN
+   DIALOG "Config", CFG_PAGE3, 13, 27, 260, 138, NOT FS_DLGBORDER | FS_NOBYTEALIGN
+   PRESPARAMS PP_FONTNAMESIZE "8.Helv"
+   BEGIN
+        CONTROL "Filter Plugins ", GB_FILPLUG, 6, 63, 245, 56, WC_STATIC,
+                SS_GROUPBOX | DT_LEFT | DT_TOP | DT_MNEMONIC | WS_VISIBLE | WS_GROUP
+        PRESPARAMS PP_FONTNAMESIZE "9.WarpSans Bold"
+        CONTROL "", LB_FILPLUG, 13, 68, 102, 44, WC_LISTBOX,
+                WS_VISIBLE | WS_TABSTOP
+        CONTROL "~Enable", PB_FIL_ENABLE, 119, 100, 32, 12, WC_BUTTON,
+                BS_PUSHBUTTON | WS_VISIBLE | WS_GROUP | WS_TABSTOP
+        CONTROL "U~nload", PB_FIL_UNLOAD, 152, 100, 31, 12, WC_BUTTON,
+                BS_PUSHBUTTON | WS_VISIBLE | WS_TABSTOP
+        CONTROL "Author: <none>", ST_FIL_AUTHOR, 122, 92, 123, 7, WC_STATIC,
+                SS_TEXT | DT_LEFT | DT_TOP | DT_MNEMONIC | WS_VISIBLE
+        PRESPARAMS PP_FOREGROUNDCOLOR , 0x0L
+        CONTROL "Desc: <none>", ST_FIL_DESC, 122, 84, 123, 7, WC_STATIC,
+                SS_TEXT | DT_LEFT | DT_TOP | DT_MNEMONIC | WS_VISIBLE
+        PRESPARAMS PP_FOREGROUNDCOLOR , 0x0L
+        CONTROL "~Configure", PB_FIL_CONFIG , 119, 65, 44, 12, WC_BUTTON,
+                BS_PUSHBUTTON | WS_VISIBLE | WS_TABSTOP
+        CONTROL "~Add", PB_FIL_ADD, 164, 65, 44, 12, WC_BUTTON,
+                BS_PUSHBUTTON | WS_VISIBLE | WS_TABSTOP
+
+        CONTROL "Output Plugins ", GB_OUTPLUG, 6, 5, 245, 56, WC_STATIC,
+                SS_GROUPBOX | DT_LEFT | DT_TOP | DT_MNEMONIC | WS_VISIBLE | WS_GROUP
+        PRESPARAMS PP_FONTNAMESIZE "9.WarpSans Bold"
+        CONTROL "", LB_OUTPLUG, 13, 10, 102, 44, WC_LISTBOX,
+                WS_VISIBLE | WS_TABSTOP
+        CONTROL "~Activate", PB_OUT_ACTIVATE, 119, 42, 32, 12, WC_BUTTON,
+                BS_PUSHBUTTON | WS_VISIBLE | WS_GROUP | WS_TABSTOP
+        CONTROL "U~nload", PB_OUT_UNLOAD, 152, 42, 31, 12, WC_BUTTON,
+                BS_PUSHBUTTON | WS_VISIBLE | WS_TABSTOP
+        CONTROL "Author: <none>", ST_OUT_AUTHOR, 122, 35, 123, 7,
+                WC_STATIC, SS_TEXT | DT_LEFT | DT_TOP | DT_MNEMONIC | WS_VISIBLE
+        PRESPARAMS PP_FOREGROUNDCOLOR , 0x0L
+        CONTROL "Desc: <none>", ST_OUT_DESC, 122, 27, 123, 7, WC_STATIC,
+                SS_TEXT | DT_LEFT | DT_TOP | DT_MNEMONIC | WS_VISIBLE
+        PRESPARAMS PP_FOREGROUNDCOLOR , 0x0L
+        CONTROL "~Configure", PB_OUT_CONFIG , 119, 7, 44, 12,
+                WC_BUTTON, BS_PUSHBUTTON | WS_VISIBLE | WS_TABSTOP
+        CONTROL "~Add", PB_OUT_ADD, 164, 7, 44, 12, WC_BUTTON,
+                BS_PUSHBUTTON | WS_VISIBLE | WS_TABSTOP
+   END
+END
+
+DLGTEMPLATE CFG_ABOUT
+BEGIN
+   DIALOG "About", CFG_ABOUT, 16, 25, 259, 138, NOT FS_DLGBORDER | FS_NOBYTEALIGN
+   PRESPARAMS PP_FONTNAMESIZE "8.Helv"
+   BEGIN
+        CONTROL "PM123 1.31", ST_TITLE1, 7, 123, 248, 15, WC_STATIC,
+                SS_TEXT | DT_CENTER | DT_VCENTER | DT_MNEMONIC | WS_VISIBLE | WS_GROUP
+        PRESPARAMS PP_FONTNAMESIZE "24.Tms Rmn Bold Italic"
+        PRESPARAMS PP_FOREGROUNDCOLOR , 0x0L
+        CONTROL "High Performance MPEG-Audio Player for Layer 1, 2 and 3.", ST_TITLE2, 2, 114, 251, 8, WC_STATIC,
+                SS_TEXT | DT_CENTER | DT_VCENTER | DT_MNEMONIC | WS_VISIBLE | WS_GROUP
+        PRESPARAMS PP_FOREGROUNDCOLOR , 0x0L
+        CONTROL "", ST_BUILT,  2, 106, 251, 8, WC_STATIC,
+                SS_TEXT | DT_CENTER | DT_VCENTER | DT_MNEMONIC | WS_VISIBLE | WS_GROUP
+        PRESPARAMS PP_FOREGROUNDCOLOR , 0x0L
+        CONTROL "Authors", GB_AUTHORS, 10, 55, 238, 50, WC_STATIC,
+                SS_GROUPBOX | DT_LEFT | DT_TOP | DT_MNEMONIC | WS_VISIBLE | WS_GROUP
+        CONTROL "", ST_AUTHORS, 13, 57, 232, 40, WC_MLE,
+                MLS_READONLY | MLS_VSCROLL | MLS_HSCROLL | WS_VISIBLE | WS_GROUP | WS_TABSTOP
+        PRESPARAMS PP_BACKGROUNDCOLORINDEX , 15L
+        CONTROL "Copyright, Credits and Greetings", GB_CREDITS, 10, 5, 238, 48,
+                WC_STATIC, SS_GROUPBOX | DT_LEFT | DT_TOP | DT_MNEMONIC | WS_VISIBLE | WS_GROUP
+        CONTROL "", ST_CREDITS, 13, 7, 232, 38, WC_MLE,
+                MLS_READONLY | MLS_WORDWRAP | MLS_VSCROLL | WS_VISIBLE | WS_GROUP | WS_TABSTOP
+        PRESPARAMS PP_BACKGROUNDCOLORINDEX , 15L
+   END
+
+END
+
+DLGTEMPLATE DLG_ID3TAG
+BEGIN
+   DIALOG "ID3 Tag Editor", DLG_ID3TAG, 10, 10, 280, 150,
+          WS_SAVEBITS | FS_SIZEBORDER,
+          FCF_TITLEBAR | FCF_SYSMENU | FCF_CLOSEBUTTON | FCF_NOBYTEALIGN
+   BEGIN
+        CONTROL "", NB_ID3TAG, 0, 0, 100, 100,
+                WC_NOTEBOOK, BKS_BACKPAGESTR | BKS_MAJORTABTOP | BKS_TABBEDDIALOG |
+                WS_GROUP | WS_TABSTOP | WS_VISIBLE
+        PRESPARAMS PP_FONTNAMESIZE "8.Helv"
+   END
+END
+
+DLGTEMPLATE DLG_ID3V10 LOADONCALL MOVEABLE DISCARDABLE
+BEGIN
+   DIALOG "", DLG_ID3V10, 18, 24, 264, 111,
+          NOT WS_SAVEBITS | NOT FS_DLGBORDER | FS_NOBYTEALIGN
+          PRESPARAMS PP_FONTNAMESIZE "8.Helv"
+   BEGIN
+        CONTROL "Song title", ST_ID3_TITLE, 19, 83, 58, 8, WC_STATIC,
+                SS_TEXT | DT_RIGHT | DT_TOP | DT_MNEMONIC | WS_VISIBLE
+        CONTROL "", EN_ID3_TITLE, 83, 84, 152, 8, WC_ENTRYFIELD,
+                ES_LEFT | ES_AUTOSCROLL | ES_MARGIN |  WS_VISIBLE | WS_GROUP | WS_TABSTOP
+        CTLDATA 8, 30, 0, 0
+        CONTROL "Artist's name", ST_ID3_ARTIST, 19, 70, 58, 8, WC_STATIC,
+                SS_TEXT | DT_RIGHT | DT_TOP | DT_MNEMONIC | WS_VISIBLE
+        CONTROL "", EN_ID3_ARTIST, 83, 70, 152, 8, WC_ENTRYFIELD,
+                ES_LEFT | ES_AUTOSCROLL | ES_MARGIN |  WS_VISIBLE | WS_TABSTOP
+        CTLDATA 8, 30, 0, 0
+        CONTROL "Album name", ST_ID3_ALBUM, 19, 56, 58, 8, WC_STATIC,
+                SS_TEXT | DT_RIGHT | DT_TOP | DT_MNEMONIC | WS_VISIBLE
+        CONTROL "", EN_ID3_ALBUM, 83, 56, 152, 8, WC_ENTRYFIELD,
+                ES_LEFT | ES_AUTOSCROLL | ES_MARGIN |  WS_VISIBLE | WS_TABSTOP
+        CTLDATA 8, 30, 0, 0
+        CONTROL "Comment", ST_ID3_COMMENT, 19, 42, 58, 8, WC_STATIC,
+                SS_TEXT | DT_RIGHT | DT_TOP | DT_MNEMONIC | WS_VISIBLE
+        CONTROL "", EN_ID3_COMMENT, 83, 42, 152, 8, WC_ENTRYFIELD,
+                ES_LEFT | ES_AUTOSCROLL | ES_MARGIN |  WS_VISIBLE | WS_TABSTOP
+        CTLDATA 8, 30, 0, 0
+        CONTROL "Music style", ST_ID3_GENRE, 19, 29, 58, 8, WC_STATIC,
+                SS_TEXT | DT_RIGHT | DT_TOP | DT_MNEMONIC | WS_VISIBLE
+        CONTROL "", CB_ID3_GENRE, 81, -10, 89, 48, WC_COMBOBOX,
+                CBS_DROPDOWNLIST | WS_VISIBLE | WS_TABSTOP
+        CONTROL "Release year", ST_ID3_YEAR, 19, 16, 58, 8, WC_STATIC,
+                SS_TEXT | DT_RIGHT | DT_TOP | DT_MNEMONIC | WS_VISIBLE
+        CONTROL "", EN_ID3_YEAR, 83, 16, 50, 8, WC_ENTRYFIELD,
+                ES_LEFT | ES_AUTOSCROLL | ES_MARGIN |  WS_VISIBLE | WS_TABSTOP
+        CTLDATA 8, 4, 0, 0
+        PUSHBUTTON "~Undo", PB_ID3_UNDO, 188, 14, 51, 14,
+                   BS_PUSHBUTTON | WS_VISIBLE | WS_TABSTOP | BS_NOPOINTERFOCUS
+   END
+END
+
+DLGTEMPLATE DLG_URL
+BEGIN
+   DIALOG "Load URL", DLG_URL, 20, -20, 283, 34, WS_VISIBLE,
+                      FCF_TITLEBAR | FCF_SYSMENU | FCF_CLOSEBUTTON
+        PRESPARAMS PP_FONTNAMESIZE "8.Helv"
+   BEGIN
+        CONTROL "", ENT_URL, 6, 20, 271, 9, WC_ENTRYFIELD,
+                ES_LEFT | ES_AUTOSCROLL | ES_MARGIN |  WS_VISIBLE | WS_GROUP | WS_TABSTOP
+        CONTROL "~Ok", DID_OK, 2, 2, 35, 12,
+                WC_BUTTON, BS_PUSHBUTTON | BS_DEFAULT | WS_VISIBLE | WS_TABSTOP | WS_GROUP
+        CONTROL "~Cancel", DID_CANCEL, 40, 2, 33, 12,
+                WC_BUTTON, BS_PUSHBUTTON | WS_VISIBLE
+   END
+END
+
+DLGTEMPLATE DLG_TRACK
+BEGIN
+   DIALOG "Load Track", DLG_TRACK, 20, 20, 125, 106, WS_VISIBLE,
+                        FCF_TITLEBAR | FCF_SYSMENU | FCF_CLOSEBUTTON
+        PRESPARAMS PP_FONTNAMESIZE "8.Helv"
+   BEGIN
+        DEFPUSHBUTTON "~OK", DID_OK, 4, 90, 50, 12, WS_GROUP
+        PUSHBUTTON "~Cancel", DID_CANCEL, 4, 76, 50, 12
+        CONTROL "~Drive:", ST_DRIVE, 5, 56, 25, 8, WC_STATIC,
+                           SS_TEXT | DT_LEFT | DT_TOP | DT_MNEMONIC | WS_GROUP | WS_VISIBLE
+        PRESPARAMS PP_FONTNAMESIZE "8.Helv"
+        CONTROL "", CB_DRIVE, 28, 27, 25, 38, WC_COMBOBOX,
+                    CBS_DROPDOWN | WS_TABSTOP | WS_VISIBLE
+        PUSHBUTTON "~Refresh", PB_REFRESH, 4, 40, 50, 12, WS_TABSTOP
+        LISTBOX LB_TRACKS, 60, 4, 60, 98, WS_TABSTOP | WS_GROUP | LS_NOADJUSTPOS
+   END
+END
+
+DLGTEMPLATE DLG_EQUALIZER
+BEGIN
+   DIALOG "Graphical Sound Equalizer", 100, 20, 67, 238, 109, WS_SAVEBITS, FCF_TITLEBAR | FCF_SYSMENU | FCF_CLOSEBUTTON | FCF_NOBYTEALIGN
+   BEGIN
+        CONTROL "Preamplifier", 142, 10, 96, 41, 8, WC_STATIC, SS_TEXT | DT_LEFT | DT_TOP | DT_MNEMONIC | WS_VISIBLE
+          PRESPARAMS PP_FOREGROUNDCOLOR , 0x0L
+        CONTROL "-12 dB", 140, 50, 95, 24, 9, WC_STATIC, SS_TEXT | DT_LEFT | DT_TOP | DT_MNEMONIC | WS_VISIBLE
+          PRESPARAMS PP_FOREGROUNDCOLOR , 0x0L
+        CONTROL "", 139, 71, 93, 88, 15, WC_SLIDER, SLS_HORIZONTAL | SLS_CENTER | SLS_HOMELEFT | SLS_PRIMARYSCALE1 | SLS_SNAPTOINCREMENT | WS_VISIBLE | WS_GROUP | WS_TABSTOP
+          CTLDATA 12, 0, 25, 4, 10, 9
+        CONTROL "+12 dB", 141, 158, 95, 24, 9, WC_STATIC, SS_TEXT | DT_LEFT | DT_TOP | DT_MNEMONIC | WS_VISIBLE
+          PRESPARAMS PP_FOREGROUNDCOLOR , 0x0L
+
+        CONTROL "", 101,   1, 33, 25, 62, WC_SLIDER, SLS_VERTICAL | SLS_CENTER | SLS_HOMEBOTTOM | SLS_PRIMARYSCALE1 | SLS_SNAPTOINCREMENT | SLS_OWNERDRAW | WS_VISIBLE | WS_GROUP | WS_TABSTOP
+          CTLDATA 12, 0, 25, 4, 20, 1
+        CONTROL "", 102,  24, 33, 23, 62, WC_SLIDER, SLS_VERTICAL | SLS_CENTER | SLS_HOMEBOTTOM | SLS_PRIMARYSCALE1 | SLS_SNAPTOINCREMENT | SLS_OWNERDRAW | WS_VISIBLE
+          CTLDATA 12, 0, 25, 4, 20, 1
+        CONTROL "", 103,  45, 33, 23, 62, WC_SLIDER, SLS_VERTICAL | SLS_CENTER | SLS_HOMEBOTTOM | SLS_PRIMARYSCALE1 | SLS_SNAPTOINCREMENT | SLS_OWNERDRAW | WS_VISIBLE
+          CTLDATA 12, 0, 25, 4, 20, 1
+        CONTROL "", 104,  66, 33, 23, 62, WC_SLIDER, SLS_VERTICAL | SLS_CENTER | SLS_HOMEBOTTOM | SLS_PRIMARYSCALE1 | SLS_SNAPTOINCREMENT | SLS_OWNERDRAW | WS_VISIBLE
+          CTLDATA 12, 0, 25, 4, 20, 1
+        CONTROL "", 105,  87, 33, 23, 62, WC_SLIDER, SLS_VERTICAL | SLS_CENTER | SLS_HOMEBOTTOM | SLS_PRIMARYSCALE1 | SLS_SNAPTOINCREMENT | SLS_OWNERDRAW | WS_VISIBLE
+          CTLDATA 12, 0, 25, 4, 20, 1
+        CONTROL "", 106, 108, 33, 23, 62, WC_SLIDER, SLS_VERTICAL | SLS_CENTER | SLS_HOMEBOTTOM | SLS_PRIMARYSCALE1 | SLS_SNAPTOINCREMENT | SLS_OWNERDRAW | WS_VISIBLE
+          CTLDATA 12, 0, 25, 4, 20, 1
+        CONTROL "", 107, 129, 33, 23, 62, WC_SLIDER, SLS_VERTICAL | SLS_CENTER | SLS_HOMEBOTTOM | SLS_PRIMARYSCALE1 | SLS_SNAPTOINCREMENT | SLS_OWNERDRAW | WS_VISIBLE
+          CTLDATA 12, 0, 25, 4, 20, 1
+        CONTROL "", 108, 150, 33, 23, 62, WC_SLIDER, SLS_VERTICAL | SLS_CENTER | SLS_HOMEBOTTOM | SLS_PRIMARYSCALE1 | SLS_SNAPTOINCREMENT | SLS_OWNERDRAW | WS_VISIBLE
+          CTLDATA 12, 0, 25, 4, 20, 1
+        CONTROL "", 109, 171, 33, 23, 62, WC_SLIDER, SLS_VERTICAL | SLS_CENTER | SLS_HOMEBOTTOM | SLS_PRIMARYSCALE1 | SLS_SNAPTOINCREMENT | SLS_OWNERDRAW | WS_VISIBLE
+          CTLDATA 12, 0, 25, 4, 20, 1
+        CONTROL "", 110, 192, 33, 23, 62, WC_SLIDER, SLS_VERTICAL | SLS_CENTER | SLS_HOMEBOTTOM | SLS_PRIMARYSCALE1 | SLS_SNAPTOINCREMENT | SLS_OWNERDRAW | WS_VISIBLE
+          CTLDATA 12, 0, 25, 4, 20, 1
+
+        CONTROL "31.5Hz", 111,   5, 26, 20, 8, WC_STATIC, SS_TEXT | DT_CENTER | DT_TOP | DT_MNEMONIC | WS_VISIBLE
+          PRESPARAMS PP_FONTNAMESIZE "8.Tms Rmn"
+          PRESPARAMS PP_FOREGROUNDCOLOR , 0x0L
+        CONTROL "63.0Hz", 112,  27, 26, 20, 8, WC_STATIC, SS_TEXT | DT_LEFT | DT_TOP | DT_MNEMONIC | WS_VISIBLE
+          PRESPARAMS PP_FONTNAMESIZE "8.Tms Rmn"
+          PRESPARAMS PP_FOREGROUNDCOLOR , 0x0L
+        CONTROL "125Hz",  113,  47, 26, 20, 8, WC_STATIC, SS_TEXT | DT_CENTER | DT_TOP | DT_MNEMONIC | WS_VISIBLE
+          PRESPARAMS PP_FONTNAMESIZE "8.Tms Rmn"
+          PRESPARAMS PP_FOREGROUNDCOLOR , 0x0L
+        CONTROL "250Hz",  114,  69, 26, 20, 8, WC_STATIC, SS_TEXT | DT_LEFT | DT_TOP | DT_MNEMONIC | WS_VISIBLE
+          PRESPARAMS PP_FONTNAMESIZE "8.Tms Rmn"
+          PRESPARAMS PP_FOREGROUNDCOLOR , 0x0L
+        CONTROL "500Hz",  115,  89, 26, 20, 8, WC_STATIC, SS_TEXT | DT_CENTER | DT_TOP | DT_MNEMONIC | WS_VISIBLE
+          PRESPARAMS PP_FONTNAMESIZE "8.Tms Rmn"
+          PRESPARAMS PP_FOREGROUNDCOLOR , 0x0L
+        CONTROL "1.0kHz", 116, 110, 26, 20, 8, WC_STATIC, SS_TEXT | DT_LEFT | DT_TOP | DT_MNEMONIC | WS_VISIBLE
+          PRESPARAMS PP_FONTNAMESIZE "8.Tms Rmn"
+          PRESPARAMS PP_FOREGROUNDCOLOR , 0x0L
+        CONTROL "2.0kHz", 117, 132, 26, 21, 8, WC_STATIC, SS_TEXT | DT_CENTER | DT_TOP | DT_MNEMONIC | WS_VISIBLE
+          PRESPARAMS PP_FONTNAMESIZE "8.Tms Rmn"
+          PRESPARAMS PP_FOREGROUNDCOLOR , 0x0L
+        CONTROL "4.0kHz", 118, 153, 26, 20, 8, WC_STATIC, SS_TEXT | DT_LEFT | DT_TOP | DT_MNEMONIC | WS_VISIBLE
+          PRESPARAMS PP_FONTNAMESIZE "8.Tms Rmn"
+          PRESPARAMS PP_FOREGROUNDCOLOR , 0x0L
+        CONTROL "8.0kHz", 119, 175, 26, 20, 8, WC_STATIC, SS_TEXT | DT_CENTER | DT_TOP | DT_MNEMONIC | WS_VISIBLE
+          PRESPARAMS PP_FONTNAMESIZE "8.Tms Rmn"
+          PRESPARAMS PP_FOREGROUNDCOLOR , 0x0L
+        CONTROL "16kHz",  120, 196, 26, 21, 8, WC_STATIC, SS_TEXT | DT_LEFT | DT_TOP | DT_MNEMONIC | WS_VISIBLE
+          PRESPARAMS PP_FONTNAMESIZE "8.Tms Rmn"
+          PRESPARAMS PP_FOREGROUNDCOLOR , 0x0L
+
+        CONTROL "", 125,   8, 18, 10, 8, WC_BUTTON, BS_AUTOCHECKBOX | WS_VISIBLE | WS_GROUP | WS_TABSTOP
+        CONTROL "", 126,  30, 18, 10, 8, WC_BUTTON, BS_AUTOCHECKBOX | WS_VISIBLE
+        CONTROL "", 127,  51, 18, 10, 8, WC_BUTTON, BS_AUTOCHECKBOX | WS_VISIBLE
+        CONTROL "", 128,  72, 18, 10, 8, WC_BUTTON, BS_AUTOCHECKBOX | WS_VISIBLE
+        CONTROL "", 129,  93, 18, 10, 8, WC_BUTTON, BS_AUTOCHECKBOX | WS_VISIBLE
+        CONTROL "", 130, 114, 18, 10, 8, WC_BUTTON, BS_AUTOCHECKBOX | WS_VISIBLE
+        CONTROL "", 131, 135, 18, 10, 8, WC_BUTTON, BS_AUTOCHECKBOX | WS_VISIBLE
+        CONTROL "", 132, 156, 18, 10, 8, WC_BUTTON, BS_AUTOCHECKBOX | WS_VISIBLE
+        CONTROL "", 133, 177, 18, 10, 8, WC_BUTTON, BS_AUTOCHECKBOX | WS_VISIBLE
+        CONTROL "", 134, 198, 18, 10, 8, WC_BUTTON, BS_AUTOCHECKBOX | WS_VISIBLE
+
+        CONTROL "Mute", 135, 214, 17, 16, 9, WC_STATIC, SS_TEXT | DT_LEFT | DT_TOP | DT_MNEMONIC | WS_VISIBLE
+          PRESPARAMS PP_FOREGROUNDCOLOR , 0x0L
+
+        CONTROL "+12dB", 137, 214, 84, 20, 9, WC_STATIC, SS_TEXT | DT_LEFT | DT_TOP | DT_MNEMONIC | WS_VISIBLE
+          PRESPARAMS PP_FOREGROUNDCOLOR , 0x0L
+        CONTROL "0dB", 138, 214, 60, 20, 9, WC_STATIC, SS_TEXT | DT_CENTER | DT_TOP | DT_MNEMONIC | WS_VISIBLE
+          PRESPARAMS PP_FOREGROUNDCOLOR , 0x0L
+        CONTROL "-12dB", 136, 214, 34, 20, 9, WC_STATIC, SS_TEXT | DT_LEFT | DT_TOP | DT_MNEMONIC | WS_VISIBLE
+          PRESPARAMS PP_FOREGROUNDCOLOR , 0x0L
+
+        CONTROL "Equalizer ~enabled", 121, 8, 4, 66, 10, WC_BUTTON, BS_AUTOCHECKBOX | WS_VISIBLE | WS_GROUP | WS_TABSTOP
+        CONTROL "~Default", 122, 106, 3, 41, 12, WC_BUTTON, BS_PUSHBUTTON | WS_VISIBLE | WS_TABSTOP
+        CONTROL "~Load", 123, 148, 3, 41, 12, WC_BUTTON, BS_PUSHBUTTON | WS_VISIBLE
+        CONTROL "~Save", 124, 190, 3, 41, 12, WC_BUTTON, BS_PUSHBUTTON | WS_VISIBLE
+   END
+END
+
+/* Playlist Manager specific stuph */
+DLGTEMPLATE DLG_PM
+BEGIN
+   DIALOG "PM123 Playlist Manager", DLG_PM, 4, 4, 400, 200,
+          WS_SAVEBITS | FS_SIZEBORDER,
+          FCF_TITLEBAR | FCF_SYSMENU | FCF_HIDEMAX | FCF_NOBYTEALIGN |
+          FCF_TASKLIST | FCF_SHELLPOSITION
+   BEGIN
+   END
+END
+
+MENU PM_MAIN_MENU
+{
+   MENUITEM "~Add a Playlist",       IDM_PM_ADD
+   MENUITEM "~Statistics",           IDM_PM_CALC
+}
+
+MENU PM_FILE_MENU
+{
+   MENUITEM "~Load this File",       IDM_PM_F_LOAD
+}
+
+MENU PM_LIST_MENU
+{
+   MENUITEM "~Load this Playlist",   IDM_PM_L_LOAD
+   MENUITEM "~Statistics",           IDM_PM_L_CALC
+   MENUITEM SEPARATOR
+   MENUITEM "~Remove from List",     IDM_PM_L_REMOVE
+   MENUITEM "~Delete",               IDM_PM_L_DELETE
+}
+
+/* Bookmarks list stuff. */
+
+DLGTEMPLATE DLG_BOOKMARKS
+BEGIN
+   DIALOG "PM123 Bookmarks", DLG_BOOKMARKS, 4, 4, 400, 200,
+          WS_SAVEBITS | WS_CLIPCHILDREN | FS_SIZEBORDER,
+          FCF_TITLEBAR | FCF_SYSMENU | FCF_HIDEMAX | FCF_TASKLIST |
+          FCF_NOBYTEALIGN | FCF_SHELLPOSITION
+   BEGIN
+      CONTROL "", CNR_BOOKMARKS, 0, 0, 0, 0, WC_CONTAINER,
+                  CCS_EXTENDSEL |  CCS_READONLY | CCS_MINIICONS | WS_TABSTOP | WS_VISIBLE
+   END
+END
+
+MENU MNU_BM_RECORD
+{
+   MENUITEM "~Load\tEnter",             IDM_BM_LOAD
+   MENUITEM "~Add to Playlist\tCtrl+A", IDM_BM_ADDTOPL
+   MENUITEM SEPARATOR
+   MENUITEM "Re~name\tCtrl+N",          IDM_BM_RENAME
+   MENUITEM "~Replace\tCtrl+R",         IDM_BM_REPLACE
+   MENUITEM "Re~move\tDel",             IDM_BM_REMOVE
+}
+
+MENU MNU_BM_LIST
+{
+   MENUITEM "~Clear bookmarks\tCtrl+C", IDM_BM_CLEAR
+   MENUITEM "Add ~Bookmark\tCtrl+B"   , IDM_BM_ADD
+}
+
+ACCELTABLE ACL_BOOKMARKS
+BEGIN
+   "n",       IDM_BM_RENAME,  AF_CHAR | AF_CONTROL
+   "a",       IDM_BM_ADDTOPL, AF_CHAR | AF_CONTROL
+   "c",       IDM_BM_CLEAR,   AF_CHAR | AF_CONTROL
+   "b",       IDM_BM_ADD,     AF_CHAR | AF_CONTROL
+   "r",       IDM_BM_REPLACE, AF_CHAR | AF_CONTROL
+   VK_DELETE, IDM_BM_REMOVE,  AF_VIRTUALKEY
+
+   VK_ESC,    SC_CLOSE,       AF_VIRTUALKEY | AF_SYSCOMMAND
+   VK_F10,    IDM_BM_LMENU,   AF_VIRTUALKEY | AF_SHIFT
+   VK_SPACE,  IDM_BM_RMENU,   AF_VIRTUALKEY
+END
+
+DLGTEMPLATE DLG_BM_ADD
+BEGIN
+   DIALOG "Add bookmark", DLG_BM_ADD, 13, 27, 210, 35,
+           FS_DLGBORDER | WS_VISIBLE | WS_CLIPSIBLINGS,
+           FCF_TITLEBAR | FCF_SYSMENU | FCF_CLOSEBUTTON | FCF_NOBYTEALIGN
+   BEGIN
+        CONTROL "Description ", ST_BM_DESC, 2, 20, 42, 8, WC_STATIC,
+                SS_TEXT | DT_RIGHT | DT_VCENTER | DT_MNEMONIC | WS_VISIBLE | WS_GROUP
+        CONTROL "", EF_BM_DESC, 50, 20, 150, 8,
+                WC_ENTRYFIELD, ES_LEFT | ES_AUTOSCROLL | ES_MARGIN |  WS_VISIBLE | WS_TABSTOP
+        CTLDATA 8, 1024, 0, 0
+        CONTROL "~Ok", DID_OK, 2, 2, 35, 12,
+                WC_BUTTON, BS_PUSHBUTTON | BS_DEFAULT | WS_VISIBLE | WS_TABSTOP | WS_GROUP
+        CONTROL "~Cancel", DID_CANCEL, 40, 2, 33, 12,
+                WC_BUTTON, BS_PUSHBUTTON | WS_VISIBLE
+   END
+END
+
+DLGTEMPLATE DLG_BM_RENAME
+BEGIN
+   DIALOG "Rename bookmark", DLG_BM_RENAME, 13, 27, 210, 35,
+           FS_DLGBORDER | WS_VISIBLE | WS_CLIPSIBLINGS,
+           FCF_TITLEBAR | FCF_SYSMENU | FCF_CLOSEBUTTON | FCF_NOBYTEALIGN
+   BEGIN
+        CONTROL "Description ", ST_BM_DESC, 2, 20, 42, 8, WC_STATIC,
+                SS_TEXT | DT_RIGHT | DT_VCENTER | DT_MNEMONIC | WS_VISIBLE | WS_GROUP
+        CONTROL "", EF_BM_DESC, 50, 20, 150, 8,
+                WC_ENTRYFIELD, ES_LEFT | ES_AUTOSCROLL | ES_MARGIN |  WS_VISIBLE | WS_TABSTOP
+        CTLDATA 8, 1024, 0, 0
+        CONTROL "~Ok", DID_OK, 2, 2, 35, 12,
+                WC_BUTTON, BS_PUSHBUTTON | BS_DEFAULT | WS_VISIBLE | WS_TABSTOP | WS_GROUP
+        CONTROL "~Cancel", DID_CANCEL, 40, 2, 33, 12,
+                WC_BUTTON, BS_PUSHBUTTON | WS_VISIBLE
+   END
+END
+
+DLGTEMPLATE DLG_FILE
+BEGIN
+    DIALOG "File Dialog", DLG_FILE, 0, 0, 275, 180,
+           FS_NOBYTEALIGN | FS_DLGBORDER | WS_SAVEBITS | WS_VISIBLE,
+           FCF_TITLEBAR | FCF_SYSMENU | FCF_CLOSEBUTTON
+           PRESPARAMS PP_FONTNAMESIZE "8.Helv"
+    BEGIN
+         CONTROL "~Filename", DID_FILENAME_TXT, 12, 163, 249, 7, WC_STATIC,
+                 SS_TEXT | DT_LEFT | DT_TOP | DT_MNEMONIC | WS_VISIBLE
+         CONTROL "", DID_FILENAME_ED, 14, 151, 247, 8, WC_ENTRYFIELD,
+                 ES_MARGIN | WS_GROUP | WS_TABSTOP | WS_VISIBLE
+         CTLDATA 256, 32, 0, 0
+         CONTROL "~Type of file", DID_FILTER_TXT, 12, 140, 249, 7, WC_STATIC,
+                 SS_TEXT | DT_LEFT | DT_TOP | DT_MNEMONIC | WS_VISIBLE
+         CONTROL "", DID_FILTER_CB, 11,  76, 252, 61, WC_COMBOBOX,
+                 CBS_DROPDOWNLIST | WS_VISIBLE | WS_GROUP | WS_TABSTOP
+         CONTROL "~Drive", DID_DRIVE_TXT, 12, 118, 122, 7, WC_STATIC,
+                 SS_TEXT | DT_LEFT | DT_TOP | DT_MNEMONIC | WS_VISIBLE
+         CONTROL "", DID_DRIVE_CB, 11, 52, 125, 63, WC_COMBOBOX,
+                 CBS_DROPDOWNLIST | WS_VISIBLE | WS_GROUP | WS_TABSTOP
+         CONTROL "~Directory", DID_DIRECTORY_TXT, 12, 95, 122, 7, WC_STATIC,
+                 SS_TEXT | DT_LEFT | DT_TOP | DT_MNEMONIC | WS_VISIBLE
+         CONTROL "", DID_DIRECTORY_LB, 11, 35, 125, 57, WC_LISTBOX,
+                 LS_NOADJUSTPOS | LS_HORZSCROLL | LS_OWNERDRAW | WS_GROUP | WS_TABSTOP | WS_VISIBLE
+         CONTROL "~Files", DID_FILES_TXT, 145, 118, 119, 7, WC_STATIC,
+                 SS_TEXT | DT_LEFT | DT_TOP | DT_MNEMONIC | WS_VISIBLE
+         CONTROL "", DID_FILES_LB, 143, 35, 121, 80, WC_LISTBOX,
+                 LS_NOADJUSTPOS | LS_HORZSCROLL | WS_VISIBLE | WS_GROUP | WS_TABSTOP
+         CONTROL "~Recurse into subdirectories", CB_RECURSE, 13, 21, 241, 9, WC_BUTTON,
+                 BS_AUTOCHECKBOX | WS_TABSTOP | WS_GROUP | WS_VISIBLE
+         CONTROL "~Use relative paths", CB_RELATIV, 13, 21, 241, 9, WC_BUTTON,
+                 BS_AUTOCHECKBOX | WS_TABSTOP | WS_GROUP | WS_VISIBLE
+         CONTROL "~OK", DID_OK, 11, 5, 38, 12, WC_BUTTON,
+                 BS_PUSHBUTTON | BS_DEFAULT | WS_GROUP | WS_TABSTOP | WS_VISIBLE
+         CONTROL "~Cancel", DID_CANCEL, 52, 5, 38, 12, WC_BUTTON,
+                 BS_PUSHBUTTON | WS_TABSTOP | WS_VISIBLE
+    END
+END
+

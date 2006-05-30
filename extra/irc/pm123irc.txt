@@ -1,0 +1,9 @@
+
+These are scripts for you all wanna-be elites. Load them
+into your client with /load (pm123.irc for ircii or OpenChat/2, pm123.bx for
+BitchX).
+
+These scripts and utilities are provided without any warranties. 
+Use at your own risk!
+
+- Taneli <rosmo@kalja.com>

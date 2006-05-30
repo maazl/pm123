@@ -1,0 +1,9 @@
+LIBRARY scroller INITINSTANCE TERMINSTANCE
+DESCRIPTION 'PM123 Smooth Scroller (C) 1998 Taneli Lepp„ <rosmo@sektori.com>'
+PROTMODE
+DATA MULTIPLE NONSHARED LOADONCALL
+EXPORTS
+  vis_init
+  plugin_query
+  plugin_deinit
+  plugin_configure

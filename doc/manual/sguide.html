@@ -1,0 +1,185 @@
+<html resid=1017>
+<head>
+   <title>Skins Guide</title>
+</head>
+<body>
+<b><font size=+2>The Hitchhiker's Guide to PM123 skins</font></b>
+<p>This document isn't meant to be a step-by-step guide to creating
+PM123 skins. Rather it's meant to be a throughout reference. Basically skins are 
+constructed from a <tt>.SKN</tt> file and one of more bitmap files (<tt>.BMP</tt>, 
+<tt>.GIF</tt>, etc) or a <tt>.PAK</tt> file (which is a bundle file that wraps
+the skin's bitmaps into one file).
+<p><b>.SKN file structure</b>
+<p>The <tt>.SKN</tt> file is a skin definition file. It contains the filenames
+of all bitmaps to be replaced, all new bitmap positions and other definitions.
+It's a simple text file. Lines beginning with <tt>;</tt> or <tt>#</tt> are
+considered as comments.
+<p>If you want to change <a href="#bitmaps">a bitmap</a>, it's defined like this:
+<pre>
+resource,bitmap
+</pre>
+For example, replacing the background:
+<pre>
+1900,mybmp/bg.bmp
+</pre>
+If you want to change <a href="#position">a bitmap position</a>, it's defined like this:
+<pre>
+position:x,y
+</pre>
+For example, changing volume bar's location to (10, 10):
+<pre>
+25:10,10
+</pre>
+<a href="#special">Special resources</a> can be toggled on like this:
+<pre>
+resource,1
+</pre>
+<p><a name="special"><b>Special resources that control PM123 interface</b></a>
+<table border=1 cellspacing=0 cellpadding=4>
+<tr><td>Resource number</td><td>Resource explanation</td></tr>
+<tr> <td>1</td> <td>Bright 3D shade color, in format RRR/GGG/BBB</td> </tr>
+<tr> <td>2</td> <td>Dark 3D shade color, in format RRR/GGG/BBB</td> </tr>
+<tr> <td>3</td> <td>(obsolete)</td> </tr>
+<tr> <td>4</td> <td>Color of seek slider border, in format RRR/GGG/BBB</td> </tr>
+<tr> <td>5</td> <td>Playlist position indicator color, in format RRR/GGG/BBB</td> </tr>
+<tr> <td>6</td> <td>Disable 3D-shading of the "statistics area"</td> </tr>
+<tr> <td>7</td> <td>Disable 3D-shading of the volume bar</td> </tr>
+<tr> <td>8</td> <td>A string to be displayed on skin load</td> </tr>
+<tr> <td>9</td> <td>Disable 3D-shading of the player window</td> </tr>
+<tr> <td>10</td> <td>Disable the seek slider border</td> </tr>
+<tr> <td>11</td> <td>Disable of the second font</td> </tr>
+<tr> <td>20</td> <td>Width of the filename display (in characters) for regular mode</td> </tr>
+<tr> <td>21</td> <td>Width the seek slider area in pixels</td> </tr>
+<tr> <td>22</td> <td>Width of the filename display (in characters) for small mode</td> </tr>
+<tr> <td>23</td> <td>Initial font, 0 or 1</td> </tr>
+<tr> <td>24</td> <td>Space between main timer digits (in pixels).</td> </tr>
+<tr> <td>26</td> <td>Make volume bar horizontal</td> </tr>
+<tr> <td>27</td> <td>Give volume bar a handle you can grab (resource 1620)</td> </tr>
+<tr> <td>28</td> <td>Draw bitrates with digits from resource 1830 to 1839</td> </tr>
+<tr> <td>29</td> <td>Draw playlist indicator with resources 1660 to 1669.</td> </tr>
+<tr> <td>30</td> <td>The bundle file for this skin (<tt>.PAK</tt> file) created with PM123 Skin Utility</td> </tr>
+</table>
+<p>
+<a name="bitmap"><b>Bitmap resources</b>
+<table border=1 cellspacing=0 cellpadding=4>
+<tr><td>Resource number</td><td>Resource explanation</td></tr>
+<tr> <td>1200 to 1209</td> <td>Digits 0-9 for the main ("big") timer.</td> </tr>
+<tr> <td>1210</td> <td>Main timer separator '<tt>:</tt>' </td> </tr>
+<tr> <td>1211</td> <td>Darkened main timer separator '<tt>:</tt>' </td> </tr>
+<tr> <td>1400 to 1445</td> <td>Font 1, charset<br> <tt>"abcdefghijklmnopqrstuvwxyz" "-_&.0123456789 ()&auml;&ouml;:"</tt><br>('a' is 1400, 'b' is 1401, and so on)</tt> </td> </tr>
+<tr> <td>1601</td> <td>Stereo mode</td> </tr>
+<tr> <td>1602</td> <td>Mono mode</td> </tr>
+<tr> <td>1608</td> <td>No channels (unknown, no file loaded) mode</td> </tr>
+<tr> <td>1610</td> <td>Seek slider handle</td> </tr>
+<tr> <td>1611</td> <td>Background bitmap for small mode (if not defined, default background will be used)</td> </tr>
+<tr> <td>1612</td> <td>Background bitmap for tiny mode (if not defined, default background will be used)</td> </tr>
+<tr> <td>1620</td> <td>Volume slider handle bitmap (only if enabled)</td> </tr>
+<tr> <td>1630</td> <td>Volume bar</td> </tr>
+<tr> <td>1631</td> <td>Indicator for single file play</td> </tr>
+<tr> <td>1632</td> <td>Indicator for playlist play</td> </tr>
+<tr> <td>1633</td> <td>Indicator for no file loaded</td> </tr>
+<tr> <td>1640 to 1649</td> <td>Digits 0-9 for "time left" and "playlist" left timers</td> </tr>
+<tr> <td>1650</td> <td>Separator ('<tt>:</tt>') for "time left" and "playlist" left timers</td> </tr>
+<tr> <td>1651</td> <td>Dark 0 digit for "time left" and "playlist" left timers</td> </tr>
+<tr> <td>1652</td> <td>Darkened separator ('<tt>:</tt>') for "time left" and "playlist" left timers</td> </tr>
+<tr> <td>1660 to 1669</td> <td>Digits 0-9 for playlist total/index displays. Only used if resource 29 is enabled.</td> </tr>
+<tr> <td>1800 to 1814</td> <td>Bitmaps for bitrates 0 (no bitrate), 32, 48, 56, 64, 80, 96, 112, 128, 144, 160, 176, 192, 224, 256. Not used if resource 28 is enabled.</td> </tr>
+<tr> <td>1820</td> <td>Bright "led" bitmap (displayed when PM123 has focus)</td> </tr>
+<tr> <td>1821</td> <td>Dark "led" bitmap (displayed when PM123 is not focused)</td> </tr>
+<tr> <td>1830 to 1839</td> <td>Digits 0-9 for bitrates, if resource 28 is enabled.</td> </tr>
+<tr> <td>1900</td> <td>The background bitmap. Resources 1611 and 1612 override this in small and tiny mode.</td> </tr>
+<tr> <td>1901</td> <td>"Time left", dark.</td> </tr>
+<tr> <td>1902</td> <td>"Time left", bright.</td> </tr>
+<tr> <td>1903</td> <td>"Playlist left", dark.</td> </tr>
+<tr> <td>1904</td> <td>"Playlist left", bright.</td> </tr>
+<tr> <td>1906</td> <td>Slider shaft (drawn before drawing slider handle)</td> </tr>
+<tr> <td colspan=2>Only regular mode</td></tr>
+<tr> <td>1310, 1300</td> <td>Play button up/down</td> </tr>
+<tr> <td>1312, 1302</td> <td>Pause button up/down</td> </tr>
+<tr> <td>1313, 1303</td> <td>Rewind button up/down</td> </tr>
+<tr> <td>1314, 1304</td> <td>Fast forward button up/down</td> </tr>
+<tr> <td>1315, 1305</td> <td>Power button up/down</td> </tr>
+<tr> <td>1316, 1306</td> <td>Previous button up/down</td> </tr>
+<tr> <td>1317, 1307</td> <td>Next button up/down</td> </tr>
+<tr> <td>1318, 1308</td> <td>Shuffle button up/down</td> </tr>
+<tr> <td>1319, 1309</td> <td>Repeat button up/down</td> </tr>
+<tr> <td>1320, 1321</td> <td>Playlist button up/down</td> </tr>
+<tr> <td>1322, 1323</td> <td>Stop button up/down (hidden by default)</td> </tr>
+<tr> <td>1324, 1325</td> <td>Load file button up/down (hidden by default)</td> </tr>
+<tr> <td colspan=2>Small/tiny mode</td></tr>
+<tr> <td>5510, 5500</td> <td>Play button up/down</td> </tr>
+<tr> <td>5512, 5502</td> <td>Pause button up/down</td> </tr>
+<tr> <td>5513, 5503</td> <td>Rewind button up/down</td> </tr>
+<tr> <td>5514, 5504</td> <td>Fast forward button up/down</td> </tr>
+<tr> <td>5515, 5505</td> <td>Power button up/down</td> </tr>
+<tr> <td>5516, 5506</td> <td>Previous button up/down</td> </tr>
+<tr> <td>5517, 5507</td> <td>Next button up/down</td> </tr>
+<tr> <td>5518, 5508</td> <td>Shuffle button up/down</td> </tr>
+<tr> <td>5519, 5509</td> <td>Repeat button up/down</td> </tr>
+<tr> <td>5521, 5520</td> <td>Playlist button up/down</td> </tr>
+</table>
+<p><a name="position"><b>Resource (bitmap) position settings</b></tt>
+<table border=1 cellspacing=0 cellpadding=4>
+<tr><td>Position number</td><td>Position explanation</td></tr>
+<tr> <td> 1</td> <td>Main timer</td> </tr>
+<tr> <td> 2</td> <td>Main window size (sx, sy)</td> </tr>
+<tr> <td> 3</td> <td>Play button, regular</td> </tr>
+<tr> <td> 4</td> <td>Pause button, regular</td> </tr>
+<tr> <td> 5</td> <td>Rewind button, regular</td> </tr>
+<tr> <td> 6</td> <td>Fast forward button, regular</td> </tr>
+<tr> <td> 7</td> <td>Playlist button, regular</td> </tr>
+<tr> <td> 8</td> <td>Repeat button, regular</td> </tr>
+<tr> <td> 9</td> <td>Shuffle button, regular</td> </tr>
+<tr> <td>10</td> <td>Previous button, regular</td> </tr>
+<tr> <td>11</td> <td>Next button, regular</td> </tr>
+<tr> <td>12</td> <td>Power button, regular</td> </tr>
+<tr> <td>13</td> <td>Text display, regular</td> </tr>
+<tr> <td>14</td> <td>Text display, small</td> </tr>
+<tr> <td>15</td> <td>"Time left" dark</td> </tr>
+<tr> <td>16</td> <td>"Time left" bright</td> </tr>
+<tr> <td>17</td> <td>"Playlist left" dark</td> </tr>
+<tr> <td>18</td> <td>"Playlist left" bright</td> </tr>
+<tr> <td>19</td> <td>"Time left" timer</td> </tr>
+<tr> <td>20</td> <td>"Playlist left" timer</td> </tr>
+<tr> <td>21</td> <td>Playmode indicator (no file/single/playlist)</td> </tr>
+<tr> <td>22</td> <td>Led bright</td> </tr>
+<tr> <td>23</td> <td>Led dark</td> </tr>
+<tr> <td>24</td> <td>Seek slider</td> </tr>
+<tr> <td>25</td> <td>Volume bar</td> </tr>
+<tr> <td>26</td> <td>No channels indicator</td> </tr>
+<tr> <td>27</td> <td>Mono indicator</td> </tr>
+<tr> <td>28</td> <td>Stereo indicator</td> </tr>
+<tr> <td>29</td> <td>Bitrate indicator</td> </tr>
+<tr> <td>30</td> <td>Main window size (sx, sy), small mode</td> </tr>
+<tr> <td>31</td> <td>Main window size (sx, sy), tiny mode</td> </tr>
+<tr> <td>32</td> <td>(unused)</td> </tr>
+<tr> <td>33</td> <td>Play button, small</td> </tr>
+<tr> <td>34</td> <td>Pause button, small</td> </tr>
+<tr> <td>35</td> <td>Rewind button, small</td> </tr>
+<tr> <td>36</td> <td>Fast forward button, small</td> </tr>
+<tr> <td>37</td> <td>Playlist button, small</td> </tr>
+<tr> <td>38</td> <td>Repeat button, small</td> </tr>
+<tr> <td>39</td> <td>Shuffle button, small</td> </tr>
+<tr> <td>40</td> <td>Previous button, small</td> </tr>
+<tr> <td>41</td> <td>Next button, small</td> </tr>
+<tr> <td>42</td> <td>Power button, small</td> </tr>
+<tr> <td>43 to 52</td> <td>(unused)</td> </tr>
+<tr> <td>53</td> <td>Play button, tiny</td> </tr>
+<tr> <td>54</td> <td>Pause button, tiny</td> </tr>
+<tr> <td>55</td> <td>Rewind button, tiny</td> </tr>
+<tr> <td>56</td> <td>Fast forward button, tiny</td> </tr>
+<tr> <td>57</td> <td>Playlist button, tiny</td> </tr>
+<tr> <td>58</td> <td>Repeat button, tiny</td> </tr>
+<tr> <td>59</td> <td>Shuffle button, tiny</td> </tr>
+<tr> <td>60</td> <td>Previous button, tiny</td> </tr>
+<tr> <td>61</td> <td>Next button, tiny</td> </tr>
+<tr> <td>62</td> <td>Power button, tiny</td> </tr>
+<tr> <td>63</td> <td>Playlist index indicator</td> </tr>
+<tr> <td>64</td> <td>Playlist total indicator</td> </tr>
+<tr> <td>65</td> <td>Stop button, regular (hidden by default)</td> </tr>
+<tr> <td>66</td> <td>Load file button, regular (hidden by default)</td> </tr>
+<tr> <td>67</td> <td>Location for the slider shaft (bitmap 1906)</td> </tr>
+</table>
+
+</body>
+</html>

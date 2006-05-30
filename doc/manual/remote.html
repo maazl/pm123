@@ -1,0 +1,162 @@
+<html resid=1016>
+<head>
+   <title>Remote Control</title>
+</head>
+<body>
+<b><font size=+2>PM123's Remote Control</font></b>
+<p>PM123 can be remotely controlled via a <i>named pipe</i>, <tt>\PIPE\PM123</tt>.
+Named pipes were chosen because of their excellent features. Quoting from
+the <i>Control Program Programming Guide and Reference</i>: "Named pipes
+enable related or unrelated processes on either the same computer system
+or different systems to communicate with each other. Any process that knows
+the name of a pipe can open and use a named pipe. In addition, named pipe
+data can be transparently redirected across a network, such as a local
+area network (LAN)".
+<p>To remote control PM123 on the same computer, you can use either the
+built-in "<tt>echo</tt>" command, or the PM123 executable itself. PM123
+understands a set of commands that are written to the pipe. For example,
+<pre>
+        [c:\usr\pm123] pm123 -cmd volume 80
+        [c:\usr\pm123] echo *volume 80 > \pipe\pm123
+</pre>
+These commands will set the volume to 80%.
+<pre>
+        [c:\usr\pm123] pm123 -cmd add d:\music\test.mp3
+        [c:\usr\pm123] echo *add d:\music\test.mp3 > \pipe\pm123
+</pre>
+These commands will add the file <tt>d:\music\test.mp3</tt> to the playlist.
+<p>If you use <tt>echo</tt>, remember to prepend any commands sent to it
+with a <tt>*</tt> character. PM123 currently understands the following
+commands (optional parameters are enclosed in parenthesis):
+<p><table border cellpadding=5 cellspacing=0 >
+<tr>
+<td width="30%">play [&lt;file&gt;]</td>
+<td>Starts playing. If <tt>&lt;file&gt;</tt> was specified, it will be first loaded
+and playback will be started. </td>
+</tr>
+<tr>
+<td width="30%">stop</td>
+<td>Stop playback.</td>
+</tr>
+<tr>
+<td width="30%">pause [on|off]</td>
+<td>Pauses or unpauses the playback.</td>
+</tr>
+<tr>
+<td width="30%">next</td>
+<td>Selects the next song in playlist.</td>
+</tr>
+<tr>
+<td width="30%">previous</td>
+<td>Selects the previous song in playlist.</td>
+</tr>
+<tr>
+<td width="30%">rewind</td>
+<td>Toggles rewind of the currently playing file.</td>
+</tr>
+<tr>
+<td width="30%">forward</td>
+<td>Toggles fast forward of the currently playing file.</td>
+</tr>
+<tr>
+<td width="30%">jump &lt;n&gt;</td>
+<td>Jump to <tt>&lt;n&gt;</tt> seconds in the currently playing file.</td>
+</tr>
+<tr>
+<td width="30%">volume [[+|-]&lt;n&gt;]</td>
+<td>Sets volume to <tt>&lt;n&gt;</tt>% (scale 0-100, of course). And returns previous volume setting.</td>
+</tr>
+<tr>
+<td width="30%">load &lt;file&gt;</td>
+<td>Loads a &lt;file&gt; into. Plays it too, if 'auto play on load' is set. </td>
+</tr>
+<tr>
+<td width="30%">shuffle</td>
+<td>Toggles shuffling.</td>
+</tr>
+<tr>
+<td width="30%">repeat</td>
+<td>Toggles repeat.</td>
+</tr>
+<tr>
+<td width="30%">mono on|off</td>
+<td>Toggles mono mode on.</td>
+</tr>
+<tr>
+<td width="30%">downmix on|off</td>
+<td>Toggles downmixing 2 to 1.</td>
+</tr>
+<tr>
+<td width="30%">autouse on|off</td>
+<td>Toggles 'auto use playlist on add'.</td>
+</tr>
+<tr>
+<td width="30%">playonload on|off</td>
+<td>Toggles 'auto play on load'.</td>
+</tr>
+<tr>
+<td width="30%">playonuse on|off</td>
+<td>Toggles 'auto play on playlist use'.</td>
+</tr>
+<tr>
+<td width="30%">float on|off</td>
+<td>Toggles 'float on top'.</td>
+</tr>
+<tr>
+<td width="30%">font 1|2</td>
+<td>Selects font 1 or font 2.</td>
+</tr>
+<tr>
+<td width="30%">size regular|small|tiny</td>
+<td>Selects the player size.</td>
+</tr>
+<tr>
+<td width="30%">hide</td>
+<td>Hides the player window.</td>
+</tr>
+<tr>
+<td width="30%">add &lt;file&gt;;...</td>
+<td>Adds file(s) to playlist. Multiple files must be separated with '<tt>;</tt>'
+characters.</td>
+</tr>
+<tr>
+<td width="30%">remove</td>
+<td>Removes currently loaded file from the playlist.</td>
+</tr>
+<tr>
+<td width="30%">use</td>
+<td>Use the playlist.</td>
+</tr>
+<tr>
+<td width="30%">clear</td>
+<td>Clears the playlist.</td>
+</tr>
+<tr>
+<td width="30%">dir &lt;directory&gt;</td>
+<td>Add <tt>&lt;directory&gt;</tt> to the playlist (non-recursive).</td>
+</tr>
+<tr>
+<td width="30%">rdir &lt;directory&gt;</td>
+<td>Add <tt>&lt;directory&gt;</tt> to the playlist (recursive).</td>
+</tr>
+<tr>
+<td width="30%">status tag|file|info</td>
+<td>Returns the information currently displayed in the scroller or
+returns nothing if "no file loaded".</td>
+</tr>
+</table>
+
+<p>Now for the cool part. You can control PM123 over your OS/2 Local Area
+Network. Just use <tt>\\SERVER\PIPE\PM123</tt>. <tt>\\SERVER</tt>
+is the name of the computer PM123 runs on. For example,
+<pre>
+        [c:\usr\pm123] pm123 -cmd \\mycomputer volume 80
+        [c:\usr\pm123] echo *volume 80 > \\mycomputer\pipe\pm123
+        [c:\usr\pm123] pm123 -cmd \\mycomputer add d:\music\test.mp3
+        [c:\usr\pm123] echo *add d:\music\test.mp3 > \\mycomputer\pipe\pm123
+</pre>
+Will do the same as examples above, but from a different computer. Easy,
+isn't it?
+
+</body>
+</html>

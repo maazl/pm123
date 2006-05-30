@@ -1,0 +1,99 @@
+<html>
+<head>
+   <title>Output Plug-ins</title>
+</head>
+<body>
+<b><font size=+2>PM123 Output Plug-ins</font></b>
+<p>
+Decoder plug-ins must implement and export the functions defined in
+<i>output_plug.h</i>.
+<pre>
+     ULONG _System output_init  ( void **a )
+     ULONG _System output_uninit( void  *a )
+</pre>
+<ul>
+<li>a : Allocate any chunk of memory necessary for the output's
+function. This pointer will be passed to the other functions.
+<li>return value : 0 means the output was initialized successfully.
+</ul>
+<p>
+Init function is called when the user requests the use of your output
+plug-in. So only one output plug-in is active at any given time. It
+should initialize the control variables for an eventual call to
+OUTPUT_OPEN. <i>decoder_uninit</i> is called when another output
+plug-in is request by the user and should free the allocated memory for
+<i>a</i>.<p>
+<pre>
+     ULONG _System output_command( void *a, ULONG msg, OUTPUT_PARAMS *info )
+</pre>
+<ul>
+<li>msg: one of the following:<br>
+<ul>
+<li>OUTPUT_OPEN opens the device or file needed for output.
+<li>OUTPUT_CLOSE closes it.
+<li>OUTPUT_VOLUME changes the volume of an output device.
+<li>OUTPUT_PAUSE pauses the playback (ie.: block in output_playsamples()).
+<li>OUTPUT_SETUP setup the format that output_playsamples() will most likely
+receive, boost priority values, error_display functions and hwnd. 
+<li>OUTPUT_TRASH_BUFFERS trash any buffers currently awating to be played.
+<li>OUTPUT_NOBUFFERMODE forces the plug-in to not accumulate buffers for the time being.
+</ul>
+<li>info: structure that contains the parameters needed by the preceding
+commands
+<li>return value:<br>
+0 -> ok<br>
+others -> MMOS/2 errors or anything else
+</ul>
+<p>
+There is a lot of commands to implement for this function.  Parameters
+needed for each of them are described in the definition of the structure
+in the .h file.
+<p>
+The output plug-in MUST <i>WinPostMsg()</i> the following messages to <i>hwnd</i>:
+<ul>
+<li>WM_PLAYERROR when a playback error occures.
+<li>WM_OUTPUT_OUTOFDATA when the output plug-in has finished playing all.
+its buffers.  Not needed when <TT> always_hungry </TT> flag is enabled.
+</ul>
+<pre>
+     ULONG _System output_playing_samples( void* a, FORMAT_INFO* info,
+                                           char* buf, int len )
+</pre>
+<ul>
+<li>info - return the format of buf.
+<li>buf  - return len amount of data currently being played.
+<li>len  - requested amount of data to be placed in buf.
+</ul>
+<p>
+This function is used by visual plug-ins so the user can visualize what
+is currently being played. <i>len</i> is usually not so big, so check
+that amount usually required by your visual plug-ins before making
+complicated buffering functions in your output plug-in.<p>
+<pre>
+     int _System output_play_samples( void* a, FORMAT_INFO* format, 
+                                      char* buf,int len, int posmarker )
+</pre>
+<ul>
+<li>format - format of buf.
+<li>buf - data to play.
+<li>len - length of buf.
+<li>posmarker = position marker to return with output_playing_pos.
+<li>return value: the number of bytes from len processed. ie.: < len = error.
+</ul>
+<p>
+This function is called by the decoder or last in chain filter plug-in
+to play samples.
+<pre>
+     ULONG _System output_playing_pos( void* a )
+</pre>
+This function returns the <i>posmarker</i> from the buffer that the
+user currently hears.
+<pre>
+     BOOL  _System output_playing_data( void* a )
+</pre>
+Returns TRUE if the output plug-in still has some buffers to play.
+
+</body>
+</html>
+
+

@@ -1,0 +1,82 @@
+<html>
+<head>
+   <title>Visual plug-ins</title>
+</head>
+<body>
+<b><font size=+2>PM123 Visual plug-ins</font></b>
+<p>
+Visual plug-in's <i>vis_init()</i> routine gets called every time plug-in
+gets activated.
+<pre>
+     HWND _System vis_init( PVISPLUGININIT initdata );
+</pre>
+The <i>VISPLUGININIT</i> structure contains the initialization data that
+PM123 passes to the plug-in.
+<PRE>
+     typedef struct {
+       int           x, y, cx, cy;
+        /* Location where the plug-in should create its window */
+       HWND          hwnd;
+        /* PM123's window handle */
+       PPLUGIN_PROCS procs;
+        /* Pointers to functions which plug-ins can utilize */
+       int           id;
+        /* Plug-in's ID (1-32) */
+       char          *param;
+        /* Parameters passed to the plug-in */
+     } VISPLUGININIT, *PVISPLUGININIT;
+</pre>
+On return from the initialization function, the function should return
+the plug-in's window handle. The plug-in shouldn't not rely that <i>initdata</i>
+structure is pointing to the right location all the time, instead it should
+make its own copy of the structure.
+<p>
+If the plug-in creates a window, here's a window procedure you should
+base yours on:
+<pre>
+     MRESULT EXPENTRY PlugWinProc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
+     {
+       switch (msg)
+       {
+         case DM_DRAGOVER:
+         case DM_DROP:
+         case 0x041f:
+         case 0x041e:
+         case WM_CONTEXTMENU:
+         case WM_BUTTON2MOTIONSTART:
+           WinSendMsg( plug.hwnd, msg, mp1, mp2 );
+           break;
+
+         /* your stuff */
+
+         default:
+           return WinDefWindowProc( hwnd, msg, mp1, mp2 );
+       }
+     }
+</pre>
+If you want to create a window inside PM123's window, use <i>WinCreateWindow()</i> in
+<i>vis_init()</i>:
+<pre>
+     WinRegisterClass( hab,
+                       "ExamplePlugin",
+                       PlugWinProc,
+                       CS_SIZEREDRAW, 0 );
+
+     hwndClient = WinCreateWindow( initdata->hwnd,
+                                   "ExamplePlugin",
+                                   "PM123 Example Visual Plug-in",
+                                   WS_VISIBLE,
+                                   initdata->x,
+                                   initdata->y,
+                                   initdata->cx,
+                                   initdata->cy,
+                                   initdata->hwnd,
+                                   HWND_TOP,
+                                   initdata->id,
+                                   NULL,
+                                   NULL );
+     return hwndClient;
+</pre>
+</body>
+</html>
+

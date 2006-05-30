@@ -1,0 +1,10 @@
+
+/* PM123 irc script */
+
+alias pm123 {
+  ^exec -name query querysong
+  ^on ^exec "query *" {
+   //me is now playing: $1- [pm123]
+   echo [pm123] Playing file: $1-
+   }
+}

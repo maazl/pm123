@@ -1,0 +1,197 @@
+PM123 1.31 Source File Distribution
+
+Copyright 1997-2003 Samuel Audet <guardia@step.polymtl.ca>
+                    Taneli Lepp„ <rosmo@sektori.com>
+Copyright 2004-2006 Dmitry A.Steklenev <glass@ptv.ru>
+
+Introduction
+============
+
+The final fate of PM123 has been decided: converted into free software. We
+have decided to release PM123 1.2 under a BSD-style license. You can take a
+look at this license in the file named COPYRIGHT. The mpg123 plug-in however
+is still under the original license (which can be read in the file named
+COPYING), but it is not much different from the BSD-style license.
+
+The reason of this release?  Both of us, Samuel and Taneli, are not using OS/2
+anymore.  We consider OS/2 an outdated and will-never-really-die-as-in-COBOL-
+but-won't-get-much-better-in-the-future kind of platform.  There is not even
+any rumors of a 64 bit version of OS/2!  We consider today's platforms such as
+MacOS X, Mandrake or Red Hat Linux and Windows XP already much better than
+OS/2 has ever been.  As for myself, Samuel, I am running Red Hat Linux as my
+main platform these days.  It reminds me of the time I had to let go of my
+Gravis Ultrasound... hum, how nostalgic.
+
+This said, what to do with PM123 we thought... It would be a shame to leave it
+rot there, and let it all go to waste we thought, so we made it free software!
+And thanks to all who have registered their copies of PM123.  It made what
+PM123 is today, but alas, it will not go any further with us.  Nonetheless, if
+you are ready to offer us a contract, we will be happy to do work for you.
+Hint: I (Samuel) am also looking for a job at the moment.
+
+In this small README file, you will learn how to use this source file
+distribution to successfully compile PM123 from the sources.
+
+Tools Needed to Compile
+=======================
+
+You will need the following tools and libraries to compile PM123:
+
+VisualAge C++ 3.0 fixpak 8
+A recent IBM OS/2 Developer's Toolkit
+NASM
+WarpIN (if you want to create an installation package)
+Info-ZIP (if you want to create the ZIP package)
+
+More specifically, I have tested this distribution with the following:
+
+IBM OS/2 DEVELOPER'S TOOLKIT VERSION 4.5
+NMAKE Version 4.00.000 May 12 1999
+RC Version Version 5.00.004 May 12 1999
+IMPLIB Version 4.00.001 May 12 1999
+ILINK Version 01.08.r1a_CTC308c
+NASM Version 0.98
+WarpIN Version 1.0.1
+Zip 2.2 (November 3rd 1997)
+
+Also, I have been using cmd.exe at all times, so disable 4os2 or other cmd.exe
+replacement when using this distribution's makefiles.
+
+Directory Structure
+===================
+
+The directories are split as shown in the diagram below.  "dist" contains the
+files needed to build the install packages, and the packages themselves once
+they are built. "doc" contains text files and the user manual in HTML format.
+"extra" contains files that are not part of pm123 per se. "pdk" (plug-in
+developer's kit) contains include files and documentation to build new
+plug-ins. "src" contains all the source code of PM123.  The code does not have
+a lot of comments and it is not always very pretty (it was our first big
+project for both of us, so give us break), but it's all there!
+
+|
++dist
+|   |
+|   +files
++doc
+|   |
+|   +manual
++extra
+|   |
+|   +freq
+|   +irc
+|   +slider
++pdk
++src
+|   |
+|   +gbm123
+|   |   |
+|   |   +gbm
+|   +http123
+|   +include
+|   +ooura1d
+|   +fft123
+|   +plug-ins
+|   |   |
+|   |   +analyzer
+|   |   +cddaplay
+|   |   |   |
+|   |   |   +ciscgi
+|   |   +mpg123
+|   |   +os2audio
+|   |   +realeq
+|   |   +scroller
+|   |   +wavout
+|   |   +wavplay
+|   +pm123
+|   |   |
+|   |   +bmp
+|   +skinutil
+|   +utils
+
+
+In the "extra" directory, there is "freq" (File Requester) which is a better
+file dialog Taneli was working on, but that he never finished.  "irc" has some
+scripts for BitchX and ircii to display the playing songs in the IRC client
+window. "slider" is a small tool that uses PM123's pipe to control the volume
+of two instances of PM123.  The volume of the first PM123 executed will follow
+the slider, and the second will go reverse, allowing to cross the sounds of
+two songs for DJs.
+
+In the "src" directory, all the source code of one module (one EXE or DLL)
+is found in a subdirectory of the same name as the module.  So pm123.exe's
+source code is found in "pm123" and realeq.dll's source code is found under
+"plug-ins\realeq".  Each directory has its own makefile, fully functional.
+Three exceptions.  First, "utils" is the home of an internal utility library
+named utilfct.lib.  Second, all of the GBM package has been copied directly
+in "gbm123", except for a few modifications to the makefile to accomodate the
+other makefiles.  The only area of interest in "gbm123" is in "gbm123\gbm",
+where gbm123.dll, gbm123.lib and gbmrect.lib are produced. Finally, the
+"include" directory only contains ".h" files.
+
+Description of modules
+----------------------
+
+gbm123\gbm
+   The Generalized Bitmap Module used by PM123 and skinutil.exe for loading
+   and creating bitmaps for skins.
+http123
+   The HTTP module used by PM123 and MPG123 to access HTTP servers.
+ooura1d
+   Used for compatibility.
+fft123
+   The FFT algorithm used by analyzer.dll (through pm123.exe) and realeq.dll.
+analyzer
+   The spectrum analyzer visual plug-in.
+cddaplay
+   The CD Player with CDDB support.
+ciscgi
+   Some files needed by cddaplay.dll when contacting CDDB servers.
+mpg123
+   The MP3 decoder with streaming support.
+os2audio
+   The output plug-in that uses DART to access the sound card.
+realeq
+   The Real Equalizer plug-in, with MMX support and all.
+scroller
+   The title scroller that uses the OS/2 font subsystem to support
+   international characters.
+wavout
+   The output plug-in that dumps everything in a WAV file.
+wavplay
+   The WAV file player.
+pm123
+   The main pm123.exe which includes all the GUI stuff and skin support.
+skinutil
+   skinutil.exe to convert WinAmp 1.x skins and manage skins.
+
+How to Compile
+==============
+
+You can use the following commands with the main makefile and NMAKE:
+
+all:         will compile EVERYTHING in "src"
+filename:    will compile that module (ie.: "pm123.exe", "analyzer.dll", etc)
+clean:       will clean up all the compiled binaries in "src"
+dist:        will do "distfiles", "distpackage" and "distzip"
+distfiles:   will copy all the needed binaries and files from "src", "doc" and
+             others into "dist\files"
+distpackage: will build the WarpIN packages from the files in "dist\files"
+distzip:     will build the ZIP file from the files in "dist\files"
+distclean:   will clean everything made by "dist"
+
+Note: to use WarpIN, set WICPATH to the WarpIN directory path at the beginning
+of the main makefile.
+
+You can also use all of the individual makefiles in each of the subdirectories
+of the "src" directory.  Each of them contain an "all" and "clean" command.
+
+In all cases, you can add "DEBUG=1 NOTOPT=1" to NMAKE's command line to build
+a debug version of one of PM123's module.  Example:
+
+   [c:\devel\pm123-1_2-src] nmake pm123.exe DEBUG=1 NOTOPT=1
+
+Have fun!
+
+Samuel Audet and Taneli Lepp„
+September 2003

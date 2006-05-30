@@ -1,0 +1,11 @@
+LIBRARY REALEQ INITINSTANCE TERMINSTANCE
+DESCRIPTION 'PM123 Real Equalizer'
+PROTMODE
+DATA MULTIPLE NONSHARED LOADONCALL
+EXPORTS
+   filter_init         @1
+   filter_uninit       @2
+   filter_play_samples @3
+
+   plugin_query        @10
+   plugin_configure    @11

@@ -1,0 +1,61 @@
+/*
+ * Copyright 1997-2003 Samuel Audet <guardia@step.polymtl.ca>
+ *                     Taneli Lepp„ <rosmo@sektori.com>
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are met:
+ *
+ *    1. Redistributions of source code must retain the above copyright notice,
+ *       this list of conditions and the following disclaimer.
+ *
+ *    2. Redistributions in binary form must reproduce the above copyright
+ *       notice, this list of conditions and the following disclaimer in the
+ *       documentation and/or other materials provided with the distribution.
+ *
+ *    3. The name of the author may not be used to endorse or promote products
+ *       derived from this software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR IMPLIED
+ * WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+ * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO
+ * EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+ * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
+ * OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+ * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+ * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
+ * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
+
+#include <os2.h>
+#include "os2audio.h"
+
+DLGTEMPLATE 1
+BEGIN
+    DIALOG "OS2AUDIO.DLL", 100, 20, 30, 160, 140, , FCF_TITLEBAR | FCF_SYSMENU | FCF_CLOSEBUTTON
+    BEGIN
+        CONTROL " Sound device", ID_NULL, 5, 100, 150, 35, WC_STATIC, SS_GROUPBOX | DT_LEFT | DT_TOP | DT_MNEMONIC | WS_VISIBLE | WS_GROUP
+        PRESPARAMS PP_FONTNAMESIZE "9.WarpSans Bold"
+        CONTROL "", CB_DEVICE, 10, 83, 140, 42, WC_COMBOBOX, CBS_DROPDOWNLIST |  WS_VISIBLE | WS_TABSTOP
+        CONTROL "Sound device is ~shared", CB_SHARED, 10, 103, 111, 10, WC_BUTTON, BS_AUTOCHECKBOX | WS_VISIBLE | WS_TABSTOP
+
+        CONTROL " Settings ", ID_NULL, 5, 42, 150, 55, WC_STATIC, SS_GROUPBOX | DT_LEFT | DT_TOP | DT_MNEMONIC | WS_VISIBLE
+        PRESPARAMS PP_FONTNAMESIZE "9.WarpSans Bold"
+
+        CONTROL "Buffers", SB_BUFFERS, 10, 77, 33, 13, WC_SPINBUTTON, SPBS_MASTER | SPBS_NUMERICONLY | SPBS_JUSTRIGHT | WS_VISIBLE | WS_TABSTOP
+        CONTROL "Number of buffers (default 32)", ID_NULL, 45, 77, 93, 8, WC_STATIC, SS_TEXT | DT_LEFT | DT_TOP | DT_MNEMONIC | WS_VISIBLE
+  PRESPARAMS PP_FOREGROUNDCOLOR , 0x0L
+
+        CONTROL "~8-bit audio", CB_8BIT, 10, 65, 50, 10, WC_BUTTON, BS_AUTOCHECKBOX | WS_VISIBLE
+        CONTROL "Play ~48kHz as 44kHz", CB_48KLUDGE, 10, 55, 80, 10, WC_BUTTON, BS_AUTOCHECKBOX | WS_VISIBLE
+
+        CONTROL "OS/2 DART Audio engine" ID_NULL, 10, 31, 109, 8, WC_STATIC, SS_TEXT | DT_CENTER | DT_VCENTER | DT_MNEMONIC | WS_VISIBLE
+PRESPARAMS PP_FOREGROUNDCOLOR , 0x0L
+
+        CONTROL "(C) 2000 Samuel Audet", ID_NULL, 10, 21, 109, 8, WC_STATIC, SS_TEXT | DT_CENTER | DT_VCENTER | DT_MNEMONIC | WS_VISIBLE
+PRESPARAMS PP_FOREGROUNDCOLOR , 0x0L
+
+        DEFPUSHBUTTON "~OK", DID_OK, 5, 5, 25, 13, WS_GROUP | WS_TABSTOP
+        PUSHBUTTON "~Cancel", DID_CANCEL, 35, 5, 32, 13
+    END
+END

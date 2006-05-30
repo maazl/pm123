@@ -1,0 +1,134 @@
+Welcome!
+
+PM123 is a high-quality digital audio player for IBM's OS/2 Warp
+operating system. You can play MP3s, WAV-files and even audio CDs. PM123
+supports skins, audio streaming, plug-ins, visualization, CDDB and more!
+
+1. INSTALLATION
+
+   If you have not used the WarpIN package to install this software, use
+   makewps.cmd to create WPS Desktop objects for PM123.
+
+2. DISTRIBUTION
+
+   Sources for new updates for pm123:
+
+      http://glass.os2.spb.ru/software/english/pm123.html
+      http://glass.ptv.ru/software/english/pm123.html
+      http://sektori.com/pm123/
+      http://hobbes.nmsu.edu/pub/os2/apps/mmedia/sound/players/
+      http://www.step.polymtl.ca/~guardia/pm123.php
+
+   Original mpg123:
+
+      http://www.mpg123.org/
+
+3. KNOWN ISSUES
+
+   Bugs
+   ----
+      - the proxy feature in mpg123 and cddaplay does not work well
+      - the GUI freezes in various places due to network access and the need
+        of threads for such operations
+      - some valid bitrates are not displayed in the icons of the skin
+      - it is sometimes hard to set the volume properly on the first click
+      - pm123 runs as a real-time process, so it can freeze OS/2 if the CPU
+        is too slow: be careful!
+      - there still might be occasional redraw problems where pm123 plagues
+        the whole screen, not just pm123's windows
+      - various windows always appear only at the bottom left of the screen
+      - OS/2 LIBPATH subsystem is quite outdated, and cannot find DLLs in
+        the EXE directory: need to implement manual DLL loading
+      - some VBR files do not play properly
+
+   Missing Features
+   ----------------
+      - continuous playback would be nice
+      - the genre list is not editable
+      - no support for ID3v2
+      - the way the scroller scrolls is annoying for some people:
+        need of a "wrap around scroller"
+      - the "remote control" pipe does not report if pm123 is playing or not
+        (example: a "echo *status > \pipe\pm123" returning
+                    "stopped", "paused" or "playing" would be nice)
+      - Ogg, FLAC, etc support... a generic plug-in that could use command
+        line decoders would also be nice
+      - drag & drop skin would be nice
+      - no support for "new" WinAmp 2.x or 3.x skins, only old ones for
+        WinAmp 1.x
+      - load all files from playlist file before loading information from
+        each file would be nice
+      - a "double size" would be nice
+      - automatic fade in / fade out would be nice
+      - add a status bar in the playlist window
+      - previous song in "random mode" does not go to the previous song
+        played, and next song does not go back to the same song: need to
+        keep in memory the random seed
+      - no transparent or non-square skins because too difficult and
+        ineffecient in OS/2
+      - cannot load a CD track from command line
+      - no history for the "Load URL" dialog
+      - should load WinAmp skin directly instead of using a converter
+      - no way to display customized information from each song in the
+        playlist window or main window
+      - when loading an MP3 stream, there is no feedback when the buffer is
+        filling up
+      - no sound balance control
+      - no skin for the equalizer, playlist, etc windows
+
+4. COPYING AND COPYRIGHTS
+
+   Please read first the important information in the COPYRIGHT and COPYING
+   files.
+
+   Original mpg123 decoder written/modified by:
+      Michael Hipp <Michael.Hipp@student.uni-tuebingen.de>
+      Oliver Fromme <oliver.fromme@heim3.tu-clausthal.de>
+
+   with help and code from:
+      Samuel Audet <guardia@step.polymtl.ca>: OS/2 port
+      MPEG Software Simulation Group: reference decoder package
+      Tobias Bading: idea for DCT64 in subband synthesis from maplay package
+      Jeff Tsay and Mikko Tommila: MDCT36 from maplay package
+      Philipp Knirsch <phil@mpik-tueb.mpg.de>: DCT36/manual unroll idea
+      Niklas Beisert <nbeisert@physik.tu-muenchen.de> MPEG 2.5 tables
+      Henrik P Johnson: HTTP auth patch
+
+   Graphical User Interface for pm123 by:
+
+      Taneli Lepp„ <rosmo@sektori.com>
+      Samuel Audet <guardia@step.polymtl.ca> (http://www.step.polymtl.ca/~guardia/)
+      Dmitry A.Steklenev <glass@ptv.ru> (http://glass.os2.spb.ru/)
+
+   Generalized Bitmap Module by:
+
+      Andy Key <nyangau@interalpha.co.uk>
+      http://www.interalpha.net/customer/nyangau/
+
+   Ooura Fourier Transformation Library:
+
+      OOURA1D.DLL contains code found in the 1 dimension DFT / DCT / DST
+      package by Takuya OOURA <ooura@kurims.kyoto-u.ac.jp> or
+      <ooura@mmm.t.u-tokyo.ac.jp>, who owns the copyright. Thanks to him
+      for the nice code!
+
+      I have replaced all double precision floats to single precision. It
+      gives an awful e-07 precision instead of e-17, but it's faster and
+      e-07 is by far enough for my needs.
+
+      You can find the original code and documentation at
+      http://momonga.t.u-tokyo.ac.jp/~ooura/fft.html
+
+   Fast Fourier Transformation Library:
+
+      FFT123.DLL contains free collection of fast C routines for computing the
+      Discrete Fourier Transform in one or more dimensions. FFTW was written by 
+      Matteo Frigo and Steven G. Johnson.  You can contact them at fftw@fftw.org.
+      The latest version of FFTW, benchmarks, links, and other information can 
+      be found at the FFTW home page (http://www.fftw.org).
+
+    WarpIN Installer:
+
+      Thanks to Ulrich M”ller for the nice installer for OS/2.
+      More info: http://warpin.netlabs.org/
+
