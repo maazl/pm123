@@ -47,8 +47,8 @@
 #include <plugin.h>
 #include "os2audio.h"
 
-void load_ini(void);
-void save_ini(void);
+static void load_ini(void);
+static void save_ini(void);
 
 int device = 0;
 int lockdevice = 0;
@@ -230,7 +230,7 @@ static void MciError(OS2AUDIO *a, ULONG ulError)
    WinPostMsg(a->original_info.hwnd,WM_PLAYERROR,0,0);
 }
 
-ULONG output_set_volume(void *A, char setvolume, float setamplifier)
+static ULONG output_set_volume(void *A, char setvolume, float setamplifier)
 {
    OS2AUDIO *a = (OS2AUDIO *) A;
 
@@ -300,7 +300,7 @@ ULONG _System output_init(void **A)
 }
 
 
-ULONG output_open(OS2AUDIO *a)
+static ULONG output_open(OS2AUDIO *a)
 {
    OUTPUT_PARAMS *ai = &a->original_info;
 
@@ -482,7 +482,7 @@ ULONG output_open(OS2AUDIO *a)
    return 0;
 }
 
-ULONG _System output_close(void *A)
+static ULONG _System output_close(void *A)
 {
    OS2AUDIO *a = (OS2AUDIO *) A;
 
@@ -712,7 +712,7 @@ ULONG _System output_playing_pos(void *A)
    return a->playingpos;
 }
 
-void _System output_trash_buffers(void *A, ULONG temp_playingpos)
+static void _System output_trash_buffers(void *A, ULONG temp_playingpos)
 {
    OS2AUDIO *a = (OS2AUDIO *) A;
    int i;
@@ -749,7 +749,7 @@ BOOL _System output_playing_data(void *A)
 /*
  * get formats for specific channel/rate parameters
  */
-int _System output_get_formats(OUTPUT_PARAMS *ai)
+static int _System output_get_formats(OUTPUT_PARAMS *ai)
 {
    int fmts = 0;
    ULONG rc;
@@ -805,14 +805,14 @@ int _System output_get_formats(OUTPUT_PARAMS *ai)
    return fmts;
 }
 
-int _System output_rate_best_match(OUTPUT_PARAMS *ai)
+static int _System output_rate_best_match(OUTPUT_PARAMS *ai)
 {
    return 0;
 }
 
 #endif
 
-ULONG _System output_get_devices(char *name, int deviceid)
+static ULONG _System output_get_devices(char *name, int deviceid)
 {
    char buffer[256];
    MCI_SYSINFO_PARMS mip;
@@ -903,7 +903,7 @@ ULONG _System output_command(void *A, ULONG msg, OUTPUT_PARAMS *info)
 
 HWND dlghwnd = 0;
 
-MRESULT EXPENTRY ConfigureDlgProc(HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2)
+static MRESULT EXPENTRY ConfigureDlgProc(HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2)
 {
    switch(msg)
    {
@@ -1018,7 +1018,7 @@ void _System plugin_configure(HWND hwnd, HMODULE module)
 
 #define INIFILE "os2audio.ini"
 
-void save_ini()
+static void save_ini()
 {
    HINI INIhandle;
 
@@ -1034,7 +1034,7 @@ void save_ini()
    }
 }
 
-void load_ini()
+static void load_ini()
 {
    HINI INIhandle;
 
@@ -1065,3 +1065,4 @@ void _System plugin_query(PLUGIN_QUERYPARAM *param)
 
    load_ini();
 }
+
