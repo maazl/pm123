@@ -257,7 +257,7 @@ static ULONG output_set_volume(void *A, char setvolume, float setamplifier)
    return 0;
 }
 
-ULONG _System output_pause(void *A, BOOL pause)
+static ULONG _System output_pause(void *A, BOOL pause)
 {
    OS2AUDIO *a = (OS2AUDIO *) A;
 
