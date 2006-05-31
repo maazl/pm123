@@ -2910,10 +2910,12 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
       } else if( bmp_pt_in_slider( pos ) && decoder_playing()) {
         is_slider_drag = TRUE;
         is_seeking     = TRUE;
-      } else {
+      }
+      /* disabled moving with the left button when missing the above controls (MM)
+       else {
         amp_move_window( hframe );
         WinQueryWindowPos( hframe, &cfg.Main );
-      }
+      }*/
       return 0;
     }
 
