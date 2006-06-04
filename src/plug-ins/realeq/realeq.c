@@ -339,11 +339,11 @@ fil_init( int samplerate, int channels )
   fftwf_complex* in;
   fftwf_plan     plan;
 
-  int fftbands, i, e, channel;
+  int fftbands, i, e, channel, plansize;
 
-  if( FIRorder < 2 || plansize < 2 || (plansize & (plansize - 1))) {
+  /* it is a good advice to choose the plansize automatically at this point (MM) */
+  if( FIRorder < 2 ) // || plansize < 2 || (plansize & (plansize - 1))) {
     return;
-  }
 
   if( use_mmx ) {
     FIRorder = (FIRorder + 15) & 0xFFFFFFF0; /* multiple of 16 */
@@ -351,6 +351,10 @@ fil_init( int samplerate, int channels )
     FIRorder = (FIRorder +  1) & 0xFFFFFFFE; /* multiple of 2  */
   }
 
+  /* choose plansize. Calculate the smallest power of two that is greater or equal to FIRorder. */
+  frexp(FIRorder-1, &plansize);
+  plansize = 1 << plansize;
+  
   fftbands   = plansize / 2 + 1;
   in         = fftwf_malloc( sizeof( *in  ) * plansize );
   out        = fftwf_malloc( sizeof( *out ) * plansize );
