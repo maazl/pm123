@@ -52,12 +52,13 @@
 
 #define VERSION "Real Equalizer 1.20"
 #define MAX_COEF 8192
+#define NUM_BANDS  32
 
 static BOOL  mmx_present;
 static BOOL  eqneedinit  = TRUE;
 static BOOL  eqneedsetup = TRUE;
 
-static float eqbandFIR[2][32][4096];
+static float eqbandFIR[2][NUM_BANDS][4096];
 
 // note: I originally intended to use 8192 for the finalFIR arrays
 // but Pentium CPUs have a too small cache (16KB) and it totally shits
@@ -74,7 +75,7 @@ short  finalFIRmmx[4][4100][2]; // four more just for zero padding
 short  finalAMPi[4];            // four copies for MMX
 
 static float bandgain[2][32];
-static BOOL  mute[2][32];
+static BOOL  mute[2][NUM_BANDS];
 static float preamp = 1.0;
 
 // settings
@@ -109,6 +110,8 @@ typedef struct {
 int  _CRT_init( void );
 void _CRT_term( void );
 
+/********** Entry point: Initialize
+*/
 ULONG _System
 filter_init( void** F, FILTER_PARAMS* params )
 {
@@ -129,6 +132,8 @@ filter_init( void** F, FILTER_PARAMS* params )
   return 0;
 }
 
+/********** Entry point: Cleanup
+*/ 
 BOOL _System
 filter_uninit( void* F )
 {
@@ -143,20 +148,25 @@ filter_uninit( void* F )
   return TRUE;
 }
 
+/* setup FIR kernel */
 static BOOL fil_setup( int channels )
 {
   int   i, e, channel;
   float largest = 0;
 
+  static const float pow_2_20 = 1L << 20;
+  static const float pow_2_15 = 1L << 15;
+  
   if( eqneedinit ) {
     return FALSE;
   }
 
   memset( patched.finalFIR, 0, sizeof( patched.finalFIR ));
 
+  /* for left, right */
   for( channel = 0; channel < channels; channel++ )
   {
-    for( i = 0; i < 32; i++ ) {
+    for( i = 0; i < NUM_BANDS; i++ ) {
       if( !mute[channel][i] ) {
         for( e = 0; e <= FIRorder; e++ ) {
           patched.finalFIR[e][channel] += bandgain[channel][i] * eqbandFIR[channel][i][e];
@@ -172,8 +182,11 @@ static BOOL fil_setup( int channels )
       }
     }
   }
+ 
+  /* prepare data for MMX convolution */ 
+
   // so the largest value don't overflow squeezed in a short
-  largest += largest / pow( 2, 15 );
+  largest += largest / pow_2_15;
   // shouldn't be bigger than 4 so shifting 12 instead of 15 should do it
   finalAMPi[0] = largest * pow( 2, 12 ) + 1;
   // only divide the coeficients by what is in finalAMPi
@@ -192,39 +205,39 @@ static BOOL fil_setup( int channels )
     {
       for( e = 0; e < FIRorder/4; e += 4 )
       {
-        finalFIRmmx[i][e+0][0] = round( patched.finalFIR[e+0-i][0]*pow(2,20)/largest );
-        finalFIRmmx[i][e+0][1] = round( patched.finalFIR[e+2-i][0]*pow(2,20)/largest );
-        finalFIRmmx[i][e+2][0] = round( patched.finalFIR[e+1-i][0]*pow(2,20)/largest );
-        finalFIRmmx[i][e+2][1] = round( patched.finalFIR[e+3-i][0]*pow(2,20)/largest );
+        finalFIRmmx[i][e+0][0] = round( patched.finalFIR[e+0-i][0]*pow_2_20/largest );
+        finalFIRmmx[i][e+0][1] = round( patched.finalFIR[e+2-i][0]*pow_2_20/largest );
+        finalFIRmmx[i][e+2][0] = round( patched.finalFIR[e+1-i][0]*pow_2_20/largest );
+        finalFIRmmx[i][e+2][1] = round( patched.finalFIR[e+3-i][0]*pow_2_20/largest );
 
-        finalFIRmmx[i][e+1][0] = round( patched.finalFIR[e+0-i][1]*pow(2,20)/largest );
-        finalFIRmmx[i][e+1][1] = round( patched.finalFIR[e+2-i][1]*pow(2,20)/largest );
-        finalFIRmmx[i][e+3][0] = round( patched.finalFIR[e+1-i][1]*pow(2,20)/largest );
-        finalFIRmmx[i][e+3][1] = round( patched.finalFIR[e+3-i][1]*pow(2,20)/largest );
+        finalFIRmmx[i][e+1][0] = round( patched.finalFIR[e+0-i][1]*pow_2_20/largest );
+        finalFIRmmx[i][e+1][1] = round( patched.finalFIR[e+2-i][1]*pow_2_20/largest );
+        finalFIRmmx[i][e+3][0] = round( patched.finalFIR[e+1-i][1]*pow_2_20/largest );
+        finalFIRmmx[i][e+3][1] = round( patched.finalFIR[e+3-i][1]*pow_2_20/largest );
       }
       for( e = FIRorder/4; e < 3*FIRorder/4; e += 4 )
       {
-        finalFIRmmx[i][e+0][0] = round( patched.finalFIR[e+0-i][0]*pow(2,15)/largest );
-        finalFIRmmx[i][e+0][1] = round( patched.finalFIR[e+2-i][0]*pow(2,15)/largest );
-        finalFIRmmx[i][e+2][0] = round( patched.finalFIR[e+1-i][0]*pow(2,15)/largest );
-        finalFIRmmx[i][e+2][1] = round( patched.finalFIR[e+3-i][0]*pow(2,15)/largest );
+        finalFIRmmx[i][e+0][0] = round( patched.finalFIR[e+0-i][0]*pow_2_15/largest );
+        finalFIRmmx[i][e+0][1] = round( patched.finalFIR[e+2-i][0]*pow_2_15/largest );
+        finalFIRmmx[i][e+2][0] = round( patched.finalFIR[e+1-i][0]*pow_2_15/largest );
+        finalFIRmmx[i][e+2][1] = round( patched.finalFIR[e+3-i][0]*pow_2_15/largest );
 
-        finalFIRmmx[i][e+1][0] = round( patched.finalFIR[e+0-i][1]*pow(2,15)/largest );
-        finalFIRmmx[i][e+1][1] = round( patched.finalFIR[e+2-i][1]*pow(2,15)/largest );
-        finalFIRmmx[i][e+3][0] = round( patched.finalFIR[e+1-i][1]*pow(2,15)/largest );
-        finalFIRmmx[i][e+3][1] = round( patched.finalFIR[e+3-i][1]*pow(2,15)/largest );
+        finalFIRmmx[i][e+1][0] = round( patched.finalFIR[e+0-i][1]*pow_2_15/largest );
+        finalFIRmmx[i][e+1][1] = round( patched.finalFIR[e+2-i][1]*pow_2_15/largest );
+        finalFIRmmx[i][e+3][0] = round( patched.finalFIR[e+1-i][1]*pow_2_15/largest );
+        finalFIRmmx[i][e+3][1] = round( patched.finalFIR[e+3-i][1]*pow_2_15/largest );
       }
       for( e = 3*FIRorder/4; e <= FIRorder; e += 4 )
       {
-        finalFIRmmx[i][e+0][0] = round( patched.finalFIR[e+0-i][0]*pow(2,20)/largest );
-        finalFIRmmx[i][e+0][1] = round( patched.finalFIR[e+2-i][0]*pow(2,20)/largest );
-        finalFIRmmx[i][e+2][0] = round( patched.finalFIR[e+1-i][0]*pow(2,20)/largest );
-        finalFIRmmx[i][e+2][1] = round( patched.finalFIR[e+3-i][0]*pow(2,20)/largest );
+        finalFIRmmx[i][e+0][0] = round( patched.finalFIR[e+0-i][0]*pow_2_20/largest );
+        finalFIRmmx[i][e+0][1] = round( patched.finalFIR[e+2-i][0]*pow_2_20/largest );
+        finalFIRmmx[i][e+2][0] = round( patched.finalFIR[e+1-i][0]*pow_2_20/largest );
+        finalFIRmmx[i][e+2][1] = round( patched.finalFIR[e+3-i][0]*pow_2_20/largest );
 
-        finalFIRmmx[i][e+1][0] = round( patched.finalFIR[e+0-i][1]*pow(2,20)/largest );
-        finalFIRmmx[i][e+1][1] = round( patched.finalFIR[e+2-i][1]*pow(2,20)/largest );
-        finalFIRmmx[i][e+3][0] = round( patched.finalFIR[e+1-i][1]*pow(2,20)/largest );
-        finalFIRmmx[i][e+3][1] = round( patched.finalFIR[e+3-i][1]*pow(2,20)/largest );
+        finalFIRmmx[i][e+1][0] = round( patched.finalFIR[e+0-i][1]*pow_2_20/largest );
+        finalFIRmmx[i][e+1][1] = round( patched.finalFIR[e+2-i][1]*pow_2_20/largest );
+        finalFIRmmx[i][e+3][0] = round( patched.finalFIR[e+1-i][1]*pow_2_20/largest );
+        finalFIRmmx[i][e+3][1] = round( patched.finalFIR[e+3-i][1]*pow_2_20/largest );
       }
     }
   }
@@ -235,24 +248,24 @@ static BOOL fil_setup( int channels )
     {
       for( e = 0; e < FIRorder/4; e += 4 )
       {
-        finalFIRmmx[i][e/2+0][0] = round( patched.finalFIR[e+0-i][0]*pow(2,20)/largest );
-        finalFIRmmx[i][e/2+0][1] = round( patched.finalFIR[e+1-i][0]*pow(2,20)/largest );
-        finalFIRmmx[i][e/2+1][0] = round( patched.finalFIR[e+2-i][0]*pow(2,20)/largest );
-        finalFIRmmx[i][e/2+1][1] = round( patched.finalFIR[e+3-i][0]*pow(2,20)/largest );
+        finalFIRmmx[i][e/2+0][0] = round( patched.finalFIR[e+0-i][0]*pow_2_20/largest );
+        finalFIRmmx[i][e/2+0][1] = round( patched.finalFIR[e+1-i][0]*pow_2_20/largest );
+        finalFIRmmx[i][e/2+1][0] = round( patched.finalFIR[e+2-i][0]*pow_2_20/largest );
+        finalFIRmmx[i][e/2+1][1] = round( patched.finalFIR[e+3-i][0]*pow_2_20/largest );
       }
       for( e = FIRorder/4; e < 3*FIRorder/4; e += 4 )
       {
-        finalFIRmmx[i][e/2+0][0] = round( patched.finalFIR[e+0-i][0]*pow(2,15)/largest );
-        finalFIRmmx[i][e/2+0][1] = round( patched.finalFIR[e+1-i][0]*pow(2,15)/largest );
-        finalFIRmmx[i][e/2+1][0] = round( patched.finalFIR[e+2-i][0]*pow(2,15)/largest );
-        finalFIRmmx[i][e/2+1][1] = round( patched.finalFIR[e+3-i][0]*pow(2,15)/largest );
+        finalFIRmmx[i][e/2+0][0] = round( patched.finalFIR[e+0-i][0]*pow_2_15/largest );
+        finalFIRmmx[i][e/2+0][1] = round( patched.finalFIR[e+1-i][0]*pow_2_15/largest );
+        finalFIRmmx[i][e/2+1][0] = round( patched.finalFIR[e+2-i][0]*pow_2_15/largest );
+        finalFIRmmx[i][e/2+1][1] = round( patched.finalFIR[e+3-i][0]*pow_2_15/largest );
       }
       for( e = 3*FIRorder/4; e <= FIRorder; e += 4 )
       {
-        finalFIRmmx[i][e/2+0][0] = round( patched.finalFIR[e+0-i][0]*pow(2,20)/largest );
-        finalFIRmmx[i][e/2+0][1] = round( patched.finalFIR[e+1-i][0]*pow(2,20)/largest );
-        finalFIRmmx[i][e/2+1][0] = round( patched.finalFIR[e+2-i][0]*pow(2,20)/largest );
-        finalFIRmmx[i][e/2+1][1] = round( patched.finalFIR[e+3-i][0]*pow(2,20)/largest );
+        finalFIRmmx[i][e/2+0][0] = round( patched.finalFIR[e+0-i][0]*pow_2_20/largest );
+        finalFIRmmx[i][e/2+0][1] = round( patched.finalFIR[e+1-i][0]*pow_2_20/largest );
+        finalFIRmmx[i][e/2+1][0] = round( patched.finalFIR[e+2-i][0]*pow_2_20/largest );
+        finalFIRmmx[i][e/2+1][1] = round( patched.finalFIR[e+3-i][0]*pow_2_20/largest );
       }
     }
   }
@@ -264,10 +277,10 @@ static BOOL fil_setup( int channels )
     for( e = 0; e < FIRorder/4; e+=4 )
     {
       printf("%f %f %f %f ",
-            (float)finalFIRmmx[i][e+0][0]*largest/pow(2,20),
-            (float)finalFIRmmx[i][e+0][1]*largest/pow(2,20),
-            (float)finalFIRmmx[i][e+2][0]*largest/pow(2,20),
-            (float)finalFIRmmx[i][e+2][1]*largest/pow(2,20));
+            (float)finalFIRmmx[i][e+0][0]*largest/pow_2_20,
+            (float)finalFIRmmx[i][e+0][1]*largest/pow_2_20,
+            (float)finalFIRmmx[i][e+2][0]*largest/pow_2_20,
+            (float)finalFIRmmx[i][e+2][1]*largest/pow_2_20);
     }
 
     printf( " = CUUUUUUUUUT =" );
@@ -275,10 +288,10 @@ static BOOL fil_setup( int channels )
     for( e = FIRorder/4; e < 3*FIRorder/4; e+=4 )
     {
       printf("%f %f %f %f ",
-            (float)finalFIRmmx[i][e+0][0]*largest/pow(2,15),
-            (float)finalFIRmmx[i][e+0][1]*largest/pow(2,15),
-            (float)finalFIRmmx[i][e+2][0]*largest/pow(2,15),
-            (float)finalFIRmmx[i][e+2][1]*largest/pow(2,15));
+            (float)finalFIRmmx[i][e+0][0]*largest/pow_2_15,
+            (float)finalFIRmmx[i][e+0][1]*largest/pow_2_15,
+            (float)finalFIRmmx[i][e+2][0]*largest/pow_2_15,
+            (float)finalFIRmmx[i][e+2][1]*largest/pow_2_15);
     }
 
     printf( " = CUUUUUUUUUT =" );
@@ -286,10 +299,10 @@ static BOOL fil_setup( int channels )
     for( e = 3*FIRorder/4; e <= FIRorder; e+=4 )
     {
       printf("%f %f %f %f ",
-            (float)finalFIRmmx[i][e+0][0]*largest/pow(2,20),
-            (float)finalFIRmmx[i][e+0][1]*largest/pow(2,20),
-            (float)finalFIRmmx[i][e+2][0]*largest/pow(2,20),
-            (float)finalFIRmmx[i][e+2][1]*largest/pow(2,20));
+            (float)finalFIRmmx[i][e+0][0]*largest/pow_2_20,
+            (float)finalFIRmmx[i][e+0][1]*largest/pow_2_20,
+            (float)finalFIRmmx[i][e+2][0]*largest/pow_2_20,
+            (float)finalFIRmmx[i][e+2][1]*largest/pow_2_20);
     }
     printf("\n%d %d %f\n\n",e,finalAMPi,largest);
   }
@@ -300,7 +313,7 @@ static BOOL fil_setup( int channels )
   }
   printf( "\n\nprinting out finalFIRi \n\n", i );
   for( e = 0; e <= FIRorder; e++ ) {
-    printf( "%f ", (float)finalFIRi[e][0] *largest / pow(2,15));
+    printf( "%f ", (float)finalFIRi[e][0] *largest / pow_2_15);
   }
 
   fflush(stdout);
@@ -313,14 +326,13 @@ static BOOL fil_setup( int channels )
 /* setting the linear frequency functions and transforming them into the time
 /* domain depending on the sampling rate */
 
-#define NUM_BANDS  32
 #define START_R10  1.25 /* 17,8Hz */
 #define JUMP_R10   0.1
 
 static void
 fil_init( int samplerate, int channels )
 {
-  float eqbandtable[33];
+  float eqbandtable[NUM_BANDS+1];
   float fftspecres;
 
   float*         out;
@@ -350,7 +362,7 @@ fil_init( int samplerate, int channels )
     eqbandtable[i+1] = pow( 10.0, i * JUMP_R10 + START_R10 );
   }
 
-  for( i = 0; i < 32; i++ )
+  for( i = 0; i < NUM_BANDS; i++ )
   {
     in[0][0] = 0.0;
     in[0][1] = 0.0;
@@ -481,6 +493,7 @@ filter_samples_fpu_stereo( short* newsamples, short* temp, char* buf, int len )
   }
 }
 
+/* Entry point: do filtering */
 int _System
 filter_play_samples( void* F, FORMAT_INFO* format, char* buf, int len, int posmarker )
 {
@@ -557,7 +570,7 @@ load_ini( void )
   int e,i;
 
   for( e = 0; e < 2; e++ ) {
-    for( i = 0; i < 32; i++ )
+    for( i = 0; i < NUM_BANDS; i++ )
     {
       bandgain[e][i] = 1.0;
       mute[e][i] = FALSE;
@@ -621,11 +634,11 @@ save_eq( HWND hwnd, float* gains, BOOL* mutes, float preamp )
 
     fprintf( file, "#\n# Equalizer created with %s\n# Do not modify!\n#\n", VERSION );
     fprintf( file, "# Band gains\n" );
-    for( i = 0; i < 64; i++ ) {
+    for( i = 0; i < NUM_BANDS*2; i++ ) {
       fprintf( file, "%g\n", gains[i] );
     }
     fprintf(file, "# Mutes\n" );
-    for( i = 0; i < 64; i++ ) {
+    for( i = 0; i < NUM_BANDS*2; i++ ) {
       fprintf(file, "%u\n", mutes[i]);
     }
     fprintf( file, "# Preamplifier\n" );
@@ -667,11 +680,11 @@ load_eq_file( char* filename, float* gains, BOOL* mutes, float* preamp )
     blank_strip( line );
     if( *line && line[0] != '#' && line[0] != ';' && i < 129 )
     {
-      if( i < 64 ) {
+      if( i < NUM_BANDS*2 ) {
         gains[i] = atof(line);
-      } else if( i > 63 && i < 128 ) {
-        mutes[i-64] = atoi(line);
-      } else if( i == 128 ) {
+      } else if( i > NUM_BANDS*2-1 && i < NUM_BANDS*4 ) {
+        mutes[i-NUM_BANDS*2] = atoi(line);
+      } else if( i == NUM_BANDS*4 ) {
         *preamp = atof(line);
       }
       i++;
@@ -718,13 +731,13 @@ set_band( HWND hwnd, int channel, int band )
   MRESULT rangevalue;
   float   range,value;
 
-  rangevalue = WinSendDlgItemMsg( hwnd, 200+32*channel+band, SLM_QUERYSLIDERINFO,
+  rangevalue = WinSendDlgItemMsg( hwnd, 200+NUM_BANDS*channel+band, SLM_QUERYSLIDERINFO,
                                   MPFROM2SHORT( SMA_SLIDERARMPOSITION, SMA_RANGEVALUE ), 0 );
   value = (float)SHORT1FROMMR( rangevalue );
   range = (float)SHORT2FROMMR( rangevalue ) - 1; // minus 1 here!!!
 
   bandgain[channel][band] = pow(10.0,(value - range/2)/(range/2)*12/20);
-  mute[channel][band] = SHORT1FROMMR( WinSendDlgItemMsg( hwnd, 100+32*channel+band, BM_QUERYCHECK, 0, 0 ));
+  mute[channel][band] = SHORT1FROMMR( WinSendDlgItemMsg( hwnd, 100+NUM_BANDS*channel+band, BM_QUERYCHECK, 0, 0 ));
 }
 
 static void
@@ -739,24 +752,24 @@ load_dialog( HWND hwnd )
       MRESULT rangevalue;
       float   range;
 
-      rangevalue = WinSendDlgItemMsg( hwnd, 200+32*e+i, SLM_QUERYSLIDERINFO,
+      rangevalue = WinSendDlgItemMsg( hwnd, 200+NUM_BANDS*e+i, SLM_QUERYSLIDERINFO,
                                       MPFROM2SHORT( SMA_SLIDERARMPOSITION, SMA_RANGEVALUE ), 0 );
 
-      WinSendDlgItemMsg( hwnd, 200+32*e+i, SLM_ADDDETENT,
+      WinSendDlgItemMsg( hwnd, 200+NUM_BANDS*e+i, SLM_ADDDETENT,
                          MPFROMSHORT( SHORT2FROMMR( rangevalue )  - 1 ), 0 );
-      WinSendDlgItemMsg( hwnd, 200+32*e+i, SLM_ADDDETENT,
+      WinSendDlgItemMsg( hwnd, 200+NUM_BANDS*e+i, SLM_ADDDETENT,
                          MPFROMSHORT( SHORT2FROMMR( rangevalue ) >> 1 ), 0 );
-      WinSendDlgItemMsg( hwnd, 200+32*e+i, SLM_ADDDETENT,
+      WinSendDlgItemMsg( hwnd, 200+NUM_BANDS*e+i, SLM_ADDDETENT,
                          MPFROMSHORT( 0 ), 0 );
 
       range = (float)SHORT2FROMMR( rangevalue );
 
-      WinSendDlgItemMsg( hwnd, 200+32*e+i, SLM_SETSLIDERINFO,
+      WinSendDlgItemMsg( hwnd, 200+NUM_BANDS*e+i, SLM_SETSLIDERINFO,
                          MPFROM2SHORT( SMA_SLIDERARMPOSITION, SMA_RANGEVALUE ),
                          MPFROMSHORT((SHORT)( 20*log10( bandgain[e][i])/12*range/2+range/2 )));
 
       // mute check boxes
-      WinSendDlgItemMsg( hwnd, 100+32*e+i, BM_SETCHECK, MPFROMCHAR( mute[e][i] ), 0 );
+      WinSendDlgItemMsg( hwnd, 100+NUM_BANDS*e+i, BM_SETCHECK, MPFROMCHAR( mute[e][i] ), 0 );
     }
   }
 
@@ -807,14 +820,14 @@ ConfigureDlgProc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
           for( e = 0; e < 2; e++ ) {
             for( i = 0; i < 32; i++ ) {
 
-              rangevalue = WinSendDlgItemMsg( hwnd, 200+32*e+i, SLM_QUERYSLIDERINFO,
+              rangevalue = WinSendDlgItemMsg( hwnd, 200+NUM_BANDS*e+i, SLM_QUERYSLIDERINFO,
                                               MPFROM2SHORT( SMA_SLIDERARMPOSITION, SMA_RANGEVALUE ), 0 );
 
-              WinSendDlgItemMsg( hwnd, 200+32*e+i, SLM_SETSLIDERINFO,
+              WinSendDlgItemMsg( hwnd, 200+NUM_BANDS*e+i, SLM_SETSLIDERINFO,
                                  MPFROM2SHORT( SMA_SLIDERARMPOSITION, SMA_RANGEVALUE ),
                                  MPFROMSHORT( SHORT2FROMMR( rangevalue ) >> 1 ));
 
-              WinSendDlgItemMsg( hwnd, 100+32*e+i, BM_SETCHECK, 0, 0 );
+              WinSendDlgItemMsg( hwnd, 100+NUM_BANDS*e+i, BM_SETCHECK, 0, 0 );
             }
           }
           eqneedsetup = TRUE;
@@ -931,8 +944,8 @@ ConfigureDlgProc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
                 int channel = 0, band = 0, raw = SHORT1FROMMP(mp1);
 
                 raw -= 100;
-                while( raw - 32 >= 0 ) {
-                  raw -= 32;
+                while( raw - NUM_BANDS >= 0 ) {
+                  raw -= NUM_BANDS;
                   channel++;
                 }
                 band = raw;
@@ -940,8 +953,8 @@ ConfigureDlgProc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
                 if( locklr )
                 {
                   nottheuser = TRUE;
-                  WinSendDlgItemMsg( hwnd, 100+32*((channel+1)&1)+band, BM_SETCHECK, MPFROMSHORT(
-                          SHORT1FROMMR( WinSendDlgItemMsg( hwnd, 100+32*channel+band, BM_QUERYCHECK, 0, 0 ))
+                  WinSendDlgItemMsg( hwnd, 100+NUM_BANDS*((channel+1)&1)+band, BM_SETCHECK, MPFROMSHORT(
+                          SHORT1FROMMR( WinSendDlgItemMsg( hwnd, 100+NUM_BANDS*channel+band, BM_QUERYCHECK, 0, 0 ))
                           ), 0 );
                   nottheuser = FALSE;
                   set_band( hwnd, (channel+1)&1, band );
@@ -960,8 +973,8 @@ ConfigureDlgProc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
                 int channel = 0, band = 0, raw = SHORT1FROMMP(mp1);
 
                 raw -= 200;
-                while( raw - 32 >= 0 ) {
-                  raw -= 32;
+                while( raw - NUM_BANDS >= 0 ) {
+                  raw -= NUM_BANDS;
                   channel++;
                 }
                 band = raw;
@@ -972,10 +985,10 @@ ConfigureDlgProc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
                   MRESULT rangevalue;
 
                   nottheuser = TRUE;
-                  rangevalue = WinSendDlgItemMsg( hwnd, 200+32*channel+band, SLM_QUERYSLIDERINFO,
+                  rangevalue = WinSendDlgItemMsg( hwnd, 200+NUM_BANDS*channel+band, SLM_QUERYSLIDERINFO,
                                     MPFROM2SHORT( SMA_SLIDERARMPOSITION, SMA_RANGEVALUE ), 0 );
 
-                  WinSendDlgItemMsg( hwnd, 200 + 32 * (( channel + 1 ) & 1 ) + band,
+                  WinSendDlgItemMsg( hwnd, 200 + NUM_BANDS * (( channel + 1 ) & 1 ) + band,
                                      SLM_SETSLIDERINFO,
                                      MPFROM2SHORT( SMA_SLIDERARMPOSITION, SMA_RANGEVALUE ),
                                      MPFROMSHORT( SHORT1FROMMR( rangevalue )));
@@ -994,16 +1007,16 @@ ConfigureDlgProc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
                   MRESULT rangevalue;
 
                   raw -= 200;
-                  while( raw - 32 >= 0 ) {
-                    raw -= 32;
+                  while( raw - NUM_BANDS >= 0 ) {
+                    raw -= NUM_BANDS;
                     channel++;
                   }
                   band = raw;
                   nottheuser = TRUE;
-                  rangevalue = WinSendDlgItemMsg( hwnd, 200+32*channel+band, SLM_QUERYSLIDERINFO,
+                  rangevalue = WinSendDlgItemMsg( hwnd, 200+NUM_BANDS*channel+band, SLM_QUERYSLIDERINFO,
                                   MPFROM2SHORT( SMA_SLIDERARMPOSITION, SMA_RANGEVALUE ), 0 );
 
-                  WinSendDlgItemMsg( hwnd, 200+32*((channel+1)&1)+band, SLM_SETSLIDERINFO,
+                  WinSendDlgItemMsg( hwnd, 200+NUM_BANDS*((channel+1)&1)+band, SLM_SETSLIDERINFO,
                                      MPFROM2SHORT( SMA_SLIDERARMPOSITION, SMA_RANGEVALUE ),
                                      MPFROMSHORT( SHORT1FROMMR( rangevalue )));
 
