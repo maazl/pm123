@@ -100,7 +100,6 @@ project for both of us, so give us break), but it's all there!
 |   |   +mpg123
 |   |   +os2audio
 |   |   +realeq
-|   |   +scroller
 |   |   +wavout
 |   |   +wavplay
 |   +pm123
@@ -153,9 +152,6 @@ os2audio
    The output plug-in that uses DART to access the sound card.
 realeq
    The Real Equalizer plug-in, with MMX support and all.
-scroller
-   The title scroller that uses the OS/2 font subsystem to support
-   international characters.
 wavout
    The output plug-in that dumps everything in a WAV file.
 wavplay

@@ -1,6 +1,6 @@
 /*
 
-gbmtif.c - Microsoft/Aldus Tagged Image File Format support
+gbmtif.h - Microsoft/Aldus Tagged Image File Format support
 
 */
 

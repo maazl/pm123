@@ -13,7 +13,8 @@ all: pm123.exe
 DEF      = pm123.def
 OBJECTS  = button95.obj pm123.obj 123_msg.obj 123_util.obj tag.obj \
            pfreq.obj specana.obj plugman.obj bookmark.obj iniman.obj \
-           playlist.obj playlist_utils.obj properties.obj skin.obj
+           playlist.obj properties.obj skin.obj \
+           docking.obj
 RESOURCE = pm123.res
 LIBS     = gbm123.lib http123.lib utilfct.lib fft123.lib
 
@@ -28,17 +29,16 @@ pm123.c:          pm123.h    \
                   button95.h \
                   pfreq.h    \
                   genre.h    \
+                  docking.h  \
                   copyright.h
+
+docking.c:        docking.h
 
 iniman.c:         pm123.h    \
                   plugman.h  \
                   iniman.h
 
 playlist.c:       pm123.h    \
-                  playlist.h
-
-playlist_utils.c: pm123.h    \
-                  plugman.h  \
                   playlist.h
 
 properties.c:     pm123.h    \

@@ -52,7 +52,7 @@ Extended formats (not backward compatible, import option ext_bpp required):
 
   Input:
   ------
- 
+
   Handling of alpha channel:
     If the bitmap contains an associated alpha channel (pre-multiplied alpha), the alpha
     channel values are not separately returned. In this case a provided background color
@@ -148,7 +148,7 @@ History:
 
 22-Feb-2006: Move format description strings to gbmdesc.h
 
-22-Mar-2006: Update to Libtiff 3.8.1
+24-Mar-2006: Update to Libtiff 3.8.2
              Fix JPEG decoding via RGBA reader for YCbCr JPEGs
              -> There seems to be an issue with the libtiff RGBA reader as
                 we don't get RGBA but BGRA for PHOTOMETRIC_YCBCR.
@@ -283,37 +283,29 @@ static toff_t tif_gbm_size(thandle_t fd)
 /* Skip libtiff warning messages. */
 static void tif_gbm_warning_handler(const char* module, const char* fmt, va_list ap)
 {
-   BOOLEAN enabled = FALSE;
-
 #ifdef DEBUG
-   enabled = TRUE;
-#endif
-
-   if (enabled && (module != NULL))
+   if (module != NULL)
    {
       fprintf(stderr, "%s: ", module);
       fprintf(stderr, "Warning, ");
       vfprintf(stderr, fmt, ap);
       fprintf(stderr, ".\n");
    }
+#endif
 }
 
 /* Skip libtiff error messages. */
 static void tif_gbm_error_handler(const char* module, const char* fmt, va_list ap)
 {
-   BOOLEAN enabled = FALSE;
-
 #ifdef DEBUG
-   enabled = TRUE;
-#endif
-
-   if (enabled && (module != NULL))
+   if (module != NULL)
    {
       fprintf(stderr, "%s: ", module);
       fprintf(stderr, "Error, ");
       vfprintf(stderr, fmt, ap);
       fprintf(stderr, ".\n");
    }
+#endif
 }
 
 /* ----------------------------------------------------------- */
@@ -1095,7 +1087,7 @@ static GBM_ERR internal_tif_rpal_16bpp(GBM *gbm, GBMRGB_16BPP *gbmrgb)
                 x += increment;
              }
              break;
-    
+
           case PHOTOMETRIC_MINISBLACK:
              i = palette_entries;
              x = (gbm->bpp <= 8) ? (GBM_TIF_NUM_COLORS - 1) : (GBM_TIF_NUM_COLORS_16BPP - 1);
@@ -1293,7 +1285,7 @@ GBM_ERR internal_tif_rdata_scanline_contig(GBM *gbm, byte * data)
    }
    else if (tif_priv->upsamplePaletteToRGB ||
             tif_priv->upsamplePaletteToPalette)
-   {        
+   {
       uint16 bitsPerSample, samplesPerPixel;
 
       GBM    gbm_src         = *gbm;
@@ -1382,7 +1374,7 @@ GBM_ERR internal_tif_rdata_scanline_contig(GBM *gbm, byte * data)
                return GBM_ERR_READ;
             }
          }
-      } 
+      }
 
       free(scanline_buffer);
    }
@@ -1409,7 +1401,7 @@ GBM_ERR internal_tif_rdata_scanline_contig(GBM *gbm, byte * data)
 
          /* This will happen for images > 24 bpp when they are not reported
           * as such from tif_rhdr(). In this case we will downsample to 24 bpp.
-          */ 
+          */
 
          /* allocate temporary buffer for reading */
          byte *  scanline_buffer = (byte *) malloc(scanline_bytes);
@@ -1516,7 +1508,7 @@ GBM_ERR internal_tif_rdata_scanline_contig(GBM *gbm, byte * data)
                   free(gbm_row_pointers);
                   return GBM_ERR_READ;
                }
-     
+
                if (! gbm_map_row_RGBx_BGRx(gbm_row_pointers[row], gbm,
                                            gbm_row_pointers[row], gbm,
                                            &tif_priv->backrgb   , tif_priv->unassociatedAlpha))
@@ -1527,8 +1519,8 @@ GBM_ERR internal_tif_rdata_scanline_contig(GBM *gbm, byte * data)
             }
          }
       }
-   }                                  
-       
+   }
+
    free(gbm_row_pointers);
    return GBM_ERR_OK;
 }
@@ -1622,7 +1614,7 @@ GBM_ERR internal_tif_rdata_scanline_separate(GBM *gbm, byte * data)
       free(gbm_row_pointers);
       return GBM_ERR_MEM;
    }
-      
+
    if (inkset == INKSET_CMYK)
    {
       for (s = 0; s < samplesPerPixel; s++)
@@ -1780,7 +1772,7 @@ GBM_ERR internal_tif_rdata_tile_contig(GBM *gbm, byte * data)
    {
       return GBM_ERR_MEM;
    }
-   
+
    tile_idx = 0;
    for (y = 0; y < gbm->h; y += tileLength)
    {
@@ -2095,7 +2087,7 @@ GBM_ERR tif_w(const char *fn, int fd, const GBM *gbm, const GBMRGB *gbmrgb, cons
          {
             return GBM_ERR_NOT_SUPP;
          }
-      
+
          /* enforce using real palette instead of BW */
          if (gbm_find_word(opt, "pal1bpp") != NULL)
          {
@@ -2278,7 +2270,7 @@ GBM_ERR tif_w(const char *fn, int fd, const GBM *gbm, const GBMRGB *gbmrgb, cons
       int compression_level = 6;
 
       if ((! compression_set) || (compression != COMPRESSION_ADOBE_DEFLATE))
-      {  
+      {
          return GBM_ERR_BAD_OPTION;
       }
       if (sscanf(s + 13, "%d", &compression_level) != 1)
@@ -2408,7 +2400,7 @@ GBM_ERR tif_w(const char *fn, int fd, const GBM *gbm, const GBMRGB *gbmrgb, cons
             break;
 
          case COMPRESSION_JPEG:
-            if ((! TIFFSetField(tif_p, TIFFTAG_COMPRESSION, compression)) || 
+            if ((! TIFFSetField(tif_p, TIFFTAG_COMPRESSION, compression)) ||
                 (! TIFFSetField(tif_p, TIFFTAG_JPEGQUALITY, jpeg_quality_level)))
             {
                tif_write_deinit(&tif_priv);
@@ -2456,7 +2448,7 @@ GBM_ERR tif_w(const char *fn, int fd, const GBM *gbm, const GBMRGB *gbmrgb, cons
       /* Read the image in scanlines. Attn: Align to 32 bit rows for GBM !!! */
       const int gbm_row_bytes  = ((gbm->w * gbm->bpp + 31)/32) * 4;
             int rows_per_strip = gbm_row_bytes * gbm->h / strip_size;
-      
+
       /* align to 8 rows per strip because some codecs (JPEG) require this */
       rows_per_strip = (rows_per_strip > 0)
                        ? ((rows_per_strip + 7) / 8) * 8

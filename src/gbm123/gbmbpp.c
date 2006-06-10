@@ -2,6 +2,15 @@
 
 gbmbpp.c - Change bits per pixel in a General Bitmap
 
+History:
+--------
+(Heiko Nitzsche)
+
+26-Apr-2006: Fix issue with comma separation between file and options.
+             Now the file can have quotes and thus clearly separating
+             it from the options.
+             On OS/2 command line use: "\"file.ext\",options"
+
 */
 
 /*...sincludes:0:*/
@@ -30,14 +39,8 @@ gbmbpp.c - Change bits per pixel in a General Bitmap
 #include "gbmht.h"
 #include "gbmhist.h"
 #include "gbmmcut.h"
+#include "gbmtool.h"
 
-/*...vgbm\46\h:0:*/
-/*...vgbmerr\46\h:0:*/
-/*...vgbmtrunc\46\h:0:*/
-/*...vgbmht\46\h:0:*/
-/*...vgbmhist\46\h:0:*/
-/*...vgbmmcut\46\h:0:*/
-/*...e*/
 
 static char progname[] = "gbmbpp";
 
@@ -59,8 +62,8 @@ static void usage(void)
 	{
 	int ft, n_ft;
 
-	fprintf(stderr, "usage: %s [-m map] [-e] [-hN] [-p fnp.ext{,opt}]\n", progname);
-	fprintf(stderr, "              [--] fn1.ext{,opt} [fn2.ext{,opt}]\n");
+	fprintf(stderr, "usage: %s [-m map] [-e] [-hN] [-p \"\\\"fnp.ext\\\"{,opt}\"]\n", progname);
+	fprintf(stderr, "              [--] \"\\\"fn1.ext\\\"{,opt}\" [\"\\\"fn2.ext\\\"{,opt}\"]\n");
 	fprintf(stderr, "flags: -m map            mapping to perform (default 7x8x4)\n");
 	fprintf(stderr, "                         bw           black and white\n");
 	fprintf(stderr, "                         vga          16 colour VGA\n");
@@ -102,6 +105,10 @@ static void usage(void)
 	gbm_deinit();
 
 	fprintf(stderr, "       opt's             bitmap format specific options\n");
+
+	fprintf(stderr, "\n       In case the filename contains a comma or spaces and options\n");
+	fprintf(stderr,   "       need to be added, the syntax \"\\\"fn.ext\\\"{,opt}\" must be used\n");
+	fprintf(stderr,   "       to clearly separate the filename from the options.\n");
 
 	exit(1);
 	}
@@ -182,7 +189,8 @@ static BOOLEAN get_masks(char *map, byte *rm, byte *gm, byte *bm)
 /*...sget_pal:0:*/
 static void get_pal(const char *pal, GBMRGB *gbmrgb, int bpp, int *ncols)
 	{
-	char fn_pal[500+1], *opt_pal;
+	GBMTOOL_FILEARG gbmfilearg;
+	char fn_pal[GBMTOOL_FILENAME_MAX+1], opt_pal[GBMTOOL_OPTIONS_MAX+1];
 	int fd, ft_pal, i;
 	GBM gbm;
 	GBM_ERR	rc;
@@ -190,11 +198,15 @@ static void get_pal(const char *pal, GBMRGB *gbmrgb, int bpp, int *ncols)
 	if ( pal == NULL )
 		fatal("palette file must be specified");
 
-	strcpy(fn_pal, pal);
-	if ( (opt_pal = strchr(fn_pal, ',')) != NULL )
-		*opt_pal++ = '\0';
-	else
-		opt_pal = "";
+	/* Split filename and file options. */
+	gbmfilearg.argin = pal;
+	if (gbmtool_parse_argument(&gbmfilearg, FALSE) != GBM_ERR_OK)
+	{
+	  fatal("can't parse palette filename %s", gbmfilearg.argin);
+	}
+	strcpy(fn_pal , gbmfilearg.files->filename);
+	strcpy(opt_pal, gbmfilearg.options);
+	gbmtool_free_argument(&gbmfilearg);
 
 	if ( gbm_guess_filetype(fn_pal, &ft_pal) != GBM_ERR_OK )
 		fatal("can't guess bitmap file format for %s", fn_pal);
@@ -412,11 +424,14 @@ static void tripel(GBM *gbm, const byte *src_data, byte *dest_data)
 
 int main(int argc, char *argv[])
 	{
+	GBMTOOL_FILEARG gbmfilearg;
+	char    fn_src[GBMTOOL_FILENAME_MAX+1], fn_dst[GBMTOOL_FILENAME_MAX+1],
+                opt_src[GBMTOOL_OPTIONS_MAX+1], opt_dst[GBMTOOL_OPTIONS_MAX+1];
+
 	BOOLEAN	errdiff = FALSE, halftone = FALSE, ok = TRUE;
 	int	htmode = 0;
 	char	*map = "7x8x4";
 	char	*pal = NULL;
-	char	fn_src[500+1], fn_dst[500+1], *opt_src, *opt_dst;
 	int	fd, ft_src, ft_dst, i, stride, bytes, flag, m, dest_bpp;
 	byte	rm, gm, bm;
 	int	ncols;
@@ -498,21 +513,42 @@ else
 /*...e*/
 
 	if ( i == argc )
-		usage();
-	strcpy(fn_src, argv[i++]);
-	strcpy(fn_dst, ( i == argc ) ? fn_src : argv[i++]);
-	if ( i < argc )
-		usage();
+	{
+	  usage();
+	}
 
-	if ( (opt_src = strchr(fn_src, ',')) != NULL )
-		*opt_src++ = '\0';
-	else
-		opt_src = "";
+	/* Split filename and file options. */
+	gbmfilearg.argin = argv[i++];
+ 	if (strcmp(gbmfilearg.argin, "\"\"") == 0)
+	{
+	  usage();
+	}
+	if (gbmtool_parse_argument(&gbmfilearg, FALSE) != GBM_ERR_OK)
+	{
+	  fatal("can't parse source filename %s", gbmfilearg.argin);
+	}
+	strcpy(fn_src , gbmfilearg.files->filename);
+	strcpy(opt_src, gbmfilearg.options);
+	gbmtool_free_argument(&gbmfilearg);
 
-	if ( (opt_dst = strchr(fn_dst, ',')) != NULL )
-		*opt_dst++ = '\0';
-	else
-		opt_dst = "";
+	gbmfilearg.argin = (i == argc) ? argv[i-1] : argv[i++];
+ 	if (strcmp(gbmfilearg.argin, "\"\"") == 0)
+	{
+	  usage();
+	}
+
+	if (gbmtool_parse_argument(&gbmfilearg, FALSE) != GBM_ERR_OK)
+	{
+	  fatal("can't parse destination filename %s", gbmfilearg.argin);
+	}
+	strcpy(fn_dst , gbmfilearg.files->filename);
+	strcpy(opt_dst, gbmfilearg.options);
+	gbmtool_free_argument(&gbmfilearg);
+
+	if (i < argc)
+	{
+	  usage();
+	}
 
 	gbm_init();
 
@@ -755,3 +791,4 @@ else
 	return 0;
 	}
 /*...e*/
+

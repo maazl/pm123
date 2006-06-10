@@ -33,7 +33,7 @@ if SysCreateObject( "WPFolder", "PDK", "<PM123FOLDER>",,
 
 say "Creating PM123 program object..."
 if SysCreateObject( "WPProgram", "PM123", "<PM123FOLDER>",,
-   "PARAMETERS=-smooth;PROGTYPE=PM;EXENAME="||dir||"\PM123.EXE;OBJECTID=<PM123>;ICONFILE="||dir||"\PM123.EXE;STARTUPDIR="||dir||";", "REPLACE") = 0 then
+   "PROGTYPE=PM;EXENAME="||dir||"\PM123.EXE;OBJECTID=<PM123>;ICONFILE="||dir||"\PM123.EXE;STARTUPDIR="||dir||";", "REPLACE") = 0 then
    call error
 
 say "Creating PM123 online help..."
@@ -53,37 +53,37 @@ if SysCreateObject( "WPShadow", "FFTW Guide", "<PM123PDK>",,
 
 say "Associating PM123 with WAV files..."
 if SysCreateObject("WPProgram", "PM123[WAV]", "<PM123ASSOTIATIONS>",,
-   "PARAMETERS=-smooth;PROGTYPE=PM;EXENAME="||dir||"\PM123.EXE;OBJECTID=<PM123_WAV>;ICONFILE="||dir||"\icons\wav.ico;STARTUPDIR="||dir||";ASSOCFILTER=*.WAV;", "REPLACE" ) = 0 then
+   "PROGTYPE=PM;EXENAME="||dir||"\PM123.EXE;OBJECTID=<PM123_WAV>;ICONFILE="||dir||"\icons\wav.ico;STARTUPDIR="||dir||";ASSOCFILTER=*.WAV;", "REPLACE" ) = 0 then
    call error
 
 say "Associating PM123 with MP2 files..."
 if SysCreateObject("WPProgram", "PM123[MP2]", "<PM123ASSOTIATIONS>",,
-   "PARAMETERS=-smooth;PROGTYPE=PM;EXENAME="||dir||"\PM123.EXE;OBJECTID=<PM123_MP2>;ICONFILE="||dir||"\icons\mp2.ico;STARTUPDIR="||dir||";ASSOCFILTER=*.MP2;", "REPLACE" ) = 0 then
+   "PROGTYPE=PM;EXENAME="||dir||"\PM123.EXE;OBJECTID=<PM123_MP2>;ICONFILE="||dir||"\icons\mp2.ico;STARTUPDIR="||dir||";ASSOCFILTER=*.MP2;", "REPLACE" ) = 0 then
    call error
 
 say "Associating PM123 with MP3 files..."
 if SysCreateObject("WPProgram", "PM123[MP3]", "<PM123ASSOTIATIONS>",,
-   "PARAMETERS=-smooth;PROGTYPE=PM;EXENAME="||dir||"\PM123.EXE;OBJECTID=<PM123_MP3>;ICONFILE="||dir||"\icons\mp3.ico;STARTUPDIR="||dir||";ASSOCFILTER=*.MP3;", "REPLACE" ) = 0 then
+   "PROGTYPE=PM;EXENAME="||dir||"\PM123.EXE;OBJECTID=<PM123_MP3>;ICONFILE="||dir||"\icons\mp3.ico;STARTUPDIR="||dir||";ASSOCFILTER=*.MP3;", "REPLACE" ) = 0 then
    call error
 
 say "Associating PM123 with M3U files..."
 if SysCreateObject("WPProgram", "PM123[M3U]", "<PM123ASSOTIATIONS>",,
-   "PARAMETERS=-smooth;PROGTYPE=PM;EXENAME="||dir||"\PM123.EXE;OBJECTID=<PM123_M3U>;ICONFILE="||dir||"\icons\m3u.ico;STARTUPDIR="||dir||";ASSOCFILTER=*.M3U;", "REPLACE" ) = 0 then
+   "PROGTYPE=PM;EXENAME="||dir||"\PM123.EXE;OBJECTID=<PM123_M3U>;ICONFILE="||dir||"\icons\m3u.ico;STARTUPDIR="||dir||";ASSOCFILTER=*.M3U;", "REPLACE" ) = 0 then
    call error
 
 say "Associating PM123 with PLS files..."
 if SysCreateObject("WPProgram", "PM123[PLS]", "<PM123ASSOTIATIONS>",,
-   "PARAMETERS=-smooth;PROGTYPE=PM;EXENAME="||dir||"\PM123.EXE;OBJECTID=<PM123_PLS>;ICONFILE="||dir||"\icons\pls.ico;STARTUPDIR="||dir||";ASSOCFILTER=*.PLS;", "REPLACE" ) = 0 then
+   "PROGTYPE=PM;EXENAME="||dir||"\PM123.EXE;OBJECTID=<PM123_PLS>;ICONFILE="||dir||"\icons\pls.ico;STARTUPDIR="||dir||";ASSOCFILTER=*.PLS;", "REPLACE" ) = 0 then
    call error
 
 say "Associating PM123 with MPL files..."
 if SysCreateObject("WPProgram", "PM123[MPL]", "<PM123ASSOTIATIONS>",,
-   "PARAMETERS=-smooth;PROGTYPE=PM;EXENAME="||dir||"\PM123.EXE;OBJECTID=<PM123_MPL>;ICONFILE="||dir||"\icons\mpl.ico;STARTUPDIR="||dir||";ASSOCFILTER=*.MPL;", "REPLACE" ) = 0 then
+   "PROGTYPE=PM;EXENAME="||dir||"\PM123.EXE;OBJECTID=<PM123_MPL>;ICONFILE="||dir||"\icons\mpl.ico;STARTUPDIR="||dir||";ASSOCFILTER=*.MPL;", "REPLACE" ) = 0 then
    call error
 
 say "Associating PM123 with LST files..."
 if SysCreateObject("WPProgram", "PM123[LST]", "<PM123ASSOTIATIONS>",,
-   "PARAMETERS=-smooth;PROGTYPE=PM;EXENAME="||dir||"\PM123.EXE;OBJECTID=<PM123_LST>;ICONFILE="||dir||"\icons\lst.ico;STARTUPDIR="||dir||";ASSOCFILTER=*.LST;", "REPLACE" ) = 0 then
+   "PROGTYPE=PM;EXENAME="||dir||"\PM123.EXE;OBJECTID=<PM123_LST>;ICONFILE="||dir||"\icons\lst.ico;STARTUPDIR="||dir||";ASSOCFILTER=*.LST;", "REPLACE" ) = 0 then
    call error
 
 call SysDestroyObject "<PM123MANUAL>"

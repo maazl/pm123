@@ -73,9 +73,11 @@ typedef struct
 
 } THREADINFO, *PTHREADINFO;
 
-/* Sets the visibility state of the playlist manager presentation window. */
-void pm_show( BOOL show );
 /* Creates the playlist manager presentation window. */
 HWND pm_create( void );
+/* Sets the visibility state of the playlist manager presentation window. */
+void pm_show( BOOL show );
+/* Destroys the playlist manager presentation window. */
+void pm_destroy( void );
 
 

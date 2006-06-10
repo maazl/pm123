@@ -39,7 +39,6 @@
 #include "properties.h"
 #include "pm123.h"
 #include "plugman.h"
-#include "copyright.h"
 
 #define  CFG_REFRESH_LIST (WM_USER+1)
 #define  CFG_REFRESH_INFO (WM_USER+2)
@@ -91,7 +90,6 @@ cfg_page1_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
     case WM_INITDLG:
     {
       char buffer[128];
-      int  i;
 
       WinCheckButton( hwnd, CB_PLAYONLOAD,   cfg.playonload   );
       WinCheckButton( hwnd, CB_AUTOUSEPL,    cfg.autouse      );
@@ -101,30 +99,14 @@ cfg_page1_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
       WinCheckButton( hwnd, CB_DOCK,         cfg.dock_windows );
 
       WinSetDlgItemText( hwnd, EF_DOCK, itoa( cfg.dock_margin, buffer, 10 ));
-
-      WinCheckButton( hwnd, RB_SCROLL_INFINITE + cfg.scroll,   TRUE );
-      WinCheckButton( hwnd, RB_DISP_FILENAME   + cfg.viewmode, TRUE );
-
-      WinSetDlgItemText( hwnd, EF_PROXY_URL, cfg.proxy );
-      WinSetDlgItemText( hwnd, EF_HTTP_AUTH, cfg.auth  );
-
-      WinCheckButton( hwnd, CB_FILLBUFFER, cfg.bufwait );
+      WinSetDlgItemText( hwnd, EF_PROXY_URL,  cfg.proxy   );
+      WinSetDlgItemText( hwnd, EF_HTTP_AUTH,  cfg.auth    );
+      WinCheckButton   ( hwnd, CB_FILLBUFFER, cfg.bufwait );
 
       WinSendDlgItemMsg( hwnd, SB_BUFFERSIZE, SPBM_SETLIMITS,
                                MPFROMLONG( 2048 ), MPFROMLONG( 0 ));
       WinSendDlgItemMsg( hwnd, SB_BUFFERSIZE, SPBM_SETCURRENTVALUE,
                                MPFROMLONG( cfg.bufsize ), 0 );
-
-      lb_remove_all( hwnd, CB_CHARSET );
-      for( i = 0; i < ch_list_size; i++ ) {
-        lb_add_item( hwnd, CB_CHARSET, ch_list[i].name );
-        lb_set_handle( hwnd, CB_CHARSET, i, ch_list[i].id );
-
-        if( i == cfg.charset ) {
-          lb_select( hwnd, CB_CHARSET, i );
-        }
-      }
-
       return 0;
     }
 
@@ -144,23 +126,19 @@ cfg_page1_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
       WinCheckButton( hwnd, CB_SELECTPLAYED,    FALSE );
       WinCheckButton( hwnd, CB_TRASHONSEEK,     TRUE  );
       WinCheckButton( hwnd, CB_DOCK,            TRUE  );
-      WinCheckButton( hwnd, RB_SCROLL_INFINITE, TRUE  );
-      WinCheckButton( hwnd, RB_DISP_FILENAME,   TRUE  );
       WinCheckButton( hwnd, CB_FILLBUFFER,      TRUE  );
 
       WinSetDlgItemText( hwnd, EF_DOCK,      "10" );
       WinSetDlgItemText( hwnd, EF_PROXY_URL, ""   );
       WinSetDlgItemText( hwnd, EF_HTTP_AUTH, ""   );
       WinSendDlgItemMsg( hwnd, SB_BUFFERSIZE, SPBM_SETCURRENTVALUE, 0, 0 );
-
-      lb_select( hwnd, CB_CHARSET, 0 );
       return 0;
     }
 
     case WM_DESTROY:
     {
-      char  buffer[8];
-      ULONG i;
+      char buffer[8];
+      int  i;
 
       cfg.playonload   = WinQueryButtonCheckstate( hwnd, CB_PLAYONLOAD   );
       cfg.autouse      = WinQueryButtonCheckstate( hwnd, CB_AUTOUSEPL    );
@@ -172,24 +150,181 @@ cfg_page1_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
       WinQueryDlgItemText( hwnd, EF_DOCK, 8, buffer );
       cfg.dock_margin = atoi(buffer);
 
-      cfg.scroll   = LONGFROMMR( WinSendDlgItemMsg( hwnd, RB_SCROLL_INFINITE,
-                                                    BM_QUERYCHECKINDEX, 0, 0 ));
-      cfg.viewmode = LONGFROMMR( WinSendDlgItemMsg( hwnd, RB_DISP_FILENAME,
-                                                    BM_QUERYCHECKINDEX, 0, 0 ));
-
       WinSendDlgItemMsg( hwnd, SB_BUFFERSIZE, SPBM_QUERYVALUE,
                          MPFROMP( &i ), MPFROM2SHORT( 0, SPBQ_DONOTUPDATE ));
       cfg.bufsize = i;
-
-      i = lb_selected( hwnd, CB_CHARSET );
-      if( i != LIT_NONE ) {
-        cfg.charset = lb_get_handle( hwnd, CB_CHARSET, i );
-      }
 
       WinQueryDlgItemText( hwnd, EF_PROXY_URL, sizeof( cfg.proxy ), cfg.proxy );
       WinQueryDlgItemText( hwnd, EF_HTTP_AUTH, sizeof( cfg.auth  ), cfg.auth  );
 
       cfg.bufwait = WinQueryButtonCheckstate( hwnd, CB_FILLBUFFER );
+      return 0;
+    }
+  }
+  return WinDefDlgProc( hwnd, msg, mp1, mp2 );
+}
+
+static char*
+cfg_attrs_to_font( const FATTRS* attrs, char* font, LONG size )
+{
+  sprintf( font, "%d.%s", size, attrs->szFacename );
+
+  if( attrs->fsSelection & FATTR_SEL_ITALIC     ) {
+    strcat( font, ".Italic" );
+  }
+  if( attrs->fsSelection & FATTR_SEL_OUTLINE    ) {
+    strcat( font, ".Outline" );
+  }
+  if( attrs->fsSelection & FATTR_SEL_STRIKEOUT  ) {
+    strcat( font, ".Strikeout" );
+  }
+  if( attrs->fsSelection & FATTR_SEL_UNDERSCORE ) {
+    strcat( font, ".Underscore" );
+  }
+  if( attrs->fsSelection & FATTR_SEL_BOLD       ) {
+    strcat( font, ".Bold" );
+  }
+
+  return font;
+}
+
+/* Processes messages of the display page of the setup notebook. */
+static MRESULT EXPENTRY
+cfg_page2_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
+{
+  static FATTRS font_attrs;
+  static LONG   font_size;
+  static char   font_name[FACESIZE+64];
+
+  switch( msg ) {
+    case WM_INITDLG:
+    {
+      int i;
+
+      WinCheckButton( hwnd, RB_DISP_FILENAME   + cfg.viewmode, TRUE );
+      WinCheckButton( hwnd, RB_SCROLL_INFINITE + cfg.scroll,   TRUE );
+      WinCheckButton( hwnd, CB_USE_SKIN_FONT,    cfg.font_skinned   );
+
+      lb_remove_all( hwnd, CB_CHARSET );
+      for( i = 0; i < ch_list_size; i++ ) {
+        lb_add_item( hwnd, CB_CHARSET, ch_list[i].name );
+        lb_set_handle( hwnd, CB_CHARSET, i, (PVOID)ch_list[i].id );
+
+        if( i == cfg.charset ) {
+          lb_select( hwnd, CB_CHARSET, i );
+        }
+      }
+
+      WinEnableControl( hwnd, PB_FONT_SELECT, !cfg.font_skinned );
+      WinEnableControl( hwnd, ST_FONT_SAMPLE, !cfg.font_skinned );
+
+      font_attrs = cfg.font_attrs;
+      font_size  = cfg.font_size;
+
+      WinSetDlgItemText( hwnd, ST_FONT_SAMPLE,
+                         cfg_attrs_to_font( &font_attrs, font_name, font_size ));
+      WinSetPresParam  ( WinWindowFromID( hwnd, ST_FONT_SAMPLE ),
+                         PP_FONTNAMESIZE, strlen( font_name ) + 1,  font_name );
+      return 0;
+    }
+
+    case WM_COMMAND:
+      if( COMMANDMSG( &msg )->cmd == PB_FONT_SELECT )
+      {
+        FONTDLG fontdialog;
+        char    fontname[ FACESIZE + 64 ];
+
+        WinQueryDlgItemText( hwnd, ST_FONT_SAMPLE, sizeof( fontname ), fontname );
+
+        memset( &fontdialog, 0, sizeof( FONTDLG ));
+
+        fontdialog.cbSize         = sizeof( fontdialog );
+        fontdialog.hpsScreen      = WinGetScreenPS( HWND_DESKTOP );
+        fontdialog.pszFamilyname  = malloc( FACESIZE );
+        fontdialog.usFamilyBufLen = FACESIZE;
+        fontdialog.pszTitle       = "PM123 scroller font";
+        fontdialog.pszPreview     = "128 kb/s, 44.1 kHz, Joint-Stereo";
+        fontdialog.fl             = FNTS_CENTER | FNTS_RESETBUTTON | FNTS_INITFROMFATTRS;
+        fontdialog.clrFore        = CLR_BLACK;
+        fontdialog.clrBack        = CLR_WHITE;
+        fontdialog.fAttrs         = font_attrs;
+        fontdialog.fxPointSize    = MAKEFIXED( font_size, 0 );
+
+        WinFontDlg( HWND_DESKTOP, hwnd, &fontdialog );
+
+        if( fontdialog.lReturn == DID_OK )
+        {
+          font_attrs = fontdialog.fAttrs;
+          font_size  = fontdialog.fxPointSize >> 16;
+
+          WinSetDlgItemText( hwnd, ST_FONT_SAMPLE,
+                             cfg_attrs_to_font( &font_attrs, font_name, font_size ));
+          WinSetPresParam  ( WinWindowFromID( hwnd, ST_FONT_SAMPLE ),
+                             PP_FONTNAMESIZE, strlen( font_name ) + 1,  font_name );
+        }
+
+        free( fontdialog.pszFamilyname );
+      }
+      return 0;
+
+    case WM_CONTROL:
+      if( SHORT1FROMMP(mp1) == CB_USE_SKIN_FONT &&
+        ( SHORT2FROMMP(mp1) == BN_CLICKED || SHORT2FROMMP(mp1) == BN_DBLCLICKED ))
+      {
+        BOOL use = WinQueryButtonCheckstate( hwnd, CB_USE_SKIN_FONT );
+
+        WinEnableControl( hwnd, PB_FONT_SELECT, !use );
+        WinEnableControl( hwnd, ST_FONT_SAMPLE, !use );
+      }
+      return 0;
+
+    case CFG_UNDO:
+      WinSendMsg( hwnd, WM_INITDLG, 0, 0 );
+      return 0;
+
+    case CFG_DEFAULT:
+    {
+      WinCheckButton( hwnd, RB_SCROLL_INFINITE, TRUE );
+      WinCheckButton( hwnd, RB_DISP_FILENAME,   TRUE );
+      WinCheckButton( hwnd, CB_USE_SKIN_FONT,   TRUE );
+
+      font_size = 9;
+
+      memset( &font_attrs, 0, sizeof( font_attrs ));
+      strcpy( font_attrs.szFacename, "WarpSans Bold" );
+
+      font_attrs.usRecordLength  = sizeof(FATTRS);
+      font_attrs.lMaxBaselineExt = 14L;
+      font_attrs.lAveCharWidth   =  6L;
+
+      WinSetDlgItemText( hwnd, ST_FONT_SAMPLE,
+                         cfg_attrs_to_font( &font_attrs, font_name, font_size ));
+      WinSetPresParam  ( WinWindowFromID( hwnd, ST_FONT_SAMPLE ),
+                         PP_FONTNAMESIZE, strlen( font_name ) + 1,  font_name );
+
+      WinEnableControl( hwnd, PB_FONT_SELECT, FALSE );
+      WinEnableControl( hwnd, ST_FONT_SAMPLE, FALSE );
+
+      lb_select( hwnd, CB_CHARSET, 0 );
+      return 0;
+    }
+
+    case WM_DESTROY:
+    {
+      int i;
+
+      cfg.scroll   = LONGFROMMR( WinSendDlgItemMsg( hwnd, RB_SCROLL_INFINITE, BM_QUERYCHECKINDEX, 0, 0 ));
+      cfg.viewmode = LONGFROMMR( WinSendDlgItemMsg( hwnd, RB_DISP_FILENAME,   BM_QUERYCHECKINDEX, 0, 0 ));
+
+      i = lb_cursored( hwnd, CB_CHARSET );
+      if( i != LIT_NONE ) {
+        cfg.charset = (int)lb_get_handle( hwnd, CB_CHARSET, i );
+      }
+
+      cfg.font_skinned = WinQueryButtonCheckstate( hwnd, CB_USE_SKIN_FONT );
+      cfg.font_size    = font_size;
+      cfg.font_attrs   = font_attrs;
+
       amp_display_filename();
       amp_invalidate( UPD_FILEINFO );
       return 0;
@@ -200,7 +335,7 @@ cfg_page1_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
 
 /* Processes messages of the plug-ins page 1 of the setup notebook. */
 static MRESULT EXPENTRY
-cfg_page2_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
+cfg_page3_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
 {
   switch( msg )
   {
@@ -317,7 +452,7 @@ cfg_page2_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
 
         case PB_VIS_CONFIG:
         {
-          SHORT i = lb_selected( hwnd, LB_VISPLUG );
+          SHORT i = lb_cursored( hwnd, LB_VISPLUG );
           if( i != LIT_NONE ) {
             visuals[i].plugin_configure( hwnd, visuals[i].module );
           }
@@ -326,7 +461,7 @@ cfg_page2_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
 
         case PB_VIS_ENABLE:
         {
-          SHORT i = lb_selected( hwnd, LB_VISPLUG );
+          SHORT i = lb_cursored( hwnd, LB_VISPLUG );
           if( i != LIT_NONE ) {
             if( visuals[i].enabled ) {
               vis_deinit( i );
@@ -342,7 +477,7 @@ cfg_page2_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
 
         case PB_VIS_UNLOAD:
         {
-          SHORT i = lb_selected( hwnd, LB_VISPLUG );
+          SHORT i = lb_cursored( hwnd, LB_VISPLUG );
           if( i != LIT_NONE ) {
             remove_visual_plugin( &visuals[i] );
             if( lb_remove_item( hwnd, LB_VISPLUG, i ) == 0 ) {
@@ -361,7 +496,7 @@ cfg_page2_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
 
         case PB_DEC_CONFIG:
         {
-          SHORT i = lb_selected( hwnd, LB_DECPLUG );
+          SHORT i = lb_cursored( hwnd, LB_DECPLUG );
           if( i != LIT_NONE ) {
             decoders[i].plugin_configure( hwnd, decoders[i].module );
           }
@@ -370,7 +505,7 @@ cfg_page2_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
 
         case PB_DEC_ENABLE:
         {
-          SHORT i = lb_selected( hwnd, LB_DECPLUG );
+          SHORT i = lb_cursored( hwnd, LB_DECPLUG );
           if( i != LIT_NONE ) {
             if( !decoders[i].enabled ) {
               decoders[i].enabled = TRUE;
@@ -394,7 +529,7 @@ cfg_page2_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
 
         case PB_DEC_UNLOAD:
         {
-          SHORT i = lb_selected( hwnd, LB_DECPLUG );
+          SHORT i = lb_cursored( hwnd, LB_DECPLUG );
           if( i != LIT_NONE ) {
             if( decoder_playing() && active_decoder == i ) {
               amp_error( hwnd, "Cannot unload currently used decoder." );
@@ -420,7 +555,7 @@ cfg_page2_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
 
 /* Processes messages of the plug-ins page 2 of the setup notebook. */
 static MRESULT EXPENTRY
-cfg_page3_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
+cfg_page4_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
 {
   switch( msg )
   {
@@ -534,7 +669,7 @@ cfg_page3_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
 
         case PB_OUT_CONFIG:
         {
-          SHORT i = lb_selected( hwnd, LB_OUTPLUG );
+          SHORT i = lb_cursored( hwnd, LB_OUTPLUG );
           if( i != LIT_NONE ) {
             outputs[i].plugin_configure( hwnd, outputs[i].module );
           }
@@ -543,7 +678,7 @@ cfg_page3_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
 
         case PB_OUT_ACTIVATE:
         {
-          SHORT i = lb_selected( hwnd, LB_OUTPLUG );
+          SHORT i = lb_cursored( hwnd, LB_OUTPLUG );
 
           if( i != LIT_NONE ) {
             if( decoder_playing()) {
@@ -559,7 +694,7 @@ cfg_page3_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
 
         case PB_OUT_UNLOAD:
         {
-          SHORT i = lb_selected( hwnd, LB_OUTPLUG );
+          SHORT i = lb_cursored( hwnd, LB_OUTPLUG );
 
           if( i != LIT_NONE ) {
             if( decoder_playing() && active_output == i ) {
@@ -583,7 +718,7 @@ cfg_page3_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
 
         case PB_FIL_CONFIG:
         {
-          SHORT i = lb_selected( hwnd, LB_FILPLUG );
+          SHORT i = lb_cursored( hwnd, LB_FILPLUG );
           if( i != LIT_NONE ) {
             filters[i].plugin_configure( hwnd, filters[i].module );
           }
@@ -592,7 +727,7 @@ cfg_page3_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
 
         case PB_FIL_ENABLE:
         {
-          SHORT i = lb_selected( hwnd, LB_FILPLUG );
+          SHORT i = lb_cursored( hwnd, LB_FILPLUG );
 
           if( i != LIT_NONE ) {
             if( !filters[i].enabled ) {
@@ -614,7 +749,7 @@ cfg_page3_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
 
         case PB_FIL_UNLOAD:
         {
-          SHORT i = lb_selected( hwnd, LB_FILPLUG );
+          SHORT i = lb_cursored( hwnd, LB_FILPLUG );
 
           if( i != LIT_NONE ) {
             if( decoder_playing()) {
@@ -641,7 +776,7 @@ cfg_page3_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
 
 /* Processes messages of the about page of the setup notebook. */
 static MRESULT EXPENTRY
-cfg_page4_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
+cfg_page5_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
 {
   switch( msg )
   {
@@ -652,7 +787,7 @@ cfg_page4_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
     case WM_INITDLG:
       WinSetDlgItemText( hwnd, ST_AUTHORS, SDG_AUT );
       WinSetDlgItemText( hwnd, ST_CREDITS, SDG_MSG );
-      WinSetDlgItemText( hwnd, ST_TITLE1,  VERSION );
+      WinSetDlgItemText( hwnd, ST_TITLE1,  AMP_FULLNAME );
       return 0;
   }
   return WinDefDlgProc( hwnd, msg, mp1, mp2 );
@@ -758,6 +893,7 @@ cfg_properties( HWND owner )
   HWND page02;
   HWND page03;
   HWND page04;
+  HWND page05;
 
   MRESULT id;
   char built[512];
@@ -779,7 +915,6 @@ cfg_properties( HWND owner )
   do_warpsans( WinWindowFromID( page01, ST_HTTP_AUTH  ));
   do_warpsans( WinWindowFromID( page01, ST_PIXELS     ));
   do_warpsans( WinWindowFromID( page01, ST_BUFFERSIZE ));
-  do_warpsans( WinWindowFromID( page01, ST_CHARSET    ));
 
   id = WinSendMsg( book, BKM_INSERTPAGE, 0,
                    MPFROM2SHORT( BKA_AUTOPAGESIZE | BKA_MAJOR | BKA_STATUSTEXTON, BKA_FIRST ));
@@ -790,31 +925,42 @@ cfg_properties( HWND owner )
   page02 = WinLoadDlg( book, book, cfg_page2_dlg_proc, NULLHANDLE, CFG_PAGE2, 0 );
 
   do_warpsans( page02 );
-  do_warpsans( WinWindowFromID( page02, ST_VIS_AUTHOR ));
-  do_warpsans( WinWindowFromID( page02, ST_VIS_DESC   ));
-  do_warpsans( WinWindowFromID( page02, ST_DEC_AUTHOR ));
-  do_warpsans( WinWindowFromID( page02, ST_DEC_DESC   ));
+  do_warpsans( WinWindowFromID( page02, ST_CHARSET    ));
 
   id = WinSendMsg( book, BKM_INSERTPAGE, 0,
-                   MPFROM2SHORT( BKA_AUTOPAGESIZE | BKA_MAJOR | BKA_MINOR | BKA_STATUSTEXTON, BKA_LAST ));
+                   MPFROM2SHORT( BKA_AUTOPAGESIZE | BKA_MAJOR | BKA_STATUSTEXTON, BKA_LAST ));
 
   WinSendMsg( book, BKM_SETPAGEWINDOWHWND, MPFROMLONG( id ), MPFROMLONG( page02 ));
-  WinSendMsg( book, BKM_SETTABTEXT, MPFROMLONG( id ), MPFROMP( "~Plug-Ins" ));
-  WinSendMsg( book, BKM_SETSTATUSLINETEXT, MPFROMLONG( id ), MPFROMP( "Page 1 of 2" ));
+  WinSendMsg( book, BKM_SETTABTEXT, MPFROMLONG( id ), MPFROMP( "~Display" ));
 
   page03 = WinLoadDlg( book, book, cfg_page3_dlg_proc, NULLHANDLE, CFG_PAGE3, 0 );
 
   do_warpsans( page03 );
-  do_warpsans( WinWindowFromID( page03, ST_FIL_AUTHOR ));
-  do_warpsans( WinWindowFromID( page03, ST_FIL_DESC   ));
-  do_warpsans( WinWindowFromID( page03, ST_OUT_AUTHOR ));
-  do_warpsans( WinWindowFromID( page03, ST_OUT_DESC   ));
+  do_warpsans( WinWindowFromID( page03, ST_VIS_AUTHOR ));
+  do_warpsans( WinWindowFromID( page03, ST_VIS_DESC   ));
+  do_warpsans( WinWindowFromID( page03, ST_DEC_AUTHOR ));
+  do_warpsans( WinWindowFromID( page03, ST_DEC_DESC   ));
 
-  page04 = WinLoadDlg( book, book, cfg_page4_dlg_proc, NULLHANDLE, CFG_ABOUT, 0 );
+  id = WinSendMsg( book, BKM_INSERTPAGE, 0,
+                   MPFROM2SHORT( BKA_AUTOPAGESIZE | BKA_MAJOR | BKA_MINOR | BKA_STATUSTEXTON, BKA_LAST ));
+
+  WinSendMsg( book, BKM_SETPAGEWINDOWHWND, MPFROMLONG( id ), MPFROMLONG( page03 ));
+  WinSendMsg( book, BKM_SETTABTEXT, MPFROMLONG( id ), MPFROMP( "~Plug-Ins" ));
+  WinSendMsg( book, BKM_SETSTATUSLINETEXT, MPFROMLONG( id ), MPFROMP( "Page 1 of 2" ));
+
+  page04 = WinLoadDlg( book, book, cfg_page4_dlg_proc, NULLHANDLE, CFG_PAGE4, 0 );
 
   do_warpsans( page04 );
-  do_warpsans( WinWindowFromID( page04, ST_TITLE2 ));
-  do_warpsans( WinWindowFromID( page04, ST_BUILT  ));
+  do_warpsans( WinWindowFromID( page04, ST_FIL_AUTHOR ));
+  do_warpsans( WinWindowFromID( page04, ST_FIL_DESC   ));
+  do_warpsans( WinWindowFromID( page04, ST_OUT_AUTHOR ));
+  do_warpsans( WinWindowFromID( page04, ST_OUT_DESC   ));
+
+  page05 = WinLoadDlg( book, book, cfg_page5_dlg_proc, NULLHANDLE, CFG_ABOUT, 0 );
+
+  do_warpsans( page05 );
+  do_warpsans( WinWindowFromID( page05, ST_TITLE2 ));
+  do_warpsans( WinWindowFromID( page05, ST_BUILT  ));
 
   sprintf( built, "(built %s", __DATE__ );
 
@@ -827,19 +973,19 @@ cfg_properties( HWND owner )
   #endif
 
   strcat( built, ")" );
-  WinSetDlgItemText( page04, ST_BUILT, built );
+  WinSetDlgItemText( page05, ST_BUILT, built );
 
   id = WinSendMsg( book, BKM_INSERTPAGE, MPFROMLONG( id),
                    MPFROM2SHORT( BKA_AUTOPAGESIZE | BKA_MINOR | BKA_STATUSTEXTON, BKA_NEXT ));
 
-  WinSendMsg( book, BKM_SETPAGEWINDOWHWND, MPFROMLONG( id ), MPFROMLONG( page03 ));
+  WinSendMsg( book, BKM_SETPAGEWINDOWHWND, MPFROMLONG( id ), MPFROMLONG( page04 ));
   WinSendMsg( book, BKM_SETTABTEXT, MPFROMLONG( id ), MPFROMP( "~Plug-Ins" ));
   WinSendMsg( book, BKM_SETSTATUSLINETEXT, MPFROMLONG( id ), MPFROMP( "Page 2 of 2" ));
 
   id = WinSendMsg( book, BKM_INSERTPAGE, 0,
                    MPFROM2SHORT( BKA_AUTOPAGESIZE | BKA_MAJOR, BKA_LAST ));
 
-  WinSendMsg( book, BKM_SETPAGEWINDOWHWND, MPFROMLONG( id ), MPFROMLONG( page04 ));
+  WinSendMsg( book, BKM_SETPAGEWINDOWHWND, MPFROMLONG( id ), MPFROMLONG( page05 ));
   WinSendMsg( book, BKM_SETTABTEXT, MPFROMLONG( id ), MPFROMP( "~About" ));
 
   rest_window_pos( hwnd, WIN_MAP_POINTS );

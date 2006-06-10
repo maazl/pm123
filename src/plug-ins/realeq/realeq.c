@@ -50,13 +50,14 @@
 #include <plugin.h>
 #include "realeq.h"
 
-#define VERSION "Real Equalizer 1.20"
+#define VERSION "Real Equalizer 1.21"
 #define MAX_COEF 8192
 #define NUM_BANDS  32
 
 static BOOL  mmx_present;
 static BOOL  eqneedinit  = TRUE;
 static BOOL  eqneedsetup = TRUE;
+static HWND  hdialog     = NULLHANDLE;
 
 static float eqbandFIR[2][NUM_BANDS][4096];
 
@@ -801,6 +802,12 @@ ConfigureDlgProc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
       nottheuser = FALSE;
       break;
 
+    case WM_CLOSE:
+      save_ini();
+      WinDestroyWindow( hwnd );
+      hdialog = NULLHANDLE;
+      break;
+
     case WM_COMMAND:
       switch( SHORT1FROMMP( mp1 ))
       {
@@ -1040,14 +1047,13 @@ ConfigureDlgProc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
 void _System
 plugin_configure( HWND hwnd, HMODULE module )
 {
-  HWND dlghwnd = WinLoadDlg( HWND_DESKTOP, HWND_DESKTOP, ConfigureDlgProc, module, ID_EQ, NULL );
-
-  if( dlghwnd )
-  {
-    do_warpsans( dlghwnd );
-    WinSetFocus( HWND_DESKTOP,WinWindowFromID( dlghwnd, EQ_ENABLED ));
-    WinShowWindow( dlghwnd, TRUE );
+  if( !hdialog ) {
+    hdialog = WinLoadDlg( HWND_DESKTOP, HWND_DESKTOP, ConfigureDlgProc, module, ID_EQ, NULL );
+    do_warpsans( hdialog );
   }
+
+  WinShowWindow( hdialog, TRUE );
+  WinSetFocus  ( HWND_DESKTOP, WinWindowFromID( hdialog, EQ_ENABLED ));
 }
 
 BOOL _System

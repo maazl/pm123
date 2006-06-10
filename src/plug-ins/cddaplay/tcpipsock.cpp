@@ -42,10 +42,8 @@
 #include <netdb.h>
 #include <nerrno.h>
 
-#include "nerrno_str.h"
 #include "utilfct.h"
 #include "tcpipsock.h"
-
 #include "cdda.h"
 
 tcpip_socket::~tcpip_socket()

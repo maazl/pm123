@@ -41,17 +41,21 @@
 #define UL_PL_COLOR           5 /* Playlist position indicator color.                 */
 #define UL_SHADE_STAT         6 /* Disable 3D-shading of the statistics area.         */
 #define UL_SHADE_VOLUME       7 /* Disable 3D-shading of the volume bar.              */
-#define UL_DISPLAY_MSG        8 /* A string to be displayed on skin load.             */
+#define UL_DISPLAY_MSG        8 /* A string to be displayed on skin load (obsolete).  */
 #define UL_SHADE_PLAYER       9 /* Disable 3D-shading of the player window.           */
 #define UL_SHADE_SLIDER      10 /* Disable the seek slider border.                    */
 #define UL_ONE_FONT          11 /* Disable the second font.                           */
-#define UL_TIMER_SEPSPACE    12 /* Width of the main timer seperator (in pixels).     */
+#define UL_TIMER_SEPSPACE    12 /* Width of the main timer separator (obsolete).      */
+#define UL_IN_PIXELS         13 /* Measure width of the filename display in pixels.   */
+#define UL_R_MSG_HEIGHT      14 /* Height of the filename display for regular mode.   */
+#define UL_S_MSG_HEIGHT      15 /* Height of the filename display for small mode.     */
+#define UL_FG_MSG_COLOR      16 /* Foreground color of the filename display.          */
 #define UL_R_MSG_LEN         20 /* Width of the filename display for regular mode.    */
 #define UL_SLIDER_WIDTH      21 /* Width the seek slider area in pixels.              */
 #define UL_S_MSG_LEN         22 /* Width of the filename display for small mode.      */
 #define UL_FONT              23 /* Initial font, 0 or 1.                              */
-#define UL_TIMER_SPACE       24 /* Space between main timer digits (in pixels).       */
-#define UL_TIMER_SEP         25 /* Disable main timer separator.                      */
+#define UL_TIMER_SPACE       24 /* Space between the main timer digits (in pixels).   */
+#define UL_TIMER_SEPARATE    25 /* Disable separator between the main timer groups.   */
 #define UL_VOLUME_HRZ        26 /* Make volume bar horizontal.                        */
 #define UL_VOLUME_SLIDER     27 /* Give volume bar a handle you can grab.             */
 #define UL_BPS_DIGITS        28 /* Draw bitrates with digits from resource 1830-1839. */
@@ -254,10 +258,6 @@ void bmp_draw_shade( HPS hps, int x, int y, int cx, int cy, long clr1, long clr2
 int  bmp_cx( int id );
 /* Returns a height of the specified bitmap. */
 int  bmp_cy( int id );
-/* Returns a width of the character of the current selected font. */
-int  bmp_char_cx( void );
-/* Returns a height of the character of the current selected font. */
-int  bmp_char_cy( void );
 
 /* Draws a activation led. */
 void bmp_draw_led( HPS hps, int active );
@@ -281,7 +281,7 @@ void bmp_draw_plind( HPS hps, int index, int total );
 void bmp_draw_plmode( HPS hps );
 /* Draws the current position slider. */
 void bmp_draw_slider( HPS hps, int played, int total );
-/* Draws a current selected text using the current selected font. */
+/* Draws a current displayed text using the current selected font. */
 void bmp_draw_text( HPS hps );
 /* Draws the time left and playlist left labels. */
 void bmp_draw_timeleft( HPS hps );
@@ -295,7 +295,7 @@ const char* bmp_query_text( void );
 
 /* Queries whether a point lies within a volume bar rectangle. */
 BOOL bmp_pt_in_volume( POINTL pos );
-/* Queries whether a point lies within a text rectangle. */
+/* Queries whether a point lies within a current displayed text rectangle. */
 BOOL bmp_pt_in_text( POINTL pos );
 /* Queries whether a point lies within a position slider rectangle. */
 BOOL bmp_pt_in_slider( POINTL pos );

@@ -42,8 +42,9 @@
 #include "gbmrect.h"
 #include "utilfct.h"
 #include "skin.h"
+#include "copyright.h"
 
-char suberror[256];
+static char suberror[256];
 
 /* Prototypes */
 void dtlf( char* );
@@ -312,12 +313,14 @@ skin_convert( char *src )
   TSAR (']');
   CHECK( cropimage( file, concat( dir, "2parenr.bmp"), 115, gbm.h - 12, 5, 6 ));
 
-  pos[ POS_R_TEXT ].x = 111; pos[ POS_R_TEXT ].y = 83;
+  pos[ POS_R_TEXT ].x = 111; pos[ POS_R_TEXT ].y = 80;
   pos[ POS_S_TEXT ].x =  79; pos[ POS_S_TEXT ].y =  4;
   pos[ POS_BPS    ].x = 110; pos[ POS_BPS    ].y = 67;
 
-  flg[ UL_R_MSG_LEN ] =  30;
-  flg[ UL_S_MSG_LEN ] =  16;
+  flg[ UL_R_MSG_LEN    ] = 155;
+  flg[ UL_R_MSG_HEIGHT ] = 12;
+  flg[ UL_S_MSG_LEN    ] = 81;
+  flg[ UL_S_MSG_HEIGHT ] = 7;
 
   printf ( "\n" );
   sprintf( file, "%sposbar.bmp", dir );
@@ -424,11 +427,9 @@ skin_convert( char *src )
   DOT;
   CHECK( cropimage( file, concat( dir, "t9.bmp"  ), 81, gbm.h - 13, 9, 13 ));
 
-  pos[ POS_TIMER ].x = 48;
-  pos[ POS_TIMER ].y = 77;
-
-  flg[ UL_TIMER_SPACE    ] = 3;
-  flg[ UL_TIMER_SEPSPACE ] = 6;
+  pos[ POS_TIMER      ].x = 48;
+  pos[ POS_TIMER      ].y = 77;
+  flg[ UL_TIMER_SPACE ]   =  3;
 
   printf ("\n" );
   sprintf( file, "%smain.bmp", dir );
@@ -446,6 +447,23 @@ skin_convert( char *src )
   pos[ POS_PL_MODE   ].x = -1; pos[ POS_PL_MODE   ].y = -1;
   pos[ POS_PL_INDEX  ].x = -1; pos[ POS_PL_INDEX  ].y = -1;
   pos[ POS_PL_TOTAL  ].x = -1; pos[ POS_PL_TOTAL  ].y = -1;
+
+  strcpy( file, dir );
+  strcat( file, "pledit.txt" );
+
+  flg[ UL_FG_MSG_COLOR ] = 0x00FFFFFFUL;
+  f01 = fopen( file, "r" );
+  if( f01 ) {
+    while( !feof( f01 )) {
+      fgets( file, sizeof( file ), f01 );
+      if( strnicmp( file, "MbFG=#", 6 ) == 0 ) {
+        sscanf( file + 6, "%08X", &flg[ UL_FG_MSG_COLOR ] );
+      }
+      fprintf( f02, "%s", file );
+    }
+    fclose( f01 );
+  }
+
 
   printf( "\n" );
   strcpy( file, dir );
@@ -663,16 +681,22 @@ skin_convert( char *src )
   fprintf( skin, "30,%s.pak\n", file );
   fprintf( skin, "6,1\n" );
   fprintf( skin, "7,1\n" );
-  fprintf( skin, "8,WinAmp skin\n" );
   fprintf( skin, "9,1\n" );
   fprintf( skin, "10,1\n" );
   fprintf( skin, "11,1\n" );
-  fprintf( skin, "12,%d\n", flg[ UL_TIMER_SEPSPACE ]);
-  fprintf( skin, "20,%d\n", flg[ UL_R_MSG_LEN      ]);
-  fprintf( skin, "22,%d\n", flg[ UL_S_MSG_LEN      ]);
+  fprintf( skin, "13,1\n" );
+  fprintf( skin, "14,%d\n", flg[ UL_R_MSG_HEIGHT ]);
+  fprintf( skin, "15,%d\n", flg[ UL_S_MSG_HEIGHT ]);
+
+  fprintf( skin, "16,%d/%d/%d\n", flg[ UL_FG_MSG_COLOR ] >> 16 & 0x000000FFUL,
+                                  flg[ UL_FG_MSG_COLOR ] >>  8 & 0x000000FFUL,
+                                  flg[ UL_FG_MSG_COLOR ]       & 0x000000FFUL );
+
+  fprintf( skin, "20,%d\n", flg[ UL_R_MSG_LEN    ]);
+  fprintf( skin, "22,%d\n", flg[ UL_S_MSG_LEN    ]);
   fprintf( skin, "21,219\n" );
   fprintf( skin, "23,0\n" );
-  fprintf( skin, "24,%d\n", flg[ UL_TIMER_SPACE    ]);
+  fprintf( skin, "24,%d\n", flg[ UL_TIMER_SPACE  ]);
   fprintf( skin, "25,0\n" );
   fprintf( skin, "26,1\n" );
 
@@ -869,16 +893,20 @@ skin_convert( char *src )
 int
 main( int argc, char *argv[] )
 {
-  printf( "\x1b[1mPM123 Skin Utility\x1b[0m (c) 1998-2000 Taneli Lepp„ <rosmo@sektori.com>\n" );
+  printf( "\x1b[1m%s Skin Utility.\x1b[0m\n", AMP_FULLNAME );
+  printf( "Copyright (c) 2005-2006 Dmitry A.Steklenev <glass@ptv.ru>\n" );
+  printf( "Copyright (c) 1998-2000 Taneli Lepp„ <rosmo@sektori.com>\n\n"  );
+
   if( argc < 3 )
   {
-    printf( "Usage: %s {convert|bundle} {parameters}\n\n", argv[0] );
-    printf( "\x1b[1mconvert\x1b[0m        Converts a WinAmp skin to a PM123 skin\n" );
-    printf( "                 Usage:    convert {skin directory}\n" );
-    printf( "                 Example:  skinutil convert foo\n" );
-    printf( "\x1b[1mbundle\x1b[0m         Bundles skin bitmaps into one file\n" );
-    printf( "                 Usage:    bundle {source.skn} {destination base name}\n" );
-    printf( "                 Example:  skinutil bundle foo.skn foodist\n" );
+    printf( "Usage: %s {convert|bundle} <parameters...>\n\n", argv[0] );
+    printf( "\x1b[1mconvert\x1b[0m  Converts a WinAmp skin to a PM123 skin\n" );
+    printf( "         Usage:    convert <skin directory>\n" );
+    printf( "         Example:  skinutil convert foo\n" );
+    printf( "\n" );
+    printf( "\x1b[1mbundle\x1b[0m   Bundles skin bitmaps into one file\n" );
+    printf( "         Usage:    bundle <source.skn> <destination base name>\n" );
+    printf( "         Example:  skinutil bundle foo.skn foodist\n" );
     return 1;
   }
 

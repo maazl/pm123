@@ -1,23 +1,24 @@
 # IBM Visualage C++ 3.0
 
-.SUFFIXES: .c .asm .obj .rc .res
+.SUFFIXES: .res .rc .obj .asm .c
 
 CC = icc
 AS = nasm -fobj
 LB = ilib /nobackup /quiet /nologo
+LE = ;
 LI = implib /nologo
 
-CFLAGS=-Ss -Q -Gm -W3 -DOS2 -DTCPV40HDRS
-DLLFLG=-Ge- -DLL
-RESFLG=-n
-ASMFLG=
+CFLAGS = -Ss -Q -Gm -W3 -DOS2 -DTCPV40HDRS
+DLLFLG = -Ge- -DLL
+RESFLG = -n
+ASMFLG =
 
 !ifdef DEBUG
-CFLAGS=-Ti $(CFLAGS)
-LNKFLG=-Ti -Q -B"/NOE"
+CFLAGS = -Ti $(CFLAGS)
+LNKFLG = -Ti -Q -B"/NOE"
 !else
-CFLAGS=-Gf -Gi -O -Ol -G5 $(CFLAGS)
-LNKFLG=-Q -B"/PACKC /PACKD /NOE"
+CFLAGS = -Gf -Gi -O -Ol -G5 $(CFLAGS)
+LNKFLG = -Q -B"/PACKC /PACKD /NOE"
 !endif
 
 .c.obj:

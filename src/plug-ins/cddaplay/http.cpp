@@ -41,11 +41,9 @@
 #include <netdb.h>
 #include <nerrno.h>
 
-#include "nerrno_str.h"
 #include "utilfct.h"
 #include "tcpipsock.h"
 #include "http.h"
-
 #include "cdda.h"
 
 HTTP_socket::HTTP_socket()

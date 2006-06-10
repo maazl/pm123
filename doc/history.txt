@@ -1,6 +1,29 @@
 PM123's History
 ===============
 
+    - Docking of windows became more accurate and powerful.
+    - Addition of a bookmark is disabled if is not present a loaded file.
+    - Added a new option to properties dialog allowing to choose a font used
+      for display of playing titles. All skinned and non skinned fonts are
+      scrolled smoothly, therefore the "smooth scroller" plug-in is removed
+      from PM123 distribution and "-smooth" commandline switch is ignored.
+      The skin now can define a color of the non skinned font. The SKINUTIL
+      also define this color during the WinAmp skin conversion.
+    - Integrated last source codes of the Generalised Bitmap Module.
+    - Previous song in "random mode" does go to the previous song played,
+      and next song does go back to the same song.
+    - More there are no messages about missed files at loading the playlist.
+      Missed files are marked with a special icon and skipped at use of the
+      playlist.
+
+    MPG123:
+    - Improved support of VBR mp3 files having a correct VBR header. Also
+      improved support of VBR files without such header: timers and length of
+      a song can be wrong, but there are no jerks of the seek slider.
+
+    REALEQ:
+    - The mute controls of the left and right channel are placed correctly.
+
 PM123 1.31
 ----------
     - The Playlist Manager closes a playlist file after its use.

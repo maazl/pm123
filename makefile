@@ -2,17 +2,21 @@
 #  makefile for the whole pm123 package using NMAKE and VAC++
 #
 
-# indicate the path to the WarpIN compiler (wic.exe)
-VERSION = 1_31
+VERSION = 1_32
+
+!include src\config\makerules
 
 !IFDEF DEBUG
-DBGFLAG = DEBUG=1
+DBGFLAG = $(DBGFLAG) DEBUG=Yes
+!ENDIF
+!IFDEF DEBUG_ALLOC
+DBGFLAG = $(DBGFLAG) DEBUG_ALLOC=Yes
 !ENDIF
 
-MAKEME  = $(MAKE) /NOLOGO /$(MAKEFLAGS) $(DBGFLAG)
+MAKEME  = $(MAKE) $(MKFLAG) $(DBGFLAG)
 
 all: utilfct.lib gbm123.dll http123.dll ooura1d.dll \
-     analyzer.dll fft123.dll cddaplay.dll mpg123.dll os2audio.dll realeq.dll scroller.dll \
+     analyzer.dll fft123.dll cddaplay.dll mpg123.dll os2audio.dll realeq.dll \
      wavout.dll wavplay.dll pm123.exe skinutil.exe pm123.inf
 
 utilfct.lib:
@@ -62,11 +66,6 @@ os2audio.dll:
 
 realeq.dll:
    cd src\plug-ins\realeq
-   @$(MAKEME)
-   @cd ..\..\..
-
-scroller.dll:
-   cd src\plug-ins\scroller
    @$(MAKEME)
    @cd ..\..\..
 
@@ -126,9 +125,6 @@ clean:
    cd src\plug-ins\realeq
    @$(MAKEME) clean
    @cd ..\..\..
-   cd src\plug-ins\scroller
-   @$(MAKEME) clean
-   @cd ..\..\..
    cd src\plug-ins\wavout
    @$(MAKEME) clean
    @cd ..\..\..
@@ -168,7 +164,6 @@ distfiles:
    copy src\plug-ins\mpg123\mpg123.dll dist\files
    copy src\plug-ins\os2audio\os2audio.dll dist\files
    copy src\plug-ins\realeq\realeq.dll dist\files
-   copy src\plug-ins\scroller\scroller.dll dist\files\visplug
    copy src\plug-ins\wavout\wavout.dll dist\files
    copy src\plug-ins\wavplay\wavplay.dll dist\files
    copy src\pm123\pm123.exe dist\files

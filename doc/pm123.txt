@@ -31,7 +31,6 @@ supports skins, audio streaming, plug-ins, visualization, CDDB and more!
       - the GUI freezes in various places due to network access and the need
         of threads for such operations
       - some valid bitrates are not displayed in the icons of the skin
-      - it is sometimes hard to set the volume properly on the first click
       - pm123 runs as a real-time process, so it can freeze OS/2 if the CPU
         is too slow: be careful!
       - there still might be occasional redraw problems where pm123 plagues
@@ -39,7 +38,6 @@ supports skins, audio streaming, plug-ins, visualization, CDDB and more!
       - various windows always appear only at the bottom left of the screen
       - OS/2 LIBPATH subsystem is quite outdated, and cannot find DLLs in
         the EXE directory: need to implement manual DLL loading
-      - some VBR files do not play properly
 
    Missing Features
    ----------------
@@ -61,9 +59,6 @@ supports skins, audio streaming, plug-ins, visualization, CDDB and more!
       - a "double size" would be nice
       - automatic fade in / fade out would be nice
       - add a status bar in the playlist window
-      - previous song in "random mode" does not go to the previous song
-        played, and next song does not go back to the same song: need to
-        keep in memory the random seed
       - no transparent or non-square skins because too difficult and
         ineffecient in OS/2
       - cannot load a CD track from command line

@@ -1,8 +1,8 @@
 /*
- * Copyright 1997-2003 Samuel Audet  <guardia@step.polymtl.ca>
- *                     Taneli Lepp„  <rosmo@sektori.com>
+ * Copyright 1997-2003 Samuel Audet <guardia@step.polymtl.ca>
+ *                     Taneli Lepp„ <rosmo@sektori.com>
  *
- * Copyright 2004 Dmitry A.Steklenev <glass@ptv.ru>
+ * Copyright 2006 Dmitry A.Steklenev <glass@ptv.ru>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -29,21 +29,39 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef _NERRNO_STR_H
-#define _NERRNO_STR_H
+#define  INCL_WIN
+#define  INCL_ERRORS
+#include <os2.h>
+#include "utilfct.h"
 
-#if __cplusplus
-extern "C" {
-#endif
-
-const char* sock_strerror( int socket_errno );
-const char* h_strerror   ( int tcpip_errno  );
-const char* clib_strerror( int clib_errno   );
-
-char* os2_strerror( unsigned int os2_errno,
-                    char* result, size_t size );
-
-#if __cplusplus
+/* Opens the specified profile file. */
+HINI
+open_ini( const char* filename ) {
+  return PrfOpenProfile( WinQueryAnchorBlock( HWND_DESKTOP ), (PSZ)filename );
 }
-#endif
-#endif /* _NERRNO_STR_H */
+
+/* Opens a profile file by the name of the module in the program directory. */
+HINI
+open_module_ini( void )
+{
+  HMODULE module;
+  char    module_name[CCHMAXPATH];
+  char    exe_path[CCHMAXPATH];
+  char    ini_filename[CCHMAXPATH*2];
+
+  getModule ( &module, module_name, CCHMAXPATH );
+  getExeName( exe_path, CCHMAXPATH );
+  sdrivedir ( ini_filename, exe_path );
+  sfname    ( ini_filename + strlen( ini_filename ), module_name );
+  strcat    ( ini_filename, ".ini" );
+
+  return open_ini( ini_filename );
+}
+
+/* Closes a opened profile file. */
+BOOL
+close_ini( HINI hini ) {
+  return PrfCloseProfile( hini );
+}
+
+

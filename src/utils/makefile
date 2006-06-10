@@ -9,9 +9,9 @@ LIB     = $(LIB);
 
 all: utilfct.lib
 
-OBJECTS = utilfct.obj oddfct.obj pmutil.obj tree.obj bufstream.obj \
-          find.obj nerrno_str.obj list.obj rel2abs.obj abs2rel.obj \
-          charset.obj wildcards.obj
+OBJECTS = utilfct.obj  bufstream.obj fileutil.obj  url.obj \
+          filefind.obj errorstr.obj  rel2abs.obj   abs2rel.obj \
+          inimacro.obj charset.obj   wildcards.obj queue.obj
 
 utilfct.lib: $(OBJECTS)
    if exist $@ del $@

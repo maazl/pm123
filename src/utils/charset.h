@@ -62,7 +62,32 @@ typedef struct _CH_ENTRY {
 extern const CH_ENTRY ch_list[];
 extern const int      ch_list_size;
 
-int   ch_detect ( int ch_source, const char* source );
+/*
+ * ch_detect: determine a characters string character set.
+ *
+ *    ch_source source character set
+ *    source    source string
+ *
+ *    return    character set identifier
+ */
+
+int ch_detect( int ch_source, const char* source );
+
+/*
+ * ch_convert: convert a characters string from one character
+ *             set to another.
+ *
+ *    hab       program anchor block handle
+ *    ch_source source character set
+ *    source    source string
+ *    ch_target target character set
+ *    target    result buffer
+ *    size      size of result buffer
+ *
+ *    return    != NULL: converted string
+ *              == NULL: error
+ */
+
 char* ch_convert( int ch_source, const char* source, 
                   int ch_target, char* target, size_t size );
 

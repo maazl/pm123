@@ -84,7 +84,7 @@ ch_find( int id )
 }
 
 /*
- * ch_rus_detect: determine an characters string character set for
+ * ch_rus_detect: determine a characters string character set for
  *                russian language.
  *
  *    source  source string
@@ -157,7 +157,7 @@ ch_rus_detect( const char *source )
 }
 
 /*
- * ch_detect: determine an characters string character set.
+ * ch_detect: determine a characters string character set.
  *
  *    ch_source source character set
  *    source    source string
@@ -178,7 +178,7 @@ ch_detect( int ch_source, const char* source )
 }
 
 /*
- * ch_convert: convert an characters string from one character
+ * ch_convert: convert a characters string from one character
  *             set to another.
  *
  *    hab       program anchor block handle

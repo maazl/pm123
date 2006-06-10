@@ -128,7 +128,17 @@ gbmmap.obj:	gbmmap.c gbm.h gbmmap.h
 # Bitmap tools
 # ------------
 
-gbmhdr.exe:	gbmhdr.obj gbm123.lib
+gbmtool.obj:    gbmtool.c gbmtool.h gbm.h
+
+gbmtos2.obj:    gbmtos2.c gbmtool.h gbm.h
+
+gbmtool.lib:	gbmtool.obj gbmtos2.obj
+		-del /N $@ 2> nul
+		$(LB) $@ $**;
+
+#
+
+gbmhdr.exe:	gbmhdr.obj gbm123.lib gbmtool.lib
 		ilink $(LFLAGS_EXE) /OUT:$@ /NOE setargv.obj $**
 
 gbmhdr.obj:	gbmhdr.c gbm.h
@@ -141,7 +151,7 @@ gbmmir.lib:	gbmmir.obj
 
 gbmmir.obj:	gbmmir.c
 
-gbmref.exe:	gbmref.obj gbm123.lib gbmmir.lib
+gbmref.exe:	gbmref.obj gbm123.lib gbmmir.lib gbmtool.lib
 		ilink $(LFLAGS_EXE) /OUT:$@ $**
 
 gbmref.obj:	gbmref.c gbm.h gbmmir.h
@@ -154,7 +164,7 @@ gbmrect.lib:	gbmrect.obj
 
 gbmrect.obj:	gbmrect.c
 
-gbmsub.exe:	gbmsub.obj gbm123.lib gbmrect.lib
+gbmsub.exe:	gbmsub.obj gbm123.lib gbmrect.lib gbmtool.lib
 		ilink $(LFLAGS_EXE) /OUT:$@ $**
 
 gbmsub.obj:	gbmsub.c gbm.h gbmrect.h
@@ -175,7 +185,7 @@ gbmscale.lib:	gbmscale.obj
 
 gbmscale.obj:	gbmscale.c
 
-gbmsize.exe:	gbmsize.obj gbm123.lib gbmscale.lib
+gbmsize.exe:	gbmsize.obj gbm123.lib gbmscale.lib gbmtool.lib
 		ilink $(LFLAGS_EXE) /OUT:$@ $**
 
 gbmsize.obj:	gbmsize.c gbm.h gbmscale.h
@@ -214,28 +224,28 @@ gbmmcut.obj:	gbmmcut.c
 
 #
 
-gbmbpp.exe:	gbmbpp.obj gbm123.lib gbmerr.lib gbmtrunc.lib gbmht.lib gbmhist.lib gbmmcut.lib
+gbmbpp.exe:	gbmbpp.obj gbm123.lib gbmerr.lib gbmtrunc.lib gbmht.lib gbmhist.lib gbmmcut.lib gbmtool.lib
 		ilink $(LFLAGS_EXE) /OUT:$@ $**
 
 gbmbpp.obj:	gbmbpp.c gbm.h gbmerr.h gbmtrunc.h gbmht.h gbmhist.h gbmmcut.h
 
 #
 
-gbmcpal.exe:	gbmcpal.obj gbm123.lib gbmhist.lib gbmmcut.lib
+gbmcpal.exe:	gbmcpal.obj gbm123.lib gbmhist.lib gbmmcut.lib gbmtool.lib
 		ilink $(LFLAGS_EXE) /OUT:$@ $**
 
 gbmcpal.obj:	gbmcpal.c gbm.h gbmhist.h gbmmcut.h
 
 #
 
-gbmgamma.exe:	gbmgamma.obj gbm123.lib
+gbmgamma.exe:	gbmgamma.obj gbm123.lib gbmtool.lib
 		ilink $(LFLAGS_EXE) /OUT:$@ $**
 
 gbmgamma.obj:	gbmgamma.c gbm.h
 
 #
 
-gbmconv.exe:	gbmconv.obj gbm123.lib
+gbmconv.exe:	gbmconv.obj gbm123.lib gbmtool.lib
 		ilink $(LFLAGS_EXE) /OUT:$@ $**
 
 gbmconv.obj:	gbmconv.c gbm.h

@@ -55,8 +55,8 @@ factory_settings( void )
 
   memset( &cfg, 0, sizeof( cfg ));
 
-  cfg.Main.x = 1;
-  cfg.Main.y = 1;
+  cfg.main.x = 1;
+  cfg.main.y = 1;
 
   strcpy( cfg.filedir, "" );  // Directory for MPEG files.
   strcpy( cfg.listdir, "" );  // Directory for playlists.
@@ -89,6 +89,14 @@ factory_settings( void )
   cfg.add_recursive = TRUE;
   cfg.save_relative = TRUE;
   cfg.charset       = CH_DEFAULT;
+  cfg.font_skinned  = TRUE;
+  cfg.font_size     = 2;
+
+  cfg.font_attrs.usRecordLength  = sizeof(FATTRS);
+  cfg.font_attrs.lMaxBaselineExt = 12L;
+  cfg.font_attrs.lAveCharWidth   =  5L;
+
+  strcpy( cfg.font_attrs.szFacename, "System VIO" );
 
   /* Last used stuph */
   memset( cfg.last[0], '\0', 256 * MAX_RECALL );
@@ -136,19 +144,20 @@ load_ini( void )
     load_ini_value( INIhandle, cfg.dock_margin );
     load_ini_value( INIhandle, cfg.dock_windows );
     load_ini_value( INIhandle, cfg.charset );
-
-    load_ini_value( INIhandle, cfg.Main );
-
-    load_ini_string( INIhandle, cfg.filedir, sizeof( cfg.filedir ));
-    load_ini_string( INIhandle, cfg.listdir, sizeof( cfg.listdir ));
-    load_ini_string( INIhandle, cfg.savedir, sizeof( cfg.savedir ));
-    load_ini_string( INIhandle, cfg.cddrive, sizeof( cfg.cddrive ));
-    load_ini_string( INIhandle, cfg.proxy,   sizeof( cfg.proxy ));
-    load_ini_string( INIhandle, cfg.auth,    sizeof( cfg.auth ));
-    load_ini_string( INIhandle, cfg.defskin, sizeof( cfg.defskin ));
-
+    load_ini_value( INIhandle, cfg.font_skinned );
+    load_ini_value( INIhandle, cfg.font_attrs );
+    load_ini_value( INIhandle, cfg.font_size );
+    load_ini_value( INIhandle, cfg.main );
     load_ini_value( INIhandle, cfg.last );
     load_ini_value( INIhandle, cfg.list );
+
+    load_ini_string( INIhandle, cfg.filedir,  sizeof( cfg.filedir ));
+    load_ini_string( INIhandle, cfg.listdir,  sizeof( cfg.listdir ));
+    load_ini_string( INIhandle, cfg.savedir,  sizeof( cfg.savedir ));
+    load_ini_string( INIhandle, cfg.cddrive,  sizeof( cfg.cddrive ));
+    load_ini_string( INIhandle, cfg.proxy,    sizeof( cfg.proxy ));
+    load_ini_string( INIhandle, cfg.auth,     sizeof( cfg.auth ));
+    load_ini_string( INIhandle, cfg.defskin,  sizeof( cfg.defskin ));
 
     load_ini_data_size( INIhandle, decoders_list, size );
     if( size > 0 && ( decoders_list = malloc( size )) != NULL )
@@ -262,8 +271,12 @@ save_ini( void )
     save_ini_value( INIhandle, cfg.dock_windows );
     save_ini_value( INIhandle, cfg.dock_margin );
     save_ini_value( INIhandle, cfg.charset );
-
-    save_ini_value( INIhandle,cfg.Main );
+    save_ini_value( INIhandle, cfg.font_skinned );
+    save_ini_value( INIhandle, cfg.font_attrs );
+    save_ini_value( INIhandle, cfg.font_size );
+    save_ini_value( INIhandle, cfg.main );
+    save_ini_value( INIhandle, cfg.last );
+    save_ini_value( INIhandle, cfg.list );
 
     save_ini_string( INIhandle, cfg.filedir );
     save_ini_string( INIhandle, cfg.listdir );
@@ -273,9 +286,6 @@ save_ini( void )
     save_ini_string( INIhandle, cfg.auth );
     save_ini_string( INIhandle, cfg.defskin );
     save_ini_string( INIhandle, cfg.lasteq );
-
-    save_ini_value( INIhandle, cfg.last );
-    save_ini_value( INIhandle, cfg.list );
 
     b = create_bufstream( 1024 );
     save_decoders( b );

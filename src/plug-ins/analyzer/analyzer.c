@@ -222,6 +222,7 @@ cfg_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
     case WM_INITDLG:
     {
       hconfigure = hwnd;
+      do_warpsans( hwnd );
 
       WinCheckButton( hwnd, RB_ANALYZER + cfg.default_mode, TRUE );
       WinCheckButton( hwnd, CB_FALLOFF, cfg.falloff );

@@ -7,6 +7,7 @@
 
 #include <stdlib.h>
 #include <stdio.h>
+#include <string.h>
 #include <float.h>
 #include <math.h>
 #include "dxhead.h"
@@ -35,9 +36,9 @@ ExtractI4( unsigned char *buf )
 }
 
 int
-GetXingHeader( XHEADDATA *X,  unsigned char *buf )
+GetXingHeader( XHEADDATA* X,  unsigned char* buf )
 {
-  int i, head_flags;
+  int i;
   int h_id, h_mode, h_sr_index;
   static int sr_table[4] = { 44100, 48000, 32000, 99999 };
 
@@ -69,10 +70,8 @@ GetXingHeader( XHEADDATA *X,  unsigned char *buf )
     }
   }
 
-  if( buf[0] != 'X' ||
-      buf[1] != 'i' ||
-      buf[2] != 'n' ||
-      buf[3] != 'g' )
+  if( strcmp( buf, "Xing" ) != 0 &&
+      strcmp( buf, "Info" ) != 0 )
   {
     return 0;
   }
@@ -85,43 +84,54 @@ GetXingHeader( XHEADDATA *X,  unsigned char *buf )
     X->samprate >>= 1;
   }
 
-  head_flags = X->flags = ExtractI4(buf);
+  X->flags = ExtractI4(buf);
   buf += 4;
 
-  if( head_flags & FRAMES_FLAG ) {
+  if( X->flags & FRAMES_FLAG ) {
     X->frames = ExtractI4( buf );
     buf += 4;
     if( X->frames < 1 ) {
+      X->flags = 0;
       return 0;
     }
   }
-  if( head_flags & BYTES_FLAG  ) {
+  if( X->flags & BYTES_FLAG  ) {
     X->bytes  = ExtractI4( buf );
     buf += 4;
   }
-  if( head_flags & TOC_FLAG    ) {
-    if( X->toc != NULL ) {
-      for( i=0; i < 100; i++ ) {
-        X->toc[i] = buf[i];
-        if( i > 0 && X->toc[i] < X->toc[i-1] ) {
-          return 0;
-        }
+
+  if( X->flags & TOC_FLAG  ) {
+    for( i = 0; i < 100; i++ ) {
+      if( i > 0 && buf[i] < buf[i-1] ) {
+        X->flags &= ~TOC_FLAG;
+        break;
       }
-      if( X->toc[99] == 0 ) {
-        return 0;
+    }
+    if( buf[99] == 0 ) {
+      X->flags &= ~TOC_FLAG;
+    }
+  }
+  if( X->flags & TOC_FLAG  ) {
+    if( X->toc != NULL ) {
+      for( i = 0; i < 100; i++ ) {
+        X->toc[i] = buf[i];
       }
     }
     buf += 100;
   }
 
-  if( head_flags & VBR_SCALE_FLAG ) {
+  if( X->flags & VBR_SCALE_FLAG ) {
     X->vbr_scale = ExtractI4( buf );
     buf += 4;
   }
 
+  if( !X->bytes ) {
+    X->flags &= ~BYTES_FLAG;
+  }
+
 /*
   if( X->toc != NULL ) {
-    for( i=0; i < 100; i++ ) {
+    for( i = 0; i < 100; i++ ) {
       if(( i % 10 ) == 0 ) {
         printf( "\n" );
       }
@@ -129,7 +139,6 @@ GetXingHeader( XHEADDATA *X,  unsigned char *buf )
     }
   }
 */
-
   return 1;
 }
 
