@@ -34,6 +34,7 @@ FILE *_System _fopen (const char *fname, const char *mode, int sockmode, int buf
 int _System _fclose (FILE *stream);
 int _System _fseek(FILE *stream, long offset, int origin);
 void _System _rewind (FILE *stream);
+size_t _System _fsize(FILE *stream);
 
 int _System sockfile_errno(int sockmode);
 int _System sockfile_bufferstatus(FILE *stream);

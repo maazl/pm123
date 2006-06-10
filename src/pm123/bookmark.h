@@ -77,6 +77,8 @@ extern "C" {
 HWND bm_create( void );
 /* Sets the visibility state of the bookmarks presentation window. */
 void bm_show( BOOL show );
+/* Destroys the bookmark presentation window. */
+void bm_destroy( void );
 
 /* WARNING!! All functions returning a pointer to the
    bookmark record, return a NULL if suitable record is not found. */

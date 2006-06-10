@@ -58,19 +58,26 @@
 HBITMAP bmp_cache[8000];
 POINTL  bmp_pos  [1024];
 ULONG   bmp_ulong[1024];
-BOOL    is_arg_smooth;
+
+#define POS_UNDEF -1
+#define LCID_FONT  1L
+
+#define HAVE_BITBLT_BUG
 
 /* New characters needed: "[],%" 128 - 255 */
 static char AMP_CHARSET[] = "abcdefghijklmnopqrstuvwxyz-_&.0123456789 ()„”:,+%[]";
 static int  LEN_CHARSET   = sizeof( AMP_CHARSET ) - 1;
 
 /* The set of variables used during a text scroll. */
-static char   s_display[512];
-static size_t s_len;
-static size_t s_pos;
-static int    s_inc;
-static int    s_pause;
-static BOOL   s_done;
+static char    s_display[512];
+static size_t  s_len;
+static size_t  s_offset;
+static int     s_inc;
+static int     s_pause;
+static BOOL    s_done;
+static HDC     s_dc     = NULLHANDLE;
+static HPS     s_buffer = NULLHANDLE;
+static HBITMAP s_bitmap = NULLHANDLE;
 
 /* Buttons */
 BMPBUTTON btn_play    = { NULLHANDLE,     /* Button window handle.                          */
@@ -375,299 +382,11 @@ bmp_load_bitmap( const char* filename )
 void
 bmp_draw_bitmap( HPS hps, int x, int y, int res )
 {
-  if( x >= 0 && y >= 0 )
-  {
-    POINTL pos[3] = { x, y,
-                      x + bmp_cx(res), y + bmp_cy(res),
-                      0, 0
-                    };
+  POINTL pos[3] = { x, y,
+                    x + bmp_cx(res), y + bmp_cy(res),
+                    0, 0 };
 
-    GpiWCBitBlt( hps, bmp_cache[res], 3, pos, ROP_SRCCOPY, BBO_AND );
-  }
-}
-
-/* Returns a width of the specified bitmap. */
-int
-bmp_cx( int id )
-{
-  BITMAPINFOHEADER2 hdr;
-
-  hdr.cbFix = sizeof( BITMAPINFOHEADER2 );
-  GpiQueryBitmapInfoHeader( bmp_cache[id], &hdr );
-  return hdr.cx;
-}
-
-/* Returns a height of the specified bitmap. */
-int
-bmp_cy( int id )
-{
-  BITMAPINFOHEADER2 hdr;
-
-  hdr.cbFix = sizeof( BITMAPINFOHEADER2 );
-  GpiQueryBitmapInfoHeader( bmp_cache[id], &hdr );
-  return hdr.cy;
-}
-
-/* Draws a activation led. */
-void
-bmp_draw_led( HPS hps, int active )
-{
-  if( cfg.mode != CFG_MODE_TINY )
-  {
-    if( active ) {
-      bmp_draw_bitmap( hps, bmp_pos[POS_LED].x,
-                            bmp_pos[POS_LED].y, BMP_LED );
-    } else {
-      bmp_draw_bitmap( hps, bmp_pos[POS_N_LED].x,
-                            bmp_pos[POS_N_LED].y, BMP_N_LED );
-    }
-  }
-}
-
-/* Returns a width of the character of the current selected font. */
-int
-bmp_char_cx()
-{
-  if( cfg.font == 0 ) {
-    return bmp_cx( BMP_FONT1 );
-  } else {
-    return bmp_cx( BMP_FONT2 );
-  }
-}
-
-/* Returns a height of the character of the current selected font. */
-int
-bmp_char_cy()
-{
-  if( cfg.font == 0 ) {
-    return bmp_cy( BMP_FONT1 );
-  } else {
-    return bmp_cy( BMP_FONT2 );
-  }
-}
-
-/* Draws a current selected text using the current selected font. */
-void
-bmp_draw_text( HPS hps )
-{
-  int font, i, glyph, x, y, max;
-  unsigned char ch;
-
-  switch( cfg.mode ) {
-    case CFG_MODE_REGULAR:
-      x   = bmp_pos  [ POS_R_TEXT ].x;
-      y   = bmp_pos  [ POS_R_TEXT ].y;
-      max = bmp_ulong[ UL_R_MSG_LEN ];
-      break;
-
-    case CFG_MODE_SMALL:
-      x   = bmp_pos  [ POS_S_TEXT ].x;
-      y   = bmp_pos  [ POS_S_TEXT ].y;
-      max = bmp_ulong[ UL_S_MSG_LEN ];
-      break;
-
-    case CFG_MODE_TINY:
-      x = -1;
-      y = -1;
-      break;
-  }
-
-  // Someone might want to use their own scroller.
-  if( x == -1 && y == -1 ) {
-    return;
-  }
-
-  if( cfg.font == 0 ) {
-    font = BMP_FONT1;
-  } else {
-    font = BMP_FONT2;
-  }
-
-  /* It is necessary to do it only at the certain code page?
-
-  for( i = 0; i < strlen( string ); i++ )
-  {
-    if( string[i] == 'Ž' ) {
-        string[i] =  '„';
-    }
-    if( string[i] == '™' ) {
-        string[i] =  '”';
-    }
-    if( string[i] == '' ) {
-        string[i] =  '†';
-    }
-  }
-  */
-
-  for( i = 0; i < s_len - s_pos && i < max ; i++ )
-  {
-    ch    = tolower( s_display[ s_pos + i ]);
-    glyph = strchr ( AMP_CHARSET, ch ) - AMP_CHARSET;
-
-    // Support for 127..255.
-    if( glyph < 0 && ch > 126 ) {
-      glyph = LEN_CHARSET + ch - 126 + 1;
-    }
-
-    if( glyph < 0 || bmp_cache[ font + glyph ] == 0 ) {
-      glyph = 40;
-    }
-
-    bmp_draw_bitmap( hps, x, y, font + glyph );
-    x += bmp_cx( font + glyph );
-  }
-
-  for( i = s_len - s_pos; i < max; i++ )
-  {
-    bmp_draw_bitmap( hps, x, y, font + 40 );
-    x += bmp_cx( font + 40 );
-  }
-}
-
-/* Sets the new displayed text.
-   The NULL can be used as argument  for reset of a scroll status. */
-void
-bmp_set_text( const char* string )
-{
-  if( string ) {
-    strncpy( s_display, string, sizeof( s_display ));
-    s_display[ sizeof( s_display ) -1 ] = 0;
-  }
-
-  s_pos   = 0;
-  s_inc   = 1;
-  s_len   = strlen( s_display );
-  s_pause = 2;
-  s_done  = FALSE;
-
-  vis_broadcast( WM_PLUGIN_CONTROL, MPFROMLONG( PN_TEXTCHANGED ), 0 );
-}
-
-/* Returns a pointer to the current selected text. */
-const char*
-bmp_query_text( void )
-{
-  return s_display;
-}
-
-/* Scrolls the current selected text. */
-BOOL
-bmp_scroll_text( void )
-{
-  size_t s_max;
-
-  switch( cfg.mode ) {
-    case CFG_MODE_REGULAR:
-      s_max = bmp_ulong[ UL_R_MSG_LEN ];
-      break;
-    case CFG_MODE_SMALL:
-      s_max = bmp_ulong[ UL_S_MSG_LEN ];
-      break;
-  }
-
-  if( cfg.scroll == CFG_SCROLL_NONE ||
-      cfg.mode   == CFG_MODE_TINY   || s_len < s_max || s_done )
-  {
-    return FALSE;
-  }
-
-  if( s_pause > 0 ) {
-    --s_pause;
-    return FALSE;
-  }
-
-  if( s_inc > 0 && s_len - s_pos <= s_max ) {
-    s_inc   = -1;
-    s_pause = 2;
-    return FALSE;
-  }
-
-  if( s_inc < 0 && s_pos == 0 ) {
-    if( cfg.scroll == CFG_SCROLL_ONCE ) {
-      s_inc   = 0;
-      s_done  = TRUE;
-    } else {
-      s_inc   = 1;
-      s_pause = 2;
-    }
-    return FALSE;
-  }
-
-  s_pos += s_inc;
-  return TRUE;
-}
-
-/* Queries whether a point lies within a text rectangle. */
-BOOL
-bmp_pt_in_text( POINTL pos )
-{
-  int x, y, max;
-
-  switch( cfg.mode ) {
-    case CFG_MODE_REGULAR:
-      x   = bmp_pos  [ POS_R_TEXT ].x;
-      y   = bmp_pos  [ POS_R_TEXT ].y;
-      max = bmp_ulong[ UL_R_MSG_LEN ];
-      break;
-
-    case CFG_MODE_SMALL:
-      x   = bmp_pos  [ POS_S_TEXT ].x;
-      y   = bmp_pos  [ POS_S_TEXT ].y;
-      max = bmp_ulong[ UL_S_MSG_LEN ];
-      break;
-
-    case CFG_MODE_TINY:
-      return FALSE;
-  }
-
-  if( x == -1 && y == -1 ) {
-    return FALSE;
-  }
-
-  if( pos.y >= y && pos.y <= y + bmp_char_cy() &&
-      pos.x >= x && pos.x <= x + bmp_char_cy() * max )
-  {
-    return TRUE;
-  } else {
-    return FALSE;
-  }
-}
-
-/* Draws a specified digit using the specified size. */
-void
-bmp_draw_digit( HPS hps, int x, int y, int digit, int size )
-{
-  bmp_draw_bitmap( hps, x, y, size + digit );
-}
-
-static void
-bmp_draw_box3d( HPS hps, int x, int y, int cx, int cy, long clr1, long clr2 )
-{
-  POINTL pos;
-
-  pos.x = x;
-  pos.y = y;
-  GpiMove( hps, &pos );
-  GpiSetColor( hps, clr2 );
-  pos.x = x + cx;
-  GpiLine( hps, &pos );
-  GpiMove( hps, &pos );
-  pos.y = y + cy;
-  GpiLine( hps, &pos );
-  pos.x = x;
-  GpiSetColor( hps, clr1 );
-  GpiLine( hps, &pos );
-  GpiMove( hps, &pos );
-  pos.y = y;
-  GpiLine( hps, &pos );
-}
-
-/* Draws a 3D shade of the specified area. */
-void
-bmp_draw_shade( HPS hps, int x, int y, int cx, int cy, long clr1, long clr2 )
-{
-  bmp_draw_box3d( hps, x, y, cx, cy, clr1, clr2 );
-  bmp_draw_box3d( hps, x + 1, y + 1, cx - 2, cy - 2, clr1, clr2 );
+  GpiWCBitBlt( hps, bmp_cache[res], 3, pos, ROP_SRCCOPY, BBO_AND );
 }
 
 /* Draws the player background. */
@@ -734,28 +453,494 @@ bmp_draw_background( HPS hps, HWND hwnd )
 }
 
 /* Draws the specified part of the player background. */
+static void
+bmp_draw_part_bg_to( HPS hps, int x1_1, int y1_1, int x1_2, int y1_2,
+                              int x2_1, int y2_1 )
+{
+
+  #if defined( HAVE_BITBLT_BUG )
+
+    POINTL aptlPoints[3];
+    int    bg_id = BMP_R_BGROUND;
+    RECTL  save_field;
+    RECTL  disp_field;
+
+    if( x1_1 > x1_2 || y1_1 > y1_2 ) {
+      return;
+    }
+
+    if( cfg.mode == CFG_MODE_SMALL && bmp_cache[ BMP_S_BGROUND ] ) {
+      bg_id = BMP_S_BGROUND;
+    } else if( cfg.mode == CFG_MODE_TINY && bmp_cache[ BMP_T_BGROUND ] ) {
+      bg_id = BMP_T_BGROUND;
+    }
+
+    GpiQueryGraphicsField( hps, &save_field );
+
+    disp_field.xLeft   = x1_1;
+    disp_field.yBottom = y1_1;
+    disp_field.xRight  = x1_2;
+    disp_field.yTop    = y1_2;
+
+    GpiSetGraphicsField( hps, &disp_field );
+
+    aptlPoints[0].x = x1_1 - x2_1;
+    aptlPoints[0].y = y1_1 - y2_1;
+    aptlPoints[1].x = x1_2;
+    aptlPoints[1].y = y1_2;
+    aptlPoints[2].x = 0;
+    aptlPoints[2].y = 0;
+
+    GpiWCBitBlt( hps, bmp_cache[bg_id], 3, (PPOINTL)&aptlPoints, ROP_SRCCOPY, 0 );
+    GpiSetGraphicsField( hps, &save_field );
+  #else
+    POINTL aptlPoints[4];
+    int    bg_id = BMP_R_BGROUND;
+
+    if( cfg.mode == CFG_MODE_SMALL && bmp_cache[ BMP_S_BGROUND ] ) {
+      bg_id = BMP_S_BGROUND;
+    } else if( cfg.mode == CFG_MODE_TINY && bmp_cache[ BMP_T_BGROUND ] ) {
+      bg_id = BMP_T_BGROUND;
+    }
+
+    aptlPoints[0].x = x1_1;
+    aptlPoints[0].y = y1_1;
+    aptlPoints[1].x = x1_2;
+    aptlPoints[1].y = y1_2;
+    aptlPoints[2].x = x2_1;
+    aptlPoints[2].y = y2_1;
+    aptlPoints[3].x = x1_2 + 1;
+    aptlPoints[3].y = y1_2 + 1;
+
+    GpiWCBitBlt( hps, bmp_cache[bg_id], 4, (PPOINTL)&aptlPoints, ROP_SRCCOPY, BBO_IGNORE );
+  #endif
+}
+
+/* Draws the specified part of the player background. */
 void
 bmp_draw_part_bg( HPS hps, int x1, int y1, int x2, int y2 )
 {
-  POINTL aptlPoints[4];
-  int    bg_id = BMP_R_BGROUND;
+  bmp_draw_part_bg_to( hps, x1, y1, x2, y2, x1, y1 );
+}
 
-  if( cfg.mode == CFG_MODE_SMALL && bmp_cache[ BMP_S_BGROUND ] ) {
-    bg_id = BMP_S_BGROUND;
-  } else if( cfg.mode == CFG_MODE_TINY && bmp_cache[ BMP_T_BGROUND ] ) {
-    bg_id = BMP_T_BGROUND;
+/* Returns a width of the specified bitmap. */
+int
+bmp_cx( int id )
+{
+  BITMAPINFOHEADER2 hdr;
+
+  hdr.cbFix = sizeof( BITMAPINFOHEADER2 );
+  GpiQueryBitmapInfoHeader( bmp_cache[id], &hdr );
+  return hdr.cx;
+}
+
+/* Returns a height of the specified bitmap. */
+int
+bmp_cy( int id )
+{
+  BITMAPINFOHEADER2 hdr;
+
+  hdr.cbFix = sizeof( BITMAPINFOHEADER2 );
+  GpiQueryBitmapInfoHeader( bmp_cache[id], &hdr );
+  return hdr.cy;
+}
+
+/* Draws a activation led. */
+void
+bmp_draw_led( HPS hps, int active )
+{
+  if( cfg.mode != CFG_MODE_TINY )
+  {
+    if( active ) {
+      if( bmp_pos[ POS_LED ].x != POS_UNDEF &&
+          bmp_pos[ POS_LED ].y != POS_UNDEF )
+      {
+        bmp_draw_bitmap( hps, bmp_pos[ POS_LED ].x,
+                              bmp_pos[ POS_LED ].y, BMP_LED );
+      }
+    } else {
+      if( bmp_pos[ POS_N_LED ].x != POS_UNDEF &&
+          bmp_pos[ POS_N_LED ].y != POS_UNDEF )
+      {
+        bmp_draw_bitmap( hps, bmp_pos[ POS_N_LED ].x,
+                              bmp_pos[ POS_N_LED ].y, BMP_N_LED );
+      }
+    }
+  }
+}
+
+/* Returns a resource id of the first symbol of current the selected font. */
+static int
+bmp_font( void )
+{
+  if( cfg.font == 0 ) {
+    return BMP_FONT1;
+  } else {
+    return BMP_FONT2;
+  }
+}
+
+/* Returns a width of the first symbol of the current selected font. */
+static int
+bmp_char_cx( void )
+{
+  return bmp_cx( bmp_font());
+}
+
+/* Returns a height of the first symbol of the current selected font. */
+static int
+bmp_char_cy( void )
+{
+  return bmp_cy( bmp_font());
+}
+
+/* Returns a bitmap identifier of the specified character
+   of the current selected font. */
+static int
+bmp_char_id( char ch )
+{
+  int id;
+  ch = tolower( ch );
+  id = strchr ( AMP_CHARSET, ch ) - AMP_CHARSET;
+
+  // Support for 127..255.
+  if( id < 0 && ch > 126 ) {
+      id = LEN_CHARSET + ch - 126 + 1;
   }
 
-  aptlPoints[0].x = x1;
-  aptlPoints[0].y = y1;
-  aptlPoints[1].x = x2;
-  aptlPoints[1].y = y2;
-  aptlPoints[2].x = x1;
-  aptlPoints[2].y = y1;
-  aptlPoints[3].x = x2 + 1;
-  aptlPoints[3].y = y2 + 1;
+  if( id < 0 || bmp_cache[ bmp_font() + id ] == 0 ) {
+      id = 40;
+  }
 
-  GpiWCBitBlt( hps, bmp_cache[bg_id], 4, (PPOINTL)&aptlPoints, ROP_SRCCOPY, 0 );
+  return bmp_font() + id;
+}
+
+/* Calculates a length of the current displayed text
+   using the current selected font. */
+static size_t
+bmp_text_length( const char* string )
+{
+  int len = 0;
+
+  if( cfg.font_skinned ) {
+    while( *string ) {
+      len += bmp_cx( bmp_char_id( *string++ ));
+    }
+  } else {
+    RECTL rect = { 0, 0, 32000, 32000 };
+    WinDrawText( s_buffer, -1, s_display, &rect, 0, 0, DT_LEFT | DT_VCENTER | DT_QUERYEXTENT );
+    len = rect.xRight - rect.xLeft + 1;
+  }
+
+  return len;
+}
+
+/* Calculates a rectangle of the current displayed text
+   using the current selected font. */
+static RECTL
+bmp_text_rect( void )
+{
+  RECTL rect;
+
+  switch( cfg.mode ) {
+    case CFG_MODE_REGULAR:
+
+      rect.xLeft   = bmp_pos[ POS_R_TEXT ].x;
+      rect.yBottom = bmp_pos[ POS_R_TEXT ].y;
+
+      if( bmp_ulong[ UL_IN_PIXELS ] ) {
+        rect.xRight = rect.xLeft   + bmp_ulong[ UL_R_MSG_LEN    ] - 1;
+        rect.yTop   = rect.yBottom + bmp_ulong[ UL_R_MSG_HEIGHT ] - 1;
+      } else {
+        rect.xRight = rect.xLeft   + bmp_ulong[ UL_R_MSG_LEN ] * bmp_char_cx() - 1;
+        rect.yTop   = rect.yBottom + bmp_char_cy() - 1;
+      }
+      break;
+
+   case CFG_MODE_SMALL:
+
+      rect.xLeft   = bmp_pos[ POS_S_TEXT ].x;
+      rect.yBottom = bmp_pos[ POS_S_TEXT ].y;
+
+      if( bmp_ulong[ UL_IN_PIXELS ] ) {
+        rect.xRight = rect.xLeft   + bmp_ulong[ UL_S_MSG_LEN    ] - 1;
+        rect.yTop   = rect.yBottom + bmp_ulong[ UL_S_MSG_HEIGHT ] - 1;
+      } else {
+        rect.xRight = rect.xLeft   + bmp_ulong[ UL_S_MSG_LEN ] * bmp_char_cx() - 1;
+        rect.yTop   = rect.yBottom + bmp_char_cy() - 1;
+      }
+      break;
+
+   default:
+      rect.xLeft  = POS_UNDEF;
+      rect.xRight = POS_UNDEF;
+      break;
+  }
+
+  return rect;
+}
+
+/* Draws a current displayed text using the current selected font. */
+void
+bmp_draw_text( HPS hps )
+{
+  SIZEL  size;
+  RECTL  rect   = bmp_text_rect();
+  POINTL pos[3] = {{ rect.xLeft,  rect.yBottom },
+                   { rect.xRight, rect.yTop    },
+                   { 0,           0            }};
+
+  // Someone might want to use their own scroller.
+  if( rect.xLeft == POS_UNDEF && rect.yBottom == POS_UNDEF ) {
+    return;
+  }
+
+  GpiQueryBitmapDimension( s_bitmap, &size );
+  bmp_draw_part_bg_to( s_buffer, 0, 0, size.cx, size.cy,
+                       rect.xLeft, rect.yBottom );
+
+  if( cfg.font_skinned )
+  {
+    char* p =  s_display;
+    int   x =  s_offset;
+    int   y = (rect.yTop - rect.yBottom - bmp_char_cy()) / 2;
+    int   i;
+
+    while( *p ) {
+      i = bmp_char_id( *p++ );
+      bmp_draw_bitmap( s_buffer, x, y, i );
+      x += bmp_cx( i );
+    }
+
+    i = bmp_char_id( ' ' );
+
+    while( x < size.cx ) {
+      bmp_draw_bitmap( s_buffer, x, y, i );
+      x += bmp_cx( i );
+    }
+  }
+  else
+  {
+    RECTL rect = { s_offset, 0, size.cx, size.cy };
+
+    WinDrawText( s_buffer, -1, s_display, &rect, 0, 0,
+                               DT_TEXTATTRS | DT_LEFT | DT_VCENTER );
+  }
+
+  GpiBitBlt( hps, s_buffer, 3, pos, ROP_SRCCOPY, BBO_IGNORE );
+}
+
+/* Deletes a memory buffer used for drawing of the displayed text. */
+static void
+bmp_delete_text_buffer( void )
+{
+  if( s_buffer != NULLHANDLE ) {
+    if( GpiQueryCharSet( s_buffer ) > 0 )
+    {
+      GpiSetCharSet ( s_buffer, LCID_DEFAULT );
+      GpiDeleteSetId( s_buffer, LCID_FONT );
+    }
+  }
+  if( s_bitmap != NULLHANDLE ) {
+    GpiSetBitmap( s_buffer, NULLHANDLE );
+    GpiDeleteBitmap( s_bitmap );
+  }
+  if( s_buffer != NULLHANDLE ) {
+    GpiDestroyPS( s_buffer );
+  }
+  if( s_dc != NULLHANDLE ) {
+    DevCloseDC( s_dc );
+  }
+
+  s_bitmap = NULLHANDLE;
+  s_buffer = NULLHANDLE;
+  s_dc     = NULLHANDLE;
+}
+
+/* Creates a memory buffer used for drawing of the displayed text. */
+static void
+bmp_create_text_buffer( void )
+{
+  RECTL rect = bmp_text_rect();
+  SIZEL size;
+
+  BITMAPINFOHEADER2 bmp_header;
+
+  bmp_delete_text_buffer();
+
+  size.cx = rect.xRight - rect.xLeft + 1;
+  size.cy = rect.yTop - rect.yBottom + 1;
+
+  s_dc = DevOpenDC( amp_player_hab(), OD_MEMORY, "*", 0, NULL, NULLHANDLE );
+  s_buffer = GpiCreatePS( amp_player_hab(), s_dc, &size,
+                          PU_PELS | GPIT_MICRO | GPIA_ASSOC );
+
+  memset( &bmp_header, 0, sizeof( bmp_header ));
+  bmp_header.cbFix      = sizeof( bmp_header );
+  bmp_header.cx         = size.cx;
+  bmp_header.cy         = size.cy;
+  bmp_header.cPlanes    = 1;
+  bmp_header.cBitCount  = 8;
+
+  s_bitmap = GpiCreateBitmap( s_buffer, &bmp_header, 0, NULL, NULL );
+  GpiSetBitmapDimension( s_bitmap, &size );
+  GpiSetBitmap( s_buffer, s_bitmap );
+  GpiCreateLogColorTable( s_buffer, 0, LCOLF_RGB, 0, 0, 0 );
+}
+
+/* Sets the new displayed text.
+   The NULL can be used as argument for reset of a scroll status. */
+void
+bmp_set_text( const char* string )
+{
+  if( string ) {
+    strncpy( s_display, string, sizeof( s_display ));
+    s_display[ sizeof( s_display ) - 1 ] = 0;
+  }
+
+  s_offset =  0;
+  s_inc    = -1;
+  s_pause  = 20;
+  s_done   = FALSE;
+
+  if( cfg.mode != CFG_MODE_TINY ) {
+    if( !s_buffer ) {
+      bmp_create_text_buffer();
+    }
+    if( GpiQueryCharSet( s_buffer ) > 0 )
+    {
+      GpiSetCharSet ( s_buffer, LCID_DEFAULT );
+      GpiDeleteSetId( s_buffer, LCID_FONT );
+    }
+    if( !cfg.font_skinned )
+    {
+      GpiSetColor     ( s_buffer, bmp_ulong[ UL_FG_MSG_COLOR ]);
+      GpiSetBackMix   ( s_buffer, BM_LEAVEALONE );
+      GpiCreateLogFont( s_buffer, NULL, LCID_FONT, &cfg.font_attrs );
+      GpiSetCharSet   ( s_buffer, LCID_FONT );
+
+      if( cfg.font_attrs.fsFontUse & FATTR_FONTUSE_OUTLINE )
+      {
+        HPS   ps   = WinGetPS( HWND_DESKTOP );
+        HDC   dc   = GpiQueryDevice( ps );
+        LONG  hres = 0;
+        LONG  vres = 0;
+        SIZEF size;
+
+        DevQueryCaps( dc, CAPS_HORIZONTAL_FONT_RES, 1L, &hres );
+        DevQueryCaps( dc, CAPS_VERTICAL_FONT_RES  , 1L, &vres );
+
+        size.cx = ( MAKEFIXED( cfg.font_size, 0 ) / 72 ) * hres;
+        size.cy = ( MAKEFIXED( cfg.font_size, 0 ) / 72 ) * vres;
+
+        GpiSetCharBox( s_buffer, &size );
+        WinReleasePS ( ps );
+      }
+    }
+    s_len = bmp_text_length( s_display );
+  } else {
+    s_len = 0;
+  }
+
+  vis_broadcast( WM_PLUGIN_CONTROL, MPFROMLONG( PN_TEXTCHANGED ), 0 );
+}
+
+/* Returns a pointer to the current selected text. */
+const char*
+bmp_query_text( void )
+{
+  return s_display;
+}
+
+/* Scrolls the current selected text. */
+BOOL
+bmp_scroll_text( void )
+{
+  RECTL  s_rec = bmp_text_rect();
+  size_t s_max = s_rec.xRight - s_rec.xLeft + 1;
+
+  if( cfg.scroll == CFG_SCROLL_NONE ||
+      cfg.mode   == CFG_MODE_TINY   || s_len < s_max || s_done )
+  {
+    return FALSE;
+  }
+
+  if( s_pause > 0 ) {
+    --s_pause;
+    return FALSE;
+  }
+
+  if( s_inc < 0 && s_len + s_offset <= s_max ) {
+    s_inc   = 1;
+    s_pause = 16;
+    return FALSE;
+  }
+
+  if( s_inc > 0 && s_offset == 0 ) {
+    if( cfg.scroll == CFG_SCROLL_ONCE ) {
+      s_inc   = 0;
+      s_done  = TRUE;
+    } else {
+      s_inc   = -1;
+      s_pause = 16;
+    }
+    return FALSE;
+  }
+
+  s_offset += s_inc;
+  return TRUE;
+}
+
+/* Queries whether a point lies within a current displayed text rectangle. */
+BOOL
+bmp_pt_in_text( POINTL pos )
+{
+  RECTL rect = bmp_text_rect();
+
+  if( pos.y >= rect.yBottom && pos.y <= rect.yTop &&
+      pos.x >= rect.xLeft   && pos.x <= rect.xRight )
+  {
+    return TRUE;
+  } else {
+    return FALSE;
+  }
+}
+
+/* Draws a specified digit using the specified size. */
+void
+bmp_draw_digit( HPS hps, int x, int y, int digit, int size )
+{
+  bmp_draw_bitmap( hps, x, y, size + digit );
+}
+
+static void
+bmp_draw_box3d( HPS hps, int x, int y, int cx, int cy, long clr1, long clr2 )
+{
+  POINTL pos;
+
+  pos.x = x;
+  pos.y = y;
+  GpiMove( hps, &pos );
+  GpiSetColor( hps, clr2 );
+  pos.x = x + cx;
+  GpiLine( hps, &pos );
+  GpiMove( hps, &pos );
+  pos.y = y + cy;
+  GpiLine( hps, &pos );
+  pos.x = x;
+  GpiSetColor( hps, clr1 );
+  GpiLine( hps, &pos );
+  GpiMove( hps, &pos );
+  pos.y = y;
+  GpiLine( hps, &pos );
+}
+
+/* Draws a 3D shade of the specified area. */
+void
+bmp_draw_shade( HPS hps, int x, int y, int cx, int cy, long clr1, long clr2 )
+{
+  bmp_draw_box3d( hps, x, y, cx, cy, clr1, clr2 );
+  bmp_draw_box3d( hps, x + 1, y + 1, cx - 2, cy - 2, clr1, clr2 );
 }
 
 /* Draws the main player timer. */
@@ -769,14 +954,14 @@ bmp_draw_timer( HPS hps, long time )
 
   sec2num( time, &major, &minor );
 
-  if( x != -1 && y != -1 )
+  if( x != POS_UNDEF && y != POS_UNDEF )
   {
     bmp_draw_digit( hps, x, y, major / 10, DIG_BIG );
     x += bmp_cx( major / 10 + DIG_BIG ) + bmp_ulong[ UL_TIMER_SPACE ];
     bmp_draw_digit( hps, x, y, major % 10, DIG_BIG );
     x += bmp_cx( major % 10 + DIG_BIG ) + bmp_ulong[ UL_TIMER_SPACE ];
 
-    if( bmp_ulong[ UL_TIMER_SEP ] )
+    if( bmp_ulong[ UL_TIMER_SEPARATE ] )
     {
       if( time % 2 == 0 ) {
         bmp_draw_digit( hps, x, y, 10, DIG_BIG );
@@ -786,7 +971,7 @@ bmp_draw_timer( HPS hps, long time )
         x += bmp_cx( 11 + DIG_BIG ) + bmp_ulong[ UL_TIMER_SPACE ];
       }
     } else {
-      x += max( bmp_ulong[ UL_TIMER_SPACE ], bmp_ulong[ UL_TIMER_SEPSPACE ]);
+      x += max( bmp_ulong[ UL_TIMER_SPACE ], bmp_ulong[ UL_TIMER_SPACE ] * 2 );
     }
 
     bmp_draw_digit( hps, x, y, minor / 10, DIG_BIG );
@@ -806,7 +991,7 @@ bmp_draw_tiny_timer( HPS hps, int pos_id, long time )
 
   sec2num( time, &major, &minor );
 
-  if( x != -1 && y != -1 )
+  if( x != POS_UNDEF && y != POS_UNDEF )
   {
     if( time > 0 )
     {
@@ -843,34 +1028,58 @@ bmp_draw_channels( HPS hps, int channels )
     return;
   }
 
-  bmp_draw_part_bg( hps, bmp_pos[ POS_NO_CHANNELS ].x,
-                         bmp_pos[ POS_NO_CHANNELS ].y,
-                         bmp_pos[ POS_NO_CHANNELS ].x + bmp_cx( BMP_NO_CHANNELS ),
-                         bmp_pos[ POS_NO_CHANNELS ].y + bmp_cy( BMP_NO_CHANNELS ));
+  if( bmp_pos[ POS_NO_CHANNELS ].x != POS_UNDEF &&
+      bmp_pos[ POS_NO_CHANNELS ].y != POS_UNDEF )
+  {
+    bmp_draw_part_bg( hps, bmp_pos[ POS_NO_CHANNELS ].x,
+                           bmp_pos[ POS_NO_CHANNELS ].y,
+                           bmp_pos[ POS_NO_CHANNELS ].x + bmp_cx( BMP_NO_CHANNELS ),
+                           bmp_pos[ POS_NO_CHANNELS ].y + bmp_cy( BMP_NO_CHANNELS ));
+  }
+  if( bmp_pos[ POS_MONO ].x != POS_UNDEF &&
+      bmp_pos[ POS_MONO ].y != POS_UNDEF )
+  {
+    bmp_draw_part_bg( hps, bmp_pos[ POS_MONO ].x,
+                           bmp_pos[ POS_MONO ].y,
+                           bmp_pos[ POS_MONO ].x + bmp_cx( BMP_MONO ),
+                           bmp_pos[ POS_MONO ].y + bmp_cy( BMP_MONO ));
+  }
+  if( bmp_pos[ POS_STEREO ].x != POS_UNDEF &&
+      bmp_pos[ POS_STEREO ].y != POS_UNDEF )
+  {
+    bmp_draw_part_bg( hps, bmp_pos[ POS_STEREO ].x,
+                           bmp_pos[ POS_STEREO ].y,
+                           bmp_pos[ POS_STEREO ].x + bmp_cx( BMP_STEREO ),
+                           bmp_pos[ POS_STEREO ].y + bmp_cy( BMP_STEREO ));
+  }
 
-  bmp_draw_part_bg( hps, bmp_pos[ POS_MONO ].x,
-                         bmp_pos[ POS_MONO ].y,
-                         bmp_pos[ POS_MONO ].x + bmp_cx( BMP_MONO ),
-                         bmp_pos[ POS_MONO ].y + bmp_cy( BMP_MONO ));
-
-  bmp_draw_part_bg( hps, bmp_pos[ POS_STEREO ].x,
-                         bmp_pos[ POS_STEREO ].y,
-                         bmp_pos[ POS_STEREO ].x + bmp_cx( BMP_STEREO ),
-                         bmp_pos[ POS_STEREO ].y + bmp_cy( BMP_STEREO ));
   switch( channels )
   {
     case -1:
-      bmp_draw_bitmap( hps, bmp_pos[ POS_NO_CHANNELS ].x,
-                            bmp_pos[ POS_NO_CHANNELS ].y, BMP_NO_CHANNELS );
+      if( bmp_pos[ POS_NO_CHANNELS ].x != POS_UNDEF &&
+          bmp_pos[ POS_NO_CHANNELS ].y != POS_UNDEF )
+      {
+        bmp_draw_bitmap ( hps, bmp_pos[ POS_NO_CHANNELS ].x,
+                               bmp_pos[ POS_NO_CHANNELS ].y, BMP_NO_CHANNELS );
+      }
       break;
+
     case  3:
-      bmp_draw_bitmap( hps, bmp_pos[ POS_MONO ].x,
-                            bmp_pos[ POS_MONO ].y, BMP_MONO );
+      if( bmp_pos[ POS_MONO ].x != POS_UNDEF &&
+          bmp_pos[ POS_MONO ].y != POS_UNDEF )
+      {
+        bmp_draw_bitmap( hps, bmp_pos[ POS_MONO ].x,
+                              bmp_pos[ POS_MONO ].y, BMP_MONO );
+      }
       break;
 
     default:
-      bmp_draw_bitmap( hps, bmp_pos[ POS_STEREO ].x,
-                            bmp_pos[ POS_STEREO ].y, BMP_STEREO );
+      if( bmp_pos[ POS_STEREO ].x != POS_UNDEF &&
+          bmp_pos[ POS_STEREO ].y != POS_UNDEF )
+      {
+        bmp_draw_bitmap( hps, bmp_pos[ POS_STEREO ].x,
+                              bmp_pos[ POS_STEREO ].y, BMP_STEREO );
+      }
       break;
   }
 }
@@ -1015,7 +1224,8 @@ bmp_draw_rate( HPS hps, int rate )
 void
 bmp_draw_plmode( HPS hps )
 {
-  if( cfg.mode == CFG_MODE_REGULAR )
+  if( cfg.mode == CFG_MODE_REGULAR && bmp_pos[ POS_PL_MODE ].x != POS_UNDEF &&
+                                      bmp_pos[ POS_PL_MODE ].y != POS_UNDEF )
   {
     switch( amp_playmode ) {
       case AMP_PLAYLIST:
@@ -1049,7 +1259,8 @@ bmp_draw_plind( HPS hps, int index, int total )
 
   if( bmp_ulong[ UL_PL_INDEX ] )
   {
-    if( bmp_pos[ POS_PL_INDEX ].x != -1 && bmp_pos[ POS_PL_INDEX ].y != -1 )
+    if( bmp_pos[ POS_PL_INDEX ].x != POS_UNDEF &&
+        bmp_pos[ POS_PL_INDEX ].y != POS_UNDEF )
     {
       y = bmp_pos[ POS_PL_INDEX ].y;
       x = bmp_pos[ POS_PL_INDEX ].x;
@@ -1074,7 +1285,8 @@ bmp_draw_plind( HPS hps, int index, int total )
       }
     }
 
-    if( bmp_pos[ POS_PL_TOTAL ].x != -1 && bmp_pos[ POS_PL_TOTAL ].y != -1 )
+    if( bmp_pos[ POS_PL_TOTAL ].x != POS_UNDEF &&
+        bmp_pos[ POS_PL_TOTAL ].y != POS_UNDEF )
     {
       y = bmp_pos[ POS_PL_TOTAL ].y;
       x = bmp_pos[ POS_PL_TOTAL ].x;
@@ -1134,9 +1346,9 @@ bmp_draw_slider( HPS hps, int played, int total )
         pos = bmp_ulong[ UL_SLIDER_WIDTH ];
     }
 
-    if( bmp_cache[ BMP_SLIDER_SHAFT ]   !=  0 &&
-        bmp_pos  [ POS_SLIDER_SHAFT ].x != -1 &&
-        bmp_pos  [ POS_SLIDER_SHAFT ].y != -1 )
+    if( bmp_cache[ BMP_SLIDER_SHAFT ]   != 0 &&
+        bmp_pos  [ POS_SLIDER_SHAFT ].x != POS_UNDEF &&
+        bmp_pos  [ POS_SLIDER_SHAFT ].y != POS_UNDEF )
     {
       bmp_draw_bitmap( hps, bmp_pos[ POS_SLIDER_SHAFT ].x,
                             bmp_pos[ POS_SLIDER_SHAFT ].y, BMP_SLIDER_SHAFT );
@@ -1203,19 +1415,35 @@ bmp_draw_timeleft( HPS hps )
   if( cfg.mode == CFG_MODE_REGULAR )
   {
     if( amp_playmode == AMP_NOFILE ) {
-      bmp_draw_bitmap( hps, bmp_pos[ POS_NOTL    ].x,
-                            bmp_pos[ POS_NOTL    ].y, BMP_NOTL );
+      if( bmp_pos[ POS_NOTL ].x != POS_UNDEF &&
+          bmp_pos[ POS_NOTL ].y != POS_UNDEF )
+      {
+        bmp_draw_bitmap( hps, bmp_pos[ POS_NOTL ].x,
+                              bmp_pos[ POS_NOTL ].y, BMP_NOTL );
+      }
     } else {
-      bmp_draw_bitmap( hps, bmp_pos[ POS_TL      ].x,
-                            bmp_pos[ POS_TL      ].y, BMP_TL );
+      if( bmp_pos[ POS_TL ].x != POS_UNDEF &&
+          bmp_pos[ POS_TL ].y != POS_UNDEF )
+      {
+        bmp_draw_bitmap( hps, bmp_pos[ POS_TL   ].x,
+                              bmp_pos[ POS_TL   ].y, BMP_TL );
+      }
     }
 
     if( amp_playmode == AMP_PLAYLIST && !cfg.rpt ) {
-      bmp_draw_bitmap( hps, bmp_pos[ POS_PLIST   ].x,
-                            bmp_pos[ POS_PLIST   ].y, BMP_PLIST );
+      if( bmp_pos[ POS_PLIST   ].x != POS_UNDEF &&
+          bmp_pos[ POS_PLIST   ].y != POS_UNDEF )
+      {
+        bmp_draw_bitmap( hps, bmp_pos[ POS_PLIST   ].x,
+                              bmp_pos[ POS_PLIST   ].y, BMP_PLIST );
+      }
     } else {
-      bmp_draw_bitmap( hps, bmp_pos[ POS_NOPLIST ].x,
-                            bmp_pos[ POS_NOPLIST ].y, BMP_NOPLIST );
+      if( bmp_pos[ POS_NOPLIST ].x != POS_UNDEF &&
+          bmp_pos[ POS_NOPLIST ].y != POS_UNDEF )
+      {
+        bmp_draw_bitmap( hps, bmp_pos[ POS_NOPLIST ].x,
+                              bmp_pos[ POS_NOPLIST ].y, BMP_NOPLIST );
+      }
     }
   }
 }
@@ -1309,66 +1537,66 @@ bmp_init_skins_bitmaps( HPS hps )
 static void
 bmp_init_skin_positions( void )
 {
-  bmp_pos[ POS_TIMER       ].x = 228; bmp_pos[ POS_TIMER       ].y =  48;
-  bmp_pos[ POS_R_SIZE      ].x = 300; bmp_pos[ POS_R_SIZE      ].y = 110;
-  bmp_pos[ POS_R_PLAY      ].x =   6; bmp_pos[ POS_R_PLAY      ].y =   7;
-  bmp_pos[ POS_R_PAUSE     ].x =  29; bmp_pos[ POS_R_PAUSE     ].y =   7;
-  bmp_pos[ POS_R_REW       ].x =  52; bmp_pos[ POS_R_REW       ].y =   7;
-  bmp_pos[ POS_R_FWD       ].x =  75; bmp_pos[ POS_R_FWD       ].y =   7;
-  bmp_pos[ POS_R_PL        ].x = 108; bmp_pos[ POS_R_PL        ].y =   7;
-  bmp_pos[ POS_R_REPEAT    ].x = 165; bmp_pos[ POS_R_REPEAT    ].y =   7;
-  bmp_pos[ POS_R_SHUFFLE   ].x = 188; bmp_pos[ POS_R_SHUFFLE   ].y =   7;
-  bmp_pos[ POS_R_PREV      ].x = 211; bmp_pos[ POS_R_PREV      ].y =   7;
-  bmp_pos[ POS_R_NEXT      ].x = 234; bmp_pos[ POS_R_NEXT      ].y =   7;
-  bmp_pos[ POS_R_POWER     ].x = 270; bmp_pos[ POS_R_POWER     ].y =   7;
-  bmp_pos[ POS_R_STOP      ].x =  -1; bmp_pos[ POS_R_STOP      ].y =  -1;
-  bmp_pos[ POS_R_FLOAD     ].x =  -1; bmp_pos[ POS_R_FLOAD     ].y =  -1;
-  bmp_pos[ POS_R_TEXT      ].x =  32; bmp_pos[ POS_R_TEXT      ].y =  84;
-  bmp_pos[ POS_S_TEXT      ].x =  32; bmp_pos[ POS_S_TEXT      ].y =  41;
-  bmp_pos[ POS_NOTL        ].x = 178; bmp_pos[ POS_NOTL        ].y =  62;
-  bmp_pos[ POS_TL          ].x = 178; bmp_pos[ POS_TL          ].y =  62;
-  bmp_pos[ POS_NOPLIST     ].x = 178; bmp_pos[ POS_NOPLIST     ].y =  47;
-  bmp_pos[ POS_PLIST       ].x = 178; bmp_pos[ POS_PLIST       ].y =  47;
-  bmp_pos[ POS_TIME_LEFT   ].x = 188; bmp_pos[ POS_TIME_LEFT   ].y =  62;
-  bmp_pos[ POS_PL_LEFT     ].x = 188; bmp_pos[ POS_PL_LEFT     ].y =  47;
-  bmp_pos[ POS_PL_MODE     ].x = 132; bmp_pos[ POS_PL_MODE     ].y =  47;
-  bmp_pos[ POS_LED         ].x =   9; bmp_pos[ POS_LED         ].y =  92;
-  bmp_pos[ POS_N_LED       ].x =   9; bmp_pos[ POS_N_LED       ].y =  92;
-  bmp_pos[ POS_SLIDER      ].x =  32; bmp_pos[ POS_SLIDER      ].y =  40;
-  bmp_pos[ POS_VOLBAR      ].x =   9; bmp_pos[ POS_VOLBAR      ].y =  38;
-  bmp_pos[ POS_NO_CHANNELS ].x = 240; bmp_pos[ POS_NO_CHANNELS ].y =  72;
-  bmp_pos[ POS_MONO        ].x = 240; bmp_pos[ POS_MONO        ].y =  72;
-  bmp_pos[ POS_STEREO      ].x = 240; bmp_pos[ POS_STEREO      ].y =  72;
-  bmp_pos[ POS_BPS         ].x = 259; bmp_pos[ POS_BPS         ].y =  72;
-  bmp_pos[ POS_S_SIZE      ].x =  -1; bmp_pos[ POS_S_SIZE      ].y =  -1;
-  bmp_pos[ POS_T_SIZE      ].x =  -1; bmp_pos[ POS_T_SIZE      ].y =  -1;
-  bmp_pos[ POS_S_PLAY      ].x =   6; bmp_pos[ POS_S_PLAY      ].y =   7;
-  bmp_pos[ POS_S_PAUSE     ].x =  29; bmp_pos[ POS_S_PAUSE     ].y =   7;
-  bmp_pos[ POS_S_REW       ].x =  52; bmp_pos[ POS_S_REW       ].y =   7;
-  bmp_pos[ POS_S_FWD       ].x =  75; bmp_pos[ POS_S_FWD       ].y =   7;
-  bmp_pos[ POS_S_PL        ].x = 108; bmp_pos[ POS_S_PL        ].y =   7;
-  bmp_pos[ POS_S_REPEAT    ].x = 165; bmp_pos[ POS_S_REPEAT    ].y =   7;
-  bmp_pos[ POS_S_SHUFFLE   ].x = 188; bmp_pos[ POS_S_SHUFFLE   ].y =   7;
-  bmp_pos[ POS_S_PREV      ].x = 211; bmp_pos[ POS_S_PREV      ].y =   7;
-  bmp_pos[ POS_S_NEXT      ].x = 234; bmp_pos[ POS_S_NEXT      ].y =   7;
-  bmp_pos[ POS_S_POWER     ].x = 270; bmp_pos[ POS_S_POWER     ].y =   7;
-  bmp_pos[ POS_S_STOP      ].x =  -1; bmp_pos[ POS_S_STOP      ].y =  -1;
-  bmp_pos[ POS_S_FLOAD     ].x =  -1; bmp_pos[ POS_S_FLOAD     ].y =  -1;
-  bmp_pos[ POS_T_PLAY      ].x =   6; bmp_pos[ POS_T_PLAY      ].y =   7;
-  bmp_pos[ POS_T_PAUSE     ].x =  29; bmp_pos[ POS_T_PAUSE     ].y =   7;
-  bmp_pos[ POS_T_REW       ].x =  52; bmp_pos[ POS_T_REW       ].y =   7;
-  bmp_pos[ POS_T_FWD       ].x =  75; bmp_pos[ POS_T_FWD       ].y =   7;
-  bmp_pos[ POS_T_PL        ].x = 108; bmp_pos[ POS_T_PL        ].y =   7;
-  bmp_pos[ POS_T_REPEAT    ].x = 165; bmp_pos[ POS_T_REPEAT    ].y =   7;
-  bmp_pos[ POS_T_SHUFFLE   ].x = 188; bmp_pos[ POS_T_SHUFFLE   ].y =   7;
-  bmp_pos[ POS_T_PREV      ].x = 211; bmp_pos[ POS_T_PREV      ].y =   7;
-  bmp_pos[ POS_T_NEXT      ].x = 234; bmp_pos[ POS_T_NEXT      ].y =   7;
-  bmp_pos[ POS_T_POWER     ].x = 270; bmp_pos[ POS_T_POWER     ].y =   7;
-  bmp_pos[ POS_T_STOP      ].x =  -1; bmp_pos[ POS_T_STOP      ].y =  -1;
-  bmp_pos[ POS_T_FLOAD     ].x =  -1; bmp_pos[ POS_T_FLOAD     ].y =  -1;
-  bmp_pos[ POS_PL_INDEX    ].x = 152; bmp_pos[ POS_PL_INDEX    ].y =  62;
-  bmp_pos[ POS_PL_TOTAL    ].x = 152; bmp_pos[ POS_PL_TOTAL    ].y =  47;
-  bmp_pos[ POS_SLIDER_SHAFT].x =  -1; bmp_pos[ POS_SLIDER_SHAFT].y =  -1;
+  bmp_pos[ POS_TIMER       ].x =       228; bmp_pos[ POS_TIMER       ].y =        48;
+  bmp_pos[ POS_R_SIZE      ].x =       300; bmp_pos[ POS_R_SIZE      ].y =       110;
+  bmp_pos[ POS_R_PLAY      ].x =         6; bmp_pos[ POS_R_PLAY      ].y =         7;
+  bmp_pos[ POS_R_PAUSE     ].x =        29; bmp_pos[ POS_R_PAUSE     ].y =         7;
+  bmp_pos[ POS_R_REW       ].x =        52; bmp_pos[ POS_R_REW       ].y =         7;
+  bmp_pos[ POS_R_FWD       ].x =        75; bmp_pos[ POS_R_FWD       ].y =         7;
+  bmp_pos[ POS_R_PL        ].x =       108; bmp_pos[ POS_R_PL        ].y =         7;
+  bmp_pos[ POS_R_REPEAT    ].x =       165; bmp_pos[ POS_R_REPEAT    ].y =         7;
+  bmp_pos[ POS_R_SHUFFLE   ].x =       188; bmp_pos[ POS_R_SHUFFLE   ].y =         7;
+  bmp_pos[ POS_R_PREV      ].x =       211; bmp_pos[ POS_R_PREV      ].y =         7;
+  bmp_pos[ POS_R_NEXT      ].x =       234; bmp_pos[ POS_R_NEXT      ].y =         7;
+  bmp_pos[ POS_R_POWER     ].x =       270; bmp_pos[ POS_R_POWER     ].y =         7;
+  bmp_pos[ POS_R_STOP      ].x = POS_UNDEF; bmp_pos[ POS_R_STOP      ].y = POS_UNDEF;
+  bmp_pos[ POS_R_FLOAD     ].x = POS_UNDEF; bmp_pos[ POS_R_FLOAD     ].y = POS_UNDEF;
+  bmp_pos[ POS_R_TEXT      ].x =        32; bmp_pos[ POS_R_TEXT      ].y =        84;
+  bmp_pos[ POS_S_TEXT      ].x =        32; bmp_pos[ POS_S_TEXT      ].y =        41;
+  bmp_pos[ POS_NOTL        ].x =       178; bmp_pos[ POS_NOTL        ].y =        62;
+  bmp_pos[ POS_TL          ].x =       178; bmp_pos[ POS_TL          ].y =        62;
+  bmp_pos[ POS_NOPLIST     ].x =       178; bmp_pos[ POS_NOPLIST     ].y =        47;
+  bmp_pos[ POS_PLIST       ].x =       178; bmp_pos[ POS_PLIST       ].y =        47;
+  bmp_pos[ POS_TIME_LEFT   ].x =       188; bmp_pos[ POS_TIME_LEFT   ].y =        62;
+  bmp_pos[ POS_PL_LEFT     ].x =       188; bmp_pos[ POS_PL_LEFT     ].y =        47;
+  bmp_pos[ POS_PL_MODE     ].x =       132; bmp_pos[ POS_PL_MODE     ].y =        47;
+  bmp_pos[ POS_LED         ].x =         9; bmp_pos[ POS_LED         ].y =        92;
+  bmp_pos[ POS_N_LED       ].x =         9; bmp_pos[ POS_N_LED       ].y =        92;
+  bmp_pos[ POS_SLIDER      ].x =        32; bmp_pos[ POS_SLIDER      ].y =        40;
+  bmp_pos[ POS_VOLBAR      ].x =         9; bmp_pos[ POS_VOLBAR      ].y =        38;
+  bmp_pos[ POS_NO_CHANNELS ].x =       240; bmp_pos[ POS_NO_CHANNELS ].y =        72;
+  bmp_pos[ POS_MONO        ].x =       240; bmp_pos[ POS_MONO        ].y =        72;
+  bmp_pos[ POS_STEREO      ].x =       240; bmp_pos[ POS_STEREO      ].y =        72;
+  bmp_pos[ POS_BPS         ].x =       259; bmp_pos[ POS_BPS         ].y =        72;
+  bmp_pos[ POS_S_SIZE      ].x = POS_UNDEF; bmp_pos[ POS_S_SIZE      ].y = POS_UNDEF;
+  bmp_pos[ POS_T_SIZE      ].x = POS_UNDEF; bmp_pos[ POS_T_SIZE      ].y = POS_UNDEF;
+  bmp_pos[ POS_S_PLAY      ].x =         6; bmp_pos[ POS_S_PLAY      ].y =         7;
+  bmp_pos[ POS_S_PAUSE     ].x =        29; bmp_pos[ POS_S_PAUSE     ].y =         7;
+  bmp_pos[ POS_S_REW       ].x =        52; bmp_pos[ POS_S_REW       ].y =         7;
+  bmp_pos[ POS_S_FWD       ].x =        75; bmp_pos[ POS_S_FWD       ].y =         7;
+  bmp_pos[ POS_S_PL        ].x =       108; bmp_pos[ POS_S_PL        ].y =         7;
+  bmp_pos[ POS_S_REPEAT    ].x =       165; bmp_pos[ POS_S_REPEAT    ].y =         7;
+  bmp_pos[ POS_S_SHUFFLE   ].x =       188; bmp_pos[ POS_S_SHUFFLE   ].y =         7;
+  bmp_pos[ POS_S_PREV      ].x =       211; bmp_pos[ POS_S_PREV      ].y =         7;
+  bmp_pos[ POS_S_NEXT      ].x =       234; bmp_pos[ POS_S_NEXT      ].y =         7;
+  bmp_pos[ POS_S_POWER     ].x =       270; bmp_pos[ POS_S_POWER     ].y =         7;
+  bmp_pos[ POS_S_STOP      ].x = POS_UNDEF; bmp_pos[ POS_S_STOP      ].y = POS_UNDEF;
+  bmp_pos[ POS_S_FLOAD     ].x = POS_UNDEF; bmp_pos[ POS_S_FLOAD     ].y = POS_UNDEF;
+  bmp_pos[ POS_T_PLAY      ].x =         6; bmp_pos[ POS_T_PLAY      ].y =         7;
+  bmp_pos[ POS_T_PAUSE     ].x =        29; bmp_pos[ POS_T_PAUSE     ].y =         7;
+  bmp_pos[ POS_T_REW       ].x =        52; bmp_pos[ POS_T_REW       ].y =         7;
+  bmp_pos[ POS_T_FWD       ].x =        75; bmp_pos[ POS_T_FWD       ].y =         7;
+  bmp_pos[ POS_T_PL        ].x =       108; bmp_pos[ POS_T_PL        ].y =         7;
+  bmp_pos[ POS_T_REPEAT    ].x =       165; bmp_pos[ POS_T_REPEAT    ].y =         7;
+  bmp_pos[ POS_T_SHUFFLE   ].x =       188; bmp_pos[ POS_T_SHUFFLE   ].y =         7;
+  bmp_pos[ POS_T_PREV      ].x =       211; bmp_pos[ POS_T_PREV      ].y =         7;
+  bmp_pos[ POS_T_NEXT      ].x =       234; bmp_pos[ POS_T_NEXT      ].y =         7;
+  bmp_pos[ POS_T_POWER     ].x =       270; bmp_pos[ POS_T_POWER     ].y =         7;
+  bmp_pos[ POS_T_STOP      ].x = POS_UNDEF; bmp_pos[ POS_T_STOP      ].y = POS_UNDEF;
+  bmp_pos[ POS_T_FLOAD     ].x = POS_UNDEF; bmp_pos[ POS_T_FLOAD     ].y = POS_UNDEF;
+  bmp_pos[ POS_PL_INDEX    ].x =       152; bmp_pos[ POS_PL_INDEX    ].y =        62;
+  bmp_pos[ POS_PL_TOTAL    ].x =       152; bmp_pos[ POS_PL_TOTAL    ].y =        47;
+  bmp_pos[ POS_SLIDER_SHAFT].x = POS_UNDEF; bmp_pos[ POS_SLIDER_SHAFT].y = POS_UNDEF;
 }
 
 /* Loads default PM123 skin. */
@@ -1392,7 +1620,13 @@ bmp_init_default_skin( HPS hps )
     bmp_load_default( hps, i );
   }
 
-  bmp_ulong[ UL_PL_INDEX ] = TRUE;
+  bmp_ulong[ UL_PL_INDEX     ] = TRUE;
+  bmp_ulong[ UL_IN_PIXELS    ] = TRUE;
+  bmp_ulong[ UL_R_MSG_LEN    ] = 256;
+  bmp_ulong[ UL_R_MSG_HEIGHT ] = 16;
+  bmp_ulong[ UL_S_MSG_LEN    ] = 256;
+  bmp_ulong[ UL_S_MSG_HEIGHT ] = 16;
+  bmp_ulong[ UL_FG_MSG_COLOR ] = 0x0000FF00UL;
 
   strcpy( visual.module_name, startpath );
   strcat( visual.module_name, "visplug\\analyzer.dll" );
@@ -1405,29 +1639,6 @@ bmp_init_default_skin( HPS hps )
   visual.cy   = 30;
 
   add_plugin( visual.module_name, &visual );
-
-  if( is_arg_smooth )
-  {
-    strcpy( visual.module_name, startpath );
-    strcat( visual.module_name, "visplug\\scroller.dll" );
-    strcpy( visual.param, ""  );
-
-    visual.skin  = TRUE;
-    visual.x     = 30;
-    visual.y     = 83;
-    visual.cx    = 258;
-    visual.cy    = 20;
-
-    add_plugin( visual.module_name, &visual );
-
-    bmp_pos[ POS_R_TEXT ].x = -1;
-    bmp_pos[ POS_R_TEXT ].y = -1;
-
-    /* FIX ME!!!
-    bmp_pos[ POS_S_TEXT ].x = -1;
-    bmp_pos[ POS_S_TEXT ].y = -1;
-    */
-  }
 }
 
 /* Returns TRUE if specified mode supported by current skin. */
@@ -1437,11 +1648,11 @@ bmp_is_mode_supported( int mode )
   switch( mode )
   {
     case CFG_MODE_REGULAR:
-      return bmp_pos[ POS_R_SIZE ].x != -1 && bmp_pos[ POS_R_SIZE ].y != -1;
+      return bmp_pos[ POS_R_SIZE ].x != POS_UNDEF && bmp_pos[ POS_R_SIZE ].y != POS_UNDEF;
     case CFG_MODE_SMALL:
-      return bmp_pos[ POS_S_SIZE ].x != -1 && bmp_pos[ POS_S_SIZE ].y != -1;
+      return bmp_pos[ POS_S_SIZE ].x != POS_UNDEF && bmp_pos[ POS_S_SIZE ].y != POS_UNDEF;
     case CFG_MODE_TINY:
-      return bmp_pos[ POS_T_SIZE ].x != -1 && bmp_pos[ POS_T_SIZE ].y != -1;
+      return bmp_pos[ POS_T_SIZE ].x != POS_UNDEF && bmp_pos[ POS_T_SIZE ].y != POS_UNDEF;
   }
 
   return FALSE;
@@ -1533,6 +1744,8 @@ bmp_clean_skin( void )
 
   memset( &bmp_pos,   0, sizeof( bmp_pos   ));
   memset( &bmp_ulong, 0, sizeof( bmp_ulong ));
+
+  bmp_delete_text_buffer();
 }
 
 /* Loads specified skin. */
@@ -1575,19 +1788,20 @@ bmp_load_skin( const char *filename, HAB hab, HWND hplayer, HPS hps )
   bmp_ulong[ UL_SHADE_VOLUME   ] = TRUE;
   bmp_ulong[ UL_SLIDER_WIDTH   ] = 242;
   bmp_ulong[ UL_TIMER_SPACE    ] = 1;
-  bmp_ulong[ UL_TIMER_SEPSPACE ] = 0;
-  bmp_ulong[ UL_TIMER_SEP      ] = TRUE;
+  bmp_ulong[ UL_TIMER_SEPARATE ] = TRUE;
   bmp_ulong[ UL_VOLUME_SLIDER  ] = FALSE;
   bmp_ulong[ UL_VOLUME_HRZ     ] = FALSE;
   bmp_ulong[ UL_BPS_DIGITS     ] = FALSE;
   bmp_ulong[ UL_PL_COLOR       ] = 0x0000FF00UL;
   bmp_ulong[ UL_R_MSG_LEN      ] = 25;
+  bmp_ulong[ UL_R_MSG_HEIGHT   ] = 0;
   bmp_ulong[ UL_S_MSG_LEN      ] = 25;
+  bmp_ulong[ UL_S_MSG_HEIGHT   ] = 0;
+  bmp_ulong[ UL_FG_MSG_COLOR   ] = 0x00FFFFFFUL;
   bmp_ulong[ UL_PL_INDEX       ] = FALSE;
   bmp_ulong[ UL_FONT           ] = 0;
   bmp_ulong[ UL_ONE_FONT       ] = FALSE;
-
-  amp_display_filename();
+  bmp_ulong[ UL_IN_PIXELS      ] = FALSE;
 
   if( !file )
   {
@@ -1600,6 +1814,7 @@ bmp_load_skin( const char *filename, HAB hab, HWND hplayer, HPS hps )
         vis_init( hplayer, i );
       }
     }
+
     return FALSE;
   }
 
@@ -1660,16 +1875,14 @@ bmp_load_skin( const char *filename, HAB hab, HWND hplayer, HPS hps )
 
       case ':': // position
       {
-        int x = -1;
-        int y = -1;
+        int x = POS_UNDEF;
+        int y = POS_UNDEF;
         int i =  0;
 
         sscanf( line, "%d:%d,%d", &i, &x, &y );
 
-        if( i > 0 ) {
-          bmp_pos[ i ].x = x;
-          bmp_pos[ i ].y = y;
-        }
+        bmp_pos[ i ].x = x;
+        bmp_pos[ i ].y = y;
         break;
       }
 
@@ -1677,16 +1890,17 @@ bmp_load_skin( const char *filename, HAB hab, HWND hplayer, HPS hps )
       {
         char* p = line + i + 1;
         int   i = atoi( line );
-        RGB2  rgb;
+        int   r, g, b;
 
         if( i == UL_SHADE_BRIGHT  ||
             i == UL_SHADE_DARK    ||
             i == UL_SLIDER_BRIGHT ||
             i == UL_SLIDER_COLOR  ||
-            i == UL_PL_COLOR       )
+            i == UL_PL_COLOR      ||
+            i == UL_FG_MSG_COLOR   )
         {
-            sscanf( "%u/%u/%u", &rgb.bRed, &rgb.bGreen, &rgb.bBlue );
-            bmp_ulong[ i ] = *((ULONG*)&rgb);
+            sscanf( p, "%d/%d/%d", &r, &g, &b );
+            bmp_ulong[ i ] = r << 16 | g << 8 | b;
             break;
         }
         switch( i ) {
@@ -1694,9 +1908,15 @@ bmp_load_skin( const char *filename, HAB hab, HWND hplayer, HPS hps )
           case UL_SHADE_VOLUME:  bmp_ulong[ UL_SHADE_VOLUME  ] = FALSE;   break;
 
           case UL_DISPLAY_MSG:
-            if( amp_playmode == AMP_NOFILE ) {
-              bmp_set_text( p );
-            }
+            // Not supported since 1.32
+            // if( amp_playmode == AMP_NOFILE ) {
+            //  bmp_set_text( p );
+            // }
+            break;
+
+          case UL_TIMER_SEPSPACE:
+            // Not supported since 1.32
+            // bmp_ulong[ UL_TIMER_SEPSPACE ] = atoi(p);
             break;
 
           case UL_SHADE_PLAYER:   bmp_ulong[ UL_SHADE_PLAYER   ] = FALSE;   break;
@@ -1706,13 +1926,15 @@ bmp_load_skin( const char *filename, HAB hab, HWND hplayer, HPS hps )
           case UL_S_MSG_LEN:      bmp_ulong[ UL_S_MSG_LEN      ] = atoi(p); break;
           case UL_FONT:           cfg.font = atoi(p); break;
           case UL_TIMER_SPACE:    bmp_ulong[ UL_TIMER_SPACE    ] = atoi(p); break;
-          case UL_TIMER_SEPSPACE: bmp_ulong[ UL_TIMER_SEPSPACE ] = atoi(p); break;
-          case UL_TIMER_SEP:      bmp_ulong[ UL_TIMER_SEP      ] = FALSE;   break;
-          case UL_VOLUME_HRZ:     bmp_ulong[ UL_VOLUME_HRZ     ] = TRUE ;   break;
-          case UL_VOLUME_SLIDER:  bmp_ulong[ UL_VOLUME_SLIDER  ] = TRUE ;   break;
-          case UL_BPS_DIGITS:     bmp_ulong[ UL_BPS_DIGITS     ] = TRUE ;   break;
-          case UL_PL_INDEX:       bmp_ulong[ UL_PL_INDEX       ] = TRUE ;   break;
-          case UL_ONE_FONT:       bmp_ulong[ UL_ONE_FONT       ] = TRUE ;   break;
+          case UL_TIMER_SEPARATE: bmp_ulong[ UL_TIMER_SEPARATE ] = FALSE;   break;
+          case UL_VOLUME_HRZ:     bmp_ulong[ UL_VOLUME_HRZ     ] = TRUE;    break;
+          case UL_VOLUME_SLIDER:  bmp_ulong[ UL_VOLUME_SLIDER  ] = TRUE;    break;
+          case UL_BPS_DIGITS:     bmp_ulong[ UL_BPS_DIGITS     ] = TRUE;    break;
+          case UL_PL_INDEX:       bmp_ulong[ UL_PL_INDEX       ] = TRUE;    break;
+          case UL_ONE_FONT:       bmp_ulong[ UL_ONE_FONT       ] = TRUE;    break;
+          case UL_IN_PIXELS:      bmp_ulong[ UL_IN_PIXELS      ] = TRUE;    break;
+          case UL_R_MSG_HEIGHT:   bmp_ulong[ UL_R_MSG_HEIGHT   ] = atoi(p); break;
+          case UL_S_MSG_HEIGHT:   bmp_ulong[ UL_S_MSG_HEIGHT   ] = atoi(p); break;
 
           case UL_BUNDLE:
           {
@@ -1769,10 +1991,11 @@ bmp_load_skin( const char *filename, HAB hab, HWND hplayer, HPS hps )
                              "(if you select No, default skin will be used)" ))
     {
       strcpy( cfg.defskin, "" );
-      return bmp_load_skin( "", hplayer, hps, hab );
+      return bmp_load_skin( "", hab, hplayer, hps );
     }
   }
 
+  amp_display_filename();
   return TRUE;
 }
 
@@ -1818,7 +2041,7 @@ bmp_init_button( HWND hwnd, BMPBUTTON* button )
       break;
   }
 
-  if( x >= 0 && y >= 0 ) {
+  if( x != POS_UNDEF && y != POS_UNDEF ) {
     if( button->handle == NULLHANDLE )
     {
       btn_data.cb        =  sizeof( DATA95 );
@@ -1910,6 +2133,9 @@ bmp_reflow_and_resize( HWND hframe )
   bmp_init_button( hplayer, &btn_power   );
   bmp_init_button( hplayer, &btn_stop    );
   bmp_init_button( hplayer, &btn_fload   );
-  amp_invalidate ( UPD_ALL );
+
+  bmp_delete_text_buffer();
+  amp_display_filename();
+  amp_invalidate( UPD_ALL );
 }
 

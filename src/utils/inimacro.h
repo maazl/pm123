@@ -2,6 +2,8 @@
  * Copyright 1997-2003 Samuel Audet <guardia@step.polymtl.ca>
  *                     Taneli Lepp„ <rosmo@sektori.com>
  *
+ * Copyright 2006 Dmitry A.Steklenev <glass@ptv.ru>
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
  *
@@ -27,43 +29,69 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#ifndef __INIMACRO_H
+#define __INIMACRO_H
+
+#ifndef INI_SECTION
+#define INI_SECTION  "Settings"
+#endif
+
 #if __cplusplus
 extern "C" {
 #endif
 
-HINI open_ini(char *filename);
-HINI open_module_ini(void);
-BOOL close_ini(HINI hini);
-
-#define save_ini_value(INIhandle, var) PrfWriteProfileData(INIhandle, "Settings", #var, &var, sizeof(var));
-#define save_ini_string(INIhandle, var) PrfWriteProfileString(INIhandle, "Settings", #var, var);
-#define save_ini_data(INIhandle, var, size) PrfWriteProfileData(INIhandle, "Settings", #var, var, size);
-
-#define load_ini_value(INIhandle, var)                                   \
-{                                                                        \
-   ULONG datasize;                                                       \
-   PrfQueryProfileSize(INIhandle, "Settings", #var, &datasize);          \
-   if (datasize == sizeof(var))                                          \
-      PrfQueryProfileData(INIhandle, "Settings", #var, &var, &datasize); \
-}
-
-#define load_ini_data_size(INIhandle, var, size)                         \
-{                                                                        \
-   size = 0;                                                             \
-   PrfQueryProfileSize(INIhandle, "Settings", #var, &size);              \
-}
-
-#define load_ini_data(INIhandle, var, size)                              \
-{                                                                        \
-   ULONG datasize;                                                       \
-   PrfQueryProfileSize(INIhandle, "Settings", #var, &datasize);          \
-   if (datasize == size)                                                 \
-      PrfQueryProfileData(INIhandle, "Settings", #var, var, &datasize);  \
-}
-
-#define load_ini_string(INIhandle, var, size) PrfQueryProfileString(INIhandle, "Settings", #var, NULL, var, size);
+/* Opens the specified profile file. */
+HINI open_ini( const char* filename );
+/* Opens a profile file by the name of the module in the program directory. */
+HINI open_module_ini( void );
+/* Closes a opened profile file. */
+BOOL close_ini( HINI hini );
 
 #if __cplusplus
 }
 #endif
 
+/* Saves a numeric or boolean value to the specified profile file. */
+#define save_ini_value( hini, var ) \
+  PrfWriteProfileData ( hini, INI_SECTION, #var, &var, sizeof( var ));
+
+/* Saves a characters string to the specified profile file. */
+#define save_ini_string( hini, var ) \
+  PrfWriteProfileString( hini, INI_SECTION, #var, var );
+
+/* Saves a binary data to the specified profile file. */
+#define save_ini_data( hini, var, size ) \
+  PrfWriteProfileData( hini, INI_SECTION, #var, var, size );
+
+/* Loads a numeric or boolean value from the specified profile file. */
+#define load_ini_value( hini, var )                                  \
+{                                                                    \
+  ULONG datasize;                                                    \
+  PrfQueryProfileSize( hini, INI_SECTION, #var, &datasize );         \
+  if( datasize == sizeof( var )) {                                   \
+    PrfQueryProfileData( hini, INI_SECTION, #var, &var, &datasize ); \
+  }                                                                  \
+}
+
+/* Loads a characters string from the specified profile file. */
+#define load_ini_string( hini, var, size ) \
+  PrfQueryProfileString( hini, INI_SECTION, #var, NULL, var, size );
+
+/* Querys a size of the binary data saved to the specified profile file. */
+#define load_ini_data_size( hini, var, size )                        \
+{                                                                    \
+  size = 0;                                                          \
+  PrfQueryProfileSize( hini, INI_SECTION, #var, &size );             \
+}
+
+/* Loads a binary data from the specified profile file. */
+#define load_ini_data( hini, var, size )                             \
+{                                                                    \
+  ULONG datasize;                                                    \
+  PrfQueryProfileSize( hini, INI_SECTION, #var, &datasize );         \
+  if( datasize == size ) {                                           \
+    PrfQueryProfileData( hini, INI_SECTION, #var, var, &datasize );  \
+  }                                                                  \
+}
+
+#endif

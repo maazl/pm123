@@ -1,6 +1,8 @@
 /*
- * Copyright 1997-2003 Samuel Audet <guardia@step.polymtl.ca>
- *                     Taneli Lepp„ <rosmo@sektori.com>
+ * Copyright 1997-2003 Samuel Audet  <guardia@step.polymtl.ca>
+ *                     Taneli Lepp„  <rosmo@sektori.com>
+ *
+ * Copyright 2004 Dmitry A.Steklenev <glass@ptv.ru>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -27,32 +29,21 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#define INCL_DOS
-#include <os2.h>
+#ifndef _ERRORSTR_H
+#define _ERRORSTR_H
 
-ULONG findfirst(HDIR *hdir, char *path, ULONG attributes, FILEFINDBUF3 *buf)
-{
-   ULONG findCount;
-   ULONG rc;
+#if __cplusplus
+extern "C" {
+#endif
 
-   *hdir = HDIR_CREATE;
-   findCount = 1;
-   rc = DosFindFirst(path,hdir,attributes,buf,sizeof(*buf),&findCount,FIL_STANDARD);
+const char* sock_strerror( int socket_errno );
+const char* h_strerror   ( int tcpip_errno  );
+const char* clib_strerror( int clib_errno   );
 
-   return rc;
+char* os2_strerror( unsigned int os2_errno,
+                    char* result, size_t size );
+
+#if __cplusplus
 }
-
-ULONG findnext(HDIR hdir, FILEFINDBUF3 *buf)
-{
-   ULONG findCount;
-   ULONG rc;
-
-   findCount = 1;
-   rc = DosFindNext(hdir,buf,sizeof(*buf),&findCount);
-   return rc;
-}
-
-ULONG findclose(HDIR hdir)
-{
-   return DosFindClose(hdir);
-}
+#endif
+#endif /* _ERRORSTR_H */

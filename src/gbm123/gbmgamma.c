@@ -2,6 +2,15 @@
 
 gbmgamma.c - Gamma correct General Bitmap
 
+History:
+--------
+(Heiko Nitzsche)
+
+26-Apr-2006: Fix issue with comma separation between file and options.
+             Now the file can have quotes and thus clearly separating
+             it from the options.
+             On OS/2 command line use: "\"file.ext\",options"
+
 */
 
 /*...sincludes:0:*/
@@ -26,6 +35,7 @@ gbmgamma.c - Gamma correct General Bitmap
 #include <sys/stat.h>
 #endif
 #include "gbm.h"
+#include "gbmtool.h"
 
 /*...vgbm\46\h:0:*/
 /*...e*/
@@ -50,7 +60,7 @@ static void usage(void)
 	{
 	int ft, n_ft;
 
-	fprintf(stderr, "usage: %s [-m map] [-g gamma] [-s shelf] fn1.ext{,opt} [--] [fn2.ext{,opt}]\n", progname);
+	fprintf(stderr, "usage: %s [-m map] [-g gamma] [-s shelf] \"\\\"fn1.ext\\\"{,opt}\" [--] [\"\\\"fn2.ext\\\"{,opt}\"]\n", progname);
 	fprintf(stderr, "flags: -m map         mapping in the form ?_to_? (default: none), where ? is\n");
 	fprintf(stderr, "                      i  physical intensitys (eg: raytracer output)\n");
 	fprintf(stderr, "                      p  gamma corrected for a specific monitor\n");
@@ -77,6 +87,10 @@ static void usage(void)
 	gbm_deinit();
 
 	fprintf(stderr, "       opt's          bitmap format specific options\n");
+
+	fprintf(stderr, "\n       In case the filename contains a comma or spaces and options\n");
+	fprintf(stderr,   "       need to be added, the syntax \"\\\"fn.ext\\\"{,opt}\" must be used\n");
+	fprintf(stderr,   "       to clearly separate the filename from the options.\n");
 
 	exit(1);
 	}
@@ -305,7 +319,7 @@ static void map_compute_16(int m, word remap[], double gam, double shelf)
          break;
 
       default:
-         for ( i = 0; i < 0x100; i++ )
+         for ( i = 0; i < 0x10000; i++ )
          {
             remap[i] = (word) i;
          }
@@ -400,7 +414,10 @@ static void map_palette(GBMRGB *gbmrgb, int npals, const byte remap[])
 
 int main(int argc, char *argv[])
 	{
-	char	fn_src[500+1], fn_dst[500+1], *opt_src, *opt_dst;
+	GBMTOOL_FILEARG gbmfilearg;
+	char    fn_src[GBMTOOL_FILENAME_MAX+1], fn_dst[GBMTOOL_FILENAME_MAX+1],
+                opt_src[GBMTOOL_OPTIONS_MAX+1], opt_dst[GBMTOOL_OPTIONS_MAX+1];
+
 	int	fd, ft_src, ft_dst, i, stride, bytes, flag, m;
 	GBM_ERR	rc;
 	GBMFT	gbmft;
@@ -458,21 +475,38 @@ m = mapinfos[j].m;
 
 	if ( i == argc )
 		usage();
-	strcpy(fn_src, argv[i++]);
-	strcpy(fn_dst, ( i == argc ) ? fn_src : argv[i++]);
-	if ( i < argc )
+
+	/* Split filename and file options. */
+	gbmfilearg.argin = argv[i++];
+	if (strcmp(gbmfilearg.argin, "\"\"") == 0)
+	{
+	  usage();
+	}
+	if (gbmtool_parse_argument(&gbmfilearg, FALSE) != GBM_ERR_OK)
+	{
+	  fatal("can't parse source filename %s", gbmfilearg.argin);
+	}
+	strcpy(fn_src , gbmfilearg.files->filename);
+	strcpy(opt_src, gbmfilearg.options);
+	gbmtool_free_argument(&gbmfilearg);
+
+	gbmfilearg.argin = (i == argc) ? argv[i-1] : argv[i++];
+	if (strcmp(gbmfilearg.argin, "\"\"") == 0)
+	{
+	  usage();
+	}
+	if (gbmtool_parse_argument(&gbmfilearg, FALSE) != GBM_ERR_OK)
+	{
+	  fatal("can't parse destination filename %s", gbmfilearg.argin);
+	}
+	strcpy(fn_dst , gbmfilearg.files->filename);
+	strcpy(opt_dst, gbmfilearg.options);
+	gbmtool_free_argument(&gbmfilearg);
+
+	if (i < argc)
 		usage();
 
-	if ( (opt_src = strchr(fn_src, ',')) != NULL )
-		*opt_src++ = '\0';
-	else
-		opt_src = "";
-
-	if ( (opt_dst = strchr(fn_dst, ',')) != NULL )
-		*opt_dst++ = '\0';
-	else
-		opt_dst = "";
-
+	/* processing */
 	gbm_init();
 
 	if ( gbm_guess_filetype(fn_src, &ft_src) != GBM_ERR_OK )

@@ -142,6 +142,7 @@ BOOL  remove_decoder_plugin( DECODER* plugin );
 BOOL  remove_output_plugin ( OUTPUT*  plugin );
 BOOL  remove_filter_plugin ( FILTER*  plugin );
 BOOL  remove_visual_plugin ( VISUAL*  plugin );
+void  remove_all_plugins   ( void );
 
 void  load_default_decoders( void );
 void  load_default_outputs ( void );

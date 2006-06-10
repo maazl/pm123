@@ -220,6 +220,21 @@ long _System _ftell(FILE *stream)
       return ftell(sockfile->stream)-sockfile->available;
 }
 
+size_t _System _fsize(FILE *stream)
+{
+   SOCKFILE *sockfile = (SOCKFILE *) stream;
+
+   if( sockfile->sockmode == HTTP ) {
+      return sockfile->http_info.length;
+   } else if( sockfile->sockmode == FTP ) {
+      return 0; 
+   } else {
+      struct stat fi = {0};
+      fstat( fileno( sockfile->stream ), &fi );
+      return fi.st_size;
+   }
+}
+
 int _System _fseek(FILE *stream, long offset, int origin)
 {
    SOCKFILE *sockfile = (SOCKFILE *) stream;

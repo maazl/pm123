@@ -8,7 +8,8 @@ History:
 
 19-Feb-2006: Add function to query number of images
              Add function to reset user defined I/O functions to internal ones
-
+27-May-2006: Protect all readers and writer against illegal colour depth requests
+             (gbm_read_palette, gbm_read_data, gbm_write)
 */
 
 /*...sincludes:0:*/
@@ -56,6 +57,10 @@ History:
 #include "gbmgem.h"
 #include "gbmcvp.h"
 #include "gbmjpg.h"
+
+
+#define GBM_VERSION   140  /* 1.40 */
+
 
 /*...vgbmpgm\46\h:0:*/
 /*...vgbmpng\46\h:0:*/
@@ -270,27 +275,93 @@ GBMEXPORT GBM_ERR GBMENTRY gbm_read_header(const char *fn, int fd, int ft, GBM *
 /*...e*/
 /*...sgbm_read_palette:0:*/
 GBMEXPORT GBM_ERR GBMENTRY gbm_read_palette(int fd, int ft, GBM *gbm, GBMRGB *gbmrgb)
-	{
-	if ( gbm == NULL || gbmrgb == NULL )
-		return GBM_ERR_BAD_ARG;
-	return (*fts[ft].read_palette)(fd, gbm, gbmrgb);
-	}
+{
+  int   flag = 0;
+  GBMFT gbmft = { 0 };
+
+  if ( gbm == NULL || gbmrgb == NULL )
+    return GBM_ERR_BAD_ARG;
+
+  /* check if the input format supports the requested color depth */
+  gbm_query_filetype(ft, &gbmft);
+  switch ( gbm->bpp )
+  {
+    case 64: flag = GBM_FT_R64; break;
+    case 48: flag = GBM_FT_R48; break;
+    case 32: flag = GBM_FT_R32; break;
+    case 24: flag = GBM_FT_R24; break;
+    case  8: flag = GBM_FT_R8;  break;
+    case  4: flag = GBM_FT_R4;  break;
+    case  1: flag = GBM_FT_R1;  break;
+    default: flag = 0;          break;
+  }
+  if ( (gbmft.flags & flag) == 0 )
+  {
+    return GBM_ERR_NOT_SUPP;
+  }
+
+  return (*fts[ft].read_palette)(fd, gbm, gbmrgb);
+}
 /*...e*/
 /*...sgbm_read_data:0:*/
 GBMEXPORT GBM_ERR GBMENTRY gbm_read_data(int fd, int ft, GBM *gbm, byte *data)
-	{
-	if ( gbm == NULL || data == NULL )
-		return GBM_ERR_BAD_ARG;
-	return (*fts[ft].read_data)(fd, gbm, data);
-	}
+{
+  int   flag = 0;
+  GBMFT gbmft = { 0 };
+
+  if ( gbm == NULL || data == NULL )
+    return GBM_ERR_BAD_ARG;
+
+  /* check if the input format supports the requested color depth */
+  gbm_query_filetype(ft, &gbmft);
+  switch ( gbm->bpp )
+  {
+    case 64: flag = GBM_FT_R64; break;
+    case 48: flag = GBM_FT_R48; break;
+    case 32: flag = GBM_FT_R32; break;
+    case 24: flag = GBM_FT_R24; break;
+    case  8: flag = GBM_FT_R8;  break;
+    case  4: flag = GBM_FT_R4;  break;
+    case  1: flag = GBM_FT_R1;  break;
+    default: flag = 0;          break;
+  }
+  if ( (gbmft.flags & flag) == 0 )
+  {
+    return GBM_ERR_NOT_SUPP;
+  }
+
+  return (*fts[ft].read_data)(fd, gbm, data);
+}
 /*...e*/
 /*...sgbm_write:0:*/
 GBMEXPORT GBM_ERR GBMENTRY gbm_write(const char *fn, int fd, int ft, const GBM *gbm, const GBMRGB *gbmrgb, const byte *data, const char *opt)
-	{
-	if ( fn == NULL || opt == NULL )
-		return GBM_ERR_BAD_ARG;
-	return (*fts[ft].write)(fn, fd, gbm, gbmrgb, data, opt);
-	}
+{
+  int   flag = 0;
+  GBMFT gbmft = { 0 };
+
+  if ( fn == NULL || opt == NULL )
+    return GBM_ERR_BAD_ARG;
+
+  /* check if the output format supports the requested color depth */
+  gbm_query_filetype(ft, &gbmft);
+  switch ( gbm->bpp )
+  {
+    case 64: flag = GBM_FT_W64; break;
+    case 48: flag = GBM_FT_W48; break;
+    case 32: flag = GBM_FT_W32; break;
+    case 24: flag = GBM_FT_W24; break;
+    case  8: flag = GBM_FT_W8;  break;
+    case  4: flag = GBM_FT_W4;  break;
+    case  1: flag = GBM_FT_W1;  break;
+    default: flag = 0;          break;
+  }
+  if ( (gbmft.flags & flag) == 0 )
+  {
+    return GBM_ERR_NOT_SUPP;
+  }
+
+  return (*fts[ft].write)(fn, fd, gbm, gbmrgb, data, opt);
+}
 /*...e*/
 /*...sgbm_err:0:*/
 GBMEXPORT const char * GBMENTRY gbm_err(GBM_ERR rc)
@@ -334,7 +405,7 @@ GBMEXPORT const char * GBMENTRY gbm_err(GBM_ERR rc)
 /*...sgbm_version:0:*/
 GBMEXPORT int GBMENTRY gbm_version(void)
 	{
-	return 136; /* 1.36 */
+	return GBM_VERSION;
 	}
 /*...e*/
 

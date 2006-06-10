@@ -43,6 +43,7 @@
 #include "format.h"
 #include "decoder_plug.h"
 #include "pm123.h"
+#include "docking.h"
 
 static HWND plman;
 static HWND container;
@@ -606,12 +607,10 @@ pm_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
         WinSetPresParam( container, PP_BACKGROUNDCOLORINDEX,
                          sizeof(color), &color);
       }
+
+      dk_add_window ( hwnd, 0 );
       return 0;
     }
-
-    case WM_DESTROY:
-      save_window_pos( hwnd, 0 );
-      break;
 
     case WM_SYSCOMMAND:
       if( SHORT1FROMMP(mp1) == SC_CLOSE ) {
@@ -676,6 +675,7 @@ pm_show( BOOL show )
     WinChangeSwitchEntry( hswitch, &swcntrl );
   }
 
+  dk_set_state( plman, show ? 0 : DK_IS_GHOST );
   WinSetWindowPos( plman, HWND_TOP, 0, 0, 0, 0,
                    show ? SWP_SHOW | SWP_ZORDER | SWP_ACTIVATE : SWP_HIDE );
 }
@@ -690,4 +690,13 @@ pm_create( void )
   pm_show( cfg.show_plman );
   return plman;
 }
+
+/* Destroys the playlist manager presentation window. */
+void
+pm_destroy( void )
+{
+  save_window_pos ( plman, 0 );
+  WinDestroyWindow( plman );
+}
+
 

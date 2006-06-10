@@ -42,6 +42,7 @@
 #include "pm123.h"
 #include "utilfct.h"
 #include "plugman.h"
+#include "docking.h"
 
 static HWND     menu_record = NULLHANDLE;
 static HWND     menu_list   = NULLHANDLE;
@@ -50,7 +51,6 @@ static HWND     container   = NULLHANDLE;
 static HPOINTER icon_record = NULLHANDLE;
 
 static void bm_init_window( HWND hwnd );
-static void bm_term_window( HWND hwnd );
 
 /* Returns the pointer to the first bookmark record. */
 BMRECORD*
@@ -334,6 +334,7 @@ bm_show( BOOL show )
     WinChangeSwitchEntry( hswitch, &swcntrl );
   }
 
+  dk_set_state( bookmarks, show ? 0 : DK_IS_GHOST );
   WinSetWindowPos( bookmarks, HWND_TOP, 0, 0, 0, 0,
                    show ? SWP_SHOW | SWP_ZORDER | SWP_ACTIVATE : SWP_HIDE );
 }
@@ -645,20 +646,21 @@ static BOOL
 bm_load_bookmark( BMRECORD* rec )
 {
   PLRECORD* pl_rec = NULL;
+  BOOL rc;
 
   amp_stop();
 
   if( amp_playmode == AMP_PLAYLIST ) {
-    pl_rec = pl_find_filename( rec->filename );
+    pl_rec = pl_query_file_record( rec->filename );
   }
 
   if( pl_rec ) {
-    amp_pl_load_record ( pl_rec );
+    rc = amp_pl_load_record ( pl_rec );
   } else {
-    amp_load_singlefile( rec->filename, AMP_LOAD_NOT_PLAY | AMP_LOAD_NOT_RECALL );
+    rc = amp_load_singlefile( rec->filename, AMP_LOAD_NOT_PLAY | AMP_LOAD_NOT_RECALL );
   }
 
-  if( cfg.playonload || rec->play_pos > 0 )
+  if( rc && ( cfg.playonload || rec->play_pos > 0 ))
   {
     amp_play();
 
@@ -764,9 +766,7 @@ bm_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
   switch( msg ) {
     case WM_INITDLG:
       bm_init_window( hwnd );
-      break;
-    case WM_DESTROY:
-      bm_term_window( hwnd );
+      dk_add_window ( hwnd, 0 );
       break;
 
     case WM_SYSCOMMAND:
@@ -789,15 +789,6 @@ bm_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
       break;
     }
 
-    case WM_ADJUSTWINDOWPOS:
-    {
-      PSWP pswp = (PSWP)mp1;
-      if( cfg.dock_windows && pswp->fl & SWP_MOVE ) {
-        amp_dock( hwnd, pswp, cfg.dock_margin );
-      }
-      break;
-    }
-
     case DM_DISCARDOBJECT:
       return bm_drag_discard( hwnd, (PDRAGINFO)mp1 );
 
@@ -809,7 +800,7 @@ bm_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
         case IDM_BM_RMENU:
           WinSendMsg( hwnd, WM_CONTROL,
                       MPFROM2SHORT( CNR_BOOKMARKS, CN_CONTEXTMENU ),
-                      PVOIDFROMMP( pl_cursored()));
+                      PVOIDFROMMP( bm_cursored()));
           return 0;
         case IDM_BM_LMENU:
           WinSendMsg( hwnd, WM_CONTROL,
@@ -954,20 +945,23 @@ bm_init_window( HWND hwnd )
   icon_record = WinLoadPointer( HWND_DESKTOP, 0, ICO_BOOKMARK  );
 }
 
-/* Terminates the bookmark presentation window. */
-static void
-bm_term_window( HWND hwnd )
+/* Destroys the bookmark presentation window. */
+void
+bm_destroy( void )
 {
-  HAB hab = WinQueryAnchorBlock( hwnd );
-  HACCEL accel = WinQueryAccelTable( hab, hwnd );
+  HAB hab = WinQueryAnchorBlock( bookmarks );
+  HACCEL accel = WinQueryAccelTable( hab, bookmarks );
 
-  save_window_pos( hwnd, 0 );
+  save_window_pos( bookmarks, 0 );
 
-  WinSetAccelTable( hab, hwnd, NULLHANDLE );
+  WinSetAccelTable( hab, bookmarks, NULLHANDLE );
   WinDestroyAccelTable( accel );
+
+  bm_remove_all();
 
   WinDestroyPointer( icon_record );
   WinDestroyWindow ( menu_record );
+  WinDestroyWindow ( bookmarks   );
 }
 
 /* Creates the bookmarks presentation window. */
@@ -1067,7 +1061,7 @@ bm_save( HWND owner )
       "# Bookmark list created with %s\n"
       "# Do not modify! This file is compatible with the playlist format,\n"
       "# but information written in this file is different.\n"
-      "#\n", VERSION );
+      "#\n", AMP_FULLNAME );
 
   for( rec = bm_first_record(); rec; rec = bm_next_record( rec ))
   {

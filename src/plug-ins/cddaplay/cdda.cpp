@@ -580,8 +580,8 @@ MRESULT EXPENTRY wpMatch(HWND hwnd,ULONG msg,MPARAM mp1,MPARAM mp2)
          while(data->matches[i].discid_cddb)
          {
             ch_convert( query_pm123_charset(), data->matches[i].title, CH_DEFAULT, title, sizeof(title));
-            int inserted = insertItemText(hwnd,LB_MATCHES,LIT_END,data->matches[i].title);
-            setItemHandle(hwnd, LB_MATCHES,inserted,&data->matches[i]);
+            int inserted = lb_add_item(hwnd,LB_MATCHES,data->matches[i].title);
+            lb_set_handle(hwnd, LB_MATCHES,inserted,&data->matches[i]);
             i++;
          }
          return 0;
@@ -593,9 +593,9 @@ MRESULT EXPENTRY wpMatch(HWND hwnd,ULONG msg,MPARAM mp1,MPARAM mp2)
          {
             case DID_OK:
             {
-               int selected = getSelectItem(hwnd, LB_MATCHES, LIT_FIRST);
+               int selected = lb_selected(hwnd, LB_MATCHES, LIT_FIRST);
                if(selected != LIT_NONE)
-                  memcpy(&data->chosen,getItemHandle(hwnd,LB_MATCHES,selected),sizeof(CDDBQUERY_DATA));
+                  memcpy(&data->chosen,lb_get_handle(hwnd,LB_MATCHES,selected),sizeof(CDDBQUERY_DATA));
                WinPostMsg(hwnd,WM_CLOSE,0,0);
             }
             case DID_CANCEL:
@@ -710,8 +710,6 @@ void loadCDDBInfo(void)
                     displayMessage("Contacting: %s", server);
                  lastCDDBSocket->connect(host,settings.proxyURL,path);
               }
-              else
-                 updateError("Invalid URL: %s", server);
            }
 
            if(!lastCDDBSocket->isOnline())
@@ -1180,13 +1178,13 @@ cddb_update( HWND hwnd )
          {
             if(newservertype == CDDB)
             {
-               if(searchItemText(hwnd, LB_CDDBSERVERS, LIT_FIRST, server) < 0)
-                  insertItemText(hwnd, LB_CDDBSERVERS, LIT_END, server);
+               if(lb_search(hwnd, LB_CDDBSERVERS, LIT_FIRST, server) < 0)
+                  lb_add_item(hwnd, LB_CDDBSERVERS, server);
             }
             else if(newservertype == HTTP)
             {
-               if(searchItemText(hwnd, LB_HTTPCDDBSERVERS, LIT_FIRST, server) < 0)
-                  insertItemText(hwnd, LB_HTTPCDDBSERVERS, LIT_END, server);
+               if(lb_search(hwnd, LB_HTTPCDDBSERVERS, LIT_FIRST, server) < 0)
+                  lb_add_item(hwnd, LB_HTTPCDDBSERVERS, server);
             }
          }
       }
@@ -1275,8 +1273,8 @@ MRESULT EXPENTRY OffDBDlgProc(HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2)
                         ch_convert( query_pm123_charset(), cdinfoBuffer, CH_DEFAULT, cdinfoBuffer, cdinfoSize );
                         CDDBSocket.parse_read_reply(cdinfoBuffer);
                         sprintf(temp,"%s: %s (discid: %s)", CDDBSocket.get_disc_title(0), CDDBSocket.get_disc_title(1),next_discid);
-                        id = insertItemText(hwnd,LB_CDINFO,LIT_END,temp);
-                        setItemHandle(hwnd,LB_CDINFO,id,strdup(next_discid));
+                        id = lb_add_item(hwnd,LB_CDINFO,temp);
+                        lb_set_handle(hwnd,LB_CDINFO,id,strdup(next_discid));
                      }
                   }
                   free(cdinfoBuffer);
@@ -1294,11 +1292,11 @@ MRESULT EXPENTRY OffDBDlgProc(HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2)
       case WM_DESTROY:
       {
          int i;
-         int count = getItemCount(hwnd, LB_CDINFO);
+         int count = lb_size(hwnd, LB_CDINFO);
          for(i = 0; i < count; i++)
          {
-            free(getItemHandle(hwnd,LB_CDINFO,i));
-            setItemHandle(hwnd,LB_CDINFO,i,NULL);
+            free(lb_get_handle(hwnd,LB_CDINFO,i));
+            lb_set_handle(hwnd,LB_CDINFO,i,NULL);
          }
          break;
       }
@@ -1312,13 +1310,13 @@ MRESULT EXPENTRY OffDBDlgProc(HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2)
                if((INIhandle = open_module_ini()) != NULLHANDLE)
                {
                   int i;
-                  int count = getItemCount(hwnd, LB_CDINFO);
+                  int count = lb_size(hwnd, LB_CDINFO);
 
                   for(i = 0; i < count; i++)
                   {
-                     if(getSelectItem(hwnd, LB_CDINFO, i-1) == i)
+                     if(lb_selected(hwnd, LB_CDINFO, i-1) == i)
                      {
-                        char *discid = (char *) getItemHandle(hwnd,LB_CDINFO,i);
+                        char *discid = (char *) lb_get_handle(hwnd,LB_CDINFO,i);
                         if(discid != NULL)
                            PrfWriteProfileData(INIhandle, "CDInfo", discid, NULL, 0);
                      }
@@ -1327,10 +1325,10 @@ MRESULT EXPENTRY OffDBDlgProc(HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2)
 
                   for(i = 0; i < count; i++)
                   {
-                     free(getItemHandle(hwnd,LB_CDINFO,i));
-                     setItemHandle(hwnd,LB_CDINFO,i,NULL);
+                     free( lb_get_handle(hwnd,LB_CDINFO,i));
+                     lb_set_handle(hwnd,LB_CDINFO,i,NULL);
                   }
-                  deleteAllItems(hwnd, LB_CDINFO);
+                  lb_remove_all(hwnd, LB_CDINFO);
 
                   WinPostMsg(hwnd,WM_INITDLG,MPFROMHWND(hwnd),NULL);
 
@@ -1377,16 +1375,16 @@ MRESULT EXPENTRY ConfigureDlgProc(HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2)
 
          for(i = 0; i < settings.numCDDB; i++)
          {
-            insertItemText(hwnd,LB_CDDBSERVERS,LIT_END,settings.CDDBServers[i]);
+            lb_add_item(hwnd,LB_CDDBSERVERS,settings.CDDBServers[i]);
             if(settings.isCDDBSelect[i])
-               selectItem(hwnd,LB_CDDBSERVERS,i);
+               lb_select(hwnd,LB_CDDBSERVERS,i);
          }
 
          for(i = 0; i < settings.numHTTP; i++)
          {
-            insertItemText(hwnd,LB_HTTPCDDBSERVERS,LIT_END,settings.HTTPServers[i]);
+            lb_add_item(hwnd,LB_HTTPCDDBSERVERS,settings.HTTPServers[i]);
             if(settings.isHTTPSelect[i])
-               selectItem(hwnd,LB_HTTPCDDBSERVERS,i);
+               lb_select(hwnd,LB_HTTPCDDBSERVERS,i);
          }
 
          WinPostMsg( hwnd, WM_CONTROL, MPFROM2SHORT( CB_USECDDB, BN_CLICKED ),
@@ -1413,7 +1411,7 @@ MRESULT EXPENTRY ConfigureDlgProc(HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2)
          settings.numCDDB = 0;
          settings.numHTTP = 0;
 
-         int count = getItemCount(hwnd, LB_CDDBSERVERS);
+         int count = lb_size(hwnd, LB_CDDBSERVERS);
          if(count > 0)
          {
             if(count > 128) count = 128;
@@ -1421,15 +1419,15 @@ MRESULT EXPENTRY ConfigureDlgProc(HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2)
 
             for(i = 0; i < count; i++)
             {
-               int size = getItemTextSize(hwnd,LB_CDDBSERVERS,i);
+               int size = lb_get_item_size(hwnd,LB_CDDBSERVERS,i);
                settings.CDDBServers[i] = (char *) malloc(size+1);
-               getItemText(hwnd, LB_CDDBSERVERS, i, settings.CDDBServers[i], size+1);
-               if(getSelectItem(hwnd, LB_CDDBSERVERS, i-1) == i)
+               lb_get_item(hwnd, LB_CDDBSERVERS, i, settings.CDDBServers[i], size+1);
+               if(lb_selected(hwnd, LB_CDDBSERVERS, i-1) == i)
                   settings.isCDDBSelect[i] = TRUE;
             }
          }
 
-         count = getItemCount(hwnd, LB_HTTPCDDBSERVERS);
+         count = lb_size(hwnd, LB_HTTPCDDBSERVERS);
          if(count > 0)
          {
             if(count > 128) count = 128;
@@ -1437,10 +1435,10 @@ MRESULT EXPENTRY ConfigureDlgProc(HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2)
 
             for(i = 0; i < count; i++)
             {
-               int size = getItemTextSize(hwnd,LB_HTTPCDDBSERVERS,i);
+               int size = lb_get_item_size(hwnd,LB_HTTPCDDBSERVERS,i);
                settings.HTTPServers[i] = (char *) malloc(size+1);
-               getItemText(hwnd, LB_HTTPCDDBSERVERS, i, settings.HTTPServers[i], size+1);
-               if(getSelectItem(hwnd, LB_HTTPCDDBSERVERS, i-1) == i)
+               lb_get_item(hwnd, LB_HTTPCDDBSERVERS, i, settings.HTTPServers[i], size+1);
+               if(lb_selected(hwnd, LB_HTTPCDDBSERVERS, i-1) == i)
                   settings.isHTTPSelect[i] = TRUE;
             }
          }
@@ -1487,32 +1485,32 @@ MRESULT EXPENTRY ConfigureDlgProc(HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2)
                break;
 
             case PB_ADD1:
-               getText(hwnd, EF_NEWSERVER, buffer, sizeof(buffer));
+               WinQueryDlgItemText( hwnd, EF_NEWSERVER, sizeof(buffer), buffer );
                if(*buffer)
-                  insertItemText(hwnd, LB_CDDBSERVERS, LIT_END, buffer);
+                  lb_add_item(hwnd, LB_CDDBSERVERS, buffer);
                break;
 
             case PB_ADD2:
-               getText(hwnd, EF_NEWSERVER, buffer, sizeof(buffer));
+               WinQueryDlgItemText( hwnd, EF_NEWSERVER, sizeof(buffer), buffer );
                if(*buffer)
-                  insertItemText(hwnd, LB_HTTPCDDBSERVERS, LIT_END, buffer);
+                  lb_add_item(hwnd, LB_HTTPCDDBSERVERS, buffer);
                break;
 
             case PB_DELETE1:
-               nextitem = getSelectItem(hwnd, LB_CDDBSERVERS, LIT_FIRST);
+               nextitem = lb_selected(hwnd, LB_CDDBSERVERS, LIT_FIRST);
                while(nextitem != LIT_NONE)
                {
-                  deleteItem(hwnd, LB_CDDBSERVERS, nextitem);
-                  nextitem = getSelectItem(hwnd, LB_CDDBSERVERS, LIT_FIRST);
+                  lb_remove_item(hwnd, LB_CDDBSERVERS, nextitem);
+                  nextitem = lb_selected(hwnd, LB_CDDBSERVERS, LIT_FIRST);
                }
                break;
 
             case PB_DELETE2:
-               nextitem = getSelectItem(hwnd, LB_HTTPCDDBSERVERS, LIT_FIRST);
+               nextitem = lb_selected(hwnd, LB_HTTPCDDBSERVERS, LIT_FIRST);
                while(nextitem != LIT_NONE)
                {
-                  deleteItem(hwnd, LB_HTTPCDDBSERVERS, nextitem);
-                  nextitem = getSelectItem(hwnd, LB_HTTPCDDBSERVERS, LIT_FIRST);
+                  lb_remove_item(hwnd, LB_HTTPCDDBSERVERS, nextitem);
+                  nextitem = lb_selected(hwnd, LB_HTTPCDDBSERVERS, LIT_FIRST);
                }
                break;
 

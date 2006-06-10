@@ -1,5 +1,5 @@
-/* 
- * Mpeg Layer-1,2,3 audio decoder 
+/*
+ * Mpeg Layer-1,2,3 audio decoder
  * ------------------------------
  * copyright (c) 1995,1996,1997 by Michael Hipp, All rights reserved.
  * See also 'README'
@@ -34,7 +34,7 @@ int synth_1to1_8bit(real *bandPtr,int channel,unsigned char *samples)
   return ret;
 }
 
-int synth_1to1_8bit_mono(real *bandPtr,unsigned char *samples) 
+int synth_1to1_8bit_mono(real *bandPtr,unsigned char *samples)
 {
   short samples_tmp[64];
   short *tmp1 = samples_tmp;
@@ -101,13 +101,12 @@ int synth_1to1(real *bandPtr,int channel,unsigned char *out)
   if(flags.equalizer)
     do_equalizer(bandPtr,channel);
 
-  if(using_mmx)
+  if(mmx_use)
   {
     return synth_1to1_MMX(bandPtr,channel,out);
   }
   else
   {
-#ifndef PENTIUM_OPT
     static real buffs[2][2][0x110];
     static const int step = 2;
     static int bo = 1;
@@ -204,10 +203,6 @@ int synth_1to1(real *bandPtr,int channel,unsigned char *out)
         WRITE_SAMPLE(samples,sum,clip);
       }
     }
-
     return clip;
-#else
-    return synth_1to1_pent(bandPtr,channel,out);
-#endif
   }
 }

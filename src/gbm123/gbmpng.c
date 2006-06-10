@@ -113,6 +113,8 @@ History:
 
 22-Feb-2006: Move format description strings to gbmdesc.h
 
+07-May-2006: Update to Libpng 1.2.10
+
 ******************************************************************************/
 
 #ifdef ENABLE_PNG
@@ -129,6 +131,17 @@ History:
 #include "gbmdesc.h"
 #include "gbmmap.h"
 #include "png.h"
+
+/* ----------------------------------------------------------- */
+
+#if defined(PNGAPI)
+  #define PNGENTRY  PNGAPI
+  #ifdef __IBMC__
+    #define PNGENTRYP  * PNGAPI
+  #else
+    #define PNGENTRYP  PNGAPI *
+  #endif
+#endif
 
 /* ----------------------------------------------------------- */
 
@@ -204,7 +217,7 @@ typedef struct
                                 - (2*sizeof(BOOLEAN))
                                 - sizeof(GBMRGB_16BPP)
                                 - 20 /* space for structure element padding */ ];
-                                       
+
 } PNG_PRIV_READ;
 
 
@@ -215,7 +228,7 @@ typedef struct
    GBM internal I/O functions.
 */
 
-static void png_gbm_read_data(png_structp png_ptr, png_bytep data, png_size_t length)
+static void PNGENTRY png_gbm_read_data(png_structp png_ptr, png_bytep data, png_size_t length)
 {
    PNG_PRIV_IO *io_p = (PNG_PRIV_IO *) png_get_io_ptr(png_ptr); /* io_ptr is pointer to private IO struct */
 
@@ -237,7 +250,7 @@ static void png_gbm_read_data(png_structp png_ptr, png_bytep data, png_size_t le
    io_p->errok = TRUE; /* no error */
 }
 
-static void png_gbm_write_data(png_structp png_ptr, png_bytep data, png_size_t length)
+static void PNGENTRY png_gbm_write_data(png_structp png_ptr, png_bytep data, png_size_t length)
 {
    PNG_PRIV_IO *io_p = (PNG_PRIV_IO *) png_get_io_ptr(png_ptr); /* io_ptr is pointer to private IO struct */
 
@@ -259,7 +272,7 @@ static void png_gbm_write_data(png_structp png_ptr, png_bytep data, png_size_t l
    io_p->errok = TRUE; /* no error */
 }
 
-static void png_gbm_flush_data(png_structp png_ptr)
+static void PNGENTRY png_gbm_flush_data(png_structp png_ptr)
 {
    /* We are using low level style function. No flushing necessary. */
    png_ptr = png_ptr; /* prevent compiler warning */
@@ -272,7 +285,7 @@ static void png_gbm_flush_data(png_structp png_ptr)
    The replacement will be used temporarily during file I/O and sets
    an error code to the private IO struct.
 */
-static void png_gbm_error(png_structp png_ptr, png_const_charp error_msg)
+static void PNGENTRY png_gbm_error(png_structp png_ptr, png_const_charp error_msg)
 {
    PNG_PRIV_IO *io_p = (PNG_PRIV_IO *) png_get_io_ptr(png_ptr); /* io_ptr is pointer to private IO struct */
    io_p->errok = FALSE; /* error occured */
@@ -282,7 +295,7 @@ static void png_gbm_error(png_structp png_ptr, png_const_charp error_msg)
    error_msg = error_msg; /* prevent compiler warning */
 }
 
-static void png_gbm_warning(png_structp png_ptr, png_const_charp warning_msg)
+static void PNGENTRY png_gbm_warning(png_structp png_ptr, png_const_charp warning_msg)
 {
    png_ptr     = png_ptr;     /* prevent compiler warning */
    warning_msg = warning_msg; /* prevent compiler warning */
@@ -375,7 +388,7 @@ static void png_read_deinit(PNG_PRIV_READ *png_priv)
 
     png_priv->png_ptr->io_ptr = NULL;
 
-    if ((png_priv->png_ptr  != NULL) || 
+    if ((png_priv->png_ptr  != NULL) ||
         (png_priv->info_ptr != NULL) ||
         (png_priv->end_info != NULL))
     {

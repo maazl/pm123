@@ -29,9 +29,23 @@
 #ifndef __REL2ABS_H
 #define __REL2ABS_H
 
+#include <stdlib.h>
+
 #if __cplusplus
 extern "C" {
 #endif
+
+/*
+ * rel2abs: convert an relative path name into absolute.
+ *
+ *    path    relative path
+ *    base    base directory (must be absolute path)
+ *    result  result buffer
+ *    size    size of result buffer
+ *
+ *    return  != NULL: absolute path
+ *            == NULL: error
+ */
 
 char* rel2abs( const char* base, const char* path, char* result, size_t size );
 

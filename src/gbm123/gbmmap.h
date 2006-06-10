@@ -1,6 +1,6 @@
 /*
 
-gbmmap.h - Map RGBA to palette bitmap data
+gbmmap.h - Map RGBA to palette or BGRx bitmap data
 
 */
 

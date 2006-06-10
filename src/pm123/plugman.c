@@ -401,6 +401,7 @@ remove_decoder_plugin( DECODER* decoder )
     for( j = 0; decoders[i].support[j]; j++ ) {
       free( decoders[i].support[j] );
     }
+    free( decoders[i].support );
     decoders[i].support = NULL;
   }
 
@@ -512,7 +513,7 @@ load_default_decoders()
 {
   DECODER decoder;
 
-  while( num_decoders > 0 ) {
+  while( num_decoders ) {
     remove_decoder_plugin( decoders );
   }
 
@@ -539,7 +540,7 @@ load_default_outputs()
 {
   OUTPUT output;
 
-  while( num_outputs > 0 ) {
+  while( num_outputs ) {
     remove_output_plugin( outputs );
   }
 
@@ -564,7 +565,7 @@ load_default_filters()
   FILTER filter;
 
   dec_set_active( -1 );
-  while( num_filters > 0 ) {
+  while( num_filters ) {
     remove_filter_plugin( filters );
   }
 
@@ -584,6 +585,8 @@ load_default_visuals()
   while( i < num_visuals ) {
     if( !visuals[i].skin ) {
       remove_visual_plugin( &visuals[i] );
+    } else {
+      ++i;
     }
   }
 }
@@ -597,7 +600,7 @@ load_decoders( BUFSTREAM* b )
   DECODER decoder;
 
   dec_set_active( -1 );
-  while( num_decoders > 0 ) {
+  while( num_decoders ) {
     remove_decoder_plugin( decoders );
   }
 
@@ -632,7 +635,7 @@ load_outputs( BUFSTREAM *b )
   int i, size, active, count;
   OUTPUT output;
 
-  while( num_outputs > 0 ) {
+  while( num_outputs ) {
     remove_output_plugin( outputs );
   }
 
@@ -672,7 +675,7 @@ load_filters( BUFSTREAM *b )
   int i, size, count;
   FILTER filter;
 
-  while( num_filters > 0 ) {
+  while( num_filters ) {
     remove_filter_plugin( filters );
   }
 
@@ -704,12 +707,15 @@ load_filters( BUFSTREAM *b )
 BOOL
 load_visuals( BUFSTREAM *b )
 {
-  int i, count, size;
+  int i = 0;
+  int count, size;
   VISUAL visual;
 
   while( i < num_visuals ) {
     if( !visuals[i].skin ) {
       remove_visual_plugin( &visuals[i] );
+    } else {
+      ++i;
     }
   }
 
@@ -932,31 +938,34 @@ add_plugin( const char* module_name, const VISUAL* data )
 int
 dec_set_active( int number )
 {
+  int rc = 0;
+  int current = active_decoder;
+
   if( number >= num_decoders || number < -1 ) {
     return -1;
   }
 
-  if( active_decoder == number ) {
+  if( current == number ) {
     return 0;
   }
 
-  if( active_decoder != -1 )
-  {
-    decoders[active_decoder].decoder_uninit( decoders[active_decoder].w );
-    decoders[active_decoder].w = NULL;
+  active_decoder = -1;
+
+  if( current != -1 ) {
+    decoders[current].decoder_uninit( decoders[current].w );
+    decoders[current].w = NULL;
   }
 
-  if( number != -1 && !decoders[number].enabled ) {
-    return -2;
+  if( number != -1 ) {
+    if( !decoders[number].enabled ) {
+      rc = -2;
+    } else {
+      rc = decoders[number].decoder_init( &decoders[number].w );
+      active_decoder = number;
+    }
   }
 
-  active_decoder = number;
-
-  if( active_decoder != -1 ) {
-    return decoders[active_decoder].decoder_init( &decoders[active_decoder].w );
-  } else {
-    return 0;
-  }
+  return rc;
 }
 
 /* Returns -1 if a error occured,
@@ -1053,7 +1062,7 @@ ULONG _System dec_command( ULONG msg, DECODER_PARAMS *params )
         }
       }
     }
-    return decoders[active_decoder].decoder_command( decoders[active_decoder].w,msg, params );
+    return decoders[active_decoder].decoder_command( decoders[active_decoder].w, msg, params );
   } else {
     return 3; // no decoder active
   }
@@ -1483,7 +1492,7 @@ load_plugin_menu( HWND hMenu )
     sprintf( buffer, "%s (%s)", filters[i].query_param.desc,
              sfname( file, filters[i].module_name ));
 
-    entries[next_entry].filename     = strdup(buffer);
+    entries[next_entry].filename     = strdup( buffer );
     entries[next_entry].type         = PLUGIN_FILTER;
     entries[next_entry].i            = i;
     entries[next_entry].configurable = filters[i].query_param.configurable;
@@ -1541,3 +1550,32 @@ process_possible_plugin( HWND hwnd, USHORT cmd )
   }
 }
 
+/* Unloads and removes all loaded plug-ins. */
+void
+remove_all_plugins( void )
+{
+  int i;
+
+  dec_set_active( -1 );
+
+  while( num_decoders ) {
+    remove_decoder_plugin( decoders );
+  }
+  while( num_filters  ) {
+    remove_filter_plugin ( filters  );
+  }
+  while( num_visuals  ) {
+    remove_visual_plugin ( visuals  );
+  }
+  while( num_outputs  ) {
+    remove_output_plugin ( outputs  );
+  }
+
+  for( i = 0; i < num_entries; i++ ) {
+    free( entries[i].filename );
+  }
+
+  free( entries );
+  entries  = NULL;
+  num_entries = 0;
+}

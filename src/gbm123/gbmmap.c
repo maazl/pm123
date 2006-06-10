@@ -1,6 +1,6 @@
 /*
 
-gbmmap.c - Map RGBA to palette bitmap data
+gbmmap.c - Map RGBA to palette or BGRx bitmap data
 
 */
 
@@ -36,7 +36,7 @@ BOOLEAN gbm_map_row_PAL_PAL(const byte * data_src, const GBM * gbm_src,
    {
       return FALSE;
    }
-   
+
    switch(gbm_src->bpp)
    {
       case 2: /* 2 bpp -> 4 bpp */
@@ -117,7 +117,7 @@ BOOLEAN gbm_map_row_PAL_BGR(const byte         * data_src, const GBM * gbm_src,
    {
       return FALSE;
    }
-   
+
    switch(gbm_src->bpp)
    {
       case 1:
@@ -250,7 +250,7 @@ BOOLEAN gbm_map_row_PAL_BGR(const byte         * data_src, const GBM * gbm_src,
                   *data16_dst++ = gbmrgb_src[colorIndex].r;
               }
               break;
-           
+
             default:
                return FALSE;
          }
@@ -327,6 +327,8 @@ BOOLEAN gbm_map_row_RGBx_BGRx(const byte         * data_src, const GBM * gbm_src
             case 24: /* 32->24 */
                if (unassociatedAlpha)
                {
+                  word alpha_mult;
+                  byte alpha_diff;
                   GBMRGB back_rgb8;
                   back_rgb8.r = CVT(back_rgb->r);
                   back_rgb8.g = CVT(back_rgb->g);
@@ -340,9 +342,12 @@ BOOLEAN gbm_map_row_RGBx_BGRx(const byte         * data_src, const GBM * gbm_src
 
                      /* calc alpha channel against background color */
                      alpha       = GetA(data32);
-                     *data_dst++ = ((word) GetB(data32) * ((word) alpha + 1) + back_rgb8.b * (255 - alpha)) >> 8;
-                     *data_dst++ = ((word) GetG(data32) * ((word) alpha + 1) + back_rgb8.g * (255 - alpha)) >> 8;
-                     *data_dst++ = ((word) GetR(data32) * ((word) alpha + 1) + back_rgb8.r * (255 - alpha)) >> 8;
+                     alpha_mult  = (word) alpha + 1;
+                     alpha_diff  = 255 - alpha;
+
+                     *data_dst++ = ((word) GetB(data32) * alpha_mult + back_rgb8.b * alpha_diff) >> 8;
+                     *data_dst++ = ((word) GetG(data32) * alpha_mult + back_rgb8.g * alpha_diff) >> 8;
+                     *data_dst++ = ((word) GetR(data32) * alpha_mult + back_rgb8.r * alpha_diff) >> 8;
                   }
                }
                else
@@ -366,6 +371,8 @@ BOOLEAN gbm_map_row_RGBx_BGRx(const byte         * data_src, const GBM * gbm_src
             case 32: /* 32->32 */
                if (unassociatedAlpha)
                {
+                  word alpha_mult;
+                  byte alpha_diff;
                   GBMRGB back_rgb8;
                   back_rgb8.r = CVT(back_rgb->r);
                   back_rgb8.g = CVT(back_rgb->g);
@@ -379,9 +386,12 @@ BOOLEAN gbm_map_row_RGBx_BGRx(const byte         * data_src, const GBM * gbm_src
 
                      /* calc alpha channel against background color */
                      alpha       = GetA(data32);
-                     *data_dst++ = ((word) GetB(data32) * ((word) alpha + 1) + back_rgb8.b * (255 - alpha)) >> 8;
-                     *data_dst++ = ((word) GetG(data32) * ((word) alpha + 1) + back_rgb8.g * (255 - alpha)) >> 8;
-                     *data_dst++ = ((word) GetR(data32) * ((word) alpha + 1) + back_rgb8.r * (255 - alpha)) >> 8;
+                     alpha_mult  = (word) alpha + 1;
+                     alpha_diff  = 255 - alpha;
+
+                     *data_dst++ = ((word) GetB(data32) * alpha_mult + back_rgb8.b * alpha_diff) >> 8;
+                     *data_dst++ = ((word) GetG(data32) * alpha_mult + back_rgb8.g * alpha_diff) >> 8;
+                     *data_dst++ = ((word) GetR(data32) * alpha_mult + back_rgb8.r * alpha_diff) >> 8;
                      *data_dst++ = alpha;
                   }
                }
@@ -460,6 +470,8 @@ BOOLEAN gbm_map_row_RGBx_BGRx(const byte         * data_src, const GBM * gbm_src
             case 24: /* 64->24 */
                if (unassociatedAlpha)
                {
+                  dword alpha_mult;
+                  word  alpha_diff;
                   while (block_count > 0)
                   {
                      --block_count;
@@ -469,10 +481,13 @@ BOOLEAN gbm_map_row_RGBx_BGRx(const byte         * data_src, const GBM * gbm_src
                      data16_2 = *data16_src++; /* blue  */
                      alpha16  = *data16_src++; /* alpha */
 
+                     alpha_mult = (dword) alpha16 + 1;
+                     alpha_diff = 65535 - alpha16;
+
                      /* calc alpha channel against background color */
-                     *data_dst++ = CVT(((dword) data16_2 * ((dword) alpha16 + 1) + back_rgb->b * (65535 - alpha16)) >> 16);
-                     *data_dst++ = CVT(((dword) data16_1 * ((dword) alpha16 + 1) + back_rgb->g * (65535 - alpha16)) >> 16);
-                     *data_dst++ = CVT(((dword) data16   * ((dword) alpha16 + 1) + back_rgb->r * (65535 - alpha16)) >> 16);
+                     *data_dst++ = CVT(((dword) data16_2 * alpha_mult + back_rgb->b * alpha_diff) >> 16);
+                     *data_dst++ = CVT(((dword) data16_1 * alpha_mult + back_rgb->g * alpha_diff) >> 16);
+                     *data_dst++ = CVT(((dword) data16   * alpha_mult + back_rgb->r * alpha_diff) >> 16);
                   }
                }
                else
@@ -499,6 +514,8 @@ BOOLEAN gbm_map_row_RGBx_BGRx(const byte         * data_src, const GBM * gbm_src
             case 48: /* 64->48 */
                if (unassociatedAlpha)
                {
+                  dword alpha_mult;
+                  word  alpha_diff;
                   while (block_count > 0)
                   {
                      --block_count;
@@ -508,10 +525,13 @@ BOOLEAN gbm_map_row_RGBx_BGRx(const byte         * data_src, const GBM * gbm_src
                      data16_2 = *data16_src++; /* blue  */
                      alpha16  = *data16_src++; /* alpha */
 
+                     alpha_mult = (dword) alpha16 + 1;
+                     alpha_diff = 65535 - alpha16;
+
                      /* calc alpha channel against background color */
-                     *data16_dst++ = ((dword) data16_2 * ((dword) alpha16 + 1) + back_rgb->b * (65535 - alpha16)) >> 16;
-                     *data16_dst++ = ((dword) data16_1 * ((dword) alpha16 + 1) + back_rgb->g * (65535 - alpha16)) >> 16;
-                     *data16_dst++ = ((dword) data16   * ((dword) alpha16 + 1) + back_rgb->r * (65535 - alpha16)) >> 16;
+                     *data16_dst++ = ((dword) data16_2 * alpha_mult + back_rgb->b * alpha_diff) >> 16;
+                     *data16_dst++ = ((dword) data16_1 * alpha_mult + back_rgb->g * alpha_diff) >> 16;
+                     *data16_dst++ = ((dword) data16   * alpha_mult + back_rgb->r * alpha_diff) >> 16;
                   }
                }
                else
@@ -537,6 +557,8 @@ BOOLEAN gbm_map_row_RGBx_BGRx(const byte         * data_src, const GBM * gbm_src
             case 64: /* 64->64 */
                if (unassociatedAlpha)
                {
+                  dword alpha_mult;
+                  word  alpha_diff;
                   while (block_count > 0)
                   {
                      --block_count;
@@ -546,10 +568,13 @@ BOOLEAN gbm_map_row_RGBx_BGRx(const byte         * data_src, const GBM * gbm_src
                      data16_2 = *data16_src++; /* blue  */
                      alpha16  = *data16_src++; /* alpha */
 
+                     alpha_mult = (dword) alpha16 + 1;
+                     alpha_diff = 65535 - alpha16;
+
                      /* calc alpha channel against background color */
-                     *data16_dst++ = ((dword) data16_2 * ((dword) alpha16 + 1) + back_rgb->b * (65535 - alpha16)) >> 16;
-                     *data16_dst++ = ((dword) data16_1 * ((dword) alpha16 + 1) + back_rgb->g * (65535 - alpha16)) >> 16;
-                     *data16_dst++ = ((dword) data16   * ((dword) alpha16 + 1) + back_rgb->r * (65535 - alpha16)) >> 16;
+                     *data16_dst++ = ((dword) data16_2 * alpha_mult + back_rgb->b * alpha_diff) >> 16;
+                     *data16_dst++ = ((dword) data16_1 * alpha_mult + back_rgb->g * alpha_diff) >> 16;
+                     *data16_dst++ = ((dword) data16   * alpha_mult + back_rgb->r * alpha_diff) >> 16;
                      *data16_dst++ = alpha16;
                   }
                }
@@ -632,7 +657,7 @@ BOOLEAN gbm_map_row_CMYK_to_BGR(const byte * data_src, const GBM * gbm_src,
             k = *data_src++;
 
             /* Exploit 8 bit modulo arithmetic by biasing by + 0x100 */
-       
+
             r = 0x1ff - (c + k);
             g = 0x1ff - (m + k);
             b = 0x1ff - (y + k);
@@ -696,7 +721,7 @@ BOOLEAN gbm_map_row_CMYK_to_BGR(const byte * data_src, const GBM * gbm_src,
                   k = *data16_src++;
 
                   /* Exploit 16 bit modulo arithmetic by biasing by + 0x10000 */
-    
+
                   r32 = 0x1ffff - (c + k);
                   g32 = 0x1ffff - (m + k);
                   b32 = 0x1ffff - (y + k);
@@ -734,7 +759,7 @@ BOOLEAN gbm_map_row_CMYK_to_BGR(const byte * data_src, const GBM * gbm_src,
 /* Convert the current plane into one RGB plane.
  *
  * The following order of calls must be preserved:
- * sample = 0: C 
+ * sample = 0: C
  * sample = 1: M
  * sample = 2: Y
  * sample = 3: K
@@ -778,7 +803,7 @@ BOOLEAN gbm_map_sep_row_CMYK_to_BGR(const byte * data_src, const GBM * gbm_src,
             }
             break;
 
-         case 64: 
+         case 64:
             switch(gbm_dst->bpp)
             {
                case 24: /* 16,16,16,16 -> 24 bpp */
@@ -840,7 +865,7 @@ BOOLEAN gbm_map_sep_row_CMYK_to_BGR(const byte * data_src, const GBM * gbm_src,
                k = *data_src++;
 
                /* Exploit 8 bit modulo arithmetic by biasing by + 0x100 */
-       
+
                r = 0x1ff - (c + k);
                g = 0x1ff - (m + k);
                b = 0x1ff - (y + k);
@@ -855,7 +880,7 @@ BOOLEAN gbm_map_sep_row_CMYK_to_BGR(const byte * data_src, const GBM * gbm_src,
             }
             break;
 
-         case 64: 
+         case 64:
             switch(gbm_dst->bpp)
             {
                case 24: /* 16,16,16,16 -> 24 bpp */
@@ -896,7 +921,7 @@ BOOLEAN gbm_map_sep_row_CMYK_to_BGR(const byte * data_src, const GBM * gbm_src,
                      k = *data16_src++;
 
                      /* Exploit 16 bit modulo arithmetic by biasing by + 0x10000 */
-       
+
                      r32 = 0x1ffff - (c + k);
                      g32 = 0x1ffff - (m + k);
                      b32 = 0x1ffff - (y + k);
@@ -929,7 +954,7 @@ BOOLEAN gbm_map_sep_row_CMYK_to_BGR(const byte * data_src, const GBM * gbm_src,
 /* Convert the current plane into one RGB plane.
  *
  * The following order of calls must be preserved:
- * sample = 0: R 
+ * sample = 0: R
  * sample = 1: G
  * sample = 2: B
  * sample = 3: A (this is optional when an alpha channel exists)
@@ -986,8 +1011,8 @@ BOOLEAN gbm_map_sep_row_RGBx_BGRx(const byte         * data_src, const GBM * gbm
             }
             break;
 
-         case 48: 
-         case 64: 
+         case 48:
+         case 64:
             switch(gbm_dst->bpp)
             {
                case 24: /* 16,16,16    -> 24 bpp */
@@ -1038,6 +1063,8 @@ BOOLEAN gbm_map_sep_row_RGBx_BGRx(const byte         * data_src, const GBM * gbm
             {
                case 24: /* 8,8,8,8 -> 24 bpp */
                {
+                  word alpha_mult;
+                  byte alpha_diff;
                   GBMRGB back_rgb8;
                   back_rgb8.r = CVT(back_rgb->r);
                   back_rgb8.g = CVT(back_rgb->g);
@@ -1052,15 +1079,20 @@ BOOLEAN gbm_map_sep_row_RGBx_BGRx(const byte         * data_src, const GBM * gbm
                      b = *(data_dst + 2);
                      a = *data_src++;
 
-                     *data_dst++ = ((word) b * ((word) a + 1) + back_rgb8.b * (255 - a)) >> 8;
-                     *data_dst++ = ((word) g * ((word) a + 1) + back_rgb8.g * (255 - a)) >> 8;
-                     *data_dst++ = ((word) r * ((word) a + 1) + back_rgb8.r * (255 - a)) >> 8;
+                     alpha_mult = (word) a + 1;
+                     alpha_diff = 255 - a;
+
+                     *data_dst++ = ((word) b * alpha_mult + back_rgb8.b * alpha_diff) >> 8;
+                     *data_dst++ = ((word) g * alpha_mult + back_rgb8.g * alpha_diff) >> 8;
+                     *data_dst++ = ((word) r * alpha_mult + back_rgb8.r * alpha_diff) >> 8;
                   }
                }
                break;
 
                case 32: /* 8,8,8,8 -> 32 bpp */
                {
+                  word alpha_mult;
+                  byte alpha_diff;
                   GBMRGB back_rgb8;
                   back_rgb8.r = CVT(back_rgb->r);
                   back_rgb8.g = CVT(back_rgb->g);
@@ -1075,9 +1107,12 @@ BOOLEAN gbm_map_sep_row_RGBx_BGRx(const byte         * data_src, const GBM * gbm
                      b = *(data_dst + 2);
                      a = *data_src++;
 
-                     *data_dst++ = ((word) b * ((word) a + 1) + back_rgb8.b * (255 - a)) >> 8;
-                     *data_dst++ = ((word) g * ((word) a + 1) + back_rgb8.g * (255 - a)) >> 8;
-                     *data_dst++ = ((word) r * ((word) a + 1) + back_rgb8.r * (255 - a)) >> 8;
+                     alpha_mult = (word) a + 1;
+                     alpha_diff = 255 - a;
+
+                     *data_dst++ = ((word) b * alpha_mult + back_rgb8.b * alpha_diff) >> 8;
+                     *data_dst++ = ((word) g * alpha_mult + back_rgb8.g * alpha_diff) >> 8;
+                     *data_dst++ = ((word) r * alpha_mult + back_rgb8.r * alpha_diff) >> 8;
                      *data_dst++ = (byte) a;
                   }
                }
@@ -1088,11 +1123,13 @@ BOOLEAN gbm_map_sep_row_RGBx_BGRx(const byte         * data_src, const GBM * gbm
             }
             break;
 
-         case 64: 
+         case 64:
             switch(gbm_dst->bpp)
             {
                case 24: /* 16,16,16,16 -> 24 bpp */
                {
+                  word alpha_mult;
+                  byte alpha_diff;
                   GBMRGB back_rgb8;
                   back_rgb8.r = CVT(back_rgb->r);
                   back_rgb8.g = CVT(back_rgb->g);
@@ -1108,16 +1145,21 @@ BOOLEAN gbm_map_sep_row_RGBx_BGRx(const byte         * data_src, const GBM * gbm
                      a = CVT(*data16_src);
                      data16_src++;
 
+                     alpha_mult = (word) a + 1;
+                     alpha_diff = 255 - a;
+
                      /* calc alpha channel against background color */
-                     *data_dst++ = ((word) b * ((word) a + 1) + back_rgb8.b * (255 - a)) >> 8;
-                     *data_dst++ = ((word) g * ((word) a + 1) + back_rgb8.g * (255 - a)) >> 8;
-                     *data_dst++ = ((word) r * ((word) a + 1) + back_rgb8.r * (255 - a)) >> 8;
+                     *data_dst++ = ((word) b * alpha_mult + back_rgb8.b * alpha_diff) >> 8;
+                     *data_dst++ = ((word) g * alpha_mult + back_rgb8.g * alpha_diff) >> 8;
+                     *data_dst++ = ((word) r * alpha_mult + back_rgb8.r * alpha_diff) >> 8;
                   }
                }
                break;
 
                case 32: /* 16,16,16,16 -> 32 bpp */
                {
+                  word alpha_mult;
+                  byte alpha_diff;
                   GBMRGB back_rgb8;
                   back_rgb8.r = CVT(back_rgb->r);
                   back_rgb8.g = CVT(back_rgb->g);
@@ -1127,24 +1169,28 @@ BOOLEAN gbm_map_sep_row_RGBx_BGRx(const byte         * data_src, const GBM * gbm
                   {
                      --block_count;
 
-                     #define CVT(x) (((x) * 255) / ((1L << 16) - 1))
-
                      r =     *data_dst;
                      g =     *(data_dst + 1);
                      b =     *(data_dst + 2);
                      a = CVT(*data16_src);
                      data16_src++;
 
+                     alpha_mult = (word) a + 1;
+                     alpha_diff = 255 - a;
+
                      /* calc alpha channel against background color */
-                     *data_dst++ = ((word) b * ((word) a + 1) + back_rgb8.b * (255 - a)) >> 8;
-                     *data_dst++ = ((word) g * ((word) a + 1) + back_rgb8.g * (255 - a)) >> 8;
-                     *data_dst++ = ((word) r * ((word) a + 1) + back_rgb8.r * (255 - a)) >> 8;
+                     *data_dst++ = ((word) b * alpha_mult + back_rgb8.b * alpha_diff) >> 8;
+                     *data_dst++ = ((word) g * alpha_mult + back_rgb8.g * alpha_diff) >> 8;
+                     *data_dst++ = ((word) r * alpha_mult + back_rgb8.r * alpha_diff) >> 8;
                      *data_dst++ = (byte) a;
                   }
                }
                break;
 
                case 48: /* 16,16,16,16 -> 48 bpp */
+               {
+                  dword alpha_mult;
+                  word  alpha_diff;
                   while (block_count > 0)
                   {
                      --block_count;
@@ -1154,14 +1200,21 @@ BOOLEAN gbm_map_sep_row_RGBx_BGRx(const byte         * data_src, const GBM * gbm
                      b = *(data16_dst + 2);
                      a = *data16_src++;
 
+                     alpha_mult = (dword) a + 1;
+                     alpha_diff = 65535 - a;
+
                      /* calc alpha channel against background color */
-                     *data16_dst++ = ((dword) b * ((dword) a + 1) + back_rgb->b * (65535 - a)) >> 16;
-                     *data16_dst++ = ((dword) g * ((dword) a + 1) + back_rgb->g * (65535 - a)) >> 16;
-                     *data16_dst++ = ((dword) r * ((dword) a + 1) + back_rgb->r * (65535 - a)) >> 16;
+                     *data16_dst++ = ((dword) b * alpha_mult + back_rgb->b * alpha_diff) >> 16;
+                     *data16_dst++ = ((dword) g * alpha_mult + back_rgb->g * alpha_diff) >> 16;
+                     *data16_dst++ = ((dword) r * alpha_mult + back_rgb->r * alpha_diff) >> 16;
                   }
-                  break;
+               }
+               break;
 
                case 64: /* 16,16,16,16 -> 64 bpp */
+               {
+                  dword alpha_mult;
+                  word  alpha_diff;
                   while (block_count > 0)
                   {
                      --block_count;
@@ -1171,13 +1224,17 @@ BOOLEAN gbm_map_sep_row_RGBx_BGRx(const byte         * data_src, const GBM * gbm
                      b = *(data16_dst + 2);
                      a = *data16_src++;
 
+                     alpha_mult = (dword) a + 1;
+                     alpha_diff = 65535 - a;
+
                      /* calc alpha channel against background color */
-                     *data16_dst++ = ((dword) b * ((dword) a + 1) + back_rgb->b * (65535 - a)) >> 16;
-                     *data16_dst++ = ((dword) g * ((dword) a + 1) + back_rgb->g * (65535 - a)) >> 16;
-                     *data16_dst++ = ((dword) r * ((dword) a + 1) + back_rgb->r * (65535 - a)) >> 16;
+                     *data16_dst++ = ((dword) b * alpha_mult + back_rgb->b * alpha_diff) >> 16;
+                     *data16_dst++ = ((dword) g * alpha_mult + back_rgb->g * alpha_diff) >> 16;
+                     *data16_dst++ = ((dword) r * alpha_mult + back_rgb->r * alpha_diff) >> 16;
                      *data16_dst++ = a;
                   }
-                  break;
+               }
+               break;
 
                default:
                   return FALSE;
@@ -1264,6 +1321,8 @@ BOOLEAN gbm_map_RGBA_RGB(const dword * data_src,       byte         * data_dst,
          if (unassociatedAlpha)
          {
             byte alpha;
+            word alpha_mult;
+            byte alpha_diff;
             GBMRGB back_rgb8;
             back_rgb8.r = CVT(back_rgb->r);
             back_rgb8.g = CVT(back_rgb->g);
@@ -1276,10 +1335,13 @@ BOOLEAN gbm_map_RGBA_RGB(const dword * data_src,       byte         * data_dst,
                data32 = *data32_src++;
 
                /* calc alpha channel against background color */
-               alpha       = GetA(data32);
-               *data8_dst++ = ((word) GetR(data32) * ((word) alpha + 1) + back_rgb8.r * (255 - alpha)) >> 8;
-               *data8_dst++ = ((word) GetG(data32) * ((word) alpha + 1) + back_rgb8.g * (255 - alpha)) >> 8;
-               *data8_dst++ = ((word) GetB(data32) * ((word) alpha + 1) + back_rgb8.b * (255 - alpha)) >> 8;
+               alpha        = GetA(data32);
+               alpha_mult   = (word) alpha + 1;
+               alpha_diff   = 255 - alpha;
+
+               *data8_dst++ = ((word) GetR(data32) * alpha_mult + back_rgb8.r * alpha_diff) >> 8;
+               *data8_dst++ = ((word) GetG(data32) * alpha_mult + back_rgb8.g * alpha_diff) >> 8;
+               *data8_dst++ = ((word) GetB(data32) * alpha_mult + back_rgb8.b * alpha_diff) >> 8;
             }
          }
          else

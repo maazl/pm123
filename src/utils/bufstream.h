@@ -27,19 +27,38 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#ifndef __BUFSTREAM_H
+#define __BUFSTREAM_H
+
+#if __cplusplus
+extern "C" {
+#endif
+
 typedef struct
 {
-   void *buffer;
-   int size;
-   int length;
-   int position;
-   int created;
+   void* buffer;
+   int   size;
+   int   length;
+   int   position;
+   int    created;
+
 } BUFSTREAM;
 
-BUFSTREAM *create_bufstream(int size);
-BUFSTREAM *open_bufstream(void *buffer, int size);
-int get_buffer_bufstream(BUFSTREAM *b, void **buffer);
-int read_bufstream(BUFSTREAM *b, void *buffer, int size);
-int write_bufstream(BUFSTREAM *b, void *buffer, int size);
-int close_bufstream(BUFSTREAM *b);
+/* Creates a buffering stream using specified buffer. */
+BUFSTREAM* create_bufstream( int size );
+/* Creates a new buffering stream. */
+BUFSTREAM* open_bufstream( void* buffer, int size );
+/* Returns a buffer associated with buffering stream. */
+int get_buffer_bufstream( BUFSTREAM* b, void** buffer );
+/* Reads a data from buffering stream. */
+int read_bufstream( BUFSTREAM* b, void* buffer, int size );
+/* Writes a data from buffering stream. */
+int write_bufstream( BUFSTREAM* b, void* buffer, int size );
+/* Closes a buffering stream. */
+int close_bufstream( BUFSTREAM* b );
 
+#if __cplusplus
+}
+#endif
+
+#endif /* __BUFSTREAM_H */

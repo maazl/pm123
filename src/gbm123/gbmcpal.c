@@ -2,6 +2,15 @@
 
 gbmcpal.c - Map to Common Palette
 
+History:
+--------
+(Heiko Nitzsche)
+
+26-Apr-2006: Fix issue with comma separation between file and options.
+             Now the file can have quotes and thus clearly separating
+             it from the options.
+             On OS/2 command line use: e.g. "\"ifspec\",options"
+
 */
 
 /*...sincludes:0:*/
@@ -27,11 +36,8 @@ gbmcpal.c - Map to Common Palette
 #include "gbm.h"
 #include "gbmhist.h"
 #include "gbmmcut.h"
+#include "gbmtool.h"
 
-/*...vgbm\46\h:0:*/
-/*...vgbmhist\46\h:0:*/
-/*...vgbmmcut\46\h:0:*/
-/*...e*/
 
 static char progname[] = "gbmcpal";
 
@@ -53,27 +59,27 @@ static void usage(void)
 	{
 	int ft, n_ft;
 
-	fprintf(stderr, "usage: %s [-m map] [-v] n1 n2 n3 ifspec{,opt} ofspec{,opt}\n", progname);
-	fprintf(stderr, "flags: -m map         mapping to perform (default freq6:6:6:256)\n");
-	fprintf(stderr, "                      freqR:G:B:N       map all bitmaps to same palette, worked\n");
-	fprintf(stderr, "                                        out using frequency of use histogram\n");
-	fprintf(stderr, "                      mcutN             map all bitmaps to same palette, worked\n");
-	fprintf(stderr, "                                        out using median cut algorithm\n");
-	fprintf(stderr, "                      rofreqR:G:B:N:N2  map each bitmap to frequency palette,\n");
-	fprintf(stderr, "                                        reordered to minimise differences\n");
-	fprintf(stderr, "                                        between successive bitmaps\n");
-	fprintf(stderr, "                      romcutN:N2        map each bitmap to median cut palette,\n");
-	fprintf(stderr, "                                        reordered to minimise differences\n");
-	fprintf(stderr, "                                        between successive bitmaps\n");
-	fprintf(stderr, "                                        R,G,B are bits of red, green and blue\n");
-	fprintf(stderr, "                                        to keep, N is number of unique colours,\n");
-	fprintf(stderr, "                                        N2 is extra palette entries\n");
-	fprintf(stderr, "       -v             verbose mode\n");
-	fprintf(stderr, "       n1 n2 n3       for ( f=n1; f<n2; f+=n3 )\n");
-	fprintf(stderr, "       ifspec           printf(ifspec, f);\n");
-	fprintf(stderr, "       ofspec           printf(ofspec, f);\n");
-	fprintf(stderr, "                      filespecs are of the form fn.ext\n");
-	fprintf(stderr, "                      ext's are used to deduce desired bitmap file formats\n");
+	fprintf(stderr, "usage: %s [-m map] [-v] n1 n2 n3 \"\\\"ifspec\\\"{,opt}\" \"\\\"ofspec\\\"{,opt}\"\n", progname);
+	fprintf(stderr, "flags: -m map       mapping to perform (default freq6:6:6:256)\n");
+	fprintf(stderr, "                    freqR:G:B:N       map all bitmaps to same palette, worked\n");
+	fprintf(stderr, "                                      out using frequency of use histogram\n");
+	fprintf(stderr, "                    mcutN             map all bitmaps to same palette, worked\n");
+	fprintf(stderr, "                                      out using median cut algorithm\n");
+	fprintf(stderr, "                    rofreqR:G:B:N:N2  map each bitmap to frequency palette,\n");
+	fprintf(stderr, "                                      reordered to minimise differences\n");
+	fprintf(stderr, "                                      between successive bitmaps\n");
+	fprintf(stderr, "                    romcutN:N2        map each bitmap to median cut palette,\n");
+	fprintf(stderr, "                                      reordered to minimise differences\n");
+	fprintf(stderr, "                                      between successive bitmaps\n");
+	fprintf(stderr, "                                      R,G,B are bits of red, green and blue\n");
+	fprintf(stderr, "                                      to keep, N is number of unique colours,\n");
+	fprintf(stderr, "                                      N2 is extra palette entries\n");
+	fprintf(stderr, "       -v           verbose mode\n");
+	fprintf(stderr, "       n1 n2 n3     for ( f=n1; f<n2; f+=n3 )\n");
+	fprintf(stderr, "       ifspec         printf(ifspec, f);\n");
+	fprintf(stderr, "       ofspec         printf(ofspec, f);\n");
+	fprintf(stderr, "                    filespecs are of the form fn.ext\n");
+	fprintf(stderr, "                    ext's are used to deduce desired bitmap file formats\n");
 
 	gbm_init();
 	gbm_query_n_filetypes(&n_ft);
@@ -82,13 +88,17 @@ static void usage(void)
 		GBMFT gbmft;
 
 		gbm_query_filetype(ft, &gbmft);
-		fprintf(stderr, "                      %s when ext in [%s]\n",
+		fprintf(stderr, "                    %s when ext in [%s]\n",
 			gbmft.short_name, gbmft.extensions);
 		}
 	gbm_deinit();
 
-	fprintf(stderr, "       opt's          bitmap format specific options\n");
-	fprintf(stderr, "   eg: %s -m mcut256 0 100 1 24bit%%03d.bmp 8bit%%03d.bmp\n", progname);
+	fprintf(stderr, "       opt's        bitmap format specific options\n");
+	fprintf(stderr, "\n   eg: %s -m mcut256 0 100 1 24bit%%03d.bmp 8bit%%03d.bmp\n", progname);
+
+	fprintf(stderr, "\n       In case the spec contains a comma or spaces and options\n");
+	fprintf(stderr,   "       need to be added, the syntax \"\\\"fspec\\\"{,opt}\" must be used\n");
+	fprintf(stderr,   "       to clearly separate it from the options.\n");
 
 	exit(1);
 	}
@@ -318,7 +328,7 @@ static void read_bitmap_24_f(
 	GBM *gbm, byte **data
 	)
 	{
-	char fn_f[500+1];
+	char fn_f[GBMTOOL_FILENAME_MAX+1];
 	sprintf(fn_f, fn, f);
 	read_bitmap_24(fn_f, opt, gbm, data);
 	}
@@ -377,7 +387,7 @@ static void write_bitmap_f(
 	const GBM *gbm, const GBMRGB gbmrgb[], const byte *data
 	)
 	{
-	char fn_f[500+1];
+	char fn_f[GBMTOOL_FILENAME_MAX+1];
 	sprintf(fn_f, fn, f);
 	write_bitmap(fn_f, opt, gbm, gbmrgb, data);
 	}
@@ -760,8 +770,11 @@ static void romcut_map(
 
 int main(int argc, char *argv[])
 	{
+	GBMTOOL_FILEARG gbmfilearg;
+	char    fn_src[GBMTOOL_FILENAME_MAX+1], fn_dst[GBMTOOL_FILENAME_MAX+1],
+                opt_src[GBMTOOL_OPTIONS_MAX+1], opt_dst[GBMTOOL_OPTIONS_MAX+1];
+
 	char *map = "freq6:6:6:256";
-	char fn_src[500+1], fn_dst[500+1], *opt_src, *opt_dst;
 	int i, m, ncols, ncolsextra, first, last, step;
 	byte rm, gm, bm;
 
@@ -798,21 +811,37 @@ sscanf(argv[i++], "%d", &step);
 
 if ( i == argc )
 	usage();
-strcpy(fn_src, argv[i++]);
-strcpy(fn_dst, ( i == argc ) ? fn_src : argv[i++]);
-if ( i < argc )
+
+/* Split filename and file options. */
+gbmfilearg.argin = argv[i++];
+if (strcmp(gbmfilearg.argin, "\"\"") == 0)
+{
+  usage();
+}
+if (gbmtool_parse_argument(&gbmfilearg, FALSE) != GBM_ERR_OK)
+{
+  fatal("can't parse source filename %s", gbmfilearg.argin);
+}
+strcpy(fn_src , gbmfilearg.files->filename);
+strcpy(opt_src, gbmfilearg.options);
+gbmtool_free_argument(&gbmfilearg);
+
+gbmfilearg.argin = (i == argc) ? argv[i-1] : argv[i++];
+if (strcmp(gbmfilearg.argin, "\"\"") == 0)
+{
+  usage();
+}
+if (gbmtool_parse_argument(&gbmfilearg, FALSE) != GBM_ERR_OK)
+{
+  fatal("can't parse destination filename %s", gbmfilearg.argin);
+}
+strcpy(fn_dst , gbmfilearg.files->filename);
+strcpy(opt_dst, gbmfilearg.options);
+gbmtool_free_argument(&gbmfilearg);
+
+if (i < argc)
 	usage();
 
-if ( (opt_src = strchr(fn_src, ',')) != NULL )
-	*opt_src++ = '\0';
-else
-	opt_src = "";
-
-if ( (opt_dst = strchr(fn_dst, ',')) != NULL )
-	*opt_dst++ = '\0';
-else
-	opt_dst = "";
-/*...e*/
 /*...sdeduce mapping and bits per pixel etc\46\:8:*/
 if ( same(map, "freq", 4) )
 	{

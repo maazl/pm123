@@ -81,8 +81,8 @@ to older DLL versions. Use the API change log below for reference.
       - GBM_O_BINARY
       - GBM_O_RDONLY
       - GBM_O_WRONLY
-      - GBM_O_RDWR     
-      - GBM_O_EXCL     
+      - GBM_O_RDWR
+      - GBM_O_EXCL
       - GBM_O_NOINHERIT
 
       New compiler independent GBM_SEEK_ defines (still backward compatible)
@@ -90,6 +90,9 @@ to older DLL versions. Use the API change log below for reference.
       - GBM_SEEK_CUR
       - GBM_SEEK_END
 
+1.40: Obsolete format codes GBM_FT_R16 and GBM_FT_W16 as these are not
+      unique interpretable. Use 24bpp or 48bpp color depths instead.
+      There has been no codec that used them so far anyway.
 */
 
 #ifndef GBM_H
@@ -132,11 +135,9 @@ typedef int GBM_ERR;
 #define	GBM_FT_W24		0x0080
 
 /* extended color depths (optional, since GBM version 1.30) */
-#define	GBM_FT_R16		0x0200
 #define	GBM_FT_R32		0x0400
 #define	GBM_FT_R48		0x0800
 #define	GBM_FT_R64		0x1000
-#define	GBM_FT_W16		0x4000
 #define	GBM_FT_W32		0x8000
 #define	GBM_FT_W48		0x10000
 #define	GBM_FT_W64		0x20000
@@ -307,7 +308,7 @@ long    _System Gbm_io_lseek(int fd, long pos, int whence);
 int     _System Gbm_io_read (int fd, void *buf, int len);
 int     _System Gbm_io_write(int fd, const void *buf, int len);
 GBM_ERR _System Gbm_query_n_filetypes(int *n_ft);
-GBM_ERR	_System Gbm_guess_filetype(const char *fn, int *ft);
+GBM_ERR _System Gbm_guess_filetype(const char *fn, int *ft);
 GBM_ERR _System Gbm_query_filetype(int ft, GBMFT *gbmft);
 GBM_ERR _System Gbm_read_header(const char *fn, int fd, int ft, GBM *gbm, const char *opt);
 GBM_ERR _System Gbm_read_palette(int fd, int ft, GBM *gbm, GBMRGB *gbmrgb);

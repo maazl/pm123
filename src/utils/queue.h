@@ -1,6 +1,5 @@
 /*
- * Copyright 1997-2003 Samuel Audet <guardia@step.polymtl.ca>
- *                     Taneli Lepp„ <rosmo@sektori.com>
+ * Copyright 2006 Dmitry A.Steklenev
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -27,11 +26,55 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-// attributes
-#define FIND_DIRECTORY MUST_HAVE_DIRECTORY | FILE_DIRECTORY
-#define FIND_FILE      FILE_NORMAL
-#define FIND_ALL       FILE_NORMAL | FILE_DIRECTORY
+#ifndef __QUEUE_H
+#define __QUEUE_H
 
-ULONG findfirst(HDIR *hdir, char *path, ULONG attributes, FILEFINDBUF3 *buf);
-ULONG findnext(HDIR hdir, FILEFINDBUF3 *buf);
-ULONG findclose(HDIR hdir);
+#if __cplusplus
+extern "C" {
+#endif
+
+typedef struct _QELEMENT
+{
+  unsigned long request;
+  void* data;
+
+  struct _QELEMENT* prev;
+  struct _QELEMENT* next;
+
+} QELEMENT, *PQELEMENT;
+
+typedef struct _QUEUE
+{
+  struct _QELEMENT* first;
+  struct _QELEMENT* last;
+
+  unsigned long data_access;
+  unsigned long data_ready;
+
+} QUEUE, *PQUEUE;
+
+/* Creates a queue. */
+PQUEUE qu_create( void );
+/* Requests ownership of the queue. */
+void qu_request( PQUEUE queue );
+/* Relinquishes ownership of the queue was requested by qu_request. */
+void qu_release( PQUEUE queue );
+/* Is a queue empty. */
+int qu_empty( PQUEUE queue );
+/* Purges a queue of all its elements. */
+void qu_purge( PQUEUE queue );
+/* Closes a queue. */
+void qu_close( PQUEUE queue );
+/* Reads an element from a queue. */
+int qu_read( PQUEUE queue, unsigned long* request, void** data );
+/* Examines a queue element without removing it from the queue. */
+int qu_peek( PQUEUE queue, unsigned long* request, void** data );
+/* Pushes an element to a front of a queue. */
+int qu_push( PQUEUE queue, unsigned long request, void* data );
+/* Adds an element to a queue. */
+int qu_write( PQUEUE queue, unsigned long request, void* data );
+
+#if __cplusplus
+}
+#endif
+#endif

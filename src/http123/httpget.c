@@ -17,10 +17,8 @@
 
 #include <sys/types.h>
 #include <netdb.h>
-//#include <sys/param.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
-//#include <arpa/inet.h>
 
 #if defined(__IBMC__) || defined(__IBMCPP__)
   #include <errno.h>
@@ -32,7 +30,7 @@
 #define INADDR_NONE 0xffffffff
 #endif
 
-#include "nerrno_str.h"
+#include "errorstr.h"
 #include "httpget.h"
 
 char *prgName = "MPG123.DLL_HTTP";

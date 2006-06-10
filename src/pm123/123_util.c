@@ -58,123 +58,6 @@
 
 extern OUTPUT_PARAMS out_params;
 
-/* Returns the drive letter followed by a colon (:)
-   if a drive is specified in pathname. */
-char*
-sdrive( char* result, const char *pathname )
-{
-  _splitpath((char*)pathname, result, NULL, NULL, NULL );
-  return result;
-}
-
-/* Returns the path of subdirectories, if any, including
-   the trailing slash.  Slashes (/), backslashes (\), or both
-   may be present in pathname. */
-char*
-sdir( char* result, const char *pathname )
-{
-  _splitpath((char*)pathname, NULL, result, NULL, NULL );
-  return result;
-}
-
-/* Returns the base file name without any extensions. */
-char*
-sfname( char* result, const char *pathname )
-{
-  _splitpath((char*)pathname, NULL, NULL, result, NULL );
-  return result;
-}
-
-/* Returns the file name extension, if any,
-   including the leading period (.). */
-char*
-sext( char* result, const char *pathname )
-{
-  _splitpath((char*)pathname, NULL, NULL, NULL, result );
-  return result;
-}
-
-/* Returns the base file name with file extension. */
-char*
-sfnameext( char *result, const char *pathname )
-{
-  char fname[_MAX_FNAME];
-  char ext  [_MAX_EXT  ];
-
-  _splitpath((char*)pathname, NULL, NULL, fname, ext );
-  strcpy( result, fname );
-  strcat( result, ext   );
-  return result;
-}
-
-/* Returns the drive letter and the path of
-   subdirectories, if any, including the trailing slash.
-   Slashes (/), backslashes (\), or both  may be present
-   in pathname. */
-char*
-sdrivedir( char *result, const char *pathname )
-{
-  char drive[_MAX_DRIVE];
-  char path [_MAX_PATH ];
-  _splitpath((char*)pathname, drive, path, NULL, NULL );
-  strcpy( result, drive );
-  strcat( result, path  );
-  return result;
-}
-
-/* Returns TRUE if the specified file is a HTTP URL. */
-BOOL
-is_http( const char* filename )
-{
-  return ( strnicmp( filename, "http://", 7 ) == 0 );
-}
-
-/* Returns TRUE if the specified file is a CD track. */
-BOOL
-is_track( const char* filename )
-{
-  return ( strnicmp( filename, "cd://"  , 5 ) == 0 );
-}
-
-/* Returns TRUE if the specified file is a regular file. */
-BOOL
-is_file( const char* filename )
-{
-  return *filename             &&
-         !is_http ( filename ) &&
-         !is_track( filename );
-}
-
-/* Returns TRUE if the specified directory is a root sirectory. */
-BOOL
-is_root( const char* path )
-{
-  size_t size = strlen( path );
-
-  if( size == 3 && path[1] == ':'  && path[2] == '\\' ) {
-    return TRUE;
-  }
-  if( size  > 3 && path[1] == '\\' && path[2] == '\\' ) {
-    if( strchr( path + 2, '\\' ) == path + size - 1 ) {
-      return TRUE;
-    }
-  }
-  return FALSE;
-}
-
-/* Returns TRUE if the specified pathname is a directory. */
-BOOL
-is_dir( const char* path )
-{
-  struct stat fi;
-
-  if( stat( path, &fi ) == 0 && fi.st_mode & S_IFDIR ) {
-    return TRUE;
-  } else {
-    return FALSE;
-  }
-}
-
 /* Reads ID3 tag from the specified file. */
 BOOL
 amp_gettag( const char* filename, DECODER_INFO* info, tune* tag )
@@ -318,86 +201,6 @@ amp_construct_tag_string( char* result, const tune* tag )
   return result;
 }
 
-/* Makes a menu item selectable. */
-BOOL
-mn_enable_item( HWND menu, SHORT id, BOOL enable )
-{
-  return LONGFROMMR( WinSendMsg( menu, MM_SETITEMATTR,
-                                 MPFROM2SHORT( id,  TRUE ),
-                                 MPFROM2SHORT( MIA_DISABLED, enable ? 0 : MIA_DISABLED )));
-}
-
-/* Places a a check mark to the left of the item. */
-BOOL
-mn_check_item( HWND menu, SHORT id, BOOL check )
-{
-  return LONGFROMMR( WinSendMsg( menu, MM_SETITEMATTR,
-                                 MPFROM2SHORT( id,  TRUE ),
-                                 MPFROM2SHORT( MIA_CHECKED, check ? MIA_CHECKED : 0 )));
-}
-
-/* Delete all the items in the list box. */
-BOOL
-lb_remove_all( HWND hwnd, SHORT id )
-{
-  return LONGFROMMR( WinSendDlgItemMsg( hwnd, id, LM_DELETEALL, 0, 0 ));
-}
-
-/* Deletes an item from the list box control. Returns the number of
-   items in the list after the item is deleted. */
-SHORT
-lb_remove_item( HWND hwnd, SHORT id, SHORT i )
-{
-  return SHORT1FROMMR( WinSendDlgItemMsg( hwnd, id,  LM_DELETEITEM,
-                                          MPFROMSHORT( i ), 0 ));
-}
-
-/* Adds an item into a list box control. */
-SHORT
-lb_add_item( HWND hwnd, SHORT id, const char* item )
-{
-  return SHORT1FROMMR( WinSendDlgItemMsg( hwnd, id, LM_INSERTITEM,
-                       MPFROMSHORT( LIT_END ), MPFROMP( item )));
-}
-
-/* Sets the handle of the specified list box item. */
-BOOL
-lb_set_handle( HWND hwnd, SHORT id, SHORT i, ULONG handle )
-{
-  return LONGFROMMR( WinSendDlgItemMsg( hwnd, id,  LM_SETITEMHANDLE,
-                     MPFROMSHORT( i ), MPFROMLONG( handle )));
-}
-
-/* Returns the handle of the indexed item of the list box control. */
-ULONG lb_get_handle( HWND hwnd, SHORT id, SHORT i )
-{
-  return LONGFROMMR( WinSendDlgItemMsg( hwnd, id,  LM_QUERYITEMHANDLE,
-                     MPFROMSHORT( i ), 0 ));
-}
-
-/* Sets the selection state of an item in a list box. */
-BOOL
-lb_select( HWND hwnd, SHORT id, SHORT i )
-{
-  return LONGFROMMR( WinSendDlgItemMsg( hwnd, id,  LM_SELECTITEM,
-                     MPFROMSHORT( i ), MPFROMSHORT( TRUE )));
-}
-
-/* Returns the current selected item. */
-SHORT
-lb_selected( HWND hwnd, SHORT id )
-{
-  return SHORT1FROMMR( WinSendDlgItemMsg( hwnd, id, LM_QUERYSELECTION,
-                                          MPFROMSHORT( LIT_CURSOR ), 0 ));
-}
-
-/* Returns a count of the number of items in the list box control. */
-SHORT
-lb_size( HWND hwnd, SHORT id )
-{
-  return SHORT1FROMMR( WinSendDlgItemMsg( hwnd, id, LM_QUERYITEMCOUNT, 0, 0 ));
-}
-
 /* Constructs a information text for currently loaded file
    and selects it for displaying. */
 void
@@ -525,7 +328,7 @@ int _System pm123_getstring(int index, int subindex, size_t bufsize, char *buf)
   {
    case STR_NULL: *buf = '\0'; break;
    case STR_VERSION:
-     strncpy(buf, VERSION, bufsize);
+     strncpy( buf, AMP_FULLNAME, bufsize );
      break;
    case STR_DISPLAY_TEXT:
      strncpy( buf, bmp_query_text(), bufsize );

@@ -2,7 +2,7 @@
  * Copyright 1997-2003 Samuel Audet  <guardia@step.polymtl.ca>
  *                     Taneli Lepp„  <rosmo@sektori.com>
  *
- * Copyright 2004 Dmitry A.Steklenev <glass@ptv.ru>
+ * Copyright 2004-2006 Dmitry A.Steklenev <glass@ptv.ru>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -81,8 +81,8 @@ typedef struct _PLRECORD {
   char*       info;         /* Information about the song.  */
   char*       comment;      /* Comment.                     */
   char*       info_string;  /* Decoder info string.         */
-  BOOL        played;       /* Is it already played file.   */
-  BOOL        play;         /* Is it currently played file. */
+  int         played;       /* Is it already played file.   */
+  BOOL        exist;        /* Is it file exist.            */
   int         bitrate;      /* Bitrate.                     */
   int         channels;     /* Number of channels.          */
   int         secs;         /* Play time of the file.       */
@@ -133,61 +133,60 @@ typedef struct _PLRECORD {
 extern "C" {
 #endif
 
-/* Creates the playlist presentation window. */
-HWND pl_create( void );
-/* Sets the visibility state of the playlist presentation window. */
-void pl_show( BOOL show );
-/* Sets a title of the playlist window. */
-BOOL pl_set_title( const char* title );
-/* Sets the title of the playlist window according to current playlist state. */
-void pl_display_status( void );
+/* The pointer to playlist record of the currently played file,
+   the pointer is NULL if such record is not present. */
+extern PLRECORD* current_record;
 
-/* Removes the specified playlist record. */
-void pl_remove_record( PLRECORD** array, USHORT count );
-/* Refreshes the specified playlist record. */
-void pl_refresh_record( PLRECORD* rec );
-/* Sorts the playlist records. */
-void pl_sort( int control );
-/* Selects the specified record and deselects all others. */
-void pl_select( PLRECORD* rec );
-/* Assigns the specified file tag to the specified playlist record. */
-void pl_set_tag( PLRECORD* rec, const tune* tag, const char* title );
+/* Creates the playlist presentation window. */
+HWND  pl_create( void );
+/* Sets the visibility state of the playlist presentation window. */
+void  pl_show( BOOL show );
+/* Sets the title of the playlist window according to current playlist state. */
+void  pl_display_status( void );
+/* Destroys the playlist presentation window. */
+void  pl_destroy( void );
+
+/* Returns a summary play time of the remained part of the playlist. */
+ULONG pl_playleft( void );
+/* Returns a number of records in the playlist. */
+ULONG pl_size( void );
+/* Returns a ordinal number of the currently loaded record. */
+ULONG pl_current_index( void );
+
+/* Marks the currently loaded playlist record as currently played. */
+void  pl_mark_as_play( void );
+/* Marks the currently loaded playlist record as currently stopped. */
+void  pl_mark_as_stop( void );
+/* Removes "played" marks from all playlist records. */
+void  pl_clean_shuffle( void );
 
 /* WARNING!! All functions returning a pointer to the
    playlist record, return a NULL if suitable record is not found. */
 
-/* Creates the playlist record for specified file. */
-PLRECORD* pl_create_record( const char *filename, PLRECORD* pos, const char *title );
-/* Copies the playlist record to specified position. */
-PLRECORD* pl_copy_record( PLRECORD* rec, PLRECORD* pos );
-/* Moves the playlist record to specified position. */
-PLRECORD* pl_move_record( PLRECORD* rec, PLRECORD* pos );
-/* Returns a pointer to the first playlist record. */
-PLRECORD* pl_first_record( void );
-/* Returns a pointer to the last playlist record. */
-PLRECORD* pl_last_record( void );
-/* Returns a pointer to the next playlist record of specified. */
-PLRECORD* pl_next_record( PLRECORD* rec );
-/* Returns a pointer to the previous playlist record of specified. */
-PLRECORD* pl_prev_record( PLRECORD* rec );
-/* Returns a pointer to the random playlist record. */
-PLRECORD* pl_random_record( void );
-/* Returns a pointer to the first selected playlist record. */
-PLRECORD* pl_first_selected( void );
-/* Returns a pointer to the next selected playlist record of specified. */
-PLRECORD* pl_next_selected( PLRECORD* rec );
-/* Returns a pointer to the cursored playlist record. */
-PLRECORD* pl_cursored( void );
+/* Queries a random playlist record for playing. */
+PLRECORD* pl_query_random_record( void );
+/* Queries a first playlist record for playing. */
+PLRECORD* pl_query_first_record( void );
+/* Queries a previous playlist record for playing. */
+PLRECORD* pl_query_prev_record( void );
+/* Queries a next playlist record for playing. */
+PLRECORD* pl_query_next_record( void );
+/* Queries a playlist record of the specified file for playing. */
+PLRECORD* pl_query_file_record( const char* filename );
 
-/* Returns the pointer to the record of the specified file. */
-PLRECORD* pl_find_filename( const char* filename );
+/* Refreshes the specified playlist record. */
+void pl_refresh_record( PLRECORD* rec, USHORT flags );
+/* Refreshes the playlist record of the specified file. */
+void pl_refresh_file( const char* filename );
+/* Removes the specified playlist record. */
+void pl_remove_record( PLRECORD** array, USHORT count );
 
-/* Returns a ordinal number of the specified record. */
-int pl_index( PLRECORD* rec );
-/* Returns a number of records in the playlist. */
-int pl_size( void );
-/* Returns a summary play time of the remained part of the playlist. */
-ULONG pl_playtime( BOOL only_non_played );
+/* Returns true if the specified file is a playlist file. */
+BOOL is_playlist( const char *filename );
+/* Loads the specified playlist file. */
+BOOL pl_load( const char *filename, int options );
+/* Saves playlist to the specified file. */
+BOOL pl_save( const char* filename, int options );
 
 /* Sends request about clearing of the playlist. */
 BOOL pl_clear( int options );
@@ -198,24 +197,10 @@ BOOL pl_add_directory( const char* path, int options );
 /* Notifies on completion of the playlist. */
 BOOL pl_completed( void );
 
-/* Returns true if the specified file is a playlist file. */
-BOOL is_playlist( const char *filename );
-/* Loads the specified playlist file. */
-BOOL pl_load( const char *filename, int options );
-/* Saves playlist to the specified file. */
-BOOL pl_save( const char* filename, int options );
-
 /* Saves the playlist and player status to the specified file. */
 BOOL pl_save_bundle( const char* filename, int options );
 /* Loads the playlist and player status from specified file. */
 BOOL pl_load_bundle( const char *filename, int options );
-
-/* Marks the specified playlist record as currently played. */
-void pl_mark_as_play( PLRECORD* rec, BOOL play );
-/* Marks the specified playlist record as already played. */
-void pl_mark_as_played( PLRECORD* rec, BOOL played );
-/* Removes "already played" marks from all playlist records. */
-void pl_clean_shuffle( void );
 
 #if __cplusplus
 }

@@ -2,6 +2,8 @@
  * Copyright 1997-2003 Samuel Audet <guardia@step.polymtl.ca>
  *                     Taneli Lepp„ <rosmo@sektori.com>
  *
+ * Copyright 2004-2006 Dmitry A.Steklenev <glass@ptv.ru>
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
  *
@@ -27,609 +29,276 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#define INCL_DOS
-#define INCL_PM
+#define  INCL_DOS
+#define  INCL_PM
+#define  INCL_ERRORS
 #include <os2.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-
 #include "utilfct.h"
 
-APIRET APIENTRY DosQueryModFromEIP ( HMODULE *phMod, ULONG *pObjNum, ULONG BuffLen,
-         PCHAR pBuff, ULONG *pOffset, ULONG Address ) ;
+APIRET APIENTRY DosQueryModFromEIP( HMODULE *phMod, ULONG *pObjNum, ULONG BuffLen,
+                                    PCHAR pBuff, ULONG *pOffset, ULONG Address );
+static BOOL have_warpsans = -1;
 
-unsigned long get_eip(void);
-
-void getModule(HMODULE *thisModule, char *thisModuleName, int size)
+/* Returns TRUE if WarpSans is supported by operating system. */
+BOOL
+check_warpsans( void )
 {
-   if(thisModuleName != NULL && size > 0)
-   {
-      ULONG ObjNum = 0, Offset = 0;
-      DosQueryModFromEIP(thisModule,&ObjNum,size,thisModuleName,&Offset,get_eip());
-      DosQueryModuleName(*thisModule,size,thisModuleName); // full path
-   }
+  if( have_warpsans == -1 )
+  {
+    LONG fontcounter = 0;
+    HPS  hps;
+    BOOL rc;
+
+    hps = WinGetPS( HWND_DESKTOP );
+    rc  = GpiQueryFonts( hps, QF_PUBLIC, "WarpSans", &fontcounter, 0, NULL );
+    WinReleasePS( hps );
+
+    have_warpsans = ( rc != 0 && rc != GPI_ALTERROR );
+  }
+
+  return have_warpsans;
 }
 
-void getExeName(char *buf, int size)
+/* Assigns the 9.WarpSans as default font for a specified window if it is supported by
+   operating system. Otherwise assigns the 8.Helv as default font. */
+void
+do_warpsans( HWND hwnd )
 {
-   if(buf && size > 0)
-   {
-      PPIB ppib;
-      PTIB ptib;
-
-      DosGetInfoBlocks(&ptib, &ppib);
-      DosQueryModuleName(ppib->pib_hmte, size, buf);
-   }
+  char *font = check_warpsans() ? "9.WarpSans" : "8.Helv";
+  WinSetPresParam( hwnd, PP_FONTNAMESIZE, strlen( font ) + 1, font );
 }
 
-HINI open_ini(char *filename)
+/* Queries a module handle and name. */
+void
+getModule( HMODULE* hmodule, char* name, int name_size )
 {
-   return PrfOpenProfile(WinQueryAnchorBlock(HWND_DESKTOP),filename);
+  if( name && name_size > 0 )
+  {
+    ULONG ObjNum = 0, Offset = 0;
+
+    DosQueryModFromEIP( hmodule, &ObjNum, name_size, name, &Offset, (ULONG)(&getModule));
+    DosQueryModuleName( *hmodule, name_size, name );
+  }
 }
 
-// opens an ini file by the name of the module in the EXE directory
-HINI open_module_ini()
+/* Queries a program name. */
+void
+getExeName( char* name, int name_size )
 {
-   HMODULE module;
-   char moduleName[CCHMAXPATH], exePath[CCHMAXPATH];
-   char inifilename[2*CCHMAXPATH];
-   char *dot;
+  if( name && name_size > 0 )
+  {
+    PPIB ppib;
+    PTIB ptib;
 
-   getModule(&module,moduleName,CCHMAXPATH);
-   getExeName(exePath,CCHMAXPATH);
-
-   strcpy(inifilename, exePath);
-   *strrchr(inifilename, '\\') = 0;
-   strcat(inifilename,strrchr(moduleName,'\\'));
-
-   dot = strrchr(inifilename,'.');
-   if(dot != NULL)
-   {
-      strcpy(dot,".INI");
-      return open_ini(inifilename);
-   }
-   return NULLHANDLE;
+    DosGetInfoBlocks( &ptib, &ppib );
+    DosQueryModuleName( ppib->pib_hmte, name_size, name );
+  }
 }
 
-BOOL close_ini(HINI hini)
+/* Removes leading and trailing spaces. */
+char*
+blank_strip( char* string )
 {
-   return PrfCloseProfile(hini);
+  int   i;
+  char* pos = string;
+
+  while( *pos == ' ' || *pos == '\t' || *pos == '\n' || *pos == '\r') {
+    pos++;
+  }
+
+  i = strlen(pos)+1;
+
+  if( pos != string ) {
+    memmove( string, pos, i );
+  }
+
+  i -= 2;
+
+  while( string[i] == ' ' || string[i] == '\t' || string[i] == '\n' || string[i] == '\r' ) {
+    string[i] = 0;
+    i--;
+  }
+
+  return string;
 }
 
-char *blank_strip(char *string)
+/* Removes leading and trailing spaces and quotes. */
+char*
+quote_strip( char* string )
 {
-   int i = 0;
-   char *pos = string;
-   while (*pos == ' ' || *pos == '\t' ||
-          *pos == '\n' || *pos == '\r') pos++;
-   i = strlen(pos)+1;
+  int   i, e;
+  char* pos = string;
 
-   if(pos != string)
-      memmove(string,pos,i);
+  while( *pos == ' ' || *pos == '\t' || *pos == '\n' ) {
+    pos++;
+  }
 
-   i-=2;
-   while (string[i] == ' ' || string[i] == '\t' ||
-          string[i] == '\n' || string[i] == '\r') { string[i] = 0; i--; }
+  i = strlen( pos ) - 1;
 
-   return string;
+  for( i = strlen( pos ) - 1; i > 0; i-- ) {
+    if( pos[i] != ' ' && pos[i] != '\t' && pos[i] != '\n' ) {
+      break;
+    }
+  }
+
+  if( *pos == '\"' && pos[i] == '\"' )
+  {
+    pos++;
+    i -= 2;
+  }
+
+  for( e = 0; e < i + 1; e++ ) {
+    string[e] = pos[e];
+  }
+
+  string[e] = 0;
+  return string;
 }
 
-void percent_encode(char *string, int size, char *partialset)
+/* Removes comments starting with "#". */
+char*
+uncomment( char *string )
 {
-   if(string == NULL || size == 0 || partialset == NULL)
-      return;
-   else
-   {
+  int  source   = 0;
+  BOOL inquotes = FALSE;
 
-   int i,j;
-   int setlength = strlen(partialset)+1;
-   int length = strlen(string);
-   int strpos = 0;                  // pos in dest string
-   char *src = alloca(length+1);    // unmodified source string
-   char *set = alloca(setlength+1); // partialset + '%'
-
-   memcpy(src,string,length+1);
-   set[0] = '%';
-   memcpy(set+1,partialset,setlength);
-
-   for(i = 0; i < length; i++)
-   {
-      for(j = 0; j < setlength; j++)
-      {
-         if(src[i] == set[j])
-         {
-            if(strpos+2 >= size)
-            {
-               string[size-1] = 0;
-               return;
-            }
-            else
-            {
-               string[strpos++] = '%';
-               string[strpos] = 0;
-               string[strpos+1] = 0;
-               _itoa(src[i],string+strpos,16);
-               strpos += 2;
-            }
-            goto doneparse;
-         }
-      }
-
-      if(strpos >= size)
-      {
-         string[size-1] = 0;
-         return;
-      }
-      else
-      {
-         string[strpos++] = src[i];
-      }
-
-doneparse: ;
-
-   }
-   string[strpos++] = 0;
-
-   }
+  while( string[source] ) {
+     if( string[source] == '\"' ) {
+       inquotes = !inquotes;
+     } else if( string[source] == '#' && !inquotes ) {
+       string[source] = 0;
+       break;
+     }
+     source++;
+  }
+  return string;
 }
 
-void percent_decode(char *string)
+/* Places the current thread into a wait state until another thread
+   in the current process has ended. Kills another thread if the
+   time expires. */
+void
+wait_thread( TID tid, ULONG msec )
 {
-   if(string == NULL)
-      return;
-   else
-   {
+  while( msec > 0 &&
+         DosWaitThread( &tid, DCWW_NOWAIT ) == ERROR_THREAD_NOT_TERMINATED )
+  {
+    DosSleep( 100 );
+    msec -= 100;
+  }
 
-   int i;
-   int length = strlen(string);
-   int strpos = 0;                  // pos in dest string
-   char *src = alloca(length+1);    // unmodified source string
-
-   memcpy(src,string,length+1);
-
-   for(i = 0; i < length; i++)
-   {
-      if(src[i] == '%')
-      {
-         char number[4] = { src[++i], src[++i], 0 };
-         char character = strtol(number,NULL,16);
-         string[strpos++] = character;
-      }
-      else
-      {
-         string[strpos++] = src[i];
-      }
-   }
-
-   string[strpos++] = 0;
-
-   }
+  if( DosWaitThread( &tid, DCWW_NOWAIT ) == ERROR_THREAD_NOT_TERMINATED ) {
+    DosKillThread( tid );
+  }
 }
 
-/* removes comments starting with # */
-char *uncomment(char *something)
+/* Makes a menu item selectable. */
+BOOL
+mn_enable_item( HWND menu, SHORT id, BOOL enable )
 {
-   int source = 0;
-   BOOL inquotes = FALSE;
-
-   while(something[source])
-   {
-      if(something[source] == '\"')
-         inquotes = !inquotes;
-      else if(something[source] == '#' && !inquotes)
-      {
-         something[source] = 0;
-         break;
-      }
-      source++;
-   }
-
-   return something;
+  return LONGFROMMR( WinSendMsg( menu, MM_SETITEMATTR,
+                                 MPFROM2SHORT( id,  TRUE ),
+                                 MPFROM2SHORT( MIA_DISABLED, enable ? 0 : MIA_DISABLED )));
 }
 
-/* remove leading and trailing spaces and quotes */
-char *quote_strip(char *something)
+/* Places a a check mark to the left of the menu item. */
+BOOL
+mn_check_item( HWND menu, SHORT id, BOOL check )
 {
-   int i,e;
-   char *pos = something;
-
-   while (*pos == ' ' || *pos == '\t' || *pos == '\n') pos++;
-   i = strlen(pos) - 1;
-   for (;i>0;i--) if (pos[i] != ' ' && pos[i] != '\t' && pos[i] != '\n') break;
-   if(*pos == '\"' && pos[i] == '\"' )
-   {
-      pos++;
-      i -= 2;
-   }
-   for(e = 0; e < i+1; e++)
-      something[e] = pos[e];
-   something[e] = 0;
-   return(something);
+  return LONGFROMMR( WinSendMsg( menu, MM_SETITEMATTR,
+                                 MPFROM2SHORT( id,  TRUE ),
+                                 MPFROM2SHORT( MIA_CHECKED, check ? MIA_CHECKED : 0 )));
 }
 
-char *translateChar(char *string, char to[], char from[])
+/* Delete all the items in the list box. */
+BOOL
+lb_remove_all( HWND hwnd, SHORT id )
 {
-   int i;
-   for(i = 0; from[i]; i++)
-   {
-      char *pos = string;
-      while(*pos)
-      {
-         if(*pos == from[i])
-            *pos = to[i];
-         pos++;
-      }
-   }
-   return string;
+  return LONGFROMMR( WinSendDlgItemMsg( hwnd, id, LM_DELETEALL, 0, 0 ));
 }
 
-char *LFN2SFN(char *LFN, char *SFN)
+/* Deletes an item from the list box control. Returns the number of
+   items in the list after the item is deleted. */
+SHORT
+lb_remove_item( HWND hwnd, SHORT id, SHORT i )
 {
-   char leftpart[12];
-   char rightpart[4];
-   char *period;
-
-   period = strrchr(LFN,'.');
-   if(!period)
-   {
-      strncpy(leftpart,LFN,8);
-      leftpart[8] = 0;
-      rightpart[0] = 0;
-   }
-   else if(period-LFN > 8)
-   {
-      strncpy(leftpart,LFN,8);
-      leftpart[8] = 0;
-      strncpy(rightpart,period+1,3);
-      rightpart[3] = 0;
-   }
-   else
-   {
-      strncpy(leftpart,LFN,period-LFN);
-      leftpart[period-LFN] = 0;
-      strncpy(rightpart,period+1,3);
-      rightpart[3] = 0;
-   }
-
-   /* let's remove chars that are illegal in 8.3 filenames */
-   translateChar(rightpart, "__-()!-__" , ". +[];=,~");
-   translateChar(leftpart, "__-()!-__" , ". +[];=,~");
-
-   strcpy(SFN,leftpart);
-   if(rightpart[0])
-   {
-      strcat(SFN,".");
-      strcat(SFN,rightpart);
-   }
-
-   return SFN;
+  return SHORT1FROMMR( WinSendDlgItemMsg( hwnd, id,  LM_DELETEITEM,
+                                          MPFROMSHORT( i ), 0 ));
 }
 
-/* very common PM stuff which I couldn't care less to remember by heart */
-
-BOOL initPM( HAB *hab, HMQ *hmq )
+/* Adds an item into a list box control. */
+SHORT
+lb_add_item( HWND hwnd, SHORT id, const char* item )
 {
-   *hmq = *hab = 0;
-
-   *hab = WinInitialize(0);
-   if(*hab)
-     *hmq = WinCreateMsgQueue(*hab, 0);
-   if(*hmq)
-     return TRUE;
-
-   return FALSE;
+  return SHORT1FROMMR( WinSendDlgItemMsg( hwnd, id, LM_INSERTITEM,
+                       MPFROMSHORT( LIT_END ), MPFROMP( item )));
 }
 
-void runPM( HAB hab )
+/* Queries the indexed item of the list box control. */
+SHORT
+lb_get_item( HWND hwnd, SHORT id, SHORT i, char* item, LONG size )
 {
-   QMSG qmsg;
-
-   while( WinGetMsg( hab, &qmsg, 0L, 0, 0 ) )
-      WinDispatchMsg( hab, &qmsg );
+  return SHORT1FROMMR( WinSendDlgItemMsg( hwnd, id, LM_QUERYITEMTEXT,
+                                          MPFROM2SHORT( i, size ), MPFROMP( item )));
 }
 
-void closePM( HAB hab, HMQ hmq )
+/* Queries a size the indexed item of the list box control. */
+SHORT
+lb_get_item_size( HWND hwnd, SHORT id, SHORT i )
 {
-   WinDestroyMsgQueue( hmq );
-   WinTerminate( hab );
+  return SHORT1FROMMR( WinSendDlgItemMsg( hwnd, id, LM_QUERYITEMTEXTLENGTH,
+                                          MPFROMSHORT( i ), 0 ));
 }
 
-HWND loadDlg( HWND parent, PFNWP winproc, ULONG id )
+/* Sets the handle of the specified list box item. */
+BOOL
+lb_set_handle( HWND hwnd, SHORT id, SHORT i, PVOID handle )
 {
-   return WinLoadDlg(parent, parent, winproc, 0, id, NULL);
+  return LONGFROMMR( WinSendDlgItemMsg( hwnd, id,  LM_SETITEMHANDLE,
+                     MPFROMSHORT( i ), MPFROMLONG( handle )));
 }
 
-/* check buttons */
-
-USHORT getCheck( HWND hwnd, LONG id )
+/* Returns the handle of the indexed item of the list box control. */
+PVOID lb_get_handle( HWND hwnd, SHORT id, SHORT i )
 {
-   if(id)
-      return SHORT1FROMMR(WinSendDlgItemMsg(hwnd, id, BM_QUERYCHECK, 0, 0));
-   else
-      return SHORT1FROMMR(WinSendMsg(hwnd, BM_QUERYCHECK, 0, 0));
+  return (PVOID)( WinSendDlgItemMsg( hwnd, id,  LM_QUERYITEMHANDLE,
+                  MPFROMSHORT( i ), 0 ));
 }
 
-USHORT setCheck( HWND hwnd, LONG id, USHORT state )
+/* Sets the selection state of an item in a list box. */
+BOOL
+lb_select( HWND hwnd, SHORT id, SHORT i )
 {
-   if(id)
-      return SHORT1FROMMR(WinSendDlgItemMsg(hwnd, id, BM_SETCHECK, MPFROMSHORT(state), 0));
-   else
-      return SHORT1FROMMR(WinSendMsg(hwnd, BM_SETCHECK, MPFROMSHORT(state), 0));
+  return LONGFROMMR( WinSendDlgItemMsg( hwnd, id,  LM_SELECTITEM,
+                     MPFROMSHORT( i ), MPFROMSHORT( TRUE )));
 }
 
-/* general window */
-
-ULONG getText( HWND hwnd, LONG id, char *buffer, LONG size )
+/* Returns the current cursored item. */
+SHORT
+lb_cursored( HWND hwnd, SHORT id )
 {
-   if(id)
-      return WinQueryDlgItemText(hwnd,id,size,buffer);
-   else
-      return WinQueryWindowText(hwnd,size,buffer);
+  return SHORT1FROMMR( WinSendDlgItemMsg( hwnd, id, LM_QUERYSELECTION,
+                       MPFROMSHORT( LIT_CURSOR ), 0 ));
 }
 
-BOOL setText( HWND hwnd, LONG id, char *buffer )
+SHORT
+lb_selected( HWND hwnd, SHORT id, SHORT starti )
 {
-   if(id)
-      return WinSetDlgItemText(hwnd, id, buffer);
-   else
-      return WinSetWindowText(hwnd, buffer);
+  return SHORT1FROMMR( WinSendDlgItemMsg( hwnd, id, LM_QUERYSELECTION,
+                       MPFROMSHORT( starti), 0 ));
 }
 
-BOOL enable(HWND hwnd, LONG id )
+/* Returns a count of the number of items in the list box control. */
+SHORT
+lb_size( HWND hwnd, SHORT id )
 {
-   if(id)
-      return WinEnableWindow(WinWindowFromID(hwnd,id), TRUE);
-   else
-      return WinEnableWindow(hwnd, TRUE);
+  return SHORT1FROMMR( WinSendDlgItemMsg( hwnd, id, LM_QUERYITEMCOUNT, 0, 0 ));
 }
 
-BOOL disable( HWND hwnd, LONG id )
+/* Searches an item in a list box control. */
+SHORT lb_search( HWND hwnd, SHORT id, SHORT starti, char *item )
 {
-   if(id)
-      return WinEnableWindow(WinWindowFromID(hwnd,id), FALSE);
-   else
-      return WinEnableWindow(hwnd, FALSE);
-}
-
-/* listbox */
-
-SHORT getItemCount( HWND hwnd, LONG id )
-{
-   if(id)
-      return SHORT1FROMMR(WinSendDlgItemMsg(hwnd,id,LM_QUERYITEMCOUNT,0,0));
-   else
-      return SHORT1FROMMR(WinSendMsg(hwnd,LM_QUERYITEMCOUNT,0,0));
-}
-
-SHORT getItemText( HWND hwnd, LONG id, SHORT item, char *buffer, LONG size )
-{
-   if(id)
-      return SHORT1FROMMR(WinSendDlgItemMsg(hwnd,id,LM_QUERYITEMTEXT,MPFROM2SHORT(item,size),MPFROMP(buffer)));
-   else
-      return SHORT1FROMMR(WinSendMsg(hwnd,LM_QUERYITEMTEXT,MPFROM2SHORT(item,size),MPFROMP(buffer)));
-}
-
-SHORT getItemTextSize( HWND hwnd, LONG id, SHORT item )
-{
-   if(id)
-      return SHORT1FROMMR(WinSendDlgItemMsg(hwnd,id,LM_QUERYITEMTEXTLENGTH,MPFROMSHORT(item),0));
-   else
-      return SHORT1FROMMR(WinSendMsg(hwnd,LM_QUERYITEMTEXTLENGTH,MPFROMSHORT(item),0));
-}
-
-SHORT insertItemText( HWND hwnd, LONG id, SHORT item, char *buffer )
-{
-   if(id)
-      return SHORT1FROMMR(WinSendDlgItemMsg(hwnd, id, LM_INSERTITEM, MPFROMSHORT(item), MPFROMP(buffer)));
-   else
-      return SHORT1FROMMR(WinSendMsg(hwnd, LM_INSERTITEM, MPFROMSHORT(item), MPFROMP(buffer)));
-}
-
-BOOL setItemHandle( HWND hwnd, LONG id, SHORT item, void *pointer )
-{
-   if(id)
-      return LONGFROMMR(WinSendDlgItemMsg(hwnd, id, LM_SETITEMHANDLE, MPFROMSHORT(item), MPFROMP(pointer)));
-   else
-      return LONGFROMMR(WinSendMsg(hwnd, LM_SETITEMHANDLE, MPFROMSHORT(item), MPFROMP(pointer)));
-}
-
-void *getItemHandle( HWND hwnd, LONG id, SHORT item )
-{
-   if(id)
-      return PVOIDFROMMR(WinSendDlgItemMsg(hwnd, id, LM_QUERYITEMHANDLE, MPFROMSHORT(item), 0));
-   else
-      return PVOIDFROMMR(WinSendMsg(hwnd, LM_QUERYITEMHANDLE, MPFROMSHORT(item), 0));
-}
-
-SHORT deleteItem( HWND hwnd, LONG id, SHORT item )
-{
-   if(id)
-      return SHORT1FROMMR(WinSendDlgItemMsg(hwnd,id, LM_DELETEITEM, MPFROMSHORT(item),0));
-   else
-      return SHORT1FROMMR(WinSendMsg(hwnd, LM_DELETEITEM, MPFROMSHORT(item),0));
-}
-
-SHORT deleteAllItems( HWND hwnd, LONG id )
-{
-   if(id)
-      return SHORT1FROMMR(WinSendDlgItemMsg(hwnd,id, LM_DELETEALL, 0,0));
-   else
-      return SHORT1FROMMR(WinSendMsg(hwnd, LM_DELETEALL, 0,0));
-}
-
-SHORT selectItem( HWND hwnd, LONG id, SHORT item )
-{
-   if(id)
-      return SHORT1FROMMR(WinSendDlgItemMsg(hwnd,id, LM_SELECTITEM, MPFROMSHORT(item),MPFROMLONG(TRUE)));
-   else
-      return SHORT1FROMMR(WinSendMsg(hwnd, LM_SELECTITEM, MPFROMSHORT(item),MPFROMLONG(TRUE)));
-}
-
-SHORT deSelectItem( HWND hwnd, LONG id, SHORT item )
-{
-   if(id)
-      return SHORT1FROMMR(WinSendDlgItemMsg(hwnd,id, LM_SELECTITEM, MPFROMSHORT(item),MPFROMLONG(FALSE)));
-   else
-      return SHORT1FROMMR(WinSendMsg(hwnd, LM_SELECTITEM, MPFROMSHORT(item),MPFROMLONG(FALSE)));
-}
-
-SHORT getSelectItem( HWND hwnd, LONG id, SHORT startitem )
-{
-   if(id)
-      return SHORT1FROMMR(WinSendDlgItemMsg(hwnd,id, LM_QUERYSELECTION, MPFROMSHORT(startitem),0));
-   else
-      return SHORT1FROMMR(WinSendMsg(hwnd, LM_QUERYSELECTION, MPFROMSHORT(startitem),0));
-}
-
-SHORT searchItemText( HWND hwnd, LONG id, SHORT startitem, char *string )
-{
-   if(id)
-      return SHORT1FROMMR(WinSendDlgItemMsg(hwnd,id, LM_SEARCHSTRING, MPFROM2SHORT(0,startitem),MPFROMP(string)));
-   else
-      return SHORT1FROMMR(WinSendMsg(hwnd, LM_SEARCHSTRING, MPFROM2SHORT(0,startitem),MPFROMP(string)));
-}
-
-/* containers */
-
-RECORDCORE *allocaRecords( HWND hwnd, LONG id, USHORT count, USHORT custom )
-{
-   if(id)
-      return (RECORDCORE *) PVOIDFROMMR(WinSendDlgItemMsg(hwnd,id, CM_ALLOCRECORD, MPFROMSHORT(custom), MPFROMSHORT(count)));
-   else
-      return (RECORDCORE *) PVOIDFROMMR(WinSendMsg(hwnd, CM_ALLOCRECORD, MPFROMSHORT(custom), MPFROMSHORT(count)));
-}
-
-BOOL freeRecords( HWND hwnd, LONG id, RECORDCORE *records, ULONG count )
-{
-   if(id)
-      return LONGFROMMR(WinSendDlgItemMsg(hwnd,id, CM_FREERECORD, MPFROMP(records), MPFROMLONG(count)));
-   else
-      return LONGFROMMR(WinSendMsg(hwnd, CM_FREERECORD, MPFROMP(records), MPFROMLONG(count)));
-}
-
-ULONG insertRecords( HWND hwnd, LONG id, RECORDCORE *records, RECORDINSERT *info )
-{
-   if(id)
-      return LONGFROMMR(WinSendDlgItemMsg(hwnd,id, CM_INSERTRECORD, MPFROMP(records), MPFROMP(info)));
-   else
-      return LONGFROMMR(WinSendMsg(hwnd, CM_INSERTRECORD, MPFROMP(records), MPFROMP(info)));
-}
-
-RECORDCORE *searchRecords( HWND hwnd, LONG id, RECORDCORE *record, USHORT emphasis )
-{
-   if(id)
-      return (RECORDCORE *) PVOIDFROMMR(WinSendDlgItemMsg(hwnd,id, CM_QUERYRECORDEMPHASIS, MPFROMP(record), MPFROMLONG(emphasis)));
-   else
-      return (RECORDCORE *) PVOIDFROMMR(WinSendMsg(hwnd, CM_QUERYRECORDEMPHASIS, MPFROMP(record), MPFROMLONG(emphasis)));
-}
-
-RECORDCORE *enumRecords( HWND hwnd, LONG id, RECORDCORE *record, USHORT cmd )
-{
-   if( (ULONG) record == CMA_FIRST) cmd = CMA_FIRST;
-   else if( (ULONG) record == CMA_LAST) cmd = CMA_LAST;
-
-   if(id)
-      return (RECORDCORE *) PVOIDFROMMR(WinSendDlgItemMsg(hwnd,id, CM_QUERYRECORD, MPFROMP(record), MPFROM2SHORT(cmd,CMA_ITEMORDER)));
-   else
-      return (RECORDCORE *) PVOIDFROMMR(WinSendMsg(hwnd, CM_QUERYRECORD, MPFROMP(record), MPFROM2SHORT(cmd,CMA_ITEMORDER)));
-}
-
-ULONG removeRecords( HWND hwnd, LONG id, RECORDCORE *records[], ULONG count )
-{
-   if(id)
-      return LONGFROMMR(WinSendDlgItemMsg(hwnd,id, CM_REMOVERECORD,
-      MPFROMP(records), MPFROM2SHORT(count, CMA_INVALIDATE | CMA_FREE)));
-   else
-      return LONGFROMMR(WinSendMsg(hwnd, CM_REMOVERECORD,
-      MPFROMP(records), MPFROM2SHORT(count, CMA_INVALIDATE | CMA_FREE)));
-}
-
-BOOL getRecordPosition( HWND hwnd, LONG id, RECORDCORE *record, RECTL *pos, ULONG fsExtent )
-{
-   QUERYRECORDRECT query;
-
-   query.cb = sizeof(query);
-   query.pRecord = record;
-   query.fRightSplitWindow = FALSE;
-// query.fsExtent = CMA_ICON | CMA_TEXT;
-   query.fsExtent = fsExtent;
-
-   if(id)
-      return LONGFROMMR(WinSendDlgItemMsg(hwnd,id, CM_QUERYRECORDRECT, MPFROMP(pos), MPFROMP(&query)));
-   else
-      return LONGFROMMR(WinSendMsg(hwnd, CM_QUERYRECORDRECT, MPFROMP(pos), MPFROMP(&query)));
-}
-
-FIELDINFO *allocaFieldInfo( HWND hwnd, LONG id, USHORT count )
-{
-   if(id)
-      return (FIELDINFO *) PVOIDFROMMR(WinSendDlgItemMsg(hwnd, id, CM_ALLOCDETAILFIELDINFO, MPFROMSHORT(count), 0));
-   else
-      return (FIELDINFO *) PVOIDFROMMR(WinSendMsg(hwnd, CM_ALLOCDETAILFIELDINFO, MPFROMSHORT(count), 0));
-}
-
-USHORT insertFieldInfo( HWND hwnd, LONG id, FIELDINFO *records, FIELDINFOINSERT *info )
-{
-   if(id)
-      return SHORT1FROMMR(WinSendDlgItemMsg(hwnd, id, CM_INSERTDETAILFIELDINFO, MPFROMP(records), MPFROMP(info)));
-   else
-      return SHORT1FROMMR(WinSendMsg(hwnd, CM_INSERTDETAILFIELDINFO, MPFROMP(records), MPFROMP(info)));
-}
-
-SHORT removeFieldInfo( HWND hwnd, LONG id, FIELDINFO *fields[], USHORT count )
-{
-   if(id)
-      return SHORT1FROMMR(WinSendDlgItemMsg(hwnd, id, CM_REMOVEDETAILFIELDINFO, MPFROMP(fields), MPFROM2SHORT(count,CMA_FREE)));
-   else
-      return SHORT1FROMMR(WinSendMsg(hwnd, CM_REMOVEDETAILFIELDINFO, MPFROMP(fields), MPFROM2SHORT(count,CMA_FREE)));
-}
-
-
-BOOL setRecordSource( HWND hwnd, LONG id, RECORDCORE *record, BOOL on )
-{
-   if(id)
-      return LONGFROMMR(WinSendDlgItemMsg(hwnd, id, CM_SETRECORDEMPHASIS, MPFROMP(record), MPFROM2SHORT(on, CRA_SOURCE)));
-   else
-      return LONGFROMMR(WinSendMsg(hwnd, CM_SETRECORDEMPHASIS, MPFROMP(record), MPFROM2SHORT(on, CRA_SOURCE)));
-}
-
-BOOL selectRecord( HWND hwnd, LONG id, RECORDCORE *record, BOOL on )
-{
-   if(id)
-      return LONGFROMMR(WinSendDlgItemMsg(hwnd, id, CM_SETRECORDEMPHASIS, MPFROMP(record), MPFROM2SHORT(on, CRA_SELECTED)));
-   else
-      return LONGFROMMR(WinSendMsg(hwnd, CM_SETRECORDEMPHASIS, MPFROMP(record), MPFROM2SHORT(on, CRA_SELECTED)));
-}
-
-BOOL selectAllRecords( HWND hwnd, LONG id, BOOL on )
-{
-   BOOL returnBool = FALSE;
-   RECORDCORE *record;
-   record = enumRecords(hwnd, id, NULL, CMA_FIRST);
-   while(record && record != (RECORDCORE *) -1)
-   {
-      returnBool = selectRecord(hwnd, id, record, on);
-      record = enumRecords(hwnd, id, record, CMA_NEXT);
-   }
-   return returnBool;
-}
-
-BOOL removeTitleFromContainer( HWND hwnd, LONG id, char *title )
-{
-   RECORDCORE *record[1];
-
-   *record = enumRecords(hwnd, id, NULL, CMA_FIRST);
-
-   while(*record && *record != (RECORDCORE *) -1)
-   {
-      if(!strcmp(title,(*record)->pszIcon))
-      {
-         removeRecords(hwnd, id, record, 1);
-         return TRUE;
-      }
-      *record = enumRecords(hwnd, id, *record, CMA_NEXT);
-   }
-   return FALSE;
+  return SHORT1FROMMR( WinSendDlgItemMsg( hwnd, id, LM_SEARCHSTRING,
+                       MPFROM2SHORT( 0, starti ), MPFROMP( item )));
 }
 

@@ -27,3 +27,4 @@ EXPORTS
    _ftell                @33
    _fclose               @34
    _rewind               @35
+   _fsize                @36

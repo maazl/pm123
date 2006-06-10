@@ -36,15 +36,13 @@
 #include "skin.h"
 #include "playlist.h"
 #include "properties.h"
-#include <time.h>
-#include <sys/time.h>
+#include "copyright.h"
 #endif
-
-#define VERSION "PM123 1.31"
 
 #define ICO_MAIN              1
 #define ICO_MP3            1700
 #define ICO_MP3PLAY        1701
+#define ICO_MP3GRAY        1702
 
 #define WIN_MAIN              1
 #define HLP_MAIN              1
@@ -192,22 +190,6 @@
 #define FDT_EQUALIZER        "Equalizer presets (*.EQ)"
 #define FDT_PLUGIN           "Plug-in (*.DLL)"
 
-extern HMODULE thisModule;
-extern char *thisModulePath;
-
-/* 123_util.c util functions. */
-char* sdrive   ( char *result, const char* pathname );
-char* sdir     ( char *result, const char* pathname );
-char* sfname   ( char *result, const char* pathname );
-char* sext     ( char *result, const char* pathname );
-char* sfnameext( char *result, const char* pathname );
-char* sdrivedir( char *result, const char* pathname );
-BOOL  is_http  ( const char* filename );
-BOOL  is_track ( const char* filename );
-BOOL  is_file  ( const char* filename );
-BOOL  is_root  ( const char* path     );
-BOOL  is_dir   ( const char* path     );
-
 /* Converts time to two integer suitable for display by the timer. */
 void  sec2num( long seconds, int* major, int* minor );
 
@@ -225,30 +207,8 @@ void  amp_display_filename( void );
 /* Switches to the next text displaying mode. */
 void  amp_display_next_mode( void );
 
-/* Makes a menu item selectable. */
-BOOL  mn_enable_item( HWND menu, SHORT id, BOOL enable );
-/* Places a a check mark to the left of the item. */
-BOOL  mn_check_item ( HWND menu, SHORT id, BOOL check  );
-
-/* Delete all the items in the list box. */
-BOOL  lb_remove_all( HWND hwnd, SHORT id );
-/* Deletes an item from the list box control. */
-SHORT lb_remove_item( HWND hwnd, SHORT id, SHORT i );
-/* Adds an item into a list box control. */
-SHORT lb_add_item( HWND hwnd, SHORT id, const char* item );
-/* Sets the handle of the specified list box item. */
-BOOL  lb_set_handle( HWND hwnd, SHORT id, SHORT i, ULONG handle );
-/* Returns the handle of the indexed item of the list box control. */
-ULONG lb_get_handle( HWND hwnd, SHORT id, SHORT i );
-/* Sets the selection state of an item in a list box. */
-BOOL  lb_select( HWND hwnd, SHORT id, SHORT i );
-/* Returns the current selected item. */
-SHORT lb_selected( HWND hwnd, SHORT id );
-/* Returns a count of the number of items in the list box control. */
-SHORT lb_size( HWND hwnd, SHORT id );
-
 /* Loads the specified playlist record into the player. */
-void  amp_pl_load_record( PLRECORD* );
+BOOL  amp_pl_load_record( PLRECORD* );
 /* Plays the specified playlist record. */
 void  amp_pl_play_record( PLRECORD* );
 /* Activates the current playlist. */
@@ -268,13 +228,13 @@ void  amp_pause( void );
 void  amp_reset( void );
 /* Marks the player window as needed of redrawing. */
 void  amp_invalidate( int options );
-/* Docks the specified window to the player. */
-void  amp_dock( HWND hwnd, PSWP pswp, LONG margin );
 
 /* Posts a message to the player window. */
 BOOL  amp_post_message( ULONG msg, MPARAM mp1, MPARAM mp2 );
 /* Returns the handle of the player window. */
 HWND  amp_player_window( void );
+/* Returns the anchor-block handle. */
+HAB   amp_player_hab( void );
 
 /* Creates and displays a error message window. */
 void  amp_error( HWND owner, const char* format, ... );
@@ -328,10 +288,7 @@ void _System pm123_control(int index, void *param);
 extern int      amp_playmode; /* Play mode        */
 extern HPOINTER mp3;          /* Song file icon   */
 extern HPOINTER mp3play;      /* Played file icon */
-
-extern PLRECORD* currentf;    /* The pointer to playlist record of the
-                                 currently played file, the pointer is
-                                 NULL if such record is not present. */
+extern HPOINTER mp3gray;      /* Broken file icon */
 
 /* Contains startup path of the program without its name. */
 extern char startpath[_MAX_PATH];

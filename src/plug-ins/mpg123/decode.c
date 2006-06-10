@@ -12,11 +12,6 @@
 
 #include "mpg123.h"
 
-#define WRITE_SAMPLE(samples,sum,clip) \
-  if( (sum) > 32767.0) { *(samples) = 0x7fff; (clip)++; } \
-  else if( (sum) < -32768.0) { *(samples) = -0x8000; (clip)++; } \
-  else { *(samples) = sum; }
-
 int synth_1to1_8bit(real *bandPtr,int channel,unsigned char *samples)
 {
   short samples_tmp[64];

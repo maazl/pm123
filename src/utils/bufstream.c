@@ -31,69 +31,92 @@
 #include <string.h>
 #include "bufstream.h"
 
-BUFSTREAM *open_bufstream(void *buffer, int size)
+/* Creates a buffering stream using specified buffer. */
+BUFSTREAM*
+open_bufstream( void* buffer, int size )
 {
-   BUFSTREAM *b = (BUFSTREAM *) malloc(sizeof(BUFSTREAM));
-   b->buffer = buffer;
-   b->size = b->length = size;
-   b->position = 0;
-   b->created  = 0;
+  BUFSTREAM* b = (BUFSTREAM*)malloc( sizeof( BUFSTREAM ));
 
-   return b;
+  b->buffer   = buffer;
+  b->size     = size;
+  b->length   = size;
+  b->position = 0;
+  b->created  = 0;
+
+  return b;
 }
 
-BUFSTREAM *create_bufstream(int size)
+/* Creates a new buffering stream. */
+BUFSTREAM*
+create_bufstream( int size )
 {
-   BUFSTREAM *b = (BUFSTREAM *) malloc(sizeof(BUFSTREAM));
-   b->buffer = (void *) malloc(size);
-   b->size = size;
-   b->position = 0;
-   b->length = 0;
-   b->created = 1;
+  BUFSTREAM* b = (BUFSTREAM*)malloc( sizeof( BUFSTREAM ));
 
-   return b;
+  b->buffer   = malloc( size );
+  b->size     = size;
+  b->position = 0;
+  b->length   = 0;
+  b->created  = 1;
+
+  return b;
 }
 
-int get_buffer_bufstream(BUFSTREAM *b, void **buffer)
+/* Returns a buffer associated with buffering stream. */
+int
+get_buffer_bufstream( BUFSTREAM *b, void** buffer )
 {
-   *buffer = b->buffer;
-   return b->length;
+  *buffer = b->buffer;
+  return b->length;
 }
 
-int read_bufstream(BUFSTREAM *b, void *buffer, int size)
+/* Reads a data from buffering stream. */
+int
+read_bufstream( BUFSTREAM* b, void* buffer, int size )
 {
-   int toread = size;
-   if(b->length - b->position < toread)
-      toread = b->length - b->position;
+  int toread = size;
+  if( b->length - b->position < toread ) {
+    toread = b->length - b->position;
+  }
 
-   memcpy(buffer,(char *)b->buffer+b->position,toread);
-   b->position += toread;
-   return toread;
+  memcpy( buffer, (char*)b->buffer + b->position, toread );
+  b->position += toread;
+
+  return toread;
 }
 
-int write_bufstream(BUFSTREAM *b, void *buffer, int size)
+/* Writes a data from buffering stream. */
+int
+write_bufstream( BUFSTREAM* b, void* buffer, int size )
 {
-   int towrite = size;
-   if(towrite > b->size - b->position)
-   {
-      void *temp = (void *) realloc(b->buffer,2*b->size);
-      if(temp == NULL)
-         return 0;
-      b->buffer = temp;
-      b->size *= 2;
-   }
+  int towrite = size;
 
-   memcpy((char *) b->buffer+b->position,buffer,towrite);
-   b->position += towrite;
-   b->length += towrite;
-   return towrite;
+  if( towrite > b->size - b->position )
+  {
+    void* temp = (void*)realloc( b->buffer, 2 * b->size );
+
+    if( temp == NULL ) {
+      return 0;
+    }
+
+    b->buffer = temp;
+    b->size *= 2;
+  }
+
+  memcpy( (char*)b->buffer + b->position, buffer, towrite );
+
+  b->position += towrite;
+  b->length   += towrite;
+
+  return towrite;
 }
 
-int close_bufstream(BUFSTREAM *b)
+/* Closes a buffering stream. */
+int close_bufstream( BUFSTREAM* b )
 {
-   if( b->created ) {
-    free(b->buffer);
-   }
-   free(b);
-   return 0;
+  if( b->created ) {
+    free( b->buffer );
+  }
+
+  free( b );
+  return 0;
 }

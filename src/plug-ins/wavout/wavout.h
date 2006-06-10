@@ -27,7 +27,32 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#define ID_NULL     1000
-#define ST_FILENAME 1010
-#define EF_FILENAME 1020
-#define PB_BROWSE   1030
+#ifndef _WAVOUT_H
+#define _WAVOUT_H
+
+#include "..\wavplay\wav.h"
+
+#define DLG_CONFIGURE 1000
+#define ID_NULL       1001
+#define ST_FILENAME   1010
+#define EF_FILENAME   1020
+#define PB_BROWSE     1030
+#define ST_ABOUT      1040
+
+#define DLG_BROWSE    2000
+
+typedef struct
+{
+  BOOL  opened;
+  HEV   pause;
+  int   playingpos;
+  char  filename[CCHMAXPATH];   // filled by setup.
+  char  fullpath[CCHMAXPATH];   // completed by open with outpath.
+  char* buffer;
+  WAV   wavfile;
+
+  OUTPUT_PARAMS original_info;  // to open the device.
+
+} WAVOUT;
+
+#endif

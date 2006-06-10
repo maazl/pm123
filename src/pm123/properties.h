@@ -44,22 +44,11 @@
 
 #define CFG_PAGE1          3000
 #define GB_BEHAVIOUR       3001
-#define ST_PLAYANDLOAD     3002
 #define CB_PLAYONLOAD      3010
 #define CB_AUTOUSEPL       3020
 #define CB_AUTOPLAYPL      3030
 #define CB_SELECTPLAYED    3031
 #define CB_TRASHONSEEK     3040
-#define ST_SCROLL          3045
-#define RB_SCROLL_INFINITE 3050
-#define RB_SCROLL_ONCE     3051
-#define RB_SCROLL_DISABLE  3052
-#define ST_DISPLAY         3075
-#define RB_DISP_FILENAME   3080
-#define RB_DISP_ID3TAG     3081
-#define RB_DISP_FILEINFO   3082
-#define ST_CHARSET         3090
-#define CB_CHARSET         3091
 #define CB_DOCK            3150
 #define EF_DOCK            3151
 #define ST_PIXELS          3152
@@ -73,7 +62,24 @@
 #define ST_KB              3195
 #define CB_FILLBUFFER      3200
 
-#define CFG_PAGE2          4000
+#define CFG_PAGE2          3500
+#define GB_TITLE           3501
+#define ST_SCROLL          3545
+#define RB_SCROLL_INFINITE 3550
+#define RB_SCROLL_ONCE     3551
+#define RB_SCROLL_DISABLE  3552
+#define ST_DISPLAY         3575
+#define RB_DISP_FILENAME   3580
+#define RB_DISP_ID3TAG     3581
+#define RB_DISP_FILEINFO   3582
+#define ST_CHARSET         3590
+#define CB_CHARSET         3591
+#define GB_FONT            3600
+#define CB_USE_SKIN_FONT   3610
+#define ST_FONT_SAMPLE     3630
+#define PB_FONT_SELECT     3640
+
+#define CFG_PAGE3          4000
 #define GB_VISUALPLUGINS   4001
 #define LB_VISPLUG         4010
 #define PB_VIS_ENABLE      4020
@@ -91,7 +97,7 @@
 #define PB_DEC_CONFIG      4130
 #define PB_DEC_ADD         4140
 
-#define CFG_PAGE3          5000
+#define CFG_PAGE4          5000
 #define GB_FILPLUG         5005
 #define LB_FILPLUG         5010
 #define PB_FIL_ENABLE      5020
@@ -138,45 +144,47 @@
 
 typedef struct _amp_cfg {
 
-  char filedir[_MAX_PATH];  /* The last directory used for addition of files.    */
-  char listdir[_MAX_PATH];  /* The last directory used for access to a playlist. */
-  char savedir[_MAX_PATH];  /* The last directory used for saving a stream.      */
-  char lasteq [_MAX_PATH];  /* The last directory used for saving a state of an  */
-                            /* equalizer.                                        */
-  char defskin[_MAX_PATH];  /* Default skin.                                     */
+  char   filedir[_MAX_PATH];  /* The last directory used for addition of files.    */
+  char   listdir[_MAX_PATH];  /* The last directory used for access to a playlist. */
+  char   savedir[_MAX_PATH];  /* The last directory used for saving a stream.      */
+  char   lasteq [_MAX_PATH];  /* The last directory used for saving a state of an  */
+                              /* equalizer.                                        */
+  char   defskin[_MAX_PATH];  /* Default skin.                                     */
 
-  char last[MAX_RECALL][_MAX_PATH];
-  char list[MAX_RECALL][_MAX_PATH];
+  char   last[MAX_RECALL][_MAX_PATH];
+  char   list[MAX_RECALL][_MAX_PATH];
 
-  char cddrive[4];    /* Default CD drive.                      */
-  BOOL eq_enabled;    /* Is the equalizer enabled.              */
-  int  defaultvol;    /* Current audio volume.                  */
-  BOOL playonload;    /* Start playing on file load.            */
-  BOOL autouse;       /* Auto use playlist on add.              */
-  BOOL playonuse;     /* Auto play on use playlist.             */
-  BOOL selectplayed;  /* Select played file.                    */
-  int  mode;          /* See CFG_MODE_*                         */
-  int  font;          /* Use font 1 or font 2.                  */
-  BOOL trash;         /* Trash buffers on seek.                 */
-  BOOL shf;           /* The state of the "Shuffle" button.     */
-  BOOL rpt;           /* The state of the "Repeat" button.      */
-  BOOL floatontop;    /* Float on top.                          */
-  BOOL show_playlist; /* Show playlist.                         */
-  BOOL show_bmarks;   /* Show bookmarks.                        */
-  BOOL show_plman;    /* Show playlist manager.                 */
-  int  scroll;        /* See CFG_SCROLL_*                       */
-  int  viewmode;      /* See CFG_DISP_*                         */
-  char proxy[1024];   /* Proxy URL.                             */
-  char auth [ 256];   /* HTTP authorization.                    */
-  int  bufwait;       /* Wait before fucking.                   */
-  int  bufsize;       /* KB chunkz rewl.                        */
-  BOOL dock_windows;  /* Dock windows?                          */
-  int  dock_margin;   /* The marging for docking window.        */
-  BOOL add_recursive; /* Enable recursive addition.             */
-  BOOL save_relative; /* Use relative paths in saved playlists. */
-  int  charset;       /* Character set.                         */
-
-  SWP  Main;
+  char   cddrive[4];          /* Default CD drive.                      */
+  BOOL   eq_enabled;          /* Is the equalizer enabled.              */
+  int    defaultvol;          /* Current audio volume.                  */
+  BOOL   playonload;          /* Start playing on file load.            */
+  BOOL   autouse;             /* Auto use playlist on add.              */
+  BOOL   playonuse;           /* Auto play on use playlist.             */
+  BOOL   selectplayed;        /* Select played file.                    */
+  int    mode;                /* See CFG_MODE_*                         */
+  int    font;                /* Use font 1 or font 2.                  */
+  BOOL   trash;               /* Trash buffers on seek.                 */
+  BOOL   shf;                 /* The state of the "Shuffle" button.     */
+  BOOL   rpt;                 /* The state of the "Repeat" button.      */
+  BOOL   floatontop;          /* Float on top.                          */
+  BOOL   show_playlist;       /* Show playlist.                         */
+  BOOL   show_bmarks;         /* Show bookmarks.                        */
+  BOOL   show_plman;          /* Show playlist manager.                 */
+  int    scroll;              /* See CFG_SCROLL_*                       */
+  int    viewmode;            /* See CFG_DISP_*                         */
+  char   proxy[1024];         /* Proxy URL.                             */
+  char   auth [ 256];         /* HTTP authorization.                    */
+  int    bufwait;             /* Wait before fucking.                   */
+  int    bufsize;             /* KB chunkz rewl.                        */
+  BOOL   dock_windows;        /* Dock windows?                          */
+  int    dock_margin;         /* The marging for docking window.        */
+  BOOL   add_recursive;       /* Enable recursive addition.             */
+  BOOL   save_relative;       /* Use relative paths in saved playlists. */
+  int    charset;             /* Character set.                         */
+  BOOL   font_skinned;        /* Use skinned font.                      */
+  FATTRS font_attrs;          /* Font's attributes.                     */
+  LONG   font_size;           /* Font's point size.                     */
+  SWP    main;                /* Position of the player.                */
 
 } amp_cfg;
 

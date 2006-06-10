@@ -27,15 +27,35 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-struct LIST_NODE_STRUCT;
-typedef struct LIST_NODE_STRUCT LIST_NODE;
+#define  INCL_DOS
+#include <os2.h>
 
-LIST_NODE *list_create(void);
-int list_destroy(LIST_NODE *head_node);
-LIST_NODE *list_add(LIST_NODE *head_node, void *data);
-LIST_NODE *list_search(LIST_NODE *head_node, void *data);
-int list_remove(LIST_NODE *head_node, void *data);
-int list_isempty(LIST_NODE *head_node);
-LIST_NODE *list_getnext(LIST_NODE *node);
-void *list_getdata(LIST_NODE *node);
+/* Finds the first file whose name match the specification. */
+ULONG
+findfirst( HDIR* hdir, char* path, ULONG attributes, FILEFINDBUF3* buf )
+{
+  ULONG findCount = 1;
+  ULONG rc;
+
+ *hdir = HDIR_CREATE;
+  rc = DosFindFirst( path, hdir, attributes, buf, sizeof(*buf), &findCount, FIL_STANDARD );
+
+  return rc;
+}
+
+/* Finds the next file whose name match the specification in a previous call
+   to findfirst or findnext. */
+ULONG
+findnext( HDIR hdir, FILEFINDBUF3* buf )
+{
+  ULONG findCount = 1;
+  return DosFindNext( hdir, buf, sizeof(*buf), &findCount );
+}
+
+/* Closes the handle to a find request; that is, ends a search. */
+ULONG
+findclose( HDIR hdir )
+{
+  return DosFindClose( hdir );
+}
 
