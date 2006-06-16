@@ -54,6 +54,7 @@
 
 #define VERSION "Real Equalizer 1.21"
 #define MAX_COEF 8192
+#define MAX_FIR  4096
 #define NUM_BANDS  32
 
 static BOOL  mmx_present;
@@ -61,7 +62,7 @@ static BOOL  eqneedinit  = TRUE;
 static BOOL  eqneedsetup = TRUE;
 static HWND  hdialog     = NULLHANDLE;
 
-static float eqbandFIR[2][NUM_BANDS][4096+4];
+static float eqbandFIR[2][NUM_BANDS][MAX_FIR+4]; // somebody writes beyond the size of this array
 
 // note: I originally intended to use 8192 for the finalFIR arrays
 // but Pentium CPUs have a too small cache (16KB) and it totally shits
@@ -70,14 +71,14 @@ static float eqbandFIR[2][NUM_BANDS][4096+4];
 static struct
 {
   float patch[4][2];            // keeps zeros around as fillers
-  float finalFIR[4100][2];
+  float finalFIR[MAX_FIR+4][2];
 
 } patched;
 
-short  finalFIRmmx[4][4100][2]; // four more just for zero padding
+short  finalFIRmmx[4][MAX_FIR+4][2]; // four more just for zero padding
 short  finalAMPi[4];            // four copies for MMX
 
-static float bandgain[2][32];
+static float bandgain[2][NUM_BANDS];
 static BOOL  mute[2][NUM_BANDS];
 static float preamp = 1.0;
 
@@ -88,7 +89,7 @@ static struct
   float* time_domain;
   fftwf_complex* freq_domain;
   fftwf_complex* kernel[2];
-  float* overlap[2];
+  float* overlap[2];       // keep old samples for convolution
 } FFT;
 
 // settings
@@ -102,7 +103,6 @@ char lasteq[CCHMAXPATH];
 
 #define M_PI 3.14159265358979323846
 
-#define WINDOW_HANN( n, N )    (0.50 - 0.50 * cos( 2 * M_PI * n / N ))
 #define WINDOW_HAMMING( n, N ) (0.54 - 0.46 * cos( 2 * M_PI * n / N ))
 
 #define round(n) ((n) > 0 ? (n) + 0.5 : (n) - 0.5)
@@ -159,7 +159,6 @@ filter_init( void** F, FILTER_PARAMS* params )
   f->newsamples = (char*)malloc( params->audio_buffersize );
 
   memset( &f->last_format, 0, sizeof( FORMAT_INFO ));
-  
   return 0;
 }
 
@@ -216,8 +215,6 @@ static BOOL fil_setup( int channels )
     }
   }
 
-  fprintf(stderr, "Alloc-1: %p %p %p %p\n", FFT.freq_domain, FFT.time_domain, FFT.forward_plan, FFT.backward_plan);
- 
   /* prepare data for MMX convolution */ 
 
   // so the largest value don't overflow squeezed in a short
@@ -305,59 +302,12 @@ static BOOL fil_setup( int channels )
     }
   }
 
-  /* debug
-  for(i = 0; i < 4; i++)
-  {
-    printf( "\n\nprinting out finalMMX %d\n\n", i );
-    for( e = 0; e < FIRorder/4; e+=4 )
-    {
-      printf("%f %f %f %f ",
-            (float)finalFIRmmx[i][e+0][0]*largest/pow_2_20,
-            (float)finalFIRmmx[i][e+0][1]*largest/pow_2_20,
-            (float)finalFIRmmx[i][e+2][0]*largest/pow_2_20,
-            (float)finalFIRmmx[i][e+2][1]*largest/pow_2_20);
-    }
-
-    printf( " = CUUUUUUUUUT =" );
-
-    for( e = FIRorder/4; e < 3*FIRorder/4; e+=4 )
-    {
-      printf("%f %f %f %f ",
-            (float)finalFIRmmx[i][e+0][0]*largest/pow_2_15,
-            (float)finalFIRmmx[i][e+0][1]*largest/pow_2_15,
-            (float)finalFIRmmx[i][e+2][0]*largest/pow_2_15,
-            (float)finalFIRmmx[i][e+2][1]*largest/pow_2_15);
-    }
-
-    printf( " = CUUUUUUUUUT =" );
-
-    for( e = 3*FIRorder/4; e <= FIRorder; e+=4 )
-    {
-      printf("%f %f %f %f ",
-            (float)finalFIRmmx[i][e+0][0]*largest/pow_2_20,
-            (float)finalFIRmmx[i][e+0][1]*largest/pow_2_20,
-            (float)finalFIRmmx[i][e+2][0]*largest/pow_2_20,
-            (float)finalFIRmmx[i][e+2][1]*largest/pow_2_20);
-    }
-    printf("\n%d %d %f\n\n",e,finalAMPi,largest);
-  }
-
-  printf( "\n\nprinting out finalFIR  \n\n", i );
-  for( e = 0; e <= FIRorder; e++ ) {
-    printf( "%f ", patched.finalFIR[e][0] );
-  }
-  printf( "\n\nprinting out finalFIRi \n\n", i );
-  for( e = 0; e <= FIRorder; e++ ) {
-    printf( "%f ", (float)finalFIRi[e][0] *largest / pow_2_15);
-  }
-
-  fflush(stdout);
-  */
-
   
   /* prepare FFT convolution */
   
+  #ifdef DEBUG
   fprintf(stderr, "FFT setup\n");
+  #endif
 
   for( channel = 0; channel < channels; channel++ )
   { float* sp = &patched.finalFIR[0][channel];
@@ -366,13 +316,9 @@ static BOOL fil_setup( int channels )
     { *dp++ = *sp / plansize; // normalize
       sp += 2;
     }
-    fprintf(stderr, "FFT setup 1\n");
     memset(dp, 0, (char*)(FFT.time_domain + plansize) - (char*)dp); //padding
-    fprintf(stderr, "FFT setup 2\n");
     // transform
-    fprintf(stderr, "Alloc: %p %p %p %p\n", FFT.freq_domain, FFT.time_domain, FFT.forward_plan, FFT.backward_plan);
     fftwf_execute(FFT.forward_plan);
-    fprintf(stderr, "FFT setup 3\n");
     // store kernel
     memcpy(FFT.kernel[channel], FFT.freq_domain, (plansize/2+1) * sizeof(fftwf_complex));
   }
@@ -388,7 +334,7 @@ static BOOL fil_setup( int channels )
 #define JUMP_R10   0.1
 
 static void
-fil_init( int samplerate, int channels )
+fil_init( REALEQ_STRUCT* f, int samplerate, int channels )
 {
   float eqbandtable[NUM_BANDS+1];
   float fftspecres;
@@ -405,7 +351,8 @@ fil_init( int samplerate, int channels )
 
   if( FIRorder < 2 || FIRorder >= plansize)
   {
-    fprintf(stderr, "very bad! %u %u\n", FIRorder, plansize);
+    (*f->error_display)("very bad! The FIR order and/or the FFT plansize is invalid or the FIRorder is higer or equal to the plansize.");
+    eqenabled = false; // avoid crash
     return;
   }
   
@@ -435,7 +382,6 @@ fil_init( int samplerate, int channels )
   memset(FFT.overlap[1], 0, plansize * sizeof(float)); // initially zero
   FFT.kernel[0] = malloc((plansize/2+1) * sizeof(fftwf_complex));
   FFT.kernel[1] = malloc((plansize/2+1) * sizeof(fftwf_complex));
-  fprintf(stderr, "Alloc: %p %p %p %p\n", FFT.freq_domain, FFT.time_domain, FFT.forward_plan, FFT.backward_plan);
 
   fftspecres = (float)samplerate / plansize;
 
@@ -475,7 +421,6 @@ fil_init( int samplerate, int channels )
     }
 
     fftwf_execute( FFT.backward_plan );
-fprintf(stderr, "Alloc-e: %u, %p %p %p %p\n", e, FFT.freq_domain, FFT.time_domain, FFT.forward_plan, FFT.backward_plan);
     
     // making the FIR filter symetrical
     for( channel = 0; channel < channels; channel++ )
@@ -487,13 +432,10 @@ fprintf(stderr, "Alloc-e: %u, %p %p %p %p\n", e, FFT.freq_domain, FFT.time_domai
 
       eqbandFIR[channel][i][(FIRorder/2)] = FFT.time_domain[0]/2/plansize;
     }
-  fprintf(stderr, "Alloc-v: %u, %u, %p %p %p %p\n", i, e, FFT.freq_domain, FFT.time_domain, FFT.forward_plan, FFT.backward_plan);
   }
 
   eqneedinit = FALSE;
   
-  fprintf(stderr, "fil_init complete \n");
-
   fil_setup( channels );
   return;
 }
@@ -685,7 +627,6 @@ static void do_fft_overlap_add_stereo(short* sp, const int len, float* overlap_b
   const float* op = overlap_buffer;
   int l2 = min(len, FIRorder);
   int l;
-  fprintf(stderr, "sub1: %u\n", l2);  
   // transfer overlapping samples
   for (l = l2 >> 3; l; --l) // coarse
   { DO_8(sp[p<<1] = quantize(dp[p] + op[p]));
@@ -699,7 +640,6 @@ static void do_fft_overlap_add_stereo(short* sp, const int len, float* overlap_b
   }
 
   l2 = len - FIRorder;
-  fprintf(stderr, "sub2: %u\n", l2);  
   if (l2 >= 0)
   { // the usual case, transfer remaining samples
     for (l = l2 >> 3; l; --l) // coarse
@@ -754,35 +694,27 @@ static void filter_samples_fft_stereo( short* newsamples, const short* buf, int 
     if (l2 > len)
       l2 = len;
 
-    fprintf(stderr, "step1: %u\n", l2);
     // left channel
     // convert to float (well, that bill we have to pay)
     do_fft_load_samples_stereo(buf, l2);
-    fprintf(stderr, "step2\n");
     // do FFT
     do_fft_filter(FFT.kernel[0]);
-    fprintf(stderr, "step3\n");
     // convert back to short and use overlap/add
     do_fft_overlap_add_stereo(newsamples, l2, FFT.overlap[0]);
-    fprintf(stderr, "step4\n");
     
     // right channel
     // convert to float (well, that bill we have to pay)
     do_fft_load_samples_stereo(buf+1, l2);
-    fprintf(stderr, "step5\n");
     // do FFT
     do_fft_filter(FFT.kernel[1]);
-    fprintf(stderr, "step6\n");
     // convert back to short and use overlap/add
     do_fft_overlap_add_stereo(newsamples+1, l2, FFT.overlap[1]);
-    fprintf(stderr, "step7\n");
 
     // next block
     len -= l2;
     l2 <<= 1; // stereo
     newsamples += l2;
     buf += l2;
-    fprintf(stderr, "step8: %u\n", len);
   }
 }
 
@@ -805,10 +737,10 @@ filter_play_samples( void* F, FORMAT_INFO* format, char* buf, int len, int posma
     if( memcmp( &f->last_format, format, sizeof( FORMAT_INFO )) != 0 )
     {
       f->last_format = *format;
-      fil_init( format->samplerate, format->channels );
+      fil_init( f, format->samplerate, format->channels );
     }
     else if( eqneedinit  ) {
-      fil_init( format->samplerate, format->channels );
+      fil_init( f, format->samplerate, format->channels );
     }
     else if( eqneedsetup ) {
       fil_setup( format->channels );
@@ -889,17 +821,12 @@ load_ini( void )
   eqenabled   = FALSE;
   eqneedinit  = TRUE;
   eqneedsetup = TRUE;
-  use_mmx     = mmx_present;
-  use_fft     = FALSE;
+  use_mmx     = FALSE; // prefer FFT
+  use_fft     = TRUE;
   lasteq[0]   = 0;
   plansize    = 8192;
+  FIRorder    = 4096;
   locklr      = FALSE;
-
-  if( use_mmx ) {
-    FIRorder  = 512;
-  } else {
-    FIRorder  = 64;
-  }
 
   if(( INIhandle = open_module_ini()) != NULLHANDLE )
   {
@@ -912,6 +839,12 @@ load_ini( void )
     load_ini_string( INIhandle, lasteq, sizeof( lasteq ));
 
     close_ini( INIhandle );
+
+    if (plansize <= FIRorder)
+      FIRorder = plansize >> 1; // avoid crash when INI-Content is bad
+      
+    if (use_fft)
+      use_mmx = FALSE; // migration from older profiles 
   }
 }
 
@@ -1057,7 +990,7 @@ load_dialog( HWND hwnd )
   int i, e;
 
   for( e = 0; e < 2; e++ ) {
-    for( i = 0; i < 32; i++ ) {
+    for( i = 0; i < NUM_BANDS; i++ ) {
 
       // sliders
       MRESULT rangevalue;
@@ -1093,7 +1026,7 @@ load_dialog( HWND hwnd )
   WinSendDlgItemMsg( hwnd, ID_USEFFT,  BM_SETCHECK, MPFROMSHORT( use_fft ), 0 );
 
   WinSendDlgItemMsg( hwnd, ID_FIRORDER, SPBM_SETMASTER, MPFROMLONG( NULLHANDLE ), 0 );
-  WinSendDlgItemMsg( hwnd, ID_FIRORDER, SPBM_SETLIMITS, MPFROMLONG( 4096 ), MPFROMLONG( 16 ));
+  WinSendDlgItemMsg( hwnd, ID_FIRORDER, SPBM_SETLIMITS, MPFROMLONG( MAX_FIR ), MPFROMLONG( 16 ));
   WinSendDlgItemMsg( hwnd, ID_FIRORDER, SPBM_SETCURRENTVALUE, MPFROMLONG( FIRorder ), 0 );
   WinSendDlgItemMsg( hwnd, ID_PLANSIZE, SPBM_SETMASTER, MPFROMLONG( NULLHANDLE ), 0 );
   WinSendDlgItemMsg( hwnd, ID_PLANSIZE, SPBM_SETLIMITS, MPFROMLONG( MAX_COEF ), MPFROMLONG( 32 ));
@@ -1140,7 +1073,7 @@ ConfigureDlgProc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
           MRESULT rangevalue;
 
           for( e = 0; e < 2; e++ ) {
-            for( i = 0; i < 32; i++ ) {
+            for( i = 0; i < NUM_BANDS; i++ ) {
 
               rangevalue = WinSendDlgItemMsg( hwnd, 200+NUM_BANDS*e+i, SLM_QUERYSLIDERINFO,
                                               MPFROM2SHORT( SMA_SLIDERARMPOSITION, SMA_RANGEVALUE ), 0 );
@@ -1199,7 +1132,7 @@ ConfigureDlgProc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
           {
             case SPBN_CHANGE:
               WinSendDlgItemMsg( hwnd, id, SPBM_QUERYVALUE, MPFROMP( &temp ), 0 );
-              if (temp > 4096 || temp >= plansize)
+              if (temp > MAX_FIR || temp >= plansize)
                 WinSendDlgItemMsg( hwnd, id, SPBM_SETCURRENTVALUE, MPFROMLONG( FIRorder ), 0 ); // restore
                else
               { eqneedinit = TRUE;
