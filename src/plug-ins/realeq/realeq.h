@@ -35,6 +35,7 @@
 #define EQ_ENABLED  20
 #define ID_LOCKLR   21
 #define ID_USEMMX   22
+#define ID_USEFFT   23
 
 #define EQ_SAVE     30
 #define EQ_LOAD     31
