@@ -53,9 +53,9 @@
 #define DEBUG
 
 #define VERSION "Real Equalizer 1.21"
-#define MAX_COEF 8192
-#define MAX_FIR  4096
-#define NUM_BANDS  32
+#define MAX_COEF 16384
+#define MAX_FIR  12288
+#define NUM_BANDS   32
 
 static BOOL  mmx_present;
 static BOOL  eqneedinit  = TRUE;
@@ -153,9 +153,9 @@ filter_init( void** F, FILTER_PARAMS* params )
   f->error_display = params->error_display;
   f->prevlen = 0;
 
-  // multiplied by 2 to make some space for past samples, should be enough
-  f->temp = (char*)malloc( params->audio_buffersize * 2 );
-  memset( f->temp, 0, params->audio_buffersize * 2 );
+  // multiplied by 2 to make some space for past samples, should be enough (wasn't)
+  f->temp = (char*)malloc( params->audio_buffersize * 4 );
+  memset( f->temp, 0, params->audio_buffersize * 4 );
   f->newsamples = (char*)malloc( params->audio_buffersize );
 
   memset( &f->last_format, 0, sizeof( FORMAT_INFO ));
@@ -746,9 +746,6 @@ filter_play_samples( void* F, FORMAT_INFO* format, char* buf, int len, int posma
       fil_setup( format->channels );
     }
 
-    memcpy((char*)temp, (char*)temp+f->prevlen, FIRorder*format->channels*format->bits/8 );
-    f->prevlen = len;
-
     if (use_fft)
     { 
       if( format->channels == 2 ) {
@@ -758,6 +755,9 @@ filter_play_samples( void* F, FORMAT_INFO* format, char* buf, int len, int posma
       }
     } else if( use_mmx )
     {
+      memmove((char*)temp, (char*)temp+f->prevlen, FIRorder*format->channels*format->bits/8 );
+      f->prevlen = len;
+      
       if( format->channels == 2 ) {
         filter_samples_mmx_stereo( newsamples, temp, buf, len );
       } else if( format->channels == 1 ) {
@@ -766,6 +766,9 @@ filter_play_samples( void* F, FORMAT_INFO* format, char* buf, int len, int posma
     }
     else
     {
+      memmove((char*)temp, (char*)temp+f->prevlen, FIRorder*format->channels*format->bits/8 );
+      f->prevlen = len;
+
       if( format->channels == 2 ) {
         filter_samples_fpu_stereo( newsamples, temp, buf, len );
       } else if( format->channels == 1) {

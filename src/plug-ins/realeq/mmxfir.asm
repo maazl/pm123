@@ -63,7 +63,7 @@ pop ecx
 pop eax
 %endmacro
 
-%define MAX_ORDER 4100
+%define MAX_ORDER (12288+4)
 
 segment .data align=16 class=DATA use32 FLAT
 
