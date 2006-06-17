@@ -18,57 +18,63 @@ samples processed (in addition to the current sample) to obtain a new
 sample. What does this means?  Ok say you are playing at 44100Hz, this
 means there are 44100 samples passing per second in the filter also, right?
 Ok, so say you'd like to catch 20Hz and filter that decently.  This means
-you will need a filter order of at least 44100/20-1 = 2204!!!  With values
+you will need a filter order of at least 3*44100/20 = 6612!  With values
 in this range, you can make your stereo EQ jealous.
+But be aware of the the following: to get 4Hz resolution at 20Hz to separate
+the lowest two sliders you need a filter order of at least 33000! That high
+filter orders are not supported by the current realeq version because of
+design flaws of the PM123 filter plugin interface.
+So even with the maximum FIR order it is a good advise to set adjected low
+frequency sliders to similar values.
 
 The 32 middle octave bands are calculated by step of 1/3 octave as
 defined by the ISO standard and are as follow in Hz:
 
-16,0
-20,0
-25,0
-31,5
-40,0
-50,0
-63,0
-80,0
-100
-125
-160
-200
-250
-315
-400
-500
-630
-800
-1000
-1250
-1600
-2000
-2500
-3150
-4000
-5000
-6300
-8000
-10000
-12500
-16000
-20000
+16.0	(15.85)
+20.0	(19.95)
+25.0	(25.12)
+31.5	(31.62)
+40.0	(39.81)
+50.0	(50.12)
+63.0	(63.10)
+80.0	(79.43)
+100	(100.0)
+125	(125.9)
+160	(158.5)
+200	(199.5)
+250	(251.2)
+315	(316.2)
+400	(398.1)
+500	(501.2)
+630	(631.0)
+800	(794.3)
+1000	(1000)
+1250	(1259)
+1600	(1585)
+2000	(1995)
+2500	(2512)
+3150	(3162)
+4000	(3981)
+5000	(5012)
+6300	(6310)
+8000	(7943)
+10000	(10000)
+12500	(12590)
+16000	(15850)
+20000	(19950)
 
 The FIR order needs to be a multiple of 2 (or 16 because of MMX). The
 plansize is for the internal FFT and therefore should be a power of 2.
-Just leave it at 8192, that's fine, unless you are planning on playing
-anything way over 48000kHz.
-The plansize MUST be larger the the FIR order.
+Just leave it at 16384 or 8192, that's fine.
+
+The plansize MUST always be larger the the FIR order!
 
 WARNING!! If you do not "Use FFT convolution" and not "Use MMX", the FPU
 will be used and you might not be able to get away with 512 coeficients
 with the FPU.  So change the FIR order to some more reasonable values such
 as 64 before trying it.
 
-With FFT convolution, it can play realtime with 4096 coeficients on a K6/400
+With FFT convolution, it can play realtime with 12288 coeficients on a K6/400
 This is pretty much as good as most professional EQs...!!
 
 
