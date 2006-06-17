@@ -248,7 +248,7 @@ static BOOL fil_setup( REALEQ_STRUCT* f, int samplerate, int channels )
   memset( patched.finalFIR, 0, sizeof( patched.finalFIR ));
   
   // Prepare design coefficients frame
-  coef[0].lf = -6; // very low frequency
+  coef[0].lf = -14; // very low frequency
   coef[0].lv = log_mute_level;
   coef[1].lf = log(10); // subsonic point
   coef[1].lv = log_mute_level;
@@ -256,7 +256,7 @@ static BOOL fil_setup( REALEQ_STRUCT* f, int samplerate, int channels )
     coef[i+2].lf = log(Frequencies[i]);
   coef[NUM_BANDS+2].lf = log(32000); // keep higher frequencies at 0 dB
   coef[NUM_BANDS+2].lv = 0;
-  coef[NUM_BANDS+3].lf = 6; // very high frequency
+  coef[NUM_BANDS+3].lf = 14; // very high frequency
   coef[NUM_BANDS+3].lv = 0;
 
   /* for left, right */
