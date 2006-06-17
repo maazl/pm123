@@ -145,7 +145,7 @@ char lasteq[CCHMAXPATH];
 
 #define round(n) ((n) > 0 ? (n) + 0.5 : (n) - 0.5)
 
-#define DO_8(x) \ 
+#define DO_8(p,x) \ 
 {  { const int p = 0; x; } \
    { const int p = 1; x; } \
    { const int p = 2; x; } \
@@ -242,10 +242,19 @@ static BOOL fil_setup( REALEQ_STRUCT* f, int samplerate, int channels )
   // equalizer design data
   EQcoef coef[NUM_BANDS+4]; // including surounding points
   
-  if( eqneedinit )
-    return FALSE;
+  if( use_mmx )
+    FIRorder = (FIRorder + 15) & 0xFFFFFFF0; /* multiple of 16 */
+   else
+    FIRorder = (FIRorder +  1) & 0xFFFFFFFE; /* multiple of 2  */
 
-  memset( patched.finalFIR, 0, sizeof( patched.finalFIR ));
+  if( eqneedinit || FIRorder < 2 || FIRorder >= plansize)
+  {
+    (*f->error_display)("very bad! The FIR order and/or the FFT plansize is invalid or the FIRorder is higer or equal to the plansize.");
+    eqenabled = FALSE; // avoid crash
+    return FALSE;
+  }
+
+  memset( &patched, 0, sizeof( patched ));
   
   // Prepare design coefficients frame
   coef[0].lf = -14; // very low frequency
@@ -310,7 +319,7 @@ static BOOL fil_setup( REALEQ_STRUCT* f, int samplerate, int channels )
     }
     
     // prepare for FFT convolution
-    // transform back into the time domain, now with window function
+    // transform back into the frequency domain, now with window function
     fftwf_execute(FFT.forward_plan);
     // store kernel
     memcpy(FFT.kernel[channel], FFT.freq_domain, (plansize/2+1) * sizeof(fftwf_complex));
@@ -411,18 +420,6 @@ static void
 fil_init( REALEQ_STRUCT* f, int samplerate, int channels )
 {
   static BOOL FFTinit = FALSE;
-  
-  if( use_mmx )
-    FIRorder = (FIRorder + 15) & 0xFFFFFFF0; /* multiple of 16 */
-   else
-    FIRorder = (FIRorder +  1) & 0xFFFFFFFE; /* multiple of 2  */
-
-  if( FIRorder < 2 || FIRorder >= plansize)
-  {
-    (*f->error_display)("very bad! The FIR order and/or the FFT plansize is invalid or the FIRorder is higer or equal to the plansize.");
-    eqenabled = false; // avoid crash
-    return;
-  }
   
   if (FFTinit)
   { fftwf_destroy_plan(FFT.forward_plan);
@@ -529,16 +526,26 @@ filter_samples_fpu_stereo( short* newsamples, short* temp, char* buf, int len )
   }
 }
 
-/* apply one FFT cycle and process a most plansize-FIRorder samples
+/* apply one FFT cycle and process at most plansize-FIRorder samples
  */
 static void do_fft_filter(fftwf_complex* kp)
 { int l;
   fftwf_complex* dp;
   // FFT
   fftwf_execute(FFT.forward_plan);
-  // convolution
+  // convolution in the frequency domain is simply a series of complex products
   dp = FFT.freq_domain;
-  for (l = plansize/2+1; l; --l)
+  for (l = (plansize/2+1) >> 3; l; --l)
+  { float tmp;
+    DO_8(p,
+      tmp = kp[p][0]*dp[p][1] + kp[p][1]*dp[p][0];
+      dp[p][0] = kp[p][0]*dp[p][0] - kp[p][1]*dp[p][1];
+      dp[p][1] = tmp;
+    );
+    kp += 8;
+    dp += 8;
+  }
+  for (l = (plansize/2+1) & 7; l; --l)
   { float tmp = kp[0][0]*dp[0][1] + kp[0][1]*dp[0][0];
     dp[0][0] = kp[0][0]*dp[0][0] - kp[0][1]*dp[0][1];
     dp[0][1] = tmp;
@@ -554,7 +561,7 @@ static void do_fft_load_samples_mono(const short* sp, const int len)
 { int l;
   float* dp = FFT.time_domain;
   for (l = len >> 3; l; --l) // coarse
-  { DO_8(dp[p] = sp[p]);
+  { DO_8(p, dp[p] = sp[p]);
     sp += 8;
     dp += 8;
   }
@@ -570,7 +577,7 @@ static void do_fft_load_samples_stereo(const short* sp, const int len)
 { int l;
   float* dp = FFT.time_domain;
   for (l = len >> 3; l; --l) // coarse
-  { DO_8(dp[p] = sp[p<<1]);
+  { DO_8(p, dp[p] = sp[p<<1]);
     sp += 16;
     dp += 8;
   }
@@ -597,7 +604,7 @@ static void do_fft_overlap_add_mono(short* sp, const int len, float* overlap_buf
   int l;
   // transfer overlapping samples
   for (l = l2 >> 3; l; --l) // coarse
-  { DO_8(sp[p] = quantize(dp[p] + op[p]));
+  { DO_8(p, sp[p] = quantize(dp[p] + op[p]));
     sp += 8;
     dp += 8;
     op += 8;
@@ -609,7 +616,7 @@ static void do_fft_overlap_add_mono(short* sp, const int len, float* overlap_buf
   if (l2 >= 0)
   { // the usual case, transfer remaining samples
     for (l = l2 >> 3; l; --l) // coarse
-    { DO_8(sp[p] = quantize(dp[p]));
+    { DO_8(p, sp[p] = quantize(dp[p]));
       sp += 8;
       dp += 8;
     }
@@ -618,7 +625,7 @@ static void do_fft_overlap_add_mono(short* sp, const int len, float* overlap_buf
   } else
   { // the unusual and slower case, add remaining overlap
     for (l = -l2 >> 3; l; --l)
-    { DO_8(dp[p] += op[p]);
+    { DO_8(p, dp[p] += op[p]);
       dp += 8;
       op += 8;
     }
@@ -641,7 +648,7 @@ static void do_fft_overlap_add_stereo(short* sp, const int len, float* overlap_b
   int l;
   // transfer overlapping samples
   for (l = l2 >> 3; l; --l) // coarse
-  { DO_8(sp[p<<1] = quantize(dp[p] + op[p]));
+  { DO_8(p, sp[p<<1] = quantize(dp[p] + op[p]));
     sp += 16;
     dp += 8;
     op += 8;
@@ -655,7 +662,7 @@ static void do_fft_overlap_add_stereo(short* sp, const int len, float* overlap_b
   if (l2 >= 0)
   { // the usual case, transfer remaining samples
     for (l = l2 >> 3; l; --l) // coarse
-    { DO_8(sp[p<<1] = quantize(dp[p]));
+    { DO_8(p, sp[p<<1] = quantize(dp[p]));
       sp += 16;
       dp += 8;
     }
@@ -666,7 +673,7 @@ static void do_fft_overlap_add_stereo(short* sp, const int len, float* overlap_b
   } else
   { // the unusual and slower case, add remaining overlap
     for (l = -l2 >> 3; l; --l)
-    { DO_8(dp[p] += op[p]);
+    { DO_8(p, dp[p] += op[p]);
       dp += 8;
       op += 8;
     }
@@ -1147,8 +1154,8 @@ ConfigureDlgProc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
               if (temp > MAX_FIR || temp >= plansize)
                 WinSendDlgItemMsg( hwnd, id, SPBM_SETCURRENTVALUE, MPFROMLONG( FIRorder ), 0 ); // restore
                else
-              { eqneedinit = TRUE;
-                FIRorder = temp; // TODO: dirty threading issue
+              { FIRorder = temp;
+                eqneedsetup = TRUE; // no init required when only the FIRorder changes
               }
               break;
 
