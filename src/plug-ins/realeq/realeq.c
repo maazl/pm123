@@ -50,19 +50,53 @@
 #include <plugin.h>
 #include "realeq.h"
 
-#define DEBUG
+//#define DEBUG
 
 #define VERSION "Real Equalizer 1.21"
 #define MAX_COEF 16384
 #define MAX_FIR  12288
 #define NUM_BANDS   32
 
+// Equalizer filter frequencies
+static const float Frequencies[NUM_BANDS] =
+{ 15.84893192,
+  19.95262315,
+  25.11886432,
+  31.62277660,
+  39.81071706,
+  50.11872336,
+  63.09573445,
+  79.43282347,
+  100.0000000,
+  125.8925412,
+  158.4893192,
+  199.5262315,
+  251.1886432,
+  316.2277660,
+  398.1071706,
+  501.1872336,
+  630.9573445,
+  794.3282347,
+  1000.000000,
+  1258.925412,
+  1584.893192,
+  1995.262315,
+  2511.886432,
+  3162.277660,
+  3981.071706,
+  5011.872336,
+  6309.573445,
+  7943.282347,
+  10000.00000,
+  12589.25412,
+  15848.93192,
+  19952.62315
+};
+
 static BOOL  mmx_present;
 static BOOL  eqneedinit  = TRUE;
 static BOOL  eqneedsetup = TRUE;
 static HWND  hdialog     = NULLHANDLE;
-
-static float eqbandFIR[2][NUM_BANDS][MAX_FIR+4]; // somebody writes beyond the size of this array
 
 // note: I originally intended to use 8192 for the finalFIR arrays
 // but Pentium CPUs have a too small cache (16KB) and it totally shits
@@ -185,38 +219,101 @@ filter_uninit( void* F )
   return TRUE;
 }
 
+typedef struct
+{ float lf; // log frequency
+  float lv; // log value
+} EQcoef;
+
 /* setup FIR kernel */
-static BOOL fil_setup( int channels )
+static BOOL fil_setup( REALEQ_STRUCT* f, int samplerate, int channels )
 {
   int   i, e, channel;
   float largest = 0;
-
+  EQcoef* cop;
+  float* sp;
+  float* dp;
+  const float fftspecres = (float)samplerate / plansize;
+  
   static const float pow_2_20 = 1L << 20;
   static const float pow_2_15 = 1L << 15;
+  // mute = -36dB. More makes no sense since the stopband attenuation
+  // of the window function does not allow significantly better results.
+  const float log_mute_level = -4.144653167; // -36dB
+  // equalizer design data
+  EQcoef coef[NUM_BANDS+4]; // including surounding points
   
-  if( eqneedinit ) {
+  if( eqneedinit )
     return FALSE;
-  }
 
   memset( patched.finalFIR, 0, sizeof( patched.finalFIR ));
+  
+  // Prepare design coefficients frame
+  coef[0].lf = -6; // very low frequency
+  coef[0].lv = log_mute_level;
+  coef[1].lf = log(10); // subsonic point
+  coef[1].lv = log_mute_level;
+  for (i = 0; i < NUM_BANDS; ++i)
+    coef[i+2].lf = log(Frequencies[i]);
+  coef[NUM_BANDS+2].lf = log(32000); // keep higher frequencies at 0 dB
+  coef[NUM_BANDS+2].lv = 0;
+  coef[NUM_BANDS+3].lf = 6; // very high frequency
+  coef[NUM_BANDS+3].lv = 0;
 
   /* for left, right */
   for( channel = 0; channel < channels; channel++ )
-  {
-    for( i = 0; i < NUM_BANDS; i++ ) {
-      if( !mute[channel][i] ) {
-        for( e = 0; e <= FIRorder; e++ ) {
-          patched.finalFIR[e][channel] += bandgain[channel][i] * eqbandFIR[channel][i][e];
-        }
-      }
-    }
+  { 
+    // fill band data
+    for (i = 0; i < NUM_BANDS; ++i)
+      coef[i+2].lv = mute[channel][i] ? log_mute_level : log(bandgain[channel][i]);
 
-    for( e = 0; e <= FIRorder; e++ )
-    {
-      register float f = fabs(patched.finalFIR[e][channel] *= 2 * WINDOW_FUNCTION( e, FIRorder ));
-      if( f > largest )
+    // compose frequency spectrum
+    memset(FFT.freq_domain, 0, (plansize/2+1) * sizeof(fftwf_complex) );
+    cop = coef;
+    for (i = 1; i <= plansize/2; ++i) // do not start at f=0 to avoid log(0)
+    { const float f = i * fftspecres; // current frequency
+      double pos;
+      double val = log(f);
+      while (val > cop[1].lf)
+        ++cop;
+      // do double logarithmic sine^2 interpolation
+      pos = .5 - .5*cos(M_PI * (log(f)-cop[0].lf) / (cop[1].lf-cop[0].lf));
+      val = exp(cop[0].lv + pos * (cop[1].lv - cop[0].lv));
+      FFT.freq_domain[i][0] = i&1 ? -val : val; // 180ø phase shift already inclusive
+      #ifdef DEBUG 
+      fprintf(stderr, "F: %g, %g -> %g = %g dB @ %g\n", f, pos, FFT.freq_domain[i][0], 20*log(val)/log(10), exp(cop[0].lf));
+      #endif
+    } 
+
+    // transform into the time domain
+    fftwf_execute(FFT.backward_plan);
+    #ifdef DEBUG
+    for (i = 0; i < plansize; ++i)
+      fprintf(stderr, "TK: %i, %g\n", i, FFT.time_domain[i]);
+    #endif
+    
+    // reduce phase shift to required minimum
+    memmove(FFT.time_domain, FFT.time_domain + (plansize-FIRorder)/2, (FIRorder+1) * sizeof *FFT.time_domain);
+    memset(FFT.time_domain+FIRorder+1, 0, (plansize-FIRorder-1) * sizeof *FFT.time_domain); // padding
+    
+    // normalize, apply window function and store results
+    sp = FFT.time_domain;
+    dp = &patched.finalFIR[0][channel];
+    for (i = 0; i <= FIRorder; i++)
+    { register float f = fabs( *dp = *sp *= WINDOW_FUNCTION(i, FIRorder) / plansize );
+      *sp++ /= plansize; // normalize for next FFT
+      #ifdef DEBUG
+      fprintf(stderr, "K: %i, %g\n", i, *dp);
+      #endif
+      dp += 2;
+      if (f > largest)
         largest = f;
     }
+    
+    // prepare for FFT convolution
+    // transform back into the time domain, now with window function
+    fftwf_execute(FFT.forward_plan);
+    // store kernel
+    memcpy(FFT.kernel[channel], FFT.freq_domain, (plansize/2+1) * sizeof(fftwf_complex));
   }
 
   /* prepare data for MMX convolution */ 
@@ -224,9 +321,9 @@ static BOOL fil_setup( int channels )
   // so the largest value don't overflow squeezed in a short
   largest += largest / pow_2_15;
   // shouldn't be bigger than 4 so shifting 12 instead of 15 should do it
-  finalAMPi[0] = largest * pow( 2, 12 ) + 1;
+  finalAMPi[0] = largest * (1<<12) + 1;
   // only divide the coeficients by what is in finalAMPi
-  largest = (float)finalAMPi[0] / pow( 2, 12 );
+  largest = (float)finalAMPi[0] / (1<<12);
 
   // making three other copies for MMX
   finalAMPi[1] = finalAMPi[0];
@@ -306,52 +403,19 @@ static BOOL fil_setup( int channels )
     }
   }
 
-  
-  /* prepare FFT convolution */
-  
-  #ifdef DEBUG
-  fprintf(stderr, "FFT setup\n");
-  #endif
-
-  for( channel = 0; channel < channels; channel++ )
-  { float* sp = &patched.finalFIR[0][channel];
-    float* dp = FFT.time_domain;
-    for (e = FIRorder; e; --e)
-    { *dp++ = *sp / plansize; // normalize
-      sp += 2;
-    }
-    memset(dp, 0, (char*)(FFT.time_domain + plansize) - (char*)dp); //padding
-    // transform
-    fftwf_execute(FFT.forward_plan);
-    // store kernel
-    memcpy(FFT.kernel[channel], FFT.freq_domain, (plansize/2+1) * sizeof(fftwf_complex));
-  }
-
   eqneedsetup = FALSE;
   return TRUE;
 }
 
-/* setting the linear frequency functions and transforming them into the time
-/* domain depending on the sampling rate */
-
-#define START_R10  1.25 /* 17,8Hz */
-#define JUMP_R10   0.1
-
 static void
 fil_init( REALEQ_STRUCT* f, int samplerate, int channels )
 {
-  float eqbandtable[NUM_BANDS+1];
-  float fftspecres;
-
   static BOOL FFTinit = FALSE;
   
-  int fftbands, i, e, channel;
-
-  if( use_mmx ) {
+  if( use_mmx )
     FIRorder = (FIRorder + 15) & 0xFFFFFFF0; /* multiple of 16 */
-  } else {
+   else
     FIRorder = (FIRorder +  1) & 0xFFFFFFFE; /* multiple of 2  */
-  }
 
   if( FIRorder < 2 || FIRorder >= plansize)
   {
@@ -360,11 +424,6 @@ fil_init( REALEQ_STRUCT* f, int samplerate, int channels )
     return;
   }
   
-  /* choose plansize. Calculate the smallest power of two that is greater or equal to FIRorder. */
-  /*frexp(FIRorder-1, &plansize);
-  plansize = 1 << plansize;*/
-  
-  fftbands   = plansize / 2 + 1;
   if (FFTinit)
   { fftwf_destroy_plan(FFT.forward_plan);
     fftwf_destroy_plan(FFT.backward_plan);
@@ -376,7 +435,7 @@ fil_init( REALEQ_STRUCT* f, int samplerate, int channels )
     free(FFT.kernel[1]);
   } else
     FFTinit = TRUE;
-  FFT.freq_domain = fftwf_malloc( sizeof( *FFT.freq_domain ) * plansize ); // most likely too large
+  FFT.freq_domain = fftwf_malloc( sizeof( *FFT.freq_domain ) * plansize/2+1 );
   FFT.time_domain = fftwf_malloc( sizeof( *FFT.time_domain ) * plansize );
   FFT.forward_plan = fftwf_plan_dft_r2c_1d( plansize, FFT.time_domain, FFT.freq_domain, FFTW_ESTIMATE );
   FFT.backward_plan = fftwf_plan_dft_c2r_1d( plansize, FFT.freq_domain, FFT.time_domain, FFTW_ESTIMATE );
@@ -387,60 +446,9 @@ fil_init( REALEQ_STRUCT* f, int samplerate, int channels )
   FFT.kernel[0] = malloc((plansize/2+1) * sizeof(fftwf_complex));
   FFT.kernel[1] = malloc((plansize/2+1) * sizeof(fftwf_complex));
 
-  fftspecres = (float)samplerate / plansize;
-
-  eqbandtable[0] = 0; // before hearable stuff
-
-  for( i = 0; i < NUM_BANDS; i++ ) {
-    eqbandtable[i+1] = pow( 10.0, i * JUMP_R10 + START_R10 );
-  }
-
-  for( i = 0; i < NUM_BANDS; i++ )
-  {
-    FFT.freq_domain[0][0] = 0.0;
-    FFT.freq_domain[0][1] = 0.0;
-    e = 1;
-
-    // the design of a band pass filter, yah
-
-    while( fftspecres * e < eqbandtable[i] && e < fftbands - 1 )
-    {
-      FFT.freq_domain[e][0] = 0.0;
-      FFT.freq_domain[e][1] = 0.0;
-      e++;
-    }
-
-    while( fftspecres * e < eqbandtable[i+1] && e < fftbands - 1 )
-    {
-      FFT.freq_domain[e][0] = 1.0;
-      FFT.freq_domain[e][1] = 0.0;
-      e++;
-    }
-
-    while( e < fftbands )
-    {
-      FFT.freq_domain[e][0] = 0.0;
-      FFT.freq_domain[e][1] = 0.0;
-      e++;
-    }
-
-    fftwf_execute( FFT.backward_plan );
-    
-    // making the FIR filter symetrical
-    for( channel = 0; channel < channels; channel++ )
-    {
-      for( e = FIRorder/2; e; e-- ) {
-        eqbandFIR[channel][i][(FIRorder/2)-e] =
-        eqbandFIR[channel][i][(FIRorder/2)+e] = FFT.time_domain[e]/2/plansize;
-      }
-
-      eqbandFIR[channel][i][(FIRorder/2)] = FFT.time_domain[0]/2/plansize;
-    }
-  }
-
   eqneedinit = FALSE;
-  
-  fil_setup( channels );
+
+  fil_setup( f, samplerate, channels );
   return;
 }
 
@@ -739,15 +747,12 @@ filter_play_samples( void* F, FORMAT_INFO* format, char* buf, int len, int posma
 
 
     if( memcmp( &f->last_format, format, sizeof( FORMAT_INFO )) != 0 )
-    {
-      f->last_format = *format;
+    { f->last_format = *format;
       fil_init( f, format->samplerate, format->channels );
-    }
-    else if( eqneedinit  ) {
+    } else if( eqneedinit  ) {
       fil_init( f, format->samplerate, format->channels );
-    }
-    else if( eqneedsetup ) {
-      fil_setup( format->channels );
+    } else if( eqneedsetup ) {
+      fil_setup( f, format->samplerate, format->channels );
     }
 
     if (use_fft)
