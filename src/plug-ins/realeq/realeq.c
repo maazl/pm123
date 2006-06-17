@@ -103,7 +103,11 @@ char lasteq[CCHMAXPATH];
 
 #define M_PI 3.14159265358979323846
 
-#define WINDOW_HAMMING( n, N ) (0.54 - 0.46 * cos( 2 * M_PI * n / N ))
+/* Hamming window
+#define WINDOW_FUNCTION( n, N ) (0.54 - 0.46 * cos( 2 * M_PI * n / N ))
+ * Well, since the EQ does not provide more tham 24dB dynamics
+ * we should use a more agressive window function. */
+#define WINDOW_FUNCTION( n, N ) (0.58 - 0.42 * cos( 2 * M_PI * n / N ))
 
 #define round(n) ((n) > 0 ? (n) + 0.5 : (n) - 0.5)
 
@@ -209,7 +213,7 @@ static BOOL fil_setup( int channels )
 
     for( e = 0; e <= FIRorder; e++ )
     {
-      register float f = fabs(patched.finalFIR[e][channel] *= 2 * WINDOW_HAMMING( e, FIRorder ));
+      register float f = fabs(patched.finalFIR[e][channel] *= 2 * WINDOW_FUNCTION( e, FIRorder ));
       if( f > largest )
         largest = f;
     }
