@@ -127,8 +127,10 @@ static struct
 } FFT;
 
 // settings
-int  FIRorder;
-int  plansize;
+int  newFIRorder; // this is for the GUI only
+int  newPlansize; // this is for the GUI only
+int  FIRorder; // this is for the decoder thread
+int  plansize; // this is for the decoder thread
 BOOL use_mmx   = FALSE;
 BOOL use_fft   = FALSE;
 BOOL eqenabled = FALSE;
@@ -232,7 +234,7 @@ static BOOL fil_setup( REALEQ_STRUCT* f, int samplerate, int channels )
   EQcoef* cop;
   float* sp;
   float* dp;
-  const float fftspecres = (float)samplerate / plansize;
+  float fftspecres;
   
   static const float pow_2_20 = 1L << 20;
   static const float pow_2_15 = 1L << 15;
@@ -253,8 +255,9 @@ static BOOL fil_setup( REALEQ_STRUCT* f, int samplerate, int channels )
     eqenabled = FALSE; // avoid crash
     return FALSE;
   }
-
+  
   memset( &patched, 0, sizeof( patched ));
+  fftspecres = (float)samplerate / plansize;
   
   // Prepare design coefficients frame
   coef[0].lf = -14; // very low frequency
@@ -432,6 +435,12 @@ fil_init( REALEQ_STRUCT* f, int samplerate, int channels )
     free(FFT.kernel[1]);
   } else
     FFTinit = TRUE;
+
+  // copy global parameters for thread safety
+  plansize = newPlansize;
+  FIRorder = newFIRorder;
+
+  // allocate buffers
   FFT.freq_domain = fftwf_malloc( sizeof( *FFT.freq_domain ) * plansize/2+1 );
   FFT.time_domain = fftwf_malloc( sizeof( *FFT.time_domain ) * plansize );
   FFT.forward_plan = fftwf_plan_dft_r2c_1d( plansize, FFT.time_domain, FFT.freq_domain, FFTW_ESTIMATE );
@@ -811,8 +820,8 @@ save_ini( void )
 
   if(( INIhandle = open_module_ini()) != NULLHANDLE )
   {
-    save_ini_value ( INIhandle, FIRorder );
-    save_ini_value ( INIhandle, plansize );
+    save_ini_value ( INIhandle, newFIRorder );
+    save_ini_value ( INIhandle, newPlansize );
     save_ini_value ( INIhandle, eqenabled );
     save_ini_value ( INIhandle, locklr );
     save_ini_value ( INIhandle, use_mmx );
@@ -843,14 +852,14 @@ load_ini( void )
   use_mmx     = FALSE; // prefer FFT
   use_fft     = TRUE;
   lasteq[0]   = 0;
-  plansize    = 8192;
-  FIRorder    = 4096;
+  newPlansize    = 8192;
+  newFIRorder    = 4096;
   locklr      = FALSE;
 
   if(( INIhandle = open_module_ini()) != NULLHANDLE )
   {
-    load_ini_value ( INIhandle, FIRorder );
-    load_ini_value ( INIhandle, plansize );
+    load_ini_value ( INIhandle, newFIRorder );
+    load_ini_value ( INIhandle, newPlansize );
     load_ini_value ( INIhandle, eqenabled );
     load_ini_value ( INIhandle, locklr );
     load_ini_value ( INIhandle, use_mmx );
@@ -859,8 +868,8 @@ load_ini( void )
 
     close_ini( INIhandle );
 
-    if (plansize <= FIRorder)
-      FIRorder = plansize >> 1; // avoid crash when INI-Content is bad
+    if (newPlansize <= newFIRorder)
+      newFIRorder = newPlansize >> 1; // avoid crash when INI-Content is bad
       
     if (use_fft)
       use_mmx = FALSE; // migration from older profiles 
@@ -1046,10 +1055,10 @@ load_dialog( HWND hwnd )
 
   WinSendDlgItemMsg( hwnd, ID_FIRORDER, SPBM_SETMASTER, MPFROMLONG( NULLHANDLE ), 0 );
   WinSendDlgItemMsg( hwnd, ID_FIRORDER, SPBM_SETLIMITS, MPFROMLONG( MAX_FIR ), MPFROMLONG( 16 ));
-  WinSendDlgItemMsg( hwnd, ID_FIRORDER, SPBM_SETCURRENTVALUE, MPFROMLONG( FIRorder ), 0 );
+  WinSendDlgItemMsg( hwnd, ID_FIRORDER, SPBM_SETCURRENTVALUE, MPFROMLONG( newFIRorder ), 0 );
   WinSendDlgItemMsg( hwnd, ID_PLANSIZE, SPBM_SETMASTER, MPFROMLONG( NULLHANDLE ), 0 );
   WinSendDlgItemMsg( hwnd, ID_PLANSIZE, SPBM_SETLIMITS, MPFROMLONG( MAX_COEF ), MPFROMLONG( 32 ));
-  WinSendDlgItemMsg( hwnd, ID_PLANSIZE, SPBM_SETCURRENTVALUE, MPFROMLONG( plansize ), 0 );
+  WinSendDlgItemMsg( hwnd, ID_PLANSIZE, SPBM_SETCURRENTVALUE, MPFROMLONG( newPlansize ), 0 );
 }
 
 MRESULT EXPENTRY
@@ -1151,22 +1160,22 @@ ConfigureDlgProc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
           {
             case SPBN_CHANGE:
               WinSendDlgItemMsg( hwnd, id, SPBM_QUERYVALUE, MPFROMP( &temp ), 0 );
-              if (temp > MAX_FIR || temp >= plansize)
-                WinSendDlgItemMsg( hwnd, id, SPBM_SETCURRENTVALUE, MPFROMLONG( FIRorder ), 0 ); // restore
+              if (temp > MAX_FIR || temp >= newPlansize)
+                WinSendDlgItemMsg( hwnd, id, SPBM_SETCURRENTVALUE, MPFROMLONG( newFIRorder ), 0 ); // restore
                else
-              { FIRorder = temp;
+              { newFIRorder = temp;
                 eqneedsetup = TRUE; // no init required when only the FIRorder changes
               }
               break;
 
             case SPBN_UPARROW:
-              temp = (FIRorder & ~0xF) + 16;
-              if (temp < plansize)
+              temp = (newFIRorder & ~0xF) + 16;
+              if (temp < newPlansize)
                 WinSendDlgItemMsg( hwnd, id, SPBM_SETCURRENTVALUE, MPFROMLONG( temp ), 0 );
               break;
 
             case SPBN_DOWNARROW:
-              temp = (FIRorder & ~0xF) - 16;
+              temp = (newFIRorder & ~0xF) - 16;
               if (temp >= 16)
                 WinSendDlgItemMsg( hwnd, id, SPBM_SETCURRENTVALUE, MPFROMLONG(temp), 0 );
               break;
@@ -1178,26 +1187,26 @@ ConfigureDlgProc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
           {
             case SPBN_CHANGE:
               WinSendDlgItemMsg( hwnd, id, SPBM_QUERYVALUE, MPFROMP(&temp), 0 );
-              if (temp > MAX_COEF || temp <= FIRorder)
-                WinSendDlgItemMsg( hwnd, id, SPBM_SETCURRENTVALUE, MPFROMLONG(plansize), 0 ); // restore
+              if (temp > MAX_COEF || temp <= newFIRorder)
+                WinSendDlgItemMsg( hwnd, id, SPBM_SETCURRENTVALUE, MPFROMLONG(newPlansize), 0 ); // restore
                else
-              { plansize = temp;
+              { newPlansize = temp;
                 eqneedinit = TRUE;
               }
               break;
 
             case SPBN_UPARROW:
-              temp = plansize << 1;
+              temp = newPlansize << 1;
               if (temp > MAX_COEF)
                 temp = MAX_COEF;
               WinSendDlgItemMsg( hwnd, id, SPBM_SETCURRENTVALUE, MPFROMLONG(temp), 0 );
               break;
 
             case SPBN_DOWNARROW:
-              temp = plansize >> 1;
-              if (temp <= FIRorder)
+              temp = newPlansize >> 1;
+              if (temp <= newFIRorder)
               { int i;
-                frexp(FIRorder, &i);
+                frexp(newFIRorder, &i);
                 temp = 1 << i; // round up to next power of two
               }
               WinSendDlgItemMsg( hwnd, id, SPBM_SETCURRENTVALUE, MPFROMLONG(temp), 0 );
