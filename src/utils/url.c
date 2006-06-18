@@ -96,7 +96,7 @@ void url_allocate( URL* url, const char* original_url )
   // Skip over characters allowed in the scheme name
 
   for( pc = tail; isalnum(*pc) || (*pc=='+') || (*pc=='-') || (*pc=='.'); ++pc )
-    NULL;
+  {}
 
   if( *pc == ':' && pc > tail )
   {
