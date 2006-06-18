@@ -33,9 +33,9 @@
    already has a sock_strerror() ) for TCP/IP in OS/2 and returns
    the string in the comments */
 
-#if defined(__IBMC__) || defined(__IBMCPP__)
-  #include <nerrno.h>
+#if defined(__IBMC__) || defined(__IBMCPP__) || defined(__WATCOMC__)
   #include <errno.h>
+  #include <nerrno.h>
 #else
   #include <sys/errno.h>
 #endif

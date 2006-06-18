@@ -7,15 +7,15 @@
 INCLUDE = $(INCLUDE);
 LIB     = $(LIB);
 
-all: utilfct.lib
+all: utilfct.lib $(MKSYMB)
 
-OBJECTS = utilfct.obj  bufstream.obj fileutil.obj  url.obj \
-          filefind.obj errorstr.obj  rel2abs.obj   abs2rel.obj \
-          inimacro.obj charset.obj   wildcards.obj queue.obj
+OBJECTS = utilfct.obj bufstream.obj fileutil.obj url.obj filefind.obj
+OBJECTS = $(OBJECTS) errorstr.obj rel2abs.obj abs2rel.obj inimacro.obj
+OBJECTS = $(OBJECTS) charset.obj wildcards.obj queue.obj
 
 utilfct.lib: $(OBJECTS)
    if exist $@ del $@
-   $(LB) $@ $(OBJECTS);
+   $(LB) $@ $(OBJECTS) $(LE)
 
-clean:
+clean: $(MKSYMB)
   -@del utilfct.lib oddfct.lst $(OBJECTS) $(RESOURCE) 2> nul

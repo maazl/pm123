@@ -35,7 +35,7 @@
 #define  INCL_WIN
 #include <os2.h>
 
-int ch_rus_detect( const char *source );
+static int ch_rus_detect( const char *source );
 
 const CH_ENTRY ch_list[] =
 {
