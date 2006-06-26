@@ -80,6 +80,7 @@ static  HWND   hanalyzer;
 static  HDIVE  hdive;
 static  RGB2   palette[24];
 static  float* amps;
+static  float* lastamps;
 static  int    amps_count;
 static  ULONG* bars;
 static  int    bars_count;
@@ -150,10 +151,12 @@ init_bands( void )
   }
 
   amps  = realloc( amps,  sizeof(*amps ) * amps_count );
+  lastamps = realloc( lastamps,  sizeof(*amps ) * amps_count );
   bars  = realloc( bars,  sizeof(*bars ) * plug.cx );
   scale = realloc( scale, sizeof(*scale) * ( bars_count + 1 ));
 
   memset( amps,  0, sizeof( *amps  ) * amps_count );
+  memset( lastamps,  0, sizeof( *lastamps  ) * amps_count );
   memset( bars,  0, sizeof( *bars  ) * plug.cx );
 
   step     = log( amps_count ) / bars_count;
@@ -179,14 +182,27 @@ static void
 free_bands( void )
 {
   free( amps  );
+  free( lastamps );
   free( bars  );
   free( scale );
 
   amps_count = 0;
   bars_count = 0;
   amps       = NULL;
+  lastamps   = NULL;
   bars       = NULL;
   scale      = NULL;
+}
+
+/* like _specana_dobands but return -1 if the values did not change,
+ * most likely because of a pause condition.
+ */ 
+static int call_specana_dobands(void)
+{ int r = _specana_dobands(amps);
+  if (memcmp(amps, lastamps, amps_count * sizeof *amps) == 0)
+    return -1;
+  memcpy(lastamps, amps, amps_count * sizeof *amps);
+  return r;
 }
 
 static void
@@ -201,6 +217,199 @@ clear_analyzer( void )
   DiveEndImageBufferAccess( hdive, image_id );
   DiveBlitImage( hdive, image_id, 0 );
 }
+
+/* Do the regular update of the analysis window.
+ * This is called at the WM_TIMER event of the analyzer window.
+ */
+static void update_analyzer(void)
+{
+  long i, x, y, z, max, e, color;
+  unsigned long image_cx, image_cy;
+  char* image = NULL;
+
+  if( _decoderPlaying() == 0 )
+  { if ( !is_stopped )
+    { is_stopped = TRUE;
+      DiveBlitImage( hdive, 0, 0 );
+      memset( bars,  0, sizeof( *bars ) * plug.cx );
+    }
+    return;
+  }
+  // _decoderPlaying() == 1
+
+  switch (cfg.default_mode)
+  {case SHOW_ANALYZER:
+
+    max = call_specana_dobands();
+    if (max <= 0) // no changes or no valid content
+      break;
+    
+    DiveBeginImageBufferAccess( hdive, image_id, &image, &image_cx, &image_cy );
+    memset( image, 0, image_cx * image_cy );
+
+    // Grid
+    for( y = 0; y < plug.cy; y += 2 ) {
+      for( x = 0; x < plug.cx; x += 2 ) {
+        image[( y * image_cx ) + x ] = 1;
+      }
+    }
+
+    for( x = 0; x < plug.cx; x++ )
+    {
+      z = max( plug.cy * log10( 150 * amps[ x + 1 ] / max + 1 ), 0 );
+      z = min( z, plug.cy - 1 );
+  
+      if( cfg.falloff  && bars[x] > cfg.falloff_speed ) {
+        bars[x] = max( z, bars[x] - cfg.falloff_speed );
+      } else {
+        bars[x] = z;
+      }
+
+      for( y = 0; y < bars[x]; y++ )
+      {
+        color = ( CLR_ANA_TOP - CLR_ANA_BOTTOM ) * y / ( plug.cy - bars[x] ) + CLR_ANA_BOTTOM;
+        color = min( CLR_ANA_TOP, color );
+        image[( plug.cy - y ) * image_cx + x ] = color;
+      }
+    }
+    break;  
+
+   case SHOW_BARS:
+
+    max = call_specana_dobands();
+    if (max <= 0) // no changes or no valid content
+      break;
+    
+    DiveBeginImageBufferAccess( hdive, image_id, &image, &image_cx, &image_cy );
+    memset( image, 0, image_cx * image_cy );
+
+    // Grid
+    for( y = 0; y < plug.cy; y += 2 ) {
+      for( x = 0; x < plug.cx; x += 2 ) {
+        image[( y * image_cx ) + x ] = 1;
+      }
+    }
+
+    for( i = 0; i < bars_count; i++ )
+    {
+      float a = 0;
+      for( e = scale[i]; e < scale[i+1]; e++ ) {
+        a += amps[e];
+      }
+
+      z = max( plug.cy * log( 30 * a / max + 1 ), 0 );
+      z = min( z, plug.cy - 1 );
+
+      if( cfg.falloff  && bars[i] > cfg.falloff_speed ) {
+        bars[i] = max( z, bars[i] - cfg.falloff_speed );
+      } else {
+        bars[i] = z;
+      }
+
+      for( y = 0; y < bars[i]; y++ )
+      {
+        color = ( CLR_ANA_TOP - CLR_ANA_BOTTOM ) * y / plug.cy + CLR_ANA_BOTTOM;
+        color = min( CLR_ANA_TOP, color );
+        for( x = 0; x < BARS_CY; x++ ) {
+          image[( plug.cy - y ) * image_cx + ( BARS_CY + BARS_SPACE ) * i + x ] = color;
+        }
+      }
+    }
+    break;
+
+   case SHOW_SPECTROSCOPE:
+
+    max = call_specana_dobands();
+    if (max <= 0) // no changes or no valid content
+      break;
+
+    DiveBeginImageBufferAccess( hdive, image_id, &image, &image_cx, &image_cy );
+    { char* ip = image + (plug.cy-1) * image_cx; // bottom line
+      if (is_stopped)
+        // first call after restart
+        memset(image, 0, (plug.cy-1) * image_cx);
+       else 
+        // move image one pixel up
+        memmove(image, image+image_cx, (plug.cy-1) * image_cx);
+    
+      for( x = 0; x < plug.cx; x++ )
+      {
+        z = max( plug.cy * log10( 150 * amps[ x + 1 ] / max + 1 ), 0 );
+        z = min( z, plug.cy - 1 );
+
+        if( cfg.falloff  && bars[x] > cfg.falloff_speed ) {
+          bars[x] = max( z, bars[x] - cfg.falloff_speed );
+        } else {
+          bars[x] = z;
+        }
+
+        color = ( CLR_ANA_TOP - CLR_ANA_BOTTOM ) * bars[x] / plug.cy + CLR_ANA_BOTTOM;
+        color = min( CLR_ANA_TOP, color );
+        ip[x] = color;
+      }
+    }
+    break;
+
+   case SHOW_OSCILLOSCOPE:
+
+    DiveBeginImageBufferAccess( hdive, image_id, &image, &image_cx, &image_cy );
+    { FORMAT_INFO bufferinfo;
+      unsigned char* sample;
+      int   len;
+
+      memset( image, 0, image_cx * image_cy );
+
+      // Grid
+      for( y = 0; y < plug.cy; y += 2 ) {
+        for( x = 0; x < plug.cx; x += 2 ) {
+          image[( y * image_cx ) + x ] = 1;
+        }
+      }
+
+      _decoderPlayingSamples( &bufferinfo, NULL, 0 );
+
+      len = bufferinfo.channels * plug.cx;
+      max = 0x7FFFFFFFUL >> ( 32 - bufferinfo.bits );
+
+      if( bufferinfo.bits >  8 ) {
+        len *= 2;
+      }
+      if( bufferinfo.bits > 16 ) {
+        len *= 2;
+      }
+
+      sample = _alloca( len );
+      _decoderPlayingSamples( &bufferinfo, sample, len );
+
+      for( x = 0; x < plug.cx; x++ )
+      {
+        z = 0;
+        for( e = 0; e < bufferinfo.channels; e++ ) {
+          if( bufferinfo.bits <= 8 ) {
+            z += (sample[x+e] - 128) / bufferinfo.channels;
+          } else if( bufferinfo.bits <= 16 ) {
+            z += ((short*)sample)[x+e] / bufferinfo.channels;
+          } else if( bufferinfo.bits <= 32 ) {
+            z += ((long* )sample)[x+e] / bufferinfo.channels;
+          }
+        }
+
+        y = plug.cy / 2 + plug.cy * z / 2 / max;
+        color = ( CLR_OSC_BRIGHT - CLR_OSC_DIMMEST + 2 ) * abs(z) / max + CLR_OSC_DIMMEST;
+        color = min( CLR_OSC_BRIGHT, color );
+        image[ y * image_cx + x ] = color;
+      }
+    }
+    break;
+  }
+
+  if (image != NULL)
+  { DiveEndImageBufferAccess( hdive, 0 );
+    DiveBlitImage( hdive, image_id, 0 );
+  }
+  is_stopped = FALSE;
+}
+
 
 /* Returns information about plug-in. */
 int _System
@@ -370,133 +579,8 @@ plg_win_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
       break;
 
     case WM_TIMER:
-    {
-      long i, x, y, z, max, e, color;
-      unsigned long image_cx, image_cy;
-      char* image;
-
-      DiveBeginImageBufferAccess( hdive, image_id, &image, &image_cx, &image_cy );
-      memset( image, 0, image_cx * image_cy );
-
-      for( y = 0; y < plug.cy; y += 2 ) {
-        for( x = 0; x < plug.cx; x += 2 ) {
-          image[( y * image_cx ) + x ] = 1;
-        }
-      }
-
-      if( cfg.default_mode == SHOW_ANALYZER && _decoderPlaying() == 1 )
-      {
-        if(( max = _specana_dobands( amps )) != 0 ) {
-          for( x = 0; x < plug.cx; x++ )
-          {
-            z = max( plug.cy * log10( 150 * amps[ x + 1 ] / max + 1 ), 0 );
-            z = min( z, plug.cy - 1 );
-
-            if( cfg.falloff  && bars[x] > cfg.falloff_speed ) {
-              bars[x] = max( z, bars[x] - cfg.falloff_speed );
-            } else {
-              bars[x] = z;
-            }
-
-            for( y = 0; y < bars[x]; y++ )
-            {
-              color = ( CLR_ANA_TOP - CLR_ANA_BOTTOM ) * y / ( plug.cy - bars[x] ) + CLR_ANA_BOTTOM;
-              color = min( CLR_ANA_TOP, color );
-              image[( plug.cy - y ) * image_cx + x ] = color;
-            }
-          }
-        }
-      }
-      else if( cfg.default_mode == SHOW_BARS && _decoderPlaying() == 1 )
-      {
-        if(( max = _specana_dobands( amps )) != 0 ) {
-          for( i = 0; i < bars_count; i++ )
-          {
-            float a = 0;
-            for( e = scale[i]; e < scale[i+1]; e++ ) {
-              a += amps[e];
-            }
-
-            z = max( plug.cy * log( 30 * a / max + 1 ), 0 );
-            z = min( z, plug.cy - 1 );
-
-            if( cfg.falloff  && bars[i] > cfg.falloff_speed ) {
-              bars[i] = max( z, bars[i] - cfg.falloff_speed );
-            } else {
-              bars[i] = z;
-            }
-
-            for( y = 0; y < bars[i]; y++ )
-            {
-              color = ( CLR_ANA_TOP - CLR_ANA_BOTTOM ) * y / plug.cy + CLR_ANA_BOTTOM;
-              color = min( CLR_ANA_TOP, color );
-              for( x = 0; x < BARS_CY; x++ ) {
-                image[( plug.cy - y ) * image_cx + ( BARS_CY + BARS_SPACE ) * i + x ] = color;
-              }
-            }
-          }
-        }
-      }
-      else if( cfg.default_mode == SHOW_OSCILLOSCOPE && _decoderPlaying() == 1 )
-      {
-        FORMAT_INFO bufferinfo;
-        unsigned char* sample;
-        int   len;
-
-        _decoderPlayingSamples( &bufferinfo, NULL, 0 );
-
-        len = bufferinfo.channels * plug.cx;
-        max = 0x7FFFFFFFUL >> ( 32 - bufferinfo.bits );
-
-        if( bufferinfo.bits >  8 ) {
-          len *= 2;
-        }
-        if( bufferinfo.bits > 16 ) {
-          len *= 2;
-        }
-
-        sample = _alloca( len );
-        _decoderPlayingSamples( &bufferinfo, sample, len );
-
-        for( x = 0; x < plug.cx; x++ )
-        {
-          z = 0;
-          for( e = 0; e < bufferinfo.channels; e++ ) {
-            if( bufferinfo.bits <= 8 ) {
-              z += (sample[x+e] - 128) / bufferinfo.channels;
-            } else if( bufferinfo.bits <= 16 ) {
-              z += ((short*)sample)[x+e] / bufferinfo.channels;
-            } else if( bufferinfo.bits <= 32 ) {
-              z += ((long* )sample)[x+e] / bufferinfo.channels;
-            }
-          }
-
-          y = plug.cy / 2 + plug.cy * z / 2 / max;
-          color = ( CLR_OSC_BRIGHT - CLR_OSC_DIMMEST + 2 ) * abs(z) / max + CLR_OSC_DIMMEST;
-          color = min( CLR_OSC_BRIGHT, color );
-          image[ y * image_cx + x ] = color;
-        }
-      }
-
-      DiveEndImageBufferAccess( hdive, 0 );
-
-      if( _decoderPlaying() == 0 && !is_stopped )
-      {
-        is_stopped = TRUE;
-        DiveBlitImage( hdive, 0, 0 );
-        memset( bars,  0, sizeof( *bars ) * plug.cx );
-      }
-      else if( _decoderPlaying() == 1 )
-      {
-        is_stopped = FALSE;
-      }
-
-      if( _decoderPlaying() == 1 && cfg.default_mode != SHOW_DISABLED ) {
-        DiveBlitImage( hdive, image_id, 0 );
-      }
-
+      update_analyzer();
       break;
-    }
 
     default:
       return WinDefWindowProc( hwnd, msg, mp1, mp2 );
@@ -576,7 +660,8 @@ vis_init( PVISPLUGININIT init )
 
   memset( palette, 0, sizeof( palette ));
 
-  if( plug.param && *plug.param && ( dat = fopen( plug.param, "r" )))
+  if ( ( plug.param && *plug.param && (dat = fopen(plug.param, "r")) )
+    || ( dat = fopen("analyzer.pal","r")) )
   {
     read_color( dat, &palette[CLR_BGR_BLACK] );
     read_color( dat, &palette[CLR_BGR_GREY ] );

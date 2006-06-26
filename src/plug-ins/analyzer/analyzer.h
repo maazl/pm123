@@ -46,13 +46,15 @@
 #define RB_ANALYZER      104
 #define RB_BARS          105
 #define RB_OSCILLOSCOPE  106
-#define RB_DISABLED      107
+#define RB_SPECTROSCOPE  107
+#define RB_DISABLED      108
 #define ST_ABOUT         110
 #define ST_AUTHOR        120
 
 #define SHOW_ANALYZER      0
 #define SHOW_BARS          1
 #define SHOW_OSCILLOSCOPE  2
-#define SHOW_DISABLED      3
+#define SHOW_SPECTROSCOPE  3
+#define SHOW_DISABLED      4
 
 #endif /* _ANALYZER_H */
