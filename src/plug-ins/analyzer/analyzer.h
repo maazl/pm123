@@ -42,19 +42,21 @@
 #define CB_FALLOFF       115
 #define SB_FALLOFF       114
 #define ST_PIXELS        116
-#define ST_DEFAULT       109
 #define RB_ANALYZER      104
 #define RB_BARS          105
 #define RB_OSCILLOSCOPE  106
 #define RB_SPECTROSCOPE  107
-#define RB_DISABLED      108
-#define ST_ABOUT         110
-#define ST_AUTHOR        120
+#define RB_LOGSPECSCOPE  108
+#define RB_DISABLED      109
+#define ST_DEFAULT       130
+#define ST_ABOUT         131
+#define ST_AUTHOR        132
 
 #define SHOW_ANALYZER      0
 #define SHOW_BARS          1
 #define SHOW_OSCILLOSCOPE  2
 #define SHOW_SPECTROSCOPE  3
-#define SHOW_DISABLED      4
+#define SHOW_LOGSPECSCOPE  4
+#define SHOW_DISABLED      5
 
 #endif /* _ANALYZER_H */

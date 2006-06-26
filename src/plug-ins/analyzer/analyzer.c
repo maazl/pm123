@@ -85,6 +85,8 @@ static  int    amps_count;
 static  ULONG* bars;
 static  int    bars_count;
 static  int*   scale;
+static  int    specband_count;
+static  int*   spec_scale;
 static  ULONG  image_id;
 static  BOOL   is_stopped;
 
@@ -143,17 +145,19 @@ init_bands( void )
   float step, z;
   int   i;
 
-  amps_count = _specana_init(( plug.cx << 1 ) * 100 / cfg.display_percent );
+  amps_count = _specana_init(( plug.cx << 2 ) * 100 / cfg.display_percent );
   bars_count = plug.cx / ( BARS_CY + BARS_SPACE );
+  specband_count = plug.cy;
 
   if( plug.cx - bars_count * ( BARS_CY + BARS_SPACE ) >= BARS_CY ) {
     ++bars_count;
   }
 
-  amps  = realloc( amps,  sizeof(*amps ) * amps_count );
-  lastamps = realloc( lastamps,  sizeof(*amps ) * amps_count );
-  bars  = realloc( bars,  sizeof(*bars ) * plug.cx );
-  scale = realloc( scale, sizeof(*scale) * ( bars_count + 1 ));
+  amps       = realloc( amps,       sizeof(*amps ) * amps_count );     
+  lastamps   = realloc( lastamps,   sizeof(*amps ) * amps_count );     
+  bars       = realloc( bars,       sizeof(*bars ) * plug.cx );        
+  scale      = realloc( scale,      sizeof(*scale) * (bars_count+1));
+  spec_scale = realloc( spec_scale, sizeof(*spec_scale) * (specband_count+1));
 
   memset( amps,  0, sizeof( *amps  ) * amps_count );
   memset( lastamps,  0, sizeof( *lastamps  ) * amps_count );
@@ -162,18 +166,27 @@ init_bands( void )
   step     = log( amps_count ) / bars_count;
   z        = 0;
   scale[0] = 1;
-
   for( i = 1; i < bars_count; i++ )
-  {
-    z += step;
+  { z += step;
     scale[i] = exp( z );
 
-    if( i > 0 && scale[i] <= scale[i-1] ) {
+    if( i > 0 && scale[i] <= scale[i-1] )
       scale[i] = scale[i-1] + 1;
-    }
   }
-
   scale[bars_count] = amps_count;
+
+  step     = log( amps_count ) / specband_count;
+  z        = 0;
+  spec_scale[0] = 1;
+  for( i = 1; i < specband_count; i++ )
+  { z += step;
+    spec_scale[i] = exp( z );
+
+    if( i > 0 && spec_scale[i] <= spec_scale[i-1] )
+      spec_scale[i] = spec_scale[i-1] + 1;
+  }
+  spec_scale[specband_count] = amps_count;
+
   return amps_count;
 }
 
@@ -185,6 +198,7 @@ free_bands( void )
   free( lastamps );
   free( bars  );
   free( scale );
+  free( spec_scale );
 
   amps_count = 0;
   bars_count = 0;
@@ -256,7 +270,7 @@ static void update_analyzer(void)
 
     for( x = 0; x < plug.cx; x++ )
     {
-      z = max( plug.cy * log10( 150 * amps[ x + 1 ] / max + 1 ), 0 );
+      z = max( plug.cy * log10( 75 * (amps[2*x+1]+amps[2*x+2]) / max + 1 ), 0 );
       z = min( z, plug.cy - 1 );
   
       if( cfg.falloff  && bars[x] > cfg.falloff_speed ) {
@@ -297,7 +311,7 @@ static void update_analyzer(void)
         a += amps[e];
       }
 
-      z = max( plug.cy * log( 30 * a / max + 1 ), 0 );
+      z = max( plug.cy * log( 15 * a / max + 1 ), 0 );
       z = min( z, plug.cy - 1 );
 
       if( cfg.falloff  && bars[i] > cfg.falloff_speed ) {
@@ -334,7 +348,7 @@ static void update_analyzer(void)
     
       for( x = 0; x < plug.cx; x++ )
       {
-        z = max( plug.cy * log10( 150 * amps[ x + 1 ] / max + 1 ), 0 );
+        z = max( plug.cy * log10( 75 * (amps[2*x+1]+amps[2*x+2]) / max + 1 ), 0 );
         z = min( z, plug.cy - 1 );
 
         if( cfg.falloff  && bars[x] > cfg.falloff_speed ) {
@@ -346,6 +360,46 @@ static void update_analyzer(void)
         color = ( CLR_ANA_TOP - CLR_ANA_BOTTOM ) * bars[x] / plug.cy + CLR_ANA_BOTTOM;
         color = min( CLR_ANA_TOP, color );
         ip[x] = color;
+      }
+    }
+    break;
+
+   case SHOW_LOGSPECSCOPE:
+
+    max = call_specana_dobands();
+    if (max <= 0) // no changes or no valid content
+      break;
+
+    DiveBeginImageBufferAccess( hdive, image_id, &image, &image_cx, &image_cy );
+    { char* ip = image + (plug.cx-1); // last pixel, first line
+      if (is_stopped)
+        // first call after restart
+        memset(image, 0, plug.cy*image_cx);
+       else 
+        // move image left one pixel
+        memmove(image, image+1, plug.cy*image_cx -1);
+    
+      for( i = 0; i < specband_count; i++ )
+      { 
+        float a = 0;
+        for( e = spec_scale[i]; e < spec_scale[i+1]; e++ ) {
+          a += amps[e];
+        }
+        
+        z = plug.cy * log10( 50 * a / max + 1 );
+        if (z < 0)
+          z = 0;
+         else if (z >= plug.cy)
+          z = plug.cy-1;
+
+        if( cfg.falloff  && bars[i] > cfg.falloff_speed )
+          bars[i] = max( z, bars[i] - cfg.falloff_speed );
+         else
+          bars[i] = z;
+
+        color = ( CLR_ANA_TOP - CLR_ANA_BOTTOM ) * bars[i] / plug.cy + CLR_ANA_BOTTOM;
+        color = min( CLR_ANA_TOP, color );
+        ip[(plug.cy-i-1)*image_cx] = color;
       }
     }
     break;
@@ -437,7 +491,7 @@ cfg_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
       WinCheckButton( hwnd, CB_FALLOFF, cfg.falloff );
 
       WinSendDlgItemMsg( hwnd, SB_PERCENT,   SPBM_SETLIMITS,
-                         MPFROMLONG( 100 ), MPFROMLONG( 1 ));
+                         MPFROMLONG( 100 ), MPFROMLONG( 25 )); // lower values may decrease speed
       WinSendDlgItemMsg( hwnd, SB_PERCENT,   SPBM_SETCURRENTVALUE,
                          MPFROMLONG( cfg.display_percent ), 0 );
       WinSendDlgItemMsg( hwnd, SB_FREQUENCY, SPBM_SETLIMITS,
