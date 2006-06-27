@@ -63,32 +63,116 @@ static struct analyzer_cfg {
 
 } cfg;
 
-#define CLR_BGR_BLACK   0
-#define CLR_BGR_GREY    1
-#define CLR_ANA_BOTTOM  2
-#define CLR_ANA_TOP     17
-#define CLR_OSC_DIMMEST 18
-#define CLR_OSC_BRIGHT  22
-#define CLR_ANA_BARS    23
+#define CLR_BGR_BLACK   0 // Background
+#define CLR_BGR_GREY    1 // grid
+#define CLR_OSC_DIMMEST 2 // oscilloscope dark
+#define CLR_OSC_BRIGHT  6 // oscilloscope light
+#define CLR_ANA_BARS    7 // don't know
+#define CLR_SPC_BOTTOM  8 // dark spectrum
+#define CLR_ANA_BOTTOM  32// low bar
+#define CLR_ANA_TOP     72// high bar
+#define CLR_SPC_TOP     79// full power spectrum
+#define CLR_SIZE        80
 
 #define BARS_CY         3
 #define BARS_SPACE      1
 
+static  RGB2   palette[CLR_SIZE] = { // B,G,R!
+  {0,0,0},  // background
+  {0,90,0}, // grid
+  {0,180,0},// oscilloscope
+  {0,200,0},
+  {0,225,0},
+  {0,255,0},
+  {0,255,0},// oscilloscope
+  {0,255,0},// ANA_BARS?
+  {0,0,0},  // spectrum low
+  {0,0,11},
+  {0,0,21},
+  {0,0,32},
+  {0,0,43},
+  {0,0,53},
+  {0,0,64},
+  {0,0,74},
+  {0,0,85},
+  {0,0,96},
+  {0,0,106},
+  {0,0,117},
+  {0,0,128},
+  {0,0,138},
+  {0,0,149},
+  {0,0,159},
+  {0,0,170},
+  {0,0,181},
+  {0,0,191},
+  {0,0,202},
+  {0,0,213},
+  {0,0,223},
+  {0,0,234},
+  {0,0,244},
+  {0,0,255},// low bar
+  {0,13,255},
+  {0,25,254}, 
+  {0,37,253},
+  {0,48,252},
+  {0,60,251}, 
+  {0,71,249},
+  {0,81,247},
+  {0,92,245},
+  {0,102,242},
+  {0,112,239},
+  {0,121,236},
+  {0,130,232},
+  {0,139,228},
+  {0,147,224},
+  {0,155,219},
+  {0,163,214},
+  {0,171,209},
+  {0,178,203},
+  {0,185,197},
+  {0,191,191},
+  {0,197,185},
+  {0,203,178},
+  {0,209,171},
+  {0,214,163},
+  {0,219,155},
+  {0,224,147},
+  {0,228,139},
+  {0,232,130},
+  {0,236,121},
+  {0,239,112},
+  {0,242,102},
+  {0,245,92},
+  {0,247,81},
+  {0,249,71},
+  {0,251,60},
+  {0,252,48},
+  {0,253,37},
+  {0,254,25},
+  {0,255,13},
+  {0,255,0}, // high bar
+  {20,255,0},
+  {40,255,0},
+  {60,255,0},
+  {80,255,0},
+  {100,255,0},
+  {120,255,0},
+  {140,255,0} };// high spectroscope
 static  HAB    hab;
 static  HWND   hconfigure;
 static  HWND   hanalyzer;
 static  HDIVE  hdive;
-static  RGB2   palette[24];
 static  float* amps;
 static  float* lastamps;
 static  int    amps_count;
-static  ULONG* bars;
+static  float* bars;
 static  int    bars_count;
 static  int*   scale;
 static  int    specband_count;
 static  int*   spec_scale;
 static  ULONG  image_id;
 static  BOOL   is_stopped;
+static  float  relative_falloff_speed; 
 
 static  PFN    _decoderPlayingSamples;
 static  PFN    _decoderPlaying;
@@ -96,6 +180,8 @@ static  PFN    _specana_init;
 static  PFN    _specana_dobands;
 
 static  VISPLUGININIT plug;
+
+/********** read pallette data **********************************************/
 
 /* Removes comments */
 static char*
@@ -137,6 +223,27 @@ read_color( FILE* file, RGB2* color )
     return FALSE;
   }
 }
+
+static void read_palette( FILE* dat )
+{ int i;
+
+  read_color( dat, &palette[CLR_BGR_BLACK] );
+  read_color( dat, &palette[CLR_BGR_GREY ] );
+
+  for( i = CLR_OSC_DIMMEST; i <= CLR_OSC_BRIGHT; i++ ) {
+    read_color( dat, &palette[i] );
+  }
+
+  read_color( dat, &palette[CLR_ANA_BARS] );
+
+  for( i = CLR_SPC_BOTTOM; i <= CLR_SPC_TOP; i++ ) {
+    read_color( dat, &palette[i] );
+  }
+
+  fclose( dat );
+}
+
+/********** filter design ***************************************************/
 
 /* Initializes spectrum analyzer bands. */
 static int
@@ -206,6 +313,7 @@ free_bands( void )
   lastamps   = NULL;
   bars       = NULL;
   scale      = NULL;
+  spec_scale = NULL;
 }
 
 /* like _specana_dobands but return -1 if the values did not change,
@@ -232,12 +340,23 @@ clear_analyzer( void )
   DiveBlitImage( hdive, image_id, 0 );
 }
 
+_Inline void update_barvalue(float* val, float z)
+{
+  if (z >= 1)
+    z = .999999;
+
+  if( !cfg.falloff || *val-relative_falloff_speed <= z )
+    *val = z;
+   else
+    *val -= relative_falloff_speed;
+}
+
 /* Do the regular update of the analysis window.
  * This is called at the WM_TIMER event of the analyzer window.
  */
 static void update_analyzer(void)
 {
-  long i, x, y, z, max, e, color;
+  long i, x, y, max, e;
   unsigned long image_cx, image_cy;
   char* image = NULL;
 
@@ -270,20 +389,12 @@ static void update_analyzer(void)
 
     for( x = 0; x < plug.cx; x++ )
     {
-      z = max( plug.cy * log10( 75 * (amps[2*x+1]+amps[2*x+2]) / max + 1 ), 0 );
-      z = min( z, plug.cy - 1 );
-  
-      if( cfg.falloff  && bars[x] > cfg.falloff_speed ) {
-        bars[x] = max( z, bars[x] - cfg.falloff_speed );
-      } else {
-        bars[x] = z;
-      }
+      update_barvalue( bars+x, .66667*log10(250 * (amps[2*x+1]+amps[2*x+2]) / max +1));
 
-      for( y = 0; y < bars[x]; y++ )
+      for( y = (int)(bars[x]*(plug.cy+1)) -1; y >= 0; y-- )
       {
-        color = ( CLR_ANA_TOP - CLR_ANA_BOTTOM ) * y / ( plug.cy - bars[x] ) + CLR_ANA_BOTTOM;
-        color = min( CLR_ANA_TOP, color );
-        image[( plug.cy - y ) * image_cx + x ] = color;
+        int color = ( CLR_ANA_TOP - CLR_ANA_BOTTOM +1 ) * y / (plug.cy * (1-bars[x])) + CLR_ANA_BOTTOM;
+        image[( plug.cy - y -1) * image_cx + x ] = min( CLR_ANA_TOP, color );
       }
     }
     break;  
@@ -307,25 +418,18 @@ static void update_analyzer(void)
     for( i = 0; i < bars_count; i++ )
     {
       float a = 0;
-      for( e = scale[i]; e < scale[i+1]; e++ ) {
+      for( e = scale[i]; e < scale[i+1]; e++ )
         a += amps[e];
-      }
+      a /= scale[i+1] - scale[i];
 
-      z = max( plug.cy * log( 15 * a / max + 1 ), 0 );
-      z = min( z, plug.cy - 1 );
+      update_barvalue( bars+i, .66667*log10(500 * a / max +1));
 
-      if( cfg.falloff  && bars[i] > cfg.falloff_speed ) {
-        bars[i] = max( z, bars[i] - cfg.falloff_speed );
-      } else {
-        bars[i] = z;
-      }
-
-      for( y = 0; y < bars[i]; y++ )
+      for( y = (int)(bars[i]*(plug.cy+1)) -1; y >= 0; y-- )
       {
-        color = ( CLR_ANA_TOP - CLR_ANA_BOTTOM ) * y / plug.cy + CLR_ANA_BOTTOM;
+        int color = ( CLR_ANA_TOP - CLR_ANA_BOTTOM +1 ) * y / (plug.cy * (1-bars[i])) + CLR_ANA_BOTTOM;
         color = min( CLR_ANA_TOP, color );
         for( x = 0; x < BARS_CY; x++ ) {
-          image[( plug.cy - y ) * image_cx + ( BARS_CY + BARS_SPACE ) * i + x ] = color;
+          image[( plug.cy - y -1) * image_cx + ( BARS_CY + BARS_SPACE ) * i + x ] = color;
         }
       }
     }
@@ -348,18 +452,8 @@ static void update_analyzer(void)
     
       for( x = 0; x < plug.cx; x++ )
       {
-        z = max( plug.cy * log10( 75 * (amps[2*x+1]+amps[2*x+2]) / max + 1 ), 0 );
-        z = min( z, plug.cy - 1 );
-
-        if( cfg.falloff  && bars[x] > cfg.falloff_speed ) {
-          bars[x] = max( z, bars[x] - cfg.falloff_speed );
-        } else {
-          bars[x] = z;
-        }
-
-        color = ( CLR_ANA_TOP - CLR_ANA_BOTTOM ) * bars[x] / plug.cy + CLR_ANA_BOTTOM;
-        color = min( CLR_ANA_TOP, color );
-        ip[x] = color;
+        update_barvalue( bars+x, .5*log10(375 * (amps[2*x+1]+amps[2*x+2]) / max * sqrt(2.20 * cfg.display_percent * x / plug.cx) +1));
+        ip[x] = ( CLR_SPC_TOP - CLR_SPC_BOTTOM +1 ) * bars[x] + CLR_SPC_BOTTOM;
       }
     }
     break;
@@ -381,25 +475,15 @@ static void update_analyzer(void)
     
       for( i = 0; i < specband_count; i++ )
       { 
-        float a = 0;
-        for( e = spec_scale[i]; e < spec_scale[i+1]; e++ ) {
+        double a = 0;
+        for( e = spec_scale[i]; e < spec_scale[i+1]; e++ )
           a += amps[e];
-        }
+        a /= spec_scale[i+1] - spec_scale[i];
         
-        z = plug.cy * log10( 50 * a / max + 1 );
-        if (z < 0)
-          z = 0;
-         else if (z >= plug.cy)
-          z = plug.cy-1;
+        update_barvalue( bars+i, .5*log10(750 * a / max * sqrt(220.*spec_scale[i]/amps_count) +1));
 
-        if( cfg.falloff  && bars[i] > cfg.falloff_speed )
-          bars[i] = max( z, bars[i] - cfg.falloff_speed );
-         else
-          bars[i] = z;
-
-        color = ( CLR_ANA_TOP - CLR_ANA_BOTTOM ) * bars[i] / plug.cy + CLR_ANA_BOTTOM;
-        color = min( CLR_ANA_TOP, color );
-        ip[(plug.cy-i-1)*image_cx] = color;
+        ip[(plug.cy-i-1)*image_cx] =
+          ( CLR_SPC_TOP - CLR_SPC_BOTTOM +1 ) * bars[i] + CLR_SPC_BOTTOM;
       }
     }
     break;
@@ -437,7 +521,8 @@ static void update_analyzer(void)
 
       for( x = 0; x < plug.cx; x++ )
       {
-        z = 0;
+        int color;
+        int z = 0;
         for( e = 0; e < bufferinfo.channels; e++ ) {
           if( bufferinfo.bits <= 8 ) {
             z += (sample[x+e] - 128) / bufferinfo.channels;
@@ -450,8 +535,7 @@ static void update_analyzer(void)
 
         y = plug.cy / 2 + plug.cy * z / 2 / max;
         color = ( CLR_OSC_BRIGHT - CLR_OSC_DIMMEST + 2 ) * abs(z) / max + CLR_OSC_DIMMEST;
-        color = min( CLR_OSC_BRIGHT, color );
-        image[ y * image_cx + x ] = color;
+        image[ y * image_cx + x ] = min( CLR_OSC_BRIGHT, color );
       }
     }
     break;
@@ -526,6 +610,7 @@ cfg_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
                          MPFROMP( &value ), MPFROM2SHORT( 0, SPBQ_DONOTUPDATE ));
 
       cfg.falloff_speed = value;
+      relative_falloff_speed = (float)value / plug.cy; 
 
       WinSendDlgItemMsg( hwnd, SB_PERCENT, SPBM_QUERYVALUE,
                          MPFROMP( &value ), MPFROM2SHORT( 0, SPBQ_DONOTUPDATE ));
@@ -655,6 +740,7 @@ vis_init( PVISPLUGININIT init )
   cfg.default_mode    = SHOW_BARS;
   cfg.falloff         = 1;
   cfg.falloff_speed   = 1;
+  relative_falloff_speed = 1./plug.cy;
   cfg.display_percent = 80;
 
   if(( hini = open_module_ini()) != NULLHANDLE )
@@ -663,6 +749,7 @@ vis_init( PVISPLUGININIT init )
     load_ini_value( hini, cfg.default_mode );
     load_ini_value( hini, cfg.falloff );
     load_ini_value( hini, cfg.falloff_speed );
+    relative_falloff_speed = (float)cfg.falloff_speed / plug.cy;
     load_ini_value( hini, cfg.display_percent );
 
     close_ini( hini );
@@ -712,56 +799,9 @@ vis_init( PVISPLUGININIT init )
                                NULL,
                                NULL  );
 
-  memset( palette, 0, sizeof( palette ));
-
   if ( ( plug.param && *plug.param && (dat = fopen(plug.param, "r")) )
-    || ( dat = fopen("analyzer.pal","r")) )
-  {
-    read_color( dat, &palette[CLR_BGR_BLACK] );
-    read_color( dat, &palette[CLR_BGR_GREY ] );
-
-    for( i = CLR_ANA_TOP; i >= CLR_ANA_BOTTOM; i-- ) {
-      read_color( dat, &palette[i] );
-    }
-
-    for( i = CLR_OSC_DIMMEST; i <= CLR_OSC_BRIGHT; i++ ) {
-      read_color( dat, &palette[i] );
-    }
-
-    if( !read_color( dat, &palette[CLR_ANA_BARS] )) {
-      palette[CLR_ANA_BARS] = palette[CLR_ANA_TOP];
-    }
-
-    fclose( dat );
-  }
-  else
-  {
-    palette[ 2].bRed = 255; palette[ 2].bGreen =   0;
-    palette[ 3].bRed = 225; palette[ 3].bGreen =  30;
-    palette[ 4].bRed = 195; palette[ 4].bGreen =  85;
-    palette[ 5].bRed = 165; palette[ 5].bGreen = 115;
-    palette[ 6].bRed = 135; palette[ 6].bGreen = 135;
-    palette[ 7].bRed = 115; palette[ 7].bGreen = 165;
-    palette[ 8].bRed =  85; palette[ 8].bGreen = 195;
-    palette[ 9].bRed =  30; palette[ 9].bGreen = 225;
-    palette[10].bRed =   0; palette[10].bGreen = 255;
-    palette[11].bRed =   0; palette[11].bGreen = 255;
-    palette[12].bRed =   0; palette[12].bGreen = 255;
-    palette[13].bRed =   0; palette[13].bGreen = 255;
-    palette[14].bRed =   0; palette[14].bGreen = 255;
-    palette[15].bRed =   0; palette[15].bGreen = 255;
-    palette[16].bRed =   0; palette[16].bGreen = 255;
-    palette[17].bRed =   0; palette[17].bGreen = 255;
-
-    palette[18].bGreen = 180;
-    palette[19].bGreen = 200;
-    palette[20].bGreen = 225;
-    palette[21].bGreen = 255;
-    palette[22].bGreen = 255;
-
-    palette[CLR_BGR_GREY].bGreen =  90;
-    palette[CLR_ANA_BARS].bGreen = 255;
-  }
+     || ( dat = fopen("analyzer.pal","r")) )
+    read_palette(dat);
 
   DiveSetSourcePalette( hdive, 0, sizeof( palette ) / sizeof( palette[0] ), (char*)&palette );
   DiveSetDestinationPalette( hdive, 0, 0, 0 );
@@ -779,7 +819,7 @@ plugin_deinit( int unload )
   HINI hini;
 
   if(( hini = open_module_ini()) != NULLHANDLE )
-  {
+  { 
     save_ini_value( hini, cfg.update_delay );
     save_ini_value( hini, cfg.default_mode );
     save_ini_value( hini, cfg.falloff );
