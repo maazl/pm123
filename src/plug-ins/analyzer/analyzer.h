@@ -51,6 +51,7 @@
 #define ST_DEFAULT       130
 #define ST_ABOUT         131
 #define ST_AUTHOR        132
+#define ST_AUTHOR2       133
 
 #define SHOW_ANALYZER      0
 #define SHOW_BARS          1

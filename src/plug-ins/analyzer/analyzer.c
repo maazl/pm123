@@ -554,8 +554,8 @@ int _System
 plugin_query( PPLUGIN_QUERYPARAM query )
 {
   query->type         = PLUGIN_VISUAL;
-  query->author       = "Samuel Audet, Dmitry A.Steklenev ";
-  query->desc         = "Spectrum Analyzer 2.00";
+  query->author       = "Samuel Audet, Dmitry A.Steklenev, Marcel Mueller";
+  query->desc         = "Spectrum Analyzer 2.10";
   query->configurable = 1;
   return 0;
 }
