@@ -95,7 +95,8 @@ static const float Frequencies[NUM_BANDS] =
 
 static BOOL  mmx_present;
 static BOOL  eqneedinit  = TRUE;
-static BOOL  eqneedsetup = TRUE;
+static BOOL  eqneedFIR   = TRUE;
+static BOOL  eqneedEQ    = TRUE;
 static HWND  hdialog     = NULLHANDLE;
 
 // note: I originally intended to use 8192 for the finalFIR arrays
@@ -118,19 +119,23 @@ static float preamp = 1.0;
 
 // for FFT convolution...
 static struct
-{ fftwf_plan forward_plan;
-  fftwf_plan backward_plan;
-  float* time_domain;
-  fftwf_complex* freq_domain;
-  fftwf_complex* kernel[2];
+{ float* time_domain;      // buffer in the time domain
+  fftwf_complex* freq_domain;// buffer in the frequency domain (shared memory with design)
+  float* design;           // buffer to design filter kernel (shared memory with freq_domain)
+  float* kernel[2];        // since the kernel is real even, it's even real in the time domain
   float* overlap[2];       // keep old samples for convolution
+  fftwf_plan forward_plan; // fftw plan for time_domain -> freq_domain
+  fftwf_plan backward_plan;// fftw plan for freq_domain -> time_domain
+  fftwf_plan DCT_plan;     // fftw plan for design -> time domain
+  fftwf_plan RDCT_plan;    // fftw plan for time_domain -> kernel
+  int    plansize;         // plansize for the FFT convolution
+  int    DCTplansize;      // plansize for the filter design
 } FFT;
 
 // settings
 int  newFIRorder; // this is for the GUI only
 int  newPlansize; // this is for the GUI only
-int  FIRorder; // this is for the decoder thread
-int  plansize; // this is for the decoder thread
+int  FIRorder;    // this is for the decoder thread
 BOOL use_mmx   = FALSE;
 BOOL use_fft   = FALSE;
 BOOL eqenabled = FALSE;
@@ -142,8 +147,8 @@ char lasteq[CCHMAXPATH];
 /* Hamming window
 #define WINDOW_FUNCTION( n, N ) (0.54 - 0.46 * cos( 2 * M_PI * n / N ))
  * Well, since the EQ does not provide more tham 24dB dynamics
- * we should use a more agressive window function. */
-#define WINDOW_FUNCTION( n, N ) (0.58 - 0.42 * cos( 2 * M_PI * n / N ))
+ * we should use a much more agressive window function. */
+#define WINDOW_FUNCTION( n, N ) (0.8 - 0.2 * cos( 2 * M_PI * n / N ))
 
 #define round(n) ((n) > 0 ? (n) + 0.5 : (n) - 0.5)
 
@@ -229,36 +234,98 @@ typedef struct
 /* setup FIR kernel */
 static BOOL fil_setup( REALEQ_STRUCT* f, int samplerate, int channels )
 {
-  int   i, e, channel;
-  float largest = 0;
-  EQcoef* cop;
-  float* sp;
-  float* dp;
+  static BOOL FFTinit = FALSE;
+  int   i, channel;
+  float largest;
   float fftspecres;
+  // equalizer design data
+  EQcoef coef[NUM_BANDS+4]; // including surounding points
   
   static const float pow_2_20 = 1L << 20;
   static const float pow_2_15 = 1L << 15;
   // mute = -36dB. More makes no sense since the stopband attenuation
   // of the window function does not allow significantly better results.
   const float log_mute_level = -4.144653167; // -36dB
-  // equalizer design data
-  EQcoef coef[NUM_BANDS+4]; // including surounding points
-  
-  if( use_mmx )
-    FIRorder = (FIRorder + 15) & 0xFFFFFFF0; /* multiple of 16 */
-   else
-    FIRorder = (FIRorder +  1) & 0xFFFFFFFE; /* multiple of 2  */
 
-  if( eqneedinit || FIRorder < 2 || FIRorder >= plansize)
-  {
-    (*f->error_display)("very bad! The FIR order and/or the FFT plansize is invalid or the FIRorder is higer or equal to the plansize.");
+  // dispatcher to skip code fragments
+  if (!eqneedinit)
+  { if (eqneedFIR)
+      goto doFIR;
+    if (eqneedEQ)
+      goto doEQ;
+    return TRUE;
+  }
+
+  // free old resources
+  if (FFTinit)
+  { fftwf_destroy_plan(FFT.forward_plan);
+    fftwf_destroy_plan(FFT.backward_plan);
+    fftwf_destroy_plan(FFT.RDCT_plan);
+    fftwf_free(FFT.freq_domain);
+    fftwf_free(FFT.time_domain);
+    // do not free aliased design array
+    free(FFT.overlap[0]);
+    free(FFT.overlap[1]);
+    fftwf_free(FFT.kernel[0]);
+    fftwf_free(FFT.kernel[1]);
+  }
+  
+  // copy global parameters for thread safety
+  FFT.plansize = newPlansize;
+  // round up to next power of 2
+  frexp(FFT.plansize-1, &i); // floor(log2(FFT.plansize-1))+1
+  i = 1<<i +1; // 2**x
+  #ifdef DEBUG
+  fprintf(stderr, "I: %d - %p\n", i, FFT.DCT_plan);
+  #endif
+  
+  // allocate buffers
+  FFT.freq_domain = fftwf_malloc((i/2+1) * sizeof *FFT.freq_domain);
+  FFT.time_domain = fftwf_malloc((i+1) * sizeof *FFT.time_domain);
+  FFT.design = FFT.freq_domain[0]; // Aliasing!
+  FFT.overlap[0] = malloc(FFT.plansize * sizeof(float));
+  memset(FFT.overlap[0], 0, FFT.plansize * sizeof(float)); // initially zero
+  FFT.overlap[1] = malloc(FFT.plansize * sizeof(float));
+  memset(FFT.overlap[1], 0, FFT.plansize * sizeof(float)); // initially zero
+  FFT.kernel[0] = fftwf_malloc((FFT.plansize/2+1) * sizeof(float));
+  FFT.kernel[1] = fftwf_malloc((FFT.plansize/2+1) * sizeof(float));
+
+  // prepare real 2 complex transformations
+  FFT.forward_plan = fftwf_plan_dft_r2c_1d( FFT.plansize, FFT.time_domain, FFT.freq_domain, FFTW_ESTIMATE);
+  FFT.backward_plan = fftwf_plan_dft_c2r_1d( FFT.plansize, FFT.freq_domain, FFT.time_domain, FFTW_ESTIMATE);
+  // prepare real 2 real transformations
+  FFT.RDCT_plan = fftwf_plan_r2r_1d(FFT.plansize/2+1, FFT.time_domain, FFT.kernel[0], FFTW_REDFT00, FFTW_ESTIMATE);
+  
+  eqneedinit = FALSE;
+ 
+ doFIR:
+  if( newFIRorder < 2 || newFIRorder >= FFT.plansize)
+  { (*f->error_display)("very bad! The FIR order and/or the FFT plansize is invalid or the FIRorder is higer or equal to the plansize.");
     eqenabled = FALSE; // avoid crash
     return FALSE;
   }
   
-  memset( &patched, 0, sizeof( patched ));
-  fftspecres = (float)samplerate / plansize;
-  
+  // copy global parameters for thread safety
+  FIRorder = (newFIRorder+15) & -16; /* multiple of 16 */
+
+  // calculate optimum plansize for kernel generation
+  frexp((FIRorder<<1) -1, &FFT.DCTplansize); // floor(log2(2*FIRorder-1))+1
+  FFT.DCTplansize = 1 << FFT.DCTplansize; // 2**x
+  // free old resources
+  if (FFTinit)
+    fftwf_destroy_plan(FFT.DCT_plan);
+  // prepare real 2 real transformations
+  FFT.DCT_plan = fftwf_plan_r2r_1d(FFT.DCTplansize/2+1, FFT.design, FFT.time_domain, FFTW_REDFT00, FFTW_ESTIMATE);
+
+  #ifdef DEBUG
+  fprintf(stderr, "P: FIRorder: %d, Plansize: %d, DCT plansize: %d\n", FIRorder, FFT.plansize, FFT.DCTplansize);
+  #endif
+  eqneedFIR = FALSE;
+
+ doEQ:
+  memset(&patched, 0, sizeof(patched));
+  fftspecres = (float)samplerate / FFT.DCTplansize;
+    
   // Prepare design coefficients frame
   coef[0].lf = -14; // very low frequency
   coef[0].lv = log_mute_level;
@@ -272,6 +339,7 @@ static BOOL fil_setup( REALEQ_STRUCT* f, int samplerate, int channels )
   coef[NUM_BANDS+3].lv = 0;
 
   /* for left, right */
+  largest = 0;
   for( channel = 0; channel < channels; channel++ )
   { 
     // fill band data
@@ -279,53 +347,57 @@ static BOOL fil_setup( REALEQ_STRUCT* f, int samplerate, int channels )
       coef[i+2].lv = mute[channel][i] ? log_mute_level : log(bandgain[channel][i]);
 
     // compose frequency spectrum
-    memset(FFT.freq_domain, 0, (plansize/2+1) * sizeof(fftwf_complex) );
-    cop = coef;
-    for (i = 1; i <= plansize/2; ++i) // do not start at f=0 to avoid log(0)
-    { const float f = i * fftspecres; // current frequency
-      double pos;
-      double val = log(f);
-      while (val > cop[1].lf)
-        ++cop;
-      // do double logarithmic sine^2 interpolation
-      pos = .5 - .5*cos(M_PI * (log(f)-cop[0].lf) / (cop[1].lf-cop[0].lf));
-      val = exp(cop[0].lv + pos * (cop[1].lv - cop[0].lv));
-      FFT.freq_domain[i][0] = i&1 ? -val : val; // 180ø phase shift already inclusive
-      #ifdef DEBUG 
-      fprintf(stderr, "F: %g, %g -> %g = %g dB @ %g\n", f, pos, FFT.freq_domain[i][0], 20*log(val)/log(10), exp(cop[0].lf));
-      #endif
-    } 
+    { EQcoef* cop = coef;
+      FFT.design[0] = 0; // no DC
+      for (i = 1; i <= FFT.DCTplansize/2; ++i) // do not start at f=0 to avoid log(0)
+      { const float f = i * fftspecres; // current frequency
+        double pos;
+        double val = log(f);
+        while (val > cop[1].lf)
+          ++cop;
+        // do double logarithmic sine^2 interpolation
+        pos = .5 - .5*cos(M_PI * (log(f)-cop[0].lf) / (cop[1].lf-cop[0].lf));
+        val = exp(cop[0].lv + pos * (cop[1].lv - cop[0].lv));
+        FFT.design[i] = val;
+        #ifdef DEBUG 
+        fprintf(stderr, "F: %i, %g, %g -> %g = %g dB @ %g\n", i, f, pos, FFT.design[i], 20*log(val)/log(10), exp(cop[0].lf));
+        #endif
+    } } 
 
     // transform into the time domain
-    fftwf_execute(FFT.backward_plan);
+    fftwf_execute(FFT.DCT_plan);
     #ifdef DEBUG
-    for (i = 0; i < plansize; ++i)
+    for (i = 0; i <= FFT.DCTplansize/2; ++i)
       fprintf(stderr, "TK: %i, %g\n", i, FFT.time_domain[i]);
     #endif
     
-    // reduce phase shift to required minimum
-    memmove(FFT.time_domain, FFT.time_domain + (plansize-FIRorder)/2, (FIRorder+1) * sizeof *FFT.time_domain);
-    memset(FFT.time_domain+FIRorder+1, 0, (plansize-FIRorder-1) * sizeof *FFT.time_domain); // padding
-    
-    // normalize, apply window function and store results
-    sp = FFT.time_domain;
-    dp = &patched.finalFIR[0][channel];
-    for (i = 0; i <= FIRorder; i++)
-    { register float f = fabs( *dp = *sp *= WINDOW_FUNCTION(i, FIRorder) / plansize );
-      *sp++ /= plansize; // normalize for next FFT
-      #ifdef DEBUG
-      fprintf(stderr, "K: %i, %g\n", i, *dp);
-      #endif
-      dp += 2;
-      if (f > largest)
-        largest = f;
+    // normalize, apply window function and store results symmetrically
+    { float* sp = FFT.time_domain;
+      float* dp1 = &patched.finalFIR[FIRorder/2][channel];
+      float* dp2 = dp1;
+      for (i = FIRorder/2; i >= 0; --i)
+      { register double f = fabs(*dp1 = *dp2 = *sp *= WINDOW_FUNCTION(i, FIRorder) / FFT.DCTplansize);
+        *sp++ /= FFT.plansize; // normalize for next FFT
+        #ifdef DEBUG
+        fprintf(stderr, "K: %i, %g\n", i, *dp1);
+        #endif
+        dp1 += 2;
+        dp2 -= 2;
+        if (f > largest)
+          largest = f;
+      }
+      // padding
+      memset(sp, 0, (FFT.plansize-FIRorder)/2 * sizeof *FFT.time_domain);
     }
-    
+
     // prepare for FFT convolution
     // transform back into the frequency domain, now with window function
-    fftwf_execute(FFT.forward_plan);
-    // store kernel
-    memcpy(FFT.kernel[channel], FFT.freq_domain, (plansize/2+1) * sizeof(fftwf_complex));
+    fftwf_execute_r2r(FFT.RDCT_plan, FFT.time_domain, FFT.kernel[channel]);
+    #ifdef DEBUG
+    for (i = 0; i <= FFT.plansize/2; ++i)
+      fprintf(stderr, "FK: %i, %g\n", i, FFT.kernel[channel][i]);
+    fprintf(stderr, "E: kernel completed.\n");
+    #endif
   }
 
   /* prepare data for MMX convolution */ 
@@ -347,7 +419,7 @@ static BOOL fil_setup( REALEQ_STRUCT* f, int samplerate, int channels )
     // zero padding is done with the memset() above and with patched.patch
     // check filter_samples_mmx_stereo in mmxfir.asm for an explanation
     for( i = 0; i < 4; i++ )
-    {
+    { int e;
       for( e = 0; e < FIRorder/4; e += 4 )
       {
         finalFIRmmx[i][e+0][0] = round( patched.finalFIR[e+0-i][0]*pow_2_20/largest );
@@ -390,7 +462,7 @@ static BOOL fil_setup( REALEQ_STRUCT* f, int samplerate, int channels )
   {
     // zero padding is done with the memset() above and with patched.patch
     for( i = 0; i < 4; i++ )
-    {
+    { int e;
       for( e = 0; e < FIRorder/4; e += 4 )
       {
         finalFIRmmx[i][e/2+0][0] = round( patched.finalFIR[e+0-i][0]*pow_2_20/largest );
@@ -415,48 +487,12 @@ static BOOL fil_setup( REALEQ_STRUCT* f, int samplerate, int channels )
     }
   }
 
-  eqneedsetup = FALSE;
+  eqneedEQ = FALSE;
+
+  FFTinit = TRUE;
   return TRUE;
 }
 
-static void
-fil_init( REALEQ_STRUCT* f, int samplerate, int channels )
-{
-  static BOOL FFTinit = FALSE;
-  
-  if (FFTinit)
-  { fftwf_destroy_plan(FFT.forward_plan);
-    fftwf_destroy_plan(FFT.backward_plan);
-    fftwf_free( FFT.freq_domain );
-    fftwf_free( FFT.time_domain );
-    free(FFT.overlap[0]);
-    free(FFT.overlap[1]);
-    free(FFT.kernel[0]);
-    free(FFT.kernel[1]);
-  } else
-    FFTinit = TRUE;
-
-  // copy global parameters for thread safety
-  plansize = newPlansize;
-  FIRorder = newFIRorder;
-
-  // allocate buffers
-  FFT.freq_domain = fftwf_malloc( sizeof( *FFT.freq_domain ) * plansize/2+1 );
-  FFT.time_domain = fftwf_malloc( sizeof( *FFT.time_domain ) * plansize );
-  FFT.forward_plan = fftwf_plan_dft_r2c_1d( plansize, FFT.time_domain, FFT.freq_domain, FFTW_ESTIMATE );
-  FFT.backward_plan = fftwf_plan_dft_c2r_1d( plansize, FFT.freq_domain, FFT.time_domain, FFTW_ESTIMATE );
-  FFT.overlap[0] = malloc(plansize * sizeof(float));
-  memset(FFT.overlap[0], 0, plansize * sizeof(float)); // initially zero
-  FFT.overlap[1] = malloc(plansize * sizeof(float));
-  memset(FFT.overlap[1], 0, plansize * sizeof(float)); // initially zero
-  FFT.kernel[0] = malloc((plansize/2+1) * sizeof(fftwf_complex));
-  FFT.kernel[1] = malloc((plansize/2+1) * sizeof(fftwf_complex));
-
-  eqneedinit = FALSE;
-
-  fil_setup( f, samplerate, channels );
-  return;
-}
 
 static void
 filter_samples_fpu_mono( short* newsamples, short* temp, char* buf, int len )
@@ -537,27 +573,26 @@ filter_samples_fpu_stereo( short* newsamples, short* temp, char* buf, int len )
 
 /* apply one FFT cycle and process at most plansize-FIRorder samples
  */
-static void do_fft_filter(fftwf_complex* kp)
+static void do_fft_filter(float* kp)
 { int l;
   fftwf_complex* dp;
   // FFT
   fftwf_execute(FFT.forward_plan);
-  // convolution in the frequency domain is simply a series of complex products
+  // Convolution in the frequency domain is simply a series of complex products.
+  // But because of the symmetry of the filter kernel it is just comlpex * real.
   dp = FFT.freq_domain;
-  for (l = (plansize/2+1) >> 3; l; --l)
+  for (l = (FFT.plansize/2+1) >> 3; l; --l)
   { float tmp;
     DO_8(p,
-      tmp = kp[p][0]*dp[p][1] + kp[p][1]*dp[p][0];
-      dp[p][0] = kp[p][0]*dp[p][0] - kp[p][1]*dp[p][1];
-      dp[p][1] = tmp;
+      dp[p][0] *= kp[p];
+      dp[p][1] *= kp[p];
     );
     kp += 8;
     dp += 8;
   }
-  for (l = (plansize/2+1) & 7; l; --l)
-  { float tmp = kp[0][0]*dp[0][1] + kp[0][1]*dp[0][0];
-    dp[0][0] = kp[0][0]*dp[0][0] - kp[0][1]*dp[0][1];
-    dp[0][1] = tmp;
+  for (l = (FFT.plansize/2+1) & 7; l; --l)
+  { dp[0][0] *= kp[0];
+    dp[0][1] *= kp[0];
     ++kp;
     ++dp;
   }
@@ -565,10 +600,35 @@ static void do_fft_filter(fftwf_complex* kp)
   fftwf_execute(FFT.backward_plan);
 }
 
-/* convert samples from short to float and store it in the FFT.time_domain buffer */
-static void do_fft_load_samples_mono(const short* sp, const int len)
+/* fetch saved samples */
+_Inline void do_fft_load_overlap(float* overlap_buffer)
+{ memcpy(FFT.time_domain + FFT.plansize - FIRorder/2, overlap_buffer, FIRorder/2 * sizeof *FFT.time_domain);
+  memcpy(FFT.time_domain, overlap_buffer + FIRorder/2, FIRorder/2 * sizeof *FFT.time_domain);
+}
+
+/* store last FIRorder samples */
+static void do_fft_save_overlap(float* overlap_buffer, int len)
+{ 
+  #ifdef DEBUG
+  fprintf(stderr, "SO: %p, %i, %i\n", overlap_buffer, len, FIRorder);
+  #endif
+  if (len < FIRorder/2)
+  { memmove(overlap_buffer, overlap_buffer + len, (FIRorder - len) * sizeof *overlap_buffer);
+    memcpy(overlap_buffer + FIRorder - len, FFT.time_domain + FIRorder/2, len * sizeof *overlap_buffer);
+  } else
+    memcpy(overlap_buffer, FFT.time_domain + len - FIRorder/2, FIRorder * sizeof *overlap_buffer);
+}
+
+/* convert samples from short to float and store it in the FFT.time_domain buffer
+   The samples are shifted by FIRorder/2 to the right.
+   FIRorder samples before the starting position are taken from overlap_buffer.
+   The overlap_buffer is updated with the last FIRorder samples before return.
+ */
+static void do_fft_load_samples_mono(const short* sp, const int len, float* overlap_buffer)
 { int l;
-  float* dp = FFT.time_domain;
+  float* dp = FFT.time_domain + FIRorder/2;
+  do_fft_load_overlap(overlap_buffer);
+  // fetch new samples
   for (l = len >> 3; l; --l) // coarse
   { DO_8(p, dp[p] = sp[p]);
     sp += 8;
@@ -576,15 +636,17 @@ static void do_fft_load_samples_mono(const short* sp, const int len)
   }
   for (l = len & 7; l; --l) // fine
     *dp++ = *sp++;
-  memset(dp, 0, (char*)(FFT.time_domain + plansize) - (char*)dp); //padding
+  memset(dp, 0, (FFT.plansize - FIRorder - len) * sizeof *dp); // padding not required, we simply ignore part of the result.
+  do_fft_save_overlap(overlap_buffer, len);
 }
 /* convert samples from short to float and store it in the FFT.time_domain buffer
  * This will cover only one channel. The only difference to to mono-version is that
  * the source pointer is incremented by 2 per sample. 
  */
-static void do_fft_load_samples_stereo(const short* sp, const int len)
+static void do_fft_load_samples_stereo(const short* sp, const int len, float* overlap_buffer)
 { int l;
-  float* dp = FFT.time_domain;
+  float* dp = FFT.time_domain + FIRorder/2;
+  do_fft_load_overlap(overlap_buffer);
   for (l = len >> 3; l; --l) // coarse
   { DO_8(p, dp[p] = sp[p<<1]);
     sp += 16;
@@ -594,7 +656,8 @@ static void do_fft_load_samples_stereo(const short* sp, const int len)
   { *dp++ = *sp;
     sp += 2;
   }
-  memset(dp, 0, (char*)(FFT.time_domain + plansize) - (char*)dp); //padding
+  memset(dp, 0, (FFT.plansize - FIRorder - len) * sizeof *dp); // padding not required, we simply ignore part of the result.
+  do_fft_save_overlap(overlap_buffer, len);
 }
 
 _Inline short quantize(float f)
@@ -605,108 +668,52 @@ _Inline short quantize(float f)
   return (short)f; // Well, dithering might be nice, but slow either.
 }
 
-/* apply overlap and add mechanism and convert samples back to short (with clipping) */
-static void do_fft_overlap_add_mono(short* sp, const int len, float* overlap_buffer)
+/* store samples */
+static void do_fft_store_samples_mono(short* sp, const int len)
 { float* dp = FFT.time_domain;
-  const float* op = overlap_buffer;
-  int l2 = min(len, FIRorder);
   int l;
   // transfer overlapping samples
-  for (l = l2 >> 3; l; --l) // coarse
-  { DO_8(p, sp[p] = quantize(dp[p] + op[p]));
+  for (l = len >> 3; l; --l) // coarse
+  { DO_8(p, sp[p] = quantize(dp[p]));
     sp += 8;
     dp += 8;
-    op += 8;
   }
-  for (l = l2 & 7; l; --l) // fine
-    *sp++ = quantize(*dp++ + *op++);
-  
-  l2 = len - FIRorder;
-  if (l2 >= 0)
-  { // the usual case, transfer remaining samples
-    for (l = l2 >> 3; l; --l) // coarse
-    { DO_8(p, sp[p] = quantize(dp[p]));
-      sp += 8;
-      dp += 8;
-    }
-    for (l = l2 & 7; l; --l) // fine
-      *sp++ = quantize(*dp++);
-  } else
-  { // the unusual and slower case, add remaining overlap
-    for (l = -l2 >> 3; l; --l)
-    { DO_8(p, dp[p] += op[p]);
-      dp += 8;
-      op += 8;
-    }
-    for (l = -l2 & 7; l; --l)
-      *dp++ += *op++;
-  }
-
-  // save overlap
-  memcpy(overlap_buffer, FFT.time_domain+len, FIRorder * sizeof *overlap_buffer);
+  for (l = len & 7; l; --l) // fine
+    *sp++ = quantize(*dp++);
 }
 
-/* apply overlap and add mechanism and convert samples back to short (with clipping)
+/* store stereo samples
  * This will cover only one channel. The only difference to to mono-version is that
  * the destination pointer is incremented by 2 per sample.
  */
-static void do_fft_overlap_add_stereo(short* sp, const int len, float* overlap_buffer)
+static void do_fft_store_samples_stereo(short* sp, const int len)
 { float* dp = FFT.time_domain;
-  const float* op = overlap_buffer;
-  int l2 = min(len, FIRorder);
   int l;
   // transfer overlapping samples
-  for (l = l2 >> 3; l; --l) // coarse
-  { DO_8(p, sp[p<<1] = quantize(dp[p] + op[p]));
+  for (l = len >> 3; l; --l) // coarse
+  { DO_8(p, sp[p<<1] = quantize(dp[p]));
     sp += 16;
     dp += 8;
-    op += 8;
   }
-  for (l = l2 & 7; l; --l) // fine
-  { *sp = quantize(*dp++ + *op++);
+  for (l = len & 7; l; --l) // fine
+  { *sp = quantize(*dp++);
     sp += 2;
   }
-
-  l2 = len - FIRorder;
-  if (l2 >= 0)
-  { // the usual case, transfer remaining samples
-    for (l = l2 >> 3; l; --l) // coarse
-    { DO_8(p, sp[p<<1] = quantize(dp[p]));
-      sp += 16;
-      dp += 8;
-    }
-    for (l = l2 & 7; l; --l) // fine
-    { *sp = quantize(*dp++);
-      sp += 2;
-    }
-  } else
-  { // the unusual and slower case, add remaining overlap
-    for (l = -l2 >> 3; l; --l)
-    { DO_8(p, dp[p] += op[p]);
-      dp += 8;
-      op += 8;
-    }
-    for (l = -l2 & 7; l; --l)
-      *dp++ += *op++;
-  }
-
-  // save overlap
-  memcpy(overlap_buffer, FFT.time_domain+len, FIRorder * sizeof *overlap_buffer);
 }
 
 static void filter_samples_fft_mono(short* newsamples, const short* buf, int len)
 { 
   while (len) // we might need more than one FFT cycle
-  { int l2 = plansize - FIRorder;
+  { int l2 = FFT.plansize - FIRorder;
     if (l2 > len)
       l2 = len;
     
     // convert to float (well, that bill we have to pay)
-    do_fft_load_samples_mono(buf, l2);
+    do_fft_load_samples_mono(buf, l2, FFT.overlap[0]);
     // do FFT
     do_fft_filter(FFT.kernel[0]);
     // convert back to short and use overlap/add
-    do_fft_overlap_add_mono(newsamples, l2, FFT.overlap[0]);
+    do_fft_store_samples_mono(newsamples, l2);
     
     // next block
     len -= l2;
@@ -718,25 +725,25 @@ static void filter_samples_fft_mono(short* newsamples, const short* buf, int len
 static void filter_samples_fft_stereo( short* newsamples, const short* buf, int len )
 {
   while (len) // we might need more than one FFT cycle
-  { int l2 = plansize - FIRorder;
+  { int l2 = FFT.plansize - FIRorder;
     if (l2 > len)
       l2 = len;
 
     // left channel
     // convert to float (well, that bill we have to pay)
-    do_fft_load_samples_stereo(buf, l2);
+    do_fft_load_samples_stereo(buf, l2, FFT.overlap[0]);
     // do FFT
     do_fft_filter(FFT.kernel[0]);
     // convert back to short and use overlap/add
-    do_fft_overlap_add_stereo(newsamples, l2, FFT.overlap[0]);
+    do_fft_store_samples_stereo(newsamples, l2);
     
     // right channel
     // convert to float (well, that bill we have to pay)
-    do_fft_load_samples_stereo(buf+1, l2);
+    do_fft_load_samples_stereo(buf+1, l2, FFT.overlap[1]);
     // do FFT
     do_fft_filter(FFT.kernel[1]);
     // convert back to short and use overlap/add
-    do_fft_overlap_add_stereo(newsamples+1, l2, FFT.overlap[1]);
+    do_fft_store_samples_stereo(newsamples+1, l2);
 
     // next block
     len -= l2;
@@ -764,12 +771,9 @@ filter_play_samples( void* F, FORMAT_INFO* format, char* buf, int len, int posma
 
     if( memcmp( &f->last_format, format, sizeof( FORMAT_INFO )) != 0 )
     { f->last_format = *format;
-      fil_init( f, format->samplerate, format->channels );
-    } else if( eqneedinit  ) {
-      fil_init( f, format->samplerate, format->channels );
-    } else if( eqneedsetup ) {
-      fil_setup( f, format->samplerate, format->channels );
+      eqneedinit = TRUE;
     }
+    fil_setup( f, format->samplerate, format->channels );
 
     if (use_fft)
     { 
@@ -848,7 +852,6 @@ load_ini( void )
 
   eqenabled   = FALSE;
   eqneedinit  = TRUE;
-  eqneedsetup = TRUE;
   use_mmx     = FALSE; // prefer FFT
   use_fft     = TRUE;
   lasteq[0]   = 0;
@@ -1092,7 +1095,7 @@ ConfigureDlgProc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
           nottheuser  = TRUE;
           load_dialog( hwnd );
           nottheuser  = FALSE;
-          eqneedsetup = TRUE;
+          eqneedEQ = TRUE;
           break;
 
         case EQ_ZERO:
@@ -1113,7 +1116,7 @@ ConfigureDlgProc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
               WinSendDlgItemMsg( hwnd, 100+NUM_BANDS*e+i, BM_SETCHECK, 0, 0 );
             }
           }
-          eqneedsetup = TRUE;
+          eqneedEQ = TRUE;
           *lasteq = 0;
           break;
         }
@@ -1164,7 +1167,7 @@ ConfigureDlgProc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
                 WinSendDlgItemMsg( hwnd, id, SPBM_SETCURRENTVALUE, MPFROMLONG( newFIRorder ), 0 ); // restore
                else
               { newFIRorder = temp;
-                eqneedsetup = TRUE; // no init required when only the FIRorder changes
+                eqneedFIR = TRUE; // no init required when only the FIRorder changes
               }
               break;
 
@@ -1243,7 +1246,7 @@ ConfigureDlgProc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
                 }
 
                 set_band( hwnd, channel, band );
-                eqneedsetup = TRUE;
+                eqneedEQ = TRUE;
               }
             }
           // sliders
@@ -1278,7 +1281,7 @@ ConfigureDlgProc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
                   nottheuser = FALSE;
                   set_band(hwnd, (channel+1)&1, band);
                 }
-                eqneedsetup = TRUE;
+                eqneedEQ = TRUE;
               }
 
               case SLN_SLIDERTRACK:
