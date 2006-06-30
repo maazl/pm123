@@ -42,6 +42,7 @@
 #define CB_FALLOFF       115
 #define SB_FALLOFF       114
 #define ST_PIXELS        116
+#define CB_HIGHPREC      117
 #define RB_ANALYZER      104
 #define RB_BARS          105
 #define RB_OSCILLOSCOPE  106

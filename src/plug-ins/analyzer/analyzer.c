@@ -60,6 +60,7 @@ static struct analyzer_cfg {
   int   falloff;
   int   falloff_speed;
   int   display_percent;
+  BOOL  highprec_mode;
 
 } cfg;
 
@@ -170,9 +171,11 @@ static  int    bars_count;
 static  int*   scale;
 static  int    specband_count;
 static  int*   spec_scale;
+static  double amp_scale;
 static  ULONG  image_id;
 static  BOOL   is_stopped;
-static  float  relative_falloff_speed; 
+static  float  relative_falloff_speed;
+static  BOOL   needinit; 
 
 static  PFN    _decoderPlayingSamples;
 static  PFN    _decoderPlaying;
@@ -246,13 +249,13 @@ static void read_palette( FILE* dat )
 /********** filter design ***************************************************/
 
 /* Initializes spectrum analyzer bands. */
-static int
+static void
 init_bands( void )
 {
   float step, z;
   int   i;
 
-  amps_count = _specana_init(( plug.cx << 2 ) * 100 / cfg.display_percent );
+  amps_count = _specana_init(( plug.cx << (cfg.highprec_mode+1) ) * 100 / cfg.display_percent );
   bars_count = plug.cx / ( BARS_CY + BARS_SPACE );
   specband_count = plug.cy;
 
@@ -270,7 +273,7 @@ init_bands( void )
   memset( lastamps,  0, sizeof( *lastamps  ) * amps_count );
   memset( bars,  0, sizeof( *bars  ) * plug.cx );
 
-  step     = log( amps_count ) / bars_count;
+  step     = log( amps_count * cfg.display_percent / 100 ) / bars_count;
   z        = 0;
   scale[0] = 1;
   for( i = 1; i < bars_count; i++ )
@@ -280,9 +283,9 @@ init_bands( void )
     if( i > 0 && scale[i] <= scale[i-1] )
       scale[i] = scale[i-1] + 1;
   }
-  scale[bars_count] = amps_count;
+  scale[bars_count] = amps_count * cfg.display_percent / 100;
 
-  step     = log( amps_count ) / specband_count;
+  step     = log( amps_count * cfg.display_percent / 100 ) / specband_count;
   z        = 0;
   spec_scale[0] = 1;
   for( i = 1; i < specband_count; i++ )
@@ -292,9 +295,9 @@ init_bands( void )
     if( i > 0 && spec_scale[i] <= spec_scale[i-1] )
       spec_scale[i] = spec_scale[i-1] + 1;
   }
-  spec_scale[specband_count] = amps_count;
+  spec_scale[specband_count] = amps_count * cfg.display_percent / 100;
 
-  return amps_count;
+  amp_scale = sqrt(amps_count);
 }
 
 /* Free memory used by spectrum analyzer bands. */
@@ -335,7 +338,8 @@ clear_analyzer( void )
 
   DiveBeginImageBufferAccess( hdive, image_id, &image, &cx, &cy );
   memset( image, 0, cx * cy );
-  memset( bars , 0, plug.cx * sizeof( *bars ));
+  if (bars != NULL)
+    memset( bars , 0, plug.cx * sizeof( *bars ));
   DiveEndImageBufferAccess( hdive, image_id );
   DiveBlitImage( hdive, image_id, 0 );
 }
@@ -364,11 +368,17 @@ static void update_analyzer(void)
   { if ( !is_stopped )
     { is_stopped = TRUE;
       DiveBlitImage( hdive, 0, 0 );
-      memset( bars,  0, sizeof( *bars ) * plug.cx );
+      if (bars != NULL)
+        memset( bars,  0, sizeof( *bars ) * plug.cx );
     }
     return;
   }
   // _decoderPlaying() == 1
+  
+  if (needinit)
+  { init_bands();
+    needinit = FALSE;
+  }
 
   switch (cfg.default_mode)
   {case SHOW_ANALYZER:
@@ -389,7 +399,10 @@ static void update_analyzer(void)
 
     for( x = 0; x < plug.cx; x++ )
     {
-      update_barvalue( bars+x, .66667*log10(250 * (amps[2*x+1]+amps[2*x+2]) / max +1));
+      if (cfg.highprec_mode)
+        update_barvalue( bars+x, .66667*log10(12.5 * amp_scale * (amps[2*x]+amps[2*x+1]) / max +1));
+       else
+        update_barvalue( bars+x, .66667*log10(25 * amp_scale * amps[x] / max +1));
 
       for( y = (int)(bars[x]*(plug.cy+1)) -1; y >= 0; y-- )
       {
@@ -422,7 +435,7 @@ static void update_analyzer(void)
         a += amps[e];
       a /= scale[i+1] - scale[i];
 
-      update_barvalue( bars+i, .66667*log10(500 * a / max +1));
+      update_barvalue( bars+i, .66667*log10(25 * amp_scale * a / max +1));
 
       for( y = (int)(bars[i]*(plug.cy+1)) -1; y >= 0; y-- )
       {
@@ -452,7 +465,10 @@ static void update_analyzer(void)
     
       for( x = 0; x < plug.cx; x++ )
       {
-        update_barvalue( bars+x, .5*log10(375 * (amps[2*x+1]+amps[2*x+2]) / max * sqrt(2.20 * cfg.display_percent * x / plug.cx) +1));
+        if (cfg.highprec_mode)
+          update_barvalue( bars+x, .5*log10(17.5 * amp_scale * (amps[2*x]+amps[2*x+1]) / max * sqrt(2.20 * cfg.display_percent * x / plug.cx) +1));
+         else
+          update_barvalue( bars+x, .5*log10(35 * amp_scale * amps[x] / max * sqrt(2.20 * cfg.display_percent * x / plug.cx) +1));
         ip[x] = ( CLR_SPC_TOP - CLR_SPC_BOTTOM +1 ) * bars[x] + CLR_SPC_BOTTOM;
       }
     }
@@ -480,7 +496,7 @@ static void update_analyzer(void)
           a += amps[e];
         a /= spec_scale[i+1] - spec_scale[i];
         
-        update_barvalue( bars+i, .5*log10(750 * a / max * sqrt(220.*spec_scale[i]/amps_count) +1));
+        update_barvalue( bars+i, .5*log10(35 * amp_scale * a / max * sqrt(220.*spec_scale[i]/amps_count) +1));
 
         ip[(plug.cy-i-1)*image_cx] =
           ( CLR_SPC_TOP - CLR_SPC_BOTTOM +1 ) * bars[i] + CLR_SPC_BOTTOM;
@@ -573,6 +589,7 @@ cfg_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
 
       WinCheckButton( hwnd, RB_ANALYZER + cfg.default_mode, TRUE );
       WinCheckButton( hwnd, CB_FALLOFF, cfg.falloff );
+      WinCheckButton( hwnd, CB_HIGHPREC, cfg.highprec_mode );
 
       WinSendDlgItemMsg( hwnd, SB_PERCENT,   SPBM_SETLIMITS,
                          MPFROMLONG( 100 ), MPFROMLONG( 25 )); // lower values may decrease speed
@@ -617,8 +634,10 @@ cfg_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
 
       cfg.display_percent = value;
 
-      init_bands();
-      clear_analyzer();
+      cfg.highprec_mode = WinQueryButtonCheckstate( hwnd, CB_HIGHPREC );
+
+      needinit = TRUE;
+
       hconfigure  = NULLHANDLE;
       break;
     }
@@ -651,6 +670,7 @@ plg_win_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
 
     case WM_VRNENABLED:
     {
+
       HPS     hps  = WinGetPS( hwnd );
       HRGN    hrgn = GpiCreateRegion( hps, 0, NULL );
 
@@ -742,6 +762,7 @@ vis_init( PVISPLUGININIT init )
   cfg.falloff_speed   = 1;
   relative_falloff_speed = 1./plug.cy;
   cfg.display_percent = 80;
+  cfg.highprec_mode   = FALSE;
 
   if(( hini = open_module_ini()) != NULLHANDLE )
   {
@@ -751,6 +772,7 @@ vis_init( PVISPLUGININIT init )
     load_ini_value( hini, cfg.falloff_speed );
     relative_falloff_speed = (float)cfg.falloff_speed / plug.cy;
     load_ini_value( hini, cfg.display_percent );
+    load_ini_value( hini, cfg.highprec_mode );
 
     close_ini( hini );
   }
@@ -761,7 +783,7 @@ vis_init( PVISPLUGININIT init )
   _specana_init          = init->procs->specana_init;
   _specana_dobands       = init->procs->specana_dobands;
 
-  init_bands();
+  needinit = TRUE;
 
   // Open up DIVE
   if( DiveOpen( &hdive, FALSE, 0 ) != DIVE_SUCCESS ) {
@@ -810,6 +832,7 @@ vis_init( PVISPLUGININIT init )
   // Apparently the WM_VRNENABLED message not necessarily automatically
   // follows WinSetVisibleRegionNotify call. We posts it manually.
   WinPostMsg( hanalyzer, WM_VRNENABLED, MPFROMLONG( TRUE ), 0 );
+
   return hanalyzer;
 }
 
@@ -825,6 +848,7 @@ plugin_deinit( int unload )
     save_ini_value( hini, cfg.falloff );
     save_ini_value( hini, cfg.falloff_speed );
     save_ini_value( hini, cfg.display_percent );
+    save_ini_value( hini, cfg.highprec_mode );
 
     close_ini( hini );
   }
