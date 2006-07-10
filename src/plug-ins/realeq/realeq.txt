@@ -75,7 +75,3 @@ as 64 before trying it.
 
 With FFT convolution, it can play realtime with 12288 coeficients on a K6/400
 This is pretty much as good as most professional EQs...!!
-
-
-Marcel
-
