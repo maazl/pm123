@@ -1,0 +1,29 @@
+LIBRARY http123 INITINSTANCE TERMINSTANCE
+DESCRIPTION 'PM123 HTTP Library'
+PROTMODE
+DATA MULTIPLE NONSHARED LOADONCALL
+EXPORTS
+
+   http_strerror         @1
+   writebuffer           @2
+   readbuffer            @3
+   readline              @4
+   http_open             @5
+   http_close            @6
+
+   sockfile_bufferstatus @20
+   sockfile_nobuffermode @21
+   sockfile_errno        @22
+   sockfile_abort        @23
+   sockfile_httpinfo     @24
+
+   xio_fread             @30
+   xio_fopen             @31
+   xio_fseek             @32
+   xio_ftell             @33
+   xio_fclose            @34
+   xio_rewind            @35
+   xio_fsize             @36
+
+   set_proxyurl          @50
+   set_httpauth          @51

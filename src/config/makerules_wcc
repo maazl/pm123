@@ -1,0 +1,69 @@
+# Open Watcon C++
+
+.SUFFIXES:
+.SUFFIXES: .res .rc .obj .asm .c .cpp
+
+MFLAGS     = -h
+MDUMMY     = .SYMBOLIC
+
+CC         = wcl386
+CFLAGS     = -zq -bm -dOS2
+CFLAGS_DLL = -bd
+CFLAGS_DBG = -d2
+CFLAGS_OPT = -otexan -5r -fp5 -s
+
+CL         = wlink
+LFLAGS     = option quiet
+LFLAGS_DLL =
+LFLAGS_DBG = debug all
+LFLAGS_OPT =
+LFLAGS_OUT = name .\
+LDEF_PREFX = @
+LDEF_SUFFX = _wcc.def
+LOBJ_PREFX = libfile {
+LOBJ_SUFFX = }
+
+AS         = nasm
+AFLAGS     = -fobj -DUNDERSCORE
+
+LB         = wlib -b -c -q
+LBENDL     =
+
+LI         = wlib -b -c -q
+
+RC         = rc
+RFLAGS     = -n
+
+LIBS_TCP   =
+LIBS_MM    = mmpm2.lib
+
+%INCLUDE   = $(INCDIR);$(%INCLUDE)
+
+!ifdef DEBUG
+CFLAGS = $(CFLAGS) $(CFLAGS_DBG)
+LFLAGS = $(LFLAGS) $(LFLAGS_DBG)
+MFLAGS = $(MFLAGS) DEBUG=Yes
+!else
+CFLAGS = $(CFLAGS) $(CFLAGS_OPT)
+LFLAGS = $(LFLAGS) $(LFLAGS_OPT)
+!endif
+
+!ifdef DLL
+CFLAGS = $(CFLAGS) $(CFLAGS_DLL)
+LFLAGS = $(LFLAGS) $(LFLAGS_DLL)
+!endif
+
+.default
+   @wtouch -c $@
+
+.c.obj:
+   $(CC) $(CFLAGS) -c $[@
+
+.cpp.obj:
+   $(CC) $(CFLAGS) -c $[@
+
+.rc.res:
+   $(RC) $(RFLAGS) -r $<
+
+.asm.obj:
+   $(AS) $(AFLAGS) $<

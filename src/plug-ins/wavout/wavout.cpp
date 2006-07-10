@@ -87,7 +87,7 @@ cfg_file_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
 /* Processes messages of the configuration dialog. */
 MRESULT EXPENTRY cfg_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
 {
-  static module;
+  static HMODULE module;
 
   switch( msg ) {
     case WM_INITDLG:
@@ -149,10 +149,11 @@ MRESULT EXPENTRY cfg_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
 }
 
 /* Configure plug-in. */
-void _System
+int PM123_ENTRY
 plugin_configure( HWND hwnd, HMODULE module )
 {
   WinDlgBox( HWND_DESKTOP, hwnd, cfg_dlg_proc, module, DLG_CONFIGURE, (PVOID)module );
+  return 0;
 }
 
 /* Closes a output file. */
@@ -229,7 +230,7 @@ output_pause( void* A, BOOL pause )
 }
 
 /* Processing of a command messages. */
-ULONG _System
+ULONG PM123_ENTRY
 output_command( void* A, ULONG msg, OUTPUT_PARAMS* info )
 {
   WAVOUT* a  = (WAVOUT*)A;
@@ -287,7 +288,7 @@ output_command( void* A, ULONG msg, OUTPUT_PARAMS* info )
 
 /* This function is called by the decoder or last in chain
    filter plug-in to play samples. */
-int _System
+int PM123_ENTRY
 output_play_samples( void* A, FORMAT_INFO* format, char* buf, int len, int posmarker )
 {
   WAVOUT *a = (WAVOUT *) A;
@@ -325,7 +326,7 @@ output_play_samples( void* A, FORMAT_INFO* format, char* buf, int len, int posma
 
 /* This function is used by visual plug-ins so the user can
    visualize what is currently being played. */
-ULONG _System
+ULONG PM123_ENTRY
 output_playing_samples( void* A, FORMAT_INFO* info, char* buf, int len )
 {
   WAVOUT* a = (WAVOUT*)A;
@@ -337,31 +338,32 @@ output_playing_samples( void* A, FORMAT_INFO* info, char* buf, int len )
 }
 
 /* Returns the playing position. */
-ULONG _System
+ULONG PM123_ENTRY
 output_playing_pos( void* A )
 {
   return ((WAVOUT*)A)->playingpos;
 }
 
 /* Returns TRUE if the output plug-in still has some buffers to play. */
-BOOL _System
+BOOL PM123_ENTRY
 output_playing_data( void* A )
 {
   return FALSE;
 }
 
 /* Returns information about plug-in. */
-void _System
+int PM123_ENTRY
 plugin_query( PLUGIN_QUERYPARAM* query )
 {
   query->type         = PLUGIN_OUTPUT;
   query->author       = "Samuel Audet, Dmitry A.Steklenev ";
   query->desc         = "WAVE Output 1.10";
   query->configurable = TRUE;
+  return 0;
 }
 
 /* Initialize the output plug-in. */
-ULONG _System
+ULONG PM123_ENTRY
 output_init( void** A )
 {
   WAVOUT* a = (WAVOUT*)malloc( sizeof(*a));
@@ -382,7 +384,7 @@ output_init( void** A )
 }
 
 /* Uninitialize the output plug-in. */
-ULONG _System
+ULONG PM123_ENTRY
 output_uninit( void* A )
 {
   WAVOUT* a = (WAVOUT*)A;

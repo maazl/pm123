@@ -45,6 +45,7 @@
 #include <sys/stat.h>
 #include <math.h>
 #include <float.h>
+#include <process.h>
 
 #include "utilfct.h"
 #include "format.h"
@@ -124,14 +125,13 @@ float preamp;
 static char last_error[2048];
 extern OUTPUT_PARAMS out_params;
 
-void _System
+void PM123_ENTRY
 keep_last_error( char *error )
 {
-  strncpy( last_error, error, sizeof( last_error ) - 1 );
-  last_error[ sizeof( last_error ) - 1 ] = 0;
+  strlcpy( last_error, error, sizeof( last_error ));
 }
 
-void _System
+void PM123_ENTRY
 display_info( char *info )
 {
   char* info_display = strdup( info );
@@ -275,6 +275,10 @@ amp_pl_load_record( PLRECORD* rec )
   DECODER_INFO info;
   struct stat  fi;
 
+  if( !rec ) {
+    return FALSE;
+  }
+
   if( is_file( rec->full ) && stat( rec->full, &fi ) != 0 ) {
     amp_error( hplayer, "Unable load file:\n%s\n%s", rec->full, clib_strerror(errno));
     return FALSE;
@@ -294,7 +298,7 @@ amp_pl_load_record( PLRECORD* rec )
   amp_gettag( current_filename, &info, &current_tune );
 
   if( is_http( current_filename ) && !*current_tune.title ) {
-    strncpy( current_tune.title, rec->songname, sizeof( current_tune.title ));
+    strlcpy( current_tune.title, rec->songname, sizeof( current_tune.title ));
   }
 
   out_params.formatinfo = rec->format;
@@ -883,7 +887,11 @@ amp_add_files( HWND hwnd )
   char* file;
   char  type_audio[2048];
   char  type_all  [2048];
-  char* types[] = { type_audio, FDT_PLAYLIST, type_all, 0 };
+  APSZ  types[4] = {{ 0 }};
+
+  types[0][0] = type_audio;
+  types[1][0] = FDT_PLAYLIST;
+  types[2][0] = type_all;
 
   memset( &filedialog, 0, sizeof( FILEDLG ));
 
@@ -894,7 +902,7 @@ amp_add_files( HWND hwnd )
   filedialog.hMod           = NULLHANDLE;
   filedialog.usDlgId        = DLG_FILE;
   filedialog.pfnDlgProc     = amp_file_dlg_proc;
-  filedialog.papszITypeList = (APSZ*)&types;
+  filedialog.papszITypeList = types;
   filedialog.pszIType       = type_audio;
 
   strcpy( type_audio, FDT_AUDIO );
@@ -949,8 +957,8 @@ amp_drag_over( HWND hwnd, PDRAGINFO pdinfo )
 {
   PDRAGITEM pditem;
   int       i;
-  USHORT    drag_op;
-  USHORT    drag;
+  USHORT    drag_op = 0;
+  USHORT    drag    = DOR_NEVERDROP;
 
   if( !DrgAccessDraginfo( pdinfo )) {
     return MRFROM2SHORT( DOR_NEVERDROP, 0 );
@@ -1317,7 +1325,7 @@ amp_file_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
     {
       HWND  hcbox = WinWindowFromID( hwnd, DID_FILTER_CB );
       ULONG pos   = WinQueryLboxSelectedItem( hcbox );
-      ULONG len   = WinQueryLboxItemTextLength( hcbox, pos );
+      ULONG len   = LONGFROMMR( WinSendMsg( hcbox, LM_QUERYITEMTEXTLENGTH, MPFROMSHORT(pos), 0 ));
       char* type  = malloc( len );
       BOOL  rc    = FALSE;
       char* filt;
@@ -1688,7 +1696,11 @@ amp_load_file( HWND owner )
 
   char  type_audio[2048];
   char  type_all  [2048];
-  char* types[] = { type_audio, FDT_PLAYLIST, type_all, 0 };
+  APSZ  types[4] = {{ 0 }};
+
+  types[0][0] = type_audio;
+  types[1][0] = FDT_PLAYLIST;
+  types[2][0] = type_all;
 
   memset( &filedialog, 0, sizeof( FILEDLG ));
 
@@ -1698,7 +1710,7 @@ amp_load_file( HWND owner )
   filedialog.hMod           = NULLHANDLE;
   filedialog.usDlgId        = DLG_FILE;
   filedialog.pfnDlgProc     = amp_file_dlg_proc;
-  filedialog.papszITypeList = (APSZ*)&types;
+  filedialog.papszITypeList = types;
   filedialog.pszIType       = type_all;
 
   strcpy( type_audio, FDT_AUDIO     );
@@ -1725,7 +1737,7 @@ void
 amp_load_list( HWND owner )
 {
   FILEDLG filedialog;
-  char* types[] = { FDT_PLAYLIST, 0 };
+  APSZ types[] = {{ FDT_PLAYLIST }, { 0 }};
 
   memset( &filedialog, 0, sizeof( FILEDLG ));
 
@@ -1735,7 +1747,7 @@ amp_load_list( HWND owner )
   filedialog.hMod           = NULLHANDLE;
   filedialog.usDlgId        = DLG_FILE;
   filedialog.pfnDlgProc     = amp_file_dlg_proc;
-  filedialog.papszITypeList = (APSZ*)&types;
+  filedialog.papszITypeList = types;
   filedialog.pszIType       = FDT_PLAYLIST;
 
   strcpy( filedialog.szFullFile, cfg.listdir );
@@ -1756,7 +1768,7 @@ amp_save_list_as( HWND owner, int options )
 {
   FILEDLG filedialog;
 
-  char* types[] = { FDT_PLAYLIST_LST, FDT_PLAYLIST_M3U, 0 };
+  APSZ  types[] = {{ FDT_PLAYLIST_LST }, { FDT_PLAYLIST_M3U }, { 0 }};
   char  filez[_MAX_PATH];
   char  ext  [_MAX_EXT ];
 
@@ -1769,7 +1781,7 @@ amp_save_list_as( HWND owner, int options )
   filedialog.usDlgId        = DLG_FILE;
   filedialog.pfnDlgProc     = amp_file_dlg_proc;
   filedialog.ulUser         = FDU_RELATIVBTN;
-  filedialog.papszITypeList = (APSZ*)&types;
+  filedialog.papszITypeList = types;
 
   if( options & SAV_M3U_PLAYLIST ) {
     filedialog.pszIType = FDT_PLAYLIST_M3U;
@@ -1803,7 +1815,7 @@ static void
 amp_loadskin( HAB hab, HWND hwnd, HPS hps )
 {
   FILEDLG filedialog;
-  char* types[] = { FDT_SKIN, 0 };
+  APSZ types[] = {{ FDT_SKIN }, { 0 }};
 
   memset( &filedialog, 0, sizeof( FILEDLG ));
 
@@ -1813,7 +1825,7 @@ amp_loadskin( HAB hab, HWND hwnd, HPS hps )
   filedialog.hMod           = NULLHANDLE;
   filedialog.usDlgId        = DLG_FILE;
   filedialog.pfnDlgProc     = amp_file_dlg_proc;
-  filedialog.papszITypeList = (APSZ*)&types;
+  filedialog.papszITypeList = types;
   filedialog.pszIType       = FDT_SKIN;
 
   sdrivedir( filedialog.szFullFile, cfg.defskin );
@@ -1832,7 +1844,7 @@ amp_save_eq( HWND owner, float* gains, BOOL *mutes, float preamp )
   FILE*   file;
   int     i;
   char    ext[_MAX_EXT];
-  char*   types[] = { FDT_EQUALIZER, 0 };
+  APSZ    types[] = {{ FDT_EQUALIZER }, { 0 }};
 
   memset( &filedialog, 0, sizeof( FILEDLG ));
 
@@ -1842,7 +1854,7 @@ amp_save_eq( HWND owner, float* gains, BOOL *mutes, float preamp )
   filedialog.hMod           = NULLHANDLE;
   filedialog.usDlgId        = DLG_FILE;
   filedialog.pfnDlgProc     = amp_file_dlg_proc;
-  filedialog.papszITypeList = (APSZ*)&types;
+  filedialog.papszITypeList = types;
   filedialog.pszIType       = FDT_EQUALIZER;
 
   strcpy( filedialog.szFullFile, cfg.lasteq );
@@ -1870,7 +1882,7 @@ amp_save_eq( HWND owner, float* gains, BOOL *mutes, float preamp )
       }
       fprintf( file, "# Mutes\n" );
       for( i = 0; i < 20; i++ ) {
-        fprintf( file, "%u\n", mutes[i] );
+        fprintf( file, "%lu\n", mutes[i] );
       }
       fprintf( file, "# Preamplifier\n" );
       fprintf( file, "%g\n", preamp );
@@ -1921,7 +1933,7 @@ static BOOL
 amp_load_eq( HWND hwnd, float* gains, BOOL* mutes, float* preamp )
 {
   FILEDLG filedialog;
-  char*   types[] = { FDT_EQUALIZER, 0 };
+  APSZ    types[] = {{ FDT_EQUALIZER }, { 0 }};
 
   memset( &filedialog, 0, sizeof( FILEDLG ));
 
@@ -1931,7 +1943,7 @@ amp_load_eq( HWND hwnd, float* gains, BOOL* mutes, float* preamp )
   filedialog.hMod           = NULLHANDLE;
   filedialog.usDlgId        = DLG_FILE;
   filedialog.pfnDlgProc     = amp_file_dlg_proc;
-  filedialog.papszITypeList = (APSZ*)&types;
+  filedialog.papszITypeList = types;
   filedialog.pszIType       = FDT_EQUALIZER;
 
   sdrivedir( filedialog.szFullFile, cfg.lasteq );
@@ -2229,44 +2241,6 @@ amp_eq_show( void )
 
   WinSetWindowPos( heq, HWND_TOP, 0, 0, 0, 0,
                         SWP_ZORDER | SWP_SHOW | SWP_ACTIVATE );
-}
-
-/* Moves the player frame window. */
-static void
-amp_move_window( HWND hwnd )
-{
-  TRACKINFO trackinfo;
-  SWP swp;
-
-  memset( &trackinfo, 0, sizeof( trackinfo ));
-
-  trackinfo.cxBorder   = 1;
-  trackinfo.cyBorder   = 1;
-  trackinfo.cxGrid     = 1;
-  trackinfo.cyGrid     = 1;
-  trackinfo.cxKeyboard = 8;
-  trackinfo.cyKeyboard = 8;
-
-  WinQueryWindowPos( hwnd, &swp );
-  trackinfo.rclTrack.xLeft   = swp.x;
-  trackinfo.rclTrack.xRight  = swp.x + swp.cx;
-  trackinfo.rclTrack.yBottom = swp.y;
-  trackinfo.rclTrack.yTop    = swp.y + swp.cy;
-
-  WinQueryWindowPos( HWND_DESKTOP, &swp );
-  trackinfo.rclBoundary.xLeft    = swp.x;
-  trackinfo.rclBoundary.xRight   = swp.x + swp.cx;
-  trackinfo.rclBoundary.yBottom  = swp.y;
-  trackinfo.rclBoundary.yTop     = swp.y + swp.cy;
-
-  trackinfo.ptlMinTrackSize.x = 0;
-  trackinfo.ptlMinTrackSize.y = 0;
-  trackinfo.ptlMaxTrackSize.x = swp.cx;
-  trackinfo.ptlMaxTrackSize.y = swp.cy;
-
-  trackinfo.fs = TF_MOVE | TF_STANDARD;
-
-  WinSendMsg( hwnd, WM_TRACKFRAME, MPFROMSHORT( trackinfo.fs ), 0 );
 }
 
 /* Processes messages of the player client window. */
@@ -2771,7 +2745,10 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
     case WM_BUTTON1CLICK:
     {
       HPS    hps = WinGetPS( hwnd );
-      POINTL pos = { SHORT1FROMMP(mp1), SHORT2FROMMP(mp1) };
+      POINTL pos;
+
+      pos.x = SHORT1FROMMP(mp1);
+      pos.y = SHORT2FROMMP(mp1);
 
       if( bmp_pt_in_volume( pos ))
       {
@@ -2794,7 +2771,10 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
       if( is_volume_drag )
       {
         HPS    hps = WinGetPS( hwnd );
-        POINTL pos = { SHORT1FROMMP(mp1), SHORT2FROMMP(mp1) };
+        POINTL pos;
+
+        pos.x = SHORT1FROMMP(mp1);
+        pos.y = SHORT2FROMMP(mp1);
 
         bmp_draw_volume( hps, cfg.defaultvol = bmp_calc_volume( pos ));
         WinReleasePS( hps );
@@ -2803,8 +2783,11 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
 
       if( is_slider_drag )
       {
-        HPS     hps = WinGetPS( hwnd );
-        POINTL  pos = { SHORT1FROMMP(mp1), SHORT2FROMMP(mp1) };
+        HPS    hps = WinGetPS( hwnd );
+        POINTL pos;
+
+        pos.x = SHORT1FROMMP(mp1);
+        pos.y = SHORT2FROMMP(mp1);
         seeking_pos = bmp_calc_time( pos, time_total());
 
         bmp_draw_slider( hps, seeking_pos, time_total());
@@ -2821,9 +2804,11 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
       }
       if( is_slider_drag )
       {
-        POINTL pos = { SHORT1FROMMP(mp1), SHORT2FROMMP(mp1) };
         ULONG  ms;
+        POINTL pos;
 
+        pos.x = SHORT1FROMMP(mp1);
+        pos.y = SHORT2FROMMP(mp1);
         seeking_pos = bmp_calc_time( pos, time_total());
         ms = seeking_pos * 1000;
 
@@ -2834,7 +2819,10 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
 
     case WM_BUTTON1MOTIONSTART:
     {
-      POINTL pos = { SHORT1FROMMP(mp1), SHORT2FROMMP(mp1) };
+      POINTL pos;
+
+      pos.x = SHORT1FROMMP(mp1);
+      pos.y = SHORT2FROMMP(mp1);
 
       if( bmp_pt_in_volume( pos )) {
         is_volume_drag = TRUE;
@@ -2842,14 +2830,14 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
         is_slider_drag = TRUE;
         is_seeking     = TRUE;
       } else {
-        amp_move_window( hframe );
+        WinSendMsg( hframe, WM_TRACKFRAME, MPFROMSHORT( TF_MOVE | TF_STANDARD ), 0 );
         WinQueryWindowPos( hframe, &cfg.main );
       }
       return 0;
     }
 
     case WM_BUTTON2MOTIONSTART:
-      amp_move_window( hframe );
+      WinSendMsg( hframe, WM_TRACKFRAME, MPFROMSHORT( TF_MOVE | TF_STANDARD ), 0 );
       WinQueryWindowPos( hframe, &cfg.main );
       return 0;
 
@@ -3021,8 +3009,8 @@ main( int argc, char *argv[] )
     }
   }
 
-  proxyurl = cfg.proxy;
-  httpauth = cfg.auth;
+  set_proxyurl( cfg.proxy );
+  set_httpauth( cfg.auth  );
 
   getExeName( exename, sizeof( exename ));
   sdrivedir ( startpath, exename );

@@ -18,7 +18,7 @@
  *
  */
 
-/* $Id: planner.c,v 1.1 2005/07/26 17:37:04 glass Exp $ */
+/* $Id: planner.c,v 1.2 2006/06/14 11:23:38 glass Exp $ */
 #include "ifftw.h"
 #include <string.h>
 
@@ -268,7 +268,7 @@ static void hinsert(planner *ego, const md5sig s,
 {
      solution *l;
 
-     if ((l = hlookup(ego, s, flags))) {
+     if ((l = hlookup(ego, s, flags)) != 0 ) {
 	  if (SUBSUMES(flags, l->flags)) {
 	       /* overwrite old solution */
 	       flags = merge_flags(flags, slvndx, l->flags, l->slvndx);
@@ -443,7 +443,7 @@ static plan *mkplan(planner *ego, problem *p)
      {
 	  solution *sol; /* new scope for sol */
 
-	  if ((sol = hlookup(ego, m.s, ego->planner_flags))) {
+	  if ((sol = hlookup(ego, m.s, ego->planner_flags)) != 0 ) {
 	       if (SUBSUMES(sol->flags, ego->planner_flags)) {
 		    /* wisdom is acceptable */
 		    if (sol->slvndx < 0) 
@@ -570,7 +570,7 @@ static int imprt(planner *ego, scanner *sc)
 	       sol[h] = ego->solutions[h];
      }
 
-     while (1) {
+     for (;;) {
 	  if (sc->scan(sc, ")"))
 	       break;
 

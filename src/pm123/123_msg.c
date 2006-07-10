@@ -51,8 +51,8 @@
 
 #define  BUFSIZE 16384
 
-extern void _System keep_last_error( char* );
-extern void _System display_info( char* );
+extern void PM123_ENTRY keep_last_error( char* );
+extern void PM123_ENTRY display_info( char* );
 
 DECODER_PARAMS dec_params;
 OUTPUT_PARAMS  out_params;

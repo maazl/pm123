@@ -13,6 +13,16 @@ History:
 
 */
 
+/* activate to enable measurement of conversion time */
+/* #define MEASURE_TIME */
+
+#ifdef MEASURE_TIME
+#ifdef __OS2__
+  #define INCL_DOSDATETIME
+  #include <os2.h>
+#endif
+#endif
+
 /*...sincludes:0:*/
 #include <stdio.h>
 #include <ctype.h>
@@ -95,6 +105,15 @@ int main(int argc, char *argv[])
     GBM      gbm;
     GBMRGB   gbmrgb[0x100];
     byte    *data;
+
+#ifdef MEASURE_TIME
+#ifdef __OS2__
+   DATETIME start_time, end_time;
+   double   time_s;
+
+   DosGetDateTime(&start_time);
+#endif
+#endif
 
     if ( argc < 3 )
     {
@@ -211,6 +230,15 @@ int main(int argc, char *argv[])
 
     gbm_io_close(fd);
     gbm_deinit();
+
+#ifdef MEASURE_TIME
+#ifdef __OS2__
+   DosGetDateTime(&end_time);
+   time_s = ((double) (end_time  .minutes * 60) + end_time  .seconds + (end_time  .hundredths/100.0)) -
+            ((double) (start_time.minutes * 60) + start_time.seconds + (start_time.hundredths/100.0));
+   printf("Elapsed time: %lf\n", time_s);
+#endif
+#endif
 
     return 0;
 }

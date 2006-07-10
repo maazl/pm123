@@ -3,7 +3,7 @@
 #include <string.h>
 #include <stdio.h>
 
-void main(int argc, char *argv[])
+int main( int argc, char *argv[] )
 {
    HPIPE pipe = 0;
    ULONG action = 0, bytesread = 0;
@@ -134,4 +134,5 @@ void main(int argc, char *argv[])
    action = 0;
 
    printf("\n");
+   return 0;
 }

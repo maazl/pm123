@@ -219,36 +219,36 @@ GBM_ERR gem_rhdr(const char *fn, int fd, GBM *gbm, const char *opt)
 static GBMRGB gbmrgb_3[] =
 	{
 	/* r, g, b */
-	0xff,0xff,0xff,		/* White */
-	0xff,0   ,0   ,		/* Red */
-	0   ,0xff,0   ,		/* Green */
-	0xff,0xff,0   ,		/* (Yellow) Orange */
-	0   ,0   ,0xff,		/* Blue */
-	0xff,0   ,0xff,		/* Magenta */
-	0   ,0xff,0xff,		/* Cyan */
-	0   ,0   ,0   ,		/* Black */
+	{ 0xff,0xff,0xff },		/* White */
+	{ 0xff,0   ,0    },		/* Red */
+	{ 0   ,0xff,0    },		/* Green */
+	{ 0xff,0xff,0    },		/* (Yellow) Orange */
+	{ 0   ,0   ,0xff },		/* Blue */
+	{ 0xff,0   ,0xff },		/* Magenta */
+	{ 0   ,0xff,0xff },		/* Cyan */
+	{ 0   ,0   ,0    },		/* Black */
 	};
 /*...e*/
 /*...sgbmrgb_4 \45\ 4 plane palette:0:*/
 static GBMRGB gbmrgb_4[] =
 	{
 	/* r, g, b */
-	0xff,0xff,0xff,		/* White */
-	0xff,0   ,0   ,		/* Red */
-	0   ,0xff,0   ,		/* Green */
-	0xff,0xff,0   ,		/* (Yellow) Orange */
-	0   ,0   ,0xff,		/* Blue */
-	0xff,0   ,0xff,		/* Magenta */
-	0   ,0xff,0xff,		/* Cyan */
-	0xcc,0xcc,0xcc,		/* Grey */
-	0x80,0x80,0x80,		/* Dark grey */
-	0x80,0   ,0   ,		/* Dark red */
-	0   ,0x80,0   ,		/* Dark green */
-	0x80,0x80,0   ,		/* Dark yellow */
-	0   ,0   ,0x80,		/* Dark blue */
-	0x80,0   ,0x80,		/* Dark magenta */
-	0   ,0x80,0x80,		/* Dark cyan */
-	0   ,0   ,0   ,		/* Black */
+	{ 0xff,0xff,0xff },		/* White */
+	{ 0xff,0   ,0    },		/* Red */
+	{ 0   ,0xff,0    },		/* Green */
+	{ 0xff,0xff,0    },		/* (Yellow) Orange */
+	{ 0   ,0   ,0xff },		/* Blue */
+	{ 0xff,0   ,0xff },		/* Magenta */
+	{ 0   ,0xff,0xff },		/* Cyan */
+	{ 0xcc,0xcc,0xcc },		/* Grey */
+	{ 0x80,0x80,0x80 },		/* Dark grey */
+	{ 0x80,0   ,0    },		/* Dark red */
+	{ 0   ,0x80,0    },		/* Dark green */
+	{ 0x80,0x80,0    },		/* Dark yellow */
+	{ 0   ,0   ,0x80 },		/* Dark blue */
+	{ 0x80,0   ,0x80 },		/* Dark magenta */
+	{ 0   ,0x80,0x80 },		/* Dark cyan */
+	{ 0   ,0   ,0    },		/* Black */
 	};
 /*...e*/
 

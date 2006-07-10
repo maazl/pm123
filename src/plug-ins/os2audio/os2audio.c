@@ -56,30 +56,6 @@ int numbuffers = 32; /* total audio buffers, _bare_ minimum = 4 (cuz of prio boo
 int kludge48as44 = 0;
 int force8bit = 0;
 
-#if 0
-
-HMODULE thisModule = 0;
-char *thisModulePath = NULL;
-
-int _CRT_init(void);
-void _CRT_term(void);
-
-BOOL _System _DLL_InitTerm(ULONG hModule, ULONG flag)
-{
-   if(flag == 0)
-   {
-      if(_CRT_init() == -1)
-         return FALSE;
-
-      getModule(&thisModule,&thisModulePath);
-   }
-   else
-      _CRT_term();
-
-   return TRUE;
-}
-#endif
-
 typedef struct
 {
    MCI_MIX_BUFFER  *NextBuffer;
@@ -221,9 +197,9 @@ static void MciError(OS2AUDIO *a, ULONG ulError)
    rc = mciGetErrorString(ulError, buffer, sizeof(buffer));
 
    if (rc == MCIERR_SUCCESS)
-      sprintf(mmerror,"MCI Error %d: %s\n",ULONG_LOWD(ulError),buffer);
+      sprintf(mmerror,"MCI Error %d: %s\n",LOUSHORT(ulError),buffer);
    else
-      sprintf(mmerror,"MCI Error %d: Cannot query error message.\n",ULONG_LOWD(rc));
+      sprintf(mmerror,"MCI Error %d: Cannot query error message.\n",LOUSHORT(rc));
 
    a->original_info.error_display(mmerror);
 
@@ -257,7 +233,7 @@ ULONG output_set_volume(void *A, char setvolume, float setamplifier)
    return 0;
 }
 
-ULONG _System output_pause(void *A, BOOL pause)
+ULONG PM123_ENTRY output_pause(void *A, BOOL pause)
 {
    OS2AUDIO *a = (OS2AUDIO *) A;
 
@@ -277,7 +253,7 @@ ULONG _System output_pause(void *A, BOOL pause)
    return 0;
 }
 
-ULONG _System output_init(void **A)
+ULONG PM123_ENTRY output_init(void **A)
 {
    OS2AUDIO *a;
 
@@ -344,7 +320,7 @@ ULONG output_open(OS2AUDIO *a)
                        &a->maop,
                        0);
 
-   if (ULONG_LOWD(rc) != MCIERR_SUCCESS)
+   if (LOUSHORT(rc) != MCIERR_SUCCESS)
    {
       MciError(a,rc);
       a->maop.usDeviceID = 0;
@@ -379,7 +355,7 @@ ULONG output_open(OS2AUDIO *a)
                         &a->mmp,
                         0 );
 
-   if ( ULONG_LOWD(rc) != MCIERR_SUCCESS )
+   if ( LOUSHORT(rc) != MCIERR_SUCCESS )
    {
       MciError(a,rc);
       a->maop.usDeviceID = 0;
@@ -417,7 +393,7 @@ ULONG output_open(OS2AUDIO *a)
                         (PVOID) &a->mbp,
                         0 );
 
-   if ( ULONG_LOWD(rc) != MCIERR_SUCCESS )
+   if ( LOUSHORT(rc) != MCIERR_SUCCESS )
    {
       MciError(a,rc);
       a->maop.usDeviceID = 0;
@@ -482,7 +458,7 @@ ULONG output_open(OS2AUDIO *a)
    return 0;
 }
 
-ULONG _System output_close(void *A)
+ULONG PM123_ENTRY output_close(void *A)
 {
    OS2AUDIO *a = (OS2AUDIO *) A;
 
@@ -518,7 +494,7 @@ ULONG _System output_close(void *A)
                         &a->mbp,
                         0 );
 
-   if ( ULONG_LOWD(rc) != MCIERR_SUCCESS )
+   if ( LOUSHORT(rc) != MCIERR_SUCCESS )
    {
       MciError(a,rc);
       return(rc);
@@ -537,7 +513,7 @@ ULONG _System output_close(void *A)
                         &a->mgp,
                         0 );
 
-   if ( ULONG_LOWD(rc) != MCIERR_SUCCESS )
+   if ( LOUSHORT(rc) != MCIERR_SUCCESS )
    {
       MciError(a,rc);
       return(rc);
@@ -554,7 +530,7 @@ ULONG _System output_close(void *A)
    return 0;
 }
 
-ULONG _System output_uninit(void *a)
+ULONG PM123_ENTRY output_uninit(void *a)
 {
    free(a);
 
@@ -562,14 +538,15 @@ ULONG _System output_uninit(void *a)
 }
 
 
-int _System output_play_samples(void *A, FORMAT_INFO *format, char *buf,int len, int posmarker)
+int PM123_ENTRY output_play_samples(void *A, FORMAT_INFO *format, char *buf,int len, int posmarker)
 {
-   OS2AUDIO *a = (OS2AUDIO *) A;
+   OS2AUDIO *a = (OS2AUDIO*)A;
 
    PPIB ppib;
    PTIB ptib;
 
    DosGetInfoBlocks(&ptib,&ppib);
+
    if(ptib != a->mainthread)
    {
       a->mainthread = ptib;
@@ -653,7 +630,7 @@ int _System output_play_samples(void *A, FORMAT_INFO *format, char *buf,int len,
    return len;
 }
 
-ULONG _System output_playing_samples(void *A, FORMAT_INFO *info, char *buf, int len)
+ULONG PM123_ENTRY output_playing_samples(void *A, FORMAT_INFO *info, char *buf, int len)
 {
    OS2AUDIO *a = (OS2AUDIO *) A;
 
@@ -677,7 +654,7 @@ ULONG _System output_playing_samples(void *A, FORMAT_INFO *info, char *buf, int 
                            &a->mstatp,
                            0 );
 
-      if ( ULONG_LOWD(rc) != MCIERR_SUCCESS )
+      if ( LOUSHORT(rc) != MCIERR_SUCCESS )
       {
          MciError(a,rc);
          a->maop.usDeviceID = 0;
@@ -706,13 +683,13 @@ ULONG _System output_playing_samples(void *A, FORMAT_INFO *info, char *buf, int 
    return 0;
 }
 
-ULONG _System output_playing_pos(void *A)
+ULONG PM123_ENTRY output_playing_pos(void *A)
 {
    OS2AUDIO *a = (OS2AUDIO *) A;
    return a->playingpos;
 }
 
-void _System output_trash_buffers(void *A, ULONG temp_playingpos)
+void PM123_ENTRY output_trash_buffers(void *A, ULONG temp_playingpos)
 {
    OS2AUDIO *a = (OS2AUDIO *) A;
    int i;
@@ -736,7 +713,7 @@ void _System output_trash_buffers(void *A, ULONG temp_playingpos)
    // return TRUE;
 }
 
-BOOL _System output_playing_data(void *A)
+BOOL PM123_ENTRY output_playing_data(void *A)
 {
    OS2AUDIO *a = (OS2AUDIO *) A;
    return !a->nomoredata;
@@ -749,7 +726,7 @@ BOOL _System output_playing_data(void *A)
 /*
  * get formats for specific channel/rate parameters
  */
-int _System output_get_formats(OUTPUT_PARAMS *ai)
+int PM123_ENTRY output_get_formats(OUTPUT_PARAMS *ai)
 {
    int fmts = 0;
    ULONG rc;
@@ -769,7 +746,7 @@ int _System output_get_formats(OUTPUT_PARAMS *ai)
                         MCI_WAIT | MCI_MIXSETUP_QUERYMODE,
                         &mmptemp,
                         0 );
-   if((ULONG_LOWD(rc) == MCIERR_SUCCESS) && (rc != 0x4000)) /* undocumented */
+   if((LOUSHORT(rc) == MCIERR_SUCCESS) && (rc != 0x4000)) /* undocumented */
       fmts = fmts | AUDIO_FORMAT_SIGNED_16;
 
    mmptemp.ulFormatTag = MCI_WAVE_FORMAT_PCM;
@@ -779,7 +756,7 @@ int _System output_get_formats(OUTPUT_PARAMS *ai)
                         MCI_WAIT | MCI_MIXSETUP_QUERYMODE,
                         &mmptemp,
                         0 );
-   if((ULONG_LOWD(rc) == MCIERR_SUCCESS) && (rc != 0x4000)) /* undocumented */
+   if((LOUSHORT(rc) == MCIERR_SUCCESS) && (rc != 0x4000)) /* undocumented */
       fmts = fmts | AUDIO_FORMAT_UNSIGNED_8;
 
    mmptemp.ulFormatTag = MCI_WAVE_FORMAT_ALAW;
@@ -789,7 +766,7 @@ int _System output_get_formats(OUTPUT_PARAMS *ai)
                         MCI_WAIT | MCI_MIXSETUP_QUERYMODE,
                         &mmptemp,
                         0 );
-   if((ULONG_LOWD(rc) == MCIERR_SUCCESS) && (rc != 0x4000)) /* undocumented */
+   if((LOUSHORT(rc) == MCIERR_SUCCESS) && (rc != 0x4000)) /* undocumented */
       fmts = fmts | AUDIO_FORMAT_ALAW_8;
 
    mmptemp.ulFormatTag = MCI_WAVE_FORMAT_MULAW;
@@ -799,20 +776,20 @@ int _System output_get_formats(OUTPUT_PARAMS *ai)
                         MCI_WAIT | MCI_MIXSETUP_QUERYMODE,
                         &mmptemp,
                         0 );
-   if((ULONG_LOWD(rc) == MCIERR_SUCCESS) && (rc != 0x4000)) /* undocumented */
+   if((LOUSHORT(rc) == MCIERR_SUCCESS) && (rc != 0x4000)) /* undocumented */
       fmts = fmts | AUDIO_FORMAT_ULAW_8;
 
    return fmts;
 }
 
-int _System output_rate_best_match(OUTPUT_PARAMS *ai)
+int PM123_ENTRY output_rate_best_match(OUTPUT_PARAMS *ai)
 {
    return 0;
 }
 
 #endif
 
-ULONG _System output_get_devices(char *name, int deviceid)
+ULONG PM123_ENTRY output_get_devices(char *name, int deviceid)
 {
    char buffer[256];
    MCI_SYSINFO_PARMS mip;
@@ -862,7 +839,7 @@ ULONG _System output_get_devices(char *name, int deviceid)
 }
 
 
-ULONG _System output_command(void *A, ULONG msg, OUTPUT_PARAMS *info)
+ULONG PM123_ENTRY output_command(void *A, ULONG msg, OUTPUT_PARAMS *info)
 {
    OS2AUDIO *a = (OS2AUDIO *) A;
    ULONG rc = 0;
@@ -990,7 +967,7 @@ MRESULT EXPENTRY ConfigureDlgProc(HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2)
 #define FONT1 "9.WarpSans"
 #define FONT2 "8.Helv"
 
-void _System plugin_configure(HWND hwnd, HMODULE module)
+int PM123_ENTRY plugin_configure(HWND hwnd, HMODULE module)
 {
    if(dlghwnd == 0)
    {
@@ -1014,6 +991,8 @@ void _System plugin_configure(HWND hwnd, HMODULE module)
    }
    else
       WinFocusChange(HWND_DESKTOP, dlghwnd, 0);
+
+   return 0;
 }
 
 #define INIFILE "os2audio.ini"
@@ -1056,7 +1035,7 @@ void load_ini()
    }
 }
 
-void _System plugin_query(PLUGIN_QUERYPARAM *param)
+int PM123_ENTRY plugin_query(PLUGIN_QUERYPARAM *param)
 {
    param->type = PLUGIN_OUTPUT;
    param->author = "Samuel Audet";
@@ -1064,4 +1043,5 @@ void _System plugin_query(PLUGIN_QUERYPARAM *param)
    param->configurable = TRUE;
 
    load_ini();
+   return 0;
 }

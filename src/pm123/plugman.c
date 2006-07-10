@@ -36,6 +36,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <malloc.h>
 
 #include "utilfct.h"
 #include "format.h"
@@ -105,14 +106,14 @@ unload_module( const char* module_name, HMODULE module )
 
 /* Assigns the address of the specified procedure within a plug-in. */
 static BOOL
-load_function( HMODULE module, PFN *function, const char* function_name,
-                                              const char* module_name )
+load_function( HMODULE module, void* function, const char* function_name,
+                                               const char* module_name )
 {
   char  error[1024];
   ULONG rc = DosQueryProcAddr( module, 0L, (PSZ)function_name, function );
 
   if( rc != NO_ERROR ) {
-    *function = NULL;
+    *((ULONG*)function) = 0;
     amp_player_error( "Could not load \"%s\" from %s\n%s", function_name,
                       module_name, os2_strerror( rc, error, sizeof( error )));
     return FALSE;
@@ -126,9 +127,9 @@ load_function( HMODULE module, PFN *function, const char* function_name,
 static ULONG
 check_plugin( HMODULE module, const char* module_name, PLUGIN_QUERYPARAM* query_param )
 {
-  void (*_System plugin_query)( PLUGIN_QUERYPARAM *param );
+  void (PM123_ENTRYP plugin_query)( PLUGIN_QUERYPARAM *param );
 
-  if( load_function( module, (PFN*)&plugin_query, "plugin_query", module_name ))
+  if( load_function( module, &plugin_query, "plugin_query", module_name ))
   {
     (*plugin_query)(query_param);
     return query_param->type;
@@ -149,19 +150,19 @@ load_decoder( DECODER* info )
 
   if( check_plugin( module, module_name, &info->query_param ) & PLUGIN_DECODER )
   {
-    BOOL rc = load_function( module, (PFN*)&info->decoder_init, "decoder_init", module_name )
-            | load_function( module, (PFN*)&info->decoder_uninit, "decoder_uninit", module_name )
-            | load_function( module, (PFN*)&info->decoder_command, "decoder_command", module_name )
-            | load_function( module, (PFN*)&info->decoder_status, "decoder_status", module_name )
-            | load_function( module, (PFN*)&info->decoder_length, "decoder_length", module_name )
-            | load_function( module, (PFN*)&info->decoder_fileinfo, "decoder_fileinfo", module_name )
-            | load_function( module, (PFN*)&info->decoder_trackinfo, "decoder_trackinfo", module_name )
-            | load_function( module, (PFN*)&info->decoder_cdinfo, "decoder_cdinfo", module_name )
-            | load_function( module, (PFN*)&info->decoder_support, "decoder_support", module_name )
-            | load_function( module, (PFN*)&info->plugin_query, "plugin_query", module_name );
+    BOOL rc = load_function( module, &info->decoder_init, "decoder_init", module_name )
+            | load_function( module, &info->decoder_uninit, "decoder_uninit", module_name )
+            | load_function( module, &info->decoder_command, "decoder_command", module_name )
+            | load_function( module, &info->decoder_status, "decoder_status", module_name )
+            | load_function( module, &info->decoder_length, "decoder_length", module_name )
+            | load_function( module, &info->decoder_fileinfo, "decoder_fileinfo", module_name )
+            | load_function( module, &info->decoder_trackinfo, "decoder_trackinfo", module_name )
+            | load_function( module, &info->decoder_cdinfo, "decoder_cdinfo", module_name )
+            | load_function( module, &info->decoder_support, "decoder_support", module_name )
+            | load_function( module, &info->plugin_query, "plugin_query", module_name );
 
     if( info->query_param.configurable ) {
-      rc |= load_function( module, (PFN*)&info->plugin_configure, "plugin_configure", module_name );
+      rc |= load_function( module, &info->plugin_configure, "plugin_configure", module_name );
     }
 
     info->w = NULL;
@@ -207,17 +208,17 @@ load_output( OUTPUT* info )
 
   if( check_plugin ( module, module_name, &info->query_param ) & PLUGIN_OUTPUT )
   {
-    BOOL rc = load_function( module, (PFN*)&info->output_init, "output_init", module_name )
-            | load_function( module, (PFN*)&info->output_uninit, "output_uninit", module_name )
-            | load_function( module, (PFN*)&info->output_command, "output_command", module_name )
-            | load_function( module, (PFN*)&info->output_play_samples, "output_play_samples", module_name )
-            | load_function( module, (PFN*)&info->output_playing_samples, "output_playing_samples", module_name )
-            | load_function( module, (PFN*)&info->output_playing_pos, "output_playing_pos", module_name )
-            | load_function( module, (PFN*)&info->output_playing_data, "output_playing_data", module_name )
-            | load_function( module, (PFN*)&info->plugin_query, "plugin_query", info->module_name );
+    BOOL rc = load_function( module, &info->output_init, "output_init", module_name )
+            | load_function( module, &info->output_uninit, "output_uninit", module_name )
+            | load_function( module, &info->output_command, "output_command", module_name )
+            | load_function( module, &info->output_play_samples, "output_play_samples", module_name )
+            | load_function( module, &info->output_playing_samples, "output_playing_samples", module_name )
+            | load_function( module, &info->output_playing_pos, "output_playing_pos", module_name )
+            | load_function( module, &info->output_playing_data, "output_playing_data", module_name )
+            | load_function( module, &info->plugin_query, "plugin_query", info->module_name );
 
     if( info->query_param.configurable ) {
-      rc |= load_function( module, (PFN*)&info->plugin_configure, "plugin_configure", module_name );
+      rc |= load_function( module, &info->plugin_configure, "plugin_configure", module_name );
     }
 
     info->a = NULL;
@@ -236,13 +237,13 @@ load_filter( FILTER* info )
 
   if( check_plugin ( module, module_name, &info->query_param ) & PLUGIN_FILTER )
   {
-    BOOL rc = load_function( module, (PFN*)&info->filter_init, "filter_init", module_name )
-            | load_function( module, (PFN*)&info->filter_uninit, "filter_uninit", module_name )
-            | load_function( module, (PFN*)&info->filter_play_samples, "filter_play_samples", module_name )
-            | load_function( module, (PFN*)&info->plugin_query, "plugin_query", info->module_name );
+    BOOL rc = load_function( module, &info->filter_init, "filter_init", module_name )
+            | load_function( module, &info->filter_uninit, "filter_uninit", module_name )
+            | load_function( module, &info->filter_play_samples, "filter_play_samples", module_name )
+            | load_function( module, &info->plugin_query, "plugin_query", info->module_name );
 
     if( info->query_param.configurable ) {
-      rc |= load_function( module, (PFN*)&info->plugin_configure, "plugin_configure", module_name );
+      rc |= load_function( module, &info->plugin_configure, "plugin_configure", module_name );
     }
 
     info->f = NULL;
@@ -262,12 +263,12 @@ load_visual( VISUAL* info )
 
   if( check_plugin ( module, module_name, &info->query_param ) & PLUGIN_VISUAL )
   {
-    BOOL rc = load_function( module, (PFN*)&info->plugin_query, "plugin_query", module_name )
-            | load_function( module, (PFN*)&info->plugin_deinit, "plugin_deinit", module_name )
-            | load_function( module, (PFN*)&info->plugin_init, "vis_init", module_name );
+    BOOL rc = load_function( module, &info->plugin_query, "plugin_query", module_name )
+            | load_function( module, &info->plugin_deinit, "plugin_deinit", module_name )
+            | load_function( module, &info->plugin_init, "vis_init", module_name );
 
     if( info->query_param.configurable ) {
-      rc |= load_function( module, (PFN*)&info->plugin_configure, "plugin_configure", module_name );
+      rc |= load_function( module, &info->plugin_configure, "plugin_configure", module_name );
     }
 
     info->enabled = TRUE;
@@ -509,7 +510,7 @@ remove_visual_plugin( VISUAL* visual )
 
 /* Adds a default decoder plug-ins to the list of loaded. */
 void
-load_default_decoders()
+load_default_decoders( void )
 {
   DECODER decoder;
 
@@ -536,7 +537,7 @@ load_default_decoders()
 
 /* Adds a default output plug-ins to the list of loaded. */
 void
-load_default_outputs()
+load_default_outputs( void )
 {
   OUTPUT output;
 
@@ -560,7 +561,7 @@ load_default_outputs()
 
 /* Adds a default filter plug-ins to the list of loaded. */
 void
-load_default_filters()
+load_default_filters( void )
 {
   FILTER filter;
 
@@ -578,7 +579,7 @@ load_default_filters()
 
 /* Adds a default visual plug-ins to the list of loaded. */
 void
-load_default_visuals()
+load_default_visuals( void )
 {
   int i = 0;
 
@@ -975,7 +976,7 @@ int
 dec_set_name_active( char* name )
 {
   int i;
-  if( name == NULL || !*name ) {
+  if( name == NULL ) {
     return dec_set_active( -1 );
   }
 
@@ -993,7 +994,7 @@ dec_set_name_active( char* name )
            1 = command unsupported,
            3 = no decoder active,
            4 = no active output, others unimportant. */
-ULONG _System dec_command( ULONG msg, DECODER_PARAMS *params )
+ULONG PM123_ENTRY dec_command( ULONG msg, DECODER_PARAMS *params )
 {
   if( active_decoder != -1 )
   {
@@ -1070,7 +1071,7 @@ ULONG _System dec_command( ULONG msg, DECODER_PARAMS *params )
 
 /* Returns the decoder NAME that can play this file and returns 0
    if not returns error 200 = nothing can play that. */
-ULONG _System
+ULONG PM123_ENTRY
 dec_fileinfo( char* filename, DECODER_INFO* info, char* name )
 {
   BOOL* checked = malloc( sizeof( BOOL ) * num_decoders );
@@ -1116,7 +1117,7 @@ dec_fileinfo( char* filename, DECODER_INFO* info, char* name )
   return 200;
 }
 
-ULONG _System
+ULONG PM123_ENTRY
 dec_trackinfo( char* drive, int track, DECODER_INFO* info, char* name )
 {
   ULONG last_rc = 200;
@@ -1136,7 +1137,7 @@ dec_trackinfo( char* drive, int track, DECODER_INFO* info, char* name )
   return last_rc; // returns only the last RC ... hum
 }
 
-ULONG _System
+ULONG PM123_ENTRY
 dec_cdinfo( char *drive, DECODER_CDINFO *info )
 {
   ULONG last_rc = 200;
@@ -1156,8 +1157,8 @@ dec_cdinfo( char *drive, DECODER_CDINFO *info )
   return last_rc; // returns only the last RC ... hum
 }
 
-ULONG _System
-dec_status()
+ULONG PM123_ENTRY
+dec_status( void )
 {
   if( active_decoder != -1 ) {
     return decoders[active_decoder].decoder_status( decoders[active_decoder].w );
@@ -1167,8 +1168,8 @@ dec_status()
 }
 
 /* Length in ms, should still be valid if decoder stops. */
-ULONG _System
-dec_length()
+ULONG PM123_ENTRY
+dec_length( void )
 {
   if( active_decoder != -1 ) {
     return decoders[active_decoder].decoder_length( decoders[active_decoder].w );
@@ -1281,7 +1282,7 @@ out_set_volume( int volume )
 }
 
 /* Returns 0 = success otherwize MMOS/2 error. */
-ULONG _System
+ULONG PM123_ENTRY
 out_playing_samples( FORMAT_INFO* info, char* buf, int len )
 {
   if( active_output != -1 ) {
@@ -1292,8 +1293,8 @@ out_playing_samples( FORMAT_INFO* info, char* buf, int len )
 }
 
 /* Returns time in ms. */
-ULONG _System
-out_playing_pos()
+ULONG PM123_ENTRY
+out_playing_pos( void )
 {
   if( active_output != -1 ) {
     return outputs[active_output].output_playing_pos( outputs[active_output].a );
@@ -1303,8 +1304,8 @@ out_playing_pos()
 }
 
 /* if the output is playing. */
-BOOL _System
-out_playing_data()
+BOOL PM123_ENTRY
+out_playing_data( void )
 {
   if( active_output != -1 ) {
     return outputs[active_output].output_playing_data( outputs[active_output].a );
@@ -1386,7 +1387,7 @@ vis_broadcast( ULONG msg, MPARAM mp1, MPARAM mp2 )
 
 /* Backward compatibility */
 BOOL
-decoder_playing()
+decoder_playing( void )
 {
   ULONG status = dec_status();
   return ( status == DECODER_PLAYING || status == DECODER_STARTING || out_playing_data());
@@ -1394,13 +1395,13 @@ decoder_playing()
 
 /* Returns a playing time of the current file, in seconds. */
 int
-time_played() {
+time_played( void ) {
   return out_playing_pos()/1000;
 }
 
 /* Returns a total playing time of the current file. */
 int
-time_total() {
+time_total( void ) {
   return dec_length()/1000;
 }
 

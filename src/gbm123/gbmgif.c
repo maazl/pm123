@@ -467,7 +467,7 @@ GBM_ERR gif_rdata(int fd, GBM *gbm, byte *data)
 	cword free_code;		/* Next available free code slot */
 	word bit_mask;			/* Output pixel mask */ 
 	int i, out_count = 0;
-	cword code, cur_code, old_code, in_code, fin_char;
+	cword code = 0, cur_code, old_code = 0, in_code, fin_char = 0;
 	cword *prefix, *suffix, *outcode;
 	READ_CONTEXT c;
 	OUTPUT_CONTEXT o;
@@ -820,8 +820,8 @@ hashtable is big enough so that MAX_HASH > 4*MAX_DICT.
 int stride = ((gbm->w * gbm->bpp + 31) / 32) * 4;
 byte min_code_size;
 int init_code_size, x, y, pass;
-cword clear_code, eoi_code, last_code, max_code, tail;
-unsigned int hashvalue, lenstring, j;
+cword clear_code, eoi_code, last_code, max_code, tail = 0;
+unsigned int hashvalue = 0, lenstring, j;
 DICT *dict, **hashtable;
 WRITE_CONTEXT w;
 

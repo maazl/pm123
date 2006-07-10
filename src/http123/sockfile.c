@@ -1,20 +1,25 @@
-#define INCL_DOS
+#define  INCL_DOS
 #include <os2.h>
 
 #include <fcntl.h>
 #include <sys/stat.h>
 #include <share.h>
 #include <io.h>
-
 #include <stdio.h>
 #include <stdlib.h>
-
+#include <memory.h>
 #include <netdb.h>
-//#include <sys/param.h>
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <sys/time.h>
 #include <netinet/in.h>
-//#include <arpa/inet.h>
+#include <process.h>
+#include <string.h>
+
+#ifndef TCPV40HDRS
+#include <unistd.h>
+#include <arpa/inet.h>
+#endif
 
 #ifdef OS2
   #include <errno.h>
@@ -22,6 +27,7 @@
   #include <sys/errno.h>
 #endif
 
+#include "utilfct.h"
 #include "httpget.h"
 #include "sockfile.h"
 
@@ -44,7 +50,7 @@ size_t internal_fread(void *buffer, size_t size, size_t count, FILE *stream)
 
 #define CHUNK_SIZE 512
 
-void _Optlink readahead_thread(void *arg)
+void TFNENTRY readahead_thread(void *arg)
 {
    SOCKFILE *sockfile = arg;
    ULONG resetcount;
@@ -101,7 +107,7 @@ void _Optlink readahead_thread(void *arg)
    return;
 }
 
-int _System sockfile_errno(int sockmode)
+int PM123_ENTRY sockfile_errno(int sockmode)
 {
    if(sockmode)
       return 1000+sockmode;
@@ -109,13 +115,13 @@ int _System sockfile_errno(int sockmode)
       return errno;
 }
 
-int _System sockfile_bufferstatus(FILE *stream)
+int PM123_ENTRY sockfile_bufferstatus(FILE *stream)
 {
    SOCKFILE *sockfile = (SOCKFILE *) stream;
    return sockfile->available;
 }
 
-int _System sockfile_abort(FILE *stream)
+int PM123_ENTRY sockfile_abort(FILE *stream)
 {
    SOCKFILE *sockfile = (SOCKFILE *) stream;
 
@@ -135,7 +141,7 @@ int _System sockfile_abort(FILE *stream)
 }
 
 
-int _System sockfile_nobuffermode(FILE *stream, int setnobuffermode)
+int PM123_ENTRY sockfile_nobuffermode(FILE *stream, int setnobuffermode)
 {
    SOCKFILE *sockfile = (SOCKFILE *) stream;
 
@@ -162,7 +168,7 @@ int _System sockfile_nobuffermode(FILE *stream, int setnobuffermode)
    return FALSE;
 }
 
-size_t _System _fread(void *buffer, size_t size, size_t count, FILE *stream)
+size_t PM123_ENTRY xio_fread(void *buffer, size_t size, size_t count, FILE *stream)
 {
    SOCKFILE *sockfile = (SOCKFILE *) stream;
 
@@ -210,7 +216,7 @@ size_t _System _fread(void *buffer, size_t size, size_t count, FILE *stream)
       return internal_fread(buffer,size,count,stream);
 }
 
-long _System _ftell(FILE *stream)
+long PM123_ENTRY xio_ftell(FILE *stream)
 {
    SOCKFILE *sockfile = (SOCKFILE *) stream;
 
@@ -220,14 +226,14 @@ long _System _ftell(FILE *stream)
       return ftell(sockfile->stream)-sockfile->available;
 }
 
-size_t _System _fsize(FILE *stream)
+size_t PM123_ENTRY xio_fsize(FILE *stream)
 {
    SOCKFILE *sockfile = (SOCKFILE *) stream;
 
    if( sockfile->sockmode == HTTP ) {
       return sockfile->http_info.length;
    } else if( sockfile->sockmode == FTP ) {
-      return 0; 
+      return 0;
    } else {
       struct stat fi = {0};
       fstat( fileno( sockfile->stream ), &fi );
@@ -235,7 +241,7 @@ size_t _System _fsize(FILE *stream)
    }
 }
 
-int _System _fseek(FILE *stream, long offset, int origin)
+int PM123_ENTRY xio_fseek(FILE *stream, long offset, int origin)
 {
    SOCKFILE *sockfile = (SOCKFILE *) stream;
 
@@ -262,7 +268,7 @@ int _System _fseek(FILE *stream, long offset, int origin)
    }
 }
 
-void _System _rewind (FILE *stream)
+void PM123_ENTRY xio_rewind (FILE *stream)
 {
    SOCKFILE *sockfile = (SOCKFILE *) stream;
 
@@ -284,7 +290,7 @@ void _System _rewind (FILE *stream)
    }
 }
 
-FILE *_System _fopen (const char *fname, const char *mode, int sockmode, int buffersize, int bufferwait)
+FILE* PM123_ENTRY xio_fopen (const char *fname, const char *mode, int sockmode, int buffersize, int bufferwait)
 {
    SOCKFILE *sockfile = calloc(1,sizeof(SOCKFILE));
 
@@ -304,7 +310,7 @@ FILE *_System _fopen (const char *fname, const char *mode, int sockmode, int buf
       default:
       {
 /* VAC++ fopen() doesn't work well with sharing */
-#if defined(__IBMC__) || defined(__IBMCPP__)
+#if defined(__IBMC__)
          int oflag, shflag;
 
          if(strchr(mode,'r'))
@@ -366,14 +372,14 @@ FILE *_System _fopen (const char *fname, const char *mode, int sockmode, int buf
    return (FILE *) sockfile;
 }
 
-int _System sockfile_httpinfo(FILE *stream, HTTP_INFO *http_info)
+int PM123_ENTRY sockfile_httpinfo(FILE *stream, HTTP_INFO *http_info)
 {
    SOCKFILE *sockfile = (SOCKFILE *) stream;
    *http_info = sockfile->http_info;
    return http_info->length;
 }
 
-int _System _fclose (FILE *stream)
+int PM123_ENTRY xio_fclose (FILE *stream)
 {
    SOCKFILE *sockfile = (SOCKFILE *) stream;
 

@@ -29,7 +29,7 @@
 
 /* HTTP functions */
 
-#define INCL_PM
+#define INCL_WIN
 #include <os2.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -427,9 +427,9 @@ readagain:
 
 char *HTTP_socket::gets_content(char *buffer, int size)
 {
-   int pos = 0;
+   int pos  = 0;
    int stop = 0;
-   int read;
+   int read = 0;
 
    while(pos < size-1 && !stop)
    {

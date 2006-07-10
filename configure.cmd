@@ -15,7 +15,17 @@
   comps.2.opts   = "icc_30"
   comps.2.sig    = "Version 3"
 
-  comps.0        = 2
+  comps.3.info   = "Open Watcom C++"
+  comps.3.cc     = "wcl386.exe"
+  comps.3.opts   = "wcc"
+  comps.3.sig    = "Open Watcom"
+
+  comps.4.info   = "GNU C++"
+  comps.4.cc     = "g++.exe"
+  comps.4.opts   = "gcc"
+  comps.4.sig    = ""
+
+  comps.0        = 4
   comps.selected = 0
 
   parse arg options
@@ -46,7 +56,12 @@
 
   do i = 1 to comps.0
      if SysSearchPath( "PATH", comps.i.cc ) \= "" then do
-        '@'comps.i.cc '2>&1 1| find "'comps.i.sig'" > nul'
+
+        if comps.i.sig \= "" then
+          '@'comps.i.cc '2>&1 1| find "'comps.i.sig'" > nul'
+        else
+           rc = 0
+
         if rc == 0 then do
            comps.selected = i
            say "Found "comps.i.info

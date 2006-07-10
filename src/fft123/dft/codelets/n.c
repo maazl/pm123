@@ -18,7 +18,7 @@
  *
  */
 
-#include "codelet-dft.h"
+#include "codelet_dft.h"
 #include "n.h"
 
 static int okp(const kdft_desc *d,
@@ -28,8 +28,7 @@ static int okp(const kdft_desc *d,
 	       const planner *plnr)
 {
      UNUSED(ri); UNUSED(ii); UNUSED(ro); UNUSED(io); UNUSED(vl); UNUSED(plnr);
-     return (1
-	     && (!d->is || (d->is == is))
+     return (   (!d->is || (d->is == is))
 	     && (!d->os || (d->os == os))
 	     && (!d->ivs || (d->ivs == ivs))
 	     && (!d->ovs || (d->ovs == ovs))

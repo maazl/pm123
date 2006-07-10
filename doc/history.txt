@@ -15,6 +15,11 @@ PM123's History
     - More there are no messages about missed files at loading the playlist.
       Missed files are marked with a special icon and skipped at use of the
       playlist.
+    - The sources now can be compiled via Open Watcom 1.5.
+    - Added support of cyrillic letters (russian cp866) to the first default 
+      skin font. Thanks to ntim.
+    - The default skin draws a bitrate digit by digit. Therefore all possible
+      bitrates now are displayed correctly.
 
     MPG123:
     - Improved support of VBR mp3 files having a correct VBR header. Also
@@ -23,6 +28,14 @@ PM123's History
 
     REALEQ:
     - The mute controls of the left and right channel are placed correctly.
+    - Now used FFT convolution algorithm. The FFT convolution is about 10 times
+      faster than MMX. Thanks to Marcel Muller.
+
+    CDDAPLAY:
+    - Now shows correct bitrate at playing a track. Thanks to ntim.
+
+    WAVPLAY:
+    - Now shows correct bitrate at playing a file. Thanks to ntim.
 
 PM123 1.31
 ----------

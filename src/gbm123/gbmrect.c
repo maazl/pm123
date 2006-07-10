@@ -60,7 +60,7 @@ static void middle_1(byte *dst, const byte *src, int x, int w)
 	}
 /*...e*/
 
-void gbm_subrectangle(
+GBMEXPORT void GBMENTRY gbm_subrectangle(
 	const GBM *gbm,
 	int x, int y, int w, int h,
 	const byte *data_src, byte *data_dst
@@ -289,7 +289,7 @@ static void blit_64(
 	}
 /*...e*/
 
-void gbm_blit(
+GBMEXPORT void GBMENTRY gbm_blit(
 	const byte *s, int sw, int sx, int sy,
 	      byte *d, int dw, int dx, int dy,
 	int w, int h,

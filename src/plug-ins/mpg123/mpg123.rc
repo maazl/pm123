@@ -1,5 +1,5 @@
 #include <os2.h>
-#include <mpg123def.h>
+#include "mpg123def.h"
 
 DLGTEMPLATE 1 
 BEGIN

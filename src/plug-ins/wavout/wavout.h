@@ -41,7 +41,7 @@
 
 #define DLG_BROWSE    2000
 
-typedef struct
+typedef struct _WAVOUT
 {
   BOOL  opened;
   HEV   pause;

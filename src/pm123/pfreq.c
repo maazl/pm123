@@ -37,6 +37,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <process.h>
 
 #include "utilfct.h"
 #include "pfreq.h"
@@ -193,7 +194,7 @@ void Playlist_Populate(void *param)
  char        buf[256], buf2[256], *bla, *blo;
  HAB         hab;
  HMQ         hmq;
- PPMREC      core;
+ PPMREC      core = 0;
  char        basepath[_MAX_PATH];
  char        fullname[_MAX_PATH];
 
@@ -257,7 +258,7 @@ int idm_pm_add(HWND hwnd)
   int         dex = 0;
   char        filez[256], buf[256];
   PTHREADINFO tr;
-  char*       types[] = { FDT_PLAYLIST, 0 };
+  APSZ        types[] = {{ FDT_PLAYLIST }, { 0 }};
 
   memset( &filedialog, 0, sizeof( FILEDLG ));
 
@@ -267,7 +268,7 @@ int idm_pm_add(HWND hwnd)
   filedialog.hMod           = NULLHANDLE;
   filedialog.usDlgId        = DLG_FILE;
   filedialog.pfnDlgProc     = amp_file_dlg_proc;
-  filedialog.papszITypeList = (APSZ*)&types;
+  filedialog.papszITypeList = types;
   filedialog.pszIType       = FDT_PLAYLIST;
 
   strcpy( filedialog.szFullFile, cfg.listdir );
@@ -453,7 +454,7 @@ pm_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
 
          if (totalFiles > 0)
           {
-           sprintf(buf, "Total %u files, %u kB, %lud %luh %lum %lus",
+           sprintf(buf, "Total %lu files, %lu kB, %lud %luh %lum %lus",
                   totalFiles,
                   totalLength,
                   ((ULONG)totalSecs / 86400),
@@ -501,7 +502,7 @@ pm_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
          }
          if (totalFiles > 0)
           {
-           sprintf(buf, "Total %u files, %u kB, %lud %luh %lum %lus",
+           sprintf(buf, "Total %lu files, %lu kB, %lud %luh %lum %lus",
                   totalFiles,
                   totalLength,
                   ((ULONG)totalSecs / 86400),

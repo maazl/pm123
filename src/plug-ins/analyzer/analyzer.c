@@ -44,6 +44,7 @@
 #include <math.h>
 #include <string.h>
 #include <ctype.h>
+#include <malloc.h>
 
 #include <utilfct.h>
 #include <format.h>
@@ -87,16 +88,16 @@ static  int*   scale;
 static  ULONG  image_id;
 static  BOOL   is_stopped;
 
-static  PFN    _decoderPlayingSamples;
-static  PFN    _decoderPlaying;
-static  PFN    _specana_init;
-static  PFN    _specana_dobands;
+static  ULONG (PM123_ENTRYP _decoderPlayingSamples)( FORMAT_INFO *info, char *buf, int len );
+static  BOOL  (PM123_ENTRYP _decoderPlaying)( void );
+static  int   (PM123_ENTRYP _specana_init)( int setnumsamples );
+static  int   (PM123_ENTRYP _specana_dobands)( float bands[] );
 
 static  VISPLUGININIT plug;
 
 /* Removes comments */
 static char*
-uncomment( char *something )
+uncomment_slash( char *something )
 {
   int  i = 0;
   BOOL inquotes = FALSE;
@@ -124,7 +125,7 @@ read_color( FILE* file, RGB2* color )
 
   if( fgets( line, sizeof( line ), file )) {
     if( color ) {
-      sscanf( uncomment( line ), "%d,%d,%d", &r, &g, &b );
+      sscanf( uncomment_slash( line ), "%d,%d,%d", &r, &g, &b );
       color->bRed   = r;
       color->bGreen = g;
       color->bBlue  = b;
@@ -203,7 +204,7 @@ clear_analyzer( void )
 }
 
 /* Returns information about plug-in. */
-int _System
+int PM123_ENTRY
 plugin_query( PPLUGIN_QUERYPARAM query )
 {
   query->type         = PLUGIN_VISUAL;
@@ -279,7 +280,7 @@ cfg_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
 }
 
 /* Configure plug-in. */
-int _System
+int PM123_ENTRY
 plugin_configure( HWND hwnd, HMODULE module )
 {
   WinDlgBox( HWND_DESKTOP, hwnd, cfg_dlg_proc, module, DLG_CONFIGURE, NULL );
@@ -455,7 +456,7 @@ plg_win_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
           len *= 2;
         }
 
-        sample = _alloca( len );
+        sample = alloca( len );
         _decoderPlayingSamples( &bufferinfo, sample, len );
 
         for( x = 0; x < plug.cx; x++ )
@@ -504,7 +505,7 @@ plg_win_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
   return 0;
 }
 
-HWND _System
+HWND PM123_ENTRY
 vis_init( PVISPLUGININIT init )
 {
   FILE* dat;
@@ -531,8 +532,8 @@ vis_init( PVISPLUGININIT init )
   }
 
   // First get the routines
-  _decoderPlayingSamples = (PFN)init->procs->output_playing_samples;
-  _decoderPlaying        = (PFN)init->procs->decoder_playing;
+  _decoderPlayingSamples = init->procs->output_playing_samples;
+  _decoderPlaying        = init->procs->decoder_playing;
   _specana_init          = init->procs->specana_init;
   _specana_dobands       = init->procs->specana_dobands;
 
@@ -634,7 +635,7 @@ vis_init( PVISPLUGININIT init )
   return hanalyzer;
 }
 
-int _System
+int PM123_ENTRY
 plugin_deinit( int unload )
 {
   HINI hini;

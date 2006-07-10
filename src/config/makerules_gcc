@@ -1,0 +1,66 @@
+# GCC with EMX
+
+.SUFFIXES: .c .cpp .asm .o .obj .rc .res
+
+MFLAGS     = -nologo
+MDUMMY     =
+
+AS         = nasm
+AFLAGS     = -fobj -DUNDERSCORE
+
+CC         = g++
+CFLAGS     = -Wall -DOS2 -DOS2EMX_PLAIN_CHAR
+CFLAGS_DLL =
+CFLAGS_DBG = -g
+CFLAGS_OPT = -O2
+
+CL         = g++
+LFLAGS     = -Zomf
+LFLAGS_DLL = -Zdll
+LFLAGS_DBG = -g
+LFLAGS_OPT = -s
+LFLAGS_OUT = -o .^\
+LDEF_PREFX =
+LDEF_SUFFX = _icc.def
+LOBJ_PREFX =
+LOBJ_SUFFX =
+
+LB         = ar cr
+LBENDL     =
+
+LI         = emximp -o
+
+RC         = rc
+RFLAGS     = -n
+
+LIBS_TCP   = -lsocket
+LIBS_MM    = -lmmpm2
+
+C_INCLUDE_PATH     = $(INCDIR);$(C_INCLUDE_PATH)
+CPLUS_INCLUDE_PATH = $(INCDIR);$(CPLUS_INCLUDE_PATH)
+
+!ifdef DEBUG
+CFLAGS = $(CFLAGS) $(CFLAGS_DBG)
+LFLAGS = $(LFLAGS) $(LFLAGS_DBG)
+MFLAGS = $(MFLAGS) DEBUG=Yes
+!else
+CFLAGS = $(CFLAGS) $(CFLAGS_OPT)
+LFLAGS = $(LFLAGS) $(LFLAGS_OPT)
+!endif
+
+!ifdef DLL
+CFLAGS = $(CFLAGS) $(CFLAGS_DLL)
+LFLAGS = $(LFLAGS) $(LFLAGS_DLL)
+!endif
+
+.c.obj:
+   $(CC) $(CFLAGS) -x c -c $< -o $@
+
+.cpp.obj:
+   $(CC) $(CFLAGS) -c $< -o $@
+
+.rc.res:
+   $(RC) $(RFLAGS) -r $<
+
+.asm.obj:
+   $(AS) $(AFLAGS) $<

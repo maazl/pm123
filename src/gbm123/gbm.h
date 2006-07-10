@@ -205,6 +205,13 @@ typedef int GBM_ERR;
   #define GBM_SEEK_END        SEEK_END
 #endif
 
+/* ----------------------------------------------------- */
+
+/* Enforce compatibility to old binary interface by      */
+/* aligning data in public structs to 4 byte boundaries. */
+/* This allows internal data alignment with optimum size */
+/* for best processor specific optimization.             */
+#pragma pack(4)
 
 typedef struct
 	{
@@ -224,6 +231,11 @@ typedef struct
 	int w, h, bpp;			/* Bitmap dimensions                 */
 	byte priv[PRIV_SIZE];		/* Private internal buffer           */
 	} GBM;
+
+/* Enable compiler default packing. */
+#pragma pack()
+
+/* ----------------------------------------------------- */
 
 #ifndef _GBM_
 

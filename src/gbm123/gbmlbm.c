@@ -115,7 +115,7 @@ GBM_ERR lbm_rhdr(const char *fn, int fd, GBM *gbm, const char *opt)
 	{
 	LBM_PRIV *priv = (LBM_PRIV *) gbm->priv;
 	byte b[20];
-	int w, h, bpp, actual_size_cmap = 0;
+	int w = 0, h = 0, bpp = 0, actual_size_cmap = 0;
 	BOOLEAN	had_bmhd = FALSE, had_cmap = FALSE, had_body = FALSE;
 	dword camg = 0;
 
@@ -470,8 +470,8 @@ for ( y = 0; y < gbm->h; y++, data -= stride )
 	else
 /*...sHAM6\44\ HAM8 or SHAM6:32:*/
 {
-byte *ham, *sham_pals;
-int n_sham_pals, sham_inx = 0;
+byte *ham, *sham_pals = NULL;
+int n_sham_pals = 0, sham_inx = 0;
 
 if ( (ham = malloc((size_t) gbm->w)) == NULL )
 	{

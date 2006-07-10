@@ -43,7 +43,6 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <ctype.h>
-#include <direct.h>
 
 #include "utilfct.h"
 #include "format.h"
@@ -194,8 +193,8 @@ amp_construct_tag_string( char* result, const tune* tag )
 
   if( *tag->comment )
   {
-    strncat( result, " -- ", sizeof( result ) - strlen( result ) - 1 );
-    strncat( result, tag->comment, sizeof( result ) - strlen( result ) - 1 );
+    strlcat( result, " -- ", sizeof( result ));
+    strlcat( result, tag->comment, sizeof( result ));
   }
 
   return result;
@@ -312,7 +311,7 @@ ULONG handle_dfi_error(ULONG rc, const char *file)
  return 1;
 }
 
-void _System pm123_control(int index, void *param)
+void PM123_ENTRY pm123_control(int index, void *param)
 {
  switch (index)
   {
@@ -322,19 +321,19 @@ void _System pm123_control(int index, void *param)
   }
 }
 
-int _System pm123_getstring(int index, int subindex, size_t bufsize, char *buf)
+int PM123_ENTRY pm123_getstring(int index, int subindex, size_t bufsize, char *buf)
 {
  switch (index)
   {
    case STR_NULL: *buf = '\0'; break;
    case STR_VERSION:
-     strncpy( buf, AMP_FULLNAME, bufsize );
+     strlcpy( buf, AMP_FULLNAME, bufsize );
      break;
    case STR_DISPLAY_TEXT:
-     strncpy( buf, bmp_query_text(), bufsize );
+     strlcpy( buf, bmp_query_text(), bufsize );
      break;
    case STR_FILENAME:
-     strncpy(buf, current_filename, bufsize);
+     strlcpy(buf, current_filename, bufsize);
      break;
    default: break;
   }

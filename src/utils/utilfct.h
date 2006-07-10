@@ -43,9 +43,10 @@
 #include "errorstr.h"
 #include "inimacro.h"
 #include "queue.h"
+#include "minmax.h"
+#include "strutils.h"
 
-#ifndef bool
-  /* This may be defined by STLport. */
+#if !defined( bool ) && (!defined(__WATCOMC__) || !defined(__cplusplus))
   typedef int   bool;
   #define true  1
   #define false 0
@@ -62,6 +63,33 @@
 
 #if __cplusplus
 extern "C" {
+#endif
+
+#if defined(__IBMC__) || defined(__IBMCPP__)
+  int  _CRT_init( void );
+  void _CRT_term( void );
+
+  #define TFNENTRY _Optlink
+#else
+  #define TFNENTRY
+#endif
+
+#ifndef PM123_ENTRY
+  #if defined(__IBMC__) || defined(__IBMCPP__)
+    #define PM123_ENTRY  _System
+    #define PM123_ENTRYP * PM123_ENTRY
+  #else
+    #define PM123_ENTRY  _System
+    #define PM123_ENTRYP PM123_ENTRY *
+  #endif
+#endif
+
+#ifdef __EMX__
+  #define INIT_ATTRIBUTE __attribute__((constructor))
+  #define TERM_ATTRIBUTE __attribute__((destructor))
+#else
+  #define INIT_ATTRIBUTE
+  #define TERM_ATTRIBUTE
 #endif
 
 /* Returns TRUE if WarpSans is supported by operating system. */

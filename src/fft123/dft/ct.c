@@ -18,7 +18,7 @@
  *
  */
 
-/* $Id: ct.c,v 1.1 2005/07/26 17:36:52 glass Exp $ */
+/* $Id: ct.c,v 1.2 2006/06/14 11:16:19 glass Exp $ */
 
 /* generic Cooley-Tukey routines */
 #include "dft.h"
@@ -61,8 +61,7 @@ int X(dft_ct_applicable)(const solver_ct *ego, const problem *p_)
      if (DFTP(p_)) {
           const problem_dft *p = (const problem_dft *) p_;
           const ct_desc *d = ego->desc;
-          return (1
-                  && p->sz->rnk == 1
+          return (   p->sz->rnk == 1
                   && p->vecsz->rnk <= 1
                   && divides(d->radix, p->sz->dims[0].n)
 	       );

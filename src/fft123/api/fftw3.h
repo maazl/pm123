@@ -19,12 +19,18 @@
  */
 
 /* header file for fftw3 */
-/* $Id: fftw3.h,v 1.1 2005/07/26 17:36:51 glass Exp $ */
+/* $Id: fftw3.h,v 1.3 2006/07/02 08:18:10 glass Exp $ */
 
 #ifndef FFTW3_H
 #define FFTW3_H
 
 #include <stdio.h>
+
+#if defined(__IBMC__) || defined(__WATCOMC__) || defined(__EMX__)
+  #define FFTEXP _System
+#else
+  #define FFTEXP
+#endif
 
 #ifdef __cplusplus
 extern "C"
@@ -76,161 +82,169 @@ typedef struct fftw_iodim_do_not_use_me X(iodim);			\
 									\
 typedef enum fftw_r2r_kind_do_not_use_me X(r2r_kind);			\
 									\
-void X(execute)(const X(plan) p);					\
+void FFTEXP X(execute)(const X(plan) p);				\
 									\
-X(plan) X(plan_dft)(int rank, const int *n,				\
-		    C *in, C *out, int sign, unsigned flags);		\
+X(plan) FFTEXP X(plan_dft)(int rank, const int *n,			\
+			   C *in, C *out, int sign, unsigned flags);	\
 									\
-X(plan) X(plan_dft_1d)(int n, C *in, C *out, int sign,			\
-		       unsigned flags);					\
-X(plan) X(plan_dft_2d)(int nx, int ny,					\
-		       C *in, C *out, int sign, unsigned flags);	\
-X(plan) X(plan_dft_3d)(int nx, int ny, int nz,				\
-		       C *in, C *out, int sign, unsigned flags);	\
+X(plan) FFTEXP X(plan_dft_1d)(int n, C *in, C *out, int sign,		\
+			      unsigned flags);				\
+X(plan) FFTEXP X(plan_dft_2d)(int nx, int ny,				\
+			      C *in, C *out, int sign, unsigned flags);	\
+X(plan) FFTEXP X(plan_dft_3d)(int nx, int ny, int nz,			\
+			      C *in, C *out, int sign, unsigned flags);	\
 									\
-X(plan) X(plan_many_dft)(int rank, const int *n,			\
-                         int howmany,					\
-                         C *in, const int *inembed,			\
-                         int istride, int idist,			\
-                         C *out, const int *onembed,			\
-                         int ostride, int odist,			\
-                         int sign, unsigned flags);			\
+X(plan) FFTEXP X(plan_many_dft)(int rank, const int *n,			\
+	                        int howmany,				\
+	                        C *in, const int *inembed,		\
+	                        int istride, int idist,			\
+	                        C *out, const int *onembed,		\
+	                        int ostride, int odist,			\
+	                        int sign, unsigned flags);		\
 									\
-X(plan) X(plan_guru_dft)(int rank, const X(iodim) *dims,		\
-			 int howmany_rank,				\
-			 const X(iodim) *howmany_dims,			\
-			 C *in, C *out,					\
-			 int sign, unsigned flags);			\
-X(plan) X(plan_guru_split_dft)(int rank, const X(iodim) *dims,		\
-			 int howmany_rank,				\
-			 const X(iodim) *howmany_dims,			\
-			 R *ri, R *ii, R *ro, R *io,			\
-			 unsigned flags);				\
+X(plan) FFTEXP X(plan_guru_dft)(int rank, const X(iodim) *dims,		\
+				int howmany_rank,			\
+				const X(iodim) *howmany_dims,		\
+				C *in, C *out,				\
+				int sign, unsigned flags);		\
+X(plan) FFTEXP X(plan_guru_split_dft)(int rank, const X(iodim) *dims,	\
+				      int howmany_rank,			\
+				      const X(iodim) *howmany_dims,	\
+				      R *ri, R *ii, R *ro, R *io,	\
+				      unsigned flags);			\
 									\
-void X(execute_dft)(const X(plan) p, C *in, C *out);			\
-void X(execute_split_dft)(const X(plan) p, R *ri, R *ii, R *ro, R *io);	\
+void FFTEXP X(execute_dft)(const X(plan) p, C *in, C *out);		\
+void FFTEXP X(execute_split_dft)(const X(plan) p, R *ri, R *ii,		\
+				 R *ro, R *io);				\
 									\
-X(plan) X(plan_many_dft_r2c)(int rank, const int *n,			\
-                             int howmany,				\
-                             R *in, const int *inembed,			\
-                             int istride, int idist,			\
-                             C *out, const int *onembed,		\
-                             int ostride, int odist,			\
-                             unsigned flags);				\
+X(plan) FFTEXP X(plan_many_dft_r2c)(int rank, const int *n,		\
+	                            int howmany,			\
+        	                    R *in, const int *inembed,		\
+	                            int istride, int idist,		\
+	                            C *out, const int *onembed,		\
+	                            int ostride, int odist,		\
+	                            unsigned flags);			\
 									\
-X(plan) X(plan_dft_r2c)(int rank, const int *n,				\
-                        R *in, C *out, unsigned flags);			\
+X(plan) FFTEXP X(plan_dft_r2c)(int rank, const int *n,			\
+	                       R *in, C *out, unsigned flags);		\
 									\
-X(plan) X(plan_dft_r2c_1d)(int n,R *in,C *out,unsigned flags);		\
-X(plan) X(plan_dft_r2c_2d)(int nx, int ny,				\
-			   R *in, C *out, unsigned flags);		\
-X(plan) X(plan_dft_r2c_3d)(int nx, int ny,				\
-			   int nz,					\
-			   R *in, C *out, unsigned flags);		\
+X(plan) FFTEXP X(plan_dft_r2c_1d)(int n,R *in,C *out,unsigned flags);	\
+X(plan) FFTEXP X(plan_dft_r2c_2d)(int nx, int ny,			\
+				  R *in, C *out, unsigned flags);	\
+X(plan) FFTEXP X(plan_dft_r2c_3d)(int nx, int ny,			\
+				  int nz,				\
+				  R *in, C *out, unsigned flags);	\
 									\
 									\
-X(plan) X(plan_many_dft_c2r)(int rank, const int *n,			\
-			     int howmany,				\
-			     C *in, const int *inembed,			\
-			     int istride, int idist,			\
-			     R *out, const int *onembed,		\
-			     int ostride, int odist,			\
-			     unsigned flags);				\
+X(plan) FFTEXP X(plan_many_dft_c2r)(int rank, const int *n,		\
+				    int howmany,			\
+				    C *in, const int *inembed,		\
+				    int istride, int idist,		\
+				    R *out, const int *onembed,		\
+				    int ostride, int odist,		\
+				    unsigned flags);			\
 									\
-X(plan) X(plan_dft_c2r)(int rank, const int *n,				\
-                        C *in, R *out, unsigned flags);			\
+X(plan) FFTEXP X(plan_dft_c2r)(int rank, const int *n,			\
+	                       C *in, R *out, unsigned flags);		\
 									\
-X(plan) X(plan_dft_c2r_1d)(int n,C *in,R *out,unsigned flags);		\
-X(plan) X(plan_dft_c2r_2d)(int nx, int ny,				\
-			   C *in, R *out, unsigned flags);		\
-X(plan) X(plan_dft_c2r_3d)(int nx, int ny,				\
-			   int nz,					\
-			   C *in, R *out, unsigned flags);		\
+X(plan) FFTEXP X(plan_dft_c2r_1d)(int n,C *in,R *out,unsigned flags);	\
+X(plan) FFTEXP X(plan_dft_c2r_2d)(int nx, int ny,			\
+				  C *in, R *out, unsigned flags);	\
+X(plan) FFTEXP X(plan_dft_c2r_3d)(int nx, int ny,			\
+				  int nz,				\
+				  C *in, R *out, unsigned flags);	\
 									\
-X(plan) X(plan_guru_dft_r2c)(int rank, const X(iodim) *dims,		\
-			     int howmany_rank,				\
-			     const X(iodim) *howmany_dims,		\
-			     R *in, C *out,				\
-			     unsigned flags);				\
-X(plan) X(plan_guru_dft_c2r)(int rank, const X(iodim) *dims,		\
-			     int howmany_rank,				\
-			     const X(iodim) *howmany_dims,		\
-			     C *in, R *out,				\
-			     unsigned flags);				\
+X(plan) FFTEXP X(plan_guru_dft_r2c)(int rank, const X(iodim) *dims,	\
+				    int howmany_rank,			\
+				    const X(iodim) *howmany_dims,	\
+				    R *in, C *out,			\
+				    unsigned flags);			\
+X(plan) FFTEXP X(plan_guru_dft_c2r)(int rank, const X(iodim) *dims,	\
+				    int howmany_rank,			\
+				    const X(iodim) *howmany_dims,	\
+				    C *in, R *out,			\
+				    unsigned flags);			\
 									\
-X(plan) X(plan_guru_split_dft_r2c)(int rank, const X(iodim) *dims,	\
-			     int howmany_rank,				\
-			     const X(iodim) *howmany_dims,		\
-			     R *in, R *ro, R *io,			\
-			     unsigned flags);				\
-X(plan) X(plan_guru_split_dft_c2r)(int rank, const X(iodim) *dims,	\
-			     int howmany_rank,				\
-			     const X(iodim) *howmany_dims,		\
-			     R *ri, R *ii, R *out,			\
-			     unsigned flags);				\
+X(plan) FFTEXP X(plan_guru_split_dft_r2c)(int rank, 			\
+					  const X(iodim) *dims,		\
+					  int howmany_rank,		\
+					  const X(iodim) *howmany_dims,	\
+					  R *in, R *ro, R *io,		\
+					  unsigned flags);		\
+X(plan) FFTEXP X(plan_guru_split_dft_c2r)(int rank,			\
+				     const X(iodim) *dims,		\
+				     int howmany_rank,			\
+				     const X(iodim) *howmany_dims,	\
+				     R *ri, R *ii, R *out,		\
+				     unsigned flags);			\
 									\
-void X(execute_dft_r2c)(const X(plan) p, R *in, C *out);		\
-void X(execute_dft_c2r)(const X(plan) p, C *in, R *out);		\
+void FFTEXP X(execute_dft_r2c)(const X(plan) p, R *in, C *out);		\
+void FFTEXP X(execute_dft_c2r)(const X(plan) p, C *in, R *out);		\
 									\
-void X(execute_split_dft_r2c)(const X(plan) p, R *in, R *ro, R *io);	\
-void X(execute_split_dft_c2r)(const X(plan) p, R *ri, R *ii, R *out);	\
+void FFTEXP X(execute_split_dft_r2c)(const X(plan) p, R *in,		\
+				     R *ro, R *io);			\
+void FFTEXP X(execute_split_dft_c2r)(const X(plan) p, R *ri,		\
+				     R *ii, R *out);			\
 									\
-X(plan) X(plan_many_r2r)(int rank, const int *n,			\
-                         int howmany,					\
-                         R *in, const int *inembed,			\
-                         int istride, int idist,			\
-                         R *out, const int *onembed,			\
-                         int ostride, int odist,			\
-                         const X(r2r_kind) *kind, unsigned flags);	\
+X(plan) FFTEXP X(plan_many_r2r)(int rank, const int *n,			\
+	                        int howmany,				\
+        	                R *in, const int *inembed,		\
+                	        int istride, int idist,			\
+        	                R *out, const int *onembed,		\
+	                        int ostride, int odist,			\
+	                        const X(r2r_kind) *kind,		\
+				unsigned flags);			\
 									\
-X(plan) X(plan_r2r)(int rank, const int *n, R *in, R *out,		\
-                    const X(r2r_kind) *kind, unsigned flags);		\
+X(plan) FFTEXP X(plan_r2r)(int rank, const int *n, R *in, R *out,	\
+	                   const X(r2r_kind) *kind, unsigned flags);	\
 									\
-X(plan) X(plan_r2r_1d)(int n, R *in, R *out,				\
-                       X(r2r_kind) kind, unsigned flags);		\
-X(plan) X(plan_r2r_2d)(int nx, int ny, R *in, R *out,			\
-                       X(r2r_kind) kindx, X(r2r_kind) kindy,		\
-                       unsigned flags);					\
-X(plan) X(plan_r2r_3d)(int nx, int ny, int nz,				\
-                       R *in, R *out, X(r2r_kind) kindx,		\
-                       X(r2r_kind) kindy, X(r2r_kind) kindz,		\
-                       unsigned flags);					\
+X(plan) FFTEXP X(plan_r2r_1d)(int n, R *in, R *out,			\
+	                      X(r2r_kind) kind, unsigned flags);	\
+X(plan) FFTEXP X(plan_r2r_2d)(int nx, int ny, R *in, R *out,		\
+	                      X(r2r_kind) kindx, X(r2r_kind) kindy,	\
+        	              unsigned flags);				\
+X(plan) FFTEXP X(plan_r2r_3d)(int nx, int ny, int nz,			\
+	                      R *in, R *out, X(r2r_kind) kindx,		\
+	                      X(r2r_kind) kindy, X(r2r_kind) kindz,	\
+	                      unsigned flags);				\
 									\
-X(plan) X(plan_guru_r2r)(int rank, const X(iodim) *dims,		\
-                         int howmany_rank,				\
-                         const X(iodim) *howmany_dims,			\
-                         R *in, R *out,					\
-                         const X(r2r_kind) *kind, unsigned flags);	\
-void X(execute_r2r)(const X(plan) p, R *in, R *out);			\
+X(plan) FFTEXP X(plan_guru_r2r)(int rank, const X(iodim) *dims,		\
+				int howmany_rank,			\
+	                        const X(iodim) *howmany_dims,		\
+        	                R *in, R *out,				\
+	                        const X(r2r_kind) *kind,		\
+				unsigned flags);			\
+void FFTEXP X(execute_r2r)(const X(plan) p, R *in, R *out);		\
 									\
-void X(destroy_plan)(X(plan) p);					\
-void X(forget_wisdom)(void);						\
-void X(cleanup)(void);							\
+void FFTEXP X(destroy_plan)(X(plan) p);					\
+void FFTEXP X(forget_wisdom)(void);					\
+void FFTEXP X(cleanup)(void);						\
 									\
-void X(plan_with_nthreads)(int nthreads);				\
-int X(init_threads)(void);						\
-void X(cleanup_threads)(void);						\
+void FFTEXP X(plan_with_nthreads)(int nthreads);			\
+int  FFTEXP X(init_threads)(void);					\
+void FFTEXP X(cleanup_threads)(void);					\
 									\
-void X(export_wisdom_to_file)(FILE *output_file);			\
-char *X(export_wisdom_to_string)(void);					\
-void X(export_wisdom)(void (*write_char)(char c, void *), void *data);	\
-int X(import_system_wisdom)(void);					\
-int X(import_wisdom_from_file)(FILE *input_file);			\
-int X(import_wisdom_from_string)(const char *input_string);		\
-int X(import_wisdom)(int (*read_char)(void *), void *data);		\
+void FFTEXP X(export_wisdom_to_file)(FILE *output_file);		\
+char* FFTEXP X(export_wisdom_to_string)(void);				\
+void FFTEXP X(export_wisdom)(void (*write_char)(char c, void *),	\
+			     void *data);				\
+int FFTEXP X(import_system_wisdom)(void);				\
+int FFTEXP X(import_wisdom_from_file)(FILE *input_file);		\
+int FFTEXP X(import_wisdom_from_string)(const char *input_string);	\
+int FFTEXP X(import_wisdom)(int (*read_char)(void *), void *data);	\
 									\
-void X(fprint_plan)(const X(plan) p, FILE *output_file);		\
-void X(print_plan)(const X(plan) p);					\
+void FFTEXP X(fprint_plan)(const X(plan) p, FILE *output_file);		\
+void FFTEXP X(print_plan)(const X(plan) p);				\
 									\
-void *X(malloc)(size_t n);						\
-void X(free)(void *p);							\
+void* FFTEXP X(malloc)(size_t n);					\
+void FFTEXP X(free)(void *p);						\
 									\
-void X(flops)(const X(plan) p, double *add, double *mul, double *fma);	\
+void FFTEXP X(flops)(const X(plan) p, double *add,			\
+		     double *mul, double *fma);				\
 									\
 extern const char X(version)[];						\
 extern const char X(cc)[];						\
 extern const char X(codelet_optim)[];
-
 
 /* end of FFTW_DEFINE_API macro */
 

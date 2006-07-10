@@ -246,7 +246,7 @@ bmp_read_bitmap( const char* filename, GBM* gbm, GBMRGB* gbmrgb, BYTE** ppbData 
     return FALSE;
   }
 
-  file = gbm_io_open( filename, O_RDONLY | O_BINARY );
+  file = gbm_io_open( filename, GBM_O_RDONLY );
 
   if( file == -1 ) {
     amp_player_error( "Unable open bitmap file:\n%s\n", filename );
@@ -382,9 +382,14 @@ bmp_load_bitmap( const char* filename )
 void
 bmp_draw_bitmap( HPS hps, int x, int y, int res )
 {
-  POINTL pos[3] = { x, y,
-                    x + bmp_cx(res), y + bmp_cy(res),
-                    0, 0 };
+  POINTL pos[3];
+
+  pos[0].x = x;
+  pos[0].y = y;
+  pos[1].x = x + bmp_cx(res);
+  pos[1].y = y + bmp_cy(res);
+  pos[2].x = 0;
+  pos[2].y = 0;
 
   GpiWCBitBlt( hps, bmp_cache[res], 3, pos, ROP_SRCCOPY, BBO_AND );
 }
@@ -685,10 +690,15 @@ void
 bmp_draw_text( HPS hps )
 {
   SIZEL  size;
-  RECTL  rect   = bmp_text_rect();
-  POINTL pos[3] = {{ rect.xLeft,  rect.yBottom },
-                   { rect.xRight, rect.yTop    },
-                   { 0,           0            }};
+  POINTL pos[3];
+  RECTL  rect = bmp_text_rect();
+
+  pos[0].x = rect.xLeft;
+  pos[0].y = rect.yBottom;
+  pos[1].x = rect.xRight + 1;
+  pos[1].y = rect.yTop   + 1;
+  pos[2].x = 0;
+  pos[2].y = 0;
 
   // Someone might want to use their own scroller.
   if( rect.xLeft == POS_UNDEF && rect.yBottom == POS_UNDEF ) {
@@ -721,7 +731,12 @@ bmp_draw_text( HPS hps )
   }
   else
   {
-    RECTL rect = { s_offset, 0, size.cx, size.cy };
+    RECTL rect;
+
+    rect.xLeft   = s_offset;
+    rect.yBottom = 0;
+    rect.xRight  = size.cx;
+    rect.yTop    = size.cy;
 
     WinDrawText( s_buffer, -1, s_display, &rect, 0, 0,
                                DT_TEXTATTRS | DT_LEFT | DT_VCENTER );
@@ -794,8 +809,7 @@ void
 bmp_set_text( const char* string )
 {
   if( string ) {
-    strncpy( s_display, string, sizeof( s_display ));
-    s_display[ sizeof( s_display ) - 1 ] = 0;
+    strlcpy( s_display, string, sizeof( s_display ));
   }
 
   s_offset =  0;
@@ -1201,13 +1215,28 @@ bmp_draw_rate( HPS hps, int rate )
   }
   else
   {
-    bmp_draw_part_bg( hps, x, y,
-                           x + bmp_cx( DIG_BPS ) * 3,
-                           y + bmp_cy( DIG_BPS ));
+    if( bmp_cache[ DIG_BPS + 10 ] ) {
+      bmp_draw_part_bg( hps, x, y,
+                             x + bmp_cx( DIG_BPS ) * 3,
+                             y + bmp_cy( DIG_BPS ));
+    } else {
+      bmp_draw_part_bg( hps, x - bmp_cx( DIG_BPS ),
+                             y,
+                             x + bmp_cx( DIG_BPS ) * 4,
+                             y + bmp_cy( DIG_BPS ));
+    }
+
     if( rate > 0 )
     {
-      sprintf( buf, "%3u", rate );
       x += bmp_cx( DIG_BPS ) * 2;
+
+      if( rate > 999 && bmp_cache[ DIG_BPS + 10 ] ) {
+        sprintf( buf, "%u", rate / 100 );
+        bmp_draw_digit( hps, x, y, 10, DIG_BPS );
+        x -= bmp_cx( DIG_BPS );
+      } else {
+        sprintf( buf, "%u", rate );
+      }
 
       for( i = strlen( buf ) - 1; i >= 0; i-- )
       {
@@ -1448,12 +1477,18 @@ bmp_draw_timeleft( HPS hps )
   }
 }
 
-/* Loads specified bitmap to the bitmap cache. */
+/* Loads specified bitmap to the bitmap cache if it is
+   not loaded before. */
 static void
 bmp_load_default( HPS hps, int id )
 {
-  if( bmp_cache[ id ] == 0 ) {
-      bmp_cache[ id ] = GpiLoadBitmap( hps, NULLHANDLE, id, 0, 0 );
+  if( bmp_cache[ id ] == 0 )
+  {
+    HBITMAP hbitmap = GpiLoadBitmap( hps, NULLHANDLE, id, 0, 0 );
+
+    if( hbitmap != GPI_ERROR ) {
+      bmp_cache[ id ] = hbitmap;
+    }
   }
 }
 
@@ -1473,6 +1508,9 @@ bmp_init_skins_bitmaps( HPS hps )
     bmp_load_default( hps, i );
   }
   for( i = DIG_PL_INDEX; i <   DIG_PL_INDEX + 10; i++ ) {
+    bmp_load_default( hps, i );
+  }
+  for( i = DIG_BPS; i < DIG_BPS + 10; i++ ) {
     bmp_load_default( hps, i );
   }
 
@@ -1606,17 +1644,20 @@ bmp_init_default_skin( HPS hps )
   VISUAL visual;
   int    i;
 
-  bmp_pos[ POS_S_SIZE  ].x = 300; bmp_pos[ POS_S_SIZE  ].y = 70;
-  bmp_pos[ POS_T_SIZE  ].x = 300; bmp_pos[ POS_T_SIZE  ].y = 37;
-  bmp_pos[ POS_R_FLOAD ].x = 131; bmp_pos[ POS_R_FLOAD ].y =  7;
-  bmp_pos[ POS_S_FLOAD ].x = 131; bmp_pos[ POS_S_FLOAD ].y =  7;
-  bmp_pos[ POS_T_FLOAD ].x = 131; bmp_pos[ POS_T_FLOAD ].y =  7;
+  bmp_pos[ POS_S_SIZE      ].x = 300; bmp_pos[ POS_S_SIZE      ].y = 70;
+  bmp_pos[ POS_T_SIZE      ].x = 300; bmp_pos[ POS_T_SIZE      ].y = 37;
+  bmp_pos[ POS_R_FLOAD     ].x = 131; bmp_pos[ POS_R_FLOAD     ].y =  7;
+  bmp_pos[ POS_S_FLOAD     ].x = 131; bmp_pos[ POS_S_FLOAD     ].y =  7;
+  bmp_pos[ POS_T_FLOAD     ].x = 131; bmp_pos[ POS_T_FLOAD     ].y =  7;
+  bmp_pos[ POS_NO_CHANNELS ].x = 235; bmp_pos[ POS_NO_CHANNELS ].y = 72;
+  bmp_pos[ POS_MONO        ].x = 235; bmp_pos[ POS_MONO        ].y = 72;
+  bmp_pos[ POS_STEREO      ].x = 235; bmp_pos[ POS_STEREO      ].y = 72;
 
-  for( i = BMP_FONT1 + 45; i < BMP_FONT1 + 51; i++ ) {
+  for( i = BMP_FONT1 + 45; i < BMP_FONT1 + 51 + 127; i++ ) {
     bmp_load_default( hps, i );
   }
 
-  for( i = BMP_FONT2 + 45; i < BMP_FONT2 + 51; i++ ) {
+  for( i = BMP_FONT2 + 45; i < BMP_FONT2 + 51 + 127; i++ ) {
     bmp_load_default( hps, i );
   }
 
@@ -1627,6 +1668,7 @@ bmp_init_default_skin( HPS hps )
   bmp_ulong[ UL_S_MSG_LEN    ] = 256;
   bmp_ulong[ UL_S_MSG_HEIGHT ] = 16;
   bmp_ulong[ UL_FG_MSG_COLOR ] = 0x0000FF00UL;
+  bmp_ulong[ UL_BPS_DIGITS   ] = TRUE;
 
   strcpy( visual.module_name, startpath );
   strcat( visual.module_name, "visplug\\analyzer.dll" );
@@ -2030,7 +2072,7 @@ bmp_init_button( HWND hwnd, BMPBUTTON* button )
       cy      = bmp_cy( pressed );
       break;
 
-    case CFG_MODE_TINY:
+    default:
 
       x       = bmp_pos  [ button->id_t_pos ].x;
       y       = bmp_pos  [ button->id_t_pos ].y;

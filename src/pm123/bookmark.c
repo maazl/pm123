@@ -533,8 +533,8 @@ bm_drag_over( HWND hwnd, PCNRDRAGINFO pcdi )
   PDRAGINFO pdinfo = pcdi->pDragInfo;
   PDRAGITEM pditem;
   int       i;
-  USHORT    drag_op;
-  USHORT    drag;
+  USHORT    drag_op = 0;
+  USHORT    drag    = DOR_NEVERDROP;
 
   if( !DrgAccessDraginfo( pdinfo )) {
     return MRFROM2SHORT( DOR_NEVERDROP, 0 );
@@ -1007,7 +1007,7 @@ bm_load( HWND owner )
     else if( *line == '>' )
     {
       // '>' entry is after the filename
-      sscanf( line, ">%u\n", &play_pos );
+      sscanf( line, ">%lu\n", &play_pos );
     }
     else if( *line == '<' )
     {
@@ -1065,7 +1065,7 @@ bm_save( HWND owner )
 
   for( rec = bm_first_record(); rec; rec = bm_next_record( rec ))
   {
-    int rc = fprintf( hfile, "%s\n>%u\n<%s\n", rec->filename, rec->play_pos, rec->desc );
+    int rc = fprintf( hfile, "%s\n>%lu\n<%s\n", rec->filename, rec->play_pos, rec->desc );
     if( rc < 0 )
     {
       fclose( hfile );

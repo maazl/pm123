@@ -18,9 +18,10 @@
  *
  */
 
-/* $Id: alloc.c,v 1.1 2005/07/26 17:37:03 glass Exp $ */
+/* $Id: alloc.c,v 1.2 2006/06/19 10:17:52 glass Exp $ */
 
 #include "ifftw.h"
+#include "fftw3.h"
 
 #if defined(HAVE_DECL_MEMALIGN) && !HAVE_DECL_MEMALIGN
 #  if defined(HAVE_MALLOC_H)

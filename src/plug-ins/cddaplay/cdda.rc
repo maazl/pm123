@@ -34,7 +34,7 @@
 #define  INCL_NLS
 #define  INCL_SW
 #include <os2.h>
-#include <cddarc.h>
+#include "cddarc.h"
 
 DLGTEMPLATE DLG_MATCH MOVEABLE DISCARDABLE
 BEGIN

@@ -39,6 +39,7 @@
 #include "properties.h"
 #include "pm123.h"
 #include "plugman.h"
+#include "httpget.h"
 
 #define  CFG_REFRESH_LIST (WM_USER+1)
 #define  CFG_REFRESH_INFO (WM_USER+2)
@@ -52,7 +53,7 @@ cfg_add_plugin( HWND hwnd, ULONG types )
 {
   FILEDLG filedialog;
   ULONG   rc = 0;
-  char*   ftypes[] = { FDT_PLUGIN, 0 };
+  APSZ    ftypes[] = {{ FDT_PLUGIN }, { 0 }};
 
   memset( &filedialog, 0, sizeof( FILEDLG ));
 
@@ -62,7 +63,7 @@ cfg_add_plugin( HWND hwnd, ULONG types )
   filedialog.hMod           = NULLHANDLE;
   filedialog.usDlgId        = DLG_FILE;
   filedialog.pfnDlgProc     = amp_file_dlg_proc;
-  filedialog.papszITypeList = (APSZ*)&ftypes;
+  filedialog.papszITypeList = ftypes;
   filedialog.pszIType       = FDT_PLUGIN;
 
 
@@ -157,6 +158,9 @@ cfg_page1_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
       WinQueryDlgItemText( hwnd, EF_PROXY_URL, sizeof( cfg.proxy ), cfg.proxy );
       WinQueryDlgItemText( hwnd, EF_HTTP_AUTH, sizeof( cfg.auth  ), cfg.auth  );
 
+      set_proxyurl( cfg.proxy );
+      set_httpauth( cfg.auth  );
+
       cfg.bufwait = WinQueryButtonCheckstate( hwnd, CB_FILLBUFFER );
       return 0;
     }
@@ -167,7 +171,7 @@ cfg_page1_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
 static char*
 cfg_attrs_to_font( const FATTRS* attrs, char* font, LONG size )
 {
-  sprintf( font, "%d.%s", size, attrs->szFacename );
+  sprintf( font, "%ld.%s", size, attrs->szFacename );
 
   if( attrs->fsSelection & FATTR_SEL_ITALIC     ) {
     strcat( font, ".Italic" );
@@ -806,7 +810,7 @@ cfg_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
         case PB_DEFAULT:
         {
           LONG id;
-          HWND page;
+          HWND page = NULLHANDLE;
 
           id = (LONG)WinSendDlgItemMsg( hwnd, NB_CONFIG, BKM_QUERYPAGEID, 0,
                                               MPFROM2SHORT(BKA_TOP,BKA_MAJOR));
@@ -841,15 +845,17 @@ cfg_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
       if( pswp[0].fl & SWP_SIZE )
       {
         SWP  swps[3];
-        HWND hbtn[3] = { WinWindowFromID( hwnd, PB_UNDO    ),
-                         WinWindowFromID( hwnd, PB_DEFAULT ),
-                         WinWindowFromID( hwnd, PB_HELP    )};
+        HWND hbtn[3];
 
         LONG   ibtn = sizeof(hbtn)/sizeof(HWND)-1;
         HWND   book = WinWindowFromID( hwnd, NB_CONFIG );
         LONG   i;
         RECTL  rect;
         POINTL pos[2];
+
+        hbtn[0] = WinWindowFromID( hwnd, PB_UNDO    );
+        hbtn[1] = WinWindowFromID( hwnd, PB_DEFAULT );
+        hbtn[3] = WinWindowFromID( hwnd, PB_HELP    );
 
         // Resizes notebook window.
         if( WinQueryWindowRect( hwnd, &rect ))
@@ -962,13 +968,20 @@ cfg_properties( HWND owner )
   do_warpsans( WinWindowFromID( page05, ST_TITLE2 ));
   do_warpsans( WinWindowFromID( page05, ST_BUILT  ));
 
-  sprintf( built, "(built %s", __DATE__ );
-
   #if defined(__IBMC__)
+    sprintf( built, "(built %s", __DATE__ );
     #if __IBMC__ <= 300
       strcat( built, " using IBM VisualAge C++ 3.08" );
     #else
       strcat( built, " using IBM VisualAge C++ 3.6"  );
+    #endif
+  #elif defined(__WATCOMC__)
+    #if __WATCOMC__ < 1200
+      sprintf( built, "(built %s using Open Watcom C++ %d.%d",
+               __DATE__, __WATCOMC__ / 100, __WATCOMC__ % 100 );
+    #else
+      sprintf( built, "(built %s using Open Watcom C++ %d.%d",
+               __DATE__, __WATCOMC__ / 100 - 11, __WATCOMC__ % 100 );
     #endif
   #endif
 

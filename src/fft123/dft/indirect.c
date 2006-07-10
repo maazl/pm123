@@ -18,7 +18,7 @@
  *
  */
 
-/* $Id: indirect.c,v 1.1 2005/07/26 17:36:52 glass Exp $ */
+/* $Id: indirect.c,v 1.2 2006/06/14 11:16:19 glass Exp $ */
 
 
 /* solvers/plans for vectors of small DFT's that cannot be done
@@ -136,17 +136,15 @@ static int applicable0(const solver *ego_, const problem *p_,
      if (DFTP(p_)) {
 	  const S *ego = (const S *) ego_;
           const problem_dft *p = (const problem_dft *) p_;
-          return (1
-                  && FINITE_RNK(p->vecsz->rnk)
+          return (   FINITE_RNK(p->vecsz->rnk)
 
                   /* problem must be a nontrivial transform, not just a copy */
                   && p->sz->rnk > 0
 
-                  && (0
-
+                  && (
 		      /* problem must be in-place & require some
 		         rearrangement of the data */
-		      || (p->ri == p->ro
+		         (p->ri == p->ro
 			  && !(X(tensor_inplace_strides2)(p->sz, p->vecsz)))
 
 		      /* or problem must be out of place, transforming

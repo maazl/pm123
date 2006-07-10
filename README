@@ -35,24 +35,29 @@ distribution to successfully compile PM123 from the sources.
 Tools Needed to Compile
 =======================
 
-You will need the following tools and libraries to compile PM123:
+You will need the following tools and libraries to compile PM123
+via IBM Visualage C++:
 
-VisualAge C++ 3.0 fixpak 8
-A recent IBM OS/2 Developer's Toolkit
-NASM
-WarpIN (if you want to create an installation package)
-Info-ZIP (if you want to create the ZIP package)
+  VisualAge C++ 3.0 fixpak 8 or 3.6 fixpak 2
+  A recent IBM OS/2 Developer's Toolkit
+  NASM
+  WarpIN (if you want to create an installation package)
+  Info-ZIP (if you want to create the ZIP package)
+  Single processor execution mode utility (included in to 
+  eCS and OS/2 CP distribution)
 
-More specifically, I have tested this distribution with the following:
+You will need the following tools and libraries to compile PM123 via
+Open Watcom C++:
 
-IBM OS/2 DEVELOPER'S TOOLKIT VERSION 4.5
-NMAKE Version 4.00.000 May 12 1999
-RC Version Version 5.00.004 May 12 1999
-IMPLIB Version 4.00.001 May 12 1999
-ILINK Version 01.08.r1a_CTC308c
-NASM Version 0.98
-WarpIN Version 1.0.1
-Zip 2.2 (November 3rd 1997)
+  Open Watcom C++ 1.5
+  NASM
+  IBM Resource Compiler (included in to IBM OS/2 Developer's Toolkit)
+  Operating System/2 Information Presentation Facility Compiler (included in to
+  IBM OS/2 Developer's Toolkit).
+  WarpIN (if you want to create an installation package)
+  Info-ZIP (if you want to create the ZIP package)
+  Single processor execution mode utility (included in to 
+  eCS and OS/2 CP distribution.)
 
 Also, I have been using cmd.exe at all times, so disable 4os2 or other cmd.exe
 replacement when using this distribution's makefiles.
@@ -89,7 +94,6 @@ project for both of us, so give us break), but it's all there!
 |   |   +gbm
 |   +http123
 |   +include
-|   +ooura1d
 |   +fft123
 |   +plug-ins
 |   |   |
@@ -109,13 +113,11 @@ project for both of us, so give us break), but it's all there!
 |   +utils
 
 
-In the "extra" directory, there is "freq" (File Requester) which is a better
-file dialog Taneli was working on, but that he never finished.  "irc" has some
-scripts for BitchX and ircii to display the playing songs in the IRC client
-window. "slider" is a small tool that uses PM123's pipe to control the volume
-of two instances of PM123.  The volume of the first PM123 executed will follow
-the slider, and the second will go reverse, allowing to cross the sounds of
-two songs for DJs.
+In the "extra" directory, there "irc" has some scripts for BitchX and ircii
+to display the playing songs in the IRC client window. "slider" is a small
+tool that uses PM123's pipe to control the volume of two instances of PM123.
+The volume of the first PM123 executed will follow the slider, and the
+second will go reverse, allowing to cross the sounds of two songs for DJs.
 
 In the "src" directory, all the source code of one module (one EXE or DLL)
 is found in a subdirectory of the same name as the module.  So pm123.exe's
@@ -136,8 +138,6 @@ gbm123\gbm
    and creating bitmaps for skins.
 http123
    The HTTP module used by PM123 and MPG123 to access HTTP servers.
-ooura1d
-   Used for compatibility.
 fft123
    The FFT algorithm used by analyzer.dll (through pm123.exe) and realeq.dll.
 analyzer

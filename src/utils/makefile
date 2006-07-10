@@ -1,21 +1,19 @@
 #
-#  utilfct.lib makefile for NMAKE and VAC++
+#  utilfct.lib makefile
 #
 
 !include ..\config\makerules
 
-INCLUDE = $(INCLUDE);
-LIB     = $(LIB);
-
-all: utilfct.lib $(MKSYMB)
+all: utilfct.lib $(MDUMMY)
 
 OBJECTS = utilfct.obj bufstream.obj fileutil.obj url.obj filefind.obj
 OBJECTS = $(OBJECTS) errorstr.obj rel2abs.obj abs2rel.obj inimacro.obj
-OBJECTS = $(OBJECTS) charset.obj wildcards.obj queue.obj
+OBJECTS = $(OBJECTS) charset.obj wildcards.obj queue.obj strlcpy.obj
+OBJECTS = $(OBJECTS) strlcat.obj
 
 utilfct.lib: $(OBJECTS)
-   if exist $@ del $@
-   $(LB) $@ $(OBJECTS) $(LE)
+	if exist $@ del $@
+	$(LB) $@ $(OBJECTS) $(LBENDL)
 
-clean: $(MKSYMB)
-  -@del utilfct.lib oddfct.lst $(OBJECTS) $(RESOURCE) 2> nul
+clean: $(MDUMMY)
+	-@del utilfct.lib $(OBJECTS) 2> nul

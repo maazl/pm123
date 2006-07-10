@@ -1,0 +1,8 @@
+SYSTEM OS2V2_DLL INITINSTANCE TERMINSTANCE
+OPTION MANYAUTODATA
+OPTION DESCRIPTION 'PM123 Spectrum Analyzer'
+
+EXPORT vis_init          .1
+EXPORT plugin_query      .2
+EXPORT plugin_configure  .3
+EXPORT plugin_deinit     .4

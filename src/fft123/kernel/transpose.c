@@ -362,7 +362,7 @@ void X(transpose_slow)(R *a, int nx, int ny, int N,
      i = 1;
      im = ny;
      
-     while (1) {
+     for (;;) {
 	  int i1, i2, i1c, i2c;
 	  int kmi;
 	  
@@ -375,7 +375,7 @@ void X(transpose_slow)(R *a, int nx, int ny, int N,
 	  i1c = kmi;
 	  memcpy(c, &a[N * i1c], N * sizeof(R));
 	  
-	  while (1) {
+	  for (;;) {
 	       i2 = ny * i1 - k * (i1 / nx);
 	       i2c = k - i2;
 	       if (i1 < move_size)
@@ -406,7 +406,7 @@ void X(transpose_slow)(R *a, int nx, int ny, int N,
 	  
 	  /** Search for loops to rearrange: **/
 	  
-	  while (1) {
+	  for (;;) {
 	       int max = k - i;
 	       ++i;
 	       A(i <= max);

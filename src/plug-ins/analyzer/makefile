@@ -1,27 +1,26 @@
 #
-#  analyzer.dll makefile for NMAKE and VAC++
+#  analyzer.dll makefile
 #
 
-!include ..\..\config\makerules
+DLL      = yes
+TOPDIR   = ..\..
+INCDIR   = $(TOPDIR)\utils;$(TOPDIR)\include
 
-CFLAGS   = $(CFLAGS) $(DLLFLG)
-INCLUDE  = $(INCLUDE);..\..\utils;..\..\include
-LIB      = $(LIB);..\..\utils
+!include $(TOPDIR)\config\makerules
 
-all: analyzer.dll
-
-DEF      = analyzer.def
 OBJECTS  = analyzer.obj
+LIBS     = $(LIBS_MM) $(TOPDIR)\utils\utilfct.lib
+DEF      = analyzer$(LDEF_SUFFX)
 RESOURCE = analyzer.res
-LIBS     = mmpm2.lib utilfct.lib
+
+all: analyzer.dll analyzer.lib $(MDUMMY)
 
 analyzer.dll: $(OBJECTS) $(DEF) $(RESOURCE)
-   $(CC) $(LNKFLG) /Fm$* /Fe$@ $(OBJECTS) $(DEF) $(LIBS)
-   $(RC) $(RESFLG) $(RESOURCE) $@ > nul
-   $(LI) $*.lib $@
+	$(CL) $(LFLAGS) $(LFLAGS_OUT)$@ $(LOBJ_PREFX)$(OBJECTS) $(LIBS)$(LOBJ_SUFFX) $(LDEF_PREFX)$(DEF)
+	$(RC) $(RFLAGS) $(RESOURCE) $@ > nul
 
-analyzer.c:  analyzer.h
-analyzer.rc: analyzer.h
+analyzer.lib: $(DEF)
+	$(LI) $@ analyzer.dll
 
-clean:
-  -@del analyzer.dll analyzer.lib analyzer.map $(OBJECTS) $(RESOURCE) 2> nul
+clean: $(MDUMMY)
+	-@del analyzer.lib analyzer.dll $(OBJECTS) $(RESOURCE) 2> nul

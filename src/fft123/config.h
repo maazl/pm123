@@ -32,7 +32,15 @@
 #undef F77_FUNC_EQUIV
 
 /* C compiler name and flags */
+#if defined(__IBMC__)
 #define FFTW_CC "IBM Visualage C++"
+#elif defined(__WATCOMC__)
+#define FFTW_CC "Open Watcom C++ "
+#elif defined(__GNUC__)
+#define FFTW_CC "GNU C++"
+#else
+#define FFTW_CC ""
+#endif
 
 /* Define to enable extra FFTW debugging code. */
 #undef FFTW_DEBUG
@@ -103,7 +111,11 @@
 #undef HAVE_GETHRTIME
 
 /* Define to 1 if you have the `gettimeofday' function. */
-#undef HAVE_GETTIMEOFDAY
+#ifdef __EMX__
+  #define HAVE_GETTIMEOFDAY 1
+#else
+  #undef  HAVE_GETTIMEOFDAY
+#endif
 
 /* Define to 1 if hrtime_t is defined in <sys/time.h> */
 #undef HAVE_HRTIME_T
@@ -196,7 +208,11 @@
 #undef HAVE_TIME_BASE_TO_TIME
 
 /* Define to 1 if the system has the type `uintptr_t'. */
-#undef HAVE_UINTPTR_T
+#ifdef __EMX__
+  #define HAVE_UINTPTR_T 1
+#else
+  #undef  HAVE_UINTPTR_T
+#endif
 
 /* Define to 1 if you have the <unistd.h> header file. */
 #undef HAVE_UNISTD_H
@@ -253,7 +269,7 @@
 /* The size of a `unsigned long', as computed by sizeof. */
 #define SIZEOF_UNSIGNED_LONG
 
-#if __IBMC__ <= 300
+#if defined(__IBMC__) && __IBMC__ <= 300
   /* The size of a `long long', as computed by sizeof. */
   #define SIZEOF_LONG_LONG 0
   /* The size of a `unsigned long long', as computed by sizeof. */
@@ -280,7 +296,11 @@
 #undef STDC_HEADERS
 
 /* Define to 1 if you can safely include both <sys/time.h> and <time.h>. */
-#undef TIME_WITH_SYS_TIME
+#ifdef __EMX__
+  #define TIME_WITH_SYS_TIME 1
+#else
+  #undef  TIME_WITH_SYS_TIME
+#endif
 
 /* Define if we have and are using OpenMP multithreading directives */
 #undef USING_OPENMP_THREADS
@@ -310,3 +330,11 @@
 
 /* Define to `unsigned' if <sys/types.h> does not define. */
 #undef size_t
+
+/* Use standard C type functions. */
+#define USE_CTYPE
+
+/* Define if we have unsigned enums. */
+#if defined(__IBMC__)
+#define HAVE_UNSIGNED_ENUMS
+#endif

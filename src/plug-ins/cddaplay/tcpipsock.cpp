@@ -29,7 +29,7 @@
 
 /* TCP/IP functions */
 
-#define INCL_PM
+#define  INCL_WIN
 #include <os2.h>
 #include <stdio.h>
 #include <io.h>
@@ -42,9 +42,16 @@
 #include <netdb.h>
 #include <nerrno.h>
 
+#ifndef TCPV40HDRS
+#include <arpa/inet.h>
+#include <unistd.h>
+#endif
+
 #include "utilfct.h"
 #include "tcpipsock.h"
 #include "cdda.h"
+
+extern "C" const char* h_strerror   ( int tcpip_errno  );
 
 tcpip_socket::~tcpip_socket()
 {
@@ -80,12 +87,12 @@ bool tcpip_socket::connect(char *address, int port)
    memset(&server,0,sizeof(server));
    server.sin_family = AF_INET;
    server.sin_addr.s_addr = inet_addr(address);
-   if(server.sin_addr.s_addr == -1)
+   if(server.sin_addr.s_addr == -1UL)
    {
       struct hostent *hp = gethostbyname(address);
       if(!hp)
       {
-         tcpip_error = tcp_h_errno();
+         tcpip_error = h_errno;
          socket_error = sock_errno();
 
          if(tcpip_error > 0)
@@ -128,9 +135,9 @@ bool tcpip_socket::close()
 
 char *tcpip_socket::gets(char *buffer, int size)
 {
-   int pos = 0;
+   int pos  = 0;
    int stop = 0;
-   int read;
+   int read = 0;
 
    while(pos < size-1 && !stop)
    {
@@ -153,9 +160,9 @@ char *tcpip_socket::gets(char *buffer, int size)
 
 int tcpip_socket::write(char *buffer, int size)
 {
-   int pos = 0;
+   int pos  = 0;
    int stop = 0;
-   int sent;
+   int sent = 0;
 
    socket_error = 0;
 

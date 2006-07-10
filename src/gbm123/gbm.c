@@ -10,9 +10,9 @@ History:
              Add function to reset user defined I/O functions to internal ones
 27-May-2006: Protect all readers and writer against illegal colour depth requests
              (gbm_read_palette, gbm_read_data, gbm_write)
+07-Jun-2006: Add PBM, PNM formats and multipage handler for PGM
 */
 
-/*...sincludes:0:*/
 #include <stdio.h>
 #include <ctype.h>
 #include <stddef.h>
@@ -34,14 +34,12 @@ History:
 #include "gbm.h"
 #include "gbmhelp.h"
 
-/*...vgbm\46\h:0:*/
-/*...vgbmhelp\46\h:0:*/
-/*...e*/
-
 /*...sentrypoints:0:*/
+#include "gbmpbm.h"
 #include "gbmpgm.h"
-#include "gbmpng.h"
+#include "gbmpnm.h"
 #include "gbmppm.h"
+#include "gbmpng.h"
 #include "gbmbmp.h"
 #include "gbmtga.h"
 #include "gbmkps.h"
@@ -59,33 +57,14 @@ History:
 #include "gbmjpg.h"
 
 
-#define GBM_VERSION   140  /* 1.40 */
+#define GBM_VERSION   141  /* 1.41 */
 
-
-/*...vgbmpgm\46\h:0:*/
-/*...vgbmpng\46\h:0:*/
-/*...vgbmppm\46\h:0:*/
-/*...vgbmbmp\46\h:0:*/
-/*...vgbmtga\46\h:0:*/
-/*...vgbmkps\46\h:0:*/
-/*...vgbmiax\46\h:0:*/
-/*...vgbmpcx\46\h:0:*/
-/*...vgbmtif\46\h:0:*/
-/*...vgbmlbm\46\h:0:*/
-/*...vgbmvid\46\h:0:*/
-/*...vgbmgif\46\h:0:*/
-/*...vgbmxbm\46\h:0:*/
-/*...vgbmspr\46\h:0:*/
-/*...vgbmpsg\46\h:0:*/
-/*...vgbmgem\46\h:0:*/
-/*...vgbmcvp\46\h:0:*/
-/*...vgbmjpg\46\h:0:*/
 
 typedef struct
 	{
 	GBM_ERR      (*query_filetype   )(GBMFT *gbmft);
-        /* set to NULL if max. image count is 1 */
-        GBM_ERR      (*read_image_count )(const char *fn, int fd, int *pimgcnt);
+	/* set to NULL if max. image count is 1 */
+	GBM_ERR      (*read_image_count )(const char *fn, int fd, int *pimgcnt);
 	GBM_ERR      (*read_header      )(const char *fn, int fd, GBM *gbm, const char *opt);
 	GBM_ERR      (*read_palette     )(int fd, GBM *gbm, GBMRGB *gbmrgb);
 	GBM_ERR      (*read_data        )(int fd, GBM *gbm, byte *data);
@@ -95,29 +74,31 @@ typedef struct
 
 static FT fts[] =
 	{
-	bmp_qft, bmp_rimgcnt, bmp_rhdr, bmp_rpal, bmp_rdata, bmp_w, bmp_err,
-	gif_qft, gif_rimgcnt, gif_rhdr, gif_rpal, gif_rdata, gif_w, gif_err,
-	pcx_qft, NULL       , pcx_rhdr, pcx_rpal, pcx_rdata, pcx_w, pcx_err,
+	{ bmp_qft, bmp_rimgcnt, bmp_rhdr, bmp_rpal, bmp_rdata, bmp_w, bmp_err },
+	{ gif_qft, gif_rimgcnt, gif_rhdr, gif_rpal, gif_rdata, gif_w, gif_err },
+	{ pcx_qft, NULL       , pcx_rhdr, pcx_rpal, pcx_rdata, pcx_w, pcx_err },
 #ifdef ENABLE_TIF
-	tif_qft, tif_rimgcnt, tif_rhdr, tif_rpal, tif_rdata, tif_w, tif_err,
+	{ tif_qft, tif_rimgcnt, tif_rhdr, tif_rpal, tif_rdata, tif_w, tif_err },
 #endif
-	tga_qft, NULL       , tga_rhdr, tga_rpal, tga_rdata, tga_w, tga_err,
-	lbm_qft, NULL       , lbm_rhdr, lbm_rpal, lbm_rdata, lbm_w, lbm_err,
-	vid_qft, NULL       , vid_rhdr, vid_rpal, vid_rdata, vid_w, vid_err,
-	pgm_qft, NULL       , pgm_rhdr, pgm_rpal, pgm_rdata, pgm_w, pgm_err,
-	ppm_qft, ppm_rimgcnt, ppm_rhdr, ppm_rpal, ppm_rdata, ppm_w, ppm_err,
-	kps_qft, NULL       , kps_rhdr, kps_rpal, kps_rdata, kps_w, kps_err,
-	iax_qft, NULL       , iax_rhdr, iax_rpal, iax_rdata, iax_w, iax_err,
-	xbm_qft, NULL       , xbm_rhdr, xbm_rpal, xbm_rdata, xbm_w, xbm_err,
-	spr_qft, spr_rimgcnt, spr_rhdr, spr_rpal, spr_rdata, spr_w, spr_err,
-	psg_qft, NULL       , psg_rhdr, psg_rpal, psg_rdata, psg_w, psg_err,
-	gem_qft, NULL       , gem_rhdr, gem_rpal, gem_rdata, gem_w, gem_err,
-	cvp_qft, NULL       , cvp_rhdr, cvp_rpal, cvp_rdata, cvp_w, cvp_err,
+	{ tga_qft, NULL       , tga_rhdr, tga_rpal, tga_rdata, tga_w, tga_err },
+	{ lbm_qft, NULL       , lbm_rhdr, lbm_rpal, lbm_rdata, lbm_w, lbm_err },
+	{ vid_qft, NULL       , vid_rhdr, vid_rpal, vid_rdata, vid_w, vid_err },
+	{ pbm_qft, pbm_rimgcnt, pbm_rhdr, pbm_rpal, pbm_rdata, pbm_w, pbm_err },
+	{ pgm_qft, pgm_rimgcnt, pgm_rhdr, pgm_rpal, pgm_rdata, pgm_w, pgm_err },
+	{ ppm_qft, ppm_rimgcnt, ppm_rhdr, ppm_rpal, ppm_rdata, ppm_w, ppm_err },
+	{ pnm_qft, pnm_rimgcnt, pnm_rhdr, pnm_rpal, pnm_rdata, pnm_w, pnm_err },
+	{ kps_qft, NULL       , kps_rhdr, kps_rpal, kps_rdata, kps_w, kps_err },
+	{ iax_qft, NULL       , iax_rhdr, iax_rpal, iax_rdata, iax_w, iax_err },
+	{ xbm_qft, NULL       , xbm_rhdr, xbm_rpal, xbm_rdata, xbm_w, xbm_err },
+	{ spr_qft, spr_rimgcnt, spr_rhdr, spr_rpal, spr_rdata, spr_w, spr_err },
+	{ psg_qft, NULL       , psg_rhdr, psg_rpal, psg_rdata, psg_w, psg_err },
+	{ gem_qft, NULL       , gem_rhdr, gem_rpal, gem_rdata, gem_w, gem_err },
+	{ cvp_qft, NULL       , cvp_rhdr, cvp_rpal, cvp_rdata, cvp_w, cvp_err },
 #ifdef ENABLE_PNG
-	png_qft, NULL       , png_rhdr, png_rpal, png_rdata, png_w, png_err,
+	{ png_qft, NULL       , png_rhdr, png_rpal, png_rdata, png_w, png_err },
 #endif
 #ifdef ENABLE_IJG
-	jpg_qft, NULL       , jpg_rhdr, jpg_rpal, jpg_rdata, jpg_w, jpg_err,
+	{ jpg_qft, NULL       , jpg_rhdr, jpg_rpal, jpg_rdata, jpg_w, jpg_err },
 #endif
 	};
 

@@ -37,6 +37,7 @@
 #include <string.h>
 #include <float.h>
 #include <math.h>
+#include <malloc.h>
 
 #include "utilfct.h"
 #include "format.h"
@@ -61,7 +62,7 @@ static float*         in;
 static fftwf_complex* out;
 static fftwf_plan     plan;
 
-int _System
+int PM123_ENTRY
 specana_init( int set_numsamples )
 {
   int i;
@@ -98,7 +99,7 @@ specana_init( int set_numsamples )
   return numsamples / 2 + 1;
 }
 
-int _System
+int PM123_ENTRY
 specana_dobands( float* bands )
 {
   FORMAT_INFO bufferinfo;
@@ -118,7 +119,7 @@ specana_dobands( float* bands )
   if( bufferinfo.bits <= 8 )
   {
     int len = bufferinfo.channels * numsamples;
-    unsigned char *sample = _alloca( len );
+    unsigned char *sample = alloca( len );
 
     if( !sample || out_playing_samples( &bufferinfo, sample, len ) != 0 ) {
       return 0;
@@ -135,7 +136,7 @@ specana_dobands( float* bands )
   else if( bufferinfo.bits <= 16 )
   {
     int len = 2 * bufferinfo.channels * numsamples;
-    signed short *sample = _alloca( len );
+    signed short *sample = alloca( len );
 
     if( !sample || out_playing_samples( &bufferinfo, (char*)sample, len ) != 0 ) {
       return 0;
@@ -152,7 +153,7 @@ specana_dobands( float* bands )
   else if( bufferinfo.bits <= 32 )
   {
     int len = 4 * bufferinfo.channels * numsamples;
-    signed long *sample = _alloca( len );
+    signed long *sample = alloca( len );
 
     if( !sample || out_playing_samples( &bufferinfo, (char*)sample, len ) != 0 ) {
       return 0;

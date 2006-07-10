@@ -18,7 +18,7 @@
  *
  */
 
-/* $Id: rank0.c,v 1.1 2005/07/26 17:37:06 glass Exp $ */
+/* $Id: rank0.c,v 1.2 2006/06/14 12:26:11 glass Exp $ */
 
 /* plans for rank-0 RDFTs (copy operations) */
 
@@ -53,8 +53,8 @@ static int applicable(const solver *ego_, const problem *p_)
      if (RDFTP(p_)) {
           const S *ego = (const S *) ego_;
           const problem_rdft *p = (const problem_rdft *) p_;
-          return (1
-		  && p->I != p->O
+          return ( 
+		     p->I != p->O
                   && p->sz->rnk == 0
                   && ego->adt->applicable(p)
 	       );
@@ -127,8 +127,8 @@ static void apply_io1(const plan *ego_, R *I, R *O)
 
 static int applicable_io1(const problem_rdft *p)
 {
-     return (1
-             && applicable_vec(p)
+     return ( 
+                applicable_vec(p)
              && p->vecsz->dims[0].is == 1
              && p->vecsz->dims[0].os == 1
 	  );

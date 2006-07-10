@@ -30,7 +30,7 @@
  */
 
 #define  INCL_DOS
-#define  INCL_PM
+#define  INCL_WIN
 #include <os2.h>
 
 #include <malloc.h>
@@ -39,10 +39,18 @@
 #include <stdarg.h>
 #include <stdio.h>
 #include <types.h>
-#include <sys\socket.h>
-#include <netinet\in.h>
-#include <netdb.h>
 #include <nerrno.h>
+#include <netdb.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <sys/time.h>
+#include <netinet/in.h>
+#include <process.h>
+
+#ifndef TCPV40HDRS
+#include <unistd.h>
+#include <arpa/inet.h>
+#endif
 
 #include <inimacro.h>
 #include <format.h>
@@ -57,22 +65,19 @@
 #include "cdda.h"
 #include "cddarc.h"
 
-extern "C" int  _CRT_init( void );
-extern "C" void _CRT_term( void );
-
-#define WM_SAVE         (WM_USER+1)
-#define WM_UPDATE_DONE  (WM_USER+2)
+#define  WM_SAVE         (WM_USER+1)
+#define  WM_UPDATE_DONE  (WM_USER+2)
 
 static unsigned long negative_hits[1024];
-static int nh_head = 0;
+static unsigned int  nh_head = 0;
 
 // used for the PM123 decoder functions
-typedef struct
+typedef struct _CDDAPLAY
 {
    CD_drive CD;
    FORMAT_INFO formatinfo;
 
-   int (* _System output_play_samples)(void *a, FORMAT_INFO *format, char *buf,int len, int posmarker);
+   int (PM123_ENTRYP output_play_samples)(void *a, FORMAT_INFO *format, char *buf,int len, int posmarker);
    void *a; /* only to be used with the precedent function */
    int buffersize;
 
@@ -85,7 +90,7 @@ typedef struct
 
    ULONG decodertid;
 
-   void (* _System error_display)(char *);
+   void (PM123_ENTRYP error_display)(char *);
 
    HEV playsem;
    HWND hwnd;
@@ -151,7 +156,7 @@ query_pm123_charset( void )
   return cfg.charset;
 }
 
-static void _Optlink decoder_thread(void *arg)
+static void TFNENTRY decoder_thread(void *arg)
 {
    CDDAPLAY *c = (CDDAPLAY *) arg;
    ULONG resetcount;
@@ -162,7 +167,7 @@ static void _Optlink decoder_thread(void *arg)
       int extrabytes = 0; // bytes left in the buffer from the last read
       ULONG lastsector,cursector,startsector;
 
-      DosWaitEventSem(c->play, -1);
+      DosWaitEventSem(c->play, SEM_INDEFINITE_WAIT);
       DosResetEventSem(c->play,&resetcount);
 
       c->status = DECODER_STARTING;
@@ -230,8 +235,8 @@ static void _Optlink decoder_thread(void *arg)
          }
 
          written = c->output_play_samples(c->a, &c->formatinfo, startbuffer, c->buffersize,
-            (double)(cursector-startsector)*2352*1000/
-            (c->formatinfo.samplerate*c->formatinfo.channels*c->formatinfo.bits/8));
+            (int)((double)(cursector-startsector)*2352*1000/
+                          (c->formatinfo.samplerate*c->formatinfo.channels*c->formatinfo.bits/8)));
 
          if(written < c->buffersize)
          {
@@ -272,7 +277,7 @@ static void _Optlink decoder_thread(void *arg)
    }
 }
 
-int _System decoder_init(void **C)
+int PM123_ENTRY decoder_init(void **C)
 {
    CDDAPLAY *c;
 
@@ -284,7 +289,7 @@ int _System decoder_init(void **C)
    DosCreateEventSem(NULL,&c->ok,0,FALSE);
 
    c->decodertid = _beginthread(decoder_thread,0,64*1024,(void *) c);
-   if(c->decodertid != -1)
+   if(c->decodertid != -1UL)
       return c->decodertid;
    else
    {
@@ -295,7 +300,7 @@ int _System decoder_init(void **C)
    }
 }
 
-BOOL _System decoder_uninit(void *C)
+BOOL PM123_ENTRY decoder_uninit(void *C)
 {
    CDDAPLAY *c = (CDDAPLAY *) C;
    int decodertid = c->decodertid;
@@ -309,7 +314,7 @@ BOOL _System decoder_uninit(void *C)
 }
 
 
-ULONG _System decoder_command(void *C, ULONG msg, DECODER_PARAMS *params)
+ULONG PM123_ENTRY decoder_command(void *C, ULONG msg, DECODER_PARAMS *params)
 {
    CDDAPLAY *c = (CDDAPLAY *) C;
    ULONG resetcount;
@@ -363,8 +368,8 @@ ULONG _System decoder_command(void *C, ULONG msg, DECODER_PARAMS *params)
          break;
 
       case DECODER_JUMPTO:
-         c->jumpto = ((double)c->formatinfo.samplerate*params->jumpto/1000)*
-                              c->formatinfo.channels*(c->formatinfo.bits/8)/2352;
+         c->jumpto = (int)(((double)c->formatinfo.samplerate*params->jumpto/1000)*
+                                    c->formatinfo.channels*(c->formatinfo.bits/8)/2352);
          break;
 
       case DECODER_EQ:
@@ -386,24 +391,24 @@ ULONG _System decoder_command(void *C, ULONG msg, DECODER_PARAMS *params)
    return 0;
 }
 
-ULONG _System decoder_length(void *C)
+ULONG PM123_ENTRY decoder_length(void *C)
 {
    CDDAPLAY *c = (CDDAPLAY *) C;
 
    if(c->status == DECODER_PLAYING)
-      return (double)c->CD.getTrackInfo(c->track)->size*1000/(c->formatinfo.samplerate*
-              c->formatinfo.channels*c->formatinfo.bits/8);
+      return (int)((double)c->CD.getTrackInfo(c->track)->size*1000/(c->formatinfo.samplerate*
+                   c->formatinfo.channels*c->formatinfo.bits/8));
    else
       return c->last_length;
 }
 
-ULONG _System decoder_status(void *C)
+ULONG PM123_ENTRY decoder_status(void *C)
 {
    CDDAPLAY *c = (CDDAPLAY *) C;
    return c->status;
 }
 
-ULONG _System decoder_fileinfo(char *filename, DECODER_INFO *info)
+ULONG PM123_ENTRY decoder_fileinfo(char *filename, DECODER_INFO *info)
 {
    return 200;
 }
@@ -511,8 +516,7 @@ ULONG getNextCDDBServer(char *server, ULONG size, SHORT *index)
 
       if(*index < settings.numHTTP)
       {
-         strncpy(server, settings.HTTPServers[*index], size);
-         server[size-1] = 0;
+         strlcpy(server, settings.HTTPServers[*index], size);
          return HTTP;
       }
       else
@@ -529,8 +533,7 @@ ULONG getNextCDDBServer(char *server, ULONG size, SHORT *index)
 
       if(*index < settings.numCDDB)
       {
-         strncpy(server, settings.CDDBServers[*index], size);
-         server[size-1] = 0;
+         strlcpy(server, settings.CDDBServers[*index], size);
          return CDDB;
       }
       else
@@ -544,10 +547,8 @@ void getUserHost(char *user, int sizeuser, char *host, int sizehost)
    char *hostpos = strchr(buffer,'@');
    *hostpos++ = 0;
 
-   strncpy(user,buffer,sizeuser);
-   user[sizeuser-1] = 0;
-   strncpy(host,hostpos,sizehost);
-   host[sizehost-1] = 0;
+   strlcpy(user,buffer,sizeuser);
+   strlcpy(host,hostpos,sizehost);
 
    free(buffer);
 }
@@ -613,10 +614,11 @@ void loadCDDBInfo(void)
    BOOL  foundCached = FALSE;
    HINI  INIhandle;
    BOOL  success = FALSE;
-   int   i;
    char  server[1024];
    ULONG serverType;
    SHORT index = -1;
+
+   unsigned int i;
 
    delete lastCDDBSocket; lastCDDBSocket = NULL;
    lastCDDBSocket = new CDDB_socket;
@@ -647,7 +649,7 @@ void loadCDDBInfo(void)
          while(next_discid[0] != '\0' && !foundCached)
          {
             unsigned long discid = 0;
-            sscanf(next_discid, "%x[^\r\n]", &discid);
+            sscanf(next_discid, "%lx[^\r\n]", &discid);
 
             if(discid == lastQueryData.discid_cd) // found it cached!
             {
@@ -702,7 +704,7 @@ void loadCDDBInfo(void)
                  slash = strchr(http+7,'/');
               if(slash)
               {
-                 strncpy(host,server,slash-server);
+                 strlcpy(host,server,slash-server);
                  strcpy(path,slash);
                  if(settings.proxyURL)
                     displayMessage("Contacting: %s", settings.proxyURL);
@@ -804,7 +806,7 @@ void loadCDDBInfo(void)
       if((INIhandle = open_module_ini()) != NULLHANDLE)
       {
          char discid[32];
-         sprintf(discid, "%08x",lastQueryData.discid_cd);
+         sprintf(discid, "%08lx",lastQueryData.discid_cd);
 
          PrfWriteProfileString(INIhandle, "CDInfo", discid, lastCDDBSocket->get_raw_reply());
 
@@ -823,7 +825,7 @@ void loadCDDBInfo(void)
 
 }
 
-ULONG _System decoder_trackinfo(char *drive, int track, DECODER_INFO *info)
+ULONG PM123_ENTRY decoder_trackinfo(char *drive, int track, DECODER_INFO *info)
 {
    char *temp;
 
@@ -877,8 +879,8 @@ ULONG _System decoder_trackinfo(char *drive, int track, DECODER_INFO *info)
    if(trackinfo->data)
       return 200;
 
-   info->songlength = (double)lastCD.getTrackInfo(track)->size*1000/
-          (44100*lastCD.getTrackInfo(track)->channels*2);
+   info->songlength = (int)((double)lastCD.getTrackInfo(track)->size*1000/
+          (44100*lastCD.getTrackInfo(track)->channels*2));
 
    info->startsector = CD_drive::getLBA(lastCD.getTrackInfo(track)->start);
    info->endsector = CD_drive::getLBA(lastCD.getTrackInfo(track)->end);
@@ -886,6 +888,7 @@ ULONG _System decoder_trackinfo(char *drive, int track, DECODER_INFO *info)
    info->format.samplerate = 44100;
    info->format.bits = 16;
    info->format.channels = lastCD.getTrackInfo(track)->channels;
+   info->bitrate = info->format.samplerate * info->format.bits * info->format.channels / 1000;
    info->format.format = 1; /* standard PCM */
 
    strcpy(info->tech_info,"True CD Quality");
@@ -894,33 +897,26 @@ ULONG _System decoder_trackinfo(char *drive, int track, DECODER_INFO *info)
    {
       temp = lastCDDBSocket->get_track_title(track-1,0);
       if(temp != NULL)
-         strncpy(info->title, temp, 127);
-      info->title[127] = 0;
+         strlcpy(info->title, temp, 128);
 
       temp = lastCDDBSocket->get_disc_title(0);
       if(temp != NULL)
-         strncpy(info->artist, temp, 127);
-      info->artist[127] = 0;
+         strlcpy(info->artist, temp, 128);
 
       temp = lastCDDBSocket->get_disc_title(1);
       if(temp != NULL)
-         strncpy(info->album, temp, 127);
-      info->album[127] = 0;
+         strlcpy(info->album, temp, 128);
 
       info->year[0] = 0;
-
-      info->comment[127] = 0;
       temp = lastCDDBSocket->get_disc_title(2);
       if(temp != NULL)
-         strncpy(info->comment, temp, 126);
+         strlcpy(info->comment, temp, 128);
       strcat(info->comment, " ");
       temp = lastCDDBSocket->get_track_title(track-1,1);
       if(temp != NULL)
-         strncat(info->comment, temp, 128-strlen(info->comment));
-      info->comment[127] = 0;
+         strlcat(info->comment, temp, 128);
 
-      strncpy(info->genre, lastQueryData.category, 127);
-      info->genre[127] = 0;
+      strlcpy(info->genre, lastQueryData.category, 128);
    }
 
 //   lastCD.close();
@@ -928,7 +924,7 @@ ULONG _System decoder_trackinfo(char *drive, int track, DECODER_INFO *info)
    return 0;
 }
 
-ULONG _System decoder_cdinfo(char *drive, DECODER_CDINFO *info)
+ULONG PM123_ENTRY decoder_cdinfo(char *drive, DECODER_CDINFO *info)
 {
    CD_drive CD;
 
@@ -944,7 +940,7 @@ ULONG _System decoder_cdinfo(char *drive, DECODER_CDINFO *info)
    return 0;
 }
 
-ULONG _System decoder_support(char *ext[], int *size)
+ULONG PM123_ENTRY decoder_support(char *ext[], int *size)
 {
    if(size)
       *size = 0;
@@ -955,6 +951,7 @@ ULONG _System decoder_support(char *ext[], int *size)
 void save_ini()
 {
    HINI INIhandle;
+   int  i;
 
    if((INIhandle = open_module_ini()) != NULLHANDLE)
    {
@@ -967,7 +964,7 @@ void save_ini()
       PrfWriteProfileData(INIhandle, "CDDBServers", NULL, NULL, 0);
       PrfWriteProfileData(INIhandle, "HTTPServers", NULL, NULL, 0);
 
-      for(int i = 0; i < settings.numCDDB; i++)
+      for(i = 0; i < settings.numCDDB; i++)
       {
          PrfWriteProfileData(INIhandle, "CDDBServers", settings.CDDBServers[i], (void*) &settings.isCDDBSelect[i], 4);
       }
@@ -1016,12 +1013,13 @@ void load_ini()
 
       if(PrfQueryProfileSize(INIhandle, "CDDBServers", NULL, &bufferSize) && bufferSize > 0)
       {
+         int i;
          buffer = (char *) calloc(bufferSize, 1);
          char *next_string = buffer;
 
          PrfQueryProfileData(INIhandle, "CDDBServers", NULL, buffer, &bufferSize);
 
-         for(int i = 0; i < 128; i++)
+         for( i = 0; i < 128; i++)
          {
             if(next_string[0] == '\0')
                break;
@@ -1053,12 +1051,13 @@ void load_ini()
 
       if(PrfQueryProfileSize(INIhandle, "HTTPServers", NULL, &bufferSize) && bufferSize > 0)
       {
+         int i;
          buffer = (char *) calloc(bufferSize, 1);
          char *next_string = buffer;
 
          PrfQueryProfileData(INIhandle, "HTTPServers", NULL, buffer, &bufferSize);
 
-         for(int i = 0; i < 128; i++)
+         for(i = 0; i < 128; i++)
          {
             if(next_string[0] == '\0')
                break;
@@ -1092,14 +1091,15 @@ void load_ini()
    }
 }
 
-static VOID APIENTRY
-cddb_update( HWND hwnd )
+static VOID TFNENTRY
+cddb_update( void* arg )
 {
    char  server[512];
    ULONG serverType;
    SHORT index = LIT_FIRST;
    HAB   hab   = WinInitialize( 0 );
    HMQ   hmq   = WinCreateMsgQueue( hab, 0 );
+   HWND  hwnd  = (HWND)arg;
 
    CDDB_socket *cddbSocket = new CDDB_socket;
 
@@ -1126,7 +1126,7 @@ cddb_update( HWND hwnd )
                slash = strchr(http+7,'/');
             if(slash)
             {
-               strncpy(host,server,slash-server);
+               strlcpy(host,server,slash-server);
                strcpy(path,slash);
                if(strlen(settings.proxyURL) > 0)
                   displayMessage("Contacting: %s", settings.proxyURL);
@@ -1199,6 +1199,7 @@ cddb_update( HWND hwnd )
    WinPostMsg( hwnd, WM_UPDATE_DONE, 0, 0 );
    WinDestroyMsgQueue( hmq );
    WinTerminate( hab );
+   _endthread();
 }
 
 MRESULT EXPENTRY NetworkDlgProc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
@@ -1259,7 +1260,7 @@ MRESULT EXPENTRY OffDBDlgProc(HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2)
                   ULONG cdinfoSize = 0;
                   char *cdinfoBuffer = NULL;
 
-                  sscanf(next_discid, "%x[^\r\n]", &discid);
+                  sscanf(next_discid, "%lx[^\r\n]", &discid);
 
                   if(PrfQueryProfileSize(INIhandle, "CDInfo", next_discid, &cdinfoSize) && cdinfoSize > 0)
                   {
@@ -1393,13 +1394,15 @@ MRESULT EXPENTRY ConfigureDlgProc(HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2)
 
       case WM_SAVE:
       {
+         int i;
+
          settings.useCDDB = (BOOL)WinSendDlgItemMsg(hwnd, CB_USECDDB, BM_QUERYCHECK, 0, 0);
          settings.useHTTP = (BOOL)WinSendDlgItemMsg(hwnd, CB_USEHTTP, BM_QUERYCHECK, 0, 0);
          settings.tryAllServers = (BOOL)WinSendDlgItemMsg(hwnd, CB_TRYALL, BM_QUERYCHECK, 0, 0);
          WinQueryDlgItemText(hwnd, EF_PROXY, 1023, settings.proxyURL);
          WinQueryDlgItemText(hwnd, EF_EMAIL, 1023, settings.email);
 
-         for(int i = 0; i < 128; i++)
+         for( i = 0; i < 128; i++)
          {
             free(settings.CDDBServers[i]); settings.CDDBServers[i] = NULL;
             free(settings.HTTPServers[i]); settings.HTTPServers[i] = NULL;
@@ -1525,7 +1528,7 @@ MRESULT EXPENTRY ConfigureDlgProc(HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2)
                WinEnableControl( hwnd, CB_TRYALL,  FALSE );
                WinEnableControl( hwnd, CB_USECDDB, FALSE );
                WinSendMsg( hwnd, WM_SAVE, 0, 0 );
-               DosCreateThread( &tupdate, cddb_update, hwnd, CREATE_READY, 65535 );
+               tupdate = _beginthread( cddb_update, NULL, 65535, (void*)hwnd );
                break;
 
             case PB_NETWIN:
@@ -1552,7 +1555,7 @@ MRESULT EXPENTRY ConfigureDlgProc(HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2)
 #define FONT1 "9.WarpSans"
 #define FONT2 "8.Helv"
 
-void _System plugin_configure(HWND hwnd, HMODULE module)
+int PM123_ENTRY plugin_configure(HWND hwnd, HMODULE module)
 {
    if(dlghwnd == 0)
    {
@@ -1570,9 +1573,11 @@ void _System plugin_configure(HWND hwnd, HMODULE module)
    }
    else
       WinFocusChange(HWND_DESKTOP, dlghwnd, 0);
+
+   return 0;
 }
 
-void _System plugin_query(PLUGIN_QUERYPARAM *param)
+int PM123_ENTRY plugin_query(PLUGIN_QUERYPARAM *param)
 {
    param->type = PLUGIN_DECODER;
    param->author = "Samuel Audet";
@@ -1580,32 +1585,47 @@ void _System plugin_query(PLUGIN_QUERYPARAM *param)
    param->configurable = TRUE;
 
    load_ini();
+   return 0;
 }
 
+extern "C" int INIT_ATTRIBUTE __dll_initialize( void )
+{
+  HMODULE hmodule;
+  char    name[_MAX_PATH];
+
+  getModule( &hmodule, name, sizeof( name ));
+
+  // create hidden network window
+  if( nethwnd == NULLHANDLE ) {
+    nethwnd = WinLoadDlg( HWND_DESKTOP, HWND_DESKTOP, NetworkDlgProc, hmodule, DLG_NETWIN, NULL );
+
+    if( nethwnd != NULLHANDLE ) {
+      do_warpsans( nethwnd );
+    }
+  }
+  return 1;
+}
+
+extern "C" int TERM_ATTRIBUTE __dll_terminate( void )
+{
+  if( nethwnd != NULLHANDLE ) {
+     WinDestroyWindow( nethwnd );
+  }
+  return 1;
+}
+
+#if defined(__IBMCPP__)
 unsigned long _System _DLL_InitTerm( unsigned long modhandle,
                                      unsigned long flag       )
 {
-  if( flag == 0 )
-  {
+  if( flag == 0 ) {
     if( _CRT_init() == -1 ) return 0UL;
-
-    // create hidden network window
-    if( nethwnd == NULLHANDLE ) {
-      nethwnd = WinLoadDlg( HWND_DESKTOP, HWND_DESKTOP, NetworkDlgProc, modhandle, DLG_NETWIN, NULL );
-
-      if( nethwnd != NULLHANDLE ) {
-        do_warpsans( nethwnd );
-      }
-    }
-  }
-  else
-  {
-    if( nethwnd != NULLHANDLE ) {
-       WinDestroyWindow( nethwnd );
-    }
-
+    __dll_initialize();
+  } else {
+    __dll_terminate ();
     _CRT_term();
   }
 
   return 1UL;
 }
+#endif

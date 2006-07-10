@@ -36,13 +36,15 @@
 extern "C" {
 #endif
 
+#if defined(TCPV40HDRS)
 const char* sock_strerror( int socket_errno );
+#endif
+
 const char* h_strerror   ( int tcpip_errno  );
 const char* clib_strerror( int clib_errno   );
 
 char* os2_strerror( unsigned int os2_errno,
                     char* result, size_t size );
-
 #if __cplusplus
 }
 #endif

@@ -1,48 +1,44 @@
 #
-#  mpg123.dll makefile for NMAKE and VAC++
+#  mpg123.dll makefile
 #
 
-!include ..\..\config\makerules
+DLL      = yes
+TOPDIR   = ..\..
+INCDIR   = $(TOPDIR)\utils;$(TOPDIR)\include;$(TOPDIR)\http123
 
-INCLUDE  = $(INCLUDE);..\..\http123;..\..\utils;..\..\include
-LIB      = $(LIB);..\..\http123;..\..\utils
-CFLAGS   = $(CFLAGS) $(DLLFLG) /DREAL_IS_FLOAT
+!include $(TOPDIR)\config\makerules
 
-DEF      = mpg123.def
-
-all: mpg123.dll
-
-OBJECTS  = mpg123.obj common.obj decode_i386.obj dct64_MMX.obj \
-           decode_2to1.obj decode_4to1.obj \
-           layer1.obj layer2.obj layer3.obj dxhead.obj \
-           equalizer.obj decode_MMX.obj tabinit_MMX.obj
-
-LIBS     = http123.lib utilfct.lib
+OBJECTS  = mpg123.obj common.obj decode_i386.obj dct64_MMX.obj decode_2to1.obj
+OBJECTS  = $(OBJECTS) decode_4to1.obj layer1.obj layer2.obj layer3.obj
+OBJECTS  = $(OBJECTS) dxhead.obj equalizer.obj decode_MMX.obj tabinit_MMX.obj
+LIBS     = $(LIBS_TCP) $(TOPDIR)\utils\utilfct.lib $(TOPDIR)\http123\http123.lib
+DEF      = mpg123$(LDEF_SUFFX)
 RESOURCE = mpg123.res
 
+all: mpg123.dll mpg123.lib $(MDUMMY)
+
 mpg123.dll: $(OBJECTS) $(DEF) $(RESOURCE)
-   $(CC) $(LNKFLG) /Fm$* /Fe$@ $(OBJECTS) $(DEF) $(LIBS)
-   $(RC) $(RESFLG) $(RESOURCE) $@ > nul
-   $(LI) $*.lib $@
+	$(CL) $(LFLAGS) $(LFLAGS_OUT)$@ $(LOBJ_PREFX)$(OBJECTS) $(LIBS)$(LOBJ_SUFFX) $(LDEF_PREFX)$(DEF)
+	$(RC) $(RFLAGS) $(RESOURCE) $@ > nul
 
-clean:
-  -@del mpg123.dll mpg123.lib mpg123.map $(OBJECTS) $(RESOURCE) 2> nul
+mpg123.lib: $(DEF)
+	$(LI) $@ mpg123.dll
 
-layer1.obj:        mpg123.h
-layer2.obj:        mpg123.h
-layer3.obj:        mpg123.h huffman.h get1bit.h
-decode.obj:        mpg123.h
-decode_int.obj:    mpg123.h
-decode_2to1.obj:   mpg123.h
-decode_4to1.obj:   mpg123.h
-decode_i386.obj:   mpg123.h
-common.obj:        mpg123.h tables.h
-mpg123.obj:        mpg123.h
-getbits.obj:       mpg123.h
-getbits_.obj:      mpg123.h
-getbits_bsdos.obj: mpg123.h
-tabinit.obj:       mpg123.h
-getlopt.obj:       getlopt.h
-dct64.obj:	   mpg123.h
-dct64_i386.obj:    mpg123.h
-equalizer.obj:	   mpg123.h
+layer1.obj:        layer1.c mpg123.h
+layer2.obj:        layer2.c mpg123.h
+layer3.obj:        layer3.c mpg123.h huffman.h get1bit.h
+decode.obj:        decode.c mpg123.h
+decode_int.obj:    decode_int.c mpg123.h
+decode_2to1.obj:   decode_2to1.c mpg123.h
+decode_4to1.obj:   decode_4to1.c mpg123.h
+decode_i386.obj:   decode_i386.c mpg123.h
+common.obj:        common.c mpg123.h tables.h
+mpg123.obj:        mpg123.c mpg123.h
+getbits.obj:       getbits.c mpg123.h
+tabinit.obj:       tabinit.c mpg123.h
+dct64.obj:	   dct64.c mpg123.h
+dct64_i386.obj:    dct64_i386.c mpg123.h
+equalizer.obj:	   equalizer.c mpg123.h
+
+clean: $(MDUMMY)
+	-@del mpg123.lib mpg123.dll $(OBJECTS) $(RESOURCE) 2> nul

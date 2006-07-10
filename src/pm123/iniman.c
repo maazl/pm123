@@ -30,8 +30,9 @@
  */
 
 
-#define  INCL_PM
+#define  INCL_WIN
 #define  INCL_DOS
+#define  INCL_ERRORS
 #include <os2.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -50,9 +51,7 @@
 void
 factory_settings( void )
 {
-  POINTL dsize[2] = {{ 13, 27 }, { 202, 138 }};
-  WinMapDlgPoints( HWND_DESKTOP, dsize, 2, TRUE );
-
+  ULONG cp[4], cp_size;
   memset( &cfg, 0, sizeof( cfg ));
 
   cfg.main.x = 1;
@@ -96,9 +95,17 @@ factory_settings( void )
   cfg.font_attrs.lMaxBaselineExt = 12L;
   cfg.font_attrs.lAveCharWidth   =  5L;
 
+  // Selects russian auto-detect as default characters encoding
+  // for russian peoples.
+  if( DosQueryCp( sizeof( cp ), cp, &cp_size ) == NO_ERROR ) {
+    if( cp[0] == 866 ) {
+      cfg.charset = CH_CYR_AUTO;
+    }
+  }
+
   strcpy( cfg.font_attrs.szFacename, "System VIO" );
 
-  /* Last used stuph */
+  // Last used stuph.
   memset( cfg.last[0], '\0', 256 * MAX_RECALL );
   memset( cfg.list[0], '\0', 256 * MAX_RECALL );
 }
@@ -369,7 +376,7 @@ save_window_pos( HWND hwnd, int options )
   DosGetInfoBlocks( NULL, &ppib );
 
   if( hini != NULLHANDLE ) {
-    sprintf( key1st, "WIN_%08X_%08X", id, ppib->pib_ulpid );
+    sprintf( key1st, "WIN_%08X_%08lX", id, ppib->pib_ulpid );
     sprintf( key2st, "WIN_%08X", id );
     sprintf( key3st, "POS_%08X", id );
 
@@ -415,7 +422,7 @@ rest_window_pos( HWND hwnd, int options )
   DosGetInfoBlocks( NULL, &ppib );
 
   if( hini != NULLHANDLE ) {
-    sprintf( key1st, "WIN_%08X_%08X", id, ppib->pib_ulpid );
+    sprintf( key1st, "WIN_%08X_%08lX", id, ppib->pib_ulpid );
     sprintf( key2st, "WIN_%08X", id );
     sprintf( key3st, "POS_%08X", id );
 

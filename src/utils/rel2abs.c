@@ -28,7 +28,6 @@
 
 #include <stdlib.h>
 #include <stdio.h>
-#include <direct.h>
 #include <string.h>
 
 #include "rel2abs.h"
@@ -168,6 +167,8 @@ rel2abs( const char* base, const char* path, char* result, size_t size )
 }
 
 #if 0
+
+#include <direct.h>
 
 int
 main( int argc, char* argv[] )

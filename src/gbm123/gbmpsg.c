@@ -168,7 +168,7 @@ static byte ascii_to_ebcdic[0x100] =
 static void ebcdic(char *dst, char *src)
 	{
 	while ( *src )
-		*dst++ = ascii_to_ebcdic[*src++];
+		*dst++ = ascii_to_ebcdic[(unsigned char)*src++];
 	}
 /*...e*/
 /*...sgetword:0:*/

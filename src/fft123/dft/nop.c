@@ -18,7 +18,7 @@
  *
  */
 
-/* $Id: nop.c,v 1.1 2005/07/26 17:36:52 glass Exp $ */
+/* $Id: nop.c,v 1.2 2006/06/14 11:16:19 glass Exp $ */
 
 /* plans for vrank -infty DFTs (nothing to do) */
 
@@ -38,13 +38,13 @@ static int applicable(const solver *ego_, const problem *p_)
      UNUSED(ego_);
      if (DFTP(p_)) {
           const problem_dft *p = (const problem_dft *) p_;
-          return 0
+          return 
 	       /* case 1 : -infty vector rank */
-	       || (!FINITE_RNK(p->vecsz->rnk))
+	          (!FINITE_RNK(p->vecsz->rnk))
 
 	       /* case 2 : rank-0 in-place dft */
-	       || (1
-		   && p->sz->rnk == 0
+	       || (
+		      p->sz->rnk == 0
 		   && FINITE_RNK(p->vecsz->rnk)
 		   && p->ro == p->ri
 		   && X(tensor_inplace_strides)(p->vecsz)

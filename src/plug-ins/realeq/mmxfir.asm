@@ -27,6 +27,12 @@
  ; ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  ;
 
+%ifdef UNDERSCORE
+  %define FIRorder    _FIRorder
+  %define finalFIRmmx _finalFIRmmx
+  %define finalAMPi   _finalAMPi
+%endif
+
 BITS 32
 
 extern finalFIRmmx
@@ -34,33 +40,19 @@ extern finalAMPi
 extern FIRorder
 
 extern DosBeep
-extern printf
-extern fflush
-extern stdout
-
-%imacro flush 0
-push eax
-push ecx
-push edx
-mov eax,[stdout]
-call fflush
-pop edx
-pop ecx
-pop eax
-%endmacro
 
 %imacro beep 0
-push eax
-push ecx
-push edx
-push dword 10
-push dword 600
-mov al, 2
-call DosBeep
-add esp,8
-pop edx
-pop ecx
-pop eax
+  push eax
+  push ecx
+  push edx
+  push dword 10
+  push dword 600
+  mov al, 2
+  call DosBeep
+  add esp,8
+  pop edx
+  pop ecx
+  pop eax
 %endmacro
 
 %define MAX_ORDER 4100
@@ -80,10 +72,11 @@ segment .text align=16 class=CODE use32 FLAT
 ; thanks to AMD!!
 global detect_mmx
 detect_mmx:
+        push ebx
         pushfd                  ; save EFLAGS
-        pop eax                 ; store EFLAGS in EAX
-        mov edx, eax            ; save in EDX for later testing
-        xor eax, 00200000h      ; toggle bit 21
+        pop  eax                ; store EFLAGS in EAX
+        mov  edx, eax           ; save in EDX for later testing
+        xor  eax, 00200000h     ; toggle bit 21
         push eax                ; put to stack
         popfd                   ; save changed EAX to EFLAGS
         pushfd                  ; push EFLAGS to TOS
@@ -104,9 +97,8 @@ NO_CPUID:
 YES_MMX:
         mov eax, 1
 return:
+        pop ebx
         ret
-
-
 
 
         align 16
@@ -122,20 +114,6 @@ filter_samples_mmx_stereo:
         push edi
         push ebx
         push ebp
-
-%if 0
-push eax
-push ecx
-push edx
-push dword [esp+44]
-sub esp,4
-mov eax,one
-call printf
-add esp,8
-pop edx
-pop ecx
-pop eax
-%endif
 
         ;-- unpacking new samples from buffers
         ; we sorta assume len > 0
@@ -203,10 +181,10 @@ pop eax
         pmaddwd mm6,[finalFIRmmx + MAX_ORDER*4*2 wrt FLAT]
         pmaddwd mm7,[finalFIRmmx + MAX_ORDER*4*3 wrt FLAT]
 
-        PSRAD mm4,1
-        PSRAD mm5,1
-        PSRAD mm6,1
-        PSRAD mm7,1
+        psrad mm4,1
+        psrad mm5,1
+        psrad mm6,1
+        psrad mm7,1
 
         inc esi
 
@@ -222,10 +200,10 @@ pop eax
         pmaddwd mm2,[finalFIRmmx + MAX_ORDER*4*2 + esi*8 wrt FLAT]
         pmaddwd mm3,[finalFIRmmx + MAX_ORDER*4*3 + esi*8 wrt FLAT]
 
-        PSRAD mm0,1
-        PSRAD mm1,1
-        PSRAD mm2,1
-        PSRAD mm3,1
+        psrad mm0,1
+        psrad mm1,1
+        psrad mm2,1
+        psrad mm3,1
 
         paddd mm4,mm0
         paddd mm5,mm1
@@ -254,10 +232,10 @@ pop eax
         pmaddwd mm2,[finalFIRmmx + MAX_ORDER*4*2 + esi*8 wrt FLAT]
         pmaddwd mm3,[finalFIRmmx + MAX_ORDER*4*3 + esi*8 wrt FLAT]
 
-        PSRAD mm0,1
-        PSRAD mm1,1
-        PSRAD mm2,1
-        PSRAD mm3,1
+        psrad mm0,1
+        psrad mm1,1
+        psrad mm2,1
+        psrad mm3,1
 
         paddd mm4,mm0
         paddd mm5,mm1
@@ -269,10 +247,10 @@ pop eax
         jge     .nextcoef2
 
         ; -- preparing to sum with values shifted by 15 only
-        PSRAD mm4,5
-        PSRAD mm5,5
-        PSRAD mm6,5
-        PSRAD mm7,5
+        psrad mm4,5
+        psrad mm5,5
+        psrad mm6,5
+        psrad mm7,5
 
 
         ; -- going to the middle coeficients
@@ -293,10 +271,10 @@ pop eax
         pmaddwd mm2,[finalFIRmmx + MAX_ORDER*4*2 + esi*8 wrt FLAT]
         pmaddwd mm3,[finalFIRmmx + MAX_ORDER*4*3 + esi*8 wrt FLAT]
 
-        PSRAD mm0,1
-        PSRAD mm1,1
-        PSRAD mm2,1
-        PSRAD mm3,1
+        psrad mm0,1
+        psrad mm1,1
+        psrad mm2,1
+        psrad mm3,1
 
         paddd mm4,mm0
         paddd mm5,mm1
@@ -308,72 +286,42 @@ pop eax
         jg      .nextcoef3
 
 
-        PSRAD mm4,14
-        PSRAD mm5,14
-        PSRAD mm6,14
-        PSRAD mm7,14
+        psrad mm4,14
+        psrad mm5,14
+        psrad mm6,14
+        psrad mm7,14
 
         ; -- final pack
-        PACKSSDW mm4,mm5
-        PACKSSDW mm6,mm7
+        packssdw mm4,mm5
+        packssdw mm6,mm7
 
 
         ; -- multiply by the amplification variable
         movq mm0,[finalAMPi wrt FLAT]
 
         movq mm5, mm4           ; keeping copy
-        PMULHW mm4, mm0         ; to multiply high
-        PMULLW mm5, mm0         ; and low values
+        pmulhw mm4, mm0         ; to multiply high
+        pmullw mm5, mm0         ; and low values
         movq mm1, mm5           ; copy the high values
-        PUNPCKHWD mm5,mm4       ; to unpack them with low values
-        PUNPCKLWD mm1,mm4       ; and get them all
-        PSRAD mm5,12            ; shifting by 12 (finalAMPi is 12 shifted)
-        PSRAD mm1,12
-        PACKSSDW mm1,mm5        ; and pack saturate again
+        punpckhwd mm5,mm4       ; to unpack them with low values
+        punpcklwd mm1,mm4       ; and get them all
+        psrad mm5,12            ; shifting by 12 (finalAMPi is 12 shifted)
+        psrad mm1,12
+        packssdw mm1,mm5        ; and pack saturate again
 
         movq mm7, mm6
-        PMULHW mm6, mm0
-        PMULLW mm7, mm0
+        pmulhw mm6, mm0
+        pmullw mm7, mm0
         movq mm2, mm7
-        PUNPCKHWD mm7,mm6
-        PUNPCKLWD mm2,mm6
-        PSRAD mm7,12
-        PSRAD mm2,12
-        PACKSSDW mm2,mm7
+        punpckhwd mm7,mm6
+        punpcklwd mm2,mm6
+        psrad mm7,12
+        psrad mm2,12
+        packssdw mm2,mm7
 
         ; -- storing final result in memory
         movq [eax + edi    ],mm1    ; newsamples + i
         movq [eax + edi+08h],mm2
-
-%if 0
-push eax
-push ecx
-push edx
-xor ecx, ecx
-movsx ecx, word [eax+esi+14]
-push ecx
-movsx ecx, word [eax+esi+12]
-push ecx
-movsx ecx, word [eax+esi+10]
-push ecx
-movsx ecx, word [eax+esi+8]
-push ecx
-movsx ecx, word [eax+esi+6]
-push ecx
-movsx ecx, word [eax+esi+4]
-push ecx
-movsx ecx, word [eax+esi+2]
-push ecx
-movsx ecx, word [eax+esi]
-push ecx
-sub esp,4
-mov eax,format2
-call printf
-add esp,36
-pop edx
-pop ecx
-pop eax
-%endif
 
 ; 348          i++;
         add     edi,16
@@ -388,9 +336,6 @@ pop eax
         pop     edi
         pop     esi
         ret
-
-
-
 
 ;void filter_samples_mmx_mono(short *newsamples, short *temp, char *buf, int len);
 ;eax == newsamples
@@ -457,10 +402,10 @@ filter_samples_mmx_mono:
         pmaddwd mm6,[finalFIRmmx + MAX_ORDER*4*2 wrt FLAT]
         pmaddwd mm7,[finalFIRmmx + MAX_ORDER*4*3 wrt FLAT]
 
-        PSRAD mm4,1
-        PSRAD mm5,1
-        PSRAD mm6,1
-        PSRAD mm7,1
+        psrad mm4,1
+        psrad mm5,1
+        psrad mm6,1
+        psrad mm7,1
 
         inc esi
 
@@ -476,10 +421,10 @@ filter_samples_mmx_mono:
         pmaddwd mm2,[finalFIRmmx + MAX_ORDER*4*2 + esi*8 wrt FLAT]
         pmaddwd mm3,[finalFIRmmx + MAX_ORDER*4*3 + esi*8 wrt FLAT]
 
-        PSRAD mm0,1
-        PSRAD mm1,1
-        PSRAD mm2,1
-        PSRAD mm3,1
+        psrad mm0,1
+        psrad mm1,1
+        psrad mm2,1
+        psrad mm3,1
 
         paddd mm4,mm0
         paddd mm5,mm1
@@ -508,10 +453,10 @@ filter_samples_mmx_mono:
         pmaddwd mm2,[finalFIRmmx + MAX_ORDER*4*2 + esi*8 wrt FLAT]
         pmaddwd mm3,[finalFIRmmx + MAX_ORDER*4*3 + esi*8 wrt FLAT]
 
-        PSRAD mm0,1
-        PSRAD mm1,1
-        PSRAD mm2,1
-        PSRAD mm3,1
+        psrad mm0,1
+        psrad mm1,1
+        psrad mm2,1
+        psrad mm3,1
 
         paddd mm4,mm0
         paddd mm5,mm1
@@ -523,10 +468,10 @@ filter_samples_mmx_mono:
         jge     .nextcoef2
 
         ; -- preparing to sum with values shifted by 15 only
-        PSRAD mm4,5
-        PSRAD mm5,5
-        PSRAD mm6,5
-        PSRAD mm7,5
+        psrad mm4,5
+        psrad mm5,5
+        psrad mm6,5
+        psrad mm7,5
 
 
         ; -- going to the middle coeficients
@@ -547,10 +492,10 @@ filter_samples_mmx_mono:
         pmaddwd mm2,[finalFIRmmx + MAX_ORDER*4*2 + esi*8 wrt FLAT]
         pmaddwd mm3,[finalFIRmmx + MAX_ORDER*4*3 + esi*8 wrt FLAT]
 
-        PSRAD mm0,1
-        PSRAD mm1,1
-        PSRAD mm2,1
-        PSRAD mm3,1
+        psrad mm0,1
+        psrad mm1,1
+        psrad mm2,1
+        psrad mm3,1
 
         paddd mm4,mm0
         paddd mm5,mm1
@@ -562,34 +507,34 @@ filter_samples_mmx_mono:
         jg      .nextcoef3
 
         movq mm2, mm4
-        PUNPCKLDQ mm4, mm5
-        PUNPCKHDQ mm2, mm5
+        punpckldq mm4, mm5
+        punpckhdq mm2, mm5
         paddd mm2, mm4
 
         movq mm3, mm6
-        PUNPCKLDQ mm6, mm7
-        PUNPCKHDQ mm3, mm7
+        punpckldq mm6, mm7
+        punpckhdq mm3, mm7
         paddd mm3, mm6
 
-        PSRAD mm2,14
-        PSRAD mm3,14
+        psrad mm2,14
+        psrad mm3,14
 
         ; -- final pack
-        PACKSSDW mm2,mm3
+        packssdw mm2,mm3
 
         ; -- multiply by the amplification variable
         movq     mm4,mm2
         movq mm0,[finalAMPi wrt FLAT]
 
         movq mm5, mm4           ; keeping copy
-        PMULHW mm4, mm0         ; to multiply high
-        PMULLW mm5, mm0         ; and low values
+        pmulhw mm4, mm0         ; to multiply high
+        pmullw mm5, mm0         ; and low values
         movq mm1, mm5           ; copy the high values
-        PUNPCKHWD mm5,mm4       ; to unpack them with low values
-        PUNPCKLWD mm1,mm4       ; and get them all
-        PSRAD mm5,12            ; shifting by 12 (finalAMPi is 12 shifted)
-        PSRAD mm1,12
-        PACKSSDW mm1,mm5        ; and pack saturate again
+        punpckhwd mm5,mm4       ; to unpack them with low values
+        punpcklwd mm1,mm4       ; and get them all
+        psrad mm5,12            ; shifting by 12 (finalAMPi is 12 shifted)
+        psrad mm1,12
+        packssdw mm1,mm5        ; and pack saturate again
 
         ; -- storing final result in memory
         movq [eax + edi    ],mm1    ; newsamples + i

@@ -64,7 +64,7 @@ BOOLEAN gbm_map_row_PAL_PAL(const byte * data_src, const GBM * gbm_src,
 
             if (x < gbm_src->w)
             {
-               *data_dst++ = *data_dst | ((colorIndex >> 4) & 3);
+               *data_dst++ |= ((colorIndex >> 4) & 3);
                x++;
 
                if (x < gbm_src->w)
@@ -107,7 +107,7 @@ BOOLEAN gbm_map_row_PAL_BGR(const byte         * data_src, const GBM * gbm_src,
 {
    int  block_count = gbm_src->w;
    int  colorIndex, x, s;
-   byte c;
+   byte c = 0;
 
          word * data16_dst =       (word *) data_dst;
    const word * data16_src = (const word *) data_src;

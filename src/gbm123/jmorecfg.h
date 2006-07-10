@@ -324,12 +324,14 @@ typedef int boolean;
  */
 
 #ifndef INLINE
-#ifdef __GNUC__			/* for instance, GNU C knows about inline */
-#define INLINE __inline__
-#endif
-#ifndef INLINE
-#define INLINE			/* default is to define it as empty */
-#endif
+ #ifdef __GNUC__			/* for instance, GNU C knows about inline */
+  #define INLINE __inline__
+ #elif (defined(__WATCOMC__) || defined(__WATCOM_CPLUSPLUS__))
+  #define INLINE __inline
+ #endif
+ #ifndef INLINE
+  #define INLINE			/* default is to define it as empty */
+ #endif
 #endif
 
 

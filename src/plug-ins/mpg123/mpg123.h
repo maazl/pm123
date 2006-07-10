@@ -9,13 +9,15 @@
 #include <os2.h>
 #include <stdio.h>
 #include <string.h>
+#include <math.h>
+
+#include <utilfct.h>
 #include <httpget.h>
 #include <sockfile.h>
 #include <decoder_plug.h>
 #include <plugin.h>
-#include <math.h>
 
-#if !defined( WIN32 ) && !defined(__IBMC__) && !defined(__IBMCPP__)
+#if !defined(WIN32) && !defined(OS2)
 #include <sys/signal.h>
 #include <unistd.h>
 #endif
@@ -30,6 +32,7 @@
   #ifndef M_SQRT2
     #define M_SQRT2 1.41421356237309504880
   #endif
+  #define REAL_IS_FLOAT
 #endif
 
 #if defined( HPUX )
@@ -105,7 +108,7 @@ typedef struct
    char  save_filename[512];
    FILE* save_file;
 
-   void (*_System info_display)(char*);
+   void (PM123_ENTRYP info_display)(char*);
 
 } META_STRUCT;
 
@@ -143,8 +146,8 @@ typedef struct
    FORMAT_INFO output_format;
    META_STRUCT metastruct;
 
-   void (*_System error_display)(char*);
-   int  (*_System output_play_samples)(void* a, FORMAT_INFO* format, char* buf, int len, int posmarker );
+   void (PM123_ENTRYP error_display)(char*);
+   int  (PM123_ENTRYP output_play_samples)(void* a, FORMAT_INFO* format, char* buf, int len, int posmarker );
    void* a;             // Only to be used with the precedent function.
    int   audio_buffersize;
 
@@ -266,9 +269,8 @@ extern void read_frame_init( void );
 extern int  read_frame( DECODER_STRUCT* w, struct frame* fr );
 extern int  back_pos( DECODER_STRUCT* w, struct frame* fr, int bytes );
 extern int  forward_pos( DECODER_STRUCT* w, struct frame* fr,int bytes );
-extern int  decode_header( int newhead, int oldhead, struct frame* fr, int* ssize, void (*_System error_display)(char*));
+extern int  decode_header( int newhead, int oldhead, struct frame* fr, int* ssize, void (PM123_ENTRYP error_display)(char*));
 extern int  seekto_pos( DECODER_STRUCT* w, struct frame* fr, int bytes );
-extern int  play_frame( DECODER_STRUCT* w, struct frame* fr );
 extern int  do_layer3( DECODER_STRUCT* w, struct frame*fr );
 extern void clear_layer3( void );
 extern int  do_layer2( DECODER_STRUCT* w, struct frame* fr );
@@ -277,7 +279,6 @@ extern void do_equalizer( real* bandPtr, int channel );
 extern void do_mp3eq( real* bandPtr, int channel );
 extern void init_eq( int rate );
 extern int  synth_1to1( real*, int, unsigned char* );
-extern int  synth_1to1_MMX( real*, int, unsigned char* );
 extern int  synth_1to1_8bit( real*, int, unsigned char* );
 extern int  synth_2to1( real*, int, unsigned char* );
 extern int  synth_2to1_8bit( real*, int, unsigned char* );
@@ -297,9 +298,10 @@ extern int  synth_4to1_8bit_mono( real*, unsigned char* );
 extern int  synth_4to1_8bit_mono2stereo( real*, unsigned char* );
 extern void init_layer3( int );
 extern void init_layer2( int );
-extern void make_decode_tables( long scale );
 extern void make_conv16to8_table( int );
-extern void dct64( real*, real*, real* );
-extern void dct64_MMX( short*, short*, real* );
-extern BOOL detect_mmx( void );
 
+extern void _Optlink make_decode_tables( long scale );
+extern void _Optlink dct64_MMX( short*, short*, real* );
+extern BOOL _Optlink detect_mmx( void );
+extern int  _Optlink synth_1to1_MMX( real*, int, unsigned char* );
+extern void _Optlink dct64( real*, real*, real* );

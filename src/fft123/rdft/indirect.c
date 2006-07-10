@@ -18,7 +18,7 @@
  *
  */
 
-/* $Id: indirect.c,v 1.1 2005/07/26 17:37:04 glass Exp $ */
+/* $Id: indirect.c,v 1.2 2006/06/14 12:26:11 glass Exp $ */
 
 
 /* solvers/plans for vectors of small RDFT's that cannot be done
@@ -136,17 +136,16 @@ static int applicable0(const solver *ego_, const problem *p_,
      if (RDFTP(p_)) {
 	  const S *ego = (const S *) ego_;
           const problem_rdft *p = (const problem_rdft *) p_;
-          return (1
-                  && FINITE_RNK(p->vecsz->rnk)
+          return ( 
+                     FINITE_RNK(p->vecsz->rnk)
 
                   /* problem must be a nontrivial transform, not just a copy */
                   && p->sz->rnk > 0
 
-                  && (0
-
+                  && (
 		      /* problem must be in-place & require some
 		         rearrangement of the data */
-		      || (p->I == p->O
+		         (p->I == p->O
 			  && !(X(tensor_inplace_strides2)(p->sz, p->vecsz)))
 
 		      /* or problem must be out of place, transforming
