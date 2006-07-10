@@ -18,7 +18,7 @@
  *
  */
 
-/* $Id: nop2.c,v 1.1 2005/07/26 17:37:06 glass Exp $ */
+/* $Id: nop2.c,v 1.2 2006/06/14 12:26:11 glass Exp $ */
 
 /* plans for vrank -infty RDFT2s (nothing to do), as well as in-place
    rank-0 HC2R.  Note that in-place rank-0 R2HC is *not* a no-op, because
@@ -39,13 +39,13 @@ static int applicable(const solver *ego_, const problem *p_)
      UNUSED(ego_);
      if (RDFT2P(p_)) {
           const problem_rdft2 *p = (const problem_rdft2 *) p_;
-          return(0
+          return( 
 		 /* case 1 : -infty vector rank */
-		 || (p->vecsz->rnk == RNK_MINFTY)
+		    (p->vecsz->rnk == RNK_MINFTY)
 		 
 		 /* case 2 : rank-0 in-place HC2R rdft */
-		 || (1
-		     && p->kind == HC2R
+		 || ( 
+		        p->kind == HC2R
 		     && p->sz->rnk == 0
 		     && FINITE_RNK(p->vecsz->rnk)
 		     && (p->r == p->rio || p->r == p->iio)

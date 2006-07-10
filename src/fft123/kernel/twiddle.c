@@ -18,7 +18,7 @@
  *
  */
 
-/* $Id: twiddle.c,v 1.1 2005/07/26 17:37:04 glass Exp $ */
+/* $Id: twiddle.c,v 1.2 2006/06/14 11:28:40 glass Exp $ */
 
 /* Twiddle manipulation */
 
@@ -144,7 +144,7 @@ void X(mktwiddle)(twid **pp, const tw_instr *instr, int n, int r, int m)
 
      if (*pp) return;  /* already created */
 
-     if ((p = lookup(instr, n, r, m))) {
+     if ((p = lookup(instr, n, r, m)) != 0) {
           ++p->refcnt;
 	  goto done;
      }

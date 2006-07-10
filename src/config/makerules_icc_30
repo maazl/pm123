@@ -1,31 +1,74 @@
 # IBM Visualage C++ 3.0
 
-.SUFFIXES: .res .rc .obj .asm .c
+.SUFFIXES: .res .rc .obj .asm .c .cpp
 
-CC = icc
-AS = nasm -fobj
-LB = ilib /nobackup /quiet /nologo
-LE = ;
-LI = implib /nologo
+MFLAGS     = -nologo
+MDUMMY     =
 
-CFLAGS = -Ss -Q -Gm -W3 -DOS2 -DTCPV40HDRS
-DLLFLG = -Ge- -DLL
-RESFLG = -n
-ASMFLG =
+CC         = icc
+CFLAGS     = -Ss -Q -Gm -W3 -DOS2 -DTCPV40HDRS
+CFLAGS_DLL = -Ge- -DLL
+CFLAGS_DBG = -Ti
+CFLAGS_OPT = -Gf -Gi -O -Ol -G5
+
+CL         = ilink
+LFLAGS     = /NOL /NOE
+LFLAGS_DLL = /DLL
+LFLAGS_PM  = /PM:PM
+LFLAGS_IO  = /PM:VIO
+LFLAGS_DBG = /DEB
+LFLAGS_OPT = /PACKC /PACKD /OPTF /EXEP:2
+LFLAGS_OUT = /OUT:
+LDEF_PREFX =
+LDEF_SUFFX = _icc.def
+LOBJ_PREFX =
+LOBJ_SUFFX =
+
+AS         = nasm
+AFLAGS     = -fobj
+
+LB         = ilib /nobackup /quiet /nologo /noi
+LBENDL     = ;
+
+LI         = implib /nologo /noi
+
+RC         = rc
+RFLAGS     = -n
+
+LIBS_TCP   = so32dll.lib tcp32dll.lib
+LIBS_MM    = mmpm2.lib
+
+INCLUDE    = $(INCDIR);$(INCLUDE)
+
+!ifdef EXE_PM
+LFLAGS = $(LFLAGS) $(LFLAGS_PM)
+!endif
+!ifdef EXE_IO
+LFLAGS = $(LFLAGS) $(LFLAGS_IO)
+!endif
 
 !ifdef DEBUG
-CFLAGS = -Ti $(CFLAGS)
-LNKFLG = -Ti -Q -B"/NOE"
+CFLAGS = $(CFLAGS) $(CFLAGS_DBG)
+LFLAGS = $(LFLAGS) $(LFLAGS_DBG)
+MFLAGS = $(MFLAGS) DEBUG=Yes
 !else
-CFLAGS = -Gf -Gi -O -Ol -G5 $(CFLAGS)
-LNKFLG = -Q -B"/PACKC /PACKD /NOE"
+CFLAGS = $(CFLAGS) $(CFLAGS_OPT)
+LFLAGS = $(LFLAGS) $(LFLAGS_OPT)
+!endif
+
+!ifdef DLL
+CFLAGS = $(CFLAGS) $(CFLAGS_DLL)
+LFLAGS = $(LFLAGS) $(LFLAGS_DLL)
 !endif
 
 .c.obj:
-   $(CC) $(CFLAGS) -c -Fo$@ $<
+	$(CC) $(CFLAGS) -c $<
+
+.cpp.obj:
+	$(CC) $(CFLAGS) -c $<
 
 .rc.res:
-   $(RC) $(RESFLG) -r $<
+	$(RC) $(RFLAGS) -r $<
 
 .asm.obj:
-   $(AS) $(ASMFLG) $<
+	$(AS) $(AFLAGS) $<

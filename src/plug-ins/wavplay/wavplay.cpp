@@ -29,25 +29,27 @@
 
 /* The WAV player plug-in for PM123 */
 
-#define INCL_DOS
-#define INCL_PM
+#define  INCL_DOS
+#define  INCL_WIN
 #include <os2.h>
 #include <malloc.h>
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <process.h>
 
 #include <format.h>
 #include <decoder_plug.h>
 #include <plugin.h>
+#include <utilfct.h>
 #include "wav.h"
 
-typedef struct
+typedef struct _WAVPLAY
 {
    WAV wavfile;
    FORMAT_INFO formatinfo;
 
-   int (* _System output_play_samples)(void *a, FORMAT_INFO *format,char *buf,int len, int posmarker);
+   int (PM123_ENTRYP output_play_samples)(void *a, FORMAT_INFO *format,char *buf,int len, int posmarker);
    void *a; /* only to be used with the precedent function */
    int buffersize;
 
@@ -59,7 +61,7 @@ typedef struct
 
    ULONG decodertid;
 
-   void (* _System error_display)(char *);
+   void (PM123_ENTRYP error_display)(char *);
    HEV playsem;
    HWND hwnd;
 
@@ -68,7 +70,7 @@ typedef struct
 } WAVPLAY;
 
 
-static void _Optlink decoder_thread(void *arg)
+static void TFNENTRY decoder_thread(void *arg)
 {
    WAVPLAY *w = (WAVPLAY *) arg;
    ULONG resetcount;
@@ -78,7 +80,7 @@ static void _Optlink decoder_thread(void *arg)
       char *buffer = NULL;
       int read = 0;
 
-      DosWaitEventSem(w->play, -1);
+      DosWaitEventSem(w->play, SEM_INDEFINITE_WAIT);
       DosResetEventSem(w->play,&resetcount);
 
       w->status = DECODER_STARTING;
@@ -108,8 +110,8 @@ static void _Optlink decoder_thread(void *arg)
       while((read = w->wavfile.readData(buffer,w->buffersize)) > 0 && !w->stop)
       {
          int written = w->output_play_samples(w->a, &w->formatinfo, buffer, read,
-            (double)w->wavfile.filepos()*1000/
-            (w->formatinfo.samplerate*w->formatinfo.channels*w->formatinfo.bits/8));
+            (int)((double)w->wavfile.filepos()*1000/
+                  (w->formatinfo.samplerate*w->formatinfo.channels*w->formatinfo.bits/8)));
 
          if(written < read)
          {
@@ -147,7 +149,7 @@ static void _Optlink decoder_thread(void *arg)
    }
 }
 
-int _System decoder_init(void **W)
+int PM123_ENTRY decoder_init(void **W)
 {
    WAVPLAY *w;
 
@@ -159,7 +161,7 @@ int _System decoder_init(void **W)
    DosCreateEventSem(NULL,&w->ok,0,FALSE);
 
    w->decodertid = _beginthread(decoder_thread,0,64*1024,(void *) w);
-   if(w->decodertid != -1)
+   if(w->decodertid != -1UL)
       return w->decodertid;
    else
    {
@@ -170,7 +172,7 @@ int _System decoder_init(void **W)
    }
 }
 
-BOOL _System decoder_uninit(void *W)
+BOOL PM123_ENTRY decoder_uninit(void *W)
 {
    WAVPLAY *w = (WAVPLAY *) W;
    int decodertid = w->decodertid;
@@ -184,7 +186,7 @@ BOOL _System decoder_uninit(void *W)
 }
 
 
-ULONG _System decoder_command(void *W, ULONG msg, DECODER_PARAMS *params)
+ULONG PM123_ENTRY decoder_command(void *W, ULONG msg, DECODER_PARAMS *params)
 {
    WAVPLAY *w = (WAVPLAY *) W;
    ULONG resetcount;
@@ -194,7 +196,7 @@ ULONG _System decoder_command(void *W, ULONG msg, DECODER_PARAMS *params)
       case DECODER_PLAY:
          if(w->status == DECODER_STOPPED)
          {
-            strncpy(w->filename, params->filename,sizeof(w->filename)-1);
+            strlcpy(w->filename, params->filename,sizeof(w->filename));
             DosResetEventSem(w->ok,&resetcount);
             DosPostEventSem(w->play);
             if(DosWaitEventSem(w->ok, 10000) == 640)
@@ -257,24 +259,24 @@ ULONG _System decoder_command(void *W, ULONG msg, DECODER_PARAMS *params)
    return 0;
 }
 
-ULONG _System decoder_length(void *W)
+ULONG PM123_ENTRY decoder_length(void *W)
 {
    WAVPLAY *w = (WAVPLAY *) W;
 
    if(w->status == DECODER_PLAYING)
-      w->last_length = (double)w->wavfile.filelength()*1000/(w->formatinfo.samplerate*
-                           w->formatinfo.channels*w->formatinfo.bits/8);
+      w->last_length = (int)((double)w->wavfile.filelength()*1000/(w->formatinfo.samplerate*
+                                     w->formatinfo.channels*w->formatinfo.bits/8));
 
    return w->last_length;
 }
 
-ULONG _System decoder_status(void *W)
+ULONG PM123_ENTRY decoder_status(void *W)
 {
    WAVPLAY *w = (WAVPLAY *) W;
    return w->status;
 }
 
-ULONG _System decoder_fileinfo(char *filename, DECODER_INFO *info)
+ULONG PM123_ENTRY decoder_fileinfo(char *filename, DECODER_INFO *info)
 {
    WAV wavfile;
    int rc;
@@ -284,33 +286,34 @@ ULONG _System decoder_fileinfo(char *filename, DECODER_INFO *info)
 
    info->size = sizeof(*info);
    info->mpeg = 0;
-   info->numchannels = 0;
 
-   rc = wavfile.open(filename,READ,info->format.samplerate,
-      info->format.channels,info->format.bits,info->format.format);
+   rc = wavfile.open( filename,READ,info->format.samplerate,
+                      info->format.channels,info->format.bits,info->format.format);
    if(rc == 0)
    {
-      info->songlength = (double)wavfile.filelength()*1000/
-         (info->format.samplerate*info->format.channels*info->format.bits/8);
+      info->songlength = (int)((double)wavfile.filelength()*1000/
+         (info->format.samplerate*info->format.channels*info->format.bits/8));
 
+      info->bitrate = info->format.samplerate * info->format.bits * info->format.channels / 1000;
+      info->mode = info->format.channels == 1 ? 3 : 0;
       sprintf(info->tech_info,"%d bits, %.1f kHz, %s",info->format.bits, (float)info->format.samplerate/1000, info->format.channels == 1 ? "Mono" : "Stereo");
    }
    wavfile.close();
    return rc;
 }
 
-ULONG _System decoder_trackinfo(char *drive, int track, DECODER_INFO *info)
+ULONG PM123_ENTRY decoder_trackinfo(char *drive, int track, DECODER_INFO *info)
 {
    return 200;
 }
 
-ULONG _System decoder_cdinfo(char *drive, DECODER_CDINFO *info)
+ULONG PM123_ENTRY decoder_cdinfo(char *drive, DECODER_CDINFO *info)
 {
    return 100;
 }
 
 
-ULONG _System decoder_support(char *ext[], int *size)
+ULONG PM123_ENTRY decoder_support(char *ext[], int *size)
 {
    if(size)
    {
@@ -324,11 +327,12 @@ ULONG _System decoder_support(char *ext[], int *size)
    return DECODER_FILENAME;
 }
 
-void _System plugin_query(PLUGIN_QUERYPARAM *param)
+int PM123_ENTRY plugin_query(PLUGIN_QUERYPARAM *param)
 {
    param->type = PLUGIN_DECODER;
    param->author = "Samuel Audet";
    param->desc = "WAV Play 1.01";
    param->configurable = FALSE;
+   return 0;
 }
 

@@ -70,20 +70,6 @@
 "   Andy Key <nyangau@interalpha.co.uk>\n"\
 "   http://www.interalpha.net/customer/nyangau/\n"\
 "\n"\
-"Ooura Fourier Transformation Library:\n"\
-"\n"\
-"   OOURA1D.DLL contains code found in the 1 dimension DFT / DCT / DST "\
-"   package by Takuya OOURA <ooura@kurims.kyoto-u.ac.jp> or "\
-"   <ooura@mmm.t.u-tokyo.ac.jp>, who owns the copyright. Thanks to him "\
-"   for the nice code!\n"\
-"\n"\
-"   I have replaced all double precision floats to single precision. It "\
-"   gives an awful e-07 precision instead of e-17, but it's faster and "\
-"   e-07 is by far enough for my needs.\n"\
-"\n"\
-"   You can find the original code and documenation at "\
-"   http://momonga.t.u-tokyo.ac.jp/~ooura/fft.html\n"\
-"\n"\
 "Fast Fourier Transformation Library:\n"\
 "\n"\
 "   FFT123.DLL contains free collection of fast C routines for computing the "\

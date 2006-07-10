@@ -18,7 +18,7 @@
  *
  */
 
-#include "codelet-rdft.h"
+#include "codelet_rdft.h"
 #include "r2hc.h"
 
 static int okp(const kr2hc_desc *d,
@@ -27,8 +27,8 @@ static int okp(const kr2hc_desc *d,
 	       int is, int ros, int ios, int vl, int ivs, int ovs)
 {
      UNUSED(I); UNUSED(ro); UNUSED(io); UNUSED(vl);
-     return (1
-	     && (!d->is || (d->is == is))
+     return ( 
+	        (!d->is || (d->is == is))
 	     && (!d->ros || (d->ros == ros))
 	     && (!d->ios || (d->ros == ios))
 	     && (!d->ivs || (d->ivs == ivs))

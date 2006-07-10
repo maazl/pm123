@@ -11,14 +11,17 @@ History:
 
 23-Feb-2006: Move format description strings of all GBM formats to this file
              to simplify localization by simply replacing this file.
-
+10-Jun-2006: Add PBM format
+11-Jun-2006: Add PNM format
+             Shorten BMP long description
+16-Jun-2006: Remove not on binary restriction of PxM formats (ascii is supported now)
 */
 
 /* ------------------------------------------------- */
 
 /* OS/2-, Windows bitmap format */
 #define GBM_FMT_DESC_SHORT_BMP  "Bitmap"
-#define GBM_FMT_DESC_LONG_BMP   "OS/2 1.1, 1.2, 2.0 / Windows 3.0 bitmap"
+#define GBM_FMT_DESC_LONG_BMP   "OS/2 / Windows bitmap"
 #define GBM_FMT_DESC_EXT_BMP    "BMP VGA BGA RLE DIB RL4 RL8"
 
 /* Portrait */
@@ -63,11 +66,6 @@ History:
 #define GBM_FMT_DESC_LONG_PCX   "ZSoft PC Paintbrush Image format"
 #define GBM_FMT_DESC_EXT_PCX    "PCX PCC"
 
-/* Poskanzers PGM format */
-#define GBM_FMT_DESC_SHORT_PGM  "Greymap"
-#define GBM_FMT_DESC_LONG_PGM   "Portable Greyscale-map (binary P5 type)"
-#define GBM_FMT_DESC_EXT_PGM    "PGM"
-
 /* Portable Network Graphics Format */
 #ifdef ENABLE_PNG
   #define GBM_FMT_DESC_SHORT_PNG  "PNG"
@@ -75,10 +73,25 @@ History:
   #define GBM_FMT_DESC_EXT_PNG    "PNG"
 #endif
 
-/* Portable Pixel-map format */
+/* Poskanzers PBM format */
+#define GBM_FMT_DESC_SHORT_PBM  "Bit-map"
+#define GBM_FMT_DESC_LONG_PBM   "Portable Bit-map"
+#define GBM_FMT_DESC_EXT_PBM    "PBM"
+
+/* Poskanzers PGM format */
+#define GBM_FMT_DESC_SHORT_PGM  "Greymap"
+#define GBM_FMT_DESC_LONG_PGM   "Portable Greyscale-map"
+#define GBM_FMT_DESC_EXT_PGM    "PGM"
+
+/* Poskanzers PPM format */
 #define GBM_FMT_DESC_SHORT_PPM  "Pixmap"
-#define GBM_FMT_DESC_LONG_PPM   "Portable Pixel-map (binary P6 type)"
+#define GBM_FMT_DESC_LONG_PPM   "Portable Pixel-map"
 #define GBM_FMT_DESC_EXT_PPM    "PPM"
+
+/* Poskanzers PNM format */
+#define GBM_FMT_DESC_SHORT_PNM  "Anymap"
+#define GBM_FMT_DESC_LONG_PNM   "Portable Any-map"
+#define GBM_FMT_DESC_EXT_PNM    "PNM"
 
 /* IBM Printer Page Segment format */
 #define GBM_FMT_DESC_SHORT_PSG  "PSEG"

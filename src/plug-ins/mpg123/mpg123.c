@@ -6,12 +6,13 @@
 
 #include <stdlib.h>
 #include <stdio.h>
+#include <malloc.h>
+#include <process.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 
 #include "mpg123.h"
 #include "mpg123def.h"
-#include "utilfct.h"
 
 struct flags flags = { 0 , 0 };
 
@@ -22,29 +23,9 @@ static long outscale    = 32768;
 static int  force_8bit  = 0;
 static int  force_mono  = 0;
 static int  down_sample = 0;
-static BOOL mmx_present = FALSE;
 
 static struct frame fr;
-
-extern int  _CRT_init( void );
-extern void _CRT_term( void );
-extern int  tabsel_123[2][3][16];
-
-BOOL _System
-_DLL_InitTerm( ULONG hModule, ULONG flag )
-{
-  if( flag == 0 )
-  {
-    mmx_present = detect_mmx();
-    if( _CRT_init() == -1 ) {
-        return FALSE;
-    }
-  } else {
-    _CRT_term();
-  }
-
-  return TRUE;
-}
+extern int tabsel_123[2][3][16];
 
 /* Play a frame read read_frame(). (re)initialize audio if necessary. */
 static int
@@ -148,7 +129,7 @@ clear_decoder( void )
 }
 
 static void
-_Optlink DecoderThread( void* arg )
+TFNENTRY DecoderThread( void* arg )
 {
   ULONG resetcount;
   int   init;
@@ -279,7 +260,7 @@ reset_thread( DECODER_STRUCT* w )
 
 /* Init function is called when PM123 needs the specified decoder to play
    the stream demanded by the user. */
-int _System
+int PM123_ENTRY
 decoder_init( void** returnw )
 {
   DECODER_STRUCT* w = calloc( sizeof(*w), 1 );
@@ -293,7 +274,7 @@ decoder_init( void** returnw )
 }
 
 /* Uninit function is called when another decoder than yours is needed. */
-BOOL _System
+BOOL PM123_ENTRY
 decoder_uninit( void* arg )
 {
   DECODER_STRUCT* w = arg;
@@ -310,7 +291,7 @@ decoder_uninit( void* arg )
   return TRUE;
 }
 
-ULONG _System
+ULONG PM123_ENTRY
 decoder_command( void* arg, ULONG msg, DECODER_PARAMS* info )
 {
   DECODER_STRUCT* w = arg;
@@ -342,8 +323,8 @@ decoder_command( void* arg, ULONG msg, DECODER_PARAMS* info )
 
       set_synth_functions( &fr );
 
-      httpauth = info->httpauth;
-      proxyurl = info->proxyurl;
+      set_httpauth( info->httpauth );
+      set_proxyurl( info->proxyurl );
 
       w->buffersize          = info->buffersize;
       w->bufferwait          = info->bufferwait;
@@ -436,8 +417,8 @@ decoder_command( void* arg, ULONG msg, DECODER_PARAMS* info )
       if( info->save_filename == NULL ) {
         w->metastruct.save_filename[0] = 0;
       } else {
-        strncpy( w->metastruct.save_filename,
-                 info->save_filename, sizeof( w->metastruct.save_filename ) - 1 );
+        strlcpy( w->metastruct.save_filename,
+                 info->save_filename, sizeof( w->metastruct.save_filename ));
       }
       break;
 
@@ -448,12 +429,12 @@ decoder_command( void* arg, ULONG msg, DECODER_PARAMS* info )
   return 0;
 }
 
-ULONG _System
+ULONG PM123_ENTRY
 decoder_status( void* arg ) {
   return ((DECODER_STRUCT*)arg)->status;
 }
 
-ULONG _System
+ULONG PM123_ENTRY
 decoder_length( void* arg )
 {
   DECODER_STRUCT* w = arg;
@@ -466,17 +447,13 @@ decoder_length( void* arg )
     if( w->XingHeader.flags & FRAMES_FLAG ) {
       w->last_length = (float)8 * 144 * w->XingHeader.frames * 1000 / freqs[fr.sampling_frequency];
     } else {
-      w->last_length = (float)_fsize( w->filept ) * 1000 / w->avg_bitrate / 125;
+      w->last_length = (float)xio_fsize( w->filept ) * 1000 / w->avg_bitrate / 125;
     }
   }
   return w->last_length;
 }
 
-static void _System
-dummy_error_display( char* message )
-{}
-
-ULONG _System
+ULONG PM123_ENTRY
 decoder_fileinfo( char* filename, DECODER_INFO* info )
 {
   int           sockmode = 0;
@@ -506,7 +483,7 @@ decoder_fileinfo( char* filename, DECODER_INFO* info )
     sockmode = HTTP;
   }
 
-  if( !( meta.filept = _fopen( filename, "rb", sockmode, 0, 0 ))) {
+  if( !( meta.filept = xio_fopen( filename, "rb", sockmode, 0, 0 ))) {
     rc = sockfile_errno( sockmode );
     goto end;
   }
@@ -550,9 +527,9 @@ read_again:
     }
   }
 
-  frame_size = decode_header( header, 0, &fr, &ssize, dummy_error_display );
+  frame_size = decode_header( header, 0, &fr, &ssize, NULL );
 
-  if( _ftell( meta.filept ) > 256*1024 ) {
+  if( xio_ftell( meta.filept ) > 256*1024 ) {
     rc = 200;
     goto end;
   }
@@ -579,7 +556,7 @@ read_again:
           goto read_again;
         } else {
           frame_size = decode_header( header_next, 0,
-                                      &fr, &ssize, dummy_error_display );
+                                      &fr, &ssize, NULL );
           if( bi != fr.bitrate_index ) {
             vbr = 1;
           }
@@ -599,17 +576,17 @@ read_again:
     vbr = 0;
 
     for( i = 0; i < 32; i++ ) {
-      if( _fseek( meta.filept, frame_size, SEEK_CUR ) == 0 &&
+      if( xio_fseek( meta.filept, frame_size, SEEK_CUR ) == 0 &&
           head_read( &meta, &header_next ))
       {
         seek_back -= ( frame_size + 4 );
 
         if(( header_next & HDRCMPMASK) != ( header & HDRCMPMASK )) {
-          _fseek( meta.filept, seek_back, SEEK_CUR );
+          xio_fseek( meta.filept, seek_back, SEEK_CUR );
           goto read_again;
         } else {
           frame_size = decode_header( header_next, 0,
-                                      &fr, &ssize, dummy_error_display );
+                                      &fr, &ssize, NULL );
           if( bi != fr.bitrate_index ) {
             vbr = 1;
           }
@@ -619,11 +596,11 @@ read_again:
         goto end;
       }
     }
-    _fseek( meta.filept, seek_back, SEEK_CUR );
+    xio_fseek( meta.filept, seek_back, SEEK_CUR );
   }
 
   // Restore a first frame broken by previous tests.
-  frame_size = decode_header( header, 0, &fr, &ssize, dummy_error_display );
+  frame_size = decode_header( header, 0, &fr, &ssize, NULL );
 
   // Let's try to find a xing VBR header.
   if( fr.lay == 3 )
@@ -635,13 +612,13 @@ read_again:
     buf[2] = ( header >>  8 ) & 0xFF;
     buf[3] = ( header       ) & 0xFF;
 
-    _fread( buf + 4, 1, frame_size, meta.filept );
+    xio_fread( buf + 4, 1, frame_size, meta.filept );
 
     xing_header.toc = NULL;
     GetXingHeader( &xing_header, buf );
 
     if( xing_header.flags && !( xing_header.flags & BYTES_FLAG )) {
-      xing_header.bytes  = _fsize( meta.filept );
+      xing_header.bytes  = xio_fsize( meta.filept );
       xing_header.flags |= BYTES_FLAG;
     }
   }
@@ -661,7 +638,7 @@ read_again:
   info->format.channels   = fr.stereo;
   info->bitrate           = tabsel_123[fr.lsf][fr.lay-1][fr.bitrate_index];
   info->extention         = fr.extension;
-  info->junklength        = _ftell( meta.filept ) - 4 - frame_size;
+  info->junklength        = xio_ftell( meta.filept ) - 4 - frame_size;
 
   if( xing_header.flags & FRAMES_FLAG )
   {
@@ -676,7 +653,7 @@ read_again:
     if( !info->bitrate ) {
       rc = 200;
     } else {
-      info->songlength = (float)_fsize( meta.filept ) * 1000 / ( info->bitrate * 125 );
+      info->songlength = (float)xio_fsize( meta.filept ) * 1000 / ( info->bitrate * 125 );
     }
   }
 
@@ -698,8 +675,8 @@ read_again:
 
     sockfile_httpinfo( meta.filept, &http_info );
 
-    strncpy( info->comment, http_info.icy_name,  sizeof( info->comment ) - 1 );
-    strncpy( info->genre,   http_info.icy_genre, sizeof( info->genre   ) - 1 );
+    strlcpy( info->comment, http_info.icy_name,  sizeof( info->comment ));
+    strlcpy( info->genre,   http_info.icy_genre, sizeof( info->genre   ));
 
     // Title, I'd have to read at least metaint bytes to snatch this.
     titlepos = strstr( meta.metadata_buffer, "StreamTitle='" );
@@ -722,7 +699,7 @@ read_again:
 end:
 
   if( meta.filept ) {
-    _fclose( meta.filept );
+    xio_fclose( meta.filept );
   }
   if( meta.metadata_buffer ) {
     free( meta.metadata_buffer );
@@ -730,17 +707,17 @@ end:
   return rc;
 }
 
-ULONG _System
+ULONG PM123_ENTRY
 decoder_trackinfo( char* drive, int track, DECODER_INFO* info ) {
   return 200;
 }
 
-ULONG _System
+ULONG PM123_ENTRY
 decoder_cdinfo( char* drive, DECODER_CDINFO* info ) {
   return 100;
 }
 
-ULONG _System
+ULONG PM123_ENTRY
 decoder_support( char* ext[], int* size )
 {
   if( size ) {
@@ -767,7 +744,7 @@ cfg_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
       WinSendDlgItemMsg( hwnd, CB_DOWNSAMPLE, BM_SETCHECK, MPFROMSHORT( down_sample ), 0 );
       WinSendDlgItemMsg( hwnd, CB_USEMMX,     BM_SETCHECK, MPFROMSHORT( mmx_enable  ), 0 );
 
-      if( !mmx_present ) {
+      if( !detect_mmx()) {
         WinEnableWindow( WinWindowFromID( hwnd, CB_USEMMX ), FALSE );
       }
 
@@ -787,7 +764,7 @@ cfg_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
 }
 
 /* Configure plug-in. */
-int _System
+int PM123_ENTRY
 plugin_configure( HWND hwnd, HMODULE module )
 {
   WinDlgBox( HWND_DESKTOP, hwnd, cfg_dlg_proc, module, DLG_CONFIGURE, NULL );
@@ -795,7 +772,7 @@ plugin_configure( HWND hwnd, HMODULE module )
 }
 
 /* Returns information about plug-in. */
-int _System
+int PM123_ENTRY
 plugin_query(PLUGIN_QUERYPARAM *param)
 {
    param->type         = PLUGIN_DECODER;

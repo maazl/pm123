@@ -28,7 +28,6 @@
 
 #include <stdlib.h>
 #include <stdio.h>
-#include <direct.h>
 #include <string.h>
 
 #include "abs2rel.h"
@@ -130,6 +129,8 @@ abs2rel( const char* base, const char* path, char* result, size_t size )
 }
 
 #if 0
+
+#include <direct.h>
 
 int
 main( int argc, char* argv[] )

@@ -18,7 +18,7 @@
  *
  */
 
-/* $Id: nop.c,v 1.1 2005/07/26 17:37:06 glass Exp $ */
+/* $Id: nop.c,v 1.2 2006/06/14 12:26:11 glass Exp $ */
 
 /* plans for vrank -infty RDFTs (nothing to do) */
 
@@ -36,13 +36,13 @@ static int applicable(const solver *ego_, const problem *p_)
      UNUSED(ego_);
      if (RDFTP(p_)) {
           const problem_rdft *p = (const problem_rdft *) p_;
-          return 0
+          return 
 	       /* case 1 : -infty vector rank */
-	       || (p->vecsz->rnk == RNK_MINFTY)
+	          (p->vecsz->rnk == RNK_MINFTY)
 
 	       /* case 2 : rank-0 in-place rdft */
-	       || (1
-		   && p->sz->rnk == 0
+	       || ( 
+		      p->sz->rnk == 0
 		   && FINITE_RNK(p->vecsz->rnk)
 		   && p->O == p->I
 		   && X(tensor_inplace_strides)(p->vecsz)

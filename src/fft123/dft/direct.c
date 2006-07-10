@@ -18,7 +18,7 @@
  *
  */
 
-/* $Id: direct.c,v 1.1 2005/07/26 17:36:52 glass Exp $ */
+/* $Id: direct.c,v 1.2 2006/06/14 11:16:19 glass Exp $ */
 
 /* direct DFT solver, if we have a codelet */
 
@@ -74,8 +74,7 @@ static int applicable(const solver *ego_, const problem *p_,
 	  int ivs, ovs;
 
           return (
-	       1
-	       && p->sz->rnk == 1
+	          p->sz->rnk == 1
 	       && p->vecsz->rnk <= 1
 	       && p->sz->dims[0].n == d->sz
 
@@ -86,9 +85,8 @@ static int applicable(const solver *ego_, const problem *p_,
 				 p->sz->dims[0].is, p->sz->dims[0].os,
 				 vl, ivs, ovs, plnr))
 
-	       && (0
-		   /* can operate out-of-place */
-		   || p->ri != p->ro
+	       && (/* can operate out-of-place */
+		   p->ri != p->ro
 
 		   /*
 		    * can compute one transform in-place, no matter

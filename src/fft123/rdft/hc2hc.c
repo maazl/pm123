@@ -18,7 +18,7 @@
  *
  */
 
-/* $Id: hc2hc.c,v 1.1 2005/07/26 17:37:04 glass Exp $ */
+/* $Id: hc2hc.c,v 1.2 2006/06/14 12:26:11 glass Exp $ */
 
 /* generic Cooley-Tukey routines */
 #include "rdft.h"
@@ -72,8 +72,8 @@ int X(rdft_hc2hc_applicable)(const solver_hc2hc *ego, const problem *p_)
      if (RDFTP(p_)) {
           const problem_rdft *p = (const problem_rdft *) p_;
           const hc2hc_desc *d = ego->desc;
-          return (1
-                  && p->sz->rnk == 1
+          return ( 
+                     p->sz->rnk == 1
                   && p->vecsz->rnk <= 1
 		  && p->kind[0] == d->genus->kind
                   && divides(d->radix, p->sz->dims[0].n)

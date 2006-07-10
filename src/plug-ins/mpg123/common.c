@@ -1,5 +1,6 @@
 #include <ctype.h>
 #include <stdlib.h>
+#include <malloc.h>
 #include <io.h>
 #include <signal.h>
 #include <sys/types.h>
@@ -7,7 +8,6 @@
 
 #include "mpg123.h"
 #include "tables.h"
-#include "utilfct.h"
 
 #define MAXFRAMESIZE 1792 /* max = 1728 */
 
@@ -178,25 +178,23 @@ readdata( void* buffer, size_t size, size_t count, META_STRUCT* m )
 
       if( m->data_until_meta > 0 )
       {
-        read   += _fread((char*)buffer + read, 1, m->data_until_meta, m->filept );
+        read   += xio_fread((char*)buffer + read, 1, m->data_until_meta, m->filept );
         toread -= read;
       }
 
-      readmeta += _fread( &metablocks, 1, 1, m->filept );
+      readmeta += xio_fread( &metablocks, 1, 1, m->filept );
       if( readmeta == 1 && metablocks > 0 )
       {
         metasize = metablocks*16;
         metadata = alloca( metasize + 1 );
         metadata[metasize] = 0;
 
-        readmeta += _fread( metadata, 1, metasize, m->filept );
+        readmeta += xio_fread( metadata, 1, metasize, m->filept );
 
         if( readmeta == metasize+1 && m->metadata_buffer != NULL && m->metadata_size > 0 )
         {
-          if( strcmp( m->metadata_buffer, metadata ) != 0 )
-          {
-            m->metadata_buffer[m->metadata_size-1] = 0;
-            strncpy( m->metadata_buffer, metadata, m->metadata_size - 1 );
+          if( strcmp( m->metadata_buffer, metadata ) != 0 ) {
+            strlcpy( m->metadata_buffer, metadata, m->metadata_size );
             WinPostMsg( m->hwnd, WM_METADATA, MPFROMP( m->metadata_buffer ), 0 );
           }
         }
@@ -204,11 +202,11 @@ readdata( void* buffer, size_t size, size_t count, META_STRUCT* m )
 
       m->data_until_meta = metaint; // metaint excludes the actual metadata
     }
-    read2 = _fread((char*)buffer+read,1,toread,m->filept);
+    read2 = xio_fread((char*)buffer+read,1,toread,m->filept);
     read += read2;
     m->data_until_meta -= read2;
   } else {
-    read = _fread( buffer, size, count, m->filept );
+    read = xio_fread( buffer, size, count, m->filept );
   }
 
   if( m->save_file != NULL )
@@ -248,15 +246,15 @@ int back_pos( DECODER_STRUCT* w, struct frame* fr, int bytes )
     return 0;  // this only works on files.
   }
 
-  if( _fseek( w->filept, -( bytes + 2 * ( fsize+5 )), SEEK_CUR ) < 0 )
+  if( xio_fseek( w->filept, -( bytes + 2 * ( fsize+5 )), SEEK_CUR ) < 0 )
   {
     donebytes = ftell( w->filept );
-    _rewind( w->filept );
+    xio_rewind( w->filept );
   } else {
     donebytes = bytes + 2 * ( fsize + 5 );
   }
 
-  if( _fread( buf, 1, 4, w->filept ) != 4 ) {
+  if( xio_fread( buf, 1, 4, w->filept ) != 4 ) {
     return donebytes;
   }
 
@@ -268,7 +266,7 @@ int back_pos( DECODER_STRUCT* w, struct frame* fr, int bytes )
              (unsigned long)buf[3];
 
   while(( newhead & HDRCMPMASK ) != ( firsthead & HDRCMPMASK )) {
-    if( _fread( buf, 1, 1, w->filept ) != 1 ) {
+    if( xio_fread( buf, 1, 1, w->filept ) != 1 ) {
       return donebytes;
     }
 
@@ -278,7 +276,7 @@ int back_pos( DECODER_STRUCT* w, struct frame* fr, int bytes )
     newhead &= 0xFFFFFFFFUL;
   }
 
-  if( _fseek( w->filept, -4, SEEK_CUR ) < 0 ) {
+  if( xio_fseek( w->filept, -4, SEEK_CUR ) < 0 ) {
     return donebytes;
   }
 
@@ -310,13 +308,13 @@ forward_pos( DECODER_STRUCT*w, struct frame* fr, int bytes )
     return 0; // this only works on files.
   }
 
-  if( _fseek( w->filept, bytes - 2 * ( fsize + 3 ), SEEK_CUR ) < 0 ) {
+  if( xio_fseek( w->filept, bytes - 2 * ( fsize + 3 ), SEEK_CUR ) < 0 ) {
     return donebytes;
   } else {
     donebytes = bytes - 2 * ( fsize + 3 );
   }
 
-  if( _fread( buf, 1, 4, w->filept ) != 4 ) {
+  if( xio_fread( buf, 1, 4, w->filept ) != 4 ) {
     return donebytes;
   }
 
@@ -328,7 +326,7 @@ forward_pos( DECODER_STRUCT*w, struct frame* fr, int bytes )
              (unsigned long)buf[3];
 
   while(( newhead & HDRCMPMASK ) != ( firsthead & HDRCMPMASK )) {
-    if( _fread( buf, 1, 1, w->filept ) != 1 ) {
+    if( xio_fread( buf, 1, 1, w->filept ) != 1 ) {
       return donebytes;
     }
 
@@ -338,7 +336,7 @@ forward_pos( DECODER_STRUCT*w, struct frame* fr, int bytes )
     newhead &= 0xFFFFFFFFUL;
   }
 
-  if( _fseek( w->filept, -4, SEEK_CUR ) < 0 ) {
+  if( xio_fseek( w->filept, -4, SEEK_CUR ) < 0 ) {
     return donebytes;
   }
 
@@ -370,13 +368,13 @@ seekto_pos( DECODER_STRUCT* w, struct frame* fr, int bytes )
     seektobytes = 0;
   }
 
-  if( _fseek( w->filept, seektobytes, SEEK_SET ) < 0 ) {
+  if( xio_fseek( w->filept, seektobytes, SEEK_SET ) < 0 ) {
     return donebytes;
   } else {
     donebytes = seektobytes;
   }
 
-  if( _fread( buf, 1, 4, w->filept ) != 4 ) {
+  if( xio_fread( buf, 1, 4, w->filept ) != 4 ) {
     return donebytes;
   }
 
@@ -388,7 +386,7 @@ seekto_pos( DECODER_STRUCT* w, struct frame* fr, int bytes )
              (unsigned long)buf[3];
 
   while(( newhead & HDRCMPMASK ) != ( firsthead & HDRCMPMASK )) {
-    if( _fread( buf, 1, 1, w->filept ) != 1 ) {
+    if( xio_fread( buf, 1, 1, w->filept ) != 1 ) {
       return donebytes;
     }
 
@@ -398,7 +396,7 @@ seekto_pos( DECODER_STRUCT* w, struct frame* fr, int bytes )
     newhead &= 0xFFFFFFFFUL;
   }
 
-  if( _fseek( w->filept, -4, SEEK_CUR ) < 0 ) {
+  if( xio_fseek( w->filept, -4, SEEK_CUR ) < 0 ) {
     return donebytes;
   }
 
@@ -417,7 +415,7 @@ seekto_pos( DECODER_STRUCT* w, struct frame* fr, int bytes )
 int
 head_read( META_STRUCT* m, unsigned long* newhead )
 {
-  char buffer[4];
+  unsigned char buffer[4];
 
   if( readdata( buffer, 1, 4, m ) != 4 ) {
     return FALSE;
@@ -451,7 +449,7 @@ head_check( unsigned long newhead )
 
 int
 decode_header( int  newhead, int oldhead, struct frame* fr,
-               int* ssize, void (* _System error_display)(char*))
+               int* ssize, void (PM123_ENTRYP error_display)(char*))
 {
   int framesize;
 
@@ -470,7 +468,9 @@ decode_header( int  newhead, int oldhead, struct frame* fr,
     fr->bitrate_index = (( newhead >> 12 ) & 0xf );
 
     if((( newhead >> 10 ) & 0x3 ) == 0x3) {
-      error_display( "Stream error" );
+      if( error_display ) {
+        error_display( "Stream error" );
+      }
       return 0;
     }
     if( fr->mpeg25 ) {
@@ -492,9 +492,10 @@ decode_header( int  newhead, int oldhead, struct frame* fr,
   fr->emphasis      = newhead & 0x3;
   fr->stereo        = ( fr->mode == MPG_MD_MONO ) ? 1 : 2;
 
-  if( !fr->bitrate_index )
-  {
-    error_display( "Free format not supported." );
+  if( !fr->bitrate_index ) {
+    if( error_display ) {
+      error_display( "Free format not supported." );
+    }
     return 0;
   }
 
@@ -559,7 +560,7 @@ read_frame( DECODER_STRUCT* w, struct frame* fr )
 read_again:
 
   rc = 1;
-  fr->filepos = _ftell( w->filept );
+  fr->filepos = xio_ftell( w->filept );
 
   if( !head_read( &w->metastruct, &newhead )) {
     return FALSE;
@@ -606,7 +607,7 @@ init_resync:
       unsigned char byte;
 
       sprintf( errorbuf, "Illegal Audio-MPEG-Header 0x%08lx at offset 0x%lx.",
-               newhead, _ftell( w->filept ) - 4 );
+               newhead, xio_ftell( w->filept ) - 4 );
       w->error_display( errorbuf );
 
       // Read more bytes until we find something that looks
@@ -643,7 +644,7 @@ init_resync:
   {
     int i;
 
-    if( _ftell( w->filept ) > 256*1024 ) {
+    if( xio_ftell( w->filept ) > 256*1024 ) {
       return 0; // we can't find a first header.
     }
 
@@ -682,12 +683,12 @@ init_resync:
       struct frame  fr;
 
       for( i = 0; i < 8; i++ ) {
-        if( _fseek( w->filept, fsize, SEEK_CUR ) == 0 &&
+        if( xio_fseek( w->filept, fsize, SEEK_CUR ) == 0 &&
             head_read( &w->metastruct, &head ))
         {
           seek_back -= ( fsize + 4 );
           if(( head & HDRCMPMASK ) != ( newhead & HDRCMPMASK )) {
-            _fseek( w->filept, seek_back, SEEK_CUR );
+            xio_fseek( w->filept, seek_back, SEEK_CUR );
             goto read_again;
           } else {
             fsize = decode_header( head, 0, &fr, &ssize, w->error_display );
@@ -697,7 +698,7 @@ init_resync:
         }
       }
 
-      _fseek( w->filept, seek_back, SEEK_CUR );
+      xio_fseek( w->filept, seek_back, SEEK_CUR );
     }
 
     firsthead = newhead;
@@ -724,19 +725,19 @@ init_resync:
       if( w->sockmode ) {
         readdata( buf + 4, 1, framesize, &w->metastruct );
       } else {
-        _fread( buf + 4, 1, framesize, w->filept );
+        xio_fread( buf + 4, 1, framesize, w->filept );
       }
 
       w->XingHeader.toc = w->XingTOC;
       GetXingHeader( &w->XingHeader, buf );
 
       if( w->XingHeader.flags && !( w->XingHeader.flags & BYTES_FLAG )) {
-        w->XingHeader.bytes  = _fsize( w->metastruct.filept );
+        w->XingHeader.bytes  = xio_fsize( w->metastruct.filept );
         w->XingHeader.flags |= BYTES_FLAG;
       }
 
       // If we can't seek back, let's just read the next frame.
-      if( _fseek( w->filept, -framesize, SEEK_CUR ) != 0 ) {
+      if( xio_fseek( w->filept, -framesize, SEEK_CUR ) != 0 ) {
         goto read_again;
       }
     }
@@ -801,7 +802,7 @@ open_stream( DECODER_STRUCT* w, char* bs_filenam, int fd, int buffersize, int bu
     w->sockmode = HTTP;
   }
 
-  if(!( w->metastruct.filept = w->filept = _fopen( bs_filenam, "rb", w->sockmode, buffersize, bufferwait )))
+  if(!( w->metastruct.filept = w->filept = xio_fopen( bs_filenam, "rb", w->sockmode, buffersize, bufferwait )))
   {
     char errorbuf[1024];
     if( w->sockmode ) {
@@ -822,7 +823,7 @@ close_stream( DECODER_STRUCT* w )
 {
   if( w->filept_opened )
   {
-    _fclose( w->filept );
+    xio_fclose( w->filept );
     w->filept_opened = FALSE;
   }
 }

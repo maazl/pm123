@@ -176,13 +176,13 @@ MRESULT EXPENTRY ButtonWndProc (HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2)
  int yy;
  ULONG rgb = 255 * 65536 + 255 * 256 + 128, foo;
 
+ bbb = (PDATA95)WinQueryWindowPtr(hwnd, QWL_USER);
+
  switch (msg) {
    case WM_CHAR:
           WinSendMsg(bbb->hwndOwner, msg, mp1, mp2);
           break;
    case WM_SETTEXT:
-          bbb = (PDATA95)WinQueryWindowPtr(hwnd, QWL_USER);
-
           strcpy(bbb->Help, (char *)mp1);
           if (bbb->bubbling == 1) {
               WinSetWindowText(bbb->BubbleClient, bbb->Help);
@@ -199,7 +199,6 @@ MRESULT EXPENTRY ButtonWndProc (HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2)
                 hps = WinGetPS(hwnd);
                 WinStopTimer(NULLHANDLE, hwnd, TID_USERMAX - 10);
 
-                bbb = (PDATA95)WinQueryWindowPtr(hwnd, QWL_USER);
                 if (bbb->mouse_in_button == 1) {
                    if (bbb->bubbling == 0) {
                      bbb->Bubble = WinCreateStdWindow(HWND_DESKTOP,
@@ -238,15 +237,11 @@ MRESULT EXPENTRY ButtonWndProc (HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2)
                 WinReleasePS(hps);
                 break;
    case 0x041e:
-                bbb = (PDATA95)WinQueryWindowPtr(hwnd, QWL_USER);
-
                 bbb->mouse_in_button = 1;
                 WinSendMsg(bbb->hwndOwner, 0x041e, 0, 0);
                 WinStartTimer(NULLHANDLE, hwnd, TID_USERMAX - 10, 1000);
                 break;
    case 0x041f:
-                bbb = (PDATA95)WinQueryWindowPtr(hwnd, QWL_USER);
-
                 if (bbb->bubbling == 1) {
                   WinDestroyWindow(bbb->Bubble);
                   bbb->bubbling = 0;
@@ -255,7 +250,6 @@ MRESULT EXPENTRY ButtonWndProc (HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2)
                 bbb->mouse_in_button = 0;
                 break;
    case WM_DEPRESS:
-                  bbb = (PDATA95)WinQueryWindowPtr(hwnd, QWL_USER);
                   bbb->Pressed = 0;
                   if (bbb->stick == 1) {
                     *bbb->stickvar = 0;
@@ -263,13 +257,11 @@ MRESULT EXPENTRY ButtonWndProc (HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2)
                   WinInvalidateRect(hwnd, NULL, 1);
                   break;
    case WM_CHANGEBMP:
-                  bbb = (PDATA95)WinQueryWindowPtr(hwnd, QWL_USER);
                   bbb->bmp2 = LONGFROMMP(mp2);
                   bbb->bmp1 = LONGFROMMP(mp1);
                   WinInvalidateRect(hwnd, NULL, 1);
                   break;
    case WM_PRESS:
-                  bbb = (PDATA95)WinQueryWindowPtr(hwnd, QWL_USER);
                   bbb->Pressed = 1;
                   if (bbb->stick == 1) {
                     *bbb->stickvar = 1;
@@ -277,11 +269,9 @@ MRESULT EXPENTRY ButtonWndProc (HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2)
                   WinInvalidateRect(hwnd, NULL, 1);
                   break;
    case WM_CONTEXTMENU:
-                  bbb = (PDATA95)WinQueryWindowPtr(hwnd, QWL_USER);
                   WinPostMsg(bbb->hwndOwner, WM_CONTEXTMENU, 0, 0);
                   break;
    case WM_BUTTON1DOWN:
-                  bbb = (PDATA95)WinQueryWindowPtr(hwnd, QWL_USER);
                   bbb->Pressed = 1;
                   bbb->mouse_in_button = 0; /* We don't want bubbling after
                                                we've clicked on the button */
@@ -293,13 +283,12 @@ MRESULT EXPENTRY ButtonWndProc (HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2)
 
                   break;
    case WM_BUTTON1UP:
-                  bbb = (PDATA95)WinQueryWindowPtr(hwnd, QWL_USER);
                   bbb->mouse_in_button = 0; /* We don't want bubbling after
                                                we've clicked on the button */
 
                   WinSetCapture(HWND_DESKTOP, NULLHANDLE);
-                  p.x = ((POINTS *)&mp1)->x;
-                  p.y = ((POINTS *)&mp1)->y;
+                  p.x = SHORT1FROMMP(mp1);
+                  p.y = SHORT2FROMMP(mp1);
                   WinQueryWindowRect(hwnd, &rcl);
 
                   if (WinPtInRect( WinQueryAnchorBlock( hwnd ), &rcl, &p) && bbb->Pressed == 1) {
@@ -315,7 +304,8 @@ MRESULT EXPENTRY ButtonWndProc (HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2)
 
                   break;
    case WM_CREATE:
-                  DosAllocMem((PPVOID)&b, sizeof(DATA95), PAG_READ | PAG_WRITE | PAG_COMMIT);
+   {
+                  b = (PDATA95)malloc( sizeof(DATA95));
                   WinSetWindowPtr(hwnd, QWL_USER, (PVOID)b);
 
                   bb = (PCREATESTRUCT)PVOIDFROMMP(mp2);
@@ -325,8 +315,9 @@ MRESULT EXPENTRY ButtonWndProc (HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2)
                   b->id = bb->id;
                   b->Pressed = 0;
                   b->bubbling = 0;
-
                   break;
+   }
+
    case WM_ERASEBACKGROUND:
                   WinQueryWindowRect(hwnd, &rcl);
                   hps = WinGetPS(hwnd);
@@ -335,8 +326,6 @@ MRESULT EXPENTRY ButtonWndProc (HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2)
                   return((MRESULT)1);
                   break;
    case WM_PAINT:
-                  bbb = (PDATA95)WinQueryWindowPtr(hwnd, QWL_USER);
-
                   hps  = WinBeginPaint(hwnd, NULLHANDLE, NULL);
 //                  hbm  = GpiLoadBitmap(hps, NULLHANDLE, bbb->bmp2, 0, 0);
 //                  hbm2 = GpiLoadBitmap(hps, NULLHANDLE, bbb->bmp1, 0, 0);
@@ -364,8 +353,7 @@ MRESULT EXPENTRY ButtonWndProc (HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2)
                   WinEndPaint(hps);
                   break;
    case WM_DESTROY:
-                  bbb = (PDATA95)WinQueryWindowPtr(hwnd, QWL_USER);
-                  DosFreeMem((PVOID)bbb);
+                  free(bbb);
                   break;
    default:       return WinDefWindowProc (hwnd, msg, mp1, mp2);
  }

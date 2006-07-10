@@ -18,7 +18,7 @@
  *
  */
 
-/* $Id: direct2.c,v 1.1 2005/07/26 17:37:04 glass Exp $ */
+/* $Id: direct2.c,v 1.2 2006/06/14 12:26:11 glass Exp $ */
 
 /* direct RDFT2 R2HC/HC2R solver, if we have a codelet */
 
@@ -96,8 +96,7 @@ static int applicable(const solver *ego_, const problem *p_)
 	  int ivs, ovs;
 
           return (
-	       1
-	       && p->sz->rnk == 1
+	          p->sz->rnk == 1
 	       && p->vecsz->rnk <= 1
 	       && p->sz->dims[0].n == ego->sz
 	       && p->kind == ego->kind
@@ -120,9 +119,9 @@ static int applicable(const solver *ego_, const problem *p_)
 					      p->sz->dims[0].os,
 					      vl, ivs, ovs))
 	       
-	       && (0
+	       && ( 
 		   /* can operate out-of-place */
-		   || p->r != p->rio
+		      p->r != p->rio
 
 		   /*
 		    * can compute one transform in-place, no matter

@@ -28,7 +28,7 @@
  */
 
 #include <os2.h>
-#include <analyzer.h>
+#include "analyzer.h"
 
 DLGTEMPLATE DLG_CONFIGURE
 BEGIN

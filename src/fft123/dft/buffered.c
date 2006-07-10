@@ -18,7 +18,7 @@
  *
  */
 
-/* $Id: buffered.c,v 1.1 2005/07/26 17:36:52 glass Exp $ */
+/* $Id: buffered.c,v 1.2 2006/06/14 11:16:19 glass Exp $ */
 
 #include "dft.h"
 
@@ -126,8 +126,7 @@ static int applicable0(const problem *p_, const S *ego, const planner *plnr)
           const problem_dft *p = (const problem_dft *) p_;
           const iodim *d = p->sz->dims;
 
-          if (1
-	      && p->vecsz->rnk <= 1
+          if (   p->vecsz->rnk <= 1
 	      && p->sz->rnk == 1
 	       ) {
 

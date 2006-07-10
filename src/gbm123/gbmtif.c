@@ -291,6 +291,11 @@ static void tif_gbm_warning_handler(const char* module, const char* fmt, va_list
       vfprintf(stderr, fmt, ap);
       fprintf(stderr, ".\n");
    }
+#else
+   /* suppress compiler warnings */
+   module = module;
+   fmt    = fmt;
+   ap     = ap;
 #endif
 }
 
@@ -305,6 +310,11 @@ static void tif_gbm_error_handler(const char* module, const char* fmt, va_list a
       vfprintf(stderr, fmt, ap);
       fprintf(stderr, ".\n");
    }
+#else
+   /* suppress compiler warnings */
+   module = module;
+   fmt    = fmt;
+   ap     = ap;
 #endif
 }
 

@@ -38,8 +38,8 @@
 #include <string.h>
 #include <stdio.h>
 
+#include "utilfct.h"
 #include "readcd.h"
-
 
 const char TAG[4] = {'C','D','0','1'};
 

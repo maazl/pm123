@@ -9,8 +9,8 @@ Filter plug-ins must implement and export the functions defined in
 filter_plug.h. The interface for the filter plug-in is simple compared
 to the other types of plug-ins.<P>
 <pre>
-     ULONG _System filter_init  ( void **f, FILTER_PARAMS *params )
-     BOOL  _System filter_uninit( void *f )
+     ULONG PM123_ENTRY filter_init  ( void **f, FILTER_PARAMS *params )
+     BOOL  PM123_ENTRY filter_uninit( void *f )
 </pre>
 <ul>
 <li>f : Allocate any chunk of memory necessary for the filter's
@@ -25,8 +25,8 @@ Multiple filter plug-ins are chained, so the pointers to
 output_play_samples() and it's parameter "a", might belong to another
 filter plug-in and not necessarily to the active output plug-in.
 <pre>
-     int _System filter_play_samples( void *f, FORMAT_INFO *format, char *buf,
-                                      int len, int posmarker )
+     int PM123_ENTRY filter_play_samples( void *f, FORMAT_INFO *format, char *buf,
+                                          int len, int posmarker )
 </pre>
 <ul>
 <li>format - format of buf.

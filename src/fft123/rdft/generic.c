@@ -266,8 +266,8 @@ static int applicable0(const solver *ego_, const problem *p_)
      if (RDFTP(p_)) {
 	  const S *ego = (const S *) ego_;
           const problem_rdft *p = (const problem_rdft *) p_;
-          return (1
-		  && p->sz->rnk == 1
+          return ( 
+		     p->sz->rnk == 1
 		  && p->vecsz->rnk == 0
 		  && p->sz->dims[0].n > 1
                   && p->sz->dims[0].n % 2 /* ensure r and n/r odd */

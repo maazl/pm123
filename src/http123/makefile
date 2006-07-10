@@ -1,26 +1,27 @@
 #
-#  http123.dll makefile for NMAKE and VAC++
+#  http123.dll makefile
 #
 
-!include ..\config\makerules
+DLL     = yes
+TOPDIR  = ..
+INCDIR  = $(TOPDIR)\utils
 
-CFLAGS  = $(CFLAGS) $(DLLFLG)
-INCLUDE = $(INCLUDE);..\utils
-LIB     = $(LIB);..\utils
+!include $(TOPDIR)\config\makerules
 
-all: http123.dll
+OBJECTS = httpget.obj sockfile.obj
+LIBS    = $(LIBS_TCP) $(TOPDIR)\utils\utilfct.lib
+DEF     = http$(LDEF_SUFFX)
 
-DEF     = http123.def
-OBJECTS = sockfile.obj httpget.obj
-LIBS    = so32dll.lib tcp32dll.lib utilfct.lib
+all: http123.dll http123.lib $(MDUMMY)
 
 http123.dll: $(OBJECTS) $(DEF)
-   $(CC) $(LNKFLG) /Fm$* /Fe$@ $** $(LIBS)
-   $(LI) $*.lib $@
+	$(CL) $(LFLAGS) $(LFLAGS_OUT)$@ $(LOBJ_PREFX)$(OBJECTS) $(LIBS)$(LOBJ_SUFFX) $(LDEF_PREFX)$(DEF)
 
-clean:
-  -@del http123.dll http123.lib http123.map $(OBJECTS) 2> nul
+http123.lib: $(DEF)
+	$(LI) $@ http123.dll
 
-sockfile.obj: httpget.h sockfile.h
-httpget.obj:  httpget.h
+sockfile.obj: sockfile.c httpget.h sockfile.h
+httpget.obj:  httpget.c  httpget.h
 
+clean: $(MDUMMY)
+	-@del http123.lib http123.dll $(OBJECTS) 2> nul

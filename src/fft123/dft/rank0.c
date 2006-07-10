@@ -18,7 +18,7 @@
  *
  */
 
-/* $Id: rank0.c,v 1.1 2005/07/26 17:36:52 glass Exp $ */
+/* $Id: rank0.c,v 1.2 2006/06/14 11:16:19 glass Exp $ */
 
 /* plans for rank-0 DFTs (copy operations) */
 
@@ -53,8 +53,8 @@ static int applicable(const solver *ego_, const problem *p_)
      if (DFTP(p_)) {
           const S *ego = (const S *) ego_;
           const problem_dft *p = (const problem_dft *) p_;
-          return (1
-		  && p->ri != p->ro
+          return (
+		     p->ri != p->ro
                   && p->sz->rnk == 0
                   && ego->adt->applicable(p)
 	       );
@@ -118,8 +118,8 @@ static void apply_io1(const plan *ego_, R *ri, R *ii, R *ro, R *io)
 
 static int applicable_io1(const problem_dft *p)
 {
-     return (1
-             && applicable_vec(p)
+     return (
+                applicable_vec(p)
              && p->vecsz->dims[0].is == 1
              && p->vecsz->dims[0].os == 1
 	  );
@@ -143,8 +143,8 @@ static void apply_io2r(const plan *ego_, R *ri, R *ii, R *ro, R *io)
 
 static int applicable_io2r(const problem_dft *p)
 {
-     return (1
-             && applicable_vec(p)
+     return ( 
+                applicable_vec(p)
              && p->vecsz->dims[0].is == 2
              && p->vecsz->dims[0].os == 2
              && p->ii == p->ri + 1 && p->io == p->ro + 1
@@ -167,8 +167,8 @@ static void apply_io2i(const plan *ego_, R *ri, R *ii, R *ro, R *io)
 
 static int applicable_io2i(const problem_dft *p)
 {
-     return (1
-             && applicable_vec(p)
+     return ( 
+                applicable_vec(p)
              && p->vecsz->dims[0].is == 2
              && p->vecsz->dims[0].os == 2
              && p->ri == p->ii + 1 && p->ro == p->io + 1

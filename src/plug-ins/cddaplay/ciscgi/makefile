@@ -1,24 +1,25 @@
 #
-#  ciscgi.lib makefile for NMAKE and VAC++
+#  ciscgi.lib makefile
 #
 
-!include ..\..\..\config\makerules
+DLL     = yes
+TOPDIR  = ..\..\..
 
-CFLAGS   = $(CFLAGS) $(DLLFLG)
+!include $(TOPDIR)\config\makerules
 
-all: ciscgi.lib
+OBJECTS = cgifldld.obj cgiupper.obj urldcode.obj urlncode.obj urlvalue.obj
 
-OBJECTS  = cgifldld.obj cgiupper.obj urldcode.obj urlncode.obj urlvalue.obj
+all: ciscgi.lib $(MDUMMY)
 
 ciscgi.lib: $(OBJECTS)
-   if exist $@ del $@
-   $(LB) $@ $(OBJECTS);
+	if exist $@ del $@
+	$(LB) $@ $(OBJECTS) $(LBENDL)
 
-clean:
-  -@del ciscgi.lib ciscgi.BAK $(OBJECTS) 2> nul
+cgifldld.obj: cgifldld.c cisrcl.h
+cgiupper.obj: cgiupper.c cisrcl.h
+urldcode.obj: urldcode.c cisrcl.h
+urlncode.obj: urlncode.c cisrcl.h
+urlvalue.obj: urlvalue.c cisrcl.h
 
-cgifldld.obj: cisrcl.h
-cgiupper.obj: cisrcl.h
-urldcode.obj: cisrcl.h
-urlncode.obj: cisrcl.h
-urlvalue.obj: cisrcl.h
+clean: $(MDUMMY)
+	-@del ciscgi.lib $(OBJECTS) 2> nul

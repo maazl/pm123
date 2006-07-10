@@ -18,7 +18,7 @@
  *
  */
 
-/* $Id: timer.c,v 1.1 2005/07/26 17:37:04 glass Exp $ */
+/* $Id: timer.c,v 1.2 2006/06/14 11:49:23 glass Exp $ */
 
 #include "ifftw.h"
 
@@ -52,7 +52,7 @@
 #endif
 #endif
 
-#if defined(HAVE_GETTIMEOFDAY) && !defined(HAVE_SECONDS_TIMER)
+#if defined(HAVE_GETTIMEOFDAY)
 typedef struct timeval seconds;
 
 static seconds getseconds(void)
@@ -69,23 +69,6 @@ static double elapsed_sec(seconds t1, seconds t0)
 }
 
 #  define TIME_MIN_SEC 1.0e-2 /* from fftw2 */
-#  define HAVE_SECONDS_TIMER
-#endif
-
-#ifndef HAVE_SECONDS_TIMER
-#  include <time.h>
-
-typedef clock_t seconds;
-
-static seconds getseconds(void) { return clock(); }
-
-static double elapsed_sec(seconds t1, seconds t0)
-{
-     return ((double) (t1 - t0)) / CLOCKS_PER_SEC;
-}
-
-#  define TIME_MIN_SEC 2.0e-1 /* from fftw2 */
-#  define HAVE_SECONDS_TIMER
 #endif
 
 #ifdef WITH_SLOW_TIMER

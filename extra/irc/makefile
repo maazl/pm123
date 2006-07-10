@@ -1,17 +1,16 @@
 #
-#  slider.exe makefile for NMAKE and VAC++
+#  querysong.exe makefile
 #
 
 !include ..\..\src\config\makerules
 
-all: querysong.exe
+all: querysong.exe $(MDUMMY)
 
-LNKFLG   = $(LNKFLG)
+OBJECTS  = querysong.obj
+DEF      = querysong$(LDEF_SUFFX)
 
-OBJECTS  = querysong.obj $(DEF)
+querysong.exe: $(OBJECTS) $(DEF)
+	$(CL) $(LFLAGS) $(LFLAGS_OUT)$@ $(LOBJ_PREFX)$(OBJECTS)$(LOBJ_SUFFX) $(LDEF_PREFX)$(DEF)
 
-querysong.exe: $(OBJECTS) $(RESOURCE)
-   $(CC) $(LNKFLG) -Fm$* -Fe$@ $(OBJECTS) $(LIBS)
-
-clean:
-  -@del querysong.exe querysong.map $(OBJECTS)
+clean: $(MDUMMY)
+	-@del querysong.exe $(OBJECTS) 2> nul

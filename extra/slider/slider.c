@@ -40,7 +40,7 @@ void set_volume(int volume, char *pipename)
 
    if(rc != 0)
    {
-      sprintf(buf,"Could not open pipe %s, rc = %d.", pipename, rc);
+      sprintf( buf,"Could not open pipe %s, rc = %ld.", pipename, rc );
       WinMessageBox(HWND_DESKTOP, HWND_DESKTOP, buf, "Error", 0, MB_ERROR | MB_OK);
       return;
    }
@@ -53,7 +53,7 @@ void set_volume(int volume, char *pipename)
 
    if(rc != 0)
    {
-      sprintf(buf,"Error writing to pipe %s, rc = %d.", pipename, rc);
+      sprintf( buf,"Error writing to pipe %s, rc = %ld.", pipename, rc );
       WinMessageBox(HWND_DESKTOP, HWND_DESKTOP, buf, "Error", 0, MB_ERROR | MB_OK);
       DosClose(pipe);
       return;

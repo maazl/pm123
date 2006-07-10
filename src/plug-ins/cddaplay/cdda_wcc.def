@@ -1,0 +1,16 @@
+SYSTEM OS2V2_DLL INITINSTANCE TERMINSTANCE
+OPTION MANYAUTODATA
+OPTION DESCRIPTION 'PM123 CDDA Player'
+
+EXPORT decoder_init      .1
+EXPORT decoder_uninit    .2
+EXPORT decoder_command   .3
+EXPORT decoder_status    .4
+EXPORT decoder_length    .5
+EXPORT decoder_support   .6
+EXPORT decoder_fileinfo  .7
+EXPORT decoder_trackinfo .8
+EXPORT decoder_cdinfo    .9
+
+EXPORT plugin_query      .10
+EXPORT plugin_configure  .11

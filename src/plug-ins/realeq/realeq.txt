@@ -5,7 +5,7 @@ This Equalizer is a THE real thing.  A full fledged FIR designed with
 the window method using RDFT and a Hamming window.  This
 equalizer can also be used with any decoders contrarily to the MPEG
 audio decoder!  Also since it's a real EQ, it uses juice. I mean major
-juice. 
+juice.
 
 The convolution is implemented by FFT convolution which is the fastest
 possible way. It is strongly recommended to use FFT convolution, because it
@@ -66,7 +66,6 @@ defined by the ISO standard and are as follow in Hz:
 The FIR order needs to be a multiple of 2 (or 16 because of MMX). The
 plansize is for the internal FFT and therefore should be a power of 2.
 Just leave it at 16384 or 8192, that's fine.
-
 The plansize MUST always be larger the the FIR order!
 
 WARNING!! If you do not "Use FFT convolution" and not "Use MMX", the FPU
@@ -79,3 +78,4 @@ This is pretty much as good as most professional EQs...!!
 
 
 Marcel
+

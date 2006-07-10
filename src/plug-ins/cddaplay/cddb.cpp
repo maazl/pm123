@@ -29,7 +29,7 @@
 
 /* CDDB functions */
 
-#define INCL_PM
+#define  INCL_WIN
 #include <os2.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -41,13 +41,12 @@
 #include <netdb.h>
 #include <nerrno.h>
 
-#include "readcd.h"
 #include "utilfct.h"
+#include "readcd.h"
 #include "tcpipsock.h"
 #include "http.h"
 #include "cddb.h"
 #include "cgicis.h"
-
 #include "cdda.h"
 
 CDDB_socket::CDDB_socket()
@@ -244,7 +243,7 @@ int CDDB_socket::query_req(CD_drive *cdDrive, CDDBQUERY_DATA *output)
    output->discid_cd = this->discid(cdDrive);
 
    /* making the request line */
-   sprintf(buffer, "cddb query %08x %d ", output->discid_cd, cdDrive->getCount());
+   sprintf(buffer, "cddb query %08lx %d ", output->discid_cd, cdDrive->getCount());
    for(int i = 0; i < cdDrive->getCount(); i++)
    {
       UCHAR track = cdDrive->getCDInfo()->firstTrack+i;
@@ -271,7 +270,7 @@ int CDDB_socket::query_req(CD_drive *cdDrive, CDDBQUERY_DATA *output)
                switch(buffer[2])
                {
                    case '0':
-                      sscanf(buffer+4, "%19s %x %79[^\r\n]", output->category,
+                      sscanf(buffer+4, "%19s %lx %79[^\r\n]", output->category,
                              &output->discid_cddb, output->title);
                       return COMMAND_OK;
 
@@ -305,7 +304,7 @@ bool CDDB_socket::get_query_req(CDDBQUERY_DATA *output)
 
    if(gets_content(buffer,sizeof(buffer)))
    {
-      sscanf(buffer, "%19s %x %79[^\r\n]", output->category,
+      sscanf(buffer, "%19s %lx %79[^\r\n]", output->category,
              &output->discid_cddb, output->title);
       return true;
    }
@@ -380,9 +379,7 @@ char *get_line(char *in, char *out, int size)
    {
       if(size > eol-in+2)
          size = eol-in+2;
-      strncpy(out,in,size-1);
-      out[size-1] = 0;
-
+      strlcpy(out,in,size);
       return out;
    }
    else
@@ -497,7 +494,7 @@ int CDDB_socket::read_req(char *category, unsigned long discid)
    char buffer[512];
    content = false;
 
-   sprintf(buffer,"cddb read %s %08x\n", category, discid);
+   sprintf(buffer,"cddb read %s %08lx\n", category, discid);
    if(write(buffer,strlen(buffer)) < 1)
       return COMMAND_ERROR;
 

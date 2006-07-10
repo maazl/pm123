@@ -5,22 +5,26 @@
  *   Wed Apr  9 20:57:47 MET DST 1997
  */
 
-#define INCL_DOS
+#define  INCL_DOS
 #include <os2.h>
+
 #include <stdarg.h>
-
 #include <io.h>
-
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
-
 #include <sys/types.h>
+#include <sys/time.h>
 #include <netdb.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 
-#if defined(__IBMC__) || defined(__IBMCPP__)
+#ifndef TCPV40HDRS
+#include <arpa/inet.h>
+#include <unistd.h>
+#endif
+
+#ifdef OS2
   #include <errno.h>
 #else
   #include <sys/errno.h>
@@ -30,15 +34,38 @@
 #define INADDR_NONE 0xffffffff
 #endif
 
-#include "errorstr.h"
+#include "utilfct.h"
 #include "httpget.h"
 
-char *prgName = "MPG123.DLL_HTTP";
-char *prgVersion = "1.1";
+char* prgName = "MPG123.DLL_HTTP";
+char* prgVersion = "1.1";
 
-char *thread_error[100] = {0}; /* ie.: max 100 threads */
+char* thread_error[100] = {0}; /* ie.: max 100 threads */
 
-char *_System http_strerror()
+static char proxyurl[2048];
+static char httpauth[2048];
+
+static unsigned long proxyip   = 0;
+static unsigned int  proxyport = 0;
+
+void  PM123_ENTRY
+set_proxyurl( const char* url  )
+{
+  if( url ) {
+    strlcpy( proxyurl, url, sizeof( proxyurl ));
+    proxyip = 0;
+  }
+}
+
+void  PM123_ENTRY
+set_httpauth( const char* auth )
+{
+  if( auth ) {
+    strlcpy( httpauth, auth, sizeof( httpauth ));
+  }
+}
+
+char* PM123_ENTRY http_strerror()
 {
    PTIB ptib;
    PPIB ppib;
@@ -47,7 +74,7 @@ char *_System http_strerror()
    return thread_error[ptib->tib_ptib2->tib2_ultid];
 }
 
-void _System write_error(char *fmt, ... )
+void PM123_ENTRY write_error(char *fmt, ... )
 {
    PTIB ptib;
    PPIB ppib;
@@ -63,7 +90,7 @@ void _System write_error(char *fmt, ... )
    va_end(args);
 }
 
-int _System writebuffer (char *buffer, int size, int handle)
+int PM123_ENTRY writebuffer (char *buffer, int size, int handle)
 {
    int result;
 
@@ -83,7 +110,7 @@ int _System writebuffer (char *buffer, int size, int handle)
    return 1;
 }
 
-int _System readbuffer (char *buffer, int size, int handle)
+int PM123_ENTRY readbuffer (char *buffer, int size, int handle)
 {
    int total = 0;
    int read;
@@ -99,7 +126,7 @@ int _System readbuffer (char *buffer, int size, int handle)
    return total;
 }
 
-int _System readline(char *line, int maxlen, int handle)
+int PM123_ENTRY readline(char *line, int maxlen, int handle)
 {
    char c;
    int total = 0;
@@ -188,52 +215,53 @@ char *url2hostport (char *url, char **hname, unsigned long *hip, unsigned int *p
    return (cptr);
 }
 
-char *proxyurl = NULL;
-unsigned long proxyip = 0;
-unsigned int proxyport;
-
 #define ACCEPT_HEAD "Accept: audio/mpeg, audio/x-mpegurl, */*\r\n"
 
-char *httpauth = NULL;
-
-int _System http_open (const char *url, HTTP_INFO *http_info)
+int PM123_ENTRY http_open (const char *url, HTTP_INFO *http_info)
 {
-   char *purl, *host, *request, *sptr;
-   int linelength;
-   unsigned long myip;
-   unsigned int myport;
-   int sock;
-   int relocate, numrelocs = 0;
-   struct sockaddr_in server;
+  char *purl, *host, *request, *sptr;
+  int linelength;
+  unsigned long myip;
+  unsigned int myport;
+  int sock;
+  int relocate, numrelocs = 0;
+  struct sockaddr_in server;
 
-   memset(http_info,0,sizeof(*http_info));  /* fail safe */
+  memset(http_info,0,sizeof(*http_info));  /* fail safe */
 
-   if (!proxyip) {
-      if (!proxyurl)
-         if (!(proxyurl = getenv("MP3_HTTP_PROXY")))
-            if (!(proxyurl = getenv("http_proxy")))
-               proxyurl = getenv("HTTP_PROXY");
-      if (proxyurl && proxyurl[0] && strcmp(proxyurl, "none")) {
-         if (!(url2hostport(proxyurl, &host, &proxyip, &proxyport))) {
-            write_error("Unknown proxy host \"%s\".",
-               host ? host : "");
-            return 0;
-         }
-         if (host)
-            free (host);
+  if( !proxyip ) {
+    if( !*proxyurl ) {
+      char* proxy = getenv( "MP3_HTTP_PROXY" );
+      if( !proxy ) {
+        if( !( proxy = getenv( "http_proxy" ))) {
+          proxy = getenv( "HTTP_PROXY" );
+        }
       }
-      else
-         proxyip = INADDR_NONE;
-   }
-   
-   if ((linelength = strlen(url)+200) < 1024)
-      linelength = 1024;
-   if (!(request = malloc(linelength)) || !(purl = malloc(1024))) {
-      write_error("malloc() failed, out of memory.");
-      return 0;
-   }
-   strncpy (purl, url, 1023);
-   purl[1023] = '\0';
+      set_proxyurl( proxy );
+    }
+
+    if( *proxyurl && strcmp( proxyurl, "none" )) {
+      if( !( url2hostport( proxyurl, &host, &proxyip, &proxyport ))) {
+        write_error( "Unknown proxy host \"%s\".", host ? host : "" );
+        return 0;
+      }
+      if( host ) {
+        free( host );
+      }
+    } else {
+      proxyip = INADDR_NONE;
+    }
+  }
+
+  if(( linelength = strlen( url ) + 200 ) < 1024 ) {
+    linelength = 1024;
+  }
+  if(!( request = malloc( linelength )) || !( purl = malloc( 1024 ))) {
+    write_error( "malloc() failed, out of memory." );
+    return 0;
+  }
+
+  strlcpy( purl, url, 1024 );
 
    do {
       host = NULL;
@@ -281,7 +309,7 @@ int _System http_open (const char *url, HTTP_INFO *http_info)
          return 0;
       }
 
-      if (httpauth) {
+      if( *httpauth ) {
          char buf[1023];
          strcat (request,"Authorization: Basic "); // need proxy auth too!!
          encode64(httpauth,buf);
@@ -322,19 +350,19 @@ int _System http_open (const char *url, HTTP_INFO *http_info)
            *strchr(request,'\n') = 0;
 
          if(!strncmp(request, "Location:", 9))
-            strncpy (purl, request+10, 1023);
+            strlcpy (purl, request+10, 1024);
          else if(!strnicmp(request, "Content-Length:", 15))
             http_info->length = atoi(request+16);
          else if(!strnicmp(request, "icy-metaint:", 12))
             http_info->icy_metaint = atoi(request+12);
          else if(!strnicmp(request, "x-audiocast-name:", 17))
-            strncpy(http_info->icy_name, request+17, sizeof(http_info->icy_name)-1);
+            strlcpy(http_info->icy_name, request+17, sizeof(http_info->icy_name));
          else if(!strnicmp(request, "icy-name:", 9))
-            strncpy(http_info->icy_name, request+9, sizeof(http_info->icy_name)-1);
+            strlcpy(http_info->icy_name, request+9, sizeof(http_info->icy_name));
          else if(!strnicmp(request, "x-audiocast-genre:", 18))
-            strncpy(http_info->icy_genre, request+18, sizeof(http_info->icy_genre)-1);
+            strlcpy(http_info->icy_genre, request+18, sizeof(http_info->icy_genre));
          else if(!strnicmp(request, "icy-genre:", 10))
-            strncpy(http_info->icy_genre, request+10, sizeof(http_info->icy_genre)-1);
+            strlcpy(http_info->icy_genre, request+10, sizeof(http_info->icy_genre));
 
       } while (request[0] != 0 && request[0] != '\r' && request[0] != '\n');
    } while (relocate && purl[0] && numrelocs++ < 5);
@@ -348,7 +376,7 @@ int _System http_open (const char *url, HTTP_INFO *http_info)
    return sock;
 }
 
-int _System http_close(int socket)
+int PM123_ENTRY http_close(int socket)
 {
    return soclose(socket);
 

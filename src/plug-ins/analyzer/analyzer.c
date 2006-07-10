@@ -44,6 +44,7 @@
 #include <math.h>
 #include <string.h>
 #include <ctype.h>
+#include <malloc.h>
 
 #include <utilfct.h>
 #include <format.h>
@@ -113,10 +114,10 @@ static  RGB2   palette[CLR_SIZE] = { // B,G,R!
   {0,0,244},
   {0,0,255},// low bar
   {0,13,255},
-  {0,25,254}, 
+  {0,25,254},
   {0,37,253},
   {0,48,252},
-  {0,60,251}, 
+  {0,60,251},
   {0,71,249},
   {0,81,247},
   {0,92,245},
@@ -175,12 +176,12 @@ static  double amp_scale;
 static  ULONG  image_id;
 static  BOOL   is_stopped;
 static  float  relative_falloff_speed;
-static  BOOL   needinit; 
+static  BOOL   needinit;
 
-static  PFN    _decoderPlayingSamples;
-static  PFN    _decoderPlaying;
-static  PFN    _specana_init;
-static  PFN    _specana_dobands;
+static  ULONG (PM123_ENTRYP _decoderPlayingSamples)( FORMAT_INFO *info, char *buf, int len );
+static  BOOL  (PM123_ENTRYP _decoderPlaying)( void );
+static  int   (PM123_ENTRYP _specana_init)( int setnumsamples );
+static  int   (PM123_ENTRYP _specana_dobands)( float bands[] );
 
 static  VISPLUGININIT plug;
 
@@ -188,7 +189,7 @@ static  VISPLUGININIT plug;
 
 /* Removes comments */
 static char*
-uncomment( char *something )
+uncomment_slash( char *something )
 {
   int  i = 0;
   BOOL inquotes = FALSE;
@@ -216,7 +217,7 @@ read_color( FILE* file, RGB2* color )
 
   if( fgets( line, sizeof( line ), file )) {
     if( color ) {
-      sscanf( uncomment( line ), "%d,%d,%d", &r, &g, &b );
+      sscanf( uncomment_slash( line ), "%d,%d,%d", &r, &g, &b );
       color->bRed   = r;
       color->bGreen = g;
       color->bBlue  = b;
@@ -263,9 +264,9 @@ init_bands( void )
     ++bars_count;
   }
 
-  amps       = realloc( amps,       sizeof(*amps ) * amps_count );     
-  lastamps   = realloc( lastamps,   sizeof(*amps ) * amps_count );     
-  bars       = realloc( bars,       sizeof(*bars ) * plug.cx );        
+  amps       = realloc( amps,       sizeof(*amps ) * amps_count );
+  lastamps   = realloc( lastamps,   sizeof(*amps ) * amps_count );
+  bars       = realloc( bars,       sizeof(*bars ) * plug.cx );
   scale      = realloc( scale,      sizeof(*scale) * (bars_count+1));
   spec_scale = realloc( spec_scale, sizeof(*spec_scale) * (specband_count+1));
 
@@ -321,7 +322,7 @@ free_bands( void )
 
 /* like _specana_dobands but return -1 if the values did not change,
  * most likely because of a pause condition.
- */ 
+ */
 static int call_specana_dobands(void)
 { int r = _specana_dobands(amps);
   if (memcmp(amps, lastamps, amps_count * sizeof *amps) == 0)
@@ -374,7 +375,7 @@ static void update_analyzer(void)
     return;
   }
   // _decoderPlaying() == 1
-  
+
   if (needinit)
   { init_bands();
     needinit = FALSE;
@@ -386,7 +387,7 @@ static void update_analyzer(void)
     max = call_specana_dobands();
     if (max <= 0) // no changes or no valid content
       break;
-    
+
     DiveBeginImageBufferAccess( hdive, image_id, &image, &image_cx, &image_cy );
     memset( image, 0, image_cx * image_cy );
 
@@ -410,14 +411,14 @@ static void update_analyzer(void)
         image[( plug.cy - y -1) * image_cx + x ] = min( CLR_ANA_TOP, color );
       }
     }
-    break;  
+    break;
 
    case SHOW_BARS:
 
     max = call_specana_dobands();
     if (max <= 0) // no changes or no valid content
       break;
-    
+
     DiveBeginImageBufferAccess( hdive, image_id, &image, &image_cx, &image_cy );
     memset( image, 0, image_cx * image_cy );
 
@@ -459,10 +460,10 @@ static void update_analyzer(void)
       if (is_stopped)
         // first call after restart
         memset(image, 0, (plug.cy-1) * image_cx);
-       else 
+       else
         // move image one pixel up
         memmove(image, image+image_cx, (plug.cy-1) * image_cx);
-    
+
       for( x = 0; x < plug.cx; x++ )
       {
         if (cfg.highprec_mode)
@@ -485,17 +486,17 @@ static void update_analyzer(void)
       if (is_stopped)
         // first call after restart
         memset(image, 0, plug.cy*image_cx);
-       else 
+       else
         // move image left one pixel
         memmove(image, image+1, plug.cy*image_cx -1);
-    
+
       for( i = 0; i < specband_count; i++ )
-      { 
+      {
         double a = 0;
         for( e = spec_scale[i]; e < spec_scale[i+1]; e++ )
           a += amps[e];
         a /= spec_scale[i+1] - spec_scale[i];
-        
+
         update_barvalue( bars+i, .5*log10(35 * amp_scale * a / max * sqrt(220.*spec_scale[i]/amps_count) +1));
 
         ip[(plug.cy-i-1)*image_cx] =
@@ -566,7 +567,7 @@ static void update_analyzer(void)
 
 
 /* Returns information about plug-in. */
-int _System
+int PM123_ENTRY
 plugin_query( PPLUGIN_QUERYPARAM query )
 {
   query->type         = PLUGIN_VISUAL;
@@ -627,7 +628,7 @@ cfg_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
                          MPFROMP( &value ), MPFROM2SHORT( 0, SPBQ_DONOTUPDATE ));
 
       cfg.falloff_speed = value;
-      relative_falloff_speed = (float)value / plug.cy; 
+      relative_falloff_speed = (float)value / plug.cy;
 
       WinSendDlgItemMsg( hwnd, SB_PERCENT, SPBM_QUERYVALUE,
                          MPFROMP( &value ), MPFROM2SHORT( 0, SPBQ_DONOTUPDATE ));
@@ -646,7 +647,7 @@ cfg_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
 }
 
 /* Configure plug-in. */
-int _System
+int PM123_ENTRY
 plugin_configure( HWND hwnd, HMODULE module )
 {
   WinDlgBox( HWND_DESKTOP, hwnd, cfg_dlg_proc, module, DLG_CONFIGURE, NULL );
@@ -747,7 +748,7 @@ plg_win_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
   return 0;
 }
 
-HWND _System
+HWND PM123_ENTRY
 vis_init( PVISPLUGININIT init )
 {
   FILE* dat;
@@ -778,8 +779,8 @@ vis_init( PVISPLUGININIT init )
   }
 
   // First get the routines
-  _decoderPlayingSamples = (PFN)init->procs->output_playing_samples;
-  _decoderPlaying        = (PFN)init->procs->decoder_playing;
+  _decoderPlayingSamples = init->procs->output_playing_samples;
+  _decoderPlaying        = init->procs->decoder_playing;
   _specana_init          = init->procs->specana_init;
   _specana_dobands       = init->procs->specana_dobands;
 
@@ -836,13 +837,13 @@ vis_init( PVISPLUGININIT init )
   return hanalyzer;
 }
 
-int _System
+int PM123_ENTRY
 plugin_deinit( int unload )
 {
   HINI hini;
 
   if(( hini = open_module_ini()) != NULLHANDLE )
-  { 
+  {
     save_ini_value( hini, cfg.update_delay );
     save_ini_value( hini, cfg.default_mode );
     save_ini_value( hini, cfg.falloff );
@@ -871,3 +872,4 @@ plugin_deinit( int unload )
   return 0;
 }
 
+

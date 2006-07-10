@@ -1,21 +1,20 @@
 #
-#  slider.exe makefile for NMAKE and VAC++
+#  slider.exe makefile
 #
+
+EXE_PM   = yes
 
 !include ..\..\src\config\makerules
 
-all: slider.exe
+all: slider.exe $(MDUMMY)
 
-LNKFLG   = $(LNKFLG) -B"/PM:PM"
-INCLUDE  = $(INCLUDE);..\..\src\utils
-LIB      = $(LIB);..\..\src\utils
-
-OBJECTS  = slider.obj $(DEF)
+OBJECTS  = slider.obj
+DEF      = slider$(LDEF_SUFFX)
 RESOURCE = slider.res
 
-slider.exe: $(OBJECTS) $(RESOURCE)
-   $(CC) $(LNKFLG) -Fm$* -Fe$@ $(OBJECTS) $(LIBS)
-   $(RC) $(RESFLG) $(RESOURCE) $@ > nul
+slider.exe: $(OBJECTS) $(RESOURCE) $(DEF)
+	$(CL) $(LFLAGS) $(LFLAGS_OUT)$@ $(LOBJ_PREFX)$(OBJECTS)$(LOBJ_SUFFX) $(LDEF_PREFX)$(DEF)
+	$(RC) $(RFLAGS) $(RESOURCE) $@ > nul
 
-clean:
-  -@del slider.exe slider.map $(OBJECTS) $(RESOURCE)
+clean: $(MDUMMY)
+	-@del slider.exe $(OBJECTS) $(RESOURCE) 2> nul

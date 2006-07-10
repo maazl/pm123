@@ -225,7 +225,7 @@ ch_convert( int ch_source, const char* source, int ch_target, char* target, size
 
   while( *p_src && --size )
   {
-    if( *p_src > 0x20 ) {
+    if((unsigned char)*p_src > 0x20 ) {
       *p_trg = WinCpTranslateChar( NULLHANDLE, ch_src_cpage, *p_src, ch_trg_cpage );
     } else {
       *p_trg = *p_src;

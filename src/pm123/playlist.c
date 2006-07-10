@@ -38,6 +38,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
+#include <io.h>
+#include <process.h>
 #include <sys\types.h>
 #include <sys\stat.h>
 
@@ -326,7 +328,7 @@ void
 pl_refresh_record( PLRECORD* rec, USHORT flags )
 {
   WinSendMsg( container, CM_INVALIDATERECORD,
-              MPFROMP( &rec ), MPFROM2SHORT( 1, 0 ));
+              MPFROMP( &rec ), MPFROM2SHORT( 1, flags ));
 }
 
 /* Assigns the specified file tag to the specified playlist record. */
@@ -393,11 +395,10 @@ pl_create_record( const char* filename, PLRECORD* pos, const char* songname )
   char         cd_drive[4] = "1:";
   int          cd_track    = -1;
   int          rc          = 0;
-  BOOL         exist       = TRUE;
   PLRECORD*    rec;
   tune         tag;
   RECORDINSERT insert;
-  char         module_name[_MAX_FNAME];
+  char         module_name[_MAX_FNAME] = "";
   char         buffer[_MAX_PATH];
 
   if( !filename ) {
@@ -406,10 +407,6 @@ pl_create_record( const char* filename, PLRECORD* pos, const char* songname )
 
   memset( &info, 0, sizeof( info ));
   memset( &tag,  0, sizeof( tag  ));
-
-  if( is_file( filename ) && stat( filename, &fi ) != 0 ) {
-    exist = FALSE;
-  }
 
   // Decide wether this is a CD track, or a normal file.
   if( is_track( filename ))
@@ -420,19 +417,16 @@ pl_create_record( const char* filename, PLRECORD* pos, const char* songname )
       return NULL;
     }
     rc = dec_trackinfo( cd_drive, cd_track, &info, module_name );
-  } else if( exist ) {
+  } else {
+    if( is_file( filename )) {
+      stat( filename, &fi );
+    }
     rc = dec_fileinfo((char*)filename, &info, module_name );
     cd_drive[0] = 0;
   }
 
-  if( exist && rc != 0 ) {
-    // Error, invalid file.
-    handle_dfi_error( rc, filename );
-    return NULL;
-  }
-
   // Load ID3 tag.
-  if( exist ) {
+  if( rc == 0 ) {
     amp_gettag( filename, &info, &tag );
   }
 
@@ -441,7 +435,7 @@ pl_create_record( const char* filename, PLRECORD* pos, const char* songname )
                                MPFROMLONG( sizeof( PLRECORD ) - sizeof( RECORDCORE )),
                                MPFROMLONG( 1 ));
 
-  rec->rc.cb           = sizeof(RECORDCORE);
+  rec->rc.cb           = sizeof( RECORDCORE );
   rec->rc.flRecordAttr = CRA_DROPONABLE;
   rec->bitrate         = info.bitrate;
   rec->channels        = info.mode;
@@ -449,19 +443,19 @@ pl_create_record( const char* filename, PLRECORD* pos, const char* songname )
   rec->freq            = info.format.samplerate;
   rec->format          = info.format;
   rec->track           = cd_track;
-  rec->rc.hptrIcon     = exist ? mp3 : mp3gray;
+  rec->rc.hptrIcon     = ( rc == 0 ) ? mp3 : mp3gray;
   rec->full            = strdup( filename );
   rec->size            = fi.st_size;
   rec->comment         = NULL;
   rec->songname        = NULL;
   rec->info            = NULL;
   rec->played          = 0;
-  rec->exist           = exist;
+  rec->exist           = ( rc == 0 );
 
   strcpy( rec->cd_drive, cd_drive );
   strcpy( rec->decoder_module_name, module_name );
 
-  sprintf( buffer, "%u kB", fi.st_size / 1024 );
+  sprintf( buffer, "%u kB", (unsigned int)fi.st_size / 1024 );
   rec->length = strdup( buffer );
   sprintf( buffer, "%02u:%02u", rec->secs / 60, rec->secs % 60 );
   rec->time = strdup( buffer );
@@ -494,7 +488,7 @@ pl_create_record( const char* filename, PLRECORD* pos, const char* songname )
   WinSendMsg( container, CM_INSERTRECORD,
               MPFROMP( rec ), MPFROMP( &insert ));
 
-  pl_refresh_record( rec, CMA_REPOSITION );
+  pl_refresh_record( rec, CMA_TEXTCHANGED );
   amp_invalidate( UPD_FILEINFO | UPD_DELAYED );
   return rec;
 }
@@ -681,7 +675,7 @@ pl_refresh_file( const char* filename )
   while( rec ) {
     if( stricmp( rec->full, filename ) == 0 ) {
       pl_set_tag( rec, &tag, NULL );
-      pl_refresh_record( rec, CMA_TEXTCHANGED );
+      pl_refresh_record( rec, CMA_NOREPOSITION );
     }
     rec = pl_next_record( rec );
   }
@@ -763,11 +757,11 @@ pl_delete_request_data( PLDATA* data )
 static void
 pl_purge_queue( PQUEUE queue )
 {
-  ULONG   request;
-  PLDATA* data;
+  ULONG  request;
+  PVOID  data;
 
   while( !qu_empty( queue )) {
-    qu_read( queue, &request, (PPVOID)&data );
+    qu_read( queue, &request, &data );
     pl_delete_request_data( data );
   }
 }
@@ -776,10 +770,10 @@ pl_purge_queue( PQUEUE queue )
 static BOOL
 pl_peek_queue( PQUEUE queue, ULONG first, ULONG last )
 {
-  ULONG   request;
-  PLDATA* data;
+  ULONG request;
+  PVOID data;
 
-  if( qu_peek( queue, &request, (PPVOID)&data )) {
+  if( qu_peek( queue, &request, &data )) {
     return request >= first && request <= last;
   } else {
     return FALSE;
@@ -878,16 +872,18 @@ pl_broker_add_directory( const char* path, int options )
 }
 
 /* Dispatches the playlist management requests. */
-static void APIENTRY
-pl_broker( ULONG dummy )
+static void TFNENTRY
+pl_broker( void* dummy )
 {
   ULONG   request;
-  PLDATA* data;
+  PVOID   reqdata;
   HAB     hab = WinInitialize( 0 );
   HMQ     hmq = WinCreateMsgQueue( hab, 0 );
 
-  while( qu_read( broker_queue, &request, (PPVOID)&data ))
+  while( qu_read( broker_queue, &request, &reqdata ))
   {
+    PLDATA* data = (PLDATA*)reqdata;
+
     switch( request ) {
       case PL_CLEAR:
         pl_remove_all();
@@ -930,6 +926,7 @@ pl_broker( ULONG dummy )
 
   WinDestroyMsgQueue( hmq );
   WinTerminate( hab );
+  _endthread();
 }
 
 /* Returns a ordinal number of the currently loaded file. */
@@ -1341,8 +1338,8 @@ pl_drag_over( HWND hwnd, PCNRDRAGINFO pcdi )
   PDRAGINFO pdinfo = pcdi->pDragInfo;
   PDRAGITEM pditem;
   int       i;
-  USHORT    drag_op;
-  USHORT    drag;
+  USHORT    drag_op = 0;
+  USHORT    drag    = DOR_NEVERDROP;
 
   if( !DrgAccessDraginfo( pdinfo )) {
     return MRFROM2SHORT( DOR_NEVERDROP, 0 );
@@ -1610,7 +1607,7 @@ pl_init_window( HWND hwnd )
   if( !broker_queue ) {
     amp_player_error( "Unable create playlist service queue." );
   } else {
-    if( DosCreateThread( &broker_tid, pl_broker, 0, CREATE_READY, 204800 ) != NO_ERROR ) {
+    if(( broker_tid = _beginthread( pl_broker, NULL, 204800, NULL )) == -1 ) {
       amp_error( container, "Unable create the playlist service thread." );
     }
   }
@@ -1654,8 +1651,11 @@ pl_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
       return pl_drag_discard( hwnd, (PDRAGINFO)mp1 );
 
     case WM_PM123_REMOVE_RECORD:
-      pl_remove_record((PLRECORD**)&mp1, 1 );
+    {
+      PLRECORD* rec = (PLRECORD*)mp1;
+      pl_remove_record( &rec, 1 );
       return 0;
+    }
 
     case WM_COMMAND:
       if( COMMANDMSG(&msg)->cmd >  IDM_PL_LAST &&
@@ -2169,8 +2169,8 @@ pl_save( const char* filename, int options )
     }
 
     if( !(options & PL_SAVE_M3U )) {
-      fprintf( playlist, ">%u,%u,%u,%u,%lu\n", rec->bitrate,
-                         rec->freq, rec->mode, rec->size, rec->secs );
+      fprintf( playlist, ">%u,%u,%u,%u,%u\n", rec->bitrate,
+                        rec->freq, rec->mode, rec->size, rec->secs );
     }
   }
 
@@ -2246,7 +2246,7 @@ pl_load_bundle( const char *filename, int options )
         amp_load_singlefile( file + 1, AMP_LOAD_NOT_PLAY | AMP_LOAD_NOT_RECALL );
       }
     } else if( *file == '>' ) {
-      sscanf( file, ">%u,%u\n", &selected, &loaded );
+      sscanf( file, ">%lu,%lu\n", &selected, &loaded );
     } else if( *file != 0 && *file != '#' ) {
       pl_add_file( file, NULL, ( selected ? PL_ADD_SELECT : 0 ) |
                                ( loaded   ? PL_ADD_LOAD   : 0 ));

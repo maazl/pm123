@@ -22,7 +22,7 @@
 #define __RDFT_H__
 
 #include "ifftw.h"
-#include "codelet-rdft.h"
+#include "codelet_rdft.h"
 
 /* problem.c: */
 typedef struct {

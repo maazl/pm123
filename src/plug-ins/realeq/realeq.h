@@ -44,9 +44,9 @@
 #define ID_FIRORDER 40
 #define ID_PLANSIZE 41
 
-BOOL detect_mmx( void );
-void filter_samples_mmx_stereo( short *newsamples, short *temp, char *buf, int len );
-void filter_samples_mmx_mono( short *newsamples, short *temp, char *buf, int len );
+BOOL _Optlink detect_mmx( void );
+void _Optlink filter_samples_mmx_stereo( short *newsamples, short *temp, char *buf, int len );
+void _Optlink filter_samples_mmx_mono( short *newsamples, short *temp, char *buf, int len );
 
 #endif /* _REALEQ_H */
 

@@ -1,5 +1,9 @@
 BITS 32
 
+%ifdef UNDERSCORE
+  %define decwins _decwins
+%endif
+
 extern dct64_MMX
 extern decwins
 
@@ -20,10 +24,11 @@ segment .text class=CODE use32 FLAT
 ; thanks to AMD!!
 global detect_mmx
 detect_mmx:
+	push ebx
         pushfd                  ; save EFLAGS
-        pop eax                 ; store EFLAGS in EAX
-        mov edx, eax            ; save in EDX for later testing
-        xor eax, 00200000h      ; toggle bit 21
+        pop  eax                ; store EFLAGS in EAX
+        mov  edx, eax           ; save in EDX for later testing
+        xor  eax, 00200000h     ; toggle bit 21
         push eax                ; put to stack
         popfd                   ; save changed EAX to EFLAGS
         pushfd                  ; push EFLAGS to TOS
@@ -44,6 +49,7 @@ NO_CPUID:
 YES_MMX:
         mov eax, 1
 return:
+        pop ebx
         ret
 
 

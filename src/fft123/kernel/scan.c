@@ -18,7 +18,7 @@
  *
  */
 
-/* $Id: scan.c,v 1.1 2005/07/26 17:37:04 glass Exp $ */
+/* $Id: scan.c,v 1.2 2006/06/14 11:26:40 glass Exp $ */
 
 #include "ifftw.h"
 #include <string.h>
@@ -125,7 +125,7 @@ static int vscan(scanner *sc, const char *format, va_list ap)
      const char *s = format;
      char c;
      int ch = 0;
-     size_t fmt_len;
+     int fmt_len;
 
      while ((c = *s++)) {
 	  fmt_len = 0;

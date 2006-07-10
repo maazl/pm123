@@ -1,27 +1,26 @@
 #
-#  wavout.dll makefile for NMAKE and VAC++
+#  wavout.dll makefile
 #
 
-!include ..\..\config\makerules
+DLL      = yes
+TOPDIR   = ..\..
+INCDIR   = $(TOPDIR)\utils;$(TOPDIR)\include
 
-CFLAGS   = $(CFLAGS) $(DLLFLG)
-INCLUDE  = $(INCLUDE);..\..\utils;..\..\include
-LIB      = $(LIB);..\..\utils
+!include $(TOPDIR)\config\makerules
 
-all: wavout.dll
-
-DEF      = wavout.def
-OBJECTS  = wavout.obj wav.obj
-LIBS     = utilfct.lib
+OBJECTS  = wavout.obj ..\wavplay\wav.obj
+LIBS     = $(LIBS_MM) $(TOPDIR)\utils\utilfct.lib
+DEF      = wavout$(LDEF_SUFFX)
 RESOURCE = wavout.res
 
+all: wavout.dll wavout.lib $(MDUMMY)
+
 wavout.dll: $(OBJECTS) $(DEF) $(RESOURCE)
-   $(CC) $(LNKFLG) /Fm$* /Fe$@ $(OBJECTS) $(DEF) $(LIBS)
-   $(RC) $(RESFLG) $(RESOURCE) $@ > nul
-   $(LI) $*.lib $@
+	$(CL) $(LFLAGS) $(LFLAGS_OUT)$@ $(LOBJ_PREFX)$(OBJECTS) $(LIBS)$(LOBJ_SUFFX) $(LDEF_PREFX)$(DEF)
+	$(RC) $(RFLAGS) $(RESOURCE) $@ > nul
 
-wav.obj:
-   $(CC) $(CFLAGS) /C ..\wavplay\wav.cpp
+wavout.lib: $(DEF)
+	$(LI) $@ wavout.dll
 
-clean:
-  -@del wavout.dll wavout.lib wavout.map $(OBJECTS) $(RESOURCE) 2> nul
+clean: $(MDUMMY)
+	-@del wavout.lib wavout.dll $(OBJECTS) $(RESOURCE) 2> nul

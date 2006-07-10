@@ -193,7 +193,7 @@ static R *mktwiddle(int m, int r, int g)
      int n = r * m;
      R *W;
 
-     if ((W = X(rader_tl_find)(m, r, g, twiddles)))
+     if ((W = X(rader_tl_find)(m, r, g, twiddles)) != 0 )
 	  return W;
 
      W = (R *)MALLOC(sizeof(R) * (r - 1) * m * 2, TWIDDLES);
@@ -293,8 +293,8 @@ static int applicable0(const solver *ego_, const problem *p_)
      UNUSED(ego_);
      if (DFTP(p_)) {
           const problem_dft *p = (const problem_dft *) p_;
-          return (1
-	       && p->sz->rnk == 1
+          return (
+	          p->sz->rnk == 1
 	       && p->vecsz->rnk == 0
 	       && X(is_prime)(p->sz->dims[0].n)
 	       );
@@ -308,8 +308,8 @@ static int applicable0_dit(const solver *ego_, const problem *p_)
      UNUSED(ego_);
      if (DFTP(p_)) {
           const problem_dft *p = (const problem_dft *) p_;
-          return (1
-	       && p->sz->rnk == 1
+          return (
+	          p->sz->rnk == 1
 	       && p->vecsz->rnk == 0
 	       && p->sz->dims[0].n > 1
 	       );

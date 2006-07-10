@@ -1,27 +1,26 @@
 #
-#  realeq.dll makefile for NMAKE and VAC++
+#  realeq.dll makefile
 #
 
-!include ..\..\config\makerules
+DLL      = yes
+TOPDIR   = ..\..
+INCDIR   = $(TOPDIR)\utils;$(TOPDIR)\include;$(TOPDIR)\fft123\api
 
-CFLAGS   = $(CFLAGS) $(DLLFLG)
-INCLUDE  = $(INCLUDE);..\..\fft123\api;..\..\utils;..\..\include
-LIB      = $(LIB);..\..\fft123;..\..\utils
+!include $(TOPDIR)\config\makerules
 
-all: realeq.dll
-
-DEF      = realeq.def
 OBJECTS  = realeq.obj mmxfir.obj
+LIBS     = $(TOPDIR)\utils\utilfct.lib $(TOPDIR)\fft123\fft123.lib
+DEF      = realeq$(LDEF_SUFFX)
 RESOURCE = realeq.res
-LIBS     = fft123.lib utilfct.lib
+
+all: realeq.dll realeq.lib $(MDUMMY)
 
 realeq.dll: $(OBJECTS) $(DEF) $(RESOURCE)
-   $(CC) $(LNKFLG) /Fm$* /Fe$@ $(OBJECTS) $(DEF) $(LIBS)
-   $(RC) $(RESFLG) $(RESOURCE) $@ > nul
-   $(LI) $*.lib $@
+	$(CL) $(LFLAGS) $(LFLAGS_OUT)$@ $(LOBJ_PREFX)$(OBJECTS) $(LIBS)$(LOBJ_SUFFX) $(LDEF_PREFX)$(DEF)
+	$(RC) $(RFLAGS) $(RESOURCE) $@ > nul
 
-clean:
-  -@del realeq.dll realeq.lib realeq.map mmxfir.lst $(OBJECTS) $(RESOURCE) 2> nul
+realeq.lib: $(DEF)
+	$(LI) $@ realeq.dll
 
-realeq.obj: realeq.h
-realeq.res: realeq.h
+clean: $(MDUMMY)
+	-@del realeq.lib realeq.dll $(OBJECTS) $(RESOURCE) 2> nul

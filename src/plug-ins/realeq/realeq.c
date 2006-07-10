@@ -50,7 +50,7 @@
 #include <plugin.h>
 #include "realeq.h"
 
-//#define DEBUG
+#define DEBUG
 
 #define VERSION "Real Equalizer 1.21"
 #define MAX_COEF 16384
@@ -101,7 +101,9 @@ static HWND  hdialog     = NULLHANDLE;
 
 // note: I originally intended to use 8192 for the finalFIR arrays
 // but Pentium CPUs have a too small cache (16KB) and it totally shits
-// putting anything bigger
+// putting anything bigger.
+// Update 2006-07-10 MM: Solved. Now FIR order 12288 works.
+// Higher values are possible too, but will require compensation for the latency.
 
 static struct
 {
@@ -147,12 +149,14 @@ char lasteq[CCHMAXPATH];
 /* Hamming window
 #define WINDOW_FUNCTION( n, N ) (0.54 - 0.46 * cos( 2 * M_PI * n / N ))
  * Well, since the EQ does not provide more tham 24dB dynamics
- * we should use a much more agressive window function. */
+ * we should use a much more agressive window function.
+ * This is verified by calculations.
+ */
 #define WINDOW_FUNCTION( n, N ) (0.8 - 0.2 * cos( 2 * M_PI * n / N ))
 
 #define round(n) ((n) > 0 ? (n) + 0.5 : (n) - 0.5)
 
-#define DO_8(p,x) \ 
+#define DO_8(p,x) \
 {  { const int p = 0; x; } \
    { const int p = 1; x; } \
    { const int p = 2; x; } \
@@ -163,12 +167,11 @@ char lasteq[CCHMAXPATH];
    { const int p = 7; x; } \
 }
 
-
 typedef struct {
 
-   int  (*_System output_play_samples)( void* a, FORMAT_INFO* format, char* buf, int len, int posmarker );
+   int  (PM123_ENTRYP output_play_samples)( void* a, FORMAT_INFO* format, char* buf, int len, int posmarker );
    void* a;
-   void (*_System error_display)( char* );
+   void (PM123_ENTRYP error_display)( char* );
 
    FORMAT_INFO last_format;
    int   prevlen;
@@ -183,7 +186,7 @@ void _CRT_term( void );
 
 /********** Entry point: Initialize
 */
-ULONG _System
+ULONG PM123_ENTRY
 filter_init( void** F, FILTER_PARAMS* params )
 {
   REALEQ_STRUCT* f = (REALEQ_STRUCT*)malloc( sizeof( REALEQ_STRUCT ));
@@ -207,9 +210,7 @@ filter_init( void** F, FILTER_PARAMS* params )
   return 0;
 }
 
-/********** Entry point: Cleanup
-*/ 
-BOOL _System
+BOOL PM123_ENTRY
 filter_uninit( void* F )
 {
   REALEQ_STRUCT* f = (REALEQ_STRUCT*)F;
@@ -240,7 +241,7 @@ static BOOL fil_setup( REALEQ_STRUCT* f, int samplerate, int channels )
   float fftspecres;
   // equalizer design data
   EQcoef coef[NUM_BANDS+4]; // including surounding points
-  
+
   static const float pow_2_20 = 1L << 20;
   static const float pow_2_15 = 1L << 15;
   // mute = -36dB. More makes no sense since the stopband attenuation
@@ -269,7 +270,7 @@ static BOOL fil_setup( REALEQ_STRUCT* f, int samplerate, int channels )
     fftwf_free(FFT.kernel[0]);
     fftwf_free(FFT.kernel[1]);
   }
-  
+
   // copy global parameters for thread safety
   FFT.plansize = newPlansize;
   // round up to next power of 2
@@ -278,7 +279,7 @@ static BOOL fil_setup( REALEQ_STRUCT* f, int samplerate, int channels )
   #ifdef DEBUG
   fprintf(stderr, "I: %d - %p\n", i, FFT.DCT_plan);
   #endif
-  
+
   // allocate buffers
   FFT.freq_domain = fftwf_malloc((i/2+1) * sizeof *FFT.freq_domain);
   FFT.time_domain = fftwf_malloc((i+1) * sizeof *FFT.time_domain);
@@ -295,16 +296,16 @@ static BOOL fil_setup( REALEQ_STRUCT* f, int samplerate, int channels )
   FFT.backward_plan = fftwf_plan_dft_c2r_1d( FFT.plansize, FFT.freq_domain, FFT.time_domain, FFTW_ESTIMATE);
   // prepare real 2 real transformations
   FFT.RDCT_plan = fftwf_plan_r2r_1d(FFT.plansize/2+1, FFT.time_domain, FFT.kernel[0], FFTW_REDFT00, FFTW_ESTIMATE);
-  
+
   eqneedinit = FALSE;
- 
+
  doFIR:
   if( newFIRorder < 2 || newFIRorder >= FFT.plansize)
   { (*f->error_display)("very bad! The FIR order and/or the FFT plansize is invalid or the FIRorder is higer or equal to the plansize.");
     eqenabled = FALSE; // avoid crash
     return FALSE;
   }
-  
+
   // copy global parameters for thread safety
   FIRorder = (newFIRorder+15) & -16; /* multiple of 16 */
 
@@ -325,7 +326,7 @@ static BOOL fil_setup( REALEQ_STRUCT* f, int samplerate, int channels )
  doEQ:
   memset(&patched, 0, sizeof(patched));
   fftspecres = (float)samplerate / FFT.DCTplansize;
-    
+
   // Prepare design coefficients frame
   coef[0].lf = -14; // very low frequency
   coef[0].lv = log_mute_level;
@@ -341,7 +342,7 @@ static BOOL fil_setup( REALEQ_STRUCT* f, int samplerate, int channels )
   /* for left, right */
   largest = 0;
   for( channel = 0; channel < channels; channel++ )
-  { 
+  {
     // fill band data
     for (i = 0; i < NUM_BANDS; ++i)
       coef[i+2].lv = mute[channel][i] ? log_mute_level : log(bandgain[channel][i]);
@@ -359,10 +360,10 @@ static BOOL fil_setup( REALEQ_STRUCT* f, int samplerate, int channels )
         pos = .5 - .5*cos(M_PI * (log(f)-cop[0].lf) / (cop[1].lf-cop[0].lf));
         val = exp(cop[0].lv + pos * (cop[1].lv - cop[0].lv));
         FFT.design[i] = val;
-        #ifdef DEBUG 
+        #ifdef DEBUG
         fprintf(stderr, "F: %i, %g, %g -> %g = %g dB @ %g\n", i, f, pos, FFT.design[i], 20*log(val)/log(10), exp(cop[0].lf));
         #endif
-    } } 
+    } }
 
     // transform into the time domain
     fftwf_execute(FFT.DCT_plan);
@@ -370,7 +371,7 @@ static BOOL fil_setup( REALEQ_STRUCT* f, int samplerate, int channels )
     for (i = 0; i <= FFT.DCTplansize/2; ++i)
       fprintf(stderr, "TK: %i, %g\n", i, FFT.time_domain[i]);
     #endif
-    
+
     // normalize, apply window function and store results symmetrically
     { float* sp = FFT.time_domain;
       float* dp1 = &patched.finalFIR[FIRorder/2][channel];
@@ -400,7 +401,7 @@ static BOOL fil_setup( REALEQ_STRUCT* f, int samplerate, int channels )
     #endif
   }
 
-  /* prepare data for MMX convolution */ 
+  /* prepare data for MMX convolution */
 
   // so the largest value don't overflow squeezed in a short
   largest += largest / pow_2_15;
@@ -488,11 +489,9 @@ static BOOL fil_setup( REALEQ_STRUCT* f, int samplerate, int channels )
   }
 
   eqneedEQ = FALSE;
-
   FFTinit = TRUE;
   return TRUE;
 }
-
 
 static void
 filter_samples_fpu_mono( short* newsamples, short* temp, char* buf, int len )
@@ -608,7 +607,7 @@ _Inline void do_fft_load_overlap(float* overlap_buffer)
 
 /* store last FIRorder samples */
 static void do_fft_save_overlap(float* overlap_buffer, int len)
-{ 
+{
   #ifdef DEBUG
   fprintf(stderr, "SO: %p, %i, %i\n", overlap_buffer, len, FIRorder);
   #endif
@@ -641,7 +640,7 @@ static void do_fft_load_samples_mono(const short* sp, const int len, float* over
 }
 /* convert samples from short to float and store it in the FFT.time_domain buffer
  * This will cover only one channel. The only difference to to mono-version is that
- * the source pointer is incremented by 2 per sample. 
+ * the source pointer is incremented by 2 per sample.
  */
 static void do_fft_load_samples_stereo(const short* sp, const int len, float* overlap_buffer)
 { int l;
@@ -702,19 +701,19 @@ static void do_fft_store_samples_stereo(short* sp, const int len)
 }
 
 static void filter_samples_fft_mono(short* newsamples, const short* buf, int len)
-{ 
+{
   while (len) // we might need more than one FFT cycle
   { int l2 = FFT.plansize - FIRorder;
     if (l2 > len)
       l2 = len;
-    
+
     // convert to float (well, that bill we have to pay)
     do_fft_load_samples_mono(buf, l2, FFT.overlap[0]);
     // do FFT
     do_fft_filter(FFT.kernel[0]);
     // convert back to short and use overlap/add
     do_fft_store_samples_mono(newsamples, l2);
-    
+
     // next block
     len -= l2;
     newsamples += l2;
@@ -736,7 +735,7 @@ static void filter_samples_fft_stereo( short* newsamples, const short* buf, int 
     do_fft_filter(FFT.kernel[0]);
     // convert back to short and use overlap/add
     do_fft_store_samples_stereo(newsamples, l2);
-    
+
     // right channel
     // convert to float (well, that bill we have to pay)
     do_fft_load_samples_stereo(buf+1, l2, FFT.overlap[1]);
@@ -754,7 +753,7 @@ static void filter_samples_fft_stereo( short* newsamples, const short* buf, int 
 }
 
 /* Entry point: do filtering */
-int _System
+int PM123_ENTRY
 filter_play_samples( void* F, FORMAT_INFO* format, char* buf, int len, int posmarker )
 {
   REALEQ_STRUCT* f = (REALEQ_STRUCT*)F;
@@ -776,7 +775,7 @@ filter_play_samples( void* F, FORMAT_INFO* format, char* buf, int len, int posma
     fil_setup( f, format->samplerate, format->channels );
 
     if (use_fft)
-    { 
+    {
       if( format->channels == 2 ) {
         filter_samples_fft_stereo( newsamples, (short*)buf, len>>2 );
       } else if( format->channels == 1 ) {
@@ -786,7 +785,7 @@ filter_play_samples( void* F, FORMAT_INFO* format, char* buf, int len, int posma
     {
       memmove((char*)temp, (char*)temp+f->prevlen, FIRorder*format->channels*format->bits/8 );
       f->prevlen = len;
-      
+
       if( format->channels == 2 ) {
         filter_samples_mmx_stereo( newsamples, temp, buf, len );
       } else if( format->channels == 1 ) {
@@ -857,6 +856,7 @@ load_ini( void )
   lasteq[0]   = 0;
   newPlansize    = 8192;
   newFIRorder    = 4096;
+  FIRorder    = 4096;
   locklr      = FALSE;
 
   if(( INIhandle = open_module_ini()) != NULLHANDLE )
@@ -873,9 +873,9 @@ load_ini( void )
 
     if (newPlansize <= newFIRorder)
       newFIRorder = newPlansize >> 1; // avoid crash when INI-Content is bad
-      
+
     if (use_fft)
-      use_mmx = FALSE; // migration from older profiles 
+      use_mmx = FALSE; // migration from older profiles
   }
 }
 
@@ -927,14 +927,15 @@ save_eq( HWND hwnd, float* gains, BOOL* mutes, float preamp )
   return FALSE;
 }
 
-static void drivedir( char* buf, char* fullpath )
+static
+void drivedir( char* buf, char* fullpath )
 {
   char drive[_MAX_DRIVE],
        path [_MAX_PATH ];
 
-  _splitpath( fullpath, drive, path, NULL, NULL );
-   strcpy( buf, drive );
-   strcat( buf, path  );
+ _splitpath( fullpath, drive, path, NULL, NULL );
+  strcpy( buf, drive );
+  strcat( buf, path  );
 }
 
 static BOOL
@@ -991,13 +992,14 @@ load_eq( HWND hwnd, float* gains, BOOL* mutes, float* preamp )
   return FALSE;
 }
 
-void _System
+int PM123_ENTRY
 plugin_query( PLUGIN_QUERYPARAM *param )
 {
   param->type = PLUGIN_FILTER;
   param->author = "Samuel Audet";
   param->desc = VERSION;
   param->configurable = TRUE;
+  return 0;
 }
 
 static void
@@ -1135,7 +1137,7 @@ ConfigureDlgProc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
         ULONG temp;
 
         case EQ_ENABLED:
-          eqenabled = WinQueryButtonCheckstate( hwnd, id ); 
+          eqenabled = WinQueryButtonCheckstate( hwnd, id );
           break;
 
         case ID_LOCKLR:
@@ -1144,16 +1146,16 @@ ConfigureDlgProc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
 
         case ID_USEMMX:
           use_mmx = WinQueryButtonCheckstate( hwnd, id );
-          if (use_mmx)
-          { use_fft = FALSE;
+          if( use_mmx ) {
+            use_fft = FALSE;
             WinSendDlgItemMsg( hwnd, ID_USEFFT, BM_SETCHECK, MPFROMSHORT( FALSE ), 0 );
           }
           break;
 
         case ID_USEFFT:
           use_fft = WinQueryButtonCheckstate( hwnd, id );
-          if (use_fft)
-          { use_mmx = FALSE;
+          if( use_fft ) {
+            use_mmx = FALSE;
             WinSendDlgItemMsg( hwnd, ID_USEMMX, BM_SETCHECK, MPFROMSHORT( FALSE ), 0 );
           }
           break;
@@ -1168,6 +1170,7 @@ ConfigureDlgProc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
                else
               { newFIRorder = temp;
                 eqneedFIR = TRUE; // no init required when only the FIRorder changes
+                FIRorder = temp; // TODO: dirty threading issue
               }
               break;
 
@@ -1318,7 +1321,7 @@ ConfigureDlgProc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
   return WinDefDlgProc( hwnd, msg, mp1, mp2 );
 }
 
-void _System
+int PM123_ENTRY
 plugin_configure( HWND hwnd, HMODULE module )
 {
   if( !hdialog ) {
@@ -1328,26 +1331,36 @@ plugin_configure( HWND hwnd, HMODULE module )
 
   WinShowWindow( hdialog, TRUE );
   WinSetFocus  ( HWND_DESKTOP, WinWindowFromID( hdialog, EQ_ENABLED ));
+  return 0;
 }
 
-BOOL _System
-_DLL_InitTerm( ULONG hModule, ULONG flag )
+extern int INIT_ATTRIBUTE __dll_initialize( void )
 {
-  if(flag == 0)
-  {
-    mmx_present = detect_mmx();
-    if( _CRT_init() == -1 ) {
-      return FALSE;
-    }
-    load_ini();
-    load_eq_file( lasteq, (float*)bandgain, (BOOL*)mute, &preamp );
-  }
-  else
-  {
-    save_ini();
-   _CRT_term();
-  }
+  mmx_present = detect_mmx();
 
-  return TRUE;
+  load_ini();
+  load_eq_file( lasteq, (float*)bandgain, (BOOL*)mute, &preamp );
+  return 1;
 }
 
+extern int TERM_ATTRIBUTE __dll_terminate( void )
+{
+  save_ini();
+  return 1;
+}
+
+#if defined(__IBMC__)
+unsigned long _System _DLL_InitTerm( unsigned long modhandle,
+                                     unsigned long flag       )
+{
+  if( flag == 0 ) {
+    if( _CRT_init() == -1 ) return 0UL;
+    __dll_initialize();
+  } else {
+    __dll_terminate ();
+    _CRT_term();
+  }
+
+  return 1UL;
+}
+#endif

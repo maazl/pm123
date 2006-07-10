@@ -32,8 +32,10 @@
 #ifndef _PM123_PLAYLIST_H
 #define _PM123_PLAYLIST_H
 
+#ifndef  RC_INVOKED
 #include "format.h"
 #include "tag.h"
+#endif
 
 #define DLG_PLAYLIST         42
 #define CNR_PLAYLIST FID_CLIENT

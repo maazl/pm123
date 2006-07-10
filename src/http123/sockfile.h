@@ -1,4 +1,4 @@
-typedef struct
+typedef struct _SOCKFILE
 {
    /* normal file stuff */
    FILE *stream;
@@ -23,21 +23,22 @@ typedef struct
    HMTX accessbuffer;
    HMTX accessfile;
    int justseeked;
+
 } SOCKFILE;
 
 #define HTTP 1 /* sockmode, 0 = usual local file access */
 #define FTP  2
 
-size_t _System _fread(void *buffer, size_t size, size_t count, FILE *stream);
-long _System _ftell(FILE *stream);
-FILE *_System _fopen (const char *fname, const char *mode, int sockmode, int buffersize, int bufferwait);
-int _System _fclose (FILE *stream);
-int _System _fseek(FILE *stream, long offset, int origin);
-void _System _rewind (FILE *stream);
-size_t _System _fsize(FILE *stream);
+size_t PM123_ENTRY xio_fread ( void* buffer, size_t size, size_t count, FILE* stream );
+long   PM123_ENTRY xio_ftell ( FILE* stream );
+FILE*  PM123_ENTRY xio_fopen ( const char* fname, const char* mode, int sockmode, int buffersize, int bufferwait );
+int    PM123_ENTRY xio_fclose( FILE* stream );
+int    PM123_ENTRY xio_fseek ( FILE* stream, long offset, int origin );
+void   PM123_ENTRY xio_rewind( FILE* stream );
+size_t PM123_ENTRY xio_fsize ( FILE* stream );
 
-int _System sockfile_errno(int sockmode);
-int _System sockfile_bufferstatus(FILE *stream);
-int _System sockfile_nobuffermode(FILE *stream, int setnobuffermode);
-int _System sockfile_abort(FILE *stream);
-int _System sockfile_httpinfo(FILE *stream, HTTP_INFO *http_info);
+int PM123_ENTRY sockfile_errno( int sockmode );
+int PM123_ENTRY sockfile_bufferstatus( FILE* stream );
+int PM123_ENTRY sockfile_nobuffermode( FILE* stream, int setnobuffermode );
+int PM123_ENTRY sockfile_abort( FILE* stream );
+int PM123_ENTRY sockfile_httpinfo( FILE* stream, HTTP_INFO* http_info );

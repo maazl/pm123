@@ -129,13 +129,13 @@ int WAV::readData(char *buffer, int bytes)
 int WAV::filepos()
 {
    if(hfile == -1) return 0;
-   return _tell(hfile) - headersize;
+   return tell(hfile) - headersize;
 }
 
 int WAV::filelength()
 {
    if(hfile == -1) return 0;
-   return _filelength(hfile) - headersize;
+   return ::filelength(hfile) - headersize;
 }
 
 
@@ -197,7 +197,7 @@ int WAV::readHeader()
                   header.WAVE.t10 = 't';
                   header.WAVE.a11 = 'a';
                   header.WAVE.datalen = length;
-                  return _tell(hfile); /* tada */
+                  return tell(hfile); /* tada */
                }
                else
                   /* we skip things we don't know */

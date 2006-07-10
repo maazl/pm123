@@ -102,10 +102,10 @@ class HTTP_socket : public tcpip_socket
       ENTITY_HEADER   response_entity;
 
       /* fills up previous structures */
-      int process_headers();
+      bool process_headers();
 
       /* resets the structures to default and does a new request */
-      int new_request(char *method, char *URI,
+      bool new_request(char *method, char *URI,
                       GENERAL_HEADER *req_general, REQUEST_HEADER *req_req);
 
       /* builds URI for GET request */

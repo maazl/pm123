@@ -105,10 +105,10 @@ skin_convert( char *src )
   strcpy( dir, src );
 
   if( dir[ strlen(dir) - 1 ] == '\\' ) {
-    dir[ strlen(dir) - 1 ] = '/';
+    dir[ strlen(dir) - 1 ] = '\\';
   }
   if( dir[ strlen(dir) - 1 ] != '\\' && dir[ strlen(dir) - 1 ] != '/' ) {
-    strcat( dir, "/" );
+    strcat( dir, "\\" );
   }
 
   sprintf( file, "%smain.bmp", dir );
@@ -457,9 +457,8 @@ skin_convert( char *src )
     while( !feof( f01 )) {
       fgets( file, sizeof( file ), f01 );
       if( strnicmp( file, "MbFG=#", 6 ) == 0 ) {
-        sscanf( file + 6, "%08X", &flg[ UL_FG_MSG_COLOR ] );
+        sscanf( file + 6, "%08lX", &flg[ UL_FG_MSG_COLOR ] );
       }
-      fprintf( f02, "%s", file );
     }
     fclose( f01 );
   }
@@ -657,6 +656,7 @@ skin_convert( char *src )
   fprintf( skin, "1837,%s7.bmp\n",       dir );
   fprintf( skin, "1838,%s8.bmp\n",       dir );
   fprintf( skin, "1839,%s9.bmp\n",       dir );
+  fprintf( skin, "1840,%sh.bmp\n",       dir );
   fprintf( skin, "1630,%svolbar.bmp\n",  dir );
   fprintf( skin, "1620,%svolhndl.bmp\n", dir );
 
@@ -679,26 +679,26 @@ skin_convert( char *src )
   fprintf( skin, "; Created by PM123 Skin Utility (c) Taneli Lepp„ <rosmo@sektori.com>\n" );
   fprintf( skin, "\n" );
   fprintf( skin, "30,%s.pak\n", file );
-  fprintf( skin, "6,1\n" );
-  fprintf( skin, "7,1\n" );
-  fprintf( skin, "9,1\n" );
+  fprintf( skin, "6,1\n"  );
+  fprintf( skin, "7,1\n"  );
+  fprintf( skin, "9,1\n"  );
   fprintf( skin, "10,1\n" );
   fprintf( skin, "11,1\n" );
   fprintf( skin, "13,1\n" );
-  fprintf( skin, "14,%d\n", flg[ UL_R_MSG_HEIGHT ]);
-  fprintf( skin, "15,%d\n", flg[ UL_S_MSG_HEIGHT ]);
+  fprintf( skin, "14,%ld\n", flg[ UL_R_MSG_HEIGHT ]);
+  fprintf( skin, "15,%ld\n", flg[ UL_S_MSG_HEIGHT ]);
 
-  fprintf( skin, "16,%d/%d/%d\n", flg[ UL_FG_MSG_COLOR ] >> 16 & 0x000000FFUL,
-                                  flg[ UL_FG_MSG_COLOR ] >>  8 & 0x000000FFUL,
-                                  flg[ UL_FG_MSG_COLOR ]       & 0x000000FFUL );
+  fprintf( skin, "16,%ld/%ld/%ld\n", flg[ UL_FG_MSG_COLOR ] >> 16 & 0x000000FFUL,
+                                     flg[ UL_FG_MSG_COLOR ] >>  8 & 0x000000FFUL,
+                                     flg[ UL_FG_MSG_COLOR ]       & 0x000000FFUL );
 
-  fprintf( skin, "20,%d\n", flg[ UL_R_MSG_LEN    ]);
-  fprintf( skin, "22,%d\n", flg[ UL_S_MSG_LEN    ]);
+  fprintf( skin, "20,%ld\n", flg[ UL_R_MSG_LEN   ]);
+  fprintf( skin, "22,%ld\n", flg[ UL_S_MSG_LEN   ]);
   fprintf( skin, "21,219\n" );
-  fprintf( skin, "23,0\n" );
-  fprintf( skin, "24,%d\n", flg[ UL_TIMER_SPACE  ]);
-  fprintf( skin, "25,0\n" );
-  fprintf( skin, "26,1\n" );
+  fprintf( skin, "23,0\n"   );
+  fprintf( skin, "24,%ld\n", flg[ UL_TIMER_SPACE ]);
+  fprintf( skin, "25,0\n"   );
+  fprintf( skin, "26,1\n"   );
 
   if( flg[ UL_VOLUME_SLIDER ]) {
     fprintf( skin, "27,1\n" );
@@ -708,67 +708,67 @@ skin_convert( char *src )
   fprintf( skin, "29,1\n" );
   fprintf( skin, "\n" );
 
-  fprintf( skin, "1:%d,%d\n" , pos[ POS_TIMER        ].x, pos[ POS_TIMER        ].y );
-  fprintf( skin, "2:%d,%d\n" , pos[ POS_R_SIZE       ].x, pos[ POS_R_SIZE       ].y );
-  fprintf( skin, "3:%d,%d\n" , pos[ POS_R_PLAY       ].x, pos[ POS_R_PLAY       ].y );
-  fprintf( skin, "4:%d,%d\n" , pos[ POS_R_PAUSE      ].x, pos[ POS_R_PAUSE      ].y );
-  fprintf( skin, "5:%d,%d\n" , pos[ POS_R_REW        ].x, pos[ POS_R_REW        ].y );
-  fprintf( skin, "6:%d,%d\n" , pos[ POS_R_FWD        ].x, pos[ POS_R_FWD        ].y );
-  fprintf( skin, "7:%d,%d\n" , pos[ POS_R_PL         ].x, pos[ POS_R_PL         ].y );
-  fprintf( skin, "8:%d,%d\n" , pos[ POS_R_REPEAT     ].x, pos[ POS_R_REPEAT     ].y );
-  fprintf( skin, "9:%d,%d\n" , pos[ POS_R_SHUFFLE    ].x, pos[ POS_R_SHUFFLE    ].y );
-  fprintf( skin, "10:%d,%d\n", pos[ POS_R_PREV       ].x, pos[ POS_R_PREV       ].y );
-  fprintf( skin, "11:%d,%d\n", pos[ POS_R_NEXT       ].x, pos[ POS_R_NEXT       ].y );
-  fprintf( skin, "12:%d,%d\n", pos[ POS_R_POWER      ].x, pos[ POS_R_POWER      ].y );
-  fprintf( skin, "13:%d,%d\n", pos[ POS_R_TEXT       ].x, pos[ POS_R_TEXT       ].y );
-  fprintf( skin, "14:%d,%d\n", pos[ POS_S_TEXT       ].x, pos[ POS_S_TEXT       ].y );
-  fprintf( skin, "15:%d,%d\n", pos[ POS_NOTL         ].x, pos[ POS_NOTL         ].y );
-  fprintf( skin, "16:%d,%d\n", pos[ POS_TL           ].x, pos[ POS_TL           ].y );
-  fprintf( skin, "17:%d,%d\n", pos[ POS_NOPLIST      ].x, pos[ POS_NOPLIST      ].y );
-  fprintf( skin, "18:%d,%d\n", pos[ POS_PLIST        ].x, pos[ POS_PLIST        ].y );
-  fprintf( skin, "19:%d,%d\n", pos[ POS_TIME_LEFT    ].x, pos[ POS_TIME_LEFT    ].y );
-  fprintf( skin, "20:%d,%d\n", pos[ POS_PL_LEFT      ].x, pos[ POS_PL_LEFT      ].y );
-  fprintf( skin, "21:%d,%d\n", pos[ POS_PL_MODE      ].x, pos[ POS_PL_MODE      ].y );
-  fprintf( skin, "22:%d,%d\n", pos[ POS_LED          ].x, pos[ POS_LED          ].y );
-  fprintf( skin, "23:%d,%d\n", pos[ POS_N_LED        ].x, pos[ POS_N_LED        ].y );
-  fprintf( skin, "24:%d,%d\n", pos[ POS_SLIDER       ].x, pos[ POS_SLIDER       ].y );
-  fprintf( skin, "25:%d,%d\n", pos[ POS_VOLBAR       ].x, pos[ POS_VOLBAR       ].y );
-  fprintf( skin, "26:%d,%d\n", pos[ POS_NO_CHANNELS  ].x, pos[ POS_NO_CHANNELS  ].y );
-  fprintf( skin, "27:%d,%d\n", pos[ POS_MONO         ].x, pos[ POS_MONO         ].y );
-  fprintf( skin, "28:%d,%d\n", pos[ POS_STEREO       ].x, pos[ POS_STEREO       ].y );
-  fprintf( skin, "29:%d,%d\n", pos[ POS_BPS          ].x, pos[ POS_BPS          ].y );
-  fprintf( skin, "30:%d,%d\n", pos[ POS_S_SIZE       ].x, pos[ POS_S_SIZE       ].y );
-  fprintf( skin, "31:%d,%d\n", pos[ POS_T_SIZE       ].x, pos[ POS_T_SIZE       ].y );
-  fprintf( skin, "33:%d,%d\n", pos[ POS_S_PLAY       ].x, pos[ POS_S_PLAY       ].y );
-  fprintf( skin, "34:%d,%d\n", pos[ POS_S_PAUSE      ].x, pos[ POS_S_PAUSE      ].y );
-  fprintf( skin, "35:%d,%d\n", pos[ POS_S_REW        ].x, pos[ POS_S_REW        ].y );
-  fprintf( skin, "36:%d,%d\n", pos[ POS_S_FWD        ].x, pos[ POS_S_FWD        ].y );
-  fprintf( skin, "37:%d,%d\n", pos[ POS_S_PL         ].x, pos[ POS_S_PL         ].y );
-  fprintf( skin, "38:%d,%d\n", pos[ POS_S_REPEAT     ].x, pos[ POS_S_REPEAT     ].y );
-  fprintf( skin, "39:%d,%d\n", pos[ POS_S_SHUFFLE    ].x, pos[ POS_S_SHUFFLE    ].y );
-  fprintf( skin, "40:%d,%d\n", pos[ POS_S_PREV       ].x, pos[ POS_S_PREV       ].y );
-  fprintf( skin, "41:%d,%d\n", pos[ POS_S_NEXT       ].x, pos[ POS_S_NEXT       ].y );
-  fprintf( skin, "42:%d,%d\n", pos[ POS_S_POWER      ].x, pos[ POS_S_POWER      ].y );
-  fprintf( skin, "53:%d,%d\n", pos[ POS_T_PLAY       ].x, pos[ POS_T_PLAY       ].y );
-  fprintf( skin, "54:%d,%d\n", pos[ POS_T_PAUSE      ].x, pos[ POS_T_PAUSE      ].y );
-  fprintf( skin, "55:%d,%d\n", pos[ POS_T_REW        ].x, pos[ POS_T_REW        ].y );
-  fprintf( skin, "56:%d,%d\n", pos[ POS_T_FWD        ].x, pos[ POS_T_FWD        ].y );
-  fprintf( skin, "57:%d,%d\n", pos[ POS_T_PL         ].x, pos[ POS_T_PL         ].y );
-  fprintf( skin, "58:%d,%d\n", pos[ POS_T_REPEAT     ].x, pos[ POS_T_REPEAT     ].y );
-  fprintf( skin, "59:%d,%d\n", pos[ POS_T_SHUFFLE    ].x, pos[ POS_T_SHUFFLE    ].y );
-  fprintf( skin, "60:%d,%d\n", pos[ POS_T_PREV       ].x, pos[ POS_T_PREV       ].y );
-  fprintf( skin, "61:%d,%d\n", pos[ POS_T_NEXT       ].x, pos[ POS_T_NEXT       ].y );
-  fprintf( skin, "62:%d,%d\n", pos[ POS_T_POWER      ].x, pos[ POS_T_POWER      ].y );
-  fprintf( skin, "63:%d,%d\n", pos[ POS_PL_INDEX     ].x, pos[ POS_PL_INDEX     ].y );
-  fprintf( skin, "64:%d,%d\n", pos[ POS_PL_TOTAL     ].x, pos[ POS_PL_TOTAL     ].y );
-  fprintf( skin, "65:%d,%d\n", pos[ POS_R_STOP       ].x, pos[ POS_R_STOP       ].y );
-  fprintf( skin, "66:%d,%d\n", pos[ POS_R_FLOAD      ].x, pos[ POS_R_FLOAD      ].y );
-  fprintf( skin, "67:%d,%d\n", pos[ POS_SLIDER_SHAFT ].x, pos[ POS_SLIDER_SHAFT ].y );
-  fprintf( skin, "68:%d,%d\n", pos[ POS_S_STOP       ].x, pos[ POS_S_STOP       ].y );
-  fprintf( skin, "69:%d,%d\n", pos[ POS_S_FLOAD      ].x, pos[ POS_S_FLOAD      ].y );
-  fprintf( skin, "70:%d,%d\n", pos[ POS_T_STOP       ].x, pos[ POS_T_STOP       ].y );
-  fprintf( skin, "71:%d,%d\n", pos[ POS_T_FLOAD      ].x, pos[ POS_T_FLOAD      ].y );
-  fprintf( skin, "72:%d,%d\n", pos[ POS_VOLSLIDER    ].x, pos[ POS_VOLSLIDER    ].y );
+  fprintf( skin, "1:%ld,%ld\n" , pos[ POS_TIMER        ].x, pos[ POS_TIMER        ].y );
+  fprintf( skin, "2:%ld,%ld\n" , pos[ POS_R_SIZE       ].x, pos[ POS_R_SIZE       ].y );
+  fprintf( skin, "3:%ld,%ld\n" , pos[ POS_R_PLAY       ].x, pos[ POS_R_PLAY       ].y );
+  fprintf( skin, "4:%ld,%ld\n" , pos[ POS_R_PAUSE      ].x, pos[ POS_R_PAUSE      ].y );
+  fprintf( skin, "5:%ld,%ld\n" , pos[ POS_R_REW        ].x, pos[ POS_R_REW        ].y );
+  fprintf( skin, "6:%ld,%ld\n" , pos[ POS_R_FWD        ].x, pos[ POS_R_FWD        ].y );
+  fprintf( skin, "7:%ld,%ld\n" , pos[ POS_R_PL         ].x, pos[ POS_R_PL         ].y );
+  fprintf( skin, "8:%ld,%ld\n" , pos[ POS_R_REPEAT     ].x, pos[ POS_R_REPEAT     ].y );
+  fprintf( skin, "9:%ld,%ld\n" , pos[ POS_R_SHUFFLE    ].x, pos[ POS_R_SHUFFLE    ].y );
+  fprintf( skin, "10:%ld,%ld\n", pos[ POS_R_PREV       ].x, pos[ POS_R_PREV       ].y );
+  fprintf( skin, "11:%ld,%ld\n", pos[ POS_R_NEXT       ].x, pos[ POS_R_NEXT       ].y );
+  fprintf( skin, "12:%ld,%ld\n", pos[ POS_R_POWER      ].x, pos[ POS_R_POWER      ].y );
+  fprintf( skin, "13:%ld,%ld\n", pos[ POS_R_TEXT       ].x, pos[ POS_R_TEXT       ].y );
+  fprintf( skin, "14:%ld,%ld\n", pos[ POS_S_TEXT       ].x, pos[ POS_S_TEXT       ].y );
+  fprintf( skin, "15:%ld,%ld\n", pos[ POS_NOTL         ].x, pos[ POS_NOTL         ].y );
+  fprintf( skin, "16:%ld,%ld\n", pos[ POS_TL           ].x, pos[ POS_TL           ].y );
+  fprintf( skin, "17:%ld,%ld\n", pos[ POS_NOPLIST      ].x, pos[ POS_NOPLIST      ].y );
+  fprintf( skin, "18:%ld,%ld\n", pos[ POS_PLIST        ].x, pos[ POS_PLIST        ].y );
+  fprintf( skin, "19:%ld,%ld\n", pos[ POS_TIME_LEFT    ].x, pos[ POS_TIME_LEFT    ].y );
+  fprintf( skin, "20:%ld,%ld\n", pos[ POS_PL_LEFT      ].x, pos[ POS_PL_LEFT      ].y );
+  fprintf( skin, "21:%ld,%ld\n", pos[ POS_PL_MODE      ].x, pos[ POS_PL_MODE      ].y );
+  fprintf( skin, "22:%ld,%ld\n", pos[ POS_LED          ].x, pos[ POS_LED          ].y );
+  fprintf( skin, "23:%ld,%ld\n", pos[ POS_N_LED        ].x, pos[ POS_N_LED        ].y );
+  fprintf( skin, "24:%ld,%ld\n", pos[ POS_SLIDER       ].x, pos[ POS_SLIDER       ].y );
+  fprintf( skin, "25:%ld,%ld\n", pos[ POS_VOLBAR       ].x, pos[ POS_VOLBAR       ].y );
+  fprintf( skin, "26:%ld,%ld\n", pos[ POS_NO_CHANNELS  ].x, pos[ POS_NO_CHANNELS  ].y );
+  fprintf( skin, "27:%ld,%ld\n", pos[ POS_MONO         ].x, pos[ POS_MONO         ].y );
+  fprintf( skin, "28:%ld,%ld\n", pos[ POS_STEREO       ].x, pos[ POS_STEREO       ].y );
+  fprintf( skin, "29:%ld,%ld\n", pos[ POS_BPS          ].x, pos[ POS_BPS          ].y );
+  fprintf( skin, "30:%ld,%ld\n", pos[ POS_S_SIZE       ].x, pos[ POS_S_SIZE       ].y );
+  fprintf( skin, "31:%ld,%ld\n", pos[ POS_T_SIZE       ].x, pos[ POS_T_SIZE       ].y );
+  fprintf( skin, "33:%ld,%ld\n", pos[ POS_S_PLAY       ].x, pos[ POS_S_PLAY       ].y );
+  fprintf( skin, "34:%ld,%ld\n", pos[ POS_S_PAUSE      ].x, pos[ POS_S_PAUSE      ].y );
+  fprintf( skin, "35:%ld,%ld\n", pos[ POS_S_REW        ].x, pos[ POS_S_REW        ].y );
+  fprintf( skin, "36:%ld,%ld\n", pos[ POS_S_FWD        ].x, pos[ POS_S_FWD        ].y );
+  fprintf( skin, "37:%ld,%ld\n", pos[ POS_S_PL         ].x, pos[ POS_S_PL         ].y );
+  fprintf( skin, "38:%ld,%ld\n", pos[ POS_S_REPEAT     ].x, pos[ POS_S_REPEAT     ].y );
+  fprintf( skin, "39:%ld,%ld\n", pos[ POS_S_SHUFFLE    ].x, pos[ POS_S_SHUFFLE    ].y );
+  fprintf( skin, "40:%ld,%ld\n", pos[ POS_S_PREV       ].x, pos[ POS_S_PREV       ].y );
+  fprintf( skin, "41:%ld,%ld\n", pos[ POS_S_NEXT       ].x, pos[ POS_S_NEXT       ].y );
+  fprintf( skin, "42:%ld,%ld\n", pos[ POS_S_POWER      ].x, pos[ POS_S_POWER      ].y );
+  fprintf( skin, "53:%ld,%ld\n", pos[ POS_T_PLAY       ].x, pos[ POS_T_PLAY       ].y );
+  fprintf( skin, "54:%ld,%ld\n", pos[ POS_T_PAUSE      ].x, pos[ POS_T_PAUSE      ].y );
+  fprintf( skin, "55:%ld,%ld\n", pos[ POS_T_REW        ].x, pos[ POS_T_REW        ].y );
+  fprintf( skin, "56:%ld,%ld\n", pos[ POS_T_FWD        ].x, pos[ POS_T_FWD        ].y );
+  fprintf( skin, "57:%ld,%ld\n", pos[ POS_T_PL         ].x, pos[ POS_T_PL         ].y );
+  fprintf( skin, "58:%ld,%ld\n", pos[ POS_T_REPEAT     ].x, pos[ POS_T_REPEAT     ].y );
+  fprintf( skin, "59:%ld,%ld\n", pos[ POS_T_SHUFFLE    ].x, pos[ POS_T_SHUFFLE    ].y );
+  fprintf( skin, "60:%ld,%ld\n", pos[ POS_T_PREV       ].x, pos[ POS_T_PREV       ].y );
+  fprintf( skin, "61:%ld,%ld\n", pos[ POS_T_NEXT       ].x, pos[ POS_T_NEXT       ].y );
+  fprintf( skin, "62:%ld,%ld\n", pos[ POS_T_POWER      ].x, pos[ POS_T_POWER      ].y );
+  fprintf( skin, "63:%ld,%ld\n", pos[ POS_PL_INDEX     ].x, pos[ POS_PL_INDEX     ].y );
+  fprintf( skin, "64:%ld,%ld\n", pos[ POS_PL_TOTAL     ].x, pos[ POS_PL_TOTAL     ].y );
+  fprintf( skin, "65:%ld,%ld\n", pos[ POS_R_STOP       ].x, pos[ POS_R_STOP       ].y );
+  fprintf( skin, "66:%ld,%ld\n", pos[ POS_R_FLOAD      ].x, pos[ POS_R_FLOAD      ].y );
+  fprintf( skin, "67:%ld,%ld\n", pos[ POS_SLIDER_SHAFT ].x, pos[ POS_SLIDER_SHAFT ].y );
+  fprintf( skin, "68:%ld,%ld\n", pos[ POS_S_STOP       ].x, pos[ POS_S_STOP       ].y );
+  fprintf( skin, "69:%ld,%ld\n", pos[ POS_S_FLOAD      ].x, pos[ POS_S_FLOAD      ].y );
+  fprintf( skin, "70:%ld,%ld\n", pos[ POS_T_STOP       ].x, pos[ POS_T_STOP       ].y );
+  fprintf( skin, "71:%ld,%ld\n", pos[ POS_T_FLOAD      ].x, pos[ POS_T_FLOAD      ].y );
+  fprintf( skin, "72:%ld,%ld\n", pos[ POS_VOLSLIDER    ].x, pos[ POS_VOLSLIDER    ].y );
 
   if( have_specana ) {
     fprintf( skin, "1=visplug/analyzer.dll,24,57,76,16,%s.dat\n", file );
@@ -927,7 +927,7 @@ main( int argc, char *argv[] )
     }
   }
 
-  fprintf( stderr,"\x1b%s\x1b: Unknown command." );
+  fprintf( stderr, "\x1b%s\x1b: Unknown command.", argv[1] );
   return 3;
 }
 
@@ -969,7 +969,7 @@ infoimage( char* src, GBM* gbm )
     return 0;
   }
 
-  if(( fd = gbm_io_open( src, O_RDONLY | O_BINARY )) == -1 )
+  if(( fd = gbm_io_open( src, GBM_O_RDONLY )) == -1 )
   {
     sprintf( suberror, "Cannot open %s", src );
     gbm_deinit();
@@ -993,7 +993,7 @@ int
 cropimage( char* src, char* dst, int xx, int yy, int ww, int hh )
 {
   char    fn_src[500+1], fn_dst[500+1], *opt_src, *opt_dst;
-  int     fd, ft_src, ft_dst, stride_src, flag, bytes;
+  int     fd, ft_src, ft_dst, stride_src, flag = 0, bytes;
   int     x, y, w, h;
   GBM_ERR rc;
   GBMFT   gbmft;
@@ -1026,7 +1026,7 @@ cropimage( char* src, char* dst, int xx, int yy, int ww, int hh )
     return 0;
   }
 
-  if(( fd = gbm_io_open( fn_src, O_RDONLY | O_BINARY )) == -1 )
+  if(( fd = gbm_io_open( fn_src, GBM_O_RDONLY )) == -1 )
   {
     sprintf( suberror, "Cannot open %s", fn_src );
     return 0;
@@ -1213,7 +1213,7 @@ skin_bundle( char *src, char *dst )
       strcpy( orig, buf );
     }
 
-    if( *buf && buf[0] != '#' || buf[0] != ';' )
+    if( *buf && ( buf[0] != '#' || buf[0] != ';' ))
     {
       buf4 = buf;
 
@@ -1273,7 +1273,7 @@ skin_bundle( char *src, char *dst )
   fclose( d );
   fclose( tak );
 
-  printf( "%u images, total %u bytes (%u kB).\n", images, bwritten, bwritten / 1024 );
+  printf( "%u images, total %lu bytes (%lu kB).\n", images, bwritten, bwritten / 1024 );
   return 1;
 }
 

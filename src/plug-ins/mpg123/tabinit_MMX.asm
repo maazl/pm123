@@ -3,6 +3,12 @@
 
 BITS 32
 
+%ifdef UNDERSCORE
+  %define decwin    _decwin
+  %define decwins   _decwins
+  %define conv16to8 _conv16to8
+%endif
+
 global decwin
 global decwins
 global conv16to8
@@ -68,6 +74,7 @@ make_decode_tables:
         push    ebx
         push    edi
         push    esi
+        sub     esp,100
 
         xor ecx,ecx
         xor ebx,ebx
@@ -171,6 +178,7 @@ _L12:
 _L13:
         pop     eax
 
+        add     esp,100
         pop     esi
         pop     edi
         pop     ebx

@@ -1,0 +1,10 @@
+SYSTEM OS2V2_DLL INITINSTANCE TERMINSTANCE
+OPTION MANYAUTODATA
+OPTION DESCRIPTION 'PM123 Real Equalizer'
+
+EXPORT filter_init         .1
+EXPORT filter_uninit       .2
+EXPORT filter_play_samples .3
+
+EXPORT plugin_query        .10
+EXPORT plugin_configure    .11

@@ -1,38 +1,34 @@
 #
-#  cddaplay.dll makefile for NMAKE and VAC++
+#  cddaplay.dll makefile
 #
 
-!include ..\..\config\makerules
+DLL      = yes
+TOPDIR   = ..\..
+INCDIR   = $(TOPDIR)\utils;$(TOPDIR)\include;ciscgi
 
-CFLAGS   = $(CFLAGS) $(DLLFLG)
-INCLUDE  = $(INCLUDE);.\ciscgi;..\..\utils;..\..\include
-LIB      = $(LIB);..\..\utils
+!include $(TOPDIR)\config\makerules
 
-all: cddaplay.dll
-
-DEF      = cdda.def
-OBJECTS  = cdda.obj readcd.obj tcpipsock.obj http.obj cddb.obj ciscgi\ciscgi.lib
-LIBS     = so32dll.lib tcp32dll.lib utilfct.lib
+OBJECTS  = cdda.obj readcd.obj tcpipsock.obj http.obj cddb.obj
+LIBS     = $(LIBS_TCP) $(TOPDIR)\utils\utilfct.lib ciscgi\ciscgi.lib
+DEF      = cdda$(LDEF_SUFFX)
 RESOURCE = cdda.res
 
-cddaplay.dll: $(OBJECTS) $(DEF) $(RESOURCE) 
-   $(CC) $(LNKFLG) /Fm$* /Fe$@ $(OBJECTS) $(DEF) $(LIBS)
-   $(RC) $(RESFLG) $(RESOURCE) $@ > nul
-   $(LI) $*.lib $@
+all: cddaplay.dll cddaplay.lib $(MDUMMY)
+
+cddaplay.dll: $(OBJECTS) $(DEF) $(RESOURCE) ciscgi\ciscgi.lib
+	$(CL) $(LFLAGS) $(LFLAGS_OUT)$@ $(LOBJ_PREFX)$(OBJECTS) $(LIBS)$(LOBJ_SUFFX) $(LDEF_PREFX)$(DEF)
+	$(RC) $(RFLAGS) $(RESOURCE) $@ > nul
+
+cddaplay.lib: $(DEF)
+	$(LI) $@ cddaplay.dll
 
 ciscgi\ciscgi.lib:
-   cd ciscgi 
-   @$(MAKE) all /nologo
-   cd ..
+	cd ciscgi
+	@$(MAKE) $(MFLAGS)
+	@cd ..
 
-clean:
-   cd ciscgi 
-   @$(MAKE) clean /nologo /i
-   @cd ..
-  -@del cddaplay.dll cddaplay.lib cddaplay.map $(OBJECTS) $(RESOURCE) 2> nul
-
-cdda.obj:      readcd.h tcpipsock.h http.h cddb.h
-readcd.obj:    readcd.h
-tcpipsock.obj: tcpipsock.h
-http.obj:      tcpipsock.h http.h
-cddb.obj:      readcd.h tcpipsock.h http.h cddb.h
+clean: $(MDUMMY)
+	-@del cddaplay.lib cddaplay.dll $(OBJECTS) $(RESOURCE) 2> nul
+	cd ciscgi
+	@$(MAKE) $(MFLAGS) clean
+	@cd ..

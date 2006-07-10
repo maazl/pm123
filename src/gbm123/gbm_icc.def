@@ -1,0 +1,29 @@
+LIBRARY GBM123 INITINSTANCE TERMINSTANCE
+DESCRIPTION 'PM123 GBM Library'
+DATA MULTIPLE NONSHARED READWRITE
+CODE PRELOAD EXECUTEREAD
+
+EXPORTS
+  gbm_init              @1
+  gbm_deinit            @2
+  gbm_io_setup          @3
+  gbm_io_open           @4
+  gbm_io_create         @5
+  gbm_io_close          @6
+  gbm_io_lseek          @7
+  gbm_io_read           @8
+  gbm_io_write          @9
+  gbm_query_n_filetypes @10
+  gbm_query_filetype    @11
+  gbm_guess_filetype    @12
+  gbm_read_header       @13
+  gbm_read_palette      @14
+  gbm_read_data         @15
+  gbm_write             @16
+  gbm_err               @17
+  gbm_version           @18
+  gbm_subrectangle      @19
+
+; new since GBM 1.35
+  gbm_restore_io_setup  @20
+  gbm_read_imgcount     @21

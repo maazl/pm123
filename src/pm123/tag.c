@@ -66,7 +66,7 @@ int wipetag(int fd,size_t filesize) {
    read(fd,&buffer,3);
    if (! strncmp(buffer,"TAG",3)) {
       lseek(fd,0,SEEK_SET);
-      if(_chsize(fd,filesize-128)==0)
+      if(chsize(fd,filesize-128)==0)
    return(1);
       else return(0);
    } else {

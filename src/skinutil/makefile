@@ -1,21 +1,22 @@
 #
-#  skinutil.exe makefile for NMAKE and VAC++
+#  skinutil.exe makefile
 #
 
+TOPDIR   = ..
+INCDIR   = $(TOPDIR)\utils;$(TOPDIR)\gbm123;$(TOPDIR)\pm123
+EXE_IO   = yes
 
-!include ..\config\makerules
+!include $(TOPDIR)\config\makerules
 
-INCLUDE = $(INCLUDE);..\utils;..\gbm123;..\pm123
-LIB     = $(LIB);..\utils;..\gbm123
+OBJECTS  = skinutil.obj
+DEF      = skinutil$(LDEF_SUFFX)
+LIBS     = $(TOPDIR)\gbm123\gbm123.lib $(TOPDIR)\utils\utilfct.lib
 
-all: skinutil.exe
+all: skinutil.exe $(MDUMMY)
 
-DEF     = skinutil.def
-OBJECTS = skinutil.obj 
-LIBS    = gbm123.lib gbmrect.lib utilfct.lib
 
-skinutil.exe: $(OBJECTS) $(DEF) $(RESOURCE)
-   $(CC) $(CFLAGS) /Fm$* /Fe$@ $(OBJECTS) $(DEF) $(LIBS)
+skinutil.exe: $(OBJECTS) $(DEF)
+	$(CL) $(LFLAGS) $(LFLAGS_OUT)$@ $(LOBJ_PREFX)$(OBJECTS) $(LIBS)$(LOBJ_SUFFX) $(LDEF_PREFX)$(DEF)
 
-clean:
-  -@del skinutil.exe skinutil.map $(OBJECTS) $(RESOURCE) 2> nul
+clean: $(MDUMMY)
+	-@del skinutil.exe $(OBJECTS) 2> nul

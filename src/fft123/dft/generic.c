@@ -114,8 +114,8 @@ static int applicable0(const problem *p_)
 {
      if (DFTP(p_)) {
           const problem_dft *p = (const problem_dft *) p_;
-          return (1
-	       && p->sz->rnk == 1
+          return (
+	          p->sz->rnk == 1
 	       && p->vecsz->rnk == 0
 	       && p->sz->dims[0].n > 1
 	       );
