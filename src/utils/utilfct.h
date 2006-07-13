@@ -74,6 +74,18 @@ extern "C" {
   #define TFNENTRY
 #endif
 
+#ifndef INLINE
+  #if defined(__GNUC__)
+    #define INLINE __inline__
+  #elif defined(__WATCOMC__)
+    #define INLINE __inline
+  #elif defined(__IBMC__)
+    #define INLINE _Inline
+  #else
+    #define INLINE static
+  #endif
+#endif
+
 #ifndef PM123_ENTRY
   #if defined(__IBMC__) || defined(__IBMCPP__)
     #define PM123_ENTRY  _System

@@ -239,17 +239,14 @@ output_command( void* A, ULONG msg, OUTPUT_PARAMS* info )
   switch( msg ) {
     case OUTPUT_OPEN:
     {
-      if( is_url( a->filename ))
-      {
-        URL url;
-        url_allocate( &url, info->filename );
-        sfname( a->filename, url.path );
-        url_free( &url );
-      } else {
-        sfname( a->filename, info->filename );
+      sfname( a->filename, info->filename, sizeof( a->filename ));
+      if( !*a->filename ) {
+        strcpy( a->filename, "wavout" );
       }
-
-      strcat( a->filename, ".wav" );
+      if( is_url( info->filename )) {
+        sdecode( a->filename, a->filename, sizeof( a->filename ));
+      }
+      strlcat( a->filename, ".wav", sizeof( a->filename ));
       rc = output_open( a );
       break;
     }

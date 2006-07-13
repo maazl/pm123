@@ -28,8 +28,13 @@ PM123's History
 
     REALEQ:
     - The mute controls of the left and right channel are placed correctly.
+    ! Thanks to Marcel Muller for all following:
     - Now used FFT convolution algorithm. The FFT convolution is about 10 times
-      faster than MMX. Thanks to Marcel Muller.
+      faster than MMX.
+    - Significantly improved filter kernel design.
+    - Thread-safe plansize & FIRorder changes.
+    - More aggressive window function.
+    - Larger FIR size, now up to 12288.
 
     CDDAPLAY:
     - Now shows correct bitrate at playing a track. Thanks to ntim.

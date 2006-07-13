@@ -235,7 +235,7 @@ amp_display_filename( void )
         if( is_http( current_filename )) {
           bmp_set_text( current_filename );
         } else {
-          bmp_set_text( sfname( display, current_filename ));
+          bmp_set_text( sfname( display, current_filename, sizeof( display )));
         }
       } else {
          bmp_set_text( "This is a bug!" );

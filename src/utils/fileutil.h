@@ -1,8 +1,5 @@
 /*
- * Copyright 1997-2003 Samuel Audet <guardia@step.polymtl.ca>
- *                     Taneli Lepp„ <rosmo@sektori.com>
- *
- * Copyright 2004-2005 Dmitry A.Steklenev <glass@ptv.ru>
+ * Copyright 2004-2006 Dmitry A.Steklenev <glass@ptv.ru>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -36,18 +33,24 @@
 extern "C" {
 #endif
 
-char* sdrive   ( char *result, const char* pathname );
-char* sdir     ( char *result, const char* pathname );
-char* sfname   ( char *result, const char* pathname );
-char* sext     ( char *result, const char* pathname );
-char* sfnameext( char *result, const char* pathname );
-char* sdrivedir( char *result, const char* pathname );
-BOOL  is_http  ( const char* filename );
-BOOL  is_track ( const char* filename );
-BOOL  is_file  ( const char* filename );
-BOOL  is_url   ( const char* filename );
-BOOL  is_root  ( const char* path     );
-BOOL  is_dir   ( const char* path     );
+// Because the result string always less or is equal to a location
+// string all functions can safely use the same storage area for a
+// location and result.
+
+char* sdrive   ( char* result, const char* location, size_t size );
+char* scheme   ( char* result, const char* location, size_t size );
+char* sfname   ( char* result, const char* location, size_t size );
+char* sfext    ( char* result, const char* location, size_t size );
+char* sfnameext( char* result, const char* location, size_t size );
+char* sdrivedir( char* result, const char* location, size_t size );
+char* sdecode  ( char* result, const char* location, size_t size );
+
+BOOL is_http ( const char* location );
+BOOL is_track( const char* location );
+BOOL is_file ( const char* location );
+BOOL is_url  ( const char* location );
+BOOL is_root ( const char* location );
+BOOL is_dir  ( const char* location );
 
 #if __cplusplus
 }

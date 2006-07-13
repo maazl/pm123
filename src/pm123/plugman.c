@@ -981,8 +981,8 @@ dec_set_name_active( char* name )
   }
 
   for( i = 0; i < num_decoders; i++ ) {
-    char filename[256];
-    sfnameext( filename, decoders[i].module_name );
+    char filename[_MAX_FNAME];
+    sfnameext( filename, decoders[i].module_name, sizeof( filename ));
     if( stricmp( filename, name ) == 0 ) {
       return dec_set_active( i );
     }
@@ -1088,7 +1088,7 @@ dec_fileinfo( char* filename, DECODER_INFO* info, char* name )
             checked[i] = TRUE;
             if( decoders[i].decoder_fileinfo( filename, info ) == 0 ) {
               if( name ) {
-                sfnameext( name, decoders[i].module_name );
+                sfnameext( name, decoders[i].module_name, _MAX_FNAME );
               }
               free( checked );
               return 0;
@@ -1105,7 +1105,7 @@ dec_fileinfo( char* filename, DECODER_INFO* info, char* name )
     if( decoders[i].enabled && decoders[i].decoder_fileinfo && !checked[i] ) {
       if( decoders[i].decoder_fileinfo( filename, info ) == 0 ) {
         if( name ) {
-          sfnameext( name, decoders[i].module_name );
+          sfnameext( name, decoders[i].module_name, _MAX_FNAME );
         }
         free( checked );
         return 0;
@@ -1129,7 +1129,7 @@ dec_trackinfo( char* drive, int track, DECODER_INFO* info, char* name )
     {
       last_rc = decoders[i].decoder_trackinfo( drive, track, info );
       if( last_rc == 0 && name != NULL ) {
-        sfnameext( name, decoders[i].module_name );
+        sfnameext( name, decoders[i].module_name, _MAX_FNAME );
         return 0;
       }
     }
@@ -1250,7 +1250,7 @@ out_set_name_active( char *name )
   for( i = 0; i < num_outputs; i++ )
   {
     char filename[256];
-    sfnameext( filename, outputs[i].module_name );
+    sfnameext( filename, outputs[i].module_name, _MAX_FNAME );
     if( stricmp( filename, name ) == 0 ) {
       out_set_active( i );
       return 0;
@@ -1449,7 +1449,7 @@ load_plugin_menu( HWND hMenu )
   for( i = 0; i < num_visuals; i++ )
   {
     sprintf( buffer, "%s (%s)", visuals[i].query_param.desc,
-             sfname( file, visuals[i].module_name ));
+             sfname( file, visuals[i].module_name, sizeof( file )));
 
     entries[next_entry].filename     = strdup( buffer );
     entries[next_entry].type         = PLUGIN_VISUAL;
@@ -1463,7 +1463,7 @@ load_plugin_menu( HWND hMenu )
   for( i = 0; i < num_decoders; i++ )
   {
     sprintf( buffer, "%s (%s)", decoders[i].query_param.desc,
-             sfname( file, decoders[i].module_name ));
+             sfname( file, decoders[i].module_name, sizeof( file )));
 
     entries[next_entry].filename     = strdup( buffer );
     entries[next_entry].type         = PLUGIN_DECODER;
@@ -1477,7 +1477,7 @@ load_plugin_menu( HWND hMenu )
   for( i = 0; i < num_outputs; i++ )
   {
     sprintf( buffer, "%s (%s)", outputs[i].query_param.desc,
-             sfname( file, outputs[i].module_name ));
+             sfname( file, outputs[i].module_name, sizeof( file )));
 
     entries[next_entry].filename     = strdup( buffer );
     entries[next_entry].type         = PLUGIN_OUTPUT;
@@ -1491,7 +1491,7 @@ load_plugin_menu( HWND hMenu )
   for( i = 0; i < num_filters; i++ )
   {
     sprintf( buffer, "%s (%s)", filters[i].query_param.desc,
-             sfname( file, filters[i].module_name ));
+             sfname( file, filters[i].module_name, sizeof( file )));
 
     entries[next_entry].filename     = strdup( buffer );
     entries[next_entry].type         = PLUGIN_FILTER;

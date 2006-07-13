@@ -409,8 +409,8 @@ bm_drag_init_item( HWND hwnd, BMRECORD* rec,
 
   memset( &ditem, 0, sizeof( ditem ));
 
-  sdrivedir( pathname, rec->filename );
-  sfnameext( filename, rec->filename );
+  sdrivedir( pathname, rec->filename, sizeof( pathname ));
+  sfnameext( filename, rec->filename, sizeof( filename ));
 
   ditem.hwndItem          = hwnd;
   ditem.ulItemID          = (ULONG)rec;
@@ -712,10 +712,15 @@ bm_add_bookmark( HWND owner )
       strcat( desc, "-" );
     }
     if( *current_tune.title  ) {
-      strcat( desc, current_tune.title  );
+      strlcat( desc, current_tune.title, sizeof( desc ));
     } else {
-      sfname( file, current_filename );
-      strcat( desc, file );
+      if( is_url( current_filename )) {
+        sdecode( file, sfname( file, current_filename, sizeof( file )), sizeof( file ));
+      } else {
+        sfname( file, current_filename, sizeof( file ));
+      }
+
+      strlcat( desc, file, sizeof( desc ));
     }
 
     WinSetDlgItemText( hdlg, EF_BM_DESC, desc );
@@ -1035,7 +1040,8 @@ bm_save( HWND owner )
 
   strcpy ( lstfile, startpath   );
   strcat ( lstfile, "bookmark.lst" );
-  sprintf( bakfile, "%s%s.bak", sdrivedir( path, lstfile ), sfname( fname, lstfile ));
+  sprintf( bakfile, "%s%s.bak", sdrivedir( path, lstfile, sizeof( path )),
+                                sfname( fname, lstfile, sizeof( fname )));
 
   if( remove( bakfile ) != 0 && errno != ENOENT ) {
     amp_error( owner, "Unable delete backup file:\n%s\n%s",

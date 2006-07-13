@@ -1738,7 +1738,8 @@ bmp_load_packfile( char *filename )
       if(( fbuf = malloc( hdr.length )) != NULL )
       {
         cb = fread( fbuf, 1, hdr.length, pack );
-        sprintf( tempname, "%spm123%s", startpath, sext( tempexts, hdr.filename ));
+        sprintf( tempname, "%spm123%s", startpath,
+                           sfext( tempexts, hdr.filename, sizeof( tempexts )));
 
         if(( temp = fopen( tempname, "wb" )) != NULL )
         {
@@ -1801,7 +1802,7 @@ bmp_load_skin( const char *filename, HAB hab, HWND hplayer, HPS hps )
   int   errors = 0;
   BOOL  empty  = TRUE;
 
-  sdrivedir( path, filename );
+  sdrivedir( path, filename, sizeof( path ));
 
   file = fopen( filename, "r" );
   if( !file && strlen( filename ) > 0 ) {
