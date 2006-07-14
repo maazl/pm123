@@ -66,14 +66,6 @@
   #define real double
 #endif
 
-#if defined( __GNUC__ )
-   #define INLINE inline
-#elif defined( __IBMC__ ) || defined( __IBMCPP__ )
-   #define INLINE _Inline
-#else
-   #define INLINE
-#endif
-
 #if !defined( NAS )
   #if defined( LINUX ) || defined( __FreeBSD__ ) || defined( __bsdi__ )
     #define VOXWARE

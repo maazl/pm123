@@ -352,7 +352,7 @@ cfg_page3_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
       {
         lb_remove_all( hwnd, LB_VISPLUG );
         for( i = 0; i < num_visuals; i++ ) {
-          lb_add_item( hwnd, LB_VISPLUG, sfname( filename, visuals[i].module_name ));
+          lb_add_item( hwnd, LB_VISPLUG, sfname( filename, visuals[i].module_name, sizeof( filename )));
         }
         if( lb_size( hwnd, LB_VISPLUG )) {
           lb_select( hwnd, LB_VISPLUG, 0 );
@@ -366,7 +366,7 @@ cfg_page3_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
       {
         lb_remove_all( hwnd, LB_DECPLUG );
         for( i = 0; i < num_decoders; i++ ) {
-          lb_add_item( hwnd, LB_DECPLUG, sfname( filename, decoders[i].module_name ));
+          lb_add_item( hwnd, LB_DECPLUG, sfname( filename, decoders[i].module_name, sizeof( filename )));
         }
         if( lb_size( hwnd, LB_DECPLUG )) {
           lb_select( hwnd, LB_DECPLUG, 0 );
@@ -572,7 +572,7 @@ cfg_page4_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
       {
         lb_remove_all( hwnd, LB_OUTPLUG );
         for( i = 0; i < num_outputs; i++ ) {
-          lb_add_item( hwnd, LB_OUTPLUG, sfname( filename, outputs[i].module_name ));
+          lb_add_item( hwnd, LB_OUTPLUG, sfname( filename, outputs[i].module_name, sizeof( filename )));
         }
         if( lb_size( hwnd, LB_OUTPLUG )) {
           lb_select( hwnd, LB_OUTPLUG, 0 );
@@ -586,7 +586,7 @@ cfg_page4_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
       {
         lb_remove_all( hwnd, LB_FILPLUG );
         for( i = 0; i < num_filters; i++ ) {
-          lb_add_item( hwnd, LB_FILPLUG, sfname( filename, filters[i].module_name ));
+          lb_add_item( hwnd, LB_FILPLUG, sfname( filename, filters[i].module_name, sizeof( filename )));
         }
         if( lb_size( hwnd, LB_FILPLUG )) {
           lb_select( hwnd, LB_FILPLUG, 0 );

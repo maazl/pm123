@@ -27,7 +27,32 @@ use the 'Track info' feature). You can also use
 files like this:
 <pre>1=visplug/analyzer.dll,x,y,size-x,size-y,viscolor.txt</pre>
 <p>The plugin will then read <tt>viscolor.txt</tt> and adapt to colors specified
-in it!
+in it! This text file contains all the 24 colours that will be shown in the
+visualization area when it is active (oscilloscope or spectrum analyzer).
+<p>Each colour is defined by three decimal numbers (red, green and blue components)
+separated by a comma, everything between "//" and the end of a line is a comment,
+it won't be taken into account. Each component range between 0 (no colour, black)
+to 255 (full colour: red, green or blue), so 0,0,0 is black, 255,255,255 is white.
+The order of the colours is defined in the followed table: the fist two colours
+define the background and dots (check it to see what are the dots), the next 16
+colours are the analyzer's colours from top to bottom, the next 5 colours are
+the oscilloscope's ones, from center to top/bottom, the last colour is for the
+analyzer's peak markers.
+<p>
+<table border=1 cellspacing=0>
+<tr><th>Line</th><th>Description</th></tr>
+<tr><td>0</td><td>Background color</td></tr>
+<tr><td>1</td><td>Dots color</td></tr>
+<tr><td>2</td><td>Top of spectrum analyzer</td></tr>
+<tr><td>3 - 16</td><td>Spectrum analyzer</td></tr>
+<tr><td>17</td><td>Bottom of spectrum analyzer</td></tr>
+<tr><td>18</td><td>Oscilloscope 1 (centre)</td></tr>
+<tr><td>19</td><td>Oscilloscope 2</td></tr>
+<tr><td>20</td><td>Oscilloscope 3</td></tr>
+<tr><td>21</td><td>Oscilloscope 4</td></tr>
+<tr><td>22</td><td>Oscilloscope 5</td></tr>
+<tr><td>23</td><td>Spectrum analyzer peak dots (unused at this time)</td></tr>
+</table>
 
 </body>
 </html>

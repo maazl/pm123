@@ -50,7 +50,7 @@
 #include <plugin.h>
 #include "realeq.h"
 
-#define DEBUG
+//#define DEBUG
 
 #define VERSION "Real Equalizer 1.21"
 #define MAX_COEF 16384
@@ -93,11 +93,11 @@ static const float Frequencies[NUM_BANDS] =
   19952.62315
 };
 
-static BOOL  mmx_present;
-static BOOL  eqneedinit  = TRUE;
-static BOOL  eqneedFIR   = TRUE;
-static BOOL  eqneedEQ    = TRUE;
-static HWND  hdialog     = NULLHANDLE;
+static BOOL mmx_present = FALSE;
+static BOOL eqneedinit  = TRUE;
+static BOOL eqneedFIR   = TRUE;
+static BOOL eqneedEQ    = TRUE;
+static HWND hdialog     = NULLHANDLE;
 
 // note: I originally intended to use 8192 for the finalFIR arrays
 // but Pentium CPUs have a too small cache (16KB) and it totally shits
@@ -107,13 +107,13 @@ static HWND  hdialog     = NULLHANDLE;
 
 static struct
 {
-  float patch[4][2];            // keeps zeros around as fillers
+  float patch[4][2];                  // keeps zeros around as fillers
   float finalFIR[MAX_FIR+4][2];
 
 } patched;
 
-short  finalFIRmmx[4][MAX_FIR+4][2]; // four more just for zero padding
-short  finalAMPi[4];            // four copies for MMX
+short  finalFIRmmx[4][MAX_FIR+4][2];  // four more just for zero padding
+short  finalAMPi[4];                  // four copies for MMX
 
 static float bandgain[2][NUM_BANDS];
 static BOOL  mute[2][NUM_BANDS];
@@ -121,17 +121,17 @@ static float preamp = 1.0;
 
 // for FFT convolution...
 static struct
-{ float* time_domain;      // buffer in the time domain
-  fftwf_complex* freq_domain;// buffer in the frequency domain (shared memory with design)
-  float* design;           // buffer to design filter kernel (shared memory with freq_domain)
-  float* kernel[2];        // since the kernel is real even, it's even real in the time domain
-  float* overlap[2];       // keep old samples for convolution
-  fftwf_plan forward_plan; // fftw plan for time_domain -> freq_domain
-  fftwf_plan backward_plan;// fftw plan for freq_domain -> time_domain
-  fftwf_plan DCT_plan;     // fftw plan for design -> time domain
-  fftwf_plan RDCT_plan;    // fftw plan for time_domain -> kernel
-  int    plansize;         // plansize for the FFT convolution
-  int    DCTplansize;      // plansize for the filter design
+{ float* time_domain;         // buffer in the time domain
+  fftwf_complex* freq_domain; // buffer in the frequency domain (shared memory with design)
+  float* design;              // buffer to design filter kernel (shared memory with freq_domain)
+  float* kernel[2];           // since the kernel is real even, it's even real in the time domain
+  float* overlap[2];          // keep old samples for convolution
+  fftwf_plan forward_plan;    // fftw plan for time_domain -> freq_domain
+  fftwf_plan backward_plan;   // fftw plan for freq_domain -> time_domain
+  fftwf_plan DCT_plan;        // fftw plan for design -> time domain
+  fftwf_plan RDCT_plan;       // fftw plan for time_domain -> kernel
+  int    plansize;            // plansize for the FFT convolution
+  int    DCTplansize;         // plansize for the filter design
 } FFT;
 
 // settings
@@ -275,7 +275,7 @@ static BOOL fil_setup( REALEQ_STRUCT* f, int samplerate, int channels )
   FFT.plansize = newPlansize;
   // round up to next power of 2
   frexp(FFT.plansize-1, &i); // floor(log2(FFT.plansize-1))+1
-  i = 1<<i +1; // 2**x
+  i = (1<<i)+1; // 2**x
   #ifdef DEBUG
   fprintf(stderr, "I: %d - %p\n", i, FFT.DCT_plan);
   #endif
@@ -581,7 +581,7 @@ static void do_fft_filter(float* kp)
   // But because of the symmetry of the filter kernel it is just comlpex * real.
   dp = FFT.freq_domain;
   for (l = (FFT.plansize/2+1) >> 3; l; --l)
-  { float tmp;
+  {
     DO_8(p,
       dp[p][0] *= kp[p];
       dp[p][1] *= kp[p];
@@ -600,7 +600,7 @@ static void do_fft_filter(float* kp)
 }
 
 /* fetch saved samples */
-_Inline void do_fft_load_overlap(float* overlap_buffer)
+INLINE void do_fft_load_overlap(float* overlap_buffer)
 { memcpy(FFT.time_domain + FFT.plansize - FIRorder/2, overlap_buffer, FIRorder/2 * sizeof *FFT.time_domain);
   memcpy(FFT.time_domain, overlap_buffer + FIRorder/2, FIRorder/2 * sizeof *FFT.time_domain);
 }
@@ -659,7 +659,7 @@ static void do_fft_load_samples_stereo(const short* sp, const int len, float* ov
   do_fft_save_overlap(overlap_buffer, len);
 }
 
-_Inline short quantize(float f)
+INLINE short quantize(float f)
 { if (f < -32768)
     return -32768;
   if (f > 32767)
@@ -933,7 +933,7 @@ void drivedir( char* buf, char* fullpath )
   char drive[_MAX_DRIVE],
        path [_MAX_PATH ];
 
- _splitpath( fullpath, drive, path, NULL, NULL );
+  _splitpath( fullpath, drive, path, NULL, NULL );
   strcpy( buf, drive );
   strcat( buf, path  );
 }

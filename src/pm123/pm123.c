@@ -442,8 +442,7 @@ amp_load_singlefile( const char* filename, int options )
   strcpy( current_decoder, module_name );
   strcpy( current_cd_drive, cd_drive );
   strcpy( current_decoder_info_string, info.tech_info );
-  strcpy( current_cd_drive, cd_drive );
-
+  
   amp_gettag( filename, &info, &current_tune );
   out_params.formatinfo = info.format;
 
@@ -522,7 +521,8 @@ void
 amp_play( void )
 {
   MSG_PLAY_STRUCT msgplayinfo = { 0 };
-  char caption[_MAX_PATH];
+  char caption [_MAX_PATH];
+  char filename[_MAX_PATH];
 
   if( amp_playmode == AMP_NOFILE ) {
     WinSendDlgItemMsg( hplayer, BMP_PLAY, WM_DEPRESS, 0, 0 );
@@ -553,8 +553,9 @@ amp_play( void )
     pl_mark_as_play();
   }
 
+  sfnameext( filename, current_filename, sizeof( filename ));
   sprintf( caption, "%s - ", AMP_FULLNAME );
-  sfnameext( strchr( caption, 0 ), current_filename );
+  strlcat( caption, filename, sizeof( filename ));
   WinSetWindowText( hframe, caption );
 }
 
@@ -652,7 +653,7 @@ amp_show_context_menu( HWND parent )
           strcat( file, "[http] " );
         }
 
-        sfnameext( file + strlen(file), cfg.last[i] );
+        sfnameext( file + strlen( file ), cfg.last[i], sizeof( file ) - strlen( file ));
 
         mi.iPosition = MIT_END;
         mi.afStyle = MIS_TEXT;
@@ -936,7 +937,7 @@ amp_add_files( HWND hwnd )
         pl_load( file, PL_LOAD_NOT_RECALL );
       } else {
         pl_add_file( file, NULL, 0 );
-        sdrivedir( cfg.filedir, file );
+        sdrivedir( cfg.filedir, file, sizeof( cfg.filedir ));
       }
 
       if( ++i >= filedialog.ulFQFCount ) {
@@ -1128,7 +1129,7 @@ void amp_id3_edit( HWND owner, const char* filename )
   hwnd = WinLoadDlg( HWND_DESKTOP, owner,
                      id3_dlg_proc, NULLHANDLE, DLG_ID3TAG, 0 );
 
-  sfnameext( strchr( caption, 0 ), filename );
+  sfnameext( caption + strlen( caption ), filename, sizeof( caption ) - strlen( caption ));
   WinSetWindowText( hwnd, caption );
 
   book = WinWindowFromID( hwnd, NB_ID3TAG );
@@ -1727,7 +1728,7 @@ amp_load_file( HWND owner )
   WinFileDlg( HWND_DESKTOP, owner, &filedialog );
 
   if( filedialog.lReturn == DID_OK ) {
-    sdrivedir( cfg.filedir, filedialog.szFullFile );
+    sdrivedir( cfg.filedir, filedialog.szFullFile, sizeof( cfg.filedir ));
     amp_load_singlefile( filedialog.szFullFile, 0 );
   }
 }
@@ -1755,7 +1756,7 @@ amp_load_list( HWND owner )
 
   if( filedialog.lReturn == DID_OK )
   {
-    sdrivedir( cfg.listdir, filedialog.szFullFile );
+    sdrivedir( cfg.listdir, filedialog.szFullFile, sizeof( cfg.listdir ));
     if( is_playlist( filedialog.szFullFile )) {
       pl_load( filedialog.szFullFile, PL_LOAD_CLEAR );
     }
@@ -1794,9 +1795,9 @@ amp_save_list_as( HWND owner, int options )
 
   if( filedialog.lReturn == DID_OK )
   {
-    sdrivedir( cfg.listdir, filedialog.szFullFile );
+    sdrivedir( cfg.listdir, filedialog.szFullFile, sizeof( cfg.listdir ));
     strcpy( filez, filedialog.szFullFile );
-    if( strcmp( sext( ext, filez ), "" ) == 0 ) {
+    if( strcmp( sfext( ext, filez, sizeof( ext )), "" ) == 0 ) {
       if( options & SAV_M3U_PLAYLIST ) {
         strcat( filez, ".m3u" );
       } else {
@@ -1828,7 +1829,7 @@ amp_loadskin( HAB hab, HWND hwnd, HPS hps )
   filedialog.papszITypeList = types;
   filedialog.pszIType       = FDT_SKIN;
 
-  sdrivedir( filedialog.szFullFile, cfg.defskin );
+  sdrivedir( filedialog.szFullFile, cfg.defskin, sizeof( filedialog.szFullFile ));
   WinFileDlg( HWND_DESKTOP, HWND_DESKTOP, &filedialog );
 
   if( filedialog.lReturn == DID_OK ) {
@@ -1862,7 +1863,7 @@ amp_save_eq( HWND owner, float* gains, BOOL *mutes, float preamp )
 
   if( filedialog.lReturn == DID_OK )
   {
-    if( strcmp( sext( ext, filedialog.szFullFile ), "" ) == 0 ) {
+    if( strcmp( sfext( ext, filedialog.szFullFile, sizeof( ext )), "" ) == 0 ) {
       strcat( filedialog.szFullFile, ".eq" );
     }
 
@@ -1946,7 +1947,7 @@ amp_load_eq( HWND hwnd, float* gains, BOOL* mutes, float* preamp )
   filedialog.papszITypeList = types;
   filedialog.pszIType       = FDT_EQUALIZER;
 
-  sdrivedir( filedialog.szFullFile, cfg.lasteq );
+  sdrivedir( filedialog.szFullFile, cfg.lasteq, sizeof( filedialog.szFullFile ));
   WinFileDlg( HWND_DESKTOP, HWND_DESKTOP, &filedialog );
 
   if( filedialog.lReturn == DID_OK ) {
@@ -1979,7 +1980,7 @@ amp_save_stream( HWND hwnd, BOOL enable )
       if( amp_warn_if_overwrite( hwnd, filedialog.szFullFile ))
       {
         amp_msg( MSG_SAVE, filedialog.szFullFile, 0 );
-        sdrivedir( cfg.savedir, filedialog.szFullFile );
+        sdrivedir( cfg.savedir, filedialog.szFullFile, sizeof( cfg.savedir ));
         return TRUE;
       }
     }
@@ -3015,7 +3016,7 @@ main( int argc, char *argv[] )
   set_httpauth( cfg.auth  );
 
   getExeName( exename, sizeof( exename ));
-  sdrivedir ( startpath, exename );
+  sdrivedir ( startpath, exename, sizeof( startpath ));
 
   for( o = 1; o < argc; o++ )
   {

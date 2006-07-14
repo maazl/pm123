@@ -168,7 +168,7 @@ void Manager_Populate(void *scrap)
     if(buf[0] != 0 && buf[0] != '#' && buf[0] != '>' && buf[0] != '<')
      {
       change_sep(buf);
-      sfname(buf2,buf);
+      sfname(buf2,buf,sizeof(buf2));
 
       tr = NULL;
       tr = malloc(sizeof(THREADINFO));
@@ -207,7 +207,7 @@ void Playlist_Populate(void *param)
  list = fopen(tr->playlist, "r");
  if (!list) return;
 
- sdrivedir( basepath, tr->playlist );
+ sdrivedir( basepath, tr->playlist, sizeof( basepath ));
 
  while (!feof(list)) {
   *buf = '\0';
@@ -221,7 +221,7 @@ void Playlist_Populate(void *param)
     }
 
     change_sep(buf);
-    sfnameext( buf2, buf );
+    sfnameext( buf2, buf, sizeof( buf2 ));
     core = pm_add_entry( container, tr->parent, buf2, buf, PM_TYPE_FILE, NULL);
   }
   else
@@ -276,7 +276,7 @@ int idm_pm_add(HWND hwnd)
 
   if( filedialog.lReturn == DID_OK )
   {
-   sdrivedir(cfg.listdir, filedialog.szFullFile);
+   sdrivedir( cfg.listdir, filedialog.szFullFile, sizeof( cfg.listdir ));
    dex = 0;
    if (filedialog.ulFQFCount > 1)
      {
@@ -295,7 +295,7 @@ int idm_pm_add(HWND hwnd)
 
       if (!pm_check_duplicate( container, filez))
        {
-        sfname(buf,filez);
+        sfname( buf, filez, sizeof( buf ));
         tr = NULL;
         tr = malloc(sizeof(THREADINFO));
         tr->parent = pm_add_entry( container, NULL, buf, filez, PM_TYPE_LIST, NULL);

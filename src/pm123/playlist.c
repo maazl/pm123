@@ -288,8 +288,8 @@ pl_compare_name( PLRECORD* p1, PLRECORD* p2, PVOID pStorage )
 {
   char s1[_MAX_PATH], s2[_MAX_PATH];
 
-  sfname( s1, p1->full );
-  sfname( s2, p2->full );
+  sfname( s1, p1->full, sizeof( s1 ));
+  sfname( s2, p2->full, sizeof( s2 ));
 
   return stricmp( s1, s2 );
 }
@@ -464,16 +464,13 @@ pl_create_record( const char* filename, PLRECORD* pos, const char* songname )
   rec->info_string = strdup( info.tech_info );
 
   // File name or host or cd track.
-  if( is_http( filename ) &&
-    ( strrchr( filename, '/' ) == filename + 6 || *( strrchr( filename, '/' ) + 1 ) == 0 ))
-  {
-    rec->rc.pszIcon = strdup( filename );
-  } else if( is_track( filename )) {
-    rec->rc.pszIcon = strdup( filename + 6 );
+  if( is_url( filename )) {
+    sdecode( buffer, sfnameext( buffer, filename, sizeof( buffer )), sizeof( buffer ));
   } else {
-    sfnameext( buffer, filename );
-    rec->rc.pszIcon = strdup( buffer );
+    sfnameext( buffer, filename, sizeof( buffer ));
   }
+
+  rec->rc.pszIcon = strdup( buffer );
 
   // Set ID3 tag.
   pl_set_tag( rec, &tag, songname );
@@ -1022,21 +1019,23 @@ pl_clean_shuffle( void )
 void
 pl_display_status( void )
 {
-  char title[ sizeof( _MAX_FNAME ) + 128 ];
+  char title[ _MAX_FNAME + 128 ];
+  char file [ _MAX_FNAME ];
 
   strcpy( title, "PM123 Playlist"  );
 
   if( *current_playlist ) {
-    strcat( title, " - " );
-    sfnameext( title + strlen( title ), current_playlist );
+    sfnameext( file, current_playlist, sizeof( file ));
+    strlcat( title, " - ", sizeof( title ));
+    strlcat( title, file, sizeof( title ));
   }
 
   if( amp_playmode == AMP_PLAYLIST ) {
-    strcat( title, " - [USED]" );
+    strlcat( title, " - [USED]", sizeof( title ));
   }
 
   if( is_busy ) {
-    strcat( title, " - loading..." );
+    strlcat( title, " - loading...", sizeof( title ));
   }
 
   WinSetWindowText( playlist, (PSZ)title );
@@ -1170,7 +1169,7 @@ pl_show_context_menu( HWND parent, PLRECORD* rec )
           strcat( file, "[http] " );
         }
 
-        sfnameext( file + strlen(file), cfg.list[i] );
+        sfnameext( file + strlen( file ), cfg.list[i], sizeof( file ) - strlen( file ) );
 
         mi.iPosition = MIT_END;
         mi.afStyle = MIS_TEXT;
@@ -1213,8 +1212,8 @@ pl_drag_init_item( HWND hwnd, PLRECORD* rec,
 
   memset( &ditem, 0, sizeof( ditem ));
 
-  sdrivedir( pathname, rec->full );
-  sfnameext( filename, rec->full );
+  sdrivedir( pathname, rec->full, sizeof( pathname ));
+  sfnameext( filename, rec->full, sizeof( filename ));
 
   ditem.hwndItem          = hwnd;
   ditem.ulItemID          = (ULONG)rec;
@@ -1882,8 +1881,7 @@ BOOL
 is_playlist( const char *filename )
 {
  char ext[_MAX_EXT];
-
- sext( ext, filename );
+ sfext( ext, filename, sizeof( ext ));
  return ( stricmp( ext, ".lst" ) == 0 ||
           stricmp( ext, ".mpl" ) == 0 ||
           stricmp( ext, ".pls" ) == 0 ||
@@ -1905,7 +1903,7 @@ pl_load_lst_list( const char *filename, int options )
     return FALSE;
   }
 
-  sdrivedir( basepath, filename );
+  sdrivedir( basepath, filename, sizeof( basepath ));
 
   if( options & PL_LOAD_CLEAR ) {
     pl_clear( 0 );
@@ -1984,7 +1982,7 @@ pl_load_mpl_list( const char *filename, int options )
     return FALSE;
   }
 
-  sdrivedir( basepath, filename );
+  sdrivedir( basepath, filename, sizeof( basepath ));
 
   if( options & PL_LOAD_CLEAR ) {
     pl_clear( 0 );
@@ -2032,7 +2030,7 @@ pl_load_pls_list( const char *filename, int options )
     return FALSE;
   }
 
-  sdrivedir( basepath, filename );
+  sdrivedir( basepath, filename, sizeof( basepath ));
 
   if( options & PL_LOAD_CLEAR ) {
     pl_clear( 0 );
@@ -2088,7 +2086,7 @@ BOOL pl_load( const char *filename, int options )
   char ext[_MAX_EXT];
   int  i;
 
-  sext( ext, filename );
+  sfext( ext, filename, sizeof( ext ));
 
   if( stricmp( ext, ".lst" ) == 0 ) {
     rc = pl_load_lst_list( filename, options );
@@ -2152,7 +2150,7 @@ pl_save( const char* filename, int options )
                        "#\n", AMP_FULLNAME );
   }
 
-  sdrivedir( base, filename );
+  sdrivedir( base, filename, sizeof( base ));
   for( rec = pl_first_record(); rec; rec = pl_next_record( rec ))
   {
     if( !(options & PL_SAVE_M3U )) {

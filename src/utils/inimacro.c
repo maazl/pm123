@@ -45,15 +45,16 @@ HINI
 open_module_ini( void )
 {
   HMODULE module;
-  char    module_name[CCHMAXPATH];
   char    exe_path[CCHMAXPATH];
-  char    ini_filename[CCHMAXPATH*2];
+  char    mod_filename[CCHMAXPATH];
+  char    ini_filename[CCHMAXPATH];
 
-  getModule ( &module, module_name, CCHMAXPATH );
+  getModule ( &module, mod_filename, CCHMAXPATH );
   getExeName( exe_path, CCHMAXPATH );
-  sdrivedir ( ini_filename, exe_path );
-  sfname    ( ini_filename + strlen( ini_filename ), module_name );
-  strcat    ( ini_filename, ".ini" );
+  sfname    ( mod_filename, mod_filename, sizeof( mod_filename ));
+  sdrivedir ( ini_filename, exe_path, sizeof( ini_filename ));
+  strlcat   ( ini_filename, mod_filename, sizeof( ini_filename ));
+  strlcat   ( ini_filename, ".ini", sizeof( ini_filename ));
 
   return open_ini( ini_filename );
 }
