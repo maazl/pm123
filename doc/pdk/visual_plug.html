@@ -26,10 +26,13 @@ PM123 passes to the plug-in.
         /* Parameters passed to the plug-in */
      } VISPLUGININIT, *PVISPLUGININIT;
 </pre>
+<p>
 On return from the initialization function, the function should return
 the plug-in's window handle. The plug-in shouldn't not rely that <i>initdata</i>
 structure is pointing to the right location all the time, instead it should
 make its own copy of the structure.
+<p>
+The pluig-in parameter param in the VISPLUGININIT structure optionally contains parameters from the skin's .SKN file.
 <p>
 If the plug-in creates a window, here's a window procedure you should
 base yours on:

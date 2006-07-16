@@ -51,8 +51,14 @@
 #include <decoder_plug.h>
 #include <plugin.h>
 
+#ifndef M_PI
+#define M_PI    3.14159265358979323846
+#endif
+
 #include "analyzer.h"
 #define  TID_UPDATE ( TID_USERMAX - 1 )
+
+//#define DEBUG
 
 static struct analyzer_cfg {
 
@@ -72,94 +78,14 @@ static struct analyzer_cfg {
 #define CLR_ANA_BARS    7 // don't know
 #define CLR_SPC_BOTTOM  8 // dark spectrum
 #define CLR_ANA_BOTTOM  32// low bar
-#define CLR_ANA_TOP     72// high bar
-#define CLR_SPC_TOP     79// full power spectrum
-#define CLR_SIZE        80
+#define CLR_ANA_TOP     63// high bar
+#define CLR_SPC_TOP     71// full power spectrum
+#define CLR_SIZE        72
 
 #define BARS_CY         3
 #define BARS_SPACE      1
 
-static  RGB2   palette[CLR_SIZE] = { // B,G,R!
-  {0,0,0},  // background
-  {0,90,0}, // grid
-  {0,180,0},// oscilloscope
-  {0,200,0},
-  {0,225,0},
-  {0,255,0},
-  {0,255,0},// oscilloscope
-  {0,255,0},// ANA_BARS?
-  {0,0,0},  // spectrum low
-  {0,0,11},
-  {0,0,21},
-  {0,0,32},
-  {0,0,43},
-  {0,0,53},
-  {0,0,64},
-  {0,0,74},
-  {0,0,85},
-  {0,0,96},
-  {0,0,106},
-  {0,0,117},
-  {0,0,128},
-  {0,0,138},
-  {0,0,149},
-  {0,0,159},
-  {0,0,170},
-  {0,0,181},
-  {0,0,191},
-  {0,0,202},
-  {0,0,213},
-  {0,0,223},
-  {0,0,234},
-  {0,0,244},
-  {0,0,255},// low bar
-  {0,13,255},
-  {0,25,254},
-  {0,37,253},
-  {0,48,252},
-  {0,60,251},
-  {0,71,249},
-  {0,81,247},
-  {0,92,245},
-  {0,102,242},
-  {0,112,239},
-  {0,121,236},
-  {0,130,232},
-  {0,139,228},
-  {0,147,224},
-  {0,155,219},
-  {0,163,214},
-  {0,171,209},
-  {0,178,203},
-  {0,185,197},
-  {0,191,191},
-  {0,197,185},
-  {0,203,178},
-  {0,209,171},
-  {0,214,163},
-  {0,219,155},
-  {0,224,147},
-  {0,228,139},
-  {0,232,130},
-  {0,236,121},
-  {0,239,112},
-  {0,242,102},
-  {0,245,92},
-  {0,247,81},
-  {0,249,71},
-  {0,251,60},
-  {0,252,48},
-  {0,253,37},
-  {0,254,25},
-  {0,255,13},
-  {0,255,0}, // high bar
-  {20,255,0},
-  {40,255,0},
-  {60,255,0},
-  {80,255,0},
-  {100,255,0},
-  {120,255,0},
-  {140,255,0} };// high spectroscope
+static  RGB2   palette[CLR_SIZE];
 static  HAB    hab;
 static  HWND   hconfigure;
 static  HWND   hanalyzer;
@@ -187,64 +113,346 @@ static  VISPLUGININIT plug;
 
 /********** read pallette data **********************************************/
 
+/* cylindrical representation of the YDbDr color space (SECAM) */
+typedef struct
+{ float Y;      // luminance
+  float DR;     // chrominance, amplitude
+  float DP;     // chrominance, color, radiants
+} YDCyl_color;
+
+typedef struct
+{ float         Pos;
+  YDCyl_color   Color;
+} color_entry;
+
+/* do cylindrical colorspace interpolation */
+static void interpolate_color(YDCyl_color* result, double position,
+  const color_entry* table, size_t table_size)
+{ int i;
+  // search for closest table entries
+  const color_entry* lower_bound = NULL;
+  const color_entry* upper_bound = NULL;
+  const color_entry* current = table + table_size;
+  do
+  { --current;
+    if (current->Pos > position)
+    { // check upper bound
+      if (upper_bound == NULL || current->Pos < upper_bound->Pos)
+        upper_bound = current;
+    } else if (current->Pos < position)
+    { // check lower bound
+      if (lower_bound == NULL || current->Pos > lower_bound->Pos)
+        lower_bound = current;
+    } else
+    { // exact match
+      *result = current->Color;
+      return;
+    }
+  } while (current != table);
+  #ifdef DEBUG
+  fprintf(stderr, "IP: %f -> %p, %p\n", position, lower_bound, upper_bound);
+  #endif
+  // check boundaries
+  if (lower_bound == NULL)
+  { // position lower than lowest table entry
+    *result = upper_bound->Color; // use lowest table entry
+  } else if (upper_bound == NULL)
+  { // position higher than highest table entry
+    *result = lower_bound->Color; // use highest table entry
+  } else
+  { // interpolate
+    float tmp, low_P, up_P;
+    position = (position - lower_bound->Pos) / (upper_bound->Pos - lower_bound->Pos);
+    result->Y  = lower_bound->Color.Y  + position * (upper_bound->Color.Y  - lower_bound->Color.Y );
+    result->DR = lower_bound->Color.DR + position * (upper_bound->Color.DR - lower_bound->Color.DR);
+    low_P = lower_bound->Color.DR < 1E-3 ? upper_bound->Color.DP : lower_bound->Color.DP;
+    up_P = upper_bound->Color.DR < 1E-3 ? lower_bound->Color.DP : upper_bound->Color.DP;
+    tmp = up_P - low_P;
+    if (fabs(tmp) <= M_PI) // use the shorter way in the circular domain of DP
+      result->DP = low_P + position * tmp;
+     else if (tmp > 0)
+      result->DP = low_P + position * (tmp - 2*M_PI);
+     else
+      result->DP = low_P + position * (tmp + 2*M_PI);
+    #ifdef DEBUG
+    fprintf(stderr, "IP: {%f->%f,%f,%f} {%f->%f,%f,%f}\n",
+      lower_bound->Pos, lower_bound->Color.Y, lower_bound->Color.DR, lower_bound->Color.DP,    
+      upper_bound->Pos, upper_bound->Color.Y, upper_bound->Color.DR, upper_bound->Color.DP);
+    #endif    
+  } 
+}
+
+/* color space transformation */
+static void RGB2YDCyl(YDCyl_color* result, const RGB2* src)
+{ double Db, Dr;
+  result->Y = 0.299 * src->bRed + 0.587 * src->bGreen + 0.114 * src->bBlue;
+  Db =      - 0.450 * src->bRed - 0.883 * src->bGreen + 1.333 * src->bBlue;
+  Dr =      - 1.333 * src->bRed + 1.116 * src->bGreen + 0.217 * src->bBlue;
+  result->DR = sqrt(Db*Db + Dr*Dr);
+  result->DP = atan2(Dr, Db);
+}
+
+static void StoreRGBvalue(BYTE* dst, double val)
+{ if (val < 0)
+    *dst = 0;
+   else if (val > 255)
+    *dst = 255;
+   else
+    *dst = val +.5; // rounding 
+}
+
+/* color space transformation */
+static void YDCyl2RGB(RGB2* result, const YDCyl_color* src)
+{ double Db, Dr, tmp;
+  Db = src->DR * cos(src->DP);
+  Dr = src->DR * sin(src->DP);
+  StoreRGBvalue(&result->bRed,   src->Y + 0.000092303716148 * Db - 0.525912630661865 * Dr);
+  StoreRGBvalue(&result->bGreen, src->Y - 0.129132898890509 * Db + 0.267899328207599 * Dr);
+  StoreRGBvalue(&result->bBlue,  src->Y + 0.664679059978955 * Db - 0.000079202543533 * Dr);
+}
+
+typedef struct
+{ int osc_entr;
+  int ana_entr;
+  color_entry osc_tab[6];
+  color_entry ana_tab[64];
+} interpolation_data;
+
+/* transfer interpolation data into palette */
+static void do_interpolation(const interpolation_data* src)
+{ int i;
+  YDCyl_color col;
+  // oscilloscope colors
+  for (i = 0; i <= CLR_OSC_BRIGHT - CLR_OSC_DIMMEST; ++i)
+  { interpolate_color(&col, (double)i / (CLR_OSC_BRIGHT - CLR_OSC_DIMMEST), src->osc_tab, src->osc_entr);
+    YDCyl2RGB(palette + CLR_OSC_DIMMEST + i, &col);
+    #ifdef DEBUG
+    fprintf(stderr, "OSC[%d] = RGB{%d,%d,%d} YDCyl{%f,%f,%f}\n", i,
+      palette[CLR_OSC_DIMMEST+i].bRed, palette[CLR_OSC_DIMMEST+i].bGreen, palette[CLR_OSC_DIMMEST+i].bBlue,
+      col.Y, col.DR, col.DP);
+    #endif
+  }
+  // analyzer colors
+  for (i = 0; i <= CLR_SPC_TOP - CLR_SPC_BOTTOM; ++i)
+  { interpolate_color(&col, (double)i / (CLR_SPC_TOP - CLR_SPC_BOTTOM), src->ana_tab, src->ana_entr);
+    YDCyl2RGB(palette + CLR_SPC_BOTTOM + i, &col);
+    #ifdef DEBUG
+    fprintf(stderr, "ANA[%d] = RGB{%d,%d,%d} YDCyl{%f,%f,%f}\n", i,
+      palette[CLR_SPC_BOTTOM+i].bRed, palette[CLR_SPC_BOTTOM+i].bGreen, palette[CLR_SPC_BOTTOM+i].bBlue,
+      col.Y, col.DR, col.DP);
+    #endif
+  }
+}
+
 /* Removes comments */
-static char*
+static BOOL
 uncomment_slash( char *something )
 {
-  int  i = 0;
   BOOL inquotes = FALSE;
-
-  while( something[i] )
-  {
-    if( something[i] == '\"' ) {
-      inquotes = !inquotes;
-    } else if( something[i] == '/' && something[i+1] == '/' && !inquotes ) {
-      something[i] = 0;
+  BOOL nonwhitespace = FALSE;
+  
+  for (;; ++something)
+  { switch (*something)
+    {case 0:
+      return nonwhitespace;
+     case ' ':
+     case '\t':
+     case '\n':
+     case '\r':
+      continue; // whitespace
+     case '/':
+      if (something[1] == '/' && !inquotes)
+      { *something = 0;
+        return nonwhitespace;
+      }
       break;
+     case '\"':
+      inquotes = !inquotes;
     }
-    i++;
+    nonwhitespace = TRUE;
   }
-
-  return something;
 }
 
 /* Reads RGB colors from specified file. */
 static BOOL
-read_color( FILE* file, RGB2* color )
+read_color( const char* line, RGB2* color )
 {
-  char line[256];
   int  r,g,b;
 
-  if( fgets( line, sizeof( line ), file )) {
-    if( color ) {
-      sscanf( uncomment_slash( line ), "%d,%d,%d", &r, &g, &b );
-      color->bRed   = r;
-      color->bGreen = g;
-      color->bBlue  = b;
-    }
-    return TRUE;
-  } else {
+  if (sscanf(line, "%d,%d,%d", &r, &g, &b ) != 3)
     return FALSE;
-  }
+
+  color->bRed   = r;
+  color->bGreen = g;
+  color->bBlue  = b;
+  return TRUE;
 }
 
-static void read_palette( FILE* dat )
-{ int i;
+/* Reads a palette from a stream */
+static BOOL read_palette( FILE* dat )
+{ 
+  char line[256];
+  color_entry* cur;
+  interpolation_data ipd;
+  RGB2 color;
 
-  read_color( dat, &palette[CLR_BGR_BLACK] );
-  read_color( dat, &palette[CLR_BGR_GREY ] );
+  if (!fgets( line, sizeof( line ), dat ))
+    return FALSE;
 
-  for( i = CLR_OSC_DIMMEST; i <= CLR_OSC_BRIGHT; i++ ) {
-    read_color( dat, &palette[i] );
+  memset(palette, 0, sizeof palette);
+  ipd.osc_entr = 0;
+  ipd.ana_entr = 0; 
+ 
+  // determine file version
+  if (strnicmp(line, "// ANALYZER", 11) == 0)
+  { // new file format
+    int version;
+    if (sscanf(line+11, "%d", &version) != 1 || version > 21)
+      return FALSE;
+      
+    // some defaults
+    palette[CLR_BGR_GREY].bGreen = 90;
+    palette[CLR_ANA_BARS].bGreen = 255;
+      
+    while (fgets( line, sizeof( line ), dat ))
+    { size_t p;
+      char* cp;
+      float pos;
+
+      if (!uncomment_slash(line))
+        continue; // ignore logically empty lines
+        
+      p = strcspn(line, "-=");
+      switch (line[p])
+      {case '=': // normal parameter
+        line[p] = 0;
+        if (stricmp(line, "BACKGROUND") == 0)
+          read_color( line+p+1, &palette[CLR_BGR_BLACK] );
+         else if (stricmp(line, "DOTS") == 0)
+          read_color( line, &palette[CLR_BGR_GREY] );
+         else if (stricmp(line, "PEAK") == 0)
+          read_color( line, &palette[CLR_ANA_BARS] );
+        break;
+       case '-': // indexed parameter
+        cp = strchr(line+p+1, '=');
+        if (cp == NULL || sscanf(line+p+1, "%f", &pos) != 1)
+          break;
+        line[p] = 0;
+        if (!read_color( cp+1, &color ))
+          break;
+        #ifdef DEBUG
+        fprintf(stderr, "NF-: %s - %f = %s = {%d,%d,%d}\n", line, pos, cp+1, color.bRed, color.bGreen, color.bBlue);
+        #endif
+        if (stricmp(line, "OSCILLOSCOPE") == 0)
+        { if (ipd.osc_entr == sizeof ipd.osc_tab / sizeof *ipd.osc_tab)
+            break; // too many entries
+          cur = ipd.osc_tab + ipd.osc_entr++;
+          pos /= CLR_OSC_BRIGHT-CLR_OSC_DIMMEST;
+        } else if (stricmp(line, "SPECTRUM") == 0)
+        { if (ipd.ana_entr == sizeof ipd.ana_tab / sizeof *ipd.ana_tab)
+            break; // too many entries
+          cur = ipd.ana_tab + ipd.ana_entr++;
+          pos /= CLR_SPC_TOP-CLR_SPC_BOTTOM;
+        }
+        cur->Pos = pos;
+        RGB2YDCyl(&cur->Color, &color);
+        break;
+      }
+    }
+
+  } else
+  { // old file format
+    int i = 1; 
+    do
+    { if (!uncomment_slash(line))
+        continue; // ignore logically empty lines
+      #ifdef DEBUG
+      fprintf(stderr, "OF: %d - %s\n", i, line);
+      #endif
+      switch (i)
+      {case 1:
+        if (!read_color( line, &palette[CLR_BGR_BLACK] ))
+          return FALSE;
+        goto c2;
+       case 2:
+        if (!read_color( line, &palette[CLR_BGR_GREY] ))
+          return FALSE;
+        goto c2;
+       case 24: 
+        if (!read_color( line, &palette[CLR_ANA_BARS] ))
+          return FALSE;
+        goto OK;
+       case 3:
+        cur = ipd.ana_tab;
+        break;
+       case 19:
+        cur = ipd.osc_tab;
+        break;
+      }
+      if (i >= 3 && i <= 18)
+        // analyzer colors
+        cur->Pos = ((18 - i) * (CLR_ANA_TOP-CLR_ANA_BOTTOM) / 15. + (CLR_ANA_BOTTOM-CLR_SPC_BOTTOM)) / (CLR_SPC_TOP-CLR_SPC_BOTTOM);
+       else if (i >= 19 && i <= 23)
+        // scope colors 
+        cur->Pos = (i - 19) / 4.;
+      if (!read_color( line, &color ))
+        return FALSE;
+      RGB2YDCyl(&cur->Color, &color);
+      ++cur;
+     c2:
+      ++i;
+
+    } while (fgets( line, sizeof( line ), dat ));
+
+    if (i != 23)
+      return FALSE;
+    palette[CLR_ANA_BARS] = palette[CLR_ANA_TOP];
+   OK:
+    // extrapolations for new analyzer colors
+    ipd.ana_tab[16].Pos = 0.;
+    RGB2YDCyl(&ipd.ana_tab[16].Color, &palette[CLR_BGR_BLACK]);
+    ipd.ana_tab[17].Pos = 1.;
+    RGB2YDCyl(&ipd.ana_tab[17].Color, &palette[CLR_ANA_TOP]);
+    ipd.ana_entr = 18;
+    ipd.osc_entr = 5;
   }
 
-  read_color( dat, &palette[CLR_ANA_BARS] );
+  // do the interpolation
+  do_interpolation(&ipd);
 
-  for( i = CLR_SPC_BOTTOM; i <= CLR_SPC_TOP; i++ ) {
-    read_color( dat, &palette[i] );
-  }
+  return TRUE;
+}
 
-  fclose( dat );
+static void load_default_palette(void)
+{ interpolation_data ipd;
+  static const RGB2 black     = {  0,   0,   0};
+  static const RGB2 green     = {  0, 255,   0};
+  static const RGB2 dimgreen  = {  0, 180,   0};
+  static const RGB2 darkgreen = {  0,  90,   0};
+  static const RGB2 red       = {  0,   0, 255};
+  static const RGB2 cyan      = {255, 255,   0};
+  memset(palette, 0, sizeof palette);
+  // fixed colors
+  palette[CLR_BGR_GREY] = darkgreen;
+  palette[CLR_ANA_BARS] = cyan;
+  // oscilloscope colors
+  ipd.osc_entr = 2;
+  ipd.osc_tab[0].Pos = 0.;
+  RGB2YDCyl(&ipd.osc_tab[0].Color, &dimgreen);
+  ipd.osc_tab[1].Pos = .75;
+  RGB2YDCyl(&ipd.osc_tab[1].Color, &green);
+  // analyzer colors
+  ipd.ana_entr = 4;
+  ipd.ana_tab[0].Pos = 0.;
+  RGB2YDCyl(&ipd.ana_tab[0].Color, &black);
+  ipd.ana_tab[1].Pos = .381;
+  RGB2YDCyl(&ipd.ana_tab[1].Color, &red);
+  ipd.ana_tab[2].Pos = .873;
+  RGB2YDCyl(&ipd.ana_tab[2].Color, &green);
+  ipd.ana_tab[3].Pos = 1.;
+  RGB2YDCyl(&ipd.ana_tab[3].Color, &cyan);
+  // do the interpolation
+  do_interpolation(&ipd);
 }
 
 /********** filter design ***************************************************/
@@ -401,9 +609,9 @@ static void update_analyzer(void)
     for( x = 0; x < plug.cx; x++ )
     {
       if (cfg.highprec_mode)
-        update_barvalue( bars+x, .66667*log10(12.5 * amp_scale * (amps[2*x]+amps[2*x+1]) / max +1));
+        update_barvalue( bars+x, .66667*log10(10 * amp_scale * (amps[2*x]+amps[2*x+1]) / max +1));
        else
-        update_barvalue( bars+x, .66667*log10(25 * amp_scale * amps[x] / max +1));
+        update_barvalue( bars+x, .66667*log10(20 * amp_scale * amps[x] / max +1));
 
       for( y = (int)(bars[x]*(plug.cy+1)) -1; y >= 0; y-- )
       {
@@ -436,7 +644,7 @@ static void update_analyzer(void)
         a += amps[e];
       a /= scale[i+1] - scale[i];
 
-      update_barvalue( bars+i, .66667*log10(25 * amp_scale * a / max +1));
+      update_barvalue( bars+i, .66667*log10(20 * amp_scale * a / max +1));
 
       for( y = (int)(bars[i]*(plug.cy+1)) -1; y >= 0; y-- )
       {
@@ -467,9 +675,9 @@ static void update_analyzer(void)
       for( x = 0; x < plug.cx; x++ )
       {
         if (cfg.highprec_mode)
-          update_barvalue( bars+x, .5*log10(17.5 * amp_scale * (amps[2*x]+amps[2*x+1]) / max * sqrt(2.20 * cfg.display_percent * x / plug.cx) +1));
+          update_barvalue( bars+x, .5*log10(14 * amp_scale * (amps[2*x]+amps[2*x+1]) / max * sqrt(2.20 * cfg.display_percent * x / plug.cx) +1));
          else
-          update_barvalue( bars+x, .5*log10(35 * amp_scale * amps[x] / max * sqrt(2.20 * cfg.display_percent * x / plug.cx) +1));
+          update_barvalue( bars+x, .5*log10(28 * amp_scale * amps[x] / max * sqrt(2.20 * cfg.display_percent * x / plug.cx) +1));
         ip[x] = ( CLR_SPC_TOP - CLR_SPC_BOTTOM +1 ) * bars[x] + CLR_SPC_BOTTOM;
       }
     }
@@ -497,7 +705,7 @@ static void update_analyzer(void)
           a += amps[e];
         a /= spec_scale[i+1] - spec_scale[i];
 
-        update_barvalue( bars+i, .5*log10(35 * amp_scale * a / max * sqrt(220.*spec_scale[i]/amps_count) +1));
+        update_barvalue( bars+i, .5*log10(28 * amp_scale * a / max * sqrt(220.*spec_scale[i]/amps_count) +1));
 
         ip[(plug.cy-i-1)*image_cx] =
           ( CLR_SPC_TOP - CLR_SPC_BOTTOM +1 ) * bars[i] + CLR_SPC_BOTTOM;
@@ -822,9 +1030,12 @@ vis_init( PVISPLUGININIT init )
                                NULL,
                                NULL  );
 
-  if ( ( plug.param && *plug.param && (dat = fopen(plug.param, "r")) )
-     || ( dat = fopen("analyzer.pal","r")) )
-    read_palette(dat);
+  if ( plug.param && *plug.param && (dat = fopen(plug.param, "r")) )
+  { if (!read_palette(dat))
+      load_default_palette();
+    fclose(dat);
+  } else
+    load_default_palette();
 
   DiveSetSourcePalette( hdive, 0, sizeof( palette ) / sizeof( palette[0] ), (char*)&palette );
   DiveSetDestinationPalette( hdive, 0, 0, 0 );
@@ -871,5 +1082,3 @@ plugin_deinit( int unload )
 
   return 0;
 }
-
-

@@ -54,6 +54,7 @@
 #define  WINDOW_HANN( n, N )     ( 0.50 - 0.50 * cos( 2 * M_PI * n / N ))
 #define  WINDOW_BLACKMAN( n, N ) ( 0.42 - 0.50 * cos( 2 * M_PI * n / N )\
                                         + 0.08 * cos( 4 * M_PI * n / N ))
+
 static int  numsamples;
 static BOOL initialized = FALSE;
 
@@ -92,7 +93,7 @@ specana_init( int set_numsamples )
   }
 
   for( i = 0; i < numsamples; i++ ) {
-    wnd[i] = WINDOW_HAMMING( i, numsamples - 1 );
+    wnd[i] = WINDOW_BLACKMAN( i, numsamples - 1 );
   }
 
   initialized = TRUE;
