@@ -648,8 +648,9 @@ static void update_analyzer(void)
 
       for( y = (int)(bars[i]*(plug.cy+1)) -1; y >= 0; y-- )
       {
-        int color = ( CLR_ANA_TOP - CLR_ANA_BOTTOM +1 ) * y / (plug.cy * (1-bars[i])) + CLR_ANA_BOTTOM;
-        color = min( CLR_ANA_TOP, color );
+        int color = ( CLR_ANA_TOP - CLR_ANA_BOTTOM +1 ) * y / plug.cy + CLR_ANA_BOTTOM;
+        //int color = ( CLR_ANA_TOP - CLR_ANA_BOTTOM +1 ) * y / (plug.cy * (1-bars[i])) + CLR_ANA_BOTTOM;
+        //color = min( CLR_ANA_TOP, color );
         for( x = 0; x < BARS_CY; x++ ) {
           image[( plug.cy - y -1) * image_cx + ( BARS_CY + BARS_SPACE ) * i + x ] = color;
         }
