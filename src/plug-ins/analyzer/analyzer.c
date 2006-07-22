@@ -1,8 +1,8 @@
 /*
  * Copyright 1997-2003 Samuel Audet <guardia@step.polymtl.ca>
  *                     Taneli Lepp„ <rosmo@sektori.com>
- *
- * Copyright 2005 Dmitry A.Steklenev <glass@ptv.ru>
+ *           2005 Dmitry A.Steklenev <glass@ptv.ru>
+ *           2006 Marcel Mueller
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -43,12 +43,12 @@
 #include <fourcc.h>
 #include <math.h>
 #include <string.h>
-#include <ctype.h>
+//#include <ctype.h>
 #include <malloc.h>
 
 #include <utilfct.h>
 #include <format.h>
-#include <decoder_plug.h>
+//#include <decoder_plug.h>
 #include <plugin.h>
 
 #ifndef M_PI
@@ -56,192 +56,88 @@
 #endif
 
 #include "analyzer.h"
+#include "colormap.h"
+#include "specana.h"
+
 #define  TID_UPDATE ( TID_USERMAX - 1 )
 
 //#define DEBUG
-
-static struct analyzer_cfg {
-
-  ULONG update_delay;
-  int   default_mode;
-  int   falloff;
-  int   falloff_speed;
-  int   display_percent;
-  BOOL  highprec_mode;
-
-} cfg;
 
 #define CLR_BGR_BLACK   0 // Background
 #define CLR_BGR_GREY    1 // grid
 #define CLR_OSC_DIMMEST 2 // oscilloscope dark
 #define CLR_OSC_BRIGHT  6 // oscilloscope light
 #define CLR_ANA_BARS    7 // don't know
-#define CLR_SPC_BOTTOM  8 // dark spectrum
-#define CLR_ANA_BOTTOM  32// low bar
-#define CLR_ANA_TOP     63// high bar
-#define CLR_SPC_TOP     71// full power spectrum
-#define CLR_SIZE        72
+#define CLR_ANA_BOTTOM  8 // low bar
+#define CLR_ANA_TOP     38// high bar
+#define CLR_SPC_BOTTOM  40// dark spectrum
+#define CLR_SPC_TOP     103// full power spectrum
+#define CLR_SIZE        104
 
 #define BARS_CY         3
 #define BARS_SPACE      1
 
-static  RGB2   palette[CLR_SIZE];
+
+/* environment data */
+static  VISPLUGININIT plug;
+
+/* configuration data */
+static struct analyzer_cfg
+{ ULONG update_delay;
+  int   default_mode;
+  int   falloff;
+  int   falloff_speed;
+  int   display_freq;
+  int   display_lowfreq;
+  BOOL  highprec_mode;
+} cfg, active_cfg;
+
 static  HAB    hab;
 static  HWND   hconfigure;
 static  HWND   hanalyzer;
 static  HDIVE  hdive;
-static  float* amps;
-static  float* lastamps;
-static  int    amps_count;
-static  float* bars;
-static  int    bars_count;
-static  int*   scale;
-static  int    specband_count;
-static  int*   spec_scale;
-static  double amp_scale;
 static  ULONG  image_id;
-static  BOOL   is_stopped;
+static  RGB2   palette[CLR_SIZE];
+
+/* working set initialized by init_bands */
+static  int    last_samplerate;
 static  float  relative_falloff_speed;
+static  int    numsamples; // FFT length
+static  WIN_FN windowfunc; // desired window function 
+static  float* amps;       // FFT data
+static  int    amps_count; // FFT data size
+static  float* bars;       // destination channels
+static  int    bars_count; // destination channel count
+static  int*   scale;      // mapping FFT data -> destination channels
+/* internal state */
+static  BOOL   is_stopped;
 static  BOOL   needinit;
+static  FORMAT_INFO lastformat;
+static  BOOL   destroy_pending = FALSE;
 
-static  ULONG (PM123_ENTRYP _decoderPlayingSamples)( FORMAT_INFO *info, char *buf, int len );
-static  BOOL  (PM123_ENTRYP _decoderPlaying)( void );
-static  int   (PM123_ENTRYP _specana_init)( int setnumsamples );
-static  int   (PM123_ENTRYP _specana_dobands)( float bands[] );
-
-static  VISPLUGININIT plug;
 
 /********** read pallette data **********************************************/
-
-/* cylindrical representation of the YDbDr color space (SECAM) */
-typedef struct
-{ float Y;      // luminance
-  float DR;     // chrominance, amplitude
-  float DP;     // chrominance, color, radiants
-} YDCyl_color;
-
-typedef struct
-{ float         Pos;
-  YDCyl_color   Color;
-} color_entry;
-
-/* do cylindrical colorspace interpolation */
-static void interpolate_color(YDCyl_color* result, double position,
-  const color_entry* table, size_t table_size)
-{ int i;
-  // search for closest table entries
-  const color_entry* lower_bound = NULL;
-  const color_entry* upper_bound = NULL;
-  const color_entry* current = table + table_size;
-  do
-  { --current;
-    if (current->Pos > position)
-    { // check upper bound
-      if (upper_bound == NULL || current->Pos < upper_bound->Pos)
-        upper_bound = current;
-    } else if (current->Pos < position)
-    { // check lower bound
-      if (lower_bound == NULL || current->Pos > lower_bound->Pos)
-        lower_bound = current;
-    } else
-    { // exact match
-      *result = current->Color;
-      return;
-    }
-  } while (current != table);
-  #ifdef DEBUG
-  fprintf(stderr, "IP: %f -> %p, %p\n", position, lower_bound, upper_bound);
-  #endif
-  // check boundaries
-  if (lower_bound == NULL)
-  { // position lower than lowest table entry
-    *result = upper_bound->Color; // use lowest table entry
-  } else if (upper_bound == NULL)
-  { // position higher than highest table entry
-    *result = lower_bound->Color; // use highest table entry
-  } else
-  { // interpolate
-    float tmp, low_P, up_P;
-    position = (position - lower_bound->Pos) / (upper_bound->Pos - lower_bound->Pos);
-    result->Y  = lower_bound->Color.Y  + position * (upper_bound->Color.Y  - lower_bound->Color.Y );
-    result->DR = lower_bound->Color.DR + position * (upper_bound->Color.DR - lower_bound->Color.DR);
-    low_P = lower_bound->Color.DR < 1E-3 ? upper_bound->Color.DP : lower_bound->Color.DP;
-    up_P = upper_bound->Color.DR < 1E-3 ? lower_bound->Color.DP : upper_bound->Color.DP;
-    tmp = up_P - low_P;
-    if (fabs(tmp) <= M_PI) // use the shorter way in the circular domain of DP
-      result->DP = low_P + position * tmp;
-     else if (tmp > 0)
-      result->DP = low_P + position * (tmp - 2*M_PI);
-     else
-      result->DP = low_P + position * (tmp + 2*M_PI);
-    #ifdef DEBUG
-    fprintf(stderr, "IP: {%f->%f,%f,%f} {%f->%f,%f,%f}\n",
-      lower_bound->Pos, lower_bound->Color.Y, lower_bound->Color.DR, lower_bound->Color.DP,    
-      upper_bound->Pos, upper_bound->Color.Y, upper_bound->Color.DR, upper_bound->Color.DP);
-    #endif    
-  } 
-}
-
-/* color space transformation */
-static void RGB2YDCyl(YDCyl_color* result, const RGB2* src)
-{ double Db, Dr;
-  result->Y = 0.299 * src->bRed + 0.587 * src->bGreen + 0.114 * src->bBlue;
-  Db =      - 0.450 * src->bRed - 0.883 * src->bGreen + 1.333 * src->bBlue;
-  Dr =      - 1.333 * src->bRed + 1.116 * src->bGreen + 0.217 * src->bBlue;
-  result->DR = sqrt(Db*Db + Dr*Dr);
-  result->DP = atan2(Dr, Db);
-}
-
-static void StoreRGBvalue(BYTE* dst, double val)
-{ if (val < 0)
-    *dst = 0;
-   else if (val > 255)
-    *dst = 255;
-   else
-    *dst = val +.5; // rounding 
-}
-
-/* color space transformation */
-static void YDCyl2RGB(RGB2* result, const YDCyl_color* src)
-{ double Db, Dr, tmp;
-  Db = src->DR * cos(src->DP);
-  Dr = src->DR * sin(src->DP);
-  StoreRGBvalue(&result->bRed,   src->Y + 0.000092303716148 * Db - 0.525912630661865 * Dr);
-  StoreRGBvalue(&result->bGreen, src->Y - 0.129132898890509 * Db + 0.267899328207599 * Dr);
-  StoreRGBvalue(&result->bBlue,  src->Y + 0.664679059978955 * Db - 0.000079202543533 * Dr);
-}
 
 typedef struct
 { int osc_entr;
   int ana_entr;
+  int spc_entr;
   color_entry osc_tab[6];
-  color_entry ana_tab[64];
+  color_entry ana_tab[31];
+  color_entry spc_tab[64];
 } interpolation_data;
 
 /* transfer interpolation data into palette */
-static void do_interpolation(const interpolation_data* src)
-{ int i;
-  YDCyl_color col;
+static BOOL do_interpolation(const interpolation_data* src)
+{ if (src->osc_entr == 0 || src->ana_entr == 0 || src->spc_entr == 0)
+    return FALSE;
   // oscilloscope colors
-  for (i = 0; i <= CLR_OSC_BRIGHT - CLR_OSC_DIMMEST; ++i)
-  { interpolate_color(&col, (double)i / (CLR_OSC_BRIGHT - CLR_OSC_DIMMEST), src->osc_tab, src->osc_entr);
-    YDCyl2RGB(palette + CLR_OSC_DIMMEST + i, &col);
-    #ifdef DEBUG
-    fprintf(stderr, "OSC[%d] = RGB{%d,%d,%d} YDCyl{%f,%f,%f}\n", i,
-      palette[CLR_OSC_DIMMEST+i].bRed, palette[CLR_OSC_DIMMEST+i].bGreen, palette[CLR_OSC_DIMMEST+i].bBlue,
-      col.Y, col.DR, col.DP);
-    #endif
-  }
+  interpolate(palette + CLR_OSC_DIMMEST, CLR_OSC_BRIGHT - CLR_OSC_DIMMEST +1, src->osc_tab, src->osc_entr);
   // analyzer colors
-  for (i = 0; i <= CLR_SPC_TOP - CLR_SPC_BOTTOM; ++i)
-  { interpolate_color(&col, (double)i / (CLR_SPC_TOP - CLR_SPC_BOTTOM), src->ana_tab, src->ana_entr);
-    YDCyl2RGB(palette + CLR_SPC_BOTTOM + i, &col);
-    #ifdef DEBUG
-    fprintf(stderr, "ANA[%d] = RGB{%d,%d,%d} YDCyl{%f,%f,%f}\n", i,
-      palette[CLR_SPC_BOTTOM+i].bRed, palette[CLR_SPC_BOTTOM+i].bGreen, palette[CLR_SPC_BOTTOM+i].bBlue,
-      col.Y, col.DR, col.DP);
-    #endif
-  }
+  interpolate(palette + CLR_ANA_BOTTOM, CLR_ANA_TOP - CLR_ANA_BOTTOM +1, src->ana_tab, src->ana_entr);
+  // spectroscope colors
+  interpolate(palette + CLR_SPC_BOTTOM, CLR_SPC_TOP - CLR_SPC_BOTTOM +1, src->spc_tab, src->spc_entr);
+  return TRUE;
 }
 
 /* Removes comments */
@@ -302,6 +198,7 @@ static BOOL read_palette( FILE* dat )
   memset(palette, 0, sizeof palette);
   ipd.osc_entr = 0;
   ipd.ana_entr = 0; 
+  ipd.spc_entr = 0; 
  
   // determine file version
   if (strnicmp(line, "// ANALYZER", 11) == 0)
@@ -318,6 +215,7 @@ static BOOL read_palette( FILE* dat )
     { size_t p;
       char* cp;
       float pos;
+      char  percent;
 
       if (!uncomment_slash(line))
         continue; // ignore logically empty lines
@@ -335,7 +233,7 @@ static BOOL read_palette( FILE* dat )
         break;
        case '-': // indexed parameter
         cp = strchr(line+p+1, '=');
-        if (cp == NULL || sscanf(line+p+1, "%f", &pos) != 1)
+        if (cp == NULL || sscanf(line+p+1, "%f%c", &pos, &percent) != 1)
           break;
         line[p] = 0;
         if (!read_color( cp+1, &color ))
@@ -347,13 +245,19 @@ static BOOL read_palette( FILE* dat )
         { if (ipd.osc_entr == sizeof ipd.osc_tab / sizeof *ipd.osc_tab)
             break; // too many entries
           cur = ipd.osc_tab + ipd.osc_entr++;
-          pos /= CLR_OSC_BRIGHT-CLR_OSC_DIMMEST;
-        } else if (stricmp(line, "SPECTRUM") == 0)
+          pos /= percent == '%' ? 100 : CLR_OSC_BRIGHT-CLR_OSC_DIMMEST;
+        } else if (stricmp(line, "ANALYZER") == 0)
         { if (ipd.ana_entr == sizeof ipd.ana_tab / sizeof *ipd.ana_tab)
             break; // too many entries
           cur = ipd.ana_tab + ipd.ana_entr++;
-          pos /= CLR_SPC_TOP-CLR_SPC_BOTTOM;
-        }
+          pos /= percent == '%' ? 100 : CLR_ANA_TOP-CLR_ANA_BOTTOM;
+        } else if (stricmp(line, "SPECTROSCOPE") == 0)
+        { if (ipd.spc_entr == sizeof ipd.spc_tab / sizeof *ipd.spc_tab)
+            break; // too many entries
+          cur = ipd.spc_tab + ipd.spc_entr++;
+          pos /= percent == '%' ? 100 : CLR_SPC_TOP-CLR_SPC_BOTTOM;
+        } else
+          break;
         cur->Pos = pos;
         RGB2YDCyl(&cur->Color, &color);
         break;
@@ -391,7 +295,7 @@ static BOOL read_palette( FILE* dat )
       }
       if (i >= 3 && i <= 18)
         // analyzer colors
-        cur->Pos = ((18 - i) * (CLR_ANA_TOP-CLR_ANA_BOTTOM) / 15. + (CLR_ANA_BOTTOM-CLR_SPC_BOTTOM)) / (CLR_SPC_TOP-CLR_SPC_BOTTOM);
+        cur->Pos = (18 - i) / 15.;
        else if (i >= 19 && i <= 23)
         // scope colors 
         cur->Pos = (i - 19) / 4.;
@@ -408,19 +312,20 @@ static BOOL read_palette( FILE* dat )
       return FALSE;
     palette[CLR_ANA_BARS] = palette[CLR_ANA_TOP];
    OK:
-    // extrapolations for new analyzer colors
-    ipd.ana_tab[16].Pos = 0.;
-    RGB2YDCyl(&ipd.ana_tab[16].Color, &palette[CLR_BGR_BLACK]);
-    ipd.ana_tab[17].Pos = 1.;
-    RGB2YDCyl(&ipd.ana_tab[17].Color, &palette[CLR_ANA_TOP]);
-    ipd.ana_entr = 18;
     ipd.osc_entr = 5;
+    ipd.ana_entr = 16;
+    ipd.spc_entr = 17;
+    // extrapolations for new analyzer colors
+    for (i = 0; i < 16; ++i)
+    { ipd.spc_tab[i].Pos = .4 + ipd.ana_tab[i].Pos * .6;
+      ipd.spc_tab[i].Color = ipd.ana_tab[i].Color;
+    }
+    ipd.spc_tab[16].Pos = 0.;
+    RGB2YDCyl(&ipd.spc_tab[16].Color, &palette[CLR_BGR_BLACK]);
   }
 
   // do the interpolation
-  do_interpolation(&ipd);
-
-  return TRUE;
+  return do_interpolation(&ipd);
 }
 
 static void load_default_palette(void)
@@ -442,102 +347,155 @@ static void load_default_palette(void)
   ipd.osc_tab[1].Pos = .75;
   RGB2YDCyl(&ipd.osc_tab[1].Color, &green);
   // analyzer colors
-  ipd.ana_entr = 4;
+  ipd.ana_entr = 2;
   ipd.ana_tab[0].Pos = 0.;
-  RGB2YDCyl(&ipd.ana_tab[0].Color, &black);
-  ipd.ana_tab[1].Pos = .381;
-  RGB2YDCyl(&ipd.ana_tab[1].Color, &red);
-  ipd.ana_tab[2].Pos = .873;
-  RGB2YDCyl(&ipd.ana_tab[2].Color, &green);
-  ipd.ana_tab[3].Pos = 1.;
-  RGB2YDCyl(&ipd.ana_tab[3].Color, &cyan);
+  RGB2YDCyl(&ipd.ana_tab[0].Color, &red);
+  ipd.ana_tab[1].Pos = 1.;
+  RGB2YDCyl(&ipd.ana_tab[1].Color, &green);
+  // spectroscope colors
+  ipd.spc_entr = 4;
+  ipd.spc_tab[0].Pos = 0.;
+  RGB2YDCyl(&ipd.spc_tab[0].Color, &black);
+  ipd.spc_tab[1].Pos = .381;
+  RGB2YDCyl(&ipd.spc_tab[1].Color, &red);
+  ipd.spc_tab[2].Pos = .873;
+  RGB2YDCyl(&ipd.spc_tab[2].Color, &green);
+  ipd.spc_tab[3].Pos = 1.;
+  RGB2YDCyl(&ipd.spc_tab[3].Color, &cyan);
   // do the interpolation
   do_interpolation(&ipd);
 }
 
+
 /********** filter design ***************************************************/
-
-/* Initializes spectrum analyzer bands. */
-static void
-init_bands( void )
-{
-  float step, z;
-  int   i;
-
-  amps_count = _specana_init(( plug.cx << (cfg.highprec_mode+1) ) * 100 / cfg.display_percent );
-  bars_count = plug.cx / ( BARS_CY + BARS_SPACE );
-  specband_count = plug.cy;
-
-  if( plug.cx - bars_count * ( BARS_CY + BARS_SPACE ) >= BARS_CY ) {
-    ++bars_count;
-  }
-
-  amps       = realloc( amps,       sizeof(*amps ) * amps_count );
-  lastamps   = realloc( lastamps,   sizeof(*amps ) * amps_count );
-  bars       = realloc( bars,       sizeof(*bars ) * plug.cx );
-  scale      = realloc( scale,      sizeof(*scale) * (bars_count+1));
-  spec_scale = realloc( spec_scale, sizeof(*spec_scale) * (specband_count+1));
-
-  memset( amps,  0, sizeof( *amps  ) * amps_count );
-  memset( lastamps,  0, sizeof( *lastamps  ) * amps_count );
-  memset( bars,  0, sizeof( *bars  ) * plug.cx );
-
-  step     = log( amps_count * cfg.display_percent / 100 ) / bars_count;
-  z        = 0;
-  scale[0] = 1;
-  for( i = 1; i < bars_count; i++ )
-  { z += step;
-    scale[i] = exp( z );
-
-    if( i > 0 && scale[i] <= scale[i-1] )
-      scale[i] = scale[i-1] + 1;
-  }
-  scale[bars_count] = amps_count * cfg.display_percent / 100;
-
-  step     = log( amps_count * cfg.display_percent / 100 ) / specband_count;
-  z        = 0;
-  spec_scale[0] = 1;
-  for( i = 1; i < specband_count; i++ )
-  { z += step;
-    spec_scale[i] = exp( z );
-
-    if( i > 0 && spec_scale[i] <= spec_scale[i-1] )
-      spec_scale[i] = spec_scale[i-1] + 1;
-  }
-  spec_scale[specband_count] = amps_count * cfg.display_percent / 100;
-
-  amp_scale = sqrt(amps_count);
-}
 
 /* Free memory used by spectrum analyzer bands. */
 static void
 free_bands( void )
 {
+  #ifdef DEBUG
+  fprintf(stderr, "INI: free_bands %p %p %p\n", amps, bars, scale);
+  #endif 
   free( amps  );
-  free( lastamps );
   free( bars  );
   free( scale );
-  free( spec_scale );
 
   amps_count = 0;
   bars_count = 0;
   amps       = NULL;
-  lastamps   = NULL;
   bars       = NULL;
   scale      = NULL;
-  spec_scale = NULL;
 }
 
-/* like _specana_dobands but return -1 if the values did not change,
- * most likely because of a pause condition.
- */
-static int call_specana_dobands(void)
-{ int r = _specana_dobands(amps);
-  if (memcmp(amps, lastamps, amps_count * sizeof *amps) == 0)
-    return -1;
-  memcpy(lastamps, amps, amps_count * sizeof *amps);
-  return r;
+/* Initializes spectrum analyzer bands. */
+static BOOL init_bands(int samplerate)
+{
+  int    i;
+  double step = 0;
+  int    highfreq;
+
+  #ifdef DEBUG
+  fprintf(stderr, "INI: samplerate = %d\n", samplerate);
+  #endif 
+  relative_falloff_speed = (float)cfg.falloff_speed / plug.cy;
+
+  if ( cfg.default_mode == active_cfg.default_mode
+     && cfg.display_freq == active_cfg.display_freq
+     && cfg.display_lowfreq == active_cfg.display_lowfreq
+     && cfg.highprec_mode == active_cfg.highprec_mode
+     && last_samplerate == samplerate
+     && amps != NULL && bars != NULL && scale != NULL )
+  { active_cfg = cfg; // no major change
+    #ifdef DEBUG
+    fprintf(stderr, "INI: minor change\n");
+    #endif 
+    return TRUE;
+  }
+  active_cfg = cfg;
+  last_samplerate = samplerate;
+  free_bands();
+  
+  // calculate number of channels = bars, FFT length and some other specific parameters
+  highfreq = (samplerate >> 1) +1; // the +1 avoids roundoff noise.
+  // Note that this will create an scale index out of bounds if the FFT winwow size is larger than the sampling rate (very unlikely).
+  if (highfreq > active_cfg.display_freq)
+    highfreq = active_cfg.display_freq;
+  windowfunc = WINFN_HAMMING;
+  switch (active_cfg.default_mode)
+  {default:
+    #ifdef DEBUG
+    fprintf(stderr, "no FFT mode: %d\n", active_cfg.default_mode);
+    #endif 
+    return TRUE;
+   case SHOW_ANALYZER:
+   case SHOW_SPECTROSCOPE:
+    bars_count = plug.cx;
+    numsamples = (bars_count * samplerate << active_cfg.highprec_mode) / (highfreq - active_cfg.display_lowfreq);
+    break;
+   case SHOW_BARS:
+    bars_count = (plug.cx + BARS_SPACE) / (BARS_CY + BARS_SPACE);
+    goto logcommon;
+   case SHOW_LOGSPECSCOPE:
+    bars_count = plug.cy;
+   logcommon:
+    step = log((double)highfreq / active_cfg.display_lowfreq) / bars_count; // limit range to the nyquist frequency
+    numsamples = samplerate / (active_cfg.display_lowfreq * exp(step)) * (1 << active_cfg.highprec_mode);
+  }
+  #ifdef DEBUG
+  fprintf(stderr, "INI: mode = %d, bars = %d, numsamples = %d\n", active_cfg.default_mode, bars_count, numsamples);
+  #endif 
+
+  // round up FFT length to the next power of 2
+  frexp(numsamples-1, &numsamples); // floor(log2(numsamples-1))+1
+  numsamples = 1 << numsamples; // 2**x
+
+  // initialize woring set
+  amps_count = (numsamples >> 1) +1;
+  amps       = malloc(amps_count * sizeof *amps);
+  bars       = malloc(bars_count * sizeof *bars);
+  scale      = malloc((bars_count+1) * sizeof *scale);
+  memset(bars, 0, bars_count * sizeof *bars);
+
+  if (step != 0)
+  { // logarithmic frequency scale
+    double factor = (double)active_cfg.display_lowfreq * numsamples / samplerate;
+    int* sp = scale;
+    *sp++ = ceil(factor);
+    for (i = 1; i <= bars_count; i++)
+    { *sp = ceil(exp(step * i) * factor);
+      if (sp[0] <= sp[-1])
+      { if (i == 1 || sp[-2] < sp[0]-1)
+          sp[-1] = sp[0] - 1;
+         else
+          sp[0] = sp[-1] + 1;
+      }
+      ++sp;
+    }
+  } else
+  { // linear frequency scale
+    double factor = (double)numsamples / samplerate;
+    int* sp = scale;
+    step = (highfreq - active_cfg.display_lowfreq) / bars_count;
+    *sp++ = ceil(active_cfg.display_lowfreq * factor);
+    for (i = 1; i <= bars_count; i++)
+    { *sp = ceil((i * step + active_cfg.display_lowfreq) * factor);
+      if (sp[0] <= sp[-1])
+        sp[0] = sp[-1] +1;
+      ++sp;
+    }
+  }
+  #ifdef DEBUG
+  fprintf(stderr, "INITSCALE: st = %f,\n", step);
+  for (i = 0; i <= bars_count; ++i)
+    fprintf(stderr, " %d", scale[i]);
+  fprintf(stderr, "\n");
+  #endif
+  
+  return TRUE;
 }
+
+
+/********** analyzer updates ************************************************/
 
 static void
 clear_analyzer( void )
@@ -548,20 +506,63 @@ clear_analyzer( void )
   DiveBeginImageBufferAccess( hdive, image_id, &image, &cx, &cy );
   memset( image, 0, cx * cy );
   if (bars != NULL)
-    memset( bars , 0, plug.cx * sizeof( *bars ));
+    memset(bars , 0, bars_count * sizeof *bars);
   DiveEndImageBufferAccess( hdive, image_id );
   DiveBlitImage( hdive, image_id, 0 );
 }
 
+static BOOL do_analysis(void)
+{retry:
+  switch (specana_do(numsamples, WINFN_HAMMING, amps, &lastformat))
+  {case SPECANA_NEWFORMAT:
+    #ifdef DEBUG
+    fprintf(stderr, "specana_do NEWFORMAT\n");
+    #endif
+    init_bands(lastformat.samplerate);
+    goto retry;
+   default:
+    #ifdef DEBUG
+    fprintf(stderr, "specana_do ERROR\n");
+    #endif
+   case SPECANA_UNCHANGED:
+    #ifdef DEBUG
+    fprintf(stderr, "specana_do UNCHANGED\n");
+    #endif
+    return FALSE;
+   case SPECANA_OK:
+    return TRUE;
+  }
+}
+
+/* get intensity of a bin described by scp[0..1] in Bel (= 10*dB) */
+static float get_barvalue(int* scp)
+{ float a = 0;
+  int e;
+  for (e = scp[0]; e < scp[1]; e++)
+    a += amps[e];
+  return log10( a / (scp[1] - scp[0]) // nornalize for number of added channels
+    * sqrt(scp[0] * last_samplerate / (double)numsamples) // scale by sqrt(frequency / 100)
+    + 1E-5 );
+}
+
 _Inline void update_barvalue(float* val, float z)
-{
-  if (z >= 1)
+{ if (z < 0)
+    z = 0;
+   else if (z >= 1)
     z = .999999;
 
-  if( !cfg.falloff || *val-relative_falloff_speed <= z )
+  if( !active_cfg.falloff || *val-relative_falloff_speed <= z )
     *val = z;
    else
     *val -= relative_falloff_speed;
+}
+
+static void draw_grid(char* image, unsigned long image_cx)
+{ int x,y;
+  for( y = 0; y < plug.cy; y += 2 )
+  { for( x = 0; x < plug.cx; x += 2 )
+      image[( y * image_cx ) + x ] = CLR_BGR_GREY;
+  }
 }
 
 /* Do the regular update of the analysis window.
@@ -569,102 +570,83 @@ _Inline void update_barvalue(float* val, float z)
  */
 static void update_analyzer(void)
 {
-  long i, x, y, max, e;
+  long i, x, y;
   unsigned long image_cx, image_cy;
   char* image = NULL;
 
-  if( _decoderPlaying() == 0 )
+  if( decoderPlaying() == 0 )
   { if ( !is_stopped )
     { is_stopped = TRUE;
       DiveBlitImage( hdive, 0, 0 );
       if (bars != NULL)
-        memset( bars,  0, sizeof( *bars ) * plug.cx );
+        memset(bars,  0, bars_count * sizeof *bars);
     }
     return;
   }
-  // _decoderPlaying() == 1
+  // now _decoderPlaying() == 1
 
+  #ifdef DEBUG
+  fprintf(stderr, "update_analyzer %d\n", needinit);
+  #endif 
+  // update initialization ?
   if (needinit)
-  { init_bands();
+  { if (decoderPlayingSamples(&lastformat, NULL, 0) != 0)
+      return; // can't help
     needinit = FALSE;
+    init_bands(lastformat.samplerate);
   }
 
-  switch (cfg.default_mode)
+  // do fft analysis?
+  if (active_cfg.default_mode == SHOW_DISABLED)
+    return;
+  if ( active_cfg.default_mode != SHOW_OSCILLOSCOPE
+     && !do_analysis() )
+    return; // no changes or error
+  
+  DiveBeginImageBufferAccess( hdive, image_id, &image, &image_cx, &image_cy );
+
+  #ifdef DEBUG
+  fprintf(stderr, "ANA: before switch %d\n", active_cfg.default_mode);
+  #endif 
+  switch (active_cfg.default_mode)
   {case SHOW_ANALYZER:
-
-    max = call_specana_dobands();
-    if (max <= 0) // no changes or no valid content
-      break;
-
-    DiveBeginImageBufferAccess( hdive, image_id, &image, &image_cx, &image_cy );
     memset( image, 0, image_cx * image_cy );
-
-    // Grid
-    for( y = 0; y < plug.cy; y += 2 ) {
-      for( x = 0; x < plug.cx; x += 2 ) {
-        image[( y * image_cx ) + x ] = 1;
-      }
-    }
+    draw_grid(image, image_cx);
 
     for( x = 0; x < plug.cx; x++ )
     {
-      if (cfg.highprec_mode)
-        update_barvalue( bars+x, .66667*log10(10 * amp_scale * (amps[2*x]+amps[2*x+1]) / max +1));
-       else
-        update_barvalue( bars+x, .66667*log10(20 * amp_scale * amps[x] / max +1));
+      update_barvalue( bars+x, .15 + .6666666667 * get_barvalue(scale + x) ); // 30dB range [-4,5dB..+25,5dB]
 
       for( y = (int)(bars[x]*(plug.cy+1)) -1; y >= 0; y-- )
       {
-        int color = ( CLR_ANA_TOP - CLR_ANA_BOTTOM +1 ) * y / (plug.cy * (1-bars[x])) + CLR_ANA_BOTTOM;
+        int color = ( CLR_ANA_TOP - CLR_ANA_BOTTOM ) * y / (plug.cy * (1-bars[x])) + CLR_ANA_BOTTOM;
         image[( plug.cy - y -1) * image_cx + x ] = min( CLR_ANA_TOP, color );
       }
     }
     break;
 
    case SHOW_BARS:
-
-    max = call_specana_dobands();
-    if (max <= 0) // no changes or no valid content
-      break;
-
-    DiveBeginImageBufferAccess( hdive, image_id, &image, &image_cx, &image_cy );
     memset( image, 0, image_cx * image_cy );
-
-    // Grid
-    for( y = 0; y < plug.cy; y += 2 ) {
-      for( x = 0; x < plug.cx; x += 2 ) {
-        image[( y * image_cx ) + x ] = 1;
-      }
-    }
+    draw_grid(image, image_cx);
 
     for( i = 0; i < bars_count; i++ )
     {
-      float a = 0;
-      for( e = scale[i]; e < scale[i+1]; e++ )
-        a += amps[e];
-      a /= scale[i+1] - scale[i];
-
-      update_barvalue( bars+i, .66667*log10(20 * amp_scale * a / max +1));
+      update_barvalue( bars+i, .15 + .6666666667 * get_barvalue(scale + i) ); // 30dB range [-4,5dB..+25,5dB]
+      //fprintf(stderr, "B: %d %d %f %f\n", i, bars_count, get_barvalue(scale + i), bars[i]);
 
       for( y = (int)(bars[i]*(plug.cy+1)) -1; y >= 0; y-- )
       {
-        int color = ( CLR_ANA_TOP - CLR_ANA_BOTTOM +1 ) * y / plug.cy + CLR_ANA_BOTTOM;
+        char* ip = image + (plug.cy - y -1) * image_cx + (BARS_CY + BARS_SPACE) * i;
+        int color = ( CLR_ANA_TOP - CLR_ANA_BOTTOM ) * y / (plug.cy-1) + CLR_ANA_BOTTOM;
         //int color = ( CLR_ANA_TOP - CLR_ANA_BOTTOM +1 ) * y / (plug.cy * (1-bars[i])) + CLR_ANA_BOTTOM;
         //color = min( CLR_ANA_TOP, color );
-        for( x = 0; x < BARS_CY; x++ ) {
-          image[( plug.cy - y -1) * image_cx + ( BARS_CY + BARS_SPACE ) * i + x ] = color;
-        }
+        for(x = BARS_CY; x; --x )
+          *ip++ = color;
       }
     }
     break;
 
    case SHOW_SPECTROSCOPE:
-
-    max = call_specana_dobands();
-    if (max <= 0) // no changes or no valid content
-      break;
-
-    DiveBeginImageBufferAccess( hdive, image_id, &image, &image_cx, &image_cy );
     { char* ip = image + (plug.cy-1) * image_cx; // bottom line
       if (is_stopped)
         // first call after restart
@@ -674,23 +656,13 @@ static void update_analyzer(void)
         memmove(image, image+image_cx, (plug.cy-1) * image_cx);
 
       for( x = 0; x < plug.cx; x++ )
-      {
-        if (cfg.highprec_mode)
-          update_barvalue( bars+x, .5*log10(14 * amp_scale * (amps[2*x]+amps[2*x+1]) / max * sqrt(2.20 * cfg.display_percent * x / plug.cx) +1));
-         else
-          update_barvalue( bars+x, .5*log10(28 * amp_scale * amps[x] / max * sqrt(2.20 * cfg.display_percent * x / plug.cx) +1));
+      { update_barvalue( bars+x, .35 + .5 * get_barvalue(scale + x) ); // 40dB range [-14dB..+26dB]
         ip[x] = ( CLR_SPC_TOP - CLR_SPC_BOTTOM +1 ) * bars[x] + CLR_SPC_BOTTOM;
       }
     }
     break;
 
    case SHOW_LOGSPECSCOPE:
-
-    max = call_specana_dobands();
-    if (max <= 0) // no changes or no valid content
-      break;
-
-    DiveBeginImageBufferAccess( hdive, image_id, &image, &image_cx, &image_cy );
     { char* ip = image + (plug.cx-1); // last pixel, first line
       if (is_stopped)
         // first call after restart
@@ -699,68 +671,48 @@ static void update_analyzer(void)
         // move image left one pixel
         memmove(image, image+1, plug.cy*image_cx -1);
 
-      for( i = 0; i < specband_count; i++ )
-      {
-        double a = 0;
-        for( e = spec_scale[i]; e < spec_scale[i+1]; e++ )
-          a += amps[e];
-        a /= spec_scale[i+1] - spec_scale[i];
-
-        update_barvalue( bars+i, .5*log10(28 * amp_scale * a / max * sqrt(220.*spec_scale[i]/amps_count) +1));
-
-        ip[(plug.cy-i-1)*image_cx] =
-          ( CLR_SPC_TOP - CLR_SPC_BOTTOM +1 ) * bars[i] + CLR_SPC_BOTTOM;
+      for( i = 0; i < bars_count; i++ )
+      { update_barvalue( bars+i, .35 + .5 * get_barvalue(scale + i) ); // 40dB range [-14dB..+26dB]
+        ip[(plug.cy-i-1)*image_cx] = ( CLR_SPC_TOP - CLR_SPC_BOTTOM +1 ) * bars[i] + CLR_SPC_BOTTOM;
       }
     }
     break;
 
    case SHOW_OSCILLOSCOPE:
-
-    DiveBeginImageBufferAccess( hdive, image_id, &image, &image_cx, &image_cy );
-    { FORMAT_INFO bufferinfo;
-      unsigned char* sample;
-      int   len;
-
+    { int   len, maxval;
+      union // dirty hack to avoid lvalue cast tricks
+      { unsigned char* cp;
+        short*         sp;
+        long*          lp;
+      } sample;
+      
       memset( image, 0, image_cx * image_cy );
+      draw_grid(image, image_cx);
 
-      // Grid
-      for( y = 0; y < plug.cy; y += 2 ) {
-        for( x = 0; x < plug.cx; x += 2 ) {
-          image[( y * image_cx ) + x ] = 1;
-        }
-      }
-
-      _decoderPlayingSamples( &bufferinfo, NULL, 0 );
-
-      len = bufferinfo.channels * plug.cx;
-      max = 0x7FFFFFFFUL >> ( 32 - bufferinfo.bits );
-
-      if( bufferinfo.bits >  8 ) {
-        len *= 2;
-      }
-      if( bufferinfo.bits > 16 ) {
-        len *= 2;
-      }
-
-      sample = _alloca( len );
-      _decoderPlayingSamples( &bufferinfo, sample, len );
+     scope_redo:
+      len = (lastformat.channels * plug.cx) << (1 + (lastformat.bits > 8) + (lastformat.bits > 16));
+      maxval = lastformat.channels << lastformat.bits;
+      
+      sample.cp = _alloca( len );
+      decoderPlayingSamples( &lastformat, sample.cp, len );
+      if ((lastformat.channels * plug.cx) << (1 + (lastformat.bits > 8) + (lastformat.bits > 16)) != len) // check again...
+        goto scope_redo;
 
       for( x = 0; x < plug.cx; x++ )
       {
         int color;
-        int z = 0;
-        for( e = 0; e < bufferinfo.channels; e++ ) {
-          if( bufferinfo.bits <= 8 ) {
-            z += (sample[x+e] - 128) / bufferinfo.channels;
-          } else if( bufferinfo.bits <= 16 ) {
-            z += ((short*)sample)[x+e] / bufferinfo.channels;
-          } else if( bufferinfo.bits <= 32 ) {
-            z += ((long* )sample)[x+e] / bufferinfo.channels;
-          }
+        double z = 0;
+        for( i = lastformat.channels << 1; i; --i ) {
+          if( lastformat.bits <= 8 )
+            z += *sample.cp++ - 128;
+           else if( lastformat.bits <= 16 )
+            z += *sample.sp++;
+           else if( lastformat.bits <= 32 )
+            z += *sample.lp++;
         }
 
-        y = plug.cy / 2 + plug.cy * z / 2 / max;
-        color = ( CLR_OSC_BRIGHT - CLR_OSC_DIMMEST + 2 ) * abs(z) / max + CLR_OSC_DIMMEST;
+        y = image_cy * (1 + z / maxval) / 2;
+        color = ( CLR_OSC_BRIGHT - CLR_OSC_DIMMEST + 2 ) * abs(z) / maxval + CLR_OSC_DIMMEST;
         image[ y * image_cx + x ] = min( CLR_OSC_BRIGHT, color );
       }
     }
@@ -771,9 +723,14 @@ static void update_analyzer(void)
   { DiveEndImageBufferAccess( hdive, 0 );
     DiveBlitImage( hdive, image_id, 0 );
   }
+  #ifdef DEBUG
+  fprintf(stderr, "update_analyzer at end\n");
+  #endif
   is_stopped = FALSE;
 }
 
+
+/********** plug-in interface, GUI stuff ************************************/
 
 /* Returns information about plug-in. */
 int PM123_ENTRY
@@ -801,10 +758,10 @@ cfg_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
       WinCheckButton( hwnd, CB_FALLOFF, cfg.falloff );
       WinCheckButton( hwnd, CB_HIGHPREC, cfg.highprec_mode );
 
-      WinSendDlgItemMsg( hwnd, SB_PERCENT,   SPBM_SETLIMITS,
-                         MPFROMLONG( 100 ), MPFROMLONG( 25 )); // lower values may decrease speed
-      WinSendDlgItemMsg( hwnd, SB_PERCENT,   SPBM_SETCURRENTVALUE,
-                         MPFROMLONG( cfg.display_percent ), 0 );
+      WinSendDlgItemMsg( hwnd, SB_MAXFREQ,   SPBM_SETLIMITS,
+                         MPFROMLONG( 24 ), MPFROMLONG( 5 )); // lower values may decrease speed significantly
+      WinSendDlgItemMsg( hwnd, SB_MAXFREQ,   SPBM_SETCURRENTVALUE,
+                         MPFROMLONG( (cfg.display_freq+500)/1000 ), 0 );
       WinSendDlgItemMsg( hwnd, SB_FREQUENCY, SPBM_SETLIMITS,
                          MPFROMLONG( 200 ), MPFROMLONG( 1 ));
       WinSendDlgItemMsg( hwnd, SB_FREQUENCY, SPBM_SETCURRENTVALUE,
@@ -837,12 +794,11 @@ cfg_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
                          MPFROMP( &value ), MPFROM2SHORT( 0, SPBQ_DONOTUPDATE ));
 
       cfg.falloff_speed = value;
-      relative_falloff_speed = (float)value / plug.cy;
 
-      WinSendDlgItemMsg( hwnd, SB_PERCENT, SPBM_QUERYVALUE,
+      WinSendDlgItemMsg( hwnd, SB_MAXFREQ, SPBM_QUERYVALUE,
                          MPFROMP( &value ), MPFROM2SHORT( 0, SPBQ_DONOTUPDATE ));
 
-      cfg.display_percent = value;
+      cfg.display_freq = value*1000;
 
       cfg.highprec_mode = WinQueryButtonCheckstate( hwnd, CB_HIGHPREC );
 
@@ -945,11 +901,34 @@ plg_win_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
         cfg.default_mode = SHOW_ANALYZER;
       }
       clear_analyzer();
+      needinit = TRUE;
+      #ifdef DEBUG
+      fprintf(stderr, "CLICK! %d\n", cfg.default_mode);
+      #endif
       break;
 
     case WM_TIMER:
       update_analyzer();
       break;
+      
+    case WM_DESTROY: // we deinitialize here to avoid access to memory objects that are already freed.
+      DiveFreeImageBuffer( hdive, image_id );
+
+      DiveClose( hdive );
+
+      if (hconfigure)
+        WinDismissDlg( hconfigure, 0 );
+
+      free_bands();
+      specana_uninit();
+
+      memset(&active_cfg, 0, sizeof active_cfg);
+
+      hdive = 0;
+      hanalyzer = 0;
+
+      destroy_pending = FALSE;
+      break;   
 
     default:
       return WinDefWindowProc( hwnd, msg, mp1, mp2 );
@@ -963,6 +942,17 @@ vis_init( PVISPLUGININIT init )
   FILE* dat;
   HINI  hini;
   int   i;
+  int   display_percent;
+
+  #ifdef DEBUG
+  fprintf(stderr, "vis_init\n");
+  #endif
+  // wait for old instances to complete destruction, since many variables are static.
+  for (i = 0; destroy_pending; ++i)
+  { if (i > 10)
+      return 0; // can't help
+    DosSleep(1);
+  }
 
   memcpy( &plug, init, sizeof( VISPLUGININIT ));
 
@@ -970,8 +960,8 @@ vis_init( PVISPLUGININIT init )
   cfg.default_mode    = SHOW_BARS;
   cfg.falloff         = 1;
   cfg.falloff_speed   = 1;
-  relative_falloff_speed = 1./plug.cy;
-  cfg.display_percent = 80;
+  cfg.display_freq    = -1;
+  cfg.display_lowfreq = 50;
   cfg.highprec_mode   = FALSE;
 
   if(( hini = open_module_ini()) != NULLHANDLE )
@@ -980,19 +970,28 @@ vis_init( PVISPLUGININIT init )
     load_ini_value( hini, cfg.default_mode );
     load_ini_value( hini, cfg.falloff );
     load_ini_value( hini, cfg.falloff_speed );
-    relative_falloff_speed = (float)cfg.falloff_speed / plug.cy;
-    load_ini_value( hini, cfg.display_percent );
+    load_ini_value( hini, cfg.display_freq );
+    { // hack to keep ini macros happy
+      struct
+      { int display_percent;
+      } cfg;
+      load_ini_value( hini, cfg.display_percent );
+      display_percent = cfg.display_percent;
+    }
     load_ini_value( hini, cfg.highprec_mode );
 
     close_ini( hini );
   }
+  if (cfg.display_freq == -1)
+    if (display_percent == -1)
+      cfg.display_freq = 18000;
+     else
+      cfg.display_freq = max(5, display_percent * 22050 / 100); // for compatibility
 
   // First get the routines
-  _decoderPlayingSamples = init->procs->output_playing_samples;
-  _decoderPlaying        = init->procs->decoder_playing;
-  _specana_init          = init->procs->specana_init;
-  _specana_dobands       = init->procs->specana_dobands;
-
+  decoderPlayingSamples = init->procs->output_playing_samples;
+  decoderPlaying        = init->procs->decoder_playing;
+ 
   needinit = TRUE;
 
   // Open up DIVE
@@ -1054,32 +1053,25 @@ plugin_deinit( int unload )
 {
   HINI hini;
 
+  #ifdef DEBUG
+  fprintf(stderr, "plugin_deinit\n");
+  #endif
   if(( hini = open_module_ini()) != NULLHANDLE )
   {
     save_ini_value( hini, cfg.update_delay );
     save_ini_value( hini, cfg.default_mode );
     save_ini_value( hini, cfg.falloff );
     save_ini_value( hini, cfg.falloff_speed );
-    save_ini_value( hini, cfg.display_percent );
+    save_ini_value( hini, cfg.display_freq );
     save_ini_value( hini, cfg.highprec_mode );
 
     close_ini( hini );
   }
 
+  destroy_pending = TRUE;
   WinStopTimer( hab, hanalyzer, TID_USERMAX - 1 );
-  DiveFreeImageBuffer( hdive, image_id );
   WinDestroyWindow( hanalyzer );
-
-  DiveClose( hdive );
-
-  if( hconfigure ) {
-    WinDismissDlg( hconfigure, 0 );
-  }
-
-  free_bands();
-
-  hdive = 0;
-  hanalyzer = 0;
+  // continue in window procedure
 
   return 0;
 }

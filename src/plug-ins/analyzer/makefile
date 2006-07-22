@@ -2,14 +2,17 @@
 #  analyzer.dll makefile
 #
 
+#DEBUG=yes
+#DEBUG_ALLOC=yes
+
 DLL      = yes
 TOPDIR   = ..\..
-INCDIR   = $(TOPDIR)\utils;$(TOPDIR)\include
+INCDIR   = $(TOPDIR)\utils;$(TOPDIR)\include;$(TOPDIR)\fft123\api
 
 !include $(TOPDIR)\config\makerules
 
-OBJECTS  = analyzer.obj
-LIBS     = $(LIBS_MM) $(TOPDIR)\utils\utilfct.lib
+OBJECTS  = colormap.obj specana.obj analyzer.obj
+LIBS     = $(LIBS_MM) $(TOPDIR)\utils\utilfct.lib $(TOPDIR)\fft123\fft123.lib
 DEF      = analyzer$(LDEF_SUFFX)
 RESOURCE = analyzer.res
 

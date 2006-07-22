@@ -37,8 +37,8 @@
 #define SB_FREQUENCY     102
 #define ST_FREQUENCY     103
 #define ST_DISPLAY       112
-#define SB_PERCENT       111
-#define ST_PERCENT       113
+#define SB_MAXFREQ       111
+#define ST_MAXFREQ       113
 #define CB_FALLOFF       115
 #define SB_FALLOFF       114
 #define ST_PIXELS        116
