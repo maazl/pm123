@@ -8,7 +8,7 @@ MDUMMY     =
 CC         = icc
 CFLAGS     = -Ss -Q -Gm -W3 -Wuse+ -DOS2 -DTCPV40HDRS
 CFLAGS_DLL = -Ge- -DLL
-CFLAGS_DBG = -Ti
+CFLAGS_DBG = -Ti -Tx
 CFLAGS_MEM = -Tm
 CFLAGS_OPT = -Gf -Gi -O -G5 -Gl
 
