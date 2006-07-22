@@ -314,14 +314,16 @@ static BOOL read_palette( FILE* dat )
    OK:
     ipd.osc_entr = 5;
     ipd.ana_entr = 16;
-    ipd.spc_entr = 17;
+    ipd.spc_entr = 18;
     // extrapolations for new analyzer colors
     for (i = 0; i < 16; ++i)
-    { ipd.spc_tab[i].Pos = .4 + ipd.ana_tab[i].Pos * .6;
+    { ipd.spc_tab[i].Pos = .4 + ipd.ana_tab[i].Pos * .5;
       ipd.spc_tab[i].Color = ipd.ana_tab[i].Color;
     }
     ipd.spc_tab[16].Pos = 0.;
     RGB2YDCyl(&ipd.spc_tab[16].Color, &palette[CLR_BGR_BLACK]);
+    ipd.spc_tab[17].Pos = 1.;
+    RGB2YDCyl(&ipd.spc_tab[16].Color, &palette[CLR_ANA_BARS]);
   }
 
   // do the interpolation
