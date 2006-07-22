@@ -8,6 +8,7 @@
 #define __PM123_PLUGIN_H
 
 #include "format.h"
+#include "decoder_plug.h"
 
 #define PLUGIN_NULL    0x000
 #define PLUGIN_VISUAL  0x001
