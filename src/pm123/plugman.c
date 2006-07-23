@@ -1331,8 +1331,6 @@ vis_init( HWND hwnd, int i )
   procs.decoder_status         = dec_status;
   procs.decoder_command        = dec_command;
   procs.decoder_fileinfo       = dec_fileinfo;
-  procs.specana_init           = specana_init;
-  procs.specana_dobands        = specana_dobands;
   procs.pm123_getstring        = pm123_getstring;
   procs.pm123_control          = pm123_control;
   procs.decoder_trackinfo      = dec_trackinfo;
