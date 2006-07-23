@@ -16,6 +16,7 @@ PM123's History
       Missed files are marked with a special icon and skipped at use of the
       playlist.
     - The sources now can be compiled via Open Watcom 1.5.
+    - The sources now can be compiled via GNU C++. Thanks to Dmitry Froloff.
     - Added support of cyrillic letters (russian cp866) to the first default 
       skin font. Thanks to ntim.
     - The default skin draws a bitrate digit by digit. Therefore all possible

@@ -1,5 +1,5 @@
 #
-#  dft_codelets.lib makefile
+#  dft_codelets library makefile
 #
 
 DLL     = yes
@@ -8,13 +8,13 @@ INCDIR  = $(TOPDIR);$(TOPDIR)\kernel;$(TOPDIR)\dft
 
 !include $(TOPDIR)\..\config\makerules
 
-all: dft_codelets.lib $(MDUMMY)
+all: dft_codelets$(LBO) $(MDUMMY)
 
-OBJECTS = n.obj t.obj
+OBJECTS = n$(CO) t$(CO)
 
-dft_codelets.lib: $(LIBS) $(OBJECTS)
+dft_codelets$(LBO): $(LIBS) $(OBJECTS)
 	if exist $@ del $@
 	$(LB) $@ $(OBJECTS) $(LIBS) $(LBENDL)
 
 clean: $(MDUMMY)
-	-@del dft_codelets.lib $(OBJECTS) 2> nul
+	-@del dft_codelets$(LBO) $(OBJECTS) 2> nul

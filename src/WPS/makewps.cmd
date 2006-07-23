@@ -21,8 +21,8 @@ if SysCreateObject( "WPFolder", "PM123", "<WP_DESKTOP>",,
    "OBJECTID=<PM123FOLDER>;", "REPLACE" ) = 0 then
    call error
 
-say "Creating PM123 assotiations folder..."
-if SysCreateObject( "WPFolder", "Assotiations", "<PM123FOLDER>",,
+say "Creating PM123 associations folder..."
+if SysCreateObject( "WPFolder", "Associations", "<PM123FOLDER>",,
    "OBJECTID=<PM123ASSOTIATIONS>;", "REPLACE" ) = 0 then
    call error
 

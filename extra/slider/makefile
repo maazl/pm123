@@ -8,9 +8,9 @@ EXE_PM   = yes
 
 all: slider.exe $(MDUMMY)
 
-OBJECTS  = slider.obj
+OBJECTS  = slider$(CO)
 DEF      = slider$(LDEF_SUFFX)
-RESOURCE = slider.res
+RESOURCE = slider$(RES)
 
 slider.exe: $(OBJECTS) $(RESOURCE) $(DEF)
 	$(CL) $(LFLAGS) $(LFLAGS_OUT)$@ $(LOBJ_PREFX)$(OBJECTS)$(LOBJ_SUFFX) $(LDEF_PREFX)$(DEF)

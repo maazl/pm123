@@ -5,7 +5,7 @@
 !include src\config\makerules
 
 VERSION = 1_32
-PARTS   = src\utils\utilfct.lib src\gbm123\gbm123.dll src\fft123\fft123.dll
+PARTS   = src\utils\utilfct$(LBO) src\gbm123\gbm123.dll src\fft123\fft123.dll
 PARTS   = $(PARTS) src\http123\http123.dll
 PARTS   = $(PARTS) src\plug-ins\analyzer\analyzer.dll
 PARTS   = $(PARTS) src\plug-ins\cddaplay\cddaplay.dll
@@ -20,7 +20,7 @@ PARTS   = $(PARTS) doc\pm123.inf
 
 all: $(PARTS) $(MDUMMY)
 
-src\utils\utilfct.lib:
+src\utils\utilfct$(LBO):
 	cd src\utils
 	@$(MAKE) $(MFLAGS)
 	@cd ..\..

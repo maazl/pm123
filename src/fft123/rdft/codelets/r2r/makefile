@@ -1,5 +1,5 @@
 #
-#  r2r.lib makefile
+#  r2r library makefile
 #
 
 DLL     = yes
@@ -8,13 +8,13 @@ INCDIR  = $(TOPDIR);$(TOPDIR)\kernel;$(TOPDIR)\rdft;$(TOPDIR)\rdft\codelets
 
 !include $(TOPDIR)\..\config\makerules
 
-all: r2r.lib $(MDUMMY)
+all: r2r$(LBO) $(MDUMMY)
 
-OBJECTS = r2r_codlist.obj e01_8.obj e10_8.obj
+OBJECTS = r2r_codlist$(CO) e01_8$(CO) e10_8$(CO)
 
-r2r.lib: $(OBJECTS)
+r2r$(LBO): $(OBJECTS)
 	if exist $@ del $@
 	$(LB) $@ $(OBJECTS) $(LBENDL)
 
 clean: $(MDUMMY)
-	-@del r2r.lib $(OBJECTS) 2> nul
+	-@del r2r$(LBO) $(OBJECTS) 2> nul

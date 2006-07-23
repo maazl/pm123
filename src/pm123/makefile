@@ -8,14 +8,14 @@ EXE_PM   = yes
 
 !include $(TOPDIR)\config\makerules
 
-OBJECTS  = button95.obj pm123.obj 123_msg.obj 123_util.obj tag.obj
-OBJECTS  = $(OBJECTS) pfreq.obj specana.obj plugman.obj bookmark.obj iniman.obj
-OBJECTS  = $(OBJECTS) playlist.obj properties.obj skin.obj
-OBJECTS  = $(OBJECTS) docking.obj
+OBJECTS  = button95$(CO) pm123$(CO) 123_msg$(CO) 123_util$(CO) tag$(CO)
+OBJECTS  = $(OBJECTS) pfreq$(CO) specana$(CO) plugman$(CO) bookmark$(CO) iniman$(CO)
+OBJECTS  = $(OBJECTS) playlist$(CO) properties$(CO) skin$(CO)
+OBJECTS  = $(OBJECTS) docking$(CO)
 DEF      = pm123$(LDEF_SUFFX)
-RESOURCE = pm123.res
-LIBS     = $(TOPDIR)\gbm123\gbm123.lib $(TOPDIR)\http123\http123.lib
-LIBS     = $(LIBS) $(TOPDIR)\utils\utilfct.lib $(TOPDIR)\fft123\fft123.lib
+RESOURCE = pm123$(RES)
+LIBS     = $(TOPDIR)\gbm123\gbm123$(LBI) $(TOPDIR)\http123\http123$(LBI)
+LIBS     = $(LIBS) $(TOPDIR)\utils\utilfct$(LBO) $(TOPDIR)\fft123\fft123$(LBI)
 
 all: pm123.exe $(MDUMMY)
 

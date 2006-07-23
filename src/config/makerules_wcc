@@ -6,6 +6,12 @@
 MFLAGS     = -h
 MDUMMY     = .SYMBOLIC
 
+OBJ        = .obj
+CO         = .obj
+LBI        = .lib
+LBO        = .lib
+RES        = .res
+
 CC         = wcl386
 CFLAGS     = -zq -bm -dOS2
 CFLAGS_DLL = -bd

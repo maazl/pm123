@@ -5,6 +5,12 @@
 MFLAGS     = -nologo
 MDUMMY     =
 
+OBJ        = .obj
+CO         = .o
+LBI        = .lib
+LBO        = .a
+RES        = .res
+
 AS         = nasm
 AFLAGS     = -fobj -DUNDERSCORE
 
@@ -53,14 +59,15 @@ CFLAGS = $(CFLAGS) $(CFLAGS_DLL)
 LFLAGS = $(LFLAGS) $(LFLAGS_DLL)
 !endif
 
-.c.obj:
+.asm.obj:
+   $(AS) $(AFLAGS) $<
+
+.c.o:
    $(CC) $(CFLAGS) -x c -c $< -o $@
 
-.cpp.obj:
+.cpp.o:
    $(CC) $(CFLAGS) -c $< -o $@
 
 .rc.res:
    $(RC) $(RFLAGS) -r $<
 
-.asm.obj:
-   $(AS) $(AFLAGS) $<

@@ -1,5 +1,5 @@
 #
-#  kernel.lib makefile
+#  kernel library makefile
 #
 
 DLL     = yes
@@ -8,19 +8,19 @@ INCDIR  = $(TOPDIR);$(TOPDIR)\kernel;$(TOPDIR)\api
 
 !include $(TOPDIR)\..\config\makerules
 
-all: kernel.lib $(MDUMMY)
+all: kernel$(LBO) $(MDUMMY)
 
-OBJECTS = align.obj alloc.obj assert.obj awake.obj buffered.obj ct.obj
-OBJECTS = $(OBJECTS) hash.obj iabs.obj md5.obj md5_1.obj minmax.obj ops.obj
-OBJECTS = $(OBJECTS) pickdim.obj plan.obj planner.obj primes.obj print.obj problem.obj
-OBJECTS = $(OBJECTS) rader.obj scan.obj solver.obj solvtab.obj square.obj stride.obj
-OBJECTS = $(OBJECTS) tensor.obj tensor1.obj tensor2.obj tensor4.obj tensor5.obj tensor7.obj
-OBJECTS = $(OBJECTS) tensor8.obj tensor9.obj transpose.obj trig.obj trig1.obj
-OBJECTS = $(OBJECTS) twiddle.obj timer.obj
+OBJECTS = align$(CO) alloc$(CO) assert$(CO) awake$(CO) buffered$(CO) ct$(CO)
+OBJECTS = $(OBJECTS) hash$(CO) iabs$(CO) md5$(CO) md5_1$(CO) minmax$(CO) ops$(CO)
+OBJECTS = $(OBJECTS) pickdim$(CO) plan$(CO) planner$(CO) primes$(CO) print$(CO) problem$(CO)
+OBJECTS = $(OBJECTS) rader$(CO) scan$(CO) solver$(CO) solvtab$(CO) square$(CO) stride$(CO)
+OBJECTS = $(OBJECTS) tensor$(CO) tensor1$(CO) tensor2$(CO) tensor4$(CO) tensor5$(CO) tensor7$(CO)
+OBJECTS = $(OBJECTS) tensor8$(CO) tensor9$(CO) transpose$(CO) trig$(CO) trig1$(CO)
+OBJECTS = $(OBJECTS) twiddle$(CO) timer$(CO)
 
-kernel.lib: $(OBJECTS)
+kernel$(LBO): $(OBJECTS)
 	if exist $@ del $@
 	$(LB) $@ $(OBJECTS) $(LBENDL)
 
 clean: $(MDUMMY)
-	-@del kernel.lib $(OBJECTS) $(OBJECTS) 2> nul
+	-@del kernel$(LBO) $(OBJECTS) $(OBJECTS) 2> nul

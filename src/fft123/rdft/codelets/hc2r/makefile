@@ -1,5 +1,5 @@
 #
-#  hc2r.lib makefile
+#  hc2r library makefile
 #
 
 DLL     = yes
@@ -8,23 +8,23 @@ INCDIR  = $(TOPDIR);$(TOPDIR)\kernel;$(TOPDIR)\rdft;$(TOPDIR)\rdft\codelets
 
 !include $(TOPDIR)\..\config\makerules
 
-all: hc2r.lib $(MDUMMY)
+all: hc2r$(LBO) $(MDUMMY)
 
-OBJECTS = hb_10.obj hb_12.obj hb_15.obj hb_16.obj hb_2.obj hb_3.obj hb_32.obj
-OBJECTS = $(OBJECTS) hb_4.obj hb_5.obj hb_6.obj hb_64.obj hb_7.obj hb_8.obj
-OBJECTS = $(OBJECTS) hb_9.obj hc2rIII_10.obj hc2rIII_12.obj hc2rIII_15.obj
-OBJECTS = $(OBJECTS) hc2rIII_16.obj hc2rIII_2.obj hc2rIII_3.obj hc2rIII_32.obj
-OBJECTS = $(OBJECTS) hc2rIII_4.obj hc2rIII_5.obj hc2rIII_6.obj hc2rIII_7.obj
-OBJECTS = $(OBJECTS) hc2rIII_8.obj hc2rIII_9.obj hc2r_10.obj hc2r_11.obj
-OBJECTS = $(OBJECTS) hc2r_12.obj hc2r_13.obj hc2r_14.obj hc2r_15.obj
-OBJECTS = $(OBJECTS) hc2r_16.obj hc2r_3.obj hc2r_32.obj hc2r_4.obj hc2r_5.obj
-OBJECTS = $(OBJECTS) hc2r_6.obj hc2r_7.obj hc2r_8.obj hc2r_9.obj
-OBJECTS = $(OBJECTS) mhc2rIII_32.obj mhc2rIII_64.obj mhc2r_128.obj mhc2r_32.obj
-OBJECTS = $(OBJECTS) mhc2r_64.obj hc2r_codlist.obj
+OBJECTS = hb_10$(CO) hb_12$(CO) hb_15$(CO) hb_16$(CO) hb_2$(CO) hb_3$(CO) hb_32$(CO)
+OBJECTS = $(OBJECTS) hb_4$(CO) hb_5$(CO) hb_6$(CO) hb_64$(CO) hb_7$(CO) hb_8$(CO)
+OBJECTS = $(OBJECTS) hb_9$(CO) hc2rIII_10$(CO) hc2rIII_12$(CO) hc2rIII_15$(CO)
+OBJECTS = $(OBJECTS) hc2rIII_16$(CO) hc2rIII_2$(CO) hc2rIII_3$(CO) hc2rIII_32$(CO)
+OBJECTS = $(OBJECTS) hc2rIII_4$(CO) hc2rIII_5$(CO) hc2rIII_6$(CO) hc2rIII_7$(CO)
+OBJECTS = $(OBJECTS) hc2rIII_8$(CO) hc2rIII_9$(CO) hc2r_10$(CO) hc2r_11$(CO)
+OBJECTS = $(OBJECTS) hc2r_12$(CO) hc2r_13$(CO) hc2r_14$(CO) hc2r_15$(CO)
+OBJECTS = $(OBJECTS) hc2r_16$(CO) hc2r_3$(CO) hc2r_32$(CO) hc2r_4$(CO) hc2r_5$(CO)
+OBJECTS = $(OBJECTS) hc2r_6$(CO) hc2r_7$(CO) hc2r_8$(CO) hc2r_9$(CO)
+OBJECTS = $(OBJECTS) mhc2rIII_32$(CO) mhc2rIII_64$(CO) mhc2r_128$(CO) mhc2r_32$(CO)
+OBJECTS = $(OBJECTS) mhc2r_64$(CO) hc2r_codlist$(CO)
 
-hc2r.lib: $(OBJECTS)
+hc2r$(LBO): $(OBJECTS)
 	if exist $@ del $@
 	$(LB) $@ $(OBJECTS) $(LBENDL)
 
 clean: $(MDUMMY)
-	-@del hc2r.lib $(OBJECTS) 2> nul
+	-@del hc2r$(LBO) $(OBJECTS) 2> nul
