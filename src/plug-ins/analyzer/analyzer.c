@@ -206,6 +206,9 @@ static BOOL read_palette( FILE* dat )
     int version;
     if (sscanf(line+11, "%d", &version) != 1 || version > 21)
       return FALSE;
+    #ifdef DEBUG
+    fprintf(stderr, "NF: %d\n", version);
+    #endif
       
     // some defaults
     palette[CLR_BGR_GREY].bGreen = 90;
@@ -215,7 +218,7 @@ static BOOL read_palette( FILE* dat )
     { size_t p;
       char* cp;
       float pos;
-      char  percent;
+      char  percent = 0;
 
       if (!uncomment_slash(line))
         continue; // ignore logically empty lines
@@ -224,18 +227,24 @@ static BOOL read_palette( FILE* dat )
       switch (line[p])
       {case '=': // normal parameter
         line[p] = 0;
+        #ifdef DEBUG
+        fprintf(stderr, "NF: %s = %s\n", line, line+p+1);
+        #endif
         if (stricmp(line, "BACKGROUND") == 0)
           read_color( line+p+1, &palette[CLR_BGR_BLACK] );
          else if (stricmp(line, "DOTS") == 0)
-          read_color( line, &palette[CLR_BGR_GREY] );
+          read_color( line+p+1, &palette[CLR_BGR_GREY] );
          else if (stricmp(line, "PEAK") == 0)
-          read_color( line, &palette[CLR_ANA_BARS] );
+          read_color( line+p+1, &palette[CLR_ANA_BARS] );
         break;
        case '-': // indexed parameter
         cp = strchr(line+p+1, '=');
-        if (cp == NULL || sscanf(line+p+1, "%f%c", &pos, &percent) != 1)
+        if (cp == NULL)
           break;
         line[p] = 0;
+        *cp = 0;
+        if (sscanf(line+p+1, "%f%c", &pos, &percent) < 1)
+          break;
         if (!read_color( cp+1, &color ))
           break;
         #ifdef DEBUG
