@@ -32,17 +32,6 @@ typedef struct _PLUGIN_PROCS
   /* name is the DLL filename of the decoder that can play that file */
   ULONG (PM123_ENTRYP decoder_fileinfo)( char* filename, DECODER_INFO* info, char* name );
 
-  int   (PM123_ENTRYP specana_init)( int setnumsamples );
-  /* int specana_init(int setnumsamples);
-     setnumsamples must be a power of 2
-     Returns the number of bands in return (setnumsamples/2+1).
-  */
-  int   (PM123_ENTRYP specana_dobands)( float bands[] );
-  /*
-     int specana_dobands(float bands[]);
-     Returns the max value.
-  */
-
   int   (PM123_ENTRYP pm123_getstring)( int index, int subindex, size_t bufsize, char* buf );
   void  (PM123_ENTRYP pm123_control)( int index, void* param );
 
