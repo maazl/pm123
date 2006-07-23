@@ -100,11 +100,20 @@ specana_init( int set_numsamples )
   return numsamples / 2 + 1;
 }
 
+#define DO_4(p,code) \
+{ { static const int p = 0; code; } \
+  { static const int p = 1; code; } \
+  { static const int p = 2; code; } \
+  { static const int p = 3; code; } \
+}
+
 int PM123_ENTRY
-specana_dobands( float* bands )
+specana_dobands( float* bands, FORMAT_INFO* info )
 {
   FORMAT_INFO bufferinfo;
   int i, e;
+  float* dp = in;
+  float scale;
 
   if( !initialized || !bands ) {
     return 0;
@@ -117,56 +126,109 @@ specana_dobands( float* bands )
     return 0;
   }
 
+  // Oh, well, C++ with templates would be nice...
   if( bufferinfo.bits <= 8 )
   {
     int len = bufferinfo.channels * numsamples;
-    unsigned char *sample = alloca( len );
+    unsigned char *sample = alloca( len+3 );
 
     if( !sample || out_playing_samples( &bufferinfo, sample, len ) != 0 ) {
       return 0;
     }
 
-    memset( in, 0, numsamples * sizeof(*in));
-
-    for( i = 0; i < numsamples; i++ ) {
-      for( e = 0; e < bufferinfo.channels; e++ ) {
-        in[i] += ( *sample++ - 128 ) / bufferinfo.channels;
+    switch (bufferinfo.channels)
+    {case 0:
+      for ( i = (numsamples+3)/4; i; --i )
+      { DO_4(p, dp[p] = sample[p] - 128);
+        dp += 4;
+        sample += 4;
+      }
+      break;
+     case 1:
+      for ( i = (numsamples+3)/4; i; --i )
+      { DO_4(p, dp[p] = (int)sample[2*p] + sample[2*p+1] - 256);
+        dp += 4;
+        sample += 4;
+      }
+      break;
+     default:  
+      for( i = numsamples; i; --i )
+      { register float s = 0;
+        for( e = bufferinfo.channels; e; --e )
+          s += *sample++ - 128;
+        *dp++ = s;
       }
     }
+    scale = 1./128; // normalize
   }
   else if( bufferinfo.bits <= 16 )
   {
     int len = 2 * bufferinfo.channels * numsamples;
-    signed short *sample = alloca( len );
+    signed short *sample = alloca( len+6 );
 
     if( !sample || out_playing_samples( &bufferinfo, (char*)sample, len ) != 0 ) {
       return 0;
     }
 
-    memset( in, 0, numsamples * sizeof(*in));
-
-    for( i = 0; i < numsamples; i++ ) {
-      for( e = 0; e < bufferinfo.channels; e++ ) {
-        in[i] += *sample++ / bufferinfo.channels;
+    switch (bufferinfo.channels)
+    {case 0:
+      for ( i = (numsamples+3)/4; i; --i )
+      { DO_4(p, dp[p] = sample[p]);
+        dp += 4;
+        sample += 4;
+      }
+      break;
+     case 1:
+      for ( i = (numsamples+3)/4; i; --i )
+      { DO_4(p, dp[p] = (int)sample[2*p] + sample[2*p+1]);
+        dp += 4;
+        sample += 4;
+      }
+      break;
+     default:  
+      for( i = numsamples; i; --i )
+      { register float s = 0;
+        for( e = bufferinfo.channels; e; --e )
+          s += *sample++;
+        *dp++ = s;
       }
     }
+    scale = 1./32768; // normalize
   }
   else if( bufferinfo.bits <= 32 )
   {
     int len = 4 * bufferinfo.channels * numsamples;
-    signed long *sample = alloca( len );
+    signed long *sample = alloca( len+12 );
 
     if( !sample || out_playing_samples( &bufferinfo, (char*)sample, len ) != 0 ) {
       return 0;
     }
 
-    memset( in, 0, numsamples * sizeof(*in));
-
-    for( i = 0; i < numsamples; i++ ) {
-      for( e = 0; e < bufferinfo.channels; e++ ) {
-        in[i] += *sample++ / bufferinfo.channels;
+    switch (bufferinfo.channels)
+    {case 0:
+      for ( i = (numsamples+3)/4; i; --i )
+      { DO_4(p, dp[p] = sample[p]);
+        dp += 4;
+        sample += 4;
+      }
+      break;
+     case 1:
+      for ( i = (numsamples+3)/4; i; --i )
+      { DO_4(p, dp[p] = (float)sample[2*p] + sample[2*p+1]);
+        dp += 4;
+        sample += 4;
+      }
+      break;
+     default:  
+      for( i = numsamples; i; --i )
+      { register float s = 0;
+        for( e = bufferinfo.channels; e; --e )
+          s += *sample++;
+        *dp++ = s;
       }
     }
+    scale = 1./0x80000000U; // normalize
+    // I am unsure how the 0dB level of >16Bit data is usually defined.
   }
   else
   {
@@ -174,16 +236,23 @@ specana_dobands( float* bands )
   }
 
   // To reduce spectral leakage, the samples are multipled with a window.
-  for( i = 0; i < numsamples; i++ ) {
-    in[i] *= wnd[i];
+  // Additionaly compensate for the channel addition above and the unnormalized FFT below.
+  { float* wp = wnd; 
+    dp = in;
+    scale /= bufferinfo.channels * sqrt(numsamples);
+    for ( i = (numsamples+3)/4; i; --i )
+    { DO_4(p, dp[p] *= wp[p] * scale);
+      dp += 4;
+      wp += 4;
+    }
   }
 
   fftwf_execute( plan );
 
   for( i = 0; i < numsamples/2 + 1; i++ ) {
-    bands[i] = sqrt( out[i][0]*out[i][0] +out[i][1]*out[i][1] ) / numsamples;
+    bands[i] = sqrt( out[i][0]*out[i][0] + out[i][1]*out[i][1] );
   }
 
-  // max amplitude
-  return 0x7FFFFFFFUL >> ( 32 - bufferinfo.bits );
+  // max amplitude, already normalized above => always 1.0
+  return 1;
 }
