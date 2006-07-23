@@ -332,7 +332,7 @@ static BOOL read_palette( FILE* dat )
     ipd.spc_tab[16].Pos = 0.;
     RGB2YDCyl(&ipd.spc_tab[16].Color, &palette[CLR_BGR_BLACK]);
     ipd.spc_tab[17].Pos = 1.;
-    RGB2YDCyl(&ipd.spc_tab[16].Color, &palette[CLR_ANA_BARS]);
+    RGB2YDCyl(&ipd.spc_tab[17].Color, &palette[CLR_ANA_BARS]);
   }
 
   // do the interpolation
