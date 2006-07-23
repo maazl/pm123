@@ -1,5 +1,5 @@
 #
-#  rdft_codelets.lib makefile
+#  rdft_codelets library makefile
 #
 
 DLL     = yes
@@ -8,13 +8,13 @@ INCDIR  = $(TOPDIR);$(TOPDIR)\kernel;$(TOPDIR)\rdft
 
 !include $(TOPDIR)\..\config\makerules
 
-all: rdft_codelets.lib $(MDUMMY)
+all: rdft_codelets$(LBO) $(MDUMMY)
 
-OBJECTS = hc2r.obj hfb.obj r2hc.obj r2r.obj
+OBJECTS = hc2r$(CO) hfb$(CO) r2hc$(CO) r2r$(CO)
 
-rdft_codelets.lib: $(LIBS) $(OBJECTS)
+rdft_codelets$(LBO): $(LIBS) $(OBJECTS)
 	if exist $@ del $@
 	$(LB) $@ $(OBJECTS) $(LIBS) $(LBENDL)
 
 clean: $(MDUMMY)
-	-@del rdft_codelets.lib $(OBJECTS) 2> nul
+	-@del rdft_codelets$(LBO) $(OBJECTS) 2> nul

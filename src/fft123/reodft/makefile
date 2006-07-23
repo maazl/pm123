@@ -1,5 +1,5 @@
 #
-#  reodft.lib makefile
+#  reodft library makefile
 #
 
 DLL     = yes
@@ -8,16 +8,16 @@ INCDIR  = $(TOPDIR);$(TOPDIR)\kernel;$(TOPDIR)\rdft
 
 !include $(TOPDIR)\..\config\makerules
 
-all: reodft.lib $(MDUMMY)
+all: reodft$(LBO) $(MDUMMY)
 
-OBJECTS = conf.obj redft00e_r2hc_pad.obj redft00e_r2hc.obj reodft010e_r2hc.obj
-OBJECTS = $(OBJECTS) reodft11e_r2hc_odd.obj reodft11e_r2hc.obj
-OBJECTS = $(OBJECTS) reodft11e_radix2.obj rodft00e_r2hc_pad.obj
-OBJECTS = $(OBJECTS) rodft00e_r2hc.obj
+OBJECTS = conf$(CO) redft00e_r2hc_pad$(CO) redft00e_r2hc$(CO) reodft010e_r2hc$(CO)
+OBJECTS = $(OBJECTS) reodft11e_r2hc_odd$(CO) reodft11e_r2hc$(CO)
+OBJECTS = $(OBJECTS) reodft11e_radix2$(CO) rodft00e_r2hc_pad$(CO)
+OBJECTS = $(OBJECTS) rodft00e_r2hc$(CO)
 
-reodft.lib: $(OBJECTS)
+reodft$(LBO): $(OBJECTS)
 	if exist $@ del $@
 	$(LB) $@ $(OBJECTS) $(LBENDL)
 
 clean: $(MDUMMY)
-	-@del reodft.lib $(OBJECTS) 2> nul
+	-@del reodft$(LBO) $(OBJECTS) 2> nul

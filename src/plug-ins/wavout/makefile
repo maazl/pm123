@@ -8,19 +8,19 @@ INCDIR   = $(TOPDIR)\utils;$(TOPDIR)\include
 
 !include $(TOPDIR)\config\makerules
 
-OBJECTS  = wavout.obj ..\wavplay\wav.obj
-LIBS     = $(LIBS_MM) $(TOPDIR)\utils\utilfct.lib
+OBJECTS  = wavout$(CO) ..\wavplay\wav$(CO)
+LIBS     = $(LIBS_MM) $(TOPDIR)\utils\utilfct$(LBO)
 DEF      = wavout$(LDEF_SUFFX)
-RESOURCE = wavout.res
+RESOURCE = wavout$(RES)
 
-all: wavout.dll wavout.lib $(MDUMMY)
+all: wavout.dll wavout$(LBI) $(MDUMMY)
 
 wavout.dll: $(OBJECTS) $(DEF) $(RESOURCE)
 	$(CL) $(LFLAGS) $(LFLAGS_OUT)$@ $(LOBJ_PREFX)$(OBJECTS) $(LIBS)$(LOBJ_SUFFX) $(LDEF_PREFX)$(DEF)
 	$(RC) $(RFLAGS) $(RESOURCE) $@ > nul
 
-wavout.lib: $(DEF)
+wavout$(LBI): $(DEF)
 	$(LI) $@ wavout.dll
 
 clean: $(MDUMMY)
-	-@del wavout.lib wavout.dll $(OBJECTS) $(RESOURCE) 2> nul
+	-@del wavout$(LBI) wavout.dll $(OBJECTS) $(RESOURCE) 2> nul

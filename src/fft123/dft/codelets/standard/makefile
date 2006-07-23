@@ -1,5 +1,5 @@
 #
-#  dft_standard.lib makefile
+#  dft_standard library makefile
 #
 
 DLL     = yes
@@ -8,19 +8,19 @@ INCDIR  = $(TOPDIR);$(TOPDIR)\kernel;$(TOPDIR)\dft;$(TOPDIR)\dft\codelets
 
 !include $(TOPDIR)\..\config\makerules
 
-all: dft_standard.lib $(MDUMMY)
+all: dft_standard$(LBO) $(MDUMMY)
 
-OBJECTS = s_codlist.obj m1_16.obj m1_32.obj m1_64.obj n1_10.obj n1_11.obj n1_12.obj
-OBJECTS = $(OBJECTS) n1_13.obj n1_14.obj n1_15.obj n1_16.obj n1_2.obj n1_3.obj
-OBJECTS = $(OBJECTS) n1_4.obj n1_5.obj n1_6.obj n1_7.obj n1_8.obj n1_9.obj
-OBJECTS = $(OBJECTS) t1_10.obj t1_12.obj t1_15.obj t1_16.obj t1_2.obj t1_3.obj
-OBJECTS = $(OBJECTS) t1_32.obj t1_4.obj t1_5.obj t1_6.obj t1_64.obj t1_7.obj
-OBJECTS = $(OBJECTS) t1_8.obj t1_9.obj t2_16.obj t2_32.obj t2_4.obj t2_64.obj
-OBJECTS = $(OBJECTS) t2_8.obj
+OBJECTS = s_codlist$(CO) m1_16$(CO) m1_32$(CO) m1_64$(CO) n1_10$(CO) n1_11$(CO) n1_12$(CO)
+OBJECTS = $(OBJECTS) n1_13$(CO) n1_14$(CO) n1_15$(CO) n1_16$(CO) n1_2$(CO) n1_3$(CO)
+OBJECTS = $(OBJECTS) n1_4$(CO) n1_5$(CO) n1_6$(CO) n1_7$(CO) n1_8$(CO) n1_9$(CO)
+OBJECTS = $(OBJECTS) t1_10$(CO) t1_12$(CO) t1_15$(CO) t1_16$(CO) t1_2$(CO) t1_3$(CO)
+OBJECTS = $(OBJECTS) t1_32$(CO) t1_4$(CO) t1_5$(CO) t1_6$(CO) t1_64$(CO) t1_7$(CO)
+OBJECTS = $(OBJECTS) t1_8$(CO) t1_9$(CO) t2_16$(CO) t2_32$(CO) t2_4$(CO) t2_64$(CO)
+OBJECTS = $(OBJECTS) t2_8$(CO)
 
-dft_standard.lib: $(OBJECTS)
+dft_standard$(LBO): $(OBJECTS)
 	if exist $@ del $@
 	$(LB) $@ $(OBJECTS) $(LBENDL)
 
 clean: $(MDUMMY)
-	-@del dft_standard.lib $(OBJECTS) 2> nul
+	-@del dft_standard$(LBO) $(OBJECTS) 2> nul

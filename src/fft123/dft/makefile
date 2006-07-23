@@ -1,5 +1,5 @@
 #
-#  dft.lib makefile
+#  dft library makefile
 #
 
 DLL     = yes
@@ -8,18 +8,18 @@ INCDIR  = $(TOPDIR);$(TOPDIR)\kernel
 
 !include $(TOPDIR)\..\config\makerules
 
-all: dft.lib $(MDUMMY)
+all: dft$(LBO) $(MDUMMY)
 
-OBJECTS = buffered.obj conf.obj ct_dif.obj ct_dit.obj ct_ditbuf.obj ct_ditf.obj
-OBJECTS = $(OBJECTS) ct.obj direct.obj generic.obj indirect.obj kdft_dif.obj
-OBJECTS = $(OBJECTS) kdft_difsq.obj kdft_dit.obj kdft.obj nop.obj plan.obj
-OBJECTS = $(OBJECTS) problem.obj rader_omega.obj rader.obj rank_geq2.obj
-OBJECTS = $(OBJECTS) rank0.obj solve.obj vrank_geq1.obj vrank2_transpose.obj
-OBJECTS = $(OBJECTS) vrank3_transpose.obj zero.obj
+OBJECTS = buffered$(CO) conf$(CO) ct_dif$(CO) ct_dit$(CO) ct_ditbuf$(CO) ct_ditf$(CO)
+OBJECTS = $(OBJECTS) ct$(CO) direct$(CO) generic$(CO) indirect$(CO) kdft_dif$(CO)
+OBJECTS = $(OBJECTS) kdft_difsq$(CO) kdft_dit$(CO) kdft$(CO) nop$(CO) plan$(CO)
+OBJECTS = $(OBJECTS) problem$(CO) rader_omega$(CO) rader$(CO) rank_geq2$(CO)
+OBJECTS = $(OBJECTS) rank0$(CO) solve$(CO) vrank_geq1$(CO) vrank2_transpose$(CO)
+OBJECTS = $(OBJECTS) vrank3_transpose$(CO) zero$(CO)
 
-dft.lib: $(LIBS) $(OBJECTS)
+dft$(LBO): $(LIBS) $(OBJECTS)
 	if exist $@ del $@
 	$(LB) $@ $(OBJECTS) $(LIBS) $(LBENDL)
 
 clean: $(MDUMMY)
-	-@del dft.lib $(OBJECTS) 2> nul
+	-@del dft$(LBO) $(OBJECTS) 2> nul

@@ -1,5 +1,5 @@
 #
-#  r2hc.lib makefile
+#  r2hc library makefile
 #
 
 DLL     = yes
@@ -8,23 +8,23 @@ INCDIR  = $(TOPDIR);$(TOPDIR)\kernel;$(TOPDIR)\rdft;$(TOPDIR)\rdft\codelets
 
 !include $(TOPDIR)\..\config\makerules
 
-all: r2hc.lib $(MDUMMY)
+all: r2hc$(LBO) $(MDUMMY)
 
-OBJECTS = hf2_16.obj hf2_32.obj hf2_4.obj hf2_64.obj hf2_8.obj hf_10.obj hf_12.obj
-OBJECTS = $(OBJECTS) hf_15.obj hf_16.obj hf_2.obj hf_3.obj hf_32.obj hf_4.obj
-OBJECTS = $(OBJECTS) hf_5.obj hf_6.obj hf_64.obj hf_7.obj hf_8.obj hf_9.obj
-OBJECTS = $(OBJECTS) mr2hcII_32.obj mr2hcII_64.obj mr2hc_128.obj mr2hc_32.obj
-OBJECTS = $(OBJECTS) mr2hc_64.obj r2hcII_10.obj r2hcII_12.obj r2hcII_15.obj
-OBJECTS = $(OBJECTS) r2hcII_16.obj r2hcII_2.obj r2hcII_3.obj r2hcII_32.obj
-OBJECTS = $(OBJECTS) r2hcII_4.obj r2hcII_5.obj r2hcII_6.obj r2hcII_7.obj
-OBJECTS = $(OBJECTS) r2hcII_8.obj r2hcII_9.obj r2hc_10.obj r2hc_11.obj r2hc_12.obj
-OBJECTS = $(OBJECTS) r2hc_13.obj r2hc_14.obj r2hc_15.obj r2hc_16.obj r2hc_2.obj
-OBJECTS = $(OBJECTS) r2hc_3.obj r2hc_32.obj r2hc_4.obj r2hc_5.obj r2hc_6.obj
-OBJECTS = $(OBJECTS) r2hc_7.obj r2hc_8.obj r2hc_9.obj r2hc_codlist.obj
+OBJECTS = hf2_16$(CO) hf2_32$(CO) hf2_4$(CO) hf2_64$(CO) hf2_8$(CO) hf_10$(CO) hf_12$(CO)
+OBJECTS = $(OBJECTS) hf_15$(CO) hf_16$(CO) hf_2$(CO) hf_3$(CO) hf_32$(CO) hf_4$(CO)
+OBJECTS = $(OBJECTS) hf_5$(CO) hf_6$(CO) hf_64$(CO) hf_7$(CO) hf_8$(CO) hf_9$(CO)
+OBJECTS = $(OBJECTS) mr2hcII_32$(CO) mr2hcII_64$(CO) mr2hc_128$(CO) mr2hc_32$(CO)
+OBJECTS = $(OBJECTS) mr2hc_64$(CO) r2hcII_10$(CO) r2hcII_12$(CO) r2hcII_15$(CO)
+OBJECTS = $(OBJECTS) r2hcII_16$(CO) r2hcII_2$(CO) r2hcII_3$(CO) r2hcII_32$(CO)
+OBJECTS = $(OBJECTS) r2hcII_4$(CO) r2hcII_5$(CO) r2hcII_6$(CO) r2hcII_7$(CO)
+OBJECTS = $(OBJECTS) r2hcII_8$(CO) r2hcII_9$(CO) r2hc_10$(CO) r2hc_11$(CO) r2hc_12$(CO)
+OBJECTS = $(OBJECTS) r2hc_13$(CO) r2hc_14$(CO) r2hc_15$(CO) r2hc_16$(CO) r2hc_2$(CO)
+OBJECTS = $(OBJECTS) r2hc_3$(CO) r2hc_32$(CO) r2hc_4$(CO) r2hc_5$(CO) r2hc_6$(CO)
+OBJECTS = $(OBJECTS) r2hc_7$(CO) r2hc_8$(CO) r2hc_9$(CO) r2hc_codlist$(CO)
 
-r2hc.lib: $(OBJECTS)
+r2hc$(LBO): $(OBJECTS)
 	if exist $@ del $@
 	$(LB) $@ $(OBJECTS) $(LBENDL)
 
 clean: $(MDUMMY)
-	-@del r2hc.lib $(OBJECTS) 2> nul
+	-@del r2hc$(LBO) $(OBJECTS) 2> nul

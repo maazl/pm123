@@ -8,27 +8,27 @@ INCDIR   = $(TOPDIR)\utils;$(TOPDIR)\include;ciscgi
 
 !include $(TOPDIR)\config\makerules
 
-OBJECTS  = cdda.obj readcd.obj tcpipsock.obj http.obj cddb.obj
-LIBS     = $(LIBS_TCP) $(TOPDIR)\utils\utilfct.lib ciscgi\ciscgi.lib
+OBJECTS  = cdda$(CO) readcd$(CO) tcpipsock$(CO) http$(CO) cddb$(CO)
+LIBS     = $(LIBS_TCP) $(TOPDIR)\utils\utilfct$(LBO) ciscgi\ciscgi$(LBO)
 DEF      = cdda$(LDEF_SUFFX)
-RESOURCE = cdda.res
+RESOURCE = cdda$(RES)
 
-all: cddaplay.dll cddaplay.lib $(MDUMMY)
+all: cddaplay.dll cddaplay$(LBI) $(MDUMMY)
 
-cddaplay.dll: $(OBJECTS) $(DEF) $(RESOURCE) ciscgi\ciscgi.lib
+cddaplay.dll: $(OBJECTS) $(DEF) $(RESOURCE) ciscgi\ciscgi$(LBO)
 	$(CL) $(LFLAGS) $(LFLAGS_OUT)$@ $(LOBJ_PREFX)$(OBJECTS) $(LIBS)$(LOBJ_SUFFX) $(LDEF_PREFX)$(DEF)
 	$(RC) $(RFLAGS) $(RESOURCE) $@ > nul
 
-cddaplay.lib: $(DEF)
+cddaplay$(LBI): $(DEF)
 	$(LI) $@ cddaplay.dll
 
-ciscgi\ciscgi.lib:
+ciscgi\ciscgi$(LBO):
 	cd ciscgi
 	@$(MAKE) $(MFLAGS)
 	@cd ..
 
 clean: $(MDUMMY)
-	-@del cddaplay.lib cddaplay.dll $(OBJECTS) $(RESOURCE) 2> nul
+	-@del cddaplay$(LBI) cddaplay.dll $(OBJECTS) $(RESOURCE) 2> nul
 	cd ciscgi
 	@$(MAKE) $(MFLAGS) clean
 	@cd ..

@@ -6,7 +6,7 @@
 
 all: querysong.exe $(MDUMMY)
 
-OBJECTS  = querysong.obj
+OBJECTS  = querysong$(CO)
 DEF      = querysong$(LDEF_SUFFX)
 
 querysong.exe: $(OBJECTS) $(DEF)

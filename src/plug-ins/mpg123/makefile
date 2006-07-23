@@ -8,37 +8,38 @@ INCDIR   = $(TOPDIR)\utils;$(TOPDIR)\include;$(TOPDIR)\http123
 
 !include $(TOPDIR)\config\makerules
 
-OBJECTS  = mpg123.obj common.obj decode_i386.obj dct64_MMX.obj decode_2to1.obj
-OBJECTS  = $(OBJECTS) decode_4to1.obj layer1.obj layer2.obj layer3.obj
-OBJECTS  = $(OBJECTS) dxhead.obj equalizer.obj decode_MMX.obj tabinit_MMX.obj
-LIBS     = $(LIBS_TCP) $(TOPDIR)\utils\utilfct.lib $(TOPDIR)\http123\http123.lib
+OBJECTS  = dct64_MMX$(OBJ)  decode_MMX$(OBJ) tabinit_MMX$(OBJ)
+OBJECTS  = $(OBJECTS) mpg123$(CO) common$(CO) decode_i386$(CO) decode_2to1$(CO)
+OBJECTS  = $(OBJECTS) decode_4to1$(CO) layer1$(CO) layer2$(CO) layer3$(CO)
+OBJECTS  = $(OBJECTS) dxhead$(CO) equalizer$(CO)
+LIBS     = $(LIBS_TCP) $(TOPDIR)\utils\utilfct$(LBO) $(TOPDIR)\http123\http123$(LBI)
 DEF      = mpg123$(LDEF_SUFFX)
-RESOURCE = mpg123.res
+RESOURCE = mpg123$(RES)
 
-all: mpg123.dll mpg123.lib $(MDUMMY)
+all: mpg123.dll mpg123$(LBI) $(MDUMMY)
 
 mpg123.dll: $(OBJECTS) $(DEF) $(RESOURCE)
 	$(CL) $(LFLAGS) $(LFLAGS_OUT)$@ $(LOBJ_PREFX)$(OBJECTS) $(LIBS)$(LOBJ_SUFFX) $(LDEF_PREFX)$(DEF)
 	$(RC) $(RFLAGS) $(RESOURCE) $@ > nul
 
-mpg123.lib: $(DEF)
+mpg123$(LBI): $(DEF)
 	$(LI) $@ mpg123.dll
 
-layer1.obj:        layer1.c mpg123.h
-layer2.obj:        layer2.c mpg123.h
-layer3.obj:        layer3.c mpg123.h huffman.h get1bit.h
-decode.obj:        decode.c mpg123.h
-decode_int.obj:    decode_int.c mpg123.h
-decode_2to1.obj:   decode_2to1.c mpg123.h
-decode_4to1.obj:   decode_4to1.c mpg123.h
-decode_i386.obj:   decode_i386.c mpg123.h
-common.obj:        common.c mpg123.h tables.h
-mpg123.obj:        mpg123.c mpg123.h
-getbits.obj:       getbits.c mpg123.h
-tabinit.obj:       tabinit.c mpg123.h
-dct64.obj:	   dct64.c mpg123.h
-dct64_i386.obj:    dct64_i386.c mpg123.h
-equalizer.obj:	   equalizer.c mpg123.h
+layer1$(CO):        layer1.c mpg123.h
+layer2$(CO):        layer2.c mpg123.h
+layer3$(CO):        layer3.c mpg123.h huffman.h get1bit.h
+decode$(CO):        decode.c mpg123.h
+decode_int$(CO):    decode_int.c mpg123.h
+decode_2to1$(CO):   decode_2to1.c mpg123.h
+decode_4to1$(CO):   decode_4to1.c mpg123.h
+decode_i386$(CO):   decode_i386.c mpg123.h
+common$(CO):        common.c mpg123.h tables.h
+mpg123$(CO):        mpg123.c mpg123.h
+getbits$(CO):       getbits.c mpg123.h
+tabinit$(CO):       tabinit.c mpg123.h
+dct64$(CO):         dct64.c mpg123.h
+dct64_i386$(CO):    dct64_i386.c mpg123.h
+equalizer$(CO):	    equalizer.c mpg123.h
 
 clean: $(MDUMMY)
-	-@del mpg123.lib mpg123.dll $(OBJECTS) $(RESOURCE) 2> nul
+	-@del mpg123$(LBI) mpg123.dll $(OBJECTS) $(RESOURCE) 2> nul

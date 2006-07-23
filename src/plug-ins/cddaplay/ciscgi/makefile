@@ -1,5 +1,5 @@
 #
-#  ciscgi.lib makefile
+#  ciscgi library makefile
 #
 
 DLL     = yes
@@ -7,19 +7,19 @@ TOPDIR  = ..\..\..
 
 !include $(TOPDIR)\config\makerules
 
-OBJECTS = cgifldld.obj cgiupper.obj urldcode.obj urlncode.obj urlvalue.obj
+OBJECTS = cgifldld$(CO) cgiupper$(CO) urldcode$(CO) urlncode$(CO) urlvalue$(CO)
 
-all: ciscgi.lib $(MDUMMY)
+all: ciscgi$(LBO) $(MDUMMY)
 
-ciscgi.lib: $(OBJECTS)
+ciscgi$(LBO): $(OBJECTS)
 	if exist $@ del $@
 	$(LB) $@ $(OBJECTS) $(LBENDL)
 
-cgifldld.obj: cgifldld.c cisrcl.h
-cgiupper.obj: cgiupper.c cisrcl.h
-urldcode.obj: urldcode.c cisrcl.h
-urlncode.obj: urlncode.c cisrcl.h
-urlvalue.obj: urlvalue.c cisrcl.h
+cgifldld$(CO): cgifldld.c cisrcl.h
+cgiupper$(CO): cgiupper.c cisrcl.h
+urldcode$(CO): urldcode.c cisrcl.h
+urlncode$(CO): urlncode.c cisrcl.h
+urlvalue$(CO): urlvalue.c cisrcl.h
 
 clean: $(MDUMMY)
-	-@del ciscgi.lib $(OBJECTS) 2> nul
+	-@del ciscgi$(LBO) $(OBJECTS) 2> nul
