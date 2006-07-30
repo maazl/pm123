@@ -310,10 +310,6 @@ extern float gains[20];
 extern BOOL  mutes[20];
 extern float preamp;
 
-/* specana.c FFT functions */
-int PM123_ENTRY specana_init( int setnumsamples );
-int PM123_ENTRY specana_dobands( float* bands );
-
 /* 123_msg.c */
 typedef struct
 {
