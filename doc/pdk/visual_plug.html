@@ -3,14 +3,20 @@
    <title>Visual plug-ins</title>
 </head>
 <body>
-<b><font size=+2>PM123 Visual plug-ins</font></b>
+<h2>PM123 visual plug-ins</h2>
+<p>Visual plug-ins must implement and export the functions defined in <tt>plugin.h</tt>.
+  The interface has changed with plug-in level 1.<br>
+  <em>Plug-ins with interface level 0 are no longer supported!</em>
+<p>Before including any PM123 include file the macro <code>VISUAL_PLUGIN_LEVEL</code> must be defined
+  if you want to use anything higher than level 1. Example:
+<pre>     #define VISUAL_PLUGIN_LEVEL 1</pre>
 <p>
 Visual plug-in's <i>vis_init()</i> routine gets called every time plug-in
 gets activated.
 <pre>
-     HWND PM123_ENTRY vis_init( PVISPLUGININIT initdata );
+     HWND PM123_ENTRY <b>vis_init</b>( PVISPLUGININIT initdata );
 </pre>
-The <i>VISPLUGININIT</i> structure contains the initialization data that
+The <code>VISPLUGININIT</code> structure contains the initialization data that
 PM123 passes to the plug-in.
 <PRE>
      typedef struct {

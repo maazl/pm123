@@ -41,11 +41,18 @@
 
 #include <utilfct.h>
 
+#define DEBUG 2
+
+#ifdef DEBUG
+#include <time.h>
+#endif
+
 #include <format.h>
 #include <output_plug.h>
 #include <decoder_plug.h>
 #include <plugin.h>
 #include "os2audio.h"
+
 
 static void load_ini(void);
 static void save_ini(void);
@@ -233,7 +240,7 @@ static ULONG output_set_volume(void *A, char setvolume, float setamplifier)
    return 0;
 }
 
-ULONG PM123_ENTRY output_pause(void *A, BOOL pause)
+static ULONG PM123_ENTRY output_pause(void *A, BOOL pause)
 {
    OS2AUDIO *a = (OS2AUDIO *) A;
 
@@ -256,6 +263,9 @@ ULONG PM123_ENTRY output_pause(void *A, BOOL pause)
 ULONG PM123_ENTRY output_init(void **A)
 {
    OS2AUDIO *a;
+   #ifdef DEBUG
+   fprintf(stderr, "%x: output_init\n", time(NULL));
+   #endif
 
    *A = malloc(sizeof(OS2AUDIO));
    a = (OS2AUDIO *) *A;
@@ -458,7 +468,7 @@ static ULONG output_open(OS2AUDIO *a)
    return 0;
 }
 
-ULONG PM123_ENTRY output_close(void *A)
+static ULONG output_close(void *A)
 {
    OS2AUDIO *a = (OS2AUDIO *) A;
 
@@ -532,6 +542,9 @@ ULONG PM123_ENTRY output_close(void *A)
 
 ULONG PM123_ENTRY output_uninit(void *a)
 {
+   #ifdef DEBUG
+   fprintf(stderr, "%x: output_uninit\n", time(NULL));
+   #endif
    free(a);
 
    return 0;
@@ -544,6 +557,11 @@ int PM123_ENTRY output_play_samples(void *A, FORMAT_INFO *format, char *buf,int 
 
    PPIB ppib;
    PTIB ptib;
+
+   #if defined(DEBUG) && DEBUG >= 2
+   fprintf(stderr, "%x: output_play_samples({%i,%i,%i,%i,%x}, %p, %i, %i)\n", time(NULL),
+      format->size, format->samplerate, format->channels, format->bits, format->format, buf, len, posmarker);
+   #endif
 
    DosGetInfoBlocks(&ptib,&ppib);
 
@@ -633,6 +651,9 @@ int PM123_ENTRY output_play_samples(void *A, FORMAT_INFO *format, char *buf,int 
 ULONG PM123_ENTRY output_playing_samples(void *A, FORMAT_INFO *info, char *buf, int len)
 {
    OS2AUDIO *a = (OS2AUDIO *) A;
+   #if defined(DEBUG) && DEBUG >= 2
+   fprintf(stderr, "%x: output_playing_samples(%p, %p, %i)\n", time(NULL), info, buf, len);
+   #endif
 
    if(len > a->buffersize || !a->playingbuffer || !a->maop.usDeviceID) return 1;
 
@@ -686,10 +707,13 @@ ULONG PM123_ENTRY output_playing_samples(void *A, FORMAT_INFO *info, char *buf, 
 ULONG PM123_ENTRY output_playing_pos(void *A)
 {
    OS2AUDIO *a = (OS2AUDIO *) A;
+   #if defined(DEBUG) && DEBUG >= 2
+   fprintf(stderr, "%x: output_playing_pos: %lu\n", time(NULL), a->playingpos);
+   #endif
    return a->playingpos;
 }
 
-void PM123_ENTRY output_trash_buffers(void *A, ULONG temp_playingpos)
+static void output_trash_buffers(void *A, ULONG temp_playingpos)
 {
    OS2AUDIO *a = (OS2AUDIO *) A;
    int i;
@@ -716,6 +740,9 @@ void PM123_ENTRY output_trash_buffers(void *A, ULONG temp_playingpos)
 BOOL PM123_ENTRY output_playing_data(void *A)
 {
    OS2AUDIO *a = (OS2AUDIO *) A;
+   #if defined(DEBUG) && DEBUG >= 2
+   fprintf(stderr, "%x: output_playing_data: %i\n", time(NULL), !a->nomoredata);
+   #endif
    return !a->nomoredata;
 }
 
@@ -789,11 +816,10 @@ int PM123_ENTRY output_rate_best_match(OUTPUT_PARAMS *ai)
 
 #endif
 
-ULONG PM123_ENTRY output_get_devices(char *name, int deviceid)
+static ULONG output_get_devices(char *name, int deviceid)
 {
    char buffer[256];
    MCI_SYSINFO_PARMS mip;
-   int number;
 
    if(deviceid && name)
    {
@@ -833,9 +859,7 @@ ULONG PM123_ENTRY output_get_devices(char *name, int deviceid)
                   &mip,
                   0);
 
-   number = atoi(mip.pszReturn);
-
-   return number;
+   return atoi(mip.pszReturn);
 }
 
 
@@ -843,6 +867,9 @@ ULONG PM123_ENTRY output_command(void *A, ULONG msg, OUTPUT_PARAMS *info)
 {
    OS2AUDIO *a = (OS2AUDIO *) A;
    ULONG rc = 0;
+   #ifdef DEBUG
+   fprintf(stderr, "%x: output_command(%i, %p)\n", time(NULL), msg, info);
+   #endif
 
    switch(msg)
    {
@@ -877,6 +904,7 @@ ULONG PM123_ENTRY output_command(void *A, ULONG msg, OUTPUT_PARAMS *info)
 }
 
 
+/********** GUI stuff ******************************************************/ 
 
 HWND dlghwnd = 0;
 
@@ -1045,4 +1073,3 @@ int PM123_ENTRY plugin_query(PLUGIN_QUERYPARAM *param)
    load_ini();
    return 0;
 }
-

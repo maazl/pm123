@@ -3,7 +3,7 @@
    <title>PM123 Plug-in Developer's Guide</title>
 </head>
 <body>
-<b><font size=+2>Developing PM123 Plug-ins</font></b>
+<h2>Developing PM123 Plug-ins</h2>
 <p>
 PM123 supports four kinds of plug-ins: visual, decoder,
 output and filter. Visual plug-ins are used to peek at the data
@@ -21,11 +21,12 @@ eventhough they could be ameliorated in the future. Currently, Visual
 plug-ins allow the creation of internal or external windows and they can
 tap into PM123 in several ways: they can retrieve currently playing
 samples, control PM123 and so on. Plug-ins are Dynamic Linked Libraries,
-DLLs, which PM123 loads on use.  Note that visual plug-ins cannot be
+DLLs, which PM123 loads on use.
+<p>Note that visual plug-ins cannot be
 loaded via PM123's Properties dialog because they are skin specific.
 They can of course be loaded when loading a new skin.
-<p>
-<i>plugin.h</i> contains the necessary structures for all pm123 plug-ins.
+<p><i>plugin.h</i> contains the necessary structures for all pm123 plug-ins.
+All exported and callback functions must use the calling convention <code>_System</code>.
 A plug-in must have a function that identifies it as a plug-in:
 <pre>
      int PM123_ENTRY plugin_query( PPLUGIN_QUERYPARAM param );
@@ -44,6 +45,13 @@ The plug-in will then have to fill the variables in the <i>param</i> structure, 
 
      param->configurable = TRUE;
       /* Toggles plug-in configurability via PM123 Properties dialog */
+      
+     param->interface    = 2;
+      /* This is the required <a href="#interface_level">interface revision level</a>.
+       * This parameter defaults to 1 which is the same as before this field existed.
+       * Plug-ins with Level 1 <em>must not</em> fill this field to be compatible with older
+       * versions of PM123.
+       */
 </pre>
 If you set <i>param->configurable = TRUE</i>, configuration dialog
 should appear when PM123 calls
@@ -53,20 +61,87 @@ should appear when PM123 calls
 where <i>hwnd</i> is the notebook or player window so that you can "lock" your
 window on it if you want and where <i>module</i> can be used to load
 a resource from your DLL
-<p>Visual plug-ins should deinitialize and destroy their windows and free allocated
+<p>Plug-ins should deinitialize and destroy their windows and free allocated
 memory when receiving a
 <pre>
      int PM123_ENTRY plugin_deinit( int unload );
 </pre>
 It can also be used to save settings in your INI file for other sort of plug-ins.
 <p>
-<b>Now, which type of plug-in to you want to program?</b>
+
+<h3>Plugin types</h3>
+<p>Now, which type of plug-in to you want to program?</p>
 <ul>
 <li><a href="visual_plug.html">Visual Plug-ins</a>
 <li><a href="decode_plug.html">Decoder Plug-ins</a>
 <li><a href="output_plug.html">Output Plug-ins</a>
 <li><a href="filter_plug.html">Filter Plug-ins</a>
 </ul>
+
+<a name="interface_level"></a>
+<h3>Interface levels</h3>
+<p>The interface level is used to ensure compatibility of plug-ins over different versions of PM123.
+  The field defaults to 0 representing the oldest implementation.
+  Larger values reflect changes to the plug-in interface.
+  The interface level reflects changes to any of the plugin interfaces,
+  so different levels do not neccessarily mean different interfaces of <em>one</em> plug-in interface.
+  A change in the interface may be only a modified semantic of a function call
+  or it may be a complete change of the interface with entirely other function names or whatever.
+  See the individual PDK documentation of the desired plug-in type to get further information for each plug-in type.<br>
+  A new plugin is not necessarily required to use the most recent interface level.</p>
+<ul>
+  <li>PM123 will refuse to load plug-ins with a higher interface level than the one PM123 was compiled with.</li>
+  <li>PM123 will handle older plug-ins in a compatibility mode as far as possible.</li>
+</ul>
+<p>Overview:
+<table cellpadding=3 cellspacing=0 border=1>
+  <tr>
+    <th>Interface-Level</th>
+    <th>Visual</th>
+    <th>Filter</th>
+    <th>Decoder</th>
+    <th>Output</th>
+  </tr><tr>
+    <td>0</td>
+    <td><em>no longer supported!</em></td>
+    <td>supported</td>
+    <td>supported</td>
+    <td>supported but deprecated</td>
+  </tr><tr>
+    <td>1</td>
+    <td>recent</td>
+    <td>supported,<br>same as level 0</td>
+    <td>supported,<br>same as level 0</td>
+    <td>supported but deprecated,<br>same as level 0</td>
+  </tr><tr>
+    <td>2</td>
+    <td>recent,<br>same as level 1</td>
+    <td>recent redesign</td>
+    <td>recent redesign</td>
+    <td>recent redesign</td>
+  </tr>
+</table>
+<p>For example a filter plug-in will be loaded depending on it's interface level
+  by a PM123 instance with interface level 2 (compile time constant) in the following way:
+<table cellpadding=3 cellspacing=0 border=1>
+  <tr>
+    <th>Interface level</th>
+    <th>Action taken</th>
+  </tr><tr>
+    <td>2</td>
+    <td>Loaded native</td>
+  </tr><tr>
+    <td>1</td>
+    <td>Loaded via a proxy in compatibility mode.</td>
+  </tr><tr>
+    <td>0</td>
+    <td>Loaded via a proxy in compatibility mode.<br>
+      Level 0 is identical to level 1 with respect to the filter plug-in interface.</td>
+  </tr><tr>
+    <td>&gt;2</td>
+    <td>Error, because the interface is potentially incompatible and not supported by this PM123 core.<br></td>
+  </tr>
+</table>    
 </body>
 </html>
 

@@ -1,7 +1,8 @@
 #ifndef __PM123_DECODER_PLUG_H
 #define __PM123_DECODER_PLUG_H
 
-#include "format.h"
+#include <format.h>
+#include <output_plug.h>
 
 #if __cplusplus
 extern "C" {
@@ -44,7 +45,7 @@ typedef struct _DECODER_PARAMS
    /* --- DECODER_SETUP */
 
    /* specify a function which the decoder should use for output */
-   int  (PM123_ENTRYP output_play_samples)( void* a, FORMAT_INFO* format, char* buf, int len, int posmarker );
+   int  (PM123_ENTRYP output_play_samples)( void* a, const FORMAT_INFO* format, const char* buf, int len, int posmarker );
    void* a;           /* only to be used with the precedent function */
    int   audio_buffersize;
 
@@ -87,10 +88,80 @@ typedef struct _DECODER_PARAMS
 
 } DECODER_PARAMS;
 
+typedef struct _DECODER_PARAMS2
+{
+   int size;
+
+   /* --- DECODER_PLAY, STOP */
+
+   char* filename;
+   char* URL;
+   char* drive;       /* for CD ie.: "X:" */
+   int   track;
+   int   sectors[2];  /* play from sector x to sector y */
+   char* other;
+
+   /* --- DECODER_REW, FFWD and JUMPTO */
+
+   int   jumpto;      /* absolute positioning in milliseconds */
+   int   ffwd;        /* 1 = start ffwd, 0 = end ffwd */
+   int   rew;         /* 1 = start rew, 0 = end rew */
+
+   /* --- DECODER_SETUP */
+
+   /* specify a function which the decoder should use for output */
+   int   (PM123_ENTRYP output_request_buffer )( void* a, const FORMAT_INFO* format, char** buf, int posmarker );
+   void  (PM123_ENTRYP output_commit_buffer  )( void* a, int len );
+   void* a;           /* only to be used with the precedent functions */
+
+   char* proxyurl;    /* NULL = none */
+   char* httpauth;    /* NULL = none */
+
+   /* error message function the decoder should use */
+   void (PM123_ENTRYP error_display)( char* );
+
+   /* info message function the decoder should use */
+   /* this information is always displayed to the user right away */
+   void (PM123_ENTRYP info_display)( char* );
+
+   HEV   playsem;     /* this semaphore is reseted when DECODER_PLAY is requested
+                         and is posted on stop */
+
+   HWND  hwnd;        /* commodity for PM interface, decoder must send a few
+                         messages to this handle */
+
+   /* values used for streaming inputs by the decoder */
+   int   buffersize;  /* read ahead buffer in bytes, 0 = disabled */
+   int   bufferwait;  /* block the first read until the buffer is filled */
+
+   char* metadata_buffer; /* the decoder will put streaming metadata in this  */
+   int   metadata_size;   /* buffer before posting WM_METADATA                */
+
+   /* -- DECODER_BUFFER */
+
+   int   bufferstatus;    /* reports how many bytes there are available in the buffer */
+
+   /* --- DECODER_EQ */
+
+   /* usually only useful with MP3 decoder */
+   int    equalizer;  /* TRUE or FALSE */
+   float* bandgain;   /* point to an array like this bandgain[#channels][10] */
+
+   /* --- DECODER_SAVEDATA */
+
+   char *save_filename;
+
+} DECODER_PARAMS2;
+
 /* returns 0 -> ok
            1 -> command unsupported
            1xx -> msg specific */
+#if !defined(DECODER_PLUGIN_LEVEL) || DECODER_PLUGIN_LEVEL <= 1 
 ULONG PM123_ENTRY decoder_command( void* w, ULONG msg, DECODER_PARAMS* params );
+#else
+ULONG PM123_ENTRY decoder_command( void* w, ULONG msg, DECODER_PARAMS2* params );
+void  PM123_ENTRY decoder_event( void* w, OUTEVENTTYPE event );
+#endif
 
 #define DECODER_STOPPED  0
 #define DECODER_PLAYING  1

@@ -7,8 +7,8 @@
 #ifndef __PM123_PLUGIN_H
 #define __PM123_PLUGIN_H
 
-#include "format.h"
-#include "decoder_plug.h"
+#include <format.h>
+#include <decoder_plug.h>
 
 #define PLUGIN_NULL    0x000
 #define PLUGIN_VISUAL  0x001
@@ -28,7 +28,6 @@ typedef struct _PLUGIN_PROCS
   BOOL  (PM123_ENTRYP decoder_playing)( void );
   ULONG (PM123_ENTRYP output_playing_pos)( void );
   ULONG (PM123_ENTRYP decoder_status)( void );
-  ULONG (PM123_ENTRYP decoder_command)( ULONG msg, DECODER_PARAMS* params );
   /* name is the DLL filename of the decoder that can play that file */
   ULONG (PM123_ENTRYP decoder_fileinfo)( char* filename, DECODER_INFO* info, char* name );
 
@@ -82,9 +81,15 @@ typedef struct _PLUGIN_QUERYPARAM
   char* author;       /* Author of the plugin                             */
   char* desc;         /* Description of the plugin                        */
   int   configurable; /* Is the plugin configurable                       */
+  int   interface;    /* Interface revision                               */
 
 } PLUGIN_QUERYPARAM, *PPLUGIN_QUERYPARAM;
 
+#if !defined(VISUAL_PLUGIN_LEVEL) || VISUAL_PLUGIN_LEVEL < 1
+#error The old plug-in interface is no longer supported. \
+  Define the macro VISUAL_PLUGIN_LEVEL to a value of at least one \
+  and donït forget to fill param->interface at plugin_query.
+#endif
 /* returns 0 -> ok */
 int PM123_ENTRY plugin_query( PLUGIN_QUERYPARAM* param );
 int PM123_ENTRY plugin_configure( HWND hwnd, HMODULE module );

@@ -46,6 +46,8 @@
 //#include <ctype.h>
 #include <malloc.h>
 
+#define VISUAL_PLUGIN_LEVEL 1
+
 #include <utilfct.h>
 #include <format.h>
 //#include <decoder_plug.h>
@@ -751,6 +753,7 @@ plugin_query( PPLUGIN_QUERYPARAM query )
   query->author       = "Samuel Audet, Dmitry A.Steklenev, Marcel Mueller";
   query->desc         = "Spectrum Analyzer 2.10";
   query->configurable = 1;
+  query->interface    = VISUAL_PLUGIN_LEVEL;
   return 0;
 }
 

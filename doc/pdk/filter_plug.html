@@ -3,14 +3,41 @@
    <title>Filter Plug-ins</title>
 </head>
 <body>
-<b><font size=+2>PM123 Filter Plug-ins</font></b>
+<h2>PM123 Filter Plug-ins</h2>
 <p>
 Filter plug-ins must implement and export the functions defined in
-filter_plug.h. The interface for the filter plug-in is simple compared
-to the other types of plug-ins.<P>
+filter_plug.h. The interface has changed with plug-in level 2.
+Although they look very similar they are completely different.</p>
+<p>Before including any PM123 include file the macro <code>FILTER_PLUGIN_LEVEL</code> must be defined
+  if you want to use anything higher than level 1. Example:
+<pre>     #define FILTER_PLUGIN_LEVEL 2</pre>
+ 
+<h3>Interface level 2 (current)</h3>
 <pre>
-     ULONG PM123_ENTRY filter_init  ( void **f, FILTER_PARAMS *params )
-     BOOL  PM123_ENTRY filter_uninit( void *f )
+     ULONG PM123_ENTRY <b>filter_init  </b>( void **f, FILTER_PARAMS2 *params )
+     BOOL  PM123_ENTRY <b>filter_uninit</b>( void *f )
+</pre>
+<ul>
+<li>f : Allocate any chunk of memory necessary for the filter's function.
+This pointer will be passed to the any other function call into the filter plug-in.</li>
+<li>Make a copy of all fields in the <code>FILTER_PARAMS2</code> structure that you need later
+  or copy the entire structure.</li>
+<li>Replace the entry points in the <code>FILTER_PARAMS2</code> structure that you want to virtualize.
+  Keep in mind that implementing a no-op will at least require to replace
+  the first parameter <code>a</code> to each function by <code>param->a</code>.
+  If yo do not change a individual function pointer the plug-in manager will do this job for you.</li>
+<li>return value: 0 means the filter was initialized successfully.
+  Any other value indicates an error and filter_uninit will not be called in this case.</li>
+</ul>
+<p>A level 2 filter plug-in may completely virtualize the output of data.
+  It may change the sampling rate, it may change the number of bytes per samples or even the time axis.
+  See the <a href="output_plug.html">output plug-in interface description</a> for detailed information on the different functions.</p> 
+
+<h3>Interface level 1 (still supported)</h3>
+
+<pre>
+     ULONG PM123_ENTRY <b>filter_init  </b>( void **f, FILTER_PARAMS *params )
+     BOOL  PM123_ENTRY <b>filter_uninit</b>( void *f )
 </pre>
 <ul>
 <li>f : Allocate any chunk of memory necessary for the filter's
@@ -25,7 +52,7 @@ Multiple filter plug-ins are chained, so the pointers to
 output_play_samples() and it's parameter "a", might belong to another
 filter plug-in and not necessarily to the active output plug-in.
 <pre>
-     int PM123_ENTRY filter_play_samples( void *f, FORMAT_INFO *format, char *buf,
+     int PM123_ENTRY <b>filter_play_samples</b>( void *f, FORMAT_INFO *format, char *buf,
                                           int len, int posmarker )
 </pre>
 <ul>
