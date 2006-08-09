@@ -40,22 +40,16 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "utilfct.h"
-#include "format.h"
-#include "decoder_plug.h"
-#include "output_plug.h"
-#include "filter_plug.h"
-#include "plugin.h"
+#include <utilfct.h>
+#include <format.h>
 #include "pm123.h"
 #include "plugman.h"
-
-#define  BUFSIZE 16384
 
 extern void PM123_ENTRY keep_last_error( char* );
 extern void PM123_ENTRY display_info( char* );
 
 DECODER_PARAMS dec_params;
-OUTPUT_PARAMS  out_params;
+OUTPUT_PARAMS2 out_params;
 /* Loaded in curtun on decoder's demand WM_METADATA. */
 static char  metadata_buffer[128];
 
@@ -78,11 +72,11 @@ amp_msg( int msg, void *param, void *param2 )
       MSG_PLAY_STRUCT* data = (MSG_PLAY_STRUCT*)param;
 
       out_params.hwnd          = data->hMain;
-      out_params.boostclass    = 3;
+      /*out_params.boostclass    = 3;
       out_params.normalclass   = 2;
       out_params.boostdelta    = 0;
       out_params.normaldelta   = 31;
-      out_params.buffersize    = BUFSIZE;
+      out_params.buffersize    = BUFSIZE;*/
       out_params.error_display = keep_last_error;
       out_params.info_display  = display_info;
 
@@ -91,7 +85,8 @@ amp_msg( int msg, void *param, void *param2 )
         return;
       }
 
-      out_params.filename = data->out_filename;
+      // TODO: URI!!!
+      out_params.URI = data->out_filename;
       rc = out_command( OUTPUT_OPEN, &out_params );
       if( rc != 0 ) {
         return; // WM_PLAYERROR already sent .. hum..
@@ -197,25 +192,25 @@ amp_msg( int msg, void *param, void *param2 )
       if( decoder_playing())
       {
         forwarding = !forwarding;
-        if( forwarding ) {
+
+        if (rewinding) // stop rewinding anyway
+        {
+          dec_params.ffwd = rewinding = FALSE;
+          dec_command( DECODER_REW, &dec_params );
+        }
+        //out_params.nobuffermode = FALSE;
+        //out_command( OUTPUT_NOBUFFERMODE, &out_params );
+        dec_params.ffwd = forwarding;
+        dec_command( DECODER_FFWD, &dec_params );
+        if( cfg.trash )
+        {
           /* going back in the stream to what is currently playing */
           dec_params.jumpto = out_playing_pos();
           dec_command( DECODER_JUMPTO, &dec_params );
-          if( cfg.trash )
-          {
-            out_params.nobuffermode = TRUE;
-            out_command( OUTPUT_NOBUFFERMODE, &out_params );
-            out_params.temp_playingpos = out_playing_pos();
-            out_command( OUTPUT_TRASH_BUFFERS, &out_params );
-          }
-
-          dec_params.ffwd = forwarding;
-          dec_command( DECODER_FFWD, &dec_params );
-        } else {
-          out_params.nobuffermode = FALSE;
-          out_command( OUTPUT_NOBUFFERMODE, &out_params );
-          dec_params.ffwd = forwarding;
-          dec_command( DECODER_FFWD, &dec_params );
+          //out_params.nobuffermode = TRUE;
+          //out_command( OUTPUT_NOBUFFERMODE, &out_params );
+          out_params.temp_playingpos = out_playing_pos();
+          out_command( OUTPUT_TRASH_BUFFERS, &out_params );
         }
       }
       break;
@@ -225,26 +220,24 @@ amp_msg( int msg, void *param, void *param2 )
       {
         rewinding = !rewinding;
 
-        if( rewinding ) {
+        if (forwarding) // stop forwarding anyway
+        {
+          dec_params.ffwd = forwarding = FALSE;
+          dec_command( DECODER_FFWD, &dec_params );
+        }
+        //out_params.nobuffermode = FALSE;
+        //out_command( OUTPUT_NOBUFFERMODE, &out_params );
+        dec_params.rew = rewinding;
+        dec_command( DECODER_REW,&dec_params );
+        if( cfg.trash )
+        {
           /* going back in the stream to what is currently playing */
           dec_params.jumpto = out_playing_pos();
           dec_command( DECODER_JUMPTO, &dec_params );
-
-          if( cfg.trash )
-          {
-            out_params.nobuffermode = TRUE;
-            out_command( OUTPUT_NOBUFFERMODE, &out_params );
-            out_params.temp_playingpos = out_playing_pos();
-            out_command( OUTPUT_TRASH_BUFFERS, &out_params );
-          }
-
-          dec_params.rew = rewinding;
-          dec_command( DECODER_REW, &dec_params );
-        } else {
-          out_params.nobuffermode = FALSE;
-          out_command( OUTPUT_NOBUFFERMODE, &out_params );
-          dec_params.rew = rewinding;
-          dec_command( DECODER_REW,&dec_params );
+          //out_params.nobuffermode = TRUE;
+          //out_command( OUTPUT_NOBUFFERMODE, &out_params );
+          out_params.temp_playingpos = out_playing_pos();
+          out_command( OUTPUT_TRASH_BUFFERS, &out_params );
         }
       }
       break;

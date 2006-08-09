@@ -24,6 +24,7 @@ pm123.exe: $(OBJECTS) $(RESOURCE) $(DEF)
 	$(RC) $(RFLAGS) $(RESOURCE) $@ > nul
 	execmode -sp pm123.exe
 
+123_msg.c:     pm123.h plugman.h
 pm123.c:       pm123.h plugman.h bookmark.h button95.h pfreq.h genre.h docking.h copyright.h
 docking.c:     docking.h
 iniman.c:      pm123.h plugman.h iniman.h

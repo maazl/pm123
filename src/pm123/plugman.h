@@ -32,19 +32,41 @@
 #ifndef _PM123_PLUGMAN_H
 #define _PM123_PLUGMAN_H
 
-#include "plugin.h"
-#include "output_plug.h"
-#include "filter_plug.h"
-#include "utilfct.h"
+/* maximum supported and most recent plugin-levels */
+#define MAX_PLUGIN_LEVEL     2
+#define VISUAL_PLUGIN_LEVEL  1
+#define FILTER_PLUGIN_LEVEL  2
+#define DECODER_PLUGIN_LEVEL 2
+#define OUTPUT_PLUGIN_LEVEL  2
+
+#include <plugin.h>
+#include <output_plug.h>
+#include <filter_plug.h>
+#include <utilfct.h>
+
+
+/* Buffer size for compatibility interface */
+#define  BUFSIZE 16384
+
+/* These are the basic features of all PLUGIN records.
+ * Well, C++ would be really nice.
+ */
+#define PLUGIN_BASE_MEMBERS \
+  HMODULE module; \
+  char    module_name[_MAX_PATH]; \
+  BOOL    enabled; \
+  PLUGIN_QUERYPARAM query_param; \
+  void  (PM123_ENTRYP plugin_configure)( HWND hwnd, HMODULE module )
 
 typedef struct
 {
-  HMODULE module;
-  char    module_name[_MAX_PATH];
-  BOOL    enabled;
-  char**  support;
+  PLUGIN_BASE_MEMBERS;
 
-  PLUGIN_QUERYPARAM query_param;
+} PLUGIN_BASE;
+
+typedef struct
+{
+  PLUGIN_BASE_MEMBERS;
 
   void* w;
   int   (PM123_ENTRYP decoder_init     )( void** w );
@@ -57,69 +79,57 @@ typedef struct
   ULONG (PM123_ENTRYP decoder_cdinfo   )( char*  drive, DECODER_CDINFO* info );
   ULONG (PM123_ENTRYP decoder_support  )( char*  ext[], int* size );
 
-  void  (PM123_ENTRYP plugin_query    )( PLUGIN_QUERYPARAM* param  );
-  void  (PM123_ENTRYP plugin_configure)( HWND hwnd, HMODULE module );
+  char**  support;
 
 } DECODER;
 
 typedef struct
 {
-  HMODULE module;
-  char    module_name[_MAX_PATH];
-
-  PLUGIN_QUERYPARAM query_param;
+  PLUGIN_BASE_MEMBERS;
 
   void* a;
   ULONG (PM123_ENTRYP output_init           )( void** a );
   ULONG (PM123_ENTRYP output_uninit         )( void*  a );
-  ULONG (PM123_ENTRYP output_command        )( void*  a, ULONG msg, OUTPUT_PARAMS* info );
+  ULONG (PM123_ENTRYP output_command        )( void*  a, ULONG msg, OUTPUT_PARAMS2* info );
+  int   (PM123_ENTRYP output_request_buffer )( void*  a, const FORMAT_INFO* format, char** buf, int posmarker, const char* uri );
+  void  (PM123_ENTRYP output_commit_buffer  )( void*  a, int len );
   ULONG (PM123_ENTRYP output_playing_samples)( void*  a, FORMAT_INFO* info, char* buf, int len );
-  int   (PM123_ENTRYP output_play_samples   )( void*  a, FORMAT_INFO* format, char* buf, int len, int posmarker );
   int   (PM123_ENTRYP output_playing_pos    )( void*  a );
   BOOL  (PM123_ENTRYP output_playing_data   )( void*  a );
-
-  void  (PM123_ENTRYP plugin_query    )( PLUGIN_QUERYPARAM* param  );
-  void  (PM123_ENTRYP plugin_configure)( HWND hwnd, HMODULE module );
+  // For compatibility
+  int   (PM123_ENTRYP voutput_command       )( void*  a, ULONG msg, OUTPUT_PARAMS* info );
+  int   (PM123_ENTRYP voutput_play_samples  )( void*  a, const FORMAT_INFO* format, const char* buf, int len, int posmarker );
 
 } OUTPUT;
 
 typedef struct
 {
-  HMODULE module;
-  char    module_name[_MAX_PATH];
-  BOOL    enabled;
-
-  PLUGIN_QUERYPARAM query_param;
+  PLUGIN_BASE_MEMBERS;
 
   void  *f;
   ULONG (PM123_ENTRYP filter_init        )( void** f, FILTER_PARAMS* params );
   BOOL  (PM123_ENTRYP filter_uninit      )( void*  f );
-  int   (PM123_ENTRYP filter_play_samples)( void*  f, FORMAT_INFO* format, char *buf, int len, int posmarker );
-
-  void  (PM123_ENTRYP plugin_query    )( PLUGIN_QUERYPARAM* param  );
-  void  (PM123_ENTRYP plugin_configure)( HWND hwnd, HMODULE module );
+  // For compatibility
+  int   (PM123_ENTRYP filter_play_samples)( void*  f, const FORMAT_INFO* format, const char *buf, int len, int posmarker );
 
 } FILTER;
 
 typedef struct
 {
-  HMODULE module;
-  char    module_name[_MAX_PATH];
+  PLUGIN_BASE_MEMBERS;
+
   int     x, y, cx, cy;
   BOOL    skin;
-  BOOL    enabled;
   HWND    hwnd;
   char    param[256];
   BOOL    init;
 
-  PLUGIN_QUERYPARAM query_param;
-
   HWND  (PM123_ENTRYP plugin_init     )( VISPLUGININIT* init );
-  void  (PM123_ENTRYP plugin_query    )( PLUGIN_QUERYPARAM* param  );
-  void  (PM123_ENTRYP plugin_configure)( HWND hwnd, HMODULE module );
   BOOL  (PM123_ENTRYP plugin_deinit   )( void* f );
 
 } VISUAL;
+
+#undef PLUGIN_BASE_MEMBERS
 
 // These externs are not supposed to be used to make stupid things,
 // but only to READ for configuration purposes, or set enabled flag.
@@ -174,8 +184,8 @@ ULONG PM123_ENTRY dec_length( void );
 int   out_set_name_active( char* name );
 int   out_set_active( int number );
 void  out_set_volume( int volume );
+ULONG out_command( ULONG msg, OUTPUT_PARAMS2* info );
 
-ULONG PM123_ENTRY out_command( ULONG msg, OUTPUT_PARAMS* info );
 ULONG PM123_ENTRY out_playing_samples( FORMAT_INFO* info, char* buf, int len );
 ULONG PM123_ENTRY out_playing_pos( void );
 BOOL  PM123_ENTRY out_playing_data( void );
@@ -187,6 +197,8 @@ BOOL  vis_deinit( int i );
 /* Backward compatibility */
 BOOL  PM123_ENTRY decoder_playing( void );
 
+/* The following two trivial functions do not belong to the plug-in manager
+ * and sholud be moved to another place. (MM) */
 /* Returns a playing time of the current file, in seconds. */
 int   time_played( void );
 /* Returns a total playing time of the current file. */

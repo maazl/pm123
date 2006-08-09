@@ -30,7 +30,7 @@
  */
 
 #ifndef  RC_INVOKED
-#include "decoder_plug.h"
+#include "plugman.h"
 #include "tag.h"
 #include "iniman.h"
 #include "skin.h"

@@ -39,12 +39,8 @@
 #include <string.h>
 #include <time.h>
 
-#include "utilfct.h"
-#include "format.h"
-#include "decoder_plug.h"
-#include "output_plug.h"
-#include "filter_plug.h"
-#include "plugin.h"
+#include <utilfct.h>
+#include <format.h>
 #include "pm123.h"
 #include "plugman.h"
 

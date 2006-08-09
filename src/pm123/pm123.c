@@ -47,12 +47,8 @@
 #include <float.h>
 #include <process.h>
 
-#include "utilfct.h"
-#include "format.h"
-#include "decoder_plug.h"
-#include "output_plug.h"
-#include "filter_plug.h"
-#include "plugin.h"
+#include <utilfct.h>
+#include <format.h>
 #include "pm123.h"
 #include "plugman.h"
 #include "bookmark.h"
@@ -123,7 +119,8 @@ BOOL  mutes[20];
 float preamp;
 
 static char last_error[2048];
-extern OUTPUT_PARAMS out_params;
+// TODO: very dirty static access. Easily violating the ODR.
+extern OUTPUT_PARAMS2 out_params;
 
 void PM123_ENTRY
 keep_last_error( char *error )
@@ -2325,9 +2322,10 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
 
       // If output is always hungry, WM_OUTPUT_OUTOFDATA will not be posted again
       // so we go there by our selves
-      if( !out_params.always_hungry ) {
+      // TODO: this is crap
+      /*if( !out_params.always_hungry ) {
         return 0;
-      }
+      }*/
 
     // Posted by output
     case WM_OUTPUT_OUTOFDATA:
@@ -2694,10 +2692,14 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
           return 0;
 
         case BMP_FWD:
-          if( decoder_playing() && !is_fast_backward && !is_paused )
+          if( decoder_playing() && !is_paused )
           {
             amp_msg( MSG_FWD, 0, 0 );
             is_fast_forward = !is_fast_forward;
+            if (is_fast_backward)
+            { is_fast_backward = FALSE;
+              WinSendDlgItemMsg( hwnd, BMP_REW, WM_DEPRESS, 0, 0 );
+            }
             WinSendDlgItemMsg( hwnd, BMP_FWD, is_fast_forward ? WM_PRESS : WM_DEPRESS, 0, 0 );
             amp_volume_adjust();
           } else {
@@ -2706,10 +2708,14 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
           return 0;
 
         case BMP_REW:
-          if( decoder_playing() && !is_fast_forward && !is_paused )
+          if( decoder_playing() && !is_paused )
           {
             amp_msg( MSG_REW, 0, 0 );
             is_fast_backward = !is_fast_backward;
+            if (is_fast_forward)
+            { is_fast_forward = FALSE;
+              WinSendDlgItemMsg( hwnd, BMP_FWD, WM_DEPRESS, 0, 0 );
+            }
             WinSendDlgItemMsg( hwnd, BMP_REW, is_fast_backward ? WM_PRESS : WM_DEPRESS, 0, 0 );
             amp_volume_adjust();
           } else {

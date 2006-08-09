@@ -38,14 +38,14 @@
 #include <string.h>
 #include <malloc.h>
 
-#include "utilfct.h"
-#include "format.h"
-#include "output_plug.h"
-#include "decoder_plug.h"
-#include "filter_plug.h"
-#include "plugin.h"
+#include <utilfct.h>
+#include <format.h>
 #include "plugman.h"
 #include "pm123.h"
+
+
+#define  DEBUG 1
+
 
 DECODER* decoders       = NULL;
 int      num_decoders   = 0;
@@ -71,6 +71,33 @@ typedef struct {
 
 static PLUGIN_ENTRY *entries = NULL;
 static int num_entries = 0;
+
+/* search a decoder plug-in by it's internal pointer */
+static DECODER* find_decoder_by_pointer(void* w)
+{ DECODER* pp = decoders + num_decoders;
+  while (pp-- != decoders)
+    if (pp->w == w)
+      return pp;
+  return NULL; // not found
+}
+
+/* search a output plug-in by it's internal pointer */
+static OUTPUT* find_output_by_pointer(void* a)
+{ OUTPUT* pp = outputs + num_outputs;
+  while (pp-- != outputs)
+    if (pp->a == a)
+      return pp;
+  return NULL; // not found
+}
+
+/* search a filter plug-in by it's internal pointer */
+static FILTER* find_filter_by_pointer(void* f)
+{ FILTER* pp = filters + num_filters;
+  while (pp-- != filters)
+    if (pp->f == f)
+      return pp;
+  return NULL; // not found
+}
 
 /* Loads a plug-in dynamic link module. */
 static BOOL
@@ -122,20 +149,42 @@ load_function( HMODULE module, void* function, const char* function_name,
   }
 }
 
-/* Fills the query_param and returns the type of plug-ins contained
-   in specified module. */
-static ULONG
-check_plugin( HMODULE module, const char* module_name, PLUGIN_QUERYPARAM* query_param )
+/* Fills the basic properties of any plug-in.
+   info: Pointer to a PLUGIN_BASE descriptor.
+         Any plug-in descriptor is castable to the polymorphic base type PLUGIN_BASE.
+         info->module:      input
+         info->module_name: input
+         info->enabled:     unused
+         info->query_param  output
+         info->plugin_query output
+         info->plugin_configure output
+   return FALSE = error */
+static BOOL
+load_plugin( PLUGIN_BASE* info )
 {
   void (PM123_ENTRYP plugin_query)( PLUGIN_QUERYPARAM *param );
+  
+  #ifdef DEBUG
+  fprintf(stderr, "load_plugin(%p->{%p, %s})\n", info, info->module, info->module_name);
+  #endif
 
-  if( load_function( module, &plugin_query, "plugin_query", module_name ))
-  {
-    (*plugin_query)(query_param);
-    return query_param->type;
-  } else {
-    return 0;
+  if ( !load_function( info->module, &plugin_query, "plugin_query", info->module_name ) )
+    return FALSE;
+
+  info->query_param.interface = 0; // unchanged by old plug-ins 
+  (*plugin_query)(&info->query_param);
+
+  if (info->query_param.interface > MAX_PLUGIN_LEVEL)
+  { 
+    #define toconststring(x) #x
+    amp_player_error( "Could not load plug-in %s because it requires a newer version of the PM123 core\n"
+                      "Requested interface revision: %d, max. supported: " toconststring(MAX_PLUGIN_LEVEL),
+      info->module_name, info->query_param.interface);
+    return FALSE;
   }
+
+  return !info->query_param.configurable
+    || load_function( info->module, &info->plugin_configure, "plugin_configure", info->module_name );
 }
 
 /* Assigns the addresses of the decoder plug-in procedures. */
@@ -147,85 +196,181 @@ load_decoder( DECODER* info )
   char*   support[20];
   int     size = sizeof( support ) / sizeof( *support );
   int     i;
+  BOOL    rc;
 
-  if( check_plugin( module, module_name, &info->query_param ) & PLUGIN_DECODER )
-  {
-    BOOL rc = load_function( module, &info->decoder_init, "decoder_init", module_name )
-            | load_function( module, &info->decoder_uninit, "decoder_uninit", module_name )
-            | load_function( module, &info->decoder_command, "decoder_command", module_name )
-            | load_function( module, &info->decoder_status, "decoder_status", module_name )
-            | load_function( module, &info->decoder_length, "decoder_length", module_name )
-            | load_function( module, &info->decoder_fileinfo, "decoder_fileinfo", module_name )
-            | load_function( module, &info->decoder_trackinfo, "decoder_trackinfo", module_name )
-            | load_function( module, &info->decoder_cdinfo, "decoder_cdinfo", module_name )
-            | load_function( module, &info->decoder_support, "decoder_support", module_name )
-            | load_function( module, &info->plugin_query, "plugin_query", module_name );
-
-    if( info->query_param.configurable ) {
-      rc |= load_function( module, &info->plugin_configure, "plugin_configure", module_name );
-    }
-
-    info->w = NULL;
-    info->enabled = TRUE;
-
-    for( i = 0; i < size; i++ ) {
-      support[i] = malloc( _MAX_EXT );
-      if( !support[i] ) {
-        amp_player_error( "Not enough memory to decoder load." );
-        return FALSE;
-      }
-    }
-
-    info->decoder_support( support, &size );
-    info->support = malloc(( size + 1 ) * sizeof( char* ));
-
-    for( i = 0; i < size; i++ ) {
-      info->support[i] = strdup( strupr( support[i] ));
-      if( !info->support[i] ) {
-        amp_player_error( "Not enough memory to decoder load." );
-        return FALSE;
-      }
-    }
-
-    info->support[i] = NULL;
-
-    for( i = 0; i < sizeof( support ) / sizeof( *support ); i++ ) {
-      free( support[i] );
-    }
-
-    return rc;
-  } else {
+  if ( !load_plugin((PLUGIN_BASE*)info)
+    || !(info->query_param.type & PLUGIN_DECODER)
+    || !load_function( module, &info->decoder_init, "decoder_init", module_name )
+    || !load_function( module, &info->decoder_uninit, "decoder_uninit", module_name )
+    || !load_function( module, &info->decoder_command, "decoder_command", module_name )
+    || !load_function( module, &info->decoder_status, "decoder_status", module_name )
+    || !load_function( module, &info->decoder_length, "decoder_length", module_name )
+    || !load_function( module, &info->decoder_fileinfo, "decoder_fileinfo", module_name )
+    || !load_function( module, &info->decoder_trackinfo, "decoder_trackinfo", module_name )
+    || !load_function( module, &info->decoder_cdinfo, "decoder_cdinfo", module_name )
+    || !load_function( module, &info->decoder_support, "decoder_support", module_name ) )
     return FALSE;
+
+  info->w = NULL;
+  info->enabled = TRUE;
+
+  for( i = 0; i < size; i++ ) {
+    support[i] = malloc( _MAX_EXT );
+    if( !support[i] ) {
+      amp_player_error( "Not enough memory to decoder load." );
+      return FALSE;
+    }
   }
+
+  info->decoder_support( support, &size );
+  info->support = malloc(( size + 1 ) * sizeof( char* ));
+
+  for( i = 0; i < size; i++ ) {
+    info->support[i] = strdup( strupr( support[i] ));
+    if( !info->support[i] ) {
+      amp_player_error( "Not enough memory to decoder load." );
+      return FALSE;
+    }
+  }
+
+  info->support[i] = NULL;
+
+  for( i = 0; i < sizeof( support ) / sizeof( *support ); i++ ) {
+    free( support[i] );
+  }
+
+  return TRUE;
 }
 
-/* Assigns the addresses of the output plug-in procedures. */
+/* virtualization of level 1 output plug-ins */
+// we can make these static, because no more than one output plug-in may be active at a time.
+static char        proxy_output_buffer[BUFSIZE];
+static int         proxy_output_len;
+static FORMAT_INFO proxy_output_format;
+static int         proxy_output_posmarker;
+static BOOL        proxy_output_always_hungry;
+static HWND        proxy_output_hwnd;
+
+static ULONG PM123_ENTRY
+proxy_output_command( void* a, ULONG msg, OUTPUT_PARAMS2* info )
+{ OUTPUT* op = find_output_by_pointer(a);
+  #ifdef DEBUG
+  fprintf(stderr, "proxy_output_command(%p = [%p {%s}], %d, %p)\n",
+    a, op, op != NULL ? op->module_name : "", msg, info);
+  #endif
+    
+  if (op == NULL)
+  { amp_player_error( "Internal error: can't identify output plugin by pointer (%p).", a );
+    return 0;
+  }
+
+  if (info != NULL)
+  { int r;
+    OUTPUT_PARAMS params;
+    params.size            = sizeof params;
+    params.buffersize      = BUFSIZE;
+    params.boostclass      = 4; // sorry, we should not lockup the system with time-critical priority
+    params.normalclass     = 2;
+    params.boostdelta      = 20;
+    params.normaldelta     = 20;
+    params.nobuffermode    = FALSE;
+    // copy corresponding fields
+    params.formatinfo      = info->formatinfo;
+    params.error_display   = info->error_display;
+    params.info_display    = info->info_display;
+    params.hwnd            = info->hwnd;
+    params.volume          = info->volume;
+    params.amplifier       = info->amplifier;
+    params.pause           = info->pause;
+    params.temp_playingpos = info->temp_playingpos;
+    params.filename        = info->URI; // TODO: URI!
+    // call plug-in
+    r = (*op->voutput_command)(a, msg, &params);
+    // save some values
+    if (msg == OUTPUT_SETUP)
+    { proxy_output_always_hungry = params.always_hungry;
+      proxy_output_hwnd = info->hwnd;
+    }
+    return r;
+  } else
+    return (*op->voutput_command)(a, msg, NULL); // sometimes info is NULL
+}
+
+static int PM123_ENTRY
+proxy_output_request_buffer( void* a, const FORMAT_INFO* format, char** buf, int len,
+                             int posmarker, const char* uri )
+{ 
+  #ifdef DEBUG
+  fprintf(stderr, "proxy_output_request_buffer(%p, {%i,%i,%i,%i,%x}, %p, %i, %i, %s)\n",
+    a, format->size, format->samplerate, format->channels, format->bits, format->format,
+    buf, len, posmarker, uri);
+  #endif
+  
+  if (len == 0)
+  { if (proxy_output_always_hungry)
+      // TODO: we should call the eventhandler here
+      WinPostMsg(proxy_output_hwnd,WM_OUTPUT_OUTOFDATA,0,0);
+    return 0;
+  }
+
+  *buf = proxy_output_buffer;
+  proxy_output_format = *format;
+  proxy_output_posmarker = posmarker;
+  return proxy_output_len = min(len, BUFSIZE);
+}
+
+static int PM123_ENTRY
+proxy_output_commit_buffer( void* a, int len )
+{ OUTPUT* op = find_output_by_pointer(a);
+
+  #ifdef DEBUG
+  fprintf(stderr, "proxy_output_commit_buffer(%p = [%p {%s}], %i)\n",
+    a, op, op != NULL ? op->module_name : "", len);
+  #endif
+
+  if (op == NULL)
+  { amp_player_error( "Internal error: can't identify output plugin by pointer (%p).", a );
+    return 0;
+  }
+  return (*op->voutput_play_samples)(a, &proxy_output_format, proxy_output_buffer, proxy_output_len, proxy_output_posmarker);
+}
+
+/* Assigns the addresses of the out7put plug-in procedures. */
 static BOOL
 load_output( OUTPUT* info )
 {
   HMODULE module = info->module;
   char*   module_name = info->module_name;
 
-  if( check_plugin ( module, module_name, &info->query_param ) & PLUGIN_OUTPUT )
-  {
-    BOOL rc = load_function( module, &info->output_init, "output_init", module_name )
-            | load_function( module, &info->output_uninit, "output_uninit", module_name )
-            | load_function( module, &info->output_command, "output_command", module_name )
-            | load_function( module, &info->output_play_samples, "output_play_samples", module_name )
-            | load_function( module, &info->output_playing_samples, "output_playing_samples", module_name )
-            | load_function( module, &info->output_playing_pos, "output_playing_pos", module_name )
-            | load_function( module, &info->output_playing_data, "output_playing_data", module_name )
-            | load_function( module, &info->plugin_query, "plugin_query", info->module_name );
-
-    if( info->query_param.configurable ) {
-      rc |= load_function( module, &info->plugin_configure, "plugin_configure", module_name );
-    }
-
-    info->a = NULL;
-    return rc;
-  } else {
+  if ( !load_plugin((PLUGIN_BASE*)info)
+    || !(info->query_param.type & PLUGIN_OUTPUT)
+    || !load_function( module, &info->output_init, "output_init", module_name )
+    || !load_function( module, &info->output_uninit, "output_uninit", module_name )
+    || !load_function( module, &info->output_playing_samples, "output_playing_samples", module_name )
+    || !load_function( module, &info->output_playing_pos, "output_playing_pos", module_name )
+    || !load_function( module, &info->output_playing_data, "output_playing_data", module_name ) )
     return FALSE;
+
+  /* check whether wee need to invoke an old plug-in via a proxy. */
+  if (info->query_param.interface < 2)
+  { // setup proxy
+    if ( !load_function( module, &info->voutput_command, "output_command", module_name )
+      || !load_function( module, &info->voutput_play_samples, "output_play_samples", module_name ) )
+      return FALSE;
+    info->output_command = &proxy_output_command;
+    info->output_request_buffer = &proxy_output_request_buffer;
+    info->output_commit_buffer = &proxy_output_commit_buffer;
+      
+  } else
+  { // no proxy
+    if ( !load_function( module, &info->output_command, "output_command", module_name )
+      || !load_function( module, &info->output_request_buffer, "output_request_buffer", module_name )
+      || !load_function( module, &info->output_commit_buffer, "output_commit_buffer", module_name ) )
+      return FALSE;
   }
+
+  info->a = NULL;
+  return TRUE;
 }
 
 /* Assigns the addresses of the filter plug-in procedures. */
@@ -235,23 +380,27 @@ load_filter( FILTER* info )
   HMODULE module = info->module;
   char*   module_name = info->module_name;
 
-  if( check_plugin ( module, module_name, &info->query_param ) & PLUGIN_FILTER )
-  {
+  if ( !load_plugin((PLUGIN_BASE*)info)
+    || !(info->query_param.type & PLUGIN_FILTER)
+    || !load_function( module, &info->filter_init, "filter_init", module_name )
+    || !load_function( module, &info->filter_uninit, "filter_uninit", module_name )
+    || !load_function( module, &info->filter_play_samples, "filter_play_samples", module_name ) )
+    return FALSE;
+
+  /* check whether wee need to invoke an old plug-in via a proxy. */
+  if (info->query_param.interface < 2)
+  { // use proxy
+    /* TODO!!!
     BOOL rc = load_function( module, &info->filter_init, "filter_init", module_name )
             | load_function( module, &info->filter_uninit, "filter_uninit", module_name )
             | load_function( module, &info->filter_play_samples, "filter_play_samples", module_name )
             | load_function( module, &info->plugin_query, "plugin_query", info->module_name );
-
-    if( info->query_param.configurable ) {
-      rc |= load_function( module, &info->plugin_configure, "plugin_configure", module_name );
-    }
-
-    info->f = NULL;
-    info->enabled = TRUE;
-    return rc;
-  } else {
-    return FALSE;
+    */
   }
+
+  info->f = NULL;
+  info->enabled = TRUE;
+  return TRUE;
 }
 
 /* Assigns the addresses of the visual plug-in procedures. */
@@ -261,23 +410,23 @@ load_visual( VISUAL* info )
   HMODULE module = info->module;
   char*   module_name = info->module_name;
 
-  if( check_plugin ( module, module_name, &info->query_param ) & PLUGIN_VISUAL )
-  {
-    BOOL rc = load_function( module, &info->plugin_query, "plugin_query", module_name )
-            | load_function( module, &info->plugin_deinit, "plugin_deinit", module_name )
-            | load_function( module, &info->plugin_init, "vis_init", module_name );
-
-    if( info->query_param.configurable ) {
-      rc |= load_function( module, &info->plugin_configure, "plugin_configure", module_name );
-    }
-
-    info->enabled = TRUE;
-    info->init = FALSE;
-    info->hwnd = NULLHANDLE;
-    return rc;
-  } else {
+  if ( !load_plugin((PLUGIN_BASE*)info)
+    || !(info->query_param.type & PLUGIN_VISUAL)
+    || !load_function( module, &info->plugin_deinit, "plugin_deinit", module_name )
+    || !load_function( module, &info->plugin_init, "vis_init", module_name ) )
+    return FALSE;
+    
+  if (info->query_param.interface == 0)
+  { amp_player_error( "Could not load visual plug-in %s because it is designed for PM123 before vesion 1.32\n"
+                      "Please get a newer version of this plug-in which supports at least interface revision 1.",
+      info->module_name);
     return FALSE;
   }
+
+  info->enabled = TRUE;
+  info->init = FALSE;
+  info->hwnd = NULLHANDLE;
+  return TRUE;
 }
 
 /* Loads and adds the specified decoder plug-in to the list of loaded. */
@@ -866,71 +1015,61 @@ save_visuals( BUFSTREAM *b )
 }
 
 /* Loads and adds the specified plug-in to the appropriate list of loaded.
-   Returns the types found or PLUGIN_ERROR. */
+   Returns the types found or 0. */
 ULONG
 add_plugin( const char* module_name, const VISUAL* data )
 {
-  HMODULE module;
+  PLUGIN_BASE plugin;
+  strncpy(plugin.module_name, module_name, sizeof plugin.module_name);
 
-  if( load_module( module_name, &module ))
+  if ( !load_module( module_name, &plugin.module )
+    || !load_plugin( &plugin ) )
+    return 0;
+
+  if( plugin.query_param.type & PLUGIN_VISUAL )
   {
-    PLUGIN_QUERYPARAM param;
-    int types = check_plugin( module, module_name, &param );
+    VISUAL visual;
 
-    if( types & PLUGIN_VISUAL )
-    {
-      VISUAL visual;
-
-      if( data ) {
-        visual = *data;
-      } else {
-        memset( &visual, 0, sizeof( visual ));
-      }
-
-      strcpy( visual.module_name, module_name );
-      visual.module = module;
-
-      if( !add_visual_plugin( &visual )) {
-        types = types & ~PLUGIN_VISUAL;
-      }
-    }
-    if( types & PLUGIN_FILTER )
-    {
-      FILTER filter;
-      strcpy( filter.module_name, module_name );
-      filter.module = module;
-
-      if( !add_filter_plugin( &filter )) {
-        types = types & ~PLUGIN_FILTER;
-      }
-    }
-    if( types & PLUGIN_DECODER )
-    {
-      DECODER decoder;
-      strcpy( decoder.module_name, module_name );
-      decoder.module = module;
-
-      if( !add_decoder_plugin( &decoder )) {
-        types = types & ~PLUGIN_DECODER;
-      }
-    }
-    if( types & PLUGIN_OUTPUT )
-    {
-      OUTPUT output;
-      strcpy( output.module_name, module_name );
-      output.module = module;
-
-      if( !add_output_plugin( &output )) {
-        types = types & ~PLUGIN_OUTPUT;
-      }
+    if( data ) {
+      visual = *data;
+    } else {
+      memset( &visual, 0, sizeof( visual ));
     }
 
-    if( types == 0 ) {
-      unload_module( module_name, module );
-    }
-    return types;
+    memcpy(&visual, &plugin, sizeof plugin); // slicing
+
+    if( !add_visual_plugin( &visual ))
+      plugin.query_param.type &= ~PLUGIN_VISUAL;
   }
-  return 0;
+  if( plugin.query_param.type & PLUGIN_FILTER )
+  {
+    FILTER filter;
+    memcpy(&filter, &plugin, sizeof plugin); // slicing
+
+    if( !add_filter_plugin( &filter ))
+      plugin.query_param.type &= ~PLUGIN_FILTER;
+  }
+  if( plugin.query_param.type & PLUGIN_DECODER )
+  {
+    DECODER decoder;
+    memcpy(&decoder, &plugin, sizeof plugin); // slicing
+
+    if( !add_decoder_plugin( &decoder ))
+      plugin.query_param.type &= ~PLUGIN_DECODER;
+  }
+  if( plugin.query_param.type & PLUGIN_OUTPUT )
+  {
+    OUTPUT output;
+    memcpy(&output, &plugin, sizeof plugin); // slicing
+
+    if( !add_output_plugin( &output ))
+      plugin.query_param.type &= ~PLUGIN_OUTPUT;
+  }
+
+  if( plugin.query_param.type == 0 )
+    unload_module( module_name, plugin.module );
+
+  return plugin.query_param.type;
 }
 
 /* Returns -2 if specified decoder is not enabled,
@@ -990,6 +1129,34 @@ dec_set_name_active( char* name )
   return -2;
 }
 
+/* Proxy for interim use of the new output plugin interface
+ * TODO: to be removed! 
+ */
+static int (PM123_ENTRYP _proxy_output_request_buffer)( void* a, const FORMAT_INFO* format, char** buf, int len, int posmarker, const char* uri );
+static int (PM123_ENTRYP _proxy_output_commit_buffer)( void* a, int len );
+static int PM123_ENTRY proxy_output_play_samples( void* a, const FORMAT_INFO* format, const char* buf, int len, int posmarker )
+{ int rem = len;
+
+  #ifdef DEBUG
+  fprintf(stderr, "proxy_output_play_samples(%p, %p, %p, %i, %i)\n", a, format, buf, len, posmarker);
+  #endif
+
+  while (rem)
+  { char* dest;
+    int l = (*_proxy_output_request_buffer)(a, format, &dest, rem, posmarker, NULL); // TODO: URI
+    #ifdef DEBUG
+    fprintf(stderr, "proxy_output_play_samples: now at %p %i %i\n", buf, l, rem);
+    #endif
+    if (l == 0)
+      return len - rem; // error
+    memcpy(dest, buf, l);
+    (*_proxy_output_commit_buffer)(a, l); // Well, normally posmarker should be interpolated...
+    rem -= l;
+    buf += l; 
+  }
+  return len;
+}
+
 /* returns 0 = ok,
            1 = command unsupported,
            3 = no decoder active,
@@ -1032,7 +1199,9 @@ ULONG PM123_ENTRY dec_command( ULONG msg, DECODER_PARAMS *params )
 
           filter_params.error_display = params->error_display;
           filter_params.info_display = params->error_display;
-          filter_params.output_play_samples = outputs[active_output].output_play_samples;
+          _proxy_output_request_buffer = outputs[active_output].output_request_buffer;
+          _proxy_output_commit_buffer = outputs[active_output].output_commit_buffer;
+          filter_params.output_play_samples = &proxy_output_play_samples;
           filter_params.a = outputs[active_output].a;
           filter_params.audio_buffersize = params->audio_buffersize;
 
@@ -1058,7 +1227,9 @@ ULONG PM123_ENTRY dec_command( ULONG msg, DECODER_PARAMS *params )
           params->output_play_samples = enabled_filters[0]->filter_play_samples;
           params->a = enabled_filters[0]->f;
         } else {
-          params->output_play_samples = outputs[active_output].output_play_samples;
+          _proxy_output_request_buffer = outputs[active_output].output_request_buffer;
+          _proxy_output_commit_buffer = outputs[active_output].output_commit_buffer;
+          params->output_play_samples = &proxy_output_play_samples;
           params->a = outputs[active_output].a;
         }
       }
@@ -1261,8 +1432,11 @@ out_set_name_active( char *name )
 
 /* 0 = ok, else = return code from MMOS/2. */
 ULONG
-out_command( ULONG msg, OUTPUT_PARAMS* ai )
+out_command( ULONG msg, OUTPUT_PARAMS2* ai )
 {
+  // TODO: setup callback handlers
+  // TODO: virtualizing filters
+
   if( active_output != -1 ) {
     return outputs[active_output].output_command( outputs[active_output].a, msg, ai );
   } else {
@@ -1274,7 +1448,7 @@ out_command( ULONG msg, OUTPUT_PARAMS* ai )
 void
 out_set_volume( int volume )
 {
-  OUTPUT_PARAMS out_params = { 0 };
+  OUTPUT_PARAMS2 out_params = { 0 };
 
   out_params.volume = volume;
   out_params.amplifier = 1.0;
@@ -1329,7 +1503,6 @@ vis_init( HWND hwnd, int i )
   procs.decoder_playing        = decoder_playing;
   procs.output_playing_pos     = out_playing_pos;
   procs.decoder_status         = dec_status;
-  procs.decoder_command        = dec_command;
   procs.decoder_fileinfo       = dec_fileinfo;
   procs.pm123_getstring        = pm123_getstring;
   procs.pm123_control          = pm123_control;
