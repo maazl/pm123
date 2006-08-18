@@ -35,7 +35,7 @@ typedef struct _FILTER_PARAMS2
   /* virtual output interface */
   ULONG (PM123_ENTRYP output_command)( void* a, ULONG msg, OUTPUT_PARAMS2* info );
   ULONG (PM123_ENTRYP output_playing_samples)( void* a, FORMAT_INFO* info, char* buf, int len );
-  int   (PM123_ENTRYP output_request_buffer)( void* a, const FORMAT_INFO* format, char** buf, int posmarker, const char* uri );
+  int   (PM123_ENTRYP output_request_buffer)( void* a, const FORMAT_INFO* format, char** buf, int posmarker );
   void  (PM123_ENTRYP output_commit_buffer)( void* a, int len );
   ULONG (PM123_ENTRYP output_playing_pos)( void* a );
   BOOL  (PM123_ENTRYP output_playing_data)( void* a );

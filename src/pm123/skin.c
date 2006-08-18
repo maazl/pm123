@@ -1641,7 +1641,8 @@ bmp_init_skin_positions( void )
 static void
 bmp_init_default_skin( HPS hps )
 {
-  VISUAL visual;
+  VISUAL_PROPERTIES visual;
+  char module_name[_MAX_PATH];
   int    i;
 
   bmp_pos[ POS_S_SIZE      ].x = 300; bmp_pos[ POS_S_SIZE      ].y = 70;
@@ -1670,8 +1671,6 @@ bmp_init_default_skin( HPS hps )
   bmp_ulong[ UL_FG_MSG_COLOR ] = 0x0000FF00UL;
   bmp_ulong[ UL_BPS_DIGITS   ] = TRUE;
 
-  strcpy( visual.module_name, startpath );
-  strcat( visual.module_name, "visplug\\analyzer.dll" );
   strcpy( visual.param, "" );
 
   visual.skin = TRUE;
@@ -1680,7 +1679,9 @@ bmp_init_default_skin( HPS hps )
   visual.cx   = 95;
   visual.cy   = 30;
 
-  add_plugin( visual.module_name, &visual );
+  strlcpy( module_name, startpath, sizeof module_name );
+  strlcat( module_name, "visplug\\analyzer.dll", sizeof module_name );
+  add_plugin( module_name, &visual );
 }
 
 /* Returns TRUE if specified mode supported by current skin. */
@@ -1810,14 +1811,7 @@ bmp_load_skin( const char *filename, HAB hab, HWND hplayer, HPS hps )
   }
 
   // Free loaded visual plugins.
-  i = 0;
-  while( i < num_visuals ) {
-    if( visuals[i].skin ) {
-      remove_visual_plugin( &visuals[i] );
-    } else {
-      ++i;
-    }
-  }
+  remove_visual_plugins( TRUE );
 
   bmp_clean_skin();
   bmp_init_skin_positions();
@@ -1852,11 +1846,7 @@ bmp_load_skin( const char *filename, HAB hab, HWND hplayer, HPS hps )
     bmp_init_default_skin ( hps );
     bmp_reflow_and_resize ( WinQueryWindow( hplayer, QW_PARENT ));
 
-    for( i = 0; i < num_visuals; i++ ) {
-      if( visuals[i].skin && visuals[i].enabled ) {
-        vis_init( hplayer, i );
-      }
-    }
+    vis_init_all( hplayer, TRUE );
 
     return FALSE;
   }
@@ -1878,7 +1868,8 @@ bmp_load_skin( const char *filename, HAB hab, HWND hplayer, HPS hps )
     switch( line[i] ) {
       case '=': // plug-in
       {
-        VISUAL visual;
+        VISUAL_PROPERTIES visual;
+        char module_name[_MAX_PATH];
         char*  p = strtok( line + i + 1, "," );
         char   param[_MAX_PATH];
         struct stat fi;
@@ -1888,7 +1879,7 @@ bmp_load_skin( const char *filename, HAB hab, HWND hplayer, HPS hps )
         }
 
         rel2abs( startpath, p,
-                 visual.module_name, sizeof( visual.module_name ));
+                 module_name, sizeof( module_name ));
 
         if(( p = strtok( NULL, "," )) != NULL ) {
           visual.x  = atoi(p);
@@ -1912,7 +1903,7 @@ bmp_load_skin( const char *filename, HAB hab, HWND hplayer, HPS hps )
         }
 
         visual.skin = TRUE;
-        add_plugin( visual.module_name, &visual );
+        add_plugin( module_name, &visual );
         break;
       }
 
@@ -2126,11 +2117,7 @@ bmp_reflow_and_resize( HWND hframe )
   {
     case CFG_MODE_SMALL:
     {
-      for( i = 0; i < num_visuals; i++ ) {
-        if( visuals[i].skin ) {
-          vis_deinit( i );
-        }
-      }
+      vis_deinit_all(TRUE);
 
       WinSetWindowPos( hframe, HWND_TOP, 0, 0,
                        bmp_pos[POS_S_SIZE].x, bmp_pos[POS_S_SIZE].y, SWP_SIZE );
@@ -2139,11 +2126,7 @@ bmp_reflow_and_resize( HWND hframe )
 
     case CFG_MODE_TINY:
     {
-      for( i = 0; i < num_visuals; i++ ) {
-        if( visuals[i].skin ) {
-          vis_deinit( i );
-        }
-      }
+      vis_deinit_all(TRUE);
 
       WinSetWindowPos( hframe, HWND_TOP, 0, 0,
                        bmp_pos[POS_T_SIZE].x, bmp_pos[POS_T_SIZE].y, SWP_SIZE );
@@ -2155,11 +2138,8 @@ bmp_reflow_and_resize( HWND hframe )
       WinSetWindowPos( hframe, HWND_TOP, 0, 0,
                        bmp_pos[POS_R_SIZE].x, bmp_pos[POS_R_SIZE].y, SWP_SIZE );
 
-      for( i = 0; i < num_visuals; i++ ) {
-        if( visuals[i].skin && visuals[i].enabled ) {
-          vis_init( hplayer, i );
-        }
-      }
+      vis_init_all(hplayer, TRUE);
+
       break;
     }
   }

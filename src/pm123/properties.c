@@ -73,7 +73,8 @@ cfg_add_plugin( HWND hwnd, ULONG types )
   if( filedialog.lReturn == DID_OK ) {
     rc = add_plugin( filedialog.szFullFile, NULL );
     if( rc & PLUGIN_VISUAL ) {
-      vis_init( amp_player_window(), num_visuals - 1 );
+      int num = enum_visual_plugins(NULL);
+      vis_init( amp_player_window(), num - 1 );
     }
     if( rc & PLUGIN_FILTER && decoder_playing()) {
       amp_info( hwnd, "This filter will only be enabled after playback of the current file." );
@@ -341,18 +342,22 @@ cfg_page2_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
 static MRESULT EXPENTRY
 cfg_page3_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
 {
+  int num;
+  PLUGIN_BASE*const* list;
+
   switch( msg )
   {
     case CFG_REFRESH_LIST:
     {
       int  i;
       char filename[_MAX_FNAME];
-
+  
       if( LONGFROMMP(mp1) & PLUGIN_VISUAL  )
       {
         lb_remove_all( hwnd, LB_VISPLUG );
-        for( i = 0; i < num_visuals; i++ ) {
-          lb_add_item( hwnd, LB_VISPLUG, sfname( filename, visuals[i].module_name, sizeof( filename )));
+        num = enum_visual_plugins(&list);
+        for( i = 0; i < num; i++ ) {
+          lb_add_item( hwnd, LB_VISPLUG, sfname( filename, list[i]->module_name, sizeof( filename )));
         }
         if( lb_size( hwnd, LB_VISPLUG )) {
           lb_select( hwnd, LB_VISPLUG, 0 );
@@ -365,8 +370,9 @@ cfg_page3_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
       if( LONGFROMMP(mp1) & PLUGIN_DECODER )
       {
         lb_remove_all( hwnd, LB_DECPLUG );
-        for( i = 0; i < num_decoders; i++ ) {
-          lb_add_item( hwnd, LB_DECPLUG, sfname( filename, decoders[i].module_name, sizeof( filename )));
+        num = enum_decoder_plugins(&list);
+        for( i = 0; i < num; i++ ) {
+          lb_add_item( hwnd, LB_DECPLUG, sfname( filename, list[i]->module_name, sizeof( filename )));
         }
         if( lb_size( hwnd, LB_DECPLUG )) {
           lb_select( hwnd, LB_DECPLUG, 0 );
@@ -385,7 +391,8 @@ cfg_page3_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
 
       if( LONGFROMMP(mp1) & PLUGIN_VISUAL  )
       {
-        if( i == LIT_NONE ) {
+        num = enum_visual_plugins(&list);
+        if( i < 0 || i >= num ) {
           WinSetDlgItemText( hwnd, ST_VIS_AUTHOR, "Author: <none>" );
           WinSetDlgItemText( hwnd, ST_VIS_DESC, "Desc: <none>" );
           WinSetDlgItemText( hwnd, PB_VIS_ENABLE, "~Enable" );
@@ -393,19 +400,20 @@ cfg_page3_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
           WinEnableControl ( hwnd, PB_VIS_ENABLE, FALSE );
           WinEnableControl ( hwnd, PB_VIS_UNLOAD, FALSE );
         } else {
-          sprintf( buffer, "Author: %s", visuals[i].query_param.author );
+          sprintf( buffer, "Author: %s", list[i]->query_param.author );
           WinSetDlgItemText( hwnd, ST_VIS_AUTHOR, buffer );
-          sprintf( buffer, "Desc: %s", visuals[i].query_param.desc );
+          sprintf( buffer, "Desc: %s", list[i]->query_param.desc );
           WinSetDlgItemText( hwnd, ST_VIS_DESC, buffer );
-          WinSetDlgItemText( hwnd, PB_VIS_ENABLE, visuals[i].enabled ? "Disabl~e" : "~Enable" );
+          WinSetDlgItemText( hwnd, PB_VIS_ENABLE, get_plugin_enabled(list[i]) ? "Disabl~e" : "~Enable" );
           WinEnableControl ( hwnd, PB_VIS_ENABLE, TRUE );
           WinEnableControl ( hwnd, PB_VIS_UNLOAD, TRUE );
-          WinEnableControl ( hwnd, PB_VIS_CONFIG, visuals[i].query_param.configurable &&
-                                                  visuals[i].enabled );
+          WinEnableControl ( hwnd, PB_VIS_CONFIG, list[i]->query_param.configurable &&
+                                                  get_plugin_enabled(list[i]) );
         }
       }
       if( LONGFROMMP(mp1) & PLUGIN_DECODER ) {
-        if( i == LIT_NONE ) {
+        num = enum_decoder_plugins(&list);
+        if( i < 0 || i >= num ) {
           WinSetDlgItemText( hwnd, ST_DEC_AUTHOR, "Author: <none>" );
           WinSetDlgItemText( hwnd, ST_DEC_DESC, "Desc: <none>" );
           WinSetDlgItemText( hwnd, PB_DEC_ENABLE, "~Enable" );
@@ -413,15 +421,15 @@ cfg_page3_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
           WinEnableControl ( hwnd, PB_DEC_ENABLE, FALSE );
           WinEnableControl ( hwnd, PB_DEC_UNLOAD, FALSE );
         } else {
-          sprintf( buffer, "Author: %s", decoders[i].query_param.author );
+          sprintf( buffer, "Author: %s", list[i]->query_param.author );
           WinSetDlgItemText( hwnd, ST_DEC_AUTHOR, buffer );
-          sprintf( buffer, "Desc: %s", decoders[i].query_param.desc );
+          sprintf( buffer, "Desc: %s", list[i]->query_param.desc );
           WinSetDlgItemText( hwnd, ST_DEC_DESC, buffer );
-          WinSetDlgItemText( hwnd, PB_DEC_ENABLE, decoders[i].enabled ? "Disabl~e" : "~Enable" );
+          WinSetDlgItemText( hwnd, PB_DEC_ENABLE, get_plugin_enabled(list[i]) ? "Disabl~e" : "~Enable" );
           WinEnableControl ( hwnd, PB_DEC_ENABLE, TRUE );
           WinEnableControl ( hwnd, PB_DEC_UNLOAD, TRUE );
-          WinEnableControl ( hwnd, PB_DEC_CONFIG, decoders[i].query_param.configurable &&
-                                                  decoders[i].enabled );
+          WinEnableControl ( hwnd, PB_DEC_CONFIG, list[i]->query_param.configurable &&
+                                                  get_plugin_enabled(list[i]) );
         }
       }
       return 0;
@@ -457,8 +465,9 @@ cfg_page3_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
         case PB_VIS_CONFIG:
         {
           SHORT i = lb_cursored( hwnd, LB_VISPLUG );
-          if( i != LIT_NONE ) {
-            visuals[i].plugin_configure( hwnd, visuals[i].module );
+          num = enum_visual_plugins(&list);
+          if( i >= 0 && i < num ) {
+            configure_plugin(list[i], hwnd);
           }
           return 0;
         }
@@ -466,13 +475,14 @@ cfg_page3_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
         case PB_VIS_ENABLE:
         {
           SHORT i = lb_cursored( hwnd, LB_VISPLUG );
-          if( i != LIT_NONE ) {
-            if( visuals[i].enabled ) {
+          num = enum_visual_plugins(&list);
+          if( i >= 0 && i < num ) {
+            if( get_plugin_enabled(list[i]) ) {
               vis_deinit( i );
             } else {
               vis_init( amp_player_window(), i );
             }
-            visuals[i].enabled = !visuals[i].enabled;
+            set_plugin_enabled(list[i], !get_plugin_enabled(list[i]));
             WinSendMsg( hwnd, CFG_REFRESH_INFO,
                         MPFROMLONG( PLUGIN_VISUAL ), MPFROMSHORT( i ));
           }
@@ -483,7 +493,7 @@ cfg_page3_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
         {
           SHORT i = lb_cursored( hwnd, LB_VISPLUG );
           if( i != LIT_NONE ) {
-            remove_visual_plugin( &visuals[i] );
+            remove_visual_plugin( i );
             if( lb_remove_item( hwnd, LB_VISPLUG, i ) == 0 ) {
               WinSendMsg( hwnd, CFG_REFRESH_INFO,
                           MPFROMLONG( PLUGIN_VISUAL ), MPFROMSHORT( LIT_NONE ));
@@ -501,8 +511,9 @@ cfg_page3_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
         case PB_DEC_CONFIG:
         {
           SHORT i = lb_cursored( hwnd, LB_DECPLUG );
-          if( i != LIT_NONE ) {
-            decoders[i].plugin_configure( hwnd, decoders[i].module );
+          num = enum_decoder_plugins(&list);
+          if( i >= 0 && i < num ) {
+            configure_plugin(list[i], hwnd);
           }
           return 0;
         }
@@ -510,19 +521,20 @@ cfg_page3_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
         case PB_DEC_ENABLE:
         {
           SHORT i = lb_cursored( hwnd, LB_DECPLUG );
-          if( i != LIT_NONE ) {
-            if( !decoders[i].enabled ) {
-              decoders[i].enabled = TRUE;
+          num = enum_decoder_plugins(&list);
+          if( i >= 0 && i < num ) {
+            if( !get_plugin_enabled(list[i]) ) {
+              set_plugin_enabled(list[i], TRUE);
             } else {
-              if( active_decoder == i ) {
+              if( dec_is_active(i) ) {
                 if( decoder_playing()) {
                   amp_error( hwnd, "Cannot disable currently in use decoder." );
                 } else {
-                  decoders[i].enabled = FALSE;
-                  dec_set_name_active( NULL );
+                  set_plugin_enabled(list[i], FALSE);
+                  dec_set_active( -1 );
                 }
               } else {
-                decoders[i].enabled = FALSE;
+                set_plugin_enabled(list[i], FALSE);
               }
             }
             WinSendMsg( hwnd, CFG_REFRESH_INFO,
@@ -535,10 +547,10 @@ cfg_page3_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
         {
           SHORT i = lb_cursored( hwnd, LB_DECPLUG );
           if( i != LIT_NONE ) {
-            if( decoder_playing() && active_decoder == i ) {
+            if( decoder_playing() && dec_is_active(i) ) {
               amp_error( hwnd, "Cannot unload currently used decoder." );
             } else {
-              remove_decoder_plugin( &decoders[i] );
+              remove_decoder_plugin( i );
               if( lb_remove_item( hwnd, LB_DECPLUG, i ) == 0 ) {
                 WinSendMsg( hwnd, CFG_REFRESH_INFO,
                             MPFROMLONG( PLUGIN_DECODER ), MPFROMSHORT( LIT_NONE ));
@@ -561,6 +573,9 @@ cfg_page3_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
 static MRESULT EXPENTRY
 cfg_page4_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
 {
+  int num;
+  PLUGIN_BASE*const* list;
+
   switch( msg )
   {
     case CFG_REFRESH_LIST:
@@ -571,8 +586,9 @@ cfg_page4_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
       if( LONGFROMMP(mp1) & PLUGIN_OUTPUT  )
       {
         lb_remove_all( hwnd, LB_OUTPLUG );
-        for( i = 0; i < num_outputs; i++ ) {
-          lb_add_item( hwnd, LB_OUTPLUG, sfname( filename, outputs[i].module_name, sizeof( filename )));
+        num = enum_output_plugins(&list);
+        for( i = 0; i < num; i++ ) {
+          lb_add_item( hwnd, LB_OUTPLUG, sfname( filename, list[i]->module_name, sizeof( filename )));
         }
         if( lb_size( hwnd, LB_OUTPLUG )) {
           lb_select( hwnd, LB_OUTPLUG, 0 );
@@ -585,8 +601,9 @@ cfg_page4_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
       if( LONGFROMMP(mp1) & PLUGIN_FILTER )
       {
         lb_remove_all( hwnd, LB_FILPLUG );
-        for( i = 0; i < num_filters; i++ ) {
-          lb_add_item( hwnd, LB_FILPLUG, sfname( filename, filters[i].module_name, sizeof( filename )));
+        num = enum_filter_plugins(&list);
+        for( i = 0; i < num; i++ ) {
+          lb_add_item( hwnd, LB_FILPLUG, sfname( filename, list[i]->module_name, sizeof( filename )));
         }
         if( lb_size( hwnd, LB_FILPLUG )) {
           lb_select( hwnd, LB_FILPLUG, 0 );
@@ -605,24 +622,26 @@ cfg_page4_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
 
       if( LONGFROMMP(mp1) & PLUGIN_OUTPUT )
       {
-        if( i == LIT_NONE ) {
+        num = enum_output_plugins(&list);
+        if( i < 0 || i >= num ) {
           WinSetDlgItemText( hwnd, ST_OUT_AUTHOR, "Author: <none>" );
           WinSetDlgItemText( hwnd, ST_OUT_DESC, "Desc: <none>" );
           WinEnableControl ( hwnd, PB_OUT_CONFIG, FALSE );
           WinEnableControl ( hwnd, PB_OUT_ACTIVATE, FALSE );
           WinEnableControl ( hwnd, PB_OUT_UNLOAD, FALSE );
         } else {
-          sprintf( buffer, "Author: %s", outputs[i].query_param.author );
+          sprintf( buffer, "Author: %s", list[i]->query_param.author );
           WinSetDlgItemText( hwnd, ST_OUT_AUTHOR, buffer );
-          sprintf( buffer, "Desc: %s", outputs[i].query_param.desc );
+          sprintf( buffer, "Desc: %s", list[i]->query_param.desc );
           WinSetDlgItemText( hwnd, ST_OUT_DESC, buffer );
           WinEnableControl ( hwnd, PB_OUT_UNLOAD, TRUE );
-          WinEnableControl ( hwnd, PB_OUT_ACTIVATE, active_output != i );
-          WinEnableControl ( hwnd, PB_OUT_CONFIG, outputs[i].query_param.configurable );
+          WinEnableControl ( hwnd, PB_OUT_ACTIVATE, out_is_active(i) );
+          WinEnableControl ( hwnd, PB_OUT_CONFIG, list[i]->query_param.configurable );
         }
       }
       if( LONGFROMMP(mp1) & PLUGIN_FILTER ) {
-        if( i == LIT_NONE ) {
+        num = enum_filter_plugins(&list);
+        if( i < 0 || i >= num ) {
           WinSetDlgItemText( hwnd, ST_FIL_AUTHOR, "Author: <none>" );
           WinSetDlgItemText( hwnd, ST_FIL_DESC, "Desc: <none>" );
           WinSetDlgItemText( hwnd, PB_FIL_ENABLE, "~Enable" );
@@ -630,15 +649,15 @@ cfg_page4_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
           WinEnableControl ( hwnd, PB_FIL_ENABLE, FALSE );
           WinEnableControl ( hwnd, PB_FIL_UNLOAD, FALSE );
         } else {
-          sprintf( buffer, "Author: %s", filters[i].query_param.author );
+          sprintf( buffer, "Author: %s", list[i]->query_param.author );
           WinSetDlgItemText( hwnd, ST_FIL_AUTHOR, buffer );
-          sprintf( buffer, "Desc: %s", filters[i].query_param.desc );
+          sprintf( buffer, "Desc: %s", list[i]->query_param.desc );
           WinSetDlgItemText( hwnd, ST_FIL_DESC, buffer );
-          WinSetDlgItemText( hwnd, PB_FIL_ENABLE, filters[i].enabled ? "Disabl~e" : "~Enable" );
+          WinSetDlgItemText( hwnd, PB_FIL_ENABLE, get_plugin_enabled(list[i]) ? "Disabl~e" : "~Enable" );
           WinEnableControl ( hwnd, PB_FIL_ENABLE, TRUE );
           WinEnableControl ( hwnd, PB_FIL_UNLOAD, TRUE );
-          WinEnableControl ( hwnd, PB_FIL_CONFIG, filters[i].query_param.configurable &&
-                                                  filters[i].enabled );
+          WinEnableControl ( hwnd, PB_FIL_CONFIG, list[i]->query_param.configurable &&
+                                                  get_plugin_enabled(list[i]) );
         }
       }
       return 0;
@@ -674,8 +693,9 @@ cfg_page4_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
         case PB_OUT_CONFIG:
         {
           SHORT i = lb_cursored( hwnd, LB_OUTPLUG );
-          if( i != LIT_NONE ) {
-            outputs[i].plugin_configure( hwnd, outputs[i].module );
+          num = enum_output_plugins(&list);
+          if( i >= 0 && i < num ) {
+            configure_plugin(list[i], hwnd);
           }
           return 0;
         }
@@ -683,7 +703,6 @@ cfg_page4_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
         case PB_OUT_ACTIVATE:
         {
           SHORT i = lb_cursored( hwnd, LB_OUTPLUG );
-
           if( i != LIT_NONE ) {
             if( decoder_playing()) {
               amp_error( hwnd, "Cannot change active output while playing." );
@@ -701,10 +720,10 @@ cfg_page4_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
           SHORT i = lb_cursored( hwnd, LB_OUTPLUG );
 
           if( i != LIT_NONE ) {
-            if( decoder_playing() && active_output == i ) {
+            if( decoder_playing() && out_is_active(i) ) {
               amp_error( hwnd, "Cannot unload currently used output." );
             } else {
-              remove_output_plugin( &outputs[i] );
+              remove_output_plugin( i );
               if( lb_remove_item( hwnd, LB_OUTPLUG, i ) == 0 ) {
                 WinSendMsg( hwnd, CFG_REFRESH_INFO,
                             MPFROMLONG( PLUGIN_OUTPUT ), MPFROMSHORT( LIT_NONE ));
@@ -723,8 +742,9 @@ cfg_page4_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
         case PB_FIL_CONFIG:
         {
           SHORT i = lb_cursored( hwnd, LB_FILPLUG );
-          if( i != LIT_NONE ) {
-            filters[i].plugin_configure( hwnd, filters[i].module );
+          num = enum_output_plugins(&list);
+          if( i >= 0 && i < num ) {
+            configure_plugin(list[i], hwnd);
           }
           return 0;
         }
@@ -732,15 +752,15 @@ cfg_page4_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
         case PB_FIL_ENABLE:
         {
           SHORT i = lb_cursored( hwnd, LB_FILPLUG );
-
-          if( i != LIT_NONE ) {
-            if( !filters[i].enabled ) {
-              filters[i].enabled = TRUE;
+          num = enum_output_plugins(&list);
+          if( i >= 0 && i < num ) {
+            if( !get_plugin_enabled(list[i]) ) {
+              set_plugin_enabled(list[i], TRUE);
               if( decoder_playing()) {
                 amp_info( hwnd, "This filter will only be enabled after playback of the current file." );
               }
             } else {
-              filters[i].enabled = FALSE;
+              set_plugin_enabled(list[i], FALSE);
               if( decoder_playing()) {
                 amp_info( hwnd, "This filter will only be disabled after playback of the current file." );
               }
@@ -759,7 +779,7 @@ cfg_page4_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
             if( decoder_playing()) {
               amp_error( hwnd, "Cannot unload currently used filter." );
             } else {
-              remove_filter_plugin( &filters[i] );
+              remove_filter_plugin( i );
               if( lb_remove_item( hwnd, LB_FILPLUG, i ) == 0 ) {
                 WinSendMsg( hwnd, CFG_REFRESH_INFO,
                             MPFROMLONG( PLUGIN_FILTER ), MPFROMSHORT( LIT_NONE ));

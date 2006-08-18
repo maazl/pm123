@@ -190,6 +190,10 @@
 #define FDT_EQUALIZER        "Equalizer presets (*.EQ)"
 #define FDT_PLUGIN           "Plug-in (*.DLL)"
 
+#if __cplusplus
+extern "C" {
+#endif
+
 /* Converts time to two integer suitable for display by the timer. */
 void  sec2num( long seconds, int* major, int* minor );
 
@@ -324,4 +328,8 @@ typedef struct
 
 void amp_msg( int msg, void* param, void* param2 );
 void equalize_sound( float* gains, BOOL* mute, float preamp, BOOL enabled );
+
+#if __cplusplus
+}
+#endif
 

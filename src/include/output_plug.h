@@ -71,7 +71,7 @@ typedef struct _OUTPUT_PARAMS
 typedef enum
 { OUTEVENT_END_OF_DATA,
   OUTEVENT_LOW_WATER,
-  OUTEVENT_HIGH_WATER,
+  OUTEVENT_HIGH_WATER
 } OUTEVENTTYPE; 
 
 typedef struct _OUTPUT_PARAMS2
@@ -119,7 +119,7 @@ int   PM123_ENTRY output_play_samples( void* a, FORMAT_INFO* format, char* buf, 
 ULONG PM123_ENTRY output_playing_pos( void* a );
 #else
 ULONG PM123_ENTRY output_command( void* a, ULONG msg, OUTPUT_PARAMS2* info );
-int   PM123_ENTRY output_request_buffer( void* a, const FORMAT_INFO* format, char** buf, int posmarker, const char* uri );
+int   PM123_ENTRY output_request_buffer( void* a, const FORMAT_INFO* format, char** buf, int posmarker );
 void  PM123_ENTRY output_commit_buffer( void* a, int len );
 int   PM123_ENTRY output_playing_pos( void* a );
 #endif

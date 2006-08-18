@@ -33,7 +33,7 @@ typedef struct _DECODER_PARAMS
    char* URL;
    char* drive;       /* for CD ie.: "X:" */
    int   track;
-   int   sectors[2];  /* play from sector x to sector y */
+   int   sectors[2];  /* play from sector x to sector y, currently unused by PM123 */
    char* other;
 
    /* --- DECODER_REW, FFWD and JUMPTO */
@@ -94,12 +94,7 @@ typedef struct _DECODER_PARAMS2
 
    /* --- DECODER_PLAY, STOP */
 
-   char* filename;
    char* URL;
-   char* drive;       /* for CD ie.: "X:" */
-   int   track;
-   int   sectors[2];  /* play from sector x to sector y */
-   char* other;
 
    /* --- DECODER_REW, FFWD and JUMPTO */
 
@@ -180,11 +175,6 @@ ULONG PM123_ENTRY decoder_length( void* w );
 #define DECODER_MODE_DUAL_CHANNEL   2
 #define DECODER_MODE_SINGLE_CHANNEL 3
 
-#define modes(i) ( i == 0 ? "Stereo"         : \
-                 ( i == 1 ? "Joint-Stereo"   : \
-                 ( i == 2 ? "Dual-Channel"   : \
-                 ( i == 3 ? "Single-Channel" : "" ))))
-
 /* NOTE: the information returned is only based on the FIRST header */
 typedef struct _DECODER_INFO
 {
@@ -233,7 +223,9 @@ typedef struct _DECODER_INFO
       1001 = http error occured, check http_strerror() for string;
       other values = errno */
 ULONG PM123_ENTRY decoder_fileinfo ( char* filename, DECODER_INFO* info );
+#if !defined(DECODER_PLUGIN_LEVEL) || DECODER_PLUGIN_LEVEL <= 1 
 ULONG PM123_ENTRY decoder_trackinfo( char* drive, int track, DECODER_INFO* info );
+#endif
 
 typedef struct _DECODER_CDINFO
 {

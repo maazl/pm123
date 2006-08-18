@@ -76,6 +76,7 @@ HPOINTER  mp3gray;  /* Broken file icon */
 /* Contains startup path of the program without its name.  */
 char   startpath[_MAX_PATH];
 /* Contains a name of the currently loaded file. */
+// TODO: too short for an URL
 char   current_filename[_MAX_PATH];
 /* Other parameters of the currently loaded file. */
 int    current_bitrate     =  0;
@@ -135,6 +136,18 @@ display_info( char *info )
   if( info_display ) {
     amp_post_message( AMP_DISPLAYMSG, MPFROMP( info_display ), 0 );
   }
+}
+
+/* Returns a playing time of the current file, in seconds. */
+static int
+time_played( void ) {
+  return out_playing_pos()/1000;
+}
+
+/* Returns a total playing time of the current file. */
+static int
+time_total( void ) {
+  return dec_length()/1000;
 }
 
 /* Sets audio volume to the current selected level. */
@@ -435,6 +448,7 @@ amp_load_singlefile( const char* filename, int options )
   amp_stop();
   amp_pl_release();
 
+  // TODO: buffer overflow!
   strcpy( current_filename, filename );
   strcpy( current_decoder, module_name );
   strcpy( current_cd_drive, cd_drive );
@@ -2878,7 +2892,7 @@ amp_reset( void )
   current_length   = 0;
   current_freq     = 0;
   current_track    = 0;
-
+ 
   current_cd_drive[0] = 0;
   current_decoder_info_string[0] = 0;
   current_filename[0] = 0;
@@ -3146,11 +3160,8 @@ main( int argc, char *argv[] )
   WinSetWindowPos( hframe, HWND_TOP,
                    cfg.main.x, cfg.main.y, 0, 0, SWP_ACTIVATE | SWP_MOVE | SWP_SHOW );
 
-  for( i = 0; i < num_visuals; i++ ) {
-    if( !visuals[i].skin ) {
-      vis_init( hplayer, i );
-    }
-  }
+  // initialize non-skin related visual plug-ins
+  vis_init_all( hplayer, FALSE );
 
   bm_load( hplayer );
 
@@ -3163,9 +3174,9 @@ main( int argc, char *argv[] )
 
   amp_stop();
 
-  for( i = 0; i < num_visuals; i++ ) {
-    vis_deinit( i );
-  }
+  // deinitialize all visual plug-ins
+  vis_deinit_all( TRUE );
+  vis_deinit_all( FALSE );
 
   if( heq != NULLHANDLE ) {
     WinDestroyWindow( heq );

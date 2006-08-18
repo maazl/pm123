@@ -45,7 +45,16 @@ char* sfnameext( char* result, const char* location, size_t size );
 char* sdrivedir( char* result, const char* location, size_t size );
 char* sdecode  ( char* result, const char* location, size_t size );
 
+typedef struct
+{ char drive[4]; // we need only 3 but we don't want to run into alignment trouble
+  int  track;
+  int  sectors[2];
+} CDDA_REGION_INFO;
+
+CDDA_REGION_INFO* scdparams( CDDA_REGION_INFO* result, const char* location );
+
 BOOL is_http ( const char* location );
+BOOL is_cdda ( const char* location );
 BOOL is_track( const char* location );
 BOOL is_file ( const char* location );
 BOOL is_url  ( const char* location );

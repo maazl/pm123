@@ -29,13 +29,12 @@ typedef struct _PLUGIN_PROCS
   ULONG (PM123_ENTRYP output_playing_pos)( void );
   ULONG (PM123_ENTRYP decoder_status)( void );
   /* name is the DLL filename of the decoder that can play that file */
-  ULONG (PM123_ENTRYP decoder_fileinfo)( char* filename, DECODER_INFO* info, char* name );
+  ULONG (PM123_ENTRYP decoder_fileinfo)( char* URL, DECODER_INFO* info, char* name );
 
   int   (PM123_ENTRYP pm123_getstring)( int index, int subindex, size_t bufsize, char* buf );
   void  (PM123_ENTRYP pm123_control)( int index, void* param );
 
   /* name is the DLL filename of the decoder that can play that track */
-  ULONG (PM123_ENTRYP decoder_trackinfo)( char* drive, int track, DECODER_INFO* info, char* name );
   ULONG (PM123_ENTRYP decoder_cdinfo)( char* drive, DECODER_CDINFO* info );
   ULONG (PM123_ENTRYP decoder_length)( void );
 
@@ -70,7 +69,7 @@ typedef struct _VISPLUGININIT
   HWND          hwnd;           /* Input/Output */
   PPLUGIN_PROCS procs;          /* Input        */
   int           id;             /* Input        */
-  char*         param;          /* Input        */
+  const char*   param;          /* Input        */
   HAB           hab;            /* Input        */
 
 } VISPLUGININIT, *PVISPLUGININIT;

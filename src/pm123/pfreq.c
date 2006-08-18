@@ -334,6 +334,11 @@ void pm_set_title(HWND hwnd, char *title)
  WinSendMsg(hwnd, CM_SETCNRINFO, MPFROMP(&cnrInfo), MPFROMLONG(CMA_CNRTITLE));
 }
 
+#define modes(i) ( i == 0 ? "Stereo"         : \
+                 ( i == 1 ? "Joint-Stereo"   : \
+                 ( i == 2 ? "Dual-Channel"   : \
+                 ( i == 3 ? "Single-Channel" : "" ))))
+
 static MRESULT EXPENTRY
 pm_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
 {

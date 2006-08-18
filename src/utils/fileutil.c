@@ -38,18 +38,31 @@
 #include "strutils.h"
 #include "minmax.h"
 
-#define  isslash( c ) ( c == '/' || c == '\\' )
+_Inline BOOL isslash(char c)
+{ return c == '/' || c == '\\';
+}
 
 /* Returns TRUE if the specified location is a HTTP URL. */
 BOOL
 is_http( const char* location ) {
-  return ( strnicmp( location, "http:", 5 ) == 0 );
+  return ( strnicmp( location, "http://", 7 ) == 0 );
+}
+
+/* Returns TRUE if the specified location is a CD URL. */
+BOOL
+is_cdda( const char* location ) {
+  return strnicmp( location, "cd://"  , 5 ) == 0 || strnicmp(location, "ccda://", 7) == 0;
 }
 
 /* Returns TRUE if the specified location is a CD track. */
 BOOL
 is_track( const char* location ) {
-  return ( strnicmp( location, "cd:"  , 3 ) == 0 );
+  const char* cp;
+  if (!is_cdda(location))
+    return FALSE;
+  cp = location + strlen(location);
+  while (!isslash(*--cp));
+  return strnicmp(cp+1, "track", 5) == 0;
 }
 
 /* Returns TRUE if the specified location is a URL. */
@@ -82,10 +95,9 @@ is_url( const char* location )
 BOOL
 is_file( const char* location )
 {
-  return *location             &&
-         !is_track( location ) &&
-         !is_url  ( location );
-
+  return *location && 
+    ( strnicmp(location, "file://", 7) == 0 
+      || (!is_track( location ) && !is_url( location )) );
 }
 
 /* Returns the drive letter followed by a colon (:)
@@ -391,7 +403,7 @@ sdrivedir( char *result, const char* location, size_t size )
 char*
 sdecode( char* result, const char* location, size_t size )
 {
-  const char* digits = "0123456789ABCDEF";
+  static const char* digits = "0123456789ABCDEF";
   const char* p;
   const char* ps = location;
   char* pr = result;
@@ -422,6 +434,27 @@ sdecode( char* result, const char* location, size_t size )
     *pr = 0;
   }
 
+  return result;
+}
+
+/* extract CD-parameters from URL 
+ * NULL: error
+ */
+CDDA_REGION_INFO* scdparams( CDDA_REGION_INFO* result, const char* location )
+{ char* cp;
+  size_t len;
+  if (!is_cdda(location))
+    return NULL;
+  result->track = 0;
+  result->sectors[0] = 0;
+  result->sectors[1] = 0;
+  cp = strchr(location, ':') +2;
+  if ( ( sscanf(cp, "/%c:/track%d%n", &result->drive[0], &result->track, &len) != 2 // track
+    && sscanf(cp, "/%c:/frame%d-%d%n", &result->drive[0], &result->sectors[0], &result->sectors[1], &len) != 3 ) // sectors
+      || len != strlen(cp) )
+    return NULL; // invalid ccda URL
+  result->drive[1] = ':';
+  result->drive[2] = 0;
   return result;
 }
 

@@ -12,7 +12,7 @@ LBO        = .lib
 RES        = .res
 
 CC         = icc
-CFLAGS     = -Ss -Q -Gm -W3 -DOS2 -DTCPV40HDRS
+CFLAGS     = -Ss -Q -Gm -W3 -DOS2 -DTCPV40HDRS -DNOSYSTEMSTATICMEMBER -Wdcl -Weff -Wenu
 CFLAGS_DLL = -Ge- -DLL
 CFLAGS_DBG = -Ti -Tx
 CFLAGS_MEM = -Tm

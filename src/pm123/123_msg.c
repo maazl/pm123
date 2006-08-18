@@ -48,7 +48,7 @@
 extern void PM123_ENTRY keep_last_error( char* );
 extern void PM123_ENTRY display_info( char* );
 
-DECODER_PARAMS dec_params;
+static DECODER_PARAMS2 dec_params;
 OUTPUT_PARAMS2 out_params;
 /* Loaded in curtun on decoder's demand WM_METADATA. */
 static char  metadata_buffer[128];
@@ -70,13 +70,9 @@ amp_msg( int msg, void *param, void *param2 )
     case MSG_PLAY:
     {
       MSG_PLAY_STRUCT* data = (MSG_PLAY_STRUCT*)param;
+      char cdda_url[20];
 
       out_params.hwnd          = data->hMain;
-      /*out_params.boostclass    = 3;
-      out_params.normalclass   = 2;
-      out_params.boostdelta    = 0;
-      out_params.normaldelta   = 31;
-      out_params.buffersize    = BUFSIZE;*/
       out_params.error_display = keep_last_error;
       out_params.info_display  = display_info;
 
@@ -105,15 +101,16 @@ amp_msg( int msg, void *param, void *param2 )
 
       equalize_sound( gains, mutes, preamp, cfg.eq_enabled );
 
-      dec_params.filename   = data->filename;
-      dec_params.drive      = data->drive;
-      dec_params.track      = data->track;
+      if (data->track != 0)
+      { sprintf(cdda_url, "cdda://%s/track%02d", data->drive, data->track);
+        dec_params.URL = cdda_url;
+      } else
+        dec_params.URL      = data->filename;
       dec_params.hwnd       = data->hMain;
       dec_params.buffersize = cfg.bufsize*1024;
       dec_params.bufferwait = cfg.bufwait;
       dec_params.proxyurl   = cfg.proxy;
       dec_params.httpauth   = cfg.auth;
-      dec_params.audio_buffersize = BUFSIZE;
       dec_params.error_display    = keep_last_error;
       dec_params.info_display     = display_info;
       dec_params.metadata_buffer  = metadata_buffer;

@@ -48,110 +48,36 @@
 /* Buffer size for compatibility interface */
 #define  BUFSIZE 16384
 
-/* These are the basic features of all PLUGIN records.
- * Well, C++ would be really nice.
- */
-#define PLUGIN_BASE_MEMBERS \
-  HMODULE module; \
-  char    module_name[_MAX_PATH]; \
-  BOOL    enabled; \
-  PLUGIN_QUERYPARAM query_param; \
-  void  (PM123_ENTRYP plugin_configure)( HWND hwnd, HMODULE module )
 
 typedef struct
 {
-  PLUGIN_BASE_MEMBERS;
+  HMODULE module;
+  char    module_name[_MAX_PATH];
+  PLUGIN_QUERYPARAM query_param;
 
 } PLUGIN_BASE;
 
 typedef struct
 {
-  PLUGIN_BASE_MEMBERS;
-
-  void* w;
-  int   (PM123_ENTRYP decoder_init     )( void** w );
-  BOOL  (PM123_ENTRYP decoder_uninit   )( void*  w );
-  ULONG (PM123_ENTRYP decoder_command  )( void*  w, ULONG msg, DECODER_PARAMS* params );
-  ULONG (PM123_ENTRYP decoder_status   )( void*  w );
-  ULONG (PM123_ENTRYP decoder_length   )( void*  w );
-  ULONG (PM123_ENTRYP decoder_fileinfo )( char*  filename, DECODER_INFO *info );
-  ULONG (PM123_ENTRYP decoder_trackinfo)( char*  drive, int track, DECODER_INFO* info );
-  ULONG (PM123_ENTRYP decoder_cdinfo   )( char*  drive, DECODER_CDINFO* info );
-  ULONG (PM123_ENTRYP decoder_support  )( char*  ext[], int* size );
-
-  char**  support;
-
-} DECODER;
-
-typedef struct
-{
-  PLUGIN_BASE_MEMBERS;
-
-  void* a;
-  ULONG (PM123_ENTRYP output_init           )( void** a );
-  ULONG (PM123_ENTRYP output_uninit         )( void*  a );
-  ULONG (PM123_ENTRYP output_command        )( void*  a, ULONG msg, OUTPUT_PARAMS2* info );
-  int   (PM123_ENTRYP output_request_buffer )( void*  a, const FORMAT_INFO* format, char** buf, int posmarker, const char* uri );
-  void  (PM123_ENTRYP output_commit_buffer  )( void*  a, int len );
-  ULONG (PM123_ENTRYP output_playing_samples)( void*  a, FORMAT_INFO* info, char* buf, int len );
-  int   (PM123_ENTRYP output_playing_pos    )( void*  a );
-  BOOL  (PM123_ENTRYP output_playing_data   )( void*  a );
-  // For compatibility
-  int   (PM123_ENTRYP voutput_command       )( void*  a, ULONG msg, OUTPUT_PARAMS* info );
-  int   (PM123_ENTRYP voutput_play_samples  )( void*  a, const FORMAT_INFO* format, const char* buf, int len, int posmarker );
-
-} OUTPUT;
-
-typedef struct
-{
-  PLUGIN_BASE_MEMBERS;
-
-  void  *f;
-  ULONG (PM123_ENTRYP filter_init        )( void** f, FILTER_PARAMS* params );
-  BOOL  (PM123_ENTRYP filter_uninit      )( void*  f );
-  // For compatibility
-  int   (PM123_ENTRYP filter_play_samples)( void*  f, const FORMAT_INFO* format, const char *buf, int len, int posmarker );
-
-} FILTER;
-
-typedef struct
-{
-  PLUGIN_BASE_MEMBERS;
-
   int     x, y, cx, cy;
   BOOL    skin;
-  HWND    hwnd;
   char    param[256];
-  BOOL    init;
 
-  HWND  (PM123_ENTRYP plugin_init     )( VISPLUGININIT* init );
-  BOOL  (PM123_ENTRYP plugin_deinit   )( void* f );
-
-} VISUAL;
-
-#undef PLUGIN_BASE_MEMBERS
-
-// These externs are not supposed to be used to make stupid things,
-// but only to READ for configuration purposes, or set enabled flag.
-extern DECODER* decoders;
-extern int num_decoders;
-extern int active_decoder;
-extern OUTPUT* outputs;
-extern int num_outputs;
-extern int active_output;
-extern FILTER* filters;
-extern int num_filters;
-extern VISUAL* visuals;
-extern int num_visuals;
+} VISUAL_PROPERTIES;
 
 #if __cplusplus
 extern "C" {
 #endif
 
-BOOL  remove_decoder_plugin( DECODER* plugin );
-BOOL  remove_output_plugin ( OUTPUT*  plugin );
-BOOL  remove_filter_plugin ( FILTER*  plugin );
-BOOL  remove_visual_plugin ( VISUAL*  plugin );
+// Read-only !
+//extern int active_decoder;
+//extern int active_output;
+
+BOOL  remove_decoder_plugin( int i );
+BOOL  remove_output_plugin ( int i );
+BOOL  remove_filter_plugin ( int i );
+BOOL  remove_visual_plugin ( int i );
+void  remove_visual_plugins( BOOL skin );
 void  remove_all_plugins   ( void );
 
 void  load_default_decoders( void );
@@ -168,41 +94,50 @@ BOOL  save_outputs ( BUFSTREAM* b );
 BOOL  save_filters ( BUFSTREAM* b );
 BOOL  save_visuals ( BUFSTREAM* b );
 
-ULONG add_plugin( const char* module_name, const VISUAL* data );
+ULONG add_plugin( const char* module_name, const VISUAL_PROPERTIES* data );
+
+int   enum_decoder_plugins(PLUGIN_BASE*const** list);
+int   enum_output_plugins(PLUGIN_BASE*const** list);
+int   enum_filter_plugins(PLUGIN_BASE*const** list);
+int   enum_visual_plugins(PLUGIN_BASE*const** list);
+
+BOOL  get_plugin_enabled(const PLUGIN_BASE* plugin);
+void  set_plugin_enabled(PLUGIN_BASE* plugin, BOOL enabled);
+void  configure_plugin(PLUGIN_BASE* plugin, HWND hwnd);
+
 
 int   dec_set_name_active( char* name );
+BOOL  dec_is_active( int number );
 int   dec_set_active( int number );
 void  dec_fill_types( char* result, size_t size );
 
-ULONG PM123_ENTRY dec_command( ULONG msg, DECODER_PARAMS* params );
+ULONG PM123_ENTRY dec_command( ULONG msg, DECODER_PARAMS2* params );
 ULONG PM123_ENTRY dec_fileinfo( char* filename, DECODER_INFO* info, char* name );
 ULONG PM123_ENTRY dec_trackinfo( char* drive, int track, DECODER_INFO* info, char* name );
 ULONG PM123_ENTRY dec_cdinfo( char* drive, DECODER_CDINFO* info );
 ULONG PM123_ENTRY dec_status( void );
 ULONG PM123_ENTRY dec_length( void );
 
-int   out_set_name_active( char* name );
+/*int   out_set_name_active( char* name );*/
+BOOL  out_is_active( int number );
 int   out_set_active( int number );
 void  out_set_volume( int volume );
 ULONG out_command( ULONG msg, OUTPUT_PARAMS2* info );
 
-ULONG PM123_ENTRY out_playing_samples( FORMAT_INFO* info, char* buf, int len );
+/*ULONG PM123_ENTRY out_playing_samples( FORMAT_INFO* info, char* buf, int len );*/
 ULONG PM123_ENTRY out_playing_pos( void );
 BOOL  PM123_ENTRY out_playing_data( void );
 
+/* initialize visual plug-in */
 BOOL  vis_init( HWND hwnd, int i );
+void  vis_init_all( HWND hwnd, BOOL skin );
 void  vis_broadcast( ULONG msg, MPARAM mp1, MPARAM mp2 );
+/* deinitialize visual plug-in */
 BOOL  vis_deinit( int i );
+void  vis_deinit_all( BOOL skin );
 
 /* Backward compatibility */
 BOOL  PM123_ENTRY decoder_playing( void );
-
-/* The following two trivial functions do not belong to the plug-in manager
- * and sholud be moved to another place. (MM) */
-/* Returns a playing time of the current file, in seconds. */
-int   time_played( void );
-/* Returns a total playing time of the current file. */
-int   time_total ( void );
 
 /* Plug-in menu in the main pop-up menu */
 void  load_plugin_menu( HWND hmenu );
