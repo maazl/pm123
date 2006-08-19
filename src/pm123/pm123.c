@@ -2742,6 +2742,7 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
     case WM_CREATE:
     {
       HPS hps = WinGetPS( hwnd );
+      hplayer = hwnd; /* we have to assign the window handle early, because WinCreateStdWindow does not have returned now. */
       bmp_load_skin( cfg.defskin, hab, hwnd, hps );
       WinReleasePS( hps );
 
@@ -3161,13 +3162,17 @@ main( int argc, char *argv[] )
                    cfg.main.x, cfg.main.y, 0, 0, SWP_ACTIVATE | SWP_MOVE | SWP_SHOW );
 
   // initialize non-skin related visual plug-ins
-  vis_init_all( hplayer, FALSE );
+  vis_init_all( FALSE );
 
   bm_load( hplayer );
 
   if( cfg.dock_windows ) {
     dk_arrange( hframe );
   }
+  
+  #ifdef DEBUG
+  fprintf(stderr, "main: init complete\n");
+  #endif
 
   while( WinGetMsg( hab, &qmsg, (HWND)0, 0, 0 ))
     WinDispatchMsg( hab, &qmsg );

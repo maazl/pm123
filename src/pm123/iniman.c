@@ -40,7 +40,6 @@
 #include <time.h>
 
 #include <utilfct.h>
-#include <format.h>
 #include "pm123.h"
 #include "plugman.h"
 
@@ -242,7 +241,10 @@ save_ini( void )
   HINI INIhandle;
   BUFSTREAM *b;
 
-  void *data;
+  void *outputs_list;
+  void *decoders_list;
+  void *filters_list;
+  void *visuals_list;
   ULONG size;
 
   if(( INIhandle = open_module_ini()) != NULLHANDLE )
@@ -289,26 +291,26 @@ save_ini( void )
 
     b = create_bufstream( 4096 );
     save_decoders( b );
-    size = get_buffer_bufstream( b, &data);
-    save_ini_data( INIhandle, data, size );
+    size = get_buffer_bufstream( b, &decoders_list );
+    save_ini_data( INIhandle, decoders_list, size );
     close_bufstream( b );
 
     b = create_bufstream( 4096 );
     save_outputs( b );
-    size = get_buffer_bufstream( b, &data);
-    save_ini_data( INIhandle, data, size );
+    size = get_buffer_bufstream( b, &outputs_list );
+    save_ini_data( INIhandle, outputs_list, size );
     close_bufstream( b );
 
     b = create_bufstream( 4096 );
     save_filters( b );
-    size = get_buffer_bufstream( b, &data);
-    save_ini_data( INIhandle, data, size );
+    size = get_buffer_bufstream( b, &filters_list );
+    save_ini_data( INIhandle, filters_list, size );
     close_bufstream( b );
 
     b = create_bufstream( 4096 );
     save_visuals( b );
-    size = get_buffer_bufstream( b, &data);
-    save_ini_data( INIhandle, data, size );
+    size = get_buffer_bufstream( b, &visuals_list );
+    save_ini_data( INIhandle, visuals_list, size );
     close_bufstream( b );
 
     close_ini(INIhandle);

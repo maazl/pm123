@@ -74,7 +74,7 @@ cfg_add_plugin( HWND hwnd, ULONG types )
     rc = add_plugin( filedialog.szFullFile, NULL );
     if( rc & PLUGIN_VISUAL ) {
       int num = enum_visual_plugins(NULL);
-      vis_init( amp_player_window(), num - 1 );
+      vis_init( num - 1 );
     }
     if( rc & PLUGIN_FILTER && decoder_playing()) {
       amp_info( hwnd, "This filter will only be enabled after playback of the current file." );
@@ -480,7 +480,7 @@ cfg_page3_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
             if( get_plugin_enabled(list[i]) ) {
               vis_deinit( i );
             } else {
-              vis_init( amp_player_window(), i );
+              vis_init( i );
             }
             set_plugin_enabled(list[i], !get_plugin_enabled(list[i]));
             WinSendMsg( hwnd, CFG_REFRESH_INFO,

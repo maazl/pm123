@@ -19,7 +19,7 @@ LIBS     = $(LIBS) $(TOPDIR)\utils\utilfct$(LBO)
 
 all: pm123.exe $(MDUMMY)
 
-pm123.exe: $(OBJECTS) $(RESOURCE) $(DEF)
+pm123.exe: $(OBJECTS) $(RESOURCE) $(DEF) $(LIBS)
 	$(CL) $(LFLAGS) $(LFLAGS_OUT)$@ $(LOBJ_PREFX)$(OBJECTS) $(LIBS)$(LOBJ_SUFFX) $(LDEF_PREFX)$(DEF)
 	$(RC) $(RFLAGS) $(RESOURCE) $@ > nul
 	execmode -sp pm123.exe
@@ -36,7 +36,7 @@ iniman.c:      pm123.h plugman.h iniman.h
 playlist.c:    pm123.h playlist.h
 properties.c:  pm123.h plugman.h copyright.h properties.h
 bookmark.c:    pm123.h bookmark.h
-skin.c:        pm123.h 
+skin.c:        pm123.h plugman.h
 vdelegate.c:   vdelegate.h
 pm123.rc:      pm123.h bookmark.h
 pm123.h:       playlist.h skin.h properties.h

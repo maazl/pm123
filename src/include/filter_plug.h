@@ -20,7 +20,6 @@ typedef struct _FILTER_PARAMS
 
   /* error message function the filter plug-in should use */
   void (PM123_ENTRYP error_display)( char* );
-
   /* info message function the filter plug-in should use */
   /* this information is always displayed to the user right away */
   void (PM123_ENTRYP info_display)( char* );
@@ -47,7 +46,6 @@ typedef struct _FILTER_PARAMS2
 
   /* error message function the filter plug-in should use */
   void (PM123_ENTRYP error_display)( char* );
-
   /* info message function the filter plug-in should use */
   /* this information is always displayed to the user right away */
   void (PM123_ENTRYP info_display)( char* );

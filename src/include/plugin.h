@@ -70,7 +70,6 @@ typedef struct _VISPLUGININIT
   PPLUGIN_PROCS procs;          /* Input        */
   int           id;             /* Input        */
   const char*   param;          /* Input        */
-  HAB           hab;            /* Input        */
 
 } VISPLUGININIT, *PVISPLUGININIT;
 

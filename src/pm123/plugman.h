@@ -129,8 +129,8 @@ ULONG PM123_ENTRY out_playing_pos( void );
 BOOL  PM123_ENTRY out_playing_data( void );
 
 /* initialize visual plug-in */
-BOOL  vis_init( HWND hwnd, int i );
-void  vis_init_all( HWND hwnd, BOOL skin );
+BOOL  vis_init( int i );
+void  vis_init_all( BOOL skin );
 void  vis_broadcast( ULONG msg, MPARAM mp1, MPARAM mp2 );
 /* deinitialize visual plug-in */
 BOOL  vis_deinit( int i );

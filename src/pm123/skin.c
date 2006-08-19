@@ -1846,7 +1846,7 @@ bmp_load_skin( const char *filename, HAB hab, HWND hplayer, HPS hps )
     bmp_init_default_skin ( hps );
     bmp_reflow_and_resize ( WinQueryWindow( hplayer, QW_PARENT ));
 
-    vis_init_all( hplayer, TRUE );
+    vis_init_all( TRUE );
 
     return FALSE;
   }
@@ -1896,9 +1896,9 @@ bmp_load_skin( const char *filename, HAB hab, HWND hplayer, HPS hps )
         if(( p = strtok( NULL, "," )) != NULL ) {
           rel2abs( path, p, param, sizeof( param ));
           if( stat( param, &fi ) == 0 ) {
-            strcpy( visual.param, param );
+            strlcpy( visual.param, param, sizeof visual.param );
           } else {
-            strcpy( visual.param, p );
+            strlcpy( visual.param, p, sizeof visual.param );
           }
         }
 
@@ -2138,7 +2138,7 @@ bmp_reflow_and_resize( HWND hframe )
       WinSetWindowPos( hframe, HWND_TOP, 0, 0,
                        bmp_pos[POS_R_SIZE].x, bmp_pos[POS_R_SIZE].y, SWP_SIZE );
 
-      vis_init_all(hplayer, TRUE);
+      vis_init_all(TRUE);
 
       break;
     }

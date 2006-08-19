@@ -51,7 +51,8 @@ is_http( const char* location ) {
 /* Returns TRUE if the specified location is a CD URL. */
 BOOL
 is_cdda( const char* location ) {
-  return strnicmp( location, "cd://"  , 5 ) == 0 || strnicmp(location, "ccda://", 7) == 0;
+  return strnicmp(location, "cd://"  , 5) == 0
+      || strnicmp(location, "cdda://", 7) == 0;
 }
 
 /* Returns TRUE if the specified location is a CD track. */
@@ -61,7 +62,8 @@ is_track( const char* location ) {
   if (!is_cdda(location))
     return FALSE;
   cp = location + strlen(location);
-  while (!isslash(*--cp));
+  do --cp;
+   while (!isslash(*cp));
   return strnicmp(cp+1, "track", 5) == 0;
 }
 
@@ -448,13 +450,18 @@ CDDA_REGION_INFO* scdparams( CDDA_REGION_INFO* result, const char* location )
   result->track = 0;
   result->sectors[0] = 0;
   result->sectors[1] = 0;
-  cp = strchr(location, ':') +2;
+  cp = strchr(location, ':') +3;
   if ( ( sscanf(cp, "/%c:/track%d%n", &result->drive[0], &result->track, &len) != 2 // track
     && sscanf(cp, "/%c:/frame%d-%d%n", &result->drive[0], &result->sectors[0], &result->sectors[1], &len) != 3 ) // sectors
       || len != strlen(cp) )
+  /*{ fprintf(stderr, "scdparams: error %d-%d: %c, %d, %d, %d\n",
+      len, strlen(cp), result->drive[0], result->track, result->sectors[0], result->sectors[1]);*/
     return NULL; // invalid ccda URL
+  /*}*/
   result->drive[1] = ':';
   result->drive[2] = 0;
+  /*fprintf(stderr, "scdparams: OK: %s, %d, %d, %d\n",
+    result->drive, result->track, result->sectors[0], result->sectors[1]);*/
   return result;
 }
 
