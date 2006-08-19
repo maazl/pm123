@@ -988,6 +988,7 @@ vis_init( PVISPLUGININIT init )
   cfg.falloff         = 1;
   cfg.falloff_speed   = 1;
   cfg.display_freq    = -1;
+  display_percent = -1;
   cfg.display_lowfreq = 50;
   cfg.highprec_mode   = FALSE;
 
