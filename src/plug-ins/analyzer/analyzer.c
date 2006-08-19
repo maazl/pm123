@@ -114,6 +114,7 @@ static  int*   scale;      // mapping FFT data -> destination channels
 /* internal state */
 static  BOOL   is_stopped;
 static  BOOL   needinit;
+static  BOOL   needclear;
 static  FORMAT_INFO lastformat;
 static  BOOL   destroy_pending = FALSE;
 
@@ -599,7 +600,7 @@ static void update_analyzer(void)
   // now _decoderPlaying() == 1
 
   #ifdef DEBUG
-  fprintf(stderr, "update_analyzer %d\n", needinit);
+  fprintf(stderr, "update_analyzer %d %d\n", needinit, needclear);
   #endif 
   // update initialization ?
   if (needinit)
@@ -608,7 +609,6 @@ static void update_analyzer(void)
     needinit = FALSE;
     init_bands(lastformat.samplerate);
   }
-
   // do fft analysis?
   if (active_cfg.default_mode == SHOW_DISABLED)
     return;
@@ -617,6 +617,13 @@ static void update_analyzer(void)
     return; // no changes or error
   
   DiveBeginImageBufferAccess( hdive, image_id, &image, &image_cx, &image_cy );
+
+  if (needclear)
+  { memset( image, 0, image_cx * image_cy );
+    if (bars != NULL)
+      memset(bars , 0, bars_count * sizeof *bars);
+    needclear = FALSE;
+  }
 
   #ifdef DEBUG
   fprintf(stderr, "ANA: before switch %d\n", active_cfg.default_mode);
@@ -817,6 +824,7 @@ cfg_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
       cfg.highprec_mode = WinQueryButtonCheckstate( hwnd, CB_HIGHPREC );
 
       needinit = TRUE;
+      needclear = TRUE;
 
       hconfigure  = NULLHANDLE;
       break;
@@ -914,8 +922,9 @@ plg_win_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
       if( ++cfg.default_mode > SHOW_DISABLED ) {
         cfg.default_mode = SHOW_ANALYZER;
       }
-      clear_analyzer();
+      needclear = TRUE;
       needinit = TRUE;
+      
       #ifdef DEBUG
       fprintf(stderr, "CLICK! %d\n", cfg.default_mode);
       #endif
@@ -923,6 +932,10 @@ plg_win_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
 
     case WM_TIMER:
       update_analyzer();
+      if (needclear)
+      { clear_analyzer();
+        needclear = FALSE;
+      }
       break;
       
     case WM_DESTROY: // we deinitialize here to avoid access to memory objects that are already freed.
@@ -996,8 +1009,8 @@ vis_init( PVISPLUGININIT init )
 
     close_ini( hini );
   }
-  if (cfg.display_freq == -1)
-    if (display_percent == -1)
+  if (cfg.display_freq <= 0)
+    if (display_percent <= 0)
       cfg.display_freq = 18000;
      else
       cfg.display_freq = max(5, display_percent * 22050 / 100); // for compatibility
@@ -1007,6 +1020,7 @@ vis_init( PVISPLUGININIT init )
   decoderPlaying        = init->procs->decoder_playing;
  
   needinit = TRUE;
+  needclear = TRUE;
 
   // Open up DIVE
   if( DiveOpen( &hdive, FALSE, 0 ) != DIVE_SUCCESS ) {
