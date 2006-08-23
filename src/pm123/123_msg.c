@@ -47,11 +47,8 @@
 
 #define DEBUG 1
 
-extern void PM123_ENTRY keep_last_error( char* );
-extern void PM123_ENTRY display_info( char* );
 
 static DECODER_PARAMS2 dec_params;
-OUTPUT_PARAMS2 out_params;
 /* Loaded in curtun on decoder's demand WM_METADATA. */
 static char  metadata_buffer[128];
 
@@ -74,20 +71,10 @@ amp_msg( int msg, void *param, void *param2 )
       MSG_PLAY_STRUCT* data = (MSG_PLAY_STRUCT*)param;
       char cdda_url[20];
 
-      out_params.hwnd          = data->hMain;
-      out_params.error_display = keep_last_error;
-      out_params.info_display  = display_info;
-
-      rc = out_command( OUTPUT_SETUP, &out_params );
+      // TODO: URI!!!
+      rc = out_setup( (FORMAT_INFO*)param2, data->out_filename );
       if( rc != 0 ) {
         return;
-      }
-
-      // TODO: URI!!!
-      out_params.URI = data->out_filename;
-      rc = out_command( OUTPUT_OPEN, &out_params );
-      if( rc != 0 ) {
-        return; // WM_PLAYERROR already sent .. hum..
       }
 
       rc = dec_set_name_active( data->decoder_needed );
@@ -168,11 +155,10 @@ amp_msg( int msg, void *param, void *param2 )
       paused     = FALSE;
 
       if( out_playing_data()) {
-        out_command( OUTPUT_TRASH_BUFFERS, &out_params );
+        out_trashbuffers( out_playing_pos() );
       }
 
-      rc = out_command( OUTPUT_CLOSE, &out_params );
-
+      rc = out_close();
       if( rc != 0 ) {
         return;
       }
@@ -185,8 +171,7 @@ amp_msg( int msg, void *param, void *param2 )
 
     case MSG_PAUSE:
       if( decoder_playing()) {
-        out_params.pause = paused = !paused;
-        out_command( OUTPUT_PAUSE, &out_params );
+        out_pause( paused = !paused );
       }
       break;
 
@@ -200,8 +185,6 @@ amp_msg( int msg, void *param, void *param2 )
           dec_params.ffwd = rewinding = FALSE;
           dec_command( DECODER_REW, &dec_params );
         }
-        //out_params.nobuffermode = FALSE;
-        //out_command( OUTPUT_NOBUFFERMODE, &out_params );
         dec_params.ffwd = forwarding;
         dec_command( DECODER_FFWD, &dec_params );
         if( cfg.trash )
@@ -209,10 +192,7 @@ amp_msg( int msg, void *param, void *param2 )
           /* going back in the stream to what is currently playing */
           dec_params.jumpto = out_playing_pos();
           dec_command( DECODER_JUMPTO, &dec_params );
-          //out_params.nobuffermode = TRUE;
-          //out_command( OUTPUT_NOBUFFERMODE, &out_params );
-          out_params.temp_playingpos = out_playing_pos();
-          out_command( OUTPUT_TRASH_BUFFERS, &out_params );
+          out_trashbuffers( out_playing_pos() );
         }
       }
       break;
@@ -227,8 +207,6 @@ amp_msg( int msg, void *param, void *param2 )
           dec_params.ffwd = forwarding = FALSE;
           dec_command( DECODER_FFWD, &dec_params );
         }
-        //out_params.nobuffermode = FALSE;
-        //out_command( OUTPUT_NOBUFFERMODE, &out_params );
         dec_params.rew = rewinding;
         dec_command( DECODER_REW,&dec_params );
         if( cfg.trash )
@@ -236,10 +214,7 @@ amp_msg( int msg, void *param, void *param2 )
           /* going back in the stream to what is currently playing */
           dec_params.jumpto = out_playing_pos();
           dec_command( DECODER_JUMPTO, &dec_params );
-          //out_params.nobuffermode = TRUE;
-          //out_command( OUTPUT_NOBUFFERMODE, &out_params );
-          out_params.temp_playingpos = out_playing_pos();
-          out_command( OUTPUT_TRASH_BUFFERS, &out_params );
+          out_trashbuffers( out_playing_pos() );
         }
       }
       break;
@@ -250,8 +225,7 @@ amp_msg( int msg, void *param, void *param2 )
         dec_params.jumpto = *((int *)param);
         if( cfg.trash )
         {
-          out_params.temp_playingpos = dec_params.jumpto;
-          out_command( OUTPUT_TRASH_BUFFERS, &out_params );
+          out_trashbuffers( dec_params.jumpto );
         }
         dec_command( DECODER_JUMPTO, &dec_params );
       }

@@ -31,16 +31,18 @@ typedef struct _FILTER_PARAMS2
 {
   int size;
 
-  /* virtual output interface */
+  /* virtual output interface
+   * To virtualize one of these functions replace the pointer at the filter_init call. */
   ULONG (PM123_ENTRYP output_command)( void* a, ULONG msg, OUTPUT_PARAMS2* info );
   ULONG (PM123_ENTRYP output_playing_samples)( void* a, FORMAT_INFO* info, char* buf, int len );
   int   (PM123_ENTRYP output_request_buffer)( void* a, const FORMAT_INFO* format, char** buf, int posmarker );
   void  (PM123_ENTRYP output_commit_buffer)( void* a, int len );
-  ULONG (PM123_ENTRYP output_playing_pos)( void* a );
+  int   (PM123_ENTRYP output_playing_pos)( void* a );
   BOOL  (PM123_ENTRYP output_playing_data)( void* a );
   void* a;  /* only to be used with the precedent functions */
   
-  /* callback event */
+  /* callback event
+   * To virtualize these function replace the pointer at the filter_init call. */
   void  (PM123_ENTRYP output_event)( void* w, OUTEVENTTYPE event ); 
   void* w;  /* only to be used with the precedent function */
 
@@ -48,7 +50,7 @@ typedef struct _FILTER_PARAMS2
   void (PM123_ENTRYP error_display)( char* );
   /* info message function the filter plug-in should use */
   /* this information is always displayed to the user right away */
-  void (PM123_ENTRYP info_display)( char* );
+  void (PM123_ENTRYP info_display )( char* );
 
 } FILTER_PARAMS2;
 
@@ -64,6 +66,7 @@ int  PM123_ENTRY filter_play_samples( void* f, FORMAT_INFO* format, char* buf, i
 
 #else /* interface level 2 */
 ULONG PM123_ENTRY filter_init  ( void** f, FILTER_PARAMS2* params );
+void  PM123_ENTRY filter_update( void*  f, const FILTER_PARAMS2* params );
 
 #endif
 BOOL  PM123_ENTRY filter_uninit( void*  f );

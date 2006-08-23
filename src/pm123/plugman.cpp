@@ -69,6 +69,235 @@ static CL_PLUGIN_LIST  visuals;  // only visuals
 
 /****************************************************************************
 *
+* virtual output interface, including filter plug-ins
+* this class logically connects the decoder and the output interface
+*
+****************************************************************************/
+
+static class CL_GLUE
+{private:
+         BOOL              initialized;       // whether the following vars are true
+         OUTPUT_PROCS      procs;             // entry points of the filter chain
+         OUTPUT_PARAMS2    params;            // parameters for output_command
+
+ private:
+         void              virtualize         ( int i );
+         ULONG             init();
+         void              uninit();
+         ULONG             out_command        ( ULONG msg )
+                                              { return (*procs.output_command)( procs.a, msg, &params ); }
+ public:
+                           CL_GLUE();
+  const  OUTPUT_PROCS&     get_procs() const  { return procs; }
+  
+  // control interface
+  friend ULONG             out_setup          ( const FORMAT_INFO* formatinfo, const char* URI );
+  friend ULONG             out_close          ();
+  friend void              out_set_volume     ( int volume );
+  friend ULONG             out_pause          ( BOOL pause );
+  friend void              out_trashbuffers   ( int temp_playingpos );
+  // 4 visual interface
+  friend ULONG PM123_ENTRY out_playing_pos    ( void );
+  friend BOOL  PM123_ENTRY out_playing_data   ( void );
+  friend ULONG PM123_ENTRY out_playing_samples( FORMAT_INFO* info, char* buf, int len );
+ private: // glue
+  // 4 callback interface
+  friend void  PM123_ENTRY dec_event          ( void* w, OUTEVENTTYPE event ); 
+} voutput;
+
+CL_GLUE::CL_GLUE()
+{ memset(&params, 0, sizeof params);
+}
+
+void CL_GLUE::virtualize(int i)
+{ 
+  #ifdef DEBUG
+  fprintf(stderr, "CL_GLUE(%p)::virtualize(%d)\n", this, i);
+  #endif
+  if (i < 0)
+    return;
+  CL_FILTER& fil = (CL_FILTER&)filters[i];
+  if (!fil.get_enabled())
+  { virtualize(i-1);
+    return;
+  }
+  // virtualize procedures
+  FILTER_PARAMS2 par;
+  par.size                   = sizeof par;
+  par.output_command         = procs.output_command;
+  par.output_playing_samples = procs.output_playing_samples;
+  par.output_request_buffer  = procs.output_request_buffer;
+  par.output_commit_buffer   = procs.output_commit_buffer;
+  par.output_playing_pos     = procs.output_playing_pos;
+  par.output_playing_data    = procs.output_playing_data;
+  par.a                      = procs.a;
+  par.output_event           = params.output_event;
+  par.w                      = params.w;
+  par.error_display          = &keep_last_error;
+  par.info_display           = &display_info;
+  if (!fil.initialize(&par))
+  { char msg[500];
+    sprintf(msg, "The filter plug-in %s failed to initialize.", fil.module_name);
+    display_info(msg);
+    virtualize(i-1);
+    return;
+  }
+  // store new entry points
+  procs.output_command         = par.output_command;
+  procs.output_playing_samples = par.output_playing_samples;
+  procs.output_request_buffer  = par.output_request_buffer;
+  procs.output_commit_buffer   = par.output_commit_buffer;
+  procs.output_playing_pos     = par.output_playing_pos;
+  procs.output_playing_data    = par.output_playing_data;
+  procs.a                      = fil.get_procs().f;
+  void (PM123_ENTRYP last_output_event)(void* w, OUTEVENTTYPE event) = params.output_event;
+  // next filter
+  virtualize(i-1);
+  // store new callback if virtualized by the plug-in.
+  BOOL vcallback = par.output_event != last_output_event;
+  last_output_event     = par.output_event; // swap...
+  par.output_event      = params.output_event;
+  par.w                 = params.w;
+  if (vcallback)
+  { // set params for next instance.
+    params.output_event = last_output_event;
+    params.w            = fil.get_procs().f;
+    #ifdef DEBUG
+    fprintf(stderr, "CL_GLUE::virtualize: callback virtualized: %p %p\n", params.output_event, params.w);
+    #endif
+  }
+  if (par.output_event != last_output_event)
+  { // now update the decoder event
+    (*fil.get_procs().filter_update)(fil.get_procs().f, &par);
+    #ifdef DEBUG
+    fprintf(stderr, "CL_GLUE::virtualize: callback update: %p %p\n", par.output_event, par.w);
+    #endif
+  }
+}
+
+// setup filter chain
+ULONG CL_GLUE::init()
+{
+  #ifdef DEBUG
+  fprintf(stderr, "CL_GLUE(%p)::init\n", this);
+  #endif
+  params.size          = sizeof params;
+  params.error_display = &keep_last_error;
+  params.info_display  = &display_info;
+  params.hwnd          = amp_player_window();
+  // setup callback handlers
+  params.output_event  = &dec_event;
+  params.w             = this; // not really required
+
+  CL_OUTPUT* op = (CL_OUTPUT*)outputs.current();
+  if ( op == NULL )
+  { amp_player_error( "There is no active output plug-in." );
+    return -1;  // ??
+  }
+
+  // initially only the output plugin
+  procs = op->get_procs();
+  // setup filters
+  virtualize(filters.count()-1); 
+  // setup output
+  ULONG rc = out_command( OUTPUT_SETUP );
+  if (rc == 0)
+    initialized = TRUE;
+  return rc;
+}
+
+void CL_GLUE::uninit()
+{ // currently a no-op
+}
+
+/* setup new output stage or change the properties of the current one */
+ULONG out_setup( const FORMAT_INFO* formatinfo, const char* URI )
+{ if (!voutput.initialized)
+  { ULONG rc = voutput.init(); // here we initialte the setup of the filter chain
+    if (rc != 0)
+      return rc;
+  }
+  voutput.params.formatinfo = *formatinfo;
+  voutput.params.URI = URI;
+  return voutput.out_command( OUTPUT_OPEN );
+}
+
+/* closes output device and uninitializes all filter and output plugins */
+ULONG out_close()
+{ if (!voutput.initialized)
+    return -1;
+  ULONG rc = voutput.out_command( OUTPUT_CLOSE );
+  voutput.uninit(); // Hmm, is it a good advise to do this in case of an error?
+  return rc;
+}
+
+/* adjust output volume */
+void out_set_volume( int volume )
+{ if (!voutput.initialized)
+    return; // can't help
+  voutput.params.volume = volume;
+  voutput.params.amplifier = 1.0;
+  voutput.out_command( OUTPUT_VOLUME );
+}
+
+ULONG out_pause( BOOL pause )
+{ if (!voutput.initialized)
+    return -1; // error
+  voutput.params.pause = pause;
+  return voutput.out_command( OUTPUT_PAUSE );
+}
+
+void out_trashbuffers( int temp_playingpos )
+{ if (!voutput.initialized)
+    return; // can't help
+  voutput.params.temp_playingpos = temp_playingpos;
+  voutput.out_command( OUTPUT_TRASH_BUFFERS );
+}
+
+/* Returns 0 = success otherwize MMOS/2 error. */
+ULONG PM123_ENTRY out_playing_samples( FORMAT_INFO* info, char* buf, int len )
+{ if (!voutput.initialized)
+    return -1; // N/A
+  return (*voutput.procs.output_playing_samples)( voutput.procs.a, info, buf, len );
+}
+
+/* Returns time in ms. */
+ULONG PM123_ENTRY out_playing_pos( void )
+{ if (!voutput.initialized)
+    return 0; // ??
+  return (*voutput.procs.output_playing_pos)( voutput.procs.a );
+}
+
+/* if the output is playing. */
+BOOL PM123_ENTRY out_playing_data( void )
+{ if (!voutput.initialized)
+    return FALSE;
+  return (*voutput.procs.output_playing_data)( voutput.procs.a );
+}
+
+/* proxy, because the decoder is not interested in OUTEVENT_END_OF_DATA */
+void PM123_ENTRY dec_event( void* w, OUTEVENTTYPE event )
+{ 
+  #ifdef DEBUG
+  fprintf(stderr, "plugman:dec_event(%p, %d)\n", w, event);
+  #endif
+  switch (event)
+  {case OUTEVENT_END_OF_DATA:
+    WinPostMsg(amp_player_window(),WM_PLAYERROR,0,0);
+    break;
+   case OUTEVENT_PLAY_ERROR:
+    WinPostMsg(amp_player_window(),WM_OUTPUT_OUTOFDATA,0,0);
+    break;
+   default:
+    CL_DECODER* dp = (CL_DECODER*)decoders.current();
+    if (dp != NULL)
+      dp->get_procs().decoder_event(dp->get_procs().w, event);
+  }
+}
+
+
+/****************************************************************************
+*
 * plugin list modification functions
 *
 ****************************************************************************/
@@ -527,69 +756,17 @@ ULONG PM123_ENTRY dec_command( ULONG msg, DECODER_PARAMS2 *params )
     return 3; // no decoder active
   const DECODER_PROCS& dec = ((CL_DECODER*)decoders.current())->get_procs();
 
-  // Is it good to setup output_play_samples and filter chain only here?
   if( msg == DECODER_SETUP )
   {
     if( outputs.current() == NULL )
     { amp_player_error( "There is no active output." );
       return 4;
     }
-    const OUTPUT_PROCS& out = ((CL_OUTPUT*)outputs.current())->get_procs();
 
-    /*FILTER **enabled_filters = (FILTER**)alloca( num_filters * sizeof( FILTER* ));
-    int num_enabled_filters = 0;
-    int i = 0;
-
-    for( i = 0; i < num_filters; i++ ) {
-      if( filters[i].enabled ) {
-        enabled_filters[num_enabled_filters++] = &filters[i];
-      }
-    }
-
-    if( num_enabled_filters )
-    {
-      FILTER_PARAMS2 filter_params;
-      i = num_enabled_filters-1;
-
-      // You need to start from the last filter to init them all properly
-      if( enabled_filters[i]->f != NULL )
-      {
-        enabled_filters[i]->filter_uninit( enabled_filters[i]->f );
-        enabled_filters[i]->f = NULL;
-      }
-
-      filter_params.error_display = params->error_display;
-      filter_params.info_display = params->error_display;
-      filter_params.output_request_buffer = outputs[active_output].output_request_buffer;
-      filter_params.output_commit_buffer = outputs[active_output].output_commit_buffer;
-      //filter_params.output_play_samples = &proxy_output_play_samples;
-      filter_params.a = outputs[active_output].a;
-
-      enabled_filters[i]->filter_init( &enabled_filters[i]->f, &filter_params );
-
-      for( i = num_enabled_filters - 2; i >= 0; i-- )
-      {
-        if( enabled_filters[i]->f != NULL )
-        {
-          enabled_filters[i]->filter_uninit( enabled_filters[i]->f );
-          enabled_filters[i]->f = NULL;
-        }
-
-        filter_params.error_display = params->error_display;
-        filter_params.info_display = params->info_display;
-        //filter_params.output_play_samples = enabled_filters[i+1]->filter_play_samples;
-        filter_params.a = enabled_filters[i+1]->f;
-
-        enabled_filters[i]->filter_init( &enabled_filters[i]->f, &filter_params );
-      }
-
-      //params->output_play_samples = enabled_filters[0]->filter_play_samples;
-      params->a = enabled_filters[0]->f;
-    } else*/ {
-      params->output_request_buffer = out.output_request_buffer;
-      params->output_commit_buffer = out.output_commit_buffer;
-      params->a = out.a;
-    }
+    const OUTPUT_PROCS& out = voutput.get_procs();
+    params->output_request_buffer = out.output_request_buffer;
+    params->output_commit_buffer = out.output_commit_buffer;
+    params->a = out.a;
   }
   return dec.decoder_command(dec.w, msg, params);
 }
@@ -756,87 +933,6 @@ int out_set_active( int number )
 { return outputs.set_active(number) -1;
 }
 
-/* Returns -2 if can't find nothing. */
-/*int
-out_set_name_active( char *name )
-{
-  int i;
-
-  if( name == NULL || !*name ) {
-    return out_set_active( -1 );
-  }
-
-  for( i = 0; i < num_outputs; i++ )
-  {
-    char filename[256];
-    sfnameext( filename, outputs[i].module_name, _MAX_FNAME );
-    if( stricmp( filename, name ) == 0 ) {
-      out_set_active( i );
-      return 0;
-    }
-  }
-  return -2;
-}*/
-
-/* 0 = ok, else = return code from MMOS/2. */
-ULONG
-out_command( ULONG msg, OUTPUT_PARAMS2* ai )
-{
-  // TODO: setup callback handlers
-  // TODO: virtualizing filters
-  
-  CL_OUTPUT* op = (CL_OUTPUT*)outputs.current();
-
-  if( op != NULL ) {
-    return op->get_procs().output_command( op->get_procs().a, msg, ai );
-  } else {
-    amp_player_error( "There is no active output plug-in." );
-    return -1;  // ??
-  }
-}
-
-void
-out_set_volume( int volume )
-{
-  OUTPUT_PARAMS2 out_params = { 0 };
-
-  out_params.volume = volume;
-  out_params.amplifier = 1.0;
-  out_command( OUTPUT_VOLUME, &out_params );
-}
-
-/* Returns 0 = success otherwize MMOS/2 error. */
-static ULONG PM123_ENTRY
-out_playing_samples( FORMAT_INFO* info, char* buf, int len )
-{ CL_OUTPUT* op = (CL_OUTPUT*)outputs.current();
-  if ( op != NULL ) {
-    return op->get_procs().output_playing_samples( op->get_procs().a, info, buf, len );
-  } else {
-    return -1; // ??
-  }
-}
-
-/* Returns time in ms. */
-ULONG PM123_ENTRY
-out_playing_pos( void )
-{ CL_OUTPUT* op = (CL_OUTPUT*)outputs.current();
-  if ( op != NULL ) {                                             
-    return op->get_procs().output_playing_pos( op->get_procs().a );
-  } else {
-    return 0; // ??
-  }
-}
-
-/* if the output is playing. */
-BOOL PM123_ENTRY
-out_playing_data( void )
-{ CL_OUTPUT* op = (CL_OUTPUT*)outputs.current();
-  if ( op != NULL ) {
-    return op->get_procs().output_playing_data( op->get_procs().a );
-  } else {
-    return FALSE;
-  }
-}
 
 /* Initializes the specified visual plug-in. */
 BOOL vis_init( int i )
@@ -1067,3 +1163,4 @@ void remove_all_plugins( void )
   entries  = NULL;
   num_entries = 0;
 }
+

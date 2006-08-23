@@ -286,6 +286,10 @@ ULONG handle_dfi_error( ULONG rc, const char* file );
 int  PM123_ENTRY pm123_getstring(int index, int subindex, size_t bufsize, char *buf);
 void PM123_ENTRY pm123_control(int index, void *param);
 
+void PM123_ENTRY keep_last_error( char *error );
+void PM123_ENTRY display_info( char *info );
+
+
 /* Global variables */
 /* -----------------*/
 

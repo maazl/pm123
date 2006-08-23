@@ -88,6 +88,7 @@ char   current_cd_drive[4] = "";
 tune   current_tune;
 char   current_decoder[128];
 char   current_decoder_info_string[128];
+static FORMAT_INFO current_format; /* current data format */
 
 static HAB   hab        = NULLHANDLE;
 static HWND  hplaylist  = NULLHANDLE;
@@ -120,8 +121,7 @@ BOOL  mutes[20];
 float preamp;
 
 static char last_error[2048];
-// TODO: very dirty static access. Easily violating the ODR.
-extern OUTPUT_PARAMS2 out_params;
+
 
 void PM123_ENTRY
 keep_last_error( char *error )
@@ -311,7 +311,7 @@ amp_pl_load_record( PLRECORD* rec )
     strlcpy( current_tune.title, rec->songname, sizeof( current_tune.title ));
   }
 
-  out_params.formatinfo = rec->format;
+  current_format   = rec->format;
 
   current_bitrate  = rec->bitrate;
   current_channels = rec->channels;
@@ -455,8 +455,7 @@ amp_load_singlefile( const char* filename, int options )
   strcpy( current_decoder_info_string, info.tech_info );
   
   amp_gettag( filename, &info, &current_tune );
-  out_params.formatinfo = info.format;
-
+  current_format   = info.format;
   current_bitrate  = info.bitrate;
   current_channels = info.mode;
   current_length   = info.songlength / 1000;
@@ -547,7 +546,7 @@ amp_play( void )
   msgplayinfo.hMain = hplayer;
   msgplayinfo.decoder_needed = current_decoder;
 
-  amp_msg( MSG_PLAY, &msgplayinfo, 0 );
+  amp_msg( MSG_PLAY, &msgplayinfo, &current_format );
 
   is_fast_backward = FALSE;
   is_fast_forward  = FALSE;

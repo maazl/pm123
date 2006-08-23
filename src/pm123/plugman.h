@@ -118,11 +118,14 @@ ULONG PM123_ENTRY dec_cdinfo( char* drive, DECODER_CDINFO* info );
 ULONG PM123_ENTRY dec_status( void );
 ULONG PM123_ENTRY dec_length( void );
 
-/*int   out_set_name_active( char* name );*/
+/* output control interface */
 BOOL  out_is_active( int number );
 int   out_set_active( int number );
+ULONG out_setup( const FORMAT_INFO* formatinfo, const char* URI );
+ULONG out_close( void );
 void  out_set_volume( int volume );
-ULONG out_command( ULONG msg, OUTPUT_PARAMS2* info );
+ULONG out_pause( BOOL pause );
+void  out_trashbuffers( int temp_playingpos );
 
 /*ULONG PM123_ENTRY out_playing_samples( FORMAT_INFO* info, char* buf, int len );*/
 ULONG PM123_ENTRY out_playing_pos( void );

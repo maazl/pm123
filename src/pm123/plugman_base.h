@@ -33,6 +33,22 @@
 #define _PM123_PLUGMAN_BASE_H
 
 #include "plugman.h"
+#include "vdelegate.h"
+
+/* Define the macro NOSYSTEMSTATICMEMBER to work around for the IBMVAC++ restriction
+ * that static class functions may not have a defined calling convention.
+ * However, this workaround relies on friend functions with static linkage. This is
+ * invalid acording to the C++ standard, but IBMVAC++ does not care about that fact.
+ */
+#ifdef NOSYSTEMSTATICMEMBER
+#define PROXYFUNCDEF friend static
+#define PROXYFUNCIMP(ret, cls) static ret
+#define PROXYFUNCREF(cls)
+#else
+#define PROXYFUNCDEF static
+#define PROXYFUNCIMP(ret, cls) ret cls::
+#define PROXYFUNCREF(cls) cls::
+#endif
 
 
 /****************************************************************************
@@ -58,6 +74,25 @@
 *    +- CL_PLUGIN_LIST1 (exactly one active plugin)
 *
 ****************************************************************************/
+
+/****************************************************************************
+*
+* VREPLACE collection
+*
+****************************************************************************/
+
+/*class CL_STUBLIST
+{private:
+  VREPLACE**        list;
+  int               num;
+  int               size;
+ public:
+  CL_STUBLIST() : list(NULL), num(0), size(0) {}
+  ~CL_STUBLIST()                              { clear(); free(list); }
+  VREPLACE*         factory();
+  void              clear();
+};*/
+
 
 /****************************************************************************
 *
@@ -202,18 +237,22 @@ class CL_OUTPUT : public CL_PLUGIN, protected OUTPUT_PROCS
 struct FILTER_PROCS
 { void  *f;
   ULONG (PM123_ENTRYP filter_init        )( void** f, FILTER_PARAMS2* params );
+  void  (PM123_ENTRYP filter_update      )( void*  f, const FILTER_PARAMS2* params );
   BOOL  (PM123_ENTRYP filter_uninit      )( void*  f );
 };
 
 // specialized class for filter plug-ins
 class CL_FILTER : public CL_PLUGIN, protected FILTER_PROCS
-{protected:
+{private:
+  VREPLACE1    vrstubs[6];
+ protected:
   CL_FILTER(CL_MODULE& mod) : CL_PLUGIN(mod) { f = NULL; }
  public:
   virtual BOOL load_plugin();
   virtual BOOL init_plugin();
   virtual BOOL uninit_plugin();
   virtual BOOL is_initialized() const     { return f != NULL; }
+  virtual BOOL initialize(FILTER_PARAMS2* params);
   const FILTER_PROCS& get_procs() const   { return *this; }
   
   static CL_PLUGIN* factory(CL_MODULE& mod);
@@ -287,6 +326,7 @@ class CL_PLUGIN_BASE_LIST
 class CL_MODULE_LIST : public CL_PLUGIN_BASE_LIST
 {public:
   BOOL            append(CL_MODULE* plugin) { return CL_PLUGIN_BASE_LIST::append(plugin); }
+  CL_MODULE*      detach(int i)             { return (CL_MODULE*)CL_PLUGIN_BASE_LIST::detach(i); }
   CL_MODULE*      detach_request(int i);
   CL_MODULE&      operator[](int i) { return (CL_MODULE&)CL_PLUGIN_BASE_LIST::operator[](i); }
 };

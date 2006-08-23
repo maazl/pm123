@@ -58,7 +58,7 @@ typedef struct _OUTPUT_PARAMS
 
   /* --- OUTPUT_OPEN */
 
-  char* filename;         // filename, URL or track now being played,
+  const char* filename;         // filename, URL or track now being played,
                           // useful for disk output
 
   /* --- OUTPUT_SETUP ***OUTPUT*** */
@@ -71,7 +71,8 @@ typedef struct _OUTPUT_PARAMS
 typedef enum
 { OUTEVENT_END_OF_DATA,
   OUTEVENT_LOW_WATER,
-  OUTEVENT_HIGH_WATER
+  OUTEVENT_HIGH_WATER,
+  OUTEVENT_PLAY_ERROR
 } OUTEVENTTYPE; 
 
 typedef struct _OUTPUT_PARAMS2
@@ -108,7 +109,7 @@ typedef struct _OUTPUT_PARAMS2
 
   /* --- OUTPUT_OPEN */
 
-  char* URI;              // filename, URL or track now being played,
+  const char* URI;        // filename, URL or track now being played,
                           // useful for disk output
 
 } OUTPUT_PARAMS2;

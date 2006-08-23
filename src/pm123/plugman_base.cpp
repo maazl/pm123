@@ -1,8 +1,5 @@
 /*
- * Copyright 1997-2003 Samuel Audet  <guardia@step.polymtl.ca>
- *                     Taneli Lepp„  <rosmo@sektori.com>
- *
- * Copyright 2004 Dmitry A.Steklenev <glass@ptv.ru>
+ * Copyright 2006 M.Mueller
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -45,25 +42,42 @@
 
 #define  DEBUG 1
 
-/* Define the macro NOSYSTEMSTATICMEMBER to work around for the IBMVAC++ restriction
- * that static class functions may not have a defined calling convention.
- * However, this workaround relies on friend functions with static linkage. This is
- * invalid acording to the C++ standard, but IBMVAC++ does not care about that fact.
- */
-#ifdef NOSYSTEMSTATICMEMBER
-#define PROXYFUNCDEF friend static
-#define PROXYFUNCIMP(ret, cls) static ret
-#else
-#define PROXYFUNCDEF static
-#define PROXYFUNCIMP(ret, cls) ret cls
-#endif
-
 
 /* thread priorities for decoder thread */
 #define  DECODER_HIGH_PRIORITY_CLASS PRTYC_FOREGROUNDSERVER // sorry, we should not lockup the system with time-critical priority
 #define  DECODER_HIGH_PRIORITY_DELTA 20
 #define  DECODER_LOW_PRIORITY_CLASS  PRTYC_REGULAR
 #define  DECODER_LOW_PRIORITY_DELTA  1
+
+
+/****************************************************************************
+*
+* VREPLACE collection
+*
+****************************************************************************/
+
+/*VREPLACE* CL_STUBLIST::factory()
+{ if (num >= size)
+  { int l = size + 10;
+    VREPLACE** np = (VREPLACE**)realloc(list, l * sizeof *list);
+    if (np == NULL)
+    {
+      #ifdef DEBUG
+      fprintf(stderr, "CL_STUBLIST::factory: internal memory allocation error\n");
+      #endif
+      return NULL;
+    }
+    list = np;
+    size = l;
+  }
+  return list[num++] = new VREPLACE;
+}
+
+void CL_STUBLIST::clear()
+{ for (VREAPLACE** vrp = list + num; vrp-- != list; )
+    delete *vrp;
+  num = 0;
+}*/
 
 
 /****************************************************************************
@@ -305,10 +319,10 @@ class CL_DECODER_PROXY_1 : public CL_DECODER
   VDELEGATE vd_decoder_command, vd_decoder_event, vd_decoder_fileinfo;
 
  private:
-  PROXYFUNCDEF ULONG PM123_ENTRY proxy_1_decoder_command( CL_DECODER_PROXY_1* op, void* w, ULONG msg, DECODER_PARAMS2* params );
-  PROXYFUNCDEF void  PM123_ENTRY proxy_1_decoder_event( CL_DECODER_PROXY_1* op, void* w, OUTEVENTTYPE event );
-  PROXYFUNCDEF ULONG PM123_ENTRY proxy_1_decoder_fileinfo( CL_DECODER_PROXY_1* op, char* filename, DECODER_INFO *info );
-  PROXYFUNCDEF int   PM123_ENTRY proxy_1_output_play_samples( void* a, const FORMAT_INFO* format, const char* buf, int len, int posmarker );
+  PROXYFUNCDEF ULONG PM123_ENTRY proxy_1_decoder_command     ( CL_DECODER_PROXY_1* op, void* w, ULONG msg, DECODER_PARAMS2* params );
+  PROXYFUNCDEF void  PM123_ENTRY proxy_1_decoder_event       ( CL_DECODER_PROXY_1* op, void* w, OUTEVENTTYPE event );
+  PROXYFUNCDEF ULONG PM123_ENTRY proxy_1_decoder_fileinfo    ( CL_DECODER_PROXY_1* op, char* filename, DECODER_INFO *info );
+  PROXYFUNCDEF int   PM123_ENTRY proxy_1_decoder_play_samples( void* a, const FORMAT_INFO* format, const char* buf, int len, int posmarker );
  public: 
   CL_DECODER_PROXY_1(CL_MODULE& mod) : CL_DECODER(mod) {}
   virtual BOOL load_plugin();
@@ -345,8 +359,8 @@ BOOL CL_DECODER_PROXY_1::load_plugin()
 }
 
 /* proxy for the output callback of decoder interface level 0/1 */
-PROXYFUNCIMP(int PM123_ENTRY, CL_DECODER_PROXY_1::)
-proxy_1_output_play_samples( void* a, const FORMAT_INFO* format, const char* buf, int len, int posmarker )
+PROXYFUNCIMP(int PM123_ENTRY, CL_DECODER_PROXY_1)
+proxy_1_decoder_play_samples( void* a, const FORMAT_INFO* format, const char* buf, int len, int posmarker )
 { CL_DECODER_PROXY_1* op = (CL_DECODER_PROXY_1*)a;
   int rem = len;
 
@@ -356,10 +370,10 @@ proxy_1_output_play_samples( void* a, const FORMAT_INFO* format, const char* buf
   #endif
 
   if (op->tid == (ULONG)-1)
-  { PTIB tib;
-    PPIB pib;
-    DosGetInfoBlocks(&tib, &pib);
-    op->tid = tib->tib_ordinal;
+  { PTIB ptib;
+    PPIB ppib;
+    DosGetInfoBlocks(&ptib, &ppib);
+    op->tid = ptib->tib_ordinal;
   }
 
   while (rem)
@@ -381,7 +395,7 @@ proxy_1_output_play_samples( void* a, const FORMAT_INFO* format, const char* buf
 }
 
 /* Proxy for loading interface level 0/1 */
-PROXYFUNCIMP(ULONG PM123_ENTRY, CL_DECODER_PROXY_1::)
+PROXYFUNCIMP(ULONG PM123_ENTRY, CL_DECODER_PROXY_1)
 proxy_1_decoder_command( CL_DECODER_PROXY_1* op, void* w, ULONG msg, DECODER_PARAMS2* params )
 { DECODER_PARAMS par1;
   CDDA_REGION_INFO cd_info;
@@ -420,7 +434,7 @@ proxy_1_decoder_command( CL_DECODER_PROXY_1* op, void* w, ULONG msg, DECODER_PAR
   par1.jumpto              = params->jumpto;
   par1.ffwd                = params->ffwd;
   par1.rew                 = params->rew;
-  par1.output_play_samples = &proxy_1_output_play_samples;
+  par1.output_play_samples = &PROXYFUNCREF(CL_DECODER_PROXY_1)proxy_1_decoder_play_samples;
   par1.a                   = op;
   par1.audio_buffersize    = BUFSIZE;
   par1.proxyurl            = params->proxyurl;
@@ -449,7 +463,7 @@ proxy_1_decoder_command( CL_DECODER_PROXY_1* op, void* w, ULONG msg, DECODER_PAR
 }
 
 /* Proxy for loading interface level 0/1 */
-PROXYFUNCIMP(void PM123_ENTRY, CL_DECODER_PROXY_1::)
+PROXYFUNCIMP(void PM123_ENTRY, CL_DECODER_PROXY_1)
 proxy_1_decoder_event( CL_DECODER_PROXY_1* op, void* w, OUTEVENTTYPE event )
 {
   #ifdef DEBUG
@@ -467,7 +481,7 @@ proxy_1_decoder_event( CL_DECODER_PROXY_1* op, void* w, OUTEVENTTYPE event )
   }
 }
 
-PROXYFUNCIMP(ULONG PM123_ENTRY, CL_DECODER_PROXY_1::)
+PROXYFUNCIMP(ULONG PM123_ENTRY, CL_DECODER_PROXY_1)
 proxy_1_decoder_fileinfo( CL_DECODER_PROXY_1* op, char* filename, DECODER_INFO *info )
 { 
   CDDA_REGION_INFO cd_info;
@@ -550,12 +564,12 @@ class CL_OUTPUT_PROXY_1 : public CL_OUTPUT
   BOOL        voutput_always_hungry;
   void        (PM123_ENTRYP voutput_event)(void* w, OUTEVENTTYPE event);
   void*       voutput_w;
-  VDELEGATE vd_output_command, vd_output_request_buffer, vd_output_commit_buffer;
+  VDELEGATE   vd_output_command, vd_output_request_buffer, vd_output_commit_buffer;
 
  private:
-  PROXYFUNCDEF ULONG PM123_ENTRY proxy_1_output_command( CL_OUTPUT_PROXY_1* op, void* a, ULONG msg, OUTPUT_PARAMS2* info );
+  PROXYFUNCDEF ULONG PM123_ENTRY proxy_1_output_command       ( CL_OUTPUT_PROXY_1* op, void* a, ULONG msg, OUTPUT_PARAMS2* info );
   PROXYFUNCDEF int   PM123_ENTRY proxy_1_output_request_buffer( CL_OUTPUT_PROXY_1* op, void* a, const FORMAT_INFO* format, char** buf, int posmarker );
-  PROXYFUNCDEF void  PM123_ENTRY proxy_1_output_commit_buffer( CL_OUTPUT_PROXY_1* op, void* a, int len );
+  PROXYFUNCDEF void  PM123_ENTRY proxy_1_output_commit_buffer ( CL_OUTPUT_PROXY_1* op, void* a, int len );
  public:
   CL_OUTPUT_PROXY_1(CL_MODULE& mod) : CL_OUTPUT(mod) {}
   virtual BOOL load_plugin();
@@ -627,7 +641,7 @@ proxy_1_output_command( CL_OUTPUT_PROXY_1* op, void* a, ULONG msg, OUTPUT_PARAMS
     return (*op->voutput_command)(a, msg, NULL); // sometimes info is NULL
 }
 
-PROXYFUNCIMP(int PM123_ENTRY, CL_OUTPUT_PROXY_1::)
+PROXYFUNCIMP(int PM123_ENTRY, CL_OUTPUT_PROXY_1)
 proxy_1_output_request_buffer( CL_OUTPUT_PROXY_1* op, void* a, const FORMAT_INFO* format, char** buf, int posmarker )
 { 
   #ifdef DEBUG
@@ -648,7 +662,7 @@ proxy_1_output_request_buffer( CL_OUTPUT_PROXY_1* op, void* a, const FORMAT_INFO
   return BUFSIZE;
 }
 
-PROXYFUNCIMP(void PM123_ENTRY, CL_OUTPUT_PROXY_1::)
+PROXYFUNCIMP(void PM123_ENTRY, CL_OUTPUT_PROXY_1)
 proxy_1_output_commit_buffer( CL_OUTPUT_PROXY_1* op, void* a, int len )
 {
   #ifdef DEBUG
@@ -673,8 +687,12 @@ CL_PLUGIN* CL_OUTPUT::factory(CL_MODULE& mod)
 /* Assigns the addresses of the filter plug-in procedures. */
 BOOL CL_FILTER::load_plugin()
 {
+  #ifdef DEBUG
+  fprintf(stderr, "CL_FILTER(%p{%s})::load_plugin", this, module_name);
+  #endif
   if ( !(query_param.type & PLUGIN_FILTER)
     || !load_function(&filter_init,   "filter_init")
+    || !load_function(&filter_update, "filter_update")
     || !load_function(&filter_uninit, "filter_uninit") )
     return FALSE;
 
@@ -684,12 +702,50 @@ BOOL CL_FILTER::load_plugin()
 }
 
 BOOL CL_FILTER::init_plugin()
-{ return TRUE; // filters are not initialized unless they are used
+{
+  #ifdef DEBUG
+  fprintf(stderr, "CL_FILTER(%p{%s})::init_plugin\n", this, module_name);
+  #endif
+  return TRUE; // filters are not initialized unless they are used
 }
 
 BOOL CL_FILTER::uninit_plugin()
-{ (*filter_uninit)(f);
+{
+  #ifdef DEBUG
+  fprintf(stderr, "CL_FILTER(%p{%s})::uninit_plugin\n", this, module_name);
+  #endif
+  (*filter_uninit)(f);
   f = NULL;
+  return TRUE;
+}
+
+BOOL CL_FILTER::initialize(FILTER_PARAMS2* params)
+{ 
+  #ifdef DEBUG
+  fprintf(stderr, "CL_FILTER(%p{%s})::initialize(%p)\n", this, module_name, params);
+  #endif
+  FILTER_PARAMS2 par = *params;
+  if (is_initialized() || (*filter_init)(&f, params) != 0)
+    return FALSE;
+  // virtualize untouched functions
+  if (par.output_command          == params->output_command)
+    params->output_command         = (ULONG (PM123_ENTRYP)(void*, ULONG, OUTPUT_PARAMS2*))
+                                     mkvreplace1(&vrstubs[0], (V_FUNC)par.output_command, par.a);
+  if (par.output_playing_samples  == params->output_playing_samples)
+    params->output_playing_samples = (ULONG (PM123_ENTRYP)(void*, FORMAT_INFO*, char*, int))
+                                     mkvreplace1(&vrstubs[1], (V_FUNC)par.output_playing_samples, par.a);
+  if (par.output_request_buffer   == params->output_request_buffer)
+    params->output_request_buffer  = (int (PM123_ENTRYP)(void*, const FORMAT_INFO*, char**, int))
+                                     mkvreplace1(&vrstubs[2], (V_FUNC)par.output_request_buffer, par.a);
+  if (par.output_commit_buffer    == params->output_commit_buffer)
+    params->output_commit_buffer   = (void (PM123_ENTRYP)(void*, int))
+                                     mkvreplace1(&vrstubs[3], (V_FUNC)par.output_commit_buffer, par.a);
+  if (par.output_playing_pos      == params->output_playing_pos)
+    params->output_playing_pos     = (int (PM123_ENTRYP)(void*))
+                                     mkvreplace1(&vrstubs[4], (V_FUNC)par.output_playing_pos, par.a);
+  if (par.output_playing_data     == params->output_playing_data)
+    params->output_playing_data    = (BOOL (PM123_ENTRYP)(void*))
+                                     mkvreplace1(&vrstubs[5], (V_FUNC)par.output_playing_data, par.a);
   return TRUE;
 }
 
@@ -697,30 +753,196 @@ BOOL CL_FILTER::uninit_plugin()
 // proxy for level 1 filters
 class CL_FILTER_PROXY_1 : public CL_FILTER
 {private:
-  int   (PM123_ENTRYP vfilter_play_samples)( void*  f, const FORMAT_INFO* format, const char *buf, int len, int posmarker );
+  int   (PM123_ENTRYP vfilter_init         )( void** f, FILTER_PARAMS* params );
+  BOOL  (PM123_ENTRYP vfilter_uninit       )( void*  f );
+  int   (PM123_ENTRYP vfilter_play_samples )( void*  f, const FORMAT_INFO* format, const char *buf, int len, int posmarker );
+  void*       vf;
+  int   (PM123_ENTRYP output_request_buffer)( void*  a, const FORMAT_INFO* format, char **buf, int posmarker );
+  void  (PM123_ENTRYP output_commit_buffer )( void*  a, int len );
+  void*       a;
+  FORMAT_INFO vformat;
+  char*       vbuffer;
+  int         vlen;
+  int         vposmarker;
+  char*       storebuffer;
+  int         storelen;
+  VDELEGATE   vd_filter_init;
+  VREPLACE1   vr_filter_update;
+  VREPLACE1   vr_filter_uninit;
 
  private:
- 
+  PROXYFUNCDEF ULONG PM123_ENTRY proxy_1_filter_init          ( CL_FILTER_PROXY_1* pp, void** f, FILTER_PARAMS2* params );
+  PROXYFUNCDEF void  PM123_ENTRY proxy_1_filter_update        ( CL_FILTER_PROXY_1* pp, const FILTER_PARAMS2* params );
+  PROXYFUNCDEF BOOL  PM123_ENTRY proxy_1_filter_uninit        ( void* f ); // empty stub
+  PROXYFUNCDEF int   PM123_ENTRY proxy_1_filter_request_buffer( void* f, const FORMAT_INFO* format, char** buf, int posmarker );
+  PROXYFUNCDEF void  PM123_ENTRY proxy_1_filter_commit_buffer ( void* f, int len );
+  PROXYFUNCDEF int   PM123_ENTRY proxy_1_filter_play_samples  ( void* f, const FORMAT_INFO* format, const char *buf, int len, int posmarker );
  public:
   CL_FILTER_PROXY_1(CL_MODULE& mod) : CL_FILTER(mod) {}
-  virtual BOOL load();
+  virtual BOOL load_plugin();
 };
 
-BOOL CL_FILTER_PROXY_1::load()
+BOOL CL_FILTER_PROXY_1::load_plugin()
 {
   if ( !(query_param.type & PLUGIN_FILTER)
-    || !load_function(&filter_init,          "filter_init")
-    || !load_function(&filter_uninit,        "filter_uninit")
+    || !load_function(&vfilter_init,         "filter_init")
+    || !load_function(&vfilter_uninit,       "filter_uninit")
     || !load_function(&vfilter_play_samples, "filter_play_samples") )
     return FALSE;
 
-  // use proxy
-  /* TODO!!!
-    */
+  filter_init   = (ULONG (PM123_ENTRYP)(void**, FILTER_PARAMS2*))
+                  mkvdelegate(&vd_filter_init, (V_FUNC)&proxy_1_filter_init, 2, this);
+  filter_update = (void  (PM123_ENTRYP)(void* f, const FILTER_PARAMS2* params))
+                  mkvreplace1(&vr_filter_update, (V_FUNC)&proxy_1_filter_update, this);
+  // filter_uninit is initialized at the filter_init call to a non-no-op function
+  // However, the returned pointer will stay the same.
+  filter_uninit = (BOOL (PM123_ENTRYP)(void* f))
+                  mkvreplace1(&vr_filter_uninit, (V_FUNC)&proxy_1_filter_uninit, NULL);
 
   f = NULL;
   enabled = TRUE;
   return TRUE;
+}
+
+PROXYFUNCIMP(ULONG PM123_ENTRY, CL_FILTER_PROXY_1)
+proxy_1_filter_init( CL_FILTER_PROXY_1* pp, void** f, FILTER_PARAMS2* params )
+{ 
+  #ifdef DEBUG
+  fprintf(stderr, "proxy_1_filter_init(%p{%s}, %p, %p{a=%p})\n", pp, pp->module_name, f, params, params->a);
+  #endif
+  FILTER_PARAMS par;
+  par.size                = sizeof par;
+  par.output_play_samples = &PROXYFUNCREF(CL_FILTER_PROXY_1)proxy_1_filter_play_samples;
+  par.a                   = pp;
+  par.audio_buffersize    = BUFSIZE;
+  par.error_display       = params->error_display;
+  par.info_display        = params->info_display;
+  int r = (*pp->vfilter_init)(&pp->vf, &par);
+  if (r != 0)
+    return r;
+  // save some values
+  pp->output_request_buffer = params->output_request_buffer;
+  pp->output_commit_buffer  = params->output_commit_buffer;
+  pp->a                     = params->a;
+  // replace the unload function
+  mkvreplace1(&pp->vr_filter_uninit, (V_FUNC)pp->vfilter_uninit, pp->vf);
+  // now return some values
+  *f = pp;
+  params->output_request_buffer = &PROXYFUNCREF(CL_FILTER_PROXY_1)proxy_1_filter_request_buffer;
+  params->output_commit_buffer  = &PROXYFUNCREF(CL_FILTER_PROXY_1)proxy_1_filter_commit_buffer;
+  return 0;
+}
+
+PROXYFUNCIMP(void PM123_ENTRY, CL_FILTER_PROXY_1)
+proxy_1_filter_update( CL_FILTER_PROXY_1* pp, const FILTER_PARAMS2* params )
+{ 
+  #ifdef DEBUG
+  fprintf(stderr, "proxy_1_filter_update(%p{%s}, %p)\n", pp, pp->module_name, params);
+  #endif
+  DosEnterCritSec();
+  // replace function pointers
+  pp->output_request_buffer = params->output_request_buffer;
+  pp->output_commit_buffer  = params->output_commit_buffer;
+  pp->a                     = params->a;
+  DosExitCritSec();
+}
+
+PROXYFUNCIMP(BOOL PM123_ENTRY, CL_FILTER_PROXY_1)
+proxy_1_filter_uninit( void* )
+{ return TRUE;
+}
+
+PROXYFUNCIMP(int PM123_ENTRY, CL_FILTER_PROXY_1)
+proxy_1_filter_request_buffer( void* a, const FORMAT_INFO* format, char** buf, int posmarker )
+{ CL_FILTER_PROXY_1* pp = (CL_FILTER_PROXY_1*)a;
+  #ifdef DEBUG
+  fprintf(stderr, "proxy_1_filter_request_buffer(%p, %p{%d,%d,%d,%d}, %p, %d)\n",
+    a, format, format->samplerate, format->channels, format->bits, format->format, buf, posmarker);
+  #endif
+  // we try to operate in place...
+  pp->vlen = (*pp->output_request_buffer)(pp->a, format, buf, posmarker);
+  if (pp->vlen > 0)
+  { pp->vformat = *format;
+    pp->vbuffer = *buf;
+    pp->vposmarker = posmarker;
+  }
+  #ifdef DEBUG
+  fprintf(stderr, "proxy_1_filter_request_buffer: %d\n", pp->vlen);
+  #endif
+  return pp->vlen;
+}
+
+PROXYFUNCIMP(void PM123_ENTRY, CL_FILTER_PROXY_1)
+proxy_1_filter_commit_buffer( void* a, int len )
+{ CL_FILTER_PROXY_1* pp = (CL_FILTER_PROXY_1*)a;
+  #ifdef DEBUG
+  fprintf(stderr, "proxy_1_filter_commit_buffer(%p, %d)\n", a, len);
+  #endif
+  if (len == 0 || pp->vlen == 0)
+  { (*pp->output_commit_buffer)(pp->a, len);
+    return;
+  }
+  pp->storelen = 0;
+  char* buf = pp->storebuffer = pp->vbuffer;
+  while (len > BUFSIZE) // do not pass buffers larger than BUFSIZE to avoid internal buffer overruns in the plugin
+  { 
+    #ifdef DEBUG
+    fprintf(stderr, "proxy_1_filter_commit_buffer: fragmentation: %p %d\n", buf, len);
+    #endif
+    (*pp->vfilter_play_samples)(pp->vf, &pp->vformat, buf, BUFSIZE, pp->vposmarker);
+    buf += BUFSIZE;
+    len -= BUFSIZE;
+    // TODO: increment vposmarker 
+  }
+  // TODO: maybe we should not pass buffers less than BUFSIZE unless we have a flush condition to avoid fragmentation
+  #ifdef DEBUG
+  fprintf(stderr, "proxy_1_filter_commit_buffer: last fragment: %p->(%p, %p, %p,%d, %d)\n",
+    pp->vfilter_play_samples, pp->vf, &pp->vformat, buf, len, pp->vposmarker);
+  #endif
+  (*pp->vfilter_play_samples)(pp->vf, &pp->vformat, buf, len, pp->vposmarker);
+  // commit destination
+  #ifdef DEBUG
+  fprintf(stderr, "proxy_1_filter_commit_buffer: before commit: %d\n", pp->storelen);
+  #endif
+  (*pp->output_commit_buffer)(pp->a, pp->storelen);
+}
+
+PROXYFUNCIMP(int PM123_ENTRY, CL_FILTER_PROXY_1::)
+proxy_1_filter_play_samples( void* f, const FORMAT_INFO* format, const char *buf, int len, int posmarker )
+{ CL_FILTER_PROXY_1* pp = (CL_FILTER_PROXY_1*)f;
+  #ifdef DEBUG
+  fprintf(stderr, "proxy_1_filter_play_samples(%p, %p{%d,%d,%d,%d}, %p, %d)\n",
+    f, format, format->samplerate, format->channels, format->bits, format->format, buf, posmarker);
+  #endif
+  // TODO: format change!
+  while (len > pp->vlen - pp->storelen)
+  { 
+    #ifdef DEBUG
+    fprintf(stderr, "proxy_1_filter_play_samples: oversize: %p %d %d %d\n", buf, len, pp->vlen, pp->storelen);
+    #endif
+    // This cannot be in place, since the source buffer wasn't large enough to go beyond vlen
+    memcpy(pp->storebuffer, buf, pp->vlen - pp->storelen);
+    // commit destination
+    (*pp->output_commit_buffer)(pp->a, pp->vlen);
+    buf += pp->vlen - pp->storelen;
+    len -= pp->vlen - pp->storelen; 
+    // TODO: increment posmarker
+    // request new buffer
+    pp->vlen = (*pp->output_request_buffer)(pp->a, &pp->vformat, &pp->vbuffer, pp->vposmarker);
+    if (pp->vlen <= 0)
+      return 0; // error
+    pp->storebuffer = pp->vbuffer;
+    pp->storelen = 0;
+  }
+  // TODO: posmarker ...
+  #ifdef DEBUG
+  fprintf(stderr, "proxy_1_filter_play_samples: store: %p %d %d %d\n", buf, len, pp->vlen, pp->storelen);
+  #endif
+  if (buf != pp->storebuffer) // only if not in-place
+    memcpy(pp->storebuffer, buf, len);
+  pp->storebuffer += len;
+  pp->storelen += len;
+  return len;
 }
 
 
@@ -803,6 +1025,9 @@ BOOL CL_PLUGIN_BASE_LIST::append(CL_PLUGIN_BASE* plugin)
   #endif
   if (num >= size)
   { int l = size + 8;
+    // Note: The Debug memory management of IMB C++ will claim the objects allocated here are not freed
+    // until the program ends. This is not true. The clean-up function of the debug memory manager is only called
+    // before the destructors of the static objects.
     CL_PLUGIN_BASE** np = (CL_PLUGIN_BASE**)realloc(list, l * sizeof *list);
     if (np == NULL)
     {
@@ -876,7 +1101,7 @@ CL_MODULE* CL_MODULE_LIST::detach_request(int i)
   }
   #endif
   
-  return (*this)[i].unload_request() ? (CL_MODULE*)detach(i) : NULL;
+  return (*this)[i].unload_request() ? detach(i) : NULL;
 }
 
 
@@ -961,4 +1186,6 @@ int CL_PLUGIN_LIST1::set_active(int i)
   active = pp;
   return 0;
 }
+
+
 
