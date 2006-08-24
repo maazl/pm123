@@ -45,7 +45,8 @@
 #include "pm123.h"
 #include "plugman.h"
 
-#define DEBUG 1
+//#define DEBUG 1
+#include <debuglog.h>
 
 
 static DECODER_PARAMS2 dec_params;
@@ -90,9 +91,7 @@ amp_msg( int msg, void *param, void *param2 )
 
       equalize_sound( gains, mutes, preamp, cfg.eq_enabled );
 
-      #ifdef DEBUG
-      fprintf(stderr, "amp_msg: MSG_PLAY: %s, %s, %d\n", data->filename, data->drive, data->track);
-      #endif
+      DEBUGLOG("amp_msg: MSG_PLAY: %s, %s, %d\n", data->filename, data->drive, data->track);
       if (data->drive != NULL && *data->drive != 0 && data->track != 0) // pm123 core sometimes passes trash in the track field
       { sprintf(cdda_url, "cdda:///%s/track%02d", data->drive, data->track);
         dec_params.URL = cdda_url;

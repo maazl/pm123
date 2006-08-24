@@ -40,7 +40,7 @@
 #include "pm123.h"
 #include "vdelegate.h"
 
-#define  DEBUG 1
+//#define  DEBUG 1
 #include <debuglog.h>
 
 
