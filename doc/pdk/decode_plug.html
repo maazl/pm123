@@ -65,7 +65,15 @@ commands.
 There is a lot of commands to implement for this function. Parameters
 needed for each of the are described in the definition of the structure
 in the .h file.
-The only difference between interface revisision level 1 and 2 is the <a href="#out_interface">output interface</a>.
+<p>The main difference between interface revisision level 1 and 2 is the <a href="#out_interface">output interface</a>.
+  Furthermore, the data source always passed as an URL in the level 2 interface.
+  The URL parameter uses the following syntax:
+<blockquote>
+  <samp>file:///D:/Music/my favorite song.mp3</samp><br>
+  <samp>file://favorite song.mp3 </samp>(relative path)<br>
+  <samp>http://... </samp>(as you would expect)<br>
+  <samp>cdda:///H:/track02</samp>
+</blockquote>
 <p>
 The decoder plug-in MUST <i>WinPostMsg()</i> the following messages to <i>hwnd</i>:
 <ul>
@@ -116,11 +124,25 @@ example).
 They should always be functionnaly and give consistent results in any conditions.
 </p>
 <pre>
-     ULONG PM123_ENTRY decoder_fileinfo ( char *filename, DECODER_INFO *info )
-     ULONG PM123_ENTRY decoder_trackinfo( char *drive, int track, DECODER_INFO *info )
+     ULONG PM123_ENTRY <b>decoder_fileinfo</b>( char *url, DECODER_INFO *info )
 </pre>
 <ul>
-<li><var>filename</var> - full path or URL to the desired stream.
+<li><var>url</var> - full path or URL to the desired stream.
+<li><var>info</var> - this structure must be filled with the required information.
+<li><var>return value</var> -<br>
+0 = everything's perfect, structure is set.<br>
+100 = error reading file (too small?).<br>
+200 = decoder can't play that.<br>
+1001 = http error occured.<br>
+other values = errno.
+</ul>
+<p>With interface level 2 the <code>decoder_fileinfo</code> function is also called to get a CD track info.
+  In this case the url looks like <samp>cdda://H:/track01</samp>.
+<pre>
+     ULONG PM123_ENTRY <b>decoder_trackinfo</b>( char *drive, int track, DECODER_INFO *info )
+</pre>
+<em>Level 0/1 interface only.</em>
+<ul>
 <li><var>drive</var> - ie.: "X:"
 <li><var>track</var> - CD tracks start from 1.
 <li><var>info</var> - this structure must be filled with the required information.
@@ -131,7 +153,6 @@ They should always be functionnaly and give consistent results in any conditions
 1001 = http error occured.<br>
 other values = errno.
 </ul>
-<p>
 <pre>
      ULONG PM123_ENTRY decoder_cdinfo( char *drive, DECODER_CDINFO *info )
 </pre>
@@ -141,7 +162,7 @@ other values = errno.
 decoder.</lI>
 </ul>
 <p>
-This is used by PM123 before calling <i>decoder_trackinfo</i>.
+This is used by PM123 before calling <code>decoder_trackinfo</code>.
 <pre>
     ULONG PM123_ENTRY decoder_support( char *fileext[], int *size )
 </pre>
@@ -173,24 +194,24 @@ decoder. Extentions can be for example "*.MOD".
   This causes less double buffering and allows dynamic buffer sizes.</p>
 <p>You must call <code>output_request_buffer</code> and <code>output_commit_buffer</code> alternatingly to pass the samples to the next plug-in.
   Anything else is an error.
-<pre>    int (PM123_ENTRYP <strong>output_request_buffer</strong>)( void* a, const FORMAT_INFO* format, char** buf, int len, int posmarker )</pre>
+<pre>    int (PM123_ENTRYP <strong>output_request_buffer</strong>)( void* a, const FORMAT_INFO* format, char** buf, int len )</pre>
 <ul>
   <li><var>a</var> - pointer from <code>DECODER_PARAMS2</code>.
   <li><var>format</var> - format of the passed samples.<br>
     See <code>FORMAT_INFO</code> in <tt>format.h</tt> for more details.
     The data at <code>*format</code> need not to be valid after this call returned.
   <li><var>buf</var> [out] - pointer to receive a memory location where to store the decoded samples.<br>
-  <li><var>posmarker</var> - stream position in milliseconds of the first sample that will be stored in this buffer relative to the beginning of the stream.
   <li><var>return value</var> - size of the returned buffer in bytes.
     A return value of &le;&nbsp;0 indicates an error.
 </ul>
 <p>If you get a smaller buffer as you need to pass your data you sholud call <code>output_request_buffer</code> and <code>output_commit_buffer</code> again untill all your data is consumed.
   There is no guaranteed minimum size of the buffer except that it will keep at least one complete sample.
   You should not expect this to happen quite often.</p>
-<pre>    void (PM123_ENTRYP <strong>output_commit_buffer</strong> )( void* a, int len )</pre>
+<pre>    void (PM123_ENTRYP <strong>output_commit_buffer</strong> )( void* a, int len, int posmarker )</pre>
 <ul>
   <li><var>a</var> - pointer from <code>DECODER_PARAMS2</code>.
   <li><var>len</var> - used length of the buffer.
+  <li><var>posmarker</var> - stream position in milliseconds of the first sample that will be stored in this buffer relative to the beginning of the stream.
 </ul>
 <p>The length must not be higher than the the return value from the previous <code>output_request_buffer</code> call.
   But it might be less than the requested length. This causes no significant performance impact.</p>

@@ -41,7 +41,10 @@ plug-in is request by the user and should free the allocated memory for
 <ul>
 <li><var>msg</var> - one of the following:<br>
 <ul>
-<li><code>OUTPUT_OPEN</code> opens the device or file needed for output.
+<li><code>OUTPUT_OPEN</code> opens the device or file needed for output.<br>
+  In the level 2 interface this may happen while the device is already open,
+  if the playback moves to the next file in playlist mode.
+  As long as you do not care about the new filename you can ignore this message.
 <li><code>OUTPUT_CLOSE</code> closes it.
 <li><code>OUTPUT_VOLUME</code> changes the volume of an output device.
 <li><code>OUTPUT_PAUSE</code> pauses the playback (ie.: block in output_playsamples()).
@@ -49,8 +52,8 @@ plug-in is request by the user and should free the allocated memory for
 receive, boost priority values, error_display functions and hwnd. 
 <li><code>OUTPUT_TRASH_BUFFERS</code> trash any buffers currently awating to be played.
 <li><code>OUTPUT_NOBUFFERMODE</code> forces the plug-in to not accumulate buffers for the time being.<br>
-  This command is no longer used since PM123 1.32.
-  All plug-ins with interface revision 2 or above no longer need to hanlde this. 
+  This command is <em>no longer used</em> since PM123 1.32.
+  All plug-ins with interface level 2 or above do not need to hanlde this. 
 </ul>
 <li><var>info</var> - structure that contains the parameters needed by the preceding commands
 <li>return value:<br>
@@ -76,13 +79,14 @@ in the .h file.</p>
 <ul>
 <li><code>WM_PLAYERROR</code> when a playback error occures.
 <li><code>WM_OUTPUT_OUTOFDATA</code> when the output plug-in has finished playing all.
-its buffers.  Not needed when <TT> always_hungry </TT> flag is enabled.
+its buffers. Not needed when <TT> always_hungry </TT> flag is enabled.
 </ul>
 <h4>Notes for interface level 2</h4>
-<p>The output plug-in MUST call the eventhandler <code>output_event</code> with the parameter <code>OUTEVENT_END_OF_DATA</code>
-  when the last sample is really processed.
+<p>The output plug-in MUST call the eventhandler <strong><code>output_event</code></strong> with the parameter <strong><code>OUTEVENT_PLAY_ERROR</code></strong>
+  when a playback error occures. This will stop the playback, but it is not guaranteed that this ist done immediately.<br>
+  The output plug-in must call <code>output_event</code> with <strong><code>OUTEVENT_END_OF_DATA</code></strong> when the last sample is really processed.
   This must not be done unless the function <code>output_play_samples</code> has been called with a buffer pointer of <code>NULL</code> (flush signal).<br>
-  The output plug-in may raise the events <code>OUTEVENT_LOW_WATER</code> and <code>OUTEVENT_HIGH_WATER</code>
+  The output plug-in may raise the events <strong><code>OUTEVENT_LOW_WATER</code></strong> and <strong><code>OUTEVENT_HIGH_WATER</code></strong>
   to signal that the buffers are running low or the buffers are getting full respectively.
   This is used by PM123 to control the scheduling priority.<br>
   The event handler may be called from any thread in any context.</p>
@@ -95,7 +99,7 @@ its buffers.  Not needed when <TT> always_hungry </TT> flag is enabled.
   <samp>cdda:///H:/track02</samp><br>
   Remember that the URI may change during playback without a new <code>OUTPUT_OPEN</code> call.</p>
 
-<h3><a name="data_interface"></a>Data Interface</h3>
+<h3><a name="data_interface"></a>Data interface</h3>
 <p>The data interface is only used when the control interface is in activated state.</p>
 <p>The data interface does not need to be thread safe,
   but it is called from a different thread than the <a href="#control_interface">control interface</a>.</p>
@@ -106,18 +110,13 @@ its buffers.  Not needed when <TT> always_hungry </TT> flag is enabled.
   The functions <code>output_request_buffer</code> and <code>output_commit_buffer</code>
   have to be called alternatingly. Anything else is an error. 
 <pre>
-     int PM123_ENTRY <b>output_request_buffer</b>( void* a, FORMAT_INFO* format, char** buf,
-                                            int posmarker, const char* uri )
+     int PM123_ENTRY <b>output_request_buffer</b>( void* a, FORMAT_INFO* format, char** buf )
 </pre>
 <ul>
 <li><var>format</var> - format of buf.<br>
   This may change during playback.
 <li><var>buf</var> [out] - pointer to a storage area where the samples should be placed.
   A value of <code>NULL</code> indicates that there are no more samples to come (flush signal).
-<li><var>posmarker</var> = position marker to return with <code>output_playing_pos</code>.
-  This is a time index of the starting point of this buffer in milliseconds.
-<li><var>uri</var> - reference to the file, URL, track or whatever is to be played.<br>
-  This may change during playback.
 <li><var>return value</var> - the size of the returned buffer in bytes.
   Any number that is large enough to store at least one complete sample is fine.
   Return values &le;&nbsp;0 signals a fatal error, except for the flush signal which always return zero.
@@ -129,12 +128,15 @@ its buffers.  Not needed when <TT> always_hungry </TT> flag is enabled.
   Note that the flush signal is an implicit request for an <code>OUTEVENT_END_OF_DATA</code> event.
   The <code>output_request_buffer</code> call must not block until all buffers are played.</p>
 <pre>
-     void PM123_ENTRY <b>output_commit_buffer</b>( void* a, int len )
+     void PM123_ENTRY <b>output_commit_buffer</b>( void* a, int len, int posmarker )
 </pre>
 <ul>
 <li><var>len</var> - used length of buffer.<br>
   The length might be less than the length of the requested buffer.
   This does not mean that it is a good advise to play a buffer smaller than usual unless you receive a flush signal.
+<li><var>posmarker</var> = position marker to return with <code>output_playing_pos</code>.
+  This is a time index of the starting point of this buffer in milliseconds.
+  The time position marker may have a large offset far beyond the length of the current file.
 </ul>
 <p>This function is called by the decoder or last in chain filter plug-in to play the stored samples.
 
@@ -154,7 +156,7 @@ its buffers.  Not needed when <TT> always_hungry </TT> flag is enabled.
 </ul>
 <p>This function is called by the decoder or last in chain filter plug-in to play samples.
 
-<h3><a name="status_interface"></a>Status Interface</h3>
+<h3><a name="status_interface"></a>Status interface</h3>
 <p>The status interface must be thread safe.</p>
 <pre>
      int   PM123_ENTRY <b>output_playing_pos</b>( void* a )

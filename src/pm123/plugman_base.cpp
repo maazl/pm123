@@ -50,6 +50,11 @@
 #define  DECODER_LOW_PRIORITY_DELTA  1
 
 
+/* returns the number of bytes per second */
+static inline int get_byte_rate(const FORMAT_INFO* format)
+{ return (format->bits > 16 ? 4 : format->bits > 8 ? 2 : 1) * format->channels * format->samplerate;
+}
+
 /****************************************************************************
 *
 * VREPLACE collection
@@ -310,8 +315,8 @@ BOOL CL_DECODER::uninit_plugin()
 class CL_DECODER_PROXY_1 : public CL_DECODER
 {private:
   ULONG (PM123_ENTRYP vdecoder_command )( void*  w, ULONG msg, DECODER_PARAMS* params );
-  int   (PM123_ENTRYP voutput_request_buffer )( void* a, const FORMAT_INFO* format, char** buf, int posmarker );
-  void  (PM123_ENTRYP voutput_commit_buffer  )( void* a, int len );
+  int   (PM123_ENTRYP voutput_request_buffer )( void* a, const FORMAT_INFO* format, char** buf );
+  void  (PM123_ENTRYP voutput_commit_buffer  )( void* a, int len, int posmarker );
   void* a;
   ULONG (PM123_ENTRYP vdecoder_fileinfo )( char* filename, DECODER_INFO *info );
   ULONG (PM123_ENTRYP vdecoder_trackinfo)( char* drive, int track, DECODER_INFO* info );
@@ -362,7 +367,6 @@ BOOL CL_DECODER_PROXY_1::load_plugin()
 PROXYFUNCIMP(int PM123_ENTRY, CL_DECODER_PROXY_1)
 proxy_1_decoder_play_samples( void* a, const FORMAT_INFO* format, const char* buf, int len, int posmarker )
 { CL_DECODER_PROXY_1* op = (CL_DECODER_PROXY_1*)a;
-  int rem = len;
 
   #ifdef DEBUG
   fprintf(stderr, "proxy_1_output_play_samples(%p {%s}, %p, %p, %i, %i)\n",
@@ -376,9 +380,11 @@ proxy_1_decoder_play_samples( void* a, const FORMAT_INFO* format, const char* bu
     op->tid = ptib->tib_ordinal;
   }
 
+  int rem = len;
+  int byterate = get_byte_rate(format);
   while (rem)
   { char* dest;
-    int l = (*op->voutput_request_buffer)(op->a, format, &dest, posmarker);
+    int l = (*op->voutput_request_buffer)(op->a, format, &dest);
     #ifdef DEBUG
     fprintf(stderr, "proxy_1_output_play_samples: now at %p %i %i\n", buf, l, rem);
     #endif
@@ -387,9 +393,9 @@ proxy_1_decoder_play_samples( void* a, const FORMAT_INFO* format, const char* bu
     if (l > rem)
       l = rem;
     memcpy(dest, buf, l);
-    (*op->voutput_commit_buffer)(op->a, l); // Well, normally posmarker should be interpolated...
+    (*op->voutput_commit_buffer)(op->a, l, posmarker + (len-rem)*1000/byterate);
     rem -= l;
-    buf += l; 
+    buf += l;
   }
   return len;
 }
@@ -560,7 +566,6 @@ class CL_OUTPUT_PROXY_1 : public CL_OUTPUT
   int   (PM123_ENTRYP voutput_play_samples  )( void*  a, const FORMAT_INFO* format, const char* buf, int len, int posmarker );
   char        voutput_buffer[BUFSIZE];
   FORMAT_INFO voutput_format;
-  int         voutput_posmarker;
   BOOL        voutput_always_hungry;
   void        (PM123_ENTRYP voutput_event)(void* w, OUTEVENTTYPE event);
   void*       voutput_w;
@@ -568,8 +573,8 @@ class CL_OUTPUT_PROXY_1 : public CL_OUTPUT
 
  private:
   PROXYFUNCDEF ULONG PM123_ENTRY proxy_1_output_command       ( CL_OUTPUT_PROXY_1* op, void* a, ULONG msg, OUTPUT_PARAMS2* info );
-  PROXYFUNCDEF int   PM123_ENTRY proxy_1_output_request_buffer( CL_OUTPUT_PROXY_1* op, void* a, const FORMAT_INFO* format, char** buf, int posmarker );
-  PROXYFUNCDEF void  PM123_ENTRY proxy_1_output_commit_buffer ( CL_OUTPUT_PROXY_1* op, void* a, int len );
+  PROXYFUNCDEF int   PM123_ENTRY proxy_1_output_request_buffer( CL_OUTPUT_PROXY_1* op, void* a, const FORMAT_INFO* format, char** buf );
+  PROXYFUNCDEF void  PM123_ENTRY proxy_1_output_commit_buffer ( CL_OUTPUT_PROXY_1* op, void* a, int len, int posmarker );
  public:
   CL_OUTPUT_PROXY_1(CL_MODULE& mod) : CL_OUTPUT(mod) {}
   virtual BOOL load_plugin();
@@ -590,10 +595,10 @@ BOOL CL_OUTPUT_PROXY_1::load_plugin()
 
   output_command        = (ULONG (PM123_ENTRYP)(void*, ULONG, OUTPUT_PARAMS2*))
                           mkvdelegate(&vd_output_command,        (V_FUNC)&proxy_1_output_command,        3, this);
-  output_request_buffer = (int   (PM123_ENTRYP)(void*, const FORMAT_INFO*, char**, int))
-                          mkvdelegate(&vd_output_request_buffer, (V_FUNC)&proxy_1_output_request_buffer, 5, this);
-  output_commit_buffer  = (void  (PM123_ENTRYP)(void*, int))
-                          mkvdelegate(&vd_output_commit_buffer,  (V_FUNC)&proxy_1_output_commit_buffer,  2, this);
+  output_request_buffer = (int   (PM123_ENTRYP)(void*, const FORMAT_INFO*, char**))
+                          mkvdelegate(&vd_output_request_buffer, (V_FUNC)&proxy_1_output_request_buffer, 4, this);
+  output_commit_buffer  = (void  (PM123_ENTRYP)(void*, int, int))
+                          mkvdelegate(&vd_output_commit_buffer,  (V_FUNC)&proxy_1_output_commit_buffer,  3, this);
 
   a = NULL;
   return TRUE;
@@ -642,12 +647,11 @@ proxy_1_output_command( CL_OUTPUT_PROXY_1* op, void* a, ULONG msg, OUTPUT_PARAMS
 }
 
 PROXYFUNCIMP(int PM123_ENTRY, CL_OUTPUT_PROXY_1)
-proxy_1_output_request_buffer( CL_OUTPUT_PROXY_1* op, void* a, const FORMAT_INFO* format, char** buf, int posmarker )
+proxy_1_output_request_buffer( CL_OUTPUT_PROXY_1* op, void* a, const FORMAT_INFO* format, char** buf )
 { 
   #ifdef DEBUG
-  fprintf(stderr, "proxy_1_output_request_buffer(%p, %p, {%i,%i,%i,%i,%x}, %p, %i)\n",
-    op, a, format->size, format->samplerate, format->channels, format->bits, format->format,
-    buf, posmarker);
+  fprintf(stderr, "proxy_1_output_request_buffer(%p, %p, {%i,%i,%i,%i,%x}, %p)\n",
+    op, a, format->size, format->samplerate, format->channels, format->bits, format->format, buf);
   #endif
   
   if (buf == 0)
@@ -658,18 +662,17 @@ proxy_1_output_request_buffer( CL_OUTPUT_PROXY_1* op, void* a, const FORMAT_INFO
 
   *buf = op->voutput_buffer;
   op->voutput_format = *format;
-  op->voutput_posmarker = posmarker;
   return BUFSIZE;
 }
 
 PROXYFUNCIMP(void PM123_ENTRY, CL_OUTPUT_PROXY_1)
-proxy_1_output_commit_buffer( CL_OUTPUT_PROXY_1* op, void* a, int len )
+proxy_1_output_commit_buffer( CL_OUTPUT_PROXY_1* op, void* a, int len, int posmarker )
 {
   #ifdef DEBUG
-  fprintf(stderr, "proxy_1_output_commit_buffer(%p {%s}, %p, %i)\n",
-    op, op->module_name, a, len);
+  fprintf(stderr, "proxy_1_output_commit_buffer(%p {%s}, %p, %i, %i)\n",
+    op, op->module_name, a, len, posmarker);
   #endif
-  (*op->voutput_play_samples)(a, &op->voutput_format, op->voutput_buffer, len, op->voutput_posmarker);
+  (*op->voutput_play_samples)(a, &op->voutput_format, op->voutput_buffer, len, posmarker);
 }
 
 
@@ -735,10 +738,10 @@ BOOL CL_FILTER::initialize(FILTER_PARAMS2* params)
     params->output_playing_samples = (ULONG (PM123_ENTRYP)(void*, FORMAT_INFO*, char*, int))
                                      mkvreplace1(&vrstubs[1], (V_FUNC)par.output_playing_samples, par.a);
   if (par.output_request_buffer   == params->output_request_buffer)
-    params->output_request_buffer  = (int (PM123_ENTRYP)(void*, const FORMAT_INFO*, char**, int))
+    params->output_request_buffer  = (int (PM123_ENTRYP)(void*, const FORMAT_INFO*, char**))
                                      mkvreplace1(&vrstubs[2], (V_FUNC)par.output_request_buffer, par.a);
   if (par.output_commit_buffer    == params->output_commit_buffer)
-    params->output_commit_buffer   = (void (PM123_ENTRYP)(void*, int))
+    params->output_commit_buffer   = (void (PM123_ENTRYP)(void*, int, int))
                                      mkvreplace1(&vrstubs[3], (V_FUNC)par.output_commit_buffer, par.a);
   if (par.output_playing_pos      == params->output_playing_pos)
     params->output_playing_pos     = (int (PM123_ENTRYP)(void*))
@@ -757,8 +760,8 @@ class CL_FILTER_PROXY_1 : public CL_FILTER
   BOOL  (PM123_ENTRYP vfilter_uninit       )( void*  f );
   int   (PM123_ENTRYP vfilter_play_samples )( void*  f, const FORMAT_INFO* format, const char *buf, int len, int posmarker );
   void*       vf;
-  int   (PM123_ENTRYP output_request_buffer)( void*  a, const FORMAT_INFO* format, char **buf, int posmarker );
-  void  (PM123_ENTRYP output_commit_buffer )( void*  a, int len );
+  int   (PM123_ENTRYP output_request_buffer)( void*  a, const FORMAT_INFO* format, char **buf );
+  void  (PM123_ENTRYP output_commit_buffer )( void*  a, int len, int posmarker );
   void*       a;
   FORMAT_INFO vformat;
   char*       vbuffer;
@@ -774,8 +777,8 @@ class CL_FILTER_PROXY_1 : public CL_FILTER
   PROXYFUNCDEF ULONG PM123_ENTRY proxy_1_filter_init          ( CL_FILTER_PROXY_1* pp, void** f, FILTER_PARAMS2* params );
   PROXYFUNCDEF void  PM123_ENTRY proxy_1_filter_update        ( CL_FILTER_PROXY_1* pp, const FILTER_PARAMS2* params );
   PROXYFUNCDEF BOOL  PM123_ENTRY proxy_1_filter_uninit        ( void* f ); // empty stub
-  PROXYFUNCDEF int   PM123_ENTRY proxy_1_filter_request_buffer( void* f, const FORMAT_INFO* format, char** buf, int posmarker );
-  PROXYFUNCDEF void  PM123_ENTRY proxy_1_filter_commit_buffer ( void* f, int len );
+  PROXYFUNCDEF int   PM123_ENTRY proxy_1_filter_request_buffer( void* f, const FORMAT_INFO* format, char** buf );
+  PROXYFUNCDEF void  PM123_ENTRY proxy_1_filter_commit_buffer ( void* f, int len, int posmarker );
   PROXYFUNCDEF int   PM123_ENTRY proxy_1_filter_play_samples  ( void* f, const FORMAT_INFO* format, const char *buf, int len, int posmarker );
  public:
   CL_FILTER_PROXY_1(CL_MODULE& mod) : CL_FILTER(mod) {}
@@ -853,18 +856,17 @@ proxy_1_filter_uninit( void* )
 }
 
 PROXYFUNCIMP(int PM123_ENTRY, CL_FILTER_PROXY_1)
-proxy_1_filter_request_buffer( void* a, const FORMAT_INFO* format, char** buf, int posmarker )
+proxy_1_filter_request_buffer( void* a, const FORMAT_INFO* format, char** buf )
 { CL_FILTER_PROXY_1* pp = (CL_FILTER_PROXY_1*)a;
   #ifdef DEBUG
-  fprintf(stderr, "proxy_1_filter_request_buffer(%p, %p{%d,%d,%d,%d}, %p, %d)\n",
-    a, format, format->samplerate, format->channels, format->bits, format->format, buf, posmarker);
+  fprintf(stderr, "proxy_1_filter_request_buffer(%p, %p{%d,%d,%d,%d}, %p)\n",
+    a, format, format->samplerate, format->channels, format->bits, format->format, buf);
   #endif
   // we try to operate in place...
-  pp->vlen = (*pp->output_request_buffer)(pp->a, format, buf, posmarker);
+  pp->vlen = (*pp->output_request_buffer)(pp->a, format, buf);
   if (pp->vlen > 0)
   { pp->vformat = *format;
     pp->vbuffer = *buf;
-    pp->vposmarker = posmarker;
   }
   #ifdef DEBUG
   fprintf(stderr, "proxy_1_filter_request_buffer: %d\n", pp->vlen);
@@ -873,47 +875,50 @@ proxy_1_filter_request_buffer( void* a, const FORMAT_INFO* format, char** buf, i
 }
 
 PROXYFUNCIMP(void PM123_ENTRY, CL_FILTER_PROXY_1)
-proxy_1_filter_commit_buffer( void* a, int len )
+proxy_1_filter_commit_buffer( void* a, int len, int posmarker )
 { CL_FILTER_PROXY_1* pp = (CL_FILTER_PROXY_1*)a;
   #ifdef DEBUG
-  fprintf(stderr, "proxy_1_filter_commit_buffer(%p, %d)\n", a, len);
+  fprintf(stderr, "proxy_1_filter_commit_buffer(%p, %d, %d)\n", a, len, posmarker);
   #endif
   if (len == 0 || pp->vlen == 0)
-  { (*pp->output_commit_buffer)(pp->a, len);
+  { (*pp->output_commit_buffer)(pp->a, len, posmarker);
     return;
   }
   pp->storelen = 0;
+  int posinc = BUFSIZE * 1000 / get_byte_rate(&pp->vformat);
   char* buf = pp->storebuffer = pp->vbuffer;
   while (len > BUFSIZE) // do not pass buffers larger than BUFSIZE to avoid internal buffer overruns in the plugin
   { 
     #ifdef DEBUG
     fprintf(stderr, "proxy_1_filter_commit_buffer: fragmentation: %p %d\n", buf, len);
     #endif
-    (*pp->vfilter_play_samples)(pp->vf, &pp->vformat, buf, BUFSIZE, pp->vposmarker);
+    (*pp->vfilter_play_samples)(pp->vf, &pp->vformat, buf, BUFSIZE, posmarker);
     buf += BUFSIZE;
     len -= BUFSIZE;
-    // TODO: increment vposmarker 
+    posmarker += posinc; // hopefully we get not too much accumulated rounding noise here
   }
   // TODO: maybe we should not pass buffers less than BUFSIZE unless we have a flush condition to avoid fragmentation
   #ifdef DEBUG
   fprintf(stderr, "proxy_1_filter_commit_buffer: last fragment: %p->(%p, %p, %p,%d, %d)\n",
-    pp->vfilter_play_samples, pp->vf, &pp->vformat, buf, len, pp->vposmarker);
+    pp->vfilter_play_samples, pp->vf, &pp->vformat, buf, len, posmarker);
   #endif
-  (*pp->vfilter_play_samples)(pp->vf, &pp->vformat, buf, len, pp->vposmarker);
+  (*pp->vfilter_play_samples)(pp->vf, &pp->vformat, buf, len, posmarker);
   // commit destination
   #ifdef DEBUG
-  fprintf(stderr, "proxy_1_filter_commit_buffer: before commit: %d\n", pp->storelen);
+  fprintf(stderr, "proxy_1_filter_commit_buffer: before commit: %d %d\n", pp->storelen, pp->vposmarker);
   #endif
-  (*pp->output_commit_buffer)(pp->a, pp->storelen);
+  (*pp->output_commit_buffer)(pp->a, pp->storelen, pp->vposmarker);
 }
 
 PROXYFUNCIMP(int PM123_ENTRY, CL_FILTER_PROXY_1::)
 proxy_1_filter_play_samples( void* f, const FORMAT_INFO* format, const char *buf, int len, int posmarker )
 { CL_FILTER_PROXY_1* pp = (CL_FILTER_PROXY_1*)f;
   #ifdef DEBUG
-  fprintf(stderr, "proxy_1_filter_play_samples(%p, %p{%d,%d,%d,%d}, %p, %d)\n",
-    f, format, format->samplerate, format->channels, format->bits, format->format, buf, posmarker);
+  fprintf(stderr, "proxy_1_filter_play_samples(%p, %p{%d,%d,%d,%d}, %p, %d, %d)\n",
+    f, format, format->samplerate, format->channels, format->bits, format->format, buf, len, posmarker);
   #endif
+  if (pp->storelen == 0) // ignore anything but the first one
+    pp->vposmarker = posmarker;
   // TODO: format change!
   while (len > pp->vlen - pp->storelen)
   { 
@@ -921,20 +926,21 @@ proxy_1_filter_play_samples( void* f, const FORMAT_INFO* format, const char *buf
     fprintf(stderr, "proxy_1_filter_play_samples: oversize: %p %d %d %d\n", buf, len, pp->vlen, pp->storelen);
     #endif
     // This cannot be in place, since the source buffer wasn't large enough to go beyond vlen
+    // TODO: THIS IS REALLY BROKEN!!! The output may overrun the input process!
     memcpy(pp->storebuffer, buf, pp->vlen - pp->storelen);
     // commit destination
-    (*pp->output_commit_buffer)(pp->a, pp->vlen);
+    (*pp->output_commit_buffer)(pp->a, pp->vlen, pp->vposmarker);
     buf += pp->vlen - pp->storelen;
-    len -= pp->vlen - pp->storelen; 
-    // TODO: increment posmarker
+    len -= pp->vlen - pp->storelen;
+    // calculate new posmarker
+    pp->vposmarker = posmarker + (pp->vlen-pp->storelen)*1000/get_byte_rate(format); 
     // request new buffer
-    pp->vlen = (*pp->output_request_buffer)(pp->a, &pp->vformat, &pp->vbuffer, pp->vposmarker);
+    pp->vlen = (*pp->output_request_buffer)(pp->a, &pp->vformat, &pp->vbuffer);
     if (pp->vlen <= 0)
       return 0; // error
     pp->storebuffer = pp->vbuffer;
     pp->storelen = 0;
   }
-  // TODO: posmarker ...
   #ifdef DEBUG
   fprintf(stderr, "proxy_1_filter_play_samples: store: %p %d %d %d\n", buf, len, pp->vlen, pp->storelen);
   #endif

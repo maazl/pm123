@@ -120,8 +120,8 @@ int   PM123_ENTRY output_play_samples( void* a, FORMAT_INFO* format, char* buf, 
 ULONG PM123_ENTRY output_playing_pos( void* a );
 #else
 ULONG PM123_ENTRY output_command( void* a, ULONG msg, OUTPUT_PARAMS2* info );
-int   PM123_ENTRY output_request_buffer( void* a, const FORMAT_INFO* format, char** buf, int posmarker );
-void  PM123_ENTRY output_commit_buffer( void* a, int len );
+int   PM123_ENTRY output_request_buffer( void* a, const FORMAT_INFO* format, char** buf );
+void  PM123_ENTRY output_commit_buffer( void* a, int len, int posmarker );
 int   PM123_ENTRY output_playing_pos( void* a );
 #endif
 ULONG PM123_ENTRY output_playing_samples( void* a, FORMAT_INFO* info, char* buf, int len );

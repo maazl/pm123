@@ -206,8 +206,8 @@ struct OUTPUT_PROCS
   ULONG (PM123_ENTRYP output_init           )( void** a );
   ULONG (PM123_ENTRYP output_uninit         )( void*  a );
   ULONG (PM123_ENTRYP output_command        )( void*  a, ULONG msg, OUTPUT_PARAMS2* info );
-  int   (PM123_ENTRYP output_request_buffer )( void*  a, const FORMAT_INFO* format, char** buf, int posmarker );
-  void  (PM123_ENTRYP output_commit_buffer  )( void*  a, int len );
+  int   (PM123_ENTRYP output_request_buffer )( void*  a, const FORMAT_INFO* format, char** buf );
+  void  (PM123_ENTRYP output_commit_buffer  )( void*  a, int len, int posmarker );
   ULONG (PM123_ENTRYP output_playing_samples)( void*  a, FORMAT_INFO* info, char* buf, int len );
   int   (PM123_ENTRYP output_playing_pos    )( void*  a );
   BOOL  (PM123_ENTRYP output_playing_data   )( void*  a );
