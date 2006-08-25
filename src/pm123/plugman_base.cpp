@@ -785,8 +785,7 @@ proxy_1_filter_uninit( void* )
 PROXYFUNCIMP(int PM123_ENTRY, CL_FILTER_PROXY_1)
 proxy_1_filter_request_buffer( void* a, const FORMAT_INFO* format, char** buf )
 { CL_FILTER_PROXY_1* pp = (CL_FILTER_PROXY_1*)a;
-  DEBUGLOG(("proxy_1_filter_request_buffer(%p, %p{%d,%d,%d,%d}, %p)\n",
-    a, format, format->samplerate, format->channels, format->bits, format->format, buf));
+  DEBUGLOG(("proxy_1_filter_request_buffer(%p, %p, %p)\n", a, format, buf));
 
   // we try to operate in place...
   pp->vlen = (*pp->output_request_buffer)(pp->a, format, buf);

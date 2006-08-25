@@ -126,6 +126,7 @@ ULONG out_close( void );
 void  out_set_volume( int volume );
 ULONG out_pause( BOOL pause );
 void  out_trashbuffers( int temp_playingpos );
+BOOL  out_flush( void );
 
 /*ULONG PM123_ENTRY out_playing_samples( FORMAT_INFO* info, char* buf, int len );*/
 ULONG PM123_ENTRY out_playing_pos( void );

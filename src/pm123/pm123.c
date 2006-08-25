@@ -2332,13 +2332,7 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
       // The decoder has finished the work, but we should wait until output
       // buffers will become empty.
       decoder_finished = TRUE;
-
-      // If output is always hungry, WM_OUTPUT_OUTOFDATA will not be posted again
-      // so we go there by our selves
-      // TODO: this is crap
-      /*if( !out_params.always_hungry ) {
-        return 0;
-      }*/
+      return 0;
 
     // Posted by output
     case WM_OUTPUT_OUTOFDATA:

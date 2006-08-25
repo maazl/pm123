@@ -96,6 +96,7 @@ static class CL_GLUE
   friend void              out_set_volume     ( int volume );
   friend ULONG             out_pause          ( BOOL pause );
   friend void              out_trashbuffers   ( int temp_playingpos );
+  friend BOOL              out_flush          ( void );
   // 4 visual interface
   friend ULONG PM123_ENTRY out_playing_pos    ( void );
   friend BOOL  PM123_ENTRY out_playing_data   ( void );
@@ -250,6 +251,13 @@ void out_trashbuffers( int temp_playingpos )
     return; // can't help
   voutput.params.temp_playingpos = temp_playingpos;
   voutput.out_command( OUTPUT_TRASH_BUFFERS );
+}
+
+BOOL out_flush()
+{ if (!voutput.initialized)
+    return FALSE;
+  (*voutput.procs.output_request_buffer)( voutput.procs.a, NULL, NULL );
+  return TRUE;
 }
 
 /* Returns 0 = success otherwize MMOS/2 error. */
