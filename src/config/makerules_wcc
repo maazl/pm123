@@ -15,7 +15,7 @@ RES        = .res
 CC         = wcl386
 CFLAGS     = -zq -bm -dOS2
 CFLAGS_DLL = -bd
-CFLAGS_DBG = -d2
+CFLAGS_DBG = -d2 -dDEBUG
 CFLAGS_OPT = -otexan -5r -fp5 -s
 
 CL         = wlink
