@@ -43,14 +43,12 @@
 #include <fourcc.h>
 #include <math.h>
 #include <string.h>
-//#include <ctype.h>
 #include <malloc.h>
 
 #define VISUAL_PLUGIN_LEVEL 1
 
 #include <utilfct.h>
 #include <format.h>
-//#include <decoder_plug.h>
 #include <plugin.h>
 
 #ifndef M_PI
@@ -61,9 +59,10 @@
 #include "colormap.h"
 #include "specana.h"
 
-#define  TID_UPDATE ( TID_USERMAX - 1 )
-
 //#define DEBUG
+#include <debuglog.h>
+
+#define  TID_UPDATE ( TID_USERMAX - 1 )
 
 #define CLR_BGR_BLACK   0 // Background
 #define CLR_BGR_GREY    1 // grid
@@ -209,9 +208,7 @@ static BOOL read_palette( FILE* dat )
     int version;
     if (sscanf(line+11, "%d", &version) != 1 || version > 21)
       return FALSE;
-    #ifdef DEBUG
-    fprintf(stderr, "NF: %d\n", version);
-    #endif
+    DEBUGLOG(("NF: %d\n", version));
       
     // some defaults
     palette[CLR_BGR_GREY].bGreen = 90;
@@ -230,9 +227,7 @@ static BOOL read_palette( FILE* dat )
       switch (line[p])
       {case '=': // normal parameter
         line[p] = 0;
-        #ifdef DEBUG
-        fprintf(stderr, "NF: %s = %s\n", line, line+p+1);
-        #endif
+        DEBUGLOG(("NF: %s = %s\n", line, line+p+1));
         if (stricmp(line, "BACKGROUND") == 0)
           read_color( line+p+1, &palette[CLR_BGR_BLACK] );
          else if (stricmp(line, "DOTS") == 0)
@@ -250,9 +245,7 @@ static BOOL read_palette( FILE* dat )
           break;
         if (!read_color( cp+1, &color ))
           break;
-        #ifdef DEBUG
-        fprintf(stderr, "NF-: %s - %f = %s = {%d,%d,%d}\n", line, pos, cp+1, color.bRed, color.bGreen, color.bBlue);
-        #endif
+        DEBUGLOG(("NF-: %s - %f = %s = {%d,%d,%d}\n", line, pos, cp+1, color.bRed, color.bGreen, color.bBlue));
         if (stricmp(line, "OSCILLOSCOPE") == 0)
         { if (ipd.osc_entr == sizeof ipd.osc_tab / sizeof *ipd.osc_tab)
             break; // too many entries
@@ -282,9 +275,7 @@ static BOOL read_palette( FILE* dat )
     do
     { if (!uncomment_slash(line))
         continue; // ignore logically empty lines
-      #ifdef DEBUG
-      fprintf(stderr, "OF: %d - %s\n", i, line);
-      #endif
+      DEBUGLOG(("OF: %d - %s\n", i, line));
       switch (i)
       {case 1:
         if (!read_color( line, &palette[CLR_BGR_BLACK] ))
@@ -387,9 +378,7 @@ static void load_default_palette(void)
 static void
 free_bands( void )
 {
-  #ifdef DEBUG
-  fprintf(stderr, "INI: free_bands %p %p %p\n", amps, bars, scale);
-  #endif 
+  DEBUGLOG(("INI: free_bands %p %p %p\n", amps, bars, scale));
   free( amps  );
   free( bars  );
   free( scale );
@@ -408,9 +397,7 @@ static BOOL init_bands(int samplerate)
   double step = 0;
   int    highfreq;
 
-  #ifdef DEBUG
-  fprintf(stderr, "INI: samplerate = %d\n", samplerate);
-  #endif 
+  DEBUGLOG(("INI: samplerate = %d\n", samplerate));
   relative_falloff_speed = (float)cfg.falloff_speed / plug.cy;
 
   if ( cfg.default_mode == active_cfg.default_mode
@@ -420,9 +407,7 @@ static BOOL init_bands(int samplerate)
      && last_samplerate == samplerate
      && amps != NULL && bars != NULL && scale != NULL )
   { active_cfg = cfg; // no major change
-    #ifdef DEBUG
-    fprintf(stderr, "INI: minor change\n");
-    #endif 
+    DEBUGLOG(("INI: minor change\n"));
     return TRUE;
   }
   active_cfg = cfg;
@@ -437,9 +422,7 @@ static BOOL init_bands(int samplerate)
   windowfunc = WINFN_HAMMING;
   switch (active_cfg.default_mode)
   {default:
-    #ifdef DEBUG
-    fprintf(stderr, "no FFT mode: %d\n", active_cfg.default_mode);
-    #endif 
+    DEBUGLOG(("no FFT mode: %d\n", active_cfg.default_mode));
     return TRUE;
    case SHOW_ANALYZER:
    case SHOW_SPECTROSCOPE:
@@ -455,9 +438,7 @@ static BOOL init_bands(int samplerate)
     step = log((double)highfreq / active_cfg.display_lowfreq) / bars_count; // limit range to the nyquist frequency
     numsamples = samplerate / (active_cfg.display_lowfreq * exp(step)) * (1 << active_cfg.highprec_mode);
   }
-  #ifdef DEBUG
-  fprintf(stderr, "INI: mode = %d, bars = %d, numsamples = %d\n", active_cfg.default_mode, bars_count, numsamples);
-  #endif 
+  DEBUGLOG(("INI: mode = %d, bars = %d, numsamples = %d\n", active_cfg.default_mode, bars_count, numsamples));
 
   // round up FFT length to the next power of 2
   frexp(numsamples-1, &numsamples); // floor(log2(numsamples-1))+1
@@ -499,10 +480,10 @@ static BOOL init_bands(int samplerate)
     }
   }
   #ifdef DEBUG
-  fprintf(stderr, "INITSCALE: st = %f,\n", step);
+  DEBUGLOG(("INITSCALE: st = %f,\n", step));
   for (i = 0; i <= bars_count; ++i)
-    fprintf(stderr, " %d", scale[i]);
-  fprintf(stderr, "\n");
+    DEBUGLOG((" %d", scale[i]));
+  DEBUGLOG(("\n"));
   #endif
   
   return TRUE;
@@ -529,19 +510,13 @@ static BOOL do_analysis(void)
 {retry:
   switch (specana_do(numsamples, WINFN_HAMMING, amps, &lastformat))
   {case SPECANA_NEWFORMAT:
-    #ifdef DEBUG
-    fprintf(stderr, "specana_do NEWFORMAT\n");
-    #endif
+    DEBUGLOG(("specana_do NEWFORMAT\n"));
     init_bands(lastformat.samplerate);
     goto retry;
    default:
-    #ifdef DEBUG
-    fprintf(stderr, "specana_do ERROR\n");
-    #endif
+    DEBUGLOG(("specana_do ERROR\n"));
    case SPECANA_UNCHANGED:
-    #ifdef DEBUG
-    fprintf(stderr, "specana_do UNCHANGED\n");
-    #endif
+    DEBUGLOG(("specana_do UNCHANGED\n"));
     return FALSE;
    case SPECANA_OK:
     return TRUE;
@@ -599,9 +574,7 @@ static void update_analyzer(void)
   }
   // now _decoderPlaying() == 1
 
-  #ifdef DEBUG
-  fprintf(stderr, "update_analyzer %d %d\n", needinit, needclear);
-  #endif 
+  DEBUGLOG(("update_analyzer %d %d\n", needinit, needclear));
   // update initialization ?
   if (needinit)
   { if (decoderPlayingSamples(&lastformat, NULL, 0) != 0)
@@ -625,9 +598,7 @@ static void update_analyzer(void)
     needclear = FALSE;
   }
 
-  #ifdef DEBUG
-  fprintf(stderr, "ANA: before switch %d\n", active_cfg.default_mode);
-  #endif 
+  DEBUGLOG(("ANA: before switch %d\n", active_cfg.default_mode));
   switch (active_cfg.default_mode)
   {case SHOW_ANALYZER:
     memset( image, 0, image_cx * image_cy );
@@ -743,9 +714,7 @@ static void update_analyzer(void)
   { DiveEndImageBufferAccess( hdive, 0 );
     DiveBlitImage( hdive, image_id, 0 );
   }
-  #ifdef DEBUG
-  fprintf(stderr, "update_analyzer at end\n");
-  #endif
+  DEBUGLOG(("update_analyzer at end\n"));
   is_stopped = FALSE;
 }
 
@@ -925,9 +894,7 @@ plg_win_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
       needclear = TRUE;
       needinit = TRUE;
       
-      #ifdef DEBUG
-      fprintf(stderr, "CLICK! %d\n", cfg.default_mode);
-      #endif
+      DEBUGLOG(("CLICK! %d\n", cfg.default_mode));
       break;
 
     case WM_TIMER:
@@ -971,9 +938,7 @@ vis_init( PVISPLUGININIT init )
   int   i;
   int   display_percent;
 
-  #ifdef DEBUG
-  fprintf(stderr, "vis_init\n");
-  #endif
+  DEBUGLOG(("vis_init\n"));
   // wait for old instances to complete destruction, since many variables are static.
   for (i = 0; destroy_pending; ++i)
   { if (i > 10)
@@ -1082,9 +1047,7 @@ plugin_deinit( int unload )
 {
   HINI hini;
 
-  #ifdef DEBUG
-  fprintf(stderr, "plugin_deinit\n");
-  #endif
+  DEBUGLOG(("plugin_deinit\n"));
   if(( hini = open_module_ini()) != NULLHANDLE )
   {
     save_ini_value( hini, cfg.update_delay );
