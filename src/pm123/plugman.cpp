@@ -110,7 +110,7 @@ CL_GLUE::CL_GLUE()
 }
 
 void CL_GLUE::virtualize(int i)
-{ DEBUGLOG("CL_GLUE(%p)::virtualize(%d)\n", this, i);
+{ DEBUGLOG(("CL_GLUE(%p)::virtualize(%d)\n", this, i));
 
   if (i < 0)
     return;
@@ -160,18 +160,18 @@ void CL_GLUE::virtualize(int i)
   { // set params for next instance.
     params.output_event = last_output_event;
     params.w            = fil.get_procs().f;
-    DEBUGLOG("CL_GLUE::virtualize: callback virtualized: %p %p\n", params.output_event, params.w);
+    DEBUGLOG(("CL_GLUE::virtualize: callback virtualized: %p %p\n", params.output_event, params.w));
   }
   if (par.output_event != last_output_event)
   { // now update the decoder event
     (*fil.get_procs().filter_update)(fil.get_procs().f, &par);
-    DEBUGLOG("CL_GLUE::virtualize: callback update: %p %p\n", par.output_event, par.w);
+    DEBUGLOG(("CL_GLUE::virtualize: callback update: %p %p\n", par.output_event, par.w));
   }
 }
 
 // setup filter chain
 ULONG CL_GLUE::init()
-{ DEBUGLOG("CL_GLUE(%p)::init\n", this);
+{ DEBUGLOG(("CL_GLUE(%p)::init\n", this));
 
   params.size          = sizeof params;
   params.error_display = &keep_last_error;
@@ -199,7 +199,13 @@ ULONG CL_GLUE::init()
 }
 
 void CL_GLUE::uninit()
-{ // currently a no-op
+{ DEBUGLOG(("CL_GLUE(%p)::uninit\n", this));
+
+  initialized = FALSE;
+  // uninitialize filter chain
+  for (int i = 0; i < filters.count(); ++i)
+    if (filters[i].is_initialized())
+      filters[i].uninit_plugin();
 }
 
 /* setup new output stage or change the properties of the current one */
@@ -269,7 +275,7 @@ BOOL PM123_ENTRY out_playing_data( void )
 
 /* proxy, because the decoder is not interested in OUTEVENT_END_OF_DATA */
 void PM123_ENTRY dec_event( void* w, OUTEVENTTYPE event )
-{ DEBUGLOG("plugman:dec_event(%p, %d)\n", w, event);
+{ DEBUGLOG(("plugman:dec_event(%p, %d)\n", w, event));
 
   switch (event)
   {case OUTEVENT_END_OF_DATA:
@@ -296,7 +302,7 @@ void PM123_ENTRY dec_event( void* w, OUTEVENTTYPE event )
  * or -1 if the module cannot be loaded.
  */
 static int get_module(const char* name)
-{ DEBUGLOG("plugman:get_module(%s)\n", name);
+{ DEBUGLOG(("plugman:get_module(%s)\n", name));
 
   int p = plugins.find(name);
   if (p == -1)
@@ -308,15 +314,15 @@ static int get_module(const char* name)
     }
   }
     
-  DEBUGLOG("plugman:get_module: %d\n", p);
+  DEBUGLOG(("plugman:get_module: %d\n", p));
   return p;
 }
 
 static CL_PLUGIN* instantiate(CL_MODULE& mod, CL_PLUGIN* (*factory)(CL_MODULE& mod), CL_PLUGIN_LIST& list, BOOL enabled)
-{ DEBUGLOG("plugman:instantiate(%p{%s}, %p, %p, %i)\n", &mod, mod.module_name, factory, &list, enabled); 
+{ DEBUGLOG(("plugman:instantiate(%p{%s}, %p, %p, %i)\n", &mod, mod.module_name, factory, &list, enabled)); 
 
   if (list.find(mod) != -1)
-  { DEBUGLOG("plugman:instantiate: trying to load plugin twice\n");
+  { DEBUGLOG(("plugman:instantiate: trying to load plugin twice\n"));
     return NULL;
   }
   CL_PLUGIN* pp = (*factory)(mod);
@@ -333,10 +339,10 @@ static int add_plugin_core(const char* name, const VISUAL_PROPERTIES* data, int 
 {
   #ifdef DEBUG
   if (data)
-    DEBUGLOG("plugman:add_plugin_core(%s, %p{%d,%d,%d,%d, %i, %s}, %x, %i)\n",
-      name, data, data->x, data->y, data->cx, data->cy, data->skin, data->param, mask, enabled);
+    DEBUGLOG(("plugman:add_plugin_core(%s, %p{%d,%d,%d,%d, %i, %s}, %x, %i)\n",
+      name, data, data->x, data->y, data->cx, data->cy, data->skin, data->param, mask, enabled));
    else 
-    DEBUGLOG("plugman:add_plugin_core(%s, %p, %x, %i)\n", name, data, mask, enabled); 
+    DEBUGLOG(("plugman:add_plugin_core(%s, %p, %x, %i)\n", name, data, mask, enabled)); 
   #endif
   /*// make absolute path
   char module_name[_MAX_PATH];
@@ -381,7 +387,7 @@ static int add_plugin_core(const char* name, const VISUAL_PROPERTIES* data, int 
   if (!result)
     delete plugins.detach_request(p);
 
-  DEBUGLOG("plugman:add_plugin_core: %x\n", result);
+  DEBUGLOG(("plugman:add_plugin_core: %x\n", result));
   return result;
 }
 
@@ -406,7 +412,7 @@ BOOL remove_visual_plugin( int i )
 }
 
 void remove_visual_plugins( BOOL skin )
-{ DEBUGLOG("plugman:remove_visual_plugins(%i)\n", skin);
+{ DEBUGLOG(("plugman:remove_visual_plugins(%i)\n", skin));
 
   int i = visuals.count();
   while( i-- )
@@ -416,7 +422,7 @@ void remove_visual_plugins( BOOL skin )
 
 /* Adds a default decoder plug-ins to the list of loaded. */
 void load_default_decoders( void )
-{ DEBUGLOG("load_default_decoders()\n"); 
+{ DEBUGLOG(("load_default_decoders()\n")); 
 
   decoders.clear();
   fprintf(stderr, "ccc");
@@ -428,7 +434,7 @@ void load_default_decoders( void )
 
 /* Adds a default output plug-ins to the list of loaded. */
 void load_default_outputs( void )
-{ DEBUGLOG("load_default_outputs()\n"); 
+{ DEBUGLOG(("load_default_outputs()\n")); 
 
   outputs.clear();
 
@@ -440,7 +446,7 @@ void load_default_outputs( void )
 
 /* Adds a default filter plug-ins to the list of loaded. */
 void load_default_filters( void )
-{ DEBUGLOG("load_default_filters()\n"); 
+{ DEBUGLOG(("load_default_filters()\n")); 
 
   decoders.set_active( -1 ); // why ever
   filters.clear();
@@ -450,13 +456,13 @@ void load_default_filters( void )
 
 /* Adds a default visual plug-ins to the list of loaded. */
 void load_default_visuals( void )
-{ DEBUGLOG("load_default_visuals()\n"); 
+{ DEBUGLOG(("load_default_visuals()\n")); 
 
   remove_visual_plugins( FALSE );
 }
 
 static BOOL load_plugin( BUFSTREAM* b, int mask, BOOL withenabled )
-{ DEBUGLOG("plugman:load_plugin(%p, %x, %i)\n", b, mask, withenabled); 
+{ DEBUGLOG(("plugman:load_plugin(%p, %x, %i)\n", b, mask, withenabled)); 
 
   int i, size, count;
   BOOL enabled = TRUE;
@@ -482,7 +488,7 @@ static BOOL load_plugin( BUFSTREAM* b, int mask, BOOL withenabled )
 /* Restores the decoders list to the state was in when
    save_decoders was last called. */
 BOOL load_decoders( BUFSTREAM* b )
-{ DEBUGLOG("load_decoders(%p)\n", b); 
+{ DEBUGLOG(("load_decoders(%p)\n", b)); 
 
   decoders.set_active( -1 );
   decoders.clear();
@@ -493,7 +499,7 @@ BOOL load_decoders( BUFSTREAM* b )
 /* Restores the outputs list to the state was in when
    save_outputs was last called. */
 BOOL load_outputs( BUFSTREAM *b )
-{ DEBUGLOG("load_outputs(%p)\n", b); 
+{ DEBUGLOG(("load_outputs(%p)\n", b)); 
 
   int active; 
 
@@ -512,7 +518,7 @@ BOOL load_outputs( BUFSTREAM *b )
 /* Restores the filters list to the state was in when
    save_filters was last called. */
 BOOL load_filters( BUFSTREAM *b )
-{ DEBUGLOG("load_filters(%p)\n", b); 
+{ DEBUGLOG(("load_filters(%p)\n", b)); 
 
   filters.clear();
 
@@ -522,7 +528,7 @@ BOOL load_filters( BUFSTREAM *b )
 /* Restores the visuals list to the state was in when
    save_visuals was last called. */
 BOOL load_visuals( BUFSTREAM *b )
-{ DEBUGLOG("load_visuals(%p)\n", b); 
+{ DEBUGLOG(("load_visuals(%p)\n", b)); 
 
   remove_visual_plugins( FALSE );
 
@@ -530,7 +536,7 @@ BOOL load_visuals( BUFSTREAM *b )
 }
 
 static BOOL save_plugin( BUFSTREAM *b, const CL_PLUGIN& src, BOOL withenabled )
-{ DEBUGLOG("plugman:save_plugin(%p, %p{%s}, %i)\n", b, &src, src.module_name, withenabled); 
+{ DEBUGLOG(("plugman:save_plugin(%p, %p{%s}, %i)\n", b, &src, src.module_name, withenabled)); 
 
   int size = strlen( src.module_name );
   int enabled = src.get_enabled();
@@ -544,7 +550,7 @@ static BOOL save_plugin( BUFSTREAM *b, const CL_PLUGIN& src, BOOL withenabled )
 
 /* Saves the current list of decoders. */
 BOOL save_decoders( BUFSTREAM *b )
-{ DEBUGLOG("save_decoders(%p)\n", b);
+{ DEBUGLOG(("save_decoders(%p)\n", b));
 
   int i = decoders.count();
   if ( write_bufstream( b, &i, sizeof(int)) != sizeof(int))
@@ -559,7 +565,7 @@ BOOL save_decoders( BUFSTREAM *b )
 
 /* Saves the current list of outputs plug-ins. */
 BOOL save_outputs( BUFSTREAM *b )
-{ DEBUGLOG("save_outputs(%p)\n", b);
+{ DEBUGLOG(("save_outputs(%p)\n", b));
 
   int i = outputs.count();
   if (write_bufstream( b, &i, sizeof(int)) != sizeof(int))
@@ -578,7 +584,7 @@ BOOL save_outputs( BUFSTREAM *b )
 
 /* Saves the current list of filters plug-ins. */
 BOOL save_filters( BUFSTREAM *b )
-{ DEBUGLOG("save_filters(%p)\n", b);
+{ DEBUGLOG(("save_filters(%p)\n", b));
 
   int i = filters.count();
   if (write_bufstream(b, &i, sizeof(int)) != sizeof(int))
@@ -593,7 +599,7 @@ BOOL save_filters( BUFSTREAM *b )
 
 /* Saves the current list of visuals plug-ins. */
 BOOL save_visuals( BUFSTREAM *b )
-{ DEBUGLOG("save_visuals(%p)\n", b);
+{ DEBUGLOG(("save_visuals(%p)\n", b));
 
   int i;
   int count = 0;
@@ -790,7 +796,7 @@ dec_trackinfo( char* drive, int track, DECODER_INFO* info, char* name )
   { const CL_DECODER& dec = (const CL_DECODER&)decoders[i];
     if( dec.get_enabled() && (dec.get_procs().type & DECODER_TRACK) )
     { last_rc = dec.get_procs().decoder_fileinfo( cdda_url, info );
-      DEBUGLOG("dec_trackinfo: %s->decoder_fileinfo: %d\n", dec.module_name, last_rc); 
+      DEBUGLOG(("dec_trackinfo: %s->decoder_fileinfo: %d\n", dec.module_name, last_rc)); 
       if( last_rc == 0 )
       { if ( name != NULL )
           sfnameext( name, dec.module_name, _MAX_FNAME );
@@ -884,7 +890,7 @@ int out_set_active( int number )
 
 /* Initializes the specified visual plug-in. */
 BOOL vis_init( int i )
-{ DEBUGLOG("plugman:vis_init(%d)\n", i);
+{ DEBUGLOG(("plugman:vis_init(%d)\n", i));;;;
 
   if (i < 0 || i >= visuals.count())
     return FALSE;
@@ -895,8 +901,6 @@ BOOL vis_init( int i )
     return FALSE;
 
   PLUGIN_PROCS  procs;
-  VISPLUGININIT visinit;
-
   procs.output_playing_samples = out_playing_samples;
   procs.decoder_playing        = decoder_playing;
   procs.output_playing_pos     = out_playing_pos;
@@ -907,16 +911,7 @@ BOOL vis_init( int i )
   procs.decoder_cdinfo         = dec_cdinfo;
   procs.decoder_length         = dec_length;
 
-  visinit.x       = vis.get_properties().x;
-  visinit.y       = vis.get_properties().y;
-  visinit.cx      = vis.get_properties().cx;
-  visinit.cy      = vis.get_properties().cy;
-  visinit.hwnd    = amp_player_window();
-  visinit.procs   = &procs;
-  visinit.id      = i;
-  visinit.param   = vis.get_properties().param;
-  
-  return vis.initialize(&visinit);
+  return vis.initialize(amp_player_window(), &procs, i);
 }
 
 void vis_init_all( BOOL skin )

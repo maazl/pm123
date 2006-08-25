@@ -25,13 +25,25 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-/* virtual .NET like delegates from function pointer */
+/* Utility factories to compile easy function adaptors in the data segment.
+ * They require a platform with a IA-32 compatible instruction set and a flat
+ * memory model to operate. Compiler or operating sytem is not significant.
+ *
+ * - Virtual .NET like delegates from function pointer.
+ * - Replacer to replace objects in of member-function like functions.
+ *
+ * These implementations are very performant and can be altered at run time.
+ * The VDELEGATE pattern cannot be solved in any other, more portable way.
+ *
+ * Type safe access to these function is possible through a C++ wrapper.
+ * This is not part of this file.
+ */
 
 #ifndef _VDELEGATE_H
 #define _VDELEGATE_H
 
+// for PM123_ENTRYP
 #include <format.h>
-/*#define PM123_ENTRYP *_System*/
 
 #if __cplusplus
 extern "C" {
@@ -40,25 +52,31 @@ extern "C" {
 typedef int (PM123_ENTRYP V_FUNC)();
 
 #define VDELEGATE_LEN 0x1B
-/* YOU MUST NOT COPY OBJECTS OF THIS TYPE. They are not POD. */
+/* YOU MUST NOT COPY OBJECTS OF THIS TYPE. They are not POD like. */
 typedef unsigned char VDELEGATE[VDELEGATE_LEN];
 /* Generate proxy function which prepends an additional parameter at each function call.
- * dg     VDELEGATE structure. The lifetime of this structure must exceed the lifetime of the returned function pointer.
+ * dg     VDELEGATE structure. The lifetime of this structure must exceed the lifetime
+ *        of the returned function pointer.
  * func   function to call. The function must have count +1 arguments.
  * count  number of arguments of the returned function.
  * ptr    pointer to pass as first argument to func.
  * return generated function with count arguments.
+ * Once created the returned function is thread-safe and reentrant as far as the called
+ * function is. Updating an existing object is generally not thread-safe.
  */  
 V_FUNC mkvdelegate(VDELEGATE* dg, V_FUNC func, int count, void* ptr);
 
 #define VREPLACE1_LEN 0x0E
-/* YOU MUST NOT COPY OBJECTS OF THIS TYPE. They are not POD. */
+/* YOU MUST NOT COPY OBJECTS OF THIS TYPE. They are not POD like. */
 typedef unsigned char VREPLACE1[VREPLACE1_LEN];
 /* Generate proxy function that replaces the first argument of the function call.
- * dg     VDELEGATE structure. The lifetime of this structure must exceed the lifetime of the returned function pointer.
+ * dg     VDELEGATE structure. The lifetime of this structure must exceed the lifetime
+ *        of the returned function pointer.
  * func   function to call.
  * ptr    pointer to pass as first argument to func.
  * return generated function.
+ * Once created the returned function is thread-safe and reentrant as far as the called
+ * function is. Updating an existing object is generally not thread-safe.
  */  
 V_FUNC mkvreplace1(VREPLACE1* rp, V_FUNC func, void* ptr);
 

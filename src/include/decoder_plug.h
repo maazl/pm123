@@ -95,6 +95,7 @@ typedef struct _DECODER_PARAMS2
    /* --- DECODER_PLAY, STOP */
 
    char* URL;
+   int   posmarker;   /* position marker of file start */
 
    /* --- DECODER_REW, FFWD and JUMPTO */
 

@@ -90,14 +90,12 @@ its buffers. Not needed when <TT> always_hungry </TT> flag is enabled.
   to signal that the buffers are running low or the buffers are getting full respectively.
   This is used by PM123 to control the scheduling priority.<br>
   The event handler may be called from any thread in any context.</p>
-<p>Unlike at level 1 a call of the error_display callback function will implicitly post WM_PLAYERROR.
-  The plug-in should not post any PM messages.</p>
 <p>The URI parameter at the <code>OUTPUT_OPEN</code> call uses the following syntax:<br>
   <samp>file:///D:/Music/my favorite song.mp3</samp><br>
   <samp>file://favorite song.mp3</samp> (relative path)<br>
   <samp>http://</samp>... (as you would expect)<br>
   <samp>cdda:///H:/track02</samp><br>
-  Remember that the URI may change during playback without a new <code>OUTPUT_OPEN</code> call.</p>
+  The URI may change during playback. This is signalled with a new <code>OUTPUT_OPEN</code> call. You may ignore this.</p>
 
 <h3><a name="data_interface"></a>Data interface</h3>
 <p>The data interface is only used when the control interface is in activated state.</p>

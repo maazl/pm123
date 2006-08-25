@@ -26,6 +26,17 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+/* Configuration dependant log functions.
+ * To post a log message write
+ *   DEBUGLOG(("Format string with printf parameters like %s\n", "parameter"));
+ * Note the double braces!
+ * If the application is compiled in debug mode (defining DEBUG) the message
+ * is written to stderr which can be easily captured by " 2>logfile".
+ * Otherwise the line will not be compiled at all. Even the arguments are not
+ * evaluated for their side effects. So be sure not to use expressions with
+ * side effects.
+ */ 
+
 #ifndef _DEBUGLOG_H
 #define _DEBUGLOG_H
 
@@ -33,15 +44,16 @@
 #include <stdio.h>
 #include <stdarg.h>
 // log to stderr
-static void DEBUGLOG(const char* fmt, ...)
+static void debuglog(const char* fmt, ...)
 { va_list va;
   va_start(va, fmt);
   vfprintf(stderr, fmt, va);
   va_end(va);
 }
+#define DEBUGLOG(x) debuglog(x)
 #else
 // turn the log lines into a no-op, not even evaluating it's arguments
-#define DEBUGLOG (void)sizeof
+#define DEBUGLOG(x)
 #endif
 
 #endif

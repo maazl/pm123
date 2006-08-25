@@ -51,6 +51,7 @@
 #include "realeq.h"
 
 //#define DEBUG
+#include <debuglog.h>
 
 #define VERSION "Real Equalizer 1.21"
 #define MAX_COEF 16384
@@ -190,10 +191,9 @@ ULONG PM123_ENTRY
 filter_init( void** F, FILTER_PARAMS* params )
 {
   REALEQ_STRUCT* f = (REALEQ_STRUCT*)malloc( sizeof( REALEQ_STRUCT ));
-  #ifdef DEBUG
-  fprintf(stderr, "filter_init(%p->%p, {%u, %p, %p, %i, %p, %p})\n",
-   F, f, params->size, params->output_play_samples, params->a, params->audio_buffersize, params->error_display, params->info_display);
-  #endif
+  DEBUGLOG(("filter_init(%p->%p, {%u, %p, %p, %i, %p, %p})\n",
+   F, f, params->size, params->output_play_samples, params->a, params->audio_buffersize, params->error_display, params->info_display));
+
   *F = f;
 
   f->output_play_samples = params->output_play_samples;
@@ -214,9 +214,7 @@ BOOL PM123_ENTRY
 filter_uninit( void* F )
 {
   REALEQ_STRUCT* f = (REALEQ_STRUCT*)F;
-  #ifdef DEBUG
-  fprintf(stderr, "filter_uninit(%p)\n", F);
-  #endif
+  DEBUGLOG(("filter_uninit(%p)\n", F));
 
   if( f != NULL )
   {
@@ -276,9 +274,7 @@ static BOOL fil_setup( REALEQ_STRUCT* f, int samplerate, int channels )
   // round up to next power of 2
   frexp(FFT.plansize-1, &i); // floor(log2(FFT.plansize-1))+1
   i = (1<<i)+1; // 2**x
-  #ifdef DEBUG
-  fprintf(stderr, "I: %d - %p\n", i, FFT.DCT_plan);
-  #endif
+  DEBUGLOG(("I: %d - %p\n", i, FFT.DCT_plan));
 
   // allocate buffers
   FFT.freq_domain = fftwf_malloc((i/2+1) * sizeof *FFT.freq_domain);
@@ -318,9 +314,7 @@ static BOOL fil_setup( REALEQ_STRUCT* f, int samplerate, int channels )
   // prepare real 2 real transformations
   FFT.DCT_plan = fftwf_plan_r2r_1d(FFT.DCTplansize/2+1, FFT.design, FFT.time_domain, FFTW_REDFT00, FFTW_ESTIMATE);
 
-  #ifdef DEBUG
-  fprintf(stderr, "P: FIRorder: %d, Plansize: %d, DCT plansize: %d\n", FIRorder, FFT.plansize, FFT.DCTplansize);
-  #endif
+  DEBUGLOG(("P: FIRorder: %d, Plansize: %d, DCT plansize: %d\n", FIRorder, FFT.plansize, FFT.DCTplansize));
   eqneedFIR = FALSE;
 
  doEQ:
@@ -360,16 +354,15 @@ static BOOL fil_setup( REALEQ_STRUCT* f, int samplerate, int channels )
         pos = .5 - .5*cos(M_PI * (log(f)-cop[0].lf) / (cop[1].lf-cop[0].lf));
         val = exp(cop[0].lv + pos * (cop[1].lv - cop[0].lv));
         FFT.design[i] = val;
-        #ifdef DEBUG
-        fprintf(stderr, "F: %i, %g, %g -> %g = %g dB @ %g\n", i, f, pos, FFT.design[i], 20*log(val)/log(10), exp(cop[0].lf));
-        #endif
+        DEBUGLOG(("F: %i, %g, %g -> %g = %g dB @ %g\n",
+          i, f, pos, FFT.design[i], 20*log(val)/log(10), exp(cop[0].lf)));
     } }
 
     // transform into the time domain
     fftwf_execute(FFT.DCT_plan);
     #ifdef DEBUG
     for (i = 0; i <= FFT.DCTplansize/2; ++i)
-      fprintf(stderr, "TK: %i, %g\n", i, FFT.time_domain[i]);
+      DEBUGLOG(("TK: %i, %g\n", i, FFT.time_domain[i]));
     #endif
 
     // normalize, apply window function and store results symmetrically
@@ -379,9 +372,7 @@ static BOOL fil_setup( REALEQ_STRUCT* f, int samplerate, int channels )
       for (i = FIRorder/2; i >= 0; --i)
       { register double f = fabs(*dp1 = *dp2 = *sp *= WINDOW_FUNCTION(i, FIRorder) / FFT.DCTplansize);
         *sp++ /= FFT.plansize; // normalize for next FFT
-        #ifdef DEBUG
-        fprintf(stderr, "K: %i, %g\n", i, *dp1);
-        #endif
+        DEBUGLOG(("K: %i, %g\n", i, *dp1));
         dp1 += 2;
         dp2 -= 2;
         if (f > largest)
@@ -396,8 +387,8 @@ static BOOL fil_setup( REALEQ_STRUCT* f, int samplerate, int channels )
     fftwf_execute_r2r(FFT.RDCT_plan, FFT.time_domain, FFT.kernel[channel]);
     #ifdef DEBUG
     for (i = 0; i <= FFT.plansize/2; ++i)
-      fprintf(stderr, "FK: %i, %g\n", i, FFT.kernel[channel][i]);
-    fprintf(stderr, "E: kernel completed.\n");
+      DEBUGLOG(("FK: %i, %g\n", i, FFT.kernel[channel][i]));
+    DEBUGLOG(("E: kernel completed.\n"));
     #endif
   }
 
@@ -608,9 +599,7 @@ INLINE void do_fft_load_overlap(float* overlap_buffer)
 /* store last FIRorder samples */
 static void do_fft_save_overlap(float* overlap_buffer, int len)
 {
-  #ifdef DEBUG
-  fprintf(stderr, "SO: %p, %i, %i\n", overlap_buffer, len, FIRorder);
-  #endif
+  DEBUGLOG(("SO: %p, %i, %i\n", overlap_buffer, len, FIRorder));
   if (len < FIRorder/2)
   { memmove(overlap_buffer, overlap_buffer + len, (FIRorder - len) * sizeof *overlap_buffer);
     memcpy(overlap_buffer + FIRorder - len, FFT.time_domain + FIRorder/2, len * sizeof *overlap_buffer);
@@ -757,10 +746,8 @@ int PM123_ENTRY
 filter_play_samples( void* F, FORMAT_INFO* format, char* buf, int len, int posmarker )
 {
   REALEQ_STRUCT* f = (REALEQ_STRUCT*)F;
-  #ifdef DEBUG
-  fprintf(stderr, "filter_play_samples(%p, {%u, %u, %u, %u, %u}, %p, %u, %u)\n",
-   F, format->size, format->samplerate, format->channels, format->bits, format->format, buf, len, posmarker);
-  #endif
+  DEBUGLOG(("filter_play_samples(%p, {%u, %u, %u, %u, %u}, %p, %u, %u)\n",
+   F, format->size, format->samplerate, format->channels, format->bits, format->format, buf, len, posmarker));
 
   if( eqenabled && format->bits == 16 && ( format->channels == 1 || format->channels == 2 ))
   {
