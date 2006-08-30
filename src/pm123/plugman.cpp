@@ -352,16 +352,24 @@ static int add_plugin_core(const char* name, const VISUAL_PROPERTIES* data, int 
    else 
     DEBUGLOG(("plugman:add_plugin_core(%s, %p, %x, %i)\n", name, data, mask, enabled)); 
   #endif
-  /*// make absolute path
+  // make absolute path
   char module_name[_MAX_PATH];
   if (strchr(name, ':') == NULL && name[0] != '\\' && name[0] != '/')
   { // relative path
     strlcpy(module_name, startpath, sizeof module_name);
     strlcat(module_name, name, sizeof module_name);
-    name = module_name;
-  }*/
+  } else
+    strlcpy(module_name, name, sizeof module_name);
+  // replace '/'
+  { char* cp = module_name;
+    while (TRUE)
+    { cp = strchr(cp, '/');
+      if (cp == NULL)
+        break;
+      *cp++ = '\\';
+  } }
   // load module
-  int p = get_module(name);
+  int p = get_module(module_name);
   if (p == -1)
     return FALSE;
   // load as plugin
