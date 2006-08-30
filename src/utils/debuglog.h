@@ -50,7 +50,7 @@ static void debuglog(const char* fmt, ...)
   vfprintf(stderr, fmt, va);
   va_end(va);
 }
-#define DEBUGLOG(x) debuglog(x)
+#define DEBUGLOG(x) debuglog x
 #else
 // turn the log lines into a no-op, not even evaluating it's arguments
 #define DEBUGLOG(x)

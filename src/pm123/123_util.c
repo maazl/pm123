@@ -51,8 +51,6 @@
 #include "plugman.h"
 #include "httpget.h"
 
-extern OUTPUT_PARAMS out_params;
-
 /* Reads ID3 tag from the specified file. */
 BOOL
 amp_gettag( const char* filename, DECODER_INFO* info, tune* tag )

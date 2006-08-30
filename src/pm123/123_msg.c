@@ -91,7 +91,7 @@ amp_msg( int msg, void *param, void *param2 )
 
       equalize_sound( gains, mutes, preamp, cfg.eq_enabled );
 
-      DEBUGLOG(("amp_msg: MSG_PLAY: %s, %s, %d\n", data->filename, data->drive, data->track));
+      DEBUGLOG(("amp_msg: MSG_PLAY: %s, %p, %d\n", data->filename, data->drive, data->track));
       if (data->drive != NULL && *data->drive != 0 && data->track != 0) // pm123 core sometimes passes trash in the track field
       { sprintf(cdda_url, "cdda:///%s/track%02d", data->drive, data->track);
         dec_params.URL = cdda_url;
