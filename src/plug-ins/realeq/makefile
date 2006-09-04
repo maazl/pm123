@@ -8,7 +8,7 @@ INCDIR   = $(TOPDIR)\utils;$(TOPDIR)\include;$(TOPDIR)\fft123\api
 
 !include $(TOPDIR)\config\makerules
 
-OBJECTS  = realeq$(CO) mmxfir$(OBJ)
+OBJECTS  = realeq$(CO)
 LIBS     = $(TOPDIR)\utils\utilfct$(LBO) $(TOPDIR)\fft123\fft123$(LBI)
 DEF      = realeq$(LDEF_SUFFX)
 RESOURCE = realeq$(RES)
