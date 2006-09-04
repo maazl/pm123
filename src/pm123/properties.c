@@ -752,7 +752,7 @@ cfg_page4_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
         case PB_FIL_ENABLE:
         {
           SHORT i = lb_cursored( hwnd, LB_FILPLUG );
-          num = enum_output_plugins(&list);
+          num = enum_filter_plugins(&list);
           if( i >= 0 && i < num ) {
             if( !get_plugin_enabled(list[i]) ) {
               set_plugin_enabled(list[i], TRUE);
