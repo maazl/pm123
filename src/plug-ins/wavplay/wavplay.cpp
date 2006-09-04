@@ -49,7 +49,7 @@ typedef struct _WAVPLAY
    WAV wavfile;
    FORMAT_INFO formatinfo;
 
-   int (PM123_ENTRYP output_play_samples)(void *a, FORMAT_INFO *format,char *buf,int len, int posmarker);
+   int (PM123_ENTRYP output_play_samples)(void *a, const FORMAT_INFO *format, const char *buf,int len, int posmarker);
    void *a; /* only to be used with the precedent function */
    int buffersize;
 

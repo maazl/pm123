@@ -139,7 +139,7 @@ typedef struct
    META_STRUCT metastruct;
 
    void (PM123_ENTRYP error_display)(char*);
-   int  (PM123_ENTRYP output_play_samples)(void* a, FORMAT_INFO* format, char* buf, int len, int posmarker );
+   int  (PM123_ENTRYP output_play_samples)(void* a, const FORMAT_INFO* format, const char* buf, int len, int posmarker );
    void* a;             // Only to be used with the precedent function.
    int   audio_buffersize;
 

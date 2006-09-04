@@ -1,8 +1,8 @@
 #ifndef __PM123_FILTER_PLUG_H
 #define __PM123_FILTER_PLUG_H
 
-#include "format.h"
-#include "output_plug.h"
+#include <format.h>
+#include <output_plug.h>
 
 #ifdef __cplusplus
 extern "C" {

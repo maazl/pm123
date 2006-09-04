@@ -41,7 +41,7 @@
 
 #include <utilfct.h>
 
-#define DEBUG 2
+//#define DEBUG 2
 
 #ifdef DEBUG
 #include <time.h>

@@ -27,6 +27,11 @@ static int  down_sample = 0;
 static struct frame fr;
 extern int tabsel_123[2][3][16];
 
+#define modes(i) ( i == 0 ? "Stereo"         : \
+                 ( i == 1 ? "Joint-Stereo"   : \
+                 ( i == 2 ? "Dual-Channel"   : \
+                 ( i == 3 ? "Single-Channel" : "" ))))
+
 /* Play a frame read read_frame(). (re)initialize audio if necessary. */
 static int
 play_frame( DECODER_STRUCT* w, struct frame* fr )
