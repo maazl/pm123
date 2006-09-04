@@ -742,7 +742,7 @@ cfg_page4_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
         case PB_FIL_CONFIG:
         {
           SHORT i = lb_cursored( hwnd, LB_FILPLUG );
-          num = enum_output_plugins(&list);
+          num = enum_filter_plugins(&list);
           if( i >= 0 && i < num ) {
             configure_plugin(list[i], hwnd);
           }

@@ -30,6 +30,10 @@
 #ifndef _PM123_TAG_H
 #define _PM123_TAG_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef struct {
    char tag[3] ;
    char title[30] ;
@@ -56,4 +60,7 @@ int gettag(int fd, tune *info);
 void jointag(tune *to, tune *from);
 int settag(int fd, tune *info);
 
+#ifdef __cplusplus
+}
+#endif
 #endif /* _PM123_TAG_H */

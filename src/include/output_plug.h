@@ -3,7 +3,7 @@
 
 #include <format.h>
 
-#if __cplusplus
+#ifdef __cplusplus
 extern "C" {
 #endif
 
@@ -114,7 +114,7 @@ typedef struct _OUTPUT_PARAMS2
 
 } OUTPUT_PARAMS2;
 
-#if !defined(OUTPUT_PLUGIN_LEVEL) || OUTPUT_PLUGIN_LEVEL == 1 
+#if !defined(OUTPUT_PLUGIN_LEVEL) || OUTPUT_PLUGIN_LEVEL <= 1 
 ULONG PM123_ENTRY output_command( void* a, ULONG msg, OUTPUT_PARAMS* info );
 int   PM123_ENTRY output_play_samples( void* a, FORMAT_INFO* format, char* buf, int len, int posmarker );
 ULONG PM123_ENTRY output_playing_pos( void* a );
@@ -127,7 +127,7 @@ int   PM123_ENTRY output_playing_pos( void* a );
 ULONG PM123_ENTRY output_playing_samples( void* a, FORMAT_INFO* info, char* buf, int len );
 BOOL  PM123_ENTRY output_playing_data( void* a );
 
-#if __cplusplus
+#ifdef __cplusplus
 }
 #endif
 #endif /* __PM123_OUTPUT_PLUG_H */

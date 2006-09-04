@@ -31,7 +31,14 @@
  * Button '95 include file
  */
 
+#ifndef PM123_BUTTON95_H
+#define PM123_BUTTON95_H
+
 #include <os2.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 #define CLASSNAME "Button95"
 
@@ -78,3 +85,7 @@ typedef BUTTONDATA *PBUTTONDATA;
 
 void InitButton(HAB hab);
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+#endif

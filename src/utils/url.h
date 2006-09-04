@@ -29,7 +29,7 @@
 #ifndef __URL_H
 #define __URL_H
 
-#if __cplusplus
+#ifdef __cplusplus
 extern "C" {
 #endif
 
@@ -51,7 +51,7 @@ void  url_allocate( URL* url, const char* original_url );
 void  url_free    ( URL* url );
 char* url_full    ( URL* url );
 
-#if __cplusplus
+#ifdef __cplusplus
 }
 #endif
 

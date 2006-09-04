@@ -36,7 +36,7 @@
 #define INI_SECTION  "Settings"
 #endif
 
-#if __cplusplus
+#ifdef __cplusplus
 extern "C" {
 #endif
 
@@ -47,7 +47,7 @@ HINI open_module_ini( void );
 /* Closes a opened profile file. */
 BOOL close_ini( HINI hini );
 
-#if __cplusplus
+#ifdef __cplusplus
 }
 #endif
 

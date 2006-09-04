@@ -31,7 +31,7 @@
 
 #include <stdlib.h>
 
-#if __cplusplus
+#ifdef __cplusplus
 extern "C" {
 #endif
 
@@ -49,7 +49,7 @@ extern "C" {
 
 char* rel2abs( const char* base, const char* path, char* result, size_t size );
 
-#if __cplusplus
+#ifdef __cplusplus
 }
 #endif
 #endif

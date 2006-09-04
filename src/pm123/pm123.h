@@ -29,6 +29,9 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#ifndef PM123_H
+#define PM123_H
+
 #ifndef  RC_INVOKED
 #include "plugman.h"
 #include "tag.h"
@@ -190,7 +193,7 @@
 #define FDT_EQUALIZER        "Equalizer presets (*.EQ)"
 #define FDT_PLUGIN           "Plug-in (*.DLL)"
 
-#if __cplusplus
+#ifdef __cplusplus
 extern "C" {
 #endif
 
@@ -333,7 +336,7 @@ typedef struct
 void amp_msg( int msg, void* param, void* param2 );
 void equalize_sound( float* gains, BOOL* mute, float preamp, BOOL enabled );
 
-#if __cplusplus
+#ifdef __cplusplus
 }
 #endif
-
+#endif

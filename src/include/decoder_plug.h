@@ -4,7 +4,7 @@
 #include <format.h>
 #include <output_plug.h>
 
-#if __cplusplus
+#ifdef __cplusplus
 extern "C" {
 #endif
 
@@ -247,7 +247,7 @@ ULONG PM123_ENTRY decoder_cdinfo( char* drive, DECODER_CDINFO* info );
    each ext should not be bigger than 8bytes */
 ULONG PM123_ENTRY decoder_support( char* fileext[], int* size );
 
-#if __cplusplus
+#ifdef __cplusplus
 }
 #endif
 #endif /* __PM123_DECODER_PLUG_H */

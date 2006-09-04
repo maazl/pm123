@@ -35,7 +35,7 @@
 /* save_window_pos and rest_window_pos options */
 #define WIN_MAP_POINTS  1
 
-#if __cplusplus
+#ifdef __cplusplus
 extern "C" {
 #endif
 
@@ -47,7 +47,7 @@ BOOL save_window_pos( HWND, int options );
 /* Restores the current size and position of the window. */
 BOOL rest_window_pos( HWND, int options );
 
-#if __cplusplus
+#ifdef __cplusplus
 }
 #endif
 #endif /* _PM123_INIMAN_H */

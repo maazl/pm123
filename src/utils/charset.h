@@ -43,7 +43,7 @@
 #define CH_CP         0x0001
 #define CH_DETECT     0x0002
 
-#if __cplusplus
+#ifdef __cplusplus
 extern "C" {
 #endif
 
@@ -91,7 +91,7 @@ int ch_detect( int ch_source, const char* source );
 char* ch_convert( int ch_source, const char* source, 
                   int ch_target, char* target, size_t size );
 
-#if __cplusplus
+#ifdef __cplusplus
 }
 #endif
 

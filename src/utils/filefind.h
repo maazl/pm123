@@ -30,7 +30,7 @@
 #ifndef __FILEFIND_H
 #define __FILEFIND_H
 
-#if __cplusplus
+#ifdef __cplusplus
 extern "C" {
 #endif
 
@@ -47,7 +47,7 @@ ULONG findnext ( HDIR  hdir, FILEFINDBUF3* buf );
 /* Closes the handle to a find request; that is, ends a search. */
 ULONG findclose( HDIR  hdir );
 
-#if __cplusplus
+#ifdef __cplusplus
 }
 #endif
 

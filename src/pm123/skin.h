@@ -241,7 +241,7 @@ extern BMPBUTTON btn_repeat;  /* Repeat button    */
 extern BMPBUTTON btn_pl;      /* Playlist button  */
 extern BMPBUTTON btn_fload;   /* Load a file      */
 
-#if __cplusplus
+#ifdef __cplusplus
 extern "C" {
 #endif
 
@@ -317,7 +317,7 @@ BOOL bmp_is_mode_supported( int mode );
 /* Returns TRUE if specified font supported by current skin. */
 BOOL bmp_is_font_supported( int font );
 
-#if __cplusplus
+#ifdef __cplusplus
 }
 #endif
 #endif /* _PM123_SKIN_H */

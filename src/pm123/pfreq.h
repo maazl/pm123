@@ -27,6 +27,9 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#ifndef PM123_PFREQ_H
+#define PM123_PFREQ_H
+
 #define DLG_PM            48
 
 #define PM_MAIN_MENU    1024
@@ -46,6 +49,11 @@
 
 #define PM_TYPE_LIST    1
 #define PM_TYPE_FILE    2
+
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 typedef struct
 {
@@ -81,3 +89,7 @@ void pm_show( BOOL show );
 void pm_destroy( void );
 
 
+#ifdef __cplusplus
+}
+#endif
+#endif

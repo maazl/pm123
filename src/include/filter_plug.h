@@ -4,7 +4,7 @@
 #include "format.h"
 #include "output_plug.h"
 
-#if __cplusplus
+#ifdef __cplusplus
 extern "C" {
 #endif
 
@@ -72,7 +72,7 @@ void  PM123_ENTRY filter_update( void*  f, const FILTER_PARAMS2* params );
 BOOL  PM123_ENTRY filter_uninit( void*  f );
 
 
-#if __cplusplus
+#ifdef __cplusplus
 }
 #endif
 #endif /* __PM123_FILTER_PLUG_H */

@@ -65,7 +65,7 @@ typedef struct
 
 } VISUAL_PROPERTIES;
 
-#if __cplusplus
+#ifdef __cplusplus
 extern "C" {
 #endif
 
@@ -147,7 +147,7 @@ BOOL  PM123_ENTRY decoder_playing( void );
 void  load_plugin_menu( HWND hmenu );
 BOOL  process_possible_plugin( HWND hwnd, USHORT cmd );
 
-#if __cplusplus
+#ifdef __cplusplus
 }
 #endif
 #endif /* _PM123_PLUGMAN_H */

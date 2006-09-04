@@ -16,7 +16,7 @@
 #define PLUGIN_DECODER 0x004
 #define PLUGIN_OUTPUT  0x008
 
-#if __cplusplus
+#ifdef __cplusplus
 extern "C" {
 #endif
 
@@ -93,7 +93,7 @@ typedef struct _PLUGIN_QUERYPARAM
 int PM123_ENTRY plugin_query( PLUGIN_QUERYPARAM* param );
 int PM123_ENTRY plugin_configure( HWND hwnd, HMODULE module );
 
-#if __cplusplus
+#ifdef __cplusplus
 }
 #endif
 #endif /* __PM123_PLUGIN_H */

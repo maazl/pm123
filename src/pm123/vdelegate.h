@@ -45,7 +45,7 @@
 // for PM123_ENTRYP
 #include <format.h>
 
-#if __cplusplus
+#ifdef __cplusplus
 extern "C" {
 #endif
 
@@ -80,7 +80,7 @@ typedef unsigned char VREPLACE1[VREPLACE1_LEN];
  */  
 V_FUNC mkvreplace1(VREPLACE1* rp, V_FUNC func, void* ptr);
 
-#if __cplusplus
+#ifdef __cplusplus
 }
 #endif
 #endif
