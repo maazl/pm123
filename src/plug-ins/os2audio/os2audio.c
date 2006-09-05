@@ -43,6 +43,7 @@
 
 //#define DEBUG 2
 
+#include <debuglog.h>
 #ifdef DEBUG
 #include <time.h>
 #endif
@@ -172,7 +173,9 @@ static LONG APIENTRY DARTEvent(ULONG ulStatus, MCI_MIX_BUFFER *PlayedBuffer, ULO
             (2nd ahead buffer not filled), let's boost its priority! */
          if(a->mainthread != NULL &&
             a->tobefilled == ( (BUFFERINFO *) ((BUFFERINFO *) a->playingbuffer->ulUserParm)->NextBuffer->ulUserParm)->NextBuffer)
+         {  DEBUGLOG(("%x: DARTEvent: priority boost (%d, %d, %d).\n", time(NULL), a->boostclass,a->boostdelta,a->mainthread->tib_ptib2->tib2_ultid));
             DosSetPriority(PRTYS_THREAD,a->boostclass,a->boostdelta,a->mainthread->tib_ptib2->tib2_ultid);
+         }
       }
 
       /* empty the played buffer in case it doesn't get filled back */
@@ -263,9 +266,7 @@ static ULONG PM123_ENTRY output_pause(void *A, BOOL pause)
 ULONG PM123_ENTRY output_init(void **A)
 {
    OS2AUDIO *a;
-   #ifdef DEBUG
-   fprintf(stderr, "%x: output_init\n", time(NULL));
-   #endif
+   DEBUGLOG(("%x: output_init\n", time(NULL)));
 
    *A = malloc(sizeof(OS2AUDIO));
    a = (OS2AUDIO *) *A;
@@ -542,9 +543,7 @@ static ULONG output_close(void *A)
 
 ULONG PM123_ENTRY output_uninit(void *a)
 {
-   #ifdef DEBUG
-   fprintf(stderr, "%x: output_uninit\n", time(NULL));
-   #endif
+   DEBUGLOG(("%x: output_uninit\n", time(NULL)));
    free(a);
 
    return 0;
@@ -554,20 +553,17 @@ ULONG PM123_ENTRY output_uninit(void *a)
 int PM123_ENTRY output_play_samples(void *A, FORMAT_INFO *format, char *buf,int len, int posmarker)
 {
    OS2AUDIO *a = (OS2AUDIO*)A;
-
-   PPIB ppib;
    PTIB ptib;
 
-   #if defined(DEBUG) && DEBUG >= 2
-   fprintf(stderr, "%x: output_play_samples({%i,%i,%i,%i,%x}, %p, %i, %i)\n", time(NULL),
-      format->size, format->samplerate, format->channels, format->bits, format->format, buf, len, posmarker);
-   #endif
+   DEBUGLOG2(("%x: output_play_samples({%i,%i,%i,%i,%x}, %p, %i, %i)\n", time(NULL),
+      format->size, format->samplerate, format->channels, format->bits, format->format, buf, len, posmarker));
 
-   DosGetInfoBlocks(&ptib,&ppib);
+   DosGetInfoBlocks(&ptib,NULL);
 
    if(ptib != a->mainthread)
    {
       a->mainthread = ptib;
+      DEBUGLOG(("%x: output_play_samples: initial priority boost (%d, %d, %d).\n", time(NULL), a->boostclass, a->boostdelta, a->mainthread->tib_ptib2->tib2_ultid));
       DosSetPriority(PRTYS_THREAD,a->boostclass,a->boostdelta,a->mainthread->tib_ptib2->tib2_ultid);
    }
 
@@ -640,7 +636,10 @@ int PM123_ENTRY output_play_samples(void *A, FORMAT_INFO *format, char *buf,int 
       /* if we're out of the water (3rd ahead buffer filled),
          let's reduce our priority */
       if(a->tobefilled == ( (BUFFERINFO *) ( (BUFFERINFO *) ((BUFFERINFO *) a->playingbuffer->ulUserParm)->NextBuffer->ulUserParm)->NextBuffer->ulUserParm)->NextBuffer)
+      {
+         DEBUGLOG(("%x: output_play_samples: end of priority boost (%d).\n", time(NULL), a->mainthread->tib_ptib2->tib2_ultid));
          DosSetPriority(PRTYS_THREAD,a->normalclass,a->normaldelta,a->mainthread->tib_ptib2->tib2_ultid);
+      }
 
       a->tobefilled = ((BUFFERINFO *) a->tobefilled->ulUserParm)->NextBuffer;
    }
@@ -651,9 +650,7 @@ int PM123_ENTRY output_play_samples(void *A, FORMAT_INFO *format, char *buf,int 
 ULONG PM123_ENTRY output_playing_samples(void *A, FORMAT_INFO *info, char *buf, int len)
 {
    OS2AUDIO *a = (OS2AUDIO *) A;
-   #if defined(DEBUG) && DEBUG >= 2
-   fprintf(stderr, "%x: output_playing_samples(%p, %p, %i)\n", time(NULL), info, buf, len);
-   #endif
+   DEBUGLOG2(("%x: output_playing_samples(%p, %p, %i)\n", time(NULL), info, buf, len));
 
    if(len > a->buffersize || !a->playingbuffer || !a->maop.usDeviceID) return 1;
 
@@ -707,9 +704,7 @@ ULONG PM123_ENTRY output_playing_samples(void *A, FORMAT_INFO *info, char *buf, 
 ULONG PM123_ENTRY output_playing_pos(void *A)
 {
    OS2AUDIO *a = (OS2AUDIO *) A;
-   #if defined(DEBUG) && DEBUG >= 2
-   fprintf(stderr, "%x: output_playing_pos: %lu\n", time(NULL), a->playingpos);
-   #endif
+   DEBUGLOG(("%x: output_playing_pos: %lu\n", time(NULL), a->playingpos));
    return a->playingpos;
 }
 
@@ -740,9 +735,7 @@ static void output_trash_buffers(void *A, ULONG temp_playingpos)
 BOOL PM123_ENTRY output_playing_data(void *A)
 {
    OS2AUDIO *a = (OS2AUDIO *) A;
-   #if defined(DEBUG) && DEBUG >= 2
-   fprintf(stderr, "%x: output_playing_data: %i\n", time(NULL), !a->nomoredata);
-   #endif
+   DEBUGLOG2(("%x: output_playing_data: %i\n", time(NULL), !a->nomoredata));
    return !a->nomoredata;
 }
 
@@ -867,9 +860,7 @@ ULONG PM123_ENTRY output_command(void *A, ULONG msg, OUTPUT_PARAMS *info)
 {
    OS2AUDIO *a = (OS2AUDIO *) A;
    ULONG rc = 0;
-   #ifdef DEBUG
-   fprintf(stderr, "%x: output_command(%i, %p)\n", time(NULL), msg, info);
-   #endif
+   DEBUGLOG(("%x: output_command(%i, %p)\n", time(NULL), msg, info));
 
    switch(msg)
    {
