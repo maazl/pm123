@@ -42,6 +42,8 @@
 #include <string.h>
 #include <stdio.h>
 
+#define FILTER_PLUGIN_LEVEL 2
+
 #include <utilfct.h>
 #include <fftw3.h>
 #include <format.h>
@@ -111,7 +113,8 @@ static float preamp = 1.0;           // global gain
 
 // for FFT convolution...
 static struct
-{ float* time_domain;         // buffer in the time domain
+{ short* inbox;               // buffer to collect incoming samples
+  float* time_domain;         // buffer in the time domain
   fftwf_complex* freq_domain; // buffer in the frequency domain (shared memory with design)
   float* design;              // buffer to design filter kernel (shared memory with freq_domain)
   float* kernel[2];           // since the kernel is real even, it's even real in the time domain
@@ -162,14 +165,14 @@ static char lasteq[CCHMAXPATH];
 
 typedef struct {
 
-   int  (PM123_ENTRYP output_play_samples)( void* a, const FORMAT_INFO* format, const char* buf, int len, int posmarker );
+   int   (PM123_ENTRYP output_request_buffer)( void* a, const FORMAT_INFO* format, char** buf );
+   void  (PM123_ENTRYP output_commit_buffer)( void* a, int len, int posmarker );
    void* a;
    void (PM123_ENTRYP error_display)( char* );
 
    FORMAT_INFO last_format;
-   int   prevlen;
 
-   char* newsamples;
+   int   inboxlevel; // number of samples in inbox array
 
 } REALEQ_STRUCT;
 
@@ -282,45 +285,6 @@ init_request( void )
 }
 
 
-/********** Entry point: Initialize
-*/
-ULONG PM123_ENTRY
-filter_init( void** F, FILTER_PARAMS* params )
-{
-  REALEQ_STRUCT* f = (REALEQ_STRUCT*)malloc( sizeof( REALEQ_STRUCT ));
-  DEBUGLOG(("filter_init(%p->%p, {%u, %p, %p, %i, %p, %p})\n",
-   F, f, params->size, params->output_play_samples, params->a, params->audio_buffersize, params->error_display, params->info_display));
-
-  *F = f;
- 
-  init_request();
-  eqneedinit = TRUE;
-
-  f->output_play_samples = params->output_play_samples;
-  f->a = params->a;
-  f->error_display = params->error_display;
-  f->prevlen = 0;
-
-  f->newsamples = (char*)malloc( params->audio_buffersize );
-
-  memset( &f->last_format, 0, sizeof( FORMAT_INFO ));
-  return 0;
-}
-
-BOOL PM123_ENTRY
-filter_uninit( void* F )
-{
-  REALEQ_STRUCT* f = (REALEQ_STRUCT*)F;
-  DEBUGLOG(("filter_uninit(%p)\n", F));
-
-  if( f != NULL )
-  {
-    free( f->newsamples );
-    free( f );
-  }
-  return TRUE;
-}
-
 typedef struct
 { float lf; // log frequency
   float lv; // log value
@@ -351,9 +315,12 @@ fil_setup( REALEQ_STRUCT* f, int samplerate, int channels )
     return TRUE;
   }
 
+  // STEP 1: initialize buffers and FFT plans
+   
   // free old resources
   if (FFTinit)
   { DEBUGLOG(("fil_setup: free\n"));
+    free(FFT.inbox);
     fftwf_destroy_plan(FFT.forward_plan);
     fftwf_destroy_plan(FFT.backward_plan);
     fftwf_destroy_plan(FFT.RDCT_plan);
@@ -364,32 +331,33 @@ fil_setup( REALEQ_STRUCT* f, int samplerate, int channels )
     fftwf_free(FFT.kernel[0]);
   }
 
-  // copy global parameters for thread safety
-  FFT.plansize = newPlansize;
-  // round up to next power of 2
-  frexp(FFT.plansize-1, &i); // floor(log2(FFT.plansize-1))+1
-  i = (1<<i)+1; // 2**x
-  DEBUGLOG(("I: %d - %p\n", i, FFT.DCT_plan));
+  // copy global parameters for thread safety and round up to next power of 2
+  frexp(newPlansize-1, &i); // floor(log2(plansize-1))+1
+  FFT.plansize = (1<<i)+1; // 2**x
+  DEBUGLOG(("I: %d - %p\n", FFT.plansize, FFT.DCT_plan));
 
   // allocate buffers
-  FFT.freq_domain = (fftwf_complex*)fftwf_malloc((i/2+1) * sizeof *FFT.freq_domain);
-  FFT.time_domain = (float*)fftwf_malloc((i+1) * sizeof *FFT.time_domain);
-  FFT.design = FFT.freq_domain[0]; // Aliasing!
-  FFT.overlap[0] = (float*)malloc(FFT.plansize * 2 * sizeof(float));
+  FFT.inbox       = (short*)malloc(FFT.plansize * 2 * sizeof(short));
+  FFT.freq_domain = (fftwf_complex*)fftwf_malloc((FFT.plansize/2+1) * sizeof *FFT.freq_domain);
+  FFT.time_domain = (float*)fftwf_malloc((FFT.plansize+1) * sizeof *FFT.time_domain);
+  FFT.design      = FFT.freq_domain[0]; // Aliasing!
+  FFT.overlap[0]  = (float*)malloc(FFT.plansize * 2 * sizeof(float));
   memset(FFT.overlap[0], 0, FFT.plansize * 2 * sizeof(float)); // initially zero
-  FFT.overlap[1] = FFT.overlap[0] + FFT.plansize;
-  FFT.kernel[0] = (float*)fftwf_malloc((FFT.plansize/2+1) * 2 * sizeof(float));
-  FFT.kernel[1] = FFT.kernel[0] + (FFT.plansize/2+1);
+  FFT.overlap[1]  = FFT.overlap[0] + FFT.plansize;
+  FFT.kernel[0]   = (float*)fftwf_malloc((FFT.plansize/2+1) * 2 * sizeof(float));
+  FFT.kernel[1]   = FFT.kernel[0]  + (FFT.plansize/2+1);
 
   // prepare real 2 complex transformations
-  FFT.forward_plan = fftwf_plan_dft_r2c_1d( FFT.plansize, FFT.time_domain, FFT.freq_domain, FFTW_ESTIMATE);
-  FFT.backward_plan = fftwf_plan_dft_c2r_1d( FFT.plansize, FFT.freq_domain, FFT.time_domain, FFTW_ESTIMATE);
+  FFT.forward_plan  = fftwf_plan_dft_r2c_1d( FFT.plansize, FFT.time_domain, FFT.freq_domain, FFTW_ESTIMATE );
+  FFT.backward_plan = fftwf_plan_dft_c2r_1d( FFT.plansize, FFT.freq_domain, FFT.time_domain, FFTW_ESTIMATE );
   // prepare real 2 real transformations
-  FFT.RDCT_plan = fftwf_plan_r2r_1d(FFT.plansize/2+1, FFT.time_domain, FFT.kernel[0], FFTW_REDFT00, FFTW_ESTIMATE);
+  FFT.RDCT_plan     = fftwf_plan_r2r_1d( FFT.plansize/2+1, FFT.time_domain, FFT.kernel[0], FFTW_REDFT00, FFTW_ESTIMATE );
 
   eqneedinit = FALSE;
 
  doFIR:
+  // STEP 2: setup FIR order
+  
   if( newFIRorder < 2 || newFIRorder >= FFT.plansize)
   { (*f->error_display)("very bad! The FIR order and/or the FFT plansize is invalid or the FIRorder is higer or equal to the plansize.");
     eqenabled = FALSE; // avoid crash
@@ -413,6 +381,8 @@ fil_setup( REALEQ_STRUCT* f, int samplerate, int channels )
   eqneedFIR = FALSE;
 
  doEQ:
+  // STEP 3: setup filter kernel
+  
   fftspecres = (float)samplerate / FFT.DCTplansize;
 
   // Prepare design coefficients frame
@@ -462,7 +432,7 @@ fil_setup( REALEQ_STRUCT* f, int samplerate, int channels )
     { float* sp = FFT.time_domain;
       for (i = FFT.FIRorder/2; i >= 0; --i)
       { *sp *= WINDOW_FUNCTION(i, FFT.FIRorder) / FFT.DCTplansize / FFT.plansize; // normalize for next FFT
-        DEBUGLOG(("K: %i, %g\n", i, *sp));
+        DEBUGLOG2(("K: %i, %g\n", i, *sp));
         ++sp;
       }
       // padding
@@ -674,34 +644,137 @@ filter_samples_fft_stereo( short* newsamples, const short* buf, int len )
   }
 }
 
+/* flush all incomplete samples and pass them to the output */
+static void
+local_flush( REALEQ_STRUCT* f )
+{ // TODO: !!!
+  f->inboxlevel = 0;
+}
+
 /* Entry point: do filtering */
-int PM123_ENTRY
-filter_play_samples( void* F, FORMAT_INFO* format, char* buf, int len, int posmarker )
+static int PM123_ENTRY
+filter_request_buffer( REALEQ_STRUCT* f, const FORMAT_INFO* format, char** buf )
 {
-  REALEQ_STRUCT* f = (REALEQ_STRUCT*)F;
-  DEBUGLOG(("realeq:filter_play_samples(%p, {%u, %u, %u, %u, %u}, %p, %u, %u)\n",
-   F, format->size, format->samplerate, format->channels, format->bits, format->format, buf, len, posmarker));
+  DEBUGLOG(("realeq:filter_request_buffer(%p, {%u, %u, %u, %u, %u}, %p)\n",
+   F, format->size, format->samplerate, format->channels, format->bits, format->format, buf));
 
   if( eqenabled && format->bits == 16 && ( format->channels == 1 || format->channels == 2 ))
   {
-    if( memcmp( &f->last_format, format, sizeof( FORMAT_INFO )) != 0 )
-    { f->last_format = *format;
+    if (buf == NULL) // global flush();
+    { local_flush();
+      return f->output_request_buffer( f->a, format, buf );
+    }
+    
+    if ( memcmp( &f->last_format, format, sizeof( FORMAT_INFO )) != 0 )
+    { local_flush();
+      f->last_format = *format;
       eqneedinit = TRUE;
     }
     fil_setup( f, format->samplerate, format->channels );
 
-    if( format->channels == 2 ) {
-      filter_samples_fft_stereo( (short*)f->newsamples, (short*)buf, len>>2 );
-    } else {
-      filter_samples_fft_mono( (short*)f->newsamples, (short*)buf, len>>1 );
-    }
-
-    return f->output_play_samples( f->a, format, f->newsamples, len, posmarker );
+    *buf = (char*)(FFT.inbox + f->inboxlevel * format->channels);
+    return FFT.plansize - FFT.FIRorder - inboxlevel;
   }
   else
   {
-    return f->output_play_samples( f->a, format, buf, len, posmarker );
+    return f->output_request_buffer( f->a, format, buf );
   }
+}
+
+static void PM123_ENTRY
+filter_commit_buffer( REALEQ_STRUCT* f, int len, int posmarker )
+{
+  DEBUGLOG(("realeq:filter_play_samples(%p, {%u, %u, %u, %u, %u}, %p, %u, %u)\n",
+   F, format->size, format->samplerate, format->channels, format->bits, format->format, buf, len, posmarker));
+
+  f->inboxlevel += len / sizeof(short) / f->last_format.channels;
+
+  if (f->inboxlevel == FFT.plansize - FFT.FIRorder)
+  { // enough data, apply filter
+    int   dlen;
+    char* dbuf;
+    
+    // request destination buffer
+    dlen = f->output_request_buffer( f->a, &f->last_format, &dbuf );
+    
+    len = f->inboxlevel * sizeof(short) * f->last_format.channels; // required destination length
+    if (dlen < len)
+    { // with fragmentation
+      char* sp;
+    
+      if ( f->last_format.channels == 2 ) {
+        filter_samples_fft_stereo( FFT.inbox, FFT.inbox, f->inboxlevel );
+      } else {
+        filter_samples_fft_mono( FFT.inbox, FFT.inbox, f->inboxlevel );
+      }
+      
+      // transfer data
+      sp = (char*)FFT.inbox;
+      for(;;)
+      { memcpy(dbuf, sp, dlen);
+        // TODO: posmarker!
+        f->output_commit_buffer( f->a, dlen, posmarker );
+        len -= dlen;
+        if (len == 0)
+          break;
+        // request next buffer
+        dlen = f->output_request_buffer( f->a, &f->last_format, &dbuf );
+        if (dlen > len)
+          dlen = len;
+      }
+      
+    } else
+    { // without fragmentation
+      if ( f->last_format.channels == 2 ) {
+        filter_samples_fft_stereo( (short*)dbuf, FFT.inbox, f->inboxlevel );
+      } else {
+        filter_samples_fft_mono( (short*)dbuf, FFT.inbox, f->inboxlevel );
+      }
+      // TODO: posmarker!
+      f->output_commit_buffer( f->a, len, posmarker );
+    }
+
+    f->inboxlevel = 0;
+  }
+}
+
+/********** Entry point: Initialize
+*/
+ULONG PM123_ENTRY
+filter_init( void** F, FILTER_PARAMS2* params )
+{
+  REALEQ_STRUCT* f = (REALEQ_STRUCT*)malloc( sizeof( REALEQ_STRUCT ));
+  DEBUGLOG(("filter_init(%p->%p, {%u, %p, %p, %i, %p, %p})\n",
+   F, f, params->size, params->output_play_samples, params->a, params->audio_buffersize, params->error_display, params->info_display));
+
+  *F = f;
+ 
+  init_request();
+  eqneedinit = TRUE;
+
+  f->output_request_buffer = params->output_request_buffer;
+  f->output_commit_buffer  = params->output_commit_buffer;
+  f->a                     = params->a;
+  f->error_display         = params->error_display;
+
+  memset( &f->last_format, 0, sizeof( FORMAT_INFO ));
+  
+  params->output_request_buffer = &filter_request_buffer;
+  params->output_commit_buffer  = &filter_commit_buffer;
+  return 0;
+}
+
+BOOL PM123_ENTRY
+filter_uninit( void* F )
+{
+  REALEQ_STRUCT* f = (REALEQ_STRUCT*)F;
+  DEBUGLOG(("filter_uninit(%p)\n", F));
+
+  if( f != NULL )
+  {
+    free( f );
+  }
+  return TRUE;
 }
 
 
