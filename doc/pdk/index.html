@@ -97,30 +97,38 @@ It can also be used to save settings in your INI file for other sort of plug-ins
 <table cellpadding=3 cellspacing=0 border=1>
   <tr>
     <th>Interface-Level</th>
+    <th>PM123 version</th>
     <th>Visual</th>
     <th>Filter</th>
     <th>Decoder</th>
     <th>Output</th>
   </tr><tr>
     <td>0</td>
+    <td>n/a</td>
     <td><em>no longer supported!</em></td>
     <td>supported</td>
     <td>supported</td>
     <td>supported but deprecated</td>
   </tr><tr>
     <td>1</td>
+    <td>&ge; 1.32 <font size=-1><sup><a href="#note1">1</a></sup></font></td>
     <td>recent</td>
     <td>supported,<br>same as level 0</td>
     <td>supported,<br>same as level 0</td>
     <td>supported but deprecated,<br>same as level 0</td>
   </tr><tr>
     <td>2</td>
+    <td>&ge; 1.4</td>
     <td>recent,<br>same as level 1</td>
     <td>recent redesign</td>
     <td>recent redesign</td>
     <td>recent redesign</td>
   </tr>
 </table>
+<ol>
+  <li><a name="note1"></a>PM123 version 1.32 does not check for the compatibility of plug-ins.
+    When a wrong plug-in is used, the application will most likely crash.</li>
+</ol>
 <p>For example a filter plug-in will be loaded depending on it's interface level
   by a PM123 instance with interface level 2 (compile time constant) in the following way:
 <table cellpadding=3 cellspacing=0 border=1>
