@@ -172,12 +172,13 @@ typedef struct {
    void* a;
    void  (PM123_ENTRYP error_display)        ( char* );
 
-   FORMAT_INFO last_format;
+   FORMAT_INFO format;
 
-   int   posmarker;
-   int   inboxlevel; // number of samples in inbox array
-   int   latency;
-   BOOL  request_pending;
+   int   posmarker;  // starting point of the inbox buffer
+   int   inboxlevel; // number of samples in inbox buffer
+   int   latency;    // samples to discard before passing them to the output stage
+   BOOL  enabled;    // flag whether the EQ was enabled at the last call to request_buffer
+   int   temppos;    // >= 0: discard buffer content before next request_buffer
 
 } REALEQ_STRUCT;
 
@@ -295,6 +296,13 @@ init_request( void )
   }
 }
 
+static void
+trash_buffers( REALEQ_STRUCT* f )
+{ DEBUGLOG(("realeq::trash_buffers(%p) - %d %d\n", f, f->inboxlevel, f->latency));
+  f->inboxlevel = 0;
+  f->latency    = -1;
+  memset(FFT.overlap[0], 0, FFT.plansize * 2 * sizeof(float)); // initially zero
+}
 
 typedef struct
 { float lf; // log frequency
@@ -353,7 +361,6 @@ fil_setup( REALEQ_STRUCT* f, int samplerate, int channels )
   FFT.time_domain = (float*)fftwf_malloc((FFT.plansize+1) * sizeof *FFT.time_domain);
   FFT.design      = FFT.freq_domain[0]; // Aliasing!
   FFT.overlap[0]  = (float*)malloc(FFT.plansize * 2 * sizeof(float));
-  memset(FFT.overlap[0], 0, FFT.plansize * 2 * sizeof(float)); // initially zero
   FFT.overlap[1]  = FFT.overlap[0] + FFT.plansize;
   FFT.kernel[0]   = (float*)fftwf_malloc((FFT.plansize/2+1) * 2 * sizeof(float));
   FFT.kernel[1]   = FFT.kernel[0]  + (FFT.plansize/2+1);
@@ -364,8 +371,7 @@ fil_setup( REALEQ_STRUCT* f, int samplerate, int channels )
   // prepare real 2 real transformations
   FFT.RDCT_plan     = fftwf_plan_r2r_1d( FFT.plansize/2+1, FFT.time_domain, FFT.kernel[0], FFTW_REDFT00, FFTW_ESTIMATE );
   
-  f->inboxlevel      = 0;
-  f->request_pending = FALSE;
+  trash_buffers(f);
 
   eqneedinit = FALSE;
 
@@ -389,8 +395,6 @@ fil_setup( REALEQ_STRUCT* f, int samplerate, int channels )
     fftwf_destroy_plan(FFT.DCT_plan);
   // prepare real 2 real transformations
   FFT.DCT_plan = fftwf_plan_r2r_1d(FFT.DCTplansize/2+1, FFT.design, FFT.time_domain, FFTW_REDFT00, FFTW_ESTIMATE);
-
-  f->latency = FFT.FIRorder >> 1; // discard first results
 
   DEBUGLOG(("P: FIRorder: %d, Plansize: %d, DCT plansize: %d\n", FFT.FIRorder, FFT.plansize, FFT.DCTplansize));
   eqneedFIR = FALSE;
@@ -670,20 +674,23 @@ static int
 do_request_buffer( REALEQ_STRUCT* f, char** buf )
 { DEBUGLOG(("realeq:do_request_buffer(%p, %p) - %d\n", f, buf, f->latency));
   if (f->latency != 0)
-  { *buf = NULL; // discard
-    return f->latency * sizeof(short) * f->last_format.channels;
+  { if (f->latency < 0)
+      f->latency = FFT.FIRorder >> 1;
+    *buf = NULL; // discard
+    return f->latency * sizeof(short) * f->format.channels;
   } else
-  { return (*f->output_request_buffer)( f->a, &f->last_format, buf );
+  { return (*f->output_request_buffer)( f->a, &f->format, buf );
   }
 }
 
 static void
 do_commit_buffer( REALEQ_STRUCT* f, int len, int posmarker )
-{ DEBUGLOG(("realeq:do_commit_buffer(%p, %d) - %d\n", f, len, f->latency));
+{ DEBUGLOG(("realeq:do_commit_buffer(%p, %d, %d) - %d\n", f, len, posmarker, f->latency));
   if (f->latency != 0)
-    f->latency -= len / sizeof(short) / f->last_format.channels;
-   else
-    (*f->output_commit_buffer)( f->a, len, posmarker );
+  { f->latency -= len / sizeof(short) / f->format.channels;
+  } else
+  { (*f->output_commit_buffer)( f->a, len, posmarker );
+  }
 }
 
 /* applies the FFT filter to the current inbox content and sends the result to the next plug-in.
@@ -699,14 +706,20 @@ filter_and_send( REALEQ_STRUCT* f )
   // request destination buffer
   dlen = do_request_buffer( f, &dbuf );
   
-  len = f->inboxlevel * sizeof(short) * f->last_format.channels; // required destination length
+  if (f->temppos != -1)
+  { f->inboxlevel = 0;
+    do_commit_buffer(f, 0, f->temppos); // no-op
+    return;
+  }
+
+  len = f->inboxlevel * sizeof(short) * f->format.channels; // required destination length
   if (dlen < len)
   { // with fragmentation
     int rem = len;
     char* sp;
     int byterate;
   
-    if ( f->last_format.channels == 2 ) {
+    if ( f->format.channels == 2 ) {
       filter_samples_fft_stereo( FFT.inbox, FFT.inbox, f->inboxlevel );
     } else {
       filter_samples_fft_mono( FFT.inbox, FFT.inbox, f->inboxlevel );
@@ -714,7 +727,7 @@ filter_and_send( REALEQ_STRUCT* f )
     
     // transfer data
     sp = (char*)FFT.inbox;
-    byterate = get_byte_rate(&f->last_format);
+    byterate = get_byte_rate(&f->format);
     for(;;)
     { if (dbuf != NULL)
         memcpy(dbuf, sp, dlen);
@@ -725,13 +738,18 @@ filter_and_send( REALEQ_STRUCT* f )
       sp += dlen;
       // request next buffer
       dlen = do_request_buffer( f, &dbuf );
+      if (f->temppos != -1)
+      { f->inboxlevel = 0;
+        do_commit_buffer(f, 0, f->temppos); // no-op
+        return;
+      }
       if (dlen > rem)
         dlen = rem;
     }
     
   } else
   { // without fragmentation
-    if ( f->last_format.channels == 2 ) {
+    if ( f->format.channels == 2 ) {
       filter_samples_fft_stereo( (short*)dbuf, FFT.inbox, f->inboxlevel );
     } else {
       filter_samples_fft_mono( (short*)dbuf, FFT.inbox, f->inboxlevel );
@@ -739,27 +757,28 @@ filter_and_send( REALEQ_STRUCT* f )
     do_commit_buffer( f, len, f->posmarker );
   }
 
+  f->posmarker += f->inboxlevel*1000/f->format.samplerate;
   f->inboxlevel = 0;
 }
-
-static int PM123_ENTRY
-filter_request_buffer( REALEQ_STRUCT* f, const FORMAT_INFO* format, char** buf );
-static void PM123_ENTRY
-filter_commit_buffer( REALEQ_STRUCT* f, int len, int posmarker );
 
 static void
 local_flush( REALEQ_STRUCT* f )
 { // emulate input of some zeros to compensate for filter size
-  int   len = ((FFT.FIRorder+1) >> 1) * sizeof(short) * f->last_format.channels;
+  int   len = (FFT.FIRorder+1) >> 1;
   DEBUGLOG(("realeq:local_flush(%p) - %d %d %d\n", f, len, f->inboxlevel, f->latency));
   while (len != 0)
-  { char* buf;
-    int   dlen = filter_request_buffer( f, &f->last_format, &buf );
+  { int dlen = FFT.plansize - FFT.FIRorder - f->inboxlevel;
     if (dlen > len)
       dlen = len;
-    memset(buf, 0, dlen);
-    // TODO: posmarker
-    filter_commit_buffer( f, dlen, f->posmarker );
+    memset(FFT.inbox + f->inboxlevel * f->format.channels, 0, dlen * sizeof(short) * f->format.channels);
+    // commit buffer
+    f->inboxlevel += dlen;
+    if (f->inboxlevel == FFT.plansize - FFT.FIRorder)
+    { // enough data, apply filter
+      filter_and_send(f);
+      if (f->temppos != -1)
+        break;
+    }
     len -= dlen;
   }
 
@@ -768,24 +787,43 @@ local_flush( REALEQ_STRUCT* f )
     filter_and_send(f);
 
   // setup for restart
-  f->latency = FFT.FIRorder >> 1;
+  trash_buffers(f);
 }
 
 /* Entry point: do filtering */
 static int PM123_ENTRY
 filter_request_buffer( REALEQ_STRUCT* f, const FORMAT_INFO* format, char** buf )
-{
+{ BOOL enabled;
   DEBUGLOG(("realeq:filter_request_buffer(%p, {%u, %u, %u, %u, %u}, %p) - %d %d\n",
    f, format->size, format->samplerate, format->channels, format->bits, format->format, buf, f->inboxlevel, f->latency));
 
-  if( eqenabled && format->bits == 16 && ( format->channels == 1 || format->channels == 2 ))
+  enabled = eqenabled && format->bits == 16 && ( format->channels == 1 || format->channels == 2 );
+  if (enabled && !f->enabled)
+  { // enable EQ
+    f->enabled = TRUE;
+    f->latency = -1;
+  } else if (!enabled && f->enabled)
+  { // disable EQ
+    local_flush(f);
+    f->enabled = FALSE;
+  }
+
+  if ( f->enabled )
   {
-    if ( memcmp( &f->last_format, format, sizeof( FORMAT_INFO )) != 0 )
-    { if (f->last_format.samplerate != 0)
-        local_flush( f );
-      f->last_format = *format;
-      eqneedinit = TRUE;
+    if (f->temppos != -1)
+    { trash_buffers(f);
+      f->temppos = -1;
     }
+    if ( memcmp( &f->format, format, sizeof( FORMAT_INFO )) != 0 )
+    { if (f->format.samplerate != 0)
+        local_flush( f );
+      f->format = *format;
+      eqneedinit = TRUE;
+    } else if (eqneedFIR || eqneedinit)
+    { if (f->format.samplerate != 0)
+        local_flush( f );
+    }
+    
     fil_setup( f, format->samplerate, format->channels );
 
     if (buf == NULL) // global flush();
@@ -795,7 +833,6 @@ filter_request_buffer( REALEQ_STRUCT* f, const FORMAT_INFO* format, char** buf )
     
     *buf = (char*)(FFT.inbox + f->inboxlevel * format->channels);
     DEBUGLOG(("realeq:filter_request_buffer: %d\n", (FFT.plansize - FFT.FIRorder - f->inboxlevel) * sizeof(short) * format->channels));
-    f->request_pending = TRUE;
     return (FFT.plansize - FFT.FIRorder - f->inboxlevel) * sizeof(short) * format->channels;
   }                                                        
   else
@@ -809,16 +846,16 @@ filter_commit_buffer( REALEQ_STRUCT* f, int len, int posmarker )
 {
   DEBUGLOG(("realeq:filter_commit_buffer(%p, %u, %u) - %d %d\n", f, len, posmarker, f->inboxlevel, f->latency));
   
-  if (!f->request_pending)
+  if (!f->enabled)
   { (*f->output_commit_buffer)( f->a, len, posmarker );
     return;
   }
-  f->request_pending = FALSE;
 
   if (f->inboxlevel == 0)
-    f->posmarker = posmarker;
+    // remember position and precompensate for filter delay
+    f->posmarker = posmarker - (FFT.FIRorder>>1)*1000/f->format.samplerate;
 
-  f->inboxlevel += len / sizeof(short) / f->last_format.channels;
+  f->inboxlevel += len / sizeof(short) / f->format.channels;
 
   if (f->inboxlevel == FFT.plansize - FFT.FIRorder)
   { // enough data, apply filter
@@ -831,8 +868,10 @@ filter_command( REALEQ_STRUCT* f, ULONG msg, OUTPUT_PARAMS2* info )
 { DEBUGLOG(("realeq:filter_command(%p, %u, %p)\n", f, msg, info));
   switch (msg)
   {case OUTPUT_TRASH_BUFFERS:
-    f->inboxlevel = 0;
-    f->latency    = FFT.FIRorder >> 1;
+    f->temppos = info->temp_playingpos;
+    break;
+   case OUTPUT_CLOSE:
+    f->temppos = f->posmarker;
     break;
   }
   return (*f->output_command)( f->a, msg, info );
@@ -857,9 +896,10 @@ filter_init( void** F, FILTER_PARAMS2* params )
   f->a                     = params->a;
   f->error_display         = params->error_display;
   f->inboxlevel            = 0;
-  f->request_pending       = FALSE;
+  f->enabled               = FALSE; // flag is set later
+  f->temppos               = -1;
 
-  memset( &f->last_format, 0, sizeof( FORMAT_INFO ));
+  memset( &f->format, 0, sizeof( FORMAT_INFO ));
   
   params->output_command        = (ULONG (PM123_ENTRYP)(void*, ULONG, OUTPUT_PARAMS2*))    &filter_command;
   params->output_request_buffer = (int   (PM123_ENTRYP)(void*, const FORMAT_INFO*, char**))&filter_request_buffer;
@@ -987,12 +1027,24 @@ plugin_query( PLUGIN_QUERYPARAM *param )
 }
 
 static void
-set_band( HWND hwnd, int channel, int band )
-{
-  MRESULT rangevalue = WinSendDlgItemMsg( hwnd, 200 + NUM_BANDS*channel + band, SLM_QUERYSLIDERINFO,
-                                          MPFROM2SHORT( SMA_SLIDERARMPOSITION, SMA_RANGEVALUE ), 0 );
-  bandgain[channel][band] = 24. * SHORT1FROMMR( rangevalue ) / (SHORT2FROMMR( rangevalue ) - 1) + 12.;
-  mute[channel][band] = SHORT1FROMMR( WinSendDlgItemMsg( hwnd, 100 + NUM_BANDS*channel + band, BM_QUERYCHECK, 0, 0 ));
+set_slider( HWND hwnd, int channel, int band, double value )
+{ MRESULT rangevalue;
+  DEBUGLOG2(("realeq:set_slider(%p, %d, %d, %f)\n", hwnd, channel, band, value));
+
+  if (value < -12)
+  { DEBUGLOG(("load_dialog: value out of range %d, %d, %f\n", channel, band, value));
+    value = -12;
+  } else if (value > 12)
+  { DEBUGLOG(("load_dialog: value out of range %d, %d, %f\n", channel, band, value));
+    value = 12;
+  }
+
+  rangevalue = WinSendDlgItemMsg( hwnd, 200+NUM_BANDS*channel+band, SLM_QUERYSLIDERINFO,
+                                  MPFROM2SHORT( SMA_SLIDERARMPOSITION, SMA_RANGEVALUE ), 0 );
+
+  WinSendDlgItemMsg( hwnd, 200+NUM_BANDS*channel+band, SLM_SETSLIDERINFO,
+                     MPFROM2SHORT( SMA_SLIDERARMPOSITION, SMA_RANGEVALUE ),
+                     MPFROMSHORT( (value/24.+.5) * (SHORT2FROMMR(rangevalue) - 1) +.5 ));
 }
 
 static void
@@ -1002,22 +1054,14 @@ load_dialog( HWND hwnd )
 
   for( e = 0; e < 2; e++ ) {
     for( i = 0; i < NUM_BANDS; i++ ) {
-
-      MRESULT rangevalue;
       SHORT   range;
-      float   value;
 
       // mute check boxes
       WinSendDlgItemMsg( hwnd, 100 + NUM_BANDS*e + i, BM_SETCHECK, MPFROMCHAR( mute[e][i] ), 0 );
 
       // sliders
-      rangevalue = WinSendDlgItemMsg( hwnd, 200 + NUM_BANDS*e + i, SLM_QUERYSLIDERINFO,
-                                      MPFROM2SHORT( SMA_SLIDERARMPOSITION, SMA_RANGEVALUE ), 0 );
-      if ((ULONG)rangevalue == SLDERR_INVALID_PARAMETERS)
-      { DEBUGLOG(("load_dialog: SLM_QUERYSLIDERINFO returned an error\n"));
-        continue;
-      }
-      range = SHORT2FROMMR( rangevalue );
+      range = SHORT2FROMMR( WinSendDlgItemMsg( hwnd, 200 + NUM_BANDS*e + i, SLM_QUERYSLIDERINFO,
+                                               MPFROM2SHORT( SMA_SLIDERARMPOSITION, SMA_RANGEVALUE ), 0 ) );
           
       WinSendDlgItemMsg( hwnd, 200 + NUM_BANDS*e + i, SLM_ADDDETENT,
                          MPFROMSHORT( range - 1 ), 0 );
@@ -1027,17 +1071,7 @@ load_dialog( HWND hwnd )
                          MPFROMSHORT( 0 ), 0 );
 
       DEBUGLOG2(("load_dialog: %d %d %g\n", e, i, bandgain[e][i]));
-      value = (bandgain[e][i]+12.)/24.*(range-1);
-      if (value < 0)
-      { DEBUGLOG(("load_dialog: value out of range %g, %d, %d\n", value, e, i));
-        value = 0;
-      } else if (value >= range)
-      { DEBUGLOG(("load_dialog: value out of range %g, %d, %d\n", value, e, i));
-        value = range -1;
-      }
-      WinSendDlgItemMsg( hwnd, 200 + NUM_BANDS*e + i, SLM_SETSLIDERINFO,
-                         MPFROM2SHORT( SMA_SLIDERARMPOSITION, SMA_RANGEVALUE ),
-                         MPFROMSHORT((SHORT)value));
+      set_slider( hwnd, e, i, bandgain[e][i] );
     }
   }
 
@@ -1081,32 +1115,29 @@ ConfigureDlgProc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
 
         case EQ_LOAD:
           load_eq( hwnd, bandgain[0], mute[0], &preamp );
-          nottheuser  = TRUE;
+          nottheuser = TRUE;
           load_dialog( hwnd );
-          nottheuser  = FALSE;
+          nottheuser = FALSE;
           eqneedEQ = TRUE;
           break;
 
         case EQ_ZERO:
         {
           int e,i;
-          MRESULT rangevalue;
 
+          nottheuser = TRUE;
+          memset(bandgain, 0, sizeof bandgain);
+          memset(mute, 0, sizeof mute);
           for( e = 0; e < 2; e++ ) {
             for( i = 0; i < NUM_BANDS; i++ ) {
-
-              rangevalue = WinSendDlgItemMsg( hwnd, 200+NUM_BANDS*e+i, SLM_QUERYSLIDERINFO,
-                                              MPFROM2SHORT( SMA_SLIDERARMPOSITION, SMA_RANGEVALUE ), 0 );
-
-              WinSendDlgItemMsg( hwnd, 200+NUM_BANDS*e+i, SLM_SETSLIDERINFO,
-                                 MPFROM2SHORT( SMA_SLIDERARMPOSITION, SMA_RANGEVALUE ),
-                                 MPFROMSHORT( SHORT2FROMMR( rangevalue ) >> 1 ));
-
+              set_slider( hwnd, e, i, 0. );
               WinSendDlgItemMsg( hwnd, 100+NUM_BANDS*e+i, BM_SETCHECK, 0, 0 );
             }
           }
+          nottheuser = FALSE;
+          
           eqneedEQ = TRUE;
-          *lasteq = 0;
+          //*lasteq = 0; maybe it's better to keep the file...
           break;
         }
       }
@@ -1215,17 +1246,16 @@ ConfigureDlgProc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
                 }
                 band = raw;
 
+                mute[channel][band] = SHORT1FROMMR( WinSendDlgItemMsg( hwnd, 100+NUM_BANDS*channel+band, BM_QUERYCHECK, 0, 0 ) );
+
                 if( locklr )
                 {
                   nottheuser = TRUE;
-                  WinSendDlgItemMsg( hwnd, 100+NUM_BANDS*((channel+1)&1)+band, BM_SETCHECK, MPFROMSHORT(
-                          SHORT1FROMMR( WinSendDlgItemMsg( hwnd, 100+NUM_BANDS*channel+band, BM_QUERYCHECK, 0, 0 ))
-                          ), 0 );
+                  WinSendDlgItemMsg( hwnd, 100+NUM_BANDS*(channel^1)+band, BM_SETCHECK,
+                                     MPFROMSHORT( mute[channel^1][band] = mute[channel][band] ), 0 );
                   nottheuser = FALSE;
-                  set_band( hwnd, (channel+1)&1, band );
                 }
 
-                set_band( hwnd, channel, band );
                 eqneedEQ = TRUE;
               }
             }
@@ -1236,6 +1266,7 @@ ConfigureDlgProc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
               case SLN_CHANGE:
               {
                 int channel = 0, band = 0, raw = SHORT1FROMMP(mp1);
+                MRESULT rangevalue;
 
                 raw -= 200;
                 while( raw - NUM_BANDS >= 0 ) {
@@ -1243,23 +1274,16 @@ ConfigureDlgProc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
                   channel++;
                 }
                 band = raw;
+                
+                rangevalue = WinSendDlgItemMsg( hwnd, 200+NUM_BANDS*channel+band, SLM_QUERYSLIDERINFO,
+                                                MPFROM2SHORT( SMA_SLIDERARMPOSITION, SMA_RANGEVALUE ), 0 );
+                bandgain[channel][band] = (int)(24.*SHORT1FROMMR( rangevalue )/(SHORT2FROMMR( rangevalue ) - 1) +.5) - 12;
 
-                set_band( hwnd, channel, band );
                 if( locklr )
                 {
-                  MRESULT rangevalue;
-
                   nottheuser = TRUE;
-                  rangevalue = WinSendDlgItemMsg( hwnd, 200+NUM_BANDS*channel+band, SLM_QUERYSLIDERINFO,
-                                    MPFROM2SHORT( SMA_SLIDERARMPOSITION, SMA_RANGEVALUE ), 0 );
-
-                  WinSendDlgItemMsg( hwnd, 200 + NUM_BANDS * (( channel + 1 ) & 1 ) + band,
-                                     SLM_SETSLIDERINFO,
-                                     MPFROM2SHORT( SMA_SLIDERARMPOSITION, SMA_RANGEVALUE ),
-                                     MPFROMSHORT( SHORT1FROMMR( rangevalue )));
-
+                  set_slider( hwnd, channel^1, band, bandgain[channel^1][band] = bandgain[channel][band] ); 
                   nottheuser = FALSE;
-                  set_band(hwnd, (channel+1)&1, band);
                 }
                 eqneedEQ = TRUE;
               }
@@ -1281,7 +1305,7 @@ ConfigureDlgProc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
                   rangevalue = WinSendDlgItemMsg( hwnd, 200+NUM_BANDS*channel+band, SLM_QUERYSLIDERINFO,
                                   MPFROM2SHORT( SMA_SLIDERARMPOSITION, SMA_RANGEVALUE ), 0 );
 
-                  WinSendDlgItemMsg( hwnd, 200+NUM_BANDS*((channel+1)&1)+band, SLM_SETSLIDERINFO,
+                  WinSendDlgItemMsg( hwnd, 200+NUM_BANDS*(channel^1)+band, SLM_SETSLIDERINFO,
                                      MPFROM2SHORT( SMA_SLIDERARMPOSITION, SMA_RANGEVALUE ),
                                      MPFROMSHORT( SHORT1FROMMR( rangevalue )));
 
