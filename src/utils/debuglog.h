@@ -43,17 +43,31 @@
 #ifdef DEBUG
 #include <stdio.h>
 #include <stdarg.h>
+#include <time.h>
+
 // log to stderr
 static void debuglog(const char* fmt, ...)
 { va_list va;
+  PTIB ptib;
   va_start(va, fmt);
+  DosGetInfoBlocks(&ptib,NULL);
+  DosEnterCritSec();
+  fprintf(stderr, "%x %d\t", clock(), ptib->tib_ptib2->tib2_ultid);
   vfprintf(stderr, fmt, va);
+  DosExitCritSec();
   va_end(va);
 }
 #define DEBUGLOG(x) debuglog x
 #else
 // turn the log lines into a no-op, not even evaluating it's arguments
 #define DEBUGLOG(x)
+#endif
+
+// level 2 log
+#if defined(DEBUG) && DEBUG >= 2
+#define DEBUGLOG2(x) debuglog x
+#else
+#define DEBUGLOG2(x)
 #endif
 
 #endif
