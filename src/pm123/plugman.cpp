@@ -336,6 +336,7 @@ static CL_PLUGIN* instantiate(CL_MODULE& mod, CL_PLUGIN* (*factory)(CL_MODULE& m
   CL_PLUGIN* pp = (*factory)(mod);
   if (!pp->load_plugin() || !list.append(pp))
   { delete pp;
+    DEBUGLOG(("plugman:instantiate: failed.\n"));
     return NULL;
   } else
   { pp->set_enabled(enabled);
@@ -375,6 +376,7 @@ static int add_plugin_core(const char* name, const VISUAL_PROPERTIES* data, int 
   // load as plugin
   int result = 0;
   CL_MODULE& module = plugins[p];
+  module.attach(NULL); // keep a reference alive as long as we use the module in this code
   mask &= module.query_param.type;
   // decoder
   if ((mask & PLUGIN_DECODER) && instantiate(module, &CL_DECODER::factory, decoders, enabled))
@@ -400,8 +402,8 @@ static int add_plugin_core(const char* name, const VISUAL_PROPERTIES* data, int 
     }
   }
   // cleanup?
-  if (!result)
-    delete plugins.detach_request(p);
+  if (module.detach(NULL))
+    delete plugins.detach(p);
 
   DEBUGLOG(("plugman:add_plugin_core: %x\n", result));
   return result;

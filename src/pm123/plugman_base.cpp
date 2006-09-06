@@ -121,22 +121,25 @@ CL_MODULE::~CL_MODULE()
 /* Loads a plug-in dynamic link module. */
 BOOL CL_MODULE::load_module()
 { char  error[1024];
+  DEBUGLOG(("CL_MODULE(%p{%s})::load_module()\n", this, module_name));
   APIRET rc = DosLoadModule( error, sizeof( error ), (PSZ)module_name, &module );
   if( rc != NO_ERROR ) {
-    amp_player_error( "Could not load %s\n%s",
-                      module_name, os2_strerror( rc, error, sizeof( error )));
+    amp_player_error( "Could not load %s. Error %d\n%s",
+                      module_name, rc, os2_strerror( rc, error, sizeof( error )));
     return FALSE;
   }
+  DEBUGLOG(("CL_MODULE({%p,%s})::load_module: TRUE\n", module, module_name));
   return TRUE;
 }
 
 /* Unloads a plug-in dynamic link module. */
 BOOL CL_MODULE::unload_module()
-{ APIRET rc = DosFreeModule( module );
+{ DEBUGLOG(("CL_MODULE(%p{%p,%s}))::unload_module()\n", this, module, module_name));
+  APIRET rc = DosFreeModule( module );
   if( rc != NO_ERROR && rc != ERROR_INVALID_ACCESS ) {
     char  error[1024];
-    amp_player_error( "Could not unload %s\n%s",
-                      module_name, os2_strerror( rc, error, sizeof( error )));
+    amp_player_error( "Could not unload %s. Error %d\n%s",
+                      module_name, rc, os2_strerror( rc, error, sizeof( error )));
     return FALSE;
   }
   module = NULLHANDLE;
@@ -339,13 +342,12 @@ PROXYFUNCIMP(int PM123_ENTRY, CL_DECODER_PROXY_1)
 proxy_1_decoder_play_samples( void* a, const FORMAT_INFO* format, const char* buf, int len, int posmarker )
 { CL_DECODER_PROXY_1* op = (CL_DECODER_PROXY_1*)a;
 
-  DEBUGLOG(("proxy_1_output_play_samples(%p {%s}, %p, %p, %i, %i)\n",
+  DEBUGLOG(("proxy_1_decoder_play_samples(%p {%s}, %p, %p, %i, %i)\n",
     op, op->module_name, format, buf, len, posmarker));
 
   if (op->tid == (ULONG)-1)
   { PTIB ptib;
-    PPIB ppib;
-    DosGetInfoBlocks(&ptib, &ppib);
+    DosGetInfoBlocks(&ptib, NULL);
     op->tid = ptib->tib_ordinal;
   }
 
@@ -354,7 +356,7 @@ proxy_1_decoder_play_samples( void* a, const FORMAT_INFO* format, const char* bu
   while (rem)
   { char* dest;
     int l = (*op->voutput_request_buffer)(op->a, format, &dest);
-    DEBUGLOG(("proxy_1_output_play_samples: now at %p %i %i\n", buf, l, rem));
+    DEBUGLOG(("proxy_1_decoder_play_samples: now at %p %i %i\n", buf, l, rem));
     if (l == 0)
       return len - rem; // error
     if (l > rem)
@@ -515,6 +517,9 @@ class CL_OUTPUT_PROXY_1 : public CL_OUTPUT
   int   (PM123_ENTRYP voutput_command       )( void*  a, ULONG msg, OUTPUT_PARAMS* info );
   int   (PM123_ENTRYP voutput_play_samples  )( void*  a, const FORMAT_INFO* format, const char* buf, int len, int posmarker );
   char        voutput_buffer[BUFSIZE];
+  int         voutput_buffer_level;         // current level of voutput_buffer
+  BOOL        voutput_trash_buffer;
+  int         voutput_posmarker;
   FORMAT_INFO voutput_format;
   BOOL        voutput_always_hungry;
   void        (PM123_ENTRYP voutput_event)(void* w, OUTEVENTTYPE event);
@@ -578,14 +583,23 @@ proxy_1_output_command( CL_OUTPUT_PROXY_1* op, void* a, ULONG msg, OUTPUT_PARAMS
     params.amplifier       = info->amplifier;
     params.pause           = info->pause;
     params.temp_playingpos = info->temp_playingpos;
-    params.filename        = info->URI; // TODO: URI!
+    if (info->URI != NULL && strnicmp(info->URI, "file://", 7) == 0)
+      params.filename        = info->URI + 7;
+     else
+      params.filename        = info->URI;
+
+    if (msg == OUTPUT_TRASH_BUFFERS)
+    { op->voutput_trash_buffer  = TRUE;
+    }
     // call plug-in
     r = (*op->voutput_command)(a, msg, &params);
     // save some values
     if (msg == OUTPUT_SETUP)
-    { op->voutput_always_hungry = params.always_hungry;
-      op->voutput_event = info->output_event;
-      op->voutput_w = info->w;
+    { op->voutput_buffer_level  = 0;
+      op->voutput_trash_buffer  = FALSE;
+      op->voutput_always_hungry = params.always_hungry;
+      op->voutput_event         = info->output_event;
+      op->voutput_w             = info->w;
     }
     return r;
   } else
@@ -594,8 +608,8 @@ proxy_1_output_command( CL_OUTPUT_PROXY_1* op, void* a, ULONG msg, OUTPUT_PARAMS
 
 PROXYFUNCIMP(int PM123_ENTRY, CL_OUTPUT_PROXY_1)
 proxy_1_output_request_buffer( CL_OUTPUT_PROXY_1* op, void* a, const FORMAT_INFO* format, char** buf )
-{ DEBUGLOG(("proxy_1_output_request_buffer(%p, %p, {%i,%i,%i,%i,%x}, %p)\n",
-    op, a, format->size, format->samplerate, format->channels, format->bits, format->format, buf));
+{ DEBUGLOG(("proxy_1_output_request_buffer(%p, %p, {%i,%i,%i,%i,%x}, %p) - %d\n",
+    op, a, format->size, format->samplerate, format->channels, format->bits, format->format, buf, op->voutput_buffer_level));
   
   if (buf == 0)
   { if (op->voutput_always_hungry)
@@ -603,17 +617,30 @@ proxy_1_output_request_buffer( CL_OUTPUT_PROXY_1* op, void* a, const FORMAT_INFO
     return 0;
   }
 
-  *buf = op->voutput_buffer;
+  if (op->voutput_trash_buffer)
+  { op->voutput_buffer_level = 0;
+    op->voutput_trash_buffer = FALSE;
+  }
+
+  *buf = op->voutput_buffer + op->voutput_buffer_level;
   op->voutput_format = *format;
-  return BUFSIZE;
+  DEBUGLOG(("proxy_1_output_request_buffer: %d\n", sizeof op->voutput_buffer - op->voutput_buffer_level));
+  return sizeof op->voutput_buffer - op->voutput_buffer_level;
 }
 
 PROXYFUNCIMP(void PM123_ENTRY, CL_OUTPUT_PROXY_1)
 proxy_1_output_commit_buffer( CL_OUTPUT_PROXY_1* op, void* a, int len, int posmarker )
-{ DEBUGLOG(("proxy_1_output_commit_buffer(%p {%s}, %p, %i, %i)\n",
-    op, op->module_name, a, len, posmarker));
+{ DEBUGLOG(("proxy_1_output_commit_buffer(%p {%s}, %p, %i, %i) - %d\n",
+    op, op->module_name, a, len, posmarker, op->voutput_buffer_level));
+  
+  if (op->voutput_buffer_level == 0)
+    op->voutput_posmarker = posmarker;
 
-  (*op->voutput_play_samples)(a, &op->voutput_format, op->voutput_buffer, len, posmarker);
+  op->voutput_buffer_level += len;
+  if (op->voutput_buffer_level == sizeof op->voutput_buffer)
+  { (*op->voutput_play_samples)(a, &op->voutput_format, op->voutput_buffer, sizeof op->voutput_buffer, op->voutput_posmarker);
+    op->voutput_buffer_level = 0;
+  }
 }
 
 
@@ -630,7 +657,7 @@ CL_PLUGIN* CL_OUTPUT::factory(CL_MODULE& mod)
 
 /* Assigns the addresses of the filter plug-in procedures. */
 BOOL CL_FILTER::load_plugin()
-{ DEBUGLOG(("CL_FILTER(%p{%s})::load_plugin", this, module_name));
+{ DEBUGLOG(("CL_FILTER(%p{%s})::load_plugin\n", this, module_name));
 
   if ( !(query_param.type & PLUGIN_FILTER)
     || !load_function(&filter_init,   "filter_init")
@@ -1002,19 +1029,6 @@ int CL_PLUGIN_BASE_LIST::find(const char* name) const
 * MODULE_LIST collection
 *
 ****************************************************************************/
-
-CL_MODULE* CL_MODULE_LIST::detach_request(int i)
-{
-  #ifdef DEBUG
-  fprintf(stderr, "CL_MODULE_LIST(%p)::detach_request(%i)\n", this, i);
-  if (i > count() && i <= 0)
-  { fprintf(stderr, "CL_MODULE_LIST::detach_request: index out of range\n");
-    return NULL;
-  }
-  #endif
-  
-  return (*this)[i].unload_request() ? detach(i) : NULL;
-}
 
 
 /****************************************************************************

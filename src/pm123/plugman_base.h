@@ -107,9 +107,6 @@ class CL_MODULE : public CL_PLUGIN_BASE
   // Load a new DLL as plug-in. The plug-in flavour is specialized later.
   // Returns TRUE on success, otherwise return FALSE and call amp_player_error.
   BOOL load();
-  // Request for unloading of the current module if there are no active references to it.
-  // Returning TRUE if the module was unloaded (Reference count 0.) 
-  BOOL unload_request()              { return !refcount && unload_module(); }
   // Launch the configure dialog.
   void config(HWND hwnd) const       { (*plugin_configure)(hwnd, module); }
   // For internal use by CL_PUGIN only!
@@ -435,9 +432,6 @@ class CL_MODULE_LIST : public CL_PLUGIN_BASE_LIST
   BOOL            append(CL_MODULE* plugin) { return CL_PLUGIN_BASE_LIST::append(plugin); }
   // Remove the i-th module from the list and return a pointer to it.
   CL_MODULE*      detach(int i)             { return (CL_MODULE*)CL_PLUGIN_BASE_LIST::detach(i); }
-  // Remove the i-th module from the list if it is no longer referenced
-  // and return a pointer to it. Return NULL otherwise. 
-  CL_MODULE*      detach_request(int i);
   // Get the i-th module in the list.
   CL_MODULE&      operator[](int i) { return (CL_MODULE&)CL_PLUGIN_BASE_LIST::operator[](i); }
 };
