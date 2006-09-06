@@ -51,12 +51,13 @@
 #include <plugin.h>
 #include "realeq.h"
 
-#define DEBUG 1
 #include <debuglog.h>
 
 #define VERSION "Real Equalizer 1.22"
-#define MAX_COEF 16384
-#define MAX_FIR  12288
+#define MAX_COEF 32768
+#define MIN_COEF   512
+#define MAX_FIR  16384
+#define MIN_FIR    256
 #define NUM_BANDS   32
 
 // Equalizer filter frequencies
@@ -165,16 +166,26 @@ static char lasteq[CCHMAXPATH];
 
 typedef struct {
 
+   ULONG (PM123_ENTRYP output_command)       ( void* a, ULONG msg, OUTPUT_PARAMS2* info );
    int   (PM123_ENTRYP output_request_buffer)( void* a, const FORMAT_INFO* format, char** buf );
-   void  (PM123_ENTRYP output_commit_buffer)( void* a, int len, int posmarker );
+   void  (PM123_ENTRYP output_commit_buffer) ( void* a, int len, int posmarker );
    void* a;
-   void (PM123_ENTRYP error_display)( char* );
+   void  (PM123_ENTRYP error_display)        ( char* );
 
    FORMAT_INFO last_format;
 
+   int   posmarker;
    int   inboxlevel; // number of samples in inbox array
+   int   latency;
+   BOOL  request_pending;
 
 } REALEQ_STRUCT;
+
+
+/* returns the number of bytes per second */
+INLINE int get_byte_rate(const FORMAT_INFO* format)
+{ return (format->bits > 16 ? 4 : format->bits > 8 ? 2 : 1) * format->channels * format->samplerate;
+}
 
 /********** Ini file stuff */
 
@@ -333,7 +344,7 @@ fil_setup( REALEQ_STRUCT* f, int samplerate, int channels )
 
   // copy global parameters for thread safety and round up to next power of 2
   frexp(newPlansize-1, &i); // floor(log2(plansize-1))+1
-  FFT.plansize = (1<<i)+1; // 2**x
+  FFT.plansize = 1 << i; // 2**x
   DEBUGLOG(("I: %d - %p\n", FFT.plansize, FFT.DCT_plan));
 
   // allocate buffers
@@ -352,6 +363,9 @@ fil_setup( REALEQ_STRUCT* f, int samplerate, int channels )
   FFT.backward_plan = fftwf_plan_dft_c2r_1d( FFT.plansize, FFT.freq_domain, FFT.time_domain, FFTW_ESTIMATE );
   // prepare real 2 real transformations
   FFT.RDCT_plan     = fftwf_plan_r2r_1d( FFT.plansize/2+1, FFT.time_domain, FFT.kernel[0], FFTW_REDFT00, FFTW_ESTIMATE );
+  
+  f->inboxlevel      = 0;
+  f->request_pending = FALSE;
 
   eqneedinit = FALSE;
 
@@ -366,7 +380,6 @@ fil_setup( REALEQ_STRUCT* f, int samplerate, int channels )
 
   // copy global parameters for thread safety
   FFT.FIRorder = (newFIRorder+15) & -16; /* multiple of 16 */
-  DEBUGLOG(("F: %d\n", FFT.FIRorder));
 
   // calculate optimum plansize for kernel generation
   frexp((FFT.FIRorder<<1) -1, &FFT.DCTplansize); // floor(log2(2*FIRorder-1))+1
@@ -376,6 +389,8 @@ fil_setup( REALEQ_STRUCT* f, int samplerate, int channels )
     fftwf_destroy_plan(FFT.DCT_plan);
   // prepare real 2 real transformations
   FFT.DCT_plan = fftwf_plan_r2r_1d(FFT.DCTplansize/2+1, FFT.design, FFT.time_domain, FFTW_REDFT00, FFTW_ESTIMATE);
+
+  f->latency = FFT.FIRorder >> 1; // discard first results
 
   DEBUGLOG(("P: FIRorder: %d, Plansize: %d, DCT plansize: %d\n", FFT.FIRorder, FFT.plansize, FFT.DCTplansize));
   eqneedFIR = FALSE;
@@ -417,7 +432,7 @@ fil_setup( REALEQ_STRUCT* f, int samplerate, int channels )
         pos = .5 - .5*cos(M_PI * (log(f)-cop[0].lf) / (cop[1].lf-cop[0].lf));
         val = exp(cop[0].lv + pos * (cop[1].lv - cop[0].lv));
         FFT.design[i] = val;
-        DEBUGLOG(("F: %i, %g, %g -> %g = %g dB @ %g\n",
+        DEBUGLOG2(("F: %i, %g, %g -> %g = %g dB @ %g\n",
           i, f, pos, FFT.design[i], 20*log(val)/M_LN10, exp(cop[0].lf)));
     } }
 
@@ -495,7 +510,7 @@ do_fft_load_overlap(float* overlap_buffer)
 static void
 do_fft_save_overlap(float* overlap_buffer, int len)
 {
-  DEBUGLOG(("SO: %p, %i, %i\n", overlap_buffer, len, FFT.FIRorder));
+  DEBUGLOG(("realeq:do_fft_save_overlap(%p, %i) - %i\n", overlap_buffer, len, FFT.FIRorder));
   if (len < FFT.FIRorder/2)
   { memmove(overlap_buffer, overlap_buffer + len, (FFT.FIRorder - len) * sizeof *overlap_buffer);
     memcpy(overlap_buffer + FFT.FIRorder - len, FFT.time_domain + FFT.FIRorder/2, len * sizeof *overlap_buffer);
@@ -578,6 +593,7 @@ static void
 do_fft_store_samples_stereo(short* sp, const int len)
 { float* dp = FFT.time_domain;
   int l;
+  DEBUGLOG(("realeq:do_fft_store_samples_stereo(%p, %i)\n", sp, len));
   // transfer overlapping samples
   for (l = len >> 3; l; --l) // coarse
   { DO_8(p, sp[p<<1] = quantize(dp[p]));
@@ -603,11 +619,13 @@ filter_samples_fft_mono(short* newsamples, const short* buf, int len)
     // do FFT
     do_fft_filter(FFT.kernel[0]);
     // convert back to short and use overlap/add
-    do_fft_store_samples_mono(newsamples, l2);
+    if (newsamples != NULL)
+    { do_fft_store_samples_mono(newsamples, l2);
+      newsamples += l2;
+    }
 
     // next block
     len -= l2;
-    newsamples += l2;
     buf += l2;
   }
 }
@@ -626,7 +644,8 @@ filter_samples_fft_stereo( short* newsamples, const short* buf, int len )
     // do FFT
     do_fft_filter(FFT.kernel[0]);
     // convert back to short and use overlap/add
-    do_fft_store_samples_stereo(newsamples, l2);
+    if (newsamples != NULL)
+      do_fft_store_samples_stereo(newsamples, l2);
 
     // right channel
     // convert to float (well, that bill we have to pay)
@@ -634,108 +653,189 @@ filter_samples_fft_stereo( short* newsamples, const short* buf, int len )
     // do FFT
     do_fft_filter(FFT.kernel[1]);
     // convert back to short and use overlap/add
-    do_fft_store_samples_stereo(newsamples+1, l2);
+    if (newsamples != NULL)
+    { do_fft_store_samples_stereo(newsamples+1, l2);
+      newsamples += l2;
+    }
 
     // next block
     len -= l2;
     l2 <<= 1; // stereo
-    newsamples += l2;
     buf += l2;
   }
 }
 
-/* flush all incomplete samples and pass them to the output */
+/* Proxy funtions to remove the first samples to compensate for the filter delay */
+static int
+do_request_buffer( REALEQ_STRUCT* f, char** buf )
+{ DEBUGLOG(("realeq:do_request_buffer(%p, %p) - %d\n", f, buf, f->latency));
+  if (f->latency != 0)
+  { *buf = NULL; // discard
+    return f->latency * sizeof(short) * f->last_format.channels;
+  } else
+  { return (*f->output_request_buffer)( f->a, &f->last_format, buf );
+  }
+}
+
+static void
+do_commit_buffer( REALEQ_STRUCT* f, int len, int posmarker )
+{ DEBUGLOG(("realeq:do_commit_buffer(%p, %d) - %d\n", f, len, f->latency));
+  if (f->latency != 0)
+    f->latency -= len / sizeof(short) / f->last_format.channels;
+   else
+    (*f->output_commit_buffer)( f->a, len, posmarker );
+}
+
+/* applies the FFT filter to the current inbox content and sends the result to the next plug-in.
+ * You should not call this function with f->inboxlevel == 0.
+ */
+static void
+filter_and_send( REALEQ_STRUCT* f )
+{
+  int   len, dlen;
+  char* dbuf;
+  DEBUGLOG(("realeq:filter_and_send(%p) - %d\n", f, f->inboxlevel));
+
+  // request destination buffer
+  dlen = do_request_buffer( f, &dbuf );
+  
+  len = f->inboxlevel * sizeof(short) * f->last_format.channels; // required destination length
+  if (dlen < len)
+  { // with fragmentation
+    int rem = len;
+    char* sp;
+    int byterate;
+  
+    if ( f->last_format.channels == 2 ) {
+      filter_samples_fft_stereo( FFT.inbox, FFT.inbox, f->inboxlevel );
+    } else {
+      filter_samples_fft_mono( FFT.inbox, FFT.inbox, f->inboxlevel );
+    }
+    
+    // transfer data
+    sp = (char*)FFT.inbox;
+    byterate = get_byte_rate(&f->last_format);
+    for(;;)
+    { if (dbuf != NULL)
+        memcpy(dbuf, sp, dlen);
+      do_commit_buffer( f, dlen, f->posmarker + (len-rem)*1000/byterate );
+      rem -= dlen;
+      if (rem == 0)
+        break;
+      sp += dlen;
+      // request next buffer
+      dlen = do_request_buffer( f, &dbuf );
+      if (dlen > rem)
+        dlen = rem;
+    }
+    
+  } else
+  { // without fragmentation
+    if ( f->last_format.channels == 2 ) {
+      filter_samples_fft_stereo( (short*)dbuf, FFT.inbox, f->inboxlevel );
+    } else {
+      filter_samples_fft_mono( (short*)dbuf, FFT.inbox, f->inboxlevel );
+    }
+    do_commit_buffer( f, len, f->posmarker );
+  }
+
+  f->inboxlevel = 0;
+}
+
+static int PM123_ENTRY
+filter_request_buffer( REALEQ_STRUCT* f, const FORMAT_INFO* format, char** buf );
+static void PM123_ENTRY
+filter_commit_buffer( REALEQ_STRUCT* f, int len, int posmarker );
+
 static void
 local_flush( REALEQ_STRUCT* f )
-{ // TODO: !!!
-  f->inboxlevel = 0;
+{ // emulate input of some zeros to compensate for filter size
+  int   len = ((FFT.FIRorder+1) >> 1) * sizeof(short) * f->last_format.channels;
+  DEBUGLOG(("realeq:local_flush(%p) - %d %d %d\n", f, len, f->inboxlevel, f->latency));
+  while (len != 0)
+  { char* buf;
+    int   dlen = filter_request_buffer( f, &f->last_format, &buf );
+    if (dlen > len)
+      dlen = len;
+    memset(buf, 0, dlen);
+    // TODO: posmarker
+    filter_commit_buffer( f, dlen, f->posmarker );
+    len -= dlen;
+  }
+
+  // flush buffer  
+  if (f->inboxlevel != 0)
+    filter_and_send(f);
+
+  // setup for restart
+  f->latency = FFT.FIRorder >> 1;
 }
 
 /* Entry point: do filtering */
 static int PM123_ENTRY
 filter_request_buffer( REALEQ_STRUCT* f, const FORMAT_INFO* format, char** buf )
 {
-  DEBUGLOG(("realeq:filter_request_buffer(%p, {%u, %u, %u, %u, %u}, %p)\n",
-   F, format->size, format->samplerate, format->channels, format->bits, format->format, buf));
+  DEBUGLOG(("realeq:filter_request_buffer(%p, {%u, %u, %u, %u, %u}, %p) - %d %d\n",
+   f, format->size, format->samplerate, format->channels, format->bits, format->format, buf, f->inboxlevel, f->latency));
 
   if( eqenabled && format->bits == 16 && ( format->channels == 1 || format->channels == 2 ))
   {
-    if (buf == NULL) // global flush();
-    { local_flush();
-      return f->output_request_buffer( f->a, format, buf );
-    }
-    
     if ( memcmp( &f->last_format, format, sizeof( FORMAT_INFO )) != 0 )
-    { local_flush();
+    { if (f->last_format.samplerate != 0)
+        local_flush( f );
       f->last_format = *format;
       eqneedinit = TRUE;
     }
     fil_setup( f, format->samplerate, format->channels );
 
+    if (buf == NULL) // global flush();
+    { local_flush( f );
+      return (*f->output_request_buffer)( f->a, format, buf );
+    }
+    
     *buf = (char*)(FFT.inbox + f->inboxlevel * format->channels);
-    return FFT.plansize - FFT.FIRorder - inboxlevel;
-  }
+    DEBUGLOG(("realeq:filter_request_buffer: %d\n", (FFT.plansize - FFT.FIRorder - f->inboxlevel) * sizeof(short) * format->channels));
+    f->request_pending = TRUE;
+    return (FFT.plansize - FFT.FIRorder - f->inboxlevel) * sizeof(short) * format->channels;
+  }                                                        
   else
   {
-    return f->output_request_buffer( f->a, format, buf );
+    return (*f->output_request_buffer)( f->a, format, buf );
   }
 }
 
 static void PM123_ENTRY
 filter_commit_buffer( REALEQ_STRUCT* f, int len, int posmarker )
 {
-  DEBUGLOG(("realeq:filter_play_samples(%p, {%u, %u, %u, %u, %u}, %p, %u, %u)\n",
-   F, format->size, format->samplerate, format->channels, format->bits, format->format, buf, len, posmarker));
+  DEBUGLOG(("realeq:filter_commit_buffer(%p, %u, %u) - %d %d\n", f, len, posmarker, f->inboxlevel, f->latency));
+  
+  if (!f->request_pending)
+  { (*f->output_commit_buffer)( f->a, len, posmarker );
+    return;
+  }
+  f->request_pending = FALSE;
+
+  if (f->inboxlevel == 0)
+    f->posmarker = posmarker;
 
   f->inboxlevel += len / sizeof(short) / f->last_format.channels;
 
   if (f->inboxlevel == FFT.plansize - FFT.FIRorder)
   { // enough data, apply filter
-    int   dlen;
-    char* dbuf;
-    
-    // request destination buffer
-    dlen = f->output_request_buffer( f->a, &f->last_format, &dbuf );
-    
-    len = f->inboxlevel * sizeof(short) * f->last_format.channels; // required destination length
-    if (dlen < len)
-    { // with fragmentation
-      char* sp;
-    
-      if ( f->last_format.channels == 2 ) {
-        filter_samples_fft_stereo( FFT.inbox, FFT.inbox, f->inboxlevel );
-      } else {
-        filter_samples_fft_mono( FFT.inbox, FFT.inbox, f->inboxlevel );
-      }
-      
-      // transfer data
-      sp = (char*)FFT.inbox;
-      for(;;)
-      { memcpy(dbuf, sp, dlen);
-        // TODO: posmarker!
-        f->output_commit_buffer( f->a, dlen, posmarker );
-        len -= dlen;
-        if (len == 0)
-          break;
-        // request next buffer
-        dlen = f->output_request_buffer( f->a, &f->last_format, &dbuf );
-        if (dlen > len)
-          dlen = len;
-      }
-      
-    } else
-    { // without fragmentation
-      if ( f->last_format.channels == 2 ) {
-        filter_samples_fft_stereo( (short*)dbuf, FFT.inbox, f->inboxlevel );
-      } else {
-        filter_samples_fft_mono( (short*)dbuf, FFT.inbox, f->inboxlevel );
-      }
-      // TODO: posmarker!
-      f->output_commit_buffer( f->a, len, posmarker );
-    }
-
-    f->inboxlevel = 0;
+    filter_and_send(f);
   }
+}
+
+static ULONG PM123_ENTRY
+filter_command( REALEQ_STRUCT* f, ULONG msg, OUTPUT_PARAMS2* info )
+{ DEBUGLOG(("realeq:filter_command(%p, %u, %p)\n", f, msg, info));
+  switch (msg)
+  {case OUTPUT_TRASH_BUFFERS:
+    f->inboxlevel = 0;
+    f->latency    = FFT.FIRorder >> 1;
+    break;
+  }
+  return (*f->output_command)( f->a, msg, info );
 }
 
 /********** Entry point: Initialize
@@ -744,24 +844,38 @@ ULONG PM123_ENTRY
 filter_init( void** F, FILTER_PARAMS2* params )
 {
   REALEQ_STRUCT* f = (REALEQ_STRUCT*)malloc( sizeof( REALEQ_STRUCT ));
-  DEBUGLOG(("filter_init(%p->%p, {%u, %p, %p, %i, %p, %p})\n",
-   F, f, params->size, params->output_play_samples, params->a, params->audio_buffersize, params->error_display, params->info_display));
+  DEBUGLOG(("filter_init(%p->%p, {%u, ..., %p, ..., %p})\n", F, f, params->size, params->a, params->w));
 
   *F = f;
  
   init_request();
   eqneedinit = TRUE;
 
+  f->output_command        = params->output_command;
   f->output_request_buffer = params->output_request_buffer;
   f->output_commit_buffer  = params->output_commit_buffer;
   f->a                     = params->a;
   f->error_display         = params->error_display;
+  f->inboxlevel            = 0;
+  f->request_pending       = FALSE;
 
   memset( &f->last_format, 0, sizeof( FORMAT_INFO ));
   
-  params->output_request_buffer = &filter_request_buffer;
-  params->output_commit_buffer  = &filter_commit_buffer;
+  params->output_command        = (ULONG (PM123_ENTRYP)(void*, ULONG, OUTPUT_PARAMS2*))    &filter_command;
+  params->output_request_buffer = (int   (PM123_ENTRYP)(void*, const FORMAT_INFO*, char**))&filter_request_buffer;
+  params->output_commit_buffer  = (void  (PM123_ENTRYP)(void*, int, int))                  &filter_commit_buffer;
   return 0;
+}
+
+void PM123_ENTRY
+filter_update( void *F, const FILTER_PARAMS2 *params )
+{ REALEQ_STRUCT* f = (REALEQ_STRUCT*)F;
+  DosEnterCritSec();
+  f->output_request_buffer = params->output_request_buffer;
+  f->output_commit_buffer  = params->output_commit_buffer;
+  f->a                     = params->a;
+  f->error_display         = params->error_display;
+  DosExitCritSec();
 }
 
 BOOL PM123_ENTRY
@@ -864,10 +978,11 @@ load_eq( HWND hwnd, float* gains, BOOL* mutes, float* preamp )
 int PM123_ENTRY
 plugin_query( PLUGIN_QUERYPARAM *param )
 {
-  param->type = PLUGIN_FILTER;
-  param->author = "Samuel Audet";
-  param->desc = VERSION;
+  param->type         = PLUGIN_FILTER;
+  param->author       = "Samuel Audet";
+  param->desc         = VERSION;
   param->configurable = TRUE;
+  param->interface    = FILTER_PLUGIN_LEVEL;
   return 0;
 }
 
@@ -911,7 +1026,7 @@ load_dialog( HWND hwnd )
       WinSendDlgItemMsg( hwnd, 200 + NUM_BANDS*e + i, SLM_ADDDETENT,
                          MPFROMSHORT( 0 ), 0 );
 
-      DEBUGLOG(("load_dialog: %d %d %g\n", e, i, bandgain[e][i]));
+      DEBUGLOG2(("load_dialog: %d %d %g\n", e, i, bandgain[e][i]));
       value = (bandgain[e][i]+12.)/24.*(range-1);
       if (value < 0)
       { DEBUGLOG(("load_dialog: value out of range %g, %d, %d\n", value, e, i));
@@ -931,10 +1046,10 @@ load_dialog( HWND hwnd )
   WinSendDlgItemMsg( hwnd, ID_LOCKLR,  BM_SETCHECK, MPFROMSHORT( locklr ), 0 );
 
   WinSendDlgItemMsg( hwnd, ID_FIRORDER, SPBM_SETMASTER, MPFROMLONG( NULLHANDLE ), 0 );
-  WinSendDlgItemMsg( hwnd, ID_FIRORDER, SPBM_SETLIMITS, MPFROMLONG( MAX_FIR ), MPFROMLONG( 16 ));
+  WinSendDlgItemMsg( hwnd, ID_FIRORDER, SPBM_SETLIMITS, MPFROMLONG( MAX_FIR ), MPFROMLONG( MIN_FIR ));
   WinSendDlgItemMsg( hwnd, ID_FIRORDER, SPBM_SETCURRENTVALUE, MPFROMLONG( newFIRorder ), 0 );
   WinSendDlgItemMsg( hwnd, ID_PLANSIZE, SPBM_SETMASTER, MPFROMLONG( NULLHANDLE ), 0 );
-  WinSendDlgItemMsg( hwnd, ID_PLANSIZE, SPBM_SETLIMITS, MPFROMLONG( MAX_COEF ), MPFROMLONG( 32 ));
+  WinSendDlgItemMsg( hwnd, ID_PLANSIZE, SPBM_SETLIMITS, MPFROMLONG( MAX_COEF ), MPFROMLONG( MIN_COEF ));
   WinSendDlgItemMsg( hwnd, ID_PLANSIZE, SPBM_SETCURRENTVALUE, MPFROMLONG( newPlansize ), 0 );
 }
 
@@ -1007,6 +1122,7 @@ ConfigureDlgProc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
       switch( id )
       {
         ULONG temp;
+        int i;
 
         case EQ_ENABLED:
           eqenabled = WinQueryButtonCheckstate( hwnd, id );
@@ -1030,13 +1146,19 @@ ConfigureDlgProc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
               break;
 
             case SPBN_UPARROW:
-              temp = (newFIRorder & ~0xF) + 16;
+              frexp(newFIRorder, &i); // floor(log2(FIRorder-1))+1
+              i = 1 << (i-1);
+              i >>= 2;
+              temp = (newFIRorder & ~(MIN_FIR-1)) + max(MIN_FIR, i);
               if (temp < newPlansize)
                 WinSendDlgItemMsg( hwnd, id, SPBM_SETCURRENTVALUE, MPFROMLONG( temp ), 0 );
               break;
 
             case SPBN_DOWNARROW:
-              temp = (newFIRorder & ~0xF) - 16;
+              frexp(newFIRorder-1, &i); // floor(log2(FIRorder-1))+1
+              i = 1 << (i-1);
+              i >>= 2;
+              temp = (newFIRorder & ~(MIN_FIR-1)) - max(MIN_FIR, i);
               if (temp >= 16)
                 WinSendDlgItemMsg( hwnd, id, SPBM_SETCURRENTVALUE, MPFROMLONG( temp ), 0 );
               break;
