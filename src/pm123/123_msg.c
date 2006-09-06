@@ -192,7 +192,7 @@ amp_msg( int msg, void *param, void *param2 )
           /* going back in the stream to what is currently playing */
           dec_params.jumpto = out_playing_pos();
           dec_command( DECODER_JUMPTO, &dec_params );
-          out_trashbuffers( out_playing_pos() );
+          out_trashbuffers( dec_params.jumpto );
         }
       }
       break;
@@ -214,7 +214,7 @@ amp_msg( int msg, void *param, void *param2 )
           /* going back in the stream to what is currently playing */
           dec_params.jumpto = out_playing_pos();
           dec_command( DECODER_JUMPTO, &dec_params );
-          out_trashbuffers( out_playing_pos() );
+          out_trashbuffers( dec_params.jumpto );
         }
       }
       break;

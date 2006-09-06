@@ -298,13 +298,14 @@ class CL_DECODER_PROXY_1 : public CL_DECODER
   ULONG (PM123_ENTRYP vdecoder_fileinfo )( char* filename, DECODER_INFO *info );
   ULONG (PM123_ENTRYP vdecoder_trackinfo)( char* drive, int track, DECODER_INFO* info );
   ULONG tid; // decoder thread id
+  int   temppos;
   VDELEGATE vd_decoder_command, vd_decoder_event, vd_decoder_fileinfo;
 
  private:
   PROXYFUNCDEF ULONG PM123_ENTRY proxy_1_decoder_command     ( CL_DECODER_PROXY_1* op, void* w, ULONG msg, DECODER_PARAMS2* params );
   PROXYFUNCDEF void  PM123_ENTRY proxy_1_decoder_event       ( CL_DECODER_PROXY_1* op, void* w, OUTEVENTTYPE event );
   PROXYFUNCDEF ULONG PM123_ENTRY proxy_1_decoder_fileinfo    ( CL_DECODER_PROXY_1* op, char* filename, DECODER_INFO *info );
-  PROXYFUNCDEF int   PM123_ENTRY proxy_1_decoder_play_samples( void* a, const FORMAT_INFO* format, const char* buf, int len, int posmarker );
+  PROXYFUNCDEF int   PM123_ENTRY proxy_1_decoder_play_samples( CL_DECODER_PROXY_1* op, const FORMAT_INFO* format, const char* buf, int len, int posmarker );
  public: 
   CL_DECODER_PROXY_1(CL_MODULE& mod) : CL_DECODER(mod) {}
   virtual BOOL load_plugin();
@@ -339,12 +340,12 @@ BOOL CL_DECODER_PROXY_1::load_plugin()
 
 /* proxy for the output callback of decoder interface level 0/1 */
 PROXYFUNCIMP(int PM123_ENTRY, CL_DECODER_PROXY_1)
-proxy_1_decoder_play_samples( void* a, const FORMAT_INFO* format, const char* buf, int len, int posmarker )
-{ CL_DECODER_PROXY_1* op = (CL_DECODER_PROXY_1*)a;
-
-  DEBUGLOG(("proxy_1_decoder_play_samples(%p {%s}, %p, %p, %i, %i)\n",
+proxy_1_decoder_play_samples( CL_DECODER_PROXY_1* op, const FORMAT_INFO* format, const char* buf, int len, int posmarker )
+{ DEBUGLOG(("proxy_1_decoder_play_samples(%p {%s}, %p, %p, %i, %i)\n",
     op, op->module_name, format, buf, len, posmarker));
 
+  op->temppos = -1; // buffer is empty now
+  
   if (op->tid == (ULONG)-1)
   { PTIB ptib;
     DosGetInfoBlocks(&ptib, NULL);
@@ -357,6 +358,10 @@ proxy_1_decoder_play_samples( void* a, const FORMAT_INFO* format, const char* bu
   { char* dest;
     int l = (*op->voutput_request_buffer)(op->a, format, &dest);
     DEBUGLOG(("proxy_1_decoder_play_samples: now at %p %i %i\n", buf, l, rem));
+    if (op->temppos != -1)
+    { (*op->voutput_commit_buffer)(op->a, 0, op->temppos); // no-op
+      break;
+    }
     if (l == 0)
       return len - rem; // error
     if (l > rem)
@@ -404,7 +409,7 @@ proxy_1_decoder_command( CL_DECODER_PROXY_1* op, void* w, ULONG msg, DECODER_PAR
   par1.jumpto              = params->jumpto;
   par1.ffwd                = params->ffwd;
   par1.rew                 = params->rew;
-  par1.output_play_samples = &PROXYFUNCREF(CL_DECODER_PROXY_1)proxy_1_decoder_play_samples;
+  par1.output_play_samples = (int (PM123_ENTRYP)(void*, const FORMAT_INFO*, const char*, int, int))&PROXYFUNCREF(CL_DECODER_PROXY_1)proxy_1_decoder_play_samples;
   par1.a                   = op;
   par1.audio_buffersize    = BUFSIZE;
   par1.proxyurl            = params->proxyurl;
@@ -427,6 +432,18 @@ proxy_1_decoder_command( CL_DECODER_PROXY_1* op, void* w, ULONG msg, DECODER_PAR
     op->voutput_request_buffer = params->output_request_buffer;
     op->voutput_commit_buffer  = params->output_commit_buffer;
     op->a                      = params->a;
+
+    op->temppos = FALSE;
+    break;
+
+   case DECODER_FFWD:
+   case DECODER_REW:
+   case DECODER_STOP:
+    op->temppos = out_playing_pos();
+    break;
+   case DECODER_JUMPTO:
+    op->temppos = params->jumpto;
+    break;
   }
   
   return (*op->vdecoder_command)(w, msg, &par1);
