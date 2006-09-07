@@ -289,25 +289,25 @@ save_ini( void )
     save_ini_string( INIhandle, cfg.defskin );
     save_ini_string( INIhandle, cfg.lasteq );
 
-    b = create_bufstream( 4096 );
+    b = create_bufstream( 1024 );
     save_decoders( b );
     size = get_buffer_bufstream( b, &decoders_list );
     save_ini_data( INIhandle, decoders_list, size );
     close_bufstream( b );
 
-    b = create_bufstream( 4096 );
+    b = create_bufstream( 1024 );
     save_outputs( b );
     size = get_buffer_bufstream( b, &outputs_list );
     save_ini_data( INIhandle, outputs_list, size );
     close_bufstream( b );
 
-    b = create_bufstream( 4096 );
+    b = create_bufstream( 1024 );
     save_filters( b );
     size = get_buffer_bufstream( b, &filters_list );
     save_ini_data( INIhandle, filters_list, size );
     close_bufstream( b );
 
-    b = create_bufstream( 4096 );
+    b = create_bufstream( 1024 );
     save_visuals( b );
     size = get_buffer_bufstream( b, &visuals_list );
     save_ini_data( INIhandle, visuals_list, size );
