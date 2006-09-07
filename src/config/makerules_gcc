@@ -14,14 +14,14 @@ RES        = .res
 AS         = nasm
 AFLAGS     = -fobj -DUNDERSCORE
 
-CC         = g++
-CFLAGS     = -Wall -DOS2 -DOS2EMX_PLAIN_CHAR -D_alloca=alloca
+CC         = gcc
+CFLAGS     = -Zcrtdll -Wall -DOS2 -DOS2EMX_PLAIN_CHAR -D_alloca=alloca -funsigned-char
 CFLAGS_DLL =
 CFLAGS_DBG = -g -DDEBUG
 CFLAGS_OPT = -O2
 
-CL         = g++
-LFLAGS     = -Zomf
+CL         = gcc
+LFLAGS     = -Zcrtdll -Zomf -lstdc++
 LFLAGS_DLL = -Zdll
 LFLAGS_DBG = -g
 LFLAGS_OPT = -s
