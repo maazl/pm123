@@ -185,7 +185,7 @@ ULONG CL_GLUE::init()
   CL_OUTPUT* op = (CL_OUTPUT*)outputs.current();
   if ( op == NULL )
   { amp_player_error( "There is no active output plug-in." );
-    return -1;  // ??
+    return (ULONG)-1;  // ??
   }
 
   // initially only the output plugin
@@ -224,7 +224,7 @@ ULONG out_setup( const FORMAT_INFO* formatinfo, const char* URI )
 /* closes output device and uninitializes all filter and output plugins */
 ULONG out_close()
 { if (!voutput.initialized)
-    return -1;
+    return (ULONG)-1;
   ULONG rc = voutput.out_command( OUTPUT_CLOSE );
   voutput.uninit(); // Hmm, is it a good advise to do this in case of an error?
   return rc;
@@ -241,7 +241,7 @@ void out_set_volume( int volume )
 
 ULONG out_pause( BOOL pause )
 { if (!voutput.initialized)
-    return -1; // error
+    return (ULONG)-1; // error
   voutput.params.pause = pause;
   return voutput.out_command( OUTPUT_PAUSE );
 }
@@ -263,7 +263,7 @@ BOOL out_flush()
 /* Returns 0 = success otherwize MMOS/2 error. */
 ULONG PM123_ENTRY out_playing_samples( FORMAT_INFO* info, char* buf, int len )
 { if (!voutput.initialized)
-    return -1; // N/A
+    return (ULONG)-1; // N/A
   return (*voutput.procs.output_playing_samples)( voutput.procs.a, info, buf, len );
 }
 
@@ -872,7 +872,7 @@ void
 dec_fill_types( char* result, size_t size )
 {
   int i;
-  int res_size = 0;
+  size_t res_size = 0;
   char* dp = result;
   *dp = 0;
 
@@ -1001,7 +1001,6 @@ load_plugin_menu( HWND hMenu )
   MENUITEM mi;
   int      i;
   int      count;
-  int      next_entry  = 0;
 
   // Delete all
   count = LONGFROMMR( WinSendMsg( hMenu, MM_QUERYITEMCOUNT, 0, 0 ));

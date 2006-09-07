@@ -534,7 +534,7 @@ static float get_barvalue(int* scp)
     + 1E-5 );
 }
 
-_Inline void update_barvalue(float* val, float z)
+INLINE void update_barvalue(float* val, float z)
 { if (z < 0)
     z = 0;
    else if (z >= 1)
@@ -976,10 +976,11 @@ vis_init( PVISPLUGININIT init )
     close_ini( hini );
   }
   if (cfg.display_freq <= 0)
-    if (display_percent <= 0)
+  { if (display_percent <= 0)
       cfg.display_freq = 18000;
      else
       cfg.display_freq = max(5, display_percent * 22050 / 100); // for compatibility
+  }
 
   // First get the routines
   decoderPlayingSamples = init->procs->output_playing_samples;

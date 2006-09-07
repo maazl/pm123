@@ -15,7 +15,7 @@ AS         = nasm
 AFLAGS     = -fobj -DUNDERSCORE
 
 CC         = g++
-CFLAGS     = -Wall -DOS2 -DOS2EMX_PLAIN_CHAR
+CFLAGS     = -Wall -DOS2 -DOS2EMX_PLAIN_CHAR -D_alloca=alloca
 CFLAGS_DLL =
 CFLAGS_DBG = -g -DDEBUG
 CFLAGS_OPT = -O2

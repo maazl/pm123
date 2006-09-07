@@ -26,7 +26,7 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#define  INCL_DOS
+#define  INCL_BASE
 #include <os2.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -38,7 +38,7 @@
 #include "strutils.h"
 #include "minmax.h"
 
-_Inline BOOL isslash(char c)
+INLINE BOOL isslash(char c)
 { return c == '/' || c == '\\';
 }
 

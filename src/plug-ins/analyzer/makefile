@@ -12,7 +12,7 @@ INCDIR   = $(TOPDIR)\utils;$(TOPDIR)\include;$(TOPDIR)\fft123\api
 !include $(TOPDIR)\config\makerules
 
 OBJECTS  = colormap$(CO) specana$(CO) analyzer$(CO)
-MYLIBS   = $(TOPDIR)\utils\utilfct$(LBO) $(TOPDIR)\fft123\fft123$(LBO)
+MYLIBS   = $(TOPDIR)\utils\utilfct$(LBO) $(TOPDIR)\fft123\fft123$(LBI)
 LIBS     = $(LIBS_MM) $(MYLIBS)
 DEF      = analyzer$(LDEF_SUFFX)
 RESOURCE = analyzer$(RES)

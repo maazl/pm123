@@ -29,6 +29,8 @@
 #ifndef __FILEUTIL_H
 #define __FILEUTIL_H
 
+#include <utilfct.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif

@@ -319,8 +319,6 @@ fil_setup( REALEQ_STRUCT* f, int samplerate, int channels )
   // equalizer design data
   EQcoef coef[NUM_BANDS+4]; // including surounding points
 
-  static const float pow_2_20 = 1L << 20;
-  static const float pow_2_15 = 1L << 15;
   // mute = -36dB. More makes no sense since the stopband attenuation
   // of the window function does not allow significantly better results.
   const float log_mute_level = -4.144653167; // -36dB

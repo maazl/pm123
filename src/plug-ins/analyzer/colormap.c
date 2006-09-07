@@ -46,8 +46,7 @@
 /* do cylindrical colorspace interpolation */
 static void interpolate_color(YDCyl_color* result, double position,
   const color_entry* table, size_t table_size)
-{ int i;
-  // search for closest table entries
+{ // search for closest table entries
   const color_entry* lower_bound = NULL;
   const color_entry* upper_bound = NULL;
   const color_entry* current = table + table_size;
@@ -121,7 +120,7 @@ static void StoreRGBvalue(BYTE* dst, double val)
 
 /* color space transformation */
 void YDCyl2RGB(RGB2* result, const YDCyl_color* src)
-{ double Db, Dr, tmp;
+{ double Db, Dr;
   Db = src->DR * cos(src->DP);
   Dr = src->DR * sin(src->DP);
   StoreRGBvalue(&result->bRed,   src->Y + 0.000092303716148 * Db - 0.525912630661865 * Dr);

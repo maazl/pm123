@@ -51,7 +51,7 @@ V_FUNC mkvdelegate(VDELEGATE* dg, V_FUNC func, int count, void* ptr)
 { memcpy(dg, &vdtempl, sizeof *dg);
   (*dg)[DELEGATE_OFF_COUNT3] += (*dg)[DELEGATE_OFF_COUNT2] = ((*dg)[DELEGATE_OFF_COUNT1] = count) << 2;
   *(void**)(*dg + DELEGATE_OFF_PTR) = ptr;
-  *(int*)(*dg + DELEGATE_OFF_FUNC) = (char*)func - (*dg + DELEGATE_OFF_REF);
+  *(int*)(*dg + DELEGATE_OFF_FUNC) = (char*)func - (char*)(*dg + DELEGATE_OFF_REF);
   return count ? (V_FUNC)dg : (V_FUNC)(*dg + DELEGATE_OFF_NOPAR);
 }
 
@@ -67,6 +67,6 @@ static const VREPLACE1 vrtempl =
 V_FUNC mkvreplace1(VREPLACE1* rp, V_FUNC func, void* ptr)
 { memcpy(rp, &vrtempl, sizeof *rp);
   *(void**)(*rp + VREPLACE1_OFF_PTR) = ptr;
-  *(int*)(*rp + VREPLACE1_OFF_FUNC) = (char*)func - (*rp + VREPLACE1_OFF_REF);
+  *(int*)(*rp + VREPLACE1_OFF_FUNC) = (char*)func - (char*)(*rp + VREPLACE1_OFF_REF);
   return (V_FUNC)rp;
 }

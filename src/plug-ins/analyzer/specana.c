@@ -335,8 +335,8 @@ SPECANA_RET specana_do(int numsamples, WIN_FN winfn, float* bands, FORMAT_INFO* 
   // demultiplex samples
   // Oh, well, C++ with templates would be nice...
   switch ((bufferinfo.bits > 8) + (bufferinfo.bits > 16))
-  { int e;
-   case 0:
+  {default:
+   // case 0: same as default
     fetch_byte((unsigned char*)sample, bufferinfo.channels);
     scale = 1./128; // normalize
     break;

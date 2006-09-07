@@ -224,7 +224,6 @@ BOOL CL_DECODER::after_load()
   char*   my_support[20];
   int     size = sizeof( my_support ) / sizeof( *my_support );
   int     i;
-  BOOL    rc;
 
   w = NULL;
   enabled = TRUE;
@@ -461,6 +460,7 @@ proxy_1_decoder_event( CL_DECODER_PROXY_1* op, void* w, OUTEVENTTYPE event )
    case OUTEVENT_HIGH_WATER:
     DosSetPriority(PRTYS_THREAD, DECODER_LOW_PRIORITY_CLASS, DECODER_LOW_PRIORITY_DELTA, op->tid);
     break;
+   default:; // explicit no-op
   }
 }
 
@@ -577,7 +577,7 @@ BOOL CL_OUTPUT_PROXY_1::load_plugin()
 }
 
 /* virtualization of level 1 output plug-ins */
-PROXYFUNCIMP(ULONG PM123_ENTRY, CL_OUTPUT_PROXY_1::)
+PROXYFUNCIMP(ULONG PM123_ENTRY, CL_OUTPUT_PROXY_1)
 proxy_1_output_command( CL_OUTPUT_PROXY_1* op, void* a, ULONG msg, OUTPUT_PARAMS2* info )
 { DEBUGLOG(("proxy_1_output_command(%p {%s}, %p, %d, %p)\n", op, op->module_name, a, msg, info));
     
@@ -870,7 +870,7 @@ proxy_1_filter_commit_buffer( void* a, int len, int posmarker )
   (*pp->output_commit_buffer)(pp->a, pp->storelen, pp->vposmarker);
 }
 
-PROXYFUNCIMP(int PM123_ENTRY, CL_FILTER_PROXY_1::)
+PROXYFUNCIMP(int PM123_ENTRY, CL_FILTER_PROXY_1)
 proxy_1_filter_play_samples( void* f, const FORMAT_INFO* format, const char *buf, int len, int posmarker )
 { CL_FILTER_PROXY_1* pp = (CL_FILTER_PROXY_1*)f;
   DEBUGLOG(("proxy_1_filter_play_samples(%p, %p{%d,%d,%d,%d}, %p, %d, %d)\n",

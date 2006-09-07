@@ -53,7 +53,7 @@ int get_buffer_bufstream( BUFSTREAM* b, void** buffer );
 /* Reads a data from buffering stream. */
 int read_bufstream( BUFSTREAM* b, void* buffer, int size );
 /* Writes a data from buffering stream. */
-int write_bufstream( BUFSTREAM* b, void* buffer, int size );
+int write_bufstream( BUFSTREAM* b, const void* buffer, int size );
 /* Closes a buffering stream. */
 int close_bufstream( BUFSTREAM* b );
 
