@@ -180,16 +180,18 @@ amp_msg( int msg, void *param, void *param2 )
       {
         forwarding = !forwarding;
 
-        if (rewinding) // stop rewinding anyway
-        {
+        if( rewinding ) {
+          // Stop rewinding anyway.
           dec_params.ffwd = rewinding = FALSE;
           dec_command( DECODER_REW, &dec_params );
         }
+
         dec_params.ffwd = forwarding;
         dec_command( DECODER_FFWD, &dec_params );
+
         if( cfg.trash )
         {
-          /* going back in the stream to what is currently playing */
+          // Going back in the stream to what is currently playing.
           dec_params.jumpto = out_playing_pos();
           dec_command( DECODER_JUMPTO, &dec_params );
           out_trashbuffers( dec_params.jumpto );
@@ -202,16 +204,18 @@ amp_msg( int msg, void *param, void *param2 )
       {
         rewinding = !rewinding;
 
-        if (forwarding) // stop forwarding anyway
-        {
+        if( forwarding ) {
+          // Stop forwarding anyway.
           dec_params.ffwd = forwarding = FALSE;
           dec_command( DECODER_FFWD, &dec_params );
         }
+
         dec_params.rew = rewinding;
-        dec_command( DECODER_REW,&dec_params );
+        dec_command( DECODER_REW, &dec_params );
+
         if( cfg.trash )
         {
-          /* going back in the stream to what is currently playing */
+          // Going back in the stream to what is currently playing.
           dec_params.jumpto = out_playing_pos();
           dec_command( DECODER_JUMPTO, &dec_params );
           out_trashbuffers( dec_params.jumpto );

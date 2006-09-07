@@ -453,7 +453,7 @@ amp_load_singlefile( const char* filename, int options )
   strcpy( current_decoder, module_name );
   strcpy( current_cd_drive, cd_drive );
   strcpy( current_decoder_info_string, info.tech_info );
-  
+
   amp_gettag( filename, &info, &current_tune );
   current_format   = info.format;
   current_bitrate  = info.bitrate;
@@ -2701,12 +2701,12 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
         case BMP_FWD:
           if( decoder_playing() && !is_paused )
           {
-            amp_msg( MSG_FWD, 0, 0 );
-            is_fast_forward = !is_fast_forward;
-            if (is_fast_backward)
-            { is_fast_backward = FALSE;
+            if( is_fast_backward ) {
+              is_fast_backward = FALSE;
               WinSendDlgItemMsg( hwnd, BMP_REW, WM_DEPRESS, 0, 0 );
             }
+            amp_msg( MSG_FWD, 0, 0 );
+            is_fast_forward = !is_fast_forward;
             WinSendDlgItemMsg( hwnd, BMP_FWD, is_fast_forward ? WM_PRESS : WM_DEPRESS, 0, 0 );
             amp_volume_adjust();
           } else {
@@ -2717,12 +2717,12 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
         case BMP_REW:
           if( decoder_playing() && !is_paused )
           {
-            amp_msg( MSG_REW, 0, 0 );
-            is_fast_backward = !is_fast_backward;
-            if (is_fast_forward)
-            { is_fast_forward = FALSE;
+            if( is_fast_forward ) {
+              is_fast_forward = FALSE;
               WinSendDlgItemMsg( hwnd, BMP_FWD, WM_DEPRESS, 0, 0 );
             }
+            amp_msg( MSG_REW, 0, 0 );
+            is_fast_backward = !is_fast_backward;
             WinSendDlgItemMsg( hwnd, BMP_REW, is_fast_backward ? WM_PRESS : WM_DEPRESS, 0, 0 );
             amp_volume_adjust();
           } else {

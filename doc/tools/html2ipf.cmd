@@ -1686,7 +1686,8 @@ NoQuotes:
  sPos = 1;
  do forever
   qPos = pos('&', text, sPos);
-  if qPos = 0 then leave;
+  if qPos == 0 then leave;
+  if pos(';', text, qPos + 1 ) == 0 then leave
   parse var text _head '&' Token ';' _tail
 
   wordN = wordpos(translate(Token), Global.Quotes);
@@ -1705,7 +1706,7 @@ NoQuotes:
          Token = word(Global.Quotes, wordN + 1);
          if left(Token, 2)="0x" then Token=x2c(substr(Token, 3));
         end
-  sPos = length(_head) + length(Token) + 1;
+  sPos = qPos + 1;
   text = _head||Token||_tail;
  end;
 return translate(text, '&', d2c(0));

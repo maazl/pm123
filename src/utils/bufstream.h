@@ -40,7 +40,7 @@ typedef struct
    int   size;
    int   length;
    int   position;
-   int    created;
+   int   created;
 
 } BUFSTREAM;
 

@@ -45,10 +45,6 @@
 #include <utilfct.h>
 
 
-/* Buffer size for compatibility interface */
-#define  BUFSIZE 16384
-
-
 typedef struct
 {
   HMODULE module;

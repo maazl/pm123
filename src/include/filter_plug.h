@@ -71,7 +71,6 @@ void  PM123_ENTRY filter_update( void*  f, const FILTER_PARAMS2* params );
 #endif
 BOOL  PM123_ENTRY filter_uninit( void*  f );
 
-
 #ifdef __cplusplus
 }
 #endif

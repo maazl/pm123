@@ -15,8 +15,8 @@ ULONG PM123_ENTRY output_uninit( void*  a );
 #define OUTPUT_VOLUME        3
 #define OUTPUT_PAUSE         4
 #define OUTPUT_SETUP         5
-#define OUTPUT_TRASH_BUFFERS 6 // unused!
-#define OUTPUT_NOBUFFERMODE  7
+#define OUTPUT_TRASH_BUFFERS 6
+#define OUTPUT_NOBUFFERMODE  7 // unused!
 
 typedef struct _OUTPUT_PARAMS
 {
