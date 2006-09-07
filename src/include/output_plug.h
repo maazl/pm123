@@ -3,7 +3,7 @@
 
 #include "format.h"
 
-#if __cplusplus
+#ifdef __cplusplus
 extern "C" {
 #endif
 
@@ -74,7 +74,7 @@ int   PM123_ENTRY output_play_samples( void* a, FORMAT_INFO* format, char* buf, 
 ULONG PM123_ENTRY output_playing_pos( void* a );
 BOOL  PM123_ENTRY output_playing_data( void* a );
 
-#if __cplusplus
+#ifdef __cplusplus
 }
 #endif
 #endif /* __PM123_OUTPUT_PLUG_H */

@@ -17,7 +17,7 @@ MANLST = $(MANLST) manual\contact.html manual\copyright.html manual\netscape.htm
 MANLST = $(MANLST) manual\sguide.html manual\troubleshooting.html
 
 PDKLST = pdk\index.html pdk\decode_plug.html pdk\filter_plug.html
-PDKLST = $(PDKLST) pdk\output_plug.html pdk\visual_plug.html
+PDKLST = $(PDKLST) pdk\output_plug.html pdk\visual_plug.html pdk\style.html
 
 pm123.inf: pm123.ipf
 	ipfc pm123.ipf /d:1 /c:850 $@

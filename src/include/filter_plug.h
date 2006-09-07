@@ -3,7 +3,7 @@
 
 #include "format.h"
 
-#if __cplusplus
+#ifdef __cplusplus
 extern "C" {
 #endif
 
@@ -37,7 +37,7 @@ BOOL  PM123_ENTRY filter_uninit( void*  f );
 /* stage which will be either a filter or output              */
 int  PM123_ENTRY filter_play_samples( void* f, FORMAT_INFO* format, char* buf, int len, int posmarker );
 
-#if __cplusplus
+#ifdef __cplusplus
 }
 #endif
 #endif /* __PM123_FILTER_PLUG_H */

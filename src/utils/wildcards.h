@@ -21,7 +21,7 @@
 #ifndef WILDCARDS_H
 #define WILDCARDS_H
 
-#if __cplusplus
+#ifdef __cplusplus
 extern "C" {
 #endif
 
@@ -30,7 +30,7 @@ int wildcardfit (char *wildcard, char *test);
 /* 0  if *wildcard does not match *test                     */
 /* 1  if *wildcard matches *test                            */
 
-#if __cplusplus
+#ifdef __cplusplus
 }
 #endif
 #endif

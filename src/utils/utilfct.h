@@ -61,7 +61,7 @@
   #define BKS_BUTTONAREA   0x00000200UL
 #endif
 
-#if __cplusplus
+#ifdef __cplusplus
 extern "C" {
 #endif
 
@@ -157,7 +157,7 @@ SHORT lb_size( HWND hwnd, SHORT id );
 /* Searches an item in a list box control. */
 SHORT lb_search( HWND hwnd, SHORT id, SHORT starti, char *item );
 
-#if __cplusplus
+#ifdef __cplusplus
 }
 #endif
 #endif /* _UTILFCT_H */

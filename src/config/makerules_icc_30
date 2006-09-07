@@ -14,7 +14,8 @@ RES        = .res
 CC         = icc
 CFLAGS     = -Ss -Q -Gm -W3 -DOS2 -DTCPV40HDRS
 CFLAGS_DLL = -Ge- -DLL
-CFLAGS_DBG = -Ti
+CFLAGS_DBG = -Ti -Tx
+CFLAGS_MEM = -Tm
 CFLAGS_OPT = -Gf -Gi -O -Ol -G5
 
 CL         = ilink
@@ -60,6 +61,11 @@ MFLAGS = $(MFLAGS) DEBUG=Yes
 !else
 CFLAGS = $(CFLAGS) $(CFLAGS_OPT)
 LFLAGS = $(LFLAGS) $(LFLAGS_OPT)
+!endif
+
+!ifdef DEBUG_ALLOC
+CFLAGS = $(CFLAGS) $(CFLAGS_MEM)
+MFLAGS = $(MFLAGS) DEBUG_ALLOC=Yes
 !endif
 
 !ifdef DLL

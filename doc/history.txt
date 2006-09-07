@@ -21,6 +21,8 @@ PM123's History
       skin font. Thanks to ntim.
     - The default skin draws a bitrate digit by digit. Therefore all possible
       bitrates now are displayed correctly.
+    - Enabled the direct switching between fast forward and rewind. Thanks to
+      Marcel Muller.
 
     MPG123:
     - Improved support of VBR mp3 files having a correct VBR header. Also

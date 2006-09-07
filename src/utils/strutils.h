@@ -29,7 +29,7 @@
 #ifndef __STRLUTIL_H
 #define __STRLUTIL_H
 
-#if __cplusplus
+#ifdef __cplusplus
 extern "C" {
 #endif
 
@@ -51,7 +51,7 @@ size_t strlcpy( char* dst, const char* src, size_t siz );
 
 size_t strlcat( char* dst, const char* src, size_t siz );
 
-#if __cplusplus
+#ifdef __cplusplus
 }
 #endif
 

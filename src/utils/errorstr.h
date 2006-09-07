@@ -32,7 +32,7 @@
 #ifndef _ERRORSTR_H
 #define _ERRORSTR_H
 
-#if __cplusplus
+#ifdef __cplusplus
 extern "C" {
 #endif
 
@@ -45,7 +45,7 @@ const char* clib_strerror( int clib_errno   );
 
 char* os2_strerror( unsigned int os2_errno,
                     char* result, size_t size );
-#if __cplusplus
+#ifdef __cplusplus
 }
 #endif
 #endif /* _ERRORSTR_H */

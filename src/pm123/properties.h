@@ -190,14 +190,14 @@ typedef struct _amp_cfg {
 
 extern amp_cfg cfg;
 
-#if __cplusplus
+#ifdef __cplusplus
 extern "C" {
 #endif
 
 /* Creates the properties dialog. */
 void cfg_properties( HWND owner );
 
-#if __cplusplus
+#ifdef __cplusplus
 }
 #endif
 #endif /* _PM123_PROPERTIES_H */

@@ -131,7 +131,7 @@ typedef struct _PLRECORD {
 /* pl_clear options */
 #define PL_CLR_NEW          0x0001
 
-#if __cplusplus
+#ifdef __cplusplus
 extern "C" {
 #endif
 
@@ -204,7 +204,7 @@ BOOL pl_save_bundle( const char* filename, int options );
 /* Loads the playlist and player status from specified file. */
 BOOL pl_load_bundle( const char *filename, int options );
 
-#if __cplusplus
+#ifdef __cplusplus
 }
 #endif
 #endif /* _PM123_PLAYLIST_H */

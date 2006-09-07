@@ -69,7 +69,7 @@ typedef struct _BMRECORD {
 
 } BMRECORD, *PBMRECORD;
 
-#if __cplusplus
+#ifdef __cplusplus
 extern "C" {
 #endif
 
@@ -107,7 +107,7 @@ void bm_add_bookmark( HWND owner );
 void load_bookmark_menu( HWND hmenu );
 BOOL process_possible_bookmark( USHORT cmd );
 
-#if __cplusplus
+#ifdef __cplusplus
 }
 #endif
 #endif /* _PM123_BOOKMARK_H */

@@ -134,7 +134,7 @@ extern int num_filters;
 extern VISUAL* visuals;
 extern int num_visuals;
 
-#if __cplusplus
+#ifdef __cplusplus
 extern "C" {
 #endif
 
@@ -196,7 +196,7 @@ int   time_total ( void );
 void  load_plugin_menu( HWND hmenu );
 BOOL  process_possible_plugin( HWND hwnd, USHORT cmd );
 
-#if __cplusplus
+#ifdef __cplusplus
 }
 #endif
 #endif /* _PM123_PLUGMAN_H */

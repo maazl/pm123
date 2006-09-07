@@ -29,7 +29,7 @@
 #ifndef _PM123_DOCKING_H
 #define _PM123_DOCKING_H
 
-#if __cplusplus
+#ifdef __cplusplus
 extern "C" {
 #endif
 
@@ -74,7 +74,7 @@ void dk_init( void );
 /** Terminates of the docking subsystem. */
 void dk_term( void );
 
-#if __cplusplus
+#ifdef __cplusplus
 }
 #endif
 #endif /* _PM123_DOCKING_H */

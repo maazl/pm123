@@ -29,7 +29,7 @@
 #ifndef __FILEUTIL_H
 #define __FILEUTIL_H
 
-#if __cplusplus
+#ifdef __cplusplus
 extern "C" {
 #endif
 
@@ -52,7 +52,7 @@ BOOL is_url  ( const char* location );
 BOOL is_root ( const char* location );
 BOOL is_dir  ( const char* location );
 
-#if __cplusplus
+#ifdef __cplusplus
 }
 #endif
 

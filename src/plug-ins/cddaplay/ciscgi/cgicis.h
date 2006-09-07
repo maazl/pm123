@@ -1,4 +1,4 @@
-#if __cplusplus
+#ifdef __cplusplus
 extern "C" {
 #endif
 
@@ -18,7 +18,7 @@ int urldcode(char *str);
 int urlncode(char *src, char *dst, int size);
 int urlvalue(char *src, char *dst, int size);
 
-#if __cplusplus
+#ifdef __cplusplus
 }
 #endif
 

@@ -30,7 +30,7 @@
 #ifndef __BUFSTREAM_H
 #define __BUFSTREAM_H
 
-#if __cplusplus
+#ifdef __cplusplus
 extern "C" {
 #endif
 
@@ -40,7 +40,7 @@ typedef struct
    int   size;
    int   length;
    int   position;
-   int    created;
+   int   created;
 
 } BUFSTREAM;
 
@@ -57,7 +57,7 @@ int write_bufstream( BUFSTREAM* b, void* buffer, int size );
 /* Closes a buffering stream. */
 int close_bufstream( BUFSTREAM* b );
 
-#if __cplusplus
+#ifdef __cplusplus
 }
 #endif
 

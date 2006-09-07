@@ -197,25 +197,23 @@ amp_msg( int msg, void *param, void *param2 )
       if( decoder_playing())
       {
         forwarding = !forwarding;
-        if( forwarding ) {
-          /* going back in the stream to what is currently playing */
+
+        if( rewinding ) {
+          // Stop rewinding anyway.
+          dec_params.ffwd = rewinding = FALSE;
+          dec_command( DECODER_REW, &dec_params );
+        }
+
+        dec_params.ffwd = forwarding;
+        dec_command( DECODER_FFWD, &dec_params );
+
+        if( cfg.trash )
+        {
+          // Going back in the stream to what is currently playing.
           dec_params.jumpto = out_playing_pos();
           dec_command( DECODER_JUMPTO, &dec_params );
-          if( cfg.trash )
-          {
-            out_params.nobuffermode = TRUE;
-            out_command( OUTPUT_NOBUFFERMODE, &out_params );
-            out_params.temp_playingpos = out_playing_pos();
-            out_command( OUTPUT_TRASH_BUFFERS, &out_params );
-          }
-
-          dec_params.ffwd = forwarding;
-          dec_command( DECODER_FFWD, &dec_params );
-        } else {
-          out_params.nobuffermode = FALSE;
-          out_command( OUTPUT_NOBUFFERMODE, &out_params );
-          dec_params.ffwd = forwarding;
-          dec_command( DECODER_FFWD, &dec_params );
+          out_params.temp_playingpos = out_playing_pos();
+          out_command( OUTPUT_TRASH_BUFFERS, &out_params );
         }
       }
       break;
@@ -225,26 +223,22 @@ amp_msg( int msg, void *param, void *param2 )
       {
         rewinding = !rewinding;
 
-        if( rewinding ) {
-          /* going back in the stream to what is currently playing */
+        if( forwarding ) {
+          // Stop forwarding anyway.
+          dec_params.ffwd = forwarding = FALSE;
+          dec_command( DECODER_FFWD, &dec_params );
+        }
+
+        dec_params.rew = rewinding;
+        dec_command( DECODER_REW, &dec_params );
+
+        if( cfg.trash )
+        {
+          // Going back in the stream to what is currently playing.
           dec_params.jumpto = out_playing_pos();
           dec_command( DECODER_JUMPTO, &dec_params );
-
-          if( cfg.trash )
-          {
-            out_params.nobuffermode = TRUE;
-            out_command( OUTPUT_NOBUFFERMODE, &out_params );
-            out_params.temp_playingpos = out_playing_pos();
-            out_command( OUTPUT_TRASH_BUFFERS, &out_params );
-          }
-
-          dec_params.rew = rewinding;
-          dec_command( DECODER_REW, &dec_params );
-        } else {
-          out_params.nobuffermode = FALSE;
-          out_command( OUTPUT_NOBUFFERMODE, &out_params );
-          dec_params.rew = rewinding;
-          dec_command( DECODER_REW,&dec_params );
+          out_params.temp_playingpos = out_playing_pos();
+          out_command( OUTPUT_TRASH_BUFFERS, &out_params );
         }
       }
       break;

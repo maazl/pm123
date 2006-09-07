@@ -29,7 +29,7 @@
 #ifndef __QUEUE_H
 #define __QUEUE_H
 
-#if __cplusplus
+#ifdef __cplusplus
 extern "C" {
 #endif
 
@@ -74,7 +74,7 @@ int qu_push( PQUEUE queue, unsigned long request, void* data );
 /* Adds an element to a queue. */
 int qu_write( PQUEUE queue, unsigned long request, void* data );
 
-#if __cplusplus
+#ifdef __cplusplus
 }
 #endif
 #endif
