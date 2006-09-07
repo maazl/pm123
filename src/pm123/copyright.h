@@ -32,7 +32,7 @@
 #ifndef _PM123_COPYRIGHT_H
 #define _PM123_COPYRIGHT_H
 
-#define AMP_VERSION  "1.32 beta 1"
+#define AMP_VERSION  "1.40 alpha 1"
 #define AMP_NAME     "PM123"
 #define AMP_FULLNAME AMP_NAME " " AMP_VERSION
 

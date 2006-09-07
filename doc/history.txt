@@ -1,6 +1,29 @@
 PM123's History
 ===============
 
+PM123 1.40 (alpha 1)
+--------------------
+    - New plug-in interface with much more flexibility to buffer handling and
+      filter plug-ins. This is required for future plug-ins like digital room
+      correction.
+      The new plug-in manager checks whether the PM123/plug-in pair is known to
+      work. It can load all old plug-ins except for visual plug-ins throgh an
+      virtualization layer. The visual plug-in compatibility is broken since
+      PM123 1.32 anyway.
+
+    REALEQ:
+    - Realeq does no longer delay the playback and cut the last samples.
+      It operates now as zero-phase filter.
+    - Enabling/disabling the EQ does no longer cause the playback to jump.
+    - Changing the FIR order does no longer cause glitches.
+    - The maximum FIR order is now 16384, giving very accurate results.
+    - The maximum FFT size is now 32768. This will cause low CPU usage even
+      with large FIR orders.
+    - The MMX and FFT convolution is finally removed. Both are outperformed by
+      the new FFT convolution.
+
+PM123 1.32 (still beta)
+-----------------------
     - Docking of windows became more accurate and powerful.
     - Addition of a bookmark is disabled if is not present a loaded file.
     - Added a new option to properties dialog allowing to choose a font used
