@@ -10,7 +10,9 @@
   if you want to use anything higher than level 0. Example:
 <pre>     #define OUTPUT_PLUGIN_LEVEL 2</pre>
 
-<h3><a name="initialization_interface"></a>Initialization interface</h3>
+<h3><a name="level_2"></a>Interface revision level 2 (recommended)</h3>
+
+<h4><a name="initialization_interface"></a>Initialization interface</h4>
 <p>The initialization interface does not need to be thread safe.</p>
 <pre>
      ULONG PM123_ENTRY <b>output_init</b>  ( void **a )
@@ -29,36 +31,29 @@ OUTPUT_OPEN. <i>decoder_uninit</i> is called when another output
 plug-in is request by the user and should free the allocated memory for
 <i>a</i>.<p>
 
-<h3><a name="control_interface"></a>Control interface</h3>
-<p>The control interface does not need to be thread safe,
+<h4><a name="control_interface"></a>Control interface</h4>
+<p>The control interface does not need to be thread safe itself,
   but it is called from a different thread than the <a href="#data_interface">data interface</a>.</p>
 <blockquote>
-  <h4>Interface revision level 0 and 1 (deprecated)</h4>
-  <pre>ULONG PM123_ENTRY <b>output_command</b>( void *a, ULONG msg, OUTPUT_PARAMS *info )</pre>
-  <h4>Interface revision level 2 (recommended)</h4>
   <pre>ULONG PM123_ENTRY <b>output_command</b>( void *a, ULONG msg, OUTPUT_PARAMS2 *info )</pre>
 </blockquote>
 <ul>
 <li><var>msg</var> - one of the following:<br>
 <ul>
 <li><code>OUTPUT_OPEN</code> opens the device or file needed for output.<br>
-  In the level 2 interface this may happen while the device is already open,
-  if the playback moves to the next file in playlist mode.
-  As long as you do not care about the new filename you can ignore this message.
-<li><code>OUTPUT_CLOSE</code> closes it.
+  This may happen while the device is already open, if the playback moves to the next file in playlist mode.
+  As long as you do not care about the new filename you should ignore this message in this case.
+<li><code>OUTPUT_CLOSE</code> immediately stop playback and close the audio device.
 <li><code>OUTPUT_VOLUME</code> changes the volume of an output device.
-<li><code>OUTPUT_PAUSE</code> pauses the playback (ie.: block in output_playsamples()).
-<li><code>OUTPUT_SETUP</code> setup the format that output_playsamples() will most likely
-receive, boost priority values, error_display functions and hwnd. 
+<li><code>OUTPUT_PAUSE</code> pauses the playback (ie.: block in <code>output_request_buffer()</code>).
+<li><code>OUTPUT_SETUP</code> setup the format that <code>output_request_buffer()</code> will most likely receive,
+  error_display functions and hwnd. 
 <li><code>OUTPUT_TRASH_BUFFERS</code> trash any buffers currently awating to be played.
-<li><code>OUTPUT_NOBUFFERMODE</code> forces the plug-in to not accumulate buffers for the time being.<br>
-  This command is <em>no longer used</em> since PM123 1.32.
-  All plug-ins with interface level 2 or above do not need to hanlde this. 
 </ul>
 <li><var>info</var> - structure that contains the parameters needed by the preceding commands
 <li>return value:<br>
 0 -> ok<br>
-others -> MMOS/2 errors or anything else
+others -> MMOS/2 errors or anything else.
 </ul>
 <p>There is a lot of commands to implement for this function.  Parameters
 needed for each of them are described in the definition of the structure
@@ -68,20 +63,14 @@ in the .h file.</p>
   <li><code>OUTPUT_VOLUME</code></li>
   <li><code>OUTPUT_SETUP</code></li>
   <li><code>OUTPUT_OPEN</code> - now we are <em>active</em>.
-    The <a href="#data_interface">data interface</a> may be used.</li>
+    The <a href="#data_interface">data interface</a> may be used.<br>
+    Optionally repeat this step.</li>
   <li><code>OUTPUT_CLOSE</code> - now we are no longer active.</li>
 </ol>
-<p>The other funtion codes (<code>OUTPUT_PAUSE</code> and <code>OUTPUT_TRASH_BUFFERS</code>)
-  are allowed only in active mode.</p>
+<p>The funtion codes (<code>OUTPUT_PAUSE</code> and <code>OUTPUT_TRASH_BUFFERS</code>)
+  are allowed only in active mode. <code>OUTPUT_VOLUME</code> is always allowed.</p>
 
-<h4>Notes for interface level 1 only (deprecated)</h4>
-<p>The output plug-in MUST <i>WinPostMsg()</i> the following messages to <i>hwnd</i>:
-<ul>
-<li><code>WM_PLAYERROR</code> when a playback error occures.
-<li><code>WM_OUTPUT_OUTOFDATA</code> when the output plug-in has finished playing all.
-its buffers. Not needed when <TT> always_hungry </TT> flag is enabled.
-</ul>
-<h4>Notes for interface level 2</h4>
+<h5>Notes</h5>
 <p>The output plug-in MUST call the eventhandler <strong><code>output_event</code></strong> with the parameter <strong><code>OUTEVENT_PLAY_ERROR</code></strong>
   when a playback error occures. This will stop the playback, but it is not guaranteed that this ist done immediately.<br>
   The output plug-in must call <code>output_event</code> with <strong><code>OUTEVENT_END_OF_DATA</code></strong> when the last sample is really processed.
@@ -97,12 +86,11 @@ its buffers. Not needed when <TT> always_hungry </TT> flag is enabled.
   <samp>cdda:///H:/track02</samp><br>
   The URI may change during playback. This is signalled with a new <code>OUTPUT_OPEN</code> call. You may ignore this.</p>
 
-<h3><a name="data_interface"></a>Data interface</h3>
+<h4><a name="data_interface"></a>Data interface</h4>
 <p>The data interface is only used when the control interface is in activated state.</p>
-<p>The data interface does not need to be thread safe,
+<p>The data interface does not need to be thread safe itself,
   but it is called from a different thread than the <a href="#control_interface">control interface</a>.</p>
 
-<h4>Interface level 2 (current)</h4>
 <p>The level 2 interface allocates the sample buffers by the plug-in rather than the data source.
   This is known to cause less double buffering. The buffer size is no longer fixed.
   The functions <code>output_request_buffer</code> and <code>output_commit_buffer</code>
@@ -132,30 +120,15 @@ its buffers. Not needed when <TT> always_hungry </TT> flag is enabled.
 <li><var>len</var> - used length of buffer.<br>
   The length might be less than the length of the requested buffer.
   This does not mean that it is a good advise to play a buffer smaller than usual unless you receive a flush signal.
+  A length of 0 is not an error but an undo request to the previous <code>output_request_buffer</code> call.
 <li><var>posmarker</var> = position marker to return with <code>output_playing_pos</code>.
   This is a time index of the starting point of this buffer in milliseconds.
   The time position marker may have a large offset far beyond the length of the current file.
 </ul>
 <p>This function is called by the decoder or last in chain filter plug-in to play the stored samples.
 
-<h4>Interface level 1 (deprecated)</h4>
-<pre>
-     int PM123_ENTRY <b>output_play_samples</b>( void* a, FORMAT_INFO* format,
-                                          char* buf,int len, int posmarker )
-</pre>
-<ul>
-<li><var>format</var> - format of buf.
-<li><var>buf</var> - data to play.
-<li><var>len</var> - length of buf.<br>
-  The case length == 0 has the special meaning that there are no more samples to come.
-  This is an implicit request for the <code>OUTEVENT_END_OF_DATA</code> event.
-<li><var>posmarker</var> = position marker to return with <code>output_playing_pos</code>.
-<li><var>return value</var> - the number of bytes from len processed. ie.: &lt; len = error.
-</ul>
-<p>This function is called by the decoder or last in chain filter plug-in to play samples.
-
-<h3><a name="status_interface"></a>Status interface</h3>
-<p>The status interface must be thread safe.</p>
+<h4><a name="status_interface"></a>Status interface</h4>
+<p>The status interface must be thread safe and reentrant.</p>
 <pre>
      int   PM123_ENTRY <b>output_playing_pos</b>( void* a )
 </pre>
@@ -180,6 +153,77 @@ This function is used by visual plug-ins so the user can visualize what
 is currently being played. <var>len</var> is usually in the order of 2048 samples or less.
 So check that amount usually required by your visual plug-ins before making
 complicated buffering functions in your output plug-in.</p>
+
+<h3><a name="level_1"></a>Interface revision level 0 and 1 (deprecated)</h3>
+
+<h4>Initialization interface</h4>
+<p>See <a href="#initialization_interface">level 2 interface</a>. This part of the interface has not been changed.</p>
+
+<h4><a name="control_interface1"></a>Control interface</h4>
+<p>The control interface does not need to be thread safe itself,
+  but it is called from a different thread than the <a href="#data_interface1">data interface</a>.</p>
+<blockquote>
+  <pre>ULONG PM123_ENTRY <b>output_command</b>( void *a, ULONG msg, OUTPUT_PARAMS *info )</pre>
+</blockquote>
+<ul>
+<li><var>msg</var> - one of the following:<br>
+<ul>
+<li><code>OUTPUT_OPEN</code> opens the device or file needed for output.<br>
+<li><code>OUTPUT_CLOSE</code> closes it.
+<li><code>OUTPUT_VOLUME</code> changes the volume of an output device.
+<li><code>OUTPUT_PAUSE</code> pauses the playback (ie.: block in output_playsamples()).
+<li><code>OUTPUT_SETUP</code> setup the format that output_playsamples() will most likely
+receive, boost priority values, error_display functions and hwnd. 
+<li><code>OUTPUT_TRASH_BUFFERS</code> trash any buffers currently awating to be played.
+<li><code>OUTPUT_NOBUFFERMODE</code> forces the plug-in to not accumulate buffers for the time being.<br>
+  Note: this command is <em>no longer used</em> since PM123 1.40.
+</ul>
+<li><var>info</var> - structure that contains the parameters needed by the preceding commands
+<li>return value:<br>
+0 -> ok<br>
+others -> MMOS/2 errors or anything else
+</ul>
+<p>There is a lot of commands to implement for this function.  Parameters
+needed for each of them are described in the definition of the structure
+in the .h file.</p>
+<p>The status graph is as follows:
+<ol>
+  <li><code>OUTPUT_VOLUME</code></li>
+  <li><code>OUTPUT_SETUP</code></li>
+  <li><code>OUTPUT_OPEN</code> - now we are <em>active</em>.
+    The <a href="#data_interface1">data interface</a> may be used.</li>
+  <li><code>OUTPUT_CLOSE</code> - now we are no longer active.</li>
+</ol>
+<p>The other funtion codes (<code>OUTPUT_PAUSE</code> and <code>OUTPUT_TRASH_BUFFERS</code>)
+  are allowed only in active mode. <code>OUTPUT_VOLUME</code> is always allowed.</p>
+
+<p>The output plug-in MUST <i>WinPostMsg()</i> the following messages to <i>hwnd</i>:
+<ul>
+<li><code>WM_PLAYERROR</code> when a playback error occures.
+<li><code>WM_OUTPUT_OUTOFDATA</code> when the output plug-in has finished playing all.
+its buffers. Not needed when <TT> always_hungry </TT> flag is enabled.
+</ul>
+
+<h4><a name="data_interface1"></a>Data interface</h4>
+<p>The data interface is only used when the control interface is in activated state.</p>
+<p>The data interface does not need to be thread safe itself,
+  but it is called from a different thread than the <a href="#control_interface1">control interface</a>.</p>
+
+<pre>
+     int PM123_ENTRY <b>output_play_samples</b>( void* a, FORMAT_INFO* format,
+                                          char* buf,int len, int posmarker )
+</pre>
+<ul>
+<li><var>format</var> - format of buf.
+<li><var>buf</var> - data to play.
+<li><var>len</var> - length of buf.
+<li><var>posmarker</var> = position marker to return with <code>output_playing_pos</code>.
+<li><var>return value</var> - the number of bytes from len processed. ie.: &lt; len = error.
+</ul>
+<p>This function is called by the decoder or last in chain filter plug-in to play samples.
+
+<h4>Status interface</h4>
+<p>See <a href="#status_interface">level 2 interface</a>. This part of the interface has not been changed.</p>
 
 </body>
 </html>
