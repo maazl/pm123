@@ -482,7 +482,7 @@ static BOOL init_bands(int samplerate)
   #ifdef DEBUG
   DEBUGLOG(("INITSCALE: st = %f,\n", step));
   for (i = 0; i <= bars_count; ++i)
-    DEBUGLOG((" %d", scale[i]));
+    DEBUGLOG2((" %d", scale[i]));
   DEBUGLOG(("\n"));
   #endif
   
@@ -953,7 +953,7 @@ vis_init( PVISPLUGININIT init )
   cfg.falloff         = 1;
   cfg.falloff_speed   = 1;
   cfg.display_freq    = -1;
-  display_percent = -1;
+  display_percent     = -1;
   cfg.display_lowfreq = 50;
   cfg.highprec_mode   = FALSE;
 
@@ -967,7 +967,7 @@ vis_init( PVISPLUGININIT init )
     { // hack to keep ini macros happy
       struct
       { int display_percent;
-      } cfg;
+      } cfg = { display_percent };
       load_ini_value( hini, cfg.display_percent );
       display_percent = cfg.display_percent;
     }
@@ -975,12 +975,21 @@ vis_init( PVISPLUGININIT init )
 
     close_ini( hini );
   }
+  DEBUGLOG(("vis_init: %d, %d\n", cfg.display_freq, display_percent));
   if (cfg.display_freq <= 0)
   { if (display_percent <= 0)
       cfg.display_freq = 18000;
      else
-      cfg.display_freq = max(5, display_percent * 22050 / 100); // for compatibility
+      cfg.display_freq = display_percent * 22050 / 100; // for compatibility
   }
+
+  // mask unreasonable values
+  if (cfg.display_freq < 5000)
+    cfg.display_freq = 5000;
+  if (cfg.default_mode > SHOW_DISABLED || cfg.default_mode < 0)
+    cfg.default_mode = SHOW_DISABLED;
+  cfg.highprec_mode = !!cfg.highprec_mode;
+
 
   // First get the routines
   decoderPlayingSamples = init->procs->output_playing_samples;
