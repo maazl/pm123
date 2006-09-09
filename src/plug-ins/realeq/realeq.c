@@ -909,6 +909,7 @@ void PM123_ENTRY
 filter_update( void *F, const FILTER_PARAMS2 *params )
 { REALEQ_STRUCT* f = (REALEQ_STRUCT*)F;
   DosEnterCritSec();
+  f->output_command        = params->output_command;
   f->output_request_buffer = params->output_request_buffer;
   f->output_commit_buffer  = params->output_commit_buffer;
   f->a                     = params->a;
@@ -1017,7 +1018,7 @@ int PM123_ENTRY
 plugin_query( PLUGIN_QUERYPARAM *param )
 {
   param->type         = PLUGIN_FILTER;
-  param->author       = "Samuel Audet";
+  param->author       = "Samuel Audet, Marcel Mller";
   param->desc         = VERSION;
   param->configurable = TRUE;
   param->interface    = FILTER_PLUGIN_LEVEL;

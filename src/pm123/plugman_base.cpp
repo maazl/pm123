@@ -120,12 +120,13 @@ CL_MODULE::~CL_MODULE()
 
 /* Loads a plug-in dynamic link module. */
 BOOL CL_MODULE::load_module()
-{ char  error[1024];
+{ char  load_error[1024];
   DEBUGLOG(("CL_MODULE(%p{%s})::load_module()\n", this, module_name));
-  APIRET rc = DosLoadModule( error, sizeof( error ), (PSZ)module_name, &module );
+  APIRET rc = DosLoadModule( load_error, sizeof( load_error ), (PSZ)module_name, &module );
   if( rc != NO_ERROR ) {
-    amp_player_error( "Could not load %s. Error %d\n%s",
-                      module_name, rc, os2_strerror( rc, error, sizeof( error )));
+    char  error[1024];
+    amp_player_error( "Could not load %s, %s. Error %d\n%s",
+                      module_name, load_error, rc, os2_strerror( rc, error, sizeof( error )));
     return FALSE;
   }
   DEBUGLOG(("CL_MODULE({%p,%s})::load_module: TRUE\n", module, module_name));
@@ -135,6 +136,8 @@ BOOL CL_MODULE::load_module()
 /* Unloads a plug-in dynamic link module. */
 BOOL CL_MODULE::unload_module()
 { DEBUGLOG(("CL_MODULE(%p{%p,%s}))::unload_module()\n", this, module, module_name));
+  if (module == NULLHANDLE)
+    return TRUE;
   APIRET rc = DosFreeModule( module );
   if( rc != NO_ERROR && rc != ERROR_INVALID_ACCESS ) {
     char  error[1024];
@@ -596,7 +599,7 @@ proxy_1_output_command( CL_OUTPUT_PROXY_1* op, void* a, ULONG msg, OUTPUT_PARAMS
     params.error_display   = info->error_display;
     params.info_display    = info->info_display;
     params.hwnd            = info->hwnd;
-    params.volume          = info->volume;
+    params.volume          = (char)(info->volume*100+.5);
     params.amplifier       = info->amplifier;
     params.pause           = info->pause;
     params.temp_playingpos = info->temp_playingpos;
@@ -705,25 +708,32 @@ BOOL CL_FILTER::initialize(FILTER_PARAMS2* params)
   FILTER_PARAMS2 par = *params;
   if (is_initialized() || (*filter_init)(&f, params) != 0)
     return FALSE;
-  // virtualize untouched functions
-  if (par.output_command          == params->output_command)
-    params->output_command         = (ULONG (PM123_ENTRYP)(void*, ULONG, OUTPUT_PARAMS2*))
-                                     mkvreplace1(&vrstubs[0], (V_FUNC)par.output_command, par.a);
-  if (par.output_playing_samples  == params->output_playing_samples)
-    params->output_playing_samples = (ULONG (PM123_ENTRYP)(void*, FORMAT_INFO*, char*, int))
-                                     mkvreplace1(&vrstubs[1], (V_FUNC)par.output_playing_samples, par.a);
-  if (par.output_request_buffer   == params->output_request_buffer)
-    params->output_request_buffer  = (int (PM123_ENTRYP)(void*, const FORMAT_INFO*, char**))
-                                     mkvreplace1(&vrstubs[2], (V_FUNC)par.output_request_buffer, par.a);
-  if (par.output_commit_buffer    == params->output_commit_buffer)
-    params->output_commit_buffer   = (void (PM123_ENTRYP)(void*, int, int))
-                                     mkvreplace1(&vrstubs[3], (V_FUNC)par.output_commit_buffer, par.a);
-  if (par.output_playing_pos      == params->output_playing_pos)
-    params->output_playing_pos     = (int (PM123_ENTRYP)(void*))
-                                     mkvreplace1(&vrstubs[4], (V_FUNC)par.output_playing_pos, par.a);
-  if (par.output_playing_data     == params->output_playing_data)
-    params->output_playing_data    = (BOOL (PM123_ENTRYP)(void*))
-                                     mkvreplace1(&vrstubs[5], (V_FUNC)par.output_playing_data, par.a);
+
+  if (f == NULL)
+  { // plug-in does not require local structures
+    // => pass the pointer of the next stage and skip virtualization of untouched function
+    f = par.a;
+  } else
+  { // virtualize untouched functions
+    if (par.output_command          == params->output_command)
+      params->output_command         = (ULONG (PM123_ENTRYP)(void*, ULONG, OUTPUT_PARAMS2*))
+                                       mkvreplace1(&vrstubs[0], (V_FUNC)par.output_command, par.a);
+    if (par.output_playing_samples  == params->output_playing_samples)
+      params->output_playing_samples = (ULONG (PM123_ENTRYP)(void*, FORMAT_INFO*, char*, int))
+                                       mkvreplace1(&vrstubs[1], (V_FUNC)par.output_playing_samples, par.a);
+    if (par.output_request_buffer   == params->output_request_buffer)
+      params->output_request_buffer  = (int (PM123_ENTRYP)(void*, const FORMAT_INFO*, char**))
+                                       mkvreplace1(&vrstubs[2], (V_FUNC)par.output_request_buffer, par.a);
+    if (par.output_commit_buffer    == params->output_commit_buffer)
+      params->output_commit_buffer   = (void (PM123_ENTRYP)(void*, int, int))
+                                       mkvreplace1(&vrstubs[3], (V_FUNC)par.output_commit_buffer, par.a);
+    if (par.output_playing_pos      == params->output_playing_pos)
+      params->output_playing_pos     = (int (PM123_ENTRYP)(void*))
+                                       mkvreplace1(&vrstubs[4], (V_FUNC)par.output_playing_pos, par.a);
+    if (par.output_playing_data     == params->output_playing_data)
+      params->output_playing_data    = (BOOL (PM123_ENTRYP)(void*))
+                                       mkvreplace1(&vrstubs[5], (V_FUNC)par.output_playing_data, par.a);
+  }
   return TRUE;
 }
 

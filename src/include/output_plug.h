@@ -96,7 +96,7 @@ typedef struct _OUTPUT_PARAMS2
 
   /* --- OUTPUT_VOLUME */
 
-  char  volume;
+  float volume;           // [0...1]
   float amplifier;
 
   /* --- OUTPUT_PAUSE */

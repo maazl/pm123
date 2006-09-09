@@ -93,7 +93,7 @@ static class CL_GLUE
   // control interface
   friend ULONG             out_setup          ( const FORMAT_INFO* formatinfo, const char* URI );
   friend ULONG             out_close          ();
-  friend void              out_set_volume     ( int volume );
+  friend void              out_set_volume     ( double volume );
   friend ULONG             out_pause          ( BOOL pause );
   friend void              out_trashbuffers   ( int temp_playingpos );
   friend BOOL              out_flush          ( void );
@@ -231,7 +231,7 @@ ULONG out_close()
 }
 
 /* adjust output volume */
-void out_set_volume( int volume )
+void out_set_volume( double volume )
 { if (!voutput.initialized)
     return; // can't help
   voutput.params.volume = volume;
@@ -330,7 +330,7 @@ static CL_PLUGIN* instantiate(CL_MODULE& mod, CL_PLUGIN* (*factory)(CL_MODULE& m
 { DEBUGLOG(("plugman:instantiate(%p{%s}, %p, %p, %i)\n", &mod, mod.module_name, factory, &list, enabled)); 
 
   if (list.find(mod) != -1)
-  { DEBUGLOG(("plugman:instantiate: trying to load plugin twice\n"));
+  { amp_player_error( "Tried to load the plug-in %s twice.\n", mod.module_name );
     return NULL;
   }
   CL_PLUGIN* pp = (*factory)(mod);

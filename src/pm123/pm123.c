@@ -59,6 +59,8 @@
 #include "copyright.h"
 #include "docking.h"
 
+#include <debuglog.h>
+
 #define  AMP_REFRESH_CONTROLS ( WM_USER + 121   )
 #define  AMP_DISPLAYMSG       ( WM_USER + 76    )
 #define  AMP_PAINT            ( WM_USER + 77    )
@@ -158,7 +160,7 @@ amp_volume_to_normal( void )
   if( i > 100 ) {
       i = 100;
   }
-  out_set_volume( i );
+  out_set_volume( i/100. );
 }
 
 /* Sets audio volume to below current selected level. */
@@ -169,7 +171,7 @@ amp_volume_to_lower( void )
   if( i > 100 ) {
       i = 100;
   }
-  out_set_volume((float)i*3/5);
+  out_set_volume(i*(3./500.));
 }
 
 /* Adjusts audio volume to level accordingly current playing mode. */
@@ -2924,6 +2926,8 @@ amp_player_error( const char* format, ... )
 
   va_start( args, format );
   vsprintf( message, format, args );
+  
+  DEBUGLOG(("ERROR: %s\n", message));
 
   amp_message_box( hframe, "PM123 Error", message,
                    MB_ERROR | MB_OK | MB_MOVEABLE );
@@ -2940,6 +2944,8 @@ amp_error( HWND owner, const char* format, ... )
   va_start( args, format );
   vsprintf( message, format, args );
 
+  DEBUGLOG(("ERROR: %s\n", message));
+
   amp_message_box( owner, "PM123 Error", message,
                    MB_ERROR | MB_OK | MB_MOVEABLE );
 }
@@ -2953,6 +2959,8 @@ amp_info( HWND owner, const char* format, ... )
 
   va_start( args, format );
   vsprintf( message, format, args );
+
+  DEBUGLOG(("INFO: %s\n", message));
 
   amp_message_box( owner, "PM123 Information", message,
                    MB_INFORMATION | MB_OK | MB_MOVEABLE );
