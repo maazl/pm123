@@ -1,0 +1,9 @@
+SYSTEM OS2V2_DLL INITINSTANCE TERMINSTANCE
+OPTION MANYAUTODATA
+OPTION DESCRIPTION 'PM123 log volume plugin'
+
+EXPORT filter_init         .1
+EXPORT filter_uninit       .2
+EXPORT filter_update       .3
+
+EXPORT plugin_query        .10

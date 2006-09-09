@@ -1,0 +1,10 @@
+LIBRARY LOGVOLUM INITINSTANCE TERMINSTANCE
+DESCRIPTION 'PM123 log volume plugin'
+PROTMODE
+DATA MULTIPLE NONSHARED LOADONCALL
+EXPORTS
+   filter_init         @1
+   filter_uninit       @2
+   filter_update       @3
+
+   plugin_query        @10
