@@ -2,6 +2,8 @@
 #  utilfct library makefile
 #
 
+INCDIR  = .
+
 !include ..\config\makerules
 
 all: utilfct$(LBO) $(MDUMMY)
