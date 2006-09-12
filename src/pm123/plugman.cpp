@@ -91,7 +91,7 @@ static class CL_GLUE
   const  OUTPUT_PROCS&     get_procs() const  { return procs; }
   
   // control interface
-  friend ULONG             out_setup          ( const FORMAT_INFO* formatinfo, const char* URI );
+  friend ULONG             out_setup          ( const FORMAT_INFO2* formatinfo, const char* URI );
   friend ULONG             out_close          ();
   friend void              out_set_volume     ( double volume );
   friend ULONG             out_pause          ( BOOL pause );
@@ -210,13 +210,13 @@ void CL_GLUE::uninit()
 }
 
 /* setup new output stage or change the properties of the current one */
-ULONG out_setup( const FORMAT_INFO* formatinfo, const char* URI )
-{ if (!voutput.initialized)
+ULONG out_setup( const FORMAT_INFO2* formatinfo, const char* URI )
+{ voutput.params.formatinfo = *formatinfo;
+  if (!voutput.initialized)
   { ULONG rc = voutput.init(); // here we initialte the setup of the filter chain
     if (rc != 0)
       return rc;
   }
-  voutput.params.formatinfo = *formatinfo;
   voutput.params.URI = URI;
   return voutput.out_command( OUTPUT_OPEN );
 }
@@ -761,14 +761,14 @@ static BOOL is_file_supported(const char* const* support, const char* url)
 ULONG PM123_ENTRY
 dec_fileinfo( char* filename, DECODER_INFO* info, char* name )
 {
-  BOOL* checked = (BOOL*)_alloca( sizeof( BOOL ) * decoders.count() );
+  BOOL* checked = (BOOL*)alloca( sizeof( BOOL ) * decoders.count() );
   int   i;
 
   memset( checked, 0, sizeof( BOOL ) * decoders.count() );
   
   // Prepend file://
   if (is_file(filename) && !is_url(filename))
-  { char* fname = (char*)_alloca( strlen(filename) +8 );
+  { char* fname = (char*)alloca( strlen(filename) +8 );
     strcpy(fname, "file://");
     strcpy(fname+7, filename);
     filename = fname;

@@ -2331,9 +2331,12 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
 
     // Posted by decoder
     case WM_PLAYSTOP:
+      DEBUGLOG(("WM_PLAYSTOP\n"));
       // The decoder has finished the work, but we should wait until output
       // buffers will become empty.
       decoder_finished = TRUE;
+      // Work-around for old decoders
+      out_flush();
       return 0;
 
     // Posted by output
@@ -2944,7 +2947,7 @@ amp_error( HWND owner, const char* format, ... )
   va_start( args, format );
   vsprintf( message, format, args );
 
-  DEBUGLOG(("ERROR: %s\n", message));
+  DEBUGLOG(("ERROR: %x, %s\n", owner, message));
 
   amp_message_box( owner, "PM123 Error", message,
                    MB_ERROR | MB_OK | MB_MOVEABLE );

@@ -106,7 +106,7 @@ typedef struct _DECODER_PARAMS2
    /* --- DECODER_SETUP */
 
    /* specify a function which the decoder should use for output */
-   int   (PM123_ENTRYP output_request_buffer )( void* a, const FORMAT_INFO* format, char** buf );
+   int   (PM123_ENTRYP output_request_buffer )( void* a, const FORMAT_INFO2* format, short** buf );
    void  (PM123_ENTRYP output_commit_buffer  )( void* a, int len, int posmarker );
    void* a;           /* only to be used with the precedent functions */
 

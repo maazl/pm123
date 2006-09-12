@@ -90,26 +90,26 @@ in the .h file.</p>
 <p>The data interface is only used when the control interface is in activated state.</p>
 <p>The data interface does not need to be thread safe itself,
   but it is called from a different thread than the <a href="#control_interface">control interface</a>.</p>
-
 <p>The level 2 interface allocates the sample buffers by the plug-in rather than the data source.
   This is known to cause less double buffering. The buffer size is no longer fixed.
   The functions <code>output_request_buffer</code> and <code>output_commit_buffer</code>
-  have to be called alternatingly. Anything else is an error. 
+  have to be called alternatingly. Anything else is an error.
+<p>All samples are passed as 16 bit signed integers regardless what type the input has been.</p> 
 <pre>
-     int PM123_ENTRY <b>output_request_buffer</b>( void* a, FORMAT_INFO* format, char** buf )
+     int PM123_ENTRY <b>output_request_buffer</b>( void* a, FORMAT_INFO2* format, float** buf )
 </pre>
 <ul>
 <li><var>format</var> - format of buf.<br>
-  This may change during playback.
+  This may change during playback but not within a buffer.
 <li><var>buf</var> [out] - pointer to a storage area where the samples should be placed.
   A value of <code>NULL</code> indicates that there are no more samples to come (flush signal).
-<li><var>return value</var> - the size of the returned buffer in bytes.
-  Any number that is large enough to store at least one complete sample is fine.
-  Return values &le;&nbsp;0 signals a fatal error, except for the flush signal which always return zero.
+<li><var>return value</var> - the number of samples that fit in the returned buffer.
+  The buffer size in bytes is this value multiplied by the number of channels and <code>sizeof(float)</code>.
+  Return values &le;&nbsp;0 signals a fatal error, except for the flush signal which always returns zero.
 </ul>
 <p>This function is called by the decoder or last in chain filter plug-in to store samples for playing.
   The function call may block until enough buffer space is available.
-<p>After a flush signal (<var>buf</var> == <code>NULL</code>)there is no need to call <code>output_commit_buffer</code>.
+<p>After a flush signal (<var>buf</var> == <code>NULL</code>) there is no need to call <code>output_commit_buffer</code>.
   The flush signal should be used to play any internal buffers regardless if they are completely full or not.<br>
   Note that the flush signal is an implicit request for an <code>OUTEVENT_END_OF_DATA</code> event.
   The <code>output_request_buffer</code> call must not block until all buffers are played.</p>
@@ -117,8 +117,8 @@ in the .h file.</p>
      void PM123_ENTRY <b>output_commit_buffer</b>( void* a, int len, int posmarker )
 </pre>
 <ul>
-<li><var>len</var> - used length of buffer.<br>
-  The length might be less than the length of the requested buffer.
+<li><var>len</var> - used length of buffer in samples.<br>
+  The length might be less than the length returned at <code>output_request_buffer</code>.
   This does not mean that it is a good advise to play a buffer smaller than usual unless you receive a flush signal.
   A length of 0 is not an error but an undo request to the previous <code>output_request_buffer</code> call.
 <li><var>posmarker</var> = position marker to return with <code>output_playing_pos</code>.
@@ -215,6 +215,8 @@ its buffers. Not needed when <TT> always_hungry </TT> flag is enabled.
 </pre>
 <ul>
 <li><var>format</var> - format of buf.
+  The format type is always <code>WAVE_FORMAT_PCM</code> and from PM123 version 1.40 the number of bits per sample is always 16.
+  The number of channels may change during playback but not within a buffer.
 <li><var>buf</var> - data to play.
 <li><var>len</var> - length of buf.
 <li><var>posmarker</var> = position marker to return with <code>output_playing_pos</code>.

@@ -14,7 +14,7 @@ Although they look very similar they are completely different.</p>
  
 <h3>Interface level 2 (current)</h3>
 <pre>
-     ULONG PM123_ENTRY <b>filter_init  </b>( void **f, FILTER_PARAMS2 *params )
+     ULONG PM123_ENTRY <b>filter_init</b>( void **f, FILTER_PARAMS2 *params )
 </pre>
 <ul>
 <li>f : Allocate any chunk of memory necessary for the filter's function.
@@ -45,7 +45,6 @@ This pointer will be passed to the any other function call into the filter plug-
   and return TRUE unless you are in real big trouble. 
 
 <h3>Interface level 1 (still supported)</h3>
-
 <pre>
      ULONG PM123_ENTRY <b>filter_init  </b>( void **f, FILTER_PARAMS *params )
      BOOL  PM123_ENTRY <b>filter_uninit</b>( void *f )

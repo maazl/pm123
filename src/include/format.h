@@ -50,5 +50,13 @@ typedef struct _FORMAT_INFO
 
 } FORMAT_INFO;
 
+/* reduced structure for level 2 plug-in interfaces */
+typedef struct
+{
+  int size;
+  int samplerate;
+  int channels;
+} FORMAT_INFO2;
+
 #endif /* __PM123_FORMAT_H */
 

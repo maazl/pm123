@@ -73,8 +73,10 @@ amp_msg( int msg, void *param, void *param2 )
       char cdda_url[20];
 
       // TODO: URI!!!
-      rc = out_setup( (FORMAT_INFO*)param2, data->out_filename );
+      rc = out_setup( (FORMAT_INFO2*)param2, data->out_filename );
+      DEBUGLOG(("amp_msg:MSG_PLAY: after setup %d %d - %d\n", ((FORMAT_INFO2*)param2)->samplerate, ((FORMAT_INFO2*)param2)->channels, rc));
       if( rc != 0 ) {
+        amp_post_message( WM_PLAYERROR, 0, 0 );
         return;
       }
 
@@ -91,7 +93,7 @@ amp_msg( int msg, void *param, void *param2 )
 
       equalize_sound( gains, mutes, preamp, cfg.eq_enabled );
 
-      DEBUGLOG(("amp_msg: MSG_PLAY: %s, %p, %d\n", data->filename, data->drive, data->track));
+      DEBUGLOG(("amp_msg:MSG_PLAY: %s, %p, %d\n", data->filename, data->drive, data->track));
       if (data->drive != NULL && *data->drive != 0 && data->track != 0) // pm123 core sometimes passes trash in the track field
       { sprintf(cdda_url, "cdda:///%s/track%02d", data->drive, data->track);
         dec_params.URL = cdda_url;

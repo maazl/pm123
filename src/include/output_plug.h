@@ -81,7 +81,7 @@ typedef struct _OUTPUT_PARAMS2
 
   /* --- OUTPUT_SETUP */
 
-  FORMAT_INFO formatinfo;
+  FORMAT_INFO2 formatinfo;
   /* Error handlers */
   void (PM123_ENTRYP error_display)( char* );
   /* info message function the output plug-in should use */
@@ -120,7 +120,7 @@ int   PM123_ENTRY output_play_samples( void* a, FORMAT_INFO* format, char* buf, 
 ULONG PM123_ENTRY output_playing_pos( void* a );
 #else
 ULONG PM123_ENTRY output_command( void* a, ULONG msg, OUTPUT_PARAMS2* info );
-int   PM123_ENTRY output_request_buffer( void* a, const FORMAT_INFO* format, char** buf );
+int   PM123_ENTRY output_request_buffer( void* a, const FORMAT_INFO2* format, short** buf );
 void  PM123_ENTRY output_commit_buffer( void* a, int len, int posmarker );
 int   PM123_ENTRY output_playing_pos( void* a );
 #endif

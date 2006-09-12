@@ -7,17 +7,19 @@
 <p>Decoder plug-ins must implement and export the functions defined in <tt>decode_plug.h</tt>.</p>
 <p>There are two interface revision levels.
   For developing new plug-ins the revision 2 interface is recommended.
-  Before including any PM123 include file the macro <code>OUTPUT_PLUGIN_LEVEL</code> must be defined
+  Before including any PM123 include file the macro <code>DECODER_PLUGIN_LEVEL</code> must be defined
   if you want to use anything higher than level 0. Example:
 <pre>     #define DECODE_PLUGIN_LEVEL 2</pre>
 
-<h3>Initialization interface</h3>
+<h3>Interface revision level 2 (recommended)</h3>
+
+<h4><a name="initialization_interface"></a>Initialization interface</h4>
 <p>
 Decoder plug-ins must implement and export the functions defined in
 decoder_plug.h.
 <pre>
-     int  PM123_ENTRY decoder_init  ( void **w )
-     BOOL PM123_ENTRY decoder_uninit( void *w  )
+     int  PM123_ENTRY <b>decoder_init</b>  ( void **w )
+     BOOL PM123_ENTRY <b>decoder_uninit</b>( void *w  )
 </pre><ul>
 <li>w : Allocate any chunk of memory necessary for the decoder's
 function. This pointer will be passed to the other functions.
@@ -28,17 +30,13 @@ successfully.
 Init function is called when PM123 needs the specified decoder
 to play the stream demanded by the user. So only one decoder plug-in is
 active at any given time. It should initialize the necessary semaphores
-and threads. <i>decoder_uninit</i> is called when another decoder
+and threads. <code>decoder_uninit</code> is called when another decoder
 than yours is needed, and should destroy the decoder's thread,
 semaphores, other opened handles and free allocated memory for <i>w</i>.
 
-<h3><a name="control_interface"></a>Control interface</h3>
-<blockquote>
-  <h4>Interface revision level 2 (recommended)</h4>
-  <pre>ULONG PM123_ENTRY decoder_command( void *w, ULONG msg, DECODER_PARAMS2 *params )</pre>
-  <h4>Interface revision level 0 and 1</h4>
-  <pre>ULONG PM123_ENTRY decoder_command( void *w, ULONG msg, DECODER_PARAMS *params )</pre>
-</blockquote>
+<h4><a name="control_interface"></a>Control interface</h4>
+<pre>
+     ULONG PM123_ENTRY <b>decoder_command</b>( void *w, ULONG msg, DECODER_PARAMS2 *params )</pre>
 <ul>
 <li>msg: one of the following:
 <ul>
@@ -65,8 +63,7 @@ commands.
 There is a lot of commands to implement for this function. Parameters
 needed for each of the are described in the definition of the structure
 in the .h file.
-<p>The main difference between interface revisision level 1 and 2 is the <a href="#out_interface">output interface</a>.
-  Furthermore, the data source always passed as an URL in the level 2 interface.
+<p><a name="url_samples"></a>In the level 2 interface the data source always passed as an URL.
   The URL parameter uses the following syntax:
 <blockquote>
   <samp>file:///D:/Music/my favorite song.mp3</samp><br>
@@ -74,6 +71,188 @@ in the .h file.
   <samp>http://... </samp>(as you would expect)<br>
   <samp>cdda:///H:/track02</samp>
 </blockquote>
+<p>
+The decoder plug-in MUST <code>WinPostMsg()</code> the following messages to <code>hwnd</code>:
+<ul>
+<li>WM_PLAYSTOP when the stream has finished decoding.
+<li>WM_PLAYERROR when a playback error occured so that PM123 should know to
+stop immediately.
+<li>WM_SEEKSTOP when a JUMPTO operation is completed (ie.: when no buffers
+from before the seek is sent to the output plugin anymore).
+<li>WM_CHANGEBR is sent whenever you want PM123 to change the display
+of the current bitrate. mp1 = current bitrate in kbit/s.
+<li>WM_METADATA is sent whenever streaming metadata is updated and
+contains the pointer to the streaming metadata in mp1. This pointer
+should be the same one that is passed with DECODER_SETUP because it is
+garanteed to be available to PM123 without memory leaking.
+</ul>
+<p>
+Streaming metadata currently is for SHOUTcast (and icecast is using the same
+method), so it is a string with the following format:
+<pre>
+     StreamingTitle='blah blah';StreamingURL='more useless information';
+</pre>
+Only StreamingTitle is used by PM123.
+
+<h4><a name="status_interface"></a>Status Interface</h4>
+<p>The status interface has to be thread safe.</p> 
+<pre>
+     ULONG PM123_ENTRY <b>decoder_status</b>( void *w )
+</pre>
+<ul>
+<li>return value - One of the following:<br>
+DECODER_STOPPED<br>
+DECODER_PLAYING<br>
+DECODER_STARTING<br>
+</ul>
+<pre>
+     ULONG PM123_ENTRY <b>decoder_length</b>( void *w )
+</pre>
+<ul>
+<li>return value - number of milliseconds the stream lasts (you can
+report <code>(ULONG)-1</code> if unknown).
+</ul>
+<p>
+The call to this function must be valid even if <i>DECODER_STARTING</i> or
+<i>DECODER_STOPPED</i> is reported (when the stream plays too fast for
+example).
+
+<h4><a name="info_interface"></a>Info interface</h4>
+<p>The info interface functions must be independent of the current decoder status.
+They should always be functionnaly and give consistent results in any conditions.
+</p>
+<pre>
+     ULONG PM123_ENTRY <b>decoder_fileinfo</b>( char *url, DECODER_INFO *info )
+</pre>
+<ul>
+<li><var>url</var> - URL to the desired stream. See <a href="#url_samples">URL samples</a>.
+<li><var>info</var> - this structure must be filled with the required information.
+<li><var>return value</var> -<br>
+0 = everything's perfect, structure is set.<br>
+100 = error reading file (too small?).<br>
+200 = decoder can't play that.<br>
+1001 = http error occured.<br>
+other values = errno.
+</ul>
+<pre>
+     ULONG PM123_ENTRY <b>decoder_cdinfo</b>( char *drive, DECODER_CDINFO *info )
+</pre>
+<ul>
+<li>drive: ...
+<li><var>info</var> - required info on the number of tracks available from the
+decoder.</lI>
+</ul>
+<p>
+This is used by PM123 before calling <code>decoder_fileinfo</code> with a cdda URL.
+<pre>
+    ULONG PM123_ENTRY <b>decoder_support</b>( char *const fileext[], int *size )
+</pre>
+<ul>
+<li><var>fileext</var> - fill this array with all the wildcard expression matching
+filenames this decoder can play (each element is a 8 bytes char array).
+<li><var>size</var> - number of wildcard expressions returned (if this value is not
+big enough, ie.: 0, return the appropriate size without filling
+fileext).
+<li><var>return value</var> - return what kind of stream can the decoder play:<br>
+DECODER_FILENAME<br>
+DECODER_URL<br>
+DECODER_TRACK<br>
+DECODER_OTHER<br>
+The values may be ored.
+</ul>
+<p>
+This is used by PM123 to suggest to the user what he can play with the
+decoder. Extentions can be for example "*.MOD".
+
+<h4><a name="output_interface"></a>Output interface</h4>
+<p>The decoder must use this interface to pass the decoded samples to the output stage.
+  The samples must be passed as 16 bit signed integers.</p> 
+<p>The function entry points for these callbacks are passed in <code>DECODER_PARAMS2</code>
+  at the <a href="#control_interface">DECODER_SETUP</a> call.<br>
+  The interface functions have to be called by the decoder in a separate thread.</p>
+<p>The level 2 interface allocates the buffers by the consumer.
+  This causes less double buffering and allows dynamic buffer sizes.</p>
+<p>You must call <code>output_request_buffer</code> and <code>output_commit_buffer</code>
+  alternatingly to pass the samples to the next plug-in. Anything else is an error.</p>
+
+<pre>
+    int (PM123_ENTRYP <b>output_request_buffer</b>)( void* a, const FORMAT_INFO2* format, short** buf )
+</pre>
+<ul>
+  <li><var>a</var> - pointer from <code>DECODER_PARAMS2</code>.
+  <li><var>format</var> - format of the passed samples.<br>
+    See <code>FORMAT_INFO2</code> in <tt>format.h</tt> for more details.
+    The data at <code>*format</code> need not to be valid after this call returned.
+  <li><var>buf</var> [out] - pointer to receive a memory location where to store the decoded samples.<br>
+  <li><var>return value</var> - the number of samples that fit in the returned buffer.
+    A return value of &le;&nbsp;0 indicates a permanent error.
+</ul>
+<p>If you get a smaller buffer as you need to pass your data you should call <code>output_request_buffer</code> and <code>output_commit_buffer</code> again untill all your data is consumed.
+  There is no guaranteed minimum size of the buffer. You should not expect this to get very small buffers quite often.</p>
+<pre>
+    void (PM123_ENTRYP <b>output_commit_buffer</b>)( void* a, int len, int posmarker )
+</pre>
+<ul>
+  <li><var>a</var> - pointer from <code>DECODER_PARAMS2</code>.
+  <li><var>len</var> - used number of samples placed in the buffer.
+  <li><var>posmarker</var> - stream position in milliseconds of the first sample that will be stored in this buffer relative to the beginning of the stream.
+</ul>
+<p>The length must not be higher than the the return value from the previous <code>output_request_buffer</code> call.
+  But it might be less than the requested length.
+  This causes no significant performance impact as long as you do not always pass very few samples.</p>
+<pre>
+    void PM123_ENTRY <b>decoder_event</b>(void* w, OUTEVENTTYPE event);
+</pre>
+<ul>
+  <li><var>w</var> - pointer from <code>decoder_init</code>
+  <li><var>event</var> - one of the following values<br>
+    <code>OUTEVENT_LOW_WATER</code> - the ouput plug-in detected that it will run out of data soon.<br>
+    <code>OUTEVENT_HIGH_WATER</code> - the ouput plug-in detected a clear condition.
+</ul>
+<p>The events may be used to speed up the data source e.g. by manipulating the decoder thread's priority.
+  If you get <code>OUTEVENT_HIGH_WATER</code> you sholud return to normal behaviour.</p>
+<p>The event handler may be called from any thread in any context.
+  It might be called when the decoder is in stopped state if the end of the stream has been reached recently.
+  This should be ignored.</p>
+<p>You will usually get a <code>OUTEVENT_LOW_WATER</code> call immiediately after the decoding started
+  or after a seek command because the buffers are not yet filled.</p>
+
+
+<h3><a name="level_1"></a>Interface revision level 0 and 1</h3>
+
+<h4>Initialization interface</h4>
+<p>See <a href="#initialization_interface">level 2 initialization interface</a>.
+  This part of the interface has not been changed.</p>
+
+<h4><a name="control_interface1"></a>Control interface</h4>
+<pre>
+    ULONG PM123_ENTRY decoder_command( void *w, ULONG msg, DECODER_PARAMS *params )</pre>
+<ul>
+<li>msg: one of the following:
+<ul>
+<li>DECODER_PLAY start playing the given filename, URL or others.
+<li>DECODER_STOP stop playing.
+<li>DECODER_FFWD engage in ffwd mode (ie.: play faster or skip when playing).
+<li>DECODER_REW  engage rewind mode.
+<li>DECODER_JUMPTO jump and start decoding at the given time position.
+<li>DECODER_SETUP setup various parameters such as the output plugin
+functions, hwnd where to send messages and an optional play semaphore.
+<li>DECODER_EQ usually only useful for MPEG decoding where frequency
+equalization is cheap.
+<li>DECODER_BUFFER reports the reader buffer status.
+<li>DECODER_SAVEDATA tells the decoder to start saving the stream to HD.
+</ul>
+<li>params: structure that contains the parameters needed by the preceding
+commands.
+<li>return value:<br>
+0 -> ok.<br>
+1 -> command unsupported.<br>
+1xx -> msg specific.<br>
+</ul>
+<p>
+There is a lot of commands to implement for this function. Parameters
+needed for each of the are described in the definition of the structure
+in the .h file.
 <p>
 The decoder plug-in MUST <i>WinPostMsg()</i> the following messages to <i>hwnd</i>:
 <ul>
@@ -97,29 +276,11 @@ method), so it is a string with the following format:
 </pre>
 Only StreamingTitle is used by PM123.
 
-<h3>Status Interface</h3>
-<pre>
-     ULONG PM123_ENTRY decoder_status( void *w )
-</pre>
-<ul>
-<li>return value - One of the following:<br>
-DECODER_STOPPED<br>
-DECODER_PLAYING<br>
-DECODER_STARTING<br>
-</ul>
-<pre>
-     ULONG PM123_ENTRY decoder_length( void *w )
-</pre>
-<ul>
-<li>return value - number of milliseconds the stream lasts (you can
-report <code>(ULONG)-1</code> if unknown).
-</ul>
-<p>
-The call to this function must be valid even if <i>DECODER_STARTING</i> or
-<i>DECODER_STOPPED</i> is reported (when the stream plays too fast for
-example).
+<h4>Status Interface</h4>
+<p>See <a href="#status_interface">level 2 status interface</a>.
+  This part of the interface has not been changed.</p>
 
-<h3>Info interface</h3>
+<h4><a name="info_interface1"></a>Info interface</h4>
 <p>The info interface functions must be independent of the current decoder status.
 They should always be functionnaly and give consistent results in any conditions.
 </p>
@@ -136,12 +297,9 @@ They should always be functionnaly and give consistent results in any conditions
 1001 = http error occured.<br>
 other values = errno.
 </ul>
-<p>With interface level 2 the <code>decoder_fileinfo</code> function is also called to get a CD track info.
-  In this case the url looks like <samp>cdda://H:/track01</samp>.
 <pre>
      ULONG PM123_ENTRY <b>decoder_trackinfo</b>( char *drive, int track, DECODER_INFO *info )
 </pre>
-<em>Level 0/1 interface only.</em>
 <ul>
 <li><var>drive</var> - ie.: "X:"
 <li><var>track</var> - CD tracks start from 1.
@@ -154,12 +312,11 @@ other values = errno.
 other values = errno.
 </ul>
 <pre>
-     ULONG PM123_ENTRY decoder_cdinfo( char *drive, DECODER_CDINFO *info )
+     ULONG PM123_ENTRY <b>decoder_cdinfo</b>( char *drive, DECODER_CDINFO *info )
 </pre>
 <ul>
 <li>drive: ...
-<li><var>info</var> - required info on the number of tracks available from the
-decoder.</lI>
+<li><var>info</var> - required info on the number of tracks available from the decoder.</lI>
 </ul>
 <p>
 This is used by PM123 before calling <code>decoder_trackinfo</code>.
@@ -183,57 +340,15 @@ The values may be ored.
 This is used by PM123 to suggest to the user what he can play with the
 decoder. Extentions can be for example "*.MOD".
 
-<h3><a name="out_interface"></a>Output interface</h3>
+<h4><a name="output_interface1"></a>Output interface</h4>
 <p>The decoder must use this interface to pass the decoded samples to the output stage.
- The function entry points for these callbacks are passe in <code>DECODER_PARAMS</code> oder <code>DECODER_PARAMS2</code> respectively
- at the <a href="#control_interface">DECODER_SETUP</a> call.<br>
+ The function entry points for these callbacks are passed in <code>DECODER_PARAMS</code>
+ at the <a href="#control_interface1">DECODER_SETUP</a> call.<br>
  The interface functions have to be called by the decoder in a separate thread.</p>
 
-<h4>Interface revision level 2 (recommended)</h4>
-<p>The level 2 interface allocates the buffers by the consumer.
-  This causes less double buffering and allows dynamic buffer sizes.</p>
-<p>You must call <code>output_request_buffer</code> and <code>output_commit_buffer</code> alternatingly to pass the samples to the next plug-in.
-  Anything else is an error.
-<pre>    int (PM123_ENTRYP <strong>output_request_buffer</strong>)( void* a, const FORMAT_INFO* format, char** buf, int len )</pre>
-<ul>
-  <li><var>a</var> - pointer from <code>DECODER_PARAMS2</code>.
-  <li><var>format</var> - format of the passed samples.<br>
-    See <code>FORMAT_INFO</code> in <tt>format.h</tt> for more details.
-    The data at <code>*format</code> need not to be valid after this call returned.
-  <li><var>buf</var> [out] - pointer to receive a memory location where to store the decoded samples.<br>
-  <li><var>return value</var> - size of the returned buffer in bytes.
-    A return value of &le;&nbsp;0 indicates an error.
-</ul>
-<p>If you get a smaller buffer as you need to pass your data you sholud call <code>output_request_buffer</code> and <code>output_commit_buffer</code> again untill all your data is consumed.
-  There is no guaranteed minimum size of the buffer except that it will keep at least one complete sample.
-  You should not expect this to happen quite often.</p>
-<pre>    void (PM123_ENTRYP <strong>output_commit_buffer</strong> )( void* a, int len, int posmarker )</pre>
-<ul>
-  <li><var>a</var> - pointer from <code>DECODER_PARAMS2</code>.
-  <li><var>len</var> - used length of the buffer.
-  <li><var>posmarker</var> - stream position in milliseconds of the first sample that will be stored in this buffer relative to the beginning of the stream.
-</ul>
-<p>The length must not be higher than the the return value from the previous <code>output_request_buffer</code> call.
-  But it might be less than the requested length. This causes no significant performance impact.</p>
-<pre>    void PM123_ENTRY decoder_event(void* w, OUTEVENTTYPE event);</pre>
-<ul>
-  <li><var>w</var> - pointer from <code>decoder_init</code>
-  <li><var>event</var> - one of the following values<br>
-    <code>OUTEVENT_LOW_WATER</code> - the ouput plug-in detected that it will run out of data soon.<br>
-    <code>OUTEVENT_HIGH_WATER</code> - the ouput plug-in detected a clear condition.
-</ul>
-<p>The events may be used to speed up the data source e.g. by manipulating the decoder thread's priority.
-  Once you get <code>OUTEVENT_HIGH_WATER</code> you sholud return to normal behaviour.</p>
-<p>The event handler may be called from any thread in any context.
-  It might be called when the decoder is in stopped state if the end of the stream has been reached recently.
-  This should be ignored.</p>
-<p>You will usually get a <code>OUTEVENT_LOW_WATER</code> call immiediately after the decoding started
-  or after a seek command because the buffers are not yet filled.</p>
-
-<h4>Interface revision level 0 and 1</h4>
-<blockquote>
-  <pre>int (PM123_ENTRYP <strong>output_play_samples</strong>)( void* a, const FORMAT_INFO* format, const char* buf, int len, int posmarker )
-</blockquote>
+<pre>
+    int (PM123_ENTRYP <b>output_play_samples</b>)( void* a, const FORMAT_INFO* format, const char* buf, int len, int posmarker )
+</pre>
 <ul>
   <li><var>a</var> - pointer from <code>DECODER_PARAMS</code>.
   <li><var>format</var> - format of the passed samples.<br>
@@ -245,8 +360,9 @@ decoder. Extentions can be for example "*.MOD".
   <li><var>return value</var> - number of samples processed. Anything &ne;&nbsp;<var>len</var> is an error.
 </ul>
 <p>The decoder should pass the decoded samples to this function.
-  The decoder shold pass audio_buffersize samples at once unless the end of the data is reached
+  The decoder shold pass a bunch of samples at once unless the end of the data is reached
   to keep the performance reasonable.</p>
+
 </body>
 </html>
 

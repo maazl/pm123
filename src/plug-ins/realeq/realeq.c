@@ -167,12 +167,12 @@ static char lasteq[CCHMAXPATH];
 typedef struct {
 
    ULONG (PM123_ENTRYP output_command)       ( void* a, ULONG msg, OUTPUT_PARAMS2* info );
-   int   (PM123_ENTRYP output_request_buffer)( void* a, const FORMAT_INFO* format, char** buf );
+   int   (PM123_ENTRYP output_request_buffer)( void* a, const FORMAT_INFO2* format, short** buf );
    void  (PM123_ENTRYP output_commit_buffer) ( void* a, int len, int posmarker );
    void* a;
    void  (PM123_ENTRYP error_display)        ( char* );
 
-   FORMAT_INFO format;
+   FORMAT_INFO2 format;
 
    int   posmarker;  // starting point of the inbox buffer
    int   inboxlevel; // number of samples in inbox buffer
@@ -182,11 +182,6 @@ typedef struct {
 
 } REALEQ_STRUCT;
 
-
-/* returns the number of bytes per second */
-INLINE int get_byte_rate(const FORMAT_INFO* format)
-{ return (format->bits > 16 ? 4 : format->bits > 8 ? 2 : 1) * format->channels * format->samplerate;
-}
 
 /********** Ini file stuff */
 
@@ -442,7 +437,7 @@ fil_setup( REALEQ_STRUCT* f, int samplerate, int channels )
     fftwf_execute(FFT.DCT_plan);
     #if defined(DEBUG) && DEBUG > 1
     for (i = 0; i <= FFT.DCTplansize/2; ++i)
-      DEBUGLOG(("TK: %i, %g\n", i, FFT.time_domain[i]));
+      DEBUGLOG2(("TK: %i, %g\n", i, FFT.time_domain[i]));
     #endif
 
     // normalize, apply window function and store results symmetrically
@@ -461,8 +456,8 @@ fil_setup( REALEQ_STRUCT* f, int samplerate, int channels )
     fftwf_execute_r2r(FFT.RDCT_plan, FFT.time_domain, FFT.kernel[channel]);
     #if defined(DEBUG) && DEBUG > 1
     for (i = 0; i <= FFT.plansize/2; ++i)
-      DEBUGLOG(("FK: %i, %g\n", i, FFT.kernel[channel][i]));
-    DEBUGLOG(("E: kernel completed.\n"));
+      DEBUGLOG2(("FK: %i, %g\n", i, FFT.kernel[channel][i]));
+    DEBUGLOG2(("E: kernel completed.\n"));
     #endif
   }
 
@@ -669,13 +664,13 @@ filter_samples_fft_stereo( short* newsamples, const short* buf, int len )
 
 /* Proxy funtions to remove the first samples to compensate for the filter delay */
 static int
-do_request_buffer( REALEQ_STRUCT* f, char** buf )
+do_request_buffer( REALEQ_STRUCT* f, short** buf )
 { DEBUGLOG(("realeq:do_request_buffer(%p, %p) - %d\n", f, buf, f->latency));
   if (f->latency != 0)
   { if (f->latency < 0)
       f->latency = FFT.FIRorder >> 1;
     *buf = NULL; // discard
-    return f->latency * sizeof(short) * f->format.channels;
+    return f->latency;
   } else
   { return (*f->output_request_buffer)( f->a, &f->format, buf );
   }
@@ -685,7 +680,7 @@ static void
 do_commit_buffer( REALEQ_STRUCT* f, int len, int posmarker )
 { DEBUGLOG(("realeq:do_commit_buffer(%p, %d, %d) - %d\n", f, len, posmarker, f->latency));
   if (f->latency != 0)
-  { f->latency -= len / sizeof(short) / f->format.channels;
+  { f->latency -= len;
   } else
   { (*f->output_commit_buffer)( f->a, len, posmarker );
   }
@@ -697,8 +692,8 @@ do_commit_buffer( REALEQ_STRUCT* f, int len, int posmarker )
 static void
 filter_and_send( REALEQ_STRUCT* f )
 {
-  int   len, dlen;
-  char* dbuf;
+  int    len, dlen;
+  short* dbuf;
   DEBUGLOG(("realeq:filter_and_send(%p) - %d\n", f, f->inboxlevel));
 
   // request destination buffer
@@ -710,12 +705,11 @@ filter_and_send( REALEQ_STRUCT* f )
     return;
   }
 
-  len = f->inboxlevel * sizeof(short) * f->format.channels; // required destination length
+  len = f->inboxlevel; // required destination length
   if (dlen < len)
   { // with fragmentation
     int rem = len;
-    char* sp;
-    int byterate;
+    short* sp;
   
     if ( f->format.channels == 2 ) {
       filter_samples_fft_stereo( FFT.inbox, FFT.inbox, f->inboxlevel );
@@ -724,16 +718,15 @@ filter_and_send( REALEQ_STRUCT* f )
     }
     
     // transfer data
-    sp = (char*)FFT.inbox;
-    byterate = get_byte_rate(&f->format);
+    sp = FFT.inbox;
     for(;;)
     { if (dbuf != NULL)
-        memcpy(dbuf, sp, dlen);
-      do_commit_buffer( f, dlen, f->posmarker + (len-rem)*1000/byterate );
+        memcpy(dbuf, sp, dlen * sizeof(short) * f->format.channels);
+      do_commit_buffer( f, dlen, f->posmarker + (len-rem)*1000/f->format.samplerate );
       rem -= dlen;
       if (rem == 0)
         break;
-      sp += dlen;
+      sp += dlen * f->format.channels;
       // request next buffer
       dlen = do_request_buffer( f, &dbuf );
       if (f->temppos != -1)
@@ -748,9 +741,9 @@ filter_and_send( REALEQ_STRUCT* f )
   } else
   { // without fragmentation
     if ( f->format.channels == 2 ) {
-      filter_samples_fft_stereo( (short*)dbuf, FFT.inbox, f->inboxlevel );
+      filter_samples_fft_stereo( dbuf, FFT.inbox, f->inboxlevel );
     } else {
-      filter_samples_fft_mono( (short*)dbuf, FFT.inbox, f->inboxlevel );
+      filter_samples_fft_mono( dbuf, FFT.inbox, f->inboxlevel );
     }
     do_commit_buffer( f, len, f->posmarker );
   }
@@ -768,7 +761,7 @@ local_flush( REALEQ_STRUCT* f )
   { int dlen = FFT.plansize - FFT.FIRorder - f->inboxlevel;
     if (dlen > len)
       dlen = len;
-    memset(FFT.inbox + f->inboxlevel * f->format.channels, 0, dlen * sizeof(short) * f->format.channels);
+    memset(FFT.inbox + f->inboxlevel * f->format.channels, 0, dlen * f->format.channels * sizeof(short));
     // commit buffer
     f->inboxlevel += dlen;
     if (f->inboxlevel == FFT.plansize - FFT.FIRorder)
@@ -790,12 +783,17 @@ local_flush( REALEQ_STRUCT* f )
 
 /* Entry point: do filtering */
 static int PM123_ENTRY
-filter_request_buffer( REALEQ_STRUCT* f, const FORMAT_INFO* format, char** buf )
+filter_request_buffer( REALEQ_STRUCT* f, const FORMAT_INFO2* format, short** buf )
 { BOOL enabled;
-  DEBUGLOG(("realeq:filter_request_buffer(%p, {%u, %u, %u, %u, %u}, %p) - %d %d\n",
-   f, format->size, format->samplerate, format->channels, format->bits, format->format, buf, f->inboxlevel, f->latency));
+  #ifdef DEBUG
+  if (format != NULL)
+    DEBUGLOG(("realeq:filter_request_buffer(%p, {%u, %u, %u}, %p) - %d %d\n",
+     f, format->size, format->samplerate, format->channels, buf, f->inboxlevel, f->latency));
+   else
+    DEBUGLOG(("realeq:filter_request_buffer(%p, %p, %p) - %d %d\n", f, format, buf, f->inboxlevel, f->latency));
+  #endif
 
-  enabled = eqenabled && format->bits == 16 && ( format->channels == 1 || format->channels == 2 );
+  enabled = eqenabled && buf != NULL && ( format->channels == 1 || format->channels == 2 );
   if (enabled && !f->enabled)
   { // enable EQ
     f->enabled = TRUE;
@@ -804,6 +802,9 @@ filter_request_buffer( REALEQ_STRUCT* f, const FORMAT_INFO* format, char** buf )
   { // disable EQ
     local_flush(f);
     f->enabled = FALSE;
+    if (buf == NULL) // global flush();
+    { return (*f->output_request_buffer)( f->a, format, buf );
+    }
   }
 
   if ( f->enabled )
@@ -812,10 +813,11 @@ filter_request_buffer( REALEQ_STRUCT* f, const FORMAT_INFO* format, char** buf )
     { trash_buffers(f);
       f->temppos = -1;
     }
-    if ( memcmp( &f->format, format, sizeof( FORMAT_INFO )) != 0 )
+    if ( f->format.samplerate != format->samplerate || f->format.channels != format->channels )
     { if (f->format.samplerate != 0)
         local_flush( f );
-      f->format = *format;
+      f->format.samplerate = format->samplerate;
+      f->format.channels   = format->channels;
       eqneedinit = TRUE;
     } else if (eqneedFIR || eqneedinit)
     { if (f->format.samplerate != 0)
@@ -824,14 +826,9 @@ filter_request_buffer( REALEQ_STRUCT* f, const FORMAT_INFO* format, char** buf )
     
     fil_setup( f, format->samplerate, format->channels );
 
-    if (buf == NULL) // global flush();
-    { local_flush( f );
-      return (*f->output_request_buffer)( f->a, format, buf );
-    }
-    
-    *buf = (char*)(FFT.inbox + f->inboxlevel * format->channels);
-    DEBUGLOG(("realeq:filter_request_buffer: %d\n", (FFT.plansize - FFT.FIRorder - f->inboxlevel) * sizeof(short) * format->channels));
-    return (FFT.plansize - FFT.FIRorder - f->inboxlevel) * sizeof(short) * format->channels;
+    *buf = FFT.inbox + f->inboxlevel * format->channels;
+    DEBUGLOG(("realeq:filter_request_buffer: %p, %d\n", *buf, FFT.plansize - FFT.FIRorder - f->inboxlevel));
+    return FFT.plansize - FFT.FIRorder - f->inboxlevel;
   }                                                        
   else
   {
@@ -853,7 +850,7 @@ filter_commit_buffer( REALEQ_STRUCT* f, int len, int posmarker )
     // remember position and precompensate for filter delay
     f->posmarker = posmarker - (FFT.FIRorder>>1)*1000/f->format.samplerate;
 
-  f->inboxlevel += len / sizeof(short) / f->format.channels;
+  f->inboxlevel += len;
 
   if (f->inboxlevel == FFT.plansize - FFT.FIRorder)
   { // enough data, apply filter
@@ -897,11 +894,13 @@ filter_init( void** F, FILTER_PARAMS2* params )
   f->enabled               = FALSE; // flag is set later
   f->temppos               = -1;
 
-  memset( &f->format, 0, sizeof( FORMAT_INFO ));
+  f->format.size           = sizeof f->format;
+  f->format.samplerate     = 0;
+  f->format.channels       = 0;
   
-  params->output_command        = (ULONG (PM123_ENTRYP)(void*, ULONG, OUTPUT_PARAMS2*))    &filter_command;
-  params->output_request_buffer = (int   (PM123_ENTRYP)(void*, const FORMAT_INFO*, char**))&filter_request_buffer;
-  params->output_commit_buffer  = (void  (PM123_ENTRYP)(void*, int, int))                  &filter_commit_buffer;
+  params->output_command        = (ULONG (PM123_ENTRYP)(void*, ULONG, OUTPUT_PARAMS2*))      &filter_command;
+  params->output_request_buffer = (int   (PM123_ENTRYP)(void*, const FORMAT_INFO2*, short**))&filter_request_buffer;
+  params->output_commit_buffer  = (void  (PM123_ENTRYP)(void*, int, int))                    &filter_commit_buffer;
   return 0;
 }
 
