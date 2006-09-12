@@ -14,6 +14,7 @@ PARTS   = $(PARTS) src\plug-ins\os2audio\os2audio.dll
 PARTS   = $(PARTS) src\plug-ins\realeq\realeq.dll
 PARTS   = $(PARTS) src\plug-ins\wavplay\wavplay.dll
 PARTS   = $(PARTS) src\plug-ins\wavout\wavout.dll
+PARTS   = $(PARTS) src\plug-ins\logvolum\logvolum.dll
 PARTS   = $(PARTS) src\pm123\pm123.exe
 PARTS   = $(PARTS) src\skinutil\skinutil.exe
 PARTS   = $(PARTS) doc\pm123.inf
@@ -75,6 +76,11 @@ src\plug-ins\wavout\wavout.dll:
 	@$(MAKE) $(MFLAGS)
 	@cd ..\..\..
 
+src\plug-ins\logvolum\logvolum.dll:
+	cd src\plug-ins\logvolum
+	@$(MAKE) $(MFLAGS)
+	@cd ..\..\..
+
 src\pm123\pm123.exe:
 	cd src\pm123
 	@$(MAKE) $(MFLAGS)
@@ -124,6 +130,9 @@ clean:  $(MDUMMY)
 	cd src\plug-ins\wavout
 	@$(MAKE) $(MFLAGS) clean
 	@cd ..\..\..
+	cd src\plug-ins\logvolum
+	@$(MAKE) $(MFLAGS) clean
+	@cd ..\..\..
 	cd src\pm123
 	@$(MAKE) $(MFLAGS) clean
 	@cd ..\..
@@ -150,6 +159,7 @@ distfiles: distclean $(MDUMMY)
 	copy src\plug-ins\realeq\realeq.dll dist\files
 	copy src\plug-ins\wavout\wavout.dll dist\files
 	copy src\plug-ins\wavplay\wavplay.dll dist\files
+	copy src\plug-ins\logvolum\logvolum.dll dist\files
 	copy src\pm123\pm123.exe dist\files
 	copy src\pm123\default.skn dist\files
 	copy src\skinutil\skinutil.exe dist\files
