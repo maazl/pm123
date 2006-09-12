@@ -635,7 +635,7 @@ cfg_page4_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
           sprintf( buffer, "Desc: %s", list[i]->query_param.desc );
           WinSetDlgItemText( hwnd, ST_OUT_DESC, buffer );
           WinEnableControl ( hwnd, PB_OUT_UNLOAD, TRUE );
-          WinEnableControl ( hwnd, PB_OUT_ACTIVATE, out_is_active(i) );
+          WinEnableControl ( hwnd, PB_OUT_ACTIVATE, !out_is_active(i) );
           WinEnableControl ( hwnd, PB_OUT_CONFIG, list[i]->query_param.configurable );
         }
       }
