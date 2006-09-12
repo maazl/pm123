@@ -15,7 +15,7 @@ AS         = nasm
 AFLAGS     = -fobj -DUNDERSCORE
 
 CC         = gcc
-CFLAGS     = -Zcrtdll -Wall -DOS2 -DOS2EMX_PLAIN_CHAR -D_alloca=alloca -funsigned-char
+CFLAGS     = -Zcrtdll -Wall -DOS2 -DOS2EMX_PLAIN_CHAR -funsigned-char
 CFLAGS_DLL =
 CFLAGS_DBG = -g -DDEBUG
 CFLAGS_OPT = -O2
