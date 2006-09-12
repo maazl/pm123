@@ -44,6 +44,8 @@
 #include <utilfct.h>
 #include "wav.h"
 
+#include <debuglog.h>
+
 typedef struct _WAVPLAY
 {
    WAV wavfile;
@@ -152,6 +154,7 @@ static void TFNENTRY decoder_thread(void *arg)
 int PM123_ENTRY decoder_init(void **W)
 {
    WAVPLAY *w;
+   DEBUGLOG(("wavplay:decoder_init(%p)\n", W));
 
    *W = malloc(sizeof(WAVPLAY));
    w = (WAVPLAY *)*W;
@@ -176,6 +179,7 @@ BOOL PM123_ENTRY decoder_uninit(void *W)
 {
    WAVPLAY *w = (WAVPLAY *) W;
    int decodertid = w->decodertid;
+   DEBUGLOG(("wavplay:decoder_uninit(%p)\n", W));
 
    DosCloseEventSem(w->play);
    DosCloseEventSem(w->ok);
@@ -190,6 +194,7 @@ ULONG PM123_ENTRY decoder_command(void *W, ULONG msg, DECODER_PARAMS *params)
 {
    WAVPLAY *w = (WAVPLAY *) W;
    ULONG resetcount;
+   DEBUGLOG(("wavplay:decoder_command(%p, %d, %p)\n", W, msg, params));
 
    switch(msg)
    {
