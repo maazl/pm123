@@ -36,12 +36,14 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "utilfct.h"
-#include "format.h"
-#include "output_plug.h"
-#include "decoder_plug.h"
-#include "plugin.h"
+#include <utilfct.h>
+#include <format.h>
+#include <output_plug.h>
+#include <decoder_plug.h>
+#include <plugin.h>
 #include "wavout.h"
+
+#include <debuglog.h>
 
 static char outpath[CCHMAXPATH];
 
@@ -203,9 +205,11 @@ output_open( WAVOUT* a )
                         a->original_info.formatinfo.channels,
                         a->original_info.formatinfo.bits,
                         a->original_info.formatinfo.format );
+                        
+  DEBUGLOG(("wavout:output_open: %s, %d\n", a->fullpath, rc));                       
   if( rc != 0 )
   {
-    char message[2048];
+    char message[1024];
     sprintf( message, "Could not open WAV file:\n%s\n%s", a->fullpath, clib_strerror( errno ));
     (*a->original_info.error_display)( message );
     return errno;
@@ -235,6 +239,7 @@ output_command( void* A, ULONG msg, OUTPUT_PARAMS* info )
 {
   WAVOUT* a  = (WAVOUT*)A;
   ULONG   rc = 0;
+  DEBUGLOG(("wavout:output_command(%p, %d, %p)\n", A, msg, info));
 
   switch( msg ) {
     case OUTPUT_OPEN:
@@ -263,6 +268,8 @@ output_command( void* A, ULONG msg, OUTPUT_PARAMS* info )
       break;
 
     case OUTPUT_SETUP:
+      DEBUGLOG(("wavout:output_command:OUTPUT_SETUP: {%d %d %d %d %d}\n",
+        info->formatinfo.size, info->formatinfo.samplerate, info->formatinfo.channels, info->formatinfo.bits, info->formatinfo.format));
       // Make sure no important information is modified here if currently
       // opened when using another thread (ie.: always_hungry = FALSE)
       // for output which is not the case here.
@@ -290,6 +297,7 @@ output_play_samples( void* A, FORMAT_INFO* format, char* buf, int len, int posma
 {
   WAVOUT *a = (WAVOUT *) A;
   int written;
+  DEBUGLOG(("wavout:output_play_samples(%p, %p, %p, %d, %d)\n", A, format, buf, len, posmarker));
 
   // Sets priority to idle. Normal and especially not boost priority are needed
   // or desired here, but that wouldn't be the case for real-time output
@@ -301,6 +309,8 @@ output_play_samples( void* A, FORMAT_INFO* format, char* buf, int len, int posma
   a->playingpos = posmarker;
 
   if( memcmp( format, &a->original_info.formatinfo, sizeof( FORMAT_INFO )) != 0 ) {
+    DEBUGLOG(("wavout:output_play_samples: format mismatch {%d %d %d %d %d}\n",
+      format->size, format->samplerate, format->channels, format->bits, format->format));
     (*a->original_info.info_display)( "Warning: WAV data currently being written is in a different\n"
                                       "format than the opened format.  Generation of a probably\n"
                                       "invalid WAV file." );
@@ -365,6 +375,7 @@ output_init( void** A )
 {
   WAVOUT* a = (WAVOUT*)malloc( sizeof(*a));
   HINI hini;
+  DEBUGLOG(("wavout:output_init(%p)\n", A));
 
   *A = a;
   *outpath = 0;
@@ -385,6 +396,7 @@ ULONG PM123_ENTRY
 output_uninit( void* A )
 {
   WAVOUT* a = (WAVOUT*)A;
+  DEBUGLOG(("wavout:output_uninit(%p)\n", A));
 
   DosCloseEventSem( a->pause );
   free( a->buffer );
