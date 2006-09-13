@@ -10,6 +10,8 @@ PM123 1.40 (alpha 1)
       work. It can load all old plug-ins except for visual plug-ins throgh an
       virtualization layer. The visual plug-in compatibility is broken since
       PM123 1.32 anyway.
+    - Changed the internal data structures to use always 16 bits per sample to
+      reduce complexity of code and plug-ins.
 
     REALEQ:
     - Realeq does no longer delay the playback and cut the last samples.
