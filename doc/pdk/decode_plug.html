@@ -144,6 +144,7 @@ decoder.</lI>
 </ul>
 <p>
 This is used by PM123 before calling <code>decoder_fileinfo</code> with a cdda URL.
+You need not to export this function unless <code>decoder_support</code> returns the DECODER_TRACK flag. 
 <pre>
     ULONG PM123_ENTRY <b>decoder_support</b>( char *const fileext[], int *size )
 </pre>
