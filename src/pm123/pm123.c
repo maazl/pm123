@@ -129,6 +129,7 @@ void PM123_ENTRY
 keep_last_error( char *error )
 {
   strlcpy( last_error, error, sizeof( last_error ));
+  amp_post_message( WM_PLAYERROR, 0, 0 );
 }
 
 void PM123_ENTRY

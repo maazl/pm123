@@ -76,7 +76,6 @@ amp_msg( int msg, void *param, void *param2 )
       rc = out_setup( (FORMAT_INFO2*)param2, data->out_filename );
       DEBUGLOG(("amp_msg:MSG_PLAY: after setup %d %d - %d\n", ((FORMAT_INFO2*)param2)->samplerate, ((FORMAT_INFO2*)param2)->channels, rc));
       if( rc != 0 ) {
-        amp_post_message( WM_PLAYERROR, 0, 0 );
         return;
       }
 
@@ -85,8 +84,7 @@ amp_msg( int msg, void *param, void *param2 )
         sprintf( buf, "Error: Decoder module %s needed to play %s is not loaded or enabled.",
                        data->decoder_needed, data->filename );
         keep_last_error( buf );
-      }
-      if( rc == -1 || rc == -2 ) {
+      } else if ( rc == -1 ) {
         amp_post_message( WM_PLAYERROR, 0, 0 );
         return;
       }
