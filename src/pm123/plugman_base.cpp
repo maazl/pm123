@@ -50,22 +50,6 @@
 #include <debuglog.h>
 
 
-/* Define the macro NOSYSTEMSTATICMEMBER to work around for the IBMVAC++ restriction
- * that static class functions may not have a defined calling convention.
- * However, this workaround relies on friend functions with static linkage. This is
- * invalid acording to the C++ standard, but IBMVAC++ does not care about that fact.
- */
-#ifdef NOSYSTEMSTATICMEMBER
-#define PROXYFUNCDEF friend static
-#define PROXYFUNCIMP(ret, cls) static ret
-#define PROXYFUNCREF(cls)
-#else
-#define PROXYFUNCDEF static
-#define PROXYFUNCIMP(ret, cls) ret cls::
-#define PROXYFUNCREF(cls) cls::
-#endif
-
-
 /* thread priorities for decoder thread */
 #define  DECODER_HIGH_PRIORITY_CLASS PRTYC_FOREGROUNDSERVER // sorry, we should not lockup the system with time-critical priority
 #define  DECODER_HIGH_PRIORITY_DELTA 20
@@ -275,12 +259,20 @@ BOOL CL_DECODER::load_plugin()
     || !load_function(&decoder_status,   "decoder_status")
     || !load_function(&decoder_length,   "decoder_length")
     || !load_function(&decoder_fileinfo, "decoder_fileinfo")
-    || !load_function(&decoder_cdinfo,   "decoder_cdinfo")
     || !load_function(&decoder_support,  "decoder_support")
     || !load_function(&decoder_event,    "decoder_event") )
     return FALSE;
 
-  return after_load();
+  if (!after_load())
+    return FALSE;
+  
+  if (type & DECODER_TRACK)
+  { if (!load_function(&decoder_cdinfo,   "decoder_cdinfo"))
+      return FALSE;
+  } else
+  { decoder_cdinfo = &stub_decoder_cdinfo;
+  }
+  return TRUE;
 }
 
 BOOL CL_DECODER::init_plugin()
@@ -295,6 +287,11 @@ BOOL CL_DECODER::uninit_plugin()
   (*decoder_uninit)( w );
   w = NULL;
   return TRUE;
+}
+
+PROXYFUNCIMP(ULONG PM123_ENTRY, CL_DECODER)
+stub_decoder_cdinfo( char* drive, DECODER_CDINFO* info )
+{ return 100; // can't play CD
 }
 
 
@@ -332,10 +329,8 @@ BOOL CL_DECODER_PROXY_1::load_plugin()
     || !load_function(&decoder_status,     "decoder_status")
     || !load_function(&decoder_length,     "decoder_length")
     || !load_function(&decoder_fileinfo,   "decoder_fileinfo")
-    || !load_function(&decoder_cdinfo,     "decoder_cdinfo")
     || !load_function(&decoder_support,    "decoder_support")
-    || !load_function(&vdecoder_command,   "decoder_command")
-    || !load_function(&vdecoder_trackinfo, "decoder_trackinfo") )
+    || !load_function(&vdecoder_command,   "decoder_command") )
     return FALSE;
   decoder_command   = (ULONG (PM123_ENTRYP)(void*, ULONG, DECODER_PARAMS2*))
                       mkvdelegate(&vd_decoder_command,  (V_FUNC)&proxy_1_decoder_command,  3, this);
@@ -346,7 +341,18 @@ BOOL CL_DECODER_PROXY_1::load_plugin()
                       mkvdelegate(&vd_decoder_fileinfo, (V_FUNC)&proxy_1_decoder_fileinfo, 2, this);
   tid = (ULONG)-1;
     
-  return after_load();
+  if (!after_load())
+    return FALSE;
+
+  if (type & DECODER_TRACK)
+  { if ( !load_function(&decoder_cdinfo,     "decoder_cdinfo")
+      || !load_function(&vdecoder_trackinfo, "decoder_trackinfo") )
+      return FALSE;
+  } else
+  { decoder_cdinfo = &stub_decoder_cdinfo;
+    vdecoder_trackinfo = NULL;
+  }
+  return TRUE;
 }
 
 /* proxy for the output callback of decoder interface level 0/1 */
@@ -916,7 +922,7 @@ proxy_1_filter_request_buffer( CL_FILTER_PROXY_1* pp, const FORMAT_INFO2* format
   { // local flush
     DEBUGLOG(("proxy_1_filter_request_buffer: local flush: %d\n", pp->vbuflevel));
     // Oh well, the old output plug-ins seem to play some more samples in doubt.
-    memset( pp->vbuffer + pp->vbuflevel * pp->vformat.channels, 0, (pp->vbufsamples - pp->vbuflevel) * pp->vformat.channels * sizeof(short) );
+    // memset( pp->vbuffer + pp->vbuflevel * pp->vformat.channels, 0, (pp->vbufsamples - pp->vbuflevel) * pp->vformat.channels * sizeof(short) );
     (*pp->vfilter_play_samples)(pp->vf, &pp->vformat, (char*)pp->vbuffer, pp->vbuflevel * pp->vformat.channels * sizeof(short), pp->vposmarker);
   }
   if ( buf == 0 )
@@ -959,17 +965,18 @@ proxy_1_filter_play_samples( CL_FILTER_PROXY_1* pp, const FORMAT_INFO* format, c
   { (*pp->error_display)("The proxy for old style filter plug-ins can only handle 16 bit raw PCM data.");
     return 0; 
   }
-  len /= pp->vformat.channels / sizeof(short);
+  len /= pp->vformat.channels * sizeof(short);
   int rem = len;
   while (rem != 0)
   { // request new buffer
     short* dest;
     int dlen = (*pp->output_request_buffer)( pp->a, (FORMAT_INFO2*)format, &dest );
+    DEBUGLOG(("proxy_1_filter_play_samples: now at %p %d, %p, %d\n", buf, rem, dest, dlen));
     if (dlen <= 0)
       return 0; // error
     if (dlen > rem)
       dlen = rem;
-    // convert
+    // store data
     memcpy( dest, buf, dlen * pp->vformat.channels * sizeof(short) ); 
     // commit destination
     (*pp->output_commit_buffer)( pp->a, dlen, posmarker + (len-rem)*1000/format->samplerate );

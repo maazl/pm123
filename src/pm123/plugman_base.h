@@ -40,6 +40,22 @@
 #include "vdelegate.h"
 
 
+/* Define the macro NOSYSTEMSTATICMEMBER to work around for the IBMVAC++ restriction
+ * that static class functions may not have a defined calling convention.
+ * However, this workaround relies on friend functions with static linkage. This is
+ * invalid acording to the C++ standard, but IBMVAC++ does not care about that fact.
+ */
+#ifdef NOSYSTEMSTATICMEMBER
+#define PROXYFUNCDEF friend static
+#define PROXYFUNCIMP(ret, cls) static ret
+#define PROXYFUNCREF(cls)
+#else
+#define PROXYFUNCDEF static
+#define PROXYFUNCIMP(ret, cls) ret cls::
+#define PROXYFUNCREF(cls) cls::
+#endif
+
+
 /****************************************************************************
 *
 * Class tree:
@@ -197,7 +213,9 @@ struct DECODER_PROCS
 
 // specialized class for decoders
 class CL_DECODER : public CL_PLUGIN, protected DECODER_PROCS
-{protected:
+{private:
+  PROXYFUNCDEF ULONG PM123_ENTRY stub_decoder_cdinfo( char* drive, DECODER_CDINFO* info );
+ protected:
   // instances of this class are only created by the factory function below.
   CL_DECODER(CL_MODULE& mod) : CL_PLUGIN(mod) { w = NULL; support = NULL; }
   // Get some information about the decoder. (decoder_support)
