@@ -732,18 +732,14 @@ amp_add_url( HWND owner, int options )
 
   if( WinProcessDlg( hwnd ) == DID_OK ) {
     WinQueryDlgItemText( hwnd, ENT_URL, 1024, url );
-    if( !is_http( url )) {
-      amp_error( owner, "Only HTTP protocol supported for streaming." );
-    } else {
-      if( options & URL_ADD_TO_LIST ) {
-        if( is_playlist( url )) {
-          pl_load( url, 0);
-        } else {
-          pl_add_file( url, NULL, 0 );
-        }
+    if( options & URL_ADD_TO_LIST ) {
+      if( is_playlist( url )) {
+        pl_load( url, 0);
       } else {
-        amp_load_singlefile( url, 0 );
+        pl_add_file( url, NULL, 0 );
       }
+    } else {
+      amp_load_singlefile( url, 0 );
     }
   }
   WinDestroyWindow( hwnd );
