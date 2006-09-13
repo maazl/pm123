@@ -82,7 +82,7 @@ typedef struct _OUTPUT_PARAMS2
   /* --- OUTPUT_SETUP */
 
   FORMAT_INFO2 formatinfo;
-  /* Error handlers */
+  /* Error handler, a call will immediately stop the current playback. */
   void (PM123_ENTRYP error_display)( char* );
   /* info message function the output plug-in should use */
   /* this information is always displayed to the user right away */

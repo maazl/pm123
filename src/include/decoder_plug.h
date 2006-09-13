@@ -223,9 +223,9 @@ typedef struct _DECODER_INFO
       200 = decoder can't play that
       1001 = http error occured, check http_strerror() for string;
       other values = errno */
-ULONG PM123_ENTRY decoder_fileinfo ( char* filename, DECODER_INFO* info );
+ULONG PM123_ENTRY decoder_fileinfo ( const char* filename, DECODER_INFO* info );
 #if !defined(DECODER_PLUGIN_LEVEL) || DECODER_PLUGIN_LEVEL <= 1 
-ULONG PM123_ENTRY decoder_trackinfo( char* drive, int track, DECODER_INFO* info );
+ULONG PM123_ENTRY decoder_trackinfo( const char* drive, int track, DECODER_INFO* info );
 #endif
 
 typedef struct _DECODER_CDINFO
@@ -236,7 +236,7 @@ typedef struct _DECODER_CDINFO
 
 } DECODER_CDINFO;
 
-ULONG PM123_ENTRY decoder_cdinfo( char* drive, DECODER_CDINFO* info );
+ULONG PM123_ENTRY decoder_cdinfo( const char* drive, DECODER_CDINFO* info );
 
 /* returns ORed values */
 #define DECODER_FILENAME  0x1
