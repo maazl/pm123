@@ -662,7 +662,7 @@ read_again:
     }
   }
 
-  sprintf( info->tech_info, "%u kbs, %f kHz, %s",
+  sprintf( info->tech_info, "%u kbs, %.1f kHz, %s",
            info->bitrate, ( info->format.samplerate / 1000.0 ), modes( info->mode ));
 
   if( vbr ) {
