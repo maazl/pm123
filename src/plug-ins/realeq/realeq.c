@@ -976,7 +976,7 @@ save_eq( HWND hwnd, float* gains, BOOL* mutes, float preamp )
     fprintf( file, "#\n# Equalizer created with %s\n# Do not modify!\n#\n", VERSION );
     fprintf( file, "# Band gains\n" );
     for( i = 0; i < NUM_BANDS*2; i++ ) {
-      fprintf( file, "%g\n", gains[i] );
+      fprintf( file, "%g\n", pow(10,gains[i]/20) );
     }
     fprintf(file, "# Mutes\n" );
     for( i = 0; i < NUM_BANDS*2; i++ ) {
