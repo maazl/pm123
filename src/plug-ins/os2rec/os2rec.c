@@ -62,6 +62,7 @@ typedef struct
 {  char        device[64];
    BOOL        lockdevice;
    FORMAT_INFO format;
+   ULONG       connector;
    int         numbuffers;
    int         buffersize;
 } PARAMETERS;
@@ -70,6 +71,7 @@ static PARAMETERS defaults =
 {  "0",
    FALSE,
    { sizeof(FORMAT_INFO), 44100, 2, 16, WAVE_FORMAT_PCM },
+   MCI_LINE_IN_CONNECTOR,
    0, // default
    0  // default
 };
@@ -115,32 +117,44 @@ typedef struct
 } OS2RECORD;
 
 
+/* checks whether value is an abrevation of key with at least minlen characters length */
+static BOOL
+abbrev(const char* value, const char* key, int minlen)
+{ int len = strlen(value);
+  if (len < minlen)
+    return FALSE;
+  return strnicmp(value, key, len) == 0;
+}
+
+/* decompose record:/// url into params structure. Return FALSE on error. 
+ */
 static BOOL
 parseURL( const char* url, PARAMETERS* params )
 { int i,j,k;
   const char* cp;
-  if (strnicmp(url, "record://", 9) != 0)
+  if (strnicmp(url, "record:///", 10) != 0)
     return FALSE;
+  url += 10;
   // extract device
-  i = strcspn(url+9, "\\/?");
-  if (cp == NULL || i >= sizeof params->device)
+  i = strcspn(url, "\\/?");
+  if (i >= sizeof params->device)
     return FALSE;
-  if (sscanf(url+9, "%d%n", &j, &k) == 1 && k == i)
+  if (sscanf(url, "%d%n", &j, &k) == 1 && k == i)
   { // bare device number
     sprintf(params->device, MCI_DEVTYPE_AUDIO_AMPMIX_NAME"%02d", j);
   } else
-  { memcpy(params->device, url+9, i);
+  { memcpy(params->device, url, i);
     params->device[i] = 0;
   }
   // fetch parameters
-  switch (url[9+i])
+  switch (url[i])
   {default: // = case 0
     return TRUE;
    case '\\':
    case '/':
-    return url[9+i+1] == 0;
+    return url[i+1] == 0;
    case '?':
-    cp = url+9+i;
+    cp = url+i;
   }
   // parse options
   while (*cp != 0)
@@ -166,12 +180,12 @@ parseURL( const char* url, PARAMETERS* params )
     cp += i;
     DEBUGLOG(("os2rec:parseURL: option %s=%s\n", key, value));
     // parse keys
-    if (stricmp(key, "saplerate") == 0)
+    if (abbrev(key, "samplerate", 4))
     { if (sscanf(value, "%i%n", &i, &j) != 1 || j != strlen(value) || i <= 0)
         return FALSE; // syntax error
       params->format.samplerate = i;
     } else
-    if (stricmp(key, "channels") == 0)
+    if (abbrev(key, "channels", 2))
     { if (sscanf(value, "%i%n", &i, &j) != 1 || j != strlen(value) || i <= 0)
         return FALSE; // syntax error
       params->format.channels = i;
@@ -182,18 +196,28 @@ parseURL( const char* url, PARAMETERS* params )
     if (stricmp(key, "stereo") == 0)
     { params->format.channels = 2;
     } else
-    if (stricmp(key, "bits") == 0)
+    if (abbrev(key, "bits", 3))
     { if (sscanf(value, "%i%n", &i, &j) != 1 || j != strlen(value) || i <= 0)
         return FALSE; // syntax error
       params->format.bits = i;
     } else
-    if (stricmp(key, "shared") == 0)
-    { if (stricmp(value, "no") == 0 || strcmp(value, "0") == 0)
+    if (abbrev(key, "shared", 5))
+    { if (abbrev(value, "no", 1) || strcmp(value, "0") == 0)
         params->lockdevice = FALSE;
-       else if (stricmp(value, "yes") == 0 || strcmp(value, "1") == 0)
+       else if (abbrev(value, "yes", 1) || strcmp(value, "1") == 0)
         params->lockdevice = TRUE;
        else
         return FALSE; // bad value
+    } else
+    if (abbrev(key, "input", 2))
+    { if (abbrev(value, "line", 1))
+        params->connector = MCI_LINE_IN_CONNECTOR;
+       else if (abbrev(value, "mic", 1))
+        params->connector = MCI_MICROPHONE_CONNECTOR;
+       else if (abbrev(value, "digital", 1))
+        params->connector = MCI_AMP_STREAM_CONNECTOR;
+       else
+        return FALSE;
     } else // bad param
       return FALSE;
   }
@@ -240,9 +264,24 @@ decoder_support( char* ext[], int* size )
   return DECODER_OTHER;
 }
 
+static const char*
+get_connector_name(ULONG connector)
+{ switch (connector)
+  {case MCI_LINE_IN_CONNECTOR:
+    return "line";
+   case MCI_MICROPHONE_CONNECTOR:
+    return "mic.";
+   case MCI_AMP_STREAM_CONNECTOR:
+    return "digital";
+   default:
+    return NULL;
+  }
+}
+
 ULONG PM123_ENTRY
 decoder_fileinfo( const char* filename, DECODER_INFO* info )
-{ PARAMETERS params = defaults;
+{ const char* cp;
+  PARAMETERS params = defaults;
   if (!parseURL( filename, &params ))
     return 200;
   info->format       = params.format;
@@ -262,7 +301,11 @@ decoder_fileinfo( const char* filename, DECODER_INFO* info )
   info->numpositions = 0; // no MOD
   sprintf(info->tech_info, "%d bit, %f kHz, %s", params.format.bits, params.format.samplerate/1000.,
                                                  params.format.channels == 1 ? "mono" : "stereo");
-  sprintf(info->title, "Audio device: %.32s", params.device);
+  cp = get_connector_name(params.connector);
+  if (cp == NULL)
+    sprintf(info->title, "Record: %.32s-%d", params.device, params.connector);
+   else
+    sprintf(info->title, "Record: %.32s-%s", params.device, cp);
   info->artist[0]    = 0;
   info->album[0]     = 0;
   info->year[0]      = 0;
@@ -499,6 +542,18 @@ static ULONG device_open(OS2RECORD *a)
       a->device = opa.usDeviceID;
       a->opened = TRUE;
    }
+   // select input
+   {  MCI_CONNECTOR_PARMS cpa;
+      memset(&cpa, 0, sizeof cpa);
+
+      cpa.ulConnectorType = a->params.connector;
+
+      rc = (USHORT)mciSendCommand(a->device, MCI_CONNECTOR, MCI_WAIT|MCI_ENABLE_CONNECTOR|MCI_CONNECTOR_TYPE, &cpa, 0);
+      if (rc != MCIERR_SUCCESS)
+      {  output_close(a);
+         return MciError(a,rc,"MCI_CONNECTOR");
+      }
+   }
    // Set the MCI_MIXSETUP_PARMS data structure to match the audio stream.
    {  MCI_MIXSETUP_PARMS  mspa;
       memset(&mspa, 0, sizeof mspa);
@@ -512,7 +567,7 @@ static ULONG device_open(OS2RECORD *a)
       mspa.ulDeviceType    = MCI_DEVTYPE_WAVEFORM_AUDIO;
       mspa.pmixEvent       = &DARTEvent;
 
-      rc = (USHORT)mciSendCommand(a->device, MCI_MIXSETUP, MCI_WAIT | MCI_MIXSETUP_INIT, &mspa, 0);
+      rc = (USHORT)mciSendCommand(a->device, MCI_MIXSETUP, MCI_WAIT|MCI_MIXSETUP_INIT, &mspa, 0);
       if (rc != MCIERR_SUCCESS)
       {  output_close(a);
          return MciError(a,rc,"MCI_MIXSETUP");
@@ -647,7 +702,7 @@ int PM123_ENTRY plugin_query(PLUGIN_QUERYPARAM *param)
 {
    param->type = PLUGIN_DECODER;
    param->author = "Marcel Mueller";
-   param->desc = "OS2RECORD 1.0";
+   param->desc = "OS2 recording plug-in 1.0";
    param->configurable = FALSE;
 
    //load_ini();
