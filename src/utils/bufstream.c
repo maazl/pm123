@@ -86,7 +86,7 @@ read_bufstream( BUFSTREAM* b, void* buffer, int size )
 
 /* Writes a data from buffering stream. */
 int
-write_bufstream( BUFSTREAM* b, void* buffer, int size )
+write_bufstream( BUFSTREAM* b, const void* buffer, int size )
 {
   int towrite = size;
 

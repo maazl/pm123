@@ -1,6 +1,5 @@
 /*
- * Copyright 1997-2003 Samuel Audet <guardia@step.polymtl.ca>
- *                     Taneli Lepp„ <rosmo@sektori.com>
+ * Copyright 2006 Marcel Mueller
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -27,65 +26,53 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-/*
- * Button '95 include file
+/* Configuration dependant log functions.
+ * To post a log message write
+ *   DEBUGLOG(("Format string with printf parameters like %s\n", "parameter"));
+ * Note the double braces!
+ * If the application is compiled in debug mode (defining DEBUG) the message
+ * is written to stderr which can be easily captured by " 2>logfile".
+ * Otherwise the line will not be compiled at all. Even the arguments are not
+ * evaluated for their side effects. So be sure not to use expressions with
+ * side effects.
  */
 
-#ifndef PM123_BUTTON95_H
-#define PM123_BUTTON95_H
+#ifndef _DEBUGLOG_H
+#define _DEBUGLOG_H
 
-#include <os2.h>
+#ifdef DEBUG
 
-#ifdef __cplusplus
-extern "C" {
+  #include <stdio.h>
+  #include <stdarg.h>
+  #include <time.h>
+
+  // log to stderr
+  static void
+  debuglog( const char* fmt, ... )
+  {
+    va_list va;
+    PTIB ptib;
+
+    va_start( va, fmt );
+    DosGetInfoBlocks( &ptib, NULL );
+    DosEnterCritSec();
+    fprintf( stderr, "%x %d\t", clock(), ptib->tib_ptib2->tib2_ultid );
+    vfprintf( stderr, fmt, va );
+    DosExitCritSec();
+    va_end( va );
+  }
+
+  #define DEBUGLOG(x) debuglog x
+#else
+  // turn the log lines into a no-op, not even evaluating it's arguments
+  #define DEBUGLOG(x)
 #endif
 
-#define CLASSNAME "Button95"
-
-#define MYM_UPDATE   (WM_USER)
-#define WM_DEPRESS   (WM_USER + 1)
-#define WM_SETTEXT   (WM_USER + 2)
-#define WM_PRESS     (WM_USER + 3)
-#define WM_CHANGEBMP (WM_USER + 4)
-
-#define BITMAP_SERVER   1667
-#define BITMAP_SHUTDOWN 1668
-#define BITMAP_RUN      1669
-#define BITMAP_HELP     1700
-#define BITMAP_FIND     1701
-#define BITMAP_SETTINGS 1702
-#define BITMAP_DOCS     1703
-#define BITMAP_PROGRAMS 1704
-
-
-typedef struct _BUTTONDATA {
-  unsigned int cb;
-  char Text[256];
-  int Pressed;
-  int no;
-  HWND hwndOwner;
-  ULONG id;
-  char Help[256];
-} BUTTONDATA;
-
-typedef struct _DATA95 {
-  unsigned int cb;
-  int bmp1, bmp2;
-  int stick;
-  int *stickvar;
-  int Pressed;
-  int id;
-  HWND hwndOwner;
-  char Help[256];
-  int bubbling, wmpaint_kludge, mouse_in_button;
-  HWND Bubble, BubbleClient;
-} DATA95, *PDATA95;
-
-typedef BUTTONDATA *PBUTTONDATA;
-
-void InitButton(HAB hab);
-
-#ifdef __cplusplus
-extern "C" {
+// level 2 log
+#if defined(DEBUG) && DEBUG >= 2
+  #define DEBUGLOG2(x) debuglog x
+#else
+  #define DEBUGLOG2(x)
 #endif
+
 #endif

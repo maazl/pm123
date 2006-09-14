@@ -12,11 +12,11 @@ LBO        = .lib
 RES        = .res
 
 CC         = icc
-CFLAGS     = -Ss -Q -Gm -W3 -DOS2 -DTCPV40HDRS
+CFLAGS     = -Ss -Q -Gm -Gd+ -W3 -DOS2 -DTCPV40HDRS -DNOSYSTEMSTATICMEMBER -Wdcl -Wenu
 CFLAGS_DLL = -Ge- -DLL
-CFLAGS_DBG = -Ti -Tx
+CFLAGS_DBG = -Ti -Tx -DDEBUG=1
 CFLAGS_MEM = -Tm
-CFLAGS_OPT = -Gf -Gi -O -Ol -G5
+CFLAGS_OPT = -Gf -Gi -O -G5
 
 CL         = ilink
 LFLAGS     = /NOL /NOE

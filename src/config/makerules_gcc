@@ -17,7 +17,7 @@ AFLAGS     = -fobj -DUNDERSCORE
 CC         = g++
 CFLAGS     = -Wall -DOS2 -DOS2EMX_PLAIN_CHAR
 CFLAGS_DLL =
-CFLAGS_DBG = -g
+CFLAGS_DBG = -g -DDEBUG=1
 CFLAGS_OPT = -O2
 
 CL         = g++

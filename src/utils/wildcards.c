@@ -30,10 +30,10 @@
 #include <ctype.h>
 #include "wildcards.h"
 
-int asterisk (char **wildcard, char **test);
+static int asterisk (const char **wildcard, const char **test);
 /* scans an asterisk */
 
-int wildcardfit (char *wildcard, char *test)
+int wildcardfit (const char *wildcard, const  char *test)
 {
   int fit = 1;
   
@@ -62,7 +62,7 @@ int wildcardfit (char *wildcard, char *test)
   return (int) ((1 == fit) && ('\0' == *test) && ('\0' == *wildcard));
 }
 
-int asterisk (char **wildcard, char **test)
+static int asterisk (const char **wildcard, const char **test)
 {
   /* Warning: uses multiple returns */
   int fit = 1;

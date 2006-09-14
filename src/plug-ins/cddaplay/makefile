@@ -27,6 +27,8 @@ ciscgi\ciscgi$(LBO):
 	@$(MAKE) $(MFLAGS)
 	@cd ..
 
+cddb$(CO): cddb.cpp ciscgi\cgicis.h
+
 clean: $(MDUMMY)
 	-@del cddaplay$(LBI) cddaplay.dll $(OBJECTS) $(RESOURCE) 2> nul
 	cd ciscgi
