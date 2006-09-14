@@ -299,7 +299,7 @@ decoder_fileinfo( const char* filename, DECODER_INFO* info )
   info->numchannels  = 0; // no MOD
   info->numpatterns  = 0; // no MOD
   info->numpositions = 0; // no MOD
-  sprintf(info->tech_info, "%d bit, %f kHz, %s", params.format.bits, params.format.samplerate/1000.,
+  sprintf(info->tech_info, "%d bit, %.1f kHz, %s", params.format.bits, params.format.samplerate/1000.,
                                                  params.format.channels == 1 ? "mono" : "stereo");
   cp = get_connector_name(params.connector);
   if (cp == NULL)
