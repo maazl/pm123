@@ -42,7 +42,7 @@ extern "C" {
 
 #define CLASSNAME "Button95"
 
-#define MYM_UPDATE (WM_USER)
+#define MYM_UPDATE   (WM_USER)
 #define WM_DEPRESS   (WM_USER + 1)
 #define WM_SETTEXT   (WM_USER + 2)
 #define WM_PRESS     (WM_USER + 3)
@@ -89,4 +89,3 @@ void InitButton(HAB hab);
 extern "C" {
 #endif
 #endif
-

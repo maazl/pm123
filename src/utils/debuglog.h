@@ -35,39 +35,44 @@
  * Otherwise the line will not be compiled at all. Even the arguments are not
  * evaluated for their side effects. So be sure not to use expressions with
  * side effects.
- */ 
+ */
 
 #ifndef _DEBUGLOG_H
 #define _DEBUGLOG_H
 
 #ifdef DEBUG
-#include <stdio.h>
-#include <stdarg.h>
-#include <time.h>
 
-// log to stderr
-static void debuglog(const char* fmt, ...)
-{ va_list va;
-  PTIB ptib;
-  va_start(va, fmt);
-  DosGetInfoBlocks(&ptib,NULL);
-  DosEnterCritSec();
-  fprintf(stderr, "%x %d\t", clock(), ptib->tib_ptib2->tib2_ultid);
-  vfprintf(stderr, fmt, va);
-  DosExitCritSec();
-  va_end(va);
-}
-#define DEBUGLOG(x) debuglog x
+  #include <stdio.h>
+  #include <stdarg.h>
+  #include <time.h>
+
+  // log to stderr
+  static void
+  debuglog( const char* fmt, ... )
+  {
+    va_list va;
+    PTIB ptib;
+
+    va_start( va, fmt );
+    DosGetInfoBlocks( &ptib, NULL );
+    DosEnterCritSec();
+    fprintf( stderr, "%x %d\t", clock(), ptib->tib_ptib2->tib2_ultid );
+    vfprintf( stderr, fmt, va );
+    DosExitCritSec();
+    va_end( va );
+  }
+
+  #define DEBUGLOG(x) debuglog x
 #else
-// turn the log lines into a no-op, not even evaluating it's arguments
-#define DEBUGLOG(x)
+  // turn the log lines into a no-op, not even evaluating it's arguments
+  #define DEBUGLOG(x)
 #endif
 
 // level 2 log
 #if defined(DEBUG) && DEBUG >= 2
-#define DEBUGLOG2(x) debuglog x
+  #define DEBUGLOG2(x) debuglog x
 #else
-#define DEBUGLOG2(x)
+  #define DEBUGLOG2(x)
 #endif
 
 #endif
