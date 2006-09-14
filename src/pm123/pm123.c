@@ -104,9 +104,6 @@ static HPIPE hpipe      = NULLHANDLE;
 static char  pipename[_MAX_PATH] = "\\PIPE\\PM123";
 
 static BOOL  is_have_focus    = FALSE;
-static BOOL  is_fast_forward  = FALSE;
-static BOOL  is_fast_backward = FALSE;
-static BOOL  is_paused        = FALSE;
 static BOOL  is_volume_drag   = FALSE;
 static BOOL  is_seeking       = FALSE;
 static BOOL  is_slider_drag   = FALSE;
@@ -179,7 +176,7 @@ amp_volume_to_lower( void )
 static void
 amp_volume_adjust( void )
 {
-  if( is_fast_forward || is_fast_backward ) {
+  if( is_fast_forward() || is_fast_backward() ) {
     amp_volume_to_lower ();
   } else {
     amp_volume_to_normal();
@@ -551,10 +548,6 @@ amp_play( void )
 
   amp_msg( MSG_PLAY, &msgplayinfo, &current_format );
 
-  is_fast_backward = FALSE;
-  is_fast_forward  = FALSE;
-  is_paused        = FALSE;
-
   amp_set_bubbletext( BMP_PLAY, "Stops playback" );
 
   WinSendDlgItemMsg( hplayer, BMP_FWD,   WM_DEPRESS, 0, 0 );
@@ -579,14 +572,12 @@ amp_pause( void )
   if( decoder_playing())
   {
     amp_msg( MSG_PAUSE, 0, 0 );
-    is_paused = !is_paused;
-    if( is_paused ) {
-      WinSendDlgItemMsg( hplayer, BMP_PAUSE, WM_PRESS, 0, 0 );
-      return;
-    }
   }
 
-  WinSendDlgItemMsg( hplayer, BMP_PAUSE, WM_DEPRESS, 0, 0 );
+  if( is_paused() ) {
+    WinSendDlgItemMsg( hplayer, BMP_PAUSE, WM_PRESS, 0, 0 );
+    return;
+  }
 }
 
 /* Shows the context menu of the playlist. */
@@ -1614,12 +1605,12 @@ amp_pipe_thread( void* scrap )
           if( stricmp( zork, "pause" ) == 0 ) {
             if( dork ) {
               if( stricmp( dork, "off" ) == 0 || stricmp( dork, "0" ) == 0 ) {
-                if( is_paused ) {
+                if( is_paused() ) {
                   WinSendMsg( hplayer, WM_COMMAND, MPFROMSHORT( BMP_PAUSE ), 0 );
                 }
               }
               if( stricmp( dork, "on"  ) == 0 || stricmp( dork, "1" ) == 0 ) {
-                if( !is_paused ) {
+                if( !is_paused() ) {
                   WinSendMsg( hplayer, WM_COMMAND, MPFROMSHORT( BMP_PAUSE ), 0 );
                 }
               }
@@ -2701,15 +2692,11 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
           return 0;
 
         case BMP_FWD:
-          if( decoder_playing() && !is_paused )
-          {
-            if( is_fast_backward ) {
-              is_fast_backward = FALSE;
-              WinSendDlgItemMsg( hwnd, BMP_REW, WM_DEPRESS, 0, 0 );
-            }
+          if( decoder_playing() && !is_paused() )
+          { 
+            WinSendDlgItemMsg( hwnd, BMP_REW, WM_DEPRESS, 0, 0 );
             amp_msg( MSG_FWD, 0, 0 );
-            is_fast_forward = !is_fast_forward;
-            WinSendDlgItemMsg( hwnd, BMP_FWD, is_fast_forward ? WM_PRESS : WM_DEPRESS, 0, 0 );
+            WinSendDlgItemMsg( hwnd, BMP_FWD, is_fast_forward() ? WM_PRESS : WM_DEPRESS, 0, 0 );
             amp_volume_adjust();
           } else {
             WinSendDlgItemMsg( hwnd, BMP_FWD, WM_DEPRESS, 0, 0 );
@@ -2717,15 +2704,11 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
           return 0;
 
         case BMP_REW:
-          if( decoder_playing() && !is_paused )
+          if( decoder_playing() && !is_paused() )
           {
-            if( is_fast_forward ) {
-              is_fast_forward = FALSE;
-              WinSendDlgItemMsg( hwnd, BMP_FWD, WM_DEPRESS, 0, 0 );
-            }
+            WinSendDlgItemMsg( hwnd, BMP_FWD, WM_DEPRESS, 0, 0 );
             amp_msg( MSG_REW, 0, 0 );
-            is_fast_backward = !is_fast_backward;
-            WinSendDlgItemMsg( hwnd, BMP_REW, is_fast_backward ? WM_PRESS : WM_DEPRESS, 0, 0 );
+            WinSendDlgItemMsg( hwnd, BMP_REW, is_fast_backward() ? WM_PRESS : WM_DEPRESS, 0, 0 );
             amp_volume_adjust();
           } else {
             WinSendDlgItemMsg( hwnd, BMP_REW, WM_DEPRESS, 0, 0 );
@@ -3211,3 +3194,4 @@ main( int argc, char *argv[] )
   #endif
   return 0;
 }
+

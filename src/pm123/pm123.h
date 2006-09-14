@@ -333,6 +333,9 @@ typedef struct
 
 } MSG_PLAY_STRUCT;
 
+BOOL is_paused( void );
+BOOL is_fast_forward( void );
+BOOL is_fast_backward( void );
 void amp_msg( int msg, void* param, void* param2 );
 void equalize_sound( float* gains, BOOL* mute, float preamp, BOOL enabled );
 

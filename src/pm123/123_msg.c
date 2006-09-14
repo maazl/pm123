@@ -58,6 +58,22 @@ static BOOL  forwarding    = FALSE;
 static BOOL  rewinding     = FALSE;
 static char* save_filename = NULL;
 
+/* getters to state vars */
+BOOL
+is_paused( void )
+{ return paused;
+}
+
+BOOL
+is_fast_forward( void )
+{ return forwarding;
+}
+
+BOOL
+is_fast_backward( void )
+{ return rewinding;
+}
+
 void
 amp_msg( int msg, void *param, void *param2 )
 {
@@ -178,19 +194,16 @@ amp_msg( int msg, void *param, void *param2 )
     case MSG_FWD:
       if( decoder_playing())
       {
-        forwarding = !forwarding;
-
         if( rewinding ) {
           // Stop rewinding anyway.
-          dec_params.ffwd = rewinding = FALSE;
+          dec_params.rew = rewinding = FALSE;
           dec_command( DECODER_REW, &dec_params );
         }
 
-        dec_params.ffwd = forwarding;
-        dec_command( DECODER_FFWD, &dec_params );
-
-        if( cfg.trash )
-        {
+        dec_params.ffwd = forwarding = !forwarding;
+        if ( dec_command( DECODER_FFWD, &dec_params ) != 0 ) { 
+          dec_params.ffwd = forwarding = FALSE;
+        } else if( cfg.trash ) {
           // Going back in the stream to what is currently playing.
           dec_params.jumpto = out_playing_pos();
           dec_command( DECODER_JUMPTO, &dec_params );
@@ -202,19 +215,17 @@ amp_msg( int msg, void *param, void *param2 )
     case MSG_REW:
       if( decoder_playing())
       {
-        rewinding = !rewinding;
-
+        
         if( forwarding ) {
           // Stop forwarding anyway.
           dec_params.ffwd = forwarding = FALSE;
           dec_command( DECODER_FFWD, &dec_params );
         }
 
-        dec_params.rew = rewinding;
-        dec_command( DECODER_REW, &dec_params );
-
-        if( cfg.trash )
-        {
+        dec_params.rew = rewinding = !rewinding;
+        if ( dec_command( DECODER_REW, &dec_params ) != 0) {
+          dec_params.rew = rewinding = FALSE;
+        } else if( cfg.trash ) {
           // Going back in the stream to what is currently playing.
           dec_params.jumpto = out_playing_pos();
           dec_command( DECODER_JUMPTO, &dec_params );
@@ -227,11 +238,12 @@ amp_msg( int msg, void *param, void *param2 )
       if( decoder_playing())
       {
         dec_params.jumpto = *((int *)param);
-        if( cfg.trash )
-        {
+        if ( dec_command( DECODER_JUMPTO, &dec_params ) != 0 ) {
+          // cancel seek immediately
+          WinPostMsg( amp_player_window(), WM_SEEKSTOP, 0, 0 );
+        } else if( cfg.trash ) {
           out_trashbuffers( dec_params.jumpto );
         }
-        dec_command( DECODER_JUMPTO, &dec_params );
       }
       break;
 
