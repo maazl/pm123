@@ -51,6 +51,8 @@
 #include <plugin.h>
 #include "realeq.h"
 
+//#undef DEBUG
+//#define DEBUG 2
 #include <debuglog.h>
 
 #define VERSION "Real Equalizer 1.22"
@@ -120,6 +122,7 @@ static struct
   float* design;              // buffer to design filter kernel (shared memory with freq_domain)
   float* kernel[2];           // since the kernel is real even, it's even real in the time domain
   float* overlap[2];          // keep old samples for convolution
+  fftwf_complex* channel_save;// buffer to keep the frequency domain of a mono input for a second convolution
   fftwf_plan forward_plan;    // fftw plan for time_domain -> freq_domain
   fftwf_plan backward_plan;   // fftw plan for freq_domain -> time_domain
   fftwf_plan DCT_plan;        // fftw plan for design -> time domain
@@ -306,7 +309,7 @@ typedef struct
 
 /* setup FIR kernel */
 static BOOL
-fil_setup( REALEQ_STRUCT* f, int samplerate, int channels )
+fil_setup( REALEQ_STRUCT* f )
 {
   static BOOL FFTinit = FALSE;
   int   i, channel;
@@ -355,6 +358,7 @@ fil_setup( REALEQ_STRUCT* f, int samplerate, int channels )
   FFT.design      = FFT.freq_domain[0]; // Aliasing!
   FFT.overlap[0]  = (float*)malloc(FFT.plansize * 2 * sizeof(float));
   FFT.overlap[1]  = FFT.overlap[0] + FFT.plansize;
+  FFT.channel_save= (fftwf_complex*)FFT.overlap[1] -1; // Aliasing!
   FFT.kernel[0]   = (float*)fftwf_malloc((FFT.plansize/2+1) * 2 * sizeof(float));
   FFT.kernel[1]   = FFT.kernel[0]  + (FFT.plansize/2+1);
 
@@ -395,7 +399,7 @@ fil_setup( REALEQ_STRUCT* f, int samplerate, int channels )
  doEQ:
   // STEP 3: setup filter kernel
   
-  fftspecres = (float)samplerate / FFT.DCTplansize;
+  fftspecres = (float)f->format.samplerate / FFT.DCTplansize;
 
   // Prepare design coefficients frame
   coef[0].lf = -14; // very low frequency
@@ -410,7 +414,7 @@ fil_setup( REALEQ_STRUCT* f, int samplerate, int channels )
   coef[NUM_BANDS+3].lv = 0;
 
   /* for left, right */
-  for( channel = 0; channel < channels; channel++ )
+  for( channel = 0; channel < 2; channel++ )
   {
     // fill band data
     for (i = 0; i < NUM_BANDS; ++i)
@@ -466,33 +470,32 @@ fil_setup( REALEQ_STRUCT* f, int samplerate, int channels )
   return TRUE;
 }
 
-/* apply one FFT cycle and process at most plansize-FIRorder samples
+/* do convolution and back transformation
  */
 static void
-do_fft_filter(float* kp)
+do_fft_convolute(fftwf_complex* sp, float* kp)
 { int l;
-  fftwf_complex* dp;
-  // FFT
-  fftwf_execute(FFT.forward_plan);
+  fftwf_complex* dp = FFT.freq_domain;
+  DEBUGLOG(("realeq:do_fft_convolute(%p, %p) - %p\n", sp, kp, dp));
   // Convolution in the frequency domain is simply a series of complex products.
   // But because of the symmetry of the filter kernel it is just comlpex * real.
-  dp = FFT.freq_domain;
   for (l = (FFT.plansize/2+1) >> 3; l; --l)
-  {
-    DO_8(p,
-      dp[p][0] *= kp[p];
-      dp[p][1] *= kp[p];
+  { DO_8(p,
+      dp[p][0] = sp[p][0] * kp[p];
+      dp[p][1] = sp[p][1] * kp[p];
     );
+    sp += 8;
     kp += 8;
     dp += 8;
   }
   for (l = (FFT.plansize/2+1) & 7; l; --l)
-  { dp[0][0] *= kp[0];
-    dp[0][1] *= kp[0];
+  { dp[0][0] = sp[0][0] * kp[0];
+    dp[0][1] = sp[0][1] * kp[0];
+    ++sp;
     ++kp;
     ++dp;
   }
-  // IFFT
+  // do IFFT
   fftwf_execute(FFT.backward_plan);
 }
 
@@ -567,21 +570,6 @@ quantize(float f)
   return (short)f; // Well, dithering might be nice, but slow either.
 }
 
-/* store samples */
-static void
-do_fft_store_samples_mono(short* sp, const int len)
-{ float* dp = FFT.time_domain;
-  int l;
-  // transfer overlapping samples
-  for (l = len >> 3; l; --l) // coarse
-  { DO_8(p, sp[p] = quantize(dp[p]));
-    sp += 8;
-    dp += 8;
-  }
-  for (l = len & 7; l; --l) // fine
-    *sp++ = quantize(*dp++);
-}
-
 /* store stereo samples
  * This will cover only one channel. The only difference to to mono-version is that
  * the destination pointer is incremented by 2 per sample.
@@ -591,7 +579,7 @@ do_fft_store_samples_stereo(short* sp, const int len)
 { float* dp = FFT.time_domain;
   int l;
   DEBUGLOG(("realeq:do_fft_store_samples_stereo(%p, %i)\n", sp, len));
-  // transfer overlapping samples
+  // transfer samples
   for (l = len >> 3; l; --l) // coarse
   { DO_8(p, sp[p<<1] = quantize(dp[p]));
     sp += 16;
@@ -604,61 +592,83 @@ do_fft_store_samples_stereo(short* sp, const int len)
 }
 
 static void
-filter_samples_fft_mono(short* newsamples, const short* buf, int len)
-{
+filter_samples_fft( REALEQ_STRUCT* f, short* newsamples, const short* buf, int len )
+{ DEBUGLOG(("realeq:filter_samples_fft(%p, %p, %p, %i)\n", f, newsamples, buf, len));
+
   while (len) // we might need more than one FFT cycle
   { int l2 = FFT.plansize - FFT.FIRorder;
     if (l2 > len)
       l2 = len;
 
-    // convert to float (well, that bill we have to pay)
-    do_fft_load_samples_mono(buf, l2, FFT.overlap[0]);
-    // do FFT
-    do_fft_filter(FFT.kernel[0]);
-    // convert back to short and use overlap/add
-    if (newsamples != NULL)
-    { do_fft_store_samples_mono(newsamples, l2);
+    if ( f->format.channels == 2 )
+    { // left channel
+      // convert to float (well, that bill we have to pay)
+      do_fft_load_samples_stereo(buf, l2, FFT.overlap[0]);
+      // do FFT
+      fftwf_execute(FFT.forward_plan);
+      // convolution
+      do_fft_convolute(FFT.freq_domain, FFT.kernel[0]);
+      // convert back to short
+      do_fft_store_samples_stereo(newsamples, l2);
+      // right channel
+      // convert to float (well, that bill we have to pay)
+      do_fft_load_samples_stereo(buf+1, l2, FFT.overlap[1]);
+      // do FFT
+      fftwf_execute(FFT.forward_plan);
+      // convolution
+      do_fft_convolute(FFT.freq_domain, FFT.kernel[1]);
+      // convert back to short
+      do_fft_store_samples_stereo(newsamples+1, l2);
+      // next block
+      len -= l2;
+      l2 <<= 1; // stereo
+      buf += l2;
+      newsamples += l2;
+    } else
+    { // left channel
+      // convert to float (well, that bill we have to pay)
+      do_fft_load_samples_mono(buf, l2, FFT.overlap[0]);
+      // do FFT
+      fftwf_execute(FFT.forward_plan);
+      // save data for 2nd channel
+      memcpy(FFT.channel_save, FFT.freq_domain, (FFT.plansize/2+1) * sizeof *FFT.freq_domain);
+      // convolution
+      do_fft_convolute(FFT.freq_domain, FFT.kernel[0]);
+      // convert back to short
+      do_fft_store_samples_stereo(newsamples, l2);
+      // right channel
+      // convolution
+      do_fft_convolute(FFT.channel_save, FFT.kernel[1]);
+      // convert back to short
+      do_fft_store_samples_stereo(newsamples+1, l2);
+      // next block
+      len -= l2;
+      buf += l2;
+      l2 <<= 1; // stereo
       newsamples += l2;
     }
-
-    // next block
-    len -= l2;
-    buf += l2;
   }
 }
 
+/* only update the overlap buffer, no filtering */
 static void
-filter_samples_fft_stereo( short* newsamples, const short* buf, int len )
-{
-  while (len) // we might need more than one FFT cycle
-  { int l2 = FFT.plansize - FFT.FIRorder;
-    if (l2 > len)
-      l2 = len;
+filter_samples_new_overlap( REALEQ_STRUCT* f, const short* buf, int len )
+{ int l2;
+  DEBUGLOG(("realeq:filter_samples_new_overlap(%p, %p, %i)\n", f, buf, len));
+  
+  l2 = FFT.plansize - FFT.FIRorder;
+  if (len > l2)
+  { // skip unneeded samples
+    buf += (len - l2) * f->format.channels;
+    len = l2;
+  }
 
-    // left channel
-    // convert to float (well, that bill we have to pay)
-    do_fft_load_samples_stereo(buf, l2, FFT.overlap[0]);
-    // do FFT
-    do_fft_filter(FFT.kernel[0]);
-    // convert back to short and use overlap/add
-    if (newsamples != NULL)
-      do_fft_store_samples_stereo(newsamples, l2);
-
-    // right channel
-    // convert to float (well, that bill we have to pay)
+  // Well, there might be a more optimized version without copying the old overlap buffer, but who cares
+  if ( f->format.channels == 2 )
+  { do_fft_load_samples_stereo(buf  , l2, FFT.overlap[0]);
     do_fft_load_samples_stereo(buf+1, l2, FFT.overlap[1]);
-    // do FFT
-    do_fft_filter(FFT.kernel[1]);
-    // convert back to short and use overlap/add
-    if (newsamples != NULL)
-    { do_fft_store_samples_stereo(newsamples+1, l2);
-      newsamples += l2;
-    }
-
-    // next block
-    len -= l2;
-    l2 <<= 1; // stereo
-    buf += l2;
+  } else 
+  { do_fft_load_samples_mono(buf, l2, FFT.overlap[0]);
   }
 }
 
@@ -672,7 +682,9 @@ do_request_buffer( REALEQ_STRUCT* f, short** buf )
     *buf = NULL; // discard
     return f->latency;
   } else
-  { return (*f->output_request_buffer)( f->a, &f->format, buf );
+  { FORMAT_INFO2 fi = f->format;
+    fi.channels = 2; // result is always stereo
+    return (*f->output_request_buffer)( f->a, &fi, buf );
   }
 }
 
@@ -711,22 +723,18 @@ filter_and_send( REALEQ_STRUCT* f )
     int rem = len;
     short* sp;
   
-    if ( f->format.channels == 2 ) {
-      filter_samples_fft_stereo( FFT.inbox, FFT.inbox, f->inboxlevel );
-    } else {
-      filter_samples_fft_mono( FFT.inbox, FFT.inbox, f->inboxlevel );
-    }
+    filter_samples_fft( f, FFT.inbox, FFT.inbox, f->inboxlevel );
     
     // transfer data
     sp = FFT.inbox;
     for(;;)
     { if (dbuf != NULL)
-        memcpy(dbuf, sp, dlen * sizeof(short) * f->format.channels);
+        memcpy(dbuf, sp, dlen * sizeof(short) * 2);
       do_commit_buffer( f, dlen, f->posmarker + (len-rem)*1000/f->format.samplerate );
       rem -= dlen;
       if (rem == 0)
         break;
-      sp += dlen * f->format.channels;
+      sp += dlen * 2;
       // request next buffer
       dlen = do_request_buffer( f, &dbuf );
       if (f->temppos != -1)
@@ -740,10 +748,11 @@ filter_and_send( REALEQ_STRUCT* f )
     
   } else
   { // without fragmentation
-    if ( f->format.channels == 2 ) {
-      filter_samples_fft_stereo( dbuf, FFT.inbox, f->inboxlevel );
-    } else {
-      filter_samples_fft_mono( dbuf, FFT.inbox, f->inboxlevel );
+    if (dbuf == NULL)
+    { // only save overlap
+      filter_samples_new_overlap( f, FFT.inbox, f->inboxlevel );
+    } else
+    { filter_samples_fft( f, dbuf, FFT.inbox, f->inboxlevel );
     }
     do_commit_buffer( f, len, f->posmarker );
   }
@@ -824,7 +833,7 @@ filter_request_buffer( REALEQ_STRUCT* f, const FORMAT_INFO2* format, short** buf
         local_flush( f );
     }
     
-    fil_setup( f, format->samplerate, format->channels );
+    fil_setup( f );
 
     *buf = FFT.inbox + f->inboxlevel * format->channels;
     DEBUGLOG(("realeq:filter_request_buffer: %p, %d\n", *buf, FFT.plansize - FFT.FIRorder - f->inboxlevel));
@@ -862,7 +871,11 @@ static ULONG PM123_ENTRY
 filter_command( REALEQ_STRUCT* f, ULONG msg, OUTPUT_PARAMS2* info )
 { DEBUGLOG(("realeq:filter_command(%p, %u, %p)\n", f, msg, info));
   switch (msg)
-  {case OUTPUT_TRASH_BUFFERS:
+  {case OUTPUT_SETUP:
+    if (info->formatinfo.channels == 1 && eqenabled)
+      info->formatinfo.channels = 2;
+    break;
+   case OUTPUT_TRASH_BUFFERS:
     f->temppos = info->temp_playingpos;
     break;
    case OUTPUT_CLOSE:
