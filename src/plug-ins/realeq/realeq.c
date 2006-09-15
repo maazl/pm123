@@ -152,7 +152,7 @@ static char lasteq[CCHMAXPATH];
  * we should use a much more agressive window function.
  * This is verified by calculations.
  */
-#define WINDOW_FUNCTION( n, N ) (0.8 - 0.2 * cos( 2 * M_PI * n / N ))
+#define WINDOW_FUNCTION( n, N ) (0.77 - 0.23 * cos( 2 * M_PI * n / N ))
 
 #define round(n) ((n) > 0 ? (n) + 0.5 : (n) - 0.5)
 
