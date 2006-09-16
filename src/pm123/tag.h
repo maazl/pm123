@@ -34,13 +34,23 @@
 extern "C" {
 #endif
 
+/* MPõ ID3 V1.x structure, for intermal use only */
 typedef struct {
    char tag[3] ;
    char title[30] ;
    char artist[30] ;
    char album[30] ;
    char year[4] ;
-   char comment[30] ;
+   union      // comment and track
+   {  struct  // ID3 V1.0
+      {  char comment[30] ;
+      } V1_0;
+      struct  // ID3 V1.1
+      {  char comment[28] ;
+         char spacer ;
+         unsigned char track ;
+      } V1_1;
+   }    u_comtrk ;          
    unsigned char genre ;
 } tag ;
 
@@ -51,14 +61,17 @@ typedef struct {
    char year[128] ;
    char comment[128] ;
    char genre[128] ;
+   int  track ;
    int  gennum;
    int  charset;
 } tune ;
 
-int wipetag(int fd, size_t filesize);
+void emptytag(tune* info);
+int wipetag(int fd);
 int gettag(int fd, tune *info);
-void jointag(tune *to, tune *from);
-int settag(int fd, tune *info);
+/* Function removed because buggy and unused
+void jointag(tune *to, tune *from);*/
+int settag(int fd, const tune *info);
 
 #ifdef __cplusplus
 }

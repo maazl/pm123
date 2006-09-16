@@ -104,6 +104,8 @@
 #define EN_ID3_ARTIST       104
 #define ST_ID3_ALBUM        108
 #define EN_ID3_ALBUM        105
+#define ST_ID3_TRACK        115
+#define EN_ID3_TRACK        114
 #define ST_ID3_COMMENT      110
 #define EN_ID3_COMMENT      109
 #define ST_ID3_GENRE        111

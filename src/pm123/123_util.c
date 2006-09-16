@@ -58,7 +58,7 @@ amp_gettag( const char* filename, DECODER_INFO* info, tune* tag )
   int  handle;
   BOOL rc = FALSE;
 
-  memset( tag, 0, sizeof( *tag ));
+  emptytag(tag);
 
   if( filename != NULL && *filename && is_file( filename )) {
     handle = open( filename, O_RDONLY | O_BINARY );
@@ -108,11 +108,10 @@ amp_wipetag( const char* filename )
 {
   int  handle;
   BOOL rc = FALSE;
-  struct stat fi;
 
   handle = open( filename, O_RDWR | O_BINARY );
-  if( handle != -1 && fstat( handle, &fi ) == 0 ) {
-    rc = wipetag( handle, fi.st_size );
+  if( handle != -1 ) {
+    rc = wipetag( handle );
     close( handle );
   }
 

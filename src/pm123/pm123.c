@@ -1049,6 +1049,13 @@ amp_drag_drop( HWND hwnd, PDRAGINFO pdinfo )
   return 0;
 }
 
+/* local structure to pass information through WinSetWindowPtr */
+typedef struct
+{
+  tune* tag;
+  char  track[4];
+} tagdata;
+
 /* Processes messages of the dialog of edition of ID3 tag. */
 static MRESULT EXPENTRY
 id3_page_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
@@ -1069,18 +1076,53 @@ id3_page_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
     case WM_COMMAND:
       if( COMMANDMSG(&msg)->cmd == PB_ID3_UNDO )
       {
-        tune* tag = (tune*)WinQueryWindowPtr( hwnd, 0 );
+        tagdata* data = (tagdata*)WinQueryWindowPtr( hwnd, 0 );
+        int genre = data->tag->gennum;
 
-        WinSetDlgItemText( hwnd, EN_ID3_TITLE,   tag->title   );
-        WinSetDlgItemText( hwnd, EN_ID3_ARTIST,  tag->artist  );
-        WinSetDlgItemText( hwnd, EN_ID3_ALBUM,   tag->album   );
-        WinSetDlgItemText( hwnd, EN_ID3_COMMENT, tag->comment );
-        WinSetDlgItemText( hwnd, EN_ID3_YEAR,    tag->year    );
+        // map all unknown to the text "unknown"
+        if ( genre < 0 || genre >= GENRE_LARGEST )
+          genre = GENRE_LARGEST;
+
+        if ( data->tag->track <= 0 || data->tag->track > 999 )
+          data->track[0] = 0;
+        else
+          sprintf( data->track, "%d", data->tag->track );
+
+        WinSetDlgItemText( hwnd, EN_ID3_TITLE,   data->tag->title   );
+        WinSetDlgItemText( hwnd, EN_ID3_ARTIST,  data->tag->artist  );
+        WinSetDlgItemText( hwnd, EN_ID3_ALBUM,   data->tag->album   );
+        WinSetDlgItemText( hwnd, EN_ID3_TRACK,   data->track        );
+        WinSetDlgItemText( hwnd, EN_ID3_COMMENT, data->tag->comment );
+        WinSetDlgItemText( hwnd, EN_ID3_YEAR,    data->tag->year    );
 
         WinSendDlgItemMsg( hwnd, CB_ID3_GENRE, LM_SELECTITEM,
-                           MPFROMSHORT( tag->gennum ), MPFROMSHORT( TRUE ));
+                           MPFROMSHORT( genre ), MPFROMSHORT( TRUE ));
       }
       return 0;
+
+    case WM_CONTROL:
+      if ( SHORT1FROMMP(mp1) == EN_ID3_TRACK && SHORT2FROMMP(mp1) == EN_CHANGE )
+      {
+        // read the track immediately to verify the syntax
+        int tmp_track;
+        char buf[4];
+        int len1, len2;
+        tagdata* data = (tagdata*)WinQueryWindowPtr( hwnd, 0 );
+
+        len1 = WinQueryWindowText( HWNDFROMMP(mp2), sizeof buf, buf );
+        if ( len1 != 0 &&                                       // empty is always OK
+             ( sscanf( buf, "%u%n", &tmp_track, &len2 ) != 1 || // can't read
+               len1      != len2                             || // more input
+               tmp_track >= 256 ) )                             // too large
+        {
+          // bad input, restore last value
+          WinSetDlgItemText( hwnd, EN_ID3_TRACK, data->track );
+        } else
+        {
+          // OK, update last value
+          strcpy( data->track, buf ); 
+        }  
+      }
   }
   return WinDefDlgProc( hwnd, msg, mp1, mp2 );
 }
@@ -1120,6 +1162,7 @@ void amp_id3_edit( HWND owner, const char* filename )
   MRESULT id;
   tune    old_tag;
   tune    new_tag;
+  tagdata mywindowdata;
 
   if( !is_file( filename )) {
     DosBeep( 800, 100 );
@@ -1149,13 +1192,14 @@ void amp_id3_edit( HWND owner, const char* filename )
   WinSendMsg ( book, BKM_SETTABTEXT, MPFROMLONG( id ), MPFROMP( "ID3 Tag" ));
   WinSetOwner( page01, book );
 
-  memset( &old_tag, 0, sizeof( old_tag ));
-  memset( &new_tag, 0, sizeof( new_tag ));
+  emptytag( &old_tag );
+  emptytag( &new_tag );
 
   amp_gettag( filename, NULL, &old_tag );
   new_tag.charset = old_tag.charset;
 
-  WinSetWindowPtr( page01, 0, &old_tag );
+  mywindowdata.tag = &old_tag;
+  WinSetWindowPtr( page01, 0, &mywindowdata );
   WinPostMsg( page01, WM_COMMAND,
               MPFROMSHORT( PB_ID3_UNDO ), MPFROM2SHORT( CMDSRC_OTHER, FALSE ));
 
@@ -1167,9 +1211,14 @@ void amp_id3_edit( HWND owner, const char* filename )
   WinQueryDlgItemText( page01, EN_ID3_COMMENT, sizeof( new_tag.comment ), new_tag.comment );
   WinQueryDlgItemText( page01, EN_ID3_YEAR,    sizeof( new_tag.year    ), new_tag.year    );
 
+  sscanf( mywindowdata.track, "%u", &new_tag.track );
+
   new_tag.gennum =
     SHORT1FROMMR( WinSendDlgItemMsg( page01, CB_ID3_GENRE,
                                      LM_QUERYSELECTION, MPFROMSHORT( LIT_CURSOR ), 0 ));
+  // keep genres that PM123 does not know
+  if ( new_tag.gennum == GENRE_LARGEST && old_tag.gennum < GENRE_LARGEST )
+    new_tag.gennum = old_tag.gennum;
   WinDestroyWindow( page01 );
   WinDestroyWindow( hwnd   );
 
@@ -1178,6 +1227,7 @@ void amp_id3_edit( HWND owner, const char* filename )
       strcmp( old_tag.album,   new_tag.album   ) == 0 &&
       strcmp( old_tag.comment, new_tag.comment ) == 0 &&
       strcmp( old_tag.year,    new_tag.year    ) == 0 &&
+      old_tag.track  == new_tag.track                 &&
       old_tag.gennum == new_tag.gennum )
   {
     return;
