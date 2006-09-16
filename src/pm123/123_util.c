@@ -78,25 +78,29 @@ amp_gettag( const char* filename, DECODER_INFO* info, tune* tag )
     rc = TRUE;
   }
 
-  if( rc && cfg.charset != CH_DEFAULT )
+  if( rc && cfg.auto_codepage )
   {
+    // autodetect codepage
     char cstr[ sizeof( tag->title   ) +
                sizeof( tag->artist  ) +
                sizeof( tag->album   ) +
                sizeof( tag->comment ) + 1 ];
+    strcpy( cstr, tag->title   );
+    strcat( cstr, tag->artist  );
+    strcat( cstr, tag->album   );
+    strcat( cstr, tag->comment );
+
+    tag->codepage = ch_detect( cfg.codepage, cstr );
+  }
+  
+  if ( rc && tag->codepage != CH_CP_NONE )
+  {
     tune stag = *tag;
-
-    strcpy( cstr, stag.title   );
-    strcat( cstr, stag.artist  );
-    strcat( cstr, stag.album   );
-    strcat( cstr, stag.comment );
-
-    tag->charset = ch_detect( cfg.charset, cstr );
-
-    ch_convert( tag->charset, stag.title,   CH_DEFAULT, tag->title,   sizeof( stag.title   ));
-    ch_convert( tag->charset, stag.artist,  CH_DEFAULT, tag->artist,  sizeof( stag.artist  ));
-    ch_convert( tag->charset, stag.album,   CH_DEFAULT, tag->album,   sizeof( stag.album   ));
-    ch_convert( tag->charset, stag.comment, CH_DEFAULT, tag->comment, sizeof( stag.comment ));
+    // replace values in *tag by codepage converted values
+    ch_convert( tag->codepage, stag.title,   CH_CP_NONE, tag->title,   sizeof( stag.title   ));
+    ch_convert( tag->codepage, stag.artist,  CH_CP_NONE, tag->artist,  sizeof( stag.artist  ));
+    ch_convert( tag->codepage, stag.album,   CH_CP_NONE, tag->album,   sizeof( stag.album   ));
+    ch_convert( tag->codepage, stag.comment, CH_CP_NONE, tag->comment, sizeof( stag.comment ));
   }
 
   return rc;
@@ -120,19 +124,21 @@ amp_wipetag( const char* filename )
 
 /* Writes ID3 tag to the specified file. */
 BOOL
-amp_puttag( const char* filename, tune* tag )
+amp_puttag( const char* filename, const tune* tag )
 {
   int  handle;
   BOOL rc = 0;
   tune wtag = *tag;
 
-  if( tag->charset != CH_DEFAULT )
-  {
-    ch_convert( CH_DEFAULT, tag->title,   tag->charset, wtag.title,   sizeof( wtag.title   ));
-    ch_convert( CH_DEFAULT, tag->artist,  tag->charset, wtag.artist,  sizeof( wtag.artist  ));
-    ch_convert( CH_DEFAULT, tag->album,   tag->charset, wtag.album,   sizeof( wtag.album   ));
-    ch_convert( CH_DEFAULT, tag->comment, tag->charset, wtag.comment, sizeof( wtag.comment ));
+  // if the codepage is not yet specified use the global configuration setting by default
+  if( wtag.codepage == CH_CP_NONE ) {
+    wtag.codepage = cfg.codepage;
   }
+  
+  ch_convert( CH_CP_NONE, tag->title,   tag->codepage, wtag.title,   sizeof( wtag.title   ));
+  ch_convert( CH_CP_NONE, tag->artist,  tag->codepage, wtag.artist,  sizeof( wtag.artist  ));
+  ch_convert( CH_CP_NONE, tag->album,   tag->codepage, wtag.album,   sizeof( wtag.album   ));
+  ch_convert( CH_CP_NONE, tag->comment, tag->codepage, wtag.comment, sizeof( wtag.comment ));
 
   handle = open( filename, O_RDWR | O_BINARY );
   if( handle != -1 ) {

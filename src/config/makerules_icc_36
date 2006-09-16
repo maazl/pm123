@@ -44,6 +44,7 @@ RFLAGS     = -n
 
 LIBS_TCP   = so32dll.lib tcp32dll.lib
 LIBS_MM    = mmpm2.lib
+LIBS_UNI   = libuls.lib libconv.lib
 
 INCLUDE    = $(INCDIR);$(INCLUDE)
 

@@ -31,17 +31,10 @@
 
 #include <string.h>
 
-#define CH_DEFAULT    0
-#define CH_CYR_KOI8R  1
-#define CH_CYR_DOS    2
-#define CH_CYR_866    2
-#define CH_CYR_OS2    2
-#define CH_CYR_WIN    3
-#define CH_CYR_1251   3
-#define CH_CYR_AUTO   4
 
-#define CH_CP         0x0001
-#define CH_DETECT     0x0002
+// no code page
+#define CH_CP_NONE    0UL
+
 
 #ifdef __cplusplus
 extern "C" {
@@ -52,10 +45,7 @@ typedef int (*_CH_PFN)( const char* );
 typedef struct _CH_ENTRY {
 
   const char*  name;
-  int          id;
-  int          type;
-  int          cp;
-  _CH_PFN      pfn;
+  ULONG        codepage;
 
 } CH_ENTRY;
 
@@ -63,33 +53,43 @@ extern const CH_ENTRY ch_list[];
 extern const int      ch_list_size;
 
 /*
- * ch_detect: determine a characters string character set.
+ * ch_find: returns a pointer to the character set entry for the
+ *          specified codepage.
  *
- *    ch_source source character set
+ *    codepage codepage to find
+ *
+ *    return   pointer to matching CH_ENTRY or NULL if not found
+ */
+const CH_ENTRY* ch_find( ULONG codepage );
+
+/*
+ * ch_detect: determine a characters string character set.
+ *            This will check the system's prepared codepages and the one
+ *            specified as parameter.
+ *
+ *    cp_source probable source character set or CH_CP_NONE if unknown
  *    source    source string
  *
- *    return    character set identifier
+ *    return    identified codepage or CH_CP_NONE if unknown.
  */
-
-int ch_detect( int ch_source, const char* source );
+ULONG ch_detect( ULONG codepage, const char* source );
 
 /*
  * ch_convert: convert a characters string from one character
  *             set to another.
  *
  *    hab       program anchor block handle
- *    ch_source source character set
+ *    cp_source source codepage or CH_CP_NONE to use the application's default
  *    source    source string
- *    ch_target target character set
+ *    cp_target target codepage or CH_CP_NONE to use the application's default
  *    target    result buffer
  *    size      size of result buffer
  *
  *    return    != NULL: converted string
  *              == NULL: error
  */
-
-char* ch_convert( int ch_source, const char* source, 
-                  int ch_target, char* target, size_t size );
+char* ch_convert( ULONG cp_source, const char* source, 
+                  ULONG cp_target, char* target, size_t size );
 
 #ifdef __cplusplus
 }

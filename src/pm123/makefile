@@ -16,11 +16,12 @@ DEF      = pm123$(LDEF_SUFFX)
 RESOURCE = pm123$(RES)
 LIBS     = $(TOPDIR)\gbm123\gbm123$(LBI) $(TOPDIR)\http123\http123$(LBI)
 LIBS     = $(LIBS) $(TOPDIR)\utils\utilfct$(LBO)
+STDLIBS  = $(LIBS_UNI)
 
 all: pm123.exe $(MDUMMY)
 
 pm123.exe: $(OBJECTS) $(RESOURCE) $(DEF) $(LIBS)
-	$(CL) $(LFLAGS) $(LFLAGS_OUT)$@ $(LOBJ_PREFX)$(OBJECTS) $(LIBS)$(LOBJ_SUFFX) $(LDEF_PREFX)$(DEF)
+	$(CL) $(LFLAGS) $(LFLAGS_OUT)$@ $(LOBJ_PREFX)$(OBJECTS) $(LIBS) $(STDLIBS)$(LOBJ_SUFFX) $(LDEF_PREFX)$(DEF)
 	$(RC) $(RFLAGS) $(RESOURCE) $@ > nul
 	execmode -sp pm123.exe
 

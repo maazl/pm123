@@ -1196,7 +1196,7 @@ void amp_id3_edit( HWND owner, const char* filename )
   emptytag( &new_tag );
 
   amp_gettag( filename, NULL, &old_tag );
-  new_tag.charset = old_tag.charset;
+  new_tag.codepage = old_tag.codepage;
 
   mywindowdata.tag = &old_tag;
   WinSetWindowPtr( page01, 0, &mywindowdata );

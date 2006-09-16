@@ -82,7 +82,8 @@ factory_settings( void )
   cfg.dock_margin   = 10;
   cfg.add_recursive = TRUE;
   cfg.save_relative = TRUE;
-  cfg.charset       = CH_DEFAULT;
+  cfg.codepage      = 1004; // similar to ISO-8859-1
+  cfg.auto_codepage = TRUE;
   cfg.font_skinned  = TRUE;
   cfg.font_size     = 2;
 
@@ -94,7 +95,7 @@ factory_settings( void )
   // for russian peoples.
   if( DosQueryCp( sizeof( cp ), cp, &cp_size ) == NO_ERROR ) {
     if( cp[0] == 866 ) {
-      cfg.charset = CH_CYR_AUTO;
+      cfg.codepage = 1251;
     }
   }
 
@@ -145,7 +146,8 @@ load_ini( void )
     load_ini_value( INIhandle, cfg.show_plman );
     load_ini_value( INIhandle, cfg.dock_margin );
     load_ini_value( INIhandle, cfg.dock_windows );
-    load_ini_value( INIhandle, cfg.charset );
+    load_ini_value( INIhandle, cfg.codepage );
+    load_ini_value( INIhandle, cfg.auto_codepage );
     load_ini_value( INIhandle, cfg.font_skinned );
     load_ini_value( INIhandle, cfg.font_attrs );
     load_ini_value( INIhandle, cfg.font_size );
@@ -160,6 +162,29 @@ load_ini( void )
     load_ini_string( INIhandle, cfg.proxy,    sizeof( cfg.proxy ));
     load_ini_string( INIhandle, cfg.auth,     sizeof( cfg.auth ));
     load_ini_string( INIhandle, cfg.defskin,  sizeof( cfg.defskin ));
+
+    // convert old ini values, but only if the codepage is not already in the ini file
+    load_ini_data_size( INIhandle, cfg.codepage, size );
+    if ( size == 0 ) {
+      // convrt old charset values
+      switch (PrfQueryProfileInt( INIhandle, INI_SECTION, "cfg.charset", -1 )) {
+        case 1:
+          cfg.codepage = 878;
+          cfg.auto_codepage = FALSE;
+          break;
+        case 2:
+          cfg.codepage = 866;
+          cfg.auto_codepage = FALSE;
+          break;
+        case 3:
+          cfg.codepage = 1251;
+          cfg.auto_codepage = FALSE;
+          break;
+        case 4:
+          cfg.codepage = 1251;
+          cfg.auto_codepage = TRUE;
+      }
+    }
 
     load_ini_data_size( INIhandle, decoders_list, size );
     if( size > 0 && ( decoders_list = malloc( size )) != NULL )
@@ -272,7 +297,8 @@ save_ini( void )
     save_ini_value( INIhandle, cfg.show_plman );
     save_ini_value( INIhandle, cfg.dock_windows );
     save_ini_value( INIhandle, cfg.dock_margin );
-    save_ini_value( INIhandle, cfg.charset );
+    save_ini_value( INIhandle, cfg.codepage );
+    save_ini_value( INIhandle, cfg.auto_codepage );
     save_ini_value( INIhandle, cfg.font_skinned );
     save_ini_value( INIhandle, cfg.font_attrs );
     save_ini_value( INIhandle, cfg.font_size );

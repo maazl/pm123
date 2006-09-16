@@ -42,6 +42,7 @@ RFLAGS     = -n
 
 LIBS_TCP   =
 LIBS_MM    = mmpm2.lib
+LIBS_UNI   = libuls.lib libconv.lib
 
 %INCLUDE   = $(INCDIR);$(%INCLUDE)
 

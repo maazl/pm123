@@ -63,7 +63,7 @@ typedef struct {
    char genre[128] ;
    int  track ;
    int  gennum;
-   int  charset;
+   int  codepage;
 } tune ;
 
 void emptytag(tune* info);

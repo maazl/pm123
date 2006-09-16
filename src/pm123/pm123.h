@@ -207,7 +207,7 @@ BOOL  amp_gettag( const char* filename, DECODER_INFO* info, tune* tag );
 /* Wipes ID3 tag from the specified file. */
 BOOL  amp_wipetag( const char* filename );
 /* Writes ID3 tag to the specified file. */
-BOOL  amp_puttag( const char* filename, tune* tag );
+BOOL  amp_puttag( const char* filename, const tune* tag );
 
 /* Constructs a string of the displayable text from the ID3 tag. */
 char* amp_construct_tag_string( char* result, const tune* tag );

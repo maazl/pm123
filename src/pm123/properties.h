@@ -74,6 +74,7 @@
 #define RB_DISP_FILEINFO   3582
 #define ST_CHARSET         3590
 #define CB_CHARSET         3591
+#define CB_AUTO_CHARSET    3592
 #define GB_FONT            3600
 #define CB_USE_SKIN_FONT   3610
 #define ST_FONT_SAMPLE     3630
@@ -180,7 +181,8 @@ typedef struct _amp_cfg {
   int    dock_margin;         /* The marging for docking window.        */
   BOOL   add_recursive;       /* Enable recursive addition.             */
   BOOL   save_relative;       /* Use relative paths in saved playlists. */
-  int    charset;             /* Character set.                         */
+  int    codepage;            /* Codepage for ID3 tags.                 */
+  BOOL   auto_codepage;       /* Autodetect codepage.                   */
   BOOL   font_skinned;        /* Use skinned font.                      */
   FATTRS font_attrs;          /* Font's attributes.                     */
   LONG   font_size;           /* Font's point size.                     */
