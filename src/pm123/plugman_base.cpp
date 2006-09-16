@@ -41,7 +41,6 @@
 #include <malloc.h>
 
 #include <utilfct.h>
-#include <pcmconvert.h>
 #include "plugman_base.h"
 #include "pm123.h"
 #include "vdelegate.h"
