@@ -68,7 +68,7 @@ typedef struct
 } PARAMETERS;
 
 static PARAMETERS defaults =
-{  "0",
+{  MCI_DEVTYPE_AUDIO_AMPMIX_NAME"00",
    FALSE,
    { sizeof(FORMAT_INFO), 44100, 2, 16, WAVE_FORMAT_PCM },
    MCI_LINE_IN_CONNECTOR,
@@ -142,7 +142,7 @@ parseURL( const char* url, PARAMETERS* params )
   if (sscanf(url, "%d%n", &j, &k) == 1 && k == i)
   { // bare device number
     sprintf(params->device, MCI_DEVTYPE_AUDIO_AMPMIX_NAME"%02d", j);
-  } else
+  } else if (i != 0)
   { memcpy(params->device, url, i);
     params->device[i] = 0;
   }
@@ -204,7 +204,7 @@ parseURL( const char* url, PARAMETERS* params )
     if (abbrev(key, "shared", 5))
     { if (abbrev(value, "no", 1) || strcmp(value, "0") == 0)
         params->lockdevice = FALSE;
-       else if (abbrev(value, "yes", 1) || strcmp(value, "1") == 0)
+       else if (abbrev(value, "yes", 0) || strcmp(value, "1") == 0)
         params->lockdevice = TRUE;
        else
         return FALSE; // bad value
