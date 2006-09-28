@@ -29,8 +29,8 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef _PM123_PROPERTIES_H
-#define _PM123_PROPERTIES_H
+#ifndef PM123_PROPERTIES_H
+#define PM123_PROPERTIES_H
 
 #ifndef  RC_INVOKED
 #include <stdlib.h>
@@ -202,4 +202,4 @@ void cfg_properties( HWND owner );
 #ifdef __cplusplus
 }
 #endif
-#endif /* _PM123_PROPERTIES_H */
+#endif /* PM123_PROPERTIES_H */

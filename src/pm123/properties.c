@@ -40,6 +40,7 @@
 #include "pm123.h"
 #include "plugman.h"
 #include "httpget.h"
+#include "iniman.h"
 
 #define  CFG_REFRESH_LIST (WM_USER+1)
 #define  CFG_REFRESH_INFO (WM_USER+2)

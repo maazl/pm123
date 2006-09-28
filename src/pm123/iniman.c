@@ -41,6 +41,7 @@
 
 #include <utilfct.h>
 #include "pm123.h"
+#include "iniman.h"
 #include "plugman.h"
 
 void

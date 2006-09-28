@@ -39,7 +39,6 @@
 #include "wildcards.h"
 #include "filefind.h"
 #include "fileutil.h"
-#include "url.h"
 #include "errorstr.h"
 #include "inimacro.h"
 #include "queue.h"

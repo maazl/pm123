@@ -41,7 +41,7 @@
 #include <string.h>
 
 #include <utilfct.h>
-#include <format.h>
+
 #include "pm123.h"
 #include "plugman.h"
 
@@ -58,20 +58,19 @@ static BOOL  forwarding    = FALSE;
 static BOOL  rewinding     = FALSE;
 static char* save_filename = NULL;
 
-/* getters to state vars */
-BOOL
-is_paused( void )
-{ return paused;
+/* Returns TRUE if the decoder is paused. */
+BOOL is_paused( void ) {
+  return paused;
 }
 
-BOOL
-is_fast_forward( void )
-{ return forwarding;
+/* Returns TRUE if the decoder is fast forwarding. */
+BOOL is_forward( void ) {
+  return forwarding;
 }
 
-BOOL
-is_fast_backward( void )
-{ return rewinding;
+/* Returns TRUE if the decoder is rewinding. */
+BOOL is_rewind( void ) {
+  return rewinding;
 }
 
 void
@@ -201,8 +200,8 @@ amp_msg( int msg, void *param, void *param2 )
         }
 
         dec_params.ffwd = forwarding = !forwarding;
-        if ( dec_command( DECODER_FFWD, &dec_params ) != 0 ) { 
-          dec_params.ffwd = forwarding = FALSE;
+        if( dec_command( DECODER_FFWD, &dec_params ) != 0 ) {
+          forwarding = FALSE;
         } else if( cfg.trash ) {
           // Going back in the stream to what is currently playing.
           dec_params.jumpto = out_playing_pos();
@@ -215,7 +214,6 @@ amp_msg( int msg, void *param, void *param2 )
     case MSG_REW:
       if( decoder_playing())
       {
-        
         if( forwarding ) {
           // Stop forwarding anyway.
           dec_params.ffwd = forwarding = FALSE;
@@ -223,8 +221,8 @@ amp_msg( int msg, void *param, void *param2 )
         }
 
         dec_params.rew = rewinding = !rewinding;
-        if ( dec_command( DECODER_REW, &dec_params ) != 0) {
-          dec_params.rew = rewinding = FALSE;
+        if( dec_command( DECODER_REW, &dec_params ) != 0 ) {
+          rewinding = FALSE;
         } else if( cfg.trash ) {
           // Going back in the stream to what is currently playing.
           dec_params.jumpto = out_playing_pos();

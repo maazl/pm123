@@ -45,7 +45,6 @@
 #include <ctype.h>
 
 #include <utilfct.h>
-#include <format.h>
 
 #include "pm123.h"
 #include "plugman.h"

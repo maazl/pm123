@@ -29,13 +29,11 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef PM123_H
-#define PM123_H
+#ifndef  PM123_H
+#define  PM123_H
 
 #ifndef  RC_INVOKED
 #include "plugman.h"
-#include "tag.h"
-#include "iniman.h"
 #include "skin.h"
 #include "playlist.h"
 #include "properties.h"
@@ -190,17 +188,31 @@
 #define FDT_PLAYLIST_LST     "Playlist files (*.LST)"
 #define FDT_PLAYLIST_M3U     "Playlist files (*.M3U)"
 #define FDT_AUDIO            "All supported audio files ("
-#define FDT_AUDIO_ALL        "All supported types (*.LST;*.MPL;*.M3U;*.PLS"
+#define FDT_AUDIO_ALL        "All supported types (*.LST;*.MPL;*.M3U;*.PLS;"
 #define FDT_SKIN             "Skin files (*.SKN)"
 #define FDT_EQUALIZER        "Equalizer presets (*.EQ)"
 #define FDT_PLUGIN           "Plug-in (*.DLL)"
+
+#ifndef DC_PREPAREITEM
+#define DC_PREPAREITEM  0x0040
+#endif
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
+typedef struct {
+
+  USHORT cditem;    /*  Count of dragged objects. */
+  HWND   hwndItem;  /*  Window handle of the source of the drag operation. */
+  ULONG  ulItemID;  /*  Information used by the source to identify the
+                        object being dragged. */
+} AMP_DROPINFO;
+
 /* Converts time to two integer suitable for display by the timer. */
 void  sec2num( long seconds, int* major, int* minor );
+/* Reads url from specified file. */
+char* amp_url_from_file( char* result, const char* filename, size_t size );
 
 /* Reads ID3 tag from the specified file. */
 BOOL  amp_gettag( const char* filename, DECODER_INFO* info, tune* tag );
@@ -288,8 +300,8 @@ MRESULT EXPENTRY amp_file_dlg_proc( HWND, ULONG, MPARAM, MPARAM );
 BOOL  amp_load_eq_file( char* filename, float* gains, BOOL* mutes, float* preamp );
 ULONG handle_dfi_error( ULONG rc, const char* file );
 
-int  PM123_ENTRY pm123_getstring(int index, int subindex, size_t bufsize, char *buf);
-void PM123_ENTRY pm123_control(int index, void *param);
+int  PM123_ENTRY pm123_getstring( int index, int subindex, size_t bufsize, char* buf );
+void PM123_ENTRY pm123_control( int index, void* param );
 
 void PM123_ENTRY keep_last_error( char *error );
 void PM123_ENTRY display_info( char *info );
@@ -326,22 +338,27 @@ extern float preamp;
 /* 123_msg.c */
 typedef struct
 {
-   char *filename;
-   char *out_filename;
-   char *drive;
-   char track;
-   HWND hMain;
-   char *decoder_needed;
+   char* filename;
+   char* out_filename;
+   char* drive;
+   char  track;
+   HWND  hMain;
+   char* decoder_needed;
 
 } MSG_PLAY_STRUCT;
 
+/* Returns TRUE if the decoder is paused. */
 BOOL is_paused( void );
-BOOL is_fast_forward( void );
-BOOL is_fast_backward( void );
+/* Returns TRUE if the decoder is fast forwarding. */
+BOOL is_forward( void );
+/* Returns TRUE if the decoder is rewinding. */
+BOOL is_rewind( void );
+
 void amp_msg( int msg, void* param, void* param2 );
 void equalize_sound( float* gains, BOOL* mute, float preamp, BOOL enabled );
 
 #ifdef __cplusplus
 }
 #endif
-#endif
+#endif /* PM123_H */
+

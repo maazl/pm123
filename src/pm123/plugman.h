@@ -29,8 +29,8 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef _PM123_PLUGMAN_H
-#define _PM123_PLUGMAN_H
+#ifndef PM123_PLUGMAN_H
+#define PM123_PLUGMAN_H
 
 /* maximum supported and most recent plugin-levels */
 #define MAX_PLUGIN_LEVEL     2
@@ -146,5 +146,5 @@ BOOL  process_possible_plugin( HWND hwnd, USHORT cmd );
 #ifdef __cplusplus
 }
 #endif
-#endif /* _PM123_PLUGMAN_H */
+#endif /* PM123_PLUGMAN_H */
 

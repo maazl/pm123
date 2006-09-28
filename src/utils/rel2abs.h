@@ -36,7 +36,7 @@ extern "C" {
 #endif
 
 /*
- * rel2abs: convert an relative path name into absolute.
+ * rel2abs: convert a relative path name into absolute.
  *
  *    path    relative path
  *    base    base directory (must be absolute path)

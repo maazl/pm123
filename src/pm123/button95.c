@@ -41,10 +41,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "button95.h"
-#include "format.h"
-#include "decoder_plug.h"
 #include "pm123.h"
+#include "button95.h"
 
 HBITMAP hbm, hbm2;
 ULONG bubbleStyle = FCF_BORDER;

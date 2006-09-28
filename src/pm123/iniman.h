@@ -29,8 +29,8 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef _PM123_INIMAN_H
-#define _PM123_INIMAN_H
+#ifndef PM123_INIMAN_H
+#define PM123_INIMAN_H
 
 /* save_window_pos and rest_window_pos options */
 #define WIN_MAP_POINTS  1
@@ -50,4 +50,4 @@ BOOL rest_window_pos( HWND, int options );
 #ifdef __cplusplus
 }
 #endif
-#endif /* _PM123_INIMAN_H */
+#endif /* PM123_INIMAN_H */

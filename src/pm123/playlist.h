@@ -29,8 +29,8 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef _PM123_PLAYLIST_H
-#define _PM123_PLAYLIST_H
+#ifndef PM123_PLAYLIST_H
+#define PM123_PLAYLIST_H
 
 #ifndef  RC_INVOKED
 #include "format.h"
@@ -207,4 +207,4 @@ BOOL pl_load_bundle( const char *filename, int options );
 #ifdef __cplusplus
 }
 #endif
-#endif /* _PM123_PLAYLIST_H */
+#endif /* PM123_PLAYLIST_H */

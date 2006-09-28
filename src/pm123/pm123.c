@@ -48,7 +48,6 @@
 #include <process.h>
 
 #include <utilfct.h>
-#include <format.h>
 #include "pm123.h"
 #include "plugman.h"
 #include "bookmark.h"
@@ -58,6 +57,7 @@
 #include "genre.h"
 #include "copyright.h"
 #include "docking.h"
+#include "iniman.h"
 
 #include <debuglog.h>
 
@@ -109,6 +109,7 @@ static BOOL  is_seeking       = FALSE;
 static BOOL  is_slider_drag   = FALSE;
 static BOOL  is_stream_saved  = FALSE;
 static BOOL  is_arg_shuffle   = FALSE;
+static BOOL  is_decoder_done  = FALSE;
 
 /* Current seeking time. Valid if is_seeking == TRUE. */
 static int   seeking_pos = 0;
@@ -176,7 +177,7 @@ amp_volume_to_lower( void )
 static void
 amp_volume_adjust( void )
 {
-  if( is_fast_forward() || is_fast_backward() ) {
+  if( is_forward() || is_rewind()) {
     amp_volume_to_lower ();
   } else {
     amp_volume_to_normal();
@@ -513,6 +514,9 @@ amp_stop_playing( void )
 
   // Discards WM_PLAYSTOP message, posted by decoder.
   WinPeekMsg( hab, &qms, hplayer, WM_PLAYSTOP, WM_PLAYSTOP, PM_REMOVE );
+  // Resets a waiting of an emptiness of the buffers for a case if the WM_PLAYSTOP
+  // message it has already been received.
+  is_decoder_done = FALSE;
   amp_invalidate( UPD_ALL );
 }
 
@@ -547,7 +551,6 @@ amp_play( void )
   msgplayinfo.decoder_needed = current_decoder;
 
   amp_msg( MSG_PLAY, &msgplayinfo, &current_format );
-
   amp_set_bubbletext( BMP_PLAY, "Stops playback" );
 
   WinSendDlgItemMsg( hplayer, BMP_FWD,   WM_DEPRESS, 0, 0 );
@@ -572,11 +575,10 @@ amp_pause( void )
   if( decoder_playing())
   {
     amp_msg( MSG_PAUSE, 0, 0 );
-  }
-
-  if( is_paused() ) {
-    WinSendDlgItemMsg( hplayer, BMP_PAUSE, WM_PRESS, 0, 0 );
-    return;
+    if( is_paused()) {
+      WinSendDlgItemMsg( hplayer, BMP_PAUSE, WM_PRESS, 0, 0 );
+      return;
+    }
   }
 }
 
@@ -952,6 +954,24 @@ amp_add_files( HWND hwnd )
   WinFreeFileDlgList( filedialog.papszFQFilename );
 }
 
+/* Reads url from specified file. */
+char*
+amp_url_from_file( char* result, const char* filename, size_t size )
+{
+  FILE* file = fopen( filename, "r" );
+
+  if( file ) {
+    if( fgets( result, size, file )) {
+        blank_strip( result );
+    }
+    fclose( file );
+  } else {
+    *result = 0;
+  }
+
+  return result;
+}
+
 /* Prepares the player to the drop operation. */
 static MRESULT
 amp_drag_over( HWND hwnd, PDRAGINFO pdinfo )
@@ -968,6 +988,25 @@ amp_drag_over( HWND hwnd, PDRAGINFO pdinfo )
   for( i = 0; i < pdinfo->cditem; i++ )
   {
     pditem = DrgQueryDragitemPtr( pdinfo, i );
+
+    /* debug
+    {
+      char info[2048];
+
+      printf( "hwndItem: %08X\n", pditem->hwndItem );
+      printf( "ulItemID: %lu\n", pditem->ulItemID );
+      DrgQueryStrName( pditem->hstrType, sizeof( info ), info );
+      printf( "hstrType: %s\n", info );
+      DrgQueryStrName( pditem->hstrRMF, sizeof( info ), info );
+      printf( "hstrRMF: %s\n", info );
+      DrgQueryStrName( pditem->hstrContainerName, sizeof( info ), info );
+      printf( "hstrContainerName: %s\n", info );
+      DrgQueryStrName( pditem->hstrSourceName, sizeof( info ), info );
+      printf( "hstrSourceName: %s\n", info );
+      DrgQueryStrName( pditem->hstrTargetName, sizeof( info ), info );
+      printf( "hstrTargetName: %s\n", info );
+      printf( "fsControl: %08X\n", pditem->fsControl );
+    } */
 
     if( DrgVerifyRMF( pditem, "DRM_123FILE", NULL ) &&
       ( pdinfo->cditem > 1 && pdinfo->hwndSource == hplaylist )) {
@@ -1020,14 +1059,69 @@ amp_drag_drop( HWND hwnd, PDRAGINFO pdinfo )
 
     if( DrgVerifyRMF( pditem, "DRM_OS2FILE", NULL ))
     {
-      if( is_dir( fullname )) {
-        pl_add_directory( fullname, PL_DIR_RECURSIVE );
-      } else if( is_playlist( fullname )) {
-        pl_load( fullname, 0 );
-      } else if( pdinfo->cditem == 1 ) {
-        amp_load_singlefile( fullname, 0 );
-      } else {
-        pl_add_file( fullname, NULL, 0 );
+      if( pditem->hstrContainerName && pditem->hstrSourceName ) {
+        // Have full qualified file name.
+        if( DrgVerifyType( pditem, "UniformResourceLocator" )) {
+          amp_url_from_file( fullname, fullname, sizeof( fullname ));
+        }
+        if( is_dir( fullname )) {
+          pl_add_directory( fullname, PL_DIR_RECURSIVE );
+        } else if( is_playlist( fullname )) {
+          pl_load( fullname, 0 );
+        } else if( pdinfo->cditem == 1 ) {
+          amp_load_singlefile( fullname, 0 );
+        } else {
+          pl_add_file( fullname, NULL, 0 );
+        }
+
+        if( pditem->hwndItem ) {
+          // Tell the source you're done.
+          DrgSendTransferMsg( pditem->hwndItem, DM_ENDCONVERSATION, (MPARAM)pditem->ulItemID,
+                                                                    (MPARAM)DMFL_TARGETSUCCESSFUL );
+        }
+      }
+      else if( pditem->hwndItem &&
+               DrgVerifyType( pditem, "UniformResourceLocator" ))
+      {
+        // The droped item must be rendered.
+        PDRAGTRANSFER pdtrans  = DrgAllocDragtransfer(1);
+        AMP_DROPINFO* pdsource = (AMP_DROPINFO*)malloc( sizeof( AMP_DROPINFO ));
+        char renderto[_MAX_PATH];
+
+        if( !pdtrans || !pdsource ) {
+          return 0;
+        }
+
+        pdsource->cditem   = pdinfo->cditem;
+        pdsource->hwndItem = pditem->hwndItem;
+        pdsource->ulItemID = pditem->ulItemID;
+
+        pdtrans->cb               = sizeof( DRAGTRANSFER );
+        pdtrans->hwndClient       = hwnd;
+        pdtrans->pditem           = pditem;
+        pdtrans->hstrSelectedRMF  = DrgAddStrHandle( "<DRM_OS2FILE,DRF_TEXT>" );
+        pdtrans->hstrRenderToName = 0;
+        pdtrans->ulTargetInfo     = (ULONG)pdsource;
+        pdtrans->fsReply          = 0;
+        pdtrans->usOperation      = pdinfo->usOperation;
+
+        // Send the message before setting a render-to name.
+        if( pditem->fsControl & DC_PREPAREITEM ) {
+          DrgSendTransferMsg( pditem->hwndItem, DM_RENDERPREPARE, (MPARAM)pdtrans, 0 );
+        }
+
+        strlcpy( renderto, startpath , sizeof( renderto ));
+        strlcat( renderto, "pm123.dd", sizeof( renderto ));
+
+        pdtrans->hstrRenderToName = DrgAddStrHandle( renderto );
+
+        // Send the message after setting a render-to name.
+        if(( pditem->fsControl & ( DC_PREPARE | DC_PREPAREITEM )) == DC_PREPARE ) {
+          DrgSendTransferMsg( pditem->hwndItem, DM_RENDERPREPARE, (MPARAM)pdtrans, 0 );
+        }
+
+        // Ask the source to render the selected item.
+        DrgSendTransferMsg( pditem->hwndItem, DM_RENDER, (MPARAM)pdtrans, 0 );
       }
     }
     else if( DrgVerifyRMF( pditem, "DRM_123FILE", NULL ))
@@ -1046,6 +1140,43 @@ amp_drag_drop( HWND hwnd, PDRAGINFO pdinfo )
 
   DrgDeleteDraginfoStrHandles( pdinfo );
   DrgFreeDraginfo( pdinfo );
+  return 0;
+}
+
+/* Receives dropped and rendered files and urls. */
+static MRESULT
+amp_drag_render_done( HWND hwnd, PDRAGTRANSFER pdtrans, USHORT rc )
+{
+  char rendered[_MAX_PATH];
+  char fullname[_MAX_PATH];
+
+  AMP_DROPINFO* pdsource = (AMP_DROPINFO*)pdtrans->ulTargetInfo;
+
+  // If the rendering was successful, use the file, then delete it.
+  if(( rc & DMFL_RENDEROK ) && pdsource &&
+       DrgQueryStrName( pdtrans->hstrRenderToName, sizeof( rendered ), rendered ))
+  {
+    amp_url_from_file( fullname, rendered, sizeof( fullname ));
+    DosDelete( rendered );
+
+    if( is_dir( fullname )) {
+      pl_add_directory( fullname, PL_DIR_RECURSIVE );
+    } else if( is_playlist( fullname )) {
+      pl_load( fullname, 0 );
+    } else if( pdsource->cditem == 1 ) {
+      amp_load_singlefile( fullname, 0 );
+    } else {
+      pl_add_file( fullname, NULL, 0 );
+    }
+  }
+
+  // Tell the source you're done.
+  DrgSendTransferMsg( pdsource->hwndItem, DM_ENDCONVERSATION,
+                     (MPARAM)pdsource->ulItemID, (MPARAM)DMFL_TARGETSUCCESSFUL );
+
+  DrgDeleteStrHandle ( pdtrans->hstrSelectedRMF );
+  DrgDeleteStrHandle ( pdtrans->hstrRenderToName );
+  DrgFreeDragtransfer( pdtrans );
   return 0;
 }
 
@@ -1655,12 +1786,12 @@ amp_pipe_thread( void* scrap )
           if( stricmp( zork, "pause" ) == 0 ) {
             if( dork ) {
               if( stricmp( dork, "off" ) == 0 || stricmp( dork, "0" ) == 0 ) {
-                if( is_paused() ) {
+                if( is_paused()) {
                   WinSendMsg( hplayer, WM_COMMAND, MPFROMSHORT( BMP_PAUSE ), 0 );
                 }
               }
               if( stricmp( dork, "on"  ) == 0 || stricmp( dork, "1" ) == 0 ) {
-                if( !is_paused() ) {
+                if( !is_paused()) {
                   WinSendMsg( hplayer, WM_COMMAND, MPFROMSHORT( BMP_PAUSE ), 0 );
                 }
               }
@@ -2298,8 +2429,6 @@ amp_eq_show( void )
 static MRESULT EXPENTRY
 amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
 {
-  static BOOL decoder_finished = FALSE;
-
   switch( msg )
   {
     case WM_FOCUSCHANGE:
@@ -2372,23 +2501,25 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
       DEBUGLOG(("WM_PLAYSTOP\n"));
       // The decoder has finished the work, but we should wait until output
       // buffers will become empty.
-      decoder_finished = TRUE;
+      is_decoder_done = TRUE;
       // Work-around for old decoders
       out_flush();
       return 0;
 
     // Posted by output
     case WM_OUTPUT_OUTOFDATA:
-      if( decoder_finished ) {
+      if( is_decoder_done ) {
         amp_playstop( hwnd );
       }
-      decoder_finished = FALSE;
+      is_decoder_done = FALSE;
       return 0;
 
     case DM_DRAGOVER:
       return amp_drag_over( hwnd, (PDRAGINFO)mp1 );
     case DM_DROP:
       return amp_drag_drop( hwnd, (PDRAGINFO)mp1 );
+    case DM_RENDERCOMPLETE:
+      return amp_drag_render_done( hwnd, (PDRAGTRANSFER)mp1, SHORT1FROMMP( mp2 ));
 
     case WM_TIMER:
       if( LONGFROMMP(mp1) == TID_ONTOP ) {
@@ -2742,11 +2873,11 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
           return 0;
 
         case BMP_FWD:
-          if( decoder_playing() && !is_paused() )
-          { 
+          if( decoder_playing() && !is_paused())
+          {
             WinSendDlgItemMsg( hwnd, BMP_REW, WM_DEPRESS, 0, 0 );
             amp_msg( MSG_FWD, 0, 0 );
-            WinSendDlgItemMsg( hwnd, BMP_FWD, is_fast_forward() ? WM_PRESS : WM_DEPRESS, 0, 0 );
+            WinSendDlgItemMsg( hwnd, BMP_FWD, is_forward() ? WM_PRESS : WM_DEPRESS, 0, 0 );
             amp_volume_adjust();
           } else {
             WinSendDlgItemMsg( hwnd, BMP_FWD, WM_DEPRESS, 0, 0 );
@@ -2754,11 +2885,11 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
           return 0;
 
         case BMP_REW:
-          if( decoder_playing() && !is_paused() )
+          if( decoder_playing() && !is_paused())
           {
             WinSendDlgItemMsg( hwnd, BMP_FWD, WM_DEPRESS, 0, 0 );
             amp_msg( MSG_REW, 0, 0 );
-            WinSendDlgItemMsg( hwnd, BMP_REW, is_fast_backward() ? WM_PRESS : WM_DEPRESS, 0, 0 );
+            WinSendDlgItemMsg( hwnd, BMP_REW, is_rewind() ? WM_PRESS : WM_DEPRESS, 0, 0 );
             amp_volume_adjust();
           } else {
             WinSendDlgItemMsg( hwnd, BMP_REW, WM_DEPRESS, 0, 0 );

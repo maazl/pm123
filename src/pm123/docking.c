@@ -31,8 +31,9 @@
 #include <stdlib.h>
 #include <memory.h>
 #include <stdio.h>
-#include "docking.h"
+
 #include "pm123.h"
+#include "docking.h"
 #include "utilfct.h"
 
 #define IS_MASTER( data )   ( data->state &   DK_IS_MASTER )

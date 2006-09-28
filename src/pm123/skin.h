@@ -29,8 +29,8 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef _PM123_SKIN_H
-#define _PM123_SKIN_H
+#ifndef PM123_SKIN_H
+#define PM123_SKIN_H
 
 /* Special resources that control PM123 interface. */
 
@@ -320,4 +320,4 @@ BOOL bmp_is_font_supported( int font );
 #ifdef __cplusplus
 }
 #endif
-#endif /* _PM123_SKIN_H */
+#endif /* PM123_SKIN_H */
