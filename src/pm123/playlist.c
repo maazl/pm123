@@ -49,6 +49,7 @@
 #include "plugman.h"
 #include "docking.h"
 #include "httpget.h"
+#include "iniman.h"
 
 #define PL_ADD_FILE      0
 #define PL_ADD_DIRECTORY 1
@@ -1442,12 +1443,66 @@ pl_drag_drop( HWND hwnd, PCNRDRAGINFO pcdi )
 
     if( DrgVerifyRMF( pditem, "DRM_OS2FILE", NULL ))
     {
-      if( is_dir( fullname )) {
-        pl_add_directory( fullname, PL_DIR_RECURSIVE );
-      } else if( is_playlist( fullname )) {
-        pl_load( fullname, 0 );
-      } else {
-        pl_add_file( fullname, NULL, 0 );
+      if( pditem->hstrContainerName && pditem->hstrSourceName ) {
+        // Have full qualified file name.
+        if( DrgVerifyType( pditem, "UniformResourceLocator" )) {
+          amp_url_from_file( fullname, fullname, sizeof( fullname ));
+        }
+        if( is_dir( fullname )) {
+          pl_add_directory( fullname, PL_DIR_RECURSIVE );
+        } else if( is_playlist( fullname )) {
+          pl_load( fullname, 0 );
+        } else {
+          pl_add_file( fullname, NULL, 0 );
+        }
+        if( pditem->hwndItem ) {
+          // Tell the source you're done.
+          DrgSendTransferMsg( pditem->hwndItem, DM_ENDCONVERSATION, (MPARAM)pditem->ulItemID,
+                                                                    (MPARAM)DMFL_TARGETSUCCESSFUL );
+        }
+      }
+      else if( pditem->hwndItem &&
+               DrgVerifyType( pditem, "UniformResourceLocator" ))
+      {
+        // The droped item must be rendered.
+        PDRAGTRANSFER pdtrans  = DrgAllocDragtransfer(1);
+        AMP_DROPINFO* pdsource = (AMP_DROPINFO*)malloc( sizeof( AMP_DROPINFO ));
+        char renderto[_MAX_PATH];
+
+        if( !pdtrans || !pdsource ) {
+          return 0;
+        }
+
+        pdsource->cditem   = pdinfo->cditem;
+        pdsource->hwndItem = pditem->hwndItem;
+        pdsource->ulItemID = pditem->ulItemID;
+
+        pdtrans->cb               = sizeof( DRAGTRANSFER );
+        pdtrans->hwndClient       = hwnd;
+        pdtrans->pditem           = pditem;
+        pdtrans->hstrSelectedRMF  = DrgAddStrHandle( "<DRM_OS2FILE,DRF_TEXT>" );
+        pdtrans->hstrRenderToName = 0;
+        pdtrans->ulTargetInfo     = (ULONG)pdsource;
+        pdtrans->fsReply          = 0;
+        pdtrans->usOperation      = pdinfo->usOperation;
+
+        // Send the message before setting a render-to name.
+        if( pditem->fsControl & DC_PREPAREITEM ) {
+          DrgSendTransferMsg( pditem->hwndItem, DM_RENDERPREPARE, (MPARAM)pdtrans, 0 );
+        }
+
+        strlcpy( renderto, startpath , sizeof( renderto ));
+        strlcat( renderto, "pm123.dd", sizeof( renderto ));
+
+        pdtrans->hstrRenderToName = DrgAddStrHandle( renderto );
+
+        // Send the message after setting a render-to name.
+        if(( pditem->fsControl & ( DC_PREPARE | DC_PREPAREITEM )) == DC_PREPARE ) {
+          DrgSendTransferMsg( pditem->hwndItem, DM_RENDERPREPARE, (MPARAM)pdtrans, 0 );
+        }
+
+        // Ask the source to render the selected item.
+        DrgSendTransferMsg( pditem->hwndItem, DM_RENDER, (MPARAM)pdtrans, 0 );
       }
     }
     else if( DrgVerifyRMF( pditem, "DRM_123FILE", NULL ))
@@ -1475,6 +1530,41 @@ pl_drag_drop( HWND hwnd, PCNRDRAGINFO pcdi )
 
   DrgDeleteDraginfoStrHandles( pdinfo );
   DrgFreeDraginfo( pdinfo );
+  return 0;
+}
+
+/* Receives dropped and rendered files and urls. */
+static MRESULT
+pl_drag_render_done( HWND hwnd, PDRAGTRANSFER pdtrans, USHORT rc )
+{
+  char rendered[_MAX_PATH];
+  char fullname[_MAX_PATH];
+
+  AMP_DROPINFO* pdsource = (AMP_DROPINFO*)pdtrans->ulTargetInfo;
+
+  // If the rendering was successful, use the file, then delete it.
+  if(( rc & DMFL_RENDEROK ) && pdsource &&
+       DrgQueryStrName( pdtrans->hstrRenderToName, sizeof( rendered ), rendered ))
+  {
+    amp_url_from_file( fullname, rendered, sizeof( fullname ));
+    DosDelete( rendered );
+
+    if( is_dir( fullname )) {
+      pl_add_directory( fullname, PL_DIR_RECURSIVE );
+    } else if( is_playlist( fullname )) {
+      pl_load( fullname, 0 );
+    } else {
+      pl_add_file( fullname, NULL, 0 );
+    }
+  }
+
+  // Tell the source you're done.
+  DrgSendTransferMsg( pdsource->hwndItem, DM_ENDCONVERSATION,
+                     (MPARAM)pdsource->ulItemID, (MPARAM)DMFL_TARGETSUCCESSFUL );
+
+  DrgDeleteStrHandle ( pdtrans->hstrSelectedRMF );
+  DrgDeleteStrHandle ( pdtrans->hstrRenderToName );
+  DrgFreeDragtransfer( pdtrans );
   return 0;
 }
 
@@ -1648,6 +1738,9 @@ pl_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
 
     case DM_DISCARDOBJECT:
       return pl_drag_discard( hwnd, (PDRAGINFO)mp1 );
+    case DM_RENDERCOMPLETE:
+      return pl_drag_render_done( hwnd, (PDRAGTRANSFER)mp1, SHORT1FROMMP( mp2 ));
+
 
     case WM_PM123_REMOVE_RECORD:
     {

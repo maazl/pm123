@@ -29,12 +29,14 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef _PM123_PLUGMAN_H
-#define _PM123_PLUGMAN_H
+#ifndef PM123_PLUGMAN_H
+#define PM123_PLUGMAN_H
 
-#include "plugin.h"
+#include "format.h"
+#include "decoder_plug.h"
 #include "output_plug.h"
 #include "filter_plug.h"
+#include "plugin.h"
 #include "utilfct.h"
 
 typedef struct
@@ -199,5 +201,5 @@ BOOL  process_possible_plugin( HWND hwnd, USHORT cmd );
 #ifdef __cplusplus
 }
 #endif
-#endif /* _PM123_PLUGMAN_H */
+#endif /* PM123_PLUGMAN_H */
 

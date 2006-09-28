@@ -27,8 +27,8 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef _PM123_TAG_H
-#define _PM123_TAG_H
+#ifndef PM123_TAG_H
+#define PM123_TAG_H
 
 #ifdef __cplusplus
 extern "C" {
@@ -63,4 +63,4 @@ int settag(int fd, tune *info);
 #ifdef __cplusplus
 }
 #endif
-#endif /* _PM123_TAG_H */
+#endif /* PM123_TAG_H */

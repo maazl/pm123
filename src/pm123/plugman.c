@@ -38,14 +38,9 @@
 #include <string.h>
 #include <malloc.h>
 
-#include "utilfct.h"
-#include "format.h"
-#include "output_plug.h"
-#include "decoder_plug.h"
-#include "filter_plug.h"
-#include "plugin.h"
-#include "plugman.h"
 #include "pm123.h"
+#include "utilfct.h"
+#include "plugman.h"
 
 DECODER* decoders       = NULL;
 int      num_decoders   = 0;

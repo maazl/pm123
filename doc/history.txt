@@ -23,6 +23,7 @@ PM123's History
       bitrates now are displayed correctly.
     - Enabled the direct switching between fast forward and rewind. Thanks to
       Marcel Muller.
+    - PM123 now accepts urls dropped from Mozilla or WPS.
 
     MPG123:
     - Improved support of VBR mp3 files having a correct VBR header. Also

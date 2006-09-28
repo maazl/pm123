@@ -299,8 +299,7 @@ plg_win_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
     case WM_CONTEXTMENU:
     case WM_BUTTON2MOTIONSTART:
     case WM_BUTTON1MOTIONSTART:
-      WinSendMsg( plug.hwnd, msg, mp1, mp2 );
-      break;
+      return WinSendMsg( plug.hwnd, msg, mp1, mp2 );
 
     case WM_VRNENABLED:
     {

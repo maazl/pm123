@@ -38,11 +38,12 @@
 #include <string.h>
 #include <errno.h>
 
-#include "bookmark.h"
 #include "pm123.h"
+#include "bookmark.h"
 #include "utilfct.h"
 #include "plugman.h"
 #include "docking.h"
+#include "iniman.h"
 
 static HWND     menu_record = NULLHANDLE;
 static HWND     menu_list   = NULLHANDLE;

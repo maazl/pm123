@@ -26,8 +26,8 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef _PM123_DOCKING_H
-#define _PM123_DOCKING_H
+#ifndef PM123_DOCKING_H
+#define PM123_DOCKING_H
 
 #ifdef __cplusplus
 extern "C" {
@@ -77,6 +77,6 @@ void dk_term( void );
 #ifdef __cplusplus
 }
 #endif
-#endif /* _PM123_DOCKING_H */
+#endif /* PM123_DOCKING_H */
 
 

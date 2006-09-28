@@ -44,14 +44,8 @@
 #include <sys/stat.h>
 #include <ctype.h>
 
-#include "utilfct.h"
-#include "format.h"
-#include "decoder_plug.h"
-#include "output_plug.h"
-#include "filter_plug.h"
-#include "plugin.h"
-
 #include "pm123.h"
+#include "utilfct.h"
 #include "plugman.h"
 #include "httpget.h"
 

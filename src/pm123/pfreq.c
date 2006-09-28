@@ -39,12 +39,11 @@
 #include <string.h>
 #include <process.h>
 
+#include "pm123.h"
 #include "utilfct.h"
 #include "pfreq.h"
-#include "format.h"
-#include "decoder_plug.h"
-#include "pm123.h"
 #include "docking.h"
+#include "iniman.h"
 
 static HWND plman;
 static HWND container;

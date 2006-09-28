@@ -29,8 +29,8 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef _PM123_BOOKMARK_H
-#define _PM123_BOOKMARK_H
+#ifndef PM123_BOOKMARK_H
+#define PM123_BOOKMARK_H
 
 #define DLG_BOOKMARKS        444
 #define CNR_BOOKMARKS FID_CLIENT
@@ -110,4 +110,4 @@ BOOL process_possible_bookmark( USHORT cmd );
 #ifdef __cplusplus
 }
 #endif
-#endif /* _PM123_BOOKMARK_H */
+#endif /* PM123_BOOKMARK_H */

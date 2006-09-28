@@ -40,13 +40,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "utilfct.h"
-#include "format.h"
-#include "decoder_plug.h"
-#include "output_plug.h"
-#include "filter_plug.h"
-#include "plugin.h"
 #include "pm123.h"
+#include "utilfct.h"
 #include "plugman.h"
 
 #define  BUFSIZE 16384
@@ -63,6 +58,21 @@ static BOOL  paused        = FALSE;
 static BOOL  forwarding    = FALSE;
 static BOOL  rewinding     = FALSE;
 static char* save_filename = NULL;
+
+/* Returns TRUE if the decoder is paused. */
+BOOL is_paused( void ) {
+  return paused;
+}
+
+/* Returns TRUE if the decoder is fast forwarding. */
+BOOL is_forward( void ) {
+  return forwarding;
+}
+
+/* Returns TRUE if the decoder is rewinding. */
+BOOL is_rewind( void ) {
+  return rewinding;
+}
 
 void
 amp_msg( int msg, void *param, void *param2 )
@@ -196,19 +206,16 @@ amp_msg( int msg, void *param, void *param2 )
     case MSG_FWD:
       if( decoder_playing())
       {
-        forwarding = !forwarding;
-
         if( rewinding ) {
           // Stop rewinding anyway.
-          dec_params.ffwd = rewinding = FALSE;
+          dec_params.rew = rewinding = FALSE;
           dec_command( DECODER_REW, &dec_params );
         }
 
-        dec_params.ffwd = forwarding;
-        dec_command( DECODER_FFWD, &dec_params );
-
-        if( cfg.trash )
-        {
+        dec_params.ffwd = forwarding = !forwarding;
+        if( dec_command( DECODER_FFWD, &dec_params ) != 0 ) {
+          forwarding = FALSE;
+        } else if( cfg.trash ) {
           // Going back in the stream to what is currently playing.
           dec_params.jumpto = out_playing_pos();
           dec_command( DECODER_JUMPTO, &dec_params );
@@ -221,19 +228,16 @@ amp_msg( int msg, void *param, void *param2 )
     case MSG_REW:
       if( decoder_playing())
       {
-        rewinding = !rewinding;
-
         if( forwarding ) {
           // Stop forwarding anyway.
           dec_params.ffwd = forwarding = FALSE;
           dec_command( DECODER_FFWD, &dec_params );
         }
 
-        dec_params.rew = rewinding;
-        dec_command( DECODER_REW, &dec_params );
-
-        if( cfg.trash )
-        {
+        dec_params.rew = rewinding = !rewinding;
+        if( dec_command( DECODER_REW, &dec_params ) != 0 ) {
+          rewinding = FALSE;
+        } else if( cfg.trash ) {
           // Going back in the stream to what is currently playing.
           dec_params.jumpto = out_playing_pos();
           dec_command( DECODER_JUMPTO, &dec_params );
