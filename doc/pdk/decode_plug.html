@@ -122,7 +122,7 @@ example).
 They should always be functionnaly and give consistent results in any conditions.
 </p>
 <pre>
-     ULONG PM123_ENTRY <b>decoder_fileinfo</b>( char *url, DECODER_INFO *info )
+     ULONG PM123_ENTRY <b>decoder_fileinfo</b>( const char *url, DECODER_INFO *info )
 </pre>
 <ul>
 <li><var>url</var> - URL to the desired stream. See <a href="#url_samples">URL samples</a>.
@@ -135,7 +135,7 @@ They should always be functionnaly and give consistent results in any conditions
 other values = errno.
 </ul>
 <pre>
-     ULONG PM123_ENTRY <b>decoder_cdinfo</b>( char *drive, DECODER_CDINFO *info )
+     ULONG PM123_ENTRY <b>decoder_cdinfo</b>( const char *drive, DECODER_CDINFO *info )
 </pre>
 <ul>
 <li>drive: ...
@@ -286,7 +286,7 @@ Only StreamingTitle is used by PM123.
 They should always be functionnaly and give consistent results in any conditions.
 </p>
 <pre>
-     ULONG PM123_ENTRY <b>decoder_fileinfo</b>( char *url, DECODER_INFO *info )
+     ULONG PM123_ENTRY <b>decoder_fileinfo</b>( const char *url, DECODER_INFO *info )
 </pre>
 <ul>
 <li><var>url</var> - full path or URL to the desired stream.
@@ -299,7 +299,7 @@ They should always be functionnaly and give consistent results in any conditions
 other values = errno.
 </ul>
 <pre>
-     ULONG PM123_ENTRY <b>decoder_trackinfo</b>( char *drive, int track, DECODER_INFO *info )
+     ULONG PM123_ENTRY <b>decoder_trackinfo</b>( const char *drive, int track, DECODER_INFO *info )
 </pre>
 <ul>
 <li><var>drive</var> - ie.: "X:"
