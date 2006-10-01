@@ -46,6 +46,7 @@
 #include "vdelegate.h"
 
 //#define  DEBUG 1
+#undef DEBUG
 #include <debuglog.h>
 
 

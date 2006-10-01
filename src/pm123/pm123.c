@@ -763,6 +763,7 @@ amp_add_tracks_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
         int  i;
 
         DECODER_CDINFO cdinfo;
+        DECODER_INFO   trackinfo;
 
         WinQueryDlgItemText( hwnd, CB_DRIVE, sizeof( drive ), drive );
         WinSendDlgItemMsg( hwnd, LB_TRACKS, LM_DELETEALL, 0, 0 );
@@ -770,9 +771,15 @@ amp_add_tracks_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
         if( dec_cdinfo( drive, &cdinfo ) == 0 ) {
           if( cdinfo.firsttrack ) {
             for( i = cdinfo.firsttrack; i <= cdinfo.lasttrack; i++ ) {
-              sprintf( track,"Track %02d", i );
-              WinSendDlgItemMsg( hwnd, LB_TRACKS, LM_INSERTITEM,
-                                 MPFROMSHORT( LIT_END ), MPFROMP( track ));
+              if ( dec_trackinfo( drive, i, &trackinfo, NULL) == 0 &&
+                   *trackinfo.title != 0 ) {
+                WinSendDlgItemMsg( hwnd, LB_TRACKS, LM_INSERTITEM,
+                                   MPFROMSHORT( LIT_END ), MPFROMP( trackinfo.title ));
+              } else {
+                sprintf( track,"Track %02d", i );
+                WinSendDlgItemMsg( hwnd, LB_TRACKS, LM_INSERTITEM,
+                                   MPFROMSHORT( LIT_END ), MPFROMP( track ));
+              }
             }
             if( options & TRK_ADD_TO_LIST ) {
               for( i = cdinfo.firsttrack; i <= cdinfo.lasttrack; i++ ) {
@@ -791,6 +798,58 @@ amp_add_tracks_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
 
         return 0;
       }
+      break;
+
+    case WM_ADJUSTWINDOWPOS:
+      {
+        PSWP pswp = (PSWP)mp1;
+        DEBUGLOG(("amp_add_tracks_dlg_proc: WM_ADJUSTWINDOWPOS: {%x, %d %d, %d %d}\n",
+          pswp->fl, pswp->x, pswp->y, pswp->cx, pswp->cy));
+
+        if ( pswp->fl & SWP_SIZE )
+        { 
+          SWP swpold;
+          WinQueryWindowPos( hwnd, &swpold );
+          if ( pswp->cx < 280 ) {
+            pswp->cx = 280;
+            pswp->x = swpold.x;
+          }
+          if ( pswp->cy < 250 ) {
+            pswp->cy = 250;
+            pswp->y = swpold.y;
+          }
+        }
+      }
+      break;
+
+    case WM_WINDOWPOSCHANGED:
+      {
+        PSWP pswp = (PSWP)mp1;
+        DEBUGLOG(("amp_add_tracks_dlg_proc: WM_WINDOWPOSCHANGED: {%x, %d %d, %d %d} {%d %d, %d %d}\n",
+          pswp->fl, pswp->x, pswp->y, pswp->cx, pswp->cy, pswp[1].x, pswp[1].y, pswp[1].cx, pswp[1].cy));
+        
+        if ( (pswp[0].fl & SWP_SIZE) && pswp[1].cx ) {
+          HWND hwnd_listbox = WinWindowFromID( hwnd, LB_TRACKS );
+          // move/resize all controls
+          HENUM henum = WinBeginEnumWindows( hwnd );
+          LONG dx = pswp[0].cx - pswp[1].cx;
+          LONG dy = pswp[0].cy - pswp[1].cy;
+          SWP swp_temp;
+          
+          for (;;) {
+            HWND hwnd_child = WinGetNextWindow( henum );
+            if ( hwnd_child == NULLHANDLE ) break;
+            WinQueryWindowPos( hwnd_child, &swp_temp );
+            if ( hwnd_child != hwnd_listbox ) {
+              WinSetWindowPos( hwnd_child, NULLHANDLE, swp_temp.x, swp_temp.y + dy, 0, 0, SWP_MOVE );
+            } else {
+              WinSetWindowPos( hwnd_listbox, NULLHANDLE, 0, 0, swp_temp.cx + dx, swp_temp.cy + dy, SWP_SIZE );
+            }
+          }
+          WinEndEnumWindows( henum );
+        }
+      }
+      break;
   }
   return WinDefDlgProc( hwnd, msg, mp1, mp2 );
 }
@@ -859,25 +918,19 @@ amp_add_tracks( HWND owner, int options )
     WinQueryDlgItemText( hwnd, CB_DRIVE, sizeof( cfg.cddrive ), cfg.cddrive );
 
     if( options & TRK_ADD_TO_LIST ) {
-      char track[32];
       char cdurl[64];
 
       while( selected != LIT_NONE ) {
-        WinSendDlgItemMsg( hwnd, LB_TRACKS, LM_QUERYITEMTEXT,
-                           MPFROM2SHORT( selected, sizeof(track)), MPFROMP(track));
-        sprintf( cdurl, "cd:///%s\\%s", cfg.cddrive, track );
+        sprintf( cdurl, "cd:///%s\\Track %02d", cfg.cddrive, selected+1 );
         pl_add_file( cdurl, NULL, 0 );
         selected = SHORT1FROMMR( WinSendDlgItemMsg( hwnd, LB_TRACKS, LM_QUERYSELECTION,
                                  MPFROMSHORT( selected ), 0 ));
       }
       pl_completed();
     } else {
-      char track[32];
       char cdurl[64];
 
-      WinSendDlgItemMsg( hwnd, LB_TRACKS, LM_QUERYITEMTEXT,
-                         MPFROM2SHORT( selected, sizeof(track)), MPFROMP(track));
-      sprintf( cdurl, "cd:///%s\\%s", cfg.cddrive, track );
+      sprintf( cdurl, "cd:///%s\\Track %02d", cfg.cddrive, selected+1 );
       amp_load_singlefile( cdurl, 0 );
     }
   }
@@ -2526,7 +2579,7 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
       return amp_drag_render_done( hwnd, (PDRAGTRANSFER)mp1, SHORT1FROMMP( mp2 ));
 
     case WM_TIMER:
-      DEBUGLOG(("amp_dlg_proc: WM_TIMER - %x\n", LONGFROMMP(mp1)));
+      DEBUGLOG2(("amp_dlg_proc: WM_TIMER - %x\n", LONGFROMMP(mp1)));
       if( LONGFROMMP(mp1) == TID_ONTOP ) {
         WinSetWindowPos( hframe, HWND_TOP, 0, 0, 0, 0, SWP_ZORDER );
       }
