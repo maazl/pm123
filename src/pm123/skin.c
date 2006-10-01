@@ -1226,7 +1226,7 @@ bmp_draw_rate( HPS hps, int rate )
                              y + bmp_cy( DIG_BPS ));
     }
 
-    if( rate > 0 & rate <= 9999 )
+    if( rate > 0 && rate <= 9999 )
     {
       x += bmp_cx( DIG_BPS ) * 2;
 
