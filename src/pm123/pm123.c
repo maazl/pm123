@@ -192,6 +192,8 @@ amp_paint_timers( HPS hps )
   int play_left = current_length;
   int list_left = 0;
 
+  DEBUGLOG(("amp_paint_timers(%p) - %i %i %i %i %i\n", hps, cfg.mode, decoder_playing(), is_seeking, time_played(), current_length));
+
   if( cfg.mode == CFG_MODE_REGULAR )
   {
     if( decoder_playing()) {
@@ -222,6 +224,8 @@ amp_paint_timers( HPS hps )
 static void
 amp_paint_fileinfo( HPS hps )
 {
+  DEBUGLOG(("amp_paint_fileinfo(%p)\n", hps));
+
   if( amp_playmode == AMP_PLAYLIST ) {
     bmp_draw_plind( hps, pl_current_index(), pl_size());
   } else {
@@ -2522,6 +2526,7 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
       return amp_drag_render_done( hwnd, (PDRAGTRANSFER)mp1, SHORT1FROMMP( mp2 ));
 
     case WM_TIMER:
+      DEBUGLOG(("amp_dlg_proc: WM_TIMER - %x\n", LONGFROMMP(mp1)));
       if( LONGFROMMP(mp1) == TID_ONTOP ) {
         WinSetWindowPos( hframe, HWND_TOP, 0, 0, 0, 0, SWP_ZORDER );
       }

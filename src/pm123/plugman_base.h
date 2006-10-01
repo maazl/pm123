@@ -202,8 +202,8 @@ struct DECODER_PROCS
   void  (PM123_ENTRYP decoder_event    )( void*  w, OUTEVENTTYPE event );
   ULONG (PM123_ENTRYP decoder_status   )( void*  w );
   ULONG (PM123_ENTRYP decoder_length   )( void*  w );
-  ULONG (PM123_ENTRYP decoder_fileinfo )( char*  filename, DECODER_INFO *info );
-  ULONG (PM123_ENTRYP decoder_cdinfo   )( char*  drive, DECODER_CDINFO* info );
+  ULONG (PM123_ENTRYP decoder_fileinfo )( const char* filename, DECODER_INFO *info );
+  ULONG (PM123_ENTRYP decoder_cdinfo   )( const char* drive, DECODER_CDINFO* info );
   ULONG (PM123_ENTRYP decoder_support  )( char*  ext[], int* size );
   // Result from the decoder_support call. Supported data sources.
   int    type;
@@ -214,7 +214,7 @@ struct DECODER_PROCS
 // specialized class for decoders
 class CL_DECODER : public CL_PLUGIN, protected DECODER_PROCS
 {private:
-  PROXYFUNCDEF ULONG PM123_ENTRY stub_decoder_cdinfo( char* drive, DECODER_CDINFO* info );
+  PROXYFUNCDEF ULONG PM123_ENTRY stub_decoder_cdinfo( const char* drive, DECODER_CDINFO* info );
  protected:
   // instances of this class are only created by the factory function below.
   CL_DECODER(CL_MODULE& mod) : CL_PLUGIN(mod) { w = NULL; support = NULL; }

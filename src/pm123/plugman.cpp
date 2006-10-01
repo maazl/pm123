@@ -759,7 +759,7 @@ static BOOL is_file_supported(const char* const* support, const char* url)
 /* Returns the decoder NAME that can play this file and returns 0
    if not returns error 200 = nothing can play that. */
 ULONG PM123_ENTRY
-dec_fileinfo( char* filename, DECODER_INFO* info, char* name )
+dec_fileinfo( const char* filename, DECODER_INFO* info, char* name )
 {
   BOOL* checked = (BOOL*)alloca( sizeof( BOOL ) * decoders.count() );
   int   i;
@@ -798,11 +798,14 @@ dec_fileinfo( char* filename, DECODER_INFO* info, char* name )
  ok:
   if (name)
     sfnameext( name, dp->module_name, _MAX_FNAME );
+  DEBUGLOG(("dec_fileinfo: {{, %d, %d, %d, %d}}, %d, %d, ...} -> %s\n",
+    info->format.samplerate, info->format.channels, info->format.bits, info->format.format,
+    info->songlength, info->junklength, name)); 
   return 0;
 }
 
 ULONG PM123_ENTRY
-dec_trackinfo( char* drive, int track, DECODER_INFO* info, char* name )
+dec_trackinfo( const char* drive, int track, DECODER_INFO* info, char* name )
 {
   ULONG last_rc = 200;
   int i;
