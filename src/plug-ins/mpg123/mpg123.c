@@ -14,6 +14,8 @@
 #include "mpg123.h"
 #include "mpg123def.h"
 
+#include <debuglog.h>
+
 struct flags flags = { 0 , 0 };
 
 int mmx_enable = 0;
@@ -459,7 +461,7 @@ decoder_length( void* arg )
 }
 
 ULONG PM123_ENTRY
-decoder_fileinfo( char* filename, DECODER_INFO* info )
+decoder_fileinfo( const char* filename, DECODER_INFO* info )
 {
   int           sockmode = 0;
   int           rc       = 0;
@@ -472,8 +474,11 @@ decoder_fileinfo( char* filename, DECODER_INFO* info )
   META_STRUCT   meta = {0};
   XHEADDATA     xing_header;
 
+  DEBUGLOG(("mpg123:decoder_fileinfo(%s, %p)\n", filename, info));
+
   memset( info, 0, sizeof( *info ));
   info->size = sizeof( *info );
+  memset( &xing_header, 0, sizeof xing_header );
 
   meta.metadata_size   = 512;
   meta.metadata_buffer = calloc( meta.metadata_size, 1 );
@@ -709,16 +714,22 @@ end:
   if( meta.metadata_buffer ) {
     free( meta.metadata_buffer );
   }
+
+  DEBUGLOG(("mpg123:decoder_fileinfo: {{, %d, %d, %d, %d}}, %d, %d,\n\t%i, %i, %i, %i, %i, %i, %i ...} -> %s\n",
+    info->format.samplerate, info->format.channels, info->format.bits, info->format.format,
+    info->songlength, info->junklength,
+    info->mpeg, info->layer, info->mode, info->modext, info->bpf, info->bitrate, info->extention)); 
+
   return rc;
 }
 
 ULONG PM123_ENTRY
-decoder_trackinfo( char* drive, int track, DECODER_INFO* info ) {
+decoder_trackinfo( const char* drive, int track, DECODER_INFO* info ) {
   return 200;
 }
 
 ULONG PM123_ENTRY
-decoder_cdinfo( char* drive, DECODER_CDINFO* info ) {
+decoder_cdinfo( const char* drive, DECODER_CDINFO* info ) {
   return 100;
 }
 
