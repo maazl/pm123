@@ -99,7 +99,6 @@ void  configure_plugin(PLUGIN_BASE* plugin, HWND hwnd);
 
 
 BOOL  dec_is_active( int number );
-int   dec_set_active( int number );
 void  dec_fill_types( char* result, size_t size );
 
 typedef enum

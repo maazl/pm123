@@ -552,12 +552,7 @@ cfg_page3_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
               set_plugin_enabled(list[i], TRUE);
             } else {
               if( dec_is_active(i) ) {
-                if( decoder_playing()) {
-                  amp_error( hwnd, "Cannot disable currently in use decoder." );
-                } else {
-                  set_plugin_enabled(list[i], FALSE);
-                  dec_set_active( -1 );
-                }
+                amp_error( hwnd, "Cannot disable currently in use decoder." );
               } else {
                 set_plugin_enabled(list[i], FALSE);
               }

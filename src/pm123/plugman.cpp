@@ -86,6 +86,8 @@ static class CL_GLUE
          void              virtualize         ( int i );
          ULONG             init();
          void              uninit();
+         int               dec_set_active     ( int number )
+                                              { return decoders.set_active(number); }
          int               dec_set_active     ( const char* name );
          ULONG             dec_command        ( ULONG msg );
          ULONG             out_command        ( ULONG msg )
@@ -236,14 +238,14 @@ int CL_GLUE::dec_set_active( const char* name )
 {
   int i;
   if( name == NULL ) {
-    return ::dec_set_active( -1 );
+    return dec_set_active( -1 );
   }
 
   for( i = 0; i < decoders.count(); i++ ) {
     char filename[_MAX_FNAME];
     sfnameext( filename, decoders[i].module_name, sizeof( filename ));
     if( stricmp( filename, name ) == 0 ) {
-      return ::dec_set_active( i );
+      return dec_set_active( i );
     }
   }
   return -2;
@@ -288,7 +290,10 @@ ULONG dec_play( const char* url, const char* decoder_name )
 
 /* stop the current decoder immediately */
 ULONG dec_stop( void )
-{ return voutput.dec_command( DECODER_STOP );
+{ ULONG rc = voutput.dec_command( DECODER_STOP );
+  if (rc == 0)
+    voutput.dec_set_active( -1 );
+  return rc;
 }
 
 /* set fast forward/rewind mode */
@@ -842,13 +847,6 @@ BOOL dec_is_active( int number )
 { return number >= 0 && number < decoders.count() && &decoders[number] == decoders.current();
 }
 
-/* Returns -2 if specified decoder is not enabled,
-   returns -1 if a error occured,
-   returns 0  if succesful. */
-int dec_set_active( int number )
-{ return decoders.set_active(number);
-}
-
 
 static BOOL is_file_supported(const char* const* support, const char* url)
 { if (!support)
@@ -1215,8 +1213,6 @@ process_possible_plugin( HWND hwnd, USHORT cmd )
 /* Unloads and removes all loaded plug-ins. */
 void remove_all_plugins( void )
 {
-  dec_set_active( -1 );
-
   decoders.clear();
   filters.clear();
   visuals.clear();
