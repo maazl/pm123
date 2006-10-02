@@ -195,7 +195,7 @@ ULONG CL_GLUE::init()
   params.output_event  = &dec_event;
   params.w             = this; // not really required
   
-  //memset(&dparams, 0, sizeof dparams);
+  memset(&dparams, 0, sizeof dparams);
   dparams.size            = sizeof dparams;
   dparams.error_display   = &keep_last_error;
   dparams.info_display    = &display_info;

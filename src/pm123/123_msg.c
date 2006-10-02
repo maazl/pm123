@@ -188,7 +188,7 @@ amp_msg( int msg, void *param, void *param2 )
       {
         forwarding = FALSE;
         rewinding = !rewinding;
-        if( dec_fast( rewinding ? DECODER_REW : DECODER_NORMAL_PLAY ) != 0 ) {
+        if( dec_fast( rewinding ? DECODER_FAST_REWIND : DECODER_NORMAL_PLAY ) != 0 ) {
           rewinding = FALSE;
         } else if( cfg.trash ) {
           // Going back in the stream to what is currently playing.
