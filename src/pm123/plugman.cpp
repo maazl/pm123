@@ -317,7 +317,7 @@ ULONG dec_fast( DECODER_FAST_MODE mode )
     }
     if (!voutput.dparams.rew)
     { voutput.dparams.rew = TRUE;
-      return voutput.dec_command( DECODER_FFWD );
+      return voutput.dec_command( DECODER_REW );
     }
     break;
     
