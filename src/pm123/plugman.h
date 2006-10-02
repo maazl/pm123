@@ -98,9 +98,6 @@ void  set_plugin_enabled(PLUGIN_BASE* plugin, BOOL enabled);
 void  configure_plugin(PLUGIN_BASE* plugin, HWND hwnd);
 
 
-BOOL  dec_is_active( int number );
-void  dec_fill_types( char* result, size_t size );
-
 typedef enum
 { DECODER_NORMAL_PLAY,
   DECODER_FAST_FORWARD,
@@ -119,6 +116,11 @@ ULONG dec_jump( int location );
 ULONG dec_eq  ( const float* bandgain );
 /* set savefilename to save the raw stream data */
 ULONG dec_save( const char* file );
+
+/* check whether the specified decoder is currently in use */
+BOOL  dec_is_active( int number );
+/* gets a merged list of the file types supported by the enabled decoders */
+void  dec_fill_types( char* result, size_t size );
 
 ULONG PM123_ENTRY dec_fileinfo( const char* filename, DECODER_INFO* info, char* name );
 ULONG PM123_ENTRY dec_trackinfo( const char* drive, int track, DECODER_INFO* info, char* name );
