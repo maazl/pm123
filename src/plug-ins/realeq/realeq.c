@@ -1028,7 +1028,11 @@ load_eq( HWND hwnd, float* gains, BOOL* mutes, float* preamp )
 
 int PM123_ENTRY
 plugin_query( PLUGIN_QUERYPARAM *param )
-{
+{ // Check PM123 core version roughly
+  if ( param->size < sizeof (PLUGIN_QUERYPARAM) )
+  { param->type = 0;
+    return -1;
+  }
   param->type         = PLUGIN_FILTER;
   param->author       = "Samuel Audet, Marcel Mller";
   param->desc         = VERSION;

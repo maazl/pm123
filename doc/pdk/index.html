@@ -48,10 +48,12 @@ The plug-in will then have to fill the variables in the <i>param</i> structure, 
       
      param->interface    = 2;
       /* This is the required <a href="#interface_level">interface revision level</a>.
-       * This parameter defaults to 1 which is the same as before this field existed.
-       * Plug-ins with Level 1 <em>must not</em> fill this field to be compatible with older
+       * This parameter defaults to 0 which is the same as before this field existed.
+       * Plug-ins with Level 0 <em>must not</em> fill this field to be compatible with older
        * versions of PM123.
        */
+     
+     return 0;
 </pre>
 If you set <i>param->configurable = TRUE</i>, configuration dialog
 should appear when PM123 calls

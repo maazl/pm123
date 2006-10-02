@@ -445,9 +445,10 @@ void load_default_decoders( void )
   decoders.clear();
   fprintf(stderr, "ccc");
 
-  add_plugin_core("mpg123.dll", NULL, PLUGIN_DECODER);
-  add_plugin_core("wavplay.dll", NULL, PLUGIN_DECODER);
+  add_plugin_core("mpg123.dll",   NULL, PLUGIN_DECODER);
+  add_plugin_core("wavplay.dll",  NULL, PLUGIN_DECODER);
   add_plugin_core("cddaplay.dll", NULL, PLUGIN_DECODER);
+  add_plugin_core("os2rec.dll",   NULL, PLUGIN_DECODER);
 }
 
 /* Adds a default output plug-ins to the list of loaded. */
@@ -457,7 +458,7 @@ void load_default_outputs( void )
   outputs.clear();
 
   add_plugin_core("os2audio.dll", NULL, PLUGIN_OUTPUT);
-  add_plugin_core("wavout.dll", NULL, PLUGIN_OUTPUT);
+  add_plugin_core("wavout.dll",   NULL, PLUGIN_OUTPUT);
 
   // outputs.set_active(0); implicit at add_plugin
 }
@@ -469,7 +470,8 @@ void load_default_filters( void )
   decoders.set_active( -1 ); // why ever
   filters.clear();
 
-  add_plugin_core("realeq.dll", NULL, PLUGIN_FILTER);
+  add_plugin_core("realeq.dll",   NULL, PLUGIN_FILTER);
+  add_plugin_core("logvolum.dll", NULL, PLUGIN_FILTER, FALSE);
 }
 
 /* Adds a default visual plug-ins to the list of loaded. */
