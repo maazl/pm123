@@ -55,9 +55,13 @@
 #include "plugman.h"
 #include "button95.h"
 
+#include <debuglog.h>
+
+/* TODO: there is some dirty aliasing of this static around */
 HBITMAP bmp_cache[8000];
-POINTL  bmp_pos  [1024];
-ULONG   bmp_ulong[1024];
+static POINTL  bmp_pos  [1024];
+static ULONG   bmp_ulong[1024];
+static char    visual_param[256];
 
 #define POS_UNDEF -1
 #define LCID_FONT  1L
@@ -1678,6 +1682,7 @@ bmp_init_default_skin( HPS hps )
   visual.y    = 49;
   visual.cx   = 95;
   visual.cy   = 30;
+  strlcpy( visual.param, visual_param, sizeof visual.param );
 
   strlcpy( module_name, startpath, sizeof module_name );
   strlcat( module_name, "visplug\\analyzer.dll", sizeof module_name );
@@ -1815,6 +1820,7 @@ bmp_load_skin( const char *filename, HAB hab, HWND hplayer, HPS hps )
 
   bmp_clean_skin();
   bmp_init_skin_positions();
+  *visual_param = 0;
 
   bmp_ulong[ UL_SHADE_BRIGHT   ] = 0x00FFFFFFUL;
   bmp_ulong[ UL_SHADE_DARK     ] = 0x00404040UL;
@@ -1895,14 +1901,16 @@ bmp_load_skin( const char *filename, HAB hab, HWND hplayer, HPS hps )
         }
         if(( p = strtok( NULL, "," )) != NULL ) {
           rel2abs( path, p, param, sizeof( param ));
+          DEBUGLOG(("bmp_load_skin: %s => %s\n", p, param));
           if( stat( param, &fi ) == 0 ) {
-            strlcpy( visual.param, param, sizeof visual.param );
+            strlcpy( visual_param, param, sizeof visual_param );
           } else {
-            strlcpy( visual.param, p, sizeof visual.param );
+            strlcpy( visual_param, p, sizeof visual_param );
           }
         }
 
         visual.skin = TRUE;
+        strlcpy( visual.param, visual_param, sizeof visual.param );
         add_plugin( module_name, &visual );
         break;
       }
@@ -1997,6 +2005,8 @@ bmp_load_skin( const char *filename, HAB hab, HWND hplayer, HPS hps )
   }
 
   fclose( file );
+
+  DEBUGLOG(("bmp_load_skin: plugin loaded\n"));
 
   for( i = 0; i < sizeof( bmp_cache ) / sizeof( HBITMAP ); i++ ) {
     if( bmp_cache[ i ] ) {

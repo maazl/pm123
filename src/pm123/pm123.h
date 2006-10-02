@@ -355,7 +355,7 @@ BOOL is_forward( void );
 BOOL is_rewind( void );
 
 void amp_msg( int msg, void* param, void* param2 );
-void equalize_sound( float* gains, BOOL* mute, float preamp, BOOL enabled );
+void equalize_sound( const float* gains, const BOOL* mute, float preamp, BOOL enabled );
 
 #ifdef __cplusplus
 }

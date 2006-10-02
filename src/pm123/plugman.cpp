@@ -79,18 +79,29 @@ static class CL_GLUE
          BOOL              initialized;       // whether the following vars are true
          OUTPUT_PROCS      procs;             // entry points of the filter chain
          OUTPUT_PARAMS2    params;            // parameters for output_command
+         DECODER_PARAMS2   dparams;           // parameters for decoder_command
+         char              metadata_buffer[128]; // Loaded in curtun on decoder's demand WM_METADATA.
 
  private:
          void              virtualize         ( int i );
          ULONG             init();
          void              uninit();
+         int               dec_set_active     ( const char* name );
+         ULONG             dec_command        ( ULONG msg );
          ULONG             out_command        ( ULONG msg )
                                               { return (*procs.output_command)( procs.a, msg, &params ); }
  public:
                            CL_GLUE();
   const  OUTPUT_PROCS&     get_procs() const  { return procs; }
   
-  // control interface
+  // decoder control interface
+  friend ULONG             dec_play           ( const char* url, const char* decoder_name );
+  friend ULONG             dec_stop           ( void );
+  friend ULONG             dec_fast           ( DECODER_FAST_MODE mode );
+  friend ULONG             dec_jump           ( int pos );
+  friend ULONG             dec_eq             ( const float* bandgain );
+  friend ULONG             dec_save           ( const char* file );
+  // output control interface
   friend ULONG             out_setup          ( const FORMAT_INFO2* formatinfo, const char* URI );
   friend ULONG             out_close          ();
   friend void              out_set_volume     ( double volume );
@@ -181,6 +192,15 @@ ULONG CL_GLUE::init()
   // setup callback handlers
   params.output_event  = &dec_event;
   params.w             = this; // not really required
+  
+  //memset(&dparams, 0, sizeof dparams);
+  dparams.size            = sizeof dparams;
+  dparams.error_display   = &keep_last_error;
+  dparams.info_display    = &display_info;
+  dparams.hwnd            = amp_player_window();
+  dparams.metadata_buffer = voutput.metadata_buffer;
+  dparams.metadata_size   = sizeof(voutput.metadata_buffer);
+  dparams.save_filename   = NULL;
 
   CL_OUTPUT* op = (CL_OUTPUT*)outputs.current();
   if ( op == NULL )
@@ -208,6 +228,133 @@ void CL_GLUE::uninit()
     if (filters[i].is_initialized())
       filters[i].uninit_plugin();
 }
+
+/* Returns -1 if a error occured,
+   returns -2 if can't find nothing,
+   returns 0  if succesful. */
+int CL_GLUE::dec_set_active( const char* name )
+{
+  int i;
+  if( name == NULL ) {
+    return ::dec_set_active( -1 );
+  }
+
+  for( i = 0; i < decoders.count(); i++ ) {
+    char filename[_MAX_FNAME];
+    sfnameext( filename, decoders[i].module_name, sizeof( filename ));
+    if( stricmp( filename, name ) == 0 ) {
+      return ::dec_set_active( i );
+    }
+  }
+  return -2;
+}
+
+ULONG CL_GLUE::dec_command( ULONG msg )
+{ DEBUGLOG(("dec_command(%d)\n", msg));
+  CL_PLUGIN* pp = decoders.current();
+  if ( pp == NULL )
+    return 3; // no decoder active
+
+  const DECODER_PROCS& procs = ((CL_DECODER*)pp)->get_procs();
+  return (*procs.decoder_command)( procs.w, msg, &dparams );
+}
+
+/* invoke decoder to play an URL */
+ULONG dec_play( const char* url, const char* decoder_name )
+{
+  DEBUGLOG(("dec_play(%s, %s)\n", url, decoder_name));
+  ULONG rc = voutput.dec_set_active( decoder_name );
+  if ( rc != 0 )
+    return rc;
+
+  voutput.dparams.URL                   = url;
+  voutput.dparams.posmarker             = 0; // TODO: currently...
+  voutput.dparams.output_request_buffer = voutput.procs.output_request_buffer;
+  voutput.dparams.output_commit_buffer  = voutput.procs.output_commit_buffer;
+  voutput.dparams.a                     = voutput.procs.a;
+  voutput.dparams.buffersize            = cfg.bufsize*1024;
+  voutput.dparams.bufferwait            = cfg.bufwait;
+  voutput.dparams.proxyurl              = cfg.proxy;
+  voutput.dparams.httpauth              = cfg.auth;
+
+  rc = voutput.dec_command( DECODER_SETUP );
+  if ( rc != 0 )
+    return rc;
+
+  voutput.dec_command( DECODER_SAVEDATA );
+
+  return voutput.dec_command( DECODER_PLAY );
+}
+
+/* stop the current decoder immediately */
+ULONG dec_stop( void )
+{ return voutput.dec_command( DECODER_STOP );
+}
+
+/* set fast forward/rewind mode */
+ULONG dec_fast( DECODER_FAST_MODE mode )
+{ switch (mode)
+  {case DECODER_FAST_FORWARD:
+    if (voutput.dparams.rew)
+    { voutput.dparams.rew = FALSE;
+      voutput.dec_command( DECODER_REW );
+    }
+    if (!voutput.dparams.ffwd)
+    { voutput.dparams.ffwd = TRUE;
+      return voutput.dec_command( DECODER_FFWD );
+    }
+    break;
+
+   case DECODER_FAST_REWIND:
+    if (voutput.dparams.ffwd)
+    { voutput.dparams.ffwd = FALSE;
+      voutput.dec_command( DECODER_FFWD );
+    }
+    if (!voutput.dparams.rew)
+    { voutput.dparams.rew = TRUE;
+      return voutput.dec_command( DECODER_FFWD );
+    }
+    break;
+    
+   default:
+    if (voutput.dparams.rew)
+    { voutput.dparams.rew = FALSE;
+      return voutput.dec_command( DECODER_REW );
+    } else
+    if (voutput.dparams.ffwd)
+    { voutput.dparams.ffwd = FALSE;
+      return voutput.dec_command( DECODER_FFWD );
+    }
+    break;
+  }
+  return 0;
+}
+
+/* jump to absolute position */
+ULONG dec_jump( int location )
+{ voutput.dparams.jumpto = location;
+  return voutput.dec_command( DECODER_JUMPTO );
+}
+
+/* set equalizer parameters */
+ULONG dec_eq( const float* bandgain )
+{ voutput.dparams.bandgain  = bandgain;
+  voutput.dparams.equalizer = bandgain != NULL;
+  ULONG status = dec_status();
+  return status == DECODER_PLAYING || status == DECODER_STARTING
+   ? voutput.dec_command( DECODER_EQ )
+   : 0;
+}
+
+/* set savefilename to save the raw stream data */
+ULONG dec_save( const char* file )
+{ voutput.dparams.save_filename = file;
+  ULONG status = dec_status();
+  return status == DECODER_PLAYING || status == DECODER_STARTING
+   ? voutput.dec_command( DECODER_SAVEDATA )
+   : 0;
+}
+
 
 /* setup new output stage or change the properties of the current one */
 ULONG out_setup( const FORMAT_INFO2* formatinfo, const char* URI )
@@ -702,50 +849,6 @@ int dec_set_active( int number )
 { return decoders.set_active(number);
 }
 
-/* Returns -1 if a error occured,
-   returns -2 if can't find nothing,
-   returns 0  if succesful. */
-int dec_set_name_active( char* name )
-{
-  int i;
-  if( name == NULL ) {
-    return dec_set_active( -1 );
-  }
-
-  for( i = 0; i < decoders.count(); i++ ) {
-    char filename[_MAX_FNAME];
-    sfnameext( filename, decoders[i].module_name, sizeof( filename ));
-    if( stricmp( filename, name ) == 0 ) {
-      return dec_set_active( i );
-    }
-  }
-  return -2;
-}
-
-/* returns 0 = ok,
-           1 = command unsupported,
-           3 = no decoder active,
-           4 = no active output, others unimportant. */
-ULONG PM123_ENTRY dec_command( ULONG msg, DECODER_PARAMS2 *params )
-{
-  if( decoders.current() == NULL )
-    return 3; // no decoder active
-  const DECODER_PROCS& dec = ((CL_DECODER*)decoders.current())->get_procs();
-
-  if( msg == DECODER_SETUP )
-  {
-    if( outputs.current() == NULL )
-    { amp_player_error( "There is no active output." );
-      return 4;
-    }
-
-    const OUTPUT_PROCS& out = voutput.get_procs();
-    params->output_request_buffer = out.output_request_buffer;
-    params->output_commit_buffer = out.output_commit_buffer;
-    params->a = out.a;
-  }
-  return dec.decoder_command(dec.w, msg, params);
-}
 
 static BOOL is_file_supported(const char* const* support, const char* url)
 { if (!support)

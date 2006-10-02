@@ -50,8 +50,6 @@
 
 
 static DECODER_PARAMS2 dec_params;
-/* Loaded in curtun on decoder's demand WM_METADATA. */
-static char  metadata_buffer[128];
 
 static BOOL  paused        = FALSE;
 static BOOL  forwarding    = FALSE;
@@ -77,7 +75,6 @@ void
 amp_msg( int msg, void *param, void *param2 )
 {
   ULONG rc;
-  char buf[256];
 
   memset( &dec_params, '\0', sizeof( dec_params ));
 
@@ -86,6 +83,7 @@ amp_msg( int msg, void *param, void *param2 )
     {
       MSG_PLAY_STRUCT* data = (MSG_PLAY_STRUCT*)param;
       char cdda_url[20];
+      const char* url;
 
       // TODO: URI!!!
       rc = out_setup( (FORMAT_INFO2*)param2, data->out_filename );
@@ -94,44 +92,27 @@ amp_msg( int msg, void *param, void *param2 )
         return;
       }
 
-      rc = dec_set_name_active( data->decoder_needed );
-      if( rc == -2 ) {
-        sprintf( buf, "Error: Decoder module %s needed to play %s is not loaded or enabled.",
-                       data->decoder_needed, data->filename );
-        keep_last_error( buf );
-      } else if ( rc == -1 ) {
-        amp_post_message( WM_PLAYERROR, 0, 0 );
-        return;
-      }
-
       equalize_sound( gains, mutes, preamp, cfg.eq_enabled );
-
-      DEBUGLOG(("amp_msg:MSG_PLAY: %s, %p, %d\n", data->filename, data->drive, data->track));
+      dec_save( save_filename );
+      
       if (data->drive != NULL && *data->drive != 0 && data->track != 0) // pm123 core sometimes passes trash in the track field
       { sprintf(cdda_url, "cdda:///%s/track%02d", data->drive, data->track);
-        dec_params.URL = cdda_url;
+        url = cdda_url;
       } else
-        dec_params.URL      = data->filename;
-      dec_params.posmarker  = 0; // TODO: currently...
-      dec_params.hwnd       = data->hMain;
-      dec_params.buffersize = cfg.bufsize*1024;
-      dec_params.bufferwait = cfg.bufwait;
-      dec_params.proxyurl   = cfg.proxy;
-      dec_params.httpauth   = cfg.auth;
-      dec_params.error_display    = keep_last_error;
-      dec_params.info_display     = display_info;
-      dec_params.metadata_buffer  = metadata_buffer;
-      dec_params.metadata_size    = sizeof(metadata_buffer);
+      { url = data->filename;
+      }
 
-      dec_command( DECODER_SETUP, &dec_params );
-      dec_params.save_filename = save_filename;
-      dec_command( DECODER_SAVEDATA, &dec_params );
-
-      rc = dec_command( DECODER_PLAY, &dec_params );
-      if( rc != 0 ) {
+      rc = dec_play( url, data->decoder_needed );
+      if( rc == -2 ) {
+        char buf[1024];
+        sprintf( buf, "Error: Decoder module %.8s needed to play %.800s is not loaded or enabled.",
+                      data->decoder_needed, url );
+        keep_last_error( buf );
+      } else if ( rc != 0 ) {
         amp_post_message( WM_PLAYERROR, 0, 0 );
         return;
       }
+
       amp_volume_to_normal();
 
       while( dec_status() == DECODER_STARTING ) {
@@ -158,11 +139,7 @@ amp_msg( int msg, void *param, void *param2 )
           amp_msg( MSG_REW, NULL, 0 );
         }
 
-        rc = dec_command( DECODER_STOP, &dec_params );
-
-        if( rc != 0 ) {
-          amp_post_message( WM_PLAYERROR, 0, 0 );
-        }
+        dec_stop();
       }
 
       forwarding = FALSE;
@@ -193,20 +170,15 @@ amp_msg( int msg, void *param, void *param2 )
     case MSG_FWD:
       if( decoder_playing())
       {
-        if( rewinding ) {
-          // Stop rewinding anyway.
-          dec_params.rew = rewinding = FALSE;
-          dec_command( DECODER_REW, &dec_params );
-        }
-
-        dec_params.ffwd = forwarding = !forwarding;
-        if( dec_command( DECODER_FFWD, &dec_params ) != 0 ) {
+        rewinding = FALSE;
+        forwarding = !forwarding;
+        if( dec_fast( forwarding ? DECODER_FAST_FORWARD : DECODER_NORMAL_PLAY ) != 0 ) {
           forwarding = FALSE;
         } else if( cfg.trash ) {
           // Going back in the stream to what is currently playing.
-          dec_params.jumpto = out_playing_pos();
-          dec_command( DECODER_JUMPTO, &dec_params );
-          out_trashbuffers( dec_params.jumpto );
+          int pos = out_playing_pos();
+          dec_jump( pos );
+          out_trashbuffers( pos );
         }
       }
       break;
@@ -214,20 +186,15 @@ amp_msg( int msg, void *param, void *param2 )
     case MSG_REW:
       if( decoder_playing())
       {
-        if( forwarding ) {
-          // Stop forwarding anyway.
-          dec_params.ffwd = forwarding = FALSE;
-          dec_command( DECODER_FFWD, &dec_params );
-        }
-
-        dec_params.rew = rewinding = !rewinding;
-        if( dec_command( DECODER_REW, &dec_params ) != 0 ) {
+        forwarding = FALSE;
+        rewinding = !rewinding;
+        if( dec_fast( rewinding ? DECODER_REW : DECODER_NORMAL_PLAY ) != 0 ) {
           rewinding = FALSE;
         } else if( cfg.trash ) {
           // Going back in the stream to what is currently playing.
-          dec_params.jumpto = out_playing_pos();
-          dec_command( DECODER_JUMPTO, &dec_params );
-          out_trashbuffers( dec_params.jumpto );
+          int pos = out_playing_pos();
+          dec_jump( pos );
+          out_trashbuffers( pos );
         }
       }
       break;
@@ -235,12 +202,11 @@ amp_msg( int msg, void *param, void *param2 )
     case MSG_JUMP:
       if( decoder_playing())
       {
-        dec_params.jumpto = *((int *)param);
-        if ( dec_command( DECODER_JUMPTO, &dec_params ) != 0 ) {
+        if ( dec_jump( *(int*)param ) != 0 ) {
           // cancel seek immediately
           WinPostMsg( amp_player_window(), WM_SEEKSTOP, 0, 0 );
         } else if( cfg.trash ) {
-          out_trashbuffers( dec_params.jumpto );
+          out_trashbuffers( *(int*)param );
         }
       }
       break;
@@ -252,29 +218,30 @@ amp_msg( int msg, void *param, void *param2 )
         save_filename = (char*)strdup((char*)param);
 
       if( decoder_playing()) {
-        dec_params.save_filename = (char*)param;
-        dec_command( DECODER_SAVEDATA, &dec_params );
+        dec_save( save_filename );
       }
       break;
   }
 }
 
-void equalize_sound( float *gains, BOOL *mute, float preamp, BOOL enabled )
+void equalize_sound( const float *gains, const BOOL *mute, float preamp, BOOL enabled )
 {
-  int i;
-  float bandgain[20];
-  memcpy( bandgain, gains, sizeof( bandgain ));
+  if (enabled) {
+    int i;
+    float bandgain[20];
+    memcpy( bandgain, gains, sizeof( bandgain ));
 
-  dec_params.bandgain  = bandgain;
-  dec_params.equalizer = enabled;
+    for( i = 0; i < 20; i++ )
+      if( mute[i] )
+        bandgain[i] = 0;
 
-  for( i = 0; i < 20; i++ )
-    if( mute[i] )
-      bandgain[i] = 0;
+    for( i = 0; i < 20; i++ )
+      bandgain[i] *= preamp;
 
-  for( i = 0; i < 20; i++ )
-    bandgain[i] *= preamp;
-
-  dec_command( DECODER_EQ, &dec_params );
+    dec_eq( bandgain );
+  } else {
+    dec_eq( NULL );
+  }
+  
 }
 

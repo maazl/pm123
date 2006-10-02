@@ -46,7 +46,7 @@
 #include "vdelegate.h"
 
 //#define  DEBUG 1
-#undef DEBUG
+//#undef DEBUG
 #include <debuglog.h>
 
 
@@ -424,7 +424,7 @@ proxy_1_decoder_command( CL_DECODER_PROXY_1* op, void* w, ULONG msg, DECODER_PAR
   memset(&par1, 0, sizeof par1); 
   par1.size                = sizeof par1;
   /* decompose URL for old interface */
-  if (params->URL != NULL)
+  if (msg == DECODER_PLAY)
   { char* cp = strchr(params->URL, ':') +2; // for URLs
     CDDA_REGION_INFO cd_info;
     if (is_file(params->URL))
@@ -454,7 +454,6 @@ proxy_1_decoder_command( CL_DECODER_PROXY_1* op, void* w, ULONG msg, DECODER_PAR
   par1.httpauth            = params->httpauth;
   par1.error_display       = params->error_display;
   par1.info_display        = params->info_display;
-  par1.playsem             = params->playsem;
   par1.hwnd                = params->hwnd;
   par1.buffersize          = params->buffersize;
   par1.bufferwait          = params->bufferwait;
@@ -1025,7 +1024,8 @@ BOOL CL_VISUAL::uninit_plugin()
 }
 
 BOOL CL_VISUAL::initialize(HWND hwnd, PLUGIN_PROCS* procs, int id)
-{ DEBUGLOG(("CL_VISUAL(%p{%s})::initialize(%x, %p, %d)\n", this, module_name, hwnd, procs, id));
+{ DEBUGLOG(("CL_VISUAL(%p{%s})::initialize(%x, %p, %d) - %d %d, %d %d, %s\n",
+    this, module_name, hwnd, procs, id, props.x, props.y, props.cx, props.cy, props.param));
 
   VISPLUGININIT visinit;
   visinit.x       = props.x;
@@ -1042,7 +1042,15 @@ BOOL CL_VISUAL::initialize(HWND hwnd, PLUGIN_PROCS* procs, int id)
 }
 
 void CL_VISUAL::set_properties(const VISUAL_PROPERTIES* data)
-{ static const VISUAL_PROPERTIES def_visuals = {0,0,0,0, FALSE, ""};
+{
+  #ifdef DEBUG
+  if (data)
+    DEBUGLOG(("CL_VISUAL(%p{%s})::set_properties(%p{%d %d, %d %d, %s})\n",
+      this, module_name, data, data->x, data->y, data->cx, data->cy, data->param));
+  else
+    DEBUGLOG(("CL_VISUAL(%p{%s})::set_properties(%p)\n", this, module_name, data));
+  #endif
+  static const VISUAL_PROPERTIES def_visuals = {0,0,0,0, FALSE, ""};
   props = data == NULL ? def_visuals : *data;
 }
 

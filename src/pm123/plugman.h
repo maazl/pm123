@@ -65,10 +65,6 @@ typedef struct
 extern "C" {
 #endif
 
-// Read-only !
-//extern int active_decoder;
-//extern int active_output;
-
 BOOL  remove_decoder_plugin( int i );
 BOOL  remove_output_plugin ( int i );
 BOOL  remove_filter_plugin ( int i );
@@ -93,21 +89,38 @@ BOOL  save_visuals ( BUFSTREAM* b );
 ULONG add_plugin( const char* module_name, const VISUAL_PROPERTIES* data );
 
 int   enum_decoder_plugins(PLUGIN_BASE*const** list);
-int   enum_output_plugins(PLUGIN_BASE*const** list);
-int   enum_filter_plugins(PLUGIN_BASE*const** list);
-int   enum_visual_plugins(PLUGIN_BASE*const** list);
+int   enum_output_plugins (PLUGIN_BASE*const** list);
+int   enum_filter_plugins (PLUGIN_BASE*const** list);
+int   enum_visual_plugins (PLUGIN_BASE*const** list);
 
 BOOL  get_plugin_enabled(const PLUGIN_BASE* plugin);
 void  set_plugin_enabled(PLUGIN_BASE* plugin, BOOL enabled);
 void  configure_plugin(PLUGIN_BASE* plugin, HWND hwnd);
 
 
-int   dec_set_name_active( char* name );
 BOOL  dec_is_active( int number );
 int   dec_set_active( int number );
 void  dec_fill_types( char* result, size_t size );
 
-ULONG PM123_ENTRY dec_command( ULONG msg, DECODER_PARAMS2* params );
+typedef enum
+{ DECODER_NORMAL_PLAY,
+  DECODER_FAST_FORWARD,
+  DECODER_FAST_REWIND
+} DECODER_FAST_MODE;
+
+/* invoke decoder to play an URL */
+ULONG dec_play( const char* url, const char* decoder_name );
+/* stop the current decoder immediately */
+ULONG dec_stop( void );
+/* set fast forward/rewind mode */
+ULONG dec_fast( DECODER_FAST_MODE mode );
+/* jump to absolute position */
+ULONG dec_jump( int location );
+/* set equalizer parameters */
+ULONG dec_eq  ( const float* bandgain );
+/* set savefilename to save the raw stream data */
+ULONG dec_save( const char* file );
+
 ULONG PM123_ENTRY dec_fileinfo( const char* filename, DECODER_INFO* info, char* name );
 ULONG PM123_ENTRY dec_trackinfo( const char* drive, int track, DECODER_INFO* info, char* name );
 ULONG PM123_ENTRY dec_cdinfo( char* drive, DECODER_CDINFO* info );
