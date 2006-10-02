@@ -937,7 +937,7 @@ vis_init( PVISPLUGININIT init )
   int   i;
   int   display_percent;
 
-  DEBUGLOG(("vis_init\n"));
+  DEBUGLOG(("vis_init: %s\n", plug.param));
   // wait for old instances to complete destruction, since many variables are static.
   for (i = 0; destroy_pending; ++i)
   { if (i > 10)

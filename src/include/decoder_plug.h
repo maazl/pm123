@@ -25,16 +25,16 @@ BOOL PM123_ENTRY decoder_uninit( void*  w );
 
 typedef struct _DECODER_PARAMS
 {
-   int size;
+   int   size;
 
    /* --- DECODER_PLAY, STOP */
 
-   char* filename;
-   char* URL;
-   char* drive;       /* for CD ie.: "X:" */
-   int   track;
-   int   sectors[2];  /* play from sector x to sector y, currently unused by PM123 */
-   char* other;
+   const char* filename;
+   const char* URL;
+   const char* drive;       /* for CD ie.: "X:" */
+   int         track;
+   int         sectors[2];  /* play from sector x to sector y, currently unused by PM123 */
+   const char* other;
 
    /* --- DECODER_REW, FFWD and JUMPTO */
 
@@ -49,8 +49,8 @@ typedef struct _DECODER_PARAMS
    void* a;           /* only to be used with the precedent function */
    int   audio_buffersize;
 
-   char* proxyurl;    /* NULL = none */
-   char* httpauth;    /* NULL = none */
+   const char* proxyurl;    /* NULL = none */
+   const char* httpauth;    /* NULL = none */
 
    /* error message function the decoder should use */
    void (PM123_ENTRYP error_display)( char* );
@@ -60,7 +60,7 @@ typedef struct _DECODER_PARAMS
    void (PM123_ENTRYP info_display)( char* );
 
    HEV   playsem;     /* this semaphore is reseted when DECODER_PLAY is requested
-                         and is posted on stop */
+                         and is posted on stop. No longer used by PM123 */
 
    HWND  hwnd;        /* commodity for PM interface, decoder must send a few
                          messages to this handle */
@@ -79,22 +79,22 @@ typedef struct _DECODER_PARAMS
    /* --- DECODER_EQ */
 
    /* usually only useful with MP3 decoder */
-   int    equalizer;  /* TRUE or FALSE */
-   float* bandgain;   /* point to an array like this bandgain[#channels][10] */
+   int          equalizer;  /* TRUE or FALSE */
+   const float* bandgain;   /* point to an array like this bandgain[#channels][10] */
 
    /* --- DECODER_SAVEDATA */
 
-   char *save_filename;
+   const char*  save_filename;
 
 } DECODER_PARAMS;
 
 typedef struct _DECODER_PARAMS2
 {
-   int size;
+   int   size;
 
    /* --- DECODER_PLAY, STOP */
 
-   char* URL;
+   const char* URL;
    int   posmarker;   /* position marker of file start */
 
    /* --- DECODER_REW, FFWD and JUMPTO */
@@ -110,8 +110,8 @@ typedef struct _DECODER_PARAMS2
    void  (PM123_ENTRYP output_commit_buffer  )( void* a, int len, int posmarker );
    void* a;           /* only to be used with the precedent functions */
 
-   char* proxyurl;    /* NULL = none */
-   char* httpauth;    /* NULL = none */
+   const char* proxyurl;    /* NULL = none */
+   const char* httpauth;    /* NULL = none */
 
    /* error message function the decoder should use */
    void (PM123_ENTRYP error_display)( char* );
@@ -119,9 +119,6 @@ typedef struct _DECODER_PARAMS2
    /* info message function the decoder should use */
    /* this information is always displayed to the user right away */
    void (PM123_ENTRYP info_display)( char* );
-
-   HEV   playsem;     /* this semaphore is reseted when DECODER_PLAY is requested
-                         and is posted on stop */
 
    HWND  hwnd;        /* commodity for PM interface, decoder must send a few
                          messages to this handle */
@@ -141,11 +138,11 @@ typedef struct _DECODER_PARAMS2
 
    /* usually only useful with MP3 decoder */
    int    equalizer;  /* TRUE or FALSE */
-   float* bandgain;   /* point to an array like this bandgain[#channels][10] */
+   const float* bandgain;   /* point to an array like this bandgain[#channels][10] */
 
    /* --- DECODER_SAVEDATA */
 
-   char *save_filename;
+   const char* save_filename;
 
 } DECODER_PARAMS2;
 
