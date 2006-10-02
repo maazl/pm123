@@ -606,7 +606,7 @@ static void update_analyzer(void)
 
     for( x = 0; x < plug.cx; x++ )
     {
-      update_barvalue( bars+x, .15 + .6666666667 * get_barvalue(scale + x) ); // 30dB range [-4,5dB..+25,5dB]
+      update_barvalue( bars+x, .3 + .5 * get_barvalue(scale + x) ); // 40dB range [-12dB..+28dB]
 
       for( y = (int)(bars[x]*(plug.cy+1)) -1; y >= 0; y-- )
       {
@@ -622,7 +622,7 @@ static void update_analyzer(void)
 
     for( i = 0; i < bars_count; i++ )
     {
-      update_barvalue( bars+i, .15 + .6666666667 * get_barvalue(scale + i) ); // 30dB range [-4,5dB..+25,5dB]
+      update_barvalue( bars+i, .3 + .5 * get_barvalue(scale + i) ); // 40dB range [-12dB..+28dB]
       //fprintf(stderr, "B: %d %d %f %f\n", i, bars_count, get_barvalue(scale + i), bars[i]);
 
       for( y = (int)(bars[i]*(plug.cy+1)) -1; y >= 0; y-- )
@@ -647,7 +647,7 @@ static void update_analyzer(void)
         memmove(image, image+image_cx, (plug.cy-1) * image_cx);
 
       for( x = 0; x < plug.cx; x++ )
-      { update_barvalue( bars+x, .35 + .5 * get_barvalue(scale + x) ); // 40dB range [-14dB..+26dB]
+      { update_barvalue( bars+x, .4 + .4 * get_barvalue(scale + x) ); // 50dB range [-20dB..+30dB]
         ip[x] = ( CLR_SPC_TOP - CLR_SPC_BOTTOM +1 ) * bars[x] + CLR_SPC_BOTTOM;
       }
     }
@@ -663,7 +663,7 @@ static void update_analyzer(void)
         memmove(image, image+1, plug.cy*image_cx -1);
 
       for( i = 0; i < bars_count; i++ )
-      { update_barvalue( bars+i, .35 + .5 * get_barvalue(scale + i) ); // 40dB range [-14dB..+26dB]
+      { update_barvalue( bars+i, .4 + .4 * get_barvalue(scale + i) ); // 50dB range [-20dB..+30dB]
         ip[(plug.cy-i-1)*image_cx] = ( CLR_SPC_TOP - CLR_SPC_BOTTOM +1 ) * bars[i] + CLR_SPC_BOTTOM;
       }
     }
@@ -950,7 +950,7 @@ vis_init( PVISPLUGININIT init )
   cfg.update_delay    = 31;
   cfg.default_mode    = SHOW_BARS;
   cfg.falloff         = 1;
-  cfg.falloff_speed   = 1;
+  cfg.falloff_speed   = 2;
   cfg.display_freq    = -1;
   display_percent     = -1;
   cfg.display_lowfreq = 50;
