@@ -77,13 +77,12 @@ amp_msg( int msg, void *param, void *param2 )
   switch( msg ) {
     case MSG_PLAY:
     {
-      MSG_PLAY_STRUCT* data = (MSG_PLAY_STRUCT*)param;
-      char cdda_url[20];
-      const char* url;
+      const MSG_PLAY_STRUCT* data = (const MSG_PLAY_STRUCT*)param;
 
       // TODO: URI!!!
-      rc = out_setup( (FORMAT_INFO2*)param2, data->out_filename );
-      DEBUGLOG(("amp_msg:MSG_PLAY: after setup %d %d - %d\n", ((FORMAT_INFO2*)param2)->samplerate, ((FORMAT_INFO2*)param2)->channels, rc));
+      rc = out_setup( &data->info.format, data->url );
+      DEBUGLOG(("amp_msg:MSG_PLAY: after setup %d %d - %d\n",
+        data->info.format.samplerate, data->info.format.channels, rc));
       if( rc != 0 ) {
         return;
       }
@@ -91,18 +90,11 @@ amp_msg( int msg, void *param, void *param2 )
       equalize_sound( gains, mutes, preamp, cfg.eq_enabled );
       dec_save( save_filename );
       
-      if (data->drive != NULL && *data->drive != 0 && data->track != 0) // pm123 core sometimes passes trash in the track field
-      { sprintf(cdda_url, "cdda:///%s/track%02d", data->drive, data->track);
-        url = cdda_url;
-      } else
-      { url = data->filename;
-      }
-
-      rc = dec_play( url, data->decoder_needed );
+      rc = dec_play( data->url, data->decoder );
       if( rc == -2 ) {
         char buf[1024];
         sprintf( buf, "Error: Decoder module %.8s needed to play %.800s is not loaded or enabled.",
-                      data->decoder_needed, url );
+                      data->decoder, data->url );
         keep_last_error( buf );
       } else if ( rc != 0 ) {
         amp_post_message( WM_PLAYERROR, 0, 0 );

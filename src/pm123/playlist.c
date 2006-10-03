@@ -445,7 +445,11 @@ pl_create_record( const char* filename, PLRECORD* pos, const char* songname )
   strcpy( rec->cd_drive, cd_info.drive );
   strlcpy( rec->decoder_module_name, module_name, sizeof rec->decoder_module_name );
 
-  sprintf( buffer, "%u kB", info.tech.filesize );
+  if (info.tech.filesize > 0) {
+    sprintf( buffer, "%.0f kiB", info.tech.filesize/1024. );
+  } else {
+    *buffer = 0;
+  }
   rec->length = strdup( buffer );
   sprintf( buffer, "%02u:%02u", rec->secs / 60, rec->secs % 60 );
   rec->time = strdup( buffer );
@@ -2248,7 +2252,7 @@ pl_save( const char* filename, int options )
     }
 
     if( !(options & PL_SAVE_M3U )) {
-      fprintf( playlist, ">%u,%u,%u,%u,%u\n", rec->bitrate,
+      fprintf( playlist, ">%u,%u,%u,%.0f,%u\n", rec->bitrate,
                         rec->freq, rec->mode, rec->size, rec->secs );
     }
   }
@@ -2269,7 +2273,7 @@ BOOL
 pl_save_bundle( const char* filename, int options )
 {
   PLRECORD* rec;
-
+  const MSG_PLAY_STRUCT* current;
   FILE* playlist = fopen( filename, "w" );
 
   if( !playlist ) {
@@ -2290,8 +2294,9 @@ pl_save_bundle( const char* filename, int options )
     fprintf( playlist, "%s\n" , rec->full );
   }
 
-  if( amp_playmode == AMP_SINGLE && *current_filename && is_file(current_filename)) {
-    fprintf( playlist, "<%s\n", current_filename );
+  current = amp_get_loaded_file();
+  if( amp_playmode == AMP_SINGLE && current != NULL && *current->url && is_file(current->url)) {
+    fprintf( playlist, "<%s\n", current->url );
   }
 
   fprintf( playlist, "# End of playlist\n" );

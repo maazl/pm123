@@ -78,20 +78,9 @@ HPOINTER  mp3gray;  /* Broken file icon */
 
 /* Contains startup path of the program without its name.  */
 char   startpath[_MAX_PATH];
-/* Contains a name of the currently loaded file. */
-// TODO: too short for an URL
-char   current_filename[_MAX_PATH];
-/* Other parameters of the currently loaded file. */
-int    current_bitrate     =  0;
-int    current_channels    = -1;
-int    current_length      =  0;
-int    current_freq        =  0;
-char   current_track       =  0;
-char   current_cd_drive[4] = "";
-tune   current_tune;
-char   current_decoder[128];
-char   current_decoder_info_string[128];
-static FORMAT_INFO current_format; /* current data format */
+
+/* currently loaded file */
+static MSG_PLAY_STRUCT current_file = { "" }; // initialize by default
 
 static HAB   hab        = NULLHANDLE;
 static HWND  hplaylist  = NULLHANDLE;
@@ -190,10 +179,10 @@ static void
 amp_paint_timers( HPS hps )
 {
   int play_time = 0;
-  int play_left = current_length;
+  int play_left = current_file.info.tech.songlength/1000;
   int list_left = 0;
 
-  DEBUGLOG(("amp_paint_timers(%p) - %i %i %i %i %i\n", hps, cfg.mode, decoder_playing(), is_seeking, time_played(), current_length));
+  DEBUGLOG(("amp_paint_timers(%p) - %i %i %i %i %i\n", hps, cfg.mode, decoder_playing(), is_seeking, time_played(), play_left));
 
   if( cfg.mode == CFG_MODE_REGULAR )
   {
@@ -235,8 +224,8 @@ amp_paint_fileinfo( HPS hps )
 
   bmp_draw_plmode  ( hps );
   bmp_draw_timeleft( hps );
-  bmp_draw_rate    ( hps, current_bitrate );
-  bmp_draw_channels( hps, current_channels );
+  bmp_draw_rate    ( hps, current_file.info.tech.bitrate );
+  bmp_draw_channels( hps, current_file.info.format.channels );
   bmp_draw_text    ( hps );
   amp_paint_timers ( hps );
 }
@@ -268,6 +257,18 @@ amp_player_hab( void )
   return hab;
 }
 
+/* Returns a information block of the currently playing file or NULL if none. */
+const MSG_PLAY_STRUCT*
+amp_get_playing_file( void )
+{ return out_playing_data() ? &current_file : NULL;
+}
+
+/* Returns a information block of the currently loaded file or NULL if none. */
+const MSG_PLAY_STRUCT*
+amp_get_loaded_file( void )
+{ return *current_file.url ? &current_file : NULL;
+}
+
 /* Posts a message to the message queue associated with
    the player window. */
 BOOL
@@ -284,11 +285,71 @@ amp_set_bubbletext( USHORT id, const char *text )
                                WM_SETTEXT, MPFROMP(text), 0 );
 }
 
+/* Constructs a information text for currently loaded file
+   and selects it for displaying. */
+void
+amp_display_filename( void )
+{
+  char display[512];
+
+  if( amp_playmode == AMP_NOFILE ) {
+    bmp_set_text( "No file loaded" );
+    return;
+  }
+
+  switch( cfg.viewmode )
+  {
+    case CFG_DISP_ID3TAG:
+      amp_construct_tag_string( display, &current_file.info.meta );
+
+      if( *display ) {
+        bmp_set_text( display );
+        break;
+      }
+
+      // if ID3 tag is empty - use filename instead of it.
+
+    case CFG_DISP_FILENAME:
+    {
+      const char* current_filename = current_file.url;
+      if( *current_filename )
+      {
+        if( is_file( current_filename )) {
+          bmp_set_text( sfname( display, current_filename, sizeof( display )));
+        } else if ( is_cdda( current_filename )) {
+          char* cp = strchr( current_filename, ':' );
+          bmp_set_text( cp +1 );
+        } else {
+          bmp_set_text( current_filename );
+        }
+      } else {
+         bmp_set_text( "This is a bug!" );
+      }
+      break;
+    }
+    case CFG_DISP_FILEINFO:
+      bmp_set_text( current_file.info.tech.info );
+      break;
+  }
+}
+
+/* Switches to the next text displaying mode. */
+void
+amp_display_next_mode( void )
+{
+  if( cfg.viewmode == CFG_DISP_FILEINFO ) {
+    cfg.viewmode = CFG_DISP_FILENAME;
+  } else {
+    cfg.viewmode++;
+  }
+
+  amp_display_filename();
+}
+
 /* Loads the specified playlist record into the player. */
 BOOL
 amp_pl_load_record( PLRECORD* rec )
 {
-  DECODER_INFO2 info;
   struct stat  fi;
 
   if( !rec ) {
@@ -300,28 +361,27 @@ amp_pl_load_record( PLRECORD* rec )
     return FALSE;
   }
 
-  strcpy( current_filename, rec->full );
-  strcpy( current_decoder,  rec->decoder_module_name );
-  strcpy( current_cd_drive, rec->cd_drive );
-  strcpy( current_decoder_info_string, rec->info_string );
+  if ( dec_fileinfo ( rec->full, &current_file.info, current_file.decoder ) != 0 ) {
+    amp_error( hplayer, "Unable load:\n%s", rec->full);
+    return FALSE;
+  }
+  
+  strlcpy( current_file.url, rec->full, sizeof current_file.url );
 
-  dec_fileinfo ( current_filename, &info, NULL );
+  // TODO: This is completely wrong here
+  //amp_gettag( current_filename, &info.meta, &current_tune );
 
-  amp_gettag( current_filename, &info.meta, &current_tune );
-
-  if( is_http( current_filename ) && !*current_tune.title ) {
-    strlcpy( current_tune.title, rec->songname, sizeof( current_tune.title ));
+  // TODO: This is completely wrong here
+  if( is_http( current_file.url ) && !*current_file.info.meta.title ) {
+    strlcpy( current_file.info.meta.title, rec->songname, sizeof( current_file.info.meta.title ));
   }
 
-  current_format   = info.format;
-
-  current_bitrate  = info.tech.bitrate;
-  current_channels = info.format.channels;
-  current_length   = info.tech.songlength/1000;
-  current_freq     = info.format.samplerate;
-  current_track    = rec->track;
+  // merge meta information from playlist record ?
+  if ( current_file.info.meta.track <= 0 && rec->track > 0 ) 
+    current_file.info.meta.track = rec->track;
 
   if( amp_playmode == AMP_PLAYLIST ) {
+    // TODO: Uuh, it should be up to playlist.c to modify this item
     current_record = rec;
   } else {
     amp_playmode = AMP_SINGLE;
@@ -361,7 +421,7 @@ amp_pl_use( void )
 
   if( pl_size()) {
     if( amp_playmode == AMP_SINGLE ) {
-      current_record = pl_query_file_record( current_filename );
+      current_record = pl_query_file_record( current_file.url );
       if( decoder_playing()) {
         if( !current_record ) {
           amp_stop();
@@ -413,7 +473,6 @@ amp_load_singlefile( const char* filename, int options )
 
   int    i;
   ULONG  rc;
-  char   module_name[128];
   CDDA_REGION_INFO cd_info = {"", 0};
   struct stat fi;
 
@@ -426,14 +485,12 @@ amp_load_singlefile( const char* filename, int options )
     return FALSE;
   }
 
-  memset( &info, 0, sizeof( info ));
-
   if ( is_cdda( filename ) && !scdparams( &cd_info, filename ) ) {
     amp_error( hplayer, "Invalid CD URL:\n%s", filename );
     return FALSE;
   }
 
-  rc = dec_fileinfo((char*)filename, &info, module_name );
+  rc = dec_fileinfo((char*)filename, &current_file.info, current_file.decoder );
 
   if( rc != 0 ) { /* error, invalid file */
     amp_reset();
@@ -444,18 +501,14 @@ amp_load_singlefile( const char* filename, int options )
   amp_stop();
   amp_pl_release();
 
-  strlcpy( current_filename,            filename,       sizeof current_filename );
-  strlcpy( current_decoder,             module_name,    sizeof current_decoder );
-  strlcpy( current_cd_drive,            cd_info.drive,  sizeof current_cd_drive );
-  strlcpy( current_decoder_info_string, info.tech.info, sizeof current_decoder_info_string );
+  strlcpy( current_file.url,            filename,       sizeof current_file.url );
 
-  amp_gettag( filename, &info.meta, &current_tune );
-  current_format   = info.format;
-  current_bitrate  = info.tech.bitrate;
-  current_channels = info.format.channels;
-  current_length   = info.tech.songlength / 1000;
-  current_freq     = info.format.samplerate;
-  current_track    = cd_info.track;
+  // TODO: this is completely wrong here
+  //amp_gettag( filename, &info.meta, &current_tune );
+
+  // merge some information
+  if ( current_file.info.meta.track <= 0 && cd_info.track > 0 ) 
+    current_file.info.meta.track = cd_info.track;
 
   amp_display_filename();
   amp_invalidate( UPD_FILEINFO );
@@ -528,7 +581,6 @@ amp_stop( void )
 void
 amp_play( void )
 {
-  MSG_PLAY_STRUCT msgplayinfo = { 0 };
   char caption [_MAX_PATH];
   char filename[_MAX_PATH];
 
@@ -537,14 +589,7 @@ amp_play( void )
     return;
   }
 
-  msgplayinfo.filename = current_filename;
-  msgplayinfo.out_filename = current_filename;
-  msgplayinfo.drive = current_cd_drive;
-  msgplayinfo.track = current_track;
-  msgplayinfo.hMain = hplayer;
-  msgplayinfo.decoder_needed = current_decoder;
-
-  amp_msg( MSG_PLAY, &msgplayinfo, &current_format );
+  amp_msg( MSG_PLAY, &current_file, NULL );
   amp_set_bubbletext( BMP_PLAY, "Stops playback" );
 
   WinSendDlgItemMsg( hplayer, BMP_FWD,   WM_DEPRESS, 0, 0 );
@@ -556,7 +601,7 @@ amp_play( void )
     pl_mark_as_play();
   }
 
-  sfnameext( filename, current_filename, sizeof( filename ));
+  sfnameext( filename, current_file.url, sizeof( filename ));
   sprintf( caption, "%s - ", AMP_FULLNAME );
   strlcat( caption, filename, sizeof( filename ));
   WinSetWindowText( hframe, caption );
@@ -590,6 +635,7 @@ amp_show_context_menu( HWND parent )
   short    id;
   int      i;
   int      count;
+  const MSG_PLAY_STRUCT* current;
 
   if( menu == NULLHANDLE )
   {
@@ -680,7 +726,9 @@ amp_show_context_menu( HWND parent )
   load_plugin_menu( mi.hwndSubMenu );
 
   // Update status
-  mn_enable_item( menu, IDM_M_TAG,     is_file( current_filename ));
+  current = amp_get_playing_file();
+  // TODO: edit more than ID3 tags
+  mn_enable_item( menu, IDM_M_TAG,     current != NULL && is_file( current->url ));
   mn_enable_item( menu, IDM_M_SMALL,   bmp_is_mode_supported( CFG_MODE_SMALL   ));
   mn_enable_item( menu, IDM_M_NORMAL,  bmp_is_mode_supported( CFG_MODE_REGULAR ));
   mn_enable_item( menu, IDM_M_TINY,    bmp_is_mode_supported( CFG_MODE_TINY    ));
@@ -1340,6 +1388,7 @@ void amp_id3_edit( HWND owner, const char* filename )
   tune    old_tag;
   tune    new_tag;
   tagdata mywindowdata;
+  const MSG_PLAY_STRUCT* current;
 
   if( !is_file( filename )) {
     DosBeep( 800, 100 );
@@ -1418,8 +1467,10 @@ void amp_id3_edit( HWND owner, const char* filename )
   amp_gettag( filename, NULL, &new_tag );
   pl_refresh_file( filename );
 
-  if( stricmp( current_filename, filename ) == 0 ) {
-    current_tune = new_tag;
+  current = amp_get_playing_file();
+  if( current != NULL && stricmp( current->url, filename ) == 0 ) {
+    // TODO: post WM_METADATA, the structures are binary compatible so far
+    current_file.info.meta = *(META_INFO*)&new_tag;
     amp_display_filename();
     amp_invalidate( UPD_ALL );
   }
@@ -1440,11 +1491,12 @@ void amp_id3_wipe( HWND owner, const char* filename )
     return;
   }
 
+  // TODO: send WM_METADATA
   amp_gettag( filename, NULL, &tag );
   pl_refresh_file( filename );
 
-  if( stricmp( current_filename, filename ) == 0 ) {
-    current_tune = tag;
+  if( stricmp( current_file.url, filename ) == 0 ) {
+    current_file.info.meta = *(META_INFO*)&tag;
     amp_display_filename();
     amp_invalidate( UPD_ALL );
   }
@@ -1700,12 +1752,12 @@ amp_pipe_thread( void* scrap )
               if( amp_playmode == AMP_NOFILE ) {
                 amp_pipe_write( hpipe, "" );
               } else if( stricmp( dork, "file" ) == 0 ) {
-                amp_pipe_write( hpipe, current_filename );
+                amp_pipe_write( hpipe, current_file.url );
               } else if( stricmp( dork, "tag"  ) == 0 ) {
                 char info[512];
-                amp_pipe_write( hpipe, amp_construct_tag_string( info,  &current_tune ));
+                amp_pipe_write( hpipe, amp_construct_tag_string( info,  &current_file.info.meta ));
               } else if( stricmp( dork, "info" ) == 0 ) {
-                amp_pipe_write( hpipe, current_decoder_info_string );
+                amp_pipe_write( hpipe, current_file.info.tech.info );
               }
             }
           }
@@ -2535,9 +2587,10 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
 
     case WM_CHANGEBR:
     {
+      // TODO: turn into change of metadata in general
       HPS hps = WinGetPS( hwnd );
-      current_bitrate = LONGFROMMP( mp1 );
-      bmp_draw_rate( hps, current_bitrate );
+      current_file.info.tech.bitrate = LONGFROMMP( mp1 );
+      bmp_draw_rate( hps, current_file.info.tech.bitrate );
       WinReleasePS( hps );
       return 0;
     }
@@ -2637,6 +2690,7 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
 
     case WM_METADATA:
     {
+      // TODO: turn into general metadata replacement
       char* metadata = PVOIDFROMMP(mp1);
       char* titlepos;
       int   i;
@@ -2646,19 +2700,19 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
         if( titlepos )
         {
           titlepos += 13;
-          for( i = 0; i < sizeof( current_tune.title ) - 1 && *titlepos
+          for( i = 0; i < sizeof( current_file.info.meta.title ) - 1 && *titlepos
                       && ( titlepos[0] != '\'' || titlepos[1] != ';' ); i++ )
           {
-            current_tune.title[i] = *titlepos++;
+            current_file.info.meta.title[i] = *titlepos++;
           }
 
-          current_tune.title[i] = 0;
+          current_file.info.meta.title[i] = 0;
           amp_display_filename();
           amp_invalidate( UPD_FILEINFO );
 
           if( current_record != NULL ) {
             free( current_record->songname );
-            current_record->songname = strdup( current_tune.title );
+            current_record->songname = strdup( current_file.info.meta.title );
             pl_refresh_record( current_record, CMA_TEXTCHANGED );
           }
         }
@@ -2703,7 +2757,7 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
           return 0;
 
         case IDM_M_TAG:
-          amp_id3_edit( hwnd, current_filename );
+          amp_id3_edit( hwnd, current_file.url );
           return 0;
 
         case IDM_M_SAVE:
@@ -3093,16 +3147,7 @@ amp_reset( void )
   }
 
   amp_playmode     = AMP_NOFILE;
-  current_record   = NULL;
-  current_bitrate  = 0;
-  current_channels = -1;
-  current_length   = 0;
-  current_freq     = 0;
-  current_track    = 0;
- 
-  current_cd_drive[0] = 0;
-  current_decoder_info_string[0] = 0;
-  current_filename[0] = 0;
+  memset( &current_file, 0, sizeof current_file );
 
   amp_display_filename();
   amp_invalidate( UPD_ALL );

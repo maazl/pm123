@@ -90,10 +90,10 @@ typedef struct _PLRECORD {
   int         secs;         /* Play time of the file.       */
   int         mode;         /* Type of the stereo mode.     */
   int         freq;         /* Sample rate.                 */
-  size_t      size;         /* Size of the file.            */
+  double      size;         /* Size of the file.            */
   char        track;        /* Number of the CD track.      */
   char        cd_drive[4];  /* Name of the CD drive.        */
-  FORMAT_INFO format;
+  FORMAT_INFO2 format;
   char        decoder_module_name[16];
 
 } PLRECORD, *PPLRECORD;

@@ -526,14 +526,14 @@ proxy_1_decoder_fileinfo( CL_DECODER_PROXY_1* op, const char* filename, DECODER_
     // TODO: large file support
     struct stat fi;
     if ( rc == 0 && stat( filename, &fi ) == 0 )
-      info->tech.filesize = (int)(fi.st_size / 1024);
+      info->tech.filesize = fi.st_size;
   }
   DEBUGLOG(("proxy_1_decoder_fileinfo: %lu\n", rc));
 
   // convert information to new format
   if (rc == 0)
-  { 
-    info->format          = old_info.format;
+  { // Slicing: the structure FORMAT_INFO2 is a subset of FORMAT_INFO. 
+    info->format          = *(const FORMAT_INFO2*)&old_info.format;
     
     info->tech.songlength = old_info.songlength;
     info->tech.bitrate    = old_info.bitrate;

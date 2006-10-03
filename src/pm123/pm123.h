@@ -215,14 +215,14 @@ void  sec2num( long seconds, int* major, int* minor );
 char* amp_url_from_file( char* result, const char* filename, size_t size );
 
 /* Reads ID3 tag from the specified file. */
-BOOL  amp_gettag( const char* filename, META_INFO* info, tune* tag );
+BOOL  amp_gettag( const char* filename, const META_INFO* info, tune* tag );
 /* Wipes ID3 tag from the specified file. */
 BOOL  amp_wipetag( const char* filename );
 /* Writes ID3 tag to the specified file. */
 BOOL  amp_puttag( const char* filename, const tune* tag );
 
 /* Constructs a string of the displayable text from the ID3 tag. */
-char* amp_construct_tag_string( char* result, const tune* tag );
+char* amp_construct_tag_string( char* result, const META_INFO* tag );
 /* Constructs a information text for currently loaded file. */
 void  amp_display_filename( void );
 /* Switches to the next text displaying mode. */
@@ -306,6 +306,20 @@ void PM123_ENTRY pm123_control( int index, void* param );
 void PM123_ENTRY keep_last_error( char *error );
 void PM123_ENTRY display_info( char *info );
 
+typedef struct
+{
+   char          url[4096];           /* large enough to keep URLs */
+   char          decoder[_MAX_FNAME]; /* decoder to play this */
+   DECODER_INFO2 info;                /* information about the object */
+} MSG_PLAY_STRUCT;
+
+/* TODO: there are bad threading issues here
+   if the following two functions are not called from the main thread */
+/* Returns a information block of the currently playing file or NULL if none. */
+const MSG_PLAY_STRUCT* amp_get_playing_file( void );
+/* Returns a information block of the currently loaded file or NULL if none.
+ * This might be different from the loaded file because of pre-fetching. */
+const MSG_PLAY_STRUCT* amp_get_loaded_file( void );
 
 /* Global variables */
 /* -----------------*/
@@ -317,18 +331,6 @@ extern HPOINTER mp3gray;      /* Broken file icon */
 
 /* Contains startup path of the program without its name. */
 extern char startpath[_MAX_PATH];
-/* Contains a name of the currently loaded file. */
-extern char current_filename[_MAX_PATH];
-/* Other parameters of the currently loaded file. */
-extern int  current_bitrate;
-extern int  current_channels;
-extern int  current_length;
-extern int  current_freq;
-extern char current_track;
-extern char current_cd_drive[4];
-extern tune current_tune;
-extern char current_decoder[128];
-extern char current_decoder_info_string[128];
 
 /* Equalizer stuff. */
 extern float gains[20];
@@ -336,16 +338,6 @@ extern BOOL  mutes[20];
 extern float preamp;
 
 /* 123_msg.c */
-typedef struct
-{
-   char* filename;
-   char* out_filename;
-   char* drive;
-   char  track;
-   HWND  hMain;
-   char* decoder_needed;
-
-} MSG_PLAY_STRUCT;
 
 /* Returns TRUE if the decoder is paused. */
 BOOL is_paused( void );

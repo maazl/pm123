@@ -270,7 +270,6 @@ ULONG dec_play( const char* url, const char* decoder_name )
     return rc;
 
   voutput.dparams.URL                   = url;
-  voutput.dparams.posmarker             = 0; // TODO: currently...
   voutput.dparams.output_request_buffer = voutput.procs.output_request_buffer;
   voutput.dparams.output_commit_buffer  = voutput.procs.output_commit_buffer;
   voutput.dparams.a                     = voutput.procs.a;
@@ -913,8 +912,8 @@ dec_fileinfo( const char* filename, DECODER_INFO2* info, char* name )
  ok:
   if (name)
     sfnameext( name, dp->module_name, _MAX_FNAME );
-  DEBUGLOG(("dec_fileinfo: {{, %d, %d, %d, %d}, {%d, %d, %d, %s}} -> %s\n",
-    info->format.samplerate, info->format.channels, info->format.bits, info->format.format,
+  DEBUGLOG(("dec_fileinfo: {{, %d, %d}, {%d, %d, %f, %s}} -> %s\n",
+    info->format.samplerate, info->format.channels,
     info->tech.songlength, info->tech.bitrate, info->tech.filesize, info->tech.info,
     name)); 
   return 0;

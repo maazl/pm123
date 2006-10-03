@@ -318,7 +318,14 @@ static void
 bm_replace_bookmark( HWND owner, BMRECORD* rec )
 {
   if( amp_query( owner, "Replace %s bookmark?", rec->desc )) {
-    bm_update_record( rec, current_filename, rec->desc, out_playing_pos());
+    const MSG_PLAY_STRUCT* current = amp_get_playing_file();
+    if ( current == NULL ) {
+      current = amp_get_loaded_file();
+      if ( current == NULL ) {
+        return; // cant't help, the file is gone
+      }
+    }
+    bm_update_record( rec, current->url, rec->desc, out_playing_pos());
     bm_save( owner );
   }
 }
@@ -706,19 +713,27 @@ bm_add_bookmark( HWND owner )
   BMRECORD* rec;
   HWND      hdlg = WinLoadDlg( HWND_DESKTOP, owner, bm_add_bookmark_dlg_proc,
                                NULLHANDLE, DLG_BM_ADD, NULL );
-  if( *current_filename )
+  const MSG_PLAY_STRUCT* current = amp_get_playing_file();
+  if ( current == NULL ) {
+    current = amp_get_loaded_file();
+    if ( current == NULL ) {
+      return; // can't help, the file is gone
+    }
+  }
+
+  if( *current->url )
   {
-    if( *current_tune.artist ) {
-      strcat( desc, current_tune.artist );
+    if( *current->info.meta.artist ) {
+      strcat( desc, current->info.meta.artist );
       strcat( desc, "-" );
     }
-    if( *current_tune.title  ) {
-      strlcat( desc, current_tune.title, sizeof( desc ));
+    if( *current->info.meta.title  ) {
+      strlcat( desc, current->info.meta.title, sizeof( desc ));
     } else {
-      if( is_url( current_filename )) {
-        sdecode( file, sfname( file, current_filename, sizeof( file )), sizeof( file ));
+      if( is_url( current->url )) {
+        sdecode( file, sfname( file, current->url, sizeof( file )), sizeof( file ));
       } else {
-        sfname( file, current_filename, sizeof( file ));
+        sfname( file, current->url, sizeof( file ));
       }
 
       strlcat( desc, file, sizeof( desc ));
@@ -732,10 +747,10 @@ bm_add_bookmark( HWND owner )
       rec = bm_find_record( desc );
 
       if( rec ) {
-        bm_update_record( rec, current_filename,
+        bm_update_record( rec, current->url,
                                desc, out_playing_pos());
       } else {
-        bm_create_record((BMRECORD*)CMA_END, current_filename,
+        bm_create_record((BMRECORD*)CMA_END, current->url,
                                desc, out_playing_pos());
       }
 

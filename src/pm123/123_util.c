@@ -52,7 +52,7 @@
 
 /* Reads ID3 tag from the specified file. */
 BOOL
-amp_gettag( const char* filename, META_INFO* info, tune* tag )
+amp_gettag( const char* filename, const META_INFO* info, tune* tag )
 {
   int  handle;
   BOOL rc = FALSE;
@@ -83,7 +83,7 @@ amp_gettag( const char* filename, META_INFO* info, tune* tag )
     char cstr[ sizeof( tag->title   ) +
                sizeof( tag->artist  ) +
                sizeof( tag->album   ) +
-               sizeof( tag->comment ) + 1 ];
+               sizeof( tag->comment ) ];
     strcpy( cstr, tag->title   );
     strcat( cstr, tag->artist  );
     strcat( cstr, tag->album   );
@@ -150,7 +150,7 @@ amp_puttag( const char* filename, const tune* tag )
 
 /* Constructs a string of the displayable text from the ID3 tag. */
 char*
-amp_construct_tag_string( char* result, const tune* tag )
+amp_construct_tag_string( char* result, const META_INFO* tag )
 {
   *result = 0;
 
@@ -196,67 +196,6 @@ amp_construct_tag_string( char* result, const tune* tag )
   }
 
   return result;
-}
-
-/* Constructs a information text for currently loaded file
-   and selects it for displaying. */
-void
-amp_display_filename( void )
-{
-  char display[512];
-
-  if( amp_playmode == AMP_NOFILE ) {
-    bmp_set_text( "No file loaded" );
-    return;
-  }
-
-  switch( cfg.viewmode )
-  {
-    case CFG_DISP_ID3TAG:
-      amp_construct_tag_string( display, &current_tune );
-
-      if( *display ) {
-        bmp_set_text( display );
-        break;
-      }
-
-      // if ID3 tag is empty - use filename instead of it.
-
-    case CFG_DISP_FILENAME:
-      if( current_cd_drive[0] != 0 && current_track != 0 )
-      {
-        sprintf( display, "%s\\Track %02d", current_cd_drive, current_track );
-        bmp_set_text( display );
-      }
-      else if( current_filename != NULL && *current_filename )
-      {
-        if( is_http( current_filename )) {
-          bmp_set_text( current_filename );
-        } else {
-          bmp_set_text( sfname( display, current_filename, sizeof( display )));
-        }
-      } else {
-         bmp_set_text( "This is a bug!" );
-      }
-      break;
-
-    case CFG_DISP_FILEINFO:
-      bmp_set_text( current_decoder_info_string );
-      break;
-  }
-}
-
-/* Switches to the next text displaying mode. */
-void
-amp_display_next_mode( void )
-{
-  if( cfg.viewmode == CFG_DISP_FILEINFO ) {
-    cfg.viewmode = CFG_DISP_FILENAME;
-  } else {
-    cfg.viewmode++;
-  }
-
-  amp_display_filename();
 }
 
 /* Converts time to two integer suitable for display by the timer. */
@@ -331,8 +270,10 @@ int PM123_ENTRY pm123_getstring(int index, int subindex, size_t bufsize, char *b
      strlcpy( buf, bmp_query_text(), bufsize );
      break;
    case STR_FILENAME:
-     strlcpy(buf, current_filename, bufsize);
+   { const MSG_PLAY_STRUCT* current = amp_get_playing_file();
+     strlcpy(buf, current != NULL ? current->url : "", bufsize);
      break;
+   }
    default: break;
   }
  return(0);

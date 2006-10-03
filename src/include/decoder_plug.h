@@ -108,7 +108,6 @@ typedef struct _DECODER_PARAMS2
    /* --- DECODER_PLAY, STOP */
 
    const char* URL;
-   int   posmarker;   /* position marker of file start */
 
    /* --- DECODER_REW, FFWD and JUMPTO */
 
@@ -188,10 +187,10 @@ ULONG PM123_ENTRY decoder_length( void* w );
 
 /* Technical information about the data source */
 typedef struct
-{  int  songlength;     /* in milliseconds, smaller than 0 -> unknown */
-   int  bitrate;        /* in kbit/s, smaller than 0 -> unknown */
-   int  filesize;       /* physical size of the file in kiB, smaller than 0 -> unknown */
-   char info[128];      /* general technical information string */
+{  int    songlength;   /* in milliseconds, smaller than 0 -> unknown */
+   int    bitrate;      /* in kbit/s, smaller than 0 -> unknown */
+   double filesize;     /* physical size of the file, smaller than 0 -> unknown */
+   char   info[128];    /* general technical information string */
 } TECH_INFO;
 
 /* Logical information about the data source */
@@ -252,11 +251,11 @@ typedef struct
 {
    int  size;
 
-   FORMAT_INFO format;  /* stream format after decoding */
+   FORMAT_INFO2 format;  /* stream format after decoding */
    
-   TECH_INFO   tech;    /* technical informations about the source */
+   TECH_INFO    tech;    /* technical informations about the source */
 
-   META_INFO   meta;    /* song information */
+   META_INFO    meta;    /* song information */
 
 } DECODER_INFO2;
 
