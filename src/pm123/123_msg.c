@@ -49,8 +49,6 @@
 #include <debuglog.h>
 
 
-static DECODER_PARAMS2 dec_params;
-
 static BOOL  paused        = FALSE;
 static BOOL  forwarding    = FALSE;
 static BOOL  rewinding     = FALSE;
@@ -75,8 +73,6 @@ void
 amp_msg( int msg, void *param, void *param2 )
 {
   ULONG rc;
-
-  memset( &dec_params, '\0', sizeof( dec_params ));
 
   switch( msg ) {
     case MSG_PLAY:
