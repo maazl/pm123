@@ -64,6 +64,7 @@
 #define  AMP_REFRESH_CONTROLS ( WM_USER + 121   )
 #define  AMP_DISPLAYMSG       ( WM_USER + 76    )
 #define  AMP_PAINT            ( WM_USER + 77    )
+/* Stop playback from main thread */
 #define  AMP_STOP             ( WM_USER + 78    )
 
 #define  TID_UPDATE_TIMERS    ( TID_USERMAX - 1 )
@@ -287,7 +288,7 @@ amp_set_bubbletext( USHORT id, const char *text )
 BOOL
 amp_pl_load_record( PLRECORD* rec )
 {
-  DECODER_INFO info;
+  DECODER_INFO2 info;
   struct stat  fi;
 
   if( !rec ) {
@@ -304,24 +305,20 @@ amp_pl_load_record( PLRECORD* rec )
   strcpy( current_cd_drive, rec->cd_drive );
   strcpy( current_decoder_info_string, rec->info_string );
 
-  if( is_track( current_filename )) {
-    dec_trackinfo( rec->cd_drive, rec->track, &info, NULL );
-  } else {
-    dec_fileinfo ( current_filename, &info, NULL );
-  }
+  dec_fileinfo ( current_filename, &info, NULL );
 
-  amp_gettag( current_filename, &info, &current_tune );
+  amp_gettag( current_filename, &info.meta, &current_tune );
 
   if( is_http( current_filename ) && !*current_tune.title ) {
     strlcpy( current_tune.title, rec->songname, sizeof( current_tune.title ));
   }
 
-  current_format   = rec->format;
+  current_format   = info.format;
 
-  current_bitrate  = rec->bitrate;
-  current_channels = rec->channels;
-  current_length   = info.songlength/1000;
-  current_freq     = rec->freq;
+  current_bitrate  = info.tech.bitrate;
+  current_channels = info.format.channels;
+  current_length   = info.tech.songlength/1000;
+  current_freq     = info.format.samplerate;
   current_track    = rec->track;
 
   if( amp_playmode == AMP_PLAYLIST ) {
@@ -412,13 +409,12 @@ amp_pl_release( void )
 BOOL
 amp_load_singlefile( const char* filename, int options )
 {
-  DECODER_INFO info;
+  DECODER_INFO2 info;
 
   int    i;
   ULONG  rc;
   char   module_name[128];
-  char   cd_drive[4] = "1:";
-  int    cd_track    = -1;
+  CDDA_REGION_INFO cd_info = {"", 0};
   struct stat fi;
 
   if( is_playlist( filename )) {
@@ -432,17 +428,12 @@ amp_load_singlefile( const char* filename, int options )
 
   memset( &info, 0, sizeof( info ));
 
-  if( is_track( filename )) {
-    sscanf( filename, "cd:///%1c:\\Track %d", cd_drive, &cd_track );
-    if( cd_drive[0] == '1' || cd_track == -1 ) {
-      amp_error( hplayer, "Invalid CD URL:\n%s", filename );
-      return FALSE;
-    }
-    rc = dec_trackinfo( cd_drive, cd_track, &info, module_name );
-  } else {
-    rc = dec_fileinfo((char*)filename, &info, module_name );
-    cd_drive[0] = 0;
+  if ( is_cdda( filename ) && !scdparams( &cd_info, filename ) ) {
+    amp_error( hplayer, "Invalid CD URL:\n%s", filename );
+    return FALSE;
   }
+
+  rc = dec_fileinfo((char*)filename, &info, module_name );
 
   if( rc != 0 ) { /* error, invalid file */
     amp_reset();
@@ -453,19 +444,18 @@ amp_load_singlefile( const char* filename, int options )
   amp_stop();
   amp_pl_release();
 
-  // TODO: buffer overflow!
-  strcpy( current_filename, filename );
-  strcpy( current_decoder, module_name );
-  strcpy( current_cd_drive, cd_drive );
-  strcpy( current_decoder_info_string, info.tech_info );
+  strlcpy( current_filename,            filename,       sizeof current_filename );
+  strlcpy( current_decoder,             module_name,    sizeof current_decoder );
+  strlcpy( current_cd_drive,            cd_info.drive,  sizeof current_cd_drive );
+  strlcpy( current_decoder_info_string, info.tech.info, sizeof current_decoder_info_string );
 
-  amp_gettag( filename, &info, &current_tune );
+  amp_gettag( filename, &info.meta, &current_tune );
   current_format   = info.format;
-  current_bitrate  = info.bitrate;
-  current_channels = info.mode;
-  current_length   = info.songlength / 1000;
+  current_bitrate  = info.tech.bitrate;
+  current_channels = info.format.channels;
+  current_length   = info.tech.songlength / 1000;
   current_freq     = info.format.samplerate;
-  current_track    = cd_track;
+  current_track    = cd_info.track;
 
   amp_display_filename();
   amp_invalidate( UPD_FILEINFO );
@@ -757,28 +747,27 @@ amp_add_tracks_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
     case WM_COMMAND:
       if( COMMANDMSG(&msg)->cmd == PB_REFRESH )
       {
-        char drive[3];
-        char track[32];
+        char cdurl[32] = "cdda:///";
         int  options = WinQueryWindowULong( hwnd, QWL_USER );
         int  i;
 
         DECODER_CDINFO cdinfo;
-        DECODER_INFO   trackinfo;
+        DECODER_INFO2  trackinfo;
 
-        WinQueryDlgItemText( hwnd, CB_DRIVE, sizeof( drive ), drive );
+        WinQueryDlgItemText( hwnd, CB_DRIVE, sizeof( cdurl )-8, cdurl+8 );
         WinSendDlgItemMsg( hwnd, LB_TRACKS, LM_DELETEALL, 0, 0 );
 
-        if( dec_cdinfo( drive, &cdinfo ) == 0 ) {
+        if( dec_cdinfo( cdurl+8, &cdinfo ) == 0 ) {
           if( cdinfo.firsttrack ) {
             for( i = cdinfo.firsttrack; i <= cdinfo.lasttrack; i++ ) {
-              if ( dec_trackinfo( drive, i, &trackinfo, NULL) == 0 &&
-                   *trackinfo.title != 0 ) {
+              sprintf( cdurl+10, "/Track %02d", i );
+              if ( dec_fileinfo( cdurl, &trackinfo, NULL) == 0 &&
+                   *trackinfo.meta.title != 0 ) {
                 WinSendDlgItemMsg( hwnd, LB_TRACKS, LM_INSERTITEM,
-                                   MPFROMSHORT( LIT_END ), MPFROMP( trackinfo.title ));
+                                   MPFROMSHORT( LIT_END ), MPFROMP( trackinfo.meta.title ));
               } else {
-                sprintf( track,"Track %02d", i );
                 WinSendDlgItemMsg( hwnd, LB_TRACKS, LM_INSERTITEM,
-                                   MPFROMSHORT( LIT_END ), MPFROMP( track ));
+                                   MPFROMSHORT( LIT_END ), MPFROMP( cdurl+11 ));
               }
             }
             if( options & TRK_ADD_TO_LIST ) {

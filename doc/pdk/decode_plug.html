@@ -17,10 +17,12 @@
 <p>
 Decoder plug-ins must implement and export the functions defined in
 decoder_plug.h.
+<blockquote>
 <pre>
-     int  PM123_ENTRY <b>decoder_init</b>  ( void **w )
-     BOOL PM123_ENTRY <b>decoder_uninit</b>( void *w  )
-</pre><ul>
+int  PM123_ENTRY <b>decoder_init</b>  ( void **w )
+BOOL PM123_ENTRY <b>decoder_uninit</b>( void *w  )</pre>
+</blockquote>
+<ul>
 <li>w : Allocate any chunk of memory necessary for the decoder's
 function. This pointer will be passed to the other functions.
 <li>return value : -1 means the decoder was not initialized
@@ -35,8 +37,9 @@ than yours is needed, and should destroy the decoder's thread,
 semaphores, other opened handles and free allocated memory for <i>w</i>.
 
 <h4><a name="control_interface"></a>Control interface</h4>
-<pre>
-     ULONG PM123_ENTRY <b>decoder_command</b>( void *w, ULONG msg, DECODER_PARAMS2 *params )</pre>
+<blockquote>
+<pre>ULONG PM123_ENTRY <b>decoder_command</b>( void *w, ULONG msg, DECODER_PARAMS2 *params )</pre>
+</blockquote>
 <ul>
 <li>msg: one of the following:
 <ul>
@@ -89,25 +92,25 @@ garanteed to be available to PM123 without memory leaking.
 <p>
 Streaming metadata currently is for SHOUTcast (and icecast is using the same
 method), so it is a string with the following format:
-<pre>
-     StreamingTitle='blah blah';StreamingURL='more useless information';
-</pre>
+<blockquote>
+<pre>StreamingTitle='blah blah';StreamingURL='more useless information';</pre>
+</blockquote>
 Only StreamingTitle is used by PM123.
 
 <h4><a name="status_interface"></a>Status Interface</h4>
 <p>The status interface has to be thread safe.</p> 
-<pre>
-     ULONG PM123_ENTRY <b>decoder_status</b>( void *w )
-</pre>
+<blockquote>
+<pre>ULONG PM123_ENTRY <b>decoder_status</b>( void *w )</pre>
+</blockquote>
 <ul>
 <li>return value - One of the following:<br>
 DECODER_STOPPED<br>
 DECODER_PLAYING<br>
 DECODER_STARTING<br>
 </ul>
-<pre>
-     ULONG PM123_ENTRY <b>decoder_length</b>( void *w )
-</pre>
+<blockquote>
+<pre>ULONG PM123_ENTRY <b>decoder_length</b>( void *w )</pre>
+</blockquote>
 <ul>
 <li>return value - number of milliseconds the stream lasts (you can
 report <code>(ULONG)-1</code> if unknown).
@@ -121,9 +124,9 @@ example).
 <p>The info interface functions must be independent of the current decoder status.
 They should always be functionnaly and give consistent results in any conditions.
 </p>
-<pre>
-     ULONG PM123_ENTRY <b>decoder_fileinfo</b>( const char *url, DECODER_INFO *info )
-</pre>
+<blockquote>
+<pre>ULONG PM123_ENTRY <b>decoder_fileinfo</b>( const char *url, DECODER_INFO2 *info )</pre>
+</blockquote>
 <ul>
 <li><var>url</var> - URL to the desired stream. See <a href="#url_samples">URL samples</a>.
 <li><var>info</var> - this structure must be filled with the required information.
@@ -134,9 +137,9 @@ They should always be functionnaly and give consistent results in any conditions
 1001 = http error occured.<br>
 other values = errno.
 </ul>
-<pre>
-     ULONG PM123_ENTRY <b>decoder_cdinfo</b>( const char *drive, DECODER_CDINFO *info )
-</pre>
+<blockquote>
+<pre>ULONG PM123_ENTRY <b>decoder_cdinfo</b>( const char *drive, DECODER_CDINFO *info )</pre>
+</blockquote>
 <ul>
 <li>drive: ...
 <li><var>info</var> - required info on the number of tracks available from the
@@ -145,9 +148,9 @@ decoder.</lI>
 <p>
 This is used by PM123 before calling <code>decoder_fileinfo</code> with a cdda URL.
 You need not to export this function unless <code>decoder_support</code> returns the DECODER_TRACK flag. 
-<pre>
-    ULONG PM123_ENTRY <b>decoder_support</b>( char *const fileext[], int *size )
-</pre>
+<blockquote>
+<pre>ULONG PM123_ENTRY <b>decoder_support</b>( char *const fileext[], int *size )</pre>
+</blockquote>
 <ul>
 <li><var>fileext</var> - fill this array with all the wildcard expression matching
 filenames this decoder can play (each element is a 8 bytes char array).
@@ -176,9 +179,9 @@ decoder. Extentions can be for example "*.MOD".
 <p>You must call <code>output_request_buffer</code> and <code>output_commit_buffer</code>
   alternatingly to pass the samples to the next plug-in. Anything else is an error.</p>
 
-<pre>
-    int (PM123_ENTRYP <b>output_request_buffer</b>)( void* a, const FORMAT_INFO2* format, short** buf )
-</pre>
+<blockquote>
+<pre>int (PM123_ENTRYP <b>output_request_buffer</b>)( void* a, const FORMAT_INFO2* format, short** buf )</pre>
+</blockquote>
 <ul>
   <li><var>a</var> - pointer from <code>DECODER_PARAMS2</code>.
   <li><var>format</var> - format of the passed samples.<br>
@@ -190,9 +193,9 @@ decoder. Extentions can be for example "*.MOD".
 </ul>
 <p>If you get a smaller buffer as you need to pass your data you should call <code>output_request_buffer</code> and <code>output_commit_buffer</code> again untill all your data is consumed.
   There is no guaranteed minimum size of the buffer. You should not expect this to get very small buffers quite often.</p>
-<pre>
-    void (PM123_ENTRYP <b>output_commit_buffer</b>)( void* a, int len, int posmarker )
-</pre>
+<blockquote>
+<pre>void (PM123_ENTRYP <b>output_commit_buffer</b>)( void* a, int len, int posmarker )</pre>
+</blockquote>
 <ul>
   <li><var>a</var> - pointer from <code>DECODER_PARAMS2</code>.
   <li><var>len</var> - used number of samples placed in the buffer.
@@ -201,9 +204,9 @@ decoder. Extentions can be for example "*.MOD".
 <p>The length must not be higher than the the return value from the previous <code>output_request_buffer</code> call.
   But it might be less than the requested length.
   This causes no significant performance impact as long as you do not always pass very few samples.</p>
-<pre>
-    void PM123_ENTRY <b>decoder_event</b>(void* w, OUTEVENTTYPE event);
-</pre>
+<blockquote>
+<pre>void PM123_ENTRY <b>decoder_event</b>(void* w, OUTEVENTTYPE event);</pre>
+</blockquote>
 <ul>
   <li><var>w</var> - pointer from <code>decoder_init</code>
   <li><var>event</var> - one of the following values<br>
@@ -226,8 +229,9 @@ decoder. Extentions can be for example "*.MOD".
   This part of the interface has not been changed.</p>
 
 <h4><a name="control_interface1"></a>Control interface</h4>
-<pre>
-    ULONG PM123_ENTRY decoder_command( void *w, ULONG msg, DECODER_PARAMS *params )</pre>
+<blockquote>
+<pre>ULONG PM123_ENTRY decoder_command( void *w, ULONG msg, DECODER_PARAMS *params )</pre>
+</blockquote>
 <ul>
 <li>msg: one of the following:
 <ul>
@@ -272,9 +276,9 @@ garanteed to be available to PM123 without memory leaking.
 <p>
 Streaming metadata currently is for SHOUTcast (and icecast is using the same
 method), so it is a string with the following format:
-<pre>
-     StreamingTitle='blah blah';StreamingURL='more useless information';
-</pre>
+<blockquote>
+<pre>StreamingTitle='blah blah';StreamingURL='more useless information';</pre>
+</blockquote>
 Only StreamingTitle is used by PM123.
 
 <h4>Status Interface</h4>
@@ -285,9 +289,9 @@ Only StreamingTitle is used by PM123.
 <p>The info interface functions must be independent of the current decoder status.
 They should always be functionnaly and give consistent results in any conditions.
 </p>
-<pre>
-     ULONG PM123_ENTRY <b>decoder_fileinfo</b>( const char *url, DECODER_INFO *info )
-</pre>
+<blockquote>
+<pre>ULONG PM123_ENTRY <b>decoder_fileinfo</b>( const char *url, DECODER_INFO *info )</pre>
+</blockquote>
 <ul>
 <li><var>url</var> - full path or URL to the desired stream.
 <li><var>info</var> - this structure must be filled with the required information.
@@ -298,9 +302,9 @@ They should always be functionnaly and give consistent results in any conditions
 1001 = http error occured.<br>
 other values = errno.
 </ul>
-<pre>
-     ULONG PM123_ENTRY <b>decoder_trackinfo</b>( const char *drive, int track, DECODER_INFO *info )
-</pre>
+<blockquote>
+<pre>ULONG PM123_ENTRY <b>decoder_trackinfo</b>( const char *drive, int track, DECODER_INFO *info )</pre>
+</blockquote>
 <ul>
 <li><var>drive</var> - ie.: "X:"
 <li><var>track</var> - CD tracks start from 1.
@@ -312,18 +316,18 @@ other values = errno.
 1001 = http error occured.<br>
 other values = errno.
 </ul>
-<pre>
-     ULONG PM123_ENTRY <b>decoder_cdinfo</b>( char *drive, DECODER_CDINFO *info )
-</pre>
+<blockquote>
+<pre>ULONG PM123_ENTRY <b>decoder_cdinfo</b>( char *drive, DECODER_CDINFO *info )</pre>
+</blockquote>
 <ul>
 <li>drive: ...
 <li><var>info</var> - required info on the number of tracks available from the decoder.</lI>
 </ul>
 <p>
 This is used by PM123 before calling <code>decoder_trackinfo</code>.
-<pre>
-    ULONG PM123_ENTRY decoder_support( char *fileext[], int *size )
-</pre>
+<blockquote>
+<pre>ULONG PM123_ENTRY decoder_support( char *fileext[], int *size )</pre>
+</blockquote>
 <ul>
 <li><var>fileext</var> - fill this array with all the wildcard expression matching
 filenames this decoder can play (each element is a 8 bytes char array).
@@ -347,9 +351,9 @@ decoder. Extentions can be for example "*.MOD".
  at the <a href="#control_interface1">DECODER_SETUP</a> call.<br>
  The interface functions have to be called by the decoder in a separate thread.</p>
 
-<pre>
-    int (PM123_ENTRYP <b>output_play_samples</b>)( void* a, const FORMAT_INFO* format, const char* buf, int len, int posmarker )
-</pre>
+<blockquote>
+<pre>int (PM123_ENTRYP <b>output_play_samples</b>)( void* a, const FORMAT_INFO* format, const char* buf, int len, int posmarker )</pre>
+</blockquote>
 <ul>
   <li><var>a</var> - pointer from <code>DECODER_PARAMS</code>.
   <li><var>format</var> - format of the passed samples.<br>

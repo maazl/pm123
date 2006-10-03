@@ -122,8 +122,7 @@ BOOL  dec_is_active( int number );
 /* gets a merged list of the file types supported by the enabled decoders */
 void  dec_fill_types( char* result, size_t size );
 
-ULONG PM123_ENTRY dec_fileinfo( const char* filename, DECODER_INFO* info, char* name );
-ULONG PM123_ENTRY dec_trackinfo( const char* drive, int track, DECODER_INFO* info, char* name );
+ULONG PM123_ENTRY dec_fileinfo( const char* filename, DECODER_INFO2* info, char* name );
 ULONG PM123_ENTRY dec_cdinfo( char* drive, DECODER_CDINFO* info );
 ULONG PM123_ENTRY dec_status( void );
 ULONG PM123_ENTRY dec_length( void );

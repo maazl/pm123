@@ -215,7 +215,7 @@ void  sec2num( long seconds, int* major, int* minor );
 char* amp_url_from_file( char* result, const char* filename, size_t size );
 
 /* Reads ID3 tag from the specified file. */
-BOOL  amp_gettag( const char* filename, DECODER_INFO* info, tune* tag );
+BOOL  amp_gettag( const char* filename, META_INFO* info, tune* tag );
 /* Wipes ID3 tag from the specified file. */
 BOOL  amp_wipetag( const char* filename );
 /* Writes ID3 tag to the specified file. */

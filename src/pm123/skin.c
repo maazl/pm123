@@ -1042,6 +1042,9 @@ bmp_draw_tiny_timer( HPS hps, int pos_id, long time )
 void
 bmp_draw_channels( HPS hps, int channels )
 {
+  int     id;
+  POINTL* pos;
+
   if( cfg.mode != CFG_MODE_REGULAR ) {
     return;
   }
@@ -1073,32 +1076,25 @@ bmp_draw_channels( HPS hps, int channels )
 
   switch( channels )
   {
-    case -1:
-      if( bmp_pos[ POS_NO_CHANNELS ].x != POS_UNDEF &&
-          bmp_pos[ POS_NO_CHANNELS ].y != POS_UNDEF )
-      {
-        bmp_draw_bitmap ( hps, bmp_pos[ POS_NO_CHANNELS ].x,
-                               bmp_pos[ POS_NO_CHANNELS ].y, BMP_NO_CHANNELS );
-      }
-      break;
-
-    case  3:
-      if( bmp_pos[ POS_MONO ].x != POS_UNDEF &&
-          bmp_pos[ POS_MONO ].y != POS_UNDEF )
-      {
-        bmp_draw_bitmap( hps, bmp_pos[ POS_MONO ].x,
-                              bmp_pos[ POS_MONO ].y, BMP_MONO );
-      }
-      break;
-
     default:
-      if( bmp_pos[ POS_STEREO ].x != POS_UNDEF &&
-          bmp_pos[ POS_STEREO ].y != POS_UNDEF )
-      {
-        bmp_draw_bitmap( hps, bmp_pos[ POS_STEREO ].x,
-                              bmp_pos[ POS_STEREO ].y, BMP_STEREO );
-      }
+      id  = BMP_NO_CHANNELS;
+      pos = bmp_pos + POS_NO_CHANNELS;
       break;
+
+    case 1:
+      id  = BMP_MONO;
+      pos = bmp_pos + POS_MONO;
+      break;
+
+    case 2:
+      id  = BMP_STEREO;
+      pos = bmp_pos + POS_STEREO;
+      break;
+  }
+  
+  if( pos->x != POS_UNDEF && pos->y != POS_UNDEF )
+  {
+    bmp_draw_bitmap( hps, pos->x, pos->y, id );
   }
 }
 
@@ -1202,6 +1198,8 @@ bmp_draw_rate( HPS hps, int rate )
   char buf[32];
   int  x = bmp_pos[ POS_BPS ].x;
   int  y = bmp_pos[ POS_BPS ].y;
+  
+  DEBUGLOG(("bmp_draw_rate(%p, %d)\n", hps, rate));
 
   if( cfg.mode != CFG_MODE_REGULAR ) {
     return;

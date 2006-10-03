@@ -69,10 +69,10 @@ typedef struct _OUTPUT_PARAMS
 } OUTPUT_PARAMS;
 
 typedef enum
-{ OUTEVENT_END_OF_DATA,
-  OUTEVENT_LOW_WATER,
-  OUTEVENT_HIGH_WATER,
-  OUTEVENT_PLAY_ERROR
+{ OUTEVENT_END_OF_DATA,   // The flush signal is passed to the ouput plugin and the last sample has been played
+  OUTEVENT_LOW_WATER,     // The buffers of the output plug-in are getting low. Try to speed up the data source.
+  OUTEVENT_HIGH_WATER,    // The buffers of the output plug-in are sufficiently filled.
+  OUTEVENT_PLAY_ERROR     // The plug-in detected a fatal error stop immediately.
 } OUTEVENTTYPE; 
 
 typedef struct _OUTPUT_PARAMS2

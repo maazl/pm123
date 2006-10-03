@@ -862,10 +862,11 @@ static BOOL is_file_supported(const char* const* support, const char* url)
 /* Returns the decoder NAME that can play this file and returns 0
    if not returns error 200 = nothing can play that. */
 ULONG PM123_ENTRY
-dec_fileinfo( const char* filename, DECODER_INFO* info, char* name )
+dec_fileinfo( const char* filename, DECODER_INFO2* info, char* name )
 {
   BOOL* checked = (BOOL*)alloca( sizeof( BOOL ) * decoders.count() );
   int   i;
+  const CL_DECODER* dp;
 
   memset( checked, 0, sizeof( BOOL ) * decoders.count() );
   
@@ -876,16 +877,27 @@ dec_fileinfo( const char* filename, DECODER_INFO* info, char* name )
     strcpy(fname+7, filename);
     filename = fname;
   }
-
-  const CL_DECODER* dp;
-  // First checks decoders supporting the specified type of files.
-  for (i = 0; i < decoders.count(); i++)
-  { dp = &(const CL_DECODER&)decoders[i];
-    if (!dp->get_enabled() || !is_file_supported(dp->get_procs().support, filename))
-      continue;
-    checked[i] = TRUE;
-    if (dp->get_procs().decoder_fileinfo(filename, info) == 0)
-      goto ok;
+  
+  if (is_track(filename))
+  { // check decoders that claim to support tracks
+    for( i = 0; i < decoders.count(); i++ )
+    { dp = &(const CL_DECODER&)decoders[i];
+      if (!dp->get_enabled() || !(dp->get_procs().type & DECODER_TRACK) )
+        continue;
+      checked[i] = TRUE;
+      if (dp->get_procs().decoder_fileinfo(filename, info) == 0)
+        goto ok;
+    }
+  } else
+  { // First checks decoders supporting the specified type of files.
+    for (i = 0; i < decoders.count(); i++)
+    { dp = &(const CL_DECODER&)decoders[i];
+      if (!dp->get_enabled() || !is_file_supported(dp->get_procs().support, filename))
+        continue;
+      checked[i] = TRUE;
+      if (dp->get_procs().decoder_fileinfo(filename, info) == 0)
+        goto ok;
+    }
   }
 
   // Next checks the rest decoders.
@@ -901,34 +913,11 @@ dec_fileinfo( const char* filename, DECODER_INFO* info, char* name )
  ok:
   if (name)
     sfnameext( name, dp->module_name, _MAX_FNAME );
-  DEBUGLOG(("dec_fileinfo: {{, %d, %d, %d, %d}}, %d, %d, ...} -> %s\n",
+  DEBUGLOG(("dec_fileinfo: {{, %d, %d, %d, %d}, {%d, %d, %d, %s}} -> %s\n",
     info->format.samplerate, info->format.channels, info->format.bits, info->format.format,
-    info->songlength, info->junklength, name)); 
+    info->tech.songlength, info->tech.bitrate, info->tech.filesize, info->tech.info,
+    name)); 
   return 0;
-}
-
-ULONG PM123_ENTRY
-dec_trackinfo( const char* drive, int track, DECODER_INFO* info, char* name )
-{
-  ULONG last_rc = 200;
-  int i;
-  char cdda_url[20];
-  
-  sprintf(cdda_url, "cdda:///%s/track%02d", drive, track);
-
-  for( i = 0; i < decoders.count(); i++ )
-  { const CL_DECODER& dec = (const CL_DECODER&)decoders[i];
-    if( dec.get_enabled() && (dec.get_procs().type & DECODER_TRACK) )
-    { last_rc = dec.get_procs().decoder_fileinfo( cdda_url, info );
-      DEBUGLOG(("dec_trackinfo: %s->decoder_fileinfo: %d\n", dec.module_name, last_rc)); 
-      if( last_rc == 0 )
-      { if ( name != NULL )
-          sfnameext( name, dec.module_name, _MAX_FNAME );
-        return 0;
-      }
-    }
-  }
-  return last_rc; // returns only the last RC ... hum
 }
 
 ULONG PM123_ENTRY

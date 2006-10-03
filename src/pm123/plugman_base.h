@@ -202,7 +202,7 @@ struct DECODER_PROCS
   void  (PM123_ENTRYP decoder_event    )( void*  w, OUTEVENTTYPE event );
   ULONG (PM123_ENTRYP decoder_status   )( void*  w );
   ULONG (PM123_ENTRYP decoder_length   )( void*  w );
-  ULONG (PM123_ENTRYP decoder_fileinfo )( const char* filename, DECODER_INFO *info );
+  ULONG (PM123_ENTRYP decoder_fileinfo )( const char* filename, DECODER_INFO2* info );
   ULONG (PM123_ENTRYP decoder_cdinfo   )( const char* drive, DECODER_CDINFO* info );
   ULONG (PM123_ENTRYP decoder_support  )( char*  ext[], int* size );
   // Result from the decoder_support call. Supported data sources.

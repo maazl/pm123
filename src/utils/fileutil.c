@@ -451,8 +451,8 @@ CDDA_REGION_INFO* scdparams( CDDA_REGION_INFO* result, const char* location )
   result->sectors[0] = 0;
   result->sectors[1] = 0;
   cp = strchr(location, ':') +3;
-  if ( ( sscanf(cp, "/%c:/track%d%n", &result->drive[0], &result->track, &len) != 2 // track
-    && sscanf(cp, "/%c:/frame%d-%d%n", &result->drive[0], &result->sectors[0], &result->sectors[1], &len) != 3 ) // sectors
+  if ( ( sscanf(cp, "/%c:%*1[/\\]%*1[Tt]rack%d%n", &result->drive[0], &result->track, &len) != 2 // track
+    && sscanf(cp, "/%c:%*1[/\\]%*1[Ff]rame%d-%d%n", &result->drive[0], &result->sectors[0], &result->sectors[1], &len) != 3 ) // sectors
       || len != strlen(cp) )
   /*{ fprintf(stderr, "scdparams: error %d-%d: %c, %d, %d, %d\n",
       len, strlen(cp), result->drive[0], result->track, result->sectors[0], result->sectors[1]);*/

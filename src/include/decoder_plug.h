@@ -11,17 +11,30 @@ extern "C" {
 int  PM123_ENTRY decoder_init  ( void** w );
 BOOL PM123_ENTRY decoder_uninit( void*  w );
 
-#define DECODER_PLAY     1 /* returns 101 -> already playing
-                                      102 -> error, decoder killed and restarted */
-#define DECODER_STOP     2 /* returns 101 -> already stopped
-                                      102 -> error, decoder killed (and stopped) */
-#define DECODER_FFWD     3
-#define DECODER_REW      4
-#define DECODER_JUMPTO   5
-#define DECODER_SETUP    6
-#define DECODER_EQ       7
-#define DECODER_BUFFER   8
-#define DECODER_SAVEDATA 9
+typedef enum
+{
+  DECODER_PLAY     = 1, /* returns 101 -> already playing
+                                   102 -> error, decoder killed and restarted */
+  DECODER_STOP     = 2, /* returns 101 -> already stopped
+                                   102 -> error, decoder killed (and stopped) */
+  DECODER_FFWD     = 3,
+  DECODER_REW      = 4,
+  DECODER_JUMPTO   = 5,
+  DECODER_SETUP    = 6,
+  DECODER_EQ       = 7,
+  DECODER_BUFFER   = 8,
+  DECODER_SAVEDATA = 9
+} DECMSGTYPE;
+
+typedef enum
+{
+  DECEVENT_PLAYSTOP,    /* The decoder finished decoding */
+  DECEVENT_PLAY_ERROR,  /* The decoder cannot play more of this file */
+  DECEVENT_SEEKSTOP,    /* JUMPTO operation is completed */
+  DEVEVENT_CHANGETECH,  /* change bitrate or samplingrate, param points to TECH_INFO structure */
+  DECEVENT_CHANGEMETA   /* change metadata, param points to META_INFO structure */ 
+} DECEVENTTYPE;
+
 
 typedef struct _DECODER_PARAMS
 {
@@ -152,8 +165,8 @@ typedef struct _DECODER_PARAMS2
 #if !defined(DECODER_PLUGIN_LEVEL) || DECODER_PLUGIN_LEVEL <= 1 
 ULONG PM123_ENTRY decoder_command( void* w, ULONG msg, DECODER_PARAMS* params );
 #else
-ULONG PM123_ENTRY decoder_command( void* w, ULONG msg, DECODER_PARAMS2* params );
-void  PM123_ENTRY decoder_event( void* w, OUTEVENTTYPE event );
+ULONG PM123_ENTRY decoder_command( void* w, DECMSGTYPE msg, DECODER_PARAMS2* params );
+void  PM123_ENTRY decoder_event( void* w, DECEVENTTYPE event, void* param );
 #endif
 
 #define DECODER_STOPPED  0
@@ -172,6 +185,26 @@ ULONG PM123_ENTRY decoder_length( void* w );
 #define DECODER_MODE_JOINT_STEREO   1
 #define DECODER_MODE_DUAL_CHANNEL   2
 #define DECODER_MODE_SINGLE_CHANNEL 3
+
+/* Technical information about the data source */
+typedef struct
+{  int  songlength;     /* in milliseconds, smaller than 0 -> unknown */
+   int  bitrate;        /* in kbit/s, smaller than 0 -> unknown */
+   int  filesize;       /* physical size of the file in kiB, smaller than 0 -> unknown */
+   char info[128];      /* general technical information string */
+} TECH_INFO;
+
+/* Logical information about the data source */
+typedef struct
+{
+   char title[128];
+   char artist[128];
+   char album[128];
+   char year[128];
+   char comment[128];
+   char genre[128];
+   int  track;          /* <0 = unknown */
+} META_INFO;
 
 /* NOTE: the information returned is only based on the FIRST header */
 typedef struct _DECODER_INFO
@@ -214,14 +247,29 @@ typedef struct _DECODER_INFO
 
 } DECODER_INFO;
 
+/* NOTE: the information returned is only based on the FIRST header */
+typedef struct
+{
+   int  size;
+
+   FORMAT_INFO format;  /* stream format after decoding */
+   
+   TECH_INFO   tech;    /* technical informations about the source */
+
+   META_INFO   meta;    /* song information */
+
+} DECODER_INFO2;
+
 /* returns
       0 = everything's perfect, structure is set
       100 = error reading file (too small?)
       200 = decoder can't play that
       1001 = http error occured, check http_strerror() for string;
       other values = errno */
+#if defined(DECODER_PLUGIN_LEVEL) && DECODER_PLUGIN_LEVEL > 1 
+ULONG PM123_ENTRY decoder_fileinfo ( const char* filename, DECODER_INFO2* info );
+#else
 ULONG PM123_ENTRY decoder_fileinfo ( const char* filename, DECODER_INFO* info );
-#if !defined(DECODER_PLUGIN_LEVEL) || DECODER_PLUGIN_LEVEL <= 1 
 ULONG PM123_ENTRY decoder_trackinfo( const char* drive, int track, DECODER_INFO* info );
 #endif
 

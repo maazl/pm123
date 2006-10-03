@@ -391,10 +391,8 @@ pl_set_tag( PLRECORD* rec, const tune* tag, const char* songname )
 static PLRECORD*
 pl_create_record( const char* filename, PLRECORD* pos, const char* songname )
 {
-  DECODER_INFO info;
-  struct stat  fi          = {0};
-  char         cd_drive[4] = "1:";
-  int          cd_track    = -1;
+  DECODER_INFO2 info;
+  CDDA_REGION_INFO cd_info = {"", 0};
   int          rc          = 0;
   PLRECORD*    rec;
   tune         tag;
@@ -410,25 +408,16 @@ pl_create_record( const char* filename, PLRECORD* pos, const char* songname )
   memset( &tag,  0, sizeof( tag  ));
 
   // Decide wether this is a CD track, or a normal file.
-  if( is_track( filename ))
-  {
-    sscanf( filename, "cd:///%1c:\\Track %d", cd_drive, &cd_track );
-    if( cd_drive[0] == '1' || cd_track == -1 ) {
-      amp_error( container, "Invalid CD URL:\n%s", filename );
-      return NULL;
-    }
-    rc = dec_trackinfo( cd_drive, cd_track, &info, module_name );
-  } else {
-    if( is_file( filename )) {
-      stat( filename, &fi );
-    }
-    rc = dec_fileinfo((char*)filename, &info, module_name );
-    cd_drive[0] = 0;
+  if ( is_cdda( filename ) && !scdparams( &cd_info, filename ) ) {
+    amp_error( container, "Invalid CD URL:\n%s", filename );
+    return NULL;
   }
+
+  rc = dec_fileinfo((char*)filename, &info, module_name );
 
   // Load ID3 tag.
   if( rc == 0 ) {
-    amp_gettag( filename, &info, &tag );
+    amp_gettag( filename, &info.meta, &tag );
   }
 
   // Allocate a new record.
@@ -438,31 +427,31 @@ pl_create_record( const char* filename, PLRECORD* pos, const char* songname )
 
   rec->rc.cb           = sizeof( RECORDCORE );
   rec->rc.flRecordAttr = CRA_DROPONABLE;
-  rec->bitrate         = info.bitrate;
-  rec->channels        = info.mode;
-  rec->secs            = info.songlength/1000;
+  rec->bitrate         = info.tech.bitrate;
+  rec->channels        = info.format.channels;
+  rec->secs            = info.tech.songlength/1000;
   rec->freq            = info.format.samplerate;
   rec->format          = info.format;
-  rec->track           = cd_track;
+  rec->track           = cd_info.track;
   rec->rc.hptrIcon     = ( rc == 0 ) ? mp3 : mp3gray;
   rec->full            = strdup( filename );
-  rec->size            = fi.st_size;
+  rec->size            = info.tech.filesize;
   rec->comment         = NULL;
   rec->songname        = NULL;
   rec->info            = NULL;
   rec->played          = 0;
   rec->exist           = ( rc == 0 );
 
-  strcpy( rec->cd_drive, cd_drive );
-  strcpy( rec->decoder_module_name, module_name );
+  strcpy( rec->cd_drive, cd_info.drive );
+  strlcpy( rec->decoder_module_name, module_name, sizeof rec->decoder_module_name );
 
-  sprintf( buffer, "%u kB", (unsigned int)fi.st_size / 1024 );
+  sprintf( buffer, "%u kB", info.tech.filesize );
   rec->length = strdup( buffer );
   sprintf( buffer, "%02u:%02u", rec->secs / 60, rec->secs % 60 );
   rec->time = strdup( buffer );
 
   // Decoder info string needed for eventual playback.
-  rec->info_string = strdup( info.tech_info );
+  rec->info_string = strdup( info.tech.info );
 
   // File name or host or cd track.
   if( is_url( filename )) {
@@ -849,10 +838,9 @@ pl_broker_add_directory( const char* path, int options )
         pl_broker_add_directory( fullname, options );
       }
     } else {
-      char module_name[_MAX_FNAME];
-      DECODER_INFO info;
+      DECODER_INFO2 info;
 
-      if( dec_fileinfo( fullname, &info, module_name ) == 0 ) {
+      if( dec_fileinfo( fullname, &info, NULL ) == 0 ) {
         pl_create_record( fullname, (PLRECORD*)CMA_END, NULL );
       }
     }

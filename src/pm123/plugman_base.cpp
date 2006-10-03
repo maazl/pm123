@@ -37,8 +37,10 @@
 #include <os2.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <stddef.h>
 #include <string.h>
 #include <malloc.h>
+#include <sys/stat.h>
 
 #include <utilfct.h>
 #include "plugman_base.h"
@@ -302,7 +304,7 @@ class CL_DECODER_PROXY_1 : public CL_DECODER
   int   (PM123_ENTRYP voutput_request_buffer)( void* a, const FORMAT_INFO2* format, short** buf );
   void  (PM123_ENTRYP voutput_commit_buffer )( void* a, int len, int posmarker );
   void* a;
-  ULONG (PM123_ENTRYP vdecoder_fileinfo )( const char* filename, DECODER_INFO *info );
+  ULONG (PM123_ENTRYP vdecoder_fileinfo )( const char* filename, DECODER_INFO* info );
   ULONG (PM123_ENTRYP vdecoder_trackinfo)( const char* drive, int track, DECODER_INFO* info );
   void  (PM123_ENTRYP error_display)( char* );
   ULONG tid; // decoder thread id
@@ -312,7 +314,7 @@ class CL_DECODER_PROXY_1 : public CL_DECODER
  private:
   PROXYFUNCDEF ULONG PM123_ENTRY proxy_1_decoder_command     ( CL_DECODER_PROXY_1* op, void* w, ULONG msg, DECODER_PARAMS2* params );
   PROXYFUNCDEF void  PM123_ENTRY proxy_1_decoder_event       ( CL_DECODER_PROXY_1* op, void* w, OUTEVENTTYPE event );
-  PROXYFUNCDEF ULONG PM123_ENTRY proxy_1_decoder_fileinfo    ( CL_DECODER_PROXY_1* op, const char* filename, DECODER_INFO *info );
+  PROXYFUNCDEF ULONG PM123_ENTRY proxy_1_decoder_fileinfo    ( CL_DECODER_PROXY_1* op, const char* filename, DECODER_INFO2* info );
   PROXYFUNCDEF int   PM123_ENTRY proxy_1_decoder_play_samples( CL_DECODER_PROXY_1* op, const FORMAT_INFO* format, const char* buf, int len, int posmarker );
  public: 
   CL_DECODER_PROXY_1(CL_MODULE& mod) : CL_DECODER(mod) {}
@@ -328,7 +330,7 @@ BOOL CL_DECODER_PROXY_1::load_plugin()
     || !load_function(&decoder_uninit,     "decoder_uninit")
     || !load_function(&decoder_status,     "decoder_status")
     || !load_function(&decoder_length,     "decoder_length")
-    || !load_function(&decoder_fileinfo,   "decoder_fileinfo")
+    || !load_function(&vdecoder_fileinfo,  "decoder_fileinfo")
     || !load_function(&decoder_support,    "decoder_support")
     || !load_function(&vdecoder_command,   "decoder_command") )
     return FALSE;
@@ -336,8 +338,7 @@ BOOL CL_DECODER_PROXY_1::load_plugin()
                       mkvdelegate(&vd_decoder_command,  (V_FUNC)&proxy_1_decoder_command,  3, this);
   decoder_event     = (void  (PM123_ENTRYP)(void*, OUTEVENTTYPE))
                       mkvdelegate(&vd_decoder_event,    (V_FUNC)&proxy_1_decoder_event,    2, this);
-  vdecoder_fileinfo = decoder_fileinfo;
-  decoder_fileinfo  = (ULONG (PM123_ENTRYP)(const char*, DECODER_INFO*))
+  decoder_fileinfo  = (ULONG (PM123_ENTRYP)(const char*, DECODER_INFO2*))
                       mkvdelegate(&vd_decoder_fileinfo, (V_FUNC)&proxy_1_decoder_fileinfo, 2, this);
   tid = (ULONG)-1;
     
@@ -503,21 +504,46 @@ proxy_1_decoder_event( CL_DECODER_PROXY_1* op, void* w, OUTEVENTTYPE event )
 }
 
 PROXYFUNCIMP(ULONG PM123_ENTRY, CL_DECODER_PROXY_1)
-proxy_1_decoder_fileinfo( CL_DECODER_PROXY_1* op, const char* filename, DECODER_INFO *info )
+proxy_1_decoder_fileinfo( CL_DECODER_PROXY_1* op, const char* filename, DECODER_INFO2 *info )
 { DEBUGLOG(("proxy_1_decoder_fileinfo(%p, %s, %p)\n", op, filename, info));
 
+  DECODER_INFO old_info;
   CDDA_REGION_INFO cd_info;
+  ULONG rc;
+  
+  info->tech.filesize   = -1;
+
   if (scdparams(&cd_info, filename))
-  { if ( cd_info.track == 0 // can't handle sectors so far
-      || op->vdecoder_trackinfo == NULL )
+  { if ( cd_info.track == 0 ||            // can't handle sectors
+         op->vdecoder_trackinfo == NULL ) // plug-in does not support trackinfo
       return 200;
-    ULONG rc = (*op->vdecoder_trackinfo)(cd_info.drive, cd_info.track, info);
-    DEBUGLOG(("proxy_1_decoder_fileinfo: %lu\n", rc));
-    return rc;
-  } else if (is_file(filename) && is_url(filename))
-    return (*op->vdecoder_fileinfo)(filename+7, info);
-   else
-    return (*op->vdecoder_fileinfo)(filename, info);
+    rc = (*op->vdecoder_trackinfo)(cd_info.drive, cd_info.track, &old_info);
+  } else
+  { if (is_file(filename) && is_url(filename))
+      filename += 7;
+    rc = (*op->vdecoder_fileinfo)(filename, &old_info);
+    // get file size
+    // TODO: large file support
+    struct stat fi;
+    if ( rc == 0 && stat( filename, &fi ) == 0 )
+      info->tech.filesize = (int)(fi.st_size / 1024);
+  }
+  DEBUGLOG(("proxy_1_decoder_fileinfo: %lu\n", rc));
+
+  // convert information to new format
+  if (rc == 0)
+  { 
+    info->format          = old_info.format;
+    
+    info->tech.songlength = old_info.songlength;
+    info->tech.bitrate    = old_info.bitrate;
+    strlcpy(info->tech.info, old_info.tech_info, sizeof info->tech.info);
+    
+    // this part of the structure is binary compatible
+    memcpy(&info->meta, old_info.title, offsetof(META_INFO, track));
+    info->meta.track      = -1;
+  }
+  return rc;
 }
 
 

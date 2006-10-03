@@ -52,7 +52,7 @@
 
 /* Reads ID3 tag from the specified file. */
 BOOL
-amp_gettag( const char* filename, DECODER_INFO* info, tune* tag )
+amp_gettag( const char* filename, META_INFO* info, tune* tag )
 {
   int  handle;
   BOOL rc = FALSE;
