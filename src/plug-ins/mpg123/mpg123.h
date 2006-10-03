@@ -90,7 +90,7 @@
 
 typedef struct
 {
-   FILE* filept;
+   SOCKFILE* filept;
    HWND  hwnd;
 
    int   data_until_meta;
@@ -110,7 +110,7 @@ size_t readdata  ( void* buffer, size_t size, size_t count, META_STRUCT* m );
 
 typedef struct
 {
-   FILE* filept;
+   SOCKFILE* filept;
    int   filept_opened;
    int   sockmode;
 

@@ -31,10 +31,8 @@
 #include "httpget.h"
 #include "sockfile.h"
 
-size_t internal_fread(void *buffer, size_t size, size_t count, FILE *stream)
+size_t internal_fread(void *buffer, size_t size, size_t count, SOCKFILE *sockfile)
 {
-   SOCKFILE *sockfile = (SOCKFILE *) stream;
-
    switch(sockfile->sockmode)
    {
       case HTTP:
@@ -68,7 +66,7 @@ void TFNENTRY readahead_thread(void *arg)
 
          if(!DosRequestMutexSem(sockfile->accessfile, -1))
          {
-            read = internal_fread(chunk,1,CHUNK_SIZE,(FILE *) sockfile);
+            read = internal_fread(chunk,1,CHUNK_SIZE, sockfile);
             DosReleaseMutexSem(sockfile->accessfile);
          }
 
@@ -115,16 +113,13 @@ int PM123_ENTRY sockfile_errno(int sockmode)
       return errno;
 }
 
-int PM123_ENTRY sockfile_bufferstatus(FILE *stream)
+int PM123_ENTRY sockfile_bufferstatus(SOCKFILE *sockfile)
 {
-   SOCKFILE *sockfile = (SOCKFILE *) stream;
    return sockfile->available;
 }
 
-int PM123_ENTRY sockfile_abort(FILE *stream)
+int PM123_ENTRY sockfile_abort(SOCKFILE *sockfile)
 {
-   SOCKFILE *sockfile = (SOCKFILE *) stream;
-
    if(!sockfile) return -1;
 
    switch(sockfile->sockmode)
@@ -141,10 +136,8 @@ int PM123_ENTRY sockfile_abort(FILE *stream)
 }
 
 
-int PM123_ENTRY sockfile_nobuffermode(FILE *stream, int setnobuffermode)
+int PM123_ENTRY sockfile_nobuffermode(SOCKFILE *sockfile, int setnobuffermode)
 {
-   SOCKFILE *sockfile = (SOCKFILE *) stream;
-
    if(sockfile->buffersize && !DosRequestMutexSem(sockfile->accessfile, -1)
                            && !DosRequestMutexSem(sockfile->accessbuffer, -1))
    {
@@ -168,10 +161,8 @@ int PM123_ENTRY sockfile_nobuffermode(FILE *stream, int setnobuffermode)
    return FALSE;
 }
 
-size_t PM123_ENTRY xio_fread(void *buffer, size_t size, size_t count, FILE *stream)
+size_t PM123_ENTRY xio_fread(void *buffer, size_t size, size_t count, SOCKFILE *sockfile)
 {
-   SOCKFILE *sockfile = (SOCKFILE *) stream;
-
    if(sockfile->buffersize && !sockfile->nobuffermode
       && !DosWaitEventSem(sockfile->bufferfilled, -1))
    {
@@ -213,23 +204,19 @@ size_t PM123_ENTRY xio_fread(void *buffer, size_t size, size_t count, FILE *stre
       return read;
    }
    else
-      return internal_fread(buffer,size,count,stream);
+      return internal_fread(buffer,size,count,sockfile);
 }
 
-long PM123_ENTRY xio_ftell(FILE *stream)
+long PM123_ENTRY xio_ftell(SOCKFILE *sockfile)
 {
-   SOCKFILE *sockfile = (SOCKFILE *) stream;
-
    if(sockfile->sockmode)
       return sockfile->position-sockfile->available;
    else
       return ftell(sockfile->stream)-sockfile->available;
 }
 
-size_t PM123_ENTRY xio_fsize(FILE *stream)
+size_t PM123_ENTRY xio_fsize(SOCKFILE *sockfile)
 {
-   SOCKFILE *sockfile = (SOCKFILE *) stream;
-
    if( sockfile->sockmode == HTTP ) {
       return sockfile->http_info.length;
    } else if( sockfile->sockmode == FTP ) {
@@ -241,10 +228,8 @@ size_t PM123_ENTRY xio_fsize(FILE *stream)
    }
 }
 
-int PM123_ENTRY xio_fseek(FILE *stream, long offset, int origin)
+int PM123_ENTRY xio_fseek(SOCKFILE *sockfile, long offset, int origin)
 {
-   SOCKFILE *sockfile = (SOCKFILE *) stream;
-
    if(sockfile->sockmode)
       return -1;
    else
@@ -268,10 +253,8 @@ int PM123_ENTRY xio_fseek(FILE *stream, long offset, int origin)
    }
 }
 
-void PM123_ENTRY xio_rewind (FILE *stream)
+void PM123_ENTRY xio_rewind (SOCKFILE *sockfile)
 {
-   SOCKFILE *sockfile = (SOCKFILE *) stream;
-
    if(!sockfile->sockmode)
    {
       if(sockfile->buffersize
@@ -290,7 +273,7 @@ void PM123_ENTRY xio_rewind (FILE *stream)
    }
 }
 
-FILE* PM123_ENTRY xio_fopen (const char *fname, const char *mode, int sockmode, int buffersize, int bufferwait)
+SOCKFILE* PM123_ENTRY xio_fopen (const char *fname, const char *mode, int sockmode, int buffersize, int bufferwait)
 {
    SOCKFILE *sockfile = calloc(1,sizeof(SOCKFILE));
 
@@ -369,20 +352,17 @@ FILE* PM123_ENTRY xio_fopen (const char *fname, const char *mode, int sockmode, 
          sockfile->available = 0;
       }
    }
-   return (FILE *) sockfile;
+   return sockfile;
 }
 
-int PM123_ENTRY sockfile_httpinfo(FILE *stream, HTTP_INFO *http_info)
+int PM123_ENTRY sockfile_httpinfo(SOCKFILE *sockfile, HTTP_INFO *http_info)
 {
-   SOCKFILE *sockfile = (SOCKFILE *) stream;
    *http_info = sockfile->http_info;
    return http_info->length;
 }
 
-int PM123_ENTRY xio_fclose (FILE *stream)
+int PM123_ENTRY xio_fclose (SOCKFILE *sockfile)
 {
-   SOCKFILE *sockfile = (SOCKFILE *) stream;
-
    if(!sockfile) return EOF;
 
    if(sockfile->buffersize)
@@ -414,3 +394,8 @@ int PM123_ENTRY xio_fclose (FILE *stream)
    }
 
 }
+
+int PM123_ENTRY xio_fileno(SOCKFILE* sockfile)
+{  return sockfile->stream ? fileno(sockfile->stream) : -1;
+}
+

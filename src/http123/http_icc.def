@@ -24,6 +24,7 @@ EXPORTS
    xio_fclose            @34
    xio_rewind            @35
    xio_fsize             @36
+   xio_fileno            @37
 
    set_proxyurl          @50
    set_httpauth          @51

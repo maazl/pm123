@@ -29,16 +29,17 @@ typedef struct _SOCKFILE
 #define HTTP 1 /* sockmode, 0 = usual local file access */
 #define FTP  2
 
-size_t PM123_ENTRY xio_fread ( void* buffer, size_t size, size_t count, FILE* stream );
-long   PM123_ENTRY xio_ftell ( FILE* stream );
-FILE*  PM123_ENTRY xio_fopen ( const char* fname, const char* mode, int sockmode, int buffersize, int bufferwait );
-int    PM123_ENTRY xio_fclose( FILE* stream );
-int    PM123_ENTRY xio_fseek ( FILE* stream, long offset, int origin );
-void   PM123_ENTRY xio_rewind( FILE* stream );
-size_t PM123_ENTRY xio_fsize ( FILE* stream );
+size_t    PM123_ENTRY xio_fread ( void* buffer, size_t size, size_t count, SOCKFILE* stream );
+long      PM123_ENTRY xio_ftell ( SOCKFILE* stream );
+SOCKFILE* PM123_ENTRY xio_fopen ( const char* fname, const char* mode, int sockmode, int buffersize, int bufferwait );
+int       PM123_ENTRY xio_fclose( SOCKFILE* stream );
+int       PM123_ENTRY xio_fseek ( SOCKFILE* stream, long offset, int origin );
+void      PM123_ENTRY xio_rewind( SOCKFILE* stream );
+size_t    PM123_ENTRY xio_fsize ( SOCKFILE* stream );
+int       PM123_ENTRY xio_fileno( SOCKFILE* stream );
 
 int PM123_ENTRY sockfile_errno( int sockmode );
-int PM123_ENTRY sockfile_bufferstatus( FILE* stream );
-int PM123_ENTRY sockfile_nobuffermode( FILE* stream, int setnobuffermode );
-int PM123_ENTRY sockfile_abort( FILE* stream );
-int PM123_ENTRY sockfile_httpinfo( FILE* stream, HTTP_INFO* http_info );
+int PM123_ENTRY sockfile_bufferstatus( SOCKFILE* stream );
+int PM123_ENTRY sockfile_nobuffermode( SOCKFILE* stream, int setnobuffermode );
+int PM123_ENTRY sockfile_abort( SOCKFILE* stream );
+int PM123_ENTRY sockfile_httpinfo( SOCKFILE* stream, HTTP_INFO* http_info );

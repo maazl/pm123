@@ -22,6 +22,7 @@ EXPORT xio_ftell             .33
 EXPORT xio_fclose            .34
 EXPORT xio_rewind            .35
 EXPORT xio_fsize             .36
+EXPORT xio_fileno            .37
 
 EXPORT set_proxyurl          .50
 EXPORT set_httpauth          .51
