@@ -14,3 +14,4 @@ EXPORT decoder_cdinfo    .9
 
 EXPORT plugin_query      .10
 EXPORT plugin_configure  .11
+EXPORT decoder_editmeta  .12

@@ -54,7 +54,6 @@
 #include "button95.h"
 #include "pfreq.h"
 #include "httpget.h"
-#include "genre.h"
 #include "copyright.h"
 #include "docking.h"
 #include "iniman.h"
@@ -257,15 +256,9 @@ amp_player_hab( void )
   return hab;
 }
 
-/* Returns a information block of the currently playing file or NULL if none. */
-const MSG_PLAY_STRUCT*
-amp_get_playing_file( void )
-{ return out_playing_data() ? &current_file : NULL;
-}
-
 /* Returns a information block of the currently loaded file or NULL if none. */
 const MSG_PLAY_STRUCT*
-amp_get_loaded_file( void )
+amp_get_current_file( void )
 { return *current_file.url ? &current_file : NULL;
 }
 
@@ -368,15 +361,10 @@ amp_pl_load_record( PLRECORD* rec )
   
   strlcpy( current_file.url, rec->full, sizeof current_file.url );
 
-  // TODO: This is completely wrong here
-  //amp_gettag( current_filename, &info.meta, &current_tune );
-
-  // TODO: This is completely wrong here
-  if( is_http( current_file.url ) && !*current_file.info.meta.title ) {
+  // merge meta information from playlist record - hmm?
+  if ( !*current_file.info.meta.title ) {
     strlcpy( current_file.info.meta.title, rec->songname, sizeof( current_file.info.meta.title ));
   }
-
-  // merge meta information from playlist record ?
   if ( current_file.info.meta.track <= 0 && rec->track > 0 ) 
     current_file.info.meta.track = rec->track;
 
@@ -501,14 +489,12 @@ amp_load_singlefile( const char* filename, int options )
   amp_stop();
   amp_pl_release();
 
-  strlcpy( current_file.url,            filename,       sizeof current_file.url );
-
-  // TODO: this is completely wrong here
-  //amp_gettag( filename, &info.meta, &current_tune );
+  strlcpy( current_file.url, filename, sizeof current_file.url );
 
   // merge some information
-  if ( current_file.info.meta.track <= 0 && cd_info.track > 0 ) 
+  if ( current_file.info.meta.track <= 0 && cd_info.track > 0 ) { 
     current_file.info.meta.track = cd_info.track;
+  }
 
   amp_display_filename();
   amp_invalidate( UPD_FILEINFO );
@@ -726,7 +712,7 @@ amp_show_context_menu( HWND parent )
   load_plugin_menu( mi.hwndSubMenu );
 
   // Update status
-  current = amp_get_playing_file();
+  current = amp_get_current_file();
   // TODO: edit more than ID3 tags
   mn_enable_item( menu, IDM_M_TAG,     current != NULL && is_file( current->url ));
   mn_enable_item( menu, IDM_M_SMALL,   bmp_is_mode_supported( CFG_MODE_SMALL   ));
@@ -1274,234 +1260,6 @@ amp_drag_render_done( HWND hwnd, PDRAGTRANSFER pdtrans, USHORT rc )
   return 0;
 }
 
-/* local structure to pass information through WinSetWindowPtr */
-typedef struct
-{
-  tune* tag;
-  char  track[4];
-} tagdata;
-
-/* Processes messages of the dialog of edition of ID3 tag. */
-static MRESULT EXPENTRY
-id3_page_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
-{
-  switch( msg )
-  {
-    case WM_INITDLG:
-    {
-      int i;
-
-      for( i = 0; i <= GENRE_LARGEST; i++) {
-        WinSendDlgItemMsg( hwnd, CB_ID3_GENRE, LM_INSERTITEM,
-                           MPFROMSHORT( LIT_END ), MPFROMP( genres[i] ));
-      }
-      break;
-    }
-
-    case WM_COMMAND:
-      if( COMMANDMSG(&msg)->cmd == PB_ID3_UNDO )
-      {
-        tagdata* data = (tagdata*)WinQueryWindowPtr( hwnd, 0 );
-        int genre = data->tag->gennum;
-
-        // map all unknown to the text "unknown"
-        if ( genre < 0 || genre >= GENRE_LARGEST )
-          genre = GENRE_LARGEST;
-
-        if ( data->tag->track <= 0 || data->tag->track > 999 )
-          data->track[0] = 0;
-        else
-          sprintf( data->track, "%d", data->tag->track );
-
-        WinSetDlgItemText( hwnd, EN_ID3_TITLE,   data->tag->title   );
-        WinSetDlgItemText( hwnd, EN_ID3_ARTIST,  data->tag->artist  );
-        WinSetDlgItemText( hwnd, EN_ID3_ALBUM,   data->tag->album   );
-        WinSetDlgItemText( hwnd, EN_ID3_TRACK,   data->track        );
-        WinSetDlgItemText( hwnd, EN_ID3_COMMENT, data->tag->comment );
-        WinSetDlgItemText( hwnd, EN_ID3_YEAR,    data->tag->year    );
-
-        WinSendDlgItemMsg( hwnd, CB_ID3_GENRE, LM_SELECTITEM,
-                           MPFROMSHORT( genre ), MPFROMSHORT( TRUE ));
-      }
-      return 0;
-
-    case WM_CONTROL:
-      if ( SHORT1FROMMP(mp1) == EN_ID3_TRACK && SHORT2FROMMP(mp1) == EN_CHANGE )
-      {
-        // read the track immediately to verify the syntax
-        int tmp_track;
-        char buf[4];
-        int len1, len2;
-        tagdata* data = (tagdata*)WinQueryWindowPtr( hwnd, 0 );
-
-        len1 = WinQueryWindowText( HWNDFROMMP(mp2), sizeof buf, buf );
-        if ( len1 != 0 &&                                       // empty is always OK
-             ( sscanf( buf, "%u%n", &tmp_track, &len2 ) != 1 || // can't read
-               len1      != len2                             || // more input
-               tmp_track >= 256 ) )                             // too large
-        {
-          // bad input, restore last value
-          WinSetDlgItemText( hwnd, EN_ID3_TRACK, data->track );
-        } else
-        {
-          // OK, update last value
-          strcpy( data->track, buf ); 
-        }  
-      }
-  }
-  return WinDefDlgProc( hwnd, msg, mp1, mp2 );
-}
-
-/* Processes messages of the dialog of edition of ID3 tag. */
-static MRESULT EXPENTRY
-id3_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
-{
-  switch( msg )
-  {
-    case WM_INITDLG:
-    case WM_WINDOWPOSCHANGED:
-    {
-      RECTL rect;
-
-      WinQueryWindowRect( hwnd, &rect );
-      WinCalcFrameRect( hwnd, &rect, TRUE );
-
-      WinSetWindowPos( WinWindowFromID( hwnd, NB_ID3TAG ), 0,
-                       rect.xLeft,
-                       rect.yBottom,
-                       rect.xRight-rect.xLeft,
-                       rect.yTop-rect.yBottom, SWP_SIZE | SWP_MOVE );
-      break;
-    }
-  }
-  return WinDefDlgProc( hwnd, msg, mp1, mp2 );
-}
-
-/* Edits a ID3 tag for the specified file. */
-void amp_id3_edit( HWND owner, const char* filename )
-{
-  char    caption[_MAX_FNAME] = "ID3 Tag Editor - ";
-  HWND    hwnd;
-  HWND    book;
-  HWND    page01;
-  MRESULT id;
-  tune    old_tag;
-  tune    new_tag;
-  tagdata mywindowdata;
-  const MSG_PLAY_STRUCT* current;
-
-  if( !is_file( filename )) {
-    DosBeep( 800, 100 );
-    return;
-  }
-
-  hwnd = WinLoadDlg( HWND_DESKTOP, owner,
-                     id3_dlg_proc, NULLHANDLE, DLG_ID3TAG, 0 );
-
-  sfnameext( caption + strlen( caption ), filename, sizeof( caption ) - strlen( caption ));
-  WinSetWindowText( hwnd, caption );
-
-  book = WinWindowFromID( hwnd, NB_ID3TAG );
-  do_warpsans( book );
-
-  WinSendMsg( book, BKM_SETDIMENSIONS, MPFROM2SHORT(100,25), MPFROMSHORT(BKA_MAJORTAB));
-  WinSendMsg( book, BKM_SETDIMENSIONS, MPFROMLONG(0), MPFROMSHORT(BKA_MINORTAB));
-  WinSendMsg( book, BKM_SETNOTEBOOKCOLORS, MPFROMLONG(SYSCLR_FIELDBACKGROUND),
-              MPFROMSHORT(BKA_BACKGROUNDPAGECOLORINDEX));
-
-  page01 = WinLoadDlg( book, book, id3_page_dlg_proc, NULLHANDLE, DLG_ID3V10, 0 );
-  id     = WinSendMsg( book, BKM_INSERTPAGE, MPFROMLONG(0),
-                       MPFROM2SHORT( BKA_AUTOPAGESIZE | BKA_MAJOR, BKA_LAST ));
-  do_warpsans( page01 );
-
-  WinSendMsg ( book, BKM_SETPAGEWINDOWHWND, MPFROMLONG(id), MPFROMLONG( page01 ));
-  WinSendMsg ( book, BKM_SETTABTEXT, MPFROMLONG( id ), MPFROMP( "ID3 Tag" ));
-  WinSetOwner( page01, book );
-
-  emptytag( &old_tag );
-  emptytag( &new_tag );
-
-  amp_gettag( filename, NULL, &old_tag );
-  new_tag.codepage = old_tag.codepage;
-
-  mywindowdata.tag = &old_tag;
-  WinSetWindowPtr( page01, 0, &mywindowdata );
-  WinPostMsg( page01, WM_COMMAND,
-              MPFROMSHORT( PB_ID3_UNDO ), MPFROM2SHORT( CMDSRC_OTHER, FALSE ));
-
-  WinProcessDlg( hwnd );
-
-  WinQueryDlgItemText( page01, EN_ID3_TITLE,   sizeof( new_tag.title   ), new_tag.title   );
-  WinQueryDlgItemText( page01, EN_ID3_ARTIST,  sizeof( new_tag.artist  ), new_tag.artist  );
-  WinQueryDlgItemText( page01, EN_ID3_ALBUM,   sizeof( new_tag.album   ), new_tag.album   );
-  WinQueryDlgItemText( page01, EN_ID3_COMMENT, sizeof( new_tag.comment ), new_tag.comment );
-  WinQueryDlgItemText( page01, EN_ID3_YEAR,    sizeof( new_tag.year    ), new_tag.year    );
-
-  sscanf( mywindowdata.track, "%u", &new_tag.track );
-
-  new_tag.gennum =
-    SHORT1FROMMR( WinSendDlgItemMsg( page01, CB_ID3_GENRE,
-                                     LM_QUERYSELECTION, MPFROMSHORT( LIT_CURSOR ), 0 ));
-  // keep genres that PM123 does not know
-  if ( new_tag.gennum == GENRE_LARGEST && old_tag.gennum < GENRE_LARGEST )
-    new_tag.gennum = old_tag.gennum;
-  WinDestroyWindow( page01 );
-  WinDestroyWindow( hwnd   );
-
-  if( strcmp( old_tag.title,   new_tag.title   ) == 0 &&
-      strcmp( old_tag.artist,  new_tag.artist  ) == 0 &&
-      strcmp( old_tag.album,   new_tag.album   ) == 0 &&
-      strcmp( old_tag.comment, new_tag.comment ) == 0 &&
-      strcmp( old_tag.year,    new_tag.year    ) == 0 &&
-      old_tag.track  == new_tag.track                 &&
-      old_tag.gennum == new_tag.gennum )
-  {
-    return;
-  }
-
-  if( !amp_puttag( filename, &new_tag )) {
-    amp_error( owner, "Unable write ID3 tag to file:\n%s\n%s", filename, clib_strerror(errno));
-    return;
-  }
-
-  amp_gettag( filename, NULL, &new_tag );
-  pl_refresh_file( filename );
-
-  current = amp_get_playing_file();
-  if( current != NULL && stricmp( current->url, filename ) == 0 ) {
-    // TODO: post WM_METADATA, the structures are binary compatible so far
-    current_file.info.meta = *(META_INFO*)&new_tag;
-    amp_display_filename();
-    amp_invalidate( UPD_ALL );
-  }
-}
-
-/* Wipes a ID3 tag for the specified file. */
-void amp_id3_wipe( HWND owner, const char* filename )
-{
-  tune tag;
-
-  if( !is_file( filename )) {
-    DosBeep( 800, 100 );
-    return;
-  }
-
-  if( !amp_wipetag( filename )) {
-    amp_error( owner, "Unable wipe ID3 tag to file:\n%s\n%s", filename, clib_strerror(errno));
-    return;
-  }
-
-  // TODO: send WM_METADATA
-  amp_gettag( filename, NULL, &tag );
-  pl_refresh_file( filename );
-
-  if( stricmp( current_file.url, filename ) == 0 ) {
-    current_file.info.meta = *(META_INFO*)&tag;
-    amp_display_filename();
-    amp_invalidate( UPD_ALL );
-  }
-}
-
 /* Default dialog procedure for the file dialog. */
 MRESULT EXPENTRY
 amp_file_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
@@ -1965,6 +1723,40 @@ amp_pipe_thread( void* scrap )
         }
       }
     }
+  }
+}
+
+/* Edits a ID3 tag for the specified file. */
+void
+amp_id3_edit( HWND owner, const char* filename, const char* decoder )
+{
+  ULONG rc = dec_editmeta( owner, filename, decoder );
+  DECODER_INFO2 info;
+  const MSG_PLAY_STRUCT* current;
+
+  switch (rc)
+  { default:
+      amp_error( owner, "Cannot edit tag of file:\n%s", filename);
+      return;
+
+    case 0:   // tag changed
+      dec_fileinfo( filename, &info, NULL );
+      pl_refresh_file( filename );
+
+      current = amp_get_current_file();
+      if( current != NULL && stricmp( current->url, filename ) == 0 ) {
+        // TODO: post WM_METADATA
+        // the structures are binary compatible so far
+        current_file.info.meta = info.meta;
+        amp_display_filename();
+        amp_invalidate( UPD_ALL );
+      }
+    case 300: // tag unchanged
+      return;
+      
+    case 500:
+      amp_error( owner, "Unable write tag to file:\n%s\n%s", filename, clib_strerror(errno));
+      return;
   }
 }
 
@@ -2724,7 +2516,7 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
       if( COMMANDMSG(&msg)->source == CMDSRC_MENU )
       {
         if( COMMANDMSG(&msg)->cmd > IDM_M_PLUG ) {
-          process_possible_plugin( hwnd, COMMANDMSG(&msg)->cmd );
+          process_possible_plugin( hplayer, COMMANDMSG(&msg)->cmd );
           return 0;
         }
         if( COMMANDMSG(&msg)->cmd > IDM_M_BOOKMARKS ) {
@@ -2757,7 +2549,7 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
           return 0;
 
         case IDM_M_TAG:
-          amp_id3_edit( hwnd, current_file.url );
+          amp_id3_edit( hplayer, current_file.url, current_file.decoder );
           return 0;
 
         case IDM_M_SAVE:

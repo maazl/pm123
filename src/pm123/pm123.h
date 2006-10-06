@@ -92,26 +92,6 @@
 #define CB_DRIVE           2024
 #define PB_REFRESH         2025
 
-#define DLG_ID3TAG         2022
-#define NB_ID3TAG           100
-
-#define DLG_ID3V10         2012
-#define ST_ID3_TITLE        106
-#define EN_ID3_TITLE        103
-#define ST_ID3_ARTIST       107
-#define EN_ID3_ARTIST       104
-#define ST_ID3_ALBUM        108
-#define EN_ID3_ALBUM        105
-#define ST_ID3_TRACK        115
-#define EN_ID3_TRACK        114
-#define ST_ID3_COMMENT      110
-#define EN_ID3_COMMENT      109
-#define ST_ID3_GENRE        111
-#define CB_ID3_GENRE        101
-#define ST_ID3_YEAR         113
-#define EN_ID3_YEAR         112
-#define PB_ID3_UNDO         200
-
 #define DLG_FILE           2100
 #define CB_RECURSE          500
 #define CB_RELATIV          501
@@ -214,13 +194,6 @@ void  sec2num( long seconds, int* major, int* minor );
 /* Reads url from specified file. */
 char* amp_url_from_file( char* result, const char* filename, size_t size );
 
-/* Reads ID3 tag from the specified file. */
-BOOL  amp_gettag( const char* filename, const META_INFO* info, tune* tag );
-/* Wipes ID3 tag from the specified file. */
-BOOL  amp_wipetag( const char* filename );
-/* Writes ID3 tag to the specified file. */
-BOOL  amp_puttag( const char* filename, const tune* tag );
-
 /* Constructs a string of the displayable text from the ID3 tag. */
 char* amp_construct_tag_string( char* result, const META_INFO* tag );
 /* Constructs a information text for currently loaded file. */
@@ -285,9 +258,7 @@ void  amp_load_list( HWND owner );
 void  amp_load_file( HWND owner );
 
 /* Edits a ID3 tag for the specified file. */
-void  amp_id3_edit( HWND owner, const char* filename );
-/* Wipes a ID3 tag for the specified file. */
-void  amp_id3_wipe( HWND owner, const char* filename );
+void  amp_id3_edit( HWND owner, const char* filename, const char* decoder );
 
 /* Sets audio volume to the current selected level. */
 void  amp_volume_to_normal( void );
@@ -314,12 +285,9 @@ typedef struct
 } MSG_PLAY_STRUCT;
 
 /* TODO: there are bad threading issues here
-   if the following two functions are not called from the main thread */
-/* Returns a information block of the currently playing file or NULL if none. */
-const MSG_PLAY_STRUCT* amp_get_playing_file( void );
-/* Returns a information block of the currently loaded file or NULL if none.
- * This might be different from the loaded file because of pre-fetching. */
-const MSG_PLAY_STRUCT* amp_get_loaded_file( void );
+   if the following function is not called from the main thread */
+/* Returns a information block of the currently loaded file or NULL if none. */
+const MSG_PLAY_STRUCT* amp_get_current_file( void );
 
 /* Global variables */
 /* -----------------*/

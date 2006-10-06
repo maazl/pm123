@@ -236,19 +236,14 @@ void CL_GLUE::uninit()
    returns 0  if succesful. */
 int CL_GLUE::dec_set_active( const char* name )
 {
-  int i;
   if( name == NULL ) {
     return dec_set_active( -1 );
   }
 
-  for( i = 0; i < decoders.count(); i++ ) {
-    char filename[_MAX_FNAME];
-    sfnameext( filename, decoders[i].module_name, sizeof( filename ));
-    if( stricmp( filename, name ) == 0 ) {
-      return dec_set_active( i );
-    }
-  }
-  return -2;
+  int i = decoders.find_short(name);
+  return i < 0
+   ? -2
+   : dec_set_active( i );
 }
 
 ULONG CL_GLUE::dec_command( ULONG msg )
@@ -991,6 +986,41 @@ dec_fill_types( char* result, size_t size )
   }
 }
 
+ULONG
+dec_editmeta( HWND owner, const char* url, const char* decoder_name )
+{
+  ULONG rc;
+  DEBUGLOG(("dec_editmeta(%p, %s, %s)\n", owner, url, decoder_name));
+  // detect decoder if required
+  char decoder[_MAX_FNAME];
+  if (decoder_name == NULL || *decoder_name == 0)
+  { DECODER_INFO2 info;
+    int rc = dec_fileinfo(url, &info, decoder);
+    if (rc != 0)
+      return rc;
+    decoder_name = decoder;
+  }
+
+  // find decoder
+  int i = decoders.find_short(decoder_name);
+  if (i == -1)
+  { rc = 100;
+  } else
+  // get entry points
+  { CL_DECODER& dec = (CL_DECODER&)decoders[i];
+    const DECODER_PROCS& procs = dec.get_procs();
+    if (!procs.decoder_editmeta)
+    { rc = 400;
+    } else
+    { // detach configure
+      // TODO: THREAD!
+      rc = (*procs.decoder_editmeta)(owner, dec.module, url);
+    }
+  }
+  DEBUGLOG(("dec_editmeta: %d\n", rc));
+  return rc;
+}
+
 BOOL out_is_active( int number )
 { return number >= 0 && number < outputs.count() && &outputs[number] == outputs.current();
 }
@@ -1002,7 +1032,7 @@ int out_set_active( int number )
 
 /* Initializes the specified visual plug-in. */
 BOOL vis_init( int i )
-{ DEBUGLOG(("plugman:vis_init(%d)\n", i));;;;
+{ DEBUGLOG(("plugman:vis_init(%d)\n", i));
 
   if (i < 0 || i >= visuals.count())
     return FALSE;

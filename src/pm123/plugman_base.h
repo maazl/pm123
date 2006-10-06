@@ -95,7 +95,9 @@
 
 class CL_PLUGIN_BASE : public PLUGIN_BASE
 {protected:
-  // Load the address of a dll entry point. Return TRUE on success. 
+  // Load the address of a dll entry point. Return TRUE on success.
+  BOOL load_optional_function(void* function, const char* function_name);
+  // Same as abobe, but raise amp_player_error in case of an error.
   BOOL load_function(void* function, const char* function_name);
 };
 
@@ -203,8 +205,10 @@ struct DECODER_PROCS
   ULONG (PM123_ENTRYP decoder_status   )( void*  w );
   ULONG (PM123_ENTRYP decoder_length   )( void*  w );
   ULONG (PM123_ENTRYP decoder_fileinfo )( const char* filename, DECODER_INFO2* info );
+  ULONG (PM123_ENTRYP decoder_setmeta  )( const char* filename, const META_INFO* meta );
   ULONG (PM123_ENTRYP decoder_cdinfo   )( const char* drive, DECODER_CDINFO* info );
   ULONG (PM123_ENTRYP decoder_support  )( char*  ext[], int* size );
+  ULONG (PM123_ENTRYP decoder_editmeta )( HWND owner, HMODULE module, const char* url );
   // Result from the decoder_support call. Supported data sources.
   int    type;
   // Result from the decoder_support call. Supported file types.
@@ -217,7 +221,7 @@ class CL_DECODER : public CL_PLUGIN, protected DECODER_PROCS
   PROXYFUNCDEF ULONG PM123_ENTRY stub_decoder_cdinfo( const char* drive, DECODER_CDINFO* info );
  protected:
   // instances of this class are only created by the factory function below.
-  CL_DECODER(CL_MODULE& mod) : CL_PLUGIN(mod) { w = NULL; support = NULL; }
+  CL_DECODER(CL_MODULE& mod) : CL_PLUGIN(mod) { memset((DECODER_PROCS*)this, 0, sizeof(DECODER_PROCS)); }
   // Get some information about the decoder. (decoder_support)
   BOOL  after_load();
  public:
@@ -433,6 +437,9 @@ class CL_PLUGIN_BASE_LIST
   // Search for a list entry by the module name.
   // Return the index in the list or -1 if not found.
   int             find(const char* name) const;
+  // Search for a list entry by the short module name.
+  // Return the index in the list or -1 if not found.
+  int             find_short(const char* name) const;
   // Get the number of entries in the list.
   int             count() const     { return num; }
   // Get the root object of the list.

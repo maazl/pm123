@@ -116,6 +116,8 @@ ULONG dec_jump( int location );
 ULONG dec_eq  ( const float* bandgain );
 /* set savefilename to save the raw stream data */
 ULONG dec_save( const char* file );
+/* edit ID3-data of the given file, decoder_name is optional */
+ULONG dec_editmeta( HWND owner, const char* url, const char* decoder_name );
 
 /* check whether the specified decoder is currently in use */
 BOOL  dec_is_active( int number );

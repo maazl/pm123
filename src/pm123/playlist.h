@@ -34,7 +34,6 @@
 
 #ifndef  RC_INVOKED
 #include "format.h"
-#include "tag.h"
 #endif
 
 #define DLG_PLAYLIST         42

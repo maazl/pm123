@@ -12,6 +12,8 @@ PM123 1.40 (alpha 1)
       PM123 1.32 anyway.
     - Changed the internal data structures to use always 16 bits per sample to
       reduce complexity of code and plug-ins.
+    - Moved the ID3 tag editor to MPG123. Consequently the related setting are
+      now in the plug-ins configure dialog.
 
     REALEQ:
     - Realeq does no longer delay the playback and cut the last samples.
@@ -23,6 +25,9 @@ PM123 1.40 (alpha 1)
       with large FIR orders.
     - The MMX and FFT convolution is finally removed. Both are outperformed by
       the new FFT convolution.
+
+    MPG123:
+    - implemented ID3 tag editor (was in PM123 core)
 
 PM123 1.32 (still beta)
 -----------------------

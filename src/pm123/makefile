@@ -8,7 +8,7 @@ EXE_PM   = yes
 
 !include $(TOPDIR)\config\makerules
 
-OBJECTS  = button95$(CO) pm123$(CO) 123_msg$(CO) 123_util$(CO) tag$(CO)
+OBJECTS  = button95$(CO) pm123$(CO) 123_msg$(CO) 123_util$(CO)
 OBJECTS  = $(OBJECTS) pfreq$(CO) plugman$(CO) plugman_base$(CO) bookmark$(CO)
 OBJECTS  = $(OBJECTS) iniman$(CO) playlist$(CO) properties$(CO) skin$(CO)
 OBJECTS  = $(OBJECTS) docking$(CO) vdelegate$(CO)
@@ -16,7 +16,7 @@ DEF      = pm123$(LDEF_SUFFX)
 RESOURCE = pm123$(RES)
 LIBS     = $(TOPDIR)\gbm123\gbm123$(LBI) $(TOPDIR)\http123\http123$(LBI)
 LIBS     = $(LIBS) $(TOPDIR)\utils\utilfct$(LBO)
-STDLIBS  = $(LIBS_UNI)
+#STDLIBS  = $(LIBS_UNI)
 
 all: pm123.exe $(MDUMMY)
 
@@ -29,7 +29,8 @@ plugman$(CO):	plugman.cpp
 plugman_base$(CO):	plugman.cpp
 
 123_msg.c:     pm123.h plugman.h
-pm123.c:       pm123.h plugman.h bookmark.h button95.h pfreq.h genre.h docking.h copyright.h
+123_util.c:    pm123.h plugman.h
+pm123.c:       pm123.h plugman.h bookmark.h button95.h pfreq.h docking.h copyright.h
 plugman.cpp:   pm123.h plugman.h plugman_base.h
 plugman_base.cpp: plugman.h plugman_base.h
 docking.c:     docking.h
@@ -41,7 +42,6 @@ skin.c:        pm123.h plugman.h
 vdelegate.c:   vdelegate.h
 pm123.rc:      pm123.h bookmark.h
 pm123.h:       playlist.h skin.h properties.h
-playlist.h:    tag.h
 
 clean: $(MDUMMY)
 	-@del pm123.exe $(OBJECTS) $(RESOURCE) 2> nul

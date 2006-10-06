@@ -318,12 +318,9 @@ static void
 bm_replace_bookmark( HWND owner, BMRECORD* rec )
 {
   if( amp_query( owner, "Replace %s bookmark?", rec->desc )) {
-    const MSG_PLAY_STRUCT* current = amp_get_playing_file();
+    const MSG_PLAY_STRUCT* current = amp_get_current_file();
     if ( current == NULL ) {
-      current = amp_get_loaded_file();
-      if ( current == NULL ) {
-        return; // cant't help, the file is gone
-      }
+      return; // cant't help, the file is gone
     }
     bm_update_record( rec, current->url, rec->desc, out_playing_pos());
     bm_save( owner );
@@ -713,12 +710,9 @@ bm_add_bookmark( HWND owner )
   BMRECORD* rec;
   HWND      hdlg = WinLoadDlg( HWND_DESKTOP, owner, bm_add_bookmark_dlg_proc,
                                NULLHANDLE, DLG_BM_ADD, NULL );
-  const MSG_PLAY_STRUCT* current = amp_get_playing_file();
+  const MSG_PLAY_STRUCT* current = amp_get_current_file();
   if ( current == NULL ) {
-    current = amp_get_loaded_file();
-    if ( current == NULL ) {
-      return; // can't help, the file is gone
-    }
+    return; // can't help, the file is gone
   }
 
   if( *current->url )

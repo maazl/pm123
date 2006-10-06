@@ -30,47 +30,26 @@
 #ifndef PM123_TAG_H
 #define PM123_TAG_H
 
+#include <decoder_plug.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-/* MPõ ID3 V1.x structure, for intermal use only */
 typedef struct {
-   char tag[3] ;
-   char title[30] ;
-   char artist[30] ;
-   char album[30] ;
-   char year[4] ;
-   union      // comment and track
-   {  struct  // ID3 V1.0
-      {  char comment[30] ;
-      } V1_0;
-      struct  // ID3 V1.1
-      {  char comment[28] ;
-         char spacer ;
-         unsigned char track ;
-      } V1_1;
-   }    u_comtrk ;          
-   unsigned char genre ;
-} tag ;
-
-typedef struct {
-   char title[128] ;
-   char artist[128] ;
-   char album[128] ;
-   char year[128] ;
-   char comment[128] ;
-   char genre[128] ;
-   int  track ;
+   META_INFO meta;
    int  gennum;
    int  codepage;
 } tune ;
 
 void emptytag(tune* info);
 int wipetag(int fd);
+/* read Tag from file
+ * fd      low level file descriptor
+ * info    destination
+ * return  0 = error
+ */
 int gettag(int fd, tune *info);
-/* Function removed because buggy and unused
-void jointag(tune *to, tune *from);*/
 int settag(int fd, const tune *info);
 
 #ifdef __cplusplus

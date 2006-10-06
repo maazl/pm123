@@ -334,7 +334,7 @@ pl_refresh_record( PLRECORD* rec, USHORT flags )
 
 /* Assigns the specified file tag to the specified playlist record. */
 static void
-pl_set_tag( PLRECORD* rec, const tune* tag, const char* songname )
+pl_set_tag( PLRECORD* rec, const META_INFO* tag, const char* songname )
 {
   free( rec->comment  );
   free( rec->songname );
@@ -395,7 +395,7 @@ pl_create_record( const char* filename, PLRECORD* pos, const char* songname )
   CDDA_REGION_INFO cd_info = {"", 0};
   int          rc          = 0;
   PLRECORD*    rec;
-  tune         tag;
+  META_INFO    tag;
   RECORDINSERT insert;
   char         module_name[_MAX_FNAME] = "";
   char         buffer[_MAX_PATH];
@@ -414,11 +414,6 @@ pl_create_record( const char* filename, PLRECORD* pos, const char* songname )
   }
 
   rc = dec_fileinfo((char*)filename, &info, module_name );
-
-  // Load ID3 tag.
-  if( rc == 0 ) {
-    amp_gettag( filename, &info.meta, &tag );
-  }
 
   // Allocate a new record.
   rec = (PLRECORD*)WinSendMsg( container, CM_ALLOCRECORD,
@@ -659,13 +654,13 @@ void
 pl_refresh_file( const char* filename )
 {
   PLRECORD* rec = pl_first_record();
-  tune      tag;
+  DECODER_INFO2 info;
 
-  amp_gettag( filename, NULL, &tag );
+  dec_fileinfo( filename, &info, NULL );
 
   while( rec ) {
     if( stricmp( rec->full, filename ) == 0 ) {
-      pl_set_tag( rec, &tag, NULL );
+      pl_set_tag( rec, &info.meta, NULL );
       pl_refresh_record( rec, CMA_NOREPOSITION );
     }
     rec = pl_next_record( rec );
@@ -1824,16 +1819,7 @@ pl_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
         {
           PLRECORD* rec = pl_cursored();
           if( rec ) {
-            amp_id3_edit( hwnd, rec->full );
-          }
-          return 0;
-        }
-
-        case IDM_PL_S_DTAG:
-        {
-          PLRECORD* rec = pl_cursored();
-          if( rec ) {
-            amp_id3_wipe( hwnd, rec->full );
+            amp_id3_edit( hwnd, rec->full, rec->decoder_module_name );
           }
           return 0;
         }
@@ -2294,7 +2280,7 @@ pl_save_bundle( const char* filename, int options )
     fprintf( playlist, "%s\n" , rec->full );
   }
 
-  current = amp_get_loaded_file();
+  current = amp_get_current_file();
   if( amp_playmode == AMP_SINGLE && current != NULL && *current->url && is_file(current->url)) {
     fprintf( playlist, "<%s\n", current->url );
   }

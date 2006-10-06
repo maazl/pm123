@@ -256,6 +256,7 @@ typedef struct
    TECH_INFO    tech;    /* technical informations about the source */
 
    META_INFO    meta;    /* song information */
+   BOOL         meta_write; /* support editing the metadata */
 
 } DECODER_INFO2;
 
@@ -266,10 +267,12 @@ typedef struct
       1001 = http error occured, check http_strerror() for string;
       other values = errno */
 #if defined(DECODER_PLUGIN_LEVEL) && DECODER_PLUGIN_LEVEL > 1 
-ULONG PM123_ENTRY decoder_fileinfo ( const char* filename, DECODER_INFO2* info );
+ULONG PM123_ENTRY decoder_fileinfo   ( const char* url, DECODER_INFO2* info );
+
+ULONG PM123_ENTRY decoder_editmeta   ( HWND owner, HMODULE module, const char* url );
 #else
-ULONG PM123_ENTRY decoder_fileinfo ( const char* filename, DECODER_INFO* info );
-ULONG PM123_ENTRY decoder_trackinfo( const char* drive, int track, DECODER_INFO* info );
+ULONG PM123_ENTRY decoder_fileinfo   ( const char* filename, DECODER_INFO* info );
+ULONG PM123_ENTRY decoder_trackinfo  ( const char* drive, int track, DECODER_INFO* info );
 #endif
 
 typedef struct _DECODER_CDINFO

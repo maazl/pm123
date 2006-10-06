@@ -78,6 +78,11 @@
 ****************************************************************************/
 
 /* Assigns the address of the specified procedure within a plug-in. */
+BOOL CL_PLUGIN_BASE::load_optional_function( void* function, const char* function_name )
+{ return DosQueryProcAddr( module, 0L, (PSZ)function_name, (PFN*)function ) == NO_ERROR;
+}
+
+/* Assigns the address of the specified procedure within a plug-in. */
 BOOL CL_PLUGIN_BASE::load_function( void* function, const char* function_name )
 { ULONG rc = DosQueryProcAddr( module, 0L, (PSZ)function_name, (PFN*)function );
   if( rc != NO_ERROR ) {
@@ -255,15 +260,17 @@ BOOL CL_DECODER::load_plugin()
 { DEBUGLOG(("CL_DECODER(%p{%s})::load()\n", this, module_name));
   
   if ( !(query_param.type & PLUGIN_DECODER)
-    || !load_function(&decoder_init,     "decoder_init")
-    || !load_function(&decoder_uninit,   "decoder_uninit")
-    || !load_function(&decoder_command,  "decoder_command")
-    || !load_function(&decoder_status,   "decoder_status")
-    || !load_function(&decoder_length,   "decoder_length")
+    || !load_function(&decoder_init,     "decoder_init"    )
+    || !load_function(&decoder_uninit,   "decoder_uninit"  )
+    || !load_function(&decoder_command,  "decoder_command" )
+    || !load_function(&decoder_status,   "decoder_status"  )
+    || !load_function(&decoder_length,   "decoder_length"  )
     || !load_function(&decoder_fileinfo, "decoder_fileinfo")
-    || !load_function(&decoder_support,  "decoder_support")
-    || !load_function(&decoder_event,    "decoder_event") )
+    || !load_function(&decoder_support,  "decoder_support" )
+    || !load_function(&decoder_event,    "decoder_event"   ) )
     return FALSE;
+
+  load_optional_function(&decoder_editmeta, "decoder_editmeta");
 
   if (!after_load())
     return FALSE;
@@ -334,6 +341,9 @@ BOOL CL_DECODER_PROXY_1::load_plugin()
     || !load_function(&decoder_support,    "decoder_support")
     || !load_function(&vdecoder_command,   "decoder_command") )
     return FALSE;
+
+  load_optional_function(&decoder_editmeta, "decoder_editmeta");
+
   decoder_command   = (ULONG (PM123_ENTRYP)(void*, ULONG, DECODER_PARAMS2*))
                       mkvdelegate(&vd_decoder_command,  (V_FUNC)&proxy_1_decoder_command,  3, this);
   decoder_event     = (void  (PM123_ENTRYP)(void*, OUTEVENTTYPE))
@@ -525,7 +535,7 @@ proxy_1_decoder_fileinfo( CL_DECODER_PROXY_1* op, const char* filename, DECODER_
     // get file size
     // TODO: large file support
     struct stat fi;
-    if ( rc == 0 && stat( filename, &fi ) == 0 )
+    if ( rc == 0 && is_file(filename) && stat( filename, &fi ) == 0 )
       info->tech.filesize = fi.st_size;
   }
   DEBUGLOG(("proxy_1_decoder_fileinfo: %lu\n", rc));
@@ -542,6 +552,7 @@ proxy_1_decoder_fileinfo( CL_DECODER_PROXY_1* op, const char* filename, DECODER_
     // this part of the structure is binary compatible
     memcpy(&info->meta, old_info.title, offsetof(META_INFO, track));
     info->meta.track      = -1;
+    info->meta_write      = is_file(filename); // Well, at least a good guess
   }
   return rc;
 }
@@ -1155,6 +1166,18 @@ int CL_PLUGIN_BASE_LIST::find(const char* name) const
   }
   return -1;
 }
+
+int CL_PLUGIN_BASE_LIST::find_short(const char* name) const
+{ CL_PLUGIN_BASE** pp = list + num;
+  while (pp-- != list)
+  { char filename[_MAX_FNAME];
+    sfnameext( filename, (*pp)->module_name, sizeof( filename ));
+    if( stricmp( filename, name ) == 0 )
+      return pp - list;
+  }
+  return -1;
+}
+
 
 /****************************************************************************
 *

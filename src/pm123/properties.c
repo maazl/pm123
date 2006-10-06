@@ -205,41 +205,9 @@ cfg_page2_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
   switch( msg ) {
     case WM_INITDLG:
     {
-      int  i;
-      BOOL found = FALSE;
-      char entry[64];
-
       WinCheckButton( hwnd, RB_DISP_FILENAME   + cfg.viewmode, TRUE );
       WinCheckButton( hwnd, RB_SCROLL_INFINITE + cfg.scroll,   TRUE );
       WinCheckButton( hwnd, CB_USE_SKIN_FONT,    cfg.font_skinned   );
-      WinCheckButton( hwnd, CB_AUTO_CHARSET,     cfg.auto_codepage  );
-
-      lb_remove_all( hwnd, CB_CHARSET );
-      for( i = 0; i < ch_list_size; i++ ) {
-        if ( ch_list[i].codepage != CH_CP_NONE ) {
-          int n = sprintf( entry, "%d        ", ch_list[i].codepage );
-          entry[29-2*n] = '-';
-          entry[31-2*n] = 0;
-        } else {
-          entry[0] = 0;
-        }
-        strlcat( entry, ch_list[i].name, sizeof entry );
-        lb_add_item( hwnd, CB_CHARSET, entry );
-        lb_set_handle( hwnd, CB_CHARSET, i, (PVOID)ch_list[i].codepage );
-
-        if( ch_list[i].codepage == cfg.codepage ) {
-          lb_select( hwnd, CB_CHARSET, i );
-          found = TRUE;
-        }
-      }
-      if ( !found ) {
-        char buf[12];
-        sprintf( buf, "%d", cfg.codepage );
-        lb_add_item( hwnd, CB_CHARSET, buf );
-        lb_set_handle( hwnd, CB_CHARSET, i, (PVOID)cfg.codepage );
-        lb_select( hwnd, CB_CHARSET, i );
-      }
-
       WinEnableControl( hwnd, PB_FONT_SELECT, !cfg.font_skinned );
       WinEnableControl( hwnd, ST_FONT_SAMPLE, !cfg.font_skinned );
 
@@ -332,24 +300,13 @@ cfg_page2_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
       WinEnableControl( hwnd, PB_FONT_SELECT, FALSE );
       WinEnableControl( hwnd, ST_FONT_SAMPLE, FALSE );
 
-      cpe = ch_find( 1004 );
-      lb_select( hwnd, CB_CHARSET, cpe ? cpe->codepage : 0 );
-      WinCheckButton( hwnd, CB_AUTO_CHARSET,   TRUE );
       return 0;
     }
 
     case WM_DESTROY:
     {
-      int i;
-
       cfg.scroll   = LONGFROMMR( WinSendDlgItemMsg( hwnd, RB_SCROLL_INFINITE, BM_QUERYCHECKINDEX, 0, 0 ));
       cfg.viewmode = LONGFROMMR( WinSendDlgItemMsg( hwnd, RB_DISP_FILENAME,   BM_QUERYCHECKINDEX, 0, 0 ));
-
-      i = lb_cursored( hwnd, CB_CHARSET );
-      if( i != LIT_NONE ) {
-        cfg.codepage = (int)lb_get_handle( hwnd, CB_CHARSET, i );
-      }
-      cfg.auto_codepage = WinQueryButtonCheckstate( hwnd, CB_AUTO_CHARSET  );
 
       cfg.font_skinned  = WinQueryButtonCheckstate( hwnd, CB_USE_SKIN_FONT );
       cfg.font_size     = font_size;
@@ -971,7 +928,6 @@ cfg_properties( HWND owner )
   page02 = WinLoadDlg( book, book, cfg_page2_dlg_proc, NULLHANDLE, CFG_PAGE2, 0 );
 
   do_warpsans( page02 );
-  do_warpsans( WinWindowFromID( page02, ST_CHARSET    ));
 
   id = WinSendMsg( book, BKM_INSERTPAGE, 0,
                    MPFROM2SHORT( BKA_AUTOPAGESIZE | BKA_MAJOR | BKA_STATUSTEXTON, BKA_LAST ));

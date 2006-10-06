@@ -48,105 +48,8 @@
 
 #include "pm123.h"
 #include "plugman.h"
-#include "httpget.h"
+#include <httpget.h>
 
-/* Reads ID3 tag from the specified file. */
-BOOL
-amp_gettag( const char* filename, const META_INFO* info, tune* tag )
-{
-  int  handle;
-  BOOL rc = FALSE;
-
-  emptytag(tag);
-
-  if( filename != NULL && *filename && is_file( filename )) {
-    handle = open( filename, O_RDONLY | O_BINARY );
-    if( handle != -1 ) {
-      rc = gettag( handle, tag );
-      close( handle );
-    }
-  }
-
-  if( !rc && info ) {
-    strcpy( tag->title,   info->title   );
-    strcpy( tag->artist,  info->artist  );
-    strcpy( tag->album,   info->album   );
-    strcpy( tag->year,    info->year    );
-    strcpy( tag->comment, info->comment );
-    strcpy( tag->genre,   info->genre   );
-    rc = TRUE;
-  }
-
-  if( rc && cfg.auto_codepage )
-  {
-    // autodetect codepage
-    char cstr[ sizeof( tag->title   ) +
-               sizeof( tag->artist  ) +
-               sizeof( tag->album   ) +
-               sizeof( tag->comment ) ];
-    strcpy( cstr, tag->title   );
-    strcat( cstr, tag->artist  );
-    strcat( cstr, tag->album   );
-    strcat( cstr, tag->comment );
-
-    tag->codepage = ch_detect( cfg.codepage, cstr );
-  }
-  
-  if ( rc && tag->codepage != CH_CP_NONE )
-  {
-    tune stag = *tag;
-    // replace values in *tag by codepage converted values
-    ch_convert( tag->codepage, stag.title,   CH_CP_NONE, tag->title,   sizeof( stag.title   ));
-    ch_convert( tag->codepage, stag.artist,  CH_CP_NONE, tag->artist,  sizeof( stag.artist  ));
-    ch_convert( tag->codepage, stag.album,   CH_CP_NONE, tag->album,   sizeof( stag.album   ));
-    ch_convert( tag->codepage, stag.comment, CH_CP_NONE, tag->comment, sizeof( stag.comment ));
-  }
-
-  return rc;
-}
-
-/* Wipes ID3 tag from the specified file. */
-BOOL
-amp_wipetag( const char* filename )
-{
-  int  handle;
-  BOOL rc = FALSE;
-
-  handle = open( filename, O_RDWR | O_BINARY );
-  if( handle != -1 ) {
-    rc = wipetag( handle );
-    close( handle );
-  }
-
-  return rc;
-}
-
-/* Writes ID3 tag to the specified file. */
-BOOL
-amp_puttag( const char* filename, const tune* tag )
-{
-  int  handle;
-  BOOL rc = 0;
-  tune wtag = *tag;
-
-  // if the codepage is not yet specified use the global configuration setting by default
-  if( wtag.codepage == CH_CP_NONE ) {
-    wtag.codepage = cfg.codepage;
-  }
-  
-  ch_convert( CH_CP_NONE, tag->title,   tag->codepage, wtag.title,   sizeof( wtag.title   ));
-  ch_convert( CH_CP_NONE, tag->artist,  tag->codepage, wtag.artist,  sizeof( wtag.artist  ));
-  ch_convert( CH_CP_NONE, tag->album,   tag->codepage, wtag.album,   sizeof( wtag.album   ));
-  ch_convert( CH_CP_NONE, tag->comment, tag->codepage, wtag.comment, sizeof( wtag.comment ));
-
-  handle = open( filename, O_RDWR | O_BINARY );
-  if( handle != -1 ) {
-    rc = settag( handle, &wtag );
-    close( handle );
-  }
-
-  return rc;
-}
 
 /* Constructs a string of the displayable text from the ID3 tag. */
 char*
@@ -270,7 +173,7 @@ int PM123_ENTRY pm123_getstring(int index, int subindex, size_t bufsize, char *b
      strlcpy( buf, bmp_query_text(), bufsize );
      break;
    case STR_FILENAME:
-   { const MSG_PLAY_STRUCT* current = amp_get_playing_file();
+   { const MSG_PLAY_STRUCT* current = amp_get_current_file();
      strlcpy(buf, current != NULL ? current->url : "", bufsize);
      break;
    }
