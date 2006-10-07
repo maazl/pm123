@@ -979,31 +979,43 @@ id3_page_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
     }
 
     case WM_COMMAND:
-      if( COMMANDMSG(&msg)->cmd == PB_ID3_UNDO )
-      {
-        tagdata* data = (tagdata*)WinQueryWindowPtr( hwnd, 0 );
-        int genre = data->tag->gennum;
+      switch ( COMMANDMSG(&msg)->cmd )
+      { case PB_ID3_UNDO:
+        { tagdata* data = (tagdata*)WinQueryWindowPtr( hwnd, 0 );
+          int genre = data->tag->gennum;
 
-        // map all unknown to the text "unknown"
-        if ( genre < 0 || genre >= GENRE_LARGEST )
-          genre = GENRE_LARGEST;
+          // map all unknown to the text "unknown"
+          if ( genre < 0 || genre > GENRE_LARGEST )
+            genre = -1;
 
-        if ( data->tag->meta.track <= 0 || data->tag->meta.track > 999 )
-          data->track[0] = 0;
-        else
-          sprintf( data->track, "%d", data->tag->meta.track );
+          if ( data->tag->meta.track <= 0 || data->tag->meta.track > 999 )
+            data->track[0] = 0;
+          else
+            sprintf( data->track, "%d", data->tag->meta.track );
 
-        WinSetDlgItemText( hwnd, EN_ID3_TITLE,   data->tag->meta.title   );
-        WinSetDlgItemText( hwnd, EN_ID3_ARTIST,  data->tag->meta.artist  );
-        WinSetDlgItemText( hwnd, EN_ID3_ALBUM,   data->tag->meta.album   );
-        WinSetDlgItemText( hwnd, EN_ID3_TRACK,   data->track             );
-        WinSetDlgItemText( hwnd, EN_ID3_COMMENT, data->tag->meta.comment );
-        WinSetDlgItemText( hwnd, EN_ID3_YEAR,    data->tag->meta.year    );
+          WinSetDlgItemText( hwnd, EN_ID3_TITLE,   data->tag->meta.title   );
+          WinSetDlgItemText( hwnd, EN_ID3_ARTIST,  data->tag->meta.artist  );
+          WinSetDlgItemText( hwnd, EN_ID3_ALBUM,   data->tag->meta.album   );
+          WinSetDlgItemText( hwnd, EN_ID3_TRACK,   data->track             );
+          WinSetDlgItemText( hwnd, EN_ID3_COMMENT, data->tag->meta.comment );
+          WinSetDlgItemText( hwnd, EN_ID3_YEAR,    data->tag->meta.year    );
 
-        WinSendDlgItemMsg( hwnd, CB_ID3_GENRE, LM_SELECTITEM,
-                           MPFROMSHORT( genre ), MPFROMSHORT( TRUE ));
+          WinSendDlgItemMsg( hwnd, CB_ID3_GENRE, LM_SELECTITEM,
+                             MPFROMSHORT( genre+1 ), MPFROMSHORT( TRUE ));
+          return 0;
+        }
+        case PB_ID3_CLEAR:
+          WinSetDlgItemText( hwnd, EN_ID3_TITLE,   "" );
+          WinSetDlgItemText( hwnd, EN_ID3_ARTIST,  "" );
+          WinSetDlgItemText( hwnd, EN_ID3_ALBUM,   "" );
+          WinSetDlgItemText( hwnd, EN_ID3_TRACK,   "" );
+          WinSetDlgItemText( hwnd, EN_ID3_COMMENT, "" );
+          WinSetDlgItemText( hwnd, EN_ID3_YEAR,    "" );
+          WinSendDlgItemMsg( hwnd, CB_ID3_GENRE, LM_SELECTITEM,
+                             MPFROMSHORT( 0 ), MPFROMSHORT( TRUE ));        
+          return 0;
       }
-      return 0;
+      break;
 
     case WM_CONTROL:
       if ( SHORT1FROMMP(mp1) == EN_ID3_TRACK && SHORT2FROMMP(mp1) == EN_CHANGE )
@@ -1039,22 +1051,21 @@ id3_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
   DEBUGLOG2(("mpg123:id3_dlg_proc(%p, %d, %p, %p)\n", hwnd, msg, mp1, mp2));
   switch( msg )
   {
-    case WM_INITDLG:
     case WM_WINDOWPOSCHANGED:
     {
-      RECTL rect;
-
-      WinQueryWindowRect( hwnd, &rect );
-      WinCalcFrameRect( hwnd, &rect, TRUE );
-
-      WinSetWindowPos( WinWindowFromID( hwnd, NB_ID3TAG ), 0,
-                       rect.xLeft,
-                       rect.yBottom,
-                       rect.xRight-rect.xLeft,
-                       rect.yTop-rect.yBottom, SWP_SIZE | SWP_MOVE );
+      PSWP pswp = (PSWP)mp1;
+      if ( (pswp[0].fl & SWP_SIZE) && pswp[1].cx ) {
+        // move/resize all controls
+        LONG dx = pswp[0].cx - pswp[1].cx;
+        LONG dy = pswp[0].cy - pswp[1].cy;
+        SWP swp_temp;
+        HWND hwnd_nb = WinWindowFromID( hwnd, NB_ID3TAG );
+        
+        WinQueryWindowPos( hwnd_nb, &swp_temp );
+        WinSetWindowPos( hwnd_nb, NULLHANDLE, 0, 0, swp_temp.cx + dx, swp_temp.cy + dy, SWP_SIZE );
+      }
       break;
     }
-    
   }
   return WinDefDlgProc( hwnd, msg, mp1, mp2 );
 }
@@ -1070,6 +1081,7 @@ ULONG PM123_ENTRY decoder_editmeta( HWND owner, HMODULE module, const char* file
   tune    old_tag;
   tune    new_tag;
   tagdata mywindowdata;
+  ULONG   rc;
 
   DEBUGLOG(("mpg123:decoder_editmeta(%p, %p, %s)\n", owner, module, filename));
 
@@ -1097,8 +1109,6 @@ ULONG PM123_ENTRY decoder_editmeta( HWND owner, HMODULE module, const char* file
   book = WinWindowFromID( hwnd, NB_ID3TAG );
   do_warpsans( book );
 
-  WinSendMsg( book, BKM_SETDIMENSIONS, MPFROM2SHORT(100,25), MPFROMSHORT(BKA_MAJORTAB));
-  WinSendMsg( book, BKM_SETDIMENSIONS, MPFROMLONG(0), MPFROMSHORT(BKA_MINORTAB));
   WinSendMsg( book, BKM_SETNOTEBOOKCOLORS, MPFROMLONG(SYSCLR_FIELDBACKGROUND),
               MPFROMSHORT(BKA_BACKGROUNDPAGECOLORINDEX));
 
@@ -1116,46 +1126,46 @@ ULONG PM123_ENTRY decoder_editmeta( HWND owner, HMODULE module, const char* file
   WinPostMsg( page01, WM_COMMAND,
               MPFROMSHORT( PB_ID3_UNDO ), MPFROM2SHORT( CMDSRC_OTHER, FALSE ));
 
-  WinProcessDlg( hwnd );
-  DEBUGLOG(("mpg123:decoder_editmeta: dlg completed - %p %p (%p)\n", hwnd, page01, WinGetLastError(NULL)));
+  rc = WinProcessDlg( hwnd );
+  DEBUGLOG(("mpg123:decoder_editmeta: dlg completed - %u, %p %p (%p)\n", rc, hwnd, page01, WinGetLastError(NULL)));
 
-  WinQueryDlgItemText( page01, EN_ID3_TITLE,   sizeof( new_tag.meta.title   ), new_tag.meta.title   );
-  WinQueryDlgItemText( page01, EN_ID3_ARTIST,  sizeof( new_tag.meta.artist  ), new_tag.meta.artist  );
-  WinQueryDlgItemText( page01, EN_ID3_ALBUM,   sizeof( new_tag.meta.album   ), new_tag.meta.album   );
-  WinQueryDlgItemText( page01, EN_ID3_COMMENT, sizeof( new_tag.meta.comment ), new_tag.meta.comment );
-  WinQueryDlgItemText( page01, EN_ID3_YEAR,    sizeof( new_tag.meta.year    ), new_tag.meta.year    );
+  if ( rc == DID_OK )
+  { WinQueryDlgItemText( page01, EN_ID3_TITLE,   sizeof( new_tag.meta.title   ), new_tag.meta.title   );
+    WinQueryDlgItemText( page01, EN_ID3_ARTIST,  sizeof( new_tag.meta.artist  ), new_tag.meta.artist  );
+    WinQueryDlgItemText( page01, EN_ID3_ALBUM,   sizeof( new_tag.meta.album   ), new_tag.meta.album   );
+    WinQueryDlgItemText( page01, EN_ID3_COMMENT, sizeof( new_tag.meta.comment ), new_tag.meta.comment );
+    WinQueryDlgItemText( page01, EN_ID3_YEAR,    sizeof( new_tag.meta.year    ), new_tag.meta.year    );
 
-  sscanf( mywindowdata.track, "%u", &new_tag.meta.track );
+    sscanf( mywindowdata.track, "%u", &new_tag.meta.track );
 
-  new_tag.gennum =
-    SHORT1FROMMR( WinSendDlgItemMsg( page01, CB_ID3_GENRE,
-                                     LM_QUERYSELECTION, MPFROMSHORT( LIT_CURSOR ), 0 ));
-  // keep genres that PM123 does not know
-  if ( new_tag.gennum == GENRE_LARGEST && old_tag.gennum < GENRE_LARGEST )
-    new_tag.gennum = old_tag.gennum;
+    new_tag.gennum =
+      SHORT1FROMMR( WinSendDlgItemMsg( page01, CB_ID3_GENRE,
+                                       LM_QUERYSELECTION, MPFROMSHORT( LIT_CURSOR ), 0 )) -1;
+    // keep genres that PM123 does not know
+    if ( new_tag.gennum == -1 && old_tag.gennum >= 0 )
+      new_tag.gennum = old_tag.gennum;
+  }
 
   WinDestroyWindow( page01 );
   WinDestroyWindow( hwnd   );
 
-  DEBUGLOG(("mpg123:decoder_editmeta: new\n\t%s\n\t%s\n\t%s\n\t%s\n\t%s\n\t%i, %i\n",
-    new_tag.meta.title, new_tag.meta.artist, new_tag.meta.album, new_tag.meta.comment, new_tag.meta.year, new_tag.gennum, new_tag.meta.track));
+  if ( rc == DID_OK )
+  { DEBUGLOG(("mpg123:decoder_editmeta: new\n\t%s\n\t%s\n\t%s\n\t%s\n\t%s\n\t%i, %i\n",
+      new_tag.meta.title, new_tag.meta.artist, new_tag.meta.album, new_tag.meta.comment, new_tag.meta.year, new_tag.gennum, new_tag.meta.track));
 
-  if( strcmp( old_tag.meta.title,   new_tag.meta.title   ) == 0 &&
-      strcmp( old_tag.meta.artist,  new_tag.meta.artist  ) == 0 &&
-      strcmp( old_tag.meta.album,   new_tag.meta.album   ) == 0 &&
-      strcmp( old_tag.meta.comment, new_tag.meta.comment ) == 0 &&
-      strcmp( old_tag.meta.year,    new_tag.meta.year    ) == 0 &&
-      old_tag.meta.track  == new_tag.meta.track                 &&
-      old_tag.gennum == new_tag.gennum )
-  {
-    return 300;
+    if( strcmp( old_tag.meta.title,   new_tag.meta.title   ) != 0 ||
+        strcmp( old_tag.meta.artist,  new_tag.meta.artist  ) != 0 ||
+        strcmp( old_tag.meta.album,   new_tag.meta.album   ) != 0 ||
+        strcmp( old_tag.meta.comment, new_tag.meta.comment ) != 0 ||
+        strcmp( old_tag.meta.year,    new_tag.meta.year    ) != 0 ||
+        old_tag.meta.track         != new_tag.meta.track          ||
+        old_tag.gennum             != new_tag.gennum )
+    { // save modified tag
+      return writetag( filename, &new_tag ) ? 0 : 500;
+    }
   }
-
-  if( !writetag( filename, &new_tag )) {
-    return 500;
-  }
-
-  return 0;
+  // Cancel or not modified
+  return 300;
 }
 
 /* Returns information about plug-in. */

@@ -27,8 +27,8 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#define GENRE_LARGEST 148
 static char *genres[] = {
+/*  -1 */  "- unknown -",
 /*   0 */  "Blues",
 /*   1 */  "Classic Rock",
 /*   2 */  "Country",
@@ -176,7 +176,6 @@ static char *genres[] = {
 /* 144 */  "Thrash Metal",
 /* 145 */  "Anime",
 /* 146 */  "JPop",
-/* 147 */  "SynthPop",
-/* 148 */  "Unknown"
-
+/* 147 */  "SynthPop"
 };
+#define GENRE_LARGEST (sizeof genres / sizeof *genres -1)

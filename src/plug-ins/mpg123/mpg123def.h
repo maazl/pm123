@@ -26,4 +26,4 @@
 #define ST_ID3_YEAR         113
 #define EN_ID3_YEAR         112
 #define PB_ID3_UNDO         200
-
+#define PB_ID3_CLEAR        201
