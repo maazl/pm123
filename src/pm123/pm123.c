@@ -714,7 +714,7 @@ amp_show_context_menu( HWND parent )
   // Update status
   current = amp_get_current_file();
   // TODO: edit more than ID3 tags
-  mn_enable_item( menu, IDM_M_TAG,     current != NULL && is_file( current->url ));
+  mn_enable_item( menu, IDM_M_TAG,     current != NULL && current->info.meta_write );
   mn_enable_item( menu, IDM_M_SMALL,   bmp_is_mode_supported( CFG_MODE_SMALL   ));
   mn_enable_item( menu, IDM_M_NORMAL,  bmp_is_mode_supported( CFG_MODE_REGULAR ));
   mn_enable_item( menu, IDM_M_TINY,    bmp_is_mode_supported( CFG_MODE_TINY    ));

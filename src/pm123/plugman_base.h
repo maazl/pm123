@@ -351,7 +351,7 @@ class CL_FILTER : public CL_PLUGIN, protected FILTER_PROCS
 // Set of entry points related to visual plug-ins.
 struct VISUAL_PROCS
 { HWND  (PM123_ENTRYP plugin_init     )( VISPLUGININIT* init );
-  BOOL  (PM123_ENTRYP plugin_deinit   )( void* f );
+  BOOL  (PM123_ENTRYP plugin_deinit   )( int unload );
 };
 
 // specialized class for visual plug-ins
