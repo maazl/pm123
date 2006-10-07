@@ -521,6 +521,8 @@ proxy_1_decoder_fileinfo( CL_DECODER_PROXY_1* op, const char* filename, DECODER_
   CDDA_REGION_INFO cd_info;
   ULONG rc;
   
+  // purge the structure because of buggy plug-ins
+  memset(&old_info, 0, sizeof old_info);
   info->tech.filesize   = -1;
 
   if (scdparams(&cd_info, filename))

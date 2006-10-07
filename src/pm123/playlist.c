@@ -264,28 +264,28 @@ pl_query_file_record( const char* filename ) {
 }
 
 static SHORT EXPENTRY
-pl_compare_rand( PLRECORD* p1, PLRECORD* p2, PVOID pStorage ) {
+pl_compare_rand( const PLRECORD* p1, const PLRECORD* p2, PVOID pStorage ) {
   return ( rand() % 2 ) - 1;
 }
 
 static SHORT EXPENTRY
-pl_compare_size( PLRECORD* p1, PLRECORD* p2, PVOID pStorage )
+pl_compare_size( const PLRECORD* p1, const PLRECORD* p2, PVOID pStorage )
 {
-  if( p1->size < p2->size ) return -1;
-  if( p1->size > p2->size ) return  1;
+  if( p1->info2->tech.filesize < p2->info2->tech.filesize ) return -1;
+  if( p1->info2->tech.filesize > p2->info2->tech.filesize ) return  1;
   return 0;
 }
 
 static SHORT EXPENTRY
-pl_compare_time( PLRECORD* p1, PLRECORD* p2, PVOID pStorage )
+pl_compare_time( const PLRECORD* p1, const PLRECORD* p2, PVOID pStorage )
 {
-  if( p1->secs < p2->secs ) return -1;
-  if( p1->secs > p2->secs ) return  1;
+  if( p1->info2->tech.songlength < p2->info2->tech.songlength ) return -1;
+  if( p1->info2->tech.songlength > p2->info2->tech.songlength ) return  1;
   return 0;
 }
 
 static SHORT EXPENTRY
-pl_compare_name( PLRECORD* p1, PLRECORD* p2, PVOID pStorage )
+pl_compare_name( const PLRECORD* p1, const PLRECORD* p2, PVOID pStorage )
 {
   char s1[_MAX_PATH], s2[_MAX_PATH];
 
@@ -296,7 +296,7 @@ pl_compare_name( PLRECORD* p1, PLRECORD* p2, PVOID pStorage )
 }
 
 static SHORT EXPENTRY
-pl_compare_song( PLRECORD* p1, PLRECORD* p2, PVOID pStorage ) {
+pl_compare_song( const PLRECORD* p1, const PLRECORD* p2, PVOID pStorage ) {
   return stricmp( p1->songname, p2->songname );
 }
 
@@ -336,11 +336,10 @@ pl_refresh_record( PLRECORD* rec, USHORT flags )
 static void
 pl_set_tag( PLRECORD* rec, const META_INFO* tag, const char* songname )
 {
-  free( rec->comment  );
   free( rec->songname );
   free( rec->info     );
-
-  rec->comment = strdup( tag->comment );
+  
+  rec->info2->meta = *tag;
 
   // Songname
   if( songname ) {
@@ -358,11 +357,11 @@ pl_set_tag( PLRECORD* rec, const META_INFO* tag, const char* songname )
   }
 
   // Information
-  rec->info = malloc( strlen( tag->album       ) + 1 +
-                      strlen( tag->year        ) + 2 +
-                      strlen( tag->genre       ) + 2 +
-                      strlen( rec->info_string ) +
-                      strlen( tag->comment     ) + 12 );
+  rec->info = malloc( strlen( tag->album            ) + 1 +
+                      strlen( tag->year             ) + 2 +
+                      strlen( tag->genre            ) + 2 +
+                      strlen( rec->info2->tech.info ) +
+                      strlen( tag->comment          ) + 12 );
   if( rec->info ) {
     strcpy( rec->info, tag->album );
 
@@ -378,7 +377,7 @@ pl_set_tag( PLRECORD* rec, const META_INFO* tag, const char* songname )
       strcat( rec->info, ", " );
     }
 
-    strcat( rec->info, rec->info_string );
+    strcat( rec->info, rec->info2->tech.info );
 
     if( *tag->comment ) {
       strcat( rec->info, ", comment: " );
@@ -422,22 +421,14 @@ pl_create_record( const char* filename, PLRECORD* pos, const char* songname )
 
   rec->rc.cb           = sizeof( RECORDCORE );
   rec->rc.flRecordAttr = CRA_DROPONABLE;
-  rec->bitrate         = info.tech.bitrate;
-  rec->channels        = info.format.channels;
-  rec->secs            = info.tech.songlength/1000;
-  rec->freq            = info.format.samplerate;
-  rec->format          = info.format;
-  rec->track           = cd_info.track;
   rec->rc.hptrIcon     = ( rc == 0 ) ? mp3 : mp3gray;
   rec->full            = strdup( filename );
-  rec->size            = info.tech.filesize;
-  rec->comment         = NULL;
   rec->songname        = NULL;
   rec->info            = NULL;
   rec->played          = 0;
   rec->exist           = ( rc == 0 );
-
-  strcpy( rec->cd_drive, cd_info.drive );
+  rec->info2           = malloc( sizeof *rec->info2 );
+  *rec->info2          = info;
   strlcpy( rec->decoder_module_name, module_name, sizeof rec->decoder_module_name );
 
   if (info.tech.filesize > 0) {
@@ -446,11 +437,8 @@ pl_create_record( const char* filename, PLRECORD* pos, const char* songname )
     *buffer = 0;
   }
   rec->length = strdup( buffer );
-  sprintf( buffer, "%02u:%02u", rec->secs / 60, rec->secs % 60 );
+  sprintf( buffer, "%02u:%02u", rec->info2->tech.songlength / 60000, rec->info2->tech.songlength / 1000 % 60 );
   rec->time = strdup( buffer );
-
-  // Decoder info string needed for eventual playback.
-  rec->info_string = strdup( info.tech.info );
 
   // File name or host or cd track.
   if( is_url( filename )) {
@@ -495,27 +483,20 @@ pl_copy_record( PLRECORD* rec, PLRECORD* pos )
 
   copy->rc.cb           = sizeof(RECORDCORE);
   copy->rc.flRecordAttr = CRA_DROPONABLE;
-  copy->bitrate         = rec->bitrate;
-  copy->channels        = rec->channels;
-  copy->secs            = rec->secs;
-  copy->freq            = rec->freq;
-  copy->format          = rec->format;
-  copy->track           = rec->track;
-  copy->size            = rec->size;
   copy->rc.hptrIcon     = rec->exist ? mp3 : mp3gray;
   copy->full            = strdup( rec->full );
   copy->length          = strdup( rec->length );
-  copy->comment         = strdup( rec->comment );
   copy->songname        = strdup( rec->songname );
   copy->info            = strdup( rec->info );
   copy->time            = strdup( rec->time );
-  copy->info_string     = strdup( rec->info_string );
   copy->rc.pszIcon      = strdup( rec->rc.pszIcon );
   copy->played          = 0;
   copy->exist           = rec->exist;
-
-  strcpy( copy->cd_drive, rec->cd_drive );
+  //strcpy( copy->cd_drive, rec->cd_drive );
+  copy->info2           = malloc( sizeof *copy->info2 );
+  *copy->info2          = *rec->info2; 
   strcpy( copy->decoder_module_name, rec->decoder_module_name );
+ 
 
   insert.cb                = sizeof(RECORDINSERT);
   insert.pRecordOrder      = (PRECORDCORE)pos;
@@ -569,8 +550,7 @@ pl_free_record( PLRECORD* rec )
   free( rec->time );
   free( rec->info );
   free( rec->full );
-  free( rec->info_string );
-  free( rec->comment );
+  free( rec->info2 );
 }
 
 /* Removes the specified playlist record. */
@@ -952,14 +932,15 @@ ULONG pl_playleft( void )
     rec = pl_first_record();
   }
 
+  // TODO: wrap around if more than 49 days playlist length ?!? 
   while( rec ) {
     if( !rec->played || rec == current_record || !cfg.shf ) {
-      time += rec->secs;
+      time += rec->info2->tech.songlength;
     }
     rec = pl_next_record( rec );
   }
 
-  return time;
+  return time / 1000UL;
 }
 
 /* Marks the currently loaded playlist record as currently played. */
@@ -1081,7 +1062,7 @@ pl_delete_selected( void )
 
 /* Shows the context menu of the playlist. */
 static void
-pl_show_context_menu( HWND parent, PLRECORD* rec )
+pl_show_context_menu( HWND parent, const PLRECORD* rec )
 {
   POINTL   pos;
   SWP      swp;
@@ -1108,10 +1089,8 @@ pl_show_context_menu( HWND parent, PLRECORD* rec )
     // If have record, show the context menu for this record.
     if( !is_file( rec->full )) {
       mn_enable_item( menu_record, IDM_PL_S_TAG,  FALSE );
-      mn_enable_item( menu_record, IDM_PL_S_DTAG, FALSE );
     } else {
       mn_enable_item( menu_record, IDM_PL_S_TAG,  TRUE  );
-      mn_enable_item( menu_record, IDM_PL_S_DTAG, TRUE  );
     }
 
     WinPopupMenu( parent, parent, menu_record, pos.x, pos.y, IDM_PL_S_PLAY,
@@ -2238,8 +2217,9 @@ pl_save( const char* filename, int options )
     }
 
     if( !(options & PL_SAVE_M3U )) {
-      fprintf( playlist, ">%u,%u,%u,%.0f,%u\n", rec->bitrate,
-                        rec->freq, rec->mode, rec->size, rec->secs );
+      fprintf( playlist, ">%u,%u,%u,%.0f,%u\n", rec->info2->tech.bitrate,
+               rec->info2->format.samplerate, rec->info2->format.channels == 2 ? 0 : 3,
+               rec->info2->tech.filesize, rec->info2->tech.songlength/1000 );
     }
   }
 

@@ -29,7 +29,7 @@ They can of course be loaded when loading a new skin.
 All exported and callback functions must use the calling convention <code>_System</code>.
 A plug-in must have a function that identifies it as a plug-in:
 <pre>
-     int PM123_ENTRY plugin_query( PPLUGIN_QUERYPARAM param );
+     int PM123_ENTRY <b>plugin_query</b>( PPLUGIN_QUERYPARAM param );
 </pre>
 The plug-in will then have to fill the variables in the <i>param</i> structure, for example:
 <pre>
@@ -58,7 +58,7 @@ The plug-in will then have to fill the variables in the <i>param</i> structure, 
 If you set <i>param->configurable = TRUE</i>, configuration dialog
 should appear when PM123 calls
 <pre>
-     int PM123_ENTRY plugin_configure( HWND hwnd, HMODULE module );
+     int PM123_ENTRY <b>plugin_configure</b>( HWND hwnd, HMODULE module );
 </pre>
 where <i>hwnd</i> is the notebook or player window so that you can "lock" your
 window on it if you want and where <i>module</i> can be used to load
@@ -66,7 +66,7 @@ a resource from your DLL
 <p>Plug-ins should deinitialize and destroy their windows and free allocated
 memory when receiving a
 <pre>
-     int PM123_ENTRY plugin_deinit( int unload );
+     int PM123_ENTRY <b>plugin_deinit</b>( int unload );
 </pre>
 It can also be used to save settings in your INI file for other sort of plug-ins.
 <p>

@@ -33,7 +33,8 @@
 #define PM123_PLAYLIST_H
 
 #ifndef  RC_INVOKED
-#include "format.h"
+#include <format.h>
+#include <decoder_plug.h>
 #endif
 
 #define DLG_PLAYLIST         42
@@ -80,19 +81,9 @@ typedef struct _PLRECORD {
   char*       length;       /* Length of the file.          */
   char*       time;         /* Play time of the file.       */
   char*       info;         /* Information about the song.  */
-  char*       comment;      /* Comment.                     */
-  char*       info_string;  /* Decoder info string.         */
   int         played;       /* Is it already played file.   */
   BOOL        exist;        /* Is it file exist.            */
-  int         bitrate;      /* Bitrate.                     */
-  int         channels;     /* Number of channels.          */
-  int         secs;         /* Play time of the file.       */
-  int         mode;         /* Type of the stereo mode.     */
-  int         freq;         /* Sample rate.                 */
-  double      size;         /* Size of the file.            */
-  char        track;        /* Number of the CD track.      */
-  char        cd_drive[4];  /* Name of the CD drive.        */
-  FORMAT_INFO2 format;
+  DECODER_INFO2* info2;     /* micelaneuous information about the file */
   char        decoder_module_name[16];
 
 } PLRECORD, *PPLRECORD;

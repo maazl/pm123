@@ -365,8 +365,6 @@ amp_pl_load_record( PLRECORD* rec )
   if ( !*current_file.info.meta.title ) {
     strlcpy( current_file.info.meta.title, rec->songname, sizeof( current_file.info.meta.title ));
   }
-  if ( current_file.info.meta.track <= 0 && rec->track > 0 ) 
-    current_file.info.meta.track = rec->track;
 
   if( amp_playmode == AMP_PLAYLIST ) {
     // TODO: Uuh, it should be up to playlist.c to modify this item
