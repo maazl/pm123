@@ -260,10 +260,8 @@ void  amp_load_file( HWND owner );
 /* Edits a ID3 tag for the specified file. */
 void  amp_id3_edit( HWND owner, const char* filename, const char* decoder );
 
-/* Sets audio volume to the current selected level. */
-void  amp_volume_to_normal( void );
-/* Sets audio volume to below current selected level. */
-void  amp_volume_to_lower( void );
+/* Adjusts audio volume to level accordingly current playing mode. */
+void  amp_volume_adjust( void );
 
 /* Default dialog procedure for the file dialog. */
 MRESULT EXPENTRY amp_file_dlg_proc( HWND, ULONG, MPARAM, MPARAM );
@@ -288,6 +286,16 @@ typedef struct
    if the following function is not called from the main thread */
 /* Returns a information block of the currently loaded file or NULL if none. */
 const MSG_PLAY_STRUCT* amp_get_current_file( void );
+
+
+/* pipe.c */
+/* create main pipe and start the worker thread */
+BOOL pipe_create( void );
+/* Opens specified pipe and writes data to it. */
+BOOL pipe_open_and_write( const char* pipename, const char* data, size_t size );
+/* Pipe name decided on startup. */
+extern char pipename[_MAX_PATH];
+
 
 /* Global variables */
 /* -----------------*/

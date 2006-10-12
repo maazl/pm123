@@ -101,7 +101,7 @@ amp_msg( int msg, void *param, void *param2 )
         return;
       }
 
-      amp_volume_to_normal();
+      amp_volume_adjust();
 
       while( dec_status() == DECODER_STARTING ) {
         DosSleep( 50 );

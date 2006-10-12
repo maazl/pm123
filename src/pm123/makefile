@@ -11,7 +11,7 @@ EXE_PM   = yes
 OBJECTS  = button95$(CO) pm123$(CO) 123_msg$(CO) 123_util$(CO)
 OBJECTS  = $(OBJECTS) pfreq$(CO) plugman$(CO) plugman_base$(CO) bookmark$(CO)
 OBJECTS  = $(OBJECTS) iniman$(CO) playlist$(CO) properties$(CO) skin$(CO)
-OBJECTS  = $(OBJECTS) docking$(CO) vdelegate$(CO)
+OBJECTS  = $(OBJECTS) pipe$(CO) docking$(CO) vdelegate$(CO)
 DEF      = pm123$(LDEF_SUFFX)
 RESOURCE = pm123$(RES)
 LIBS     = $(TOPDIR)\gbm123\gbm123$(LBI) $(TOPDIR)\http123\http123$(LBI)
@@ -40,6 +40,7 @@ properties.c:  pm123.h plugman.h copyright.h properties.h
 bookmark.c:    pm123.h bookmark.h
 skin.c:        pm123.h plugman.h
 vdelegate.c:   vdelegate.h
+pipe.c:        playlist.h pm123.h properties.h
 pm123.rc:      pm123.h bookmark.h
 pm123.h:       playlist.h skin.h properties.h
 
