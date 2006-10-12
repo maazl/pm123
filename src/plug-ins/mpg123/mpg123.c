@@ -1071,7 +1071,7 @@ id3_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
 }
 
 /* Edits a ID3 tag for the specified file. */
-ULONG PM123_ENTRY decoder_editmeta( HWND owner, HMODULE module, const char* filename )
+ULONG PM123_ENTRY decoder_editmeta( HWND owner, const char* filename )
 {
   char    caption[_MAX_FNAME] = "ID3 Tag Editor - ";
   HWND    hwnd;
@@ -1081,9 +1081,10 @@ ULONG PM123_ENTRY decoder_editmeta( HWND owner, HMODULE module, const char* file
   tune    old_tag;
   tune    new_tag;
   tagdata mywindowdata;
+  HMODULE module;
   ULONG   rc;
 
-  DEBUGLOG(("mpg123:decoder_editmeta(%p, %p, %s)\n", owner, module, filename));
+  DEBUGLOG(("mpg123:decoder_editmeta(%p, %s)\n", owner, filename));
 
   if( !is_file( filename )) {
     return 400;
@@ -1093,6 +1094,7 @@ ULONG PM123_ENTRY decoder_editmeta( HWND owner, HMODULE module, const char* file
     filename = strchr( filename, ':' ) +4;
   }
 
+  DosQueryModFromEIP( &module, &rc, 0, NULL, &rc, (ULONG)&decoder_editmeta ); 
   // read tag
   emptytag( &old_tag );
   emptytag( &new_tag );

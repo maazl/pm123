@@ -260,6 +260,15 @@ typedef struct
 
 } DECODER_INFO2;
 
+typedef struct
+{ 
+  int   size;
+  char  prompt[32];      /* String to be displayed in the context menu */
+  /* Procedure to be called when the specified item is selected */
+  char* (PM123_ENTRYP assist)( HWND owner );
+
+} DECODER_ASSIST;
+
 /* returns
       0 = everything's perfect, structure is set
       100 = error reading file (too small?)
@@ -269,7 +278,8 @@ typedef struct
 #if defined(DECODER_PLUGIN_LEVEL) && DECODER_PLUGIN_LEVEL > 1 
 ULONG PM123_ENTRY decoder_fileinfo   ( const char* url, DECODER_INFO2* info );
 
-ULONG PM123_ENTRY decoder_editmeta   ( HWND owner, HMODULE module, const char* url );
+ULONG PM123_ENTRY decoder_editmeta   ( HWND owner, const char* url );
+DECODER_ASSIST* PM123_ENTRY decoder_loadassist( BOOL multiselect );
 #else
 ULONG PM123_ENTRY decoder_fileinfo   ( const char* filename, DECODER_INFO* info );
 ULONG PM123_ENTRY decoder_trackinfo  ( const char* drive, int track, DECODER_INFO* info );
