@@ -208,7 +208,7 @@ struct DECODER_PROCS
   ULONG (PM123_ENTRYP decoder_setmeta  )( const char* filename, const META_INFO* meta );
   ULONG (PM123_ENTRYP decoder_cdinfo   )( const char* drive, DECODER_CDINFO* info );
   ULONG (PM123_ENTRYP decoder_support  )( char*  ext[], int* size );
-  ULONG (PM123_ENTRYP decoder_editmeta )( HWND owner, HMODULE module, const char* url );
+  ULONG (PM123_ENTRYP decoder_editmeta )( HWND owner, const char* url );
   // Result from the decoder_support call. Supported data sources.
   int    type;
   // Result from the decoder_support call. Supported file types.

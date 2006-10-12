@@ -1014,7 +1014,7 @@ dec_editmeta( HWND owner, const char* url, const char* decoder_name )
     } else
     { // detach configure
       // TODO: THREAD!
-      rc = (*procs.decoder_editmeta)(owner, dec.module, url);
+      rc = (*procs.decoder_editmeta)(owner, url);
     }
   }
   DEBUGLOG(("dec_editmeta: %d\n", rc));
