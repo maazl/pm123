@@ -29,9 +29,10 @@
  * The main source file to cddaplay.dll plug-in
  */
 
-#define  INCL_DOS
+#define  INCL_BASE
 #define  INCL_WIN
 #include <os2.h>
+#define  DECODER_PLUGIN_LEVEL 1
 
 #include <malloc.h>
 #include <string.h>
@@ -58,12 +59,14 @@
 #include <plugin.h>
 
 #include "readcd.h"
-#include "utilfct.h"
+#include <utilfct.h>
 #include "tcpipsock.h"
 #include "http.h"
 #include "cddb.h"
 #include "cdda.h"
 #include "cddarc.h"
+
+#include <debuglog.h>
 
 #define  WM_SAVE         (WM_USER+1)
 #define  WM_UPDATE_DONE  (WM_USER+2)
@@ -129,7 +132,7 @@ typedef struct
 CDDA_SETTINGS settings = {0};  // configuration settings
 
 /* Returns the character set currently used by PM123. */
-static int
+/*static int
 query_pm123_charset( void )
 {
   PPIB  ppib;
@@ -149,12 +152,12 @@ query_pm123_charset( void )
   hini = open_ini( inifile );
 
   if( hini ) {
-    load_ini_value( hini, cfg.charset )
+    load_ini_value( hini, cfg.charset );
     close_ini( hini );
   }
 
   return cfg.charset;
-}
+}*/
 
 static void TFNENTRY decoder_thread(void *arg)
 {
@@ -408,7 +411,7 @@ ULONG PM123_ENTRY decoder_status(void *C)
    return c->status;
 }
 
-ULONG PM123_ENTRY decoder_fileinfo(char *filename, DECODER_INFO *info)
+ULONG PM123_ENTRY decoder_fileinfo(const char *filename, DECODER_INFO *info)
 {
    return 200;
 }
@@ -580,7 +583,8 @@ MRESULT EXPENTRY wpMatch(HWND hwnd,ULONG msg,MPARAM mp1,MPARAM mp2)
 
          while(data->matches[i].discid_cddb)
          {
-            ch_convert( query_pm123_charset(), data->matches[i].title, CH_DEFAULT, title, sizeof(title));
+            // cddb is always ISO-8859-1 by definition unless we implement protocol level 6
+            ch_convert( 1004, data->matches[i].title, CH_CP_NONE, title, sizeof(title));
             int inserted = lb_add_item(hwnd,LB_MATCHES,data->matches[i].title);
             lb_set_handle(hwnd, LB_MATCHES,inserted,&data->matches[i]);
             i++;
@@ -825,7 +829,7 @@ void loadCDDBInfo(void)
 
 }
 
-ULONG PM123_ENTRY decoder_trackinfo(char *drive, int track, DECODER_INFO *info)
+ULONG PM123_ENTRY decoder_trackinfo(const char *drive, int track, DECODER_INFO *info)
 {
    char *temp;
 
@@ -924,7 +928,7 @@ ULONG PM123_ENTRY decoder_trackinfo(char *drive, int track, DECODER_INFO *info)
    return 0;
 }
 
-ULONG PM123_ENTRY decoder_cdinfo(char *drive, DECODER_CDINFO *info)
+ULONG PM123_ENTRY decoder_cdinfo(const char *drive, DECODER_CDINFO *info)
 {
    CD_drive CD;
 
@@ -987,7 +991,7 @@ void load_ini()
       free(settings.CDDBServers[i]); settings.CDDBServers[i] = NULL;
       free(settings.HTTPServers[i]); settings.HTTPServers[i] = NULL;
 
-      settings.isCDDBSelect[i] = FALSE;
+      settings.isCDDBSelect[i] = FALSE;            
       settings.isHTTPSelect[i] = FALSE;
    }
 
@@ -1008,8 +1012,8 @@ void load_ini()
       load_ini_value ( INIhandle, settings.useCDDB );
       load_ini_value ( INIhandle, settings.useHTTP );
       load_ini_value ( INIhandle, settings.tryAllServers );
-      load_ini_string( INIhandle, settings.proxyURL, 1024 );
-      load_ini_string( INIhandle, settings.email, 1024 );
+      load_ini_string( INIhandle, settings.proxyURL, sizeof settings.proxyURL );
+      load_ini_string( INIhandle, settings.email,    sizeof settings.email );
 
       if(PrfQueryProfileSize(INIhandle, "CDDBServers", NULL, &bufferSize) && bufferSize > 0)
       {
@@ -1209,201 +1213,6 @@ cddb_update( void* arg )
 *
 ****************************************************************************/
 
-/* Processes messages of the dialog of addition of CD tracks. */
-static MRESULT EXPENTRY
-add_tracks_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
-{
-  switch( msg ) {
-    case WM_CONTROL:
-      if( SHORT1FROMMP(mp1) == CB_DRIVE && SHORT2FROMMP(mp1) == CBN_EFCHANGE ) {
-        WinPostMsg( hwnd, WM_COMMAND,
-                    MPFROMSHORT( PB_REFRESH ), MPFROM2SHORT( CMDSRC_OTHER, FALSE ));
-      }
-      break;
-
-    case WM_COMMAND:
-      if( COMMANDMSG(&msg)->cmd == PB_REFRESH )
-      {
-        char cdurl[32] = "cdda:///";
-        int  options = WinQueryWindowULong( hwnd, QWL_USER );
-        int  i;
-
-        DECODER_CDINFO cdinfo;
-        DECODER_INFO2  trackinfo;
-
-        WinQueryDlgItemText( hwnd, CB_DRIVE, sizeof( cdurl )-8, cdurl+8 );
-        WinSendDlgItemMsg( hwnd, LB_TRACKS, LM_DELETEALL, 0, 0 );
-
-        if( dec_cdinfo( cdurl+8, &cdinfo ) == 0 ) {
-          if( cdinfo.firsttrack ) {
-            for( i = cdinfo.firsttrack; i <= cdinfo.lasttrack; i++ ) {
-              sprintf( cdurl+10, "/Track %02d", i );
-              if ( dec_fileinfo( cdurl, &trackinfo, NULL) == 0 &&
-                   *trackinfo.meta.title != 0 ) {
-                WinSendDlgItemMsg( hwnd, LB_TRACKS, LM_INSERTITEM,
-                                   MPFROMSHORT( LIT_END ), MPFROMP( trackinfo.meta.title ));
-              } else {
-                WinSendDlgItemMsg( hwnd, LB_TRACKS, LM_INSERTITEM,
-                                   MPFROMSHORT( LIT_END ), MPFROMP( cdurl+11 ));
-              }
-            }
-            if( options & TRK_ADD_TO_LIST ) {
-              for( i = cdinfo.firsttrack; i <= cdinfo.lasttrack; i++ ) {
-                WinSendDlgItemMsg( hwnd, LB_TRACKS, LM_SELECTITEM,
-                                   MPFROMSHORT( i - cdinfo.firsttrack ),
-                                   MPFROMLONG( TRUE ));
-              }
-            } else {
-              WinSendDlgItemMsg( hwnd, LB_TRACKS, LM_SELECTITEM,
-                                 MPFROMSHORT( 0 ), MPFROMLONG( TRUE ));
-            }
-          }
-        } else {
-          amp_error( hwnd, "Cannot find decoder that supports CD tracks." );
-        }
-
-        return 0;
-      }
-      break;
-
-    case WM_ADJUSTWINDOWPOS:
-      {
-        PSWP pswp = (PSWP)mp1;
-        DEBUGLOG(("amp_add_tracks_dlg_proc: WM_ADJUSTWINDOWPOS: {%x, %d %d, %d %d}\n",
-          pswp->fl, pswp->x, pswp->y, pswp->cx, pswp->cy));
-
-        if ( pswp->fl & SWP_SIZE )
-        { 
-          SWP swpold;
-          WinQueryWindowPos( hwnd, &swpold );
-          if ( pswp->cx < 280 ) {
-            pswp->cx = 280;
-            pswp->x = swpold.x;
-          }
-          if ( pswp->cy < 250 ) {
-            pswp->cy = 250;
-            pswp->y = swpold.y;
-          }
-        }
-      }
-      break;
-
-    case WM_WINDOWPOSCHANGED:
-      {
-        PSWP pswp = (PSWP)mp1;
-        DEBUGLOG(("amp_add_tracks_dlg_proc: WM_WINDOWPOSCHANGED: {%x, %d %d, %d %d} {%d %d, %d %d}\n",
-          pswp->fl, pswp->x, pswp->y, pswp->cx, pswp->cy, pswp[1].x, pswp[1].y, pswp[1].cx, pswp[1].cy));
-        
-        if ( (pswp[0].fl & SWP_SIZE) && pswp[1].cx ) {
-          HWND hwnd_listbox = WinWindowFromID( hwnd, LB_TRACKS );
-          // move/resize all controls
-          HENUM henum = WinBeginEnumWindows( hwnd );
-          LONG dx = pswp[0].cx - pswp[1].cx;
-          LONG dy = pswp[0].cy - pswp[1].cy;
-          SWP swp_temp;
-          
-          for (;;) {
-            HWND hwnd_child = WinGetNextWindow( henum );
-            if ( hwnd_child == NULLHANDLE ) break;
-            WinQueryWindowPos( hwnd_child, &swp_temp );
-            if ( hwnd_child != hwnd_listbox ) {
-              WinSetWindowPos( hwnd_child, NULLHANDLE, swp_temp.x, swp_temp.y + dy, 0, 0, SWP_MOVE );
-            } else {
-              WinSetWindowPos( hwnd_listbox, NULLHANDLE, 0, 0, swp_temp.cx + dx, swp_temp.cy + dy, SWP_SIZE );
-            }
-          }
-          WinEndEnumWindows( henum );
-        }
-      }
-      break;
-  }
-  return WinDefDlgProc( hwnd, msg, mp1, mp2 );
-}
-
-/* Adds CD tracks to the playlist or load one to the player. */
-void
-add_tracks( HWND owner, int options )
-{
-  HFILE hcdrom;
-  ULONG action;
-  HWND  hwnd =
-        WinLoadDlg( HWND_DESKTOP, owner, amp_add_tracks_dlg_proc, NULLHANDLE, DLG_TRACK, 0 );
-
-  if( hwnd == NULLHANDLE ) {
-    return;
-  }
-
-  WinSetWindowULong( hwnd, QWL_USER, options );
-  do_warpsans( hwnd );
-
-  if( options & TRK_ADD_TO_LIST ) {
-    WinSetWindowBits( WinWindowFromID( hwnd, LB_TRACKS ), QWL_STYLE, 1, LS_MULTIPLESEL );
-    WinSetWindowBits( WinWindowFromID( hwnd, LB_TRACKS ), QWL_STYLE, 1, LS_EXTENDEDSEL );
-    WinSetWindowText( hwnd, "Add Tracks" );
-  } else {
-    WinSetWindowText( hwnd, "Load Track" );
-  }
-
-  if( DosOpen( "\\DEV\\CD-ROM2$", &hcdrom, &action, 0,
-               FILE_NORMAL, OPEN_ACTION_OPEN_IF_EXISTS,
-               OPEN_SHARE_DENYNONE | OPEN_ACCESS_READONLY, NULL ) == NO_ERROR )
-  {
-    struct {
-      USHORT count;
-      USHORT first;
-    } cd_info;
-
-    char  drive[3] = "X:";
-    ULONG len = sizeof( cd_info );
-    ULONG i;
-
-    if( DosDevIOCtl( hcdrom, 0x82, 0x60, NULL, 0, NULL,
-                             &cd_info, len, &len ) == NO_ERROR )
-    {
-      for( i = 0; i < cd_info.count; i++ ) {
-        drive[0] = 'A' + cd_info.first + i;
-        WinSendDlgItemMsg( hwnd, CB_DRIVE, LM_INSERTITEM,
-                           MPFROMSHORT( LIT_END ), MPFROMP( drive ));
-      }
-    }
-    DosClose( hcdrom );
-
-    if( *cfg.cddrive ) {
-      WinSetDlgItemText( hwnd, CB_DRIVE, cfg.cddrive );
-    } else {
-      WinSendDlgItemMsg( hwnd, CB_DRIVE, LM_SELECTITEM,
-                         MPFROMSHORT( 0 ), MPFROMSHORT( TRUE ));
-    }
-  }
-
-  if( WinProcessDlg( hwnd ) == DID_OK ) {
-    SHORT selected =
-          SHORT1FROMMR( WinSendDlgItemMsg( hwnd, LB_TRACKS, LM_QUERYSELECTION,
-                        MPFROMSHORT( LIT_FIRST ), 0 ));
-
-    WinQueryDlgItemText( hwnd, CB_DRIVE, sizeof( cfg.cddrive ), cfg.cddrive );
-
-    if( options & TRK_ADD_TO_LIST ) {
-      char cdurl[64];
-
-      while( selected != LIT_NONE ) {
-        sprintf( cdurl, "cd:///%s\\Track %02d", cfg.cddrive, selected+1 );
-        pl_add_file( cdurl, NULL, 0 );
-        selected = SHORT1FROMMR( WinSendDlgItemMsg( hwnd, LB_TRACKS, LM_QUERYSELECTION,
-                                 MPFROMSHORT( selected ), 0 ));
-      }
-      pl_completed();
-    } else {
-      char cdurl[64];
-
-      sprintf( cdurl, "cd:///%s\\Track %02d", cfg.cddrive, selected+1 );
-      amp_load_singlefile( cdurl, 0 );
-    }
-  }
-  WinDestroyWindow( hwnd );
-}
-
-
 MRESULT EXPENTRY NetworkDlgProc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
 {
   switch( msg ) {
@@ -1473,7 +1282,8 @@ MRESULT EXPENTRY OffDBDlgProc(HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2)
                         char temp[2048];
                         SHORT id;
 
-                        ch_convert( query_pm123_charset(), cdinfoBuffer, CH_DEFAULT, cdinfoBuffer, cdinfoSize );
+                        // cddb is always ISO-8859-1 by definition unless we implement protocol level 6
+                        ch_convert( 1004, cdinfoBuffer, CH_CP_NONE, cdinfoBuffer, cdinfoSize );
                         CDDBSocket.parse_read_reply(cdinfoBuffer);
                         sprintf(temp,"%s: %s (discid: %s)", CDDBSocket.get_disc_title(0), CDDBSocket.get_disc_title(1),next_discid);
                         id = lb_add_item(hwnd,LB_CDINFO,temp);

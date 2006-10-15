@@ -119,7 +119,7 @@ class CD_drive
       CD_drive();
       ~CD_drive();
 
-      BOOL open(char *drive);
+      BOOL open(const char *drive);
       BOOL close();
       BOOL readCDInfo();
       BOOL fillTrackInfo();

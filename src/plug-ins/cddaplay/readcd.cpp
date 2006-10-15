@@ -75,7 +75,7 @@ CD_drive::CD_drive()
 }
 
 
-BOOL CD_drive::open(char *drive)
+BOOL CD_drive::open(const char *drive)
 {
    ULONG ulAction;
    ULONG rc;
