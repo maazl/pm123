@@ -87,9 +87,8 @@ getExeName( char* name, int name_size )
   if( name && name_size > 0 )
   {
     PPIB ppib;
-    PTIB ptib;
 
-    DosGetInfoBlocks( &ptib, &ppib );
+    DosGetInfoBlocks( NULL, &ppib );
     DosQueryModuleName( ppib->pib_hmte, name_size, name );
   }
 }
