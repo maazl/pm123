@@ -72,11 +72,10 @@ do_warpsans( HWND hwnd )
 void
 getModule( HMODULE* hmodule, char* name, int name_size )
 {
-  if( name && name_size > 0 )
-  {
-    ULONG ObjNum = 0, Offset = 0;
+  ULONG ObjNum, Offset;
 
-    DosQueryModFromEIP( hmodule, &ObjNum, name_size, name, &Offset, (ULONG)(&getModule));
+  DosQueryModFromEIP( hmodule, &ObjNum, name_size, name, &Offset, (ULONG)(&getModule));
+  if( name_size ) {
     DosQueryModuleName( *hmodule, name_size, name );
   }
 }
