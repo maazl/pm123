@@ -435,8 +435,6 @@ amp_pl_release( void )
 BOOL
 amp_load_singlefile( const char* filename, int options )
 {
-  DECODER_INFO2 info;
-
   int    i;
   ULONG  rc;
   CDDA_REGION_INFO cd_info = {"", 0};
@@ -821,29 +819,6 @@ amp_add_files( HWND hwnd )
 
   WinFreeFileDlgList( filedialog.papszFQFilename );
 }
-
-static void
-add_by_plugin( HWND owner, int options, ULONG (PM123_ENTRYP assist)( HWND owner, char* select, ULONG size ) )
-{
-  // well, stackspace is rare and it should be difficult to the user to open more than one context menu
-  static char result[8192];
-  ULONG rc = (*assist)( owner, result, sizeof result );
-  
-  if ( rc == 0 || rc == 100 ) {
-    char* cp = result;
-    while ( *cp )
-    {
-      if( options & URL_ADD_TO_LIST ) {
-        pl_add_file( cp, NULL, 0 );
-      } else {
-        amp_load_singlefile( cp, 0 );
-        return;
-      }
-    }
-    pl_completed();
-  }
-}
-
 
 /* Reads url from specified file. */
 char*

@@ -2118,7 +2118,6 @@ bmp_init_button( HWND hwnd, BMPBUTTON* button )
 void
 bmp_reflow_and_resize( HWND hframe )
 {
-  int  i;
   HWND hplayer = WinWindowFromID( hframe, FID_CLIENT );
 
   switch( cfg.mode )

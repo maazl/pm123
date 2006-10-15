@@ -277,8 +277,6 @@ cfg_page2_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
 
     case CFG_DEFAULT:
     {
-      static const CH_ENTRY* cpe;
-      
       WinCheckButton( hwnd, RB_SCROLL_INFINITE, TRUE );
       WinCheckButton( hwnd, RB_DISP_FILENAME,   TRUE );
       WinCheckButton( hwnd, CB_USE_SKIN_FONT,   TRUE );
