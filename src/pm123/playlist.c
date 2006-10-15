@@ -43,10 +43,10 @@
 #include <sys\types.h>
 #include <sys\stat.h>
 
+#include "plugman.h"
 #include "playlist.h"
 #include "pm123.h"
 #include "utilfct.h"
-#include "plugman.h"
 #include "docking.h"
 #include "httpget.h"
 #include "iniman.h"
@@ -72,6 +72,7 @@ static int    played        = 0;
 static TID    broker_tid    = 0;
 static PQUEUE broker_queue  = NULL;
 static char   current_playlist[_MAX_PATH];
+static DECODER_ASSIST_FUNC assists[16];
 
 /* The pointer to playlist record of the currently loaded file,
    the pointer is NULL if such record is not present. */
@@ -1099,6 +1100,19 @@ pl_show_context_menu( HWND parent, const PLRECORD* rec )
     return;
   }
 
+  // Add Menu
+  WinSendMsg( menu_playlist, MM_QUERYITEM,
+              MPFROM2SHORT( IDM_PL_ADD, TRUE ), MPFROMP( &mi ));
+  
+  mh    = mi.hwndSubMenu;
+  count = LONGFROMMR( WinSendMsg( mh, MM_QUERYITEMCOUNT, 0, 0 ));
+  // Remove anything from IDM_PL_ADDOTHER
+  id    = IDM_PL_ADDOTHER; 
+  while ( --count == SHORT1FROMMR( WinSendMsg( mh, MM_DELETEITEM, MPFROM2SHORT( id++, FALSE ), 0 )) );
+
+  append_load_menu( mh, IDM_PL_ADDOTHER, TRUE, assists, sizeof assists / sizeof *assists );
+
+  // Open Menu
   WinSendMsg( menu_playlist, MM_QUERYITEM,
               MPFROM2SHORT( IDM_PL_OPEN, TRUE ), MPFROMP( &mi ));
 
@@ -1609,6 +1623,7 @@ pl_init_window( HWND hwnd )
   /* Initializes the playlist presentation window. */
   accel = WinLoadAccelTable( hab, NULLHANDLE, ACL_PLAYLIST );
 
+  // TODO: acceleration table entries for plug-in extensions
   if( accel ) {
     WinSetAccelTable( hab, accel, hwnd );
   }
@@ -1707,7 +1722,6 @@ pl_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
     case DM_RENDERCOMPLETE:
       return pl_drag_render_done( hwnd, (PDRAGTRANSFER)mp1, SHORT1FROMMP( mp2 ));
 
-
     case WM_PM123_REMOVE_RECORD:
     {
       PLRECORD* rec = (PLRECORD*)mp1;
@@ -1716,17 +1730,34 @@ pl_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
     }
 
     case WM_COMMAND:
-      if( COMMANDMSG(&msg)->cmd >  IDM_PL_LAST &&
-          COMMANDMSG(&msg)->cmd <= IDM_PL_LAST + MAX_RECALL )
+    { CMDMSG* cm = COMMANDMSG(&msg);
+      if( cm->cmd >  IDM_PL_LAST &&
+          cm->cmd <= IDM_PL_LAST + MAX_RECALL )
       {
         char filename[_MAX_PATH];
-        strcpy( filename, cfg.list[ COMMANDMSG(&msg)->cmd - IDM_PL_LAST - 1 ]);
+        strcpy( filename, cfg.list[ cm->cmd - IDM_PL_LAST - 1 ]);
 
         if( is_playlist( filename )) {
           pl_load( filename, PL_LOAD_CLEAR );
         }
         return 0;
-      }
+      }     
+      if( cm->cmd >= IDM_PL_ADDOTHER &&
+          cm->cmd <  IDM_PL_ADDOTHER + sizeof assists / sizeof *assists &&
+          assists[cm->cmd-IDM_PL_ADDOTHER] )
+      {
+        // save stack space
+        static char result[8192];
+        ULONG rc = (*assists[cm->cmd-IDM_PL_ADDOTHER])( hwnd, result, sizeof result );
+        if ( rc == 0 || rc == 100 )
+        { const char* cp = result;
+          while (*cp)
+          { pl_add_file( cp, NULL, 0 );
+            cp += strlen( cp ) +1;
+          }
+        }
+        return 0;
+      } 
 
       switch( COMMANDMSG(&msg)->cmd ) {
         case IDM_PL_SORT_RANDOM:
@@ -1756,9 +1787,6 @@ pl_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
           return 0;
         case IDM_PL_URL:
           amp_add_url( hwnd, URL_ADD_TO_LIST );
-          return 0;
-        case IDM_PL_TRACK:
-          amp_add_tracks( hwnd, TRK_ADD_TO_LIST );
           return 0;
         case IDM_PL_LOAD:
           amp_add_files( hwnd );
@@ -1804,7 +1832,7 @@ pl_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
         }
       }
       break;
-
+    }
     case WM_CONTROL:
       switch( SHORT2FROMMP( mp1 )) {
         case CN_CONTEXTMENU:

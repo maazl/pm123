@@ -271,6 +271,7 @@ BOOL CL_DECODER::load_plugin()
     return FALSE;
 
   load_optional_function(&decoder_editmeta, "decoder_editmeta");
+  load_optional_function(&decoder_getassist, "decoder_getassist");
 
   if (!after_load())
     return FALSE;
@@ -343,7 +344,7 @@ BOOL CL_DECODER_PROXY_1::load_plugin()
     return FALSE;
 
   load_optional_function(&decoder_editmeta, "decoder_editmeta");
-
+  load_optional_function(&decoder_getassist, "decoder_getassist");
   decoder_command   = (ULONG (PM123_ENTRYP)(void*, ULONG, DECODER_PARAMS2*))
                       mkvdelegate(&vd_decoder_command,  (V_FUNC)&proxy_1_decoder_command,  3, this);
   decoder_event     = (void  (PM123_ENTRYP)(void*, OUTEVENTTYPE))

@@ -1215,6 +1215,38 @@ load_plugin_menu( HWND hMenu )
   return;
 }
 
+void
+append_load_menu( HWND hMenu, ULONG id_base, BOOL multiselect, DECODER_ASSIST_FUNC* callbacks, int size )
+{ 
+  DEBUGLOG(("append_load_menu(%p, %d, %d, %p, %d)\n", hMenu, id_base, multiselect, callbacks, size));
+  // for all decoder plug-ins...
+  for (int i = 0; i < decoders.count(); ++i)
+  { CL_DECODER& dec = (CL_DECODER&)decoders[i];
+    if (dec.get_procs().decoder_getassist)
+    { const DECODER_ASSIST* da = (*dec.get_procs().decoder_getassist)(multiselect);
+      DEBUGLOG(("append_load_menu: %s - %p\n", dec.module_name, da));
+      while (da != NULL)
+      { if (size-- == 0)
+          return; // too many entries, can't help
+        DEBUGLOG(("append_load_menu: add %s -> %p\n", da->prompt, da->assist));
+        // Add menu item
+        MENUITEM mi;
+        mi.iPosition   = MIT_END;
+        mi.afStyle     = MIS_TEXT;
+        mi.afAttribute = 0;
+        mi.id          = id_base;
+        mi.hwndSubMenu = NULLHANDLE;
+        mi.hItem       = 0;
+        WinSendMsg( hMenu, MM_INSERTITEM, MPFROMP( &mi ), MPFROMP( da->prompt ));
+        // Add callback function
+        *callbacks++   = da->assist;
+        // next entry
+        da = da->link;
+      }
+    }
+  }
+}
+
 BOOL
 process_possible_plugin( HWND hwnd, USHORT cmd )
 {

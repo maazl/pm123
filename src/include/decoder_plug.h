@@ -260,15 +260,6 @@ typedef struct
 
 } DECODER_INFO2;
 
-typedef struct
-{ 
-  int   size;
-  char  prompt[32];      /* String to be displayed in the context menu */
-  /* Procedure to be called when the specified item is selected */
-  char* (PM123_ENTRYP assist)( HWND owner );
-
-} DECODER_ASSIST;
-
 /* returns
       0 = everything's perfect, structure is set
       100 = error reading file (too small?)
@@ -277,9 +268,6 @@ typedef struct
       other values = errno */
 #if defined(DECODER_PLUGIN_LEVEL) && DECODER_PLUGIN_LEVEL > 1 
 ULONG PM123_ENTRY decoder_fileinfo   ( const char* url, DECODER_INFO2* info );
-
-ULONG PM123_ENTRY decoder_editmeta   ( HWND owner, const char* url );
-DECODER_ASSIST* PM123_ENTRY decoder_loadassist( BOOL multiselect );
 #else
 ULONG PM123_ENTRY decoder_fileinfo   ( const char* filename, DECODER_INFO* info );
 ULONG PM123_ENTRY decoder_trackinfo  ( const char* drive, int track, DECODER_INFO* info );
@@ -302,7 +290,27 @@ ULONG PM123_ENTRY decoder_cdinfo( const char* drive, DECODER_CDINFO* info );
 #define DECODER_OTHER     0x8
 /* size is i/o and is the size of the array.
    each ext should not be bigger than 8bytes */
-ULONG PM123_ENTRY decoder_support( char* fileext[], int* size );
+ULONG PM123_ENTRY decoder_support  ( char* fileext[], int* size );
+
+#if defined(DECODER_PLUGIN_LEVEL) && DECODER_PLUGIN_LEVEL > 0 
+ULONG PM123_ENTRY decoder_editmeta ( HWND owner, const char* url );
+
+typedef ULONG (PM123_ENTRYP DECODER_ASSIST_FUNC)( HWND owner, char* select, ULONG size );
+
+typedef struct _DECODER_ASSIST
+{ /* linked list */ 
+  struct _DECODER_ASSIST* link;
+  /* String to be displayed in the context menu */
+  char*  prompt;
+  /* Accreleration Table entry */
+  USHORT accel_key;
+  USHORT accel_options;
+  /* Procedure to be called when the specified item is selected */
+  ULONG (PM123_ENTRYP assist)( HWND owner, char* select, ULONG size );
+} DECODER_ASSIST;
+
+const DECODER_ASSIST* PM123_ENTRY decoder_getassist( BOOL multiselect );
+#endif
 
 #ifdef __cplusplus
 }

@@ -126,6 +126,8 @@ typedef struct
    BOOL tryAllServers;
    char proxyURL[1024];
    char email[1024];
+   
+   char cddrive[4];          /* Default CD drive.                      */
 
 } CDDA_SETTINGS;
 
@@ -964,6 +966,7 @@ void save_ini()
       save_ini_value(INIhandle,settings.tryAllServers);
       save_ini_string(INIhandle,settings.proxyURL);
       save_ini_string(INIhandle,settings.email);
+      save_ini_string(INIhandle,settings.cddrive);
 
       PrfWriteProfileData(INIhandle, "CDDBServers", NULL, NULL, 0);
       PrfWriteProfileData(INIhandle, "HTTPServers", NULL, NULL, 0);
@@ -1001,6 +1004,7 @@ void load_ini()
    settings.useHTTP       = FALSE;
    settings.tryAllServers = TRUE;
    settings.proxyURL[0]   = 0;
+   settings.cddrive[0]    = 0;
 
    strcpy( settings.email,"someone@somewhere.com" );
 
@@ -1014,6 +1018,7 @@ void load_ini()
       load_ini_value ( INIhandle, settings.tryAllServers );
       load_ini_string( INIhandle, settings.proxyURL, sizeof settings.proxyURL );
       load_ini_string( INIhandle, settings.email,    sizeof settings.email );
+      load_ini_string( INIhandle, settings.cddrive,  sizeof settings.cddrive );
 
       if(PrfQueryProfileSize(INIhandle, "CDDBServers", NULL, &bufferSize) && bufferSize > 0)
       {
@@ -1212,6 +1217,241 @@ cddb_update( void* arg )
 *  GUI stuff
 *
 ****************************************************************************/
+
+/* Processes messages of the dialog of addition of CD tracks. */
+static MRESULT EXPENTRY
+add_tracks_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
+{
+  switch( msg ) {
+    case WM_CONTROL:
+      if( SHORT1FROMMP(mp1) == CB_DRIVE && SHORT2FROMMP(mp1) == CBN_EFCHANGE ) {
+        WinPostMsg( hwnd, WM_COMMAND,
+                    MPFROMSHORT( PB_REFRESH ), MPFROM2SHORT( CMDSRC_OTHER, FALSE ));
+      }
+      break;
+
+    case WM_COMMAND:
+      if( COMMANDMSG(&msg)->cmd == PB_REFRESH )
+      {
+        char cdurl[32] = "cdda:///";
+        BOOL multiselect = WinQueryWindowULong( hwnd, QWL_USER );
+        int  i;
+
+        DECODER_CDINFO cdinfo;
+        DECODER_INFO   trackinfo;
+
+        WinQueryDlgItemText( hwnd, CB_DRIVE, sizeof( cdurl )-8, cdurl+8 );
+        WinSendDlgItemMsg( hwnd, LB_TRACKS, LM_DELETEALL, 0, 0 );
+
+        if( decoder_cdinfo( cdurl+8, &cdinfo ) == 0 ) {
+          if( cdinfo.firsttrack ) {
+            for( i = cdinfo.firsttrack; i <= cdinfo.lasttrack; i++ ) {
+              //sprintf( cdurl+10, "/Track %02d", i );
+              if ( decoder_trackinfo( cdurl+8, i, &trackinfo) == 0 &&
+                   *trackinfo.title != 0 ) {
+                WinSendDlgItemMsg( hwnd, LB_TRACKS, LM_INSERTITEM,
+                                   MPFROMSHORT( LIT_END ), MPFROMP( trackinfo.title ));
+              } else {
+                sprintf( cdurl+10, "/Track %02d", i );
+                WinSendDlgItemMsg( hwnd, LB_TRACKS, LM_INSERTITEM,
+                                   MPFROMSHORT( LIT_END ), MPFROMP( cdurl+11 ));
+              }
+            }
+            if( multiselect ) {
+              for( i = cdinfo.firsttrack; i <= cdinfo.lasttrack; i++ ) {
+                WinSendDlgItemMsg( hwnd, LB_TRACKS, LM_SELECTITEM,
+                                   MPFROMSHORT( i - cdinfo.firsttrack ),
+                                   MPFROMLONG( TRUE ));
+              }
+            } else {
+              WinSendDlgItemMsg( hwnd, LB_TRACKS, LM_SELECTITEM,
+                                 MPFROMSHORT( 0 ), MPFROMLONG( TRUE ));
+            }
+          }
+        }
+
+        return 0;
+      }
+      break;
+
+    case WM_ADJUSTWINDOWPOS:
+      {
+        PSWP pswp = (PSWP)mp1;
+        DEBUGLOG2(("amp_add_tracks_dlg_proc: WM_ADJUSTWINDOWPOS: {%x, %d %d, %d %d}\n",
+          pswp->fl, pswp->x, pswp->y, pswp->cx, pswp->cy));
+
+        if ( pswp->fl & SWP_SIZE )
+        { 
+          SWP swpold;
+          WinQueryWindowPos( hwnd, &swpold );
+          if ( pswp->cx < 280 ) {
+            pswp->cx = 280;
+            pswp->x = swpold.x;
+          }
+          if ( pswp->cy < 250 ) {
+            pswp->cy = 250;
+            pswp->y = swpold.y;
+          }
+        }
+      }
+      break;
+
+    case WM_WINDOWPOSCHANGED:
+      {
+        PSWP pswp = (PSWP)mp1;
+        DEBUGLOG2(("amp_add_tracks_dlg_proc: WM_WINDOWPOSCHANGED: {%x, %d %d, %d %d} {%d %d, %d %d}\n",
+          pswp->fl, pswp->x, pswp->y, pswp->cx, pswp->cy, pswp[1].x, pswp[1].y, pswp[1].cx, pswp[1].cy));
+        
+        if ( (pswp[0].fl & SWP_SIZE) && pswp[1].cx ) {
+          HWND hwnd_listbox = WinWindowFromID( hwnd, LB_TRACKS );
+          // move/resize all controls
+          HENUM henum = WinBeginEnumWindows( hwnd );
+          LONG dx = pswp[0].cx - pswp[1].cx;
+          LONG dy = pswp[0].cy - pswp[1].cy;
+          SWP swp_temp;
+          
+          for (;;) {
+            HWND hwnd_child = WinGetNextWindow( henum );
+            if ( hwnd_child == NULLHANDLE ) break;
+            WinQueryWindowPos( hwnd_child, &swp_temp );
+            if ( hwnd_child != hwnd_listbox ) {
+              WinSetWindowPos( hwnd_child, NULLHANDLE, swp_temp.x, swp_temp.y + dy, 0, 0, SWP_MOVE );
+            } else {
+              WinSetWindowPos( hwnd_listbox, NULLHANDLE, 0, 0, swp_temp.cx + dx, swp_temp.cy + dy, SWP_SIZE );
+            }
+          }
+          WinEndEnumWindows( henum );
+        }
+      }
+      break;
+  }
+  return WinDefDlgProc( hwnd, msg, mp1, mp2 );
+}
+
+/* Adds CD tracks to the playlist or load one to the player. */
+static ULONG
+load_assist( HWND owner, char* select, ULONG size, BOOL multiselect )
+{
+  HFILE   hcdrom;
+  ULONG   action;
+  HWND    hwnd;
+  HMODULE mod;
+  #if DEBUG
+  char* select_old = select;
+  #endif
+  DEBUGLOG(("cddaplay:load_assist(%p, %p, %d, %d)\n", owner, select, size, multiselect));  
+
+  getModule( &mod, NULL, 0 );
+  hwnd = WinLoadDlg( HWND_DESKTOP, owner, add_tracks_dlg_proc, mod, DLG_TRACK, 0 );
+  DEBUGLOG(("cddaplay:load_assist: hwnd=%p\n", hwnd));  
+
+  if( hwnd == NULLHANDLE ) {
+    return 500;
+  }
+
+  WinSetWindowULong( hwnd, QWL_USER, multiselect );
+  do_warpsans( hwnd );
+
+  if( multiselect ) {
+    WinSetWindowBits( WinWindowFromID( hwnd, LB_TRACKS ), QWL_STYLE, 1, LS_MULTIPLESEL );
+    WinSetWindowBits( WinWindowFromID( hwnd, LB_TRACKS ), QWL_STYLE, 1, LS_EXTENDEDSEL );
+    WinSetWindowText( hwnd, "Add Tracks" );
+  } else {
+    WinSetWindowText( hwnd, "Load Track" );
+  }
+
+  if( DosOpen( "\\DEV\\CD-ROM2$", &hcdrom, &action, 0,
+               FILE_NORMAL, OPEN_ACTION_OPEN_IF_EXISTS,
+               OPEN_SHARE_DENYNONE | OPEN_ACCESS_READONLY, NULL ) == NO_ERROR )
+  {
+    struct {
+      USHORT count;
+      USHORT first;
+    } cd_info;
+
+    char  drive[3] = "X:";
+    ULONG len = sizeof( cd_info );
+    ULONG i;
+
+    if( DosDevIOCtl( hcdrom, 0x82, 0x60, NULL, 0, NULL,
+                             &cd_info, len, &len ) == NO_ERROR )
+    {
+      for( i = 0; i < cd_info.count; i++ ) {
+        drive[0] = 'A' + cd_info.first + i;
+        WinSendDlgItemMsg( hwnd, CB_DRIVE, LM_INSERTITEM,
+                           MPFROMSHORT( LIT_END ), MPFROMP( drive ));
+      }
+    }
+    DosClose( hcdrom );
+
+    if( *settings.cddrive ) {
+      WinSetDlgItemText( hwnd, CB_DRIVE, settings.cddrive );
+    } else {
+      WinSendDlgItemMsg( hwnd, CB_DRIVE, LM_SELECTITEM,
+                         MPFROMSHORT( 0 ), MPFROMSHORT( TRUE ));
+    }
+  }
+
+  action = WinProcessDlg( hwnd ) == DID_OK ? 0 : 300;
+  if( action == 0 ) {
+    SHORT selected =
+          SHORT1FROMMR( WinSendDlgItemMsg( hwnd, LB_TRACKS, LM_QUERYSELECTION,
+                        MPFROMSHORT( LIT_FIRST ), 0 ));
+
+    WinQueryDlgItemText( hwnd, CB_DRIVE, sizeof( settings.cddrive ), settings.cddrive );
+
+    while( selected != LIT_NONE ) {
+      DEBUGLOG(("cddaplay:load_assist: selected = %d, size = %d\n", selected, size));
+      if( size < 20 ) {
+        action = 100;
+        break;
+      }
+      int len = sprintf( select, "cd:///%s\\Track %02d", settings.cddrive, selected+1 ) +1;
+      size -= len;
+      select += len;
+      if ( !multiselect )
+        break; // OS/2 seems to return always the same item in single select mode
+      selected = SHORT1FROMMR( WinSendDlgItemMsg( hwnd, LB_TRACKS, LM_QUERYSELECTION,
+                               MPFROMSHORT( selected ), 0 ));
+    }
+    // Double zero termination
+    *select = 0;
+  }
+  WinDestroyWindow( hwnd );
+  
+  DEBUGLOG(("cddaplay:load_assist: %d - %s\n", action, select_old));
+  return action;
+}
+
+/* load assist, no multiple selection */
+static ULONG PM123_ENTRY load_assist_1( HWND owner, char* select, ULONG size )
+{ return load_assist( owner, select, size, FALSE );
+} 
+
+const DECODER_ASSIST assist_1 =
+{ NULL,
+  "~Track...\tAlt+T",
+  't', AF_CHAR | AF_ALT,
+  &load_assist_1
+};
+
+/* load assist with multiple selection */
+static ULONG PM123_ENTRY load_assist_2( HWND owner, char* select, ULONG size )
+{ return load_assist( owner, select, size, TRUE );
+} 
+
+const DECODER_ASSIST assist_2 =
+{ NULL,
+  "~Tracks...\tAlt+T",
+  't', AF_CHAR | AF_ALT,
+  &load_assist_2
+};
+
+/* plug-in entry point */
+const DECODER_ASSIST* PM123_ENTRY decoder_getassist( BOOL multiselect )
+{ return multiselect ? &assist_2 : &assist_1;
+}
+
 
 MRESULT EXPENTRY NetworkDlgProc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
 {

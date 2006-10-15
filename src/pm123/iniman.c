@@ -55,7 +55,6 @@ factory_settings( void )
   strcpy( cfg.filedir, "" );  // Directory for MPEG files.
   strcpy( cfg.listdir, "" );  // Directory for playlists.
   strcpy( cfg.savedir, "" );  // Directory used for saving a stream.
-  strcpy( cfg.cddrive, "" );  // Default CD drive.
   strcpy( cfg.defskin, "" );  // Default skin.
   strcpy( cfg.proxy  , "" );  // No proxy.
   strcpy( cfg.auth   , "" );  // No authentication.
@@ -146,7 +145,6 @@ load_ini( void )
     load_ini_string( INIhandle, cfg.filedir,  sizeof( cfg.filedir ));
     load_ini_string( INIhandle, cfg.listdir,  sizeof( cfg.listdir ));
     load_ini_string( INIhandle, cfg.savedir,  sizeof( cfg.savedir ));
-    load_ini_string( INIhandle, cfg.cddrive,  sizeof( cfg.cddrive ));
     load_ini_string( INIhandle, cfg.proxy,    sizeof( cfg.proxy ));
     load_ini_string( INIhandle, cfg.auth,     sizeof( cfg.auth ));
     load_ini_string( INIhandle, cfg.defskin,  sizeof( cfg.defskin ));
@@ -272,7 +270,6 @@ save_ini( void )
     save_ini_string( INIhandle, cfg.filedir );
     save_ini_string( INIhandle, cfg.listdir );
     save_ini_string( INIhandle, cfg.savedir );
-    save_ini_string( INIhandle, cfg.cddrive );
     save_ini_string( INIhandle, cfg.proxy );
     save_ini_string( INIhandle, cfg.auth );
     save_ini_string( INIhandle, cfg.defskin );

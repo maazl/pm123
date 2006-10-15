@@ -60,7 +60,6 @@
 #define IDM_PL_MENU         950
 #define IDM_PL_URL          965
 #define IDM_PL_MENUCONT     971
-#define IDM_PL_TRACK        972
 #define IDM_PL_S_PLAY       981
 #define IDM_PL_S_DEL        982
 #define IDM_PL_S_TAG        983
@@ -69,6 +68,7 @@
 #define IDM_PL_OPEN         986
 #define IDM_PL_S_KILL       987
 #define IDM_PL_LAST        1000 /* A lot of IDs after this need to be free. */
+#define IDM_PL_ADDOTHER    1100 /* Need some IDs for plugin extensions.     */
 
 /* Structure that contains information for records in
    the playlist container control. */

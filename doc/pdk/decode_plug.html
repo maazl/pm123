@@ -172,21 +172,48 @@ decoder. Extentions can be for example "*.MOD".
 <p>The following functions are used to improove the GUI of PM123 with plug-in specific content.<br>
 <em>All functions in this section are optional.</em>
 <blockquote>
-<pre>ULONG PM123_ENTRY <b>decoder_editmeta</b>( const char* url )</pre>
+<pre>ULONG PM123_ENTRY <b>decoder_editmeta</b>( HWND owner, const char* url )</pre>
 </blockquote>
 <ul>
+<li><var>owner</var> - Parent window handle.
 <li><var>url</var> - URL to the desired stream. See <a href="#url_samples">URL samples</a>.
   Keep in mind that this URL may be the same as the one currently played.
   The plug-in must handle this concurrent write access.
 <li><var>return value</var> -<br>
-0 = everything's perfect, information is changed.<br>
+0 = everything's perfect, information has been changed.<br>
 200 = decoder can't handle that. (PM123 raises the error dialog)<br>
 300 = no change, e.g. user abort.<br>
 400 = can't edit tag of this stream. (PM123 raises the error dialog)<br>
 500 = error writing tag. (PM123 raises the error dialog)
 </ul>
-<p>If <code>decoder_editmeta</code> is not implemented, the edit tag entry is disabled.<br>
-  To open the dialog non-modal thsi function is called from a separate thread.
+<p>If <code>decoder_editmeta</code> is not implemented, the edit tag entry is disabled.
+<blockquote>
+<pre>const DECODER_ASSIST* PM123_ENTRY <b>decoder_getassist</b>( BOOL multiselect )</pre>
+</blockquote>
+<ul>
+<li><var>multiselect</var> - Flag whether the user might select multiple items at once.
+<li><var>return value</var> - Zero or more <code>DECODER_ASSIST</code> structures (linked list).<br>
+  Each structure represents an entry in the context menu to load something into the player or a playlist.
+  To terminate the list of <code>DECODER_ASSIST</code> objects set the link pointer to <code>NULL</code>.
+  The returned storage must be valid until the next call to <code>decoder_assist</code> or the plug-in gets unloaded.
+</ul>
+<p>If the function is not implemented or returns <code>NULL</code>
+  the context menu is not extended with entries specific to this plug-in.
+<p>When the menu entry is selected the corresponding assist function is called by PM123.
+<blockquote>
+<pre>ULONG (PM123_ENTRYP assist)( HWND owner, char* select, ULONG size );</pre>
+</blockquote>
+<ul>
+<li><var>owner</var> - Parent window handle.
+<li><var>select</var> [out] - Buffer where to store the selected URLs.
+  The result will be a list of zero terminated strings terminated by two zero bytes.
+<li><var>size</var> - size of the above buffer.
+<li><var>return value</var> -<br>
+  0 = OK, <var>select</var> has been filled.<br>
+  100 = Buffer too small. Not all values have been returned.<br>
+  300 = Cancel. Do not add/play anything.<br>
+  500 = Internal error.
+</ul>
 
 <h4><a name="output_interface"></a>Output interface</h4>
 <p>The decoder must use this interface to pass the decoded samples to the output stage.

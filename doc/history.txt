@@ -14,6 +14,8 @@ PM123 1.40 (alpha 1)
       reduce complexity of code and plug-ins.
     - Moved the ID3 tag editor to MPG123. Consequently the related setting are
       now in the plug-ins configure dialog.
+    - Decoder plug-ins may extend the Load/Add context menu.
+      Moved the load track function into the CDDAPLAY plug-in.
 
     REALEQ:
     - Realeq does no longer delay the playback and cut the last samples.
@@ -27,7 +29,13 @@ PM123 1.40 (alpha 1)
       the new FFT convolution.
 
     MPG123:
-    - implemented ID3 tag editor (was in PM123 core)
+    - Implemented ID3 tag editor (was in PM123 core)
+
+    CDDAPLAY:
+    - Implemented assistent to load CD tracks (was in PM123 core)
+
+    OS2REC:
+    - New plug-in to play immediately recorded streams.
 
 PM123 1.32 (still beta)
 -----------------------

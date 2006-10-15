@@ -152,7 +152,6 @@ typedef struct _amp_cfg {
   char   last[MAX_RECALL][_MAX_PATH];
   char   list[MAX_RECALL][_MAX_PATH];
 
-  char   cddrive[4];          /* Default CD drive.                      */
   BOOL   eq_enabled;          /* Is the equalizer enabled.              */
   int    defaultvol;          /* Current audio volume.                  */
   BOOL   playonload;          /* Start playing on file load.            */

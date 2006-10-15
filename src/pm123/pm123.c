@@ -96,6 +96,9 @@ static BOOL  is_stream_saved  = FALSE;
 static BOOL  is_arg_shuffle   = FALSE;
 static BOOL  is_decoder_done  = FALSE;
 
+/* Current load assists */
+static DECODER_ASSIST_FUNC load_assists[16];
+
 /* Current seeking time. Valid if is_seeking == TRUE. */
 static int   seeking_pos = 0;
 static int   upd_options = 0;
@@ -630,13 +633,17 @@ amp_show_context_menu( HWND parent )
   mh    = mi.hwndSubMenu;
   count = LONGFROMMR( WinSendMsg( mh, MM_QUERYITEMCOUNT, 0, 0 ));
 
-  // Remove all items from the load menu except of three first
+  // Remove all items from the load menu except of two first
   // intended for a choice of object of loading.
-  for( i = 3; i < count; i++ )
+  for( i = 2; i < count; i++ )
   {
-    id = LONGFROMMR( WinSendMsg( mh, MM_ITEMIDFROMPOSITION, MPFROMSHORT(3), 0 ));
+    id = LONGFROMMR( WinSendMsg( mh, MM_ITEMIDFROMPOSITION, MPFROMSHORT(2), 0 ));
     WinSendMsg( mh, MM_DELETEITEM, MPFROM2SHORT( id, FALSE ), 0 );
   }
+
+  // Append asisstents from decoder plug-ins
+  memset( load_assists, 0, sizeof load_assists / sizeof *load_assists ); // You never know...
+  append_load_menu( mi.hwndSubMenu, IDM_M_ADDOTHER, FALSE, load_assists, sizeof load_assists / sizeof *load_assists );
 
   if( *cfg.last[0] )
   {
@@ -741,200 +748,6 @@ amp_add_url( HWND owner, int options )
   WinDestroyWindow( hwnd );
 }
 
-/* Processes messages of the dialog of addition of CD tracks. */
-static MRESULT EXPENTRY
-amp_add_tracks_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
-{
-  switch( msg ) {
-    case WM_CONTROL:
-      if( SHORT1FROMMP(mp1) == CB_DRIVE && SHORT2FROMMP(mp1) == CBN_EFCHANGE ) {
-        WinPostMsg( hwnd, WM_COMMAND,
-                    MPFROMSHORT( PB_REFRESH ), MPFROM2SHORT( CMDSRC_OTHER, FALSE ));
-      }
-      break;
-
-    case WM_COMMAND:
-      if( COMMANDMSG(&msg)->cmd == PB_REFRESH )
-      {
-        char cdurl[32] = "cdda:///";
-        int  options = WinQueryWindowULong( hwnd, QWL_USER );
-        int  i;
-
-        DECODER_CDINFO cdinfo;
-        DECODER_INFO2  trackinfo;
-
-        WinQueryDlgItemText( hwnd, CB_DRIVE, sizeof( cdurl )-8, cdurl+8 );
-        WinSendDlgItemMsg( hwnd, LB_TRACKS, LM_DELETEALL, 0, 0 );
-
-        if( dec_cdinfo( cdurl+8, &cdinfo ) == 0 ) {
-          if( cdinfo.firsttrack ) {
-            for( i = cdinfo.firsttrack; i <= cdinfo.lasttrack; i++ ) {
-              sprintf( cdurl+10, "/Track %02d", i );
-              if ( dec_fileinfo( cdurl, &trackinfo, NULL) == 0 &&
-                   *trackinfo.meta.title != 0 ) {
-                WinSendDlgItemMsg( hwnd, LB_TRACKS, LM_INSERTITEM,
-                                   MPFROMSHORT( LIT_END ), MPFROMP( trackinfo.meta.title ));
-              } else {
-                WinSendDlgItemMsg( hwnd, LB_TRACKS, LM_INSERTITEM,
-                                   MPFROMSHORT( LIT_END ), MPFROMP( cdurl+11 ));
-              }
-            }
-            if( options & TRK_ADD_TO_LIST ) {
-              for( i = cdinfo.firsttrack; i <= cdinfo.lasttrack; i++ ) {
-                WinSendDlgItemMsg( hwnd, LB_TRACKS, LM_SELECTITEM,
-                                   MPFROMSHORT( i - cdinfo.firsttrack ),
-                                   MPFROMLONG( TRUE ));
-              }
-            } else {
-              WinSendDlgItemMsg( hwnd, LB_TRACKS, LM_SELECTITEM,
-                                 MPFROMSHORT( 0 ), MPFROMLONG( TRUE ));
-            }
-          }
-        } else {
-          amp_error( hwnd, "Cannot find decoder that supports CD tracks." );
-        }
-
-        return 0;
-      }
-      break;
-
-    case WM_ADJUSTWINDOWPOS:
-      {
-        PSWP pswp = (PSWP)mp1;
-        DEBUGLOG(("amp_add_tracks_dlg_proc: WM_ADJUSTWINDOWPOS: {%x, %d %d, %d %d}\n",
-          pswp->fl, pswp->x, pswp->y, pswp->cx, pswp->cy));
-
-        if ( pswp->fl & SWP_SIZE )
-        { 
-          SWP swpold;
-          WinQueryWindowPos( hwnd, &swpold );
-          if ( pswp->cx < 280 ) {
-            pswp->cx = 280;
-            pswp->x = swpold.x;
-          }
-          if ( pswp->cy < 250 ) {
-            pswp->cy = 250;
-            pswp->y = swpold.y;
-          }
-        }
-      }
-      break;
-
-    case WM_WINDOWPOSCHANGED:
-      {
-        PSWP pswp = (PSWP)mp1;
-        DEBUGLOG(("amp_add_tracks_dlg_proc: WM_WINDOWPOSCHANGED: {%x, %d %d, %d %d} {%d %d, %d %d}\n",
-          pswp->fl, pswp->x, pswp->y, pswp->cx, pswp->cy, pswp[1].x, pswp[1].y, pswp[1].cx, pswp[1].cy));
-        
-        if ( (pswp[0].fl & SWP_SIZE) && pswp[1].cx ) {
-          HWND hwnd_listbox = WinWindowFromID( hwnd, LB_TRACKS );
-          // move/resize all controls
-          HENUM henum = WinBeginEnumWindows( hwnd );
-          LONG dx = pswp[0].cx - pswp[1].cx;
-          LONG dy = pswp[0].cy - pswp[1].cy;
-          SWP swp_temp;
-          
-          for (;;) {
-            HWND hwnd_child = WinGetNextWindow( henum );
-            if ( hwnd_child == NULLHANDLE ) break;
-            WinQueryWindowPos( hwnd_child, &swp_temp );
-            if ( hwnd_child != hwnd_listbox ) {
-              WinSetWindowPos( hwnd_child, NULLHANDLE, swp_temp.x, swp_temp.y + dy, 0, 0, SWP_MOVE );
-            } else {
-              WinSetWindowPos( hwnd_listbox, NULLHANDLE, 0, 0, swp_temp.cx + dx, swp_temp.cy + dy, SWP_SIZE );
-            }
-          }
-          WinEndEnumWindows( henum );
-        }
-      }
-      break;
-  }
-  return WinDefDlgProc( hwnd, msg, mp1, mp2 );
-}
-
-/* Adds CD tracks to the playlist or load one to the player. */
-void
-amp_add_tracks( HWND owner, int options )
-{
-  HFILE hcdrom;
-  ULONG action;
-  HWND  hwnd =
-        WinLoadDlg( HWND_DESKTOP, owner, amp_add_tracks_dlg_proc, NULLHANDLE, DLG_TRACK, 0 );
-
-  if( hwnd == NULLHANDLE ) {
-    return;
-  }
-
-  WinSetWindowULong( hwnd, QWL_USER, options );
-  do_warpsans( hwnd );
-
-  if( options & TRK_ADD_TO_LIST ) {
-    WinSetWindowBits( WinWindowFromID( hwnd, LB_TRACKS ), QWL_STYLE, 1, LS_MULTIPLESEL );
-    WinSetWindowBits( WinWindowFromID( hwnd, LB_TRACKS ), QWL_STYLE, 1, LS_EXTENDEDSEL );
-    WinSetWindowText( hwnd, "Add Tracks" );
-  } else {
-    WinSetWindowText( hwnd, "Load Track" );
-  }
-
-  if( DosOpen( "\\DEV\\CD-ROM2$", &hcdrom, &action, 0,
-               FILE_NORMAL, OPEN_ACTION_OPEN_IF_EXISTS,
-               OPEN_SHARE_DENYNONE | OPEN_ACCESS_READONLY, NULL ) == NO_ERROR )
-  {
-    struct {
-      USHORT count;
-      USHORT first;
-    } cd_info;
-
-    char  drive[3] = "X:";
-    ULONG len = sizeof( cd_info );
-    ULONG i;
-
-    if( DosDevIOCtl( hcdrom, 0x82, 0x60, NULL, 0, NULL,
-                             &cd_info, len, &len ) == NO_ERROR )
-    {
-      for( i = 0; i < cd_info.count; i++ ) {
-        drive[0] = 'A' + cd_info.first + i;
-        WinSendDlgItemMsg( hwnd, CB_DRIVE, LM_INSERTITEM,
-                           MPFROMSHORT( LIT_END ), MPFROMP( drive ));
-      }
-    }
-    DosClose( hcdrom );
-
-    if( *cfg.cddrive ) {
-      WinSetDlgItemText( hwnd, CB_DRIVE, cfg.cddrive );
-    } else {
-      WinSendDlgItemMsg( hwnd, CB_DRIVE, LM_SELECTITEM,
-                         MPFROMSHORT( 0 ), MPFROMSHORT( TRUE ));
-    }
-  }
-
-  if( WinProcessDlg( hwnd ) == DID_OK ) {
-    SHORT selected =
-          SHORT1FROMMR( WinSendDlgItemMsg( hwnd, LB_TRACKS, LM_QUERYSELECTION,
-                        MPFROMSHORT( LIT_FIRST ), 0 ));
-
-    WinQueryDlgItemText( hwnd, CB_DRIVE, sizeof( cfg.cddrive ), cfg.cddrive );
-
-    if( options & TRK_ADD_TO_LIST ) {
-      char cdurl[64];
-
-      while( selected != LIT_NONE ) {
-        sprintf( cdurl, "cd:///%s\\Track %02d", cfg.cddrive, selected+1 );
-        pl_add_file( cdurl, NULL, 0 );
-        selected = SHORT1FROMMR( WinSendDlgItemMsg( hwnd, LB_TRACKS, LM_QUERYSELECTION,
-                                 MPFROMSHORT( selected ), 0 ));
-      }
-      pl_completed();
-    } else {
-      char cdurl[64];
-
-      sprintf( cdurl, "cd:///%s\\Track %02d", cfg.cddrive, selected+1 );
-      amp_load_singlefile( cdurl, 0 );
-    }
-  }
-  WinDestroyWindow( hwnd );
-}
-
 /* Adds user selected files or directory to the playlist. */
 void
 amp_add_files( HWND hwnd )
@@ -1008,6 +821,29 @@ amp_add_files( HWND hwnd )
 
   WinFreeFileDlgList( filedialog.papszFQFilename );
 }
+
+static void
+add_by_plugin( HWND owner, int options, ULONG (PM123_ENTRYP assist)( HWND owner, char* select, ULONG size ) )
+{
+  // well, stackspace is rare and it should be difficult to the user to open more than one context menu
+  static char result[8192];
+  ULONG rc = (*assist)( owner, result, sizeof result );
+  
+  if ( rc == 0 || rc == 100 ) {
+    char* cp = result;
+    while ( *cp )
+    {
+      if( options & URL_ADD_TO_LIST ) {
+        pl_add_file( cp, NULL, 0 );
+      } else {
+        amp_load_singlefile( cp, 0 );
+        return;
+      }
+    }
+    pl_completed();
+  }
+}
+
 
 /* Reads url from specified file. */
 char*
@@ -2164,28 +2000,39 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
     }
 
     case WM_COMMAND:
-      if( COMMANDMSG(&msg)->source == CMDSRC_MENU )
+    { const CMDMSG* cm = COMMANDMSG(&msg);
+      if( cm->source == CMDSRC_MENU )
       {
-        if( COMMANDMSG(&msg)->cmd > IDM_M_PLUG ) {
-          process_possible_plugin( hplayer, COMMANDMSG(&msg)->cmd );
+        if( cm->cmd > IDM_M_PLUG ) {
+          process_possible_plugin( hplayer, cm->cmd );
           return 0;
         }
-        if( COMMANDMSG(&msg)->cmd > IDM_M_BOOKMARKS ) {
-          process_possible_bookmark( COMMANDMSG(&msg)->cmd );
+        if( cm->cmd > IDM_M_BOOKMARKS ) {
+          process_possible_bookmark( cm->cmd );
           return 0;
         }
-        if( COMMANDMSG(&msg)->cmd > IDM_M_LAST )
+        if( cm->cmd > IDM_M_LAST )
         {
           char filename[_MAX_FNAME];
-          int  i = COMMANDMSG(&msg)->cmd - IDM_M_LAST - 1;
+          int  i = cm->cmd - IDM_M_LAST - 1;
 
           strcpy( filename, cfg.last[i] );
           amp_load_singlefile( filename, 0 );
           return 0;
         }
+        if( cm->cmd >= IDM_M_ADDOTHER &&
+            cm->cmd < IDM_M_ADDOTHER + sizeof load_assists / sizeof *load_assists &&
+            load_assists[cm->cmd-IDM_M_ADDOTHER] )
+        {
+          char url[1024];
+          ULONG rc = (*load_assists[cm->cmd-IDM_M_ADDOTHER])( hwnd, url, sizeof url );
+          if ( rc == 0 )
+            amp_load_singlefile( url, 0 );
+          return 0;
+        }
       }
 
-      switch( COMMANDMSG(&msg)->cmd )
+      switch( cm->cmd )
       {
         case IDM_M_MANAGER:
           pm_show( TRUE );
@@ -2223,10 +2070,6 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
 
         case IDM_M_URL:
           amp_add_url( hwnd, URL_ADD_TO_PLAYER );
-          return 0;
-
-        case IDM_M_TRACK:
-          amp_add_tracks( hwnd, TRK_ADD_TO_PLAYER );
           return 0;
 
         case IDM_M_FONT1:
@@ -2441,7 +2284,7 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
           return 0;
       }
       return 0;
-
+    }
     case WM_CREATE:
     {
       HPS hps = WinGetPS( hwnd );

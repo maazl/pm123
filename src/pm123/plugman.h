@@ -42,6 +42,7 @@
 #include <plugin.h>
 #include <output_plug.h>
 #include <filter_plug.h>
+#include <decoder_plug.h>
 #include <utilfct.h>
 
 
@@ -156,6 +157,8 @@ BOOL  PM123_ENTRY decoder_playing( void );
 
 /* Plug-in menu in the main pop-up menu */
 void  load_plugin_menu( HWND hmenu );
+/* Add additional entries in load/add menu in the main and the playlist's pop-up menu */
+void  append_load_menu( HWND hMenu, ULONG id_base, BOOL multiselect, DECODER_ASSIST_FUNC* callbacks, int size );
 BOOL  process_possible_plugin( HWND hwnd, USHORT cmd );
 
 #ifdef __cplusplus

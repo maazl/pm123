@@ -33,8 +33,8 @@
 #define  PM123_H
 
 #ifndef  RC_INVOKED
-#include "plugman.h"
 #include "skin.h"
+#include "plugman.h"
 #include "playlist.h"
 #include "properties.h"
 #include "copyright.h"
@@ -71,7 +71,6 @@
 #define IDM_M_EQUALIZE      522
 #define IDM_M_TAG           523
 #define IDM_M_MANAGER       540
-#define IDM_M_TRACK         541
 #define IDM_M_SAVE          542
 #define IDM_M_ADDBOOK       545
 #define IDM_M_EDITBOOK      546
@@ -79,18 +78,13 @@
 #define IDM_M_VOL_RAISE     548
 #define IDM_M_VOL_LOWER     549
 #define IDM_M_MENU          550
+#define IDM_M_ADDOTHER      600 /* reserve some ID's for several plug-ins.  */
 #define IDM_M_LAST        10000 /* A lot of IDs after this need to be free. */
 #define IDM_M_BOOKMARKS   11000 /* A lot of IDs after this need to be free. */
 #define IDM_M_PLUG        15000 /* A lot of IDs after this need to be free. */
 
 #define DLG_URL            2014
 #define ENT_URL             101
-
-#define DLG_TRACK          2021
-#define LB_TRACKS          2022
-#define ST_DRIVE           2023
-#define CB_DRIVE           2024
-#define PB_REFRESH         2025
 
 #define DLG_FILE           2100
 #define CB_RECURSE          500
@@ -138,13 +132,9 @@
 #define AMP_LOAD_NOT_PLAY    0x0001
 #define AMP_LOAD_NOT_RECALL  0x0002
 
-/* amp_add_url options */
+/* amp_add_* options */
 #define URL_ADD_TO_PLAYER    0x0000
 #define URL_ADD_TO_LIST      0x0001
-
-/* amp_add_tracks options */
-#define TRK_ADD_TO_PLAYER    0x0000
-#define TRK_ADD_TO_LIST      0x0001
 
 /* amp_save_list_as options */
 #define SAV_LST_PLAYLIST     0x0000
@@ -246,7 +236,7 @@ void  amp_show_help( SHORT resid );
 /* Adds HTTP file to the playlist or load it to the player. */
 void  amp_add_url( HWND owner, int options );
 /* Adds CD tracks to the playlist or load one to the player. */
-void  amp_add_tracks( HWND owner, int options );
+/*void  amp_add_tracks( HWND owner, int options );*/
 /* Adds user selected files or directory to the playlist. */
 void  amp_add_files( HWND owner );
 

@@ -15,7 +15,7 @@ RESOURCE = cdda$(RES)
 
 all: cddaplay.dll cddaplay$(LBI) $(MDUMMY)
 
-cddaplay.dll: $(OBJECTS) $(DEF) $(RESOURCE) ciscgi\ciscgi$(LBO)
+cddaplay.dll: $(OBJECTS) $(DEF) $(RESOURCE) ciscgi\ciscgi$(LBO) $(TOPDIR)\utils\utilfct$(LBO)
 	$(CL) $(LFLAGS) $(LFLAGS_OUT)$@ $(LOBJ_PREFX)$(OBJECTS) $(LIBS)$(LOBJ_SUFFX) $(LDEF_PREFX)$(DEF)
 	$(RC) $(RFLAGS) $(RESOURCE) $@ > nul
 

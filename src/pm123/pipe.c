@@ -36,8 +36,8 @@
 #include <utilfct.h>
 #include <errorstr.h>
 
-#include "playlist.h"
 #include "pm123.h"
+#include "playlist.h"
 #include "properties.h"
 
 #include <os2.h>

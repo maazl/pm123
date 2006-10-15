@@ -63,4 +63,10 @@
 #define LB_CDINFO           702
 #define PB_DELETE           703
 
+#define DLG_TRACK          2021
+#define LB_TRACKS          2022
+#define ST_DRIVE           2023
+#define CB_DRIVE           2024
+#define PB_REFRESH         2025
+
 #endif /* _CDDARC_H */

@@ -209,6 +209,7 @@ struct DECODER_PROCS
   ULONG (PM123_ENTRYP decoder_cdinfo   )( const char* drive, DECODER_CDINFO* info );
   ULONG (PM123_ENTRYP decoder_support  )( char*  ext[], int* size );
   ULONG (PM123_ENTRYP decoder_editmeta )( HWND owner, const char* url );
+  const DECODER_ASSIST* (PM123_ENTRYP decoder_getassist)( BOOL multiselect );
   // Result from the decoder_support call. Supported data sources.
   int    type;
   // Result from the decoder_support call. Supported file types.
