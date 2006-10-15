@@ -188,20 +188,20 @@ decoder. Extentions can be for example "*.MOD".
 </ul>
 <p>If <code>decoder_editmeta</code> is not implemented, the edit tag entry is disabled.
 <blockquote>
-<pre>const DECODER_ASSIST* PM123_ENTRY <b>decoder_getassist</b>( BOOL multiselect )</pre>
+<pre>const DECODER_WIZZARD* PM123_ENTRY <b>decoder_getwizzard</b>( BOOL multiselect )</pre>
 </blockquote>
 <ul>
 <li><var>multiselect</var> - Flag whether the user might select multiple items at once.
-<li><var>return value</var> - Zero or more <code>DECODER_ASSIST</code> structures (linked list).<br>
+<li><var>return value</var> - Zero or more <code>DECODER_WIZZARD</code> structures (linked list).<br>
   Each structure represents an entry in the context menu to load something into the player or a playlist.
-  To terminate the list of <code>DECODER_ASSIST</code> objects set the link pointer to <code>NULL</code>.
-  The returned storage must be valid until the next call to <code>decoder_assist</code> or the plug-in gets unloaded.
+  To terminate the list of <code>DECODER_WIZZARD</code> objects set the link pointer to <code>NULL</code>.
+  The returned storage must be valid until the next call to <code>decoder_getwizzard</code> or the plug-in gets unloaded.
 </ul>
 <p>If the function is not implemented or returns <code>NULL</code>
   the context menu is not extended with entries specific to this plug-in.
-<p>When the menu entry is selected the corresponding assist function is called by PM123.
+<p>When the menu entry is selected the corresponding wizzard function is called by PM123.
 <blockquote>
-<pre>ULONG (PM123_ENTRYP assist)( HWND owner, char* select, ULONG size );</pre>
+<pre>ULONG (PM123_ENTRYP <b>wizzard</b>)( HWND owner, char* select, ULONG size );</pre>
 </blockquote>
 <ul>
 <li><var>owner</var> - Parent window handle.

@@ -96,8 +96,8 @@ static BOOL  is_stream_saved  = FALSE;
 static BOOL  is_arg_shuffle   = FALSE;
 static BOOL  is_decoder_done  = FALSE;
 
-/* Current load assists */
-static DECODER_ASSIST_FUNC load_assists[16];
+/* Current load wizzards */
+static DECODER_WIZZARD_FUNC load_wizzards[16];
 
 /* Current seeking time. Valid if is_seeking == TRUE. */
 static int   seeking_pos = 0;
@@ -640,8 +640,8 @@ amp_show_context_menu( HWND parent )
   }
 
   // Append asisstents from decoder plug-ins
-  memset( load_assists, 0, sizeof load_assists / sizeof *load_assists ); // You never know...
-  append_load_menu( mi.hwndSubMenu, IDM_M_ADDOTHER, FALSE, load_assists, sizeof load_assists / sizeof *load_assists );
+  memset( load_wizzards, 0, sizeof load_wizzards / sizeof *load_wizzards ); // You never know...
+  append_load_menu( mi.hwndSubMenu, IDM_M_ADDOTHER, FALSE, load_wizzards, sizeof load_wizzards / sizeof *load_wizzards );
 
   if( *cfg.last[0] )
   {
@@ -1996,11 +1996,11 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
           return 0;
         }
         if( cm->cmd >= IDM_M_ADDOTHER &&
-            cm->cmd < IDM_M_ADDOTHER + sizeof load_assists / sizeof *load_assists &&
-            load_assists[cm->cmd-IDM_M_ADDOTHER] )
+            cm->cmd < IDM_M_ADDOTHER + sizeof load_wizzards / sizeof *load_wizzards &&
+            load_wizzards[cm->cmd-IDM_M_ADDOTHER] )
         {
           char url[1024];
-          ULONG rc = (*load_assists[cm->cmd-IDM_M_ADDOTHER])( hwnd, url, sizeof url );
+          ULONG rc = (*load_wizzards[cm->cmd-IDM_M_ADDOTHER])( hwnd, url, sizeof url );
           if ( rc == 0 )
             amp_load_singlefile( url, 0 );
           return 0;

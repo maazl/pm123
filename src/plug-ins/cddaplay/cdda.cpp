@@ -1330,7 +1330,7 @@ add_tracks_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
 
 /* Adds CD tracks to the playlist or load one to the player. */
 static ULONG
-load_assist( HWND owner, char* select, ULONG size, BOOL multiselect )
+load_wizzard( HWND owner, char* select, ULONG size, BOOL multiselect )
 {
   HFILE   hcdrom;
   ULONG   action;
@@ -1339,11 +1339,11 @@ load_assist( HWND owner, char* select, ULONG size, BOOL multiselect )
   #if DEBUG
   char* select_old = select;
   #endif
-  DEBUGLOG(("cddaplay:load_assist(%p, %p, %d, %d)\n", owner, select, size, multiselect));  
+  DEBUGLOG(("cddaplay:load_wizzard(%p, %p, %d, %d)\n", owner, select, size, multiselect));  
 
   getModule( &mod, NULL, 0 );
   hwnd = WinLoadDlg( HWND_DESKTOP, owner, add_tracks_dlg_proc, mod, DLG_TRACK, 0 );
-  DEBUGLOG(("cddaplay:load_assist: hwnd=%p\n", hwnd));  
+  DEBUGLOG(("cddaplay:load_wizzard: hwnd=%p\n", hwnd));  
 
   if( hwnd == NULLHANDLE ) {
     return 500;
@@ -1401,7 +1401,7 @@ load_assist( HWND owner, char* select, ULONG size, BOOL multiselect )
     WinQueryDlgItemText( hwnd, CB_DRIVE, sizeof( settings.cddrive ), settings.cddrive );
 
     while( selected != LIT_NONE ) {
-      DEBUGLOG(("cddaplay:load_assist: selected = %d, size = %d\n", selected, size));
+      DEBUGLOG(("cddaplay:load_wizzard: selected = %d, size = %d\n", selected, size));
       if( size < 20 ) {
         action = 100;
         break;
@@ -1419,37 +1419,37 @@ load_assist( HWND owner, char* select, ULONG size, BOOL multiselect )
   }
   WinDestroyWindow( hwnd );
   
-  DEBUGLOG(("cddaplay:load_assist: %d - %s\n", action, select_old));
+  DEBUGLOG(("cddaplay:load_wizzard: %d - %s\n", action, select_old));
   return action;
 }
 
-/* load assist, no multiple selection */
-static ULONG PM123_ENTRY load_assist_1( HWND owner, char* select, ULONG size )
-{ return load_assist( owner, select, size, FALSE );
+/* load wizzard, no multiple selection */
+static ULONG PM123_ENTRY load_wizzard_1( HWND owner, char* select, ULONG size )
+{ return load_wizzard( owner, select, size, FALSE );
 } 
 
-const DECODER_ASSIST assist_1 =
+const DECODER_WIZZARD wizzard_1 =
 { NULL,
   "~Track...\tAlt+T",
   't', AF_CHAR | AF_ALT,
-  &load_assist_1
+  &load_wizzard_1
 };
 
-/* load assist with multiple selection */
-static ULONG PM123_ENTRY load_assist_2( HWND owner, char* select, ULONG size )
-{ return load_assist( owner, select, size, TRUE );
+/* load wizzard with multiple selection */
+static ULONG PM123_ENTRY load_wizzard_2( HWND owner, char* select, ULONG size )
+{ return load_wizzard( owner, select, size, TRUE );
 } 
 
-const DECODER_ASSIST assist_2 =
+const DECODER_WIZZARD wizzard_2 =
 { NULL,
   "~Tracks...\tAlt+T",
   't', AF_CHAR | AF_ALT,
-  &load_assist_2
+  &load_wizzard_2
 };
 
 /* plug-in entry point */
-const DECODER_ASSIST* PM123_ENTRY decoder_getassist( BOOL multiselect )
-{ return multiselect ? &assist_2 : &assist_1;
+const DECODER_WIZZARD* PM123_ENTRY decoder_getwizzard( BOOL multiselect )
+{ return multiselect ? &wizzard_2 : &wizzard_1;
 }
 
 
