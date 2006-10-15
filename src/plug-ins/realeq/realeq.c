@@ -138,6 +138,7 @@ static int  newPlansize; // this is for the GUI only
 static BOOL eqenabled = FALSE;
 static BOOL locklr    = FALSE;
 static char lasteq[CCHMAXPATH];
+static BOOL modified  = TRUE; // Flag whether the current settings are a modified version of the above file.
 
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
@@ -199,7 +200,10 @@ save_ini( void )
     save_ini_value ( INIhandle, newPlansize );
     save_ini_value ( INIhandle, eqenabled );
     save_ini_value ( INIhandle, locklr );
+    save_ini_value ( INIhandle, modified );
     save_ini_string( INIhandle, lasteq );
+    save_ini_value ( INIhandle, bandgain );
+    save_ini_value ( INIhandle, mute );
 
     close_ini( INIhandle );
   }
@@ -218,6 +222,7 @@ load_ini( void )
   newPlansize = 8192;
   newFIRorder = 4096;
   locklr      = FALSE;
+  modified    = TRUE;
 
   if(( INIhandle = open_module_ini()) != NULLHANDLE )
   {
@@ -225,7 +230,10 @@ load_ini( void )
     load_ini_value ( INIhandle, newPlansize );
     load_ini_value ( INIhandle, eqenabled );
     load_ini_value ( INIhandle, locklr );
+    load_ini_value ( INIhandle, modified );
     load_ini_string( INIhandle, lasteq, sizeof( lasteq ));
+    load_ini_value ( INIhandle, bandgain );
+    load_ini_value ( INIhandle, mute );
 
     close_ini( INIhandle );
 
@@ -289,7 +297,9 @@ static void
 init_request( void )
 { if (!plugininit) // first time?
   { load_ini();
-    load_eq_file( lasteq, bandgain[0], mute[0], &preamp );
+    if ( !modified ) {
+      load_eq_file( lasteq, bandgain[0], mute[0], &preamp );
+    }
     plugininit = TRUE;
   }
 }
@@ -1021,19 +1031,19 @@ load_eq( HWND hwnd, float* gains, BOOL* mutes, float* preamp )
   if( filedialog.lReturn == DID_OK )
   {
     strcpy( lasteq, filedialog.szFullFile );
-    return load_eq_file( filedialog.szFullFile, gains, mutes, preamp );
+    if ( load_eq_file( filedialog.szFullFile, gains, mutes, preamp ) ) {
+      modified = FALSE;
+      return TRUE;
+    } else {
+      return FALSE;
+    }
   }
   return FALSE;
 }
 
 int PM123_ENTRY
 plugin_query( PLUGIN_QUERYPARAM *param )
-{ // Check PM123 core version roughly
-  if ( param->size < sizeof (PLUGIN_QUERYPARAM) )
-  { param->type = 0;
-    return -1;
-  }
-  param->type         = PLUGIN_FILTER;
+{ param->type         = PLUGIN_FILTER;
   param->author       = "Samuel Audet, Marcel Mller";
   param->desc         = VERSION;
   param->configurable = TRUE;
@@ -1247,6 +1257,9 @@ ConfigureDlgProc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
 
           // mute check boxes
           if( id >= 100 && id < 200 ) {
+
+            modified = TRUE;
+
             switch( SHORT2FROMMP( mp1 ))
             {
               case BN_CLICKED:
@@ -1276,6 +1289,9 @@ ConfigureDlgProc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
             }
           // sliders
           } else if( id >= 200 && id < 300 ) {
+          
+            modified = TRUE;
+
             switch( SHORT2FROMMP( mp1 ))
             {
               case SLN_CHANGE:
