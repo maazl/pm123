@@ -29,7 +29,9 @@
 #ifndef __CHARSET_H
 #define __CHARSET_H
 
+#define INCL_PM
 #include <string.h>
+#include <os2.h>
 
 
 // no code page
