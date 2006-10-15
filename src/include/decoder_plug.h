@@ -295,21 +295,21 @@ ULONG PM123_ENTRY decoder_support  ( char* fileext[], int* size );
 #if defined(DECODER_PLUGIN_LEVEL) && DECODER_PLUGIN_LEVEL > 0 
 ULONG PM123_ENTRY decoder_editmeta ( HWND owner, const char* url );
 
-typedef ULONG (PM123_ENTRYP DECODER_ASSIST_FUNC)( HWND owner, char* select, ULONG size );
+typedef ULONG (PM123_ENTRYP DECODER_WIZZARD_FUNC)( HWND owner, char* select, ULONG size );
 
-typedef struct _DECODER_ASSIST
+typedef struct _DECODER_WIZZARD
 { /* linked list */ 
-  struct _DECODER_ASSIST* link;
+  struct _DECODER_WIZZARD* link;
   /* String to be displayed in the context menu */
   char*  prompt;
   /* Accreleration Table entry */
   USHORT accel_key;
   USHORT accel_options;
   /* Procedure to be called when the specified item is selected */
-  ULONG (PM123_ENTRYP assist)( HWND owner, char* select, ULONG size );
-} DECODER_ASSIST;
+  DECODER_WIZZARD_FUNC wizzard;
+} DECODER_WIZZARD;
 
-const DECODER_ASSIST* PM123_ENTRY decoder_getassist( BOOL multiselect );
+const DECODER_WIZZARD* PM123_ENTRY decoder_getwizzard( BOOL multiselect );
 #endif
 
 #ifdef __cplusplus
