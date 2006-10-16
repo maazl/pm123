@@ -31,6 +31,7 @@
  * URL syntax:  record://device?[samplerate=44100][&channels=1|2][&shared=1]
  */
 
+#define DECODER_PLUGIN_LEVEL 1
 #define INCL_OS2MM
 #define INCL_PM
 #define INCL_DOS
@@ -47,9 +48,7 @@
 #include <format.h>
 #include <decoder_plug.h>
 #include <plugin.h>
-//#include "os2rec.h"
-
-//#define DEBUG 2
+#include "os2rec.h"
 
 #include <debuglog.h>
 
@@ -80,7 +79,7 @@ static PARAMETERS defaults =
 typedef struct
 {
    // setup parameters
-   PARAMETERS params;
+   PARAMETERS          params;
 
    int  (PM123_ENTRYP output_play_samples)( void* a, const FORMAT_INFO* format, const char* buf, int len, int posmarker );
    void* a;           /* only to be used with the precedent function */
@@ -203,9 +202,9 @@ parseURL( const char* url, PARAMETERS* params )
     } else
     if (abbrev(key, "shared", 5))
     { if (abbrev(value, "no", 1) || strcmp(value, "0") == 0)
-        params->lockdevice = FALSE;
-       else if (abbrev(value, "yes", 0) || strcmp(value, "1") == 0)
         params->lockdevice = TRUE;
+       else if (abbrev(value, "yes", 0) || strcmp(value, "1") == 0)
+        params->lockdevice = FALSE;
        else
         return FALSE; // bad value
     } else
@@ -281,7 +280,7 @@ get_connector_name(ULONG connector)
 ULONG PM123_ENTRY
 decoder_fileinfo( const char* filename, DECODER_INFO* info )
 { const char* cp;
-  PARAMETERS params = defaults;
+  PARAMETERS params  = defaults;
   if (!parseURL( filename, &params ))
     return 200;
   info->format       = params.format;
@@ -361,7 +360,7 @@ static LONG APIENTRY DARTEvent(ULONG ulStatus, MCI_MIX_BUFFER *PlayedBuffer, ULO
 
 } /* end DARTEvent */
 
-static void
+static void TFNENTRY
 DecoderThread( void* arg )
 {  OS2RECORD *a = (OS2RECORD*)arg;
    ULONG rc;
@@ -428,7 +427,7 @@ DecoderThread( void* arg )
 
 static ULONG MciError(OS2RECORD *a, ULONG ulError, const char* location)
 {
-   unsigned char mmerror[180];
+   char mmerror[180];
    ULONG rc;
    int len;
    
@@ -447,7 +446,7 @@ static ULONG MciError(OS2RECORD *a, ULONG ulError, const char* location)
 
 static ULONG OS2Error(OS2RECORD *a, ULONG ulError, const char* location)
 {
-   unsigned char mmerror[1024];
+   char mmerror[1024];
    ULONG rc;
    int len;
    
@@ -593,7 +592,7 @@ static ULONG device_open(OS2RECORD *a)
      a->params.buffersize = a->audio_buffersize;
    // Set up the BufferParms data structure and allocate device buffers from the Amp-Mixer
    {  free(a->MixBuffers);
-      a->MixBuffers = calloc(a->params.numbuffers, sizeof(*a->MixBuffers));
+      a->MixBuffers = (MCI_MIX_BUFFER*)calloc(a->params.numbuffers, sizeof(*a->MixBuffers));
 
       memset(&a->bpa, 0, sizeof a->bpa);
       a->bpa.ulNumBuffers = a->params.numbuffers;
@@ -710,54 +709,182 @@ int PM123_ENTRY plugin_query(PLUGIN_QUERYPARAM *param)
 }
 
 
-/*static ULONG output_get_devices(char *name, int deviceid)
+static ULONG get_devices(MCI_SYSINFO_LOGDEVICE* info, int deviceid)
 {
    char buffer[256];
    MCI_SYSINFO_PARMS mip;
 
-   if(deviceid && name)
-   {
-      MCI_SYSINFO_LOGDEVICE mid;
-
-      mip.pszReturn = buffer;
+   if (info)
+   {  mip.pszReturn = buffer;
       mip.ulRetSize = sizeof(buffer);
       mip.usDeviceType = MCI_DEVTYPE_AUDIO_AMPMIX;
       mip.ulNumber = deviceid;
-
-      mciSendCommand(0,
-                     MCI_SYSINFO,
-                     MCI_WAIT | MCI_SYSINFO_INSTALLNAME,
-                     &mip,
-                     0);
+      mciSendCommand(0, MCI_SYSINFO, MCI_WAIT | MCI_SYSINFO_INSTALLNAME, &mip, 0);
 
       mip.ulItem = MCI_SYSINFO_QUERY_DRIVER;
-      mip.pSysInfoParm = &mid;
-      strcpy(mid.szInstallName,buffer);
-
-      mciSendCommand(0,
-                     MCI_SYSINFO,
-                     MCI_WAIT | MCI_SYSINFO_ITEM,
-                     &mip,
-                     0);
-
-      sprintf(name,"%s (%s)", mid.szProductInfo, mid.szVersionNumber);
+      mip.pSysInfoParm = info;
+      strcpy(info->szInstallName, buffer);
+      mciSendCommand(0, MCI_SYSINFO, MCI_WAIT | MCI_SYSINFO_ITEM,        &mip, 0);
+   } else
+   {  mip.pszReturn = buffer;
+      mip.ulRetSize = sizeof(buffer);
+      mip.usDeviceType = MCI_DEVTYPE_AUDIO_AMPMIX;
+      mciSendCommand(0, MCI_SYSINFO, MCI_WAIT | MCI_SYSINFO_QUANTITY,    &mip, 0);
    }
-
-   mip.pszReturn = buffer;
-   mip.ulRetSize = sizeof(buffer);
-   mip.usDeviceType = MCI_DEVTYPE_AUDIO_AMPMIX;
-
-   mciSendCommand(0,
-                  MCI_SYSINFO,
-                  MCI_WAIT | MCI_SYSINFO_QUANTITY,
-                  &mip,
-                  0);
-
    return atoi(mip.pszReturn);
-} */
+}
 
 
 /********** GUI stuff ******************************************************/ 
+
+struct WizzardDlgResult
+{ char* url;
+  ULONG size;
+};
+
+static MRESULT EXPENTRY WizzardDlgProc(HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2)
+{ 
+  const int samprates[] = {8000, 11025, 12000, 16000, 22050, 24000, 32000, 44100, 48000, 96000};
+  DEBUGLOG2(("os2rec:WizzardDlgProc(%p, %p, %p, %p)\n", hwnd, msg, mp1, mp2));
+  
+  switch (msg)
+  {case WM_INITDLG:
+    // Store data pointer
+    WinSetWindowULong(hwnd, QWL_USER, (ULONG)mp2);
+
+    // Initialize devices
+    { HWND hwndctrl = WinWindowFromID(hwnd, CB_DEVICE);
+      int numdevice = get_devices(NULL, 0);
+      WinSendMsg(hwndctrl, LM_INSERTITEM, MPFROMSHORT(LIT_END), MPFROMP("Default"));
+      for (int i = 1; i <= numdevice; i++)
+      { MCI_SYSINFO_LOGDEVICE info;
+        char temp[256];
+        get_devices(&info, i);
+        //DEBUGLOG(("os2rec:WizzardDlgProc:WM_INITDLG: %s %s - %s\n", info.szInstallName, info.szResourceName, defaults.device));
+        sprintf(temp, "%s (%s)", info.szProductInfo, info.szVersionNumber);
+        WinSendMsg(hwndctrl, LM_INSERTITEM, MPFROMSHORT(LIT_END), MPFROMP(temp));
+        // select by resource name ?
+        if ( stricmp(info.szResourceName, defaults.device) == 0 ||
+             (i == 0 && stricmp(MCI_DEVTYPE_AUDIO_AMPMIX_NAME"00", defaults.device) == 0) )
+          WinSendMsg(hwndctrl, LM_SELECTITEM, MPFROMSHORT(i), MPFROMSHORT(TRUE));
+      }
+      // select by ID ?
+      { const char* cp = defaults.device;
+        if (strnicmp(cp, MCI_DEVTYPE_AUDIO_AMPMIX_NAME, strlen(MCI_DEVTYPE_AUDIO_AMPMIX_NAME)) == 0)
+          cp += strlen(MCI_DEVTYPE_AUDIO_AMPMIX_NAME);
+        int i, len;
+        if (sscanf(cp, "%u%n", &i, &len) == 1 && len == strlen(cp))
+          WinSendMsg(hwndctrl, LM_SELECTITEM, MPFROMSHORT(i), MPFROMSHORT(TRUE));
+      }
+    }
+    // Initialize share mode
+    WinCheckButton(hwnd, defaults.lockdevice ? RB_EXCL : RB_SHARE, TRUE);
+    // Initialize input
+    WinCheckButton(hwnd, defaults.connector == MCI_MICROPHONE_CONNECTOR ? RB_MIC : defaults.connector == MCI_AMP_STREAM_CONNECTOR ? RB_DIGITAL : RB_LINE, TRUE);
+    // Initialize sampling rate
+    { HWND hwndctrl = WinWindowFromID(hwnd, SB_SAMPRATE);
+      WinSendMsg(hwndctrl, SPBM_SETMASTER,       NULLHANDLE,       0);
+      WinSendMsg(hwndctrl, SPBM_SETTEXTLIMIT,    MPFROMSHORT(6),   0);
+      WinSendMsg(hwndctrl, SPBM_SETLIMITS,       MPFROMLONG(200000), MPFROMLONG(1000));
+      WinSendMsg(hwndctrl, SPBM_SETCURRENTVALUE, MPFROMLONG(defaults.format.samplerate), 0);
+    }
+    // Initialize number of channels
+    WinCheckButton(hwnd, defaults.format.channels == 1 ? RB_MONO : RB_STEREO, TRUE);
+    // Initialize format
+    WinCheckButton(hwnd, defaults.format.bits == 8 ? RB_8BIT : defaults.format.bits == 24 ? RB_24BIT : RB_16BIT, TRUE);
+    break;
+    
+   case WM_COMMAND:
+    DEBUGLOG(("os2rec:WizzardDlgProc(%p, WM_COMMAND, %p, %p)\n", hwnd, mp1, mp2));
+    switch (SHORT1FROMMP(mp1))
+    {case DID_OK:
+      // Construct URL
+      { char url[128];
+        LONG samp;
+        WinSendDlgItemMsg(hwnd, SB_SAMPRATE, SPBM_QUERYVALUE, MPFROMP(&samp), 0);
+        sprintf(url, "record:///%u?samp=%u&%s&bits=%u&in=%s&share=%s",
+          SHORT1FROMMR(WinSendDlgItemMsg(hwnd, CB_DEVICE, LM_QUERYSELECTION, MPFROMSHORT(LIT_FIRST), 0)),
+          samp,
+          WinQueryButtonCheckstate(hwnd, RB_MONO) ? "mono" : "stereo",
+          WinQueryButtonCheckstate(hwnd, RB_8BIT) ? 8      : WinQueryButtonCheckstate(hwnd, RB_24BIT)   ? 24        : 16,
+          WinQueryButtonCheckstate(hwnd, RB_MIC)  ? "mic"  : WinQueryButtonCheckstate(hwnd, RB_DIGITAL) ? "digital" : "line",
+          WinQueryButtonCheckstate(hwnd, RB_EXCL) ? "no"   : "yes");
+        // store result
+        WizzardDlgResult* dp = (WizzardDlgResult*)WinQueryWindowULong(hwnd, QWL_USER);
+        DEBUGLOG(("os2rec:WizzardDlgProc: dp=%p->{%p,%u}\n", dp, dp->url, dp->size));
+        size_t len = strlen(url)+1;
+        if (dp->size >= len +1)
+        { memcpy(dp->url, url, len);
+          dp->url[len] = 0; // double zero termination
+        }
+        dp->size = len +1;
+      }
+      break;
+    }
+    break;
+
+   case WM_CONTROL:
+    DEBUGLOG(("os2rec:WizzardDlgProc(%p, WM_CONTROL, %p, %p)\n", hwnd, mp1, mp2));
+    switch (SHORT1FROMMP(mp1))
+    {case SB_SAMPRATE:
+      switch (SHORT2FROMMP(mp1))
+      { int  i;
+        LONG val;
+
+       case SPBN_DOWNARROW:
+        WinSendDlgItemMsg(hwnd, SB_SAMPRATE, SPBM_QUERYVALUE, MPFROMP(&val), 0);
+        for (i = sizeof samprates/sizeof *samprates; --i >= 0; )
+          if (samprates[i] < val)
+            break;
+        //DEBUGLOG(("os2rec:WizzardDlgProc: SPBN_UPARROW - %i %i %i\n", val, i, samprates[(i+sizeof samprates/sizeof *samprates) % (sizeof samprates/sizeof *samprates)]));
+        WinSendDlgItemMsg(hwnd, SB_SAMPRATE, SPBM_SETCURRENTVALUE, MPFROMLONG(samprates[(i+sizeof samprates/sizeof *samprates) % (sizeof samprates/sizeof *samprates)]), 0);
+        return 0;
+        
+       case SPBN_UPARROW:
+        WinSendDlgItemMsg(hwnd, SB_SAMPRATE, SPBM_QUERYVALUE, MPFROMP(&val), 0);
+        for (i = 0; i < sizeof samprates/sizeof *samprates; ++i )
+          if (samprates[i] > val)
+            break;
+        //DEBUGLOG(("os2rec:WizzardDlgProc: SPBN_DOWNARROW - %i %i %i\n", val, i, samprates[i % (sizeof samprates/sizeof *samprates)]));
+        WinSendDlgItemMsg(hwnd, SB_SAMPRATE, SPBM_SETCURRENTVALUE, MPFROMLONG(samprates[i % (sizeof samprates/sizeof *samprates)]), 0);
+        return 0;
+      }
+      break;   
+    }
+    break;
+  }
+  return WinDefDlgProc(hwnd, msg, mp1, mp2);
+}
+
+static ULONG PM123_ENTRY WizzardDlg(HWND owner, char* select, ULONG size)
+{ DEBUGLOG(("os2rec:WizzardDlg(%p, %p, %d)\n", owner, select, size));  
+  HMODULE mod;
+  getModule( &mod, NULL, 0 );
+
+  WizzardDlgResult res = { select, size };
+  switch (WinDlgBox(HWND_DESKTOP, owner, WizzardDlgProc, mod, DLG_RECWIZZARD, &res))
+  {case DID_OK:
+    return res.size <= size ? 0 : 100;
+
+   case DID_CANCEL:
+    return 300;
+
+   default:
+    return 500;
+  }
+}
+
+const DECODER_WIZZARD wizzardentry =
+{ NULL,
+  "Record...",
+  0, 0,
+  &WizzardDlg
+};
+
+/* DLL entry point */
+const DECODER_WIZZARD* PM123_ENTRY decoder_getwizzard( BOOL multiselect )
+{ return &wizzardentry;
+}
 
 /*HWND dlghwnd = 0;
 

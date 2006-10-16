@@ -1234,7 +1234,7 @@ append_load_menu( HWND hMenu, ULONG id_base, BOOL multiselect, DECODER_WIZZARD_F
         mi.iPosition   = MIT_END;
         mi.afStyle     = MIS_TEXT;
         mi.afAttribute = 0;
-        mi.id          = id_base;
+        mi.id          = id_base++;
         mi.hwndSubMenu = NULLHANDLE;
         mi.hItem       = 0;
         WinSendMsg( hMenu, MM_INSERTITEM, MPFROMP( &mi ), MPFROMP( da->prompt ));

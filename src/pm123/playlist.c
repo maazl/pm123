@@ -72,7 +72,7 @@ static int    played        = 0;
 static TID    broker_tid    = 0;
 static PQUEUE broker_queue  = NULL;
 static char   current_playlist[_MAX_PATH];
-static DECODER_ASSIST_FUNC assists[16];
+static DECODER_WIZZARD_FUNC assists[16];
 
 /* The pointer to playlist record of the currently loaded file,
    the pointer is NULL if such record is not present. */

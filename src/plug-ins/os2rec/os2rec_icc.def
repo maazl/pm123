@@ -12,5 +12,6 @@ EXPORTS
    decoder_support  @7
    decoder_trackinfo @8
    decoder_cdinfo    @9
+   decoder_getwizzard @10
 
-   plugin_query     @10
+   plugin_query     @20

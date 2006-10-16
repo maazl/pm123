@@ -301,12 +301,12 @@ typedef struct _DECODER_WIZZARD
 { /* linked list */ 
   struct _DECODER_WIZZARD* link;
   /* String to be displayed in the context menu */
-  char*  prompt;
+  const char*              prompt;
   /* Accreleration Table entry */
-  USHORT accel_key;
-  USHORT accel_options;
+  USHORT                   accel_key;
+  USHORT                   accel_options;
   /* Procedure to be called when the specified item is selected */
-  DECODER_WIZZARD_FUNC wizzard;
+  DECODER_WIZZARD_FUNC     wizzard;
 } DECODER_WIZZARD;
 
 const DECODER_WIZZARD* PM123_ENTRY decoder_getwizzard( BOOL multiselect );
