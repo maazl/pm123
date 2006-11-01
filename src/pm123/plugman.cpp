@@ -96,6 +96,12 @@ static class CL_GLUE
                            CL_GLUE();
   const  OUTPUT_PROCS&     get_procs() const  { return procs; }
   
+  // output control interface
+  friend ULONG             out_setup          ( const FORMAT_INFO2* formatinfo, const char* URI );
+  friend ULONG             out_close          ();
+  friend void              out_set_volume     ( double volume );
+  friend ULONG             out_pause          ( BOOL pause );
+  friend BOOL              out_flush          ( void );
   // decoder control interface
   friend ULONG             dec_play           ( const char* url, const char* decoder_name );
   friend ULONG             dec_stop           ( void );
@@ -103,13 +109,6 @@ static class CL_GLUE
   friend ULONG             dec_jump           ( int pos );
   friend ULONG             dec_eq             ( const float* bandgain );
   friend ULONG             dec_save           ( const char* file );
-  // output control interface
-  friend ULONG             out_setup          ( const FORMAT_INFO2* formatinfo, const char* URI );
-  friend ULONG             out_close          ();
-  friend void              out_set_volume     ( double volume );
-  friend ULONG             out_pause          ( BOOL pause );
-  friend void              out_trashbuffers   ( int temp_playingpos );
-  friend BOOL              out_flush          ( void );
   // 4 visual interface
   friend ULONG PM123_ENTRY out_playing_pos    ( void );
   friend BOOL  PM123_ENTRY out_playing_data   ( void );
@@ -332,7 +331,12 @@ ULONG dec_fast( DECODER_FAST_MODE mode )
 /* jump to absolute position */
 ULONG dec_jump( int location )
 { voutput.dparams.jumpto = location;
-  return voutput.dec_command( DECODER_JUMPTO );
+  ULONG rc = voutput.dec_command( DECODER_JUMPTO );
+  if (rc == 0 && cfg.trash && voutput.initialized)
+  { voutput.params.temp_playingpos = location;
+    voutput.out_command( OUTPUT_TRASH_BUFFERS );
+  }
+  return rc;
 }
 
 /* set equalizer parameters */
@@ -371,6 +375,8 @@ ULONG out_setup( const FORMAT_INFO2* formatinfo, const char* URI )
 ULONG out_close()
 { if (!voutput.initialized)
     return (ULONG)-1;
+  voutput.params.temp_playingpos = (*voutput.procs.output_playing_pos)( voutput.procs.a );;
+  voutput.out_command( OUTPUT_TRASH_BUFFERS );
   ULONG rc = voutput.out_command( OUTPUT_CLOSE );
   voutput.uninit(); // Hmm, is it a good advise to do this in case of an error?
   return rc;
@@ -390,13 +396,6 @@ ULONG out_pause( BOOL pause )
     return (ULONG)-1; // error
   voutput.params.pause = pause;
   return voutput.out_command( OUTPUT_PAUSE );
-}
-
-void out_trashbuffers( int temp_playingpos )
-{ if (!voutput.initialized)
-    return; // can't help
-  voutput.params.temp_playingpos = temp_playingpos;
-  voutput.out_command( OUTPUT_TRASH_BUFFERS );
 }
 
 BOOL out_flush()

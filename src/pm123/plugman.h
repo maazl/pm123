@@ -167,7 +167,6 @@ ULONG out_setup( const FORMAT_INFO2* formatinfo, const char* URI );
 ULONG out_close( void );
 void  out_set_volume( double volume ); // volume: [0,1]
 ULONG out_pause( BOOL pause );
-void  out_trashbuffers( int temp_playingpos );
 BOOL  out_flush( void );
 
 /****************************************************************************

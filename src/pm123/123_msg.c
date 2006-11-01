@@ -134,10 +134,6 @@ amp_msg( int msg, void *param, void *param2 )
       rewinding  = FALSE;
       paused     = FALSE;
 
-      if( out_playing_data()) {
-        out_trashbuffers( out_playing_pos() );
-      }
-
       rc = out_close();
       if( rc != 0 ) {
         return;
@@ -164,9 +160,7 @@ amp_msg( int msg, void *param, void *param2 )
           forwarding = FALSE;
         } else if( cfg.trash ) {
           // Going back in the stream to what is currently playing.
-          int pos = out_playing_pos();
-          dec_jump( pos );
-          out_trashbuffers( pos );
+          dec_jump( out_playing_pos() );
         }
       }
       break;
@@ -180,9 +174,7 @@ amp_msg( int msg, void *param, void *param2 )
           rewinding = FALSE;
         } else if( cfg.trash ) {
           // Going back in the stream to what is currently playing.
-          int pos = out_playing_pos();
-          dec_jump( pos );
-          out_trashbuffers( pos );
+          dec_jump( out_playing_pos() );
         }
       }
       break;
@@ -193,8 +185,6 @@ amp_msg( int msg, void *param, void *param2 )
         if ( dec_jump( *(int*)param ) != 0 ) {
           // cancel seek immediately
           WinPostMsg( amp_player_window(), WM_SEEKSTOP, 0, 0 );
-        } else if( cfg.trash ) {
-          out_trashbuffers( *(int*)param );
         }
       }
       break;
