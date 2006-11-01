@@ -443,14 +443,8 @@ cfg_page3_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
           return 0;
 
         case PB_VIS_CONFIG:
-        {
-          SHORT i = lb_cursored( hwnd, LB_VISPLUG );
-          num = enum_visual_plugins(&list);
-          if( i >= 0 && i < num ) {
-            configure_plugin(list[i], hwnd);
-          }
+          configure_plugin( PLUGIN_VISUAL, lb_cursored( hwnd, LB_VISPLUG ), hwnd );
           return 0;
-        }
 
         case PB_VIS_ENABLE:
         {
@@ -489,14 +483,8 @@ cfg_page3_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
           return 0;
 
         case PB_DEC_CONFIG:
-        {
-          SHORT i = lb_cursored( hwnd, LB_DECPLUG );
-          num = enum_decoder_plugins(&list);
-          if( i >= 0 && i < num ) {
-            configure_plugin(list[i], hwnd);
-          }
+          configure_plugin( PLUGIN_DECODER, lb_cursored( hwnd, LB_DECPLUG ), hwnd );
           return 0;
-        }
 
         case PB_DEC_ENABLE:
         {
@@ -666,14 +654,8 @@ cfg_page4_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
           return 0;
 
         case PB_OUT_CONFIG:
-        {
-          SHORT i = lb_cursored( hwnd, LB_OUTPLUG );
-          num = enum_output_plugins(&list);
-          if( i >= 0 && i < num ) {
-            configure_plugin(list[i], hwnd);
-          }
+          configure_plugin( PLUGIN_OUTPUT, lb_cursored( hwnd, LB_OUTPLUG ), hwnd );
           return 0;
-        }
 
         case PB_OUT_ACTIVATE:
         {
@@ -715,14 +697,8 @@ cfg_page4_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
           return 0;
 
         case PB_FIL_CONFIG:
-        {
-          SHORT i = lb_cursored( hwnd, LB_FILPLUG );
-          num = enum_filter_plugins(&list);
-          if( i >= 0 && i < num ) {
-            configure_plugin(list[i], hwnd);
-          }
+          configure_plugin( PLUGIN_FILTER, lb_cursored( hwnd, LB_FILPLUG ), hwnd );
           return 0;
-        }
 
         case PB_FIL_ENABLE:
         {

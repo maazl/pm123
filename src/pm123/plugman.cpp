@@ -70,7 +70,7 @@ static CL_PLUGIN_LIST  visuals;  // only visuals
 /****************************************************************************
 *
 * virtual output interface, including filter plug-ins
-* this class logically connects the decoder and the output interface
+* This class logically connects the decoder and the output interface.
 *
 ****************************************************************************/
 
@@ -832,11 +832,6 @@ void set_plugin_enabled(PLUGIN_BASE* plugin, BOOL enabled)
 { ((CL_PLUGIN*)plugin)->set_enabled(enabled);
 }
 
-void configure_plugin(PLUGIN_BASE* plugin, HWND hwnd)
-{ ((CL_PLUGIN*)plugin)->get_module().config(hwnd);
-}
-
-
 BOOL dec_is_active( int number )
 { return number >= 0 && number < decoders.count() && &decoders[number] == decoders.current();
 }
@@ -1103,6 +1098,39 @@ decoder_playing( void )
 *
 ****************************************************************************/
 
+/* launch the configue dialog of the n-th plugin of a certain type. Use PLUGIN_NULL to use an index in the global plug-in list */ 
+BOOL configure_plugin(int type, int i, HWND hwnd)
+{ // fetch the matching container
+  CL_PLUGIN_BASE_LIST* list;
+  switch (type)
+  {default:
+    return FALSE;
+   case PLUGIN_NULL:
+    list = &plugins;
+    break;
+   case PLUGIN_VISUAL:
+    list = &visuals;
+    break;
+   case PLUGIN_FILTER:
+    list = &filters;
+    break;
+   case PLUGIN_DECODER:
+    list = &decoders;
+    break;
+   case PLUGIN_OUTPUT:
+    list = &outputs;
+    break;
+  }
+  if (i < 0 || i >= list->count())
+    return FALSE;
+  // launch dialog
+  if (type == PLUGIN_NULL)
+    ((CL_MODULE&)(*list)[i]).config(hwnd);
+   else
+    ((CL_PLUGIN&)(*list)[i]).get_module().config(hwnd);
+  return TRUE;
+}
+
 /* Plug-in menu in the main pop-up menu */
 typedef struct {
 
@@ -1244,19 +1272,6 @@ append_load_menu( HWND hMenu, ULONG id_base, BOOL multiselect, DECODER_WIZZARD_F
         da = da->link;
       }
     }
-  }
-}
-
-BOOL
-process_possible_plugin( HWND hwnd, USHORT cmd )
-{
-  int i = cmd - IDM_M_PLUG - 1;
-
-  if (i >= 0 && i < num_entries )
-  { plugins[entries[i].i].config(hwnd);
-    return TRUE;
-  } else {
-    return FALSE;
   }
 }
 

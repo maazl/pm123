@@ -30,7 +30,7 @@
  * virtualizes them if required to refect always the most recent interface
  * level to the application.
  *
- * This interface is used only by plugman.cpp
+ * This interface is used only by plugman.cpp!
  */ 
 
 #ifndef _PM123_PLUGMAN_BASE_H
@@ -420,15 +420,14 @@ class CL_PLUGIN_BASE_LIST
   // Create an empty list
   CL_PLUGIN_BASE_LIST() : list(NULL), num(0), size(0) {}
 
+ public:
   // The following functions are replaced by type-safe ones in the derived classes.
-  
   // Append a new object to the list.
   BOOL            append(CL_PLUGIN_BASE* plugin);
   // Remove the i-th object from the list and return a pointer to it.
   CL_PLUGIN_BASE* detach(int i);
   // Return the i-th object in the list.
   CL_PLUGIN_BASE& operator[](int i) { return *list[i]; }
- public:
   // Destroy the current list.
   // we do not clean up the objects in the list here, since the underlying
   // object CL_PLUGIN_BASE has no virtual destructor.

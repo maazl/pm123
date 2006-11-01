@@ -1979,7 +1979,7 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
       if( cm->source == CMDSRC_MENU )
       {
         if( cm->cmd > IDM_M_PLUG ) {
-          process_possible_plugin( hplayer, cm->cmd );
+          configure_plugin( PLUGIN_NULL, cm->cmd - IDM_M_PLUG - 1, hplayer );
           return 0;
         }
         if( cm->cmd > IDM_M_BOOKMARKS ) {

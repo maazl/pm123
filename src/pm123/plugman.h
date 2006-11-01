@@ -66,6 +66,12 @@ typedef struct
 extern "C" {
 #endif
 
+/****************************************************************************
+*
+*  Administrative interface of plug-in manager
+*  Not thread safe
+*
+****************************************************************************/
 BOOL  remove_decoder_plugin( int i );
 BOOL  remove_output_plugin ( int i );
 BOOL  remove_filter_plugin ( int i );
@@ -89,6 +95,12 @@ BOOL  save_visuals ( BUFSTREAM* b );
 
 ULONG add_plugin( const char* module_name, const VISUAL_PROPERTIES* data );
 
+/****************************************************************************
+*
+*  Configuration interface of plug-in manager
+*  Not thread safe
+*
+****************************************************************************/
 int   enum_decoder_plugins(PLUGIN_BASE*const** list);
 int   enum_output_plugins (PLUGIN_BASE*const** list);
 int   enum_filter_plugins (PLUGIN_BASE*const** list);
@@ -96,9 +108,16 @@ int   enum_visual_plugins (PLUGIN_BASE*const** list);
 
 BOOL  get_plugin_enabled(const PLUGIN_BASE* plugin);
 void  set_plugin_enabled(PLUGIN_BASE* plugin, BOOL enabled);
-void  configure_plugin(PLUGIN_BASE* plugin, HWND hwnd);
 
+/* launch the configue dialog of the n-th plugin of a certain type. Use PLUGIN_NULL to use an index in the global plug-in list */ 
+BOOL  configure_plugin( int type, int i, HWND hwnd );
 
+/****************************************************************************
+*
+*  Control interface for the decoder engine
+*  Not thread safe
+*
+****************************************************************************/
 typedef enum
 { DECODER_NORMAL_PLAY,
   DECODER_FAST_FORWARD,
@@ -120,6 +139,12 @@ ULONG dec_save( const char* file );
 /* edit ID3-data of the given file, decoder_name is optional */
 ULONG dec_editmeta( HWND owner, const char* url, const char* decoder_name );
 
+/****************************************************************************
+*
+*  Status interface for the decoder engine
+*  Thread safe
+*
+****************************************************************************/
 /* check whether the specified decoder is currently in use */
 BOOL  dec_is_active( int number );
 /* gets a merged list of the file types supported by the enabled decoders */
@@ -130,7 +155,12 @@ ULONG PM123_ENTRY dec_cdinfo( char* drive, DECODER_CDINFO* info );
 ULONG PM123_ENTRY dec_status( void );
 ULONG PM123_ENTRY dec_length( void );
 
-/* output control interface */
+/****************************************************************************
+*
+*  Control interface for the output engine
+*  Not thread safe
+*
+****************************************************************************/
 BOOL  out_is_active( int number );
 int   out_set_active( int number );
 ULONG out_setup( const FORMAT_INFO2* formatinfo, const char* URI );
@@ -140,9 +170,18 @@ ULONG out_pause( BOOL pause );
 void  out_trashbuffers( int temp_playingpos );
 BOOL  out_flush( void );
 
+/****************************************************************************
+*
+*  Status interface for the output engine
+*  Thread safe
+*
+****************************************************************************/
 /*ULONG PM123_ENTRY out_playing_samples( FORMAT_INFO* info, char* buf, int len );*/
 ULONG PM123_ENTRY out_playing_pos( void );
 BOOL  PM123_ENTRY out_playing_data( void );
+
+/* Backward compatibility */
+BOOL  PM123_ENTRY decoder_playing( void );
 
 /* initialize visual plug-in */
 BOOL  vis_init( int i );
@@ -152,14 +191,15 @@ void  vis_broadcast( ULONG msg, MPARAM mp1, MPARAM mp2 );
 BOOL  vis_deinit( int i );
 void  vis_deinit_all( BOOL skin );
 
-/* Backward compatibility */
-BOOL  PM123_ENTRY decoder_playing( void );
-
+/****************************************************************************
+*
+*  GUI extension interface of the plug-ins
+*
+****************************************************************************/
 /* Plug-in menu in the main pop-up menu */
 void  load_plugin_menu( HWND hmenu );
 /* Add additional entries in load/add menu in the main and the playlist's pop-up menu */
 void  append_load_menu( HWND hMenu, ULONG id_base, BOOL multiselect, DECODER_WIZZARD_FUNC* callbacks, int size );
-BOOL  process_possible_plugin( HWND hwnd, USHORT cmd );
 
 #ifdef __cplusplus
 }
