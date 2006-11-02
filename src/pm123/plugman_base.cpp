@@ -308,15 +308,18 @@ stub_decoder_cdinfo( const char* drive, DECODER_CDINFO* info )
 // Proxy for level 1 decoder interface
 class CL_DECODER_PROXY_1 : public CL_DECODER
 {private:
-  ULONG (PM123_ENTRYP vdecoder_command)( void*  w, ULONG msg, DECODER_PARAMS* params );
+  ULONG (PM123_ENTRYP vdecoder_command      )( void*  w, ULONG msg, DECODER_PARAMS* params );
   int   (PM123_ENTRYP voutput_request_buffer)( void* a, const FORMAT_INFO2* format, short** buf );
   void  (PM123_ENTRYP voutput_commit_buffer )( void* a, int len, int posmarker );
+  void  (PM123_ENTRYP voutput_event         )( void* a, DECEVENTTYPE event, void* param );
   void* a;
   ULONG (PM123_ENTRYP vdecoder_fileinfo )( const char* filename, DECODER_INFO* info );
   ULONG (PM123_ENTRYP vdecoder_trackinfo)( const char* drive, int track, DECODER_INFO* info );
   void  (PM123_ENTRYP error_display)( char* );
+  HWND  hwnd; // Window handle for catching event messages
   ULONG tid; // decoder thread id
   int   temppos;
+  char  metadata_buffer[128]; // Loaded in curtun on decoder's demand WM_METADATA.
   VDELEGATE vd_decoder_command, vd_decoder_event, vd_decoder_fileinfo;
 
  private:
@@ -324,10 +327,19 @@ class CL_DECODER_PROXY_1 : public CL_DECODER
   PROXYFUNCDEF void  PM123_ENTRY proxy_1_decoder_event       ( CL_DECODER_PROXY_1* op, void* w, OUTEVENTTYPE event );
   PROXYFUNCDEF ULONG PM123_ENTRY proxy_1_decoder_fileinfo    ( CL_DECODER_PROXY_1* op, const char* filename, DECODER_INFO2* info );
   PROXYFUNCDEF int   PM123_ENTRY proxy_1_decoder_play_samples( CL_DECODER_PROXY_1* op, const FORMAT_INFO* format, const char* buf, int len, int posmarker );
+  friend MRESULT EXPENTRY proxy_1_winfn(HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2);
  public: 
-  CL_DECODER_PROXY_1(CL_MODULE& mod) : CL_DECODER(mod) {}
+  CL_DECODER_PROXY_1(CL_MODULE& mod) : CL_DECODER(mod), hwnd(NULLHANDLE) {}
+  virtual ~CL_DECODER_PROXY_1();
   virtual BOOL load_plugin();
+  virtual BOOL init_plugin();
+  virtual BOOL uninit_plugin();
 };
+
+CL_DECODER_PROXY_1::~CL_DECODER_PROXY_1()
+{ if (hwnd != NULLHANDLE)
+    WinDestroyWindow(hwnd);
+}
 
 /* Assigns the addresses of the decoder plug-in procedures. */
 BOOL CL_DECODER_PROXY_1::load_plugin()
@@ -366,6 +378,22 @@ BOOL CL_DECODER_PROXY_1::load_plugin()
   }
   return TRUE;
 }
+
+BOOL CL_DECODER_PROXY_1::init_plugin()
+{ if (!CL_DECODER::init_plugin())
+    return FALSE;
+  WinRegisterClass(amp_player_hab(), "CL_DECODER_PROXY_1", &proxy_1_winfn, 0, sizeof this);
+  hwnd = WinCreateWindow(amp_player_window(), "CL_DECODER_PROXY_1", "", 0, 0,0, 0,0, NULLHANDLE, HWND_BOTTOM, 42, NULL, NULL);
+  WinSetWindowPtr(hwnd, 0, this);
+  return TRUE;
+}
+BOOL CL_DECODER_PROXY_1::uninit_plugin()
+{ BOOL rc = CL_DECODER::uninit_plugin();
+  WinDestroyWindow(hwnd);
+  hwnd = NULLHANDLE;
+  return rc;
+}
+
 
 /* proxy for the output callback of decoder interface level 0/1 */
 PROXYFUNCIMP(int PM123_ENTRY, CL_DECODER_PROXY_1)
@@ -466,11 +494,11 @@ proxy_1_decoder_command( CL_DECODER_PROXY_1* op, void* w, ULONG msg, DECODER_PAR
   par1.httpauth            = params->httpauth;
   par1.error_display       = params->error_display;
   par1.info_display        = params->info_display;
-  par1.hwnd                = params->hwnd;
+  par1.hwnd                = op->hwnd;
+  par1.metadata_buffer     = op->metadata_buffer;
+  par1.metadata_size       = sizeof(op->metadata_buffer);
   par1.buffersize          = params->buffersize;
   par1.bufferwait          = params->bufferwait;
-  par1.metadata_buffer     = params->metadata_buffer;
-  par1.metadata_size       = params->metadata_size;
   par1.bufferstatus        = params->bufferstatus;
   par1.equalizer           = params->equalizer;
   par1.bandgain            = params->bandgain;
@@ -480,6 +508,7 @@ proxy_1_decoder_command( CL_DECODER_PROXY_1* op, void* w, ULONG msg, DECODER_PAR
   {case DECODER_SETUP:
     op->voutput_request_buffer = params->output_request_buffer;
     op->voutput_commit_buffer  = params->output_commit_buffer;
+    op->voutput_event          = params->output_event;
     op->a                      = params->a;
 
     op->temppos = FALSE;
@@ -560,6 +589,44 @@ proxy_1_decoder_fileinfo( CL_DECODER_PROXY_1* op, const char* filename, DECODER_
   return rc;
 }
 
+MRESULT EXPENTRY proxy_1_winfn(HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2)
+{ CL_DECODER_PROXY_1* op = (CL_DECODER_PROXY_1*)WinQueryWindowPtr(hwnd, 0);
+  switch (msg)
+  {case WM_PLAYSTOP:
+    (*op->voutput_event)(op->a, DECEVENT_PLAYSTOP, NULL);
+    break;
+   //case WM_PLAYERROR: // ignored because the error_display function implies the event.
+   case WM_SEEKSTOP:
+    (*op->voutput_event)(op->a, DECEVENT_SEEKSTOP, NULL);
+    break;
+   case WM_CHANGEBR:
+    { // TODO: the unchanged information is missing now
+      TECH_INFO ti = {-1, LONGFROMMP(mp1), -1, ""};
+      (*op->voutput_event)(op->a, DEVEVENT_CHANGETECH, &ti);
+    }
+    break;
+   case WM_METADATA:
+    { // TODO: the unchanged information is missing now
+      META_INFO meta = {""};
+      const char* metadata = (const char*)PVOIDFROMMP(mp1);
+      const char* titlepos;
+      // extract stream title
+      if( metadata ) {
+        titlepos = strstr( metadata, "StreamTitle='" );
+        if ( titlepos )
+        { int i;
+          titlepos += 13;
+          for( i = 0; i < sizeof( meta.title ) - 1 && *titlepos
+                      && ( titlepos[0] != '\'' || titlepos[1] != ';' ); i++ )
+            meta.title[i] = *titlepos++;
+          meta.title[i] = 0;
+          (*op->voutput_event)(op->a, DECEVENT_CHANGEMETA, &meta);
+        }
+      }
+    }  
+  }
+  return 0;
+}
 
 CL_PLUGIN* CL_DECODER::factory(CL_MODULE& mod)
 { return mod.query_param.interface <= 1 ? new CL_DECODER_PROXY_1(mod) : new CL_DECODER(mod);

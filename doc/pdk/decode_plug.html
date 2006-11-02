@@ -74,28 +74,6 @@ in the .h file.
   <samp>http://... </samp>(as you would expect)<br>
   <samp>cdda:///H:/track02</samp>
 </blockquote>
-<p>
-The decoder plug-in MUST <code>WinPostMsg()</code> the following messages to <code>hwnd</code>:
-<ul>
-<li>WM_PLAYSTOP when the stream has finished decoding.
-<li>WM_PLAYERROR when a playback error occured so that PM123 should know to
-stop immediately.
-<li>WM_SEEKSTOP when a JUMPTO operation is completed (ie.: when no buffers
-from before the seek is sent to the output plugin anymore).
-<li>WM_CHANGEBR is sent whenever you want PM123 to change the display
-of the current bitrate. mp1 = current bitrate in kbit/s.
-<li>WM_METADATA is sent whenever streaming metadata is updated and
-contains the pointer to the streaming metadata in mp1. This pointer
-should be the same one that is passed with DECODER_SETUP because it is
-garanteed to be available to PM123 without memory leaking.
-</ul>
-<p>
-Streaming metadata currently is for SHOUTcast (and icecast is using the same
-method), so it is a string with the following format:
-<blockquote>
-<pre>StreamingTitle='blah blah';StreamingURL='more useless information';</pre>
-</blockquote>
-Only StreamingTitle is used by PM123.
 
 <h4><a name="status_interface"></a>Status Interface</h4>
 <p>The status interface has to be thread safe.</p> 
@@ -252,7 +230,26 @@ decoder. Extentions can be for example "*.MOD".
   But it might be less than the requested length.
   This causes no significant performance impact as long as you do not always pass very few samples.</p>
 <blockquote>
-<pre>void PM123_ENTRY <b>decoder_event</b>(void* w, OUTEVENTTYPE event);</pre>
+<pre>void (PM123_ENTRYP <b>output_event</b>)( void* a, DECEVENTTYPE event, void* param )</pre>
+</blockquote>
+<ul>
+  <li><var>a</var> - pointer from <code>DECODER_PARAMS2</code>.
+  <li><var>event</var> - type of the event to send.
+  <li><var>param</var> - event specific parameter. See below.
+</ul>
+<p>
+The decoder plug-in MUST call the above function on the following conditions:
+<ul>
+<li><code><b>DECEVENT_PLAYSTOP</b></code> when the stream has finished decoding and the last sample has been passed to <code>output_commit_buffer</code>.
+<li><code><b>DECEVENT_SEEKSTOP</b></code> when a <code>DECODER_JUMPTO</code> operation is completed (ie.: when no buffers from before the seek is sent to the output plugin anymore).
+<li><code><b>DECEVENT_CHANGTECH</b></code> is sent whenever you want PM123 to change the display of the current technical information of stream (like bitrate).
+   <var>param</var> must point to a <code>TECH_INFO</code> structure.
+<li><code><b>DECEVENT_METADATA</b></code> is sent whenever streaming metadata is updated. 
+   <var>param</var> must point to a <code>META_INFO</code> structure.
+</ul>
+
+<blockquote>
+<pre>void PM123_ENTRY <b>decoder_event</b>( void* w, OUTEVENTTYPE event );</pre>
 </blockquote>
 <ul>
   <li><var>w</var> - pointer from <code>decoder_init</code>

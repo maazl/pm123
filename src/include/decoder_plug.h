@@ -28,11 +28,11 @@ typedef enum
 
 typedef enum
 {
-  DECEVENT_PLAYSTOP,    /* The decoder finished decoding */
-  DECEVENT_PLAY_ERROR,  /* The decoder cannot play more of this file */
-  DECEVENT_SEEKSTOP,    /* JUMPTO operation is completed */
-  DEVEVENT_CHANGETECH,  /* change bitrate or samplingrate, param points to TECH_INFO structure */
-  DECEVENT_CHANGEMETA   /* change metadata, param points to META_INFO structure */ 
+  DECEVENT_PLAYSTOP   = 1, /* The decoder finished decoding */
+  DECEVENT_PLAYERROR  = 2, /* A playback error occured so that PM123 should know to stop immediately */
+  DECEVENT_SEEKSTOP   = 3, /* JUMPTO operation is completed */
+  DEVEVENT_CHANGETECH = 4, /* change bitrate or samplingrate, param points to TECH_INFO structure */
+  DECEVENT_CHANGEMETA = 5  /* change metadata, param points to META_INFO structure */ 
 } DECEVENTTYPE;
 
 
@@ -120,6 +120,8 @@ typedef struct _DECODER_PARAMS2
    /* specify a function which the decoder should use for output */
    int   (PM123_ENTRYP output_request_buffer )( void* a, const FORMAT_INFO2* format, short** buf );
    void  (PM123_ENTRYP output_commit_buffer  )( void* a, int len, int posmarker );
+   /* decoder events */
+   void  (PM123_ENTRYP output_event          )( void* a, DECEVENTTYPE event, void* param );
    void* a;           /* only to be used with the precedent functions */
 
    const char* proxyurl;    /* NULL = none */
@@ -132,15 +134,9 @@ typedef struct _DECODER_PARAMS2
    /* this information is always displayed to the user right away */
    void (PM123_ENTRYP info_display)( char* );
 
-   HWND  hwnd;        /* commodity for PM interface, decoder must send a few
-                         messages to this handle */
-
    /* values used for streaming inputs by the decoder */
    int   buffersize;  /* read ahead buffer in bytes, 0 = disabled */
    int   bufferwait;  /* block the first read until the buffer is filled */
-
-   char* metadata_buffer; /* the decoder will put streaming metadata in this  */
-   int   metadata_size;   /* buffer before posting WM_METADATA                */
 
    /* -- DECODER_BUFFER */
 
@@ -165,7 +161,7 @@ typedef struct _DECODER_PARAMS2
 ULONG PM123_ENTRY decoder_command( void* w, ULONG msg, DECODER_PARAMS* params );
 #else
 ULONG PM123_ENTRY decoder_command( void* w, DECMSGTYPE msg, DECODER_PARAMS2* params );
-void  PM123_ENTRY decoder_event( void* w, DECEVENTTYPE event, void* param );
+void  PM123_ENTRY decoder_event  ( void* w, OUTEVENTTYPE event );
 #endif
 
 #define DECODER_STOPPED  0

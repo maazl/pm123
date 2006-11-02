@@ -115,7 +115,8 @@ static class CL_GLUE
   friend ULONG PM123_ENTRY out_playing_samples( FORMAT_INFO* info, char* buf, int len );
  private: // glue
   // 4 callback interface
-  friend void  PM123_ENTRY dec_event          ( void* w, OUTEVENTTYPE event ); 
+  PROXYFUNCDEF void PM123_ENTRY dec_event     ( void* a, DECEVENTTYPE event, void* param ); 
+  PROXYFUNCDEF void PM123_ENTRY out_event     ( void* w, OUTEVENTTYPE event ); 
 } voutput;
 
 CL_GLUE::CL_GLUE()
@@ -191,16 +192,15 @@ ULONG CL_GLUE::init()
   params.info_display  = &display_info;
   params.hwnd          = amp_player_window();
   // setup callback handlers
-  params.output_event  = &dec_event;
+  params.output_event  = &out_event;
   params.w             = this; // not really required
   
   memset(&dparams, 0, sizeof dparams);
   dparams.size            = sizeof dparams;
+  // setup callback handlers
+  dparams.output_event    = &dec_event;
   dparams.error_display   = &keep_last_error;
   dparams.info_display    = &display_info;
-  dparams.hwnd            = amp_player_window();
-  dparams.metadata_buffer = voutput.metadata_buffer;
-  dparams.metadata_size   = sizeof(voutput.metadata_buffer);
   dparams.save_filename   = NULL;
 
   CL_OUTPUT* op = (CL_OUTPUT*)outputs.current();
@@ -426,16 +426,45 @@ BOOL PM123_ENTRY out_playing_data( void )
   return (*voutput.procs.output_playing_data)( voutput.procs.a );
 }
 
+PROXYFUNCIMP(void PM123_ENTRY, CL_GLUE)
+dec_event( void* a, DECEVENTTYPE event, void* param )
+{ DEBUGLOG(("plugman:dec_event(%p, %d, %p)\n", a, event, param));
+  // TODO: remove this WM_ messages
+  ULONG msg;
+  switch (event)
+  {default:
+    return;
+   case DECEVENT_PLAYSTOP:
+    msg = WM_PLAYSTOP;
+    break;
+   case DECEVENT_PLAYERROR:
+    msg = WM_PLAYERROR;
+    break;
+   case DECEVENT_SEEKSTOP:
+    msg = WM_SEEKSTOP;
+    break;
+   /* TODO: can't handle this correctly at the moment
+   case DEVEVENT_CHANGETECH:
+    msg = WM_CHANGEBR;
+    break;
+   case DECEVENT_CHANGEMETA:
+    msg = WM_METADATA;
+    break;*/
+  };
+  WinPostMsg(amp_player_window(), msg, MPFROMP(param),0);
+}
+
 /* proxy, because the decoder is not interested in OUTEVENT_END_OF_DATA */
-void PM123_ENTRY dec_event( void* w, OUTEVENTTYPE event )
-{ DEBUGLOG(("plugman:dec_event(%p, %d)\n", w, event));
+PROXYFUNCIMP(void PM123_ENTRY, CL_GLUE)
+out_event( void* w, OUTEVENTTYPE event )
+{ DEBUGLOG(("plugman:out_event(%p, %d)\n", w, event));
 
   switch (event)
   {case OUTEVENT_END_OF_DATA:
-    WinPostMsg(amp_player_window(),WM_PLAYERROR,0,0);
+    WinPostMsg(amp_player_window(),WM_OUTPUT_OUTOFDATA,0,0);
     break;
    case OUTEVENT_PLAY_ERROR:
-    WinPostMsg(amp_player_window(),WM_OUTPUT_OUTOFDATA,0,0);
+    WinPostMsg(amp_player_window(),WM_PLAYERROR,0,0);
     break;
    default:
     CL_DECODER* dp = (CL_DECODER*)decoders.current();
