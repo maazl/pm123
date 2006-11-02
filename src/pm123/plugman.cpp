@@ -80,7 +80,6 @@ static class CL_GLUE
          OUTPUT_PROCS      procs;             // entry points of the filter chain
          OUTPUT_PARAMS2    params;            // parameters for output_command
          DECODER_PARAMS2   dparams;           // parameters for decoder_command
-         char              metadata_buffer[128]; // Loaded in curtun on decoder's demand WM_METADATA.
 
  private:
          void              virtualize         ( int i );

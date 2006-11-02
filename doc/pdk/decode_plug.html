@@ -241,6 +241,7 @@ decoder. Extentions can be for example "*.MOD".
 The decoder plug-in MUST call the above function on the following conditions:
 <ul>
 <li><code><b>DECEVENT_PLAYSTOP</b></code> when the stream has finished decoding and the last sample has been passed to <code>output_commit_buffer</code>.
+<li><code><b>DECEVENT_PLAYERROR</b></code> when a playback error occured so that PM123 should know to stop immediately.
 <li><code><b>DECEVENT_SEEKSTOP</b></code> when a <code>DECODER_JUMPTO</code> operation is completed (ie.: when no buffers from before the seek is sent to the output plugin anymore).
 <li><code><b>DECEVENT_CHANGTECH</b></code> is sent whenever you want PM123 to change the display of the current technical information of stream (like bitrate).
    <var>param</var> must point to a <code>TECH_INFO</code> structure.
