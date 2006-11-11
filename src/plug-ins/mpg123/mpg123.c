@@ -1104,7 +1104,7 @@ ULONG PM123_ENTRY decoder_editmeta( HWND owner, const char* filename )
 
   hwnd = WinLoadDlg( HWND_DESKTOP, owner,
                      id3_dlg_proc, module, DLG_ID3TAG, 0 );
-  DEBUGLOG(("mpg123:decoder_editmeta: WinLoadDlg: %p (%p)\n", hwnd, WinGetLastError(NULL)));
+  DEBUGLOG(("mpg123:decoder_editmeta: WinLoadDlg: %p (%p) - %p\n", hwnd, WinGetLastError(NULL), module));
   sfnameext( caption + strlen( caption ), filename, sizeof( caption ) - strlen( caption ));
   WinSetWindowText( hwnd, caption );
 
