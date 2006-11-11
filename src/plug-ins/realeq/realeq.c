@@ -110,9 +110,8 @@ static BOOL plugininit  = FALSE; // plug-in is initialized (only once)
 // Update 2006-07-10 MM: Solved. Now FIR order 12288 works.
 // Higher values are possible too, but will require compensation for the latency.
 
-static float bandgain[2][NUM_BANDS]; // gain in dB
-static BOOL  mute[2][NUM_BANDS];     // mute flags (TRUE = mute)
-static float preamp = 1.0;           // global gain
+static float bandgain[2][NUM_BANDS+1]; // gain in dB, first entry ist master gain
+static BOOL  mute[2][NUM_BANDS+1];     // mute flags (TRUE = mute), first entry is master mute
 
 // for FFT convolution...
 static struct
@@ -250,8 +249,23 @@ load_ini( void )
   eqneedinit  = TRUE;
 }
 
+static double TodB(double gain)
+{ if (gain <= 0.)
+    return 0.;
+/*   else if (gain <= .2511886432)
+    return -12.;
+   else if (gain >= 3.981071706)
+    return 12.;*/
+   else
+    return 20.*log10(gain); 
+}
+
+_Inline double ToGain(double dB)
+{ return exp(dB/20.*M_LN10);
+}
+
 static BOOL
-load_eq_file( char* filename, float* gains, BOOL* mutes, float* preamp )
+load_eq_file( char* filename )
 {
   FILE* file;
   int   i = 0;
@@ -264,28 +278,30 @@ load_eq_file( char* filename, float* gains, BOOL* mutes, float* preamp )
     return FALSE;
   }
 
+  // once we get here, we clear the fields
+  memset(bandgain, 0, sizeof bandgain);
+  memset(mute,     0, sizeof bandgain);
+
   while( !feof( file ))
   {
     fgets( line, sizeof(line), file );
     blank_strip( line );
-    if( *line && line[0] != '#' && line[0] != ';' && i < 129 )
+    if( *line && line[0] != '#' && line[0] != ';' )
     {
-      if( i < NUM_BANDS*2 ) {
-        double gain = atof(line);
-        if (gain < 0)
-          gain = 0;
-         else if (gain <= .2511886432)
-          gain = -12.;
-         else if (gain >= 3.981071706)
-          gain = 12.;
-         else
-          gain = 20.*log10(gain); 
-        gains[i] = gain;
-      } else if( i > NUM_BANDS*2-1 && i < NUM_BANDS*4 ) {
-        mutes[i-NUM_BANDS*2] = atoi(line);
-      } else if( i == NUM_BANDS*4 ) {
-        *preamp = atof(line);
-      }
+      if( i < NUM_BANDS )           // left gain
+        bandgain[0][i+1] = TodB(atof(line));
+       else if( i < NUM_BANDS*2 )   // right gain
+        bandgain[1][i-NUM_BANDS+1] = TodB(atof(line));
+       else if( i < NUM_BANDS*3 )   // left mute
+        mute[0][i-NUM_BANDS*2+1] = atoi(line);
+       else if( i < NUM_BANDS*4 )   // right mute
+        mute[1][i-NUM_BANDS*3+1] = atoi(line);
+       else if( i < NUM_BANDS*4+2 ) // master gain
+        bandgain[i-NUM_BANDS*4][0] = TodB(atof(line));
+       else if( i < NUM_BANDS*4+4 ) // master mute
+        mute[i-NUM_BANDS*4-2][0] = atoi(line);
+       else
+         break;
       i++;
     }
   }
@@ -298,7 +314,7 @@ init_request( void )
 { if (!plugininit) // first time?
   { load_ini();
     if ( !modified ) {
-      load_eq_file( lasteq, bandgain[0], mute[0], &preamp );
+      load_eq_file( lasteq );
     }
     plugininit = TRUE;
   }
@@ -326,10 +342,6 @@ fil_setup( REALEQ_STRUCT* f )
   float fftspecres;
   // equalizer design data
   EQcoef coef[NUM_BANDS+4]; // including surounding points
-
-  // mute = -36dB. More makes no sense since the stopband attenuation
-  // of the window function does not allow significantly better results.
-  const float log_mute_level = -4.144653167; // -36dB
 
   // dispatcher to skip code fragments
   if (!eqneedinit)
@@ -413,9 +425,7 @@ fil_setup( REALEQ_STRUCT* f )
 
   // Prepare design coefficients frame
   coef[0].lf = -14; // very low frequency
-  coef[0].lv = log_mute_level;
   coef[1].lf = M_LN10; // subsonic point
-  coef[1].lv = log_mute_level;
   for (i = 0; i < NUM_BANDS; ++i)
     coef[i+2].lf = log(Frequencies[i]);
   coef[NUM_BANDS+2].lf = log(32000); // keep higher frequencies at 0 dB
@@ -426,9 +436,26 @@ fil_setup( REALEQ_STRUCT* f )
   /* for left, right */
   for( channel = 0; channel < 2; channel++ )
   {
+    float log_mute_level;
+
+    // muteall?
+    if (mute[channel][0])
+    { // clear channel
+      memset(FFT.kernel[channel], 0, (FFT.plansize/2+1) * sizeof(float));
+      continue;
+    }
+
+    // mute = master gain -36dB. More makes no sense since the stopband attenuation
+    // of the window function does not allow significantly better results.
+    log_mute_level = (bandgain[channel][0]-36)/20.*M_LN10;
+    coef[0].lv = log_mute_level;
+    coef[1].lv = log_mute_level;
+
     // fill band data
-    for (i = 0; i < NUM_BANDS; ++i)
-      coef[i+2].lv = mute[channel][i] ? log_mute_level : bandgain[channel][i]/20. * M_LN10;
+    for (i = 1; i <= NUM_BANDS; ++i)
+      coef[i+2-1].lv = mute[channel][i]
+       ? log_mute_level
+       : (bandgain[channel][i]+bandgain[channel][0])/20.*M_LN10;
 
     // compose frequency spectrum
     { EQcoef* cop = coef;
@@ -444,7 +471,7 @@ fil_setup( REALEQ_STRUCT* f )
         val = exp(cop[0].lv + pos * (cop[1].lv - cop[0].lv));
         FFT.design[i] = val;
         DEBUGLOG2(("F: %i, %g, %g -> %g = %g dB @ %g\n",
-          i, f, pos, FFT.design[i], 20*log(val)/M_LN10, exp(cop[0].lf)));
+          i, f, pos, val, TodB(val), exp(cop[0].lf)));
     } }
 
     // transform into the time domain
@@ -956,11 +983,11 @@ filter_uninit( void* F )
 /********** GUI stuff *******************************************************/
 
 static BOOL
-save_eq( HWND hwnd, float* gains, BOOL* mutes, float preamp )
+save_eq( HWND hwnd )
 {
   FILEDLG filedialog;
   FILE*   file;
-  int     i = 0;
+  int     i, e;
 
   memset( &filedialog, 0, sizeof(FILEDLG));
   filedialog.cbSize   = sizeof(FILEDLG);
@@ -985,16 +1012,17 @@ save_eq( HWND hwnd, float* gains, BOOL* mutes, float preamp )
 
     fprintf( file, "#\n# Equalizer created with %s\n# Do not modify!\n#\n", VERSION );
     fprintf( file, "# Band gains\n" );
-    for( i = 0; i < NUM_BANDS*2; i++ ) {
-      fprintf( file, "%g\n", pow(10,gains[i]/20) );
-    }
+    for( e = 0; e < 2; ++e )
+      for( i = 1; i <= NUM_BANDS; i++ )
+        fprintf( file, "%g\n", ToGain(bandgain[e][i]) );
     fprintf(file, "# Mutes\n" );
-    for( i = 0; i < NUM_BANDS*2; i++ ) {
-      fprintf(file, "%u\n", mutes[i]);
-    }
+    for( e = 0; e < 2; ++e )
+      for( i = 1; i <= NUM_BANDS; i++ )
+        fprintf(file, "%u\n", mute[e][i]);
     fprintf( file, "# Preamplifier\n" );
-    fprintf( file, "%g\n", preamp );
-
+    fprintf( file, "%g\n%g\n", ToGain(bandgain[0][0]), ToGain(bandgain[1][0]) );
+    fprintf( file, "# Master Mute\n" );
+    fprintf( file, "%u\n%u\n", mute[0][0], mute[1][0] );
     fprintf( file, "# End of equalizer\n" );
     fclose ( file );
     return TRUE;
@@ -1015,7 +1043,7 @@ void drivedir( char* buf, char* fullpath )
 }
 
 static BOOL
-load_eq( HWND hwnd, float* gains, BOOL* mutes, float* preamp )
+load_eq( HWND hwnd )
 {
   FILEDLG filedialog;
 
@@ -1031,7 +1059,7 @@ load_eq( HWND hwnd, float* gains, BOOL* mutes, float* preamp )
   if( filedialog.lReturn == DID_OK )
   {
     strcpy( lasteq, filedialog.szFullFile );
-    if ( load_eq_file( filedialog.szFullFile, gains, mutes, preamp ) ) {
+    if ( load_eq_file( filedialog.szFullFile ) ) {
       modified = FALSE;
       return TRUE;
     } else {
@@ -1051,23 +1079,28 @@ plugin_query( PLUGIN_QUERYPARAM *param )
   return 0;
 }
 
+/* set slider of channel, band to value
+   channel 0 = left, channel 1 = right
+   band 0..31 = EQ, -1 = master
+*/
 static void
 set_slider( HWND hwnd, int channel, int band, double value )
 { MRESULT rangevalue;
+  int     id = ID_BANDL + (ID_BANDR-ID_BANDL)*channel + band;
   DEBUGLOG2(("realeq:set_slider(%p, %d, %d, %f)\n", hwnd, channel, band, value));
 
   if (value < -12)
-  { DEBUGLOG(("load_dialog: value out of range %d, %d, %f\n", channel, band, value));
+  { DEBUGLOG(("realeq:set_slider: value out of range %d, %d, %f\n", channel, band, value));
     value = -12;
   } else if (value > 12)
-  { DEBUGLOG(("load_dialog: value out of range %d, %d, %f\n", channel, band, value));
+  { DEBUGLOG(("realeq:set_slider: value out of range %d, %d, %f\n", channel, band, value));
     value = 12;
   }
 
-  rangevalue = WinSendDlgItemMsg( hwnd, 200+NUM_BANDS*channel+band, SLM_QUERYSLIDERINFO,
+  rangevalue = WinSendDlgItemMsg( hwnd, id, SLM_QUERYSLIDERINFO,
                                   MPFROM2SHORT( SMA_SLIDERARMPOSITION, SMA_RANGEVALUE ), 0 );
 
-  WinSendDlgItemMsg( hwnd, 200+NUM_BANDS*channel+band, SLM_SETSLIDERINFO,
+  WinSendDlgItemMsg( hwnd, id, SLM_SETSLIDERINFO,
                      MPFROM2SHORT( SMA_SLIDERARMPOSITION, SMA_RANGEVALUE ),
                      MPFROMSHORT( (value/24.+.5) * (SHORT2FROMMR(rangevalue) - 1) +.5 ));
 }
@@ -1075,28 +1108,26 @@ set_slider( HWND hwnd, int channel, int band, double value )
 static void
 load_dialog( HWND hwnd )
 {
-  int i, e;
+  int     i, e;
+  SHORT   range = SHORT2FROMMR( WinSendDlgItemMsg( hwnd, ID_BANDL, SLM_QUERYSLIDERINFO, MPFROM2SHORT( SMA_SLIDERARMPOSITION, SMA_RANGEVALUE ), 0 ) );
 
   for( e = 0; e < 2; e++ ) {
-    for( i = 0; i < NUM_BANDS; i++ ) {
-      SHORT   range;
+    for( i = 0; i <= NUM_BANDS; i++ ) {
+      int     id = ID_MASTERL + (ID_MASTERR-ID_MASTERL)*e + i;
 
       // mute check boxes
-      WinSendDlgItemMsg( hwnd, 100 + NUM_BANDS*e + i, BM_SETCHECK, MPFROMCHAR( mute[e][i] ), 0 );
+      WinSendDlgItemMsg( hwnd, ID_MUTEALLL + (ID_MUTEALLR-ID_MUTEALLL)*e + i, BM_SETCHECK, MPFROMCHAR( mute[e][i] ), 0 );
 
       // sliders
-      range = SHORT2FROMMR( WinSendDlgItemMsg( hwnd, 200 + NUM_BANDS*e + i, SLM_QUERYSLIDERINFO,
-                                               MPFROM2SHORT( SMA_SLIDERARMPOSITION, SMA_RANGEVALUE ), 0 ) );
-          
-      WinSendDlgItemMsg( hwnd, 200 + NUM_BANDS*e + i, SLM_ADDDETENT,
+      WinSendDlgItemMsg( hwnd, id, SLM_ADDDETENT,
                          MPFROMSHORT( range - 1 ), 0 );
-      WinSendDlgItemMsg( hwnd, 200 + NUM_BANDS*e + i, SLM_ADDDETENT,
+      WinSendDlgItemMsg( hwnd, id, SLM_ADDDETENT,
                          MPFROMSHORT( range >> 1 ), 0 );
-      WinSendDlgItemMsg( hwnd, 200 + NUM_BANDS*e + i, SLM_ADDDETENT,
+      WinSendDlgItemMsg( hwnd, id, SLM_ADDDETENT,
                          MPFROMSHORT( 0 ), 0 );
 
       DEBUGLOG2(("load_dialog: %d %d %g\n", e, i, bandgain[e][i]));
-      set_slider( hwnd, e, i, bandgain[e][i] );
+      set_slider( hwnd, e, i-1, bandgain[e][i] );
     }
   }
 
@@ -1135,11 +1166,11 @@ ConfigureDlgProc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
       switch( SHORT1FROMMP( mp1 ))
       {
         case EQ_SAVE:
-          save_eq( hwnd, bandgain[0], mute[0], preamp );
+          save_eq( hwnd );
           break;
 
         case EQ_LOAD:
-          load_eq( hwnd, bandgain[0], mute[0], &preamp );
+          load_eq( hwnd );
           nottheuser = TRUE;
           load_dialog( hwnd );
           nottheuser = FALSE;
@@ -1154,9 +1185,9 @@ ConfigureDlgProc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
           memset(bandgain, 0, sizeof bandgain);
           memset(mute, 0, sizeof mute);
           for( e = 0; e < 2; e++ ) {
-            for( i = 0; i < NUM_BANDS; i++ ) {
+            for( i = -1; i < NUM_BANDS; i++ ) {
               set_slider( hwnd, e, i, 0. );
-              WinSendDlgItemMsg( hwnd, 100+NUM_BANDS*e+i, BM_SETCHECK, 0, 0 );
+              WinSendDlgItemMsg( hwnd, ID_MUTEL + (ID_MUTER-ID_MUTEL)*e + i, BM_SETCHECK, 0, 0 );
             }
           }
           nottheuser = FALSE;
@@ -1256,7 +1287,7 @@ ConfigureDlgProc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
         default:
 
           // mute check boxes
-          if( id >= 100 && id < 200 ) {
+          if( id >= ID_MUTEALLL && id <= ID_MUTEEND ) {
 
             modified = TRUE;
 
@@ -1265,22 +1296,21 @@ ConfigureDlgProc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
               case BN_CLICKED:
               case BN_DBLCLICKED:
               {
-                int channel = 0, band = 0, raw = SHORT1FROMMP(mp1);
+                int channel = 0, index = SHORT1FROMMP(mp1);
 
-                raw -= 100;
-                while( raw - NUM_BANDS >= 0 ) {
-                  raw -= NUM_BANDS;
-                  channel++;
+                index -= ID_MUTEALLL;
+                if ( index >= ID_MUTEALLR-ID_MUTEALLL ) {
+                  index -= ID_MUTEALLR-ID_MUTEALLL;
+                  channel = 1;
                 }
-                band = raw;
 
-                mute[channel][band] = SHORT1FROMMR( WinSendDlgItemMsg( hwnd, 100+NUM_BANDS*channel+band, BM_QUERYCHECK, 0, 0 ) );
+                mute[channel][index] = SHORT1FROMMR( WinSendDlgItemMsg( hwnd, SHORT1FROMMP(mp1), BM_QUERYCHECK, 0, 0 ) );
 
                 if( locklr )
                 {
                   nottheuser = TRUE;
-                  WinSendDlgItemMsg( hwnd, 100+NUM_BANDS*(channel^1)+band, BM_SETCHECK,
-                                     MPFROMSHORT( mute[channel^1][band] = mute[channel][band] ), 0 );
+                  WinSendDlgItemMsg( hwnd, ID_MUTEALLL + (ID_MUTEALLR-ID_MUTEALLL)*(channel^1) + index, BM_SETCHECK,
+                                     MPFROMSHORT( mute[channel^1][index] = mute[channel][index] ), 0 );
                   nottheuser = FALSE;
                 }
 
@@ -1288,7 +1318,7 @@ ConfigureDlgProc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
               }
             }
           // sliders
-          } else if( id >= 200 && id < 300 ) {
+          } else if( id >= ID_MASTERL && id <= ID_BANDEND ) {
           
             modified = TRUE;
 
@@ -1296,47 +1326,55 @@ ConfigureDlgProc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
             {
               case SLN_CHANGE:
               {
-                int channel = 0, band = 0, raw = SHORT1FROMMP(mp1);
+                int channel = 0, index = SHORT1FROMMP(mp1), val;
                 MRESULT rangevalue;
+                BOOL    needeq = FALSE;
 
-                raw -= 200;
-                while( raw - NUM_BANDS >= 0 ) {
-                  raw -= NUM_BANDS;
-                  channel++;
+                index -= ID_MASTERL;
+                if ( index >= ID_MASTERR-ID_MASTERL ) {
+                  index -= ID_MASTERR-ID_MASTERL;
+                  channel = 1;
                 }
-                band = raw;
                 
-                rangevalue = WinSendDlgItemMsg( hwnd, 200+NUM_BANDS*channel+band, SLM_QUERYSLIDERINFO,
+                rangevalue = WinSendDlgItemMsg( hwnd, SHORT1FROMMP(mp1), SLM_QUERYSLIDERINFO,
                                                 MPFROM2SHORT( SMA_SLIDERARMPOSITION, SMA_RANGEVALUE ), 0 );
-                bandgain[channel][band] = (int)(24.*SHORT1FROMMR( rangevalue )/(SHORT2FROMMR( rangevalue ) - 1) +.5) - 12;
-
-                if( locklr )
+                val = (int)(24.*SHORT1FROMMR( rangevalue )/(SHORT2FROMMR( rangevalue ) - 1) +.5) - 12;
+                if (val != bandgain[channel][index])
+                { bandgain[channel][index] = val;
+                  if (!mute[channel][index])
+                    needeq = TRUE;
+                }
+                
+                if (locklr && bandgain[channel^1][index] != val)
                 {
                   nottheuser = TRUE;
-                  set_slider( hwnd, channel^1, band, bandgain[channel^1][band] = bandgain[channel][band] ); 
+                  set_slider( hwnd, channel^1, index-1, bandgain[channel^1][index] = val ); 
                   nottheuser = FALSE;
+                  if (!mute[channel^1][index])
+                    needeq = TRUE;
                 }
-                eqneedEQ = TRUE;
+                if (needeq)
+                  eqneedEQ = TRUE;
               }
 
               case SLN_SLIDERTRACK:
                 // copy the behavior of one channel slider to the other
                 if( locklr )
                 {
-                  int channel = 0, band = 0, raw = SHORT1FROMMP(mp1);
+                  int channel = 0, index = SHORT1FROMMP(mp1);
                   MRESULT rangevalue;
 
-                  raw -= 200;
-                  while( raw - NUM_BANDS >= 0 ) {
-                    raw -= NUM_BANDS;
-                    channel++;
+                  index -= ID_MASTERL;
+                  if ( index >= ID_MASTERR-ID_MASTERL ) {
+                    index -= ID_MASTERR-ID_MASTERL;
+                    channel = 1;
                   }
-                  band = raw;
+
                   nottheuser = TRUE;
-                  rangevalue = WinSendDlgItemMsg( hwnd, 200+NUM_BANDS*channel+band, SLM_QUERYSLIDERINFO,
+                  rangevalue = WinSendDlgItemMsg( hwnd, SHORT1FROMMP(mp1), SLM_QUERYSLIDERINFO,
                                   MPFROM2SHORT( SMA_SLIDERARMPOSITION, SMA_RANGEVALUE ), 0 );
 
-                  WinSendDlgItemMsg( hwnd, 200+NUM_BANDS*(channel^1)+band, SLM_SETSLIDERINFO,
+                  WinSendDlgItemMsg( hwnd, ID_MASTERL + (ID_MASTERR-ID_MASTERL)*(channel^1) + index, SLM_SETSLIDERINFO,
                                      MPFROM2SHORT( SMA_SLIDERARMPOSITION, SMA_RANGEVALUE ),
                                      MPFROMSHORT( SHORT1FROMMR( rangevalue )));
 

@@ -42,5 +42,17 @@
 #define ID_FIRORDER 40
 #define ID_PLANSIZE 41
 
+#define ID_MASTERL  100
+#define ID_BANDL    101 // .. 132
+#define ID_MASTERR  150
+#define ID_BANDR    151 // .. 182
+#define ID_BANDEND  199  
+
+#define ID_MUTEALLL 200
+#define ID_MUTEL    201 // .. 232
+#define ID_MUTEALLR 250
+#define ID_MUTER    251 // .. 282
+#define ID_MUTEEND  299
+
 #endif /* _REALEQ_H */
 
