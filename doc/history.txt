@@ -30,6 +30,7 @@ PM123 1.40 (alpha 1)
     - Save the slider settings by value in REALEQ.INI. Now the restore do no
       longer depend on the last loaded file and changes to the loaded settings
       are kept after restart.
+    - Added master gain and mute controls.
 
     MPG123:
     - Implemented ID3 tag editor (was in PM123 core)
