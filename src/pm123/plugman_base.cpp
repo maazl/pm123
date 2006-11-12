@@ -472,7 +472,7 @@ proxy_1_decoder_command( CL_DECODER_PROXY_1* op, void* w, ULONG msg, DECODER_PAR
     break;
 
    case DECODER_SETUP:
-    WinRegisterClass(amp_player_hab(), "CL_DECODER_PROXY_1", &PROXYFUNCREF(CL_DECODER_PROXY_1)proxy_1_decoder_winfn, 0, sizeof op);
+    WinRegisterClass(amp_player_hab(), "CL_DECODER_PROXY_1", &proxy_1_decoder_winfn, 0, sizeof op);
     op->hwnd = WinCreateWindow(amp_player_window(), "CL_DECODER_PROXY_1", "", 0, 0,0, 0,0, NULLHANDLE, HWND_BOTTOM, 42, NULL, NULL);
     WinSetWindowPtr(op->hwnd, 0, op);
    
@@ -743,7 +743,7 @@ proxy_1_output_command( CL_OUTPUT_PROXY_1* op, void* a, ULONG msg, OUTPUT_PARAMS
     break;
 
    case OUTPUT_SETUP:
-    WinRegisterClass(amp_player_hab(), "CL_OUTPUT_PROXY_1", &PROXYFUNCREF(CL_OUTPUT_PROXY_1)proxy_1_output_winfn, 0, sizeof op);
+    WinRegisterClass(amp_player_hab(), "CL_OUTPUT_PROXY_1", &proxy_1_output_winfn, 0, sizeof op);
     op->voutput_hwnd = WinCreateWindow(amp_player_window(), "CL_OUTPUT_PROXY_1", "", 0, 0,0, 0,0, NULLHANDLE, HWND_BOTTOM, 43, NULL, NULL);
     //DEBUGLOG(("CL_OUTPUT_PROXY_1::init_plugin - C: %x, %x\n", voutput_hwnd, WinGetLastError(NULL)));
     WinSetWindowPtr(op->voutput_hwnd, 0, op);
