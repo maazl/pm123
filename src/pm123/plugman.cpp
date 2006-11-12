@@ -95,23 +95,24 @@ static class CL_GLUE
                            CL_GLUE();
   const  OUTPUT_PROCS&     get_procs() const  { return procs; }
   
-  // output control interface
+  // output control interface (C style)
   friend ULONG             out_setup          ( const FORMAT_INFO2* formatinfo, const char* URI );
   friend ULONG             out_close          ();
   friend void              out_set_volume     ( double volume );
   friend ULONG             out_pause          ( BOOL pause );
   friend BOOL              out_flush          ( void );
-  // decoder control interface
+  // decoder control interface (C style)
   friend ULONG             dec_play           ( const char* url, const char* decoder_name );
   friend ULONG             dec_stop           ( void );
   friend ULONG             dec_fast           ( DECODER_FAST_MODE mode );
   friend ULONG             dec_jump           ( int pos );
   friend ULONG             dec_eq             ( const float* bandgain );
   friend ULONG             dec_save           ( const char* file );
-  // 4 visual interface
+  // 4 visual interface (C style)
   friend ULONG PM123_ENTRY out_playing_pos    ( void );
   friend BOOL  PM123_ENTRY out_playing_data   ( void );
   friend ULONG PM123_ENTRY out_playing_samples( FORMAT_INFO* info, char* buf, int len );
+
  private: // glue
   // 4 callback interface
   PROXYFUNCDEF void PM123_ENTRY dec_event     ( void* a, DECEVENTTYPE event, void* param ); 
@@ -189,7 +190,6 @@ ULONG CL_GLUE::init()
   params.size          = sizeof params;
   params.error_display = &keep_last_error;
   params.info_display  = &display_info;
-  params.hwnd          = amp_player_window();
   // setup callback handlers
   params.output_event  = &out_event;
   params.w             = this; // not really required

@@ -88,8 +88,6 @@ typedef struct _OUTPUT_PARAMS2
   /* this information is always displayed to the user right away */
   void (PM123_ENTRYP info_display)( char* );
 
-  HWND hwnd; // Window handle of PM123, normally not required
-
   /* callback event */
   void (PM123_ENTRYP output_event)(void* w, OUTEVENTTYPE event); 
   void* w;  /* only to be used with the precedent function */

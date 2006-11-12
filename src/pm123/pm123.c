@@ -94,7 +94,6 @@ static BOOL  is_seeking       = FALSE;
 static BOOL  is_slider_drag   = FALSE;
 static BOOL  is_stream_saved  = FALSE;
 static BOOL  is_arg_shuffle   = FALSE;
-static BOOL  is_decoder_done  = FALSE;
 
 /* Current load wizzards */
 static DECODER_WIZZARD_FUNC load_wizzards[16];
@@ -525,7 +524,6 @@ amp_stop_playing( void )
   WinPeekMsg( hab, &qms, hplayer, WM_PLAYSTOP, WM_PLAYSTOP, PM_REMOVE );
   // Resets a waiting of an emptiness of the buffers for a case if the WM_PLAYSTOP
   // message it has already been received.
-  is_decoder_done = FALSE;
   amp_invalidate( UPD_ALL );
 }
 
@@ -1852,19 +1850,15 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
     // Posted by decoder
     case WM_PLAYSTOP:
       DEBUGLOG(("WM_PLAYSTOP\n"));
-      // The decoder has finished the work, but we should wait until output
-      // buffers will become empty.
-      is_decoder_done = TRUE;
-      // Work-around for old decoders
-      out_flush();
+      // TODO: prepare next file
+      out_flush(); // flush remaining content, activate WM_OUTPUT_OUTOFDATA 
       return 0;
 
-    // Posted by output
+    // Posted by the output plug-in
     case WM_OUTPUT_OUTOFDATA:
-      if( is_decoder_done ) {
-        amp_playstop( hwnd );
-      }
-      is_decoder_done = FALSE;
+      DEBUGLOG(("WM_OUTPUT_OUTOFDATA\n"));
+      // All samples are played, let's stop.
+      amp_playstop( hwnd );
       return 0;
 
     case DM_DRAGOVER:

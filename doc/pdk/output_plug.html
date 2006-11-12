@@ -155,7 +155,10 @@ So check that amount usually required by your visual plug-ins before making
 complicated buffering functions in your output plug-in.</p>
 
 <h3><a name="level_1"></a>Interface revision level 0 and 1 (deprecated)</h3>
-
+<p>This interface revisions should not be used for development
+ because the impementations tends to modify the current thread's priority to boost the speed of the data source.
+ This implies that the current thread while calling <code>output_play_samples</code> is the bottleneck and that it is always the same thread.
+ Both is not true in general (e.g. remote data sources).
 <h4>Initialization interface</h4>
 <p>See <a href="#initialization_interface">level 2 interface</a>. This part of the interface has not been changed.</p>
 

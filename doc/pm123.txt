@@ -36,8 +36,6 @@ supports skins, audio streaming, plug-ins, visualization, CDDB and more!
       - there still might be occasional redraw problems where pm123 plagues
         the whole screen, not just pm123's windows
       - various windows always appear only at the bottom left of the screen
-      - OS/2 LIBPATH subsystem is quite outdated, and cannot find DLLs in
-        the EXE directory: need to implement manual DLL loading
 
    Missing Features
    ----------------

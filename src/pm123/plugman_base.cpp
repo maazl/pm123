@@ -327,13 +327,11 @@ class CL_DECODER_PROXY_1 : public CL_DECODER
   PROXYFUNCDEF void  PM123_ENTRY proxy_1_decoder_event       ( CL_DECODER_PROXY_1* op, void* w, OUTEVENTTYPE event );
   PROXYFUNCDEF ULONG PM123_ENTRY proxy_1_decoder_fileinfo    ( CL_DECODER_PROXY_1* op, const char* filename, DECODER_INFO2* info );
   PROXYFUNCDEF int   PM123_ENTRY proxy_1_decoder_play_samples( CL_DECODER_PROXY_1* op, const FORMAT_INFO* format, const char* buf, int len, int posmarker );
-  friend MRESULT EXPENTRY proxy_1_winfn(HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2);
+  friend MRESULT EXPENTRY proxy_1_decoder_winfn(HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2);
  public: 
   CL_DECODER_PROXY_1(CL_MODULE& mod) : CL_DECODER(mod), hwnd(NULLHANDLE) {}
   virtual ~CL_DECODER_PROXY_1();
   virtual BOOL load_plugin();
-  virtual BOOL init_plugin();
-  virtual BOOL uninit_plugin();
 };
 
 CL_DECODER_PROXY_1::~CL_DECODER_PROXY_1()
@@ -377,21 +375,6 @@ BOOL CL_DECODER_PROXY_1::load_plugin()
     vdecoder_trackinfo = NULL;
   }
   return TRUE;
-}
-
-BOOL CL_DECODER_PROXY_1::init_plugin()
-{ if (!CL_DECODER::init_plugin())
-    return FALSE;
-  WinRegisterClass(amp_player_hab(), "CL_DECODER_PROXY_1", &proxy_1_winfn, 0, sizeof this);
-  hwnd = WinCreateWindow(amp_player_window(), "CL_DECODER_PROXY_1", "", 0, 0,0, 0,0, NULLHANDLE, HWND_BOTTOM, 42, NULL, NULL);
-  WinSetWindowPtr(hwnd, 0, this);
-  return TRUE;
-}
-BOOL CL_DECODER_PROXY_1::uninit_plugin()
-{ BOOL rc = CL_DECODER::uninit_plugin();
-  WinDestroyWindow(hwnd);
-  hwnd = NULLHANDLE;
-  return rc;
 }
 
 
@@ -462,67 +445,77 @@ proxy_1_decoder_command( CL_DECODER_PROXY_1* op, void* w, ULONG msg, DECODER_PAR
 
   DECODER_PARAMS par1;
   memset(&par1, 0, sizeof par1); 
-  par1.size                = sizeof par1;
-  /* decompose URL for old interface */
-  if (msg == DECODER_PLAY)
-  { char* cp = strchr(params->URL, ':') +2; // for URLs
-    CDDA_REGION_INFO cd_info;
-    if (is_file(params->URL))
-    { if (is_url(params->URL))
-        par1.filename = cp + (params->URL[7] == '/' && params->URL[9] == ':' && params->URL[10] == '/');
-       else
-        par1.filename = params->URL; // bare filename - normally this should not happen
-      DEBUGLOG(("proxy_1_decoder_command: filename=%s\n", par1.filename));
-    } else if (scdparams(&cd_info, params->URL))
-    { par1.drive = cd_info.drive;
-      par1.track = cd_info.track;
-      par1.sectors[0] = cd_info.sectors[0];
-      par1.sectors[1] = cd_info.sectors[1];
-    } else if (is_url(params->URL)) // URL
-    { par1.URL = params->URL;
-      par1.filename = params->URL; // Well, the URL parameter has never been used...
-    } else
-      par1.other = params->URL;
-  }
-  par1.jumpto              = params->jumpto;
-  par1.ffwd                = params->ffwd;
-  par1.rew                 = params->rew;
-  par1.output_play_samples = (int (PM123_ENTRYP)(void*, const FORMAT_INFO*, const char*, int, int))&PROXYFUNCREF(CL_DECODER_PROXY_1)proxy_1_decoder_play_samples;
-  par1.a                   = op;
-  par1.audio_buffersize    = BUFSIZE;
-  par1.proxyurl            = params->proxyurl;
-  par1.httpauth            = params->httpauth;
-  par1.error_display       = params->error_display;
-  par1.info_display        = params->info_display;
-  par1.hwnd                = op->hwnd;
-  par1.metadata_buffer     = op->metadata_buffer;
-  par1.metadata_size       = sizeof(op->metadata_buffer);
-  par1.buffersize          = params->buffersize;
-  par1.bufferwait          = params->bufferwait;
-  par1.bufferstatus        = params->bufferstatus;
-  par1.equalizer           = params->equalizer;
-  par1.bandgain            = params->bandgain;
-  par1.save_filename       = params->save_filename;
-  
+  par1.size = sizeof par1;
+  // preprocessing
   switch (msg)
-  {case DECODER_SETUP:
+  {case DECODER_PLAY:
+    // decompose URL for old interface
+    { char* cp = strchr(params->URL, ':') +2; // for URLs
+      CDDA_REGION_INFO cd_info;
+      if (is_file(params->URL))
+      { if (is_url(params->URL))
+          par1.filename = cp + (params->URL[7] == '/' && params->URL[9] == ':' && params->URL[10] == '/');
+         else
+          par1.filename = params->URL; // bare filename - normally this should not happen
+        DEBUGLOG(("proxy_1_decoder_command: filename=%s\n", par1.filename));
+      } else if (scdparams(&cd_info, params->URL))
+      { par1.drive = cd_info.drive;
+        par1.track = cd_info.track;
+        par1.sectors[0] = cd_info.sectors[0];
+        par1.sectors[1] = cd_info.sectors[1];
+      } else if (is_url(params->URL)) // URL
+      { par1.URL = params->URL;
+        par1.filename = params->URL; // Well, the URL parameter has never been used...
+      } else
+        par1.other = params->URL;
+    }
+    break;
+
+   case DECODER_SETUP:
+    WinRegisterClass(amp_player_hab(), "CL_DECODER_PROXY_1", &PROXYFUNCREF(CL_DECODER_PROXY_1)proxy_1_decoder_winfn, 0, sizeof op);
+    op->hwnd = WinCreateWindow(amp_player_window(), "CL_DECODER_PROXY_1", "", 0, 0,0, 0,0, NULLHANDLE, HWND_BOTTOM, 42, NULL, NULL);
+    WinSetWindowPtr(op->hwnd, 0, op);
+   
+    par1.output_play_samples = (int (PM123_ENTRYP)(void*, const FORMAT_INFO*, const char*, int, int))&PROXYFUNCREF(CL_DECODER_PROXY_1)proxy_1_decoder_play_samples;
+    par1.a                   = op;
+    par1.proxyurl            = params->proxyurl;
+    par1.httpauth            = params->httpauth;
+    par1.hwnd                = op->hwnd;
+    par1.buffersize          = params->buffersize;
+    par1.bufferwait          = params->bufferwait;
+    par1.metadata_buffer     = op->metadata_buffer;
+    par1.metadata_size       = sizeof(op->metadata_buffer);
+
     op->voutput_request_buffer = params->output_request_buffer;
     op->voutput_commit_buffer  = params->output_commit_buffer;
     op->voutput_event          = params->output_event;
     op->a                      = params->a;
 
-    op->temppos = FALSE;
+    op->temppos = 0;
     break;
-
+   
+   case DECODER_STOP:
+    WinDestroyWindow(op->hwnd);
+    op->hwnd = NULLHANDLE;
    case DECODER_FFWD:
    case DECODER_REW:
-   case DECODER_STOP:
     op->temppos = out_playing_pos();
     break;
+
    case DECODER_JUMPTO:
     op->temppos = params->jumpto;
     break;
   }
+  par1.jumpto              = params->jumpto;
+  par1.ffwd                = params->ffwd;
+  par1.rew                 = params->rew;
+  par1.audio_buffersize    = BUFSIZE;
+  par1.error_display       = params->error_display;
+  par1.info_display        = params->info_display;
+  par1.bufferstatus        = params->bufferstatus;
+  par1.equalizer           = params->equalizer;
+  par1.bandgain            = params->bandgain;
+  par1.save_filename       = params->save_filename;
   
   return (*op->vdecoder_command)(w, msg, &par1);
 }
@@ -589,8 +582,9 @@ proxy_1_decoder_fileinfo( CL_DECODER_PROXY_1* op, const char* filename, DECODER_
   return rc;
 }
 
-MRESULT EXPENTRY proxy_1_winfn(HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2)
+MRESULT EXPENTRY proxy_1_decoder_winfn(HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2)
 { CL_DECODER_PROXY_1* op = (CL_DECODER_PROXY_1*)WinQueryWindowPtr(hwnd, 0);
+  DEBUGLOG(("proxy_1_decoder_winfn(%p, %u, %p, %p) - %p {%s}\n", hwnd, msg, mp1, mp2, op, op == NULL ? NULL : op->module_name));
   switch (msg)
   {case WM_PLAYSTOP:
     (*op->voutput_event)(op->a, DECEVENT_PLAYSTOP, NULL);
@@ -658,13 +652,13 @@ BOOL CL_OUTPUT::load_plugin()
 }
 
 BOOL CL_OUTPUT::init_plugin()
-{ DEBUGLOG(("CL_OUTPUT(%p{%s})::init()\n", this, module_name));
+{ DEBUGLOG(("CL_OUTPUT(%p{%s})::init_plugin()\n", this, module_name));
 
   return (*output_init)( &a ) == 0;
 }
 
 BOOL CL_OUTPUT::uninit_plugin()
-{ DEBUGLOG(("CL_OUTPUT(%p{%s})::uninit()\n", this, module_name));
+{ DEBUGLOG(("CL_OUTPUT(%p{%s})::uninit_plugin()\n", this, module_name));
   
   (*output_command)( a, OUTPUT_CLOSE, NULL );
   (*output_uninit)( a );
@@ -679,8 +673,10 @@ class CL_OUTPUT_PROXY_1 : public CL_OUTPUT
   int         (PM123_ENTRYP voutput_command     )( void*  a, ULONG msg, OUTPUT_PARAMS* info );
   int         (PM123_ENTRYP voutput_play_samples)( void*  a, const FORMAT_INFO* format, const char* buf, int len, int posmarker );
   short       voutput_buffer[BUFSIZE/2];
-  int         voutput_buffer_level;         // current level of voutput_buffer
+  int         voutput_buffer_level;             // current level of voutput_buffer
   BOOL        voutput_trash_buffer;
+  BOOL        voutput_flush_request;            // flush-request received, generate OUTEVENT_END_OF_DATA from WM_OUTPUT_OUTOFDATA
+  HWND        voutput_hwnd;                     // Window handle for catching event messages
   int         voutput_posmarker;
   FORMAT_INFO voutput_format;
   int         voutput_bufsamples;
@@ -693,10 +689,17 @@ class CL_OUTPUT_PROXY_1 : public CL_OUTPUT
   PROXYFUNCDEF ULONG PM123_ENTRY proxy_1_output_command       ( CL_OUTPUT_PROXY_1* op, void* a, ULONG msg, OUTPUT_PARAMS2* info );
   PROXYFUNCDEF int   PM123_ENTRY proxy_1_output_request_buffer( CL_OUTPUT_PROXY_1* op, void* a, const FORMAT_INFO2* format, short** buf );
   PROXYFUNCDEF void  PM123_ENTRY proxy_1_output_commit_buffer ( CL_OUTPUT_PROXY_1* op, void* a, int len, int posmarker );
+  friend MRESULT EXPENTRY proxy_1_output_winfn(HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2);
  public:
-  CL_OUTPUT_PROXY_1(CL_MODULE& mod) : CL_OUTPUT(mod) {}
+  CL_OUTPUT_PROXY_1(CL_MODULE& mod) : CL_OUTPUT(mod), voutput_hwnd(NULLHANDLE) {}
+  virtual ~CL_OUTPUT_PROXY_1();
   virtual BOOL load_plugin();
 };
+
+CL_OUTPUT_PROXY_1::~CL_OUTPUT_PROXY_1()
+{ if (voutput_hwnd != NULLHANDLE)
+    WinDestroyWindow(voutput_hwnd);
+}
 
 /* Assigns the addresses of the out7put plug-in procedures. */
 BOOL CL_OUTPUT_PROXY_1::load_plugin()
@@ -727,54 +730,72 @@ PROXYFUNCIMP(ULONG PM123_ENTRY, CL_OUTPUT_PROXY_1)
 proxy_1_output_command( CL_OUTPUT_PROXY_1* op, void* a, ULONG msg, OUTPUT_PARAMS2* info )
 { DEBUGLOG(("proxy_1_output_command(%p {%s}, %p, %d, %p)\n", op, op->module_name, a, msg, info));
     
-  if (info != NULL)
-  { int r;
-    OUTPUT_PARAMS params;
-    params.size                  = sizeof params;
-    params.buffersize            = BUFSIZE;
-    params.boostclass            = DECODER_HIGH_PRIORITY_CLASS;
-    params.normalclass           = DECODER_LOW_PRIORITY_CLASS;
-    params.boostdelta            = DECODER_HIGH_PRIORITY_DELTA;
-    params.normaldelta           = DECODER_LOW_PRIORITY_DELTA;
-    params.nobuffermode          = FALSE;
+  if (info == NULL) // sometimes info is NULL
+    return (*op->voutput_command)(a, msg, NULL);
+
+  OUTPUT_PARAMS params;
+  params.size                  = sizeof params;
+
+  // preprocessing
+  switch (msg)
+  {case OUTPUT_TRASH_BUFFERS:
+    op->voutput_trash_buffer   = TRUE;
+    break;
+
+   case OUTPUT_SETUP:
+    WinRegisterClass(amp_player_hab(), "CL_OUTPUT_PROXY_1", &PROXYFUNCREF(CL_OUTPUT_PROXY_1)proxy_1_output_winfn, 0, sizeof op);
+    op->voutput_hwnd = WinCreateWindow(amp_player_window(), "CL_OUTPUT_PROXY_1", "", 0, 0,0, 0,0, NULLHANDLE, HWND_BOTTOM, 43, NULL, NULL);
+    //DEBUGLOG(("CL_OUTPUT_PROXY_1::init_plugin - C: %x, %x\n", voutput_hwnd, WinGetLastError(NULL)));
+    WinSetWindowPtr(op->voutput_hwnd, 0, op);
     // copy corresponding fields
     params.formatinfo.size       = sizeof params.formatinfo;
     params.formatinfo.samplerate = info->formatinfo.samplerate;
     params.formatinfo.channels   = info->formatinfo.channels;
     params.formatinfo.bits       = 16;
     params.formatinfo.format     = WAVE_FORMAT_PCM;
-    params.error_display         = info->error_display;
-    params.info_display          = info->info_display;
-    params.hwnd                  = info->hwnd;
-    params.volume                = (char)(info->volume*100+.5);
-    params.amplifier             = info->amplifier;
-    params.pause                 = info->pause;
-    params.temp_playingpos       = info->temp_playingpos;
-    if (info->URI != NULL && strnicmp(info->URI, "file://", 7) == 0)
-      params.filename            = info->URI + 7;
-     else
-      params.filename            = info->URI;
+    params.hwnd                  = op->voutput_hwnd;
+    break;
+  }
+  params.buffersize            = BUFSIZE;
+  params.boostclass            = DECODER_HIGH_PRIORITY_CLASS;
+  params.normalclass           = DECODER_LOW_PRIORITY_CLASS;
+  params.boostdelta            = DECODER_HIGH_PRIORITY_DELTA;
+  params.normaldelta           = DECODER_LOW_PRIORITY_DELTA;
+  params.nobuffermode          = FALSE;
+  params.error_display         = info->error_display;
+  params.info_display          = info->info_display;
+  params.volume                = (char)(info->volume*100+.5);
+  params.amplifier             = info->amplifier;
+  params.pause                 = info->pause;
+  params.temp_playingpos       = info->temp_playingpos;
+  if (info->URI != NULL && strnicmp(info->URI, "file://", 7) == 0)
+    params.filename            = info->URI + 7;
+   else
+    params.filename            = info->URI;
 
-    if (msg == OUTPUT_TRASH_BUFFERS)
-    { op->voutput_trash_buffer   = TRUE;
-    }
-    // call plug-in
-    r = (*op->voutput_command)(a, msg, &params);
-    // save some values
-    if (msg == OUTPUT_SETUP)
-    { op->voutput_buffer_level   = 0;
-      op->voutput_trash_buffer   = FALSE;
-      op->voutput_always_hungry  = params.always_hungry;
-      op->voutput_event          = info->output_event;
-      op->voutput_w              = info->w;
-      op->voutput_format.size    = sizeof op->voutput_format;
-      op->voutput_format.bits    = 16;
-      op->voutput_format.format  = WAVE_FORMAT_PCM;
-    }
-    DEBUGLOG(("proxy_1_output_command: %d\n", r));
-    return r;
-  } else
-    return (*op->voutput_command)(a, msg, NULL); // sometimes info is NULL
+  // call plug-in
+  int r = (*op->voutput_command)(a, msg, &params);
+
+  // postprocessing
+  switch (msg)
+  {case OUTPUT_SETUP:
+    op->voutput_buffer_level   = 0;
+    op->voutput_trash_buffer   = FALSE;
+    op->voutput_flush_request  = FALSE;
+    op->voutput_always_hungry  = params.always_hungry;
+    op->voutput_event          = info->output_event;
+    op->voutput_w              = info->w;
+    op->voutput_format.size    = sizeof op->voutput_format;
+    op->voutput_format.bits    = 16;
+    op->voutput_format.format  = WAVE_FORMAT_PCM;
+    break;
+
+   case OUTPUT_CLOSE:
+    WinDestroyWindow(op->voutput_hwnd);
+    op->voutput_hwnd = NULLHANDLE;
+  }
+  DEBUGLOG(("proxy_1_output_command: %d\n", r));
+  return r;
 }
 
 PROXYFUNCIMP(int PM123_ENTRY, CL_OUTPUT_PROXY_1)
@@ -803,6 +824,8 @@ proxy_1_output_request_buffer( CL_OUTPUT_PROXY_1* op, void* a, const FORMAT_INFO
   if (buf == 0)
   { if (op->voutput_always_hungry)
       (*op->voutput_event)(op->voutput_w, OUTEVENT_END_OF_DATA);
+     else
+      op->voutput_flush_request = TRUE; // wait for WM_OUTPUT_OUTOFDATA
     return 0;
   }
 
@@ -827,6 +850,23 @@ proxy_1_output_commit_buffer( CL_OUTPUT_PROXY_1* op, void* a, int len, int posma
   { (*op->voutput_play_samples)(a, &op->voutput_format, (char*)op->voutput_buffer, op->voutput_buffer_level * op->voutput_format.channels * sizeof(short), op->voutput_posmarker);
     op->voutput_buffer_level = 0;
   }
+}
+
+MRESULT EXPENTRY proxy_1_output_winfn(HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2)
+{ CL_OUTPUT_PROXY_1* op = (CL_OUTPUT_PROXY_1*)WinQueryWindowPtr(hwnd, 0);
+  DEBUGLOG(("proxy_1_output_winfn(%p, %u, %p, %p) - %p {%s}\n", hwnd, msg, mp1, mp2, op, op == NULL ? NULL : op->module_name));
+  switch (msg)
+  {case WM_PLAYERROR:
+    (*op->voutput_event)(op->voutput_w, OUTEVENT_PLAY_ERROR);
+    break;
+   case WM_OUTPUT_OUTOFDATA:
+    if (op->voutput_flush_request) // don't care unless we have a flush_request condition
+    { op->voutput_flush_request = FALSE;
+      (*op->voutput_event)(op->a, OUTEVENT_END_OF_DATA);
+    }
+    break;
+  }
+  return 0;
 }
 
 
