@@ -183,7 +183,7 @@ cfg_page1_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
       WinSetDlgItemText( hwnd, EF_PROXY_PORT,  ""  );
       WinSetDlgItemText( hwnd, EF_PROXY_USER,  ""  );
       WinSetDlgItemText( hwnd, EF_PROXY_PASS,  ""  );
-      WinSendDlgItemMsg( hwnd, SB_BUFFERSIZE, SPBM_SETCURRENTVALUE, 0, 0 );
+      WinSendDlgItemMsg( hwnd, SB_BUFFERSIZE, SPBM_SETCURRENTVALUE, MPFROMLONG( 64 ), 0 );
       return 0;
     }
 
