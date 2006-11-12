@@ -36,10 +36,10 @@
 #include <stdio.h>
 #include <memory.h>
 
+#include <xio.h>
 #include "properties.h"
 #include "pm123.h"
 #include "plugman.h"
-#include "httpget.h"
 #include "iniman.h"
 
 #define  CFG_REFRESH_LIST (WM_USER+1)
@@ -47,7 +47,36 @@
 #define  CFG_DEFAULT      (WM_USER+3)
 #define  CFG_UNDO         (WM_USER+4)
 
+// The properties!
 amp_cfg cfg;
+
+
+/* Initialize properties, called from main. */
+void cfg_init( void )
+{ // set proxy and buffer settings statically in the xio library, not that nice, but working.
+  char buffer[1024];
+  char* cp = strchr(cfg.proxy, ':');
+  if (cp == NULL)
+  { xio_set_http_proxy_host( cfg.proxy );
+  } else
+  { size_t l = cp - cfg.proxy +1;
+    strlcpy( buffer, cfg.proxy, min( l, sizeof buffer ));
+    xio_set_http_proxy_host( buffer );
+    xio_set_http_proxy_port( atoi(cp+1) );
+  }
+  cp = strchr(cfg.auth, ':');
+  if (cp == NULL)
+  { xio_set_http_proxy_user( cfg.auth );
+  } else
+  { size_t l = cp - cfg.proxy +1;
+    strlcpy( buffer, cfg.proxy, min( l, sizeof buffer ));
+    xio_set_http_proxy_user( buffer );
+    xio_set_http_proxy_pass( cp +1 );
+  }
+  xio_set_buffer_size( cfg.bufsize * 1024 );
+  xio_set_buffer_wait( cfg.bufwait );
+}
+
 
 static ULONG
 cfg_add_plugin( HWND hwnd, ULONG types )
@@ -92,7 +121,8 @@ cfg_page1_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
   switch( msg ) {
     case WM_INITDLG:
     {
-      char buffer[128];
+      char buffer[1024];
+      PSZ cp;
 
       WinCheckButton( hwnd, CB_PLAYONLOAD,   cfg.playonload   );
       WinCheckButton( hwnd, CB_AUTOUSEPL,    cfg.autouse      );
@@ -102,8 +132,25 @@ cfg_page1_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
       WinCheckButton( hwnd, CB_DOCK,         cfg.dock_windows );
 
       WinSetDlgItemText( hwnd, EF_DOCK, itoa( cfg.dock_margin, buffer, 10 ));
-      WinSetDlgItemText( hwnd, EF_PROXY_URL,  cfg.proxy   );
-      WinSetDlgItemText( hwnd, EF_HTTP_AUTH,  cfg.auth    );
+      // proxy
+      cp = strchr(cfg.proxy, ':');
+      if (cp == NULL) {
+        WinSetDlgItemText( hwnd, EF_PROXY_HOST, cfg.proxy );
+      } else {
+        size_t l = cp - cfg.proxy +1;
+        strlcpy( buffer, cfg.proxy, min( l, sizeof buffer ));
+        WinSetDlgItemText( hwnd, EF_PROXY_HOST, buffer );
+        WinSetDlgItemText( hwnd, EF_PROXY_PORT, cp+1 );
+      }
+      cp = strchr(cfg.auth, ':');
+      if (cp == NULL) {
+        WinSetDlgItemText( hwnd, EF_PROXY_USER, cfg.auth );
+      } else {
+        size_t l = cp - cfg.auth +1;
+        strlcpy( buffer, cfg.auth, min( l, sizeof buffer ));
+        WinSetDlgItemText( hwnd, EF_PROXY_USER, buffer );
+        WinSetDlgItemText( hwnd, EF_PROXY_PASS, cp+1 );
+      }
       WinCheckButton   ( hwnd, CB_FILLBUFFER, cfg.bufwait );
 
       WinSendDlgItemMsg( hwnd, SB_BUFFERSIZE, SPBM_SETLIMITS,
@@ -131,9 +178,11 @@ cfg_page1_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
       WinCheckButton( hwnd, CB_DOCK,            TRUE  );
       WinCheckButton( hwnd, CB_FILLBUFFER,      TRUE  );
 
-      WinSetDlgItemText( hwnd, EF_DOCK,      "10" );
-      WinSetDlgItemText( hwnd, EF_PROXY_URL, ""   );
-      WinSetDlgItemText( hwnd, EF_HTTP_AUTH, ""   );
+      WinSetDlgItemText( hwnd, EF_DOCK,       "10" );
+      WinSetDlgItemText( hwnd, EF_PROXY_HOST,  ""  );
+      WinSetDlgItemText( hwnd, EF_PROXY_PORT,  ""  );
+      WinSetDlgItemText( hwnd, EF_PROXY_USER,  ""  );
+      WinSetDlgItemText( hwnd, EF_PROXY_PASS,  ""  );
       WinSendDlgItemMsg( hwnd, SB_BUFFERSIZE, SPBM_SETCURRENTVALUE, 0, 0 );
       return 0;
     }
@@ -151,19 +200,38 @@ cfg_page1_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
       cfg.dock_windows = WinQueryButtonCheckstate( hwnd, CB_DOCK         );
 
       WinQueryDlgItemText( hwnd, EF_DOCK, 8, buffer );
-      cfg.dock_margin = atoi(buffer);
+      cfg.dock_margin = atoi( buffer );
 
       WinSendDlgItemMsg( hwnd, SB_BUFFERSIZE, SPBM_QUERYVALUE,
                          MPFROMP( &i ), MPFROM2SHORT( 0, SPBQ_DONOTUPDATE ));
       cfg.bufsize = i;
+      xio_set_buffer_size( cfg.bufsize * 1024 );
 
-      WinQueryDlgItemText( hwnd, EF_PROXY_URL, sizeof( cfg.proxy ), cfg.proxy );
-      WinQueryDlgItemText( hwnd, EF_HTTP_AUTH, sizeof( cfg.auth  ), cfg.auth  );
+      WinQueryDlgItemText( hwnd, EF_PROXY_HOST, sizeof( cfg.proxy ), cfg.proxy );
+      xio_set_http_proxy_host( cfg.proxy );
+      i = strlen( cfg.proxy );
+      if ( i < sizeof cfg.proxy - 1 ) {
+        cfg.proxy[i++] = ':'; // delimiter
+        WinQueryDlgItemText( hwnd, EF_PROXY_PORT, sizeof cfg.proxy - i, cfg.proxy + i );
+        xio_set_http_proxy_port( atoi( cfg.proxy + i ));
+        if ( cfg.proxy[i] == 0 )
+          cfg.proxy[i-1] = 0; // remove delimiter
+      }
 
-      set_proxyurl( cfg.proxy );
-      set_httpauth( cfg.auth  );
+      WinQueryDlgItemText( hwnd, EF_PROXY_USER, sizeof( cfg.auth ), cfg.auth );
+      xio_set_http_proxy_user( cfg.auth );
+      i = strlen( cfg.auth );
+      if ( i < sizeof cfg.auth - 1 ) {
+        cfg.auth[i++] = ':'; // delimiter
+        WinQueryDlgItemText( hwnd, EF_PROXY_PASS, sizeof( cfg.auth ) - i, cfg.auth + i );
+        xio_set_http_proxy_pass( cfg.auth + i );
+        if ( cfg.auth[i] == 0 )
+          cfg.auth[i-1] = 0; // remove delimiter
+      }
 
       cfg.bufwait = WinQueryButtonCheckstate( hwnd, CB_FILLBUFFER );
+      xio_set_buffer_wait( cfg.bufwait );
+
       return 0;
     }
   }
@@ -888,8 +956,10 @@ cfg_properties( HWND owner )
   page01 = WinLoadDlg( book, book, cfg_page1_dlg_proc, NULLHANDLE, CFG_PAGE1, 0 );
 
   do_warpsans( page01 );
-  do_warpsans( WinWindowFromID( page01, ST_PROXY_URL  ));
-  do_warpsans( WinWindowFromID( page01, ST_HTTP_AUTH  ));
+  do_warpsans( WinWindowFromID( page01, ST_PROXY_HOST ));
+  do_warpsans( WinWindowFromID( page01, ST_PROXY_PORT ));
+  do_warpsans( WinWindowFromID( page01, ST_PROXY_USER ));
+  do_warpsans( WinWindowFromID( page01, ST_PROXY_PASS ));
   do_warpsans( WinWindowFromID( page01, ST_PIXELS     ));
   do_warpsans( WinWindowFromID( page01, ST_BUFFERSIZE ));
 

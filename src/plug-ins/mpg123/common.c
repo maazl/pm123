@@ -8,17 +8,21 @@
 
 #include "mpg123.h"
 #include "tables.h"
+#include "debuglog.h"
 
-#define MAXFRAMESIZE 1792 /* max = 1728 */
+#define  IS_4CH_TAG( ul, c1, c2, c3, c4 ) \
+         ( ul == (((c1<<24)|(c2<<16)|(c3<<8)|(c4)) & 0xFFFFFFFFUL ))
+#define  IS_3CH_TAG( ul, c1, c2, c3 ) \
+         (( ul & 0xFFFFFF00UL ) == (((c1<<24)|(c2<<16)|(c3<<8)) & 0xFFFFFF00UL ))
 
 int tabsel_123[2][3][16] = {
-   { {0,32,64,96,128,160,192,224,256,288,320,352,384,416,448,},
-     {0,32,48,56, 64, 80, 96,112,128,160,192,224,256,320,384,},
-     {0,32,40,48, 56, 64, 80, 96,112,128,160,192,224,256,320,} },
+   { { 0,32,64,96,128,160,192,224,256,288,320,352,384,416,448 },
+     { 0,32,48,56, 64, 80, 96,112,128,160,192,224,256,320,384 },
+     { 0,32,40,48, 56, 64, 80, 96,112,128,160,192,224,256,320 }},
 
-   { {0,32,48,56,64,80,96,112,128,144,160,176,192,224,256,},
-     {0,8,16,24,32,40,48,56,64,80,96,112,128,144,160,},
-     {0,8,16,24,32,40,48,56,64,80,96,112,128,144,160,} }
+   { { 0,32,48,56,64,80,96,112,128,144,160,176,192,224,256 },
+     { 0,8,16,24,32,40,48,56,64,80,96,112,128,144,160 },
+     { 0,8,16,24,32,40,48,56,64,80,96,112,128,144,160 }}
 };
 
 long freqs[9] = { 44100, 48000, 32000, 22050, 24000, 16000 , 11025 , 12000 , 8000 };
@@ -26,16 +30,15 @@ long freqs[9] = { 44100, 48000, 32000, 22050, 24000, 16000 , 11025 , 12000 , 800
 int bitindex;
 unsigned char* wordpointer;
 
-static int fsize = 0, fsizeold = 0, ssize;
+static int fsize = 0, fsizeold = 0;
 static unsigned char  bsspace[2][MAXFRAMESIZE+512]; /* MAXFRAMESIZE */
-static unsigned char* bsbuf=bsspace[1];
+static unsigned char* bsbuf = bsspace[1];
 static unsigned char* bsbufold;
-static int bsnum=0;
+static int bsnum = 0;
 
-unsigned char* pcm_sample   = NULL;
-int            pcm_point    = 0;
+unsigned char* pcm_sample = NULL;
+int pcm_point = 0;
 
-static unsigned long oldhead   = 0;
 static unsigned long firsthead = 0;
 
 static void
@@ -66,786 +69,612 @@ get_II_stuff( struct frame* fr )
 }
 
 /* returns playing position in ms... too CPU intensive?! */
-int
+static int
 decoding_pos( DECODER_STRUCT* w, struct frame* fr )
 {
   _control87( EM_OVERFLOW | EM_UNDERFLOW | EM_ZERODIVIDE |
               EM_INEXACT  | EM_INVALID   | EM_DENORMAL, MCW_EM );
 
-  if(( w->XingHeader.flags & FRAMES_FLAG ) &&
-     ( w->XingHeader.flags & TOC_FLAG    ) &&
-     ( w->XingHeader.flags & BYTES_FLAG  ))
+  if(( w->xing_header.flags & FRAMES_FLAG ) &&
+     ( w->xing_header.flags & TOC_FLAG    ) &&
+     ( w->xing_header.flags & BYTES_FLAG  ))
   {
-    float tofind  = (float)fr->filepos * 256 / w->XingHeader.bytes;
+    float tofind  = (float)fr->filepos * 256 / w->xing_header.bytes;
     float percent = 0.0;
     int   i       = 0;
     float fa, fb;
 
     for( i = 1; i < 100; i++ ) {
-      if( tofind < w->XingTOC[i] ) {
+      if( tofind < w->xing_TOC[i] ) {
         break;
       }
     }
 
-    fa = w->XingTOC[i-1];
+    fa = w->xing_TOC[i-1];
 
     if( i == 100 ) {
       fb = 256;
     } else {
-      fb = w->XingTOC[i];
+      fb = w->xing_TOC[i];
     }
 
     percent = ( tofind - fa ) / ( fb - fa ) + i - 1;
-    // percent = ( tofind - w->XingTOC[i-1] ) / ( w->XingTOC[i] - w->XingTOC[i-1] ) + i - 1;
 
     // 8 bit / byte and 8*144 samples / frame (?) for MP3
-    return 1000 * percent * ( 8 * 144 * w->XingHeader.frames / freqs[fr->sampling_frequency] ) / 100;
-
+    return 1000 * percent * ( 8 * 144 * w->xing_header.frames / freqs[fr->sampling_frequency] ) / 100;
   }
-  else if(( w->XingHeader.flags & FRAMES_FLAG ) &&
-          ( w->XingHeader.flags & BYTES_FLAG  ))
+  else if(( w->xing_header.flags & FRAMES_FLAG ) &&
+          ( w->xing_header.flags & BYTES_FLAG  ))
   {
-    int songlength = 8.0 * 144 * w->XingHeader.frames * 1000 / freqs[fr->sampling_frequency];
-    return (float)fr->filepos * songlength / w->XingHeader.bytes;
+    int songlength = 8.0 * 144 * w->xing_header.frames * 1000 / freqs[fr->sampling_frequency];
+    return (float)fr->filepos * songlength / w->xing_header.bytes;
   } else {
-    return (float)fr->filepos * 1000 / w->avg_bitrate / 125;
+    return (float)fr->filepos * 1000 / w->abr / 125;
   }
 }
 
-int
+BOOL
 output_flush( DECODER_STRUCT* w, struct frame* fr )
 {
-  int rc = 1;
+  int rc = TRUE;
 
   if( pcm_point ) {
     if( w->output_format.samplerate != freqs[fr->sampling_frequency] >> fr->down_sample )
     {
-      w->output_format.samplerate  = freqs[fr->sampling_frequency] >> fr->down_sample;
+      w->output_format.samplerate = freqs[fr->sampling_frequency] >> fr->down_sample;
       init_eq( w->output_format.samplerate );
     }
     if((*w->output_play_samples)( w->a, &w->output_format, pcm_sample, pcm_point, decoding_pos( w, fr )) < pcm_point ) {
-      rc = 0;
+      rc = FALSE;
     }
     pcm_point = 0;
   }
   return rc;
 }
 
-size_t
-readdata( void* buffer, size_t size, size_t count, META_STRUCT* m )
+/* Writes up to count items, each of size bytes in length, from buffer
+   to the output file. Returns TRUE if it successfully writes the data,
+   or FALSE if any errors were detected. */
+static BOOL
+save_data( void* buffer, size_t size, size_t count, DECODER_STRUCT* w )
 {
-  int       read = 0;
-  HTTP_INFO http_info;
-  int       metaint;
+  char errorbuf[1024];
 
-  sockfile_httpinfo( m->filept, &http_info );
-  metaint = http_info.icy_metaint;
-
-  // opening
-  if( m->save_file == NULL && m->save_filename[0] != 0 )
-  {
-    m->save_file = fopen( m->save_filename, "ab" );
-    if( m->save_file == NULL )
-    {
-      char temp[1024];
-      sprintf( temp, "Could not open %s to save data.", m->save_filename );
-      (*m->info_display)(temp);
-      m->save_filename[0] = 0;
+  if( !w->save && *w->savename ) {
+    // Opening a save stream.
+    if(!( w->save = fopen( w->savename, "ab" ))) {
+      strlcpy( errorbuf, "Could not open file to save data:\n", sizeof( errorbuf ));
+      strlcat( errorbuf, w->savename, sizeof( errorbuf ));
+      strlcat( errorbuf, "\n", sizeof( errorbuf ));
+      strlcat( errorbuf, strerror( errno ), sizeof( errorbuf ));
+      w->info_display( errorbuf );
+      w->savename[0] = 0;
+      return FALSE;
     }
-  }
-  // closing
-  else if( m->save_filename[0] == 0 && m->save_file != NULL )
-  {
-    fclose( m->save_file );
-    m->save_file = NULL;
+  } else if( !*w->savename && w->save ) {
+    // Closing a save stream.
+    fclose( w->save );
+    w->save = NULL;
   }
 
-  if( metaint > 0 )
-  {
-    int   toread = size*count;
-    int   read2  = 0;
-    char* metadata;
-
-    if( m->data_until_meta == -1 ) {
-      m->data_until_meta = metaint;
-    }
-
-    while( m->data_until_meta - toread < 0 )
-    {
-      char metablocks = 0;
-      int  metasize   = 0;
-      int  readmeta   = 0;
-
-      if( m->data_until_meta > 0 )
-      {
-        read   += xio_fread((char*)buffer + read, 1, m->data_until_meta, m->filept );
-        toread -= read;
-      }
-
-      readmeta += xio_fread( &metablocks, 1, 1, m->filept );
-      if( readmeta == 1 && metablocks > 0 )
-      {
-        metasize = metablocks*16;
-        metadata = alloca( metasize + 1 );
-        metadata[metasize] = 0;
-
-        readmeta += xio_fread( metadata, 1, metasize, m->filept );
-
-        if( readmeta == metasize+1 && m->metadata_buffer != NULL && m->metadata_size > 0 )
-        {
-          if( strcmp( m->metadata_buffer, metadata ) != 0 ) {
-            strlcpy( m->metadata_buffer, metadata, m->metadata_size );
-            WinPostMsg( m->hwnd, WM_METADATA, MPFROMP( m->metadata_buffer ), 0 );
-          }
-        }
-      }
-
-      m->data_until_meta = metaint; // metaint excludes the actual metadata
-    }
-    read2 = xio_fread((char*)buffer+read,1,toread,m->filept);
-    read += read2;
-    m->data_until_meta -= read2;
-  } else {
-    read = xio_fread( buffer, size, count, m->filept );
-  }
-
-  if( m->save_file != NULL )
-  {
-    if( fwrite( buffer, 1, read, m->save_file ) < read )
-    {
-      char temp[1024];
-      fclose( m->save_file );
-      m->save_file = NULL;
-      sprintf( temp, "Error writing to %s to save data.", m->save_filename );
-      (*m->info_display)(temp);
-      m->save_filename[0] = 0;
+  if( w->save ) {
+    if( fwrite( buffer, size, count, w->save ) < count ) {
+      fclose( w->save );
+      w->save = NULL;
+      strlcpy( errorbuf, "Error writing to stream save file:\n", sizeof( errorbuf ));
+      strlcat( errorbuf, w->savename, sizeof( errorbuf ));
+      strlcat( errorbuf, "\n", sizeof( errorbuf ));
+      strlcat( errorbuf, strerror( errno ), sizeof( errorbuf ));
+      w->info_display( errorbuf );
+      w->savename[0] = 0;
+      return FALSE;
     }
   }
-  return read;
+  return TRUE;
 }
 
-void
-read_frame_init( void )
-{
-  oldhead   = 0;
-  firsthead = 0;
-}
-
-/*
- * HACK,HACK,HACK...
- * step back <bytes> bytes
- */
-
-int back_pos( DECODER_STRUCT* w, struct frame* fr, int bytes )
+/* Writes the specified MPEG header to the output file. Returns TRUE
+   if it successfully writes the header, or FALSE if any errors were
+   detected. */
+static BOOL
+save_header( unsigned long header, DECODER_STRUCT* w )
 {
   unsigned char buf[4];
-  unsigned long newhead;
-  int donebytes = 0;
 
-  if( w->sockmode ) {
-    return 0;  // this only works on files.
-  }
+  buf[0] = ( header >> 24 ) & 0xFF;
+  buf[1] = ( header >> 16 ) & 0xFF;
+  buf[2] = ( header >>  8 ) & 0xFF;
+  buf[3] = ( header       ) & 0xFF;
 
-  if( xio_fseek( w->filept, -( bytes + 2 * ( fsize+5 )), SEEK_CUR ) < 0 )
-  {
-    donebytes = ftell( w->filept );
-    xio_rewind( w->filept );
-  } else {
-    donebytes = bytes + 2 * ( fsize + 5 );
-  }
-
-  if( xio_fread( buf, 1, 4, w->filept ) != 4 ) {
-    return donebytes;
-  }
-
-  donebytes -= 4;
-
-  newhead = ((unsigned long)buf[0] << 24) |
-            ((unsigned long)buf[1] << 16) |
-            ((unsigned long)buf[2] <<  8) |
-             (unsigned long)buf[3];
-
-  while(( newhead & HDRCMPMASK ) != ( firsthead & HDRCMPMASK )) {
-    if( xio_fread( buf, 1, 1, w->filept ) != 1 ) {
-      return donebytes;
-    }
-
-    donebytes--;
-    newhead <<= 8;
-    newhead |= buf[0];
-    newhead &= 0xFFFFFFFFUL;
-  }
-
-  if( xio_fseek( w->filept, -4, SEEK_CUR ) < 0 ) {
-    return donebytes;
-  }
-
-  donebytes += 4;
-  read_frame( w, fr );
-  read_frame( w, fr );
-  donebytes -= 2 * ( fsize + 4 );
-
-  if( fr->lay == 3 ) {
-    set_pointer( 512 );
-  }
-
-  return donebytes;
+  return save_data( buf, 4, 1, w );
 }
 
-/*
- * HACK,HACK,HACK...
- * step forward <bytes> bytes
-*/
-
-int
-forward_pos( DECODER_STRUCT*w, struct frame* fr, int bytes )
-{
-  unsigned char buf[4];
-  unsigned long newhead;
-  int donebytes = 0;
-
-  if( w->sockmode ) {
-    return 0; // this only works on files.
-  }
-
-  if( xio_fseek( w->filept, bytes - 2 * ( fsize + 3 ), SEEK_CUR ) < 0 ) {
-    return donebytes;
-  } else {
-    donebytes = bytes - 2 * ( fsize + 3 );
-  }
-
-  if( xio_fread( buf, 1, 4, w->filept ) != 4 ) {
-    return donebytes;
-  }
-
-  donebytes += 4;
-
-  newhead = ((unsigned long)buf[0] << 24) |
-            ((unsigned long)buf[1] << 16) |
-            ((unsigned long)buf[2] <<  8) |
-             (unsigned long)buf[3];
-
-  while(( newhead & HDRCMPMASK ) != ( firsthead & HDRCMPMASK )) {
-    if( xio_fread( buf, 1, 1, w->filept ) != 1 ) {
-      return donebytes;
-    }
-
-    donebytes++;
-    newhead <<= 8;
-    newhead |= buf[0];
-    newhead &= 0xFFFFFFFFUL;
-  }
-
-  if( xio_fseek( w->filept, -4, SEEK_CUR ) < 0 ) {
-    return donebytes;
-  }
-
-  donebytes -= 4;
-  read_frame( w, fr );
-  read_frame( w, fr );
-  donebytes += 2 * ( fsize + 4 );
-
-  if( fr->lay == 3 ) {
-    set_pointer( 512 );
-  }
-
-  return donebytes;
-}
-
-int
-seekto_pos( DECODER_STRUCT* w, struct frame* fr, int bytes )
-{
-  unsigned char buf[4];
-  unsigned long newhead;
-  int donebytes = 0;
-  int seektobytes = bytes - 2 * ( fsize + 3 );
-
-  if( w->sockmode ) {
-    return 0; // this only works on files.
-  }
-
-  if( seektobytes < 0 ) {
-    seektobytes = 0;
-  }
-
-  if( xio_fseek( w->filept, seektobytes, SEEK_SET ) < 0 ) {
-    return donebytes;
-  } else {
-    donebytes = seektobytes;
-  }
-
-  if( xio_fread( buf, 1, 4, w->filept ) != 4 ) {
-    return donebytes;
-  }
-
-  donebytes += 4;
-
-  newhead = ((unsigned long)buf[0] << 24) |
-            ((unsigned long)buf[1] << 16) |
-            ((unsigned long)buf[2] <<  8) |
-             (unsigned long)buf[3];
-
-  while(( newhead & HDRCMPMASK ) != ( firsthead & HDRCMPMASK )) {
-    if( xio_fread( buf, 1, 1, w->filept ) != 1 ) {
-      return donebytes;
-    }
-
-    donebytes++;
-    newhead <<= 8;
-    newhead |= buf[0];
-    newhead &= 0xFFFFFFFFUL;
-  }
-
-  if( xio_fseek( w->filept, -4, SEEK_CUR ) < 0 ) {
-    return donebytes;
-  }
-
-  donebytes -= 4;
-  read_frame( w, fr );
-  read_frame( w, fr );
-  donebytes += 2 * ( fsize + 4 );
-
-  if( fr->lay == 3 ) {
-    set_pointer( 512 );
-  }
-
-  return donebytes;
-}
-
-int
-head_read( META_STRUCT* m, unsigned long* newhead )
+/* Reads a MPEG header from the input file. Returns TRUE if it
+   successfully reads a header, or FALSE if any errors were detected. */
+BOOL
+read_header( DECODER_STRUCT* w, unsigned long* header )
 {
   unsigned char buffer[4];
 
-  if( readdata( buffer, 1, 4, m ) != 4 ) {
+  if( xio_fread( buffer, 1, 4, w->file ) != 4 ) {
     return FALSE;
   }
 
-  *newhead = ((unsigned long)buffer[0] << 24) |
-             ((unsigned long)buffer[1] << 16) |
-             ((unsigned long)buffer[2] <<  8) |
-              (unsigned long)buffer[3];
+  *header = ((unsigned long)buffer[0] << 24) |
+            ((unsigned long)buffer[1] << 16) |
+            ((unsigned long)buffer[2] <<  8) |
+             (unsigned long)buffer[3];
 
   return TRUE;
 }
 
-int
-head_check( unsigned long newhead )
+
+BOOL
+read_next_header( DECODER_STRUCT* w, unsigned long* header )
 {
-  if(( newhead & 0xffe00000 ) != 0xffe00000 ) {
+  unsigned char byte;
+
+  if( !xio_fread( &byte, 1, 1, w->file )) {
     return FALSE;
   }
-  if(!(( newhead >> 17 ) & 3 )) {
+
+  *header = (( *header << 8 ) | byte ) & 0xFFFFFFFFUL;
+  return TRUE;
+}
+
+
+/* Returns TRUE if a specified header is the valid MPEG header. */
+BOOL
+is_header_valid( unsigned long header )
+{
+  // First 11 bits are set to 1 for frame sync.
+  if(( header & 0xFFE00000 ) != 0xFFE00000 ) {
     return FALSE;
   }
-  if( (( newhead >> 12 ) & 0xf ) == 0xf ) {
+  // Layer: 01,10,11 is 1,2,3; 00 is reserved.
+  if(!(( header >> 17 ) & 0x3 )) {
     return FALSE;
   }
-  if( (( newhead >> 10 ) & 0x3 ) == 0x3 ) {
+  // 1111 means bad bitrate.
+  if( (( header >> 12 ) & 0xF ) == 0xF ) {
+    return FALSE;
+  }
+  // 0000 means free format.
+  if( (( header >> 12 ) & 0xF ) == 0x0 ) {
+    return FALSE;
+  }
+  // Sampling freq: 11 is reserved.
+  if( (( header >> 10 ) & 0x3 ) == 0x3 ) {
     return FALSE;
   }
   return TRUE;
 }
 
-int
-decode_header( int  newhead, int oldhead, struct frame* fr,
-               int* ssize, void (PM123_ENTRYP error_display)(char*))
+/* Decodes a header and writes the decoded information
+   into the frame structure. Returns TRUE if it successfully
+   decodes a header, or FALSE if any errors were detected. */
+BOOL
+decode_header( DECODER_STRUCT* w, int header, struct frame* fr )
 {
-  int framesize;
+  if( !is_header_valid( header )) {
+    return FALSE;
+  }
 
-  if( newhead & ( 1 << 20 )) {
-    fr->lsf    = ( newhead & ( 1 << 19 )) ? 0x0 : 0x1;
+  if( header & ( 1 << 20 )) {
+    fr->lsf    = ( header & ( 1 << 19 )) ? 0x0 : 0x1;
     fr->mpeg25 = 0;
   } else {
     fr->lsf    = 1;
     fr->mpeg25 = 1;
   }
 
-  if( !oldhead ) {
-    // Assume that certain parameters do not
-    // change within the stream!
-    fr->lay = 4 - (( newhead >> 17 ) & 3 );
-    fr->bitrate_index = (( newhead >> 12 ) & 0xf );
+  fr->lay = 4 - (( header >> 17 ) & 3 );
+  fr->bitrate_index = (( header >> 12 ) & 0xF );
 
-    if((( newhead >> 10 ) & 0x3 ) == 0x3) {
-      if( error_display ) {
-        error_display( "Stream error" );
-      }
-      return 0;
-    }
-    if( fr->mpeg25 ) {
-      fr->sampling_frequency = 6 + (( newhead >> 10 ) & 0x3 );
-    } else {
-      fr->sampling_frequency = (( newhead >> 10 ) & 0x3) + ( fr->lsf * 3 );
-    }
-
-    fr->error_protection = ((newhead>>16)&0x1)^0x1;
+  if( fr->mpeg25 ) {
+    fr->sampling_frequency = 6 + (( header >> 10 ) & 0x3 );
+  } else {
+    fr->sampling_frequency = (( header >> 10 ) & 0x3 ) + ( fr->lsf * 3 );
   }
 
-  fr->bitrate_index = (( newhead >> 12 ) & 0xf );
-  fr->padding       = (( newhead >>  9 ) & 0x1 );
-  fr->extension     = (( newhead >>  8 ) & 0x1 );
-  fr->mode          = (( newhead >>  6 ) & 0x3 );
-  fr->mode_ext      = (( newhead >>  4 ) & 0x3 );
-  fr->copyright     = (( newhead >>  3 ) & 0x1 );
-  fr->original      = (( newhead >>  2 ) & 0x1 );
-  fr->emphasis      = newhead & 0x3;
-  fr->stereo        = ( fr->mode == MPG_MD_MONO ) ? 1 : 2;
+  fr->error_protection = (( header >> 16 ) & 0x1 ) ^ 0x1;
+  fr->bitrate_index    = (( header >> 12 ) & 0xF );
+  fr->padding          = (( header >>  9 ) & 0x1 );
+  fr->extension        = (( header >>  8 ) & 0x1 );
+  fr->mode             = (( header >>  6 ) & 0x3 );
+  fr->mode_ext         = (( header >>  4 ) & 0x3 );
+  fr->copyright        = (( header >>  3 ) & 0x1 );
+  fr->original         = (( header >>  2 ) & 0x1 );
+  fr->emphasis         = header & 0x3;
+  fr->stereo           = ( fr->mode == MPG_MD_MONO ) ? 1 : 2;
 
   if( !fr->bitrate_index ) {
-    if( error_display ) {
-      error_display( "Free format not supported." );
+    if( w->error_display ) {
+      w->error_display( "Free format is not supported." );
     }
-    return 0;
-  }
-
-  if( fr->sampling_frequency >= sizeof(freqs)/sizeof(freqs[0])) {
-    fr->sampling_frequency = sizeof(freqs)/sizeof(freqs[0]) - 1;
+    return FALSE;
   }
 
   switch( fr->lay )
   {
     case 1:
-      fr->do_layer = do_layer1;
-      fr->jsbound  = fr->mode == MPG_MD_JOINT_STEREO ? ( fr->mode_ext << 2 ) + 4 : 32;
-
-      framesize  = (long)tabsel_123[fr->lsf][0][fr->bitrate_index] * 12000;
-      framesize /= freqs[fr->sampling_frequency];
-      framesize  = ((framesize + fr->padding ) << 2 ) - 4;
+      fr->do_layer   = do_layer1;
+      fr->jsbound    = fr->mode == MPG_MD_JOINT_STEREO ? ( fr->mode_ext << 2 ) + 4 : 32;
+      fr->framesize  = (long)tabsel_123[fr->lsf][0][fr->bitrate_index] * 12000;
+      fr->framesize /= freqs[fr->sampling_frequency];
+      fr->framesize  = (( fr->framesize + fr->padding ) << 2 ) - 4;
       break;
 
     case 2:
-      fr->do_layer = do_layer2;
+      fr->do_layer   = do_layer2;
       get_II_stuff( fr );
-      fr->jsbound = fr->mode == MPG_MD_JOINT_STEREO ? ( fr->mode_ext << 2 ) + 4 : fr->II_sblimit;
-      framesize = (long) tabsel_123[fr->lsf][1][fr->bitrate_index] * 144000;
-      framesize /= freqs[fr->sampling_frequency];
-      framesize += fr->padding - 4;
+      fr->jsbound    = fr->mode == MPG_MD_JOINT_STEREO ? ( fr->mode_ext << 2 ) + 4 : fr->II_sblimit;
+      fr->framesize  = (long) tabsel_123[fr->lsf][1][fr->bitrate_index] * 144000;
+      fr->framesize /= freqs[fr->sampling_frequency];
+      fr->framesize  = fr->framesize + fr->padding - 4;
       break;
 
     case 3:
       fr->do_layer = do_layer3;
       if( fr->lsf ) {
-        *ssize = (fr->stereo == 1) ?  9 : 17;
+        fr->ssize = (fr->stereo == 1) ?  9 : 17;
       } else {
-        *ssize = (fr->stereo == 1) ? 17 : 32;
+        fr->ssize = (fr->stereo == 1) ? 17 : 32;
       }
 
       if( fr->error_protection ) {
-        *ssize += 2;
+        fr->ssize += 2;
       }
-      framesize  = (long) tabsel_123[fr->lsf][2][fr->bitrate_index] * 144000;
-      framesize /= freqs[fr->sampling_frequency]<<(fr->lsf);
-      framesize = framesize + fr->padding - 4;
+      fr->framesize  = (long) tabsel_123[fr->lsf][2][fr->bitrate_index] * 144000;
+      fr->framesize /= freqs[fr->sampling_frequency]<<(fr->lsf);
+      fr->framesize  = fr->framesize + fr->padding - 4;
       break;
 
     default:
-      framesize = 0;
+      fr->framesize = 0;
   }
 
-  return framesize;
-}
-
-int
-read_frame( DECODER_STRUCT* w, struct frame* fr )
-{
-  unsigned long newhead = 0;
-  char errorbuf[1024];
-  int l;
-  int try = 0;
-  int rc  = 1;
-
-  static int framesize;
-
-read_again:
-
-  rc = 1;
-  fr->filepos = xio_ftell( w->filept );
-
-  if( !head_read( &w->metastruct, &newhead )) {
-    return FALSE;
-  }
-
-  if( oldhead != newhead || !oldhead )
-  {
-    fr->header_change = 1;
-
-init_resync:
-
-    if( !firsthead && !head_check( newhead ))
-    {
-      int i;
-      unsigned char byte;
-
-      // fprintf( stderr, "Junk at the beginning\n" );
-      // step in byte steps through next 128K
-      for( i = 0; i < 128*1024; i++ ) {
-        if( readdata( &byte, 1, 1, &w->metastruct ) != 1 ) {
-          return 0;
-        }
-
-        newhead <<= 8;
-        newhead |= byte;
-        newhead &= 0xFFFFFFFFUL;
-
-        if( head_check( newhead )) {
-          break;
-        }
-      }
-      if( i == 128*1024 ) {
-        // fprintf( stderr, "Giving up searching valid MPEG header\n" );
-        return 0;
-      }
-
-      // Should we check, whether a new frame starts at the next
-      // expected position (some kind of read ahead)?
-      // We could implement this easily, at least for files.
-    }
-
-    if(( newhead & 0xffe00000 ) != 0xffe00000 )
-    {
-      unsigned char byte;
-
-      sprintf( errorbuf, "Illegal Audio-MPEG-Header 0x%08lx at offset 0x%lx.",
-               newhead, xio_ftell( w->filept ) - 4 );
-      w->error_display( errorbuf );
-
-      // Read more bytes until we find something that looks
-      // reasonably like a valid header. This is not a
-      // perfect strategy, but it should get us back on the
-      // track within a short time ( and hopefully without
-      // too much distortion in the audio output ).
-
-      do {
-        try++;
-        if( readdata( &byte, 1, 1, &w->metastruct ) != 1 ) {
-          return 0;
-        }
-
-        // This is faster than combining newhead from scratch.
-        newhead = (( newhead << 8 ) | byte ) & 0xFFFFFFFFUL;
-
-        if( !oldhead ) {
-          goto init_resync; // "considered harmful", eh?
-        }
-
-      } while (( newhead & HDRCMPMASK ) != ( oldhead   & HDRCMPMASK )
-            && ( newhead & HDRCMPMASK ) != ( firsthead & HDRCMPMASK ));
-
-      sprintf( errorbuf, "Skipped %d bytes in input.", try );
-      w->error_display( errorbuf );
-    }
-    framesize = decode_header( newhead, oldhead, fr, &ssize, w->error_display );
-  } else {
-    fr->header_change = 0;
-  }
-
-  if( !firsthead )
-  {
-    int i;
-
-    if( xio_ftell( w->filept ) > 256*1024 ) {
-      return 0; // we can't find a first header.
-    }
-
-    if( framesize <= 0 ) {
-      goto read_again;
-    }
-
-    if( w->sockmode )
-    {
-      unsigned long head;
-      int           ssize;
-      struct frame  fr;
-
-      for( i = 0; i < 2; i++ )
-      {
-        char* data = (char*)alloca( framesize );
-
-        if( readdata( data, 1, framesize, &w->metastruct ) == framesize &&
-            head_read( &w->metastruct, &head ))
-        {
-          if(( head & HDRCMPMASK ) != ( newhead & HDRCMPMASK )) {
-            goto read_again;
-          } else {
-            framesize = decode_header( head, 0, &fr, &ssize, w->error_display );
-          }
-        } else {
-          return 0;
-        }
-      }
-    } else {
-
-      int           seek_back = 0;
-      int           fsize     = framesize;
-      unsigned long head;
-      int           ssize;
-      struct frame  fr;
-
-      for( i = 0; i < 8; i++ ) {
-        if( xio_fseek( w->filept, fsize, SEEK_CUR ) == 0 &&
-            head_read( &w->metastruct, &head ))
-        {
-          seek_back -= ( fsize + 4 );
-          if(( head & HDRCMPMASK ) != ( newhead & HDRCMPMASK )) {
-            xio_fseek( w->filept, seek_back, SEEK_CUR );
-            goto read_again;
-          } else {
-            fsize = decode_header( head, 0, &fr, &ssize, w->error_display );
-          }
-        } else {
-          return 0;
-        }
-      }
-
-      xio_fseek( w->filept, seek_back, SEEK_CUR );
-    }
-
-    firsthead = newhead;
-
-    // For VBR event.
-    w->old_bitrate = tabsel_123[fr->lsf][fr->lay-1][fr->bitrate_index];
-    // For position calculation.
-    w->avg_bitrate = tabsel_123[fr->lsf][fr->lay-1][fr->bitrate_index];
-
-    if( w->avg_bitrate <= 0 ) {
-      w->avg_bitrate = 1;
-    }
-
-    // Let's try to find a xing VBR header.
-    if( fr->lay == 3 )
-    {
-      char* buf = alloca( framesize + 4 );
-
-      buf[0] = ( firsthead >> 24) & 0xFF;
-      buf[1] = ( firsthead >> 16) & 0xFF;
-      buf[2] = ( firsthead >>  8) & 0xFF;
-      buf[3] = ( firsthead      ) & 0xFF;
-
-      if( w->sockmode ) {
-        readdata( buf + 4, 1, framesize, &w->metastruct );
-      } else {
-        xio_fread( buf + 4, 1, framesize, w->filept );
-      }
-
-      w->XingHeader.toc = w->XingTOC;
-      GetXingHeader( &w->XingHeader, buf );
-
-      if( w->XingHeader.flags && !( w->XingHeader.flags & BYTES_FLAG )) {
-        w->XingHeader.bytes  = xio_fsize( w->metastruct.filept );
-        w->XingHeader.flags |= BYTES_FLAG;
-      }
-
-      // If we can't seek back, let's just read the next frame.
-      if( xio_fseek( w->filept, -framesize, SEEK_CUR ) != 0 ) {
-        goto read_again;
-      }
-    }
-  }
-
-  if( rc == 0 ) {
-    return rc;
-  }
-
-  if( framesize <= 0 ) {
-    goto read_again;
-  }
-
-  oldhead = newhead;
-
-  fsizeold = fsize; // for Layer3
-  bsbufold = bsbuf;
-  bsbuf    = bsspace[bsnum]+512;
-  bsnum    = ( bsnum + 1) & 1;
-  fsize    = min( framesize, MAXFRAMESIZE );
-
-  if(( l = readdata( bsbuf, 1, fsize, &w->metastruct )) != fsize )
-  {
-    if( l <= 0 ) {
-      return 0;
-    }
-
-    memset( bsbuf + l, 0, fsize - l );
-  }
-
-  bitindex    = 0;
-  wordpointer = (unsigned char*)bsbuf;
-
-  if( tabsel_123[fr->lsf][fr->lay-1][fr->bitrate_index] != w->old_bitrate )
-  {
-     WinPostMsg( w->hwnd, WM_CHANGEBR,
-                 MPFROMLONG( tabsel_123[fr->lsf][fr->lay-1][fr->bitrate_index]), 0 );
-
-     w->old_bitrate = tabsel_123[fr->lsf][fr->lay-1][fr->bitrate_index];
-  }
-
-  return 1;
-}
-
-/* Open the device to read the bit stream from it. */
-int
-open_stream( DECODER_STRUCT* w, char* bs_filenam, int fd, int buffersize, int bufferwait )
-{
-  w->sockmode      = 0;
-  w->filept_opened = 1;
-  w->metastruct.data_until_meta    = -1; // unknown
-  w->metastruct.metadata_buffer[0] =  0;
-
-  if( !bs_filenam ) {
-    if( fd < 0 ) {
-      w->filept = w->metastruct.filept = stdin;
-      w->filept_opened = 0;
-    } else {
-      w->filept = fdopen( fd, "r" );
-    }
-  } else if( is_http( bs_filenam )) {
-    w->sockmode = HTTP;
-  }
-
-  if(!( w->metastruct.filept = w->filept = xio_fopen( bs_filenam, "rb", w->sockmode, buffersize, bufferwait )))
-  {
-    char errorbuf[1024];
-    if( w->sockmode ) {
-      strcpy ( errorbuf, http_strerror());
-    } else {
-      sprintf( errorbuf,"%s: %s",bs_filenam, strerror( sockfile_errno( w->sockmode )));
-    }
-    w->error_display( errorbuf );
+  if( fr->framesize > MAXFRAMESIZE ) {
     return FALSE;
   }
 
   return TRUE;
 }
 
-/* Close the device containing the bit stream after a read process. */
-void
-close_stream( DECODER_STRUCT* w )
-{
-  if( w->filept_opened )
-  {
-    xio_fclose( w->filept );
-    w->filept_opened = FALSE;
-  }
+/* This function must be called after opening a new played file
+   and before first call of the read_frame function. */
+BOOL
+read_initialize( DECODER_STRUCT* w, struct frame* fr ) {
+  return read_first_frame_header( w, fr, &firsthead );
 }
 
-int
-bufferstatus_stream( DECODER_STRUCT* w )
+/* Skips a ID3v2 tag's data and reads a next MPEG header from the
+   input file. Returns TRUE if it successfully reads a header, or
+   FALSE if any errors were detected. */
+static BOOL
+skip_id3v2_tag( DECODER_STRUCT* w, unsigned long* header )
 {
-  if( w->filept_opened ) {
-    return sockfile_bufferstatus( w->filept );
-  } else {
-    return -1;
-  }
-}
+  unsigned long size;
+  char* buffer;
 
-int
-nobuffermode_stream( DECODER_STRUCT* w, int nobuffermode )
-{
-  if( w->filept_opened && !w->sockmode ) {
-    return sockfile_nobuffermode( w->filept, nobuffermode) ;
-  } else {
+  if( !read_next_header( w, header )) {
     return FALSE;
   }
+
+  // Version or revision will never be 0xFF.
+  if((( *header & 0x0000FF00 ) == 0x0000FF00 ) ||
+     (( *header & 0x000000FF ) == 0x000000FF ))
+  {
+    return TRUE;
+  }
+
+  // Skips flags.
+  if( !read_next_header( w, header )) {
+    return FALSE;
+  }
+
+  if( !read_header( w, header )) {
+    return FALSE;
+  }
+
+  // Must be a 32 bit synchsafe integer.
+  if( *header & 0x80808080UL ) {
+    return TRUE;
+  }
+
+  size = (( *header & 0xFF000000UL ) >> 3 ) |
+         (( *header & 0x00FF0000UL ) >> 2 ) |
+         (( *header & 0x0000FF00UL ) >> 1 ) |
+          ( *header & 0x000000FFUL );
+
+  if(!( buffer = malloc( size ))) {
+    return FALSE;
+  }
+
+  if( xio_fread( buffer, 1, size, w->file ) != size ) {
+    free( buffer );
+    return FALSE;
+  }
+
+  free( buffer );
+  DEBUGLOG(( "mpg123: skipped %d bytes of the ID3v2 tag up to %d.\n", size + 10, xio_ftell( w->file )));
+  return read_header( w, header );
+}
+
+/* Searches a first frame header and decodes it. After completion of
+   this function a stream pointer can point to header of the
+   following frame. Do not use the received results for reading
+   the frame! */
+BOOL
+read_first_frame_header( DECODER_STRUCT* w, struct  frame* fr,
+                                            unsigned long* header )
+{
+  int read_ahead = xio_can_seek( w->file ) < 2 ? 2 : 32;
+  int done_ahead;
+  int back_ahead;
+  int resync = 0;
+
+  if( !read_header( w, header )) {
+    return FALSE;
+  }
+
+  // I even saw RIFF headers at the beginning of MPEG streams ;(
+  if( IS_4CH_TAG( *header, 'R','I','F','F' )) {
+    while( !IS_4CH_TAG( *header, 'd','a','t','a' )) {
+      if( !read_next_header( w, header )) {
+        return FALSE;
+      }
+      if( ++resync > MAXRESYNC ) {
+        // Giving up searching valid MPEG header.
+        errno = 200;
+        return FALSE;
+      }
+    }
+    if( !read_header( w, header )) {
+      return FALSE;
+    }
+    DEBUGLOG(( "mpg123: skipped RIFF header up to %d.\n", xio_ftell( w->file )));
+  }
+
+  while( !decode_header( w, *header, fr ))
+  {
+
+read_again:
+
+    // Step in byte steps through next data.
+    while( ++resync < MAXRESYNC ) {
+      if( IS_3CH_TAG( *header, 'I','D','3' )) {
+        if( !skip_id3v2_tag( w, header )) {
+          return FALSE;
+        } else {
+          if( is_header_valid( *header )) {
+            break;
+          }
+        }
+      }
+      if( !read_next_header( w, header )) {
+        return FALSE;
+      }
+      if( is_header_valid( *header )) {
+        break;
+      }
+    }
+    if( resync > MAXRESYNC ) {
+      // Giving up searching valid MPEG header.
+      DEBUGLOG(( "mpg123: giving up searching valid MPEG header...\n" ));
+      errno = 200;
+      return FALSE;
+    }
+  }
+
+  back_ahead = 0;
+  done_ahead = 0;
+  w->xing_header.flags = 0;
+
+  if( fr->lay == 3 )
+  {
+    // Let's try to find a XING VBR header.
+    char buf[MAXFRAMESIZE];
+
+    buf[0] = ( *header >> 24 ) & 0xFF;
+    buf[1] = ( *header >> 16 ) & 0xFF;
+    buf[2] = ( *header >>  8 ) & 0xFF;
+    buf[3] = ( *header       ) & 0xFF;
+
+    if( xio_fread( buf + 4, 1, fr->framesize, w->file ) != fr->framesize ) {
+      return FALSE;
+    }
+
+    back_ahead -= fr->framesize;
+    done_ahead++;
+
+    if( GetXingHeader( &w->xing_header, buf )) {
+      if( w->xing_header.flags && !( w->xing_header.flags & BYTES_FLAG ))
+      {
+        w->xing_header.bytes  = xio_fsize( w->file ) - xio_ftell( w->file ) - back_ahead + 4;
+        w->xing_header.flags |= BYTES_FLAG;
+      }
+      // If there was a XING VBR header, it means precisely a mp3 file and
+      // we do not need to look ahead.
+      DEBUGLOG(( "mpg123: found a valid XING header.\n" ));
+      goto done;
+    } else {
+      unsigned long next;
+
+      // To pass a first step of a look ahead.
+      if( !read_header( w, &next )) {
+        return FALSE;
+      }
+
+      back_ahead -= 4;
+
+      if(( next & HDRCMPMASK ) != ( *header & HDRCMPMASK ) ||
+          !decode_header( w, next, fr ))
+      {
+        xio_fseek( w->file, back_ahead, XIO_SEEK_CUR );
+        goto read_again;
+      }
+    }
+  }
+
+  for( ; done_ahead < read_ahead; done_ahead++ )
+  {
+    unsigned long next;
+    char data[MAXFRAMESIZE];
+
+    if( xio_fread( data, 1, fr->framesize, w->file ) == fr->framesize &&
+        read_header( w, &next ))
+    {
+      back_ahead -= ( fr->framesize + 4 );
+
+      if(( next & HDRCMPMASK ) != ( *header & HDRCMPMASK ) ||
+          !decode_header( w, next, fr ))
+      {
+        xio_fseek( w->file, back_ahead, XIO_SEEK_CUR );
+        goto read_again;
+      }
+    } else {
+      return FALSE;
+    }
+  }
+
+done:
+
+  w->started = xio_ftell( w->file ) + back_ahead - 4;
+  // xio_fseek( w->file, back_ahead - 4, XIO_SEEK_CUR );
+  xio_fseek( w->file, w->started, XIO_SEEK_SET );
+  // Restore a first frame broken by previous tests.
+  decode_header( w, *header, fr );
+
+  // For VBR event.
+  w->obr = tabsel_123[fr->lsf][fr->lay-1][fr->bitrate_index];
+  // For position calculation.
+  w->abr = tabsel_123[fr->lsf][fr->lay-1][fr->bitrate_index];
+
+  DEBUGLOG(( "mpg123: data stream is started at %d.\n", xio_ftell( w->file )));
+  return TRUE;
+}
+
+/* Reads a next valid header and decodes it. Returns TRUE if it
+   successfully reads a header, or FALSE if any errors were detected. */
+static BOOL
+read_synchronize( DECODER_STRUCT* w, struct  frame* fr,
+                                     unsigned long* header )
+{
+  int resync = 0;
+
+  if( !read_header( w, header )) {
+    return FALSE;
+  }
+
+  while(( *header & HDRCMPMASK ) != ( firsthead & HDRCMPMASK )
+       || !decode_header( w, *header, fr ))
+  {
+    if( IS_3CH_TAG( *header, 'T','A','G' )
+        && ( xio_fsize( w->file ) - xio_ftell( w->file ) == 124 ))
+    {
+      // Found ID3v1 tag.
+      DEBUGLOG(( "mpg123: skipped ID3v1 tag.\n" ));
+      return FALSE;
+    }
+    if( IS_3CH_TAG( *header, 'I','D','3' )) {
+      if( !skip_id3v2_tag( w, header )) {
+        return FALSE;
+      } else {
+        continue;
+      }
+    }
+    if( !read_next_header( w, header )) {
+      return FALSE;
+    }
+    if( ++resync > MAXRESYNC ) {
+      return FALSE;
+    }
+  }
+
+  return TRUE;
+}
+
+/* Reads a next valid frame and decodes it. Returns TRUE if it
+   successfully reads a frame, or FALSE if any errors were detected. */
+BOOL
+read_frame( DECODER_STRUCT* w, struct frame* fr )
+{
+  unsigned long header;
+  int done;
+
+  if( !read_synchronize( w, fr, &header )) {
+    return FALSE;
+  }
+
+  // Position from the beginning of the data stream.
+  fr->filepos = xio_ftell( w->file ) - 4 - w->started;
+
+  fsizeold = fsize; // for Layer3
+  bsbufold = bsbuf;
+  bsbuf    = bsspace[bsnum] + 512;
+  bsnum    = ( bsnum + 1 ) & 1;
+  fsize    = fr->framesize;
+
+  if(( done = xio_fread( bsbuf, 1, fr->framesize, w->file )) != fr->framesize ) {
+    if( done <= 0 ) {
+      return FALSE;
+    }
+
+    memset( bsbuf + done, 0, fr->framesize - done );
+  }
+
+  save_header( header, w );
+  save_data( bsbuf, 1, fr->framesize, w );
+
+  bitindex = 0;
+  wordpointer = (unsigned char*)bsbuf;
+
+  if( tabsel_123[fr->lsf][fr->lay-1][fr->bitrate_index] != w->obr )
+  {
+     w->obr = tabsel_123[fr->lsf][fr->lay-1][fr->bitrate_index];
+     WinPostMsg( w->hwnd, WM_CHANGEBR, MPFROMLONG( w->obr ), 0 );
+  }
+
+  return TRUE;
+}
+
+/* Changes the current file position to a new location within the file
+   and synchronize the data stream. Returns TRUE if it successfully
+   moves the pointer. */
+BOOL
+seekto_pos( DECODER_STRUCT* w, struct frame* fr, int bytes )
+{
+  unsigned long header;
+  int seektobytes = bytes - 2 * ( fr->framesize + 3 );
+
+  if( !xio_can_seek( w->file )) {
+    // This only works on files.
+    return FALSE;
+  }
+
+  if( seektobytes < 0 ) {
+      seektobytes = w->started;
+  }
+
+  if( xio_fseek( w->file, seektobytes, XIO_SEEK_SET ) < 0 ) {
+    return FALSE;
+  }
+
+  if( read_synchronize( w, fr, &header )) {
+    if( xio_fseek( w->file, -4, XIO_SEEK_CUR ) == 0 )
+    {
+      read_frame( w, fr );
+      read_frame( w, fr );
+
+      if( fr->lay == 3 ) {
+        set_pointer( 512, fr );
+      }
+      return TRUE;
+    }
+  }
+
+  return FALSE;
 }
 
 #if !defined( I386_ASSEM ) || defined( DEBUG_GETBITS )
@@ -931,9 +760,9 @@ get1bit( void )
 #endif
 
 void
-set_pointer( long backstep )
+set_pointer( long backstep, struct frame* fr )
 {
-  wordpointer = bsbuf + ssize - backstep;
+  wordpointer = bsbuf + fr->ssize - backstep;
   if( backstep ) {
     memcpy( wordpointer, bsbufold + fsizeold - backstep, backstep );
   }

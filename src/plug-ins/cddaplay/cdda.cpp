@@ -90,12 +90,10 @@ typedef struct _CDDAPLAY
    BOOL stop,rew,ffwd;
    int jumpto;
    int status;
-
-   ULONG decodertid;
+   int decodertid;
 
    void (PM123_ENTRYP error_display)(char *);
 
-   HEV playsem;
    HWND hwnd;
 
    int last_length; // keeps the last length in memory to calls to
@@ -133,33 +131,6 @@ typedef struct
 
 CDDA_SETTINGS settings = {0};  // configuration settings
 
-/* Returns the character set currently used by PM123. */
-/*static int
-query_pm123_charset( void )
-{
-  PPIB  ppib;
-  PTIB  ptib;
-  HINI  hini;
-  char  exefile[_MAX_PATH];
-  char  inifile[_MAX_PATH];
-
-  struct { int charset; } cfg = { CH_DEFAULT };
-
-  DosGetInfoBlocks( &ptib, &ppib );
-  DosQueryModuleName( ppib->pib_hmte, sizeof(exefile), exefile );
-
-  _splitpath( exefile, NULL, inifile, NULL, NULL );
-  strcat( inifile, "pm123.ini" );
-
-  hini = open_ini( inifile );
-
-  if( hini ) {
-    load_ini_value( hini, cfg.charset );
-    close_ini( hini );
-  }
-
-  return cfg.charset;
-}*/
 
 static void TFNENTRY decoder_thread(void *arg)
 {
@@ -181,15 +152,12 @@ static void TFNENTRY decoder_thread(void *arg)
       startbuffer = buffer;
 
       c->last_length = -1;
-
-      DosResetEventSem(c->playsem,&resetcount);
       DosPostEventSem(c->ok);
 
       if( !c->CD.open(c->drive) || !c->CD.readCDInfo() || !c->CD.fillTrackInfo())
       {
          WinPostMsg(c->hwnd,WM_PLAYERROR,0,0);
          c->status = DECODER_STOPPED;
-         DosPostEventSem(c->playsem);
          continue;
       }
 
@@ -275,9 +243,7 @@ static void TFNENTRY decoder_thread(void *arg)
       c->status = DECODER_STOPPED;
       c->CD.close();
 
-      DosPostEventSem(c->playsem);
       WinPostMsg(c->hwnd,WM_PLAYSTOP,0,0);
-
       DosPostEventSem(c->ok);
    }
 }
@@ -294,7 +260,7 @@ int PM123_ENTRY decoder_init(void **C)
    DosCreateEventSem(NULL,&c->ok,0,FALSE);
 
    c->decodertid = _beginthread(decoder_thread,0,64*1024,(void *) c);
-   if(c->decodertid != -1UL)
+   if(c->decodertid != -1)
       return c->decodertid;
    else
    {
@@ -386,11 +352,7 @@ ULONG PM123_ENTRY decoder_command(void *C, ULONG msg, DECODER_PARAMS *params)
          c->buffersize = params->audio_buffersize;
          c->error_display = params->error_display;
          c->CD.error_display = params->error_display;
-
          c->hwnd = params->hwnd;
-         c->playsem = params->playsem;
-         DosPostEventSem(c->playsem);
-
          break;
    }
    return 0;
@@ -837,8 +799,6 @@ ULONG PM123_ENTRY decoder_trackinfo(const char *drive, int track, DECODER_INFO *
 
    memset(info,0,sizeof(*info));
    info->size = sizeof(*info);
-   info->mpeg = 0;
-   info->numchannels = 0;
 
    if(lastCD.getDriveLetter() == NULL || drive[0] != (lastCD.getDriveLetter())[0])
    {

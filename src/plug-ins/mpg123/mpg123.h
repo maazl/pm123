@@ -10,52 +10,23 @@
 #include <stdio.h>
 #include <string.h>
 #include <math.h>
+#include <float.h>
 
-#include <utilfct.h>
-#include <httpget.h>
-#include <sockfile.h>
-#include <decoder_plug.h>
-#include <plugin.h>
-
-#if !defined(WIN32) && !defined(OS2)
-#include <sys/signal.h>
-#include <unistd.h>
-#endif
-
+#include "utilfct.h"
+#include "decoder_plug.h"
+#include "plugin.h"
+#include "xio.h"
 #include "dxhead.h"
 
 #if defined( OS2 )
-  #include <float.h>
+
   #ifndef M_PI
-    #define M_PI    3.14159265358979323846
+  #define M_PI    3.14159265358979323846
   #endif
   #ifndef M_SQRT2
-    #define M_SQRT2 1.41421356237309504880
+  #define M_SQRT2 1.41421356237309504880
   #endif
   #define REAL_IS_FLOAT
-#endif
-
-#if defined( HPUX )
-  #define random  rand
-  #define srandom srand
-#endif
-
-#if defined( _WIN32 )
-  /* Win32 Additions By Tony Million */
-  #undef  WIN32
-  #define WIN32
-
-  #define M_PI       3.14159265358979323846
-  #define M_SQRT2    1.41421356237309504880
-  #define REAL_IS_FLOAT
-  #define NEW_DCT9
-
-  #define random  rand
-  #define srandom srand
-#endif
-
-#ifdef SUNOS
-#define memmove(dst,src,size) bcopy(src,dst,size)
 #endif
 
 #if defined( REAL_IS_FLOAT )
@@ -66,87 +37,60 @@
   #define real double
 #endif
 
-#if !defined( NAS )
-  #if defined( LINUX ) || defined( __FreeBSD__ ) || defined( __bsdi__ )
-    #define VOXWARE
-  #endif
-#endif
-
-#define WRITE_SAMPLE(samples,sum,clip) \
-{                                      \
-  int temp = sum;                      \
-  if( temp > 32767 ) {                 \
-    *samples = 0x7fff;                 \
-     clip++;                           \
-  } else if( temp < -32768 ) {         \
-    *samples = -0x8000;                \
-     clip++;                           \
-  } else {                             \
-    *samples = temp;                   \
-  }                                    \
+#define WRITE_SAMPLE( samples, sum, clip ) \
+{                                          \
+  int temp = sum;                          \
+  if( temp > 32767 ) {                     \
+    *samples = 0x7fff;                     \
+     clip++;                               \
+  } else if( temp < -32768 ) {             \
+    *samples = -0x8000;                    \
+     clip++;                               \
+  } else {                                 \
+    *samples = temp;                       \
+  }                                        \
 }
 
-#define HDRCMPMASK 0xFFFF0D00UL
+#define HDRCMPMASK   0xFFFF0D00UL
+#define MAXFRAMESIZE 1792 // max = 1728
+#define MAXRESYNC    65535
 
-typedef struct
+typedef struct _DECODER_STRUCT
 {
-   SOCKFILE* filept;
-   HWND  hwnd;
+   XFILE* file;
+   char   filename[_MAX_PATH];
+   FILE*  save;
+   char   savename[_MAX_PATH];
 
-   int   data_until_meta;
-   char* metadata_buffer;
-   int   metadata_size;
+   XHEADDATA     xing_header;
+   unsigned char xing_TOC[100];
+   FORMAT_INFO   output_format;
 
-   char  save_filename[512];
-   FILE* save_file;
-
-   void (PM123_ENTRYP info_display)(char*);
-
-} META_STRUCT;
-
-int    head_read ( META_STRUCT* m, unsigned long* newhead );
-int    head_check( unsigned long newhead );
-size_t readdata  ( void* buffer, size_t size, size_t count, META_STRUCT* m );
-
-typedef struct
-{
-   SOCKFILE* filept;
-   int   filept_opened;
-   int   sockmode;
-
-   XHEADDATA     XingHeader;
-   unsigned char XingTOC[100];
-
-   HEV   play;          // For internal use to sync the decoder thread.
-   HEV   ok;            // For internal use to sync the decoder thread.
-   ULONG decodertid;
-   char  filename[1024];
-   int   stop;
-   int   rew;
-   int   ffwd;
+   HEV   play;            // For internal use to sync the decoder thread.
+   HEV   ok;              // For internal use to sync the decoder thread.
+   HMTX  mutex;           // For internal use to sync the decoder thread.
+   ULONG decodertid;      // Decoder thread indentifier.
+   BOOL  stop;
+   BOOL  frew;
+   BOOL  ffwd;
    int   jumptopos;
    ULONG status;
-   HEV   playsem;       // Is for external use.
-   HWND  hwnd;          // PM interface main frame.
-   int   buffersize;
-   int   bufferwait;
-   int   last_length;
-   BOOL  end;           // To get out of the infinite loop.
-   int   old_bitrate;
-   int   avg_bitrate;
+   HWND  hwnd;            // PM interface main frame window handle.
+   int   obr;             // For VBR event.
+   int   abr;             // For position calculation.
+   int   started;         // Position of the beginning of the data stream.
 
-   FORMAT_INFO output_format;
-   META_STRUCT metastruct;
+   char* metadata_buff;
+   int   metadata_size;
 
-   void (PM123_ENTRYP error_display)(char*);
-   int  (PM123_ENTRYP output_play_samples)(void* a, const FORMAT_INFO* format, const char* buf, int len, int posmarker );
-   void* a;             // Only to be used with the precedent function.
+   void (PM123_ENTRYP error_display)( char* );
+   void (PM123_ENTRYP info_display )( char* );
+   int  (PM123_ENTRYP output_play_samples)( void* a, const FORMAT_INFO* format, const char* buf, int len, int posmarker );
+
+   void* a;               // Only to be used with the precedent function.
    int   audio_buffersize;
 
 } DECODER_STRUCT;
-
-#define FALSE                  0
-#define TRUE                   1
 
 #define SBLIMIT               32
 #define SCALE_BLOCK           12
@@ -166,8 +110,8 @@ struct al_table
 struct frame {
 
     struct al_table *alloc;
-    int (*synth)(real *,int,unsigned char *);
-    int (*synth_mono)(real *,unsigned char *);
+    int (*synth)( real*, int, unsigned char* );
+    int (*synth_mono)( real*, unsigned char* );
     int stereo;
     int jsbound;
     int single;
@@ -175,10 +119,9 @@ struct frame {
     int lsf;
     int mpeg25;
     int down_sample;
-    int header_change;
     int block_size;
     int lay;
-    int (*do_layer)(DECODER_STRUCT *w, struct frame *fr);
+    int (*do_layer)( DECODER_STRUCT* w, struct frame* fr );
     int error_protection;
     int bitrate_index;
     int sampling_frequency;
@@ -189,14 +132,15 @@ struct frame {
     int copyright;
     int original;
     int emphasis;
-    int filepos;    /* bytes */
+    int framesize;
+    int ssize;
+    int filepos;    // Position from the beginning of the data stream.
 };
 
 struct flags {
 
    int equalizer;
    int mp3_eq;
-   int aggressive;  /* Renice to max. priority. */
 };
 
 extern int mmx_enable;
@@ -250,47 +194,44 @@ extern unsigned int get1bit( void );
 extern unsigned int getbits( int );
 extern unsigned int getbits_fast( int );
 
-extern void set_pointer( long );
-extern int  bufferstatus_stream( DECODER_STRUCT* w );
-extern int  nobuffermode_stream( DECODER_STRUCT* w, int nobuffermode );
-extern int  output_flush( DECODER_STRUCT* w, struct frame* fr );
-extern int  open_stream( DECODER_STRUCT* w, char* bs_filenam, int fd, int buffersize, int bufferwait );
-extern void close_stream( DECODER_STRUCT* w );
-extern long tell_stream( DECODER_STRUCT* w );
-extern void read_frame_init( void );
-extern int  read_frame( DECODER_STRUCT* w, struct frame* fr );
-extern int  back_pos( DECODER_STRUCT* w, struct frame* fr, int bytes );
-extern int  forward_pos( DECODER_STRUCT* w, struct frame* fr,int bytes );
-extern int  decode_header( int newhead, int oldhead, struct frame* fr, int* ssize, void (PM123_ENTRYP error_display)(char*));
-extern int  seekto_pos( DECODER_STRUCT* w, struct frame* fr, int bytes );
-extern int  do_layer3( DECODER_STRUCT* w, struct frame*fr );
-extern void clear_layer3( void );
-extern int  do_layer2( DECODER_STRUCT* w, struct frame* fr );
-extern int  do_layer1( DECODER_STRUCT* w, struct frame* fr );
-extern void do_equalizer( real* bandPtr, int channel );
-extern void do_mp3eq( real* bandPtr, int channel );
-extern void init_eq( int rate );
-extern int  synth_1to1( real*, int, unsigned char* );
-extern int  synth_1to1_8bit( real*, int, unsigned char* );
-extern int  synth_2to1( real*, int, unsigned char* );
-extern int  synth_2to1_8bit( real*, int, unsigned char* );
-extern int  synth_4to1( real*, int, unsigned char* );
-extern int  synth_4to1_8bit( real*, int, unsigned char* );
-extern int  synth_1to1_mono( real*, unsigned char* );
-extern int  synth_1to1_mono2stereo( real*, unsigned char* );
-extern int  synth_1to1_8bit_mono( real*, unsigned char* );
-extern int  synth_1to1_8bit_mono2stereo( real*, unsigned char* );
-extern int  synth_2to1_mono( real*, unsigned char* );
-extern int  synth_2to1_mono2stereo( real*, unsigned char* );
-extern int  synth_2to1_8bit_mono( real*, unsigned char* );
-extern int  synth_2to1_8bit_mono2stereo( real*, unsigned char* );
-extern int  synth_4to1_mono( real*, unsigned char* );
-extern int  synth_4to1_mono2stereo( real*, unsigned char* );
-extern int  synth_4to1_8bit_mono( real*, unsigned char* );
-extern int  synth_4to1_8bit_mono2stereo( real*, unsigned char* );
-extern void init_layer3( int );
-extern void init_layer2( int );
-extern void make_conv16to8_table( int );
+extern BOOL   read_header( DECODER_STRUCT* w, unsigned long* header );
+extern BOOL   read_next_header( DECODER_STRUCT* w, unsigned long* header );
+extern BOOL   read_initialize( DECODER_STRUCT* w, struct frame* fr );
+extern BOOL   read_first_frame_header( DECODER_STRUCT* w, struct frame* fr, unsigned long* header );
+extern BOOL   is_header_valid( unsigned long header );
+extern BOOL   output_flush( DECODER_STRUCT* w, struct frame* fr );
+extern BOOL   seekto_pos( DECODER_STRUCT* w, struct frame* fr, int bytes );
+extern BOOL   decode_header( DECODER_STRUCT* w, int header, struct frame* fr );
+extern void   set_pointer( long, struct frame* fr );
+extern BOOL   read_frame( DECODER_STRUCT* w, struct frame* fr );
+extern int    do_layer3( DECODER_STRUCT* w, struct frame*fr );
+extern void   clear_layer3( void );
+extern int    do_layer2( DECODER_STRUCT* w, struct frame* fr );
+extern int    do_layer1( DECODER_STRUCT* w, struct frame* fr );
+extern void   do_equalizer( real* bandPtr, int channel );
+extern void   do_mp3eq( real* bandPtr, int channel );
+extern void   init_eq( int rate );
+extern int    synth_1to1( real*, int, unsigned char* );
+extern int    synth_1to1_8bit( real*, int, unsigned char* );
+extern int    synth_2to1( real*, int, unsigned char* );
+extern int    synth_2to1_8bit( real*, int, unsigned char* );
+extern int    synth_4to1( real*, int, unsigned char* );
+extern int    synth_4to1_8bit( real*, int, unsigned char* );
+extern int    synth_1to1_mono( real*, unsigned char* );
+extern int    synth_1to1_mono2stereo( real*, unsigned char* );
+extern int    synth_1to1_8bit_mono( real*, unsigned char* );
+extern int    synth_1to1_8bit_mono2stereo( real*, unsigned char* );
+extern int    synth_2to1_mono( real*, unsigned char* );
+extern int    synth_2to1_mono2stereo( real*, unsigned char* );
+extern int    synth_2to1_8bit_mono( real*, unsigned char* );
+extern int    synth_2to1_8bit_mono2stereo( real*, unsigned char* );
+extern int    synth_4to1_mono( real*, unsigned char* );
+extern int    synth_4to1_mono2stereo( real*, unsigned char* );
+extern int    synth_4to1_8bit_mono( real*, unsigned char* );
+extern int    synth_4to1_8bit_mono2stereo( real*, unsigned char* );
+extern void   init_layer3( int );
+extern void   init_layer2( int );
+extern void   make_conv16to8_table( int );
 
 extern void _Optlink make_decode_tables( long scale );
 extern void _Optlink dct64_MMX( short*, short*, real* );

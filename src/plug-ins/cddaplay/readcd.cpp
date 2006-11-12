@@ -304,7 +304,7 @@ BOOL CD_drive::getUPC(char UPC[7])
    memcpy(tag,TAG,4);
 
    rc = DosDevIOCtl(hCDDrive, IOCTL_CDROMDISK, CDROMDISK_GETUPC,
-                    &tag, ulParamLen, &ulParamLen,
+                    tag, ulParamLen, &ulParamLen,
                     &getUPCData, ulDataLen, &ulDataLen);
 
    if(rc)

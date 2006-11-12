@@ -1,15 +1,7 @@
-#ifndef __PM123_FORMAT_H
-#define __PM123_FORMAT_H
+#ifndef  PM123_FORMAT_H
+#define  PM123_FORMAT_H
 
-#ifndef PM123_ENTRY
-  #if defined(__IBMC__) || defined(__IBMCPP__)
-    #define  PM123_ENTRY  _System
-    #define  PM123_ENTRYP * PM123_ENTRY
-  #else
-    #define  PM123_ENTRY  _System
-    #define  PM123_ENTRYP PM123_ENTRY *
-  #endif
-#endif
+#include "config.h"
 
 #define WM_PLAYSTOP         (WM_USER +  69)
 #define WM_PLAYERROR        (WM_USER + 100)
@@ -58,5 +50,5 @@ typedef struct
   int channels;
 } FORMAT_INFO2;
 
-#endif /* __PM123_FORMAT_H */
+#endif /* PM123_FORMAT_H */
 

@@ -210,7 +210,7 @@ output_open( WAVOUT* a )
   if( rc != 0 )
   {
     char message[1024];
-    sprintf( message, "Could not open WAV file:\n%s\n%s", a->fullpath, clib_strerror( errno ));
+    sprintf( message, "Could not open WAV file:\n%s\n%s", a->fullpath, strerror( errno ));
     (*a->original_info.error_display)( message );
     return errno;
   }
@@ -321,7 +321,7 @@ output_play_samples( void* A, FORMAT_INFO* format, char* buf, int len, int posma
   if( written < len )
   {
     char message[2048];
-    sprintf( message, "Could not write to WAV file:\n%s\n%s", a->fullpath, clib_strerror( errno ));
+    sprintf( message, "Could not write to WAV file:\n%s\n%s", a->fullpath, strerror( errno ));
     WinPostMsg( a->original_info.hwnd, WM_PLAYERROR, 0, 0 );
     (*a->original_info.error_display)( message );
     a->wavfile.close();

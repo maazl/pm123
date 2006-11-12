@@ -86,7 +86,7 @@ class WAV
 
       WAV();
       ~WAV();
-      int open(char *filename, MODE mode, int &samplerate,
+      int open(const char *filename, MODE mode, int &samplerate,
                int &channels, int &bits, int &format);
       int close();
       int readData(char *buffer, int bytes);

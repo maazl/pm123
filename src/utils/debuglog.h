@@ -37,8 +37,8 @@
  * side effects.
  */
 
-#ifndef _DEBUGLOG_H
-#define _DEBUGLOG_H
+#ifndef DEBUGLOG_H
+#define DEBUGLOG_H
 
 #ifdef DEBUG
 
@@ -74,5 +74,4 @@
 #else
   #define DEBUGLOG2(x)
 #endif
-
 #endif

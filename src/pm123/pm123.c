@@ -48,12 +48,12 @@
 #include <process.h>
 
 #include <utilfct.h>
+#include <xio.h>
 #include "pm123.h"
 #include "plugman.h"
 #include "bookmark.h"
 #include "button95.h"
 #include "pfreq.h"
-#include "httpget.h"
 #include "copyright.h"
 #include "docking.h"
 #include "iniman.h"
@@ -88,12 +88,12 @@ static HWND  hframe     = NULLHANDLE;
 static HWND  hplayer    = NULLHANDLE;
 static HWND  hhelp      = NULLHANDLE;
 
-static BOOL  is_have_focus    = FALSE;
-static BOOL  is_volume_drag   = FALSE;
-static BOOL  is_seeking       = FALSE;
-static BOOL  is_slider_drag   = FALSE;
-static BOOL  is_stream_saved  = FALSE;
-static BOOL  is_arg_shuffle   = FALSE;
+static BOOL  is_have_focus   = FALSE;
+static BOOL  is_volume_drag  = FALSE;
+static BOOL  is_seeking      = FALSE;
+static BOOL  is_slider_drag  = FALSE;
+static BOOL  is_stream_saved = FALSE;
+static BOOL  is_arg_shuffle  = FALSE;
 
 /* Current load wizzards */
 static DECODER_WIZZARD_FUNC load_wizzards[16];
@@ -288,11 +288,8 @@ amp_display_filename( void )
       {
         if( is_file( current_filename )) {
           bmp_set_text( sfname( display, current_filename, sizeof( display )));
-        } else if ( is_cdda( current_filename )) {
-          char* cp = strchr( current_filename, ':' );
-          bmp_set_text( cp +1 );
         } else {
-          bmp_set_text( current_filename );
+          bmp_set_text( sdecode( display, current_filename, sizeof( display )));
         }
       } else {
          bmp_set_text( "This is a bug!" );
@@ -329,7 +326,7 @@ amp_pl_load_record( PLRECORD* rec )
   }
 
   if( is_file( rec->full ) && stat( rec->full, &fi ) != 0 ) {
-    amp_error( hplayer, "Unable load file:\n%s\n%s", rec->full, clib_strerror(errno));
+    amp_error( hplayer, "Unable load file:\n%s\n%s", rec->full, strerror(errno));
     return FALSE;
   }
 
@@ -430,6 +427,27 @@ amp_pl_release( void )
   }
 }
 
+static ULONG handle_dfi_error( ULONG rc, const char* file )
+{
+  char buf[512];
+
+  if (rc == 0) return 0;
+
+  *buf = '\0';
+
+  if( rc == 100 ) {
+    sprintf( buf, "The file %s could not be read.", file );
+  } else if( rc == 200 ) {
+    sprintf( buf, "The file %s cannot be played by PM123. The file might be corrupted or the necessary plug-in not loaded or enabled.", file );
+  } else {
+    amp_stop();
+    sprintf( buf, "%s: Error occurred: %s", file, xio_strerror( rc ));
+  }
+
+  WinMessageBox( HWND_DESKTOP, HWND_DESKTOP, buf, "Error", 0, MB_ERROR | MB_OK );
+  return 1;
+}
+
 /* Loads a standalone file or CD track to player. */
 BOOL
 amp_load_singlefile( const char* filename, int options )
@@ -444,12 +462,7 @@ amp_load_singlefile( const char* filename, int options )
   }
 
   if( is_file( filename ) && stat( filename, &fi ) != 0 ) {
-    amp_error( hplayer, "Unable load file:\n%s\n%s", filename, clib_strerror(errno));
-    return FALSE;
-  }
-
-  if ( is_cdda( filename ) && !scdparams( &cd_info, filename ) ) {
-    amp_error( hplayer, "Invalid CD URL:\n%s", filename );
+    amp_error( hplayer, "Unable load file:\n%s\n%s", filename, strerror(errno));
     return FALSE;
   }
 
@@ -520,10 +533,6 @@ amp_stop_playing( void )
     pl_mark_as_stop();
   }
 
-  // Discards WM_PLAYSTOP message, posted by decoder.
-  WinPeekMsg( hab, &qms, hplayer, WM_PLAYSTOP, WM_PLAYSTOP, PM_REMOVE );
-  // Resets a waiting of an emptiness of the buffers for a case if the WM_PLAYSTOP
-  // message it has already been received.
   amp_invalidate( UPD_ALL );
 }
 
@@ -659,11 +668,25 @@ amp_show_context_menu( HWND parent )
       {
         sprintf( file, "~%u ", i + 1 );
 
-        if( is_http( cfg.last[i] )) {
-          strcat( file, "[http] " );
-        }
+        if( is_url( cfg.last[i] ))
+        {
+          char buff[_MAX_PATH];
 
-        sfnameext( file + strlen( file ), cfg.last[i], sizeof( file ) - strlen( file ));
+          scheme( buff, cfg.last[i], sizeof( buff ));
+
+          if( strchr( buff, ':' ) != 0 ) {
+             *strchr( buff, ':' )  = 0;
+          }
+
+          strlcat( file, "[" , sizeof( file ));
+          strlcat( file, buff, sizeof( file ));
+          strlcat( file, "] ", sizeof( file ));
+          sfnameext( buff, cfg.last[i], sizeof( buff ));
+          sdecode( buff, buff, sizeof( buff ));
+          strlcat( file, buff, sizeof( buff ));
+        } else {
+          sfnameext( file + strlen( file ), cfg.last[i], sizeof( file ) - strlen( file ) );
+        }
 
         mi.iPosition = MIT_END;
         mi.afStyle = MIS_TEXT;
@@ -2545,9 +2568,6 @@ main( int argc, char *argv[] )
     }
   }
 
-  set_proxyurl( cfg.proxy );
-  set_httpauth( cfg.auth  );
-
   getExeName( exename, sizeof( exename ));
   sdrivedir ( startpath, exename, sizeof( startpath ));
 
@@ -2603,6 +2623,9 @@ main( int argc, char *argv[] )
   load_ini();
   //amp_volume_to_normal(); // Superfluous!
   InitButton( hab );
+
+  // initialize properties
+  cfg_init();
 
   WinRegisterClass( hab, "PM123", amp_dlg_proc, CS_SIZEREDRAW | CS_SYNCPAINT, 0 );
 

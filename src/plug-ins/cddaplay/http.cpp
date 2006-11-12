@@ -300,7 +300,6 @@ readagain:
    {
       case 1: /* who cares */
          goto readagain;
-         break;
 
       case 2:
          switch(status_code % 100)

@@ -123,6 +123,7 @@ BOOL CL_MODULE::load_module()
   DEBUGLOG(("CL_MODULE(%p{%s})::load_module()\n", this, module_name));
   APIRET rc = DosLoadModule( load_error, sizeof( load_error ), (PSZ)module_name, &module );
   if( rc != NO_ERROR ) {
+    DEBUGLOG(("CL_MODULE({%p,%s})::load_module: FALSE - %u\n", module, module_name, rc));
     char  error[1024];
     amp_player_error( "Could not load %s, %s. Error %d\n%s",
                       module_name, load_error, rc, os2_strerror( rc, error, sizeof( error )));
@@ -485,6 +486,9 @@ proxy_1_decoder_command( CL_DECODER_PROXY_1* op, void* w, ULONG msg, DECODER_PAR
     par1.bufferwait          = params->bufferwait;
     par1.metadata_buffer     = op->metadata_buffer;
     par1.metadata_size       = sizeof(op->metadata_buffer);
+    par1.audio_buffersize    = BUFSIZE;
+    par1.error_display       = params->error_display;
+    par1.info_display        = params->info_display;
 
     op->voutput_request_buffer = params->output_request_buffer;
     op->voutput_commit_buffer  = params->output_commit_buffer;
@@ -497,25 +501,30 @@ proxy_1_decoder_command( CL_DECODER_PROXY_1* op, void* w, ULONG msg, DECODER_PAR
    case DECODER_STOP:
     WinDestroyWindow(op->hwnd);
     op->hwnd = NULLHANDLE;
+    op->temppos = out_playing_pos();
+    break;
+
    case DECODER_FFWD:
    case DECODER_REW:
+    par1.ffwd                = params->ffwd;
+    par1.rew                 = params->rew;
     op->temppos = out_playing_pos();
     break;
 
    case DECODER_JUMPTO:
+    par1.jumpto              = params->jumpto;
     op->temppos = params->jumpto;
     break;
+    
+   case DECODER_EQ:
+    par1.equalizer           = params->equalizer;
+    par1.bandgain            = params->bandgain;
+    break;
+
+   case DECODER_SAVEDATA:
+    par1.save_filename       = params->save_filename;
+    break;
   }
-  par1.jumpto              = params->jumpto;
-  par1.ffwd                = params->ffwd;
-  par1.rew                 = params->rew;
-  par1.audio_buffersize    = BUFSIZE;
-  par1.error_display       = params->error_display;
-  par1.info_display        = params->info_display;
-  par1.bufferstatus        = params->bufferstatus;
-  par1.equalizer           = params->equalizer;
-  par1.bandgain            = params->bandgain;
-  par1.save_filename       = params->save_filename;
   
   return (*op->vdecoder_command)(w, msg, &par1);
 }

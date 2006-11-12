@@ -1,5 +1,5 @@
-#ifndef __PM123_OUTPUT_PLUG_H
-#define __PM123_OUTPUT_PLUG_H
+#ifndef PM123_OUTPUT_PLUG_H
+#define PM123_OUTPUT_PLUG_H
 
 #include <format.h>
 
@@ -128,5 +128,5 @@ BOOL  PM123_ENTRY output_playing_data( void* a );
 #ifdef __cplusplus
 }
 #endif
-#endif /* __PM123_OUTPUT_PLUG_H */
+#endif /* PM123_OUTPUT_PLUG_H */
 

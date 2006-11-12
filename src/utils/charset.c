@@ -109,7 +109,7 @@ ch_find( ULONG codepage )
 {
   int i;
 
-  for( i = 0; i < sizeof( ch_list ) / sizeof( CH_ENTRY ); i++ ) {
+  for( i = 0; i < ch_list_size; i++ ) {
     if( ch_list[i].codepage == codepage ) {
       return ch_list + i;
     }
@@ -294,7 +294,7 @@ ch_convert( ULONG cp_source, const char* source, ULONG cp_target, char* target, 
   if( cp_target == CH_CP_NONE ) {
     cp_target = ch_default_cp();
   }
-  
+
   if ( cp_source == cp_target ) {
     // no conversion required
     strlcpy( target, source, size );

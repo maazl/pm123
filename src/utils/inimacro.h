@@ -29,8 +29,8 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef __INIMACRO_H
-#define __INIMACRO_H
+#ifndef INIMACRO_H
+#define INIMACRO_H
 
 #ifndef INI_SECTION
 #define INI_SECTION  "Settings"

@@ -59,14 +59,14 @@ factory_settings( void )
   strcpy( cfg.proxy  , "" );  // No proxy.
   strcpy( cfg.auth   , "" );  // No authentication.
 
-  cfg.defaultvol    = 38;     // Default maximum volume, of course.
-  cfg.playonload    = TRUE;   // Play file automatically on load.
-  cfg.autouse       = TRUE;   // Auto use playlist on load.
-  cfg.selectplayed  = FALSE;  // Don't select played file.
-  cfg.font          = 1;      // Make the bolder font a default.
-  cfg.trash         = TRUE;   // Flush buffers by default.
-  cfg.bufsize       = 0;      // 64kB rocks you.
-  cfg.bufwait       = TRUE;   // It's ok to fill the buffer first.
+  cfg.defaultvol    = 38;       // Default maximum volume, of course.
+  cfg.playonload    = TRUE;     // Play file automatically on load.
+  cfg.autouse       = TRUE;     // Auto use playlist on load.
+  cfg.selectplayed  = FALSE;    // Don't select played file.
+  cfg.font          = 1;        // Make the bolder font a default.
+  cfg.trash         = TRUE;     // Flush buffers by default.
+  cfg.bufsize       = 128;
+  cfg.bufwait       = FALSE;
   cfg.shf           = FALSE;
   cfg.rpt           = FALSE;
   cfg.floatontop    = FALSE;
@@ -273,7 +273,7 @@ save_ini( void )
     save_ini_string( INIhandle, cfg.proxy );
     save_ini_string( INIhandle, cfg.auth );
     save_ini_string( INIhandle, cfg.defskin );
-    save_ini_string( INIhandle, cfg.lasteq );
+    save_ini_string( INIhandle, cfg.lasteq  );
 
     b = create_bufstream( 1024 );
     save_decoders( b );
@@ -437,3 +437,4 @@ rest_window_pos( HWND hwnd, int options )
   }
   return rc;
 }
+

@@ -1055,20 +1055,20 @@ bm_save( HWND owner )
 
   if( remove( bakfile ) != 0 && errno != ENOENT ) {
     amp_error( owner, "Unable delete backup file:\n%s\n%s",
-               bakfile, clib_strerror(errno));
+               bakfile, strerror(errno));
     return FALSE;
   }
 
   if( rename( lstfile, bakfile ) != 0 && errno != ENOENT ) {
     amp_error( owner, "Unable backup bookmark file:\n%s\n%s",
-               lstfile, clib_strerror(errno));
+               lstfile, strerror(errno));
     return FALSE;
   }
 
   hfile = fopen( lstfile, "w" );
   if( hfile == NULL ) {
     amp_error( owner, "Unable create bookmark file:\n%s\n%s",
-               lstfile, clib_strerror(errno));
+               lstfile, strerror(errno));
     return FALSE;
   }
 

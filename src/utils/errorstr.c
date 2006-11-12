@@ -56,53 +56,53 @@ sock_strerror( int socket_errno )
 {
   switch( socket_errno )
   {
-    case SOCEPERM           : return "Not owner";
-    case SOCESRCH           : return "No such process";
-    case SOCEINTR           : return "Interrupted system call";
-    case SOCENXIO           : return "No such device or address";
-    case SOCEBADF           : return "Bad file number";
-    case SOCEACCES          : return "Permission denied";
-    case SOCEFAULT          : return "Bad address";
-    case SOCEINVAL          : return "Invalid argument";
-    case SOCEMFILE          : return "Too many open files";
-    case SOCEPIPE           : return "Broken pipe";
+    case SOCEPERM           : return "Not owner.";
+    case SOCESRCH           : return "No such process.";
+    case SOCEINTR           : return "Interrupted system call.";
+    case SOCENXIO           : return "No such device or address.";
+    case SOCEBADF           : return "Bad file number.";
+    case SOCEACCES          : return "Permission denied.";
+    case SOCEFAULT          : return "Bad address.";
+    case SOCEINVAL          : return "Invalid argument.";
+    case SOCEMFILE          : return "Too many open files.";
+    case SOCEPIPE           : return "Broken pipe.";
 
-    case SOCEOS2ERR         : return "OS/2 Error";
+    case SOCEOS2ERR         : return "Operating system error.";
 
-    case SOCEWOULDBLOCK     : return "Operation would block";
-    case SOCEINPROGRESS     : return "Operation now in progress";
-    case SOCEALREADY        : return "Operation already in progress";
-    case SOCENOTSOCK        : return "Socket operation on non-socket";
-    case SOCEDESTADDRREQ    : return "Destination address required";
-    case SOCEMSGSIZE        : return "Message too long";
-    case SOCEPROTOTYPE      : return "Protocol wrong type for socket";
-    case SOCENOPROTOOPT     : return "Protocol not available";
-    case SOCEPROTONOSUPPORT : return "Protocol not supported";
-    case SOCESOCKTNOSUPPORT : return "Socket type not supported";
-    case SOCEOPNOTSUPP      : return "Operation not supported on socket";
-    case SOCEPFNOSUPPORT    : return "Protocol family not supported";
-    case SOCEAFNOSUPPORT    : return "Address family not supported by protocol family";
-    case SOCEADDRINUSE      : return "Address already in use";
-    case SOCEADDRNOTAVAIL   : return "Can't assign requested address";
-    case SOCENETDOWN        : return "Network is down";
-    case SOCENETUNREACH     : return "Network is unreachable";
-    case SOCENETRESET       : return "Network dropped connection on reset";
-    case SOCECONNABORTED    : return "Software caused connection abort";
-    case SOCECONNRESET      : return "Connection reset by peer";
-    case SOCENOBUFS         : return "No buffer space available";
-    case SOCEISCONN         : return "Socket is already connected";
-    case SOCENOTCONN        : return "Socket is not connected";
-    case SOCESHUTDOWN       : return "Can't send after socket shutdown";
-    case SOCETOOMANYREFS    : return "Too many references: can't splice";
-    case SOCETIMEDOUT       : return "Connection timed out";
-    case SOCECONNREFUSED    : return "Connection refused";
-    case SOCELOOP           : return "Too many levels of symbolic links";
-    case SOCENAMETOOLONG    : return "File name too long";
-    case SOCEHOSTDOWN       : return "Host is down";
-    case SOCEHOSTUNREACH    : return "No route to host";
-    case SOCENOTEMPTY       : return "Directory not empty";
+    case SOCEWOULDBLOCK     : return "Operation would block.";
+    case SOCEINPROGRESS     : return "Operation now in progress.";
+    case SOCEALREADY        : return "Operation already in progress.";
+    case SOCENOTSOCK        : return "Socket operation on non-socket.";
+    case SOCEDESTADDRREQ    : return "Destination address required.";
+    case SOCEMSGSIZE        : return "Message too long.";
+    case SOCEPROTOTYPE      : return "Protocol wrong type for socket.";
+    case SOCENOPROTOOPT     : return "Protocol not available.";
+    case SOCEPROTONOSUPPORT : return "Protocol not supported.";
+    case SOCESOCKTNOSUPPORT : return "Socket type not supported.";
+    case SOCEOPNOTSUPP      : return "Operation not supported on socket.";
+    case SOCEPFNOSUPPORT    : return "Protocol family not supported.";
+    case SOCEAFNOSUPPORT    : return "Address family not supported by protocol family.";
+    case SOCEADDRINUSE      : return "Address already in use.";
+    case SOCEADDRNOTAVAIL   : return "Can't assign requested address.";
+    case SOCENETDOWN        : return "Network is down.";
+    case SOCENETUNREACH     : return "Network is unreachable.";
+    case SOCENETRESET       : return "Network dropped connection on reset.";
+    case SOCECONNABORTED    : return "Software caused connection abort.";
+    case SOCECONNRESET      : return "Connection reset by peer.";
+    case SOCENOBUFS         : return "No buffer space available.";
+    case SOCEISCONN         : return "Socket is already connected.";
+    case SOCENOTCONN        : return "Socket is not connected.";
+    case SOCESHUTDOWN       : return "Can't send after socket shutdown.";
+    case SOCETOOMANYREFS    : return "Too many references: can't splice.";
+    case SOCETIMEDOUT       : return "Connection timed out.";
+    case SOCECONNREFUSED    : return "Connection refused.";
+    case SOCELOOP           : return "Too many levels of symbolic links.";
+    case SOCENAMETOOLONG    : return "File name too long.";
+    case SOCEHOSTDOWN       : return "Host is down.";
+    case SOCEHOSTUNREACH    : return "No route to host.";
+    case SOCENOTEMPTY       : return "Directory not empty.";
 
-    default: 
+    default:
       return "";
   }
 }
@@ -113,10 +113,10 @@ h_strerror( int tcpip_errno )
 {
   switch( tcpip_errno )
   {
-    case HOST_NOT_FOUND  : return "Host not found";
-    case TRY_AGAIN       : return "Server failure";
-    case NO_RECOVERY     : return "Non-recoverable error";
-    case NO_DATA         : return "Valid name, no data record of requested type";
+    case HOST_NOT_FOUND  : return "Host not found.";
+    case TRY_AGAIN       : return "Server failure.";
+    case NO_RECOVERY     : return "Non-recoverable error.";
+    case NO_DATA         : return "Valid name, no data record of requested type.";
 
     default:
       return "";
@@ -183,11 +183,13 @@ clib_strerror( int clib_errno )
                                    "a previously set value.";
       case EILSEQ         : return "An encoding error was detected.";
       case E2BIG          : return "Argument list too long.";
+      case EOS2ERR        : return "Operating system error.";
 
       default:
-        return "";
+        return "Unknown error.";
     }
   #else
+    #undef strerror
     return strerror( clib_errno );
   #endif
 }
@@ -207,7 +209,7 @@ os2_strerror( unsigned int os2_errno, char* result, size_t size )
     char message[256];
     sprintf( message, "No error text is available. Error code is %06d.", os2_errno );
     strlcpy( result , message, size - 1 );
-  } 
+  }
 
   return result;
 }

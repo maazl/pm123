@@ -29,8 +29,8 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef _ERRORSTR_H
-#define _ERRORSTR_H
+#ifndef ERRORSTR_H
+#define ERRORSTR_H
 
 #ifdef __cplusplus
 extern "C" {
@@ -40,6 +40,8 @@ extern "C" {
 const char* sock_strerror( int socket_errno );
 #endif
 
+#define strerror( n ) clib_strerror( n )
+
 const char* h_strerror   ( int tcpip_errno  );
 const char* clib_strerror( int clib_errno   );
 
@@ -48,4 +50,4 @@ char* os2_strerror( unsigned int os2_errno,
 #ifdef __cplusplus
 }
 #endif
-#endif /* _ERRORSTR_H */
+#endif /* ERRORSTR_H */

@@ -6,7 +6,7 @@
 
 VERSION = 1_32
 PARTS   = src\utils\utilfct$(LBO) src\gbm123\gbm123.dll src\fft123\fft123.dll
-PARTS   = $(PARTS) src\http123\http123.dll
+PARTS   = $(PARTS) src\xio123\xio123.dll
 PARTS   = $(PARTS) src\plug-ins\analyzer\analyzer.dll
 PARTS   = $(PARTS) src\plug-ins\cddaplay\cddaplay.dll
 PARTS   = $(PARTS) src\plug-ins\mpg123\mpg123.dll
@@ -36,8 +36,8 @@ src\fft123\fft123.dll:
 	@$(MAKE) $(MFLAGS)
 	@cd ..\..
 
-src\http123\http123.dll:
-	cd src\http123
+src\xio123\xio123.dll:
+	cd src\xio123
 	@$(MAKE) $(MFLAGS)
 	@cd ..\..
 
@@ -106,7 +106,7 @@ clean:  $(MDUMMY)
 	cd src\fft123
 	@$(MAKE) $(MFLAGS) clean
 	@cd ..\..
-	cd src\http123
+	cd src\xio123
 	@$(MAKE) $(MFLAGS) clean
 	@cd ..\..
 	cd src\plug-ins\analyzer
@@ -151,7 +151,7 @@ distfiles: distclean $(MDUMMY)
 	mkdir dist\files\pdk
 	copy src\gbm123\gbm123.dll dist\files
 	copy src\fft123\fft123.dll dist\files
-	copy src\http123\http123.dll dist\files
+	copy src\xio123\xio123.dll dist\files
 	copy src\plug-ins\analyzer\analyzer.dll dist\files\visplug
 	copy src\plug-ins\cddaplay\cddaplay.dll dist\files
 	copy src\plug-ins\mpg123\mpg123.dll dist\files
@@ -173,6 +173,8 @@ distfiles: distclean $(MDUMMY)
 	copy src\fft123\fft123.lib dist\files\pdk
 	copy src\fft123\api\fftw3.h dist\files\pdk\fft123.h
 	copy src\fft123\doc\fftw3.pdf dist\files\pdk\fft123.pdf
+	copy src\xio123\xio123.lib dist\files\pdk\xio123.lib
+	copy src\xio123\xio.h dist\files\pdk\xio123.h
 	copy COPYING dist\files
 	copy COPYRIGHT dist\files
 

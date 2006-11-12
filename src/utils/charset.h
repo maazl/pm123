@@ -26,8 +26,8 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef __CHARSET_H
-#define __CHARSET_H
+#ifndef CHARSET_H
+#define CHARSET_H
 
 #define INCL_PM
 #include <string.h>
@@ -45,10 +45,8 @@ extern "C" {
 typedef int (*_CH_PFN)( const char* );
 
 typedef struct _CH_ENTRY {
-
   const char*  name;
   ULONG        codepage;
-
 } CH_ENTRY;
 
 extern const CH_ENTRY ch_list[];
@@ -97,4 +95,4 @@ char* ch_convert( ULONG cp_source, const char* source,
 }
 #endif
 
-#endif /* __CHARSET_H */
+#endif /* CHARSET_H */

@@ -2,7 +2,8 @@
  * Copyright 1997-2003 Samuel Audet  <guardia@step.polymtl.ca>
  *                     Taneli Lepp„  <rosmo@sektori.com>
  *
- * Copyright 2004 Dmitry A.Steklenev <glass@ptv.ru>
+ * Copyright 2004-2006 Dmitry A.Steklenev <glass@ptv.ru>
+ * Copyright 2006      Marcel Mueller
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -82,18 +83,28 @@ static class CL_GLUE
          DECODER_PARAMS2   dparams;           // parameters for decoder_command
 
  private:
+  // Virtualize output procedures by invoking the filter plugin no. i.
          void              virtualize         ( int i );
+  // setup the entire filter chain
          ULONG             init();
+  // uninitialize the filter chain
          void              uninit();
+  // Select decoder by index.
          int               dec_set_active     ( int number )
                                               { return decoders.set_active(number); }
+  // Select decoder by name.
+  // Returns -1 if a error occured,
+  // returns -2 if can't find nothing,
+  // returns 0  if succesful.
          int               dec_set_active     ( const char* name );
+  // Send command to the current decoder using the current content of dparams.
          ULONG             dec_command        ( ULONG msg );
+  // Send command to the current output and filter chain using the current content of params.
          ULONG             out_command        ( ULONG msg )
                                               { return (*procs.output_command)( procs.a, msg, &params ); }
  public:
                            CL_GLUE();
-  const  OUTPUT_PROCS&     get_procs() const  { return procs; }
+  //const  OUTPUT_PROCS&     get_procs() const  { return procs; }
   
   // output control interface (C style)
   friend ULONG             out_setup          ( const FORMAT_INFO2* formatinfo, const char* URI );

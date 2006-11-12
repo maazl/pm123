@@ -2,7 +2,8 @@
 #  utilfct library makefile
 #
 
-INCDIR  = .
+TOPDIR   = ..
+INCDIR   = $(TOPDIR)\include;.
 
 !include ..\config\makerules
 

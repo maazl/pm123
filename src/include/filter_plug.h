@@ -1,5 +1,5 @@
-#ifndef __PM123_FILTER_PLUG_H
-#define __PM123_FILTER_PLUG_H
+#ifndef PM123_FILTER_PLUG_H
+#define PM123_FILTER_PLUG_H
 
 #include <format.h>
 #include <output_plug.h>
@@ -74,5 +74,5 @@ BOOL  PM123_ENTRY filter_uninit( void*  f );
 #ifdef __cplusplus
 }
 #endif
-#endif /* __PM123_FILTER_PLUG_H */
+#endif /* PM123_FILTER_PLUG_H */
 

@@ -84,7 +84,7 @@ typedef struct _PLUGIN_QUERYPARAM
 } PLUGIN_QUERYPARAM, *PPLUGIN_QUERYPARAM;
 
 #if (!defined(VISUAL_PLUGIN_LEVEL) || VISUAL_PLUGIN_LEVEL < 1) \
- && !defined(__PM123_FILTER_PLUG_H) && !defined(__PM123_DECODER_PLUG_H) && !defined(__PM123_OUTPUT_PLUG_H)
+ && !defined(PM123_FILTER_PLUG_H) && !defined(PM123_DECODER_PLUG_H) && !defined(PM123_OUTPUT_PLUG_H)
 #error The old plug-in interface is no longer supported. \
   Define the macro VISUAL_PLUGIN_LEVEL to a value of at least one \
   and donït forget to fill param->interface at plugin_query.

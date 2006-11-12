@@ -53,10 +53,14 @@
 #define EF_DOCK            3151
 #define ST_PIXELS          3152
 #define GB_STREAMING       3160
-#define ST_PROXY_URL       3170
-#define EF_PROXY_URL       3171
-#define ST_HTTP_AUTH       3180
-#define EF_HTTP_AUTH       3181
+#define ST_PROXY_HOST      3170
+#define EF_PROXY_HOST      3171
+#define ST_PROXY_PORT      3172
+#define EF_PROXY_PORT      3173
+#define ST_PROXY_USER      3180
+#define EF_PROXY_USER      3181
+#define ST_PROXY_PASS      3182
+#define EF_PROXY_PASS      3183
 #define ST_BUFFERSIZE      3185
 #define SB_BUFFERSIZE      3190
 #define ST_KB              3195
@@ -170,9 +174,9 @@ typedef struct _amp_cfg {
   int    scroll;              /* See CFG_SCROLL_*                       */
   int    viewmode;            /* See CFG_DISP_*                         */
   char   proxy[1024];         /* Proxy URL.                             */
-  char   auth [ 256];         /* HTTP authorization.                    */
-  int    bufwait;             /* Wait before fucking.                   */
-  int    bufsize;             /* KB chunkz rewl.                        */
+  char   auth [1024];         /* HTTP authorization.                    */
+  int    bufwait;             /* Wait before playing.                   */
+  int    bufsize;             /* Read ahead buffer size (KB).           */
   BOOL   dock_windows;        /* Dock windows?                          */
   int    dock_margin;         /* The marging for docking window.        */
   BOOL   add_recursive;       /* Enable recursive addition.             */
@@ -190,6 +194,9 @@ extern amp_cfg cfg;
 extern "C" {
 #endif
 
+/* Initialize properties, called from main. */
+void cfg_init( void );
+
 /* Creates the properties dialog. */
 void cfg_properties( HWND owner );
 
@@ -197,3 +204,4 @@ void cfg_properties( HWND owner );
 }
 #endif
 #endif /* PM123_PROPERTIES_H */
+

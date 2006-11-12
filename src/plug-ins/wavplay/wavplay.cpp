@@ -61,10 +61,9 @@ typedef struct _WAVPLAY
    int jumpto;
    int status;
 
-   ULONG decodertid;
+   int decodertid;
 
    void (PM123_ENTRYP error_display)(char *);
-   HEV playsem;
    HWND hwnd;
 
    int last_length; // keeps the last length in memory to calls to
@@ -89,8 +88,6 @@ static void TFNENTRY decoder_thread(void *arg)
       buffer = (char*)malloc(w->buffersize);
 
       w->last_length = -1;
-
-      DosResetEventSem(w->playsem,&resetcount);
       DosPostEventSem(w->ok);
 
       if(w->wavfile.open(w->filename,READ,w->formatinfo.samplerate,
@@ -98,7 +95,6 @@ static void TFNENTRY decoder_thread(void *arg)
       {
          WinPostMsg(w->hwnd,WM_PLAYERROR,0,0);
          w->status = DECODER_STOPPED;
-         DosPostEventSem(w->playsem);
          continue;
       }
 
@@ -144,9 +140,7 @@ static void TFNENTRY decoder_thread(void *arg)
       w->status = DECODER_STOPPED;
       w->wavfile.close();
 
-      DosPostEventSem(w->playsem);
       WinPostMsg(w->hwnd,WM_PLAYSTOP,0,0);
-
       DosPostEventSem(w->ok);
    }
 }
@@ -164,7 +158,7 @@ int PM123_ENTRY decoder_init(void **W)
    DosCreateEventSem(NULL,&w->ok,0,FALSE);
 
    w->decodertid = _beginthread(decoder_thread,0,64*1024,(void *) w);
-   if(w->decodertid != -1UL)
+   if(w->decodertid != -1)
       return w->decodertid;
    else
    {
@@ -257,8 +251,6 @@ ULONG PM123_ENTRY decoder_command(void *W, ULONG msg, DECODER_PARAMS *params)
          w->buffersize = params->audio_buffersize;
          w->error_display = params->error_display;
          w->hwnd = params->hwnd;
-         w->playsem = params->playsem;
-         DosPostEventSem(w->playsem);
          break;
    }
    return 0;
@@ -281,7 +273,7 @@ ULONG PM123_ENTRY decoder_status(void *W)
    return w->status;
 }
 
-ULONG PM123_ENTRY decoder_fileinfo(char *filename, DECODER_INFO *info)
+ULONG PM123_ENTRY decoder_fileinfo(const char *filename, DECODER_INFO *info)
 {
    WAV wavfile;
    int rc;
@@ -307,12 +299,12 @@ ULONG PM123_ENTRY decoder_fileinfo(char *filename, DECODER_INFO *info)
    return rc;
 }
 
-ULONG PM123_ENTRY decoder_trackinfo(char *drive, int track, DECODER_INFO *info)
+ULONG PM123_ENTRY decoder_trackinfo(const char *drive, int track, DECODER_INFO *info)
 {
    return 200;
 }
 
-ULONG PM123_ENTRY decoder_cdinfo(char *drive, DECODER_CDINFO *info)
+ULONG PM123_ENTRY decoder_cdinfo(const char *drive, DECODER_CDINFO *info)
 {
    return 100;
 }

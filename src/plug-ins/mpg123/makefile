@@ -4,7 +4,7 @@
 
 DLL      = yes
 TOPDIR   = ..\..
-INCDIR   = $(TOPDIR)\utils;$(TOPDIR)\include;$(TOPDIR)\http123
+INCDIR   = $(TOPDIR)\utils;$(TOPDIR)\include;$(TOPDIR)\xio123
 
 !include $(TOPDIR)\config\makerules
 
@@ -12,7 +12,7 @@ OBJECTS  = dct64_MMX$(OBJ)  decode_MMX$(OBJ) tabinit_MMX$(OBJ)
 OBJECTS  = $(OBJECTS) mpg123$(CO) common$(CO) decode_i386$(CO) decode_2to1$(CO)
 OBJECTS  = $(OBJECTS) decode_4to1$(CO) layer1$(CO) layer2$(CO) layer3$(CO)
 OBJECTS  = $(OBJECTS) dxhead$(CO) equalizer$(CO) tag$(CO)
-LIBS     = $(LIBS_TCP) $(TOPDIR)\utils\utilfct$(LBO) $(TOPDIR)\http123\http123$(LBI)
+LIBS     = $(LIBS_TCP) $(TOPDIR)\utils\utilfct$(LBO) $(TOPDIR)\xio123\xio123$(LBI)
 DEF      = mpg123$(LDEF_SUFFX)
 RESOURCE = mpg123$(RES)
 STDLIBS  = $(LIBS_UNI)

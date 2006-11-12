@@ -3,7 +3,7 @@
 #
 
 TOPDIR   = ..
-INCDIR   = $(TOPDIR)\include;$(TOPDIR)\utils;$(TOPDIR)\gbm123
+INCDIR   = $(TOPDIR)\include;$(TOPDIR)\utils;$(TOPDIR)\gbm123;$(TOPDIR)\xio123
 EXE_PM   = yes
 
 !include $(TOPDIR)\config\makerules
@@ -14,7 +14,7 @@ OBJECTS  = $(OBJECTS) iniman$(CO) playlist$(CO) properties$(CO) skin$(CO)
 OBJECTS  = $(OBJECTS) pipe$(CO) docking$(CO) vdelegate$(CO)
 DEF      = pm123$(LDEF_SUFFX)
 RESOURCE = pm123$(RES)
-LIBS     = $(TOPDIR)\gbm123\gbm123$(LBI) $(TOPDIR)\http123\http123$(LBI)
+LIBS     = $(TOPDIR)\gbm123\gbm123$(LBI) $(TOPDIR)\xio123\xio123$(LBI)
 LIBS     = $(LIBS) $(TOPDIR)\utils\utilfct$(LBO)
 #STDLIBS  = $(LIBS_UNI)
 

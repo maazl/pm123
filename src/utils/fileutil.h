@@ -26,8 +26,8 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef __FILEUTIL_H
-#define __FILEUTIL_H
+#ifndef FILEUTIL_H
+#define FILEUTIL_H
 
 #include <utilfct.h>
 
@@ -40,6 +40,7 @@ extern "C" {
 // location and result.
 
 char* sdrive   ( char* result, const char* location, size_t size );
+int   strack   ( const char* location );
 char* scheme   ( char* result, const char* location, size_t size );
 char* sfname   ( char* result, const char* location, size_t size );
 char* sfext    ( char* result, const char* location, size_t size );
@@ -55,7 +56,6 @@ typedef struct
 
 CDDA_REGION_INFO* scdparams( CDDA_REGION_INFO* result, const char* location );
 
-BOOL is_http ( const char* location );
 BOOL is_cdda ( const char* location );
 BOOL is_track( const char* location );
 BOOL is_file ( const char* location );
@@ -67,4 +67,4 @@ BOOL is_dir  ( const char* location );
 }
 #endif
 
-#endif /* __FILEUTIL_H */
+#endif /* FILEUTIL_H */

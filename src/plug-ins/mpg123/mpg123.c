@@ -34,16 +34,16 @@ static int  down_sample   = 0;
 static int  codepage      = 1004; /* Codepage for ID3 tags, similar to ISO-8859-1 */
 static BOOL auto_codepage = TRUE; /* Autodetect codepage.                         */
 
-static struct frame fr;
 extern int tabsel_123[2][3][16];
+static struct frame fr;
 
 #define modes(i) ( i == 0 ? "Stereo"         : \
                  ( i == 1 ? "Joint-Stereo"   : \
                  ( i == 2 ? "Dual-Channel"   : \
                  ( i == 3 ? "Single-Channel" : "" ))))
 
-/* Play a frame read read_frame(). (re)initialize audio if necessary. */
-static int
+/* Play a frame readed by read_frame(). (re)initialize audio if necessary. */
+static BOOL
 play_frame( DECODER_STRUCT* w, struct frame* fr )
 {
   int clip;
@@ -55,9 +55,9 @@ play_frame( DECODER_STRUCT* w, struct frame* fr )
   clip = (fr->do_layer)( w, fr );
 
   if( clip == -1 ) {
-    return -1;
+    return FALSE;
   } else {
-    return 0;
+    return TRUE;
   }
 }
 
@@ -159,134 +159,147 @@ clear_decoder( void )
   clear_layer3();
 }
 
-static void
-TFNENTRY DecoderThread( void* arg )
+/* Decoding thread. */
+static void TFNENTRY
+decoder_thread( void* arg )
 {
   ULONG resetcount;
-  int   init;
-
   DECODER_STRUCT* w = (DECODER_STRUCT*)arg;
+
+  w->frew = FALSE;
+  w->ffwd = FALSE;
+  w->stop = FALSE;
+
+  if(!( w->file = xio_fopen( w->filename, "rb" ))) {
+    if( w->error_display )
+    {
+      char errorbuf[1024];
+
+      strlcpy( errorbuf, "Unable open file:\n", sizeof( errorbuf ));
+      strlcat( errorbuf, w->filename, sizeof( errorbuf ));
+      strlcat( errorbuf, "\n", sizeof( errorbuf ));
+      strlcat( errorbuf, xio_strerror( xio_errno()), sizeof( errorbuf ));
+      w->error_display( errorbuf );
+    }
+    WinPostMsg( w->hwnd, WM_PLAYERROR, 0, 0 );
+    goto end;
+  }
+
+  // After opening a new file we so are in its beginning.
+  if( w->jumptopos == 0 ) {
+      w->jumptopos = -1;
+  }
+
+  if(!( pcm_sample = (unsigned char*)malloc( w->audio_buffersize ))) {
+    WinPostMsg( w->hwnd, WM_PLAYERROR, 0, 0 );
+    goto end;
+  } else {
+    pcm_point = 0;
+  }
+
+  xio_set_observer( w->file, w->hwnd, w->metadata_buff, w->metadata_size );
+
+  if( !read_initialize( w, &fr )) {
+    WinPostMsg( w->hwnd, WM_PLAYERROR, 0, 0 );
+    goto end;
+  }
+
+  clear_decoder();
+  w->output_format.samplerate = freqs[ fr.sampling_frequency ] >> fr.down_sample;
+  init_eq( w->output_format.samplerate );
 
   for(;;)
   {
     DosWaitEventSem ( w->play, SEM_INDEFINITE_WAIT );
     DosResetEventSem( w->play, &resetcount );
 
-    if( w->end ) {
-      return;
+    if( w->stop ) {
+      break;
     }
 
-    w->status = DECODER_STARTING;
-    w->last_length = -1;
+    w->status = DECODER_PLAYING;
 
-    DosResetEventSem( w->playsem, &resetcount );
-    DosPostEventSem ( w->ok );
-
-    if( !open_stream( w, w->filename, -1, w->buffersize, w->bufferwait ))
+    while( !w->stop )
     {
-      WinPostMsg( w->hwnd, WM_PLAYERROR, 0, 0 );
-      w->status = DECODER_STOPPED;
-      DosPostEventSem( w->playsem );
-      continue;
-    }
-
-    w->jumptopos = -1;
-    w->rew       =  0;
-    w->ffwd      =  0;
-
-    read_frame_init();
-    init = 1;
-
-    for( w->stop = FALSE; !w->stop && read_frame( w, &fr ); )
-    {
-      if(init)
-      {
-        clear_decoder();
-        w->output_format.samplerate = freqs[ fr.sampling_frequency ] >> fr.down_sample;
-        init_eq( w->output_format.samplerate );
-
-        free( pcm_sample );
-        pcm_sample = (unsigned char*)malloc( w->audio_buffersize );
-        pcm_point  = 0;
-
-        init = 0;
-        w->status = DECODER_PLAYING;
-        w->last_length = decoder_length( w );
-      }
-
-      if( play_frame( w, &fr ) < 0 ) {
-        WinPostMsg( w->hwnd, WM_PLAYERROR, 0, 0 );
-        break;
-      }
-
-      /* samuel */
       if( w->jumptopos >= 0 )
       {
         int jumptobyte;
 
-        if(( w->XingHeader.flags & FRAMES_FLAG ) &&
-           ( w->XingHeader.flags & TOC_FLAG    ) &&
-           ( w->XingHeader.flags & BYTES_FLAG  ))
+        if(( w->xing_header.flags & FRAMES_FLAG ) &&
+           ( w->xing_header.flags & TOC_FLAG    ) &&
+           ( w->xing_header.flags & BYTES_FLAG  ))
         {
-          jumptobyte = SeekPoint( w->XingTOC, w->XingHeader.bytes,
-                                 (float)w->jumptopos * 100 / ( 1000.0 * 8 * 144 * w->XingHeader.frames / freqs[fr.sampling_frequency] ));
+          jumptobyte = SeekPoint( w->xing_TOC, w->xing_header.bytes,
+                                 (float)w->jumptopos * 100 / ( 1000.0 * 8 * 144 * w->xing_header.frames / freqs[fr.sampling_frequency] ));
         }
-        else if(( w->XingHeader.flags & FRAMES_FLAG ) &&
-                ( w->XingHeader.flags & BYTES_FLAG  ))
+        else if(( w->xing_header.flags & FRAMES_FLAG ) &&
+                ( w->xing_header.flags & BYTES_FLAG  ))
         {
-          int songlength = 8.0 * 144 * w->XingHeader.frames * 1000 / freqs[fr.sampling_frequency];
-          jumptobyte = (float)w->jumptopos * w->XingHeader.bytes / songlength;
+          int songlength = 8.0 * 144 * w->xing_header.frames * 1000 / freqs[fr.sampling_frequency];
+          jumptobyte = (float)w->jumptopos * w->xing_header.bytes / songlength;
         } else {
-          jumptobyte = (float)w->jumptopos * w->avg_bitrate * 125 / 1000;
+          jumptobyte = (float)w->jumptopos * w->abr * 125 / 1000;
         }
+
+        jumptobyte += w->started;
 
         clear_decoder();
         seekto_pos( w, &fr, jumptobyte );
         w->jumptopos = -1;
-        WinPostMsg(w->hwnd,WM_SEEKSTOP,0,0);
+        WinPostMsg( w->hwnd, WM_SEEKSTOP, 0, 0 );
       }
 
-      if( w->rew ) {
+      if( w->frew ) {
         /* ie.: ~1/4 second */
-        back_pos( w, &fr, (tabsel_123[fr.lsf][fr.lay-1][fr.bitrate_index] * 125)/4 );
+        int bytes = xio_ftell( w->file ) - (tabsel_123[fr.lsf][fr.lay-1][fr.bitrate_index] * 125)/4;
+        if( bytes < 0 ) {
+          break;
+        } else {
+          seekto_pos( w, &fr, bytes );
+        }
       }
+
       if( w->ffwd ) {
-        forward_pos( w, &fr, (tabsel_123[fr.lsf][fr.lay-1][fr.bitrate_index] * 125)/4 );
+        int bytes = xio_ftell( w->file ) + (tabsel_123[fr.lsf][fr.lay-1][fr.bitrate_index] * 125)/4;
+        seekto_pos( w, &fr, bytes );
+      }
+
+      if( !read_frame( w, &fr )) {
+        WinPostMsg( w->hwnd, WM_PLAYSTOP, 0, 0 );
+        break;
+      }
+
+      if( !play_frame( w, &fr )) {
+        WinPostMsg( w->hwnd, WM_PLAYERROR, 0, 0 );
+        break;
       }
     }
-
-    if( pcm_sample )
-    {
-      free( pcm_sample );
-      pcm_sample = NULL;
-    }
-
     w->status = DECODER_STOPPED;
-    close_stream( w );
-
-    if( w->metastruct.save_file != NULL )
-    {
-      fclose( w->metastruct.save_file );
-      w->metastruct.save_file = NULL;
-    }
-
-    DosPostEventSem( w->playsem );
-    WinPostMsg( w->hwnd, WM_PLAYSTOP, 0, 0 );
-    DosPostEventSem( w->ok );
   }
-}
 
-static void
-reset_thread( DECODER_STRUCT* w )
-{
-  ULONG resetcount;
-  w->end = FALSE;
+end:
 
-  DosResetEventSem( w->play, &resetcount );
-  DosResetEventSem( w->ok, &resetcount );
-  DosKillThread   ( w->decodertid );
+  DosRequestMutexSem( w->mutex, SEM_INDEFINITE_WAIT );
 
-  w->decodertid = _beginthread( DecoderThread, 0, 64*1024, (void*)w );
+  if( w->file ) {
+    xio_fclose( w->file );
+    w->file = NULL;
+  }
+  if( w->save ) {
+    fclose( w->save );
+    w->save = NULL;
+  }
+  if( pcm_sample ) {
+    free( pcm_sample );
+    pcm_sample = NULL;
+  }
+
+  w->decodertid = -1;
+  w->status = DECODER_STOPPED;
+
+  DosPostEventSem   ( w->ok    );
+  DosReleaseMutexSem( w->mutex );
+  _endthread();
 }
 
 /* Init function is called when PM123 needs the specified decoder to play
@@ -297,11 +310,14 @@ decoder_init( void** returnw )
   DECODER_STRUCT* w = calloc( sizeof(*w), 1 );
   *returnw = w;
 
-  DosCreateEventSem( NULL, &w->play, 0, FALSE );
-  DosCreateEventSem( NULL, &w->ok,   0, FALSE );
+  DosCreateEventSem( NULL, &w->play,  0, FALSE );
+  DosCreateEventSem( NULL, &w->ok,    0, FALSE );
+  DosCreateMutexSem( NULL, &w->mutex, 0, FALSE );
 
-  w->decodertid = _beginthread( DecoderThread, 0, 64*1024, (void*)w );
-  return w->decodertid;
+  w->decodertid = -1;
+  w->status = DECODER_STOPPED;
+  w->xing_header.toc = w->xing_TOC;
+  return 0;
 }
 
 /* Uninit function is called when another decoder than yours is needed. */
@@ -310,15 +326,11 @@ decoder_uninit( void* arg )
 {
   DECODER_STRUCT* w = arg;
 
-  w->end  = TRUE;
-  w->stop = TRUE;
-
-  sockfile_abort ( w->filept );
-  DosPostEventSem( w->play   );
-  wait_thread( w->decodertid, 2000 );
-
-  DosCloseEventSem( w->play );
-  DosCloseEventSem( w->ok   );
+  decoder_command ( w, DECODER_STOP, NULL );
+  DosCloseEventSem( w->play  );
+  DosCloseEventSem( w->ok    );
+  DosCloseMutexSem( w->mutex );
+  free( w );
   return TRUE;
 }
 
@@ -336,10 +348,10 @@ decoder_command( void* arg, ULONG msg, DECODER_PARAMS* info )
       fr.synth       = synth_1to1;
 
       w->output_format.format = WAVE_FORMAT_PCM;
-      w->output_format.bits   = 16;
+      w->output_format.bits = 16;
 
       make_decode_tables( outscale );
-      init_layer2( fr.down_sample ); // Inits also shared tables with layer1.
+      init_layer2( fr.down_sample ); // also shared tables with layer1.
       init_layer3( fr.down_sample );
 
       if( force_mono ) {
@@ -354,81 +366,85 @@ decoder_command( void* arg, ULONG msg, DECODER_PARAMS* info )
 
       set_synth_functions( &fr );
 
-      set_httpauth( info->httpauth );
-      set_proxyurl( info->proxyurl );
-
-      w->buffersize          = info->buffersize;
-      w->bufferwait          = info->bufferwait;
-      w->playsem             = info->playsem;
       w->hwnd                = info->hwnd;
       w->error_display       = info->error_display;
+      w->info_display        = info->info_display;
       w->output_play_samples = info->output_play_samples;
       w->a                   = info->a;
       w->audio_buffersize    = info->audio_buffersize;
-
-      w->metastruct.info_display       = info->info_display;
-      w->metastruct.hwnd               = info->hwnd;
-      w->metastruct.metadata_buffer    = info->metadata_buffer;
-      w->metastruct.metadata_buffer[0] = 0;
-      w->metastruct.metadata_size      = info->metadata_size;
-
-      memset( w->metastruct.save_filename, 0, sizeof( w->metastruct.save_filename ));
-      DosPostEventSem( w->playsem );
+      w->metadata_buff       = info->metadata_buffer;
+      w->metadata_buff[0]    = 0;
+      w->metadata_size       = info->metadata_size;
+      w->savename[0]         = 0;
       break;
 
     case DECODER_PLAY:
-      if( w->status == DECODER_STOPPED )
-      {
-        strcpy( w->filename, info->filename );
+    {
+      DosRequestMutexSem( w->mutex, SEM_INDEFINITE_WAIT );
 
-        DosResetEventSem( w->ok, &resetcount );
-        DosPostEventSem ( w->play );
-
-        if( DosWaitEventSem( w->ok, 10000 ) == ERROR_TIMEOUT )
-        {
-          w->status = DECODER_STOPPED;
-          reset_thread( w );
-        }
+      if( w->decodertid != -1 ) {
+        DosReleaseMutexSem( w->mutex );
+        decoder_command( w, DECODER_STOP, NULL );
+        DosRequestMutexSem( w->mutex, SEM_INDEFINITE_WAIT );
       }
-      break;
 
+      strlcpy( w->filename, info->filename, sizeof( w->filename ));
+      w->status = DECODER_STARTING;
+      w->decodertid = _beginthread( decoder_thread, 0, 64*1024, (void*)w );
+
+      DosReleaseMutexSem( w->mutex );
+      DosPostEventSem   ( w->play  );
+      break;
+    }
 
     case DECODER_STOP:
-      if( w->status != DECODER_STOPPED )
-      {
-        DosResetEventSem( w->ok, &resetcount );
-        w->stop = TRUE;
-        sockfile_abort( w->filept );
-        if( DosWaitEventSem( w->ok, 10000 ) == ERROR_TIMEOUT )
-        {
-          w->status = DECODER_STOPPED;
-          reset_thread( w );
-        }
+    {
+      DosRequestMutexSem( w->mutex, SEM_INDEFINITE_WAIT );
+
+      if( w->decodertid == -1 ) {
+        DosReleaseMutexSem( w->mutex );
+        break;
       }
+
+      w->stop = TRUE;
+
+      xio_fabort( w->file );
+      DosResetEventSem  ( w->ok, &resetcount );
+      DosReleaseMutexSem( w->mutex );
+      DosPostEventSem   ( w->play  );
+      DosWaitEventSem   ( w->ok, SEM_INDEFINITE_WAIT );
       break;
+    }
 
     case DECODER_FFWD:
       if( info->ffwd ) {
-        nobuffermode_stream( w, TRUE  );
-        w->ffwd = TRUE;
-      } else {
-        nobuffermode_stream( w, FALSE );
-        w->ffwd = FALSE;
+        DosRequestMutexSem( w->mutex, SEM_INDEFINITE_WAIT );
+        if( w->decodertid == -1 || xio_can_seek( w->file ) < 2 ) {
+          DosReleaseMutexSem( w->mutex );
+          return 1;
+        }
+        DosReleaseMutexSem( w->mutex );
       }
+      w->ffwd = info->ffwd;
       break;
 
     case DECODER_REW:
       if( info->rew ) {
-        nobuffermode_stream( w, TRUE );
-        w->rew = TRUE;
-      } else {
-        nobuffermode_stream( w, FALSE );
-        w->rew = FALSE;
+        DosRequestMutexSem( w->mutex, SEM_INDEFINITE_WAIT );
+        if( w->decodertid == -1 || xio_can_seek( w->file ) < 2 ) {
+          DosReleaseMutexSem( w->mutex );
+          return 1;
+        }
+        DosReleaseMutexSem( w->mutex );
       }
+      w->frew = info->rew;
       break;
 
     case DECODER_JUMPTO:
       w->jumptopos = info->jumpto;
+      if( w->status == DECODER_STOPPED ) {
+        DosPostEventSem( w->play );
+      }
       break;
 
     case DECODER_EQ:
@@ -440,31 +456,30 @@ decoder_command( void* arg, ULONG msg, DECODER_PARAMS* info )
       }
       break;
 
-    case DECODER_BUFFER:
-      info->bufferstatus = bufferstatus_stream( w );
-      break;
-
     case DECODER_SAVEDATA:
       if( info->save_filename == NULL ) {
-        w->metastruct.save_filename[0] = 0;
+        w->savename[0] = 0;
       } else {
-        strlcpy( w->metastruct.save_filename,
-                 info->save_filename, sizeof( w->metastruct.save_filename ));
+        strlcpy( w->savename, info->save_filename, sizeof( w->savename ));
       }
       break;
 
     default:
-      (*w->error_display)( "Unknown command." );
+      if( w->error_display ) {
+        w->error_display( "Unknown command." );
+      }
       return 1;
   }
   return 0;
 }
 
+/* Returns current status of the decoder. */
 ULONG PM123_ENTRY
 decoder_status( void* arg ) {
   return ((DECODER_STRUCT*)arg)->status;
 }
 
+/* Returns number of milliseconds the stream lasts. */
 ULONG PM123_ENTRY
 decoder_length( void* arg )
 {
@@ -473,274 +488,93 @@ decoder_length( void* arg )
   _control87( EM_OVERFLOW | EM_UNDERFLOW | EM_ZERODIVIDE |
               EM_INEXACT  | EM_INVALID   | EM_DENORMAL, MCW_EM );
 
-  if( w->status == DECODER_PLAYING )
-  {
-    if( w->XingHeader.flags & FRAMES_FLAG ) {
-      w->last_length = (float)8 * 144 * w->XingHeader.frames * 1000 / freqs[fr.sampling_frequency];
+  if( w->file ) {
+    if( w->xing_header.flags & FRAMES_FLAG ) {
+      return (float)8 * 144 * w->xing_header.frames * 1000 / freqs[fr.sampling_frequency];
     } else {
-      w->last_length = (float)xio_fsize( w->filept ) * 1000 / w->avg_bitrate / 125;
+      return (float)( xio_fsize( w->file ) - w->started ) * 1000 / w->abr / 125;
     }
   }
-  return w->last_length;
+  return 0;
 }
 
 ULONG PM123_ENTRY
 decoder_fileinfo( const char* filename, DECODER_INFO* info )
 {
-  int           sockmode = 0;
-  int           rc       = 0;
-  unsigned long header   = 0;
-  int           vbr      = 0;
-  int           frame_size;
-  struct frame  fr;
-  int           ssize;
-  int           i;
-  META_STRUCT   meta = {0};
-  XHEADDATA     xing_header;
+  unsigned long header;
+  struct frame fr;
+  int rc = 0;
+
+  DECODER_STRUCT w = {0};
 
   DEBUGLOG(("mpg123:decoder_fileinfo(%s, %p)\n", filename, info));
 
   memset( info, 0, sizeof( *info ));
   info->size = sizeof( *info );
-  memset( &xing_header, 0, sizeof xing_header );
 
-  meta.metadata_size   = 512;
-  meta.metadata_buffer = calloc( meta.metadata_size, 1 );
-  meta.data_until_meta =  -1;
-
-  if( !meta.metadata_buffer ) {
-    rc = errno;
-    goto end;
+  if( !( w.file = xio_fopen( filename, "rb" ))) {
+    return xio_errno();
   }
 
-  if( is_http( filename )) {
-    sockmode = HTTP;
-  }
-
-  if( !( meta.filept = xio_fopen( filename, "rb", sockmode, 0, 0 ))) {
-    rc = sockfile_errno( sockmode );
-    goto end;
-  }
-
-read_again:
-
-  rc = 0;
-
-  if( !head_read( &meta, &header )) {
-    rc = 100;
-    goto end;
-  }
-
-  if( !head_check( header ))
+  if( read_first_frame_header( &w, &fr, &header ))
   {
-    unsigned char byte;
-    int i;
+    info->format.format     = WAVE_FORMAT_PCM;
+    info->format.bits       = 16;
+    info->mpeg              = fr.mpeg25 ? 25 : ( fr.lsf ? 20 : 10 );
+    info->layer             = fr.lay;
+    info->format.samplerate = freqs[fr.sampling_frequency];
+    info->mode              = fr.mode;
+    info->modext            = fr.mode_ext;
+    info->bpf               = fr.framesize + 4;
+    info->format.channels   = fr.stereo;
+    info->bitrate           = tabsel_123[fr.lsf][fr.lay-1][fr.bitrate_index];
+    info->extention         = fr.extension;
+    info->junklength        = xio_ftell( w.file ) - 4 - fr.framesize;
 
-    // fprintf( stderr, "Junk at the beginning\n" );
-    // I even saw RIFF headers at the beginning of MPEG streams ;(
-
-    // Step in byte steps through next 128K.
-    for( i = 0; i < 128 * 1024; i++ ) {
-      if( readdata( &byte, 1, 1, &meta ) != 1 ) {
-        rc = 100;
-        goto end;
-      }
-
-      header <<= 8;
-      header |= byte;
-      header &= 0xFFFFFFFFUL;
-
-      if( head_check( header )) {
-        break;
-      }
-    }
-    if( i >= 128 * 1024 ) {
-      // fprintf( stderr, "Giving up searching valid MPEG header\n" );
-      rc = 200;
-      goto end;
-    }
-  }
-
-  frame_size = decode_header( header, 0, &fr, &ssize, NULL );
-
-  if( xio_ftell( meta.filept ) > 256*1024 ) {
-    rc = 200;
-    goto end;
-  }
-
-  if( frame_size <= 0 ) {
-    goto read_again;
-  }
-
-  if( sockmode )
-  {
-    int bi = fr.bitrate_index;
-
-    vbr = 0;
-
-    for( i = 0; i < 2; i++ )
+    if( w.xing_header.flags & FRAMES_FLAG )
     {
-      char *data = (char*)alloca( frame_size );
-      unsigned long header_next;
+      info->songlength = 8.0 * 144 * w.xing_header.frames * 1000 / freqs[fr.sampling_frequency];
 
-      if( readdata( data, 1, frame_size, &meta ) == frame_size
-          && head_read( &meta, &header_next ))
-      {
-        if(( header_next & HDRCMPMASK ) != ( header & HDRCMPMASK )) {
-          goto read_again;
-        } else {
-          frame_size = decode_header( header_next, 0,
-                                      &fr, &ssize, NULL );
-          if( bi != fr.bitrate_index ) {
-            vbr = 1;
-          }
-        }
+      if( w.xing_header.flags & BYTES_FLAG ) {
+        info->bitrate = (float)w.xing_header.bytes / info->songlength * 1000 / 125;
+      }
+    }
+    else
+    {
+      if( !info->bitrate ) {
+        rc = 200;
       } else {
-        rc = 100;
-        goto end;
+        info->songlength = (float)( xio_fsize( w.file ) - w.started ) * 1000 / ( info->bitrate * 125 );
       }
     }
-  }
-  else
-  {
-    int seek_back = 0;
-    unsigned long header_next;
-    int bi = fr.bitrate_index;
 
-    vbr = 0;
+    sprintf( info->tech_info, "%u kbs, %.1f kHz, %s",
+             info->bitrate, ( info->format.samplerate / 1000.0 ), modes( info->mode ));
 
-    for( i = 0; i < 32; i++ ) {
-      if( xio_fseek( meta.filept, frame_size, SEEK_CUR ) == 0 &&
-          head_read( &meta, &header_next ))
-      {
-        seek_back -= ( frame_size + 4 );
+    if( w.xing_header.flags & TOC_FLAG ) {
+      strcat( info->tech_info, ", Xing" );
+    }
 
-        if(( header_next & HDRCMPMASK) != ( header & HDRCMPMASK )) {
-          xio_fseek( meta.filept, seek_back, SEEK_CUR );
-          goto read_again;
-        } else {
-          frame_size = decode_header( header_next, 0,
-                                      &fr, &ssize, NULL );
-          if( bi != fr.bitrate_index ) {
-            vbr = 1;
-          }
+    xio_get_metainfo( w.file, XIO_META_GENRE, info->genre,   sizeof( info->genre   ));
+    xio_get_metainfo( w.file, XIO_META_NAME,  info->comment, sizeof( info->comment ));
+    xio_get_metainfo( w.file, XIO_META_TITLE, info->title,   sizeof( info->title   ));
+    // fetch ID3 tags from data
+    if ( is_file(filename) ) {
+      tune tag;
+      int handle = open( filename, O_RDONLY | O_BINARY );
+      if ( handle != -1 ) {
+        if ( gettag( handle, &tag ) ) {
+          // Slicing! The common part of the structures is binary compatible 
+          memcpy( info->title, tag.meta.title, offsetof( META_INFO, track ) - offsetof( META_INFO, title ) );
         }
-      } else {
-        rc = 100;
-        goto end;
+        close( handle );
       }
-    }
-    xio_fseek( meta.filept, seek_back, SEEK_CUR );
-  }
-
-  // Restore a first frame broken by previous tests.
-  frame_size = decode_header( header, 0, &fr, &ssize, NULL );
-
-  // Let's try to find a xing VBR header.
-  if( fr.lay == 3 )
-  {
-    char *buf = alloca( frame_size + 4 );
-
-    buf[0] = ( header >> 24 ) & 0xFF;
-    buf[1] = ( header >> 16 ) & 0xFF;
-    buf[2] = ( header >>  8 ) & 0xFF;
-    buf[3] = ( header       ) & 0xFF;
-
-    xio_fread( buf + 4, 1, frame_size, meta.filept );
-
-    xing_header.toc = NULL;
-    GetXingHeader( &xing_header, buf );
-
-    if( xing_header.flags && !( xing_header.flags & BYTES_FLAG )) {
-      xing_header.bytes  = xio_fsize( meta.filept );
-      xing_header.flags |= BYTES_FLAG;
-    }
-  }
-
-  if( rc != 0 ) {
-    goto end;
-  }
-
-  info->format.format     = WAVE_FORMAT_PCM;
-  info->format.bits       = 16;
-  info->mpeg              = fr.mpeg25 ? 25 : ( fr.lsf ? 20 : 10 );
-  info->layer             = fr.lay;
-  info->format.samplerate = freqs[fr.sampling_frequency];
-  info->mode              = fr.mode;
-  info->modext            = fr.mode_ext;
-  info->bpf               = frame_size + 4;
-  info->format.channels   = fr.stereo;
-  info->bitrate           = tabsel_123[fr.lsf][fr.lay-1][fr.bitrate_index];
-  info->extention         = fr.extension;
-  info->junklength        = xio_ftell( meta.filept ) - 4 - frame_size;
-
-  if( xing_header.flags & FRAMES_FLAG )
-  {
-    info->songlength = 8.0 * 144 * xing_header.frames * 1000 / freqs[fr.sampling_frequency];
-
-    if( xing_header.flags & BYTES_FLAG ) {
-      info->bitrate = (float)xing_header.bytes / info->songlength * 1000 / 125;
-    }
-  }
-  else
-  {
-    if( !info->bitrate ) {
-      rc = 200;
-    } else {
-      info->songlength = (float)xio_fsize( meta.filept ) * 1000 / ( info->bitrate * 125 );
-    }
-  }
-
-  sprintf( info->tech_info, "%u kbs, %.1f kHz, %s",
-           info->bitrate, ( info->format.samplerate / 1000.0 ), modes( info->mode ));
-
-  if( vbr ) {
-    if( xing_header.flags & TOC_FLAG ) {
-      strcat( info->tech_info, ", True VBR" );
-    } else {
-      strcat( info->tech_info, ", VBR" );
-    }
-  }
-
-  if( sockmode )
-  {
-    HTTP_INFO http_info;
-    char* titlepos;
-
-    sockfile_httpinfo( meta.filept, &http_info );
-
-    strlcpy( info->comment, http_info.icy_name,  sizeof( info->comment ));
-    strlcpy( info->genre,   http_info.icy_genre, sizeof( info->genre   ));
-
-    // Title, I'd have to read at least metaint bytes to snatch this.
-    titlepos = strstr( meta.metadata_buffer, "StreamTitle='" );
-
-    if( titlepos ) {
-      titlepos += 13;
-      for( i = 0; i < sizeof( info->title ) - 1 && *titlepos
-                  && ( titlepos[0] != '\'' || titlepos[1] != ';' ); i++ )
-      {
-        info->title[i] = *titlepos++;
-      }
-
-      info->title[i] = 0;
     }
   } else {
-    tune tag;
-    if ( gettag( xio_fileno( meta.filept ), &tag ) ) {
-      // Slicing! The commen part of the structures is binary compatible 
-      memcpy( info->title, tag.meta.title, offsetof( META_INFO, track ) - offsetof( META_INFO, title ) );
-    }
+    rc = 200;
   }
 
-end:
-
-  if( meta.filept ) {
-    xio_fclose( meta.filept );
-  }
-  if( meta.metadata_buffer ) {
-    free( meta.metadata_buffer );
-  }
+  xio_fclose( w.file );
 
   DEBUGLOG(("mpg123:decoder_fileinfo: {{, %d, %d, %d, %d}}, %d, %d,\n\t%i, %i, %i, %i, %i, %i, %i ...}\n",
     info->format.samplerate, info->format.channels, info->format.bits, info->format.format,
@@ -1172,7 +1006,7 @@ ULONG PM123_ENTRY decoder_editmeta( HWND owner, const char* filename )
 
 /* Returns information about plug-in. */
 int PM123_ENTRY
-plugin_query(PLUGIN_QUERYPARAM *param)
+plugin_query( PLUGIN_QUERYPARAM* param )
 {
    param->type         = PLUGIN_DECODER;
    param->author       = "Samuel Audet";

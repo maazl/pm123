@@ -48,7 +48,6 @@
 
 #include "pm123.h"
 #include "plugman.h"
-#include <httpget.h>
 
 
 /* Constructs a string of the displayable text from the ID3 tag. */
@@ -122,42 +121,13 @@ sec2num( long seconds, int* major, int* minor )
   *minor = mi;
 }
 
-ULONG handle_dfi_error(ULONG rc, const char *file)
-{
- char buf[256];
-
- if (rc == 0) return 0;
-
- *buf = '\0';
-
- if (rc == 100)
-   sprintf(buf, "The file %s could not be read.", file);
-
- if (rc == 200)
-   sprintf(buf, "The file %s cannot be played by PM123. The file might be corrupted or the necessary plug-in not loaded or enabled.", file);
-
- if (rc == 1001)
-  {
-   amp_stop(); /* baa */
-   sprintf(buf, "%s: HTTP error occurred: %s", file, http_strerror());
-  }
-
- if (strcmp(file, "") == 0)
-  {
-   sprintf(buf, "%s: Error occurred: %s", file, strerror(errno));
-  }
-
- WinMessageBox(HWND_DESKTOP, HWND_DESKTOP, buf, "Error", 0, MB_ERROR | MB_OK);
- return 1;
-}
-
 void PM123_ENTRY pm123_control(int index, void *param)
 {
- switch (index)
+  switch (index)
   {
-   case CONTROL_NEXTMODE:
-    amp_display_next_mode();
-    break;
+    case CONTROL_NEXTMODE:
+      amp_display_next_mode();
+      break;
   }
 }
 
