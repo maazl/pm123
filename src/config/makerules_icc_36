@@ -12,7 +12,7 @@ LBO        = .lib
 RES        = .res
 
 CC         = icc
-CFLAGS     = -Ss -Q -Gm -W3 -Wuse+ -DOS2 -DTCPV40HDRS
+CFLAGS     = -Ss -Q -Gm -W3 -Wuse+ -DOS2
 CFLAGS_DLL = -Ge- -DLL
 CFLAGS_DBG = -Ti -Tx -DDEBUG=1
 CFLAGS_MEM = -Tm
@@ -42,7 +42,7 @@ LI         = implib /nologo /noi
 RC         = rc
 RFLAGS     = -n
 
-LIBS_TCP   = so32dll.lib tcp32dll.lib
+LIBS_TCP   = tcpip32.lib
 LIBS_MM    = mmpm2.lib
 
 INCLUDE    = $(INCDIR);$(INCLUDE)

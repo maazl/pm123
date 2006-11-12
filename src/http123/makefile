@@ -4,7 +4,7 @@
 
 DLL     = yes
 TOPDIR  = ..
-INCDIR  = $(TOPDIR)\utils
+INCDIR  = $(TOPDIR)\include;$(TOPDIR)\utils
 
 !include $(TOPDIR)\config\makerules
 

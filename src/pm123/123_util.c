@@ -47,7 +47,6 @@
 #include "pm123.h"
 #include "utilfct.h"
 #include "plugman.h"
-#include "httpget.h"
 
 extern OUTPUT_PARAMS out_params;
 
@@ -78,7 +77,7 @@ amp_gettag( const char* filename, DECODER_INFO* info, tune* tag )
     rc = TRUE;
   }
 
-  if( rc && cfg.charset != CH_DEFAULT )
+  if( rc && cfg.tags_charset != CH_DEFAULT )
   {
     char cstr[ sizeof( tag->title   ) +
                sizeof( tag->artist  ) +
@@ -91,7 +90,7 @@ amp_gettag( const char* filename, DECODER_INFO* info, tune* tag )
     strcat( cstr, stag.album   );
     strcat( cstr, stag.comment );
 
-    tag->charset = ch_detect( cfg.charset, cstr );
+    tag->charset = ch_detect( cfg.tags_charset, cstr );
 
     ch_convert( tag->charset, stag.title,   CH_DEFAULT, tag->title,   sizeof( stag.title   ));
     ch_convert( tag->charset, stag.artist,  CH_DEFAULT, tag->artist,  sizeof( stag.artist  ));
@@ -219,17 +218,12 @@ amp_display_filename( void )
       // if ID3 tag is empty - use filename instead of it.
 
     case CFG_DISP_FILENAME:
-      if( current_cd_drive[0] != 0 && current_track != 0 )
+      if( current_filename != NULL && *current_filename )
       {
-        sprintf( display, "%s\\Track %02d", current_cd_drive, current_track );
-        bmp_set_text( display );
-      }
-      else if( current_filename != NULL && *current_filename )
-      {
-        if( is_http( current_filename )) {
-          bmp_set_text( current_filename );
+        if( is_url( current_filename )) {
+          bmp_set_text( sdecode( display, current_filename, sizeof( display )));
         } else {
-          bmp_set_text( sfname( display, current_filename, sizeof( display )));
+          bmp_set_text( sfname ( display, current_filename, sizeof( display )));
         }
       } else {
          bmp_set_text( "This is a bug!" );
@@ -276,42 +270,34 @@ sec2num( long seconds, int* major, int* minor )
   *minor = mi;
 }
 
-ULONG handle_dfi_error(ULONG rc, const char *file)
+ULONG handle_dfi_error( ULONG rc, const char* file )
 {
- char buf[256];
+ char buf[512];
 
  if (rc == 0) return 0;
 
  *buf = '\0';
 
- if (rc == 100)
-   sprintf(buf, "The file %s could not be read.", file);
+ if( rc == 100 ) {
+   sprintf( buf, "The file %s could not be read.", file );
+ } else if( rc == 200 ) {
+   sprintf( buf, "The file %s cannot be played by PM123. The file might be corrupted or the necessary plug-in not loaded or enabled.", file );
+ } else {
+   amp_stop();
+   sprintf( buf, "%s: Error occurred: %s", file, xio_strerror( rc ));
+ }
 
- if (rc == 200)
-   sprintf(buf, "The file %s cannot be played by PM123. The file might be corrupted or the necessary plug-in not loaded or enabled.", file);
-
- if (rc == 1001)
-  {
-   amp_stop(); /* baa */
-   sprintf(buf, "%s: HTTP error occurred: %s", file, http_strerror());
-  }
-
- if (strcmp(file, "") == 0)
-  {
-   sprintf(buf, "%s: Error occurred: %s", file, strerror(errno));
-  }
-
- WinMessageBox(HWND_DESKTOP, HWND_DESKTOP, buf, "Error", 0, MB_ERROR | MB_OK);
+ WinMessageBox( HWND_DESKTOP, HWND_DESKTOP, buf, "Error", 0, MB_ERROR | MB_OK );
  return 1;
 }
 
 void PM123_ENTRY pm123_control(int index, void *param)
 {
- switch (index)
+  switch (index)
   {
-   case CONTROL_NEXTMODE:
-    amp_display_next_mode();
-    break;
+    case CONTROL_NEXTMODE:
+      amp_display_next_mode();
+      break;
   }
 }
 

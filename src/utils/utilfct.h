@@ -29,9 +29,10 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef __PM123_UTILS_H
-#define __PM123_UTILS_H
+#ifndef PM123_UTILS_H
+#define PM123_UTILS_H
 
+#include "config.h"
 #include "rel2abs.h"
 #include "abs2rel.h"
 #include "bufstream.h"
@@ -62,45 +63,6 @@
 
 #ifdef __cplusplus
 extern "C" {
-#endif
-
-#if defined(__IBMC__) || defined(__IBMCPP__)
-  int  _CRT_init( void );
-  void _CRT_term( void );
-
-  #define TFNENTRY _Optlink
-#else
-  #define TFNENTRY
-#endif
-
-#ifndef INLINE
-  #if defined(__GNUC__)
-    #define INLINE __inline__
-  #elif defined(__WATCOMC__)
-    #define INLINE __inline
-  #elif defined(__IBMC__)
-    #define INLINE _Inline
-  #else
-    #define INLINE static
-  #endif
-#endif
-
-#ifndef PM123_ENTRY
-  #if defined(__IBMC__) || defined(__IBMCPP__)
-    #define PM123_ENTRY  _System
-    #define PM123_ENTRYP * PM123_ENTRY
-  #else
-    #define PM123_ENTRY  _System
-    #define PM123_ENTRYP PM123_ENTRY *
-  #endif
-#endif
-
-#ifdef __EMX__
-  #define INIT_ATTRIBUTE __attribute__((constructor))
-  #define TERM_ATTRIBUTE __attribute__((destructor))
-#else
-  #define INIT_ATTRIBUTE
-  #define TERM_ATTRIBUTE
 #endif
 
 /* Returns TRUE if WarpSans is supported by operating system. */
@@ -159,4 +121,4 @@ SHORT lb_search( HWND hwnd, SHORT id, SHORT starti, char *item );
 #ifdef __cplusplus
 }
 #endif
-#endif /* _UTILFCT_H */
+#endif /* PM123_UTILS_H */

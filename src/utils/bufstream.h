@@ -27,8 +27,8 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef __BUFSTREAM_H
-#define __BUFSTREAM_H
+#ifndef BUFSTREAM_H
+#define BUFSTREAM_H
 
 #ifdef __cplusplus
 extern "C" {
@@ -61,4 +61,4 @@ int close_bufstream( BUFSTREAM* b );
 }
 #endif
 
-#endif /* __BUFSTREAM_H */
+#endif /* BUFSTREAM_H */

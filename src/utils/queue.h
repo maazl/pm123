@@ -26,8 +26,8 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef __QUEUE_H
-#define __QUEUE_H
+#ifndef QUEUE_H
+#define QUEUE_H
 
 #ifdef __cplusplus
 extern "C" {

@@ -26,8 +26,8 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef __ABS2REL_H
-#define __ABS2REL_H
+#ifndef ABS2REL_H
+#define ABS2REL_H
 
 #include <stdlib.h>
 

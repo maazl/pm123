@@ -40,16 +40,15 @@
 
 #define  isslash( c ) ( c == '/' || c == '\\' )
 
-/* Returns TRUE if the specified location is a HTTP URL. */
-BOOL
-is_http( const char* location ) {
-  return ( strnicmp( location, "http:", 5 ) == 0 );
-}
-
 /* Returns TRUE if the specified location is a CD track. */
 BOOL
-is_track( const char* location ) {
-  return ( strnicmp( location, "cd:"  , 3 ) == 0 );
+is_track( const char* location )
+{
+  // Format of the CD track URL is: "cd:///X:\\Track XX"
+  return strnicmp( location, "cd:///", 6 ) == 0 &&
+         isalpha ( location[ 6] ) &&
+         strnicmp( location + 7, ":\\Track ", 8 ) == 0 &&
+         isdigit ( location[15] );
 }
 
 /* Returns TRUE if the specified location is a URL. */
@@ -88,12 +87,26 @@ is_file( const char* location )
 
 }
 
+/* Returns the track number if it is specified in location,
+   otherwise returns 0. */
+int
+strack( const char* location )
+{
+  if( is_track( location )) {
+    return atol( location + 15 );
+  } else {
+    return 0;
+  }
+}
+
 /* Returns the drive letter followed by a colon (:)
-   if a drive is specified in location. */
+   if a drive is specified in the location. */
 char*
 sdrive( char* result, const char* location, size_t size )
 {
-  if( isalpha( location[0] ) && location[1] == ':' ) {
+  if( is_track( location )) {
+    strlcpy( result, location + 6, min( 3, size ));
+  } else if( isalpha( location[0] ) && location[1] == ':' ) {
     strlcpy( result, location, min( 3, size ));
   } else {
     *result = 0;

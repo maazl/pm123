@@ -34,6 +34,7 @@
 
 #ifndef  RC_INVOKED
 #include <stdlib.h>
+#include "xio.h"
 #endif
 
 #define DLG_CONFIG         2010
@@ -53,10 +54,14 @@
 #define EF_DOCK            3151
 #define ST_PIXELS          3152
 #define GB_STREAMING       3160
-#define ST_PROXY_URL       3170
-#define EF_PROXY_URL       3171
-#define ST_HTTP_AUTH       3180
-#define EF_HTTP_AUTH       3181
+#define ST_PROXY_HOST      3170
+#define EF_PROXY_HOST      3171
+#define ST_PROXY_PORT      3172
+#define EF_PROXY_PORT      3173
+#define ST_PROXY_USER      3180
+#define EF_PROXY_USER      3181
+#define ST_PROXY_PASS      3182
+#define EF_PROXY_PASS      3183
 #define ST_BUFFERSIZE      3185
 #define SB_BUFFERSIZE      3190
 #define ST_KB              3195
@@ -172,15 +177,21 @@ typedef struct _amp_cfg {
   BOOL   show_plman;          /* Show playlist manager.                 */
   int    scroll;              /* See CFG_SCROLL_*                       */
   int    viewmode;            /* See CFG_DISP_*                         */
-  char   proxy[1024];         /* Proxy URL.                             */
-  char   auth [ 256];         /* HTTP authorization.                    */
-  int    bufwait;             /* Wait before fucking.                   */
-  int    bufsize;             /* KB chunkz rewl.                        */
+
+  char   proxy_host[XIO_MAX_HOSTNAME];
+  char   proxy_user[XIO_MAX_USERNAME];
+  char   proxy_pass[XIO_MAX_PASSWORD];
+  int    proxy_port;
+
+  int    buff_wait;           /* Wait before playing.                   */
+  int    buff_size;           /* Read ahead buffer size (KB).           */
   BOOL   dock_windows;        /* Dock windows?                          */
   int    dock_margin;         /* The marging for docking window.        */
   BOOL   add_recursive;       /* Enable recursive addition.             */
   BOOL   save_relative;       /* Use relative paths in saved playlists. */
-  int    charset;             /* Character set.                         */
+  int    tags_charset;        /* The character set used by the player   */
+                              /* for tags, whose initial character set  */
+                              /* is undefined.                          */
   BOOL   font_skinned;        /* Use skinned font.                      */
   FATTRS font_attrs;          /* Font's attributes.                     */
   LONG   font_size;           /* Font's point size.                     */

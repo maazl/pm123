@@ -26,8 +26,8 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef __STRLUTIL_H
-#define __STRLUTIL_H
+#ifndef STRLUTIL_H
+#define STRLUTIL_H
 
 #ifdef __cplusplus
 extern "C" {
@@ -55,4 +55,4 @@ size_t strlcat( char* dst, const char* src, size_t siz );
 }
 #endif
 
-#endif /* __STRLUTIL_H */
+#endif /* STRLUTIL_H */

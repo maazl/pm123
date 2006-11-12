@@ -61,7 +61,7 @@ int WAV::open(char *filename, MODE mode, int &samplerate,
       case READ:
          hfile = ::open(filename,O_RDONLY | O_BINARY, S_IWRITE);
          if(!hfile || hfile == -1) return errno;
-         if(!(headersize = readHeader())) return NO_WAV_FILE;
+         if((headersize = readHeader()) == 0 ) return NO_WAV_FILE;
          bits = header.WAVE.fmt.BitsPerSample;
          channels = header.WAVE.fmt.Channels;
          samplerate = header.WAVE.fmt.SamplesPerSec;
@@ -81,7 +81,7 @@ int WAV::open(char *filename, MODE mode, int &samplerate,
          hfile = ::open(filename,O_CREAT | O_RDWR | O_BINARY, S_IWRITE);
          if(!hfile || hfile == -1) return errno;
          lseek(hfile,0,SEEK_SET);
-         if(!(headersize = readHeader())) return NO_WAV_FILE;
+         if((headersize = readHeader()) == 0 ) return NO_WAV_FILE;
          fstat(hfile,&fi);
          header.WAVE.datalen = fi.st_size - sizeof(header);
          header.WAVElen = header.WAVE.datalen + sizeof(header.WAVE);
@@ -187,7 +187,7 @@ int WAV::readHeader()
 
             do
             {
-               if(!read(hfile, &buffer,4)) break;
+               if(!read(hfile, buffer,4)) break;
                if(!read(hfile, &length,4)) break;
 
                if(buffer[0] == 'd' && buffer[1] == 'a' && buffer[2] == 't' && buffer[3] == 'a')

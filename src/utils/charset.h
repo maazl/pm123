@@ -26,22 +26,19 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef __CHARSET_H
-#define __CHARSET_H
+#ifndef CHARSET_H
+#define CHARSET_H
 
 #include <string.h>
 
-#define CH_DEFAULT    0
-#define CH_CYR_KOI8R  1
-#define CH_CYR_DOS    2
-#define CH_CYR_866    2
-#define CH_CYR_OS2    2
-#define CH_CYR_WIN    3
-#define CH_CYR_1251   3
-#define CH_CYR_AUTO   4
-
-#define CH_CP         0x0001
-#define CH_DETECT     0x0002
+#define CH_DEFAULT       0
+#define CH_CYR_KOI8R   878
+#define CH_CYR_DOS     866
+#define CH_CYR_866     866
+#define CH_CYR_OS2     866
+#define CH_CYR_WIN    1251
+#define CH_CYR_1251   1251
+#define CH_CYR_AUTO     -1
 
 #ifdef __cplusplus
 extern "C" {
@@ -51,11 +48,9 @@ typedef int (*_CH_PFN)( const char* );
 
 typedef struct _CH_ENTRY {
 
-  const char*  name;
-  int          id;
-  int          type;
-  int          cp;
-  _CH_PFN      pfn;
+  char    name[128];
+  int     id;
+  _CH_PFN pfn;
 
 } CH_ENTRY;
 
@@ -88,11 +83,11 @@ int ch_detect( int ch_source, const char* source );
  *              == NULL: error
  */
 
-char* ch_convert( int ch_source, const char* source, 
+char* ch_convert( int ch_source, const char* source,
                   int ch_target, char* target, size_t size );
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif /* __CHARSET_H */
+#endif /* CHARSET_H */

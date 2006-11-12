@@ -51,8 +51,6 @@
 #include "tcpipsock.h"
 #include "cdda.h"
 
-extern "C" const char* h_strerror   ( int tcpip_errno  );
-
 tcpip_socket::~tcpip_socket()
 {
    close();
@@ -87,7 +85,7 @@ bool tcpip_socket::connect(char *address, int port)
    memset(&server,0,sizeof(server));
    server.sin_family = AF_INET;
    server.sin_addr.s_addr = inet_addr(address);
-   if(server.sin_addr.s_addr == -1UL)
+   if(server.sin_addr.s_addr == (u_long)-1)
    {
       struct hostent *hp = gethostbyname(address);
       if(!hp)

@@ -59,6 +59,9 @@ static BOOL  forwarding    = FALSE;
 static BOOL  rewinding     = FALSE;
 static char* save_filename = NULL;
 
+static char  proxyurl[1024];
+static char  httpauth[1024];
+
 /* Returns TRUE if the decoder is paused. */
 BOOL is_paused( void ) {
   return paused;
@@ -86,6 +89,7 @@ amp_msg( int msg, void *param, void *param2 )
     case MSG_PLAY:
     {
       MSG_PLAY_STRUCT* data = (MSG_PLAY_STRUCT*)param;
+      char cd_drive[3] = "";
 
       out_params.hwnd          = data->hMain;
       out_params.boostclass    = 3;
@@ -120,14 +124,37 @@ amp_msg( int msg, void *param, void *param2 )
 
       equalize_sound( gains, mutes, preamp, cfg.eq_enabled );
 
+      if( *cfg.proxy_host ) {
+        strlcpy( proxyurl, cfg.proxy_host, sizeof( proxyurl ));
+        strlcat( proxyurl, ":", sizeof( proxyurl ));
+        strlcat( proxyurl, ltoa( cfg.proxy_port, buf, 10 ), sizeof( proxyurl ));
+      } else {
+        *proxyurl = 0;
+      }
+
+      if( *cfg.proxy_user || *cfg.proxy_pass ) {
+        strlcpy( httpauth, cfg.proxy_user, sizeof( httpauth ));
+        strlcat( httpauth, "@", sizeof( httpauth ));
+        strlcat( httpauth, cfg.proxy_pass, sizeof( httpauth ));
+      } else {
+        *httpauth = 0;
+      }
+
       dec_params.filename   = data->filename;
-      dec_params.drive      = data->drive;
-      dec_params.track      = data->track;
       dec_params.hwnd       = data->hMain;
-      dec_params.buffersize = cfg.bufsize*1024;
-      dec_params.bufferwait = cfg.bufwait;
-      dec_params.proxyurl   = cfg.proxy;
-      dec_params.httpauth   = cfg.auth;
+      dec_params.buffersize = cfg.buff_size*1024;
+      dec_params.bufferwait = cfg.buff_wait;
+      dec_params.proxyurl   = proxyurl;
+      dec_params.httpauth   = httpauth;
+      dec_params.drive      = cd_drive;
+
+      if( is_track( data->filename )) {
+        sdrive( cd_drive, data->filename, sizeof( cd_drive ));
+        dec_params.track = strack( data->filename );
+      } else {
+        dec_params.track = 0;
+      }
+
       dec_params.audio_buffersize = BUFSIZE;
       dec_params.error_display    = keep_last_error;
       dec_params.info_display     = display_info;

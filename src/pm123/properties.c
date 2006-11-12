@@ -39,7 +39,6 @@
 #include "properties.h"
 #include "pm123.h"
 #include "plugman.h"
-#include "httpget.h"
 #include "iniman.h"
 
 #define  CFG_REFRESH_LIST (WM_USER+1)
@@ -101,14 +100,16 @@ cfg_page1_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
       WinCheckButton( hwnd, CB_DOCK,         cfg.dock_windows );
 
       WinSetDlgItemText( hwnd, EF_DOCK, itoa( cfg.dock_margin, buffer, 10 ));
-      WinSetDlgItemText( hwnd, EF_PROXY_URL,  cfg.proxy   );
-      WinSetDlgItemText( hwnd, EF_HTTP_AUTH,  cfg.auth    );
-      WinCheckButton   ( hwnd, CB_FILLBUFFER, cfg.bufwait );
+      WinSetDlgItemText( hwnd, EF_PROXY_HOST, cfg.proxy_host );
+      WinSetDlgItemText( hwnd, EF_PROXY_PORT, itoa( cfg.proxy_port, buffer, 10 ));
+      WinSetDlgItemText( hwnd, EF_PROXY_USER, cfg.proxy_user );
+      WinSetDlgItemText( hwnd, EF_PROXY_PASS, cfg.proxy_pass );
+      WinCheckButton   ( hwnd, CB_FILLBUFFER, cfg.buff_wait );
 
       WinSendDlgItemMsg( hwnd, SB_BUFFERSIZE, SPBM_SETLIMITS,
                                MPFROMLONG( 2048 ), MPFROMLONG( 0 ));
       WinSendDlgItemMsg( hwnd, SB_BUFFERSIZE, SPBM_SETCURRENTVALUE,
-                               MPFROMLONG( cfg.bufsize ), 0 );
+                               MPFROMLONG( cfg.buff_size ), 0 );
       return 0;
     }
 
@@ -130,9 +131,11 @@ cfg_page1_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
       WinCheckButton( hwnd, CB_DOCK,            TRUE  );
       WinCheckButton( hwnd, CB_FILLBUFFER,      TRUE  );
 
-      WinSetDlgItemText( hwnd, EF_DOCK,      "10" );
-      WinSetDlgItemText( hwnd, EF_PROXY_URL, ""   );
-      WinSetDlgItemText( hwnd, EF_HTTP_AUTH, ""   );
+      WinSetDlgItemText( hwnd, EF_DOCK,       "10" );
+      WinSetDlgItemText( hwnd, EF_PROXY_HOST,  ""  );
+      WinSetDlgItemText( hwnd, EF_PROXY_PORT, "0"  );
+      WinSetDlgItemText( hwnd, EF_PROXY_USER,  ""  );
+      WinSetDlgItemText( hwnd, EF_PROXY_PASS,  ""  );
       WinSendDlgItemMsg( hwnd, SB_BUFFERSIZE, SPBM_SETCURRENTVALUE, 0, 0 );
       return 0;
     }
@@ -150,19 +153,27 @@ cfg_page1_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
       cfg.dock_windows = WinQueryButtonCheckstate( hwnd, CB_DOCK         );
 
       WinQueryDlgItemText( hwnd, EF_DOCK, 8, buffer );
-      cfg.dock_margin = atoi(buffer);
+      cfg.dock_margin = atoi( buffer );
 
       WinSendDlgItemMsg( hwnd, SB_BUFFERSIZE, SPBM_QUERYVALUE,
                          MPFROMP( &i ), MPFROM2SHORT( 0, SPBQ_DONOTUPDATE ));
-      cfg.bufsize = i;
+      cfg.buff_size = i;
 
-      WinQueryDlgItemText( hwnd, EF_PROXY_URL, sizeof( cfg.proxy ), cfg.proxy );
-      WinQueryDlgItemText( hwnd, EF_HTTP_AUTH, sizeof( cfg.auth  ), cfg.auth  );
+      WinQueryDlgItemText( hwnd, EF_PROXY_HOST, sizeof( cfg.proxy_host ), cfg.proxy_host );
+      WinQueryDlgItemText( hwnd, EF_PROXY_USER, sizeof( cfg.proxy_user ), cfg.proxy_user );
+      WinQueryDlgItemText( hwnd, EF_PROXY_PASS, sizeof( cfg.proxy_pass ), cfg.proxy_pass );
+      WinQueryDlgItemText( hwnd, EF_PROXY_PORT, 8, buffer );
 
-      set_proxyurl( cfg.proxy );
-      set_httpauth( cfg.auth  );
+      cfg.proxy_port = atoi( buffer );
+      cfg.buff_wait = WinQueryButtonCheckstate( hwnd, CB_FILLBUFFER );
 
-      cfg.bufwait = WinQueryButtonCheckstate( hwnd, CB_FILLBUFFER );
+      xio_set_http_proxy_host( cfg.proxy_host );
+      xio_set_http_proxy_port( cfg.proxy_port );
+      xio_set_http_proxy_user( cfg.proxy_user );
+      xio_set_http_proxy_pass( cfg.proxy_pass );
+      xio_set_buffer_size( cfg.buff_size * 1024 );
+      xio_set_buffer_wait( cfg.buff_wait );
+
       return 0;
     }
   }
@@ -215,7 +226,7 @@ cfg_page2_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
         lb_add_item( hwnd, CB_CHARSET, ch_list[i].name );
         lb_set_handle( hwnd, CB_CHARSET, i, (PVOID)ch_list[i].id );
 
-        if( i == cfg.charset ) {
+        if( ch_list[i].id == cfg.tags_charset ) {
           lb_select( hwnd, CB_CHARSET, i );
         }
       }
@@ -323,7 +334,7 @@ cfg_page2_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
 
       i = lb_cursored( hwnd, CB_CHARSET );
       if( i != LIT_NONE ) {
-        cfg.charset = (int)lb_get_handle( hwnd, CB_CHARSET, i );
+        cfg.tags_charset = (int)lb_get_handle( hwnd, CB_CHARSET, i );
       }
 
       cfg.font_skinned = WinQueryButtonCheckstate( hwnd, CB_USE_SKIN_FONT );
@@ -918,8 +929,10 @@ cfg_properties( HWND owner )
   page01 = WinLoadDlg( book, book, cfg_page1_dlg_proc, NULLHANDLE, CFG_PAGE1, 0 );
 
   do_warpsans( page01 );
-  do_warpsans( WinWindowFromID( page01, ST_PROXY_URL  ));
-  do_warpsans( WinWindowFromID( page01, ST_HTTP_AUTH  ));
+  do_warpsans( WinWindowFromID( page01, ST_PROXY_HOST ));
+  do_warpsans( WinWindowFromID( page01, ST_PROXY_PORT ));
+  do_warpsans( WinWindowFromID( page01, ST_PROXY_USER ));
+  do_warpsans( WinWindowFromID( page01, ST_PROXY_PASS ));
   do_warpsans( WinWindowFromID( page01, ST_PIXELS     ));
   do_warpsans( WinWindowFromID( page01, ST_BUFFERSIZE ));
 

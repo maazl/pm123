@@ -1,5 +1,5 @@
-#ifndef __PM123_DECODER_PLUG_H
-#define __PM123_DECODER_PLUG_H
+#ifndef PM123_DECODER_PLUG_H
+#define PM123_DECODER_PLUG_H
 
 #include "format.h"
 
@@ -19,7 +19,7 @@ BOOL PM123_ENTRY decoder_uninit( void*  w );
 #define DECODER_JUMPTO   5
 #define DECODER_SETUP    6
 #define DECODER_EQ       7
-#define DECODER_BUFFER   8
+#define DECODER_BUFFER   8 /* obsolete, don't used anymore */
 #define DECODER_SAVEDATA 9
 
 typedef struct _DECODER_PARAMS
@@ -29,17 +29,17 @@ typedef struct _DECODER_PARAMS
    /* --- DECODER_PLAY, STOP */
 
    char* filename;
-   char* URL;
+   void* unused1;     /* obsolete, must be NULL */
    char* drive;       /* for CD ie.: "X:" */
    int   track;
    int   sectors[2];  /* play from sector x to sector y */
-   char* other;
+   void* unused2;     /* obsolete, must be NULL */
 
    /* --- DECODER_REW, FFWD and JUMPTO */
 
    int   jumpto;      /* absolute positioning in milliseconds */
    int   ffwd;        /* 1 = start ffwd, 0 = end ffwd */
-   int   rew;         /* 1 = start rew, 0 = end rew */
+   int   rew;         /* 1 = start rew,  0 = end rew  */
 
    /* --- DECODER_SETUP */
 
@@ -58,9 +58,7 @@ typedef struct _DECODER_PARAMS
    /* this information is always displayed to the user right away */
    void (PM123_ENTRYP info_display)( char* );
 
-   HEV   playsem;     /* this semaphore is reseted when DECODER_PLAY is requested
-                         and is posted on stop */
-
+   void* unused3;     /* obsolete, must be NULL */
    HWND  hwnd;        /* commodity for PM interface, decoder must send a few
                          messages to this handle */
 
@@ -69,11 +67,8 @@ typedef struct _DECODER_PARAMS
    int   bufferwait;  /* block the first read until the buffer is filled */
 
    char* metadata_buffer; /* the decoder will put streaming metadata in this  */
-   int   metadata_size;   /* buffer before posting WM_METADATA                */
-
-   /* -- DECODER_BUFFER */
-
-   int   bufferstatus;    /* reports how many bytes there are available in the buffer */
+   int   metadata_size;   /* buffer before posting WM_METADATA */
+   int   unused4;         /* obsolete, must be 0 */
 
    /* --- DECODER_EQ */
 
@@ -83,7 +78,7 @@ typedef struct _DECODER_PARAMS
 
    /* --- DECODER_SAVEDATA */
 
-   char *save_filename;
+   char*  save_filename;
 
 } DECODER_PARAMS;
 
@@ -137,32 +132,43 @@ typedef struct _DECODER_INFO
    int  startsector;
    int  endsector;
 
-   /* module stuff */
-   int  numchannels;    /* 0 = not a MODule */
-   int  numpatterns;
-   int  numpositions;
+   /* obsolete stuff */
+   int  unused1;        /* obsolete, must be 0 */
+   int  unused2;        /* obsolete, must be 0 */
+   int  unused3;        /* obsolete, must be 0 */
 
    /* general technical information string */
    char tech_info[128];
 
-   /* song information */
-   char title[128];
-   char artist[128];
-   char album[128];
-   char year[128];
+   /* meta information */
+   char title  [128];
+   char artist [128];
+   char album  [128];
+   char year   [128];
    char comment[128];
-   char genre[128];
+   char genre  [128];
+   char track  [128];
+   int  codepage;       /* Code page of the meta info. Must be 0 if the
+                           code page is unknown. Don't place here any another
+                           value if it is not provided by meta info. */
+   int  filesize;       /* Size of file. */
+   int  saveinfo;       /* Must be 1 if the decoder can update meta info of
+                           this file. Otherwise, must be 0. */
 
 } DECODER_INFO;
 
 /* returns
-      0 = everything's perfect, structure is set
-      100 = error reading file (too small?)
-      200 = decoder can't play that
-      1001 = http error occured, check http_strerror() for string;
-      other values = errno */
-ULONG PM123_ENTRY decoder_fileinfo ( char* filename, DECODER_INFO* info );
+        0 = everything's perfect, structure is set,
+      100 = error reading file (too small?),
+      200 = decoder can't play that,
+      other values = errno, check xio_strerror() for string. */
+ULONG PM123_ENTRY decoder_fileinfo( char* filename, DECODER_INFO* info );
 ULONG PM123_ENTRY decoder_trackinfo( char* drive, int track, DECODER_INFO* info );
+
+/* returns
+        0 = everything's perfect, structure is saved,
+      other values = errno, check xio_strerror() for string. */
+ULONG PM123_ENTRY decoder_saveinfo( char* filename, DECODER_INFO* info );
 
 typedef struct _DECODER_CDINFO
 {
@@ -175,10 +181,10 @@ typedef struct _DECODER_CDINFO
 ULONG PM123_ENTRY decoder_cdinfo( char* drive, DECODER_CDINFO* info );
 
 /* returns ORed values */
-#define DECODER_FILENAME  0x1
-#define DECODER_URL       0x2
-#define DECODER_TRACK     0x4
-#define DECODER_OTHER     0x8
+#define DECODER_FILENAME  0x0001 /* Decoder can play a regular file. */
+#define DECODER_URL       0x0002 /* Decoder can play a internet stream or file. */
+#define DECODER_TRACK     0x0004 /* Decoder can play a CD track. */
+#define DECODER_METAINFO  0x8000 /* Decoder can save a meta info. */
 /* size is i/o and is the size of the array.
    each ext should not be bigger than 8bytes */
 ULONG PM123_ENTRY decoder_support( char* fileext[], int* size );
@@ -186,5 +192,5 @@ ULONG PM123_ENTRY decoder_support( char* fileext[], int* size );
 #ifdef __cplusplus
 }
 #endif
-#endif /* __PM123_DECODER_PLUG_H */
+#endif /* PM123_DECODER_PLUG_H */
 

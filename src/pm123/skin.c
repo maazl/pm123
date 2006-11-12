@@ -1806,7 +1806,7 @@ bmp_load_skin( const char *filename, HAB hab, HWND hplayer, HPS hps )
 
   file = fopen( filename, "r" );
   if( !file && strlen( filename ) > 0 ) {
-    amp_player_error( "Unable open skin %s, %s", filename, clib_strerror( errno ));
+    amp_player_error( "Unable open skin %s, %s", filename, strerror( errno ));
   }
 
   // Free loaded visual plugins.

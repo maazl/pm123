@@ -39,11 +39,11 @@ static int ch_rus_detect( const char *source );
 
 const CH_ENTRY ch_list[] =
 {
-  { "Default",                 CH_DEFAULT,   CH_CP,     0,    0             },
-  { "Cyrillic (KOI-8R)",       CH_CYR_KOI8R, CH_CP,     878,  0             },
-  { "Cyrillic (CP-866)",       CH_CYR_DOS,   CH_CP,     866,  0             },
-  { "Cyrillic (Windows-1251)", CH_CYR_WIN,   CH_CP,     1251, 0             },
-  { "Russian (Auto-Detect)",   CH_CYR_AUTO,  CH_DETECT, 0,    ch_rus_detect }
+  { "Default",                 CH_DEFAULT,   0             },
+  { "Cyrillic (KOI-8R)",       CH_CYR_KOI8R, 0             },
+  { "Cyrillic (CP-866)",       CH_CYR_DOS,   0             },
+  { "Cyrillic (Windows-1251)", CH_CYR_WIN,   0             },
+  { "Russian (Auto-Detect)",   CH_CYR_AUTO,  ch_rus_detect }
 };
 
 const int ch_list_size = sizeof( ch_list ) / sizeof( CH_ENTRY );
@@ -74,7 +74,7 @@ ch_find( int id )
 {
   int i;
 
-  for( i = 0; i < sizeof( ch_list ) / sizeof( CH_ENTRY ); i++ ) {
+  for( i = 0; i < ch_list_size; i++ ) {
     if( ch_list[i].id == id ) {
       return ch_list + i;
     }
@@ -170,7 +170,7 @@ ch_detect( int ch_source, const char* source )
 {
   const CH_ENTRY* ch_entry = ch_find( ch_source );
 
-  if( ch_entry && ch_entry->type & CH_DETECT ) {
+  if( ch_entry && ch_entry->pfn ) {
     ch_source = ch_entry->pfn( source );
   }
 
@@ -195,46 +195,40 @@ ch_detect( int ch_source, const char* source )
 char*
 ch_convert( int ch_source, const char* source, int ch_target, char* target, size_t size )
 {
-  const CH_ENTRY* ch_src_entry = ch_find( ch_detect( ch_source, source ));
-  const CH_ENTRY* ch_trg_entry = ch_find( ch_target );
+  ch_source = ch_detect( ch_source, source );
 
-  int ch_src_cpage = 0;
-  int ch_trg_cpage = 0;
-
-  const char* p_src = source;
-  char* p_trg = target;
-
-  if( !ch_src_entry || !ch_trg_entry ) {
-    return NULL;
-  }
-  if( ch_trg_entry->type & CH_DETECT ) {
+  if( ch_source < 0 || ch_target < 0 ) {
     return NULL;
   }
 
-  if( ch_src_entry->id == CH_DEFAULT ) {
-    ch_src_cpage = ch_default_cp();
-  } else {
-    ch_src_cpage = ch_src_entry->cp;
+  if( ch_source == CH_DEFAULT ) {
+    ch_source = ch_default_cp();
+  }
+  if( ch_target == CH_DEFAULT ) {
+    ch_target = ch_default_cp();
   }
 
-  if( ch_trg_entry->id == CH_DEFAULT ) {
-    ch_trg_cpage = ch_default_cp();
-  } else {
-    ch_trg_cpage = ch_trg_entry->cp;
+  if( ch_source == ch_target ) {
+    strncpy( target, source, size );
   }
-
-  while( *p_src && --size )
+  else
   {
-    if((unsigned char)*p_src > 0x20 ) {
-      *p_trg = WinCpTranslateChar( NULLHANDLE, ch_src_cpage, *p_src, ch_trg_cpage );
-    } else {
-      *p_trg = *p_src;
-    }
-    ++p_src;
-    ++p_trg;
-  }
+    const char* p_src = source;
+    char* p_trg = target;
 
-  *p_trg = 0;
+    while( *p_src && --size )
+    {
+      if((unsigned char)*p_src > 0x20 ) {
+        *p_trg = WinCpTranslateChar( NULLHANDLE, ch_source, *p_src, ch_target );
+      } else {
+        *p_trg = *p_src;
+      }
+      ++p_src;
+      ++p_trg;
+    }
+
+    *p_trg = 0;
+  }
   return target;
 }
 

@@ -13,7 +13,7 @@ LBO        = .lib
 RES        = .res
 
 CC         = wcl386
-CFLAGS     = -zq -bm -dOS2
+CFLAGS     = -zq -bm -dOS2 -w3
 CFLAGS_DLL = -bd
 CFLAGS_DBG = -d2 -dDEBUG=1
 CFLAGS_OPT = -otexan -5r -fp5 -s

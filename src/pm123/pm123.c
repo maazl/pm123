@@ -53,7 +53,6 @@
 #include "bookmark.h"
 #include "button95.h"
 #include "pfreq.h"
-#include "httpget.h"
 #include "genre.h"
 #include "copyright.h"
 #include "docking.h"
@@ -82,8 +81,6 @@ int    current_bitrate     =  0;
 int    current_channels    = -1;
 int    current_length      =  0;
 int    current_freq        =  0;
-char   current_track       =  0;
-char   current_cd_drive[4] = "";
 tune   current_tune;
 char   current_decoder[128];
 char   current_decoder_info_string[128];
@@ -99,13 +96,12 @@ static HPIPE hpipe      = NULLHANDLE;
 /* Pipe name decided on startup. */
 static char  pipename[_MAX_PATH] = "\\PIPE\\PM123";
 
-static BOOL  is_have_focus    = FALSE;
-static BOOL  is_volume_drag   = FALSE;
-static BOOL  is_seeking       = FALSE;
-static BOOL  is_slider_drag   = FALSE;
-static BOOL  is_stream_saved  = FALSE;
-static BOOL  is_arg_shuffle   = FALSE;
-static BOOL  is_decoder_done  = FALSE;
+static BOOL  is_have_focus   = FALSE;
+static BOOL  is_volume_drag  = FALSE;
+static BOOL  is_seeking      = FALSE;
+static BOOL  is_slider_drag  = FALSE;
+static BOOL  is_stream_saved = FALSE;
+static BOOL  is_arg_shuffle  = FALSE;
 
 /* Current seeking time. Valid if is_seeking == TRUE. */
 static int   seeking_pos = 0;
@@ -274,24 +270,18 @@ amp_pl_load_record( PLRECORD* rec )
   }
 
   if( is_file( rec->full ) && stat( rec->full, &fi ) != 0 ) {
-    amp_error( hplayer, "Unable load file:\n%s\n%s", rec->full, clib_strerror(errno));
+    amp_error( hplayer, "Unable load file:\n%s\n%s", rec->full, strerror(errno));
     return FALSE;
   }
 
   strcpy( current_filename, rec->full );
   strcpy( current_decoder,  rec->decoder_module_name );
-  strcpy( current_cd_drive, rec->cd_drive );
   strcpy( current_decoder_info_string, rec->info_string );
 
-  if( is_track( current_filename )) {
-    dec_trackinfo( rec->cd_drive, rec->track, &info, NULL );
-  } else {
-    dec_fileinfo ( current_filename, &info, NULL );
-  }
-
+  dec_fileinfo ( current_filename, &info, NULL );
   amp_gettag( current_filename, &info, &current_tune );
 
-  if( is_http( current_filename ) && !*current_tune.title ) {
+  if( is_url( current_filename ) && !*current_tune.title ) {
     strlcpy( current_tune.title, rec->songname, sizeof( current_tune.title ));
   }
 
@@ -301,7 +291,6 @@ amp_pl_load_record( PLRECORD* rec )
   current_channels = rec->channels;
   current_length   = info.songlength/1000;
   current_freq     = rec->freq;
-  current_track    = rec->track;
 
   if( amp_playmode == AMP_PLAYLIST ) {
     current_record = rec;
@@ -396,8 +385,6 @@ amp_load_singlefile( const char* filename, int options )
   int    i;
   ULONG  rc;
   char   module_name[128];
-  char   cd_drive[4] = "1:";
-  int    cd_track    = -1;
   struct stat fi;
 
   if( is_playlist( filename )) {
@@ -405,23 +392,12 @@ amp_load_singlefile( const char* filename, int options )
   }
 
   if( is_file( filename ) && stat( filename, &fi ) != 0 ) {
-    amp_error( hplayer, "Unable load file:\n%s\n%s", filename, clib_strerror(errno));
+    amp_error( hplayer, "Unable load file:\n%s\n%s", filename, strerror(errno));
     return FALSE;
   }
 
   memset( &info, 0, sizeof( info ));
-
-  if( is_track( filename )) {
-    sscanf( filename, "cd:///%1c:\\Track %d", cd_drive, &cd_track );
-    if( cd_drive[0] == '1' || cd_track == -1 ) {
-      amp_error( hplayer, "Invalid CD URL:\n%s", filename );
-      return FALSE;
-    }
-    rc = dec_trackinfo( cd_drive, cd_track, &info, module_name );
-  } else {
-    rc = dec_fileinfo((char*)filename, &info, module_name );
-    cd_drive[0] = 0;
-  }
+  rc = dec_fileinfo((char*)filename, &info, module_name );
 
   if( rc != 0 ) { /* error, invalid file */
     amp_reset();
@@ -434,7 +410,6 @@ amp_load_singlefile( const char* filename, int options )
 
   strcpy( current_filename, filename );
   strcpy( current_decoder, module_name );
-  strcpy( current_cd_drive, cd_drive );
   strcpy( current_decoder_info_string, info.tech_info );
 
   amp_gettag( filename, &info, &current_tune );
@@ -444,7 +419,6 @@ amp_load_singlefile( const char* filename, int options )
   current_channels = info.mode;
   current_length   = info.songlength / 1000;
   current_freq     = info.format.samplerate;
-  current_track    = cd_track;
 
   amp_display_filename();
   amp_invalidate( UPD_FILEINFO );
@@ -497,9 +471,6 @@ amp_stop_playing( void )
 
   // Discards WM_PLAYSTOP message, posted by decoder.
   WinPeekMsg( hab, &qms, hplayer, WM_PLAYSTOP, WM_PLAYSTOP, PM_REMOVE );
-  // Resets a waiting of an emptiness of the buffers for a case if the WM_PLAYSTOP
-  // message it has already been received.
-  is_decoder_done = FALSE;
   amp_invalidate( UPD_ALL );
 }
 
@@ -528,8 +499,6 @@ amp_play( void )
 
   msgplayinfo.filename = current_filename;
   msgplayinfo.out_filename = current_filename;
-  msgplayinfo.drive = current_cd_drive;
-  msgplayinfo.track = current_track;
   msgplayinfo.hMain = hplayer;
   msgplayinfo.decoder_needed = current_decoder;
 
@@ -640,11 +609,25 @@ amp_show_context_menu( HWND parent )
       {
         sprintf( file, "~%u ", i + 1 );
 
-        if( is_http( cfg.last[i] )) {
-          strcat( file, "[http] " );
-        }
+        if( is_url( cfg.last[i] ))
+        {
+          char buff[_MAX_PATH];
 
-        sfnameext( file + strlen( file ), cfg.last[i], sizeof( file ) - strlen( file ));
+          scheme( buff, cfg.last[i], sizeof( buff ));
+
+          if( strchr( buff, ':' ) != 0 ) {
+             *strchr( buff, ':' )  = 0;
+          }
+
+          strlcat( file, "[" , sizeof( file ));
+          strlcat( file, buff, sizeof( file ));
+          strlcat( file, "] ", sizeof( file ));
+          sfnameext( buff, cfg.last[i], sizeof( buff ));
+          sdecode( buff, buff, sizeof( buff ));
+          strlcat( file, buff, sizeof( buff ));
+        } else {
+          sfnameext( file + strlen( file ), cfg.last[i], sizeof( file ) - strlen( file ) );
+        }
 
         mi.iPosition = MIT_END;
         mi.afStyle = MIS_TEXT;
@@ -1300,7 +1283,7 @@ void amp_id3_edit( HWND owner, const char* filename )
   }
 
   if( !amp_puttag( filename, &new_tag )) {
-    amp_error( owner, "Unable write ID3 tag to file:\n%s\n%s", filename, clib_strerror(errno));
+    amp_error( owner, "Unable write ID3 tag to file:\n%s\n%s", filename, strerror(errno));
     return;
   }
 
@@ -1325,7 +1308,7 @@ void amp_id3_wipe( HWND owner, const char* filename )
   }
 
   if( !amp_wipetag( filename )) {
-    amp_error( owner, "Unable wipe ID3 tag to file:\n%s\n%s", filename, clib_strerror(errno));
+    amp_error( owner, "Unable wipe ID3 tag to file:\n%s\n%s", filename, strerror(errno));
     return;
   }
 
@@ -2435,20 +2418,19 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
     case WM_PLAYSTOP:
       // The decoder has finished the work, but we should wait until output
       // buffers will become empty.
-      is_decoder_done = TRUE;
 
       // If output is always hungry, WM_OUTPUT_OUTOFDATA will not be posted again
-      // so we go there by our selves
-      if( !out_params.always_hungry ) {
-        return 0;
+      // so we go there by our selves.
+      if( out_params.always_hungry ) {
+        amp_playstop( hwnd );
       }
+      return 0;
 
     // Posted by output
     case WM_OUTPUT_OUTOFDATA:
-      if( is_decoder_done ) {
+      if( dec_status() == DECODER_STOPPED ) {
         amp_playstop( hwnd );
       }
-      is_decoder_done = FALSE;
       return 0;
 
     case DM_DRAGOVER:
@@ -2985,9 +2967,7 @@ amp_reset( void )
   current_channels = -1;
   current_length   = 0;
   current_freq     = 0;
-  current_track    = 0;
 
-  current_cd_drive[0] = 0;
   current_decoder_info_string[0] = 0;
   current_filename[0] = 0;
 
@@ -3126,9 +3106,6 @@ main( int argc, char *argv[] )
     }
   }
 
-  set_proxyurl( cfg.proxy );
-  set_httpauth( cfg.auth  );
-
   getExeName( exename, sizeof( exename ));
   sdrivedir ( startpath, exename, sizeof( startpath ));
 
@@ -3186,6 +3163,13 @@ main( int argc, char *argv[] )
   load_ini();
   amp_volume_to_normal();
   InitButton( hab );
+
+  xio_set_http_proxy_host( cfg.proxy_host );
+  xio_set_http_proxy_port( cfg.proxy_port );
+  xio_set_http_proxy_user( cfg.proxy_user );
+  xio_set_http_proxy_pass( cfg.proxy_pass );
+  xio_set_buffer_size( cfg.buff_size * 1024 );
+  xio_set_buffer_wait( cfg.buff_wait );
 
   WinRegisterClass( hab, "PM123", amp_dlg_proc, CS_SIZEREDRAW | CS_SYNCPAINT, 0 );
 

@@ -2,7 +2,7 @@
  * Copyright 1997-2003 Samuel Audet  <guardia@step.polymtl.ca>
  *                     Taneli Lepp„  <rosmo@sektori.com>
  *
- * Copyright 2004 Dmitry A.Steklenev <glass@ptv.ru>
+ * Copyright 2004-2006 Dmitry A.Steklenev <glass@ptv.ru>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -39,12 +39,16 @@
 #include "plugin.h"
 #include "utilfct.h"
 
+#define  MAX_FILEEXT 32
+
 typedef struct
 {
   HMODULE module;
   char    module_name[_MAX_PATH];
   BOOL    enabled;
-  char**  support;
+  char    fileext[MAX_FILEEXT][8];
+  int     fileext_size;
+  ULONG   support;
 
   PLUGIN_QUERYPARAM query_param;
 
@@ -168,7 +172,6 @@ void  dec_fill_types( char* result, size_t size );
 
 ULONG PM123_ENTRY dec_command( ULONG msg, DECODER_PARAMS* params );
 ULONG PM123_ENTRY dec_fileinfo( char* filename, DECODER_INFO* info, char* name );
-ULONG PM123_ENTRY dec_trackinfo( char* drive, int track, DECODER_INFO* info, char* name );
 ULONG PM123_ENTRY dec_cdinfo( char* drive, DECODER_CDINFO* info );
 ULONG PM123_ENTRY dec_status( void );
 ULONG PM123_ENTRY dec_length( void );

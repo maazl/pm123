@@ -2,7 +2,7 @@
  * Copyright 1997-2003 Samuel Audet  <guardia@step.polymtl.ca>
  *                     Taneli Lepp„  <rosmo@sektori.com>
  *
- * Copyright 2004 Dmitry A.Steklenev <glass@ptv.ru>
+ * Copyright 2004-2006 Dmitry A.Steklenev <glass@ptv.ru>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -53,7 +53,7 @@ int      num_filters    = 0;
 VISUAL*  visuals        = NULL;
 int      num_visuals    = 0;
 
-/* Plug-in menu in the main pop-up menu */
+/* Plug-in menu entry in the main pop-up menu */
 typedef struct {
 
    char* filename;
@@ -66,6 +66,10 @@ typedef struct {
 
 static PLUGIN_ENTRY *entries = NULL;
 static int num_entries = 0;
+
+static const char* default_decoders[] = { "mpg123.dll",   "wavplay.dll", "cddaplay.dll" };
+static const char* default_outputs [] = { "os2audio.dll", "wavout.dll" };
+static const char* default_filters [] = { "realeq.dll" };
 
 /* Loads a plug-in dynamic link module. */
 static BOOL
@@ -126,7 +130,7 @@ check_plugin( HMODULE module, const char* module_name, PLUGIN_QUERYPARAM* query_
 
   if( load_function( module, &plugin_query, "plugin_query", module_name ))
   {
-    (*plugin_query)(query_param);
+    plugin_query( query_param );
     return query_param->type;
   } else {
     return 0;
@@ -139,59 +143,44 @@ load_decoder( DECODER* info )
 {
   HMODULE module = info->module;
   char*   module_name = info->module_name;
-  char*   support[20];
-  int     size = sizeof( support ) / sizeof( *support );
   int     i;
 
   if( check_plugin( module, module_name, &info->query_param ) & PLUGIN_DECODER )
   {
-    BOOL rc = load_function( module, &info->decoder_init, "decoder_init", module_name )
-            | load_function( module, &info->decoder_uninit, "decoder_uninit", module_name )
-            | load_function( module, &info->decoder_command, "decoder_command", module_name )
-            | load_function( module, &info->decoder_status, "decoder_status", module_name )
-            | load_function( module, &info->decoder_length, "decoder_length", module_name )
-            | load_function( module, &info->decoder_fileinfo, "decoder_fileinfo", module_name )
-            | load_function( module, &info->decoder_trackinfo, "decoder_trackinfo", module_name )
-            | load_function( module, &info->decoder_cdinfo, "decoder_cdinfo", module_name )
-            | load_function( module, &info->decoder_support, "decoder_support", module_name )
-            | load_function( module, &info->plugin_query, "plugin_query", module_name );
+    BOOL rc =  load_function( module, &info->decoder_init, "decoder_init", module_name )
+            && load_function( module, &info->decoder_uninit, "decoder_uninit", module_name )
+            && load_function( module, &info->decoder_command, "decoder_command", module_name )
+            && load_function( module, &info->decoder_status, "decoder_status", module_name )
+            && load_function( module, &info->decoder_length, "decoder_length", module_name )
+            && load_function( module, &info->decoder_fileinfo, "decoder_fileinfo", module_name )
+            && load_function( module, &info->decoder_trackinfo, "decoder_trackinfo", module_name )
+            && load_function( module, &info->decoder_cdinfo, "decoder_cdinfo", module_name )
+            && load_function( module, &info->decoder_support, "decoder_support", module_name )
+            && load_function( module, &info->plugin_query, "plugin_query", module_name );
 
-    if( info->query_param.configurable ) {
-      rc |= load_function( module, &info->plugin_configure, "plugin_configure", module_name );
+    if( rc && info->query_param.configurable ) {
+      rc = load_function( module, &info->plugin_configure, "plugin_configure", module_name );
     }
 
-    info->w = NULL;
-    info->enabled = TRUE;
+    if( rc )
+    {
+      char* ptrs[MAX_FILEEXT];
 
-    for( i = 0; i < size; i++ ) {
-      support[i] = malloc( _MAX_EXT );
-      if( !support[i] ) {
-        amp_player_error( "Not enough memory to decoder load." );
-        return FALSE;
+      info->w = NULL;
+      info->enabled = TRUE;
+      info->fileext_size = MAX_FILEEXT;
+
+      memset( info->fileext, 0, sizeof( info->fileext ));
+
+      for( i = 0; i < MAX_FILEEXT; i++ ) {
+        ptrs[i] = info->fileext[i];
       }
+
+      info->support = info->decoder_support( ptrs, &info->fileext_size );
     }
-
-    info->decoder_support( support, &size );
-    info->support = malloc(( size + 1 ) * sizeof( char* ));
-
-    for( i = 0; i < size; i++ ) {
-      info->support[i] = strdup( strupr( support[i] ));
-      if( !info->support[i] ) {
-        amp_player_error( "Not enough memory to decoder load." );
-        return FALSE;
-      }
-    }
-
-    info->support[i] = NULL;
-
-    for( i = 0; i < sizeof( support ) / sizeof( *support ); i++ ) {
-      free( support[i] );
-    }
-
     return rc;
-  } else {
-    return FALSE;
   }
+  return FALSE;
 }
 
 /* Assigns the addresses of the output plug-in procedures. */
@@ -201,26 +190,25 @@ load_output( OUTPUT* info )
   HMODULE module = info->module;
   char*   module_name = info->module_name;
 
-  if( check_plugin ( module, module_name, &info->query_param ) & PLUGIN_OUTPUT )
+  if( check_plugin( module, module_name, &info->query_param ) & PLUGIN_OUTPUT )
   {
-    BOOL rc = load_function( module, &info->output_init, "output_init", module_name )
-            | load_function( module, &info->output_uninit, "output_uninit", module_name )
-            | load_function( module, &info->output_command, "output_command", module_name )
-            | load_function( module, &info->output_play_samples, "output_play_samples", module_name )
-            | load_function( module, &info->output_playing_samples, "output_playing_samples", module_name )
-            | load_function( module, &info->output_playing_pos, "output_playing_pos", module_name )
-            | load_function( module, &info->output_playing_data, "output_playing_data", module_name )
-            | load_function( module, &info->plugin_query, "plugin_query", info->module_name );
+    BOOL rc =  load_function( module, &info->output_init, "output_init", module_name )
+            && load_function( module, &info->output_uninit, "output_uninit", module_name )
+            && load_function( module, &info->output_command, "output_command", module_name )
+            && load_function( module, &info->output_play_samples, "output_play_samples", module_name )
+            && load_function( module, &info->output_playing_samples, "output_playing_samples", module_name )
+            && load_function( module, &info->output_playing_pos, "output_playing_pos", module_name )
+            && load_function( module, &info->output_playing_data, "output_playing_data", module_name )
+            && load_function( module, &info->plugin_query, "plugin_query", info->module_name );
 
-    if( info->query_param.configurable ) {
-      rc |= load_function( module, &info->plugin_configure, "plugin_configure", module_name );
+    if( rc && info->query_param.configurable ) {
+      rc = load_function( module, &info->plugin_configure, "plugin_configure", module_name );
     }
 
     info->a = NULL;
     return rc;
-  } else {
-    return FALSE;
   }
+  return FALSE;
 }
 
 /* Assigns the addresses of the filter plug-in procedures. */
@@ -230,23 +218,22 @@ load_filter( FILTER* info )
   HMODULE module = info->module;
   char*   module_name = info->module_name;
 
-  if( check_plugin ( module, module_name, &info->query_param ) & PLUGIN_FILTER )
+  if( check_plugin( module, module_name, &info->query_param ) & PLUGIN_FILTER )
   {
-    BOOL rc = load_function( module, &info->filter_init, "filter_init", module_name )
-            | load_function( module, &info->filter_uninit, "filter_uninit", module_name )
-            | load_function( module, &info->filter_play_samples, "filter_play_samples", module_name )
-            | load_function( module, &info->plugin_query, "plugin_query", info->module_name );
+    BOOL rc =  load_function( module, &info->filter_init, "filter_init", module_name )
+            && load_function( module, &info->filter_uninit, "filter_uninit", module_name )
+            && load_function( module, &info->filter_play_samples, "filter_play_samples", module_name )
+            && load_function( module, &info->plugin_query, "plugin_query", info->module_name );
 
-    if( info->query_param.configurable ) {
-      rc |= load_function( module, &info->plugin_configure, "plugin_configure", module_name );
+    if( rc && info->query_param.configurable ) {
+      rc = load_function( module, &info->plugin_configure, "plugin_configure", module_name );
     }
 
     info->f = NULL;
     info->enabled = TRUE;
     return rc;
-  } else {
-    return FALSE;
   }
+  return FALSE;
 }
 
 /* Assigns the addresses of the visual plug-in procedures. */
@@ -256,23 +243,22 @@ load_visual( VISUAL* info )
   HMODULE module = info->module;
   char*   module_name = info->module_name;
 
-  if( check_plugin ( module, module_name, &info->query_param ) & PLUGIN_VISUAL )
+  if( check_plugin( module, module_name, &info->query_param ) & PLUGIN_VISUAL )
   {
-    BOOL rc = load_function( module, &info->plugin_query, "plugin_query", module_name )
-            | load_function( module, &info->plugin_deinit, "plugin_deinit", module_name )
-            | load_function( module, &info->plugin_init, "vis_init", module_name );
+    BOOL rc =  load_function( module, &info->plugin_query, "plugin_query", module_name )
+            && load_function( module, &info->plugin_deinit, "plugin_deinit", module_name )
+            && load_function( module, &info->plugin_init, "vis_init", module_name );
 
-    if( info->query_param.configurable ) {
-      rc |= load_function( module, &info->plugin_configure, "plugin_configure", module_name );
+    if( rc && info->query_param.configurable ) {
+      rc = load_function( module, &info->plugin_configure, "plugin_configure", module_name );
     }
 
     info->enabled = TRUE;
     info->init = FALSE;
     info->hwnd = NULLHANDLE;
     return rc;
-  } else {
-    return FALSE;
   }
+  return FALSE;
 }
 
 /* Loads and adds the specified decoder plug-in to the list of loaded. */
@@ -292,9 +278,9 @@ add_decoder_plugin( DECODER* decoder )
     decoders = realloc( decoders, num_decoders * sizeof( DECODER ));
     decoders[num_decoders-1] = *decoder;
     return TRUE;
-  } else {
-    return FALSE;
   }
+
+  return FALSE;
 }
 
 /* Loads and adds the specified output plug-in to the list of loaded. */
@@ -318,9 +304,9 @@ add_output_plugin( OUTPUT* output )
       out_set_active( num_outputs - 1 );
     }
     return TRUE;
-  } else {
-    return FALSE;
   }
+
+  return FALSE;
 }
 
 /* Loads and adds the specified filter plug-in to the list of loaded. */
@@ -340,9 +326,9 @@ add_filter_plugin( FILTER* filter )
     filters = realloc( filters, num_filters * sizeof( FILTER ));
     filters[num_filters-1] = *filter;
     return TRUE;
-  } else {
-    return FALSE;
   }
+
+  return FALSE;
 }
 
 /* Loads and adds the specified visual plug-in to the list of loaded. */
@@ -369,17 +355,16 @@ add_visual_plugin( VISUAL* visual )
     visuals = realloc( visuals, num_visuals * sizeof( VISUAL ));
     visuals[num_visuals-1] = *visual;
     return TRUE;
-  } else {
-    return FALSE;
   }
+
+  return FALSE;
 }
 
 /* Unloads and removes the specified decoder plug-in from the list of loaded. */
 BOOL
 remove_decoder_plugin( DECODER* decoder )
 {
-  int  i, j;
-
+  int  i;
   for( i = 0; i < num_decoders; i++ ) {
     if( &decoders[i] == decoder ) {
       break;
@@ -388,17 +373,8 @@ remove_decoder_plugin( DECODER* decoder )
   if( i >= num_decoders ) {
     return FALSE;
   }
-
   if( i == active_decoder ) {
     dec_set_active( -1 );
-  }
-
-  if( decoders[i].support ) {
-    for( j = 0; decoders[i].support[j]; j++ ) {
-      free( decoders[i].support[j] );
-    }
-    free( decoders[i].support );
-    decoders[i].support = NULL;
   }
 
   unload_module( decoders[i].module_name, decoders[i].module );
@@ -426,7 +402,6 @@ remove_output_plugin( OUTPUT* output )
   if( i >= num_outputs ) {
     return FALSE;
   }
-
   if( active_output == i  ) {
     out_set_active( -1 );
   }
@@ -508,25 +483,19 @@ void
 load_default_decoders( void )
 {
   DECODER decoder;
+  int i;
 
   while( num_decoders ) {
     remove_decoder_plugin( decoders );
   }
 
-  strcpy( decoder.module_name, startpath );
-  strcat( decoder.module_name, "mpg123.dll" );
-  if( load_module( decoder.module_name, &decoder.module )) {
-    add_decoder_plugin( &decoder );
-  }
-  strcpy( decoder.module_name, startpath );
-  strcat( decoder.module_name, "wavplay.dll" );
-  if( load_module( decoder.module_name, &decoder.module )) {
-    add_decoder_plugin( &decoder );
-  }
-  strcpy( decoder.module_name, startpath );
-  strcat( decoder.module_name, "cddaplay.dll" );
-  if( load_module( decoder.module_name, &decoder.module )) {
-    add_decoder_plugin( &decoder );
+  for( i = 0; i < sizeof( default_decoders ) / sizeof( *default_decoders ); i++ ) {
+    sprintf( decoder.module_name, "%s%s", startpath, default_decoders[i] );
+    if( load_module( decoder.module_name, &decoder.module )) {
+      if( !add_decoder_plugin( &decoder )) {
+        unload_module( decoder.module_name, decoder.module );
+      }
+    }
   }
 }
 
@@ -535,20 +504,19 @@ void
 load_default_outputs( void )
 {
   OUTPUT output;
+  int i;
 
   while( num_outputs ) {
     remove_output_plugin( outputs );
   }
 
-  strcpy( output.module_name, startpath );
-  strcat( output.module_name, "os2audio.dll" );
-  if( load_module( output.module_name, &output.module )) {
-    add_output_plugin( &output );
-  }
-  strcpy( output.module_name, startpath );
-  strcat( output.module_name, "wavout.dll" );
-  if( load_module( output.module_name, &output.module )) {
-    add_output_plugin( &output );
+  for( i = 0; i < sizeof( default_outputs ) / sizeof( *default_outputs ); i++ ) {
+    sprintf( output.module_name, "%s%s", startpath, default_outputs[i] );
+    if( load_module( output.module_name, &output.module )) {
+      if( !add_output_plugin( &output )) {
+        unload_module( output.module_name, output.module );
+      }
+    }
   }
 
   out_set_active( 0 );
@@ -559,16 +527,20 @@ void
 load_default_filters( void )
 {
   FILTER filter;
+  int i;
 
   dec_set_active( -1 );
   while( num_filters ) {
     remove_filter_plugin( filters );
   }
 
-  strcpy( filter.module_name, startpath );
-  strcat( filter.module_name, "realeq.dll" );
-  if( load_module( filter.module_name, &filter.module )) {
-    add_filter_plugin( &filter );
+  for( i = 0; i < sizeof( default_filters ) / sizeof( *default_filters ); i++ ) {
+    sprintf( filter.module_name, "%s%s", startpath, default_filters[i] );
+    if( load_module( filter.module_name, &filter.module )) {
+      if( !add_filter_plugin( &filter )) {
+        unload_module( filter.module_name, filter.module );
+      }
+    }
   }
 }
 
@@ -1064,92 +1036,112 @@ ULONG PM123_ENTRY dec_command( ULONG msg, DECODER_PARAMS *params )
   }
 }
 
+/* This code must be a part of the dec_fileinfo, but it is keeped for
+   compatibility. */
+static ULONG PM123_ENTRY
+dec_trackinfo( char* drive, int track, DECODER_INFO* info, char* name )
+{
+  int  i;
+  for( i = 0; i < num_decoders; i++ )
+  {
+    if( decoders[i].enabled &&
+        decoders[i].decoder_trackinfo &&
+      ( decoders[i].support & DECODER_TRACK ))
+    {
+      if( decoders[i].decoder_trackinfo( drive, track, info ) == 0 ) {
+        if( name ) {
+          sfnameext( name, decoders[i].module_name, _MAX_FNAME );
+        }
+        return 0;
+      }
+    }
+  }
+  return 200;
+}
+
 /* Returns the decoder NAME that can play this file and returns 0
    if not returns error 200 = nothing can play that. */
 ULONG PM123_ENTRY
 dec_fileinfo( char* filename, DECODER_INFO* info, char* name )
 {
-  BOOL* checked = malloc( sizeof( BOOL ) * num_decoders );
-  int   i, j;
+  int i, j;
 
-  memset( checked, 0, sizeof( BOOL ) * num_decoders );
+  if( is_track( filename ))
+  {
+    char drive[3];
+    int  track;
 
-  // First checks decoders supporting the specified type of files.
-  for( i = 0; i < num_decoders; i++ ) {
-    if( decoders[i].enabled && decoders[i].support ) {
-      for( j = 0; decoders[i].support[j]; j++ ) {
-        if( wildcardfit( decoders[i].support[j], filename )) {
-          if( decoders[i].decoder_fileinfo ) {
-            checked[i] = TRUE;
-            if( decoders[i].decoder_fileinfo( filename, info ) == 0 ) {
-              if( name ) {
-                sfnameext( name, decoders[i].module_name, _MAX_FNAME );
+    sdrive( drive, filename, sizeof( drive ));
+    track = strack( filename );
+
+    return dec_trackinfo( drive, track, info, name );
+  }
+  else
+  {
+    ULONG support = is_url( filename ) ? DECODER_URL : DECODER_FILENAME;
+    BOOL* checked = calloc( sizeof( BOOL ), num_decoders );
+
+    if( checked ) {
+      // First checks decoders supporting the specified type of files.
+      for( i = 0; i < num_decoders; i++ )
+      {
+        if( decoders[i].enabled          &&
+            decoders[i].decoder_fileinfo && ( decoders[i].support & support ))
+        {
+          for( j = 0; j < decoders[i].fileext_size; j++ ) {
+            if( wildcardfit( decoders[i].fileext[j], filename )) {
+              checked[i] = TRUE;
+              if( decoders[i].decoder_fileinfo( filename, info ) == 0 ) {
+                if( name ) {
+                  sfnameext( name, decoders[i].module_name, _MAX_FNAME );
+                }
+                free( checked );
+                return 0;
               }
-              free( checked );
-              return 0;
+              break;
             }
           }
-          break;
         }
       }
-    }
-  }
 
-  // Next checks the rest decoders.
-  for( i = 0; i < num_decoders; i++ ) {
-    if( decoders[i].enabled && decoders[i].decoder_fileinfo && !checked[i] ) {
-      if( decoders[i].decoder_fileinfo( filename, info ) == 0 ) {
-        if( name ) {
-          sfnameext( name, decoders[i].module_name, _MAX_FNAME );
+      // Next checks the rest decoders.
+      for( i = 0; i < num_decoders; i++ )
+      {
+        if( decoders[i].decoder_fileinfo &&
+            decoders[i].enabled          &&
+            !checked[i] && ( decoders[i].support & support ))
+        {
+          if( decoders[i].decoder_fileinfo( filename, info ) == 0 ) {
+            if( name ) {
+              sfnameext( name, decoders[i].module_name, _MAX_FNAME );
+            }
+            free( checked );
+            return 0;
+          }
         }
-        free( checked );
-        return 0;
       }
+      free( checked );
     }
   }
-
-  free( checked );
   return 200;
-}
-
-ULONG PM123_ENTRY
-dec_trackinfo( char* drive, int track, DECODER_INFO* info, char* name )
-{
-  ULONG last_rc = 200;
-  int i;
-
-  for( i = 0; i < num_decoders; i++ )
-  {
-    if( decoders[i].enabled && decoders[i].decoder_trackinfo != NULL )
-    {
-      last_rc = decoders[i].decoder_trackinfo( drive, track, info );
-      if( last_rc == 0 && name != NULL ) {
-        sfnameext( name, decoders[i].module_name, _MAX_FNAME );
-        return 0;
-      }
-    }
-  }
-  return last_rc; // returns only the last RC ... hum
 }
 
 ULONG PM123_ENTRY
 dec_cdinfo( char *drive, DECODER_CDINFO *info )
 {
-  ULONG last_rc = 200;
-  int i;
-
+  int  i;
   for( i = 0; i < num_decoders; i++ )
   {
-    if( decoders[i].enabled && decoders[i].decoder_cdinfo != NULL )
+    if( decoders[i].enabled &&
+        decoders[i].decoder_cdinfo &&
+      ( decoders[i].support & DECODER_TRACK ))
     {
-      last_rc = decoders[i].decoder_cdinfo( drive, info );
-      if( last_rc == 0 ) {
+      if( decoders[i].decoder_cdinfo( drive, info ) == 0 ) {
         return 0;
       }
     }
   }
-
-  return last_rc; // returns only the last RC ... hum
+  return 200;
 }
 
 ULONG PM123_ENTRY
@@ -1169,7 +1161,7 @@ dec_length( void )
   if( active_decoder != -1 ) {
     return decoders[active_decoder].decoder_length( decoders[active_decoder].w );
   } else {
-    return 0; // bah??
+    return 0;
   }
 }
 
@@ -1178,28 +1170,21 @@ void
 dec_fill_types( char* result, size_t size )
 {
   int i, j;
-  int res_size = 0;
-  int add_size;
 
   *result = 0;
 
   for( i = 0; i < num_decoders; i++ ) {
-    if( decoders[i].enabled && decoders[i].support ) {
-      for( j = 0; decoders[i].support[j]; j++ )
-      {
-        add_size = strlen( decoders[i].support[j] ) + 1;
-        if( res_size + add_size < size )
-        {
-          res_size += add_size;
-          strcat( result, decoders[i].support[j] );
-          strcat( result, ";" );
-        }
+    if( decoders[i].enabled ) {
+      for( j = 0; j < decoders[i].fileext_size; j++ ) {
+        strlcat( result, decoders[i].fileext[j], size );
+        strlcat( result, ";", size );
       }
     }
   }
 
-  if( res_size ) {
-    result[ res_size - 1 ] = 0; // Remove the last ";".
+  if( *result && result[strlen( result )-1] == ';' ) {
+    // Remove the last ";".
+    result[strlen( result )-1] = 0;
   }
 }
 
@@ -1283,7 +1268,7 @@ out_playing_samples( FORMAT_INFO* info, char* buf, int len )
   if( active_output != -1 ) {
     return outputs[active_output].output_playing_samples( outputs[active_output].a, info, buf, len );
   } else {
-    return -1; // ??
+    return -1;
   }
 }
 
@@ -1294,7 +1279,7 @@ out_playing_pos( void )
   if( active_output != -1 ) {
     return outputs[active_output].output_playing_pos( outputs[active_output].a );
   } else {
-    return 0; // ??
+    return 0;
   }
 }
 

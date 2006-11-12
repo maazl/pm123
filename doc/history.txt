@@ -24,11 +24,15 @@ PM123's History
     - Enabled the direct switching between fast forward and rewind. Thanks to
       Marcel Muller.
     - PM123 now accepts urls dropped from Mozilla or WPS.
+    - PM123 uses new and powerful i/o engine. The new engine fully supports
+      HTTP and FTP including a seeking feature.
 
     MPG123:
     - Improved support of VBR mp3 files having a correct VBR header. Also
       improved support of VBR files without such header: timers and length of
       a song can be wrong, but there are no jerks of the seek slider.
+    - The decoder now correctly skip RIFF headers, ID3v1 and ID3v2 tags during 
+      playing a file.
 
     REALEQ:
     - The mute controls of the left and right channel are placed correctly.

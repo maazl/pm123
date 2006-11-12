@@ -2107,7 +2107,7 @@ int do_layer3(DECODER_STRUCT *w, struct frame *fr)
        return -1;
   }
 
-  set_pointer(sideinfo.main_data_begin);
+  set_pointer(sideinfo.main_data_begin,fr);
 
   for (gr=0;gr<granules;gr++)
   {

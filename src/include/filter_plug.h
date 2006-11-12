@@ -1,5 +1,5 @@
-#ifndef __PM123_FILTER_PLUG_H
-#define __PM123_FILTER_PLUG_H
+#ifndef PM123_FILTER_PLUG_H
+#define PM123_FILTER_PLUG_H
 
 #include "format.h"
 
@@ -40,4 +40,4 @@ int  PM123_ENTRY filter_play_samples( void* f, FORMAT_INFO* format, char* buf, i
 #ifdef __cplusplus
 }
 #endif
-#endif /* __PM123_FILTER_PLUG_H */
+#endif /* PM123_FILTER_PLUG_H */

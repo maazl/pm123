@@ -53,22 +53,23 @@ factory_settings( void )
   cfg.main.x = 1;
   cfg.main.y = 1;
 
-  strcpy( cfg.filedir, "" );  // Directory for MPEG files.
-  strcpy( cfg.listdir, "" );  // Directory for playlists.
-  strcpy( cfg.savedir, "" );  // Directory used for saving a stream.
-  strcpy( cfg.cddrive, "" );  // Default CD drive.
-  strcpy( cfg.defskin, "" );  // Default skin.
-  strcpy( cfg.proxy  , "" );  // No proxy.
-  strcpy( cfg.auth   , "" );  // No authentication.
+  strcpy( cfg.filedir,    "" ); // Directory for MPEG files.
+  strcpy( cfg.listdir,    "" ); // Directory for playlists.
+  strcpy( cfg.savedir,    "" ); // Directory used for saving a stream.
+  strcpy( cfg.cddrive,    "" ); // Default CD drive.
+  strcpy( cfg.defskin,    "" ); // Default skin.
+  strcpy( cfg.proxy_host, "" ); // No proxy.
+  strcpy( cfg.proxy_user, "" ); // No authentication.
+  strcpy( cfg.proxy_pass, "" ); // No authentication.
 
-  cfg.defaultvol    = 38;     // Default maximum volume, of course.
-  cfg.playonload    = TRUE;   // Play file automatically on load.
-  cfg.autouse       = TRUE;   // Auto use playlist on load.
-  cfg.selectplayed  = FALSE;  // Don't select played file.
-  cfg.font          = 1;      // Make the bolder font a default.
-  cfg.trash         = TRUE;   // Flush buffers by default.
-  cfg.bufsize       = 0;      // 64kB rocks you.
-  cfg.bufwait       = TRUE;   // It's ok to fill the buffer first.
+  cfg.defaultvol    = 38;       // Default maximum volume, of course.
+  cfg.playonload    = TRUE;     // Play file automatically on load.
+  cfg.autouse       = TRUE;     // Auto use playlist on load.
+  cfg.selectplayed  = FALSE;    // Don't select played file.
+  cfg.font          = 1;        // Make the bolder font a default.
+  cfg.trash         = TRUE;     // Flush buffers by default.
+  cfg.buff_size     = 128;
+  cfg.buff_wait     = FALSE;
   cfg.shf           = FALSE;
   cfg.rpt           = FALSE;
   cfg.floatontop    = FALSE;
@@ -83,9 +84,10 @@ factory_settings( void )
   cfg.dock_margin   = 10;
   cfg.add_recursive = TRUE;
   cfg.save_relative = TRUE;
-  cfg.charset       = CH_DEFAULT;
+  cfg.tags_charset  = CH_DEFAULT;
   cfg.font_skinned  = TRUE;
   cfg.font_size     = 2;
+  cfg.proxy_port    = 0;
 
   cfg.font_attrs.usRecordLength  = sizeof(FATTRS);
   cfg.font_attrs.lMaxBaselineExt = 12L;
@@ -95,7 +97,7 @@ factory_settings( void )
   // for russian peoples.
   if( DosQueryCp( sizeof( cp ), cp, &cp_size ) == NO_ERROR ) {
     if( cp[0] == 866 ) {
-      cfg.charset = CH_CYR_AUTO;
+      cfg.tags_charset = CH_CYR_AUTO;
     }
   }
 
@@ -136,8 +138,8 @@ load_ini( void )
     load_ini_value( INIhandle, cfg.playonuse );
     load_ini_value( INIhandle, cfg.scroll );
     load_ini_value( INIhandle, cfg.viewmode );
-    load_ini_value( INIhandle, cfg.bufwait );
-    load_ini_value( INIhandle, cfg.bufsize );
+    load_ini_value( INIhandle, cfg.buff_wait );
+    load_ini_value( INIhandle, cfg.buff_size );
     load_ini_value( INIhandle, cfg.add_recursive );
     load_ini_value( INIhandle, cfg.save_relative );
     load_ini_value( INIhandle, cfg.eq_enabled );
@@ -146,21 +148,23 @@ load_ini( void )
     load_ini_value( INIhandle, cfg.show_plman );
     load_ini_value( INIhandle, cfg.dock_margin );
     load_ini_value( INIhandle, cfg.dock_windows );
-    load_ini_value( INIhandle, cfg.charset );
+    load_ini_value( INIhandle, cfg.tags_charset );
     load_ini_value( INIhandle, cfg.font_skinned );
     load_ini_value( INIhandle, cfg.font_attrs );
     load_ini_value( INIhandle, cfg.font_size );
+    load_ini_value( INIhandle, cfg.proxy_port );
     load_ini_value( INIhandle, cfg.main );
     load_ini_value( INIhandle, cfg.last );
     load_ini_value( INIhandle, cfg.list );
 
-    load_ini_string( INIhandle, cfg.filedir,  sizeof( cfg.filedir ));
-    load_ini_string( INIhandle, cfg.listdir,  sizeof( cfg.listdir ));
-    load_ini_string( INIhandle, cfg.savedir,  sizeof( cfg.savedir ));
-    load_ini_string( INIhandle, cfg.cddrive,  sizeof( cfg.cddrive ));
-    load_ini_string( INIhandle, cfg.proxy,    sizeof( cfg.proxy ));
-    load_ini_string( INIhandle, cfg.auth,     sizeof( cfg.auth ));
-    load_ini_string( INIhandle, cfg.defskin,  sizeof( cfg.defskin ));
+    load_ini_string( INIhandle, cfg.filedir,    sizeof( cfg.filedir ));
+    load_ini_string( INIhandle, cfg.listdir,    sizeof( cfg.listdir ));
+    load_ini_string( INIhandle, cfg.savedir,    sizeof( cfg.savedir ));
+    load_ini_string( INIhandle, cfg.cddrive,    sizeof( cfg.cddrive ));
+    load_ini_string( INIhandle, cfg.proxy_host, sizeof( cfg.proxy_host ));
+    load_ini_string( INIhandle, cfg.proxy_user, sizeof( cfg.proxy_user ));
+    load_ini_string( INIhandle, cfg.proxy_pass, sizeof( cfg.proxy_pass ));
+    load_ini_string( INIhandle, cfg.defskin,    sizeof( cfg.defskin ));
 
     load_ini_data_size( INIhandle, decoders_list, size );
     if( size > 0 && ( decoders_list = malloc( size )) != NULL )
@@ -263,8 +267,8 @@ save_ini( void )
     save_ini_value( INIhandle, cfg.playonuse );
     save_ini_value( INIhandle, cfg.scroll );
     save_ini_value( INIhandle, cfg.viewmode );
-    save_ini_value( INIhandle, cfg.bufwait );
-    save_ini_value( INIhandle, cfg.bufsize );
+    save_ini_value( INIhandle, cfg.buff_wait );
+    save_ini_value( INIhandle, cfg.buff_size );
     save_ini_value( INIhandle, cfg.add_recursive );
     save_ini_value( INIhandle, cfg.save_relative );
     save_ini_value( INIhandle, cfg.eq_enabled );
@@ -273,10 +277,11 @@ save_ini( void )
     save_ini_value( INIhandle, cfg.show_plman );
     save_ini_value( INIhandle, cfg.dock_windows );
     save_ini_value( INIhandle, cfg.dock_margin );
-    save_ini_value( INIhandle, cfg.charset );
+    save_ini_value( INIhandle, cfg.tags_charset );
     save_ini_value( INIhandle, cfg.font_skinned );
     save_ini_value( INIhandle, cfg.font_attrs );
     save_ini_value( INIhandle, cfg.font_size );
+    save_ini_value( INIhandle, cfg.proxy_port );
     save_ini_value( INIhandle, cfg.main );
     save_ini_value( INIhandle, cfg.last );
     save_ini_value( INIhandle, cfg.list );
@@ -285,10 +290,11 @@ save_ini( void )
     save_ini_string( INIhandle, cfg.listdir );
     save_ini_string( INIhandle, cfg.savedir );
     save_ini_string( INIhandle, cfg.cddrive );
-    save_ini_string( INIhandle, cfg.proxy );
-    save_ini_string( INIhandle, cfg.auth );
+    save_ini_string( INIhandle, cfg.proxy_host );
+    save_ini_string( INIhandle, cfg.proxy_user );
+    save_ini_string( INIhandle, cfg.proxy_pass );
     save_ini_string( INIhandle, cfg.defskin );
-    save_ini_string( INIhandle, cfg.lasteq );
+    save_ini_string( INIhandle, cfg.lasteq  );
 
     b = create_bufstream( 1024 );
     save_decoders( b );

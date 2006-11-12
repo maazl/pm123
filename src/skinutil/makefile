@@ -3,7 +3,7 @@
 #
 
 TOPDIR   = ..
-INCDIR   = $(TOPDIR)\utils;$(TOPDIR)\gbm123;$(TOPDIR)\pm123
+INCDIR   = $(TOPDIR)\include;$(TOPDIR)\utils;$(TOPDIR)\gbm123;$(TOPDIR)\pm123
 EXE_IO   = yes
 
 !include $(TOPDIR)\config\makerules

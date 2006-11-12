@@ -48,7 +48,6 @@
 #include "utilfct.h"
 #include "plugman.h"
 #include "docking.h"
-#include "httpget.h"
 #include "iniman.h"
 
 #define PL_ADD_FILE      0
@@ -392,10 +391,8 @@ static PLRECORD*
 pl_create_record( const char* filename, PLRECORD* pos, const char* songname )
 {
   DECODER_INFO info;
-  struct stat  fi          = {0};
-  char         cd_drive[4] = "1:";
-  int          cd_track    = -1;
-  int          rc          = 0;
+  struct stat  fi = {0};
+  int          rc = 0;
   PLRECORD*    rec;
   tune         tag;
   RECORDINSERT insert;
@@ -409,22 +406,7 @@ pl_create_record( const char* filename, PLRECORD* pos, const char* songname )
   memset( &info, 0, sizeof( info ));
   memset( &tag,  0, sizeof( tag  ));
 
-  // Decide wether this is a CD track, or a normal file.
-  if( is_track( filename ))
-  {
-    sscanf( filename, "cd:///%1c:\\Track %d", cd_drive, &cd_track );
-    if( cd_drive[0] == '1' || cd_track == -1 ) {
-      amp_error( container, "Invalid CD URL:\n%s", filename );
-      return NULL;
-    }
-    rc = dec_trackinfo( cd_drive, cd_track, &info, module_name );
-  } else {
-    if( is_file( filename )) {
-      stat( filename, &fi );
-    }
-    rc = dec_fileinfo((char*)filename, &info, module_name );
-    cd_drive[0] = 0;
-  }
+  rc = dec_fileinfo((char*)filename, &info, module_name );
 
   // Load ID3 tag.
   if( rc == 0 ) {
@@ -443,7 +425,6 @@ pl_create_record( const char* filename, PLRECORD* pos, const char* songname )
   rec->secs            = info.songlength/1000;
   rec->freq            = info.format.samplerate;
   rec->format          = info.format;
-  rec->track           = cd_track;
   rec->rc.hptrIcon     = ( rc == 0 ) ? mp3 : mp3gray;
   rec->full            = strdup( filename );
   rec->size            = fi.st_size;
@@ -453,7 +434,6 @@ pl_create_record( const char* filename, PLRECORD* pos, const char* songname )
   rec->played          = 0;
   rec->exist           = ( rc == 0 );
 
-  strcpy( rec->cd_drive, cd_drive );
   strcpy( rec->decoder_module_name, module_name );
 
   sprintf( buffer, "%u kB", (unsigned int)fi.st_size / 1024 );
@@ -512,7 +492,6 @@ pl_copy_record( PLRECORD* rec, PLRECORD* pos )
   copy->secs            = rec->secs;
   copy->freq            = rec->freq;
   copy->format          = rec->format;
-  copy->track           = rec->track;
   copy->size            = rec->size;
   copy->rc.hptrIcon     = rec->exist ? mp3 : mp3gray;
   copy->full            = strdup( rec->full );
@@ -526,7 +505,6 @@ pl_copy_record( PLRECORD* rec, PLRECORD* pos )
   copy->played          = 0;
   copy->exist           = rec->exist;
 
-  strcpy( copy->cd_drive, rec->cd_drive );
   strcpy( copy->decoder_module_name, rec->decoder_module_name );
 
   insert.cb                = sizeof(RECORDINSERT);
@@ -1084,7 +1062,7 @@ pl_delete_selected( void )
       }
       if( is_file( rec->full ) && unlink( rec->full ) != 0 ) {
         amp_error( playlist, "Unable delete file:\n%s\n%s",
-                              rec->full, clib_strerror(errno));
+                              rec->full, strerror(errno));
       }
     }
 
@@ -1166,11 +1144,25 @@ pl_show_context_menu( HWND parent, PLRECORD* rec )
       {
         sprintf( file, "~%u ", i + 1 );
 
-        if( is_http( cfg.list[i] )) {
-          strcat( file, "[http] " );
-        }
+        if( is_url( cfg.list[i] ))
+        {
+          char buff[_MAX_PATH];
 
-        sfnameext( file + strlen( file ), cfg.list[i], sizeof( file ) - strlen( file ) );
+          scheme( buff, cfg.list[i], sizeof( buff ));
+
+          if( strchr( buff, ':' ) != 0 ) {
+             *strchr( buff, ':' )  = 0;
+          }
+
+          strlcat( file, "[" , sizeof( file ));
+          strlcat( file, buff, sizeof( file ));
+          strlcat( file, "] ", sizeof( file ));
+          sfnameext( buff, cfg.list[i], sizeof( buff ));
+          sdecode( buff, buff, sizeof( buff ));
+          strlcat( file, buff, sizeof( buff ));
+        } else {
+          sfnameext( file + strlen( file ), cfg.list[i], sizeof( file ) - strlen( file ) );
+        }
 
         mi.iPosition = MIT_END;
         mi.afStyle = MIS_TEXT;
@@ -1985,14 +1977,15 @@ is_playlist( const char *filename )
 static BOOL
 pl_load_lst_list( const char *filename, int options )
 {
-  char basepath[_MAX_PATH];
-  char fullname[_MAX_PATH];
-  char file    [_MAX_PATH];
+  char   basepath[_MAX_PATH];
+  char   fullname[_MAX_PATH];
+  char   file    [_MAX_PATH];
 
-  FILE* playlist = fopen( filename, "r" );
+  XFILE* playlist = xio_fopen( filename, "r" );
 
   if( !playlist ) {
-    amp_error( container, "Unable open playlist file:\n%s\n%s", filename, clib_strerror(errno));
+    amp_error( container, "Unable open playlist file:\n%s\n%s",
+                          filename, xio_strerror( xio_errno()));
     return FALSE;
   }
 
@@ -2002,76 +1995,40 @@ pl_load_lst_list( const char *filename, int options )
     pl_clear( 0 );
   }
 
-  while( fgets( file, sizeof(file), playlist ))
+  while( xio_fgets( file, sizeof(file), playlist ))
   {
     blank_strip( file );
 
-    if( *file != 0 && *file != '#' && *file != '>' && *file != '<' )
-    {
-      if( is_file( file ) && rel2abs( basepath, file, fullname, sizeof(fullname))) {
+    if( *file != 0 && *file != '#' && *file != '>' && *file != '<' ) {
+      if( rel2abs( basepath, file, fullname, sizeof(fullname))) {
         strcpy( file, fullname );
       }
       pl_add_file( file, NULL, 0 );
     }
   }
-  fclose( playlist );
+  xio_fclose( playlist );
   return TRUE;
 }
 
 /* Loads the M3U playlist file. */
 static BOOL
-pl_load_m3u_list( const char *filename, int options )
-{
-  char file[_MAX_PATH];
-  int  playlist;
-
-  HTTP_INFO http_info;
-
-  if( !is_http( filename )) {
-    return pl_load_lst_list( filename, options );
-  }
-
-  playlist = http_open( filename, &http_info );
-
-  if( !playlist ) {
-    return FALSE;
-  }
-
-  if( options & PL_LOAD_CLEAR ) {
-    pl_clear( 0 );
-  }
-
-  while( readline( file, sizeof(file), playlist ))
-  {
-    if( strchr( file, '\n')) {
-       *strchr( file, '\n') = 0;
-    } else if( strchr( file, '\r' )) {
-       *strchr( file, '\r') = 0;
-    }
-    blank_strip(file);
-
-    if( *file != 0 && *file != '#' && *file != '>' && *file != '<' ) {
-      pl_add_file( file, NULL, 0 );
-    }
-  }
-
-  http_close( playlist );
-  return TRUE;
+pl_load_m3u_list( const char *filename, int options ) {
+  return pl_load_lst_list( filename, options );
 }
 
 /* Loads the WarpAMP playlist file. */
 static BOOL
 pl_load_mpl_list( const char *filename, int options )
 {
-  char  basepath[_MAX_PATH];
-  char  fullname[_MAX_PATH];
-  char  file    [_MAX_PATH];
-  char* eq_pos;
-
-  FILE* playlist = fopen( filename, "r" );
+  char   basepath[_MAX_PATH];
+  char   fullname[_MAX_PATH];
+  char   file    [_MAX_PATH];
+  char*  eq_pos;
+  XFILE* playlist = xio_fopen( filename, "r" );
 
   if( !playlist ) {
-    amp_error( container, "Unable open playlist file:\n%s\n%s", filename, clib_strerror(errno));
+    amp_error( container, "Unable open playlist file:\n%s\n%s",
+                          filename, xio_strerror( xio_errno()));
     return FALSE;
   }
 
@@ -2081,7 +2038,7 @@ pl_load_mpl_list( const char *filename, int options )
     pl_clear( 0 );
   }
 
-  while( fgets( file, sizeof(file), playlist ))
+  while( xio_fgets( file, sizeof(file), playlist ))
   {
     blank_strip( file );
 
@@ -2092,14 +2049,14 @@ pl_load_mpl_list( const char *filename, int options )
       if( eq_pos && strnicmp( file, "File", 4 ) == 0 )
       {
         strcpy( file, eq_pos + 1 );
-        if( is_file( file ) && rel2abs( basepath, file, fullname, sizeof(fullname))) {
+        if( rel2abs( basepath, file, fullname, sizeof(fullname))) {
           strcpy( file, fullname );
         }
         pl_add_file( file, NULL, 0 );
       }
     }
   }
-  fclose( playlist );
+  xio_fclose( playlist );
   return TRUE;
 }
 
@@ -2107,19 +2064,19 @@ pl_load_mpl_list( const char *filename, int options )
 static BOOL
 pl_load_pls_list( const char *filename, int options )
 {
-  char  basepath[_MAX_PATH];
-  char  fullname[_MAX_PATH];
-  char  file    [_MAX_PATH] = "";
-  char  title   [_MAX_PATH] = "";
-  char  line    [_MAX_PATH];
-  int   last_idx = -1;
-  BOOL  have_title = FALSE;
-  char* eq_pos;
-
-  FILE* playlist = fopen( filename, "r" );
+  char   basepath[_MAX_PATH];
+  char   fullname[_MAX_PATH];
+  char   file    [_MAX_PATH] = "";
+  char   title   [_MAX_PATH] = "";
+  char   line    [_MAX_PATH];
+  int    last_idx = -1;
+  BOOL   have_title = FALSE;
+  char*  eq_pos;
+  XFILE* playlist = xio_fopen( filename, "r" );
 
   if( !playlist ) {
-    amp_error( container, "Unable open playlist file:\n%s\n%s", filename, clib_strerror(errno));
+    amp_error( container, "Unable open playlist file:\n%s\n%s",
+                          filename, xio_strerror( xio_errno()));
     return FALSE;
   }
 
@@ -2129,7 +2086,7 @@ pl_load_pls_list( const char *filename, int options )
     pl_clear( 0 );
   }
 
-  while( fgets( line, sizeof(line), playlist ))
+  while( xio_fgets( line, sizeof(line), playlist ))
   {
     blank_strip( line );
 
@@ -2146,8 +2103,7 @@ pl_load_pls_list( const char *filename, int options )
           }
 
           strcpy( file, eq_pos + 1 );
-
-          if( is_file( file ) && rel2abs( basepath, file, fullname, sizeof(fullname))) {
+          if( rel2abs( basepath, file, fullname, sizeof(fullname))) {
             strcpy( file, fullname );
           }
           last_idx = atoi( &line[4] );
@@ -2168,7 +2124,7 @@ pl_load_pls_list( const char *filename, int options )
     pl_add_file( file, have_title ? title : NULL, 0 );
   }
 
-  fclose( playlist );
+  xio_fclose( playlist );
   return TRUE;
 }
 
@@ -2231,7 +2187,7 @@ pl_save( const char* filename, int options )
   char      path[_MAX_PATH];
 
   if( !playlist ) {
-    amp_error( container, "Unable open playlist file:\n%s\n%s", filename, clib_strerror(errno));
+    amp_error( container, "Unable open playlist file:\n%s\n%s", filename, strerror(errno));
     return FALSE;
   }
 
@@ -2285,7 +2241,7 @@ pl_save_bundle( const char* filename, int options )
   FILE* playlist = fopen( filename, "w" );
 
   if( !playlist ) {
-    amp_error( container, "Unable create status file:\n%s\n%s", filename, clib_strerror(errno));
+    amp_error( container, "Unable create status file:\n%s\n%s", filename, strerror(errno));
     return FALSE;
   }
 
@@ -2302,7 +2258,7 @@ pl_save_bundle( const char* filename, int options )
     fprintf( playlist, "%s\n" , rec->full );
   }
 
-  if( amp_playmode == AMP_SINGLE && *current_filename && is_file(current_filename)) {
+  if( amp_playmode == AMP_SINGLE && *current_filename && is_file( current_filename )) {
     fprintf( playlist, "<%s\n", current_filename );
   }
 
@@ -2321,7 +2277,7 @@ pl_load_bundle( const char *filename, int options )
   FILE* playlist = fopen( filename, "r" );
 
   if( !playlist ) {
-    amp_error( container, "Unable open status file:\n%s\n%s", filename, clib_strerror(errno));
+    amp_error( container, "Unable open status file:\n%s\n%s", filename, strerror( errno ));
     return FALSE;
   }
 

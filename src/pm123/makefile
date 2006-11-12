@@ -3,7 +3,7 @@
 #
 
 TOPDIR   = ..
-INCDIR   = $(TOPDIR)\include;$(TOPDIR)\utils;$(TOPDIR)\gbm123;$(TOPDIR)\http123;$(TOPDIR)\fft123\api
+INCDIR   = $(TOPDIR)\include;$(TOPDIR)\utils;$(TOPDIR)\gbm123;$(TOPDIR)\xio123;$(TOPDIR)\fft123\api
 EXE_PM   = yes
 
 !include $(TOPDIR)\config\makerules
@@ -14,7 +14,7 @@ OBJECTS  = $(OBJECTS) playlist$(CO) properties$(CO) skin$(CO)
 OBJECTS  = $(OBJECTS) docking$(CO)
 DEF      = pm123$(LDEF_SUFFX)
 RESOURCE = pm123$(RES)
-LIBS     = $(TOPDIR)\gbm123\gbm123$(LBI) $(TOPDIR)\http123\http123$(LBI)
+LIBS     = $(TOPDIR)\gbm123\gbm123$(LBI) $(TOPDIR)\xio123\xio123$(LBI)
 LIBS     = $(LIBS) $(TOPDIR)\utils\utilfct$(LBO) $(TOPDIR)\fft123\fft123$(LBI)
 
 all: pm123.exe $(MDUMMY)
@@ -26,6 +26,7 @@ pm123.exe: $(OBJECTS) $(RESOURCE) $(DEF)
 
 pm123.c:       pm123.h plugman.h bookmark.h button95.h pfreq.h genre.h docking.h copyright.h
 docking.c:     docking.h
+plugman.c:     plugman.h
 iniman.c:      pm123.h plugman.h iniman.h
 playlist.c:    pm123.h playlist.h
 properties.c:  pm123.h plugman.h copyright.h properties.h

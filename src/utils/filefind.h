@@ -27,8 +27,8 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef __FILEFIND_H
-#define __FILEFIND_H
+#ifndef FILEFIND_H
+#define FILEFIND_H
 
 #ifdef __cplusplus
 extern "C" {
@@ -51,4 +51,4 @@ ULONG findclose( HDIR  hdir );
 }
 #endif
 
-#endif /* __FILEFIND_H */
+#endif /* FILEFIND_H */

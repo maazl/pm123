@@ -26,8 +26,8 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef __MINMAX_H
-#define __MINMAX_H
+#ifndef MINMAX_H
+#define MINMAX_H
 
 #ifndef max 
   #define max(a,b) (((a) > (b)) ? (a) : (b))
@@ -36,4 +36,4 @@
   #define min(a,b) (((a) < (b)) ? (a) : (b))
 #endif
 
-#endif /* __MINMAX_H */
+#endif /* MINMAX_H */

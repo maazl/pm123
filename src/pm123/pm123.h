@@ -318,8 +318,6 @@ extern int  current_bitrate;
 extern int  current_channels;
 extern int  current_length;
 extern int  current_freq;
-extern char current_track;
-extern char current_cd_drive[4];
 extern tune current_tune;
 extern char current_decoder[128];
 extern char current_decoder_info_string[128];
@@ -338,8 +336,6 @@ typedef struct
 {
    char* filename;
    char* out_filename;
-   char* drive;
-   char  track;
    HWND  hMain;
    char* decoder_needed;
 
