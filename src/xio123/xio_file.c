@@ -32,6 +32,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <io.h>
+#include <share.h>
 #include <fcntl.h>
 #include <errno.h>
 #include <sys/stat.h>
@@ -43,6 +44,9 @@ static int
 file_open( XFILE* x, const char* filename, int oflags )
 {
   int omode = O_BINARY;
+  #if defined(__IBMC__)
+  int shflag = SH_DENYNO;
+  #endif
 
   if(( oflags & XO_WRITE ) && ( oflags & XO_READ )) {
     omode |= O_RDWR;
@@ -62,7 +66,14 @@ file_open( XFILE* x, const char* filename, int oflags )
     omode |= O_TRUNC;
   }
 
+  #if defined(__IBMC__)
+  if( oflags & XO_WRITE )
+    shflag = SH_DENYWR;
+
+  if(( x->protocol->s_handle = _sopen( filename, omode, shflag, S_IWRITE )) == -1 ) {
+  #else
   if(( x->protocol->s_handle = open( filename, omode, S_IREAD )) == -1 ) {
+  #endif
     return -1;
   }
 
