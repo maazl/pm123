@@ -1,0 +1,450 @@
+/*
+ * Copyright 2006 Dmitry A.Steklenev
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are met:
+ *
+ *    1. Redistributions of source code must retain the above copyright notice,
+ *       this list of conditions and the following disclaimer.
+ *
+ *    2. Redistributions in binary form must reproduce the above copyright
+ *       notice, this list of conditions and the following disclaimer in the
+ *       documentation and/or other materials provided with the distribution.
+ *
+ *    3. The name of the author may not be used to endorse or promote products
+ *       derived from this software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR IMPLIED
+ * WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+ * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO
+ * EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+ * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
+ * OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+ * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+ * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
+ * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
+
+#define  INCL_DOS
+#define  INCL_ERRORS
+#include <os2.h>
+#include <stdlib.h>
+#include <stdio.h>
+#include <memory.h>
+#include <process.h>
+#include <errno.h>
+
+#include "xio_buffer.h"
+#include "xio_protocol.h"
+#include "utilfct.h"
+
+/* Advances a buffer pointer. */
+INLINE char*
+advance( const XBUFFER* buffer, char* begin, int distance )
+{
+  if( distance < buffer->tail - begin ) {
+    return begin + distance;
+  } else {
+    return begin + distance - buffer->size;
+  }
+}
+
+/* Returns a distance between two buffer pointers. */
+INLINE int
+distance( const XBUFFER* buffer, char* begin, char* end )
+{
+  if( end >= begin ) {
+    return end - begin;
+  } else {
+    return end - begin + buffer->size;
+  }
+}
+
+/* Read-ahead thread. */
+static void TFNENTRY
+buffer_read_ahead( void* arg )
+{
+  XFILE*   x      = (XFILE*)arg;
+  XBUFFER* buffer = x->buffer;
+  ULONG    post_count;
+  int      read_size;
+  int      read_done;
+
+  // The first post of this event means that the thread has started.
+  DosPostEventSem( buffer->evt_have_data );
+
+  while( DosWaitEventSem( buffer->evt_read_data, SEM_INDEFINITE_WAIT ) == NO_ERROR && !buffer->end )
+  {
+    DosRequestMutexSem( buffer->mtx_file,   SEM_INDEFINITE_WAIT );
+    DosRequestMutexSem( buffer->mtx_access, SEM_INDEFINITE_WAIT );
+
+    if( buffer->free )
+    {
+      // Determines the maximum possible size of the continuous data chunk
+      // for reading. The maximum size of a chunk is 4 kilobytes.
+      read_size = distance( buffer, buffer->data_tail, buffer->tail );
+      read_size = min( read_size, buffer->free );
+      read_size = min( read_size, 4096 );
+
+      DosReleaseMutexSem( buffer->mtx_access );
+      // It is possible to use the data_tail pointer without request of
+      // the mutex because only this thread can change it.
+      read_done = x->protocol->read( x, buffer->data_tail, read_size );
+      DosRequestMutexSem( buffer->mtx_access, SEM_INDEFINITE_WAIT );
+
+      if( read_done >= 0 ) {
+        buffer->data_size += read_done;
+        buffer->free      -= read_done;
+        buffer->data_rest += read_done;
+        buffer->data_tail  = advance( buffer, buffer->data_tail, read_done );
+
+        if( read_done < read_size ) {
+          buffer->eof = 1;
+        }
+      } else {
+        buffer->error = errno;
+      }
+    }
+
+    DosPostEventSem( buffer->evt_have_data );
+
+    if(( !buffer->free || buffer->error || buffer->eof ) && !buffer->end ) {
+      // Buffer is filled up.
+      DosResetEventSem( buffer->evt_read_data, &post_count );
+    }
+
+    if( buffer->boosted ) {
+      DosSetPriority( PRTYS_THREAD, PRTYC_REGULAR, 0, buffer->tid );
+    }
+
+    DosReleaseMutexSem( buffer->mtx_access );
+    DosReleaseMutexSem( buffer->mtx_file   );
+  }
+
+  buffer->tid = -1;
+  buffer_terminate( buffer );
+  _endthread();
+}
+
+/* Allocates and initializes the buffer. */
+void
+buffer_initialize( XFILE* x )
+{
+  XBUFFER* buffer;
+  int size = xio_buffer_size();
+
+  if( !size || ( x->oflags & XO_WRITE )) {
+    x->buffer = NULL;
+    return;
+  }
+
+  buffer = calloc( 1, sizeof( XBUFFER ));
+  if( !buffer ) {
+    x->buffer = NULL;
+    return;
+  }
+
+  x->buffer = buffer;
+  buffer->tid = -1;
+
+  for(;;)
+  {
+    buffer->head = malloc( size );
+
+    DosCreateMutexSem( NULL, &buffer->mtx_file,      0, FALSE );
+    DosCreateMutexSem( NULL, &buffer->mtx_access,    0, FALSE );
+    DosCreateEventSem( NULL, &buffer->evt_have_data, 0, FALSE );
+    DosCreateEventSem( NULL, &buffer->evt_read_data, 0, FALSE );
+
+    if( !buffer->head          ||
+        !buffer->mtx_access    ||
+        !buffer->mtx_file      ||
+        !buffer->evt_read_data ||
+        !buffer->evt_have_data )
+    {
+      break;
+    }
+
+    buffer->size      = size;
+    buffer->tail      = buffer->head + size;
+    buffer->free      = size;
+    buffer->data_head = buffer->head;
+    buffer->data_read = buffer->head;
+    buffer->data_tail = buffer->head;
+    buffer->data_keep = buffer->size / 5;
+    buffer->file_pos  = x->protocol->tell( x );
+
+    if( xio_buffer_wait())
+    {
+      buffer->data_size = x->protocol->read( x, buffer->head, buffer->size );
+
+      if( buffer->data_size < 0 ) {
+        break;
+      }
+      if( buffer->data_size < buffer->size ) {
+        buffer->eof = 1;
+      }
+
+      buffer->data_rest = buffer->data_size;
+      buffer->data_tail = advance( buffer, buffer->data_head, buffer->data_size );
+      buffer->free      = buffer->size - buffer->data_size;
+    } else {
+      DosPostEventSem( buffer->evt_read_data );
+    }
+
+    if(( buffer->tid = _beginthread( buffer_read_ahead, NULL, 65535, x )) == -1 ) {
+      break;
+    }
+
+    // Boosts of the priority of the read-ahead thread.
+    buffer->boosted = 1;
+    DosSetPriority( PRTYS_THREAD, PRTYC_TIMECRITICAL, 0, buffer->tid );
+
+    // The first post of this event means that the thread has started.
+    DosWaitEventSem( buffer->evt_have_data, SEM_INDEFINITE_WAIT );
+    return;
+  }
+
+  x->buffer = NULL;
+  buffer_terminate( buffer );
+}
+
+/* Cleanups the buffer. */
+void buffer_terminate( XBUFFER* buffer )
+{
+  if( buffer ) {
+    if( buffer->tid != -1 ) {
+      // If the thread is started, set request about its termination.
+      // At end the thread itself will clear the buffer.
+      DosRequestMutexSem( buffer->mtx_access, SEM_INDEFINITE_WAIT );
+      buffer->end = 1;
+      DosPostEventSem( buffer->evt_read_data );
+      DosReleaseMutexSem( buffer->mtx_access );
+    } else {
+      // Cleanups.
+      if( buffer->mtx_access ) {
+        DosCloseMutexSem( buffer->mtx_access );
+      }
+      if( buffer->mtx_file ) {
+        DosCloseMutexSem( buffer->mtx_file );
+      }
+      if( buffer->evt_read_data ) {
+        DosCloseEventSem( buffer->evt_read_data );
+      }
+      if( buffer->evt_have_data ) {
+        DosCloseEventSem( buffer->evt_have_data );
+      }
+      if( buffer->head ) {
+        free( buffer->head );
+      }
+      free( buffer );
+    }
+  }
+}
+
+/* Reads count bytes from the file into buffer. Returns the number
+   of bytes placed in result. The return value 0 indicates an attempt
+   to read at end-of-file. A return value -1 indicates an error. */
+int
+buffer_read( XFILE* x, char* result, unsigned int count )
+{
+  int   obsolete;
+  ULONG post_count;
+  int   read_done;
+  int   read_size;
+
+  XBUFFER* buffer = x->buffer;
+
+  if( !buffer ) {
+    return x->protocol->read( x, result, count );
+  }
+
+  for( read_done = 0; read_done < count; )
+  {
+    DosRequestMutexSem( buffer->mtx_access, SEM_INDEFINITE_WAIT );
+
+    // Determines the maximum possible size of the continuous data
+    // chunk for reading.
+    read_size = distance( buffer, buffer->data_read, buffer->tail );
+    read_size = min( read_size, buffer->data_rest );
+    read_size = min( read_size, count - read_done );
+
+    if( read_size )
+    {
+      // Copy a next chunk of data in the result buffer.
+      memcpy( result + read_done, buffer->data_read, read_size );
+
+      buffer->data_read  = advance( buffer, buffer->data_read, read_size );
+      buffer->data_rest -= read_size;
+      read_done += read_size;
+
+      obsolete = buffer->data_size - buffer->data_rest - buffer->data_keep;
+
+      if( obsolete > 128 ) {
+        // If there is too much obsolete data then move a head of
+        // the data pool.
+        buffer->data_head  = advance( buffer, buffer->data_head, obsolete );
+        buffer->file_pos  += obsolete;
+        buffer->data_size -= obsolete;
+        buffer->free      += obsolete;
+
+        DosPostEventSem( buffer->evt_read_data );
+      }
+
+      DosReleaseMutexSem( buffer->mtx_access );
+    }
+    else
+    {
+      if( buffer->eof   ) {
+        DosReleaseMutexSem( buffer->mtx_access );
+        return 0;
+      }
+      if( buffer->error ) {
+        errno = buffer->error;
+        DosReleaseMutexSem( buffer->mtx_access );
+        return -1;
+      }
+
+      // There is no error and there is no end of a file.
+      // It is necessary to wait a next portion of data.
+      DosResetEventSem( buffer->evt_have_data, &post_count );
+      DosPostEventSem ( buffer->evt_read_data );
+
+      // Boosts of the priority of the read-ahead thread.
+      buffer->boosted = 1;
+      DosSetPriority( PRTYS_THREAD, PRTYC_TIMECRITICAL, 0, buffer->tid );
+      DosReleaseMutexSem( buffer->mtx_access );
+
+      // Wait a next portion of data.
+      DosWaitEventSem( buffer->evt_have_data, SEM_INDEFINITE_WAIT );
+    }
+  }
+
+  return read_done;
+}
+
+/* Writes count bytes from source into the file. Returns the number
+   of bytes moved from the source to the file. The return value may
+   be positive but less than count. A return value of -1 indicates an
+   error */
+int
+buffer_write( XFILE* x, const char* source, unsigned int count )
+{
+  if( x->buffer ) {
+    errno = EINVAL;
+    return -1;
+  } else {
+    return x->protocol->write( x, source, count );
+  }
+}
+
+/* Returns the current position of the file pointer. The position is
+   the number of bytes from the beginning of the file. On devices
+   incapable of seeking, the return value is -1L. */
+long
+buffer_tell( XFILE* x )
+{
+  if( x->buffer )
+  {
+    long pos;
+
+    DosRequestMutexSem( x->buffer->mtx_access, SEM_INDEFINITE_WAIT );
+    pos = x->buffer->file_pos + x->buffer->data_size
+                              - x->buffer->data_rest;
+    DosReleaseMutexSem( x->buffer->mtx_access );
+    return pos;
+  } else {
+    return x->protocol->tell( x );
+  }
+}
+
+/* Returns the size of the file. A return value of -1L indicates an
+   error or an unknown size. */
+long
+buffer_filesize( XFILE* x ) {
+  return x->protocol->size( x );
+}
+
+/* Moves any file pointer to a new location that is offset bytes from
+   the origin. Returns the offset, in bytes, of the new position from
+   the beginning of the file. A return value of -1L indicates an
+   error. */
+long
+buffer_seek( XFILE* x, long offset, int origin )
+{
+  XBUFFER* buffer = x->buffer;
+  long result;
+
+  if( !buffer ) {
+    return x->protocol->seek( x, offset, origin );
+  }
+
+  DosRequestMutexSem( buffer->mtx_access, SEM_INDEFINITE_WAIT );
+
+  switch( origin ) {
+    case XIO_SEEK_SET:
+      result = offset;
+      break;
+    case XIO_SEEK_CUR:
+      result = buffer_tell( x ) + offset;
+      break;
+    case XIO_SEEK_END:
+      result = buffer_filesize( x ) - offset;
+      break;
+    default:
+      DosReleaseMutexSem( buffer->mtx_access );
+      return -1;
+  }
+
+  if( result >= buffer->file_pos &&
+      result <= buffer->file_pos + buffer->data_size )
+  {
+    int obsolete;
+    int moveto = result - buffer->file_pos;
+
+    buffer->data_read = advance( buffer, buffer->data_head, moveto );
+    buffer->data_rest = buffer->data_size - moveto;
+    obsolete = moveto - buffer->data_keep;
+
+    if( obsolete > 128 ) {
+      // If there is too much obsolete data then move a head of
+      // the data pool.
+      buffer->data_head  = advance( buffer, buffer->data_head, obsolete );
+      buffer->file_pos  += obsolete;
+      buffer->data_size -= obsolete;
+      buffer->free      += obsolete;
+
+      DosPostEventSem( buffer->evt_read_data );
+    }
+  } else {
+    DosReleaseMutexSem( buffer->mtx_access );
+    DosRequestMutexSem( buffer->mtx_file,   SEM_INDEFINITE_WAIT );
+    DosRequestMutexSem( buffer->mtx_access, SEM_INDEFINITE_WAIT );
+
+    result = x->protocol->seek( x, result, XIO_SEEK_SET );
+
+    if( result >= 0 ) {
+      buffer->file_pos  = result;
+      buffer->data_head = buffer->head;
+      buffer->data_tail = buffer->head;
+      buffer->data_read = buffer->head;
+      buffer->data_size = 0;
+      buffer->data_rest = 0;
+      buffer->free      = buffer->size;
+      buffer->eof       = 0;
+      buffer->error     = 0;
+
+      DosPostEventSem( buffer->evt_read_data );
+
+      // Boosts of the priority of the read-ahead thread.
+      buffer->boosted = 1;
+      DosSetPriority( PRTYS_THREAD, PRTYC_TIMECRITICAL, 0, buffer->tid );
+    }
+    DosReleaseMutexSem( buffer->mtx_file   );
+  }
+
+  DosReleaseMutexSem( buffer->mtx_access );
+  return result;
+}
+

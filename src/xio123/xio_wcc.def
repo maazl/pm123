@@ -1,0 +1,36 @@
+SYSTEM OS2V2_DLL INITINSTANCE TERMINSTANCE
+OPTION MANYAUTODATA
+OPTION DESCRIPTION 'PM123 XIO Library'
+
+EXPORT xio_buffer_size          .1
+EXPORT xio_buffer_wait          .2
+EXPORT xio_http_proxy_host      .3
+EXPORT xio_http_proxy_port      .4
+EXPORT xio_http_proxy_user      .5
+EXPORT xio_http_proxy_pass      .6
+EXPORT xio_http_proxy_addr      .7
+
+EXPORT xio_set_buffer_size      .21
+EXPORT xio_set_buffer_wait      .22
+EXPORT xio_set_http_proxy_host  .23
+EXPORT xio_set_http_proxy_port  .24
+EXPORT xio_set_http_proxy_user  .25
+EXPORT xio_set_http_proxy_pass  .26
+EXPORT xio_set_observer         .27
+EXPORT xio_get_metainfo         .28
+EXPORT xio_can_seek             .29
+
+EXPORT xio_fopen                .40
+EXPORT xio_fread                .41
+EXPORT xio_fwrite               .42
+EXPORT xio_fclose               .43
+EXPORT xio_ftell                .44
+EXPORT xio_fseek                .45
+EXPORT xio_fsize                .46
+EXPORT xio_fgets                .47
+EXPORT xio_fputs                .48
+EXPORT xio_fabort               .49
+EXPORT xio_rewind               .50
+EXPORT xio_errno                .51
+EXPORT xio_strerror             .52
+
