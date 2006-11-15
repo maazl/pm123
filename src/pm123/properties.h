@@ -175,8 +175,8 @@ typedef struct _amp_cfg {
   int    viewmode;            /* See CFG_DISP_*                         */
   char   proxy[1024];         /* Proxy URL.                             */
   char   auth [1024];         /* HTTP authorization.                    */
-  int    bufwait;             /* Wait before playing.                   */
-  int    bufsize;             /* Read ahead buffer size (KB).           */
+  int    buff_wait;           /* Wait before playing.                   */
+  int    buff_size;           /* Read ahead buffer size (KB).           */
   BOOL   dock_windows;        /* Dock windows?                          */
   int    dock_margin;         /* The marging for docking window.        */
   BOOL   add_recursive;       /* Enable recursive addition.             */

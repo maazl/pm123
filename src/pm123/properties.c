@@ -73,8 +73,8 @@ void cfg_init( void )
     xio_set_http_proxy_user( buffer );
     xio_set_http_proxy_pass( cp +1 );
   }
-  xio_set_buffer_size( cfg.bufsize * 1024 );
-  xio_set_buffer_wait( cfg.bufwait );
+  xio_set_buffer_size( cfg.buff_size * 1024 );
+  xio_set_buffer_wait( cfg.buff_wait );
 }
 
 
@@ -151,12 +151,12 @@ cfg_page1_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
         WinSetDlgItemText( hwnd, EF_PROXY_USER, buffer );
         WinSetDlgItemText( hwnd, EF_PROXY_PASS, cp+1 );
       }
-      WinCheckButton   ( hwnd, CB_FILLBUFFER, cfg.bufwait );
+      WinCheckButton   ( hwnd, CB_FILLBUFFER, cfg.buff_wait );
 
       WinSendDlgItemMsg( hwnd, SB_BUFFERSIZE, SPBM_SETLIMITS,
                                MPFROMLONG( 2048 ), MPFROMLONG( 0 ));
       WinSendDlgItemMsg( hwnd, SB_BUFFERSIZE, SPBM_SETCURRENTVALUE,
-                               MPFROMLONG( cfg.bufsize ), 0 );
+                               MPFROMLONG( cfg.buff_size ), 0 );
       return 0;
     }
 
@@ -204,8 +204,8 @@ cfg_page1_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
 
       WinSendDlgItemMsg( hwnd, SB_BUFFERSIZE, SPBM_QUERYVALUE,
                          MPFROMP( &i ), MPFROM2SHORT( 0, SPBQ_DONOTUPDATE ));
-      cfg.bufsize = i;
-      xio_set_buffer_size( cfg.bufsize * 1024 );
+      cfg.buff_size = i;
+      xio_set_buffer_size( cfg.buff_size * 1024 );
 
       WinQueryDlgItemText( hwnd, EF_PROXY_HOST, sizeof( cfg.proxy ), cfg.proxy );
       xio_set_http_proxy_host( cfg.proxy );
@@ -229,8 +229,8 @@ cfg_page1_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
           cfg.auth[i-1] = 0; // remove delimiter
       }
 
-      cfg.bufwait = WinQueryButtonCheckstate( hwnd, CB_FILLBUFFER );
-      xio_set_buffer_wait( cfg.bufwait );
+      cfg.buff_wait = WinQueryButtonCheckstate( hwnd, CB_FILLBUFFER );
+      xio_set_buffer_wait( cfg.buff_wait );
 
       return 0;
     }

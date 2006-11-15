@@ -277,8 +277,8 @@ ULONG dec_play( const char* url, const char* decoder_name )
   voutput.dparams.output_request_buffer = voutput.procs.output_request_buffer;
   voutput.dparams.output_commit_buffer  = voutput.procs.output_commit_buffer;
   voutput.dparams.a                     = voutput.procs.a;
-  voutput.dparams.buffersize            = cfg.bufsize*1024;
-  voutput.dparams.bufferwait            = cfg.bufwait;
+  voutput.dparams.buffersize            = cfg.buff_size*1024;
+  voutput.dparams.bufferwait            = cfg.buff_wait;
   voutput.dparams.proxyurl              = cfg.proxy;
   voutput.dparams.httpauth              = cfg.auth;
 

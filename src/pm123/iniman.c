@@ -65,8 +65,8 @@ factory_settings( void )
   cfg.selectplayed  = FALSE;    // Don't select played file.
   cfg.font          = 1;        // Make the bolder font a default.
   cfg.trash         = TRUE;     // Flush buffers by default.
-  cfg.bufsize       = 128;
-  cfg.bufwait       = FALSE;
+  cfg.buff_size     = 128;
+  cfg.buff_wait     = FALSE;
   cfg.shf           = FALSE;
   cfg.rpt           = FALSE;
   cfg.floatontop    = FALSE;
@@ -125,8 +125,8 @@ load_ini( void )
     load_ini_value( INIhandle, cfg.playonuse );
     load_ini_value( INIhandle, cfg.scroll );
     load_ini_value( INIhandle, cfg.viewmode );
-    load_ini_value( INIhandle, cfg.bufwait );
-    load_ini_value( INIhandle, cfg.bufsize );
+    load_ini_value( INIhandle, cfg.buff_wait );
+    load_ini_value( INIhandle, cfg.buff_size );
     load_ini_value( INIhandle, cfg.add_recursive );
     load_ini_value( INIhandle, cfg.save_relative );
     load_ini_value( INIhandle, cfg.eq_enabled );
@@ -250,8 +250,8 @@ save_ini( void )
     save_ini_value( INIhandle, cfg.playonuse );
     save_ini_value( INIhandle, cfg.scroll );
     save_ini_value( INIhandle, cfg.viewmode );
-    save_ini_value( INIhandle, cfg.bufwait );
-    save_ini_value( INIhandle, cfg.bufsize );
+    save_ini_value( INIhandle, cfg.buff_wait );
+    save_ini_value( INIhandle, cfg.buff_size );
     save_ini_value( INIhandle, cfg.add_recursive );
     save_ini_value( INIhandle, cfg.save_relative );
     save_ini_value( INIhandle, cfg.eq_enabled );
