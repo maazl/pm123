@@ -7,6 +7,8 @@
 extern "C" {
 #endif
 
+#pragma pack(4)
+
 int  PM123_ENTRY decoder_init  ( void** w );
 BOOL PM123_ENTRY decoder_uninit( void*  w );
 
@@ -109,6 +111,17 @@ ULONG PM123_ENTRY decoder_length( void* w );
                  ( i == 2 ? "Dual-Channel"   : \
                  ( i == 3 ? "Single-Channel" : "" ))))
 
+/* See haveinfo field of the DECODER_INFO structure. */
+#define DECODER_HAVE_TITLE     0x0001
+#define DECODER_HAVE_ARTIST    0x0002
+#define DECODER_HAVE_ALBUM     0x0004
+#define DECODER_HAVE_YEAR      0x0008
+#define DECODER_HAVE_COMMENT   0x0010
+#define DECODER_HAVE_GENRE     0x0020
+#define DECODER_HAVE_TRACK     0x0040
+#define DECODER_HAVE_COPYRIGHT 0x0080
+#define DECODER_HAVE_ALL       0x00FF
+
 /* NOTE: the information returned is only based on the FIRST header */
 typedef struct _DECODER_INFO
 {
@@ -141,19 +154,23 @@ typedef struct _DECODER_INFO
    char tech_info[128];
 
    /* meta information */
-   char title  [128];
-   char artist [128];
-   char album  [128];
-   char year   [128];
-   char comment[128];
-   char genre  [128];
-   char track  [128];
+   char title    [128];
+   char artist   [128];
+   char album    [128];
+   char year     [128];
+   char comment  [128];
+   char genre    [128];
+   char track    [128];
+   char copyright[128];
    int  codepage;       /* Code page of the meta info. Must be 0 if the
                            code page is unknown. Don't place here any another
                            value if it is not provided by meta info. */
-   int  filesize;       /* Size of file. */
+   int  haveinfo;       /* This flags define what of fields of the block of the
+                           meta information are supported by the decoder. Can
+                           be 0 if the decoder supports all fields. */
    int  saveinfo;       /* Must be 1 if the decoder can update meta info of
                            this file. Otherwise, must be 0. */
+   int  filesize;       /* Size of the file. */
 
 } DECODER_INFO;
 
@@ -188,6 +205,8 @@ ULONG PM123_ENTRY decoder_cdinfo( char* drive, DECODER_CDINFO* info );
 /* size is i/o and is the size of the array.
    each ext should not be bigger than 8bytes */
 ULONG PM123_ENTRY decoder_support( char* fileext[], int* size );
+
+#pragma pack()
 
 #ifdef __cplusplus
 }

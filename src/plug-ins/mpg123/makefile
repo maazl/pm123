@@ -4,7 +4,7 @@
 
 DLL      = yes
 TOPDIR   = ..\..
-INCDIR   = $(TOPDIR)\utils;$(TOPDIR)\include;$(TOPDIR)\xio123
+INCDIR   = $(TOPDIR)\utils;$(TOPDIR)\include;$(TOPDIR)\xio123;id3v1
 
 !include $(TOPDIR)\config\makerules
 
@@ -13,21 +13,27 @@ OBJECTS  = $(OBJECTS) mpg123$(CO) common$(CO) decode_i386$(CO) decode_2to1$(CO)
 OBJECTS  = $(OBJECTS) decode_4to1$(CO) layer1$(CO) layer2$(CO) layer3$(CO)
 OBJECTS  = $(OBJECTS) dxhead$(CO) equalizer$(CO)
 LIBS     = $(LIBS_TCP) $(TOPDIR)\utils\utilfct$(LBO) $(TOPDIR)\xio123\xio123$(LBI)
+LIBS     = $(LIBS) id3v1\id3v1$(LBO)
 DEF      = mpg123$(LDEF_SUFFX)
 RESOURCE = mpg123$(RES)
 
 all: mpg123.dll mpg123$(LBI) $(MDUMMY)
 
-mpg123.dll: $(OBJECTS) $(DEF) $(RESOURCE)
+mpg123.dll: $(OBJECTS) id3v1\id3v1$(LBO) $(DEF) $(RESOURCE)
 	$(CL) $(LFLAGS) $(LFLAGS_OUT)$@ $(LOBJ_PREFX)$(OBJECTS) $(LIBS)$(LOBJ_SUFFX) $(LDEF_PREFX)$(DEF)
 	$(RC) $(RFLAGS) $(RESOURCE) $@ > nul
 
 mpg123$(LBI): $(DEF)
 	$(LI) $@ mpg123.dll
 
+id3v1\id3v1$(LBO):
+	cd id3v1
+	@$(MAKE) $(MFLAGS)
+	@cd ..
+
 layer1$(CO):        layer1.c mpg123.h
 layer2$(CO):        layer2.c mpg123.h
-layer3$(CO):        layer3.c mpg123.h huffman.h get1bit.h
+layer3$(CO):        layer3.c mpg123.h huffman.h
 decode$(CO):        decode.c mpg123.h
 decode_int$(CO):    decode_int.c mpg123.h
 decode_2to1$(CO):   decode_2to1.c mpg123.h
@@ -43,3 +49,6 @@ equalizer$(CO):	    equalizer.c mpg123.h
 
 clean: $(MDUMMY)
 	-@del mpg123$(LBI) mpg123.dll $(OBJECTS) $(RESOURCE) 2> nul
+	cd id3v1
+	@$(MAKE) $(MFLAGS) clean
+	@cd ..

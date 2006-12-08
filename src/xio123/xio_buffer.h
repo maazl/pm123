@@ -64,7 +64,7 @@ typedef struct _XBUFFER   {
 /* Allocates and initializes the buffer. */
 void buffer_initialize( XFILE* x );
 /* Cleanups the buffer. */
-void buffer_terminate( XBUFFER* buffer );
+void buffer_terminate ( XFILE* x );
 
 /* Reads count bytes from the file into buffer. Returns the number
    of bytes placed in result. The return value 0 indicates an attempt

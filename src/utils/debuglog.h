@@ -52,11 +52,12 @@
   {
     va_list va;
     PTIB ptib;
+    PPIB ppib;
 
     va_start( va, fmt );
-    DosGetInfoBlocks( &ptib, NULL );
+    DosGetInfoBlocks( &ptib, &ppib );
     DosEnterCritSec();
-    fprintf( stderr, "%x %d\t", clock(), ptib->tib_ptib2->tib2_ultid );
+    fprintf( stderr, "%08d %04X:%04d ", clock(), ppib->pib_ulpid, ptib->tib_ptib2->tib2_ultid );
     vfprintf( stderr, fmt, va );
     DosExitCritSec();
     va_end( va );

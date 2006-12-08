@@ -1670,8 +1670,8 @@ bmp_init_default_skin( HPS hps )
   bmp_ulong[ UL_FG_MSG_COLOR ] = 0x0000FF00UL;
   bmp_ulong[ UL_BPS_DIGITS   ] = TRUE;
 
-  strcpy( visual.module_name, startpath );
-  strcat( visual.module_name, "visplug\\analyzer.dll" );
+  strcpy( visual.module_file, startpath );
+  strcat( visual.module_file, "visplug\\analyzer.dll" );
   strcpy( visual.param, "" );
 
   visual.skin = TRUE;
@@ -1680,7 +1680,7 @@ bmp_init_default_skin( HPS hps )
   visual.cx   = 95;
   visual.cy   = 30;
 
-  add_plugin( visual.module_name, &visual );
+  add_plugin( visual.module_file, &visual );
 }
 
 /* Returns TRUE if specified mode supported by current skin. */
@@ -1888,7 +1888,7 @@ bmp_load_skin( const char *filename, HAB hab, HWND hplayer, HPS hps )
         }
 
         rel2abs( startpath, p,
-                 visual.module_name, sizeof( visual.module_name ));
+                 visual.module_file, sizeof( visual.module_file ));
 
         if(( p = strtok( NULL, "," )) != NULL ) {
           visual.x  = atoi(p);
@@ -1912,7 +1912,7 @@ bmp_load_skin( const char *filename, HAB hab, HWND hplayer, HPS hps )
         }
 
         visual.skin = TRUE;
-        add_plugin( visual.module_name, &visual );
+        add_plugin( visual.module_file, &visual );
         break;
       }
 

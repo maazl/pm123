@@ -8,7 +8,7 @@ INCDIR   = $(TOPDIR)\utils;$(TOPDIR)\include
 
 !include $(TOPDIR)\config\makerules
 
-OBJECTS  = wavout$(CO) ..\wavplay\wav$(CO)
+OBJECTS  = wavout$(CO)
 LIBS     = $(LIBS_MM) $(TOPDIR)\utils\utilfct$(LBO)
 DEF      = wavout$(LDEF_SUFFX)
 RESOURCE = wavout$(RES)

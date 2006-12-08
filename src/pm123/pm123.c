@@ -2,7 +2,7 @@
  * Copyright 1997-2003 Samuel Audet <guardia@step.polymtl.ca>
  *                     Taneli Lepp„ <rosmo@sektori.com>
  *
- * Copyright 2004-2005 Dmitry A.Steklenev <glass@ptv.ru>
+ * Copyright 2004-2006 Dmitry A.Steklenev <glass@ptv.ru>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -57,11 +57,15 @@
 #include "copyright.h"
 #include "docking.h"
 #include "iniman.h"
+#include "messages.h"
+#include "debuglog.h"
 
-#define  AMP_REFRESH_CONTROLS ( WM_USER + 121   )
-#define  AMP_DISPLAYMSG       ( WM_USER + 76    )
-#define  AMP_PAINT            ( WM_USER + 77    )
-#define  AMP_STOP             ( WM_USER + 78    )
+#define  AMP_REFRESH_CONTROLS ( WM_USER + 75 )
+#define  AMP_DISPLAY_MSG      ( WM_USER + 76 )
+#define  AMP_PAINT            ( WM_USER + 77 )
+#define  AMP_STOP             ( WM_USER + 78 )
+#define  AMP_PLAY             ( WM_USER + 79 )
+#define  AMP_PAUSE            ( WM_USER + 80 )
 
 #define  TID_UPDATE_TIMERS    ( TID_USERMAX - 1 )
 #define  TID_UPDATE_PLAYER    ( TID_USERMAX - 2 )
@@ -73,17 +77,13 @@ HPOINTER  mp3play;  /* Played file icon */
 HPOINTER  mp3gray;  /* Broken file icon */
 
 /* Contains startup path of the program without its name.  */
-char   startpath[_MAX_PATH];
+char startpath[_MAX_PATH];
 /* Contains a name of the currently loaded file. */
-char   current_filename[_MAX_PATH];
+char current_filename[_MAX_PATH];
+/* Contains a information about of the currently loaded file. */
+DECODER_INFO current_info;
 /* Other parameters of the currently loaded file. */
-int    current_bitrate     =  0;
-int    current_channels    = -1;
-int    current_length      =  0;
-int    current_freq        =  0;
-tune   current_tune;
-char   current_decoder[128];
-char   current_decoder_info_string[128];
+char current_decoder[128];
 
 static HAB   hab        = NULLHANDLE;
 static HWND  hplaylist  = NULLHANDLE;
@@ -112,44 +112,34 @@ float gains[20];
 BOOL  mutes[20];
 float preamp;
 
-static char last_error[2048];
-extern OUTPUT_PARAMS out_params;
-
 void PM123_ENTRY
-keep_last_error( char *error )
+amp_display_info( char* info )
 {
-  strlcpy( last_error, error, sizeof( last_error ));
+  char* message = strdup( info );
+  if( message ) {
+    amp_post_message( AMP_DISPLAY_MSG, MPFROMP( message ), MPFROMLONG( FALSE ));
+  }
 }
 
 void PM123_ENTRY
-display_info( char *info )
+amp_display_error( char *info )
 {
-  char* info_display = strdup( info );
-  if( info_display ) {
-    amp_post_message( AMP_DISPLAYMSG, MPFROMP( info_display ), 0 );
+  char* message = strdup( info );
+  if( message ) {
+    amp_post_message( AMP_DISPLAY_MSG, MPFROMP( message ), MPFROMLONG( TRUE  ));
   }
 }
 
 /* Sets audio volume to the current selected level. */
-void
-amp_volume_to_normal( void )
-{
-  int i = cfg.defaultvol;
-  if( i > 100 ) {
-      i = 100;
-  }
-  out_set_volume( i );
+static void
+amp_volume_to_normal( void ) {
+  out_set_volume( truncate( cfg.defaultvol, 0, 100 ));
 }
 
 /* Sets audio volume to below current selected level. */
-void
-amp_volume_to_lower( void )
-{
-  int i = cfg.defaultvol;
-  if( i > 100 ) {
-      i = 100;
-  }
-  out_set_volume((float)i*3/5);
+static void
+amp_volume_to_lower( void ) {
+  out_set_volume( 0.6 * truncate( cfg.defaultvol, 0, 100 ));
 }
 
 /* Adjusts audio volume to level accordingly current playing mode. */
@@ -168,7 +158,7 @@ static void
 amp_paint_timers( HPS hps )
 {
   int play_time = 0;
-  int play_left = current_length;
+  int play_left = current_info.songlength / 1000;
   int list_left = 0;
 
   if( cfg.mode == CFG_MODE_REGULAR )
@@ -209,8 +199,8 @@ amp_paint_fileinfo( HPS hps )
 
   bmp_draw_plmode  ( hps );
   bmp_draw_timeleft( hps );
-  bmp_draw_rate    ( hps, current_bitrate );
-  bmp_draw_channels( hps, current_channels );
+  bmp_draw_rate    ( hps, current_info.bitrate );
+  bmp_draw_channels( hps, current_info.mode );
   bmp_draw_text    ( hps );
   amp_paint_timers ( hps );
 }
@@ -230,15 +220,13 @@ amp_invalidate( int options )
 
 /* Returns the handle of the player window. */
 HWND
-amp_player_window( void )
-{
+amp_player_window( void ) {
   return hplayer;
 }
 
 /* Returns the anchor-block handle. */
 HAB
-amp_player_hab( void )
-{
+amp_player_hab( void ) {
   return hab;
 }
 
@@ -254,16 +242,14 @@ amp_post_message( ULONG msg, MPARAM mp1, MPARAM mp2 )
 static void
 amp_set_bubbletext( USHORT id, const char *text )
 {
-  WinPostMsg( WinWindowFromID( hplayer, id ),
-                               WM_SETTEXT, MPFROMP(text), 0 );
+  WinSendDlgItemMsg( hplayer, id, WM_SETTEXT, MPFROMP(text), 0 );
 }
 
 /* Loads the specified playlist record into the player. */
 BOOL
 amp_pl_load_record( PLRECORD* rec )
 {
-  DECODER_INFO info;
-  struct stat  fi;
+  struct stat fi;
 
   if( !rec ) {
     return FALSE;
@@ -274,23 +260,9 @@ amp_pl_load_record( PLRECORD* rec )
     return FALSE;
   }
 
-  strcpy( current_filename, rec->full );
-  strcpy( current_decoder,  rec->decoder_module_name );
-  strcpy( current_decoder_info_string, rec->info_string );
-
-  dec_fileinfo ( current_filename, &info, NULL );
-  amp_gettag( current_filename, &info, &current_tune );
-
-  if( is_url( current_filename ) && !*current_tune.title ) {
-    strlcpy( current_tune.title, rec->songname, sizeof( current_tune.title ));
-  }
-
-  out_params.formatinfo = rec->format;
-
-  current_bitrate  = rec->bitrate;
-  current_channels = rec->channels;
-  current_length   = info.songlength/1000;
-  current_freq     = rec->freq;
+  strlcpy( current_filename, rec->full, sizeof( current_filename ));
+  strlcpy( current_decoder, rec->decoder, sizeof( current_decoder ));
+  current_info = rec->info;
 
   if( amp_playmode == AMP_PLAYLIST ) {
     current_record = rec;
@@ -318,7 +290,7 @@ amp_pl_play_record( PLRECORD* rec )
   if( rec  ) {
     if( amp_pl_load_record( rec )) {
       if( cfg.playonload == 1 || decoder_was_playing ) {
-        amp_play();
+        amp_play( 0 );
       }
     }
   }
@@ -350,7 +322,7 @@ amp_pl_use( void )
     }
 
     if( rc && cfg.playonuse && !decoder_playing()) {
-      amp_play();
+      amp_play( 0 );
     }
 
     amp_invalidate( UPD_FILEINFO );
@@ -380,11 +352,9 @@ amp_pl_release( void )
 BOOL
 amp_load_singlefile( const char* filename, int options )
 {
-  DECODER_INFO info;
-
   int    i;
   ULONG  rc;
-  char   module_name[128];
+  char   module_name[_MAX_FNAME] = "";
   struct stat fi;
 
   if( is_playlist( filename )) {
@@ -396,8 +366,7 @@ amp_load_singlefile( const char* filename, int options )
     return FALSE;
   }
 
-  memset( &info, 0, sizeof( info ));
-  rc = dec_fileinfo((char*)filename, &info, module_name );
+  rc = dec_fileinfo((char*)filename, &current_info, module_name );
 
   if( rc != 0 ) { /* error, invalid file */
     amp_reset();
@@ -410,22 +379,13 @@ amp_load_singlefile( const char* filename, int options )
 
   strcpy( current_filename, filename );
   strcpy( current_decoder, module_name );
-  strcpy( current_decoder_info_string, info.tech_info );
-
-  amp_gettag( filename, &info, &current_tune );
-  out_params.formatinfo = info.format;
-
-  current_bitrate  = info.bitrate;
-  current_channels = info.mode;
-  current_length   = info.songlength / 1000;
-  current_freq     = info.format.samplerate;
 
   amp_display_filename();
   amp_invalidate( UPD_FILEINFO );
 
   if( !( options & AMP_LOAD_NOT_PLAY )) {
     if( cfg.playonload ) {
-      amp_play();
+      amp_play( 0 );
     }
   }
 
@@ -449,46 +409,11 @@ amp_load_singlefile( const char* filename, int options )
   return TRUE;
 }
 
-/* Stops the playing of the current file. Must be called
-   from main thread. */
+/* Begins playback of the currently loaded file from the specified
+   position. Must be called from the main thread. */
 static void
-amp_stop_playing( void )
+amp_pb_play( int pos )
 {
-  QMSG qms;
-
-  amp_msg( MSG_STOP, 0, 0 );
-  amp_set_bubbletext( BMP_PLAY, "Starts playing" );
-
-  WinSendDlgItemMsg( hplayer, BMP_PLAY,  WM_DEPRESS, 0, 0 );
-  WinSendDlgItemMsg( hplayer, BMP_PAUSE, WM_DEPRESS, 0, 0 );
-  WinSendDlgItemMsg( hplayer, BMP_FWD,   WM_DEPRESS, 0, 0 );
-  WinSendDlgItemMsg( hplayer, BMP_REW,   WM_DEPRESS, 0, 0 );
-  WinSetWindowText ( hframe,  AMP_FULLNAME );
-
-  if( amp_playmode == AMP_PLAYLIST ) {
-    pl_mark_as_stop();
-  }
-
-  // Discards WM_PLAYSTOP message, posted by decoder.
-  WinPeekMsg( hab, &qms, hplayer, WM_PLAYSTOP, WM_PLAYSTOP, PM_REMOVE );
-  amp_invalidate( UPD_ALL );
-}
-
-/* Stops the player. */
-void
-amp_stop( void )
-{
-  // The stop of the player always should be initiated from
-  // the main thread. Otherwise we can receive the unnecessary
-  // WM_PLAYSTOP message.
-  WinSendMsg( hplayer, AMP_STOP, 0, 0 );
-}
-
-/* Starts playing of the currently loaded file. */
-void
-amp_play( void )
-{
-  MSG_PLAY_STRUCT msgplayinfo = { 0 };
   char caption [_MAX_PATH];
   char filename[_MAX_PATH];
 
@@ -497,12 +422,8 @@ amp_play( void )
     return;
   }
 
-  msgplayinfo.filename = current_filename;
-  msgplayinfo.out_filename = current_filename;
-  msgplayinfo.hMain = hplayer;
-  msgplayinfo.decoder_needed = current_decoder;
-
-  amp_msg( MSG_PLAY, &msgplayinfo, 0 );
+  msg_play( hplayer, current_filename, current_decoder, &current_info.format, pos );
+  amp_volume_to_normal();
   amp_set_bubbletext( BMP_PLAY, "Stops playback" );
 
   WinSendDlgItemMsg( hplayer, BMP_FWD,   WM_DEPRESS, 0, 0 );
@@ -520,13 +441,48 @@ amp_play( void )
   WinSetWindowText( hframe, caption );
 }
 
-/* Pauses or continues playing of the currently loaded file. */
-void
-amp_pause( void )
+/* Stops the playing of the current file. Must be called
+   from the main thread. */
+static void
+amp_pb_stop( void )
+{
+  QMSG qms;
+
+  msg_stop();
+  amp_set_bubbletext( BMP_PLAY, "Starts playing" );
+
+  WinSendDlgItemMsg( hplayer, BMP_PLAY,  WM_DEPRESS, 0, 0 );
+  WinSendDlgItemMsg( hplayer, BMP_PAUSE, WM_DEPRESS, 0, 0 );
+  WinSendDlgItemMsg( hplayer, BMP_FWD,   WM_DEPRESS, 0, 0 );
+  WinSendDlgItemMsg( hplayer, BMP_REW,   WM_DEPRESS, 0, 0 );
+  WinSetWindowText ( hframe,  AMP_FULLNAME );
+
+  if( amp_playmode == AMP_PLAYLIST ) {
+    pl_mark_as_stop();
+  }
+
+  while( WinPeekMsg( hab, &qms, hplayer, WM_PLAYSTOP, WM_PLAYSTOP, PM_REMOVE )) {
+    DEBUGLOG(( "pm123: discards WM_PLAYSTOP message.\n" ));
+  }
+  while( WinPeekMsg( hab, &qms, hplayer, WM_OUTPUT_OUTOFDATA, WM_OUTPUT_OUTOFDATA, PM_REMOVE )) {
+    DEBUGLOG(( "pm123: discards WM_OUTPUT_OUTOFDATA message.\n" ));
+  }
+  while( WinPeekMsg( hab, &qms, hplayer, WM_PLAYERROR, WM_PLAYERROR, PM_REMOVE )) {
+    DEBUGLOG(( "pm123: discards WM_PLAYERROR message.\n" ));
+  }
+
+  amp_invalidate( UPD_ALL );
+}
+
+/* Suspends or resumes playback of the currently played file.
+   Must be called from the main thread. */
+static void
+amp_pb_pause( void )
 {
   if( decoder_playing())
   {
-    amp_msg( MSG_PAUSE, 0, 0 );
+    msg_pause();
+
     if( is_paused()) {
       WinSendDlgItemMsg( hplayer, BMP_PAUSE, WM_PRESS, 0, 0 );
       return;
@@ -534,6 +490,22 @@ amp_pause( void )
   }
 
   WinSendDlgItemMsg( hplayer, BMP_PAUSE, WM_DEPRESS, 0, 0 );
+}
+
+/* Begins playback of the currently loaded file from
+   the specified position. */
+void amp_play( int pos ) {
+  WinSendMsg( hplayer, AMP_PLAY, MPFROMLONG(pos), 0 );
+}
+
+/* Stops playback of the currently played file. */
+void amp_stop( void ) {
+  WinSendMsg( hplayer, AMP_STOP, 0, 0 );
+}
+
+/* Suspends or resumes playback of the currently played file. */
+void amp_pause( void ) {
+  WinSendMsg( hplayer, AMP_PAUSE, 0, 0 );
 }
 
 /* Shows the context menu of the playlist. */
@@ -654,7 +626,7 @@ amp_show_context_menu( HWND parent )
   load_plugin_menu( mi.hwndSubMenu );
 
   // Update status
-  mn_enable_item( menu, IDM_M_TAG,     is_file( current_filename ));
+  mn_enable_item( menu, IDM_M_TAG,    *current_filename );
   mn_enable_item( menu, IDM_M_SMALL,   bmp_is_mode_supported( CFG_MODE_SMALL   ));
   mn_enable_item( menu, IDM_M_NORMAL,  bmp_is_mode_supported( CFG_MODE_REGULAR ));
   mn_enable_item( menu, IDM_M_TINY,    bmp_is_mode_supported( CFG_MODE_TINY    ));
@@ -1148,9 +1120,9 @@ amp_drag_render_done( HWND hwnd, PDRAGTRANSFER pdtrans, USHORT rc )
   return 0;
 }
 
-/* Processes messages of the dialog of edition of ID3 tag. */
+/* Processes messages of the file information dialog. */
 static MRESULT EXPENTRY
-id3_page_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
+info_page_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
 {
   switch( msg )
   {
@@ -1168,25 +1140,33 @@ id3_page_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
     case WM_COMMAND:
       if( COMMANDMSG(&msg)->cmd == PB_ID3_UNDO )
       {
-        tune* tag = (tune*)WinQueryWindowPtr( hwnd, 0 );
+        DECODER_INFO* info = (DECODER_INFO*)WinQueryWindowPtr( hwnd, 0 );
+        SHORT gennum;
 
-        WinSetDlgItemText( hwnd, EN_ID3_TITLE,   tag->title   );
-        WinSetDlgItemText( hwnd, EN_ID3_ARTIST,  tag->artist  );
-        WinSetDlgItemText( hwnd, EN_ID3_ALBUM,   tag->album   );
-        WinSetDlgItemText( hwnd, EN_ID3_COMMENT, tag->comment );
-        WinSetDlgItemText( hwnd, EN_ID3_YEAR,    tag->year    );
+        WinSetDlgItemText( hwnd, EN_ID3_TITLE,     info->title     );
+        WinSetDlgItemText( hwnd, EN_ID3_ARTIST,    info->artist    );
+        WinSetDlgItemText( hwnd, EN_ID3_ALBUM,     info->album     );
+        WinSetDlgItemText( hwnd, EN_ID3_COMMENT,   info->comment   );
+        WinSetDlgItemText( hwnd, EN_ID3_COPYRIGHT, info->copyright );
+        WinSetDlgItemText( hwnd, EN_ID3_YEAR,      info->year      );
+        WinSetDlgItemText( hwnd, EN_ID3_TRACK,     info->track     );
 
-        WinSendDlgItemMsg( hwnd, CB_ID3_GENRE, LM_SELECTITEM,
-                           MPFROMSHORT( tag->gennum ), MPFROMSHORT( TRUE ));
+        gennum = lb_search( hwnd, CB_ID3_GENRE, LIT_FIRST, info->genre );
+
+        if( gennum != LIT_ERROR && gennum != LIT_NONE ) {
+          lb_select( hwnd, CB_ID3_GENRE, gennum );
+        } else {
+          WinSetDlgItemText( hwnd, CB_ID3_GENRE, info->genre );
+        }
       }
       return 0;
   }
   return WinDefDlgProc( hwnd, msg, mp1, mp2 );
 }
 
-/* Processes messages of the dialog of edition of ID3 tag. */
+/* Processes messages of the file information dialog. */
 static MRESULT EXPENTRY
-id3_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
+info_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
 {
   switch( msg )
   {
@@ -1210,23 +1190,24 @@ id3_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
 }
 
 /* Edits a ID3 tag for the specified file. */
-void amp_id3_edit( HWND owner, const char* filename )
+void
+amp_info_edit( HWND owner, const char* filename, char* decoder )
 {
-  char    caption[_MAX_FNAME] = "ID3 Tag Editor - ";
+  char    caption[_MAX_FNAME] = "File Info - ";
   HWND    hwnd;
   HWND    book;
   HWND    page01;
   MRESULT id;
-  tune    old_tag;
-  tune    new_tag;
+  ULONG   rc;
 
-  if( !is_file( filename )) {
-    DosBeep( 800, 100 );
-    return;
-  }
+  DECODER_INFO old_info;
+  DECODER_INFO new_info;
+
+  dec_fileinfo((char*)filename, &old_info, decoder );
+  new_info = old_info;
 
   hwnd = WinLoadDlg( HWND_DESKTOP, owner,
-                     id3_dlg_proc, NULLHANDLE, DLG_ID3TAG, 0 );
+                     info_dlg_proc, NULLHANDLE, DLG_ID3TAG, 0 );
 
   sfnameext( caption + strlen( caption ), filename, sizeof( caption ) - strlen( caption ));
   WinSetWindowText( hwnd, caption );
@@ -1239,84 +1220,83 @@ void amp_id3_edit( HWND owner, const char* filename )
   WinSendMsg( book, BKM_SETNOTEBOOKCOLORS, MPFROMLONG(SYSCLR_FIELDBACKGROUND),
               MPFROMSHORT(BKA_BACKGROUNDPAGECOLORINDEX));
 
-  page01 = WinLoadDlg( book, book, id3_page_dlg_proc, NULLHANDLE, DLG_ID3V10, 0 );
+  page01 = WinLoadDlg( book, book, info_page_dlg_proc, NULLHANDLE, DLG_ID3V10, 0 );
   id     = WinSendMsg( book, BKM_INSERTPAGE, MPFROMLONG(0),
                        MPFROM2SHORT( BKA_AUTOPAGESIZE | BKA_MAJOR, BKA_LAST ));
   do_warpsans( page01 );
 
   WinSendMsg ( book, BKM_SETPAGEWINDOWHWND, MPFROMLONG(id), MPFROMLONG( page01 ));
-  WinSendMsg ( book, BKM_SETTABTEXT, MPFROMLONG( id ), MPFROMP( "ID3 Tag" ));
+  WinSendMsg ( book, BKM_SETTABTEXT, MPFROMLONG( id ), MPFROMP( "File Info" ));
   WinSetOwner( page01, book );
 
-  memset( &old_tag, 0, sizeof( old_tag ));
-  memset( &new_tag, 0, sizeof( new_tag ));
-
-  amp_gettag( filename, NULL, &old_tag );
-  new_tag.charset = old_tag.charset;
-
-  WinSetWindowPtr( page01, 0, &old_tag );
+  WinSetWindowPtr( page01, 0, &old_info );
   WinPostMsg( page01, WM_COMMAND,
               MPFROMSHORT( PB_ID3_UNDO ), MPFROM2SHORT( CMDSRC_OTHER, FALSE ));
 
+  if( !old_info.saveinfo )
+  {
+    en_enable( page01, EN_ID3_TITLE,     FALSE );
+    en_enable( page01, EN_ID3_ARTIST,    FALSE );
+    en_enable( page01, EN_ID3_ALBUM,     FALSE );
+    en_enable( page01, EN_ID3_COMMENT,   FALSE );
+    en_enable( page01, EN_ID3_COPYRIGHT, FALSE );
+    en_enable( page01, EN_ID3_YEAR,      FALSE );
+    en_enable( page01, EN_ID3_TRACK,     FALSE );
+    en_enable( page01, CB_ID3_GENRE,     FALSE );
+
+    WinEnableControl( page01, PB_ID3_UNDO, FALSE );
+  }
+  else if( old_info.haveinfo != 0 )
+  {
+    en_enable( page01, EN_ID3_TITLE,     old_info.haveinfo & DECODER_HAVE_TITLE     );
+    en_enable( page01, EN_ID3_ARTIST,    old_info.haveinfo & DECODER_HAVE_ARTIST    );
+    en_enable( page01, EN_ID3_ALBUM,     old_info.haveinfo & DECODER_HAVE_ALBUM     );
+    en_enable( page01, EN_ID3_COMMENT,   old_info.haveinfo & DECODER_HAVE_COMMENT   );
+    en_enable( page01, EN_ID3_COPYRIGHT, old_info.haveinfo & DECODER_HAVE_COPYRIGHT );
+    en_enable( page01, EN_ID3_YEAR,      old_info.haveinfo & DECODER_HAVE_YEAR      );
+    en_enable( page01, EN_ID3_TRACK,     old_info.haveinfo & DECODER_HAVE_TRACK     );
+    en_enable( page01, CB_ID3_GENRE,     old_info.haveinfo & DECODER_HAVE_GENRE     );
+  }
+
   WinProcessDlg( hwnd );
 
-  WinQueryDlgItemText( page01, EN_ID3_TITLE,   sizeof( new_tag.title   ), new_tag.title   );
-  WinQueryDlgItemText( page01, EN_ID3_ARTIST,  sizeof( new_tag.artist  ), new_tag.artist  );
-  WinQueryDlgItemText( page01, EN_ID3_ALBUM,   sizeof( new_tag.album   ), new_tag.album   );
-  WinQueryDlgItemText( page01, EN_ID3_COMMENT, sizeof( new_tag.comment ), new_tag.comment );
-  WinQueryDlgItemText( page01, EN_ID3_YEAR,    sizeof( new_tag.year    ), new_tag.year    );
+  WinQueryDlgItemText( page01, EN_ID3_TITLE,     sizeof( new_info.title     ), new_info.title     );
+  WinQueryDlgItemText( page01, EN_ID3_ARTIST,    sizeof( new_info.artist    ), new_info.artist    );
+  WinQueryDlgItemText( page01, EN_ID3_ALBUM,     sizeof( new_info.album     ), new_info.album     );
+  WinQueryDlgItemText( page01, EN_ID3_COMMENT,   sizeof( new_info.comment   ), new_info.comment   );
+  WinQueryDlgItemText( page01, EN_ID3_COPYRIGHT, sizeof( new_info.copyright ), new_info.copyright );
+  WinQueryDlgItemText( page01, EN_ID3_YEAR,      sizeof( new_info.year      ), new_info.year      );
+  WinQueryDlgItemText( page01, EN_ID3_TRACK,     sizeof( new_info.track     ), new_info.track     );
+  WinQueryDlgItemText( page01, CB_ID3_GENRE,     sizeof( new_info.genre     ), new_info.genre     );
 
-  new_tag.gennum =
-    SHORT1FROMMR( WinSendDlgItemMsg( page01, CB_ID3_GENRE,
-                                     LM_QUERYSELECTION, MPFROMSHORT( LIT_CURSOR ), 0 ));
   WinDestroyWindow( page01 );
   WinDestroyWindow( hwnd   );
 
-  if( strcmp( old_tag.title,   new_tag.title   ) == 0 &&
-      strcmp( old_tag.artist,  new_tag.artist  ) == 0 &&
-      strcmp( old_tag.album,   new_tag.album   ) == 0 &&
-      strcmp( old_tag.comment, new_tag.comment ) == 0 &&
-      strcmp( old_tag.year,    new_tag.year    ) == 0 &&
-      old_tag.gennum == new_tag.gennum )
+  if( !old_info.saveinfo ) {
+    return;
+  }
+
+  if( strcmp( old_info.title,     new_info.title     ) == 0 &&
+      strcmp( old_info.artist,    new_info.artist    ) == 0 &&
+      strcmp( old_info.album,     new_info.album     ) == 0 &&
+      strcmp( old_info.comment,   new_info.comment   ) == 0 &&
+      strcmp( old_info.copyright, new_info.copyright ) == 0 &&
+      strcmp( old_info.year,      new_info.year      ) == 0 &&
+      strcmp( old_info.track,     new_info.track     ) == 0 &&
+      strcmp( old_info.genre,     new_info.genre     ) == 0 )
   {
     return;
   }
 
-  if( !amp_puttag( filename, &new_tag )) {
-    amp_error( owner, "Unable write ID3 tag to file:\n%s\n%s", filename, strerror(errno));
+  if(( rc = dec_saveinfo((char*)filename, &new_info, decoder )) != 0 ) {
+    amp_error( owner, "Unable write information to file:\n%s\n%s", filename, xio_strerror( rc ));
     return;
   }
 
-  amp_gettag( filename, NULL, &new_tag );
   pl_refresh_file( filename );
 
   if( stricmp( current_filename, filename ) == 0 ) {
-    current_tune = new_tag;
-    amp_display_filename();
-    amp_invalidate( UPD_ALL );
-  }
-}
-
-/* Wipes a ID3 tag for the specified file. */
-void amp_id3_wipe( HWND owner, const char* filename )
-{
-  tune tag;
-
-  if( !is_file( filename )) {
-    DosBeep( 800, 100 );
-    return;
-  }
-
-  if( !amp_wipetag( filename )) {
-    amp_error( owner, "Unable wipe ID3 tag to file:\n%s\n%s", filename, strerror(errno));
-    return;
-  }
-
-  amp_gettag( filename, NULL, &tag );
-  pl_refresh_file( filename );
-
-  if( stricmp( current_filename, filename ) == 0 ) {
-    current_tune = tag;
+    current_info = new_info;
     amp_display_filename();
     amp_invalidate( UPD_ALL );
   }
@@ -1575,9 +1555,9 @@ amp_pipe_thread( void* scrap )
                 amp_pipe_write( hpipe, current_filename );
               } else if( stricmp( dork, "tag"  ) == 0 ) {
                 char info[512];
-                amp_pipe_write( hpipe, amp_construct_tag_string( info,  &current_tune ));
+                amp_pipe_write( hpipe, amp_construct_tag_string( info,  &current_info, sizeof( info )));
               } else if( stricmp( dork, "info" ) == 0 ) {
-                amp_pipe_write( hpipe, current_decoder_info_string );
+                amp_pipe_write( hpipe, current_info.tech_info );
               }
             }
           }
@@ -1689,8 +1669,7 @@ amp_pipe_thread( void* scrap )
           }
           if( stricmp( zork, "jump" ) == 0 ) {
             if( dork ) {
-              int i = atoi( dork ) * 1000;
-              amp_msg( MSG_JUMP, &i, 0 );
+              msg_seek( atoi( dork ) * 1000 );
             }
           }
           if( stricmp( zork, "play" ) == 0 ) {
@@ -2056,7 +2035,7 @@ amp_load_eq( HWND hwnd, float* gains, BOOL* mutes, float* preamp )
   return FALSE;
 }
 
-/* Returns if the save stream feature has been enabled. */
+/* Returns TRUE if the save stream feature has been enabled. */
 static BOOL
 amp_save_stream( HWND hwnd, BOOL enable )
 {
@@ -2078,13 +2057,13 @@ amp_save_stream( HWND hwnd, BOOL enable )
     if( filedialog.lReturn == DID_OK ) {
       if( amp_warn_if_overwrite( hwnd, filedialog.szFullFile ))
       {
-        amp_msg( MSG_SAVE, filedialog.szFullFile, 0 );
+        msg_savestream( filedialog.szFullFile );
         sdrivedir( cfg.savedir, filedialog.szFullFile, sizeof( cfg.savedir ));
         return TRUE;
       }
     }
   } else {
-    amp_msg( MSG_SAVE, NULL, 0 );
+    msg_savestream( NULL );
   }
 
   return FALSE;
@@ -2098,7 +2077,7 @@ amp_playstop( HWND hwnd )
   amp_stop();
 
   if( amp_playmode == AMP_SINGLE && cfg.rpt ) {
-    amp_play();
+    amp_play( 0 );
   }
   if( amp_playmode == AMP_PLAYLIST )
   {
@@ -2112,7 +2091,7 @@ amp_playstop( HWND hwnd )
     }
 
     if( rec && amp_pl_load_record( rec ) && ( cfg.rpt || !eol )) {
-      amp_play();
+      amp_play( 0 );
     }
   }
 }
@@ -2184,7 +2163,7 @@ amp_eq_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
             WinSendMsg( hwnd, AMP_REFRESH_CONTROLS, 0, 0 );
           }
           if( WinQueryButtonCheckstate( hwnd, 121 )) {
-            equalize_sound( gains, mutes, preamp, 1 );
+            msg_equalize( gains, mutes, preamp, 1 );
           }
           break;
 
@@ -2216,9 +2195,9 @@ amp_eq_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
                              MPFROMLONG( slider_range / 2 ));
 
           if( WinQueryButtonCheckstate( hwnd, 121 )) {
-            equalize_sound( gains, mutes, preamp, 1 );
+            msg_equalize( gains, mutes, preamp, 1 );
           } else {
-            equalize_sound( gains, mutes, preamp, 0 );
+            msg_equalize( gains, mutes, preamp, 0 );
           }
           break;
         }
@@ -2240,14 +2219,14 @@ amp_eq_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
           mutes[id - 125 + 10] = WinQueryButtonCheckstate( hwnd, id );  // Right
 
           if( WinQueryButtonCheckstate( hwnd, 121 )) {
-            equalize_sound( gains, mutes, preamp, 1 );
+            msg_equalize( gains, mutes, preamp, 1 );
             break;
           }
         }
 
         if( id == 121 ) {
           cfg.eq_enabled = WinQueryButtonCheckstate( hwnd, 121 );
-          equalize_sound( gains, mutes, preamp, cfg.eq_enabled );
+          msg_equalize( gains, mutes, preamp, cfg.eq_enabled );
           break;
         }
       }
@@ -2276,7 +2255,7 @@ amp_eq_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
             }
 
             if( WinQueryButtonCheckstate( hwnd, 121 )) {
-              equalize_sound( gains, mutes, preamp, 1 );
+              msg_equalize( gains, mutes, preamp, 1 );
             }
           }
       }
@@ -2374,26 +2353,24 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
       }
       return 0;
 
-    case WM_PLAYERROR:
-      if( dec_status() == DECODER_STOPPED || !out_playing_data())
-      {
-        amp_stop();
-        if( *last_error ) {
-          amp_error( hwnd, "%s", last_error );
-          *last_error = 0;
-        }
-      }
-      return 0;
-
     case AMP_STOP:
-      // The stop of the player always should be initiated from
-      // the main thread. Otherwise we can receive the unnecessary
-      // WM_PLAYSTOP message.
-      amp_stop_playing();
+      amp_pb_stop();
       return 0;
 
-    case AMP_DISPLAYMSG:
-      amp_info( hwnd, "%s", mp1 );
+    case AMP_PLAY:
+      amp_pb_play( LONGFROMMP(mp1));
+      return 0;
+
+    case AMP_PAUSE:
+      amp_pb_pause();
+      return 0;
+
+    case AMP_DISPLAY_MSG:
+      if( mp2 ) {
+        amp_error( hwnd, "%s", mp1 );
+      } else {
+        amp_info ( hwnd, "%s", mp1 );
+      }
       free( mp1 );
       return 0;
 
@@ -2408,27 +2385,35 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
     case WM_CHANGEBR:
     {
       HPS hps = WinGetPS( hwnd );
-      current_bitrate = LONGFROMMP( mp1 );
-      bmp_draw_rate( hps, current_bitrate );
+      current_info.bitrate = LONGFROMMP( mp1 );
+      bmp_draw_rate( hps, current_info.bitrate );
       WinReleasePS( hps );
       return 0;
     }
+
+    // Posted by decoder
+    case WM_PLAYERROR:
+      if( dec_status() == DECODER_STOPPED || !out_playing_data()) {
+        amp_stop();
+      }
+      return 0;
 
     // Posted by decoder
     case WM_PLAYSTOP:
       // The decoder has finished the work, but we should wait until output
       // buffers will become empty.
 
-      // If output is always hungry, WM_OUTPUT_OUTOFDATA will not be posted again
-      // so we go there by our selves.
-      if( out_params.always_hungry ) {
+      // If output is always hungry or output is already finished (i.e. we have
+      // empty file), WM_OUTPUT_OUTOFDATA will not be posted again so we go there
+      // by our selves.
+      if( is_always_hungry()) {
         amp_playstop( hwnd );
       }
       return 0;
 
     // Posted by output
     case WM_OUTPUT_OUTOFDATA:
-      if( dec_status() == DECODER_STOPPED ) {
+      if( dec_status() == DECODER_STOPPED && !out_playing_data()) {
         amp_playstop( hwnd );
       }
       return 0;
@@ -2518,19 +2503,19 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
         if( titlepos )
         {
           titlepos += 13;
-          for( i = 0; i < sizeof( current_tune.title ) - 1 && *titlepos
+          for( i = 0; i < sizeof( current_info.title ) - 1 && *titlepos
                       && ( titlepos[0] != '\'' || titlepos[1] != ';' ); i++ )
           {
-            current_tune.title[i] = *titlepos++;
+            current_info.title[i] = *titlepos++;
           }
 
-          current_tune.title[i] = 0;
+          current_info.title[i] = 0;
           amp_display_filename();
           amp_invalidate( UPD_FILEINFO );
 
           if( current_record != NULL ) {
             free( current_record->songname );
-            current_record->songname = strdup( current_tune.title );
+            current_record->songname = strdup( current_info.title );
             pl_refresh_record( current_record, CMA_TEXTCHANGED );
           }
         }
@@ -2575,7 +2560,7 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
           return 0;
 
         case IDM_M_TAG:
-          amp_id3_edit( hwnd, current_filename );
+          amp_info_edit( hwnd, current_filename, current_decoder );
           return 0;
 
         case IDM_M_SAVE:
@@ -2734,7 +2719,7 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
 
         case BMP_PLAY:
           if( !decoder_playing()) {
-            amp_play();
+            amp_play( 0 );
           } else {
             WinSendMsg( hwnd, WM_COMMAND, MPFROMSHORT( BMP_STOP ), mp2 );
           }
@@ -2765,7 +2750,7 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
               }
               if( amp_pl_load_record( rec )) {
                 if( decoder_was_playing ) {
-                  amp_play();
+                  amp_play( 0 );
                 }
               }
             }
@@ -2784,7 +2769,7 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
               }
               if( amp_pl_load_record( rec )) {
                 if( decoder_was_playing ) {
-                  amp_play();
+                  amp_play( 0 );
                 }
               }
             }
@@ -2795,7 +2780,7 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
           if( decoder_playing() && !is_paused())
           {
             WinSendDlgItemMsg( hwnd, BMP_REW, WM_DEPRESS, 0, 0 );
-            amp_msg( MSG_FWD, 0, 0 );
+            msg_forward();
             WinSendDlgItemMsg( hwnd, BMP_FWD, is_forward() ? WM_PRESS : WM_DEPRESS, 0, 0 );
             amp_volume_adjust();
           } else {
@@ -2807,7 +2792,7 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
           if( decoder_playing() && !is_paused())
           {
             WinSendDlgItemMsg( hwnd, BMP_FWD, WM_DEPRESS, 0, 0 );
-            amp_msg( MSG_REW, 0, 0 );
+            msg_rewind();
             WinSendDlgItemMsg( hwnd, BMP_REW, is_rewind() ? WM_PRESS : WM_DEPRESS, 0, 0 );
             amp_volume_adjust();
           } else {
@@ -2900,19 +2885,19 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
     case WM_BUTTON1MOTIONEND:
       if( is_volume_drag ) {
         is_volume_drag = FALSE;
+        WinSetCapture( HWND_DESKTOP, NULLHANDLE );
       }
       if( is_slider_drag )
       {
-        ULONG  ms;
         POINTL pos;
 
         pos.x = SHORT1FROMMP(mp1);
         pos.y = SHORT2FROMMP(mp1);
         seeking_pos = bmp_calc_time( pos, time_total());
-        ms = seeking_pos * 1000;
 
-        amp_msg( MSG_JUMP, &ms, 0 );
+        msg_seek( seeking_pos * 1000 );
         is_slider_drag = FALSE;
+        WinSetCapture( HWND_DESKTOP, NULLHANDLE );
       }
       return 0;
 
@@ -2925,9 +2910,11 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
 
       if( bmp_pt_in_volume( pos )) {
         is_volume_drag = TRUE;
+        WinSetCapture( HWND_DESKTOP, hwnd );
       } else if( bmp_pt_in_slider( pos ) && decoder_playing()) {
         is_slider_drag = TRUE;
         is_seeking     = TRUE;
+        WinSetCapture( HWND_DESKTOP, hwnd );
       } else {
         WinSendMsg( hframe, WM_TRACKFRAME, MPFROMSHORT( TF_MOVE | TF_STANDARD ), 0 );
         WinQueryWindowPos( hframe, &cfg.main );
@@ -2961,15 +2948,13 @@ amp_reset( void )
     amp_stop();
   }
 
-  amp_playmode     = AMP_NOFILE;
-  current_record   = NULL;
-  current_bitrate  = 0;
-  current_channels = -1;
-  current_length   = 0;
-  current_freq     = 0;
+  amp_playmode   = AMP_NOFILE;
+  current_record = NULL;
 
-  current_decoder_info_string[0] = 0;
   current_filename[0] = 0;
+  current_decoder [0] = 0;
+
+  memset( &current_info, 0, sizeof( current_info ));
 
   amp_display_filename();
   amp_invalidate( UPD_ALL );
@@ -3171,7 +3156,7 @@ main( int argc, char *argv[] )
   xio_set_buffer_size( cfg.buff_size * 1024 );
   xio_set_buffer_wait( cfg.buff_wait );
 
-  WinRegisterClass( hab, "PM123", amp_dlg_proc, CS_SIZEREDRAW | CS_SYNCPAINT, 0 );
+  WinRegisterClass( hab, "PM123", amp_dlg_proc, CS_SIZEREDRAW /* | CS_SYNCPAINT */, 0 );
 
   hframe = WinCreateStdWindow( HWND_DESKTOP, 0, &flCtlData, "PM123",
                                AMP_FULLNAME, 0, NULLHANDLE, WIN_MAIN, &hplayer );
@@ -3278,6 +3263,7 @@ main( int argc, char *argv[] )
   WinDestroyPointer ( mp3     );
   WinDestroyPointer ( mp3play );
   WinDestroyPointer ( mp3gray );
+  WinDestroyWindow  ( hframe  );
   WinDestroyMsgQueue( hmq );
   WinTerminate( hab );
 

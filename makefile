@@ -7,6 +7,7 @@
 VERSION = 1_32
 PARTS   = src\utils\utilfct$(LBO) src\gbm123\gbm123.dll src\fft123\fft123.dll
 PARTS   = $(PARTS) src\xio123\xio123.dll
+PARTS   = $(PARTS) src\snd123\snd123.dll
 PARTS   = $(PARTS) src\plug-ins\analyzer\analyzer.dll
 PARTS   = $(PARTS) src\plug-ins\cddaplay\cddaplay.dll
 PARTS   = $(PARTS) src\plug-ins\mpg123\mpg123.dll
@@ -37,6 +38,11 @@ src\fft123\fft123.dll:
 
 src\xio123\xio123.dll:
 	cd src\xio123
+	@$(MAKE) $(MFLAGS)
+	@cd ..\..
+
+src\snd123\snd123.dll:
+	cd src\snd123
 	@$(MAKE) $(MFLAGS)
 	@cd ..\..
 
@@ -103,6 +109,9 @@ clean:  $(MDUMMY)
 	cd src\xio123
 	@$(MAKE) $(MFLAGS) clean
 	@cd ..\..
+	cd src\snd123
+	@$(MAKE) $(MFLAGS) clean
+	@cd ..\..
 	cd src\plug-ins\analyzer
 	@$(MAKE) $(MFLAGS) clean
 	@cd ..\..\..
@@ -143,6 +152,7 @@ distfiles: distclean $(MDUMMY)
 	copy src\gbm123\gbm123.dll dist\files
 	copy src\fft123\fft123.dll dist\files
 	copy src\xio123\xio123.dll dist\files
+	copy src\snd123\snd123.dll dist\files
 	copy src\plug-ins\analyzer\analyzer.dll dist\files\visplug
 	copy src\plug-ins\cddaplay\cddaplay.dll dist\files
 	copy src\plug-ins\mpg123\mpg123.dll dist\files

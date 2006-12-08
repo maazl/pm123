@@ -7,6 +7,8 @@
 extern "C" {
 #endif
 
+#pragma pack(4)
+
 typedef struct _FILTER_PARAMS
 {
   int size;
@@ -36,6 +38,8 @@ BOOL  PM123_ENTRY filter_uninit( void*  f );
 /* BUT you will have to pass void *a from above to the next   */
 /* stage which will be either a filter or output              */
 int  PM123_ENTRY filter_play_samples( void* f, FORMAT_INFO* format, char* buf, int len, int posmarker );
+
+#pragma pack()
 
 #ifdef __cplusplus
 }

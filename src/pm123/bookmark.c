@@ -44,6 +44,7 @@
 #include "plugman.h"
 #include "docking.h"
 #include "iniman.h"
+#include "messages.h"
 
 static HWND     menu_record = NULLHANDLE;
 static HWND     menu_list   = NULLHANDLE;
@@ -661,13 +662,8 @@ bm_load_bookmark( BMRECORD* rec )
     rc = amp_load_singlefile( rec->filename, AMP_LOAD_NOT_PLAY | AMP_LOAD_NOT_RECALL );
   }
 
-  if( rc && ( cfg.playonload || rec->play_pos > 0 ))
-  {
-    amp_play();
-
-    if( rec->play_pos > 0 ) {
-      amp_msg( MSG_JUMP, &rec->play_pos, 0 );
-    }
+  if( rc && ( cfg.playonload || rec->play_pos > 0 )) {
+    amp_play( rec->play_pos );
   }
 
   return TRUE;
@@ -708,12 +704,12 @@ bm_add_bookmark( HWND owner )
                                NULLHANDLE, DLG_BM_ADD, NULL );
   if( *current_filename )
   {
-    if( *current_tune.artist ) {
-      strcat( desc, current_tune.artist );
+    if( *current_info.artist ) {
+      strcat( desc, current_info.artist );
       strcat( desc, "-" );
     }
-    if( *current_tune.title  ) {
-      strlcat( desc, current_tune.title, sizeof( desc ));
+    if( *current_info.title  ) {
+      strlcat( desc, current_info.title, sizeof( desc ));
     } else {
       if( is_url( current_filename )) {
         sdecode( file, sfname( file, current_filename, sizeof( file )), sizeof( file ));

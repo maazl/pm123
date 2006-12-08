@@ -44,7 +44,8 @@
 typedef struct
 {
   HMODULE module;
-  char    module_name[_MAX_PATH];
+  char    module_file[_MAX_PATH];
+  char    module_name[16];
   BOOL    enabled;
   char    fileext[MAX_FILEEXT][8];
   int     fileext_size;
@@ -59,6 +60,7 @@ typedef struct
   ULONG (PM123_ENTRYP decoder_status   )( void*  w );
   ULONG (PM123_ENTRYP decoder_length   )( void*  w );
   ULONG (PM123_ENTRYP decoder_fileinfo )( char*  filename, DECODER_INFO *info );
+  ULONG (PM123_ENTRYP decoder_saveinfo )( char*  filename, DECODER_INFO *info );
   ULONG (PM123_ENTRYP decoder_trackinfo)( char*  drive, int track, DECODER_INFO* info );
   ULONG (PM123_ENTRYP decoder_cdinfo   )( char*  drive, DECODER_CDINFO* info );
   ULONG (PM123_ENTRYP decoder_support  )( char*  ext[], int* size );
@@ -71,7 +73,8 @@ typedef struct
 typedef struct
 {
   HMODULE module;
-  char    module_name[_MAX_PATH];
+  char    module_file[_MAX_PATH];
+  char    module_name[16];
 
   PLUGIN_QUERYPARAM query_param;
 
@@ -92,7 +95,8 @@ typedef struct
 typedef struct
 {
   HMODULE module;
-  char    module_name[_MAX_PATH];
+  char    module_file[_MAX_PATH];
+  char    module_name[16];
   BOOL    enabled;
 
   PLUGIN_QUERYPARAM query_param;
@@ -110,7 +114,8 @@ typedef struct
 typedef struct
 {
   HMODULE module;
-  char    module_name[_MAX_PATH];
+  char    module_file[_MAX_PATH];
+  char    module_name[16];
   int     x, y, cx, cy;
   BOOL    skin;
   BOOL    enabled;
@@ -172,6 +177,7 @@ void  dec_fill_types( char* result, size_t size );
 
 ULONG PM123_ENTRY dec_command( ULONG msg, DECODER_PARAMS* params );
 ULONG PM123_ENTRY dec_fileinfo( char* filename, DECODER_INFO* info, char* name );
+ULONG PM123_ENTRY dec_saveinfo( char* filename, DECODER_INFO* info, char* name );
 ULONG PM123_ENTRY dec_cdinfo( char* drive, DECODER_CDINFO* info );
 ULONG PM123_ENTRY dec_status( void );
 ULONG PM123_ENTRY dec_length( void );

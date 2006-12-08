@@ -27,10 +27,60 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#define ID_NULL     1000
-#define CB_DEVICE   1010
-#define CB_SHARED   1020
-#define SB_BUFFERS  1030
-#define CB_8BIT     1040
-#define CB_48KLUDGE 1050
+#define DLG_CONFIGURE 1
+#define ID_NULL       1000
+#define CB_DEVICE     1010
+#define CB_SHARED     1020
+#define SB_BUFFERS    1030
+#define CB_8BIT       1040
+#define CB_48KLUDGE   1050
+
+typedef struct BUFFERINFO
+{
+  MCI_MIX_BUFFER*  next;
+  ULONG            playingpos;
+  struct OS2AUDIO* a;
+
+} BUFFERINFO;
+
+#define DEVICE_OPENING  1
+#define DEVICE_OPENED   2
+#define DEVICE_CLOSING  3
+#define DEVICE_CLOSED   4
+#define DEVICE_FAILED   5
+
+typedef struct OS2AUDIO
+{
+  ULONG playingpos;
+  int   device;
+  int   lockdevice;
+  int   numbuffers;   /* Suggested total audio buffers, bare minimum = 4      */
+                      /* (see prio boost check).                              */
+  int   kludge48as44;
+  int   force8bit;
+  int   buffersize;   /* Suggested size of the audio buffers.                 */
+  int   volume;
+  float amplifier;
+  int   zero;         /* This is 128 for 8 bit unsigned.                      */
+
+  BOOL  trashed;      /* A next waiting portion of samples should be trashed. */
+  BOOL  nomoredata;   /* The audio device don't have audio buffers for play.  */
+  HEV   dataplayed;   /* Posted after playing of the next audio buffer.       */
+  HMTX  mutex;        /* Serializes access to this structure.                 */
+  int   status;       /* See DEVICE_* definitions.                            */
+
+  OUTPUT_PARAMS original_info;
+
+  TID   drivethread;  /* An identifier of the driver thread.                  */
+  BOOL  boosted;      /* The priority of the driver thread is boosted.        */
+
+  USHORT             mci_device_id; /* An identifier of the audio device.     */
+  MCI_MIXSETUP_PARMS mci_mix;       /* Parameters of the audio mixer.         */
+  MCI_BUFFER_PARMS   mci_buf_parms; /* Parameters of the audio buffers.       */
+  MCI_MIX_BUFFER*    mci_buffers;   /* Audio buffers.                         */
+  BUFFERINFO*        mci_buff_info; /* Audio buffers additional information.  */
+  MCI_MIX_BUFFER*    mci_to_fill;   /* The buffer for a next portion of data. */
+  MCI_MIX_BUFFER*    mci_is_play;   /* The buffer played now.                 */
+
+} OS2AUDIO;
 

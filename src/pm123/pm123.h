@@ -2,7 +2,7 @@
  * Copyright 1997-2003 Samuel Audet <guardia@step.polymtl.ca>
  *                     Taneli Lepp„ <rosmo@sektori.com>
  *
- * Copyright 2004-2005 Dmitry A.Steklenev <glass@ptv.ru>
+ * Copyright 2004-2006 Dmitry A.Steklenev <glass@ptv.ru>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -104,8 +104,12 @@
 #define EN_ID3_ALBUM        105
 #define ST_ID3_COMMENT      110
 #define EN_ID3_COMMENT      109
+#define ST_ID3_COPYRIGHT    116
+#define EN_ID3_COPYRIGHT    117
 #define ST_ID3_GENRE        111
-#define CB_ID3_GENRE        101
+#define CB_ID3_GENRE        114
+#define ST_ID3_TRACK        115
+#define EN_ID3_TRACK        101
 #define ST_ID3_YEAR         113
 #define EN_ID3_YEAR         112
 #define PB_ID3_UNDO         200
@@ -212,15 +216,8 @@ void  sec2num( long seconds, int* major, int* minor );
 /* Reads url from specified file. */
 char* amp_url_from_file( char* result, const char* filename, size_t size );
 
-/* Reads ID3 tag from the specified file. */
-BOOL  amp_gettag( const char* filename, DECODER_INFO* info, tune* tag );
-/* Wipes ID3 tag from the specified file. */
-BOOL  amp_wipetag( const char* filename );
-/* Writes ID3 tag to the specified file. */
-BOOL  amp_puttag( const char* filename, tune* tag );
-
-/* Constructs a string of the displayable text from the ID3 tag. */
-char* amp_construct_tag_string( char* result, const tune* tag );
+/* Constructs a string of the displayable text from the file information. */
+char* amp_construct_tag_string( char* result, const DECODER_INFO* info, int size );
 /* Constructs a information text for currently loaded file. */
 void  amp_display_filename( void );
 /* Switches to the next text displaying mode. */
@@ -237,11 +234,11 @@ void  amp_pl_release( void );
 /* Loads a standalone file or CD track to player. */
 BOOL  amp_load_singlefile( const char *filename, int options );
 
-/* Starts playing of the currently loaded file. */
-void  amp_play( void );
-/* Stops the player. */
+/* Begins playback of the currently loaded file from the specified position. */
+void  amp_play( int pos );
+/* Stops playback of the currently played file. */
 void  amp_stop( void );
-/* Pauses or continues playing of the currently loaded file. */
+/* Suspends or resumes playback of the currently played file. */
 void  amp_pause( void );
 /* Stops playing and resets the player to its default state. */
 void  amp_reset( void );
@@ -282,15 +279,8 @@ void  amp_load_list( HWND owner );
 /* Loads a file selected by the user to the player. */
 void  amp_load_file( HWND owner );
 
-/* Edits a ID3 tag for the specified file. */
-void  amp_id3_edit( HWND owner, const char* filename );
-/* Wipes a ID3 tag for the specified file. */
-void  amp_id3_wipe( HWND owner, const char* filename );
-
-/* Sets audio volume to the current selected level. */
-void  amp_volume_to_normal( void );
-/* Sets audio volume to below current selected level. */
-void  amp_volume_to_lower( void );
+/* Edits a information for the specified file. */
+void  amp_info_edit( HWND owner, const char* filename, char* decoder );
 
 /* Default dialog procedure for the file dialog. */
 MRESULT EXPENTRY amp_file_dlg_proc( HWND, ULONG, MPARAM, MPARAM );
@@ -299,10 +289,9 @@ BOOL  amp_load_eq_file( char* filename, float* gains, BOOL* mutes, float* preamp
 ULONG handle_dfi_error( ULONG rc, const char* file );
 
 int  PM123_ENTRY pm123_getstring( int index, int subindex, size_t bufsize, char* buf );
-void PM123_ENTRY pm123_control( int index, void* param );
+void PM123_ENTRY pm123_control  ( int index, void* param );
 
 /* Global variables */
-/* -----------------*/
 
 extern int      amp_playmode; /* Play mode        */
 extern HPOINTER mp3;          /* Song file icon   */
@@ -313,14 +302,10 @@ extern HPOINTER mp3gray;      /* Broken file icon */
 extern char startpath[_MAX_PATH];
 /* Contains a name of the currently loaded file. */
 extern char current_filename[_MAX_PATH];
+/* Contains a information about of the currently loaded file. */
+extern DECODER_INFO current_info;
 /* Other parameters of the currently loaded file. */
-extern int  current_bitrate;
-extern int  current_channels;
-extern int  current_length;
-extern int  current_freq;
-extern tune current_tune;
 extern char current_decoder[128];
-extern char current_decoder_info_string[128];
 
 /* Equalizer stuff. */
 extern float gains[20];
@@ -330,26 +315,6 @@ extern float preamp;
 /* specana.c FFT functions */
 int PM123_ENTRY specana_init( int setnumsamples );
 int PM123_ENTRY specana_dobands( float* bands );
-
-/* 123_msg.c */
-typedef struct
-{
-   char* filename;
-   char* out_filename;
-   HWND  hMain;
-   char* decoder_needed;
-
-} MSG_PLAY_STRUCT;
-
-/* Returns TRUE if the decoder is paused. */
-BOOL is_paused( void );
-/* Returns TRUE if the decoder is fast forwarding. */
-BOOL is_forward( void );
-/* Returns TRUE if the decoder is rewinding. */
-BOOL is_rewind( void );
-
-void amp_msg( int msg, void* param, void* param2 );
-void equalize_sound( float* gains, BOOL* mute, float preamp, BOOL enabled );
 
 #ifdef __cplusplus
 }

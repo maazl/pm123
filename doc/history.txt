@@ -33,6 +33,9 @@ PM123's History
       a song can be wrong, but there are no jerks of the seek slider.
     - The decoder now correctly skip RIFF headers, ID3v1 and ID3v2 tags during 
       playing a file.
+    - The decoder now correctly decode mpeg 2.x layer 3 files with low 
+      sample rate.
+    - The decoder any more does not eat the end of the played file.
 
     REALEQ:
     - The mute controls of the left and right channel are placed correctly.
@@ -49,6 +52,10 @@ PM123's History
 
     WAVPLAY:
     - Now shows correct bitrate at playing a file. Thanks to ntim.
+
+    OS2AUDIO:
+    - The output is more accurate and any more does not eat the head of the
+      played file.
 
 PM123 1.31
 ----------

@@ -1,11 +1,5 @@
-/*
-   PM123 Plugin Definitions
-   Copyright (C) 1998 Taneli Lepp„ <rosmo@sektori.com>
-                      Samuel Audet <guardia@step.polymtl.ca>
-*/
-
-#ifndef __PM123_PLUGIN_H
-#define __PM123_PLUGIN_H
+#ifndef PM123_PLUGIN_H
+#define PM123_PLUGIN_H
 
 #include "format.h"
 
@@ -18,6 +12,8 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+#pragma pack(4)
 
 /* see decoder_plug.h and output_plug.h for more information
    on some of these functions */
@@ -33,14 +29,15 @@ typedef struct _PLUGIN_PROCS
 
   int   (PM123_ENTRYP specana_init)( int setnumsamples );
   /* int specana_init(int setnumsamples);
-     setnumsamples must be a power of 2
-     Returns the number of bands in return (setnumsamples/2+1).
-  */
+   * setnumsamples must be a power of 2
+   * Returns the number of bands in return (setnumsamples/2+1).
+   */
+
   int   (PM123_ENTRYP specana_dobands)( float bands[] );
   /*
-     int specana_dobands(float bands[]);
-     Returns the max value.
-  */
+   * int specana_dobands(float bands[]);
+   * Returns the max value.
+   */
 
   int   (PM123_ENTRYP pm123_getstring)( int index, int subindex, size_t bufsize, char* buf );
   void  (PM123_ENTRYP pm123_control)( int index, void* param );
@@ -53,13 +50,13 @@ typedef struct _PLUGIN_PROCS
 } PLUGIN_PROCS, *PPLUGIN_PROCS;
 
 /*
-  int pm123_getstring( int index, int subindex, int bufsize, char* buf )
-
-    index    - which string (see STR_* defines below)
-    subindex - not currently used
-    bufsize  - bytes in buf
-    buf      - buffer for the string
-*/
+ * int pm123_getstring( int index, int subindex, int bufsize, char* buf )
+ *
+ *  index    - which string (see STR_* defines below)
+ *  subindex - not currently used
+ *  bufsize  - bytes in buf
+ *  buf      - buffer for the string
+ */
 
 #define STR_NULL         0
 #define STR_VERSION      1 /* PM123 version          */
@@ -67,11 +64,11 @@ typedef struct _PLUGIN_PROCS
 #define STR_FILENAME     3 /* Currently loaded file  */
 
 /*
-  int pm123_control( int index, void* param );
-
-    index - operation
-    param - parameter for the operation
-*/
+ * int pm123_control( int index, void* param );
+ *
+ *  index - operation
+ *  param - parameter for the operation
+ */
 
 #define CONTROL_NEXTMODE 1 /* Next display mode */
 
@@ -99,7 +96,9 @@ typedef struct _PLUGIN_QUERYPARAM
 int PM123_ENTRY plugin_query( PLUGIN_QUERYPARAM* param );
 int PM123_ENTRY plugin_configure( HWND hwnd, HMODULE module );
 
+#pragma pack()
+
 #ifdef __cplusplus
 }
 #endif
-#endif /* __PM123_PLUGIN_H */
+#endif /* PM123_PLUGIN_H */

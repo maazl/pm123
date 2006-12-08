@@ -38,8 +38,6 @@ extern "C" {
 
 /* Initializes the file protocol. */
 XPROTOCOL* file_initialize( XFILE* x );
-/* Cleanups the file protocol. */
-void file_terminate( XFILE* x );
 
 #ifdef __cplusplus
 }

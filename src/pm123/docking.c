@@ -486,9 +486,9 @@ dk_add_window( HWND hwnd, int state )
 
   memset( node, 0, sizeof( DK_DATA ));
 
-  node->hwnd      = hwnd;
-  node->state     = state & ( DK_IS_MASTER | DK_IS_GHOST );
-  node->def_proc  = WinSubclassWindow( hwnd, dk_win_proc );
+  node->hwnd     = hwnd;
+  node->state    = state & ( DK_IS_MASTER | DK_IS_GHOST );
+  node->def_proc = WinSubclassWindow( hwnd, dk_win_proc );
 
   head.childs[ head.childs_count++ ] = node;
   return TRUE;
@@ -589,6 +589,6 @@ void
 dk_term()
 {
   while( head.childs_count ) {
-    free( head.childs[ --head.childs_count ] );
+    dk_remove_window( head.childs[0]->hwnd );
   }
 }

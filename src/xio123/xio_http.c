@@ -361,8 +361,17 @@ http_write( XFILE* x, const char* source, unsigned int count )
 /* Closes the file. Returns 0 if it successfully closes the file. A
    return value of -1 shows an error. */
 static int
-http_close( XFILE* x ) {
-  return so_close( x->protocol->s_handle );
+http_close( XFILE* x )
+{
+  int rc = 0;
+
+  if( x->protocol->s_handle != -1 ) {
+    if(( rc = so_close( x->protocol->s_handle )) != -1 ) {
+      x->protocol->s_handle  = -1;
+    }
+  }
+
+  return rc;
 }
 
 /* Returns the current position of the file pointer. The position is
@@ -399,7 +408,7 @@ http_seek( XFILE* x, long offset, int origin )
         range = x->protocol->s_pos  + offset;
         break;
       case XIO_SEEK_END:
-        range = x->protocol->s_size - offset;
+        range = x->protocol->s_size + offset;
         break;
       default:
         return -1;
@@ -409,7 +418,10 @@ http_seek( XFILE* x, long offset, int origin )
         x->protocol->s_location      &&
         http_close( x ) == 0 )
     {
-      if( http_read_file( x, x->protocol->s_location, range ) == 0 ) {
+      if( range == x->protocol->s_size ) {
+        return x->protocol->s_pos = range;
+        return x->protocol->s_pos;
+      } else if( http_read_file( x, x->protocol->s_location, range ) == 0 ) {
         return x->protocol->s_pos;
       }
     }
@@ -428,6 +440,22 @@ http_size( XFILE* x )
   size = x->protocol->s_size;
   DosReleaseMutexSem( x->protocol->mtx_access );
   return size;
+}
+
+/* Cleanups the http protocol. */
+static void
+http_terminate( XFILE* x )
+{
+  if( x->protocol ) {
+    if( x->protocol->mtx_access ) {
+      DosCloseMutexSem( x->protocol->mtx_access );
+    }
+    if( x->protocol->mtx_file ) {
+      DosCloseMutexSem( x->protocol->mtx_file );
+    }
+    free( x->protocol->s_location );
+    free( x->protocol );
+  }
 }
 
 /* Initializes the http protocol. */
@@ -454,25 +482,10 @@ http_initialize( XFILE* x )
     protocol->tell  = http_tell;
     protocol->seek  = http_seek;
     protocol->size  = http_size;
+    protocol->clean = http_terminate;
   }
 
   return protocol;
-}
-
-/* Cleanups the http protocol. */
-void
-http_terminate( XFILE* x )
-{
-  if( x->protocol ) {
-    if( x->protocol->mtx_access ) {
-      DosCloseMutexSem( x->protocol->mtx_access );
-    }
-    if( x->protocol->mtx_file ) {
-      DosCloseMutexSem( x->protocol->mtx_file );
-    }
-    free( x->protocol->s_location );
-    free( x->protocol );
-  }
 }
 
 /* Maps the error number in errnum to an error message string. */

@@ -118,6 +118,9 @@ SHORT lb_size( HWND hwnd, SHORT id );
 /* Searches an item in a list box control. */
 SHORT lb_search( HWND hwnd, SHORT id, SHORT starti, char *item );
 
+/* Sets the enable state of the entryfield in the dialog template to the enable flag. */
+void  en_enable( HWND hwnd, SHORT id, BOOL enable );
+
 #ifdef __cplusplus
 }
 #endif

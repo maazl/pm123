@@ -22,5 +22,7 @@ os2audio.dll: $(OBJECTS) $(DEF) $(RESOURCE)
 os2audio$(LBI): $(DEF)
 	$(LI) $@ os2audio.dll
 
+os2audio$(CO): os2audio.c os2audio.h
+
 clean: $(MDUMMY)
 	-@del os2audio$(LBI) os2audio.dll $(OBJECTS) $(RESOURCE) 2> nul

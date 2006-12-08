@@ -50,144 +50,51 @@
 
 extern OUTPUT_PARAMS out_params;
 
-/* Reads ID3 tag from the specified file. */
-BOOL
-amp_gettag( const char* filename, DECODER_INFO* info, tune* tag )
-{
-  int  handle;
-  BOOL rc = FALSE;
-
-  memset( tag, 0, sizeof( *tag ));
-
-  if( filename != NULL && *filename && is_file( filename )) {
-    handle = open( filename, O_RDONLY | O_BINARY );
-    if( handle != -1 ) {
-      rc = gettag( handle, tag );
-      close( handle );
-    }
-  }
-
-  if( !rc && info ) {
-    strcpy( tag->title,   info->title   );
-    strcpy( tag->artist,  info->artist  );
-    strcpy( tag->album,   info->album   );
-    strcpy( tag->year,    info->year    );
-    strcpy( tag->comment, info->comment );
-    strcpy( tag->genre,   info->genre   );
-    rc = TRUE;
-  }
-
-  if( rc && cfg.tags_charset != CH_DEFAULT )
-  {
-    char cstr[ sizeof( tag->title   ) +
-               sizeof( tag->artist  ) +
-               sizeof( tag->album   ) +
-               sizeof( tag->comment ) + 1 ];
-    tune stag = *tag;
-
-    strcpy( cstr, stag.title   );
-    strcat( cstr, stag.artist  );
-    strcat( cstr, stag.album   );
-    strcat( cstr, stag.comment );
-
-    tag->charset = ch_detect( cfg.tags_charset, cstr );
-
-    ch_convert( tag->charset, stag.title,   CH_DEFAULT, tag->title,   sizeof( stag.title   ));
-    ch_convert( tag->charset, stag.artist,  CH_DEFAULT, tag->artist,  sizeof( stag.artist  ));
-    ch_convert( tag->charset, stag.album,   CH_DEFAULT, tag->album,   sizeof( stag.album   ));
-    ch_convert( tag->charset, stag.comment, CH_DEFAULT, tag->comment, sizeof( stag.comment ));
-  }
-
-  return rc;
-}
-
-/* Wipes ID3 tag from the specified file. */
-BOOL
-amp_wipetag( const char* filename )
-{
-  int  handle;
-  BOOL rc = FALSE;
-  struct stat fi;
-
-  handle = open( filename, O_RDWR | O_BINARY );
-  if( handle != -1 && fstat( handle, &fi ) == 0 ) {
-    rc = wipetag( handle, fi.st_size );
-    close( handle );
-  }
-
-  return rc;
-}
-
-/* Writes ID3 tag to the specified file. */
-BOOL
-amp_puttag( const char* filename, tune* tag )
-{
-  int  handle;
-  BOOL rc = 0;
-  tune wtag = *tag;
-
-  if( tag->charset != CH_DEFAULT )
-  {
-    ch_convert( CH_DEFAULT, tag->title,   tag->charset, wtag.title,   sizeof( wtag.title   ));
-    ch_convert( CH_DEFAULT, tag->artist,  tag->charset, wtag.artist,  sizeof( wtag.artist  ));
-    ch_convert( CH_DEFAULT, tag->album,   tag->charset, wtag.album,   sizeof( wtag.album   ));
-    ch_convert( CH_DEFAULT, tag->comment, tag->charset, wtag.comment, sizeof( wtag.comment ));
-  }
-
-  handle = open( filename, O_RDWR | O_BINARY );
-  if( handle != -1 ) {
-    rc = settag( handle, &wtag );
-    close( handle );
-  }
-
-  return rc;
-}
-
-/* Constructs a string of the displayable text from the ID3 tag. */
+/* Constructs a string of the displayable text from the file information. */
 char*
-amp_construct_tag_string( char* result, const tune* tag )
+amp_construct_tag_string( char* result, const DECODER_INFO* info, int size )
 {
   *result = 0;
 
-  if( *tag->artist ) {
-    strcat( result, tag->artist );
-    if( *tag->title ) {
-      strcat( result, ": " );
+  if( *info->artist ) {
+    strlcat( result, info->artist, size );
+    if( *info->title ) {
+      strlcat( result, ": ", size );
     }
   }
 
-  if( *tag->title ) {
-    strcat( result, tag->title );
+  if( *info->title ) {
+    strlcat( result, info->title, size );
   }
 
-  if( *tag->album && *tag->year )
+  if( *info->album && *info->year )
   {
-    strcat( result, " (" );
-    strcat( result, tag->album );
-    strcat( result, ", " );
-    strcat( result, tag->year  );
-    strcat( result, ")" );
+    strlcat( result, " (", size );
+    strlcat( result, info->album, size );
+    strlcat( result, ", ", size );
+    strlcat( result, info->year,  size );
+    strlcat( result, ")",  size );
   }
   else
   {
-    if( *tag->album && !*tag->year )
+    if( *info->album && !*info->year )
     {
-      strcat( result, " (" );
-      strcat( result, tag->album );
-      strcat( result, ")" );
+      strlcat( result, " (", size );
+      strlcat( result, info->album, size );
+      strlcat( result, ")",  size );
     }
-    if( !*tag->album && *tag->year )
+    if( !*info->album && *info->year )
     {
-      strcat( result, " (" );
-      strcat( result, tag->year);
-      strcat( result, ")" );
+      strlcat( result, " (", size );
+      strlcat( result, info->year, size );
+      strlcat( result, ")",  size );
     }
   }
 
-  if( *tag->comment )
+  if( *info->comment )
   {
-    strlcat( result, " -- ", sizeof( result ));
-    strlcat( result, tag->comment, sizeof( result ));
+    strlcat( result, " -- ", size );
+    strlcat( result, info->comment, size );
   }
 
   return result;
@@ -208,14 +115,14 @@ amp_display_filename( void )
   switch( cfg.viewmode )
   {
     case CFG_DISP_ID3TAG:
-      amp_construct_tag_string( display, &current_tune );
+      amp_construct_tag_string( display, &current_info, sizeof( display ));
 
       if( *display ) {
         bmp_set_text( display );
         break;
       }
 
-      // if ID3 tag is empty - use filename instead of it.
+      // if tag is empty - use filename instead of it.
 
     case CFG_DISP_FILENAME:
       if( current_filename != NULL && *current_filename )
@@ -231,7 +138,7 @@ amp_display_filename( void )
       break;
 
     case CFG_DISP_FILEINFO:
-      bmp_set_text( current_decoder_info_string );
+      bmp_set_text( current_info.tech_info );
       break;
   }
 }
@@ -291,7 +198,7 @@ ULONG handle_dfi_error( ULONG rc, const char* file )
  return 1;
 }
 
-void PM123_ENTRY pm123_control(int index, void *param)
+void PM123_ENTRY pm123_control( int index, void* param )
 {
   switch (index)
   {
@@ -301,7 +208,7 @@ void PM123_ENTRY pm123_control(int index, void *param)
   }
 }
 
-int PM123_ENTRY pm123_getstring(int index, int subindex, size_t bufsize, char *buf)
+int PM123_ENTRY pm123_getstring( int index, int subindex, size_t bufsize, char* buf )
 {
  switch (index)
   {

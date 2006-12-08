@@ -13,10 +13,10 @@ LBO        = .lib
 RES        = .res
 
 CC         = wcl386
-CFLAGS     = -zq -bm -dOS2 -w3
+CFLAGS     = -zq -zro -bm -ei -dOS2 -w3 -sg
 CFLAGS_DLL = -bd
 CFLAGS_DBG = -d2 -dDEBUG=1
-CFLAGS_OPT = -otexan -5r -fp5 -s
+CFLAGS_OPT = -otexan -5r -fp5
 
 CL         = wlink
 LFLAGS     = option quiet
