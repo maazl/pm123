@@ -287,6 +287,7 @@ ULONG PM123_ENTRY decoder_cdinfo( const char* drive, DECODER_CDINFO* info );
 #define DECODER_FILENAME  0x0001 /* Decoder can play a regular file. */
 #define DECODER_URL       0x0002 /* Decoder can play a internet stream or file. */
 #define DECODER_TRACK     0x0004 /* Decoder can play a CD track. */
+#define DECODER_OTHER     0x0008 /* Decoder can play a something else. */
 #define DECODER_METAINFO  0x8000 /* Decoder can save a meta info. */
 /* size is i/o and is the size of the array.
    each ext should not be bigger than 8bytes */
