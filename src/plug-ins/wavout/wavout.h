@@ -30,8 +30,6 @@
 #ifndef _WAVOUT_H
 #define _WAVOUT_H
 
-#include "..\wavplay\wav.h"
-
 #define DLG_CONFIGURE 1000
 #define ID_NULL       1001
 #define ST_FILENAME   1010
@@ -41,16 +39,53 @@
 
 #define DLG_BROWSE    2000
 
+#pragma pack(1)
+typedef struct _RIFF_HEADER
+{
+  char           id_riff[4]; /* RIFF */
+  unsigned long  len;
+  char           id_wave[4]; /* WAVE */
+
+} RIFF_HEADER;
+
+typedef struct _CHNK_HEADER
+{
+  char           id[4];
+  unsigned long  len;
+
+} CHNK_HEADER;
+
+typedef struct _FORMAT
+{
+  unsigned short FormatTag;
+  unsigned short Channels;
+  unsigned long  SamplesPerSec;
+  unsigned long  AvgBytesPerSec;
+  unsigned short BlockAlign;
+  unsigned short BitsPerSample;
+
+} FORMAT;
+
+typedef struct WAVE_HEADER
+{
+  RIFF_HEADER  riff;
+  CHNK_HEADER  format_header;
+  FORMAT       format;
+  CHNK_HEADER  data_header;
+} WAVE_HEADER;
+
+#pragma pack()
+
 typedef struct _WAVOUT
 {
-  BOOL  opened;
   HEV   pause;
   int   playingpos;
   char  filename[CCHMAXPATH];   // filled by setup.
   char  fullpath[CCHMAXPATH];   // completed by open with outpath.
   char* buffer;
-  WAV   wavfile;
+  FILE* file;
 
+  WAVE_HEADER   header;
   OUTPUT_PARAMS original_info;  // to open the device.
 
 } WAVOUT;

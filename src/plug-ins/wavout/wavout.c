@@ -41,8 +41,7 @@
 #include <output_plug.h>
 #include <decoder_plug.h>
 #include <plugin.h>
-#include "wavout.h"
-
+#include <wavout.h>
 #include <debuglog.h>
 
 static char outpath[CCHMAXPATH];
@@ -165,12 +164,17 @@ output_close( void* A )
   WAVOUT* a = (WAVOUT*)A;
   ULONG resetcount;
 
-  if( a->opened ) {
-    a->wavfile.close();
+  if( a->file )
+  {
+    if( fseek( a->file, 0, SEEK_SET ) == 0 ) {
+      fwrite( &a->header, 1, sizeof( a->header ), a->file );
+    }
+    fclose( a->file );
+
     DosResetEventSem( a->pause, &resetcount );
+
     free( a->buffer );
     a->buffer = NULL;
-    a->opened = FALSE;
   }
   return 0;
 }
@@ -179,10 +183,10 @@ output_close( void* A )
 static ULONG
 output_open( WAVOUT* a )
 {
-  int rc;
+  char errorbuf[1024];
 
   // New filename, even if we didn't explicity get a close!
-  if( a->opened ) {
+  if( a->file ) {
     output_close( a );
   }
 
@@ -193,29 +197,59 @@ output_open( WAVOUT* a )
   DosPostEventSem( a->pause );
   strcpy( a->fullpath, outpath );
 
-  if( *a->fullpath && !is_root( a->fullpath )) {
-    strcat( a->fullpath, "\\" );
-    strcat( a->fullpath, a->filename );
-  } else {
-    strcat( a->fullpath, a->filename );
+  if( stricmp( a->fullpath, "nul" ) != 0 ) {
+    if( *a->fullpath && !is_root( a->fullpath )) {
+      strlcat( a->fullpath, "\\", sizeof( a->fullpath ));
+      strlcat( a->fullpath, a->filename, sizeof( a->fullpath ));
+    } else {
+      strlcat( a->fullpath, a->filename, sizeof( a->fullpath ));
+    }
   }
 
-  rc = a->wavfile.open( a->fullpath, CREATE,
-                        a->original_info.formatinfo.samplerate,
-                        a->original_info.formatinfo.channels,
-                        a->original_info.formatinfo.bits,
-                        a->original_info.formatinfo.format );
-                        
-  DEBUGLOG(("wavout:output_open: %s, %d\n", a->fullpath, rc));                       
-  if( rc != 0 )
+  if(( a->file = fopen( a->fullpath, "wb" )) == NULL )
   {
-    char message[1024];
-    sprintf( message, "Could not open WAV file:\n%s\n%s", a->fullpath, strerror( errno ));
-    (*a->original_info.error_display)( message );
+    strlcpy( errorbuf, "Could not open file to output data:\n", sizeof( errorbuf ));
+    strlcat( errorbuf, a->fullpath, sizeof( errorbuf ));
+    strlcat( errorbuf, "\n", sizeof( errorbuf ));
+    strlcat( errorbuf, strerror( errno ), sizeof( errorbuf ));
+
+    a->original_info.error_display( errorbuf );
     return errno;
   }
 
-  a->opened = TRUE;
+  strncpy( a->header.riff.id_riff, "RIFF", 4 );
+  strncpy( a->header.riff.id_wave, "WAVE", 4 );
+  a->header.riff.len = sizeof( a->header ) - 8;
+
+  strncpy( a->header.format_header.id, "fmt ", 4 );
+  a->header.format_header.len = sizeof( a->header.format_header ) +
+                                sizeof( a->header.format ) - 8;
+
+  a->header.format.FormatTag      = a->original_info.formatinfo.format;
+  a->header.format.Channels       = a->original_info.formatinfo.channels;
+  a->header.format.SamplesPerSec  = a->original_info.formatinfo.samplerate;
+  a->header.format.BitsPerSample  = a->original_info.formatinfo.bits;
+  a->header.format.AvgBytesPerSec = a->header.format.Channels *
+                                    a->header.format.SamplesPerSec *
+                                    a->header.format.BitsPerSample / 8;
+  a->header.format.BlockAlign     = a->header.format.Channels *
+                                    a->header.format.BitsPerSample / 8;
+
+  strncpy( a->header.data_header.id, "data", 4 );
+  a->header.data_header.len = 0;
+
+  if( fwrite( &a->header, 1, sizeof( a->header ), a->file ) != sizeof( a->header ))
+  {
+    strlcpy( errorbuf, "Could not write output data  to file:\n", sizeof( errorbuf ));
+    strlcat( errorbuf, a->fullpath, sizeof( errorbuf ));
+    strlcat( errorbuf, "\n", sizeof( errorbuf ));
+    strlcat( errorbuf, strerror( errno ), sizeof( errorbuf ));
+
+    a->original_info.error_display( errorbuf );
+
+    fclose( a->file );
+    return errno;
+  }
   return 0;
 }
 
@@ -237,8 +271,7 @@ output_pause( void* A, BOOL pause )
 ULONG PM123_ENTRY
 output_command( void* A, ULONG msg, OUTPUT_PARAMS* info )
 {
-  WAVOUT* a  = (WAVOUT*)A;
-  ULONG   rc = 0;
+  WAVOUT* a = (WAVOUT*)A;
   DEBUGLOG(("wavout:output_command(%p, %d, %p)\n", A, msg, info));
 
   switch( msg ) {
@@ -252,42 +285,33 @@ output_command( void* A, ULONG msg, OUTPUT_PARAMS* info )
         sdecode( a->filename, a->filename, sizeof( a->filename ));
       }
       strlcat( a->filename, ".wav", sizeof( a->filename ));
-      rc = output_open( a );
-      break;
+      return output_open( a );
     }
 
     case OUTPUT_CLOSE:
-      rc = output_close( a );
-      break;
+      return output_close( a );
 
     case OUTPUT_VOLUME:
-      break;
+      return 0;
 
     case OUTPUT_PAUSE:
-      rc = output_pause( a, info->pause );
-      break;
+      return output_pause( a, info->pause );
 
     case OUTPUT_SETUP:
       DEBUGLOG(("wavout:output_command:OUTPUT_SETUP: {%d %d %d %d %d}\n",
         info->formatinfo.size, info->formatinfo.samplerate, info->formatinfo.channels, info->formatinfo.bits, info->formatinfo.format));
-      // Make sure no important information is modified here if currently
-      // opened when using another thread (ie.: always_hungry = FALSE)
-      // for output which is not the case here.
-      a->original_info = *info;
       info->always_hungry = TRUE;
-      break;
+      a->original_info = *info;
+      return 0;
 
     case OUTPUT_TRASH_BUFFERS:
-      break;
+      return 0;
 
     case OUTPUT_NOBUFFERMODE:
-      break;
-
-    default:
-      rc = 1;
+      return 0;
   }
 
-  return rc;
+  return 1;
 }
 
 /* This function is called by the decoder or last in chain
@@ -295,40 +319,58 @@ output_command( void* A, ULONG msg, OUTPUT_PARAMS* info )
 int PM123_ENTRY
 output_play_samples( void* A, FORMAT_INFO* format, char* buf, int len, int posmarker )
 {
-  WAVOUT *a = (WAVOUT *) A;
-  int written;
+  WAVOUT *a = (WAVOUT*)A;
+  int done;
   DEBUGLOG(("wavout:output_play_samples(%p, %p, %p, %d, %d)\n", A, format, buf, len, posmarker));
 
-  // Sets priority to idle. Normal and especially not boost priority are needed
-  // or desired here, but that wouldn't be the case for real-time output
-  // plug-ins.
-  // DosSetPriority ( PRTYS_THREAD, PRTYC_IDLETIME, PRTYD_MAXIMUM, 0);
   DosWaitEventSem( a->pause, SEM_INDEFINITE_WAIT );
 
   memcpy( a->buffer, buf, len );
   a->playingpos = posmarker;
 
   if( memcmp( format, &a->original_info.formatinfo, sizeof( FORMAT_INFO )) != 0 ) {
-    DEBUGLOG(("wavout:output_play_samples: format mismatch {%d %d %d %d %d}\n",
-      format->size, format->samplerate, format->channels, format->bits, format->format));
-    (*a->original_info.info_display)( "Warning: WAV data currently being written is in a different\n"
-                                      "format than the opened format.  Generation of a probably\n"
-                                      "invalid WAV file." );
+
+    DEBUGLOG(( "wavout: old format: size %d, sample: %d, channels: %d, bits: %d, id: %d\n",
+
+        a->original_info.formatinfo.size,
+        a->original_info.formatinfo.samplerate,
+        a->original_info.formatinfo.channels,
+        a->original_info.formatinfo.bits,
+        a->original_info.formatinfo.format ));
+
+    DEBUGLOG(( "wavout: new format: size %d, sample: %d, channels: %d, bits: %d, id: %d\n",
+
+        format->size,
+        format->samplerate,
+        format->channels,
+        format->bits,
+        format->format ));
+
+    a->original_info.info_display( "Warning: WAV data currently being written is in a different"
+                                   "format than the opened format. Generation of a probably"
+                                   "invalid WAV file." );
+
+    // Protection against a storm of warnings.
+    a->original_info.formatinfo = *format;
   }
 
-  written = a->wavfile.writeData( buf, len );
-
-  if( written < len )
+  if(( done = fwrite( buf, 1, len, a->file )) != len )
   {
-    char message[2048];
-    sprintf( message, "Could not write to WAV file:\n%s\n%s", a->fullpath, strerror( errno ));
-    WinPostMsg( a->original_info.hwnd, WM_PLAYERROR, 0, 0 );
-    (*a->original_info.error_display)( message );
-    a->wavfile.close();
+    char errorbuf[1024];
+
+    strlcpy( errorbuf, "Could not write output data  to file:\n", sizeof( errorbuf ));
+    strlcat( errorbuf, a->fullpath, sizeof( errorbuf ));
+    strlcat( errorbuf, "\n", sizeof( errorbuf ));
+    strlcat( errorbuf, strerror( errno ), sizeof( errorbuf ));
+
+    a->original_info.error_display( errorbuf );
+    output_close( a );
   }
 
-  WinPostMsg( a->original_info.hwnd, WM_OUTPUT_OUTOFDATA, 0, 0 );
-  return written;
+  a->header.riff.len += done;
+  a->header.data_header.len += done;
+
+  return done;
 }
 
 /* This function is used by visual plug-ins so the user can
@@ -339,7 +381,14 @@ output_playing_samples( void* A, FORMAT_INFO* info, char* buf, int len )
   WAVOUT* a = (WAVOUT*)A;
 
  *info = a->original_info.formatinfo;
-  memcpy( buf, a->buffer, len );
+
+  if( len > a->original_info.buffersize ) {
+    return -1;
+  }
+
+  if( buf && len ) {
+    memcpy( buf, a->buffer, len );
+  }
 
   return 0;
 }
@@ -364,7 +413,7 @@ plugin_query( PLUGIN_QUERYPARAM* query )
 {
   query->type         = PLUGIN_OUTPUT;
   query->author       = "Samuel Audet, Dmitry A.Steklenev ";
-  query->desc         = "WAVE Output 1.10";
+  query->desc         = "WAVE Output 1.20";
   query->configurable = TRUE;
   return 0;
 }
@@ -405,3 +454,19 @@ output_uninit( void* A )
   return 0;
 }
 
+#if defined(__IBMC__) && defined(__DEBUG_ALLOC__)
+unsigned long _System _DLL_InitTerm( unsigned long modhandle,
+                                     unsigned long flag )
+{
+  if( flag == 0 ) {
+    if( _CRT_init() == -1 ) {
+      return 0UL;
+    }
+    return 1UL;
+  } else {
+    _dump_allocated( 0 );
+    _CRT_term();
+    return 1UL;
+  }
+}
+#endif
