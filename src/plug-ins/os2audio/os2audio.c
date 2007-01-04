@@ -27,11 +27,9 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-/* OS/2 RealTime DART Engine for PM123 */
-
-#define INCL_OS2MM
-#define INCL_PM
-#define INCL_DOS
+#define  INCL_OS2MM
+#define  INCL_PM
+#define  INCL_DOS
 #include <os2.h>
 #include <os2me.h>
 #include <stdlib.h>
@@ -40,1024 +38,882 @@
 #include <ctype.h>
 
 #include <utilfct.h>
-
-//#define DEBUG 2
-
 #include <debuglog.h>
-
 #include <format.h>
 #include <output_plug.h>
 #include <decoder_plug.h>
 #include <plugin.h>
+
 #include "os2audio.h"
+#include "debuglog.h"
 
-
-static void load_ini(void);
-static void save_ini(void);
-
-int device = 0;
-int lockdevice = 0;
-int numbuffers = 32; /* total audio buffers, _bare_ minimum = 4 (cuz of prio boost check) */
-int kludge48as44 = 0;
-int force8bit = 0;
-
-typedef struct
-{
-   MCI_MIX_BUFFER  *NextBuffer;
-   int filepos;
-   void *a; /* stores OS2AUDIO */
-} BUFFERINFO;
-
-typedef struct
-{
-   unsigned char mmerror[160];
-   ULONG playingpos;
-
-   int device;
-   int lockdevice;
-   int numbuffers; /* total audio buffers, _bare_ minimum = 4 (cuz of prio boost check) */
-   int kludge48as44;
-   int force8bit;
-   int buffersize;
-   int volume;
-   int doamp;
-   float amplifier;
-
-   unsigned short boostclass, normalclass;
-   signed   short boostdelta, normaldelta;
-   TIB *mainthread; /* thread info to set thread priority */
-
-   /* audio buffers */
-   ULONG ulMCIBuffers;
-
-   MCI_AMP_OPEN_PARMS  maop;
-   MCI_MIXSETUP_PARMS  mmp;
-   MCI_BUFFER_PARMS    mbp;
-   MCI_GENERIC_PARMS   mgp;
-   MCI_SET_PARMS       msp;
-   MCI_STATUS_PARMS    mstatp;
-   MCI_MIX_BUFFER      *MixBuffers;
-
-   ULONG zero;  /* this is 128 for 8 bit unsigned */
-
-   BUFFERINFO *bufferinfo;
-
-   HEV dataplayed;
-   ULONG resetcount;
-
-   MCI_MIX_BUFFER *tobefilled, *playingbuffer, playedbuffer;
-   void *pBufferplayed;
-
-   BOOL nomoredata,nobuffermode,justtrashed, opened;
-
-   OUTPUT_PARAMS original_info; // to open the device
-
-   BOOL pausestate;
-} OS2AUDIO;
-
-
-static LONG APIENTRY DARTEvent(ULONG ulStatus, MCI_MIX_BUFFER *PlayedBuffer, ULONG ulFlags)
-{
-   OS2AUDIO *a = (OS2AUDIO*) ((BUFFERINFO *) PlayedBuffer->ulUserParm)->a;
-
-   switch(ulFlags)
-   {
-      case MIX_STREAM_ERROR | MIX_WRITE_COMPLETE:  /* error occur in device */
-
-      if ( ulStatus == ERROR_DEVICE_UNDERRUN)
-         /* Write buffers to rekick off the amp mixer. */
-         a->mmp.pmixWrite( a->mmp.ulMixHandle,
-                        a->MixBuffers,
-                        a->ulMCIBuffers );
-      break;
-
-   case MIX_WRITE_COMPLETE:                     /* for playback  */
-
-      /* GUS driver workaround */
-//      a->mstatp.ulItem = MCI_STATUS_POSITION;
-      mciSendCommand( a->maop.usDeviceID,
-                           MCI_STATUS,
-                           MCI_STATUS_ITEM | MCI_WAIT,
-                           &a->mstatp,
-                           0 );
-
-      a->playingbuffer = ((BUFFERINFO *) PlayedBuffer->ulUserParm)->NextBuffer;
-
-      /* the next four lines are only useful to audio_playing_samples() */
-      if(a->pBufferplayed != NULL)
-      {
-         memcpy(&a->playedbuffer,PlayedBuffer,sizeof(a->playedbuffer));
-         a->playedbuffer.ulTime = a->mstatp.ulReturn;
-         a->playedbuffer.pBuffer = a->pBufferplayed;
-         memcpy(a->playedbuffer.pBuffer, PlayedBuffer->pBuffer, PlayedBuffer->ulBufferLength);
-      }
-
-      /* just too bad, the decoder fell behind... here we just keep the
-         buffer to be filled in front of the playing one so that when the
-         decoder kicks back in, we'll hear it in at the right time */
-      if(a->tobefilled == a->playingbuffer)
-      {
-         a->tobefilled = ((BUFFERINFO *) a->playingbuffer->ulUserParm)->NextBuffer;
-         a->nomoredata = TRUE;
-
-         WinPostMsg(a->original_info.hwnd,WM_OUTPUT_OUTOFDATA,0,0);
-      }
-      else
-      {
-         a->playingpos = ((BUFFERINFO *) a->playingbuffer->ulUserParm)->filepos;
-
-         /* if we're about to be short of decoder's data
-            (2nd ahead buffer not filled), let's boost its priority! */
-         if(a->mainthread != NULL &&
-            a->tobefilled == ( (BUFFERINFO *) ((BUFFERINFO *) a->playingbuffer->ulUserParm)->NextBuffer->ulUserParm)->NextBuffer)
-         {  DEBUGLOG(("DARTEvent: priority boost (%d, %d, %d).\n", a->boostclass,a->boostdelta,a->mainthread->tib_ptib2->tib2_ultid));
-            DosSetPriority(PRTYS_THREAD,a->boostclass,a->boostdelta,a->mainthread->tib_ptib2->tib2_ultid);
-         }
-      }
-
-      /* empty the played buffer in case it doesn't get filled back */
-      memset(PlayedBuffer->pBuffer,a->zero,PlayedBuffer->ulBufferLength);
-
-      DosPostEventSem(a->dataplayed);
-
-      if(a->opened)  // set to FALSE before actual device close
-      {
-         a->mmp.pmixWrite( a->mmp.ulMixHandle,
-                           PlayedBuffer /* will contain new data */,
-                           1 );
-      }
-      break;
-
-   } /* end switch */
-
-   return( TRUE );
-
-} /* end DARTEvent */
-
-
-static void MciError(OS2AUDIO *a, ULONG ulError)
-{
-   unsigned char mmerror[128];
-   unsigned char buffer[128];
-   ULONG rc;
-
-   rc = mciGetErrorString(ulError, buffer, sizeof(buffer));
-
-   if (rc == MCIERR_SUCCESS)
-      sprintf(mmerror,"MCI Error %d: %s\n",LOUSHORT(ulError),buffer);
-   else
-      sprintf(mmerror,"MCI Error %d: Cannot query error message.\n",LOUSHORT(rc));
-
-   a->original_info.error_display(mmerror);
-
-   WinPostMsg(a->original_info.hwnd,WM_PLAYERROR,0,0);
-}
-
-static ULONG output_set_volume(void *A, char setvolume, float setamplifier)
-{
-   OS2AUDIO *a = (OS2AUDIO *) A;
-
-   if(setamplifier != 1.0)
-   {
-      a->doamp = TRUE;
-      a->amplifier = setamplifier;
-   }
-   else
-      a->doamp = FALSE;
-
-   if(setvolume > 100) setvolume = 100;
-   a->volume = setvolume; /* useful when device is closed and reopened */
-   if(a->maop.usDeviceID)
-   {
-      MCI_SET_PARMS msp = {0};
-      msp.ulAudio = MCI_SET_AUDIO_ALL;
-      msp.ulLevel = setvolume;
-
-      mciSendCommand(a->maop.usDeviceID, MCI_SET,
-                     MCI_WAIT | MCI_SET_AUDIO | MCI_SET_VOLUME,
-                     &msp, 0);
-   }
-   return 0;
-}
-
-static ULONG PM123_ENTRY output_pause(void *A, BOOL pause)
-{
-   OS2AUDIO *a = (OS2AUDIO *) A;
-
-   if(a->maop.usDeviceID)
-   {
-      if(pause)
-         mciSendCommand(a->maop.usDeviceID, MCI_PAUSE,
-                        MCI_WAIT,
-                        &a->mgp, 0);
-      else
-         mciSendCommand(a->maop.usDeviceID, MCI_RESUME,
-                        MCI_WAIT,
-                        &a->mgp, 0);
-
-      a->pausestate = pause;
-   }
-   return 0;
-}
-
-ULONG PM123_ENTRY output_init(void **A)
-{
-   OS2AUDIO *a;
-   DEBUGLOG(("output_init\n"));
-
-   *A = malloc(sizeof(OS2AUDIO));
-   a = (OS2AUDIO *) *A;
-   memset(a,0,sizeof(*a));
-
-   // load stuff
-   a->device = 0;
-   a->lockdevice = 0;
-   a->numbuffers = 32;
-   a->kludge48as44 = 1;
-   a->force8bit = 0;
-   a->opened = FALSE;
-   a->nomoredata = TRUE;
-   a->playingbuffer = NULL;
-   a->volume = 100;
-
-   return 0;
-}
-
-
-static ULONG output_open(OS2AUDIO *a)
-{
-   OUTPUT_PARAMS *ai = &a->original_info;
-
-   ULONG rc,i;
-   ULONG openflags;
-
-   a->playingpos = 0;
-   a->pausestate = FALSE;
-
-   if(a->opened) // trash buffers?
-      return 0;
-
-   a->device = device;
-   a->lockdevice = lockdevice;
-   a->numbuffers = numbuffers;
-   a->kludge48as44 = kludge48as44;
-   a->force8bit = force8bit;
-
-   if(ai->formatinfo.samplerate <= 0) ai->formatinfo.samplerate = 44100;
-   if(ai->formatinfo.channels <= 0) ai->formatinfo.channels = 2;
-   if(ai->formatinfo.format <= 0) ai->formatinfo.format = WAVE_FORMAT_PCM;
-   if(ai->formatinfo.bits != 8 && !a->force8bit)
-   {
-      ai->formatinfo.bits = 16;
-      a->zero = 0;
-   }
-   else
-      a->zero = 128;
-
-   /* open the mixer device */
-   memset(&a->maop, 0, sizeof(a->maop));
-   a->maop.usDeviceID = 0;
-   a->maop.pszDeviceType = (PSZ) MAKEULONG(MCI_DEVTYPE_AUDIO_AMPMIX, a->device);
-
-   openflags = MCI_WAIT | MCI_OPEN_TYPE_ID;
-   if(!a->lockdevice) openflags |= MCI_OPEN_SHAREABLE;
-
-   rc = mciSendCommand(0,
-                       MCI_OPEN,
-                       openflags,
-                       &a->maop,
-                       0);
-
-   if (LOUSHORT(rc) != MCIERR_SUCCESS)
-   {
-      MciError(a,rc);
-      a->maop.usDeviceID = 0;
-      //free(a);
-      return(rc);
-   }
-
-   /* Set the MCI_MIXSETUP_PARMS data structure to match the audio stream. */
-
-   memset(&a->mmp, 0, sizeof(a->mmp));
-
-   if(a->force8bit)
-      a->mmp.ulBitsPerSample = 8;
-   else
-      a->mmp.ulBitsPerSample = ai->formatinfo.bits;
-   a->mmp.ulFormatTag = ai->formatinfo.format; // MCI_WAVE_FORMAT_PCM;
-
-   if(a->kludge48as44 && ai->formatinfo.samplerate == 48000)
-      a->mmp.ulSamplesPerSec = 44100;
-   else
-      a->mmp.ulSamplesPerSec = ai->formatinfo.samplerate;
-   a->mmp.ulChannels = ai->formatinfo.channels;
-
-   /* Setup the mixer for playback of wave data */
-   a->mmp.ulFormatMode = MCI_PLAY;
-   a->mmp.ulDeviceType = MCI_DEVTYPE_WAVEFORM_AUDIO;
-   a->mmp.pmixEvent    = DARTEvent;
-
-   rc = mciSendCommand( a->maop.usDeviceID,
-                        MCI_MIXSETUP,
-                        MCI_WAIT | MCI_MIXSETUP_INIT,
-                        &a->mmp,
-                        0 );
-
-   if ( LOUSHORT(rc) != MCIERR_SUCCESS )
-   {
-      MciError(a,rc);
-      a->maop.usDeviceID = 0;
-      //free(a);
-      return(rc);
-   }
-
-   output_set_volume(a,a->volume,a->amplifier);
-
-   /* Set up the BufferParms data structure and allocate
-    * device buffers from the Amp-Mixer  */
-
-   memset(&a->mbp, 0, sizeof(a->mbp));
-   free(a->MixBuffers);
-   free(a->bufferinfo);
-   if(a->numbuffers < 5) a->numbuffers = 5;
-   if(a->numbuffers > 200) a->numbuffers = 200;
-   a->MixBuffers = calloc(a->numbuffers, sizeof(*a->MixBuffers));
-   a->bufferinfo = calloc(a->numbuffers, sizeof(*a->bufferinfo));
-
-   a->ulMCIBuffers = a->numbuffers;
-   a->mbp.ulNumBuffers = a->ulMCIBuffers;
-/*   mbp.ulBufferSize = mmp.ulBufferSize; */
-   /* I don't like this... they must be smaller than 64KB or else the
-      engine needs major rewrite */
-   if(a->force8bit && ai->formatinfo.bits == 16)
-      a->mbp.ulBufferSize = a->buffersize = ai->buffersize/2;
-   else
-      a->mbp.ulBufferSize = a->buffersize = ai->buffersize;
-   a->mbp.pBufList = a->MixBuffers;
-
-   rc = mciSendCommand( a->maop.usDeviceID,
-                        MCI_BUFFER,
-                        MCI_WAIT | MCI_ALLOCATE_MEMORY,
-                        (PVOID) &a->mbp,
-                        0 );
-
-   if ( LOUSHORT(rc) != MCIERR_SUCCESS )
-   {
-      MciError(a,rc);
-      a->maop.usDeviceID = 0;
-      //free(a);
-      return(rc);
-   }
-
-   a->pBufferplayed = a->playedbuffer.pBuffer = calloc(1,a->buffersize);
-
-   a->ulMCIBuffers = a->mbp.ulNumBuffers; /* never know! */
-
-   /* Fill all device buffers with zeros and set linked list */
-
-   for(i = 0; i < a->ulMCIBuffers; i++)
-   {
-      a->MixBuffers[i].ulFlags = 0;
-      a->MixBuffers[i].ulBufferLength = a->mbp.ulBufferSize;
-      memset(a->MixBuffers[i].pBuffer, a->zero, a->MixBuffers[i].ulBufferLength);
-
-      a->MixBuffers[i].ulUserParm = (ULONG) &a->bufferinfo[i];
-      a->bufferinfo[i].a = a; /* useful in the DART event function */
-      a->bufferinfo[i].NextBuffer = &a->MixBuffers[i+1];
-   }
-
-   a->bufferinfo[i-1].NextBuffer = &a->MixBuffers[0];
-
-   /* Create a semaphore to know when data has been played by the DART thread */
-   DosCreateEventSem(NULL,&a->dataplayed,0,FALSE);
-
-   a->playingbuffer = &a->MixBuffers[0];
-   a->tobefilled = &a->MixBuffers[1];
-   a->playingpos = 0;
-   a->nomoredata = TRUE;
-   a->nobuffermode = FALSE;
-   a->justtrashed = FALSE;
-
-   a->boostclass = ai->boostclass;
-   a->boostdelta = ai->boostdelta;
-   a->normalclass = ai->normalclass;
-   a->normaldelta = ai->normaldelta;
-
-   if(a->boostclass > 4) a->boostdelta = 3;
-   if(a->boostdelta > 31) a->boostdelta = 31;
-   if(a->boostdelta < -31) a->boostdelta = -31;
-
-   if(a->normalclass > 4) a->normaldelta = 3;
-   if(a->normaldelta > 31) a->normaldelta = 31;
-   if(a->normaldelta < -31) a->normaldelta = -31;
-
-   a->mainthread = NULL;
-
-   /* let's set it once */
-   a->mstatp.ulItem = MCI_STATUS_POSITION;
-
-   /* Write buffers to kick off the amp mixer. see DARTEvent() */
-   rc = a->mmp.pmixWrite( a->mmp.ulMixHandle,
-                       a->MixBuffers,
-                       a->ulMCIBuffers );
-
-   a->opened  = TRUE;
-
-   return 0;
-}
-
-static ULONG output_close(void *A)
-{
-   OS2AUDIO *a = (OS2AUDIO *) A;
-
-   ULONG rc;
-
-   if(a->opened == FALSE)
-      return 0;
-
-   if(!a->maop.usDeviceID)
-      return 0;
-
-   while(!a->nomoredata)
-   {
-      DosResetEventSem(a->dataplayed,&a->resetcount);
-      DosWaitEventSem(a->dataplayed, -1);
-   }
-
-   a->opened = FALSE;
-//   a->nomoredata = TRUE;
-
-   a->playingbuffer = NULL;
-
-   DosCloseEventSem(a->dataplayed);
-   a->dataplayed = 0;
-
-   // to be kind to other output plug-ins
-   if(a->mainthread != NULL)
-      DosSetPriority(PRTYS_THREAD,a->normalclass,a->normaldelta,a->mainthread->tib_ptib2->tib2_ultid);
-
-   rc = mciSendCommand( a->maop.usDeviceID,
-                        MCI_BUFFER,
-                        MCI_WAIT | MCI_DEALLOCATE_MEMORY,
-                        &a->mbp,
-                        0 );
-
-   if ( LOUSHORT(rc) != MCIERR_SUCCESS )
-   {
-      MciError(a,rc);
-      return(rc);
-   }
-
-   free(a->bufferinfo);
-   free(a->MixBuffers);
-   a->bufferinfo = NULL;
-   a->MixBuffers = NULL;
-
-   memset(&a->mbp, 0, sizeof(a->mbp));
-
-   rc = mciSendCommand( a->maop.usDeviceID,
-                        MCI_CLOSE,
-                        MCI_WAIT ,
-                        &a->mgp,
-                        0 );
-
-   if ( LOUSHORT(rc) != MCIERR_SUCCESS )
-   {
-      MciError(a,rc);
-      return(rc);
-   }
-
-   memset(&a->maop, 0, sizeof(a->maop));
-
-   free(a->pBufferplayed);
-   a->pBufferplayed = NULL;
-
-   a->opened = FALSE;
-   a->nomoredata = TRUE;
-
-   return 0;
-}
-
-ULONG PM123_ENTRY output_uninit(void *a)
-{
-   DEBUGLOG(("output_uninit\n"));
-   free(a);
-
-   return 0;
-}
-
-
-int PM123_ENTRY output_play_samples(void *A, FORMAT_INFO *format, char *buf,int len, int posmarker)
-{
-   OS2AUDIO *a = (OS2AUDIO*)A;
-   PTIB ptib;
-
-   DEBUGLOG(("output_play_samples({%i,%i,%i,%i,%x}, %p, %i, %i)\n",
-      format->size, format->samplerate, format->channels, format->bits, format->format, buf, len, posmarker));
-
-   DosGetInfoBlocks(&ptib,NULL);
-
-   if(ptib != a->mainthread)
-   {
-      a->mainthread = ptib;
-      DEBUGLOG(("output_play_samples: initial priority boost (%d, %d, %d).\n", a->boostclass, a->boostdelta, a->mainthread->tib_ptib2->tib2_ultid));
-      DosSetPriority(PRTYS_THREAD,a->boostclass,a->boostdelta,a->mainthread->tib_ptib2->tib2_ultid);
-   }
-
-   // set the new format structure before re-opening
-   if(memcmp(format, &a->original_info.formatinfo, sizeof(FORMAT_INFO)) != 0
-      || a->opened == FALSE)
-   {
-      ULONG rc;
-
-      a->original_info.formatinfo = *format;
-      output_close(a);
-      rc = output_open(a);
-
-      if(rc != 0)
-         return 0;
-   }
-
-   if(a->nobuffermode)
-   {
-      // sit until only two buffers are left filled
-      MCI_MIX_BUFFER *temp = a->playingbuffer;
-
-      while(
-         (a->tobefilled != (temp = ((BUFFERINFO *) temp->ulUserParm)->NextBuffer)) &&
-         (a->tobefilled != (temp = ((BUFFERINFO *) temp->ulUserParm)->NextBuffer)) &&
-         (a->tobefilled != (temp = ((BUFFERINFO *) temp->ulUserParm)->NextBuffer)) )
-         {
-            DosResetEventSem(a->dataplayed,&a->resetcount);
-            DosWaitEventSem(a->dataplayed, -1);
-            temp = a->playingbuffer;
-         }
-   }
-   else
-      /* if we're too quick, let's wait */
-      while(a->tobefilled == a->playingbuffer)
-      {
-         DosResetEventSem(a->dataplayed,&a->resetcount);
-         DosWaitEventSem(a->dataplayed, -1);
-      }
-
-   if(a->pausestate)
-      output_pause(a,TRUE);
-
-   if(a->justtrashed)
-      a->justtrashed = FALSE;
-   else
-   {
-      int i;
-
-      a->nomoredata = FALSE;
-
-      if(a->force8bit && a->original_info.formatinfo.bits != 8)
-      {
-         signed short *bufin = (short *) buf;
-         int zero = a->zero;
-         unsigned char *bufout = a->tobefilled->pBuffer;
-
-         for(i = 0; i < len/2; i++) // we suppose 16 bit data
-            bufout[i] = (bufin[i]>>8)+zero;
-
-         a->tobefilled->ulBufferLength = len/2;
-      }
-      else
-      {
-         memcpy(a->tobefilled->pBuffer, buf, len);
-         a->tobefilled->ulBufferLength = len;
-      }
-      ((BUFFERINFO *) a->tobefilled->ulUserParm)->filepos = posmarker;
-
-      /* if we're out of the water (3rd ahead buffer filled),
-         let's reduce our priority */
-      if(a->tobefilled == ( (BUFFERINFO *) ( (BUFFERINFO *) ((BUFFERINFO *) a->playingbuffer->ulUserParm)->NextBuffer->ulUserParm)->NextBuffer->ulUserParm)->NextBuffer)
-      {
-         DEBUGLOG(("output_play_samples: end of priority boost (%d).\n", a->mainthread->tib_ptib2->tib2_ultid));
-         DosSetPriority(PRTYS_THREAD,a->normalclass,a->normaldelta,a->mainthread->tib_ptib2->tib2_ultid);
-      }
-
-      a->tobefilled = ((BUFFERINFO *) a->tobefilled->ulUserParm)->NextBuffer;
-   }
-
-   return len;
-}
-
-ULONG PM123_ENTRY output_playing_samples(void *A, FORMAT_INFO *info, char *buf, int len)
-{
-   OS2AUDIO *a = (OS2AUDIO *) A;
-   DEBUGLOG2(("output_playing_samples(%p, %p, %i)\n", info, buf, len));
-
-   if(len > a->buffersize || !a->playingbuffer || !a->maop.usDeviceID) return 1;
-
-   info->bits = a->mmp.ulBitsPerSample;
-   info->samplerate = a->mmp.ulSamplesPerSec;
-   info->channels = a->mmp.ulChannels;
-   info->format = a->mmp.ulFormatTag;
-
-   if(buf && len)
-   {
-      ULONG rc;
-      int upto;
-
-//      a->mstatp.ulItem = MCI_STATUS_POSITION;
-
-      rc = mciSendCommand( a->maop.usDeviceID,
-                           MCI_STATUS,
-                           MCI_STATUS_ITEM | MCI_WAIT,
-                           &a->mstatp,
-                           0 );
-
-      if ( LOUSHORT(rc) != MCIERR_SUCCESS )
-      {
-         MciError(a,rc);
-         a->maop.usDeviceID = 0;
-         return(rc);
-      }
-
-      /* this is hypocrite...
-         DART returns the value in ulReturn instead of ulValue,
-         also it returns in milliseconds and not MMTIME... arg */
-
-      upto = (a->mstatp.ulReturn-a->playedbuffer.ulTime) * a->mmp.ulSamplesPerSec / 1000;
-      upto *= a->mmp.ulChannels * (a->mmp.ulBitsPerSample/8);
-
-      /* if a timing problem occurs, let's at least not crash */
-      if(upto > a->playingbuffer->ulBufferLength) upto = a->playingbuffer->ulBufferLength;
-
-      if(len <= upto)
-         memcpy(buf,(char *) (a->playingbuffer->pBuffer)+upto-len, len);
-      else
-      {
-         memcpy(buf,(char *) a->playedbuffer.pBuffer+a->playedbuffer.ulBufferLength-(len-upto),len-upto);
-         memcpy(buf+(len-upto),a->playingbuffer->pBuffer,upto);
-      }
-   }
-
-   return 0;
-}
-
-ULONG PM123_ENTRY output_playing_pos(void *A)
-{
-   OS2AUDIO *a = (OS2AUDIO *) A;
-   DEBUGLOG(("output_playing_pos: %lu\n", a->playingpos));
-   return a->playingpos;
-}
-
-static void output_trash_buffers(void *A, ULONG temp_playingpos)
-{
-   OS2AUDIO *a = (OS2AUDIO *) A;
-   int i;
-
-   if(!a->opened)
-      return;
-
-   a->justtrashed = TRUE;
-
-   /* Fill all device buffers with zeros */
-   for(i = 0; i < a->ulMCIBuffers; i++)
-      memset(a->MixBuffers[i].pBuffer, a->zero, a->MixBuffers[i].ulBufferLength);
-
-   a->tobefilled = ((BUFFERINFO *) a->playingbuffer->ulUserParm)->NextBuffer;
-   a->playingpos = temp_playingpos;
-   ((BUFFERINFO *) a->tobefilled->ulUserParm)->filepos = temp_playingpos;
-   if(a->mainthread != NULL)
-      DosSetPriority(PRTYS_THREAD,a->boostclass,a->boostdelta,a->mainthread->tib_ptib2->tib2_ultid);
-   a->nomoredata = TRUE;
-
-   // return TRUE;
-}
-
-BOOL PM123_ENTRY output_playing_data(void *A)
-{
-   OS2AUDIO *a = (OS2AUDIO *) A;
-   DEBUGLOG2(("output_playing_data: %i\n", !a->nomoredata));
-   return !a->nomoredata;
-}
-
-
+#define  INFO( mb ) ((BUFFERINFO*)(mb)->ulUserParm)
 
 #if 0
+#define  DosRequestMutexSem( mutex, wait )                                                 \
+         DEBUGLOG(( "os2audio: request mutex %08X at line %04d\n", mutex, __LINE__ ));     \
+         DEBUGLOG(( "os2audio: request mutex %08X at line %04d is completed, rc = %08X\n", \
+                               mutex, __LINE__, DosRequestMutexSem( mutex, wait )))
 
-/*
- * get formats for specific channel/rate parameters
- */
-int PM123_ENTRY output_get_formats(OUTPUT_PARAMS *ai)
-{
-   int fmts = 0;
-   ULONG rc;
-   MCI_MIXSETUP_PARMS mmptemp = {0};
-
-   mmp.ulDeviceType = MCI_DEVTYPE_WAVEFORM_AUDIO;
-   mmp.pmixEvent    = DARTEvent;
-
-   mmptemp.ulFormatMode = MCI_PLAY;
-   mmptemp.ulSamplesPerSec = ai->rate;
-   mmptemp.ulChannels = ai->channels;
-
-   mmptemp.ulFormatTag = MCI_WAVE_FORMAT_PCM;
-   mmptemp.ulBitsPerSample = 16;
-   rc = mciSendCommand( maop.usDeviceID,
-                        MCI_MIXSETUP,
-                        MCI_WAIT | MCI_MIXSETUP_QUERYMODE,
-                        &mmptemp,
-                        0 );
-   if((LOUSHORT(rc) == MCIERR_SUCCESS) && (rc != 0x4000)) /* undocumented */
-      fmts = fmts | AUDIO_FORMAT_SIGNED_16;
-
-   mmptemp.ulFormatTag = MCI_WAVE_FORMAT_PCM;
-   mmptemp.ulBitsPerSample = 8;
-   rc = mciSendCommand( maop.usDeviceID,
-                        MCI_MIXSETUP,
-                        MCI_WAIT | MCI_MIXSETUP_QUERYMODE,
-                        &mmptemp,
-                        0 );
-   if((LOUSHORT(rc) == MCIERR_SUCCESS) && (rc != 0x4000)) /* undocumented */
-      fmts = fmts | AUDIO_FORMAT_UNSIGNED_8;
-
-   mmptemp.ulFormatTag = MCI_WAVE_FORMAT_ALAW;
-   mmptemp.ulBitsPerSample = 8;
-   rc = mciSendCommand( maop.usDeviceID,
-                        MCI_MIXSETUP,
-                        MCI_WAIT | MCI_MIXSETUP_QUERYMODE,
-                        &mmptemp,
-                        0 );
-   if((LOUSHORT(rc) == MCIERR_SUCCESS) && (rc != 0x4000)) /* undocumented */
-      fmts = fmts | AUDIO_FORMAT_ALAW_8;
-
-   mmptemp.ulFormatTag = MCI_WAVE_FORMAT_MULAW;
-   mmptemp.ulBitsPerSample = 8;
-   rc = mciSendCommand( maop.usDeviceID,
-                        MCI_MIXSETUP,
-                        MCI_WAIT | MCI_MIXSETUP_QUERYMODE,
-                        &mmptemp,
-                        0 );
-   if((LOUSHORT(rc) == MCIERR_SUCCESS) && (rc != 0x4000)) /* undocumented */
-      fmts = fmts | AUDIO_FORMAT_ULAW_8;
-
-   return fmts;
-}
-
-int PM123_ENTRY output_rate_best_match(OUTPUT_PARAMS *ai)
-{
-   return 0;
-}
-
+#define  DosReleaseMutexSem( mutex )                                                       \
+         DEBUGLOG(( "os2audio: release mutex %08X at line %04d\n", mutex, __LINE__ ));     \
+         DosReleaseMutexSem( mutex )
 #endif
 
-static ULONG output_get_devices(char *name, int deviceid)
+static int device       = 0;
+static int numbuffers   = 32;
+static int lockdevice   = 0;
+static int kludge48as44 = 0;
+static int force8bit    = 0;
+
+static void
+output_error( OS2AUDIO* a, ULONG ulError )
 {
-   char buffer[256];
-   MCI_SYSINFO_PARMS mip;
+  unsigned char message[1536];
+  unsigned char buffer [1024];
 
-   if(deviceid && name)
-   {
-      MCI_SYSINFO_LOGDEVICE mid;
+  if( mciGetErrorString( ulError, buffer, sizeof( buffer )) == MCIERR_SUCCESS ) {
+    sprintf( message, "MCI Error %d: %s\n", LOUSHORT( ulError ), buffer );
+  } else {
+    sprintf( message, "MCI Error %d: Cannot query error message.\n", LOUSHORT( ulError ));
+  }
 
-      mip.pszReturn = buffer;
-      mip.ulRetSize = sizeof(buffer);
-      mip.usDeviceType = MCI_DEVTYPE_AUDIO_AMPMIX;
-      mip.ulNumber = deviceid;
-
-      mciSendCommand(0,
-                     MCI_SYSINFO,
-                     MCI_WAIT | MCI_SYSINFO_INSTALLNAME,
-                     &mip,
-                     0);
-
-      mip.ulItem = MCI_SYSINFO_QUERY_DRIVER;
-      mip.pSysInfoParm = &mid;
-      strcpy(mid.szInstallName,buffer);
-
-      mciSendCommand(0,
-                     MCI_SYSINFO,
-                     MCI_WAIT | MCI_SYSINFO_ITEM,
-                     &mip,
-                     0);
-
-      sprintf(name,"%s (%s)", mid.szProductInfo, mid.szVersionNumber);
-   }
-
-   mip.pszReturn = buffer;
-   mip.ulRetSize = sizeof(buffer);
-   mip.usDeviceType = MCI_DEVTYPE_AUDIO_AMPMIX;
-
-   mciSendCommand(0,
-                  MCI_SYSINFO,
-                  MCI_WAIT | MCI_SYSINFO_QUANTITY,
-                  &mip,
-                  0);
-
-   return atoi(mip.pszReturn);
+  a->original_info.error_display( message );
+  WinPostMsg( a->original_info.hwnd, WM_PLAYERROR, 0, 0 );
 }
 
-
-ULONG PM123_ENTRY output_command(void *A, ULONG msg, OUTPUT_PARAMS *info)
+/* Returns the current position of the audio device in milliseconds. */
+static APIRET
+output_position( OS2AUDIO* a, ULONG* position )
 {
-   OS2AUDIO *a = (OS2AUDIO *) A;
-   ULONG rc = 0;
-   DEBUGLOG(("output_command(%i, %p)\n", msg, info));
+  MCI_STATUS_PARMS mstatp = { 0 };
+  ULONG rc;
 
-   switch(msg)
-   {
-      case OUTPUT_OPEN:
-         rc = output_open(a);
-         break;
-      case OUTPUT_CLOSE:
-         rc = output_close(a);
-         break;
-      case OUTPUT_VOLUME:
-         rc = output_set_volume(a, info->volume, info->amplifier);
-         break;
-      case OUTPUT_PAUSE:
-         rc = output_pause(a, info->pause);
-         break;
-      case OUTPUT_SETUP:
-         if(!a->opened) // otherwize, information on the current session are modified
-            a->original_info = *info;
-         info->always_hungry = FALSE;
-         break;
-      case OUTPUT_TRASH_BUFFERS:
-         output_trash_buffers(a,info->temp_playingpos);
-         break;
-      case OUTPUT_NOBUFFERMODE:
-         a->nobuffermode = info->nobuffermode;
-         break;
-      default:
-         rc = 1;
-   }
+  mstatp.ulItem = MCI_STATUS_POSITION;
+  rc = mciSendCommand( a->mci_device_id, MCI_STATUS, MCI_STATUS_ITEM | MCI_WAIT, &mstatp, 0 );
 
-   return rc;
+  if( LOUSHORT(rc) == MCIERR_SUCCESS ) {
+    *position = mstatp.ulReturn;
+  }
+
+  return rc;
 }
 
+/* Boosts a priority of the driver thread. */
+static void
+output_boost_priority( OS2AUDIO* a )
+{
+  if( a->drivethread && !a->boosted ) {
+    DEBUGLOG(( "os2audio: boosts priority of the driver thread %d.\n", a->drivethread ));
+    DosSetPriority( PRTYS_THREAD, a->original_info.boostclass,
+                                  a->original_info.boostdelta, a->drivethread );
+    a->boosted = TRUE;
+  }
+}
+
+/* Normalizes a priority of the driver thread. */
+static void
+output_normal_priority( OS2AUDIO* a )
+{
+  if( a->drivethread && a->boosted ) {
+    DEBUGLOG(( "os2audio: normalizes priority of the driver thread %d.\n", a->drivethread ));
+    DosSetPriority( PRTYS_THREAD, a->original_info.normalclass,
+                                  a->original_info.normaldelta, a->drivethread );
+    a->boosted = FALSE;
+  }
+}
+
+/* When the mixer has finished writing a buffer it will
+   call this function. */
+static LONG APIENTRY
+dart_event( ULONG status, MCI_MIX_BUFFER* buffer, ULONG flags )
+{
+  OS2AUDIO* a = INFO(buffer)->a;
+
+  if( flags & MIX_WRITE_COMPLETE )
+  {
+    DosRequestMutexSem( a->mutex, SEM_INDEFINITE_WAIT );
+    a->mci_is_play = INFO(buffer)->next;
+
+    // Current time of the device is placed at end of
+    // playing the buffer, but we require this already now.
+    output_position( a, &a->mci_is_play->ulTime );
+
+    // If we're about to be short of decoder's data
+    // (2nd ahead buffer not filled), let's boost its priority!
+    if( a->mci_is_play == a->mci_to_fill || INFO(a->mci_is_play)->next == a->mci_to_fill ) {
+      if( !a->nomoredata ) {
+        output_boost_priority(a);
+      }
+    }
+
+    // Just too bad, the decoder fell behind...
+    if( a->mci_is_play == a->mci_to_fill )
+    {
+      DEBUGLOG(( "os2audio: output is hungry.\n" ));
+      a->mci_to_fill = INFO(a->mci_is_play)->next;
+      a->nomoredata  = TRUE;
+      WinPostMsg( a->original_info.hwnd, WM_OUTPUT_OUTOFDATA, 0, 0 );
+    } else {
+      a->playingpos = INFO(a->mci_is_play)->playingpos;
+    }
+
+    // Clear the played buffer and to place it to the end of the queue.
+    // By the moment of playing of this buffer, it  already must contain a new data.
+    memset( buffer->pBuffer, a->zero, a->mci_buf_parms.ulBufferSize );
+    a->mci_mix.pmixWrite( a->mci_mix.ulMixHandle, buffer, 1 );
+
+    DosReleaseMutexSem( a->mutex );
+    DosPostEventSem( a->dataplayed );
+  }
+  return TRUE;
+}
+
+/* Changes the volume of an output device. */
+static ULONG
+output_set_volume( void* A, unsigned char setvolume, float setamplifier )
+{
+  OS2AUDIO* a = (OS2AUDIO*)A;
+
+  // Useful when device is closed and reopened.
+  a->volume    = min( setvolume, 100 );
+  a->amplifier = setamplifier;
+
+  if( a->status == DEVICE_OPENED )
+  {
+    MCI_SET_PARMS msp = { 0 };
+    msp.ulAudio = MCI_SET_AUDIO_ALL;
+    msp.ulLevel = a->volume;
+
+    mciSendCommand( a->mci_device_id, MCI_SET, MCI_WAIT | MCI_SET_AUDIO | MCI_SET_VOLUME, &msp, 0 );
+  }
+  return 0;
+}
+
+/* Pauses or resumes the playback. */
+static ULONG PM123_ENTRY
+output_pause( void* A, BOOL pause )
+{
+  OS2AUDIO* a = (OS2AUDIO*)A;
+  MCI_GENERIC_PARMS mgp = { 0 };
+  ULONG rc = 0;
+
+  if( a->status == DEVICE_OPENED )
+  {
+    rc = mciSendCommand( a->mci_device_id, pause ? MCI_PAUSE : MCI_RESUME, MCI_WAIT, &mgp, 0 );
+
+    if( LOUSHORT(rc) != MCIERR_SUCCESS ) {
+      output_error( a, rc );
+    }
+  }
+  return rc;
+}
+
+/* Closes the output audio device. */
+ULONG PM123_ENTRY
+output_close( void* A )
+{
+  OS2AUDIO* a = (OS2AUDIO*)A;
+  ULONG resetcount;
+  ULONG rc = 0;
+
+  MCI_GENERIC_PARMS mgp = { 0 };
+
+  DEBUGLOG(( "os2audio: closing the output device.\n" ));
+  DosRequestMutexSem( a->mutex, SEM_INDEFINITE_WAIT );
+
+  if( a->status != DEVICE_OPENED && a->status != DEVICE_FAILED ) {
+    DEBUGLOG(( "os2audio: unable to close a not opened device.\n" ));
+    DosReleaseMutexSem( a->mutex );
+    return 0;
+  }
+
+  a->status = DEVICE_CLOSING;
+  DosReleaseMutexSem( a->mutex );
+
+  while( !a->nomoredata ) {
+    DosWaitEventSem ( a->dataplayed, SEM_INDEFINITE_WAIT );
+    DosResetEventSem( a->dataplayed, &resetcount );
+  }
+
+  if( a->mci_buf_parms.ulNumBuffers ) {
+    rc = mciSendCommand( a->mci_device_id, MCI_BUFFER,
+                         MCI_WAIT | MCI_DEALLOCATE_MEMORY, &a->mci_buf_parms, 0 );
+
+    if( LOUSHORT(rc) != MCIERR_SUCCESS ) {
+      output_error( a, rc );
+    }
+  }
+
+  rc = mciSendCommand( a->mci_device_id, MCI_STOP,  MCI_WAIT, &mgp, 0 );
+
+  if( LOUSHORT(rc) != MCIERR_SUCCESS ) {
+    output_error( a, rc );
+  }
+
+  rc = mciSendCommand( a->mci_device_id, MCI_CLOSE, MCI_WAIT, &mgp, 0 );
+
+  if( LOUSHORT(rc) != MCIERR_SUCCESS ) {
+    output_error( a, rc );
+  }
+
+  DosRequestMutexSem( a->mutex, SEM_INDEFINITE_WAIT );
+
+  free( a->mci_buff_info );
+  free( a->mci_buffers   );
+
+  a->mci_buff_info = NULL;
+  a->mci_buffers   = NULL;
+  a->mci_is_play   = NULL;
+  a->mci_to_fill   = NULL;
+  a->mci_device_id = 0;
+  a->status        = DEVICE_CLOSED;
+
+  DEBUGLOG(( "os2audio: output device is successfully closed.\n" ));
+  DosReleaseMutexSem( a->mutex );
+  return rc;
+}
+
+/* Opens the output audio device. */
+static ULONG
+output_open( OS2AUDIO* a )
+{
+  OUTPUT_PARAMS* info = &a->original_info;
+  ULONG  openflags = 0;
+  ULONG  i;
+  ULONG  rc;
+
+  MCI_AMP_OPEN_PARMS mci_aop = {0};
+
+  DosRequestMutexSem( a->mutex, SEM_INDEFINITE_WAIT );
+  DEBUGLOG(( "os2audio: opening the output device.\n" ));
+
+  if( a->status != DEVICE_CLOSED ) {
+    DEBUGLOG(( "os2audio: unable to open a not closed device.\n" ));
+    DosReleaseMutexSem( a->mutex );
+    return 0;
+  }
+
+  a->status        = DEVICE_OPENING;
+  a->playingpos    = 0;
+  a->device        = device;
+  a->lockdevice    = lockdevice;
+  a->numbuffers    = numbuffers;
+  a->kludge48as44  = kludge48as44;
+  a->force8bit     = force8bit;
+  a->mci_device_id = 0;
+  a->drivethread   = 0;
+  a->boosted       = FALSE;
+  a->nomoredata    = TRUE;
+
+  if( info->formatinfo.format     <= 0 ) { info->formatinfo.format     = WAVE_FORMAT_PCM; }
+  if( info->formatinfo.samplerate <= 0 ) { info->formatinfo.samplerate = 44100; }
+  if( info->formatinfo.channels   <= 0 ) { info->formatinfo.channels   = 2;     }
+  if( info->formatinfo.bits       <= 0 ) { info->formatinfo.bits       = 16;    }
+
+  if( info->formatinfo.bits != 8 && !a->force8bit ) {
+    a->zero = 0;
+  } else {
+    a->zero = 128;
+  }
+
+  // There can be the audio device supports other formats, but
+  // whether can interpret other plug-ins them correctly?
+  if(( info->formatinfo.format != WAVE_FORMAT_PCM ) ||
+     ( info->formatinfo.bits != 16 && info->formatinfo.bits != 8 ) ||
+     ( info->formatinfo.channels > 2 ))
+  {
+    rc = MCIERR_UNSUPP_FORMAT_MODE;
+    goto end;
+  }
+
+  memset( &a->mci_mix, 0, sizeof( a->mci_mix ));
+  memset( &a->mci_buf_parms, 0, sizeof( a->mci_buf_parms ));
+
+  // Open the mixer device.
+  mci_aop.pszDeviceType = (PSZ)MAKEULONG( MCI_DEVTYPE_AUDIO_AMPMIX, a->device );
+
+  if( !a->lockdevice ) {
+    openflags = MCI_OPEN_SHAREABLE;
+  }
+
+  rc = mciSendCommand( 0, MCI_OPEN, MCI_WAIT | MCI_OPEN_TYPE_ID | openflags, &mci_aop, 0 );
+  if( LOUSHORT(rc) != MCIERR_SUCCESS ) {
+    goto end;
+  }
+
+  a->mci_device_id = mci_aop.usDeviceID;
+
+  // Set the MCI_MIXSETUP_PARMS data structure to match the audio stream.
+  if( a->force8bit ) {
+    a->mci_mix.ulBitsPerSample = 8;
+  } else {
+    a->mci_mix.ulBitsPerSample = info->formatinfo.bits;
+  }
+
+  if( a->kludge48as44 && info->formatinfo.samplerate == 48000 ) {
+    a->mci_mix.ulSamplesPerSec = 44100;
+  } else {
+    a->mci_mix.ulSamplesPerSec = info->formatinfo.samplerate;
+  }
+
+  a->mci_mix.ulChannels   = info->formatinfo.channels;
+  a->mci_mix.ulFormatTag  = MCI_WAVE_FORMAT_PCM;
+
+  // Setup the mixer for playback of wave data.
+  a->mci_mix.ulFormatMode = MCI_PLAY;
+  a->mci_mix.ulDeviceType = MCI_DEVTYPE_WAVEFORM_AUDIO;
+  a->mci_mix.pmixEvent    = dart_event;
+
+  rc = mciSendCommand( a->mci_device_id, MCI_MIXSETUP, MCI_WAIT | MCI_MIXSETUP_INIT, &a->mci_mix, 0 );
+  if( LOUSHORT( rc ) != MCIERR_SUCCESS ) {
+    goto end;
+  }
+
+  // Set up the MCI_BUFFER_PARMS data structure and allocate
+  // device buffers from the mixer.
+  a->numbuffers    = truncate( a->numbuffers, 5, 200 );
+  a->mci_buffers   = calloc( a->numbuffers, sizeof( *a->mci_buffers   ));
+  a->mci_buff_info = calloc( a->numbuffers, sizeof( *a->mci_buff_info ));
+
+  if( !a->mci_buffers || !a->mci_buff_info ) {
+    rc = MCIERR_OUT_OF_MEMORY;
+    goto end;
+  }
+
+  if( a->force8bit ) {
+    a->buffersize = info->buffersize / ( info->formatinfo.bits / 8 );
+  } else {
+    a->buffersize = info->buffersize;
+  }
+
+  a->mci_buf_parms.ulNumBuffers = a->numbuffers;
+  a->mci_buf_parms.ulBufferSize = a->buffersize;
+  a->mci_buf_parms.pBufList     = a->mci_buffers;
+
+  rc = mciSendCommand( a->mci_device_id, MCI_BUFFER,
+                       MCI_WAIT | MCI_ALLOCATE_MEMORY, (PVOID)&a->mci_buf_parms, 0 );
+
+  if( LOUSHORT(rc) != MCIERR_SUCCESS ) {
+    goto end;
+  }
+
+  DEBUGLOG(( "os2audio: suggested buffers is %d, allocated %d\n",
+                        a->numbuffers, a->mci_buf_parms.ulNumBuffers ));
+  DEBUGLOG(( "os2audio: suggested buffer size is %d, allocated %d\n",
+                        a->buffersize, a->mci_buf_parms.ulBufferSize ));
+
+  for( i = 0; i < a->mci_buf_parms.ulNumBuffers; i++ )
+  {
+    a->mci_buffers[i].ulFlags        = 0;
+    a->mci_buffers[i].ulBufferLength = a->mci_buf_parms.ulBufferSize;
+    a->mci_buffers[i].ulUserParm     = (ULONG)&a->mci_buff_info[i];
+
+    memset( a->mci_buffers[i].pBuffer, a->zero, a->mci_buf_parms.ulBufferSize );
+
+    a->mci_buff_info[i].a    = a;
+    a->mci_buff_info[i].next = &a->mci_buffers[i+1];
+  }
+
+  a->mci_buff_info[i-1].next = &a->mci_buffers[0];
+
+  a->mci_is_play = &a->mci_buffers[0];
+  a->mci_to_fill = &a->mci_buffers[2];
+
+  // Write buffers to kick off the amp mixer.
+  a->mci_mix.pmixWrite( a->mci_mix.ulMixHandle, a->mci_is_play, a->mci_buf_parms.ulNumBuffers );
+
+  // Current time of the device is placed at end of
+  // playing the buffer, but we require this already now.
+  output_position( a, &a->mci_is_play->ulTime );
+
+end:
+
+  if( LOUSHORT(rc) != MCIERR_SUCCESS )
+  {
+    output_error( a, rc );
+    DEBUGLOG(( "os2audio: output device opening is failed.\n" ));
+
+    if( a->mci_device_id ) {
+      a->status = DEVICE_FAILED;
+      output_close( a );
+    } else {
+      a->status = DEVICE_CLOSED;
+    }
+  } else {
+    a->status = DEVICE_OPENED;
+    output_set_volume( a, a->volume, a->amplifier );
+    DEBUGLOG(( "os2audio: output device is successfully opened.\n" ));
+  }
+
+  DosReleaseMutexSem( a->mutex );
+  return rc;
+}
+
+/* This function is called by the decoder or last in chain filter plug-in
+   to play samples. */
+int PM123_ENTRY
+output_play_samples( void* A, FORMAT_INFO* format, char* buf, int len, int posmarker )
+{
+  OS2AUDIO* a = (OS2AUDIO*)A;
+  ULONG resetcount;
+
+  DEBUGLOG(("output_play_samples({%i,%i,%i,%i,%x}, %p, %i, %i)\n",
+      format->size, format->samplerate, format->channels, format->bits, format->format, buf, len, posmarker));
+
+  DosRequestMutexSem( a->mutex, SEM_INDEFINITE_WAIT );
+
+  if( !a->drivethread )
+  {
+    PTIB ptib;
+
+    if( DosGetInfoBlocks( &ptib, NULL ) == NO_ERROR ) {
+      a->drivethread = ptib->tib_ptib2->tib2_ultid;
+    }
+  }
+
+  // Set the new format structure before re-opening.
+  if( memcmp( format, &a->original_info.formatinfo, sizeof( FORMAT_INFO )) != 0 || a->status == DEVICE_CLOSED )
+  {
+    DosReleaseMutexSem( a->mutex );
+
+    DEBUGLOG(( "os2audio: old format: size %d, sample: %d, channels: %d, bits: %d, id: %d\n",
+
+        a->original_info.formatinfo.size,
+        a->original_info.formatinfo.samplerate,
+        a->original_info.formatinfo.channels,
+        a->original_info.formatinfo.bits,
+        a->original_info.formatinfo.format ));
+
+    DEBUGLOG(( "os2audio: new format: size %d, sample: %d, channels: %d, bits: %d, id: %d\n",
+
+        format->size,
+        format->samplerate,
+        format->channels,
+        format->bits,
+        format->format ));
+
+    a->original_info.formatinfo = *format;
+
+    if( output_close(a) != 0 ) {
+      return 0;
+    }
+    if( output_open (a) != 0 ) {
+      return 0;
+    }
+  } else {
+    DosReleaseMutexSem( a->mutex );
+  }
+
+  if( a->status != DEVICE_OPENED ) {
+    return 0;
+  }
+
+  // If we're too quick, let's wait.
+  while( a->mci_to_fill == a->mci_is_play ) {
+    DosWaitEventSem ( a->dataplayed, SEM_INDEFINITE_WAIT );
+    DosResetEventSem( a->dataplayed, &resetcount );
+
+    if( a->trashed ) {
+      // This portion of samples should be trashed.
+      a->trashed = FALSE;
+      return len;
+    }
+  }
+
+  DosRequestMutexSem( a->mutex, SEM_INDEFINITE_WAIT );
+
+  // A following buffer is already cashed by the audio device. Therefore
+  // it is necessary to skip it and to fill the second buffer from current.
+  if( a->mci_to_fill == INFO(a->mci_is_play)->next ) {
+    INFO(a->mci_to_fill)->playingpos = a->playingpos;
+    a->mci_to_fill = INFO(a->mci_to_fill)->next;
+  }
+
+  if( len > 0 ) {
+    if( a->force8bit && a->original_info.formatinfo.bits == 16 )
+    {
+      signed short*  in  = (signed short*)buf;
+      unsigned char* out = a->mci_to_fill->pBuffer;
+      int i;
+
+      if( len / 2 > a->mci_buf_parms.ulBufferSize ) {
+        DEBUGLOG(( "os2audio: too many samples.\n" ));
+        DosReleaseMutexSem( a->mutex );
+        return 0;
+      }
+
+      for( i = 0; i < len / 2; i++ ) {
+        out[i] = ( in[i] >> 8 ) + 128;
+      }
+    } else {
+      if( len > a->mci_buf_parms.ulBufferSize ) {
+        DEBUGLOG(( "os2audio: too many samples.\n" ));
+        DosReleaseMutexSem( a->mutex );
+        return 0;
+      }
+
+      memcpy( a->mci_to_fill->pBuffer, buf, len );
+    }
+
+    INFO(a->mci_to_fill)->playingpos = posmarker;
+
+    a->mci_to_fill = INFO(a->mci_to_fill)->next;
+    a->nomoredata  = FALSE;
+    a->trashed     = FALSE;
+  }
+
+  // If we're out of the water (3rd ahead buffer filled),
+  // let's reduce the driver thread priority.
+  if( a->mci_to_fill == INFO( INFO( INFO(a->mci_is_play)->next )->next )->next ) {
+    output_normal_priority( a );
+  }
+
+  DosReleaseMutexSem( a->mutex );
+  return len;
+}
+
+/* Returns the posmarker from the buffer that the user
+   currently hears. */
+ULONG PM123_ENTRY
+output_playing_pos( void* A ) {
+  return ((OS2AUDIO*)A)->playingpos;
+}
+
+/* This function is used by visual plug-ins so the user can visualize
+   what is currently being played. */
+ULONG PM123_ENTRY
+output_playing_samples( void* A, FORMAT_INFO* info, char* buf, int len )
+{
+  OS2AUDIO* a = (OS2AUDIO*)A;
+
+  DosRequestMutexSem( a->mutex, SEM_INDEFINITE_WAIT );
+
+  if( !a->mci_is_play || a->status == DEVICE_CLOSED ) {
+    DosReleaseMutexSem( a->mutex );
+    return 1;
+  }
+
+  info->bits       = a->mci_mix.ulBitsPerSample;
+  info->samplerate = a->mci_mix.ulSamplesPerSec;
+  info->channels   = a->mci_mix.ulChannels;
+  info->format     = a->mci_mix.ulFormatTag;
+
+  if( buf && len )
+  {
+    MCI_MIX_BUFFER* mci_buffer = a->mci_is_play;
+    ULONG position = 0;
+    LONG  offsetof = 0;
+
+    if( LOUSHORT( output_position( a, &position )) != MCIERR_SUCCESS ) {
+      DosReleaseMutexSem( a->mutex );
+      return 1;
+    }
+
+    offsetof = ( position - a->mci_is_play->ulTime ) * a->mci_mix.ulSamplesPerSec / 1000 *
+                                                       a->mci_mix.ulChannels *
+                                                       a->mci_mix.ulBitsPerSample / 8;
+
+    while( INFO(mci_buffer)->next != a->mci_to_fill && offsetof > mci_buffer->ulBufferLength ) {
+      offsetof  -= mci_buffer->ulBufferLength;
+      mci_buffer = INFO(mci_buffer)->next;
+    }
+
+    while( len && INFO(mci_buffer)->next != a->mci_to_fill )
+    {
+      int chunk_size = mci_buffer->ulBufferLength - offsetof;
+
+      if( chunk_size > len ) {
+          chunk_size = len;
+      }
+
+      memcpy( buf, (char*)mci_buffer->pBuffer + offsetof, chunk_size );
+
+      buf += chunk_size;
+      len -= chunk_size;
+
+      offsetof   = 0;
+      mci_buffer = INFO(mci_buffer)->next;
+    }
+
+    if( len ) {
+      memset( buf, a->zero, len );
+    }
+  }
+
+  DosReleaseMutexSem( a->mutex );
+  return 0;
+}
+
+/* Trashes all audio data received till this time. */
+void PM123_ENTRY
+output_trash_buffers( void* A, ULONG temp_playingpos )
+{
+  OS2AUDIO* a = (OS2AUDIO*)A;
+  int i;
+
+  DEBUGLOG(( "os2audio: trashing audio buffers.\n" ));
+  DosRequestMutexSem( a->mutex, SEM_INDEFINITE_WAIT );
+
+  if(!( a->status & DEVICE_OPENED )) {
+    DosReleaseMutexSem( a->mutex );
+    return;
+  }
+
+  for( i = 0; i < a->mci_buf_parms.ulNumBuffers; i++ ) {
+    memset( a->mci_buffers[i].pBuffer, a->zero, a->mci_buf_parms.ulBufferSize );
+  }
+
+  a->playingpos = temp_playingpos;
+  a->nomoredata = FALSE;
+  a->trashed    = TRUE;
+
+  // A following buffer is already cashed by the audio device. Therefore
+  // it is necessary to skip it and to fill the second buffer from current.
+  a->mci_to_fill = INFO(a->mci_is_play)->next;
+  INFO(a->mci_to_fill)->playingpos = temp_playingpos;
+  a->mci_to_fill = INFO(a->mci_to_fill)->next;
+
+  DEBUGLOG(( "os2audio: audio buffers is successfully trashed.\n" ));
+  DosReleaseMutexSem( a->mutex );
+}
+
+/* This function is called when the user requests
+   the use of output plug-in. */
+ULONG PM123_ENTRY
+output_init( void** A )
+{
+  OS2AUDIO* a;
+
+ *A = calloc( sizeof( OS2AUDIO ), 1 );
+  a = (OS2AUDIO*)*A;
+
+  a->numbuffers = 32;
+  a->volume     = 100;
+  a->amplifier  = 1.0;
+  a->status     = DEVICE_CLOSED;
+  a->nomoredata = TRUE;
+
+  DosCreateEventSem( NULL, &a->dataplayed, 0, FALSE );
+  DosCreateMutexSem( NULL, &a->mutex, 0, FALSE );
+  return 0;
+}
+
+/* This function is called when another output plug-in
+   is request by the user. */
+ULONG PM123_ENTRY
+output_uninit( void* A )
+{
+  OS2AUDIO* a = (OS2AUDIO*)A;
+  DEBUGLOG(("output_uninit: %p\n", a));
+
+  DosCloseEventSem( a->dataplayed );
+  DosCloseMutexSem( a->mutex );
+
+  free( a );
+  return 0;
+}
+
+/* Returns TRUE if the output plug-in still has some buffers to play. */
+BOOL PM123_ENTRY
+output_playing_data( void* A ) {
+  return !((OS2AUDIO*)A)->nomoredata;
+}
+
+static ULONG PM123_ENTRY
+output_get_devices( char* name, int deviceid )
+{
+  char buffer[256];
+  MCI_SYSINFO_PARMS mip;
+
+  if( deviceid && name )
+  {
+    MCI_SYSINFO_LOGDEVICE mid;
+
+    mip.pszReturn    = buffer;
+    mip.ulRetSize    = sizeof( buffer );
+    mip.usDeviceType = MCI_DEVTYPE_AUDIO_AMPMIX;
+    mip.ulNumber     = deviceid;
+
+    mciSendCommand( 0, MCI_SYSINFO, MCI_WAIT | MCI_SYSINFO_INSTALLNAME, &mip, 0 );
+
+    mip.ulItem = MCI_SYSINFO_QUERY_DRIVER;
+    mip.pSysInfoParm = &mid;
+    strcpy( mid.szInstallName, buffer );
+
+    mciSendCommand( 0, MCI_SYSINFO, MCI_WAIT | MCI_SYSINFO_ITEM, &mip, 0 );
+    sprintf( name, "%s (%s)", mid.szProductInfo, mid.szVersionNumber );
+  }
+
+  mip.pszReturn    = buffer;
+  mip.ulRetSize    = sizeof(buffer);
+  mip.usDeviceType = MCI_DEVTYPE_AUDIO_AMPMIX;
+
+  mciSendCommand( 0, MCI_SYSINFO, MCI_WAIT | MCI_SYSINFO_QUANTITY, &mip, 0 );
+  return atoi( mip.pszReturn );
+}
+
+ULONG PM123_ENTRY
+output_command( void* A, ULONG msg, OUTPUT_PARAMS* info )
+{
+  OS2AUDIO* a = (OS2AUDIO*)A;
+  DEBUGLOG(("output_command(%i, %p)\n", msg, info));
+
+  switch( msg )
+  {
+    case OUTPUT_OPEN:
+      return output_open( a );
+
+    case OUTPUT_PAUSE:
+      return output_pause( a, info->pause );
+
+    case OUTPUT_CLOSE:
+      return output_close( a );
+
+    case OUTPUT_VOLUME:
+      return output_set_volume( a, info->volume, info->amplifier );
+
+    case OUTPUT_SETUP:
+      if( a->status != DEVICE_OPENED ) {
+        // Otherwise, information on the current session are modified.
+        a->original_info = *info;
+      }
+      info->always_hungry = FALSE;
+      return 0;
+
+    case OUTPUT_TRASH_BUFFERS:
+      output_trash_buffers( a, info->temp_playingpos );
+      return 0;
+  }
+
+  return 1;
+}
 
 /********** GUI stuff ******************************************************/ 
-
-HWND dlghwnd = 0;
-
-static MRESULT EXPENTRY ConfigureDlgProc(HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2)
+static void
+save_ini( void )
 {
-   switch(msg)
-   {
-      case WM_DESTROY:
-         dlghwnd = 0;
-         break;
+  HINI hini;
 
-      case WM_CLOSE:
-         WinDestroyWindow(hwnd);
-         break;
+  if(( hini = open_module_ini()) != NULLHANDLE )
+  {
+    save_ini_value( hini, device );
+    save_ini_value( hini, lockdevice );
+    save_ini_value( hini, numbuffers );
+    save_ini_value( hini, force8bit );
+    save_ini_value( hini, kludge48as44 );
 
-      case WM_INITDLG:
-      {
-         int i, numdevice = output_get_devices(NULL, 0);
+    close_ini( hini );
+  }
+}
 
-         WinSendMsg(WinWindowFromID(hwnd, CB_DEVICE),
-                  LM_INSERTITEM,
-                  MPFROMSHORT(LIT_END),
-                  MPFROMP("Default"));
+static void
+load_ini( void )
+{
+  HINI hini;
 
-         for(i = 1; i <= numdevice; i++)
-         {
-            char temp[256];
-            output_get_devices(temp, i);
-            WinSendMsg(WinWindowFromID(hwnd, CB_DEVICE),
-                     LM_INSERTITEM,
-                     MPFROMSHORT(LIT_END),
-                     MPFROMP(temp));
-         }
+  device       = 0;
+  lockdevice   = 0;
+  numbuffers   = 32;
+  force8bit    = 0;
+  kludge48as44 = 0;
 
-         WinSendMsg(WinWindowFromID(hwnd, CB_DEVICE),
-                  LM_SELECTITEM,
-                  MPFROMSHORT(device),
-                  MPFROMSHORT(TRUE));
+  if(( hini = open_module_ini()) != NULLHANDLE )
+  {
+    load_ini_value( hini, device );
+    load_ini_value( hini, lockdevice );
+    load_ini_value( hini, numbuffers );
+    load_ini_value( hini, force8bit );
+    load_ini_value( hini, kludge48as44 );
 
+    close_ini( hini );
+  }
+}
 
-         WinSendDlgItemMsg(hwnd, CB_SHARED, BM_SETCHECK, MPFROMSHORT(!lockdevice), 0);
+/* Processes messages of the configuration dialog. */
+static MRESULT EXPENTRY
+cfg_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
+{
+  switch( msg )
+  {
+    case WM_INITDLG:
+    {
+      int i;
+      int numdevice = output_get_devices( NULL, 0 );
 
+      lb_add_item( hwnd, CB_DEVICE, "Default" );
 
-         WinSendMsg(WinWindowFromID(hwnd, SB_BUFFERS),
-                 SPBM_SETLIMITS,
-                 MPFROMLONG(200),
-                 MPFROMLONG(5));
-
-         WinSendMsg(WinWindowFromID(hwnd, SB_BUFFERS),
-                 SPBM_SETCURRENTVALUE,
-                 MPFROMLONG(numbuffers),
-                 0);
-
-         WinSendDlgItemMsg(hwnd, CB_8BIT, BM_SETCHECK, MPFROMSHORT(force8bit), 0);
-         WinSendDlgItemMsg(hwnd, CB_48KLUDGE, BM_SETCHECK, MPFROMSHORT(kludge48as44), 0);
-         break;
+      for( i = 1; i <= numdevice; i++ ) {
+        char name[256];
+        output_get_devices( name, i );
+        lb_add_item( hwnd, CB_DEVICE, name );
       }
 
-      case WM_COMMAND:
-         switch(SHORT1FROMMP(mp1))
-         {
-            case DID_OK:
-               device = LONGFROMMR(WinSendMsg(WinWindowFromID(hwnd, CB_DEVICE),
-                                           LM_QUERYSELECTION,
-                                           MPFROMSHORT(LIT_FIRST),
-                                           0));
+      lb_select( hwnd, CB_DEVICE, device );
 
-               lockdevice = ! (BOOL)WinSendDlgItemMsg(hwnd, CB_SHARED, BM_QUERYCHECK, 0, 0);
+      WinCheckButton( hwnd, CB_SHARED,  !lockdevice   );
+      WinCheckButton( hwnd, CB_8BIT,     force8bit    );
+      WinCheckButton( hwnd, CB_48KLUDGE, kludge48as44 );
 
-               WinSendMsg(WinWindowFromID(hwnd, SB_BUFFERS),
-                       SPBM_QUERYVALUE,
-                       MPFROMP(&numbuffers),
-                       MPFROM2SHORT(0, SPBQ_DONOTUPDATE));
+      WinSendDlgItemMsg( hwnd, SB_BUFFERS, SPBM_SETLIMITS,
+                               MPFROMLONG( 200 ), MPFROMLONG( 5 ));
+      WinSendDlgItemMsg( hwnd, SB_BUFFERS, SPBM_SETCURRENTVALUE,
+                               MPFROMLONG( numbuffers ), 0 );
+      break;
+    }
 
-               force8bit = (BOOL)WinSendDlgItemMsg(hwnd, CB_8BIT, BM_QUERYCHECK, 0, 0);
-               kludge48as44 = (BOOL)WinSendDlgItemMsg(hwnd, CB_48KLUDGE, BM_QUERYCHECK, 0, 0);
-               save_ini();
-            case DID_CANCEL:
-               WinDestroyWindow(hwnd);
-               break;
-         }
-         break;
-   }
-
-   return WinDefDlgProc(hwnd, msg, mp1, mp2);
-}
-
-#define FONT1 "9.WarpSans"
-#define FONT2 "8.Helv"
-
-int PM123_ENTRY plugin_configure(HWND hwnd, HMODULE module)
-{
-   if(dlghwnd == 0)
-   {
-      LONG fontcounter = 0;
-      dlghwnd = WinLoadDlg(HWND_DESKTOP, HWND_DESKTOP, ConfigureDlgProc, module, 1, NULL);
-
-      if(dlghwnd)
+    case WM_COMMAND:
+      if( SHORT1FROMMP( mp1 ) == DID_OK )
       {
-         HPS hps;
+        device = lb_selected( hwnd, CB_DEVICE, LIT_FIRST );
 
-         hps = WinGetPS(HWND_DESKTOP);
-         if(GpiQueryFonts(hps, QF_PUBLIC,strchr(FONT1,'.')+1, &fontcounter, 0, NULL))
-            WinSetPresParam(dlghwnd, PP_FONTNAMESIZE, strlen(FONT1)+1, FONT1);
-         else
-            WinSetPresParam(dlghwnd, PP_FONTNAMESIZE, strlen(FONT2)+1, FONT2);
-         WinReleasePS(hps);
+        lockdevice   = !WinQueryButtonCheckstate( hwnd, CB_SHARED   );
+        force8bit    =  WinQueryButtonCheckstate( hwnd, CB_8BIT     );
+        kludge48as44 =  WinQueryButtonCheckstate( hwnd, CB_48KLUDGE );
 
-         WinSetFocus(HWND_DESKTOP,WinWindowFromID(dlghwnd,CB_DEVICE));
-         WinShowWindow(dlghwnd, TRUE);
+        WinSendDlgItemMsg( hwnd, SB_BUFFERS, SPBM_QUERYVALUE,
+                           MPFROMP( &numbuffers ), MPFROM2SHORT( 0, SPBQ_DONOTUPDATE ));
+        save_ini();
       }
-   }
-   else
-      WinFocusChange(HWND_DESKTOP, dlghwnd, 0);
+      break;
+  }
 
-   return 0;
+  return WinDefDlgProc( hwnd, msg, mp1, mp2 );
 }
 
-#define INIFILE "os2audio.ini"
-
-static void save_ini()
+/* Configure plug-in. */
+int PM123_ENTRY
+plugin_configure( HWND hwnd, HMODULE module )
 {
-   HINI INIhandle;
-
-   if((INIhandle = open_module_ini()) != NULLHANDLE)
-   {
-      save_ini_value(INIhandle,device);
-      save_ini_value(INIhandle,lockdevice);
-      save_ini_value(INIhandle,numbuffers);
-      save_ini_value(INIhandle,force8bit);
-      save_ini_value(INIhandle,kludge48as44);
-
-      close_ini(INIhandle);
-   }
+  WinDlgBox( HWND_DESKTOP, hwnd, cfg_dlg_proc, module, DLG_CONFIGURE, NULL );
+  return 0;
 }
 
-static void load_ini()
+int PM123_ENTRY
+plugin_query( PLUGIN_QUERYPARAM* param )
 {
-   HINI INIhandle;
+  param->type         = PLUGIN_OUTPUT;
+  param->author       = "Samuel Audet, Dmitry A.Steklenev";
+  param->desc         = "DART Output 1.30";
+  param->configurable = TRUE;
 
-   device = 0;
-   lockdevice = 0;
-   numbuffers = 32;
-   force8bit = 0;
-   kludge48as44 = 0;
-
-   if((INIhandle = open_module_ini()) != NULLHANDLE)
-   {
-      load_ini_value(INIhandle,device);
-      load_ini_value(INIhandle,lockdevice);
-      load_ini_value(INIhandle,numbuffers);
-      load_ini_value(INIhandle,force8bit);
-      load_ini_value(INIhandle,kludge48as44);
-
-      close_ini(INIhandle);
-   }
+  load_ini();
+  return 0;
 }
 
-int PM123_ENTRY plugin_query(PLUGIN_QUERYPARAM *param)
+#if defined(__IBMC__) && defined(__DEBUG_ALLOC__)
+unsigned long _System _DLL_InitTerm( unsigned long modhandle,
+                                     unsigned long flag )
 {
-   param->type = PLUGIN_OUTPUT;
-   param->author = "Samuel Audet";
-   param->desc = "OS2AUDIO 1.20";
-   param->configurable = TRUE;
-
-   load_ini();
-   return 0;
+  if( flag == 0 ) {
+    if( _CRT_init() == -1 ) {
+      return 0UL;
+    }
+    return 1UL;
+  } else {
+    _dump_allocated( 0 );
+    _CRT_term();
+    return 1UL;
+  }
 }
+#endif
