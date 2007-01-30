@@ -8,6 +8,8 @@
 extern "C" {
 #endif
 
+#pragma pack(4)
+
 /* level 1 interface, for compatibility */
 typedef struct _FILTER_PARAMS
 {
@@ -70,6 +72,8 @@ void  PM123_ENTRY filter_update( void*  f, const FILTER_PARAMS2* params );
 
 #endif
 BOOL  PM123_ENTRY filter_uninit( void*  f );
+
+#pragma pack()
 
 #ifdef __cplusplus
 }

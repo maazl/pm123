@@ -1,11 +1,5 @@
-/*
-   PM123 Plugin Definitions
-   Copyright (C) 1998 Taneli Lepp„ <rosmo@sektori.com>
-                      Samuel Audet <guardia@step.polymtl.ca>
-*/
-
-#ifndef __PM123_PLUGIN_H
-#define __PM123_PLUGIN_H
+#ifndef PM123_PLUGIN_H
+#define PM123_PLUGIN_H
 
 #include <format.h>
 #include <decoder_plug.h>
@@ -19,6 +13,8 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+#pragma pack(4)
 
 /* see decoder_plug.h and output_plug.h for more information
    on some of these functions */
@@ -41,13 +37,13 @@ typedef struct _PLUGIN_PROCS
 } PLUGIN_PROCS, *PPLUGIN_PROCS;
 
 /*
-  int pm123_getstring( int index, int subindex, int bufsize, char* buf )
-
-    index    - which string (see STR_* defines below)
-    subindex - not currently used
-    bufsize  - bytes in buf
-    buf      - buffer for the string
-*/
+ * int pm123_getstring( int index, int subindex, int bufsize, char* buf )
+ *
+ *  index    - which string (see STR_* defines below)
+ *  subindex - not currently used
+ *  bufsize  - bytes in buf
+ *  buf      - buffer for the string
+ */
 
 #define STR_NULL         0
 #define STR_VERSION      1 /* PM123 version          */
@@ -55,11 +51,11 @@ typedef struct _PLUGIN_PROCS
 #define STR_FILENAME     3 /* Currently loaded file  */
 
 /*
-  int pm123_control( int index, void* param );
-
-    index - operation
-    param - parameter for the operation
-*/
+ * int pm123_control( int index, void* param );
+ *
+ *  index - operation
+ *  param - parameter for the operation
+ */
 
 #define CONTROL_NEXTMODE 1 /* Next display mode */
 
@@ -93,7 +89,9 @@ typedef struct _PLUGIN_QUERYPARAM
 int PM123_ENTRY plugin_query( PLUGIN_QUERYPARAM* param );
 int PM123_ENTRY plugin_configure( HWND hwnd, HMODULE module );
 
+#pragma pack()
+
 #ifdef __cplusplus
 }
 #endif
-#endif /* __PM123_PLUGIN_H */
+#endif /* PM123_PLUGIN_H */

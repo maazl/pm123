@@ -8,6 +8,8 @@
 extern "C" {
 #endif
 
+#pragma pack(4)
+
 int  PM123_ENTRY decoder_init  ( void** w );
 BOOL PM123_ENTRY decoder_uninit( void*  w );
 
@@ -226,17 +228,18 @@ typedef struct _DECODER_INFO
    char tech_info[128];
 
    /* meta information */
-   char title  [128];
-   char artist [128];
-   char album  [128];
-   char year   [128];
-   char comment[128];
-   char genre  [128];
-   char track  [128];
+   char title    [128];
+   char artist   [128];
+   char album    [128];
+   char year     [128];
+   char comment  [128];
+   char genre    [128];
+   char track    [128];
+   //char copyright[128];
    int  codepage;       /* Code page of the meta info. Must be 0 if the
                            code page is unknown. Don't place here any another
                            value if it is not provided by meta info. */
-   int  filesize;       /* Size of file. */
+   int  filesize;       /* Size of the file. */
    int  saveinfo;       /* Must be 1 if the decoder can update meta info of
                            this file. Otherwise, must be 0. */
 
@@ -312,6 +315,8 @@ typedef struct _DECODER_WIZZARD
 
 const DECODER_WIZZARD* PM123_ENTRY decoder_getwizzard( BOOL multiselect );
 #endif
+
+#pragma pack()
 
 #ifdef __cplusplus
 }
