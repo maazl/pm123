@@ -43,14 +43,14 @@ typedef struct {
 } tune ;
 
 void emptytag(tune* info);
-int wipetag(int fd);
+int wipetag(XFILE* file);
 /* read Tag from file
  * fd      low level file descriptor
  * info    destination
  * return  0 = error
  */
-int gettag(int fd, tune *info);
-int settag(int fd, const tune *info);
+int gettag(XFILE* file, tune *info);
+int settag(XFILE* file, const tune *info);
 
 #ifdef __cplusplus
 }

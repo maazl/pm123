@@ -51,9 +51,31 @@
   }                                        \
 }
 
-#define HDRCMPMASK   0xFFFF0D00UL
-#define MAXFRAMESIZE 1792 // max = 1728
-#define MAXRESYNC    65535
+// For Layer 1:
+// MaxFrameLengthInBytes = (12000 * MaxBitRate / MinSampleRate + MaxPadding ) * 4
+// For Layer 2 & 3 (MPEG 1.0):
+// MaxFrameLengthInBytes = 144000 * MaxBitRate / MinSampleRate + MaxPadding
+// For Layer 3 (MPEG 2.X):
+// MaxFrameLengthInBytes = 144000 * MaxBitRate / MinSampleRate / 2 + MaxPadding
+//
+// Maybe mpeg 2.5 and layer 1/2 is an illegal combination, but I have not
+// found any trustworthy information about it.
+//
+// mpeg 1.0, layer 1  448   32000 =  676
+// mpeg 1.0, layer 2  384   32000 = 1729
+// mpeg 1.0, layer 3  320   32000 = 1441
+// mpeg 2.x, layer 1  256    8000 = 1540
+// mpeg 2.x, layer 2  160    8000 = 2881
+// mpeg 2.x, layer 3  160    8000 = 1441
+
+#define MAXFRAMESIZE  2881
+#define HDRCMPMASK    0xFFFF0D00UL
+#define MAXRESYNC     65535
+
+// Special mask for tests with variable sample rates. 
+// Yes, we have also such strange tests.
+//
+// #define HDRCMPMASK 0xFFFF0100UL
 
 typedef struct _DECODER_STRUCT
 {
@@ -69,7 +91,7 @@ typedef struct _DECODER_STRUCT
    HEV   play;            // For internal use to sync the decoder thread.
    HEV   ok;              // For internal use to sync the decoder thread.
    HMTX  mutex;           // For internal use to sync the decoder thread.
-   ULONG decodertid;      // Decoder thread indentifier.
+   int   decodertid;      // Decoder thread indentifier.
    BOOL  stop;
    BOOL  frew;
    BOOL  ffwd;
@@ -109,38 +131,46 @@ struct al_table
 
 struct frame {
 
-    struct al_table *alloc;
-    int (*synth)( real*, int, unsigned char* );
-    int (*synth_mono)( real*, unsigned char* );
-    int stereo;
-    int jsbound;
-    int single;
-    int II_sblimit;
-    int lsf;
-    int mpeg25;
-    int down_sample;
-    int block_size;
-    int lay;
-    int (*do_layer)( DECODER_STRUCT* w, struct frame* fr );
-    int error_protection;
-    int bitrate_index;
-    int sampling_frequency;
-    int padding;
-    int extension;
-    int mode;
-    int mode_ext;
-    int copyright;
-    int original;
-    int emphasis;
-    int framesize;
-    int ssize;
-    int filepos;    // Position from the beginning of the data stream.
+  struct al_table *alloc;
+  int (*synth)( real*, int, unsigned char* );
+  int (*synth_mono)( real*, unsigned char* );
+  int stereo;
+  int jsbound;
+  int single;
+  int II_sblimit;
+  int lsf;        // 0: MPEG 1.0; 1: MPEG 2.0/2.5
+  int mpeg25;
+  int down_sample;
+  int block_size;
+  int lay;
+  int (*do_layer)( DECODER_STRUCT* w, struct frame* fr );
+  int error_protection;
+  int bitrate_index;
+  int sampling_frequency;
+  int padding;
+  int extension;
+  int mode;
+  int mode_ext;
+  int copyright;
+  int original;
+  int emphasis;
+  int framesize;
+  int ssize;      // Size of the layer 3 frame side information.
+  int filepos;    // Position from the beginning of the data stream.
+};
+
+struct frame_buffer {
+
+  int size;
+  unsigned char* main_data;
+  unsigned char  reserved[512];
+  unsigned char  data[MAXFRAMESIZE];
 };
 
 struct flags {
 
-   int equalizer;
-   int mp3_eq;
+  int equalizer;
+  int mp3_eq;
 };
 
 extern int mmx_enable;
@@ -202,10 +232,11 @@ extern BOOL   is_header_valid( unsigned long header );
 extern BOOL   output_flush( DECODER_STRUCT* w, struct frame* fr );
 extern BOOL   seekto_pos( DECODER_STRUCT* w, struct frame* fr, int bytes );
 extern BOOL   decode_header( DECODER_STRUCT* w, int header, struct frame* fr );
-extern void   set_pointer( long, struct frame* fr );
+extern BOOL   complete_main_data( unsigned int backstep, struct frame* fr );
 extern BOOL   read_frame( DECODER_STRUCT* w, struct frame* fr );
-extern int    do_layer3( DECODER_STRUCT* w, struct frame*fr );
+extern void   clear_decoder( void );
 extern void   clear_layer3( void );
+extern int    do_layer3( DECODER_STRUCT* w, struct frame*fr );
 extern int    do_layer2( DECODER_STRUCT* w, struct frame* fr );
 extern int    do_layer1( DECODER_STRUCT* w, struct frame* fr );
 extern void   do_equalizer( real* bandPtr, int channel );

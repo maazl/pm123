@@ -140,25 +140,6 @@ load_ini( void )
 
 }
 
-static void
-clear_decoder( void )
-{
-  /* clear synth */
-  real crap [SBLIMIT  ];
-  char crap2[SBLIMIT*4];
-  int  i;
-
-  for( i = 0; i < 16; i++ )
-  {
-    memset( crap, 0, sizeof( crap ));
-    synth_1to1( crap, 0, crap2 );
-    memset( crap, 0, sizeof( crap ));
-    synth_1to1( crap, 1, crap2 );
-  }
-
-  clear_layer3();
-}
-
 /* Decoding thread. */
 static void TFNENTRY
 decoder_thread( void* arg )
@@ -265,7 +246,6 @@ decoder_thread( void* arg )
       }
 
       if( !read_frame( w, &fr )) {
-        WinPostMsg( w->hwnd, WM_PLAYSTOP, 0, 0 );
         break;
       }
 
@@ -274,6 +254,8 @@ decoder_thread( void* arg )
         break;
       }
     }
+    output_flush( w, &fr );
+    WinPostMsg( w->hwnd, WM_PLAYSTOP, 0, 0 );
     w->status = DECODER_STOPPED;
   }
 
@@ -347,8 +329,9 @@ decoder_command( void* arg, ULONG msg, DECODER_PARAMS* info )
       fr.down_sample = down_sample;
       fr.synth       = synth_1to1;
 
+      w->output_format.size   = sizeof( w->output_format );
       w->output_format.format = WAVE_FORMAT_PCM;
-      w->output_format.bits = 16;
+      w->output_format.bits   = 16;
 
       make_decode_tables( outscale );
       init_layer2( fr.down_sample ); // also shared tables with layer1.
@@ -389,8 +372,10 @@ decoder_command( void* arg, ULONG msg, DECODER_PARAMS* info )
       }
 
       strlcpy( w->filename, info->filename, sizeof( w->filename ));
-      w->status = DECODER_STARTING;
-      w->decodertid = _beginthread( decoder_thread, 0, 64*1024, (void*)w );
+
+      w->status     = DECODER_STARTING;
+      w->jumptopos  = info->jumpto;
+      w->decodertid = _beginthread( decoder_thread, 0, 65535, (void*)w );
 
       DosReleaseMutexSem( w->mutex );
       DosPostEventSem   ( w->play  );
@@ -419,7 +404,7 @@ decoder_command( void* arg, ULONG msg, DECODER_PARAMS* info )
     case DECODER_FFWD:
       if( info->ffwd ) {
         DosRequestMutexSem( w->mutex, SEM_INDEFINITE_WAIT );
-        if( w->decodertid == -1 || xio_can_seek( w->file ) < 2 ) {
+        if( w->decodertid == -1 || xio_can_seek( w->file ) != XIO_CAN_SEEK_FAST ) {
           DosReleaseMutexSem( w->mutex );
           return 1;
         }
@@ -431,7 +416,7 @@ decoder_command( void* arg, ULONG msg, DECODER_PARAMS* info )
     case DECODER_REW:
       if( info->rew ) {
         DosRequestMutexSem( w->mutex, SEM_INDEFINITE_WAIT );
-        if( w->decodertid == -1 || xio_can_seek( w->file ) < 2 ) {
+        if( w->decodertid == -1 || xio_can_seek( w->file ) != XIO_CAN_SEEK_FAST ) {
           DosReleaseMutexSem( w->mutex );
           return 1;
         }
@@ -466,7 +451,7 @@ decoder_command( void* arg, ULONG msg, DECODER_PARAMS* info )
 
     default:
       if( w->error_display ) {
-        w->error_display( "Unknown command." );
+          w->error_display( "Unknown command." );
       }
       return 1;
   }
@@ -518,22 +503,24 @@ decoder_fileinfo( const char* filename, DECODER_INFO* info )
 
   if( read_first_frame_header( &w, &fr, &header ))
   {
+    info->format.size       = sizeof( info->format );
     info->format.format     = WAVE_FORMAT_PCM;
     info->format.bits       = 16;
     info->mpeg              = fr.mpeg25 ? 25 : ( fr.lsf ? 20 : 10 );
     info->layer             = fr.lay;
     info->format.samplerate = freqs[fr.sampling_frequency];
+    info->format.channels   = fr.stereo;
     info->mode              = fr.mode;
     info->modext            = fr.mode_ext;
     info->bpf               = fr.framesize + 4;
-    info->format.channels   = fr.stereo;
     info->bitrate           = tabsel_123[fr.lsf][fr.lay-1][fr.bitrate_index];
     info->extention         = fr.extension;
-    info->junklength        = xio_ftell( w.file ) - 4 - fr.framesize;
+    info->junklength        = w.started;
+    info->filesize          = xio_fsize( w.file );
 
     if( w.xing_header.flags & FRAMES_FLAG )
     {
-      info->songlength = 8.0 * 144 * w.xing_header.frames * 1000 / freqs[fr.sampling_frequency];
+      info->songlength = 8.0 * 144 * w.xing_header.frames * 1000 / ( freqs[fr.sampling_frequency] << fr.lsf );
 
       if( w.xing_header.flags & BYTES_FLAG ) {
         info->bitrate = (float)w.xing_header.bytes / info->songlength * 1000 / 125;
@@ -558,16 +545,15 @@ decoder_fileinfo( const char* filename, DECODER_INFO* info )
     xio_get_metainfo( w.file, XIO_META_GENRE, info->genre,   sizeof( info->genre   ));
     xio_get_metainfo( w.file, XIO_META_NAME,  info->comment, sizeof( info->comment ));
     xio_get_metainfo( w.file, XIO_META_TITLE, info->title,   sizeof( info->title   ));
+
     // fetch ID3 tags from data
-    if ( is_file(filename) ) {
+    if( xio_can_seek( w.file ) == XIO_CAN_SEEK_FAST )
+    {
       tune tag;
-      int handle = open( filename, O_RDONLY | O_BINARY );
-      if ( handle != -1 ) {
-        if ( gettag( handle, &tag ) ) {
-          // Slicing! The common part of the structures is binary compatible 
-          memcpy( info->title, tag.meta.title, offsetof( META_INFO, track ) - offsetof( META_INFO, title ) );
-        }
-        close( handle );
+      if ( gettag( w.file, &tag ) ) {
+        // Slicing! The common part of the structures is binary compatible
+        memcpy( info->title, tag.meta.title, offsetof( META_INFO, track ) - offsetof( META_INFO, title ) );
+        sprintf( info->track, "%d", tag.meta.track);
       }
     }
   } else {
@@ -607,7 +593,7 @@ decoder_support( char* ext[], int* size )
     *size = 3;
   }
 
-  return DECODER_FILENAME | DECODER_URL;
+  return DECODER_FILENAME | DECODER_URL | DECODER_METAINFO;
 }
 
 
@@ -715,15 +701,15 @@ plugin_configure( HWND hwnd, HMODULE module )
 BOOL
 readtag( const char* filename, tune* tag )
 {
-  int  handle;
+  XFILE* file;
   BOOL rc = FALSE;
 
   emptytag(tag);
 
-  handle = open( filename, O_RDONLY | O_BINARY );
-  if( handle != -1 ) {
-    rc = gettag( handle, tag );
-    close( handle );
+  file = xio_fopen( filename, "rb" );
+  if( file != NULL ) {
+    rc = gettag( file, tag );
+    xio_fclose( file );
   }
 
   if( rc && auto_codepage )
@@ -759,15 +745,15 @@ BOOL
 writetag( const char* filename, const tune* tag )
 {
   BOOL rc = 0;
-  int handle = open( filename, O_RDWR | O_BINARY );
-  if( handle == -1 )
+  XFILE* file = xio_fopen( filename, "r+b" );
+  if( file == NULL )
     return FALSE;
 
   if ( (*tag->meta.title | *tag->meta.artist  | *tag->meta.album |
        *tag->meta.year  | *tag->meta.comment | *tag->meta.genre) == 0 &&
        tag->meta.track <= 0 )
   { // all fields initial => wipe tag
-    rc = wipetag( handle ); 
+    rc = wipetag( file ); 
   } else   
   { tune wtag = *tag;
     // if the codepage is not yet specified use the global configuration setting by default
@@ -779,10 +765,10 @@ writetag( const char* filename, const tune* tag )
     ch_convert( CH_CP_NONE, tag->meta.album,   tag->codepage, wtag.meta.album,   sizeof( wtag.meta.album   ));
     ch_convert( CH_CP_NONE, tag->meta.comment, tag->codepage, wtag.meta.comment, sizeof( wtag.meta.comment ));
 
-    rc = settag( handle, &wtag );
+    rc = settag( file, &wtag );
   }
 
-  close( handle );
+  xio_fclose( file );
 
   return rc;
 }
@@ -1016,4 +1002,21 @@ plugin_query( PLUGIN_QUERYPARAM* param )
    load_ini();
    return 0;
 }
+
+#if defined(__IBMC__) && defined(__DEBUG_ALLOC__)
+unsigned long _System _DLL_InitTerm( unsigned long modhandle,
+                                     unsigned long flag )
+{
+  if( flag == 0 ) {
+    if( _CRT_init() == -1 ) {
+      return 0UL;
+    }
+    return 1UL;
+  } else {
+    _dump_allocated( 0 );
+    _CRT_term();
+    return 1UL;
+  }
+}
+#endif
 

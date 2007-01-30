@@ -16,24 +16,20 @@
          (( ul & 0xFFFFFF00UL ) == (((c1<<24)|(c2<<16)|(c3<<8)) & 0xFFFFFF00UL ))
 
 int tabsel_123[2][3][16] = {
-   { { 0,32,64,96,128,160,192,224,256,288,320,352,384,416,448 },
-     { 0,32,48,56, 64, 80, 96,112,128,160,192,224,256,320,384 },
-     { 0,32,40,48, 56, 64, 80, 96,112,128,160,192,224,256,320 }},
+   { { 0, 32, 64, 96, 128, 160, 192, 224, 256, 288, 320, 352, 384, 416, 448 },
+     { 0, 32, 48, 56,  64,  80,  96, 112, 128, 160, 192, 224, 256, 320, 384 },
+     { 0, 32, 40, 48,  56,  64,  80,  96, 112, 128, 160, 192, 224, 256, 320 }},
 
-   { { 0,32,48,56,64,80,96,112,128,144,160,176,192,224,256 },
-     { 0,8,16,24,32,40,48,56,64,80,96,112,128,144,160 },
-     { 0,8,16,24,32,40,48,56,64,80,96,112,128,144,160 }}
+   { { 0, 32, 48, 56, 64, 80, 96, 112, 128, 144, 160, 176, 192, 224, 256 },
+     { 0,  8, 16, 24, 32, 40, 48,  56,  64,  80, 96,  112, 128, 144, 160 },
+     { 0,  8, 16, 24, 32, 40, 48,  56,  64,  80, 96,  112, 128, 144, 160 }}
 };
 
-long freqs[9] = { 44100, 48000, 32000, 22050, 24000, 16000 , 11025 , 12000 , 8000 };
+long freqs[9] = { 44100, 48000, 32000, 22050, 24000, 16000, 11025, 12000, 8000 };
 
-int bitindex;
-unsigned char* wordpointer;
-
-static int fsize = 0, fsizeold = 0;
-static unsigned char  bsspace[2][MAXFRAMESIZE+512]; /* MAXFRAMESIZE */
-static unsigned char* bsbuf = bsspace[1];
-static unsigned char* bsbufold;
+static int bitindex;
+static unsigned char* wordpointer;
+static struct frame_buffer bsbuf[2];
 static int bsnum = 0;
 
 unsigned char* pcm_sample = NULL;
@@ -124,7 +120,7 @@ output_flush( DECODER_STRUCT* w, struct frame* fr )
       w->output_format.samplerate = freqs[fr->sampling_frequency] >> fr->down_sample;
       init_eq( w->output_format.samplerate );
     }
-    if((*w->output_play_samples)( w->a, &w->output_format, pcm_sample, pcm_point, decoding_pos( w, fr )) < pcm_point ) {
+    if( w->output_play_samples( w->a, &w->output_format, pcm_sample, pcm_point, decoding_pos( w, fr )) < pcm_point ) {
       rc = FALSE;
     }
     pcm_point = 0;
@@ -299,23 +295,29 @@ decode_header( DECODER_STRUCT* w, int header, struct frame* fr )
   {
     case 1:
       fr->do_layer   = do_layer1;
+
       fr->jsbound    = fr->mode == MPG_MD_JOINT_STEREO ? ( fr->mode_ext << 2 ) + 4 : 32;
       fr->framesize  = (long)tabsel_123[fr->lsf][0][fr->bitrate_index] * 12000;
       fr->framesize /= freqs[fr->sampling_frequency];
       fr->framesize  = (( fr->framesize + fr->padding ) << 2 ) - 4;
+      fr->ssize      = 0;
       break;
 
     case 2:
       fr->do_layer   = do_layer2;
+
       get_II_stuff( fr );
+
       fr->jsbound    = fr->mode == MPG_MD_JOINT_STEREO ? ( fr->mode_ext << 2 ) + 4 : fr->II_sblimit;
-      fr->framesize  = (long) tabsel_123[fr->lsf][1][fr->bitrate_index] * 144000;
+      fr->framesize  = (long)tabsel_123[fr->lsf][1][fr->bitrate_index] * 144000;
       fr->framesize /= freqs[fr->sampling_frequency];
       fr->framesize  = fr->framesize + fr->padding - 4;
+      fr->ssize      = 0;
       break;
 
     case 3:
       fr->do_layer = do_layer3;
+
       if( fr->lsf ) {
         fr->ssize = (fr->stereo == 1) ?  9 : 17;
       } else {
@@ -325,8 +327,8 @@ decode_header( DECODER_STRUCT* w, int header, struct frame* fr )
       if( fr->error_protection ) {
         fr->ssize += 2;
       }
-      fr->framesize  = (long) tabsel_123[fr->lsf][2][fr->bitrate_index] * 144000;
-      fr->framesize /= freqs[fr->sampling_frequency]<<(fr->lsf);
+      fr->framesize  = (long)tabsel_123[fr->lsf][2][fr->bitrate_index] * 144000;
+      fr->framesize /= (freqs[fr->sampling_frequency] << (fr->lsf));
       fr->framesize  = fr->framesize + fr->padding - 4;
       break;
 
@@ -592,6 +594,12 @@ read_synchronize( DECODER_STRUCT* w, struct  frame* fr,
     }
   }
 
+  if( resync ) {
+    bsbuf[0].size = 0;
+    bsbuf[1].size = 0;
+    DEBUGLOG(( "mpg123: stream is resynced after %d attempts.\n", resync ));
+  }
+
   return TRUE;
 }
 
@@ -610,25 +618,23 @@ read_frame( DECODER_STRUCT* w, struct frame* fr )
   // Position from the beginning of the data stream.
   fr->filepos = xio_ftell( w->file ) - 4 - w->started;
 
-  fsizeold = fsize; // for Layer3
-  bsbufold = bsbuf;
-  bsbuf    = bsspace[bsnum] + 512;
-  bsnum    = ( bsnum + 1 ) & 1;
-  fsize    = fr->framesize;
+  bsnum ^= 1;
 
-  if(( done = xio_fread( bsbuf, 1, fr->framesize, w->file )) != fr->framesize ) {
+  if(( done = xio_fread( bsbuf[bsnum].data, 1, fr->framesize, w->file )) != fr->framesize ) {
     if( done <= 0 ) {
       return FALSE;
     }
 
-    memset( bsbuf + done, 0, fr->framesize - done );
+    memset( bsbuf[bsnum].data + done, 0, fr->framesize - done );
   }
 
   save_header( header, w );
-  save_data( bsbuf, 1, fr->framesize, w );
+  save_data( bsbuf[bsnum].data, 1, fr->framesize, w );
 
   bitindex = 0;
-  wordpointer = (unsigned char*)bsbuf;
+  wordpointer = bsbuf[bsnum].data;
+  bsbuf[bsnum].main_data = bsbuf[bsnum].data + fr->ssize;
+  bsbuf[bsnum].size = fr->framesize - fr->ssize;
 
   if( tabsel_123[fr->lsf][fr->lay-1][fr->bitrate_index] != w->obr )
   {
@@ -643,18 +649,18 @@ read_frame( DECODER_STRUCT* w, struct frame* fr )
    and synchronize the data stream. Returns TRUE if it successfully
    moves the pointer. */
 BOOL
-seekto_pos( DECODER_STRUCT* w, struct frame* fr, int bytes )
+seekto_pos( DECODER_STRUCT* w, struct frame* fr, int seektobytes )
 {
   unsigned long header;
-  int seektobytes = bytes - 2 * ( fr->framesize + 3 );
 
   if( !xio_can_seek( w->file )) {
     // This only works on files.
     return FALSE;
   }
 
-  if( seektobytes < 0 ) {
-      seektobytes = w->started;
+  if( fr->lay == 3 ) {
+    seektobytes -= 2 * fr->framesize + 8;
+    seektobytes  = max( w->started, seektobytes );
   }
 
   if( xio_fseek( w->file, seektobytes, XIO_SEEK_SET ) < 0 ) {
@@ -664,11 +670,14 @@ seekto_pos( DECODER_STRUCT* w, struct frame* fr, int bytes )
   if( read_synchronize( w, fr, &header )) {
     if( xio_fseek( w->file, -4, XIO_SEEK_CUR ) == 0 )
     {
-      read_frame( w, fr );
-      read_frame( w, fr );
+      // Clears the frames buffer.
+      bsbuf[0].size = 0;
+      bsbuf[1].size = 0;
 
       if( fr->lay == 3 ) {
-        set_pointer( 512, fr );
+        read_frame( w, fr );
+        read_frame( w, fr );
+        complete_main_data( 512, fr );
       }
       return TRUE;
     }
@@ -677,7 +686,6 @@ seekto_pos( DECODER_STRUCT* w, struct frame* fr, int bytes )
   return FALSE;
 }
 
-#if !defined( I386_ASSEM ) || defined( DEBUG_GETBITS )
 unsigned int
 getbits( int number_of_bits )
 {
@@ -757,15 +765,55 @@ get1bit( void )
   #endif
   return rval >> 7;
 }
-#endif
+
+BOOL
+complete_main_data( unsigned int backstep, struct frame* fr )
+{
+  int  bsold = bsnum ^ 1;
+  BOOL rc = TRUE;
+
+  if( bsbuf[bsold].size < backstep ) {
+    DEBUGLOG(( "mpg123: can't copy %d bytes of the main data from %d previous bytes\n",
+                                                        backstep, bsbuf[bsold].size ));
+    // If the previous frame has no enough data for a
+    // main data completion then copy data as much as
+    // possible.
+    backstep = bsbuf[bsold].size;
+    rc = FALSE;
+  }
+
+  bsbuf[bsnum].main_data -= backstep;
+  bsbuf[bsnum].size      += backstep;
+
+  if( backstep ) {
+    memcpy( bsbuf[bsnum].main_data, bsbuf[bsold].main_data + bsbuf[bsold].size - backstep, backstep );
+  }
+
+  wordpointer = bsbuf[bsnum].main_data;
+  bitindex = 0;
+  return rc;
+}
 
 void
-set_pointer( long backstep, struct frame* fr )
+clear_decoder( void )
 {
-  wordpointer = bsbuf + fr->ssize - backstep;
-  if( backstep ) {
-    memcpy( wordpointer, bsbufold + fsizeold - backstep, backstep );
+  // Clears synth.
+  real crap [SBLIMIT  ];
+  char crap2[SBLIMIT*4];
+  int  i;
+
+  for( i = 0; i < 16; i++ )
+  {
+    memset( crap, 0, sizeof( crap ));
+    synth_1to1( crap, 0, crap2 );
+    memset( crap, 0, sizeof( crap ));
+    synth_1to1( crap, 1, crap2 );
   }
-  bitindex = 0;
+
+  clear_layer3();
+
+  // Clears the frame buffer.
+  bsbuf[0].size = 0;
+  bsbuf[1].size = 0;
 }
 

@@ -28,7 +28,7 @@ mpg123$(LBI): $(DEF)
 
 layer1$(CO):        layer1.c mpg123.h
 layer2$(CO):        layer2.c mpg123.h
-layer3$(CO):        layer3.c mpg123.h huffman.h get1bit.h
+layer3$(CO):        layer3.c mpg123.h huffman.h
 decode$(CO):        decode.c mpg123.h
 decode_int$(CO):    decode_int.c mpg123.h
 decode_2to1$(CO):   decode_2to1.c mpg123.h

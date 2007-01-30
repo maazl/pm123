@@ -16,10 +16,6 @@
 #include "mpg123.h"
 #include "huffman.h"
 
-#if 0
-#include "get1bit.h"
-#endif
-
 static real ispow[8207];
 static real aa_ca[8],aa_cs[8];
 static real COS1[12][6];
@@ -344,15 +340,17 @@ static int III_get_side_info_1(DECODER_STRUCT *w, struct III_sideinfo *si,int st
        gr_info->part2_3_length = getbits(12);
        gr_info->big_values = getbits_fast(9);
        if(gr_info->big_values > 288) {
-//          fprintf(stderr,"big_values too large!\n");
+          #ifdef DEBUG
           w->error_display("big_values too large!");
+          #endif
           gr_info->big_values = 288;
        }
        gr_info->pow2gain = gainpow2+256 - getbits_fast(8) + powdiff;
        if(ms_stereo)
          gr_info->pow2gain += 2;
        gr_info->scalefac_compress = getbits_fast(4);
-/* window-switching flag == 1 for block_Type != 0 .. and block-type == 0 -> win-sw-flag = 0 */
+       /* window-switching flag == 1 for block_Type != 0 ..
+          and block-type == 0 -> win-sw-flag = 0 */
        if(get1bit())
        {
          int i;
@@ -369,9 +367,9 @@ static int III_get_side_info_1(DECODER_STRUCT *w, struct III_sideinfo *si,int st
            gr_info->full_gain[i] = gr_info->pow2gain + (getbits_fast(3)<<3);
 
          if(gr_info->block_type == 0) {
-//           fprintf(stderr,"Blocktype == 0 and window-switching == 1 not allowed.\n");
-//           exit(1);
+           #ifdef DEBUG
            w->error_display("Blocktype == 0 and window-switching == 1 not allowed.");
+           #endif
            return 0;
          }
          /* region_count/start parameters are implicit in this case. */
@@ -387,16 +385,17 @@ static int III_get_side_info_1(DECODER_STRUCT *w, struct III_sideinfo *si,int st
          r1c = getbits_fast(3);
          gr_info->region1start = bandInfo[sfreq].longIdx[r0c+1] >> 1 ;
 
-// dink stuff
-         if(r0c + r1c + 2 > 22) // (dink)
+         // dink stuff
+         // gr_info->region2start = bandInfo[sfreq].longIdx[r0c+1+r1c+1] >> 1;
+         if(r0c + r1c + 2 > 22)
              gr_info->region2start = 576 >> 1;
          else
              gr_info->region2start = bandInfo[sfreq].longIdx[r0c + 1 + r1c + 1] >> 1;
-//         gr_info->region2start = bandInfo[sfreq].longIdx[r0c+1+r1c+1] >> 1;
 
          gr_info->block_type = 0;
          gr_info->mixed_block_flag = 0;
        }
+
        gr_info->preflag = get1bit();
        gr_info->scalefac_scale = get1bit();
        gr_info->count1table_select = get1bit();
@@ -427,15 +426,17 @@ static int III_get_side_info_2(DECODER_STRUCT *w,struct III_sideinfo *si,int ste
        gr_info->part2_3_length = getbits(12);
        gr_info->big_values = getbits_fast(9);
        if(gr_info->big_values > 288) {
-//         fprintf(stderr,"big_values too large!\n");
+         #ifdef DEBUG
          w->error_display("big_values too large!");
+         #endif
          gr_info->big_values = 288;
        }
        gr_info->pow2gain = gainpow2+256 - getbits_fast(8) + powdiff;
        if(ms_stereo)
          gr_info->pow2gain += 2;
        gr_info->scalefac_compress = getbits(9);
-/* window-switching flag == 1 for block_Type != 0 .. and block-type == 0 -> win-sw-flag = 0 */
+       /* window-switching flag == 1 for block_Type != 0 ..
+          and block-type == 0 -> win-sw-flag = 0 */
        if(get1bit())
        {
          int i;
@@ -452,20 +453,36 @@ static int III_get_side_info_2(DECODER_STRUCT *w,struct III_sideinfo *si,int ste
            gr_info->full_gain[i] = gr_info->pow2gain + (getbits_fast(3)<<3);
 
          if(gr_info->block_type == 0) {
-//           fprintf(stderr,"Blocktype == 0 and window-switching == 1 not allowed.\n");
-//           exit(1);
+           #ifdef DEBUG
            w->error_display("Blocktype == 0 and window-switching == 1 not allowed.");
+           #endif
            return 0;
          }
          /* region_count/start parameters are implicit in this case. */
-/* check this again! */
-         if(gr_info->block_type == 2)
-           gr_info->region1start = 36>>1;
-         else if(sfreq == 8)
-/* check this for 2.5 and sfreq=8 */
-           gr_info->region1start = 108>>1;
-         else
-           gr_info->region1start = 54>>1;
+         /* see http://www.hydrogenaudio.org/forums/lofiversion/index.php/t22878.html */
+         /* check this again! */
+         if(gr_info->block_type == 2) {
+           if(gr_info->mixed_block_flag ==0) {
+             if(sfreq == 8) {
+               gr_info->region1start = 36;
+             } else {
+               gr_info->region1start = 36>>1;
+             }
+           } else {
+             if(sfreq == 8) {
+                gr_info->region1start = 48;
+             } else {
+               gr_info->region1start = 48>>1;
+             }
+           }
+         } else {
+           if(sfreq == 8) {
+             gr_info->region1start = 54;
+           } else {
+             gr_info->region1start = 54>>1;
+           }
+         }
+
          gr_info->region2start = 576>>1;
        }
        else
@@ -477,12 +494,12 @@ static int III_get_side_info_2(DECODER_STRUCT *w,struct III_sideinfo *si,int ste
          r1c = getbits_fast(3);
          gr_info->region1start = bandInfo[sfreq].longIdx[r0c+1] >> 1 ;
 
-// dink stuff
-         if(r0c + r1c + 2 > 22) // (dink)
+         // dink stuff
+         // gr_info->region2start = bandInfo[sfreq].longIdx[r0c+1+r1c+1] >> 1;
+         if(r0c + r1c + 2 > 22)
              gr_info->region2start = 576 >> 1;
          else
              gr_info->region2start = bandInfo[sfreq].longIdx[r0c + 1 + r1c + 1] >> 1;
-//         gr_info->region2start = bandInfo[sfreq].longIdx[r0c+1+r1c+1] >> 1;
 
          gr_info->block_type = 0;
          gr_info->mixed_block_flag = 0;
@@ -993,11 +1010,13 @@ static int III_dequantize_sample(DECODER_STRUCT *w,real xr[SBLIMIT][SSLIMIT],int
   }
   if(part2remain > 0)
     getbits(part2remain);
-  else if(part2remain < 0) {
-//    fprintf(stderr,"mpg123: Can't rewind stream by %d bits!\n",-part2remain);
+  else if(part2remain < 0)
+  {
+    #ifdef DEBUG
     char errorbuf[1024];
-    sprintf(errorbuf,"mpg123: Can't rewind stream by %d bits!\n",-part2remain);
-    w->error_display(errorbuf);
+    sprintf( errorbuf, "mpg123: Can't rewind stream by %d bits!\n", -part2remain );
+    w->error_display( errorbuf );
+    #endif
     return 1; /* -> error */
   }
   return 0;
@@ -1407,10 +1426,11 @@ static int III_dequantize_sample_ms(DECODER_STRUCT *w,real xr[2][SBLIMIT][SSLIMI
   if(part2remain > 0 )
     getbits(part2remain);
   else if(part2remain < 0) {
+    #ifdef DEBUG
     char errorbuf[1024];
-//    fprintf(stderr,"mpg123_ms: Can't rewind stream by %d bits!\n",-part2remain);
-    sprintf(errorbuf,"mpg123_ms: Can't rewind stream by %d bits!\n",-part2remain);
-    w->error_display(errorbuf);
+    sprintf( errorbuf,"mpg123_ms: Can't rewind stream by %d bits!\n", -part2remain );
+    w->error_display( errorbuf );
+    #endif
     return 1; /* -> error */
   }
   return 0;
@@ -2107,7 +2127,9 @@ int do_layer3(DECODER_STRUCT *w, struct frame *fr)
        return -1;
   }
 
-  set_pointer(sideinfo.main_data_begin,fr);
+  if( !complete_main_data(sideinfo.main_data_begin,fr)) {
+    return clip;
+  }
 
   for (gr=0;gr<granules;gr++)
   {
