@@ -110,25 +110,26 @@ static BOOL plugininit  = FALSE; // plug-in is initialized (only once)
 // Update 2006-07-10 MM: Solved. Now FIR order 12288 works.
 // Higher values are possible too, but will require compensation for the latency.
 
-static float bandgain[2][NUM_BANDS+1]; // gain in dB, first entry ist master gain
-static BOOL  mute[2][NUM_BANDS+1];     // mute flags (TRUE = mute), first entry is master mute
+static float bandgain[2][NUM_BANDS+1];  // gain in dB, first entry ist master gain
+static float groupdelay[2][NUM_BANDS+1];// gruop delay in 1ms, first entry ist master delay
+static BOOL  mute[2][NUM_BANDS+1];      // mute flags (TRUE = mute), first entry is master mute
 
 // for FFT convolution...
 static struct
 { short* inbox;               // buffer to collect incoming samples
   float* time_domain;         // buffer in the time domain
   fftwf_complex* freq_domain; // buffer in the frequency domain (shared memory with design)
-  float* design;              // buffer to design filter kernel (shared memory with freq_domain)
-  float* kernel[2];           // since the kernel is real even, it's even real in the time domain
+  //float* design;              // buffer to design filter kernel (shared memory with freq_domain)
+  fftwf_complex* kernel[2];   // since the kernel is real even, it's even real in the time domain
   float* overlap[2];          // keep old samples for convolution
   fftwf_complex* channel_save;// buffer to keep the frequency domain of a mono input for a second convolution
   fftwf_plan forward_plan;    // fftw plan for time_domain -> freq_domain
   fftwf_plan backward_plan;   // fftw plan for freq_domain -> time_domain
-  fftwf_plan DCT_plan;        // fftw plan for design -> time domain
-  fftwf_plan RDCT_plan;       // fftw plan for time_domain -> kernel
+  //fftwf_plan DCT_plan;        // fftw plan for design -> time domain
+  //fftwf_plan RDCT_plan;       // fftw plan for time_domain -> kernel
   int    FIRorder;            // filter kernel length
   int    plansize;            // plansize for the FFT convolution
-  int    DCTplansize;         // plansize for the filter design
+  //int    DCTplansize;         // plansize for the filter design
 } FFT;
 
 // settings
@@ -202,6 +203,7 @@ save_ini( void )
     save_ini_value ( INIhandle, modified );
     save_ini_string( INIhandle, lasteq );
     save_ini_value ( INIhandle, bandgain );
+    save_ini_value ( INIhandle, groupdelay );
     save_ini_value ( INIhandle, mute );
 
     close_ini( INIhandle );
@@ -213,8 +215,9 @@ load_ini( void )
 {
   HINI INIhandle;
 
-  memset(bandgain, 0, sizeof bandgain);
-  memset(mute,     0, sizeof mute    );
+  memset(bandgain,   0, sizeof bandgain  );
+  memset(groupdelay, 0, sizeof groupdelay);
+  memset(mute,       0, sizeof mute      );
 
   eqenabled   = FALSE;
   lasteq[0]   = 0;
@@ -232,6 +235,7 @@ load_ini( void )
     load_ini_value ( INIhandle, modified );
     load_ini_string( INIhandle, lasteq, sizeof( lasteq ));
     load_ini_value ( INIhandle, bandgain );
+    load_ini_value ( INIhandle, groupdelay );
     load_ini_value ( INIhandle, mute );
 
     close_ini( INIhandle );
@@ -279,29 +283,38 @@ load_eq_file( char* filename )
   }
 
   // once we get here, we clear the fields
-  memset(bandgain, 0, sizeof bandgain);
-  memset(mute,     0, sizeof bandgain);
+  memset(bandgain,   0, sizeof bandgain  );
+  memset(groupdelay, 0, sizeof groupdelay);
+  memset(mute,       0, sizeof mute      );
 
   while( !feof( file ))
   {
     fgets( line, sizeof(line), file );
     blank_strip( line );
     if( *line && line[0] != '#' && line[0] != ';' )
-    {
-      if( i < NUM_BANDS )           // left gain
-        bandgain[0][i+1] = TodB(atof(line));
-       else if( i < NUM_BANDS*2 )   // right gain
-        bandgain[1][i-NUM_BANDS+1] = TodB(atof(line));
-       else if( i < NUM_BANDS*3 )   // left mute
-        mute[0][i-NUM_BANDS*2+1] = atoi(line);
-       else if( i < NUM_BANDS*4 )   // right mute
-        mute[1][i-NUM_BANDS*3+1] = atoi(line);
-       else if( i < NUM_BANDS*4+2 ) // master gain
-        bandgain[i-NUM_BANDS*4][0] = TodB(atof(line));
-       else if( i < NUM_BANDS*4+4 ) // master mute
-        mute[i-NUM_BANDS*4-2][0] = atoi(line);
-       else
-         break;
+    { if( i < NUM_BANDS )           // left gain
+      { sscanf(line, "%f %f", bandgain[0]+i+1, groupdelay[0]+i+1);
+        if (bandgain[0][i+1] != 0)
+          bandgain[0][i+1] = TodB(bandgain[0][i+1]);
+        groupdelay[0][i+1] *= 1000.;
+      } else if( i < NUM_BANDS*2 )   // right gain
+      { sscanf(line, "%f %f", bandgain[1]+i-NUM_BANDS+1, groupdelay[1]+i-NUM_BANDS+1);
+        if (bandgain[1][i-NUM_BANDS+1] != 0)
+          bandgain[1][i-NUM_BANDS+1] = TodB(bandgain[1][i-NUM_BANDS+1]);
+        groupdelay[1][i-NUM_BANDS+1] *= 1000.;
+      } else if( i < NUM_BANDS*3 )   // left mute
+      { mute[0][i-NUM_BANDS*2+1] = atoi(line);
+      } else if( i < NUM_BANDS*4 )   // right mute
+      { mute[1][i-NUM_BANDS*3+1] = atoi(line);
+      } else if( i < NUM_BANDS*4+2 ) // master gain
+      { sscanf(line, "%f %f", bandgain[i-NUM_BANDS*4], groupdelay[i-NUM_BANDS*4]);
+        if (bandgain[i-NUM_BANDS*4][0] != 0)
+          bandgain[i-NUM_BANDS*4][0] = TodB(bandgain[i-NUM_BANDS*4][0]);
+        groupdelay[i-NUM_BANDS*4][0] *= 1000.;
+      } else if( i < NUM_BANDS*4+4 ) // master mute
+      { mute[i-NUM_BANDS*4-2][0] = atoi(line);
+      } else
+        break;
       i++;
     }
   }
@@ -331,6 +344,7 @@ trash_buffers( REALEQ_STRUCT* f )
 typedef struct
 { float lf; // log frequency
   float lv; // log value
+  float de; // group delay
 } EQcoef;
 
 /* setup FIR kernel */
@@ -360,7 +374,7 @@ fil_setup( REALEQ_STRUCT* f )
     free(FFT.inbox);
     fftwf_destroy_plan(FFT.forward_plan);
     fftwf_destroy_plan(FFT.backward_plan);
-    fftwf_destroy_plan(FFT.RDCT_plan);
+    //fftwf_destroy_plan(FFT.RDCT_plan);
     fftwf_free(FFT.freq_domain);
     fftwf_free(FFT.time_domain);
     // do not free aliased arrays!
@@ -371,24 +385,24 @@ fil_setup( REALEQ_STRUCT* f )
   // copy global parameters for thread safety and round up to next power of 2
   frexp(newPlansize-1, &i); // floor(log2(plansize-1))+1
   FFT.plansize = 1 << i; // 2**x
-  DEBUGLOG(("I: %d - %p\n", FFT.plansize, FFT.DCT_plan));
+  DEBUGLOG(("I: %d\n", FFT.plansize));
 
   // allocate buffers
   FFT.inbox       = (short*)malloc(FFT.plansize * 2 * sizeof(short));
   FFT.freq_domain = (fftwf_complex*)fftwf_malloc((FFT.plansize/2+1) * sizeof *FFT.freq_domain);
   FFT.time_domain = (float*)fftwf_malloc((FFT.plansize+1) * sizeof *FFT.time_domain);
-  FFT.design      = FFT.freq_domain[0]; // Aliasing!
+  //FFT.design      = FFT.freq_domain[0]; // Aliasing!
   FFT.overlap[0]  = (float*)malloc(FFT.plansize * 2 * sizeof(float));
   FFT.overlap[1]  = FFT.overlap[0] + FFT.plansize;
   FFT.channel_save= (fftwf_complex*)FFT.overlap[1] -1; // Aliasing!
-  FFT.kernel[0]   = (float*)fftwf_malloc((FFT.plansize/2+1) * 2 * sizeof(float));
+  FFT.kernel[0]   = (fftwf_complex*)fftwf_malloc((FFT.plansize/2+1) * 2 * sizeof(fftwf_complex));
   FFT.kernel[1]   = FFT.kernel[0]  + (FFT.plansize/2+1);
 
   // prepare real 2 complex transformations
   FFT.forward_plan  = fftwf_plan_dft_r2c_1d( FFT.plansize, FFT.time_domain, FFT.freq_domain, FFTW_ESTIMATE );
   FFT.backward_plan = fftwf_plan_dft_c2r_1d( FFT.plansize, FFT.freq_domain, FFT.time_domain, FFTW_ESTIMATE );
   // prepare real 2 real transformations
-  FFT.RDCT_plan     = fftwf_plan_r2r_1d( FFT.plansize/2+1, FFT.time_domain, FFT.kernel[0], FFTW_REDFT00, FFTW_ESTIMATE );
+  //FFT.RDCT_plan     = fftwf_plan_r2r_1d( FFT.plansize/2+1, FFT.time_domain, FFT.kernel[0], FFTW_REDFT00, FFTW_ESTIMATE );
   
   trash_buffers(f);
 
@@ -406,32 +420,36 @@ fil_setup( REALEQ_STRUCT* f )
   // copy global parameters for thread safety
   FFT.FIRorder = (newFIRorder+15) & -16; /* multiple of 16 */
 
-  // calculate optimum plansize for kernel generation
+  /*// calculate optimum plansize for kernel generation
   frexp((FFT.FIRorder<<1) -1, &FFT.DCTplansize); // floor(log2(2*FIRorder-1))+1
   FFT.DCTplansize = 1 << FFT.DCTplansize; // 2**x
   // free old resources
   if (FFTinit)
     fftwf_destroy_plan(FFT.DCT_plan);
   // prepare real 2 real transformations
-  FFT.DCT_plan = fftwf_plan_r2r_1d(FFT.DCTplansize/2+1, FFT.design, FFT.time_domain, FFTW_REDFT00, FFTW_ESTIMATE);
+  FFT.DCT_plan = fftwf_plan_r2r_1d(FFT.DCTplansize/2+1, FFT.design, FFT.time_domain, FFTW_REDFT00, FFTW_ESTIMATE);*/
 
-  DEBUGLOG(("P: FIRorder: %d, Plansize: %d, DCT plansize: %d\n", FFT.FIRorder, FFT.plansize, FFT.DCTplansize));
+  DEBUGLOG(("P: FIRorder: %d, Plansize: %d\n", FFT.FIRorder, FFT.plansize));
   eqneedFIR = FALSE;
 
  doEQ:
   // STEP 3: setup filter kernel
   
-  fftspecres = (float)f->format.samplerate / FFT.DCTplansize;
+  fftspecres = (float)f->format.samplerate / FFT.plansize;
 
   // Prepare design coefficients frame
   coef[0].lf = -14; // very low frequency
+  coef[0].de = 0;
   coef[1].lf = M_LN10; // subsonic point
+  coef[1].de = 0;
   for (i = 0; i < NUM_BANDS; ++i)
     coef[i+2].lf = log(Frequencies[i]);
   coef[NUM_BANDS+2].lf = log(32000); // keep higher frequencies at 0 dB
   coef[NUM_BANDS+2].lv = 0;
+  coef[NUM_BANDS+2].de = 0;
   coef[NUM_BANDS+3].lf = 14; // very high frequency
   coef[NUM_BANDS+3].lv = 0;
+  coef[NUM_BANDS+3].de = 0;
 
   /* for left, right */
   for( channel = 0; channel < 2; channel++ )
@@ -441,63 +459,75 @@ fil_setup( REALEQ_STRUCT* f )
     // muteall?
     if (mute[channel][0])
     { // clear channel
-      memset(FFT.kernel[channel], 0, (FFT.plansize/2+1) * sizeof(float));
+      memset(FFT.kernel[channel], 0, (FFT.plansize/2+1) * sizeof(*FFT.kernel[channel]));
       continue;
     }
 
     // mute = master gain -36dB. More makes no sense since the stopband attenuation
-    // of the window function does not allow significantly better results.
-    log_mute_level = (bandgain[channel][0]-36)/20.*M_LN10;
-    coef[0].lv = log_mute_level;
-    coef[1].lv = log_mute_level;
+    // of the window function does not allow better results.
+    coef[1].lv = coef[0].lv = log_mute_level = (bandgain[channel][0]-36)/20.*M_LN10;
 
     // fill band data
     for (i = 1; i <= NUM_BANDS; ++i)
-      coef[i+2-1].lv = mute[channel][i]
+    { coef[i+2-1].lv = mute[channel][i]
        ? log_mute_level
-       : (bandgain[channel][i]+bandgain[channel][0])/20.*M_LN10;
+       : (bandgain[channel][i]+bandgain[channel][0]) / 20. * M_LN10;
+      coef[i+2-1].de = (groupdelay[channel][0] + groupdelay[channel][i]) / 1000.;
+    }
 
     // compose frequency spectrum
     { EQcoef* cop = coef;
-      FFT.design[0] = 0; // no DC
-      for (i = 1; i <= FFT.DCTplansize/2; ++i) // do not start at f=0 to avoid log(0)
+      double phase = 0;
+      FFT.freq_domain[0][0] = 0.; // no DC
+      FFT.freq_domain[0][1] = 0.;
+      for (i = 1; i <= FFT.plansize/2; ++i) // do not start at f=0 to avoid log(0)
       { const float f = i * fftspecres; // current frequency
         double pos;
         double val = log(f);
         while (val > cop[1].lf)
           ++cop;
-        // do double logarithmic sine^2 interpolation
-        pos = .5 - .5*cos(M_PI * (log(f)-cop[0].lf) / (cop[1].lf-cop[0].lf));
+        // integrate phase for group delay
+        pos = (log(f)-cop[0].lf) / (cop[1].lf-cop[0].lf);
+        phase += (cop[0].de + pos * (cop[1].de - cop[0].de)) * fftspecres * (2*M_PI);
+        // do double logarithmic sine^2 interpolation for amplitude
+        pos = .5 - .5*cos(M_PI * pos);
         val = exp(cop[0].lv + pos * (cop[1].lv - cop[0].lv));
-        FFT.design[i] = val;
-        DEBUGLOG2(("F: %i, %g, %g -> %g = %g dB @ %g\n",
-          i, f, pos, val, TodB(val), exp(cop[0].lf)));
+        // convert to cartesian coordinates
+        FFT.freq_domain[i][0] = val * cos(phase);
+        FFT.freq_domain[i][1] = val * sin(phase);
+        DEBUGLOG(("F: %i, %f, %f -> %f = %f dB, %f = %f ms@ %f\n",
+          i, f, pos, val, TodB(val), phase*180./M_PI, cop[0].de + pos * (cop[1].de - cop[0].de), exp(cop[0].lf)));
     } }
 
     // transform into the time domain
-    fftwf_execute(FFT.DCT_plan);
+    fftwf_execute(FFT.backward_plan);
     #if defined(DEBUG) && DEBUG > 1
-    for (i = 0; i <= FFT.DCTplansize/2; ++i)
+    for (i = 0; i <= FFT.plansize/2; ++i)
       DEBUGLOG2(("TK: %i, %g\n", i, FFT.time_domain[i]));
     #endif
 
     // normalize, apply window function and store results symmetrically
-    { float* sp = FFT.time_domain;
-      for (i = FFT.FIRorder/2; i >= 0; --i)
-      { *sp *= WINDOW_FUNCTION(i, FFT.FIRorder) / FFT.DCTplansize / FFT.plansize; // normalize for next FFT
-        DEBUGLOG2(("K: %i, %g\n", i, *sp));
-        ++sp;
+    { float* sp1 = FFT.time_domain;
+      float* sp2 = FFT.time_domain + FFT.plansize;
+      double tmp;
+      *sp1++ /= FFT.plansize * FFT.plansize;
+      DEBUGLOG(("K: %i, %g\n", FFT.FIRorder/2, sp1[-1]));
+      for (i = FFT.FIRorder/2 -1; i >= 0; --i)
+      { tmp = WINDOW_FUNCTION(i, FFT.FIRorder) / (FFT.plansize * FFT.plansize); // normalize for next FFT
+        *sp1++ *= tmp;
+        *--sp2 *= tmp;
+        DEBUGLOG(("K: %i, %g, %g\n", i, sp1[-1], sp2[0]));
       }
       // padding
-      memset(sp, 0, (FFT.plansize-FFT.FIRorder)/2 * sizeof *FFT.time_domain);
+      memset(sp1, 0, (sp2-sp1) * sizeof *FFT.time_domain);
     }
 
     // prepare for FFT convolution
     // transform back into the frequency domain, now with window function
-    fftwf_execute_r2r(FFT.RDCT_plan, FFT.time_domain, FFT.kernel[channel]);
+    fftwf_execute_dft_r2c(FFT.forward_plan, FFT.time_domain, FFT.kernel[channel]);
     #if defined(DEBUG) && DEBUG > 1
     for (i = 0; i <= FFT.plansize/2; ++i)
-      DEBUGLOG2(("FK: %i, %g\n", i, FFT.kernel[channel][i]));
+      DEBUGLOG2(("FK: %i, %g, %g\n", i, FFT.kernel[channel][i][0], FFT.kernel[channel][i][1]));
     DEBUGLOG2(("E: kernel completed.\n"));
     #endif
   }
@@ -510,24 +540,26 @@ fil_setup( REALEQ_STRUCT* f )
 /* do convolution and back transformation
  */
 static void
-do_fft_convolute(fftwf_complex* sp, float* kp)
+do_fft_convolute(fftwf_complex* sp, fftwf_complex* kp)
 { int l;
+  float tmp;
   fftwf_complex* dp = FFT.freq_domain;
   DEBUGLOG(("realeq:do_fft_convolute(%p, %p) - %p\n", sp, kp, dp));
   // Convolution in the frequency domain is simply a series of complex products.
-  // But because of the symmetry of the filter kernel it is just comlpex * real.
   for (l = (FFT.plansize/2+1) >> 3; l; --l)
   { DO_8(p,
-      dp[p][0] = sp[p][0] * kp[p];
-      dp[p][1] = sp[p][1] * kp[p];
+      tmp = sp[p][0] * kp[p][0] - sp[p][1] * kp[p][1];
+      dp[p][1] = sp[p][1] * kp[p][0] + sp[p][0] * kp[p][1];
+      dp[p][0] = tmp;
     );
     sp += 8;
     kp += 8;
     dp += 8;
   }
   for (l = (FFT.plansize/2+1) & 7; l; --l)
-  { dp[0][0] = sp[0][0] * kp[0];
-    dp[0][1] = sp[0][1] * kp[0];
+  { tmp = sp[0][0] * kp[0][0] - sp[0][1] * kp[0][1];
+    dp[0][1] = sp[0][1] * kp[0][0] + sp[0][0] * kp[0][1];
+    dp[0][0] = tmp;
     ++sp;
     ++kp;
     ++dp;
@@ -1014,13 +1046,13 @@ save_eq( HWND hwnd )
     fprintf( file, "# Band gains\n" );
     for( e = 0; e < 2; ++e )
       for( i = 1; i <= NUM_BANDS; i++ )
-        fprintf( file, "%g\n", ToGain(bandgain[e][i]) );
+        fprintf( file, "%g %g\n", ToGain(bandgain[e][i]), groupdelay[e][i]/1000. );
     fprintf(file, "# Mutes\n" );
     for( e = 0; e < 2; ++e )
       for( i = 1; i <= NUM_BANDS; i++ )
         fprintf(file, "%u\n", mute[e][i]);
     fprintf( file, "# Preamplifier\n" );
-    fprintf( file, "%g\n%g\n", ToGain(bandgain[0][0]), ToGain(bandgain[1][0]) );
+    fprintf( file, "%g %g\n%g %g\n", ToGain(bandgain[0][0]), groupdelay[0][0]/1000., ToGain(bandgain[1][0]), groupdelay[1][0]/1000. );
     fprintf( file, "# Master Mute\n" );
     fprintf( file, "%u\n%u\n", mute[0][0], mute[1][0] );
     fprintf( file, "# End of equalizer\n" );
@@ -1106,9 +1138,19 @@ set_slider( HWND hwnd, int channel, int band, double value )
 }
 
 static void
+load_sliders( HWND hwnd )
+{ int e,i;
+  float (*dp)[2][NUM_BANDS+1] = WinQueryButtonCheckstate( hwnd, ID_GROUPDELAY ) ? &groupdelay : &bandgain;
+  for( e = 0; e < 2; e++ )
+    for( i = 0; i <= NUM_BANDS; i++ )
+      set_slider( hwnd, e, i-1, (*dp)[e][i] );
+}
+
+static void
 load_dialog( HWND hwnd )
 {
   int     i, e;
+  float   (*dp)[2][NUM_BANDS+1] = WinQueryButtonCheckstate( hwnd, ID_GROUPDELAY ) ? &groupdelay : &bandgain;
   SHORT   range = SHORT2FROMMR( WinSendDlgItemMsg( hwnd, ID_BANDL, SLM_QUERYSLIDERINFO, MPFROM2SHORT( SMA_SLIDERARMPOSITION, SMA_RANGEVALUE ), 0 ) );
 
   for( e = 0; e < 2; e++ ) {
@@ -1126,14 +1168,14 @@ load_dialog( HWND hwnd )
       WinSendDlgItemMsg( hwnd, id, SLM_ADDDETENT,
                          MPFROMSHORT( 0 ), 0 );
 
-      DEBUGLOG2(("load_dialog: %d %d %g\n", e, i, bandgain[e][i]));
-      set_slider( hwnd, e, i-1, bandgain[e][i] );
+      DEBUGLOG2(("load_dialog: %d %d %g\n", e, i, (*dp)[e][i]));
+      set_slider( hwnd, e, i-1, (*dp)[e][i] );
     }
   }
 
   // eq enabled check box
-  WinSendDlgItemMsg( hwnd, EQ_ENABLED, BM_SETCHECK, MPFROMSHORT( eqenabled ), 0 );
-  WinSendDlgItemMsg( hwnd, ID_LOCKLR,  BM_SETCHECK, MPFROMSHORT( locklr ), 0 );
+  WinSendDlgItemMsg( hwnd, EQ_ENABLED,  BM_SETCHECK, MPFROMSHORT( eqenabled ), 0 );
+  WinSendDlgItemMsg( hwnd, ID_LOCKLR,   BM_SETCHECK, MPFROMSHORT( locklr ), 0 );
 
   WinSendDlgItemMsg( hwnd, ID_FIRORDER, SPBM_SETMASTER, MPFROMLONG( NULLHANDLE ), 0 );
   WinSendDlgItemMsg( hwnd, ID_FIRORDER, SPBM_SETLIMITS, MPFROMLONG( MAX_FIR ), MPFROMLONG( MIN_FIR ));
@@ -1151,6 +1193,15 @@ ConfigureDlgProc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
   switch( msg )
   {
     case WM_INITDLG:
+      WinSendDlgItemMsg( hwnd, ID_GAIN,       BM_SETCHECK, MPFROMSHORT( TRUE  ), 0 );
+      WinSendDlgItemMsg( hwnd, ID_GROUPDELAY, BM_SETCHECK, MPFROMSHORT( FALSE ), 0 );
+      
+      WinSetDlgItemText( hwnd, ID_UTXTL, "+12dB");
+      WinSetDlgItemText( hwnd, ID_CTXTL, "0dB");
+      WinSetDlgItemText( hwnd, ID_BTXTL, "-12dB");
+      WinSetDlgItemText( hwnd, ID_UTXTR, "+12dB");
+      WinSetDlgItemText( hwnd, ID_CTXTR, "0dB");
+      WinSetDlgItemText( hwnd, ID_BTXTR, "-12dB");
       nottheuser = TRUE;
       load_dialog( hwnd );
       nottheuser = FALSE;
@@ -1181,15 +1232,11 @@ ConfigureDlgProc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
         {
           int e,i;
 
+          memset(bandgain,   0, sizeof bandgain);
+          memset(groupdelay, 0, sizeof groupdelay);
+          memset(mute,       0, sizeof mute);
           nottheuser = TRUE;
-          memset(bandgain, 0, sizeof bandgain);
-          memset(mute, 0, sizeof mute);
-          for( e = 0; e < 2; e++ ) {
-            for( i = -1; i < NUM_BANDS; i++ ) {
-              set_slider( hwnd, e, i, 0. );
-              WinSendDlgItemMsg( hwnd, ID_MUTEL + (ID_MUTER-ID_MUTEL)*e + i, BM_SETCHECK, 0, 0 );
-            }
-          }
+          load_dialog( hwnd );
           nottheuser = FALSE;
           
           eqneedEQ = TRUE;
@@ -1283,6 +1330,33 @@ ConfigureDlgProc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
               break;
           }
           break;
+          
+        case ID_GAIN:
+        { int e; 
+          WinSetDlgItemText( hwnd, ID_UTXTL, "+12dB");
+          WinSetDlgItemText( hwnd, ID_CTXTL, "0dB");
+          WinSetDlgItemText( hwnd, ID_BTXTL, "-12dB");
+          WinSetDlgItemText( hwnd, ID_UTXTR, "+12dB");
+          WinSetDlgItemText( hwnd, ID_CTXTR, "0dB");
+          WinSetDlgItemText( hwnd, ID_BTXTR, "-12dB");
+          nottheuser = TRUE;
+          load_sliders( hwnd );
+          nottheuser = FALSE;
+          break;
+        }
+        case ID_GROUPDELAY:
+        { int e; 
+          WinSetDlgItemText( hwnd, ID_UTXTL, "+12ms");
+          WinSetDlgItemText( hwnd, ID_CTXTL, "0ms");
+          WinSetDlgItemText( hwnd, ID_BTXTL, "-12ms");
+          WinSetDlgItemText( hwnd, ID_UTXTR, "+12ms");
+          WinSetDlgItemText( hwnd, ID_CTXTR, "0ms");
+          WinSetDlgItemText( hwnd, ID_BTXTR, "-12ms");
+          nottheuser = TRUE;
+          load_sliders( hwnd );
+          nottheuser = FALSE;
+          break;
+        }
 
         default:
 
@@ -1319,9 +1393,10 @@ ConfigureDlgProc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
             }
           // sliders
           } else if( id >= ID_MASTERL && id <= ID_BANDEND ) {
-          
-            modified = TRUE;
 
+            float (*dp)[2][NUM_BANDS+1] = WinQueryButtonCheckstate( hwnd, ID_GROUPDELAY ) ? &groupdelay : &bandgain;
+            modified = TRUE;
+            
             switch( SHORT2FROMMP( mp1 ))
             {
               case SLN_CHANGE:
@@ -1339,16 +1414,16 @@ ConfigureDlgProc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
                 rangevalue = WinSendDlgItemMsg( hwnd, SHORT1FROMMP(mp1), SLM_QUERYSLIDERINFO,
                                                 MPFROM2SHORT( SMA_SLIDERARMPOSITION, SMA_RANGEVALUE ), 0 );
                 val = (int)(24.*SHORT1FROMMR( rangevalue )/(SHORT2FROMMR( rangevalue ) - 1) +.5) - 12;
-                if (val != bandgain[channel][index])
-                { bandgain[channel][index] = val;
+                if (val != (*dp)[channel][index])
+                { (*dp)[channel][index] = val;
                   if (!mute[channel][index])
                     needeq = TRUE;
                 }
                 
-                if (locklr && bandgain[channel^1][index] != val)
+                if (locklr && (*dp)[channel^1][index] != val)
                 {
                   nottheuser = TRUE;
-                  set_slider( hwnd, channel^1, index-1, bandgain[channel^1][index] = val ); 
+                  set_slider( hwnd, channel^1, index-1, (*dp)[channel^1][index] = val ); 
                   nottheuser = FALSE;
                   if (!mute[channel^1][index])
                     needeq = TRUE;

@@ -42,6 +42,16 @@
 #define ID_FIRORDER 40
 #define ID_PLANSIZE 41
 
+#define ID_GAIN     50
+#define ID_GROUPDELAY 51
+
+#define ID_UTXTL    60
+#define ID_CTXTL    61
+#define ID_BTXTL    62
+#define ID_UTXTR    65
+#define ID_CTXTR    66
+#define ID_BTXTR    67
+
 #define ID_MASTERL  100
 #define ID_BANDL    101 // .. 132
 #define ID_MASTERR  150
