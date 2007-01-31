@@ -44,9 +44,6 @@ static int
 file_open( XFILE* x, const char* filename, int oflags )
 {
   int omode = O_BINARY;
-  #if defined(__IBMC__)
-  int shflag = SH_DENYNO;
-  #endif
 
   if(( oflags & XO_WRITE ) && ( oflags & XO_READ )) {
     omode |= O_RDWR;
@@ -66,14 +63,7 @@ file_open( XFILE* x, const char* filename, int oflags )
     omode |= O_TRUNC;
   }
 
-  #if defined(__IBMC__)
-  if( oflags & XO_WRITE )
-    shflag = SH_DENYWR;
-
-  if(( x->protocol->s_handle = _sopen( filename, omode, shflag, S_IWRITE )) == -1 ) {
-  #else
-  if(( x->protocol->s_handle = open( filename, omode, S_IREAD )) == -1 ) {
-  #endif
+  if(( x->protocol->s_handle = sopen( filename, omode, SH_DENYNO )) == -1 ) {
     return -1;
   }
 
@@ -143,6 +133,21 @@ file_size( XFILE* x )
   return fi.st_size;
 }
 
+/* Cleanups the file protocol. */
+static void
+file_terminate( XFILE* x )
+{
+  if( x->protocol ) {
+    if( x->protocol->mtx_access ) {
+      DosCloseMutexSem( x->protocol->mtx_access );
+    }
+    if( x->protocol->mtx_file ) {
+      DosCloseMutexSem( x->protocol->mtx_file );
+    }
+    free( x->protocol );
+  }
+}
+
 /* Initializes the file protocol. */
 XPROTOCOL*
 file_initialize( XFILE* x )
@@ -168,23 +173,9 @@ file_initialize( XFILE* x )
     protocol->tell  = file_tell;
     protocol->seek  = file_seek;
     protocol->size  = file_size;
+    protocol->clean = file_terminate;
   }
 
   return protocol;
-}
-
-/* Cleanups the file protocol. */
-void
-file_terminate( XFILE* x )
-{
-  if( x->protocol ) {
-    if( x->protocol->mtx_access ) {
-      DosCloseMutexSem( x->protocol->mtx_access );
-    }
-    if( x->protocol->mtx_file ) {
-      DosCloseMutexSem( x->protocol->mtx_file );
-    }
-    free( x->protocol );
-  }
 }
 

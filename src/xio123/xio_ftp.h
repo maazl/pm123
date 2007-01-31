@@ -69,9 +69,7 @@ extern "C" {
 #endif
 
 /* Initializes the ftp protocol. */
-XPROTOCOL* ftp_initialize( XFILE* x );
-/* Cleanups the ftp protocol. */
-void ftp_terminate( XFILE* x );
+XPROTOCOL*  ftp_initialize( XFILE* x );
 /* Maps the error number in errnum to an error message string. */
 const char* ftp_strerror( int errnum );
 

@@ -123,7 +123,7 @@ buffer_read_ahead( void* arg )
   }
 
   buffer->tid = -1;
-  buffer_terminate( buffer );
+  buffer_terminate( x );
   _endthread();
 }
 
@@ -207,12 +207,14 @@ buffer_initialize( XFILE* x )
   }
 
   x->buffer = NULL;
-  buffer_terminate( buffer );
+  buffer_terminate( x );
 }
 
 /* Cleanups the buffer. */
-void buffer_terminate( XBUFFER* buffer )
+void buffer_terminate( XFILE* x )
 {
+  XBUFFER* buffer = x->buffer;
+
   if( buffer ) {
     if( buffer->tid != -1 ) {
       // If the thread is started, set request about its termination.
@@ -238,7 +240,11 @@ void buffer_terminate( XBUFFER* buffer )
       if( buffer->head ) {
         free( buffer->head );
       }
+      if( x->protocol ) {
+        x->protocol->clean( x );
+      }
       free( buffer );
+      free( x );
     }
   }
 }
@@ -298,7 +304,7 @@ buffer_read( XFILE* x, char* result, unsigned int count )
     {
       if( buffer->eof   ) {
         DosReleaseMutexSem( buffer->mtx_access );
-        return 0;
+        return read_done;
       }
       if( buffer->error ) {
         errno = buffer->error;
@@ -390,7 +396,7 @@ buffer_seek( XFILE* x, long offset, int origin )
       result = buffer_tell( x ) + offset;
       break;
     case XIO_SEEK_END:
-      result = buffer_filesize( x ) - offset;
+      result = buffer_filesize( x ) + offset;
       break;
     default:
       DosReleaseMutexSem( buffer->mtx_access );

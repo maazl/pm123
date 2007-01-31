@@ -90,6 +90,9 @@ typedef struct _XPROTOCOL {
      error or an unknown size. */
   long (*size )( XFILE* x );
 
+  /* Cleanups the protocol. */
+  void (*clean)( XFILE* x );
+
   HMTX mtx_access; /* Serializes access to the protocol's data. */
   HMTX mtx_file;   /* Serializes all i/o operations.            */
   int  abort;      /* Abnormal termination of all operations.   */

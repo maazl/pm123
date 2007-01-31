@@ -336,7 +336,7 @@ ftp_seek( XFILE* x, long offset, int origin )
         range = x->protocol->s_pos  + offset;
         break;
       case XIO_SEEK_END:
-        range = x->protocol->s_size - offset;
+        range = x->protocol->s_size + offset;
         break;
       default:
         return -1;
@@ -367,6 +367,22 @@ ftp_size( XFILE* x )
   return size;
 }
 
+/* Cleanups the ftp protocol. */
+static void
+ftp_terminate( XFILE* x )
+{
+  if( x->protocol ) {
+    if( x->protocol->mtx_access ) {
+      DosCloseMutexSem( x->protocol->mtx_access );
+    }
+    if( x->protocol->mtx_file ) {
+      DosCloseMutexSem( x->protocol->mtx_file );
+    }
+    free( x->protocol->s_location );
+    free( x->protocol );
+  }
+}
+
 /* Initializes the ftp protocol. */
 XPROTOCOL*
 ftp_initialize( XFILE* x )
@@ -391,25 +407,10 @@ ftp_initialize( XFILE* x )
     protocol->tell  = ftp_tell;
     protocol->seek  = ftp_seek;
     protocol->size  = ftp_size;
+    protocol->clean = ftp_terminate;
   }
 
   return protocol;
-}
-
-/* Cleanups the ftp protocol. */
-void
-ftp_terminate( XFILE* x )
-{
-  if( x->protocol ) {
-    if( x->protocol->mtx_access ) {
-      DosCloseMutexSem( x->protocol->mtx_access );
-    }
-    if( x->protocol->mtx_file ) {
-      DosCloseMutexSem( x->protocol->mtx_file );
-    }
-    free( x->protocol->s_location );
-    free( x->protocol );
-  }
 }
 
 /* Maps the error number in errnum to an error message string. */

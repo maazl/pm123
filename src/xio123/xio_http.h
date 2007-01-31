@@ -84,9 +84,7 @@ extern "C" {
 #define HTTP_MAX_REDIRECT       5
 
 /* Initializes the http protocol. */
-XPROTOCOL* http_initialize( XFILE* x );
-/* Cleanups the http protocol. */
-void http_terminate( XFILE* x );
+XPROTOCOL*  http_initialize( XFILE* x );
 /* Maps the error number in errnum to an error message string. */
 const char* http_strerror( int errnum );
 

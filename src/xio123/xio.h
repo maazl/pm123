@@ -51,6 +51,10 @@ extern "C" {
 #define XIO_META_GENRE    1
 #define XIO_META_TITLE    2
 
+#define XIO_NOT_SEEK      0
+#define XIO_CAN_SEEK      1
+#define XIO_CAN_SEEK_FAST 2
+
 typedef struct _XFILE {
 
   int scheme;
@@ -155,8 +159,9 @@ xio_set_observer( XFILE* x, unsigned long window,
 char* PM123_ENTRY
 xio_get_metainfo( XFILE* x, int type, char* result, int size );
 
-/* Returns 0 on streams incapable of seeking, 1 on streams capable
-   of seeking and returns 2 on streams capable of fast seeking. */
+/* Returns XIO_NOT_SEEK (0) on streams incapable of seeking,
+   XIO_CAN_SEEK (1) on streams capable of seeking and returns
+   XIO_CAN_SEEK_FAST (2) on streams capable of fast seeking. */
 int PM123_ENTRY
 xio_can_seek( XFILE* x );
 

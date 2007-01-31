@@ -62,17 +62,15 @@ static HMTX mutex;
 static void
 xio_terminate( XFILE* x )
 {
-  if( x->protocol ) {
-    switch( x->scheme ) {
-      case XIO_FILE: file_terminate( x ); break;
-      case XIO_FTP:  ftp_terminate ( x ); break;
-      case XIO_HTTP: http_terminate( x ); break;
-    }
-  }
   if( x->buffer ) {
-    buffer_terminate( x->buffer );
+    // At end the buffer itself will clear all others.
+    buffer_terminate( x );
+  } else {
+    if( x->protocol ) {
+      x->protocol->clean( x );
+    }
+    free( x );
   }
-  free( x );
 }
 
 /* Open file. Returns a pointer to a file structure that can be used
@@ -325,6 +323,7 @@ xio_fclose( XFILE* x )
   }
 
   DosReleaseMutexSem( x->protocol->mtx_file );
+  xio_terminate( x );
   return -1;
 }
 
@@ -513,19 +512,20 @@ xio_get_metainfo( XFILE* x, int type, char* result, int size )
   return result;
 }
 
-/* Returns 0 on streams incapable of seeking, 1 on streams capable
-   of seeking and returns 2 on streams capable of fast seeking. */
+/* Returns XIO_NOT_SEEK (0) on streams incapable of seeking,
+   XIO_CAN_SEEK (1) on streams capable of seeking and returns
+   XIO_CAN_SEEK_FAST (2) on streams capable of fast seeking. */
 int PM123_ENTRY
 xio_can_seek( XFILE* x )
 {
   if( !x->protocol->s_metaint ) {
     if( x->protocol->supports & XS_CAN_SEEK_FAST ) {
-      return 2;
+      return XIO_CAN_SEEK_FAST;
     } else if( x->protocol->supports & XS_CAN_SEEK ) {
-      return 1;
+      return XIO_CAN_SEEK;
     }
   }
-  return 0;
+  return XIO_NOT_SEEK;
 }
 
 /* Returns the read-ahead buffer size. */
@@ -703,6 +703,9 @@ unsigned long _System _DLL_InitTerm( unsigned long modhandle,
     }
     return __dll_initialize();
   } else {
+    #ifdef __DEBUG_ALLOC__
+    _dump_allocated( 0 );
+    #endif
     __dll_terminate();
     _CRT_term();
     return 1UL;
