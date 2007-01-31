@@ -30,10 +30,15 @@
 #define MINMAX_H
 
 #ifndef max 
-  #define max(a,b) (((a) > (b)) ? (a) : (b))
+  #define max( a, b ) (((a) > (b)) ? (a) : (b))
 #endif
 #ifndef min
-  #define min(a,b) (((a) < (b)) ? (a) : (b))
+  #define min( a, b ) (((a) < (b)) ? (a) : (b))
+#endif
+
+#ifndef truncate
+  /* Truncates specified value if it is out of range. */
+  #define truncate( a, min, max ) ((a) < (min) ? (min) : ((a) > (max) ? (max) : (a)))
 #endif
 
 #endif /* MINMAX_H */

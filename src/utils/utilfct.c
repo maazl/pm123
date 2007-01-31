@@ -294,9 +294,24 @@ lb_size( HWND hwnd, SHORT id )
 }
 
 /* Searches an item in a list box control. */
-SHORT lb_search( HWND hwnd, SHORT id, SHORT starti, char *item )
+SHORT
+lb_search( HWND hwnd, SHORT id, SHORT starti, char *item )
 {
   return SHORT1FROMMR( WinSendDlgItemMsg( hwnd, id, LM_SEARCHSTRING,
                        MPFROM2SHORT( 0, starti ), MPFROMP( item )));
+}
+
+/* Sets the enable state of the entryfield in the dialog template to
+   the enable flag. */
+void
+en_enable( HWND hwnd, SHORT id, BOOL enable )
+{
+  ULONG bg_color = enable ? SYSCLR_ENTRYFIELD : SYSCLR_DIALOGBACKGROUND;
+  HWND  hcontrol = WinWindowFromID( hwnd, id );
+
+  if( hcontrol ) {
+    WinSendMsg( hcontrol, EM_SETREADONLY, MPFROMSHORT( !enable ), 0 );
+    WinSetPresParam( hcontrol, PP_BACKGROUNDCOLORINDEX, sizeof( bg_color ), &bg_color );
+  }
 }
 
