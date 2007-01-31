@@ -1,0 +1,37 @@
+SYSTEM OS2V2_DLL INITINSTANCE TERMINSTANCE
+OPTION MANYAUTODATA
+OPTION DESCRIPTION 'PM123 SND Library'
+
+EXPORT sf_command           .1
+EXPORT sf_open              .2
+EXPORT sf_close             .3
+EXPORT sf_seek              .4
+EXPORT sf_error             .7
+EXPORT sf_perror            .8
+EXPORT sf_error_str         .9
+EXPORT sf_error_number      .10
+EXPORT sf_format_check      .11
+EXPORT sf_read_raw          .16
+EXPORT sf_readf_short       .17
+EXPORT sf_readf_int         .18
+EXPORT sf_readf_float       .19
+EXPORT sf_readf_double      .20
+EXPORT sf_read_short        .21
+EXPORT sf_read_int          .22
+EXPORT sf_read_float        .23
+EXPORT sf_read_double       .24
+EXPORT sf_write_raw         .32
+EXPORT sf_writef_short      .33
+EXPORT sf_writef_int        .34
+EXPORT sf_writef_float      .35
+EXPORT sf_writef_double     .36
+EXPORT sf_write_short       .37
+EXPORT sf_write_int         .38
+EXPORT sf_write_float       .39
+EXPORT sf_write_double      .40
+EXPORT sf_strerror          .50
+EXPORT sf_get_string        .60
+EXPORT sf_set_string        .61
+EXPORT sf_open_fd           .70
+EXPORT sf_open_virtual      .80
+EXPORT sf_write_sync        .90
