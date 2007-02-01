@@ -120,14 +120,14 @@ static class CL_GLUE
   friend ULONG             dec_eq             ( const float* bandgain );
   friend ULONG             dec_save           ( const char* file );
   // 4 visual interface (C style)
-  friend ULONG PM123_ENTRY out_playing_pos    ( void );
-  friend BOOL  PM123_ENTRY out_playing_data   ( void );
-  friend ULONG PM123_ENTRY out_playing_samples( FORMAT_INFO* info, char* buf, int len );
+  friend ULONG DLLENTRY    out_playing_pos    ( void );
+  friend BOOL  DLLENTRY    out_playing_data   ( void );
+  friend ULONG DLLENTRY    out_playing_samples( FORMAT_INFO* info, char* buf, int len );
 
  private: // glue
   // 4 callback interface
-  PROXYFUNCDEF void PM123_ENTRY dec_event     ( void* a, DECEVENTTYPE event, void* param ); 
-  PROXYFUNCDEF void PM123_ENTRY out_event     ( void* w, OUTEVENTTYPE event ); 
+  PROXYFUNCDEF void DLLENTRY dec_event     ( void* a, DECEVENTTYPE event, void* param ); 
+  PROXYFUNCDEF void DLLENTRY out_event     ( void* w, OUTEVENTTYPE event ); 
 } voutput;
 
 CL_GLUE::CL_GLUE()
@@ -173,7 +173,7 @@ void CL_GLUE::virtualize(int i)
   procs.output_playing_pos     = par.output_playing_pos;
   procs.output_playing_data    = par.output_playing_data;
   procs.a                      = fil.get_procs().f;
-  void (PM123_ENTRYP last_output_event)(void* w, OUTEVENTTYPE event) = params.output_event;
+  void (DLLENTRYP last_output_event)(void* w, OUTEVENTTYPE event) = params.output_event;
   // next filter
   virtualize(i-1);
   // store new callback if virtualized by the plug-in.
@@ -419,27 +419,27 @@ BOOL out_flush()
 }
 
 /* Returns 0 = success otherwize MMOS/2 error. */
-ULONG PM123_ENTRY out_playing_samples( FORMAT_INFO* info, char* buf, int len )
+ULONG DLLENTRY out_playing_samples( FORMAT_INFO* info, char* buf, int len )
 { if (!voutput.initialized)
     return (ULONG)-1; // N/A
   return (*voutput.procs.output_playing_samples)( voutput.procs.a, info, buf, len );
 }
 
 /* Returns time in ms. */
-ULONG PM123_ENTRY out_playing_pos( void )
+ULONG DLLENTRY out_playing_pos( void )
 { if (!voutput.initialized)
     return 0; // ??
   return (*voutput.procs.output_playing_pos)( voutput.procs.a );
 }
 
 /* if the output is playing. */
-BOOL PM123_ENTRY out_playing_data( void )
+BOOL DLLENTRY out_playing_data( void )
 { if (!voutput.initialized)
     return FALSE;
   return (*voutput.procs.output_playing_data)( voutput.procs.a );
 }
 
-PROXYFUNCIMP(void PM123_ENTRY, CL_GLUE)
+PROXYFUNCIMP(void DLLENTRY, CL_GLUE)
 dec_event( void* a, DECEVENTTYPE event, void* param )
 { DEBUGLOG(("plugman:dec_event(%p, %d, %p)\n", a, event, param));
   // TODO: remove this WM_ messages
@@ -468,7 +468,7 @@ dec_event( void* a, DECEVENTTYPE event, void* param )
 }
 
 /* proxy, because the decoder is not interested in OUTEVENT_END_OF_DATA */
-PROXYFUNCIMP(void PM123_ENTRY, CL_GLUE)
+PROXYFUNCIMP(void DLLENTRY, CL_GLUE)
 out_event( void* w, OUTEVENTTYPE event )
 { DEBUGLOG(("plugman:out_event(%p, %d)\n", w, event));
 
@@ -891,7 +891,7 @@ static BOOL is_file_supported(const char* const* support, const char* url)
 
 /* Returns the decoder NAME that can play this file and returns 0
    if not returns error 200 = nothing can play that. */
-ULONG PM123_ENTRY
+ULONG DLLENTRY
 dec_fileinfo( const char* filename, DECODER_INFO2* info, char* name )
 {
   BOOL* checked = (BOOL*)alloca( sizeof( BOOL ) * decoders.count() );
@@ -950,7 +950,7 @@ dec_fileinfo( const char* filename, DECODER_INFO2* info, char* name )
   return 0;
 }
 
-ULONG PM123_ENTRY
+ULONG DLLENTRY
 dec_cdinfo( char *drive, DECODER_CDINFO *info )
 {
   ULONG last_rc = 200;
@@ -969,7 +969,7 @@ dec_cdinfo( char *drive, DECODER_CDINFO *info )
   return last_rc; // returns only the last RC ... hum
 }
 
-ULONG PM123_ENTRY
+ULONG DLLENTRY
 dec_status( void )
 {
   const CL_DECODER* dp = (CL_DECODER*)decoders.current();
@@ -981,7 +981,7 @@ dec_status( void )
 }
 
 /* Length in ms, should still be valid if decoder stops. */
-ULONG PM123_ENTRY
+ULONG DLLENTRY
 dec_length( void )
 {
   const CL_DECODER* dp = (CL_DECODER*)decoders.current();

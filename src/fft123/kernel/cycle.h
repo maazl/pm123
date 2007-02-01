@@ -23,7 +23,7 @@
  *
  */
 
-/* $Id: cycle.h,v 1.1 2005/07/26 17:37:03 glass Exp $ */
+/* $Id: cycle.h,v 1.2 2006/12/21 11:27:37 glass Exp $ */
 
 /* machine-dependent cycle counters code. Needs to be inlined. */
 
@@ -215,6 +215,17 @@ static __inline__ ticks getticks(void)
 }
 
 INLINE_ELAPSED(__inline__)
+
+#define HAVE_TICK_COUNTER
+#endif
+
+/* Open Watcom C++ */
+#if defined(__WATCOMC__) && !defined(HAVE_TICK_COUNTER)
+typedef unsigned long long ticks;
+extern  ticks getticks(void);
+#pragma aux getticks = "rdtsc" value [EDX EAX];
+
+INLINE_ELAPSED(__inline)
 
 #define HAVE_TICK_COUNTER
 #endif

@@ -28,3 +28,7 @@ analyzer$(LBI): $(DEF)
 
 clean: $(MDUMMY)
 	-@del analyzer$(LBI) analyzer.dll $(OBJECTS) $(RESOURCE) 2> nul
+
+specana$(CO) : specana.h
+analyzer$(CO) : analyzer.h colormap.h specana.h
+colormap$(CO) : colormap.h analyzer.h

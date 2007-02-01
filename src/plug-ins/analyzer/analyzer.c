@@ -722,7 +722,7 @@ static void update_analyzer(void)
 /********** plug-in interface, GUI stuff ************************************/
 
 /* Returns information about plug-in. */
-int PM123_ENTRY
+int DLLENTRY
 plugin_query( PPLUGIN_QUERYPARAM query )
 {
   query->type         = PLUGIN_VISUAL;
@@ -803,7 +803,7 @@ cfg_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
 }
 
 /* Configure plug-in. */
-int PM123_ENTRY
+int DLLENTRY
 plugin_configure( HWND hwnd, HMODULE module )
 {
   WinDlgBox( HWND_DESKTOP, hwnd, cfg_dlg_proc, module, DLG_CONFIGURE, NULL );
@@ -929,7 +929,7 @@ plg_win_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
   return 0;
 }
 
-HWND PM123_ENTRY
+HWND DLLENTRY
 vis_init( PVISPLUGININIT init )
 {
   FILE* dat;
@@ -1051,7 +1051,7 @@ vis_init( PVISPLUGININIT init )
   return hanalyzer;
 }
 
-int PM123_ENTRY
+int DLLENTRY
 plugin_deinit( int unload )
 {
   HINI hini;

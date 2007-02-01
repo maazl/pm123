@@ -56,8 +56,8 @@
                                         + 0.08 * cos( 4 * M_PI * (n) / (N) ))
 
 // Entry points
-ULONG (PM123_ENTRYP decoderPlayingSamples)( FORMAT_INFO *info, char *buf, int len );
-BOOL  (PM123_ENTRYP decoderPlaying)( void );
+ULONG (DLLENTRYP decoderPlayingSamples)( FORMAT_INFO *info, char *buf, int len );
+BOOL  (DLLENTRYP decoderPlaying)( void );
 
 static int            last_numsamples = 0;// number of samples in the last call
 static WIN_FN         last_winfn;    // window function in wnd[]

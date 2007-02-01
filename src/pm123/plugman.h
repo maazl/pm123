@@ -149,10 +149,10 @@ BOOL  dec_is_active( int number );
 /* gets a merged list of the file types supported by the enabled decoders */
 void  dec_fill_types( char* result, size_t size );
 
-ULONG PM123_ENTRY dec_fileinfo( const char* filename, DECODER_INFO2* info, char* name );
-ULONG PM123_ENTRY dec_cdinfo( char* drive, DECODER_CDINFO* info );
-ULONG PM123_ENTRY dec_status( void );
-ULONG PM123_ENTRY dec_length( void );
+ULONG DLLENTRY dec_fileinfo( const char* filename, DECODER_INFO2* info, char* name );
+ULONG DLLENTRY dec_cdinfo( char* drive, DECODER_CDINFO* info );
+ULONG DLLENTRY dec_status( void );
+ULONG DLLENTRY dec_length( void );
 
 /****************************************************************************
 *
@@ -174,12 +174,12 @@ BOOL  out_flush( void );
 *  Thread safe
 *
 ****************************************************************************/
-/*ULONG PM123_ENTRY out_playing_samples( FORMAT_INFO* info, char* buf, int len );*/
-ULONG PM123_ENTRY out_playing_pos( void );
-BOOL  PM123_ENTRY out_playing_data( void );
+/*ULONG DLLENTRY out_playing_samples( FORMAT_INFO* info, char* buf, int len );*/
+ULONG DLLENTRY out_playing_pos( void );
+BOOL  DLLENTRY out_playing_data( void );
 
 /* Backward compatibility */
-BOOL  PM123_ENTRY decoder_playing( void );
+BOOL  DLLENTRY decoder_playing( void );
 
 /* initialize visual plug-in */
 BOOL  vis_init( int i );

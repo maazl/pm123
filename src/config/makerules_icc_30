@@ -42,7 +42,7 @@ LI         = implib /nologo /noi
 RC         = rc
 RFLAGS     = -n
 
-LIBS_TCP   = tcp32dll.lib
+LIBS_TCP   = tcpip32.lib
 LIBS_MM    = mmpm2.lib
 LIBS_UNI   = libuls.lib libconv.lib
 

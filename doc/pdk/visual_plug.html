@@ -14,7 +14,7 @@
 Visual plug-in's <i>vis_init()</i> routine gets called every time plug-in
 gets activated.
 <pre>
-     HWND PM123_ENTRY <b>vis_init</b>( PVISPLUGININIT initdata );
+     HWND DLLENTRY <b>vis_init</b>( PVISPLUGININIT initdata );
 </pre>
 The <code>VISPLUGININIT</code> structure contains the initialization data that
 PM123 passes to the plug-in.

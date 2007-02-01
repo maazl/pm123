@@ -42,14 +42,14 @@
 #ifndef _VDELEGATE_H
 #define _VDELEGATE_H
 
-// for PM123_ENTRYP
+// for DLLENTRYP
 #include <format.h>
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-typedef int (PM123_ENTRYP V_FUNC)();
+typedef int (DLLENTRYP V_FUNC)();
 
 #define VDELEGATE_LEN 0x1B
 /* YOU MUST NOT COPY OBJECTS OF THIS TYPE. They are not POD like. */

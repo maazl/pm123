@@ -162,7 +162,7 @@ class CD_drive
       BOOL getUPC(char UPC[7]);
       char *getDriveLetter() { return driveLetter; }
 
-      void (PM123_ENTRYP error_display)(char *);
+      void (DLLENTRYP error_display)(char *);
 
    protected:
       BOOL opened; /* hCDDrive cannot be negative and 0 is a valid handle

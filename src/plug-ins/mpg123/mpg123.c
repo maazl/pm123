@@ -286,7 +286,7 @@ end:
 
 /* Init function is called when PM123 needs the specified decoder to play
    the stream demanded by the user. */
-int PM123_ENTRY
+int DLLENTRY
 decoder_init( void** returnw )
 {
   DECODER_STRUCT* w = calloc( sizeof(*w), 1 );
@@ -303,7 +303,7 @@ decoder_init( void** returnw )
 }
 
 /* Uninit function is called when another decoder than yours is needed. */
-BOOL PM123_ENTRY
+BOOL DLLENTRY
 decoder_uninit( void* arg )
 {
   DECODER_STRUCT* w = arg;
@@ -316,7 +316,7 @@ decoder_uninit( void* arg )
   return TRUE;
 }
 
-ULONG PM123_ENTRY
+ULONG DLLENTRY
 decoder_command( void* arg, ULONG msg, DECODER_PARAMS* info )
 {
   DECODER_STRUCT* w = arg;
@@ -459,13 +459,13 @@ decoder_command( void* arg, ULONG msg, DECODER_PARAMS* info )
 }
 
 /* Returns current status of the decoder. */
-ULONG PM123_ENTRY
+ULONG DLLENTRY
 decoder_status( void* arg ) {
   return ((DECODER_STRUCT*)arg)->status;
 }
 
 /* Returns number of milliseconds the stream lasts. */
-ULONG PM123_ENTRY
+ULONG DLLENTRY
 decoder_length( void* arg )
 {
   DECODER_STRUCT* w = arg;
@@ -483,7 +483,7 @@ decoder_length( void* arg )
   return 0;
 }
 
-ULONG PM123_ENTRY
+ULONG DLLENTRY
 decoder_fileinfo( const char* filename, DECODER_INFO* info )
 {
   unsigned long header;
@@ -506,9 +506,10 @@ decoder_fileinfo( const char* filename, DECODER_INFO* info )
     info->format.size       = sizeof( info->format );
     info->format.format     = WAVE_FORMAT_PCM;
     info->format.bits       = 16;
+    info->format.samplerate = freqs[fr.sampling_frequency] >> down_sample;
+    info->format.channels   = force_mono ? 1 : 2;
     info->mpeg              = fr.mpeg25 ? 25 : ( fr.lsf ? 20 : 10 );
     info->layer             = fr.lay;
-    info->format.samplerate = freqs[fr.sampling_frequency];
     info->format.channels   = fr.stereo;
     info->mode              = fr.mode;
     info->modext            = fr.mode_ext;
@@ -573,17 +574,17 @@ decoder_fileinfo( const char* filename, DECODER_INFO* info )
   return rc;
 }
 
-ULONG PM123_ENTRY
+ULONG DLLENTRY
 decoder_trackinfo( const char* drive, int track, DECODER_INFO* info ) {
   return 200;
 }
 
-ULONG PM123_ENTRY
+ULONG DLLENTRY
 decoder_cdinfo( const char* drive, DECODER_CDINFO* info ) {
   return 100;
 }
 
-ULONG PM123_ENTRY
+ULONG DLLENTRY
 decoder_support( char* ext[], int* size )
 {
   if( size ) {
@@ -684,7 +685,7 @@ cfg_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
 }
 
 /* Configure plug-in. */
-int PM123_ENTRY
+int DLLENTRY
 plugin_configure( HWND hwnd, HMODULE module )
 {
   DEBUGLOG(("mpg123:plugin_configure(%p, %p)\n", hwnd, module));
@@ -894,7 +895,7 @@ id3_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
 }
 
 /* Edits a ID3 tag for the specified file. */
-ULONG PM123_ENTRY decoder_editmeta( HWND owner, const char* filename )
+ULONG DLLENTRY decoder_editmeta( HWND owner, const char* filename )
 {
   char    caption[_MAX_FNAME] = "ID3 Tag Editor - ";
   HWND    hwnd;
@@ -994,7 +995,7 @@ ULONG PM123_ENTRY decoder_editmeta( HWND owner, const char* filename )
 }
 
 /* Returns information about plug-in. */
-int PM123_ENTRY
+int DLLENTRY
 plugin_query( PLUGIN_QUERYPARAM* param )
 {
    param->type         = PLUGIN_DECODER;

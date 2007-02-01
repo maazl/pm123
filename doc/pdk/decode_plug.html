@@ -19,10 +19,16 @@ Decoder plug-ins must implement and export the functions defined in
 decoder_plug.h.
 <blockquote>
 <pre>
+<<<<<<< .working
 int  PM123_ENTRY <b>decoder_init</b>  ( void **w )
 BOOL PM123_ENTRY <b>decoder_uninit</b>( void *w  )</pre>
 </blockquote>
 <ul>
+=======
+     int  DLLENTRY decoder_init  ( void **w )
+     BOOL DLLENTRY decoder_uninit( void *w  )
+</pre><ul>
+>>>>>>> .merge-right.r217
 <li>w : Allocate any chunk of memory necessary for the decoder's
 function. This pointer will be passed to the other functions.
 <li>return value : -1 means the decoder was not initialized
@@ -35,11 +41,17 @@ active at any given time. It should initialize the necessary semaphores
 and threads. <code>decoder_uninit</code> is called when another decoder
 than yours is needed, and should destroy the decoder's thread,
 semaphores, other opened handles and free allocated memory for <i>w</i>.
+<<<<<<< .working
 
 <h4><a name="control_interface"></a>Control interface</h4>
 <blockquote>
 <pre>ULONG PM123_ENTRY <b>decoder_command</b>( void *w, ULONG msg, DECODER_PARAMS2 *params )</pre>
 </blockquote>
+=======
+<pre>
+     ULONG DLLENTRY decoder_command( void *w, ULONG msg, DECODER_PARAMS *params )
+</pre>
+>>>>>>> .merge-right.r217
 <ul>
 <li>msg: one of the following:
 <ul>
@@ -324,6 +336,7 @@ method), so it is a string with the following format:
 <pre>StreamingTitle='blah blah';StreamingURL='more useless information';</pre>
 </blockquote>
 Only StreamingTitle is used by PM123.
+<<<<<<< .working
 
 <h4>Status Interface</h4>
 <p>See <a href="#status_interface">level 2 status interface</a>.
@@ -336,6 +349,11 @@ They should always be functionnaly and give consistent results in any conditions
 <blockquote>
 <pre>ULONG PM123_ENTRY <b>decoder_fileinfo</b>( const char *url, DECODER_INFO *info )</pre>
 </blockquote>
+=======
+<pre>
+     ULONG DLLENTRY decoder_status( void *w )
+</pre>
+>>>>>>> .merge-right.r217
 <ul>
 <li><var>url</var> - full path or URL to the desired stream.
 <li><var>info</var> - this structure must be filled with the required information.
@@ -346,32 +364,76 @@ They should always be functionnaly and give consistent results in any conditions
 1001 = http error occured.<br>
 other values = errno.
 </ul>
+<<<<<<< .working
 <blockquote>
 <pre>ULONG PM123_ENTRY <b>decoder_trackinfo</b>( const char *drive, int track, DECODER_INFO *info )</pre>
 </blockquote>
+=======
+<pre>
+     ULONG DLLENTRY decoder_length( void *w )
+</pre>
+>>>>>>> .merge-right.r217
 <ul>
+<<<<<<< .working
 <li><var>drive</var> - ie.: "X:"
 <li><var>track</var> - CD tracks start from 1.
 <li><var>info</var> - this structure must be filled with the required information.
 <li><var>return value</var> -<br>
+=======
+<li>return value - number of milliseconds the stream lasts (you can
+report -1 if unknown).
+</ul>
+<p>
+The call to this function must be valid even if <i>DECODER_STARTING</i> or
+<i>DECODER_STOPPED</i> is reported (when the stream plays too fast for
+example).
+<pre>
+     ULONG DLLENTRY decoder_fileinfo ( char *filename, DECODER_INFO *info )
+     ULONG DLLENTRY decoder_trackinfo( char *drive, int track, DECODER_INFO *info )
+</pre>
+<ul>
+<li>filename : full path or URL to the desired stream.
+<li>drive : ie.: "X:"
+<li>track : CD tracks start from 1.
+<li>info : this structure must be filled with the required information.
+<li>return value:<br>
+>>>>>>> .merge-right.r217
 0 = everything's perfect, structure is set.<br>
 100 = error reading file (too small?).<br>
 200 = decoder can't play that.<br>
 1001 = http error occured.<br>
 other values = errno.
 </ul>
+<<<<<<< .working
 <blockquote>
 <pre>ULONG PM123_ENTRY <b>decoder_cdinfo</b>( char *drive, DECODER_CDINFO *info )</pre>
 </blockquote>
+=======
+<p>
+<i>decoder_fileinfo</i> and <i>decoder_trackinfo</i> (for CD
+decoders) must be independant from the current status of the decoder.
+It should always be functionnaly and give consistent results in any
+conditions.
+<pre>
+     ULONG DLLENTRY decoder_cdinfo( char *drive, DECODER_CDINFO *info )
+</pre>
+>>>>>>> .merge-right.r217
 <ul>
 <li>drive: ...
 <li><var>info</var> - required info on the number of tracks available from the decoder.</lI>
 </ul>
 <p>
+<<<<<<< .working
 This is used by PM123 before calling <code>decoder_trackinfo</code>.
 <blockquote>
 <pre>ULONG PM123_ENTRY decoder_support( char *fileext[], int *size )</pre>
 </blockquote>
+=======
+This is used by PM123 before calling <i>decoder_trackinfo</i>.
+<pre>
+    ULONG DLLENTRY decoder_support( char *fileext[], int *size )
+</pre>
+>>>>>>> .merge-right.r217
 <ul>
 <li><var>fileext</var> - fill this array with all the wildcard expression matching
 filenames this decoder can play (each element is a 8 bytes char array).

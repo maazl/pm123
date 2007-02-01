@@ -20,19 +20,19 @@ extern "C" {
    on some of these functions */
 typedef struct _PLUGIN_PROCS
 {
-  ULONG (PM123_ENTRYP output_playing_samples)( FORMAT_INFO* info, char* buf, int len );
-  BOOL  (PM123_ENTRYP decoder_playing)( void );
-  ULONG (PM123_ENTRYP output_playing_pos)( void );
-  ULONG (PM123_ENTRYP decoder_status)( void );
+  ULONG (DLLENTRYP output_playing_samples)( FORMAT_INFO* info, char* buf, int len );
+  BOOL  (DLLENTRYP decoder_playing)( void );
+  ULONG (DLLENTRYP output_playing_pos)( void );
+  ULONG (DLLENTRYP decoder_status)( void );
   /* name is the DLL filename of the decoder that can play that file */
-  ULONG (PM123_ENTRYP decoder_fileinfo)( const char* URL, DECODER_INFO2* info, char* name );
+  ULONG (DLLENTRYP decoder_fileinfo)( const char* URL, DECODER_INFO2* info, char* name );
 
-  int   (PM123_ENTRYP pm123_getstring)( int index, int subindex, size_t bufsize, char* buf );
-  void  (PM123_ENTRYP pm123_control)( int index, void* param );
+  int   (DLLENTRYP pm123_getstring)( int index, int subindex, size_t bufsize, char* buf );
+  void  (DLLENTRYP pm123_control)( int index, void* param );
 
   /* name is the DLL filename of the decoder that can play that track */
-  ULONG (PM123_ENTRYP decoder_cdinfo)( char* drive, DECODER_CDINFO* info );
-  ULONG (PM123_ENTRYP decoder_length)( void );
+  ULONG (DLLENTRYP decoder_cdinfo)( char* drive, DECODER_CDINFO* info );
+  ULONG (DLLENTRYP decoder_length)( void );
 
 } PLUGIN_PROCS, *PPLUGIN_PROCS;
 
@@ -86,8 +86,8 @@ typedef struct _PLUGIN_QUERYPARAM
   and donït forget to fill param->interface at plugin_query.
 #endif
 /* returns 0 -> ok */
-int PM123_ENTRY plugin_query( PLUGIN_QUERYPARAM* param );
-int PM123_ENTRY plugin_configure( HWND hwnd, HMODULE module );
+int DLLENTRY plugin_query( PLUGIN_QUERYPARAM* param );
+int DLLENTRY plugin_configure( HWND hwnd, HMODULE module );
 
 #pragma pack()
 

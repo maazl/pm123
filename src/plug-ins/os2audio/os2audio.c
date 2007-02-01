@@ -191,7 +191,7 @@ output_set_volume( void* A, unsigned char setvolume, float setamplifier )
 }
 
 /* Pauses or resumes the playback. */
-static ULONG PM123_ENTRY
+static ULONG DLLENTRY
 output_pause( void* A, BOOL pause )
 {
   OS2AUDIO* a = (OS2AUDIO*)A;
@@ -210,7 +210,7 @@ output_pause( void* A, BOOL pause )
 }
 
 /* Closes the output audio device. */
-ULONG PM123_ENTRY
+ULONG DLLENTRY
 output_close( void* A )
 {
   OS2AUDIO* a = (OS2AUDIO*)A;
@@ -421,7 +421,11 @@ output_open( OS2AUDIO* a )
   a->mci_to_fill = &a->mci_buffers[2];
 
   // Write buffers to kick off the amp mixer.
-  a->mci_mix.pmixWrite( a->mci_mix.ulMixHandle, a->mci_is_play, a->mci_buf_parms.ulNumBuffers );
+  rc = a->mci_mix.pmixWrite( a->mci_mix.ulMixHandle, a->mci_is_play, a->mci_buf_parms.ulNumBuffers );
+
+  if( LOUSHORT(rc) != MCIERR_SUCCESS ) {
+    goto end;
+  }
 
   // Current time of the device is placed at end of
   // playing the buffer, but we require this already now.
@@ -452,7 +456,7 @@ end:
 
 /* This function is called by the decoder or last in chain filter plug-in
    to play samples. */
-int PM123_ENTRY
+int DLLENTRY
 output_play_samples( void* A, FORMAT_INFO* format, char* buf, int len, int posmarker )
 {
   OS2AUDIO* a = (OS2AUDIO*)A;
@@ -575,14 +579,14 @@ output_play_samples( void* A, FORMAT_INFO* format, char* buf, int len, int posma
 
 /* Returns the posmarker from the buffer that the user
    currently hears. */
-ULONG PM123_ENTRY
+ULONG DLLENTRY
 output_playing_pos( void* A ) {
   return ((OS2AUDIO*)A)->playingpos;
 }
 
 /* This function is used by visual plug-ins so the user can visualize
    what is currently being played. */
-ULONG PM123_ENTRY
+ULONG DLLENTRY
 output_playing_samples( void* A, FORMAT_INFO* info, char* buf, int len )
 {
   OS2AUDIO* a = (OS2AUDIO*)A;
@@ -646,7 +650,7 @@ output_playing_samples( void* A, FORMAT_INFO* info, char* buf, int len )
 }
 
 /* Trashes all audio data received till this time. */
-void PM123_ENTRY
+void DLLENTRY
 output_trash_buffers( void* A, ULONG temp_playingpos )
 {
   OS2AUDIO* a = (OS2AUDIO*)A;
@@ -680,7 +684,7 @@ output_trash_buffers( void* A, ULONG temp_playingpos )
 
 /* This function is called when the user requests
    the use of output plug-in. */
-ULONG PM123_ENTRY
+ULONG DLLENTRY
 output_init( void** A )
 {
   OS2AUDIO* a;
@@ -701,7 +705,7 @@ output_init( void** A )
 
 /* This function is called when another output plug-in
    is request by the user. */
-ULONG PM123_ENTRY
+ULONG DLLENTRY
 output_uninit( void* A )
 {
   OS2AUDIO* a = (OS2AUDIO*)A;
@@ -715,12 +719,12 @@ output_uninit( void* A )
 }
 
 /* Returns TRUE if the output plug-in still has some buffers to play. */
-BOOL PM123_ENTRY
+BOOL DLLENTRY
 output_playing_data( void* A ) {
   return !((OS2AUDIO*)A)->nomoredata;
 }
 
-static ULONG PM123_ENTRY
+static ULONG DLLENTRY
 output_get_devices( char* name, int deviceid )
 {
   char buffer[256];
@@ -753,7 +757,7 @@ output_get_devices( char* name, int deviceid )
   return atoi( mip.pszReturn );
 }
 
-ULONG PM123_ENTRY
+ULONG DLLENTRY
 output_command( void* A, ULONG msg, OUTPUT_PARAMS* info )
 {
   OS2AUDIO* a = (OS2AUDIO*)A;
@@ -882,14 +886,14 @@ cfg_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
 }
 
 /* Configure plug-in. */
-int PM123_ENTRY
+int DLLENTRY
 plugin_configure( HWND hwnd, HMODULE module )
 {
   WinDlgBox( HWND_DESKTOP, hwnd, cfg_dlg_proc, module, DLG_CONFIGURE, NULL );
   return 0;
 }
 
-int PM123_ENTRY
+int DLLENTRY
 plugin_query( PLUGIN_QUERYPARAM* param )
 {
   param->type         = PLUGIN_OUTPUT;

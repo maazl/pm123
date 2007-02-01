@@ -158,7 +158,7 @@ BOOL CL_MODULE::unload_module()
 BOOL CL_MODULE::load()
 { DEBUGLOG(("CL_MODULE(%p{%s})::load()\n", this, module_name));
 
-  void (PM123_ENTRYP plugin_query)( PLUGIN_QUERYPARAM *param );
+  void (DLLENTRYP plugin_query)( PLUGIN_QUERYPARAM *param );
   if ( !load_module() || !load_function( &plugin_query, "plugin_query" ) )
     return FALSE;
 
@@ -300,7 +300,7 @@ BOOL CL_DECODER::uninit_plugin()
   return TRUE;
 }
 
-PROXYFUNCIMP(ULONG PM123_ENTRY, CL_DECODER)
+PROXYFUNCIMP(ULONG DLLENTRY, CL_DECODER)
 stub_decoder_cdinfo( const char* drive, DECODER_CDINFO* info )
 { return 100; // can't play CD
 }
@@ -309,14 +309,14 @@ stub_decoder_cdinfo( const char* drive, DECODER_CDINFO* info )
 // Proxy for level 1 decoder interface
 class CL_DECODER_PROXY_1 : public CL_DECODER
 {private:
-  ULONG (PM123_ENTRYP vdecoder_command      )( void*  w, ULONG msg, DECODER_PARAMS* params );
-  int   (PM123_ENTRYP voutput_request_buffer)( void* a, const FORMAT_INFO2* format, short** buf );
-  void  (PM123_ENTRYP voutput_commit_buffer )( void* a, int len, int posmarker );
-  void  (PM123_ENTRYP voutput_event         )( void* a, DECEVENTTYPE event, void* param );
+  ULONG (DLLENTRYP vdecoder_command      )( void*  w, ULONG msg, DECODER_PARAMS* params );
+  int   (DLLENTRYP voutput_request_buffer)( void* a, const FORMAT_INFO2* format, short** buf );
+  void  (DLLENTRYP voutput_commit_buffer )( void* a, int len, int posmarker );
+  void  (DLLENTRYP voutput_event         )( void* a, DECEVENTTYPE event, void* param );
   void* a;
-  ULONG (PM123_ENTRYP vdecoder_fileinfo )( const char* filename, DECODER_INFO* info );
-  ULONG (PM123_ENTRYP vdecoder_trackinfo)( const char* drive, int track, DECODER_INFO* info );
-  void  (PM123_ENTRYP error_display)( char* );
+  ULONG (DLLENTRYP vdecoder_fileinfo )( const char* filename, DECODER_INFO* info );
+  ULONG (DLLENTRYP vdecoder_trackinfo)( const char* drive, int track, DECODER_INFO* info );
+  void  (DLLENTRYP error_display)( char* );
   HWND  hwnd; // Window handle for catching event messages
   ULONG tid; // decoder thread id
   int   temppos;
@@ -324,10 +324,10 @@ class CL_DECODER_PROXY_1 : public CL_DECODER
   VDELEGATE vd_decoder_command, vd_decoder_event, vd_decoder_fileinfo;
 
  private:
-  PROXYFUNCDEF ULONG PM123_ENTRY proxy_1_decoder_command     ( CL_DECODER_PROXY_1* op, void* w, ULONG msg, DECODER_PARAMS2* params );
-  PROXYFUNCDEF void  PM123_ENTRY proxy_1_decoder_event       ( CL_DECODER_PROXY_1* op, void* w, OUTEVENTTYPE event );
-  PROXYFUNCDEF ULONG PM123_ENTRY proxy_1_decoder_fileinfo    ( CL_DECODER_PROXY_1* op, const char* filename, DECODER_INFO2* info );
-  PROXYFUNCDEF int   PM123_ENTRY proxy_1_decoder_play_samples( CL_DECODER_PROXY_1* op, const FORMAT_INFO* format, const char* buf, int len, int posmarker );
+  PROXYFUNCDEF ULONG DLLENTRY proxy_1_decoder_command     ( CL_DECODER_PROXY_1* op, void* w, ULONG msg, DECODER_PARAMS2* params );
+  PROXYFUNCDEF void  DLLENTRY proxy_1_decoder_event       ( CL_DECODER_PROXY_1* op, void* w, OUTEVENTTYPE event );
+  PROXYFUNCDEF ULONG DLLENTRY proxy_1_decoder_fileinfo    ( CL_DECODER_PROXY_1* op, const char* filename, DECODER_INFO2* info );
+  PROXYFUNCDEF int   DLLENTRY proxy_1_decoder_play_samples( CL_DECODER_PROXY_1* op, const FORMAT_INFO* format, const char* buf, int len, int posmarker );
   friend MRESULT EXPENTRY proxy_1_decoder_winfn(HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2);
  public: 
   CL_DECODER_PROXY_1(CL_MODULE& mod) : CL_DECODER(mod), hwnd(NULLHANDLE) {}
@@ -356,11 +356,11 @@ BOOL CL_DECODER_PROXY_1::load_plugin()
 
   load_optional_function(&decoder_editmeta, "decoder_editmeta");
   load_optional_function(&decoder_getwizzard, "decoder_getwizzard");
-  decoder_command   = (ULONG (PM123_ENTRYP)(void*, ULONG, DECODER_PARAMS2*))
+  decoder_command   = (ULONG (DLLENTRYP)(void*, ULONG, DECODER_PARAMS2*))
                       mkvdelegate(&vd_decoder_command,  (V_FUNC)&proxy_1_decoder_command,  3, this);
-  decoder_event     = (void  (PM123_ENTRYP)(void*, OUTEVENTTYPE))
+  decoder_event     = (void  (DLLENTRYP)(void*, OUTEVENTTYPE))
                       mkvdelegate(&vd_decoder_event,    (V_FUNC)&proxy_1_decoder_event,    2, this);
-  decoder_fileinfo  = (ULONG (PM123_ENTRYP)(const char*, DECODER_INFO2*))
+  decoder_fileinfo  = (ULONG (DLLENTRYP)(const char*, DECODER_INFO2*))
                       mkvdelegate(&vd_decoder_fileinfo, (V_FUNC)&proxy_1_decoder_fileinfo, 2, this);
   tid = (ULONG)-1;
     
@@ -380,7 +380,7 @@ BOOL CL_DECODER_PROXY_1::load_plugin()
 
 
 /* proxy for the output callback of decoder interface level 0/1 */
-PROXYFUNCIMP(int PM123_ENTRY, CL_DECODER_PROXY_1)
+PROXYFUNCIMP(int DLLENTRY, CL_DECODER_PROXY_1)
 proxy_1_decoder_play_samples( CL_DECODER_PROXY_1* op, const FORMAT_INFO* format, const char* buf, int len, int posmarker )
 { DEBUGLOG(("proxy_1_decoder_play_samples(%p {%s}, %p, %p, %i, %i)\n",
     op, op->module_name, format, buf, len, posmarker));
@@ -437,7 +437,7 @@ proxy_1_decoder_play_samples( CL_DECODER_PROXY_1* op, const FORMAT_INFO* format,
 }
 
 /* Proxy for loading interface level 0/1 */
-PROXYFUNCIMP(ULONG PM123_ENTRY, CL_DECODER_PROXY_1)
+PROXYFUNCIMP(ULONG DLLENTRY, CL_DECODER_PROXY_1)
 proxy_1_decoder_command( CL_DECODER_PROXY_1* op, void* w, ULONG msg, DECODER_PARAMS2* params )
 { DEBUGLOG(("proxy_1_decoder_command(%p {%s}, %p, %d, %p)\n", op, op->module_name, w, msg, params));
   
@@ -477,7 +477,7 @@ proxy_1_decoder_command( CL_DECODER_PROXY_1* op, void* w, ULONG msg, DECODER_PAR
     op->hwnd = WinCreateWindow(amp_player_window(), "CL_DECODER_PROXY_1", "", 0, 0,0, 0,0, NULLHANDLE, HWND_BOTTOM, 42, NULL, NULL);
     WinSetWindowPtr(op->hwnd, 0, op);
    
-    par1.output_play_samples = (int (PM123_ENTRYP)(void*, const FORMAT_INFO*, const char*, int, int))&PROXYFUNCREF(CL_DECODER_PROXY_1)proxy_1_decoder_play_samples;
+    par1.output_play_samples = (int (DLLENTRYP)(void*, const FORMAT_INFO*, const char*, int, int))&PROXYFUNCREF(CL_DECODER_PROXY_1)proxy_1_decoder_play_samples;
     par1.a                   = op;
     par1.proxyurl            = params->proxyurl;
     par1.httpauth            = params->httpauth;
@@ -530,7 +530,7 @@ proxy_1_decoder_command( CL_DECODER_PROXY_1* op, void* w, ULONG msg, DECODER_PAR
 }
 
 /* Proxy for loading interface level 0/1 */
-PROXYFUNCIMP(void PM123_ENTRY, CL_DECODER_PROXY_1)
+PROXYFUNCIMP(void DLLENTRY, CL_DECODER_PROXY_1)
 proxy_1_decoder_event( CL_DECODER_PROXY_1* op, void* w, OUTEVENTTYPE event )
 { DEBUGLOG(("proxy_1_decoder_event(%p {%s}, %p, %d)\n", op, op->module_name, w, event));
   
@@ -545,7 +545,7 @@ proxy_1_decoder_event( CL_DECODER_PROXY_1* op, void* w, OUTEVENTTYPE event )
   }
 }
 
-PROXYFUNCIMP(ULONG PM123_ENTRY, CL_DECODER_PROXY_1)
+PROXYFUNCIMP(ULONG DLLENTRY, CL_DECODER_PROXY_1)
 proxy_1_decoder_fileinfo( CL_DECODER_PROXY_1* op, const char* filename, DECODER_INFO2 *info )
 { DEBUGLOG(("proxy_1_decoder_fileinfo(%p, %s, %p)\n", op, filename, info));
 
@@ -679,8 +679,8 @@ BOOL CL_OUTPUT::uninit_plugin()
 // Proxy for loading level 1 plug-ins
 class CL_OUTPUT_PROXY_1 : public CL_OUTPUT
 {private:
-  int         (PM123_ENTRYP voutput_command     )( void*  a, ULONG msg, OUTPUT_PARAMS* info );
-  int         (PM123_ENTRYP voutput_play_samples)( void*  a, const FORMAT_INFO* format, const char* buf, int len, int posmarker );
+  int         (DLLENTRYP voutput_command     )( void*  a, ULONG msg, OUTPUT_PARAMS* info );
+  int         (DLLENTRYP voutput_play_samples)( void*  a, const FORMAT_INFO* format, const char* buf, int len, int posmarker );
   short       voutput_buffer[BUFSIZE/2];
   int         voutput_buffer_level;             // current level of voutput_buffer
   BOOL        voutput_trash_buffer;
@@ -690,14 +690,14 @@ class CL_OUTPUT_PROXY_1 : public CL_OUTPUT
   FORMAT_INFO voutput_format;
   int         voutput_bufsamples;
   BOOL        voutput_always_hungry;
-  void        (PM123_ENTRYP voutput_event)(void* w, OUTEVENTTYPE event);
+  void        (DLLENTRYP voutput_event)(void* w, OUTEVENTTYPE event);
   void*       voutput_w;
   VDELEGATE   vd_output_command, vd_output_request_buffer, vd_output_commit_buffer;
 
  private:
-  PROXYFUNCDEF ULONG PM123_ENTRY proxy_1_output_command       ( CL_OUTPUT_PROXY_1* op, void* a, ULONG msg, OUTPUT_PARAMS2* info );
-  PROXYFUNCDEF int   PM123_ENTRY proxy_1_output_request_buffer( CL_OUTPUT_PROXY_1* op, void* a, const FORMAT_INFO2* format, short** buf );
-  PROXYFUNCDEF void  PM123_ENTRY proxy_1_output_commit_buffer ( CL_OUTPUT_PROXY_1* op, void* a, int len, int posmarker );
+  PROXYFUNCDEF ULONG DLLENTRY proxy_1_output_command       ( CL_OUTPUT_PROXY_1* op, void* a, ULONG msg, OUTPUT_PARAMS2* info );
+  PROXYFUNCDEF int   DLLENTRY proxy_1_output_request_buffer( CL_OUTPUT_PROXY_1* op, void* a, const FORMAT_INFO2* format, short** buf );
+  PROXYFUNCDEF void  DLLENTRY proxy_1_output_commit_buffer ( CL_OUTPUT_PROXY_1* op, void* a, int len, int posmarker );
   friend MRESULT EXPENTRY proxy_1_output_winfn(HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2);
  public:
   CL_OUTPUT_PROXY_1(CL_MODULE& mod) : CL_OUTPUT(mod), voutput_hwnd(NULLHANDLE) {}
@@ -723,11 +723,11 @@ BOOL CL_OUTPUT_PROXY_1::load_plugin()
     || !load_function(&voutput_play_samples,   "output_play_samples") )
     return FALSE;
 
-  output_command        = (ULONG (PM123_ENTRYP)(void*, ULONG, OUTPUT_PARAMS2*))
+  output_command        = (ULONG (DLLENTRYP)(void*, ULONG, OUTPUT_PARAMS2*))
                           mkvdelegate(&vd_output_command,        (V_FUNC)&proxy_1_output_command,        3, this);
-  output_request_buffer = (int   (PM123_ENTRYP)(void*, const FORMAT_INFO2*, short**))
+  output_request_buffer = (int   (DLLENTRYP)(void*, const FORMAT_INFO2*, short**))
                           mkvdelegate(&vd_output_request_buffer, (V_FUNC)&proxy_1_output_request_buffer, 4, this);
-  output_commit_buffer  = (void  (PM123_ENTRYP)(void*, int, int))
+  output_commit_buffer  = (void  (DLLENTRYP)(void*, int, int))
                           mkvdelegate(&vd_output_commit_buffer,  (V_FUNC)&proxy_1_output_commit_buffer,  3, this);
 
   a = NULL;
@@ -735,7 +735,7 @@ BOOL CL_OUTPUT_PROXY_1::load_plugin()
 }
 
 /* virtualization of level 1 output plug-ins */
-PROXYFUNCIMP(ULONG PM123_ENTRY, CL_OUTPUT_PROXY_1)
+PROXYFUNCIMP(ULONG DLLENTRY, CL_OUTPUT_PROXY_1)
 proxy_1_output_command( CL_OUTPUT_PROXY_1* op, void* a, ULONG msg, OUTPUT_PARAMS2* info )
 { DEBUGLOG(("proxy_1_output_command(%p {%s}, %p, %d, %p)\n", op, op->module_name, a, msg, info));
     
@@ -807,7 +807,7 @@ proxy_1_output_command( CL_OUTPUT_PROXY_1* op, void* a, ULONG msg, OUTPUT_PARAMS
   return r;
 }
 
-PROXYFUNCIMP(int PM123_ENTRY, CL_OUTPUT_PROXY_1)
+PROXYFUNCIMP(int DLLENTRY, CL_OUTPUT_PROXY_1)
 proxy_1_output_request_buffer( CL_OUTPUT_PROXY_1* op, void* a, const FORMAT_INFO2* format, short** buf )
 {
   #ifdef DEBUG 
@@ -846,7 +846,7 @@ proxy_1_output_request_buffer( CL_OUTPUT_PROXY_1* op, void* a, const FORMAT_INFO
   return op->voutput_bufsamples - op->voutput_buffer_level;
 }
 
-PROXYFUNCIMP(void PM123_ENTRY, CL_OUTPUT_PROXY_1)
+PROXYFUNCIMP(void DLLENTRY, CL_OUTPUT_PROXY_1)
 proxy_1_output_commit_buffer( CL_OUTPUT_PROXY_1* op, void* a, int len, int posmarker )
 { DEBUGLOG(("proxy_1_output_commit_buffer(%p {%s}, %p, %i, %i) - %d\n",
     op, op->module_name, a, len, posmarker, op->voutput_buffer_level));
@@ -931,22 +931,22 @@ BOOL CL_FILTER::initialize(FILTER_PARAMS2* params)
   } else
   { // virtualize untouched functions
     if (par.output_command          == params->output_command)
-      params->output_command         = (ULONG (PM123_ENTRYP)(void*, ULONG, OUTPUT_PARAMS2*))
+      params->output_command         = (ULONG (DLLENTRYP)(void*, ULONG, OUTPUT_PARAMS2*))
                                        mkvreplace1(&vrstubs[0], (V_FUNC)par.output_command, par.a);
     if (par.output_playing_samples  == params->output_playing_samples)
-      params->output_playing_samples = (ULONG (PM123_ENTRYP)(void*, FORMAT_INFO*, char*, int))
+      params->output_playing_samples = (ULONG (DLLENTRYP)(void*, FORMAT_INFO*, char*, int))
                                        mkvreplace1(&vrstubs[1], (V_FUNC)par.output_playing_samples, par.a);
     if (par.output_request_buffer   == params->output_request_buffer)
-      params->output_request_buffer  = (int (PM123_ENTRYP)(void*, const FORMAT_INFO2*, short**))
+      params->output_request_buffer  = (int (DLLENTRYP)(void*, const FORMAT_INFO2*, short**))
                                        mkvreplace1(&vrstubs[2], (V_FUNC)par.output_request_buffer, par.a);
     if (par.output_commit_buffer    == params->output_commit_buffer)
-      params->output_commit_buffer   = (void (PM123_ENTRYP)(void*, int, int))
+      params->output_commit_buffer   = (void (DLLENTRYP)(void*, int, int))
                                        mkvreplace1(&vrstubs[3], (V_FUNC)par.output_commit_buffer, par.a);
     if (par.output_playing_pos      == params->output_playing_pos)
-      params->output_playing_pos     = (int (PM123_ENTRYP)(void*))
+      params->output_playing_pos     = (int (DLLENTRYP)(void*))
                                        mkvreplace1(&vrstubs[4], (V_FUNC)par.output_playing_pos, par.a);
     if (par.output_playing_data     == params->output_playing_data)
-      params->output_playing_data    = (BOOL (PM123_ENTRYP)(void*))
+      params->output_playing_data    = (BOOL (DLLENTRYP)(void*))
                                        mkvreplace1(&vrstubs[5], (V_FUNC)par.output_playing_data, par.a);
   }
   return TRUE;
@@ -956,14 +956,14 @@ BOOL CL_FILTER::initialize(FILTER_PARAMS2* params)
 // proxy for level 1 filters
 class CL_FILTER_PROXY_1 : public CL_FILTER
 {private:
-  int   (PM123_ENTRYP vfilter_init         )( void** f, FILTER_PARAMS* params );
-  BOOL  (PM123_ENTRYP vfilter_uninit       )( void*  f );
-  int   (PM123_ENTRYP vfilter_play_samples )( void*  f, const FORMAT_INFO* format, const char *buf, int len, int posmarker );
+  int   (DLLENTRYP vfilter_init         )( void** f, FILTER_PARAMS* params );
+  BOOL  (DLLENTRYP vfilter_uninit       )( void*  f );
+  int   (DLLENTRYP vfilter_play_samples )( void*  f, const FORMAT_INFO* format, const char *buf, int len, int posmarker );
   void*       vf;
-  int   (PM123_ENTRYP output_request_buffer)( void*  a, const FORMAT_INFO2* format, short** buf );
-  void  (PM123_ENTRYP output_commit_buffer )( void*  a, int len, int posmarker );
+  int   (DLLENTRYP output_request_buffer)( void*  a, const FORMAT_INFO2* format, short** buf );
+  void  (DLLENTRYP output_commit_buffer )( void*  a, int len, int posmarker );
   void*       a;
-  void  (PM123_ENTRYP error_display        )( char* );
+  void  (DLLENTRYP error_display        )( char* );
   FORMAT_INFO vformat;                      // format of the samples
   short       vbuffer[BUFSIZE/2];           // buffer to store incoming samples
   int         vbufsamples;                  // size of vbuffer in samples
@@ -975,12 +975,12 @@ class CL_FILTER_PROXY_1 : public CL_FILTER
   VREPLACE1   vr_filter_uninit;
 
  private:
-  PROXYFUNCDEF ULONG PM123_ENTRY proxy_1_filter_init          ( CL_FILTER_PROXY_1* pp, void** f, FILTER_PARAMS2* params );
-  PROXYFUNCDEF void  PM123_ENTRY proxy_1_filter_update        ( CL_FILTER_PROXY_1* pp, const FILTER_PARAMS2* params );
-  PROXYFUNCDEF BOOL  PM123_ENTRY proxy_1_filter_uninit        ( void* f ); // empty stub
-  PROXYFUNCDEF int   PM123_ENTRY proxy_1_filter_request_buffer( CL_FILTER_PROXY_1* f, const FORMAT_INFO2* format, short** buf );
-  PROXYFUNCDEF void  PM123_ENTRY proxy_1_filter_commit_buffer ( CL_FILTER_PROXY_1* f, int len, int posmarker );
-  PROXYFUNCDEF int   PM123_ENTRY proxy_1_filter_play_samples  ( CL_FILTER_PROXY_1* f, const FORMAT_INFO* format, const char *buf, int len, int posmarker );
+  PROXYFUNCDEF ULONG DLLENTRY proxy_1_filter_init          ( CL_FILTER_PROXY_1* pp, void** f, FILTER_PARAMS2* params );
+  PROXYFUNCDEF void  DLLENTRY proxy_1_filter_update        ( CL_FILTER_PROXY_1* pp, const FILTER_PARAMS2* params );
+  PROXYFUNCDEF BOOL  DLLENTRY proxy_1_filter_uninit        ( void* f ); // empty stub
+  PROXYFUNCDEF int   DLLENTRY proxy_1_filter_request_buffer( CL_FILTER_PROXY_1* f, const FORMAT_INFO2* format, short** buf );
+  PROXYFUNCDEF void  DLLENTRY proxy_1_filter_commit_buffer ( CL_FILTER_PROXY_1* f, int len, int posmarker );
+  PROXYFUNCDEF int   DLLENTRY proxy_1_filter_play_samples  ( CL_FILTER_PROXY_1* f, const FORMAT_INFO* format, const char *buf, int len, int posmarker );
  public:
   CL_FILTER_PROXY_1(CL_MODULE& mod) : CL_FILTER(mod) {}
   virtual BOOL load_plugin();
@@ -994,13 +994,13 @@ BOOL CL_FILTER_PROXY_1::load_plugin()
     || !load_function(&vfilter_play_samples, "filter_play_samples") )
     return FALSE;
 
-  filter_init   = (ULONG (PM123_ENTRYP)(void**, FILTER_PARAMS2*))
+  filter_init   = (ULONG (DLLENTRYP)(void**, FILTER_PARAMS2*))
                   mkvdelegate(&vd_filter_init, (V_FUNC)&proxy_1_filter_init, 2, this);
-  filter_update = (void  (PM123_ENTRYP)(void* f, const FILTER_PARAMS2* params))
+  filter_update = (void  (DLLENTRYP)(void* f, const FILTER_PARAMS2* params))
                   mkvreplace1(&vr_filter_update, (V_FUNC)&proxy_1_filter_update, this);
   // filter_uninit is initialized at the filter_init call to a non-no-op function
   // However, the returned pointer will stay the same.
-  filter_uninit = (BOOL (PM123_ENTRYP)(void* f))
+  filter_uninit = (BOOL (DLLENTRYP)(void* f))
                   mkvreplace1(&vr_filter_uninit, (V_FUNC)&proxy_1_filter_uninit, NULL);
 
   f = NULL;
@@ -1008,13 +1008,13 @@ BOOL CL_FILTER_PROXY_1::load_plugin()
   return TRUE;
 }
 
-PROXYFUNCIMP(ULONG PM123_ENTRY, CL_FILTER_PROXY_1)
+PROXYFUNCIMP(ULONG DLLENTRY, CL_FILTER_PROXY_1)
 proxy_1_filter_init( CL_FILTER_PROXY_1* pp, void** f, FILTER_PARAMS2* params )
 { DEBUGLOG(("proxy_1_filter_init(%p{%s}, %p, %p{a=%p})\n", pp, pp->module_name, f, params, params->a));
 
   FILTER_PARAMS par;
   par.size                = sizeof par;
-  par.output_play_samples = (int (PM123_ENTRYP)(void*, const FORMAT_INFO*, const char*, int, int))
+  par.output_play_samples = (int (DLLENTRYP)(void*, const FORMAT_INFO*, const char*, int, int))
                             &PROXYFUNCREF(CL_FILTER_PROXY_1)proxy_1_filter_play_samples;
   par.a                   = pp;
   par.audio_buffersize    = BUFSIZE;
@@ -1038,14 +1038,14 @@ proxy_1_filter_init( CL_FILTER_PROXY_1* pp, void** f, FILTER_PARAMS2* params )
   mkvreplace1(&pp->vr_filter_uninit, (V_FUNC)pp->vfilter_uninit, pp->vf);
   // now return some values
   *f = pp;
-  params->output_request_buffer = (int  (PM123_ENTRYP)(void*, const FORMAT_INFO2*, short**))
+  params->output_request_buffer = (int  (DLLENTRYP)(void*, const FORMAT_INFO2*, short**))
                                   &PROXYFUNCREF(CL_FILTER_PROXY_1)proxy_1_filter_request_buffer;
-  params->output_commit_buffer  = (void (PM123_ENTRYP)(void*, int, int))
+  params->output_commit_buffer  = (void (DLLENTRYP)(void*, int, int))
                                   &PROXYFUNCREF(CL_FILTER_PROXY_1)proxy_1_filter_commit_buffer;
   return 0;
 }
 
-PROXYFUNCIMP(void PM123_ENTRY, CL_FILTER_PROXY_1)
+PROXYFUNCIMP(void DLLENTRY, CL_FILTER_PROXY_1)
 proxy_1_filter_update( CL_FILTER_PROXY_1* pp, const FILTER_PARAMS2* params )
 { DEBUGLOG(("proxy_1_filter_update(%p{%s}, %p)\n", pp, pp->module_name, params));
 
@@ -1057,12 +1057,12 @@ proxy_1_filter_update( CL_FILTER_PROXY_1* pp, const FILTER_PARAMS2* params )
   DosExitCritSec();
 }
 
-PROXYFUNCIMP(BOOL PM123_ENTRY, CL_FILTER_PROXY_1)
+PROXYFUNCIMP(BOOL DLLENTRY, CL_FILTER_PROXY_1)
 proxy_1_filter_uninit( void* )
 { return TRUE;
 }
 
-PROXYFUNCIMP(int PM123_ENTRY, CL_FILTER_PROXY_1)
+PROXYFUNCIMP(int DLLENTRY, CL_FILTER_PROXY_1)
 proxy_1_filter_request_buffer( CL_FILTER_PROXY_1* pp, const FORMAT_INFO2* format, short** buf )
 { DEBUGLOG(("proxy_1_filter_request_buffer(%p, %p, %p)\n", pp, format, buf));
 
@@ -1092,7 +1092,7 @@ proxy_1_filter_request_buffer( CL_FILTER_PROXY_1* pp, const FORMAT_INFO2* format
   return pp->vbufsamples - pp->vbuflevel;
 }
 
-PROXYFUNCIMP(void PM123_ENTRY, CL_FILTER_PROXY_1)
+PROXYFUNCIMP(void DLLENTRY, CL_FILTER_PROXY_1)
 proxy_1_filter_commit_buffer( CL_FILTER_PROXY_1* pp, int len, int posmarker )
 { DEBUGLOG(("proxy_1_filter_commit_buffer(%p, %d, %d)\n", pp, len, posmarker));
   
@@ -1111,7 +1111,7 @@ proxy_1_filter_commit_buffer( CL_FILTER_PROXY_1* pp, int len, int posmarker )
   }
 }
 
-PROXYFUNCIMP(int PM123_ENTRY, CL_FILTER_PROXY_1)
+PROXYFUNCIMP(int DLLENTRY, CL_FILTER_PROXY_1)
 proxy_1_filter_play_samples( CL_FILTER_PROXY_1* pp, const FORMAT_INFO* format, const char *buf, int len, int posmarker )
 { DEBUGLOG(("proxy_1_filter_play_samples(%p, %p{%d,%d,%d,%d}, %p, %d, %d)\n",
     pp, format, format->samplerate, format->channels, format->bits, format->format, buf, len, posmarker));

@@ -258,12 +258,12 @@ MRESULT EXPENTRY amp_file_dlg_proc( HWND, ULONG, MPARAM, MPARAM );
 
 BOOL  amp_load_eq_file( char* filename, float* gains, BOOL* mutes, float* preamp );
 
-int  PM123_ENTRY pm123_getstring( int index, int subindex, size_t bufsize, char* buf );
-void PM123_ENTRY pm123_control  ( int index, void* param );
+int  DLLENTRY pm123_getstring( int index, int subindex, size_t bufsize, char* buf );
+void DLLENTRY pm123_control  ( int index, void* param );
 
 /* visualize errors from anywhere */
-extern void PM123_ENTRY amp_display_info ( char* );
-extern void PM123_ENTRY amp_display_error( char* );
+extern void DLLENTRY amp_display_info ( char* );
+extern void DLLENTRY amp_display_error( char* );
 
 typedef struct
 {

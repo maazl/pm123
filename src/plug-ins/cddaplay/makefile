@@ -9,7 +9,7 @@ INCDIR   = $(TOPDIR)\utils;$(TOPDIR)\include;ciscgi
 !include $(TOPDIR)\config\makerules
 
 OBJECTS  = cdda$(CO) readcd$(CO) tcpipsock$(CO) http$(CO) cddb$(CO)
-LIBS     = $(LIBS_TCP) $(TOPDIR)\utils\utilfct$(LBO) ciscgi\ciscgi$(LBO) $(LIBS_UNI)
+LIBS     = $(TOPDIR)\utils\utilfct$(LBO) ciscgi\ciscgi$(LBO) $(LIBS_TCP) $(LIBS_UNI)
 DEF      = cdda$(LDEF_SUFFX)
 RESOURCE = cdda$(RES)
 

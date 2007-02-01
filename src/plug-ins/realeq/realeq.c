@@ -51,11 +51,10 @@
 #include <plugin.h>
 #include "realeq.h"
 
-//#undef DEBUG
 //#define DEBUG 2
 #include <debuglog.h>
 
-#define VERSION "Real Equalizer 1.22"
+#define PLUGIN "Real Equalizer 1.22"
 #define MAX_COEF 32768
 #define MIN_COEF   512
 #define MAX_FIR  16384
@@ -170,11 +169,11 @@ static BOOL modified  = TRUE; // Flag whether the current settings are a modifie
 
 typedef struct {
 
-   ULONG (PM123_ENTRYP output_command)       ( void* a, ULONG msg, OUTPUT_PARAMS2* info );
-   int   (PM123_ENTRYP output_request_buffer)( void* a, const FORMAT_INFO2* format, short** buf );
-   void  (PM123_ENTRYP output_commit_buffer) ( void* a, int len, int posmarker );
+   ULONG (DLLENTRYP output_command)       ( void* a, ULONG msg, OUTPUT_PARAMS2* info );
+   int   (DLLENTRYP output_request_buffer)( void* a, const FORMAT_INFO2* format, short** buf );
+   void  (DLLENTRYP output_commit_buffer) ( void* a, int len, int posmarker );
    void* a;
-   void  (PM123_ENTRYP error_display)        ( char* );
+   void  (DLLENTRYP error_display)        ( char* );
 
    FORMAT_INFO2 format;
 
@@ -860,7 +859,7 @@ local_flush( REALEQ_STRUCT* f )
 }
 
 /* Entry point: do filtering */
-static int PM123_ENTRY
+static int DLLENTRY
 filter_request_buffer( REALEQ_STRUCT* f, const FORMAT_INFO2* format, short** buf )
 { BOOL enabled;
   #ifdef DEBUG
@@ -914,7 +913,7 @@ filter_request_buffer( REALEQ_STRUCT* f, const FORMAT_INFO2* format, short** buf
   }
 }
 
-static void PM123_ENTRY
+static void DLLENTRY
 filter_commit_buffer( REALEQ_STRUCT* f, int len, int posmarker )
 {
   DEBUGLOG(("realeq:filter_commit_buffer(%p, %u, %u) - %d %d\n", f, len, posmarker, f->inboxlevel, f->latency));
@@ -936,7 +935,7 @@ filter_commit_buffer( REALEQ_STRUCT* f, int len, int posmarker )
   }
 }
 
-static ULONG PM123_ENTRY
+static ULONG DLLENTRY
 filter_command( REALEQ_STRUCT* f, ULONG msg, OUTPUT_PARAMS2* info )
 { DEBUGLOG(("realeq:filter_command(%p, %u, %p)\n", f, msg, info));
   switch (msg)
@@ -956,7 +955,7 @@ filter_command( REALEQ_STRUCT* f, ULONG msg, OUTPUT_PARAMS2* info )
 
 /********** Entry point: Initialize
 */
-ULONG PM123_ENTRY
+ULONG DLLENTRY
 filter_init( void** F, FILTER_PARAMS2* params )
 {
   REALEQ_STRUCT* f = (REALEQ_STRUCT*)malloc( sizeof( REALEQ_STRUCT ));
@@ -980,13 +979,13 @@ filter_init( void** F, FILTER_PARAMS2* params )
   f->format.samplerate     = 0;
   f->format.channels       = 0;
   
-  params->output_command        = (ULONG (PM123_ENTRYP)(void*, ULONG, OUTPUT_PARAMS2*))      &filter_command;
-  params->output_request_buffer = (int   (PM123_ENTRYP)(void*, const FORMAT_INFO2*, short**))&filter_request_buffer;
-  params->output_commit_buffer  = (void  (PM123_ENTRYP)(void*, int, int))                    &filter_commit_buffer;
+  params->output_command        = (ULONG (DLLENTRYP)(void*, ULONG, OUTPUT_PARAMS2*))      &filter_command;
+  params->output_request_buffer = (int   (DLLENTRYP)(void*, const FORMAT_INFO2*, short**))&filter_request_buffer;
+  params->output_commit_buffer  = (void  (DLLENTRYP)(void*, int, int))                    &filter_commit_buffer;
   return 0;
 }
 
-void PM123_ENTRY
+void DLLENTRY
 filter_update( void *F, const FILTER_PARAMS2 *params )
 { REALEQ_STRUCT* f = (REALEQ_STRUCT*)F;
   DosEnterCritSec();
@@ -998,7 +997,7 @@ filter_update( void *F, const FILTER_PARAMS2 *params )
   DosExitCritSec();
 }
 
-BOOL PM123_ENTRY
+BOOL DLLENTRY
 filter_uninit( void* F )
 {
   REALEQ_STRUCT* f = (REALEQ_STRUCT*)F;
@@ -1101,11 +1100,11 @@ load_eq( HWND hwnd )
   return FALSE;
 }
 
-int PM123_ENTRY
+int DLLENTRY
 plugin_query( PLUGIN_QUERYPARAM *param )
 { param->type         = PLUGIN_FILTER;
   param->author       = "Samuel Audet, Marcel Mller";
-  param->desc         = VERSION;
+  param->desc         = PLUGIN;
   param->configurable = TRUE;
   param->interface    = FILTER_PLUGIN_LEVEL;
   return 0;
@@ -1466,7 +1465,7 @@ ConfigureDlgProc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
   return WinDefDlgProc( hwnd, msg, mp1, mp2 );
 }
 
-int PM123_ENTRY
+int DLLENTRY
 plugin_configure( HWND hwnd, HMODULE module )
 {
   init_request();

@@ -19,18 +19,13 @@
  */
 
 /* header file for fftw3 */
-/* $Id: fftw3.h,v 1.3 2006/07/02 08:18:10 glass Exp $ */
+/* $Id: fftw3.h,v 1.4 2006/12/21 11:25:15 glass Exp $ */
 
 #ifndef FFTW3_H
 #define FFTW3_H
 
+#include "config.h"
 #include <stdio.h>
-
-#if defined(__IBMC__) || defined(__WATCOMC__) || defined(__EMX__)
-  #define FFTEXP _System
-#else
-  #define FFTEXP
-#endif
 
 #ifdef __cplusplus
 extern "C"

@@ -9,8 +9,8 @@ extern "C" {
 
 #pragma pack(4)
 
-ULONG PM123_ENTRY output_init  ( void** a );
-ULONG PM123_ENTRY output_uninit( void*  a );
+ULONG DLLENTRY output_init  ( void** a );
+ULONG DLLENTRY output_uninit( void*  a );
 
 #define OUTPUT_OPEN          1
 #define OUTPUT_CLOSE         2
@@ -33,11 +33,11 @@ typedef struct _OUTPUT_PARAMS
   unsigned short boostclass, normalclass;
   signed   short boostdelta, normaldelta;
 
-  void (PM123_ENTRYP error_display)( char* );
+  void (DLLENTRYP error_display)( char* );
 
   /* info message function the output plug-in should use */
   /* this information is always displayed to the user right away */
-  void (PM123_ENTRYP info_display)( char* );
+  void (DLLENTRYP info_display)( char* );
 
   HWND hwnd; /* commodity for PM interface, sends a few messages to this handle. */
 
@@ -85,13 +85,13 @@ typedef struct _OUTPUT_PARAMS2
 
   FORMAT_INFO2 formatinfo;
   /* Error handler, a call will immediately stop the current playback. */
-  void (PM123_ENTRYP error_display)( char* );
+  void (DLLENTRYP error_display)( char* );
   /* info message function the output plug-in should use */
   /* this information is always displayed to the user right away */
-  void (PM123_ENTRYP info_display)( char* );
+  void (DLLENTRYP info_display)( char* );
 
   /* callback event */
-  void (PM123_ENTRYP output_event)(void* w, OUTEVENTTYPE event); 
+  void (DLLENTRYP output_event)(void* w, OUTEVENTTYPE event); 
   void* w;  /* only to be used with the precedent function */
 
   /* --- OUTPUT_VOLUME */
@@ -115,17 +115,17 @@ typedef struct _OUTPUT_PARAMS2
 } OUTPUT_PARAMS2;
 
 #if !defined(OUTPUT_PLUGIN_LEVEL) || OUTPUT_PLUGIN_LEVEL <= 1 
-ULONG PM123_ENTRY output_command( void* a, ULONG msg, OUTPUT_PARAMS* info );
-int   PM123_ENTRY output_play_samples( void* a, FORMAT_INFO* format, char* buf, int len, int posmarker );
-ULONG PM123_ENTRY output_playing_pos( void* a );
+ULONG DLLENTRY output_command( void* a, ULONG msg, OUTPUT_PARAMS* info );
+int   DLLENTRY output_play_samples( void* a, FORMAT_INFO* format, char* buf, int len, int posmarker );
+ULONG DLLENTRY output_playing_pos( void* a );
 #else
-ULONG PM123_ENTRY output_command( void* a, ULONG msg, OUTPUT_PARAMS2* info );
-int   PM123_ENTRY output_request_buffer( void* a, const FORMAT_INFO2* format, short** buf );
-void  PM123_ENTRY output_commit_buffer( void* a, int len, int posmarker );
-int   PM123_ENTRY output_playing_pos( void* a );
+ULONG DLLENTRY output_command( void* a, ULONG msg, OUTPUT_PARAMS2* info );
+int   DLLENTRY output_request_buffer( void* a, const FORMAT_INFO2* format, short** buf );
+void  DLLENTRY output_commit_buffer( void* a, int len, int posmarker );
+int   DLLENTRY output_playing_pos( void* a );
 #endif
-ULONG PM123_ENTRY output_playing_samples( void* a, FORMAT_INFO* info, char* buf, int len );
-BOOL  PM123_ENTRY output_playing_data( void* a );
+ULONG DLLENTRY output_playing_samples( void* a, FORMAT_INFO* info, char* buf, int len );
+BOOL  DLLENTRY output_playing_data( void* a );
 
 #pragma pack()
 
