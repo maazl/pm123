@@ -50,7 +50,7 @@
 #include <plugin.h>
 #include "realeq.h"
 
-#define VERSION "Real Equalizer 1.21"
+#define PLUGIN "Real Equalizer 1.21"
 #define MAX_COEF 16384
 #define MAX_FIR  12288
 #define NUM_BANDS   32
@@ -167,9 +167,9 @@ char lasteq[CCHMAXPATH];
 
 typedef struct {
 
-   int  (PM123_ENTRYP output_play_samples)( void* a, FORMAT_INFO* format, char* buf, int len, int posmarker );
+   int  (DLLENTRYP output_play_samples)( void* a, FORMAT_INFO* format, char* buf, int len, int posmarker );
    void* a;
-   void (PM123_ENTRYP error_display)( char* );
+   void (DLLENTRYP error_display)( char* );
 
    FORMAT_INFO last_format;
    int   prevlen;
@@ -181,7 +181,7 @@ typedef struct {
 
 /********** Entry point: Initialize
 */
-ULONG PM123_ENTRY
+ULONG DLLENTRY
 filter_init( void** F, FILTER_PARAMS* params )
 {
   REALEQ_STRUCT* f = (REALEQ_STRUCT*)malloc( sizeof( REALEQ_STRUCT ));
@@ -205,7 +205,7 @@ filter_init( void** F, FILTER_PARAMS* params )
   return 0;
 }
 
-BOOL PM123_ENTRY
+BOOL DLLENTRY
 filter_uninit( void* F )
 {
   REALEQ_STRUCT* f = (REALEQ_STRUCT*)F;
@@ -748,7 +748,7 @@ static void filter_samples_fft_stereo( short* newsamples, const short* buf, int 
 }
 
 /* Entry point: do filtering */
-int PM123_ENTRY
+int DLLENTRY
 filter_play_samples( void* F, FORMAT_INFO* format, char* buf, int len, int posmarker )
 {
   REALEQ_STRUCT* f = (REALEQ_STRUCT*)F;
@@ -987,12 +987,12 @@ load_eq( HWND hwnd, float* gains, BOOL* mutes, float* preamp )
   return FALSE;
 }
 
-int PM123_ENTRY
+int DLLENTRY
 plugin_query( PLUGIN_QUERYPARAM *param )
 {
   param->type = PLUGIN_FILTER;
   param->author = "Samuel Audet";
-  param->desc = VERSION;
+  param->desc = PLUGIN;
   param->configurable = TRUE;
   return 0;
 }
@@ -1316,7 +1316,7 @@ ConfigureDlgProc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
   return WinDefDlgProc( hwnd, msg, mp1, mp2 );
 }
 
-int PM123_ENTRY
+int DLLENTRY
 plugin_configure( HWND hwnd, HMODULE module )
 {
   if( !hdialog ) {

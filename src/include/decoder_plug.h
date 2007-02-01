@@ -9,8 +9,8 @@ extern "C" {
 
 #pragma pack(4)
 
-int  PM123_ENTRY decoder_init  ( void** w );
-BOOL PM123_ENTRY decoder_uninit( void*  w );
+int  DLLENTRY decoder_init  ( void** w );
+BOOL DLLENTRY decoder_uninit( void*  w );
 
 #define DECODER_PLAY     1 /* returns 101 -> already playing
                                       102 -> error, decoder killed and restarted */
@@ -46,7 +46,7 @@ typedef struct _DECODER_PARAMS
    /* --- DECODER_SETUP */
 
    /* specify a function which the decoder should use for output */
-   int  (PM123_ENTRYP output_play_samples)( void* a, FORMAT_INFO* format, char* buf, int len, int posmarker );
+   int  (DLLENTRYP output_play_samples)( void* a, FORMAT_INFO* format, char* buf, int len, int posmarker );
    void* a;           /* only to be used with the precedent function */
    int   audio_buffersize;
 
@@ -54,11 +54,11 @@ typedef struct _DECODER_PARAMS
    char* httpauth;    /* NULL = none */
 
    /* error message function the decoder should use */
-   void (PM123_ENTRYP error_display)( char* );
+   void (DLLENTRYP error_display)( char* );
 
    /* info message function the decoder should use */
    /* this information is always displayed to the user right away */
-   void (PM123_ENTRYP info_display)( char* );
+   void (DLLENTRYP info_display)( char* );
 
    void* unused3;     /* obsolete, must be NULL */
    HWND  hwnd;        /* commodity for PM interface, decoder must send a few
@@ -87,19 +87,19 @@ typedef struct _DECODER_PARAMS
 /* returns 0 -> ok
            1 -> command unsupported
            1xx -> msg specific */
-ULONG PM123_ENTRY decoder_command( void* w, ULONG msg, DECODER_PARAMS* params );
+ULONG DLLENTRY decoder_command( void* w, ULONG msg, DECODER_PARAMS* params );
 
 #define DECODER_STOPPED  0
 #define DECODER_PLAYING  1
 #define DECODER_STARTING 2
 #define DECODER_ERROR    3
 
-ULONG PM123_ENTRY decoder_status( void* w );
+ULONG DLLENTRY decoder_status( void* w );
 
 /* WARNING!! this _can_ change in time!!! returns stream length in ms */
 /* the decoder should keep in memory a last valid length so the call  */
 /* remains valid even if decoder_status() == DECODER_STOPPED          */
-ULONG PM123_ENTRY decoder_length( void* w );
+ULONG DLLENTRY decoder_length( void* w );
 
 #define DECODER_MODE_STEREO         0
 #define DECODER_MODE_JOINT_STEREO   1
@@ -179,13 +179,13 @@ typedef struct _DECODER_INFO
       100 = error reading file (too small?),
       200 = decoder can't play that,
       other values = errno, check xio_strerror() for string. */
-ULONG PM123_ENTRY decoder_fileinfo( char* filename, DECODER_INFO* info );
-ULONG PM123_ENTRY decoder_trackinfo( char* drive, int track, DECODER_INFO* info );
+ULONG DLLENTRY decoder_fileinfo( char* filename, DECODER_INFO* info );
+ULONG DLLENTRY decoder_trackinfo( char* drive, int track, DECODER_INFO* info );
 
 /* returns
         0 = everything's perfect, structure is saved,
       other values = errno, check xio_strerror() for string. */
-ULONG PM123_ENTRY decoder_saveinfo( char* filename, DECODER_INFO* info );
+ULONG DLLENTRY decoder_saveinfo( char* filename, DECODER_INFO* info );
 
 typedef struct _DECODER_CDINFO
 {
@@ -195,7 +195,7 @@ typedef struct _DECODER_CDINFO
 
 } DECODER_CDINFO;
 
-ULONG PM123_ENTRY decoder_cdinfo( char* drive, DECODER_CDINFO* info );
+ULONG DLLENTRY decoder_cdinfo( char* drive, DECODER_CDINFO* info );
 
 /* returns ORed values */
 #define DECODER_FILENAME  0x0001 /* Decoder can play a regular file. */
@@ -204,7 +204,7 @@ ULONG PM123_ENTRY decoder_cdinfo( char* drive, DECODER_CDINFO* info );
 #define DECODER_METAINFO  0x8000 /* Decoder can save a meta info. */
 /* size is i/o and is the size of the array.
    each ext should not be bigger than 8bytes */
-ULONG PM123_ENTRY decoder_support( char* fileext[], int* size );
+ULONG DLLENTRY decoder_support( char* fileext[], int* size );
 
 #pragma pack()
 

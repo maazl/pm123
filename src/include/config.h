@@ -1,50 +1,66 @@
 #ifndef PM123_CONFIG_H
 #define PM123_CONFIG_H
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+/* Name of package */
+#define PACKAGE_NAME "PM123"
+#define PACKAGE PACKAGE_NAME
 
-#if defined(__IBMC__) || defined(__IBMCPP__)
-  int  _CRT_init( void );
-  void _CRT_term( void );
+/* Define to the address where bug reports for this package should be sent. */
+#define PACKAGE_BUGREPORT "glass@ptv.ru"
 
-  #define TFNENTRY _Optlink
+/* Version number of package */
+#define PACKAGE_VERSION "1.32"
+#define VERSION PACKAGE_VERSION
+
+/* Define to the full name and version of this package. */
+#define PACKAGE_STRING PACKAGE" "VERSION
+
+#if defined(__GNUC__)
+  #include <config_gcc.h>
+#elif defined(__WATCOMC__)
+  #include <config_wcc.h>
+#elif (defined(__IBMC__) && __IBMC__ >  300) || (defined(__IBMCPP__) && __IBMCPP__ >  300)
+  #include <config_icc_36.h>
+#elif (defined(__IBMC__) && __IBMC__ <= 300) || (defined(__IBMCPP__) && __IBMCPP__ <= 300)
+  #include <config_icc_30.h>
 #else
-  #define TFNENTRY
+  #error Unsupported compiler.
 #endif
 
-#ifndef INLINE
-  #if defined(__GNUC__)
-    #define INLINE __inline__
-  #elif defined(__WATCOMC__)
-    #define INLINE __inline
-  #elif defined(__IBMC__)
-    #define INLINE _Inline
-  #else
-    #define INLINE static
-  #endif
-#endif
+/* Set to 1 if compiling for OS/2 */
+#define OS_IS_OS2 1
 
-#ifndef PM123_ENTRY
-  #if defined(__IBMC__) || defined(__IBMCPP__)
-    #define PM123_ENTRY  _System
-    #define PM123_ENTRYP * PM123_ENTRY
-  #else
-    #define PM123_ENTRY  _System
-    #define PM123_ENTRYP PM123_ENTRY *
-  #endif
-#endif
+/* Target processor clips on positive float to int conversion. */
+#define CPU_CLIPS_POSITIVE   1
+/* Target processor clips on negative float to int conversion. */
+#define CPU_CLIPS_NEGATIVE   0
+/* Target processor is big endian. */
+#define CPU_IS_BIG_ENDIAN    0
+/* Target processor is little endian. */
+#define CPU_IS_LITTLE_ENDIAN 1
 
-#ifdef __EMX__
-  #define INIT_ATTRIBUTE __attribute__((constructor))
-  #define TERM_ATTRIBUTE __attribute__((destructor))
-#else
-  #define INIT_ATTRIBUTE
-  #define TERM_ATTRIBUTE
-#endif
+/* FFTW specific configuration */
 
-#ifdef __cplusplus
-}
-#endif
+/* C compiler name and flags */
+#define FFTW_CC CCNAME
+/* Define to compile in long-double precision. */
+#undef  FFTW_LDOUBLE
+/* Define to compile in single precision. */
+#define FFTW_SINGLE 1
+/* Use standard C type functions. */
+#define USE_CTYPE
+/* extra CFLAGS for codelets */
+#define CODELET_OPTIM ""
+/* Defines the calling convention used by the library. */
+#define FFTEXP DLLENTRY
+
+/* libsndfile specific configuration */
+
+/* Set to long if unknown. */
+#define TYPEOF_SF_COUNT_T long
+/* Set to maximum allowed value of sf_count_t type. */
+#define SF_COUNT_MAX 0x7FFFFFFFL
+/* Set to sizeof (long) if unknown. */
+#define SIZEOF_SF_COUNT_T 4
+
 #endif /* PM123_CONFIG_H */

@@ -88,10 +88,10 @@ static  int*   scale;
 static  ULONG  image_id;
 static  BOOL   is_stopped;
 
-static  ULONG (PM123_ENTRYP _decoderPlayingSamples)( FORMAT_INFO *info, char *buf, int len );
-static  BOOL  (PM123_ENTRYP _decoderPlaying)( void );
-static  int   (PM123_ENTRYP _specana_init)( int setnumsamples );
-static  int   (PM123_ENTRYP _specana_dobands)( float bands[] );
+static  ULONG (DLLENTRYP _decoderPlayingSamples)( FORMAT_INFO *info, char *buf, int len );
+static  BOOL  (DLLENTRYP _decoderPlaying)( void );
+static  int   (DLLENTRYP _specana_init)( int setnumsamples );
+static  int   (DLLENTRYP _specana_dobands)( float bands[] );
 
 static  VISPLUGININIT plug;
 
@@ -204,7 +204,7 @@ clear_analyzer( void )
 }
 
 /* Returns information about plug-in. */
-int PM123_ENTRY
+int DLLENTRY
 plugin_query( PPLUGIN_QUERYPARAM query )
 {
   query->type         = PLUGIN_VISUAL;
@@ -280,7 +280,7 @@ cfg_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
 }
 
 /* Configure plug-in. */
-int PM123_ENTRY
+int DLLENTRY
 plugin_configure( HWND hwnd, HMODULE module )
 {
   WinDlgBox( HWND_DESKTOP, hwnd, cfg_dlg_proc, module, DLG_CONFIGURE, NULL );
@@ -504,7 +504,7 @@ plg_win_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
   return 0;
 }
 
-HWND PM123_ENTRY
+HWND DLLENTRY
 vis_init( PVISPLUGININIT init )
 {
   FILE* dat;
@@ -634,7 +634,7 @@ vis_init( PVISPLUGININIT init )
   return hanalyzer;
 }
 
-int PM123_ENTRY
+int DLLENTRY
 plugin_deinit( int unload )
 {
   HINI hini;

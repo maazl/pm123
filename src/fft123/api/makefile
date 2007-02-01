@@ -3,10 +3,10 @@
 #
 
 DLL      = yes
-TOPDIR   = ..
-INCDIR   = $(TOPDIR);$(TOPDIR)\kernel;$(TOPDIR)\dft;$(TOPDIR)\rdft;$(TOPDIR)\reodft
+TOPDIR   = ..\..
+INCDIR   = ..\kernel;..\dft;..\rdft;..\reodft;$(TOPDIR)\include
 
-!include $(TOPDIR)\..\config\makerules
+!include $(TOPDIR)\config\makerules
 
 all: api$(LBO) $(MDUMMY)
 

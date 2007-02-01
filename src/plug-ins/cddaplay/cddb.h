@@ -34,7 +34,6 @@
 #define COMMAND_MORE  2 /* more to read or write with appropriate member functions */
 
 #define PROGRAM    "PM123"
-#define VERSION    "1.3"
 #define PROTOLEVEL 4
 
 /* for get_sites_req() */

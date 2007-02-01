@@ -42,8 +42,8 @@
 #include "plugman.h"
 #include "messages.h"
 
-extern void PM123_ENTRY amp_display_info ( char* );
-extern void PM123_ENTRY amp_display_error( char* );
+extern void DLLENTRY amp_display_info ( char* );
+extern void DLLENTRY amp_display_error( char* );
 
 static OUTPUT_PARAMS out_params;
 
@@ -100,13 +100,24 @@ msg_play( HWND hwnd, char* filename, char* decoder, const FORMAT_INFO* format, i
   out_params.formatinfo    = *format;
 
   // For fast reaction of the player we allocate the buffer in
-  // length approximately in 20 milliseconds. The buffer size must be
-  // an integer product of the number of channels and of the number
-  // of bits in the sample. Because of poor design of the mpg123 this
-  // size also must be an integer product of the 64.
-  samplesize = format->channels * ( format->bits / 2 );
-  out_params.buffersize = samplesize * format->samplerate / 50;
-  out_params.buffersize = out_params.buffersize / samplesize / 64 * samplesize * 64;
+  // length approximately in 100 milliseconds.
+  samplesize = format->channels * ( format->bits / 8 );
+  if( samplesize ) {
+    out_params.buffersize = samplesize * format->samplerate / 10;
+  } else {
+    out_params.buffersize = 16384;
+  }
+
+  // Buffers are limited to 64K on Intel machines.
+  if( out_params.buffersize > 65535 ) {
+    out_params.buffersize = 65535;
+  }
+
+  // The buffer size must be an integer product of the number of
+  // channels and of the number of bits in the sample. Because of
+  // poor design of the mpg123 this size also must be an integer
+  // product of the 128.
+  out_params.buffersize = out_params.buffersize / samplesize / 128 * samplesize * 128;
 
   if( out_command( OUTPUT_SETUP, &out_params ) != 0 ) {
     return FALSE;
@@ -118,7 +129,7 @@ msg_play( HWND hwnd, char* filename, char* decoder, const FORMAT_INFO* format, i
     return FALSE;
   }
 
-  if( dec_set_name_active( decoder ) != 0 )
+  if( dec_set_name_active( decoder ) < 0 )
   {
     strlcpy( errorbuf, "Decoder module ", sizeof( errorbuf ));
     strlcat( errorbuf, decoder, sizeof( errorbuf ));

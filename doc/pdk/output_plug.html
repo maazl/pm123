@@ -8,8 +8,8 @@
 Decoder plug-ins must implement and export the functions defined in
 <i>output_plug.h</i>.
 <pre>
-     ULONG PM123_ENTRY output_init  ( void **a )
-     ULONG PM123_ENTRY output_uninit( void  *a )
+     ULONG DLLENTRY output_init  ( void **a )
+     ULONG DLLENTRY output_uninit( void  *a )
 </pre>
 <ul>
 <li>a : Allocate any chunk of memory necessary for the output's
@@ -24,7 +24,7 @@ OUTPUT_OPEN. <i>decoder_uninit</i> is called when another output
 plug-in is request by the user and should free the allocated memory for
 <i>a</i>.<p>
 <pre>
-     ULONG PM123_ENTRY output_command( void *a, ULONG msg, OUTPUT_PARAMS *info )
+     ULONG DLLENTRY output_command( void *a, ULONG msg, OUTPUT_PARAMS *info )
 </pre>
 <ul>
 <li>msg: one of the following:<br>
@@ -56,8 +56,8 @@ The output plug-in MUST <i>WinPostMsg()</i> the following messages to <i>hwnd</i
 its buffers.  Not needed when <TT> always_hungry </TT> flag is enabled.
 </ul>
 <pre>
-     ULONG PM123_ENTRY output_playing_samples( void* a, FORMAT_INFO* info,
-                                               char* buf, int len )
+     ULONG DLLENTRY output_playing_samples( void* a, FORMAT_INFO* info,
+                                            char* buf, int len )
 </pre>
 <ul>
 <li>info - return the format of buf.
@@ -70,8 +70,8 @@ is currently being played. <i>len</i> is usually not so big, so check
 that amount usually required by your visual plug-ins before making
 complicated buffering functions in your output plug-in.<p>
 <pre>
-     int PM123_ENTRY output_play_samples( void* a, FORMAT_INFO* format, 
-                                          char* buf,int len, int posmarker )
+     int DLLENTRY output_play_samples( void* a, FORMAT_INFO* format, 
+                                       char* buf,int len, int posmarker )
 </pre>
 <ul>
 <li>format - format of buf.
@@ -84,12 +84,12 @@ complicated buffering functions in your output plug-in.<p>
 This function is called by the decoder or last in chain filter plug-in
 to play samples.
 <pre>
-     ULONG PM123_ENTRY output_playing_pos( void* a )
+     ULONG DLLENTRY output_playing_pos( void* a )
 </pre>
 This function returns the <i>posmarker</i> from the buffer that the
 user currently hears.
 <pre>
-     BOOL  PM123_ENTRY output_playing_data( void* a )
+     BOOL  DLLENTRY output_playing_data( void* a )
 </pre>
 Returns TRUE if the output plug-in still has some buffers to play.
 

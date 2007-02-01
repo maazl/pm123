@@ -3,10 +3,10 @@
 #
 
 DLL     = yes
-TOPDIR  = ..\..\..
-INCDIR  = $(TOPDIR);$(TOPDIR)\kernel;$(TOPDIR)\dft;$(TOPDIR)\dft\codelets
+TOPDIR  = ..\..\..\..
+INCDIR  = ..\..\..\kernel;..\..\..\dft;..\..\..\dft\codelets;$(TOPDIR)\include
 
-!include $(TOPDIR)\..\config\makerules
+!include $(TOPDIR)\config\makerules
 
 all: dft_inplace$(LBO) $(MDUMMY)
 

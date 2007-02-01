@@ -76,7 +76,7 @@ xio_terminate( XFILE* x )
 /* Open file. Returns a pointer to a file structure that can be used
    to access the open file. A NULL pointer return value indicates an
    error. */
-XFILE* PM123_ENTRY
+XFILE* DLLENTRY
 xio_fopen( const char* filename, const char* mode )
 {
   XFILE* x;
@@ -255,7 +255,7 @@ xio_read_and_notify( XFILE* x, char* result, unsigned int count )
    by the number of bytes read. Returns the number of full items
    successfully read, which can be less than count if an error occurs
    or if the end-of-file is met before reaching count. */
-size_t PM123_ENTRY
+size_t DLLENTRY
 xio_fread( void* buffer, size_t size, size_t count, XFILE* x )
 {
   int done;
@@ -284,7 +284,7 @@ xio_fread( void* buffer, size_t size, size_t count, XFILE* x )
 /* Writes up to count items, each of size bytes in length, from buffer
    to the output file. Returns the number of full items successfully
    written, which can be fewer than count if an error occurs. */
-size_t PM123_ENTRY
+size_t DLLENTRY
 xio_fwrite( void* buffer, size_t size, size_t count, XFILE* x )
 {
   int   write  = count * size;
@@ -312,7 +312,7 @@ xio_fwrite( void* buffer, size_t size, size_t count, XFILE* x )
 
 /* Closes a file pointed to by x. Returns 0 if it successfully closes
    the file, or -1 if any errors were detected. */
-int PM123_ENTRY
+int DLLENTRY
 xio_fclose( XFILE* x )
 {
   DosRequestMutexSem( x->protocol->mtx_file, SEM_INDEFINITE_WAIT );
@@ -330,7 +330,7 @@ xio_fclose( XFILE* x )
 /* Causes an abnormal termination of all current read/write
    operations of the file. All current and subsequent calls can
    raise an error. */
-void PM123_ENTRY
+void DLLENTRY
 xio_fabort( XFILE* x )
 {
   if( !x->protocol->abort ) {
@@ -341,7 +341,7 @@ xio_fabort( XFILE* x )
 
 /* Finds the current position of the file. Returns the current file
    position. On error, returns -1L and sets errno to a nonzero value. */
-long PM123_ENTRY
+long DLLENTRY
 xio_ftell( XFILE* x ) {
   return buffer_tell( x );
 }
@@ -350,7 +350,7 @@ xio_ftell( XFILE* x ) {
    Returns 0 if it successfully moves the pointer. A nonzero return
    value indicates an error. On devices that cannot seek the return
    value is nonzero. */
-int PM123_ENTRY
+int DLLENTRY
 xio_fseek( XFILE* x, long int offset, int origin )
 {
   int rc = -1;
@@ -372,7 +372,7 @@ xio_fseek( XFILE* x, long int offset, int origin )
    (void)xio_fseek( x, 0L, XIO_SEEK_SET )
    except that xio_rewind also clears the error indicator for
    the stream. */
-void PM123_ENTRY
+void DLLENTRY
 xio_rewind( XFILE* x )
 {
   if( !x->protocol->s_metaint ) {
@@ -383,7 +383,7 @@ xio_rewind( XFILE* x )
 
 /* Returns the size of the file. A return value of -1L indicates an
    error or an unknown size. */
-long PM123_ENTRY
+long DLLENTRY
 xio_fsize( XFILE* x ) {
   return buffer_filesize( x );
 }
@@ -396,7 +396,7 @@ xio_fsize( XFILE* x ) {
    read. If n is equal to 1, the string is empty. Returns a pointer
    to the string buffer if successful. A NULL return value indicates
    an error or an end-of-file condition. */
-char* PM123_ENTRY
+char* DLLENTRY
 xio_fgets( char* string, int n, XFILE* x )
 {
   int done = 0;
@@ -430,7 +430,7 @@ xio_fgets( char* string, int n, XFILE* x )
    It does not copy the null character (\0) at the end of the string.
    Returns -1 if an error occurs; otherwise, it returns a non-negative
    value. */
-int PM123_ENTRY
+int DLLENTRY
 xio_fputs( const char* string, XFILE* x )
 {
   char* cr = "\r";
@@ -457,13 +457,13 @@ xio_fputs( const char* string, XFILE* x )
 
 /* Returns the last error code set by a library call in the current
    thread. Subsequent calls do not reset this error code. */
-int PM123_ENTRY
+int DLLENTRY
 xio_errno( void ) {
   return errno;
 }
 
 /* Maps the error number in errnum to an error message string. */
-const char* PM123_ENTRY
+const char* DLLENTRY
 xio_strerror( int errnum )
 {
   if( errnum >= FTPBASEERR ) {
@@ -483,7 +483,7 @@ xio_strerror( int errnum )
 
 /* Sets a handle of a window that are to be notified of changes
    in the state of the library. */
-void PM123_ENTRY
+void DLLENTRY
 xio_set_observer( XFILE* x, unsigned long window,
                             char* buffer, int buffer_size )
 {
@@ -496,7 +496,7 @@ xio_set_observer( XFILE* x, unsigned long window,
 
 /* Returns a specified meta information if it is
    provided by associated stream. */
-char* PM123_ENTRY
+char* DLLENTRY
 xio_get_metainfo( XFILE* x, int type, char* result, int size )
 {
   DosRequestMutexSem( x->protocol->mtx_access, SEM_INDEFINITE_WAIT );
@@ -515,7 +515,7 @@ xio_get_metainfo( XFILE* x, int type, char* result, int size )
 /* Returns XIO_NOT_SEEK (0) on streams incapable of seeking,
    XIO_CAN_SEEK (1) on streams capable of seeking and returns
    XIO_CAN_SEEK_FAST (2) on streams capable of fast seeking. */
-int PM123_ENTRY
+int DLLENTRY
 xio_can_seek( XFILE* x )
 {
   if( !x->protocol->s_metaint ) {
@@ -529,7 +529,7 @@ xio_can_seek( XFILE* x )
 }
 
 /* Returns the read-ahead buffer size. */
-int PM123_ENTRY
+int DLLENTRY
 xio_buffer_size( void )
 {
   int size;
@@ -541,7 +541,7 @@ xio_buffer_size( void )
 }
 
 /* Returns fills the buffer before reading state. */
-int PM123_ENTRY
+int DLLENTRY
 xio_buffer_wait( void )
 {
   int wait;
@@ -553,7 +553,7 @@ xio_buffer_wait( void )
 }
 
 /* Sets the read-ahead buffer size. */
-void PM123_ENTRY
+void DLLENTRY
 xio_set_buffer_size( int size )
 {
   DosRequestMutexSem( mutex, SEM_INDEFINITE_WAIT );
@@ -562,7 +562,7 @@ xio_set_buffer_size( int size )
 }
 
 /* Sets fills the buffer before reading state. */
-void PM123_ENTRY
+void DLLENTRY
 xio_set_buffer_wait( int wait )
 {
   DosRequestMutexSem( mutex, SEM_INDEFINITE_WAIT );
@@ -571,7 +571,7 @@ xio_set_buffer_wait( int wait )
 }
 
 /* Returns the name of the proxy server. */
-void PM123_ENTRY
+void DLLENTRY
 xio_http_proxy_host( char* hostname, int size )
 {
   DosRequestMutexSem( mutex, SEM_INDEFINITE_WAIT );
@@ -580,7 +580,7 @@ xio_http_proxy_host( char* hostname, int size )
 }
 
 /* Returns the port number of the proxy server. */
-int PM123_ENTRY
+int DLLENTRY
 xio_http_proxy_port( void )
 {
   int port;
@@ -592,7 +592,7 @@ xio_http_proxy_port( void )
 }
 
 /* Returns the user name of the proxy server. */
-void PM123_ENTRY
+void DLLENTRY
 xio_http_proxy_user( char* username, int size )
 {
   DosRequestMutexSem( mutex, SEM_INDEFINITE_WAIT );
@@ -601,7 +601,7 @@ xio_http_proxy_user( char* username, int size )
 }
 
 /* Returns the user password of the proxy server. */
-void PM123_ENTRY
+void DLLENTRY
 xio_http_proxy_pass( char* password, int size )
 {
   DosRequestMutexSem( mutex, SEM_INDEFINITE_WAIT );
@@ -610,7 +610,7 @@ xio_http_proxy_pass( char* password, int size )
 }
 
 /* Sets the name of the proxy server. */
-void PM123_ENTRY
+void DLLENTRY
 xio_set_http_proxy_host( char* hostname )
 {
   DosRequestMutexSem( mutex, SEM_INDEFINITE_WAIT );
@@ -620,7 +620,7 @@ xio_set_http_proxy_host( char* hostname )
 }
 
 /* Sets the port number of the proxy server. */
-void PM123_ENTRY
+void DLLENTRY
 xio_set_http_proxy_port( int port )
 {
   DosRequestMutexSem( mutex, SEM_INDEFINITE_WAIT );
@@ -629,7 +629,7 @@ xio_set_http_proxy_port( int port )
 }
 
 /* Sets the user name of the proxy server. */
-void PM123_ENTRY
+void DLLENTRY
 xio_set_http_proxy_user( char* username )
 {
   DosRequestMutexSem( mutex, SEM_INDEFINITE_WAIT );
@@ -638,7 +638,7 @@ xio_set_http_proxy_user( char* username )
 }
 
 /* Sets the user password of the proxy server. */
-void PM123_ENTRY
+void DLLENTRY
 xio_set_http_proxy_pass( char* password )
 {
   DosRequestMutexSem( mutex, SEM_INDEFINITE_WAIT );
@@ -649,7 +649,7 @@ xio_set_http_proxy_pass( char* password )
 /* Returns an internet address of the proxy server.
    Returns 0 if the proxy server is not defined or -1 if
    an error occurs */
-unsigned long PM123_ENTRY
+unsigned long DLLENTRY
 xio_http_proxy_addr( void )
 {
   char host[XIO_MAX_HOSTNAME];

@@ -41,12 +41,12 @@
 #include "utilfct.h"
 #include "snprintf.h"
 
-static sf_count_t SNDENTRY
+static sf_count_t DLLENTRY
 vio_fsize( void* x ) {
   return xio_fsize((XFILE*)x );
 }
 
-static sf_count_t SNDENTRY
+static sf_count_t DLLENTRY
 vio_seek( sf_count_t offset, int whence, void* x )
 {
   int pos = 0;
@@ -67,17 +67,17 @@ vio_seek( sf_count_t offset, int whence, void* x )
   }
 }
 
-static sf_count_t SNDENTRY
+static sf_count_t DLLENTRY
 vio_read( void* ptr, sf_count_t count, void* x ) {
   return xio_fread( ptr, 1, count, (XFILE*)x );
 }
 
-static sf_count_t SNDENTRY
+static sf_count_t DLLENTRY
 vio_write( const void* ptr, sf_count_t count, void* x ) {
   return xio_fwrite((void*)ptr, 1, count, (XFILE*)x );
 }
 
-static sf_count_t SNDENTRY
+static sf_count_t DLLENTRY
 vio_tell( void *x ) {
   return xio_ftell((XFILE*)x );
 }
@@ -247,7 +247,7 @@ end:
 
 /* Init function is called when PM123 needs the specified decoder to play
    the stream demanded by the user. */
-int PM123_ENTRY
+int DLLENTRY
 decoder_init( void** returnw )
 {
   DECODER_STRUCT* w = calloc( sizeof(*w), 1 );
@@ -263,7 +263,7 @@ decoder_init( void** returnw )
 }
 
 /* Uninit function is called when another decoder than yours is needed. */
-BOOL PM123_ENTRY
+BOOL DLLENTRY
 decoder_uninit( void* arg )
 {
   DECODER_STRUCT* w = arg;
@@ -276,7 +276,7 @@ decoder_uninit( void* arg )
   return TRUE;
 }
 
-ULONG PM123_ENTRY
+ULONG DLLENTRY
 decoder_command( void* arg, ULONG msg, DECODER_PARAMS* info )
 {
   DECODER_STRUCT* w = arg;
@@ -372,13 +372,13 @@ decoder_command( void* arg, ULONG msg, DECODER_PARAMS* info )
 }
 
 /* Returns current status of the decoder. */
-ULONG PM123_ENTRY
+ULONG DLLENTRY
 decoder_status( void* arg ) {
   return ((DECODER_STRUCT*)arg)->status;
 }
 
 /* Returns number of milliseconds the stream lasts. */
-ULONG PM123_ENTRY
+ULONG DLLENTRY
 decoder_length( void* arg )
 {
   DECODER_STRUCT* w = arg;
@@ -399,7 +399,7 @@ copy_string( SNDFILE* file, char* target, int type, int size )
   }
 }
 
-ULONG PM123_ENTRY
+ULONG DLLENTRY
 decoder_fileinfo( char* filename, DECODER_INFO* info )
 {
   DECODER_STRUCT w = { 0 };
@@ -453,17 +453,17 @@ decoder_fileinfo( char* filename, DECODER_INFO* info )
   return rc;
 }
 
-ULONG PM123_ENTRY
+ULONG DLLENTRY
 decoder_trackinfo( char* drive, int track, DECODER_INFO* info ) {
   return 200;
 }
 
-ULONG PM123_ENTRY
+ULONG DLLENTRY
 decoder_cdinfo( char* drive, DECODER_CDINFO* info ) {
   return 100;
 }
 
-ULONG PM123_ENTRY
+ULONG DLLENTRY
 decoder_support( char* ext[], int* size )
 {
   if( size ) {
@@ -487,7 +487,7 @@ decoder_support( char* ext[], int* size )
 }
 
 /* Returns information about plug-in. */
-int PM123_ENTRY
+int DLLENTRY
 plugin_query( PLUGIN_QUERYPARAM* param )
 {
   param->type         = PLUGIN_DECODER;

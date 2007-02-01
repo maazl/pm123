@@ -5,7 +5,7 @@
 TOPDIR   = ..
 INCDIR   = $(TOPDIR)\include
 
-!include ..\config\makerules
+!include $(TOPDIR)\config\makerules
 
 all: utilfct$(LBO) $(MDUMMY)
 

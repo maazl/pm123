@@ -129,7 +129,7 @@ load_function( HMODULE module, void* function, const char* function_name,
 static ULONG
 check_plugin( HMODULE module, const char* module_name, PLUGIN_QUERYPARAM* query_param )
 {
-  void (PM123_ENTRYP plugin_query)( PLUGIN_QUERYPARAM *param );
+  void (DLLENTRYP plugin_query)( PLUGIN_QUERYPARAM *param );
 
   if( load_function( module, &plugin_query, "plugin_query", module_name ))
   {
@@ -978,7 +978,8 @@ dec_set_name_active( char* name )
            1 = command unsupported,
            3 = no decoder active,
            4 = no active output, others unimportant. */
-ULONG PM123_ENTRY dec_command( ULONG msg, DECODER_PARAMS *params )
+ULONG DLLENTRY 
+dec_command( ULONG msg, DECODER_PARAMS *params )
 {
   if( active_decoder != -1 )
   {
@@ -1055,7 +1056,7 @@ ULONG PM123_ENTRY dec_command( ULONG msg, DECODER_PARAMS *params )
 
 /* This code must be a part of the dec_fileinfo, but it is keeped for
    compatibility. */
-static ULONG PM123_ENTRY
+static ULONG DLLENTRY
 dec_trackinfo( char* drive, int track, DECODER_INFO* info, char* name )
 {
   int i;
@@ -1091,7 +1092,7 @@ dec_trackinfo( char* drive, int track, DECODER_INFO* info, char* name )
    this file. Returns 0 if it successfully completes operation,
    returns 200 if nothing can play that, or returns an error code
    returned by decoder module. */
-ULONG PM123_ENTRY
+ULONG DLLENTRY
 dec_fileinfo( char* filename, DECODER_INFO* info, char* name )
 {
   int   i, j;
@@ -1203,7 +1204,7 @@ dec_fileinfo( char* filename, DECODER_INFO* info, char* name )
 /* Updates the meta information about the specified file. Returns 0
    if it successfully completes operation, returns 200 if nothing can
    update that, or returns an error code returned by decoder module. */
-ULONG PM123_ENTRY
+ULONG DLLENTRY
 dec_saveinfo( char* filename, DECODER_INFO* info, char* name )
 {
   int i;
@@ -1240,7 +1241,7 @@ dec_saveinfo( char* filename, DECODER_INFO* info, char* name )
 }
 
 
-ULONG PM123_ENTRY
+ULONG DLLENTRY
 dec_cdinfo( char *drive, DECODER_CDINFO *info )
 {
   int  i;
@@ -1258,7 +1259,7 @@ dec_cdinfo( char *drive, DECODER_CDINFO *info )
   return 200;
 }
 
-ULONG PM123_ENTRY
+ULONG DLLENTRY
 dec_status( void )
 {
   if( active_decoder != -1 ) {
@@ -1269,7 +1270,7 @@ dec_status( void )
 }
 
 /* Length in ms, should still be valid if decoder stops. */
-ULONG PM123_ENTRY
+ULONG DLLENTRY
 dec_length( void )
 {
   if( active_decoder != -1 ) {
@@ -1374,7 +1375,7 @@ out_set_volume( int volume )
 }
 
 /* Returns 0 = success otherwize MMOS/2 error. */
-ULONG PM123_ENTRY
+ULONG DLLENTRY
 out_playing_samples( FORMAT_INFO* info, char* buf, int len )
 {
   if( active_output != -1 ) {
@@ -1385,7 +1386,7 @@ out_playing_samples( FORMAT_INFO* info, char* buf, int len )
 }
 
 /* Returns time in ms. */
-ULONG PM123_ENTRY
+ULONG DLLENTRY
 out_playing_pos( void )
 {
   if( active_output != -1 ) {
@@ -1396,7 +1397,7 @@ out_playing_pos( void )
 }
 
 /* if the output is playing. */
-BOOL PM123_ENTRY
+BOOL DLLENTRY
 out_playing_data( void )
 {
   if( active_output != -1 ) {

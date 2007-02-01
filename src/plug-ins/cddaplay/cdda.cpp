@@ -77,7 +77,7 @@ typedef struct _CDDAPLAY
    CD_drive CD;
    FORMAT_INFO formatinfo;
 
-   int (PM123_ENTRYP output_play_samples)(void *a, FORMAT_INFO *format, char *buf,int len, int posmarker);
+   int (DLLENTRYP output_play_samples)(void *a, FORMAT_INFO *format, char *buf,int len, int posmarker);
    void *a; /* only to be used with the precedent function */
    int buffersize;
 
@@ -89,7 +89,7 @@ typedef struct _CDDAPLAY
    int status;
    int decodertid;
 
-   void (PM123_ENTRYP error_display)(char *);
+   void (DLLENTRYP error_display)(char *);
 
    HWND hwnd;
 
@@ -270,7 +270,7 @@ static void TFNENTRY decoder_thread(void *arg)
    }
 }
 
-int PM123_ENTRY decoder_init(void **C)
+int DLLENTRY decoder_init(void **C)
 {
    CDDAPLAY *c;
 
@@ -293,7 +293,7 @@ int PM123_ENTRY decoder_init(void **C)
    }
 }
 
-BOOL PM123_ENTRY decoder_uninit(void *C)
+BOOL DLLENTRY decoder_uninit(void *C)
 {
    CDDAPLAY *c = (CDDAPLAY *) C;
    int decodertid = c->decodertid;
@@ -307,7 +307,7 @@ BOOL PM123_ENTRY decoder_uninit(void *C)
 }
 
 
-ULONG PM123_ENTRY decoder_command(void *C, ULONG msg, DECODER_PARAMS *params)
+ULONG DLLENTRY decoder_command(void *C, ULONG msg, DECODER_PARAMS *params)
 {
    CDDAPLAY *c = (CDDAPLAY *) C;
    ULONG resetcount;
@@ -380,7 +380,7 @@ ULONG PM123_ENTRY decoder_command(void *C, ULONG msg, DECODER_PARAMS *params)
    return 0;
 }
 
-ULONG PM123_ENTRY decoder_length(void *C)
+ULONG DLLENTRY decoder_length(void *C)
 {
    CDDAPLAY *c = (CDDAPLAY *) C;
 
@@ -391,13 +391,13 @@ ULONG PM123_ENTRY decoder_length(void *C)
       return c->last_length;
 }
 
-ULONG PM123_ENTRY decoder_status(void *C)
+ULONG DLLENTRY decoder_status(void *C)
 {
    CDDAPLAY *c = (CDDAPLAY *) C;
    return c->status;
 }
 
-ULONG PM123_ENTRY decoder_fileinfo(char *filename, DECODER_INFO *info)
+ULONG DLLENTRY decoder_fileinfo(char *filename, DECODER_INFO *info)
 {
    return 200;
 }
@@ -814,7 +814,7 @@ void loadCDDBInfo(void)
 
 }
 
-ULONG PM123_ENTRY decoder_trackinfo(char *drive, int track, DECODER_INFO *info)
+ULONG DLLENTRY decoder_trackinfo(char *drive, int track, DECODER_INFO *info)
 {
    char *temp;
 
@@ -911,7 +911,7 @@ ULONG PM123_ENTRY decoder_trackinfo(char *drive, int track, DECODER_INFO *info)
    return 0;
 }
 
-ULONG PM123_ENTRY decoder_cdinfo(char *drive, DECODER_CDINFO *info)
+ULONG DLLENTRY decoder_cdinfo(char *drive, DECODER_CDINFO *info)
 {
    CD_drive CD;
 
@@ -927,7 +927,7 @@ ULONG PM123_ENTRY decoder_cdinfo(char *drive, DECODER_CDINFO *info)
    return 0;
 }
 
-ULONG PM123_ENTRY decoder_support(char *ext[], int *size)
+ULONG DLLENTRY decoder_support(char *ext[], int *size)
 {
    if(size)
       *size = 0;
@@ -1542,7 +1542,7 @@ MRESULT EXPENTRY ConfigureDlgProc(HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2)
 #define FONT1 "9.WarpSans"
 #define FONT2 "8.Helv"
 
-int PM123_ENTRY plugin_configure(HWND hwnd, HMODULE module)
+int DLLENTRY plugin_configure(HWND hwnd, HMODULE module)
 {
    if(dlghwnd == 0)
    {
@@ -1564,7 +1564,7 @@ int PM123_ENTRY plugin_configure(HWND hwnd, HMODULE module)
    return 0;
 }
 
-int PM123_ENTRY plugin_query(PLUGIN_QUERYPARAM *param)
+int DLLENTRY plugin_query(PLUGIN_QUERYPARAM *param)
 {
    param->type = PLUGIN_DECODER;
    param->author = "Samuel Audet";

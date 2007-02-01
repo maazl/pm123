@@ -3,9 +3,9 @@
 #
 
 DLL     = yes
-TOPDIR  = ..\..
+TOPDIR  = ..\..\..
 
-!include $(TOPDIR)\..\config\makerules
+!include $(TOPDIR)\config\makerules
 
 all: g72x$(LBO) $(MDUMMY)
 

@@ -3,10 +3,10 @@
 #
 
 DLL     = yes
-TOPDIR  = ..\..\..
-INCDIR  = $(TOPDIR);$(TOPDIR)\kernel;$(TOPDIR)\rdft;$(TOPDIR)\rdft\codelets
+TOPDIR  = ..\..\..\..
+INCDIR  = ..\..\..\kernel;..\..\..\rdft;..\..\..\rdft\codelets;$(TOPDIR)\include
 
-!include $(TOPDIR)\..\config\makerules
+!include $(TOPDIR)\config\makerules
 
 all: hc2r$(LBO) $(MDUMMY)
 

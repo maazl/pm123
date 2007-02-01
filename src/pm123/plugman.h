@@ -54,19 +54,19 @@ typedef struct
   PLUGIN_QUERYPARAM query_param;
 
   void* w;
-  int   (PM123_ENTRYP decoder_init     )( void** w );
-  BOOL  (PM123_ENTRYP decoder_uninit   )( void*  w );
-  ULONG (PM123_ENTRYP decoder_command  )( void*  w, ULONG msg, DECODER_PARAMS* params );
-  ULONG (PM123_ENTRYP decoder_status   )( void*  w );
-  ULONG (PM123_ENTRYP decoder_length   )( void*  w );
-  ULONG (PM123_ENTRYP decoder_fileinfo )( char*  filename, DECODER_INFO *info );
-  ULONG (PM123_ENTRYP decoder_saveinfo )( char*  filename, DECODER_INFO *info );
-  ULONG (PM123_ENTRYP decoder_trackinfo)( char*  drive, int track, DECODER_INFO* info );
-  ULONG (PM123_ENTRYP decoder_cdinfo   )( char*  drive, DECODER_CDINFO* info );
-  ULONG (PM123_ENTRYP decoder_support  )( char*  ext[], int* size );
+  int   (DLLENTRYP decoder_init     )( void** w );
+  BOOL  (DLLENTRYP decoder_uninit   )( void*  w );
+  ULONG (DLLENTRYP decoder_command  )( void*  w, ULONG msg, DECODER_PARAMS* params );
+  ULONG (DLLENTRYP decoder_status   )( void*  w );
+  ULONG (DLLENTRYP decoder_length   )( void*  w );
+  ULONG (DLLENTRYP decoder_fileinfo )( char*  filename, DECODER_INFO *info );
+  ULONG (DLLENTRYP decoder_saveinfo )( char*  filename, DECODER_INFO *info );
+  ULONG (DLLENTRYP decoder_trackinfo)( char*  drive, int track, DECODER_INFO* info );
+  ULONG (DLLENTRYP decoder_cdinfo   )( char*  drive, DECODER_CDINFO* info );
+  ULONG (DLLENTRYP decoder_support  )( char*  ext[], int* size );
 
-  void  (PM123_ENTRYP plugin_query    )( PLUGIN_QUERYPARAM* param  );
-  void  (PM123_ENTRYP plugin_configure)( HWND hwnd, HMODULE module );
+  void  (DLLENTRYP plugin_query    )( PLUGIN_QUERYPARAM* param  );
+  void  (DLLENTRYP plugin_configure)( HWND hwnd, HMODULE module );
 
 } DECODER;
 
@@ -79,16 +79,16 @@ typedef struct
   PLUGIN_QUERYPARAM query_param;
 
   void* a;
-  ULONG (PM123_ENTRYP output_init           )( void** a );
-  ULONG (PM123_ENTRYP output_uninit         )( void*  a );
-  ULONG (PM123_ENTRYP output_command        )( void*  a, ULONG msg, OUTPUT_PARAMS* info );
-  ULONG (PM123_ENTRYP output_playing_samples)( void*  a, FORMAT_INFO* info, char* buf, int len );
-  int   (PM123_ENTRYP output_play_samples   )( void*  a, FORMAT_INFO* format, char* buf, int len, int posmarker );
-  int   (PM123_ENTRYP output_playing_pos    )( void*  a );
-  BOOL  (PM123_ENTRYP output_playing_data   )( void*  a );
+  ULONG (DLLENTRYP output_init           )( void** a );
+  ULONG (DLLENTRYP output_uninit         )( void*  a );
+  ULONG (DLLENTRYP output_command        )( void*  a, ULONG msg, OUTPUT_PARAMS* info );
+  ULONG (DLLENTRYP output_playing_samples)( void*  a, FORMAT_INFO* info, char* buf, int len );
+  int   (DLLENTRYP output_play_samples   )( void*  a, FORMAT_INFO* format, char* buf, int len, int posmarker );
+  int   (DLLENTRYP output_playing_pos    )( void*  a );
+  BOOL  (DLLENTRYP output_playing_data   )( void*  a );
 
-  void  (PM123_ENTRYP plugin_query    )( PLUGIN_QUERYPARAM* param  );
-  void  (PM123_ENTRYP plugin_configure)( HWND hwnd, HMODULE module );
+  void  (DLLENTRYP plugin_query    )( PLUGIN_QUERYPARAM* param  );
+  void  (DLLENTRYP plugin_configure)( HWND hwnd, HMODULE module );
 
 } OUTPUT;
 
@@ -102,12 +102,12 @@ typedef struct
   PLUGIN_QUERYPARAM query_param;
 
   void  *f;
-  ULONG (PM123_ENTRYP filter_init        )( void** f, FILTER_PARAMS* params );
-  BOOL  (PM123_ENTRYP filter_uninit      )( void*  f );
-  int   (PM123_ENTRYP filter_play_samples)( void*  f, FORMAT_INFO* format, char *buf, int len, int posmarker );
+  ULONG (DLLENTRYP filter_init        )( void** f, FILTER_PARAMS* params );
+  BOOL  (DLLENTRYP filter_uninit      )( void*  f );
+  int   (DLLENTRYP filter_play_samples)( void*  f, FORMAT_INFO* format, char *buf, int len, int posmarker );
 
-  void  (PM123_ENTRYP plugin_query    )( PLUGIN_QUERYPARAM* param  );
-  void  (PM123_ENTRYP plugin_configure)( HWND hwnd, HMODULE module );
+  void  (DLLENTRYP plugin_query    )( PLUGIN_QUERYPARAM* param  );
+  void  (DLLENTRYP plugin_configure)( HWND hwnd, HMODULE module );
 
 } FILTER;
 
@@ -125,10 +125,10 @@ typedef struct
 
   PLUGIN_QUERYPARAM query_param;
 
-  HWND  (PM123_ENTRYP plugin_init     )( VISPLUGININIT* init );
-  void  (PM123_ENTRYP plugin_query    )( PLUGIN_QUERYPARAM* param  );
-  void  (PM123_ENTRYP plugin_configure)( HWND hwnd, HMODULE module );
-  BOOL  (PM123_ENTRYP plugin_deinit   )( void* f );
+  HWND  (DLLENTRYP plugin_init     )( VISPLUGININIT* init );
+  void  (DLLENTRYP plugin_query    )( PLUGIN_QUERYPARAM* param  );
+  void  (DLLENTRYP plugin_configure)( HWND hwnd, HMODULE module );
+  BOOL  (DLLENTRYP plugin_deinit   )( void* f );
 
 } VISUAL;
 
@@ -175,28 +175,28 @@ int   dec_set_name_active( char* name );
 int   dec_set_active( int number );
 void  dec_fill_types( char* result, size_t size );
 
-ULONG PM123_ENTRY dec_command( ULONG msg, DECODER_PARAMS* params );
-ULONG PM123_ENTRY dec_fileinfo( char* filename, DECODER_INFO* info, char* name );
-ULONG PM123_ENTRY dec_saveinfo( char* filename, DECODER_INFO* info, char* name );
-ULONG PM123_ENTRY dec_cdinfo( char* drive, DECODER_CDINFO* info );
-ULONG PM123_ENTRY dec_status( void );
-ULONG PM123_ENTRY dec_length( void );
+ULONG DLLENTRY dec_command( ULONG msg, DECODER_PARAMS* params );
+ULONG DLLENTRY dec_fileinfo( char* filename, DECODER_INFO* info, char* name );
+ULONG DLLENTRY dec_saveinfo( char* filename, DECODER_INFO* info, char* name );
+ULONG DLLENTRY dec_cdinfo( char* drive, DECODER_CDINFO* info );
+ULONG DLLENTRY dec_status( void );
+ULONG DLLENTRY dec_length( void );
 
 int   out_set_name_active( char* name );
 int   out_set_active( int number );
 void  out_set_volume( int volume );
 
-ULONG PM123_ENTRY out_command( ULONG msg, OUTPUT_PARAMS* info );
-ULONG PM123_ENTRY out_playing_samples( FORMAT_INFO* info, char* buf, int len );
-ULONG PM123_ENTRY out_playing_pos( void );
-BOOL  PM123_ENTRY out_playing_data( void );
+ULONG DLLENTRY out_command( ULONG msg, OUTPUT_PARAMS* info );
+ULONG DLLENTRY out_playing_samples( FORMAT_INFO* info, char* buf, int len );
+ULONG DLLENTRY out_playing_pos( void );
+BOOL  DLLENTRY out_playing_data( void );
 
 BOOL  vis_init( HWND hwnd, int i );
 void  vis_broadcast( ULONG msg, MPARAM mp1, MPARAM mp2 );
 BOOL  vis_deinit( int i );
 
 /* Backward compatibility */
-BOOL  PM123_ENTRY decoder_playing( void );
+BOOL  DLLENTRY decoder_playing( void );
 
 /* Returns a playing time of the current file, in seconds. */
 int   time_played( void );

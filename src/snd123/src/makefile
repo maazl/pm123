@@ -3,10 +3,10 @@
 #
 
 DLL      = yes
-TOPDIR   = ..
-INCDIR   = $(TOPDIR)\..\utils
+TOPDIR   = ..\..
+INCDIR   = $(TOPDIR)\utils;$(TOPDIR)\include
 
-!include $(TOPDIR)\..\config\makerules
+!include $(TOPDIR)\config\makerules
 
 all: sndfile$(LBO) $(MDUMMY)
 

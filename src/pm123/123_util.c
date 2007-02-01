@@ -198,7 +198,7 @@ ULONG handle_dfi_error( ULONG rc, const char* file )
  return 1;
 }
 
-void PM123_ENTRY pm123_control( int index, void* param )
+void DLLENTRY pm123_control( int index, void* param )
 {
   switch (index)
   {
@@ -208,7 +208,7 @@ void PM123_ENTRY pm123_control( int index, void* param )
   }
 }
 
-int PM123_ENTRY pm123_getstring( int index, int subindex, size_t bufsize, char* buf )
+int DLLENTRY pm123_getstring( int index, int subindex, size_t bufsize, char* buf )
 {
  switch (index)
   {

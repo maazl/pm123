@@ -57,7 +57,7 @@ static float*         in;
 static fftwf_complex* out;
 static fftwf_plan     plan;
 
-int PM123_ENTRY
+int DLLENTRY
 specana_init( int set_numsamples )
 {
   int i;
@@ -94,7 +94,7 @@ specana_init( int set_numsamples )
   return numsamples / 2 + 1;
 }
 
-int PM123_ENTRY
+int DLLENTRY
 specana_dobands( float* bands )
 {
   FORMAT_INFO bufferinfo;

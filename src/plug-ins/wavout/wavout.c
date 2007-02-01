@@ -150,7 +150,7 @@ MRESULT EXPENTRY cfg_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
 }
 
 /* Configure plug-in. */
-int PM123_ENTRY
+int DLLENTRY
 plugin_configure( HWND hwnd, HMODULE module )
 {
   WinDlgBox( HWND_DESKTOP, hwnd, cfg_dlg_proc, module, DLG_CONFIGURE, (PVOID)module );
@@ -268,7 +268,7 @@ output_pause( void* A, BOOL pause )
 }
 
 /* Processing of a command messages. */
-ULONG PM123_ENTRY
+ULONG DLLENTRY
 output_command( void* A, ULONG msg, OUTPUT_PARAMS* info )
 {
   WAVOUT* a = (WAVOUT*)A;
@@ -313,7 +313,7 @@ output_command( void* A, ULONG msg, OUTPUT_PARAMS* info )
 
 /* This function is called by the decoder or last in chain
    filter plug-in to play samples. */
-int PM123_ENTRY
+int DLLENTRY
 output_play_samples( void* A, FORMAT_INFO* format, char* buf, int len, int posmarker )
 {
   WAVOUT *a = (WAVOUT*)A;
@@ -371,7 +371,7 @@ output_play_samples( void* A, FORMAT_INFO* format, char* buf, int len, int posma
 
 /* This function is used by visual plug-ins so the user can
    visualize what is currently being played. */
-ULONG PM123_ENTRY
+ULONG DLLENTRY
 output_playing_samples( void* A, FORMAT_INFO* info, char* buf, int len )
 {
   WAVOUT* a = (WAVOUT*)A;
@@ -390,21 +390,21 @@ output_playing_samples( void* A, FORMAT_INFO* info, char* buf, int len )
 }
 
 /* Returns the playing position. */
-ULONG PM123_ENTRY
+ULONG DLLENTRY
 output_playing_pos( void* A )
 {
   return ((WAVOUT*)A)->playingpos;
 }
 
 /* Returns TRUE if the output plug-in still has some buffers to play. */
-BOOL PM123_ENTRY
+BOOL DLLENTRY
 output_playing_data( void* A )
 {
   return FALSE;
 }
 
 /* Returns information about plug-in. */
-int PM123_ENTRY
+int DLLENTRY
 plugin_query( PLUGIN_QUERYPARAM* query )
 {
   query->type         = PLUGIN_OUTPUT;
@@ -415,7 +415,7 @@ plugin_query( PLUGIN_QUERYPARAM* query )
 }
 
 /* Initialize the output plug-in. */
-ULONG PM123_ENTRY
+ULONG DLLENTRY
 output_init( void** A )
 {
   WAVOUT* a = (WAVOUT*)malloc( sizeof(*a));
@@ -436,7 +436,7 @@ output_init( void** A )
 }
 
 /* Uninitialize the output plug-in. */
-ULONG PM123_ENTRY
+ULONG DLLENTRY
 output_uninit( void* A )
 {
   WAVOUT* a = (WAVOUT*)A;

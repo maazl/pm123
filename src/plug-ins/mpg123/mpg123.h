@@ -105,9 +105,9 @@ typedef struct _DECODER_STRUCT
    char* metadata_buff;
    int   metadata_size;
 
-   void (PM123_ENTRYP error_display)( char* );
-   void (PM123_ENTRYP info_display )( char* );
-   int  (PM123_ENTRYP output_play_samples)( void* a, FORMAT_INFO* format, char* buf, int len, int posmarker );
+   void (DLLENTRYP error_display)( char* );
+   void (DLLENTRYP info_display )( char* );
+   int  (DLLENTRYP output_play_samples)( void* a, FORMAT_INFO* format, char* buf, int len, int posmarker );
 
    void* a;               // Only to be used with the precedent function.
    int   audio_buffersize;

@@ -30,6 +30,7 @@
 #define SNDFILE_1
 
 #include <stdio.h>
+#include "config.h"
 
 /* For the Metrowerks CodeWarrior Pro Compiler (mainly MacOS) */
 
@@ -37,17 +38,6 @@
 #include    <unix.h>
 #else
 #include    <sys/types.h>
-#endif
-
-#if defined(__IBMC__) || defined(__IBMCPP__)
-  #define SNDENTRY  _System
-  #define SNDENTRYP * SNDENTRY
-#elif defined(__WATCOMC__) || defined(__EMX__)
-  #define SNDENTRY  _System
-  #define SNDENTRYP SNDENTRY *
-#else
-  #define SNDENTRY
-  #define SNDENTRYP SNDENTRY *
 #endif
 
 #ifdef __cplusplus
@@ -397,11 +387,11 @@ typedef struct
     char            coding_history [256] ;
 } SF_BROADCAST_INFO ;
 
-typedef sf_count_t      (SNDENTRYP sf_vio_get_filelen)(void *user_data) ;
-typedef sf_count_t      (SNDENTRYP sf_vio_seek)       (sf_count_t offset, int whence, void *user_data) ;
-typedef sf_count_t      (SNDENTRYP sf_vio_read)       (void *ptr, sf_count_t count, void *user_data) ;
-typedef sf_count_t      (SNDENTRYP sf_vio_write)      (const void *ptr, sf_count_t count, void *user_data) ;
-typedef sf_count_t      (SNDENTRYP sf_vio_tell)       (void *user_data) ;
+typedef sf_count_t      (DLLENTRYP sf_vio_get_filelen)(void *user_data) ;
+typedef sf_count_t      (DLLENTRYP sf_vio_seek)       (sf_count_t offset, int whence, void *user_data) ;
+typedef sf_count_t      (DLLENTRYP sf_vio_read)       (void *ptr, sf_count_t count, void *user_data) ;
+typedef sf_count_t      (DLLENTRYP sf_vio_write)      (const void *ptr, sf_count_t count, void *user_data) ;
+typedef sf_count_t      (DLLENTRYP sf_vio_tell)       (void *user_data) ;
 
 struct SF_VIRTUAL_IO
 {   sf_vio_get_filelen  get_filelen ;
@@ -419,7 +409,7 @@ typedef struct SF_VIRTUAL_IO SF_VIRTUAL_IO ;
 ** All calls to sf_open() should be matched with a call to sf_close().
 */
 
-SNDFILE* SNDENTRY sf_open (const char *path, int mode, SF_INFO *sfinfo) ;
+SNDFILE* DLLENTRY sf_open (const char *path, int mode, SF_INFO *sfinfo) ;
 
 /* Use the existing file descriptor to create a SNDFILE object. If close_desc
 ** is TRUE, the file descriptor will be closed when sf_close() is called. If
@@ -433,45 +423,45 @@ SNDFILE* SNDENTRY sf_open (const char *path, int mode, SF_INFO *sfinfo) ;
 
 */
 
-SNDFILE* SNDENTRY sf_open_fd  (int fd, int mode, SF_INFO *sfinfo, int close_desc) ;
+SNDFILE* DLLENTRY sf_open_fd  (int fd, int mode, SF_INFO *sfinfo, int close_desc) ;
 
-SNDFILE* SNDENTRY sf_open_virtual (SF_VIRTUAL_IO *sfvirtual, int mode, SF_INFO *sfinfo, void *user_data) ;
+SNDFILE* DLLENTRY sf_open_virtual (SF_VIRTUAL_IO *sfvirtual, int mode, SF_INFO *sfinfo, void *user_data) ;
 
 /* sf_error () returns a error number which can be translated to a text
 ** string using sf_error_number().
 */
 
-int SNDENTRY sf_error (SNDFILE *sndfile) ;
+int DLLENTRY sf_error (SNDFILE *sndfile) ;
 
 /* sf_strerror () returns to the caller a pointer to the current error message for
 ** the given SNDFILE.
 */
 
-const char* SNDENTRY sf_strerror (SNDFILE *sndfile) ;
+const char* DLLENTRY sf_strerror (SNDFILE *sndfile) ;
 
 /* sf_error_number () allows the retrieval of the error string for each internal
 ** error number.
 **
 */
 
-const char* SNDENTRY sf_error_number (int errnum) ;
+const char* DLLENTRY sf_error_number (int errnum) ;
 
 /* The following three error functions are deprecated but they will remain in the
 ** library for the forseeable future. The function sf_strerror() should be used
 ** in their place.
 */
 
-int SNDENTRY sf_perror (SNDFILE *sndfile) ;
-int SNDENTRY sf_error_str (SNDFILE *sndfile, char* str, size_t len) ;
+int DLLENTRY sf_perror (SNDFILE *sndfile) ;
+int DLLENTRY sf_error_str (SNDFILE *sndfile, char* str, size_t len) ;
 
 
 /* Return TRUE if fields of the SF_INFO struct are a valid combination of values. */
 
-int SNDENTRY sf_command (SNDFILE *sndfile, int command, void *data, int datasize) ;
+int DLLENTRY sf_command (SNDFILE *sndfile, int command, void *data, int datasize) ;
 
 /* Return TRUE if fields of the SF_INFO struct are a valid combination of values. */
 
-int SNDENTRY sf_format_check (const SF_INFO *info) ;
+int DLLENTRY sf_format_check (const SF_INFO *info) ;
 
 /* Seek within the waveform data chunk of the SNDFILE. sf_seek () uses
 ** not the same values for whence (SEEK_SET, SEEK_CUR and SEEK_END) as
@@ -485,7 +475,7 @@ int SNDENTRY sf_format_check (const SF_INFO *info) ;
 ** On error all of these functions return -1.
 */
 
-sf_count_t SNDENTRY sf_seek (SNDFILE *sndfile, sf_count_t frames, int whence) ;
+sf_count_t DLLENTRY sf_seek (SNDFILE *sndfile, sf_count_t frames, int whence) ;
 
 /* Functions for retrieving and setting string data within sound files.
 ** Not all file types support this features; AIFF and WAV do. For both
@@ -495,15 +485,15 @@ sf_count_t SNDENTRY sf_seek (SNDFILE *sndfile, sf_count_t frames, int whence) ;
 ** returns NULL.
 */
 
-int SNDENTRY sf_set_string (SNDFILE *sndfile, int str_type, const char* str) ;
+int DLLENTRY sf_set_string (SNDFILE *sndfile, int str_type, const char* str) ;
 
-const char* SNDENTRY sf_get_string (SNDFILE *sndfile, int str_type) ;
+const char* DLLENTRY sf_get_string (SNDFILE *sndfile, int str_type) ;
 
 /* Functions for reading/writing the waveform data of a sound file.
 */
 
-sf_count_t SNDENTRY sf_read_raw  (SNDFILE *sndfile, void *ptr, sf_count_t bytes) ;
-sf_count_t SNDENTRY sf_write_raw (SNDFILE *sndfile, const void *ptr, sf_count_t bytes) ;
+sf_count_t DLLENTRY sf_read_raw  (SNDFILE *sndfile, void *ptr, sf_count_t bytes) ;
+sf_count_t DLLENTRY sf_write_raw (SNDFILE *sndfile, const void *ptr, sf_count_t bytes) ;
 
 /* Functions for reading and writing the data chunk in terms of frames.
 ** The number of items actually read/written = frames * number of channels.
@@ -515,48 +505,48 @@ sf_count_t SNDENTRY sf_write_raw (SNDFILE *sndfile, const void *ptr, sf_count_t 
 ** All of these read/write function return number of frames read/written.
 */
 
-sf_count_t SNDENTRY sf_readf_short  (SNDFILE *sndfile, short *ptr, sf_count_t frames) ;
-sf_count_t SNDENTRY sf_writef_short (SNDFILE *sndfile, const short *ptr, sf_count_t frames) ;
+sf_count_t DLLENTRY sf_readf_short  (SNDFILE *sndfile, short *ptr, sf_count_t frames) ;
+sf_count_t DLLENTRY sf_writef_short (SNDFILE *sndfile, const short *ptr, sf_count_t frames) ;
 
-sf_count_t SNDENTRY sf_readf_int    (SNDFILE *sndfile, int *ptr, sf_count_t frames) ;
-sf_count_t SNDENTRY sf_writef_int   (SNDFILE *sndfile, const int *ptr, sf_count_t frames) ;
+sf_count_t DLLENTRY sf_readf_int    (SNDFILE *sndfile, int *ptr, sf_count_t frames) ;
+sf_count_t DLLENTRY sf_writef_int   (SNDFILE *sndfile, const int *ptr, sf_count_t frames) ;
 
-sf_count_t SNDENTRY sf_readf_float  (SNDFILE *sndfile, float *ptr, sf_count_t frames) ;
-sf_count_t SNDENTRY sf_writef_float (SNDFILE *sndfile, const float *ptr, sf_count_t frames) ;
+sf_count_t DLLENTRY sf_readf_float  (SNDFILE *sndfile, float *ptr, sf_count_t frames) ;
+sf_count_t DLLENTRY sf_writef_float (SNDFILE *sndfile, const float *ptr, sf_count_t frames) ;
 
-sf_count_t SNDENTRY sf_readf_double     (SNDFILE *sndfile, double *ptr, sf_count_t frames) ;
-sf_count_t SNDENTRY sf_writef_double    (SNDFILE *sndfile, const double *ptr, sf_count_t frames) ;
+sf_count_t DLLENTRY sf_readf_double     (SNDFILE *sndfile, double *ptr, sf_count_t frames) ;
+sf_count_t DLLENTRY sf_writef_double    (SNDFILE *sndfile, const double *ptr, sf_count_t frames) ;
 
 /* Functions for reading and writing the data chunk in terms of items.
 ** Otherwise similar to above.
 ** All of these read/write function return number of items read/written.
 */
 
-sf_count_t SNDENTRY sf_read_short   (SNDFILE *sndfile, short *ptr, sf_count_t items) ;
-sf_count_t SNDENTRY sf_write_short  (SNDFILE *sndfile, const short *ptr, sf_count_t items) ;
+sf_count_t DLLENTRY sf_read_short   (SNDFILE *sndfile, short *ptr, sf_count_t items) ;
+sf_count_t DLLENTRY sf_write_short  (SNDFILE *sndfile, const short *ptr, sf_count_t items) ;
 
-sf_count_t SNDENTRY sf_read_int     (SNDFILE *sndfile, int *ptr, sf_count_t items) ;
-sf_count_t SNDENTRY sf_write_int    (SNDFILE *sndfile, const int *ptr, sf_count_t items) ;
+sf_count_t DLLENTRY sf_read_int     (SNDFILE *sndfile, int *ptr, sf_count_t items) ;
+sf_count_t DLLENTRY sf_write_int    (SNDFILE *sndfile, const int *ptr, sf_count_t items) ;
 
-sf_count_t SNDENTRY sf_read_float   (SNDFILE *sndfile, float *ptr, sf_count_t items) ;
-sf_count_t SNDENTRY sf_write_float  (SNDFILE *sndfile, const float *ptr, sf_count_t items) ;
+sf_count_t DLLENTRY sf_read_float   (SNDFILE *sndfile, float *ptr, sf_count_t items) ;
+sf_count_t DLLENTRY sf_write_float  (SNDFILE *sndfile, const float *ptr, sf_count_t items) ;
 
-sf_count_t SNDENTRY sf_read_double  (SNDFILE *sndfile, double *ptr, sf_count_t items) ;
-sf_count_t SNDENTRY sf_write_double (SNDFILE *sndfile, const double *ptr, sf_count_t items) ;
+sf_count_t DLLENTRY sf_read_double  (SNDFILE *sndfile, double *ptr, sf_count_t items) ;
+sf_count_t DLLENTRY sf_write_double (SNDFILE *sndfile, const double *ptr, sf_count_t items) ;
 
 /* Close the SNDFILE and clean up all memory allocations associated with this
 ** file.
 ** Returns 0 on success, or an error number.
 */
 
-int SNDENTRY sf_close (SNDFILE *sndfile) ;
+int DLLENTRY sf_close (SNDFILE *sndfile) ;
 
 /* If the file is opened SFM_WRITE or SFM_RDWR, call fsync() on the file
 ** to force the writing of data to disk. If the file is opened SFM_READ
 ** no action is taken.
 */
 
-void SNDENTRY sf_write_sync (SNDFILE *sndfile) ;
+void DLLENTRY sf_write_sync (SNDFILE *sndfile) ;
 
 #ifdef __cplusplus
 }       /* extern "C" */

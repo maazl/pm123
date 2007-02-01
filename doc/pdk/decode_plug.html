@@ -8,8 +8,8 @@
 Decoder plug-ins must implement and export the functions defined in
 decoder_plug.h.
 <pre>
-     int  PM123_ENTRY decoder_init  ( void **w )
-     BOOL PM123_ENTRY decoder_uninit( void *w  )
+     int  DLLENTRY decoder_init  ( void **w )
+     BOOL DLLENTRY decoder_uninit( void *w  )
 </pre><ul>
 <li>w : Allocate any chunk of memory necessary for the decoder's
 function. This pointer will be passed to the other functions.
@@ -24,7 +24,7 @@ and threads. <i>decoder_uninit</i> is called when another decoder
 than yours is needed, and should destroy the decoder's thread,
 semaphores, other opened handles and free allocated memory for <i>w</i>.
 <pre>
-     ULONG PM123_ENTRY decoder_command( void *w, ULONG msg, DECODER_PARAMS *params )
+     ULONG DLLENTRY decoder_command( void *w, ULONG msg, DECODER_PARAMS *params )
 </pre>
 <ul>
 <li>msg: one of the following:
@@ -74,7 +74,7 @@ method), so it is a string with the following format:
 </pre>
 Only StreamingTitle is used by PM123.
 <pre>
-     ULONG PM123_ENTRY decoder_status( void *w )
+     ULONG DLLENTRY decoder_status( void *w )
 </pre>
 <ul>
 <li>return value - One of the following:<br>
@@ -83,7 +83,7 @@ DECODER_PLAYING<br>
 DECODER_STARTING<br>
 </ul>
 <pre>
-     ULONG PM123_ENTRY decoder_length( void *w )
+     ULONG DLLENTRY decoder_length( void *w )
 </pre>
 <ul>
 <li>return value - number of milliseconds the stream lasts (you can
@@ -94,8 +94,8 @@ The call to this function must be valid even if <i>DECODER_STARTING</i> or
 <i>DECODER_STOPPED</i> is reported (when the stream plays too fast for
 example).
 <pre>
-     ULONG PM123_ENTRY decoder_fileinfo ( char *filename, DECODER_INFO *info )
-     ULONG PM123_ENTRY decoder_trackinfo( char *drive, int track, DECODER_INFO *info )
+     ULONG DLLENTRY decoder_fileinfo ( char *filename, DECODER_INFO *info )
+     ULONG DLLENTRY decoder_trackinfo( char *drive, int track, DECODER_INFO *info )
 </pre>
 <ul>
 <li>filename : full path or URL to the desired stream.
@@ -115,7 +115,7 @@ decoders) must be independant from the current status of the decoder.
 It should always be functionnaly and give consistent results in any
 conditions.
 <pre>
-     ULONG PM123_ENTRY decoder_cdinfo( char *drive, DECODER_CDINFO *info )
+     ULONG DLLENTRY decoder_cdinfo( char *drive, DECODER_CDINFO *info )
 </pre>
 <ul>
 <li>drive: ...
@@ -125,7 +125,7 @@ decoder.</lI>
 <p>
 This is used by PM123 before calling <i>decoder_trackinfo</i>.
 <pre>
-    ULONG PM123_ENTRY decoder_support( char *fileext[], int *size )
+    ULONG DLLENTRY decoder_support( char *fileext[], int *size )
 </pre>
 <ul>
 <li>fileext: fill this array with all the wildcard expression matching

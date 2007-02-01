@@ -930,12 +930,12 @@ ULONG pl_playleft( void )
 
   while( rec ) {
     if( !rec->played || rec == current_record || !cfg.shf ) {
-      time += rec->info.songlength;
+      time += rec->info.songlength / 1000;
     }
     rec = pl_next_record( rec );
   }
 
-  return time / 1000;
+  return time;
 }
 
 /* Marks the currently loaded playlist record as currently played. */

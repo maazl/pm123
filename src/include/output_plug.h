@@ -9,8 +9,8 @@ extern "C" {
 
 #pragma pack(4)
 
-ULONG PM123_ENTRY output_init  ( void** a );
-ULONG PM123_ENTRY output_uninit( void*  a );
+ULONG DLLENTRY output_init  ( void** a );
+ULONG DLLENTRY output_uninit( void*  a );
 
 #define OUTPUT_OPEN          1 /* may not be necessary! */
 #define OUTPUT_CLOSE         2
@@ -33,11 +33,11 @@ typedef struct _OUTPUT_PARAMS
   unsigned short boostclass, normalclass;
   signed   short boostdelta, normaldelta;
 
-  void (PM123_ENTRYP error_display)( char* );
+  void (DLLENTRYP error_display)( char* );
 
   /* info message function the output plug-in should use */
   /* this information is always displayed to the user right away */
-  void (PM123_ENTRYP info_display)( char* );
+  void (DLLENTRYP info_display)( char* );
 
   HWND hwnd; /* commodity for PM interface, sends a few messages to this handle. */
 
@@ -70,11 +70,11 @@ typedef struct _OUTPUT_PARAMS
 
 } OUTPUT_PARAMS;
 
-ULONG PM123_ENTRY output_command( void* a, ULONG msg, OUTPUT_PARAMS* info );
-ULONG PM123_ENTRY output_playing_samples( void* a, FORMAT_INFO* info, char* buf, int len );
-int   PM123_ENTRY output_play_samples( void* a, FORMAT_INFO* format, char* buf, int len, int posmarker );
-ULONG PM123_ENTRY output_playing_pos( void* a );
-BOOL  PM123_ENTRY output_playing_data( void* a );
+ULONG DLLENTRY output_command( void* a, ULONG msg, OUTPUT_PARAMS* info );
+ULONG DLLENTRY output_playing_samples( void* a, FORMAT_INFO* info, char* buf, int len );
+int   DLLENTRY output_play_samples( void* a, FORMAT_INFO* format, char* buf, int len, int posmarker );
+ULONG DLLENTRY output_playing_pos( void* a );
+BOOL  DLLENTRY output_playing_data( void* a );
 
 #pragma pack()
 

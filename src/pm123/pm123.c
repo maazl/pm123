@@ -112,7 +112,7 @@ float gains[20];
 BOOL  mutes[20];
 float preamp;
 
-void PM123_ENTRY
+void DLLENTRY
 amp_display_info( char* info )
 {
   char* message = strdup( info );
@@ -121,7 +121,7 @@ amp_display_info( char* info )
   }
 }
 
-void PM123_ENTRY
+void DLLENTRY
 amp_display_error( char *info )
 {
   char* message = strdup( info );
