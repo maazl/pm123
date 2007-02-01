@@ -8,10 +8,10 @@ EXE_PM   = yes
 
 !include $(TOPDIR)\config\makerules
 
-OBJECTS  = button95$(CO) pm123$(CO) 123_msg$(CO) 123_util$(CO)
-OBJECTS  = $(OBJECTS) pfreq$(CO) plugman$(CO) plugman_base$(CO) bookmark$(CO)
-OBJECTS  = $(OBJECTS) iniman$(CO) playlist$(CO) properties$(CO) skin$(CO)
-OBJECTS  = $(OBJECTS) pipe$(CO) docking$(CO) vdelegate$(CO)
+OBJECTS  = button95$(CO) pm123$(CO) messages$(CO) 123_util$(CO)
+OBJECTS  = $(OBJECTS) pfreq$(CO) plugman$(CO) plugman_base$(CO) bookmark$(CO) iniman$(CO)
+OBJECTS  = $(OBJECTS) playlist$(CO) properties$(CO) skin$(CO)
+OBJECTS  = $(OBJECTS) docking$(CO) vdelegate$(CO)
 DEF      = pm123$(LDEF_SUFFX)
 RESOURCE = pm123$(RES)
 LIBS     = $(TOPDIR)\gbm123\gbm123$(LBI) $(TOPDIR)\xio123\xio123$(LBI)
@@ -28,11 +28,10 @@ pm123.exe: $(OBJECTS) $(RESOURCE) $(DEF) $(LIBS)
 plugman$(CO):	plugman.cpp
 plugman_base$(CO):	plugman.cpp
 
-123_msg.c:     pm123.h plugman.h
 123_util.c:    pm123.h plugman.h
-pm123.c:       pm123.h plugman.h bookmark.h button95.h pfreq.h docking.h copyright.h
 plugman.cpp:   pm123.h plugman.h plugman_base.h
 plugman_base.cpp: plugman.h plugman_base.h
+pm123.c:       pm123.h plugman.h bookmark.h button95.h pfreq.h docking.h copyright.h messages.h
 docking.c:     docking.h
 iniman.c:      pm123.h plugman.h iniman.h
 playlist.c:    pm123.h playlist.h
@@ -41,6 +40,7 @@ bookmark.c:    pm123.h bookmark.h
 skin.c:        pm123.h plugman.h
 vdelegate.c:   vdelegate.h
 pipe.c:        playlist.h pm123.h properties.h
+messages.c:    pm123.h messages.h
 pm123.rc:      pm123.h bookmark.h
 pm123.h:       playlist.h skin.h properties.h
 

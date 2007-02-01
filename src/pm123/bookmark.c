@@ -44,6 +44,7 @@
 #include "plugman.h"
 #include "docking.h"
 #include "iniman.h"
+#include "messages.h"
 
 static HWND     menu_record = NULLHANDLE;
 static HWND     menu_list   = NULLHANDLE;
@@ -665,13 +666,8 @@ bm_load_bookmark( BMRECORD* rec )
     rc = amp_load_singlefile( rec->filename, AMP_LOAD_NOT_PLAY | AMP_LOAD_NOT_RECALL );
   }
 
-  if( rc && ( cfg.playonload || rec->play_pos > 0 ))
-  {
-    amp_play();
-
-    if( rec->play_pos > 0 ) {
-      amp_msg( MSG_JUMP, &rec->play_pos, 0 );
-    }
+  if( rc && ( cfg.playonload || rec->play_pos > 0 )) {
+    amp_play( rec->play_pos );
   }
 
   return TRUE;

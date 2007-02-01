@@ -23,14 +23,15 @@ PM123 1.40 (alpha 1)
     - Enabling/disabling the EQ does no longer cause the playback to jump.
     - Changing the FIR order does no longer cause glitches.
     - The maximum FIR order is now 16384, giving very accurate results.
-    - The maximum FFT size is now 32768. This will cause low CPU usage even
-      with large FIR orders.
+    - The maximum FFT size is now 32768.
     - The MMX and FFT convolution is finally removed. Both are outperformed by
-      the new FFT convolution.
+      the new FFT convolution. This will cause low CPU usage even
+      with large FIR orders.
     - Save the slider settings by value in REALEQ.INI. Now the restore do no
       longer depend on the last loaded file and changes to the loaded settings
       are kept after restart.
     - Added master gain and mute controls.
+    - Added group delay equalization.
 
     MPG123:
     - Implemented ID3 tag editor (was in PM123 core)
@@ -75,6 +76,9 @@ PM123 1.32 (still beta)
       a song can be wrong, but there are no jerks of the seek slider.
     - The decoder now correctly skip RIFF headers, ID3v1 and ID3v2 tags during 
       playing a file.
+    - The decoder now correctly decode mpeg 2.x layer 3 files with low 
+      sample rate.
+    - The decoder any more does not eat the end of the played file.
 
     REALEQ:
     - The mute controls of the left and right channel are placed correctly.
@@ -91,6 +95,10 @@ PM123 1.32 (still beta)
 
     WAVPLAY:
     - Now shows correct bitrate at playing a file. Thanks to ntim.
+
+    OS2AUDIO:
+    - The output is more accurate and any more does not eat the head of the
+      played file.
 
 PM123 1.31
 ----------

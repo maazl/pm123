@@ -63,7 +63,6 @@
 #define IDM_PL_S_PLAY       981
 #define IDM_PL_S_DEL        982
 #define IDM_PL_S_TAG        983
-#define IDM_PL_S_DTAG       984
 #define IDM_PL_ADD          985
 #define IDM_PL_OPEN         986
 #define IDM_PL_S_KILL       987
@@ -75,16 +74,16 @@
 
 typedef struct _PLRECORD {
 
-  RECORDCORE  rc;
-  char*       songname;     /* Name of the song.            */
-  char*       full;         /* Full path and file name.     */
-  char*       length;       /* Length of the file.          */
-  char*       time;         /* Play time of the file.       */
-  char*       info;         /* Information about the song.  */
-  int         played;       /* Is it already played file.   */
-  BOOL        exist;        /* Is it file exist.            */
-  DECODER_INFO2* info2;     /* micelaneuous information about the file */
-  char        decoder_module_name[16];
+  RECORDCORE   rc;
+  char*        songname;    /* Name of the song.              */
+  char*        full;        /* Full path and file name.       */
+  char*        size;        /* Size of the file.              */
+  char*        time;        /* Play time of the file.         */
+  char*        moreinfo;    /* Information about the song.    */
+  int          played;      /* Is it already played file.     */
+  BOOL         exist;       /* Is this file exist.            */
+  DECODER_INFO2 info;        /* File info returned by decoder. */
+  char         decoder[16]; /* Name of a decoder module.      */
 
 } PLRECORD, *PPLRECORD;
 

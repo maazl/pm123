@@ -124,7 +124,7 @@ typedef enum
 } DECODER_FAST_MODE;
 
 /* invoke decoder to play an URL */
-ULONG dec_play( const char* url, const char* decoder_name );
+ULONG dec_play( const char* url, const char* decoder_name, int pos );
 /* stop the current decoder immediately */
 ULONG dec_stop( void );
 /* set fast forward/rewind mode */

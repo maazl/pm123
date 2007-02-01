@@ -50,54 +50,112 @@
 #include "plugman.h"
 
 
-/* Constructs a string of the displayable text from the ID3 tag. */
+/* Constructs a string of the displayable text from the file information. */
 char*
-amp_construct_tag_string( char* result, const META_INFO* tag )
+amp_construct_tag_string( char* result, const DECODER_INFO2* info, int size )
 {
   *result = 0;
 
-  if( *tag->artist ) {
-    strcat( result, tag->artist );
-    if( *tag->title ) {
-      strcat( result, ": " );
+  if( *info->meta.artist ) {
+    strlcat( result, info->meta.artist, size );
+    if( *info->meta.title ) {
+      strlcat( result, ": ", size );
     }
   }
 
-  if( *tag->title ) {
-    strcat( result, tag->title );
+  if( *info->meta.title ) {
+    strlcat( result, info->meta.title, size );
   }
 
-  if( *tag->album && *tag->year )
+  if( *info->meta.album && *info->meta.year )
   {
-    strcat( result, " (" );
-    strcat( result, tag->album );
-    strcat( result, ", " );
-    strcat( result, tag->year  );
-    strcat( result, ")" );
+    strlcat( result, " (", size );
+    strlcat( result, info->meta.album, size );
+    strlcat( result, ", ", size );
+    strlcat( result, info->meta.year,  size );
+    strlcat( result, ")",  size );
   }
   else
   {
-    if( *tag->album && !*tag->year )
+    if( *info->meta.album && !*info->meta.year )
     {
-      strcat( result, " (" );
-      strcat( result, tag->album );
-      strcat( result, ")" );
+      strlcat( result, " (", size );
+      strlcat( result, info->meta.album, size );
+      strlcat( result, ")",  size );
     }
-    if( !*tag->album && *tag->year )
+    if( !*info->meta.album && *info->meta.year )
     {
-      strcat( result, " (" );
-      strcat( result, tag->year);
-      strcat( result, ")" );
+      strlcat( result, " (", size );
+      strlcat( result, info->meta.year, size );
+      strlcat( result, ")",  size );
     }
   }
 
-  if( *tag->comment )
+  if( *info->meta.comment )
   {
-    strlcat( result, " -- ", sizeof( result ));
-    strlcat( result, tag->comment, sizeof( result ));
+    strlcat( result, " -- ", size );
+    strlcat( result, info->meta.comment, size );
   }
 
   return result;
+}
+
+/* Constructs a information text for currently loaded file
+   and selects it for displaying. */
+void
+amp_display_filename( void )
+{
+  char display[512];
+
+  if( amp_playmode == AMP_NOFILE ) {
+    bmp_set_text( "No file loaded" );
+    return;
+  }
+
+  switch( cfg.viewmode )
+  {
+    case CFG_DISP_ID3TAG:
+      amp_construct_tag_string( display, &amp_get_current_file()->info, sizeof( display ));
+
+      if( *display ) {
+        bmp_set_text( display );
+        break;
+      }
+
+      // if tag is empty - use filename instead of it.
+
+    case CFG_DISP_FILENAME:
+    {
+      const char* current_filename = amp_get_current_file()->url;
+      if( current_filename != NULL && *current_filename )
+      { 
+        if( is_url( current_filename )) {
+          bmp_set_text( sdecode( display, current_filename, sizeof( display )));
+        } else {
+          bmp_set_text( sfname ( display, current_filename, sizeof( display )));
+        }
+      } else {
+         bmp_set_text( "This is a bug!" );
+      }
+      break;
+    }
+    case CFG_DISP_FILEINFO:
+      bmp_set_text( amp_get_current_file()->info.tech.info );
+      break;
+  }
+}
+
+/* Switches to the next text displaying mode. */
+void
+amp_display_next_mode( void )
+{
+  if( cfg.viewmode == CFG_DISP_FILEINFO ) {
+    cfg.viewmode = CFG_DISP_FILENAME;
+  } else {
+    cfg.viewmode++;
+  }
+
+  amp_display_filename();
 }
 
 /* Converts time to two integer suitable for display by the timer. */
@@ -121,7 +179,7 @@ sec2num( long seconds, int* major, int* minor )
   *minor = mi;
 }
 
-void PM123_ENTRY pm123_control(int index, void *param)
+void PM123_ENTRY pm123_control( int index, void* param )
 {
   switch (index)
   {
@@ -131,7 +189,7 @@ void PM123_ENTRY pm123_control(int index, void *param)
   }
 }
 
-int PM123_ENTRY pm123_getstring(int index, int subindex, size_t bufsize, char *buf)
+int PM123_ENTRY pm123_getstring( int index, int subindex, size_t bufsize, char* buf )
 {
  switch (index)
   {

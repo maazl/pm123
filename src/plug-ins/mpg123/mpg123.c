@@ -555,6 +555,9 @@ decoder_fileinfo( const char* filename, DECODER_INFO* info )
         memcpy( info->title, tag.meta.title, offsetof( META_INFO, track ) - offsetof( META_INFO, title ) );
         sprintf( info->track, "%d", tag.meta.track);
       }
+      if ( info->size >= offsetof( DECODER_INFO, saveinfo ) + sizeof info->saveinfo ) { // protect memory of old versions
+        info->saveinfo = 1;     
+      }
     }
   } else {
     rc = 200;

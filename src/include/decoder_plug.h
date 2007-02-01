@@ -255,7 +255,7 @@ typedef struct
    TECH_INFO    tech;    /* technical informations about the source */
 
    META_INFO    meta;    /* song information */
-   BOOL         meta_write; /* support editing the metadata */
+   BOOL         meta_write; /* support editing the metadata (same as saveinfo in DECODER_INFO) */
 
 } DECODER_INFO2;
 

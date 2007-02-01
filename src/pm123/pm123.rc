@@ -367,7 +367,6 @@ BEGIN
    "s",       IDM_PL_LST_SAVE,    AF_CHAR | AF_CONTROL
    "o",       IDM_PL_LOADL,       AF_CHAR | AF_CONTROL
    "e",       IDM_PL_S_TAG,       AF_CHAR | AF_CONTROL
-   "w",       IDM_PL_S_DTAG,      AF_CHAR | AF_CONTROL
    VK_DELETE, IDM_PL_S_DEL,       AF_VIRTUALKEY
    VK_DELETE, IDM_PL_S_KILL,      AF_VIRTUALKEY | AF_CONTROL
 
@@ -413,7 +412,7 @@ MENU MNU_RECORD
    MENUITEM SEPARATOR
    MENUITEM "~Delete file\tCtrl+Del",       IDM_PL_S_KILL
    MENUITEM SEPARATOR
-   MENUITEM "~Edit Tag...\tCtrl+E",         IDM_PL_S_TAG
+   MENUITEM "~Edit file info...\tCtrl+E",   IDM_PL_S_TAG
 }
 
 ACCELTABLE ACL_MAIN
@@ -453,7 +452,7 @@ MENU MNU_MAIN
      MENUITEM "~URL...\tAlt+U",             IDM_M_URL
      /*MENUITEM "~Track...\tAlt+T",           IDM_M_TRACK*/
    }
-   MENUITEM "~Edit Tag...\tCtrl+E",         IDM_M_TAG
+   MENUITEM "~Edit file info...\tCtrl+E",   IDM_M_TAG
    SUBMENU  "~Bookmarks",                   IDM_M_BOOKMARKS
    {
      MENUITEM "~Add current as bookmark\tCtrl+B", IDM_M_ADDBOOK
@@ -666,11 +665,11 @@ BEGIN
                 SS_TEXT | DT_LEFT | DT_TOP | DT_MNEMONIC | WS_VISIBLE | WS_GROUP
         PRESPARAMS PP_FOREGROUNDCOLOR , 0x0L
         PRESPARAMS PP_FONTNAMESIZE "9.WarpSans Bold"
-        CONTROL "~Filename", RB_DISP_FILENAME, 70, 71, 50, 9, WC_BUTTON,
+        CONTROL "~Filename", RB_DISP_FILENAME, 70, 71, 70, 9, WC_BUTTON,
                 BS_AUTORADIOBUTTON | WS_VISIBLE | WS_TABSTOP | WS_GROUP
-        CONTROL "~ID3 Tag", RB_DISP_ID3TAG, 70, 61, 50, 9, WC_BUTTON,
+        CONTROL "~Song Information", RB_DISP_ID3TAG, 70, 61, 70, 9, WC_BUTTON,
                 BS_AUTORADIOBUTTON | WS_VISIBLE
-        CONTROL "Fil~e Info", RB_DISP_FILEINFO, 70, 51, 50, 9, WC_BUTTON,
+        CONTROL "~Tech Information", RB_DISP_FILEINFO, 70, 51, 70, 9, WC_BUTTON,
                 BS_AUTORADIOBUTTON | WS_VISIBLE
 
         CONTROL "Font", GB_FONT, 6, 6, 244, 38, WC_STATIC,

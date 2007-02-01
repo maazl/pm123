@@ -170,20 +170,20 @@ cfg_page1_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
 
     case CFG_DEFAULT:
     {
-      WinCheckButton( hwnd, CB_PLAYONLOAD,      TRUE  );
-      WinCheckButton( hwnd, CB_AUTOUSEPL,       TRUE  );
-      WinCheckButton( hwnd, CB_AUTOPLAYPL,      TRUE  );
-      WinCheckButton( hwnd, CB_SELECTPLAYED,    FALSE );
-      WinCheckButton( hwnd, CB_TRASHONSEEK,     TRUE  );
-      WinCheckButton( hwnd, CB_DOCK,            TRUE  );
-      WinCheckButton( hwnd, CB_FILLBUFFER,      TRUE  );
+      WinCheckButton( hwnd, CB_PLAYONLOAD,   TRUE  );
+      WinCheckButton( hwnd, CB_AUTOUSEPL,    TRUE  );
+      WinCheckButton( hwnd, CB_AUTOPLAYPL,   TRUE  );
+      WinCheckButton( hwnd, CB_SELECTPLAYED, FALSE );
+      WinCheckButton( hwnd, CB_TRASHONSEEK,  TRUE  );
+      WinCheckButton( hwnd, CB_DOCK,         TRUE  );
+      WinCheckButton( hwnd, CB_FILLBUFFER,   FALSE );
 
       WinSetDlgItemText( hwnd, EF_DOCK,       "10" );
       WinSetDlgItemText( hwnd, EF_PROXY_HOST,  ""  );
       WinSetDlgItemText( hwnd, EF_PROXY_PORT,  ""  );
       WinSetDlgItemText( hwnd, EF_PROXY_USER,  ""  );
       WinSetDlgItemText( hwnd, EF_PROXY_PASS,  ""  );
-      WinSendDlgItemMsg( hwnd, SB_BUFFERSIZE, SPBM_SETCURRENTVALUE, MPFROMLONG( 64 ), 0 );
+      WinSendDlgItemMsg( hwnd, SB_BUFFERSIZE, SPBM_SETCURRENTVALUE, MPFROMLONG( 128 ), 0 );
       return 0;
     }
 
@@ -392,13 +392,13 @@ cfg_page3_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
 {
   int num;
   PLUGIN_BASE*const* list;
+  char filename[_MAX_FNAME];
 
   switch( msg )
   {
     case CFG_REFRESH_LIST:
     {
-      int  i;
-      char filename[_MAX_FNAME];
+      int i;
   
       if( LONGFROMMP(mp1) & PLUGIN_VISUAL  )
       {
@@ -606,13 +606,13 @@ cfg_page4_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
 {
   int num;
   PLUGIN_BASE*const* list;
+  char filename[_MAX_FNAME];
 
   switch( msg )
   {
     case CFG_REFRESH_LIST:
     {
-      int  i;
-      char filename[_MAX_FNAME];
+      int i;
 
       if( LONGFROMMP(mp1) & PLUGIN_OUTPUT  )
       {
@@ -1015,6 +1015,7 @@ cfg_properties( HWND owner )
     #else
       strcat( built, " using IBM VisualAge C++ 3.6"  );
     #endif
+    strcat( built, ")" );
   #elif defined(__WATCOMC__)
     #if __WATCOMC__ < 1200
       sprintf( built, "(built %s using Open Watcom C++ %d.%d",
@@ -1023,9 +1024,11 @@ cfg_properties( HWND owner )
       sprintf( built, "(built %s using Open Watcom C++ %d.%d",
                __DATE__, __WATCOMC__ / 100 - 11, __WATCOMC__ % 100 );
     #endif
+    strcat( built, ")" );
+  #else
+    *built = 0;
   #endif
 
-  strcat( built, ")" );
   WinSetDlgItemText( page05, ST_BUILT, built );
 
   id = WinSendMsg( book, BKM_INSERTPAGE, MPFROMLONG( id),

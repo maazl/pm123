@@ -113,7 +113,7 @@ static class CL_GLUE
   friend ULONG             out_pause          ( BOOL pause );
   friend BOOL              out_flush          ( void );
   // decoder control interface (C style)
-  friend ULONG             dec_play           ( const char* url, const char* decoder_name );
+  friend ULONG             dec_play           ( const char* url, const char* decoder_name, int pos );
   friend ULONG             dec_stop           ( void );
   friend ULONG             dec_fast           ( DECODER_FAST_MODE mode );
   friend ULONG             dec_jump           ( int pos );
@@ -156,12 +156,12 @@ void CL_GLUE::virtualize(int i)
   par.a                      = procs.a;
   par.output_event           = params.output_event;
   par.w                      = params.w;
-  par.error_display          = &keep_last_error;
-  par.info_display           = &display_info;
+  par.error_display          = &amp_display_error;
+  par.info_display           = &amp_display_info;
   if (!fil.initialize(&par))
   { char msg[500];
     sprintf(msg, "The filter plug-in %s failed to initialize.", fil.module_name);
-    display_info(msg);
+    amp_display_info(msg);
     virtualize(i-1);
     return;
   }
@@ -199,8 +199,8 @@ ULONG CL_GLUE::init()
 { DEBUGLOG(("CL_GLUE(%p)::init\n", this));
 
   params.size          = sizeof params;
-  params.error_display = &keep_last_error;
-  params.info_display  = &display_info;
+  params.error_display = &amp_display_error;
+  params.info_display  = &amp_display_info;
   // setup callback handlers
   params.output_event  = &out_event;
   params.w             = this; // not really required
@@ -209,8 +209,8 @@ ULONG CL_GLUE::init()
   dparams.size            = sizeof dparams;
   // setup callback handlers
   dparams.output_event    = &dec_event;
-  dparams.error_display   = &keep_last_error;
-  dparams.info_display    = &display_info;
+  dparams.error_display   = &amp_display_error;
+  dparams.info_display    = &amp_display_info;
   dparams.save_filename   = NULL;
 
   CL_OUTPUT* op = (CL_OUTPUT*)outputs.current();
@@ -266,7 +266,7 @@ ULONG CL_GLUE::dec_command( ULONG msg )
 }
 
 /* invoke decoder to play an URL */
-ULONG dec_play( const char* url, const char* decoder_name )
+ULONG dec_play( const char* url, const char* decoder_name, int pos )
 {
   DEBUGLOG(("dec_play(%s, %s)\n", url, decoder_name));
   ULONG rc = voutput.dec_set_active( decoder_name );
@@ -274,6 +274,7 @@ ULONG dec_play( const char* url, const char* decoder_name )
     return rc;
 
   voutput.dparams.URL                   = url;
+  voutput.dparams.jumpto                = pos;
   voutput.dparams.output_request_buffer = voutput.procs.output_request_buffer;
   voutput.dparams.output_commit_buffer  = voutput.procs.output_commit_buffer;
   voutput.dparams.a                     = voutput.procs.a;
@@ -361,7 +362,9 @@ ULONG dec_eq( const float* bandgain )
 
 /* set savefilename to save the raw stream data */
 ULONG dec_save( const char* file )
-{ voutput.dparams.save_filename = file;
+{ if (file != NULL && *file == 0)
+    file = NULL;
+  voutput.dparams.save_filename = file;
   ULONG status = dec_status();
   return status == DECODER_PLAYING || status == DECODER_STARTING
    ? voutput.dec_command( DECODER_SAVEDATA )

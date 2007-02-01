@@ -7,6 +7,7 @@
 VERSION = 1_32
 PARTS   = src\utils\utilfct$(LBO) src\gbm123\gbm123.dll src\fft123\fft123.dll
 PARTS   = $(PARTS) src\xio123\xio123.dll
+PARTS   = $(PARTS) src\snd123\snd123.dll
 PARTS   = $(PARTS) src\plug-ins\analyzer\analyzer.dll
 PARTS   = $(PARTS) src\plug-ins\cddaplay\cddaplay.dll
 PARTS   = $(PARTS) src\plug-ins\mpg123\mpg123.dll
@@ -15,6 +16,7 @@ PARTS   = $(PARTS) src\plug-ins\realeq\realeq.dll
 PARTS   = $(PARTS) src\plug-ins\wavplay\wavplay.dll
 PARTS   = $(PARTS) src\plug-ins\wavout\wavout.dll
 PARTS   = $(PARTS) src\plug-ins\logvolum\logvolum.dll
+PARTS   = $(PARTS) src\plug-ins\os2rec\os2rec.dll
 PARTS   = $(PARTS) src\pm123\pm123.exe
 PARTS   = $(PARTS) src\skinutil\skinutil.exe
 PARTS   = $(PARTS) doc\pm123.inf
@@ -38,6 +40,11 @@ src\fft123\fft123.dll:
 
 src\xio123\xio123.dll:
 	cd src\xio123
+	@$(MAKE) $(MFLAGS)
+	@cd ..\..
+
+src\snd123\snd123.dll:
+	cd src\snd123
 	@$(MAKE) $(MFLAGS)
 	@cd ..\..
 
@@ -81,6 +88,11 @@ src\plug-ins\logvolum\logvolum.dll:
 	@$(MAKE) $(MFLAGS)
 	@cd ..\..\..
 
+src\plug-ins\os2rec\os2rec.dll:
+	cd src\plug-ins\os2rec
+	@$(MAKE) $(MFLAGS)
+	@cd ..\..\..
+
 src\pm123\pm123.exe:
 	cd src\pm123
 	@$(MAKE) $(MFLAGS)
@@ -109,6 +121,9 @@ clean:  $(MDUMMY)
 	cd src\xio123
 	@$(MAKE) $(MFLAGS) clean
 	@cd ..\..
+	cd src\snd123
+	@$(MAKE) $(MFLAGS) clean
+	@cd ..\..
 	cd src\plug-ins\analyzer
 	@$(MAKE) $(MFLAGS) clean
 	@cd ..\..\..
@@ -133,6 +148,9 @@ clean:  $(MDUMMY)
 	cd src\plug-ins\logvolum
 	@$(MAKE) $(MFLAGS) clean
 	@cd ..\..\..
+	cd src\plug-ins\os2rec
+	@$(MAKE) $(MFLAGS) clean
+	@cd ..\..\..
 	cd src\pm123
 	@$(MAKE) $(MFLAGS) clean
 	@cd ..\..
@@ -152,6 +170,7 @@ distfiles: distclean $(MDUMMY)
 	copy src\gbm123\gbm123.dll dist\files
 	copy src\fft123\fft123.dll dist\files
 	copy src\xio123\xio123.dll dist\files
+	copy src\snd123\snd123.dll dist\files
 	copy src\plug-ins\analyzer\analyzer.dll dist\files\visplug
 	copy src\plug-ins\cddaplay\cddaplay.dll dist\files
 	copy src\plug-ins\mpg123\mpg123.dll dist\files
@@ -160,6 +179,7 @@ distfiles: distclean $(MDUMMY)
 	copy src\plug-ins\wavout\wavout.dll dist\files
 	copy src\plug-ins\wavplay\wavplay.dll dist\files
 	copy src\plug-ins\logvolum\logvolum.dll dist\files
+	copy src\plug-ins\os2rec\os2rec.dll dist\files
 	copy src\pm123\pm123.exe dist\files
 	copy src\pm123\default.skn dist\files
 	copy src\skinutil\skinutil.exe dist\files
