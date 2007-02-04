@@ -263,7 +263,7 @@ static double TodB(double gain)
     return 20.*log10(gain); 
 }
 
-_Inline double ToGain(double dB)
+INLINE double ToGain(double dB)
 { return exp(dB/20.*M_LN10);
 }
 
