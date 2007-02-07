@@ -68,11 +68,11 @@ typedef struct _DECODER_PARAMS
    const char* httpauth;    /* NULL = none */
 
    /* error message function the decoder should use */
-   void (DLLENTRYP error_display)( char* );
+   void (DLLENTRYP error_display)( const char* );
 
    /* info message function the decoder should use */
    /* this information is always displayed to the user right away */
-   void (DLLENTRYP info_display)( char* );
+   void (DLLENTRYP info_display)( const char* );
 
    HEV   playsem;     /* this semaphore is reseted when DECODER_PLAY is requested
                          and is posted on stop. No longer used by PM123, always NULLHANDLE. */
@@ -127,11 +127,11 @@ typedef struct _DECODER_PARAMS2
    const char* httpauth;    /* NULL = none */
 
    /* error message function the decoder should use */
-   void (DLLENTRYP error_display)( char* );
+   void (DLLENTRYP error_display)( const char* );
 
    /* info message function the decoder should use */
    /* this information is always displayed to the user right away */
-   void (DLLENTRYP info_display)( char* );
+   void (DLLENTRYP info_display)( const char* );
 
    /* values used for streaming inputs by the decoder */
    int   buffersize;  /* read ahead buffer in bytes, 0 = disabled */

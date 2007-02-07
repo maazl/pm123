@@ -31,7 +31,7 @@ typedef struct _PLUGIN_PROCS
   void  (DLLENTRYP pm123_control)( int index, void* param );
 
   /* name is the DLL filename of the decoder that can play that track */
-  ULONG (DLLENTRYP decoder_cdinfo)( char* drive, DECODER_CDINFO* info );
+  ULONG (DLLENTRYP decoder_cdinfo)( const char* drive, DECODER_CDINFO* info );
   ULONG (DLLENTRYP decoder_length)( void );
 
 } PLUGIN_PROCS, *PPLUGIN_PROCS;

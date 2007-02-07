@@ -262,8 +262,8 @@ int  DLLENTRY pm123_getstring( int index, int subindex, size_t bufsize, char* bu
 void DLLENTRY pm123_control  ( int index, void* param );
 
 /* visualize errors from anywhere */
-extern void DLLENTRY amp_display_info ( char* );
-extern void DLLENTRY amp_display_error( char* );
+extern void DLLENTRY amp_display_info ( const char* );
+extern void DLLENTRY amp_display_error( const char* );
 
 typedef struct
 {

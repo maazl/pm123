@@ -114,7 +114,7 @@ BOOL  mutes[20];
 float preamp;
 
 void DLLENTRY
-amp_display_info( char* info )
+amp_display_info( const char* info )
 {
   char* message = strdup( info );
   if( message ) {
@@ -124,7 +124,7 @@ amp_display_info( char* info )
 }
 
 void DLLENTRY
-amp_display_error( char *info )
+amp_display_error( const char *info )
 {
   char* message = strdup( info );
   if( message ) {
@@ -687,7 +687,7 @@ amp_show_context_menu( HWND parent )
   if (current)
     DEBUGLOG(("amp_show_context_menu: current = NULL\n"));
    else
-    DEBUGLOG(("amp_show_context_menu: current = %p, meta_write = %i\n"), current, current->info.meta_write );
+    DEBUGLOG(("amp_show_context_menu: current = %p, meta_write = %i\n", current, current->info.meta_write ));
   #endif
   mn_enable_item( menu, IDM_M_TAG,     current != NULL && current->info.meta_write );
   mn_enable_item( menu, IDM_M_SMALL,   bmp_is_mode_supported( CFG_MODE_SMALL   ));

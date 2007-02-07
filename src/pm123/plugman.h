@@ -150,7 +150,7 @@ BOOL  dec_is_active( int number );
 void  dec_fill_types( char* result, size_t size );
 
 ULONG DLLENTRY dec_fileinfo( const char* filename, DECODER_INFO2* info, char* name );
-ULONG DLLENTRY dec_cdinfo( char* drive, DECODER_CDINFO* info );
+ULONG DLLENTRY dec_cdinfo( const char* drive, DECODER_CDINFO* info );
 ULONG DLLENTRY dec_status( void );
 ULONG DLLENTRY dec_length( void );
 

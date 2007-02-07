@@ -21,10 +21,10 @@ typedef struct _FILTER_PARAMS
   int   audio_buffersize;
 
   /* error message function the filter plug-in should use */
-  void (DLLENTRYP error_display)( char* );
+  void (DLLENTRYP error_display)( const char* );
   /* info message function the filter plug-in should use */
   /* this information is always displayed to the user right away */
-  void (DLLENTRYP info_display)( char* );
+  void (DLLENTRYP info_display)( const char* );
 
 } FILTER_PARAMS;
 
@@ -49,10 +49,10 @@ typedef struct _FILTER_PARAMS2
   void* w;  /* only to be used with the precedent function */
 
   /* error message function the filter plug-in should use */
-  void (DLLENTRYP error_display)( char* );
+  void (DLLENTRYP error_display)( const char* );
   /* info message function the filter plug-in should use */
   /* this information is always displayed to the user right away */
-  void (DLLENTRYP info_display )( char* );
+  void (DLLENTRYP info_display )( const char* );
 
 } FILTER_PARAMS2;
 

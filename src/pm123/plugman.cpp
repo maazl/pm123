@@ -898,6 +898,7 @@ dec_fileinfo( const char* filename, DECODER_INFO2* info, char* name )
   int   i;
   const CL_DECODER* dp;
 
+  memset( info, 0, sizeof *info );
   memset( checked, 0, sizeof( BOOL ) * decoders.count() );
   
   // Prepend file://
@@ -918,6 +919,7 @@ dec_fileinfo( const char* filename, DECODER_INFO2* info, char* name )
       if (dp->get_procs().decoder_fileinfo(filename, info) == 0)
         goto ok;
     }
+    return 200; // It makes no sense to check the others in this case.
   } else
   { // First checks decoders supporting the specified type of files.
     for (i = 0; i < decoders.count(); i++)
@@ -951,7 +953,7 @@ dec_fileinfo( const char* filename, DECODER_INFO2* info, char* name )
 }
 
 ULONG DLLENTRY
-dec_cdinfo( char *drive, DECODER_CDINFO *info )
+dec_cdinfo( const char *drive, DECODER_CDINFO *info )
 {
   ULONG last_rc = 200;
   int i;

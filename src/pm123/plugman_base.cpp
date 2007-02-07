@@ -963,7 +963,7 @@ class CL_FILTER_PROXY_1 : public CL_FILTER
   int   (DLLENTRYP output_request_buffer)( void*  a, const FORMAT_INFO2* format, short** buf );
   void  (DLLENTRYP output_commit_buffer )( void*  a, int len, int posmarker );
   void*       a;
-  void  (DLLENTRYP error_display        )( char* );
+  void  (DLLENTRYP error_display        )( const char* );
   FORMAT_INFO vformat;                      // format of the samples
   short       vbuffer[BUFSIZE/2];           // buffer to store incoming samples
   int         vbufsamples;                  // size of vbuffer in samples
