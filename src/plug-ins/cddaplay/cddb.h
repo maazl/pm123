@@ -96,7 +96,8 @@ class CDDB_socket: public tcpip_socket
 
      char *gets_content(char *buffer, int size); /* read line of text from content */
 
-     bool isContent() const { return content; };
+     bool isContent() const { return content; }
+     bool isInfoValid() const { return infoValid; }
 
      /* used for HTTP kludge */
      bool connect(char *http_URL, char *proxy_URL, char *path);
@@ -116,6 +117,7 @@ class CDDB_socket: public tcpip_socket
      char *disctitle[4];  /* artist, disc title, extended stuff about disc and release year */
      char *titles[99][2]; /* [0][0] = title of first track
                              [0][1] = extended stuff of first track */
+     BOOL infoValid;      /* The above information is valid */
      /* frees above */
      void free_junk();
 

@@ -186,7 +186,7 @@ class CD_drive
                 (trackInfo[0].start.minute*60 + trackInfo[0].start.second); }
       // Get CDDB information or NULL if not available.
       const CDDB_socket* getCDDBInfo() const
-      {  return cddb.isContent() ? &cddb : NULL; }
+      {  return cddb.isInfoValid() ? &cddb : NULL; }
 
       // open CD device
       BOOL open();
@@ -220,7 +220,7 @@ class CD_drive
       BOOL fillTrackInfo();
       BOOL readTrackInfo(char track, CDTRACKINFO *trackInfo);
 
-      BOOL loadCDDBInfo();
+      BOOL loadCDDBInfo(BOOL refresh = FALSE);
 
       void updateError(char *fmt, ...);
 

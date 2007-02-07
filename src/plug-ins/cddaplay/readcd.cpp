@@ -428,7 +428,7 @@ BOOL CD_drive::getUPC(char UPC[7])
    return returnBool;
 }
 
-BOOL CD_drive::loadCDDBInfo()
+BOOL CD_drive::loadCDDBInfo(BOOL refresh)
 {
    BOOL  foundCached = FALSE;
    HINI  INIhandle;
@@ -440,8 +440,10 @@ BOOL CD_drive::loadCDDBInfo()
    unsigned int i;
 
    querydata.discid_cd = cddb.discid(this);
+   
+   DEBUGLOG(("cddaplay:CD_drive(%p)::loadCDDBInfo() - discid = %x\n", this, querydata.discid_cd));
 
-   if (negative_hits.lookup(querydata.discid_cd)) {
+   if (!refresh && negative_hits.lookup(querydata.discid_cd)) {
       displayMessage( "Found cached negative hit: %08x", querydata.discid_cd );
       return FALSE;
    }
@@ -457,6 +459,7 @@ BOOL CD_drive::loadCDDBInfo()
          char *cdinfoBuffer = (char *)malloc(cdinfoSize);
          if(PrfQueryProfileString(INIhandle, "CDInfo", discid, "", cdinfoBuffer, cdinfoSize))
          {
+            DEBUGLOG(("cddaplay:CD_drive()::loadCDDBInfo() - ini cache hit\n"));
             foundCached = TRUE;
             cddb.parse_read_reply(cdinfoBuffer);
          }
@@ -584,6 +587,8 @@ BOOL CD_drive::loadCDDBInfo()
 
      if( !success )
         negative_hits.store(querydata.discid_cd);
+     else
+        negative_hits.remove(querydata.discid_cd);
    }
 
 end:
@@ -678,7 +683,7 @@ refresh:
    if (drv->open())
    {  drv->readCDInfo() &&
       drv->fillTrackInfo() &&
-      drv->loadCDDBInfo();
+      drv->loadCDDBInfo(refresh);
       drv->close();
    }
 retref:

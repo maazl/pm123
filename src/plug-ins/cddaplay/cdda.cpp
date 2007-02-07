@@ -45,6 +45,7 @@
 #include <format.h>
 #include <decoder_plug.h>
 #include <plugin.h>
+#include <snprintf.h>
 
 #include "readcd.h"
 #include <utilfct.h>
@@ -406,30 +407,34 @@ void writeToLog(char *buffer, int size)
 
 void displayMessage(char *fmt, ...)
 {
+   va_list args;
+   va_start(args, fmt);
+
    HWND MLEhwnd = WinWindowFromID(nethwnd,MLE_NETLOG);
 
-   va_list args;
    char buffer[2048];
 
-   va_start(args, fmt);
-   vsprintf(buffer,fmt,args);
+   vsnprintf(buffer,sizeof buffer -1,fmt,args);
    va_end(args);
+   DEBUGLOG(("cddaplay:displayMessage(%s)\n", buffer));  
 
    strcat(buffer,"\n");
-
+ 
    appendToMLE(MLEhwnd, buffer, -1);
 }
 
 void displayError(char *fmt, ...)
 {
+   va_list args;
+   va_start(args, fmt);
+
    HWND MLEhwnd = WinWindowFromID(nethwnd,MLE_NETLOG);
 
-   va_list args;
    char buffer[2048] = "Error: ";
 
-   va_start(args, fmt);
-   vsprintf(strchr(buffer,0),fmt,args);
+   vsnprintf(buffer+7,sizeof buffer -8,fmt,args);
    va_end(args);
+   DEBUGLOG(("cddaplay:displayError(%s)\n", buffer));  
 
    strcat(buffer,"\n");
 
@@ -530,6 +535,12 @@ MRESULT EXPENTRY wpMatch(HWND hwnd,ULONG msg,MPARAM mp1,MPARAM mp2)
             }
             case DID_CANCEL:
                WinPostMsg(hwnd,WM_CLOSE,0,0);
+
+            case LB_MATCHES:
+               if( SHORT2FROMMP(mp1) == LN_ENTER ) {
+                  WinPostMsg( hwnd, WM_COMMAND, MPFROMSHORT( DID_OK ), MPFROM2SHORT( CMDSRC_OTHER, FALSE ));
+               }
+               break; 
          }
          return 0;
       }
@@ -585,6 +596,7 @@ ULONG DLLENTRY decoder_trackinfo(const char *drive, int track, DECODER_INFO *inf
    strcpy(info->tech_info, "True CD Quality");
 
    const CDDB_socket* cddb = CD->getCDDBInfo();
+   DEBUGLOG(("cddaplay:decoder_trackinfo - cddb = %p\n", cddb));
    if(cddb != NULL)
    {
       storeinfo(info->title,   cddb->get_track_title(track-1, CDDB_TRACK_TITLE), sizeof info->title);

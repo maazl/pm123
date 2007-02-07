@@ -64,6 +64,7 @@ CDDB_socket::CDDB_socket()
    hostname = NULL;
 
    raw_reply = NULL;
+   infoValid = FALSE;
 
    memset(cgi_command, 0, sizeof(cgi_command));
 }
@@ -391,6 +392,7 @@ void CDDB_socket::parse_read_reply(char *reply)
    char buffer[1024];
 
    raw_reply = strdup(reply);
+   infoValid = TRUE;
 
    while(get_line(next_line, buffer, 1024) != NULL && next_line[0] != 0)
    {
@@ -541,6 +543,7 @@ void CDDB_socket::free_junk()
 {
    free(raw_reply);
    raw_reply = NULL;
+   infoValid = FALSE;
    
    int i;
 
