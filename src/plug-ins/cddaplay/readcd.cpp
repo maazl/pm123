@@ -136,20 +136,16 @@ BOOL ULset::remove(unsigned long ul)
 
 void CD_drive::updateError(char *fmt, ...)
 {
-   DEBUGLOG(("cddaplay:CD_drive(%p)::updateError(%s)\n", this, fmt));
+   DEBUGLOG2(("cddaplay:CD_drive(%p)::updateError(%s)\n", this, fmt));
    va_list args;
    va_start(args, fmt);
    free(error);
-   /* TODO: vsnprintf is broken, so we must not use it to render the string.
-      We have to use a static buffer as a work-around. */ 
-   //const size_t len = 1024;
-   size_t len = 2*vsnprintf(NULL, 0, fmt, args) +1;
-   DEBUGLOG(("cddaplay:CD_drive::updateError(%s) - %u\n", fmt, len));
+   size_t len = vsnprintf(NULL, 0, fmt, args) +1;
+   DEBUGLOG2(("cddaplay:CD_drive::updateError(%s) - %u\n", fmt, len));
    if (len > 1024)
       len = 1024;
    error = (char*)malloc(len);
    vsnprintf(error, len, fmt, args);
-   //vsprintf(error, fmt, args);
    DEBUGLOG(("cddaplay:CD_drive(%p)::updateError(%s)\n", this, error));
    va_end(args);
 }

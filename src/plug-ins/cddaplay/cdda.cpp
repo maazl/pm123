@@ -900,14 +900,25 @@ add_tracks_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
 {
   switch( msg ) {
     case WM_CONTROL:
-      if( SHORT1FROMMP(mp1) == CB_DRIVE && SHORT2FROMMP(mp1) == CBN_EFCHANGE ) {
-        WinPostMsg( hwnd, WM_COMMAND,
-                    MPFROMSHORT( PB_REFRESH ), MPFROM2SHORT( CMDSRC_OTHER, FALSE ));
+      switch SHORT1FROMMP(mp1)
+      {
+         case CB_DRIVE:
+            if( SHORT2FROMMP(mp1) == CBN_EFCHANGE ) {
+               WinPostMsg( hwnd, WM_COMMAND, MPFROMSHORT( PB_REFRESH ), MPFROM2SHORT( CMDSRC_OTHER, FALSE ));
+            }
+            break;
+            
+         case LB_TRACKS:
+            DEBUGLOG(("cddaplay:add_tracks_dlg_proc - LB_TRACKS %x %x\n", mp1, mp2));
+            if( SHORT2FROMMP(mp1) == LN_ENTER ) {
+               WinPostMsg( hwnd, WM_COMMAND, MPFROMSHORT( DID_OK ), MPFROM2SHORT( CMDSRC_OTHER, FALSE ));
+            }
+            break; 
       }
       break;
 
     case WM_COMMAND:
-      if( COMMANDMSG(&msg)->cmd == PB_REFRESH )
+      if( SHORT1FROMMP(mp1) == PB_REFRESH )
       {
         char cdurl[32] = "cdda:///";
         BOOL multiselect = WinQueryWindowULong( hwnd, QWL_USER );
