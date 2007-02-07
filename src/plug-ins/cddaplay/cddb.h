@@ -29,6 +29,13 @@
 
 /* CDDB functions */
 
+#ifndef CDDB_H
+#define CDDB_H
+
+#include "tcpipsock.h"
+#include "http.h"
+
+
 #define COMMAND_ERROR 0
 #define COMMAND_OK    1
 #define COMMAND_MORE  2 /* more to read or write with appropriate member functions */
@@ -50,30 +57,46 @@ typedef struct
 } CDDBQUERY_DATA;
 
 
+typedef enum
+{  CDDB_DISK_ARTIST,
+   CDDB_DISK_TITLE,
+   CDDB_DISK_EXTEND,
+   CDDB_DISK_YEAR
+} CDDB_DISK_INFO_TYPE;
+
+typedef enum
+{  CDDB_TRACK_TITLE,
+   CDDB_TRACK_EXTEND
+} CDDB_TRACK_INFO_TYPE;
+
+class CD_drive;
+
 class CDDB_socket: public tcpip_socket
 {
    public:
      CDDB_socket();
      ~CDDB_socket();
+     
+     void loadCDDBInfo(const CD_drive* cdDrive);
 
-     unsigned long discid(CD_drive *cdDrive);
+     unsigned long discid(const CD_drive *cdDrive) const;
      int banner_req();
      int handshake_req(char *username, char *hostname);
 
-     int query_req(CD_drive *cdDrive, CDDBQUERY_DATA *output);
-     bool get_query_req(CDDBQUERY_DATA *output); /* returns one match after the other */
+     int query_req(const CD_drive *cdDrive, CDDBQUERY_DATA* output);
+     bool get_query_req(CDDBQUERY_DATA* output); /* returns one match after the other */
 
      int read_req(char *category, unsigned long discid);
      void parse_read_reply(char *reply);
-     char *get_disc_title(int which) { return disctitle[which]; };
-     char *get_track_title(int track, int which) { return titles[track][which]; };
+     const char *get_disc_title(CDDB_DISK_INFO_TYPE which) const { return disctitle[which]; }
+     const char *get_track_title(int track, CDDB_TRACK_INFO_TYPE which) const { return titles[track][which]; }
 
      int sites_req();
      int get_sites_req(char *server, int size);
 
      char *gets_content(char *buffer, int size); /* read line of text from content */
 
-     bool isContent() { return content; };
+     bool isContent() const { return content; };
 
      /* used for HTTP kludge */
      bool connect(char *http_URL, char *proxy_URL, char *path);
@@ -86,12 +109,13 @@ class CDDB_socket: public tcpip_socket
 
    protected:
 
+     CDDBQUERY_DATA querydata;
      /* this is inefficient for read memory access, but the database imposes
        no rule on the order of the tracks, so it would be getting ugly to
        write.  filled after a read_req() */
-     char *disctitle[3];   /* artist, disc title and extended stuff about disc */
-     char *titles[256][2]; /* [0][0] = title of first track
-                        [0][1] = extended stuff of first track */
+     char *disctitle[4];  /* artist, disc title, extended stuff about disc and release year */
+     char *titles[99][2]; /* [0][0] = title of first track
+                             [0][1] = extended stuff of first track */
      /* frees above */
      void free_junk();
 
@@ -114,3 +138,6 @@ class CDDB_socket: public tcpip_socket
      // raw data from read_req().  used for cache
      char *raw_reply;
 };
+
+#endif
+

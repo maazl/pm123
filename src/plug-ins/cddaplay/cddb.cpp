@@ -30,6 +30,7 @@
 /* CDDB functions */
 
 #define  INCL_WIN
+#define  INCL_BASE
 #include <os2.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -51,13 +52,8 @@
 
 CDDB_socket::CDDB_socket()
 {
-   disctitle[0] = NULL;
-   disctitle[1] = NULL;
-   disctitle[2] = NULL;
-
-   for(int i=0; i < 256; i++)
-      for(int j=0; j < 2; j++)
-         titles[i][j] = NULL;
+   memset(disctitle, 0, sizeof disctitle);
+   memset(titles, 0, sizeof titles);
 
    content = false;
    protolevel = 0;
@@ -76,17 +72,17 @@ CDDB_socket::~CDDB_socket()
 {
    free_junk();
 
-   free(CGI); CGI = NULL;
+   free(CGI);// CGI = NULL;
 
-   free(username); username = NULL;
-   free(hostname); hostname = NULL;
+   free(username);// username = NULL;
+   free(hostname);// hostname = NULL;
 
    close();
 }
 
 
 /* calculate discid */
-unsigned long CDDB_socket::discid(CD_drive *cdDrive)
+unsigned long CDDB_socket::discid(const CD_drive *cdDrive) const
 {
    int i, something = 0;
 
@@ -235,7 +231,7 @@ int CDDB_socket::handshake_req(char *set_username, char *set_hostname)
 
 
 /* outputs trackInfo while it's at it */
-int CDDB_socket::query_req(CD_drive *cdDrive, CDDBQUERY_DATA *output)
+int CDDB_socket::query_req(const CD_drive *cdDrive, CDDBQUERY_DATA* output)
 {
    char buffer[512];
    content = false;
@@ -249,6 +245,7 @@ int CDDB_socket::query_req(CD_drive *cdDrive, CDDBQUERY_DATA *output)
       UCHAR track = cdDrive->getCDInfo()->firstTrack+i;
 
       /* +150 because CDDB database doesn't use real sector addressing */
+      /* More likely because OS/2 subtracts the lead-in. (MM) */ 
       _itoa(CD_drive::getLBA(cdDrive->getTrackInfo(track)->start)+150,strchr(buffer,'\0'),10);
       strcat(buffer," ");
    }
@@ -298,7 +295,7 @@ int CDDB_socket::query_req(CD_drive *cdDrive, CDDBQUERY_DATA *output)
 }
 
 
-bool CDDB_socket::get_query_req(CDDBQUERY_DATA *output)
+bool CDDB_socket::get_query_req(CDDBQUERY_DATA* output)
 {
    char buffer[512];
 
@@ -542,15 +539,20 @@ int CDDB_socket::read_req(char *category, unsigned long discid)
 
 void CDDB_socket::free_junk()
 {
-   free(raw_reply); raw_reply = NULL;
+   free(raw_reply);
+   raw_reply = NULL;
+   
+   int i;
 
-   free(disctitle[0]); disctitle[0] = NULL;
-   free(disctitle[1]); disctitle[1] = NULL;
-   free(disctitle[2]); disctitle[2] = NULL;
+   for (i = 0; i < sizeof disctitle / sizeof *disctitle; i++)
+      free(disctitle[i]);
+   memset(disctitle, 0, sizeof disctitle); 
 
-   for(int i=0; i < 256; i++)
-      for(int j=0; j < 2; j++)
-      { free(titles[i][j]); titles[i][j] = NULL; }
+   for (i=0; i < sizeof titles / sizeof *titles; i++)
+   {  free(titles[i][0]);
+      free(titles[i][1]);
+   }  
+   memset(titles, 0, sizeof titles);
 }
 
 /* returns NULL if this is the end */

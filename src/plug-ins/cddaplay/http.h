@@ -27,6 +27,10 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#ifndef HTTP_H
+#define HTTP_H
+
+
 /* #define USER_AGENT for your program */
 
 #define USER_AGENT "PM123/1.2"
@@ -111,3 +115,5 @@ class HTTP_socket : public tcpip_socket
       /* builds URI for GET request */
       void build_URI(char *out, char *path);
 };
+
+#endif

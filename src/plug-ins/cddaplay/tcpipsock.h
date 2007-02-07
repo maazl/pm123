@@ -29,6 +29,26 @@
 
 /* TCP/IP functions */
 
+#ifndef TCPIPSOCK_H
+#define TCPIPSOCK_H
+
+#include <types.h>
+#include <nerrno.h>
+#include <netdb.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <sys/time.h>
+#include <netinet/in.h>
+#include <process.h>
+
+#ifndef TCPV40HDRS
+#include <unistd.h>
+#include <arpa/inet.h>
+#endif
+
+#include <utilfct.h>
+
+
 class tcpip_socket
 {
    public:
@@ -56,3 +76,6 @@ class tcpip_socket
       int socket_error;
       int tcpip_error;
 };
+
+#endif
+

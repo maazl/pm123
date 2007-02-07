@@ -28,6 +28,7 @@ ciscgi\ciscgi$(LBO):
 	@cd ..
 
 cddb$(CO): cddb.cpp ciscgi\cgicis.h
+readcd$(CO): readcd.cpp readcd.h
 
 clean: $(MDUMMY)
 	-@del cddaplay$(LBI) cddaplay.dll $(OBJECTS) $(RESOURCE) 2> nul

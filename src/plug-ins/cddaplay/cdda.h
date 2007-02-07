@@ -31,4 +31,42 @@ void displayError(char *fmt, ...);
 void displayMessage(char *fmt, ...);
 void writeToLog(char *buffer, int size);
 
+// used internally to manage CDDB and saved in cddaplay.ini file
+typedef struct
+{
+   char *CDDBServers[128];
+   char *HTTPServers[128];
 
+   BOOL isCDDBSelect[128];
+   BOOL isHTTPSelect[128];
+
+   int numCDDB;
+   int numHTTP;
+
+   BOOL useCDDB;
+   BOOL useHTTP;
+   BOOL tryAllServers;
+   char proxyURL[1024];
+   char email[1024];
+   
+   char cddrive[4];          /* Default CD drive.                      */
+
+} CDDA_SETTINGS;
+
+extern CDDA_SETTINGS settings; // read-only!
+
+
+#define NOSERVER 0
+#define CDDB     1
+#define HTTP     2
+
+ULONG getNextCDDBServer(char *server, ULONG size, SHORT *index);
+void getUserHost(char *user, int sizeuser, char *host, int sizehost);
+
+/* for multiple match dialog */
+struct FUZZYMATCHCREATEPARAMS
+{
+   CDDBQUERY_DATA *matches, chosen;
+};
+// window procedure for the fuzzy match dialog
+MRESULT EXPENTRY wpMatch(HWND hwnd,ULONG msg,MPARAM mp1,MPARAM mp2);
