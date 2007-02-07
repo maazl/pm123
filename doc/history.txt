@@ -34,10 +34,12 @@ PM123 1.40 (alpha 1)
     - Added group delay equalization.
 
     MPG123:
-    - Implemented ID3 tag editor (was in PM123 core)
+    - Implemented ID3 tag editor (was in PM123 core).
 
     CDDAPLAY:
     - Implemented assistent to load CD tracks (was in PM123 core)
+    - Fixed crash when decoder_trackinfo is called from seperate threads
+      (playlist and main).
 
     OS2REC:
     - New plug-in to play immediately recorded streams.
