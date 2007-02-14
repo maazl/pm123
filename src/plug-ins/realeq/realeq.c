@@ -137,7 +137,11 @@ static int  newPlansize; // this is for the GUI only
 static BOOL eqenabled = FALSE;
 static BOOL locklr    = FALSE;
 static char lasteq[CCHMAXPATH];
-static BOOL modified  = TRUE; // Flag whether the current settings are a modified version of the above file.
+static enum
+{ EQ_private,
+  EQ_file,
+  EQ_modified
+} eqstate = EQ_private; // Flag whether the current settings are a modified version of the above file.
 
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
@@ -173,7 +177,7 @@ typedef struct {
    int   (DLLENTRYP output_request_buffer)( void* a, const FORMAT_INFO2* format, short** buf );
    void  (DLLENTRYP output_commit_buffer) ( void* a, int len, int posmarker );
    void* a;
-   void  (DLLENTRYP error_display)        ( char* );
+   void  (DLLENTRYP error_display)        ( const char* );
 
    FORMAT_INFO2 format;
 
@@ -199,7 +203,7 @@ save_ini( void )
     save_ini_value ( INIhandle, newPlansize );
     save_ini_value ( INIhandle, eqenabled );
     save_ini_value ( INIhandle, locklr );
-    save_ini_value ( INIhandle, modified );
+    save_ini_value ( INIhandle, eqstate );
     save_ini_string( INIhandle, lasteq );
     save_ini_value ( INIhandle, bandgain );
     save_ini_value ( INIhandle, groupdelay );
@@ -223,7 +227,7 @@ load_ini( void )
   newPlansize = 8192;
   newFIRorder = 4096;
   locklr      = FALSE;
-  modified    = TRUE;
+  eqstate     = EQ_private;
 
   if(( INIhandle = open_module_ini()) != NULLHANDLE )
   {
@@ -231,7 +235,7 @@ load_ini( void )
     load_ini_value ( INIhandle, newPlansize );
     load_ini_value ( INIhandle, eqenabled );
     load_ini_value ( INIhandle, locklr );
-    load_ini_value ( INIhandle, modified );
+    load_ini_value ( INIhandle, eqstate );
     load_ini_string( INIhandle, lasteq, sizeof( lasteq ));
     load_ini_value ( INIhandle, bandgain );
     load_ini_value ( INIhandle, groupdelay );
@@ -325,7 +329,7 @@ static void
 init_request( void )
 { if (!plugininit) // first time?
   { load_ini();
-    if ( !modified ) {
+    if ( eqstate == EQ_file ) {
       load_eq_file( lasteq );
     }
     plugininit = TRUE;
@@ -1091,7 +1095,7 @@ load_eq( HWND hwnd )
   {
     strcpy( lasteq, filedialog.szFullFile );
     if ( load_eq_file( filedialog.szFullFile ) ) {
-      modified = FALSE;
+      eqstate = EQ_file;
       return TRUE;
     } else {
       return FALSE;
@@ -1151,20 +1155,21 @@ load_dialog( HWND hwnd )
   int     i, e;
   float   (*dp)[2][NUM_BANDS+1] = WinQueryButtonCheckstate( hwnd, ID_GROUPDELAY ) ? &groupdelay : &bandgain;
   SHORT   range = SHORT2FROMMR( WinSendDlgItemMsg( hwnd, ID_BANDL, SLM_QUERYSLIDERINFO, MPFROM2SHORT( SMA_SLIDERARMPOSITION, SMA_RANGEVALUE ), 0 ) );
+  HWND    hwnd_ctrl;
 
   for( e = 0; e < 2; e++ ) {
     for( i = 0; i <= NUM_BANDS; i++ ) {
-      int     id = ID_MASTERL + (ID_MASTERR-ID_MASTERL)*e + i;
+      hwnd_ctrl = WinWindowFromID( hwnd, ID_MASTERL + (ID_MASTERR-ID_MASTERL)*e + i );
 
       // mute check boxes
       WinSendDlgItemMsg( hwnd, ID_MUTEALLL + (ID_MUTEALLR-ID_MUTEALLL)*e + i, BM_SETCHECK, MPFROMCHAR( mute[e][i] ), 0 );
 
       // sliders
-      WinSendDlgItemMsg( hwnd, id, SLM_ADDDETENT,
+      WinSendMsg( hwnd_ctrl, SLM_ADDDETENT,
                          MPFROMSHORT( range - 1 ), 0 );
-      WinSendDlgItemMsg( hwnd, id, SLM_ADDDETENT,
+      WinSendMsg( hwnd_ctrl, SLM_ADDDETENT,
                          MPFROMSHORT( range >> 1 ), 0 );
-      WinSendDlgItemMsg( hwnd, id, SLM_ADDDETENT,
+      WinSendMsg( hwnd_ctrl, SLM_ADDDETENT,
                          MPFROMSHORT( 0 ), 0 );
 
       DEBUGLOG2(("load_dialog: %d %d %g\n", e, i, (*dp)[e][i]));
@@ -1176,12 +1181,19 @@ load_dialog( HWND hwnd )
   WinSendDlgItemMsg( hwnd, EQ_ENABLED,  BM_SETCHECK, MPFROMSHORT( eqenabled ), 0 );
   WinSendDlgItemMsg( hwnd, ID_LOCKLR,   BM_SETCHECK, MPFROMSHORT( locklr ), 0 );
 
-  WinSendDlgItemMsg( hwnd, ID_FIRORDER, SPBM_SETMASTER, MPFROMLONG( NULLHANDLE ), 0 );
-  WinSendDlgItemMsg( hwnd, ID_FIRORDER, SPBM_SETLIMITS, MPFROMLONG( MAX_FIR ), MPFROMLONG( MIN_FIR ));
-  WinSendDlgItemMsg( hwnd, ID_FIRORDER, SPBM_SETCURRENTVALUE, MPFROMLONG( newFIRorder ), 0 );
-  WinSendDlgItemMsg( hwnd, ID_PLANSIZE, SPBM_SETMASTER, MPFROMLONG( NULLHANDLE ), 0 );
-  WinSendDlgItemMsg( hwnd, ID_PLANSIZE, SPBM_SETLIMITS, MPFROMLONG( MAX_COEF ), MPFROMLONG( MIN_COEF ));
-  WinSendDlgItemMsg( hwnd, ID_PLANSIZE, SPBM_SETCURRENTVALUE, MPFROMLONG( newPlansize ), 0 );
+  // last file
+  hwnd_ctrl = WinWindowFromID( hwnd, EQ_FILE );
+  WinSetWindowBits( hwnd_ctrl, QWL_STYLE, DT_HALFTONE * (eqstate == EQ_modified), DT_HALFTONE );
+  WinSetWindowText( hwnd_ctrl, eqstate == EQ_private ? "" : lasteq );
+
+  hwnd_ctrl = WinWindowFromID( hwnd, ID_FIRORDER );
+  WinSendMsg( hwnd_ctrl, SPBM_SETMASTER, MPFROMLONG( NULLHANDLE ), 0 );
+  WinSendMsg( hwnd_ctrl, SPBM_SETLIMITS, MPFROMLONG( MAX_FIR ), MPFROMLONG( MIN_FIR ));
+  WinSendMsg( hwnd_ctrl, SPBM_SETCURRENTVALUE, MPFROMLONG( newFIRorder ), 0 );
+  hwnd_ctrl = WinWindowFromID( hwnd, ID_PLANSIZE );
+  WinSendMsg( hwnd_ctrl, SPBM_SETMASTER, MPFROMLONG( NULLHANDLE ), 0 );
+  WinSendMsg( hwnd_ctrl, SPBM_SETLIMITS, MPFROMLONG( MAX_COEF ), MPFROMLONG( MIN_COEF ));
+  WinSendMsg( hwnd_ctrl, SPBM_SETCURRENTVALUE, MPFROMLONG( newPlansize ), 0 );
 }
 
 static MRESULT EXPENTRY
@@ -1234,6 +1246,7 @@ ConfigureDlgProc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
           memset(bandgain,   0, sizeof bandgain);
           memset(groupdelay, 0, sizeof groupdelay);
           memset(mute,       0, sizeof mute);
+          eqstate = EQ_private;
           nottheuser = TRUE;
           load_dialog( hwnd );
           nottheuser = FALSE;
@@ -1362,14 +1375,20 @@ ConfigureDlgProc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
           // mute check boxes
           if( id >= ID_MUTEALLL && id <= ID_MUTEEND ) {
 
-            modified = TRUE;
-
             switch( SHORT2FROMMP( mp1 ))
             {
               case BN_CLICKED:
               case BN_DBLCLICKED:
               {
                 int channel = 0, index = SHORT1FROMMP(mp1);
+
+                if (eqstate == EQ_file)
+                {
+                  HWND ctrl = WinWindowFromID( hwnd, EQ_FILE );
+                  eqstate = EQ_modified;
+                  WinSetWindowBits( ctrl, QWL_STYLE, DT_HALFTONE, DT_HALFTONE );
+                  WinInvalidateRect( ctrl, NULL, FALSE );
+                }
 
                 index -= ID_MUTEALLL;
                 if ( index >= ID_MUTEALLR-ID_MUTEALLL ) {
@@ -1394,8 +1413,7 @@ ConfigureDlgProc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
           } else if( id >= ID_MASTERL && id <= ID_BANDEND ) {
 
             float (*dp)[2][NUM_BANDS+1] = WinQueryButtonCheckstate( hwnd, ID_GROUPDELAY ) ? &groupdelay : &bandgain;
-            modified = TRUE;
-            
+
             switch( SHORT2FROMMP( mp1 ))
             {
               case SLN_CHANGE:
@@ -1403,6 +1421,14 @@ ConfigureDlgProc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
                 int channel = 0, index = SHORT1FROMMP(mp1), val;
                 MRESULT rangevalue;
                 BOOL    needeq = FALSE;
+
+                if (eqstate == EQ_file)
+                {
+                  HWND ctrl = WinWindowFromID( hwnd, EQ_FILE );
+                  eqstate = EQ_modified;
+                  WinSetWindowBits( ctrl, QWL_STYLE, DT_HALFTONE, DT_HALFTONE );
+                  WinInvalidateRect( ctrl, NULL, FALSE );
+                }
 
                 index -= ID_MASTERL;
                 if ( index >= ID_MASTERR-ID_MASTERL ) {

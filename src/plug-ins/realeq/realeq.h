@@ -38,6 +38,7 @@
 #define EQ_SAVE     30
 #define EQ_LOAD     31
 #define EQ_ZERO     32
+#define EQ_FILE     33
 
 #define ID_FIRORDER 40
 #define ID_PLANSIZE 41
