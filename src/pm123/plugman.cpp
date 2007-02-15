@@ -1196,6 +1196,7 @@ load_plugin_menu( HWND hMenu )
   MENUITEM mi;
   int      i;
   int      count;
+  DEBUGLOG(("load_plugin_menu(%p)\n", hMenu));
 
   // Delete all
   count = LONGFROMMR( WinSendMsg( hMenu, MM_QUERYITEMCOUNT, 0, 0 ));
@@ -1281,6 +1282,7 @@ load_plugin_menu( HWND hMenu )
     mi.hwndSubMenu = (HWND)NULLHANDLE;
     mi.hItem = 0;
     WinSendMsg( hMenu, MM_INSERTITEM, MPFROMP(&mi), MPFROMP( entries[i].filename ));
+    DEBUGLOG2(("load_plugin_menu: add \"%s\"\n", entries[i].filename));
   }
 
   return;

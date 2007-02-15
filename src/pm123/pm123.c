@@ -608,9 +608,11 @@ amp_show_context_menu( HWND parent )
 
   // Remove all items from the load menu except of two first
   // intended for a choice of object of loading.
-  for( i = 2; i < count; i++ )
+  for( i = count; --i >= 0; )
   {
-    id = LONGFROMMR( WinSendMsg( mh, MM_ITEMIDFROMPOSITION, MPFROMSHORT(2), 0 ));
+    id = LONGFROMMR( WinSendMsg( mh, MM_ITEMIDFROMPOSITION, MPFROMSHORT(i), 0 ));
+    if (id == IDM_M_URL || id == IDM_M_LOADFILE)
+      continue;
     WinSendMsg( mh, MM_DELETEITEM, MPFROM2SHORT( id, FALSE ), 0 );
   }
 
@@ -618,6 +620,7 @@ amp_show_context_menu( HWND parent )
   memset( load_wizzards, 0, sizeof load_wizzards / sizeof *load_wizzards ); // You never know...
   append_load_menu( mi.hwndSubMenu, IDM_M_ADDOTHER, FALSE, load_wizzards, sizeof load_wizzards / sizeof *load_wizzards );
 
+  DEBUGLOG(("amp_show_context_menu: cfg.last = %s\n", cfg.last));
   if( *cfg.last[0] )
   {
     // Add separator.
@@ -664,6 +667,7 @@ amp_show_context_menu( HWND parent )
         mi.hItem = 0;
 
         WinSendMsg( mh, MM_INSERTITEM, MPFROMP( &mi ), MPFROMP( file ));
+        DEBUGLOG2(("amp_show_context_menu: append recent \"%s\"\n", file));
       }
     }
   }
@@ -673,7 +677,7 @@ amp_show_context_menu( HWND parent )
               MPFROM2SHORT( IDM_M_BOOKMARKS, TRUE ), MPFROMP( &mi ));
 
   load_bookmark_menu( mi.hwndSubMenu );
-
+  
   // Update plug-ins.
   WinSendMsg( menu, MM_QUERYITEM,
               MPFROM2SHORT( IDM_M_PLUG, TRUE ), MPFROMP( &mi ));
@@ -684,7 +688,7 @@ amp_show_context_menu( HWND parent )
   current = amp_get_current_file();
   // TODO: edit more than ID3 tags
   #ifdef DEBUG
-  if (current)
+  if (!current)
     DEBUGLOG(("amp_show_context_menu: current = NULL\n"));
    else
     DEBUGLOG(("amp_show_context_menu: current = %p, meta_write = %i\n", current, current->info.meta_write ));

@@ -106,6 +106,7 @@ static void TFNENTRY decoder_thread(void *arg)
 
       DosWaitEventSem(c->play, SEM_INDEFINITE_WAIT);
       DosResetEventSem(c->play,&resetcount);
+      DEBUGLOG(("cddaplay:decoder_thread: signal!\n"));
 
       c->status = DECODER_STARTING;
       buffer = (char*)malloc(CHUNK*2352);
@@ -1148,7 +1149,8 @@ const DECODER_WIZZARD wizzard_2 =
 
 /* plug-in entry point */
 const DECODER_WIZZARD* DLLENTRY decoder_getwizzard( BOOL multiselect )
-{ return multiselect ? &wizzard_2 : &wizzard_1;
+{ DEBUGLOG(("cddaplay:decoder_getwizzard(%u)\n", multiselect));
+  return multiselect ? &wizzard_2 : &wizzard_1;
 }
 
 
