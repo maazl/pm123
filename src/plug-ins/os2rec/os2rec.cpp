@@ -81,11 +81,11 @@ typedef struct
    // setup parameters
    PARAMETERS          params;
 
-   int  (PM123_ENTRYP output_play_samples)( void* a, const FORMAT_INFO* format, const char* buf, int len, int posmarker );
+   int  (DLLENTRYP output_play_samples)( void* a, const FORMAT_INFO* format, const char* buf, int len, int posmarker );
    void* a;           /* only to be used with the precedent function */
    int   audio_buffersize;
-   void (PM123_ENTRYP error_display)( char* );
-   void (PM123_ENTRYP info_display )( char* );
+   void (DLLENTRYP error_display)( const char* );
+   void (DLLENTRYP info_display )( const char* );
    HEV   playsem;     /* this semaphore is reseted when DECODER_PLAY is requested
                          and is posted on stop */
    HWND  hwnd;        /* commodity for PM interface, decoder must send a few
@@ -224,7 +224,7 @@ parseURL( const char* url, PARAMETERS* params )
 }
 
 
-int PM123_ENTRY
+int DLLENTRY
 decoder_init( void **A )
 {
    OS2RECORD* a = (OS2RECORD*)(*A = malloc(sizeof(OS2RECORD)));
@@ -245,7 +245,7 @@ decoder_init( void **A )
    return 0;
 }
 
-ULONG PM123_ENTRY
+ULONG DLLENTRY
 decoder_uninit( void *a )
 {
    DEBUGLOG(("os2rec:decoder_uninit(%p)\n", a));
@@ -254,7 +254,7 @@ decoder_uninit( void *a )
    return 0;
 }
 
-ULONG PM123_ENTRY
+ULONG DLLENTRY
 decoder_support( char* ext[], int* size )
 {
   if( size )
@@ -277,7 +277,7 @@ get_connector_name(ULONG connector)
   }
 }
 
-ULONG PM123_ENTRY
+ULONG DLLENTRY
 decoder_fileinfo( const char* filename, DECODER_INFO* info )
 { const char* cp;
   PARAMETERS params  = defaults;
@@ -316,12 +316,12 @@ decoder_fileinfo( const char* filename, DECODER_INFO* info )
 /* Strictly speaking the folowing functions are not required to be implemented.
  * But, older PM123 versions before 1.40 import them anyway. So let's keep compatible.
  */
-ULONG PM123_ENTRY
+ULONG DLLENTRY
 decoder_trackinfo( const char* drive, int track, DECODER_INFO* info ) {
   return 200;
 }
 
-ULONG PM123_ENTRY
+ULONG DLLENTRY
 decoder_cdinfo( const char* drive, DECODER_CDINFO* info ) {
   return 100;
 }
@@ -647,7 +647,7 @@ static ULONG device_open(OS2RECORD *a)
 }
 
 
-ULONG PM123_ENTRY decoder_command(void *A, ULONG msg, DECODER_PARAMS *info)
+ULONG DLLENTRY decoder_command(void *A, ULONG msg, DECODER_PARAMS *info)
 {  OS2RECORD *a = (OS2RECORD *)A;
    DEBUGLOG(("os2rec:decoder_command(%p, %i, %p)\n", a, msg, info));
 
@@ -678,7 +678,7 @@ ULONG PM123_ENTRY decoder_command(void *A, ULONG msg, DECODER_PARAMS *info)
 }
 
 // Status interface
-ULONG PM123_ENTRY
+ULONG DLLENTRY
 decoder_status( void *A )
 {  OS2RECORD *a = (OS2RECORD *)A;
    
@@ -691,13 +691,13 @@ decoder_status( void *A )
    return DECODER_STOPPED;  
 }
 
-ULONG PM123_ENTRY
+ULONG DLLENTRY
 decoder_length( void *w )
 {  return (ULONG)-1;
 }
 
 
-int PM123_ENTRY plugin_query(PLUGIN_QUERYPARAM *param)
+int DLLENTRY plugin_query(PLUGIN_QUERYPARAM *param)
 {
    param->type = PLUGIN_DECODER;
    param->author = "Marcel Mueller";
@@ -856,7 +856,7 @@ static MRESULT EXPENTRY WizzardDlgProc(HWND hwnd, ULONG msg, MPARAM mp1, MPARAM 
   return WinDefDlgProc(hwnd, msg, mp1, mp2);
 }
 
-static ULONG PM123_ENTRY WizzardDlg(HWND owner, char* select, ULONG size)
+static ULONG DLLENTRY WizzardDlg(HWND owner, char* select, ULONG size)
 { DEBUGLOG(("os2rec:WizzardDlg(%p, %p, %d)\n", owner, select, size));  
   HMODULE mod;
   getModule( &mod, NULL, 0 );
@@ -882,7 +882,7 @@ const DECODER_WIZZARD wizzardentry =
 };
 
 /* DLL entry point */
-const DECODER_WIZZARD* PM123_ENTRY decoder_getwizzard( BOOL multiselect )
+const DECODER_WIZZARD* DLLENTRY decoder_getwizzard( BOOL multiselect )
 { return &wizzardentry;
 }
 
@@ -975,7 +975,7 @@ static MRESULT EXPENTRY ConfigureDlgProc(HWND hwnd, ULONG msg, MPARAM mp1, MPARA
 #define FONT1 "9.WarpSans"
 #define FONT2 "8.Helv"
 
-int PM123_ENTRY plugin_configure(HWND hwnd, HMODULE module)
+int DLLENTRY plugin_configure(HWND hwnd, HMODULE module)
 {
    if(dlghwnd == 0)
    {
