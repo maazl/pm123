@@ -41,6 +41,7 @@
 
 #include <debuglog.h>
 
+#undef VERSION // don't know why
 #define VERSION "Logarithmic Volume Control 1.0"
 
 // internal scaling factor. This value should not exceed sqrt(10) (+10dB)
@@ -48,11 +49,11 @@
 
 
 // internal vars
-static ULONG (PM123_ENTRYP f_output_command)( void* a, ULONG msg, OUTPUT_PARAMS2* info );
+static ULONG (DLLENTRYP f_output_command)( void* a, ULONG msg, OUTPUT_PARAMS2* info );
 static void* f_a;
   
 
-static ULONG PM123_ENTRY
+static ULONG DLLENTRY
 filter_command( void* f, ULONG msg, OUTPUT_PARAMS2* info )
 { DEBUGLOG(("logvolume:filter_command(%p, %u, %p)\n", f, msg, info));
   switch (msg)
@@ -67,7 +68,7 @@ filter_command( void* f, ULONG msg, OUTPUT_PARAMS2* info )
 
 /********** Entry point: Initialize
 */
-ULONG PM123_ENTRY
+ULONG DLLENTRY
 filter_init( void** F, FILTER_PARAMS2* params )
 { DEBUGLOG(("logvolume:filter_init(%p, {%u, ..., %p, ..., %p})\n", F, params->size, params->a, params->w));
 
@@ -81,7 +82,7 @@ filter_init( void** F, FILTER_PARAMS2* params )
   return 0;
 }
 
-void PM123_ENTRY
+void DLLENTRY
 filter_update( void *F, const FILTER_PARAMS2 *params )
 { DEBUGLOG(("logvolume:filter_update(%p, {%u, ..., %p, ..., %p})\n", F, params->size, params->a, params->w));
   DosEnterCritSec();
@@ -90,14 +91,14 @@ filter_update( void *F, const FILTER_PARAMS2 *params )
   DosExitCritSec();
 }
 
-BOOL PM123_ENTRY
+BOOL DLLENTRY
 filter_uninit( void* F )
 { DEBUGLOG(("logvolume:filter_uninit(%p)\n", F));
 
   return TRUE;
 }
 
-int PM123_ENTRY
+int DLLENTRY
 plugin_query( PLUGIN_QUERYPARAM *param )
 {
   param->type         = PLUGIN_FILTER;
