@@ -27,6 +27,8 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include "cddb.h"
+
 void displayError(char *fmt, ...);
 void displayMessage(char *fmt, ...);
 void writeToLog(char *buffer, int size);
