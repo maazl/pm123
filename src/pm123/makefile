@@ -24,6 +24,7 @@ pm123.exe: $(OBJECTS) $(RESOURCE) $(DEF) $(LIBS)
 	$(CL) $(LFLAGS) $(LFLAGS_OUT)$@ $(LOBJ_PREFX)$(OBJECTS) $(LIBS) $(STDLIBS)$(LOBJ_SUFFX) $(LDEF_PREFX)$(DEF)
 	$(RC) $(RFLAGS) $(RESOURCE) $@ > nul
 	execmode -sp pm123.exe
+	$(POSTLINKCMD)
 
 plugman$(CO):	plugman.cpp
 plugman_base$(CO):	plugman.cpp

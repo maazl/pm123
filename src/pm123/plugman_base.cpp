@@ -863,7 +863,7 @@ proxy_1_output_commit_buffer( CL_OUTPUT_PROXY_1* op, void* a, int len, int posma
 
 MRESULT EXPENTRY proxy_1_output_winfn(HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2)
 { CL_OUTPUT_PROXY_1* op = (CL_OUTPUT_PROXY_1*)WinQueryWindowPtr(hwnd, 0);
-  DEBUGLOG(("proxy_1_output_winfn(%p, %u, %p, %p) - %p {%s}\n", hwnd, msg, mp1, mp2, op, op == NULL ? NULL : op->module_name));
+  DEBUGLOG2(("proxy_1_output_winfn(%p, %u, %p, %p) - %p {%s}\n", hwnd, msg, mp1, mp2, op, op == NULL ? NULL : op->module_name));
   switch (msg)
   {case WM_PLAYERROR:
     (*op->voutput_event)(op->voutput_w, OUTEVENT_PLAY_ERROR);

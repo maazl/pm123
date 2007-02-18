@@ -16,6 +16,7 @@ all: skinutil.exe $(MDUMMY)
 
 skinutil.exe: $(OBJECTS) $(DEF)
 	$(CL) $(LFLAGS) $(LFLAGS_OUT)$@ $(LOBJ_PREFX)$(OBJECTS) $(LIBS)$(LOBJ_SUFFX) $(LDEF_PREFX)$(DEF)
+	$(POSTLINKCMD)
 
 clean: $(MDUMMY)
 	-@del skinutil.exe $(OBJECTS) 2> nul

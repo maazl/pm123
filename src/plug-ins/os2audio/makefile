@@ -18,6 +18,7 @@ all: os2audio.dll os2audio$(LBI) $(MDUMMY)
 os2audio.dll: $(OBJECTS) $(DEF) $(RESOURCE)
 	$(CL) $(LFLAGS) $(LFLAGS_OUT)$@ $(LOBJ_PREFX)$(OBJECTS) $(LIBS)$(LOBJ_SUFFX) $(LDEF_PREFX)$(DEF)
 	$(RC) $(RFLAGS) $(RESOURCE) $@ > nul
+	$(POSTLINKCMD)
 
 os2audio$(LBI): $(DEF)
 	$(LI) $@ os2audio.dll

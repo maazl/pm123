@@ -16,6 +16,7 @@ all: http123.dll http123$(LBI) $(MDUMMY)
 
 http123.dll: $(OBJECTS) $(DEF)
 	$(CL) $(LFLAGS) $(LFLAGS_OUT)$@ $(LOBJ_PREFX)$(OBJECTS) $(LIBS)$(LOBJ_SUFFX) $(LDEF_PREFX)$(DEF)
+	$(POSTLINKCMD)
 
 http123$(LBI): $(DEF)
 	$(LI) $@ http123.dll

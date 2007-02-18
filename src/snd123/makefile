@@ -18,6 +18,7 @@ all: snd123.dll snd123$(LBI) $(MDUMMY)
 
 snd123.dll: $(OBJECTS) $(LIBS) $(DEF)
 	$(CL) $(LFLAGS) $(LFLAGS_OUT)$@ $(LOBJ_PREFX) $(OBJECTS) $(LIBS) $(LOBJ_SUFFX) $(LDEF_PREFX)$(DEF)
+	$(POSTLINKCMD)
 
 snd123$(LBI): $(DEF)
 	$(LI) $@ snd123.dll

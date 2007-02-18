@@ -18,6 +18,7 @@ all: gbm123.dll gbm123$(LBI) $(MDUMMY)
 
 gbm123.dll: $(OBJECTS) $(DEF)
 	$(CL) $(LFLAGS) $(LFLAGS_OUT)$@ $(LOBJ_PREFX)$(OBJECTS)$(LOBJ_SUFFX) $(LDEF_PREFX)$(DEF)
+	$(POSTLINKCMD)
 
 gbm123$(LBI): $(DEF)
 	$(LI) $@ gbm123.dll

@@ -18,6 +18,7 @@ all: os2rec.dll os2rec$(LBI) $(MDUMMY)
 os2rec.dll: $(OBJECTS) $(DEF) $(RESOURCE)
 	$(CL) $(LFLAGS) $(LFLAGS_OUT)$@ $(LOBJ_PREFX)$(OBJECTS) $(LIBS)$(LOBJ_SUFFX) $(LDEF_PREFX)$(DEF)
 	$(RC) $(RFLAGS) $(RESOURCE) $@ > nul
+	$(POSTLINKCMD)
 
 os2rec$(LBI): $(DEF)
 	$(LI) $@ os2rec.dll

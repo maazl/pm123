@@ -17,6 +17,7 @@ all: wavplay.dll wavplay$(LBI) $(MDUMMY)
 
 wavplay.dll: $(OBJECTS) $(DEF)
 	$(CL) $(LFLAGS) $(LFLAGS_OUT)$@ $(LOBJ_PREFX)$(OBJECTS) $(LIBS)$(LOBJ_SUFFX) $(LDEF_PREFX)$(DEF)
+	$(POSTLINKCMD)
 
 wavplay$(LBI): $(DEF)
 	$(LI) $@ wavplay.dll

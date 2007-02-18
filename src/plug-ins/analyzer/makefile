@@ -22,6 +22,7 @@ all: analyzer.dll analyzer$(LBI) $(MDUMMY)
 analyzer.dll: $(OBJECTS) $(DEF) $(RESOURCE) $(MYLIBS)
 	$(CL) $(LFLAGS) $(LFLAGS_OUT)$@ $(LOBJ_PREFX)$(OBJECTS) $(LIBS)$(LOBJ_SUFFX) $(LDEF_PREFX)$(DEF)
 	$(RC) $(RFLAGS) $(RESOURCE) $@ > nul
+	$(POSTLINKCMD)
 
 analyzer$(LBI): $(DEF)
 	$(LI) $@ analyzer.dll

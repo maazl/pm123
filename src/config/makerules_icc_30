@@ -30,6 +30,7 @@ LDEF_PREFX =
 LDEF_SUFFX = _icc.def
 LOBJ_PREFX =
 LOBJ_SUFFX =
+POSTLINKCMD = dllrname /Q /R $@ CPPOM30=OS2OM30
 
 AS         = nasm
 AFLAGS     = -fobj

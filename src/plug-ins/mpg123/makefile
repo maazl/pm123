@@ -22,6 +22,7 @@ all: mpg123.dll mpg123$(LBI) $(MDUMMY)
 mpg123.dll: $(OBJECTS) $(DEF) $(RESOURCE)
 	$(CL) $(LFLAGS) $(LFLAGS_OUT)$@ $(LOBJ_PREFX)$(OBJECTS) $(LIBS) $(STDLIBS)$(LOBJ_SUFFX) $(LDEF_PREFX)$(DEF)
 	$(RC) $(RFLAGS) $(RESOURCE) $@ > nul
+	$(POSTLINKCMD)
 
 mpg123$(LBI): $(DEF)
 	$(LI) $@ mpg123.dll

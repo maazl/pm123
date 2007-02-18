@@ -17,6 +17,7 @@ all: xio123.dll xio123$(LBI) $(MDUMMY)
 
 xio123.dll: $(OBJECTS) $(DEF)
 	$(CL) $(LFLAGS) $(LFLAGS_OUT)$@ $(LOBJ_PREFX)$(OBJECTS) $(LIBS)$(LOBJ_SUFFX) $(LDEF_PREFX)$(DEF)
+	$(POSTLINKCMD)
 
 xio123$(LBI): $(DEF)
 	$(LI) $@ xio123.dll

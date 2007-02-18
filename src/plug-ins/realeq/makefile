@@ -18,6 +18,7 @@ all: realeq.dll realeq$(LBI) $(MDUMMY)
 realeq.dll: $(OBJECTS) $(DEF) $(RESOURCE)
 	$(CL) $(LFLAGS) $(LFLAGS_OUT)$@ $(LOBJ_PREFX)$(OBJECTS) $(LIBS)$(LOBJ_SUFFX) $(LDEF_PREFX)$(DEF)
 	$(RC) $(RFLAGS) $(RESOURCE) $@ > nul
+	$(POSTLINKCMD)
 
 realeq$(LBI): $(DEF)
 	$(LI) $@ realeq.dll
