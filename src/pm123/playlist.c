@@ -51,6 +51,8 @@
 #include "docking.h"
 #include "iniman.h"
 
+#include <debuglog.h>
+
 #define PL_ADD_FILE      0
 #define PL_ADD_DIRECTORY 1
 #define PL_COMPLETED     2
@@ -338,6 +340,7 @@ static void
 pl_fill_record( PLRECORD* rec, const DECODER_INFO2* info )
 {
   char buffer[64];
+  DEBUGLOG(("pl_fill_record(%p, %p)\n", rec, info));
 
   free( rec->songname );
   free( rec->moreinfo );
@@ -821,7 +824,7 @@ pl_broker_add_directory( const char* path, int options )
       char module_name[_MAX_FNAME] = "";
       DECODER_INFO2 info;
 
-      if( dec_fileinfo( fullname, &info, NULL ) == 0 ) {
+      if( dec_fileinfo( fullname, &info, &module_name ) == 0 ) {
         pl_create_record( fullname, (PLRECORD*)CMA_END, NULL, &info, module_name );
       }
     }
@@ -1075,6 +1078,7 @@ pl_show_context_menu( HWND parent, const PLRECORD* rec )
   int      count;
   short    id;
 
+  DEBUGLOG(("pl_show_context_menu(%p, %p)\n", parent, rec));
 
   WinQueryPointerPos( HWND_DESKTOP, &pos );
   WinMapWindowPoints( HWND_DESKTOP, parent, &pos, 1 );

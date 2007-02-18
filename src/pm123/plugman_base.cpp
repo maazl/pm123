@@ -586,7 +586,7 @@ proxy_1_decoder_fileinfo( CL_DECODER_PROXY_1* op, const char* filename, DECODER_
     // this part of the structure is binary compatible
     memcpy(&info->meta, old_info.title, offsetof(META_INFO, track));
     info->meta.track      = -1;
-    info->meta_write      = op->decoder_editmeta && info->meta_write;
+    info->meta_write      = op->decoder_editmeta && old_info.saveinfo;
   }
   return rc;
 }
