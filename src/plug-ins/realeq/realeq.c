@@ -387,7 +387,10 @@ fil_setup( REALEQ_STRUCT* f )
 
   // copy global parameters for thread safety and round up to next power of 2
   frexp(newPlansize-1, &i); // floor(log2(plansize-1))+1
-  FFT.plansize = 1 << i; // 2**x
+  FFT.plansize = 2 << i; // 2**(i+1)
+  // reduce size at low sampling rates
+  frexp(f->format.samplerate/8000, &i); // floor(log2(samprate))+1, i >= 0
+  FFT.plansize >>= 4-min(4,i); // / 2**(4-i)
   DEBUGLOG(("I: %d\n", FFT.plansize));
 
   // allocate buffers
@@ -414,14 +417,17 @@ fil_setup( REALEQ_STRUCT* f )
  doFIR:
   // STEP 2: setup FIR order
   
-  if( newFIRorder < 2 || newFIRorder >= FFT.plansize)
+  // copy global parameters for thread safety
+  FFT.FIRorder = (newFIRorder+15) & -16; /* multiple of 16 */
+  FFT.FIRorder <<= 1; // * 2
+  frexp(f->format.samplerate/8000, &i); // floor(log2(samprate))+1, i >= 0
+  FFT.FIRorder >>= 4-min(4,i); // / 2**(4-i)
+
+  if( FFT.FIRorder < 2 || FFT.FIRorder >= FFT.plansize)
   { (*f->error_display)("very bad! The FIR order and/or the FFT plansize is invalid or the FIRorder is higer or equal to the plansize.");
     eqenabled = FALSE; // avoid crash
     return FALSE;
   }
-
-  // copy global parameters for thread safety
-  FFT.FIRorder = (newFIRorder+15) & -16; /* multiple of 16 */
 
   /*// calculate optimum plansize for kernel generation
   frexp((FFT.FIRorder<<1) -1, &FFT.DCTplansize); // floor(log2(2*FIRorder-1))+1
