@@ -105,8 +105,8 @@ typedef struct _DECODER_STRUCT
    char* metadata_buff;
    int   metadata_size;
 
-   void (DLLENTRYP error_display)( char* );
-   void (DLLENTRYP info_display )( char* );
+   void (DLLENTRYP error_display)( const char* );
+   void (DLLENTRYP info_display )( const char* );
    int  (DLLENTRYP output_play_samples)( void* a, const FORMAT_INFO* format, const char* buf, int len, int posmarker );
 
    void* a;               // Only to be used with the precedent function.
