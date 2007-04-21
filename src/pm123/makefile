@@ -27,7 +27,7 @@ pm123.exe: $(OBJECTS) $(RESOURCE) $(DEF) $(LIBS)
 	$(POSTLINKCMD)
 
 plugman$(CO):	plugman.cpp
-plugman_base$(CO):	plugman.cpp
+plugman_base$(CO):	plugman_base.cpp
 
 123_util.c:    pm123.h plugman.h
 plugman.cpp:   pm123.h plugman.h plugman_base.h
@@ -44,6 +44,10 @@ pipe.c:        playlist.h pm123.h properties.h
 messages.c:    pm123.h messages.h
 pm123.rc:      pm123.h bookmark.h
 pm123.h:       playlist.h skin.h properties.h
+playable.cpp:  playable.h
+event.cpp:     event.h
+mutex.cpp:     mutex.h
+smartptr.cpp:  smartptr.h mutex.h
 
 clean: $(MDUMMY)
 	-@del pm123.exe $(OBJECTS) $(RESOURCE) 2> nul

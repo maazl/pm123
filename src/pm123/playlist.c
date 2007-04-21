@@ -351,7 +351,7 @@ pl_fill_record( PLRECORD* rec, const DECODER_INFO2* info )
 
   sprintf( buffer, "%u kB", (unsigned int)info->tech.filesize / 1024 );
   rec->size = strdup( buffer );
-  sprintf( buffer, "%02u:%02u", info->tech.songlength / 60000, info->tech.songlength / 1000 % 60 );
+  sprintf( buffer, "%02u:%02u", info->tech.songlength / 60000, (int)(info->tech.songlength / 1000) % 60 );
   rec->time = strdup( buffer );
 
   // Songname
@@ -824,7 +824,7 @@ pl_broker_add_directory( const char* path, int options )
       char module_name[_MAX_FNAME] = "";
       DECODER_INFO2 info;
 
-      if( dec_fileinfo( fullname, &info, &module_name ) == 0 ) {
+      if( dec_fileinfo( fullname, &info, module_name ) == 0 ) {
         pl_create_record( fullname, (PLRECORD*)CMA_END, NULL, &info, module_name );
       }
     }

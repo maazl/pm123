@@ -32,6 +32,7 @@ PM123 1.40 (alpha 1)
       are kept after restart.
     - Added master gain and mute controls.
     - Added group delay equalization.
+    - Scale FFT plansize and FIR order with the sampling rate.
 
     MPG123:
     - Implemented ID3 tag editor (was in PM123 core).

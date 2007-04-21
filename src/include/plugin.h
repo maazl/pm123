@@ -3,6 +3,7 @@
 
 #include <format.h>
 #include <decoder_plug.h>
+#include <stdlib.h>
 
 #define PLUGIN_NULL    0x000
 #define PLUGIN_VISUAL  0x001

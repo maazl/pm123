@@ -604,13 +604,13 @@ MRESULT EXPENTRY proxy_1_decoder_winfn(HWND hwnd, ULONG msg, MPARAM mp1, MPARAM 
     break;
    case WM_CHANGEBR:
     { // TODO: the unchanged information is missing now
-      TECH_INFO ti = {-1, LONGFROMMP(mp1), -1, ""};
+      TECH_INFO ti = {sizeof(TECH_INFO), -1, LONGFROMMP(mp1), -1, ""};
       (*op->voutput_event)(op->a, DEVEVENT_CHANGETECH, &ti);
     }
     break;
    case WM_METADATA:
     { // TODO: the unchanged information is missing now
-      META_INFO meta = {""};
+      META_INFO meta = {sizeof(META_INFO)};
       const char* metadata = (const char*)PVOIDFROMMP(mp1);
       const char* titlepos;
       // extract stream title

@@ -176,26 +176,6 @@ ULONG DLLENTRY decoder_length( void* w );
 #define DECODER_MODE_DUAL_CHANNEL   2
 #define DECODER_MODE_SINGLE_CHANNEL 3
 
-/* Technical information about the data source */
-typedef struct
-{  int    songlength;   /* in milliseconds, smaller than 0 -> unknown */
-   int    bitrate;      /* in kbit/s, smaller than 0 -> unknown */
-   double filesize;     /* physical size of the file, smaller than 0 -> unknown */
-   char   info[128];    /* general technical information string */
-} TECH_INFO;
-
-/* Logical information about the data source */
-typedef struct
-{
-   char title[128];
-   char artist[128];
-   char album[128];
-   char year[128];
-   char comment[128];
-   char genre[128];
-   int  track;          /* <0 = unknown */
-} META_INFO;
-
 /* NOTE: the information returned is only based on the FIRST header */
 typedef struct _DECODER_INFO
 {
@@ -251,7 +231,7 @@ typedef struct
    int  size;
 
    FORMAT_INFO2 format;  /* stream format after decoding */
-   
+               
    TECH_INFO    tech;    /* technical informations about the source */
 
    META_INFO    meta;    /* song information */

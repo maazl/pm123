@@ -51,7 +51,7 @@
 #include <plugin.h>
 #include "realeq.h"
 
-//#define DEBUG 2
+#define DEBUG 2
 #include <debuglog.h>
 
 #define PLUGIN "Real Equalizer 1.22"
@@ -196,6 +196,7 @@ static void
 save_ini( void )
 {
   HINI INIhandle;
+  DEBUGLOG(("realeq:save_ini\n"));
 
   if(( INIhandle = open_module_ini()) != NULLHANDLE )
   {
@@ -211,12 +212,14 @@ save_ini( void )
 
     close_ini( INIhandle );
   }
+  DEBUGLOG(("realeq:save_ini - completed - %p\n", INIhandle));
 }
 
 static void
 load_ini( void )
 {
   HINI INIhandle;
+  DEBUGLOG(("realeq:load_ini\n"));
 
   memset(bandgain,   0, sizeof bandgain  );
   memset(groupdelay, 0, sizeof groupdelay);
@@ -254,6 +257,7 @@ load_ini( void )
       newFIRorder = MAX_FIR;
   }
   eqneedinit  = TRUE;
+  DEBUGLOG(("realeq:load_ini - completed\n"));
 }
 
 static double TodB(double gain)
@@ -277,11 +281,13 @@ load_eq_file( char* filename )
   FILE* file;
   int   i = 0;
   char  line[256];
+  DEBUGLOG(("realeq:load_eq_file(%s)\n", filename));
 
   if (filename == NULL || *filename == 0)
     return FALSE;
   file = fopen( filename, "r" );
   if( file == NULL ) {
+    DEBUGLOG(("realeq:load_eq_file: failed, error %i\n", errno));
     return FALSE;
   }
 
@@ -322,12 +328,15 @@ load_eq_file( char* filename )
     }
   }
   fclose( file );
+  DEBUGLOG(("realeq:load_eq_file: OK\n"));
   return TRUE;
 }
 
 static void
 init_request( void )
-{ if (!plugininit) // first time?
+{ 
+  DEBUGLOG(("realeq:init_request\n"));
+  if (!plugininit) // first time?
   { load_ini();
     if ( eqstate == EQ_file ) {
       load_eq_file( lasteq );
@@ -387,7 +396,10 @@ fil_setup( REALEQ_STRUCT* f )
 
   // copy global parameters for thread safety and round up to next power of 2
   frexp(newPlansize-1, &i); // floor(log2(plansize-1))+1
-  FFT.plansize = 1 << i; // 2**x
+  FFT.plansize = 2 << i; // 2**(i+1)
+  // reduce size at low sampling rates
+  frexp(f->format.samplerate/8000, &i); // floor(log2(samprate))+1, i >= 0
+  FFT.plansize >>= 4-min(4,i); // / 2**(4-i)
   DEBUGLOG(("I: %d\n", FFT.plansize));
 
   // allocate buffers
@@ -414,14 +426,17 @@ fil_setup( REALEQ_STRUCT* f )
  doFIR:
   // STEP 2: setup FIR order
   
-  if( newFIRorder < 2 || newFIRorder >= FFT.plansize)
+  // copy global parameters for thread safety
+  FFT.FIRorder = (newFIRorder+15) & -16; /* multiple of 16 */
+  FFT.FIRorder <<= 1; // * 2
+  frexp(f->format.samplerate/8000, &i); // floor(log2(samprate))+1, i >= 0
+  FFT.FIRorder >>= 4-min(4,i); // / 2**(4-i)
+
+  if( FFT.FIRorder < 2 || FFT.FIRorder >= FFT.plansize)
   { (*f->error_display)("very bad! The FIR order and/or the FFT plansize is invalid or the FIRorder is higer or equal to the plansize.");
     eqenabled = FALSE; // avoid crash
     return FALSE;
   }
-
-  // copy global parameters for thread safety
-  FFT.FIRorder = (newFIRorder+15) & -16; /* multiple of 16 */
 
   /*// calculate optimum plansize for kernel generation
   frexp((FFT.FIRorder<<1) -1, &FFT.DCTplansize); // floor(log2(2*FIRorder-1))+1
@@ -498,7 +513,7 @@ fil_setup( REALEQ_STRUCT* f )
         // convert to cartesian coordinates
         FFT.freq_domain[i][0] = val * cos(phase);
         FFT.freq_domain[i][1] = val * sin(phase);
-        DEBUGLOG(("F: %i, %f, %f -> %f = %f dB, %f = %f ms@ %f\n",
+        DEBUGLOG2(("F: %i, %f, %f -> %f = %f dB, %f = %f ms@ %f\n",
           i, f, pos, val, TodB(val), phase*180./M_PI, cop[0].de + pos * (cop[1].de - cop[0].de), exp(cop[0].lf)));
     } }
 
@@ -514,12 +529,12 @@ fil_setup( REALEQ_STRUCT* f )
       float* sp2 = FFT.time_domain + FFT.plansize;
       double tmp;
       *sp1++ /= FFT.plansize * FFT.plansize;
-      DEBUGLOG(("K: %i, %g\n", FFT.FIRorder/2, sp1[-1]));
+      DEBUGLOG2(("K: %i, %g\n", FFT.FIRorder/2, sp1[-1]));
       for (i = FFT.FIRorder/2 -1; i >= 0; --i)
       { tmp = WINDOW_FUNCTION(i, FFT.FIRorder) / (FFT.plansize * FFT.plansize); // normalize for next FFT
         *sp1++ *= tmp;
         *--sp2 *= tmp;
-        DEBUGLOG(("K: %i, %g, %g\n", i, sp1[-1], sp2[0]));
+        DEBUGLOG2(("K: %i, %g, %g\n", i, sp1[-1], sp2[0]));
       }
       // padding
       memset(sp1, 0, (sp2-sp1) * sizeof *FFT.time_domain);
@@ -1023,6 +1038,7 @@ save_eq( HWND hwnd )
   FILEDLG filedialog;
   FILE*   file;
   int     i, e;
+  DEBUGLOG(("realeq:save_eq\n"));
 
   memset( &filedialog, 0, sizeof(FILEDLG));
   filedialog.cbSize   = sizeof(FILEDLG);
@@ -1032,19 +1048,22 @@ save_eq( HWND hwnd )
   if( lasteq[0] == 0 ) {
     strcpy( filedialog.szFullFile, "*.REQ" );
   } else {
-    strcpy( filedialog.szFullFile, lasteq );
+    strncpy( filedialog.szFullFile, lasteq, sizeof filedialog.szFullFile );
   }
 
   WinFileDlg( HWND_DESKTOP, HWND_DESKTOP, &filedialog );
 
   if( filedialog.lReturn == DID_OK )
   {
-    strcpy( lasteq, filedialog.szFullFile );
+    eqstate = EQ_file;
     file = fopen( filedialog.szFullFile, "w" );
     if( file == NULL ) {
+      DEBUGLOG(("realeq:save_eq: failed\n"));
       return FALSE;
     }
-
+    strncpy( lasteq, filedialog.szFullFile, sizeof lasteq );
+    eqstate = EQ_file;
+  
     fprintf( file, "#\n# Equalizer created with %s\n# Do not modify!\n#\n", VERSION );
     fprintf( file, "# Band gains\n" );
     for( e = 0; e < 2; ++e )
@@ -1060,6 +1079,7 @@ save_eq( HWND hwnd )
     fprintf( file, "%u\n%u\n", mute[0][0], mute[1][0] );
     fprintf( file, "# End of equalizer\n" );
     fclose ( file );
+    DEBUGLOG(("realeq:save_eq: OK\n"));
     return TRUE;
   }
 
@@ -1081,6 +1101,7 @@ static BOOL
 load_eq( HWND hwnd )
 {
   FILEDLG filedialog;
+  DEBUGLOG(("realeq:load_eq: OK\n"));
 
   memset( &filedialog, 0, sizeof( FILEDLG ));
   filedialog.cbSize = sizeof(FILEDLG);
@@ -1093,8 +1114,8 @@ load_eq( HWND hwnd )
 
   if( filedialog.lReturn == DID_OK )
   {
-    strcpy( lasteq, filedialog.szFullFile );
     if ( load_eq_file( filedialog.szFullFile ) ) {
+      strncpy( lasteq, filedialog.szFullFile, sizeof lasteq );
       eqstate = EQ_file;
       return TRUE;
     } else {
