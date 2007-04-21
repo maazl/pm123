@@ -1,7 +1,9 @@
 #ifndef PM123_OUTPUT_PLUG_H
 #define PM123_OUTPUT_PLUG_H
 
+#define INCL_BASE
 #include <format.h>
+#include <os2.h>
 
 #ifdef __cplusplus
 extern "C" {
