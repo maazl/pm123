@@ -51,7 +51,7 @@
 #include <plugin.h>
 #include "realeq.h"
 
-//#define DEBUG 2
+#define DEBUG 2
 #include <debuglog.h>
 
 #define PLUGIN "Real Equalizer 1.22"
@@ -196,6 +196,7 @@ static void
 save_ini( void )
 {
   HINI INIhandle;
+  DEBUGLOG(("realeq:save_ini\n"));
 
   if(( INIhandle = open_module_ini()) != NULLHANDLE )
   {
@@ -211,12 +212,14 @@ save_ini( void )
 
     close_ini( INIhandle );
   }
+  DEBUGLOG(("realeq:save_ini - completed - %p\n", INIhandle));
 }
 
 static void
 load_ini( void )
 {
   HINI INIhandle;
+  DEBUGLOG(("realeq:load_ini\n"));
 
   memset(bandgain,   0, sizeof bandgain  );
   memset(groupdelay, 0, sizeof groupdelay);
@@ -254,6 +257,7 @@ load_ini( void )
       newFIRorder = MAX_FIR;
   }
   eqneedinit  = TRUE;
+  DEBUGLOG(("realeq:load_ini - completed\n"));
 }
 
 static double TodB(double gain)
@@ -277,11 +281,13 @@ load_eq_file( char* filename )
   FILE* file;
   int   i = 0;
   char  line[256];
+  DEBUGLOG(("realeq:load_eq_file(%s)\n", filename));
 
   if (filename == NULL || *filename == 0)
     return FALSE;
   file = fopen( filename, "r" );
   if( file == NULL ) {
+    DEBUGLOG(("realeq:load_eq_file: failed, error %i\n", errno));
     return FALSE;
   }
 
@@ -322,12 +328,15 @@ load_eq_file( char* filename )
     }
   }
   fclose( file );
+  DEBUGLOG(("realeq:load_eq_file: OK\n"));
   return TRUE;
 }
 
 static void
 init_request( void )
-{ if (!plugininit) // first time?
+{ 
+  DEBUGLOG(("realeq:init_request\n"));
+  if (!plugininit) // first time?
   { load_ini();
     if ( eqstate == EQ_file ) {
       load_eq_file( lasteq );
@@ -1029,6 +1038,7 @@ save_eq( HWND hwnd )
   FILEDLG filedialog;
   FILE*   file;
   int     i, e;
+  DEBUGLOG(("realeq:save_eq\n"));
 
   memset( &filedialog, 0, sizeof(FILEDLG));
   filedialog.cbSize   = sizeof(FILEDLG);
@@ -1048,6 +1058,7 @@ save_eq( HWND hwnd )
     eqstate = EQ_file;
     file = fopen( filedialog.szFullFile, "w" );
     if( file == NULL ) {
+      DEBUGLOG(("realeq:save_eq: failed\n"));
       return FALSE;
     }
     strncpy( lasteq, filedialog.szFullFile, sizeof lasteq );
@@ -1068,6 +1079,7 @@ save_eq( HWND hwnd )
     fprintf( file, "%u\n%u\n", mute[0][0], mute[1][0] );
     fprintf( file, "# End of equalizer\n" );
     fclose ( file );
+    DEBUGLOG(("realeq:save_eq: OK\n"));
     return TRUE;
   }
 
@@ -1089,6 +1101,7 @@ static BOOL
 load_eq( HWND hwnd )
 {
   FILEDLG filedialog;
+  DEBUGLOG(("realeq:load_eq: OK\n"));
 
   memset( &filedialog, 0, sizeof( FILEDLG ));
   filedialog.cbSize = sizeof(FILEDLG);
