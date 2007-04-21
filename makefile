@@ -8,6 +8,7 @@ VERSION = 1_32
 PARTS   = src\utils\utilfct$(LBO) src\gbm123\gbm123.dll src\fft123\fft123.dll
 PARTS   = $(PARTS) src\xio123\xio123.dll
 PARTS   = $(PARTS) src\snd123\snd123.dll
+PARTS   = $(PARTS) src\gbm123\gbm123.dll
 PARTS   = $(PARTS) src\plug-ins\analyzer\analyzer.dll
 PARTS   = $(PARTS) src\plug-ins\cddaplay\cddaplay.dll
 PARTS   = $(PARTS) src\plug-ins\mpg123\mpg123.dll
