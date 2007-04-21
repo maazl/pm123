@@ -477,6 +477,8 @@ CDDA_REGION_INFO* scdparams( CDDA_REGION_INFO* result, const char* location )
 BOOL
 is_root( const char* location )
 {
+  if (strnicmp(location, "file:///", 8) == 0)
+    location += 8;
   return strlen( location ) == 3
          && location[1] == ':'
          && isslash( location[2] );
@@ -487,6 +489,8 @@ BOOL
 is_dir( const char* location )
 {
   struct stat fi;
+  if (strnicmp(location, "file:///", 8) == 0)
+    location += 8;
   return ( stat( location, &fi ) == 0 ) && ( fi.st_mode & S_IFDIR );
 }
 
