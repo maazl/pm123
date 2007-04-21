@@ -945,9 +945,9 @@ dec_fileinfo( const char* filename, DECODER_INFO2* info, char* name )
  ok:
   if (name)
     sfnameext( name, dp->module_name, _MAX_FNAME );
-  DEBUGLOG(("dec_fileinfo: {{, %d, %d}, {%d, %d, %f, %s}} -> %s\n",
-    info->format.samplerate, info->format.channels,
-    info->tech.songlength, info->tech.bitrate, info->tech.filesize, info->tech.info,
+  DEBUGLOG(("dec_fileinfo: {{%d, %d, %d}, {%d, %lf, %d, %f, %s}} -> %s\n",
+    info->format.size, info->format.samplerate, info->format.channels,
+    info->tech.size, info->tech.songlength, info->tech.bitrate, info->tech.filesize, info->tech.info,
     name)); 
   return 0;
 }
