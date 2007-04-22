@@ -37,6 +37,7 @@
 #include <errno.h>
 #include <sys/stat.h>
 #include "xio_file.h"
+#include <string.h>
 
 /* Opens the file specified by filename. Returns 0 if it
    successfully opens the file. A return value of -1 shows an error. */
@@ -61,6 +62,11 @@ file_open( XFILE* x, const char* filename, int oflags )
   }
   if( oflags & XO_APPEND ) {
     omode |= O_TRUNC;
+  }
+
+  // accept file:/// URLs too
+  if ( strnicmp(filename, "file:///", 8) == 0 ) {
+    filename += 8;
   }
 
   if(( x->protocol->s_handle = sopen( filename, omode, SH_DENYNO )) == -1 ) {
