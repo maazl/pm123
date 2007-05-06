@@ -614,6 +614,7 @@ static void
 do_fft_load_samples_mono(const short* sp, const int len, float* overlap_buffer)
 { int l;
   float* dp = FFT.time_domain + FFT.FIRorder/2;
+  DEBUGLOG(("realeq:do_fft_load_samples_mono(%p, %i, %p) - %i\n", sp, len, overlap_buffer));
   do_fft_load_overlap(overlap_buffer);
   // fetch new samples
   for (l = len >> 3; l; --l) // coarse
@@ -634,6 +635,7 @@ static void
 do_fft_load_samples_stereo(const short* sp, const int len, float* overlap_buffer)
 { int l;
   float* dp = FFT.time_domain + FFT.FIRorder/2;
+  DEBUGLOG(("realeq:do_fft_load_samples_stereo(%p, %i, %p) - %i\n", sp, len, overlap_buffer));
   do_fft_load_overlap(overlap_buffer);
   for (l = len >> 3; l; --l) // coarse
   { DO_8(p, dp[p] = sp[p<<1]);
