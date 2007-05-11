@@ -15,7 +15,7 @@ CC         = icc
 CFLAGS     = -Ss -Q -Gm -Gd+ -W3 -DOS2 -DNOSYSTEMSTATICMEMBER -Wdcl -Wenu
 CFLAGS_DLL = -Ge- -DLL
 CFLAGS_DBG = -Ti -Tx -DDEBUG=1
-CFLAGS_MEM = -Tm
+CFLAGS_MEM = -Tm -DDEBUG_ALLOC=1
 CFLAGS_OPT = -Gf -Gi -O -G5
 
 CL         = ilink
