@@ -86,6 +86,6 @@ typedef BUTTONDATA *PBUTTONDATA;
 void InitButton(HAB hab);
 
 #ifdef __cplusplus
-extern "C" {
+}
 #endif
 #endif
