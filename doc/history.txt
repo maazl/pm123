@@ -36,6 +36,8 @@ PM123 1.40 (alpha 1)
 
     MPG123:
     - Implemented ID3 tag editor (was in PM123 core).
+    - Fix: continue playing on sideinfo error.
+      (Message: "Blocktype == 0 and window-switching == 1 not allowed.")
 
     CDDAPLAY:
     - Implemented assistent to load CD tracks (was in PM123 core)
