@@ -16,6 +16,8 @@
 #include "mpg123.h"
 #include "huffman.h"
 
+#include <debuglog.h>
+
 static real ispow[8207];
 static real aa_ca[8],aa_cs[8];
 static real COS1[12][6];
@@ -367,9 +369,7 @@ static int III_get_side_info_1(DECODER_STRUCT *w, struct III_sideinfo *si,int st
            gr_info->full_gain[i] = gr_info->pow2gain + (getbits_fast(3)<<3);
 
          if(gr_info->block_type == 0) {
-           #ifdef DEBUG
-           w->error_display("Blocktype == 0 and window-switching == 1 not allowed.");
-           #endif
+           DEBUGLOG(("III_get_side_info_1: Blocktype == 0 and window-switching == 1 not allowed.\n"));
            return 0;
          }
          /* region_count/start parameters are implicit in this case. */
@@ -453,9 +453,7 @@ static int III_get_side_info_2(DECODER_STRUCT *w,struct III_sideinfo *si,int ste
            gr_info->full_gain[i] = gr_info->pow2gain + (getbits_fast(3)<<3);
 
          if(gr_info->block_type == 0) {
-           #ifdef DEBUG
-           w->error_display("Blocktype == 0 and window-switching == 1 not allowed.");
-           #endif
+           DEBUGLOG(("III_get_side_info_2: Blocktype == 0 and window-switching == 1 not allowed.\n"));
            return 0;
          }
          /* region_count/start parameters are implicit in this case. */
@@ -2119,12 +2117,12 @@ int do_layer3(DECODER_STRUCT *w, struct frame *fr)
   if(fr->lsf) {
     granules = 1;
     if(!III_get_side_info_2(w,&sideinfo,stereo,ms_stereo,sfreq,single))
-       return -1;
+       return clip; // do not blow out
   }
   else {
     granules = 2;
     if(!III_get_side_info_1(w,&sideinfo,stereo,ms_stereo,sfreq,single))
-       return -1;
+       return clip; // do not blow out
   }
 
   if( !complete_main_data(sideinfo.main_data_begin,fr)) {
