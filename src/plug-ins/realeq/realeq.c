@@ -51,7 +51,7 @@
 #include <plugin.h>
 #include "realeq.h"
 
-#define DEBUG 2
+//#define DEBUG 2
 #include <debuglog.h>
 
 #define PLUGIN "Real Equalizer 1.22"
@@ -175,17 +175,18 @@ typedef struct {
 
    ULONG (DLLENTRYP output_command)       ( void* a, ULONG msg, OUTPUT_PARAMS2* info );
    int   (DLLENTRYP output_request_buffer)( void* a, const FORMAT_INFO2* format, short** buf );
-   void  (DLLENTRYP output_commit_buffer) ( void* a, int len, int posmarker );
+   void  (DLLENTRYP output_commit_buffer) ( void* a, int len, double posmarker );
    void* a;
    void  (DLLENTRYP error_display)        ( const char* );
 
    FORMAT_INFO2 format;
 
-   int   posmarker;  // starting point of the inbox buffer
-   int   inboxlevel; // number of samples in inbox buffer
-   int   latency;    // samples to discard before passing them to the output stage
-   BOOL  enabled;    // flag whether the EQ was enabled at the last call to request_buffer
-   int   temppos;    // >= 0: discard buffer content before next request_buffer
+   double posmarker;  // starting point of the inbox buffer
+   int    inboxlevel; // number of samples in inbox buffer
+   int    latency;    // samples to discard before passing them to the output stage
+   BOOL   enabled;    // flag whether the EQ was enabled at the last call to request_buffer
+   BOOL   discard;    // TRUE: discard buffer content before next request_buffer
+   double temppos;    // Position returned during discard
 
 } REALEQ_STRUCT;
 
@@ -778,8 +779,8 @@ do_request_buffer( REALEQ_STRUCT* f, short** buf )
 }
 
 static void
-do_commit_buffer( REALEQ_STRUCT* f, int len, int posmarker )
-{ DEBUGLOG(("realeq:do_commit_buffer(%p, %d, %d) - %d\n", f, len, posmarker, f->latency));
+do_commit_buffer( REALEQ_STRUCT* f, int len, double posmarker )
+{ DEBUGLOG(("realeq:do_commit_buffer(%p, %d, %f) - %d\n", f, len, posmarker, f->latency));
   if (f->latency != 0)
   { f->latency -= len;
   } else
@@ -800,7 +801,7 @@ filter_and_send( REALEQ_STRUCT* f )
   // request destination buffer
   dlen = do_request_buffer( f, &dbuf );
   
-  if (f->temppos != -1)
+  if (f->discard)
   { f->inboxlevel = 0;
     do_commit_buffer(f, 0, f->temppos); // no-op
     return;
@@ -819,14 +820,14 @@ filter_and_send( REALEQ_STRUCT* f )
     for(;;)
     { if (dbuf != NULL)
         memcpy(dbuf, sp, dlen * sizeof(short) * 2);
-      do_commit_buffer( f, dlen, f->posmarker + (len-rem)*1000/f->format.samplerate );
+      do_commit_buffer( f, dlen, f->posmarker + (double)(len-rem)/f->format.samplerate );
       rem -= dlen;
       if (rem == 0)
         break;
       sp += dlen * 2;
       // request next buffer
       dlen = do_request_buffer( f, &dbuf );
-      if (f->temppos != -1)
+      if (f->discard)
       { f->inboxlevel = 0;
         do_commit_buffer(f, 0, f->temppos); // no-op
         return;
@@ -846,7 +847,7 @@ filter_and_send( REALEQ_STRUCT* f )
     do_commit_buffer( f, len, f->posmarker );
   }
 
-  f->posmarker += f->inboxlevel*1000/f->format.samplerate;
+  f->posmarker += (double)f->inboxlevel/f->format.samplerate;
   f->inboxlevel = 0;
 }
 
@@ -865,7 +866,7 @@ local_flush( REALEQ_STRUCT* f )
     if (f->inboxlevel == FFT.plansize - FFT.FIRorder)
     { // enough data, apply filter
       filter_and_send(f);
-      if (f->temppos != -1)
+      if (f->discard)
         break;
     }
     len -= dlen;
@@ -907,9 +908,9 @@ filter_request_buffer( REALEQ_STRUCT* f, const FORMAT_INFO2* format, short** buf
 
   if ( f->enabled )
   {
-    if (f->temppos != -1)
+    if (f->discard)
     { trash_buffers(f);
-      f->temppos = -1;
+      f->discard = FALSE;
     }
     if ( f->format.samplerate != format->samplerate || f->format.channels != format->channels )
     { if (f->format.samplerate != 0)
@@ -935,9 +936,9 @@ filter_request_buffer( REALEQ_STRUCT* f, const FORMAT_INFO2* format, short** buf
 }
 
 static void DLLENTRY
-filter_commit_buffer( REALEQ_STRUCT* f, int len, int posmarker )
+filter_commit_buffer( REALEQ_STRUCT* f, int len, double posmarker )
 {
-  DEBUGLOG(("realeq:filter_commit_buffer(%p, %u, %u) - %d %d\n", f, len, posmarker, f->inboxlevel, f->latency));
+  DEBUGLOG(("realeq:filter_commit_buffer(%p, %u, %f) - %d %d\n", f, len, posmarker, f->inboxlevel, f->latency));
   
   if (!f->enabled)
   { (*f->output_commit_buffer)( f->a, len, posmarker );
@@ -946,7 +947,7 @@ filter_commit_buffer( REALEQ_STRUCT* f, int len, int posmarker )
 
   if (f->inboxlevel == 0)
     // remember position and precompensate for filter delay
-    f->posmarker = posmarker - (FFT.FIRorder>>1)*1000/f->format.samplerate;
+    f->posmarker = posmarker - (double)(FFT.FIRorder>>1)/f->format.samplerate;
 
   f->inboxlevel += len;
 
@@ -966,9 +967,11 @@ filter_command( REALEQ_STRUCT* f, ULONG msg, OUTPUT_PARAMS2* info )
     break;
    case OUTPUT_TRASH_BUFFERS:
     f->temppos = info->temp_playingpos;
+    f->discard = TRUE;
     break;
    case OUTPUT_CLOSE:
     f->temppos = f->posmarker;
+    f->discard = TRUE;
     break;
   }
   return (*f->output_command)( f->a, msg, info );
@@ -994,7 +997,7 @@ filter_init( void** F, FILTER_PARAMS2* params )
   f->error_display         = params->error_display;
   f->inboxlevel            = 0;
   f->enabled               = FALSE; // flag is set later
-  f->temppos               = -1;
+  f->discard               = TRUE;
 
   f->format.size           = sizeof f->format;
   f->format.samplerate     = 0;
@@ -1002,7 +1005,7 @@ filter_init( void** F, FILTER_PARAMS2* params )
   
   params->output_command        = (ULONG (DLLENTRYP)(void*, ULONG, OUTPUT_PARAMS2*))      &filter_command;
   params->output_request_buffer = (int   (DLLENTRYP)(void*, const FORMAT_INFO2*, short**))&filter_request_buffer;
-  params->output_commit_buffer  = (void  (DLLENTRYP)(void*, int, int))                    &filter_commit_buffer;
+  params->output_commit_buffer  = (void  (DLLENTRYP)(void*, int, double))                 &filter_commit_buffer;
   return 0;
 }
 
