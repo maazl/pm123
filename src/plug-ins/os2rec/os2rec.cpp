@@ -737,9 +737,10 @@ static ULONG get_devices(MCI_SYSINFO_LOGDEVICE* info, int deviceid)
 
 /********** GUI stuff ******************************************************/ 
 
-struct WizzardDlgResult
-{ char* url;
-  ULONG size;
+struct WizzardDlgData
+{ const char* title;
+  DECODER_WIZZARD_CALLBACK callback;
+  void* param;
 };
 
 static MRESULT EXPENTRY WizzardDlgProc(HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2)
@@ -751,6 +752,12 @@ static MRESULT EXPENTRY WizzardDlgProc(HWND hwnd, ULONG msg, MPARAM mp1, MPARAM 
   {case WM_INITDLG:
     // Store data pointer
     WinSetWindowULong(hwnd, QWL_USER, (ULONG)mp2);
+
+    // Window Title 
+    { char wintitle[300]; // hopefully large enough
+      sprintf(wintitle, ((WizzardDlgData*)mp2)->title, " recording");
+      WinSetWindowText( hwnd, wintitle );
+    }
 
     // Initialize devices
     { HWND hwndctrl = WinWindowFromID(hwnd, CB_DEVICE);
@@ -810,14 +817,10 @@ static MRESULT EXPENTRY WizzardDlgProc(HWND hwnd, ULONG msg, MPARAM mp1, MPARAM 
           WinQueryButtonCheckstate(hwnd, RB_MIC)  ? "mic"  : WinQueryButtonCheckstate(hwnd, RB_DIGITAL) ? "digital" : "line",
           WinQueryButtonCheckstate(hwnd, RB_EXCL) ? "no"   : "yes");
         // store result
-        WizzardDlgResult* dp = (WizzardDlgResult*)WinQueryWindowULong(hwnd, QWL_USER);
-        DEBUGLOG(("os2rec:WizzardDlgProc: dp=%p->{%p,%u}\n", dp, dp->url, dp->size));
-        size_t len = strlen(url)+1;
-        if (dp->size >= len +1)
-        { memcpy(dp->url, url, len);
-          dp->url[len] = 0; // double zero termination
-        }
-        dp->size = len +1;
+        WizzardDlgData* dp = (WizzardDlgData*)WinQueryWindowULong(hwnd, QWL_USER);
+        DEBUGLOG(("os2rec:WizzardDlgProc: dp=%p\n", dp));
+        // do callback
+        (*dp->callback)(dp->param, url);
       }
       break;
     }
@@ -856,15 +859,15 @@ static MRESULT EXPENTRY WizzardDlgProc(HWND hwnd, ULONG msg, MPARAM mp1, MPARAM 
   return WinDefDlgProc(hwnd, msg, mp1, mp2);
 }
 
-static ULONG DLLENTRY WizzardDlg(HWND owner, char* select, ULONG size)
-{ DEBUGLOG(("os2rec:WizzardDlg(%p, %p, %d)\n", owner, select, size));  
+static ULONG DLLENTRY WizzardDlg(HWND owner, const char* title, DECODER_WIZZARD_CALLBACK callback, void* param )
+{ DEBUGLOG(("os2rec:WizzardDlg(%p, %s, %p, %p)\n", owner, title, callback, param));
   HMODULE mod;
   getModule( &mod, NULL, 0 );
 
-  WizzardDlgResult res = { select, size };
+  WizzardDlgData res = { title, callback, param };
   switch (WinDlgBox(HWND_DESKTOP, owner, WizzardDlgProc, mod, DLG_RECWIZZARD, &res))
   {case DID_OK:
-    return res.size <= size ? 0 : 100;
+    return 0;
 
    case DID_CANCEL:
     return 300;
@@ -874,16 +877,17 @@ static ULONG DLLENTRY WizzardDlg(HWND owner, char* select, ULONG size)
   }
 }
 
-const DECODER_WIZZARD wizzardentry =
-{ NULL,
-  "Record...",
-  0, 0,
-  &WizzardDlg
-};
-
 /* DLL entry point */
-const DECODER_WIZZARD* DLLENTRY decoder_getwizzard( BOOL multiselect )
-{ return &wizzardentry;
+const DECODER_WIZZARD* DLLENTRY decoder_getwizzard( )
+{
+  static const DECODER_WIZZARD wizzardentry =
+  { NULL,
+    "Record...",
+    0, 0,
+    &WizzardDlg
+  };
+
+  return &wizzardentry;
 }
 
 /*HWND dlghwnd = 0;

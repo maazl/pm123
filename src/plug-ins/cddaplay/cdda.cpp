@@ -934,7 +934,6 @@ add_tracks_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
       if( SHORT1FROMMP(mp1) == PB_REFRESH )
       {
         char cdurl[32] = "cdda:///";
-        BOOL multiselect = WinQueryWindowULong( hwnd, QWL_USER );
         int  i;
 
         DECODER_CDINFO cdinfo;
@@ -957,15 +956,10 @@ add_tracks_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
                                    MPFROMSHORT( LIT_END ), MPFROMP( cdurl+11 ));
               }
             }
-            if( multiselect ) {
-              for( i = cdinfo.firsttrack; i <= cdinfo.lasttrack; i++ ) {
-                WinSendDlgItemMsg( hwnd, LB_TRACKS, LM_SELECTITEM,
-                                   MPFROMSHORT( i - cdinfo.firsttrack ),
-                                   MPFROMLONG( TRUE ));
-              }
-            } else {
+            for( i = cdinfo.firsttrack; i <= cdinfo.lasttrack; i++ ) {
               WinSendDlgItemMsg( hwnd, LB_TRACKS, LM_SELECTITEM,
-                                 MPFROMSHORT( 0 ), MPFROMLONG( TRUE ));
+                                 MPFROMSHORT( i - cdinfo.firsttrack ),
+                                 MPFROMLONG( TRUE ));
             }
           }
         }
@@ -1029,17 +1023,14 @@ add_tracks_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
 }
 
 /* Adds CD tracks to the playlist or load one to the player. */
-static ULONG
-load_wizzard( HWND owner, char* select, ULONG size, BOOL multiselect )
+static ULONG DLLENTRY
+load_wizzard( HWND owner, const char* title, DECODER_WIZZARD_CALLBACK callback, void* param )
 {
   HFILE   hcdrom;
   ULONG   action;
   HWND    hwnd;
   HMODULE mod;
-  #if DEBUG
-  char* select_old = select;
-  #endif
-  DEBUGLOG(("cddaplay:load_wizzard(%p, %p, %d, %d)\n", owner, select, size, multiselect));  
+  DEBUGLOG(("cddaplay:load_wizzard(%p, %s, %p, %p)\n", owner, title, callback, param));  
 
   getModule( &mod, NULL, 0 );
   hwnd = WinLoadDlg( HWND_DESKTOP, owner, add_tracks_dlg_proc, mod, DLG_TRACK, 0 );
@@ -1049,16 +1040,13 @@ load_wizzard( HWND owner, char* select, ULONG size, BOOL multiselect )
     return 500;
   }
 
-  WinSetWindowULong( hwnd, QWL_USER, multiselect );
   do_warpsans( hwnd );
 
-  if( multiselect ) {
-    WinSetWindowBits( WinWindowFromID( hwnd, LB_TRACKS ), QWL_STYLE, 1, LS_MULTIPLESEL );
-    WinSetWindowBits( WinWindowFromID( hwnd, LB_TRACKS ), QWL_STYLE, 1, LS_EXTENDEDSEL );
-    WinSetWindowText( hwnd, "Add Tracks" );
-  } else {
-    WinSetWindowText( hwnd, "Load Track" );
-  }
+  WinSetWindowBits( WinWindowFromID( hwnd, LB_TRACKS ), QWL_STYLE, 1, LS_MULTIPLESEL );
+  WinSetWindowBits( WinWindowFromID( hwnd, LB_TRACKS ), QWL_STYLE, 1, LS_EXTENDEDSEL );
+  char wintitle[300]; // hopefully large enough
+  sprintf(wintitle, title, " tracks");
+  WinSetWindowText( hwnd, wintitle );
 
   if( DosOpen( "\\DEV\\CD-ROM2$", &hcdrom, &action, 0,
                FILE_NORMAL, OPEN_ACTION_OPEN_IF_EXISTS,
@@ -1101,56 +1089,36 @@ load_wizzard( HWND owner, char* select, ULONG size, BOOL multiselect )
     WinQueryDlgItemText( hwnd, CB_DRIVE, sizeof( settings.cddrive ), settings.cddrive );
 
     while( selected != LIT_NONE ) {
-      DEBUGLOG(("cddaplay:load_wizzard: selected = %d, size = %d\n", selected, size));
-      if( size < 20 ) {
-        action = 100;
-        break;
-      }
-      int len = sprintf( select, "cd:///%s\\Track %02d", settings.cddrive, selected+1 ) +1;
-      size -= len;
-      select += len;
-      if ( !multiselect )
-        break; // OS/2 seems to return always the same item in single select mode
+      DEBUGLOG(("cddaplay:load_wizzard: selected = %d\n", selected));
+      char url[30];
+      // TODO: cdda:
+      sprintf( url, "cd:///%s\\Track %02d", settings.cddrive, selected+1 );
+      // Callback
+      (*callback)( param, url );
+      // next
       selected = SHORT1FROMMR( WinSendDlgItemMsg( hwnd, LB_TRACKS, LM_QUERYSELECTION,
                                MPFROMSHORT( selected ), 0 ));
     }
-    // Double zero termination
-    *select = 0;
   }
   WinDestroyWindow( hwnd );
   
-  DEBUGLOG(("cddaplay:load_wizzard: %d - %s\n", action, select_old));
+  DEBUGLOG(("cddaplay:load_wizzard: %d\n", action));
   return action;
 }
 
-/* load wizzard, no multiple selection */
-static ULONG DLLENTRY load_wizzard_1( HWND owner, char* select, ULONG size )
-{ return load_wizzard( owner, select, size, FALSE );
-} 
-
-const DECODER_WIZZARD wizzard_1 =
-{ NULL,
-  "~Track...\tAlt+T",
-  't', AF_CHAR | AF_ALT,
-  &load_wizzard_1
-};
-
-/* load wizzard with multiple selection */
-static ULONG DLLENTRY load_wizzard_2( HWND owner, char* select, ULONG size )
-{ return load_wizzard( owner, select, size, TRUE );
-} 
-
-const DECODER_WIZZARD wizzard_2 =
-{ NULL,
-  "~Tracks...\tAlt+T",
-  't', AF_CHAR | AF_ALT,
-  &load_wizzard_2
-};
-
 /* plug-in entry point */
-const DECODER_WIZZARD* DLLENTRY decoder_getwizzard( BOOL multiselect )
-{ DEBUGLOG(("cddaplay:decoder_getwizzard(%u)\n", multiselect));
-  return multiselect ? &wizzard_2 : &wizzard_1;
+const DECODER_WIZZARD* DLLENTRY decoder_getwizzard( )
+{
+  DEBUGLOG(("cddaplay:decoder_getwizzard()\n"));
+  
+  static const DECODER_WIZZARD wizzard =
+  { NULL,
+    "~Track(s)...\tAlt+T",
+    't', AF_CHAR | AF_ALT,
+    &load_wizzard
+  };
+
+  return &wizzard;
 }
 
 
