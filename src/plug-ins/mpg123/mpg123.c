@@ -566,7 +566,7 @@ decoder_fileinfo( const char* filename, DECODER_INFO* info )
 
   xio_fclose( w.file );
 
-  DEBUGLOG(("mpg123:decoder_fileinfo: {{, %d, %d, %d, %d}}, %d, %d,\n\t%i, %i, %i, %i, %i, %i, %i ... %i, %i}\n",
+  DEBUGLOG(("mpg123:decoder_fileinfo: {{, %d, %d, %d, %d}}, %d, %d, %i, %i, %i, %i, %i, %i, %i ... %i, %i}\n",
     info->format.samplerate, info->format.channels, info->format.bits, info->format.format,
     info->songlength, info->junklength,
     info->mpeg, info->layer, info->mode, info->modext, info->bpf, info->bitrate, info->extention, info->filesize, info->saveinfo)); 

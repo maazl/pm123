@@ -369,7 +369,7 @@ static int III_get_side_info_1(DECODER_STRUCT *w, struct III_sideinfo *si,int st
            gr_info->full_gain[i] = gr_info->pow2gain + (getbits_fast(3)<<3);
 
          if(gr_info->block_type == 0) {
-           DEBUGLOG(("III_get_side_info_1: Blocktype == 0 and window-switching == 1 not allowed.\n"));
+           DEBUGLOG(("mpg123:III_get_side_info_1: Blocktype == 0 and window-switching == 1 not allowed.\n"));
            return 0;
          }
          /* region_count/start parameters are implicit in this case. */
@@ -453,7 +453,7 @@ static int III_get_side_info_2(DECODER_STRUCT *w,struct III_sideinfo *si,int ste
            gr_info->full_gain[i] = gr_info->pow2gain + (getbits_fast(3)<<3);
 
          if(gr_info->block_type == 0) {
-           DEBUGLOG(("III_get_side_info_2: Blocktype == 0 and window-switching == 1 not allowed.\n"));
+           DEBUGLOG(("mpg123:III_get_side_info_2: Blocktype == 0 and window-switching == 1 not allowed.\n"));
            return 0;
          }
          /* region_count/start parameters are implicit in this case. */
@@ -1010,11 +1010,7 @@ static int III_dequantize_sample(DECODER_STRUCT *w,real xr[SBLIMIT][SSLIMIT],int
     getbits(part2remain);
   else if(part2remain < 0)
   {
-    #ifdef DEBUG
-    char errorbuf[1024];
-    sprintf( errorbuf, "mpg123: Can't rewind stream by %d bits!\n", -part2remain );
-    w->error_display( errorbuf );
-    #endif
+    DEBUGLOG(("mpg123:III_dequantize_sample: Can't rewind stream by %d bits!\n", -part2remain));
     return 1; /* -> error */
   }
   return 0;
@@ -1424,11 +1420,7 @@ static int III_dequantize_sample_ms(DECODER_STRUCT *w,real xr[2][SBLIMIT][SSLIMI
   if(part2remain > 0 )
     getbits(part2remain);
   else if(part2remain < 0) {
-    #ifdef DEBUG
-    char errorbuf[1024];
-    sprintf( errorbuf,"mpg123_ms: Can't rewind stream by %d bits!\n", -part2remain );
-    w->error_display( errorbuf );
-    #endif
+    DEBUGLOG(("mpg123:III_dequantize_sample_ms: Can't rewind stream by %d bits!\n", -part2remain));
     return 1; /* -> error */
   }
   return 0;
