@@ -203,7 +203,7 @@ struct DECODER_PROCS
   ULONG (DLLENTRYP decoder_command  )( void*  w, ULONG msg, DECODER_PARAMS2* params );
   void  (DLLENTRYP decoder_event    )( void*  w, OUTEVENTTYPE event );
   ULONG (DLLENTRYP decoder_status   )( void*  w );
-  ULONG (DLLENTRYP decoder_length   )( void*  w );
+  double(DLLENTRYP decoder_length   )( void*  w );
   ULONG (DLLENTRYP decoder_fileinfo )( const char* filename, DECODER_INFO2* info );
   ULONG (DLLENTRYP decoder_setmeta  )( const char* filename, const META_INFO* meta );
   ULONG (DLLENTRYP decoder_cdinfo   )( const char* drive, DECODER_CDINFO* info );
@@ -258,14 +258,14 @@ class CL_DECODER : public CL_PLUGIN, protected DECODER_PROCS
 // Set of entry points related to output plug-ins.
 struct OUTPUT_PROCS
 { void* a;
-  ULONG (DLLENTRYP output_init           )( void** a );
-  ULONG (DLLENTRYP output_uninit         )( void*  a );
-  ULONG (DLLENTRYP output_command        )( void*  a, ULONG msg, OUTPUT_PARAMS2* info );
-  int   (DLLENTRYP output_request_buffer )( void*  a, const FORMAT_INFO2* format, short** buf );
-  void  (DLLENTRYP output_commit_buffer  )( void*  a, int len, int posmarker );
-  ULONG (DLLENTRYP output_playing_samples)( void*  a, FORMAT_INFO* info, char* buf, int len );
-  int   (DLLENTRYP output_playing_pos    )( void*  a );
-  BOOL  (DLLENTRYP output_playing_data   )( void*  a );
+  ULONG  (DLLENTRYP output_init           )( void** a );
+  ULONG  (DLLENTRYP output_uninit         )( void*  a );
+  ULONG  (DLLENTRYP output_command        )( void*  a, ULONG msg, OUTPUT_PARAMS2* info );
+  int    (DLLENTRYP output_request_buffer )( void*  a, const FORMAT_INFO2* format, short** buf );
+  void   (DLLENTRYP output_commit_buffer  )( void*  a, int len, double posmarker );
+  ULONG  (DLLENTRYP output_playing_samples)( void*  a, FORMAT_INFO* info, char* buf, int len );
+  double (DLLENTRYP output_playing_pos    )( void*  a );
+  BOOL   (DLLENTRYP output_playing_data   )( void*  a );
 };
 
 // specialized class for output plug-ins

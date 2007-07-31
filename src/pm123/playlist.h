@@ -33,8 +33,10 @@
 #define PM123_PLAYLIST_H
 
 #ifndef  RC_INVOKED
+#define INCL_PM
 #include <format.h>
 #include <decoder_plug.h>
+#include <os2.h>
 #endif
 
 #define DLG_PLAYLIST         42
@@ -82,7 +84,7 @@ typedef struct _PLRECORD {
   char*        moreinfo;    /* Information about the song.    */
   int          played;      /* Is it already played file.     */
   BOOL         exist;       /* Is this file exist.            */
-  DECODER_INFO2 info;        /* File info returned by decoder. */
+  DECODER_INFO2 info;       /* File info returned by decoder. */
   char         decoder[16]; /* Name of a decoder module.      */
 
 } PLRECORD, *PPLRECORD;

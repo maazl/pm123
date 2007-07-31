@@ -59,9 +59,8 @@
 /* Structure that contains information for records in
    the bookmarks container control. */
 
-typedef struct _BMRECORD {
-
-  RECORDCORE  rc;
+typedef struct _BMRECORD : public RECORDCORE
+{
   char*       desc;     /* Name of the bookmark.     */
   char*       filename; /* Full path and file name.  */
   char*       time;     /* Displayed position time.  */

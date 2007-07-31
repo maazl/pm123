@@ -1,5 +1,5 @@
 /*
- * Copyright 2006 Dmitry A.Steklenev <glass@ptv.ru>
+ * Copyright 2007 M.Mueller
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -25,38 +25,25 @@
  * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+ 
+/* Very simple, scoped string class to avoid C++ runtime dependencies. */
 
-#ifndef PM123_MESSAGES_H
-#define PM123_MESSAGES_H
+#ifndef  CPP_SIMPLESTR_H
+#define  CPP_SIMPLESTR_H
 
-#include "playable.h"
+#include <cpp/smartptr.h>
+#include <stdlib.h>
 
-/* Returns TRUE if the player is paused. */
-BOOL is_paused( void );
-/* Returns TRUE if the player is fast forwarding. */
-BOOL is_forward( void );
-/* Returns TRUE if the player is rewinding. */
-BOOL is_rewind( void );
-/* Returns TRUE if the output is always hungry. */
-BOOL is_always_hungry( void );
+class simplestr : public sco_arr<char>
+{public:
+  simplestr()                           { }
+  simplestr(const char* cp)             { assign(cp); }
+  simplestr(const char* cp, size_t len) { assign(cp, len); }
+  void assign(const char* cp);
+  void assign(const char* cp, size_t len);
+  simplestr& operator=(const char* cp)  { assign(cp); return *this; }
+  operator const char*()                { return get(); }
+};
 
-/* Begins playback of the specified file. */
-BOOL msg_play( HWND hwnd, Song& play, double pos );
-/* Stops playback of the currently played file. */
-BOOL msg_stop( void );
-/* Suspends or resumes playback of the currently played file. */
-BOOL msg_pause( void );
-/* Toggles a fast forward of the currently played file. */
-BOOL msg_forward( void );
-/* Toggles a rewind of the currently played file. */
-BOOL msg_rewind( void );
-/* Changes the current playing position of the currently played file. */
-BOOL msg_seek( double pos );
-/* Toggles a saving of the currently played stream. */
-BOOL msg_savestream( const char* filename );
-/* Toggles a equalizing of the currently played file. */
-BOOL msg_equalize( const float* gains, const BOOL* mute, float preamp, BOOL enabled );
-
-#endif /* PM123_MESSAGES_H */
-
+#endif
 

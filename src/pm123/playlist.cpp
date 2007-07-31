@@ -51,6 +51,8 @@
 #include "docking.h"
 #include "iniman.h"
 
+#include <stddef.h>
+
 #include <debuglog.h>
 
 #define PL_ADD_FILE      0
@@ -274,16 +276,16 @@ pl_compare_rand( const PLRECORD* p1, const PLRECORD* p2, PVOID pStorage ) {
 static SHORT EXPENTRY
 pl_compare_size( const PLRECORD* p1, const PLRECORD* p2, PVOID pStorage )
 {
-  if( p1->info.tech.filesize < p2->info.tech.filesize ) return -1;
-  if( p1->info.tech.filesize > p2->info.tech.filesize ) return  1;
+  if( p1->info.tech->filesize < p2->info.tech->filesize ) return -1;
+  if( p1->info.tech->filesize > p2->info.tech->filesize ) return  1;
   return 0;
 }
 
 static SHORT EXPENTRY
 pl_compare_time( const PLRECORD* p1, const PLRECORD* p2, PVOID pStorage )
 {
-  if( p1->info.tech.songlength < p2->info.tech.songlength ) return -1;
-  if( p1->info.tech.songlength > p2->info.tech.songlength ) return  1;
+  if( p1->info.tech->songlength < p2->info.tech->songlength ) return -1;
+  if( p1->info.tech->songlength > p2->info.tech->songlength ) return  1;
   return 0;
 }
 
@@ -349,42 +351,42 @@ pl_fill_record( PLRECORD* rec, const DECODER_INFO2* info )
   
   rec->info = *info;
 
-  sprintf( buffer, "%u kB", (unsigned int)info->tech.filesize / 1024 );
+  sprintf( buffer, "%u kB", (unsigned int)info->tech->filesize / 1024 );
   rec->size = strdup( buffer );
-  sprintf( buffer, "%02u:%02u", info->tech.songlength / 60000, (int)(info->tech.songlength / 1000) % 60 );
+  sprintf( buffer, "%02u:%02u", info->tech->songlength / 60000, (int)(info->tech->songlength / 1000) % 60 );
   rec->time = strdup( buffer );
 
   // Songname
-  rec->songname = malloc( strlen( info->meta.artist ) + 2 +
-                          strlen( info->meta.title  ) + 1 );
+  rec->songname = (char*)malloc( strlen( info->meta->artist ) + 2 +
+                          strlen( info->meta->title  ) + 1 );
   if( rec->songname ) {
-    strcpy( rec->songname, info->meta.artist );
-    if( *info->meta.title && *info->meta.artist ) {
+    strcpy( rec->songname, info->meta->artist );
+    if( *info->meta->title && *info->meta->artist ) {
       strcat( rec->songname, "- " );
     }
-    strcat( rec->songname, info->meta.title );
+    strcat( rec->songname, info->meta->title );
   }
 
   // Information
-  rec->moreinfo = malloc( strlen( info->meta.album   ) + 1 +
-                          strlen( info->meta.year    ) + 2 +
-                          strlen( info->meta.genre   ) + 2 +
-//                        strlen( info->meta.track   ) + 3 +
+  rec->moreinfo = (char*)malloc( strlen( info->meta->album   ) + 1 +
+                          strlen( info->meta->year    ) + 2 +
+                          strlen( info->meta->genre   ) + 2 +
+//                        strlen( info->meta->track   ) + 3 +
                           3                            + 3 +
-                          strlen( info->tech.info    ) +
-                          strlen( info->meta.comment ) + 12 );
+                          strlen( info->tech->info    ) +
+                          strlen( info->meta->comment ) + 12 );
   if( rec->moreinfo ) {
-    strcpy( rec->moreinfo, info->meta.album );
+    strcpy( rec->moreinfo, info->meta->album );
 
-    if( *info->meta.album ) {
+    if( *info->meta->album ) {
       strcat( rec->moreinfo, " "  );
     }
-    if( *info->meta.year  ) {
-      strcat( rec->moreinfo, info->meta.year );
+    if( *info->meta->year  ) {
+      strcat( rec->moreinfo, info->meta->year );
       strcat( rec->moreinfo, ", " );
     }
-    if( *info->meta.genre ) {
-      strcat( rec->moreinfo, info->meta.genre );
+    if( *info->meta->genre ) {
+      strcat( rec->moreinfo, info->meta->genre );
       strcat( rec->moreinfo, ", " );
     }
 /*  TODO: make track a string 
@@ -394,14 +396,14 @@ pl_fill_record( PLRECORD* rec, const DECODER_INFO2* info )
       strcat( rec->moreinfo, ", " );
     }
 */
-    if( info->meta.track > 0 ) {
-      sprintf( rec->moreinfo + strlen( rec->moreinfo ), "#%i, ", info->meta.track );
+    if( info->meta->track > 0 ) {
+      sprintf( rec->moreinfo + strlen( rec->moreinfo ), "#%i, ", info->meta->track );
     }
-    strcat( rec->moreinfo, info->tech.info );
+    strcat( rec->moreinfo, info->tech->info );
 
-    if( *info->meta.comment ) {
+    if( *info->meta->comment ) {
       strcat( rec->moreinfo, ", comment: " );
-      strcat( rec->moreinfo, info->meta.comment );
+      strcat( rec->moreinfo, info->meta->comment );
     }
   }
 }
@@ -430,8 +432,8 @@ pl_create_record( const char* filename, PLRECORD* pos,
     strlcpy( decoder, prep_decoder, sizeof( decoder ));
   }
 
-  if( !*info.meta.title && prep_title ) {
-    strlcpy( info.meta.title, prep_title, sizeof( info.meta.title ));
+  if( !*info.meta->title && prep_title ) {
+    strlcpy( info.meta->title, prep_title, sizeof( info.meta->title ));
   }
 
   // Allocate a new record.
@@ -441,7 +443,7 @@ pl_create_record( const char* filename, PLRECORD* pos,
 
   rec->rc.cb           = sizeof( RECORDCORE );
   rec->rc.flRecordAttr = CRA_DROPONABLE;
-  rec->rc.hptrIcon     = ( rc == 0 ) ? mp3 : mp3gray;
+  //rec->rc.hptrIcon     = ( rc == 0 ) ? mp3 : mp3gray;
   rec->full            = strdup( filename );
   rec->size            = NULL;
   rec->time            = NULL;
@@ -491,7 +493,7 @@ pl_copy_record( PLRECORD* rec, PLRECORD* pos )
 
   copy->rc.cb           = sizeof(RECORDCORE);
   copy->rc.flRecordAttr = CRA_DROPONABLE;
-  copy->rc.hptrIcon     = rec->exist ? mp3 : mp3gray;
+  //copy->rc.hptrIcon     = rec->exist ? mp3 : mp3gray;
   copy->full            = strdup( rec->full );
   copy->size            = strdup( rec->size );
   copy->songname        = strdup( rec->songname );
@@ -564,46 +566,9 @@ pl_remove_record( PLRECORD** array, USHORT count )
   PLRECORD* load_after = (PLRECORD*)-1;
   int i;
 
-  if( amp_playmode == AMP_PLAYLIST ) {
-    for( i = count; i >= 0; i-- ) {
-      if( array[i] == current_record || array[i] == load_after ) {
-        if( decoder_playing()) {
-          amp_stop();
-        }
-
-        load_after = pl_prev_record( array[i] );
-        while( load_after && !load_after->exist ) {
-          load_after = pl_prev_record( load_after );
-        }
-      }
-    }
-  }
-
   if( WinSendMsg( container, CM_REMOVERECORD, MPFROMP( array ),
                   MPFROM2SHORT( count, CMA_INVALIDATE )) != MRFROMLONG( -1 ))
   {
-    if( amp_playmode == AMP_PLAYLIST ) {
-      if( pl_size() == 0 ) {
-        amp_reset();
-      } else {
-        if( load_after == NULL )
-        {
-          load_after = pl_first_record();
-
-          while( load_after && !load_after->exist ) {
-            load_after = pl_next_record( load_after );
-          }
-          if( load_after ) {
-            amp_pl_load_record( load_after );
-          } else {
-            amp_reset();
-          }
-        } else if( load_after != (PLRECORD*)-1 ) {
-          amp_pl_load_record( load_after );
-        }
-      }
-    }
-
     for( i = 0; i < count; i++ ) {
       pl_free_record( array[i] );
     }
@@ -620,10 +585,6 @@ static void
 pl_remove_all( void )
 {
    PLRECORD* rec;
-
-   if( amp_playmode == AMP_PLAYLIST ) {
-     amp_reset();
-   }
 
    for( rec = pl_first_record(); rec; rec = pl_next_record( rec )) {
      pl_free_record( rec );
@@ -732,7 +693,7 @@ pl_purge_queue( PQUEUE queue )
 
   while( !qu_empty( queue )) {
     qu_read( queue, &request, &data );
-    pl_delete_request_data( data );
+    pl_delete_request_data( (PLDATA*)data );
   }
 }
 
@@ -774,10 +735,11 @@ pl_broker_add_file( const char* filename, const char* title, int options )
       pl_scroll_to_record( rec );
     }
 
+    /* TODO: make no sense without modification
     if( options & PL_ADD_LOAD   ) {
       amp_playmode = AMP_PLAYLIST;
       amp_pl_load_record( rec );
-    }
+    }*/
   }
 }
 
@@ -799,8 +761,8 @@ pl_broker_add_directory( const char* path, int options )
   }
 
   strcpy( findpath, path );
-  if( *findpath && findpath[strlen(findpath)-1] != '\\' ) {
-    strcat( findpath, "\\" );
+  if( *findpath && findpath[strlen(findpath)-1] != '/' ) {
+    strcat( findpath, "/" );
   }
 
   strcpy( findspec, findpath );
@@ -876,9 +838,10 @@ pl_broker( void* dummy )
         break;
 
       case PL_COMPLETED:
+        /* TODO
         if( cfg.autouse || amp_playmode == AMP_PLAYLIST ) {
           amp_pl_use();
-        }
+        }*/
         break;
     }
 
@@ -940,7 +903,7 @@ ULONG pl_playleft( void )
   // TODO: wrap around if more than 49 days playlist length ?!? 
   while( rec ) {
     if( !rec->played || rec == current_record || !cfg.shf ) {
-      time += rec->info.tech.songlength / 1000;
+      time += rec->info.tech->songlength / 1000;
     }
     rec = pl_next_record( rec );
   }
@@ -953,7 +916,7 @@ void
 pl_mark_as_play()
 {
   if( current_record ) {
-    current_record->rc.hptrIcon = mp3play;
+    //current_record->rc.hptrIcon = mp3play;
 
     if( cfg.selectplayed ) {
       pl_select( current_record );
@@ -972,7 +935,7 @@ void
 pl_mark_as_stop()
 {
   if( current_record ) {
-    current_record->rc.hptrIcon = current_record->exist ? mp3 : mp3gray;
+    //current_record->rc.hptrIcon = current_record->exist ? mp3 : mp3gray;
     pl_refresh_record( current_record, CMA_NOREPOSITION );
   }
 }
@@ -1004,9 +967,10 @@ pl_display_status( void )
     strlcat( title, file, sizeof( title ));
   }
 
+  /* TODO: makes no more sense
   if( amp_playmode == AMP_PLAYLIST ) {
     strlcat( title, " - [USED]", sizeof( title ));
-  }
+  }*/
 
   if( is_busy ) {
     strlcat( title, " - loading...", sizeof( title ));
@@ -1027,7 +991,7 @@ pl_remove_selected( void )
   for( rec = pl_first_selected(); rec; rec = pl_next_selected( rec )) {
     if( count == size ) {
       size  = size + 20;
-      array = realloc( array, size * sizeof( PLRECORD* ));
+      array = (PLRECORD**)realloc( array, size * sizeof( PLRECORD* ));
     }
     if( !array ) {
       return;
@@ -1051,6 +1015,7 @@ pl_delete_selected( void )
   if( amp_query( playlist, "Do you want remove all selected files from the playlist "
                            "and delete this files from your disk?" ))
   {
+    /* TODO: we can't delete records currently in use
     for( rec = pl_first_selected(); rec; rec = pl_next_selected( rec )) {
       if( amp_playmode == AMP_PLAYLIST && rec == current_record && decoder_playing()) {
           amp_stop();
@@ -1059,7 +1024,7 @@ pl_delete_selected( void )
         amp_error( playlist, "Unable delete file:\n%s\n%s",
                               rec->full, strerror(errno));
       }
-    }
+    }*/
 
     pl_remove_selected();
   }
@@ -1184,13 +1149,14 @@ pl_show_context_menu( HWND parent, const PLRECORD* rec )
                 MPFROM2SHORT( IDM_PL_LAST, TRUE ), MPFROM2SHORT( MIA_DISABLED, MIA_DISABLED ));
   }
 
+  /* TODO: makes no more sense
   if( amp_playmode == AMP_PLAYLIST ) {
     WinSendMsg( menu_playlist, MM_SETITEMTEXT,
                 MPFROMSHORT( IDM_PL_USE ), MPFROMP( "Don't ~use this Playlist\tCtrl+U" ));
   } else {
     WinSendMsg( menu_playlist, MM_SETITEMTEXT,
                 MPFROMSHORT( IDM_PL_USE ), MPFROMP( "~Use this Playlist\tCtrl+U" ));
-  }
+  }*/
 
   WinPopupMenu( parent, parent, menu_playlist, pos.x, pos.y, IDM_PL_USE,
                 PU_POSITIONONITEM | PU_HCONSTRAIN   | PU_VCONSTRAIN |
@@ -1392,7 +1358,7 @@ pl_drag_discard( HWND hwnd, PDRAGINFO pdinfo )
   // records dragged but the first one has enough info to
   // process all of them.
 
-  array = malloc( pdinfo->cditem * sizeof( PLRECORD* ));
+  array = (PLRECORD**)malloc( pdinfo->cditem * sizeof( PLRECORD* ));
 
   if( array ) {
     for( i = 0; i < pdinfo->cditem; i++ ) {
@@ -1587,37 +1553,37 @@ pl_init_window( HWND hwnd )
 
   field->flData     = CFA_SEPARATOR | CFA_HORZSEPARATOR | CFA_BITMAPORICON;
   field->pTitleData = "";
-  field->offStruct  = FIELDOFFSET( PLRECORD, rc.hptrIcon);
+  field->offStruct  = offsetof( PLRECORD, rc.hptrIcon);
 
   field = field->pNextFieldInfo;
 
   field->flData     = CFA_STRING | CFA_HORZSEPARATOR;
   field->pTitleData = "Filename";
-  field->offStruct  = FIELDOFFSET( PLRECORD, rc.pszIcon );
+  field->offStruct  = offsetof( PLRECORD, rc.pszIcon );
 
   field = field->pNextFieldInfo;
 
   field->flData     = CFA_SEPARATOR | CFA_HORZSEPARATOR | CFA_STRING;
   field->pTitleData = "Song name";
-  field->offStruct  = FIELDOFFSET( PLRECORD, songname );
+  field->offStruct  = offsetof( PLRECORD, songname );
 
   field = field->pNextFieldInfo;
 
   field->flData     = CFA_SEPARATOR | CFA_HORZSEPARATOR | CFA_STRING;
   field->pTitleData = "Size";
-  field->offStruct  = FIELDOFFSET( PLRECORD, size );
+  field->offStruct  = offsetof( PLRECORD, size );
 
   field = field->pNextFieldInfo;
 
   field->flData     = CFA_SEPARATOR | CFA_HORZSEPARATOR | CFA_STRING;
   field->pTitleData = "Time";
-  field->offStruct  = FIELDOFFSET( PLRECORD, time );
+  field->offStruct  = offsetof( PLRECORD, time );
 
   field = field->pNextFieldInfo;
 
   field->flData     = CFA_SEPARATOR | CFA_HORZSEPARATOR | CFA_STRING;
   field->pTitleData = "Information";
-  field->offStruct  = FIELDOFFSET( PLRECORD, moreinfo );
+  field->offStruct  = offsetof( PLRECORD, moreinfo );
 
   insert.cb = sizeof(FIELDINFOINSERT);
   insert.pFieldInfoOrder = (PFIELDINFO)CMA_FIRST;
@@ -1699,6 +1665,20 @@ pl_init_window( HWND hwnd )
   }
 }
 
+static void DLLENTRY
+pl_add_callback(void* param, const char* url)
+{ //char buf[_MAX_FNAME];
+  //char* cp;
+  DEBUGLOG(("pl_add_callback(, %s)\n", url));
+  if (strncmp(url, "file:", 5) == 0)
+  { url += 5; // skip "file:";
+    if (url[2] == '/')
+      url += 3; // skip "///" if not UNC.
+  }
+  // TODO: can't handle folders here
+  pl_add_file(url, NULL, 0);
+}
+
 /* Processes messages of the playlist presentation window. */
 static MRESULT EXPENTRY
 pl_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
@@ -1722,7 +1702,7 @@ pl_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
 
     case WM_WINDOWPOSCHANGED:
     {
-      SWP* pswp = PVOIDFROMMP(mp1);
+      SWP* pswp = (SWP*)PVOIDFROMMP(mp1);
 
       if( pswp[0].fl & SWP_SHOW ) {
         cfg.show_playlist = TRUE;
@@ -1762,16 +1742,7 @@ pl_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
           cm->cmd <  IDM_PL_ADDOTHER + sizeof assists / sizeof *assists &&
           assists[cm->cmd-IDM_PL_ADDOTHER] )
       {
-        // save stack space
-        static char result[8192];
-        ULONG rc = (*assists[cm->cmd-IDM_PL_ADDOTHER])( hwnd, result, sizeof result );
-        if ( rc == 0 || rc == 100 )
-        { const char* cp = result;
-          while (*cp)
-          { pl_add_file( cp, NULL, 0 );
-            cp += strlen( cp ) +1;
-          }
-        }
+        (*assists[cm->cmd-IDM_PL_ADDOTHER])(hwnd, "Add%s to playlist", &pl_add_callback, NULL);
         return 0;
       } 
 
@@ -1795,11 +1766,12 @@ pl_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
           pl_clear( PL_CLR_NEW  );
           return 0;
         case IDM_PL_USE:
+          /* TODO: wee need a more sophisticated approach here
           if( amp_playmode == AMP_PLAYLIST ) {
             amp_pl_release();
           } else {
             amp_pl_use();
-          }
+          }*/
           return 0;
         case IDM_PL_URL:
           amp_add_url( hwnd, URL_ADD_TO_LIST );
@@ -1817,7 +1789,7 @@ pl_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
           amp_load_list( hwnd );
           return 0;
         case IDM_PL_S_PLAY:
-          amp_pl_play_record( pl_cursored());
+          amp_load_playable(url::normalizeURL(pl_cursored()->full), AMP_LOAD_KEEP_PLAYLIST);
           return 0;
         case IDM_PL_S_DEL:
           pl_remove_selected();
@@ -1863,7 +1835,9 @@ pl_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
         {
           NOTIFYRECORDENTER* notify = (NOTIFYRECORDENTER*)mp2;
           if( notify->pRecord ) {
-            amp_pl_play_record((PLRECORD*)notify->pRecord );
+            // TODO: we should use this list first...
+            amp_load_playable(url::normalizeURL(((PLRECORD*)notify->pRecord)->full), AMP_LOAD_KEEP_PLAYLIST|AMP_LOAD_NOT_PLAY );
+            amp_play(0);
           }
           return 0;
         }
@@ -2226,9 +2200,9 @@ pl_save( const char* filename, int options )
 
     if( !(options & PL_SAVE_M3U )) {
       fprintf( playlist, ">%u,%u,%u,%u,%u\n",
-               rec->info.tech.bitrate, rec->info.format.samplerate,
-               rec->info.format.channels == 2 ? 0 : 3, rec->info.tech.filesize,
-               rec->info.tech.songlength / 1000 );
+               rec->info.tech->bitrate, rec->info.format->samplerate,
+               rec->info.format->channels == 2 ? 0 : 3, rec->info.tech->filesize,
+               rec->info.tech->songlength / 1000 );
     }
   }
 
@@ -2248,7 +2222,6 @@ BOOL
 pl_save_bundle( const char* filename, int options )
 {
   PLRECORD* rec;
-  const MSG_PLAY_STRUCT* current;
   FILE* playlist = fopen( filename, "w" );
 
   if( !playlist ) {
@@ -2269,10 +2242,11 @@ pl_save_bundle( const char* filename, int options )
     fprintf( playlist, "%s\n" , rec->full );
   }
 
+  /* TODO: this is completely wrong here
   current = amp_get_current_file();
   if( amp_playmode == AMP_SINGLE && current != NULL && *current->url && is_file(current->url)) {
     fprintf( playlist, "<%s\n", current->url );
-  }
+  }*/
 
   fprintf( playlist, "# End of playlist\n" );
   fclose ( playlist );
@@ -2302,7 +2276,7 @@ pl_load_bundle( const char *filename, int options )
     if( *file == '<' ) {
       struct stat fi;
       if( stat( file + 1, &fi ) == 0 ) {
-        amp_load_singlefile( file + 1, AMP_LOAD_NOT_PLAY | AMP_LOAD_NOT_RECALL );
+        amp_load_playable( url::normalizeURL(file + 1), AMP_LOAD_NOT_PLAY | AMP_LOAD_NOT_RECALL );
       }
     } else if( *file == '>' ) {
       sscanf( file, ">%lu,%lu\n", &selected, &loaded );

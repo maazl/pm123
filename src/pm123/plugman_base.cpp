@@ -42,13 +42,17 @@
 #include <malloc.h>
 #include <sys/stat.h>
 
+//#undef DEBUG
+//#define DEBUG 2
+
 #include <utilfct.h>
 #include "plugman_base.h"
 #include "pm123.h"
 #include "vdelegate.h"
 
-//#define  DEBUG 1
-//#undef DEBUG
+#include <limits.h>
+#include <math.h>
+
 #include <debuglog.h>
 
 
@@ -68,6 +72,25 @@
    { const int p = 5; x; } \
    { const int p = 6; x; } \
    { const int p = 7; x; } \
+}
+
+
+// Convert timestamp in seconds to an integer in milliseconds.
+// Truncate leading bits in case of an overflow.
+static int tstmp_f2i(double pos)
+{ DEBUGLOG(("tstmp_f2i(%f)\n", pos));
+  return pos >= 0
+    ? (unsigned)(fmod(pos*1000., UINT_MAX+1.) + .5)
+    : -(unsigned)(fmod(-pos*1000., UINT_MAX+1.) + .5);
+}
+
+// Convert possibly truncated time stamp in milliseconds to seconds.
+// The missing bits are taken from a context time stamp which has to be sufficiently close
+// to the original time stamp. Sufficient is about ñ24 days. 
+static double tstmp_i2f(int pos, double context)
+{ DEBUGLOG(("tstmp_i2f(%i, %f)\n", pos, context));
+  double r = pos / 1000.;
+  return r + (UINT_MAX+1.) * floor((context - r + UINT_MAX/2) / (UINT_MAX+1.)); 
 }
 
 
@@ -311,23 +334,26 @@ class CL_DECODER_PROXY_1 : public CL_DECODER
 {private:
   ULONG (DLLENTRYP vdecoder_command      )( void*  w, ULONG msg, DECODER_PARAMS* params );
   int   (DLLENTRYP voutput_request_buffer)( void* a, const FORMAT_INFO2* format, short** buf );
-  void  (DLLENTRYP voutput_commit_buffer )( void* a, int len, int posmarker );
+  void  (DLLENTRYP voutput_commit_buffer )( void* a, int len, double posmarker );
   void  (DLLENTRYP voutput_event         )( void* a, DECEVENTTYPE event, void* param );
   void* a;
   ULONG (DLLENTRYP vdecoder_fileinfo )( const char* filename, DECODER_INFO* info );
   ULONG (DLLENTRYP vdecoder_trackinfo)( const char* drive, int track, DECODER_INFO* info );
+  ULONG (DLLENTRYP vdecoder_length   )( void* w );
   void  (DLLENTRYP error_display)( char* );
   HWND  hwnd; // Window handle for catching event messages
   ULONG tid; // decoder thread id
-  int   temppos;
+  double temppos;
+  DECFASTMODE lastfast;
   char  metadata_buffer[128]; // Loaded in curtun on decoder's demand WM_METADATA.
-  VDELEGATE vd_decoder_command, vd_decoder_event, vd_decoder_fileinfo;
+  VDELEGATE vd_decoder_command, vd_decoder_event, vd_decoder_fileinfo, vd_decoder_length;
 
  private:
-  PROXYFUNCDEF ULONG DLLENTRY proxy_1_decoder_command     ( CL_DECODER_PROXY_1* op, void* w, ULONG msg, DECODER_PARAMS2* params );
-  PROXYFUNCDEF void  DLLENTRY proxy_1_decoder_event       ( CL_DECODER_PROXY_1* op, void* w, OUTEVENTTYPE event );
-  PROXYFUNCDEF ULONG DLLENTRY proxy_1_decoder_fileinfo    ( CL_DECODER_PROXY_1* op, const char* filename, DECODER_INFO2* info );
-  PROXYFUNCDEF int   DLLENTRY proxy_1_decoder_play_samples( CL_DECODER_PROXY_1* op, const FORMAT_INFO* format, const char* buf, int len, int posmarker );
+  PROXYFUNCDEF ULONG  DLLENTRY proxy_1_decoder_command     ( CL_DECODER_PROXY_1* op, void* w, ULONG msg, DECODER_PARAMS2* params );
+  PROXYFUNCDEF void   DLLENTRY proxy_1_decoder_event       ( CL_DECODER_PROXY_1* op, void* w, OUTEVENTTYPE event );
+  PROXYFUNCDEF ULONG  DLLENTRY proxy_1_decoder_fileinfo    ( CL_DECODER_PROXY_1* op, const char* filename, DECODER_INFO2* info );
+  PROXYFUNCDEF int    DLLENTRY proxy_1_decoder_play_samples( CL_DECODER_PROXY_1* op, const FORMAT_INFO* format, const char* buf, int len, int posmarker );
+  PROXYFUNCDEF double DLLENTRY proxy_1_decoder_length      ( CL_DECODER_PROXY_1* op, void* w );
   friend MRESULT EXPENTRY proxy_1_decoder_winfn(HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2);
  public: 
   CL_DECODER_PROXY_1(CL_MODULE& mod) : CL_DECODER(mod), hwnd(NULLHANDLE) {}
@@ -348,7 +374,7 @@ BOOL CL_DECODER_PROXY_1::load_plugin()
     || !load_function(&decoder_init,       "decoder_init")
     || !load_function(&decoder_uninit,     "decoder_uninit")
     || !load_function(&decoder_status,     "decoder_status")
-    || !load_function(&decoder_length,     "decoder_length")
+    || !load_function(&vdecoder_length,    "decoder_length")
     || !load_function(&vdecoder_fileinfo,  "decoder_fileinfo")
     || !load_function(&decoder_support,    "decoder_support")
     || !load_function(&vdecoder_command,   "decoder_command") )
@@ -356,12 +382,10 @@ BOOL CL_DECODER_PROXY_1::load_plugin()
 
   load_optional_function(&decoder_editmeta, "decoder_editmeta");
   load_optional_function(&decoder_getwizzard, "decoder_getwizzard");
-  decoder_command   = (ULONG (DLLENTRYP)(void*, ULONG, DECODER_PARAMS2*))
-                      mkvdelegate(&vd_decoder_command,  (V_FUNC)&proxy_1_decoder_command,  3, this);
-  decoder_event     = (void  (DLLENTRYP)(void*, OUTEVENTTYPE))
-                      mkvdelegate(&vd_decoder_event,    (V_FUNC)&proxy_1_decoder_event,    2, this);
-  decoder_fileinfo  = (ULONG (DLLENTRYP)(const char*, DECODER_INFO2*))
-                      mkvdelegate(&vd_decoder_fileinfo, (V_FUNC)&proxy_1_decoder_fileinfo, 2, this);
+  decoder_command   = mkvdelegate(&vd_decoder_command,  &proxy_1_decoder_command,  this);
+  decoder_event     = mkvdelegate(&vd_decoder_event,    &proxy_1_decoder_event,    this);
+  decoder_fileinfo  = mkvdelegate(&vd_decoder_fileinfo, &proxy_1_decoder_fileinfo, this);
+  decoder_length    = mkvdelegate(&vd_decoder_length,   &proxy_1_decoder_length,   this);
   tid = (ULONG)-1;
     
   if (!after_load())
@@ -382,8 +406,8 @@ BOOL CL_DECODER_PROXY_1::load_plugin()
 /* proxy for the output callback of decoder interface level 0/1 */
 PROXYFUNCIMP(int DLLENTRY, CL_DECODER_PROXY_1)
 proxy_1_decoder_play_samples( CL_DECODER_PROXY_1* op, const FORMAT_INFO* format, const char* buf, int len, int posmarker )
-{ DEBUGLOG(("proxy_1_decoder_play_samples(%p {%s}, %p, %p, %i, %i)\n",
-    op, op->module_name, format, buf, len, posmarker));
+{ DEBUGLOG(("proxy_1_decoder_play_samples(%p {%s}, %p {%u,%u,%u}, %p, %i, %i)\n",
+    op, op->module_name, format, format->size, format->samplerate, format->channels, buf, len, posmarker));
 
   if (format->format != WAVE_FORMAT_PCM || (format->bits != 16 && format->bits != 8))
   { (*op->error_display)("PM123 does only accept PCM data with 8 or 16 bits per sample when using old-style plug-ins.");
@@ -404,7 +428,7 @@ proxy_1_decoder_play_samples( CL_DECODER_PROXY_1* op, const FORMAT_INFO* format,
   while (rem)
   { short* dest;
     int l = (*op->voutput_request_buffer)(op->a, (FORMAT_INFO2*)format, &dest);
-    DEBUGLOG(("proxy_1_decoder_play_samples: now at %p %i %i\n", buf, l, rem));
+    DEBUGLOG(("proxy_1_decoder_play_samples: now at %p %i %i %f\n", buf, l, rem, op->temppos));
     if (op->temppos != -1)
     { (*op->voutput_commit_buffer)(op->a, 0, op->temppos); // no-op
       break;
@@ -429,7 +453,8 @@ proxy_1_decoder_play_samples( CL_DECODER_PROXY_1* op, const FORMAT_INFO* format,
     } else
     { memcpy(dest, buf, l*bps);
     }
-    (*op->voutput_commit_buffer)(op->a, l, posmarker + (len-rem)*1000/format->samplerate);
+    DEBUGLOG(("proxy_1_decoder_play_samples: commit: %i %f\n", posmarker, posmarker/1000. + (double)(len-rem)/format->samplerate));
+    (*op->voutput_commit_buffer)(op->a, l, posmarker/1000. + (double)(len-rem)/format->samplerate);
     rem -= l;
     buf += l * bps;
   }
@@ -447,6 +472,7 @@ proxy_1_decoder_command( CL_DECODER_PROXY_1* op, void* w, ULONG msg, DECODER_PAR
   DECODER_PARAMS par1;
   memset(&par1, 0, sizeof par1); 
   par1.size = sizeof par1;
+  char filename[300];
   // preprocessing
   switch (msg)
   {case DECODER_PLAY:
@@ -454,11 +480,17 @@ proxy_1_decoder_command( CL_DECODER_PROXY_1* op, void* w, ULONG msg, DECODER_PAR
     { char* cp = strchr(params->URL, ':') +2; // for URLs
       CDDA_REGION_INFO cd_info;
       if (is_file(params->URL))
-      { if (is_url(params->URL))
-          par1.filename = cp + (params->URL[7] == '/' && params->URL[9] == ':' && params->URL[10] == '/');
-         else
+      { if (strnicmp(params->URL, "file:///", 8) == 0)
+        { strlcpy(filename, params->URL+8, sizeof filename);
+          par1.filename = filename;
+          cp = strchr(filename, '/');
+          while (cp)
+          { *cp = '\\';
+            cp = strchr(cp+1, '/');
+          }
+        } else
           par1.filename = params->URL; // bare filename - normally this should not happen
-        DEBUGLOG(("proxy_1_decoder_command: filename=%s\n", par1.filename));
+        DEBUGLOG2(("proxy_1_decoder_command: filename=%s\n", par1.filename));
       } else if (scdparams(&cd_info, params->URL))
       { par1.drive = cd_info.drive;
         par1.track = cd_info.track;
@@ -469,6 +501,8 @@ proxy_1_decoder_command( CL_DECODER_PROXY_1* op, void* w, ULONG msg, DECODER_PAR
         par1.filename = params->URL; // Well, the URL parameter has never been used...
       } else
         par1.other = params->URL;
+
+      par1.jumpto              = (int)floor(params->jumpto*1000 + .5);
     }
     break;
 
@@ -495,7 +529,8 @@ proxy_1_decoder_command( CL_DECODER_PROXY_1* op, void* w, ULONG msg, DECODER_PAR
     op->voutput_event          = params->output_event;
     op->a                      = params->a;
 
-    op->temppos = 0;
+    op->temppos  = -1;
+    op->lastfast = DECFAST_NORMAL_PLAY;
     break;
    
    case DECODER_STOP:
@@ -506,13 +541,22 @@ proxy_1_decoder_command( CL_DECODER_PROXY_1* op, void* w, ULONG msg, DECODER_PAR
 
    case DECODER_FFWD:
    case DECODER_REW:
-    par1.ffwd                = params->ffwd;
-    par1.rew                 = params->rew;
+    DEBUGLOG(("proxy_1_decoder_command:DECODER_FFWD: %u\n", params->fast));
+    par1.ffwd                = params->fast == DECFAST_FORWARD;
+    par1.rew                 = params->fast == DECFAST_REWIND;
+    if (params->fast != DECFAST_NORMAL_PLAY)
+      op->lastfast = params->fast;
+    if (op->lastfast == DECFAST_FORWARD)
+      msg = DECODER_FFWD;
+     else if (op->lastfast == DECFAST_REWIND)
+      msg = DECODER_REW;
     op->temppos = out_playing_pos();
+    op->lastfast = params->fast;
     break;
 
    case DECODER_JUMPTO:
-    par1.jumpto              = params->jumpto;
+    DEBUGLOG(("proxy_1_decoder_command:DECODER_JUMPTO: %f\n", params->jumpto));
+    par1.jumpto              = (int)floor(params->jumpto*1000 +.5);
     op->temppos = params->jumpto;
     break;
     
@@ -547,15 +591,16 @@ proxy_1_decoder_event( CL_DECODER_PROXY_1* op, void* w, OUTEVENTTYPE event )
 
 PROXYFUNCIMP(ULONG DLLENTRY, CL_DECODER_PROXY_1)
 proxy_1_decoder_fileinfo( CL_DECODER_PROXY_1* op, const char* filename, DECODER_INFO2 *info )
-{ DEBUGLOG(("proxy_1_decoder_fileinfo(%p, %s, %p)\n", op, filename, info));
+{ DEBUGLOG(("proxy_1_decoder_fileinfo(%p, %s, %p{%u,%p,%p,%p})\n", op, filename, info, info->size, info->format, info->tech, info->meta));
 
   DECODER_INFO old_info;
   CDDA_REGION_INFO cd_info;
   ULONG rc;
+  char buf[300];
   
   // purge the structure because of buggy plug-ins
   memset(&old_info, 0, sizeof old_info);
-  info->tech.filesize   = -1;
+  info->tech->filesize   = -1;
 
   if (scdparams(&cd_info, filename))
   { if ( cd_info.track == 0 ||            // can't handle sectors
@@ -563,32 +608,48 @@ proxy_1_decoder_fileinfo( CL_DECODER_PROXY_1* op, const char* filename, DECODER_
       return 200;
     rc = (*op->vdecoder_trackinfo)(cd_info.drive, cd_info.track, &old_info);
   } else
-  { if (is_file(filename) && is_url(filename))
-      filename += 7;
+  { if (strnicmp(filename, "file:///", 8) == 0)
+    { strlcpy(buf, filename+8, sizeof buf);
+      filename = buf;
+      char* cp = strchr(buf, '/');
+      while (cp)
+      { *cp = '\\';
+        cp = strchr(cp+1, '/');
+      }
+    }
+    // DEBUGLOG(("proxy_1_decoder_fileinfo - %s\n", filename));
     rc = (*op->vdecoder_fileinfo)(filename, &old_info);
     // get file size
     // TODO: large file support
     struct stat fi;
     if ( rc == 0 && is_file(filename) && stat( filename, &fi ) == 0 )
-      info->tech.filesize = fi.st_size;
+      info->tech->filesize = fi.st_size;
   }
   DEBUGLOG(("proxy_1_decoder_fileinfo: %lu\n", rc));
 
   // convert information to new format
   if (rc == 0)
   { // Slicing: the structure FORMAT_INFO2 is a subset of FORMAT_INFO. 
-    info->format          = *(const FORMAT_INFO2*)&old_info.format;
+    *info->format          = *(const FORMAT_INFO2*)&old_info.format;
     
-    info->tech.songlength = old_info.songlength;
-    info->tech.bitrate    = old_info.bitrate;
-    strlcpy(info->tech.info, old_info.tech_info, sizeof info->tech.info);
+    info->tech->songlength = old_info.songlength/1000.;
+    info->tech->bitrate    = old_info.bitrate;
+    strlcpy(info->tech->info, old_info.tech_info, sizeof info->tech->info);
+    info->tech->num_items  = 1;
+    info->tech->recursive  = FALSE;
     
     // this part of the structure is binary compatible
-    memcpy(&info->meta, old_info.title, offsetof(META_INFO, track));
-    info->meta.track      = -1;
+    memcpy(&info->meta->title, old_info.title, offsetof(META_INFO, track) - offsetof(META_INFO, title));
+    info->meta->track      = -1;
     info->meta_write      = op->decoder_editmeta && old_info.saveinfo;
   }
   return rc;
+}
+
+PROXYFUNCIMP(double DLLENTRY, CL_DECODER_PROXY_1)
+proxy_1_decoder_length( CL_DECODER_PROXY_1* op, void* a )
+{ DEBUGLOG(("proxy_1_decoder_length(%p, %p)\n", op, a));
+  return (*op->vdecoder_length)(a) / 1000.;
 }
 
 MRESULT EXPENTRY proxy_1_decoder_winfn(HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2)
@@ -597,17 +658,17 @@ MRESULT EXPENTRY proxy_1_decoder_winfn(HWND hwnd, ULONG msg, MPARAM mp1, MPARAM 
   switch (msg)
   {case WM_PLAYSTOP:
     (*op->voutput_event)(op->a, DECEVENT_PLAYSTOP, NULL);
-    break;
+    return 0;
    //case WM_PLAYERROR: // ignored because the error_display function implies the event.
    case WM_SEEKSTOP:
     (*op->voutput_event)(op->a, DECEVENT_SEEKSTOP, NULL);
-    break;
+    return 0;
    case WM_CHANGEBR:
     { // TODO: the unchanged information is missing now
       TECH_INFO ti = {sizeof(TECH_INFO), -1, LONGFROMMP(mp1), -1, ""};
       (*op->voutput_event)(op->a, DEVEVENT_CHANGETECH, &ti);
     }
-    break;
+    return 0;
    case WM_METADATA:
     { // TODO: the unchanged information is missing now
       META_INFO meta = {sizeof(META_INFO)};
@@ -626,9 +687,10 @@ MRESULT EXPENTRY proxy_1_decoder_winfn(HWND hwnd, ULONG msg, MPARAM mp1, MPARAM 
           (*op->voutput_event)(op->a, DECEVENT_CHANGEMETA, &meta);
         }
       }
-    }  
+    }
+    return 0;  
   }
-  return 0;
+  return WinDefWindowProc(hwnd, msg, mp1, mp2);
 }
 
 CL_PLUGIN* CL_DECODER::factory(CL_MODULE& mod)
@@ -679,28 +741,30 @@ BOOL CL_OUTPUT::uninit_plugin()
 // Proxy for loading level 1 plug-ins
 class CL_OUTPUT_PROXY_1 : public CL_OUTPUT
 {private:
-  int         (DLLENTRYP voutput_command     )( void*  a, ULONG msg, OUTPUT_PARAMS* info );
-  int         (DLLENTRYP voutput_play_samples)( void*  a, const FORMAT_INFO* format, const char* buf, int len, int posmarker );
+  int         (DLLENTRYP voutput_command     )( void* a, ULONG msg, OUTPUT_PARAMS* info );
+  int         (DLLENTRYP voutput_play_samples)( void* a, const FORMAT_INFO* format, const char* buf, int len, int posmarker );
+  ULONG       (DLLENTRYP voutput_playing_pos )( void* a );
   short       voutput_buffer[BUFSIZE/2];
   int         voutput_buffer_level;             // current level of voutput_buffer
   BOOL        voutput_trash_buffer;
   BOOL        voutput_flush_request;            // flush-request received, generate OUTEVENT_END_OF_DATA from WM_OUTPUT_OUTOFDATA
   HWND        voutput_hwnd;                     // Window handle for catching event messages
-  int         voutput_posmarker;
+  double      voutput_posmarker;
   FORMAT_INFO voutput_format;
   int         voutput_bufsamples;
   BOOL        voutput_always_hungry;
   void        (DLLENTRYP voutput_event)(void* w, OUTEVENTTYPE event);
   void*       voutput_w;
-  VDELEGATE   vd_output_command, vd_output_request_buffer, vd_output_commit_buffer;
+  VDELEGATE   vd_output_command, vd_output_request_buffer, vd_output_commit_buffer, vd_output_playing_pos;
 
  private:
-  PROXYFUNCDEF ULONG DLLENTRY proxy_1_output_command       ( CL_OUTPUT_PROXY_1* op, void* a, ULONG msg, OUTPUT_PARAMS2* info );
-  PROXYFUNCDEF int   DLLENTRY proxy_1_output_request_buffer( CL_OUTPUT_PROXY_1* op, void* a, const FORMAT_INFO2* format, short** buf );
-  PROXYFUNCDEF void  DLLENTRY proxy_1_output_commit_buffer ( CL_OUTPUT_PROXY_1* op, void* a, int len, int posmarker );
+  PROXYFUNCDEF ULONG  DLLENTRY proxy_1_output_command       ( CL_OUTPUT_PROXY_1* op, void* a, ULONG msg, OUTPUT_PARAMS2* info );
+  PROXYFUNCDEF int    DLLENTRY proxy_1_output_request_buffer( CL_OUTPUT_PROXY_1* op, void* a, const FORMAT_INFO2* format, short** buf );
+  PROXYFUNCDEF void   DLLENTRY proxy_1_output_commit_buffer ( CL_OUTPUT_PROXY_1* op, void* a, int len, double posmarker );
+  PROXYFUNCDEF double DLLENTRY proxy_1_output_playing_pos   ( CL_OUTPUT_PROXY_1* op, void* a );
   friend MRESULT EXPENTRY proxy_1_output_winfn(HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2);
  public:
-  CL_OUTPUT_PROXY_1(CL_MODULE& mod) : CL_OUTPUT(mod), voutput_hwnd(NULLHANDLE) {}
+  CL_OUTPUT_PROXY_1(CL_MODULE& mod) : CL_OUTPUT(mod), voutput_hwnd(NULLHANDLE), voutput_posmarker(0) {}
   virtual ~CL_OUTPUT_PROXY_1();
   virtual BOOL load_plugin();
 };
@@ -717,18 +781,16 @@ BOOL CL_OUTPUT_PROXY_1::load_plugin()
     || !load_function(&output_init,            "output_init")
     || !load_function(&output_uninit,          "output_uninit")
     || !load_function(&output_playing_samples, "output_playing_samples")
-    || !load_function(&output_playing_pos,     "output_playing_pos")
+    || !load_function(&voutput_playing_pos,    "output_playing_pos")
     || !load_function(&output_playing_data,    "output_playing_data")
     || !load_function(&voutput_command,        "output_command")
     || !load_function(&voutput_play_samples,   "output_play_samples") )
     return FALSE;
 
-  output_command        = (ULONG (DLLENTRYP)(void*, ULONG, OUTPUT_PARAMS2*))
-                          mkvdelegate(&vd_output_command,        (V_FUNC)&proxy_1_output_command,        3, this);
-  output_request_buffer = (int   (DLLENTRYP)(void*, const FORMAT_INFO2*, short**))
-                          mkvdelegate(&vd_output_request_buffer, (V_FUNC)&proxy_1_output_request_buffer, 4, this);
-  output_commit_buffer  = (void  (DLLENTRYP)(void*, int, int))
-                          mkvdelegate(&vd_output_commit_buffer,  (V_FUNC)&proxy_1_output_commit_buffer,  3, this);
+  output_command        = mkvdelegate(&vd_output_command,        &proxy_1_output_command,        this);
+  output_request_buffer = mkvdelegate(&vd_output_request_buffer, &proxy_1_output_request_buffer, this);
+  output_commit_buffer  = mkvdelegate(&vd_output_commit_buffer,  &proxy_1_output_commit_buffer,  this);
+  output_playing_pos    = mkvdelegate(&vd_output_playing_pos,    &proxy_1_output_playing_pos,    this);
 
   a = NULL;
   return TRUE;
@@ -776,7 +838,7 @@ proxy_1_output_command( CL_OUTPUT_PROXY_1* op, void* a, ULONG msg, OUTPUT_PARAMS
   params.volume                = (char)(info->volume*100+.5);
   params.amplifier             = info->amplifier;
   params.pause                 = info->pause;
-  params.temp_playingpos       = info->temp_playingpos;
+  params.temp_playingpos       = tstmp_f2i(info->temp_playingpos);
   if (info->URI != NULL && strnicmp(info->URI, "file://", 7) == 0)
     params.filename            = info->URI + 7;
    else
@@ -847,8 +909,8 @@ proxy_1_output_request_buffer( CL_OUTPUT_PROXY_1* op, void* a, const FORMAT_INFO
 }
 
 PROXYFUNCIMP(void DLLENTRY, CL_OUTPUT_PROXY_1)
-proxy_1_output_commit_buffer( CL_OUTPUT_PROXY_1* op, void* a, int len, int posmarker )
-{ DEBUGLOG(("proxy_1_output_commit_buffer(%p {%s}, %p, %i, %i) - %d\n",
+proxy_1_output_commit_buffer( CL_OUTPUT_PROXY_1* op, void* a, int len, double posmarker )
+{ DEBUGLOG(("proxy_1_output_commit_buffer(%p {%s}, %p, %i, %f) - %d\n",
     op, op->module_name, a, len, posmarker, op->voutput_buffer_level));
   
   if (op->voutput_buffer_level == 0)
@@ -856,9 +918,15 @@ proxy_1_output_commit_buffer( CL_OUTPUT_PROXY_1* op, void* a, int len, int posma
 
   op->voutput_buffer_level += len;
   if (op->voutput_buffer_level == op->voutput_bufsamples)
-  { (*op->voutput_play_samples)(a, &op->voutput_format, (char*)op->voutput_buffer, op->voutput_buffer_level * op->voutput_format.channels * sizeof(short), op->voutput_posmarker);
+  { (*op->voutput_play_samples)(a, &op->voutput_format, (char*)op->voutput_buffer, op->voutput_buffer_level * op->voutput_format.channels * sizeof(short), tstmp_f2i(op->voutput_posmarker));
     op->voutput_buffer_level = 0;
   }
+}
+
+PROXYFUNCIMP(double DLLENTRY, CL_OUTPUT_PROXY_1)
+proxy_1_output_playing_pos( CL_OUTPUT_PROXY_1* op, void* a )
+{ DEBUGLOG(("proxy_1_output_playing_pos(%p {%s}, %p)\n", op, op->module_name, a));
+  return tstmp_i2f((*op->voutput_playing_pos)(a), op->voutput_posmarker);
 }
 
 MRESULT EXPENTRY proxy_1_output_winfn(HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2)
@@ -867,15 +935,15 @@ MRESULT EXPENTRY proxy_1_output_winfn(HWND hwnd, ULONG msg, MPARAM mp1, MPARAM m
   switch (msg)
   {case WM_PLAYERROR:
     (*op->voutput_event)(op->voutput_w, OUTEVENT_PLAY_ERROR);
-    break;
+    return 0;  
    case WM_OUTPUT_OUTOFDATA:
     if (op->voutput_flush_request) // don't care unless we have a flush_request condition
     { op->voutput_flush_request = FALSE;
       (*op->voutput_event)(op->a, OUTEVENT_END_OF_DATA);
     }
-    break;
+    return 0;  
   }
-  return 0;
+  return WinDefWindowProc(hwnd, msg, mp1, mp2);
 }
 
 
@@ -931,23 +999,17 @@ BOOL CL_FILTER::initialize(FILTER_PARAMS2* params)
   } else
   { // virtualize untouched functions
     if (par.output_command          == params->output_command)
-      params->output_command         = (ULONG (DLLENTRYP)(void*, ULONG, OUTPUT_PARAMS2*))
-                                       mkvreplace1(&vrstubs[0], (V_FUNC)par.output_command, par.a);
+      params->output_command         = mkvreplace1(&vrstubs[0], par.output_command, par.a);
     if (par.output_playing_samples  == params->output_playing_samples)
-      params->output_playing_samples = (ULONG (DLLENTRYP)(void*, FORMAT_INFO*, char*, int))
-                                       mkvreplace1(&vrstubs[1], (V_FUNC)par.output_playing_samples, par.a);
+      params->output_playing_samples = mkvreplace1(&vrstubs[1], par.output_playing_samples, par.a);
     if (par.output_request_buffer   == params->output_request_buffer)
-      params->output_request_buffer  = (int (DLLENTRYP)(void*, const FORMAT_INFO2*, short**))
-                                       mkvreplace1(&vrstubs[2], (V_FUNC)par.output_request_buffer, par.a);
+      params->output_request_buffer  = mkvreplace1(&vrstubs[2], par.output_request_buffer, par.a);
     if (par.output_commit_buffer    == params->output_commit_buffer)
-      params->output_commit_buffer   = (void (DLLENTRYP)(void*, int, int))
-                                       mkvreplace1(&vrstubs[3], (V_FUNC)par.output_commit_buffer, par.a);
+      params->output_commit_buffer   = mkvreplace1(&vrstubs[3], par.output_commit_buffer, par.a);
     if (par.output_playing_pos      == params->output_playing_pos)
-      params->output_playing_pos     = (int (DLLENTRYP)(void*))
-                                       mkvreplace1(&vrstubs[4], (V_FUNC)par.output_playing_pos, par.a);
+      params->output_playing_pos     = mkvreplace1(&vrstubs[4], par.output_playing_pos, par.a);
     if (par.output_playing_data     == params->output_playing_data)
-      params->output_playing_data    = (BOOL (DLLENTRYP)(void*))
-                                       mkvreplace1(&vrstubs[5], (V_FUNC)par.output_playing_data, par.a);
+      params->output_playing_data    = mkvreplace1(&vrstubs[5], par.output_playing_data, par.a);
   }
   return TRUE;
 }
@@ -961,14 +1023,14 @@ class CL_FILTER_PROXY_1 : public CL_FILTER
   int   (DLLENTRYP vfilter_play_samples )( void*  f, const FORMAT_INFO* format, const char *buf, int len, int posmarker );
   void*       vf;
   int   (DLLENTRYP output_request_buffer)( void*  a, const FORMAT_INFO2* format, short** buf );
-  void  (DLLENTRYP output_commit_buffer )( void*  a, int len, int posmarker );
+  void  (DLLENTRYP output_commit_buffer )( void*  a, int len, double posmarker );
   void*       a;
   void  (DLLENTRYP error_display        )( const char* );
   FORMAT_INFO vformat;                      // format of the samples
   short       vbuffer[BUFSIZE/2];           // buffer to store incoming samples
   int         vbufsamples;                  // size of vbuffer in samples
   int         vbuflevel;                    // current filled to vbuflevel
-  int         vposmarker;                   // starting point of the current buffer
+  double      vposmarker;                   // starting point of the current buffer
   BOOL        trash_buffer;                 // TRUE: signal to discard any buffer content
   VDELEGATE   vd_filter_init;
   VREPLACE1   vr_filter_update;
@@ -979,7 +1041,7 @@ class CL_FILTER_PROXY_1 : public CL_FILTER
   PROXYFUNCDEF void  DLLENTRY proxy_1_filter_update        ( CL_FILTER_PROXY_1* pp, const FILTER_PARAMS2* params );
   PROXYFUNCDEF BOOL  DLLENTRY proxy_1_filter_uninit        ( void* f ); // empty stub
   PROXYFUNCDEF int   DLLENTRY proxy_1_filter_request_buffer( CL_FILTER_PROXY_1* f, const FORMAT_INFO2* format, short** buf );
-  PROXYFUNCDEF void  DLLENTRY proxy_1_filter_commit_buffer ( CL_FILTER_PROXY_1* f, int len, int posmarker );
+  PROXYFUNCDEF void  DLLENTRY proxy_1_filter_commit_buffer ( CL_FILTER_PROXY_1* f, int len, double posmarker );
   PROXYFUNCDEF int   DLLENTRY proxy_1_filter_play_samples  ( CL_FILTER_PROXY_1* f, const FORMAT_INFO* format, const char *buf, int len, int posmarker );
  public:
   CL_FILTER_PROXY_1(CL_MODULE& mod) : CL_FILTER(mod) {}
@@ -994,14 +1056,12 @@ BOOL CL_FILTER_PROXY_1::load_plugin()
     || !load_function(&vfilter_play_samples, "filter_play_samples") )
     return FALSE;
 
-  filter_init   = (ULONG (DLLENTRYP)(void**, FILTER_PARAMS2*))
-                  mkvdelegate(&vd_filter_init, (V_FUNC)&proxy_1_filter_init, 2, this);
-  filter_update = (void  (DLLENTRYP)(void* f, const FILTER_PARAMS2* params))
-                  mkvreplace1(&vr_filter_update, (V_FUNC)&proxy_1_filter_update, this);
+  filter_init   = mkvdelegate(&vd_filter_init,   &proxy_1_filter_init,   this);
+  filter_update = (void (DLLENTRYP)(void*, const FILTER_PARAMS2*)) // type of parameter is replaced too
+                  mkvreplace1(&vr_filter_update, &proxy_1_filter_update, this);
   // filter_uninit is initialized at the filter_init call to a non-no-op function
   // However, the returned pointer will stay the same.
-  filter_uninit = (BOOL (DLLENTRYP)(void* f))
-                  mkvreplace1(&vr_filter_uninit, (V_FUNC)&proxy_1_filter_uninit, NULL);
+  filter_uninit = mkvreplace1(&vr_filter_uninit, &proxy_1_filter_uninit, (void*)NULL);
 
   f = NULL;
   enabled = TRUE;
@@ -1035,12 +1095,12 @@ proxy_1_filter_init( CL_FILTER_PROXY_1* pp, void** f, FILTER_PARAMS2* params )
   pp->vformat.bits          = 16;
   pp->vformat.format        = WAVE_FORMAT_PCM;
   // replace the unload function
-  mkvreplace1(&pp->vr_filter_uninit, (V_FUNC)pp->vfilter_uninit, pp->vf);
+  mkvreplace1(&pp->vr_filter_uninit, pp->vfilter_uninit, pp->vf);
   // now return some values
   *f = pp;
   params->output_request_buffer = (int  (DLLENTRYP)(void*, const FORMAT_INFO2*, short**))
                                   &PROXYFUNCREF(CL_FILTER_PROXY_1)proxy_1_filter_request_buffer;
-  params->output_commit_buffer  = (void (DLLENTRYP)(void*, int, int))
+  params->output_commit_buffer  = (void (DLLENTRYP)(void*, int, double))
                                   &PROXYFUNCREF(CL_FILTER_PROXY_1)proxy_1_filter_commit_buffer;
   return 0;
 }
@@ -1078,7 +1138,7 @@ proxy_1_filter_request_buffer( CL_FILTER_PROXY_1* pp, const FORMAT_INFO2* format
     DEBUGLOG(("proxy_1_filter_request_buffer: local flush: %d\n", pp->vbuflevel));
     // Oh well, the old output plug-ins seem to play some more samples in doubt.
     // memset( pp->vbuffer + pp->vbuflevel * pp->vformat.channels, 0, (pp->vbufsamples - pp->vbuflevel) * pp->vformat.channels * sizeof(short) );
-    (*pp->vfilter_play_samples)(pp->vf, &pp->vformat, (char*)pp->vbuffer, pp->vbuflevel * pp->vformat.channels * sizeof(short), pp->vposmarker);
+    (*pp->vfilter_play_samples)(pp->vf, &pp->vformat, (char*)pp->vbuffer, pp->vbuflevel * pp->vformat.channels * sizeof(short), tstmp_f2i(pp->vposmarker));
   }
   if ( buf == 0 )
   { return (*pp->output_request_buffer)( pp->a, format, NULL );
@@ -1093,8 +1153,8 @@ proxy_1_filter_request_buffer( CL_FILTER_PROXY_1* pp, const FORMAT_INFO2* format
 }
 
 PROXYFUNCIMP(void DLLENTRY, CL_FILTER_PROXY_1)
-proxy_1_filter_commit_buffer( CL_FILTER_PROXY_1* pp, int len, int posmarker )
-{ DEBUGLOG(("proxy_1_filter_commit_buffer(%p, %d, %d)\n", pp, len, posmarker));
+proxy_1_filter_commit_buffer( CL_FILTER_PROXY_1* pp, int len, double posmarker )
+{ DEBUGLOG(("proxy_1_filter_commit_buffer(%p, %d, %f)\n", pp, len, posmarker));
   
   if (len == 0)
     return;
@@ -1106,20 +1166,21 @@ proxy_1_filter_commit_buffer( CL_FILTER_PROXY_1* pp, int len, int posmarker )
   if (pp->vbuflevel == pp->vbufsamples)
   { // buffer full
     DEBUGLOG(("proxy_1_filter_commit_buffer: full: %d\n", pp->vbuflevel));
-    (*pp->vfilter_play_samples)(pp->vf, &pp->vformat, (char*)pp->vbuffer, BUFSIZE, pp->vposmarker);
+    (*pp->vfilter_play_samples)(pp->vf, &pp->vformat, (char*)pp->vbuffer, BUFSIZE, tstmp_f2i(pp->vposmarker));
     pp->vbuflevel = 0;
   }
 }
 
 PROXYFUNCIMP(int DLLENTRY, CL_FILTER_PROXY_1)
-proxy_1_filter_play_samples( CL_FILTER_PROXY_1* pp, const FORMAT_INFO* format, const char *buf, int len, int posmarker )
+proxy_1_filter_play_samples( CL_FILTER_PROXY_1* pp, const FORMAT_INFO* format, const char *buf, int len, int posmarker_i )
 { DEBUGLOG(("proxy_1_filter_play_samples(%p, %p{%d,%d,%d,%d}, %p, %d, %d)\n",
-    pp, format, format->samplerate, format->channels, format->bits, format->format, buf, len, posmarker));
+    pp, format, format->samplerate, format->channels, format->bits, format->format, buf, len, posmarker_i));
 
   if (format->format != WAVE_FORMAT_PCM || format->bits != 16)
   { (*pp->error_display)("The proxy for old style filter plug-ins can only handle 16 bit raw PCM data.");
     return 0; 
   }
+  double posmarker = tstmp_i2f(posmarker_i, pp->vposmarker);
   len /= pp->vformat.channels * sizeof(short);
   int rem = len;
   while (rem != 0)
@@ -1134,7 +1195,7 @@ proxy_1_filter_play_samples( CL_FILTER_PROXY_1* pp, const FORMAT_INFO* format, c
     // store data
     memcpy( dest, buf, dlen * pp->vformat.channels * sizeof(short) ); 
     // commit destination
-    (*pp->output_commit_buffer)( pp->a, dlen, posmarker + (len-rem)*1000/format->samplerate );
+    (*pp->output_commit_buffer)( pp->a, dlen, posmarker + (double)(len-rem)/format->samplerate );
     buf += dlen * pp->vformat.channels * sizeof(short);
     rem -= dlen;
   }

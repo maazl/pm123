@@ -41,10 +41,11 @@
 #define DEBUGLOG_H
 
 #ifdef DEBUG
-
+  #define INCL_BASE
   #include <stdio.h>
   #include <stdarg.h>
   #include <time.h>
+  #include <os2.h>
 
   // log to stderr
   static void
@@ -57,7 +58,7 @@
     va_start( va, fmt );
     DosGetInfoBlocks( &ptib, &ppib );
     DosEnterCritSec();
-    fprintf( stderr, "%08d %04X:%04d ", clock(), ppib->pib_ulpid, ptib->tib_ptib2->tib2_ultid );
+    fprintf( stderr, "%08d %04X:%04d %08x ", clock(), ppib->pib_ulpid, ptib->tib_ptib2->tib2_ultid, &fmt );
     vfprintf( stderr, fmt, va );
     DosExitCritSec();
     va_end( va );

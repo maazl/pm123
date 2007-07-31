@@ -30,24 +30,15 @@
  */
 
 #define  INCL_WIN
-#define  INCL_GPI
 #define  INCL_DOS
-#define  INCL_OS2MM
 #include <os2.h>
-#include <os2me.h>
-#include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
-#include <io.h>
-#include <fcntl.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <ctype.h>
 
 #include <utilfct.h>
 
 #include "pm123.h"
 #include "plugman.h"
+#include "playable.h"
 
 
 /* Constructs a string of the displayable text from the file information. */
@@ -56,45 +47,45 @@ amp_construct_tag_string( char* result, const DECODER_INFO2* info, int size )
 {
   *result = 0;
 
-  if( *info->meta.artist ) {
-    strlcat( result, info->meta.artist, size );
-    if( *info->meta.title ) {
+  if( *info->meta->artist ) {
+    strlcat( result, info->meta->artist, size );
+    if( *info->meta->title ) {
       strlcat( result, ": ", size );
     }
   }
 
-  if( *info->meta.title ) {
-    strlcat( result, info->meta.title, size );
+  if( *info->meta->title ) {
+    strlcat( result, info->meta->title, size );
   }
 
-  if( *info->meta.album && *info->meta.year )
+  if( *info->meta->album && *info->meta->year )
   {
     strlcat( result, " (", size );
-    strlcat( result, info->meta.album, size );
+    strlcat( result, info->meta->album, size );
     strlcat( result, ", ", size );
-    strlcat( result, info->meta.year,  size );
+    strlcat( result, info->meta->year,  size );
     strlcat( result, ")",  size );
   }
   else
   {
-    if( *info->meta.album && !*info->meta.year )
+    if( *info->meta->album && !*info->meta->year )
     {
       strlcat( result, " (", size );
-      strlcat( result, info->meta.album, size );
+      strlcat( result, info->meta->album, size );
       strlcat( result, ")",  size );
     }
-    if( !*info->meta.album && *info->meta.year )
+    if( !*info->meta->album && *info->meta->year )
     {
       strlcat( result, " (", size );
-      strlcat( result, info->meta.year, size );
+      strlcat( result, info->meta->year, size );
       strlcat( result, ")",  size );
     }
   }
 
-  if( *info->meta.comment )
+  if( *info->meta->comment )
   {
     strlcat( result, " -- ", size );
-    strlcat( result, info->meta.comment, size );
+    strlcat( result, info->meta->comment, size );
   }
 
   return result;
@@ -107,7 +98,9 @@ amp_display_filename( void )
 {
   char display[512];
 
-  if( amp_playmode == AMP_NOFILE ) {
+  const Song* song = amp_get_current_song();
+  DEBUGLOG(("amp_display_filename() %p %u\n", song, cfg.viewmode));
+  if (!song) {
     bmp_set_text( "No file loaded" );
     return;
   }
@@ -115,7 +108,7 @@ amp_display_filename( void )
   switch( cfg.viewmode )
   {
     case CFG_DISP_ID3TAG:
-      amp_construct_tag_string( display, &amp_get_current_file()->info, sizeof( display ));
+      amp_construct_tag_string( display, &song->GetInfo(), sizeof( display ));
 
       if( *display ) {
         bmp_set_text( display );
@@ -125,22 +118,11 @@ amp_display_filename( void )
       // if tag is empty - use filename instead of it.
 
     case CFG_DISP_FILENAME:
-    {
-      const char* current_filename = amp_get_current_file()->url;
-      if( current_filename != NULL && *current_filename )
-      { 
-        if( is_url( current_filename )) {
-          bmp_set_text( sdecode( display, current_filename, sizeof( display )));
-        } else {
-          bmp_set_text( sfname ( display, current_filename, sizeof( display )));
-        }
-      } else {
-         bmp_set_text( "This is a bug!" );
-      }
+      bmp_set_text( song->GetURL().getObjName() );
       break;
-    }
+    
     case CFG_DISP_FILEINFO:
-      bmp_set_text( amp_get_current_file()->info.tech.info );
+      bmp_set_text( song->GetInfo().tech->info );
       break;
   }
 }
@@ -190,10 +172,10 @@ void DLLENTRY pm123_control( int index, void* param )
 }
 
 int DLLENTRY pm123_getstring( int index, int subindex, size_t bufsize, char* buf )
-{
- switch (index)
+{ if (bufsize)
+    *buf = 0;
+  switch (index)
   {
-   case STR_NULL: *buf = '\0'; break;
    case STR_VERSION:
      strlcpy( buf, AMP_FULLNAME, bufsize );
      break;
@@ -201,8 +183,9 @@ int DLLENTRY pm123_getstring( int index, int subindex, size_t bufsize, char* buf
      strlcpy( buf, bmp_query_text(), bufsize );
      break;
    case STR_FILENAME:
-   { const MSG_PLAY_STRUCT* current = amp_get_current_file();
-     strlcpy(buf, current != NULL ? current->url : "", bufsize);
+   { const Song* song = amp_get_current_song();
+     if (song)
+       strlcpy(buf, song->GetURL(), bufsize);
      break;
    }
    default: break;

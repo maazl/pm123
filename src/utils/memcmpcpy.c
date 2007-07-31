@@ -1,4 +1,7 @@
 /*
+ * Copyright 1997-2003 Samuel Audet <guardia@step.polymtl.ca>
+ *                     Taneli Lepp„ <rosmo@sektori.com>
+ *
  * Copyright 2006 Dmitry A.Steklenev <glass@ptv.ru>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,37 +29,31 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef PM123_MESSAGES_H
-#define PM123_MESSAGES_H
+#include "strutils.h"
+#include <string.h>
 
-#include "playable.h"
-
-/* Returns TRUE if the player is paused. */
-BOOL is_paused( void );
-/* Returns TRUE if the player is fast forwarding. */
-BOOL is_forward( void );
-/* Returns TRUE if the player is rewinding. */
-BOOL is_rewind( void );
-/* Returns TRUE if the output is always hungry. */
-BOOL is_always_hungry( void );
-
-/* Begins playback of the specified file. */
-BOOL msg_play( HWND hwnd, Song& play, double pos );
-/* Stops playback of the currently played file. */
-BOOL msg_stop( void );
-/* Suspends or resumes playback of the currently played file. */
-BOOL msg_pause( void );
-/* Toggles a fast forward of the currently played file. */
-BOOL msg_forward( void );
-/* Toggles a rewind of the currently played file. */
-BOOL msg_rewind( void );
-/* Changes the current playing position of the currently played file. */
-BOOL msg_seek( double pos );
-/* Toggles a saving of the currently played stream. */
-BOOL msg_savestream( const char* filename );
-/* Toggles a equalizing of the currently played file. */
-BOOL msg_equalize( const float* gains, const BOOL* mute, float preamp, BOOL enabled );
-
-#endif /* PM123_MESSAGES_H */
-
-
+int memcmpcpy( void* dst, const void* src, size_t len )
+{ // work in units of 4 Bytes
+  while (len >= sizeof(long))
+  { if (*(long*)dst != *(long*)src)
+    { memcpy(dst, src, len);
+      return 1;
+    }
+    len -= sizeof(long);
+    ++*(long**)&src;
+    ++*(long**)&dst;
+  }
+  // remaining part
+  while (len)
+  { if (*(char*)dst != *(char*)src)
+    { do
+      { *(*(char**)&dst)++ = *(*(char**)&src)++;
+      } while (--len);
+      return 1;
+    }
+    --len;
+    ++*(char**)&src;
+    ++*(char**)&dst;
+  }
+  return 0;
+}

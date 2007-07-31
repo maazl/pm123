@@ -1,5 +1,6 @@
 /*
- * Copyright 2006 Dmitry A.Steklenev <glass@ptv.ru>
+ * Copyright 1997-2003 Samuel Audet <guardia@step.polymtl.ca>
+ *                     Taneli Lepp„ <rosmo@sektori.com>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -26,37 +27,50 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef PM123_MESSAGES_H
-#define PM123_MESSAGES_H
 
-#include "playable.h"
+/* Code for the playlist manager */
 
-/* Returns TRUE if the player is paused. */
-BOOL is_paused( void );
-/* Returns TRUE if the player is fast forwarding. */
-BOOL is_forward( void );
-/* Returns TRUE if the player is rewinding. */
-BOOL is_rewind( void );
-/* Returns TRUE if the output is always hungry. */
-BOOL is_always_hungry( void );
+#define INCL_BASE
+#include <utilfct.h>
+#include "pm123.h"
+#include "pfreq.h"
+#include "pfreq_base.h"
+#include "url.h"
 
-/* Begins playback of the specified file. */
-BOOL msg_play( HWND hwnd, Song& play, double pos );
-/* Stops playback of the currently played file. */
-BOOL msg_stop( void );
-/* Suspends or resumes playback of the currently played file. */
-BOOL msg_pause( void );
-/* Toggles a fast forward of the currently played file. */
-BOOL msg_forward( void );
-/* Toggles a rewind of the currently played file. */
-BOOL msg_rewind( void );
-/* Changes the current playing position of the currently played file. */
-BOOL msg_seek( double pos );
-/* Toggles a saving of the currently played stream. */
-BOOL msg_savestream( const char* filename );
-/* Toggles a equalizing of the currently played file. */
-BOOL msg_equalize( const float* gains, const BOOL* mute, float preamp, BOOL enabled );
+#include <debuglog.h>
 
-#endif /* PM123_MESSAGES_H */
 
+// Default instance of playlist manager window, representing PM123.LST in the program folder.
+static sco_ptr<PlaylistManager> DefaultPM;
+
+
+/****************************************************************************
+*
+*  public external C interface
+*
+****************************************************************************/
+
+/* Creates the playlist manager presentation window. */
+void pm_create( void )
+{ DEBUGLOG(("pm_create()\n"));
+  url path = url::normalizeURL(startpath);
+  const xstring& file = path + "PFREQ.LST";
+  DEBUGLOG(("pm_create - %s\n", file.cdata()));
+  DefaultPM = new PlaylistManager(file, "Playlist Manager");
+  DefaultPM->SetVisible(cfg.show_plman);
+}
+
+/* Destroys the playlist manager presentation window. */
+void pm_destroy( void )
+{ DEBUGLOG(("pm_destroy()\n"));
+  DefaultPM = NULL; // calls destructor
+  DEBUGLOG(("pm_destroy() - end\n"));
+}
+
+/* Sets the visibility state of the playlist manager presentation window. */
+void pm_show( BOOL show )
+{ DEBUGLOG(("pm_show(%u)\n", show));
+  if (DefaultPM != NULL)
+    DefaultPM->SetVisible(show);
+}
 

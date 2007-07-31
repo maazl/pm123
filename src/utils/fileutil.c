@@ -447,6 +447,46 @@ sdecode( char* result, const char* location, size_t size )
   return result;
 }
 
+char*
+snormal(char* result, const char* location, size_t size )
+{ char sch[5];
+  char* cp;
+  if (size <= 8)
+  { // makes no sense
+    return NULL;
+  }
+  // enforce scheme
+  scheme(sch, location, sizeof sch);
+  if (*sch)
+  { if (strnicmp(sch, "cd:", 3) == 0)
+    { size_t len = strlen(location+3);
+      size -= 5;
+      if (len >= size)
+        len = size -1;
+      memmove(result+5, location, len);
+      result[len+5] = 0;
+      memcpy(result, "cdda:", 5);
+    } else if (result != location)
+      strlcpy(result, location, size);
+  } else
+  { // prepend file scheme
+    size_t len = strlen(location);
+    size -= 8;
+    if (len >= size)
+      len = size -1;
+    memmove(result+8, location, len);
+    result[len+8] = 0;
+    memcpy(result, "file:///", 8);
+  }
+  // convert slashes
+  cp = strchr(result, '\\');
+  while (cp)
+  { *cp = '/';
+    cp = strchr(cp+1, '\\');
+  }
+  return result;
+}
+
 /* extract CD-parameters from URL 
  * NULL: error
  */
@@ -489,8 +529,10 @@ BOOL
 is_dir( const char* location )
 {
   struct stat fi;
-  if (strnicmp(location, "file:///", 8) == 0)
-    location += 8;
-  return ( stat( location, &fi ) == 0 ) && ( fi.st_mode & S_IFDIR );
+  if (strnicmp(location, "file:", 5) == 0)
+    location += 5;
+  if (memcmp(location, "///", 3) == 0)
+    location += 3;
+  return stat( location, &fi ) == 0 && fi.st_mode & S_IFDIR;
 }
 

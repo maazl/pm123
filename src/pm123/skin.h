@@ -266,9 +266,9 @@ void bmp_draw_background( HPS hps, HWND hwnd );
 /* Draws the specified part of the player background. */
 void bmp_draw_part_bg( HPS hps, int x1, int y1, int x2, int y2 );
 /* Draws the main player timer. */
-void bmp_draw_timer( HPS hps, long time );
+void bmp_draw_timer( HPS hps, double time );
 /* Draws the tiny player timer. */
-void bmp_draw_tiny_timer( HPS hps, int pos_id, long time );
+void bmp_draw_tiny_timer( HPS hps, int pos_id, double time );
 /* Draws the channels indicator. */
 void bmp_draw_channels( HPS hps, int channels );
 /* Draws the volume bar and volume slider. */
@@ -280,7 +280,7 @@ void bmp_draw_plind( HPS hps, int index, int total );
 /* Draws the current playlist mode. */
 void bmp_draw_plmode( HPS hps );
 /* Draws the current position slider. */
-void bmp_draw_slider( HPS hps, int played, int total );
+void bmp_draw_slider( HPS hps, double played, double total );
 /* Draws a current displayed text using the current selected font. */
 void bmp_draw_text( HPS hps );
 /* Draws the time left and playlist left labels. */
@@ -303,7 +303,7 @@ BOOL bmp_pt_in_slider( POINTL pos );
 /* Calculates a volume level on the basis of position of the pointer. */
 int  bmp_calc_volume( POINTL pos );
 /* Calculates a current seeking time on the basis of position of the pointer. */
-int  bmp_calc_time( POINTL pos, int total );
+double bmp_calc_time( POINTL pos, double total );
 
 /* Deallocates all resources used by current loaded skin. */
 void bmp_clean_skin( void );

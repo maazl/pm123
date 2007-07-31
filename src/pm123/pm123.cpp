@@ -47,6 +47,9 @@
 #include <float.h>
 #include <process.h>
 
+//#undef DEBUG
+//#define DEBUG 2
+
 #include <utilfct.h>
 #include <xio.h>
 #include "pm123.h"
@@ -58,6 +61,10 @@
 #include "docking.h"
 #include "iniman.h"
 #include "messages.h"
+#include "playenumerator.h"
+
+#include <cpp/xstring.h>
+#include "url.h"
 
 #include <debuglog.h>
 
@@ -72,16 +79,17 @@
 #define  TID_UPDATE_PLAYER    ( TID_USERMAX - 2 )
 #define  TID_ONTOP            ( TID_USERMAX - 3 )
 
-int       amp_playmode = AMP_NOFILE;
-HPOINTER  mp3;      /* Song file icon   */
-HPOINTER  mp3play;  /* Played file icon */
-HPOINTER  mp3gray;  /* Broken file icon */
+//int       amp_playmode = AMP_NOFILE;
 
 /* Contains startup path of the program without its name.  */
 char startpath[_MAX_PATH];
 
-/* currently loaded file */
-static MSG_PLAY_STRUCT current_file = { "" }; // initialize by default
+// Currently loaded object - that's what it's all about!
+static StatusPlayEnumerator Current;
+
+// Default playlistmanager
+//static sco_ptr<PlaylistManager> DefaultPM;
+
 
 static HAB   hab        = NULLHANDLE;
 static HWND  hplaylist  = NULLHANDLE;
@@ -132,17 +140,13 @@ amp_display_error( const char *info )
   }
 }
 
-/* Returns a playing time of the current file, in seconds. */
-static int
-time_played( void ) {
-  return out_playing_pos()/1000;
+const Song* amp_get_current_song()
+{ return Current.GetCurrentSong();
 }
 
-/* Returns a total playing time of the current file. */
-static int
-time_total( void ) {
-  return dec_length()/1000;
-}
+const Playable* amp_get_current_root()
+{ return Current.GetRoot();
+} 
 
 /* Sets audio volume to the current selected level. */
 static void
@@ -174,31 +178,29 @@ amp_volume_adjust( void )
 static void
 amp_paint_timers( HPS hps )
 {
-  int play_time = 0;
-  int play_left = current_file.info.tech.songlength/1000;
-  int list_left = 0;
-
-  DEBUGLOG(("amp_paint_timers(%p) - %i %i %i %i %i\n", hps, cfg.mode, decoder_playing(), is_seeking, time_played(), play_left));
+  DEBUGLOG(("amp_paint_timers(%p) - %i %i %i %f\n", hps, cfg.mode, decoder_playing(), is_seeking, out_playing_pos()));
 
   if( cfg.mode == CFG_MODE_REGULAR )
   {
-    if( decoder_playing()) {
-      if( !is_seeking ) {
-        play_time = time_played();
-      } else {
-        play_time = seeking_pos;
-      }
-    }
+    PlayEnumerator::Status s = Current.GetStatus();
+    double play_time = 0;
+    double play_left = 0;
+    double list_left = 0;
 
-    if( play_left > 0 ) {
+    const Song* song = Current.GetCurrentSong();
+    if (song != NULL)
+      play_left = song->GetInfo().tech->songlength; // If the information is not yet available this returns 0
+
+    if (decoder_playing())
+      play_time = !is_seeking ? out_playing_pos() : seeking_pos;
+
+    if( play_left > 0 )
       play_left -= play_time;
-    }
 
-    if( amp_playmode == AMP_PLAYLIST && !cfg.rpt ) {
-      list_left = pl_playleft() - play_time;
-    }
-
-    bmp_draw_slider( hps, play_time, time_total());
+    if( !cfg.rpt && s.TotalTime > 0 )
+      list_left = s.TotalTime - s.CurrentTime - play_time;
+    
+    bmp_draw_slider( hps, play_time, dec_length());
     bmp_draw_timer ( hps, play_time );
 
     bmp_draw_tiny_timer( hps, POS_TIME_LEFT, play_left );
@@ -212,16 +214,25 @@ amp_paint_fileinfo( HPS hps )
 {
   DEBUGLOG(("amp_paint_fileinfo(%p)\n", hps));
 
-  if( amp_playmode == AMP_PLAYLIST ) {
-    bmp_draw_plind( hps, pl_current_index(), pl_size());
+  const Playable* pp = Current.GetRoot();
+  if (pp != NULL && (pp->GetFlags() & Playable::Enumerable))
+  { PlayEnumerator::Status s = Current.GetStatus();
+    bmp_draw_plind( hps, s.CurrentItem, s.TotalItems);
   } else {
     bmp_draw_plind( hps, 0, 0 );
   }
 
   bmp_draw_plmode  ( hps );
   bmp_draw_timeleft( hps );
-  bmp_draw_rate    ( hps, current_file.info.tech.bitrate );
-  bmp_draw_channels( hps, current_file.info.format.channels );
+  if (pp != NULL)
+  { const TECH_INFO& tech = *pp->GetInfo().tech; 
+    bmp_draw_rate    ( hps, tech.bitrate );
+    const FORMAT_INFO2& format = *pp->GetInfo().format; 
+    bmp_draw_channels( hps, format.channels );
+  } else
+  { bmp_draw_rate    ( hps, -1 );
+    bmp_draw_channels( hps, -1 );
+  }
   bmp_draw_text    ( hps );
   amp_paint_timers ( hps );
 }
@@ -251,12 +262,6 @@ amp_player_hab( void ) {
   return hab;
 }
 
-/* Returns a information block of the currently loaded file or NULL if none. */
-const MSG_PLAY_STRUCT*
-amp_get_current_file( void )
-{ return *current_file.url ? &current_file : NULL;
-}
-
 /* Posts a message to the message queue associated with
    the player window. */
 BOOL
@@ -273,7 +278,7 @@ amp_set_bubbletext( USHORT id, const char *text )
 }
 
 /* Loads the specified playlist record into the player. */
-BOOL
+/*BOOL
 amp_pl_load_record( PLRECORD* rec )
 {
   struct stat fi;
@@ -301,12 +306,12 @@ amp_pl_load_record( PLRECORD* rec )
   amp_display_filename();
   amp_invalidate( UPD_FILEINFO );
   return TRUE;
-}
+}*/
 
 /* Loads the specified playlist record into the player and
    plays it if this is specified in the player properties or
    the player is already playing. */
-void
+/*void
 amp_pl_play_record( PLRECORD* rec )
 {
   BOOL decoder_was_playing = decoder_playing();
@@ -322,10 +327,10 @@ amp_pl_play_record( PLRECORD* rec )
       }
     }
   }
-}
+}*/
 
 /* Activates the current playlist. */
-void
+/*void
 amp_pl_use( void )
 {
   BOOL rc = TRUE;
@@ -355,10 +360,10 @@ amp_pl_use( void )
 
     amp_invalidate( UPD_FILEINFO );
   }
-}
+}*/
 
 /* Deactivates the current playlist. */
-void
+/*void
 amp_pl_release( void )
 {
   if( amp_playmode != AMP_SINGLE )
@@ -374,7 +379,7 @@ amp_pl_release( void )
     pl_clean_shuffle();
     amp_invalidate( UPD_FILEINFO );
   }
-}
+}*/
 
 static ULONG handle_dfi_error( ULONG rc, const char* file )
 {
@@ -399,52 +404,37 @@ static ULONG handle_dfi_error( ULONG rc, const char* file )
 
 /* Loads a standalone file or CD track to player. */
 BOOL
-amp_load_singlefile( const char* filename, int options )
-{
-  int    i;
-  ULONG  rc;
-  CDDA_REGION_INFO cd_info = {"", 0};
-  struct stat fi;
-
-  if( is_playlist( filename )) {
-    return pl_load( filename, PL_LOAD_CLEAR );
-  }
-
-  if( is_file( filename ) && stat( filename, &fi ) != 0 ) {
-    amp_error( hplayer, "Unable load file:\n%s\n%s", filename, strerror(errno));
-    return FALSE;
-  }
-
-  rc = dec_fileinfo((char*)filename, &current_file.info, current_file.decoder );
-
-  if( rc != 0 ) { /* error, invalid file */
-    amp_reset();
-    handle_dfi_error( rc, filename );
+amp_load_playable( const char* url, int options )
+{ DEBUGLOG(("amp_load_playable(%s, %x)\n", url, options));
+  
+  int_ptr<Playable> play = Playable::GetByURL(url);
+  play->EnsureInfo(Playable::IF_Status);
+  if (play->GetStatus() == STA_Invalid)
+  { amp_error(hframe, "Can't play %s.", url);
     return FALSE;
   }
 
   amp_stop();
-  amp_pl_release();
 
-  strlcpy( current_file.url, filename, sizeof current_file.url );
-
-  // merge some information
-  if ( current_file.info.meta.track <= 0 && cd_info.track > 0 ) { 
-    current_file.info.meta.track = cd_info.track;
-  }
+  Current.Attach(play);
+  // Move always to the first element.
+  Current.Next();
 
   amp_display_filename();
   amp_invalidate( UPD_FILEINFO );
 
+  DEBUGLOG(("amp_load_playable - attached\n"));
+  
   if( !( options & AMP_LOAD_NOT_PLAY )) {
     if( cfg.playonload ) {
       amp_play( 0 );
     }
   }
 
-  if( !( options & AMP_LOAD_NOT_RECALL ) && !is_track( filename )) {
+  if( !( options & AMP_LOAD_NOT_RECALL )) {
+    int i;
     for( i = 0; i < MAX_RECALL; i++ ) {
-      if( stricmp( cfg.last[i], filename ) == 0 ) {
+      if( stricmp( cfg.last[i], url ) == 0 ) {
         while( ++i < MAX_RECALL ) {
           strcpy( cfg.last[i-1], cfg.last[i] );
         }
@@ -456,7 +446,7 @@ amp_load_singlefile( const char* filename, int options )
       strcpy( cfg.last[i + 1], cfg.last[i] );
     }
 
-    strcpy( cfg.last[0], filename );
+    strlcpy( cfg.last[0], url, sizeof cfg.last[0] );
   }
 
   return TRUE;
@@ -465,17 +455,22 @@ amp_load_singlefile( const char* filename, int options )
 /* Begins playback of the currently loaded file from the specified
    position. Must be called from the main thread. */
 static void
-amp_pb_play( int pos )
-{
+amp_pb_play( float pos )
+{ DEBUGLOG(("amp_pb_play(%f)\n", pos));
   char caption [_MAX_PATH];
   char filename[_MAX_PATH];
 
-  if( amp_playmode == AMP_NOFILE ) {
-    WinSendDlgItemMsg( hplayer, BMP_PLAY, WM_DEPRESS, 0, 0 );
-    return;
+  Song* song = Current.GetCurrentSong();
+  if (song == NULL)
+  { song = Current.Next();
+    if (!song)
+    { // Kein Song geladen, oder leere Playliste
+      WinSendDlgItemMsg( hplayer, BMP_PLAY, WM_DEPRESS, 0, 0 );
+      return;
+    }
   }
 
-  msg_play( hplayer, &current_file, pos );
+  msg_play( hplayer, *song, pos );
   amp_set_bubbletext( BMP_PLAY, "Stops playback" );
 
   WinSendDlgItemMsg( hplayer, BMP_FWD,   WM_DEPRESS, 0, 0 );
@@ -483,14 +478,13 @@ amp_pb_play( int pos )
   WinSendDlgItemMsg( hplayer, BMP_PAUSE, WM_DEPRESS, 0, 0 );
   WinSendDlgItemMsg( hplayer, BMP_PLAY,  WM_PRESS  , 0, 0 );
 
+  /* TODO:
   if( amp_playmode == AMP_PLAYLIST ) {
     pl_mark_as_play();
-  }
+  }*/
 
-  sfnameext( filename, current_file.url, sizeof( filename ));
-  sprintf( caption, "%s - ", AMP_FULLNAME );
-  strlcat( caption, filename, sizeof( filename ));
-  WinSetWindowText( hframe, caption );
+  xstring title = song->GetURL().getDisplayName() + " - " AMP_FULLNAME;
+  WinSetWindowText( hframe, title.cdata() );
 }
 
 /* Stops the playing of the current file. Must be called
@@ -509,9 +503,10 @@ amp_pb_stop( void )
   WinSendDlgItemMsg( hplayer, BMP_REW,   WM_DEPRESS, 0, 0 );
   WinSetWindowText ( hframe,  AMP_FULLNAME );
 
+  /* TODO:
   if( amp_playmode == AMP_PLAYLIST ) {
     pl_mark_as_stop();
-  }
+  }*/
 
   while( WinPeekMsg( hab, &qms, hplayer, WM_PLAYSTOP, WM_PLAYSTOP, PM_REMOVE )) {
     DEBUGLOG(( "pm123: discards WM_PLAYSTOP message.\n" ));
@@ -544,8 +539,9 @@ amp_pb_pause( void )
 
 /* Begins playback of the currently loaded file from
    the specified position. */
-void amp_play( int pos ) {
-  WinSendMsg( hplayer, AMP_PLAY, MPFROMLONG(pos), 0 );
+void amp_play( float pos ) {
+  DEBUGLOG(("amp_play(%f)\n", pos));
+  WinSendMsg( hplayer, AMP_PLAY, MPFROMLONG(*(int*)&pos), 0 );
 }
 
 /* Stops playback of the currently played file. */
@@ -572,20 +568,12 @@ amp_show_context_menu( HWND parent )
   short    id;
   int      i;
   int      count;
-  const MSG_PLAY_STRUCT* current;
 
   if( menu == NULLHANDLE )
   {
     menu = WinLoadMenu( HWND_OBJECT, 0, MNU_MAIN );
 
-    WinSendMsg( menu, MM_QUERYITEM,
-                MPFROM2SHORT( IDM_M_LOAD, TRUE ), MPFROMP( &mi ));
-
-    WinSetWindowULong( mi.hwndSubMenu, QWL_STYLE,
-      WinQueryWindowULong( mi.hwndSubMenu, QWL_STYLE ) | MS_CONDITIONALCASCADE );
-
-    WinSendMsg( mi.hwndSubMenu, MM_SETDEFAULTITEMID,
-                                MPFROMLONG( IDM_M_LOADFILE ), 0 );
+    mn_make_conditionalcascade( menu, IDM_M_LOAD, IDM_M_LOADFILE );
   }
 
   WinQueryPointerPos( HWND_DESKTOP, &pos );
@@ -610,7 +598,7 @@ amp_show_context_menu( HWND parent )
   // intended for a choice of object of loading.
   for( i = count; --i >= 0; )
   {
-    id = LONGFROMMR( WinSendMsg( mh, MM_ITEMIDFROMPOSITION, MPFROMSHORT(i), 0 ));
+    id = SHORT1FROMMR( WinSendMsg( mh, MM_ITEMIDFROMPOSITION, MPFROMSHORT(i), 0 ));
     if (id == IDM_M_URL || id == IDM_M_LOADFILE)
       continue;
     WinSendMsg( mh, MM_DELETEITEM, MPFROM2SHORT( id, FALSE ), 0 );
@@ -685,22 +673,21 @@ amp_show_context_menu( HWND parent )
   load_plugin_menu( mi.hwndSubMenu );
 
   // Update status
-  current = amp_get_current_file();
-  // TODO: edit more than ID3 tags
+  const Song* song = Current.GetCurrentSong();
   #ifdef DEBUG
-  if (!current)
+  if (!song)
     DEBUGLOG(("amp_show_context_menu: current = NULL\n"));
    else
-    DEBUGLOG(("amp_show_context_menu: current = %p, meta_write = %i\n", current, current->info.meta_write ));
+    DEBUGLOG(("amp_show_context_menu: current = %p, meta_write = %i\n", song, song->GetInfo().meta_write ));
   #endif
-  mn_enable_item( menu, IDM_M_TAG,     current != NULL && current->info.meta_write );
+  mn_enable_item( menu, IDM_M_TAG,     song != NULL && song->GetInfo().meta_write );
   mn_enable_item( menu, IDM_M_SMALL,   bmp_is_mode_supported( CFG_MODE_SMALL   ));
   mn_enable_item( menu, IDM_M_NORMAL,  bmp_is_mode_supported( CFG_MODE_REGULAR ));
   mn_enable_item( menu, IDM_M_TINY,    bmp_is_mode_supported( CFG_MODE_TINY    ));
   mn_enable_item( menu, IDM_M_FONT,    cfg.font_skinned );
   mn_enable_item( menu, IDM_M_FONT1,   bmp_is_font_supported( 0 ));
   mn_enable_item( menu, IDM_M_FONT2,   bmp_is_font_supported( 1 ));
-  mn_enable_item( menu, IDM_M_ADDBOOK, amp_playmode != AMP_NOFILE );
+  mn_enable_item( menu, IDM_M_ADDBOOK, song != NULL );
 
   mn_check_item ( menu, IDM_M_FLOAT,   cfg.floatontop  );
   mn_check_item ( menu, IDM_M_SAVE,    is_stream_saved );
@@ -713,110 +700,6 @@ amp_show_context_menu( HWND parent )
   WinPopupMenu( parent, parent, menu, pos.x, pos.y, 0,
                 PU_HCONSTRAIN   | PU_VCONSTRAIN |
                 PU_MOUSEBUTTON1 | PU_MOUSEBUTTON2 | PU_KEYBOARD   );
-}
-
-/* Adds HTTP file to the playlist or load it to the player. */
-void
-amp_add_url( HWND owner, int options )
-{
-  char  url[512];
-  HWND  hwnd =
-        WinLoadDlg( HWND_DESKTOP, owner, WinDefDlgProc, NULLHANDLE, DLG_URL, 0 );
-
-  if( hwnd == NULLHANDLE ) {
-    return;
-  }
-
-  WinSendDlgItemMsg( hwnd, ENT_URL, EM_SETTEXTLIMIT, MPFROMSHORT(512), 0 );
-  do_warpsans( hwnd );
-
-  if( WinProcessDlg( hwnd ) == DID_OK ) {
-    WinQueryDlgItemText( hwnd, ENT_URL, 1024, url );
-    if( options & URL_ADD_TO_LIST ) {
-      if( is_playlist( url )) {
-        pl_load( url, 0);
-      } else {
-        pl_add_file( url, NULL, 0 );
-      }
-    } else {
-      amp_load_singlefile( url, 0 );
-    }
-  }
-  WinDestroyWindow( hwnd );
-}
-
-/* Adds user selected files or directory to the playlist. */
-void
-amp_add_files( HWND hwnd )
-{
-  FILEDLG filedialog;
-
-  int   i = 0;
-  char* file;
-  char  type_audio[2048];
-  char  type_all  [2048];
-  APSZ  types[4] = {{ 0 }};
-
-  types[0][0] = type_audio;
-  types[1][0] = FDT_PLAYLIST;
-  types[2][0] = type_all;
-
-  memset( &filedialog, 0, sizeof( FILEDLG ));
-
-  filedialog.cbSize         = sizeof( FILEDLG );
-  filedialog.fl             = FDS_CENTER | FDS_OPEN_DIALOG | FDS_CUSTOM | FDS_MULTIPLESEL;
-  filedialog.ulUser         = FDU_DIR_ENABLE | FDU_RECURSEBTN;
-  filedialog.pszTitle       = "Add file(s) to playlist";
-  filedialog.hMod           = NULLHANDLE;
-  filedialog.usDlgId        = DLG_FILE;
-  filedialog.pfnDlgProc     = amp_file_dlg_proc;
-  filedialog.papszITypeList = types;
-  filedialog.pszIType       = type_audio;
-
-  strcpy( type_audio, FDT_AUDIO );
-  dec_fill_types( type_audio + strlen( type_audio ),
-                  sizeof( type_audio ) - strlen( type_audio ) - 1 );
-  strcat( type_audio, ")" );
-
-  strcpy( type_all, FDT_AUDIO_ALL );
-  dec_fill_types( type_all + strlen( type_all ),
-                  sizeof( type_all ) - strlen( type_all ) - 1 );
-  strcat( type_all, ")" );
-
-  strcat( filedialog.szFullFile, cfg.filedir );
-  WinFileDlg( HWND_DESKTOP, hwnd, &filedialog );
-
-  if( filedialog.lReturn == DID_OK ) {
-    if( filedialog.ulFQFCount > 1 ) {
-      file = (*filedialog.papszFQFilename)[i];
-    } else {
-      file = filedialog.szFullFile;
-    }
-
-    while( *file ) {
-      if( is_dir( file )) {
-        pl_add_directory( file, filedialog.ulUser & FDU_RECURSE_ON ? PL_DIR_RECURSIVE : 0 );
-        strcpy( cfg.filedir, file );
-        if( !is_root( file )) {
-          strcat( cfg.filedir, "\\" );
-        }
-      } else if( is_playlist( file )) {
-        pl_load( file, PL_LOAD_NOT_RECALL );
-      } else {
-        pl_add_file( file, NULL, 0 );
-        sdrivedir( cfg.filedir, file, sizeof( cfg.filedir ));
-      }
-
-      if( ++i >= filedialog.ulFQFCount ) {
-        break;
-      } else {
-        file = (*filedialog.papszFQFilename)[i];
-      }
-    }
-    pl_completed();
-  }
-
-  WinFreeFileDlgList( filedialog.papszFQFilename );
 }
 
 /* Reads url from specified file. */
@@ -901,27 +784,27 @@ amp_drag_over( HWND hwnd, PDRAGINFO pdinfo )
 /* Receives dropped files or playlist records. */
 static MRESULT
 amp_drag_drop( HWND hwnd, PDRAGINFO pdinfo )
-{
+{ DEBUGLOG(("amp_drag_drop(%p, %p)\n", hwnd, pdinfo));
   PDRAGITEM pditem;
 
-  char pathname[_MAX_PATH];
-  char filename[_MAX_PATH];
   char fullname[_MAX_PATH];
   int  i;
 
   if( !DrgAccessDraginfo( pdinfo )) {
     return 0;
   }
-
+  
+  DEBUGLOG(("amp_drag_drop: {,%u,%x,%p, %u,%u, %u,}\n",
+    pdinfo->cbDragitem, pdinfo->usOperation, pdinfo->hwndSource, pdinfo->xDrop, pdinfo->yDrop, pdinfo->cditem));
+  
   for( i = 0; i < pdinfo->cditem; i++ )
   {
     pditem = DrgQueryDragitemPtr( pdinfo, i );
 
-    DrgQueryStrName( pditem->hstrSourceName,    sizeof( filename ), filename );
-    DrgQueryStrName( pditem->hstrContainerName, sizeof( pathname ), pathname );
-    strcpy( fullname, pathname );
-    strcat( fullname, filename );
-
+    DrgQueryStrName( pditem->hstrContainerName, sizeof fullname, fullname );
+    size_t len = strlen(fullname);
+    DrgQueryStrName( pditem->hstrSourceName,    sizeof fullname - len, fullname+len );
+    
     if( DrgVerifyRMF( pditem, "DRM_OS2FILE", NULL ))
     {
       if( pditem->hstrContainerName && pditem->hstrSourceName ) {
@@ -929,14 +812,17 @@ amp_drag_drop( HWND hwnd, PDRAGINFO pdinfo )
         if( DrgVerifyType( pditem, "UniformResourceLocator" )) {
           amp_url_from_file( fullname, fullname, sizeof( fullname ));
         }
-        if( is_dir( fullname )) {
-          pl_add_directory( fullname, PL_DIR_RECURSIVE );
-        } else if( is_playlist( fullname )) {
-          pl_load( fullname, 0 );
-        } else if( pdinfo->cditem == 1 ) {
-          amp_load_singlefile( fullname, 0 );
+
+        if (is_dir(fullname))
+          strlcat(fullname, "/", sizeof fullname);
+
+        url URL = url::normalizeURL(fullname);
+        
+        if( pdinfo->cditem == 1 ) {
+          amp_load_playable( URL, 0 );
         } else {
-          pl_add_file( fullname, NULL, 0 );
+//        TODO !!!
+//          pl_add_file( fullname, NULL, 0 );
         }
 
         if( pditem->hwndItem ) {
@@ -989,8 +875,8 @@ amp_drag_drop( HWND hwnd, PDRAGINFO pdinfo )
         DrgSendTransferMsg( pditem->hwndItem, DM_RENDER, (MPARAM)pdtrans, 0 );
       }
     }
-    else if( DrgVerifyRMF( pditem, "DRM_123FILE", NULL ))
-    {
+    /*else if( DrgVerifyRMF( pditem, "DRM_123FILE", NULL ))
+    { // TODO: @@@@@@@@ unsure whether this is good for anything
       if( pdinfo->cditem == 1 ) {
         if( pdinfo->hwndSource == hplaylist && amp_playmode == AMP_PLAYLIST ) {
           amp_pl_play_record((PLRECORD*)pditem->ulItemID );
@@ -1000,7 +886,7 @@ amp_drag_drop( HWND hwnd, PDRAGINFO pdinfo )
       } else {
         pl_add_file( fullname, NULL, 0 );
       }
-    }
+    }*/
   }
 
   DrgDeleteDraginfoStrHandles( pdinfo );
@@ -1024,14 +910,16 @@ amp_drag_render_done( HWND hwnd, PDRAGTRANSFER pdtrans, USHORT rc )
     amp_url_from_file( fullname, rendered, sizeof( fullname ));
     DosDelete( rendered );
 
-    if( is_dir( fullname )) {
-      pl_add_directory( fullname, PL_DIR_RECURSIVE );
-    } else if( is_playlist( fullname )) {
-      pl_load( fullname, 0 );
-    } else if( pdsource->cditem == 1 ) {
-      amp_load_singlefile( fullname, 0 );
+    if (is_dir(fullname))
+      strlcat(fullname, "/", sizeof fullname);
+
+    url URL = url::normalizeURL(fullname);
+    
+    if( pdsource->cditem == 1 ) {
+      amp_load_playable( fullname, 0 );
     } else {
-      pl_add_file( fullname, NULL, 0 );
+//    TODO !!!    
+//    pl_add_file( fullname, NULL, 0 );
     }
   }
 
@@ -1149,7 +1037,7 @@ amp_file_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
       HWND  hcbox = WinWindowFromID( hwnd, DID_FILTER_CB );
       ULONG pos   = WinQueryLboxSelectedItem( hcbox );
       ULONG len   = LONGFROMMR( WinSendMsg( hcbox, LM_QUERYITEMTEXTLENGTH, MPFROMSHORT(pos), 0 ));
-      char* type  = malloc( len );
+      char* type  = (char*)malloc( len );
       BOOL  rc    = FALSE;
       char* filt;
       char  file[_MAX_PATH];
@@ -1187,31 +1075,215 @@ amp_file_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
   return WinDefFileDlgProc( hwnd, msg, mp1, mp2 );
 }
 
+/* Wizzard function for the default entry "File..." */
+ULONG DLLENTRY amp_file_wizzard( HWND owner, const char* title, DECODER_WIZZARD_CALLBACK callback, void* param )
+{ DEBUGLOG(("amp_file_wizzard(%p, %s, %p, %p)\n", owner, title, callback, param));
+  
+  FILEDLG filedialog = { sizeof( FILEDLG ) };
+  { char  buf[2048]; // well, static buffer size...
+    buf[2047] = 0;
+    dec_fill_types( buf, sizeof buf-1 );
+    xstring type_audio = xstring::sprintf(FDT_AUDIO"%s)", buf);
+    xstring type_all = xstring::sprintf(FDT_AUDIO_ALL"%s)", buf);
+    
+    APSZ types[] = {
+      { (PSZ)&*type_audio }, // OS/2 and const...
+      { FDT_PLAYLIST },
+      { (PSZ)&*type_all }, // OS/2 and const...
+      { NULL } };
+    
+    xstring wintitle = xstring::sprintf(title, " file(s)");
+      
+    filedialog.fl             = FDS_CENTER | FDS_OPEN_DIALOG | FDS_CUSTOM | FDS_MULTIPLESEL;
+    filedialog.ulUser         = FDU_DIR_ENABLE | FDU_RECURSEBTN;
+    filedialog.pszTitle       = (PSZ)&*wintitle; // OS/2 and const...
+    filedialog.hMod           = NULLHANDLE;
+    filedialog.usDlgId        = DLG_FILE;
+    filedialog.pfnDlgProc     = amp_file_dlg_proc;
+    filedialog.papszITypeList = types;
+    filedialog.pszIType       = (PSZ)&*type_all; // OS/2 and const...
+
+    strlcpy( filedialog.szFullFile, cfg.filedir, sizeof filedialog.szFullFile );
+    WinFileDlg( HWND_DESKTOP, owner, &filedialog );
+  }
+
+  ULONG ret = 300; // Cancel unless DID_OK
+  
+  if( filedialog.lReturn == DID_OK ) {
+    ret = 0;
+    
+    char* file = filedialog.ulFQFCount > 1
+      ? **filedialog.papszFQFilename
+      : filedialog.szFullFile;
+      
+    if (*file)
+      sdrivedir( cfg.filedir, file, sizeof( cfg.filedir ));
+
+    int i = 0;
+    while (*file)
+    { DEBUGLOG(("amp_file_wizzard: %s\n", file));
+      char fileurl[_MAX_FNAME+12]; // should be sufficient in all cases
+      if (url::isPathDelimiter(file[0]) && url::isPathDelimiter(file[1]))
+        sprintf(fileurl, "file://%s", file+2);
+       else
+        sprintf(fileurl, "file:///%s", file);
+      char* dp = fileurl + strlen(fileurl);
+      if (is_dir(file))
+      { // Folder => add trailing slash
+        if (!url::isPathDelimiter(dp[-1]))
+          *dp++ = '/';
+        if (!(filedialog.ulUser & FDU_RECURSE_ON)) // Append '*' if recursion is off.
+          *dp++ = '*';
+        *dp = 0;
+      }
+      // convert slashes
+      dp = strchr(fileurl+7, '\\');
+      while (dp)
+      { *dp = '/';
+        dp = strchr(dp+1, '\\');
+      }
+      // Callback
+      (*callback)(param, fileurl);
+      // next file
+      if (++i >= filedialog.ulFQFCount)
+        break;
+      file = (*filedialog.papszFQFilename)[i];
+    }
+  }
+
+  WinFreeFileDlgList( filedialog.papszFQFilename );
+
+  return ret;
+}
+
+/* Adds HTTP file to the playlist or load it to the player. */
+ULONG DLLENTRY
+amp_url_wizzard( HWND owner, const char* title, DECODER_WIZZARD_CALLBACK callback, void* param )
+{ DEBUGLOG(("amp_url_wizzard(%p, %s, %p, %p)\n", owner, title, callback, param));
+  
+  HWND hwnd = WinLoadDlg( HWND_DESKTOP, owner, WinDefDlgProc, NULLHANDLE, DLG_URL, 0 );
+  if (hwnd == NULLHANDLE)
+    return 500;
+
+  do_warpsans(hwnd);
+
+  xstring wintitle = xstring::sprintf(title, " URL");
+  WinSetWindowText(hwnd, (PSZ)&*wintitle);
+
+  char durl[2048];
+  WinSendDlgItemMsg( hwnd, ENT_URL, EM_SETTEXTLIMIT, MPFROMSHORT(sizeof durl), 0 );
+  
+  // TODO: last URL
+  // TODO: 2. recent URLs
+
+  ULONG ret = 300;
+  if (WinProcessDlg(hwnd) == DID_OK)
+  { WinQueryDlgItemText(hwnd, ENT_URL, sizeof durl, durl);
+    DEBUGLOG(("amp_url_wizzard: %s\n", durl));
+    url nurl = url::normalizeURL(durl);
+    DEBUGLOG(("amp_url_wizzard: %s\n", durl));
+    (*callback)(param, nurl);
+    ret = 0;
+  }
+  WinDestroyWindow(hwnd);
+  return ret;
+}
+
+static void DLLENTRY
+amp_load_file_callback( void* param, const char* url )
+{ DEBUGLOG(("amp_load_file_callback(%p, %s)\n", param, url));
+  if (*(bool*)param)
+  { // TODO: handle multiple items
+    amp_load_playable( url, 0 );
+    *(bool*)param = false;
+  }
+}
+
+/* Loads a file selected by the user to the player. */
+void                
+amp_load_file( HWND owner )
+{ DEBUGLOG(("amp_load_file(%p)\n", owner));
+  bool first = true;
+  ULONG ul = amp_file_wizzard(owner, "Load %s", &amp_load_file_callback, &first);
+  DEBUGLOG(("amp_load_file - %u\n", ul));
+}
+
+static void DLLENTRY
+amp_add_files_callback( void*, const char* url )
+{ DEBUGLOG(("amp_add_files_callback(, %s)\n", url));
+  // compatibility to old format here
+  // we only have to handle files in this place.
+  if (strcmp(url, "file:") == 0)
+  { url += 5; // skip "file:";
+    if (url[2] == '/')
+      url += 3; // skip "///" if not UNC.
+    size_t len = strlen(url);
+    if (url[len-2] == '/' && url[len-1] == '*')
+      pl_add_directory( url, PL_DIR_RECURSIVE );
+     else if (url[-1] == '/')
+      pl_add_directory( url, 0 );
+     else if ( is_playlist( url ))
+      pl_load( url, PL_LOAD_NOT_RECALL );
+     else
+      pl_add_file( url, NULL, 0 );
+  } else
+  { size_t len = strlen(url);
+    if ( is_playlist( url ))
+      pl_load( url, PL_LOAD_NOT_RECALL );
+     else
+      pl_add_file( url, NULL, 0 );
+  }
+}
+
+/* Adds user selected files or directory to the playlist. */
+void
+amp_add_files( HWND hwnd )
+{ DEBUGLOG(("amp_add_files(%p)\n", hwnd));
+
+  ULONG ul = amp_file_wizzard(hwnd, "Add%s to playlist", &amp_add_files_callback, NULL);
+  DEBUGLOG(("amp_add_files - %u\n", ul));
+  if (ul == 0)
+    pl_completed();
+}
+
+/* Adds HTTP file to the playlist or load it to the player. */
+void
+amp_add_url( HWND owner, int options )
+{ DEBUGLOG(("amp_add_url(%p)\n", owner));
+
+  bool first;
+  ULONG ul = options & URL_ADD_TO_LIST
+    ? amp_url_wizzard(owner, "Add%s to playlist", &amp_add_files_callback, &first)
+    : amp_url_wizzard(owner, "Load%s", &amp_load_file_callback, &first);
+  DEBUGLOG(("amp_add_url - %u\n", ul));
+  if (ul == 0 && options & URL_ADD_TO_LIST)
+    pl_completed();
+}
+
 /* Edits a ID3 tag for the specified file. */
 void
 amp_info_edit( HWND owner, const char* filename, const char* decoder )
 {
   ULONG rc = dec_editmeta( owner, filename, decoder );
-  DECODER_INFO2 info;
-  const MSG_PLAY_STRUCT* current;
-
+  //DECODER_INFO2 info;
+  
   switch (rc)
   { default:
       amp_error( owner, "Cannot edit tag of file:\n%s", filename);
       return;
 
     case 0:   // tag changed
-      dec_fileinfo( filename, &info, NULL );
-      pl_refresh_file( filename );
+      Playable::GetByURL(filename)->LoadInfoAsync(Playable::IF_Meta);
+      //dec_fileinfo( filename, &info, NULL );
 
-      current = amp_get_current_file();
+      /* Refresh will come automatically 
       if( current != NULL && stricmp( current->url, filename ) == 0 ) {
         // TODO: post WM_METADATA
         // the structures are binary compatible so far
         current_file.info.meta = info.meta;
         amp_display_filename();
         amp_invalidate( UPD_ALL );
-      }
+      }*/
     case 300: // tag unchanged
       return;
       
@@ -1255,11 +1327,11 @@ amp_pipe_create( void )
 
 /* Writes data to the specified pipe. */
 static void
-amp_pipe_write( HPIPE pipe, char *buf )
+amp_pipe_write( HPIPE pipe, const char *buf )
 {
   ULONG action;
 
-  DosWrite( pipe, buf, strlen( buf ) + 1, &action );
+  DosWrite( pipe, (PVOID)buf, strlen( buf ) + 1, &action );
   DosResetBuffer( pipe );
 }
 
@@ -1312,12 +1384,9 @@ amp_pipe_thread( void* scrap )
 
       if( *buffer && *buffer != '*' )
       {
-        if( is_dir( buffer )) {
-          pl_clear( PL_CLR_NEW );
-          pl_add_directory( buffer, PL_DIR_RECURSIVE );
-        } else {
-          amp_load_singlefile( buffer, 0 );
-        }
+        if( is_dir( buffer ))
+          strlcat(buffer, "/", sizeof buffer);
+        amp_load_playable( url::normalizeURL(buffer), 0 );
       }
       else if( *buffer == '*' )
       {
@@ -1331,15 +1400,18 @@ amp_pipe_thread( void* scrap )
         {
           if( stricmp( zork, "status" ) == 0 ) {
             if( dork ) {
-              if( amp_playmode == AMP_NOFILE ) {
+              int_ptr<Playable> current = Current.GetRoot();
+              if( !current ) {
                 amp_pipe_write( hpipe, "" );
               } else if( stricmp( dork, "file" ) == 0 ) {
-                amp_pipe_write( hpipe, current_file.url );
+                amp_pipe_write( hpipe, current->GetURL().cdata() );
               } else if( stricmp( dork, "tag"  ) == 0 ) {
                 char info[512];
-                amp_pipe_write( hpipe, amp_construct_tag_string( info, &current_file.info, sizeof( info )));
+                current->EnsureInfo(Playable::IF_All);
+                amp_pipe_write( hpipe, amp_construct_tag_string( info, &current->GetInfo(), sizeof( info )));
               } else if( stricmp( dork, "info" ) == 0 ) {
-                amp_pipe_write( hpipe, current_file.info.tech.info );
+                current->EnsureInfo(Playable::IF_Tech);
+                amp_pipe_write( hpipe, current->GetInfo().tech->info );
               }
             }
           }
@@ -1402,7 +1474,8 @@ amp_pipe_thread( void* scrap )
           }
           if( stricmp( zork, "load" ) == 0 ) {
             if( dork ) {
-              amp_load_singlefile( dork, 0 );
+              // TODO: dir
+              amp_load_playable( url::normalizeURL(dork), 0 );
             }
           }
           if( stricmp( zork, "hide"  ) == 0 ) {
@@ -1423,7 +1496,8 @@ amp_pipe_thread( void* scrap )
             }
           }
           if( stricmp( zork, "use" ) == 0 ) {
-            amp_pl_use();
+//          TODO: makes no more sense
+//            amp_pl_use();
           }
           if( stricmp( zork, "clear" ) == 0 ) {
             pl_clear( PL_CLR_NEW );
@@ -1456,7 +1530,8 @@ amp_pipe_thread( void* scrap )
           }
           if( stricmp( zork, "play" ) == 0 ) {
             if( dork ) {
-              amp_load_singlefile( dork, AMP_LOAD_NOT_PLAY );
+              // TODO: dir
+              amp_load_playable( url::normalizeURL(dork), AMP_LOAD_NOT_PLAY );
               WinSendMsg( hplayer, WM_COMMAND, MPFROMSHORT( BMP_PLAY ), 0 );
             } else if( !decoder_playing()) {
               WinSendMsg( hplayer, WM_COMMAND, MPFROMSHORT( BMP_PLAY ), 0 );
@@ -1546,50 +1621,6 @@ amp_pipe_thread( void* scrap )
         }
       }
     }
-  }
-}
-
-/* Loads a file selected by the user to the player. */
-void
-amp_load_file( HWND owner )
-{
-  FILEDLG filedialog;
-
-  char  type_audio[2048];
-  char  type_all  [2048];
-  APSZ  types[4] = {{ 0 }};
-
-  types[0][0] = type_audio;
-  types[1][0] = FDT_PLAYLIST;
-  types[2][0] = type_all;
-
-  memset( &filedialog, 0, sizeof( FILEDLG ));
-
-  filedialog.cbSize         = sizeof( FILEDLG );
-  filedialog.fl             = FDS_CENTER | FDS_OPEN_DIALOG | FDS_CUSTOM;
-  filedialog.pszTitle       = "Load file";
-  filedialog.hMod           = NULLHANDLE;
-  filedialog.usDlgId        = DLG_FILE;
-  filedialog.pfnDlgProc     = amp_file_dlg_proc;
-  filedialog.papszITypeList = types;
-  filedialog.pszIType       = type_all;
-
-  strcpy( type_audio, FDT_AUDIO     );
-  dec_fill_types( type_audio + strlen( type_audio ),
-                  sizeof( type_audio ) - strlen( type_audio ) - 1 );
-  strcat( type_audio, ")" );
-
-  strcpy( type_all,   FDT_AUDIO_ALL );
-  dec_fill_types( type_all   + strlen( type_all   ),
-                  sizeof( type_all   ) - strlen( type_all ) - 1 );
-  strcat( type_all  , ")" );
-
-  strcpy( filedialog.szFullFile, cfg.filedir );
-  WinFileDlg( HWND_DESKTOP, owner, &filedialog );
-
-  if( filedialog.lReturn == DID_OK ) {
-    sdrivedir( cfg.filedir, filedialog.szFullFile, sizeof( cfg.filedir ));
-    amp_load_singlefile( filedialog.szFullFile, 0 );
   }
 }
 
@@ -1855,12 +1886,14 @@ amp_save_stream( HWND hwnd, BOOL enable )
    already played. */
 static void
 amp_playstop( HWND hwnd )
-{
-  amp_stop();
+{ DEBUGLOG(("amp_playstop(%p)\n", hwnd));
 
-  if( amp_playmode == AMP_SINGLE && cfg.rpt ) {
+  if (Current.Next() || (cfg.rpt && Current.Next()))
     amp_play( 0 );
-  }
+   else
+    amp_stop();
+  
+  /* uhh, well, do we need some of that anymore ?
   if( amp_playmode == AMP_PLAYLIST )
   {
     PLRECORD* rec = pl_query_next_record();
@@ -1875,7 +1908,7 @@ amp_playstop( HWND hwnd )
     if( rec && amp_pl_load_record( rec ) && ( cfg.rpt || !eol )) {
       amp_play( 0 );
     }
-  }
+  }*/
 }
 
 static MRESULT EXPENTRY
@@ -2108,6 +2141,7 @@ amp_eq_show( void )
 static MRESULT EXPENTRY
 amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
 {
+  DEBUGLOG2(("amp_dlg_proc(%p, %p, %p, %p)\n", hwnd, msg, mp1, mp2));
   switch( msg )
   {
     case WM_FOCUSCHANGE:
@@ -2140,9 +2174,10 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
       return 0;
 
     case AMP_PLAY:
-      amp_pb_play( LONGFROMMP(mp1));
+    { long L = LONGFROMMP(mp1);
+      amp_pb_play( *(float*)&L);
       return 0;
-
+    }
     case AMP_PAUSE:
       amp_pb_pause();
       return 0;
@@ -2166,10 +2201,8 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
 
     case WM_CHANGEBR:
     {
-      // TODO: turn into change of metadata in general
       HPS hps = WinGetPS( hwnd );
-      current_file.info.tech.bitrate = LONGFROMMP( mp1 );
-      bmp_draw_rate( hps, current_file.info.tech.bitrate );
+      bmp_draw_rate( hps, LONGFROMMP( mp1 ) );
       WinReleasePS( hps );
       return 0;
     }
@@ -2225,7 +2258,8 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
       }
 
       if( LONGFROMMP(mp1) == TID_UPDATE_TIMERS && decoder_playing()) {
-        if( time_played() && cfg.mode == CFG_MODE_REGULAR )
+        DEBUGLOG(("amp_dlg_proc: WM_TIMER\n"));
+        if( out_playing_pos() && cfg.mode == CFG_MODE_REGULAR )
         {
           HPS hps = WinGetPS( hwnd );
           amp_paint_timers( hps );
@@ -2272,8 +2306,9 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
 
     case WM_METADATA:
     {
-      // TODO: turn into general metadata replacement
-      char* metadata = PVOIDFROMMP(mp1);
+      // TODO: turn into general metadata replacement and move this to the plugman core
+      // and do the update by notifications.
+      /*char* metadata = (char*)PVOIDFROMMP(mp1);
       char* titlepos;
       int   i;
 
@@ -2281,6 +2316,7 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
         titlepos = strstr( metadata, "StreamTitle='" );
         if( titlepos )
         {
+          META_INFO meta = 
           titlepos += 13;
           for( i = 0; i < sizeof( current_file.info.meta.title ) - 1 && *titlepos
                       && ( titlepos[0] != '\'' || titlepos[1] != ';' ); i++ )
@@ -2298,7 +2334,7 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
             pl_refresh_record( current_record, CMA_TEXTCHANGED );
           }
         }
-      }
+      }*/
       return 0;
     }
 
@@ -2316,21 +2352,15 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
         }
         if( cm->cmd > IDM_M_LAST )
         {
-          char filename[_MAX_FNAME];
-          int  i = cm->cmd - IDM_M_LAST - 1;
-
-          strcpy( filename, cfg.last[i] );
-          amp_load_singlefile( filename, 0 );
+          amp_load_playable( url::normalizeURL(cfg.last[cm->cmd-IDM_M_LAST-1]), 0 );
           return 0;
         }
         if( cm->cmd >= IDM_M_ADDOTHER &&
             cm->cmd < IDM_M_ADDOTHER + sizeof load_wizzards / sizeof *load_wizzards &&
             load_wizzards[cm->cmd-IDM_M_ADDOTHER] )
         {
-          char url[1024];
-          ULONG rc = (*load_wizzards[cm->cmd-IDM_M_ADDOTHER])( hwnd, url, sizeof url );
-          if ( rc == 0 )
-            amp_load_singlefile( url, 0 );
+          bool first;
+          ULONG rc = (*load_wizzards[cm->cmd-IDM_M_ADDOTHER])( hwnd, "Load%s", &amp_load_file_callback, &first );
           return 0;
         }
       }
@@ -2350,9 +2380,11 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
           return 0;
 
         case IDM_M_TAG:
-          amp_info_edit( hwnd, current_file.url, current_file.decoder );
+        { Song* song = Current.GetCurrentSong();
+          if (song)
+            amp_info_edit( hwnd, song->GetURL(), song->GetDecoder() );
           return 0;
-
+        }
         case IDM_M_SAVE:
           is_stream_saved = amp_save_stream( hwnd, !is_stream_saved );
           return 0;
@@ -2486,13 +2518,14 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
         case BMP_SHUFFLE:
           cfg.shf =  !cfg.shf;
 
+          /* TODO:
           if( amp_playmode == AMP_PLAYLIST ) {
             pl_clean_shuffle();
-          }
+          }*/
           if( cfg.shf ) {
-            if( decoder_playing()) {
+            /*if( decoder_playing()) {
               pl_mark_as_play();
-            }
+            }*/
             WinSendDlgItemMsg( hwnd, BMP_SHUFFLE, WM_PRESS,   0, 0 );
           } else {
             WinSendDlgItemMsg( hwnd, BMP_SHUFFLE, WM_DEPRESS, 0, 0 );
@@ -2525,42 +2558,25 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
           return 0;
 
         case BMP_NEXT:
-          if( amp_playmode == AMP_PLAYLIST )
-          {
-            BOOL decoder_was_playing = decoder_playing();
-            PLRECORD* rec = pl_query_next_record();
-
-            if( rec ) {
-              if( decoder_was_playing ) {
-                amp_stop();
-              }
-              if( amp_pl_load_record( rec )) {
-                if( decoder_was_playing ) {
-                  amp_play( 0 );
-                }
-              }
-            }
+        { if (Current.IsValid())
+          { BOOL decoder_was_playing = decoder_playing();
+            if (decoder_was_playing)
+              amp_stop();
+            if (Current.Next() && decoder_was_playing)
+              amp_play( 0 );
           }
           return 0;
-
+        }
         case BMP_PREV:
-          if( amp_playmode == AMP_PLAYLIST )
-          {
-            BOOL decoder_was_playing = decoder_playing();
-            PLRECORD* rec = pl_query_prev_record();
-
-            if( rec ) {
-              if( decoder_was_playing ) {
-                amp_stop();
-              }
-              if( amp_pl_load_record( rec )) {
-                if( decoder_was_playing ) {
-                  amp_play( 0 );
-                }
-              }
-            }
+        { if (Current.IsValid())
+          { BOOL decoder_was_playing = decoder_playing();
+            if (decoder_was_playing)
+              amp_stop();
+            if (Current.Prev() && decoder_was_playing)
+              amp_play( 0 );
           }
           return 0;
+        }
 
         case BMP_FWD:
           if( decoder_playing() && !is_paused())
@@ -2586,12 +2602,15 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
           }
           return 0;
       }
-      return 0;
+      break;
     }
+
     case WM_CREATE:
     {
-      HPS hps = WinGetPS( hwnd );
+      HPS hps;
       hplayer = hwnd; /* we have to assign the window handle early, because WinCreateStdWindow does not have returned now. */
+      
+      hps = WinGetPS( hwnd );
       bmp_load_skin( cfg.defskin, hab, hwnd, hps );
       WinReleasePS( hps );
 
@@ -2611,7 +2630,7 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
       WinStartTimer( hab, hwnd, TID_UPDATE_PLAYER,  50 );
       break;
     }
-
+    
     case WM_BUTTON1DBLCLK:
     case WM_BUTTON1CLICK:
     {
@@ -2628,7 +2647,7 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
       }
       else
       {
-        if( amp_playmode != AMP_NOFILE && bmp_pt_in_text( pos )) {
+        if( Current.GetRoot() && bmp_pt_in_text( pos )) {
           amp_display_next_mode();
           amp_invalidate( UPD_FILEINFO );
         }
@@ -2659,9 +2678,9 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
 
         pos.x = SHORT1FROMMP(mp1);
         pos.y = SHORT2FROMMP(mp1);
-        seeking_pos = bmp_calc_time( pos, time_total());
+        seeking_pos = bmp_calc_time( pos, dec_length());
 
-        bmp_draw_slider( hps, seeking_pos, time_total());
+        bmp_draw_slider( hps, seeking_pos, dec_length());
         bmp_draw_timer ( hps, seeking_pos );
         WinReleasePS( hps );
       }
@@ -2680,9 +2699,9 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
 
         pos.x = SHORT1FROMMP(mp1);
         pos.y = SHORT2FROMMP(mp1);
-        seeking_pos = bmp_calc_time( pos, time_total());
+        seeking_pos = bmp_calc_time( pos, dec_length());
 
-        msg_seek( seeking_pos * 1000 );
+        msg_seek( seeking_pos );
         is_slider_drag = FALSE;
         WinSetCapture( HWND_DESKTOP, NULLHANDLE );
       }
@@ -2703,12 +2722,6 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
         is_seeking     = TRUE;
         WinSetCapture( HWND_DESKTOP, hwnd );
       }
-      /* disabled moving with the left button when missing the above controls (MM)
-         Stupid feature which tends to move around pm123 accidently.
-      } else {
-        WinSendMsg( hframe, WM_TRACKFRAME, MPFROMSHORT( TF_MOVE | TF_STANDARD ), 0 );
-        WinQueryWindowPos( hframe, &cfg.main );
-      }*/
       return 0;
     }
 
@@ -2738,9 +2751,7 @@ amp_reset( void )
     amp_stop();
   }
 
-  amp_playmode   = AMP_NOFILE;
-  current_record = NULL;
-  memset( &current_file, 0, sizeof current_file );
+  Current.Attach(NULL);
 
   amp_display_filename();
   amp_invalidate( UPD_ALL );
@@ -2946,17 +2957,21 @@ main( int argc, char *argv[] )
 
   hframe = WinCreateStdWindow( HWND_DESKTOP, 0, &flCtlData, "PM123",
                                AMP_FULLNAME, 0, NULLHANDLE, WIN_MAIN, &hplayer );
+
+  DEBUGLOG(("main: window created\n"));
+
   do_warpsans( hframe  );
   do_warpsans( hplayer );
+
+  Playable::Init();
 
   dk_init();
   dk_add_window( hframe, DK_IS_MASTER );
 
-  mp3        = WinLoadPointer( HWND_DESKTOP, 0, ICO_MP3     );
-  mp3play    = WinLoadPointer( HWND_DESKTOP, 0, ICO_MP3PLAY );
-  mp3gray    = WinLoadPointer( HWND_DESKTOP, 0, ICO_MP3GRAY );
+  DEBUGLOG(("main: create playlist...\n"));
   hplaylist  = pl_create();
 
+  // Init some other stuff
   pm_create();
   bm_create();
 
@@ -2987,7 +3002,7 @@ main( int argc, char *argv[] )
   strcat( bundle, "pm123.lst" );
 
   if( files == 1 && !is_dir( argv[argc - 1] )) {
-    amp_load_singlefile( argv[argc - 1], 0 );
+    amp_load_playable( url::normalizeURL(argv[argc - 1]), 0 );
   } else if( files > 0 ) {
     for( i = 1; i < argc; i++ ) {
       if( argv[i][0] != '/' && argv[i][0] != '-' ) {
@@ -3009,6 +3024,8 @@ main( int argc, char *argv[] )
   WinSetWindowPos( hframe, HWND_TOP,
                    cfg.main.x, cfg.main.y, 0, 0, SWP_ACTIVATE | SWP_MOVE | SWP_SHOW );
 
+  DEBUGLOG(("main: visinit...\n"));
+
   // initialize non-skin related visual plug-ins
   vis_init_all( FALSE );
 
@@ -3018,15 +3035,14 @@ main( int argc, char *argv[] )
     dk_arrange( hframe );
   }
   
-  #ifdef DEBUG
-  fprintf(stderr, "main: init complete\n");
-  #endif
+  DEBUGLOG(("main: init complete\n"));
 
   while( WinGetMsg( hab, &qmsg, (HWND)0, 0, 0 ))
     WinDispatchMsg( hab, &qmsg );
+  DEBUGLOG(("main: dispatcher ended\n"));
 
   amp_stop();
-
+  
   // deinitialize all visual plug-ins
   vis_deinit_all( TRUE );
   vis_deinit_all( FALSE );
@@ -3046,10 +3062,8 @@ main( int argc, char *argv[] )
   bmp_clean_skin();
   remove_all_plugins();
   dk_term();
+  Playable::Uninit();
 
-  WinDestroyPointer ( mp3     );
-  WinDestroyPointer ( mp3play );
-  WinDestroyPointer ( mp3gray );
   WinDestroyWindow  ( hframe  );
   WinDestroyMsgQueue( hmq );
   WinTerminate( hab );

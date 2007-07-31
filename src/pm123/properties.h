@@ -153,6 +153,7 @@ typedef struct _amp_cfg {
                               /* equalizer.                                        */
   char   defskin[_MAX_PATH];  /* Default skin.                                     */
 
+  // TODO: buffers too small for URLs!!!
   char   last[MAX_RECALL][_MAX_PATH];
   char   list[MAX_RECALL][_MAX_PATH];
 

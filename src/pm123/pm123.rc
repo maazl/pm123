@@ -337,11 +337,18 @@ BITMAP BMP_NOPLIST      bmp\timeleft_dark.bmp
 BITMAP BMP_PLIST        bmp\timeleft.bmp
 
 /* Icons. */
-ICON   ICO_MAIN     pm123.ico
-ICON   ICO_MP3      mp3.ico
-ICON   ICO_MP3PLAY  mp3play.ico
-ICON   ICO_MP3GRAY  mp3gray.ico
-ICON   ICO_BOOKMARK bookmark.ico
+ICON   ICO_MAIN         ico\pm123.ico
+ICON   ICO_MP3          ico\mp3.ico
+ICON   ICO_MP3PLAY      ico\mp3play.ico
+ICON   ICO_MP3GRAY      ico\mp3gray.ico
+ICON   ICO_BOOKMARK     ico\bookmark.ico
+ICON   ICO_PLEMPTY      ico\plempty.ico
+ICON   ICO_PLCLOSE      ico\plclose.ico
+ICON   ICO_PLOPEN       ico\plopen.ico
+ICON   ICO_PLCLOSEPLAY  ico\plcloseplay.ico
+ICON   ICO_PLOPENPLAY   ico\plopenplay.ico
+ICON   ICO_PLRECURSIVE  ico\plrecursive.ico
+ICON   ICO_PLRECURSIVEPLAY ico\plrecursiveplay.ico
 
 /* Playlist window ;-) */
 
@@ -378,7 +385,7 @@ END
 MENU MNU_PLAYLIST
 {
    MENUITEM "~Use this Playlist\tCtrl+U", IDM_PL_USE
-   SUBMENU "~Add...\tIns",                IDM_PL_ADD
+   SUBMENU "~Append...\tIns",             IDM_PL_ADD
    {
      MENUITEM "~Files...\tIns",           IDM_PL_LOAD
      MENUITEM "~URL...\tAlt+U",           IDM_PL_URL
@@ -446,7 +453,7 @@ END
 
 MENU MNU_MAIN
 {
-   SUBMENU "~Load...\tCtrl+O",              IDM_M_LOAD
+   SUBMENU "~Load",                         IDM_M_LOAD
    {
      MENUITEM "~File...\tCtrl+O",           IDM_M_LOADFILE
      MENUITEM "~URL...\tAlt+U",             IDM_M_URL
@@ -918,7 +925,7 @@ BEGIN
    END
 END
 
-/* Playlist Manager specific stuph */
+/* Playlist Manager specific stuff */
 DLGTEMPLATE DLG_PM
 BEGIN
    DIALOG "PM123 Playlist Manager", DLG_PM, 4, 4, 400, 200,
@@ -931,22 +938,32 @@ END
 
 MENU PM_MAIN_MENU
 {
-   MENUITEM "~Add a Playlist",       IDM_PM_ADD
-   MENUITEM "~Statistics",           IDM_PM_CALC
+   MENUITEM "~Load all",             IDM_PM_LOAD
+   MENUITEM SEPARATOR
+   SUBMENU  "~Append to ...",        IDM_PM_APPEND
+   {  MENUITEM "~File...",           IDM_PM_APPFILE
+      MENUITEM "~URL...",            IDM_PM_APPURL
+   }
 }
 
 MENU PM_FILE_MENU
 {
-   MENUITEM "~Load this File",       IDM_PM_F_LOAD
+   MENUITEM "~Load this File",       IDM_PM_LOAD
+   MENUITEM SEPARATOR
+   MENUITEM "~Remove Item",          IDM_PM_REMOVE
 }
 
 MENU PM_LIST_MENU
 {
-   MENUITEM "~Load this Playlist",   IDM_PM_L_LOAD
-   MENUITEM "~Statistics",           IDM_PM_L_CALC
+   MENUITEM "~Load this Playlist",   IDM_PM_LOAD
    MENUITEM SEPARATOR
-   MENUITEM "~Remove from List",     IDM_PM_L_REMOVE
-   MENUITEM "~Delete",               IDM_PM_L_DELETE
+   MENUITEM "~Remove Item",          IDM_PM_REMOVE
+/* MENUITEM "~Delete",               IDM_PM_DELETE */
+   MENUITEM SEPARATOR
+   SUBMENU  "~Append to ...",        IDM_PM_APPEND
+   {  MENUITEM "~File...",           IDM_PM_APPFILE
+      MENUITEM "~URL...",            IDM_PM_APPURL
+   }
 }
 
 /* Bookmarks list stuff. */

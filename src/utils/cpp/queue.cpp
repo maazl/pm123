@@ -1,5 +1,5 @@
 /*
- * Copyright 2006 Dmitry A.Steklenev <glass@ptv.ru>
+ * Copyright 2007-2007 M.Mueller
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -26,37 +26,57 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef PM123_MESSAGES_H
-#define PM123_MESSAGES_H
 
-#include "playable.h"
+#include "queue.h"
+#include <debuglog.h>
 
-/* Returns TRUE if the player is paused. */
-BOOL is_paused( void );
-/* Returns TRUE if the player is fast forwarding. */
-BOOL is_forward( void );
-/* Returns TRUE if the player is rewinding. */
-BOOL is_rewind( void );
-/* Returns TRUE if the output is always hungry. */
-BOOL is_always_hungry( void );
 
-/* Begins playback of the specified file. */
-BOOL msg_play( HWND hwnd, Song& play, double pos );
-/* Stops playback of the currently played file. */
-BOOL msg_stop( void );
-/* Suspends or resumes playback of the currently played file. */
-BOOL msg_pause( void );
-/* Toggles a fast forward of the currently played file. */
-BOOL msg_forward( void );
-/* Toggles a rewind of the currently played file. */
-BOOL msg_rewind( void );
-/* Changes the current playing position of the currently played file. */
-BOOL msg_seek( double pos );
-/* Toggles a saving of the currently played stream. */
-BOOL msg_savestream( const char* filename );
-/* Toggles a equalizing of the currently played file. */
-BOOL msg_equalize( const float* gains, const BOOL* mute, float preamp, BOOL enabled );
+queue_base::ReaderBase::ReaderBase(queue_base& queue)
+: Queue(queue)
+{ Queue.RequestRead();
+}
 
-#endif /* PM123_MESSAGES_H */
+void queue_base::RequestRead()
+{ DEBUGLOG(("queue_base(%p)::RequestRead()\n", this));
+  for(;;)
+  { if (Head) // Double check
+    { Mutex::Lock lock(Mtx);
+      if (Head)
+      { assert(EvRead == true);
+        EvRead.Reset();
+        DEBUGLOG(("queue_base::RequestRead() - %p\n", Head));
+        return;
+      }
+      EvEmpty.Reset();
+    }
+    EvEmpty.Wait();
+  }
+}
 
+queue_base::EntryBase* queue_base::CommitRead()
+{ DEBUGLOG(("queue_base(%p)::CommitRead()\n", this));
+  assert(EvRead == false);
+  Mutex::Lock lock(Mtx);
+  EntryBase* old = Head;
+  Head = Head->Next;
+  if (Head == NULL)
+  { Tail = NULL;
+    EvEmpty.Reset();
+  }
+  EvRead.Set();
+  return old;
+}
+
+void queue_base::Write(EntryBase* entry)
+{ DEBUGLOG(("queue_base(%p)::Write(%p)\n", this, entry));
+  entry->Next = NULL;
+  Mutex::Lock lock(Mtx);
+  if (Tail)
+    Tail->Next = entry;
+   else
+  { Head = entry;
+    EvEmpty.Set(); // First Element => Set Event
+  }
+  Tail = entry;
+}
 

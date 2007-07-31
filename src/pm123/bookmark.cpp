@@ -37,6 +37,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <errno.h>
+#include <stddef.h>
 
 #include "pm123.h"
 #include "bookmark.h"
@@ -45,6 +46,7 @@
 #include "docking.h"
 #include "iniman.h"
 #include "messages.h"
+#include "playable.h"
 
 static HWND     menu_record = NULLHANDLE;
 static HWND     menu_list   = NULLHANDLE;
@@ -168,12 +170,12 @@ bm_size( void )
 static void
 bm_free_record( BMRECORD* rec )
 {
-  free( rec->rc.pszIcon );
+  free( rec->pszIcon );
   free( rec->desc );
   free( rec->filename );
   free( rec->time );
 
-  rec->rc.pszIcon = NULL;
+  rec->pszIcon    = NULL;
   rec->desc       = NULL;
   rec->filename   = NULL;
   rec->time       = NULL;
@@ -266,14 +268,14 @@ bm_create_record( BMRECORD*   pos,
   sec2num( play_pos / 1000,  &major, &minor );
   sprintf( time, "%02d:%02d", major,  minor );
 
-  rec->rc.cb           = sizeof( RECORDCORE );
-  rec->rc.flRecordAttr = CRA_DROPONABLE;
-  rec->rc.hptrIcon     = icon_record;
-  rec->rc.pszIcon      = strdup( desc );
-  rec->filename        = strdup( filename );
-  rec->desc            = strdup( desc );
-  rec->play_pos        = play_pos;
-  rec->time            = strdup( time );
+  rec->cb           = sizeof( RECORDCORE );
+  rec->flRecordAttr = CRA_DROPONABLE;
+  rec->hptrIcon     = icon_record;
+  rec->pszIcon      = strdup( desc );
+  rec->filename     = strdup( filename );
+  rec->desc         = strdup( desc );
+  rec->play_pos     = play_pos;
+  rec->time         = strdup( time );
 
   insert.cb                = sizeof(RECORDINSERT);
   insert.pRecordOrder      = (PRECORDCORE)pos;
@@ -304,7 +306,7 @@ bm_update_record( BMRECORD*   rec,
   sec2num( play_pos / 1000,  &major, &minor );
   sprintf( time, "%02d:%02d", major,  minor );
 
-  rec->rc.pszIcon = strdup( desc );
+  rec->pszIcon    = strdup( desc );
   rec->filename   = strdup( filename );
   rec->desc       = strdup( desc );
   rec->play_pos   = play_pos;
@@ -319,11 +321,11 @@ static void
 bm_replace_bookmark( HWND owner, BMRECORD* rec )
 {
   if( amp_query( owner, "Replace %s bookmark?", rec->desc )) {
-    const MSG_PLAY_STRUCT* current = amp_get_current_file();
-    if ( current == NULL ) {
+    const Song* song = amp_get_current_song();
+    if ( song == NULL ) {
       return; // cant't help, the file is gone
     }
-    bm_update_record( rec, current->url, rec->desc, out_playing_pos());
+    bm_update_record( rec, song->GetURL(), rec->desc, out_playing_pos());
     bm_save( owner );
   }
 }
@@ -357,7 +359,7 @@ bm_remove_selected( void )
   for( rec = bm_first_selected(); rec; rec = bm_next_selected( rec )) {
     if( count == size ) {
       size  = size + 20;
-      array = realloc( array, size * sizeof( BMRECORD* ));
+      array = (BMRECORD**)realloc( array, size * sizeof( BMRECORD* ));
     }
     if( !array ) {
       return;
@@ -430,7 +432,7 @@ bm_drag_init_item( HWND hwnd, BMRECORD* rec,
   DrgSetDragitem( drag_infos, &ditem, sizeof( DRAGITEM ), i );
 
   drag_image->cb       = sizeof( DRAGIMAGE );
-  drag_image->hImage   = rec->rc.hptrIcon;
+  drag_image->hImage   = rec->hptrIcon;
   drag_image->fl       = DRG_ICON | DRG_MINIBITMAP;
   drag_image->cxOffset = i < 5 ? 5 * i : 25;
   drag_image->cyOffset = i < 5 ? 5 * i : 25;
@@ -585,7 +587,7 @@ bm_drag_discard( HWND hwnd, PDRAGINFO pdinfo )
   // records dragged but the first one has enough info to
   // process all of them.
 
-  array = malloc( pdinfo->cditem * sizeof( BMRECORD* ));
+  array = (BMRECORD**)malloc( pdinfo->cditem * sizeof( BMRECORD* ));
 
   if( array ) {
     for( i = 0; i < pdinfo->cditem; i++ ) {
@@ -651,20 +653,7 @@ bm_drag_drop( HWND hwnd, PCNRDRAGINFO pcdi )
 static BOOL
 bm_load_bookmark( BMRECORD* rec )
 {
-  PLRECORD* pl_rec = NULL;
-  BOOL rc;
-
-  amp_stop();
-
-  if( amp_playmode == AMP_PLAYLIST ) {
-    pl_rec = pl_query_file_record( rec->filename );
-  }
-
-  if( pl_rec ) {
-    rc = amp_pl_load_record ( pl_rec );
-  } else {
-    rc = amp_load_singlefile( rec->filename, AMP_LOAD_NOT_PLAY | AMP_LOAD_NOT_RECALL );
-  }
+  BOOL rc = amp_load_playable( url::normalizeURL(rec->filename), AMP_LOAD_NOT_PLAY | AMP_LOAD_NOT_RECALL | AMP_LOAD_KEEP_PLAYLIST );
 
   if( rc && ( cfg.playonload || rec->play_pos > 0 )) {
     amp_play( rec->play_pos );
@@ -701,51 +690,39 @@ bm_add_bookmark_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
 void
 bm_add_bookmark( HWND owner )
 {
-  char      desc[1024]  = "";
+  xstring   desc;
   char      file[_MAX_FNAME];
   BMRECORD* rec;
   HWND      hdlg = WinLoadDlg( HWND_DESKTOP, owner, bm_add_bookmark_dlg_proc,
                                NULLHANDLE, DLG_BM_ADD, NULL );
-  const MSG_PLAY_STRUCT* current = amp_get_current_file();
-  if ( current == NULL ) {
+  const Song* song = amp_get_current_song();
+  if ( song == NULL ) {
     return; // can't help, the file is gone
   }
 
-  if( *current->url )
+  // TODO: !!!!!! request information before
+  const META_INFO& meta = *song->GetInfo().meta;
+  if (*meta.artist)
+    desc = xstring(meta.artist) + "-";
+  if (*meta.title)
+    desc = desc + meta.title;
+   else
+    desc = desc + song->GetURL().getDisplayName();
+
+  WinSetDlgItemText( hdlg, EF_BM_DESC, desc );
+
+  if( WinProcessDlg( hdlg ) == DID_OK )
   {
-    if( *current->info.meta.artist ) {
-      strcat( desc, current->info.meta.artist );
-      strcat( desc, "-" );
-    }
-    if( *current->info.meta.title  ) {
-      strlcat( desc, current->info.meta.title, sizeof( desc ));
+    WinQueryDlgItemText( hdlg, EF_BM_DESC, sizeof(desc), desc );
+    rec = bm_find_record( desc );
+
+    if( rec ) {
+      bm_update_record( rec, song->GetURL(), desc, out_playing_pos());
     } else {
-      if( is_url( current->url )) {
-        sdecode( file, sfname( file, current->url, sizeof( file )), sizeof( file ));
-      } else {
-        sfname( file, current->url, sizeof( file ));
-      }
-
-      strlcat( desc, file, sizeof( desc ));
+      bm_create_record((BMRECORD*)CMA_END, song->GetURL(), desc, out_playing_pos());
     }
 
-    WinSetDlgItemText( hdlg, EF_BM_DESC, desc );
-
-    if( WinProcessDlg( hdlg ) == DID_OK )
-    {
-      WinQueryDlgItemText( hdlg, EF_BM_DESC, sizeof(desc), desc );
-      rec = bm_find_record( desc );
-
-      if( rec ) {
-        bm_update_record( rec, current->url,
-                               desc, out_playing_pos());
-      } else {
-        bm_create_record((BMRECORD*)CMA_END, current->url,
-                               desc, out_playing_pos());
-      }
-
-      bm_save( owner );
-    }
+    bm_save( owner );
   }
 
   WinDestroyWindow( hdlg );
@@ -789,7 +766,7 @@ bm_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
 
     case WM_WINDOWPOSCHANGED:
     {
-      SWP* pswp = PVOIDFROMMP(mp1);
+      SWP* pswp = (SWP*)PVOIDFROMMP(mp1);
 
       if( pswp[0].fl & SWP_SHOW ) {
         cfg.show_bmarks = TRUE;
@@ -893,25 +870,25 @@ bm_init_window( HWND hwnd )
 
   field->flData     = CFA_SEPARATOR | CFA_HORZSEPARATOR | CFA_BITMAPORICON;
   field->pTitleData = "";
-  field->offStruct  = FIELDOFFSET( BMRECORD, rc.hptrIcon);
+  field->offStruct  = offsetof( BMRECORD, hptrIcon );
 
   field = field->pNextFieldInfo;
 
   field->flData     = CFA_STRING | CFA_HORZSEPARATOR;
   field->pTitleData = "Description";
-  field->offStruct  = FIELDOFFSET( BMRECORD, rc.pszIcon );
+  field->offStruct  = offsetof( BMRECORD, pszIcon );
 
   field = field->pNextFieldInfo;
 
   field->flData     = CFA_SEPARATOR | CFA_HORZSEPARATOR | CFA_STRING;
   field->pTitleData = "Position";
-  field->offStruct  = FIELDOFFSET( BMRECORD, time );
+  field->offStruct  = offsetof( BMRECORD, time );
 
   field = field->pNextFieldInfo;
 
   field->flData     = CFA_SEPARATOR | CFA_HORZSEPARATOR | CFA_STRING;
   field->pTitleData = "Filename";
-  field->offStruct  = FIELDOFFSET( BMRECORD, filename );
+  field->offStruct  = offsetof( BMRECORD, filename );
 
   insert.cb = sizeof(FIELDINFOINSERT);
   insert.pFieldInfoOrder = (PFIELDINFO)CMA_FIRST;

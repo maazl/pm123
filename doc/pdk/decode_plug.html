@@ -19,8 +19,8 @@ Decoder plug-ins must implement and export the functions defined in
 decoder_plug.h.
 <blockquote>
 <pre>
-int  PM123_ENTRY <b>decoder_init</b>  ( void **w )
-BOOL PM123_ENTRY <b>decoder_uninit</b>( void *w  )
+int  DLLENTRYP <b>decoder_init</b>  ( void **w )
+BOOL DLLENTRYP <b>decoder_uninit</b>( void *w  )
 </pre>
 </blockquote>
 <ul>
@@ -39,7 +39,7 @@ semaphores, other opened handles and free allocated memory for <i>w</i>.
 
 <h4><a name="control_interface"></a>Control interface</h4>
 <blockquote>
-<pre>ULONG PM123_ENTRY <b>decoder_command</b>( void *w, ULONG msg, DECODER_PARAMS2 *params )</pre>
+<pre>ULONG DLLENTRYP <b>decoder_command</b>( void *w, ULONG msg, DECODER_PARAMS2 *params )</pre>
 </blockquote>
 <ul>
 <li>msg: one of the following:
@@ -70,7 +70,7 @@ in the .h file.
   The URL parameter uses the following syntax:
 <blockquote>
   <samp>file:///D:/Music/my favorite song.mp3</samp><br>
-  <samp>file://favorite song.mp3 </samp>(relative path)<br>
+  <samp>file://server/share/path/song.mp3 </samp>UNC path<br>
   <samp>http://... </samp>(as you would expect)<br>
   <samp>cdda:///H:/track02</samp>
 </blockquote>
@@ -78,7 +78,7 @@ in the .h file.
 <h4><a name="status_interface"></a>Status Interface</h4>
 <p>The status interface has to be thread safe.</p> 
 <blockquote>
-<pre>ULONG PM123_ENTRY <b>decoder_status</b>( void *w )</pre>
+<pre>ULONG DLLENTRYP <b>decoder_status</b>( void *w )</pre>
 </blockquote>
 <ul>
 <li>return value - One of the following:<br>
@@ -87,7 +87,7 @@ DECODER_PLAYING<br>
 DECODER_STARTING<br>
 </ul>
 <blockquote>
-<pre>ULONG PM123_ENTRY <b>decoder_length</b>( void *w )</pre>
+<pre>ULONG DLLENTRYP <b>decoder_length</b>( void *w )</pre>
 </blockquote>
 <ul>
 <li>return value - number of milliseconds the stream lasts (you can
@@ -104,11 +104,12 @@ They should always be functionnaly and give consistent results in any conditions
 The functions must be <em>thread safe</em>.
 </p>
 <blockquote>
-<pre>ULONG PM123_ENTRY <b>decoder_fileinfo</b>( const char *url, DECODER_INFO2 *info )</pre>
+<pre>ULONG DLLENTRYP <b>decoder_fileinfo</b>( const char *url, DECODER_INFO2 *info )</pre>
 </blockquote>
 <ul>
 <li><var>url</var> - URL to the desired stream. See <a href="#url_samples">URL samples</a>.
 <li><var>info</var> - this structure must be filled with the required information.
+  See <tt>format.h</tt> for further details.
 <li><var>return value</var> -<br>
 0 = everything's perfect, structure is set.<br>
 100 = error reading file (too small?).<br>
@@ -117,7 +118,7 @@ The functions must be <em>thread safe</em>.
 other values = errno.
 </ul>
 <blockquote>
-<pre>ULONG PM123_ENTRY <b>decoder_cdinfo</b>( const char *drive, DECODER_CDINFO *info )</pre>
+<pre>ULONG DLLENTRYP <b>decoder_cdinfo</b>( const char *drive, DECODER_CDINFO *info )</pre>
 </blockquote>
 <ul>
 <li>drive: ...
@@ -128,7 +129,7 @@ decoder.</lI>
 This function is unused by PM123 since version 1.40 but it might still be invoked by visual plug-ins.
 You need not to export this function unless <code>decoder_support</code> returns the DECODER_TRACK flag. 
 <blockquote>
-<pre>ULONG PM123_ENTRY <b>decoder_support</b>( char *const fileext[], int *size )</pre>
+<pre>ULONG DLLENTRYP <b>decoder_support</b>( char *const fileext[], int *size )</pre>
 </blockquote>
 <ul>
 <li><var>fileext</var> - fill this array with all the wildcard expression matching
@@ -151,7 +152,7 @@ decoder. Extentions can be for example "*.MOD".
 <p>The following functions are used to improove the GUI of PM123 with plug-in specific content.<br>
 <em>All functions in this section are optional.</em>
 <blockquote>
-<pre>ULONG PM123_ENTRY <b>decoder_editmeta</b>( HWND owner, const char* url )</pre>
+<pre>ULONG DLLENTRYP <b>decoder_editmeta</b>( HWND owner, const char* url )</pre>
 </blockquote>
 <ul>
 <li><var>owner</var> - Parent window handle.
@@ -167,10 +168,9 @@ decoder. Extentions can be for example "*.MOD".
 </ul>
 <p>If <code>decoder_editmeta</code> is not implemented, the edit tag entry is disabled.
 <blockquote>
-<pre>const DECODER_WIZZARD* PM123_ENTRY <b>decoder_getwizzard</b>( BOOL multiselect )</pre>
+<pre>const DECODER_WIZZARD* DLLENTRYP <b>decoder_getwizzard</b>( )</pre>
 </blockquote>
 <ul>
-<li><var>multiselect</var> - Flag whether the user might select multiple items at once.
 <li><var>return value</var> - Zero or more <code>DECODER_WIZZARD</code> structures (linked list).<br>
   Each structure represents an entry in the context menu to load something into the player or a playlist.
   To terminate the list of <code>DECODER_WIZZARD</code> objects set the link pointer to <code>NULL</code>.
@@ -180,16 +180,18 @@ decoder. Extentions can be for example "*.MOD".
   the context menu is not extended with entries specific to this plug-in.
 <p>When the menu entry is selected the corresponding wizzard function is called by PM123.
 <blockquote>
-<pre>ULONG (PM123_ENTRYP <b>wizzard</b>)( HWND owner, char* select, ULONG size );</pre>
+<pre>ULONG (DLLENTRYP <b>wizzard</b>)( HWND owner, const char* title,
+                           void (DLLENTRYP callback)( void* param, const char* url ), void* param );</pre>
 </blockquote>
 <ul>
 <li><var>owner</var> - Parent window handle.
-<li><var>select</var> [out] - Buffer where to store the selected URLs.
-  The result will be a list of zero terminated strings terminated by two zero bytes.
-<li><var>size</var> - size of the above buffer.
+<li><var>title</var> - Window title.<br>
+  The title may contain <samp>"%s"</samp> for the object type.
+  E.g. <samp>"Add%s to playlist."</samp> may evaluate to <samp>"Add track(s) to playlist."</samp>.
+<li><var>callback</var> - Function that will be called for each selected item.
+<li><var>param</var> - Parameter to pass to the callback function as the first argument.
 <li><var>return value</var> -<br>
-  0 = OK, <var>select</var> has been filled.<br>
-  100 = Buffer too small. Not all values have been returned.<br>
+  0 = OK, <var>callback</var> has been called at least once.<br>
   300 = Cancel. Do not add/play anything.<br>
   500 = Internal error.
 </ul>
@@ -206,7 +208,7 @@ decoder. Extentions can be for example "*.MOD".
   alternatingly to pass the samples to the next plug-in. Anything else is an error.</p>
 
 <blockquote>
-<pre>int (PM123_ENTRYP <b>output_request_buffer</b>)( void* a, const FORMAT_INFO2* format, short** buf )</pre>
+<pre>int (DLLENTRYPP <b>output_request_buffer</b>)( void* a, const FORMAT_INFO2* format, short** buf )</pre>
 </blockquote>
 <ul>
   <li><var>a</var> - pointer from <code>DECODER_PARAMS2</code>.
@@ -220,7 +222,7 @@ decoder. Extentions can be for example "*.MOD".
 <p>If you get a smaller buffer as you need to pass your data you should call <code>output_request_buffer</code> and <code>output_commit_buffer</code> again untill all your data is consumed.
   There is no guaranteed minimum size of the buffer. You should not expect this to get very small buffers quite often.</p>
 <blockquote>
-<pre>void (PM123_ENTRYP <b>output_commit_buffer</b>)( void* a, int len, int posmarker )</pre>
+<pre>void (DLLENTRYPP <b>output_commit_buffer</b>)( void* a, int len, int posmarker )</pre>
 </blockquote>
 <ul>
   <li><var>a</var> - pointer from <code>DECODER_PARAMS2</code>.
@@ -231,7 +233,7 @@ decoder. Extentions can be for example "*.MOD".
   But it might be less than the requested length.
   This causes no significant performance impact as long as you do not always pass very few samples.</p>
 <blockquote>
-<pre>void (PM123_ENTRYP <b>output_event</b>)( void* a, DECEVENTTYPE event, void* param )</pre>
+<pre>void (DLLENTRYPP <b>output_event</b>)( void* a, DECEVENTTYPE event, void* param )</pre>
 </blockquote>
 <ul>
   <li><var>a</var> - pointer from <code>DECODER_PARAMS2</code>.
@@ -251,7 +253,7 @@ The decoder plug-in MUST call the above function on the following conditions:
 </ul>
 
 <blockquote>
-<pre>void PM123_ENTRY <b>decoder_event</b>( void* w, OUTEVENTTYPE event );</pre>
+<pre>void DLLENTRYP <b>decoder_event</b>( void* w, OUTEVENTTYPE event );</pre>
 </blockquote>
 <ul>
   <li><var>w</var> - pointer from <code>decoder_init</code>
@@ -276,7 +278,7 @@ The decoder plug-in MUST call the above function on the following conditions:
 
 <h4><a name="control_interface1"></a>Control interface</h4>
 <blockquote>
-<pre>ULONG PM123_ENTRY decoder_command( void *w, ULONG msg, DECODER_PARAMS *params )</pre>
+<pre>ULONG DLLENTRYP decoder_command( void *w, ULONG msg, DECODER_PARAMS *params )</pre>
 </blockquote>
 <ul>
 <li>msg: one of the following:
@@ -337,7 +339,7 @@ They should always be functionnaly and give consistent results in any conditions
 The functions must be <em>thread-safe</em>.
 </p>
 <blockquote>
-<pre>ULONG PM123_ENTRY <b>decoder_fileinfo</b>( const char *url, DECODER_INFO *info )</pre>
+<pre>ULONG DLLENTRYP <b>decoder_fileinfo</b>( const char *url, DECODER_INFO *info )</pre>
 </blockquote>
 <ul>
 <li><var>url</var> - full path or URL to the desired stream.
@@ -350,7 +352,7 @@ The functions must be <em>thread-safe</em>.
 other values = errno.
 </ul>
 <blockquote>
-<pre>ULONG PM123_ENTRY <b>decoder_trackinfo</b>( const char *drive, int track, DECODER_INFO *info )</pre>
+<pre>ULONG DLLENTRYP <b>decoder_trackinfo</b>( const char *drive, int track, DECODER_INFO *info )</pre>
 </blockquote>
 <ul>
 <li><var>drive</var> - ie.: "X:"
@@ -364,7 +366,7 @@ other values = errno.
 other values = errno.
 </ul>
 <blockquote>
-<pre>ULONG PM123_ENTRY <b>decoder_cdinfo</b>( char *drive, DECODER_CDINFO *info )</pre>
+<pre>ULONG DLLENTRYP <b>decoder_cdinfo</b>( char *drive, DECODER_CDINFO *info )</pre>
 </blockquote>
 <ul>
 <li>drive: ...
@@ -374,7 +376,7 @@ other values = errno.
 This function is unused by PM123 since version 1.40 but it might still be invoked by visual plug-ins.
 You need not to export the CD related functions unless <code>decoder_support</code> returns the DECODER_TRACK flag. 
 <blockquote>
-<pre>ULONG PM123_ENTRY decoder_support( char *fileext[], int *size )</pre>
+<pre>ULONG DLLENTRYP decoder_support( char *fileext[], int *size )</pre>
 </blockquote>
 <ul>
 <li><var>fileext</var> - fill this array with all the wildcard expression matching
@@ -405,7 +407,7 @@ decoder. Extentions can be for example "*.MOD".
  The interface functions have to be called by the decoder in a separate thread.</p>
 
 <blockquote>
-<pre>int (PM123_ENTRYP <b>output_play_samples</b>)( void* a, const FORMAT_INFO* format, const char* buf, int len, int posmarker )</pre>
+<pre>int (DLLENTRYPP <b>output_play_samples</b>)( void* a, const FORMAT_INFO* format, const char* buf, int len, int posmarker )</pre>
 </blockquote>
 <ul>
   <li><var>a</var> - pointer from <code>DECODER_PARAMS</code>.

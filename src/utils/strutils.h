@@ -29,6 +29,10 @@
 #ifndef STRLUTIL_H
 #define STRLUTIL_H
 
+
+#include <stdlib.h>
+
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -50,6 +54,15 @@ size_t strlcpy( char* dst, const char* src, size_t siz );
  */
 
 size_t strlcat( char* dst, const char* src, size_t siz );
+
+/* Search the last ocurrency of c in the first siz bytes of string str.
+ */ 
+char* strnrchr( const char* str, char c, size_t siz );
+
+/* compare and copy memory
+ * Moves len bytes from scr to dst returning 1 if at least one byte changed.
+ */
+int memcmpcpy( void* dst, const void* src, size_t len );
 
 #ifdef __cplusplus
 }

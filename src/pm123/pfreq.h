@@ -33,59 +33,31 @@
 #define DLG_PM            48
 
 #define PM_MAIN_MENU    1024
-#define IDM_PM_ADD      1000
-#define IDM_PM_CALC     1001
+#define IDM_PM_APPEND   1000
+#define IDM_PM_APPFILE  1600
+#define IDM_PM_APPURL   1601
+#define IDM_PM_APPOTHER 1602 /* reserve some ID's for several plug-ins.  */
+#define IDM_PM_REMOVE   1012
 
 #define PM_FILE_MENU    2048
-#define IDM_PM_F_RENAME 2049
-#define IDM_PM_F_LOAD   2050
-
 #define PM_LIST_MENU    3072
-#define IDM_PM_L_RENAME 3073
-#define IDM_PM_L_LOAD   3074
-#define IDM_PM_L_REMOVE 3075
-#define IDM_PM_L_DELETE 3076
-#define IDM_PM_L_CALC   3077
+#define IDM_PM_RENAME   1014
+#define IDM_PM_LOAD     1013
 
-#define PM_TYPE_LIST    1
-#define PM_TYPE_FILE    2
+//#define IDM_PM_L_REMOVE 3075
+//#define IDM_PM_L_DELETE 3076
+//#define IDM_PM_L_CALC   3077
 
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-typedef struct
-{
-  int bitrate;
-  int freq;
-  int mode;
-  int length;
-  int secs;
-
-} FREC, *PFREC;
-
-typedef struct
-{
-  RECORDCORE rc;
-  int   type;
-  PSZ   text;
-  void* data;
-
-} PMREC, *PPMREC;
-
-typedef struct
-{
-  PPMREC parent;
-  char   playlist[256];
-
-} THREADINFO, *PTHREADINFO;
-
-/* Creates the playlist manager presentation window. */
-HWND pm_create( void );
+/* Creates the playlist manager presentation windowInitialize the playlist manager. */
+void pm_create( void );
 /* Sets the visibility state of the playlist manager presentation window. */
 void pm_show( BOOL show );
-/* Destroys the playlist manager presentation window. */
+/* Uninitialize the playlist manager. */
 void pm_destroy( void );
 
 

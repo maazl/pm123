@@ -208,6 +208,15 @@ mn_check_item( HWND menu, SHORT id, BOOL check )
                                  MPFROM2SHORT( MIA_CHECKED, check ? MIA_CHECKED : 0 )));
 }
 
+/* Change a menu item to MS_CONDITIONALCASCADE and sets the default ID */
+BOOL  mn_make_conditionalcascade( HWND menu, SHORT submenuid, SHORT defaultid )
+{
+  MENUITEM mi;
+  return WinSendMsg( menu, MM_QUERYITEM, MPFROM2SHORT( submenuid, TRUE ), MPFROMP( &mi ))
+      && WinSetWindowBits( mi.hwndSubMenu, QWL_STYLE, MS_CONDITIONALCASCADE, MS_CONDITIONALCASCADE )
+      && WinSendMsg( mi.hwndSubMenu, MM_SETDEFAULTITEMID, MPFROMLONG( defaultid ), 0 );
+}
+
 /* Delete all the items in the list box. */
 BOOL
 lb_remove_all( HWND hwnd, SHORT id )

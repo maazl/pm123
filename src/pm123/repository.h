@@ -1,5 +1,4 @@
-/*
- * Copyright 2004-2006 Dmitry A.Steklenev <glass@ptv.ru>
+/* * Copyright 2007-2007 Marcel Mueller
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -26,47 +25,52 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef FILEUTIL_H
-#define FILEUTIL_H
 
+#ifndef REPOSITORY_H
+#define REPOSITORY_H
+
+#include <stdlib.h>
+#include <cpp/Mutex.h>
 #include <utilfct.h>
 
-#ifdef __cplusplus
-extern "C" {
+
+/* Interface fpr string compareable objects.
+ */
+struct IStringComparable
+{ virtual int CompareTo(const char* str) const = 0;
+};
+
+
+/* Collection class to ensure the uniqueness of objects identified by a string.
+ * The string is intrusively stored in the object and accessed by the interface IStringCompareable.
+ * The class is not thread safe.
+ */
+class StringRepository : public Mutex
+{private:
+  IStringComparable** Data;
+  size_t              Size;
+  size_t              Count;
+
+ private:
+  // get lower_bound. returns true on exact match 
+  bool                Search(const char* str, size_t& pos) const;
+ public:
+  // Create a repository of a given size.
+  // The size must not be zero
+  StringRepository(size_t initial = 16);
+  // Serach for an entry for str.
+  // Returns NULL of no entry exists. 
+  IStringComparable*  Find(const char* str) const;
+  // Get an entry for str.
+  // If the entry does not exist a new slot is created at the right position of the collection.
+  // In this case the returned pointer reference is NULL. You must store your data pointer there.
+  IStringComparable*& Get(const char* str);
+  // Remove entry from repository.
+  // The function returns the removed element if any.
+  // It does not delete anything.
+  IStringComparable*  Remove(const char* str);
+};
+
+
 #endif
 
-// Because the result string always less or is equal to a location
-// string all functions can safely use the same storage area for a
-// location and result.
-
-char* sdrive   ( char* result, const char* location, size_t size );
-int   strack   ( const char* location );
-char* scheme   ( char* result, const char* location, size_t size );
-char* sfname   ( char* result, const char* location, size_t size );
-char* sfext    ( char* result, const char* location, size_t size );
-char* sfnameext( char* result, const char* location, size_t size );
-char* sdrivedir( char* result, const char* location, size_t size );
-char* sdecode  ( char* result, const char* location, size_t size );
-// Normalize an URL: enforce scheme, convert slashes
-char* snormal  ( char* result, const char* location, size_t size );
-
-typedef struct
-{ char drive[4]; // we need only 3 but we don't want to run into alignment trouble
-  int  track;
-  int  sectors[2];
-} CDDA_REGION_INFO;
-
-CDDA_REGION_INFO* scdparams( CDDA_REGION_INFO* result, const char* location );
-
-BOOL is_cdda ( const char* location );
-BOOL is_track( const char* location );
-BOOL is_file ( const char* location );
-BOOL is_url  ( const char* location );
-BOOL is_root ( const char* location );
-BOOL is_dir  ( const char* location );
-
-#ifdef __cplusplus
-}
-#endif
-
-#endif /* FILEUTIL_H */

@@ -271,13 +271,13 @@ bmp_read_bitmap( const char* filename, GBM* gbm, GBMRGB* gbmrgb, BYTE** ppbData 
 
   cb = (( gbm->w * gbm->bpp + 31 ) / 32 ) * 4 * gbm->h;
 
-  if(( *ppbData = malloc( cb )) == NULL ) {
+  if(( *ppbData = (BYTE*)malloc( cb )) == NULL ) {
     gbm_io_close( file );
     amp_player_error( "Out of memory" );
     return FALSE;
   }
 
-  if( gbm_read_data( file, filetype, gbm, *ppbData ) != GBM_ERR_OK )
+  if( gbm_read_data( file, filetype, gbm, (byte*)*ppbData ) != GBM_ERR_OK )
   {
     free( *ppbData );
     gbm_io_close( file );
@@ -812,6 +812,7 @@ bmp_create_text_buffer( void )
 void
 bmp_set_text( const char* string )
 {
+  DEBUGLOG(("bmp_set_text(%p)\n", string));
   if( string ) {
     strlcpy( s_display, string, sizeof( s_display ));
   }
@@ -963,8 +964,9 @@ bmp_draw_shade( HPS hps, int x, int y, int cx, int cy, long clr1, long clr2 )
 
 /* Draws the main player timer. */
 void
-bmp_draw_timer( HPS hps, long time )
-{
+bmp_draw_timer( HPS hps, double time )
+{ DEBUGLOG(("bmp_draw_timer(%p, %f)\n", hps, time));
+
   int major;
   int minor;
   int x = bmp_pos[ POS_TIMER ].x;
@@ -981,7 +983,7 @@ bmp_draw_timer( HPS hps, long time )
 
     if( bmp_ulong[ UL_TIMER_SEPARATE ] )
     {
-      if( time % 2 == 0 ) {
+      if( ((int)time) % 2 == 0 ) {
         bmp_draw_digit( hps, x, y, 10, DIG_BIG );
         x += bmp_cx( 10 + DIG_BIG ) + bmp_ulong[ UL_TIMER_SPACE ];
       } else {
@@ -1000,8 +1002,9 @@ bmp_draw_timer( HPS hps, long time )
 
 /* Draws the tiny player timer. */
 void
-bmp_draw_tiny_timer( HPS hps, int pos_id, long time )
-{
+bmp_draw_tiny_timer( HPS hps, int pos_id, double time )
+{ DEBUGLOG(("bmp_draw_tiny_timer(%p, %i, %f)\n", hps, pos_id, time));
+  
   int major;
   int minor;
   int x = bmp_pos[pos_id].x;
@@ -1258,22 +1261,16 @@ bmp_draw_plmode( HPS hps )
   if( cfg.mode == CFG_MODE_REGULAR && bmp_pos[ POS_PL_MODE ].x != POS_UNDEF &&
                                       bmp_pos[ POS_PL_MODE ].y != POS_UNDEF )
   {
-    switch( amp_playmode ) {
-      case AMP_PLAYLIST:
-        bmp_draw_bitmap( hps, bmp_pos[ POS_PL_MODE ].x,
-                              bmp_pos[ POS_PL_MODE ].y, BMP_LISTPLAY );
-        break;
-
-     case AMP_SINGLE:
-        bmp_draw_bitmap( hps, bmp_pos[ POS_PL_MODE ].x,
-                              bmp_pos[ POS_PL_MODE ].y, BMP_SINGLEPLAY );
-        break;
-
-      case AMP_NOFILE:
+    const Playable* root = amp_get_current_root();
+    if (root == NULL)
         bmp_draw_bitmap( hps, bmp_pos[ POS_PL_MODE ].x,
                               bmp_pos[ POS_PL_MODE ].y, BMP_NOFILE );
-        break;
-    }
+     else if (root->GetFlags() & Playable::Enumerable)
+        bmp_draw_bitmap( hps, bmp_pos[ POS_PL_MODE ].x,
+                              bmp_pos[ POS_PL_MODE ].y, BMP_LISTPLAY );
+     else
+        bmp_draw_bitmap( hps, bmp_pos[ POS_PL_MODE ].x,
+                              bmp_pos[ POS_PL_MODE ].y, BMP_SINGLEPLAY );
   }
 }
 
@@ -1288,6 +1285,8 @@ bmp_draw_plind( HPS hps, int index, int total )
     return;
   }
 
+  const Playable* root = amp_get_current_song();
+
   if( bmp_ulong[ UL_PL_INDEX ] )
   {
     if( bmp_pos[ POS_PL_INDEX ].x != POS_UNDEF &&
@@ -1301,7 +1300,7 @@ bmp_draw_plind( HPS hps, int index, int total )
                              x + bmp_cx( DIG_PL_INDEX ) * 3,
                              y + bmp_cy( DIG_PL_INDEX ));
 
-      if( amp_playmode == AMP_PLAYLIST )
+      if( root != NULL && (root->GetFlags() & Playable::Enumerable) )
       {
         sprintf( buf, "%3u", index );
         x += bmp_cx( DIG_PL_INDEX ) * 2;
@@ -1325,7 +1324,7 @@ bmp_draw_plind( HPS hps, int index, int total )
       bmp_draw_part_bg( hps, x, y, x + bmp_cx( DIG_PL_INDEX ) * 3,
                                    y + bmp_cy( DIG_PL_INDEX ));
 
-      if( amp_playmode == AMP_PLAYLIST )
+      if( root != NULL && (root->GetFlags() & Playable::Enumerable) )
       {
         sprintf( buf, "%3u", total );
         x += bmp_cx( DIG_PL_INDEX ) * 2;
@@ -1347,7 +1346,7 @@ bmp_draw_plind( HPS hps, int index, int total )
     sprintf( buf, "%02u of %02u", index, total );
     bmp_draw_part_bg( hps, pos.x, pos.y, pos.x + 50, pos.y + 20 );
 
-    if( amp_playmode == AMP_PLAYLIST )
+    if( root != NULL && (root->GetFlags() & Playable::Enumerable) )
     {
       GpiCreateLogColorTable( hps, 0, LCOLF_RGB, 0, 0, 0 );
       GpiSetColor( hps, bmp_ulong[ UL_PL_COLOR ]);
@@ -1360,14 +1359,14 @@ bmp_draw_plind( HPS hps, int index, int total )
 
 /* Draws the current position slider. */
 void
-bmp_draw_slider( HPS hps, int played, int total )
-{
+bmp_draw_slider( HPS hps, double played, double total )
+{ DEBUGLOG(("bmp_draw_slider(%p, %f, %f)\n", hps, played, total));
   int pos = 0;
 
   if( cfg.mode == CFG_MODE_REGULAR )
   {
     if( total > 0 ) {
-      pos = (((float)played / (float)total ) * bmp_ulong[UL_SLIDER_WIDTH] );
+      pos = ((played / total ) * bmp_ulong[UL_SLIDER_WIDTH] );
     }
 
     if( pos < 0 ) {
@@ -1399,10 +1398,10 @@ bmp_draw_slider( HPS hps, int played, int total )
 
 /* Calculates a current seeking time on the basis of position of the
    mouse pointer concerning the position slider. */
-int
-bmp_calc_time( POINTL pos, int total )
+double
+bmp_calc_time( POINTL pos, double total )
 {
-  int time = 0;
+  double time = 0;
 
   if( bmp_ulong[ UL_SLIDER_WIDTH ] && pos.x >= bmp_pos[ POS_SLIDER ].x )
   {
@@ -1445,7 +1444,9 @@ bmp_draw_timeleft( HPS hps )
 {
   if( cfg.mode == CFG_MODE_REGULAR )
   {
-    if( amp_playmode == AMP_NOFILE ) {
+    const Playable* root = amp_get_current_root();
+    
+    if( root == NULL ) {
       if( bmp_pos[ POS_NOTL ].x != POS_UNDEF &&
           bmp_pos[ POS_NOTL ].y != POS_UNDEF )
       {
@@ -1461,7 +1462,7 @@ bmp_draw_timeleft( HPS hps )
       }
     }
 
-    if( amp_playmode == AMP_PLAYLIST && !cfg.rpt ) {
+    if( root != NULL && (root->GetFlags() & Playable::Enumerable) && !cfg.rpt ) {
       if( bmp_pos[ POS_PLIST   ].x != POS_UNDEF &&
           bmp_pos[ POS_PLIST   ].y != POS_UNDEF )
       {
@@ -1739,7 +1740,7 @@ bmp_load_packfile( char *filename )
     if( fread( &hdr, 1, sizeof( BUNDLEHDR ), pack ) == sizeof( BUNDLEHDR ) &&
         hdr.length > 0 )
     {
-      if(( fbuf = malloc( hdr.length )) != NULL )
+      if(( fbuf = (char*)malloc( hdr.length )) != NULL )
       {
         cb = fread( fbuf, 1, hdr.length, pack );
         sprintf( tempname, "%spm123%s", startpath,

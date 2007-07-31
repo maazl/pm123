@@ -32,25 +32,19 @@
 #ifndef PM123_UTILS_H
 #define PM123_UTILS_H
 
-#include "config.h"
-#include "rel2abs.h"
-#include "abs2rel.h"
-#include "bufstream.h"
-#include "charset.h"
-#include "wildcards.h"
-#include "filefind.h"
-#include "fileutil.h"
-#include "errorstr.h"
-#include "inimacro.h"
-#include "queue.h"
-#include "minmax.h"
-#include "strutils.h"
-
-#if !defined( bool ) && (!defined(__WATCOMC__) || !defined(__cplusplus))
-  typedef int   bool;
-  #define true  1
-  #define false 0
-#endif
+#include <config.h>
+#include <rel2abs.h>
+#include <abs2rel.h>
+#include <bufstream.h>
+#include <charset.h>
+#include <wildcards.h>
+#include <filefind.h>
+#include <fileutil.h>
+#include <errorstr.h>
+#include <inimacro.h>
+#include <queue.h>
+#include <minmax.h>
+#include <strutils.h>
 
 #ifndef  BKS_TABBEDDIALOG
   /* Tabbed dialog. */
@@ -92,6 +86,8 @@ void  wait_thread( TID tid, ULONG msec );
 BOOL  mn_enable_item( HWND menu, SHORT id, BOOL enable );
 /* Places a a check mark to the left of the menu item. */
 BOOL  mn_check_item ( HWND menu, SHORT id, BOOL check  );
+/* Change a menu item to MS_CONDITIONALCASCADE and sets the default ID */
+BOOL  mn_make_conditionalcascade( HWND menu, SHORT submenuid, SHORT defaultid );
 
 /* Delete all the items in the list box. */
 BOOL  lb_remove_all( HWND hwnd, SHORT id );

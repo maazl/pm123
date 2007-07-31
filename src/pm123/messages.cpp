@@ -40,7 +40,7 @@
 #include <debuglog.h>
 
 #include "pm123.h"
-#include "utilfct.h"
+#include <utilfct.h>
 #include "plugman.h"
 #include "messages.h"
 
@@ -81,11 +81,12 @@ is_always_hungry( void ) {
 
 /* Begins playback of the specified file. */
 BOOL
-msg_play( HWND hwnd, const MSG_PLAY_STRUCT* play, int pos )
-{
-  // TODO: URI!!!
-  ULONG rc = out_setup( &play->info.format, play->url );
-  DEBUGLOG(("amp_msg:MSG_PLAY: after setup %d %d - %d\n", play->info.format.samplerate, play->info.format.channels, rc));
+msg_play( HWND hwnd, Song& play, double pos )
+{ DEBUGLOG(("msg_play(%p, {%s}, %f)\n", hwnd, play.GetURL().cdata(), pos));
+  play.EnsureInfo(Playable::IF_Format);
+  FORMAT_INFO2 format = *play.GetInfo().format;
+  ULONG rc = out_setup( &format, play.GetURL() );
+  DEBUGLOG(("amp_msg:MSG_PLAY: after setup %d %d - %d\n", format.samplerate, format.channels, rc));
   if( rc != 0 ) {
     return FALSE;
   }
@@ -93,10 +94,10 @@ msg_play( HWND hwnd, const MSG_PLAY_STRUCT* play, int pos )
   msg_equalize( gains, mutes, preamp, cfg.eq_enabled );
   dec_save( savename );
   
-  rc = dec_play( play->url, play->decoder, pos );
+  rc = dec_play( play.GetURL(), play.GetDecoder(), pos );
   if( rc == -2 ) {
     char buf[1024];
-    sprintf( buf, "Error: Decoder module %.8s needed to play %.800s is not loaded or enabled.", play->decoder, play->url );
+    sprintf( buf, "Error: Decoder module %.8s needed to play %.800s is not loaded or enabled.", play.GetDecoder(), play.GetURL().cdata() );
     amp_display_error( buf );
     return FALSE;
   } else if ( rc != 0 ) {
@@ -169,7 +170,7 @@ msg_forward( void )
   {
     rewinding = FALSE;
     forwarding = !forwarding;
-    if( dec_fast( forwarding ? DECODER_FAST_FORWARD : DECODER_NORMAL_PLAY ) != 0 ) {
+    if( dec_fast( forwarding ? DECFAST_FORWARD : DECFAST_NORMAL_PLAY ) != 0 ) {
       forwarding = FALSE;
     } else if( cfg.trash ) {
       // Going back in the stream to what is currently playing.
@@ -187,7 +188,7 @@ msg_rewind( void )
   {
     forwarding = FALSE;
     rewinding = !rewinding;
-    if( dec_fast( rewinding ? DECODER_FAST_REWIND : DECODER_NORMAL_PLAY ) != 0 ) {
+    if( dec_fast( rewinding ? DECFAST_REWIND : DECFAST_NORMAL_PLAY ) != 0 ) {
       rewinding = FALSE;
     } else if( cfg.trash ) {
       // Going back in the stream to what is currently playing.
@@ -199,7 +200,7 @@ msg_rewind( void )
 
 /* Changes the current playing position of the currently played file. */
 BOOL
-msg_seek( int pos )
+msg_seek( double pos )
 {
   if( decoder_playing())
   {

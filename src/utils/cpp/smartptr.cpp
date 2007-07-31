@@ -1,5 +1,5 @@
 /*
- * Copyright 2006 Dmitry A.Steklenev <glass@ptv.ru>
+ * Copyright 2007-2007 M.Mueller
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -26,37 +26,40 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef PM123_MESSAGES_H
-#define PM123_MESSAGES_H
 
-#include "playable.h"
+#include "mutex.h"
+#include "smartptr.h"
 
-/* Returns TRUE if the player is paused. */
-BOOL is_paused( void );
-/* Returns TRUE if the player is fast forwarding. */
-BOOL is_forward( void );
-/* Returns TRUE if the player is rewinding. */
-BOOL is_rewind( void );
-/* Returns TRUE if the output is always hungry. */
-BOOL is_always_hungry( void );
+#include <debuglog.h>
 
-/* Begins playback of the specified file. */
-BOOL msg_play( HWND hwnd, Song& play, double pos );
-/* Stops playback of the currently played file. */
-BOOL msg_stop( void );
-/* Suspends or resumes playback of the currently played file. */
-BOOL msg_pause( void );
-/* Toggles a fast forward of the currently played file. */
-BOOL msg_forward( void );
-/* Toggles a rewind of the currently played file. */
-BOOL msg_rewind( void );
-/* Changes the current playing position of the currently played file. */
-BOOL msg_seek( double pos );
-/* Toggles a saving of the currently played stream. */
-BOOL msg_savestream( const char* filename );
-/* Toggles a equalizing of the currently played file. */
-BOOL msg_equalize( const float* gains, const BOOL* mute, float preamp, BOOL enabled );
 
-#endif /* PM123_MESSAGES_H */
+int_ptr_base::int_ptr_base(const Iref_Count* ptr)
+: Ptr((Iref_Count*)ptr) // constness is handled in the derived class
+{ DEBUGLOG(("int_ptr_base(%p)::int_ptr_base(%p)\n", this, ptr));
+  if (Ptr)
+    InterlockedInc(Ptr->Count);
+}
+int_ptr_base::int_ptr_base(const int_ptr_base& r)
+: Ptr(r.Ptr)
+{ DEBUGLOG(("int_ptr_base(%p)::int_ptr_base(&%p{%p})\n", this, &r, r.Ptr));
+  if (Ptr)
+    InterlockedInc(Ptr->Count);
+}
 
+Iref_Count* int_ptr_base::reassign(const Iref_Count* ptr)
+{ DEBUGLOG(("int_ptr_base(%p)::reassign(%p): %p\n", this, ptr, Ptr));
+  // Hack to avoid problems with (rarely used) p = p statements: increment new counter first.
+  if (ptr)
+    InterlockedInc(((Iref_Count*)ptr)->Count);
+  Iref_Count* ret = NULL;
+  if (Ptr && InterlockedDec(Ptr->Count) == 0)
+    ret = Ptr;
+  Ptr = (Iref_Count*)ptr; // constness is handled in the derived class
+  return ret;
+}
+
+Iref_Count* int_ptr_base::unassign()
+{ DEBUGLOG(("int_ptr_base(%p)::unassign(): %p\n", this, Ptr));
+  return Ptr && InterlockedDec(Ptr->Count) == 0 ? Ptr : NULL;
+}
 

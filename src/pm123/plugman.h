@@ -117,20 +117,14 @@ BOOL  configure_plugin( int type, int i, HWND hwnd );
 *  Not thread safe
 *
 ****************************************************************************/
-typedef enum
-{ DECODER_NORMAL_PLAY,
-  DECODER_FAST_FORWARD,
-  DECODER_FAST_REWIND
-} DECODER_FAST_MODE;
-
 /* invoke decoder to play an URL */
-ULONG dec_play( const char* url, const char* decoder_name, int pos );
+ULONG dec_play( const char* url, const char* decoder_name, double pos );
 /* stop the current decoder immediately */
 ULONG dec_stop( void );
 /* set fast forward/rewind mode */
-ULONG dec_fast( DECODER_FAST_MODE mode );
+ULONG dec_fast( DECFASTMODE mode );
 /* jump to absolute position */
-ULONG dec_jump( int location );
+ULONG dec_jump( double location );
 /* set equalizer parameters */
 ULONG dec_eq  ( const float* bandgain );
 /* set savefilename to save the raw stream data */
@@ -152,7 +146,7 @@ void  dec_fill_types( char* result, size_t size );
 ULONG DLLENTRY dec_fileinfo( const char* filename, DECODER_INFO2* info, char* name );
 ULONG DLLENTRY dec_cdinfo( const char* drive, DECODER_CDINFO* info );
 ULONG DLLENTRY dec_status( void );
-ULONG DLLENTRY dec_length( void );
+double DLLENTRY dec_length( void );
 
 /****************************************************************************
 *
@@ -175,7 +169,7 @@ BOOL  out_flush( void );
 *
 ****************************************************************************/
 /*ULONG DLLENTRY out_playing_samples( FORMAT_INFO* info, char* buf, int len );*/
-ULONG DLLENTRY out_playing_pos( void );
+double DLLENTRY out_playing_pos( void );
 BOOL  DLLENTRY out_playing_data( void );
 
 /* Backward compatibility */
@@ -198,6 +192,7 @@ void  vis_deinit_all( BOOL skin );
 void  load_plugin_menu( HWND hmenu );
 /* Add additional entries in load/add menu in the main and the playlist's pop-up menu */
 void  append_load_menu( HWND hMenu, ULONG id_base, BOOL multiselect, DECODER_WIZZARD_FUNC* callbacks, int size );
+
 
 #ifdef __cplusplus
 }

@@ -44,6 +44,13 @@
 #define ICO_MP3            1700
 #define ICO_MP3PLAY        1701
 #define ICO_MP3GRAY        1702
+#define ICO_PLCLOSE        1710
+#define ICO_PLOPEN         1711
+#define ICO_PLCLOSEPLAY    1712
+#define ICO_PLOPENPLAY     1713
+#define ICO_PLRECURSIVE    1714
+#define ICO_PLRECURSIVEPLAY 1715
+#define ICO_PLEMPTY        1716
 
 #define WIN_MAIN              1
 #define HLP_MAIN              1
@@ -124,13 +131,10 @@
 #define MSG_JUMP              6
 #define MSG_SAVE              7
 
-#define AMP_NOFILE            0
-#define AMP_SINGLE            1
-#define AMP_PLAYLIST          2
-
-/* amp_load_singlefile options */
-#define AMP_LOAD_NOT_PLAY    0x0001
-#define AMP_LOAD_NOT_RECALL  0x0002
+/* amp_load_playable options */
+#define AMP_LOAD_NOT_PLAY    0x0001 // Load a playable object, but do not start playback automatically
+#define AMP_LOAD_NOT_RECALL  0x0002 // Load a playable object, but do not add an entry into the list of recent files
+#define AMP_LOAD_KEEP_PLAYLIST 0x0004 // Play a playable object. If A playlist containing this item is loaded, the item is activated only.
 
 /* amp_add_* options */
 #define URL_ADD_TO_PLAYER    0x0000
@@ -192,18 +196,18 @@ void  amp_display_filename( void );
 void  amp_display_next_mode( void );
 
 /* Loads the specified playlist record into the player. */
-BOOL  amp_pl_load_record( PLRECORD* );
+//BOOL  amp_pl_load_record( PLRECORD* );
 /* Plays the specified playlist record. */
-void  amp_pl_play_record( PLRECORD* );
+//void  amp_pl_play_record( PLRECORD* );
 /* Activates the current playlist. */
-void  amp_pl_use( void );
+//void  amp_pl_use( void );
 /* Deactivates the current playlist. */
-void  amp_pl_release( void );
+//void  amp_pl_release( void );
 /* Loads a standalone file or CD track to player. */
-BOOL  amp_load_singlefile( const char *filename, int options );
+BOOL  amp_load_playable( const char *url, int options );
 
 /* Begins playback of the currently loaded file from the specified position. */
-void  amp_play( int pos );
+void  amp_play( float pos );
 /* Stops playback of the currently played file. */
 void  amp_stop( void );
 /* Suspends or resumes playback of the currently played file. */
@@ -255,6 +259,10 @@ void  amp_volume_adjust( void );
 
 /* Default dialog procedure for the file dialog. */
 MRESULT EXPENTRY amp_file_dlg_proc( HWND, ULONG, MPARAM, MPARAM );
+/* Wizzard function for the default entry "File..." */
+ULONG DLLENTRY amp_file_wizzard( HWND owner, const char* title, DECODER_WIZZARD_CALLBACK callback, void* param );
+/* Wizzard function for the default entry "URL..." */
+ULONG DLLENTRY amp_url_wizzard( HWND owner, const char* title, DECODER_WIZZARD_CALLBACK callback, void* param );
 
 BOOL  amp_load_eq_file( char* filename, float* gains, BOOL* mutes, float* preamp );
 
@@ -265,25 +273,22 @@ void DLLENTRY pm123_control  ( int index, void* param );
 extern void DLLENTRY amp_display_info ( const char* );
 extern void DLLENTRY amp_display_error( const char* );
 
-typedef struct
-{
-   char          url[4096];           /* large enough to keep URLs */
-   char          decoder[_MAX_FNAME]; /* decoder to play this */
-   DECODER_INFO2 info;                /* information about the object */
-} MSG_PLAY_STRUCT;
 
+#ifdef __cplusplus
+}
+#include "playable.h"
 /* TODO: there are bad threading issues here
    if the following function is not called from the main thread */
 /* Returns a information block of the currently loaded file or NULL if none. */
-const MSG_PLAY_STRUCT* amp_get_current_file( void );
+const Song*     amp_get_current_song();
+const Playable* amp_get_current_root(); 
+extern "C" {
+#endif
 
 
 /* Global variables */
 
-extern int      amp_playmode; /* Play mode        */
-extern HPOINTER mp3;          /* Song file icon   */
-extern HPOINTER mp3play;      /* Played file icon */
-extern HPOINTER mp3gray;      /* Broken file icon */
+//extern int      amp_playmode; /* Play mode        */
 
 /* Contains startup path of the program without its name. */
 extern char startpath[_MAX_PATH];

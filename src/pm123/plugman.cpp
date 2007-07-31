@@ -104,8 +104,7 @@ static class CL_GLUE
                                               { return (*procs.output_command)( procs.a, msg, &params ); }
  public:
                            CL_GLUE();
-  //const  OUTPUT_PROCS&     get_procs() const  { return procs; }
-  
+ 
   // output control interface (C style)
   friend ULONG             out_setup          ( const FORMAT_INFO2* formatinfo, const char* URI );
   friend ULONG             out_close          ();
@@ -113,16 +112,16 @@ static class CL_GLUE
   friend ULONG             out_pause          ( BOOL pause );
   friend BOOL              out_flush          ( void );
   // decoder control interface (C style)
-  friend ULONG             dec_play           ( const char* url, const char* decoder_name, int pos );
+  friend ULONG             dec_play           ( const char* url, const char* decoder_name, double pos );
   friend ULONG             dec_stop           ( void );
-  friend ULONG             dec_fast           ( DECODER_FAST_MODE mode );
-  friend ULONG             dec_jump           ( int pos );
+  friend ULONG             dec_fast           ( DECFASTMODE mode );
+  friend ULONG             dec_jump           ( double pos );
   friend ULONG             dec_eq             ( const float* bandgain );
   friend ULONG             dec_save           ( const char* file );
   // 4 visual interface (C style)
-  friend ULONG DLLENTRY    out_playing_pos    ( void );
-  friend BOOL  DLLENTRY    out_playing_data   ( void );
-  friend ULONG DLLENTRY    out_playing_samples( FORMAT_INFO* info, char* buf, int len );
+  friend double DLLENTRY   out_playing_pos    ( void );
+  friend BOOL   DLLENTRY   out_playing_data   ( void );
+  friend ULONG  DLLENTRY   out_playing_samples( FORMAT_INFO* info, char* buf, int len );
 
  private: // glue
   // 4 callback interface
@@ -266,7 +265,7 @@ ULONG CL_GLUE::dec_command( ULONG msg )
 }
 
 /* invoke decoder to play an URL */
-ULONG dec_play( const char* url, const char* decoder_name, int pos )
+ULONG dec_play( const char* url, const char* decoder_name, double pos )
 {
   DEBUGLOG(("dec_play(%s, %s)\n", url, decoder_name));
   ULONG rc = voutput.dec_set_active( decoder_name );
@@ -301,46 +300,16 @@ ULONG dec_stop( void )
 }
 
 /* set fast forward/rewind mode */
-ULONG dec_fast( DECODER_FAST_MODE mode )
-{ switch (mode)
-  {case DECODER_FAST_FORWARD:
-    if (voutput.dparams.rew)
-    { voutput.dparams.rew = FALSE;
-      voutput.dec_command( DECODER_REW );
-    }
-    if (!voutput.dparams.ffwd)
-    { voutput.dparams.ffwd = TRUE;
-      return voutput.dec_command( DECODER_FFWD );
-    }
-    break;
-
-   case DECODER_FAST_REWIND:
-    if (voutput.dparams.ffwd)
-    { voutput.dparams.ffwd = FALSE;
-      voutput.dec_command( DECODER_FFWD );
-    }
-    if (!voutput.dparams.rew)
-    { voutput.dparams.rew = TRUE;
-      return voutput.dec_command( DECODER_REW );
-    }
-    break;
-    
-   default:
-    if (voutput.dparams.rew)
-    { voutput.dparams.rew = FALSE;
-      return voutput.dec_command( DECODER_REW );
-    } else
-    if (voutput.dparams.ffwd)
-    { voutput.dparams.ffwd = FALSE;
-      return voutput.dec_command( DECODER_FFWD );
-    }
-    break;
+ULONG dec_fast( DECFASTMODE mode )
+{ if (voutput.dparams.fast != mode) 
+  { voutput.dparams.fast = mode;
+    voutput.dec_command( DECODER_FFWD );
   }
   return 0;
 }
 
 /* jump to absolute position */
-ULONG dec_jump( int location )
+ULONG dec_jump( double location )
 { voutput.dparams.jumpto = location;
   ULONG rc = voutput.dec_command( DECODER_JUMPTO );
   if (rc == 0 && cfg.trash && voutput.initialized)
@@ -374,7 +343,8 @@ ULONG dec_save( const char* file )
 
 /* setup new output stage or change the properties of the current one */
 ULONG out_setup( const FORMAT_INFO2* formatinfo, const char* URI )
-{ voutput.params.formatinfo = *formatinfo;
+{ DEBUGLOG(("out_setup(%p{%i,%i,%i}, %s)\n", formatinfo, formatinfo->size, formatinfo->samplerate, formatinfo->channels, URI));
+  voutput.params.formatinfo = *formatinfo;
   if (!voutput.initialized)
   { ULONG rc = voutput.init(); // here we initialte the setup of the filter chain
     if (rc != 0)
@@ -426,7 +396,7 @@ ULONG DLLENTRY out_playing_samples( FORMAT_INFO* info, char* buf, int len )
 }
 
 /* Returns time in ms. */
-ULONG DLLENTRY out_playing_pos( void )
+double DLLENTRY out_playing_pos( void )
 { if (!voutput.initialized)
     return 0; // ??
   return (*voutput.procs.output_playing_pos)( voutput.procs.a );
@@ -894,20 +864,12 @@ static BOOL is_file_supported(const char* const* support, const char* url)
 ULONG DLLENTRY
 dec_fileinfo( const char* filename, DECODER_INFO2* info, char* name )
 {
+  DEBUGLOG(("dec_fileinfo(%s, %p{%u,%p,%p,%p}, %s)\n", filename, info, info->size, info->format, info->tech, info->meta, name));
   BOOL* checked = (BOOL*)alloca( sizeof( BOOL ) * decoders.count() );
   int   i;
   const CL_DECODER* dp;
 
-  memset( info, 0, sizeof *info );
   memset( checked, 0, sizeof( BOOL ) * decoders.count() );
-  
-  // Prepend file://
-  if (is_file(filename) && !is_url(filename))
-  { char* fname = (char*)alloca( strlen(filename) +8 );
-    strcpy(fname, "file://");
-    strcpy(fname+7, filename);
-    filename = fname;
-  }
   
   if (is_track(filename))
   { // check decoders that claim to support tracks
@@ -937,24 +899,25 @@ dec_fileinfo( const char* filename, DECODER_INFO2* info, char* name )
   { dp = &(const CL_DECODER&)decoders[i];
     if (!dp->get_enabled() || checked[i])
       continue;
-    if( dp->get_procs().decoder_fileinfo( filename, info ) == 0 )
+    if( (*dp->get_procs().decoder_fileinfo)( filename, info ) == 0 )
       goto ok;
   }
 
   return 200;
  ok:
+  DEBUGLOG(("dec_fileinfo: {{%d, %d, %d}, {%d, %lf, %d, %lf, %s, %d}} -> %s\n",
+    info->format->size, info->format->samplerate, info->format->channels,
+    info->tech->size, info->tech->songlength, info->tech->bitrate, info->tech->filesize, info->tech->info, info->tech->num_items,
+    name)); 
   if (name)
     sfnameext( name, dp->module_name, _MAX_FNAME );
-  DEBUGLOG(("dec_fileinfo: {{%d, %d, %d}, {%d, %lf, %d, %f, %s}} -> %s\n",
-    info->format.size, info->format.samplerate, info->format.channels,
-    info->tech.size, info->tech.songlength, info->tech.bitrate, info->tech.filesize, info->tech.info,
-    name)); 
   return 0;
 }
 
 ULONG DLLENTRY
 dec_cdinfo( const char *drive, DECODER_CDINFO *info )
 {
+  DEBUGLOG(("dec_cdinfo(%s, %p)\n", drive, info));
   ULONG last_rc = 200;
   int i;
 
@@ -983,7 +946,7 @@ dec_status( void )
 }
 
 /* Length in ms, should still be valid if decoder stops. */
-ULONG DLLENTRY
+double DLLENTRY
 dec_length( void )
 {
   const CL_DECODER* dp = (CL_DECODER*)decoders.current();
@@ -1295,7 +1258,7 @@ append_load_menu( HWND hMenu, ULONG id_base, BOOL multiselect, DECODER_WIZZARD_F
   // for all decoder plug-ins...
   for (int i = 0; i < decoders.count(); ++i)
   { CL_DECODER& dec = (CL_DECODER&)decoders[i];
-    if (dec.get_procs().decoder_getwizzard)
+    if (dec.get_enabled() && dec.get_procs().decoder_getwizzard)
     { const DECODER_WIZZARD* da = (*dec.get_procs().decoder_getwizzard)(multiselect);
       DEBUGLOG(("append_load_menu: %s - %p\n", dec.module_name, da));
       while (da != NULL)
