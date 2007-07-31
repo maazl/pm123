@@ -73,9 +73,9 @@ output_error( OS2AUDIO* a, ULONG ulError )
   unsigned char buffer [1024];
 
   if( mciGetErrorString( ulError, buffer, sizeof( buffer )) == MCIERR_SUCCESS ) {
-    sprintf( message, "MCI Error %d: %s\n", LOUSHORT( ulError ), buffer );
+    sprintf( message, "MCI Error %d: %s\n", ulError, buffer );
   } else {
-    sprintf( message, "MCI Error %d: Cannot query error message.\n", LOUSHORT( ulError ));
+    sprintf( message, "MCI Error %d: Cannot query error message.\n", ulError );
   }
 
   a->original_info.error_display( message );
@@ -90,9 +90,9 @@ output_position( OS2AUDIO* a, ULONG* position )
   ULONG rc;
 
   mstatp.ulItem = MCI_STATUS_POSITION;
-  rc = mciSendCommand( a->mci_device_id, MCI_STATUS, MCI_STATUS_ITEM | MCI_WAIT, &mstatp, 0 );
+  rc = LOUSHORT(mciSendCommand( a->mci_device_id, MCI_STATUS, MCI_STATUS_ITEM | MCI_WAIT, &mstatp, 0 ));
 
-  if( LOUSHORT(rc) == MCIERR_SUCCESS ) {
+  if( rc == MCIERR_SUCCESS ) {
     *position = mstatp.ulReturn;
   }
 
@@ -200,9 +200,9 @@ output_pause( void* A, BOOL pause )
 
   if( a->status == DEVICE_OPENED )
   {
-    rc = mciSendCommand( a->mci_device_id, pause ? MCI_PAUSE : MCI_RESUME, MCI_WAIT, &mgp, 0 );
+    rc = LOUSHORT(mciSendCommand( a->mci_device_id, pause ? MCI_PAUSE : MCI_RESUME, MCI_WAIT, &mgp, 0 ));
 
-    if( LOUSHORT(rc) != MCIERR_SUCCESS ) {
+    if( rc != MCIERR_SUCCESS ) {
       output_error( a, rc );
     }
   }
@@ -237,23 +237,20 @@ output_close( void* A )
   }
 
   if( a->mci_buf_parms.ulNumBuffers ) {
-    rc = mciSendCommand( a->mci_device_id, MCI_BUFFER,
-                         MCI_WAIT | MCI_DEALLOCATE_MEMORY, &a->mci_buf_parms, 0 );
-
-    if( LOUSHORT(rc) != MCIERR_SUCCESS ) {
+    rc = LOUSHORT(mciSendCommand( a->mci_device_id, MCI_BUFFER,
+                                  MCI_WAIT | MCI_DEALLOCATE_MEMORY, &a->mci_buf_parms, 0 ));
+    if( rc != MCIERR_SUCCESS ) {
       output_error( a, rc );
     }
   }
 
-  rc = mciSendCommand( a->mci_device_id, MCI_STOP,  MCI_WAIT, &mgp, 0 );
-
-  if( LOUSHORT(rc) != MCIERR_SUCCESS ) {
+  rc = LOUSHORT(mciSendCommand( a->mci_device_id, MCI_STOP,  MCI_WAIT, &mgp, 0 ));
+  if( rc != MCIERR_SUCCESS ) {
     output_error( a, rc );
   }
 
-  rc = mciSendCommand( a->mci_device_id, MCI_CLOSE, MCI_WAIT, &mgp, 0 );
-
-  if( LOUSHORT(rc) != MCIERR_SUCCESS ) {
+  rc = LOUSHORT(mciSendCommand( a->mci_device_id, MCI_CLOSE, MCI_WAIT, &mgp, 0 ));
+  if( rc != MCIERR_SUCCESS ) {
     output_error( a, rc );
   }
 
@@ -306,10 +303,12 @@ output_open( OS2AUDIO* a )
   a->boosted       = FALSE;
   a->nomoredata    = TRUE;
 
+/* Uh, well, we don't want to mask bugs here ...
   if( info->formatinfo.format     <= 0 ) { info->formatinfo.format     = WAVE_FORMAT_PCM; }
   if( info->formatinfo.samplerate <= 0 ) { info->formatinfo.samplerate = 44100; }
   if( info->formatinfo.channels   <= 0 ) { info->formatinfo.channels   = 2;     }
   if( info->formatinfo.bits       <= 0 ) { info->formatinfo.bits       = 16;    }
+*/
 
   if( info->formatinfo.bits != 8 && !a->force8bit ) {
     a->zero = 0;
@@ -317,13 +316,15 @@ output_open( OS2AUDIO* a )
     a->zero = 128;
   }
 
+  DEBUGLOG(("os2audio:output_open - {%i, %i, %i, %i}\n",
+    info->formatinfo.samplerate, info->formatinfo.channels, info->formatinfo.bits, info->formatinfo.format ));
   // There can be the audio device supports other formats, but
   // whether can interpret other plug-ins them correctly?
-  if(( info->formatinfo.format != WAVE_FORMAT_PCM ) ||
-     ( info->formatinfo.bits != 16 && info->formatinfo.bits != 8 ) ||
-     ( info->formatinfo.channels > 2 ))
-  {
-    rc = MCIERR_UNSUPP_FORMAT_MODE;
+  if( info->formatinfo.format != WAVE_FORMAT_PCM ||
+      info->formatinfo.samplerate > 0 ||
+      ( info->formatinfo.bits != 16 && info->formatinfo.bits != 8 ) ||
+      info->formatinfo.channels > 2 )
+  { rc = MCIERR_UNSUPP_FORMAT_MODE;
     goto end;
   }
 
@@ -337,8 +338,9 @@ output_open( OS2AUDIO* a )
     openflags = MCI_OPEN_SHAREABLE;
   }
 
-  rc = mciSendCommand( 0, MCI_OPEN, MCI_WAIT | MCI_OPEN_TYPE_ID | openflags, &mci_aop, 0 );
-  if( LOUSHORT(rc) != MCIERR_SUCCESS ) {
+  rc = LOUSHORT(mciSendCommand( 0, MCI_OPEN, MCI_WAIT | MCI_OPEN_TYPE_ID | openflags, &mci_aop, 0 ));
+  if( rc != MCIERR_SUCCESS ) {
+    DEBUGLOG(( "os2audio:output_open: MCI_OPEN failed: %u.\n", rc ));
     goto end;
   }
 
@@ -365,8 +367,9 @@ output_open( OS2AUDIO* a )
   a->mci_mix.ulDeviceType = MCI_DEVTYPE_WAVEFORM_AUDIO;
   a->mci_mix.pmixEvent    = dart_event;
 
-  rc = mciSendCommand( a->mci_device_id, MCI_MIXSETUP, MCI_WAIT | MCI_MIXSETUP_INIT, &a->mci_mix, 0 );
-  if( LOUSHORT( rc ) != MCIERR_SUCCESS ) {
+  rc = LOUSHORT(mciSendCommand( a->mci_device_id, MCI_MIXSETUP, MCI_WAIT | MCI_MIXSETUP_INIT, &a->mci_mix, 0 ));
+  if( rc != MCIERR_SUCCESS ) {
+    DEBUGLOG(( "os2audio:output_open: MCI_MIXSETUP failed: %u.\n", rc ));
     goto end;
   }
 
@@ -391,10 +394,10 @@ output_open( OS2AUDIO* a )
   a->mci_buf_parms.ulBufferSize = a->buffersize;
   a->mci_buf_parms.pBufList     = a->mci_buffers;
 
-  rc = mciSendCommand( a->mci_device_id, MCI_BUFFER,
-                       MCI_WAIT | MCI_ALLOCATE_MEMORY, (PVOID)&a->mci_buf_parms, 0 );
-
-  if( LOUSHORT(rc) != MCIERR_SUCCESS ) {
+  rc = LOUSHORT(mciSendCommand( a->mci_device_id, MCI_BUFFER,
+                                MCI_WAIT | MCI_ALLOCATE_MEMORY, (PVOID)&a->mci_buf_parms, 0 ));
+  if( rc != MCIERR_SUCCESS ) {
+    DEBUGLOG(( "os2audio:output_open: MCI_BUFFER failed: %u.\n", rc ));
     goto end;
   }
 
@@ -421,9 +424,9 @@ output_open( OS2AUDIO* a )
   a->mci_to_fill = &a->mci_buffers[2];
 
   // Write buffers to kick off the amp mixer.
-  rc = a->mci_mix.pmixWrite( a->mci_mix.ulMixHandle, a->mci_is_play, a->mci_buf_parms.ulNumBuffers );
-
-  if( LOUSHORT(rc) != MCIERR_SUCCESS ) {
+  rc = LOUSHORT(a->mci_mix.pmixWrite( a->mci_mix.ulMixHandle, a->mci_is_play, a->mci_buf_parms.ulNumBuffers ));
+  if( rc != MCIERR_SUCCESS ) {
+    DEBUGLOG(( "os2audio:output_open: pmixWrite failed: %u.\n", rc ));
     goto end;
   }
 
@@ -433,10 +436,10 @@ output_open( OS2AUDIO* a )
 
 end:
 
-  if( LOUSHORT(rc) != MCIERR_SUCCESS )
+  if( rc != MCIERR_SUCCESS )
   {
     output_error( a, rc );
-    DEBUGLOG(( "os2audio: output device opening is failed.\n" ));
+    DEBUGLOG(( "os2audio: output device opening is failed: %u.\n", rc ));
 
     if( a->mci_device_id ) {
       a->status = DEVICE_FAILED;
