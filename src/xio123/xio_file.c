@@ -65,8 +65,11 @@ file_open( XFILE* x, const char* filename, int oflags )
   }
 
   // accept file:/// URLs too
-  if ( strnicmp(filename, "file:///", 8) == 0 ) {
-    filename += 8;
+  if ( strnicmp(filename, "file:", 5) == 0 ) {
+    filename += 5;
+    if (memcmp(filename, "///", 3) == 0) {
+      filename += 3;
+    }
   }
 
   if(( x->protocol->s_handle = sopen( filename, omode, SH_DENYNO )) == -1 ) {
