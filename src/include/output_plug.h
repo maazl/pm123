@@ -107,7 +107,7 @@ typedef struct _OUTPUT_PARAMS2
 
   /* --- OUTPUT_TRASH_BUFFERS */
 
-  ULONG temp_playingpos;  // used until new buffers come in
+  double temp_playingpos;  // used until new buffers come in
 
   /* --- OUTPUT_OPEN */
 
@@ -117,17 +117,17 @@ typedef struct _OUTPUT_PARAMS2
 } OUTPUT_PARAMS2;
 
 #if !defined(OUTPUT_PLUGIN_LEVEL) || OUTPUT_PLUGIN_LEVEL <= 1 
-ULONG DLLENTRY output_command( void* a, ULONG msg, OUTPUT_PARAMS* info );
-int   DLLENTRY output_play_samples( void* a, FORMAT_INFO* format, char* buf, int len, int posmarker );
-ULONG DLLENTRY output_playing_pos( void* a );
+ULONG  DLLENTRY output_command( void* a, ULONG msg, OUTPUT_PARAMS* info );
+int    DLLENTRY output_play_samples( void* a, FORMAT_INFO* format, char* buf, int len, int posmarker );
+ULONG  DLLENTRY output_playing_pos( void* a );
 #else
-ULONG DLLENTRY output_command( void* a, ULONG msg, OUTPUT_PARAMS2* info );
-int   DLLENTRY output_request_buffer( void* a, const FORMAT_INFO2* format, short** buf );
-void  DLLENTRY output_commit_buffer( void* a, int len, int posmarker );
-int   DLLENTRY output_playing_pos( void* a );
+ULONG  DLLENTRY output_command( void* a, ULONG msg, OUTPUT_PARAMS2* info );
+int    DLLENTRY output_request_buffer( void* a, const FORMAT_INFO2* format, short** buf );
+void   DLLENTRY output_commit_buffer( void* a, int len, double posmarker );
+double DLLENTRY output_playing_pos( void* a );
 #endif
-ULONG DLLENTRY output_playing_samples( void* a, FORMAT_INFO* info, char* buf, int len );
-BOOL  DLLENTRY output_playing_data( void* a );
+ULONG  DLLENTRY output_playing_samples( void* a, FORMAT_INFO* info, char* buf, int len );
+BOOL   DLLENTRY output_playing_data( void* a );
 
 #pragma pack()
 

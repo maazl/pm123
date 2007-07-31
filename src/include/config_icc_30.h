@@ -4,6 +4,11 @@
 #define CCNAME "IBM Visualage C++ 3.0"
 
 #ifdef __cplusplus
+#if !defined( bool )
+  typedef int   bool;
+  #define true  1
+  #define false 0
+#endif
 extern "C" {
 #endif
 

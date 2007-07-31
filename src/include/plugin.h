@@ -23,7 +23,7 @@ typedef struct _PLUGIN_PROCS
 {
   ULONG (DLLENTRYP output_playing_samples)( FORMAT_INFO* info, char* buf, int len );
   BOOL  (DLLENTRYP decoder_playing)( void );
-  ULONG (DLLENTRYP output_playing_pos)( void );
+  double(DLLENTRYP output_playing_pos)( void );
   ULONG (DLLENTRYP decoder_status)( void );
   /* name is the DLL filename of the decoder that can play that file */
   ULONG (DLLENTRYP decoder_fileinfo)( const char* URL, DECODER_INFO2* info, char* name );
@@ -33,7 +33,7 @@ typedef struct _PLUGIN_PROCS
 
   /* name is the DLL filename of the decoder that can play that track */
   ULONG (DLLENTRYP decoder_cdinfo)( const char* drive, DECODER_CDINFO* info );
-  ULONG (DLLENTRYP decoder_length)( void );
+  double(DLLENTRYP decoder_length)( void );
 
 } PLUGIN_PROCS, *PPLUGIN_PROCS;
 

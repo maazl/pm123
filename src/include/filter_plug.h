@@ -38,8 +38,8 @@ typedef struct _FILTER_PARAMS2
   ULONG (DLLENTRYP output_command)( void* a, ULONG msg, OUTPUT_PARAMS2* info );
   ULONG (DLLENTRYP output_playing_samples)( void* a, FORMAT_INFO* info, char* buf, int len );
   int   (DLLENTRYP output_request_buffer)( void* a, const FORMAT_INFO2* format, short** buf );
-  void  (DLLENTRYP output_commit_buffer)( void* a, int len, int posmarker );
-  int   (DLLENTRYP output_playing_pos)( void* a );
+  void  (DLLENTRYP output_commit_buffer)( void* a, int len, double posmarker );
+  double(DLLENTRYP output_playing_pos)( void* a );
   BOOL  (DLLENTRYP output_playing_data)( void* a );
   void* a;  /* only to be used with the precedent functions */
   
@@ -65,7 +65,7 @@ ULONG DLLENTRY filter_init  ( void** f, FILTER_PARAMS* params );
 /* a filter plug-in or directly in an output plug-in          */
 /* BUT you will have to pass void *a from above to the next   */
 /* stage which will be either a filter or output              */
-int  DLLENTRY filter_play_samples( void* f, FORMAT_INFO* format, char* buf, int len, int posmarker );
+int   DLLENTRY filter_play_samples( void* f, FORMAT_INFO* format, char* buf, int len, int posmarker );
 
 #else /* interface level 2 */
 ULONG DLLENTRY filter_init  ( void** f, FILTER_PARAMS2* params );

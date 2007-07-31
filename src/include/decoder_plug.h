@@ -20,7 +20,7 @@ typedef enum
   DECODER_STOP     = 2, /* returns 101 -> already stopped
                                    102 -> error, decoder killed (and stopped) */
   DECODER_FFWD     = 3,
-  DECODER_REW      = 4,
+  DECODER_REW      = 4, /* Level 2 plug-ins always send DECODER_FFWD */ 
   DECODER_JUMPTO   = 5,
   DECODER_SETUP    = 6,
   DECODER_EQ       = 7,
@@ -36,6 +36,12 @@ typedef enum
   DEVEVENT_CHANGETECH = 4, /* change bitrate or samplingrate, param points to TECH_INFO structure */
   DECEVENT_CHANGEMETA = 5  /* change metadata, param points to META_INFO structure */ 
 } DECEVENTTYPE;
+
+typedef enum
+{ DECFAST_NORMAL_PLAY = 0,
+  DECFAST_FORWARD     = 1,
+  DECFAST_REWIND      = 2
+} DECFASTMODE;
 
 
 typedef struct _DECODER_PARAMS
@@ -100,6 +106,7 @@ typedef struct _DECODER_PARAMS
 
 } DECODER_PARAMS;
 
+
 typedef struct _DECODER_PARAMS2
 {
    int   size;
@@ -110,15 +117,14 @@ typedef struct _DECODER_PARAMS2
 
    /* --- DECODER_REW, FFWD and JUMPTO */
 
-   int   jumpto;      /* absolute positioning in milliseconds */
-   int   ffwd;        /* 1 = start ffwd, 0 = end ffwd */
-   int   rew;         /* 1 = start rew, 0 = end rew */
+   double      jumpto;      /* absolute positioning in seconds */
+   DECFASTMODE fast;        /* fast forward/rewind */
 
    /* --- DECODER_SETUP */
 
    /* specify a function which the decoder should use for output */
    int   (DLLENTRYP output_request_buffer )( void* a, const FORMAT_INFO2* format, short** buf );
-   void  (DLLENTRYP output_commit_buffer  )( void* a, int len, int posmarker );
+   void  (DLLENTRYP output_commit_buffer  )( void* a, int len, double posmarker );
    /* decoder events */
    void  (DLLENTRYP output_event          )( void* a, DECEVENTTYPE event, void* param );
    void* a;           /* only to be used with the precedent functions */
@@ -154,9 +160,17 @@ typedef struct _DECODER_PARAMS2
            1xx -> msg specific */
 #if !defined(DECODER_PLUGIN_LEVEL) || DECODER_PLUGIN_LEVEL <= 1 
 ULONG DLLENTRY decoder_command( void* w, ULONG msg, DECODER_PARAMS* params );
+/* WARNING!! this _can_ change in time!!! returns stream length in ms */
+/* the decoder should keep in memory a last valid length so the call  */
+/* remains valid even if decoder_status() == DECODER_STOPPED          */
+ULONG DLLENTRY decoder_length( void* w );
 #else
 ULONG DLLENTRY decoder_command( void* w, DECMSGTYPE msg, DECODER_PARAMS2* params );
 void  DLLENTRY decoder_event  ( void* w, OUTEVENTTYPE event );
+/* WARNING!! this _can_ change in time!!! returns stream length in ms */
+/* the decoder should keep in memory a last valid length so the call  */
+/* remains valid even if decoder_status() == DECODER_STOPPED          */
+double DLLENTRY decoder_length( void* w );
 #endif
 
 #define DECODER_STOPPED  0
@@ -165,11 +179,6 @@ void  DLLENTRY decoder_event  ( void* w, OUTEVENTTYPE event );
 #define DECODER_ERROR    3
 
 ULONG DLLENTRY decoder_status( void* w );
-
-/* WARNING!! this _can_ change in time!!! returns stream length in ms */
-/* the decoder should keep in memory a last valid length so the call  */
-/* remains valid even if decoder_status() == DECODER_STOPPED          */
-ULONG DLLENTRY decoder_length( void* w );
 
 #define DECODER_MODE_STEREO         0
 #define DECODER_MODE_JOINT_STEREO   1
@@ -230,12 +239,12 @@ typedef struct
 {
    int  size;
 
-   FORMAT_INFO2 format;  /* stream format after decoding */
+   FORMAT_INFO2* format;  /* stream format after decoding */
                
-   TECH_INFO    tech;    /* technical informations about the source */
+   TECH_INFO*    tech;    /* technical informations about the source */
 
-   META_INFO    meta;    /* song information */
-   BOOL         meta_write; /* support editing the metadata (same as saveinfo in DECODER_INFO) */
+   META_INFO*    meta;    /* song information */
+   BOOL          meta_write; /* support editing the metadata (same as saveinfo in DECODER_INFO) */
 
 } DECODER_INFO2;
 
@@ -279,7 +288,9 @@ ULONG DLLENTRY decoder_support( char* fileext[], int* size );
 #if defined(DECODER_PLUGIN_LEVEL) && DECODER_PLUGIN_LEVEL > 0 
 ULONG DLLENTRY decoder_editmeta ( HWND owner, const char* url );
 
-typedef ULONG (DLLENTRYP DECODER_WIZZARD_FUNC)( HWND owner, char* select, ULONG size );
+typedef void  (DLLENTRYP DECODER_WIZZARD_CALLBACK)( void* param, const char* url );
+
+typedef ULONG (DLLENTRYP DECODER_WIZZARD_FUNC)( HWND owner, const char* title, DECODER_WIZZARD_CALLBACK callback, void* param );
 
 typedef struct _DECODER_WIZZARD
 { /* linked list */ 
@@ -293,7 +304,7 @@ typedef struct _DECODER_WIZZARD
   DECODER_WIZZARD_FUNC     wizzard;
 } DECODER_WIZZARD;
 
-const DECODER_WIZZARD* DLLENTRY decoder_getwizzard( BOOL multiselect );
+const DECODER_WIZZARD* DLLENTRY decoder_getwizzard( );
 #endif
 
 #pragma pack()
