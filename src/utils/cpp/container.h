@@ -34,6 +34,11 @@
 #include <cpp/smartptr.h>
 
 
+/* Internal logically abstract base class of vector<T> with all non-template core implementations.
+ * This class can only store reference type objects (pointers).
+ * It does not handle the ownership of the referenced objects.
+ * The class methods are not synchronized.
+ */
 class vector_base
 {private:
   void** Data;
@@ -44,32 +49,81 @@ class vector_base
   vector_base(const vector_base& r);
   void operator=(const vector_base& r);
  protected:
+  // create a new vector with a given initial capacity.
+  // The initial capacity must not be less or equal to 0.
   vector_base(size_t capacity = 16);
+  // Destroy the vector and delete all stored references.
+  // This will not affect the referenced objects.
   ~vector_base();
-
+  // Insert a new element in the vector at location where
+  // Precondition: where in [0,size()], Performance: O(n)
+  // The function does not take the value of the new element.
+  // Instead it returns a reference to the new location that should be assigned later.
+  // The reference is valid until the next non-const member function call.
+  // The initial value is undefined.
+  // The function is not type safe and should not be exposed public.  
   void*&             insert(size_t where);
+  // Removes an element from the vector and return it's value.
+  // Precondition: where in [0,size()-1], Performance: O(n)
+  // The function is not type safe and should not be exposed public.  
   void*              erase(size_t where);
-  void*&             at(size_t where) const { return Data[where]; }
+  // Access an element by number.
+  // Precondition: where in [0,size()-1], Performance: O(1)
+  // This is in fact like operator[], but since this method is not type safe
+  // it should not be exposed public.
+  void*&             at(size_t where) const         { return Data[where]; }
  public:
-  size_t             size() const { return Size; }
+  // Return the number of elements in the container.
+  // This is not equal to the storage capacity.
+  size_t             size() const                   { return Size; }
 };
 
+/* Type safe vector of reference type objects (pointers).
+ * The class does not handle the ownership of the referenced objects.
+ * The class methods are not synchronized.
+ */
 template <class T>
 class vector : public vector_base
 {public:
+  // create a new vector with a given initial capacity.
+  // The initial capacity must not be less or equal to 0.
   vector(size_t capacity = 16) : vector_base(capacity) {}
-  //~vector_base();
+  // Insert a new element in the vector at location where
+  // Precondition: where in [0,size()], Performance: O(n)
+  // The function does not take the value of the new element.
+  // Instead it returns a reference to the new location that should be assigned later.
+  // The reference is valid until the next non-const member function call.
+  // The initial value of the new element is undefined and must be assigned before the next access.
   T*&                insert(size_t where)           { return (T*&)vector_base::insert(where); }
+  // Removes an element from the vector and return it's value.
+  // Precondition: where in [0,size()-1], Performance: O(n)
   T*                 erase(size_t where)            { return (T*)vector_base::erase(where); }
+  // Access an element by it's index.
+  // Precondition: where in [0,size()-1], Performance: O(1)
+  // This is the constant version of the [] operator. Since we deal only with references
+  // it returns a value copy rather than a const reference to the element.
   T*                 operator[](size_t where) const { return (T*)at(where); }
+  // Access an element by it's index.
+  // Precondition: where in [0,size()-1], Performance: O(1)
   T*&                operator[](size_t where)       { return (T*&)at(where); }
+  // Get a constant iterator that points to the firs element or past the end if the vector is empty.
+  // Precondition: none, Performance: O(1)
   T*const*           begin() const                  { return &(T*&)at(0); }
+  // Get a iterator that points to the firs element or past the end if the vector is empty.
+  // Precondition: none, Performance: O(1)
   T**                begin()                        { return &(*this)[0]; }
+  // Get a constant iterator that points past the end.
+  // Precondition: none, Performance: O(1)
   T*const*           end() const                    { return &(T*&)at(size()); }
+  // Get a iterator that points past the end.
+  // Precondition: none, Performance: O(1)
   T**                end()                          { return &(*this)[size()]; }
 };
 
 /* Interface for compareable objects.
+ * A class that implements this interface with the template parameter K is comparable to const K*.
+ * The type K may be the same as the class that implements this interface or not.
+ * Note: you may implement IComparableTo<char> to be comparable to ordinary C strings.
  */
 template <class K>
 struct IComparableTo
@@ -77,30 +131,70 @@ struct IComparableTo
 };
 
 
+/* Base class for a sorted vector.
+ * This is a unique associative container.
+ * It is intrusive to the stored objects by the way that they must implement IComparable<K>.
+ * The referenced objects must not change their keys while they are in the container.
+ */
 template <class K>
 class sorted_vector_base : public vector<IComparableTo<K> >
-{protected:
+{public:
+  // Create a new vector with a given initial capacity.
+  // The initial capacity must not be less or equal to 0.
   sorted_vector_base(size_t capacity) : vector<IComparableTo<K> >(capacity) {}
+  // Search for a given key.
+  // The function returns whether you got an exact match or not.
+  // The index of the first element >= key is always returned in the output parameter pos.
+  // Precondition: none, Performance: O(log(n))
   bool               binary_search(const K* key, size_t& pos) const;
+  // Find an element by it's key.
+  // The function will return NULL if no such element is in the container.
+  // Precondition: none, Performance: O(log(n))
   IComparableTo<K>*  find(const K* key) const;
+  // Ensure an element with a particular key.
+  // This will either return a reference to a pointer to an existing object which equals to key
+  // or a reference to a NULL pointer which is automatically createt at the location in the container
+  // where a new object with key should be inserted. So you can store the Pointer to this object after the funtion returned.
+  // Precondition: none, Performance: O(log(n))
   IComparableTo<K>*& get(const K* key);
- public:
+  // Erase the element which equals key and return the removed pointer.
+  // If no such element exists the function returns NULL.
+  // Precondition: none, Performance: O(log(n))
   IComparableTo<K>*  erase(const K* key);
 };
 
-
+/* Type-safe implementation of sorted_vector_base.
+ * This class shares all properties of sorted_vector_base,
+ * except that it is strongly typed to objects of type T which must implement IComparableTo<K>.
+ * It is recommended to prefer this type-safe implementation over sorted_vector_base. 
+ */
 template <class T, class K>
 class sorted_vector : public sorted_vector_base<K>
 {public:
+  // Create a new vector with a given initial capacity.
+  // The initial capacity must not be less or equal to 0.
   sorted_vector(size_t capacity) : sorted_vector_base<K>(capacity) {}
+  // Find an element by it's key.
+  // The function will return NULL if no such element is in the container.
+  // Precondition: none, Performance: O(log(n))
   T*                 find(const K* key) const       { return (T*)sorted_vector_base<K>::find(key); }
+  // Ensure an element with a particular key.
+  // This will either return a reference to a pointer to an existing object which equals to key
+  // or a reference to a NULL pointer which is automatically createt at the location in the container
+  // where a new object with key should be inserted. So you can store the Pointer to this object after the funtion returned.
+  // Precondition: none, Performance: O(log(n))
   T*&                get(const K* key)              { return (T*&)sorted_vector_base<K>::get(key); }
+  // Erase the element which equals key and return the removed pointer.
+  // If no such element exists the function returns NULL.
+  // Precondition: none, Performance: O(log(n))
+  T*                 erase(const K* key)            { return (T*)sorted_vector_base<K>::erase(key); }
 };
 
 
+/* Template implementations */
 template <class K>
 bool sorted_vector_base<K>::binary_search(const K* key, size_t& pos) const
-{ // binary search
+{ // binary search                                  
   DEBUGLOG(("sorted_vector_base<K>::binary_search(%p,&%p)\n", key, &pos));
   size_t l = 0;
   size_t r = size();
