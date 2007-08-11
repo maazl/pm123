@@ -32,7 +32,6 @@
 #include <cpp/mutex.h>
 
 #include "playable.h"
-#include "repository.h"
 
 
 /****************************************************************************
@@ -87,11 +86,6 @@ class PlaylistManager //: public IStringComparable
     // The Commands to be executed are atomically taken from the PostMsg bitvector
     // in the referenced record or the container.
     UM_RECORDCOMMAND,
-    // Search fo a chlid record which refers to a PlayableInstance.
-    // mp1 = Parent record
-    // mp2 = PlayableInstance
-    // mr  = Record* or NULL
-    UM_FINDPLAYABLECHILD,
     // Delete a record structure and put it back to PM
     // mp1 = Record
     UM_DELETERECORD,
