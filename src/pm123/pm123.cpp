@@ -2558,7 +2558,7 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
           return 0;
 
         case BMP_NEXT:
-        { if (Current.IsValid())
+        { if (Current.GetRoot())
           { BOOL decoder_was_playing = decoder_playing();
             if (decoder_was_playing)
               amp_stop();
@@ -2568,7 +2568,7 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
           return 0;
         }
         case BMP_PREV:
-        { if (Current.IsValid())
+        { if (Current.GetRoot())
           { BOOL decoder_was_playing = decoder_playing();
             if (decoder_was_playing)
               amp_stop();

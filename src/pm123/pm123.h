@@ -42,15 +42,16 @@
 
 #define ICO_MAIN              1
 #define ICO_MP3            1700
-#define ICO_MP3PLAY        1701
-#define ICO_MP3GRAY        1702
+#define ICO_MP3USED        1701
+#define ICO_MP3PLAY        1702
+#define ICO_MP3INVLD       1709
 #define ICO_PLCLOSE        1710
 #define ICO_PLOPEN         1711
 #define ICO_PLCLOSEPLAY    1712
 #define ICO_PLOPENPLAY     1713
 #define ICO_PLRECURSIVE    1714
 #define ICO_PLRECURSIVEPLAY 1715
-#define ICO_PLEMPTY        1716
+#define ICO_PLEMPTY        1719
 
 #define WIN_MAIN              1
 #define HLP_MAIN              1

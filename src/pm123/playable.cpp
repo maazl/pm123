@@ -144,7 +144,7 @@ Playable::~Playable()
 { DEBUGLOG(("Playable(%p{%s})::~Playable()\n", this, URL.cdata()));
   // Deregister from repository automatically
   { Mutex::Lock lock(RPMutex);
-    IStringComparable* r = RPInst.Remove(URL);
+    IComparableTo<char>* r = RPInst.erase(URL);
     assert(r != NULL);
   }
 }
@@ -242,9 +242,9 @@ void Playable::LoadInfoAsync(InfoFlags what)
 
 Playable::InfoFlags Playable::EnsureInfoAsync(InfoFlags what)
 { InfoFlags avail = what & InfoValid;
-  what &= ~avail;
-  // schedule request
-  LoadInfoAsync(what);
+  if ((what &= ~avail) != 0)
+    // schedule request
+    LoadInfoAsync(what);
   return avail;
 }
 
@@ -287,8 +287,8 @@ void Playable::Uninit()
 
 
 /* URL repository */
-StringRepository Playable::RPInst(RP_INITIAL_SIZE);
-Mutex            Playable::RPMutex;
+sorted_vector<Playable, char> Playable::RPInst(RP_INITIAL_SIZE);
+Mutex Playable::RPMutex;
 
 int Playable::CompareTo(const char* str) const
 { return stricmp(URL, str);
@@ -297,24 +297,27 @@ int Playable::CompareTo(const char* str) const
 int_ptr<Playable> Playable::FindByURL(const char* url)
 { DEBUGLOG(("Playable::FindByURL(%s)\n", url));
   Mutex::Lock lock(RPMutex);
-  return (Playable*)RPInst.Find(url);
+  return RPInst.find(url);
 }
 
 int_ptr<Playable> Playable::GetByURL(const char* url, const FORMAT_INFO2* ca_format, const TECH_INFO* ca_tech, const META_INFO* ca_meta)
 { DEBUGLOG(("Playable::GetByURL(%s)\n", url));
   Mutex::Lock lock(RPMutex);
-  Playable*& pp = (Playable*&)RPInst.Get(url);
+  DEBUGLOG(("Playable::GetByURL: factory\n"));
+  Playable*& pp = RPInst.get(url);
+  DEBUGLOG(("Playable::GetByURL: factory\n"));
+  DEBUGLOG(("Playable::GetByURL: factory &%p{%p}\n", &pp, pp));
   if (pp)
     return pp;
   // factory
+  DEBUGLOG(("Playable::GetByURL: factory &%p{%p}\n", &pp, pp));
   size_t p = strlen(url);
-  if (strnicmp(url, "file:", 5) == 0 && url[p-1] == '/' || url[p-1] == '*' && url[p-2] == '/')
-  { pp = new PlayFolder(url, ca_tech, ca_meta);
-  } else if (is_playlist(url))
-  { pp = new Playlist(url, ca_tech, ca_meta);
-  } else // Song
-  { pp = new Song(url, ca_format, ca_tech, ca_meta);
-  }
+  if (strnicmp(url, "file:", 5) == 0 && url[p-1] == '/')
+    pp = new PlayFolder(url, ca_tech, ca_meta);
+   else if (is_playlist(url))
+    pp = new Playlist(url, ca_tech, ca_meta);
+   else // Song
+    pp = new Song(url, ca_format, ca_tech, ca_meta);
   return pp;
 }
 
@@ -330,7 +333,15 @@ PlayableInstance::PlayableInstance(PlayableCollection& parent, Playable* playabl
   RefTo(playable),
   Stat(STA_Normal),
   Pos(0)
-{}
+{ DEBUGLOG(("PlayableInstance(%p)::PlayableInstance(%p{%s}, %p{%s})\n", this,
+    &parent, parent.GetURL().getObjName().cdata(), playable, playable->GetURL().getObjName().cdata()));
+}
+
+PlayableInstance::~PlayableInstance()
+{ DEBUGLOG(("PlayableInstance(%p)::~PlayableInstance() - %p\n", this, &*RefTo));
+  // signal dependant objects
+  StatusChange(change_args(*this, SF_Destroy));
+}
 
 void PlayableInstance::SetInUse(bool used)
 { DEBUGLOG(("PlayableInstance(%p)::SetInUse(%u)\n", this, used));
@@ -440,6 +451,9 @@ PlayableCollection::PlayableCollection(const char* url, const TECH_INFO* ca_tech
 
 PlayableCollection::~PlayableCollection()
 { DEBUGLOG(("PlayableCollection(%p{%s})::~PlayableCollection()\n", this, GetURL().getObjName().cdata()));
+  // frist disable all events
+  CollectionChange.reset();
+  InfoChange.reset();
   // free nested entries
   Entry* ep = Head;
   Entry* ep2;
@@ -782,7 +796,9 @@ void Playlist::RemoveItem(PlayableInstance* item)
   // update tech info
   LoadInfoAsync(InfoValid & IF_Tech);
   // raise InfoChange event?
+  DEBUGLOG(("Playlist::RemoveItem: before raiseinfochange\n"));
   RaiseInfoChange();
+  DEBUGLOG(("Playlist::RemoveItem: after raiseinfochange\n"));
 }
 
 

@@ -55,17 +55,17 @@ class PlaylistManager //: public IStringComparable
   { // Event state properties common to Records and PlaylistManager 
     struct record_data : public CommonState
     { volatile unsigned UseCount;  // Reference counter to keep Records alive while Posted messages are on the way.
+      Record*           Parent;    // Pointer to parent Record or NULL if we are at the root level.
       bool              Updated;   // Flag whether the children of this node are up to date.
       bool              Recursive; // Flag whether this node is in the current callstack.
-      class_delegate2<PlaylistManager, const PlayableCollection::change_args, Record*> ListUpdate;
       class_delegate2<PlaylistManager, const Playable::change_args          , Record*> InfoChange;
       class_delegate2<PlaylistManager, const PlayableInstance::change_args  , Record*> StatChange;
       xstring Text;
       record_data(PlaylistManager& pm,
-                  void (PlaylistManager::*listupdatefn)(const PlayableCollection::change_args&, Record*),
                   void (PlaylistManager::*infochangefn)(const Playable::change_args&, Record*),
                   void (PlaylistManager::*statchangefn)(const PlayableInstance::change_args&, Record*),
-                  Record* rec);
+                  Record* rec,
+                  Record* parent);
       void              DeregisterEvents();
     };
     PlayableInstance*   Content;   // The pointer to the backend content may be NULL if the object is deleted.
@@ -121,12 +121,12 @@ class PlaylistManager //: public IStringComparable
   };
   
  private: // Cached Icon ressources
-  enum
+  enum IC
   { IC_Normal,
     IC_Used,
-    IC_InstUsed,
+    IC_Play
   };
-  enum
+  enum ICP
   { ICP_Closed,
     ICP_Open,
     ICP_Recursive
@@ -174,6 +174,9 @@ class PlaylistManager //: public IStringComparable
   void              PostRecordCommand(Record* rec, RecordCommand cmd); 
   // Free a record after a record message sent with PostRecordCommand completed.
   void              FreeRecord(Record* rec);
+  // Gets the Usage type of a record.
+  // Subfunction to CalcIcon.
+  static IC         GetRecordUsage(Record* rec);
   // Calculate icon for a record. Content must be valid!
   static HPOINTER   CalcIcon(Record* rec);
   // check whether the current record is recursive
@@ -204,13 +207,11 @@ class PlaylistManager //: public IStringComparable
   // Update the alias of a record
   void              UpdateAlias(Record* rec);
  private: // Notifications by the underlying Playable objects.
-  // This function is called when the content of node changes.
-  void              ListUpdateEvent(const PlayableCollection::change_args& args, Record* rec);
   // This function is called when meta, status or technical information of a node changes.
   void              InfoChangeEvent(const Playable::change_args& args, Record* rec);
   // This function is called when statusinformation of a PlayableInstance changes.
   void              StatChangeEvent(const PlayableInstance::change_args& inst, Record* rec);
-  class_delegate2<PlaylistManager, const PlayableCollection::change_args, Record*> RootUpdateDelegate;
+  //class_delegate2<PlaylistManager, const PlayableCollection::change_args, Record*> RootUpdateDelegate;
   class_delegate2<PlaylistManager, const Playable::change_args          , Record*> RootInfoDelegate;
  private: // User actions
   // Add Item
@@ -239,21 +240,20 @@ class PlaylistManager //: public IStringComparable
 
 inline PlaylistManager::Record::record_data::record_data(
   PlaylistManager& pm,
-  void (PlaylistManager::*listupdatefn)(const PlayableCollection::change_args&, Record*),
   void (PlaylistManager::*infochangefn)(const Playable::change_args&, Record*),
   void (PlaylistManager::*statchangefn)(const PlayableInstance::change_args&, Record*),
-  Record* rec)
+  Record* rec,
+  Record* parent)
 : UseCount(1),
+  Parent(parent),
   Updated(false),
   Recursive(false),
-  ListUpdate(pm, listupdatefn, rec),
   InfoChange(pm, infochangefn, rec),
   StatChange(pm, statchangefn, rec)
 {}
 
 inline void PlaylistManager::Record::record_data::DeregisterEvents()
-{ ListUpdate.detach();
-  InfoChange.detach();
+{ InfoChange.detach();
   StatChange.detach();
 }
 

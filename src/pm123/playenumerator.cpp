@@ -176,12 +176,13 @@ int_ptr<Song> PlayEnumerator::PrevNextCore(int_ptr<Song> (PlayEnumerator::*subfn
   DEBUGLOG(("PlayEnumerator::PrevNextCore : item\n"));
   int_ptr<Playable> current;
   // next item
-  { Mutex::Lock(Root->Mtx);
+  { Mutex::Lock lock(Root->Mtx);
     (this->*enumfn)();
     if (!Enumerator->IsValid())
     { // no more
+      lock.Release();
       Valid = false;
-      // Enumerator->Reset(), PrevEnumerator == NULL and NextEnumerator == NULL is implicitely implied
+      SubIterator->Attach(NULL);
       DEBUGLOG(("PlayEnumerator::PrevNextCore : last item\n"));
       return NULL;
     }

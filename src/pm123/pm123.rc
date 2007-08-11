@@ -339,9 +339,9 @@ BITMAP BMP_PLIST        bmp\timeleft.bmp
 /* Icons. */
 ICON   ICO_MAIN         ico\pm123.ico
 ICON   ICO_MP3          ico\mp3.ico
+ICON   ICO_MP3USED      ico\mp3used.ico
 ICON   ICO_MP3PLAY      ico\mp3play.ico
-ICON   ICO_MP3GRAY      ico\mp3gray.ico
-ICON   ICO_BOOKMARK     ico\bookmark.ico
+ICON   ICO_MP3INVLD     ico\mp3gray.ico
 ICON   ICO_PLEMPTY      ico\plempty.ico
 ICON   ICO_PLCLOSE      ico\plclose.ico
 ICON   ICO_PLOPEN       ico\plopen.ico
@@ -349,6 +349,7 @@ ICON   ICO_PLCLOSEPLAY  ico\plcloseplay.ico
 ICON   ICO_PLOPENPLAY   ico\plopenplay.ico
 ICON   ICO_PLRECURSIVE  ico\plrecursive.ico
 ICON   ICO_PLRECURSIVEPLAY ico\plrecursiveplay.ico
+ICON   ICO_BOOKMARK     ico\bookmark.ico
 
 /* Playlist window ;-) */
 
@@ -939,6 +940,7 @@ END
 MENU PM_MAIN_MENU
 {
    MENUITEM "~Load all",             IDM_PM_LOAD
+   MENUITEM "~Detailed view",        IDM_PM_DETAILED
    MENUITEM SEPARATOR
    SUBMENU  "~Append to ...",        IDM_PM_APPEND
    {  MENUITEM "~File...",           IDM_PM_APPFILE
@@ -956,6 +958,8 @@ MENU PM_FILE_MENU
 MENU PM_LIST_MENU
 {
    MENUITEM "~Load this Playlist",   IDM_PM_LOAD
+   MENUITEM "~Detailed view",        IDM_PM_DETAILED
+   MENUITEM "~Tree view from here",  IDM_PM_TREEVIEW
    MENUITEM SEPARATOR
    MENUITEM "~Remove Item",          IDM_PM_REMOVE
 /* MENUITEM "~Delete",               IDM_PM_DELETE */

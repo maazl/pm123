@@ -11,7 +11,7 @@ EXE_PM   = yes
 OBJECTS  = button95$(CO) pm123$(CO) messages$(CO) 123_util$(CO)
 OBJECTS  = $(OBJECTS) pfreq$(CO) pfreq_base$(CO) plugman$(CO) plugman_base$(CO) bookmark$(CO) iniman$(CO)
 OBJECTS  = $(OBJECTS) playlist$(CO) properties$(CO) skin$(CO)
-OBJECTS  = $(OBJECTS) playable$(CO) playenumerator$(CO) url$(CO) repository$(CO)
+OBJECTS  = $(OBJECTS) playable$(CO) playenumerator$(CO) url$(CO)
 OBJECTS  = $(OBJECTS) docking$(CO) vdelegate$(CO)
 DEF      = pm123$(LDEF_SUFFX)
 RESOURCE = pm123$(RES)
@@ -46,15 +46,14 @@ messages.cpp:   pm123.h messages.h
 messages.h:     playable.h
 pm123.rc:       pm123.h bookmark.h
 pm123.h:        playlist.h skin.h properties.h playable.h
-playable.cpp:   playable.h playenumerator.h playable.private.h repository.h
-playable.h:     url.h repository.h
+playable.cpp:   playable.h playenumerator.h playable.private.h
+playable.h:     url.h
 playenumerator.cpp:	playenumerator.h
 playenumerator.h:	playable.h
 pfreq.cpp:      pfreq.h pfreq_base.h url.h
 pfreq_base.cpp: pm123.h pfreq_base.h iniman.h playable.h url.h
-pfreq_base.h:   playable.h repository.h
+pfreq_base.h:   playable.h
 url.cpp:        url.h
-repository.cpp: repository.h
 
 clean: $(MDUMMY)
 	-@del pm123.exe $(OBJECTS) $(RESOURCE) 2> nul

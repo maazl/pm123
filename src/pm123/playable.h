@@ -42,9 +42,9 @@
 #include <cpp/xstring.h>
 #include <cpp/queue.h>
 #include <cpp/cpputil.h>
+#include <cpp/container.h>
 #include <strutils.h>
 #include "url.h"
-#include "repository.h"
 
 
 /* Status of Playable Objects and PlayableInstance.
@@ -71,7 +71,7 @@ enum PlayableStatus
  * If a function that receives Playable* wants to keep the reference after returning
  * it must create a int_ptr<Playable> object. This will work as expected.
  */
-class Playable : public Iref_Count, private IStringComparable
+class Playable : public Iref_Count, private IComparableTo<char>
 {public:
   enum Flags
   { None        = 0,   // This attribute implies that a cast to Song is valid.
@@ -231,7 +231,7 @@ class Playable : public Iref_Count, private IStringComparable
 
  // Repository
  private:
-  static StringRepository  RPInst;
+  static sorted_vector<Playable, char> RPInst;
   static Mutex             RPMutex;
  private:
   virtual int              CompareTo(const char* str) const;
@@ -266,7 +266,8 @@ class PlayableInstance
   enum StatusFlags
   { SF_InUse   = 0x01,
     SF_Alias   = 0x02,
-    SF_PlayPos = 0x04
+    SF_PlayPos = 0x04,
+    SF_Destroy = 0x80 // This is the last event of a playable instance when it goes out of scope.
   };
   struct change_args
   { PlayableInstance& Instance;
@@ -283,6 +284,7 @@ class PlayableInstance
 
  protected:
   PlayableInstance(PlayableCollection& parent, Playable* playable);
+  ~PlayableInstance();
 
  public:
   Playable&           GetPlayable()       { return *RefTo; }
