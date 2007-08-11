@@ -34,79 +34,108 @@
 #include <cpp/smartptr.h>
 
 
-/*class vector_base
-{protected:
+class vector_base
+{private:
   void** Data;
   size_t Size;
- private:
-  // non-copyable
-  sorted_vector_base(const sorted_vector_base& r);
-  void operator=(const sorted_vector_base& r);
- public:
-  // Create an event.
-  sorted_vector_base(size_t size = 0) : Data(NULL), Size(size) {}
-  ~sorted_vector_base();
+  size_t Capacity;
 
-  void insert(void* elem, size_t where);
-  void removeat(size_t where); 
+ private: // non-copyable
+  vector_base(const vector_base& r);
+  void operator=(const vector_base& r);
+ protected:
+  vector_base(size_t capacity = 16);
+  ~vector_base();
+
+  void*&             insert(size_t where);
+  void*              erase(size_t where);
+  void*&             at(size_t where) const { return Data[where]; }
+ public:
+  size_t             size() const { return Size; }
 };
+
+template <class T>
+class vector : public vector_base
+{public:
+  vector(size_t capacity = 16) : vector_base(capacity) {}
+  //~vector_base();
+  T*&                insert(size_t where)           { return (T*&)vector_base::insert(where); }
+  T*                 erase(size_t where)            { return (T*)vector_base::erase(where); }
+  T*                 operator[](size_t where) const { return (T*)at(where); }
+  T*&                operator[](size_t where)       { return (T*&)at(where); }
+  T*const*           begin() const                  { return &(T*&)at(0); }
+  T**                begin()                        { return &(*this)[0]; }
+  T*const*           end() const                    { return &(T*&)at(size()); }
+  T**                end()                          { return &(*this)[size()]; }
+};
+
+/* Interface for compareable objects.
+ */
+template <class K>
+struct IComparableTo
+{ virtual int CompareTo(const K* key) const = 0;
+};
+
+
+template <class K>
+class sorted_vector_base : public vector<IComparableTo<K> >
+{protected:
+  sorted_vector_base(size_t capacity) : vector<IComparableTo<K> >(capacity) {}
+  bool               binary_search(const K* key, size_t& pos) const;
+  IComparableTo<K>*  find(const K* key) const;
+  IComparableTo<K>*& get(const K* key);
+ public:
+  IComparableTo<K>*  erase(const K* key);
+};
+
 
 template <class T, class K>
-sorted_vector : protected vector_base
-{
-  Mutex Mtx; // protect this instance
-  
-};*/
-
-class queue_base
-{protected:
-  struct EntryBase
-  { EntryBase* Next;
-    EntryBase() : Next(NULL) {}
-  };
- protected:
-  EntryBase* Head;
-  EntryBase* Tail;
-  Mutex      Mtx;
-  Event      Evnt;
-  
- protected: // class should not be used directly!
-             queue_base() : Head(NULL), Tail(NULL) {}
-  void       Write(EntryBase* entry);
-  EntryBase* Read();
+class sorted_vector : public sorted_vector_base<K>
+{public:
+  sorted_vector(size_t capacity) : sorted_vector_base<K>(capacity) {}
+  T*                 find(const K* key) const       { return (T*)sorted_vector_base<K>::find(key); }
+  T*&                get(const K* key)              { return (T*&)sorted_vector_base<K>::get(key); }
 };
 
-template <class T>
-class queue : public queue_base
-{protected:
-  struct Entry : public EntryBase
-  { T        Data;
-    Entry(const T& data) : Data(data) {}
-  };
- 
- public:
-             ~queue()             { Purge(); }
-  void       Write(const T& data) { queue_base::Write(new Entry(data)); }
-  T          Read();
-  void       Purge();
-};
 
-template <class T>
-void queue<T>::Read()
-{ sco_ptr<Entry> ep = (Entry*)queue_base::Read();
-  return ep->Data;
+template <class K>
+bool sorted_vector_base<K>::binary_search(const K* key, size_t& pos) const
+{ // binary search
+  DEBUGLOG(("sorted_vector_base<K>::binary_search(%p,&%p)\n", key, &pos));
+  size_t l = 0;
+  size_t r = size();
+  while (l < r)
+  { size_t m = (l+r) >> 1;
+    int cmp = (*this)[m]->CompareTo(key);
+    if (cmp == 0)
+    { pos = m;
+      return true;
+    }
+    if (cmp < 0)
+      l = m+1;
+    else
+      r = m;
+  }
+  pos = l;
+  return false;
 }
 
-template <class T>
-void queue<T>::Purge()
-{ Mutex::Lock lock(Mtx);
-  while (Head)
-  { Entry* ep = (Entry*)Head;
-    Head = ep->Next;
-    delete ep;
-  }
-  Tail = NULL;
-  Evnt->Reset();
+template <class K>
+IComparableTo<K>* sorted_vector_base<K>::find(const K* key) const
+{ size_t pos;
+  return binary_search(key, pos) ? (*this)[pos] : NULL;
+}
+
+template <class K>
+IComparableTo<K>*& sorted_vector_base<K>::get(const K* key)
+{ size_t pos;
+  return binary_search(key, pos) ? (*this)[pos] : (insert(pos) = NULL);
+}
+
+template <class K>
+IComparableTo<K>* sorted_vector_base<K>::erase(const K* key)
+{ size_t pos;
+  return binary_search(key, pos) ? vector<IComparableTo<K> >::erase(pos) : NULL;
 }
 
 #endif

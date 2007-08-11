@@ -9,7 +9,7 @@ INCDIR   = $(TOPDIR)\include;$(TOPDIR)\utils;.
 
 all: cpputil$(LBO) $(MDUMMY)
 
-OBJECTS = event$(CO) mutex$(CO) queue$(CO)
+OBJECTS = event$(CO) mutex$(CO) container$(CO) queue$(CO)
 OBJECTS = $(OBJECTS) xstring$(CO) smartptr$(CO)
 
 cpputil$(LBO): $(OBJECTS)
@@ -27,6 +27,8 @@ xstring.cpp:   xstring.h
 xstring.h:     smartptr.h
 queue.cpp:     queue.h
 queue.h:       mutex.h smartptr.h
+container.cpp: container.h
+container.h:   mutex.h smartptr.h
 
 OBJECTS = unittest$(CO)
 LIBS    = cpputil$(LBO)

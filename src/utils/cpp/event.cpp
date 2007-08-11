@@ -67,7 +67,7 @@ void event_base::operator()(dummy& param) const
   // TODO: This no-lock implementation may not 100% safe with respect to operator-=.
   while (mp != NULL)
   { delegate_base* mp2 = mp->Link; // threading issue...
-    DEBUGLOG(("event_base::operator() - %p %p %p %p\n", mp, mp->Fn, &param, param));
+    DEBUGLOG(("event_base::operator() - %p{%p,%p} &%p{%p}\n", mp, mp->Fn, mp->Rcv, &param, param));
     (*mp->Fn)(mp->Rcv, param); // callback
     mp = mp2;
   }
@@ -76,7 +76,14 @@ void event_base::operator()(dummy& param) const
 event_base::~event_base()
 { DEBUGLOG(("event_base(%p)::~event_base() - %p\n", this, Root));
   // detach events
+  reset();
+}
+
+void event_base::reset()
+{ DEBUGLOG(("event_base(%p)::reset()\n", this));
+  CritSect cs();
   delegate_base* mp = Root;
+  Root = NULL;
   while (mp != NULL)
   { mp->Ev = NULL;
     mp = mp->Link;

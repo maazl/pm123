@@ -63,6 +63,9 @@ class event_base
   bool operator-=(delegate_base& d);
   // Fire the event.
   void operator()(dummy& param) const;
+ public:
+  // remove all registrated delegates
+  void reset();
 };
 
 /* non-template base class for delegate
