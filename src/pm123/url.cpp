@@ -145,12 +145,27 @@ xstring url::getObjName() const
 { const char* cp = strrchr(*this, '/');
   assert(cp);
   ++cp;
-  const char* cp2 = strchr(cp, '?');
-  const char* cp3 = cp2 ? strnrchr(cp, '.', cp2-cp) : strrchr(cp, '.');
-  if (cp3)
-    cp2 = cp3;
-  DEBUGLOG(("url::getObjName()\n"));
-  return cp2 ? xstring(cp, cp2-cp) : xstring(cp);
+  // Exception for Path URLs: return the last path component
+  if (*cp == 0 || *cp == '?')
+  { const char* cp2 = --cp;
+   next:
+    //DEBUGLOG(("url::getObjName - %c\n", cp2[-1]));
+    switch (*--cp2)
+    {default:
+      assert(cp2 != *this);
+      goto next;
+     case '/':
+     case ':':
+      break;
+    }
+    return xstring(cp2+1, cp-cp2-1);
+  } else
+  { const char* cp2 = strchr(cp, '?');
+    const char* cp3 = cp2 ? strnrchr(cp, '.', cp2-cp) : strrchr(cp, '.');
+    if (cp3)
+      cp2 = cp3;
+    return cp2 ? xstring(cp, cp2-cp) : xstring(cp);
+  }
 }
 
 xstring url::getExtension() const
