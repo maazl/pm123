@@ -144,7 +144,7 @@ Playable::~Playable()
 { DEBUGLOG(("Playable(%p{%s})::~Playable()\n", this, URL.cdata()));
   // Deregister from repository automatically
   { Mutex::Lock lock(RPMutex);
-    IComparableTo<char>* r = RPInst.erase(URL);
+    Playable* r = RPInst.erase(URL);
     assert(r != NULL);
   }
 }
@@ -303,10 +303,7 @@ int_ptr<Playable> Playable::FindByURL(const char* url)
 int_ptr<Playable> Playable::GetByURL(const char* url, const FORMAT_INFO2* ca_format, const TECH_INFO* ca_tech, const META_INFO* ca_meta)
 { DEBUGLOG(("Playable::GetByURL(%s)\n", url));
   Mutex::Lock lock(RPMutex);
-  DEBUGLOG(("Playable::GetByURL: factory\n"));
   Playable*& pp = RPInst.get(url);
-  DEBUGLOG(("Playable::GetByURL: factory\n"));
-  DEBUGLOG(("Playable::GetByURL: factory &%p{%p}\n", &pp, pp));
   if (pp)
     return pp;
   // factory

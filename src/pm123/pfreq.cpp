@@ -41,7 +41,7 @@
 
 
 // Default instance of playlist manager window, representing PM123.LST in the program folder.
-static sco_ptr<PlaylistManager> DefaultPM;
+static PlaylistManager* DefaultPM;
 
 
 /****************************************************************************
@@ -53,24 +53,26 @@ static sco_ptr<PlaylistManager> DefaultPM;
 /* Creates the playlist manager presentation window. */
 void pm_create( void )
 { DEBUGLOG(("pm_create()\n"));
+  PlaylistManager::Init();
   url path = url::normalizeURL(startpath);
   const xstring& file = path + "PFREQ.LST";
   DEBUGLOG(("pm_create - %s\n", file.cdata()));
-  DefaultPM = new PlaylistManager(file, "Playlist Manager");
+  DefaultPM = PlaylistManager::Get(file, "Playlist Manager");
   DefaultPM->SetVisible(cfg.show_plman);
 }
 
 /* Destroys the playlist manager presentation window. */
 void pm_destroy( void )
 { DEBUGLOG(("pm_destroy()\n"));
-  DefaultPM = NULL; // calls destructor
+  DefaultPM = NULL;
+  PlaylistManager::UnInit();
   DEBUGLOG(("pm_destroy() - end\n"));
 }
 
 /* Sets the visibility state of the playlist manager presentation window. */
 void pm_show( BOOL show )
 { DEBUGLOG(("pm_show(%u)\n", show));
-  if (DefaultPM != NULL)
+  if (DefaultPM)
     DefaultPM->SetVisible(show);
 }
 

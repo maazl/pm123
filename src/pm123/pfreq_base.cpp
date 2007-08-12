@@ -105,6 +105,22 @@ void PlaylistManager::InitIcons()
   IcoInvalid                            = WinLoadPointer(HWND_DESKTOP, 0, ICO_MP3INVLD);
 }
 
+sorted_vector<PlaylistManager, char> PlaylistManager::RPInst(8);
+Mutex PlaylistManager::RPMutex;
+
+void PlaylistManager::Init()
+{ // currently a no-op
+}
+
+void PlaylistManager::UnInit()
+{ DEBUGLOG(("PlaylistManager::UnInit()\n"));
+  // Free stored instances.
+  // The instances deregister itself from the repository.
+  // Starting at the end avoids the memcpy calls for shrinking the vector.
+  while (RPInst.size())
+    delete RPInst[RPInst.size()-1];
+}
+
 PlaylistManager::PlaylistManager(const char* url, const char* alias)
 : Content(Playable::GetByURL(url)),
   Alias(alias),
@@ -131,9 +147,27 @@ PlaylistManager::PlaylistManager(const char* url, const char* alias)
 
 PlaylistManager::~PlaylistManager()
 { DEBUGLOG(("PlaylistManager(%p{%s})::~PlaylistManager()\n", this, DebugName().cdata()));
+  // Deregister from repository automatically
+  { Mutex::Lock lock(RPMutex);
+    PlaylistManager* r = RPInst.erase(Content->GetURL());
+    assert(r != NULL);
+  }
   save_window_pos(HwndMgr, 0);
   WinDestroyWindow(HwndMgr);
   DEBUGLOG(("PlaylistManager::~PlaylistManager() - end\n"));
+}
+
+PlaylistManager* PlaylistManager::Get(const char* url, const char* alias)
+{ DEBUGLOG(("PlaylistManager::Get(%s, %s)\n", url, alias ? alias : "<NULL>"));
+  Mutex::Lock lock(RPMutex);
+  PlaylistManager*& pp = RPInst.get(url);
+  if (!pp)
+    pp = new PlaylistManager(url, alias);
+  return pp;
+}
+
+int PlaylistManager::CompareTo(const char* str) const
+{ return stricmp(Content->GetURL(), str);
 }
 
 void PlaylistManager::SetVisible(bool show)
@@ -204,10 +238,16 @@ MRESULT PlaylistManager::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
 
    case WM_DESTROY:
     // delete all records
-    RemoveChildren(NULL);
-    // TODO: There may be outstanding RC_DELETERECORD now.
-    // We sholud ensure that all records are back to the PM before we die.
-    break;
+    { DEBUGLOG(("PlaylistManager::DlgProc: WM_DESTROY\n"));
+      RemoveChildren(NULL);
+      // process outstanding UM_DELETERECORD messages before we quit to ensure that all records are back to the PM before we die.
+      QMSG qmsg;
+      while (WinPeekMsg(amp_player_hab(), &qmsg, HwndMgr, UM_DELETERECORD, UM_DELETERECORD, PM_REMOVE))
+      { DEBUGLOG2(("PlaylistManager::DlgProc: WM_DESTROY: %x %x %x %x\n", qmsg.hwnd, qmsg.msg, qmsg.mp1, qmsg.mp2));
+        DlgProc(qmsg.msg, qmsg.mp1, qmsg.mp2); // We take the short way here.
+      }
+      break;
+    }
 
    case WM_CONTROL:
     switch (SHORT2FROMMP(mp1))
@@ -806,9 +846,10 @@ int PlaylistManager::RemoveChildren(Record* const rp)
   int count = 0;
   while (crp != NULL && crp != (Record*)-1)
   { DEBUGLOG(("CM_QUERYRECORD: %s\n", Record::DebugName(crp).cdata()));
-    RemoveEntry(crp); // The record is deleted later, so we cann access crp safely.
-    ++count;
+    Record* crp2 = crp;
     crp = (Record*)WinSendMsg(HwndContainer, CM_QUERYRECORD, MPFROMP(crp), MPFROM2SHORT(CMA_NEXT, CMA_ITEMORDER));
+    RemoveEntry(crp2);
+    ++count;
   }
   return count;
 }

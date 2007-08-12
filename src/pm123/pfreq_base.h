@@ -30,6 +30,7 @@
 #include <cpp/event.h>
 #include <cpp/smartptr.h>
 #include <cpp/mutex.h>
+#include <cpp/container.h>
 
 #include "playable.h"
 
@@ -43,7 +44,7 @@
 static MRESULT EXPENTRY DlgProcStub(HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2);
 static void TFNENTRY WorkerStub(void* arg);
 
-class PlaylistManager //: public IStringComparable
+class PlaylistManager : public IComparableTo<char>
 {public:
   struct CommonState
   { unsigned            PostMsg;   // Bitvector of outstanding record commands
@@ -205,30 +206,31 @@ class PlaylistManager //: public IStringComparable
   void              InfoChangeEvent(const Playable::change_args& args, Record* rec);
   // This function is called when statusinformation of a PlayableInstance changes.
   void              StatChangeEvent(const PlayableInstance::change_args& inst, Record* rec);
-  //class_delegate2<PlaylistManager, const PlayableCollection::change_args, Record*> RootUpdateDelegate;
-  class_delegate2<PlaylistManager, const Playable::change_args          , Record*> RootInfoDelegate;
+  class_delegate2<PlaylistManager, const Playable::change_args, Record*> RootInfoDelegate;
  private: // User actions
   // Add Item
   void              UserAdd(DECODER_WIZZARD_FUNC wizzard, const char* title, Record* parent = NULL, Record* after = NULL);
 
- public: // public interface
-  // create a playlist manager window for an URL, but don't open it.
+ private:
+  // Create a playlist manager window for an URL, but don't open it.
   PlaylistManager(const char* URL, const char* alias);
+ public: // public interface
   ~PlaylistManager();
   // Make the window visible (or not)
   void              SetVisible(bool show);
   
  // Repository of PM instances by URL.
- /*private:
-  StringRepository  RPInst;
-  Mutex             RPMutex;
+ private:
+  static sorted_vector<PlaylistManager, char> RPInst;
+  static Mutex      RPMutex;
  private:
   virtual int       CompareTo(const char* str) const;
  public:
   static void       Init();
   static void       UnInit();          
   // Factory method. Returns always the same instance for the same URL.
-  PlaylistManager&  Get(const char* url, const char* alias = NULL);*/
+  // If the specified instance already esists the parameter alias is ignored.
+  static PlaylistManager* Get(const char* url, const char* alias = NULL);
 };
 
 
