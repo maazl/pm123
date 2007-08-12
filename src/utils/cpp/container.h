@@ -161,6 +161,8 @@ class sorted_vector_base : public vector<IComparableTo<K> >
   // If no such element exists the function returns NULL.
   // Precondition: none, Performance: O(log(n))
   IComparableTo<K>*  erase(const K* key);
+  // IBM VAC++ can't parse using...
+  IComparableTo<K>*  erase(size_t where)            { return vector<IComparableTo<K> >::erase(where); }
 };
 
 /* Type-safe implementation of sorted_vector_base.
@@ -188,6 +190,30 @@ class sorted_vector : public sorted_vector_base<K>
   // If no such element exists the function returns NULL.
   // Precondition: none, Performance: O(log(n))
   T*                 erase(const K* key)            { return (T*)sorted_vector_base<K>::erase(key); }
+  // Removes an element from the vector and return it's value.
+  // Precondition: where in [0,size()-1], Performance: O(n)
+  // The function is not type safe and should not be exposed public.  
+  T*                 erase(size_t where)            { return (T*)sorted_vector_base<K>::erase(where); }
+  // Access an element by it's index.
+  // Precondition: where in [0,size()-1], Performance: O(1)
+  // This is the constant version of the [] operator. Since we deal only with references
+  // it returns a value copy rather than a const reference to the element.
+  T*                 operator[](size_t where) const { return (T*)sorted_vector_base<K>::operator[](where); }
+  // Access an element by it's index.
+  // Precondition: where in [0,size()-1], Performance: O(1)
+  T*&                operator[](size_t where)       { return (T*&)sorted_vector_base<K>::operator[](where); }
+  // Get a constant iterator that points to the firs element or past the end if the vector is empty.
+  // Precondition: none, Performance: O(1)
+  T*const*           begin() const                  { return (T*const*)sorted_vector_base<K>::begin(); }
+  // Get a iterator that points to the firs element or past the end if the vector is empty.
+  // Precondition: none, Performance: O(1)
+  T**                begin()                        { return (T**)sorted_vector_base<K>::begin(); }
+  // Get a constant iterator that points past the end.
+  // Precondition: none, Performance: O(1)
+  T*const*           end() const                    { return (T*const*)sorted_vector_base<K>::end(); }
+  // Get a iterator that points past the end.
+  // Precondition: none, Performance: O(1)
+  T**                end()                          { return (T**)sorted_vector_base<K>::end(); }
 };
 
 
