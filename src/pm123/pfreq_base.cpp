@@ -110,6 +110,7 @@ Mutex PlaylistManager::RPMutex;
 
 void PlaylistManager::Init()
 { // currently a no-op
+  // TODO: we should cleanup unused and invisibla PlaylistManager instances once in a while.
 }
 
 void PlaylistManager::UnInit()
@@ -229,6 +230,7 @@ MRESULT PlaylistManager::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
         WinSetPresParam(HwndContainer, PP_BACKGROUNDCOLORINDEX, sizeof(color), &color);
       }
 
+      // TODO: do not open all playlistmanager windows at the same location
       dk_add_window(HwndMgr, 0);
       
       // populate the root node
@@ -393,91 +395,7 @@ MRESULT PlaylistManager::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
         return 0;
       }
       switch (SHORT1FROMMP(mp1))
-      {/*case IDM_PM_L_CALC:
-         totalFiles = totalSecs = totalLength = 0;
-
-         zf = (PPMREC) PVOIDFROMMR(WinSendMsg( HwndContainer, CM_QUERYRECORDEMPHASIS, MPFROMLONG(CMA_FIRST), MPFROMSHORT(CRA_SELECTED)));
-
-         if (!zf) { DosBeep(500, 50); break; }
-
-         focus  = (PPMREC) WinSendMsg( HwndContainer,
-                                       CM_QUERYRECORD,
-                                       MPFROMP(zf),
-                                       MPFROM2SHORT(CMA_FIRSTCHILD, CMA_ITEMORDER));
-
-         while (focus != NULL)
-         { if (focus->type == PM_TYPE_FILE && focus->data != NULL)
-           { fr = (PFREC)focus->data;
-             totalFiles++;
-             totalSecs += fr->secs;
-             totalLength += (fr->length / 1024);
-           }
-
-           focus  = (PPMREC) WinSendMsg( HwndContainer,
-                                         CM_QUERYRECORD,
-                                         MPFROMP(focus),
-                                         MPFROM2SHORT(CMA_NEXT, CMA_ITEMORDER));
-         }
-
-         if (totalFiles > 0)
-         { sprintf(buf, "Total %lu files, %lu kB, %lud %luh %lum %lus",
-                  totalFiles,
-                  totalLength,
-                  ((ULONG)totalSecs / 86400),
-                  ((ULONG)((totalSecs % 86400) / 3600)),
-                  (((ULONG)totalSecs % 3600) / 60),
-                  ((ULONG)totalSecs % 60));
-
-           pm_set_title( HwndContainer, buf);
-         } else
-           pm_set_title( HwndContainer, "No statistics available for this playlist.");
-         break;*/
-
-  /*      case IDM_PM_CALC:
-         totalFiles = totalSecs = totalLength = 0;
-
-         zf  = (PPMREC) WinSendMsg( HwndContainer,
-                                    CM_QUERYRECORD,
-                                    NULL,
-                                    MPFROM2SHORT(CMA_FIRST, CMA_ITEMORDER));
-
-         while (zf != NULL)
-         { focus  = (PPMREC) WinSendMsg( HwndContainer,
-                                         CM_QUERYRECORD,
-                                         MPFROMP(zf),
-                                         MPFROM2SHORT(CMA_FIRSTCHILD, CMA_ITEMORDER));
-
-           while (focus != NULL)
-           { if (focus->type == PM_TYPE_FILE && focus->data != NULL)
-             { fr = (PFREC)focus->data;
-               totalFiles++;
-               totalSecs += fr->secs;
-               totalLength += (fr->length / 1024);
-             }
-             focus = (PPMREC) WinSendMsg( HwndContainer,
-                                          CM_QUERYRECORD,
-                                          MPFROMP(focus),
-                                          MPFROM2SHORT(CMA_NEXT, CMA_ITEMORDER));
-           }
-           zf = (PPMREC) WinSendMsg( HwndContainer,
-                                     CM_QUERYRECORD,
-                                     MPFROMP(zf),
-                                     MPFROM2SHORT(CMA_NEXT, CMA_ITEMORDER));
-         }
-         if (totalFiles > 0)
-         { sprintf(buf, "Total %lu files, %lu kB, %lud %luh %lum %lus",
-                  totalFiles,
-                  totalLength,
-                  ((ULONG)totalSecs / 86400),
-                  ((ULONG)((totalSecs % 86400) / 3600)),
-                  (((ULONG)totalSecs % 3600) / 60),
-                  ((ULONG)totalSecs % 60));
-
-           pm_set_title( HwndContainer, buf);
-         } else
-           pm_set_title( HwndContainer, "No statistics available.");
-         break;*/
-
+      {
   /*      case IDM_PM_L_DELETE:
          focus = (PPMREC) PVOIDFROMMR(WinSendMsg( HwndContainer, CM_QUERYRECORDEMPHASIS, MPFROMLONG(CMA_FIRST), MPFROMSHORT(CRA_SELECTED)));
          if (focus != NULL)
@@ -504,14 +422,18 @@ MRESULT PlaylistManager::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
 
           return 0;
         }
-/*        case IDM_PM_F_LOAD:
-         focus = (PPMREC) PVOIDFROMMR(WinSendMsg( HwndContainer, CM_QUERYRECORDEMPHASIS, MPFROMLONG(CMA_FIRST), MPFROMSHORT(CRA_SELECTED)));
-         if (focus != NULL)
-         { if (focus->type == PM_TYPE_FILE)
-             amp_load_singlefile( focus->text, 0 );
-         }
-         break;
-  */
+
+       case IDM_PM_TREEVIEW:
+        { Record* focus = CmFocus;
+          DEBUGLOG(("PlaylistManager(%p{%s})::DlgProc: IDM_PM_TREEVIEW %s\n", this, DebugName().cdata(), Record::DebugName(focus)));
+          if (focus == NULL || focus->Content == NULL)
+            return 0;
+          // get new or existing instance
+          PlaylistManager* pm = Get(focus->Content->GetPlayable().GetURL());
+          pm->SetVisible(true);
+          return 0;
+        }
+       
        case IDM_PM_REMOVE:
         { Record* focus = CmFocus;
           DEBUGLOG(("PlaylistManager(%p{%s})::DlgProc: IDM_PM_REMOVE %p\n", this, DebugName().cdata(), focus));
@@ -1075,29 +997,7 @@ pm_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
   PNOTIFYRECORDEMPHASIS emphasis;
 
   switch (msg)
-  {case WM_INITDLG:
-    { HPOINTER hicon;
-      LONG     color;
-
-      pfreq_create_HwndContainer( hwnd, FID_CLIENT );
-      _beginthread( Manager_Populate, NULL, 0xFFFF, NULL );
-
-      hicon = WinLoadPointer( HWND_DESKTOP, 0, ICO_MAIN );
-      WinSendMsg( hwnd, WM_SETICON, (MPARAM)hicon, 0 );
-      do_warpsans( hwnd );
-
-      if( !rest_window_pos( hwnd, 0 ))
-      { color = CLR_GREEN;
-        WinSetPresParam( HwndContainer, PP_FOREGROUNDCOLORINDEX, sizeof(color), &color);
-        color = CLR_BLACK;
-        WinSetPresParam( HwndContainer, PP_BACKGROUNDCOLORINDEX, sizeof(color), &color);
-      }
-
-      dk_add_window( hwnd, 0 );
-      return 0;
-    }
-
-   case WM_CONTROL:
+  {case WM_CONTROL:
     switch (SHORT2FROMMP(mp1))
     {
 
@@ -1108,158 +1008,7 @@ pm_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
     } // switch (SHORT2FROMMP(mp1))
     return 0;
 
-   case WM_COMMAND:
-    switch (COMMANDMSG(&msg) -> cmd)
-     {case IDM_PM_L_CALC:
-       totalFiles = totalSecs = totalLength = 0;
-
-       zf = (PPMREC) PVOIDFROMMR(WinSendMsg( HwndContainer, CM_QUERYRECORDEMPHASIS, MPFROMLONG(CMA_FIRST), MPFROMSHORT(CRA_SELECTED)));
-
-       if (!zf) { DosBeep(500, 50); break; }
-
-       focus  = (PPMREC) WinSendMsg( HwndContainer,
-                                     CM_QUERYRECORD,
-                                     MPFROMP(zf),
-                                     MPFROM2SHORT(CMA_FIRSTCHILD, CMA_ITEMORDER));
-
-       while (focus != NULL)
-       { if (focus->type == PM_TYPE_FILE && focus->data != NULL)
-         { fr = (PFREC)focus->data;
-           totalFiles++;
-           totalSecs += fr->secs;
-           totalLength += (fr->length / 1024);
-         }
-
-         focus  = (PPMREC) WinSendMsg( HwndContainer,
-                                       CM_QUERYRECORD,
-                                       MPFROMP(focus),
-                                       MPFROM2SHORT(CMA_NEXT, CMA_ITEMORDER));
-       }
-
-       if (totalFiles > 0)
-       { sprintf(buf, "Total %lu files, %lu kB, %lud %luh %lum %lus",
-                totalFiles,
-                totalLength,
-                ((ULONG)totalSecs / 86400),
-                ((ULONG)((totalSecs % 86400) / 3600)),
-                (((ULONG)totalSecs % 3600) / 60),
-                ((ULONG)totalSecs % 60));
-
-         pm_set_title( HwndContainer, buf);
-       } else
-         pm_set_title( HwndContainer, "No statistics available for this playlist.");
-       break;
-
-      case IDM_PM_CALC:
-       totalFiles = totalSecs = totalLength = 0;
-
-       zf  = (PPMREC) WinSendMsg( HwndContainer,
-                                  CM_QUERYRECORD,
-                                  NULL,
-                                  MPFROM2SHORT(CMA_FIRST, CMA_ITEMORDER));
-
-       while (zf != NULL)
-       { focus  = (PPMREC) WinSendMsg( HwndContainer,
-                                       CM_QUERYRECORD,
-                                       MPFROMP(zf),
-                                       MPFROM2SHORT(CMA_FIRSTCHILD, CMA_ITEMORDER));
-
-         while (focus != NULL)
-         { if (focus->type == PM_TYPE_FILE && focus->data != NULL)
-           { fr = (PFREC)focus->data;
-             totalFiles++;
-             totalSecs += fr->secs;
-             totalLength += (fr->length / 1024);
-           }
-           focus = (PPMREC) WinSendMsg( HwndContainer,
-                                        CM_QUERYRECORD,
-                                        MPFROMP(focus),
-                                        MPFROM2SHORT(CMA_NEXT, CMA_ITEMORDER));
-         }
-         zf = (PPMREC) WinSendMsg( HwndContainer,
-                                   CM_QUERYRECORD,
-                                   MPFROMP(zf),
-                                   MPFROM2SHORT(CMA_NEXT, CMA_ITEMORDER));
-       }
-       if (totalFiles > 0)
-       { sprintf(buf, "Total %lu files, %lu kB, %lud %luh %lum %lus",
-                totalFiles,
-                totalLength,
-                ((ULONG)totalSecs / 86400),
-                ((ULONG)((totalSecs % 86400) / 3600)),
-                (((ULONG)totalSecs % 3600) / 60),
-                ((ULONG)totalSecs % 60));
-
-         pm_set_title( HwndContainer, buf);
-       } else
-         pm_set_title( HwndContainer, "No statistics available.");
-       break;
-
-      case IDM_PM_L_DELETE:
-       focus = (PPMREC) PVOIDFROMMR(WinSendMsg( HwndContainer, CM_QUERYRECORDEMPHASIS, MPFROMLONG(CMA_FIRST), MPFROMSHORT(CRA_SELECTED)));
-       if (focus != NULL)
-       { if (focus->type == PM_TYPE_LIST)
-         { strcpy(buf2, focus->text);
-           remove(buf2);
-         }
-       }
-       WinSendMsg(hwnd, WM_COMMAND, MPFROMSHORT(IDM_PM_L_REMOVE), 0);
-       break;
-
-      case IDM_PM_L_REMOVE:
-       focus = (PPMREC) PVOIDFROMMR(WinSendMsg( HwndContainer, CM_QUERYRECORDEMPHASIS, MPFROMLONG(CMA_FIRST), MPFROMSHORT(CRA_SELECTED)));
-       if (focus != NULL)
-       { if (focus->type == PM_TYPE_LIST)
-         { strcpy(buf2, focus->text);
-           pm_destroy_children_and_self( HwndContainer, focus);
-
-           sprintf(buf, "%sPM123.MGR", startpath);
-           mlist = fopen(buf, "r");
-           if (mlist != NULL)
-           { sprintf(buf3, "%sPM123MGR.$$$", startpath);
-             mtemp = fopen(buf3, "w");
-             if (mtemp == NULL)
-             { fclose(mlist);
-               WinMessageBox(HWND_DESKTOP, HWND_DESKTOP, "Couldn't open temp file PM123MGR.$$$. Are you out of hard disk space?", "Error", 0, MB_ERROR | MB_OK);
-               return ((MRESULT)0);
-             }
-             while (!feof(mlist))
-             { fgets(buf3, sizeof(buf3), mlist);
-               blank_strip(buf3);
-               if (stricmp(buf2, buf3) != 0) fprintf(mtemp, "%s\n", buf3);
-             }
-             fclose(mlist);
-             fclose(mtemp);
-             remove(buf);
-             sprintf(buf3, "%sPM123MGR.$$$", startpath);
-             rename(buf3, buf);
-             WinSendMsg( HwndContainer, CM_INVALIDATERECORD, MPFROMP(NULL), MPFROM2SHORT(0, 0));
-           }
-         }
-       }
-       break;
-
-      case IDM_PM_L_LOAD:
-       focus = (PPMREC) PVOIDFROMMR(WinSendMsg( HwndContainer, CM_QUERYRECORDEMPHASIS, MPFROMLONG(CMA_FIRST), MPFROMSHORT(CRA_SELECTED)));
-       if (focus != NULL && focus->type == PM_TYPE_LIST)
-         pl_load( focus->text, PL_LOAD_CLEAR );
-
-       break;
-
-      case IDM_PM_F_LOAD:
-       focus = (PPMREC) PVOIDFROMMR(WinSendMsg( HwndContainer, CM_QUERYRECORDEMPHASIS, MPFROMLONG(CMA_FIRST), MPFROMSHORT(CRA_SELECTED)));
-       if (focus != NULL)
-       { if (focus->type == PM_TYPE_FILE)
-           amp_load_singlefile( focus->text, 0 );
-       }
-       break;
-
-      case IDM_PM_ADD:
-       idm_pm_add(hwnd);
-       break;
-     } // switch (COMMANDMSG(&msg) -> cmd)
-    return 0;
-
+     
    case WM_ERASEBACKGROUND:
     return FALSE;
 
@@ -1286,15 +1035,3 @@ pm_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
 */
 
 
-/* Repository */
-/*StringRepository PlaylistManager::RPInst(16);
-Mutex            PlaylistManager::RPMutex;
-
-int PlaylistManager::CompareTo(const char* str) const
-{ return stricmp(Content->GetURL(), str);
-}
-
-PlaylistManager& PlaylistManager::Get(const char* url, const char* alias)
-{ 
-}
-*/

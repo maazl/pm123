@@ -154,7 +154,7 @@ class Playable : public Iref_Count, private IComparableTo<char>
   // Display name
   // This returns either Info.meta.title or the object name of the current URL.
   // Keep in mind that this may not return the expected value unless EnsureInfo(IF_Meta) has been called.
-  xstring             GetDisplayName() const;
+  virtual xstring     GetDisplayName() const;
 
   // Get current Object info.
   // If the required information is not yet loaded, you will get an empty structure.

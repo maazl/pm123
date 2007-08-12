@@ -167,10 +167,11 @@ void Playable::SetInUse(bool used)
 }
 
 xstring Playable::GetDisplayName() const
-{ DEBUGLOG2(("Playable::GetDisplayName()\n"));
+{ //DEBUGLOG(("Playable(%p{%s})::GetDisplayName()\n", this, URL.cdata()));
   const META_INFO& meta = *GetInfo().meta;
   return meta.title[0] ? xstring(meta.title) : URL.getObjName();
 }
+
 void Playable::UpdateInfo(const FORMAT_INFO2* info)
 { DEBUGLOG(("Playable::UpdateInfo(FORMAT_INFO2* %p)\n", info));
   if (!info)

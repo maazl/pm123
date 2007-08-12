@@ -196,15 +196,7 @@ void  amp_display_filename( void );
 /* Switches to the next text displaying mode. */
 void  amp_display_next_mode( void );
 
-/* Loads the specified playlist record into the player. */
-//BOOL  amp_pl_load_record( PLRECORD* );
-/* Plays the specified playlist record. */
-//void  amp_pl_play_record( PLRECORD* );
-/* Activates the current playlist. */
-//void  amp_pl_use( void );
-/* Deactivates the current playlist. */
-//void  amp_pl_release( void );
-/* Loads a standalone file or CD track to player. */
+/* Loads *anything* to player. */
 BOOL  amp_load_playable( const char *url, int options );
 
 /* Begins playback of the currently loaded file from the specified position. */
