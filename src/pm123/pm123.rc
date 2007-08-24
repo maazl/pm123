@@ -458,7 +458,6 @@ MENU MNU_MAIN
    {
      MENUITEM "~File...\tCtrl+O",           IDM_M_LOADFILE
      MENUITEM "~URL...\tAlt+U",             IDM_M_URL
-     /*MENUITEM "~Track...\tAlt+T",           IDM_M_TRACK*/
    }
    MENUITEM "~Edit file info...\tCtrl+E",   IDM_M_TAG
    SUBMENU  "~Bookmarks",                   IDM_M_BOOKMARKS

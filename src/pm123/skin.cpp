@@ -52,7 +52,6 @@
 #include "gbmht.h"
 #include "skin.h"
 #include "pm123.h"
-#include "plugman.h"
 #include "button95.h"
 
 #include <debuglog.h>
@@ -1278,14 +1277,13 @@ bmp_draw_plmode( HPS hps )
 void
 bmp_draw_plind( HPS hps, int index, int total )
 {
+  DEBUGLOG(("bmp_draw_plind(%p, %i, %i)\n", hps, index, total));
   int  i, x, y;
   char buf[64];
 
   if( cfg.mode != CFG_MODE_REGULAR ) {
     return;
   }
-
-  const Playable* root = amp_get_current_song();
 
   if( bmp_ulong[ UL_PL_INDEX ] )
   {
@@ -1300,7 +1298,7 @@ bmp_draw_plind( HPS hps, int index, int total )
                              x + bmp_cx( DIG_PL_INDEX ) * 3,
                              y + bmp_cy( DIG_PL_INDEX ));
 
-      if( root != NULL && (root->GetFlags() & Playable::Enumerable) )
+      if( index > 0 )
       {
         sprintf( buf, "%3u", index );
         x += bmp_cx( DIG_PL_INDEX ) * 2;
@@ -1324,7 +1322,7 @@ bmp_draw_plind( HPS hps, int index, int total )
       bmp_draw_part_bg( hps, x, y, x + bmp_cx( DIG_PL_INDEX ) * 3,
                                    y + bmp_cy( DIG_PL_INDEX ));
 
-      if( root != NULL && (root->GetFlags() & Playable::Enumerable) )
+      if( total > 0 )
       {
         sprintf( buf, "%3u", total );
         x += bmp_cx( DIG_PL_INDEX ) * 2;
@@ -1343,11 +1341,11 @@ bmp_draw_plind( HPS hps, int index, int total )
   {
     POINTL pos = { 158, 50 };
 
-    sprintf( buf, "%02u of %02u", index, total );
     bmp_draw_part_bg( hps, pos.x, pos.y, pos.x + 50, pos.y + 20 );
 
-    if( root != NULL && (root->GetFlags() & Playable::Enumerable) )
+    if( total > 0 )
     {
+      sprintf( buf, "%02u of %02u", index, total );
       GpiCreateLogColorTable( hps, 0, LCOLF_RGB, 0, 0, 0 );
       GpiSetColor( hps, bmp_ulong[ UL_PL_COLOR ]);
       GpiSetBackColor( hps, 0x00000000UL );

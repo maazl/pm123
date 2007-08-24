@@ -191,7 +191,7 @@ void  vis_deinit_all( BOOL skin );
 /* Plug-in menu in the main pop-up menu */
 void  load_plugin_menu( HWND hmenu );
 /* Add additional entries in load/add menu in the main and the playlist's pop-up menu */
-void  append_load_menu( HWND hMenu, ULONG id_base, BOOL multiselect, DECODER_WIZZARD_FUNC* callbacks, int size );
+void  append_load_menu( HWND hMenu, ULONG id_base, DECODER_WIZZARD_FUNC* callbacks, int size );
 
 
 #ifdef __cplusplus

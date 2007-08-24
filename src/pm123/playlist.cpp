@@ -145,7 +145,7 @@ pl_cursored( void ) {
 }
 
 /* Queries a random playlist record for playing. */
-PLRECORD*
+/*PLRECORD*
 pl_query_random_record( void )
 {
   PLRECORD* rec = pl_first_record();
@@ -172,10 +172,10 @@ pl_query_random_record( void )
   }
 
   return rec;
-}
+}*/
 
 /* Queries a first playlist record for playing. */
-PLRECORD*
+/*PLRECORD*
 pl_query_first_record( void )
 {
   if( cfg.shf ) {
@@ -188,10 +188,10 @@ pl_query_first_record( void )
     }
     return rec;
   }
-}
+}*/
 
 /* Queries a previous playlist record for playing. */
-PLRECORD*
+/*PLRECORD*
 pl_query_prev_record( void )
 {
   PLRECORD* found = NULL;
@@ -220,10 +220,10 @@ pl_query_prev_record( void )
     }
   }
   return found;
-}
+}*/
 
 /* Queries a next playlist record for playing. */
-PLRECORD*
+/*PLRECORD*
 pl_query_next_record( void )
 {
   PLRECORD* found = NULL;
@@ -260,13 +260,13 @@ pl_query_next_record( void )
     }
   }
   return found;
-}
+}*/
 
 /* Queries a playlist record of the specified file for playing. */
-PLRECORD*
+/*PLRECORD*
 pl_query_file_record( const char* filename ) {
   return pl_file_record( filename );
-}
+}*/
 
 static SHORT EXPENTRY
 pl_compare_rand( const PLRECORD* p1, const PLRECORD* p2, PVOID pStorage ) {
@@ -330,7 +330,7 @@ pl_sort( int control )
 }
 
 /* Refreshes the specified playlist record. */
-void
+static void
 pl_refresh_record( PLRECORD* rec, USHORT flags )
 {
   WinSendMsg( container, CM_INVALIDATERECORD,
@@ -560,7 +560,7 @@ pl_free_record( PLRECORD* rec )
 }
 
 /* Removes the specified playlist record. */
-void
+static void
 pl_remove_record( PLRECORD** array, USHORT count )
 {
   PLRECORD* load_after = (PLRECORD*)-1;
@@ -595,7 +595,7 @@ pl_remove_all( void )
 }
 
 /* Refreshes the playlist record of the specified file. */
-void
+/*void
 pl_refresh_file( const char* filename )
 {
   PLRECORD* rec = pl_first_record();
@@ -610,7 +610,7 @@ pl_refresh_file( const char* filename )
     }
     rec = pl_next_record( rec );
   }
-}
+}*/
 
 /* Scrolls the playlist so that the specified record became visible. */
 static BOOL
@@ -833,8 +833,9 @@ pl_broker( void* dummy )
         break;
 
       case PL_ADD_DIRECTORY:
+        /* TODO: will be removed probably
         pl_broker_add_directory( data->filename, data->options );
-        pl_completed();
+        pl_completed();*/
         break;
 
       case PL_COMPLETED:
@@ -863,7 +864,7 @@ pl_broker( void* dummy )
 }
 
 /* Returns a ordinal number of the currently loaded file. */
-ULONG pl_current_index( void )
+/*ULONG pl_current_index( void )
 {
   PLRECORD* rec;
   ULONG     pos = 1;
@@ -874,10 +875,10 @@ ULONG pl_current_index( void )
     }
   }
   return 0;
-}
+}*/
 
 /* Returns the number of records in the playlist. */
-ULONG pl_size( void )
+/*ULONG pl_size( void )
 {
   CNRINFO info;
 
@@ -888,10 +889,10 @@ ULONG pl_size( void )
   } else {
     return 0;
   }
-}
+}*/
 
 /* Returns a summary play time of the remained part of the playlist. */
-ULONG pl_playleft( void )
+/*ULONG pl_playleft( void )
 {
   ULONG     time = 0;
   PLRECORD* rec  = current_record;
@@ -909,10 +910,10 @@ ULONG pl_playleft( void )
   }
 
   return time;
-}
+}*/
 
 /* Marks the currently loaded playlist record as currently played. */
-void
+/*void
 pl_mark_as_play()
 {
   if( current_record ) {
@@ -928,20 +929,20 @@ pl_mark_as_play()
     pl_scroll_to_record( current_record );
     pl_refresh_record  ( current_record, CMA_NOREPOSITION );
   }
-}
+}*/
 
 /* Marks the currently loaded playlist record as currently stopped. */
-void
+/*void
 pl_mark_as_stop()
 {
   if( current_record ) {
     //current_record->rc.hptrIcon = current_record->exist ? mp3 : mp3gray;
     pl_refresh_record( current_record, CMA_NOREPOSITION );
   }
-}
+}*/
 
 /* Removes "already played" marks from all playlist records. */
-void
+/*void
 pl_clean_shuffle( void )
 {
   PLRECORD* rec;
@@ -949,7 +950,7 @@ pl_clean_shuffle( void )
     rec->played = 0;
   }
   played = 0;
-}
+}*/
 
 /* Sets the title of the playlist window according to current
    playlist state. */
@@ -1076,7 +1077,7 @@ pl_show_context_menu( HWND parent, const PLRECORD* rec )
   id    = IDM_PL_ADDOTHER; 
   while ( --count == SHORT1FROMMR( WinSendMsg( mh, MM_DELETEITEM, MPFROM2SHORT( id++, FALSE ), 0 )) );
 
-  append_load_menu( mh, IDM_PL_ADDOTHER, TRUE, assists, sizeof assists / sizeof *assists );
+  append_load_menu( mh, IDM_PL_ADDOTHER, assists, sizeof assists / sizeof *assists );
 
   // Open Menu
   WinSendMsg( menu_playlist, MM_QUERYITEM,
@@ -1405,17 +1406,19 @@ pl_drag_drop( HWND hwnd, PCNRDRAGINFO pcdi )
     if( DrgVerifyRMF( pditem, "DRM_OS2FILE", NULL ))
     {
       if( pditem->hstrContainerName && pditem->hstrSourceName ) {
+        // TODO: must be implemented new
         // Have full qualified file name.
         if( DrgVerifyType( pditem, "UniformResourceLocator" )) {
           amp_url_from_file( fullname, fullname, sizeof( fullname ));
         }
+        /*
         if( is_dir( fullname )) {
           pl_add_directory( fullname, PL_DIR_RECURSIVE );
         } else if( is_playlist( fullname )) {
           pl_load( fullname, 0 );
         } else {
           pl_add_file( fullname, NULL, 0 );
-        }
+        }*/
         if( pditem->hwndItem ) {
           // Tell the source you're done.
           DrgSendTransferMsg( pditem->hwndItem, DM_ENDCONVERSATION, (MPARAM)pditem->ulItemID,
@@ -1510,13 +1513,15 @@ pl_drag_render_done( HWND hwnd, PDRAGTRANSFER pdtrans, USHORT rc )
     amp_url_from_file( fullname, rendered, sizeof( fullname ));
     DosDelete( rendered );
 
+    // must be implemented new
+    /*
     if( is_dir( fullname )) {
       pl_add_directory( fullname, PL_DIR_RECURSIVE );
     } else if( is_playlist( fullname )) {
       pl_load( fullname, 0 );
     } else {
       pl_add_file( fullname, NULL, 0 );
-    }
+    }*/
 
     // Tell the source you're done.
     DrgSendTransferMsg( pdsource->hwndItem, DM_ENDCONVERSATION,
@@ -1676,7 +1681,7 @@ pl_add_callback(void* param, const char* url)
       url += 3; // skip "///" if not UNC.
   }
   // TODO: can't handle folders here
-  pl_add_file(url, NULL, 0);
+  //pl_add_file(url, NULL, 0);
 }
 
 /* Processes messages of the playlist presentation window. */
@@ -1763,7 +1768,8 @@ pl_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
           pl_sort( PL_SORT_SONG );
           return 0;
         case IDM_PL_CLEAR:
-          pl_clear( PL_CLR_NEW  );
+          pl_purge_queue( broker_queue );
+          qu_push( broker_queue, PL_CLEAR, pl_create_request_data( NULL, NULL, PL_CLR_NEW ));
           return 0;
         case IDM_PL_USE:
           /* TODO: wee need a more sophisticated approach here
@@ -1774,10 +1780,12 @@ pl_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
           }*/
           return 0;
         case IDM_PL_URL:
-          amp_add_url( hwnd, URL_ADD_TO_LIST );
+          // TODO: already implemented in pfreq_base...
+          //amp_add_url( hwnd, URL_ADD_TO_LIST );
           return 0;
         case IDM_PL_LOAD:
-          amp_add_files( hwnd );
+          // TODO: already implemented in pfreq_base...
+          //amp_add_files( hwnd );
           return 0;
         case IDM_PL_LST_SAVE:
           amp_save_list_as( hwnd, SAV_LST_PLAYLIST );
@@ -1912,7 +1920,7 @@ pl_destroy( void )
 }
 
 /* Sends request about clearing of the playlist. */
-BOOL
+static BOOL
 pl_clear( int options )
 {
   pl_purge_queue( broker_queue );
@@ -1921,28 +1929,28 @@ pl_clear( int options )
 }
 
 /* Sends request about addition of the whole directory to the playlist. */
-BOOL
+/*BOOL
 pl_add_directory( const char* path, int options )
 {
   return qu_write( broker_queue, PL_ADD_DIRECTORY,
                    pl_create_request_data( path, NULL, options ));
-}
+}*/
 
 /* Sends request about addition of the file to the playlist. */
-BOOL
+/*BOOL
 pl_add_file( const char* filename, const char* songname, int options )
 {
   return qu_write( broker_queue, PL_ADD_FILE,
                    pl_create_request_data( filename, songname, options ));
-}
+}*/
 
 /* Notifies on completion of the playlist */
-BOOL
+/*BOOL
 pl_completed( void )
 {
   return qu_write( broker_queue, PL_COMPLETED,
                    pl_create_request_data( NULL, NULL, 0 ));
-}
+}*/
 
 /* Returns true if the specified file is a playlist file. */
 BOOL
@@ -1957,7 +1965,7 @@ is_playlist( const char *filename )
 }
 
 /* Loads the PM123 native playlist file. */
-static BOOL
+/*static BOOL
 pl_load_lst_list( const char *filename, int options )
 {
   char   basepath[_MAX_PATH];
@@ -1991,16 +1999,16 @@ pl_load_lst_list( const char *filename, int options )
   }
   xio_fclose( playlist );
   return TRUE;
-}
+}*/
 
 /* Loads the M3U playlist file. */
-static BOOL
+/*static BOOL
 pl_load_m3u_list( const char *filename, int options ) {
   return pl_load_lst_list( filename, options );
-}
+}*/
 
 /* Loads the WarpAMP playlist file. */
-static BOOL
+/*static BOOL
 pl_load_mpl_list( const char *filename, int options )
 {
   char   basepath[_MAX_PATH];
@@ -2041,10 +2049,10 @@ pl_load_mpl_list( const char *filename, int options )
   }
   xio_fclose( playlist );
   return TRUE;
-}
+}*/
 
 /* Loads the WinAMP playlist file. */
-static BOOL
+/*static BOOL
 pl_load_pls_list( const char *filename, int options )
 {
   char   basepath[_MAX_PATH];
@@ -2109,12 +2117,13 @@ pl_load_pls_list( const char *filename, int options )
 
   xio_fclose( playlist );
   return TRUE;
-}
+}*/
 
 /* Loads the specified playlist file. */
 BOOL pl_load( const char *filename, int options )
 {
   BOOL rc = FALSE;
+  /* DISCONTINUED
   char ext[_MAX_EXT];
   int  i;
 
@@ -2155,7 +2164,7 @@ BOOL pl_load( const char *filename, int options )
 
       strcpy( cfg.list[0], filename );
     }
-  }
+  }*/
 
   return rc;
 }
@@ -2281,8 +2290,9 @@ pl_load_bundle( const char *filename, int options )
     } else if( *file == '>' ) {
       sscanf( file, ">%lu,%lu\n", &selected, &loaded );
     } else if( *file != 0 && *file != '#' ) {
+      /* TODO: reimplement onother way
       pl_add_file( file, NULL, ( selected ? PL_ADD_SELECT : 0 ) |
-                               ( loaded   ? PL_ADD_LOAD   : 0 ));
+                               ( loaded   ? PL_ADD_LOAD   : 0 ));*/
     }
   }
   fclose( playlist );

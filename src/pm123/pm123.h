@@ -58,17 +58,14 @@
 #define ACL_MAIN              1
 
 #define MNU_MAIN            500
-#define IDM_M_LOAD          501
 #define IDM_M_SHUFFLE       505
 #define IDM_M_ABOUT         506
 #define IDM_M_CFG           507
-#define IDM_M_LOADFILE      508
 #define IDM_M_PLAYLIST      509
 #define IDM_M_MINIMIZE      510
 #define IDM_M_SMALL         511
 #define IDM_M_TINY          512
 #define IDM_M_NORMAL        513
-#define IDM_M_URL           514
 #define IDM_M_FONT1         515
 #define IDM_M_FONT2         516
 #define IDM_M_FONT          517
@@ -86,7 +83,12 @@
 #define IDM_M_VOL_RAISE     548
 #define IDM_M_VOL_LOWER     549
 #define IDM_M_MENU          550
-#define IDM_M_ADDOTHER      600 /* reserve some ID's for several plug-ins.  */
+
+#define IDM_M_LOAD          600
+#define IDM_M_LOADFILE      601
+#define IDM_M_URL           602
+#define IDM_M_LOADOTHER     603 /* reserve some ID's for several plug-ins.  */
+
 #define IDM_M_LAST        10000 /* A lot of IDs after this need to be free. */
 #define IDM_M_BOOKMARKS   11000 /* A lot of IDs after this need to be free. */
 #define IDM_M_PLUG        15000 /* A lot of IDs after this need to be free. */
@@ -231,11 +233,11 @@ BOOL  amp_warn_if_overwrite( HWND owner, const char* filename );
 void  amp_show_help( SHORT resid );
 
 /* Adds HTTP file to the playlist or load it to the player. */
-void  amp_add_url( HWND owner, int options );
+//void  amp_add_url( HWND owner, int options );
 /* Adds CD tracks to the playlist or load one to the player. */
 /*void  amp_add_tracks( HWND owner, int options );*/
 /* Adds user selected files or directory to the playlist. */
-void  amp_add_files( HWND owner );
+//void  amp_add_files( HWND owner );
 
 /* Saves current playlist to the file specified by user. */
 void  amp_save_list_as( HWND owner, int options );

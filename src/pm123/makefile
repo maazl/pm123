@@ -9,7 +9,8 @@ EXE_PM   = yes
 !include $(TOPDIR)\config\makerules
 
 OBJECTS  = button95$(CO) pm123$(CO) messages$(CO) 123_util$(CO)
-OBJECTS  = $(OBJECTS) pfreq$(CO) pfreq_base$(CO) plugman$(CO) plugman_base$(CO) bookmark$(CO) iniman$(CO)
+OBJECTS  = $(OBJECTS) pfreq$(CO) pfreq_base$(CO) playlist_base$(CO)
+OBJECTS  = $(OBJECTS) plugman$(CO) plugman_base$(CO) bookmark$(CO) iniman$(CO)
 OBJECTS  = $(OBJECTS) playlist$(CO) properties$(CO) skin$(CO)
 OBJECTS  = $(OBJECTS) playable$(CO) playenumerator$(CO) url$(CO)
 OBJECTS  = $(OBJECTS) docking$(CO) vdelegate$(CO)
@@ -52,7 +53,8 @@ playenumerator.cpp:	playenumerator.h
 playenumerator.h:	playable.h
 pfreq.cpp:      pfreq.h pfreq_base.h url.h
 pfreq_base.cpp: pm123.h pfreq_base.h iniman.h playable.h url.h
-pfreq_base.h:   playable.h
+pfreq_base.h:   playable.h playlist_base.h
+playlist_base.cpp: playlist_base.h
 url.cpp:        url.h
 
 clean: $(MDUMMY)

@@ -110,7 +110,7 @@ static BOOL  is_stream_saved = FALSE;
 static BOOL  is_arg_shuffle  = FALSE;
 
 /* Current load wizzards */
-static DECODER_WIZZARD_FUNC load_wizzards[16];
+static DECODER_WIZZARD_FUNC load_wizzards[20];
 
 /* Current seeking time. Valid if is_seeking == TRUE. */
 static int   seeking_pos = 0;
@@ -605,8 +605,8 @@ amp_show_context_menu( HWND parent )
   }
 
   // Append asisstents from decoder plug-ins
-  memset( load_wizzards, 0, sizeof load_wizzards / sizeof *load_wizzards ); // You never know...
-  append_load_menu( mi.hwndSubMenu, IDM_M_ADDOTHER, FALSE, load_wizzards, sizeof load_wizzards / sizeof *load_wizzards );
+  memset( load_wizzards+2, 0, sizeof load_wizzards - 2*sizeof *load_wizzards ); // You never know...
+  append_load_menu( mi.hwndSubMenu, IDM_M_LOADOTHER, load_wizzards+2, sizeof load_wizzards / sizeof *load_wizzards -2);
 
   DEBUGLOG(("amp_show_context_menu: cfg.last = %s\n", cfg.last));
   if( *cfg.last[0] )
@@ -1208,7 +1208,7 @@ amp_load_file( HWND owner )
   DEBUGLOG(("amp_load_file - %u\n", ul));
 }
 
-static void DLLENTRY
+/*static void DLLENTRY
 amp_add_files_callback( void*, const char* url )
 { DEBUGLOG(("amp_add_files_callback(, %s)\n", url));
   // compatibility to old format here
@@ -1233,10 +1233,10 @@ amp_add_files_callback( void*, const char* url )
      else
       pl_add_file( url, NULL, 0 );
   }
-}
+}*/
 
 /* Adds user selected files or directory to the playlist. */
-void
+/*void
 amp_add_files( HWND hwnd )
 { DEBUGLOG(("amp_add_files(%p)\n", hwnd));
 
@@ -1244,10 +1244,10 @@ amp_add_files( HWND hwnd )
   DEBUGLOG(("amp_add_files - %u\n", ul));
   if (ul == 0)
     pl_completed();
-}
+}*/
 
 /* Adds HTTP file to the playlist or load it to the player. */
-void
+/*void
 amp_add_url( HWND owner, int options )
 { DEBUGLOG(("amp_add_url(%p)\n", owner));
 
@@ -1258,7 +1258,7 @@ amp_add_url( HWND owner, int options )
   DEBUGLOG(("amp_add_url - %u\n", ul));
   if (ul == 0 && options & URL_ADD_TO_LIST)
     pl_completed();
-}
+}*/
 
 /* Edits a ID3 tag for the specified file. */
 void
@@ -1437,12 +1437,14 @@ amp_pipe_thread( void* scrap )
           }
           if( stricmp( zork, "rdir" ) == 0 ) {
             if( dork ) {
-              pl_add_directory( dork, PL_DIR_RECURSIVE );
+              // TODO: edit playlist
+              //pl_add_directory( dork, PL_DIR_RECURSIVE );
             }
           }
           if( stricmp( zork, "dir"  ) == 0 ) {
             if( dork ) {
-              pl_add_directory( dork, 0 );
+              // TODO: edit playlist
+              //pl_add_directory( dork, 0 );
             }
           }
           if( stricmp( zork, "font" ) == 0 ) {
@@ -1468,7 +1470,8 @@ amp_pipe_thread( void* scrap )
                 if( *dork == ';' ) {
                   *dork++ = 0;
                 }
-                pl_add_file( file, NULL, 0 );
+                // TODO: edit playlist
+                //pl_add_file( file, NULL, 0 );
               }
             }
           }
@@ -1500,7 +1503,8 @@ amp_pipe_thread( void* scrap )
 //            amp_pl_use();
           }
           if( stricmp( zork, "clear" ) == 0 ) {
-            pl_clear( PL_CLR_NEW );
+            // TODO: edit playlist
+            //pl_clear( PL_CLR_NEW );
           }
           if( stricmp( zork, "next" ) == 0 ) {
             WinSendMsg( hplayer, WM_COMMAND, MPFROMSHORT( BMP_NEXT ), 0 );
@@ -1509,10 +1513,11 @@ amp_pipe_thread( void* scrap )
             WinSendMsg( hplayer, WM_COMMAND, MPFROMSHORT( BMP_PREV ), 0 );
           }
           if( stricmp( zork, "remove" ) == 0 ) {
-            if( current_record ) {
+            // TODO: pipe interface have to be renewed
+            /*if( current_record ) {
               PLRECORD* rec = current_record;
               pl_remove_record( &rec, 1 );
-            }
+            }*/
           }
           if( stricmp( zork, "forward" ) == 0 ) {
             WinSendMsg( hplayer, WM_COMMAND, MPFROMSHORT( BMP_FWD  ), 0 );
@@ -2355,12 +2360,12 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
           amp_load_playable( url::normalizeURL(cfg.last[cm->cmd-IDM_M_LAST-1]), 0 );
           return 0;
         }
-        if( cm->cmd >= IDM_M_ADDOTHER &&
-            cm->cmd < IDM_M_ADDOTHER + sizeof load_wizzards / sizeof *load_wizzards &&
-            load_wizzards[cm->cmd-IDM_M_ADDOTHER] )
-        {
+        if( cm->cmd >= IDM_M_LOADFILE &&
+            cm->cmd < IDM_M_LOADFILE + sizeof load_wizzards / sizeof *load_wizzards &&
+            load_wizzards[cm->cmd-IDM_M_LOADFILE] )
+        { // TODO: create temporary playlist
           bool first;
-          ULONG rc = (*load_wizzards[cm->cmd-IDM_M_ADDOTHER])( hwnd, "Load%s", &amp_load_file_callback, &first );
+          ULONG rc = (*load_wizzards[cm->cmd-IDM_M_LOADFILE])( hwnd, "Load%s", &amp_load_file_callback, &first );
           return 0;
         }
       }
@@ -2403,10 +2408,6 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
           }
           return 0;
 
-        case IDM_M_URL:
-          amp_add_url( hwnd, URL_ADD_TO_PLAYER );
-          return 0;
-
         case IDM_M_FONT1:
           cfg.font = 0;
           amp_display_filename();
@@ -2447,10 +2448,6 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
           amp_invalidate( UPD_ALL );
           return 0;
         }
-
-        case IDM_M_LOADFILE:
-          amp_load_file( hwnd );
-          return 0;
 
         case IDM_M_CFG:
           cfg_properties( hwnd );
@@ -2554,7 +2551,8 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
 
         case BMP_STOP:
           amp_stop();
-          pl_clean_shuffle();
+          // TODO: probably inclusive when the iterator is destroyed
+          //pl_clean_shuffle();
           return 0;
 
         case BMP_NEXT:
@@ -3004,7 +3002,8 @@ main( int argc, char *argv[] )
   if( files == 1 && !is_dir( argv[argc - 1] )) {
     amp_load_playable( url::normalizeURL(argv[argc - 1]), 0 );
   } else if( files > 0 ) {
-    for( i = 1; i < argc; i++ ) {
+    // TODO: same as on load_file_callback
+    /*for( i = 1; i < argc; i++ ) {
       if( argv[i][0] != '/' && argv[i][0] != '-' ) {
         if( is_dir( argv[i] )) {
           pl_add_directory( argv[i], PL_DIR_RECURSIVE );
@@ -3013,7 +3012,7 @@ main( int argc, char *argv[] )
         }
       }
     }
-    pl_completed();
+    pl_completed();*/
   } else {
     struct stat fi;
     if( stat( bundle, &fi ) == 0 ) {

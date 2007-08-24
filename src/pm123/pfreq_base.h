@@ -33,6 +33,7 @@
 #include <cpp/container.h>
 
 #include "playable.h"
+#include "playlist_base.h"
 
 
 /****************************************************************************
@@ -44,19 +45,11 @@
 static MRESULT EXPENTRY DlgProcStub(HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2);
 static void TFNENTRY WorkerStub(void* arg);
 
-class PlaylistManager : public IComparableTo<char>
+class PlaylistManager : public PlaylistBase
 {public:
-  struct CommonState
-  { unsigned            PostMsg;   // Bitvector of outstanding record commands
-    bool                WaitUpdate;// UpdateTech is waiting for UpdateInfo event.
-    CommonState() : PostMsg(0), WaitUpdate(false) {}
-  };
-  struct Record : public MINIRECORDCORE
-  { // Event state properties common to Records and PlaylistManager 
-    struct record_data : public CommonState
-    { volatile unsigned UseCount;  // Reference counter to keep Records alive while Posted messages are on the way.
-      Record*           Parent;    // Pointer to parent Record or NULL if we are at the root level.
-      bool              Updated;   // Flag whether the children of this node are up to date.
+  struct Record : public RecordBase
+  { struct record_data
+    { Record*           Parent;    // Pointer to parent Record or NULL if we are at the root level.
       bool              Recursive; // Flag whether this node is in the current callstack.
       class_delegate2<PlaylistManager, const Playable::change_args          , Record*> InfoChange;
       class_delegate2<PlaylistManager, const PlayableInstance::change_args  , Record*> StatChange;
@@ -68,89 +61,15 @@ class PlaylistManager : public IComparableTo<char>
                   Record* parent);
       void              DeregisterEvents();
     };
-    PlayableInstance*   Content;   // The pointer to the backend content may be NULL if the object is deleted.
     record_data*        Data;      // C++ part of the object in the private memory arena.
-    #ifdef DEBUG
-    xstring             DebugName() const;
-    static xstring      DebugName(const Record* rec);
-    #endif
-    bool                IsRemoved() const            { return Content == NULL; }
-    static bool         IsRemoved(const Record* rec) { return rec != NULL && rec->IsRemoved(); }
   };
- private:
-  // Message Processing
-  enum
-  { UM_UPDATEINFO = WM_USER+0x101,
-    // Execute a command for a record, see below.
-    // mp1 = Record* or NULL
-    // The reference counter of the Record is decremented after the message is processed.
-    // The Commands to be executed are atomically taken from the PostMsg bitvector
-    // in the referenced record or the container.
-    UM_RECORDCOMMAND,
-    // Delete a record structure and put it back to PM
-    // mp1 = Record
-    UM_DELETERECORD,
-    // Mark the record as removed
-    // This destroys the Content reference.
-    // You may send this message with async flag to free the record if it is no longer used by an outstanding message.
-    UM_SYNCREMOVE
-  };
-  // Valid flags in PostMsg fields
-  enum RecordCommand
-  { // Update the children of the Record
-    // If mp2 == NULL the root node is refreshed. 
-    RC_UPDATECHILDREN,
-    // Update the technical information of a record
-    // If mp2 == NULL the root node is refreshed. 
-    RC_UPDATETECH,
-    // Update the status of a record
-    // If mp2 == NULL the root node is refreshed. 
-    RC_UPDATESTATUS,
-    // Update the alias text of a record
-    RC_UPDATEALIAS
-  };
-  // wrap pointer to keep PM happy
-  struct init_dlg_struct
-  { USHORT           size;
-    PlaylistManager* pm;
-  };
-  
- private: // Cached Icon ressources
-  enum IC
-  { IC_Normal,
-    IC_Used,
-    IC_Play
-  };
-  enum ICP
-  { ICP_Closed,
-    ICP_Open,
-    ICP_Recursive
-  };
-  static HPOINTER   IcoSong[3];
-  static HPOINTER   IcoPlaylist[3][3];
-  static HPOINTER   IcoEmptyPlaylist;
-  static HPOINTER   IcoInvalid;
-  static void       InitIcons();
 
- private: // content
-  int_ptr<Playable> Content;
-  xstring           Alias;         // Alias name for the window title
-  #if DEBUG
-  xstring           DebugName() const;
-  #endif
  private: // working set
-  HWND              HwndMgr;       // playlist manager window handle
-  HWND              HwndContainer; // content window handle
-  xstring           Title;         // Keep the window title
   xstring           Info;          // Keep the window info
   HWND              MainMenu;
   HWND              ListMenu;
   HWND              FileMenu;
   int_ptr<Playable> EmFocus;       // Playable object to display at UM_SETTITLE
-  Record*           CmFocus;       // Focus of last selected context menu item
-  DECODER_WIZZARD_FUNC LoadWizzards[20]; // Current load wizzards
-  bool              NoRefresh;     // Avoid update events to ourself
-  CommonState       EvntState;     // Event State
 
  private:
   // create container window
@@ -165,10 +84,6 @@ class PlaylistManager : public IComparableTo<char>
   void              SetInfo(const xstring& info);
   // initiate the display of a record's info
   void              ShowRecordAsync(Record* rec);
-  // Post record message
-  void              PostRecordCommand(Record* rec, RecordCommand cmd); 
-  // Free a record after a record message sent with PostRecordCommand completed.
-  void              FreeRecord(Record* rec);
   // Gets the Usage type of a record.
   // Subfunction to CalcIcon.
   static IC         GetRecordUsage(Record* rec);
@@ -217,7 +132,7 @@ class PlaylistManager : public IComparableTo<char>
  public: // public interface
   ~PlaylistManager();
   // Make the window visible (or not)
-  void              SetVisible(bool show);
+  virtual void      SetVisible(bool show);
   
  // Repository of PM instances by URL.
  private:
@@ -240,9 +155,7 @@ inline PlaylistManager::Record::record_data::record_data(
   void (PlaylistManager::*statchangefn)(const PlayableInstance::change_args&, Record*),
   Record* rec,
   Record* parent)
-: UseCount(1),
-  Parent(parent),
-  Updated(false),
+: Parent(parent),
   Recursive(false),
   InfoChange(pm, infochangefn, rec),
   StatChange(pm, statchangefn, rec)

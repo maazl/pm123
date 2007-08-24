@@ -210,7 +210,7 @@ struct DECODER_PROCS
   ULONG (DLLENTRYP decoder_support  )( char*  ext[], int* size );
   ULONG (DLLENTRYP decoder_editmeta )( HWND owner, const char* url );
   const DECODER_WIZZARD*
-        (DLLENTRYP decoder_getwizzard)( BOOL multiselect );
+        (DLLENTRYP decoder_getwizzard)( );
   // Result from the decoder_support call. Supported data sources.
   int    type;
   // Result from the decoder_support call. Supported file types.

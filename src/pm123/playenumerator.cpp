@@ -204,8 +204,14 @@ PlayEnumerator::Status PlayEnumerator::GetStatus() const
   TECH_INFO tech = *Root->GetInfo().tech;
   s.TotalTime = tech.songlength;
   s.TotalItems = tech.num_items;
-  if (SubIterator != NULL) // playlist
-  { // look for subitems
+  if (SubIterator == NULL) // playlist?
+  { s.CurrentItem = 1;
+    s.TotalItems = 1;
+  } else if (IsValid())
+  { s.CurrentItem = 1;
+    // TODO: count of subiterator is missing,
+    // TODO: count is wrong in case of a recursion
+    // look for subitems
     Mutex::Lock lock(Root->Mtx);
     sco_ptr<PlayableEnumerator> pe = (NextEnumerator != NULL ? NextEnumerator : Enumerator)->Clone();
     while (pe->Prev())
@@ -228,10 +234,8 @@ PlayEnumerator::Status PlayEnumerator::GetStatus() const
             break; // makes no more sense
         }
       }
-    }
-  } else
-  { s.CurrentItem = 1;
-    s.TotalItems = 1;
+    } // else
+      // s.CurrentItem = 0;
   }
   DEBUGLOG(("PlayEnumerator::GetStatus: {%i/%i, %f/%f}\n", s.CurrentItem, s.TotalItems, s.CurrentTime, s.TotalTime));
   return s;

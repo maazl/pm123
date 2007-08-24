@@ -798,7 +798,8 @@ bm_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
           bm_load_bookmark( bm_cursored());
           return 0;
         case IDM_BM_ADDTOPL:
-          pl_add_file( bm_cursored()->filename, NULL, 0 );
+          // TODO: well, makes no much sense here
+          //pl_add_file( bm_cursored()->filename, NULL, 0 );
           return 0;
         case IDM_BM_RENAME:
           bm_rename_bookmark( hwnd, bm_cursored());

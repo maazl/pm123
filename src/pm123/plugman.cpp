@@ -1252,14 +1252,14 @@ load_plugin_menu( HWND hMenu )
 }
 
 void
-append_load_menu( HWND hMenu, ULONG id_base, BOOL multiselect, DECODER_WIZZARD_FUNC* callbacks, int size )
+append_load_menu( HWND hMenu, ULONG id_base, DECODER_WIZZARD_FUNC* callbacks, int size )
 { 
-  DEBUGLOG(("append_load_menu(%p, %d, %d, %p, %d)\n", hMenu, id_base, multiselect, callbacks, size));
+  DEBUGLOG(("append_load_menu(%p, %d, %d, %p, %d)\n", hMenu, id_base, callbacks, size));
   // for all decoder plug-ins...
   for (int i = 0; i < decoders.count(); ++i)
   { CL_DECODER& dec = (CL_DECODER&)decoders[i];
     if (dec.get_enabled() && dec.get_procs().decoder_getwizzard)
-    { const DECODER_WIZZARD* da = (*dec.get_procs().decoder_getwizzard)(multiselect);
+    { const DECODER_WIZZARD* da = (*dec.get_procs().decoder_getwizzard)();
       DEBUGLOG(("append_load_menu: %s - %p\n", dec.module_name, da));
       while (da != NULL)
       { if (size-- == 0)
