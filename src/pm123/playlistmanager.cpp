@@ -33,8 +33,8 @@
 #define INCL_BASE
 #include <utilfct.h>
 #include "pm123.h"
-#include "pfreq.h"
-#include "pfreq_base.h"
+#include "playlistmanager.h"
+#include "playlistmanager.i.h"
 #include "url.h"
 
 #include <debuglog.h>

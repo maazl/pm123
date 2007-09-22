@@ -46,9 +46,8 @@
 #define RP_INITIAL_SIZE 100
 #endif
 
-
 /* Private class implemenation headers */
-#include "playable.private.h"
+#include "playable.i.h"
 
 void PlayableCollectionEnumerator::InitNextLevel()
 { DEBUGLOG(("PlayableCollectionEnumerator(%p)::InitNextLevel()\n", this));
@@ -147,6 +146,17 @@ Playable::~Playable()
     Playable* r = RPInst.erase(URL);
     assert(r != NULL);
   }
+}
+
+/* Returns true if the specified file is a playlist file. */
+bool Playable::IsPlaylist(const char *url)
+{ // TODO: this is a very bad criterion
+  char ext[_MAX_EXT];
+  sfext( ext, url, sizeof( ext ));
+  return stricmp( ext, ".lst" ) == 0 ||
+         stricmp( ext, ".mpl" ) == 0 ||
+         stricmp( ext, ".pls" ) == 0 ||
+         stricmp( ext, ".m3u" ) == 0;
 }
 
 Playable::Flags Playable::GetFlags() const
@@ -312,7 +322,7 @@ int_ptr<Playable> Playable::GetByURL(const char* url, const FORMAT_INFO2* ca_for
   size_t p = strlen(url);
   if (strnicmp(url, "file:", 5) == 0 && url[p-1] == '/')
     pp = new PlayFolder(url, ca_tech, ca_meta);
-   else if (is_playlist(url))
+   else if (IsPlaylist(url))
     pp = new Playlist(url, ca_tech, ca_meta);
    else // Song
     pp = new Song(url, ca_format, ca_tech, ca_meta);

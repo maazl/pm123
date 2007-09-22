@@ -26,13 +26,18 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <cpp/xstring.h>
+#include <cpp/queue.h>
+#include <cpp/event.h>
 #include <cpp/smartptr.h>
+#include <cpp/mutex.h>
+#include <cpp/container.h>
+#include <cpp/xstring.h>
 
 #define DECODER_PLUGIN_LEVEL 2
 #include "playable.h"
 #include <decoder_plug.h>
-//#include "plugman.h"
+
+#include <debuglog.h>
 
 
 /****************************************************************************
@@ -41,9 +46,6 @@
 *  Whether it is a tree view or a detailed view detremines the derived class.
 *
 ****************************************************************************/
-static MRESULT EXPENTRY DlgProcStub(HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2);
-static void TFNENTRY WorkerStub(void* arg);
-
 class PlaylistBase : public IComparableTo<char>
 {public:
   struct CommonState

@@ -47,13 +47,19 @@
 #include "plugman.h"
 #include "playlist.h"
 #include "pm123.h"
-#include "utilfct.h"
+#include "pm123.rc.h"
+#include <utilfct.h>
 #include "docking.h"
 #include "iniman.h"
 
 #include <stddef.h>
 
 #include <debuglog.h>
+
+
+static BOOL is_playlist( const char *filename );
+static void pl_display_status( void );
+
 
 #define PL_ADD_FILE      0
 #define PL_ADD_DIRECTORY 1
@@ -1794,7 +1800,8 @@ pl_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
           amp_save_list_as( hwnd, SAV_M3U_PLAYLIST );
           return 0;
         case IDM_PL_LOADL:
-          amp_load_list( hwnd );
+          // TODO: probably no longer needed
+          //amp_load_list( hwnd );
           return 0;
         case IDM_PL_S_PLAY:
           amp_load_playable(url::normalizeURL(pl_cursored()->full), AMP_LOAD_KEEP_PLAYLIST);
@@ -1953,7 +1960,7 @@ pl_completed( void )
 }*/
 
 /* Returns true if the specified file is a playlist file. */
-BOOL
+static BOOL
 is_playlist( const char *filename )
 {
  char ext[_MAX_EXT];

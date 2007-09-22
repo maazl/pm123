@@ -40,24 +40,18 @@
 
 #include <os2.h>
 #include "pm123.h"
+#include "pm123.rc.h"
 #include <utilfct.h>
-#include "pfreq.h"
-#include "pfreq_base.h"
+#include "playlistmanager.h"
+#include "playlistmanager.i.h"
 #include "docking.h"
 #include "iniman.h"
 #include "playable.h"
 
-#include <stdarg.h>
-#include <snprintf.h>
 #include <cpp/smartptr.h>
 #include "url.h"
 
 #include <debuglog.h>
-
-
-// Default instance of playlist manager window, representing PM123.LST in the program folder.
-static sco_ptr<PlaylistManager> DefaultPM;
-
 
 /****************************************************************************
 *

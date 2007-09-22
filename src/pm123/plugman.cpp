@@ -44,6 +44,7 @@
 #include <fileutil.h>
 #include "plugman_base.h"
 #include "pm123.h"
+#include "pm123.rc.h"
 
 //#define DEBUG 1
 #include <debuglog.h>

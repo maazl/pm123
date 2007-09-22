@@ -47,11 +47,12 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 
-#include "gbm.h"
-#include "gbmerr.h"
-#include "gbmht.h"
+#include <gbm.h>
+#include <gbmerr.h>
+#include <gbmht.h>
 #include "skin.h"
 #include "pm123.h"
+#include "pm123.rc.h"
 #include "button95.h"
 
 #include <debuglog.h>

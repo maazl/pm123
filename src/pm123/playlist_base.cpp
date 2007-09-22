@@ -31,12 +31,24 @@
 /* Code for the playlist manager */
 
 #define  INCL_WIN
+#define  INCL_GPI
+#define  INCL_DOS
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <process.h>
 
-#include "playlist_base.h"
-#include "pm123.h"
-#include "docking.h"
-#include <utilfct.h>
 #include <os2.h>
+#include <utilfct.h>
+#include "playlist_base.h"
+#include "playable.h"
+#include "pm123.rc.h"
+#include "docking.h"
+
+#include <stdarg.h>
+#include <snprintf.h>
+#include <cpp/smartptr.h>
+#include "url.h"
 
 #include <debuglog.h>
 
@@ -147,5 +159,4 @@ void PlaylistBase::SetVisible(bool show)
   WinSetWindowPos( HwndFrame, HWND_TOP, 0, 0, 0, 0,
                    show ? SWP_SHOW | SWP_ZORDER | SWP_ACTIVATE : SWP_HIDE );
 }
-
 

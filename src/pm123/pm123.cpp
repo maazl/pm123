@@ -56,7 +56,7 @@
 #include "plugman.h"
 #include "bookmark.h"
 #include "button95.h"
-#include "pfreq.h"
+#include "playlistmanager.h"
 #include "copyright.h"
 #include "docking.h"
 #include "iniman.h"
@@ -65,6 +65,7 @@
 
 #include <cpp/xstring.h>
 #include "url.h"
+#include "pm123.rc.h"
 
 #include <debuglog.h>
 
@@ -1630,7 +1631,7 @@ amp_pipe_thread( void* scrap )
 }
 
 /* Loads a playlist selected by the user to the player. */
-void
+/*void
 amp_load_list( HWND owner )
 {
   FILEDLG filedialog;
@@ -1657,7 +1658,7 @@ amp_load_list( HWND owner )
       pl_load( filedialog.szFullFile, PL_LOAD_CLEAR );
     }
   }
-}
+}*/
 
 /* Saves current playlist to the file specified by user. */
 void

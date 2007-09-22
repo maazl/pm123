@@ -32,30 +32,6 @@
 #ifndef PM123_BOOKMARK_H
 #define PM123_BOOKMARK_H
 
-#define DLG_BOOKMARKS        444
-#define CNR_BOOKMARKS FID_CLIENT
-#define ACL_BOOKMARKS       8002
-#define ICO_BOOKMARK         300
-
-#define DLG_BM_ADD           500
-#define ST_BM_DESC           501
-#define EF_BM_DESC           502
-
-#define DLG_BM_RENAME        600
-
-#define MNU_BM_RECORD        444
-#define MNU_BM_LIST          445
-
-#define IDM_BM_REMOVE        901
-#define IDM_BM_RENAME        902
-#define IDM_BM_LOAD          903
-#define IDM_BM_ADDTOPL       904
-#define IDM_BM_RMENU         905
-#define IDM_BM_REPLACE       906
-#define IDM_BM_CLEAR         907
-#define IDM_BM_ADD           908
-#define IDM_BM_LMENU         909
-
 /* Structure that contains information for records in
    the bookmarks container control. */
 

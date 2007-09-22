@@ -32,44 +32,10 @@
 #ifndef PM123_PLAYLIST_H
 #define PM123_PLAYLIST_H
 
-#ifndef  RC_INVOKED
 #define INCL_PM
 #include <format.h>
 #include <decoder_plug.h>
 #include <os2.h>
-#endif
-
-#define DLG_PLAYLIST         42
-#define CNR_PLAYLIST FID_CLIENT
-#define ACL_PLAYLIST       8001
-#define MNU_PLAYLIST        900
-#define MNU_RECORD          910
-
-#define IDM_PL_LOAD         901
-#define IDM_PL_REMOVE       902
-#define IDM_PL_SORT         990
-#define IDM_PL_SORT_SIZE    903
-#define IDM_PL_SORT_PLTIME  904
-#define IDM_PL_SORT_NAME    905
-#define IDM_PL_USE          906
-#define IDM_PL_CLEAR        907
-#define IDM_PL_SAVE         908
-#define IDM_PL_LST_SAVE     909
-#define IDM_PL_M3U_SAVE     910
-#define IDM_PL_LOADL        911
-#define IDM_PL_SORT_SONG    912
-#define IDM_PL_SORT_RANDOM  970
-#define IDM_PL_MENU         950
-#define IDM_PL_URL          965
-#define IDM_PL_MENUCONT     971
-#define IDM_PL_S_PLAY       981
-#define IDM_PL_S_DEL        982
-#define IDM_PL_S_TAG        983
-#define IDM_PL_ADD          985
-#define IDM_PL_OPEN         986
-#define IDM_PL_S_KILL       987
-#define IDM_PL_LAST        1000 /* A lot of IDs after this need to be free. */
-#define IDM_PL_ADDOTHER    1100 /* Need some IDs for plugin extensions.     */
 
 /* Structure that contains information for records in
    the playlist container control. */
@@ -128,14 +94,14 @@ extern "C" {
 
 /* The pointer to playlist record of the currently played file,
    the pointer is NULL if such record is not present. */
-extern PLRECORD* current_record;
+//extern PLRECORD* current_record;
 
 /* Creates the playlist presentation window. */
 HWND  pl_create( void );
 /* Sets the visibility state of the playlist presentation window. */
 void  pl_show( BOOL show );
 /* Sets the title of the playlist window according to current playlist state. */
-void  pl_display_status( void );
+//void  pl_display_status( void );
 /* Destroys the playlist presentation window. */
 void  pl_destroy( void );
 
@@ -175,7 +141,7 @@ void  pl_destroy( void );
 //void pl_remove_record( PLRECORD** array, USHORT count );
 
 /* Returns true if the specified file is a playlist file. */
-BOOL is_playlist( const char *filename );
+//BOOL is_playlist( const char *filename );
 /* Loads the specified playlist file. */
 BOOL pl_load( const char *filename, int options );
 /* Saves playlist to the specified file. */

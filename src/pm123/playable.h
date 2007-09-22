@@ -89,47 +89,49 @@ class Playable : public Iref_Count, private IComparableTo<char>
   };
   // Parameters for InfoChange Event
   struct change_args
-  { Playable&   Instance;
-    InfoFlags   Flags; // Bitvector of type InfoFlags
+  { Playable&         Instance;
+    InfoFlags         Flags; // Bitvector of type InfoFlags
     change_args(Playable& inst, InfoFlags flags) : Instance(inst), Flags(flags) {}
   };
  protected:
   // C++ version of DECODER_INFO2
   class DecoderInfo : public DECODER_INFO2
   {private:
-    FORMAT_INFO2 Format;
-    TECH_INFO   TechInfo;
-    META_INFO   MetaInfo;
+    FORMAT_INFO2      Format;
+    TECH_INFO         TechInfo;
+    META_INFO         MetaInfo;
    public:
     static const DecoderInfo InitialInfo;
    private:
-    void        Init();
+    void              Init();
    public:
     // reset all fileds to their initial state
-    void        Reset();
-    DecoderInfo() { Reset(); }
+    void              Reset();
+    DecoderInfo()     { Reset(); }
     // copy
     DecoderInfo(const DECODER_INFO2& r) { *this = r; }
     // assignment
-    void        operator=(const DECODER_INFO2& r);
+    void              operator=(const DECODER_INFO2& r);
   };
  
  private:
-  const url     URL;
+  const url           URL;
  protected: // The following vars are protected by the mutex
-  DecoderInfo   Info;
-  PlayableStatus Stat;
-  char          Decoder[_MAX_FNAME];
-  InfoFlags     InfoValid;       // Bitvector of type InfoFlags
-  InfoFlags     InfoChangeFlags; // Bitvector with stored events
+  DecoderInfo         Info;
+  PlayableStatus      Stat;
+  char                Decoder[_MAX_FNAME];
+  InfoFlags           InfoValid;       // Bitvector of type InfoFlags
+  InfoFlags           InfoChangeFlags; // Bitvector with stored events
  public:
-  Mutex         Mtx;   // protect this instance
+  Mutex               Mtx;   // protect this instance
  
  private: // non-copyable
   Playable(const Playable&);
   void operator=(const Playable&);
  protected:
   Playable(const url& url, const FORMAT_INFO2* ca_format = NULL, const TECH_INFO* ca_tech = NULL, const META_INFO* ca_meta = NULL);
+  // Check whether a given URL is to be initialized as playlist.
+  static bool         IsPlaylist(const char* url);
   // Update the structure components and return the required InfoChange Flags or 0 if no change has been made.
   void                UpdateInfo(const FORMAT_INFO2* info);
   void                UpdateInfo(const TECH_INFO* info);

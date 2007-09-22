@@ -32,147 +32,11 @@
 #ifndef  PM123_H
 #define  PM123_H
 
-#ifndef  RC_INVOKED
 #include "skin.h"
 #include "plugman.h"
 #include "playlist.h"
 #include "properties.h"
 #include "copyright.h"
-#endif
-
-#define ICO_MAIN              1
-#define ICO_MP3            1700
-#define ICO_MP3USED        1701
-#define ICO_MP3PLAY        1702
-#define ICO_MP3INVLD       1709
-#define ICO_PLCLOSE        1710
-#define ICO_PLOPEN         1711
-#define ICO_PLCLOSEPLAY    1712
-#define ICO_PLOPENPLAY     1713
-#define ICO_PLRECURSIVE    1714
-#define ICO_PLRECURSIVEPLAY 1715
-#define ICO_PLEMPTY        1719
-
-#define WIN_MAIN              1
-#define HLP_MAIN              1
-#define ACL_MAIN              1
-
-#define MNU_MAIN            500
-#define IDM_M_SHUFFLE       505
-#define IDM_M_ABOUT         506
-#define IDM_M_CFG           507
-#define IDM_M_PLAYLIST      509
-#define IDM_M_MINIMIZE      510
-#define IDM_M_SMALL         511
-#define IDM_M_TINY          512
-#define IDM_M_NORMAL        513
-#define IDM_M_FONT1         515
-#define IDM_M_FONT2         516
-#define IDM_M_FONT          517
-#define IDM_M_SIZE          518
-#define IDM_M_SKIN          519
-#define IDM_M_SKINLOAD      520
-#define IDM_M_FLOAT         521
-#define IDM_M_EQUALIZE      522
-#define IDM_M_TAG           523
-#define IDM_M_MANAGER       540
-#define IDM_M_SAVE          542
-#define IDM_M_ADDBOOK       545
-#define IDM_M_EDITBOOK      546
-#define IDM_M_PLAYBACK      547
-#define IDM_M_VOL_RAISE     548
-#define IDM_M_VOL_LOWER     549
-#define IDM_M_MENU          550
-
-#define IDM_M_LOAD          600
-#define IDM_M_LOADFILE      601
-#define IDM_M_URL           602
-#define IDM_M_LOADOTHER     603 /* reserve some ID's for several plug-ins.  */
-
-#define IDM_M_LAST        10000 /* A lot of IDs after this need to be free. */
-#define IDM_M_BOOKMARKS   11000 /* A lot of IDs after this need to be free. */
-#define IDM_M_PLUG        15000 /* A lot of IDs after this need to be free. */
-
-#define DLG_URL            2014
-#define ENT_URL             101
-
-#define DLG_FILE           2100
-#define CB_RECURSE          500
-#define CB_RELATIV          501
-
-#define DLG_EQUALIZER      2015
-
-#define HLP_MAIN_TABLE      100
-#define HLP_NULL_TABLE      101
-
-#define IDH_MAIN           1000
-#define IDH_ADVANTAGES     1001
-#define IDH_ANALYZER       1002
-#define IDH_SUPPORT        1003
-#define IDH_COPYRIGHT      1004
-#define IDH_DRAG_AND_DROP  1005
-#define IDH_EQUALIZER      1006
-#define IDH_ID3_EDITOR     1007
-#define IDH_INTERFACE      1008
-#define IDH_MAIN_MENU      1009
-#define IDH_MAIN_WINDOW    1010
-#define IDH_PM             1011
-#define IDH_NETSCAPE       1012
-#define IDH_COMMANDLINE    1013
-#define IDH_PL             1014
-#define IDH_PROPERTIES     1015
-#define IDH_REMOTE         1016
-#define IDH_SKIN_GUIDE     1017
-#define IDH_SKIN_UTILITY   1018
-#define IDH_TROUBLES       1019
-
-#define MSG_PLAY              1
-#define MSG_STOP              2
-#define MSG_PAUSE             3
-#define MSG_FWD               4
-#define MSG_REW               5
-#define MSG_JUMP              6
-#define MSG_SAVE              7
-
-/* amp_load_playable options */
-#define AMP_LOAD_NOT_PLAY    0x0001 // Load a playable object, but do not start playback automatically
-#define AMP_LOAD_NOT_RECALL  0x0002 // Load a playable object, but do not add an entry into the list of recent files
-#define AMP_LOAD_KEEP_PLAYLIST 0x0004 // Play a playable object. If A playlist containing this item is loaded, the item is activated only.
-
-/* amp_add_* options */
-#define URL_ADD_TO_PLAYER    0x0000
-#define URL_ADD_TO_LIST      0x0001
-
-/* amp_save_list_as options */
-#define SAV_LST_PLAYLIST     0x0000
-#define SAV_M3U_PLAYLIST     0x0001
-
-/* amp_invalidate options */
-#define UPD_TIMERS           0x0001
-#define UPD_FILEINFO         0x0002
-#define UPD_DELAYED          0x8000
-#define UPD_ALL              0x7FFF
-
-/* file dialog additional flags */
-#define FDU_DIR_ENABLE       0x0001
-#define FDU_RECURSEBTN       0x0002
-#define FDU_RECURSE_ON       0x0004
-#define FDU_RELATIVBTN       0x0008
-#define FDU_RELATIV_ON       0x0010
-
-/* file dialog standard types */
-#define FDT_PLAYLIST         "Playlist files (*.LST;*.MPL;*.M3U;*.PLS)"
-#define FDT_PLAYLIST_LST     "Playlist files (*.LST)"
-#define FDT_PLAYLIST_M3U     "Playlist files (*.M3U)"
-#define FDT_AUDIO            "All supported audio files ("
-#define FDT_AUDIO_ALL        "All supported types (*.LST;*.MPL;*.M3U;*.PLS;"
-#define FDT_SKIN             "Skin files (*.SKN)"
-#define FDT_EQUALIZER        "Equalizer presets (*.EQ)"
-#define FDT_PLUGIN           "Plug-in (*.DLL)"
-
-#ifndef DC_PREPAREITEM
-#define DC_PREPAREITEM  0x0040
-#endif
 
 #ifdef __cplusplus
 extern "C" {
@@ -242,7 +106,7 @@ void  amp_show_help( SHORT resid );
 /* Saves current playlist to the file specified by user. */
 void  amp_save_list_as( HWND owner, int options );
 /* Loads a playlist selected by the user to the player. */
-void  amp_load_list( HWND owner );
+//void  amp_load_list( HWND owner );
 /* Loads a file selected by the user to the player. */
 void  amp_load_file( HWND owner );
 

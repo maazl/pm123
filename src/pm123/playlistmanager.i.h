@@ -31,8 +31,8 @@
 #include <cpp/smartptr.h>
 #include <cpp/mutex.h>
 #include <cpp/container.h>
+#include <cpp/xstring.h>
 
-#include "playable.h"
 #include "playlist_base.h"
 
 
@@ -43,7 +43,6 @@
 *
 ****************************************************************************/
 static MRESULT EXPENTRY DlgProcStub(HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2);
-static void TFNENTRY WorkerStub(void* arg);
 
 class PlaylistManager : public PlaylistBase
 {public:

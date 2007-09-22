@@ -39,7 +39,7 @@
 #include <xio.h>
 #include "properties.h"
 #include "pm123.h"
-#include "plugman.h"
+#include "pm123.rc.h"
 #include "iniman.h"
 
 #define  CFG_REFRESH_LIST (WM_USER+1)

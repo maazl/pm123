@@ -40,8 +40,9 @@
 #include <stddef.h>
 
 #include "pm123.h"
+#include "pm123.rc.h"
 #include "bookmark.h"
-#include "utilfct.h"
+#include <utilfct.h>
 #include "plugman.h"
 #include "docking.h"
 #include "iniman.h"

@@ -1,7 +1,7 @@
 #ifndef  PM123_FORMAT_H
 #define  PM123_FORMAT_H
 
-#include "config.h"
+#include <config.h>
 
 #ifdef __cplusplus
 extern "C" {

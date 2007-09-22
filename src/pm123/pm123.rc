@@ -30,12 +30,7 @@
 #define  INCL_WIN
 #include <os2.h>
 
-#include "pm123.h"
-#include "pfreq.h"
-#include "bookmark.h"
-#include "properties.h"
-#include "playlist.h"
-#include "skin.h"
+#include "pm123.rc.h"
 
 /* Small digits. */
 BITMAP DIG_SMALL        bmp\small_digit0.bmp

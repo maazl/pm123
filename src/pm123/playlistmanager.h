@@ -30,26 +30,6 @@
 #ifndef PM123_PFREQ_H
 #define PM123_PFREQ_H
 
-#define DLG_PM            48
-
-#define PM_MAIN_MENU    1024
-#define PM_FILE_MENU    2048
-#define PM_LIST_MENU    3072
-
-#define IDM_PM_APPEND   1000
-#define IDM_PM_APPFILE  1600
-#define IDM_PM_APPURL   1601
-#define IDM_PM_APPOTHER 1602 /* reserve some ID's for several plug-ins.  */
-#define IDM_PM_REMOVE   1012
-#define IDM_PM_LOAD     1013
-#define IDM_PM_RENAME   1014
-#define IDM_PM_DETAILED 1015
-#define IDM_PM_TREEVIEW 1016
-
-//#define IDM_PM_L_REMOVE 3075
-//#define IDM_PM_L_DELETE 3076
-//#define IDM_PM_L_CALC   3077
-
 
 #ifdef __cplusplus
 extern "C" {
