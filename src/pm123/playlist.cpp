@@ -45,6 +45,7 @@
 
 #include <xio.h>
 #include "plugman.h"
+#include "playlist.i.h"
 #include "playlist.h"
 #include "pm123.h"
 #include "pm123.rc.h"
@@ -345,7 +346,7 @@ pl_refresh_record( PLRECORD* rec, USHORT flags )
 
 /* Fills record by the information provided by the decoder. */
 static void
-pl_fill_record( PLRECORD* rec, const DECODER_INFO2* info )
+pl_fill_record( PLRECORD* rec, const DECODER_INFO2* info ) ////
 {
   char buffer[64];
   DEBUGLOG(("pl_fill_record(%p, %p)\n", rec, info));
@@ -1065,9 +1066,9 @@ pl_show_context_menu( HWND parent, const PLRECORD* rec )
 
   if( rec ) {
     // If have record, show the context menu for this record.
-    mn_enable_item( menu_record, IDM_PL_S_TAG, rec->info.meta_write );
+    mn_enable_item( menu_record, IDM_PL_EDIT, rec->info.meta_write );
 
-    WinPopupMenu( parent, parent, menu_record, pos.x, pos.y, IDM_PL_S_PLAY,
+    WinPopupMenu( parent, parent, menu_record, pos.x, pos.y, IDM_PL_USE,
                   PU_POSITIONONITEM | PU_HCONSTRAIN   | PU_VCONSTRAIN |
                   PU_MOUSEBUTTON1   | PU_MOUSEBUTTON2 | PU_KEYBOARD   );
     return;
@@ -1075,15 +1076,15 @@ pl_show_context_menu( HWND parent, const PLRECORD* rec )
 
   // Add Menu
   WinSendMsg( menu_playlist, MM_QUERYITEM,
-              MPFROM2SHORT( IDM_PL_ADD, TRUE ), MPFROMP( &mi ));
+              MPFROM2SHORT( IDM_PL_APPEND, TRUE ), MPFROMP( &mi ));
   
   mh    = mi.hwndSubMenu;
   count = LONGFROMMR( WinSendMsg( mh, MM_QUERYITEMCOUNT, 0, 0 ));
   // Remove anything from IDM_PL_ADDOTHER
-  id    = IDM_PL_ADDOTHER; 
+  id    = IDM_PL_APPOTHER; 
   while ( --count == SHORT1FROMMR( WinSendMsg( mh, MM_DELETEITEM, MPFROM2SHORT( id++, FALSE ), 0 )) );
 
-  append_load_menu( mh, IDM_PL_ADDOTHER, assists, sizeof assists / sizeof *assists );
+  append_load_menu( mh, IDM_PL_APPOTHER, assists, sizeof assists / sizeof *assists );
 
   // Open Menu
   WinSendMsg( menu_playlist, MM_QUERYITEM,
@@ -1142,7 +1143,7 @@ pl_show_context_menu( HWND parent, const PLRECORD* rec )
         mi.iPosition = MIT_END;
         mi.afStyle = MIS_TEXT;
         mi.afAttribute = 0;
-        mi.id = (IDM_PL_LAST + 1) + i;
+        mi.id = (IDM_PL_OPENLAST + 1) + i;
         mi.hwndSubMenu = (HWND)NULLHANDLE;
         mi.hItem = 0;
 
@@ -1150,10 +1151,10 @@ pl_show_context_menu( HWND parent, const PLRECORD* rec )
       }
     }
     WinSendMsg( menu_playlist, MM_SETITEMATTR,
-                MPFROM2SHORT( IDM_PL_LAST, TRUE ), MPFROM2SHORT( MIA_DISABLED, 0 ));
+                MPFROM2SHORT( IDM_PL_OPENLAST, TRUE ), MPFROM2SHORT( MIA_DISABLED, 0 ));
   } else {
     WinSendMsg( menu_playlist, MM_SETITEMATTR,
-                MPFROM2SHORT( IDM_PL_LAST, TRUE ), MPFROM2SHORT( MIA_DISABLED, MIA_DISABLED ));
+                MPFROM2SHORT( IDM_PL_OPENLAST, TRUE ), MPFROM2SHORT( MIA_DISABLED, MIA_DISABLED ));
   }
 
   /* TODO: makes no more sense
@@ -1638,7 +1639,7 @@ pl_init_window( HWND hwnd )
   menu_playlist = WinLoadMenu( HWND_OBJECT, 0, MNU_PLAYLIST );
   menu_record   = WinLoadMenu( HWND_OBJECT, 0, MNU_RECORD   );
 
-  WinSendMsg( menu_playlist, MM_QUERYITEM,
+  WinSendMsg( menu_playlist, MM_QUERYITEM, ////
               MPFROM2SHORT( IDM_PL_SAVE, TRUE ), MPFROMP( &mi ));
 
   WinSetWindowULong( mi.hwndSubMenu, QWL_STYLE,
@@ -1654,16 +1655,16 @@ pl_init_window( HWND hwnd )
     WinQueryWindowULong( mi.hwndSubMenu, QWL_STYLE ) | MS_CONDITIONALCASCADE );
 
   WinSendMsg( mi.hwndSubMenu, MM_SETDEFAULTITEMID,
-                              MPFROMLONG( IDM_PL_LOADL ), 0 );
+                              MPFROMLONG( IDM_PL_OPENL ), 0 );
 
   WinSendMsg( menu_playlist, MM_QUERYITEM,
-              MPFROM2SHORT( IDM_PL_ADD, TRUE ), MPFROMP( &mi ));
+              MPFROM2SHORT( IDM_PL_APPEND, TRUE ), MPFROMP( &mi ));
 
   WinSetWindowULong( mi.hwndSubMenu, QWL_STYLE,
     WinQueryWindowULong( mi.hwndSubMenu, QWL_STYLE ) | MS_CONDITIONALCASCADE );
 
   WinSendMsg( mi.hwndSubMenu, MM_SETDEFAULTITEMID,
-                              MPFROMLONG( IDM_PL_LOAD ), 0 );
+                              MPFROMLONG( IDM_PL_OPEN ), 0 );
 
   broker_queue = qu_create();
 
@@ -1695,23 +1696,23 @@ static MRESULT EXPENTRY
 pl_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
 {
   switch( msg ) {
-    case WM_INITDLG:
+    case WM_INITDLG: ////
       pl_init_window( hwnd );
       dk_add_window ( hwnd, 0 );
       break;
 
-    case WM_HELP:
+    case WM_HELP: ////
       amp_show_help( IDH_PL );
       return 0;
 
-    case WM_SYSCOMMAND:
+    case WM_SYSCOMMAND: ////
       if( SHORT1FROMMP(mp1) == SC_CLOSE ) {
         pl_show( FALSE );
         return 0;
       }
       break;
 
-    case WM_WINDOWPOSCHANGED:
+    case WM_WINDOWPOSCHANGED: ////
     {
       SWP* pswp = (SWP*)PVOIDFROMMP(mp1);
 
@@ -1729,7 +1730,7 @@ pl_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
     case DM_RENDERCOMPLETE:
       return pl_drag_render_done( hwnd, (PDRAGTRANSFER)mp1, SHORT1FROMMP( mp2 ));
 
-    case WM_PM123_REMOVE_RECORD:
+    case WM_PM123_REMOVE_RECORD: //// X
     {
       PLRECORD* rec = (PLRECORD*)mp1;
       pl_remove_record( &rec, 1 );
@@ -1738,22 +1739,22 @@ pl_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
 
     case WM_COMMAND:
     { CMDMSG* cm = COMMANDMSG(&msg);
-      if( cm->cmd >  IDM_PL_LAST &&
-          cm->cmd <= IDM_PL_LAST + MAX_RECALL )
+      if( cm->cmd >  IDM_PL_OPENLAST &&
+          cm->cmd <= IDM_PL_OPENLAST + MAX_RECALL )
       {
         char filename[_MAX_PATH];
-        strcpy( filename, cfg.list[ cm->cmd - IDM_PL_LAST - 1 ]);
+        strcpy( filename, cfg.list[ cm->cmd - IDM_PL_OPENLAST - 1 ]);
 
         if( is_playlist( filename )) {
           pl_load( filename, PL_LOAD_CLEAR );
         }
         return 0;
       }     
-      if( cm->cmd >= IDM_PL_ADDOTHER &&
-          cm->cmd <  IDM_PL_ADDOTHER + sizeof assists / sizeof *assists &&
-          assists[cm->cmd-IDM_PL_ADDOTHER] )
+      if( cm->cmd >= IDM_PL_APPOTHER &&
+          cm->cmd <  IDM_PL_APPOTHER + sizeof assists / sizeof *assists &&
+          assists[cm->cmd-IDM_PL_APPOTHER] )
       {
-        (*assists[cm->cmd-IDM_PL_ADDOTHER])(hwnd, "Add%s to playlist", &pl_add_callback, NULL);
+        (*assists[cm->cmd-IDM_PL_APPOTHER])(hwnd, "Add%s to playlist", &pl_add_callback, NULL);
         return 0;
       } 
 
@@ -1773,23 +1774,23 @@ pl_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
         case IDM_PL_SORT_SONG:
           pl_sort( PL_SORT_SONG );
           return 0;
-        case IDM_PL_CLEAR:
+        case IDM_PL_CLEAR: ////
           pl_purge_queue( broker_queue );
           qu_push( broker_queue, PL_CLEAR, pl_create_request_data( NULL, NULL, PL_CLR_NEW ));
           return 0;
-        case IDM_PL_USE:
-          /* TODO: wee need a more sophisticated approach here
+        /*case IDM_PL_USE:
+          TODO: wee need a more sophisticated approach here
           if( amp_playmode == AMP_PLAYLIST ) {
             amp_pl_release();
           } else {
             amp_pl_use();
-          }*/
-          return 0;
-        case IDM_PL_URL:
+          }
+          return 0;*/
+        case IDM_PL_APPURL: ////
           // TODO: already implemented in pfreq_base...
           //amp_add_url( hwnd, URL_ADD_TO_LIST );
           return 0;
-        case IDM_PL_LOAD:
+        case IDM_PL_APPFILE: ////
           // TODO: already implemented in pfreq_base...
           //amp_add_files( hwnd );
           return 0;
@@ -1799,19 +1800,19 @@ pl_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
         case IDM_PL_M3U_SAVE:
           amp_save_list_as( hwnd, SAV_M3U_PLAYLIST );
           return 0;
-        case IDM_PL_LOADL:
+        case IDM_PL_OPENL:
           // TODO: probably no longer needed
           //amp_load_list( hwnd );
           return 0;
-        case IDM_PL_S_PLAY:
+        case IDM_PL_USE: ////
           amp_load_playable(url::normalizeURL(pl_cursored()->full), AMP_LOAD_KEEP_PLAYLIST);
           return 0;
-        case IDM_PL_S_DEL:
+        case IDM_PL_REMOVE: ////
           pl_remove_selected();
           return 0;
-        case IDM_PL_S_KILL:
+/*        case IDM_PL_S_KILL:
           pl_delete_selected();
-          return 0;
+          return 0;*/
 
         case IDM_PL_MENUCONT:
           WinSendMsg( hwnd, WM_CONTROL,
@@ -1825,7 +1826,7 @@ pl_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
                       PVOIDFROMMP( pl_cursored()));
           return 0;
 
-        case IDM_PL_S_TAG:
+        case IDM_PL_EDIT: ////
         {
           PLRECORD* rec = pl_cursored();
           if( rec ) {
@@ -1870,11 +1871,16 @@ pl_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
   return WinDefDlgProc( hwnd, msg, mp1, mp2 );
 }
 
+static PlaylistView* DefaultPL = NULL;
+
 /* Sets the visibility state of the playlist presentation window. */
 void
 pl_show( BOOL show )
 {
-  HSWITCH hswitch = WinQuerySwitchHandle( playlist, 0 );
+  if (DefaultPL)
+    DefaultPL->SetVisible(show);
+
+  /*HSWITCH hswitch = WinQuerySwitchHandle( playlist, 0 );
   SWCNTRL swcntrl;
 
   if( WinQuerySwitchEntry( hswitch, &swcntrl ) == 0 ) {
@@ -1884,25 +1890,34 @@ pl_show( BOOL show )
 
   dk_set_state( playlist, show ? 0 : DK_IS_GHOST );
   WinSetWindowPos( playlist, HWND_TOP, 0, 0, 0, 0,
-                   show ? SWP_SHOW | SWP_ZORDER | SWP_ACTIVATE : SWP_HIDE );
+                   show ? SWP_SHOW | SWP_ZORDER | SWP_ACTIVATE : SWP_HIDE );*/
+}
+
+BOOL pl_visible()
+{ return DefaultPL && DefaultPL->GetVisible();
 }
 
 /* Creates the playlist presentation window. */
-HWND
+void
 pl_create( void )
 {
-  playlist = WinLoadDlg( HWND_DESKTOP, HWND_DESKTOP,
-                         pl_dlg_proc, NULLHANDLE, DLG_PLAYLIST, NULL );
-
-  pl_show( cfg.show_playlist );
-  return playlist;
+  //playlist = WinLoadDlg( HWND_DESKTOP, HWND_DESKTOP,
+  //                       pl_dlg_proc, NULLHANDLE, DLG_PLAYLIST, NULL );
+  //pl_show( cfg.show_playlist );
+  
+  PlaylistView::Init();
+  url path = url::normalizeURL(startpath);
+  const xstring& file = path + "PM123.LST";
+  DEBUGLOG(("pl_create - %s\n", file.cdata()));
+  DefaultPL = PlaylistView::Get(file, "Default Playlist");
+  DefaultPL->SetVisible(cfg.show_playlist);
 }
 
 /* Destroys the playlist presentation window. */
 void
 pl_destroy( void )
 {
-  HAB    hab   = WinQueryAnchorBlock( playlist );
+  /*HAB    hab   = WinQueryAnchorBlock( playlist );
   HACCEL accel = WinQueryAccelTable ( hab, playlist );
 
   pl_purge_queue( broker_queue );
@@ -1923,7 +1938,11 @@ pl_destroy( void )
 
   WinDestroyWindow( menu_record   );
   WinDestroyWindow( menu_playlist );
-  WinDestroyWindow( playlist      );
+  WinDestroyWindow( playlist      );*/
+  
+  DefaultPL = NULL;
+  PlaylistView::UnInit();
+  
 }
 
 /* Sends request about clearing of the playlist. */
@@ -2237,7 +2256,7 @@ pl_save( const char* filename, int options )
 BOOL
 pl_save_bundle( const char* filename, int options )
 {
-  PLRECORD* rec;
+  /*PLRECORD* rec;
   FILE* playlist = fopen( filename, "w" );
 
   if( !playlist ) {
@@ -2258,14 +2277,14 @@ pl_save_bundle( const char* filename, int options )
     fprintf( playlist, "%s\n" , rec->full );
   }
 
-  /* TODO: this is completely wrong here
-  current = amp_get_current_file();
-  if( amp_playmode == AMP_SINGLE && current != NULL && *current->url && is_file(current->url)) {
-    fprintf( playlist, "<%s\n", current->url );
-  }*/
+  // TODO: this is completely wrong here
+  //current = amp_get_current_file();
+  //if( amp_playmode == AMP_SINGLE && current != NULL && *current->url && is_file(current->url)) {
+  //  fprintf( playlist, "<%s\n", current->url );
+  //}
 
   fprintf( playlist, "# End of playlist\n" );
-  fclose ( playlist );
+  fclose ( playlist );*/
   return TRUE;
 }
 
@@ -2273,7 +2292,7 @@ pl_save_bundle( const char* filename, int options )
 BOOL
 pl_load_bundle( const char *filename, int options )
 {
-  char  file[_MAX_PATH];
+/*  char  file[_MAX_PATH];
   BOOL  selected = FALSE;
   BOOL  loaded   = FALSE;
   FILE* playlist = fopen( filename, "r" );
@@ -2297,12 +2316,12 @@ pl_load_bundle( const char *filename, int options )
     } else if( *file == '>' ) {
       sscanf( file, ">%lu,%lu\n", &selected, &loaded );
     } else if( *file != 0 && *file != '#' ) {
-      /* TODO: reimplement onother way
-      pl_add_file( file, NULL, ( selected ? PL_ADD_SELECT : 0 ) |
-                               ( loaded   ? PL_ADD_LOAD   : 0 ));*/
+      // TODO: reimplement onother way
+      //pl_add_file( file, NULL, ( selected ? PL_ADD_SELECT : 0 ) |
+      //                         ( loaded   ? PL_ADD_LOAD   : 0 ));
     }
   }
-  fclose( playlist );
+  fclose( playlist );*/
   return TRUE;
 }
 

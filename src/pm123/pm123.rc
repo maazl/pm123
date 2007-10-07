@@ -333,90 +333,26 @@ BITMAP BMP_PLIST        bmp\timeleft.bmp
 
 /* Icons. */
 ICON   ICO_MAIN         ico\pm123.ico
+
 ICON   ICO_MP3          ico\mp3.ico
 ICON   ICO_MP3USED      ico\mp3used.ico
+ICON   ICO_MP3ACTIVE    ico\mp3active.ico
 ICON   ICO_MP3PLAY      ico\mp3play.ico
 ICON   ICO_MP3INVLD     ico\mp3gray.ico
 ICON   ICO_PLEMPTY      ico\plempty.ico
 ICON   ICO_PLCLOSE      ico\plclose.ico
 ICON   ICO_PLOPEN       ico\plopen.ico
+ICON   ICO_PLRECURSIVE  ico\plrecursive.ico
+ICON   ICO_PLACTIVE     ico\plactive.ico
+ICON   ICO_PLCLOSEACTIVE ico\plcloseactive.ico
+ICON   ICO_PLOPENACTIVE ico\plopenactive.ico
+ICON   ICO_PLRECURSIVEACTIVE ico\plrecursiveactive.ico
+ICON   ICO_PLPLAY       ico\plplay.ico
 ICON   ICO_PLCLOSEPLAY  ico\plcloseplay.ico
 ICON   ICO_PLOPENPLAY   ico\plopenplay.ico
-ICON   ICO_PLRECURSIVE  ico\plrecursive.ico
 ICON   ICO_PLRECURSIVEPLAY ico\plrecursiveplay.ico
+
 ICON   ICO_BOOKMARK     ico\bookmark.ico
-
-/* Playlist window ;-) */
-
-DLGTEMPLATE DLG_PLAYLIST
-BEGIN
-   DIALOG "PM123 Playlist", DLG_PLAYLIST, 4, 4, 400, 200,
-          WS_SAVEBITS | WS_CLIPCHILDREN | FS_SIZEBORDER,
-          FCF_TITLEBAR | FCF_SYSMENU | FCF_HIDEMAX | FCF_TASKLIST |
-          FCF_NOBYTEALIGN | FCF_SHELLPOSITION
-   BEGIN
-      CONTROL "", CNR_PLAYLIST, 0, 0, 0, 0, WC_CONTAINER,
-                  CCS_EXTENDSEL |  CCS_READONLY | CCS_MINIICONS | WS_TABSTOP | WS_VISIBLE
-   END
-END
-
-ACCELTABLE ACL_PLAYLIST
-BEGIN
-   "u",       IDM_PL_USE,         AF_CHAR | AF_CONTROL
-   VK_INSERT, IDM_PL_LOAD,        AF_VIRTUALKEY
-   "u",       IDM_PL_URL,         AF_CHAR | AF_ALT
-/* "t",       IDM_PL_TRACK,       AF_CHAR | AF_ALT*/
-   "c",       IDM_PL_CLEAR,       AF_CHAR | AF_CONTROL
-   "s",       IDM_PL_LST_SAVE,    AF_CHAR | AF_CONTROL
-   "o",       IDM_PL_LOADL,       AF_CHAR | AF_CONTROL
-   "e",       IDM_PL_S_TAG,       AF_CHAR | AF_CONTROL
-   VK_DELETE, IDM_PL_S_DEL,       AF_VIRTUALKEY
-   VK_DELETE, IDM_PL_S_KILL,      AF_VIRTUALKEY | AF_CONTROL
-
-   VK_ESC,    SC_CLOSE,           AF_VIRTUALKEY | AF_SYSCOMMAND
-   VK_F10,    IDM_PL_MENUCONT,    AF_VIRTUALKEY | AF_SHIFT
-   VK_SPACE,  IDM_PL_MENU,        AF_VIRTUALKEY
-END
-
-MENU MNU_PLAYLIST
-{
-   MENUITEM "~Use this Playlist\tCtrl+U", IDM_PL_USE
-   SUBMENU "~Append...\tIns",             IDM_PL_ADD
-   {
-     MENUITEM "~Files...\tIns",           IDM_PL_LOAD
-     MENUITEM "~URL...\tAlt+U",           IDM_PL_URL
-   }
-   MENUITEM "~Clear\tCtrl+C",             IDM_PL_CLEAR
-   MENUITEM SEPARATOR
-   SUBMENU "Sort",                        IDM_PL_SORT
-   {
-     MENUITEM "Si~ze",                    IDM_PL_SORT_SIZE
-     MENUITEM "~Playing time",            IDM_PL_SORT_PLTIME
-     MENUITEM "~Filename",                IDM_PL_SORT_NAME
-     MENUITEM "~Songname",                IDM_PL_SORT_SONG
-     MENUITEM "~Random",                  IDM_PL_SORT_RANDOM
-   }
-   MENUITEM SEPARATOR
-   SUBMENU  "~Open...\tCtrl+O",           IDM_PL_OPEN
-   {
-     MENUITEM "~Playlist...\tCtrl+O",     IDM_PL_LOADL
-   }
-   SUBMENU  "~Save...\tCtrl+S",           IDM_PL_SAVE
-   {
-     MENUITEM "~LST playlist (PM123 format)...\tCtrl+S", IDM_PL_LST_SAVE
-     MENUITEM "~M3U playlist...",                        IDM_PL_M3U_SAVE
-   }
-}
-
-MENU MNU_RECORD
-{
-   MENUITEM "~Load\tEnter",                 IDM_PL_S_PLAY
-   MENUITEM "~Remove from list\tDel",       IDM_PL_S_DEL
-   MENUITEM SEPARATOR
-   MENUITEM "~Delete file\tCtrl+Del",       IDM_PL_S_KILL
-   MENUITEM SEPARATOR
-   MENUITEM "~Edit file info...\tCtrl+E",   IDM_PL_S_TAG
-}
 
 ACCELTABLE ACL_MAIN
 BEGIN
@@ -920,47 +856,141 @@ BEGIN
    END
 END
 
-/* Playlist Manager specific stuff */
+/* Playlist window ;-) */
+
+DLGTEMPLATE DLG_PLAYLIST
+BEGIN
+   DIALOG "PM123 Playlist", DLG_PLAYLIST, 4, 4, 400, 200,
+          WS_SAVEBITS | WS_CLIPCHILDREN | FS_SIZEBORDER,
+          FCF_TITLEBAR | FCF_SYSMENU | FCF_HIDEMAX | FCF_TASKLIST |
+          FCF_NOBYTEALIGN | FCF_SHELLPOSITION
+   BEGIN
+   END
+END
+
 DLGTEMPLATE DLG_PM
 BEGIN
-   DIALOG "PM123 Playlist Manager", DLG_PM, 4, 4, 400, 200,
-          WS_SAVEBITS | FS_SIZEBORDER,
+   DIALOG "PM123 Playlist Manager", DLG_PM, 4, 4, 150, 200,
+          WS_SAVEBITS | WS_CLIPCHILDREN | FS_SIZEBORDER,
           FCF_TITLEBAR | FCF_SYSMENU | FCF_HIDEMAX | FCF_NOBYTEALIGN |
           FCF_TASKLIST | FCF_SHELLPOSITION
    BEGIN
    END
 END
 
+ACCELTABLE ACL_PLAYLIST
+BEGIN
+   "u",       IDM_PL_USE,         AF_CHAR | AF_CONTROL
+   VK_INSERT, IDM_PL_APPFILE,     AF_VIRTUALKEY
+   "u",       IDM_PL_APPURL,      AF_CHAR | AF_ALT
+/* "t",       IDM_PL_TRACK,       AF_CHAR | AF_ALT*/
+   "c",       IDM_PL_CLEAR,       AF_CHAR | AF_CONTROL
+   "s",       IDM_PL_LST_SAVE,    AF_CHAR | AF_CONTROL
+   "t",       IDM_PL_TREEVIEW,    AF_CHAR | AF_CONTROL
+   "o",       IDM_PL_OPENL,       AF_CHAR | AF_CONTROL
+   "e",       IDM_PL_EDIT,        AF_CHAR | AF_CONTROL
+   VK_DELETE, IDM_PL_REMOVE,      AF_VIRTUALKEY
+   VK_F10,    IDM_PL_MENUCONT,    AF_VIRTUALKEY | AF_SHIFT
+   VK_SPACE,  IDM_PL_MENU,        AF_VIRTUALKEY
+/* VK_ENTER,  IDM_PL_USE,         AF_VIRTUALKEY*/
+END
+
+MENU MNU_PLAYLIST
+{
+   MENUITEM "~Load this Playlist\tCtrl+U", IDM_PL_USEALL
+   MENUITEM "~Detailed view",             IDM_PL_DETAILEDALL, 0, MIA_CHECKED|MIA_DISABLED
+   MENUITEM "Open ~tree view",            IDM_PL_TREEVIEW
+   SUBMENU "~Append...\tIns",             IDM_PL_APPEND
+   {
+     MENUITEM "~Files...\tIns",           IDM_PL_APPFILE
+     MENUITEM "~URL...\tAlt+U",           IDM_PL_APPURL
+   }
+   MENUITEM SEPARATOR
+   MENUITEM "~Clear\tCtrl+C",             IDM_PL_CLEAR
+   MENUITEM SEPARATOR
+   SUBMENU "Sort",                        IDM_PL_SORT
+   {
+     MENUITEM "Si~ze",                    IDM_PL_SORT_SIZE
+     MENUITEM "~Playing time",            IDM_PL_SORT_PLTIME
+     MENUITEM "~Object name",             IDM_PL_SORT_NAME
+     MENUITEM "~Song name",               IDM_PL_SORT_SONG
+     MENUITEM "~Alias name",              IDM_PL_SORT_RANDOM
+     MENUITEM "~Random",                  IDM_PL_SORT_RANDOM
+   }
+   MENUITEM SEPARATOR
+   SUBMENU  "~Open another...\tCtrl+O",   IDM_PL_OPEN
+   {
+     MENUITEM "~Playlist...\tCtrl+O",     IDM_PL_OPENL
+   }
+   SUBMENU  "~Save...\tCtrl+S",           IDM_PL_SAVE
+   {
+     MENUITEM "~LST playlist (PM123 format)...\tCtrl+S", IDM_PL_LST_SAVE
+     MENUITEM "~M3U playlist...",                        IDM_PL_M3U_SAVE
+   }
+}
+
+MENU MNU_RECORD
+{
+   MENUITEM "~Load\tCtrl+U",              IDM_PL_USE
+   MENUITEM "~Navigate to\tEnter",        IDM_PL_NAVIGATE
+   MENUITEM "~Edit meta info...\tCtrl+E", IDM_PL_EDIT
+   MENUITEM SEPARATOR
+   MENUITEM "~Remove from list\tDel",     IDM_PL_REMOVE
+}
+
+MENU MNU_PLRECORD
+{
+   MENUITEM "~Load\tCtrl+U",              IDM_PL_USE
+   MENUITEM "~Navigate to\tEnter",        IDM_PL_NAVIGATE
+   MENUITEM "~Edit playlist...\tCtrl+E",  IDM_PL_DETAILED
+   MENUITEM "Open in ~tree view",         IDM_PL_TREEVIEW
+   MENUITEM SEPARATOR
+   MENUITEM "~Remove from list\tDel",     IDM_PL_REMOVE
+}
+
+/* Playlist Manager specific stuff */
+
 MENU PM_MAIN_MENU
 {
-   MENUITEM "~Load all",             IDM_PM_LOAD
-   MENUITEM "~Detailed view",        IDM_PM_DETAILED
+   MENUITEM "~Load all",                  IDM_PL_USEALL
+   MENUITEM "~Detailed view",             IDM_PL_DETAILEDALL
+   MENUITEM "Tree view",                  IDM_PL_TREEVIEW, 0, MIA_CHECKED|MIA_DISABLED
    MENUITEM SEPARATOR
-   SUBMENU  "~Append to ...",        IDM_PM_APPEND
-   {  MENUITEM "~File...",           IDM_PM_APPFILE
-      MENUITEM "~URL...",            IDM_PM_APPURL
+   SUBMENU  "~Append to ...",             IDM_PL_APPEND
+   {  MENUITEM "~File...",                IDM_PL_APPFILE
+      MENUITEM "~URL...",                 IDM_PL_APPURL
+   }
+   MENUITEM SEPARATOR
+   SUBMENU  "~Open another...\tCtrl+O",   IDM_PL_OPEN
+   {
+     MENUITEM "~Playlist...\tCtrl+O",     IDM_PL_OPENL
+   }
+   SUBMENU  "~Save...\tCtrl+S",           IDM_PL_SAVE
+   {
+     MENUITEM "~LST playlist (PM123 format)...\tCtrl+S", IDM_PL_LST_SAVE
+     MENUITEM "~M3U playlist...",                        IDM_PL_M3U_SAVE
    }
 }
 
 MENU PM_FILE_MENU
 {
-   MENUITEM "~Load this File",       IDM_PM_LOAD
+   MENUITEM "~Load this File",            IDM_PL_USE
+   MENUITEM "~Edit meta info...\tCtrl+E", IDM_PL_EDIT
    MENUITEM SEPARATOR
-   MENUITEM "~Remove Item",          IDM_PM_REMOVE
+   MENUITEM "~Remove Item",               IDM_PL_REMOVE
 }
 
 MENU PM_LIST_MENU
 {
-   MENUITEM "~Load this Playlist",   IDM_PM_LOAD
-   MENUITEM "~Detailed view",        IDM_PM_DETAILED
-   MENUITEM "~Tree view from here",  IDM_PM_TREEVIEW
+   MENUITEM "~Load this Playlist",        IDM_PL_USE
+   MENUITEM "~Edit detailed view",        IDM_PL_DETAILED
+   MENUITEM "~Tree view from here",       IDM_PL_TREEVIEW
    MENUITEM SEPARATOR
-   MENUITEM "~Remove Item",          IDM_PM_REMOVE
-/* MENUITEM "~Delete",               IDM_PM_DELETE */
+   MENUITEM "~Remove Item",               IDM_PL_REMOVE
    MENUITEM SEPARATOR
-   SUBMENU  "~Append to ...",        IDM_PM_APPEND
-   {  MENUITEM "~File...",           IDM_PM_APPFILE
-      MENUITEM "~URL...",            IDM_PM_APPURL
+   SUBMENU  "~Append to ...",             IDM_PL_APPEND
+   {  MENUITEM "~File...",                IDM_PL_APPFILE
+      MENUITEM "~URL...",                 IDM_PL_APPURL
    }
 }
 
@@ -974,7 +1004,7 @@ BEGIN
           FCF_NOBYTEALIGN | FCF_SHELLPOSITION
    BEGIN
       CONTROL "", CNR_BOOKMARKS, 0, 0, 0, 0, WC_CONTAINER,
-                  CCS_EXTENDSEL |  CCS_READONLY | CCS_MINIICONS | WS_TABSTOP | WS_VISIBLE
+                  CCS_EXTENDSEL | CCS_READONLY | CCS_MINIICONS | WS_TABSTOP | WS_VISIBLE
    END
 END
 
@@ -1003,7 +1033,7 @@ BEGIN
    "r",       IDM_BM_REPLACE, AF_CHAR | AF_CONTROL
    VK_DELETE, IDM_BM_REMOVE,  AF_VIRTUALKEY
 
-   VK_ESC,    SC_CLOSE,       AF_VIRTUALKEY | AF_SYSCOMMAND
+/*   VK_ESC,    SC_CLOSE,       AF_VIRTUALKEY | AF_SYSCOMMAND*/
    VK_F10,    IDM_BM_LMENU,   AF_VIRTUALKEY | AF_SHIFT
    VK_SPACE,  IDM_BM_RMENU,   AF_VIRTUALKEY
 END

@@ -58,6 +58,28 @@ Iref_Count* int_ptr_base::reassign(const Iref_Count* ptr)
   return ret;
 }
 
+Iref_Count* int_ptr_base::reassign_weak(const Iref_Count* ptr)
+{ DEBUGLOG(("int_ptr_base(%p)::reassign_weak(%p): %p\n", this, ptr, Ptr));
+  // Hack to avoid problems with (rarely used) p = p statements: increment new counter first.
+  if (ptr)
+  { CritSect cs;
+    if (ptr->Count == 0)
+      // The referencounter is 0, so noone else is owning the object.
+      // This is the case when the object is just created or about to be deleted.
+      // We simply assign NULL in this case.
+      ptr = NULL;
+     else
+      // This is done in the above critical section.
+      // This avoids that the counter reaces zero between the above check an the increment here.
+      ++((Iref_Count*)ptr)->Count;
+  }
+  Iref_Count* ret = NULL;
+  if (Ptr && InterlockedDec(Ptr->Count) == 0)
+    ret = Ptr;
+  Ptr = (Iref_Count*)ptr; // constness is handled in the derived class
+  return ret;
+}
+
 Iref_Count* int_ptr_base::unassign()
 { DEBUGLOG(("int_ptr_base(%p)::unassign(): %p\n", this, Ptr));
   return Ptr && InterlockedDec(Ptr->Count) == 0 ? Ptr : NULL;

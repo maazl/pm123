@@ -1,6 +1,7 @@
 /*
  * Copyright 1997-2003 Samuel Audet <guardia@step.polymtl.ca>
  *                     Taneli Lepp„ <rosmo@sektori.com>
+ * Copyright 2007-2007 Marcel Mueller
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -60,144 +61,79 @@
 ****************************************************************************/
 
 
-sorted_vector<PlaylistManager, char> PlaylistManager::RPInst(8);
-Mutex PlaylistManager::RPMutex;
-
-void PlaylistManager::Init()
-{ // currently a no-op
-  // TODO: we should cleanup unused and invisibla PlaylistManager instances once in a while.
-}
-
-void PlaylistManager::UnInit()
-{ DEBUGLOG(("PlaylistManager::UnInit()\n"));
-  // Free stored instances.
-  // The instances deregister itself from the repository.
-  // Starting at the end avoids the memcpy calls for shrinking the vector.
-  while (RPInst.size())
-    delete RPInst[RPInst.size()-1];
-}
-
 PlaylistManager::PlaylistManager(const char* url, const char* alias)
-: PlaylistBase(url, alias),
+: PlaylistRepository<PlaylistManager>(url, alias),
   MainMenu(NULLHANDLE),
   ListMenu(NULLHANDLE),
-  FileMenu(NULLHANDLE),
-  RootInfoDelegate(Content->InfoChange, *this, &InfoChangeEvent, NULL)
-{ DEBUGLOG(("PlaylistManager(%p)::PlaylistManager(%s)\n", this, url));
-  static bool first = true;
-  if (first)
-  { InitIcons();
-    first = false;
-  }
-  // These two ones are constant
-  LoadWizzards[0] = &amp_file_wizzard;
-  LoadWizzards[1] = &amp_url_wizzard;
+  FileMenu(NULLHANDLE)
+{ DEBUGLOG(("PlaylistManager(%p)::PlaylistManager(%s, %s)\n", this, url, alias));
   init_dlg_struct ids = { sizeof(init_dlg_struct), this };
-  WinLoadDlg(HWND_DESKTOP, HWND_DESKTOP, DlgProcStub, NULLHANDLE, DLG_PM, &ids);
+  WinLoadDlg(HWND_DESKTOP, HWND_DESKTOP, pl_DlgProcStub, NULLHANDLE, DLG_PM, &ids);
 }
 
 PlaylistManager::~PlaylistManager()
-{ DEBUGLOG(("PlaylistManager(%p{%s})::~PlaylistManager()\n", this, DebugName().cdata()));
-  // Deregister from repository automatically
-  { Mutex::Lock lock(RPMutex);
-    PlaylistManager* r = RPInst.erase(Content->GetURL());
-    assert(r != NULL);
-  }
+{ DEBUGLOG(("PlaylistManager::~PlaylistManager() - %p\n", HwndFrame));
   save_window_pos(HwndFrame, 0);
+  WinDestroyWindow(MainMenu);
+  WinDestroyWindow(ListMenu);
+  WinDestroyWindow(FileMenu);
   WinDestroyWindow(HwndFrame);
-  DEBUGLOG(("PlaylistManager::~PlaylistManager() - end\n"));
+  DEBUGLOG(("PlaylistManager::~PlaylistManager() done - %p\n", WinGetLastError(NULL)));
 }
 
-PlaylistManager* PlaylistManager::Get(const char* url, const char* alias)
-{ DEBUGLOG(("PlaylistManager::Get(%s, %s)\n", url, alias ? alias : "<NULL>"));
-  Mutex::Lock lock(RPMutex);
-  PlaylistManager*& pp = RPInst.get(url);
-  if (!pp)
-    pp = new PlaylistManager(url, alias);
-  return pp;
-}
-
-int PlaylistManager::CompareTo(const char* str) const
-{ return stricmp(Content->GetURL(), str);
-}
-
-void PlaylistManager::SetVisible(bool show)
-{ DEBUGLOG(("PlaylistManager(%p{%s})::SetVisible(%u)\n", this, DebugName().cdata(), show));
-  HSWITCH hswitch = WinQuerySwitchHandle( HwndFrame, 0 );
-  SWCNTRL swcntrl;
-
-  if( WinQuerySwitchEntry( hswitch, &swcntrl ) == 0 ) {
-    swcntrl.uchVisibility = show ? SWL_VISIBLE : SWL_INVISIBLE;
-    WinChangeSwitchEntry( hswitch, &swcntrl );
+void PlaylistManager::PostRecordCommand(RecordBase* rec, RecordCommand cmd)
+{ // Ignore some messages
+  switch (cmd)
+  {case RC_UPDATETECH:
+    if (rec)
+      break;
+   case RC_UPDATEFORMAT:
+   case RC_UPDATEMETA:
+   case RC_UPDATEPOS:
+    return;
   }
-
-  dk_set_state( HwndFrame, show ? 0 : DK_IS_GHOST );
-  WinSetWindowPos( HwndFrame, HWND_TOP, 0, 0, 0, 0,
-                   show ? SWP_SHOW | SWP_ZORDER | SWP_ACTIVATE : SWP_HIDE );
+  PlaylistBase::PostRecordCommand(rec, cmd);
 }
 
-void PlaylistManager::CreateContainer(int id)
-{ DEBUGLOG(("PlaylistManager(%p{%s})::CreateContainer(%i)\n", this, DebugName().cdata(), id));
+void PlaylistManager::InitDlg()
+{ DEBUGLOG(("PlaylistManager(%p{%s})::InitDlg()\n", this, DebugName().cdata()));
   #ifdef DEBUG
-  HwndContainer = WinCreateWindow( HwndFrame, WC_CONTAINER, "Playlist Manager", WS_VISIBLE|CCS_SINGLESEL|CCS_MINIICONS|CCS_MINIRECORDCORE|CCS_VERIFYPOINTERS,
-                               0, 0, 0, 0, HwndFrame, HWND_TOP, id, NULL, NULL);
+  HwndContainer = WinCreateWindow( HwndFrame, WC_CONTAINER, "", WS_VISIBLE|CCS_SINGLESEL|CCS_MINIICONS|CCS_MINIRECORDCORE|CCS_VERIFYPOINTERS,
+                                   0, 0, 0, 0, HwndFrame, HWND_TOP, FID_CLIENT, NULL, NULL);
   #else
-  HwndContainer = WinCreateWindow( HwndFrame, WC_CONTAINER, "Playlist Manager", WS_VISIBLE|CCS_SINGLESEL|CCS_MINIICONS|CCS_MINIRECORDCORE,
-                               0, 0, 0, 0, HwndFrame, HWND_TOP, id, NULL, NULL);
+  HwndContainer = WinCreateWindow( HwndFrame, WC_CONTAINER, "", WS_VISIBLE|CCS_SINGLESEL|CCS_MINIICONS|CCS_MINIRECORDCORE,
+                                   0, 0, 0, 0, HwndFrame, HWND_TOP, FID_CLIENT, NULL, NULL);
   #endif
   if (!HwndContainer)
-    DEBUGLOG(("PlaylistManager::CreateContainer: failed to create HwndContainer, error = %lx\n", WinGetLastError(NULL)));
+  { DEBUGLOG(("PlaylistManager::InitDlg: failed to create HwndContainer, error = %lx\n", WinGetLastError(NULL)));
+    return;
+  }
 
   CNRINFO cnrInfo = { sizeof(CNRINFO) };
   cnrInfo.flWindowAttr = CV_TREE|CV_NAME|CV_MINI|CA_TREELINE|CA_CONTAINERTITLE|CA_TITLELEFT|CA_TITLESEPARATOR|CA_TITLEREADONLY;
-  cnrInfo.hbmExpanded  = NULLHANDLE;
-  cnrInfo.hbmCollapsed = NULLHANDLE;
+  //cnrInfo.hbmExpanded  = NULLHANDLE;
+  //cnrInfo.hbmCollapsed = NULLHANDLE;
   cnrInfo.cxTreeIndent = WinQuerySysValue(HWND_DESKTOP, SV_CYMENU) +2;
   //cnrInfo.cyLineSpacing = 0;
-  DEBUGLOG(("PlaylistManager::CreateContainer: %u\n", cnrInfo.slBitmapOrIcon.cx));
+  DEBUGLOG(("PlaylistManager::InitDlg: %u\n", cnrInfo.slBitmapOrIcon.cx));
   cnrInfo.pszCnrTitle  = "No playlist selected. Right click for menu.";
   WinSendMsg(HwndContainer, CM_SETCNRINFO, MPFROMP(&cnrInfo), MPFROMLONG(CMA_FLWINDOWATTR|CMA_CXTREEINDENT|CMA_CNRTITLE|CMA_LINESPACING));
+
+  PlaylistBase::InitDlg();
+
+  // populate the root node
+  RequestChildren(NULL);
 }
 
 MRESULT PlaylistManager::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
 { DEBUGLOG2(("PlaylistManager(%p{%s})::DlgProc(%x, %x, %x)\n", this, DebugName().cdata(), msg, mp1, mp2));
 
   switch (msg)
-  {case WM_INITDLG:
-    { HPOINTER hicon;
-      LONG     color;
-
-      CreateContainer(FID_CLIENT);
-
-      hicon = WinLoadPointer(HWND_DESKTOP, 0, ICO_MAIN);
-      WinSendMsg(HwndFrame, WM_SETICON, (MPARAM)hicon, 0);
-      do_warpsans(HwndFrame);
-
-      if( !rest_window_pos(HwndFrame, 0))
-      { color = CLR_GREEN;
-        WinSetPresParam(HwndContainer, PP_FOREGROUNDCOLORINDEX, sizeof(color), &color);
-        color = CLR_BLACK;
-        WinSetPresParam(HwndContainer, PP_BACKGROUNDCOLORINDEX, sizeof(color), &color);
-      }
-
-      // TODO: do not open all playlistmanager windows at the same location
-      dk_add_window(HwndFrame, 0);
-      
-      // populate the root node
-      RequestChildren(NULL);
-      break;
-    }
-
-   case WM_DESTROY:
+  {case WM_DESTROY:
     // delete all records
     { DEBUGLOG(("PlaylistManager::DlgProc: WM_DESTROY\n"));
       RemoveChildren(NULL);
-      // process outstanding UM_DELETERECORD messages before we quit to ensure that all records are back to the PM before we die.
-      QMSG qmsg;
-      while (WinPeekMsg(amp_player_hab(), &qmsg, HwndFrame, UM_DELETERECORD, UM_DELETERECORD, PM_REMOVE))
-      { DEBUGLOG2(("PlaylistManager::DlgProc: WM_DESTROY: %x %x %x %x\n", qmsg.hwnd, qmsg.msg, qmsg.mp1, qmsg.mp2));
-        DlgProc(qmsg.msg, qmsg.mp1, qmsg.mp2); // We take the short way here.
-      }
+      // Continue in base class
       break;
     }
 
@@ -266,25 +202,30 @@ MRESULT PlaylistManager::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
         if (focus == NULL)
         { if (MainMenu == NULLHANDLE)
           { MainMenu = WinLoadMenu(HWND_OBJECT, 0, PM_MAIN_MENU);
-            mn_make_conditionalcascade( MainMenu, IDM_PM_APPEND, IDM_PM_APPFILE );
+            mn_make_conditionalcascade(MainMenu, IDM_PL_APPEND, IDM_PL_APPFILE);
+            mn_make_conditionalcascade(MainMenu, IDM_PL_OPEN,   IDM_PL_OPENL);
+            mn_make_conditionalcascade(MainMenu, IDM_PL_SAVE,   IDM_PL_LST_SAVE);
           }
           hwndMenu = MainMenu;
-          mn_enable_item( hwndMenu, IDM_PM_APPEND, (Content->GetFlags() & Playable::Mutable) != 0 );
+          mn_enable_item( hwndMenu, IDM_PL_APPEND, (Content->GetFlags() & Playable::Mutable) == Playable::Mutable );
         } else if (focus->Content->GetPlayable().GetFlags() & Playable::Enumerable)
         { if (ListMenu == NULLHANDLE)
           { ListMenu = WinLoadMenu(HWND_OBJECT, 0, PM_LIST_MENU);
-            mn_make_conditionalcascade( ListMenu, IDM_PM_APPEND, IDM_PM_APPFILE );
+            mn_make_conditionalcascade(ListMenu, IDM_PL_APPEND, IDM_PL_APPFILE);
           }
           if (Record::IsRemoved(focus))
             return 0; // record could be removed at WinLoadMenu
           hwndMenu = ListMenu;
-          mn_enable_item( hwndMenu, IDM_PM_APPEND, (focus->Content->GetPlayable().GetFlags() & Playable::Mutable) != 0 );
+          mn_enable_item( hwndMenu, IDM_PL_APPEND, (focus->Content->GetPlayable().GetFlags() & Playable::Mutable) == Playable::Mutable );
         } else
         { if (FileMenu == NULLHANDLE)
           { FileMenu = WinLoadMenu(HWND_OBJECT, 0, PM_FILE_MENU);
           }
           hwndMenu = FileMenu;
+          mn_enable_item(hwndMenu, IDM_PL_EDIT, focus->Content->GetPlayable().GetInfo().meta_write);
         }
+        if (Record::IsRemoved(focus))
+          return 0; // record could be removed now
         DEBUGLOG2(("PlaylistManager::DlgProc: Menu: %p %p %p\n", MainMenu, ListMenu, FileMenu));
         WinPopupMenu(HWND_DESKTOP, HwndFrame, hwndMenu, ptlMouse.x, ptlMouse.y, 0,
                      PU_HCONSTRAIN | PU_VCONSTRAIN | PU_MOUSEBUTTON1 | PU_MOUSEBUTTON2 | PU_KEYBOARD);
@@ -299,7 +240,7 @@ MRESULT PlaylistManager::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
       { CNREDITDATA* ed = (CNREDITDATA*)PVOIDFROMMP(mp2);
         Record* rec = (Record*)ed->pRecord;
         DEBUGLOG(("PlaylistManager::DlgProc CN_REALLOCPSZ %p{,%p->%p{%s},%u,} %p\n", ed, ed->ppszText, *ed->ppszText, *ed->ppszText, ed->cbText, rec));
-        *ed->ppszText = rec->Data->Text.raw_init(ed->cbText); // because of the string sharing we always have to initialize the instance
+        *ed->ppszText = rec->Data()->Text.raw_init(ed->cbText); // because of the string sharing we always have to initialize the instance
       }
       return MRFROMLONG(TRUE);
 
@@ -317,113 +258,38 @@ MRESULT PlaylistManager::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
     } // switch (SHORT2FROMMP(mp1))
     break;
 
-   case WM_INITMENU:
-    switch (SHORT1FROMMP(mp1))
-    {case IDM_PM_APPEND:
-      // Populate context menu with plug-in specific stuff.
-      { HWND mh = HWNDFROMMP(mp2);
-        int i = 2;
-        for (;;)
-        { SHORT id = SHORT1FROMMR(WinSendMsg(mh, MM_ITEMIDFROMPOSITION, MPFROMSHORT(i), 0));
-          if (id == MIT_ERROR)
-            break;
-          WinSendMsg( mh, MM_DELETEITEM, MPFROM2SHORT( id, FALSE ), 0 );
-        }
-        memset(LoadWizzards+2, 0, sizeof LoadWizzards - 2*sizeof *LoadWizzards ); // You never know...
-        append_load_menu( mh, SHORT1FROMMP(mp1) == IDM_PM_APPOTHER,
-          LoadWizzards+2, sizeof LoadWizzards / sizeof *LoadWizzards - 2 );
-      }
-    }
-    break;
-
    case WM_COMMAND:
     { SHORT cmd = SHORT1FROMMP(mp1);
       Record* focus = (Record*)CmFocus;
-      if (cmd >= IDM_PM_APPFILE && cmd < IDM_PM_APPFILE + sizeof LoadWizzards / sizeof *LoadWizzards)
-      { DECODER_WIZZARD_FUNC func = LoadWizzards[cmd-IDM_PM_APPFILE];
-        if (func != NULL)
-          UserAdd(func, "Append%s", focus); // focus from CN_CONTEXTMENU
+      if (RecordBase::IsRemoved(focus))
         return 0;
-      }
-      switch (SHORT1FROMMP(mp1))
+      switch (cmd)
       {
-  /*      case IDM_PM_L_DELETE:
-         focus = (PPMREC) PVOIDFROMMR(WinSendMsg( HwndContainer, CM_QUERYRECORDEMPHASIS, MPFROMLONG(CMA_FIRST), MPFROMSHORT(CRA_SELECTED)));
-         if (focus != NULL)
-         { if (focus->type == PM_TYPE_LIST)
-           { strcpy(buf2, focus->text);
-             remove(buf2);
-           }
-         }
-         WinSendMsg(hwnd, WM_COMMAND, MPFROMSHORT(IDM_PM_L_REMOVE), 0);
-         break;
-  */
-       case IDM_PM_LOAD:
-        { Playable* play;
-          // TODO: (minor) this will load all objects when CmFocus gets invalidated
-          if (focus == NULL)
-            play = Content;
-          else if (focus->IsRemoved())
-            return 0; // Record removed
-          else
-            play = &focus->Content->GetPlayable();
-          // load!
-          amp_load_playable(play->GetURL(), 0);
-
-          return 0;
-        }
-
-       case IDM_PM_TREEVIEW:
-        { DEBUGLOG(("PlaylistManager(%p{%s})::DlgProc: IDM_PM_TREEVIEW %s\n", this, DebugName().cdata(), Record::DebugName(focus)));
-          if (focus == NULL || focus->Content == NULL)
-            return 0;
-          // get new or existing instance
-          PlaylistManager* pm = Get(focus->Content->GetPlayable().GetURL());
-          pm->SetVisible(true);
-          return 0;
-        }
-       
-       case IDM_PM_REMOVE:
-        { DEBUGLOG(("PlaylistManager(%p{%s})::DlgProc: IDM_PM_REMOVE %p\n", this, DebugName().cdata(), focus));
+       case IDM_PL_REMOVE:
+        { DEBUGLOG(("PlaylistManager(%p{%s})::DlgProc: IDM_PL_REMOVE %p\n", this, DebugName().cdata(), focus));
           if (focus == NULL)
             return 0;
           // find parent playlist
-          Record* parent = focus->Data->Parent;
-          Playable* playlist;
-          if (parent == NULL)
-            playlist = Content;
-          else if (parent->IsRemoved())
-            return 0;
-          else
-            playlist = &parent->Content->GetPlayable();
+          Record* parent = focus->Data()->Parent;
+          Playable* playlist = PlayableFromRec(parent);
           if (playlist->GetFlags() & Playable::Mutable) // don't modify constant object
             ((Playlist&)*playlist).RemoveItem(focus->Content);
           // the update of the container is implicitely done by the notification mechanism
+          return 0;
         }
-        return 0;
       } // switch (SHORT1FROMMP(mp1))
+      break;
     }
-    break;
-
-   case WM_ERASEBACKGROUND:
-    return FALSE;
-
-   case WM_SYSCOMMAND:
-    if( SHORT1FROMMP(mp1) == SC_CLOSE )
-    { SetVisible(false);
-      return 0;
-    }
-    break;
 
    case WM_WINDOWPOSCHANGED:
+    // TODO: Bl”dsinn
     { SWP* pswp = (SWP*)PVOIDFROMMP(mp1);
-
       if( pswp[0].fl & SWP_SHOW )
         cfg.show_plman = TRUE;
       if( pswp[0].fl & SWP_HIDE )
         cfg.show_plman = FALSE;
+      break;
     }
-    break;
     
    case UM_UPDATEINFO:
     { if (&*EmFocus != (Playable*)mp1)
@@ -431,8 +297,8 @@ MRESULT PlaylistManager::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
       SetInfo(xstring::sprintf("%s, %s", &*EmFocus->GetURL().getDisplayName(), EmFocus->GetInfo().tech->info));
       if (&*EmFocus == (Playable*)mp1) // double check, because EmFocus may change while SetInfo
         EmFocus = NULL;
+      return 0;
     }
-    return 0;
 
    case UM_RECORDCOMMAND:
     { Record* rec = (Record*)PVOIDFROMMP(mp1);
@@ -446,78 +312,16 @@ MRESULT PlaylistManager::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
       if (il.bitrst(RC_UPDATESTATUS))
         UpdateStatus(rec);
       if (il.bitrst(RC_UPDATEALIAS))
-        UpdateAlias(rec);
-      DEBUGLOG(("PlaylistManager::DlgProc: UM_RECORDCOMMAND done %s %u\n", Record::DebugName(rec).cdata(), SHORT1FROMMP(mp2)));
-      if (SHORT1FROMMP(mp2))
-        FreeRecord(rec);
-      return 0;
+        UpdateInstance(rec, PlayableInstance::SF_Alias);
+      // continue in base class
+      break;
     }
-    
-   case UM_DELETERECORD:
-    DeleteEntry((Record*)PVOIDFROMMP(mp1));
-    return 0;
-    
-   case UM_SYNCREMOVE:
-    { Record* rec = (Record*)PVOIDFROMMP(mp1);
-      rec->Content = NULL;
-      // deregister event handlers too.
-      rec->Data->DeregisterEvents(); 
-    }
-    return 0;
     
   } // switch (msg)
 
-  return WinDefDlgProc( HwndFrame, msg, mp1, mp2 );
+  return PlaylistBase::DlgProc(msg, mp1, mp2);
 }
 
-static MRESULT EXPENTRY DlgProcStub(HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2)
-{ DEBUGLOG2(("PlaylistManager::DlgProcStub(%x, %x, %x, %x)\n", hwnd, msg, mp1, mp2));
-  PlaylistManager* pm;
-  if (msg == WM_INITDLG)
-  { PlaylistManager::init_dlg_struct* ip = (PlaylistManager::init_dlg_struct*)mp2;
-    DEBUGLOG(("PlaylistManager::DlgProcStub: WM_INITDLG - %p{%i, %p}}\n", ip, ip->size, ip->pm));
-    WinSetWindowPtr(hwnd, QWL_USER, ip->pm);
-    pm = (PlaylistManager*)ip->pm;
-    pm->HwndFrame = hwnd; // Store the hwnd early, since LoadDlg will return too late. 
-  } else
-  { pm = (PlaylistManager*)WinQueryWindowPtr(hwnd, QWL_USER);
-    if (pm == NULL)
-      return WinDefDlgProc(hwnd, msg, mp1, mp2);
-  }
-  // now call the class method
-  return pm->DlgProc(msg, mp1, mp2);
-}
-
-struct UserAddCallbackParams
-{ int_ptr<Playlist> Parent;
-  PlayableInstance* Before;
-  UserAddCallbackParams(Playlist* parent, PlayableInstance* before) : Parent(parent), Before(before) {}
-};
-
-static void DLLENTRY UserAddCallback(void* param, const char* url)
-{ DEBUGLOG(("PlaylistManager:UserAddCallback(%p, %s)\n", param, url));
-  UserAddCallbackParams& ucp = *(UserAddCallbackParams*)param;
-  ucp.Parent->InsertItem(url, ucp.Before);
-} 
-
-void PlaylistManager::UserAdd(DECODER_WIZZARD_FUNC wizzard, const char* title, Record* parent, Record* after)
-{ DEBUGLOG(("PlaylistManager(%p)::UserAdd(%p, %s, %p, %p)\n", this, wizzard, title, parent, after));
-  if (Record::IsRemoved(parent) || Record::IsRemoved(after))
-    return; // sync remove happened
-  UserAddCallbackParams ucp(parent ? &(Playlist&)parent->Content->GetPlayable() : &(Playlist&)*Content, after ? after->Content : NULL);
-  ULONG ul = (*wizzard)(HwndFrame, title, &UserAddCallback, &ucp);
-  DEBUGLOG(("PlaylistManager::UserAdd - %u\n", ul));
-  // TODO: cfg.listdir obsolete?
-  //sdrivedir( cfg.listdir, filedialog.szFullFile, sizeof( cfg.listdir ));
-}
-
-
-void PlaylistManager::SetTitle(const xstring& title)
-{ DEBUGLOG(("PlaylistManager(%p)::SetTitle(%s)\n", this, title.cdata()));
-  if (WinSetWindowText(HwndFrame, (char*)title.cdata()))
-    // now free the old title
-    Title = title;
-}
 
 void PlaylistManager::SetInfo(const xstring& text)
 { DEBUGLOG(("PlaylistManager(%p)::SetInfo(%s)\n", this, text.cdata()));
@@ -528,7 +332,18 @@ void PlaylistManager::SetInfo(const xstring& text)
     Info = text;
 }
 
-PlaylistManager::IC PlaylistManager::GetRecordUsage(Record* rec)
+PlaylistBase::ICP PlaylistManager::GetPlayableType(RecordBase* rec)
+{ DEBUGLOG(("PlaylistManager::GetPlaylistState(%s)\n", Record::DebugName(rec).cdata()));
+  if ((rec->Content->GetPlayable().GetFlags() & Playable::Enumerable) == 0)
+    return ICP_Song;
+  if (rec->Content->GetPlayable().GetInfo().tech->num_items == 0)
+    return ICP_Empty;
+  if (((CPData*)(rec->Data))->Recursive)
+    return ICP_Recursive;
+  return (rec->flRecordAttr & CRA_EXPANDED) ? ICP_Open : ICP_Closed;
+}
+
+PlaylistBase::IC PlaylistManager::GetRecordUsage(RecordBase* rec)
 { DEBUGLOG(("PlaylistManager::GetRecordUsage(%s)\n", Record::DebugName(rec).cdata()));
   if (rec->Content->GetPlayable().GetStatus() != STA_Used)
   { DEBUGLOG(("PlaylistManager::GetRecordUsage: unused\n"));
@@ -540,31 +355,20 @@ PlaylistManager::IC PlaylistManager::GetRecordUsage(Record* rec)
   { if (&rec->Content->GetPlayable() == root)
     { // We are a the current root, so the call stack compared equal. 
       DEBUGLOG(("PlaylistManager::GetRecordUsage: current root\n"));
-      return rec->Data->Recursive ? IC_Used : IC_Play;
+      if (!((CPData*)(rec->Data))->Recursive)
+        break;
+      return IC_Used;
     }
     if (rec->Content->GetStatus() != STA_Used)
     { // The PlayableInstance is not used, so the call stack is not equal.
       DEBUGLOG(("PlaylistManager::GetRecordUsage: instance unused\n"));
       return IC_Used;
     }
-    rec = rec->Data->Parent;
+    rec = ((CPData*)(rec->Data))->Parent;
   } while (rec != NULL);
   // No more Parent, let's consider this as (partially) equal.
   DEBUGLOG(("PlaylistManager::GetRecordUsage: top level\n"));
-  return IC_Play; 
-}
-
-HPOINTER PlaylistManager::CalcIcon(Record* rec)
-{ DEBUGLOG(("PlaylistManager::CalcIcon(%s) - %u\n", Record::DebugName(rec).cdata(), rec->Data->Recursive));
-  assert(rec->Content != NULL);
-  if (rec->Content->GetPlayable().GetStatus() == STA_Invalid)
-    return IcoInvalid;
-  else if ((rec->Content->GetPlayable().GetFlags() & Playable::Enumerable) == 0)
-    return IcoSong[GetRecordUsage(rec)];
-  else if (rec->Content->GetPlayable().GetInfo().tech->num_items == 0)
-    return IcoEmptyPlaylist;
-  else
-    return IcoPlaylist[GetRecordUsage(rec)][rec->Data->Recursive ? 2 : (rec->flRecordAttr & CRA_EXPANDED) != 0];
+  return decoder_playing() ? IC_Play : IC_Active; 
 }
 
 bool PlaylistManager::RecursionCheck(Playable* pp, Record* parent)
@@ -607,13 +411,6 @@ bool PlaylistManager::RecursionCheck(Record* rp)
   return true;
 }
 
-void PlaylistManager::DeleteEntry(Record* entry)
-{ DEBUGLOG(("PlaylistManager(%p{%s})::DeleteEntry(%s)\n", this, DebugName().cdata(), Record::DebugName(entry).cdata()));
-  delete entry->Data;
-  assert(LONGFROMMR(WinSendMsg(HwndContainer, CM_FREERECORD, MPFROMP(&entry), MPFROMSHORT(1))));
-  DEBUGLOG(("PlaylistManager::DeleteEntry completed\n"));
-}
-
 PlaylistManager::Record* PlaylistManager::AddEntry(PlayableInstance* obj, Record* parent, Record* after)
 { DEBUGLOG(("PlaylistManager(%p{%s})::AddEntry(%p{%s}, %p, %p)\n", this, DebugName().cdata(), obj, obj->GetPlayable().GetURL().getObjName().cdata(), parent, after));
   /* Allocate a record in the HwndContainer */
@@ -628,18 +425,18 @@ PlaylistManager::Record* PlaylistManager::AddEntry(PlayableInstance* obj, Record
 
   rec->Content         = obj;
   rec->UseCount        = 1;
-  rec->Data = new Record::record_data(*this, &InfoChangeEvent, &StatChangeEvent, rec, parent);
-  rec->Data->Text      = obj->GetDisplayName();
-  rec->Data->Recursive = obj->GetPlayable().GetInfo().tech->recursive && RecursionCheck(&obj->GetPlayable(), parent);
+  rec->Data()          = new CPData(*this, &InfoChangeEvent, &StatChangeEvent, rec, parent);
+  rec->Data()->Text    = obj->GetDisplayName();
+  rec->Data()->Recursive = obj->GetPlayable().GetInfo().tech->recursive && RecursionCheck(&obj->GetPlayable(), parent);
           
   rec->flRecordAttr    = 0;
-  rec->pszIcon         = (PSZ)rec->Data->Text.cdata();
+  rec->pszIcon         = (PSZ)rec->Data()->Text.cdata();
   rec->hptrIcon        = CalcIcon(rec);
 
   RECORDINSERT insert      = { sizeof(RECORDINSERT) };
   if (after)
   { insert.pRecordOrder    = (RECORDCORE*)after;
-    insert.pRecordParent   = NULL;
+    //insert.pRecordParent = NULL;
   } else
   { insert.pRecordOrder    = (RECORDCORE*)CMA_FIRST;
     insert.pRecordParent   = (RECORDCORE*)parent;
@@ -649,8 +446,8 @@ PlaylistManager::Record* PlaylistManager::AddEntry(PlayableInstance* obj, Record
   insert.cRecordsInsert    = 1;
   ULONG rc = LONGFROMMR(WinSendMsg(HwndContainer, CM_INSERTRECORD, MPFROMP(rec), MPFROMP(&insert)));
   
-  obj->GetPlayable().InfoChange += rec->Data->InfoChange;
-  obj->StatusChange             += rec->Data->StatChange;
+  obj->GetPlayable().InfoChange += rec->Data()->InfoChange;
+  obj->StatusChange             += rec->Data()->StatChange;
 
   DEBUGLOG(("PlaylistManager::AddEntry: succeeded: %p %u %x\n", rec, rc, WinGetLastError(NULL)));
   return rec;
@@ -677,7 +474,7 @@ void PlaylistManager::RemoveEntry(Record* const entry)
   // detach content
   entry->Content = NULL;
   // deregister events
-  entry->Data->DeregisterEvents();
+  entry->Data()->DeregisterEvents();
   // Delete the children
   RemoveChildren(entry);
   // Remove record from container
@@ -708,7 +505,7 @@ void PlaylistManager::UpdateChildren(Record* const rp)
   Playable* pp;
   if (rp == NULL)
     pp = Content;
-  else if (rp->IsRemoved() || rp->Data->Recursive)
+  else if (rp->IsRemoved() || rp->Data()->Recursive)
     return; // record removed or recursive
   else
     pp = &rp->Content->GetPlayable();
@@ -762,7 +559,7 @@ void PlaylistManager::UpdateChildren(Record* const rp)
         { // not found! => add
           DEBUGLOG(("PlaylistManager::UpdateChildren - not found: %p{%s}\n", &**ep, (*ep)->GetPlayable().GetURL().getObjName().cdata()));
           crp = AddEntry(&**ep, rp, crp);
-          if (crp && (rp == NULL || ((rp->flRecordAttr & CRA_EXPANDED) && !crp->Data->Recursive)))
+          if (crp && (rp == NULL || ((rp->flRecordAttr & CRA_EXPANDED) && !crp->Data()->Recursive)))
             RequestChildren(crp);
           break;
         }
@@ -797,69 +594,6 @@ void PlaylistManager::UpdateChildren(Record* const rp)
   }
 }
 
-void PlaylistManager::UpdateTech(Record* rec)
-{ DEBUGLOG(("PlaylistManager(%p)::UpdateTech(%p)\n", this, rec));
-  if (Record::IsRemoved(rec))
-    return;
-  // techinfo changed => check whether it is currently visible.
-  if (rec->flRecordAttr & CRA_CURSORED)
-  { // TODO: maybe this should be better up to the calling thread
-    EmFocus = &rec->Content->GetPlayable();
-    // continue later, because I/O may be necessary
-    WinPostMsg(HwndFrame, UM_UPDATEINFO, MPFROMP(&*rec), 0);
-  }
-  bool recursive = rec->Content->GetPlayable().GetInfo().tech->recursive && RecursionCheck(rec);
-  if (recursive != rec->Data->Recursive)
-  { rec->Data->Recursive = recursive;
-    // Update Icon also 
-    PostRecordCommand(rec, RC_UPDATESTATUS);
-  }
-  // Check if UpdateChildren is waiting
-  bool& wait = StateFromRec(rec).WaitUpdate;
-  if (wait)
-  { // Try again
-    wait = false;
-    PostRecordCommand(rec, RC_UPDATECHILDREN);
-  }
-}
-
-void PlaylistManager::UpdateStatus(Record* rec)
-{ DEBUGLOG(("PlaylistManager(%p)::UpdateIcon(%p)\n", this, rec));
-  if (rec == NULL)
-  { // Root node => update title
-    xstring title = Alias ? Alias : Content->GetURL().getDisplayName();
-    switch (Content->GetStatus())
-    {case STA_Invalid:
-      title = title + " [invalid]";
-      break;
-     case STA_Used:
-      title = title + " [used]";
-      break;
-    }
-    SetTitle(title);
-  } else
-  { // Record node
-    if (rec->IsRemoved())
-      return;
-    HPOINTER icon = CalcIcon(rec);
-    // update icon?
-    //if (rec->hptrIcon != icon)
-    { rec->hptrIcon = icon; 
-      WinSendMsg(HwndContainer, CM_INVALIDATERECORD, MPFROMP(&rec), MPFROM2SHORT(1, CMA_NOREPOSITION));
-    }
-  }
-}
-
-void PlaylistManager::UpdateAlias(Record* rec)
-{ DEBUGLOG(("PlaylistManager(%p)::UpdateAlias(%p)\n", this, rec));
-  if (Record::IsRemoved(rec))
-    return;
-  xstring text = rec->Content->GetDisplayName();
-  rec->pszIcon = (PSZ)text.cdata();
-  WinSendMsg(HwndContainer, CM_INVALIDATERECORD, MPFROMP(&rec), MPFROM2SHORT(1, CMA_TEXTCHANGED));
-  rec->Data->Text = text; // now free the old text
-}
-
 void PlaylistManager::RequestChildren(Record* rec)
 { DEBUGLOG(("PlaylistManager(%p)::RequestChildren(%s)\n", this, Record::DebugName(rec).cdata()));
   Playable* pp;
@@ -875,36 +609,44 @@ void PlaylistManager::RequestChildren(Record* rec)
   InfoChangeEvent(Playable::change_args(*pp, pp->EnsureInfoAsync(Playable::IF_Other|Playable::IF_Tech)), rec);
 }
 
-void PlaylistManager::InfoChangeEvent(const Playable::change_args& args, Record* rec)
-{ DEBUGLOG(("PlaylistManager(%p{%s})::InfoChangeEvent({%p{%s}, %x}, %p{%p{%p}})\n", this, DebugName().cdata(),
-    &args.Instance, args.Instance.GetURL().getObjName().cdata(), args.Flags, rec, rec ? rec->Content: NULL, rec && rec->Content ? &rec->Content->GetPlayable():NULL));
-  DEBUGLOG(("PlaylistManager(%p{%s})::InfoChangeEvent({%p{%s}, %x}, %s)\n", this, DebugName().cdata(),
-    &args.Instance, args.Instance.GetURL().getObjName().cdata(), args.Flags, Record::DebugName(rec).cdata()));
-
-  if (args.Flags & Playable::IF_Other)
-    PostRecordCommand(rec, RC_UPDATECHILDREN);
-
-  if (args.Flags & Playable::IF_Status)
+void PlaylistManager::UpdateTech(Record* rec)
+{ DEBUGLOG(("PlaylistManager(%p)::UpdateTech(%p)\n", this, rec));
+  if (Record::IsRemoved(rec))
+    return;
+  // techinfo changed => check whether it is currently visible.
+  if (rec->flRecordAttr & CRA_CURSORED)
+  { // TODO: maybe this should be better up to the calling thread
+    EmFocus = &rec->Content->GetPlayable();
+    // continue later, because I/O may be necessary
+    WinPostMsg(HwndFrame, UM_UPDATEINFO, MPFROMP(&*rec), 0);
+  }
+  bool recursive = rec->Content->GetPlayable().GetInfo().tech->recursive && RecursionCheck(rec);
+  if (recursive != rec->Data()->Recursive)
+  { rec->Data()->Recursive = recursive;
+    // Update Icon also 
     PostRecordCommand(rec, RC_UPDATESTATUS);
-
-  if (rec && args.Flags & Playable::IF_Tech)
-    PostRecordCommand(rec, RC_UPDATETECH);
+  }
+  // Check if UpdateChildren is waiting
+  bool& wait = StateFromRec(rec).WaitUpdate;
+  if (wait)
+  { // Try again
+    wait = false;
+    PostRecordCommand(rec, RC_UPDATECHILDREN);
+  }
 }
 
-void PlaylistManager::StatChangeEvent(const PlayableInstance::change_args& args, Record* rec)
-{ DEBUGLOG(("PlaylistManager(%p{%s})::StatChangeEvent({%p{%s}, %x}, %p)\n", this, DebugName().cdata(),
-    &args.Instance, args.Instance.GetPlayable().GetURL().getObjName().cdata(), args.Flags, rec));
-
-  if (args.Flags & PlayableInstance::SF_Destroy)
-  { WinSendMsg(HwndFrame, UM_SYNCREMOVE, MPFROMP(rec), 0);
-    return;
+void PlaylistManager::UpdatePlayStatus(RecordBase* rec)
+{ DEBUGLOG(("PlaylistManager(%p)::UpdatePlayStatus(%p)\n", this, rec));
+  PlaylistBase::UpdatePlayStatus(rec);
+  rec = (RecordBase*)WinSendMsg(HwndContainer, CM_QUERYRECORD, MPFROMP(rec), MPFROM2SHORT(CMA_FIRSTCHILD, CMA_ITEMORDER));
+  while (rec != NULL && rec != (RecordBase*)-1)
+  { UpdatePlayStatus(rec);
+    rec = (RecordBase*)WinSendMsg(HwndContainer, CM_QUERYRECORD, MPFROMP(rec), MPFROM2SHORT(CMA_NEXT, CMA_ITEMORDER));
   }
+}
 
-  if (args.Flags & PlayableInstance::SF_InUse)
-    PostRecordCommand(rec, RC_UPDATESTATUS);
-
-  if (args.Flags & PlayableInstance::SF_Alias)
-    PostRecordCommand(rec, RC_UPDATEALIAS);
+void PlaylistManager::Open(const char* URL)
+{ 
 }
 
 /*

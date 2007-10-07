@@ -46,6 +46,7 @@
 
 static OUTPUT_PARAMS out_params;
 
+static bool playing    = FALSE;
 static BOOL paused     = FALSE;
 static BOOL forwarding = FALSE;
 static BOOL rewinding  = FALSE;
@@ -107,10 +108,13 @@ msg_play( HWND hwnd, Song& play, double pos )
 
   amp_volume_adjust();
 
+  // TODO: CRAP!
   while( dec_status() == DECODER_STARTING ) {
     DosSleep( 1 );
   }
   
+  playing = TRUE;
+  PlayStatusChange(playing);
   return TRUE;
 }
 
@@ -141,14 +145,18 @@ msg_stop( void )
   }
 
   rc = out_close();
-  if( rc != 0 ) {
-    return FALSE;
+  if( rc == 0 )
+  {
+    // TODO: CRAP! 
+    while( decoder_playing())
+      DosSleep( 1 );
   }
 
-  while( decoder_playing()) {
-    DosSleep( 1 );
+  if (playing)
+  { playing = FALSE;
+    PlayStatusChange(playing);
   }
-
+  
   return TRUE;
 }
 
@@ -251,3 +259,6 @@ msg_equalize( const float *gains, const BOOL *mute, float preamp, BOOL enabled )
   return TRUE;
 }
 
+
+// Play/Stop Event
+event<const bool> PlayStatusChange;

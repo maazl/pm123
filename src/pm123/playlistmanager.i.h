@@ -42,25 +42,24 @@
 *  This is in fact nothing else but a tree view of a playlist.
 *
 ****************************************************************************/
-static MRESULT EXPENTRY DlgProcStub(HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2);
-
-class PlaylistManager : public PlaylistBase
-{public:
+class PlaylistManager : public PlaylistRepository<PlaylistManager>
+{ friend PlaylistRepository<PlaylistManager>;
+ public:
+  // C++ part of a record
+  struct Record;
+  struct CPData : public PlaylistBase::CPDataBase
+  { Record*           Parent;    // Pointer to parent Record or NULL if we are at the root level.
+    bool              Recursive; // Flag whether this node is in the current callstack.
+    CPData(PlaylistManager& pm,
+           void (PlaylistBase::*infochangefn)(const Playable::change_args&, RecordBase*),
+           void (PlaylistBase::*statchangefn)(const PlayableInstance::change_args&, RecordBase*),
+           Record* rec,
+           Record* parent);
+  };
+  // POD part of a record
   struct Record : public RecordBase
-  { struct record_data
-    { Record*           Parent;    // Pointer to parent Record or NULL if we are at the root level.
-      bool              Recursive; // Flag whether this node is in the current callstack.
-      class_delegate2<PlaylistManager, const Playable::change_args          , Record*> InfoChange;
-      class_delegate2<PlaylistManager, const PlayableInstance::change_args  , Record*> StatChange;
-      xstring Text;
-      record_data(PlaylistManager& pm,
-                  void (PlaylistManager::*infochangefn)(const Playable::change_args&, Record*),
-                  void (PlaylistManager::*statchangefn)(const PlayableInstance::change_args&, Record*),
-                  Record* rec,
-                  Record* parent);
-      void              DeregisterEvents();
-    };
-    record_data*        Data;      // C++ part of the object in the private memory arena.
+  { // For convenience
+    CPData*&        Data() { return (CPData*&)RecordBase::Data; }
   };
 
  private: // working set
@@ -71,36 +70,32 @@ class PlaylistManager : public PlaylistBase
   int_ptr<Playable> EmFocus;       // Playable object to display at UM_SETTITLE
 
  private:
+  // Post record message, filtered
+  virtual void      PostRecordCommand(RecordBase* rec, RecordCommand cmd); 
   // create container window
-  void              CreateContainer(int id);
+  virtual void      InitDlg();
   // Dialog procedure, called by DlgProcStub
-  MRESULT           DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2);
-  // Static members must not use EXPENTRY linkage with IBM VACPP.
-  friend MRESULT EXPENTRY DlgProcStub(HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2);
-  // Set the window title
-  void              SetTitle(const xstring& title);
+  virtual MRESULT   DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2);
   // Set Status info 
   void              SetInfo(const xstring& info);
   // initiate the display of a record's info
   void              ShowRecordAsync(Record* rec);
+  // Determine type of Playable object
+  // Subfunction to CalcIcon.
+  virtual ICP       GetPlayableType(RecordBase* rec);
   // Gets the Usage type of a record.
   // Subfunction to CalcIcon.
-  static IC         GetRecordUsage(Record* rec);
-  // Calculate icon for a record. Content must be valid!
-  static HPOINTER   CalcIcon(Record* rec);
+  virtual IC        GetRecordUsage(RecordBase* rec);
   // check whether the current record is recursive
   bool              RecursionCheck(Record* rec);
   // same with explicit parent for new items not yet added
   bool              RecursionCheck(Playable* pp, Record* parent);
  private: // Modifiying function and notifications
-  // Removes entries recursively from the container
-  // The entry object is no longer valid after calling this function.
-  void              DeleteEntry(Record* entry);
   // create a new entry in the container
   Record*           AddEntry(PlayableInstance* obj, Record* parent, Record* after = NULL);
   Record*           MoveEntry(Record* entry, Record* parent, Record* after = NULL);
   // Removes entries recursively from the container
-  // The entry object is no longer valid after calling this function.
+  // The entry object is valid after calling this function until the next DispatchMessage.
   void              RemoveEntry(Record* const entry);
   // delete all children
   int               RemoveChildren(Record* const rec);
@@ -111,57 +106,27 @@ class PlaylistManager : public PlaylistBase
   void              RequestChildren(Record* rec);
   // Update the tech info of a record
   void              UpdateTech(Record* rec);
-  // Update the status of a record
-  void              UpdateStatus(Record* rec);
-  // Update the alias of a record
-  void              UpdateAlias(Record* rec);
- private: // Notifications by the underlying Playable objects.
-  // This function is called when meta, status or technical information of a node changes.
-  void              InfoChangeEvent(const Playable::change_args& args, Record* rec);
-  // This function is called when statusinformation of a PlayableInstance changes.
-  void              StatChangeEvent(const PlayableInstance::change_args& inst, Record* rec);
-  class_delegate2<PlaylistManager, const Playable::change_args, Record*> RootInfoDelegate;
- private: // User actions
-  // Add Item
-  void              UserAdd(DECODER_WIZZARD_FUNC wizzard, const char* title, Record* parent = NULL, Record* after = NULL);
+  // Update play status of one record
+  virtual void      UpdatePlayStatus(RecordBase* rec);
+
+ private:
+  virtual void      Open(const char* URL);
 
  private:
   // Create a playlist manager window for an URL, but don't open it.
   PlaylistManager(const char* URL, const char* alias);
- public: // public interface
   ~PlaylistManager();
-  // Make the window visible (or not)
-  virtual void      SetVisible(bool show);
-  
- // Repository of PM instances by URL.
- private:
-  static sorted_vector<PlaylistManager, char> RPInst;
-  static Mutex      RPMutex;
- private:
-  virtual int       CompareTo(const char* str) const;
- public:
-  static void       Init();
-  static void       UnInit();          
-  // Factory method. Returns always the same instance for the same URL.
-  // If the specified instance already esists the parameter alias is ignored.
-  static PlaylistManager* Get(const char* url, const char* alias = NULL);
 };
 
 
-inline PlaylistManager::Record::record_data::record_data(
+inline PlaylistManager::CPData::CPData(
   PlaylistManager& pm,
-  void (PlaylistManager::*infochangefn)(const Playable::change_args&, Record*),
-  void (PlaylistManager::*statchangefn)(const PlayableInstance::change_args&, Record*),
+  void (PlaylistBase::*infochangefn)(const Playable::change_args&, RecordBase*),
+  void (PlaylistBase::*statchangefn)(const PlayableInstance::change_args&, RecordBase*),
   Record* rec,
   Record* parent)
-: Parent(parent),
-  Recursive(false),
-  InfoChange(pm, infochangefn, rec),
-  StatChange(pm, statchangefn, rec)
+: PlaylistBase::CPDataBase(pm, infochangefn, statchangefn, rec),
+  Parent(parent),
+  Recursive(false)
 {}
-
-inline void PlaylistManager::Record::record_data::DeregisterEvents()
-{ InfoChange.detach();
-  StatChange.detach();
-}
 

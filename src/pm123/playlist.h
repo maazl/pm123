@@ -97,9 +97,11 @@ extern "C" {
 //extern PLRECORD* current_record;
 
 /* Creates the playlist presentation window. */
-HWND  pl_create( void );
+void  pl_create( void );
 /* Sets the visibility state of the playlist presentation window. */
 void  pl_show( BOOL show );
+/* return wether the default playlist is visible */
+BOOL  pl_visible( void );
 /* Sets the title of the playlist window according to current playlist state. */
 //void  pl_display_status( void );
 /* Destroys the playlist presentation window. */

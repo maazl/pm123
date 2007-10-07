@@ -47,10 +47,85 @@
 ****************************************************************************/
 static MRESULT EXPENTRY DlgProcStub(HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2);
 
-class PlaylistView : public PlaylistBase
-{
+class PlaylistView : public PlaylistRepository<PlaylistView>
+{ friend PlaylistRepository<PlaylistView>;
+ public:
+  struct Record;
+  struct CPData : public CPDataBase
+  { // Field attributes
+    xstring             Pos;
+    xstring             Song;
+    xstring             Size;
+    xstring             Time;
+    xstring             MoreInfo;
+    // Constructor
+    CPData(PlaylistView& pm,
+           void (PlaylistBase::*infochangefn)(const Playable::change_args&, RecordBase*),
+           void (PlaylistBase::*statchangefn)(const PlayableInstance::change_args&, RecordBase*),
+           Record* rec) : CPDataBase(pm, infochangefn, statchangefn, rec) {}
+  };
+  struct Record : public RecordBase
+  { // Attribute references for PM
+    const char*         Pos;
+    const char*         Song;
+    const char*         Size;
+    const char*         Time;
+    const char*         MoreInfo;
+    const char*         URL;
+    // For convenience
+    CPData*&        Data() { return (CPData*&)RecordBase::Data; }
+  };
+ private:
+  static const struct Column
+  { ULONG DataAttr;
+    ULONG TitleAttr;
+    const char* Title;
+    ULONG Offset;
+  } Columns[];
+ private: // working set
+  HWND              MainMenu;
+  HWND              ListMenu;
+  HWND              FileMenu;
+
  private:
   // Create a playlist manager window for an URL, but don't open it.
   PlaylistView(const char* URL, const char* alias);
+  ~PlaylistView();
+ 
+ private:
+  // Post record message, filtered
+  virtual void      PostRecordCommand(RecordBase* rec, RecordCommand cmd); 
+  // create container window
+  virtual void      InitDlg();
+  // Dialog procedure, called by DlgProcStub
+  virtual MRESULT   DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2);
+
+  // Determine type of Playable object
+  // Subfunction to CalcIcon.
+  virtual ICP       GetPlayableType(RecordBase* rec);
+  // Gets the Usage type of a record.
+  // Subfunction to CalcIcon.
+  virtual IC        GetRecordUsage(RecordBase* rec);
+  // Convert size [bytes] to a human readable format
+  xstring           FormatSize(double size);
+  // Convert time [s] to a human readable format
+  xstring           FormatTime(double time);
+  // (re-)calculate colum content, return true if changes are made
+  bool              CalcCols(Record* rec, Playable::InfoFlags flags, PlayableInstance::StatusFlags iflags);
+
+  // create a new entry in the container
+  Record*           AddEntry(PlayableInstance* obj, Record* after = NULL);
+  Record*           MoveEntry(Record* entry, Record* after = NULL);
+  // Removes entries from the container
+  // The entry object is valid after calling this function until the next DispatchMessage.
+  void              RemoveEntry(Record* const entry);
+
+  // request container records 
+  void              RequestChildren();
+
+  // Update the list of children
+  void              UpdateChildren();
+  // Update a record
+  void              UpdateRecord(Record* rec, Playable::InfoFlags flags, PlayableInstance::StatusFlags iflags);
 };
 

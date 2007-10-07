@@ -57,6 +57,14 @@ BOOL msg_savestream( const char* filename );
 /* Toggles a equalizing of the currently played file. */
 BOOL msg_equalize( const float* gains, const BOOL* mute, float preamp, BOOL enabled );
 
+
+#ifdef __cplusplus
+#include <cpp/event.h>
+//TODO: well this should become class members...
+extern event<const bool> PlayStatusChange; 
+#endif
+
+
 #endif /* PM123_MESSAGES_H */
 
 

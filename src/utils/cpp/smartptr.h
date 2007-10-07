@@ -77,6 +77,11 @@ class Iref_Count
   volatile unsigned Count;
  protected:
   Iref_Count() : Count(0) {}
+ public:
+  // Checks whether the object is currently unique. If you currently hold an int_ptr with the object
+  // you can safely assume that it is your's, unless you pass the reference explicitely or implicitly
+  // to another thread or int_ptr instance.
+  bool RefCountIsUnique() const { return Count == 1; } 
 };
 
 /* Abstract non-template base class of int_ptr */
@@ -93,6 +98,8 @@ class int_ptr_base
   ~int_ptr_base() {}
   // Core of the assignment operator
   Iref_Count* reassign(const Iref_Count* ptr);
+  // Core of the assignment operator
+  Iref_Count* reassign_weak(const Iref_Count* ptr);
   // Destructor core
   Iref_Count* unassign();
   // Swap two pointers
@@ -123,6 +130,16 @@ class int_ptr : protected int_ptr_base
   T* operator->() const                      { return (T*)Ptr; }
   int_ptr<T>& operator=(T* ptr)              { delete (T*)reassign(ptr);   return *this; }
   int_ptr<T>& operator=(const int_ptr<T>& r) { delete (T*)reassign(r.Ptr); return *this; }
+  // Special function to assing only valid objects.
+  // This function rejects the assignment if the assigned object is not owned by another instance
+  // of int_ptr_base. This is particulary useful to avoid the assignment of objects that are about
+  // to die. ptr is like treated as weak pointer to the object. But in contrast to real weak pointers
+  // the destructor must ensure that ptr is invalidated before the object dies completely.
+  // Of course, this has to been done synchronized with the call to assign_weak.
+  // The time window between the reference count reaching zero and the invalidation of ptr by the destructor
+  // is handled by this function the way that the current instance will be set to NULL in this case.
+  // This function must not be used to assing a newly constructed object because this will never be deleted.
+  int_ptr<T>& assign_weak(T* ptr)            { delete (T*)reassign_weak(ptr); return *this; }
   void        swap(int_ptr<T>& r)            { int_ptr_base::swap(r); }
   friend bool operator==(const int_ptr<T>& l, const int_ptr<T>& r);
   friend bool operator!=(const int_ptr<T>& l, const int_ptr<T>& r);

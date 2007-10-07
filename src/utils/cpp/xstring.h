@@ -72,7 +72,8 @@ class xstring
     #else
     static void* operator new(size_t s, size_t l)
     #endif
-                 { char* cp = (char*)malloc(s+l+1);
+                 { DEBUGLOG(("xstring::StringRef::operator new(%u, %u)\n", s, l));
+                   char* cp = (char*)malloc(s+l+1);
                    ((size_t*)(cp+s))[-1] = l; // Dirty implicit assignment to Len before constructor entry...
                    return cp;
                  }
@@ -98,7 +99,6 @@ class xstring
   static const xstring empty;
   
  protected:
-  //static int  compareI(const char* l, const char* r, size_t len);
   xstring(size_t len)                       : Data(new (len) StringRef) {}
  public:
   static int  compareI(const char* s1, const char* s2, size_t len);
@@ -112,8 +112,10 @@ class xstring
   // length of the string. The string must not be NULL!
   size_t      length() const                { return Data->Length(); }
   // explicit conversion
+  // The returned pointer is valid as long as this string is owned by at least one xstring instance.
   const char* cdata() const                 { return Data ? (char*)*Data : NULL; }
   // constant c-style array containing the string, always null terminated, maybe NULL.
+  // The returned pointer is valid as long as this string is owned by at least one xstring instance.
   operator const char*() const              { return cdata(); }
   // return the i-th character
   const char& operator[](size_t i)          { assert(i < length()); return (*Data)[i]; }

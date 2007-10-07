@@ -266,9 +266,11 @@ class PlayableInstance
 {public:
   // Parameters for StatusChange Event
   enum StatusFlags
-  { SF_InUse   = 0x01,
+  { SF_None    = 0,
+    SF_InUse   = 0x01,
     SF_Alias   = 0x02,
     SF_PlayPos = 0x04,
+    SF_All     = SF_InUse|SF_Alias|SF_PlayPos,
     SF_Destroy = 0x80 // This is the last event of a playable instance when it goes out of scope.
   };
   struct change_args
@@ -496,7 +498,10 @@ class Playlist : public PlayableCollection
   // If the prameter before is NULL the the item is appended. 
   virtual void                InsertItem(const char* url, PlayableInstance* before = NULL);
   // Remove an item from the playlist.
+  // Attension: passing NULL as argument will remove all items.
   virtual void                RemoveItem(PlayableInstance* item);
+  // Remove all items from the playlist.
+  void                        Clear() { RemoveItem(NULL); }
 };
 
 /* Class representing a folder with songs.

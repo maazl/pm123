@@ -93,7 +93,7 @@ static StatusPlayEnumerator Current;
 
 
 static HAB   hab        = NULLHANDLE;
-static HWND  hplaylist  = NULLHANDLE;
+//static HWND  hplaylist  = NULLHANDLE;
 static HWND  heq        = NULLHANDLE;
 static HWND  hframe     = NULLHANDLE;
 static HWND  hplayer    = NULLHANDLE;
@@ -757,6 +757,7 @@ amp_drag_over( HWND hwnd, PDRAGINFO pdinfo )
       printf( "fsControl: %08X\n", pditem->fsControl );
     } */
 
+/* TODO: needs playlist handle???
     if( DrgVerifyRMF( pditem, "DRM_123FILE", NULL ) &&
       ( pdinfo->cditem > 1 && pdinfo->hwndSource == hplaylist )) {
 
@@ -764,7 +765,7 @@ amp_drag_over( HWND hwnd, PDRAGINFO pdinfo )
       drag_op = DO_UNKNOWN;
       break;
 
-    } else if( DrgVerifyRMF( pditem, "DRM_OS2FILE", NULL ) ||
+    } else*/ if( DrgVerifyRMF( pditem, "DRM_OS2FILE", NULL ) ||
                DrgVerifyRMF( pditem, "DRM_123FILE", NULL )) {
 
       drag    = DOR_DROP;
@@ -1266,8 +1267,6 @@ void
 amp_info_edit( HWND owner, const char* filename, const char* decoder )
 {
   ULONG rc = dec_editmeta( owner, filename, decoder );
-  //DECODER_INFO2 info;
-  
   switch (rc)
   { default:
       amp_error( owner, "Cannot edit tag of file:\n%s", filename);
@@ -1275,16 +1274,7 @@ amp_info_edit( HWND owner, const char* filename, const char* decoder )
 
     case 0:   // tag changed
       Playable::GetByURL(filename)->LoadInfoAsync(Playable::IF_Meta);
-      //dec_fileinfo( filename, &info, NULL );
-
-      /* Refresh will come automatically 
-      if( current != NULL && stricmp( current->url, filename ) == 0 ) {
-        // TODO: post WM_METADATA
-        // the structures are binary compatible so far
-        current_file.info.meta = info.meta;
-        amp_display_filename();
-        amp_invalidate( UPD_ALL );
-      }*/
+      // Refresh will come automatically 
     case 300: // tag unchanged
       return;
       
@@ -2498,7 +2488,7 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
           return 0;
 
         case BMP_PL:
-          pl_show( !WinIsWindowVisible( hplaylist ));
+          pl_show(!pl_visible());
           return 0;
 
         case BMP_REPEAT:
@@ -2968,9 +2958,9 @@ main( int argc, char *argv[] )
   dk_add_window( hframe, DK_IS_MASTER );
 
   DEBUGLOG(("main: create playlist...\n"));
-  hplaylist  = pl_create();
 
   // Init some other stuff
+  pl_create();
   pm_create();
   bm_create();
 

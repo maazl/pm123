@@ -797,9 +797,13 @@ void Playlist::InsertItem(const char* url, PlayableInstance* before)
 }
 
 void Playlist::RemoveItem(PlayableInstance* item)
-{ DEBUGLOG(("Playlist(%p{%s})::RemoveItem(%p{%s})\n", this, GetURL().getObjName().cdata(), item, item->GetPlayable().GetURL().getObjName().cdata()));
+{ DEBUGLOG(("Playlist(%p{%s})::RemoveItem(%p{%s})\n", this, GetURL().getObjName().cdata(), item, item ? item->GetPlayable().GetURL().getObjName().cdata() : ""));
   Mutex::Lock lock(Mtx);
-  RemoveEntry((Entry*)item);
+  if (item)
+    RemoveEntry((Entry*)item);
+  else
+    while (Head)
+      RemoveEntry(Head);
   InfoChangeFlags |= IF_Other;
   // update tech info
   LoadInfoAsync(InfoValid & IF_Tech);

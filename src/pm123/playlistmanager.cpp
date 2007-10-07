@@ -41,7 +41,7 @@
 
 
 // Default instance of playlist manager window, representing PM123.LST in the program folder.
-static PlaylistManager* DefaultPM;
+static PlaylistManager* DefaultPM = NULL;
 
 
 /****************************************************************************
