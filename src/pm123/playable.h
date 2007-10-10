@@ -462,7 +462,7 @@ class PlayableCollection : public Playable
   // It is recommended to use sco_ptr for this purpose.
   // Since the enumeration process is intrinsically not thread-safe you have to lock this collection
   // during enumeration. Alternatively you have to catch the remove events of the current item.
-  // and do the Prev/Next operations together with the Assignment of the remove events while
+  // and do the Prev/Next operations together with the assignment of the remove events while
   // you locked the collection. 
   virtual PlayableEnumerator* GetEnumerator();
   // Load Information from URL

@@ -395,6 +395,7 @@ MENU MNU_MAIN
    {
      MENUITEM "~Add current as bookmark\tCtrl+B", IDM_M_ADDBOOK
      MENUITEM "~Edit bookmarks...\tAlt+B",        IDM_M_EDITBOOK
+     MENUITEM SEPARATOR
    }
    MENUITEM SEPARATOR
    MENUITEM "Edit ~Playlist\tCtrl+P",       IDM_M_PLAYLIST
@@ -438,6 +439,10 @@ MENU MNU_MAIN
    MENUITEM "~Save Stream...\tCtrl+S",      IDM_M_SAVE
    MENUITEM "~Float on Top",                IDM_M_FLOAT
    MENUITEM "~Hide Window\tAlt+F9",         IDM_M_MINIMIZE
+}
+
+MENU MNU_EMPTY
+{
 }
 
 HELPTABLE HLP_MAIN

@@ -37,7 +37,7 @@
 #define _PM123_PLUGMAN_BASE_H
 
 #include "plugman.h"
-#include "vdelegate.h"
+#include <vdelegate.h>
 
 
 /* Define the macro NOSYSTEMSTATICMEMBER to work around for the IBMVAC++ restriction

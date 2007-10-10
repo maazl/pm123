@@ -48,7 +48,7 @@
 #include <utilfct.h>
 #include "plugman_base.h"
 #include "pm123.h"
-#include "vdelegate.h"
+#include <vdelegate.h>
 
 #include <limits.h>
 #include <math.h>

@@ -32,6 +32,9 @@
 #ifndef PM123_SKIN_H
 #define PM123_SKIN_H
 
+#define INCL_WIN
+#include <os2.h>
+
 
 typedef struct _BMPBUTTON
 {

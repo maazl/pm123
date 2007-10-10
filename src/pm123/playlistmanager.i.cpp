@@ -74,10 +74,10 @@ PlaylistManager::PlaylistManager(const char* url, const char* alias)
 PlaylistManager::~PlaylistManager()
 { DEBUGLOG(("PlaylistManager::~PlaylistManager() - %p\n", HwndFrame));
   save_window_pos(HwndFrame, 0);
+  WinDestroyWindow(HwndFrame);
   WinDestroyWindow(MainMenu);
   WinDestroyWindow(ListMenu);
   WinDestroyWindow(FileMenu);
-  WinDestroyWindow(HwndFrame);
   DEBUGLOG(("PlaylistManager::~PlaylistManager() done - %p\n", WinGetLastError(NULL)));
 }
 
@@ -409,6 +409,26 @@ bool PlaylistManager::RecursionCheck(Record* rp)
   } // else recursion with top level
   DEBUGLOG(("PlaylistManager::RecursionCheck: recursion!\n"));
   return true;
+}
+
+void PlaylistManager::SetTitle()
+{ DEBUGLOG(("PlaylistManager(%p)::SetTitle()\n", this));
+  // Generate Window Title
+  const char* append = "";
+  switch (Content->GetStatus())
+  {case STA_Invalid:
+    append = " [invalid]";
+    break;
+   case STA_Used:
+    append = " [used]";
+    break;
+  }
+  const xstring& dn = Content->GetURL().getDisplayName(); // must not use a temporary in a conditional expresionne with ICC
+  xstring title = xstring::sprintf("PM123: %s (Tree)%s", (Alias ? Alias.cdata() : dn.cdata()), append);
+  // Update Window Title
+  if (WinSetWindowText(HwndFrame, (char*)title.cdata()))
+    // now free the old title
+    Title = title;
 }
 
 PlaylistManager::Record* PlaylistManager::AddEntry(PlayableInstance* obj, Record* parent, Record* after)

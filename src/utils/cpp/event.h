@@ -84,12 +84,12 @@ class delegate_base
   void operator=(const delegate_base& r);
  protected:
   // Construct unattached delegate
-  delegate_base(func_type fn, const void* rcv) : Fn(fn), Rcv(rcv), Ev(NULL) {}
+  delegate_base(func_type fn, const void* rcv) : Fn(fn), Rcv(rcv), Ev(NULL) { DEBUGLOG(("delegate_base(%p)::delegate_base(%p, %p)\n", this, fn, rcv)); }
   // Construct delegate and attach it to an event immediately
   delegate_base(event_base& ev, func_type fn, const void* rcv);
-  ~delegate_base()                             { if (Ev) (*Ev) -= *this; }
+  ~delegate_base()                             { DEBUGLOG(("delegate_base(%p)::~delegate_base() - %p\n", this, Ev)); if (Ev) (*Ev) -= *this; }
  public:
-  void           detach()                      { if (Ev) { (*Ev) -= *this; Ev = NULL; } }
+  void           detach()                      { DEBUGLOG(("delegate_base(%p)::detach() - %p\n", this, Ev)); if (Ev) { (*Ev) -= *this; Ev = NULL; } }
 };                                     
 
 /* Partial typed delegate class.

@@ -62,6 +62,7 @@
 #include "iniman.h"
 #include "messages.h"
 #include "playenumerator.h"
+#include "playlistmenu.h"
 
 #include <cpp/xstring.h>
 #include "url.h"
@@ -575,6 +576,9 @@ amp_show_context_menu( HWND parent )
     menu = WinLoadMenu( HWND_OBJECT, 0, MNU_MAIN );
 
     mn_make_conditionalcascade( menu, IDM_M_LOAD, IDM_M_LOADFILE );
+    
+    PlaylistMenu* pmp = new PlaylistMenu(parent, IDM_M_BOOKMARKS+1, IDM_M_BOOKMARKS_E);
+    pmp->AttachMenu(IDM_M_BOOKMARKS, bm_get());
   }
 
   WinQueryPointerPos( HWND_DESKTOP, &pos );
@@ -661,11 +665,13 @@ amp_show_context_menu( HWND parent )
     }
   }
 
+  /*
   // Update bookmarks.
   WinSendMsg( menu, MM_QUERYITEM,
               MPFROM2SHORT( IDM_M_BOOKMARKS, TRUE ), MPFROMP( &mi ));
 
   load_bookmark_menu( mi.hwndSubMenu );
+  */
   
   // Update plug-ins.
   WinSendMsg( menu, MM_QUERYITEM,
@@ -2957,12 +2963,7 @@ main( int argc, char *argv[] )
   dk_init();
   dk_add_window( hframe, DK_IS_MASTER );
 
-  DEBUGLOG(("main: create playlist...\n"));
-
-  // Init some other stuff
-  pl_create();
-  pm_create();
-  bm_create();
+  DEBUGLOG(("main: create subwindows\n"));
 
   memset( &hinit, 0, sizeof( hinit ));
   strcpy( infname, startpath   );
@@ -3007,6 +3008,7 @@ main( int argc, char *argv[] )
   } else {
     struct stat fi;
     if( stat( bundle, &fi ) == 0 ) {
+      // TODO: what's that?
       pl_load_bundle( bundle, 0 );
     }
   }
@@ -3014,12 +3016,17 @@ main( int argc, char *argv[] )
   WinSetWindowPos( hframe, HWND_TOP,
                    cfg.main.x, cfg.main.y, 0, 0, SWP_ACTIVATE | SWP_MOVE | SWP_SHOW );
 
+  // Init some other stuff
+  pl_create();
+  pm_create();
+  bm_create();
+
   DEBUGLOG(("main: visinit...\n"));
 
   // initialize non-skin related visual plug-ins
   vis_init_all( FALSE );
 
-  bm_load( hplayer );
+//  bm_load( hplayer );
 
   if( cfg.dock_windows ) {
     dk_arrange( hframe );
@@ -3042,11 +3049,11 @@ main( int argc, char *argv[] )
   }
 
   save_ini();
-  bm_save( hplayer );
+//  bm_save( hplayer );
   pl_save_bundle( bundle, 0 );
 
-  pm_destroy();
   bm_destroy();
+  pm_destroy();
   pl_destroy();
 
   bmp_clean_skin();

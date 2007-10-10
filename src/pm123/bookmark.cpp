@@ -49,6 +49,49 @@
 #include "messages.h"
 #include "playable.h"
 
+#include "playlist.i.h"
+
+// Bookmark path
+static xstring BMurl;
+// Default instance of bookmark window, representing BOOKMARK.LST in the program folder.
+static PlaylistBase* DefaultBM = NULL;
+
+/****************************************************************************
+*
+*  public external C interface
+*
+****************************************************************************/
+
+/* Creates the playlist manager presentation window. */
+void bm_create( void )
+{ DEBUGLOG(("bm_create()\n"));
+  url path = url::normalizeURL(startpath);
+  BMurl = path + "BOOKMARK.LST";
+  DEBUGLOG(("bm_create - %s\n", BMurl.cdata()));
+  DefaultBM = PlaylistView::Get(BMurl, "Bookmarks");
+  DefaultBM->SetVisible(cfg.show_bmarks);
+}
+
+/* Destroys the playlist manager presentation window. */
+void bm_destroy( void )
+{ DEBUGLOG(("bm_destroy()\n"));
+  DefaultBM = NULL;
+  DEBUGLOG(("bm_destroy() - end\n"));
+}
+
+/* Sets the visibility state of the playlist manager presentation window. */
+void bm_show( BOOL show )
+{ DEBUGLOG(("bm_show(%u)\n", show));
+  if (DefaultBM)
+    DefaultBM->SetVisible(show);
+}
+
+Playable* bm_get( void )
+{ return Playable::GetByURL(BMurl);
+}
+
+
+
 static HWND     menu_record = NULLHANDLE;
 static HWND     menu_list   = NULLHANDLE;
 static HWND     bookmarks   = NULLHANDLE;
@@ -58,7 +101,7 @@ static HPOINTER icon_record = NULLHANDLE;
 static void bm_init_window( HWND hwnd );
 
 /* Returns the pointer to the first bookmark record. */
-BMRECORD*
+static BMRECORD*
 bm_first_record( void )
 {
   BMRECORD* result = (BMRECORD*)WinSendMsg( container, CM_QUERYRECORD, NULL,
@@ -71,7 +114,7 @@ bm_first_record( void )
 }
 
 /* Returns the pointer to the next bookmark record of specified. */
-BMRECORD*
+static BMRECORD*
 bm_next_record( BMRECORD* rec )
 {
   BMRECORD* result = (BMRECORD*)WinSendMsg( container, CM_QUERYRECORD, MPFROMP(rec),
@@ -85,7 +128,7 @@ bm_next_record( BMRECORD* rec )
 
 /* Returns the pointer to the bookmark record with the
    specified description. */
-BMRECORD*
+static BMRECORD*
 bm_find_record( const char* desc )
 {
   BMRECORD* rec;
@@ -100,7 +143,7 @@ bm_find_record( const char* desc )
 }
 
 /* Returns the pointer to the first selected bookmark record. */
-BMRECORD*
+static BMRECORD*
 bm_first_selected( void )
 {
   BMRECORD* result = (BMRECORD*)WinSendMsg( container, CM_QUERYRECORDEMPHASIS,
@@ -113,7 +156,7 @@ bm_first_selected( void )
 }
 
 /* Returns the pointer to the next selected bookmark record of specified. */
-BMRECORD*
+static BMRECORD*
 bm_next_selected( BMRECORD* rec )
 {
   BMRECORD* result = (BMRECORD*)WinSendMsg( container, CM_QUERYRECORDEMPHASIS,
@@ -126,7 +169,7 @@ bm_next_selected( BMRECORD* rec )
 }
 
 /* Returns the pointer to the cursored bookmark record. */
-BMRECORD*
+static BMRECORD*
 bm_cursored( void )
 {
   BMRECORD* result = (BMRECORD*)WinSendMsg( container, CM_QUERYRECORDEMPHASIS,
@@ -332,7 +375,7 @@ bm_replace_bookmark( HWND owner, BMRECORD* rec )
 }
 
 /* Sets the visibility state of the bookmarks presentation window. */
-void
+/*void
 bm_show( BOOL show )
 {
   HSWITCH hswitch = WinQuerySwitchHandle( bookmarks, 0 );
@@ -346,7 +389,7 @@ bm_show( BOOL show )
   dk_set_state( bookmarks, show ? 0 : DK_IS_GHOST );
   WinSetWindowPos( bookmarks, HWND_TOP, 0, 0, 0, 0,
                    show ? SWP_SHOW | SWP_ZORDER | SWP_ACTIVATE : SWP_HIDE );
-}
+}*/
 
 /* Removes all selected bookmark records. */
 static void
@@ -936,7 +979,7 @@ bm_init_window( HWND hwnd )
 }
 
 /* Destroys the bookmark presentation window. */
-void
+/*void
 bm_destroy( void )
 {
   HAB hab = WinQueryAnchorBlock( bookmarks );
@@ -952,10 +995,10 @@ bm_destroy( void )
   WinDestroyPointer( icon_record );
   WinDestroyWindow ( menu_record );
   WinDestroyWindow ( bookmarks   );
-}
+}*/
 
 /* Creates the bookmarks presentation window. */
-HWND
+/*HWND
 bm_create( void )
 {
   bookmarks = WinLoadDlg( HWND_DESKTOP, HWND_DESKTOP,
@@ -963,7 +1006,7 @@ bm_create( void )
 
   bm_show( cfg.show_bmarks );
   return bookmarks;
-}
+}*/
 
 /* Loads bookmarks from the file. */
 BOOL

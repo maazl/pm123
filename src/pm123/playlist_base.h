@@ -200,7 +200,7 @@ class PlaylistBase : public IComparableTo<char>
   // Calculate icon for a record. Content must be valid!
   HPOINTER          CalcIcon(RecordBase* rec);
   // Set the window title
-  void              SetTitle();
+  virtual void      SetTitle();
 
  protected: // Update Functions.
             // They are logically virtual, but they are not called from this class.

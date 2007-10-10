@@ -89,7 +89,10 @@
 
 #define IDM_M_LAST        10000 /* A lot of IDs after this need to be free. */
 #define IDM_M_BOOKMARKS   11000 /* A lot of IDs after this need to be free. */
+#define IDM_M_BOOKMARKS_E 11999
 #define IDM_M_PLUG        15000 /* A lot of IDs after this need to be free. */
+
+#define MNU_EMPTY           999
 
 #define DLG_URL            2014
 #define ENT_URL             101

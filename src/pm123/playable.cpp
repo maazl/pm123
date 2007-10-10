@@ -349,6 +349,7 @@ PlayableInstance::~PlayableInstance()
 { DEBUGLOG(("PlayableInstance(%p)::~PlayableInstance() - %p\n", this, &*RefTo));
   // signal dependant objects
   StatusChange(change_args(*this, SF_Destroy));
+  DEBUGLOG(("PlayableInstance::~PlayableInstance() - done\n"));
 }
 
 void PlayableInstance::SetInUse(bool used)

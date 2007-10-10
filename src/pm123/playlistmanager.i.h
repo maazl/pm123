@@ -90,6 +90,8 @@ class PlaylistManager : public PlaylistRepository<PlaylistManager>
   bool              RecursionCheck(Record* rec);
   // same with explicit parent for new items not yet added
   bool              RecursionCheck(Playable* pp, Record* parent);
+  // Set the window title
+  virtual void      SetTitle();
  private: // Modifiying function and notifications
   // create a new entry in the container
   Record*           AddEntry(PlayableInstance* obj, Record* parent, Record* after = NULL);

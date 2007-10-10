@@ -119,10 +119,10 @@ class PlaylistView : public PlaylistRepository<PlaylistView>
   // Removes entries from the container
   // The entry object is valid after calling this function until the next DispatchMessage.
   void              RemoveEntry(Record* const entry);
-
+  // delete all children
+  void              RemoveChildren();
   // request container records 
   void              RequestChildren();
-
   // Update the list of children
   void              UpdateChildren();
   // Update a record

@@ -32,6 +32,10 @@
 #ifndef PM123_BOOKMARK_H
 #define PM123_BOOKMARK_H
 
+#define INCL_WIN
+#include <playable.h>
+#include <os2.h>
+
 /* Structure that contains information for records in
    the bookmarks container control. */
 
@@ -49,30 +53,33 @@ extern "C" {
 #endif
 
 /* Creates the bookmarks presentation window. */
-HWND bm_create( void );
+void bm_create( void );
 /* Sets the visibility state of the bookmarks presentation window. */
 void bm_show( BOOL show );
 /* Destroys the bookmark presentation window. */
 void bm_destroy( void );
+/* get bookmark backend */
+Playable* bm_get( void );
+
 
 /* WARNING!! All functions returning a pointer to the
    bookmark record, return a NULL if suitable record is not found. */
 
 /* Returns the pointer to the first bookmark record. */
-BMRECORD* bm_first_record( void );
+//BMRECORD* bm_first_record( void );
 /* Returns the pointer to the next bookmark record of specified. */
-BMRECORD* bm_next_record( BMRECORD* rec );
+//BMRECORD* bm_next_record( BMRECORD* rec );
 /* Returns the pointer to the bookmark record with the specified description. */
-BMRECORD* bm_find_record( const char* desc );
+//BMRECORD* bm_find_record( const char* desc );
 /* Returns the pointer to the first selected bookmark record. */
-BMRECORD* bm_first_selected( void );
+//BMRECORD* bm_first_selected( void );
 /* Returns the pointer to the next selected bookmark record of specified. */
-BMRECORD* bm_next_selected( BMRECORD* rec );
+//BMRECORD* bm_next_selected( BMRECORD* rec );
 /* Returns the pointer to the cursored bookmark record. */
-BMRECORD* bm_cursored( void );
+//BMRECORD* bm_cursored( void );
 
 /* Loads bookmarks from the file. */
-BOOL bm_load( HWND owner );
+//BOOL bm_load( HWND owner );
 /* Saves bookmarks to the file. */
 BOOL bm_save( HWND owner );
 /* Adds a user selected bookmark. */

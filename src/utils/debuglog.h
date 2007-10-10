@@ -41,7 +41,7 @@
 #define DEBUGLOG_H
 
 #ifdef DEBUG
-  #define INCL_BASE
+  #define INCL_DOS
   #include <stdio.h>
   #include <stdarg.h>
   #include <time.h>

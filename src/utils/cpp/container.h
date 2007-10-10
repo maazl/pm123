@@ -182,7 +182,7 @@ class sorted_vector : public sorted_vector_base<K>
   T*                 find(const K* key) const       { return (T*)sorted_vector_base<K>::find(key); }
   // Ensure an element with a particular key.
   // This will either return a reference to a pointer to an existing object which equals to key
-  // or a reference to a NULL pointer which is automatically createt at the location in the container
+  // or a reference to a NULL pointer which is automatically created at the location in the container
   // where a new object with key should be inserted. So you can store the Pointer to this object after the funtion returned.
   // Precondition: none, Performance: O(log(n))
   T*&                get(const K* key)              { return (T*&)sorted_vector_base<K>::get(key); }
