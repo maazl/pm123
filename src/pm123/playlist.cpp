@@ -337,7 +337,7 @@ pl_sort( int control )
 }
 
 /* Refreshes the specified playlist record. */
-static void
+static void ////
 pl_refresh_record( PLRECORD* rec, USHORT flags )
 {
   WinSendMsg( container, CM_INVALIDATERECORD,
@@ -345,7 +345,7 @@ pl_refresh_record( PLRECORD* rec, USHORT flags )
 }
 
 /* Fills record by the information provided by the decoder. */
-static void
+static void ////
 pl_fill_record( PLRECORD* rec, const DECODER_INFO2* info ) ////
 {
   char buffer[64];
@@ -416,7 +416,7 @@ pl_fill_record( PLRECORD* rec, const DECODER_INFO2* info ) ////
 }
 
 /* Creates the playlist record for specified file. */
-static PLRECORD*
+static PLRECORD* ////
 pl_create_record( const char* filename, PLRECORD* pos,
                   const char* prep_title, const DECODER_INFO2* prep_info, const char* prep_decoder )
 {
@@ -555,7 +555,7 @@ pl_move_record( PLRECORD* rec, PLRECORD* pos )
 }
 
 /* Frees the data contained in playlist record. */
-static void
+static void ////
 pl_free_record( PLRECORD* rec )
 {
   free( rec->rc.pszIcon );
@@ -567,7 +567,7 @@ pl_free_record( PLRECORD* rec )
 }
 
 /* Removes the specified playlist record. */
-static void
+static void ////
 pl_remove_record( PLRECORD** array, USHORT count )
 {
   PLRECORD* load_after = (PLRECORD*)-1;

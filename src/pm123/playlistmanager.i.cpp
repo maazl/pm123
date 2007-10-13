@@ -606,11 +606,12 @@ void PlaylistManager::UpdateChildren(Record* const rp)
   if (((status>>1) ^ status) & 1)
     PostRecordCommand(rp, RC_UPDATESTATUS);
 
-  // Well normally the queue should be empty now...
+  // delete remaining records
   DEBUGLOG(("PlaylistManager::UpdateChildren - OldHead = %p\n", OldHead));
   while (OldHead) // if not: delete!
-  { RemoveEntry(OldHead); // The record is deleted later, so we cann access OldHead safely.
+  { Record* crp = OldHead;
     OldHead = (Record*)OldHead->preccNextRecord;
+    RemoveEntry(crp);
   }
 }
 

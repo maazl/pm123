@@ -84,7 +84,8 @@ MRESULT PlaylistMenu::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
     }
  
    case WM_INITMENU:
-    { MapEntry* mapp = MenuMap.find(&(USHORT&)SHORT1FROMMP(mp1));
+    { DEBUGLOG(("PlaylistMenu(%p)::DlgProc: WM_INITMENU(%u, %x)\n", this, mp1, mp2));
+      MapEntry* mapp = MenuMap.find(&(USHORT&)SHORT1FROMMP(mp1));
       if (mapp == NULL)
         break; // No registered map entry, continue default processing.
       mapp->HwndMenu = HWNDFROMMP(mp2);
@@ -203,12 +204,13 @@ void PlaylistMenu::RemoveMapEntry(MapEntry* mapp)
   RemoveSubItems(mapp);
   // now destroy the submenu if any
   if (mapp->HwndMenu) // only if menu has been shown already
-  { MENUITEM mi;
+  { HWND par_menu = WinQueryWindow(mapp->HwndMenu, QW_OWNER); // For some reason QW_PARENT will not work.
+    DEBUGLOG(("PlaylistMenu::RemoveMapEntry - %p\n", par_menu)); 
+    MENUITEM mi;
     #ifndef NDEBUG
-    // TODO: some crashes here... 
-    assert(WinSendMsg(mapp->HwndMenu, MM_QUERYITEM, MPFROM2SHORT(mapp->IDMenu, FALSE), MPFROMP(&mi)));
+    assert(WinSendMsg(par_menu, MM_QUERYITEM, MPFROM2SHORT(mapp->IDMenu, FALSE), MPFROMP(&mi)));
     #else
-    WinSendMsg(mapp->HwndMenu, MM_QUERYITEM, MPFROM2SHORT(mapp->IDMenu, FALSE), MPFROMP(&mi));
+    WinSendMsg(par_menu, MM_QUERYITEM, MPFROM2SHORT(mapp->IDMenu, FALSE), MPFROMP(&mi));
     #endif
     if (mi.hwndSubMenu)
       WinDestroyWindow(mi.hwndSubMenu);

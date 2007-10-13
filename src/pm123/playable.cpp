@@ -803,8 +803,13 @@ void Playlist::RemoveItem(PlayableInstance* item)
   if (item)
     RemoveEntry((Entry*)item);
   else
-    while (Head)
-      RemoveEntry(Head);
+  { if (!Head)
+      return; // early exit without change flag
+    do
+    { RemoveEntry(Head);
+      DEBUGLOG(("Playlist::RemoveItem - %p\n", Head));
+    } while (Head);
+  }
   InfoChangeFlags |= IF_Other;
   // update tech info
   LoadInfoAsync(InfoValid & IF_Tech);
