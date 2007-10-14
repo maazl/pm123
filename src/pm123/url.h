@@ -75,19 +75,23 @@ class url : public xstring
   url(const xstring& r) : xstring(r) {}
   url(const char* r)    : xstring(r) {}
 
-  // Returns a simplified version of the url containing only the important part
-  // E.g. filenames are reported without file:///.
-  xstring getDisplayName() const;
   // Returns the path component of the url including a trailing slash.
   xstring getBasePath() const;
-  // Returns only the object name
+  // Returns only the object name with extension
   // This is the part after the basepath and before any query parameters (if any)
-  xstring getObjName() const;
+  xstring getObjectName() const;
   // This retuns that part of the object name that is likely to be a file extension.
   // If no extension is found it returns an empty string.
   xstring getExtension() const;
   // Return query parameter if any or an empty string otherwise.
   xstring getParameter() const;
+
+  // Returns a simplified version of the url containing only the important part
+  // E.g. filenames are reported without file:///.
+  xstring getDisplayName() const;
+  // Returns only the object name without extension
+  // This is the part after the basepath and before any query parameters (if any)
+  xstring getShortName() const;
 
   // test whether the url belongs to a given scheme
   bool    isScheme(const char* scheme) const { return startsWithI(scheme); }

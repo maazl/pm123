@@ -26,6 +26,9 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#ifndef PLAYLISTMENU_H
+#define PLAYLISTMENU_H
+
 #define INCL_WIN
 #define INCL_BASE
 
@@ -35,6 +38,7 @@
 #include <cpp/smartptr.h>
 #include <cpp/container.h>
 #include <cpp/xstring.h>
+#include <cpp/cpputil.h>
 
 #include <os2.h>
 
@@ -55,18 +59,44 @@
 *
 ****************************************************************************/
 class PlaylistMenu
-{private:
-  enum // The ID's here must be distinct from the user messages of any other window.
-  { UM_LATEUPDATE = WM_USER+0x201
+{public:
+  enum EntryFlags
+  { None            = 0x00,
+    DummyIfEmpty    = 0x01,
+    SkipInvalid     = 0x10
   };
+  enum // The ID's here must be distinct from the user messages of any other window.
+  { // This message is internally used by this class to notify changes of the selected items.
+    UM_LATEUPDATE = WM_USER+0x201,
+    // This message is send to the owner of the menu when a generated subitem of the menu is selected.
+    // mp1 is set to a pointer to a select_data structure. The pointer is only valid while the message is sent.
+    // mp2 is the user parameter passed to AttachMenu.
+    UM_SELECTED
+  };
+  struct select_data
+  { int_ptr<Playable> Item;
+    xstring         Alias;
+    double          Pos;
+    select_data(const PlayableInstance& data)
+     : Item(&data.GetPlayable()), Alias(data.GetAlias()), Pos(data.GetPlayPos()) {}
+    select_data(Playable* data)
+     : Item(data), Alias(), Pos(0) {}
+  };
+  
+ private:
   struct MapEntry : public IComparableTo<USHORT>
   { USHORT          IDMenu;
     HWND            HwndMenu;
-    int_ptr<Playable> Data;
+    select_data     Data;
+    EntryFlags      Flags;
+    MPARAM          User;
     USHORT          ID1;  // First generated item ID or MID_NONE (if none)
     USHORT          Pos;  // ID of the first object after the last generated entry or MIT_END if this is the end of the menu.
     xstring         Text; // Strong reference to the text. 
-    MapEntry(USHORT id, int_ptr<Playable> data, SHORT pos) : IDMenu(id), HwndMenu(NULLHANDLE), Data(data), ID1((USHORT)MID_NONE), Pos(pos) {}
+    MapEntry(USHORT id, const PlayableInstance& data, EntryFlags flags, MPARAM user, SHORT pos)
+     : IDMenu(id), HwndMenu(NULLHANDLE), Data(data), ID1((USHORT)MID_NONE), Flags(flags), User(user), Pos(pos) {}
+    MapEntry(USHORT id, Playable* data, EntryFlags flags, MPARAM user, SHORT pos)
+     : IDMenu(id), HwndMenu(NULLHANDLE), Data(data), ID1((USHORT)MID_NONE), Flags(flags), User(user), Pos(pos) {}
     virtual int     CompareTo(const USHORT* key) const;
   };
 
@@ -112,6 +142,9 @@ class PlaylistMenu
   // by the content of the PlayableCollection. Nested playlists will show as submenus.
   // If the IDs are not sufficient the content is truncated. But the IDs to nested items
   // are only assigned if the submenu is opened.
-  bool              AttachMenu(USHORT menuid, int_ptr<Playable> data, USHORT pos = (USHORT)MID_NONE);
+  bool              AttachMenu(USHORT menuid, Playable* data, EntryFlags flags, MPARAM user, USHORT pos = (USHORT)MID_NONE);
 };
 
+FLAGSATTRIBUTE(PlaylistMenu::EntryFlags);
+
+#endif

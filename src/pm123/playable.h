@@ -131,7 +131,7 @@ class Playable : public Iref_Count, private IComparableTo<char>
  protected:
   Playable(const url& url, const FORMAT_INFO2* ca_format = NULL, const TECH_INFO* ca_tech = NULL, const META_INFO* ca_meta = NULL);
   // Check whether a given URL is to be initialized as playlist.
-  static bool         IsPlaylist(const char* url);
+  static bool         IsPlaylist(const url& URL);
   // Update the structure components and return the required InfoChange Flags or 0 if no change has been made.
   void                UpdateInfo(const FORMAT_INFO2* info);
   void                UpdateInfo(const TECH_INFO* info);
@@ -244,7 +244,7 @@ class Playable : public Iref_Count, private IComparableTo<char>
   // The optional parameters ca_* are preloaded informations.
   // This is returned by the apropriate Get* functions without the need to access the underlying data source.
   // This is used to speed up large playlists.
-  static int_ptr<Playable> GetByURL(const char* url, const FORMAT_INFO2* ca_format = NULL, const TECH_INFO* ca_tech = NULL, const META_INFO* ca_meta = NULL);
+  static int_ptr<Playable> GetByURL(const url& URL, const FORMAT_INFO2* ca_format = NULL, const TECH_INFO* ca_tech = NULL, const META_INFO* ca_meta = NULL);
 };
 // Flags Attribute for StatusFlags
 FLAGSATTRIBUTE(Playable::InfoFlags);
@@ -291,8 +291,7 @@ class PlayableInstance
   ~PlayableInstance();
 
  public:
-  Playable&           GetPlayable()       { return *RefTo; }
-  const Playable&     GetPlayable() const { return *RefTo; }
+  Playable&           GetPlayable() const { return *RefTo; }
   // Get the parent Collection containing this Playable object.
   PlayableCollection& GetParent() const   { return Parent; }
   
@@ -323,7 +322,8 @@ FLAGSATTRIBUTE(PlayableInstance::StatusFlags);
  */
 class Song : public Playable
 {public:
-  Song(const char* url, const FORMAT_INFO2* ca_format = NULL, const TECH_INFO* ca_tech = NULL, const META_INFO* ca_meta = NULL) : Playable(url, ca_format, ca_tech, ca_meta) {}
+  Song(const url& URL, const FORMAT_INFO2* ca_format = NULL, const TECH_INFO* ca_tech = NULL, const META_INFO* ca_meta = NULL)
+   : Playable(URL, ca_format, ca_tech, ca_meta) { DEBUGLOG(("Song(%p)::Song(%s, %p, %p, %p)\n", this, URL.cdata(), ca_format, ca_tech, ca_meta)); }
 
   virtual void        LoadInfo(InfoFlags what);
 };
@@ -451,7 +451,7 @@ class PlayableCollection : public Playable
   // The return value indicates whether the object is valid.
   virtual bool                LoadInfoCore() = 0;
   // Constructor with defaults if available.
-  PlayableCollection(const char* url, const TECH_INFO* ca_tech = NULL, const META_INFO* ca_meta = NULL);
+  PlayableCollection(const url& URL, const TECH_INFO* ca_tech = NULL, const META_INFO* ca_meta = NULL);
  public:
   virtual                     ~PlayableCollection();
   // RTTI by the back door.
@@ -490,13 +490,13 @@ class Playlist : public PlayableCollection
   // really load the playlist
   virtual bool                LoadInfoCore();
  public:
-  Playlist(const char* url, const TECH_INFO* ca_tech = NULL, const META_INFO* ca_meta = NULL)
-   : PlayableCollection(url, ca_tech, ca_meta) {}
+  Playlist(const url& URL, const TECH_INFO* ca_tech = NULL, const META_INFO* ca_meta = NULL)
+   : PlayableCollection(URL, ca_tech, ca_meta) { DEBUGLOG(("Playlist(%p)::Playlist(%s, %p, %p)\n", this, URL.cdata(), ca_tech, ca_meta)); }
   // Get attributes 
   virtual Flags               GetFlags() const;
   // Insert a new item before the item "before".
   // If the prameter before is NULL the the item is appended. 
-  virtual void                InsertItem(const char* url, PlayableInstance* before = NULL);
+  virtual void                InsertItem(const char* url, const xstring& alias, double pos, PlayableInstance* before = NULL);
   // Remove an item from the playlist.
   // Attension: passing NULL as argument will remove all items.
   virtual void                RemoveItem(PlayableInstance* item);
@@ -515,7 +515,7 @@ class PlayFolder : public PlayableCollection
  private:
   void                        ParseQueryParams();
  public:
-  PlayFolder(const char* url, const TECH_INFO* ca_tech = NULL, const META_INFO* ca_meta = NULL);
+  PlayFolder(const url& URL, const TECH_INFO* ca_tech = NULL, const META_INFO* ca_meta = NULL);
   virtual bool                LoadInfoCore();
 };
 

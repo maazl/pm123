@@ -29,7 +29,6 @@
 
 #include "xstring.h"
 #include <string.h>
-#include <ctype.h>
 #include <snprintf.h>
 
 #include <debuglog.h>
@@ -190,6 +189,14 @@ bool xstring::startsWith(const char* r, size_t len) const
 
 bool xstring::startsWithI(const char* r, size_t len) const
 { return len <= length() && compareI(*Data, r, len) == 0;
+}
+
+bool xstring::endsWith(const char* r, size_t len) const
+{ return len <= length() && memcmp(*Data + length() - len, r, len) == 0;
+}
+
+bool xstring::endsWithI(const char* r, size_t len) const
+{ return len <= length() && compareI(*Data + length() - len, r, len) == 0;
 }
 
 void xstring::assign(const char* str)

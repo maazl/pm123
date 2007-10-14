@@ -105,24 +105,77 @@ url url::normalizeURL(const char* str)
     *cp2 = '/';
   // reduce /xxx/.. - s/\/[^\/]\/\.\.//g;
   len = ret.length();
-  for (cp2 = strstr(cp, "/.."); cp2; cp2 = strstr(cp2, "/..")) 
-  { // find previous '/'
+  for (cp2 = strstr(cp, "/."); cp2; cp2 = strstr(cp2, "/.")) 
+  { DEBUGLOG(("url::normalzieURL: removing? %s\n", cp2));
     char* cp3 = cp2;
-    cp2 += 3; // move behind the match
-    while (cp3 != cp)
-    { if (*--cp3 == '/')
-      { // found => remove part
-        memmove(cp3, cp2, len-(cp2-cp));
-        len -= cp2-cp3;
-        cp2 = cp3;
-        break;
+    cp2 += 2; // move behind the match
+    switch (*cp2)
+    {case '/':
+     case '?':
+     case 0:
+      // Found /. => eliminating
+      memmove(cp3, cp2, len-(cp2-cp)+1);
+      len -= 2;
+      cp2 = cp3;
+      DEBUGLOG(("url::normalzieURL: converted to %s\n", cp));
+     default: // ignore names starting with .
+      continue;
+     case '.':
+      ++cp2;
+    }
+    switch (*cp2)
+    {case '/':
+     case '?':
+     case 0:
+      // Found /.. => eliminating
+      // find previous '/'
+      while (cp3 != cp)
+      { if (*--cp3 == '/')
+        { // found => remove part
+          memmove(cp3, cp2, len-(cp2-cp)+1);
+          len -= cp2-cp3;
+          cp2 = cp3;
+          break;
+        }
       }
+      DEBUGLOG(("url::normalzieURL: converted to %s\n", cp));
+     //default: // ignore names that start with ..
     }
   }
   if (len != ret.length())
-    ret.assign(ret, len); // shorten string
-  DEBUGLOG(("url::normalzieURL: %s\n", ret.cdata()));
+    ret.assign(ret, 0, len); // shorten string
+  DEBUGLOG(("url::normalzieURL: %u, %s\n", len, ret.cdata()));
   return ret;
+}
+
+xstring url::getBasePath() const
+{ const char* cp = strrchr(*this, '/');
+  assert(cp);
+  return xstring(*this, 0, cp-cdata()+1);
+}
+
+xstring url::getObjectName() const
+{ const char* cp = strrchr(*this, '/');
+  assert(cp);
+  ++cp;
+  const char* cp2 = strchr(cp, '?');
+  return cp2 ? xstring(cp, cp2-cp) : xstring(cp);
+}
+
+xstring url::getExtension() const
+{ const char* cp = strrchr(*this, '/');
+  assert(cp);
+  ++cp;
+  const char* cp2 = strchr(cp, '?');
+  const char* cp3 = cp2 ? strnrchr(cp, '.', cp2-cp) : strrchr(cp, '.');
+  if (cp3 == NULL)
+    return xstring::empty;
+  return cp3;
+}
+
+xstring url::getParameter() const
+{ const char* cp = strchr(*this, '?');
+  return cp ? xstring(cp) : xstring::empty;
 }
 
 xstring url::getDisplayName() const
@@ -135,13 +188,7 @@ xstring url::getDisplayName() const
   return cp;
 }
 
-xstring url::getBasePath() const
-{ const char* cp = strrchr(*this, '/');
-  assert(cp);
-  return xstring(*this, 0, cp-cdata()+1);
-}
-
-xstring url::getObjName() const
+xstring url::getShortName() const
 { const char* cp = strrchr(*this, '/');
   assert(cp);
   ++cp;
@@ -166,22 +213,6 @@ xstring url::getObjName() const
       cp2 = cp3;
     return cp2 ? xstring(cp, cp2-cp) : xstring(cp);
   }
-}
-
-xstring url::getExtension() const
-{ const char* cp = strrchr(*this, '/');
-  assert(cp);
-  ++cp;
-  const char* cp2 = strchr(cp, '?');
-  const char* cp3 = cp2 ? strnrchr(cp, '.', cp2-cp) : strrchr(cp, '.');
-  if (cp3 == NULL)
-    return xstring::empty;
-  return cp3;
-}
-
-xstring url::getParameter() const
-{ const char* cp = strchr(*this, '?');
-  return cp ? xstring(cp) : xstring::empty;
 }
 
 url url::makeAbsolute(const char* rel) const

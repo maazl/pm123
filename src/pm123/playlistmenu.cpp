@@ -96,9 +96,19 @@ MRESULT PlaylistMenu::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
       break;
     }
 
+   case WM_COMMAND:
+    if (SHORT1FROMMP(mp2) == CMDSRC_MENU)
+    { MapEntry* mp = MenuMap.find(&(const USHORT&)SHORT1FROMMP(mp1));
+      if (mp) // ID unknown?
+      { WinSendMsg(HwndOwner, UM_SELECTED, MPFROMP(&mp->Data), mp->User);
+        return 0; // no further processing
+    } }
+    break;
+
    case UM_LATEUPDATE:
     if (UpdateEntry)
-    { CreateSubItems(UpdateEntry);
+    { RemoveSubItems(UpdateEntry); // maybe we have to remove a dummy entry
+      CreateSubItems(UpdateEntry);
       UpdateEntry = NULL;
     }
     break;
@@ -127,15 +137,9 @@ USHORT PlaylistMenu::AllocateID()
 void PlaylistMenu::CreateSubItems(MapEntry* mapp)
 { DEBUGLOG(("PlaylistMenu(%p)::CreateSubItems(%p{%u})\n", this, mapp, mapp->IDMenu));
   // is enumerable?
-  if (!(mapp->Data->GetFlags() & Playable::Enumerable))
+  if (!(mapp->Data.Item->GetFlags() & Playable::Enumerable))
     return;
 
-  Mutex::Lock lock(mapp->Data->Mtx); // lock collection
-  if (!mapp->Data->EnsureInfoAsync(Playable::IF_Other))
-  { // not immediately availabe => do it later
-    ResetDelegate(mapp);
-    return;
-  }
   MENUITEM mi;
   mi.iPosition   = MIT_END;
   mi.afAttribute = 0;
@@ -144,35 +148,59 @@ void PlaylistMenu::CreateSubItems(MapEntry* mapp)
   { mi.iPosition = SHORT1FROMMR(WinSendMsg(mapp->HwndMenu, MM_ITEMPOSITIONFROMID, MPFROM2SHORT(mapp->Pos, FALSE), 0));
   }
   size_t count = 0;
-  sco_ptr<PlayableEnumerator> pe = ((PlayableCollection&)*mapp->Data).GetEnumerator();
-  while (++count <= MAX_MENU && pe->Next())
-  { USHORT id = AllocateID();
-    if (id == (USHORT)MID_NONE)
-      break; // can't help
-    if (mapp->ID1 == (USHORT)MID_NONE)
-      mapp->ID1 = id;
-    mi.id          = id;
-    mi.afStyle = MIS_TEXT;
-    mi.hwndSubMenu = NULLHANDLE;
-    // Get content
-    Playable* pp = &(*pe)->GetPlayable();
-    if (pp->GetFlags() & Playable::Enumerable)
-    { pp->EnsureInfoAsync(Playable::IF_Other); // Prefetch nested playlist content
-      // Create submenu
-      mi.afStyle |= MIS_SUBMENU;
-      mi.hwndSubMenu = WinLoadMenu(mapp->HwndMenu, NULLHANDLE, MNU_EMPTY);
-      WinSetWindowUShort(mi.hwndSubMenu, QWS_ID, id);
-      WinSetWindowBits(mi.hwndSubMenu, QWL_STYLE, MS_CONDITIONALCASCADE, MS_CONDITIONALCASCADE);
+  // lock collection
+  Mutex::Lock lock(mapp->Data.Item->Mtx);
+  if (!mapp->Data.Item->EnsureInfoAsync(Playable::IF_Other))
+  { // not immediately availabe => do it later
+    ResetDelegate(mapp);
+  } else
+  { sco_ptr<PlayableEnumerator> pe = ((PlayableCollection&)*mapp->Data.Item).GetEnumerator();
+    while (++count <= MAX_MENU && pe->Next())
+    { // Get content
+      Playable* pp = &(*pe)->GetPlayable();
+      // skip invalid?
+      if ((mapp->Flags & SkipInvalid) && pp->GetStatus() <= STA_Invalid)
+        continue;
+      // fetch ID
+      mi.id          = AllocateID();
+      if (mi.id == (USHORT)MID_NONE)
+        break; // can't help
+      if (mapp->ID1 == (USHORT)MID_NONE)
+        mapp->ID1 = mi.id;
+      mi.afStyle     = MIS_TEXT;
+      mi.hwndSubMenu = NULLHANDLE;
+      // enumerate content
+      if (pp->GetFlags() & Playable::Enumerable)
+      { pp->EnsureInfoAsync(Playable::IF_Other); // Prefetch nested playlist content
+        // Create submenu
+        mi.afStyle |= MIS_SUBMENU;
+        mi.hwndSubMenu = WinLoadMenu(mapp->HwndMenu, NULLHANDLE, MNU_EMPTY);
+        WinSetWindowUShort(mi.hwndSubMenu, QWS_ID, mi.id);
+        WinSetWindowBits(mi.hwndSubMenu, QWL_STYLE, MS_CONDITIONALCASCADE, MS_CONDITIONALCASCADE);
+      }
+      // Add map entry
+      MapEntry*& subp = MenuMap.get(&mi.id);
+      assert(subp == NULL);
+      subp = new MapEntry(mi.id, **pe, mapp->Flags, mapp->User, MIT_END);
+      // Add menu item
+      subp->Text = (*pe)->GetDisplayName();
+      WinSendMsg(mapp->HwndMenu, MM_INSERTITEM, MPFROMP(&mi), MPFROMP(subp->Text.cdata()));
+      if (mi.iPosition != MIT_END)
+        ++mi.iPosition;
     }
-    // Add map entry
-    MapEntry*& subp = MenuMap.get(&id);
-    assert(subp == NULL);
-    subp = new MapEntry(id, pp, MIT_END);
+  }
+  // create dummy
+  if (count == 0 && (mapp->Flags & DummyIfEmpty))
+  { // fetch ID
+    mi.id          = AllocateID();
+    if (mi.id == (USHORT)MID_NONE)
+      return; // can't help
+    if (mapp->ID1 == (USHORT)MID_NONE)
+      mapp->ID1 = mi.id;
+    mi.afStyle     = MIS_TEXT|MIS_STATIC;
+    mi.hwndSubMenu = NULLHANDLE;
     // Add menu item
-    subp->Text = (*pe)->GetDisplayName();
-    WinSendMsg(mapp->HwndMenu, MM_INSERTITEM, MPFROMP(&mi), MPFROMP(subp->Text.cdata()));
-    if (mi.iPosition != MIT_END)
-      ++mi.iPosition;
+    WinSendMsg(mapp->HwndMenu, MM_INSERTITEM, MPFROMP(&mi), MPFROMP("- none -"));
   }
 }
 
@@ -239,7 +267,7 @@ void PlaylistMenu::ResetDelegate(MapEntry* mapp)
 { DEBUGLOG(("PlaylistMenu(%p)::ResetDelegate(%p)\n", this, mapp)); 
   ResetDelegate();
   UpdateEntry = mapp;
-  mapp->Data->InfoChange += InfoDelegate;
+  mapp->Data.Item->InfoChange += InfoDelegate;
 }
 
 void PlaylistMenu::InfoChangeCallback(const Playable::change_args& args)
@@ -247,15 +275,15 @@ void PlaylistMenu::InfoChangeCallback(const Playable::change_args& args)
   if ((args.Flags & Playable::IF_Other) == 0)
     return; // not the right event
   InfoDelegate.detach(); // Only catch the first event
-  if (UpdateEntry == NULL || &args.Instance != &*UpdateEntry->Data)
+  if (UpdateEntry == NULL || &args.Instance != &*UpdateEntry->Data.Item)
     return; // event obsolete
   QMSG msg;
   if (!WinPeekMsg(amp_player_hab(), &msg, HwndOwner, UM_LATEUPDATE, UM_LATEUPDATE, PM_NOREMOVE)) 
     WinPostMsg(HwndOwner, UM_LATEUPDATE, 0, 0);
 }
 
-bool PlaylistMenu::AttachMenu(USHORT menuid, int_ptr<Playable> data, USHORT pos)
-{ DEBUGLOG(("PlaylistMenu(%p)::AttachMenu(%u, %p{%s}, %u)\n", this, menuid, &*data, data->GetURL().getObjName().cdata(), pos)); 
+bool PlaylistMenu::AttachMenu(USHORT menuid, Playable* data, EntryFlags flags, MPARAM user, USHORT pos)
+{ DEBUGLOG(("PlaylistMenu(%p)::AttachMenu(%u, %p{%s}, %x, %p, %u)\n", this, menuid, &*data, data->GetURL().getShortName().cdata(), flags, user, pos)); 
 
   MapEntry*& mapp = MenuMap.get(&menuid);
   if (mapp)
@@ -263,7 +291,7 @@ bool PlaylistMenu::AttachMenu(USHORT menuid, int_ptr<Playable> data, USHORT pos)
     mapp->Data = data;
    else
     // new map item
-    mapp = new MapEntry(menuid, data, pos);
+    mapp = new MapEntry(menuid, data, flags, user, pos);
 
   return true;
 }

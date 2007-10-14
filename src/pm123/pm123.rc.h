@@ -175,31 +175,6 @@
 #define DC_PREPAREITEM  0x0040
 #endif
 
-/* Bookmark */
-#define DLG_BOOKMARKS        444
-#define CNR_BOOKMARKS FID_CLIENT
-#define ACL_BOOKMARKS       8002
-#define ICO_BOOKMARK         300
-
-#define DLG_BM_ADD           500
-#define ST_BM_DESC           501
-#define EF_BM_DESC           502
-
-#define DLG_BM_RENAME        600
-
-#define MNU_BM_RECORD        444
-#define MNU_BM_LIST          445
-
-#define IDM_BM_REMOVE        901
-#define IDM_BM_RENAME        902
-#define IDM_BM_LOAD          903
-#define IDM_BM_ADDTOPL       904
-#define IDM_BM_RMENU         905
-#define IDM_BM_REPLACE       906
-#define IDM_BM_CLEAR         907
-#define IDM_BM_ADD           908
-#define IDM_BM_LMENU         909
-
 /* Playlist */
 #define DLG_PLAYLIST         42
 #define CNR_PLAYLIST FID_CLIENT // TODO: remove
@@ -241,6 +216,11 @@
 #define IDM_PL_M3U_SAVE     962
 #define IDM_PL_MENU         970 /* invoke main menu */
 #define IDM_PL_MENUCONT     971 /* invoke record menu */ 
+
+/* Bookmark */
+#define DLG_BM_ADD           500
+#define ST_BM_DESC           501
+#define EF_BM_DESC           502
 
 /* SKIN */
 /* Special resources that control PM123 interface. */

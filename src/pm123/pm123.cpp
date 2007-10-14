@@ -142,11 +142,11 @@ amp_display_error( const char *info )
   }
 }
 
-const Song* amp_get_current_song()
+Song* amp_get_current_song()
 { return Current.GetCurrentSong();
 }
 
-const Playable* amp_get_current_root()
+Playable* amp_get_current_root()
 { return Current.GetRoot();
 } 
 
@@ -578,7 +578,7 @@ amp_show_context_menu( HWND parent )
     mn_make_conditionalcascade( menu, IDM_M_LOAD, IDM_M_LOADFILE );
     
     PlaylistMenu* pmp = new PlaylistMenu(parent, IDM_M_BOOKMARKS+1, IDM_M_BOOKMARKS_E);
-    pmp->AttachMenu(IDM_M_BOOKMARKS, bm_get());
+    pmp->AttachMenu(IDM_M_BOOKMARKS, bm_get(), PlaylistMenu::DummyIfEmpty, 0);
   }
 
   WinQueryPointerPos( HWND_DESKTOP, &pos );
@@ -1130,19 +1130,19 @@ ULONG DLLENTRY amp_file_wizzard( HWND owner, const char* title, DECODER_WIZZARD_
     int i = 0;
     while (*file)
     { DEBUGLOG(("amp_file_wizzard: %s\n", file));
-      char fileurl[_MAX_FNAME+12]; // should be sufficient in all cases
-      if (url::isPathDelimiter(file[0]) && url::isPathDelimiter(file[1]))
-        sprintf(fileurl, "file://%s", file+2);
-       else
-        sprintf(fileurl, "file:///%s", file);
+      char fileurl[_MAX_FNAME+25]; // should be sufficient in all cases
+      strcpy(fileurl, "file:///");
+      strcpy(fileurl + (url::isPathDelimiter(file[0]) && url::isPathDelimiter(file[1]) ? 5 : 8), file);
       char* dp = fileurl + strlen(fileurl);
       if (is_dir(file))
       { // Folder => add trailing slash
         if (!url::isPathDelimiter(dp[-1]))
           *dp++ = '/';
-        if (!(filedialog.ulUser & FDU_RECURSE_ON)) // Append '*' if recursion is off.
-          *dp++ = '*';
-        *dp = 0;
+        if (filedialog.ulUser & FDU_RECURSE_ON)
+        { strcpy(dp, "?recursive");
+          dp += 10;
+        } else
+          *dp = 0;
       }
       // convert slashes
       dp = strchr(fileurl+7, '\\');
@@ -2348,10 +2348,6 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
           configure_plugin( PLUGIN_NULL, cm->cmd - IDM_M_PLUG - 1, hplayer );
           return 0;
         }
-        if( cm->cmd > IDM_M_BOOKMARKS ) {
-          process_possible_bookmark( cm->cmd );
-          return 0;
-        }
         if( cm->cmd > IDM_M_LAST )
         {
           amp_load_playable( url::normalizeURL(cfg.last[cm->cmd-IDM_M_LAST-1]), 0 );
@@ -2374,8 +2370,14 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
           return 0;
 
         case IDM_M_ADDBOOK:
-          bm_add_bookmark( hwnd );
+        { // fetch song
+          int_ptr<Song> song = Current.GetCurrentSong();
+          if (!song)
+            return 0; // can't help, the file is gone
+
+          bm_add_bookmark(hwnd, song, out_playing_pos());
           return 0;
+        }
 
         case IDM_M_EDITBOOK:
           bm_show( TRUE );
@@ -2598,6 +2600,15 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
           return 0;
       }
       break;
+    }
+
+    case PlaylistMenu::UM_SELECTED:
+    { // bookmark selected
+      const PlaylistMenu::select_data* data = (PlaylistMenu::select_data*)PVOIDFROMMP(mp1);
+      BOOL rc = amp_load_playable(data->Item->GetURL(), AMP_LOAD_NOT_PLAY|AMP_LOAD_NOT_RECALL|AMP_LOAD_KEEP_PLAYLIST);
+
+      if( rc && (cfg.playonload || data->Pos > 0))
+        amp_play(data->Pos);
     }
 
     case WM_CREATE:

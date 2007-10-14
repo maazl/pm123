@@ -372,7 +372,7 @@ PlaylistBase::IC PlaylistManager::GetRecordUsage(RecordBase* rec)
 }
 
 bool PlaylistManager::RecursionCheck(Playable* pp, Record* parent)
-{ DEBUGLOG(("PlaylistManager(%p)::RecursionCheck(%p{%s}, %s)\n", this, pp, pp->GetURL().getObjName().cdata(), Record::DebugName(parent).cdata()));
+{ DEBUGLOG(("PlaylistManager(%p)::RecursionCheck(%p{%s}, %s)\n", this, pp, pp->GetURL().getShortName().cdata(), Record::DebugName(parent).cdata()));
   if (pp != &*Content)
   { for(;;)
     { if (parent == NULL || parent == (Record*)-1)
@@ -432,7 +432,7 @@ void PlaylistManager::SetTitle()
 }
 
 PlaylistManager::Record* PlaylistManager::AddEntry(PlayableInstance* obj, Record* parent, Record* after)
-{ DEBUGLOG(("PlaylistManager(%p{%s})::AddEntry(%p{%s}, %p, %p)\n", this, DebugName().cdata(), obj, obj->GetPlayable().GetURL().getObjName().cdata(), parent, after));
+{ DEBUGLOG(("PlaylistManager(%p{%s})::AddEntry(%p{%s}, %p, %p)\n", this, DebugName().cdata(), obj, obj->GetPlayable().GetURL().getShortName().cdata(), parent, after));
   /* Allocate a record in the HwndContainer */
   Record* rec = (Record*)WinSendMsg(HwndContainer, CM_ALLOCRECORD, MPFROMLONG(sizeof(Record) - sizeof(MINIRECORDCORE)), MPFROMLONG(1));
   if (rec == NULL)
@@ -577,7 +577,7 @@ void PlaylistManager::UpdateChildren(Record* const rp)
       for (;;)
       { if (*nrpp == NULL)
         { // not found! => add
-          DEBUGLOG(("PlaylistManager::UpdateChildren - not found: %p{%s}\n", &**ep, (*ep)->GetPlayable().GetURL().getObjName().cdata()));
+          DEBUGLOG(("PlaylistManager::UpdateChildren - not found: %p{%s}\n", &**ep, (*ep)->GetPlayable().GetURL().getShortName().cdata()));
           crp = AddEntry(&**ep, rp, crp);
           if (crp && (rp == NULL || ((rp->flRecordAttr & CRA_EXPANDED) && !crp->Data()->Recursive)))
             RequestChildren(crp);
@@ -587,11 +587,11 @@ void PlaylistManager::UpdateChildren(Record* const rp)
         { // found! => move
           if (nrpp == &OldHead)
           { // already in right order
-            DEBUGLOG(("PlaylistManager::UpdateChildren - found: %p{%s} at HEAD\n", &**ep, (*ep)->GetPlayable().GetURL().getObjName().cdata()));
+            DEBUGLOG(("PlaylistManager::UpdateChildren - found: %p{%s} at HEAD\n", &**ep, (*ep)->GetPlayable().GetURL().getShortName().cdata()));
             crp = OldHead;
           } else
           { // move
-            DEBUGLOG(("PlaylistManager::UpdateChildren - found: %p{%s} at %p\n", &**ep, (*ep)->GetPlayable().GetURL().getObjName().cdata(), *nrpp));
+            DEBUGLOG(("PlaylistManager::UpdateChildren - found: %p{%s} at %p\n", &**ep, (*ep)->GetPlayable().GetURL().getShortName().cdata(), *nrpp));
             crp = MoveEntry(*nrpp, rp, crp);
           }
           // Remove from queue

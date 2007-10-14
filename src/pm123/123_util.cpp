@@ -118,7 +118,7 @@ amp_display_filename( void )
       // if tag is empty - use filename instead of it.
 
     case CFG_DISP_FILENAME:
-      bmp_set_text( song->GetURL().getObjName() );
+      bmp_set_text( song->GetURL().getShortName() );
       break;
     
     case CFG_DISP_FILEINFO:

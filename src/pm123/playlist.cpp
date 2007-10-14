@@ -588,7 +588,7 @@ pl_remove_record( PLRECORD** array, USHORT count )
 }
 
 /* Removes all playlist records. */
-static void
+static void ////
 pl_remove_all( void )
 {
    PLRECORD* rec;
@@ -961,7 +961,7 @@ pl_clean_shuffle( void )
 
 /* Sets the title of the playlist window according to current
    playlist state. */
-void
+void ////
 pl_display_status( void )
 {
   char title[ _MAX_FNAME + 128 ];
@@ -1015,7 +1015,7 @@ pl_remove_selected( void )
 }
 
 /* Deletes all selected files. */
-static void
+static void ////
 pl_delete_selected( void )
 {
   PLRECORD* rec;
@@ -1039,7 +1039,7 @@ pl_delete_selected( void )
 }
 
 /* Shows the context menu of the playlist. */
-static void
+static void ////
 pl_show_context_menu( HWND parent, const PLRECORD* rec )
 {
   POINTL   pos;

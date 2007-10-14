@@ -26,6 +26,11 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#ifndef PLAYLISTVIEW_H
+#define PLAYLISTVIEW_H
+
+#define INCL_WIN
+
 #include <cpp/queue.h>
 #include <cpp/event.h>
 #include <cpp/smartptr.h>
@@ -37,6 +42,8 @@
 #include "playable.h"
 #include "playlist_base.h"
 #include <decoder_plug.h>
+
+#include <os2.h>
 
 
 /****************************************************************************
@@ -76,12 +83,17 @@ class PlaylistView : public PlaylistRepository<PlaylistView>
     CPData*&        Data() { return (CPData*&)RecordBase::Data; }
   };
  private:
-  static const struct Column
+  struct Column
   { ULONG DataAttr;
     ULONG TitleAttr;
     const char* Title;
     ULONG Offset;
-  } Columns[];
+  };
+ private:
+  static const Column MutableColumns[];
+  static const Column ConstColumns[];
+  static FIELDINFO* MutableFieldinfo;
+  static FIELDINFO* ConstFieldinfo;
  private: // working set
   HWND              MainMenu;
   HWND              ListMenu;
@@ -94,7 +106,9 @@ class PlaylistView : public PlaylistRepository<PlaylistView>
  
  private:
   // Post record message, filtered
-  virtual void      PostRecordCommand(RecordBase* rec, RecordCommand cmd); 
+  virtual void      PostRecordCommand(RecordBase* rec, RecordCommand cmd);
+  // initialization on the first call
+  FIELDINFO*        CreateFieldinfo(const Column* cols, size_t count); 
   // create container window
   virtual void      InitDlg();
   // Dialog procedure, called by DlgProcStub
@@ -129,3 +143,5 @@ class PlaylistView : public PlaylistRepository<PlaylistView>
   void              UpdateRecord(Record* rec, Playable::InfoFlags flags, PlayableInstance::StatusFlags iflags);
 };
 
+
+#endif

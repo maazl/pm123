@@ -62,7 +62,7 @@
 xstring PlaylistBase::RecordBase::DebugName() const
 { if (IsRemoved())
     return xstring::sprintf("%p{<removed>}", this);
-  return xstring::sprintf("%p{%p{%s}}", this, Content, Content->GetPlayable().GetURL().getObjName().cdata());
+  return xstring::sprintf("%p{%p{%s}}", this, Content, Content->GetPlayable().GetURL().getShortName().cdata());
 } 
 xstring PlaylistBase::RecordBase::DebugName(const RecordBase* rec)
 { static const xstring nullstring = "<NULL>";
@@ -72,7 +72,7 @@ xstring PlaylistBase::RecordBase::DebugName(const RecordBase* rec)
 }
 
 xstring PlaylistBase::DebugName() const
-{ return Content->GetURL().getObjName();
+{ return Content->GetURL().getShortName();
 } 
 #endif
 
@@ -472,7 +472,7 @@ void PlaylistBase::UpdatePlayStatus(RecordBase* rec)
 
 void PlaylistBase::InfoChangeEvent(const Playable::change_args& args, RecordBase* rec)
 { DEBUGLOG(("PlaylistBase(%p{%s})::InfoChangeEvent({%p{%s}, %x}, %s)\n", this, DebugName().cdata(),
-    &args.Instance, args.Instance.GetURL().getObjName().cdata(), args.Flags, RecordBase::DebugName(rec).cdata()));
+    &args.Instance, args.Instance.GetURL().getShortName().cdata(), args.Flags, RecordBase::DebugName(rec).cdata()));
 
   if (args.Flags & Playable::IF_Other)
     PostRecordCommand(rec, RC_UPDATECHILDREN);
@@ -488,7 +488,7 @@ void PlaylistBase::InfoChangeEvent(const Playable::change_args& args, RecordBase
 
 void PlaylistBase::StatChangeEvent(const PlayableInstance::change_args& args, RecordBase* rec)
 { DEBUGLOG(("PlaylistBase(%p{%s})::StatChangeEvent({%p{%s}, %x}, %p)\n", this, DebugName().cdata(),
-    &args.Instance, args.Instance.GetPlayable().GetURL().getObjName().cdata(), args.Flags, rec));
+    &args.Instance, args.Instance.GetPlayable().GetURL().getShortName().cdata(), args.Flags, rec));
 
   if (args.Flags & PlayableInstance::SF_Destroy)
   { WinSendMsg(HwndFrame, UM_SYNCREMOVE, MPFROMP(rec), 0);
@@ -526,7 +526,7 @@ static void DLLENTRY UserAddCallback(void* param, const char* url)
   // On the first call Lock the Playlist until the Wizzard returns.
   if (ucp.Lock == NULL)
     ucp.Lock = new Mutex::Lock(ucp.Parent->Mtx);
-  ucp.Parent->InsertItem(url, ucp.Before);
+  ucp.Parent->InsertItem(url, (const char*)NULL, 0, ucp.Before);
 } 
 
 void PlaylistBase::UserAdd(DECODER_WIZZARD_FUNC wizzard, const char* title, RecordBase* parent, RecordBase* before)

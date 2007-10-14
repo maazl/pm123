@@ -56,7 +56,7 @@ void PlayableCollectionEnumerator::InitNextLevel()
 
 RecursiveEnumerator* PlayableCollectionEnumerator::RecursionCheck(const Playable* item)
 { RecursiveEnumerator* r = PlayEnumerator::RecursionCheck(item);
-  DEBUGLOG(("PlayableCollectionEnumerator(%p)::RecursionCheck(%p{%s}): %p\n", this, item, item->GetURL().getObjName().cdata(), r));
+  DEBUGLOG(("PlayableCollectionEnumerator(%p)::RecursionCheck(%p{%s}): %p\n", this, item, item->GetURL().getShortName().cdata(), r));
   if (r)
     ((PlayableCollectionEnumerator&)*r).Recursive = true;
   return r;
@@ -149,14 +149,14 @@ Playable::~Playable()
 }
 
 /* Returns true if the specified file is a playlist file. */
-bool Playable::IsPlaylist(const char *url)
-{ // TODO: this is a very bad criterion
-  char ext[_MAX_EXT];
-  sfext( ext, url, sizeof( ext ));
-  return stricmp( ext, ".lst" ) == 0 ||
-         stricmp( ext, ".mpl" ) == 0 ||
-         stricmp( ext, ".pls" ) == 0 ||
-         stricmp( ext, ".m3u" ) == 0;
+bool Playable::IsPlaylist(const url& URL)
+{ const xstring& ext = URL.getExtension();
+  DEBUGLOG(("Playable::IsPlaylist(%s) - %s\n", URL.cdata(), ext.cdata()));
+  // TODO: this is a very bad criterion
+  return ext.compareToI(".lst", 4) == 0 ||
+         ext.compareToI(".mpl", 4) == 0 ||
+         ext.compareToI(".pls", 4) == 0 ||
+         ext.compareToI(".m3u", 4) == 0;
 }
 
 Playable::Flags Playable::GetFlags() const
@@ -179,7 +179,7 @@ void Playable::SetInUse(bool used)
 xstring Playable::GetDisplayName() const
 { //DEBUGLOG(("Playable(%p{%s})::GetDisplayName()\n", this, URL.cdata()));
   const META_INFO& meta = *GetInfo().meta;
-  return meta.title[0] ? xstring(meta.title) : URL.getObjName();
+  return meta.title[0] ? xstring(meta.title) : URL.getShortName();
 }
 
 void Playable::UpdateInfo(const FORMAT_INFO2* info)
@@ -226,7 +226,7 @@ bool Playable::SetMetaInfo(const META_INFO* meta)
 }
 
 void Playable::LoadInfoAsync(InfoFlags what)
-{ DEBUGLOG(("Playable(%p{%s})::LoadInfoAsync(%x)\n", this, GetURL().getObjName().cdata(), what));
+{ DEBUGLOG(("Playable(%p{%s})::LoadInfoAsync(%x)\n", this, GetURL().getShortName().cdata(), what));
   if (what == 0)
     return;
   // schedule request
@@ -311,21 +311,20 @@ int_ptr<Playable> Playable::FindByURL(const char* url)
   return RPInst.find(url);
 }
 
-int_ptr<Playable> Playable::GetByURL(const char* url, const FORMAT_INFO2* ca_format, const TECH_INFO* ca_tech, const META_INFO* ca_meta)
-{ DEBUGLOG(("Playable::GetByURL(%s)\n", url));
+int_ptr<Playable> Playable::GetByURL(const url& URL, const FORMAT_INFO2* ca_format, const TECH_INFO* ca_tech, const META_INFO* ca_meta)
+{ DEBUGLOG(("Playable::GetByURL(%s)\n", URL.cdata()));
   Mutex::Lock lock(RPMutex);
-  Playable*& pp = RPInst.get(url);
+  Playable*& pp = RPInst.get(URL);
   if (pp)
     return pp;
   // factory
   DEBUGLOG(("Playable::GetByURL: factory &%p{%p}\n", &pp, pp));
-  size_t p = strlen(url);
-  if (strnicmp(url, "file:", 5) == 0 && url[p-1] == '/')
-    pp = new PlayFolder(url, ca_tech, ca_meta);
-   else if (IsPlaylist(url))
-    pp = new Playlist(url, ca_tech, ca_meta);
+  if (URL.isScheme("file:") && URL.getObjectName().length() == 0)
+    pp = new PlayFolder(URL, ca_tech, ca_meta);
+   else if (IsPlaylist(URL))
+    pp = new Playlist(URL, ca_tech, ca_meta);
    else // Song
-    pp = new Song(url, ca_format, ca_tech, ca_meta);
+    pp = new Song(URL, ca_format, ca_tech, ca_meta);
   return pp;
 }
 
@@ -342,7 +341,7 @@ PlayableInstance::PlayableInstance(PlayableCollection& parent, Playable* playabl
   Stat(STA_Normal),
   Pos(0)
 { DEBUGLOG(("PlayableInstance(%p)::PlayableInstance(%p{%s}, %p{%s})\n", this,
-    &parent, parent.GetURL().getObjName().cdata(), playable, playable->GetURL().getObjName().cdata()));
+    &parent, parent.GetURL().getShortName().cdata(), playable, playable->GetURL().getShortName().cdata()));
 }
 
 PlayableInstance::~PlayableInstance()
@@ -427,14 +426,14 @@ void PlayableEnumerator::Reset()
 ****************************************************************************/
 
 bool PlayableCollection::Enumerator::Prev()
-{ DEBUGLOG(("PlayableCollection::Enumerator(%p{%p,->{%s}})::Prev()\n", this, Current, Parent->GetURL().getObjName().cdata()));
+{ DEBUGLOG(("PlayableCollection::Enumerator(%p{%p,->{%s}})::Prev()\n", this, Current, Parent->GetURL().getShortName().cdata()));
   Current = Current ? ((Entry*)Current)->Prev : Parent->Tail;
   DEBUGLOG(("PlayableCollection::Enumerator(%p)::Prev() - %p\n", this, Current));
   return IsValid();
 }
 
 bool PlayableCollection::Enumerator::Next()
-{ DEBUGLOG(("PlayableCollection::Enumerator(%p{%p,->{%s}})::Next()\n", this, Current, Parent->GetURL().getObjName().cdata()));
+{ DEBUGLOG(("PlayableCollection::Enumerator(%p{%p,->{%s}})::Next()\n", this, Current, Parent->GetURL().getShortName().cdata()));
   Current = Current ? ((Entry*)Current)->Next : Parent->Head;
   DEBUGLOG(("PlayableCollection::Enumerator(%p)::Next() - %p\n", this, Current));
   return IsValid();
@@ -450,16 +449,16 @@ const FORMAT_INFO2 PlayableCollection::no_format =
   -1
 };
 
-PlayableCollection::PlayableCollection(const char* url, const TECH_INFO* ca_tech, const META_INFO* ca_meta)
-: Playable(url, &no_format, ca_tech, ca_meta),
+PlayableCollection::PlayableCollection(const url& URL, const TECH_INFO* ca_tech, const META_INFO* ca_meta)
+: Playable(URL, &no_format, ca_tech, ca_meta),
   Head(NULL),
   Tail(NULL),
   Sort(Native)
-{ DEBUGLOG(("PlayableCollection(%p)::PlayableCollection(%s, %p, %p)\n", this, url, ca_tech, ca_meta));
+{ DEBUGLOG(("PlayableCollection(%p)::PlayableCollection(%s, %p, %p)\n", this, URL.cdata(), ca_tech, ca_meta));
 }
 
 PlayableCollection::~PlayableCollection()
-{ DEBUGLOG(("PlayableCollection(%p{%s})::~PlayableCollection()\n", this, GetURL().getObjName().cdata()));
+{ DEBUGLOG(("PlayableCollection(%p{%s})::~PlayableCollection()\n", this, GetURL().getShortName().cdata()));
   // frist disable all events
   CollectionChange.reset();
   InfoChange.reset();
@@ -478,13 +477,13 @@ Playable::Flags PlayableCollection::GetFlags() const
 }
 
 PlayableCollection::Entry* PlayableCollection::CreateEntry(const char* url)
-{ DEBUGLOG(("PlayableCollection(%p{%s})::CreateEntry(%s)\n", this, GetURL().getObjName().cdata(), url));
+{ DEBUGLOG(("PlayableCollection(%p{%s})::CreateEntry(%s)\n", this, GetURL().getShortName().cdata(), url));
   // now create the entry with absolute path
   return new Entry(*this, GetByURL(GetURL().makeAbsolute(url)), &ChildInfoChange);
 }
 
 void PlayableCollection::AppendEntry(Entry* entry)
-{ DEBUGLOG(("PlayableCollection(%p{%s})::AppendEntry(%p{%s,%p,%p})\n", this, GetURL().getObjName().cdata(), entry, entry->GetPlayable().GetURL().getObjName().cdata(), entry->Prev, entry->Next));
+{ DEBUGLOG(("PlayableCollection(%p{%s})::AppendEntry(%p{%s,%p,%p})\n", this, GetURL().getShortName().cdata(), entry, entry->GetPlayable().GetURL().getShortName().cdata(), entry->Prev, entry->Next));
   if ((entry->Prev = Tail) != NULL)
     Tail->Next = entry;
    else
@@ -496,7 +495,7 @@ void PlayableCollection::AppendEntry(Entry* entry)
 }
 
 void PlayableCollection::InsertEntry(Entry* entry, Entry* before)
-{ DEBUGLOG(("PlayableCollection(%p{%s})::InsertEntry(%p{%s,%p,%p}, %p{%s})\n", this, GetURL().getObjName().cdata(), entry, entry->GetPlayable().GetURL().getObjName().cdata(), entry->Prev, entry->Next, before, before->GetPlayable().GetURL().getObjName().cdata()));
+{ DEBUGLOG(("PlayableCollection(%p{%s})::InsertEntry(%p{%s,%p,%p}, %p{%s})\n", this, GetURL().getShortName().cdata(), entry, entry->GetPlayable().GetURL().getShortName().cdata(), entry->Prev, entry->Next, before, before->GetPlayable().GetURL().getShortName().cdata()));
   entry->Next = before;
   if ((entry->Prev = before->Prev) != NULL)
     entry->Prev->Next = entry;
@@ -509,7 +508,7 @@ void PlayableCollection::InsertEntry(Entry* entry, Entry* before)
 }
 
 void PlayableCollection::RemoveEntry(Entry* entry)
-{ DEBUGLOG(("PlayableCollection(%p{%s})::RemoveEntry(%p{%s,%p,%p})\n", this, GetURL().getObjName().cdata(), entry, entry->GetPlayable().GetURL().getObjName().cdata(), entry->Prev, entry->Next));
+{ DEBUGLOG(("PlayableCollection(%p{%s})::RemoveEntry(%p{%s,%p,%p})\n", this, GetURL().getShortName().cdata(), entry, entry->GetPlayable().GetURL().getShortName().cdata(), entry->Prev, entry->Next));
   CollectionChange(change_args(*this, *entry, Delete));
   DEBUGLOG(("PlayableCollection::RemoveEntry - after event\n"));
   if (entry->Prev)
@@ -551,15 +550,15 @@ void PlayableCollection::AddTechInfo(TECH_INFO& dst, const TECH_INFO& tech)
 }
 
 void PlayableCollection::ChildInfoChange(const Playable::change_args& args)
-{ DEBUGLOG(("PlayableCollection(%p{%s})::ChildInfoChange({{%s},%x})\n", this, GetURL().getObjName().cdata(),
-    args.Instance.GetURL().getObjName().cdata(), args.Flags));
+{ DEBUGLOG(("PlayableCollection(%p{%s})::ChildInfoChange({{%s},%x})\n", this, GetURL().getShortName().cdata(),
+    args.Instance.GetURL().getShortName().cdata(), args.Flags));
   // update dependant tech info, but only if already available
   if (args.Flags & InfoValid & IF_Tech)
     LoadInfoAsync(IF_Tech);
 }
 
 void PlayableCollection::CalcTechInfo(TECH_INFO& dst)
-{ DEBUGLOG(("PlayableCollection(%p{%s})::CalcTechInfo(%p{}) - %x\n", this, GetURL().getObjName().cdata(), &dst, InfoValid));
+{ DEBUGLOG(("PlayableCollection(%p{%s})::CalcTechInfo(%p{}) - %x\n", this, GetURL().getShortName().cdata(), &dst, InfoValid));
 
   memset(&dst, 0, sizeof dst);
   dst.size = sizeof dst;
@@ -579,7 +578,7 @@ void PlayableCollection::CalcTechInfo(TECH_INFO& dst)
     dst.bitrate = dst.filesize >= 0 && dst.songlength > 0
       ? dst.filesize / dst.songlength / (1000/8)
       : -1;
-    DEBUGLOG(("PlayableCollection::CalcTechInfo(): %s {%f, %i, %f}\n", GetURL().getObjName().cdata(), dst.songlength, dst.bitrate, dst.filesize));
+    DEBUGLOG(("PlayableCollection::CalcTechInfo(): %s {%f, %i, %f}\n", GetURL().getShortName().cdata(), dst.songlength, dst.bitrate, dst.filesize));
     // Info string
     // Since all strings are short, there may be no buffer overrun.
     if (dst.songlength < 0)
@@ -602,13 +601,13 @@ void PlayableCollection::CalcTechInfo(TECH_INFO& dst)
 }
 
 PlayableEnumerator* PlayableCollection::GetEnumerator()
-{ DEBUGLOG(("PlayableCollection(%p{%s})::GetEnumerator()\n", this, GetURL().getObjName().cdata()));
+{ DEBUGLOG(("PlayableCollection(%p{%s})::GetEnumerator()\n", this, GetURL().getShortName().cdata()));
   EnsureInfo(IF_Other);
   return new Enumerator(this);
 }
 
 void PlayableCollection::LoadInfo(InfoFlags what)
-{ DEBUGLOG(("PlayableCollection(%p{%s})::LoadInfo() - %x %u\n", this, GetURL().getObjName().cdata(), InfoValid, Stat));
+{ DEBUGLOG(("PlayableCollection(%p{%s})::LoadInfo() - %x %u\n", this, GetURL().getShortName().cdata(), InfoValid, Stat));
   Mutex::Lock lock(Mtx);
   if ((what & (IF_Other|IF_Status|IF_Tech)) == 0)
   { // default implementation to fullfill the minimum requirements of LoadInfo.
@@ -653,7 +652,7 @@ Playable::Flags Playlist::GetFlags() const
 }
 
 bool Playlist::LoadLST(XFILE* x)
-{ DEBUGLOG(("Playlist(%p{%s})::LoadLST(%p)\n", this, GetURL().getObjName().cdata(), x));
+{ DEBUGLOG(("Playlist(%p{%s})::LoadLST(%p)\n", this, GetURL().getShortName().cdata(), x));
   
   // TODO: fixed buffers...
   char file [4096];
@@ -664,6 +663,7 @@ bool Playlist::LoadLST(XFILE* x)
     DEBUGLOG(("Playlist::LoadLST - %s\n", file));
 
     if( *file != 0 && *file != '#' && *file != '>' && *file != '<' ) {
+      // TODO: fetch position
       AppendEntry(CreateEntry(file));
     }
   }
@@ -671,7 +671,7 @@ bool Playlist::LoadLST(XFILE* x)
 }
 
 bool Playlist::LoadMPL(XFILE* x)
-{ DEBUGLOG(("Playlist(%p{%s})::LoadMPL(%p)\n", this, GetURL().getObjName().cdata(), x));
+{ DEBUGLOG(("Playlist(%p{%s})::LoadMPL(%p)\n", this, GetURL().getShortName().cdata(), x));
   
   // TODO: fixed buffers...
   char   file    [4096];
@@ -688,6 +688,7 @@ bool Playlist::LoadMPL(XFILE* x)
       if( eq_pos && strnicmp( file, "File", 4 ) == 0 )
       {
         strcpy( file, eq_pos + 1 );
+        // TODO: fetch position
         AppendEntry(CreateEntry(file));
       }
     }
@@ -696,7 +697,7 @@ bool Playlist::LoadMPL(XFILE* x)
 }
 
 bool Playlist::LoadPLS(XFILE* x)
-{ DEBUGLOG(("Playlist(%p{%s})::LoadPLS(%p)\n", this, GetURL().getObjName().cdata(), x));
+{ DEBUGLOG(("Playlist(%p{%s})::LoadPLS(%p)\n", this, GetURL().getShortName().cdata(), x));
   
   char   file    [_MAX_PATH] = "";
   char   title   [_MAX_PATH] = "";
@@ -717,7 +718,7 @@ bool Playlist::LoadPLS(XFILE* x)
         if( strnicmp( line, "File", 4 ) == 0 )
         {
           if( *file ) {
-            // TODO: title
+            // TODO: title, position
             AppendEntry(CreateEntry(file));
             have_title = FALSE;
           }
@@ -738,6 +739,7 @@ bool Playlist::LoadPLS(XFILE* x)
   }
 
   if( *file ) {
+    // TODO: fetch position
     AppendEntry(CreateEntry(file));
     //pl_add_file( file, have_title ? title : NULL, 0 );
   }
@@ -746,7 +748,7 @@ bool Playlist::LoadPLS(XFILE* x)
 }
 
 bool Playlist::LoadInfoCore()
-{ DEBUGLOG(("Playlist(%p{%s})::LoadInfoCore()\n", this, GetURL().getObjName().cdata()));
+{ DEBUGLOG(("Playlist(%p{%s})::LoadInfoCore()\n", this, GetURL().getShortName().cdata()));
 
   // clear content if any
   while (Head)
@@ -777,9 +779,11 @@ bool Playlist::LoadInfoCore()
   return rc;
 }
 
-void Playlist::InsertItem(const char* url, PlayableInstance* before)
-{ DEBUGLOG(("Playlist(%p{%s})::InsertItem(%s, %p) - %u\n", this, GetURL().getObjName().cdata(), url, before, Stat));
+void Playlist::InsertItem(const char* url, const xstring& alias, double pos, PlayableInstance* before)
+{ DEBUGLOG(("Playlist(%p{%s})::InsertItem(%s, %s, %.1f, %p) - %u\n", this, GetURL().getShortName().cdata(), url, alias?alias.cdata():"<NULL>", pos, before, Stat));
   Entry* ep = CreateEntry(url);
+  ep->SetAlias(alias);
+  ep->SetPlayPos(pos);
   Mutex::Lock lock(Mtx);
   if (Stat <= STA_Invalid)
   { InfoChangeFlags |= IF_Status;
@@ -798,7 +802,7 @@ void Playlist::InsertItem(const char* url, PlayableInstance* before)
 }
 
 void Playlist::RemoveItem(PlayableInstance* item)
-{ DEBUGLOG(("Playlist(%p{%s})::RemoveItem(%p{%s})\n", this, GetURL().getObjName().cdata(), item, item ? item->GetPlayable().GetURL().getObjName().cdata() : ""));
+{ DEBUGLOG(("Playlist(%p{%s})::RemoveItem(%p{%s})\n", this, GetURL().getShortName().cdata(), item, item ? item->GetPlayable().GetURL().getShortName().cdata() : ""));
   Mutex::Lock lock(Mtx);
   if (item)
     RemoveEntry((Entry*)item);
@@ -826,37 +830,39 @@ void Playlist::RemoveItem(PlayableInstance* item)
 *
 ****************************************************************************/
 
-PlayFolder::PlayFolder(const char* url, const TECH_INFO* ca_tech, const META_INFO* ca_meta)
-: PlayableCollection(url, ca_tech, ca_meta)
-{ DEBUGLOG(("PlayFolder(%p)::PlayFolder(...)\n", this));
+PlayFolder::PlayFolder(const url& URL, const TECH_INFO* ca_tech, const META_INFO* ca_meta)
+: PlayableCollection(URL, ca_tech, ca_meta)
+{ DEBUGLOG(("PlayFolder(%p)::PlayFolder(%s, %p, %p)\n", this, URL.cdata(), ca_tech, ca_meta));
   ParseQueryParams();
 }
 
 void PlayFolder::ParseQueryParams()
-{ DEBUGLOG(("PlayFolder(%p)::ParseQueryParams()\n", this));
-  xstring params = GetURL().getParameter();
+{ xstring params = GetURL().getParameter();
+  DEBUGLOG(("PlayFolder(%p)::ParseQueryParams() - %s\n", this, params.cdata()));
   if (params.length() == 0)
-    return;
+    return; // no params
   const char* cp = params.cdata() +1;
-  while (*cp)
+  if (*cp == 0)
+    return; // empty params
+  for(;;)
   { const char* cp2 = strchr(cp, '&');
-    if (cp2 == 0)
-      cp2 = params.cdata() + params.length(); // = cp + strlen(cp);
-    xstring arg(cp, cp2-cp);
+    xstring arg(cp, cp2 ? cp2-cp : params.cdata()+params.length()-cp);
+    DEBUGLOG(("PlayFolder::ParseQueryParams: arg=%s\n", arg.cdata()));
     if (arg.startsWithI("pattern="))
       Pattern.assign(arg.cdata() +8);
     else if (arg.startsWithI("recursive"))
       Recursive = true;
     else
       DEBUGLOG(("PlayFolder::ParseQueryParams: invalid option %s\n", arg.cdata()));
-   
+    if (cp2 == NULL)
+      break;
     cp = cp2 +1;
   }
   DEBUGLOG(("PlayFolder::ParseQueryParams: %s %u\n", Pattern ? Pattern.cdata() : "<null>", Recursive));
 }
 
 bool PlayFolder::LoadInfoCore()
-{ DEBUGLOG(("PlayFolder(%p{%s})::LoadInfoCore()\n", this, GetURL().getObjName().cdata()));
+{ DEBUGLOG(("PlayFolder(%p{%s})::LoadInfoCore()\n", this, GetURL().getShortName().cdata()));
   if (!GetURL().isScheme("file:")) // Can't handle anything but filesystem folders so far.
     return false;
   xstring name = GetURL().getBasePath();
@@ -873,13 +879,24 @@ bool PlayFolder::LoadInfoCore()
   HDIR hdir = HDIR_CREATE;
   char result[2048];
   ULONG count = sizeof result / sizeof(FILEFINDBUF3);
-  APIRET rc = DosFindFirst(name, &hdir, Recursive ? FILE_NORMAL : FILE_ARCHIVED|FILE_SYSTEM|FILE_HIDDEN|FILE_READONLY,
+  APIRET rc = DosFindFirst(name, &hdir, Recursive ? FILE_ARCHIVED|FILE_SYSTEM|FILE_HIDDEN|FILE_READONLY|FILE_DIRECTORY
+                                                  : FILE_ARCHIVED|FILE_SYSTEM|FILE_HIDDEN|FILE_READONLY,
     &result, sizeof result, &count, FIL_STANDARD);
   while (rc == 0)
   { // add files
     for (FILEFINDBUF3* fp = (FILEFINDBUF3*)result; count--; ((char*&)fp) += fp->oNextEntryOffset)
-    { DEBUGLOG(("PlayFolder::LoadInfoCore - \n", name.cdata(), rc));
-        AppendEntry(CreateEntry(fp->achName));
+    { DEBUGLOG(("PlayFolder::LoadInfoCore - %s, %x\n", fp->achName, fp->attrFile));
+      // skip . and ..
+      if (fp->achName[0] == '.' && (fp->achName[1] == 0 || (fp->achName[1] == '.' && fp->achName[2] == 0)))
+        continue;
+      Entry* ep;
+      if (fp->attrFile & FILE_DIRECTORY)
+      { // inherit parameters 
+        xstring tmp = xstring::sprintf("%s/%s", fp->achName, GetURL().getParameter().cdata());
+        ep = CreateEntry(tmp);
+      } else
+        ep = CreateEntry(fp->achName);
+      AppendEntry(ep);
     }
     // next...
     count = sizeof result / sizeof(FILEFINDBUF3);

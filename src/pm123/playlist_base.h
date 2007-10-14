@@ -29,6 +29,8 @@
 #ifndef PLAYLIST_BASE_H
 #define PLAYLIST_BASE_H
 
+#define INCL_WIN
+
 #include <cpp/queue.h>
 #include <cpp/event.h>
 #include <cpp/smartptr.h>
@@ -39,6 +41,7 @@
 #define DECODER_PLUGIN_LEVEL 2
 #include "playable.h"
 #include <decoder_plug.h>
+#include <os2.h>
 
 #include <debuglog.h>
 
@@ -232,6 +235,8 @@ class PlaylistBase : public IComparableTo<char>
   // Make the window visible (or not)
   void              SetVisible(bool show);
   bool              GetVisible() const { return WinIsWindowVisible(HwndFrame); }
+  // Gets the content
+  Playable*         GetContent() { return Content; }
   // Get an instance of the same type as the current instance for URL.
   virtual PlaylistBase* GetSame(const url& URL) = 0;
   

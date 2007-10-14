@@ -36,6 +36,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
+#include <ctype.h>
 #include <stdarg.h>
 #include <cpp/smartptr.h>
 
@@ -137,9 +138,19 @@ class xstring
   bool        startsWith(const xstring& r) const { return startsWith(*r.Data, r.length()); }
   bool        startsWith(const char* r) const { return startsWith(r, strlen(r)); }
   bool        startsWith(const char* r, size_t len) const;
+  bool        startsWith(char c) const      { return length() && (*Data)[0] == c; }
   bool        startsWithI(const xstring& r) const { return startsWithI(*r.Data, r.length()); }
   bool        startsWithI(const char* r) const { return startsWithI(r, strlen(r)); }
   bool        startsWithI(const char* r, size_t len) const;
+  bool        startsWithI(char c) const     { return length() && tolower((*Data)[0]) == tolower(c); }
+  bool        endsWith(const xstring& r) const { return endsWith(*r.Data, r.length()); }
+  bool        endsWith(const char* r) const { return endsWith(r, strlen(r)); }
+  bool        endsWith(const char* r, size_t len) const;
+  bool        endsWith(char c) const        { return length() && (*Data)[length()-1] == c; }
+  bool        endsWithI(const xstring& r) const { return endsWithI(*r.Data, r.length()); }
+  bool        endsWithI(const char* r) const { return endsWithI(r, strlen(r)); }
+  bool        endsWithI(const char* r, size_t len) const;
+  bool        endsWithI(char c) const       { return length() && tolower((*Data)[length()-1]) == tolower(c); }
   // swap two instances
   void        swap(xstring& r)              { Data.swap(r.Data); }
   // assign new value
