@@ -89,10 +89,7 @@ factory_settings( void )
   cfg.font_attrs.lAveCharWidth   =  5L;
 
   strcpy( cfg.font_attrs.szFacename, "System VIO" );
-
-  // Last used stuph.
-  memset( cfg.last[0], '\0', 256 * MAX_RECALL );
-  memset( cfg.list[0], '\0', 256 * MAX_RECALL );
+  // TODO: clear MRU lists
 }
 
 void
@@ -139,8 +136,6 @@ load_ini( void )
     load_ini_value( INIhandle, cfg.font_attrs );
     load_ini_value( INIhandle, cfg.font_size );
     load_ini_value( INIhandle, cfg.main );
-    load_ini_value( INIhandle, cfg.last );
-    load_ini_value( INIhandle, cfg.list );
 
     load_ini_string( INIhandle, cfg.filedir,  sizeof( cfg.filedir ));
     load_ini_string( INIhandle, cfg.listdir,  sizeof( cfg.listdir ));
@@ -264,8 +259,6 @@ save_ini( void )
     save_ini_value( INIhandle, cfg.font_attrs );
     save_ini_value( INIhandle, cfg.font_size );
     save_ini_value( INIhandle, cfg.main );
-    save_ini_value( INIhandle, cfg.last );
-    save_ini_value( INIhandle, cfg.list );
 
     save_ini_string( INIhandle, cfg.filedir );
     save_ini_string( INIhandle, cfg.listdir );

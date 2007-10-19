@@ -1084,7 +1084,7 @@ pl_show_context_menu( HWND parent, const PLRECORD* rec )
   id    = IDM_PL_APPOTHER; 
   while ( --count == SHORT1FROMMR( WinSendMsg( mh, MM_DELETEITEM, MPFROM2SHORT( id++, FALSE ), 0 )) );
 
-  append_load_menu( mh, IDM_PL_APPOTHER, assists, sizeof assists / sizeof *assists );
+  append_load_menu( mh, IDM_PL_APPOTHER, 2, assists, sizeof assists / sizeof *assists );
 
   // Open Menu
   WinSendMsg( menu_playlist, MM_QUERYITEM,
@@ -1102,7 +1102,7 @@ pl_show_context_menu( HWND parent, const PLRECORD* rec )
   }
 
 
-  if( *cfg.list[0] )
+  /*if( *cfg.list[0] )
   {
     // Add separator.
     mi.iPosition = MIT_END;
@@ -1155,7 +1155,7 @@ pl_show_context_menu( HWND parent, const PLRECORD* rec )
   } else {
     WinSendMsg( menu_playlist, MM_SETITEMATTR,
                 MPFROM2SHORT( IDM_PL_OPENLAST, TRUE ), MPFROM2SHORT( MIA_DISABLED, MIA_DISABLED ));
-  }
+  }*/
 
   /* TODO: makes no more sense
   if( amp_playmode == AMP_PLAYLIST ) {
@@ -1743,7 +1743,7 @@ pl_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
           cm->cmd <= IDM_PL_OPENLAST + MAX_RECALL )
       {
         char filename[_MAX_PATH];
-        strcpy( filename, cfg.list[ cm->cmd - IDM_PL_OPENLAST - 1 ]);
+        //strcpy( filename, cfg.list[ cm->cmd - IDM_PL_OPENLAST - 1 ]);
 
         if( is_playlist( filename )) {
           pl_load( filename, PL_LOAD_CLEAR );

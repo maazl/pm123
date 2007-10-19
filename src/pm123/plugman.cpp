@@ -1253,30 +1253,42 @@ load_plugin_menu( HWND hMenu )
 }
 
 void
-append_load_menu( HWND hMenu, ULONG id_base, DECODER_WIZZARD_FUNC* callbacks, int size )
+append_load_menu( HWND hMenu, ULONG id_base, SHORT where, DECODER_WIZZARD_FUNC* callbacks, int size )
 { 
   DEBUGLOG(("append_load_menu(%p, %d, %d, %p, %d)\n", hMenu, id_base, callbacks, size));
+  int i;
+  // cleanup
+  SHORT lastcount = -1;
+  for (i = 0; i < size; ++i)
+  { SHORT newcount = SHORT1FROMMP(WinSendMsg(hMenu, MM_DELETEITEM, MPFROM2SHORT(id_base+i, FALSE), 0));
+    DEBUGLOG(("append_load_menu - %i %i\n", i, newcount));
+    if (newcount == lastcount)
+      break;
+    lastcount = newcount;
+  }
   // for all decoder plug-ins...
-  for (int i = 0; i < decoders.count(); ++i)
+  for (i = 0; i < decoders.count(); ++i)
   { CL_DECODER& dec = (CL_DECODER&)decoders[i];
     if (dec.get_enabled() && dec.get_procs().decoder_getwizzard)
     { const DECODER_WIZZARD* da = (*dec.get_procs().decoder_getwizzard)();
       DEBUGLOG(("append_load_menu: %s - %p\n", dec.module_name, da));
+      MENUITEM mi = {0};
+      mi.iPosition   = where;
+      mi.afStyle     = MIS_TEXT;
+      //mi.afAttribute = 0;
+      //mi.hwndSubMenu = NULLHANDLE;
+      //mi.hItem       = 0;
       while (da != NULL)
       { if (size-- == 0)
           return; // too many entries, can't help
-        DEBUGLOG(("append_load_menu: add %s -> %p\n", da->prompt, da->wizzard));
         // Add menu item
-        MENUITEM mi;
-        mi.iPosition   = MIT_END;
-        mi.afStyle     = MIS_TEXT;
-        mi.afAttribute = 0;
-        mi.id          = id_base++;
-        mi.hwndSubMenu = NULLHANDLE;
-        mi.hItem       = 0;
-        WinSendMsg( hMenu, MM_INSERTITEM, MPFROMP( &mi ), MPFROMP( da->prompt ));
+        mi.id        = id_base++;
+        SHORT pos = SHORT1FROMMR(WinSendMsg(hMenu, MM_INSERTITEM, MPFROMP(&mi), MPFROMP(da->prompt)));
+        DEBUGLOG(("append_load_menu: add %u: %s -> %p => %u\n", id_base, da->prompt, da->wizzard, pos));
         // Add callback function
-        *callbacks++   = da->wizzard;
+        *callbacks++ = da->wizzard;
+        if (mi.iPosition != MIT_END)
+          ++mi.iPosition;
         // next entry
         da = da->link;
       }

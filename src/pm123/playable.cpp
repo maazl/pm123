@@ -570,7 +570,8 @@ void PlayableCollection::CalcTechInfo(TECH_INFO& dst)
     penum.Attach(this);
     Song* song;
     while ((song = penum.Next()) != NULL)
-    { song->EnsureInfo(Playable::IF_Tech);
+    { song->EnsureInfoAsync(Playable::IF_Tech);
+      // Whether or not the information is yet available, we work with the current values to avoid deadlocks.
       AddTechInfo(dst, *song->GetInfo().tech);
     }
     dst.recursive = penum.GetRecursive();

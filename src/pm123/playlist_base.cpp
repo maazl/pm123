@@ -139,9 +139,8 @@ void PlaylistBase::PostRecordCommand(RecordBase* rec, RecordCommand cmd)
     return; // requested command is already on the way or another unexecuted message is outstanding
   }
   // There is a little chance that we generate two messages for the same record.
-  // The second one will be a no-op in the window procedure.  
-  if (rec)
-    InterlockedInc(rec->UseCount);
+  // The second one will be a no-op in the window procedure.
+  BlockRecord(rec);  
   if (!WinPostMsg(HwndFrame, UM_RECORDCOMMAND, MPFROMP(rec), MPFROMSHORT(TRUE)))
     FreeRecord(rec); // avoid memory leaks
 }
@@ -246,7 +245,7 @@ MRESULT PlaylistBase::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
           WinSendMsg( mh, MM_DELETEITEM, MPFROM2SHORT( id, FALSE ), 0 );
         }
         memset(LoadWizzards+2, 0, sizeof LoadWizzards - 2*sizeof *LoadWizzards ); // You never know...
-        append_load_menu( mh, SHORT1FROMMP(mp1) == IDM_PL_APPOTHER,
+        append_load_menu( mh, SHORT1FROMMP(mp1) == IDM_PL_APPOTHER, 2,
           LoadWizzards+2, sizeof LoadWizzards / sizeof *LoadWizzards - 2 );
       }
     }
@@ -513,20 +512,38 @@ void PlaylistBase::PlayStatEvent(const bool& status)
 
 
 struct UserAddCallbackParams
-{ int_ptr<Playlist> Parent;
-  PlayableInstance* Before;
+{ RecordBase* Parent;
+  RecordBase* Before;
   sco_ptr<Mutex::Lock> Lock;
-  UserAddCallbackParams(Playlist* parent, PlayableInstance* before) : Parent(parent), Before(before) {}
+  UserAddCallbackParams(Playlist* parent, PlayableInstance* before) : Parent(parent), Before(before)
+  { // Increment usage count of the records unless the dialog completed.
+    BlockRecord(parent);
+    BlockRecord(before); 
+  }
+  ~UserAddCallbackParams()
+  { FreeRecord(before);
+    FreeRecord(parent);
+  }
 };
 
 static void DLLENTRY UserAddCallback(void* param, const char* url)
 { DEBUGLOG(("PlaylistManager:UserAddCallback(%p, %s)\n", param, url));
   UserAddCallbackParams& ucp = *(UserAddCallbackParams*)param;
-  // TODO: Before might be no longer valid.
+  parent ? &(Playlist&)parent->Content->GetPlayable() : &(Playlist&)*Content
+  before ? before->Content : NULL
+  // parent might be no longer valid.
+  if (RecordBase::IsRemoved(ucp.Parent))
+    return; // Ignore (can't help)
+  int_ptr<Playable> play = parent ? &parent->Content->GetPlayable() : Content;
+  if ((play->GetFlags() & Playable::Mutable) != Playable::Mutable)
+    return; // Can't add something to a non-playlist.
   // On the first call Lock the Playlist until the Wizzard returns.
   if (ucp.Lock == NULL)
-    ucp.Lock = new Mutex::Lock(ucp.Parent->Mtx);
-  ucp.Parent->InsertItem(url, (const char*)NULL, 0, ucp.Before);
+    ucp.Lock = new Mutex::Lock(play->Mtx);
+  // parent and before might be no longer valid.
+  if (RecordBase::IsRemoved(ucp.Parent) || RecordBase::IsRemoved(ucp.Before))
+    return; // Ignore (can't help)
+  play->InsertItem(url, (const char*)NULL, 0, ucp.Before ? ucp.Before->Content : NULL);
 } 
 
 void PlaylistBase::UserAdd(DECODER_WIZZARD_FUNC wizzard, const char* title, RecordBase* parent, RecordBase* before)
@@ -536,7 +553,7 @@ void PlaylistBase::UserAdd(DECODER_WIZZARD_FUNC wizzard, const char* title, Reco
   Playable& play = parent ? parent->Content->GetPlayable() : *Content;
   if ((play.GetFlags() & Playable::Mutable) != Playable::Mutable)
     return; // Can't add something to a non-playlist.
-  UserAddCallbackParams ucp(parent ? &(Playlist&)parent->Content->GetPlayable() : &(Playlist&)*Content, before ? before->Content : NULL);
+  UserAddCallbackParams ucp(parent, before);
   ULONG ul = (*wizzard)(HwndFrame, title, &UserAddCallback, &ucp);
   DEBUGLOG(("PlaylistManager::UserAdd - %u\n", ul));
   // TODO: cfg.listdir obsolete?

@@ -91,10 +91,12 @@ void bm_add_bookmark(HWND owner, Playable* item, double pos)
   WinSetDlgItemText(hdlg, EF_BM_DESC, desc);
 
   if (WinProcessDlg(hdlg) == DID_OK)
-  {
-    char* cp = desc.raw_init(WinQueryDlgItemTextLength(hdlg, EF_BM_DESC));
-    WinQueryDlgItemText(hdlg, EF_BM_DESC, desc.length()+1, cp);
-    bm_get()->InsertItem(item->GetURL(), desc, pos); 
+  { xstring alias;
+    char* cp = alias.raw_init(WinQueryDlgItemTextLength(hdlg, EF_BM_DESC));
+    WinQueryDlgItemText(hdlg, EF_BM_DESC, alias.length()+1, cp);
+    if (alias == desc)
+      alias = NULL; // Don't set alias if not required.
+    bm_get()->InsertItem(item->GetURL(), alias, pos); 
     // TODO !!!!!
     //bm_save( owner );
   }

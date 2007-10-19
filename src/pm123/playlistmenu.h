@@ -62,8 +62,11 @@ class PlaylistMenu
 {public:
   enum EntryFlags
   { None            = 0x00,
-    DummyIfEmpty    = 0x01,
-    SkipInvalid     = 0x10
+    DummyIfEmpty    = 0x01, // Create dummy entry if content is empty.
+    Enumerate       = 0x02, // Enumerate items
+    Separator       = 0x04, // Place separator before and after the generated entries unless it's the beginning/end
+    Recursive       = 0x10, // create submenus for playlist or folder items
+    SkipInvalid     = 0x20  // exclude invalid entries.
   };
   enum // The ID's here must be distinct from the user messages of any other window.
   { // This message is internally used by this class to notify changes of the selected items.
@@ -120,6 +123,7 @@ class PlaylistMenu
   // Fetch and reserve free menu ID
   // Start Searching after "start". This is an optimization. 
   USHORT            AllocateID();
+  USHORT            InsertSeparator(HWND menu, SHORT where);
   // Create Subitems according to the content of the playable object 
   void              CreateSubItems(MapEntry* mapp);
   // Removes all matching items from the menu

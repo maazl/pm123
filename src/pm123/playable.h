@@ -353,6 +353,7 @@ class PlayableEnumerator
   PlayableInstance& operator*() const { return *Current; }
   // Shortcut for structured objects.
   PlayableInstance* operator->() const { return Current; }
+  operator PlayableInstance*() const { return Current; }
   // Reset the current enumerator to it's initial state before the first element.
   virtual void Reset();
   // Move to the pervious element. If the enumerator is initial Prev() moves to the last element.

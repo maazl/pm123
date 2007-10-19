@@ -54,16 +54,13 @@
 
 typedef struct _amp_cfg {
 
+  // TODO: buffers too small for URLs!!!
   char   filedir[_MAX_PATH];  /* The last directory used for addition of files.    */
   char   listdir[_MAX_PATH];  /* The last directory used for access to a playlist. */
   char   savedir[_MAX_PATH];  /* The last directory used for saving a stream.      */
   char   lasteq [_MAX_PATH];  /* The last directory used for saving a state of an  */
                               /* equalizer.                                        */
   char   defskin[_MAX_PATH];  /* Default skin.                                     */
-
-  // TODO: buffers too small for URLs!!!
-  char   last[MAX_RECALL][_MAX_PATH];
-  char   list[MAX_RECALL][_MAX_PATH];
 
   BOOL   eq_enabled;          /* Is the equalizer enabled.              */
   int    defaultvol;          /* Current audio volume.                  */

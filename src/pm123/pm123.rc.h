@@ -75,6 +75,7 @@
 #define IDM_M_TAG           523
 #define IDM_M_MANAGER       540
 #define IDM_M_SAVE          542
+#define IDM_M_BOOKMARKS     544
 #define IDM_M_ADDBOOK       545
 #define IDM_M_EDITBOOK      546
 #define IDM_M_PLAYBACK      547
@@ -88,11 +89,12 @@
 #define IDM_M_LOADOTHER     603 /* reserve some ID's for several plug-ins.  */
 
 #define IDM_M_LAST        10000 /* A lot of IDs after this need to be free. */
-#define IDM_M_BOOKMARKS   11000 /* A lot of IDs after this need to be free. */
-#define IDM_M_BOOKMARKS_E 11999
+#define IDM_M_LAST_E      14999
+//#define IDM_M_BOOKMARKS   11000 /* A lot of IDs after this need to be free. */
+//#define IDM_M_BOOKMARKS_E 11999
 #define IDM_M_PLUG        15000 /* A lot of IDs after this need to be free. */
 
-#define MNU_EMPTY           999
+#define MNU_SUBFOLDER      1700
 
 #define DLG_URL            2014
 #define ENT_URL             101

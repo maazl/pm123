@@ -89,6 +89,8 @@ char startpath[_MAX_PATH];
 // Currently loaded object - that's what it's all about!
 static StatusPlayEnumerator Current;
 
+static int_ptr<Playlist> LoadMRU;
+
 // Default playlistmanager
 //static sco_ptr<PlaylistManager> DefaultPM;
 
@@ -404,6 +406,26 @@ static ULONG handle_dfi_error( ULONG rc, const char* file )
   return 1;
 }
 
+static void amp_AddMRU(Playlist* list, size_t max, const char* URL)
+{ DEBUGLOG(("amp_AddMRU(%p{%s}, %u, %s)\n", list, list->GetURL().cdata(), max, URL));
+  Mutex::Lock lock(list->Mtx);
+  sco_ptr<PlayableEnumerator> pe = list->GetEnumerator();
+  // remove the desired item from the list and limit the list size
+  pe->Next();
+  while (pe->IsValid())
+  { PlayableInstance* pi = *pe;
+    pe->Next();
+    DEBUGLOG(("amp_AddMRU - %p{%s}\n", pi, pi->GetPlayable().GetURL().cdata()));
+    if (max == 0 || pi->GetPlayable().GetURL() == URL)
+      list->RemoveItem(pi);
+     else
+      --max;
+  }
+  // prepend list with new item
+  pe->Next();
+  list->InsertItem(URL, xstring(), 0, *pe);
+}
+
 /* Loads a standalone file or CD track to player. */
 BOOL
 amp_load_playable( const char* url, int options )
@@ -433,23 +455,8 @@ amp_load_playable( const char* url, int options )
     }
   }
 
-  if( !( options & AMP_LOAD_NOT_RECALL )) {
-    int i;
-    for( i = 0; i < MAX_RECALL; i++ ) {
-      if( stricmp( cfg.last[i], url ) == 0 ) {
-        while( ++i < MAX_RECALL ) {
-          strcpy( cfg.last[i-1], cfg.last[i] );
-        }
-        break;
-      }
-    }
-
-    for( i = MAX_RECALL - 2; i >= 0; i-- ) {
-      strcpy( cfg.last[i + 1], cfg.last[i] );
-    }
-
-    strlcpy( cfg.last[0], url, sizeof cfg.last[0] );
-  }
+  if( !( options & AMP_LOAD_NOT_RECALL ))
+    amp_AddMRU(LoadMRU, MAX_RECALL, url);
 
   return TRUE;
 }
@@ -561,31 +568,24 @@ static void
 amp_show_context_menu( HWND parent )
 {
   static HWND menu = NULLHANDLE;
-
-  POINTL   pos;
-  SWP      swp;
-  char     file[_MAX_PATH];
-  HWND     mh;
-  MENUITEM mi;
-  short    id;
-  int      i;
-  int      count;
-
   if( menu == NULLHANDLE )
   {
     menu = WinLoadMenu( HWND_OBJECT, 0, MNU_MAIN );
 
     mn_make_conditionalcascade( menu, IDM_M_LOAD, IDM_M_LOADFILE );
     
-    PlaylistMenu* pmp = new PlaylistMenu(parent, IDM_M_BOOKMARKS+1, IDM_M_BOOKMARKS_E);
-    pmp->AttachMenu(IDM_M_BOOKMARKS, bm_get(), PlaylistMenu::DummyIfEmpty, 0);
+    PlaylistMenu* pmp = new PlaylistMenu(parent, IDM_M_LAST, IDM_M_LAST_E);
+    pmp->AttachMenu(IDM_M_BOOKMARKS, bm_get(), PlaylistMenu::DummyIfEmpty|PlaylistMenu::Recursive|PlaylistMenu::Enumerate, 0);
+    pmp->AttachMenu(IDM_M_LOAD, LoadMRU, PlaylistMenu::Enumerate|PlaylistMenu::Separator, 0);
   }
 
+  POINTL   pos;
   WinQueryPointerPos( HWND_DESKTOP, &pos );
   WinMapWindowPoints( HWND_DESKTOP, parent, &pos, 1 );
 
   if( WinWindowFromPoint( parent, &pos, TRUE ) == NULLHANDLE )
   {
+    SWP swp;
     // The context menu is probably activated from the keyboard.
     WinQueryWindowPos( parent, &swp );
     pos.x = swp.cx/2;
@@ -593,27 +593,15 @@ amp_show_context_menu( HWND parent )
   }
 
   // Update regulars.
+  MENUITEM mi;
   WinSendMsg( menu, MM_QUERYITEM,
               MPFROM2SHORT( IDM_M_LOAD, TRUE ), MPFROMP( &mi ));
 
-  mh    = mi.hwndSubMenu;
-  count = LONGFROMMR( WinSendMsg( mh, MM_QUERYITEMCOUNT, 0, 0 ));
-
-  // Remove all items from the load menu except of two first
-  // intended for a choice of object of loading.
-  for( i = count; --i >= 0; )
-  {
-    id = SHORT1FROMMR( WinSendMsg( mh, MM_ITEMIDFROMPOSITION, MPFROMSHORT(i), 0 ));
-    if (id == IDM_M_URL || id == IDM_M_LOADFILE)
-      continue;
-    WinSendMsg( mh, MM_DELETEITEM, MPFROM2SHORT( id, FALSE ), 0 );
-  }
-
   // Append asisstents from decoder plug-ins
   memset( load_wizzards+2, 0, sizeof load_wizzards - 2*sizeof *load_wizzards ); // You never know...
-  append_load_menu( mi.hwndSubMenu, IDM_M_LOADOTHER, load_wizzards+2, sizeof load_wizzards / sizeof *load_wizzards -2);
+  append_load_menu( mi.hwndSubMenu, IDM_M_LOADOTHER, 2, load_wizzards+2, sizeof load_wizzards / sizeof *load_wizzards -2);
 
-  DEBUGLOG(("amp_show_context_menu: cfg.last = %s\n", cfg.last));
+  /*DEBUGLOG(("amp_show_context_menu: cfg.last = %s\n", cfg.last));
   if( *cfg.last[0] )
   {
     // Add separator.
@@ -663,15 +651,7 @@ amp_show_context_menu( HWND parent )
         DEBUGLOG2(("amp_show_context_menu: append recent \"%s\"\n", file));
       }
     }
-  }
-
-  /*
-  // Update bookmarks.
-  WinSendMsg( menu, MM_QUERYITEM,
-              MPFROM2SHORT( IDM_M_BOOKMARKS, TRUE ), MPFROMP( &mi ));
-
-  load_bookmark_menu( mi.hwndSubMenu );
-  */
+  }*/
   
   // Update plug-ins.
   WinSendMsg( menu, MM_QUERYITEM,
@@ -1164,12 +1144,41 @@ ULONG DLLENTRY amp_file_wizzard( HWND owner, const char* title, DECODER_WIZZARD_
   return ret;
 }
 
+/* Default dialog procedure for the URL dialog. */
+static MRESULT EXPENTRY
+amp_url_dlg_proc(HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2)
+{ switch( msg )
+  {case WM_CONTROL:
+    if (MPFROM2SHORT(ENT_URL, EN_CHANGE) != mp1)
+      break;
+   case WM_INITDLG:
+    // Update enabled status of the OK-Button
+    WinEnableWindow(WinWindowFromID(hwnd, DID_OK), WinQueryDlgItemTextLength(hwnd, ENT_URL) != 0);
+    break;
+
+   case WM_COMMAND:
+    DEBUGLOG(("amp_url_dlg_proc: WM_COMMAND: %i\n", SHORT1FROMMP(mp1)));
+    if (SHORT1FROMMP(mp1) == DID_OK)
+    { HWND ent = WinWindowFromID(hwnd, ENT_URL);
+      LONG len = WinQueryWindowTextLength(ent);
+      xstring text;
+      WinQueryWindowText(ent, len+1, text.raw_init(len));
+      if (url::normalizeURL(text))
+        break; // everything OK => continue
+      WinMessageBox(HWND_DESKTOP, hwnd, xstring::sprintf("The URL \"%s\" is not well formed.", text.cdata()),
+        NULL, 0, MB_CANCEL|MB_WARNING|MB_APPLMODAL|MB_MOVEABLE);
+      return 0; // cancel
+    }
+  }
+  return WinDefDlgProc(hwnd, msg, mp1, mp2);
+}
+
 /* Adds HTTP file to the playlist or load it to the player. */
 ULONG DLLENTRY
 amp_url_wizzard( HWND owner, const char* title, DECODER_WIZZARD_CALLBACK callback, void* param )
 { DEBUGLOG(("amp_url_wizzard(%p, %s, %p, %p)\n", owner, title, callback, param));
   
-  HWND hwnd = WinLoadDlg( HWND_DESKTOP, owner, WinDefDlgProc, NULLHANDLE, DLG_URL, 0 );
+  HWND hwnd = WinLoadDlg( HWND_DESKTOP, owner, amp_url_dlg_proc, NULLHANDLE, DLG_URL, 0 );
   if (hwnd == NULLHANDLE)
     return 500;
 
@@ -1189,7 +1198,7 @@ amp_url_wizzard( HWND owner, const char* title, DECODER_WIZZARD_CALLBACK callbac
   { WinQueryDlgItemText(hwnd, ENT_URL, sizeof durl, durl);
     DEBUGLOG(("amp_url_wizzard: %s\n", durl));
     url nurl = url::normalizeURL(durl);
-    DEBUGLOG(("amp_url_wizzard: %s\n", durl));
+    DEBUGLOG(("amp_url_wizzard: %s\n", nurl));
     (*callback)(param, nurl);
     ret = 0;
   }
@@ -1208,13 +1217,13 @@ amp_load_file_callback( void* param, const char* url )
 }
 
 /* Loads a file selected by the user to the player. */
-void                
+/*static void                
 amp_load_file( HWND owner )
 { DEBUGLOG(("amp_load_file(%p)\n", owner));
   bool first = true;
   ULONG ul = amp_file_wizzard(owner, "Load %s", &amp_load_file_callback, &first);
   DEBUGLOG(("amp_load_file - %u\n", ul));
-}
+}*/
 
 /*static void DLLENTRY
 amp_add_files_callback( void*, const char* url )
@@ -2348,11 +2357,11 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
           configure_plugin( PLUGIN_NULL, cm->cmd - IDM_M_PLUG - 1, hplayer );
           return 0;
         }
-        if( cm->cmd > IDM_M_LAST )
+        /*if( cm->cmd > IDM_M_LAST )
         {
           amp_load_playable( url::normalizeURL(cfg.last[cm->cmd-IDM_M_LAST-1]), 0 );
           return 0;
-        }
+        }*/
         if( cm->cmd >= IDM_M_LOADFILE &&
             cm->cmd < IDM_M_LOADFILE + sizeof load_wizzards / sizeof *load_wizzards &&
             load_wizzards[cm->cmd-IDM_M_LOADFILE] )
@@ -2545,9 +2554,11 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
           return 0;
 
         case BMP_FLOAD:
-          amp_load_file(hwnd);
+        { bool first;
+          // Well, only one load entry is supported this way.
+          ULONG rc = (*load_wizzards[0])( hwnd, "Load%s", &amp_load_file_callback, &first );
           return 0;
-
+        }
         case BMP_STOP:
           amp_stop();
           // TODO: probably inclusive when the iterator is destroyed
@@ -2959,6 +2970,10 @@ main( int argc, char *argv[] )
   // initialize properties
   cfg_init();
 
+  // these two are always constant
+  load_wizzards[0] = amp_file_wizzard;
+  load_wizzards[1] = amp_url_wizzard;
+
   WinRegisterClass( hab, "PM123", amp_dlg_proc, CS_SIZEREDRAW /* | CS_SYNCPAINT */, 0 );
 
   hframe = WinCreateStdWindow( HWND_DESKTOP, 0, &flCtlData, "PM123",
@@ -3031,6 +3046,11 @@ main( int argc, char *argv[] )
   pl_create();
   pm_create();
   bm_create();
+  
+  // Init MRU-Lists
+  { const url path = url::normalizeURL(startpath);
+    LoadMRU = (Playlist*)&*Playable::GetByURL(path + "LOADMRU.LST");
+  }
 
   DEBUGLOG(("main: visinit...\n"));
 

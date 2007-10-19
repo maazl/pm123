@@ -108,7 +108,7 @@ void  amp_save_list_as( HWND owner, int options );
 /* Loads a playlist selected by the user to the player. */
 //void  amp_load_list( HWND owner );
 /* Loads a file selected by the user to the player. */
-void  amp_load_file( HWND owner );
+//void  amp_load_file( HWND owner );
 
 /* Edits a information for the specified file. */
 void  amp_info_edit( HWND owner, const char* filename, const char* decoder );

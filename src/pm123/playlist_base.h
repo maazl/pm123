@@ -176,10 +176,13 @@ class PlaylistBase : public IComparableTo<char>
 
   CommonState&      StateFromRec(RecordBase* rec) { return rec ? rec->EvntState : EvntState; }
   Playable*         PlayableFromRec(RecordBase* rec) { return rec ? &rec->Content->GetPlayable() : &*Content; }
+  // Prevent a Record from deletion until FreeRecord is called
+  void              BlockRecord(RecordBase* rec)
+                    { if (rec) InterlockedInc(rec->UseCount); }
+  // Free a record after it is no longer used e.g. because a record message sent with PostRecordCommand completed.
+  void              FreeRecord(RecordBase* rec);
   // Post record message
   virtual void      PostRecordCommand(RecordBase* rec, RecordCommand cmd); 
-  // Free a record after a record message sent with PostRecordCommand completed.
-  void              FreeRecord(RecordBase* rec);
 
   // Gives the Record back to the PM and destoys the C++ part of it.
   // The Record object is no longer valid after calling this function.

@@ -86,7 +86,7 @@ url url::normalizeURL(const char* str)
   } else if (!hasScheme(str))
   { // broken URL
     DEBUGLOG(("url::normalizeURL - broken url %s\n", str));
-    return ret;
+    return ret; // NULL
   } else if (strnicmp(str, "cd:", 3) == 0)
   { // turn into cdda:
     len = strlen(str);
