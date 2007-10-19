@@ -85,6 +85,26 @@ class PlaylistBase : public IComparableTo<char>
     bool                IsRemoved() const                { return Content == NULL; }
     static bool         IsRemoved(const RecordBase* rec) { return rec != NULL && rec->IsRemoved(); }
   };
+  struct UserAddCallbackParams;
+  friend struct UserAddCallbackParams;
+  struct UserAddCallbackParams
+  { PlaylistBase* GUI;
+    PlaylistBase::RecordBase* Parent;
+    PlaylistBase::RecordBase* Before;
+    sco_ptr<Mutex::Lock> Lock;
+    UserAddCallbackParams(PlaylistBase* gui, PlaylistBase::RecordBase* parent, PlaylistBase::RecordBase* before)
+    : GUI(gui),
+      Parent(parent),
+      Before(before)
+    { // Increment usage count of the records unless the dialog completed.
+      GUI->BlockRecord(Parent);
+      GUI->BlockRecord(Before); 
+    }
+    ~UserAddCallbackParams()
+    { GUI->FreeRecord(Before);
+      GUI->FreeRecord(Parent);
+    }
+  };
  protected:
   // Message Processing
   enum

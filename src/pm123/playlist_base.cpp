@@ -511,39 +511,22 @@ void PlaylistBase::PlayStatEvent(const bool& status)
 }
 
 
-struct UserAddCallbackParams
-{ RecordBase* Parent;
-  RecordBase* Before;
-  sco_ptr<Mutex::Lock> Lock;
-  UserAddCallbackParams(Playlist* parent, PlayableInstance* before) : Parent(parent), Before(before)
-  { // Increment usage count of the records unless the dialog completed.
-    BlockRecord(parent);
-    BlockRecord(before); 
-  }
-  ~UserAddCallbackParams()
-  { FreeRecord(before);
-    FreeRecord(parent);
-  }
-};
-
 static void DLLENTRY UserAddCallback(void* param, const char* url)
 { DEBUGLOG(("PlaylistManager:UserAddCallback(%p, %s)\n", param, url));
-  UserAddCallbackParams& ucp = *(UserAddCallbackParams*)param;
-  parent ? &(Playlist&)parent->Content->GetPlayable() : &(Playlist&)*Content
-  before ? before->Content : NULL
+  PlaylistBase::UserAddCallbackParams& ucp = *(PlaylistBase::UserAddCallbackParams*)param;
   // parent might be no longer valid.
-  if (RecordBase::IsRemoved(ucp.Parent))
+  if (PlaylistBase::RecordBase::IsRemoved(ucp.Parent))
     return; // Ignore (can't help)
-  int_ptr<Playable> play = parent ? &parent->Content->GetPlayable() : Content;
+  int_ptr<Playable> play = ucp.Parent ? &ucp.Parent->Content->GetPlayable() : ucp.GUI->GetContent();
   if ((play->GetFlags() & Playable::Mutable) != Playable::Mutable)
     return; // Can't add something to a non-playlist.
   // On the first call Lock the Playlist until the Wizzard returns.
   if (ucp.Lock == NULL)
     ucp.Lock = new Mutex::Lock(play->Mtx);
   // parent and before might be no longer valid.
-  if (RecordBase::IsRemoved(ucp.Parent) || RecordBase::IsRemoved(ucp.Before))
+  if (PlaylistBase::RecordBase::IsRemoved(ucp.Parent) || PlaylistBase::RecordBase::IsRemoved(ucp.Before))
     return; // Ignore (can't help)
-  play->InsertItem(url, (const char*)NULL, 0, ucp.Before ? ucp.Before->Content : NULL);
+  ((Playlist&)*play).InsertItem(url, (const char*)NULL, 0, ucp.Before ? ucp.Before->Content : NULL);
 } 
 
 void PlaylistBase::UserAdd(DECODER_WIZZARD_FUNC wizzard, const char* title, RecordBase* parent, RecordBase* before)
@@ -553,7 +536,7 @@ void PlaylistBase::UserAdd(DECODER_WIZZARD_FUNC wizzard, const char* title, Reco
   Playable& play = parent ? parent->Content->GetPlayable() : *Content;
   if ((play.GetFlags() & Playable::Mutable) != Playable::Mutable)
     return; // Can't add something to a non-playlist.
-  UserAddCallbackParams ucp(parent, before);
+  UserAddCallbackParams ucp(this, parent, before);
   ULONG ul = (*wizzard)(HwndFrame, title, &UserAddCallback, &ucp);
   DEBUGLOG(("PlaylistManager::UserAdd - %u\n", ul));
   // TODO: cfg.listdir obsolete?

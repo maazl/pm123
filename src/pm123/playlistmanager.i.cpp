@@ -84,10 +84,7 @@ PlaylistManager::~PlaylistManager()
 void PlaylistManager::PostRecordCommand(RecordBase* rec, RecordCommand cmd)
 { // Ignore some messages
   switch (cmd)
-  {case RC_UPDATETECH:
-    if (rec)
-      break;
-   case RC_UPDATEFORMAT:
+  {case RC_UPDATEFORMAT:
    case RC_UPDATEMETA:
    case RC_UPDATEPOS:
     return;
@@ -634,18 +631,20 @@ void PlaylistManager::UpdateTech(Record* rec)
 { DEBUGLOG(("PlaylistManager(%p)::UpdateTech(%p)\n", this, rec));
   if (Record::IsRemoved(rec))
     return;
-  // techinfo changed => check whether it is currently visible.
-  if (rec->flRecordAttr & CRA_CURSORED)
-  { // TODO: maybe this should be better up to the calling thread
-    EmFocus = &rec->Content->GetPlayable();
-    // continue later, because I/O may be necessary
-    WinPostMsg(HwndFrame, UM_UPDATEINFO, MPFROMP(&*rec), 0);
-  }
-  bool recursive = rec->Content->GetPlayable().GetInfo().tech->recursive && RecursionCheck(rec);
-  if (recursive != rec->Data()->Recursive)
-  { rec->Data()->Recursive = recursive;
-    // Update Icon also 
-    PostRecordCommand(rec, RC_UPDATESTATUS);
+  if (rec) // not for root level
+  { // techinfo changed => check whether it is currently visible.
+    if (rec->flRecordAttr & CRA_CURSORED)
+    { // TODO: maybe this should be better up to the calling thread
+      EmFocus = &rec->Content->GetPlayable();
+      // continue later, because I/O may be necessary
+      WinPostMsg(HwndFrame, UM_UPDATEINFO, MPFROMP(&*rec), 0);
+    }
+    bool recursive = rec->Content->GetPlayable().GetInfo().tech->recursive && RecursionCheck(rec);
+    if (recursive != rec->Data()->Recursive)
+    { rec->Data()->Recursive = recursive;
+      // Update Icon also 
+      PostRecordCommand(rec, RC_UPDATESTATUS);
+    }
   }
   // Check if UpdateChildren is waiting
   bool& wait = StateFromRec(rec).WaitUpdate;
