@@ -13,6 +13,7 @@ supports skins, audio streaming, plug-ins, visualization, CDDB and more!
 
    Sources for new updates for pm123:
 
+      http://www.maazl.de/project/pm123/
       http://glass.os2.spb.ru/software/english/pm123.html
       http://glass.ptv.ru/software/english/pm123.html
       http://sektori.com/pm123/
@@ -28,9 +29,6 @@ supports skins, audio streaming, plug-ins, visualization, CDDB and more!
    Bugs
    ----
       - the proxy feature in mpg123 and cddaplay does not work well
-      - the GUI freezes in various places due to network access and the need
-        of threads for such operations
-      - some valid bitrates are not displayed in the icons of the skin
       - pm123 runs as a real-time process, so it can freeze OS/2 if the CPU
         is too slow: be careful!
       - there still might be occasional redraw problems where pm123 plagues
@@ -59,7 +57,6 @@ supports skins, audio streaming, plug-ins, visualization, CDDB and more!
       - add a status bar in the playlist window
       - no transparent or non-square skins because too difficult and
         ineffecient in OS/2
-      - cannot load a CD track from command line
       - no history for the "Load URL" dialog
       - should load WinAmp skin directly instead of using a converter
       - no way to display customized information from each song in the
@@ -92,6 +89,7 @@ supports skins, audio streaming, plug-ins, visualization, CDDB and more!
       Taneli Lepp„ <rosmo@sektori.com>
       Samuel Audet <guardia@step.polymtl.ca> (http://www.step.polymtl.ca/~guardia/)
       Dmitry A.Steklenev <glass@ptv.ru> (http://glass.os2.spb.ru/)
+      Marcel Mueller (http://www.maazl.de/)
 
    Generalized Bitmap Module by:
 
@@ -106,7 +104,7 @@ supports skins, audio streaming, plug-ins, visualization, CDDB and more!
       The latest version of FFTW, benchmarks, links, and other information can 
       be found at the FFTW home page (http://www.fftw.org).
 
-    WarpIN Installer:
+   WarpIN Installer:
 
       Thanks to Ulrich M”ller for the nice installer for OS/2.
       More info: http://warpin.netlabs.org/

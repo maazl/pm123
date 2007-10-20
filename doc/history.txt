@@ -1,7 +1,7 @@
 PM123's History
 ===============
 
-PM123 1.40 (alpha 1)
+PM123 1.40 (alpha 3)
 --------------------
     - New plug-in interface with much more flexibility to buffer handling and
       filter plug-ins. This is required for future plug-ins like digital room
@@ -16,6 +16,9 @@ PM123 1.40 (alpha 1)
       now in the plug-ins configure dialog.
     - Decoder plug-ins may extend the Load/Add context menu.
       Moved the load track function into the CDDAPLAY plug-in.
+    - Playlists, Playlist manager, Bookmarks are now basically the same.
+      This offers plenty much new features including nested playlists and native
+      references to entire folders.
 
     REALEQ:
     - Realeq does no longer delay the playback and cut the last samples.
