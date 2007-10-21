@@ -40,9 +40,9 @@
 
 #include <os2.h>
 #include <utilfct.h>
-#include "playlist_base.h"
-#include "playlistmanager.i.h"
-#include "playlist.i.h"
+#include "playlistbase.h"
+#include "playlistmanager.h"
+#include "playlistview.h"
 #include "playable.h"
 #include "pm123.h"
 #include "pm123.rc.h"

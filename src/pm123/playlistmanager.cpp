@@ -43,7 +43,7 @@
 #include "pm123.h"
 #include "pm123.rc.h"
 #include <utilfct.h>
-#include "playlistmanager.i.h"
+#include "playlistmanager.h"
 #include "docking.h"
 #include "iniman.h"
 #include "playable.h"

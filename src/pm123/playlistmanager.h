@@ -26,6 +26,10 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#ifndef PLAYLISTMANAGER_H
+#define PLAYLISTMANAGER_H
+
+
 #include <cpp/queue.h>
 #include <cpp/event.h>
 #include <cpp/smartptr.h>
@@ -33,7 +37,7 @@
 #include <cpp/container.h>
 #include <cpp/xstring.h>
 
-#include "playlist_base.h"
+#include "playlistbase.h"
 
 
 /****************************************************************************
@@ -132,3 +136,5 @@ inline PlaylistManager::CPData::CPData(
   Recursive(false)
 {}
 
+
+#endif

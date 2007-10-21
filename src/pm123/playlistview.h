@@ -40,7 +40,7 @@
 
 #define DECODER_PLUGIN_LEVEL 2
 #include "playable.h"
-#include "playlist_base.h"
+#include "playlistbase.h"
 #include <decoder_plug.h>
 
 #include <os2.h>
