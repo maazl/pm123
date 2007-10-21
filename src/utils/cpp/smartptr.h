@@ -141,19 +141,7 @@ class int_ptr : protected int_ptr_base
   // This function must not be used to assing a newly constructed object because this will never be deleted.
   int_ptr<T>& assign_weak(T* ptr)            { delete (T*)reassign_weak(ptr); return *this; }
   void        swap(int_ptr<T>& r)            { int_ptr_base::swap(r); }
-  friend bool operator==(const int_ptr<T>& l, const int_ptr<T>& r);
-  friend bool operator!=(const int_ptr<T>& l, const int_ptr<T>& r);
 };
-
-template <class T>
-inline bool operator==(const int_ptr<T>& l, const int_ptr<T>& r)
-{ return l.Ptr == r.Ptr;
-}
-
-template <class T>
-inline bool operator!=(const int_ptr<T>& l, const int_ptr<T>& r)
-{ return l.Ptr != r.Ptr;
-}
 
 
 /* Scoped array class, non-copyable */

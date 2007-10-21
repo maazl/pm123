@@ -32,11 +32,12 @@
 #ifndef PM123_COPYRIGHT_H
 #define PM123_COPYRIGHT_H
 
-#define AMP_VERSION  "1.40 alpha 2"
+#define AMP_VERSION  "1.40 alpha 3"
 #define AMP_NAME     "PM123"
 #define AMP_FULLNAME AMP_NAME " " AMP_VERSION
 
-#define SDG_AUT "Dmitry A.Steklenev <glass@ptv.ru> (http://glass.os2.spb.ru/)\n"\
+#define SDG_AUT "Marcel Mueller (http://www.maazl.de/)\n"\
+                "Dmitry A.Steklenev <glass@ptv.ru> (http://glass.os2.spb.ru/)\n"\
                 "Samuel Audet <guardia@step.polymtl.ca> (http://step.polymtl.ca/~guardia/)\n"\
                 "Taneli Lepp\204 <rosmo@sektori.com>\n"\
                 "Michael Hipp, Oliver Fromme (original mpg123: http://www.mpg123.org)"
@@ -64,6 +65,8 @@
 "\n"\
 "   Taneli Lepp„ <rosmo@sektori.com>\n"\
 "   Samuel Audet <guardia@step.polymtl.ca> (http://www.step.polymtl.ca/~guardia/)\n"\
+"   Dmitry A.Steklenev <glass@ptv.ru> (http://glass.os2.spb.ru/)\n"\
+"   Marcel Mueller (http://www.maazl.de/)\n"\
 "\n"\
 "Generalized Bitmap Module by:\n"\
 "\n"\

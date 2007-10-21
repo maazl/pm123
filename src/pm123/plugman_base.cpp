@@ -79,9 +79,7 @@
 // Truncate leading bits in case of an overflow.
 static int tstmp_f2i(double pos)
 { DEBUGLOG(("tstmp_f2i(%f)\n", pos));
-  return pos >= 0
-    ? (unsigned)(fmod(pos*1000., UINT_MAX+1.) + .5)
-    : -(unsigned)(fmod(-pos*1000., UINT_MAX+1.) + .5);
+  return pos >= 0 ? (unsigned)(fmod(pos*1000., UINT_MAX+1.) + .5) : -1;
 }
 
 // Convert possibly truncated time stamp in milliseconds to seconds.
@@ -89,6 +87,8 @@ static int tstmp_f2i(double pos)
 // to the original time stamp. Sufficient is about ñ24 days. 
 static double tstmp_i2f(int pos, double context)
 { DEBUGLOG(("tstmp_i2f(%i, %f)\n", pos, context));
+  if (pos < 0)
+    return -1;
   double r = pos / 1000.;
   return r + (UINT_MAX+1.) * floor((context - r + UINT_MAX/2) / (UINT_MAX+1.)); 
 }
@@ -632,7 +632,7 @@ proxy_1_decoder_fileinfo( CL_DECODER_PROXY_1* op, const char* filename, DECODER_
   { // Slicing: the structure FORMAT_INFO2 is a subset of FORMAT_INFO. 
     *info->format          = *(const FORMAT_INFO2*)&old_info.format;
     
-    info->tech->songlength = old_info.songlength/1000.;
+    info->tech->songlength = old_info.songlength < 0 ? -1 : old_info.songlength/1000.;
     info->tech->bitrate    = old_info.bitrate;
     strlcpy(info->tech->info, old_info.tech_info, sizeof info->tech->info);
     info->tech->num_items  = 1;
@@ -649,7 +649,8 @@ proxy_1_decoder_fileinfo( CL_DECODER_PROXY_1* op, const char* filename, DECODER_
 PROXYFUNCIMP(double DLLENTRY, CL_DECODER_PROXY_1)
 proxy_1_decoder_length( CL_DECODER_PROXY_1* op, void* a )
 { DEBUGLOG(("proxy_1_decoder_length(%p, %p)\n", op, a));
-  return (*op->vdecoder_length)(a) / 1000.;
+  int i = (*op->vdecoder_length)(a);
+  return i < 0 ? -1 : i / 1000.;
 }
 
 MRESULT EXPENTRY proxy_1_decoder_winfn(HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2)

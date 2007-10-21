@@ -34,7 +34,6 @@
 
 #include "skin.h"
 #include "plugman.h"
-#include "playlist.h"
 #include "properties.h"
 #include "copyright.h"
 
@@ -104,7 +103,7 @@ void  amp_show_help( SHORT resid );
 //void  amp_add_files( HWND owner );
 
 /* Saves current playlist to the file specified by user. */
-void  amp_save_list_as( HWND owner, int options );
+//void  amp_save_list_as( HWND owner, int options );
 /* Loads a playlist selected by the user to the player. */
 //void  amp_load_list( HWND owner );
 /* Loads a file selected by the user to the player. */

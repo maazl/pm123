@@ -43,6 +43,8 @@
 #include <utilfct.h>
 #include "plugman.h"
 #include "messages.h"
+#include <cpp/xstring.h>
+
 
 static OUTPUT_PARAMS out_params;
 
@@ -92,14 +94,15 @@ msg_play( HWND hwnd, Song& play, double pos )
     return FALSE;
   }
 
+  // TODO: do this asynchronuosly !!!
+  play.EnsureInfo(Playable::IF_Other);
+  
   msg_equalize( gains, mutes, preamp, cfg.eq_enabled );
   dec_save( savename );
   
   rc = dec_play( play.GetURL(), play.GetDecoder(), pos );
   if( rc == -2 ) {
-    char buf[1024];
-    sprintf( buf, "Error: Decoder module %.8s needed to play %.800s is not loaded or enabled.", play.GetDecoder(), play.GetURL().cdata() );
-    amp_display_error( buf );
+    amp_display_error(xstring::sprintf("Error: Decoder module %.8s needed to play %.800s is not loaded or enabled.", play.GetDecoder(), play.GetURL().cdata()).cdata());
     return FALSE;
   } else if ( rc != 0 ) {
     amp_post_message( WM_PLAYERROR, 0, 0 );

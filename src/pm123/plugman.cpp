@@ -268,7 +268,7 @@ ULONG CL_GLUE::dec_command( ULONG msg )
 /* invoke decoder to play an URL */
 ULONG dec_play( const char* url, const char* decoder_name, double pos )
 {
-  DEBUGLOG(("dec_play(%s, %s)\n", url, decoder_name));
+  DEBUGLOG(("dec_play(%s, %s, %f)\n", url, decoder_name, pos));
   ULONG rc = voutput.dec_set_active( decoder_name );
   if ( rc != 0 )
     return rc;
@@ -997,6 +997,7 @@ dec_editmeta( HWND owner, const char* url, const char* decoder_name )
   char decoder[_MAX_FNAME];
   if (decoder_name == NULL || *decoder_name == 0)
   { DECODER_INFO2 info;
+    // TODO: THREAD!
     int rc = dec_fileinfo(url, &info, decoder);
     if (rc != 0)
       return rc;

@@ -83,11 +83,14 @@ xstring PlaylistBase::DebugName() const
 *
 ****************************************************************************/
 
-HPOINTER PlaylistBase::IcoPlayable[5][4];
+HPOINTER PlaylistBase::IcoWait;
 HPOINTER PlaylistBase::IcoInvalid;
+HPOINTER PlaylistBase::IcoPlayable[5][4];
 
 void PlaylistBase::InitIcons()
-{ IcoPlayable[ICP_Song     ][IC_Normal] = WinLoadPointer(HWND_DESKTOP, 0, ICO_MP3);
+{ IcoWait                               = WinLoadPointer(HWND_DESKTOP, 0, ICO_MP3WAIT);
+  IcoInvalid                            = WinLoadPointer(HWND_DESKTOP, 0, ICO_MP3INVLD);
+  IcoPlayable[ICP_Song     ][IC_Normal] = WinLoadPointer(HWND_DESKTOP, 0, ICO_MP3);
   IcoPlayable[ICP_Song     ][IC_Used  ] = WinLoadPointer(HWND_DESKTOP, 0, ICO_MP3USED);
   IcoPlayable[ICP_Song     ][IC_Active] = WinLoadPointer(HWND_DESKTOP, 0, ICO_MP3ACTIVE);
   IcoPlayable[ICP_Song     ][IC_Play  ] = WinLoadPointer(HWND_DESKTOP, 0, ICO_MP3PLAY);
@@ -107,7 +110,6 @@ void PlaylistBase::InitIcons()
   IcoPlayable[ICP_Recursive][IC_Used  ] = IcoPlayable[ICP_Recursive][IC_Normal];
   IcoPlayable[ICP_Recursive][IC_Active] = WinLoadPointer(HWND_DESKTOP, 0, ICO_PLRECURSIVEACTIVE);
   IcoPlayable[ICP_Recursive][IC_Play  ] = WinLoadPointer(HWND_DESKTOP, 0, ICO_PLRECURSIVEPLAY);
-  IcoInvalid                            = WinLoadPointer(HWND_DESKTOP, 0, ICO_MP3INVLD);
 }
 
 PlaylistBase::PlaylistBase(const char* url, const char* alias)
@@ -131,11 +133,11 @@ PlaylistBase::PlaylistBase(const char* url, const char* alias)
 }
 
 void PlaylistBase::PostRecordCommand(RecordBase* rec, RecordCommand cmd)
-{ DEBUGLOG(("PlaylistBase(%p)::PostRecordCommand(%p, %u)\n", this, rec, cmd));
+{ DEBUGLOG(("PlaylistBase(%p)::PostRecordCommand(%p, %u) - %x\n", this, rec, cmd, StateFromRec(rec).PostMsg));
   Interlocked il(StateFromRec(rec).PostMsg);
-  // Check whether the requested bit is already set or another event or there are other events pending.
+  // Check whether the requested bit is already set or there are other events pending.
   if (il.bitset(cmd) || il != (1U<<cmd))
-  { DEBUGLOG(("PlaylistBase::PostRecordCommand - nope! %u\n", (unsigned)il));
+  { DEBUGLOG(("PlaylistBase::PostRecordCommand - nope! %x\n", (unsigned)il));
     return; // requested command is already on the way or another unexecuted message is outstanding
   }
   // There is a little chance that we generate two messages for the same record.
@@ -202,6 +204,12 @@ void PlaylistBase::InitDlg()
   PlayStatusChange += RootPlayStatusDelegate;
   
   SetTitle();
+
+  // TODO: acceleration table entries for plug-in extensions
+  HAB    hab = WinQueryAnchorBlock( HwndFrame );
+  HACCEL accel = WinLoadAccelTable( hab, NULLHANDLE, ACL_PLAYLIST );
+  if( accel )
+    WinSetAccelTable( hab, accel, HwndFrame );
 }
 
 MRESULT PlaylistBase::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
@@ -235,18 +243,10 @@ MRESULT PlaylistBase::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
    case WM_INITMENU:
     switch (SHORT1FROMMP(mp1))
     {case IDM_PL_APPEND:
-      // Populate context menu with plug-in specific stuff.
-      { HWND mh = HWNDFROMMP(mp2);
-        int i = 2;
-        for (;;)
-        { SHORT id = SHORT1FROMMR(WinSendMsg(mh, MM_ITEMIDFROMPOSITION, MPFROMSHORT(i), 0));
-          if (id == MIT_ERROR)
-            break;
-          WinSendMsg( mh, MM_DELETEITEM, MPFROM2SHORT( id, FALSE ), 0 );
-        }
+      { // Populate context menu with plug-in specific stuff.
         memset(LoadWizzards+2, 0, sizeof LoadWizzards - 2*sizeof *LoadWizzards ); // You never know...
-        append_load_menu( mh, SHORT1FROMMP(mp1) == IDM_PL_APPOTHER, 2,
-          LoadWizzards+2, sizeof LoadWizzards / sizeof *LoadWizzards - 2 );
+        append_load_menu(HWNDFROMMP(mp2), SHORT1FROMMP(mp1) == IDM_PL_APPOTHER, 2,
+          LoadWizzards+2, sizeof LoadWizzards/sizeof *LoadWizzards - 2);
       }
     }
     break;
@@ -263,32 +263,34 @@ MRESULT PlaylistBase::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
         return 0;
       }
       switch (cmd)
-      {
-       case IDM_PL_USEALL:
+      {case IDM_PL_USEALL:
         { amp_load_playable(Content->GetURL(), 0);
           return 0;
         }
-
        case IDM_PL_USE:
         { if (focus)
           amp_load_playable(focus->Content->GetPlayable().GetURL(), 0);
           return 0;
         }
-
-       case IDM_PL_TREEVIEW:
-        { DEBUGLOG(("PlaylistBase(%p{%s})::DlgProc: IDM_PL_TREEVIEW %s\n", this, DebugName().cdata(), RecordBase::DebugName(focus).cdata()));
-          // get new or existing instance
-          PlaylistManager* pm = PlaylistManager::Get(PlayableFromRec(focus)->GetURL());
-          pm->SetVisible(true);
+       case IDM_PL_TREEVIEWALL:
+        { DEBUGLOG(("PlaylistBase(%p{%s})::DlgProc: IDM_PL_TREEVIEWALL\n", this, DebugName().cdata()));
+          PlaylistManager::Get(Content->GetURL())->SetVisible(true);
           return 0;
         }
-       
+       case IDM_PL_TREEVIEW:
+        { DEBUGLOG(("PlaylistBase(%p{%s})::DlgProc: IDM_PL_TREEVIEW %s\n", this, DebugName().cdata(), RecordBase::DebugName(focus).cdata()));
+          if (focus)
+          { Playable* pp = &focus->Content->GetPlayable();
+            if (pp->GetFlags() & Playable::Enumerable)
+              PlaylistManager::Get(pp->GetURL())->SetVisible(true);
+          }
+          return 0;
+        }
        case IDM_PL_DETAILEDALL:
-        { DEBUGLOG(("PlaylistBase(%p{%s})::DlgProc: IDM_PL_DETAILEDALL %s\n", this, DebugName().cdata(), RecordBase::DebugName(focus).cdata()));
+        { DEBUGLOG(("PlaylistBase(%p{%s})::DlgProc: IDM_PL_DETAILEDALL\n", this, DebugName().cdata()));
           PlaylistView::Get(Content->GetURL())->SetVisible(true);
           return 0;
         }
-       
        case IDM_PL_DETAILED:
         { DEBUGLOG(("PlaylistBase(%p{%s})::DlgProc: IDM_PL_DETAILED %s\n", this, DebugName().cdata(), RecordBase::DebugName(focus).cdata()));
           if (focus)
@@ -298,7 +300,12 @@ MRESULT PlaylistBase::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
           }
           return 0;
         }
-       
+       case IDM_PL_REFRESH:
+        { DEBUGLOG(("PlaylistBase(%p{%s})::DlgProc: IDM_PL_REFRESH %s\n", this, DebugName().cdata(), RecordBase::DebugName(focus).cdata()));
+          if (focus)
+            focus->Content->GetPlayable().LoadInfoAsync(Playable::IF_All);
+          return 0;
+        }
        case IDM_PL_EDIT:
         { DEBUGLOG(("PlaylistBase(%p{%s})::DlgProc: IDM_PL_EDIT %s\n", this, DebugName().cdata(), RecordBase::DebugName(focus).cdata()));
           if (focus)
@@ -308,7 +315,6 @@ MRESULT PlaylistBase::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
           }
           return 0;
         }
-       
        case IDM_PL_REMOVE:
         { DEBUGLOG(("PlaylistBase(%p{%s})::DlgProc: IDM_PL_REMOVE %p\n", this, DebugName().cdata(), focus));
           if (focus == NULL)
@@ -319,7 +325,6 @@ MRESULT PlaylistBase::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
           // the update of the container is implicitely done by the notification mechanism
           return 0;
         }
-        
        case IDM_PL_CLEAR:
         { DEBUGLOG(("PlaylistBase(%p{%s})::DlgProc: IDM_PL_CLEAR %p\n", this, DebugName().cdata(), focus));
           Playable* pp = PlayableFromRec(focus);
@@ -327,15 +332,24 @@ MRESULT PlaylistBase::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
             ((Playlist*)pp)->Clear();
           return 0;
         }
-        
+       case IDM_PL_RELOAD:
+        { if ( !(Content->GetFlags() & Playable::Enumerable)
+            || !((PlayableCollection&)*Content).IsModified()
+            || amp_query(HwndFrame, "The current list is modified. Discard changes?") )
+            Content->LoadInfoAsync(Playable::IF_All);
+          return 0;
+        }
        case IDM_PL_OPEN:
-       case IDM_PL_OPENL:
         { url URL = PlaylistSelect(HwndFrame, "Open Playlist");
           if (URL)
           { PlaylistBase* pp = GetSame(URL);
             pp->SetVisible(true);
           }
+          return 0;
         }
+       case IDM_PL_SAVE:
+        UserSave();
+        return 0;        
         
       } // switch (cmd)
       break;
@@ -356,6 +370,7 @@ MRESULT PlaylistBase::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
     
    case UM_SYNCREMOVE:
     { RecordBase* rec = (RecordBase*)PVOIDFROMMP(mp1);
+      DEBUGLOG(("PlaylistBase::DlgProc: UM_SYNCREMOVE: %p{%p{%s}}\n", rec, &*rec->Content, RecordBase::DebugName(rec).cdata()));
       rec->Content = NULL;
       // deregister event handlers too.
       rec->Data->DeregisterEvents(); 
@@ -390,12 +405,16 @@ void PlaylistBase::SetVisible(bool show)
 }
 
 HPOINTER PlaylistBase::CalcIcon(RecordBase* rec)
-{ DEBUGLOG(("PlaylistBase::CalcIcon(%s)\n", RecordBase::DebugName(rec).cdata()));
-  assert(rec->Content != NULL);
-  if (rec->Content->GetPlayable().GetStatus() == STA_Invalid)
+{ assert(rec->Content != NULL);
+  DEBUGLOG(("PlaylistBase::CalcIcon(%s) - %u\n", RecordBase::DebugName(rec).cdata(), rec->Content->GetPlayable().GetStatus()));
+  switch (rec->Content->GetPlayable().GetStatus())
+  {case STA_Unknown:
+    return IcoWait;
+   case STA_Invalid:
     return IcoInvalid;
-  else
+   default:   
     return IcoPlayable[GetPlayableType(rec)][GetRecordUsage(rec)];
+  }
 }
 
 void PlaylistBase::SetTitle()
@@ -410,8 +429,9 @@ void PlaylistBase::SetTitle()
     append = " [used]";
     break;
   }
-  const xstring& dn = Content->GetURL().getDisplayName(); // must not use a temporary in a conditional expresionne with ICC
-  xstring title = xstring::sprintf("PM123: %s%s", (Alias ? Alias.cdata() : dn.cdata()), append);
+  const xstring& dn = Content->GetURL().getDisplayName(); // must not use a temporary in a conditional expression with ICC
+  xstring title = xstring::sprintf("PM123: %s%s%s", (Alias ? Alias.cdata() : dn.cdata()),
+    (Content->GetFlags() & Playable::Enumerable) && ((PlayableCollection&)*Content).IsModified() ? " (*)" : "", append);
   // Update Window Title
   if (WinSetWindowText(HwndFrame, (char*)title.cdata()))
     // now free the old title
@@ -490,7 +510,8 @@ void PlaylistBase::StatChangeEvent(const PlayableInstance::change_args& args, Re
     &args.Instance, args.Instance.GetPlayable().GetURL().getShortName().cdata(), args.Flags, rec));
 
   if (args.Flags & PlayableInstance::SF_Destroy)
-  { WinSendMsg(HwndFrame, UM_SYNCREMOVE, MPFROMP(rec), 0);
+  { DEBUGLOG(("PlaylistBase::StatChangeEvent: SF_Destroy %p\n", rec));
+    WinSendMsg(HwndFrame, UM_SYNCREMOVE, MPFROMP(rec), 0);
     return;
   }
 
@@ -512,7 +533,7 @@ void PlaylistBase::PlayStatEvent(const bool& status)
 
 
 static void DLLENTRY UserAddCallback(void* param, const char* url)
-{ DEBUGLOG(("PlaylistManager:UserAddCallback(%p, %s)\n", param, url));
+{ DEBUGLOG(("UserAddCallback(%p, %s)\n", param, url));
   PlaylistBase::UserAddCallbackParams& ucp = *(PlaylistBase::UserAddCallbackParams*)param;
   // parent might be no longer valid.
   if (PlaylistBase::RecordBase::IsRemoved(ucp.Parent))
@@ -530,7 +551,7 @@ static void DLLENTRY UserAddCallback(void* param, const char* url)
 } 
 
 void PlaylistBase::UserAdd(DECODER_WIZZARD_FUNC wizzard, const char* title, RecordBase* parent, RecordBase* before)
-{ DEBUGLOG(("PlaylistManager(%p)::UserAdd(%p, %s, %p, %p)\n", this, wizzard, title, parent, before));
+{ DEBUGLOG(("PlaylistBase(%p)::UserAdd(%p, %s, %p, %p)\n", this, wizzard, title, parent, before));
   if (RecordBase::IsRemoved(parent) || RecordBase::IsRemoved(before))
     return; // sync remove happened
   Playable& play = parent ? parent->Content->GetPlayable() : *Content;
@@ -538,9 +559,75 @@ void PlaylistBase::UserAdd(DECODER_WIZZARD_FUNC wizzard, const char* title, Reco
     return; // Can't add something to a non-playlist.
   UserAddCallbackParams ucp(this, parent, before);
   ULONG ul = (*wizzard)(HwndFrame, title, &UserAddCallback, &ucp);
-  DEBUGLOG(("PlaylistManager::UserAdd - %u\n", ul));
+  DEBUGLOG(("PlaylistBase::UserAdd - %u\n", ul));
   // TODO: cfg.listdir obsolete?
   //sdrivedir( cfg.listdir, filedialog.szFullFile, sizeof( cfg.listdir ));
+}
+
+void PlaylistBase::UserSave()
+{ DEBUGLOG(("PlaylistBase(%p)::UserSave()\n", this));
+  assert(Content->GetFlags() & Playable::Enumerable);
+
+  APSZ  types[] = {{ FDT_PLAYLIST_LST }, { FDT_PLAYLIST_M3U }, { 0 }};
+  char  filez[_MAX_PATH];
+  char  ext  [_MAX_EXT ];
+
+  FILEDLG filedialog = {sizeof(FILEDLG)};
+  filedialog.fl             = FDS_CENTER | FDS_SAVEAS_DIALOG | FDS_CUSTOM | FDS_ENABLEFILELB;
+  filedialog.pszTitle       = "Save playlist";
+  filedialog.hMod           = NULLHANDLE;
+  filedialog.usDlgId        = DLG_FILE;
+  filedialog.pfnDlgProc     = amp_file_dlg_proc;
+  filedialog.ulUser         = FDU_RELATIVBTN;
+  filedialog.papszITypeList = types;
+  filedialog.pszIType       = FDT_PLAYLIST_LST;
+
+  if ((Content->GetFlags() & Playable::Mutable) == Playable::Mutable && Content->GetURL().isScheme("file://"))
+  { // Playlist => save in place allowed => preselect our own file name
+    const char* cp = Content->GetURL().cdata() + 5;
+    if (cp[2] == '/')
+      cp += 3;
+    strlcpy(filedialog.szFullFile, cp, sizeof filedialog.szFullFile);
+    // preselect file type
+    if (Content->GetURL().getExtension().compareToI(".M3U") == 0)
+      filedialog.pszIType = FDT_PLAYLIST_M3U;
+    // TODO: other playlist types
+  } else
+  { // not mutable => only save as allowed
+    // TODO: preselect directory
+  }
+
+  WinFileDlg(HWND_DESKTOP, HwndFrame, &filedialog);
+
+  if(filedialog.lReturn == DID_OK)
+  { url file = url::normalizeURL(filedialog.szFullFile);
+    if (!(Playable::IsPlaylist(file)))
+    { if (file.getExtension().length() == 0)
+      { // no extension => choose automatically
+        if (strcmp(filedialog.pszIType, FDT_PLAYLIST_M3U) == 0)
+          file = file + ".m3u";
+        else // if (strcmp(filedialog.pszIType, FDT_PLAYLIST_LST) == 0)
+          file = file + ".lst"; 
+        // TODO: other playlist types
+      } else
+      { amp_error(HwndFrame, "PM123 cannot write playlist files with the unsupported extension %s.", file.getExtension().cdata());
+        return;
+      }
+    }
+    const char* cp = file.cdata() + 5;
+    if (cp[2] == '/')
+      cp += 3;
+    if (amp_warn_if_overwrite(HwndFrame, cp))
+    { PlayableCollection::save_options so = PlayableCollection::SaveDefault;
+      if (file.getExtension().compareToI(".m3u") == 0)
+        so |= PlayableCollection::SaveAsM3U;
+      if (filedialog.ulUser & FDU_RELATIV_ON)
+        so |= PlayableCollection::SaveRelativePath;
+      // now save
+      if (!((PlayableCollection&)*Content).Save(file, so))
+        amp_error(HwndFrame, "Failed to create playlist \"%s\". Error %s.", file.cdata(), xio_strerror(xio_errno()));
+    }
+  }
 }
 
 url PlaylistBase::PlaylistSelect(HWND owner, const char* title)

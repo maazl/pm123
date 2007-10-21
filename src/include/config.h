@@ -6,10 +6,10 @@
 #define PACKAGE PACKAGE_NAME
 
 /* Define to the address where bug reports for this package should be sent. */
-#define PACKAGE_BUGREPORT "glass@ptv.ru"
+#define PACKAGE_BUGREPORT "pm123@maazl.de"
 
 /* Version number of package */
-#define PACKAGE_VERSION "1.32"
+#define PACKAGE_VERSION "1.40"
 #define VERSION PACKAGE_VERSION
 
 /* Define to the full name and version of this package. */

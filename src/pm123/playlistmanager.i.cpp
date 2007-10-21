@@ -43,7 +43,6 @@
 #include "pm123.h"
 #include "pm123.rc.h"
 #include <utilfct.h>
-#include "playlistmanager.h"
 #include "playlistmanager.i.h"
 #include "docking.h"
 #include "iniman.h"
@@ -82,7 +81,8 @@ PlaylistManager::~PlaylistManager()
 }
 
 void PlaylistManager::PostRecordCommand(RecordBase* rec, RecordCommand cmd)
-{ // Ignore some messages
+{ DEBUGLOG(("PlaylistManager(%p)::PostRecordCommand(%p, %x)\n", this, rec, cmd));
+  // Ignore some messages
   switch (cmd)
   {case RC_UPDATEFORMAT:
    case RC_UPDATEMETA:
@@ -200,8 +200,6 @@ MRESULT PlaylistManager::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
         { if (MainMenu == NULLHANDLE)
           { MainMenu = WinLoadMenu(HWND_OBJECT, 0, PM_MAIN_MENU);
             mn_make_conditionalcascade(MainMenu, IDM_PL_APPEND, IDM_PL_APPFILE);
-            mn_make_conditionalcascade(MainMenu, IDM_PL_OPEN,   IDM_PL_OPENL);
-            mn_make_conditionalcascade(MainMenu, IDM_PL_SAVE,   IDM_PL_LST_SAVE);
           }
           hwndMenu = MainMenu;
           mn_enable_item( hwndMenu, IDM_PL_APPEND, (Content->GetFlags() & Playable::Mutable) == Playable::Mutable );
@@ -299,19 +297,22 @@ MRESULT PlaylistManager::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
 
    case UM_RECORDCOMMAND:
     { Record* rec = (Record*)PVOIDFROMMP(mp1);
-      DEBUGLOG(("PlaylistManager::DlgProc: UM_RECORDCOMMAND: %s\n", Record::DebugName(rec).cdata()));
-      // reset pending message flag
-      Interlocked il(StateFromRec(rec).PostMsg);
-      if (il.bitrst(RC_UPDATECHILDREN))
-        UpdateChildren(rec);
-      if (il.bitrst(RC_UPDATETECH))
-        UpdateTech(rec);
-      if (il.bitrst(RC_UPDATESTATUS))
-        UpdateStatus(rec);
-      if (il.bitrst(RC_UPDATEALIAS))
-        UpdateInstance(rec, PlayableInstance::SF_Alias);
-      // continue in base class
-      break;
+      DEBUGLOG(("PlaylistManager::DlgProc: UM_RECORDCOMMAND: %s %x\n", Record::DebugName(rec).cdata(), StateFromRec(rec).PostMsg));
+      for(;;)
+      { // reset pending message flag
+        unsigned flags = InterlockedXch(StateFromRec(rec).PostMsg, 0);
+        if (flags == 0)
+          break;
+        if (flags & 1<<RC_UPDATECHILDREN)
+          UpdateChildren(rec);
+        if (flags & 1<<RC_UPDATETECH)
+          UpdateTech(rec);
+        if (flags & 1<<RC_UPDATESTATUS)
+          UpdateStatus(rec);
+        if (flags & 1<<RC_UPDATEALIAS)
+          UpdateInstance(rec, PlayableInstance::SF_Alias);
+      }
+      break; // continue in base class
     }
     
   } // switch (msg)
@@ -443,9 +444,15 @@ PlaylistManager::Record* PlaylistManager::AddEntry(PlayableInstance* obj, Record
   rec->Content         = obj;
   rec->UseCount        = 1;
   rec->Data()          = new CPData(*this, &InfoChangeEvent, &StatChangeEvent, rec, parent);
+  // before we catch any information setup the update events
+  // The record is not yet corretly initialized, but this don't metter sinc all that the event handlers can do
+  // is to post a UM_RECORDCOMMAND which is not handled unless this message is completed.
+  obj->GetPlayable().InfoChange += rec->Data()->InfoChange;
+  obj->StatusChange             += rec->Data()->StatChange;
+  // now get initial info's 
   rec->Data()->Text    = obj->GetDisplayName();
   rec->Data()->Recursive = obj->GetPlayable().GetInfo().tech->recursive && RecursionCheck(&obj->GetPlayable(), parent);
-          
+
   rec->flRecordAttr    = 0;
   rec->pszIcon         = (PSZ)rec->Data()->Text.cdata();
   rec->hptrIcon        = CalcIcon(rec);
@@ -463,9 +470,6 @@ PlaylistManager::Record* PlaylistManager::AddEntry(PlayableInstance* obj, Record
   insert.cRecordsInsert    = 1;
   ULONG rc = LONGFROMMR(WinSendMsg(HwndContainer, CM_INSERTRECORD, MPFROMP(rec), MPFROMP(&insert)));
   
-  obj->GetPlayable().InfoChange += rec->Data()->InfoChange;
-  obj->StatusChange             += rec->Data()->StatChange;
-
   DEBUGLOG(("PlaylistManager::AddEntry: succeeded: %p %u %x\n", rec, rc, WinGetLastError(NULL)));
   return rec;
 }
@@ -564,6 +568,7 @@ void PlaylistManager::UpdateChildren(Record* const rp)
    
     // Now check what should be in the container
     DEBUGLOG(("PlaylistManager::UpdateChildren - check container.\n"));
+    WinEnableWindowUpdate(HwndContainer, FALSE); // suspend redraw
     Mutex::Lock lock(pp->Mtx); // Lock the collection
     sco_ptr<PlayableEnumerator> ep = ((PlayableCollection*)pp)->GetEnumerator();
     crp = NULL;
@@ -610,6 +615,8 @@ void PlaylistManager::UpdateChildren(Record* const rp)
     OldHead = (Record*)OldHead->preccNextRecord;
     RemoveEntry(crp);
   }
+  // resume redraw
+  WinEnableWindowUpdate(HwndContainer, TRUE);
 }
 
 void PlaylistManager::RequestChildren(Record* rec)

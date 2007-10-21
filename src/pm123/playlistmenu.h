@@ -79,11 +79,11 @@ class PlaylistMenu
   struct select_data
   { int_ptr<Playable> Item;
     xstring         Alias;
-    double          Pos;
+    PlayableInstance::slice Slice;
     select_data(const PlayableInstance& data)
-     : Item(&data.GetPlayable()), Alias(data.GetAlias()), Pos(data.GetPlayPos()) {}
+     : Item(&data.GetPlayable()), Alias(data.GetAlias()), Slice(data.GetSlice()) {}
     select_data(Playable* data)
-     : Item(data), Alias(), Pos(0) {}
+     : Item(data), Alias() {}
   };
   
  private:

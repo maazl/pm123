@@ -54,9 +54,9 @@
 #include <xio.h>
 #include "pm123.h"
 #include "plugman.h"
-#include "bookmark.h"
 #include "button95.h"
-#include "playlistmanager.h"
+#include "playlistmanager.i.h"
+#include "playlist.i.h"
 #include "copyright.h"
 #include "docking.h"
 #include "iniman.h"
@@ -89,6 +89,13 @@ char startpath[_MAX_PATH];
 // Currently loaded object - that's what it's all about!
 static StatusPlayEnumerator Current;
 
+// Default playlist, representing PM123.LST in the program folder.
+static PlaylistView*     DefaultPL = NULL;
+// PlaylistManager window, representing PFREQ.LST in the program folder.
+static PlaylistManager*  DefaultPM = NULL;
+// Default instance of bookmark window, representing BOOKMARK.LST in the program folder.
+static PlaylistBase*     DefaultBM = NULL;
+// Most recent used entries in the load menu, representing LOADMRU.LST in the program folder.
 static int_ptr<Playlist> LoadMRU;
 
 // Default playlistmanager
@@ -423,7 +430,7 @@ static void amp_AddMRU(Playlist* list, size_t max, const char* URL)
   }
   // prepend list with new item
   pe->Next();
-  list->InsertItem(URL, xstring(), 0, *pe);
+  list->InsertItem(URL, xstring(), *pe);
 }
 
 /* Loads a standalone file or CD track to player. */
@@ -575,7 +582,7 @@ amp_show_context_menu( HWND parent )
     mn_make_conditionalcascade( menu, IDM_M_LOAD, IDM_M_LOADFILE );
     
     PlaylistMenu* pmp = new PlaylistMenu(parent, IDM_M_LAST, IDM_M_LAST_E);
-    pmp->AttachMenu(IDM_M_BOOKMARKS, bm_get(), PlaylistMenu::DummyIfEmpty|PlaylistMenu::Recursive|PlaylistMenu::Enumerate, 0);
+    pmp->AttachMenu(IDM_M_BOOKMARKS, DefaultBM->GetContent(), PlaylistMenu::DummyIfEmpty|PlaylistMenu::Recursive|PlaylistMenu::Enumerate, 0);
     pmp->AttachMenu(IDM_M_LOAD, LoadMRU, PlaylistMenu::Enumerate|PlaylistMenu::Separator, 0);
   }
 
@@ -1635,6 +1642,38 @@ amp_pipe_thread( void* scrap )
   }
 }
 
+
+/* Adds a user selected bookmark. */
+static void bm_add_bookmark(HWND owner, Playable* item, const PlayableInstance::slice& sl)
+{ DEBUGLOG(("bm_add_bookmark(%x, %p{%s}, {%.1f,%.1f})\n", owner, item, item->GetDisplayName().cdata(), sl.Start, sl.Stop));
+  // TODO: !!!!!! request information before
+  const META_INFO& meta = *item->GetInfo().meta;
+  xstring desc = "";
+  if (*meta.artist)
+    desc = xstring(meta.artist) + "-";
+  if (*meta.title)
+    desc = desc + meta.title;
+   else
+    desc = desc + item->GetURL().getShortName();
+
+  HWND hdlg = WinLoadDlg(HWND_DESKTOP, owner, &WinDefDlgProc, NULLHANDLE, DLG_BM_ADD, NULL);
+                              
+  WinSetDlgItemText(hdlg, EF_BM_DESC, desc);
+
+  if (WinProcessDlg(hdlg) == DID_OK)
+  { xstring alias;
+    char* cp = alias.raw_init(WinQueryDlgItemTextLength(hdlg, EF_BM_DESC));
+    WinQueryDlgItemText(hdlg, EF_BM_DESC, alias.length()+1, cp);
+    if (alias == desc)
+      alias = NULL; // Don't set alias if not required.
+    ((Playlist&)*DefaultBM->GetContent()).InsertItem(item->GetURL(), alias, sl); 
+    // TODO !!!!!
+    //bm_save( owner );
+  }
+
+  WinDestroyWindow(hdlg);
+}
+
 /* Loads a playlist selected by the user to the player. */
 /*void
 amp_load_list( HWND owner )
@@ -1666,7 +1705,7 @@ amp_load_list( HWND owner )
 }*/
 
 /* Saves current playlist to the file specified by user. */
-void
+/*void
 amp_save_list_as( HWND owner, int options )
 {
   FILEDLG filedialog;
@@ -1711,7 +1750,7 @@ amp_save_list_as( HWND owner, int options )
                     | ( options & SAV_M3U_PLAYLIST ? PL_SAVE_M3U : PL_SAVE_PLS    ));
     }
   }
-}
+}*/
 
 /* Loads a skin selected by the user. */
 static void
@@ -2375,7 +2414,7 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
       switch( cm->cmd )
       {
         case IDM_M_MANAGER:
-          pm_show( TRUE );
+          DefaultPM->SetVisible(true);
           return 0;
 
         case IDM_M_ADDBOOK:
@@ -2384,12 +2423,12 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
           if (!song)
             return 0; // can't help, the file is gone
 
-          bm_add_bookmark(hwnd, song, out_playing_pos());
+          bm_add_bookmark(hwnd, song, PlayableInstance::slice(out_playing_pos()));
           return 0;
         }
 
         case IDM_M_EDITBOOK:
-          bm_show( TRUE );
+          DefaultBM->SetVisible(true);
           return 0;
 
         case IDM_M_TAG:
@@ -2467,7 +2506,7 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
           return 0;
 
         case IDM_M_PLAYLIST:
-          pl_show( TRUE );
+          DefaultPL->SetVisible(true);
           return 0;
 
         case IDM_M_VOL_RAISE:
@@ -2505,7 +2544,7 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
           return 0;
 
         case BMP_PL:
-          pl_show(!pl_visible());
+          DefaultPL->SetVisible(!DefaultPL->GetVisible());
           return 0;
 
         case BMP_REPEAT:
@@ -2618,8 +2657,8 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
       const PlaylistMenu::select_data* data = (PlaylistMenu::select_data*)PVOIDFROMMP(mp1);
       BOOL rc = amp_load_playable(data->Item->GetURL(), AMP_LOAD_NOT_PLAY|AMP_LOAD_NOT_RECALL|AMP_LOAD_KEEP_PLAYLIST);
 
-      if( rc && (cfg.playonload || data->Pos > 0))
-        amp_play(data->Pos);
+      if( rc && (cfg.playonload))
+        amp_play(data->Slice.Start);
     }
 
     case WM_CREATE:
@@ -2782,8 +2821,7 @@ amp_message_box( HWND owner, const char* title,
   sprintf( padded_title, "%-59s", title );
 
   if( owner == NULLHANDLE )
-  {
-    owner  =  HWND_DESKTOP;
+  { owner  =  HWND_DESKTOP;
     style &= ~MB_APPLMODAL;
   } else {
     style |=  MB_APPLMODAL;
@@ -2797,65 +2835,50 @@ amp_message_box( HWND owner, const char* title,
    Use the player window as message window owner. */
 void
 amp_player_error( const char* format, ... )
-{
-  char message[4096];
-  va_list args;
-
-  va_start( args, format );
-  vsprintf( message, format, args );
+{ va_list args;
+  va_start(args, format);
+  xstring message = xstring::vsprintf(format, args);
+  va_end(args);
   
-  DEBUGLOG(("ERROR: %s\n", message));
-
-  amp_message_box( hframe, "PM123 Error", message,
-                   MB_ERROR | MB_OK | MB_MOVEABLE );
+  DEBUGLOG(("ERROR: %s\n", message.cdata()));
+  amp_message_box( hframe, "PM123 Error", message, MB_ERROR | MB_OK | MB_MOVEABLE );
 }
 
 /* Creates and displays a error message window.
    The specified owner window is disabled. */
 void
 amp_error( HWND owner, const char* format, ... )
-{
-  char message[4096];
-  va_list args;
+{ va_list args;
+  va_start(args, format);
+  xstring message = xstring::vsprintf(format, args);
+  va_end(args);
 
-  va_start( args, format );
-  vsprintf( message, format, args );
-
-  DEBUGLOG(("ERROR: %x, %s\n", owner, message));
-
-  amp_message_box( owner, "PM123 Error", message,
-                   MB_ERROR | MB_OK | MB_MOVEABLE );
+  DEBUGLOG(("ERROR: %x, %s\n", owner, message.cdata()));
+  amp_message_box( owner, "PM123 Error", message, MB_ERROR | MB_OK | MB_MOVEABLE );
 }
 
 /* Creates and displays a message window. */
 void
 amp_info( HWND owner, const char* format, ... )
-{
-  char message[4096];
-  va_list args;
+{ va_list args;
+  va_start(args, format);
+  xstring message = xstring::vsprintf(format, args);
+  va_end(args);
 
-  va_start( args, format );
-  vsprintf( message, format, args );
-
-  DEBUGLOG(("INFO: %s\n", message));
-
-  amp_message_box( owner, "PM123 Information", message,
-                   MB_INFORMATION | MB_OK | MB_MOVEABLE );
+  DEBUGLOG(("INFO: %s\n", message.cdata()));
+  amp_message_box( owner, "PM123 Information", message, MB_INFORMATION | MB_OK | MB_MOVEABLE );
 }
 
 /* Requests the user about specified action. Returns
    TRUE at confirmation or FALSE in other case. */
 BOOL
 amp_query( HWND owner, const char* format, ... )
-{
-  char message[4096];
-  va_list args;
+{ va_list args;
+  va_start(args, format);
+  xstring message = xstring::vsprintf(format, args);
+  va_end(args);
 
-  va_start( args, format );
-  vsprintf( message, format, args );
-
-  return amp_message_box( owner, "PM123 Query", message,
-                          MB_QUERY | MB_YESNO | MB_MOVEABLE ) == MBID_YES;
+  return amp_message_box( owner, "PM123 Query", message, MB_QUERY | MB_YESNO | MB_MOVEABLE ) == MBID_YES;
 }
 
 /* Requests the user about overwriting a file. Returns
@@ -2863,11 +2886,7 @@ amp_query( HWND owner, const char* format, ... )
 BOOL
 amp_warn_if_overwrite( HWND owner, const char* filename )
 {
-  char message[4096];
   struct stat fi;
-
-  sprintf( message, "File %s already exists. Overwrite it?", filename );
-
   if( stat( filename, &fi ) == 0 ) {
     return amp_query( owner, "File %s already exists. Overwrite it?", filename );
   } else {
@@ -3035,7 +3054,7 @@ main( int argc, char *argv[] )
     struct stat fi;
     if( stat( bundle, &fi ) == 0 ) {
       // TODO: what's that?
-      pl_load_bundle( bundle, 0 );
+//      pl_load_bundle( bundle, 0 );
     }
   }
 
@@ -3043,13 +3062,15 @@ main( int argc, char *argv[] )
                    cfg.main.x, cfg.main.y, 0, 0, SWP_ACTIVATE | SWP_MOVE | SWP_SHOW );
 
   // Init some other stuff
-  pl_create();
-  pm_create();
-  bm_create();
+  PlaylistView::Init();
+  PlaylistManager::Init();
   
-  // Init MRU-Lists
+  // Init default lists
   { const url path = url::normalizeURL(startpath);
-    LoadMRU = (Playlist*)&*Playable::GetByURL(path + "LOADMRU.LST");
+    DefaultPL = PlaylistView::Get(path + "PM123.LST", "Default Playlist");
+    DefaultPM = PlaylistManager::Get(path + "PFREQ.LST", "Playlist Manager");
+    DefaultBM = PlaylistView::Get(path + "BOOKMARK.LST", "Bookmarks");
+    LoadMRU   = (Playlist*)&*Playable::GetByURL(path + "LOADMRU.LST");
   }
 
   DEBUGLOG(("main: visinit...\n"));
@@ -3062,6 +3083,10 @@ main( int argc, char *argv[] )
   if( cfg.dock_windows ) {
     dk_arrange( hframe );
   }
+  
+  DefaultPL->SetVisible(cfg.show_playlist);
+  DefaultPM->SetVisible(cfg.show_plman);
+  DefaultBM->SetVisible(cfg.show_bmarks);
   
   DEBUGLOG(("main: init complete\n"));
 
@@ -3081,11 +3106,14 @@ main( int argc, char *argv[] )
 
   save_ini();
 //  bm_save( hplayer );
-  pl_save_bundle( bundle, 0 );
+//  pl_save_bundle( bundle, 0 );
 
-  bm_destroy();
-  pm_destroy();
-  pl_destroy();
+  DefaultBM = NULL;
+  DefaultPM = NULL;
+  DefaultPL = NULL;
+  
+  PlaylistManager::UnInit();
+  PlaylistView::UnInit();
 
   bmp_clean_skin();
   remove_all_plugins();

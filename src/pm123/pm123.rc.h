@@ -37,7 +37,8 @@
 #define ICO_MP3USED           1701
 #define ICO_MP3ACTIVE         1702
 #define ICO_MP3PLAY           1703
-#define ICO_MP3INVLD          1709
+#define ICO_MP3INVLD          1708
+#define ICO_MP3WAIT           1709
 #define ICO_PLEMPTY           1710
 #define ICO_PLCLOSE           1711
 #define ICO_PLOPEN            1712
@@ -113,7 +114,7 @@
 #define IDH_ANALYZER       1002
 #define IDH_SUPPORT        1003
 #define IDH_COPYRIGHT      1004
-#define IDH_DRAG_AND_DROP  1005
+//#define IDH_DRAG_AND_DROP  1005
 #define IDH_EQUALIZER      1006
 #define IDH_ID3_EDITOR     1007
 #define IDH_INTERFACE      1008
@@ -128,6 +129,7 @@
 #define IDH_SKIN_GUIDE     1017
 #define IDH_SKIN_UTILITY   1018
 #define IDH_TROUBLES       1019
+#define IDH_PLAYLISTFORMAT 1020
 
 #define MSG_PLAY              1
 #define MSG_STOP              2
@@ -197,25 +199,25 @@
 #define IDM_PL_DETAILED     913
 #define IDM_PL_DETAILEDALL  914
 #define IDM_PL_TREEVIEW     915
-#define IDM_PL_REMOVE       916
-#define IDM_PL_CLEAR        917
-#define IDM_PL_EDIT         918
-#define IDM_PL_SORT         920
-#define IDM_PL_SORT_SIZE    921
-#define IDM_PL_SORT_PLTIME  922
-#define IDM_PL_SORT_NAME    923
-#define IDM_PL_SORT_SONG    924
-#define IDM_PL_SORT_RANDOM  925
+#define IDM_PL_TREEVIEWALL  916
+#define IDM_PL_REMOVE       917
+#define IDM_PL_CLEAR        918
+#define IDM_PL_RELOAD       919
+#define IDM_PL_REFRESH      920
+#define IDM_PL_EDIT         921
+#define IDM_PL_SORT         930
+#define IDM_PL_SORT_SIZE    931
+#define IDM_PL_SORT_PLTIME  932
+#define IDM_PL_SORT_NAME    933
+#define IDM_PL_SORT_SONG    934
+#define IDM_PL_SORT_RANDOM  935
 #define IDM_PL_APPEND      1100
 #define IDM_PL_APPFILE     1101
 #define IDM_PL_APPURL      1102
 #define IDM_PL_APPOTHER    1103 /* Need some IDs for plugin extensions.     */
 #define IDM_PL_OPEN         940
-#define IDM_PL_OPENL        941
 #define IDM_PL_OPENLAST    1000 /* A lot of IDs after this need to be free. */
 #define IDM_PL_SAVE         960
-#define IDM_PL_LST_SAVE     961
-#define IDM_PL_M3U_SAVE     962
 #define IDM_PL_MENU         970 /* invoke main menu */
 #define IDM_PL_MENUCONT     971 /* invoke record menu */ 
 

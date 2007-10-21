@@ -168,8 +168,9 @@ class PlaylistBase : public IComparableTo<char>
     IC_Active,
     IC_Play
   };
-  static HPOINTER   IcoPlayable[5][4];
+  static HPOINTER   IcoWait;
   static HPOINTER   IcoInvalid;
+  static HPOINTER   IcoPlayable[5][4];
   static void       InitIcons();
 
  protected: // content
@@ -249,10 +250,12 @@ class PlaylistBase : public IComparableTo<char>
   void              PlayStatEvent(const bool& status);
 
  protected: // User actions
-  // Add Item
-  void              UserAdd(DECODER_WIZZARD_FUNC wizzard, const char* title, RecordBase* parent = NULL, RecordBase* before = NULL);
   // Select a list with a file dialog.
   static url        PlaylistSelect(HWND owner, const char* title);
+  // Add Item
+  void              UserAdd(DECODER_WIZZARD_FUNC wizzard, const char* title, RecordBase* parent = NULL, RecordBase* before = NULL);
+  // Save list
+  void              UserSave();
 
  public: // public interface
   // Make the window visible (or not)

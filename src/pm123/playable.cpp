@@ -30,7 +30,6 @@
 #define INCL_PM
 #include "plugman.h"
 #include "playable.h"
-#include "playlist.h"
 #include <xio.h>
 #include <assert.h>
 #include <stdio.h>
@@ -166,14 +165,9 @@ Playable::Flags Playable::GetFlags() const
 void Playable::SetInUse(bool used)
 { DEBUGLOG(("Playable(%p{%s})::SetInUse(%u)\n", this, URL.cdata(), used));
   Mutex::Lock lock(Mtx);
-  if (Stat == STA_Invalid || Stat == STA_Unknown)
+  if (Stat <= STA_Invalid)
     return; // can't help 
-  PlayableStatus old_stat = Stat;
-  Stat = used ? STA_Used : STA_Normal;
-  if (Stat != old_stat)
-  { lock.Release();
-    InfoChange(change_args(*this, IF_Status));
-  }
+  UpdateStatus(used ? STA_Used : STA_Normal);
 }
 
 xstring Playable::GetDisplayName() const
@@ -216,6 +210,15 @@ void Playable::UpdateInfo(const DECODER_INFO2* info)
   UpdateInfo(info->format);
   UpdateInfo(info->tech);
   UpdateInfo(info->meta);
+}
+
+void Playable::UpdateStatus(PlayableStatus stat)
+{ DEBUGLOG(("Playable::UpdateStatus(%u) - %u\n", stat, Stat));
+  InfoValid |= IF_Status;
+  if (Stat != stat)
+  { Stat = stat;
+    InfoChangeFlags |= IF_Status;
+  }
 }
 
 bool Playable::SetMetaInfo(const META_INFO* meta)
@@ -265,18 +268,22 @@ int Playable::WTid = -1;
 bool Playable::WTermRq = false;
 
 static void PlayableWorker(void*)
-{ for (;;)
+{ HAB hab = WinInitialize(0);
+  HMQ hmq = WinCreateMsgQueue(hab, 0);
+  for (;;)
   { DEBUGLOG(("PlayableWorker() looking for work\n"));
     queue<Playable::QEntry>::Reader rdr(Playable::WQueue);
     Playable::QEntry& qp = rdr;
     DEBUGLOG(("PlayableWorker received message %p\n", &*qp));
   
     if (Playable::WTermRq || !qp) // stop
-      return;
+      break;
  
     // Do the work
     qp->LoadInfo(qp.Request);
   }
+  WinDestroyMsgQueue(hmq);
+  WinTerminate(hab);
 }
 
 void Playable::Init()
@@ -335,13 +342,15 @@ int_ptr<Playable> Playable::GetByURL(const url& URL, const FORMAT_INFO2* ca_form
 *
 ****************************************************************************/
 
-PlayableInstance::PlayableInstance(PlayableCollection& parent, Playable* playable)
+PlayableInstance::slice PlayableInstance::slice::Initial;
+
+
+PlayableInstance::PlayableInstance(PlayableCollection& parent, int_ptr<Playable> playable)
 : Parent(parent),
   RefTo(playable),
-  Stat(STA_Normal),
-  Pos(0)
+  Stat(STA_Normal)
 { DEBUGLOG(("PlayableInstance(%p)::PlayableInstance(%p{%s}, %p{%s})\n", this,
-    &parent, parent.GetURL().getShortName().cdata(), playable, playable->GetURL().getShortName().cdata()));
+    &parent, parent.GetURL().getShortName().cdata(), &*playable, playable->GetURL().getShortName().cdata()));
 }
 
 PlayableInstance::~PlayableInstance()
@@ -372,11 +381,11 @@ void PlayableInstance::SetAlias(const xstring& alias)
   }
 }
 
-void PlayableInstance::SetPlayPos(double pos)
-{ DEBUGLOG(("PlayableInstance(%p)::SetPlayPos(%f)\n", this, pos));
-  if (Pos != pos)
-  { Pos = pos;
-    StatusChange(change_args(*this, SF_PlayPos));
+void PlayableInstance::SetSlice(const slice& sl)
+{ DEBUGLOG(("PlayableInstance(%p)::SetSlice({%f,%f})\n", this, sl.Start, sl.Stop));
+  if (Slice.Start != sl.Start || Slice.Stop != sl.Stop)
+  { Slice = sl;
+    StatusChange(change_args(*this, SF_Slice));
   }
 }
 
@@ -392,18 +401,18 @@ void Song::LoadInfo(InfoFlags what)
   // get information
   sco_ptr<DecoderInfo> info = new DecoderInfo(); // a bit much for the stack
   int rc = dec_fileinfo(GetURL(), &*info, Decoder);
+  PlayableStatus stat;
   DEBUGLOG(("Song::LoadInfo - rc = %i\n", rc));
   // update information
   Mutex::Lock lock(Mtx);
   if (rc != 0)
-  { Stat = STA_Invalid;
+  { stat = STA_Invalid;
     info = NULL; // free structure
   } else
-  { if (Stat < STA_Normal)
-      Stat = STA_Normal;
-  }
+    stat = Stat == STA_Used ? STA_Used : STA_Normal;
+  UpdateStatus(stat);
   UpdateInfo(&*info);
-  InfoValid = IF_All;
+  RaiseInfoChange();
 }
 
 
@@ -476,10 +485,17 @@ Playable::Flags PlayableCollection::GetFlags() const
 { return Enumerable;
 }
 
-PlayableCollection::Entry* PlayableCollection::CreateEntry(const char* url)
+bool PlayableCollection::IsModified() const
+{ return false;
+}
+
+PlayableCollection::Entry* PlayableCollection::CreateEntry(const char* url, const FORMAT_INFO2* ca_format, const TECH_INFO* ca_tech, const META_INFO* ca_meta)
 { DEBUGLOG(("PlayableCollection(%p{%s})::CreateEntry(%s)\n", this, GetURL().getShortName().cdata(), url));
   // now create the entry with absolute path
-  return new Entry(*this, GetByURL(GetURL().makeAbsolute(url)), &ChildInfoChange);
+  int_ptr<Playable> pp = GetByURL(GetURL().makeAbsolute(url), ca_format, ca_tech, ca_meta);
+  // initiate prefetch of information
+  pp->EnsureInfoAsync(IF_Status);
+  return new Entry(*this, pp, &ChildInfoChange);
 }
 
 void PlayableCollection::AppendEntry(Entry* entry)
@@ -617,18 +633,14 @@ void PlayableCollection::LoadInfo(InfoFlags what)
   }
 
   if (what & (IF_Other|IF_Status))
-  { // TODO: We should allw a forced reload
-    if (Stat <= STA_Unknown)
-    { // load playlist content
-      if (LoadInfoCore())
-      { InfoChangeFlags |= IF_Status;
-        Stat = STA_Normal;
-      } else if (Stat == STA_Unknown)
-      { InfoChangeFlags |= IF_Status;
-        Stat = STA_Invalid;
-      }
-    }
-    InfoValid |= IF_Other|IF_Status;
+  { // load playlist content
+    PlayableStatus stat;
+    if (LoadInfoCore())
+      stat = Stat == STA_Used ? STA_Used : STA_Normal;
+    else
+      stat = STA_Invalid;
+    UpdateStatus(stat);
+    InfoValid |= IF_Other;
   }
 
   if (what & IF_Tech) 
@@ -642,31 +654,285 @@ void PlayableCollection::LoadInfo(InfoFlags what)
   RaiseInfoChange();
 }
 
+bool PlayableCollection::SaveLST(XFILE* of, bool relative)
+{ DEBUGLOG(("PlayableCollection(%p{%s})::SaveLST(%p, %u)\n", this, GetURL().cdata(), of, relative));
+  // Header
+  xio_fputs("#\n"
+            "# Playlist created with " AMP_FULLNAME "\n"
+            "# Do not modify!\n"
+            "# Lines starting with '>' are used for optimization.\n"
+            "#\n", of); 
+  // Content
+  Mutex::Lock lock(Mtx);
+  sco_ptr<PlayableEnumerator> pe = GetEnumerator();
+  while (pe->Next())
+  { PlayableInstance* pi = *pe;
+    Playable& play = pi->GetPlayable();
+    // alias
+    if (pi->GetAlias())
+    { xio_fputs("#ALIAS ", of);
+      xio_fputs(pi->GetAlias(), of);
+      xio_fputs("\n", of);
+    }
+    // slice
+    if (pi->GetSlice().Start != PlayableInstance::slice::Initial.Start || pi->GetSlice().Stop != PlayableInstance::slice::Initial.Stop)
+    { char buf[50];
+      sprintf(buf, "#SLICE %.3f,%.3f\n", pi->GetSlice().Start, pi->GetSlice().Stop);
+      xio_fputs(buf, of);
+    }
+    // comment
+    const TECH_INFO& tech = *play.GetInfo().tech;
+    if (play.GetStatus() > STA_Invalid && !play.CheckInfo(IF_Tech)) // only if immediately available
+    { char buf[50];
+      xio_fputs("# ", of);
+      if (tech.filesize < 0)
+        xio_fputs("n/a", of);
+      else
+      { sprintf(buf, "%.0lfkiB", tech.filesize/1024.);
+        xio_fputs(buf, of);
+      }
+      xio_fputs(", ", of);
+      if (tech.songlength < 0)
+        xio_fputs("n/a", of);
+      else
+      { unsigned long s = (unsigned long)tech.songlength;
+        if (s < 60)
+          sprintf(buf, "%lu s", s);
+        else if (s < 3600)
+          sprintf(buf, "%lu:%02lu", s/60, s%60);
+        else
+          sprintf(buf, "%lu:%02lu:%02lu", s/3600, s/60%60, s%60);
+        xio_fputs(buf, of); 
+      }
+      xio_fputs(", ", of);
+      xio_fputs(tech.info, of);
+      xio_fputs("\n", of);
+    }
+    // Object name
+    { xstring object = play.GetURL().makeRelative(GetURL(), relative);
+      const char* cp = object;
+      if (strnicmp(cp,"file://", 7) == 0)
+      { cp += 5;
+        if (cp[2] == '/')
+          cp += 3;
+      }
+      xio_fputs(cp, of);
+      xio_fputs("\n", of);
+    }
+    // tech info
+    if (play.GetStatus() > STA_Invalid && play.CheckInfo(IF_Tech|IF_Format) != IF_Tech|IF_Format)
+    { char buf[50];
+      if (play.CheckInfo(IF_Tech) == IF_None)
+      { sprintf(buf, ">%i", tech.bitrate);
+        xio_fputs(buf, of); 
+      } else
+        xio_fputs(">", of);
+      if (play.CheckInfo(IF_Format) == IF_None)
+      { const FORMAT_INFO2& format = *play.GetInfo().format;
+        sprintf(buf, ",%i,%i", format.samplerate, format.channels);
+        xio_fputs(buf, of);
+      } else
+        xio_fputs(",,", of);
+      if (play.CheckInfo(IF_Tech) == IF_None)
+      { sprintf(buf, ",%.0f,%.3f", tech.filesize, tech.songlength);
+        xio_fputs(buf, of);
+        if (play.GetFlags() & Enumerable)
+        sprintf(buf, ",%i,%i", tech.num_items, tech.recursive);
+        xio_fputs(buf, of);
+      }
+      xio_fputs("\n", of);
+    }
+  }
+  // Footer
+  xio_fputs("# End of playlist\n", of);
+  return true;
+}
+
+bool PlayableCollection::SaveM3U(XFILE* of, bool relative)
+{ DEBUGLOG(("PlayableCollection(%p{%s})::SaveM3U(%p, %u)\n", this, GetURL().cdata(), of, relative));
+  Mutex::Lock lock(Mtx);
+  sco_ptr<PlayableEnumerator> pe = GetEnumerator();
+  while (pe->Next())
+  { Playable& play = (*pe)->GetPlayable();
+    // Object name
+    xstring object = play.GetURL().makeRelative(GetURL(), relative);
+    const char* cp = object;
+    if (strnicmp(cp,"file://",7) == 0)
+    { cp += 5;
+      if (cp[2] == '/')
+        cp += 3;
+    }
+    xio_fputs(cp, of);
+    xio_fputs("\n", of);
+  }
+  return true;
+}
+
+bool PlayableCollection::Save(const url& URL, save_options opt)
+{ DEBUGLOG(("PlayableCollection(%p{%s})::Save(%s, %x)\n", this, GetURL().cdata(), URL.cdata(), opt));
+  // verify URL
+  if (!IsPlaylist(URL))
+    return false;
+
+  // create file
+  XFILE* of = xio_fopen(URL, "w");
+  if (of == NULL)
+    return false;
+
+  // now write the playlist
+  bool rc;
+  if (opt & SaveAsM3U)
+    rc = SaveM3U(of, (opt & SaveRelativePath) != 0);
+  else
+    rc = SaveLST(of, (opt & SaveRelativePath) != 0);
+  
+  // done
+  xio_fclose(of);
+  
+  if (!rc)
+    return false;
+
+  // notifications
+  int_ptr<Playable> pp = FindByURL(URL);
+  if (pp && pp != this)
+  { assert(pp->GetFlags() & Enumerable);
+    ((PlayableCollection&)*pp).NotifySourceChange();
+  }
+  return true;
+}
+
+void PlayableCollection::NotifySourceChange()
+{}
+
+
 /****************************************************************************
 *
 *  class Playlist
 *
 ****************************************************************************/
 
+void Playlist::LSTReader::Reset()
+{ DEBUGLOG(("Playlist::LSTReader::Reset()\n"));
+  has_format   = false;
+  has_tech     = false;
+  has_techinfo = false;
+  Alias        = NULL;
+  Slice        = PlayableInstance::slice::Initial;
+  URL          = NULL;
+}
+
+void Playlist::LSTReader::Create()
+{ DEBUGLOG(("Playlist::LSTReader::Create() - %p, %u, %u, %u\n", URL.cdata(), has_format, has_tech, has_techinfo));
+  if (URL)
+    List.AppendEntry(List.CreateEntry(URL, has_format ? &Format : NULL, has_tech && has_techinfo ? &Tech : NULL));
+}
+
+void Playlist::LSTReader::ParseLine(char* line)
+{ DEBUGLOG(("Playlist::LSTReader::ParseLine(%s)\n", line));
+  switch (line[0])
+  {case '#':
+    // prefix lines
+    if (memcmp(line+1, "ALIAS ", 6) == 0) // alias name
+    { Alias = line+7;
+      break;
+    } else if (memcmp(line+1, "SLICE ", 6) == 0) // slice
+    { sscanf(line+7, "%lf,%lf", &Slice.Start, &Slice.Stop);
+      break;
+    } else if (line[1] == ' ')
+    { const char* cp = strstr(line+2, ", ");
+      if (cp)
+      { cp = strstr(cp+2, ", ");
+        if (cp)
+        { strlcpy(Tech.info, cp+2, sizeof Tech.info);
+          has_techinfo = true;
+          break;
+      } }
+    }
+    // comments close URL
+    Create();
+    Reset();
+    break;
+
+   default:
+    // close last URL
+    Create();
+    if (URL)
+      Reset();
+    URL = List.GetURL().makeAbsolute(line);
+    break;
+
+   case '>':
+    { // tokenize string
+      const char* tokens[7] = {NULL};
+      const char** tp = tokens;
+      *tp = strtok(line+1, ",");
+      while (*tp)
+      { if (**tp == 0)
+          *tp = NULL;
+        *++tp = strtok(NULL, ",");
+        if (tp == tokens + sizeof tokens/sizeof *tokens)
+          break;
+      }
+      DEBUGLOG(("Playlist::LSTReader::ParseLine: tokens %s, %s, %s, %s, %s, %s, %s\n", tokens[0], tokens[1], tokens[2], tokens[3], tokens[4], tokens[5], tokens[6]));
+      // make tech info
+      if (tokens[0] && tokens[3] && tokens[4])
+      { has_tech = true;
+        // memset(Tech, 0, sizeof Tech);
+        Tech.size       = sizeof Tech;
+        Tech.bitrate    = atoi(tokens[0]);
+        Tech.filesize   = atof(tokens[3]);
+        Tech.songlength = atof(tokens[4]);
+        Tech.num_items  = tokens[5] ? atoi(tokens[5]) : 1;
+        Tech.recursive  = tokens[6] != NULL;
+      }
+      // make format info
+      if (tokens[1] && tokens[2])
+      { has_format = true;
+        // memset(Format, 0, sizeof Format);
+        Format.size       = sizeof Format;
+        Format.samplerate = atoi(tokens[1]);
+        Format.channels   = atoi(tokens[2]);
+        switch (Format.channels) // convert stupid modes of old PM123 versions
+        {case 0:
+          Format.channels = 2;
+          break;
+         case 3:
+          Format.channels = 1;
+          break;
+        }
+      }
+      break;
+    }
+
+   case '<':
+    // close URL
+    Create();
+    Reset();
+    break;
+  }
+}
+
+
 Playable::Flags Playlist::GetFlags() const
 { return Mutable;
+}
+
+bool Playlist::IsModified() const
+{ return Modified;
 }
 
 bool Playlist::LoadLST(XFILE* x)
 { DEBUGLOG(("Playlist(%p{%s})::LoadLST(%p)\n", this, GetURL().getShortName().cdata(), x));
   
   // TODO: fixed buffers...
-  char file [4096];
+  char line[4096];
+  LSTReader rdr(*this);
 
-  while (xio_fgets(file, sizeof(file), x))
-  {
-    blank_strip( file );
-    DEBUGLOG(("Playlist::LoadLST - %s\n", file));
-
-    if( *file != 0 && *file != '#' && *file != '>' && *file != '<' ) {
-      // TODO: fetch position
-      AppendEntry(CreateEntry(file));
-    }
+  while (xio_fgets(line, sizeof(line), x))
+  { blank_strip(line);
+    if (*line == 0)
+      continue;
+    rdr.ParseLine(line);
   }
   return true;
 }
@@ -776,26 +1042,31 @@ bool Playlist::LoadInfoCore()
     xio_fclose( x );
   }
   InfoChangeFlags |= IF_Other;
-
+  if (Modified)
+  { InfoChangeFlags |= IF_Status;
+    Modified = false;
+  }
   return rc;
 }
 
-void Playlist::InsertItem(const char* url, const xstring& alias, double pos, PlayableInstance* before)
-{ DEBUGLOG(("Playlist(%p{%s})::InsertItem(%s, %s, %.1f, %p) - %u\n", this, GetURL().getShortName().cdata(), url, alias?alias.cdata():"<NULL>", pos, before, Stat));
+void Playlist::InsertItem(const char* url, const xstring& alias, const PlayableInstance::slice& sl, PlayableInstance* before)
+{ DEBUGLOG(("Playlist(%p{%s})::InsertItem(%s, %s, {%.1f,%.1f}, %p) - %u\n", this, GetURL().getShortName().cdata(), url, alias?alias.cdata():"<NULL>", sl.Start, sl.Stop, before, Stat));
   Entry* ep = CreateEntry(url);
   ep->SetAlias(alias);
-  ep->SetPlayPos(pos);
+  ep->SetSlice(sl);
   Mutex::Lock lock(Mtx);
   if (Stat <= STA_Invalid)
-  { InfoChangeFlags |= IF_Status;
-    Stat = STA_Normal;
-  }
+    UpdateStatus(STA_Normal);
 
   if (before == NULL)
     AppendEntry(ep);
    else
     InsertEntry(ep, (Entry*)before);
   InfoChangeFlags |= IF_Other;
+  if (!Modified)
+  { InfoChangeFlags |= IF_Status;
+    Modified = true;
+  }
   // update info
   LoadInfoAsync(InfoValid & IF_Tech);
   // raise InfoChange event?
@@ -816,12 +1087,42 @@ void Playlist::RemoveItem(PlayableInstance* item)
     } while (Head);
   }
   InfoChangeFlags |= IF_Other;
+  if (!Modified)
+  { InfoChangeFlags |= IF_Status;
+    Modified = true;
+  }
   // update tech info
   LoadInfoAsync(InfoValid & IF_Tech);
   // raise InfoChange event?
   DEBUGLOG(("Playlist::RemoveItem: before raiseinfochange\n"));
   RaiseInfoChange();
   DEBUGLOG(("Playlist::RemoveItem: after raiseinfochange\n"));
+}
+
+bool Playlist::Save(const url& URL, save_options opt)
+{ DEBUGLOG(("Playlist(%p)::Save(%s, %x)\n", this, URL.cdata(), opt));
+  if (!PlayableCollection::Save(URL, opt))
+    return false;
+  if (URL == GetURL())
+  { // TODO: this should be done atomic with the save.
+    Mutex::Lock lock(Mtx);
+    if (Modified)
+    { InfoChangeFlags |= IF_Status;
+      Modified = false;
+      RaiseInfoChange();
+    }
+  }
+  return true;
+}
+
+void Playlist::NotifySourceChange()
+{ DEBUGLOG(("Playlist(%p{%s})::NotifySourceChange()", this, GetURL().cdata()));
+  Mutex::Lock lock(Mtx);
+  if (!Modified)
+  { InfoChangeFlags |= IF_Status;
+    Modified = true;
+    RaiseInfoChange();
+  }
 }
 
 
@@ -914,4 +1215,5 @@ bool PlayFolder::LoadInfoCore()
     return false;
   }
 }
+
 

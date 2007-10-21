@@ -84,7 +84,7 @@ class Playable : public Iref_Count, private IComparableTo<char>
     IF_Tech     = 0x02,// applies to GetInfo().tech
     IF_Meta     = 0x04,// applies to GetInfo().meta
     IF_Other    = 0x08,// applies e.g. to PlayableCollection::GetEnumerator()
-    IF_Status   = 0x10,// applies to GetStatus()
+    IF_Status   = 0x10,// applies to GetStatus() and IsModified()
     IF_All      = IF_Format|IF_Tech|IF_Meta|IF_Other|IF_Status
   };
   // Parameters for InfoChange Event
@@ -130,13 +130,12 @@ class Playable : public Iref_Count, private IComparableTo<char>
   void operator=(const Playable&);
  protected:
   Playable(const url& url, const FORMAT_INFO2* ca_format = NULL, const TECH_INFO* ca_tech = NULL, const META_INFO* ca_meta = NULL);
-  // Check whether a given URL is to be initialized as playlist.
-  static bool         IsPlaylist(const url& URL);
   // Update the structure components and return the required InfoChange Flags or 0 if no change has been made.
   void                UpdateInfo(const FORMAT_INFO2* info);
   void                UpdateInfo(const TECH_INFO* info);
   void                UpdateInfo(const META_INFO* info);
   void                UpdateInfo(const DECODER_INFO2* info);
+  void                UpdateStatus(PlayableStatus stat);
   // Raise the InfoChange event if required.
   // This function must be called in synchronized context.
   void                RaiseInfoChange()   { if (InfoChangeFlags)
@@ -144,6 +143,8 @@ class Playable : public Iref_Count, private IComparableTo<char>
                                             InfoChangeFlags = IF_None; } 
  public:
   virtual ~Playable();
+  // Check whether a given URL is to be initialized as playlist.
+  static bool         IsPlaylist(const url& URL);
   // Get URL
   const url&          GetURL() const      { return URL; }
   // RTTI by the back door.
@@ -215,21 +216,21 @@ class Playable : public Iref_Count, private IComparableTo<char>
  // asynchronuous request service
  private:
   struct QEntry : public int_ptr<Playable> // derives operator ==
-  { InfoFlags         Request;
+  { InfoFlags              Request;
     QEntry(Playable* obj, InfoFlags req) : int_ptr<Playable>(obj), Request(req) {}
   };
  
  private: 
-  static queue<QEntry> WQueue;
-  static int          WTid;          // Thread ID of the worker  
-  static bool         WTermRq;       // Termination Request to Worker
+  static queue<QEntry>     WQueue;
+  static int               WTid;          // Thread ID of the worker  
+  static bool              WTermRq;       // Termination Request to Worker
  
  private:
   // stub to call Populate asynchronuously
   friend static void TFNENTRY PlayableWorker(void*);
  public:
-  static void         Init();
-  static void         Uninit();
+  static void              Init();
+  static void              Uninit();
 
  // Repository
  private:
@@ -269,8 +270,8 @@ class PlayableInstance
   { SF_None    = 0,
     SF_InUse   = 0x01,
     SF_Alias   = 0x02,
-    SF_PlayPos = 0x04,
-    SF_All     = SF_InUse|SF_Alias|SF_PlayPos,
+    SF_Slice   = 0x04,
+    SF_All     = SF_InUse|SF_Alias|SF_Slice,
     SF_Destroy = 0x80 // This is the last event of a playable instance when it goes out of scope.
   };
   struct change_args
@@ -278,16 +279,22 @@ class PlayableInstance
     StatusFlags       Flags; // Bitvector of type StatusFlags
     change_args(PlayableInstance& inst, StatusFlags flags) : Instance(inst), Flags(flags) {}
   };
+  struct slice
+  { double            Start;
+    double            Stop;
+    static slice      Initial;
+    slice(double start = 0, double stop = -1) : Start(start), Stop(stop) {}
+  };
 
  private:
   PlayableCollection& Parent;
   const int_ptr<Playable> RefTo;
   PlayableStatus      Stat;
   xstring             Alias;
-  double              Pos;
+  slice               Slice;
 
  protected:
-  PlayableInstance(PlayableCollection& parent, Playable* playable);
+  PlayableInstance(PlayableCollection& parent, int_ptr<Playable> playable);
   ~PlayableInstance();
 
  public:
@@ -306,8 +313,8 @@ class PlayableInstance
   xstring             GetAlias() const    { return Alias; }
   void                SetAlias(const xstring& alias);
   // Play position
-  double              GetPlayPos() const  { return Pos; }
-  void                SetPlayPos(double pos);
+  const slice&        GetSlice() const    { return Slice; }
+  void                SetSlice(const slice& sl);
   // Display name
   xstring             GetDisplayName() const;
  public:
@@ -381,6 +388,11 @@ class PlayableCollection : public Playable
     Move,   // item just moved
     Delete  // item about to be deleted
   };
+  enum save_options
+  { SaveDefault      = 0x00,
+    SaveRelativePath = 0x01,
+    SaveAsM3U        = 0x10
+  };
   struct change_args
   { PlayableCollection& Collection;
     PlayableInstance&   Item;
@@ -406,7 +418,6 @@ class PlayableCollection : public Playable
     virtual PlayableEnumerator* Clone() const;
   };
   friend class Enumerator;
-
  protected:
   struct Entry : public PlayableInstance
   { typedef class_delegate<PlayableCollection, const Playable::change_args> TDType;
@@ -420,7 +431,6 @@ class PlayableCollection : public Playable
       TechDelegate(playable->InfoChange, parent, fn)
     {}
   };
-
 
  protected:
   static const FORMAT_INFO2 no_format;
@@ -438,7 +448,7 @@ class PlayableCollection : public Playable
   // (Re)calculate the TECH_INFO structure.
   virtual void                CalcTechInfo(TECH_INFO& dst);
   // Create new entry and make the path absolute if required.
-  virtual Entry*              CreateEntry(const char* url);
+  virtual Entry*              CreateEntry(const char* url, const FORMAT_INFO2* ca_format = NULL, const TECH_INFO* ca_tech = NULL, const META_INFO* ca_meta = NULL);
   // Append a new entry at the end of the list.
   // The list must be locked before calling this Function.
   void                        AppendEntry(Entry* entry);
@@ -451,12 +461,21 @@ class PlayableCollection : public Playable
   // Subfunction to LoadInfo which really populates the linked list.
   // The return value indicates whether the object is valid.
   virtual bool                LoadInfoCore() = 0;
+  // Save to stream as PM123 playlist format
+  bool                        SaveLST(XFILE* of, bool relative);
+  // Save to stream as WinAmp playlist format
+  bool                        SaveM3U(XFILE* of, bool relative);
   // Constructor with defaults if available.
   PlayableCollection(const url& URL, const TECH_INFO* ca_tech = NULL, const META_INFO* ca_meta = NULL);
  public:
   virtual                     ~PlayableCollection();
   // RTTI by the back door.
   virtual Flags               GetFlags() const;
+  // Check whether the current Collection is a modified shadow of a unmodified backend.
+  // Calling Save() will turn the state into unmodified.
+  // The default implementation of this class will always return false.
+  // This is the behaviour of a read-only or a synchronized collection.
+  virtual bool                IsModified() const;
 
   // Get an enumerator for this instance.
   // Generally you must delete the returned instance once you don't need it anymore.
@@ -469,18 +488,56 @@ class PlayableCollection : public Playable
   // Load Information from URL
   // This implementation is only the framework. It reqires LoadInfoCore() for it's work.
   virtual void                LoadInfo(InfoFlags what);
+  // Save the current playlist as new file.
+  // If the destination name is omitted, the data is saved under the current URL.
+  // However this might not succeed, if the URL is read-only.
+  // Saving under a different name does not change the name of the curren object.
+  // It is like save copy as.
+  virtual bool                Save(const url& URL, save_options opt = SaveDefault);
+  bool                        Save(save_options opt = SaveDefault) { return Save(GetURL(), opt); }
 
+ protected:
+  // Notify that the data source is likely to have changed.
+  // This is a NO-OP in the default implementation.
+  virtual void                NotifySourceChange();
  public:
   // This event is raised whenever the collection has changed.
   // The event may be called from any thread.
   // The event is called in synchronized context.
   event<const change_args>    CollectionChange;
 };
+FLAGSATTRIBUTE(PlayableCollection::save_options);
 
 /* Class representing a playlist file.
  */
 class Playlist : public PlayableCollection
 {private:
+  class LSTReader;
+  friend class LSTReader;
+  class LSTReader
+  {private:
+    Playlist&                 List;
+    FORMAT_INFO2              Format;
+    TECH_INFO                 Tech;
+    bool                      has_format;
+    bool                      has_tech;
+    bool                      has_techinfo;
+    xstring                   Alias;
+    PlayableInstance::slice   Slice;
+    url                       URL;
+   private:
+    void                      Reset();
+    void                      Create();
+   public:
+    LSTReader(Playlist& lst)  : List(lst) { Reset(); }
+    ~LSTReader()              { Create(); }
+    void                      ParseLine(char* line);
+  };
+
+ private:
+  bool                        Modified;
+
+ private:
   // Loads the PM123 native playlist file.
   bool                        LoadLST(XFILE* x);
   // Loads the WarpAMP playlist file.
@@ -492,17 +549,29 @@ class Playlist : public PlayableCollection
   virtual bool                LoadInfoCore();
  public:
   Playlist(const url& URL, const TECH_INFO* ca_tech = NULL, const META_INFO* ca_meta = NULL)
-   : PlayableCollection(URL, ca_tech, ca_meta) { DEBUGLOG(("Playlist(%p)::Playlist(%s, %p, %p)\n", this, URL.cdata(), ca_tech, ca_meta)); }
+   : PlayableCollection(URL, ca_tech, ca_meta), Modified(false) { DEBUGLOG(("Playlist(%p)::Playlist(%s, %p, %p)\n", this, URL.cdata(), ca_tech, ca_meta)); }
   // Get attributes 
   virtual Flags               GetFlags() const;
+  // Check whether the current Collection is a modified shadow of a unmodified backend.
+  // Calling Save() will turn the state into unmodified.
+  virtual bool                IsModified() const;
+
   // Insert a new item before the item "before".
   // If the prameter before is NULL the the item is appended. 
-  virtual void                InsertItem(const char* url, const xstring& alias, double pos, PlayableInstance* before = NULL);
+  virtual void                InsertItem(const char* url, const xstring& alias, const PlayableInstance::slice& sl, PlayableInstance* before = NULL);
+  void                        InsertItem(const char* url, const xstring& alias, PlayableInstance* before = NULL)
+                              { InsertItem(url, alias, PlayableInstance::slice::Initial, before); }
   // Remove an item from the playlist.
   // Attension: passing NULL as argument will remove all items.
   virtual void                RemoveItem(PlayableInstance* item);
   // Remove all items from the playlist.
   void                        Clear() { RemoveItem(NULL); }
+  // Save the current playlist as new file.
+  virtual bool                Save(const url& URL, save_options opt = SaveDefault);
+
+ protected:
+  // Notify that the data source is likely to have changed.
+  virtual void                NotifySourceChange();
 };
 
 /* Class representing a folder with songs.
