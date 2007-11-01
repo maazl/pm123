@@ -142,11 +142,14 @@ CL_MODULE::~CL_MODULE()
 
 /* Loads a plug-in dynamic link module. */
 BOOL CL_MODULE::load_module()
-{ char  load_error[1024];
+{ char  load_error[_MAX_PATH];
+  *load_error = 0;
   DEBUGLOG(("CL_MODULE(%p{%s})::load_module()\n", this, module_name));
   APIRET rc = DosLoadModule( load_error, sizeof( load_error ), (PSZ)module_name, &module );
-  if( rc != NO_ERROR ) {
-    DEBUGLOG(("CL_MODULE({%p,%s})::load_module: FALSE - %u\n", module, module_name, rc));
+  DEBUGLOG(("CL_MODULE::load_module: %p - %u\n", module, rc));
+  // For some reason the API sometimes returns ERROR_INVALID_PARAMETER when loading oggplay.dll.
+  // However, the module is loaded successfully.
+  if( rc != NO_ERROR && rc != ERROR_INVALID_PARAMETER ) {
     char  error[1024];
     amp_player_error( "Could not load %s, %s. Error %d\n%s",
                       module_name, load_error, rc, os2_strerror( rc, error, sizeof( error )));

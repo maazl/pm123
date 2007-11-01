@@ -102,7 +102,6 @@ class PlaylistView : public PlaylistRepository<PlaylistView>
  private:
   // Create a playlist manager window for an URL, but don't open it.
   PlaylistView(const char* URL, const char* alias);
-  ~PlaylistView();
  
  private:
   // Post record message, filtered
@@ -127,18 +126,8 @@ class PlaylistView : public PlaylistRepository<PlaylistView>
   // (re-)calculate colum content, return true if changes are made
   bool              CalcCols(Record* rec, Playable::InfoFlags flags, PlayableInstance::StatusFlags iflags);
 
-  // create a new entry in the container
-  Record*           AddEntry(PlayableInstance* obj, Record* after = NULL);
-  Record*           MoveEntry(Record* entry, Record* after = NULL);
-  // Removes entries from the container
-  // The entry object is valid after calling this function until the next DispatchMessage.
-  void              RemoveEntry(Record* const entry);
-  // delete all children
-  void              RemoveChildren();
-  // request container records 
-  void              RequestChildren();
-  // Update the list of children
-  void              UpdateChildren();
+  // Subfunction to the factory below.
+  virtual RecordBase* CreateNewRecord(PlayableInstance* obj, RecordBase* parent);
   // Update a record
   void              UpdateRecord(Record* rec, Playable::InfoFlags flags, PlayableInstance::StatusFlags iflags);
 };

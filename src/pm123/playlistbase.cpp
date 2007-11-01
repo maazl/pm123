@@ -112,9 +112,10 @@ void PlaylistBase::InitIcons()
   IcoPlayable[ICP_Recursive][IC_Play  ] = WinLoadPointer(HWND_DESKTOP, 0, ICO_PLRECURSIVEPLAY);
 }
 
-PlaylistBase::PlaylistBase(const char* url, const char* alias)
+PlaylistBase::PlaylistBase(const char* url, const char* alias, ULONG rid)
 : Content(Playable::GetByURL(url)),
   Alias(alias),
+  DlgRID(rid),
   HwndFrame(NULLHANDLE),
   HwndContainer(NULLHANDLE),
   CmFocus(NULL),
@@ -130,6 +131,39 @@ PlaylistBase::PlaylistBase(const char* url, const char* alias)
   // These two ones are constant
   LoadWizzards[0] = &amp_file_wizzard;
   LoadWizzards[1] = &amp_url_wizzard;
+}
+
+PlaylistBase::~PlaylistBase()
+{ DEBUGLOG(("PlaylistBase(%p)::~PlaylistBase()\n", this));
+  WinPostMsg(HwndFrame, WM_QUIT, 0, 0);
+  // This may give an error if called from our own thread. This is intensionally ignored here.
+  DosWaitThread(&ThreadID, DCWW_WAIT);
+}
+
+void TFNENTRY pl_DlgThreadStub(void* arg)
+{ ((PlaylistBase*)arg)->DlgThread();
+}
+
+void PlaylistBase::StartDialog()
+{ ThreadID = _beginthread(pl_DlgThreadStub, NULL, 1024*1024, this);
+}
+
+void PlaylistBase::DlgThread()
+{ // initialize PM
+  HAB hab = WinInitialize(0);
+  HMQ hmq = WinCreateMsgQueue(hab, 0);
+  // initialize dialog
+  init_dlg_struct ids = { sizeof(init_dlg_struct), this };
+  WinLoadDlg(HWND_DESKTOP, HWND_DESKTOP, pl_DlgProcStub, NULLHANDLE, DlgRID, &ids);
+  // get and dispatch messages from queue
+  QMSG msg;
+  while (WinGetMsg(hab, &msg, 0, 0, 0))
+    WinDispatchMsg(hab, &msg);
+  // cleanup
+  save_window_pos(HwndFrame, 0);
+  WinDestroyWindow(HwndFrame);
+  WinDestroyMsgQueue(hmq);
+  WinTerminate(hab);
 }
 
 void PlaylistBase::PostRecordCommand(RecordBase* rec, RecordCommand cmd)
@@ -157,7 +191,11 @@ void PlaylistBase::FreeRecord(RecordBase* rec)
 void PlaylistBase::DeleteEntry(RecordBase* entry)
 { DEBUGLOG(("PlaylistBase(%p{%s})::DeleteEntry(%s)\n", this, DebugName().cdata(), RecordBase::DebugName(entry).cdata()));
   delete entry->Data;
+  #ifdef DEBUG
   assert(LONGFROMMR(WinSendMsg(HwndContainer, CM_FREERECORD, MPFROMP(&entry), MPFROMSHORT(1))));
+  #else
+  WinSendMsg(HwndContainer, CM_FREERECORD, MPFROMP(&entry), MPFROMSHORT(1));
+  #endif
   DEBUGLOG(("PlaylistBase::DeleteEntry completed\n"));
 }
 
@@ -213,9 +251,12 @@ void PlaylistBase::InitDlg()
 }
 
 MRESULT PlaylistBase::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
-{ switch (msg)
+{ DEBUGLOG(("PlaylistBase(%p)::DlgProc(%x, %x, %x)\n", this, msg, mp1, mp2));
+  switch (msg)
   {case WM_INITDLG:
     { InitDlg();
+      // populate the root node
+      RequestChildren(NULL);
       return 0;
     }
 
@@ -227,7 +268,7 @@ MRESULT PlaylistBase::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
       // process outstanding UM_DELETERECORD messages before we quit to ensure that all records are back to the PM before we die.
       QMSG qmsg;
       while (WinPeekMsg(amp_player_hab(), &qmsg, HwndFrame, UM_DELETERECORD, UM_DELETERECORD, PM_REMOVE))
-      { DEBUGLOG2(("PlaylistManager::DlgProc: WM_DESTROY: %x %x %x %x\n", qmsg.hwnd, qmsg.msg, qmsg.mp1, qmsg.mp2));
+      { DEBUGLOG2(("PlaylistBase::DlgProc: WM_DESTROY: %x %x %x %x\n", qmsg.hwnd, qmsg.msg, qmsg.mp1, qmsg.mp2));
         DlgProc(qmsg.msg, qmsg.mp1, qmsg.mp2); // We take the short way here.
       }
       break;
@@ -269,7 +310,7 @@ MRESULT PlaylistBase::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
         }
        case IDM_PL_USE:
         { if (focus)
-          amp_load_playable(focus->Content->GetPlayable().GetURL(), 0);
+            amp_load_playable(focus->Content->GetPlayable().GetURL(), 0);
           return 0;
         }
        case IDM_PL_TREEVIEWALL:
@@ -365,15 +406,18 @@ MRESULT PlaylistBase::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
     }
 
    case UM_DELETERECORD:
+    DEBUGLOG(("PlaylistBase::DlgProc: UM_DELETERECORD: %s\n", RecordBase::DebugName((RecordBase*)PVOIDFROMMP(mp1)).cdata()));
     DeleteEntry((RecordBase*)PVOIDFROMMP(mp1));
     return 0;
     
    case UM_SYNCREMOVE:
     { RecordBase* rec = (RecordBase*)PVOIDFROMMP(mp1);
-      DEBUGLOG(("PlaylistBase::DlgProc: UM_SYNCREMOVE: %p{%p{%s}}\n", rec, &*rec->Content, RecordBase::DebugName(rec).cdata()));
+      DEBUGLOG(("PlaylistBase::DlgProc: UM_SYNCREMOVE: %s}\n", RecordBase::DebugName(rec).cdata()));
       rec->Content = NULL;
       // deregister event handlers too.
-      rec->Data->DeregisterEvents(); 
+      rec->Data->DeregisterEvents();
+      if (CmFocus == rec)
+        CmFocus = NULL; 
       return 0;
     }
     
@@ -436,6 +480,179 @@ void PlaylistBase::SetTitle()
   if (WinSetWindowText(HwndFrame, (char*)title.cdata()))
     // now free the old title
     Title = title;
+}
+
+PlaylistBase::RecordBase* PlaylistBase::AddEntry(PlayableInstance* obj, RecordBase* parent, RecordBase* after)
+{ DEBUGLOG(("PlaylistBase(%p{%s})::AddEntry(%p{%s}, %p, %p)\n", this, DebugName().cdata(), obj, obj->GetPlayable().GetURL().getShortName().cdata(), parent, after));
+  /* Allocate a record in the HwndContainer */
+  RecordBase* rec = CreateNewRecord(obj, parent);
+  if (rec)
+  { RECORDINSERT insert      = { sizeof(RECORDINSERT) };
+    if (after)
+    { insert.pRecordOrder    = (RECORDCORE*)after;
+      //insert.pRecordParent = NULL;
+    } else
+    { insert.pRecordOrder    = (RECORDCORE*)CMA_FIRST;
+      insert.pRecordParent   = (RECORDCORE*)parent;
+    }
+    insert.fInvalidateRecord = TRUE;
+    insert.zOrder            = CMA_TOP;
+    insert.cRecordsInsert    = 1;
+    ULONG rc = LONGFROMMR(WinSendMsg(HwndContainer, CM_INSERTRECORD, MPFROMP(rec), MPFROMP(&insert)));
+    
+    DEBUGLOG(("PlaylistBase::AddEntry: succeeded: %p %u %x\n", rec, rc, WinGetLastError(NULL)));
+  }
+  return rec;
+}
+
+PlaylistBase::RecordBase* PlaylistBase::MoveEntry(RecordBase* entry, RecordBase* parent, RecordBase* after)
+{ DEBUGLOG(("PlaylistBase(%p{%s})::MoveEntry(%s, %s, %s)\n", this, DebugName().cdata(),
+    RecordBase::DebugName(entry).cdata(), RecordBase::DebugName(parent).cdata(), RecordBase::DebugName(after).cdata()));
+  TREEMOVE move =
+  { (RECORDCORE*)entry,
+    (RECORDCORE*)parent,
+    (RECORDCORE*)(after ? after : (RecordBase*)CMA_FIRST),
+    FALSE
+  };
+  if (WinSendMsg(HwndContainer, CM_MOVETREE, MPFROMP(&move), 0) == FALSE)
+    return NULL;
+  return entry;
+}
+
+void PlaylistBase::RemoveEntry(RecordBase* const entry)
+{ DEBUGLOG(("PlaylistBase(%p{%s})::RemoveEntry(%p)\n", this, DebugName().cdata(), entry));
+  // detach content
+  entry->Content = NULL;
+  // deregister events
+  entry->Data->DeregisterEvents();
+  // Delete the children
+  RemoveChildren(entry);
+  // Remove record from container
+  #ifndef NDEBUG
+  assert(LONGFROMMR(WinSendMsg(HwndContainer, CM_REMOVERECORD, MPFROMP(&entry), MPFROM2SHORT(1, CMA_INVALIDATE))) != -1);
+  #else
+  WinSendMsg(HwndContainer, CM_REMOVERECORD, MPFROMP(&entry), MPFROM2SHORT(1, CMA_INVALIDATE));
+  #endif
+  // Release reference counter
+  // The record will be deleted when no outstanding PostMsg is on the way.  
+  FreeRecord(entry);
+  DEBUGLOG(("PlaylistBase::RemoveEntry completed\n"));
+}
+
+int PlaylistBase::RemoveChildren(RecordBase* const rp)
+{ DEBUGLOG(("PlaylistBase(%p)::RemoveChildren(%p)\n", this, rp));
+  RecordBase* crp = (RecordBase*)WinSendMsg(HwndContainer, CM_QUERYRECORD, MPFROMP(rp), MPFROM2SHORT(rp ? CMA_FIRSTCHILD : CMA_FIRST, CMA_ITEMORDER));
+  int count = 0;
+  while (crp != NULL && crp != (RecordBase*)-1)
+  { DEBUGLOG(("PlaylistBase::RemoveChildren: CM_QUERYRECORD: %s\n", RecordBase::DebugName(crp).cdata()));
+    RecordBase* crp2 = crp;
+    crp = (RecordBase*)WinSendMsg(HwndContainer, CM_QUERYRECORD, MPFROMP(crp), MPFROM2SHORT(CMA_NEXT, CMA_ITEMORDER));
+    RemoveEntry(crp2);
+    ++count;
+  }
+  return count;
+}
+
+void PlaylistBase::RequestChildren(RecordBase* const rec)
+{ DEBUGLOG(("PlaylistBase(%p)::RequestChildren(%s)\n", this, RecordBase::DebugName(rec).cdata()));
+  Playable* pp;
+  if (rec == NULL)
+    pp = Content;
+  else if (rec->IsRemoved())
+    return;
+  else
+    pp = &rec->Content->GetPlayable();
+  if ((pp->GetFlags() & Playable::Enumerable) == 0)
+    return;
+  // Call event either immediately or later, asynchronuously.
+  InfoChangeEvent(Playable::change_args(*pp, pp->EnsureInfoAsync(Playable::IF_Other|Playable::IF_Tech)), rec);
+}
+
+void PlaylistBase::UpdateChildren(RecordBase* const rp)
+{ DEBUGLOG(("PlaylistBase(%p)::UpdateChildren(%s)\n", this, RecordBase::DebugName(rp).cdata()));
+  // get content
+  Playable* pp;
+  if (rp == NULL)
+    pp = Content;
+  else if (rp->IsRemoved())
+    return; // record removed
+  else
+    pp = &rp->Content->GetPlayable();
+
+  DEBUGLOG(("PlaylistBase::UpdateChildren - %u\n", pp->GetStatus()));
+  if ((pp->GetFlags() & Playable::Enumerable) == 0 || pp->GetStatus() <= STA_Invalid)
+  { // Nothing to enumerate, delete children if any
+    DEBUGLOG(("PlaylistBase::UpdateChildren - no children possible.\n"));
+    if (RemoveChildren(rp))
+      PostRecordCommand(rp, RC_UPDATESTATUS); // update icon
+    return;
+  }
+  
+  // Check if techinfo is available, otherwise wait
+  if (pp->EnsureInfoAsync(Playable::IF_Tech) == 0)
+  { StateFromRec(rp).WaitUpdate = true;
+    return;
+  }
+
+  WinEnableWindowUpdate(HwndContainer, FALSE); // suspend redraw
+  // First check what's currently in the container.
+  // The collection is not locked so far.
+  vector<RecordBase> old(32);
+  RecordBase* crp = (RecordBase*)WinSendMsg(HwndContainer, CM_QUERYRECORD, MPFROMP(rp), MPFROM2SHORT(rp ? CMA_FIRSTCHILD : CMA_FIRST, CMA_ITEMORDER));
+  while (crp != NULL && crp != (RecordBase*)-1)
+  { DEBUGLOG(("PlaylistBase::UpdateChildren CM_QUERYRECORD: %s\n", RecordBase::DebugName(crp).cdata()));
+    // prefetch next record
+    RecordBase* ncrp = (RecordBase*)WinSendMsg(HwndContainer, CM_QUERYRECORD, MPFROMP(crp), MPFROM2SHORT(CMA_NEXT, CMA_ITEMORDER));
+    if (crp->Content)
+      // record is valid => add to list
+      old.insert(old.size()) = crp;
+    else
+      // Remove records where UM_SYNCREMOVE has been arrived to reduce the number of record moves.
+      RemoveEntry(crp);
+    crp = ncrp;
+  }
+
+  { // Now check what should be in the container
+    DEBUGLOG(("PlaylistBase::UpdateChildren - check container.\n"));
+    Mutex::Lock lock(pp->Mtx); // Lock the collection
+    sco_ptr<PlayableEnumerator> ep = ((PlayableCollection*)pp)->GetEnumerator();
+    crp = NULL; // Last entry, insert new items after that.
+    while (ep->Next())
+    { // Find entry in the current content
+      RecordBase** orpp = old.begin();
+      for (;;)
+      { if (orpp == old.end())
+        { // not found! => add
+          DEBUGLOG(("PlaylistBase::UpdateChildren - not found: %p{%s}\n", &**ep, (*ep)->GetPlayable().GetURL().getShortName().cdata()));
+          crp = AddEntry(&**ep, rp, crp);
+          if (crp && (rp == NULL || (rp->flRecordAttr & CRA_EXPANDED)))
+            RequestChildren(crp);
+          break;
+        }
+        // in case we received a UM_SYNCREMOVE event for a record, the comparsion below will fail.
+        if ((*orpp)->Content == &**ep)
+        { // found!
+          DEBUGLOG(("PlaylistBase::UpdateChildren - found: %p{%s} at %u\n", &**ep, (*ep)->GetPlayable().GetURL().getShortName().cdata(), orpp - old.begin()));
+          if (orpp == old.begin())
+            // already in right order
+            crp = *orpp;
+          else
+            // move
+            crp = MoveEntry(*orpp, rp, crp);
+          // Remove from old queue
+          old.erase(orpp - old.begin());
+          break;
+        }
+        ++orpp;
+      }
+    }
+  }
+  // delete remaining records
+  DEBUGLOG(("PlaylistBase::UpdateChildren - old.size() = %u\n", old.size()));
+  for (RecordBase** orpp = old.begin(); orpp != old.end(); ++orpp)
+    RemoveEntry(*orpp);
+  // resume redraw
+  WinEnableWindowUpdate(HwndContainer, TRUE);
 }
 
 void PlaylistBase::UpdateStatus(RecordBase* rec)

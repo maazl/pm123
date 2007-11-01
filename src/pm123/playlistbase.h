@@ -176,6 +176,7 @@ class PlaylistBase : public IComparableTo<char>
  protected: // content
   int_ptr<Playable> Content;
   xstring           Alias;         // Alias name for the window title
+  const ULONG       DlgRID;        // Resource ID of the dialog template
   #if DEBUG
   xstring           DebugName() const;
   #endif
@@ -190,10 +191,20 @@ class PlaylistBase : public IComparableTo<char>
  private:
   class_delegate2<PlaylistBase, const Playable::change_args, RecordBase*> RootInfoDelegate;
   class_delegate<PlaylistBase, const bool> RootPlayStatusDelegate;
+  TID               ThreadID;
+
+ private:
+  // Static members must not use EXPENTRY linkage with IBM VACPP.
+  friend void TFNENTRY pl_DlgThreadStub(void* arg);
+  friend MRESULT EXPENTRY pl_DlgProcStub(HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2);
+  // Thread for this window instance
+  void              DlgThread();
 
  protected:
   // Create a playlist manager window for an URL, but don't open it.
-  PlaylistBase(const char* URL, const char* alias);
+  PlaylistBase(const char* URL, const char* alias, ULONG rid);
+
+  void              StartDialog();
 
   CommonState&      StateFromRec(RecordBase* rec) { return rec ? rec->EvntState : EvntState; }
   Playable*         PlayableFromRec(RecordBase* rec) { return rec ? &rec->Content->GetPlayable() : &*Content; }
@@ -215,8 +226,6 @@ class PlaylistBase : public IComparableTo<char>
   
   // Dialog procedure, called by DlgProcStub
   virtual MRESULT   DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2);
-  // Static members must not use EXPENTRY linkage with IBM VACPP.
-  friend MRESULT EXPENTRY pl_DlgProcStub(HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2);
   
   // Determine type of Playable object
   // Subfunction to CalcIcon.
@@ -228,6 +237,27 @@ class PlaylistBase : public IComparableTo<char>
   HPOINTER          CalcIcon(RecordBase* rec);
   // Set the window title
   virtual void      SetTitle();
+
+  // Subfunction to the factory below.
+  virtual RecordBase* CreateNewRecord(PlayableInstance* obj, RecordBase* parent) = 0;
+  // Factory: create a new entry in the container.
+  RecordBase*       AddEntry(PlayableInstance* obj, RecordBase* parent, RecordBase* after);
+  // Moves the record "entry" including its subitems as child to "parent" after the record "after".
+  // If parent is NULL the record is moved to the top level.
+  // If after is NULL the record is moved to the first place of parent.
+  // The function returns the moved entry or NULL in case of an error. 
+  RecordBase*       MoveEntry(RecordBase* entry, RecordBase* parent, RecordBase* after);
+  // Removes entries from the container
+  void              RemoveEntry(RecordBase* const rec);
+  // Remove all childrens (recursively) and return the number of deleted objects in the given level.
+  // This function does not remove the record itself.
+  // If root is NULL the entire Collection is cleared.
+  int               RemoveChildren(RecordBase* const root);
+  // Update the list of children (if available) or schedule a request.
+  virtual void      RequestChildren(RecordBase* const rec);
+  // Update the list of children
+  // rec == NULL => root node
+  virtual void      UpdateChildren(RecordBase* const rec);
 
  protected: // Update Functions.
             // They are logically virtual, but they are not called from this class.
@@ -258,6 +288,7 @@ class PlaylistBase : public IComparableTo<char>
   void              UserSave();
 
  public: // public interface
+  ~PlaylistBase();
   // Make the window visible (or not)
   void              SetVisible(bool show);
   bool              GetVisible() const { return WinIsWindowVisible(HwndFrame); }
@@ -310,7 +341,7 @@ class PlaylistRepository : public PlaylistBase
   virtual PlaylistBase* GetSame(const url& URL) { return Get(URL); }
  protected:
   // Forward Constructor
-  PlaylistRepository(const char* URL, const char* alias) : PlaylistBase(URL, alias) {}
+  PlaylistRepository(const char* URL, const char* alias, ULONG rid) : PlaylistBase(URL, alias, rid) {}
   // Unregister from the repository automatically
   ~PlaylistRepository();
 };

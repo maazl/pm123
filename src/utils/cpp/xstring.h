@@ -36,6 +36,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
+#include <malloc.h>
 #include <ctype.h>
 #include <stdarg.h>
 #include <cpp/smartptr.h>
@@ -74,6 +75,7 @@ class xstring
     static void* operator new(size_t s, size_t l)
     #endif
                  { DEBUGLOG(("xstring::StringRef::operator new(%u, %u)\n", s, l));
+                   assert(_heapchk() == _HEAPOK);
                    char* cp = (char*)malloc(s+l+1);
                    ((size_t*)(cp+s))[-1] = l; // Dirty implicit assignment to Len before constructor entry...
                    return cp;

@@ -581,9 +581,10 @@ amp_show_context_menu( HWND parent )
 
     mn_make_conditionalcascade( menu, IDM_M_LOAD, IDM_M_LOADFILE );
     
-    PlaylistMenu* pmp = new PlaylistMenu(parent, IDM_M_LAST, IDM_M_LAST_E);
-    pmp->AttachMenu(IDM_M_BOOKMARKS, DefaultBM->GetContent(), PlaylistMenu::DummyIfEmpty|PlaylistMenu::Recursive|PlaylistMenu::Enumerate, 0);
-    pmp->AttachMenu(IDM_M_LOAD, LoadMRU, PlaylistMenu::Enumerate|PlaylistMenu::Separator, 0);
+    //PlaylistMenu* pmp = new PlaylistMenu(parent, IDM_M_LAST, IDM_M_LAST_E);
+    // TODO: TEST!!!
+    //pmp->AttachMenu(IDM_M_BOOKMARKS, DefaultBM->GetContent(), PlaylistMenu::DummyIfEmpty|PlaylistMenu::Recursive|PlaylistMenu::Enumerate, 0);
+    //pmp->AttachMenu(IDM_M_LOAD, LoadMRU, PlaylistMenu::Enumerate|PlaylistMenu::Separator, 0);
   }
 
   POINTL   pos;
@@ -2902,86 +2903,34 @@ amp_show_help( SHORT resid )
                                       MPFROMSHORT( HM_RESOURCEID ));
 }
 
-int
-main( int argc, char *argv[] )
-{
+
+struct args
+{ int argc;
+  char** argv;
+  int files;
+};
+
+static void TFNENTRY 
+main2( void* arg )
+{ 
+  int    argc = ((args*)arg)->argc;
+  char** argv = ((args*)arg)->argv;
+  int    files = ((args*)arg)->files; 
   HMQ    hmq;
-  int    i, o, files = 0;
-  char   exename[_MAX_PATH];
+  //int    i, o, files = 0;
+  //char   exename[_MAX_PATH];
   char   bundle [_MAX_PATH];
   char   infname[_MAX_PATH];
-  char   command[1024];
+  //char   command[1024];
   QMSG   qmsg;
   struct stat fi;
 
   HELPINIT hinit;
   ULONG    flCtlData = FCF_TASKLIST | FCF_NOBYTEALIGN | FCF_ACCELTABLE | FCF_ICON;
 
-  // used for debug printf()s
-  setvbuf( stdout, NULL, _IONBF, 0 );
-  setvbuf( stderr, NULL, _IONBF, 0 );
-
   hab = WinInitialize( 0 );
   hmq = WinCreateMsgQueue( hab, 0 );
 
-  for( i = 1; i < argc; i++ ) {
-    if( argv[i][0] != '/' && argv[i][0] != '-' ) {
-      files++;
-    }
-  }
-
-  getExeName( exename, sizeof( exename ));
-  sdrivedir ( startpath, exename, sizeof( startpath ));
-
-  for( o = 1; o < argc; o++ )
-  {
-    if( stricmp( argv[o], "-shuffle" ) == 0 ||
-        stricmp( argv[o], "/shuffle" ) == 0  )
-    {
-      is_arg_shuffle = TRUE;
-    }
-    else if( stricmp( argv[o], "-smooth" ) == 0 ||
-             stricmp( argv[o], "/smooth" ) == 0  )
-    {
-      // Not supported since 1.32
-      // is_arg_smooth  = TRUE;
-    }
-    else if( stricmp( argv[o], "-cmd" ) == 0 ||
-             stricmp( argv[o], "/cmd" ) == 0  )
-    {
-      o++;
-      if( strncmp( argv[o], "\\\\", 2 ) == 0 )
-      {
-        strcpy( pipename, argv[o] );  // machine name
-        strcat( pipename, "\\PIPE\\PM123" );
-        o++;
-      }
-      strcpy( command, "*" );
-      for( i = o; i < argc; i++ )
-      {
-        strcat( command, argv[i] );
-        strcat( command, " " );
-      }
-
-      amp_pipe_open_and_write( pipename, command, strlen( command ) + 1 );
-      exit(0);
-    }
-  }
-
-  // If we have files in argument, try to open \\pipe\pm123 and write to it.
-  if( files > 0 ) {
-     // this only takes the last argument we hope is the filename
-     // this should be changed.
-    if( amp_pipe_open_and_write( pipename, argv[argc-1], strlen( argv[argc-1]) + 1 )) {
-      exit(0);
-    }
-  }
-
-  if( !amp_pipe_create()) {
-    exit(1);
-  }
-
-  srand((unsigned long)time( NULL ));
   load_ini();
   //amp_volume_to_normal(); // Superfluous!
   InitButton( hab );
@@ -3067,9 +3016,10 @@ main( int argc, char *argv[] )
   
   // Init default lists
   { const url path = url::normalizeURL(startpath);
-    DefaultPL = PlaylistView::Get(path + "PM123.LST", "Default Playlist");
-    DefaultPM = PlaylistManager::Get(path + "PFREQ.LST", "Playlist Manager");
-    DefaultBM = PlaylistView::Get(path + "BOOKMARK.LST", "Bookmarks");
+    // TODO: TEST!!!
+    //DefaultPL = PlaylistView::Get(path + "PM123.LST", "Default Playlist");
+    //DefaultPM = PlaylistManager::Get(path + "PFREQ.LST", "Playlist Manager");
+    //DefaultBM = PlaylistView::Get(path + "BOOKMARK.LST", "Bookmarks");
     LoadMRU   = (Playlist*)&*Playable::GetByURL(path + "LOADMRU.LST");
   }
 
@@ -3084,9 +3034,10 @@ main( int argc, char *argv[] )
     dk_arrange( hframe );
   }
   
-  DefaultPL->SetVisible(cfg.show_playlist);
+  // TODO: TEST!!!
+  /*DefaultPL->SetVisible(cfg.show_playlist);
   DefaultPM->SetVisible(cfg.show_plman);
-  DefaultBM->SetVisible(cfg.show_bmarks);
+  DefaultBM->SetVisible(cfg.show_bmarks);*/
   
   DEBUGLOG(("main: init complete\n"));
 
@@ -3127,6 +3078,87 @@ main( int argc, char *argv[] )
   #ifdef __DEBUG_ALLOC__
     _dump_allocated( 0 );
   #endif
-  return 0;
 }
 
+int
+main( int argc, char *argv[] )
+{ 
+  int    i, o, files = 0;
+  char   exename[_MAX_PATH];
+  char   command[1024];
+
+  // used for debug printf()s
+  setvbuf( stderr, NULL, _IONBF, 0 );
+
+  for( i = 1; i < argc; i++ ) {
+    if( argv[i][0] != '/' && argv[i][0] != '-' ) {
+      files++;
+    }
+  }
+
+  getExeName( exename, sizeof( exename ));
+  sdrivedir ( startpath, exename, sizeof( startpath ));
+
+  for( o = 1; o < argc; o++ )
+  {
+    if( stricmp( argv[o], "-shuffle" ) == 0 ||
+        stricmp( argv[o], "/shuffle" ) == 0  )
+    {
+      is_arg_shuffle = TRUE;
+    }
+    else if( stricmp( argv[o], "-smooth" ) == 0 ||
+             stricmp( argv[o], "/smooth" ) == 0  )
+    {
+      // Not supported since 1.32
+      // is_arg_smooth  = TRUE;
+    }
+    else if( stricmp( argv[o], "-cmd" ) == 0 ||
+             stricmp( argv[o], "/cmd" ) == 0  )
+    {
+      o++;
+      if( strncmp( argv[o], "\\\\", 2 ) == 0 )
+      {
+        strcpy( pipename, argv[o] );  // machine name
+        strcat( pipename, "\\PIPE\\PM123" );
+        o++;
+      }
+      strcpy( command, "*" );
+      for( i = o; i < argc; i++ )
+      {
+        strcat( command, argv[i] );
+        strcat( command, " " );
+      }
+
+      amp_pipe_open_and_write( pipename, command, strlen( command ) + 1 );
+      exit(0);
+    }
+  }
+
+  // If we have files in argument, try to open \\pipe\pm123 and write to it.
+  if( files > 0 ) {
+     // this only takes the last argument we hope is the filename
+     // this should be changed.
+    if( amp_pipe_open_and_write( pipename, argv[argc-1], strlen( argv[argc-1]) + 1 )) {
+      exit(0);
+    }
+  }
+
+  if( !amp_pipe_create()) {
+    exit(1);
+  }
+
+  srand((unsigned long)time( NULL ));
+
+  // start new thread
+  args args = { argc, argv, files };
+  // TODO: TEST!!!
+  #if 0
+  TID tid = _beginthread(main2, NULL, 1024*1024, &args);
+  // and wait for thread2
+  DosWaitThread(&tid, DCWW_WAIT);
+  #else
+  // ohne thread
+  main2(&args);
+  #endif
+  return 0;
+}

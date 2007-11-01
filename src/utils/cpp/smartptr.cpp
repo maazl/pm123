@@ -81,7 +81,7 @@ Iref_Count* int_ptr_base::reassign_weak(const Iref_Count* ptr)
 }
 
 Iref_Count* int_ptr_base::unassign()
-{ DEBUGLOG(("int_ptr_base(%p)::unassign(): %p\n", this, Ptr));
+{ DEBUGLOG(("int_ptr_base(%p)::unassign(): %p, %i\n", this, Ptr, Ptr ? Ptr->Count : -100));
   return Ptr && InterlockedDec(Ptr->Count) == 0 ? Ptr : NULL;
 }
 

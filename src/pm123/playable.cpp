@@ -86,29 +86,33 @@ void Playable::DecoderInfo::Init()
 }
 
 void Playable::DecoderInfo::Reset()
-{ memset(&Format,   0, sizeof Format);
-  memset(&TechInfo, 0, sizeof TechInfo);
+{ memset(&TechInfo, 0, sizeof TechInfo);
   memset(&MetaInfo, 0, sizeof MetaInfo);
   memset((DECODER_INFO2*)this, 0, sizeof(DECODER_INFO2));
   Init();
+  Format  .samplerate = -1;
+  Format  .channels   = -1;
+  TechInfo.songlength = -1;
+  TechInfo.bitrate    = -1;
+  TechInfo.filesize   = -1;
+  TechInfo.num_items  = -1;
+  MetaInfo.track      = -1;
 }
 
 void Playable::DecoderInfo::operator=(const DECODER_INFO2& r)
-{ // version stable copy
+{ Reset();
+  // version stable copy
   if (r.format->size < sizeof Format)
-  { memset(&Format, 0, sizeof Format);
     memcpy(&Format, r.format, r.format->size);
-  } else
+   else
     Format = *r.format;
   if (r.tech->size < sizeof TechInfo)
-  { memset(&TechInfo, 0, sizeof TechInfo);
     memcpy(&TechInfo, r.tech, r.tech->size);
-  } else
+   else
     TechInfo = *r.tech;
   if (r.meta->size < sizeof MetaInfo)
-  { memset(&MetaInfo, 0, sizeof MetaInfo);
     memcpy(&MetaInfo, r.meta, r.meta->size);
-  } else
+   else
     MetaInfo = *r.meta;
   memcpy((DECODER_INFO2*)this, &r, sizeof(DECODER_INFO2));
   Init();
@@ -173,7 +177,10 @@ void Playable::SetInUse(bool used)
 xstring Playable::GetDisplayName() const
 { //DEBUGLOG(("Playable(%p{%s})::GetDisplayName()\n", this, URL.cdata()));
   const META_INFO& meta = *GetInfo().meta;
-  return meta.title[0] ? xstring(meta.title) : URL.getShortName();
+  if (meta.title[0])
+    return meta.title;
+  else
+    return URL.getShortName();
 }
 
 void Playable::UpdateInfo(const FORMAT_INFO2* info)
@@ -1074,7 +1081,7 @@ void Playlist::InsertItem(const char* url, const xstring& alias, const PlayableI
 }
 
 void Playlist::RemoveItem(PlayableInstance* item)
-{ DEBUGLOG(("Playlist(%p{%s})::RemoveItem(%p{%s})\n", this, GetURL().getShortName().cdata(), item, item ? item->GetPlayable().GetURL().getShortName().cdata() : ""));
+{ DEBUGLOG(("Playlist(%p{%s})::RemoveItem(%p{%s})\n", this, GetURL().getShortName().cdata(), item, item ? item->GetPlayable().GetURL().cdata() : ""));
   Mutex::Lock lock(Mtx);
   if (item)
     RemoveEntry((Entry*)item);

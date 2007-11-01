@@ -57,7 +57,7 @@ class PlaylistManager : public PlaylistRepository<PlaylistManager>
     CPData(PlaylistManager& pm,
            void (PlaylistBase::*infochangefn)(const Playable::change_args&, RecordBase*),
            void (PlaylistBase::*statchangefn)(const PlayableInstance::change_args&, RecordBase*),
-           Record* rec,
+           RecordBase* rec,
            Record* parent);
   };
   // POD part of a record
@@ -91,25 +91,20 @@ class PlaylistManager : public PlaylistRepository<PlaylistManager>
   // Subfunction to CalcIcon.
   virtual IC        GetRecordUsage(RecordBase* rec);
   // check whether the current record is recursive
-  bool              RecursionCheck(Record* rec);
+  bool              RecursionCheck(RecordBase* rec);
   // same with explicit parent for new items not yet added
-  bool              RecursionCheck(Playable* pp, Record* parent);
+  bool              RecursionCheck(Playable* pp, RecordBase* parent);
   // Set the window title
   virtual void      SetTitle();
  private: // Modifiying function and notifications
-  // create a new entry in the container
-  Record*           AddEntry(PlayableInstance* obj, Record* parent, Record* after = NULL);
-  Record*           MoveEntry(Record* entry, Record* parent, Record* after = NULL);
-  // Removes entries recursively from the container
-  // The entry object is valid after calling this function until the next DispatchMessage.
-  void              RemoveEntry(Record* const entry);
-  // delete all children
-  int               RemoveChildren(Record* const rec);
+  // Subfunction to the factory below.
+  virtual RecordBase* CreateNewRecord(PlayableInstance* obj, RecordBase* parent);
+
+  // Update the list of children (if available) or schedule a request.
+  virtual void      RequestChildren(RecordBase* const rec);
   // Update the list of children
   // rec == NULL => root node
-  void              UpdateChildren(Record* const rec);
-  // Update the list of children (if available) or schedule a request.
-  void              RequestChildren(Record* rec);
+  virtual void      UpdateChildren(RecordBase* const rec);
   // Update the tech info of a record
   void              UpdateTech(Record* rec);
   // Update play status of one record
@@ -121,7 +116,6 @@ class PlaylistManager : public PlaylistRepository<PlaylistManager>
  private:
   // Create a playlist manager window for an URL, but don't open it.
   PlaylistManager(const char* URL, const char* alias);
-  ~PlaylistManager();
 };
 
 
@@ -129,7 +123,7 @@ inline PlaylistManager::CPData::CPData(
   PlaylistManager& pm,
   void (PlaylistBase::*infochangefn)(const Playable::change_args&, RecordBase*),
   void (PlaylistBase::*statchangefn)(const PlayableInstance::change_args&, RecordBase*),
-  Record* rec,
+  RecordBase* rec,
   Record* parent)
 : PlaylistBase::CPDataBase(pm, infochangefn, statchangefn, rec),
   Parent(parent),

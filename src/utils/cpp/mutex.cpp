@@ -85,11 +85,16 @@ bool Mutex::Request(long ms)
    #ifdef DEBUG
    // rough deadlock check
    APIRET rc = DosRequestMutexSem(Handle, ms < 0 ? 60000 : ms); // The mapping from ms == -1 to SEM_INDEFINITE_WAIT is implicitely OK.
-   DEBUGLOG(("Mutex(%p)::Request - %u\n", this, rc));
+   PID pid;
+   TID tid;
+   ULONG count;
+   DosQueryMutexSem(Handle, &pid, &tid, &count);
+   DEBUGLOG(("Mutex(%p)::Request - %u @ %u\n", this, rc, count));
    if (ms < 0 && rc == ERROR_TIMEOUT)
    { DEBUGLOG(("Mutex(%p)::Request - UNHANDLED TIMEOUT!!!\n", this));
      DosBeep(2000, 500);
    }
+   assert(rc == 0 || rc == ERROR_TIMEOUT);
    return rc == 0;
    #else
    return DosRequestMutexSem(Handle, ms) == 0; // The mapping from ms == -1 to SEM_INDEFINITE_WAIT is implicitely OK.
@@ -97,8 +102,18 @@ bool Mutex::Request(long ms)
 }
 
 bool Mutex::Release()
-{  DEBUGLOG(("Mutex(%p)::Release()\n", this));
+{  PID pid;
+   TID tid;
+   ULONG count;
+   DosQueryMutexSem(Handle, &pid, &tid, &count);
+   DEBUGLOG(("Mutex(%p)::Release() @ %u\n", this, count));
+   #ifdef DEBUG
+   APIRET rc = DosReleaseMutexSem(Handle);
+   assert(rc == 0);
+   return true;
+   #else
    return DosReleaseMutexSem(Handle) == 0;
+   #endif
 }
 
 Mutex::Status Mutex::GetStatus() const
