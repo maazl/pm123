@@ -116,7 +116,7 @@ class CL_MODULE : public CL_PLUGIN_BASE
   // internal reference counter
   int  refcount;
   // Entry point of the configure dialog (if any).
-  void (DLLENTRYP plugin_configure)(HWND hwnd, HMODULE module);
+  void DLLENTRYP(plugin_configure)(HWND hwnd, HMODULE module);
  private:
   CL_MODULE(const CL_MODULE&); // non-existent, avoid copy construction
   // Load the DLL
@@ -198,19 +198,19 @@ class CL_PLUGIN : public CL_PLUGIN_BASE
 // Set of entry points related to decoder plug-ins.
 struct DECODER_PROCS
 { void* w;
-  int   (DLLENTRYP decoder_init     )( void** w );
-  BOOL  (DLLENTRYP decoder_uninit   )( void*  w );
-  ULONG (DLLENTRYP decoder_command  )( void*  w, ULONG msg, DECODER_PARAMS2* params );
-  void  (DLLENTRYP decoder_event    )( void*  w, OUTEVENTTYPE event );
-  ULONG (DLLENTRYP decoder_status   )( void*  w );
-  double(DLLENTRYP decoder_length   )( void*  w );
-  ULONG (DLLENTRYP decoder_fileinfo )( const char* filename, DECODER_INFO2* info );
-  ULONG (DLLENTRYP decoder_setmeta  )( const char* filename, const META_INFO* meta );
-  ULONG (DLLENTRYP decoder_cdinfo   )( const char* drive, DECODER_CDINFO* info );
-  ULONG (DLLENTRYP decoder_support  )( char*  ext[], int* size );
-  ULONG (DLLENTRYP decoder_editmeta )( HWND owner, const char* url );
-  const DECODER_WIZZARD*
-        (DLLENTRYP decoder_getwizzard)( );
+  int    DLLENTRYP(decoder_init     )( void** w );
+  BOOL   DLLENTRYP(decoder_uninit   )( void*  w );
+  ULONG  DLLENTRYP(decoder_command  )( void*  w, ULONG msg, DECODER_PARAMS2* params );
+  void   DLLENTRYP(decoder_event    )( void*  w, OUTEVENTTYPE event );
+  ULONG  DLLENTRYP(decoder_status   )( void*  w );
+  double DLLENTRYP(decoder_length   )( void*  w );
+  ULONG  DLLENTRYP(decoder_fileinfo )( const char* filename, DECODER_INFO2* info );
+  ULONG  DLLENTRYP(decoder_setmeta  )( const char* filename, const META_INFO* meta );
+  ULONG  DLLENTRYP(decoder_cdinfo   )( const char* drive, DECODER_CDINFO* info );
+  ULONG  DLLENTRYP(decoder_support  )( char*  ext[], int* size );
+  ULONG  DLLENTRYP(decoder_editmeta )( HWND owner, const char* url );
+  const  DECODER_WIZZARD*
+         DLLENTRYP(decoder_getwizzard)( );
   // Result from the decoder_support call. Supported data sources.
   int    type;
   // Result from the decoder_support call. Supported file types.
@@ -258,14 +258,14 @@ class CL_DECODER : public CL_PLUGIN, protected DECODER_PROCS
 // Set of entry points related to output plug-ins.
 struct OUTPUT_PROCS
 { void* a;
-  ULONG  (DLLENTRYP output_init           )( void** a );
-  ULONG  (DLLENTRYP output_uninit         )( void*  a );
-  ULONG  (DLLENTRYP output_command        )( void*  a, ULONG msg, OUTPUT_PARAMS2* info );
-  int    (DLLENTRYP output_request_buffer )( void*  a, const FORMAT_INFO2* format, short** buf );
-  void   (DLLENTRYP output_commit_buffer  )( void*  a, int len, double posmarker );
-  ULONG  (DLLENTRYP output_playing_samples)( void*  a, FORMAT_INFO* info, char* buf, int len );
-  double (DLLENTRYP output_playing_pos    )( void*  a );
-  BOOL   (DLLENTRYP output_playing_data   )( void*  a );
+  ULONG  DLLENTRYP(output_init           )( void** a );
+  ULONG  DLLENTRYP(output_uninit         )( void*  a );
+  ULONG  DLLENTRYP(output_command        )( void*  a, ULONG msg, OUTPUT_PARAMS2* info );
+  int    DLLENTRYP(output_request_buffer )( void*  a, const FORMAT_INFO2* format, short** buf );
+  void   DLLENTRYP(output_commit_buffer  )( void*  a, int len, double posmarker );
+  ULONG  DLLENTRYP(output_playing_samples)( void*  a, FORMAT_INFO* info, char* buf, int len );
+  double DLLENTRYP(output_playing_pos    )( void*  a );
+  BOOL   DLLENTRYP(output_playing_data   )( void*  a );
 };
 
 // specialized class for output plug-ins
@@ -304,9 +304,9 @@ class CL_OUTPUT : public CL_PLUGIN, protected OUTPUT_PROCS
 // Set of entry points related to filter plug-ins.
 struct FILTER_PROCS
 { void  *f;
-  ULONG (DLLENTRYP filter_init        )( void** f, FILTER_PARAMS2* params );
-  void  (DLLENTRYP filter_update      )( void*  f, const FILTER_PARAMS2* params );
-  BOOL  (DLLENTRYP filter_uninit      )( void*  f );
+  ULONG  DLLENTRYP(filter_init        )( void** f, FILTER_PARAMS2* params );
+  void   DLLENTRYP(filter_update      )( void*  f, const FILTER_PARAMS2* params );
+  BOOL   DLLENTRYP(filter_uninit      )( void*  f );
 };
 
 // specialized class for filter plug-ins
@@ -352,8 +352,8 @@ class CL_FILTER : public CL_PLUGIN, protected FILTER_PROCS
 
 // Set of entry points related to visual plug-ins.
 struct VISUAL_PROCS
-{ HWND  (DLLENTRYP plugin_init     )( VISPLUGININIT* init );
-  BOOL  (DLLENTRYP plugin_deinit   )( int unload );
+{ HWND   DLLENTRYP(plugin_init     )( VISPLUGININIT* init );
+  BOOL   DLLENTRYP(plugin_deinit   )( int unload );
 };
 
 // specialized class for visual plug-ins

@@ -191,60 +191,6 @@ bool Event::IsSet() const
 }
 
 
-#if defined(__GNUC__)
-const unsigned char InterlockedXchCode[] = 
-{ 0x87, 0x11,             // xchg [ecx], edx
-  0x89, 0xd0,             // mov eax, edx 
-  0xC3                    // ret 
-};
-const unsigned char InterlockedIncCode[] = 
-{ 0xF0, 0xFF, 0x01,       // lock inc dword [ecx] 
-  0xC3                    // ret 
-};
-const unsigned char InterlockedDecCode[] = 
-{ 0xF0, 0xFF, 0x09,       // lock dec dword [ecx]
-  0x0F, 0x95, 0xC0,       // setne al
-  0xC3                    // ret
-};
-const unsigned char InterlockedAddCode[] = 
-{ 0xF0, 0x01, 0x11,       // lock add [ecx], edx
-  0xC3                    // ret 
-};
-const unsigned char InterlockedSubCode[] = 
-{ 0xF0, 0x29, 0x11,       // lock sub [ecx], edx
-  0x0F, 0x95, 0xC0,       // setne al
-  0xC3                    // ret 
-};
-const unsigned char InterlockedAndCode[] = 
-{ 0xF0, 0x21, 0x11,       // lock and [ecx], edx
-  0x0F, 0x95, 0xC0,       // setne al
-  0xC3                    // ret 
-};
-const unsigned char InterlockedOrCode[] = 
-{ 0xF0, 0x09, 0x11,       // lock or [ecx], edx
-  0xC3                    // ret 
-};
-const unsigned char InterlockedXorCode[] = 
-{ 0xF0, 0x31, 0x11,       // lock xor [ecx], edx
-  0x0F, 0x95, 0xC0,       // setne al
-  0xC3                    // ret 
-};
-const unsigned char InterlockedBtsCode[] = 
-{ 0xF0, 0x0F, 0xAB, 0x11, // lock bts [ecx], edx
-  0x0F, 0x92, 0xC0,       // setc al
-  0xC3                    // ret 
-};
-const unsigned char InterlockedBtrCode[] = 
-{ 0xF0, 0x0F, 0xB3, 0x11, // lock btr [ecx], edx
-  0x0F, 0x92, 0xC0,       // setc al
-  0xC3                    // ret 
-};
-const unsigned char InterlockedBtcCode[] = 
-{ 0xF0, 0x0F, 0xBB, 0x11, // lock btr [ecx], edx
-  0x0F, 0x92, 0xC0,       // setc al
-  0xC3                    // ret 
-};
-#else
 const unsigned char InterlockedXchCode[] = 
 { 0x87, 0x10,             // xchg [eax], edx
   0x89, 0xd0,             // mov eax, edx 
@@ -297,6 +243,3 @@ const unsigned char InterlockedBtcCode[] =
   0x0F, 0x92, 0xC0,       // setc al
   0xC3                    // ret 
 };
-#endif
-
-

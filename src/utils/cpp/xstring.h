@@ -52,7 +52,7 @@ class xstring
   // It contains an intrusive reference count and an intrusive instance of the string data.
   class StringRef : public Iref_Count
   {private:
-    size_t   Len; // Logically const, but since we initialize it before constructor
+    size_t       Len;  // Logically const, but since we initialize it before constructor
                   // it has to be non-const to avoid the error.
                   // Must be last member
    private: // Avoid array creation!
@@ -87,7 +87,6 @@ class xstring
     #endif
            size_t Length() const            { return Len; }
            char* Ptr() const                { return (char*)(this+1); }
-//         operator char*()                 { return (char*)(this+1); }
            char& operator[](size_t ix)      { return ((char*)(this+1))[ix]; }
   };
  public:

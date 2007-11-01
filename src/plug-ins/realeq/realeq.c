@@ -173,11 +173,11 @@ static enum
 
 typedef struct {
 
-   ULONG (DLLENTRYP output_command)       ( void* a, ULONG msg, OUTPUT_PARAMS2* info );
-   int   (DLLENTRYP output_request_buffer)( void* a, const FORMAT_INFO2* format, short** buf );
-   void  (DLLENTRYP output_commit_buffer) ( void* a, int len, double posmarker );
-   void* a;
-   void  (DLLENTRYP error_display)        ( const char* );
+   ULONG  DLLENTRYP(output_command)       ( void* a, ULONG msg, OUTPUT_PARAMS2* info );
+   int    DLLENTRYP(output_request_buffer)( void* a, const FORMAT_INFO2* format, short** buf );
+   void   DLLENTRYP(output_commit_buffer) ( void* a, int len, double posmarker );
+   void*  a;
+   void   DLLENTRYP(error_display)        ( const char* );
 
    FORMAT_INFO2 format;
 
@@ -1003,9 +1003,9 @@ filter_init( void** F, FILTER_PARAMS2* params )
   f->format.samplerate     = 0;
   f->format.channels       = 0;
 
-  params->output_command        = (ULONG (DLLENTRYP)(void*, ULONG, OUTPUT_PARAMS2*))      &filter_command;
-  params->output_request_buffer = (int   (DLLENTRYP)(void*, const FORMAT_INFO2*, short**))&filter_request_buffer;
-  params->output_commit_buffer  = (void  (DLLENTRYP)(void*, int, double))                 &filter_commit_buffer;
+  params->output_command        = (ULONG DLLENTRYP()(void*, ULONG, OUTPUT_PARAMS2*))      &filter_command;
+  params->output_request_buffer = (int   DLLENTRYP()(void*, const FORMAT_INFO2*, short**))&filter_request_buffer;
+  params->output_commit_buffer  = (void  DLLENTRYP()(void*, int, double))                 &filter_commit_buffer;
   return 0;
 }
 

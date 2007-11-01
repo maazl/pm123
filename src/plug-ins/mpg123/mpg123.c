@@ -631,7 +631,7 @@ cfg_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
       lb_remove_all( hwnd, CB_CHARSET );
       for( i = 0; i < ch_list_size; i++ ) {
         if ( ch_list[i].codepage != CH_CP_NONE ) {
-          int n = sprintf( entry, "%d        ", ch_list[i].codepage );
+          int n = sprintf( entry, "%lu        ", ch_list[i].codepage );
           entry[29-2*n] = '-';
           entry[31-2*n] = 0;
         } else {

@@ -387,11 +387,11 @@ typedef struct
     char            coding_history [256] ;
 } SF_BROADCAST_INFO ;
 
-typedef sf_count_t      (DLLENTRYP sf_vio_get_filelen)(void *user_data) ;
-typedef sf_count_t      (DLLENTRYP sf_vio_seek)       (sf_count_t offset, int whence, void *user_data) ;
-typedef sf_count_t      (DLLENTRYP sf_vio_read)       (void *ptr, sf_count_t count, void *user_data) ;
-typedef sf_count_t      (DLLENTRYP sf_vio_write)      (const void *ptr, sf_count_t count, void *user_data) ;
-typedef sf_count_t      (DLLENTRYP sf_vio_tell)       (void *user_data) ;
+typedef sf_count_t      DLLENTRYP(sf_vio_get_filelen)(void *user_data) ;
+typedef sf_count_t      DLLENTRYP(sf_vio_seek)       (sf_count_t offset, int whence, void *user_data) ;
+typedef sf_count_t      DLLENTRYP(sf_vio_read)       (void *ptr, sf_count_t count, void *user_data) ;
+typedef sf_count_t      DLLENTRYP(sf_vio_write)      (const void *ptr, sf_count_t count, void *user_data) ;
+typedef sf_count_t      DLLENTRYP(sf_vio_tell)       (void *user_data) ;
 
 struct SF_VIRTUAL_IO
 {   sf_vio_get_filelen  get_filelen ;

@@ -6,7 +6,7 @@
 #define TFNENTRY
 #define INLINE    __inline
 #define DLLENTRY  _System
-#define DLLENTRYP DLLENTRY *
+#define DLLENTRYP(sym) DLLENTRY *sym
 
 #define INIT_ATTRIBUTE
 #define TERM_ATTRIBUTE

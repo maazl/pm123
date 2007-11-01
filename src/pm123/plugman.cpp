@@ -173,7 +173,7 @@ void CL_GLUE::virtualize(int i)
   procs.output_playing_pos     = par.output_playing_pos;
   procs.output_playing_data    = par.output_playing_data;
   procs.a                      = fil.get_procs().f;
-  void (DLLENTRYP last_output_event)(void* w, OUTEVENTTYPE event) = params.output_event;
+  void DLLENTRYP(last_output_event)(void* w, OUTEVENTTYPE event) = params.output_event;
   // next filter
   virtualize(i-1);
   // store new callback if virtualized by the plug-in.

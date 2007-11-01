@@ -1210,7 +1210,7 @@ amp_url_wizzard( HWND owner, const char* title, DECODER_WIZZARD_CALLBACK callbac
 
 static void DLLENTRY
 amp_load_file_callback( void* param, const char* url )
-{ DEBUGLOG(("amp_load_file_callback(%p, %s)\n", param, url));
+{ DEBUGLOG(("amp_load_file_callback(%p{%u}, %s)\n", param, *(bool*)param, url));
   if (*(bool*)param)
   { // TODO: handle multiple items
     amp_load_playable( url, 0 );
@@ -2401,7 +2401,7 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
             cm->cmd < IDM_M_LOADFILE + sizeof load_wizzards / sizeof *load_wizzards &&
             load_wizzards[cm->cmd-IDM_M_LOADFILE] )
         { // TODO: create temporary playlist
-          bool first;
+          bool first = true;
           ULONG rc = (*load_wizzards[cm->cmd-IDM_M_LOADFILE])( hwnd, "Load%s", &amp_load_file_callback, &first );
           return 0;
         }
@@ -2589,7 +2589,7 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
           return 0;
 
         case BMP_FLOAD:
-        { bool first;
+        { bool first = true;
           // Well, only one load entry is supported this way.
           ULONG rc = (*load_wizzards[0])( hwnd, "Load%s", &amp_load_file_callback, &first );
           return 0;

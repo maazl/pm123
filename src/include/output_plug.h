@@ -35,11 +35,11 @@ typedef struct _OUTPUT_PARAMS
   unsigned short boostclass, normalclass;
   signed   short boostdelta, normaldelta;
 
-  void (DLLENTRYP error_display)( const char* );
+  void DLLENTRYP(error_display)( const char* );
 
   /* info message function the output plug-in should use */
   /* this information is always displayed to the user right away */
-  void (DLLENTRYP info_display)( const char* );
+  void DLLENTRYP(info_display)( const char* );
 
   HWND hwnd; /* commodity for PM interface, sends a few messages to this handle. */
 
@@ -87,13 +87,13 @@ typedef struct _OUTPUT_PARAMS2
 
   FORMAT_INFO2 formatinfo;
   /* Error handler, a call will immediately stop the current playback. */
-  void (DLLENTRYP error_display)( const char* );
+  void DLLENTRYP(error_display)( const char* );
   /* info message function the output plug-in should use */
   /* this information is always displayed to the user right away */
-  void (DLLENTRYP info_display)( const char* );
+  void DLLENTRYP(info_display)( const char* );
 
   /* callback event */
-  void (DLLENTRYP output_event)(void* w, OUTEVENTTYPE event); 
+  void DLLENTRYP(output_event)(void* w, OUTEVENTTYPE event); 
   void* w;  /* only to be used with the precedent function */
 
   /* --- OUTPUT_VOLUME */

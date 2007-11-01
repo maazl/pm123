@@ -17,7 +17,7 @@ void _CRT_term( void );
 #define TFNENTRY  _Optlink
 #define INLINE    _Inline
 #define DLLENTRY  _System
-#define DLLENTRYP * DLLENTRY
+#define DLLENTRYP(sym) *DLLENTRY sym
 
 #define INIT_ATTRIBUTE
 #define TERM_ATTRIBUTE

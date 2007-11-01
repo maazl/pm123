@@ -49,7 +49,7 @@
 
 
 // internal vars
-static ULONG (DLLENTRYP f_output_command)( void* a, ULONG msg, OUTPUT_PARAMS2* info );
+static ULONG DLLENTRYP(f_output_command)( void* a, ULONG msg, OUTPUT_PARAMS2* info );
 static void* f_a;
   
 

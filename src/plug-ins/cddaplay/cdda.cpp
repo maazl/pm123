@@ -63,7 +63,7 @@ typedef struct _CDDAPLAY
    CD_drive::AccessRead* CD; // The lifetime of this object locks the associated drive.
    FORMAT_INFO formatinfo;
 
-   int (DLLENTRYP output_play_samples)(void *a, const FORMAT_INFO *format, const char *buf,int len, int posmarker);
+   int DLLENTRYP(output_play_samples)(void *a, const FORMAT_INFO *format, const char *buf,int len, int posmarker);
    void *a; /* only to be used with the precedent function */
    int buffersize;
 
@@ -75,7 +75,7 @@ typedef struct _CDDAPLAY
    int status;
    int decodertid;
 
-   void (DLLENTRYP error_display)(const char *);
+   void DLLENTRYP(error_display)(const char *);
 
    HWND hwnd;
 

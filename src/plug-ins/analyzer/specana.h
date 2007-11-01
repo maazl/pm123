@@ -51,8 +51,8 @@ typedef enum
 /* entry points
    The must be set before calling specana_do.
 */
-extern ULONG (DLLENTRYP decoderPlayingSamples)( FORMAT_INFO *info, char *buf, int len );
-extern BOOL  (DLLENTRYP decoderPlaying)( void );
+extern ULONG DLLENTRYP(decoderPlayingSamples)( FORMAT_INFO *info, char *buf, int len );
+extern BOOL  DLLENTRYP(decoderPlaying)( void );
 
 
 /* analyse samples

@@ -82,11 +82,11 @@ typedef struct
    // setup parameters
    PARAMETERS          params;
 
-   int  (DLLENTRYP output_play_samples)( void* a, const FORMAT_INFO* format, const char* buf, int len, int posmarker );
+   int   DLLENTRYP(output_play_samples)( void* a, const FORMAT_INFO* format, const char* buf, int len, int posmarker );
    void* a;           /* only to be used with the precedent function */
    int   audio_buffersize;
-   void (DLLENTRYP error_display)( const char* );
-   void (DLLENTRYP info_display )( const char* );
+   void  DLLENTRYP(error_display)( const char* );
+   void  DLLENTRYP(info_display )( const char* );
    HEV   playsem;     /* this semaphore is reseted when DECODER_PLAY is requested
                          and is posted on stop */
    HWND  hwnd;        /* commodity for PM interface, decoder must send a few
@@ -831,12 +831,12 @@ static MRESULT EXPENTRY WizzardDlgProc(HWND hwnd, ULONG msg, MPARAM mp1, MPARAM 
     switch (SHORT1FROMMP(mp1))
     {case SB_SAMPRATE:
       switch (SHORT2FROMMP(mp1))
-      { int  i;
+      { size_t i;
         LONG val;
 
        case SPBN_DOWNARROW:
         WinSendDlgItemMsg(hwnd, SB_SAMPRATE, SPBM_QUERYVALUE, MPFROMP(&val), 0);
-        for (i = sizeof samprates/sizeof *samprates; --i >= 0; )
+        for (i = sizeof samprates/sizeof *samprates; i-- > 0; )
           if (samprates[i] < val)
             break;
         //DEBUGLOG(("os2rec:WizzardDlgProc: SPBN_UPARROW - %i %i %i\n", val, i, samprates[(i+sizeof samprates/sizeof *samprates) % (sizeof samprates/sizeof *samprates)]));

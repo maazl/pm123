@@ -66,7 +66,7 @@ typedef struct _DECODER_PARAMS
    /* --- DECODER_SETUP */
 
    /* specify a function which the decoder should use for output */
-   int  (DLLENTRYP output_play_samples)( void* a, const FORMAT_INFO* format, const char* buf, int len, int posmarker );
+   int  DLLENTRYP(output_play_samples)( void* a, const FORMAT_INFO* format, const char* buf, int len, int posmarker );
    void* a;           /* only to be used with the precedent function */
    int   audio_buffersize;
 
@@ -74,11 +74,11 @@ typedef struct _DECODER_PARAMS
    const char* httpauth;    /* NULL = none */
 
    /* error message function the decoder should use */
-   void (DLLENTRYP error_display)( const char* );
+   void DLLENTRYP(error_display)( const char* );
 
    /* info message function the decoder should use */
    /* this information is always displayed to the user right away */
-   void (DLLENTRYP info_display)( const char* );
+   void DLLENTRYP(info_display)( const char* );
 
    HEV   playsem;     /* this semaphore is reseted when DECODER_PLAY is requested
                          and is posted on stop. No longer used by PM123, always NULLHANDLE. */
@@ -123,21 +123,21 @@ typedef struct _DECODER_PARAMS2
    /* --- DECODER_SETUP */
 
    /* specify a function which the decoder should use for output */
-   int   (DLLENTRYP output_request_buffer )( void* a, const FORMAT_INFO2* format, short** buf );
-   void  (DLLENTRYP output_commit_buffer  )( void* a, int len, double posmarker );
+   int   DLLENTRYP(output_request_buffer )( void* a, const FORMAT_INFO2* format, short** buf );
+   void  DLLENTRYP(output_commit_buffer  )( void* a, int len, double posmarker );
    /* decoder events */
-   void  (DLLENTRYP output_event          )( void* a, DECEVENTTYPE event, void* param );
+   void  DLLENTRYP(output_event          )( void* a, DECEVENTTYPE event, void* param );
    void* a;           /* only to be used with the precedent functions */
 
    const char* proxyurl;    /* NULL = none */
    const char* httpauth;    /* NULL = none */
 
    /* error message function the decoder should use */
-   void (DLLENTRYP error_display)( const char* );
+   void DLLENTRYP(error_display)( const char* );
 
    /* info message function the decoder should use */
    /* this information is always displayed to the user right away */
-   void (DLLENTRYP info_display)( const char* );
+   void DLLENTRYP(info_display)( const char* );
 
    /* values used for streaming inputs by the decoder */
    unsigned int buffersize;  /* read ahead buffer in bytes, 0 = disabled */
@@ -288,9 +288,9 @@ ULONG DLLENTRY decoder_support( char* fileext[], int* size );
 #if defined(DECODER_PLUGIN_LEVEL) && DECODER_PLUGIN_LEVEL > 0 
 ULONG DLLENTRY decoder_editmeta ( HWND owner, const char* url );
 
-typedef void  (DLLENTRYP DECODER_WIZZARD_CALLBACK)( void* param, const char* url );
+typedef void  DLLENTRYP(DECODER_WIZZARD_CALLBACK)( void* param, const char* url );
 
-typedef ULONG (DLLENTRYP DECODER_WIZZARD_FUNC)( HWND owner, const char* title, DECODER_WIZZARD_CALLBACK callback, void* param );
+typedef ULONG DLLENTRYP(DECODER_WIZZARD_FUNC)( HWND owner, const char* title, DECODER_WIZZARD_CALLBACK callback, void* param );
 
 typedef struct _DECODER_WIZZARD
 { /* linked list */ 

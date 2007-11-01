@@ -237,20 +237,18 @@ extern const unsigned char InterlockedBtrCode[];
 extern const unsigned char InterlockedBtcCode[];
 
 #if defined(__GNUC__)
-  #ifndef __fastcall
-  #define __fastcall __attribute__((regparm(2)))
-  #endif
-  #define InterlockedXch(x,n) (*(unsigned(__fastcall*)(volatile unsigned*,unsigned))InterlockedXchCode)(&(x),(n))
-  #define InterlockedInc(x)   (*(void(__fastcall*)(volatile unsigned*))InterlockedIncCode)(&(x))
-  #define InterlockedDec(x)   (*(char(__fastcall*)(volatile unsigned*))InterlockedDecCode)(&(x))
-  #define InterlockedAdd(x,n) (*(void(__fastcall*)(volatile unsigned*,unsigned))InterlockedAddCode)(&(x),(n))
-  #define InterlockedSub(x,n) (*(char(__fastcall*)(volatile unsigned*,unsigned))InterlockedSubCode)(&(x),(n))
-  #define InterlockedAnd(x,n) (*(char(__fastcall*)(volatile unsigned*,unsigned))InterlockedAndCode)(&(x),(n))
-  #define InterlockedOr(x,n)  (*(void(__fastcall*)(volatile unsigned*,unsigned))InterlockedOrCode)(&(x),(n))
-  #define InterlockedXor(x,n) (*(char(__fastcall*)(volatile unsigned*,unsigned))InterlockedXorCode)(&(x),(n))
-  #define InterlockedBts(x,n) (*(char(__fastcall*)(volatile unsigned*,unsigned))InterlockedBtsCode)(&(x),(n))
-  #define InterlockedBtr(x,n) (*(char(__fastcall*)(volatile unsigned*,unsigned))InterlockedBtrCode)(&(x),(n))
-  #define InterlockedBtc(x,n) (*(char(__fastcall*)(volatile unsigned*,unsigned))InterlockedBtcCode)(&(x),(n))
+  #define REGCALL __attribute__((regparm(2)))
+  #define InterlockedXch(x,n) (*(unsigned REGCALL(*)(volatile unsigned*,unsigned))InterlockedXchCode)(&(x),(n))
+  #define InterlockedInc(x)   (*(void     REGCALL(*)(volatile unsigned*))InterlockedIncCode)(&(x))
+  #define InterlockedDec(x)   (*(char     REGCALL(*)(volatile unsigned*))InterlockedDecCode)(&(x))
+  #define InterlockedAdd(x,n) (*(void     REGCALL(*)(volatile unsigned*,unsigned))InterlockedAddCode)(&(x),(n))
+  #define InterlockedSub(x,n) (*(char     REGCALL(*)(volatile unsigned*,unsigned))InterlockedSubCode)(&(x),(n))
+  #define InterlockedAnd(x,n) (*(char     REGCALL(*)(volatile unsigned*,unsigned))InterlockedAndCode)(&(x),(n))
+  #define InterlockedOr(x,n)  (*(void     REGCALL(*)(volatile unsigned*,unsigned))InterlockedOrCode)(&(x),(n))
+  #define InterlockedXor(x,n) (*(char     REGCALL(*)(volatile unsigned*,unsigned))InterlockedXorCode)(&(x),(n))
+  #define InterlockedBts(x,n) (*(char     REGCALL(*)(volatile unsigned*,unsigned))InterlockedBtsCode)(&(x),(n))
+  #define InterlockedBtr(x,n) (*(char     REGCALL(*)(volatile unsigned*,unsigned))InterlockedBtrCode)(&(x),(n))
+  #define InterlockedBtc(x,n) (*(char     REGCALL(*)(volatile unsigned*,unsigned))InterlockedBtcCode)(&(x),(n))
 #elif defined(__WATCOMC__)
   #error TODO!
 #elif defined(__IBMC__) || defined(__IBMCPP__)
