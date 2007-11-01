@@ -84,43 +84,52 @@ V_FUNC mkvreplace1(VREPLACE1* rp, V_FUNC func, void* ptr);
 }
 /* Typesafe C++ wrappers */
 
+// Well, some things are evil
+#ifdef __GNUC__
+#define DLLENTRY1 DLLENTRY
+#define DLLENTRY2
+#else
+#define DLLENTRY1
+#define DLLENTRY2 DLLENTRY
+#endif
+
 #define PARSIZE(type) ((sizeof(type)+sizeof(int)-1)&-sizeof(int))
 template <class R, class P>
-R DLLENTRY(* vdelegate(VDELEGATE* dg, R (DLLENTRYP func)(P*), P* ptr))()
+R DLLENTRY1(DLLENTRY2* vdelegate(VDELEGATE* dg, R (DLLENTRYP func)(P*), P* ptr))()
 { return (R (DLLENTRYP)())mkvdelegate(dg, (V_FUNC)func, 0, ptr);
 }
 template <class R, class P, class P1>
-R DLLENTRY(* vdelegate(VDELEGATE* dg, R (DLLENTRYP func)(P*,P1), P* ptr))(P1)
+R DLLENTRY1(DLLENTRY2* vdelegate(VDELEGATE* dg, R (DLLENTRYP func)(P*,P1), P* ptr))(P1)
 { return (R (DLLENTRYP)(P1))mkvdelegate(dg, (V_FUNC)func, PARSIZE(P1), ptr);
 }
 template <class R, class P, class P1, class P2>
-R DLLENTRY(* vdelegate(VDELEGATE* dg, R (DLLENTRYP func)(P*,P1,P2), P* ptr))(P1,P2)
+R DLLENTRY1(DLLENTRY2* vdelegate(VDELEGATE* dg, R (DLLENTRYP func)(P*,P1,P2), P* ptr))(P1,P2)
 { return (R (DLLENTRYP)(P1,P2))mkvdelegate(dg, (V_FUNC)func, PARSIZE(P1)+PARSIZE(P2), ptr);
 }
 template <class R, class P, class P1, class P2, class P3>
-R DLLENTRY(* vdelegate(VDELEGATE* dg, R (DLLENTRYP func)(P*,P1,P2,P3), P* ptr))(P1,P2,P3)
+R DLLENTRY1(DLLENTRY2* vdelegate(VDELEGATE* dg, R (DLLENTRYP func)(P*,P1,P2,P3), P* ptr))(P1,P2,P3)
 { return (R (DLLENTRYP)(P1,P2,P3))mkvdelegate(dg, (V_FUNC)func, PARSIZE(P1)+PARSIZE(P2)+PARSIZE(P3), ptr);
 }
 template <class R, class P, class P1, class P2, class P3, class P4>
-R DLLENTRY(* vdelegate(VDELEGATE* dg, R (DLLENTRYP func)(P*,P1,P2,P3,P4), P* ptr))(P1,P2,P3,P4)
+R DLLENTRY1(DLLENTRY2* vdelegate(VDELEGATE* dg, R (DLLENTRYP func)(P*,P1,P2,P3,P4), P* ptr))(P1,P2,P3,P4)
 { return (R (DLLENTRYP)(P1,P2,P3,P4))mkvdelegate(dg, (V_FUNC)func, PARSIZE(P1)+PARSIZE(P2)+PARSIZE(P3)+PARSIZE(P4), ptr);
 }
 #undef PARSIZE
 
 template <class R, class P>
-R DLLENTRY(* vreplace1(VREPLACE1* rp, R (DLLENTRYP func)(P*), P* ptr))(P*)
+R DLLENTRY1(DLLENTRY2* vreplace1(VREPLACE1* rp, R (DLLENTRYP func)(P*), P* ptr))(P*)
 { return (R (DLLENTRYP)(P*))mkvreplace1(rp, (V_FUNC)func, ptr);
 }
 template <class R, class P, class P2>
-R DLLENTRY(* vreplace1(VREPLACE1* rp, R (DLLENTRYP func)(P*,P2), P* ptr))(P*,P2)
+R DLLENTRY1(DLLENTRY2* vreplace1(VREPLACE1* rp, R (DLLENTRYP func)(P*,P2), P* ptr))(P*,P2)
 { return (R (DLLENTRYP)(P*,P2))mkvreplace1(rp, (V_FUNC)func, ptr);
 }
 template <class R, class P, class P2, class P3>
-R DLLENTRY(* vreplace1(VREPLACE1* rp, R (DLLENTRYP func)(P*,P2,P3), P* ptr))(P*,P2,P3)
+R DLLENTRY1(DLLENTRY2* vreplace1(VREPLACE1* rp, R (DLLENTRYP func)(P*,P2,P3), P* ptr))(P*,P2,P3)
 { return (R (DLLENTRYP)(P*,P2,P3))mkvreplace1(rp, (V_FUNC)func, ptr);
 }
 template <class R, class P, class P2, class P3, class P4>
-R DLLENTRY(* vreplace1(VREPLACE1* rp, R (DLLENTRYP func)(P*,P2,P3,P4), P* ptr))(P*,P2,P3,P4)
+R DLLENTRY1(DLLENTRY2* vreplace1(VREPLACE1* rp, R (DLLENTRYP func)(P*,P2,P3,P4), P* ptr))(P*,P2,P3,P4)
 { return (R (DLLENTRYP)(P*,P2,P3,P4))mkvreplace1(rp, (V_FUNC)func, ptr);
 }
 #endif
