@@ -53,8 +53,9 @@
 #include <debuglog.h>
 
 
-static void load_ini(void);
-static void save_ini(void);
+// TODO:
+//static void load_ini(void);
+//static void save_ini(void);
 
 // confinuration parameters
 typedef struct
@@ -97,22 +98,22 @@ typedef struct
    PMIXERPROC          pmixRead;
    MCI_MIX_BUFFER*     MixBuffers;
    MCI_BUFFER_PARMS    bpa;
- 
+
    // buffer queue
    MCI_MIX_BUFFER*     QHead;
    MCI_MIX_BUFFER*     QTail;
    HMTX                QMutex;
    HEV                 QSignal;
- 
+
    // decoder thread
    ULONG               tid;
    BOOL                terminate;
-   
+
    // status
    BOOL                opened;
    BOOL                mcibuffers;
    BOOL                playing;
- 
+
 } OS2RECORD;
 
 
@@ -125,11 +126,11 @@ abbrev(const char* value, const char* key, int minlen)
   return strnicmp(value, key, len) == 0;
 }
 
-/* decompose record:/// url into params structure. Return FALSE on error. 
+/* decompose record:/// url into params structure. Return FALSE on error.
  */
 static BOOL
 parseURL( const char* url, PARAMETERS* params )
-{ int i,j,k;
+{ unsigned int i,j,k;
   const char* cp;
   if (strnicmp(url, "record:///", 10) != 0)
     return FALSE;
@@ -138,7 +139,7 @@ parseURL( const char* url, PARAMETERS* params )
   i = strcspn(url, "\\/?");
   if (i >= sizeof params->device)
     return FALSE;
-  if (sscanf(url, "%d%n", &j, &k) == 1 && k == i)
+  if (sscanf(url, "%u%n", &j, &k) == 1 && k == i)
   { // bare device number
     sprintf(params->device, MCI_DEVTYPE_AUDIO_AMPMIX_NAME"%02d", j);
   } else if (i != 0)
@@ -220,7 +221,7 @@ parseURL( const char* url, PARAMETERS* params )
     } else // bad param
       return FALSE;
   }
-  return TRUE;  
+  return TRUE;
 }
 
 
@@ -302,7 +303,7 @@ decoder_fileinfo( const char* filename, DECODER_INFO* info )
                                                  params.format.channels == 1 ? "mono" : "stereo");
   cp = get_connector_name(params.connector);
   if (cp == NULL)
-    sprintf(info->title, "Record: %.32s-%d", params.device, params.connector);
+    sprintf(info->title, "Record: %.32s-%lu", params.device, params.connector);
    else
     sprintf(info->title, "Record: %.32s-%s", params.device, cp);
   info->artist[0]    = 0;
@@ -327,7 +328,7 @@ decoder_cdinfo( const char* drive, DECODER_CDINFO* info ) {
 }
 
 
-/********** MMOS2 stuff ****************************************************/ 
+/********** MMOS2 stuff ****************************************************/
 
 static LONG APIENTRY DARTEvent(ULONG ulStatus, MCI_MIX_BUFFER *PlayedBuffer, ULONG ulFlags)
 {  OS2RECORD *a = (OS2RECORD*)PlayedBuffer->ulUserParm;
@@ -335,7 +336,7 @@ static LONG APIENTRY DARTEvent(ULONG ulStatus, MCI_MIX_BUFFER *PlayedBuffer, ULO
 
    switch(ulFlags)
    {case MIX_STREAM_ERROR | MIX_READ_COMPLETE:  // error occur in device
-      DEBUGLOG(("os2rec:DARTEvent: error %u\n", ulStatus)); 
+      DEBUGLOG(("os2rec:DARTEvent: error %u\n", ulStatus));
       /*if ( ulStatus == ERROR_DEVICE_UNDERRUN)
          // Write buffers to rekick off the amp mixer.
          a->mmp.pmixWrite( a->mmp.ulMixHandle,
@@ -353,7 +354,7 @@ static LONG APIENTRY DARTEvent(ULONG ulStatus, MCI_MIX_BUFFER *PlayedBuffer, ULO
          a->QTail->ulUserParm = (ULONG)PlayedBuffer;
       DosReleaseMutexSem(a->QMutex);
       // notify decoder thread
-      DosPostEventSem(a->QSignal);        
+      DosPostEventSem(a->QSignal);
       break;
    } // end switch
    return 0;
@@ -366,7 +367,7 @@ DecoderThread( void* arg )
    ULONG rc;
    MCI_MIX_BUFFER* current;
    DEBUGLOG(("os2rec:DecoderThread(%p)\n", a));
-   
+
    for(;;)
    {  // Wait for signal
       {  ULONG ul;
@@ -403,7 +404,7 @@ DecoderThread( void* arg )
          // pass buffer content
          while (done < current->ulBufferLength)
          {  ULONG plen = current->ulBufferLength - done;
-            if (plen > a->audio_buffersize)
+            if (plen > (unsigned)a->audio_buffersize)
                plen = a->audio_buffersize;
             (*a->output_play_samples)( a->a, &a->params.format,
               (char*)current->pBuffer + done, plen, current->ulTime + done*1000/byterate );
@@ -411,13 +412,13 @@ DecoderThread( void* arg )
                return;
             done += plen;
          }
-         
+
          next = (MCI_MIX_BUFFER*)current->ulUserParm;
          // pass buffer back to DART
          current->ulUserParm = (ULONG)a;
          rc = (USHORT)(*a->pmixRead)( a->MixHandle, current, 1 );
          if (rc != NO_ERROR)
-            DEBUGLOG(("os2rec:DecoderThread: pmixRead failed %d\n", rc));
+            DEBUGLOG(("os2rec:DecoderThread: pmixRead failed %lu\n", rc));
          // next buffer
          current = next;
       }
@@ -430,14 +431,14 @@ static ULONG MciError(OS2RECORD *a, ULONG ulError, const char* location)
    char mmerror[180];
    ULONG rc;
    int len;
-   
-   sprintf(mmerror, "MCI Error %d at %.30s: ", ulError, location);
+
+   sprintf(mmerror, "MCI Error %lu at %.30s: ", ulError, location);
    len = strlen(mmerror);
 
    rc = (USHORT)mciGetErrorString(ulError, mmerror+len, sizeof mmerror - len);
    mmerror[sizeof mmerror-1] = 0;
    if (rc != MCIERR_SUCCESS)
-      sprintf(mmerror+len, "Cannot query error message: %d.\n", rc);
+      sprintf(mmerror+len, "Cannot query error message: %lu.\n", rc);
 
    (*a->error_display)(mmerror);
 
@@ -447,10 +448,9 @@ static ULONG MciError(OS2RECORD *a, ULONG ulError, const char* location)
 static ULONG OS2Error(OS2RECORD *a, ULONG ulError, const char* location)
 {
    char mmerror[1024];
-   ULONG rc;
    int len;
-   
-   sprintf(mmerror, "OS/2 Error %d at %.30s: ", ulError, location);
+
+   sprintf(mmerror, "OS/2 Error %lu at %.30s: ", ulError, location);
    len = strlen(mmerror);
 
    os2_strerror(ulError, mmerror+len, sizeof mmerror - len);
@@ -471,7 +471,7 @@ static ULONG output_close(OS2RECORD *a)
    a->terminate = TRUE;
    if (a->QSignal != NULLHANDLE)
       DosPostEventSem(a->QSignal);
-   
+
    // stop playback
    if ( a->playing )
    {  rc = (USHORT)mciSendCommand( a->device, MCI_STOP, MCI_WAIT, &gpa, 0 );
@@ -479,14 +479,14 @@ static ULONG output_close(OS2RECORD *a)
          DEBUGLOG(("os2rec:output_close: MCI_STOP - %d\n", rc));
       a->playing = false;
    }
-   
+
    // join decoder thread
    rc = DosWaitThread( &a->tid, DCWW_WAIT );
    if (rc != NO_ERROR)
       DEBUGLOG(("os2rec:output_close: DosWaitThread - %d\n", rc));
 
    // release queue handles
-   if ( a->QSignal != NULLHANDLE );  
+   if ( a->QSignal != NULLHANDLE );
    {  rc = DosCloseEventSem(a->QSignal);
       if (rc != NO_ERROR)
          DEBUGLOG(("os2rec:output_close: DosCloseEventSem QSignal - %d\n", rc));
@@ -517,15 +517,15 @@ static ULONG output_close(OS2RECORD *a)
          DEBUGLOG(("os2rec:output_close: MCI_CLOSE - %d\n", rc));
       a->opened = FALSE;
    }
-   
+
    a->terminate = FALSE;
    return 0;
 }
 
 static ULONG device_open(OS2RECORD *a)
 {
-   ULONG rc,i;
-   
+   ULONG rc;
+
    if (a->opened) // trash buffers?
       return 101;
 
@@ -604,7 +604,7 @@ static ULONG device_open(OS2RECORD *a)
       {  output_close(a);
          return MciError(a,rc, "MCI_BUFFER");
       }
-      a->mcibuffers = TRUE;                 
+      a->mcibuffers = TRUE;
    }
    // setup queue
    rc = DosCreateMutexSem(NULL, &a->QMutex, 0, FALSE);
@@ -617,10 +617,10 @@ static ULONG device_open(OS2RECORD *a)
    {  output_close(a);
       return OS2Error(a,rc,"DosCreateEventSem QSignal");
    }
-   
+
    a->QHead = NULL;
    a->QTail = NULL;
-   
+
    // start decoder thread
    a->tid = _beginthread(&DecoderThread, NULL, 65536, a);
    if (a->tid == (ULONG)-1)
@@ -628,15 +628,15 @@ static ULONG device_open(OS2RECORD *a)
       output_close(a);
       return errno;
    }
-   
+
    // setup buffers
-   {  int i;
+   {  unsigned int i;
       for (i = 0; i < a->bpa.ulNumBuffers; i++)
       {  DEBUGLOG2(("xx: %d %d\n", i, a->MixBuffers[i].ulBufferLength));
          a->MixBuffers[i].ulUserParm = (ULONG)a;
       }
    }
-   
+
    // start recording
    (*a->pmixRead)( a->MixHandle, a->MixBuffers, a->bpa.ulNumBuffers);
 
@@ -671,7 +671,7 @@ ULONG DLLENTRY decoder_command(void *A, ULONG msg, DECODER_PARAMS *info)
       a->playsem             = info->playsem;
       a->hwnd                = info->hwnd;
       return 0;
-         
+
     default:
       return 1;
    }
@@ -681,14 +681,14 @@ ULONG DLLENTRY decoder_command(void *A, ULONG msg, DECODER_PARAMS *info)
 ULONG DLLENTRY
 decoder_status( void *A )
 {  OS2RECORD *a = (OS2RECORD *)A;
-   
+
    if (a->terminate)
       return DECODER_STOPPED;
    if (a->playing)
       return DECODER_PLAYING;
    if (a->opened)
       return DECODER_STARTING;
-   return DECODER_STOPPED;  
+   return DECODER_STOPPED;
 }
 
 ULONG DLLENTRY
@@ -735,7 +735,7 @@ static ULONG get_devices(MCI_SYSINFO_LOGDEVICE* info, int deviceid)
 }
 
 
-/********** GUI stuff ******************************************************/ 
+/********** GUI stuff ******************************************************/
 
 struct WizzardDlgData
 { const char* title;
@@ -744,16 +744,16 @@ struct WizzardDlgData
 };
 
 static MRESULT EXPENTRY WizzardDlgProc(HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2)
-{ 
+{
   const int samprates[] = {8000, 11025, 12000, 16000, 22050, 24000, 32000, 44100, 48000, 96000};
   DEBUGLOG2(("os2rec:WizzardDlgProc(%p, %p, %p, %p)\n", hwnd, msg, mp1, mp2));
-  
+
   switch (msg)
   {case WM_INITDLG:
     // Store data pointer
     WinSetWindowULong(hwnd, QWL_USER, (ULONG)mp2);
 
-    // Window Title 
+    // Window Title
     { char wintitle[300]; // hopefully large enough
       sprintf(wintitle, ((WizzardDlgData*)mp2)->title, " recording");
       WinSetWindowText( hwnd, wintitle );
@@ -779,7 +779,7 @@ static MRESULT EXPENTRY WizzardDlgProc(HWND hwnd, ULONG msg, MPARAM mp1, MPARAM 
       { const char* cp = defaults.device;
         if (strnicmp(cp, MCI_DEVTYPE_AUDIO_AMPMIX_NAME, strlen(MCI_DEVTYPE_AUDIO_AMPMIX_NAME)) == 0)
           cp += strlen(MCI_DEVTYPE_AUDIO_AMPMIX_NAME);
-        int i, len;
+        unsigned int i, len;
         if (sscanf(cp, "%u%n", &i, &len) == 1 && len == strlen(cp))
           WinSendMsg(hwndctrl, LM_SELECTITEM, MPFROMSHORT(i), MPFROMSHORT(TRUE));
       }
@@ -800,16 +800,16 @@ static MRESULT EXPENTRY WizzardDlgProc(HWND hwnd, ULONG msg, MPARAM mp1, MPARAM 
     // Initialize format
     WinCheckButton(hwnd, defaults.format.bits == 8 ? RB_8BIT : defaults.format.bits == 24 ? RB_24BIT : RB_16BIT, TRUE);
     break;
-    
+
    case WM_COMMAND:
     DEBUGLOG(("os2rec:WizzardDlgProc(%p, WM_COMMAND, %p, %p)\n", hwnd, mp1, mp2));
     switch (SHORT1FROMMP(mp1))
     {case DID_OK:
       // Construct URL
       { char url[128];
-        LONG samp;
+        ULONG samp;
         WinSendDlgItemMsg(hwnd, SB_SAMPRATE, SPBM_QUERYVALUE, MPFROMP(&samp), 0);
-        sprintf(url, "record:///%u?samp=%u&%s&bits=%u&in=%s&share=%s",
+        sprintf(url, "record:///%u?samp=%lu&%s&bits=%u&in=%s&share=%s",
           SHORT1FROMMR(WinSendDlgItemMsg(hwnd, CB_DEVICE, LM_QUERYSELECTION, MPFROMSHORT(LIT_FIRST), 0)),
           samp,
           WinQueryButtonCheckstate(hwnd, RB_MONO) ? "mono" : "stereo",
@@ -842,7 +842,7 @@ static MRESULT EXPENTRY WizzardDlgProc(HWND hwnd, ULONG msg, MPARAM mp1, MPARAM 
         //DEBUGLOG(("os2rec:WizzardDlgProc: SPBN_UPARROW - %i %i %i\n", val, i, samprates[(i+sizeof samprates/sizeof *samprates) % (sizeof samprates/sizeof *samprates)]));
         WinSendDlgItemMsg(hwnd, SB_SAMPRATE, SPBM_SETCURRENTVALUE, MPFROMLONG(samprates[(i+sizeof samprates/sizeof *samprates) % (sizeof samprates/sizeof *samprates)]), 0);
         return 0;
-        
+
        case SPBN_UPARROW:
         WinSendDlgItemMsg(hwnd, SB_SAMPRATE, SPBM_QUERYVALUE, MPFROMP(&val), 0);
         for (i = 0; i < sizeof samprates/sizeof *samprates; ++i )
@@ -852,7 +852,7 @@ static MRESULT EXPENTRY WizzardDlgProc(HWND hwnd, ULONG msg, MPARAM mp1, MPARAM 
         WinSendDlgItemMsg(hwnd, SB_SAMPRATE, SPBM_SETCURRENTVALUE, MPFROMLONG(samprates[i % (sizeof samprates/sizeof *samprates)]), 0);
         return 0;
       }
-      break;   
+      break;
     }
     break;
   }

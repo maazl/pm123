@@ -33,7 +33,7 @@
 
 /* Creates a buffering stream using specified buffer. */
 BUFSTREAM*
-open_bufstream( void* buffer, int size )
+open_bufstream( void* buffer, size_t size )
 {
   BUFSTREAM* b = (BUFSTREAM*)malloc( sizeof( BUFSTREAM ));
 
@@ -48,7 +48,7 @@ open_bufstream( void* buffer, int size )
 
 /* Creates a new buffering stream. */
 BUFSTREAM*
-create_bufstream( int size )
+create_bufstream( size_t size )
 {
   BUFSTREAM* b = (BUFSTREAM*)malloc( sizeof( BUFSTREAM ));
 
@@ -62,7 +62,7 @@ create_bufstream( int size )
 }
 
 /* Returns a buffer associated with buffering stream. */
-int
+size_t
 get_buffer_bufstream( BUFSTREAM *b, void** buffer )
 {
   *buffer = b->buffer;
@@ -70,10 +70,10 @@ get_buffer_bufstream( BUFSTREAM *b, void** buffer )
 }
 
 /* Reads a data from buffering stream. */
-int
-read_bufstream( BUFSTREAM* b, void* buffer, int size )
+size_t
+read_bufstream( BUFSTREAM* b, void* buffer, size_t size )
 {
-  int toread = size;
+  size_t toread = size;
   if( b->length - b->position < toread ) {
     toread = b->length - b->position;
   }
@@ -85,10 +85,10 @@ read_bufstream( BUFSTREAM* b, void* buffer, int size )
 }
 
 /* Writes a data from buffering stream. */
-int
-write_bufstream( BUFSTREAM* b, const void* buffer, int size )
+size_t
+write_bufstream( BUFSTREAM* b, const void* buffer, size_t size )
 {
-  int towrite = size;
+  size_t towrite = size;
 
   if( towrite > b->size - b->position )
   {

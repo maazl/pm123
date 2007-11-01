@@ -927,7 +927,7 @@ bmp_pt_in_text( POINTL pos )
 
 /* Draws a specified digit using the specified size. */
 void
-bmp_draw_digit( HPS hps, int x, int y, int digit, int size )
+bmp_draw_digit( HPS hps, int x, int y, unsigned int digit, int size )
 {
   bmp_draw_bitmap( hps, x, y, size + digit );
 }
@@ -967,8 +967,8 @@ void
 bmp_draw_timer( HPS hps, double time )
 { DEBUGLOG(("bmp_draw_timer(%p, %f)\n", hps, time));
 
-  int major;
-  int minor;
+  unsigned int major;
+  unsigned int minor;
   int x = bmp_pos[ POS_TIMER ].x;
   int y = bmp_pos[ POS_TIMER ].y;
 
@@ -1004,9 +1004,8 @@ bmp_draw_timer( HPS hps, double time )
 void
 bmp_draw_tiny_timer( HPS hps, int pos_id, double time )
 { DEBUGLOG(("bmp_draw_tiny_timer(%p, %i, %f)\n", hps, pos_id, time));
-  
-  int major;
-  int minor;
+
+  unsigned int major, minor;
   int x = bmp_pos[pos_id].x;
   int y = bmp_pos[pos_id].y;
 
@@ -1094,7 +1093,7 @@ bmp_draw_channels( HPS hps, int channels )
       pos = bmp_pos + POS_STEREO;
       break;
   }
-  
+
   if( pos->x != POS_UNDEF && pos->y != POS_UNDEF )
   {
     bmp_draw_bitmap( hps, pos->x, pos->y, id );
@@ -1201,7 +1200,7 @@ bmp_draw_rate( HPS hps, int rate )
   char buf[32];
   int  x = bmp_pos[ POS_BPS ].x;
   int  y = bmp_pos[ POS_BPS ].y;
-  
+
   DEBUGLOG(("bmp_draw_rate(%p, %d)\n", hps, rate));
 
   if( cfg.mode != CFG_MODE_REGULAR ) {
@@ -1360,19 +1359,16 @@ bmp_draw_plind( HPS hps, int index, int total )
 void
 bmp_draw_slider( HPS hps, double played, double total )
 { DEBUGLOG(("bmp_draw_slider(%p, %f, %f)\n", hps, played, total));
-  int pos = 0;
+  ULONG pos = 0;
 
   if( cfg.mode == CFG_MODE_REGULAR )
   {
     if( total > 0 ) {
-      pos = ((played / total ) * bmp_ulong[UL_SLIDER_WIDTH] );
-    }
-
-    if( pos < 0 ) {
+      if (played < 0)
         pos = 0;
-    }
-    if( pos > bmp_ulong[ UL_SLIDER_WIDTH ] ) {
-        pos = bmp_ulong[ UL_SLIDER_WIDTH ];
+      else if (played >= total)
+        pos = bmp_ulong[UL_SLIDER_WIDTH];
+      pos = (ULONG)(played/total * bmp_ulong[UL_SLIDER_WIDTH]);
     }
 
     if( bmp_cache[ BMP_SLIDER_SHAFT ]   != 0 &&
@@ -1444,7 +1440,7 @@ bmp_draw_timeleft( HPS hps )
   if( cfg.mode == CFG_MODE_REGULAR )
   {
     const Playable* root = amp_get_current_root();
-    
+
     if( root == NULL ) {
       if( bmp_pos[ POS_NOTL ].x != POS_UNDEF &&
           bmp_pos[ POS_NOTL ].y != POS_UNDEF )
@@ -1779,7 +1775,7 @@ bmp_load_packfile( char *filename )
 void
 bmp_clean_skin( void )
 {
-  int i;
+  unsigned int i;
 
   for( i = 0; i < sizeof( bmp_cache ) / sizeof( HBITMAP ); i++ ) {
     if( bmp_cache[i] != NULLHANDLE )
@@ -1799,7 +1795,7 @@ bmp_clean_skin( void )
 BOOL
 bmp_load_skin( const char *filename, HAB hab, HWND hplayer, HPS hps )
 {
-  int   i;
+  unsigned int   i;
   FILE* file;
   char  line[256];
   char  path[_MAX_PATH];

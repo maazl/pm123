@@ -32,7 +32,7 @@
 #include <ctype.h>
 
 void url::parse()
-{ 
+{
 }
 
 bool url::hasScheme(const char* str)
@@ -46,7 +46,7 @@ bool url::hasScheme(const char* str)
 
      case ':':
       return true;
-     
+
      default:
       if (!isalpha(*str))
         return false;
@@ -105,7 +105,7 @@ url url::normalizeURL(const char* str)
     *cp2 = '/';
   // reduce /xxx/.. - s/\/[^\/]\/\.\.//g;
   len = ret.length();
-  for (cp2 = strstr(cp, "/."); cp2; cp2 = strstr(cp2, "/.")) 
+  for (cp2 = strstr(cp, "/."); cp2; cp2 = strstr(cp2, "/."))
   { DEBUGLOG(("url::normalzieURL: removing? %s\n", cp2));
     char* cp3 = cp2;
     cp2 += 2; // move behind the match
@@ -228,7 +228,7 @@ url url::makeAbsolute(const char* rel) const
   // join strings
   size_t len1 = cp - cdata();
   size_t len2 = strlen(rel);
-  sco_arr<char> dp = new char[len1+len2+1];
+  sco_arr<char> dp(new char[len1+len2+1]);
   memcpy(dp.get(), cdata(), len1);
   memcpy(dp.get() + len1, rel, len2);
   dp[len1+len2] = 0;
@@ -242,7 +242,7 @@ xstring url::makeRelative(const char* root, bool useupdir) const
   const char* sp2 = root;
   while (*sp1 == *sp2 && *sp1)
     ++sp1, ++sp2;
-  
+
   // Count number of '/' in root after common part of root URL.
   size_t updirs = 0;
   { const char* cp = strchr(sp2, '/');
@@ -277,4 +277,3 @@ xstring url::makeRelative(const char* root, bool useupdir) const
   memcpy(dp, sp1, len);
   return ret;
 }
-

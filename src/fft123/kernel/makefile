@@ -5,10 +5,11 @@
 DLL     = yes
 TOPDIR  = ..\..
 INCDIR  = ..\api;$(TOPDIR)\include
+TARGET  = all2
 
 !include $(TOPDIR)\config\makerules
 
-all: kernel$(LBO) $(MDUMMY)
+all2: kernel$(LBO) $(MDUMMY)
 
 OBJECTS = align$(CO) alloc$(CO) assert$(CO) awake$(CO) buffered$(CO) ct$(CO)
 OBJECTS = $(OBJECTS) hash$(CO) iabs$(CO) md5$(CO) md5_1$(CO) minmax$(CO) ops$(CO)

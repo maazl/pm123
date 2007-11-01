@@ -269,7 +269,7 @@ static double TodB(double gain)
    else if (gain >= 3.981071706)
     return 12.;*/
    else
-    return 20.*log10(gain); 
+    return 20.*log10(gain);
 }
 
 INLINE double ToGain(double dB)
@@ -335,7 +335,7 @@ load_eq_file( char* filename )
 
 static void
 init_request( void )
-{ 
+{
   DEBUGLOG(("realeq:init_request\n"));
   if (!plugininit) // first time?
   { load_ini();
@@ -380,7 +380,7 @@ fil_setup( REALEQ_STRUCT* f )
   }
 
   // STEP 1: initialize buffers and FFT plans
-   
+
   // free old resources
   if (FFTinit)
   { DEBUGLOG(("fil_setup: free\n"));
@@ -419,14 +419,14 @@ fil_setup( REALEQ_STRUCT* f )
   FFT.backward_plan = fftwf_plan_dft_c2r_1d( FFT.plansize, FFT.freq_domain, FFT.time_domain, FFTW_ESTIMATE );
   // prepare real 2 real transformations
   //FFT.RDCT_plan     = fftwf_plan_r2r_1d( FFT.plansize/2+1, FFT.time_domain, FFT.kernel[0], FFTW_REDFT00, FFTW_ESTIMATE );
-  
+
   trash_buffers(f);
 
   eqneedinit = FALSE;
 
  doFIR:
   // STEP 2: setup FIR order
-  
+
   // copy global parameters for thread safety
   FFT.FIRorder = (newFIRorder+15) & -16; /* multiple of 16 */
   FFT.FIRorder <<= 1; // * 2
@@ -453,7 +453,7 @@ fil_setup( REALEQ_STRUCT* f )
 
  doEQ:
   // STEP 3: setup filter kernel
-  
+
   fftspecres = (float)f->format.samplerate / FFT.plansize;
 
   // Prepare design coefficients frame
@@ -745,7 +745,7 @@ static void
 filter_samples_new_overlap( REALEQ_STRUCT* f, const short* buf, int len )
 { int l2;
   DEBUGLOG(("realeq:filter_samples_new_overlap(%p, %p, %i)\n", f, buf, len));
-  
+
   l2 = FFT.plansize - FFT.FIRorder;
   if (len > l2)
   { // skip unneeded samples
@@ -757,7 +757,7 @@ filter_samples_new_overlap( REALEQ_STRUCT* f, const short* buf, int len )
   if ( f->format.channels == 2 )
   { do_fft_load_samples_stereo(buf  , l2, FFT.overlap[0]);
     do_fft_load_samples_stereo(buf+1, l2, FFT.overlap[1]);
-  } else 
+  } else
   { do_fft_load_samples_mono(buf, l2, FFT.overlap[0]);
   }
 }
@@ -800,7 +800,7 @@ filter_and_send( REALEQ_STRUCT* f )
 
   // request destination buffer
   dlen = do_request_buffer( f, &dbuf );
-  
+
   if (f->discard)
   { f->inboxlevel = 0;
     do_commit_buffer(f, 0, f->temppos); // no-op
@@ -812,9 +812,9 @@ filter_and_send( REALEQ_STRUCT* f )
   { // with fragmentation
     int rem = len;
     short* sp;
-  
+
     filter_samples_fft( f, FFT.inbox, FFT.inbox, f->inboxlevel );
-    
+
     // transfer data
     sp = FFT.inbox;
     for(;;)
@@ -835,7 +835,7 @@ filter_and_send( REALEQ_STRUCT* f )
       if (dlen > rem)
         dlen = rem;
     }
-    
+
   } else
   { // without fragmentation
     if (dbuf == NULL)
@@ -872,7 +872,7 @@ local_flush( REALEQ_STRUCT* f )
     len -= dlen;
   }
 
-  // flush buffer  
+  // flush buffer
   if (f->inboxlevel != 0)
     filter_and_send(f);
 
@@ -922,13 +922,13 @@ filter_request_buffer( REALEQ_STRUCT* f, const FORMAT_INFO2* format, short** buf
     { if (f->format.samplerate != 0)
         local_flush( f );
     }
-    
+
     fil_setup( f );
 
     *buf = FFT.inbox + f->inboxlevel * format->channels;
     DEBUGLOG(("realeq:filter_request_buffer: %p, %d\n", *buf, FFT.plansize - FFT.FIRorder - f->inboxlevel));
     return FFT.plansize - FFT.FIRorder - f->inboxlevel;
-  }                                                        
+  }
   else
   {
     return (*f->output_request_buffer)( f->a, format, buf );
@@ -939,7 +939,7 @@ static void DLLENTRY
 filter_commit_buffer( REALEQ_STRUCT* f, int len, double posmarker )
 {
   DEBUGLOG(("realeq:filter_commit_buffer(%p, %u, %f) - %d %d\n", f, len, posmarker, f->inboxlevel, f->latency));
-  
+
   if (!f->enabled)
   { (*f->output_commit_buffer)( f->a, len, posmarker );
     return;
@@ -986,7 +986,7 @@ filter_init( void** F, FILTER_PARAMS2* params )
   DEBUGLOG(("filter_init(%p->%p, {%u, ..., %p, ..., %p})\n", F, f, params->size, params->a, params->w));
 
   *F = f;
- 
+
   init_request();
   eqneedinit = TRUE;
 
@@ -1002,7 +1002,7 @@ filter_init( void** F, FILTER_PARAMS2* params )
   f->format.size           = sizeof f->format;
   f->format.samplerate     = 0;
   f->format.channels       = 0;
-  
+
   params->output_command        = (ULONG (DLLENTRYP)(void*, ULONG, OUTPUT_PARAMS2*))      &filter_command;
   params->output_request_buffer = (int   (DLLENTRYP)(void*, const FORMAT_INFO2*, short**))&filter_request_buffer;
   params->output_commit_buffer  = (void  (DLLENTRYP)(void*, int, double))                 &filter_commit_buffer;
@@ -1068,7 +1068,7 @@ save_eq( HWND hwnd )
     }
     strncpy( lasteq, filedialog.szFullFile, sizeof lasteq );
     eqstate = EQ_file;
-  
+
     fprintf( file, "#\n# Equalizer created with %s\n# Do not modify!\n#\n", VERSION );
     fprintf( file, "# Band gains\n" );
     for( e = 0; e < 2; ++e )
@@ -1077,11 +1077,11 @@ save_eq( HWND hwnd )
     fprintf(file, "# Mutes\n" );
     for( e = 0; e < 2; ++e )
       for( i = 1; i <= NUM_BANDS; i++ )
-        fprintf(file, "%u\n", mute[e][i]);
+        fprintf(file, "%lu\n", mute[e][i]);
     fprintf( file, "# Preamplifier\n" );
     fprintf( file, "%g %g\n%g %g\n", ToGain(bandgain[0][0]), groupdelay[0][0]/1000., ToGain(bandgain[1][0]), groupdelay[1][0]/1000. );
     fprintf( file, "# Master Mute\n" );
-    fprintf( file, "%u\n%u\n", mute[0][0], mute[1][0] );
+    fprintf( file, "%lu\n%lu\n", mute[0][0], mute[1][0] );
     fprintf( file, "# End of equalizer\n" );
     fclose ( file );
     DEBUGLOG(("realeq:save_eq: OK\n"));
@@ -1232,7 +1232,7 @@ ConfigureDlgProc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
     case WM_INITDLG:
       WinSendDlgItemMsg( hwnd, ID_GAIN,       BM_SETCHECK, MPFROMSHORT( TRUE  ), 0 );
       WinSendDlgItemMsg( hwnd, ID_GROUPDELAY, BM_SETCHECK, MPFROMSHORT( FALSE ), 0 );
-      
+
       WinSetDlgItemText( hwnd, ID_UTXTL, "+12dB");
       WinSetDlgItemText( hwnd, ID_CTXTL, "0dB");
       WinSetDlgItemText( hwnd, ID_BTXTL, "-12dB");
@@ -1267,8 +1267,6 @@ ConfigureDlgProc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
 
         case EQ_ZERO:
         {
-          int e,i;
-
           memset(bandgain,   0, sizeof bandgain);
           memset(groupdelay, 0, sizeof groupdelay);
           memset(mute,       0, sizeof mute);
@@ -1276,7 +1274,7 @@ ConfigureDlgProc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
           nottheuser = TRUE;
           load_dialog( hwnd );
           nottheuser = FALSE;
-          
+
           eqneedEQ = TRUE;
           //*lasteq = 0; maybe it's better to keep the file...
           break;
@@ -1368,10 +1366,9 @@ ConfigureDlgProc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
               break;
           }
           break;
-          
+
         case ID_GAIN:
-        { int e; 
-          WinSetDlgItemText( hwnd, ID_UTXTL, "+12dB");
+        { WinSetDlgItemText( hwnd, ID_UTXTL, "+12dB");
           WinSetDlgItemText( hwnd, ID_CTXTL, "0dB");
           WinSetDlgItemText( hwnd, ID_BTXTL, "-12dB");
           WinSetDlgItemText( hwnd, ID_UTXTR, "+12dB");
@@ -1383,8 +1380,7 @@ ConfigureDlgProc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
           break;
         }
         case ID_GROUPDELAY:
-        { int e; 
-          WinSetDlgItemText( hwnd, ID_UTXTL, "+12ms");
+        { WinSetDlgItemText( hwnd, ID_UTXTL, "+12ms");
           WinSetDlgItemText( hwnd, ID_CTXTL, "0ms");
           WinSetDlgItemText( hwnd, ID_BTXTL, "-12ms");
           WinSetDlgItemText( hwnd, ID_UTXTR, "+12ms");
@@ -1461,7 +1457,7 @@ ConfigureDlgProc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
                   index -= ID_MASTERR-ID_MASTERL;
                   channel = 1;
                 }
-                
+
                 rangevalue = WinSendDlgItemMsg( hwnd, SHORT1FROMMP(mp1), SLM_QUERYSLIDERINFO,
                                                 MPFROM2SHORT( SMA_SLIDERARMPOSITION, SMA_RANGEVALUE ), 0 );
                 val = (int)(24.*SHORT1FROMMR( rangevalue )/(SHORT2FROMMR( rangevalue ) - 1) +.5) - 12;
@@ -1470,11 +1466,11 @@ ConfigureDlgProc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
                   if (!mute[channel][index])
                     needeq = TRUE;
                 }
-                
+
                 if (locklr && (*dp)[channel^1][index] != val)
                 {
                   nottheuser = TRUE;
-                  set_slider( hwnd, channel^1, index-1, (*dp)[channel^1][index] = val ); 
+                  set_slider( hwnd, channel^1, index-1, (*dp)[channel^1][index] = val );
                   nottheuser = FALSE;
                   if (!mute[channel^1][index])
                     needeq = TRUE;

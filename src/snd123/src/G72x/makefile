@@ -4,10 +4,11 @@
 
 DLL     = yes
 TOPDIR  = ..\..\..
+TARGET  = all2
 
 !include $(TOPDIR)\config\makerules
 
-all: g72x$(LBO) $(MDUMMY)
+all2: g72x$(LBO) $(MDUMMY)
 
 OBJECTS = g721$(CO) g723_16$(CO) g723_24$(CO) g723_40$(CO) g72x$(CO) 
 

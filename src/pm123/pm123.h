@@ -50,7 +50,7 @@ typedef struct {
 } AMP_DROPINFO;
 
 /* Converts time to two integer suitable for display by the timer. */
-void  sec2num( long seconds, int* major, int* minor );
+void  sec2num( double seconds, unsigned int* major, unsigned int* minor );
 /* Reads url from specified file. */
 char* amp_url_from_file( char* result, const char* filename, size_t size );
 

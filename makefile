@@ -2,8 +2,6 @@
 #  makefile for the whole pm123 package
 #
 
-!include src\config\makerules
-
 VERSION = 1_32
 PARTS   = src\utils\utilfct$(LBO) src\gbm123\gbm123.dll src\fft123\fft123.dll
 PARTS   = $(PARTS) src\xio123\xio123.dll
@@ -22,7 +20,9 @@ PARTS   = $(PARTS) src\pm123\pm123.exe
 PARTS   = $(PARTS) src\skinutil\skinutil.exe
 PARTS   = $(PARTS) doc\pm123.inf
 
-all: $(PARTS) $(MDUMMY)
+TARGET  = $(PARTS)
+
+!include src\config\makerules
 
 src\utils\utilfct$(LBO):
 	cd src\utils

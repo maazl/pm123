@@ -74,7 +74,7 @@ HBITMAP bmp_load_bitmap( const char* filename );
 /* Draws a bit map using the current image colors and mixes. */
 void bmp_draw_bitmap( HPS hps, int x, int y, int res );
 /* Draws a specified digit using the specified size. */
-void bmp_draw_digit( HPS hps, int x, int y, int digit, int size );
+void bmp_draw_digit( HPS hps, int x, int y, unsigned int digit, int size );
 /* Draws a 3D shade of the specified area. */
 void bmp_draw_shade( HPS hps, int x, int y, int cx, int cy, long clr1, long clr2 );
 

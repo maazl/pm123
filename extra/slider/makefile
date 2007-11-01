@@ -3,10 +3,9 @@
 #
 
 EXE_PM   = yes
+TARGET   = slider.exe
 
 !include ..\..\src\config\makerules
-
-all: slider.exe $(MDUMMY)
 
 OBJECTS  = slider$(CO)
 DEF      = slider$(LDEF_SUFFX)

@@ -36,9 +36,9 @@
   #define min( a, b ) (((a) < (b)) ? (a) : (b))
 #endif
 
-#ifndef truncate
-  /* Truncates specified value if it is out of range. */
-  #define truncate( a, min, max ) ((a) < (min) ? (min) : ((a) > (max) ? (max) : (a)))
+#ifndef limit2
+  /* Limits specified value if it is out of range. */
+  #define limit2( a, min, max ) ((a) < (min) ? (min) : ((a) > (max) ? (max) : (a)))
 #endif
 
 #endif /* MINMAX_H */

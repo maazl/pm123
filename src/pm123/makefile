@@ -5,6 +5,7 @@
 TOPDIR   = ..
 INCDIR   = $(TOPDIR)\include;$(TOPDIR)\utils;$(TOPDIR)\gbm123;$(TOPDIR)\xio123
 EXE_PM   = yes
+TARGET   = pm123.exe
 
 !include $(TOPDIR)\config\makerules
 
@@ -20,8 +21,6 @@ LIBS     = $(TOPDIR)\gbm123\gbm123$(LBI) $(TOPDIR)\xio123\xio123$(LBI)
 LIBS     = $(LIBS) $(TOPDIR)\utils\cpp\cpputil$(LBO) $(TOPDIR)\utils\utilfct$(LBO)
 #STDLIBS  = $(LIBS_UNI)
 
-all: pm123.exe $(MDUMMY)
-
 pm123.exe: $(OBJECTS) $(RESOURCE) $(DEF) $(LIBS)
 	$(CL) $(LFLAGS) $(LFLAGS_OUT)$@ $(LOBJ_PREFX)$(OBJECTS) $(LIBS) $(STDLIBS)$(LOBJ_SUFFX) $(LDEF_PREFX)$(DEF)
 	$(RC) $(RFLAGS) $(RESOURCE) $@ > nul
@@ -34,9 +33,6 @@ plugman_base$(CO):	plugman_base.cpp
 
 clean: $(MDUMMY)
 	-@del pm123.exe $(OBJECTS) $(RESOURCE) 2> nul
-
-depend:
-	..\config\makedep.cmd *.cpp *.c -r -x -I$(INCDIR)
 
 # DO NOT DELETE
 

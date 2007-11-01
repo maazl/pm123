@@ -4,6 +4,7 @@
 
 DLL     = yes
 TOPDIR  = ..
+TARGET  = all2
 
 !include $(TOPDIR)\config\makerules
 
@@ -14,7 +15,7 @@ LIBS    = $(LIBS) src\GSM610\gsm610$(LBO)
 LIBS    = $(LIBS) $(TOPDIR)\utils\utilfct$(LBO)
 OBJECTS = snd$(CO)
 
-all: snd123.dll snd123$(LBI) $(MDUMMY)
+all2: snd123.dll snd123$(LBI) $(MDUMMY)
 
 snd123.dll: $(OBJECTS) $(LIBS) $(DEF)
 	$(CL) $(LFLAGS) $(LFLAGS_OUT)$@ $(LOBJ_PREFX) $(OBJECTS) $(LIBS) $(LOBJ_SUFFX) $(LDEF_PREFX)$(DEF)

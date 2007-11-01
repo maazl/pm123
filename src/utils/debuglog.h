@@ -58,7 +58,7 @@
     va_start( va, fmt );
     DosGetInfoBlocks( &ptib, &ppib );
     DosEnterCritSec();
-    fprintf( stderr, "%08d %04X:%04d %08x ", clock(), ppib->pib_ulpid, ptib->tib_ptib2->tib2_ultid, &fmt );
+    fprintf( stderr, "%08ld %04lx:%04ld %8p ", clock(), ppib->pib_ulpid, ptib->tib_ptib2->tib2_ultid, &fmt );
     vfprintf( stderr, fmt, va );
     DosExitCritSec();
     va_end( va );

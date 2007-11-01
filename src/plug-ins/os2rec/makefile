@@ -5,6 +5,7 @@
 DLL      = yes
 TOPDIR   = ..\..
 INCDIR   = $(TOPDIR)\utils;$(TOPDIR)\include
+TARGET   = os2rec.dll
 
 !include $(TOPDIR)\config\makerules
 
@@ -13,15 +14,10 @@ LIBS     = $(LIBS_MM) $(TOPDIR)\utils\utilfct$(LBO)
 DEF      = os2rec$(LDEF_SUFFX)
 RESOURCE = os2rec$(RES)
 
-all: os2rec.dll os2rec$(LBI) $(MDUMMY)
-
 os2rec.dll: $(OBJECTS) $(DEF) $(RESOURCE)
 	$(CL) $(LFLAGS) $(LFLAGS_OUT)$@ $(LOBJ_PREFX)$(OBJECTS) $(LIBS)$(LOBJ_SUFFX) $(LDEF_PREFX)$(DEF)
 	$(RC) $(RFLAGS) $(RESOURCE) $@ > nul
 	$(POSTLINKCMD)
 
-os2rec$(LBI): $(DEF)
-	$(LI) $@ os2rec.dll
-
 clean: $(MDUMMY)
-	-@del os2rec$(LBI) os2rec.dll $(OBJECTS) $(RESOURCE) 2> nul
+	-@del os2rec.dll $(OBJECTS) $(RESOURCE) 2> nul

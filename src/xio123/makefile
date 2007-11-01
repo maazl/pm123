@@ -5,6 +5,7 @@
 DLL     = yes
 TOPDIR  = ..
 INCDIR  = $(TOPDIR)\include;$(TOPDIR)\utils
+TARGET  = all2
 
 !include $(TOPDIR)\config\makerules
 
@@ -13,7 +14,7 @@ OBJECTS = $(OBJECTS) xio_socket$(CO)
 LIBS    = $(LIBS_TCP) $(TOPDIR)\utils\utilfct$(LBO)
 DEF     = xio$(LDEF_SUFFX)
 
-all: xio123.dll xio123$(LBI) $(MDUMMY)
+all2: xio123.dll xio123$(LBI) $(MDUMMY)
 
 xio123.dll: $(OBJECTS) $(DEF)
 	$(CL) $(LFLAGS) $(LFLAGS_OUT)$@ $(LOBJ_PREFX)$(OBJECTS) $(LIBS)$(LOBJ_SUFFX) $(LDEF_PREFX)$(DEF)

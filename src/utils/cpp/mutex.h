@@ -213,7 +213,7 @@ class Event
   // The wait function will block in future.
   void   Reset();
   // Check whether the event is set.
-  operator bool() const;
+  bool   IsSet() const;
 };
 
 
@@ -237,6 +237,9 @@ extern const unsigned char InterlockedBtrCode[];
 extern const unsigned char InterlockedBtcCode[];
 
 #if defined(__GNUC__)
+  #ifndef __fastcall
+  #define __fastcall __attribute__((regparm(2)))
+  #endif
   #define InterlockedXch(x,n) (*(unsigned(__fastcall*)(volatile unsigned*,unsigned))InterlockedXchCode)(&(x),(n))
   #define InterlockedInc(x)   (*(void(__fastcall*)(volatile unsigned*))InterlockedIncCode)(&(x))
   #define InterlockedDec(x)   (*(char(__fastcall*)(volatile unsigned*))InterlockedDecCode)(&(x))

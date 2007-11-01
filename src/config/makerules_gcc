@@ -73,3 +73,7 @@ LFLAGS = $(LFLAGS) $(LFLAGS_DLL)
 .rc.res:
    $(RC) $(RFLAGS) -r $<
 
+all:    $(TARGET) $(MDUMMY)
+
+depend: 
+	$(TOPDIR)\config\makedep.cmd *.cpp *.c -r -x -I$(INCDIR)

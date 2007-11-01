@@ -63,7 +63,7 @@ xstring PlaylistBase::RecordBase::DebugName() const
 { if (IsRemoved())
     return xstring::sprintf("%p{<removed>}", this);
   return xstring::sprintf("%p{%p{%s}}", this, Content, Content->GetPlayable().GetURL().getShortName().cdata());
-} 
+}
 xstring PlaylistBase::RecordBase::DebugName(const RecordBase* rec)
 { static const xstring nullstring = "<NULL>";
   if (!rec)
@@ -73,7 +73,7 @@ xstring PlaylistBase::RecordBase::DebugName(const RecordBase* rec)
 
 xstring PlaylistBase::DebugName() const
 { return Content->GetURL().getShortName();
-} 
+}
 #endif
 
 
@@ -115,13 +115,14 @@ void PlaylistBase::InitIcons()
 PlaylistBase::PlaylistBase(const char* url, const char* alias, ULONG rid)
 : Content(Playable::GetByURL(url)),
   Alias(alias),
+  NameApp(""),
   DlgRID(rid),
   HwndFrame(NULLHANDLE),
   HwndContainer(NULLHANDLE),
   CmFocus(NULL),
   NoRefresh(false),
-  RootInfoDelegate(*this, &InfoChangeEvent, NULL),
-  RootPlayStatusDelegate(*this, &PlayStatEvent)
+  RootInfoDelegate(*this, &PlaylistBase::InfoChangeEvent, NULL),
+  RootPlayStatusDelegate(*this, &PlaylistBase::PlayStatEvent)
 { DEBUGLOG(("PlaylistBase(%p)::PlaylistBase(%s)\n", this, url));
   static bool first = true;
   if (first)
@@ -176,7 +177,7 @@ void PlaylistBase::PostRecordCommand(RecordBase* rec, RecordCommand cmd)
   }
   // There is a little chance that we generate two messages for the same record.
   // The second one will be a no-op in the window procedure.
-  BlockRecord(rec);  
+  BlockRecord(rec);
   if (!WinPostMsg(HwndFrame, UM_RECORDCOMMAND, MPFROMP(rec), MPFROMSHORT(TRUE)))
     FreeRecord(rec); // avoid memory leaks
 }
@@ -209,7 +210,7 @@ MRESULT EXPENTRY pl_DlgProcStub(HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2)
     DEBUGLOG(("PlaylistBase::DlgProcStub: WM_INITDLG - %p{%i, %p}}\n", ip, ip->size, ip->pm));
     WinSetWindowPtr(hwnd, QWL_USER, ip->pm);
     pb = (PlaylistBase*)ip->pm;
-    pb->HwndFrame = hwnd; // Store the hwnd early, since LoadDlg will return too late. 
+    pb->HwndFrame = hwnd; // Store the hwnd early, since LoadDlg will return too late.
   } else
   { // Lookup class instance
     pb = (PlaylistBase*)WinQueryWindowPtr(hwnd, QWL_USER);
@@ -236,11 +237,11 @@ void PlaylistBase::InitDlg()
 
   // TODO: do not open all playlistmanager windows at the same location
   dk_add_window(HwndFrame, 0);
-  
+
   // register events
   Content->InfoChange += RootInfoDelegate;
   PlayStatusChange += RootPlayStatusDelegate;
-  
+
   SetTitle();
 
   // TODO: acceleration table entries for plug-in extensions
@@ -293,7 +294,7 @@ MRESULT PlaylistBase::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
     break;
 
    case WM_COMMAND:
-    { SHORT cmd = SHORT1FROMMP(mp1);
+    { USHORT cmd = SHORT1FROMMP(mp1);
       RecordBase* focus = CmFocus;
       if (RecordBase::IsRemoved(focus))
         return 0;
@@ -390,8 +391,8 @@ MRESULT PlaylistBase::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
         }
        case IDM_PL_SAVE:
         UserSave();
-        return 0;        
-        
+        return 0;
+
       } // switch (cmd)
       break;
     }
@@ -409,7 +410,7 @@ MRESULT PlaylistBase::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
     DEBUGLOG(("PlaylistBase::DlgProc: UM_DELETERECORD: %s\n", RecordBase::DebugName((RecordBase*)PVOIDFROMMP(mp1)).cdata()));
     DeleteEntry((RecordBase*)PVOIDFROMMP(mp1));
     return 0;
-    
+
    case UM_SYNCREMOVE:
     { RecordBase* rec = (RecordBase*)PVOIDFROMMP(mp1);
       DEBUGLOG(("PlaylistBase::DlgProc: UM_SYNCREMOVE: %s}\n", RecordBase::DebugName(rec).cdata()));
@@ -417,10 +418,10 @@ MRESULT PlaylistBase::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
       // deregister event handlers too.
       rec->Data->DeregisterEvents();
       if (CmFocus == rec)
-        CmFocus = NULL; 
+        CmFocus = NULL;
       return 0;
     }
-    
+
    case UM_PLAYSTATUS:
     UpdatePlayStatus();
     return 0;
@@ -456,7 +457,7 @@ HPOINTER PlaylistBase::CalcIcon(RecordBase* rec)
     return IcoWait;
    case STA_Invalid:
     return IcoInvalid;
-   default:   
+   default:
     return IcoPlayable[GetPlayableType(rec)][GetRecordUsage(rec)];
   }
 }
@@ -472,9 +473,10 @@ void PlaylistBase::SetTitle()
    case STA_Used:
     append = " [used]";
     break;
+   default:;
   }
   const xstring& dn = Content->GetURL().getDisplayName(); // must not use a temporary in a conditional expression with ICC
-  xstring title = xstring::sprintf("PM123: %s%s%s", (Alias ? Alias.cdata() : dn.cdata()),
+  xstring title = xstring::sprintf("PM123: %s%s%s%s", (Alias ? Alias.cdata() : dn.cdata()), NameApp,
     (Content->GetFlags() & Playable::Enumerable) && ((PlayableCollection&)*Content).IsModified() ? " (*)" : "", append);
   // Update Window Title
   if (WinSetWindowText(HwndFrame, (char*)title.cdata()))
@@ -499,7 +501,7 @@ PlaylistBase::RecordBase* PlaylistBase::AddEntry(PlayableInstance* obj, RecordBa
     insert.zOrder            = CMA_TOP;
     insert.cRecordsInsert    = 1;
     ULONG rc = LONGFROMMR(WinSendMsg(HwndContainer, CM_INSERTRECORD, MPFROMP(rec), MPFROMP(&insert)));
-    
+
     DEBUGLOG(("PlaylistBase::AddEntry: succeeded: %p %u %x\n", rec, rc, WinGetLastError(NULL)));
   }
   return rec;
@@ -534,7 +536,7 @@ void PlaylistBase::RemoveEntry(RecordBase* const entry)
   WinSendMsg(HwndContainer, CM_REMOVERECORD, MPFROMP(&entry), MPFROM2SHORT(1, CMA_INVALIDATE));
   #endif
   // Release reference counter
-  // The record will be deleted when no outstanding PostMsg is on the way.  
+  // The record will be deleted when no outstanding PostMsg is on the way.
   FreeRecord(entry);
   DEBUGLOG(("PlaylistBase::RemoveEntry completed\n"));
 }
@@ -587,7 +589,7 @@ void PlaylistBase::UpdateChildren(RecordBase* const rp)
       PostRecordCommand(rp, RC_UPDATESTATUS); // update icon
     return;
   }
-  
+
   // Check if techinfo is available, otherwise wait
   if (pp->EnsureInfoAsync(Playable::IF_Tech) == 0)
   { StateFromRec(rp).WaitUpdate = true;
@@ -615,7 +617,7 @@ void PlaylistBase::UpdateChildren(RecordBase* const rp)
   { // Now check what should be in the container
     DEBUGLOG(("PlaylistBase::UpdateChildren - check container.\n"));
     Mutex::Lock lock(pp->Mtx); // Lock the collection
-    sco_ptr<PlayableEnumerator> ep = ((PlayableCollection*)pp)->GetEnumerator();
+    sco_ptr<PlayableEnumerator> ep(((PlayableCollection*)pp)->GetEnumerator());
     crp = NULL; // Last entry, insert new items after that.
     while (ep->Next())
     { // Find entry in the current content
@@ -667,7 +669,7 @@ void PlaylistBase::UpdateStatus(RecordBase* rec)
     HPOINTER icon = CalcIcon(rec);
     // update icon?
     if (rec->hptrIcon != icon)
-    { rec->hptrIcon = icon; 
+    { rec->hptrIcon = icon;
       WinSendMsg(HwndContainer, CM_INVALIDATERECORD, MPFROMP(&rec), MPFROM2SHORT(1, CMA_NOREPOSITION));
     }
   }
@@ -765,7 +767,7 @@ static void DLLENTRY UserAddCallback(void* param, const char* url)
   if (PlaylistBase::RecordBase::IsRemoved(ucp.Parent) || PlaylistBase::RecordBase::IsRemoved(ucp.Before))
     return; // Ignore (can't help)
   ((Playlist&)*play).InsertItem(url, (const char*)NULL, 0, ucp.Before ? ucp.Before->Content : NULL);
-} 
+}
 
 void PlaylistBase::UserAdd(DECODER_WIZZARD_FUNC wizzard, const char* title, RecordBase* parent, RecordBase* before)
 { DEBUGLOG(("PlaylistBase(%p)::UserAdd(%p, %s, %p, %p)\n", this, wizzard, title, parent, before));
@@ -786,8 +788,6 @@ void PlaylistBase::UserSave()
   assert(Content->GetFlags() & Playable::Enumerable);
 
   APSZ  types[] = {{ FDT_PLAYLIST_LST }, { FDT_PLAYLIST_M3U }, { 0 }};
-  char  filez[_MAX_PATH];
-  char  ext  [_MAX_EXT ];
 
   FILEDLG filedialog = {sizeof(FILEDLG)};
   filedialog.fl             = FDS_CENTER | FDS_SAVEAS_DIALOG | FDS_CUSTOM | FDS_ENABLEFILELB;
@@ -824,7 +824,7 @@ void PlaylistBase::UserSave()
         if (strcmp(filedialog.pszIType, FDT_PLAYLIST_M3U) == 0)
           file = file + ".m3u";
         else // if (strcmp(filedialog.pszIType, FDT_PLAYLIST_LST) == 0)
-          file = file + ".lst"; 
+          file = file + ".lst";
         // TODO: other playlist types
       } else
       { amp_error(HwndFrame, "PM123 cannot write playlist files with the unsupported extension %s.", file.getExtension().cdata());

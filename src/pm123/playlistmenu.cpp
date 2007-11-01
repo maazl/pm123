@@ -40,7 +40,7 @@
 #include <debuglog.h>
 
 // Maximum number of items per submenu
-#define MAX_MENU 100 
+#define MAX_MENU 100
 
 
 int PlaylistMenu::MapEntry::CompareTo(const USHORT* key) const
@@ -57,10 +57,10 @@ PlaylistMenu::PlaylistMenu(HWND owner, USHORT mid1st, USHORT midlast)
   IDlast(midlast),
   MenuMap(50),
   ID1stfree(mid1st),
-  InfoDelegate(*this, &InfoChangeCallback)
+  InfoDelegate(*this, &PlaylistMenu::InfoChangeCallback)
 { DEBUGLOG(("PlaylistMenu(%p)::PlaylistMenu(%x, %u,%u)\n", this, owner, mid1st, midlast));
   // Generate dialog procedure and replace the current one
-  Old_DlgProc = WinSubclassWindow(owner, (PFNWP)mkvreplace1(&VR_DlgProc, pm_DlgProcStub, this));
+  Old_DlgProc = WinSubclassWindow(owner, (PFNWP)vreplace1(&VR_DlgProc, pm_DlgProcStub, this));
   assert(Old_DlgProc != NULL);
 }
 
@@ -82,10 +82,10 @@ MRESULT PlaylistMenu::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
       DEBUGLOG(("PlaylistMenu(%p)::DlgProc: WM_DESTROY - after delete\n", this));
       return (*old_DlgProc)(HwndOwner, msg, mp1, mp2);
     }
- 
+
    case WM_INITMENU:
     { DEBUGLOG(("PlaylistMenu(%p)::DlgProc: WM_INITMENU(%u, %x)\n", this, SHORT1FROMMP(mp1), mp2));
-      MapEntry* mapp = MenuMap.find(&(USHORT&)SHORT1FROMMP(mp1));
+      MapEntry* mapp = MenuMap.find(&(const USHORT&)SHORT1FROMMP(mp1));
       if (mapp == NULL)
         break; // No registered map entry, continue default processing.
       mapp->HwndMenu = HWNDFROMMP(mp2);
@@ -123,7 +123,7 @@ MRESULT PlaylistMenu::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
 }
 
 USHORT PlaylistMenu::AllocateID()
-{ DEBUGLOG(("PlaylistMenu(%p)::AllocateID()\n", this)); 
+{ DEBUGLOG(("PlaylistMenu(%p)::AllocateID()\n", this));
   size_t pos;
   if (!MenuMap.binary_search(&ID1stfree, pos))
     return ID1stfree++; // immediate match
@@ -132,7 +132,7 @@ USHORT PlaylistMenu::AllocateID()
   { USHORT id;
     if (++pos >= MenuMap.size() || (id = MenuMap[pos]->IDMenu) > ID1stfree)
       return ID1stfree++; // ID found
-    ID1stfree = id; 
+    ID1stfree = id;
   }
   // no more IDs
   DEBUGLOG(("PlaylistMenu::AllocateID: ERROR: OUT OF MENU IDs.\n"));
@@ -168,7 +168,7 @@ void PlaylistMenu::CreateSubItems(MapEntry* mapp)
   { // not immediately availabe => do it later
     ResetDelegate(mapp);
   } else
-  { sco_ptr<PlayableEnumerator> pe = ((PlayableCollection&)*mapp->Data.Item).GetEnumerator();
+  { sco_ptr<PlayableEnumerator> pe(((PlayableCollection&)*mapp->Data.Item).GetEnumerator());
     while (count < MAX_MENU && pe->Next())
     { // Get content
       Playable* pp = &(*pe)->GetPlayable();
@@ -247,17 +247,17 @@ void PlaylistMenu::CreateSubItems(MapEntry* mapp)
 }
 
 void PlaylistMenu::RemoveSubItems(MapEntry* mapp)
-{ DEBUGLOG(("PlaylistMenu(%p)::RemoveSubItems(%p{%u,%x,%u})\n", this, mapp, mapp->IDMenu, mapp->HwndMenu, mapp->ID1)); 
+{ DEBUGLOG(("PlaylistMenu(%p)::RemoveSubItems(%p{%u,%x,%u})\n", this, mapp, mapp->IDMenu, mapp->HwndMenu, mapp->ID1));
   if (mapp->ID1 == (USHORT)MID_NONE || mapp->HwndMenu == NULLHANDLE)
     return; // no subitems or not yet initialized
-  
+
   SHORT i = SHORT1FROMMR(WinSendMsg(mapp->HwndMenu, MM_ITEMPOSITIONFROMID, MPFROM2SHORT(mapp->ID1, FALSE), 0));
   assert(i != MIT_NONE);
 
   mapp->ID1 = (USHORT)MID_NONE;
   for(;;)
-  { USHORT id = SHORT1FROMMR(WinSendMsg(mapp->HwndMenu, MM_ITEMIDFROMPOSITION, MPFROMSHORT(i), 0));
-    DEBUGLOG(("PlaylistMenu::RemoveSubItems - %i %u\n", i, id));
+  { SHORT id = SHORT1FROMMR(WinSendMsg(mapp->HwndMenu, MM_ITEMIDFROMPOSITION, MPFROMSHORT(i), 0));
+    DEBUGLOG(("PlaylistMenu::RemoveSubItems - %i %d\n", i, id));
     if (id == MIT_ERROR || id == 0 || id == mapp->Pos)
       return; // end of menu or range
     RemoveMapEntry(id);
@@ -275,7 +275,7 @@ void PlaylistMenu::RemoveMapEntry(MapEntry* mapp)
   // now destroy the submenu if any
   if (mapp->HwndMenu) // only if menu has been shown already
   { HWND par_menu = WinQueryWindow(mapp->HwndMenu, QW_OWNER);
-    DEBUGLOG(("PlaylistMenu::RemoveMapEntry - %p\n", par_menu)); 
+    DEBUGLOG(("PlaylistMenu::RemoveMapEntry - %p\n", par_menu));
     MENUITEM mi;
     #ifndef NDEBUG
     assert(WinSendMsg(par_menu, MM_QUERYITEM, MPFROM2SHORT(mapp->IDMenu, FALSE), MPFROMP(&mi)));
@@ -285,47 +285,47 @@ void PlaylistMenu::RemoveMapEntry(MapEntry* mapp)
     if (mi.hwndSubMenu)
       WinDestroyWindow(mi.hwndSubMenu);
   }
-  // update first free ID (optimization) 
+  // update first free ID (optimization)
   if (mapp->IDMenu < ID1stfree)
     ID1stfree = mapp->IDMenu;
   // and now game over
   delete mapp;
 }
 void PlaylistMenu::RemoveMapEntry(USHORT mid)
-{ DEBUGLOG(("PlaylistMenu(%p)::RemoveMapEntry(%u)\n", this, mid)); 
+{ DEBUGLOG(("PlaylistMenu(%p)::RemoveMapEntry(%u)\n", this, mid));
   MapEntry* mapp = MenuMap.erase(&mid);
   if (mapp)
     RemoveMapEntry(mapp);
 }
 
 void PlaylistMenu::ResetDelegate()
-{ DEBUGLOG(("PlaylistMenu(%p)::ResetDelegate()\n", this)); 
+{ DEBUGLOG(("PlaylistMenu(%p)::ResetDelegate()\n", this));
   InfoDelegate.detach();
   UpdateEntry = NULL;
   QMSG msg;
   WinPeekMsg(amp_player_hab(), &msg, HwndOwner, UM_LATEUPDATE, UM_LATEUPDATE, PM_REMOVE);
 }
 void PlaylistMenu::ResetDelegate(MapEntry* mapp)
-{ DEBUGLOG(("PlaylistMenu(%p)::ResetDelegate(%p)\n", this, mapp)); 
+{ DEBUGLOG(("PlaylistMenu(%p)::ResetDelegate(%p)\n", this, mapp));
   ResetDelegate();
   UpdateEntry = mapp;
   mapp->Data.Item->InfoChange += InfoDelegate;
 }
 
 void PlaylistMenu::InfoChangeCallback(const Playable::change_args& args)
-{ DEBUGLOG(("PlaylistMenu(%p)::InfoChangeCallback({%p,%x})\n", this, args.Instance, args.Flags)); 
+{ DEBUGLOG(("PlaylistMenu(%p)::InfoChangeCallback({%p,%x})\n", this, &args.Instance, args.Flags));
   if ((args.Flags & Playable::IF_Other) == 0)
     return; // not the right event
   InfoDelegate.detach(); // Only catch the first event
   if (UpdateEntry == NULL || &args.Instance != &*UpdateEntry->Data.Item)
     return; // event obsolete
   QMSG msg;
-  if (!WinPeekMsg(amp_player_hab(), &msg, HwndOwner, UM_LATEUPDATE, UM_LATEUPDATE, PM_NOREMOVE)) 
+  if (!WinPeekMsg(amp_player_hab(), &msg, HwndOwner, UM_LATEUPDATE, UM_LATEUPDATE, PM_NOREMOVE))
     WinPostMsg(HwndOwner, UM_LATEUPDATE, 0, 0);
 }
 
 bool PlaylistMenu::AttachMenu(USHORT menuid, Playable* data, EntryFlags flags, MPARAM user, USHORT pos)
-{ DEBUGLOG(("PlaylistMenu(%p)::AttachMenu(%u, %p{%s}, %x, %p, %u)\n", this, menuid, &*data, data->GetURL().getShortName().cdata(), flags, user, pos)); 
+{ DEBUGLOG(("PlaylistMenu(%p)::AttachMenu(%u, %p{%s}, %x, %p, %u)\n", this, menuid, &*data, data->GetURL().getShortName().cdata(), flags, user, pos));
 
   MapEntry*& mapp = MenuMap.get(&menuid);
   if (mapp)

@@ -142,23 +142,17 @@ amp_display_next_mode( void )
 
 /* Converts time to two integer suitable for display by the timer. */
 void
-sec2num( long seconds, int* major, int* minor )
-{
-  int mi = seconds % 60;
-  int ma = seconds / 60;
-
-  if( ma > 99 ) {
-    mi = ma % 60; // minutes
-    ma = ma / 60; // hours
+sec2num( double seconds, unsigned int* major, unsigned int* minor )
+{ unsigned int val = (unsigned int)(seconds / 3600);
+  unsigned int frac = 24;
+  if (val < 100*24)
+  { val = (unsigned int)(seconds / 60);
+    frac = 60;
+    if (val < 100*60)
+      val = (unsigned int)seconds;
   }
-
-  if( ma > 99 ) {
-    mi = ma % 24; // hours
-    ma = ma / 24; // days
-  }
-
-  *major = ma;
-  *minor = mi;
+  *major = val / frac;
+  *minor = val % frac;
 }
 
 void DLLENTRY pm123_control( int index, void* param )

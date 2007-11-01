@@ -184,7 +184,7 @@ void Event::Reset()
    assert(rc == 0 || rc == ERROR_ALREADY_RESET);
 }
 
-Event::operator bool() const
+bool Event::IsSet() const
 {  ULONG cnt;
    DosQueryEventSem(Handle, &cnt);
    return cnt != 0; 

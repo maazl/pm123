@@ -4,6 +4,7 @@
 
 DLL     = yes
 TOPDIR  = ..
+TARGET  = 2
 
 !include $(TOPDIR)\config\makerules
 
@@ -22,7 +23,7 @@ LIBS    = $(LIBS) reodft\reodft$(LBO)
 LIBS    = $(LIBS) api\api$(LBO)
 OBJECTS = fft$(CO)
 
-all: fft123.dll fft123$(LBI) $(MDUMMY)
+all2: fft123.dll fft123$(LBI) $(MDUMMY)
 
 fft123.dll: $(OBJECTS) $(LIBS) $(DEF)
 	$(CL) $(LFLAGS) $(LFLAGS_OUT)$@ $(LOBJ_PREFX) $(OBJECTS) $(LIBS) $(LOBJ_SUFFX) $(LDEF_PREFX)$(DEF)

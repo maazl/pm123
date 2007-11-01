@@ -5,10 +5,11 @@
 DLL      = yes
 TOPDIR   = ..\..
 INCDIR   = ..\kernel;..\dft;..\rdft;..\reodft;$(TOPDIR)\include
+TARGET   = all2
 
 !include $(TOPDIR)\config\makerules
 
-all: api$(LBO) $(MDUMMY)
+all2: api$(LBO) $(MDUMMY)
 
 OBJECTS1 = apiplan$(CO) configure$(CO) execute_dft_c2r$(CO) execute_dft_r2c$(CO)
 OBJECTS1 = $(OBJECTS1) execute_dft$(CO) execute_r2r$(CO) execute_split_dft_c2r$(CO)

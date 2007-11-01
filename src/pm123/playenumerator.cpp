@@ -35,12 +35,12 @@
 RecursiveEnumerator::RecursiveEnumerator(RecursiveEnumerator* parent)
 : Parent(parent),
   Valid(false),
-  ListUpdateDelegate(*this, &ListUpdateFn)
+  ListUpdateDelegate(*this, &PlayEnumerator::ListUpdateFn)
 { DEBUGLOG(("RecursiveEnumerator(%p)::RecursiveEnumerator(%p)\n", this, parent));
 }
 
 void RecursiveEnumerator::ListUpdateFn(const PlayableCollection::change_args& args)
-{ DEBUGLOG(("RecursiveEnumerator(%p)::ListUpdateFn({%p,%p,%u}) - \n", this, args.Collection, args.Item, args.Type));
+{ DEBUGLOG(("RecursiveEnumerator(%p)::ListUpdateFn({%p,%p,%u}) - \n", this, &args.Collection, &args.Item, args.Type));
   // for now we only handle delete events
   if (args.Type != PlayableCollection::Delete)
     return;
@@ -62,12 +62,11 @@ void RecursiveEnumerator::ListUpdateFn(const PlayableCollection::change_args& ar
   } else if (NextEnumerator != NULL && &**NextEnumerator == &args.Item)
   { // prefetched next item is about to be deleted => prefetch the next item
     NextEnumerator->Next();
-  } 
+  }
 }
 
 void RecursiveEnumerator::PrevEnum()
 { DEBUGLOG(("RecursiveEnumerator(%p)::PrevEnum() - %p %p %p\n", this, &*Enumerator, &*PrevEnumerator, &*NextEnumerator));
-  bool r;
   if (PrevEnumerator != NULL)
   { Enumerator = PrevEnumerator;
     PrevEnumerator = NULL;
@@ -158,7 +157,7 @@ int_ptr<Song> PlayEnumerator::PrevNextCore(int_ptr<Song> (PlayEnumerator::*subfn
     { Valid = false;
       return NULL;
   } }
-  // root item is enumerable 
+  // root item is enumerable
   if (!Valid)
   { // start new iteration
     Valid = true;
@@ -213,7 +212,7 @@ PlayEnumerator::Status PlayEnumerator::GetStatus() const
     // TODO: count is wrong in case of a recursion
     // look for subitems
     Mutex::Lock lock(Root->Mtx);
-    sco_ptr<PlayableEnumerator> pe = (NextEnumerator != NULL ? NextEnumerator : Enumerator)->Clone();
+    sco_ptr<PlayableEnumerator> pe((NextEnumerator != NULL ? NextEnumerator : Enumerator)->Clone());
     while (pe->Prev())
     { tech = *(*pe)->GetPlayable().GetInfo().tech;
       if (s.CurrentTime >= 0)

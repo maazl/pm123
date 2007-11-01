@@ -104,7 +104,7 @@ static  RGB2   palette[CLR_SIZE];
 static  int    last_samplerate;
 static  float  relative_falloff_speed;
 static  int    numsamples; // FFT length
-static  WIN_FN windowfunc; // desired window function 
+static  WIN_FN windowfunc; // desired window function
 static  float* amps;       // FFT data
 static  int    amps_count; // FFT data size
 static  float* bars;       // destination channels
@@ -148,7 +148,7 @@ uncomment_slash( char *something )
 {
   BOOL inquotes = FALSE;
   BOOL nonwhitespace = FALSE;
-  
+
   for (;; ++something)
   { switch (*something)
     {case 0:
@@ -188,9 +188,9 @@ read_color( const char* line, RGB2* color )
 
 /* Reads a palette from a stream */
 static BOOL read_palette( FILE* dat )
-{ 
+{
   char line[256];
-  color_entry* cur;
+  color_entry* cur = NULL; // The NULL value is nonsens but gcc claims that cur might be uninitialized otherwide.
   interpolation_data ipd;
   RGB2 color;
 
@@ -199,9 +199,9 @@ static BOOL read_palette( FILE* dat )
 
   memset(palette, 0, sizeof palette);
   ipd.osc_entr = 0;
-  ipd.ana_entr = 0; 
-  ipd.spc_entr = 0; 
- 
+  ipd.ana_entr = 0;
+  ipd.spc_entr = 0;
+
   // determine file version
   if (strnicmp(line, "// ANALYZER", 11) == 0)
   { // new file format
@@ -209,11 +209,11 @@ static BOOL read_palette( FILE* dat )
     if (sscanf(line+11, "%d", &version) != 1 || version > 21)
       return FALSE;
     DEBUGLOG(("NF: %d\n", version));
-      
+
     // some defaults
     palette[CLR_BGR_GREY].bGreen = 90;
     palette[CLR_ANA_BARS].bGreen = 255;
-      
+
     while (fgets( line, sizeof( line ), dat ))
     { size_t p;
       char* cp;
@@ -222,7 +222,7 @@ static BOOL read_palette( FILE* dat )
 
       if (!uncomment_slash(line))
         continue; // ignore logically empty lines
-        
+
       p = strcspn(line, "-=");
       switch (line[p])
       {case '=': // normal parameter
@@ -271,7 +271,7 @@ static BOOL read_palette( FILE* dat )
 
   } else
   { // old file format
-    int i = 1; 
+    int i = 1;
     do
     { if (!uncomment_slash(line))
         continue; // ignore logically empty lines
@@ -285,7 +285,7 @@ static BOOL read_palette( FILE* dat )
         if (!read_color( line, &palette[CLR_BGR_GREY] ))
           return FALSE;
         goto c2;
-       case 24: 
+       case 24:
         if (!read_color( line, &palette[CLR_ANA_BARS] ))
           return FALSE;
         goto OK;
@@ -300,7 +300,7 @@ static BOOL read_palette( FILE* dat )
         // analyzer colors
         cur->Pos = (18 - i) / 15.;
        else if (i >= 19 && i <= 23)
-        // scope colors 
+        // scope colors
         cur->Pos = (i - 19) / 4.;
       if (!read_color( line, &color ))
         return FALSE;
@@ -413,7 +413,7 @@ static BOOL init_bands(int samplerate)
   active_cfg = cfg;
   last_samplerate = samplerate;
   free_bands();
-  
+
   // calculate number of channels = bars, FFT length and some other specific parameters
   highfreq = (samplerate >> 1) +1; // the +1 avoids roundoff noise.
   // Note that this will create an scale index out of bounds if the FFT winwow size is larger than the sampling rate (very unlikely).
@@ -485,7 +485,7 @@ static BOOL init_bands(int samplerate)
     DEBUGLOG2((" %d", scale[i]));
   DEBUGLOG(("\n"));
   #endif
-  
+
   return TRUE;
 }
 
@@ -588,7 +588,7 @@ static void update_analyzer(void)
   if ( active_cfg.default_mode != SHOW_OSCILLOSCOPE
      && !do_analysis() )
     return; // no changes or error
-  
+
   DiveBeginImageBufferAccess( hdive, image_id, &image, &image_cx, &image_cy );
 
   if (needclear)
@@ -676,15 +676,15 @@ static void update_analyzer(void)
         short*         sp;
         long*          lp;
       } sample;
-      
+
       memset( image, 0, image_cx * image_cy );
       draw_grid(image, image_cx);
 
      scope_redo:
       len = (lastformat.channels * plug.cx) << (1 + (lastformat.bits > 8) + (lastformat.bits > 16));
       maxval = lastformat.channels << lastformat.bits;
-      
-      sample.cp = _alloca( len );
+
+      sample.cp = alloca( len );
       decoderPlayingSamples( &lastformat, sample.cp, len );
       if ((lastformat.channels * plug.cx) << (1 + (lastformat.bits > 8) + (lastformat.bits > 16)) != len) // check again...
         goto scope_redo;
@@ -892,7 +892,7 @@ plg_win_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
       }
       needclear = TRUE;
       needinit = TRUE;
-      
+
       DEBUGLOG(("CLICK! %d\n", cfg.default_mode));
       break;
 
@@ -903,7 +903,7 @@ plg_win_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
         needclear = FALSE;
       }
       break;
-      
+
     case WM_DESTROY: // we deinitialize here to avoid access to memory objects that are already freed.
       DiveFreeImageBuffer( hdive, image_id );
 
@@ -921,7 +921,7 @@ plg_win_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
       hanalyzer = 0;
 
       destroy_pending = FALSE;
-      break;   
+      break;
 
     default:
       return WinDefWindowProc( hwnd, msg, mp1, mp2 );
@@ -993,7 +993,7 @@ vis_init( PVISPLUGININIT init )
   // First get the routines
   decoderPlayingSamples = init->procs->output_playing_samples;
   decoderPlaying        = init->procs->decoder_playing;
- 
+
   needinit = TRUE;
   needclear = TRUE;
 

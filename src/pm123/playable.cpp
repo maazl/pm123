@@ -126,7 +126,7 @@ Playable::Playable(const url& url, const FORMAT_INFO2* ca_format, const TECH_INF
   InfoChangeFlags(IF_None)
 { DEBUGLOG(("Playable(%p)::Playable(%s, %p, %p, %p)\n", this, url.cdata(), ca_format, ca_tech, ca_meta));
   Info.Reset();
-  
+
   if (ca_format)
   { *Info.format = *ca_format;
     InfoValid |= IF_Format;
@@ -170,7 +170,7 @@ void Playable::SetInUse(bool used)
 { DEBUGLOG(("Playable(%p{%s})::SetInUse(%u)\n", this, URL.cdata(), used));
   Mutex::Lock lock(Mtx);
   if (Stat <= STA_Invalid)
-    return; // can't help 
+    return; // can't help
   UpdateStatus(used ? STA_Used : STA_Normal);
 }
 
@@ -188,31 +188,31 @@ void Playable::UpdateInfo(const FORMAT_INFO2* info)
   if (!info)
     info = DecoderInfo::InitialInfo.format;
   InfoValid |= IF_Format;
-  InfoChangeFlags |= memcmpcpy(Info.format, info, sizeof *Info.format) * IF_Format;
+  InfoChangeFlags |= (Playable::InfoFlags)(memcmpcpy(Info.format, info, sizeof *Info.format) * IF_Format);
   DEBUGLOG(("Playable::UpdateInfo: %x %u {,%u,%u}\n", InfoValid, InfoChangeFlags, Info.format->samplerate, Info.format->channels));
 }
 void Playable::UpdateInfo(const TECH_INFO* info)
 { DEBUGLOG(("Playable::UpdateInfo(TECH_INFO* %p) - %p\n", info, Info.tech));
   if (!info)
-    info = DecoderInfo::InitialInfo.tech; 
+    info = DecoderInfo::InitialInfo.tech;
   InfoValid |= IF_Tech;
-  InfoChangeFlags |= memcmpcpy(Info.tech, info, sizeof *Info.tech) * IF_Tech;
+  InfoChangeFlags |= (Playable::InfoFlags)(memcmpcpy(Info.tech, info, sizeof *Info.tech) * IF_Tech);
   DEBUGLOG(("Playable::UpdateInfo: %x %u\n", InfoValid, InfoChangeFlags));
 }
 void Playable::UpdateInfo(const META_INFO* info)
 { DEBUGLOG(("Playable::UpdateInfo(META_INFO* %p)\n", info));
   if (!info)
-    info = DecoderInfo::InitialInfo.meta; 
+    info = DecoderInfo::InitialInfo.meta;
   InfoValid |= IF_Meta;
-  InfoChangeFlags |= memcmpcpy(Info.meta, info, sizeof *Info.meta) * IF_Meta;
+  InfoChangeFlags |= (Playable::InfoFlags)(memcmpcpy(Info.meta, info, sizeof *Info.meta) * IF_Meta);
   DEBUGLOG(("Playable::UpdateInfo: %x %u\n", InfoValid, InfoChangeFlags));
 }
 void Playable::UpdateInfo(const DECODER_INFO2* info)
 { DEBUGLOG(("Playable::UpdateInfo(DECODER_INFO2* %p)\n", info));
   if (!info)
-    info = &DecoderInfo::InitialInfo; 
+    info = &DecoderInfo::InitialInfo;
   InfoValid |= IF_Other;
-  InfoChangeFlags |= memcmpcpy(&Info.meta_write, &info->meta_write, sizeof(DECODER_INFO2) - offsetof(DECODER_INFO2, meta_write)) * IF_Other;
+  InfoChangeFlags |= (Playable::InfoFlags)(memcmpcpy(&Info.meta_write, &info->meta_write, sizeof(DECODER_INFO2) - offsetof(DECODER_INFO2, meta_write)) * IF_Other);
   DEBUGLOG(("Playable::UpdateInfo: %x %u\n", InfoValid, InfoChangeFlags));
   UpdateInfo(info->format);
   UpdateInfo(info->tech);
@@ -255,7 +255,7 @@ void Playable::LoadInfoAsync(InfoFlags what)
     // Look if the requested flags are on the way and enqueue only the missing ones.
     entry.Request &= ~qp->Request;
     if (entry.Request == 0)
-      return; 
+      return;
   }
   // enqueue the request
   WQueue.Write(entry);
@@ -282,10 +282,10 @@ static void PlayableWorker(void*)
     queue<Playable::QEntry>::Reader rdr(Playable::WQueue);
     Playable::QEntry& qp = rdr;
     DEBUGLOG(("PlayableWorker received message %p\n", &*qp));
-  
+
     if (Playable::WTermRq || !qp) // stop
       break;
- 
+
     // Do the work
     qp->LoadInfo(qp.Request);
   }
@@ -406,7 +406,7 @@ void PlayableInstance::SetSlice(const slice& sl)
 void Song::LoadInfo(InfoFlags what)
 { DEBUGLOG(("Song(%p)::LoadInfo() - %s\n", this, Decoder));
   // get information
-  sco_ptr<DecoderInfo> info = new DecoderInfo(); // a bit much for the stack
+  sco_ptr<DecoderInfo> info(new DecoderInfo()); // a bit much for the stack
   int rc = dec_fileinfo(GetURL(), &*info, Decoder);
   PlayableStatus stat;
   DEBUGLOG(("Song::LoadInfo - rc = %i\n", rc));
@@ -502,7 +502,7 @@ PlayableCollection::Entry* PlayableCollection::CreateEntry(const char* url, cons
   int_ptr<Playable> pp = GetByURL(GetURL().makeAbsolute(url), ca_format, ca_tech, ca_meta);
   // initiate prefetch of information
   pp->EnsureInfoAsync(IF_Status);
-  return new Entry(*this, pp, &ChildInfoChange);
+  return new Entry(*this, pp, &PlayableCollection::ChildInfoChange);
 }
 
 void PlayableCollection::AppendEntry(Entry* entry)
@@ -548,7 +548,7 @@ void PlayableCollection::RemoveEntry(Entry* entry)
 void PlayableCollection::AddTechInfo(TECH_INFO& dst, const TECH_INFO& tech)
 { DEBUGLOG(("PlayableCollection::AddTechInfo({%f, %f}, {%f, %f})\n",
     dst.songlength, dst.filesize, tech.songlength, tech.filesize));
-  
+
   // cummulate playing time
   if (dst.songlength >= 0)
   { if (tech.songlength >= 0)
@@ -599,9 +599,9 @@ void PlayableCollection::CalcTechInfo(TECH_INFO& dst)
     }
     dst.recursive = penum.GetRecursive();
 
-    dst.bitrate = dst.filesize >= 0 && dst.songlength > 0
+    dst.bitrate = (int)( dst.filesize >= 0 && dst.songlength > 0
       ? dst.filesize / dst.songlength / (1000/8)
-      : -1;
+      : -1 );
     DEBUGLOG(("PlayableCollection::CalcTechInfo(): %s {%f, %i, %f}\n", GetURL().getShortName().cdata(), dst.songlength, dst.bitrate, dst.filesize));
     // Info string
     // Since all strings are short, there may be no buffer overrun.
@@ -616,7 +616,7 @@ void PlayableCollection::CalcTechInfo(TECH_INFO& dst)
       rem -= 60*minutes;
       if (days)
         sprintf(dst.info, "Total: %ud %u:%02u:%02u", days, hours, minutes, (int)rem);
-       else 
+       else
         sprintf(dst.info, "Total: %u:%02u:%02u", hours, minutes, (int)rem);
     }
     if (dst.recursive)
@@ -650,7 +650,7 @@ void PlayableCollection::LoadInfo(InfoFlags what)
     InfoValid |= IF_Other;
   }
 
-  if (what & IF_Tech) 
+  if (what & IF_Tech)
   { // update tech info
     TECH_INFO tech;
     CalcTechInfo(tech);
@@ -668,10 +668,10 @@ bool PlayableCollection::SaveLST(XFILE* of, bool relative)
             "# Playlist created with " AMP_FULLNAME "\n"
             "# Do not modify!\n"
             "# Lines starting with '>' are used for optimization.\n"
-            "#\n", of); 
+            "#\n", of);
   // Content
   Mutex::Lock lock(Mtx);
-  sco_ptr<PlayableEnumerator> pe = GetEnumerator();
+  sco_ptr<PlayableEnumerator> pe(GetEnumerator());
   while (pe->Next())
   { PlayableInstance* pi = *pe;
     Playable& play = pi->GetPlayable();
@@ -709,7 +709,7 @@ bool PlayableCollection::SaveLST(XFILE* of, bool relative)
           sprintf(buf, "%lu:%02lu", s/60, s%60);
         else
           sprintf(buf, "%lu:%02lu:%02lu", s/3600, s/60%60, s%60);
-        xio_fputs(buf, of); 
+        xio_fputs(buf, of);
       }
       xio_fputs(", ", of);
       xio_fputs(tech.info, of);
@@ -731,7 +731,7 @@ bool PlayableCollection::SaveLST(XFILE* of, bool relative)
     { char buf[50];
       if (play.CheckInfo(IF_Tech) == IF_None)
       { sprintf(buf, ">%i", tech.bitrate);
-        xio_fputs(buf, of); 
+        xio_fputs(buf, of);
       } else
         xio_fputs(">", of);
       if (play.CheckInfo(IF_Format) == IF_None)
@@ -758,7 +758,7 @@ bool PlayableCollection::SaveLST(XFILE* of, bool relative)
 bool PlayableCollection::SaveM3U(XFILE* of, bool relative)
 { DEBUGLOG(("PlayableCollection(%p{%s})::SaveM3U(%p, %u)\n", this, GetURL().cdata(), of, relative));
   Mutex::Lock lock(Mtx);
-  sco_ptr<PlayableEnumerator> pe = GetEnumerator();
+  sco_ptr<PlayableEnumerator> pe(GetEnumerator());
   while (pe->Next())
   { Playable& play = (*pe)->GetPlayable();
     // Object name
@@ -792,10 +792,10 @@ bool PlayableCollection::Save(const url& URL, save_options opt)
     rc = SaveM3U(of, (opt & SaveRelativePath) != 0);
   else
     rc = SaveLST(of, (opt & SaveRelativePath) != 0);
-  
+
   // done
   xio_fclose(of);
-  
+
   if (!rc)
     return false;
 
@@ -930,7 +930,7 @@ bool Playlist::IsModified() const
 
 bool Playlist::LoadLST(XFILE* x)
 { DEBUGLOG(("Playlist(%p{%s})::LoadLST(%p)\n", this, GetURL().getShortName().cdata(), x));
-  
+
   // TODO: fixed buffers...
   char line[4096];
   LSTReader rdr(*this);
@@ -946,7 +946,7 @@ bool Playlist::LoadLST(XFILE* x)
 
 bool Playlist::LoadMPL(XFILE* x)
 { DEBUGLOG(("Playlist(%p{%s})::LoadMPL(%p)\n", this, GetURL().getShortName().cdata(), x));
-  
+
   // TODO: fixed buffers...
   char   file    [4096];
   char*  eq_pos;
@@ -972,7 +972,7 @@ bool Playlist::LoadMPL(XFILE* x)
 
 bool Playlist::LoadPLS(XFILE* x)
 { DEBUGLOG(("Playlist(%p{%s})::LoadPLS(%p)\n", this, GetURL().getShortName().cdata(), x));
-  
+
   char   file    [_MAX_PATH] = "";
   char   title   [_MAX_PATH] = "";
   char   line    [4096];
@@ -1031,7 +1031,7 @@ bool Playlist::LoadInfoCore()
   bool rc = false;
 
   xstring ext = GetURL().getExtension();
- 
+
   // open file
   XFILE* x = xio_fopen(GetURL(), "r");
   if (x == NULL)
@@ -1045,7 +1045,7 @@ bool Playlist::LoadInfoCore()
       rc = LoadPLS(x);
     else
       amp_player_error("Cannot determine playlist format from file extension %s.\n", ext.cdata());
-  
+
     xio_fclose( x );
   }
   InfoChangeFlags |= IF_Other;
@@ -1200,7 +1200,7 @@ bool PlayFolder::LoadInfoCore()
         continue;
       Entry* ep;
       if (fp->attrFile & FILE_DIRECTORY)
-      { // inherit parameters 
+      { // inherit parameters
         xstring tmp = xstring::sprintf("%s/%s", fp->achName, GetURL().getParameter().cdata());
         ep = CreateEntry(tmp);
       } else

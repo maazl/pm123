@@ -5,10 +5,11 @@
 DLL      = yes
 TOPDIR   = ..\..
 INCDIR   = $(TOPDIR)\utils;$(TOPDIR)\include
+TARGET   = all2
 
 !include $(TOPDIR)\config\makerules
 
-all: sndfile$(LBO) $(MDUMMY)
+all2: sndfile$(LBO) $(MDUMMY)
 
 OBJECTS = sndfile$(CO) common$(CO) file_io$(CO) command$(CO) pcm$(CO) ulaw$(CO)
 OBJECTS = $(OBJECTS) alaw$(CO) float32$(CO) double64$(CO) ima_adpcm$(CO)

@@ -53,9 +53,6 @@ static BOOL paused     = FALSE;
 static BOOL forwarding = FALSE;
 static BOOL rewinding  = FALSE;
 
-static char proxyurl[1024];
-static char httpauth[1024];
-static char metadata[128];
 static char savename[_MAX_PATH];
 
 /* Returns TRUE if the player is paused. */
@@ -96,15 +93,18 @@ msg_play( HWND hwnd, Song& play, double pos )
 
   // TODO: do this asynchronuosly !!!
   play.EnsureInfo(Playable::IF_Other);
-  
+
   msg_equalize( gains, mutes, preamp, cfg.eq_enabled );
   dec_save( savename );
-  
+
   rc = dec_play( play.GetURL(), play.GetDecoder(), pos );
-  if( rc == -2 ) {
-    amp_display_error(xstring::sprintf("Error: Decoder module %.8s needed to play %.800s is not loaded or enabled.", play.GetDecoder(), play.GetURL().cdata()).cdata());
-    return FALSE;
-  } else if ( rc != 0 ) {
+  // TODO: this message cannot longer occour.
+  // Maybe we should look for an alternative place, e.g. play.GetDecoder() is initial.
+  //if( rc == -2 ) {
+  //  amp_display_error(xstring::sprintf("Error: Decoder module %.8s needed to play %.800s is not loaded or enabled.", play.GetDecoder(), play.GetURL().cdata()).cdata());
+  //  return FALSE;
+  //} else
+  if ( rc != 0 ) {
     amp_post_message( WM_PLAYERROR, 0, 0 );
     return FALSE;
   }
@@ -115,7 +115,7 @@ msg_play( HWND hwnd, Song& play, double pos )
   while( dec_status() == DECODER_STARTING ) {
     DosSleep( 1 );
   }
-  
+
   playing = TRUE;
   PlayStatusChange(playing);
   return TRUE;
@@ -150,7 +150,7 @@ msg_stop( void )
   rc = out_close();
   if( rc == 0 )
   {
-    // TODO: CRAP! 
+    // TODO: CRAP!
     while( decoder_playing())
       DosSleep( 1 );
   }
@@ -159,7 +159,7 @@ msg_stop( void )
   { playing = FALSE;
     PlayStatusChange(playing);
   }
-  
+
   return TRUE;
 }
 

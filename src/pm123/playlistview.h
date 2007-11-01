@@ -55,7 +55,7 @@
 static MRESULT EXPENTRY DlgProcStub(HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2);
 
 class PlaylistView : public PlaylistRepository<PlaylistView>
-{ friend PlaylistRepository<PlaylistView>;
+{ friend class PlaylistRepository<PlaylistView>;
  public:
   struct Record;
   struct CPData : public CPDataBase

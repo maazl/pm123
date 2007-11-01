@@ -73,9 +73,9 @@ output_error( OS2AUDIO* a, ULONG ulError )
   unsigned char buffer [1024];
 
   if( mciGetErrorString( ulError, buffer, sizeof( buffer )) == MCIERR_SUCCESS ) {
-    sprintf( message, "MCI Error %d: %s\n", ulError, buffer );
+    sprintf( message, "MCI Error %lu: %s\n", ulError, buffer );
   } else {
-    sprintf( message, "MCI Error %d: Cannot query error message.\n", ulError );
+    sprintf( message, "MCI Error %lu: Cannot query error message.\n", ulError );
   }
 
   a->original_info.error_display( message );
@@ -796,7 +796,7 @@ output_command( void* A, ULONG msg, OUTPUT_PARAMS* info )
   return 1;
 }
 
-/********** GUI stuff ******************************************************/ 
+/********** GUI stuff ******************************************************/
 static void
 save_ini( void )
 {

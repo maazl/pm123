@@ -42,7 +42,7 @@ void queue_base::RequestRead()
   { if (Head) // Double check
     { Mutex::Lock lock(Mtx);
       if (Head)
-      { assert(EvRead == true);
+      { assert(EvRead.IsSet());
         EvRead.Reset();
         DEBUGLOG(("queue_base::RequestRead() - %p\n", Head));
         return;
@@ -55,7 +55,7 @@ void queue_base::RequestRead()
 
 queue_base::EntryBase* queue_base::CommitRead()
 { DEBUGLOG(("queue_base(%p)::CommitRead()\n", this));
-  assert(EvRead == false);
+  assert(!EvRead.IsSet());
   Mutex::Lock lock(Mtx);
   EntryBase* old = Head;
   Head = Head->Next;

@@ -3,10 +3,9 @@
 #
 
 TOPDIR = ..\src
+TARGET = pm123.inf pm123_pdk.inf
 
 !include $(TOPDIR)\config\makerules
-
-all: pm123.inf pm123_pdk.inf $(MDUMMY)
 
 MANLST = history.txt manual\index.html manual\advantage.html manual\interface.html
 MANLST = $(MANLST) manual\mainwin.html manual\mainmenu.html manual\playlist.html

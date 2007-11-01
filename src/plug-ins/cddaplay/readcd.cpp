@@ -77,7 +77,7 @@ unsigned long ULset::find(unsigned long ul)
 {  // binary search
    unsigned int l = 0;
    unsigned int r = count;
-   
+
    while (l < r)
    {
       unsigned long m = (r+l) >> 1;
@@ -87,7 +87,7 @@ unsigned long ULset::find(unsigned long ul)
          l = m+1;
    }
 
-   return l; 
+   return l;
 }
 
 BOOL ULset::lookup(unsigned long ul)
@@ -437,10 +437,8 @@ BOOL CD_drive::loadCDDBInfo(BOOL refresh)
    ULONG serverType;
    SHORT index = -1;
 
-   unsigned int i;
-
    querydata.discid_cd = cddb.discid(this);
-   
+
    DEBUGLOG(("cddaplay:CD_drive(%p)::loadCDDBInfo() - discid = %x\n", this, querydata.discid_cd));
 
    if (!refresh && negative_hits.lookup(querydata.discid_cd)) {
@@ -605,7 +603,7 @@ end:
          close_ini(INIhandle);
       }
    }
-   
+
    return success;
 }
 
@@ -703,7 +701,7 @@ void CD_drive::release(BOOL exclusive)
    DosRequestMutexSem(instMtx, SEM_INDEFINITE_WAIT);
    // reset exclusive flag?
    if (exclusive)
-      this->exclusive = FALSE; 
+      this->exclusive = FALSE;
    // free instance
    int cnt = --instCount;
    DosReleaseMutexSem(instMtx);

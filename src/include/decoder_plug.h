@@ -140,7 +140,7 @@ typedef struct _DECODER_PARAMS2
    void (DLLENTRYP info_display)( const char* );
 
    /* values used for streaming inputs by the decoder */
-   int   buffersize;  /* read ahead buffer in bytes, 0 = disabled */
+   unsigned int buffersize;  /* read ahead buffer in bytes, 0 = disabled */
    int   bufferwait;  /* block the first read until the buffer is filled */
 
    /* --- DECODER_EQ */

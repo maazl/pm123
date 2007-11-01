@@ -39,6 +39,9 @@
 
 class dummy
 { int dummy;
+  #ifdef DEBUG
+  friend class event_base;
+  #endif
 };
 
 /* Application event.
@@ -90,7 +93,7 @@ class delegate_base
   ~delegate_base()                             { DEBUGLOG(("delegate_base(%p)::~delegate_base() - %p\n", this, Ev)); if (Ev) (*Ev) -= *this; }
  public:
   void           detach()                      { DEBUGLOG(("delegate_base(%p)::detach() - %p\n", this, Ev)); if (Ev) { (*Ev) -= *this; Ev = NULL; } }
-};                                     
+};
 
 /* Partial typed delegate class.
  * This is the type check level for adding delegate instances to an event.
@@ -152,7 +155,7 @@ class event : public event_base
  *   void foo(my_struct* context, int i);
  *
  *   ...
- *   my_struct Context; 
+ *   my_struct Context;
  *   delegate<my_struct, int> Deleg(&foo, &Context);
  *   Ev += Deleg;
  *
@@ -212,7 +215,7 @@ class class_delegate : public delegate<class_delegate<C, P>, P>
 template <class C, class P>
 void class_delegate<C, P>::CallFunc(class_delegate<C, P>* rcv, P& param)
 { (rcv->Inst.*rcv->Func)(param);
-} 
+}
 
 template <class C, class P, class P2>
 class class_delegate2 : public delegate<class_delegate2<C, P, P2>, P>
@@ -237,13 +240,13 @@ class class_delegate2 : public delegate<class_delegate2<C, P, P2>, P>
   , Func(fn)
   , Param(param2)
   { DEBUGLOG2(("class_delegate2(%p)::class_delegate2(%p, %p, %p)\n", this, &inst, fn, param2)); }
-}; 
+};
 
 template <class C, class P, class P2>
 void class_delegate2<C, P, P2>::CallFunc(class_delegate2<C, P, P2>* rcv, P& param)
 { DEBUGLOG2(("class_delegate2::CallFunc(%p{%p, xx, %p}, %p)\n", rcv, &rcv->Inst, rcv->Param, &param));
   (rcv->Inst.*rcv->Func)(param, rcv->Param);
-} 
+}
 
 /* Non-template base to PostMsgDelegate */
 class PostMsgDelegateBase
@@ -264,7 +267,7 @@ class PostMsgDelegateBase
  * mp2       - param2 from constructor
  */
 template <class P>
-class PostMsgDelegate : private PostMsgDelegateBase, public delegate_part<P>, 
+class PostMsgDelegate : private PostMsgDelegateBase, public delegate_part<P>
 {public:
   PostMsgDelegate(HWND window, ULONG msg, const void* param2)
   : delegate_part<P>((func_type)&callback, (PostMsgDelegateBase*)this), PostMsgDelegateBase(window, msg, param2) {}

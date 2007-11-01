@@ -5,6 +5,7 @@
 DLL      = yes
 TOPDIR   = ..\..
 INCDIR   = $(TOPDIR)\utils;$(TOPDIR)\include;$(TOPDIR)\xio123
+TARGET   = mpg123.dll
 
 !include $(TOPDIR)\config\makerules
 
@@ -17,15 +18,10 @@ DEF      = mpg123$(LDEF_SUFFX)
 RESOURCE = mpg123$(RES)
 STDLIBS  = $(LIBS_UNI)
 
-all: mpg123.dll mpg123$(LBI) $(MDUMMY)
-
 mpg123.dll: $(OBJECTS) $(DEF) $(RESOURCE)
 	$(CL) $(LFLAGS) $(LFLAGS_OUT)$@ $(LOBJ_PREFX)$(OBJECTS) $(LIBS) $(STDLIBS)$(LOBJ_SUFFX) $(LDEF_PREFX)$(DEF)
 	$(RC) $(RFLAGS) $(RESOURCE) $@ > nul
 	$(POSTLINKCMD)
-
-mpg123$(LBI): $(DEF)
-	$(LI) $@ mpg123.dll
 
 layer1$(CO):        layer1.c mpg123.h
 layer2$(CO):        layer2.c mpg123.h
@@ -45,4 +41,4 @@ equalizer$(CO):	    equalizer.c mpg123.h
 tag$(CO):	    tag.c tag.h
 
 clean: $(MDUMMY)
-	-@del mpg123$(LBI) mpg123.dll $(OBJECTS) $(RESOURCE) 2> nul
+	-@del mpg123.dll $(OBJECTS) $(RESOURCE) 2> nul

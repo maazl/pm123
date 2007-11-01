@@ -85,7 +85,7 @@ class PlaylistMenu
     select_data(Playable* data)
      : Item(data), Alias() {}
   };
-  
+
  private:
   struct MapEntry : public IComparableTo<USHORT>
   { USHORT          IDMenu;
@@ -95,11 +95,11 @@ class PlaylistMenu
     MPARAM          User;
     USHORT          ID1;  // First generated item ID or MID_NONE (if none)
     USHORT          Pos;  // ID of the first object after the last generated entry or MIT_END if this is the end of the menu.
-    xstring         Text; // Strong reference to the text. 
+    xstring         Text; // Strong reference to the text.
     MapEntry(USHORT id, const PlayableInstance& data, EntryFlags flags, MPARAM user, SHORT pos)
-     : IDMenu(id), HwndMenu(NULLHANDLE), Data(data), ID1((USHORT)MID_NONE), Flags(flags), User(user), Pos(pos) {}
+     : IDMenu(id), HwndMenu(NULLHANDLE), Data(data), Flags(flags), User(user), ID1((USHORT)MID_NONE), Pos(pos) {}
     MapEntry(USHORT id, Playable* data, EntryFlags flags, MPARAM user, SHORT pos)
-     : IDMenu(id), HwndMenu(NULLHANDLE), Data(data), ID1((USHORT)MID_NONE), Flags(flags), User(user), Pos(pos) {}
+     : IDMenu(id), HwndMenu(NULLHANDLE), Data(data), Flags(flags), User(user), ID1((USHORT)MID_NONE), Pos(pos) {}
     virtual int     CompareTo(const USHORT* key) const;
   };
 
@@ -114,17 +114,17 @@ class PlaylistMenu
   USHORT            ID1stfree;
   class_delegate<PlaylistMenu, const Playable::change_args> InfoDelegate;
   MapEntry*         UpdateEntry;
-  
+
  private:
   // Dialog procedure, called by DlgProcStub
   MRESULT           DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2);
   friend MRESULT EXPENTRY pm_DlgProcStub(PlaylistMenu* that, ULONG msg, MPARAM mp1, MPARAM mp2);
 
   // Fetch and reserve free menu ID
-  // Start Searching after "start". This is an optimization. 
+  // Start Searching after "start". This is an optimization.
   USHORT            AllocateID();
   USHORT            InsertSeparator(HWND menu, SHORT where);
-  // Create Subitems according to the content of the playable object 
+  // Create Subitems according to the content of the playable object
   void              CreateSubItems(MapEntry* mapp);
   // Removes all matching items from the menu
   void              RemoveSubItems(MapEntry* mapp);
@@ -137,7 +137,7 @@ class PlaylistMenu
   void              ResetDelegate();
   void              ResetDelegate(MapEntry* mapp);
   void              InfoChangeCallback(const Playable::change_args& args);
- 
+
  public:
   PlaylistMenu(HWND owner, USHORT mid1st, USHORT midlast);
                     ~PlaylistMenu();

@@ -246,7 +246,7 @@ int CDDB_socket::query_req(const CD_drive *cdDrive, CDDBQUERY_DATA* output)
       UCHAR track = cdDrive->getCDInfo()->firstTrack+i;
 
       /* +150 because CDDB database doesn't use real sector addressing */
-      /* More likely because OS/2 subtracts the lead-in. (MM) */ 
+      /* More likely because OS/2 subtracts the lead-in. (MM) */
       _itoa(CD_drive::getLBA(cdDrive->getTrackInfo(track)->start)+150,strchr(buffer,'\0'),10);
       strcat(buffer," ");
    }
@@ -544,17 +544,17 @@ void CDDB_socket::free_junk()
    free(raw_reply);
    raw_reply = NULL;
    infoValid = FALSE;
-   
-   int i;
+
+   size_t i;
 
    for (i = 0; i < sizeof disctitle / sizeof *disctitle; i++)
       free(disctitle[i]);
-   memset(disctitle, 0, sizeof disctitle); 
+   memset(disctitle, 0, sizeof disctitle);
 
    for (i=0; i < sizeof titles / sizeof *titles; i++)
    {  free(titles[i][0]);
       free(titles[i][1]);
-   }  
+   }
    memset(titles, 0, sizeof titles);
 }
 

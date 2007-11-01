@@ -51,21 +51,21 @@ class RecursiveEnumerator
   int_ptr<Playable>            Root;
   sco_ptr<RecursiveEnumerator> SubIterator;
   bool                         Valid;
-  // vars to handle asynchronuous deletion (only valid for PlayableCollection objects) 
+  // vars to handle asynchronuous deletion (only valid for PlayableCollection objects)
   // Enumerator PrevEnum. NextEnum.  Valid  State
   //   Reset      NULL      NULL     false  before start or at the end
   // ->Current    NULL      NULL     true   at an item
   //   Reset     ->Prev    ->Next    true   current item deleted, previous and next item prefetched
   //            or Reset  or Reset
   sco_ptr<PlayableEnumerator>  Enumerator;
-  sco_ptr<PlayableEnumerator>  PrevEnumerator;  
-  sco_ptr<PlayableEnumerator>  NextEnumerator;  
+  sco_ptr<PlayableEnumerator>  PrevEnumerator;
+  sco_ptr<PlayableEnumerator>  NextEnumerator;
   class_delegate<RecursiveEnumerator, const PlayableCollection::change_args> ListUpdateDelegate;
 
  protected:
   RecursiveEnumerator(RecursiveEnumerator* parent = NULL);
   // Factory Function to initialize SubIterator
-  virtual void                 InitNextLevel() = 0;  
+  virtual void                 InitNextLevel() = 0;
   // Callback when the current list context changes.
   virtual void                 ListUpdateFn(const PlayableCollection::change_args& args);
   // Fetch the previous element from the PlayableCollection, even if the current object already died.
@@ -112,7 +112,7 @@ class PlayEnumerator : public RecursiveEnumerator
   int_ptr<Song>     PrevNextCore(int_ptr<Song> (PlayEnumerator::*subfn)(), void (PlayEnumerator::*enumfn)());
  protected:
   // Factory Function to initialize SubIterator
-  virtual void      InitNextLevel();  
+  virtual void      InitNextLevel();
  public:
   PlayEnumerator(PlayEnumerator* parent = NULL) : RecursiveEnumerator(parent) {}
 
@@ -124,9 +124,9 @@ class PlayEnumerator : public RecursiveEnumerator
   // This implies GetCurrentSong() != NULL, but it is faster.
   bool              IsValid() const { return Valid; }
 
-  int_ptr<Song>     Prev()          { return PrevNextCore(&Prev, &PrevEnum); }
-  int_ptr<Song>     Next()          { return PrevNextCore(&Next, &NextEnum); }
-  
+  int_ptr<Song>     Prev()          { return PrevNextCore(&PlayEnumerator::Prev, &PlayEnumerator::PrevEnum); }
+  int_ptr<Song>     Next()          { return PrevNextCore(&PlayEnumerator::Next, &PlayEnumerator::NextEnum); }
+
   //virtual PlayEnumerator* Clone() const;
 };
 
@@ -137,7 +137,7 @@ class StatusPlayEnumerator : public PlayEnumerator
 {
  protected:
   // Factory Function to initialize SubIterator
-  virtual void      InitNextLevel();  
+  virtual void      InitNextLevel();
   // overload: update status
   virtual void      PrevEnum();
   // overload: update status

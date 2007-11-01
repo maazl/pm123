@@ -47,7 +47,7 @@
 *
 ****************************************************************************/
 class PlaylistManager : public PlaylistRepository<PlaylistManager>
-{ friend PlaylistRepository<PlaylistManager>;
+{ friend class PlaylistRepository<PlaylistManager>;
  public:
   // C++ part of a record
   struct Record;
@@ -75,12 +75,12 @@ class PlaylistManager : public PlaylistRepository<PlaylistManager>
 
  private:
   // Post record message, filtered
-  virtual void      PostRecordCommand(RecordBase* rec, RecordCommand cmd); 
+  virtual void      PostRecordCommand(RecordBase* rec, RecordCommand cmd);
   // create container window
   virtual void      InitDlg();
   // Dialog procedure, called by DlgProcStub
   virtual MRESULT   DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2);
-  // Set Status info 
+  // Set Status info
   void              SetInfo(const xstring& info);
   // initiate the display of a record's info
   void              ShowRecordAsync(Record* rec);
@@ -94,8 +94,6 @@ class PlaylistManager : public PlaylistRepository<PlaylistManager>
   bool              RecursionCheck(RecordBase* rec);
   // same with explicit parent for new items not yet added
   bool              RecursionCheck(Playable* pp, RecordBase* parent);
-  // Set the window title
-  virtual void      SetTitle();
  private: // Modifiying function and notifications
   // Subfunction to the factory below.
   virtual RecordBase* CreateNewRecord(PlayableInstance* obj, RecordBase* parent);

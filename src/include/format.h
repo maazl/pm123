@@ -31,7 +31,7 @@ extern "C" {
 
 typedef struct _FORMAT_INFO
 {
-  int size;
+  unsigned int size;
   int samplerate;
   int channels;
   int bits;
@@ -42,14 +42,14 @@ typedef struct _FORMAT_INFO
 /* reduced structure for level 2 plug-in interfaces */
 typedef struct
 {
-  int size;             /* size of this structure */
+  unsigned int size;    /* size of this structure */
   int samplerate;       /* sampling rate in Hz, < 0 -> unknown */
   int channels;         /* number of channels, < 0 -> unknown */
 } FORMAT_INFO2;
 
 /* Technical information about the data source */
 typedef struct
-{ int    size;         /* size of this structure */
+{ unsigned int size;   /* size of this structure */
   double songlength;   /* in milliseconds, smaller than 0 -> unknown */
   int    bitrate;      /* in kbit/s, smaller than 0 -> unknown */
   double filesize;     /* physical size of the file, smaller than 0 -> unknown */
@@ -60,7 +60,7 @@ typedef struct
 
 /* Logical information about the data source */
 typedef struct
-{ int  size;           /* size of this structure */
+{ unsigned int size;   /* size of this structure */
   char title[128];
   char artist[128];
   char album[128];

@@ -30,30 +30,32 @@
 #ifndef BUFSTREAM_H
 #define BUFSTREAM_H
 
+#include <stdlib.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 typedef struct
 {
-   void* buffer;
-   int   size;
-   int   length;
-   int   position;
-   int   created;
+   void*  buffer;
+   size_t size;
+   size_t length;
+   size_t position;
+   int    created;
 
 } BUFSTREAM;
 
 /* Creates a buffering stream using specified buffer. */
-BUFSTREAM* create_bufstream( int size );
+BUFSTREAM* create_bufstream( size_t size );
 /* Creates a new buffering stream. */
-BUFSTREAM* open_bufstream( void* buffer, int size );
+BUFSTREAM* open_bufstream( void* buffer, size_t size );
 /* Returns a buffer associated with buffering stream. */
-int get_buffer_bufstream( BUFSTREAM* b, void** buffer );
+size_t get_buffer_bufstream( BUFSTREAM* b, void** buffer );
 /* Reads a data from buffering stream. */
-int read_bufstream( BUFSTREAM* b, void* buffer, int size );
+size_t read_bufstream( BUFSTREAM* b, void* buffer, size_t size );
 /* Writes a data from buffering stream. */
-int write_bufstream( BUFSTREAM* b, const void* buffer, int size );
+size_t write_bufstream( BUFSTREAM* b, const void* buffer, size_t size );
 /* Closes a buffering stream. */
 int close_bufstream( BUFSTREAM* b );
 

@@ -2,9 +2,10 @@
 #  querysong.exe makefile
 #
 
-!include ..\..\src\config\makerules
+TOPDIR = ..\..
+TARGET = querysong.exe
 
-all: querysong.exe $(MDUMMY)
+!include $(TOPDIR)\src\config\makerules
 
 OBJECTS  = querysong$(CO)
 DEF      = querysong$(LDEF_SUFFX)

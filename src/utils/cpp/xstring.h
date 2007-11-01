@@ -56,7 +56,7 @@ class xstring
                   // it has to be non-const to avoid the error.
                   // Must be last member
    private: // Avoid array creation!
-    #if defined(__IBMCPP__) && defined(DEBUG_ALLOC) 
+    #if defined(__IBMCPP__) && defined(DEBUG_ALLOC)
     static void* operator new[](size_t, const char*, size_t);
     static void  operator delete[](void*, const char*, size_t);
     #else
@@ -69,7 +69,7 @@ class xstring
    public:
                  StringRef()                { (*this)[Len] = 0; } // uninitialized instance
                  StringRef(const char* str) { memcpy(this+1, str, Len); (*this)[Len] = 0; }
-    #if defined(__IBMCPP__) && defined(DEBUG_ALLOC) 
+    #if defined(__IBMCPP__) && defined(DEBUG_ALLOC)
     static void* operator new(size_t s, const char*, size_t, size_t l)
     #else
     static void* operator new(size_t s, size_t l)
@@ -80,32 +80,32 @@ class xstring
                    ((size_t*)(cp+s))[-1] = l; // Dirty implicit assignment to Len before constructor entry...
                    return cp;
                  }
-    #if defined(__IBMCPP__) && defined(DEBUG_ALLOC) 
+    #if defined(__IBMCPP__) && defined(DEBUG_ALLOC)
     static void  operator delete(void* p, const char*, size_t) { free(p); }
     #else
     static void  operator delete(void* p)   { free(p); }
     #endif
            size_t Length() const            { return Len; }
-//         char* Ptr() const                { return (char*)(this+1); }
-           operator char*()                 { return (char*)(this+1); }
+           char* Ptr() const                { return (char*)(this+1); }
+//         operator char*()                 { return (char*)(this+1); }
            char& operator[](size_t ix)      { return ((char*)(this+1))[ix]; }
   };
  public:
   enum
   { npos = (size_t)-1
   };
-  
+
  private:
   int_ptr<StringRef> Data;
  public:
   // empty string. This is different from a NULL string!
   static const xstring empty;
-  
+
  protected:
   xstring(size_t len)                       : Data(new (len) StringRef) {}
  public:
   static int  compareI(const char* s1, const char* s2, size_t len);
-  
+
   xstring()                                 {}
   xstring(const xstring& r) : Data(r.Data)  {}
   xstring(const xstring& r, size_t start);
@@ -116,7 +116,7 @@ class xstring
   size_t      length() const                { return Data->Length(); }
   // explicit conversion
   // The returned pointer is valid as long as this string is owned by at least one xstring instance.
-  const char* cdata() const                 { return Data ? (char*)*Data : NULL; }
+  const char* cdata() const                 { return Data ? Data->Ptr() : NULL; }
   // constant c-style array containing the string, always null terminated, maybe NULL.
   // The returned pointer is valid as long as this string is owned by at least one xstring instance.
   operator const char*() const              { return cdata(); }
@@ -136,20 +136,20 @@ class xstring
   int         compareToI(const xstring& r) const;
   int         compareToI(const char* str) const;
   int         compareToI(const char* str, size_t len) const;
-  
-  bool        startsWith(const xstring& r) const { return startsWith(*r.Data, r.length()); }
+
+  bool        startsWith(const xstring& r) const { return startsWith(r.Data->Ptr(), r.length()); }
   bool        startsWith(const char* r) const { return startsWith(r, strlen(r)); }
   bool        startsWith(const char* r, size_t len) const;
   bool        startsWith(char c) const      { return length() && (*Data)[0] == c; }
-  bool        startsWithI(const xstring& r) const { return startsWithI(*r.Data, r.length()); }
+  bool        startsWithI(const xstring& r) const { return startsWithI(r.Data->Ptr(), r.length()); }
   bool        startsWithI(const char* r) const { return startsWithI(r, strlen(r)); }
   bool        startsWithI(const char* r, size_t len) const;
   bool        startsWithI(char c) const     { return length() && tolower((*Data)[0]) == tolower(c); }
-  bool        endsWith(const xstring& r) const { return endsWith(*r.Data, r.length()); }
+  bool        endsWith(const xstring& r) const { return endsWith(r.Data->Ptr(), r.length()); }
   bool        endsWith(const char* r) const { return endsWith(r, strlen(r)); }
   bool        endsWith(const char* r, size_t len) const;
   bool        endsWith(char c) const        { return length() && (*Data)[length()-1] == c; }
-  bool        endsWithI(const xstring& r) const { return endsWithI(*r.Data, r.length()); }
+  bool        endsWithI(const xstring& r) const { return endsWithI(r.Data->Ptr(), r.length()); }
   bool        endsWithI(const char* r) const { return endsWithI(r, strlen(r)); }
   bool        endsWithI(const char* r, size_t len) const;
   bool        endsWithI(char c) const       { return length() && tolower((*Data)[length()-1]) == tolower(c); }
@@ -162,9 +162,9 @@ class xstring
   void        assign(const char* str);
   void        assign(const char* str, size_t len);
   // initialize to new string with defined length and undefined content
-  char*       raw_init(size_t len)          { Data = new (len) StringRef; return *Data; }
+  char*       raw_init(size_t len)          { Data = new (len) StringRef; return Data->Ptr(); }
   // initialize to new string with defined length and defined content that might be modified befor the string is used elsewhere
-  char*       raw_init(size_t len, const char* src) { assign(src, len); return *Data; }
+  char*       raw_init(size_t len, const char* src) { assign(src, len); return Data->Ptr(); }
   // assign new value by operator
   xstring&    operator=(const xstring& r)   { assign(r); return *this; }
   xstring&    operator=(const char* str)    { assign(str); return *this; }

@@ -5,10 +5,11 @@
 DLL     = yes
 TOPDIR  = ..\..
 INCDIR  = ..\kernel;..\rdft;$(TOPDIR)\include
+TARGET  = all2
 
 !include $(TOPDIR)\config\makerules
 
-all: reodft$(LBO) $(MDUMMY)
+all2: reodft$(LBO) $(MDUMMY)
 
 OBJECTS = conf$(CO) redft00e_r2hc_pad$(CO) redft00e_r2hc$(CO) reodft010e_r2hc$(CO)
 OBJECTS = $(OBJECTS) reodft11e_r2hc_odd$(CO) reodft11e_r2hc$(CO)

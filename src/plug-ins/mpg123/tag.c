@@ -64,7 +64,7 @@ typedef struct {
          char spacer ;
          unsigned char track ;
       } V1_1;
-   }    u_comtrk ;          
+   }    u_comtrk ;
    unsigned char genre ;
 } tag ;
 
@@ -98,7 +98,7 @@ int wipetag(XFILE* x) {
 /* Due to restrictions of the xio library we can no longer remove tags! */
    tag song;
    DEBUGLOG(("mpg123:wipetag(%p)\n", x));
-   
+
    memset( &song, 0, sizeof song );
    //memcpy( song.tag, "TAG", 3 ); not required
    song.genre = 0xFF;
@@ -129,7 +129,7 @@ int gettag(XFILE* x, tune *info) {
    }
 
    DEBUGLOG(("mpg123:gettag(%p, %p) - %.128s\n", x, info, &song));
-   
+
    safecopy(info->meta.title,  song.title,  30);
    safecopy(info->meta.artist, song.artist, 30);
    safecopy(info->meta.album,  song.album,  30);
@@ -148,7 +148,6 @@ int gettag(XFILE* x, tune *info) {
 }
 
 int settag(XFILE* x, const tune *info) {
-   int temp;
    tag song;
 
    spacecopy(song.title,  info->meta.title,  30);
@@ -156,7 +155,7 @@ int settag(XFILE* x, const tune *info) {
    spacecopy(song.album,  info->meta.album,  30);
    spacecopy(song.year,   info->meta.year,    4);
    if (info->meta.track > 0 && info->meta.track < 256)
-   {  // Write ID3 V1.1 tag 
+   {  // Write ID3 V1.1 tag
       spacecopy(song.u_comtrk.V1_1.comment, info->meta.comment, sizeof song.u_comtrk.V1_1.comment);
       song.u_comtrk.V1_1.spacer = 0;
       song.u_comtrk.V1_1.track = (unsigned char)info->meta.track;
@@ -169,7 +168,7 @@ int settag(XFILE* x, const tune *info) {
    // and don't make them to Blues.
    song.genre = info->gennum < 0 || info->gennum > 0xFF
       ? 0xFF
-      : (unsigned char)info->gennum; 
+      : (unsigned char)info->gennum;
 
    if( xio_fseek( x, -128, XIO_SEEK_END ) == 0 &&
        xio_fread( song.tag, 1, 3, x ) == 3 ) {
@@ -196,4 +195,3 @@ void printgenres() {
   }
 }
 */
-

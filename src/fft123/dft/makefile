@@ -5,10 +5,11 @@
 DLL     = yes
 TOPDIR  = ..\..
 INCDIR  = ..\kernel;$(TOPDIR)\include
+TARGET  = all2
 
 !include $(TOPDIR)\config\makerules
 
-all: dft$(LBO) $(MDUMMY)
+all2: dft$(LBO) $(MDUMMY)
 
 OBJECTS = buffered$(CO) conf$(CO) ct_dif$(CO) ct_dit$(CO) ct_ditbuf$(CO) ct_ditf$(CO)
 OBJECTS = $(OBJECTS) ct$(CO) direct$(CO) generic$(CO) indirect$(CO) kdft_dif$(CO)

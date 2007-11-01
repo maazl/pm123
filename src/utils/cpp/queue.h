@@ -57,13 +57,13 @@ class queue_base
   Event      EvRead;
  public:
   Mutex      Mtx;
-  
+
  protected: // class should not be used directly!
              queue_base()         : Head(NULL), Tail(NULL) { EvRead.Set(); }
   EntryBase* CommitRead();
  public:
   void       RequestRead();
-  EntryBase* Read()               { return Head; }             
+  EntryBase* Read()               { return Head; }
   void       Write(EntryBase* entry);
 };
 
@@ -81,12 +81,12 @@ class queue : private queue_base
   {public:
     Reader(queue<T>& queue)       : ReaderBase(queue) {}
     ~Reader()                     { ((queue<T>&)Queue).CommitRead(); }
-    operator T&()                 { return ((Entry*)Queue.Read())->Data; }          
+    operator T&()                 { return ((Entry*)Queue.Read())->Data; }
   };
-  
+
  public:     queue_base::Mtx;
 
- protected: 
+ protected:
   void       CommitRead()         { delete (Entry*)queue_base::CommitRead(); }
  public:
              ~queue()             { Purge(); }
@@ -105,7 +105,7 @@ class queue : private queue_base
   int        Remove(const T& data);
   // Same as Remove but do not return until the element is really removed.
   // In case that the element is part of a current uncommited read the function
-  // will block until the read is commited. 
+  // will block until the read is commited.
   int        ForceRemove(const T& data);
 };
 
@@ -119,7 +119,7 @@ void queue<T>::Purge()
     if (ep == NULL)
       return;
     ep = (Entry*)ep->Next;
-    if (EvRead == true)
+    if (EvRead.IsSet())
     { // reader is active, keep the first element
       Head->Next = NULL; // truncate
     } else
@@ -143,7 +143,7 @@ T* queue<T>::Find(const T& templ, bool& inuse)
   Entry* ep = (Entry*)Head;
   while (ep)
   { if (ep->Data == templ)
-    { inuse = ep == Head && EvRead == false;
+    { inuse = ep == Head && !EvRead.IsSet();
       return &ep->Data;
     }
     ep = (Entry*)ep->Next;
@@ -160,7 +160,7 @@ int queue<T>::Remove(const T& data)
   { Entry* ep = (Entry*)*epp;
     if (ep == NULL)
       break;
-    if (ep->Data == data && (epp != &Head || EvRead))
+    if (ep->Data == data && (epp != &Head || EvRead.IsSet()))
     { *epp = ep->Next;
       epp = &ep->Next;
       delete ep;
@@ -183,7 +183,7 @@ int queue<T>::ForceRemove(const T& data)
         break;
       if (!(ep->Data == data))
         epp = &ep->Next;
-       else if (epp == &Head && EvRead == false)
+       else if (epp == &Head && !EvRead.IsSet())
       { syncreader = true;
         epp = &ep->Next;
       } else

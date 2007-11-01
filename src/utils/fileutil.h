@@ -29,7 +29,7 @@
 #ifndef FILEUTIL_H
 #define FILEUTIL_H
 
-#include <utilfct.h>
+#include <config.h>
 
 #ifdef __cplusplus
 extern "C" {

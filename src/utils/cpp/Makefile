@@ -4,10 +4,11 @@
 
 TOPDIR   = ..\..
 INCDIR   = $(TOPDIR)\include;$(TOPDIR)\utils;.
+TARGET   = all2
 
 !include $(TOPDIR)\config\makerules
 
-all: cpputil$(LBO) $(MDUMMY)
+all2: cpputil$(LBO) $(MDUMMY)
 
 OBJECTS = event$(CO) mutex$(CO) container$(CO) queue$(CO)
 OBJECTS = $(OBJECTS) xstring$(CO) smartptr$(CO)

@@ -131,12 +131,12 @@ class CD_drive
       CDTRACKINFO *trackInfo;
       CDDB_socket cddb;               // use a private instance => now thread safe
       CDDBQUERY_DATA querydata;
-      
+
       BOOL opened; /* hCDDrive cannot be negative and 0 is a valid handle
                       so I keep another variable around */
       HFILE hCDDrive;
       char* error;                    // last error text
-      
+
       HMTX instMtx;                   // mutex to protect *this
       int instCount;                  // reference counter
       BOOL exclusive;                 // instance in exclusive read access
@@ -200,8 +200,8 @@ class CD_drive
       BOOL readSectors(CDREADLONGDATA data[], ULONG number, ULONG start);
       // Get UPC code of the CD.
       BOOL getUPC(char UPC[7]);
- 
-      // Get the last error text or NULL if none.      
+
+      // Get the last error text or NULL if none.
       const char* getError() const
       {  return error; }
 
@@ -236,10 +236,10 @@ class CD_drive
          public:
             Cache();
             ~Cache();
-            CD_drive* lookup(char index)
+            CD_drive* lookup(unsigned char index)
             {  DosRequestMutexSem(cacheMtx, SEM_INDEFINITE_WAIT);
                return cache[index]; }
-            void store(char index, CD_drive* value)
+            void store(unsigned char index, CD_drive* value)
             {  cache[index] = value; }
             void release()
             {  DosReleaseMutexSem(cacheMtx); }
@@ -250,8 +250,8 @@ class CD_drive
       // get access to a CD_drive object
       static CD_drive* request(char drive, BOOL exclusive, BOOL refresh);
       void release(BOOL exclusive = FALSE);
-      
-   public:   
+
+   public:
       /* Proxy class to access const functions of CD_drive objects thread safe.
        */
       class AccessInfo;
@@ -266,7 +266,7 @@ class CD_drive
             {  if (instance)
                   instance->release(FALSE);
             }
-            
+
             BOOL isValid() const { return instance != NULL; }
             const CD_drive* operator->() { return instance; }
 
@@ -276,7 +276,7 @@ class CD_drive
 
       /* Proxy class to access CD_drive objects thread safe.
        * For the time of the existance of this class the underlying CD_drive instance ist locked.
-       */ 
+       */
       class AccessRead;
       friend class CD_drive::AccessRead;
       class AccessRead
@@ -289,7 +289,7 @@ class CD_drive
             {  if (instance)
                   instance->release(TRUE);
             }
-            
+
             BOOL isValid() const { return instance != NULL; }
             CD_drive* operator->() { return instance; }
 

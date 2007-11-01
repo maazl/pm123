@@ -5,10 +5,11 @@
 DLL     = yes
 TOPDIR  = ..\..
 INCDIR  = ..\kernel;..\dft;$(TOPDIR)\include
+TARGET  = all2
 
 !include $(TOPDIR)\config\makerules
 
-all: rdft$(LBO) $(MDUMMY)
+all2: rdft$(LBO) $(MDUMMY)
 
 OBJECTS = buffered$(CO) buffered2$(CO) conf$(CO) dft_r2hc$(CO) dht_r2hc$(CO)
 OBJECTS = $(OBJECTS) dht_rader$(CO) direct$(CO) direct2$(CO) generic$(CO)

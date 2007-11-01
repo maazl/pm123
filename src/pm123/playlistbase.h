@@ -98,7 +98,7 @@ class PlaylistBase : public IComparableTo<char>
       Before(before)
     { // Increment usage count of the records unless the dialog completed.
       GUI->BlockRecord(Parent);
-      GUI->BlockRecord(Before); 
+      GUI->BlockRecord(Before);
     }
     ~UserAddCallbackParams()
     { GUI->FreeRecord(Before);
@@ -129,19 +129,19 @@ class PlaylistBase : public IComparableTo<char>
   // Valid flags in PostMsg fields
   enum RecordCommand
   { // Update the children of the Record
-    // If mp2 == NULL the root node is refreshed. 
+    // If mp2 == NULL the root node is refreshed.
     RC_UPDATECHILDREN,
     // Update the format information of a record
-    // If mp2 == NULL the root node is refreshed. 
+    // If mp2 == NULL the root node is refreshed.
     RC_UPDATEFORMAT,
     // Update the technical information of a record
-    // If mp2 == NULL the root node is refreshed. 
+    // If mp2 == NULL the root node is refreshed.
     RC_UPDATETECH,
     // Update the meta information of a record
-    // If mp2 == NULL the root node is refreshed. 
+    // If mp2 == NULL the root node is refreshed.
     RC_UPDATEMETA,
     // Update the status of a record
-    // If mp2 == NULL the root node is refreshed. 
+    // If mp2 == NULL the root node is refreshed.
     RC_UPDATESTATUS,
     // Update the alias text of a record
     RC_UPDATEALIAS,
@@ -153,7 +153,7 @@ class PlaylistBase : public IComparableTo<char>
   { USHORT        size;
     PlaylistBase* pm;
   };
-  
+
  protected: // Cached Icon ressources
   enum ICP
   { ICP_Song,
@@ -176,6 +176,7 @@ class PlaylistBase : public IComparableTo<char>
  protected: // content
   int_ptr<Playable> Content;
   xstring           Alias;         // Alias name for the window title
+  const char*       NameApp;       // Name apendix for window title
   const ULONG       DlgRID;        // Resource ID of the dialog template
   #if DEBUG
   xstring           DebugName() const;
@@ -214,19 +215,19 @@ class PlaylistBase : public IComparableTo<char>
   // Free a record after it is no longer used e.g. because a record message sent with PostRecordCommand completed.
   void              FreeRecord(RecordBase* rec);
   // Post record message
-  virtual void      PostRecordCommand(RecordBase* rec, RecordCommand cmd); 
+  virtual void      PostRecordCommand(RecordBase* rec, RecordCommand cmd);
 
   // Gives the Record back to the PM and destoys the C++ part of it.
   // The Record object is no longer valid after calling this function.
   void              DeleteEntry(RecordBase* entry);
 
   // Called at WM_INITDLG
-  // Should set Container 
+  // Should set Container
   virtual void      InitDlg();
-  
+
   // Dialog procedure, called by DlgProcStub
   virtual MRESULT   DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2);
-  
+
   // Determine type of Playable object
   // Subfunction to CalcIcon.
   virtual ICP       GetPlayableType(RecordBase* rec) = 0;
@@ -236,7 +237,7 @@ class PlaylistBase : public IComparableTo<char>
   // Calculate icon for a record. Content must be valid!
   HPOINTER          CalcIcon(RecordBase* rec);
   // Set the window title
-  virtual void      SetTitle();
+  void              SetTitle();
 
   // Subfunction to the factory below.
   virtual RecordBase* CreateNewRecord(PlayableInstance* obj, RecordBase* parent) = 0;
@@ -245,7 +246,7 @@ class PlaylistBase : public IComparableTo<char>
   // Moves the record "entry" including its subitems as child to "parent" after the record "after".
   // If parent is NULL the record is moved to the top level.
   // If after is NULL the record is moved to the first place of parent.
-  // The function returns the moved entry or NULL in case of an error. 
+  // The function returns the moved entry or NULL in case of an error.
   RecordBase*       MoveEntry(RecordBase* entry, RecordBase* parent, RecordBase* after);
   // Removes entries from the container
   void              RemoveEntry(RecordBase* const rec);
@@ -288,7 +289,7 @@ class PlaylistBase : public IComparableTo<char>
   void              UserSave();
 
  public: // public interface
-  ~PlaylistBase();
+  virtual           ~PlaylistBase();
   // Make the window visible (or not)
   void              SetVisible(bool show);
   bool              GetVisible() const { return WinIsWindowVisible(HwndFrame); }
@@ -296,10 +297,10 @@ class PlaylistBase : public IComparableTo<char>
   Playable*         GetContent() { return Content; }
   // Get an instance of the same type as the current instance for URL.
   virtual PlaylistBase* GetSame(const url& URL) = 0;
-  
+
  private: // IComparableTo<char>
   virtual int       CompareTo(const char* str) const;
-  
+
 };
 
 
@@ -333,7 +334,7 @@ class PlaylistRepository : public PlaylistBase
   // currently a no-op
   // TODO: we should cleanup unused and invisible instances once in a while.
   static void       Init() {}
-  static void       UnInit();          
+  static void       UnInit();
   // Factory method. Returns always the same instance for the same URL.
   // If the specified instance already exists the parameter alias is ignored.
   static T*         Get(const char* url, const char* alias = NULL);
@@ -373,7 +374,7 @@ T* PlaylistRepository<T>::Get(const char* url, const char* alias)
   if (!rp)
     // In case the above assignment returned zero while the pointer is still in the repository
     // the repository is updated immediately.
-  */ 
+  */
   if (!pp)
     pp = new T(url, alias);
   return pp;
@@ -382,8 +383,8 @@ T* PlaylistRepository<T>::Get(const char* url, const char* alias)
 template <class T>
 PlaylistRepository<T>::~PlaylistRepository()
 { Mutex::Lock lock(RPMutex);
-  size_t pos;
-  /*#if NDEBUG
+  /*size_t pos;
+  #if NDEBUG
   RPInst.binary_search(Content->GetURL(), pos);
   #else
   assert(RPInst.binary_search(Content->GetURL(), pos));

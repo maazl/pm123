@@ -98,6 +98,10 @@ to older DLL versions. Use the API change log below for reference.
 #ifndef GBM_H
 #define	GBM_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #ifndef BOOLEAN_DEFINED
 #define	BOOLEAN_DEFINED
 typedef	int BOOLEAN;
@@ -333,5 +337,8 @@ int     _System Gbm_version(void);
 
 #endif
 
+#ifdef __cplusplus
+}
+#endif
 #endif
 

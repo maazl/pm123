@@ -128,6 +128,10 @@ class vector : public vector_base
 template <class K>
 struct IComparableTo
 { virtual int CompareTo(const K* key) const = 0;
+ protected:
+  // protect destructor to avoid that someone deletes an object of this type through the interface
+  // without having a virtual destructor. However, we force the destructor to be virtual to keep gcc happy.
+  virtual ~IComparableTo() {}
 };
 
 

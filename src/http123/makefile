@@ -5,6 +5,7 @@
 DLL     = yes
 TOPDIR  = ..
 INCDIR  = $(TOPDIR)\include;$(TOPDIR)\utils
+TARGET  = all2
 
 !include $(TOPDIR)\config\makerules
 
@@ -12,7 +13,7 @@ OBJECTS = httpget$(CO) sockfile$(CO)
 LIBS    = $(LIBS_TCP) $(TOPDIR)\utils\utilfct$(LBO)
 DEF     = http$(LDEF_SUFFX)
 
-all: http123.dll http123$(LBI) $(MDUMMY)
+all2: http123.dll http123$(LBI) $(MDUMMY)
 
 http123.dll: $(OBJECTS) $(DEF)
 	$(CL) $(LFLAGS) $(LFLAGS_OUT)$@ $(LOBJ_PREFX)$(OBJECTS) $(LIBS)$(LOBJ_SUFFX) $(LDEF_PREFX)$(DEF)

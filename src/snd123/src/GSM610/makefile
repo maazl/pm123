@@ -4,10 +4,11 @@
 
 DLL     = yes
 TOPDIR  = ..\..\..
+TARGET  = all2
 
 !include $(TOPDIR)\config\makerules
 
-all: gsm610$(LBO) $(MDUMMY)
+all2: gsm610$(LBO) $(MDUMMY)
 
 OBJECTS = add$(CO) decode$(CO) gsm_decode$(CO) gsm_encode$(CO) long_term$(CO)
 OBJECTS = $(OBJECTS) preprocess$(CO) short_term$(CO) code$(CO) gsm_create$(CO)

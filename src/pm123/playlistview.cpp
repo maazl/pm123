@@ -86,7 +86,6 @@ PlaylistView::PlaylistView(const char* URL, const char* alias)
   ListMenu(NULLHANDLE),
   FileMenu(NULLHANDLE)
 { DEBUGLOG(("PlaylistView::PlaylistView(%s, %s)\n", URL, alias));
-  init_dlg_struct ids = { sizeof(init_dlg_struct), this };
   //HwndFrame = WinLoadDlg( HWND_DESKTOP, HWND_DESKTOP, pl_DlgProcStub, NULLHANDLE, DLG_PLAYLIST, &ids );
   StartDialog();
 }
@@ -97,9 +96,10 @@ void PlaylistView::PostRecordCommand(RecordBase* rec, RecordCommand cmd)
   {case RC_UPDATEFORMAT:
    case RC_UPDATEMETA:
     if (rec == NULL)
-      return;
+      break;
+   default:
+    PlaylistBase::PostRecordCommand(rec, cmd);
   }
-  PlaylistBase::PostRecordCommand(rec, cmd);
 }
 
 const PlaylistView::Column PlaylistView::MutableColumns[] =
@@ -189,7 +189,7 @@ FIELDINFO* PlaylistView::ConstFieldinfo;
 FIELDINFO* PlaylistView::CreateFieldinfo(const Column* cols, size_t count)
 { FIELDINFO* first = (FIELDINFO*)WinSendMsg(HwndContainer, CM_ALLOCDETAILFIELDINFO, MPFROMSHORT(count), 0);
   FIELDINFO* field = first;
-  const Column* cp = cols; 
+  const Column* cp = cols;
   do
   { field->flData     = cp->DataAttr;
     field->flTitle    = cp->TitleAttr;
@@ -223,7 +223,7 @@ void PlaylistView::InitDlg()
   { MutableFieldinfo = CreateFieldinfo(MutableColumns, sizeof MutableColumns / sizeof *MutableColumns);
     ConstFieldinfo   = CreateFieldinfo(ConstColumns,   sizeof ConstColumns   / sizeof *ConstColumns  );
   }
-  
+
   FIELDINFO* first;
   FIELDINFOINSERT insert  = { sizeof(FIELDINFOINSERT) };
   CNRINFO cnrinfo         = { sizeof(cnrinfo) };
@@ -239,7 +239,7 @@ void PlaylistView::InitDlg()
   { insert.cFieldInfoInsert = sizeof ConstColumns / sizeof *ConstColumns;
     first = ConstFieldinfo;
     cnrinfo.pFieldInfoLast  = first->pNextFieldInfo; // The first 2 colums are left to the bar.
-  } 
+  }
   WinSendMsg(HwndContainer, CM_INSERTDETAILFIELDINFO, MPFROMP(first), MPFROMP(&insert));
   WinSendMsg(HwndContainer, CM_SETCNRINFO, MPFROMP(&cnrinfo), MPFROMLONG( CMA_PFIELDINFOLAST|CMA_XVERTSPLITBAR|CMA_FLWINDOWATTR));
 
@@ -284,7 +284,7 @@ MRESULT PlaylistView::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
         if (Record::IsRemoved(focus))
           return 0; // record removed
         if (focus)
-          WinPostMsg(HwndContainer, CM_SETRECORDEMPHASIS, MPFROMP(focus), MPFROM2SHORT(TRUE, CRA_CURSORED)); 
+          WinPostMsg(HwndContainer, CM_SETRECORDEMPHASIS, MPFROMP(focus), MPFROM2SHORT(TRUE, CRA_CURSORED));
 
         POINTL ptlMouse;
         WinQueryPointerPos(HWND_DESKTOP, &ptlMouse);
@@ -327,7 +327,7 @@ MRESULT PlaylistView::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
       }
     }
     break;
-  
+
    /*case WM_COMMAND:
     { SHORT cmd = SHORT1FROMMP(mp1);
       Record* focus = (Record*)CmFocus;
@@ -340,9 +340,9 @@ MRESULT PlaylistView::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
       switch (cmd)
       {
       }
-      break;  
+      break;
     }*/
-    
+
    case UM_RECORDCOMMAND:
     { Record* rec = (Record*)PVOIDFROMMP(mp1);
       DEBUGLOG(("PlaylistView::DlgProc: UM_RECORDCOMMAND: %s, %x\n", Record::DebugName(rec).cdata(), StateFromRec(rec).PostMsg));
@@ -380,7 +380,7 @@ MRESULT PlaylistView::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
       }
       break; // continue in base class
     }
-      
+
    case UM_SYNCREMOVE:
     { Record* rec = (Record*)PVOIDFROMMP(mp1);
       rec->URL = NULL; // We have to discard the URL immediately because it is an alias of Content.
@@ -404,7 +404,7 @@ PlaylistBase::IC PlaylistView::GetRecordUsage(RecordBase* rec)
     return IC_Normal;
   if (rec->Content->GetStatus() != STA_Used)
     return IC_Used;
-  return decoder_playing() ? IC_Play : IC_Active; 
+  return decoder_playing() ? IC_Play : IC_Active;
 }
 
 xstring PlaylistView::FormatSize(double size)
@@ -426,13 +426,13 @@ xstring PlaylistView::FormatSize(double size)
 xstring PlaylistView::FormatTime(double time)
 { if (time <= 0)
     return xstring();
-  unsigned long s = (unsigned long)time; 
+  unsigned long s = (unsigned long)time;
   if (s < 60)
     return xstring::sprintf("%lu s", s);
    else if (s < 3600)
     return xstring::sprintf("%lu:%02lu", s/60, s%60);
    else
-    return xstring::sprintf("%lu:%02lu:%02lu", s/3600, s/60%60, s%60); 
+    return xstring::sprintf("%lu:%02lu:%02lu", s/3600, s/60%60, s%60);
 }
 
 bool PlaylistView::CalcCols(Record* rec, Playable::InfoFlags flags, PlayableInstance::StatusFlags iflags)
@@ -511,7 +511,7 @@ PlaylistBase::RecordBase* PlaylistView::CreateNewRecord(PlayableInstance* obj, R
 
   rec->Content         = obj;
   rec->UseCount        = 1;
-  rec->Data()          = new CPData(*this, &InfoChangeEvent, &StatChangeEvent, rec);
+  rec->Data()          = new CPData(*this, &PlaylistView::InfoChangeEvent, &PlaylistView::StatChangeEvent, rec);
   // before we catch any information setup the update events
   // The record is not yet corretly initialized, but this don't metter since all that the event handlers can do
   // is to post a UM_RECORDCOMMAND which is not handled unless this message is completed.
@@ -520,7 +520,7 @@ PlaylistBase::RecordBase* PlaylistView::CreateNewRecord(PlayableInstance* obj, R
 
   rec->URL             = obj->GetPlayable().GetURL().cdata();
   CalcCols(rec, obj->GetPlayable().EnsureInfoAsync(Playable::IF_Format|Playable::IF_Tech|Playable::IF_Meta), PlayableInstance::SF_All);
-          
+
   rec->flRecordAttr    = 0;
   rec->hptrIcon        = CalcIcon(rec);
   return rec;
@@ -545,8 +545,8 @@ void PlaylistView::UpdateRecord(Record* rec, Playable::InfoFlags flags, Playable
     if (rec->hptrIcon != icon)
     { rec->hptrIcon = icon;
       update = true;
-    } 
-  }  
+    }
+  }
   // Update columns of items
   if (rec && CalcCols(rec, flags, iflags))
     update = true;

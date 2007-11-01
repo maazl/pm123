@@ -90,3 +90,8 @@ LFLAGS = $(LFLAGS) $(LFLAGS_DLL)
 
 .asm.obj:
 	$(AS) $(AFLAGS) $<
+
+all:    $(TARGET) $(MDUMMY)
+
+depend:
+	$(TOPDIR)\config\makedep.cmd *.cpp *.c -r -x -I$(INCDIR)

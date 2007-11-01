@@ -71,6 +71,7 @@ enum PlayableStatus
  * If a function that receives Playable* wants to keep the reference after returning
  * it must create a int_ptr<Playable> object. This will work as expected.
  */
+static void TFNENTRY PlayableWorker(void*);
 class Playable : public Iref_Count, private IComparableTo<char>
 {public:
   enum Flags
@@ -113,7 +114,7 @@ class Playable : public Iref_Count, private IComparableTo<char>
     // assignment
     void              operator=(const DECODER_INFO2& r);
   };
- 
+
  private:
   const url           URL;
  protected: // The following vars are protected by the mutex
@@ -124,7 +125,7 @@ class Playable : public Iref_Count, private IComparableTo<char>
   InfoFlags           InfoChangeFlags; // Bitvector with stored events
  public:
   Mutex               Mtx;   // protect this instance
- 
+
  private: // non-copyable
   Playable(const Playable&);
   void operator=(const Playable&);
@@ -140,7 +141,7 @@ class Playable : public Iref_Count, private IComparableTo<char>
   // This function must be called in synchronized context.
   void                RaiseInfoChange()   { if (InfoChangeFlags)
                                               InfoChange(change_args(*this, InfoChangeFlags));
-                                            InfoChangeFlags = IF_None; } 
+                                            InfoChangeFlags = IF_None; }
  public:
   virtual ~Playable();
   // Check whether a given URL is to be initialized as playlist.
@@ -153,7 +154,7 @@ class Playable : public Iref_Count, private IComparableTo<char>
   PlayableStatus      GetStatus() const   { return Stat; }
   // Mark the object as used (or not)
   // This Function should not be called if the object's state is STA_Unknown or STA_Invalid.
-  void                SetInUse(bool used); 
+  void                SetInUse(bool used);
   // Display name
   // This returns either Info.meta.title or the object name of the current URL.
   // Keep in mind that this may not return the expected value unless EnsureInfo(IF_Meta) has been called.
@@ -171,8 +172,8 @@ class Playable : public Iref_Count, private IComparableTo<char>
   const DECODER_INFO2& GetInfo() const    { return Info; }
   // If and only if the current object is already identified by a decoder_fileinfo call
   // then this function will return the DLL name of the encoder.
-  // The result is only guaranteed to be non NULL if EnsureInfo with IF_Other has been called. 
-  const char*         GetDecoder() const  { return *Decoder ? Decoder : NULL; }  
+  // The result is only guaranteed to be non NULL if EnsureInfo with IF_Other has been called.
+  const char*         GetDecoder() const  { return *Decoder ? Decoder : NULL; }
 
   // Check wether the requested information is immediately available.
   // Return the bits in what that are /not/ available.
@@ -182,7 +183,7 @@ class Playable : public Iref_Count, private IComparableTo<char>
   // It sould return false only if the status of the current object is bad,
   // i.e. the URL is invalid or unreachable. However, the InfoValid bits must be set anyway.
   // This is a mutable Function when the info-fields are not initialized yet (late initialization).
-  // Normally this function is called automatically. However, you may want to force a refresh. 
+  // Normally this function is called automatically. However, you may want to force a refresh.
   virtual void        LoadInfo(InfoFlags what) = 0;
   // Ensure that the info fields are loaded from the ressource.
   // This function may block until the data is available.
@@ -198,9 +199,9 @@ class Playable : public Iref_Count, private IComparableTo<char>
   // For all the missing bits you should use the InfoChange event to get the requested information.
   // If no information is yet available, the function retorns IF_None.
   // Of course yo have to register the eventhandler before the call to EnsureInfoAsync.
-  // If EnsureInfoAsync returned true the InfoChange event is not raised.  
+  // If EnsureInfoAsync returned true the InfoChange event is not raised.
   InfoFlags           EnsureInfoAsync(InfoFlags what);
-  
+
   // Set meta information.
   // While this function is implemented it only updates the cache and fires the MetaChange event.
   // So you should overload it if resident changes are intended.
@@ -211,7 +212,7 @@ class Playable : public Iref_Count, private IComparableTo<char>
  public:
   // Event on info change
   // This event will always be called in synchronized context.
-  event<const change_args> InfoChange; 
+  event<const change_args> InfoChange;
 
  // asynchronuous request service
  private:
@@ -219,15 +220,15 @@ class Playable : public Iref_Count, private IComparableTo<char>
   { InfoFlags              Request;
     QEntry(Playable* obj, InfoFlags req) : int_ptr<Playable>(obj), Request(req) {}
   };
- 
- private: 
-  static queue<QEntry>     WQueue;
-  static int               WTid;          // Thread ID of the worker  
-  static bool              WTermRq;       // Termination Request to Worker
- 
+
  private:
-  // stub to call Populate asynchronuously
-  friend static void TFNENTRY PlayableWorker(void*);
+  static queue<QEntry>     WQueue;
+  static int               WTid;          // Thread ID of the worker
+  static bool              WTermRq;       // Termination Request to Worker
+
+ private:
+  // Worker thread (free function because of IBM VAC restrictions)
+  friend void TFNENTRY PlayableWorker(void*);
  public:
   static void              Init();
   static void              Uninit();
@@ -301,7 +302,7 @@ class PlayableInstance
   Playable&           GetPlayable() const { return *RefTo; }
   // Get the parent Collection containing this Playable object.
   PlayableCollection& GetParent() const   { return Parent; }
-  
+
   // The Status-Interface of PlayableInstance is identical to that of Playable,
   // but the only valid states for a PlayableInstance are Normal and Used.
   // Status changes of a PlayableInstance are automatically reflected to the underlying Playable object,
@@ -338,11 +339,11 @@ class Song : public Playable
 
 /* Interface to enumerate the content of a Playlist or something like that.
  * The Enumerator is a bidirectional enumerator. Instances of this class are not
- * thread-safe. 
+ * thread-safe.
  * Initially the Enumerator is before the start of the list, i.e. IsValid() returns false.
  * You must call Next() or Prev() to move to the first or last element respectively.
  * Remember that calling Prev() and then Next() is not neccessarily a no-op, when the underlying
- * collection is multi-threaded. 
+ * collection is multi-threaded.
  */
 class PlayableEnumerator
 {protected:
@@ -356,7 +357,7 @@ class PlayableEnumerator
   // The return value of this function is identical to that of the last call to Next() or Prev().
   // It is always false if neither Next() nor Prev() have been called so far.
   bool IsValid() const { return Current != NULL; }
-  // Dereference this instance. Calling this function is undefined when IsValid() returns false. 
+  // Dereference this instance. Calling this function is undefined when IsValid() returns false.
   PlayableInstance& operator*() const { return *Current; }
   // Shortcut for structured objects.
   PlayableInstance* operator->() const { return Current; }
@@ -403,7 +404,7 @@ class PlayableCollection : public Playable
   class Enumerator : public PlayableEnumerator
   {private:
     int_ptr<PlayableCollection> Parent;
-    
+
    private:
     Enumerator(const PlayableEnumerator& r);
    public:
@@ -442,8 +443,8 @@ class PlayableCollection : public Playable
  private:
   // Internal Subfunction to void CalcTechInfo(Playable& play);
   static void                 AddTechInfo(TECH_INFO& dst, const TECH_INFO& tech);
-  // This is called by the TechChange events of the children. 
-  void                        ChildInfoChange(const Playable::change_args& child); 
+  // This is called by the TechChange events of the children.
+  void                        ChildInfoChange(const Playable::change_args& child);
  protected:
   // (Re)calculate the TECH_INFO structure.
   virtual void                CalcTechInfo(TECH_INFO& dst);
@@ -483,7 +484,7 @@ class PlayableCollection : public Playable
   // Since the enumeration process is intrinsically not thread-safe you have to lock this collection
   // during enumeration. Alternatively you have to catch the remove events of the current item.
   // and do the Prev/Next operations together with the assignment of the remove events while
-  // you locked the collection. 
+  // you locked the collection.
   virtual PlayableEnumerator* GetEnumerator();
   // Load Information from URL
   // This implementation is only the framework. It reqires LoadInfoCore() for it's work.
@@ -550,14 +551,14 @@ class Playlist : public PlayableCollection
  public:
   Playlist(const url& URL, const TECH_INFO* ca_tech = NULL, const META_INFO* ca_meta = NULL)
    : PlayableCollection(URL, ca_tech, ca_meta), Modified(false) { DEBUGLOG(("Playlist(%p)::Playlist(%s, %p, %p)\n", this, URL.cdata(), ca_tech, ca_meta)); }
-  // Get attributes 
+  // Get attributes
   virtual Flags               GetFlags() const;
   // Check whether the current Collection is a modified shadow of a unmodified backend.
   // Calling Save() will turn the state into unmodified.
   virtual bool                IsModified() const;
 
   // Insert a new item before the item "before".
-  // If the prameter before is NULL the the item is appended. 
+  // If the prameter before is NULL the the item is appended.
   virtual void                InsertItem(const char* url, const xstring& alias, const PlayableInstance::slice& sl, PlayableInstance* before = NULL);
   void                        InsertItem(const char* url, const xstring& alias, PlayableInstance* before = NULL)
                               { InsertItem(url, alias, PlayableInstance::slice::Initial, before); }

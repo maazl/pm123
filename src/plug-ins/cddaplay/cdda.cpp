@@ -417,10 +417,10 @@ void displayMessage(char *fmt, ...)
 
    vsnprintf(buffer,sizeof buffer -1,fmt,args);
    va_end(args);
-   DEBUGLOG(("cddaplay:displayMessage(%s)\n", buffer));  
+   DEBUGLOG(("cddaplay:displayMessage(%s)\n", buffer));
 
    strcat(buffer,"\n");
- 
+
    appendToMLE(MLEhwnd, buffer, -1);
 }
 
@@ -435,7 +435,7 @@ void displayError(char *fmt, ...)
 
    vsnprintf(buffer+7,sizeof buffer -8,fmt,args);
    va_end(args);
-   DEBUGLOG(("cddaplay:displayError(%s)\n", buffer));  
+   DEBUGLOG(("cddaplay:displayError(%s)\n", buffer));
 
    strcat(buffer,"\n");
 
@@ -541,7 +541,7 @@ MRESULT EXPENTRY wpMatch(HWND hwnd,ULONG msg,MPARAM mp1,MPARAM mp2)
                if( SHORT2FROMMP(mp1) == LN_ENTER ) {
                   WinPostMsg( hwnd, WM_COMMAND, MPFROMSHORT( DID_OK ), MPFROM2SHORT( CMDSRC_OTHER, FALSE ));
                }
-               break; 
+               break;
          }
          return 0;
       }
@@ -558,15 +558,13 @@ inline void storeinfo(char* dest, const char* src, const size_t len)
 
 ULONG DLLENTRY decoder_trackinfo(const char *drive, int track, DECODER_INFO *info)
 {
-   char *temp;
-   
    DEBUGLOG(("cddaplay:decoder_trackinfo(%s, %i, %p)\n", drive, track, info));
 
    memset(info,0,sizeof(*info));
    info->size = sizeof(*info);
 
    CD_drive::AccessInfo CD(drive[0]);
-   
+
    if (!CD->isValid())
       return 100;
 
@@ -630,7 +628,7 @@ ULONG DLLENTRY decoder_cdinfo(const char *drive, DECODER_CDINFO *info)
    info->sectors = CD_drive::getLBA(CD->getCDInfo()->leadOutAddress);
    info->firsttrack = CD->getCDInfo()->firstTrack;
    info->lasttrack = CD->getCDInfo()->lastTrack;
-   
+
    DEBUGLOG(("cddaplay:decoder_cdinfo: {%i,%i,%i}\n", info->sectors, info->firsttrack, info->lasttrack));
    return 0;
 }
@@ -683,7 +681,7 @@ void load_ini()
       free(settings.CDDBServers[i]); settings.CDDBServers[i] = NULL;
       free(settings.HTTPServers[i]); settings.HTTPServers[i] = NULL;
 
-      settings.isCDDBSelect[i] = FALSE;            
+      settings.isCDDBSelect[i] = FALSE;
       settings.isHTTPSelect[i] = FALSE;
    }
 
@@ -920,13 +918,13 @@ add_tracks_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
                WinPostMsg( hwnd, WM_COMMAND, MPFROMSHORT( PB_REFRESH ), MPFROM2SHORT( CMDSRC_OTHER, FALSE ));
             }
             break;
-            
+
          case LB_TRACKS:
             DEBUGLOG(("cddaplay:add_tracks_dlg_proc - LB_TRACKS %x %x\n", mp1, mp2));
             if( SHORT2FROMMP(mp1) == LN_ENTER ) {
                WinPostMsg( hwnd, WM_COMMAND, MPFROMSHORT( DID_OK ), MPFROM2SHORT( CMDSRC_OTHER, FALSE ));
             }
-            break; 
+            break;
       }
       break;
 
@@ -975,7 +973,7 @@ add_tracks_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
           pswp->fl, pswp->x, pswp->y, pswp->cx, pswp->cy));
 
         if ( pswp->fl & SWP_SIZE )
-        { 
+        {
           SWP swpold;
           WinQueryWindowPos( hwnd, &swpold );
           if ( pswp->cx < 280 ) {
@@ -995,7 +993,7 @@ add_tracks_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
         PSWP pswp = (PSWP)mp1;
         DEBUGLOG2(("amp_add_tracks_dlg_proc: WM_WINDOWPOSCHANGED: {%x, %d %d, %d %d} {%d %d, %d %d}\n",
           pswp->fl, pswp->x, pswp->y, pswp->cx, pswp->cy, pswp[1].x, pswp[1].y, pswp[1].cx, pswp[1].cy));
-        
+
         if ( (pswp[0].fl & SWP_SIZE) && pswp[1].cx ) {
           HWND hwnd_listbox = WinWindowFromID( hwnd, LB_TRACKS );
           // move/resize all controls
@@ -1003,7 +1001,7 @@ add_tracks_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
           LONG dx = pswp[0].cx - pswp[1].cx;
           LONG dy = pswp[0].cy - pswp[1].cy;
           SWP swp_temp;
-          
+
           for (;;) {
             HWND hwnd_child = WinGetNextWindow( henum );
             if ( hwnd_child == NULLHANDLE ) break;
@@ -1030,11 +1028,11 @@ load_wizzard( HWND owner, const char* title, DECODER_WIZZARD_CALLBACK callback, 
   ULONG   action;
   HWND    hwnd;
   HMODULE mod;
-  DEBUGLOG(("cddaplay:load_wizzard(%p, %s, %p, %p)\n", owner, title, callback, param));  
+  DEBUGLOG(("cddaplay:load_wizzard(%p, %s, %p, %p)\n", owner, title, callback, param));
 
   getModule( &mod, NULL, 0 );
   hwnd = WinLoadDlg( HWND_DESKTOP, owner, add_tracks_dlg_proc, mod, DLG_TRACK, 0 );
-  DEBUGLOG(("cddaplay:load_wizzard: hwnd=%p\n", hwnd));  
+  DEBUGLOG(("cddaplay:load_wizzard: hwnd=%p\n", hwnd));
 
   if( hwnd == NULLHANDLE ) {
     return 500;
@@ -1101,7 +1099,7 @@ load_wizzard( HWND owner, const char* title, DECODER_WIZZARD_CALLBACK callback, 
     }
   }
   WinDestroyWindow( hwnd );
-  
+
   DEBUGLOG(("cddaplay:load_wizzard: %d\n", action));
   return action;
 }
@@ -1110,7 +1108,7 @@ load_wizzard( HWND owner, const char* title, DECODER_WIZZARD_CALLBACK callback, 
 const DECODER_WIZZARD* DLLENTRY decoder_getwizzard( )
 {
   DEBUGLOG(("cddaplay:decoder_getwizzard()\n"));
-  
+
   static const DECODER_WIZZARD wizzard =
   { NULL,
     "~Track(s)...\tAlt+T",

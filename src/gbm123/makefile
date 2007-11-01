@@ -4,6 +4,7 @@
 
 DLL     = yes
 TOPDIR  = ..
+TARGET  = all2
 
 !include $(TOPDIR)\config\makerules
 
@@ -14,7 +15,7 @@ OBJECTS = $(OBJECTS) gbmjpg$(CO) gbmhelp$(CO) gbmmap$(CO) gbmrect$(CO) gbmpbm$(C
 OBJECTS = $(OBJECTS) gbmpnm$(CO)  
 DEF     = gbm$(LDEF_SUFFX)
 
-all: gbm123.dll gbm123$(LBI) $(MDUMMY)
+all2: gbm123.dll gbm123$(LBI) $(MDUMMY)
 
 gbm123.dll: $(OBJECTS) $(DEF)
 	$(CL) $(LFLAGS) $(LFLAGS_OUT)$@ $(LOBJ_PREFX)$(OBJECTS)$(LOBJ_SUFFX) $(LDEF_PREFX)$(DEF)

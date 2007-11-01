@@ -124,8 +124,8 @@ static BOOL  is_arg_shuffle  = FALSE;
 static DECODER_WIZZARD_FUNC load_wizzards[20];
 
 /* Current seeking time. Valid if is_seeking == TRUE. */
-static int   seeking_pos = 0;
-static int   upd_options = 0;
+static double seeking_pos = 0;
+static int    upd_options = 0;
 
 /* Equalizer stuff. */
 float gains[20];
@@ -157,19 +157,19 @@ Song* amp_get_current_song()
 
 Playable* amp_get_current_root()
 { return Current.GetRoot();
-} 
+}
 
-/* Sets audio volume to the current selected level. */
+/* Sets audio volume to the current selected level.
 static void
 amp_volume_to_normal( void ) {
-  out_set_volume( truncate( cfg.defaultvol, 0, 100 ));
-}
+  out_set_volume( limit2( cfg.defaultvol, 0, 100 ));
+}*/
 
-/* Sets audio volume to below current selected level. */
+/* Sets audio volume to below current selected level.
 static void
 amp_volume_to_lower( void ) {
-  out_set_volume( 0.6 * truncate( cfg.defaultvol, 0, 100 ));
-}
+  out_set_volume( 0.6 * limit2( cfg.defaultvol, 0, 100 ));
+}*/
 
 /* Adjusts audio volume to level accordingly current playing mode. */
 void
@@ -210,7 +210,7 @@ amp_paint_timers( HPS hps )
 
     if( !cfg.rpt && s.TotalTime > 0 )
       list_left = s.TotalTime - s.CurrentTime - play_time;
-    
+
     bmp_draw_slider( hps, play_time, dec_length());
     bmp_draw_timer ( hps, play_time );
 
@@ -236,9 +236,9 @@ amp_paint_fileinfo( HPS hps )
   bmp_draw_plmode  ( hps );
   bmp_draw_timeleft( hps );
   if (pp != NULL)
-  { const TECH_INFO& tech = *pp->GetInfo().tech; 
+  { const TECH_INFO& tech = *pp->GetInfo().tech;
     bmp_draw_rate    ( hps, tech.bitrate );
-    const FORMAT_INFO2& format = *pp->GetInfo().format; 
+    const FORMAT_INFO2& format = *pp->GetInfo().format;
     bmp_draw_channels( hps, format.channels );
   } else
   { bmp_draw_rate    ( hps, -1 );
@@ -392,7 +392,7 @@ amp_pl_release( void )
   }
 }*/
 
-static ULONG handle_dfi_error( ULONG rc, const char* file )
+/*static ULONG handle_dfi_error( ULONG rc, const char* file )
 {
   char buf[512];
 
@@ -411,12 +411,12 @@ static ULONG handle_dfi_error( ULONG rc, const char* file )
 
   WinMessageBox( HWND_DESKTOP, HWND_DESKTOP, buf, "Error", 0, MB_ERROR | MB_OK );
   return 1;
-}
+}*/
 
 static void amp_AddMRU(Playlist* list, size_t max, const char* URL)
 { DEBUGLOG(("amp_AddMRU(%p{%s}, %u, %s)\n", list, list->GetURL().cdata(), max, URL));
   Mutex::Lock lock(list->Mtx);
-  sco_ptr<PlayableEnumerator> pe = list->GetEnumerator();
+  sco_ptr<PlayableEnumerator> pe(list->GetEnumerator());
   // remove the desired item from the list and limit the list size
   pe->Next();
   while (pe->IsValid())
@@ -437,7 +437,7 @@ static void amp_AddMRU(Playlist* list, size_t max, const char* URL)
 BOOL
 amp_load_playable( const char* url, int options )
 { DEBUGLOG(("amp_load_playable(%s, %x)\n", url, options));
-  
+
   int_ptr<Playable> play = Playable::GetByURL(url);
   play->EnsureInfo(Playable::IF_Status);
   if (play->GetStatus() == STA_Invalid)
@@ -455,7 +455,7 @@ amp_load_playable( const char* url, int options )
   amp_invalidate( UPD_FILEINFO );
 
   DEBUGLOG(("amp_load_playable - attached\n"));
-  
+
   if( !( options & AMP_LOAD_NOT_PLAY )) {
     if( cfg.playonload ) {
       amp_play( 0 );
@@ -473,8 +473,6 @@ amp_load_playable( const char* url, int options )
 static void
 amp_pb_play( float pos )
 { DEBUGLOG(("amp_pb_play(%f)\n", pos));
-  char caption [_MAX_PATH];
-  char filename[_MAX_PATH];
 
   Song* song = Current.GetCurrentSong();
   if (song == NULL)
@@ -493,11 +491,6 @@ amp_pb_play( float pos )
   WinSendDlgItemMsg( hplayer, BMP_REW,   WM_DEPRESS, 0, 0 );
   WinSendDlgItemMsg( hplayer, BMP_PAUSE, WM_DEPRESS, 0, 0 );
   WinSendDlgItemMsg( hplayer, BMP_PLAY,  WM_PRESS  , 0, 0 );
-
-  /* TODO:
-  if( amp_playmode == AMP_PLAYLIST ) {
-    pl_mark_as_play();
-  }*/
 
   xstring title = song->GetURL().getDisplayName() + " - " AMP_FULLNAME;
   WinSetWindowText( hframe, title.cdata() );
@@ -580,7 +573,7 @@ amp_show_context_menu( HWND parent )
     menu = WinLoadMenu( HWND_OBJECT, 0, MNU_MAIN );
 
     mn_make_conditionalcascade( menu, IDM_M_LOAD, IDM_M_LOADFILE );
-    
+
     //PlaylistMenu* pmp = new PlaylistMenu(parent, IDM_M_LAST, IDM_M_LAST_E);
     // TODO: TEST!!!
     //pmp->AttachMenu(IDM_M_BOOKMARKS, DefaultBM->GetContent(), PlaylistMenu::DummyIfEmpty|PlaylistMenu::Recursive|PlaylistMenu::Enumerate, 0);
@@ -660,7 +653,7 @@ amp_show_context_menu( HWND parent )
       }
     }
   }*/
-  
+
   // Update plug-ins.
   WinSendMsg( menu, MM_QUERYITEM,
               MPFROM2SHORT( IDM_M_PLUG, TRUE ), MPFROMP( &mi ));
@@ -789,10 +782,10 @@ amp_drag_drop( HWND hwnd, PDRAGINFO pdinfo )
   if( !DrgAccessDraginfo( pdinfo )) {
     return 0;
   }
-  
+
   DEBUGLOG(("amp_drag_drop: {,%u,%x,%p, %u,%u, %u,}\n",
     pdinfo->cbDragitem, pdinfo->usOperation, pdinfo->hwndSource, pdinfo->xDrop, pdinfo->yDrop, pdinfo->cditem));
-  
+
   for( i = 0; i < pdinfo->cditem; i++ )
   {
     pditem = DrgQueryDragitemPtr( pdinfo, i );
@@ -800,7 +793,7 @@ amp_drag_drop( HWND hwnd, PDRAGINFO pdinfo )
     DrgQueryStrName( pditem->hstrContainerName, sizeof fullname, fullname );
     size_t len = strlen(fullname);
     DrgQueryStrName( pditem->hstrSourceName,    sizeof fullname - len, fullname+len );
-    
+
     if( DrgVerifyRMF( pditem, "DRM_OS2FILE", NULL ))
     {
       if( pditem->hstrContainerName && pditem->hstrSourceName ) {
@@ -813,7 +806,7 @@ amp_drag_drop( HWND hwnd, PDRAGINFO pdinfo )
           strlcat(fullname, "/", sizeof fullname);
 
         url URL = url::normalizeURL(fullname);
-        
+
         if( pdinfo->cditem == 1 ) {
           amp_load_playable( URL, 0 );
         } else {
@@ -910,11 +903,11 @@ amp_drag_render_done( HWND hwnd, PDRAGTRANSFER pdtrans, USHORT rc )
       strlcat(fullname, "/", sizeof fullname);
 
     url URL = url::normalizeURL(fullname);
-    
+
     if( pdsource->cditem == 1 ) {
       amp_load_playable( fullname, 0 );
     } else {
-//    TODO !!!    
+//    TODO !!!
 //    pl_add_file( fullname, NULL, 0 );
     }
   }
@@ -1074,22 +1067,22 @@ amp_file_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
 /* Wizzard function for the default entry "File..." */
 ULONG DLLENTRY amp_file_wizzard( HWND owner, const char* title, DECODER_WIZZARD_CALLBACK callback, void* param )
 { DEBUGLOG(("amp_file_wizzard(%p, %s, %p, %p)\n", owner, title, callback, param));
-  
+
   FILEDLG filedialog = { sizeof( FILEDLG ) };
   { char  buf[2048]; // well, static buffer size...
     buf[2047] = 0;
     dec_fill_types( buf, sizeof buf-1 );
     xstring type_audio = xstring::sprintf(FDT_AUDIO"%s)", buf);
     xstring type_all = xstring::sprintf(FDT_AUDIO_ALL"%s)", buf);
-    
+
     APSZ types[] = {
       { (PSZ)&*type_audio }, // OS/2 and const...
       { FDT_PLAYLIST },
       { (PSZ)&*type_all }, // OS/2 and const...
       { NULL } };
-    
+
     xstring wintitle = xstring::sprintf(title, " file(s)");
-      
+
     filedialog.fl             = FDS_CENTER | FDS_OPEN_DIALOG | FDS_CUSTOM | FDS_MULTIPLESEL;
     filedialog.ulUser         = FDU_DIR_ENABLE | FDU_RECURSEBTN;
     filedialog.pszTitle       = (PSZ)&*wintitle; // OS/2 and const...
@@ -1104,18 +1097,18 @@ ULONG DLLENTRY amp_file_wizzard( HWND owner, const char* title, DECODER_WIZZARD_
   }
 
   ULONG ret = 300; // Cancel unless DID_OK
-  
+
   if( filedialog.lReturn == DID_OK ) {
     ret = 0;
-    
+
     char* file = filedialog.ulFQFCount > 1
       ? **filedialog.papszFQFilename
       : filedialog.szFullFile;
-      
+
     if (*file)
       sdrivedir( cfg.filedir, file, sizeof( cfg.filedir ));
 
-    int i = 0;
+    ULONG count = 0;
     while (*file)
     { DEBUGLOG(("amp_file_wizzard: %s\n", file));
       char fileurl[_MAX_FNAME+25]; // should be sufficient in all cases
@@ -1141,9 +1134,9 @@ ULONG DLLENTRY amp_file_wizzard( HWND owner, const char* title, DECODER_WIZZARD_
       // Callback
       (*callback)(param, fileurl);
       // next file
-      if (++i >= filedialog.ulFQFCount)
+      if (++count >= filedialog.ulFQFCount)
         break;
-      file = (*filedialog.papszFQFilename)[i];
+      file = (*filedialog.papszFQFilename)[count];
     }
   }
 
@@ -1185,7 +1178,7 @@ amp_url_dlg_proc(HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2)
 ULONG DLLENTRY
 amp_url_wizzard( HWND owner, const char* title, DECODER_WIZZARD_CALLBACK callback, void* param )
 { DEBUGLOG(("amp_url_wizzard(%p, %s, %p, %p)\n", owner, title, callback, param));
-  
+
   HWND hwnd = WinLoadDlg( HWND_DESKTOP, owner, amp_url_dlg_proc, NULLHANDLE, DLG_URL, 0 );
   if (hwnd == NULLHANDLE)
     return 500;
@@ -1195,9 +1188,10 @@ amp_url_wizzard( HWND owner, const char* title, DECODER_WIZZARD_CALLBACK callbac
   xstring wintitle = xstring::sprintf(title, " URL");
   WinSetWindowText(hwnd, (PSZ)&*wintitle);
 
+  // TODO: absolute size limit???
   char durl[2048];
   WinSendDlgItemMsg( hwnd, ENT_URL, EM_SETTEXTLIMIT, MPFROMSHORT(sizeof durl), 0 );
-  
+
   // TODO: last URL
   // TODO: 2. recent URLs
 
@@ -1206,7 +1200,7 @@ amp_url_wizzard( HWND owner, const char* title, DECODER_WIZZARD_CALLBACK callbac
   { WinQueryDlgItemText(hwnd, ENT_URL, sizeof durl, durl);
     DEBUGLOG(("amp_url_wizzard: %s\n", durl));
     url nurl = url::normalizeURL(durl);
-    DEBUGLOG(("amp_url_wizzard: %s\n", nurl));
+    DEBUGLOG(("amp_url_wizzard: %s\n", nurl.cdata()));
     (*callback)(param, nurl);
     ret = 0;
   }
@@ -1225,7 +1219,7 @@ amp_load_file_callback( void* param, const char* url )
 }
 
 /* Loads a file selected by the user to the player. */
-/*static void                
+/*static void
 amp_load_file( HWND owner )
 { DEBUGLOG(("amp_load_file(%p)\n", owner));
   bool first = true;
@@ -1297,10 +1291,10 @@ amp_info_edit( HWND owner, const char* filename, const char* decoder )
 
     case 0:   // tag changed
       Playable::GetByURL(filename)->LoadInfoAsync(Playable::IF_Meta);
-      // Refresh will come automatically 
+      // Refresh will come automatically
     case 300: // tag unchanged
       return;
-      
+
     case 500:
       amp_error( owner, "Unable write tag to file:\n%s\n%s", filename, clib_strerror(errno));
       return;
@@ -1374,6 +1368,7 @@ amp_pipe_open_and_write( const char* pipename, const char* data, size_t size )
 }
 
 /* Dispatches requests received from the pipe. */
+// TODO: start the pipe thread!
 static void
 amp_pipe_thread( void* scrap )
 {
@@ -1658,7 +1653,7 @@ static void bm_add_bookmark(HWND owner, Playable* item, const PlayableInstance::
     desc = desc + item->GetURL().getShortName();
 
   HWND hdlg = WinLoadDlg(HWND_DESKTOP, owner, &WinDefDlgProc, NULLHANDLE, DLG_BM_ADD, NULL);
-                              
+
   WinSetDlgItemText(hdlg, EF_BM_DESC, desc);
 
   if (WinProcessDlg(hdlg) == DID_OK)
@@ -1667,7 +1662,7 @@ static void bm_add_bookmark(HWND owner, Playable* item, const PlayableInstance::
     WinQueryDlgItemText(hdlg, EF_BM_DESC, alias.length()+1, cp);
     if (alias == desc)
       alias = NULL; // Don't set alias if not required.
-    ((Playlist&)*DefaultBM->GetContent()).InsertItem(item->GetURL(), alias, sl); 
+    ((Playlist&)*DefaultBM->GetContent()).InsertItem(item->GetURL(), alias, sl);
     // TODO !!!!!
     //bm_save( owner );
   }
@@ -1943,7 +1938,7 @@ amp_playstop( HWND hwnd )
     amp_play( 0 );
    else
     amp_stop();
-  
+
   /* uhh, well, do we need some of that anymore ?
   if( amp_playmode == AMP_PLAYLIST )
   {
@@ -1997,7 +1992,7 @@ amp_eq_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
       for( i = 0; i < 10; i++ )
       {
         db = 20 * log10( gains[i] );
-        value = ( db * slider_range / 2 ) / 12 + slider_range / 2;
+        value = (ULONG)(( db * slider_range / 2 ) / 12 + slider_range / 2);
 
         WinSendDlgItemMsg( hwnd, 101 + i, SLM_SETSLIDERINFO,
                            MPFROM2SHORT( SMA_SLIDERARMPOSITION, SMA_RANGEVALUE ),
@@ -2008,7 +2003,7 @@ amp_eq_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
       }
 
       db = 20 * log10( preamp );
-      value = ( db * slider_range / 2 ) / 12 + slider_range / 2;
+      value = (ULONG)(( db * slider_range / 2 ) / 12 + slider_range / 2);
 
       WinSendDlgItemMsg( hwnd, 139, SLM_SETSLIDERINFO,
                          MPFROM2SHORT( SMA_SLIDERARMPOSITION, SMA_RANGEVALUE ),
@@ -2269,7 +2264,7 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
     case WM_PLAYSTOP:
       DEBUGLOG(("WM_PLAYSTOP\n"));
       // TODO: prepare next file
-      out_flush(); // flush remaining content, activate WM_OUTPUT_OUTOFDATA 
+      out_flush(); // flush remaining content, activate WM_OUTPUT_OUTOFDATA
       return 0;
 
     // Posted by the output plug-in
@@ -2367,7 +2362,7 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
         titlepos = strstr( metadata, "StreamTitle='" );
         if( titlepos )
         {
-          META_INFO meta = 
+          META_INFO meta =
           titlepos += 13;
           for( i = 0; i < sizeof( current_file.info.meta.title ) - 1 && *titlepos
                       && ( titlepos[0] != '\'' || titlepos[1] != ';' ); i++ )
@@ -2666,7 +2661,7 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
     {
       HPS hps;
       hplayer = hwnd; /* we have to assign the window handle early, because WinCreateStdWindow does not have returned now. */
-      
+
       hps = WinGetPS( hwnd );
       bmp_load_skin( cfg.defskin, hab, hwnd, hps );
       WinReleasePS( hps );
@@ -2687,7 +2682,7 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
       WinStartTimer( hab, hwnd, TID_UPDATE_PLAYER,  50 );
       break;
     }
-    
+
     case WM_BUTTON1DBLCLK:
     case WM_BUTTON1CLICK:
     {
@@ -2840,7 +2835,7 @@ amp_player_error( const char* format, ... )
   va_start(args, format);
   xstring message = xstring::vsprintf(format, args);
   va_end(args);
-  
+
   DEBUGLOG(("ERROR: %s\n", message.cdata()));
   amp_message_box( hframe, "PM123 Error", message, MB_ERROR | MB_OK | MB_MOVEABLE );
 }
@@ -2910,18 +2905,15 @@ struct args
   int files;
 };
 
-static void TFNENTRY 
+static void TFNENTRY
 main2( void* arg )
-{ 
+{
   int    argc = ((args*)arg)->argc;
   char** argv = ((args*)arg)->argv;
-  int    files = ((args*)arg)->files; 
+  int    files = ((args*)arg)->files;
   HMQ    hmq;
-  //int    i, o, files = 0;
-  //char   exename[_MAX_PATH];
   char   bundle [_MAX_PATH];
   char   infname[_MAX_PATH];
-  //char   command[1024];
   QMSG   qmsg;
   struct stat fi;
 
@@ -3013,7 +3005,7 @@ main2( void* arg )
   // Init some other stuff
   PlaylistView::Init();
   PlaylistManager::Init();
-  
+
   // Init default lists
   { const url path = url::normalizeURL(startpath);
     // TODO: TEST!!!
@@ -3033,12 +3025,12 @@ main2( void* arg )
   if( cfg.dock_windows ) {
     dk_arrange( hframe );
   }
-  
+
   // TODO: TEST!!!
   /*DefaultPL->SetVisible(cfg.show_playlist);
   DefaultPM->SetVisible(cfg.show_plman);
   DefaultBM->SetVisible(cfg.show_bmarks);*/
-  
+
   DEBUGLOG(("main: init complete\n"));
 
   while( WinGetMsg( hab, &qmsg, (HWND)0, 0, 0 ))
@@ -3046,7 +3038,7 @@ main2( void* arg )
   DEBUGLOG(("main: dispatcher ended\n"));
 
   amp_stop();
-  
+
   // deinitialize all visual plug-ins
   vis_deinit_all( TRUE );
   vis_deinit_all( FALSE );
@@ -3062,7 +3054,7 @@ main2( void* arg )
   DefaultBM = NULL;
   DefaultPM = NULL;
   DefaultPL = NULL;
-  
+
   PlaylistManager::UnInit();
   PlaylistView::UnInit();
 
@@ -3082,7 +3074,7 @@ main2( void* arg )
 
 int
 main( int argc, char *argv[] )
-{ 
+{
   int    i, o, files = 0;
   char   exename[_MAX_PATH];
   char   command[1024];
