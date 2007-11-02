@@ -36,7 +36,7 @@
 #define INCL_PM
 #define INCL_DOS
 #include <os2.h>
-#include <os2me.h>
+//#include <os2me.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>

@@ -683,7 +683,6 @@ static void update_analyzer(void)
      scope_redo:
       len = (lastformat.channels * plug.cx) << (1 + (lastformat.bits > 8) + (lastformat.bits > 16));
       maxval = lastformat.channels << lastformat.bits;
-
       sample.cp = alloca( len );
       decoderPlayingSamples( &lastformat, sample.cp, len );
       if ((lastformat.channels * plug.cx) << (1 + (lastformat.bits > 8) + (lastformat.bits > 16)) != len) // check again...
