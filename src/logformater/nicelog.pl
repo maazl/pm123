@@ -5,7 +5,7 @@ my @stack;
 my @indent;
 
 while(<>)
-{ if (my ($tim,$tid,$stk,$val) = /(\d+)\s+[0-9A-Fa-f]+:(\d+)\s+([0-9A-Fa-f]+)(.*)/)
+{ if (my ($tim,$tid,$stk,$val) = /(\d+)\s+[0-9A-Fa-f]+:(\d+)\s+(?:0x)?([0-9A-Fa-f]+)(.*)/)
   { #print STDERR "$tim-$tid-$stk-$val-\n";
     $indent[$tid] .= ' ';
     while ($stack[$tid][0] && ($stk ge $stack[$tid][0]))
