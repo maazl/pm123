@@ -375,7 +375,7 @@ output_open( OS2AUDIO* a )
 
   // Set up the MCI_BUFFER_PARMS data structure and allocate
   // device buffers from the mixer.
-  a->numbuffers    = truncate( a->numbuffers, 5, 200 );
+  a->numbuffers    = limit2( a->numbuffers, 5, 200 );
   a->mci_buffers   = calloc( a->numbuffers, sizeof( *a->mci_buffers   ));
   a->mci_buff_info = calloc( a->numbuffers, sizeof( *a->mci_buff_info ));
 
