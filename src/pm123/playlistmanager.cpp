@@ -93,10 +93,7 @@ void PlaylistManager::InitDlg()
   HwndContainer = WinCreateWindow( HwndFrame, WC_CONTAINER, "", WS_VISIBLE|CCS_SINGLESEL|CCS_MINIICONS|CCS_MINIRECORDCORE,
                                    0, 0, 0, 0, HwndFrame, HWND_TOP, FID_CLIENT, NULL, NULL);
   #endif
-  if (!HwndContainer)
-  { DEBUGLOG(("PlaylistManager::InitDlg: failed to create HwndContainer, error = %lx\n", WinGetLastError(NULL)));
-    return;
-  }
+  PMASSERT(HwndContainer != NULLHANDLE);
 
   CNRINFO cnrInfo = { sizeof(CNRINFO) };
   cnrInfo.flWindowAttr = CV_TREE|CV_NAME|CV_MINI|CA_TREELINE|CA_CONTAINERTITLE|CA_TITLELEFT|CA_TITLESEPARATOR|CA_TITLEREADONLY;
@@ -106,7 +103,7 @@ void PlaylistManager::InitDlg()
   //cnrInfo.cyLineSpacing = 0;
   DEBUGLOG(("PlaylistManager::InitDlg: %u\n", cnrInfo.slBitmapOrIcon.cx));
   cnrInfo.pszCnrTitle  = "No playlist selected. Right click for menu.";
-  WinSendMsg(HwndContainer, CM_SETCNRINFO, MPFROMP(&cnrInfo), MPFROMLONG(CMA_FLWINDOWATTR|CMA_CXTREEINDENT|CMA_CNRTITLE|CMA_LINESPACING));
+  PMRASSERT(WinSendMsg(HwndContainer, CM_SETCNRINFO, MPFROMP(&cnrInfo), MPFROMLONG(CMA_FLWINDOWATTR|CMA_CXTREEINDENT|CMA_CNRTITLE|CMA_LINESPACING)));
 
   PlaylistBase::InitDlg();
 }
@@ -150,7 +147,7 @@ MRESULT PlaylistManager::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
           if (rec != NULL && !rec->IsRemoved() && (rec->flRecordAttr & CRA_CURSORED))
           { EmFocus = &rec->Content->GetPlayable();
             if (EmFocus->EnsureInfoAsync(Playable::IF_Tech))
-              WinPostMsg(HwndFrame, UM_UPDATEINFO, MPFROMP(&*EmFocus), 0);
+              PMRASSERT(WinPostMsg(HwndFrame, UM_UPDATEINFO, MPFROMP(&*EmFocus), 0));
           }
         }
       }
@@ -167,6 +164,7 @@ MRESULT PlaylistManager::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
           RequestChildren(rec);
           rec = (Record*)WinSendMsg(HwndContainer, CM_QUERYRECORD, MPFROMP(rec), MPFROM2SHORT(CMA_NEXT, CMA_ITEMORDER));
         }
+        PMASSERT(rec != (Record*)-1);
       }
       return 0;
 
@@ -180,11 +178,11 @@ MRESULT PlaylistManager::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
         if (rec)
         { if (rec->IsRemoved())
             return 0;
-          WinPostMsg(HwndContainer, CM_SETRECORDEMPHASIS, MPFROMP(rec), MPFROM2SHORT(TRUE, CRA_CURSORED));
+          PMRASSERT(WinPostMsg(HwndContainer, CM_SETRECORDEMPHASIS, MPFROMP(rec), MPFROM2SHORT(TRUE, CRA_CURSORED)));
         }
         CmFocus = rec;
         POINTL ptlMouse;
-        WinQueryPointerPos(HWND_DESKTOP, &ptlMouse);
+        PMRASSERT(WinQueryPointerPos(HWND_DESKTOP, &ptlMouse));
         // TODO: Mouse Position may not be reasonable, when the menu is invoked by keyboard.
 
         DEBUGLOG(("PlaylistManager::DlgProc A\n"));
@@ -192,6 +190,7 @@ MRESULT PlaylistManager::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
         if (rec == NULL)
         { if (MainMenu == NULLHANDLE)
           { MainMenu = WinLoadMenu(HWND_OBJECT, 0, PM_MAIN_MENU);
+            PMASSERT(MainMenu != NULLHANDLE);
             mn_make_conditionalcascade(MainMenu, IDM_PL_APPEND, IDM_PL_APPFILE);
           }
           hwndMenu = MainMenu;
@@ -200,6 +199,7 @@ MRESULT PlaylistManager::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
         } else if (rec->Content->GetPlayable().GetFlags() & Playable::Enumerable)
         { if (ListMenu == NULLHANDLE)
           { ListMenu = WinLoadMenu(HWND_OBJECT, 0, PM_LIST_MENU);
+            PMASSERT(ListMenu != NULLHANDLE);
             mn_make_conditionalcascade(ListMenu, IDM_PL_APPEND, IDM_PL_APPFILE);
           }
           if (Record::IsRemoved(rec))
@@ -209,6 +209,7 @@ MRESULT PlaylistManager::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
         } else
         { if (FileMenu == NULLHANDLE)
           { FileMenu = WinLoadMenu(HWND_OBJECT, 0, PM_FILE_MENU);
+            PMASSERT(FileMenu != NULLHANDLE);
           }
           hwndMenu = FileMenu;
           mn_enable_item(hwndMenu, IDM_PL_EDIT, rec->Content->GetPlayable().GetInfo().meta_write);
@@ -217,8 +218,8 @@ MRESULT PlaylistManager::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
         if (Record::IsRemoved(rec))
           return 0; // record could be removed now
         DEBUGLOG(("PlaylistManager::DlgProc: Menu: %p %p %p\n", MainMenu, ListMenu, FileMenu));
-        WinPopupMenu(HWND_DESKTOP, HwndFrame, hwndMenu, ptlMouse.x, ptlMouse.y, 0,
-                     PU_HCONSTRAIN | PU_VCONSTRAIN | PU_MOUSEBUTTON1 | PU_MOUSEBUTTON2 | PU_KEYBOARD);
+        PMRASSERT(WinPopupMenu(HWND_DESKTOP, HwndFrame, hwndMenu, ptlMouse.x, ptlMouse.y, 0,
+                               PU_HCONSTRAIN | PU_VCONSTRAIN | PU_MOUSEBUTTON1 | PU_MOUSEBUTTON2 | PU_KEYBOARD));
       }
       return 0;
 
@@ -315,7 +316,8 @@ MRESULT PlaylistManager::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
           UpdateInstance(rec, PlayableInstance::SF_Alias);
         // It is essential that all messages that are not masked by the overloaded PosRecordCommand
         // are handled here. Otherwise: infinite loop. The assertion below checks for this.
-        assert((il & ~(1<<RC_UPDATETECH | 1<<RC_UPDATECHILDREN | 1<<RC_UPDATESTATUS | 1<<RC_UPDATEALIAS)) == 0);
+        ASSERT((il & ~(1<<RC_UPDATETECH | 1<<RC_UPDATECHILDREN | 1<<RC_UPDATESTATUS | 1<<RC_UPDATEALIAS)) == 0);
+        il &= ~(1<<RC_UPDATETECH | 1<<RC_UPDATECHILDREN | 1<<RC_UPDATESTATUS | 1<<RC_UPDATEALIAS);
       } while (il);
       break; // continue in base class
     }
@@ -330,9 +332,9 @@ void PlaylistManager::SetInfo(const xstring& text)
 { DEBUGLOG(("PlaylistManager(%p)::SetInfo(%s)\n", this, text.cdata()));
   CNRINFO cnrInfo = { sizeof(CNRINFO) };
   cnrInfo.pszCnrTitle = (char*)text.cdata(); // OS/2 API doesn't like const...
-  if (WinSendMsg(HwndContainer, CM_SETCNRINFO, MPFROMP(&cnrInfo), MPFROMLONG(CMA_CNRTITLE)))
-    // now free the old title
-    Info = text;
+  PMRASSERT(WinSendMsg(HwndContainer, CM_SETCNRINFO, MPFROMP(&cnrInfo), MPFROMLONG(CMA_CNRTITLE)));
+  // now free the old title
+  Info = text;
 }
 
 PlaylistBase::ICP PlaylistManager::GetPlayableType(RecordBase* rec)
@@ -388,6 +390,7 @@ bool PlaylistManager::RecursionCheck(Playable* pp, RecordBase* parent)
       if (&parent->Content->GetPlayable() == pp)
         break;
       parent = (Record*)WinSendMsg(HwndContainer, CM_QUERYRECORD, MPFROMP(parent), MPFROM2SHORT(CMA_PARENT, CMA_ITEMORDER));
+      PMASSERT(parent != (Record*)-1);
       DEBUGLOG(("PlaylistManager::RecursionCheck: recusrion check %s\n", Record::DebugName(parent).cdata()));
     }
     // recursion in playlist tree
@@ -401,6 +404,7 @@ bool PlaylistManager::RecursionCheck(RecordBase* rp)
   if (pp != &*Content)
   { do
     { rp = (Record*)WinSendMsg(HwndContainer, CM_QUERYRECORD, MPFROMP(rp), MPFROM2SHORT(CMA_PARENT, CMA_ITEMORDER));
+      PMASSERT(rp != (Record*)-1);
       DEBUGLOG2(("PlaylistManager::RecursionCheck: recusrion check %p\n", rp));
       if (rp == NULL || rp == (Record*)-1)
         return false;
@@ -418,16 +422,13 @@ PlaylistBase::RecordBase* PlaylistManager::CreateNewRecord(PlayableInstance* obj
 { DEBUGLOG(("PlaylistManager(%p{%s})::CreateNewRecord(%p{%s}, %p)\n", this, DebugName().cdata(), obj, obj->GetPlayable().GetURL().getShortName().cdata(), parent));
   // Allocate a record in the HwndContainer
   Record* rec = (Record*)WinSendMsg(HwndContainer, CM_ALLOCRECORD, MPFROMLONG(sizeof(Record) - sizeof(MINIRECORDCORE)), MPFROMLONG(1));
-  if (rec == NULL)
-  { DEBUGLOG(("PlaylistManager::CreateNewRecord: CM_ALLOCRECORD failed, error %lx\n", WinGetLastError(NULL)));
-    DosBeep(500, 100);
-    return NULL;
-  }
+  PMASSERT(rec != NULL);
+  
   if (Record::IsRemoved(parent))
   { // Parent removed => forget about it
     rec->Data() = NULL;
     // delete the record
-    WinPostMsg(HwndFrame, UM_DELETERECORD, MPFROMP(rec), 0);
+    PMRASSERT(WinPostMsg(HwndFrame, UM_DELETERECORD, MPFROMP(rec), 0));
     return NULL;
   }
   rec->Content         = obj;
@@ -478,7 +479,7 @@ void PlaylistManager::UpdateTech(Record* rec)
     { // TODO: maybe this should be better up to the calling thread
       EmFocus = &rec->Content->GetPlayable();
       // continue later
-      WinPostMsg(HwndFrame, UM_UPDATEINFO, MPFROMP(&*rec), 0);
+      PMRASSERT(WinPostMsg(HwndFrame, UM_UPDATEINFO, MPFROMP(&*rec), 0));
     }
     bool recursive = rec->Content->GetPlayable().GetInfo().tech->recursive && RecursionCheck(rec);
     if (recursive != rec->Data()->Recursive)
@@ -497,11 +498,12 @@ void PlaylistManager::UpdatePlayStatus(RecordBase* rec)
   { UpdatePlayStatus(rec);
     rec = (RecordBase*)WinSendMsg(HwndContainer, CM_QUERYRECORD, MPFROMP(rec), MPFROM2SHORT(CMA_NEXT, CMA_ITEMORDER));
   }
+  PMASSERT(rec != (RecordBase*)-1);
 }
 
-void PlaylistManager::Open(const char* URL)
+/*void PlaylistManager::Open(const char* URL)
 {
-}
+}*/
 
 /*
 

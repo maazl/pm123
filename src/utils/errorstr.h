@@ -32,6 +32,8 @@
 #ifndef ERRORSTR_H
 #define ERRORSTR_H
 
+#include <stdlib.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -43,10 +45,13 @@ const char* sock_strerror( int socket_errno );
 #define strerror( n ) clib_strerror( n )
 
 const char* h_strerror   ( int tcpip_errno  );
-const char* clib_strerror( int clib_errno   );
+char* clib_strerror( int clib_errno   );
 
-char* os2_strerror( unsigned int os2_errno,
+char* os2_strerror( unsigned long os2_errno,
                     char* result, size_t size );
+
+char* os2pm_strerror( char* result, size_t size );
+
 #ifdef __cplusplus
 }
 #endif

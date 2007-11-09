@@ -188,6 +188,7 @@ FIELDINFO* PlaylistView::ConstFieldinfo;
 
 FIELDINFO* PlaylistView::CreateFieldinfo(const Column* cols, size_t count)
 { FIELDINFO* first = (FIELDINFO*)WinSendMsg(HwndContainer, CM_ALLOCDETAILFIELDINFO, MPFROMSHORT(count), 0);
+  PMASSERT(first != NULL);
   FIELDINFO* field = first;
   const Column* cp = cols;
   do
@@ -213,10 +214,7 @@ void PlaylistView::InitDlg()
   HwndContainer = WinCreateWindow( HwndFrame, WC_CONTAINER, "", WS_VISIBLE|CCS_EXTENDSEL|CCS_MINIICONS|CCS_MINIRECORDCORE,
                                    0, 0, 0, 0, HwndFrame, HWND_TOP, FID_CLIENT, NULL, NULL);
   #endif
-  if (!HwndContainer)
-  { DEBUGLOG(("PlaylistView::InitDlg: failed to create HwndContainer, error = %lx\n", WinGetLastError(NULL)));
-    return;
-  }
+  PMASSERT(HwndContainer != NULLHANDLE);
 
   static bool initialized = false;
   if (!initialized)
@@ -240,8 +238,8 @@ void PlaylistView::InitDlg()
     first = ConstFieldinfo;
     cnrinfo.pFieldInfoLast  = first->pNextFieldInfo; // The first 2 colums are left to the bar.
   }
-  WinSendMsg(HwndContainer, CM_INSERTDETAILFIELDINFO, MPFROMP(first), MPFROMP(&insert));
-  WinSendMsg(HwndContainer, CM_SETCNRINFO, MPFROMP(&cnrinfo), MPFROMLONG( CMA_PFIELDINFOLAST|CMA_XVERTSPLITBAR|CMA_FLWINDOWATTR));
+  PMXASSERT(SHORT1FROMMR(WinSendMsg(HwndContainer, CM_INSERTDETAILFIELDINFO, MPFROMP(first), MPFROMP(&insert))), != 0);
+  PMRASSERT(WinSendMsg(HwndContainer, CM_SETCNRINFO, MPFROMP(&cnrinfo), MPFROMLONG( CMA_PFIELDINFOLAST|CMA_XVERTSPLITBAR|CMA_FLWINDOWATTR)));
 
   /* Initializes the playlist presentation window. */
   PlaylistBase::InitDlg();
@@ -284,16 +282,17 @@ MRESULT PlaylistView::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
         if (Record::IsRemoved(focus))
           return 0; // record removed
         if (focus)
-          WinPostMsg(HwndContainer, CM_SETRECORDEMPHASIS, MPFROMP(focus), MPFROM2SHORT(TRUE, CRA_CURSORED));
+          PMRASSERT(WinPostMsg(HwndContainer, CM_SETRECORDEMPHASIS, MPFROMP(focus), MPFROM2SHORT(TRUE, CRA_CURSORED)));
 
         POINTL ptlMouse;
-        WinQueryPointerPos(HWND_DESKTOP, &ptlMouse);
+        PMRASSERT(WinQueryPointerPos(HWND_DESKTOP, &ptlMouse));
         // TODO: Mouse Position may not be reasonable, when the menu is invoked by keyboard.
 
         HWND   hwndMenu;
         if (focus == NULL)
         { if (MainMenu == NULLHANDLE)
           { MainMenu = WinLoadMenu(HWND_OBJECT, 0, MNU_PLAYLIST);
+            PMASSERT(MainMenu != NULLHANDLE);
             mn_make_conditionalcascade(MainMenu, IDM_PL_APPEND, IDM_PL_APPFILE);
           }
           hwndMenu = MainMenu;
@@ -307,11 +306,13 @@ MRESULT PlaylistView::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
         } else if (focus->Content->GetPlayable().GetFlags() & Playable::Enumerable)
         { if (ListMenu == NULLHANDLE)
           { ListMenu = WinLoadMenu(HWND_OBJECT, 0, MNU_PLRECORD);
+            PMASSERT(ListMenu != NULLHANDLE);
           }
           hwndMenu = ListMenu;
         } else
         { if (FileMenu == NULLHANDLE)
           { FileMenu = WinLoadMenu(HWND_OBJECT, 0, MNU_RECORD);
+            PMASSERT(FileMenu != NULLHANDLE);
           }
           hwndMenu = FileMenu;
           if (focus->IsRemoved())
@@ -321,8 +322,8 @@ MRESULT PlaylistView::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
         if (Record::IsRemoved(focus))
           return 0; // record could be removed now
         DEBUGLOG2(("PlaylistManager::DlgProc: Menu: %p %p %p\n", MainMenu, ListMenu, FileMenu));
-        WinPopupMenu(HWND_DESKTOP, HwndFrame, hwndMenu, ptlMouse.x, ptlMouse.y, 0,
-                     PU_HCONSTRAIN | PU_VCONSTRAIN | PU_MOUSEBUTTON1 | PU_MOUSEBUTTON2 | PU_KEYBOARD);
+        PMRASSERT(WinPopupMenu(HWND_DESKTOP, HwndFrame, hwndMenu, ptlMouse.x, ptlMouse.y, 0,
+                               PU_HCONSTRAIN | PU_VCONSTRAIN | PU_MOUSEBUTTON1 | PU_MOUSEBUTTON2 | PU_KEYBOARD));
         return 0;
       }
     }
@@ -500,14 +501,10 @@ bool PlaylistView::CalcCols(Record* rec, Playable::InfoFlags flags, PlayableInst
 PlaylistBase::RecordBase* PlaylistView::CreateNewRecord(PlayableInstance* obj, RecordBase* parent)
 { DEBUGLOG(("PlaylistView(%p{%s})::CreateNewRecord(%p{%s}, %p)\n", this, DebugName().cdata(), obj, obj->GetPlayable().GetURL().getShortName().cdata(), parent));
   // No nested records in this view
-  assert(parent == NULL);
+  ASSERT(parent == NULL);
   // Allocate a record in the HwndContainer
   Record* rec = (Record*)WinSendMsg(HwndContainer, CM_ALLOCRECORD, MPFROMLONG(sizeof(Record) - sizeof(MINIRECORDCORE)), MPFROMLONG(1));
-  if (rec == NULL)
-  { DEBUGLOG(("PlaylistView::CreateNewRecord: CM_ALLOCRECORD failed, error %lx\n", WinGetLastError(NULL)));
-    DosBeep(500, 100);
-    return NULL;
-  }
+  PMASSERT(rec != NULL);
 
   rec->Content         = obj;
   rec->UseCount        = 1;
@@ -552,7 +549,7 @@ void PlaylistView::UpdateRecord(Record* rec, Playable::InfoFlags flags, Playable
     update = true;
   // update screen
   if (update)
-    WinSendMsg(HwndContainer, CM_INVALIDATERECORD, MPFROMP(&rec), MPFROM2SHORT(1, CMA_TEXTCHANGED));
+    PMRASSERT(WinSendMsg(HwndContainer, CM_INVALIDATERECORD, MPFROMP(&rec), MPFROM2SHORT(1, CMA_TEXTCHANGED)));
 }
 
 

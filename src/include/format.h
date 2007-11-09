@@ -54,7 +54,7 @@ typedef struct
   int    bitrate;      /* in kbit/s, smaller than 0 -> unknown */
   double filesize;     /* physical size of the file, smaller than 0 -> unknown */
   char   info[128];    /* general technical information string */
-  int    num_items;    /* number of logical items (for playlists) */
+  int    num_items;    /* number of song items (for playlists), otherwise 1 */
   int    recursive;    /* Flag whether this object has some recursion in it's subobjects detected */
 } TECH_INFO;
 

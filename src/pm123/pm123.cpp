@@ -198,9 +198,10 @@ amp_paint_timers( HPS hps )
     double play_left = 0;
     double list_left = 0;
 
-    const Song* song = Current.GetCurrentSong();
-    if (song != NULL)
-      play_left = song->GetInfo().tech->songlength; // If the information is not yet available this returns 0
+    { int_ptr<Song> song = Current.GetCurrentSong();
+      if (song != NULL)
+        play_left = song->GetInfo().tech->songlength; // If the information is not yet available this returns 0
+    }
 
     if (decoder_playing())
       play_time = !is_seeking ? out_playing_pos() : seeking_pos;
@@ -574,10 +575,9 @@ amp_show_context_menu( HWND parent )
 
     mn_make_conditionalcascade( menu, IDM_M_LOAD, IDM_M_LOADFILE );
 
-    //PlaylistMenu* pmp = new PlaylistMenu(parent, IDM_M_LAST, IDM_M_LAST_E);
-    // TODO: TEST!!!
-    //pmp->AttachMenu(IDM_M_BOOKMARKS, DefaultBM->GetContent(), PlaylistMenu::DummyIfEmpty|PlaylistMenu::Recursive|PlaylistMenu::Enumerate, 0);
-    //pmp->AttachMenu(IDM_M_LOAD, LoadMRU, PlaylistMenu::Enumerate|PlaylistMenu::Separator, 0);
+    PlaylistMenu* pmp = new PlaylistMenu(parent, IDM_M_LAST, IDM_M_LAST_E);
+    pmp->AttachMenu(IDM_M_BOOKMARKS, DefaultBM->GetContent(), PlaylistMenu::DummyIfEmpty|PlaylistMenu::Recursive|PlaylistMenu::Enumerate, 0);
+    pmp->AttachMenu(IDM_M_LOAD, LoadMRU, PlaylistMenu::Enumerate|PlaylistMenu::Separator, 0);
   }
 
   POINTL   pos;
@@ -2790,10 +2790,43 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
         }
       }
       break;
+      
+/*    case 0x4321:
+      DEBUGLOG(("amp_dlg_proc: my pretty sent message # %i\n", LONGFROMMP(mp1)));
+      return mp1;
+    case 0x5432:
+      DEBUGLOG(("amp_dlg_proc: my pretty post message # %i\n", LONGFROMMP(mp1)));
+      return 0;*/
   }
 
+  DEBUGLOG2(("amp_dlg_proc: before WinDefWindowProc\n"));
   return WinDefWindowProc( hwnd, msg, mp1, mp2 );
 }
+
+/*static MRESULT EXPENTRY
+amp_dlg_proc2( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
+{ MRESULT r = amp_dlg_proc(hwnd, msg, mp1, mp2);
+  DEBUGLOG(("amp_dlg_proc: end %x\n", msg));
+  return r;
+}
+static void TFNENTRY
+amp_sender_thread(void* param)
+{ HAB hab = WinInitialize(0);
+  HMQ hmq = WinCreateMsgQueue(hab, 0);
+  
+  for (int i = 1; i < 100000; ++i)
+  { DEBUGLOG(("amp_sender_thread: before WinPostMsg #%i\n", i));
+    WinPostMsg(hframe, 0x5432, MPFROMLONG(i), 0);
+    DEBUGLOG(("amp_sender_thread: before WinSendMsg #%i\n", i));
+    WinSendMsg(hframe, 0x4321, MPFROMLONG(i), 0);
+    DEBUGLOG(("amp_sender_thread: after WinSendMsg\n"));
+    DosSleep(0);
+  }
+  
+  WinDestroyMsgQueue(hmq);
+  WinTerminate(hab);
+}*/
+
 
 /* Stops playing and resets the player to its default state. */
 void
@@ -2917,11 +2950,15 @@ main2( void* arg )
   QMSG   qmsg;
   struct stat fi;
 
+  ///////////////////////////////////////////////////////////////////////////
+  // Initialization of infrastructure
+  ///////////////////////////////////////////////////////////////////////////
+  
   HELPINIT hinit;
   ULONG    flCtlData = FCF_TASKLIST | FCF_NOBYTEALIGN | FCF_ACCELTABLE | FCF_ICON;
 
   hab = WinInitialize( 0 );
-  hmq = WinCreateMsgQueue( hab, 0 );
+  PMXASSERT(hmq = WinCreateMsgQueue( hab, 0 ), != NULLHANDLE);
 
   load_ini();
   //amp_volume_to_normal(); // Superfluous!
@@ -3008,10 +3045,9 @@ main2( void* arg )
 
   // Init default lists
   { const url path = url::normalizeURL(startpath);
-    // TODO: TEST!!!
-    //DefaultPL = PlaylistView::Get(path + "PM123.LST", "Default Playlist");
-    //DefaultPM = PlaylistManager::Get(path + "PFREQ.LST", "Playlist Manager");
-    //DefaultBM = PlaylistView::Get(path + "BOOKMARK.LST", "Bookmarks");
+    DefaultPL = PlaylistView::Get(path + "PM123.LST", "Default Playlist");
+    DefaultPM = PlaylistManager::Get(path + "PFREQ.LST", "Playlist Manager");
+    DefaultBM = PlaylistView::Get(path + "BOOKMARK.LST", "Bookmarks");
     LoadMRU   = (Playlist*)&*Playable::GetByURL(path + "LOADMRU.LST");
   }
 
@@ -3027,17 +3063,31 @@ main2( void* arg )
   }
 
   // TODO: TEST!!!
-  /*DefaultPL->SetVisible(cfg.show_playlist);
-  DefaultPM->SetVisible(cfg.show_plman);
-  DefaultBM->SetVisible(cfg.show_bmarks);*/
-
+  //DefaultPL->SetVisible(cfg.show_playlist);
+  //DefaultPM->SetVisible(cfg.show_plman);
+  //DefaultBM->SetVisible(cfg.show_bmarks);
+ 
   DEBUGLOG(("main: init complete\n"));
+  //_beginthread(amp_sender_thread, NULL, 65536, NULL);
 
+  ///////////////////////////////////////////////////////////////////////////
+  // Main loop
+  ///////////////////////////////////////////////////////////////////////////
   while( WinGetMsg( hab, &qmsg, (HWND)0, 0, 0 ))
+  { DEBUGLOG2(("main: after WinGetMsg - %p, %p\n", qmsg.hwnd, qmsg.msg));
     WinDispatchMsg( hab, &qmsg );
+    DEBUGLOG2(("main: after WinDispatchMsg - %p, %p\n", qmsg.hwnd, qmsg.msg));
+  }
   DEBUGLOG(("main: dispatcher ended\n"));
 
+  ///////////////////////////////////////////////////////////////////////////
+  // Stop and save configuration
+  ///////////////////////////////////////////////////////////////////////////
   amp_stop();
+
+  save_ini();
+//  bm_save( hplayer );
+//  pl_save_bundle( bundle, 0 );
 
   // deinitialize all visual plug-ins
   vis_deinit_all( TRUE );
@@ -3047,17 +3097,19 @@ main2( void* arg )
     WinDestroyWindow( heq );
   }
 
-  save_ini();
-//  bm_save( hplayer );
-//  pl_save_bundle( bundle, 0 );
+  ///////////////////////////////////////////////////////////////////////////
+  // Uninitialize infrastructure
+  ///////////////////////////////////////////////////////////////////////////
+  Current.Attach(NULL);
 
+  LoadMRU   = NULL;
   DefaultBM = NULL;
   DefaultPM = NULL;
   DefaultPL = NULL;
 
   PlaylistManager::UnInit();
   PlaylistView::UnInit();
-
+ 
   bmp_clean_skin();
   remove_all_plugins();
   dk_term();
@@ -3068,7 +3120,7 @@ main2( void* arg )
   WinTerminate( hab );
 
   #ifdef __DEBUG_ALLOC__
-    _dump_allocated( 0 );
+  _dump_allocated( 0 );
   #endif
 }
 
@@ -3141,16 +3193,8 @@ main( int argc, char *argv[] )
 
   srand((unsigned long)time( NULL ));
 
-  // start new thread
+  // now init PM
   args args = { argc, argv, files };
-  // TODO: TEST!!!
-  #if 0
-  TID tid = _beginthread(main2, NULL, 1024*1024, &args);
-  // and wait for thread2
-  DosWaitThread(&tid, DCWW_WAIT);
-  #else
-  // ohne thread
   main2(&args);
-  #endif
   return 0;
 }

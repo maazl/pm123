@@ -109,7 +109,7 @@ class PlaylistManager : public PlaylistRepository<PlaylistManager>
   virtual void      UpdatePlayStatus(RecordBase* rec);
 
  private:
-  virtual void      Open(const char* URL);
+  //virtual void      Open(const char* URL);
 
  private:
   // Create a playlist manager window for an URL, but don't open it.

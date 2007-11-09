@@ -63,6 +63,8 @@ class event_base
   // Add a delegate to the current event
   void operator+=(delegate_base& d);
   // Remove a delegate from the current event and return true if succeeded.
+  // Note that removing a delegate from an event does not ensure that the event is no
+  // longer called, because it may been raised already.
   bool operator-=(delegate_base& d);
   // Fire the event.
   void operator()(dummy& param) const;
@@ -90,9 +92,9 @@ class delegate_base
   delegate_base(func_type fn, const void* rcv) : Fn(fn), Rcv(rcv), Ev(NULL) { DEBUGLOG(("delegate_base(%p)::delegate_base(%p, %p)\n", this, fn, rcv)); }
   // Construct delegate and attach it to an event immediately
   delegate_base(event_base& ev, func_type fn, const void* rcv);
-  ~delegate_base()                             { DEBUGLOG(("delegate_base(%p)::~delegate_base() - %p\n", this, Ev)); if (Ev) (*Ev) -= *this; }
+  ~delegate_base()                             { DEBUGLOG(("delegate_base(%p)::~delegate_base() - %p\n", this, Ev)); detach(); }
  public:
-  void           detach()                      { DEBUGLOG(("delegate_base(%p)::detach() - %p\n", this, Ev)); if (Ev) { (*Ev) -= *this; Ev = NULL; } }
+  void           detach();
 };
 
 /* Partial typed delegate class.

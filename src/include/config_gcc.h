@@ -7,6 +7,7 @@
 #define INLINE    __inline__
 #define DLLENTRY  _System
 #define DLLENTRYP(sym) DLLENTRY (*sym)
+#define DLLENTRYP2(sym) DLLENTRY (*sym)
 
 #define INIT_ATTRIBUTE __attribute__((constructor))
 #define TERM_ATTRIBUTE __attribute__((destructor))

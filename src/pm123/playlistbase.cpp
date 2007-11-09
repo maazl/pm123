@@ -122,7 +122,10 @@ PlaylistBase::PlaylistBase(const char* url, const char* alias, ULONG rid)
   CmFocus(NULL),
   NoRefresh(false),
   RootInfoDelegate(*this, &PlaylistBase::InfoChangeEvent, NULL),
-  RootPlayStatusDelegate(*this, &PlaylistBase::PlayStatEvent)
+  RootPlayStatusDelegate(*this, &PlaylistBase::PlayStatEvent),
+  ThreadID(0),
+  InitialVisible(false),
+  Initialized(0)
 { DEBUGLOG(("PlaylistBase(%p)::PlaylistBase(%s)\n", this, url));
   static bool first = true;
   if (first)
@@ -136,9 +139,9 @@ PlaylistBase::PlaylistBase(const char* url, const char* alias, ULONG rid)
 
 PlaylistBase::~PlaylistBase()
 { DEBUGLOG(("PlaylistBase(%p)::~PlaylistBase()\n", this));
-  WinPostMsg(HwndFrame, WM_QUIT, 0, 0);
+  PMRASSERT(WinPostMsg(HwndFrame, WM_QUIT, 0, 0));
   // This may give an error if called from our own thread. This is intensionally ignored here.
-  DosWaitThread(&ThreadID, DCWW_WAIT);
+  ORASSERT(DosWaitThread(&ThreadID, DCWW_WAIT));
 }
 
 void TFNENTRY pl_DlgThreadStub(void* arg)
@@ -150,21 +153,24 @@ void PlaylistBase::StartDialog()
 }
 
 void PlaylistBase::DlgThread()
-{ // initialize PM
+{ DEBUGLOG(("PlaylistBase(%p)::DlgThread()\n", this));
+  // initialize PM
   HAB hab = WinInitialize(0);
   HMQ hmq = WinCreateMsgQueue(hab, 0);
+  PMASSERT(hmq != NULLHANDLE);
   // initialize dialog
   init_dlg_struct ids = { sizeof(init_dlg_struct), this };
-  WinLoadDlg(HWND_DESKTOP, HWND_DESKTOP, pl_DlgProcStub, NULLHANDLE, DlgRID, &ids);
+  PMRASSERT(WinLoadDlg(HWND_DESKTOP, HWND_DESKTOP, pl_DlgProcStub, NULLHANDLE, DlgRID, &ids));
+  
   // get and dispatch messages from queue
   QMSG msg;
   while (WinGetMsg(hab, &msg, 0, 0, 0))
     WinDispatchMsg(hab, &msg);
   // cleanup
   save_window_pos(HwndFrame, 0);
-  WinDestroyWindow(HwndFrame);
-  WinDestroyMsgQueue(hmq);
-  WinTerminate(hab);
+  PMRASSERT(WinDestroyWindow(HwndFrame));
+  PMRASSERT(WinDestroyMsgQueue(hmq));
+  PMRASSERT(WinTerminate(hab));
 }
 
 void PlaylistBase::PostRecordCommand(RecordBase* rec, RecordCommand cmd)
@@ -178,25 +184,20 @@ void PlaylistBase::PostRecordCommand(RecordBase* rec, RecordCommand cmd)
   // There is a little chance that we generate two messages for the same record.
   // The second one will be a no-op in the window procedure.
   BlockRecord(rec);
-  if (!WinPostMsg(HwndFrame, UM_RECORDCOMMAND, MPFROMP(rec), MPFROMSHORT(TRUE)))
-    FreeRecord(rec); // avoid memory leaks
+  PMRASSERT(WinPostMsg(HwndFrame, UM_RECORDCOMMAND, MPFROMP(rec), MPFROMSHORT(TRUE)));
 }
 
 void PlaylistBase::FreeRecord(RecordBase* rec)
 { DEBUGLOG(("PlaylistBase(%p)::FreeRecord(%p)\n", this, rec));
   if (rec && InterlockedDec(rec->UseCount) == 0)
     // we can safely post this message because the record is now no longer used anyway.
-    WinPostMsg(HwndFrame, UM_DELETERECORD, MPFROMP(rec), 0);
+    PMRASSERT(WinPostMsg(HwndFrame, UM_DELETERECORD, MPFROMP(rec), 0));
 }
 
 void PlaylistBase::DeleteEntry(RecordBase* entry)
 { DEBUGLOG(("PlaylistBase(%p{%s})::DeleteEntry(%s)\n", this, DebugName().cdata(), RecordBase::DebugName(entry).cdata()));
   delete entry->Data;
-  #ifdef DEBUG
-  assert(LONGFROMMR(WinSendMsg(HwndContainer, CM_FREERECORD, MPFROMP(&entry), MPFROMSHORT(1))));
-  #else
-  WinSendMsg(HwndContainer, CM_FREERECORD, MPFROMP(&entry), MPFROMSHORT(1));
-  #endif
+  PMRASSERT(WinSendMsg(HwndContainer, CM_FREERECORD, MPFROMP(&entry), MPFROMSHORT(1)));
   DEBUGLOG(("PlaylistBase::DeleteEntry completed\n"));
 }
 
@@ -208,7 +209,7 @@ MRESULT EXPENTRY pl_DlgProcStub(HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2)
   { // Attach the class instance to the window.
     PlaylistBase::init_dlg_struct* ip = (PlaylistBase::init_dlg_struct*)mp2;
     DEBUGLOG(("PlaylistBase::DlgProcStub: WM_INITDLG - %p{%i, %p}}\n", ip, ip->size, ip->pm));
-    WinSetWindowPtr(hwnd, QWL_USER, ip->pm);
+    PMRASSERT(WinSetWindowPtr(hwnd, QWL_USER, ip->pm));
     pb = (PlaylistBase*)ip->pm;
     pb->HwndFrame = hwnd; // Store the hwnd early, since LoadDlg will return too late.
   } else
@@ -224,13 +225,14 @@ MRESULT EXPENTRY pl_DlgProcStub(HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2)
 
 void PlaylistBase::InitDlg()
 { HPOINTER hicon = WinLoadPointer(HWND_DESKTOP, 0, ICO_MAIN);
-  WinSendMsg(HwndFrame, WM_SETICON, (MPARAM)hicon, 0);
+  PMASSERT(hicon != NULLHANDLE);
+  PMRASSERT(WinSendMsg(HwndFrame, WM_SETICON, (MPARAM)hicon, 0));
   do_warpsans(HwndFrame);
   { LONG     color;
     color = CLR_GREEN;
-    WinSetPresParam(HwndContainer, PP_FOREGROUNDCOLORINDEX, sizeof(color), &color);
+    PMRASSERT(WinSetPresParam(HwndContainer, PP_FOREGROUNDCOLORINDEX, sizeof(color), &color));
     color = CLR_BLACK;
-    WinSetPresParam(HwndContainer, PP_BACKGROUNDCOLORINDEX, sizeof(color), &color);
+    PMRASSERT(WinSetPresParam(HwndContainer, PP_BACKGROUNDCOLORINDEX, sizeof(color), &color));
   }
 
   rest_window_pos(HwndFrame, 0);
@@ -245,10 +247,16 @@ void PlaylistBase::InitDlg()
   SetTitle();
 
   // TODO: acceleration table entries for plug-in extensions
-  HAB    hab = WinQueryAnchorBlock( HwndFrame );
+  HAB    hab   = WinQueryAnchorBlock( HwndFrame );
   HACCEL accel = WinLoadAccelTable( hab, NULLHANDLE, ACL_PLAYLIST );
+  PMASSERT(accel != NULLHANDLE);
   if( accel )
-    WinSetAccelTable( hab, accel, HwndFrame );
+    PMRASSERT(WinSetAccelTable( hab, accel, HwndFrame ));
+    
+  // Visibility
+  Initialized = 1;
+  SetVisible(InitialVisible);
+  Initialized = 2;
 }
 
 MRESULT PlaylistBase::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
@@ -292,6 +300,21 @@ MRESULT PlaylistBase::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
       }
     }
     break;
+
+   case WM_WINDOWPOSCHANGED:
+    { SWP* pswp = (SWP*)PVOIDFROMMP(mp1);
+      if ((pswp[0].fl & (SWP_SHOW|SWP_HIDE)) == 0)
+        break;
+      dk_set_state( HwndFrame, pswp[0].fl & SWP_SHOW ? 0 : DK_IS_GHOST );
+      HSWITCH hswitch = WinQuerySwitchHandle( HwndFrame, 0 );
+      if (hswitch == NULLHANDLE)
+        break; // For some reasons the switchlist entry may be destroyed before.
+      SWCNTRL swcntrl;
+      PMXASSERT(WinQuerySwitchEntry(hswitch, &swcntrl), == 0);
+      swcntrl.uchVisibility = pswp[0].fl & SWP_SHOW ? SWL_VISIBLE : SWL_INVISIBLE;
+      PMXASSERT(WinChangeSwitchEntry( hswitch, &swcntrl ), == 0);
+      break;
+    }
 
    case WM_COMMAND:
     { USHORT cmd = SHORT1FROMMP(mp1);
@@ -403,13 +426,13 @@ MRESULT PlaylistBase::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
       DEBUGLOG(("PlaylistBase::DlgProc: UM_RECORDCOMMAND: %s - %i\n", RecordBase::DebugName(rec).cdata(), SHORT1FROMMP(mp2)));
       if (SHORT1FROMMP(mp2))
         FreeRecord(rec);
-      return 0;
+      return MRFROMLONG(TRUE);
     }
 
    case UM_DELETERECORD:
     DEBUGLOG(("PlaylistBase::DlgProc: UM_DELETERECORD: %s\n", RecordBase::DebugName((RecordBase*)PVOIDFROMMP(mp1)).cdata()));
     DeleteEntry((RecordBase*)PVOIDFROMMP(mp1));
-    return 0;
+    return MRFROMLONG(TRUE);
 
    case UM_SYNCREMOVE:
     { RecordBase* rec = (RecordBase*)PVOIDFROMMP(mp1);
@@ -419,7 +442,7 @@ MRESULT PlaylistBase::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
       rec->Data->DeregisterEvents();
       if (CmFocus == rec)
         CmFocus = NULL;
-      return 0;
+      return MRFROMLONG(TRUE);
     }
 
    case UM_PLAYSTATUS:
@@ -436,21 +459,28 @@ int PlaylistBase::CompareTo(const char* str) const
 
 void PlaylistBase::SetVisible(bool show)
 { DEBUGLOG(("PlaylistBase(%p{%s})::SetVisible(%u)\n", this, DebugName().cdata(), show));
-  HSWITCH hswitch = WinQuerySwitchHandle( HwndFrame, 0 );
-  SWCNTRL swcntrl;
 
-  if( WinQuerySwitchEntry( hswitch, &swcntrl ) == 0 ) {
-    swcntrl.uchVisibility = show ? SWL_VISIBLE : SWL_INVISIBLE;
-    WinChangeSwitchEntry( hswitch, &swcntrl );
+  if (Initialized == 0) // double check
+  { CritSect cs;
+    if (Initialized == 0)
+    { InitialVisible = show;
+      return;
+  } }
+  
+  PMRASSERT(WinSetWindowPos( HwndFrame, HWND_TOP, 0, 0, 0, 0, show ? SWP_SHOW | SWP_ZORDER | SWP_ACTIVATE : SWP_HIDE ));
+}
+
+bool PlaylistBase::GetVisible() const
+{ if (Initialized < 2)
+  { CritSect cs;
+    if (Initialized < 2)
+      return InitialVisible;
   }
-
-  dk_set_state( HwndFrame, show ? 0 : DK_IS_GHOST );
-  WinSetWindowPos( HwndFrame, HWND_TOP, 0, 0, 0, 0,
-                   show ? SWP_SHOW | SWP_ZORDER | SWP_ACTIVATE : SWP_HIDE );
+  return WinIsWindowVisible(HwndFrame);
 }
 
 HPOINTER PlaylistBase::CalcIcon(RecordBase* rec)
-{ assert(rec->Content != NULL);
+{ ASSERT(rec->Content != NULL);
   DEBUGLOG(("PlaylistBase::CalcIcon(%s) - %u\n", RecordBase::DebugName(rec).cdata(), rec->Content->GetPlayable().GetStatus()));
   switch (rec->Content->GetPlayable().GetStatus())
   {case STA_Unknown:
@@ -479,9 +509,9 @@ void PlaylistBase::SetTitle()
   xstring title = xstring::sprintf("PM123: %s%s%s%s", (Alias ? Alias.cdata() : dn.cdata()), NameApp,
     (Content->GetFlags() & Playable::Enumerable) && ((PlayableCollection&)*Content).IsModified() ? " (*)" : "", append);
   // Update Window Title
-  if (WinSetWindowText(HwndFrame, (char*)title.cdata()))
-    // now free the old title
-    Title = title;
+  PMRASSERT(WinSetWindowText(HwndFrame, (char*)title.cdata()));
+  // now free the old title
+  Title = title;
 }
 
 PlaylistBase::RecordBase* PlaylistBase::AddEntry(PlayableInstance* obj, RecordBase* parent, RecordBase* after)
@@ -500,9 +530,8 @@ PlaylistBase::RecordBase* PlaylistBase::AddEntry(PlayableInstance* obj, RecordBa
     insert.fInvalidateRecord = TRUE;
     insert.zOrder            = CMA_TOP;
     insert.cRecordsInsert    = 1;
-    ULONG rc = LONGFROMMR(WinSendMsg(HwndContainer, CM_INSERTRECORD, MPFROMP(rec), MPFROMP(&insert)));
-
-    DEBUGLOG(("PlaylistBase::AddEntry: succeeded: %p %u %x\n", rec, rc, WinGetLastError(NULL)));
+    PMXASSERT(LONGFROMMR(WinSendMsg(HwndContainer, CM_INSERTRECORD, MPFROMP(rec), MPFROMP(&insert))), != 0);
+    DEBUGLOG(("PlaylistBase::AddEntry: succeeded: %p\n", rec));
   }
   return rec;
 }
@@ -516,8 +545,7 @@ PlaylistBase::RecordBase* PlaylistBase::MoveEntry(RecordBase* entry, RecordBase*
     (RECORDCORE*)(after ? after : (RecordBase*)CMA_FIRST),
     FALSE
   };
-  if (WinSendMsg(HwndContainer, CM_MOVETREE, MPFROMP(&move), 0) == FALSE)
-    return NULL;
+  PMRASSERT(WinSendMsg(HwndContainer, CM_MOVETREE, MPFROMP(&move), 0));
   return entry;
 }
 
@@ -530,11 +558,7 @@ void PlaylistBase::RemoveEntry(RecordBase* const entry)
   // Delete the children
   RemoveChildren(entry);
   // Remove record from container
-  #ifndef NDEBUG
-  assert(LONGFROMMR(WinSendMsg(HwndContainer, CM_REMOVERECORD, MPFROMP(&entry), MPFROM2SHORT(1, CMA_INVALIDATE))) != -1);
-  #else
-  WinSendMsg(HwndContainer, CM_REMOVERECORD, MPFROMP(&entry), MPFROM2SHORT(1, CMA_INVALIDATE));
-  #endif
+  PMXASSERT(LONGFROMMR(WinSendMsg(HwndContainer, CM_REMOVERECORD, MPFROMP(&entry), MPFROM2SHORT(1, CMA_INVALIDATE))), != -1);
   // Release reference counter
   // The record will be deleted when no outstanding PostMsg is on the way.
   FreeRecord(entry);
@@ -544,11 +568,13 @@ void PlaylistBase::RemoveEntry(RecordBase* const entry)
 int PlaylistBase::RemoveChildren(RecordBase* const rp)
 { DEBUGLOG(("PlaylistBase(%p)::RemoveChildren(%p)\n", this, rp));
   RecordBase* crp = (RecordBase*)WinSendMsg(HwndContainer, CM_QUERYRECORD, MPFROMP(rp), MPFROM2SHORT(rp ? CMA_FIRSTCHILD : CMA_FIRST, CMA_ITEMORDER));
+  PMASSERT(crp != (RecordBase*)-1);
   int count = 0;
   while (crp != NULL && crp != (RecordBase*)-1)
   { DEBUGLOG(("PlaylistBase::RemoveChildren: CM_QUERYRECORD: %s\n", RecordBase::DebugName(crp).cdata()));
     RecordBase* crp2 = crp;
     crp = (RecordBase*)WinSendMsg(HwndContainer, CM_QUERYRECORD, MPFROMP(crp), MPFROM2SHORT(CMA_NEXT, CMA_ITEMORDER));
+    PMASSERT(crp != (RecordBase*)-1);
     RemoveEntry(crp2);
     ++count;
   }
@@ -596,15 +622,17 @@ void PlaylistBase::UpdateChildren(RecordBase* const rp)
     return;
   }
 
-  WinEnableWindowUpdate(HwndContainer, FALSE); // suspend redraw
+  PMRASSERT(WinEnableWindowUpdate(HwndContainer, FALSE)); // suspend redraw
   // First check what's currently in the container.
   // The collection is not locked so far.
   vector<RecordBase> old(32);
   RecordBase* crp = (RecordBase*)WinSendMsg(HwndContainer, CM_QUERYRECORD, MPFROMP(rp), MPFROM2SHORT(rp ? CMA_FIRSTCHILD : CMA_FIRST, CMA_ITEMORDER));
+  PMASSERT(crp != (RecordBase*)-1);
   while (crp != NULL && crp != (RecordBase*)-1)
   { DEBUGLOG(("PlaylistBase::UpdateChildren CM_QUERYRECORD: %s\n", RecordBase::DebugName(crp).cdata()));
     // prefetch next record
     RecordBase* ncrp = (RecordBase*)WinSendMsg(HwndContainer, CM_QUERYRECORD, MPFROMP(crp), MPFROM2SHORT(CMA_NEXT, CMA_ITEMORDER));
+    PMASSERT(ncrp != (RecordBase*)-1);
     if (crp->Content)
       // record is valid => add to list
       old.insert(old.size()) = crp;
@@ -654,7 +682,7 @@ void PlaylistBase::UpdateChildren(RecordBase* const rp)
   for (RecordBase** orpp = old.begin(); orpp != old.end(); ++orpp)
     RemoveEntry(*orpp);
   // resume redraw
-  WinEnableWindowUpdate(HwndContainer, TRUE);
+  PMRASSERT(WinEnableWindowUpdate(HwndContainer, TRUE));
 }
 
 void PlaylistBase::UpdateStatus(RecordBase* rec)
@@ -670,7 +698,7 @@ void PlaylistBase::UpdateStatus(RecordBase* rec)
     // update icon?
     if (rec->hptrIcon != icon)
     { rec->hptrIcon = icon;
-      WinSendMsg(HwndContainer, CM_INVALIDATERECORD, MPFROMP(&rec), MPFROM2SHORT(1, CMA_NOREPOSITION));
+      PMRASSERT(WinSendMsg(HwndContainer, CM_INVALIDATERECORD, MPFROMP(&rec), MPFROM2SHORT(1, CMA_NOREPOSITION)));
     }
   }
 }
@@ -687,7 +715,7 @@ void PlaylistBase::UpdateInstance(RecordBase* rec, PlayableInstance::StatusFlags
     if (iflags & PlayableInstance::SF_Alias)
     { xstring text = rec->Content->GetDisplayName();
       rec->pszIcon = (PSZ)text.cdata();
-      WinSendMsg(HwndContainer, CM_INVALIDATERECORD, MPFROMP(&rec), MPFROM2SHORT(1, CMA_TEXTCHANGED));
+      PMRASSERT(WinSendMsg(HwndContainer, CM_INVALIDATERECORD, MPFROMP(&rec), MPFROM2SHORT(1, CMA_TEXTCHANGED)));
       rec->Data->Text = text; // now free the old text
     }
   }
@@ -700,6 +728,7 @@ void PlaylistBase::UpdatePlayStatus()
   { UpdatePlayStatus(rec);
     rec = (RecordBase*)WinSendMsg(HwndContainer, CM_QUERYRECORD, MPFROMP(rec), MPFROM2SHORT(CMA_NEXT, CMA_ITEMORDER));
   }
+  PMASSERT(rec != (RecordBase*)-1);
 }
 
 void PlaylistBase::UpdatePlayStatus(RecordBase* rec)
@@ -730,7 +759,7 @@ void PlaylistBase::StatChangeEvent(const PlayableInstance::change_args& args, Re
 
   if (args.Flags & PlayableInstance::SF_Destroy)
   { DEBUGLOG(("PlaylistBase::StatChangeEvent: SF_Destroy %p\n", rec));
-    WinSendMsg(HwndFrame, UM_SYNCREMOVE, MPFROMP(rec), 0);
+    RASSERT(WinSendMsg(HwndFrame, UM_SYNCREMOVE, MPFROMP(rec), 0));
     return;
   }
 
@@ -747,7 +776,7 @@ void PlaylistBase::PlayStatEvent(const bool& status)
   QMSG qmsg;
   WinPeekMsg(amp_player_hab(), &qmsg, HwndFrame, UM_PLAYSTATUS, UM_PLAYSTATUS, PM_REMOVE);
   // ... and send a new one.
-  WinPostMsg(HwndFrame, UM_PLAYSTATUS, MPFROMLONG(status), 0);
+  PMRASSERT(WinPostMsg(HwndFrame, UM_PLAYSTATUS, MPFROMLONG(status), 0));
 }
 
 
@@ -785,7 +814,7 @@ void PlaylistBase::UserAdd(DECODER_WIZZARD_FUNC wizzard, const char* title, Reco
 
 void PlaylistBase::UserSave()
 { DEBUGLOG(("PlaylistBase(%p)::UserSave()\n", this));
-  assert(Content->GetFlags() & Playable::Enumerable);
+  ASSERT(Content->GetFlags() & Playable::Enumerable);
 
   APSZ  types[] = {{ FDT_PLAYLIST_LST }, { FDT_PLAYLIST_M3U }, { 0 }};
 
@@ -814,7 +843,7 @@ void PlaylistBase::UserSave()
     // TODO: preselect directory
   }
 
-  WinFileDlg(HWND_DESKTOP, HwndFrame, &filedialog);
+  PMXASSERT(WinFileDlg(HWND_DESKTOP, HwndFrame, &filedialog), != NULLHANDLE);
 
   if(filedialog.lReturn == DID_OK)
   { url file = url::normalizeURL(filedialog.szFullFile);
@@ -860,7 +889,7 @@ url PlaylistBase::PlaylistSelect(HWND owner, const char* title)
   filedialog.pszIType       = FDT_PLAYLIST;
 
   strncpy( filedialog.szFullFile, cfg.listdir, sizeof filedialog.szFullFile );
-  WinFileDlg(HWND_DESKTOP, owner, &filedialog);
+  PMXASSERT(WinFileDlg(HWND_DESKTOP, owner, &filedialog), != NULLHANDLE);
 
   if( filedialog.lReturn == DID_OK )
   { sdrivedir( cfg.listdir, filedialog.szFullFile, sizeof cfg.listdir );

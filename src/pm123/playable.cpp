@@ -31,7 +31,6 @@
 #include "plugman.h"
 #include "playable.h"
 #include <xio.h>
-#include <assert.h>
 #include <stdio.h>
 
 #include <pm123.h>
@@ -146,8 +145,7 @@ Playable::~Playable()
 { DEBUGLOG(("Playable(%p{%s})::~Playable()\n", this, URL.cdata()));
   // Deregister from repository automatically
   { Mutex::Lock lock(RPMutex);
-    Playable* r = RPInst.erase(URL);
-    assert(r != NULL);
+    XASSERT(RPInst.erase(URL), != NULL);
   }
 }
 
@@ -296,17 +294,18 @@ static void PlayableWorker(void*)
 void Playable::Init()
 { DEBUGLOG(("Playable::Init()\n"));
   // start the worker
-  assert(WTid == -1);
+  ASSERT(WTid == -1);
   WTermRq = false;
   WTid = _beginthread(&PlayableWorker, NULL, 65536, NULL);
-  assert(WTid != -1);
+  ASSERT(WTid != -1);
 }
 
 void Playable::Uninit()
 { DEBUGLOG(("Playable::Uninit()\n"));
   WTermRq = true;
   WQueue.Write(QEntry(NULL, Playable::IF_None)); // deadly pill
-  DosWaitThread(&(TID&)WTid, DCWW_WAIT);
+  if (WTid != -1)
+    DosWaitThread(&(TID&)WTid, DCWW_WAIT);
   DEBUGLOG(("Playable::Uninit - complete\n"));
 }
 
@@ -802,7 +801,7 @@ bool PlayableCollection::Save(const url& URL, save_options opt)
   // notifications
   int_ptr<Playable> pp = FindByURL(URL);
   if (pp && pp != this)
-  { assert(pp->GetFlags() & Enumerable);
+  { ASSERT(pp->GetFlags() & Enumerable);
     ((PlayableCollection&)*pp).NotifySourceChange();
   }
   return true;

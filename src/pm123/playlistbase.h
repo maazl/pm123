@@ -193,6 +193,8 @@ class PlaylistBase : public IComparableTo<char>
   class_delegate2<PlaylistBase, const Playable::change_args, RecordBase*> RootInfoDelegate;
   class_delegate<PlaylistBase, const bool> RootPlayStatusDelegate;
   TID               ThreadID;
+  bool              InitialVisible;
+  int               Initialized;
 
  private:
   // Static members must not use EXPENTRY linkage with IBM VACPP.
@@ -292,7 +294,7 @@ class PlaylistBase : public IComparableTo<char>
   virtual           ~PlaylistBase();
   // Make the window visible (or not)
   void              SetVisible(bool show);
-  bool              GetVisible() const { return WinIsWindowVisible(HwndFrame); }
+  bool              GetVisible() const;
   // Gets the content
   Playable*         GetContent() { return Content; }
   // Get an instance of the same type as the current instance for URL.

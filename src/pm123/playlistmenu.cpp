@@ -35,8 +35,6 @@
 #include "pm123.rc.h"
 #include "playlistmenu.h"
 
-#include <assert.h>
-
 #include <debuglog.h>
 
 // Maximum number of items per submenu
@@ -61,13 +59,13 @@ PlaylistMenu::PlaylistMenu(HWND owner, USHORT mid1st, USHORT midlast)
 { DEBUGLOG(("PlaylistMenu(%p)::PlaylistMenu(%x, %u,%u)\n", this, owner, mid1st, midlast));
   // Generate dialog procedure and replace the current one
   Old_DlgProc = WinSubclassWindow(owner, (PFNWP)vreplace1(&VR_DlgProc, pm_DlgProcStub, this));
-  assert(Old_DlgProc != NULL);
+  PMASSERT(Old_DlgProc != NULL);
 }
 
 PlaylistMenu::~PlaylistMenu()
 { DEBUGLOG(("PlaylistMenu(%p)::~PlaylistMenu()\n", this));
   // Deregister dialog procedure
-  WinSubclassWindow(HwndOwner, Old_DlgProc);
+  PMXASSERT(WinSubclassWindow(HwndOwner, Old_DlgProc), != NULL);
   // Destroy menu map
   while (MenuMap.size())
     RemoveMapEntry(MenuMap.erase(MenuMap.size()-1));
@@ -145,7 +143,7 @@ USHORT PlaylistMenu::InsertSeparator(HWND menu, SHORT where)
   mi.afStyle = MIS_SEPARATOR;
   mi.id = AllocateID();
   if (mi.id != (USHORT)MID_NONE)
-    WinSendMsg(menu, MM_INSERTITEM, MPFROMP(&mi), 0);
+    PMEASSERT(WinSendMsg(menu, MM_INSERTITEM, MPFROMP(&mi), 0));
   return mi.id;
 }
 
@@ -194,13 +192,13 @@ void PlaylistMenu::CreateSubItems(MapEntry* mapp)
         mi.afStyle     |= MIS_SUBMENU;
         mi.afAttribute |= MIA_DISABLED;
         mi.hwndSubMenu = WinLoadMenu(mapp->HwndMenu, NULLHANDLE, MNU_SUBFOLDER);
-        WinSetWindowUShort(mi.hwndSubMenu, QWS_ID, mi.id);
-        WinSetWindowBits(mi.hwndSubMenu, QWL_STYLE, MS_CONDITIONALCASCADE, MS_CONDITIONALCASCADE);
-        WinSendMsg(mi.hwndSubMenu, MM_SETDEFAULTITEMID, MPFROMLONG(mi.id), 0);
+        PMASSERT(WinSetWindowUShort(mi.hwndSubMenu, QWS_ID, mi.id));
+        PMASSERT(WinSetWindowBits(mi.hwndSubMenu, QWL_STYLE, MS_CONDITIONALCASCADE, MS_CONDITIONALCASCADE));
+        PMASSERT(WinSendMsg(mi.hwndSubMenu, MM_SETDEFAULTITEMID, MPFROMLONG(mi.id), 0));
       }
       // Add map entry
       MapEntry*& subp = MenuMap.get(&mi.id);
-      assert(subp == NULL);
+      ASSERT(subp == NULL);
       subp = new MapEntry(mi.id, **pe, mapp->Flags, mapp->User, MIT_END);
       // Add menu item
       subp->Text = (*pe)->GetDisplayName();
@@ -242,7 +240,7 @@ void PlaylistMenu::CreateSubItems(MapEntry* mapp)
     mi.afStyle     = MIS_TEXT|MIS_STATIC;
     mi.hwndSubMenu = NULLHANDLE;
     // Add menu item
-    WinSendMsg(mapp->HwndMenu, MM_INSERTITEM, MPFROMP(&mi), MPFROMP("- none -"));
+    PMXASSERT(SHORT1FROMMR(WinSendMsg(mapp->HwndMenu, MM_INSERTITEM, MPFROMP(&mi), MPFROMP("- none -"))), != MIT_ERROR);
   }
 }
 
@@ -252,11 +250,12 @@ void PlaylistMenu::RemoveSubItems(MapEntry* mapp)
     return; // no subitems or not yet initialized
 
   SHORT i = SHORT1FROMMR(WinSendMsg(mapp->HwndMenu, MM_ITEMPOSITIONFROMID, MPFROM2SHORT(mapp->ID1, FALSE), 0));
-  assert(i != MIT_NONE);
+  PMASSERT(i != MIT_NONE);
 
   mapp->ID1 = (USHORT)MID_NONE;
   for(;;)
   { SHORT id = SHORT1FROMMR(WinSendMsg(mapp->HwndMenu, MM_ITEMIDFROMPOSITION, MPFROMSHORT(i), 0));
+    PMASSERT(id != MIT_ERROR);
     DEBUGLOG(("PlaylistMenu::RemoveSubItems - %i %d\n", i, id));
     if (id == MIT_ERROR || id == 0 || id == mapp->Pos)
       return; // end of menu or range
@@ -277,13 +276,9 @@ void PlaylistMenu::RemoveMapEntry(MapEntry* mapp)
   { HWND par_menu = WinQueryWindow(mapp->HwndMenu, QW_OWNER);
     DEBUGLOG(("PlaylistMenu::RemoveMapEntry - %p\n", par_menu));
     MENUITEM mi;
-    #ifndef NDEBUG
-    assert(WinSendMsg(par_menu, MM_QUERYITEM, MPFROM2SHORT(mapp->IDMenu, FALSE), MPFROMP(&mi)));
-    #else
-    WinSendMsg(par_menu, MM_QUERYITEM, MPFROM2SHORT(mapp->IDMenu, FALSE), MPFROMP(&mi));
-    #endif
+    PMRASSERT(WinSendMsg(par_menu, MM_QUERYITEM, MPFROM2SHORT(mapp->IDMenu, FALSE), MPFROMP(&mi)));
     if (mi.hwndSubMenu)
-      WinDestroyWindow(mi.hwndSubMenu);
+      PMRASSERT(WinDestroyWindow(mi.hwndSubMenu));
   }
   // update first free ID (optimization)
   if (mapp->IDMenu < ID1stfree)
@@ -321,7 +316,7 @@ void PlaylistMenu::InfoChangeCallback(const Playable::change_args& args)
     return; // event obsolete
   QMSG msg;
   if (!WinPeekMsg(amp_player_hab(), &msg, HwndOwner, UM_LATEUPDATE, UM_LATEUPDATE, PM_NOREMOVE))
-    WinPostMsg(HwndOwner, UM_LATEUPDATE, 0, 0);
+    PMRASSERT(WinPostMsg(HwndOwner, UM_LATEUPDATE, 0, 0));
 }
 
 bool PlaylistMenu::AttachMenu(USHORT menuid, Playable* data, EntryFlags flags, MPARAM user, USHORT pos)

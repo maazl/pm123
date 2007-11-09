@@ -104,7 +104,7 @@ void RecursiveEnumerator::Attach(Playable* play)
   Reset();
   SubIterator    = NULL;
   Enumerator     = NULL;
-  assert(PrevEnumerator == NULL && NextEnumerator == NULL);
+  ASSERT(PrevEnumerator == NULL && NextEnumerator == NULL);
   Root = play;
   if (Root && (Root->GetFlags() & Playable::Enumerable))
   { Mutex::Lock lock(Root->Mtx);

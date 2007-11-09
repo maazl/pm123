@@ -150,13 +150,13 @@ url url::normalizeURL(const char* str)
 
 xstring url::getBasePath() const
 { const char* cp = strrchr(*this, '/');
-  assert(cp);
+  ASSERT(cp);
   return xstring(*this, 0, cp-cdata()+1);
 }
 
 xstring url::getObjectName() const
 { const char* cp = strrchr(*this, '/');
-  assert(cp);
+  ASSERT(cp);
   ++cp;
   const char* cp2 = strchr(cp, '?');
   return cp2 ? xstring(cp, cp2-cp) : xstring(cp);
@@ -164,7 +164,7 @@ xstring url::getObjectName() const
 
 xstring url::getExtension() const
 { const char* cp = strrchr(*this, '/');
-  assert(cp);
+  ASSERT(cp);
   ++cp;
   const char* cp2 = strchr(cp, '?');
   const char* cp3 = cp2 ? strnrchr(cp, '.', cp2-cp) : strrchr(cp, '.');
@@ -190,7 +190,7 @@ xstring url::getDisplayName() const
 
 xstring url::getShortName() const
 { const char* cp = strrchr(*this, '/');
-  assert(cp);
+  ASSERT(cp);
   ++cp;
   // Exception for Path URLs: return the last path component
   if (*cp == 0 || *cp == '?')
@@ -199,7 +199,7 @@ xstring url::getShortName() const
     //DEBUGLOG(("url::getObjName - %c\n", cp2[-1]));
     switch (*--cp2)
     {default:
-      assert(cp2 != *this);
+      ASSERT(cp2 != *this);
       goto next;
      case '/':
      case ':':
@@ -223,7 +223,7 @@ url url::makeAbsolute(const char* rel) const
   // extract path of current URL
   const char* cp = strrchr(*this, '/');
   DEBUGLOG2(("url::makeAbsolute - %p %s %s\n", rel, rel, cp));
-  assert(cp);
+  ASSERT(cp);
   ++cp;
   // join strings
   size_t len1 = cp - cdata();

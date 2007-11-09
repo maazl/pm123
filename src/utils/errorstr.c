@@ -46,9 +46,10 @@
 
 #define  INCL_DOS
 #define  INCL_ERRORS
-#include <os2.h>
 
 #include "strutils.h"
+#include "snprintf.h"
+#include <os2.h>
 
 #if defined(TCPV40HDRS)
 const char*
@@ -195,7 +196,7 @@ clib_strerror( int clib_errno )
 }
 
 char*
-os2_strerror( unsigned int os2_errno, char* result, size_t size )
+os2_strerror( unsigned long os2_errno, char* result, size_t size )
 {
   ULONG  ulMessageLength;
   APIRET rc;
@@ -206,10 +207,64 @@ os2_strerror( unsigned int os2_errno, char* result, size_t size )
   if( rc == NO_ERROR ) {
     result[ulMessageLength] = 0;
   } else {
-    char message[256];
-    sprintf( message, "No error text is available. Error code is %06d.", os2_errno );
+    char message[64];
+    sprintf( message, "No error text is available. Error code is %06lu.", os2_errno );
     strlcpy( result , message, size - 1 );
   }
 
   return result;
 }
+
+static void make_os2pm_error(char* result, size_t size, ERRINFO* perr)
+{ size_t n = snprintf(result, size, "ERRORID %lx", perr->idError);
+  if (size <= n)
+    return;
+  size -= n; result += n;
+  if (perr->cDetailLevel)
+  { USHORT* off;
+    size_t i;
+    strlcpy(result, ", Details: ", size);
+    if (size <= 10)
+      return;
+    size -= 10; result += 10;
+    off = (USHORT*)((char*)perr + perr->offaoffszMsg);
+    for (i = 0; i < perr->cDetailLevel; ++i) 
+    { const char* msg = (const char*)perr + off[i];
+      if (*msg == 0)
+        continue;
+      n = snprintf(result, size, "  %u %s\n", off[i], msg);
+      if (size <= n)
+        return;
+      size -= n; result += n;
+    }
+  }
+  if (perr->offBinaryData > perr->cbFixedErrInfo)
+  { const unsigned char* bp;
+    strlcpy(result, "\n  ", size);
+    if (size <= 3)
+      return;
+    size -= 3; result += 3;
+    n = perr->cbFixedErrInfo - perr->offBinaryData;
+    if (n > (size-1)>>1)
+      n = (size-1)>>1;
+    bp = ((const unsigned char*)perr + perr->offBinaryData);
+    while (n)
+    { sprintf(result, "%02x", *bp++);
+      result += 2;
+    }
+    *result = 0; 
+  }
+}
+
+char* os2pm_strerror( char* result, size_t size )
+{ ERRINFO* perr = WinGetErrorInfo(NULL); // Well a NULL-HAB is not as documented, but it is working.
+  if (!perr)
+  { if (size)
+      *result = 0;
+    return result;
+  }
+  make_os2pm_error(result, size, perr );
+  WinFreeErrorInfo(perr);
+  return result;
+}
+

@@ -27,8 +27,6 @@
  */
 
 
-#include <assert.h>
-
 #include "event.h"
 
 #include <debuglog.h>
@@ -36,7 +34,7 @@
 
 void event_base::operator+=(delegate_base& d)
 { DEBUGLOG(("event_base(%p)::operator+=(%p{%p}) - %p\n", this, &d, d.Rcv, Root));
-  assert(d.Ev == NULL);
+  ASSERT(d.Ev == NULL);
   CritSect cs();
   d.Ev = this;
   d.Link = Root;
@@ -49,7 +47,7 @@ bool event_base::operator-=(delegate_base& d)
   CritSect cs();
   while (*mpp != NULL)
   { if (*mpp == &d)
-    { assert(d.Ev == this);
+    { ASSERT(d.Ev == this);
       d.Ev = NULL;
       *mpp = d.Link;
       DEBUGLOG(("event_base::operator-= OK\n"));
@@ -101,6 +99,25 @@ delegate_base::delegate_base(event_base& ev, func_type fn, const void* rcv)
   ev.Root = this;
 } 
 
+void delegate_base::detach()
+{
+  #ifdef DEBUG
+  DEBUGLOG(("delegate_base(%p)::detach() - %p\n", this, Ev));
+  if (Ev)
+  { CritSect cs();
+    if (Ev)
+    { RASSERT((*Ev) -= *this);
+      Ev = NULL;
+  } }
+  #else
+  // no critical section required in case of non-debug builds,
+  // because operator -= simply will turn into a no-op in doubt.
+  if (Ev)
+  { (*Ev) -= *this;
+    Ev = NULL;
+  }
+  #endif
+} 
 
 void PostMsgDelegateBase::callback(PostMsgDelegateBase* receiver, const void* param)
 { WinPostMsg(receiver->Window, receiver->Msg, MPFROMP(param), MPFROMP(receiver->Param2));
