@@ -239,6 +239,8 @@ class PlaylistBase : public IComparableTo<char>
   HPOINTER          CalcIcon(RecordBase* rec);
   // Set the window title
   void              SetTitle();
+  // Load context menu for a record
+  virtual HWND      InitContextMenu(RecordBase* rec) = 0;
 
   // Subfunction to the factory below.
   virtual RecordBase* CreateNewRecord(PlayableInstance* obj, RecordBase* parent) = 0;

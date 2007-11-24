@@ -336,6 +336,23 @@ MRESULT PlaylistBase::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
       break;
     }
 
+   case WM_CONTROL:
+    switch (SHORT2FROMMP(mp1))
+    {case CN_CONTEXTMENU:
+      { HWND hwndMenu = InitContextMenu((RecordBase*)mp2);
+        if (hwndMenu != NULLHANDLE)
+        { POINTL ptlMouse;
+          PMRASSERT(WinQueryPointerPos(HWND_DESKTOP, &ptlMouse));
+          // TODO: Mouse Position may not be reasonable, when the menu is invoked by keyboard.
+
+          PMRASSERT(WinPopupMenu(HWND_DESKTOP, HwndFrame, hwndMenu, ptlMouse.x, ptlMouse.y, 0,
+                                 PU_HCONSTRAIN | PU_VCONSTRAIN | PU_MOUSEBUTTON1 | PU_MOUSEBUTTON2 | PU_KEYBOARD));
+        }
+        break;
+      }
+    }  
+    break;
+    
    case WM_COMMAND:
     { vector<RecordBase> source(8);
       GetSourceRecords(source);
@@ -467,7 +484,6 @@ MRESULT PlaylistBase::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
    case UM_PLAYSTATUS:
     UpdatePlayStatus();
     return 0;
-
   }
   return WinDefDlgProc( HwndFrame, msg, mp1, mp2 );
 }
@@ -708,7 +724,8 @@ void PlaylistBase::GetSourceRecords(vector<RecordBase>& result) const
 { result.clear();
   RecordBase* rec = (RecordBase*)PVOIDFROMMR(WinSendMsg(HwndContainer, CM_QUERYRECORDEMPHASIS, MPFROMP(CMA_FIRST), MPFROMSHORT(CRA_SOURCE)));
   while (rec != NULL && rec != (RecordBase*)-1)
-  { if (!rec->IsRemoved()) // Skip removed
+  { DEBUGLOG(("PlaylistBase::GetSourceRecords: %p\n", rec));
+    if (!rec->IsRemoved()) // Skip removed
       result.append() = rec;
     rec = (RecordBase*)PVOIDFROMMR(WinSendMsg(HwndContainer, CM_QUERYRECORDEMPHASIS, MPFROMP(rec), MPFROMSHORT(CRA_SOURCE)));
   }

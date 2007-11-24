@@ -67,7 +67,7 @@ void*& vector_base::append()
     Data = (void**)realloc(Data, Capacity * sizeof *Data);
     assert(Data != NULL);
   }
-  return Data[Size];
+  return Data[Size++];
 }
 
 void* vector_base::erase(size_t where)

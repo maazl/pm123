@@ -162,63 +162,6 @@ MRESULT PlaylistManager::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
       PostRecordCommand((Record*)PVOIDFROMMP(mp2), RC_UPDATESTATUS);
       return 0;
 
-     case CN_CONTEXTMENU:
-      { Record* rec = (Record*)mp2;
-        DEBUGLOG(("PlaylistManager::DlgProc CN_CONTEXTMENU %p\n", rec));
-        if (rec)
-        { if (rec->IsRemoved())
-            return 0;
-          PMRASSERT(WinPostMsg(HwndContainer, CM_SETRECORDEMPHASIS, MPFROMP(rec), MPFROM2SHORT(TRUE, CRA_CURSORED)));
-        }
-        POINTL ptlMouse;
-        PMRASSERT(WinQueryPointerPos(HWND_DESKTOP, &ptlMouse));
-        // TODO: Mouse Position may not be reasonable, when the menu is invoked by keyboard.
-
-        DEBUGLOG(("PlaylistManager::DlgProc A\n"));
-        HWND   hwndMenu;
-        if (rec == NULL)
-        { // Nothing selected => menu for the whole container
-          if (MainMenu == NULLHANDLE)
-          { MainMenu = WinLoadMenu(HWND_OBJECT, 0, PM_MAIN_MENU);
-            PMASSERT(MainMenu != NULLHANDLE);
-            mn_make_conditionalcascade(MainMenu, IDM_PL_APPEND, IDM_PL_APPFILE);
-          }
-          hwndMenu = MainMenu;
-          mn_enable_item( hwndMenu, IDM_PL_APPEND, (Content->GetFlags() & Playable::Mutable) == Playable::Mutable );
-          DEBUGLOG(("PlaylistManager::DlgProc B\n"));
-        } else if (rec->Content->GetPlayable().GetFlags() & Playable::Enumerable)
-        { // Selected object is enumerable => playlist menu
-          if (ListMenu == NULLHANDLE)
-          { ListMenu = WinLoadMenu(HWND_OBJECT, 0, PM_LIST_MENU);
-            PMASSERT(ListMenu != NULLHANDLE);
-            mn_make_conditionalcascade(ListMenu, IDM_PL_APPEND, IDM_PL_APPFILE);
-          }
-          if (Record::IsRemoved(rec))
-            return 0; // record could be removed at WinLoadMenu
-          hwndMenu = ListMenu;
-          // Disable append menu if object is read-only
-          mn_enable_item( hwndMenu, IDM_PL_APPEND, (rec->Content->GetPlayable().GetFlags() & Playable::Mutable) == Playable::Mutable );
-        } else
-        { // Selected object is a song => song menu
-          if (FileMenu == NULLHANDLE)
-          { FileMenu = WinLoadMenu(HWND_OBJECT, 0, PM_FILE_MENU);
-            PMASSERT(FileMenu != NULLHANDLE);
-          }
-          hwndMenu = FileMenu;
-          // Disable edit meta when the object or the decoder plug-in does not allow meta-data editing. 
-          mn_enable_item(hwndMenu, IDM_PL_EDIT, rec->Content->GetPlayable().GetInfo().meta_write);
-        }
-        DEBUGLOG(("PlaylistManager::DlgProc C %p\n", hwndMenu));
-        if (Record::IsRemoved(rec))
-          return 0; // record could be removed now => no-op
-        // emphasize record
-        PMRASSERT(WinSendMsg(HwndContainer, CM_SETRECORDEMPHASIS, MPFROMP(rec), MPFROM2SHORT(TRUE, CRA_SOURCE)));
-        DEBUGLOG(("PlaylistManager::DlgProc: Menu: %p %p %p\n", MainMenu, ListMenu, FileMenu));
-        PMRASSERT(WinPopupMenu(HWND_DESKTOP, HwndFrame, hwndMenu, ptlMouse.x, ptlMouse.y, 0,
-                               PU_HCONSTRAIN | PU_VCONSTRAIN | PU_MOUSEBUTTON1 | PU_MOUSEBUTTON2 | PU_KEYBOARD));
-      }
-      return 0;
-
      case CN_BEGINEDIT:
       // TODO: normally we have to lock some functions here...
       break; // Continue in base class;
@@ -320,7 +263,54 @@ MRESULT PlaylistManager::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
   return PlaylistBase::DlgProc(msg, mp1, mp2);
 }
 
+HWND PlaylistManager::InitContextMenu(RecordBase* rec)
+{ DEBUGLOG(("PlaylistManager(%p)::InitContextMenu(%p)\n", this, rec));
+  if (rec)
+  { if (rec->IsRemoved())
+      return NULLHANDLE;
+    PMRASSERT(WinPostMsg(HwndContainer, CM_SETRECORDEMPHASIS, MPFROMP(rec), MPFROM2SHORT(TRUE, CRA_CURSORED)));
+  }
 
+  HWND   hwndMenu;
+  if (rec == NULL)
+  { // Nothing selected => menu for the whole container
+    if (MainMenu == NULLHANDLE)
+    { MainMenu = WinLoadMenu(HWND_OBJECT, 0, PM_MAIN_MENU);
+      PMASSERT(MainMenu != NULLHANDLE);
+      mn_make_conditionalcascade(MainMenu, IDM_PL_APPEND, IDM_PL_APPFILE);
+    }
+    hwndMenu = MainMenu;
+    mn_enable_item( hwndMenu, IDM_PL_APPEND, (Content->GetFlags() & Playable::Mutable) == Playable::Mutable );
+  } else if (rec->Content->GetPlayable().GetFlags() & Playable::Enumerable)
+  { // Selected object is enumerable => playlist menu
+    if (ListMenu == NULLHANDLE)
+    { ListMenu = WinLoadMenu(HWND_OBJECT, 0, PM_LIST_MENU);
+      PMASSERT(ListMenu != NULLHANDLE);
+      mn_make_conditionalcascade(ListMenu, IDM_PL_APPEND, IDM_PL_APPFILE);
+    }
+    if (Record::IsRemoved(rec))
+      return NULLHANDLE; // record could be removed at WinLoadMenu
+    hwndMenu = ListMenu;
+    // Disable append menu if object is read-only
+    mn_enable_item( hwndMenu, IDM_PL_APPEND, (rec->Content->GetPlayable().GetFlags() & Playable::Mutable) == Playable::Mutable );
+  } else
+  { // Selected object is a song => song menu
+    if (FileMenu == NULLHANDLE)
+    { FileMenu = WinLoadMenu(HWND_OBJECT, 0, PM_FILE_MENU);
+      PMASSERT(FileMenu != NULLHANDLE);
+    }
+    hwndMenu = FileMenu;
+    // Disable edit meta when the object or the decoder plug-in does not allow meta-data editing. 
+    mn_enable_item(hwndMenu, IDM_PL_EDIT, rec->Content->GetPlayable().GetInfo().meta_write);
+  }
+  if (Record::IsRemoved(rec))
+    return NULLHANDLE; // record could be removed now => no-op
+  // emphasize record
+  PMRASSERT(WinSendMsg(HwndContainer, CM_SETRECORDEMPHASIS, MPFROMP(rec), MPFROM2SHORT(TRUE, CRA_SOURCE)));
+  DEBUGLOG(("PlaylistManager::InitContextMenu: Menu: %p %p %p\n", MainMenu, ListMenu, FileMenu));
+  return hwndMenu;
+}
+  
 void PlaylistManager::SetInfo(const xstring& text)
 { DEBUGLOG(("PlaylistManager(%p)::SetInfo(%s)\n", this, text.cdata()));
   CNRINFO cnrInfo = { sizeof(CNRINFO) };

@@ -263,62 +263,6 @@ MRESULT PlaylistView::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
     amp_show_help( IDH_PL );
     return 0;
 
-   case WM_CONTROL:
-    switch (SHORT2FROMMP(mp1))
-    {
-     case CN_CONTEXTMENU:
-      { Record* focus = (Record*)mp2;
-        DEBUGLOG(("PlaylistView::DlgProc CN_CONTEXTMENU %p\n", focus));
-        if (Record::IsRemoved(focus))
-          return 0; // record removed
-
-        POINTL ptlMouse;
-        PMRASSERT(WinQueryPointerPos(HWND_DESKTOP, &ptlMouse));
-        // TODO: Mouse Position may not be reasonable, when the menu is invoked by keyboard.
-
-        HWND   hwndMenu;
-        if (focus == NULL)
-        { if (MainMenu == NULLHANDLE)
-          { MainMenu = WinLoadMenu(HWND_OBJECT, 0, MNU_PLAYLIST);
-            PMASSERT(MainMenu != NULLHANDLE);
-            mn_make_conditionalcascade(MainMenu, IDM_PL_APPEND, IDM_PL_APPFILE);
-          }
-          hwndMenu = MainMenu;
-          if ((Content->GetFlags() & Playable::Mutable) == Playable::Mutable)
-          { mn_enable_item(hwndMenu, IDM_PL_SAVE,   true);
-            mn_enable_item(hwndMenu, IDM_PL_APPEND, true);
-          } else
-          { mn_enable_item(hwndMenu, IDM_PL_SAVE,   false);
-            mn_enable_item(hwndMenu, IDM_PL_APPEND, false);
-          }
-        } else if (focus->Content->GetPlayable().GetFlags() & Playable::Enumerable)
-        { if (ListMenu == NULLHANDLE)
-          { ListMenu = WinLoadMenu(HWND_OBJECT, 0, MNU_PLRECORD);
-            PMASSERT(ListMenu != NULLHANDLE);
-          }
-          hwndMenu = ListMenu;
-        } else
-        { if (FileMenu == NULLHANDLE)
-          { FileMenu = WinLoadMenu(HWND_OBJECT, 0, MNU_RECORD);
-            PMASSERT(FileMenu != NULLHANDLE);
-          }
-          hwndMenu = FileMenu;
-          if (focus->IsRemoved())
-            return 0; // record could be removed at WinLoadMenu
-          mn_enable_item(hwndMenu, IDM_PL_EDIT, focus->Content->GetPlayable().GetInfo().meta_write);
-        }
-        if (Record::IsRemoved(focus))
-          return 0; // record could be removed now
-        // emphasize record
-        PMRASSERT(WinSendMsg(HwndContainer, CM_SETRECORDEMPHASIS, MPFROMP(focus), MPFROM2SHORT(TRUE, CRA_SOURCE)));
-        DEBUGLOG2(("PlaylistManager::DlgProc: Menu: %p %p %p\n", MainMenu, ListMenu, FileMenu));
-        PMRASSERT(WinPopupMenu(HWND_DESKTOP, HwndFrame, hwndMenu, ptlMouse.x, ptlMouse.y, 0,
-                               PU_HCONSTRAIN | PU_VCONSTRAIN | PU_MOUSEBUTTON1 | PU_MOUSEBUTTON2 | PU_KEYBOARD));
-        return 0;
-      }
-    }
-    break;
-
    /*case WM_COMMAND:
     { SHORT cmd = SHORT1FROMMP(mp1);
       Record* focus = (Record*)CmFocus;
@@ -379,6 +323,50 @@ MRESULT PlaylistView::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
     }
   }
   return PlaylistBase::DlgProc(msg, mp1, mp2);
+}
+
+HWND PlaylistView::InitContextMenu(RecordBase* rec)
+{ DEBUGLOG(("PlaylistView(%p)::InitContextMenu(%p)\n", this, rec));
+  if (Record::IsRemoved(rec))
+    return NULLHANDLE; // record removed
+
+  HWND   hwndMenu;
+  if (rec == NULL)
+  { if (MainMenu == NULLHANDLE)
+    { MainMenu = WinLoadMenu(HWND_OBJECT, 0, MNU_PLAYLIST);
+      PMASSERT(MainMenu != NULLHANDLE);
+      mn_make_conditionalcascade(MainMenu, IDM_PL_APPEND, IDM_PL_APPFILE);
+    }
+    hwndMenu = MainMenu;
+    if ((Content->GetFlags() & Playable::Mutable) == Playable::Mutable)
+    { mn_enable_item(hwndMenu, IDM_PL_SAVE,   true);
+      mn_enable_item(hwndMenu, IDM_PL_APPEND, true);
+    } else
+    { mn_enable_item(hwndMenu, IDM_PL_SAVE,   false);
+      mn_enable_item(hwndMenu, IDM_PL_APPEND, false);
+    }
+  } else if (rec->Content->GetPlayable().GetFlags() & Playable::Enumerable)
+  { if (ListMenu == NULLHANDLE)
+    { ListMenu = WinLoadMenu(HWND_OBJECT, 0, MNU_PLRECORD);
+      PMASSERT(ListMenu != NULLHANDLE);
+    }
+    hwndMenu = ListMenu;
+  } else
+  { if (FileMenu == NULLHANDLE)
+    { FileMenu = WinLoadMenu(HWND_OBJECT, 0, MNU_RECORD);
+      PMASSERT(FileMenu != NULLHANDLE);
+    }
+    hwndMenu = FileMenu;
+    if (rec->IsRemoved())
+      return NULLHANDLE; // record could be removed at WinLoadMenu
+    mn_enable_item(hwndMenu, IDM_PL_EDIT, rec->Content->GetPlayable().GetInfo().meta_write);
+  }
+  if (Record::IsRemoved(rec))
+    return NULLHANDLE; // record could be removed now
+  // emphasize record
+  PMRASSERT(WinSendMsg(HwndContainer, CM_SETRECORDEMPHASIS, MPFROMP(rec), MPFROM2SHORT(TRUE, CRA_SOURCE)));
+  DEBUGLOG2(("PlaylistView::InitContextMenu: Menu: %p %p %p\n", MainMenu, ListMenu, FileMenu));
+  return hwndMenu;
 }
 
 PlaylistBase::ICP PlaylistView::GetPlayableType(RecordBase* rec)
