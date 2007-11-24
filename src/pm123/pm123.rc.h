@@ -143,6 +143,7 @@
 #define AMP_LOAD_NOT_PLAY    0x0001 // Load a playable object, but do not start playback automatically
 #define AMP_LOAD_NOT_RECALL  0x0002 // Load a playable object, but do not add an entry into the list of recent files
 #define AMP_LOAD_KEEP_PLAYLIST 0x0004 // Play a playable object. If A playlist containing this item is loaded, the item is activated only.
+#define AMP_LOAD_APPEND      0x0008 // Take a playable object as part of multiple playable objects to load. 
 
 /* amp_add_* options */
 #define URL_ADD_TO_PLAYER    0x0000

@@ -439,14 +439,32 @@ BOOL
 amp_load_playable( const char* url, int options )
 { DEBUGLOG(("amp_load_playable(%s, %x)\n", url, options));
 
+  if (options & AMP_LOAD_APPEND)
+  { ASSERT(Current.GetRoot() != NULL);
+    Playlist* pl = (Playlist*)DefaultPL->GetContent();
+    // multi mode
+    if (Current.GetRoot() != pl)
+    { // we do not yet use the current playlist => use it
+      // move current item to the list
+      pl->Clear();
+      pl->InsertItem(Current.GetRoot()->GetURL(), (const char*)NULL);
+      // reset current to first item of the playlist
+      Current.Attach(pl);
+      Current.Next();
+    }
+    // append item
+    pl->InsertItem(url, (const char*)NULL);
+    return TRUE;
+  }
+  // no multi mode => always stop
+  amp_stop();
+    
   int_ptr<Playable> play = Playable::GetByURL(url);
   play->EnsureInfo(Playable::IF_Status);
   if (play->GetStatus() == STA_Invalid)
   { amp_error(hframe, "Can't play %s.", url);
     return FALSE;
   }
-
-  amp_stop();
 
   Current.Attach(play);
   // Move always to the first element.
@@ -458,9 +476,8 @@ amp_load_playable( const char* url, int options )
   DEBUGLOG(("amp_load_playable - attached\n"));
 
   if( !( options & AMP_LOAD_NOT_PLAY )) {
-    if( cfg.playonload ) {
+    if( cfg.playonload )
       amp_play( 0 );
-    }
   }
 
   if( !( options & AMP_LOAD_NOT_RECALL ))
@@ -1211,11 +1228,8 @@ amp_url_wizzard( HWND owner, const char* title, DECODER_WIZZARD_CALLBACK callbac
 static void DLLENTRY
 amp_load_file_callback( void* param, const char* url )
 { DEBUGLOG(("amp_load_file_callback(%p{%u}, %s)\n", param, *(bool*)param, url));
-  if (*(bool*)param)
-  { // TODO: handle multiple items
-    amp_load_playable( url, 0 );
-    *(bool*)param = false;
-  }
+  amp_load_playable( url, *(bool*)param ? 0 : AMP_LOAD_APPEND );
+  *(bool*)param = false;
 }
 
 /* Loads a file selected by the user to the player. */

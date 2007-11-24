@@ -367,9 +367,8 @@ MRESULT PlaylistBase::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
           return 0;
         }
        case IDM_PL_USE:
-        { if (Source.size())
-            // TODO: Multiple selection!
-            amp_load_playable(Source[0]->Content->GetPlayable().GetURL(), 0);
+        { for (RecordBase** rpp = Source.begin(); rpp != Source.end(); ++rpp)
+            amp_load_playable((*rpp)->Content->GetPlayable().GetURL(), rpp == Source.begin() ? 0 : AMP_LOAD_APPEND);
           return 0;
         }
        case IDM_PL_TREEVIEWALL:
