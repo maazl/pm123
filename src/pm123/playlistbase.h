@@ -188,6 +188,7 @@ class PlaylistBase : public IComparableTo<char>
   DECODER_WIZZARD_FUNC LoadWizzards[20]; // Current load wizzards
   bool              NoRefresh;     // Avoid update events to ourself
   CommonState       EvntState;     // Event State
+  vector<RecordBase> Source;
  private:
   class_delegate2<PlaylistBase, const Playable::change_args, RecordBase*> RootInfoDelegate;
   class_delegate<PlaylistBase, const bool> RootPlayStatusDelegate;

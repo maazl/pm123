@@ -120,6 +120,7 @@ PlaylistBase::PlaylistBase(const char* url, const char* alias, ULONG rid)
   HwndFrame(NULLHANDLE),
   HwndContainer(NULLHANDLE),
   NoRefresh(false),
+  Source(8),
   RootInfoDelegate(*this, &PlaylistBase::InfoChangeEvent, NULL),
   RootPlayStatusDelegate(*this, &PlaylistBase::PlayStatEvent),
   ThreadID(0),
@@ -303,20 +304,19 @@ MRESULT PlaylistBase::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
     break;
 
    case WM_MENUEND:
-    { vector<RecordBase> source(8);
-      GetSourceRecords(source);
-      DEBUGLOG(("PlaylistBase::DlgProc WM_MENUEND %u\n", source.size()));
-      if (source.size() == 0)
+    { GetSourceRecords(Source);
+      DEBUGLOG(("PlaylistBase::DlgProc WM_MENUEND %u\n", Source.size()));
+      if (Source.size() == 0)
       { // whole container was source
         PMRASSERT(WinSendMsg(HwndContainer, CM_SETRECORDEMPHASIS, MPFROMP(NULL), MPFROM2SHORT(FALSE, CRA_SOURCE)));
       } else
-      { RecordBase** rpp = source.end();
-        while (rpp != source.begin())
+      { RecordBase** rpp = Source.end();
+        while (rpp != Source.begin())
         { --rpp;
           PMRASSERT(WinSendMsg(HwndContainer, CM_SETRECORDEMPHASIS, MPFROMP(*rpp), MPFROM2SHORT(FALSE, CRA_SOURCE)));
         }
         // rpp is now implicitely equal to source.begin()
-        PMRASSERT(WinSendMsg(HwndContainer, CM_INVALIDATERECORD, MPFROMP(rpp), MPFROM2SHORT(source.size(), CMA_NOREPOSITION)));
+        PMRASSERT(WinSendMsg(HwndContainer, CM_INVALIDATERECORD, MPFROMP(rpp), MPFROM2SHORT(Source.size(), CMA_NOREPOSITION)));
       }
     }
     break;
@@ -354,13 +354,11 @@ MRESULT PlaylistBase::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
     break;
     
    case WM_COMMAND:
-    { vector<RecordBase> source(8);
-      GetSourceRecords(source);
-      DEBUGLOG(("PlaylistBase(%p{%s})::DlgProc: WM_COMMAND %u %u\n", this, DebugName().cdata(), SHORT1FROMMP(mp1), source.size()));
+    { DEBUGLOG(("PlaylistBase(%p{%s})::DlgProc: WM_COMMAND %u %u\n", this, DebugName().cdata(), SHORT1FROMMP(mp1), Source.size()));
       if (SHORT1FROMMP(mp1) >= IDM_PL_APPFILE && SHORT1FROMMP(mp1) < IDM_PL_APPFILE + sizeof LoadWizzards / sizeof *LoadWizzards)
       { DECODER_WIZZARD_FUNC func = LoadWizzards[SHORT1FROMMP(mp1)-IDM_PL_APPFILE];
-        if (func != NULL && source.size() == 1)
-          UserAdd(func, "Append%s", source[0]);
+        if (func != NULL && Source.size() == 1)
+          UserAdd(func, "Append%s", Source[0]);
         return 0;
       }
       switch (SHORT1FROMMP(mp1))
@@ -369,9 +367,9 @@ MRESULT PlaylistBase::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
           return 0;
         }
        case IDM_PL_USE:
-        { if (source.size())
+        { if (Source.size())
             // TODO: Multiple selection!
-            amp_load_playable(source[0]->Content->GetPlayable().GetURL(), 0);
+            amp_load_playable(Source[0]->Content->GetPlayable().GetURL(), 0);
           return 0;
         }
        case IDM_PL_TREEVIEWALL:
@@ -379,7 +377,7 @@ MRESULT PlaylistBase::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
           return 0;
         }
        case IDM_PL_TREEVIEW:
-        { for (RecordBase** rpp = source.begin(); rpp != source.end(); ++rpp)
+        { for (RecordBase** rpp = Source.begin(); rpp != Source.end(); ++rpp)
           { Playable* pp = &(*rpp)->Content->GetPlayable();
             if (pp->GetFlags() & Playable::Enumerable)
               PlaylistManager::Get(pp->GetURL())->SetVisible(true);
@@ -391,7 +389,7 @@ MRESULT PlaylistBase::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
           return 0;
         }
        case IDM_PL_DETAILED:
-        { for (RecordBase** rpp = source.begin(); rpp != source.end(); ++rpp)
+        { for (RecordBase** rpp = Source.begin(); rpp != Source.end(); ++rpp)
           { Playable* pp = &(*rpp)->Content->GetPlayable();
             if (pp->GetFlags() & Playable::Enumerable)
               PlaylistView::Get(pp->GetURL())->SetVisible(true);
@@ -399,12 +397,12 @@ MRESULT PlaylistBase::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
           return 0;
         }
        case IDM_PL_REFRESH:
-        { for (RecordBase** rpp = source.begin(); rpp != source.end(); ++rpp)
+        { for (RecordBase** rpp = Source.begin(); rpp != Source.end(); ++rpp)
             (*rpp)->Content->GetPlayable().LoadInfoAsync(Playable::IF_All);
           return 0;
         }
        case IDM_PL_EDIT:
-        { for (RecordBase** rpp = source.begin(); rpp != source.end(); ++rpp)
+        { for (RecordBase** rpp = Source.begin(); rpp != Source.end(); ++rpp)
           { Playable* pp = &(*rpp)->Content->GetPlayable();
             if (pp->GetInfo().meta_write)
               amp_info_edit(HwndFrame, pp->GetURL(), pp->GetDecoder());
@@ -413,7 +411,7 @@ MRESULT PlaylistBase::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
         }
        case IDM_PL_REMOVE:
         { // This won't work for the tree view. Overload it!
-          for (RecordBase** rpp = source.begin(); rpp != source.end(); ++rpp)
+          for (RecordBase** rpp = Source.begin(); rpp != Source.end(); ++rpp)
           { if ((Content->GetFlags() & Playable::Mutable) == Playable::Mutable) // don't modify constant object
               ((Playlist&)*Content).RemoveItem((*rpp)->Content);
           }
