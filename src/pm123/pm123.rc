@@ -917,11 +917,11 @@ MENU MNU_PLAYLIST
      MENUITEM "~Playing time",            IDM_PL_SORT_PLTIME
      MENUITEM "~Object name",             IDM_PL_SORT_NAME
      MENUITEM "~Song name",               IDM_PL_SORT_SONG
-     MENUITEM "~Alias name",              IDM_PL_SORT_RANDOM
+     MENUITEM "~Alias name",              IDM_PL_SORT_ALIAS
      MENUITEM "~Random",                  IDM_PL_SORT_RANDOM
    }
    MENUITEM SEPARATOR
-   MENUITEM "~Clear\t^C",                 IDM_PL_CLEAR
+   MENUITEM "~Clear\t^C",                 IDM_PL_CLEARALL
    MENUITEM "Reload",                     IDM_PL_RELOAD
    MENUITEM SEPARATOR
    MENUITEM "~Open another...\t^O",       IDM_PL_OPEN
@@ -961,7 +961,7 @@ MENU PM_MAIN_MENU
       MENUITEM "~URL...",                 IDM_PL_APPURL
    }
    MENUITEM SEPARATOR
-   MENUITEM "~Clear\t^C",                 IDM_PL_CLEAR
+   MENUITEM "~Clear\t^C",                 IDM_PL_CLEARALL
    MENUITEM "Reload",                     IDM_PL_RELOAD
    MENUITEM SEPARATOR
    MENUITEM "~Open another...\t^O",       IDM_PL_OPEN

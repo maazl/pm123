@@ -123,6 +123,8 @@ class Playable : public Iref_Count, private IComparableTo<char>
   char                Decoder[_MAX_FNAME];
   InfoFlags           InfoValid;       // Bitvector of type InfoFlags
   InfoFlags           InfoChangeFlags; // Bitvector with stored events
+  // ... except for this one
+  unsigned            InfoRequest;     // Bitvector with requested information
  public:
   Mutex               Mtx;   // protect this instance
 
@@ -179,12 +181,11 @@ class Playable : public Iref_Count, private IComparableTo<char>
   // Return the bits in what that are /not/ available.
   inline InfoFlags    CheckInfo(InfoFlags what); // can't define here because of missing FLAGSATTRIBUTE(InfoFlags).
   // This function is called to populate the info fields.
-  // When returning true at least the requested info must be valid and the bits in InfoValid must be set.
-  // It sould return false only if the status of the current object is bad,
-  // i.e. the URL is invalid or unreachable. However, the InfoValid bits must be set anyway.
+  // The parameter what is the requested information. The function returns the retrieved information.
+  // The retrieved information must mot be less than the requested information. But it might be more.
   // This is a mutable Function when the info-fields are not initialized yet (late initialization).
-  // Normally this function is called automatically. However, you may want to force a refresh.
-  virtual void        LoadInfo(InfoFlags what) = 0;
+  // Normally this function is called automatically. However, you may want to force a synchronuous refresh.
+  virtual InfoFlags   LoadInfo(InfoFlags what) = 0;
   // Ensure that the info fields are loaded from the ressource.
   // This function may block until the data is available.
   // To be reliable you shound be in synchronized context.
@@ -216,10 +217,11 @@ class Playable : public Iref_Count, private IComparableTo<char>
 
  // asynchronuous request service
  private:
-  struct QEntry : public int_ptr<Playable> // derives operator ==
+  /*struct QEntry : public int_ptr<Playable> // derives operator ==
   { InfoFlags              Request;
     QEntry(Playable* obj, InfoFlags req) : int_ptr<Playable>(obj), Request(req) {}
-  };
+  };*/
+  typedef int_ptr<Playable> QEntry;
 
  private:
   static queue<QEntry>     WQueue;
@@ -333,7 +335,7 @@ class Song : public Playable
   Song(const url& URL, const FORMAT_INFO2* ca_format = NULL, const TECH_INFO* ca_tech = NULL, const META_INFO* ca_meta = NULL)
    : Playable(URL, ca_format, ca_tech, ca_meta) { DEBUGLOG(("Song(%p)::Song(%s, %p, %p, %p)\n", this, URL.cdata(), ca_format, ca_tech, ca_meta)); }
 
-  virtual void        LoadInfo(InfoFlags what);
+  virtual InfoFlags   LoadInfo(InfoFlags what);
 };
 
 
@@ -461,7 +463,7 @@ class PlayableCollection : public Playable
   void                        RemoveEntry(Entry* entry);
   // Subfunction to LoadInfo which really populates the linked list.
   // The return value indicates whether the object is valid.
-  virtual bool                LoadInfoCore() = 0;
+  virtual bool                LoadList() = 0;
   // Save to stream as PM123 playlist format
   bool                        SaveLST(XFILE* of, bool relative);
   // Save to stream as WinAmp playlist format
@@ -488,7 +490,7 @@ class PlayableCollection : public Playable
   virtual PlayableEnumerator* GetEnumerator();
   // Load Information from URL
   // This implementation is only the framework. It reqires LoadInfoCore() for it's work.
-  virtual void                LoadInfo(InfoFlags what);
+  virtual InfoFlags           LoadInfo(InfoFlags what);
   // Save the current playlist as new file.
   // If the destination name is omitted, the data is saved under the current URL.
   // However this might not succeed, if the URL is read-only.
@@ -547,7 +549,7 @@ class Playlist : public PlayableCollection
   bool                        LoadPLS(XFILE* x);
  protected:
   // really load the playlist
-  virtual bool                LoadInfoCore();
+  virtual bool                LoadList();
  public:
   Playlist(const url& URL, const TECH_INFO* ca_tech = NULL, const META_INFO* ca_meta = NULL)
    : PlayableCollection(URL, ca_tech, ca_meta), Modified(false) { DEBUGLOG(("Playlist(%p)::Playlist(%s, %p, %p)\n", this, URL.cdata(), ca_tech, ca_meta)); }
@@ -587,7 +589,7 @@ class PlayFolder : public PlayableCollection
   void                        ParseQueryParams();
  public:
   PlayFolder(const url& URL, const TECH_INFO* ca_tech = NULL, const META_INFO* ca_meta = NULL);
-  virtual bool                LoadInfoCore();
+  virtual bool                LoadList();
 };
 
 #endif

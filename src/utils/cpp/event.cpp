@@ -55,7 +55,7 @@ bool event_base::operator-=(delegate_base& d)
     }
     mpp = &(*mpp)->Link;
   }
-  DEBUGLOG(("event_base::operator-= failed\n"));
+  DEBUGLOG(("event_base::operator-= FAILED\n"));
   return false;
 }
 

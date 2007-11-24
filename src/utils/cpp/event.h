@@ -46,7 +46,7 @@ class dummy
 
 /* Application event.
  * This class is thread safe.
- * This class is not intenden to be used directly.
+ * This class is not intended to be used directly.
  */
 class event_base
 { friend class delegate_base;
@@ -94,6 +94,7 @@ class delegate_base
   delegate_base(event_base& ev, func_type fn, const void* rcv);
   ~delegate_base()                             { DEBUGLOG(("delegate_base(%p)::~delegate_base() - %p\n", this, Ev)); detach(); }
  public:
+  // Detach the delegate from the event, if any.
   void           detach();
 };
 

@@ -122,7 +122,8 @@ Playable::Playable(const url& url, const FORMAT_INFO2* ca_format, const TECH_INF
 : URL(url),
   Stat(STA_Unknown),
   InfoValid(IF_None),
-  InfoChangeFlags(IF_None)
+  InfoChangeFlags(IF_None),
+  InfoRequest(IF_None)
 { DEBUGLOG(("Playable(%p)::Playable(%s, %p, %p, %p)\n", this, url.cdata(), ca_format, ca_tech, ca_meta));
   Info.Reset();
 
@@ -234,29 +235,15 @@ bool Playable::SetMetaInfo(const META_INFO* meta)
 }
 
 void Playable::LoadInfoAsync(InfoFlags what)
-{ DEBUGLOG(("Playable(%p{%s})::LoadInfoAsync(%x)\n", this, GetURL().getShortName().cdata(), what));
+{ DEBUGLOG(("Playable(%p{%s})::LoadInfoAsync(%x) - %x\n", this, GetURL().getShortName().cdata(), what, InfoValid));
   if (what == 0)
     return;
   // schedule request
-  QEntry entry(this, what);
-  Mutex::Lock(WQueue.Mtx);
-  // merge with another entry if any
-  bool inuse;
-  QEntry* qp = WQueue.Find(entry, inuse);
-  if (qp)
-  { if (!inuse)
-    { // merge requests
-      qp->Request |= what;
-      return;
-    }
-    // The found item is currently processed
-    // Look if the requested flags are on the way and enqueue only the missing ones.
-    entry.Request &= ~qp->Request;
-    if (entry.Request == 0)
-      return;
-  }
-  // enqueue the request
-  WQueue.Write(entry);
+  InfoFlags oldrq = (InfoFlags)InfoRequest; // This read is non-atomic. But on the worst case an empty request is scheduled to the worker thread.
+  InterlockedOr(InfoRequest, what);
+  // Only write the Queue if ther was no request before.
+  if (!oldrq)
+    WQueue.Write(this);
 }
 
 Playable::InfoFlags Playable::EnsureInfoAsync(InfoFlags what)
@@ -285,7 +272,8 @@ static void PlayableWorker(void*)
       break;
 
     // Do the work
-    qp->LoadInfo(qp.Request);
+    if (qp->InfoRequest)
+      qp->LoadInfo((Playable::InfoFlags)qp->InfoRequest);
   }
   WinDestroyMsgQueue(hmq);
   WinTerminate(hab);
@@ -303,7 +291,7 @@ void Playable::Init()
 void Playable::Uninit()
 { DEBUGLOG(("Playable::Uninit()\n"));
   WTermRq = true;
-  WQueue.Write(QEntry(NULL, Playable::IF_None)); // deadly pill
+  WQueue.Write(NULL); // deadly pill
   if (WTid != -1)
     DosWaitThread(&(TID&)WTid, DCWW_WAIT);
   DEBUGLOG(("Playable::Uninit - complete\n"));
@@ -402,7 +390,7 @@ void PlayableInstance::SetSlice(const slice& sl)
 *
 ****************************************************************************/
 
-void Song::LoadInfo(InfoFlags what)
+Playable::InfoFlags Song::LoadInfo(InfoFlags what)
 { DEBUGLOG(("Song(%p)::LoadInfo() - %s\n", this, Decoder));
   // get information
   sco_ptr<DecoderInfo> info(new DecoderInfo()); // a bit much for the stack
@@ -418,7 +406,10 @@ void Song::LoadInfo(InfoFlags what)
     stat = Stat == STA_Used ? STA_Used : STA_Normal;
   UpdateStatus(stat);
   UpdateInfo(&*info);
+  InfoValid |= IF_All;
+  InfoRequest = 0;
   RaiseInfoChange();
+  return IF_All;
 }
 
 
@@ -629,24 +620,24 @@ PlayableEnumerator* PlayableCollection::GetEnumerator()
   return new Enumerator(this);
 }
 
-void PlayableCollection::LoadInfo(InfoFlags what)
-{ DEBUGLOG(("PlayableCollection(%p{%s})::LoadInfo() - %x %u\n", this, GetURL().getShortName().cdata(), InfoValid, Stat));
+Playable::InfoFlags PlayableCollection::LoadInfo(InfoFlags what)
+{ DEBUGLOG(("PlayableCollection(%p{%s})::LoadInfo(%x) - %x %u\n", this, GetURL().getShortName().cdata(), what, InfoValid, Stat));
   Mutex::Lock lock(Mtx);
-  if ((what & (IF_Other|IF_Status|IF_Tech)) == 0)
-  { // default implementation to fullfill the minimum requirements of LoadInfo.
-    InfoValid |= what;
-    return;
-  }
+
+  // Need list content to generate tech info
+  if ((what & IF_Tech) && !(InfoValid & IF_Other))
+    what |= IF_Other;
 
   if (what & (IF_Other|IF_Status))
   { // load playlist content
     PlayableStatus stat;
-    if (LoadInfoCore())
+    if (LoadList())
       stat = Stat == STA_Used ? STA_Used : STA_Normal;
     else
       stat = STA_Invalid;
     UpdateStatus(stat);
     InfoValid |= IF_Other;
+    what |= IF_Other|IF_Status;
   }
 
   if (what & IF_Tech)
@@ -655,9 +646,13 @@ void PlayableCollection::LoadInfo(InfoFlags what)
     CalcTechInfo(tech);
     UpdateInfo(&tech);
   }
-  DEBUGLOG(("PlayableCollection::LoadInfo completed - %x\n", InfoChangeFlags));
+  DEBUGLOG(("PlayableCollection::LoadInfo completed - %x %x\n", InfoValid, InfoChangeFlags));
+  // default implementation to fullfill the minimum requirements of LoadInfo.
+  InfoValid |= what;
+  InterlockedAnd(InfoRequest, ~what);
   // raise InfoChange event?
   RaiseInfoChange();
+  return what;
 }
 
 bool PlayableCollection::SaveLST(XFILE* of, bool relative)
@@ -830,20 +825,27 @@ void Playlist::LSTReader::Reset()
 void Playlist::LSTReader::Create()
 { DEBUGLOG(("Playlist::LSTReader::Create() - %p, %u, %u, %u\n", URL.cdata(), has_format, has_tech, has_techinfo));
   if (URL)
-    List.AppendEntry(List.CreateEntry(URL, has_format ? &Format : NULL, has_tech && has_techinfo ? &Tech : NULL));
+  { Entry* ep = List.CreateEntry(URL, has_format ? &Format : NULL, has_tech && has_techinfo ? &Tech : NULL);
+    ep->SetAlias(Alias);
+    ep->SetSlice(Slice);
+    List.AppendEntry(ep);
+  }
 }
 
 void Playlist::LSTReader::ParseLine(char* line)
 { DEBUGLOG(("Playlist::LSTReader::ParseLine(%s)\n", line));
   switch (line[0])
   {case '#':
+    // comments close URL
+    if (URL)
+    { Create();
+      Reset();
+    }
     // prefix lines
     if (memcmp(line+1, "ALIAS ", 6) == 0) // alias name
     { Alias = line+7;
-      break;
     } else if (memcmp(line+1, "SLICE ", 6) == 0) // slice
     { sscanf(line+7, "%lf,%lf", &Slice.Start, &Slice.Stop);
-      break;
     } else if (line[1] == ' ')
     { const char* cp = strstr(line+2, ", ");
       if (cp)
@@ -851,12 +853,8 @@ void Playlist::LSTReader::ParseLine(char* line)
         if (cp)
         { strlcpy(Tech.info, cp+2, sizeof Tech.info);
           has_techinfo = true;
-          break;
       } }
     }
-    // comments close URL
-    Create();
-    Reset();
     break;
 
    default:
@@ -1020,8 +1018,8 @@ bool Playlist::LoadPLS(XFILE* x)
   return true;
 }
 
-bool Playlist::LoadInfoCore()
-{ DEBUGLOG(("Playlist(%p{%s})::LoadInfoCore()\n", this, GetURL().getShortName().cdata()));
+bool Playlist::LoadList()
+{ DEBUGLOG(("Playlist(%p{%s})::LoadList()\n", this, GetURL().getShortName().cdata()));
 
   // clear content if any
   while (Head)
@@ -1169,8 +1167,8 @@ void PlayFolder::ParseQueryParams()
   DEBUGLOG(("PlayFolder::ParseQueryParams: %s %u\n", Pattern ? Pattern.cdata() : "<null>", Recursive));
 }
 
-bool PlayFolder::LoadInfoCore()
-{ DEBUGLOG(("PlayFolder(%p{%s})::LoadInfoCore()\n", this, GetURL().getShortName().cdata()));
+bool PlayFolder::LoadList()
+{ DEBUGLOG(("PlayFolder(%p{%s})::LoadList()\n", this, GetURL().getShortName().cdata()));
   if (!GetURL().isScheme("file:")) // Can't handle anything but filesystem folders so far.
     return false;
   xstring name = GetURL().getBasePath();
@@ -1193,7 +1191,7 @@ bool PlayFolder::LoadInfoCore()
   while (rc == 0)
   { // add files
     for (FILEFINDBUF3* fp = (FILEFINDBUF3*)result; count--; ((char*&)fp) += fp->oNextEntryOffset)
-    { DEBUGLOG(("PlayFolder::LoadInfoCore - %s, %x\n", fp->achName, fp->attrFile));
+    { DEBUGLOG(("PlayFolder::LoadList - %s, %x\n", fp->achName, fp->attrFile));
       // skip . and ..
       if (fp->achName[0] == '.' && (fp->achName[1] == 0 || (fp->achName[1] == '.' && fp->achName[2] == 0)))
         continue;
@@ -1211,7 +1209,7 @@ bool PlayFolder::LoadInfoCore()
     rc = DosFindNext(hdir, &result, sizeof result, &count);
   }
   DosFindClose(hdir);
-  DEBUGLOG(("PlayFolder::LoadInfoCore: %s, %u\n", name.cdata(), rc));
+  DEBUGLOG(("PlayFolder::LoadList: %s, %u\n", name.cdata(), rc));
   switch (rc)
   {case NO_ERROR:
    case ERROR_FILE_NOT_FOUND:

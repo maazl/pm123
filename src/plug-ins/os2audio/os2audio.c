@@ -321,9 +321,9 @@ output_open( OS2AUDIO* a )
   // There can be the audio device supports other formats, but
   // whether can interpret other plug-ins them correctly?
   if( info->formatinfo.format != WAVE_FORMAT_PCM ||
-      info->formatinfo.samplerate > 0 ||
+      info->formatinfo.samplerate <= 0 ||
       ( info->formatinfo.bits != 16 && info->formatinfo.bits != 8 ) ||
-      info->formatinfo.channels > 2 )
+      info->formatinfo.channels < 0 || info->formatinfo.channels > 2 )
   { rc = MCIERR_UNSUPP_FORMAT_MODE;
     goto end;
   }

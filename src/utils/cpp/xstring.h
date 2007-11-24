@@ -74,17 +74,18 @@ class xstring
     #else
     static void* operator new(size_t s, size_t l)
     #endif
-                 { DEBUGLOG(("xstring::StringRef::operator new(%u, %u)\n", s, l));
-                   assert(_heapchk() == _HEAPOK);
-                   char* cp = (char*)malloc(s+l+1);
-                   ((size_t*)(cp+s))[-1] = l; // Dirty implicit assignment to Len before constructor entry...
-                   return cp;
-                 }
+                                            { assert(_heapchk() == _HEAPOK);
+                                              char* cp = (char*)malloc(s+l+1);
+                                              DEBUGLOG(("xstring::StringRef::operator new(%u, %u) - %p\n", s, l, cp));
+                                              ((size_t*)(cp+s))[-1] = l; // Dirty implicit assignment to Len before constructor entry...
+                                              return cp;
+                                            }
     #if defined(__IBMCPP__) && defined(DEBUG_ALLOC)
-    static void  operator delete(void* p, const char*, size_t) { free(p); }
+    static void  operator delete(void* p, const char*, size_t)
     #else
-    static void  operator delete(void* p)   { free(p); }
+    static void  operator delete(void* p)
     #endif
+                                            { DEBUGLOG(("xstring::StringRef::operator delete(%p)\n", p)); free(p); }
            size_t Length() const            { return Len; }
            char* Ptr() const                { return (char*)(this+1); }
            char& operator[](size_t ix)      { return ((char*)(this+1))[ix]; }

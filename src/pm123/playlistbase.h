@@ -185,7 +185,6 @@ class PlaylistBase : public IComparableTo<char>
   HWND              HwndFrame;     // playlist window handle
   HWND              HwndContainer; // content window handle
   xstring           Title;         // Keep the window title
-  RecordBase*       CmFocus;       // Focus of last selected context menu item
   DECODER_WIZZARD_FUNC LoadWizzards[20]; // Current load wizzards
   bool              NoRefresh;     // Avoid update events to ourself
   CommonState       EvntState;     // Event State
@@ -261,6 +260,9 @@ class PlaylistBase : public IComparableTo<char>
   // Update the list of children
   // rec == NULL => root node
   virtual void      UpdateChildren(RecordBase* const rec);
+  
+  // Return all source records or an empty list if none or the whole container is the source respectively.
+  void              GetSourceRecords(vector<RecordBase>& result) const;
 
  protected: // Update Functions.
             // They are logically virtual, but they are not called from this class.

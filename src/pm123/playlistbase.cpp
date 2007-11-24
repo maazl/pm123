@@ -119,7 +119,6 @@ PlaylistBase::PlaylistBase(const char* url, const char* alias, ULONG rid)
   DlgRID(rid),
   HwndFrame(NULLHANDLE),
   HwndContainer(NULLHANDLE),
-  CmFocus(NULL),
   NoRefresh(false),
   RootInfoDelegate(*this, &PlaylistBase::InfoChangeEvent, NULL),
   RootPlayStatusDelegate(*this, &PlaylistBase::PlayStatEvent),
@@ -260,7 +259,7 @@ void PlaylistBase::InitDlg()
 }
 
 MRESULT PlaylistBase::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
-{ DEBUGLOG(("PlaylistBase(%p)::DlgProc(%x, %x, %x)\n", this, msg, mp1, mp2));
+{ DEBUGLOG2(("PlaylistBase(%p)::DlgProc(%x, %x, %x)\n", this, msg, mp1, mp2));
   switch (msg)
   {case WM_INITDLG:
     { InitDlg();
@@ -274,6 +273,8 @@ MRESULT PlaylistBase::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
       // Deregister Events
       RootInfoDelegate.detach();
       RootPlayStatusDelegate.detach();
+      // delete all records
+      RemoveChildren(NULL);
       // process outstanding UM_DELETERECORD messages before we quit to ensure that all records are back to the PM before we die.
       QMSG qmsg;
       while (WinPeekMsg(amp_player_hab(), &qmsg, HwndFrame, UM_DELETERECORD, UM_DELETERECORD, PM_REMOVE))
@@ -301,6 +302,25 @@ MRESULT PlaylistBase::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
     }
     break;
 
+   case WM_MENUEND:
+    { vector<RecordBase> source(8);
+      GetSourceRecords(source);
+      DEBUGLOG(("PlaylistBase::DlgProc WM_MENUEND %u\n", source.size()));
+      if (source.size() == 0)
+      { // whole container was source
+        PMRASSERT(WinSendMsg(HwndContainer, CM_SETRECORDEMPHASIS, MPFROMP(NULL), MPFROM2SHORT(FALSE, CRA_SOURCE)));
+      } else
+      { RecordBase** rpp = source.end();
+        while (rpp != source.begin())
+        { --rpp;
+          PMRASSERT(WinSendMsg(HwndContainer, CM_SETRECORDEMPHASIS, MPFROMP(*rpp), MPFROM2SHORT(FALSE, CRA_SOURCE)));
+        }
+        // rpp is now implicitely equal to source.begin()
+        PMRASSERT(WinSendMsg(HwndContainer, CM_INVALIDATERECORD, MPFROMP(rpp), MPFROM2SHORT(source.size(), CMA_NOREPOSITION)));
+      }
+    }
+    break;
+
    case WM_WINDOWPOSCHANGED:
     { SWP* pswp = (SWP*)PVOIDFROMMP(mp1);
       if ((pswp[0].fl & (SWP_SHOW|SWP_HIDE)) == 0)
@@ -317,86 +337,87 @@ MRESULT PlaylistBase::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
     }
 
    case WM_COMMAND:
-    { USHORT cmd = SHORT1FROMMP(mp1);
-      RecordBase* focus = CmFocus;
-      if (RecordBase::IsRemoved(focus))
-        return 0;
-      if (cmd >= IDM_PL_APPFILE && cmd < IDM_PL_APPFILE + sizeof LoadWizzards / sizeof *LoadWizzards)
-      { DECODER_WIZZARD_FUNC func = LoadWizzards[cmd-IDM_PL_APPFILE];
-        if (func != NULL)
-          UserAdd(func, "Append%s", focus); // focus from CN_CONTEXTMENU
+    { vector<RecordBase> source(8);
+      GetSourceRecords(source);
+      DEBUGLOG(("PlaylistBase(%p{%s})::DlgProc: WM_COMMAND %u %u\n", this, DebugName().cdata(), SHORT1FROMMP(mp1), source.size()));
+      if (SHORT1FROMMP(mp1) >= IDM_PL_APPFILE && SHORT1FROMMP(mp1) < IDM_PL_APPFILE + sizeof LoadWizzards / sizeof *LoadWizzards)
+      { DECODER_WIZZARD_FUNC func = LoadWizzards[SHORT1FROMMP(mp1)-IDM_PL_APPFILE];
+        if (func != NULL && source.size() == 1)
+          UserAdd(func, "Append%s", source[0]);
         return 0;
       }
-      switch (cmd)
+      switch (SHORT1FROMMP(mp1))
       {case IDM_PL_USEALL:
         { amp_load_playable(Content->GetURL(), 0);
           return 0;
         }
        case IDM_PL_USE:
-        { if (focus)
-            amp_load_playable(focus->Content->GetPlayable().GetURL(), 0);
+        { if (source.size())
+            // TODO: Multiple selection!
+            amp_load_playable(source[0]->Content->GetPlayable().GetURL(), 0);
           return 0;
         }
        case IDM_PL_TREEVIEWALL:
-        { DEBUGLOG(("PlaylistBase(%p{%s})::DlgProc: IDM_PL_TREEVIEWALL\n", this, DebugName().cdata()));
-          PlaylistManager::Get(Content->GetURL())->SetVisible(true);
+        { PlaylistManager::Get(Content->GetURL())->SetVisible(true);
           return 0;
         }
        case IDM_PL_TREEVIEW:
-        { DEBUGLOG(("PlaylistBase(%p{%s})::DlgProc: IDM_PL_TREEVIEW %s\n", this, DebugName().cdata(), RecordBase::DebugName(focus).cdata()));
-          if (focus)
-          { Playable* pp = &focus->Content->GetPlayable();
+        { for (RecordBase** rpp = source.begin(); rpp != source.end(); ++rpp)
+          { Playable* pp = &(*rpp)->Content->GetPlayable();
             if (pp->GetFlags() & Playable::Enumerable)
               PlaylistManager::Get(pp->GetURL())->SetVisible(true);
           }
           return 0;
         }
        case IDM_PL_DETAILEDALL:
-        { DEBUGLOG(("PlaylistBase(%p{%s})::DlgProc: IDM_PL_DETAILEDALL\n", this, DebugName().cdata()));
-          PlaylistView::Get(Content->GetURL())->SetVisible(true);
+        { PlaylistView::Get(Content->GetURL())->SetVisible(true);
           return 0;
         }
        case IDM_PL_DETAILED:
-        { DEBUGLOG(("PlaylistBase(%p{%s})::DlgProc: IDM_PL_DETAILED %s\n", this, DebugName().cdata(), RecordBase::DebugName(focus).cdata()));
-          if (focus)
-          { Playable* pp = &focus->Content->GetPlayable();
+        { for (RecordBase** rpp = source.begin(); rpp != source.end(); ++rpp)
+          { Playable* pp = &(*rpp)->Content->GetPlayable();
             if (pp->GetFlags() & Playable::Enumerable)
               PlaylistView::Get(pp->GetURL())->SetVisible(true);
           }
           return 0;
         }
        case IDM_PL_REFRESH:
-        { DEBUGLOG(("PlaylistBase(%p{%s})::DlgProc: IDM_PL_REFRESH %s\n", this, DebugName().cdata(), RecordBase::DebugName(focus).cdata()));
-          if (focus)
-            focus->Content->GetPlayable().LoadInfoAsync(Playable::IF_All);
+        { for (RecordBase** rpp = source.begin(); rpp != source.end(); ++rpp)
+            (*rpp)->Content->GetPlayable().LoadInfoAsync(Playable::IF_All);
           return 0;
         }
        case IDM_PL_EDIT:
-        { DEBUGLOG(("PlaylistBase(%p{%s})::DlgProc: IDM_PL_EDIT %s\n", this, DebugName().cdata(), RecordBase::DebugName(focus).cdata()));
-          if (focus)
-          { Playable* pp = &focus->Content->GetPlayable();
+        { for (RecordBase** rpp = source.begin(); rpp != source.end(); ++rpp)
+          { Playable* pp = &(*rpp)->Content->GetPlayable();
             if (pp->GetInfo().meta_write)
               amp_info_edit(HwndFrame, pp->GetURL(), pp->GetDecoder());
           }
           return 0;
         }
        case IDM_PL_REMOVE:
-        { DEBUGLOG(("PlaylistBase(%p{%s})::DlgProc: IDM_PL_REMOVE %p\n", this, DebugName().cdata(), focus));
-          if (focus == NULL)
-            return 0;
-          // This won't work for the tree view. Overload it!
-          if ((Content->GetFlags() & Playable::Mutable) == Playable::Mutable) // don't modify constant object
-            ((Playlist&)*Content).RemoveItem(focus->Content);
+        { // This won't work for the tree view. Overload it!
+          for (RecordBase** rpp = source.begin(); rpp != source.end(); ++rpp)
+          { if ((Content->GetFlags() & Playable::Mutable) == Playable::Mutable) // don't modify constant object
+              ((Playlist&)*Content).RemoveItem((*rpp)->Content);
+          }
           // the update of the container is implicitely done by the notification mechanism
           return 0;
         }
-       case IDM_PL_CLEAR:
-        { DEBUGLOG(("PlaylistBase(%p{%s})::DlgProc: IDM_PL_CLEAR %p\n", this, DebugName().cdata(), focus));
-          Playable* pp = PlayableFromRec(focus);
+       case IDM_PL_CLEARALL:
+        { Playable* pp = Content;
           if ((pp->GetFlags() & Playable::Mutable) == Playable::Mutable) // don't modify constant object
             ((Playlist*)pp)->Clear();
           return 0;
         }
+       /*case IDM_PL_CLEAR:
+        { DEBUGLOG(("PlaylistBase(%p{%s})::DlgProc: IDM_PL_CLEAR %p\n", this, DebugName().cdata(), focus));
+          for (RecordBase** rpp = source.begin(); rpp != source.end(); ++rpp)
+          { Playable* pp = &(*rpp)->Content->GetPlayable();
+            if ((pp->GetFlags() & Playable::Mutable) == Playable::Mutable) // don't modify constant object
+              ((Playlist*)pp)->Clear();
+          }
+          return 0;
+        }*/
        case IDM_PL_RELOAD:
         { if ( !(Content->GetFlags() & Playable::Enumerable)
             || !((PlayableCollection&)*Content).IsModified()
@@ -440,8 +461,6 @@ MRESULT PlaylistBase::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
       rec->Content = NULL;
       // deregister event handlers too.
       rec->Data->DeregisterEvents();
-      if (CmFocus == rec)
-        CmFocus = NULL;
       return MRFROMLONG(TRUE);
     }
 
@@ -659,7 +678,7 @@ void PlaylistBase::UpdateChildren(RecordBase* const rp)
             RequestChildren(crp);
           break;
         }
-        // in case we received a UM_SYNCREMOVE event for a record, the comparsion below will fail.
+        // In case we received a UM_SYNCREMOVE event for a record, the comparsion below will fail.
         if ((*orpp)->Content == &**ep)
         { // found!
           DEBUGLOG(("PlaylistBase::UpdateChildren - found: %p{%s} at %u\n", &**ep, (*ep)->GetPlayable().GetURL().getShortName().cdata(), orpp - old.begin()));
@@ -683,6 +702,17 @@ void PlaylistBase::UpdateChildren(RecordBase* const rp)
     RemoveEntry(*orpp);
   // resume redraw
   PMRASSERT(WinEnableWindowUpdate(HwndContainer, TRUE));
+}
+
+void PlaylistBase::GetSourceRecords(vector<RecordBase>& result) const
+{ result.clear();
+  RecordBase* rec = (RecordBase*)PVOIDFROMMR(WinSendMsg(HwndContainer, CM_QUERYRECORDEMPHASIS, MPFROMP(CMA_FIRST), MPFROMSHORT(CRA_SOURCE)));
+  while (rec != NULL && rec != (RecordBase*)-1)
+  { if (!rec->IsRemoved()) // Skip removed
+      result.append() = rec;
+    rec = (RecordBase*)PVOIDFROMMR(WinSendMsg(HwndContainer, CM_QUERYRECORDEMPHASIS, MPFROMP(rec), MPFROMSHORT(CRA_SOURCE)));
+  }
+  PMASSERT(rec != (RecordBase*)-1);
 }
 
 void PlaylistBase::UpdateStatus(RecordBase* rec)

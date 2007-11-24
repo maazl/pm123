@@ -55,6 +55,13 @@ class vector_base
   // Destroy the vector and delete all stored references.
   // This will not affect the referenced objects.
   ~vector_base();
+  // Append a new element to the end of the vector.
+  // The function does not take the value of the new element.
+  // Instead it returns a reference to the new location that should be assigned later.
+  // The reference is valid until the next non-const member function call.
+  // The initial value is undefined.
+  // The function is not type safe and should not be exposed public.  
+  void*&             append();
   // Insert a new element in the vector at location where
   // Precondition: where in [0,size()], Performance: O(n)
   // The function does not take the value of the new element.
@@ -76,6 +83,8 @@ class vector_base
   // Return the number of elements in the container.
   // This is not equal to the storage capacity.
   size_t             size() const                   { return Size; }
+  // Remove all elements
+  void               clear()                        { Size = 0; }
 };
 
 /* Type safe vector of reference type objects (pointers).
@@ -88,6 +97,12 @@ class vector : public vector_base
   // create a new vector with a given initial capacity.
   // The initial capacity must not be less or equal to 0.
   vector(size_t capacity = 16) : vector_base(capacity) {}
+  // Append a new element to the end of the vector.
+  // The function does not take the value of the new element.
+  // Instead it returns a reference to the new location that should be assigned later.
+  // The reference is valid until the next non-const member function call.
+  // The initial value of the new element is undefined and must be assigned before the next access.
+  T*&                append()                       { return (T*&)vector_base::append(); }
   // Insert a new element in the vector at location where
   // Precondition: where in [0,size()], Performance: O(n)
   // The function does not take the value of the new element.

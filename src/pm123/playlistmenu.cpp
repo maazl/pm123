@@ -143,7 +143,7 @@ USHORT PlaylistMenu::InsertSeparator(HWND menu, SHORT where)
   mi.afStyle = MIS_SEPARATOR;
   mi.id = AllocateID();
   if (mi.id != (USHORT)MID_NONE)
-    PMEASSERT(WinSendMsg(menu, MM_INSERTITEM, MPFROMP(&mi), 0));
+    PMXASSERT(SHORT1FROMMR(WinSendMsg(menu, MM_INSERTITEM, MPFROMP(&mi), 0)), != MIT_ERROR);
   return mi.id;
 }
 
@@ -245,7 +245,7 @@ void PlaylistMenu::CreateSubItems(MapEntry* mapp)
 }
 
 void PlaylistMenu::RemoveSubItems(MapEntry* mapp)
-{ DEBUGLOG(("PlaylistMenu(%p)::RemoveSubItems(%p{%u,%x,%u})\n", this, mapp, mapp->IDMenu, mapp->HwndMenu, mapp->ID1));
+{ DEBUGLOG(("PlaylistMenu(%p)::RemoveSubItems(%p{%u,%x,%u,%u})\n", this, mapp, mapp->IDMenu, mapp->HwndMenu, mapp->ID1, mapp->Pos));
   if (mapp->ID1 == (USHORT)MID_NONE || mapp->HwndMenu == NULLHANDLE)
     return; // no subitems or not yet initialized
 
@@ -255,7 +255,6 @@ void PlaylistMenu::RemoveSubItems(MapEntry* mapp)
   mapp->ID1 = (USHORT)MID_NONE;
   for(;;)
   { SHORT id = SHORT1FROMMR(WinSendMsg(mapp->HwndMenu, MM_ITEMIDFROMPOSITION, MPFROMSHORT(i), 0));
-    PMASSERT(id != MIT_ERROR);
     DEBUGLOG(("PlaylistMenu::RemoveSubItems - %i %d\n", i, id));
     if (id == MIT_ERROR || id == 0 || id == mapp->Pos)
       return; // end of menu or range
@@ -285,6 +284,7 @@ void PlaylistMenu::RemoveMapEntry(MapEntry* mapp)
     ID1stfree = mapp->IDMenu;
   // and now game over
   delete mapp;
+  DEBUGLOG(("PlaylistMenu::RemoveMapEntry done\n"));
 }
 void PlaylistMenu::RemoveMapEntry(USHORT mid)
 { DEBUGLOG(("PlaylistMenu(%p)::RemoveMapEntry(%u)\n", this, mid));

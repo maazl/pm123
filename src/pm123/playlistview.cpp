@@ -249,17 +249,7 @@ MRESULT PlaylistView::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
 { DEBUGLOG2(("PlaylistView(%p{%s})::DlgProc(%x, %x, %x)\n", this, DebugName().cdata(), msg, mp1, mp2));
 
   switch (msg)
-  {case WM_DESTROY:
-    // delete all records
-    { DEBUGLOG(("PlaylistView::DlgProc: WM_DESTROY\n"));
-      RemoveChildren(NULL);
-      WinDestroyWindow(MainMenu);
-      WinDestroyWindow(ListMenu);
-      WinDestroyWindow(FileMenu);
-      break; // Continue in base class
-    }
-
-   case WM_WINDOWPOSCHANGED:
+  {case WM_WINDOWPOSCHANGED:
     // TODO: Bl”dsinn
     { SWP* pswp = (SWP*)PVOIDFROMMP(mp1);
       if( pswp[0].fl & SWP_SHOW )
@@ -277,12 +267,10 @@ MRESULT PlaylistView::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
     switch (SHORT2FROMMP(mp1))
     {
      case CN_CONTEXTMENU:
-      { Record* focus = (Record*)mp2; // save focus for later processing of menu messages
-        CmFocus = focus;
+      { Record* focus = (Record*)mp2;
+        DEBUGLOG(("PlaylistView::DlgProc CN_CONTEXTMENU %p\n", focus));
         if (Record::IsRemoved(focus))
           return 0; // record removed
-        if (focus)
-          PMRASSERT(WinPostMsg(HwndContainer, CM_SETRECORDEMPHASIS, MPFROMP(focus), MPFROM2SHORT(TRUE, CRA_CURSORED)));
 
         POINTL ptlMouse;
         PMRASSERT(WinQueryPointerPos(HWND_DESKTOP, &ptlMouse));
@@ -321,6 +309,8 @@ MRESULT PlaylistView::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
         }
         if (Record::IsRemoved(focus))
           return 0; // record could be removed now
+        // emphasize record
+        PMRASSERT(WinSendMsg(HwndContainer, CM_SETRECORDEMPHASIS, MPFROMP(focus), MPFROM2SHORT(TRUE, CRA_SOURCE)));
         DEBUGLOG2(("PlaylistManager::DlgProc: Menu: %p %p %p\n", MainMenu, ListMenu, FileMenu));
         PMRASSERT(WinPopupMenu(HWND_DESKTOP, HwndFrame, hwndMenu, ptlMouse.x, ptlMouse.y, 0,
                                PU_HCONSTRAIN | PU_VCONSTRAIN | PU_MOUSEBUTTON1 | PU_MOUSEBUTTON2 | PU_KEYBOARD));

@@ -44,3 +44,4 @@ event.h:	..\..\utils\cpp/mutex.h ..\..\include\config.h ..\..\utils\debuglog.h
 mutex.h:	..\..\include\config.h
 simplestr.h:	..\..\utils\cpp/smartptr.h
 smartptr.h:	..\..\include\config.h ..\..\utils\debuglog.h
+unittest.cpp:	..\..\include\config.h event.h

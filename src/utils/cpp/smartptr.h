@@ -77,6 +77,7 @@ class Iref_Count
   volatile unsigned Count;
  protected:
   Iref_Count() : Count(0) {}
+  ~Iref_Count() {} // You must not call the non-virtual destructor directly.
  public:
   // Checks whether the object is currently unique. If you currently hold an int_ptr with the object
   // you can safely assume that it is your's, unless you pass the reference explicitely or implicitly

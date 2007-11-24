@@ -29,7 +29,6 @@
 // mutex.cpp - platform specific mutex semaphore class
 
 #define INCL_BASE
-#include <assert.h>
 #include <errno.h>
 
 #include "mutex.h"
@@ -53,13 +52,12 @@ bool Mutex::Lock::Release()
 
 
 Mutex::Mutex(bool share)
-{  DEBUGLOG(("Mutex(%p)::Mutex(%u)\n", this, share));
-   APIRET rc = DosCreateMutexSem(NULL, &Handle, share*DC_SEM_SHARED, FALSE);
-   assert(rc == 0);
+{  DEBUGLOG(("Mutex(%p{%p})::Mutex(%u)\n", this, Handle, share));
+   ORASSERT(DosCreateMutexSem(NULL, &Handle, share*DC_SEM_SHARED, FALSE));
 }
 
 Mutex::Mutex(const char* name)
-{  DEBUGLOG(("Mutex(%p)::Mutex(%s)\n", this, name));
+{  DEBUGLOG(("Mutex(%p{%p})::Mutex(%s)\n", this, Handle, name));
    char* cp = new char[strlen(name)+8];
    strcpy(cp, "\\SEM32\\");
    strcpy(cp+7, name);
@@ -72,16 +70,16 @@ Mutex::Mutex(const char* name)
       rc = DosOpenMutexSem((PSZ)name, &Handle);
    } while (rc == ERROR_SEM_NOT_FOUND);
    delete[] cp;
-   assert(rc == 0);
+   OASSERT(rc);
 }
 
 Mutex::~Mutex()
 {  DEBUGLOG(("Mutex(%p)::~Mutex()\n", this));
-   DosCloseMutexSem(Handle);
+   ORASSERT(DosCloseMutexSem(Handle));
 }
 
 bool Mutex::Request(long ms)
-{  DEBUGLOG(("Mutex(%p)::Request(%li)\n", this, ms));
+{  DEBUGLOG(("Mutex(%p{%p})::Request(%li)\n", this, Handle, ms));
    #ifdef DEBUG
    // rough deadlock check
    APIRET rc = DosRequestMutexSem(Handle, ms < 0 ? 60000 : ms); // The mapping from ms == -1 to SEM_INDEFINITE_WAIT is implicitely OK.
@@ -94,7 +92,7 @@ bool Mutex::Request(long ms)
    { DEBUGLOG(("Mutex(%p)::Request - UNHANDLED TIMEOUT!!!\n", this));
      DosBeep(2000, 500);
    }
-   assert(rc == 0 || rc == ERROR_TIMEOUT);
+   ASSERT(rc == 0 || rc == ERROR_TIMEOUT);
    return rc == 0;
    #else
    return DosRequestMutexSem(Handle, ms) == 0; // The mapping from ms == -1 to SEM_INDEFINITE_WAIT is implicitely OK.
@@ -102,14 +100,14 @@ bool Mutex::Request(long ms)
 }
 
 bool Mutex::Release()
-{  PID pid;
+{  
+   #ifdef DEBUG
+   PID pid;
    TID tid;
    ULONG count;
    DosQueryMutexSem(Handle, &pid, &tid, &count);
-   DEBUGLOG(("Mutex(%p)::Release() @ %u\n", this, count));
-   #ifdef DEBUG
-   APIRET rc = DosReleaseMutexSem(Handle);
-   assert(rc == 0);
+   DEBUGLOG(("Mutex(%p{%p})::Release() @ %u\n", this, Handle, count));
+   ORASSERT(DosReleaseMutexSem(Handle));
    return true;
    #else
    return DosReleaseMutexSem(Handle) == 0;
@@ -124,7 +122,7 @@ Mutex::Status Mutex::GetStatus() const
    APIRET rc = DosQueryMutexSem(Handle, &pid, &tid, &count);
    if (rc == ERROR_SEM_OWNER_DIED || count == 0)
      return Unowned;
-   assert(rc == 0);
+   OASSERT(rc);
    PTIB tib;
    PPIB pib;
    DosGetInfoBlocks(&tib, &pib);
@@ -140,8 +138,7 @@ Mutex::Status Mutex::GetStatus() const
 *****************************************************************************/
 Event::Event(bool share)
 {  DEBUGLOG(("Event(%p)::Event(%u)\n", this, share));
-   APIRET rc = DosCreateEventSem(NULL, &Handle, share*DC_SEM_SHARED, FALSE);
-   assert(rc == 0);
+   ORASSERT(DosCreateEventSem(NULL, &Handle, share*DC_SEM_SHARED, FALSE));
 }
 
 Event::Event(const char* name)
@@ -157,7 +154,7 @@ Event::Event(const char* name)
       rc = DosOpenEventSem((PSZ)name, &Handle);
    } while (rc == ERROR_SEM_NOT_FOUND);
    delete[] cp;
-   assert(rc == 0);
+   OASSERT(rc);
 }
 
 Event::~Event()
@@ -168,20 +165,22 @@ bool Event::Wait(long ms)
 {  APIRET rc = DosWaitEventSem(Handle, ms); // The mapping from ms == -1 to INFINITE is implicitely OK.
    if (rc == 0)
      return true;
-   assert(rc == ERROR_TIMEOUT);
+   #ifdef DEBUG
+   if (rc != ERROR_TIMEOUT)
+     OASSERT(rc);
+   #endif
    return false;
 }
 
 void Event::Set()
-{  APIRET rc = DosPostEventSem(Handle);
+{  ORASSERT(DosPostEventSem(Handle));
    //DEBUGLOG(("Event(%p)::Set - %x\n", this, rc));
-   assert(rc == 0 || rc == ERROR_TOO_MANY_POSTS);
 }
 
 void Event::Reset()
 {  ULONG cnt;
    APIRET rc = DosResetEventSem(Handle, &cnt);
-   assert(rc == 0 || rc == ERROR_ALREADY_RESET);
+   ASSERT(rc == 0 || rc == ERROR_ALREADY_RESET);
 }
 
 bool Event::IsSet() const

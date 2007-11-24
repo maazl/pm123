@@ -166,7 +166,7 @@
       DEBUGLOG(("Assertion at %s line %i failed: %s\n%s\n", file, line, msg, buf));
       abort();    
   } }
-  #define OASSERT(apiret) ((expr) ? (void)0 : oassert(apiret, __FILE__, __LINE__, #apiret))
+  #define OASSERT(apiret) ((apiret) ? (void)0 : oassert(apiret, __FILE__, __LINE__, #apiret))
   #define ORASSERT(apiret) oassert(apiret, __FILE__, __LINE__, #apiret)
 
   static void pmassert(const char* file, int line, const char* msg)

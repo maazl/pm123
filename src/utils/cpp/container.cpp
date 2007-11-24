@@ -61,6 +61,15 @@ void*& vector_base::insert(size_t where)
   return *pp;
 }
 
+void*& vector_base::append()
+{ if (Size >= Capacity)
+  { Capacity <<= 1;
+    Data = (void**)realloc(Data, Capacity * sizeof *Data);
+    assert(Data != NULL);
+  }
+  return Data[Size];
+}
+
 void* vector_base::erase(size_t where)
 { assert(where < Size);
   void** pp = Data + where;
