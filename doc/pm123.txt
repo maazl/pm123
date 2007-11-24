@@ -34,6 +34,8 @@ supports skins, audio streaming, plug-ins, visualization, CDDB and more!
       - there still might be occasional redraw problems where pm123 plagues
         the whole screen, not just pm123's windows
       - various windows always appear only at the bottom left of the screen
+      - when loading playlists with cyclic references, they are never removed
+        from memory.
 
    Missing Features
    ----------------
@@ -50,8 +52,6 @@ supports skins, audio streaming, plug-ins, visualization, CDDB and more!
       - drag & drop skin would be nice
       - no support for "new" WinAmp 2.x or 3.x skins, only old ones for
         WinAmp 1.x
-      - load all files from playlist file before loading information from
-        each file would be nice
       - a "double size" would be nice
       - automatic fade in / fade out would be nice
       - add a status bar in the playlist window

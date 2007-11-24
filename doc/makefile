@@ -11,7 +11,7 @@ MANLST = history.txt manual\index.html manual\advantage.html manual\interface.ht
 MANLST = $(MANLST) manual\mainwin.html manual\mainmenu.html manual\playlist.html
 MANLST = $(MANLST) manual\properties.html manual\id3.html manual\analyzer.html
 MANLST = $(MANLST) manual\eq.html manual\manager.html manual\parameters.html
-MANLST = $(MANLST) manual\dragndrop.html manual\skins.html manual\remote.html
+MANLST = $(MANLST) manual\playlistformat.html manual\skins.html manual\remote.html
 MANLST = $(MANLST) manual\contact.html manual\copyright.html manual\netscape.html
 MANLST = $(MANLST) manual\sguide.html manual\troubleshooting.html
 

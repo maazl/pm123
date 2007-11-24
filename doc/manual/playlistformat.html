@@ -1,0 +1,75 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html resid="1020">
+<head>
+  <title>Format of the PM123 playlist files (.LST)</title>
+</head>
+<body>
+<h2>Format of the PM123 playlist files</h2>
+  This format is used for PM123 playlists as well as for bookmarks, playlist manager and most recent use lists.
+  The files are upwardly and downwardly compatible to the files of older PM123 releases, concerning the least common denominator. 
+<h4>Header</h4>
+<blockquote>
+<p>The head of a playlist file is a comment. This is not an essential part on input.<p>
+<pre>#
+# Playlist created with PM123 1.40 alpha 3
+# Do not modify!
+# Lines starting with '&gt;' are used by Playlist Manager.
+#</pre>
+</blockquote>
+<h4>For each song entry</h4>
+<ul>
+  <li><p>Human readable comment with size, duration and an info string</p>
+    <pre># 22385 kB, 21:18, 143.4kbs, 44.1kHz, Stereo</pre>
+  </li>
+  <li><p>Alias name for display, e.g. in the bookmark list. <em>optional</em></p>
+    <pre>#ALIAS Recording from Mar. 03th, 2006</pre>
+  </li>
+  <li><p>Information on start and stop position. <em>optional</em><br>
+    The unit is seconds (with fractionals). A Stop position of -1 means till the end of the source.</p>
+    <pre>#SLICE 3.921,-1.000</pre>
+  <li><p>Filename or URL</p>
+    <pre>SL060319_2204.ogg</pre>
+    On output PM123 writes Filenames with relative or absolute paths, and URLs.
+    On input file:/// URLs are accepted too. In fact any URL which is accepted by the Load URL dialog is accepted.
+    This may depend on the loaded plug-ins.
+  </li>
+  <li><p>Technical information about the above entry</p>
+    <pre>&gt;143,44100,0,22923026,1278.7</pre>
+    <p>This is the bitrate [kbps] or -1 if ubknown,<br>
+    the samplig rate [Hz],<br>
+    the number of channels as mode (0=stereo, 3=mono),<br>
+    the file size [bytes] or <tt>-1</tt> if unknown and<br>
+    the songlength [s] or <tt>-1</tt> if unknown.</p>
+    <pre>&gt;143,44100,0,22923026,1278.7,0.0,-1</pre>
+  </li>
+</ul>
+<h4>For each playlist or folder entry</h4>
+<ul>
+  <li><p>Alias name for display, e.g. in the bookmark list.</p>
+    <pre>#ALIAS Chillout-1</pre>
+  </li>
+  <li><p>Human readable comment with file size, total duration and an info string</p>
+    <pre># 1kiB, 1:15:18, </pre>
+  </li>
+  <li><p>Filename or URL</p>
+    <pre>Taucher - Adult Music\Chill.lst</pre>
+    On output PM123 writes Filenames with relative or absolute paths, and URLs.
+    On input file:/// URLs are accepted too. Folder entries must end with a trailing <tt>/</tt>.
+  </li>
+  <li><p>Technical information about the last entry</p>
+    <pre>&gt;136,-1,-1,896,1278.7,0,-1,15,0</pre>
+    <p>This is the average bitrate [kbps] or -1 if unknown,<br>
+    two constants (<tt>-1,-1</tt>) indicating unknown samplingrate and channels,<br>
+    the file size [bytes] or <tt>-1</tt> if unknown,<br>
+    the total length [s] or <tt>-1</tt> if unknown,<br>
+    the number of items (including subitems) in the referenced playlist and<br>
+    a flag whether the content is known to contain itself recursively is added.</p>
+  </li>
+</ul>
+<h4>Footer</h4>
+<blockquote>
+  <pre># End of playlist</pre>
+  <p>The footer is optional on input.</p>
+</blockquote>
+</body>
+</html>
