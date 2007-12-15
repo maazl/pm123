@@ -148,6 +148,19 @@ class PlaylistBase : public IComparableTo<char>
     // Update starting position
     RC_UPDATEPOS
   };
+ public:
+  // return value of AnalyzeRecordTypes
+  enum RecordType
+  { // record list is empty
+    RT_None = 0x00,
+    // record list contains at least one song
+    RT_Song = 0x01,
+    // record list contains at least one enumeratable item 
+    RT_Enum = 0x02,
+    // record list contains at least one playlist
+    RT_List = 0x04
+  };
+ private:
   // wrap pointer to keep PM happy
   struct init_dlg_struct
   { USHORT        size;
@@ -240,8 +253,10 @@ class PlaylistBase : public IComparableTo<char>
   HPOINTER          CalcIcon(RecordBase* rec);
   // Set the window title
   void              SetTitle();
+  // Analyze a collection of records for it's types.
+  static RecordType AnalyzeRecordTypes(vector<RecordBase>& recs);
   // Load context menu for a record
-  virtual HWND      InitContextMenu(RecordBase* rec) = 0;
+  virtual HWND      InitContextMenu(vector<RecordBase>& recs) = 0;
 
   // Subfunction to the factory below.
   virtual RecordBase* CreateNewRecord(PlayableInstance* obj, RecordBase* parent) = 0;
@@ -264,8 +279,10 @@ class PlaylistBase : public IComparableTo<char>
   // rec == NULL => root node
   virtual void      UpdateChildren(RecordBase* const rec);
   
-  // Return all source records or an empty list if none or the whole container is the source respectively.
-  void              GetSourceRecords(vector<RecordBase>& result) const;
+  // Return all records with a given emphasis or an empty list if none.
+  void              GetRecords(vector<RecordBase>& result, USHORT emphasis) const;
+  // Set or clear the emphasis of a set of records
+  void              SetEmphasis(const vector<RecordBase>& recs, USHORT emphasis, bool set) const;
 
  protected: // Update Functions.
             // They are logically virtual, but they are not called from this class.
@@ -309,7 +326,7 @@ class PlaylistBase : public IComparableTo<char>
   virtual int       CompareTo(const char* str) const;
 
 };
-
+FLAGSATTRIBUTE(PlaylistBase::RecordType);
 
 inline PlaylistBase::CPDataBase::CPDataBase(
   PlaylistBase& pm,

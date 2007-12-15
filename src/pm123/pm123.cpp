@@ -151,11 +151,12 @@ amp_display_error( const char *info )
   }
 }
 
-Song* amp_get_current_song()
+/* TODO: need to synchronize to thead 1 */
+int_ptr<Song> amp_get_current_song()
 { return Current.GetCurrentSong();
 }
 
-Playable* amp_get_current_root()
+int_ptr<Playable> amp_get_current_root()
 { return Current.GetRoot();
 }
 

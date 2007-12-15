@@ -933,19 +933,12 @@ MENU MNU_RECORD
    MENUITEM "~Load\tSh+^U",               IDM_PL_USE
    MENUITEM "~Navigate to\tEnter",        IDM_PL_NAVIGATE
    MENUITEM "~Edit meta info...\t^E",     IDM_PL_EDIT
-   MENUITEM "Refresh status",             IDM_PL_REFRESH
-   MENUITEM SEPARATOR
-   MENUITEM "~Remove from list\tDel",     IDM_PL_REMOVE
-}
-
-MENU MNU_PLRECORD
-{
-   MENUITEM "~Load\tSh+^U",               IDM_PL_USE
-   MENUITEM "~Navigate to\tEnter",        IDM_PL_NAVIGATE
    MENUITEM "~Edit playlist...\tSh+^D",   IDM_PL_DETAILED
    MENUITEM "Open in ~tree view\tSh+^T",  IDM_PL_TREEVIEW
    MENUITEM SEPARATOR
    MENUITEM "~Remove from list\tDel",     IDM_PL_REMOVE
+   MENUITEM SEPARATOR
+   MENUITEM "Refresh status",             IDM_PL_REFRESH
 }
 
 /* Playlist Manager specific stuff */
@@ -968,25 +961,17 @@ MENU PM_MAIN_MENU
    MENUITEM "~Save...\tCtrl+S",           IDM_PL_SAVE
 }
 
-MENU PM_FILE_MENU
+MENU PM_REC_MENU
 {
-   MENUITEM "~Load this File\tSh+^U",     IDM_PL_USE
+   MENUITEM "~Load\tSh+^U",               IDM_PL_USE
    MENUITEM "~Navigate to\tEnter",        IDM_PL_NAVIGATE
    MENUITEM "~Edit meta info...\t^E",     IDM_PL_EDIT
-   MENUITEM "Refresh status",             IDM_PL_REFRESH
-   MENUITEM SEPARATOR
-   MENUITEM "~Remove from list\tDel",     IDM_PL_REMOVE
-}
-
-MENU PM_LIST_MENU
-{
-   MENUITEM "~Load this playlist\tSh+^U", IDM_PL_USE
-   MENUITEM "~Navigate to\tEnter",        IDM_PL_NAVIGATE
    MENUITEM "~Detailed view (edit)\tSh+^D",IDM_PL_DETAILED
    MENUITEM "~Tree view from here\tSh+^T",IDM_PL_TREEVIEW
    MENUITEM SEPARATOR
    MENUITEM "~Remove Item\tDel",          IDM_PL_REMOVE
    MENUITEM SEPARATOR
+   MENUITEM "Refresh status",             IDM_PL_REFRESH
    SUBMENU  "~Append to...\tIns",         IDM_PL_APPEND
    {  MENUITEM "~Files...\tIns",          IDM_PL_APPFILE
       MENUITEM "~URL...",                 IDM_PL_APPURL

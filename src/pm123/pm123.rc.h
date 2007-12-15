@@ -186,13 +186,11 @@
 #define ACL_PLAYLIST       8001
 #define MNU_PLAYLIST        900
 #define MNU_RECORD          901
-#define MNU_PLRECORD        902
 /* Playlistmanager */
 #define DLG_PM               48
 
 #define PM_MAIN_MENU       1024
-#define PM_FILE_MENU       2048
-#define PM_LIST_MENU       3072
+#define PM_REC_MENU        2048
 
 #define IDM_PL_USEALL       910
 #define IDM_PL_USE          911

@@ -71,9 +71,13 @@ class vector_base
   // The function is not type safe and should not be exposed public.  
   void*&             insert(size_t where);
   // Removes an element from the vector and return it's value.
+  // Precondition: where in [begin(),end()), Performance: O(n)
+  // The function is not type safe and should not be exposed public.  
+  void*              erase(void** where);
+  // Removes an element from the vector and return it's value.
   // Precondition: where in [0,size()-1], Performance: O(n)
   // The function is not type safe and should not be exposed public.  
-  void*              erase(size_t where);
+  void*              erase(size_t where)            { return erase(Data + where); }
   // Access an element by number.
   // Precondition: where in [0,size()-1], Performance: O(1)
   // This is in fact like operator[], but since this method is not type safe
@@ -110,6 +114,9 @@ class vector : public vector_base
   // The reference is valid until the next non-const member function call.
   // The initial value of the new element is undefined and must be assigned before the next access.
   T*&                insert(size_t where)           { return (T*&)vector_base::insert(where); }
+  // Removes an element from the vector and return it's value.
+  // Precondition: where in [begin(),end()), Performance: O(n)
+  T*                 erase(T*const* where)          { return (T*)vector_base::erase((void**)where); }
   // Removes an element from the vector and return it's value.
   // Precondition: where in [0,size()-1], Performance: O(n)
   T*                 erase(size_t where)            { return (T*)vector_base::erase(where); }

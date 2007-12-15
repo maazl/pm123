@@ -98,7 +98,7 @@ amp_display_filename( void )
 {
   char display[512];
 
-  const Song* song = amp_get_current_song();
+  int_ptr<Song> song = amp_get_current_song();
   DEBUGLOG(("amp_display_filename() %p %u\n", song, cfg.viewmode));
   if (!song) {
     bmp_set_text( "No file loaded" );
@@ -177,7 +177,7 @@ int DLLENTRY pm123_getstring( int index, int subindex, size_t bufsize, char* buf
      strlcpy( buf, bmp_query_text(), bufsize );
      break;
    case STR_FILENAME:
-   { const Song* song = amp_get_current_song();
+   { int_ptr<Song> song = amp_get_current_song();
      if (song)
        strlcpy(buf, song->GetURL(), bufsize);
      break;

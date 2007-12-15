@@ -1260,7 +1260,7 @@ bmp_draw_plmode( HPS hps )
   if( cfg.mode == CFG_MODE_REGULAR && bmp_pos[ POS_PL_MODE ].x != POS_UNDEF &&
                                       bmp_pos[ POS_PL_MODE ].y != POS_UNDEF )
   {
-    const Playable* root = amp_get_current_root();
+    int_ptr<Playable> root = amp_get_current_root();
     if (root == NULL)
         bmp_draw_bitmap( hps, bmp_pos[ POS_PL_MODE ].x,
                               bmp_pos[ POS_PL_MODE ].y, BMP_NOFILE );
@@ -1439,7 +1439,7 @@ bmp_draw_timeleft( HPS hps )
 {
   if( cfg.mode == CFG_MODE_REGULAR )
   {
-    const Playable* root = amp_get_current_root();
+    int_ptr<Playable> root = amp_get_current_root();
 
     if( root == NULL ) {
       if( bmp_pos[ POS_NOTL ].x != POS_UNDEF &&

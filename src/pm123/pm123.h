@@ -135,11 +135,9 @@ extern void DLLENTRY amp_display_error( const char* );
 #ifdef __cplusplus
 }
 #include "playable.h"
-/* TODO: there are bad threading issues here
-   if the following function is not called from the main thread */
 /* Returns a information block of the currently loaded file or NULL if none. */
-Song*     amp_get_current_song();
-Playable* amp_get_current_root(); 
+int_ptr<Song>     amp_get_current_song();
+int_ptr<Playable> amp_get_current_root(); 
 extern "C" {
 #endif
 

@@ -70,12 +70,11 @@ void*& vector_base::append()
   return Data[Size++];
 }
 
-void* vector_base::erase(size_t where)
-{ assert(where < Size);
-  void** pp = Data + where;
+void* vector_base::erase(void** where)
+{ assert(where >= Data && where < Data+Size);
   --Size;
-  void* ret = *pp;
-  memmove(pp, pp+1, (Size-where) * sizeof *Data);
+  void* ret = *where;
+  memmove(where, where+1, (const char*)(Data+Size) - (const char*)where);
   if (Size+16 < (Capacity>>1))
   { Capacity >>= 1;
     Data = (void**)realloc(Data, Capacity * sizeof *Data);

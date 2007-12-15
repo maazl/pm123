@@ -304,21 +304,9 @@ MRESULT PlaylistBase::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
     break;
 
    case WM_MENUEND:
-    { GetSourceRecords(Source);
-      DEBUGLOG(("PlaylistBase::DlgProc WM_MENUEND %u\n", Source.size()));
-      if (Source.size() == 0)
-      { // whole container was source
-        PMRASSERT(WinSendMsg(HwndContainer, CM_SETRECORDEMPHASIS, MPFROMP(NULL), MPFROM2SHORT(FALSE, CRA_SOURCE)));
-      } else
-      { RecordBase** rpp = Source.end();
-        while (rpp != Source.begin())
-        { --rpp;
-          PMRASSERT(WinSendMsg(HwndContainer, CM_SETRECORDEMPHASIS, MPFROMP(*rpp), MPFROM2SHORT(FALSE, CRA_SOURCE)));
-        }
-        // rpp is now implicitely equal to source.begin()
-        PMRASSERT(WinSendMsg(HwndContainer, CM_INVALIDATERECORD, MPFROMP(rpp), MPFROM2SHORT(Source.size(), CMA_NOREPOSITION)));
-      }
-    }
+    GetRecords(Source, CRA_SOURCE);
+    DEBUGLOG(("PlaylistBase::DlgProc WM_MENUEND %u\n", Source.size()));
+    SetEmphasis(Source, CRA_SOURCE, false);
     break;
 
    case WM_WINDOWPOSCHANGED:
@@ -339,9 +327,24 @@ MRESULT PlaylistBase::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
    case WM_CONTROL:
     switch (SHORT2FROMMP(mp1))
     {case CN_CONTEXTMENU:
-      { HWND hwndMenu = InitContextMenu((RecordBase*)mp2);
+      { RecordBase* rec = (RecordBase*)mp2;
+        Source.clear();
+        if (rec)
+        { if (rec->IsRemoved())
+            break;
+          PMRASSERT(WinSendMsg(HwndContainer, CM_QUERYRECORDINFO, MPFROMP(&rec), MPFROMSHORT(1)));
+          // check wether the record is selected
+          if (rec->flRecordAttr & CRA_SELECTED)
+          { GetRecords(Source, CRA_SELECTED);
+            if (Source.size() == 0)
+              break;
+          } else
+            Source.append() = rec;
+        }
+        HWND hwndMenu = InitContextMenu(Source);
         if (hwndMenu != NULLHANDLE)
-        { POINTL ptlMouse;
+        { SetEmphasis(Source, CRA_SOURCE, true);
+          POINTL ptlMouse;
           PMRASSERT(WinQueryPointerPos(HWND_DESKTOP, &ptlMouse));
           // TODO: Mouse Position may not be reasonable, when the menu is invoked by keyboard.
 
@@ -546,6 +549,26 @@ void PlaylistBase::SetTitle()
   Title = title;
 }
 
+PlaylistBase::RecordType PlaylistBase::AnalyzeRecordTypes(vector<RecordBase>& recs)
+{ RecordType ret = RT_None;
+  for (RecordBase*const* rpp = recs.end(); rpp-- != recs.begin(); )
+  { if ((*rpp)->IsRemoved())
+    { recs.erase(rpp);
+      continue;
+    }
+    Playable::Flags flg = ((*rpp)->Content->GetPlayable().GetFlags());
+    if (flg == Playable::None)
+      ret |= RT_Song;
+    else if (flg & Playable::Enumerable)
+      ret |= RT_Enum;
+    else if (flg & Playable::Mutable)
+      ret |= RT_List;
+  }
+  DEBUGLOG(("PlaylistBase::AnalyzeRecordTypes(%p{%u}): %x\n", &recs, recs.size(), ret));
+  return ret;
+}
+
+
 PlaylistBase::RecordBase* PlaylistBase::AddEntry(PlayableInstance* obj, RecordBase* parent, RecordBase* after)
 { DEBUGLOG(("PlaylistBase(%p{%s})::AddEntry(%p{%s}, %p, %p)\n", this, DebugName().cdata(), obj, obj->GetPlayable().GetURL().getShortName().cdata(), parent, after));
   /* Allocate a record in the HwndContainer */
@@ -717,16 +740,29 @@ void PlaylistBase::UpdateChildren(RecordBase* const rp)
   PMRASSERT(WinEnableWindowUpdate(HwndContainer, TRUE));
 }
 
-void PlaylistBase::GetSourceRecords(vector<RecordBase>& result) const
+void PlaylistBase::GetRecords(vector<RecordBase>& result, USHORT emphasis) const
 { result.clear();
-  RecordBase* rec = (RecordBase*)PVOIDFROMMR(WinSendMsg(HwndContainer, CM_QUERYRECORDEMPHASIS, MPFROMP(CMA_FIRST), MPFROMSHORT(CRA_SOURCE)));
+  RecordBase* rec = (RecordBase*)PVOIDFROMMR(WinSendMsg(HwndContainer, CM_QUERYRECORDEMPHASIS, MPFROMP(CMA_FIRST), MPFROMSHORT(emphasis)));
   while (rec != NULL && rec != (RecordBase*)-1)
   { DEBUGLOG(("PlaylistBase::GetSourceRecords: %p\n", rec));
     if (!rec->IsRemoved()) // Skip removed
       result.append() = rec;
-    rec = (RecordBase*)PVOIDFROMMR(WinSendMsg(HwndContainer, CM_QUERYRECORDEMPHASIS, MPFROMP(rec), MPFROMSHORT(CRA_SOURCE)));
+    rec = (RecordBase*)PVOIDFROMMR(WinSendMsg(HwndContainer, CM_QUERYRECORDEMPHASIS, MPFROMP(rec), MPFROMSHORT(emphasis)));
   }
   PMASSERT(rec != (RecordBase*)-1);
+}
+
+void PlaylistBase::SetEmphasis(const vector<RecordBase>& recs, USHORT emphasis, bool set) const
+{ DEBUGLOG(("PlaylistBase(%p)::SetEmphasis(%p{%u}, %x, %u)\n", this, &recs, recs.size(), emphasis, set));
+  if (recs.size() == 0)
+    PMRASSERT(WinSendMsg(HwndContainer, CM_SETRECORDEMPHASIS, MPFROMP(NULL), MPFROM2SHORT(set, emphasis)));
+  else
+  { for (RecordBase*const* rpp = recs.begin(); rpp != recs.end(); ++rpp)
+    { DEBUGLOG(("PlaylistBase::SetEmphasis: %p\n", *rpp));
+      PMRASSERT(WinSendMsg(HwndContainer, CM_SETRECORDEMPHASIS, MPFROMP(*rpp), MPFROM2SHORT(set, emphasis)));
+    }
+    PMRASSERT(WinSendMsg(HwndContainer, CM_INVALIDATERECORD, MPFROMP(recs.begin()), MPFROM2SHORT(recs.size(), CMA_NOREPOSITION)));
+  }
 }
 
 void PlaylistBase::UpdateStatus(RecordBase* rec)

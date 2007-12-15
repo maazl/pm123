@@ -69,8 +69,7 @@ class PlaylistManager : public PlaylistRepository<PlaylistManager>
  private: // working set
   xstring           Info;          // Keep the window info
   HWND              MainMenu;
-  HWND              ListMenu;
-  HWND              FileMenu;
+  HWND              RecMenu;
   int_ptr<Playable> EmFocus;       // Playable object to display at UM_SETTITLE
 
  private:
@@ -81,7 +80,7 @@ class PlaylistManager : public PlaylistRepository<PlaylistManager>
   // Dialog procedure, called by DlgProcStub
   virtual MRESULT   DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2);
   // Load context menu for a record
-  virtual HWND      InitContextMenu(RecordBase* rec);
+  virtual HWND      InitContextMenu(vector<RecordBase>& recs);
   // Set Status info
   void              SetInfo(const xstring& info);
   // initiate the display of a record's info

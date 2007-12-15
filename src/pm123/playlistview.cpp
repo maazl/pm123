@@ -83,8 +83,7 @@ PlaylistView* PlaylistView::Get(const char* url, const char* alias)
 PlaylistView::PlaylistView(const char* URL, const char* alias)
 : PlaylistRepository<PlaylistView>(URL, alias, DLG_PLAYLIST),
   MainMenu(NULLHANDLE),
-  ListMenu(NULLHANDLE),
-  FileMenu(NULLHANDLE)
+  RecMenu(NULLHANDLE)
 { DEBUGLOG(("PlaylistView::PlaylistView(%s, %s)\n", URL, alias));
   //HwndFrame = WinLoadDlg( HWND_DESKTOP, HWND_DESKTOP, pl_DlgProcStub, NULLHANDLE, DLG_PLAYLIST, &ids );
   StartDialog();
@@ -325,13 +324,10 @@ MRESULT PlaylistView::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
   return PlaylistBase::DlgProc(msg, mp1, mp2);
 }
 
-HWND PlaylistView::InitContextMenu(RecordBase* rec)
-{ DEBUGLOG(("PlaylistView(%p)::InitContextMenu(%p)\n", this, rec));
-  if (Record::IsRemoved(rec))
-    return NULLHANDLE; // record removed
-
+HWND PlaylistView::InitContextMenu(vector<RecordBase>& recs)
+{ DEBUGLOG(("PlaylistView(%p)::InitContextMenu(%p{%u})\n", this, &recs, recs.size()));
   HWND   hwndMenu;
-  if (rec == NULL)
+  if (recs.size() == 0)
   { if (MainMenu == NULLHANDLE)
     { MainMenu = WinLoadMenu(HWND_OBJECT, 0, MNU_PLAYLIST);
       PMASSERT(MainMenu != NULLHANDLE);
@@ -345,27 +341,23 @@ HWND PlaylistView::InitContextMenu(RecordBase* rec)
     { mn_enable_item(hwndMenu, IDM_PL_SAVE,   false);
       mn_enable_item(hwndMenu, IDM_PL_APPEND, false);
     }
-  } else if (rec->Content->GetPlayable().GetFlags() & Playable::Enumerable)
-  { if (ListMenu == NULLHANDLE)
-    { ListMenu = WinLoadMenu(HWND_OBJECT, 0, MNU_PLRECORD);
-      PMASSERT(ListMenu != NULLHANDLE);
-    }
-    hwndMenu = ListMenu;
   } else
-  { if (FileMenu == NULLHANDLE)
-    { FileMenu = WinLoadMenu(HWND_OBJECT, 0, MNU_RECORD);
-      PMASSERT(FileMenu != NULLHANDLE);
+  { if (RecMenu == NULLHANDLE)
+    { RecMenu = WinLoadMenu(HWND_OBJECT, 0, MNU_RECORD);
+      PMASSERT(RecMenu != NULLHANDLE);
     }
-    hwndMenu = FileMenu;
-    if (rec->IsRemoved())
-      return NULLHANDLE; // record could be removed at WinLoadMenu
-    mn_enable_item(hwndMenu, IDM_PL_EDIT, rec->Content->GetPlayable().GetInfo().meta_write);
+    hwndMenu = RecMenu;
+    RecordType rt = AnalyzeRecordTypes(recs);
+    if (rt == RT_None)
+      return NULLHANDLE;
+    mn_enable_item(hwndMenu, IDM_PL_NAVIGATE, recs.size() == 1);
+    mn_enable_item(hwndMenu, IDM_PL_EDIT,     recs.size() == 1 && recs[0]->Content->GetPlayable().GetInfo().meta_write);
+    mn_enable_item(hwndMenu, IDM_PL_REFRESH,  (rt & (RT_Enum|RT_List)) == 0);
+    mn_enable_item(hwndMenu, IDM_PL_DETAILED, recs.size() == 1 && rt != RT_Song);
+    mn_enable_item(hwndMenu, IDM_PL_TREEVIEW, recs.size() == 1 && rt != RT_Song);
   }
-  if (Record::IsRemoved(rec))
-    return NULLHANDLE; // record could be removed now
   // emphasize record
-  PMRASSERT(WinSendMsg(HwndContainer, CM_SETRECORDEMPHASIS, MPFROMP(rec), MPFROM2SHORT(TRUE, CRA_SOURCE)));
-  DEBUGLOG2(("PlaylistView::InitContextMenu: Menu: %p %p %p\n", MainMenu, ListMenu, FileMenu));
+  DEBUGLOG2(("PlaylistView::InitContextMenu: Menu: %p %p\n", MainMenu, RecMenu));
   return hwndMenu;
 }
 

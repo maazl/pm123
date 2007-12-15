@@ -96,8 +96,7 @@ class PlaylistView : public PlaylistRepository<PlaylistView>
   static FIELDINFO* ConstFieldinfo;
  private: // working set
   HWND              MainMenu;
-  HWND              ListMenu;
-  HWND              FileMenu;
+  HWND              RecMenu;
 
  private:
   // Create a playlist manager window for an URL, but don't open it.
@@ -113,7 +112,7 @@ class PlaylistView : public PlaylistRepository<PlaylistView>
   // Dialog procedure, called by DlgProcStub
   virtual MRESULT   DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2);
   // Load context menu for a record
-  virtual HWND      InitContextMenu(RecordBase* rec);
+  virtual HWND      InitContextMenu(vector<RecordBase>& recs);
 
   // Determine type of Playable object
   // Subfunction to CalcIcon.
