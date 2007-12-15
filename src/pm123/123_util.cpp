@@ -99,7 +99,7 @@ amp_display_filename( void )
   char display[512];
 
   int_ptr<Song> song = amp_get_current_song();
-  DEBUGLOG(("amp_display_filename() %p %u\n", song, cfg.viewmode));
+  DEBUGLOG(("amp_display_filename() %p %u\n", &*song, cfg.viewmode));
   if (!song) {
     bmp_set_text( "No file loaded" );
     return;
