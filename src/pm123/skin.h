@@ -70,25 +70,25 @@ extern "C" {
 #endif
 
 /* Creates and loads a bitmap from a file, and returns the bitmap handle. */
-HBITMAP bmp_load_bitmap( const char* filename );
+//HBITMAP bmp_load_bitmap( const char* filename );
 /* Draws a bit map using the current image colors and mixes. */
-void bmp_draw_bitmap( HPS hps, int x, int y, int res );
+//void bmp_draw_bitmap( HPS hps, int x, int y, int res );
 /* Draws a specified digit using the specified size. */
-void bmp_draw_digit( HPS hps, int x, int y, unsigned int digit, int size );
+//void bmp_draw_digit( HPS hps, int x, int y, unsigned int digit, int size );
 /* Draws a 3D shade of the specified area. */
-void bmp_draw_shade( HPS hps, int x, int y, int cx, int cy, long clr1, long clr2 );
+//void bmp_draw_shade( HPS hps, int x, int y, int cx, int cy, long clr1, long clr2 );
 
 /* Returns a width of the specified bitmap. */
-int  bmp_cx( int id );
+//int  bmp_cx( int id );
 /* Returns a height of the specified bitmap. */
-int  bmp_cy( int id );
+//int  bmp_cy( int id );
 
 /* Draws a activation led. */
 void bmp_draw_led( HPS hps, int active );
 /* Draws the player background. */
 void bmp_draw_background( HPS hps, HWND hwnd );
 /* Draws the specified part of the player background. */
-void bmp_draw_part_bg( HPS hps, int x1, int y1, int x2, int y2 );
+//void bmp_draw_part_bg( HPS hps, int x1, int y1, int x2, int y2 );
 /* Draws the main player timer. */
 void bmp_draw_timer( HPS hps, double time );
 /* Draws the tiny player timer. */

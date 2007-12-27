@@ -1,5 +1,6 @@
 /*
- * Copyright 1997-2003 Samuel Audet <guardia@step.polymtl.ca>
+ * Copyright 2007-2008 Marcel MÅeller
+ *           1997-2003 Samuel Audet <guardia@step.polymtl.ca>
  *                     Taneli LeppÑ <rosmo@sektori.com>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -58,6 +59,9 @@
 #include <debuglog.h>
 
 
+#define MAX_DRAG_IMAGES 6
+
+
 #ifdef DEBUG
 xstring PlaylistBase::RecordBase::DebugName() const
 { if (IsRemoved())
@@ -66,8 +70,11 @@ xstring PlaylistBase::RecordBase::DebugName() const
 }
 xstring PlaylistBase::RecordBase::DebugName(const RecordBase* rec)
 { static const xstring nullstring = "<NULL>";
+  static const xstring firststring = "<CMA_FIRST>";
   if (!rec)
     return nullstring;
+  if (rec == (RecordBase*)CMA_FIRST)
+    return firststring;
   return rec->DebugName();
 }
 
@@ -139,9 +146,10 @@ PlaylistBase::PlaylistBase(const char* url, const char* alias, ULONG rid)
 
 PlaylistBase::~PlaylistBase()
 { DEBUGLOG(("PlaylistBase(%p)::~PlaylistBase()\n", this));
-  PMRASSERT(WinPostMsg(HwndFrame, WM_QUIT, 0, 0));
+  // The window may be closed already => ignore the error
+  WinPostMsg(HwndFrame, WM_QUIT, 0, 0);
   // This may give an error if called from our own thread. This is intensionally ignored here.
-  ORASSERT(DosWaitThread(&ThreadID, DCWW_WAIT));
+  //DosWaitThread(&ThreadID, DCWW_WAIT);
 }
 
 void TFNENTRY pl_DlgThreadStub(void* arg)
@@ -150,6 +158,9 @@ void TFNENTRY pl_DlgThreadStub(void* arg)
 
 void PlaylistBase::StartDialog()
 { ThreadID = _beginthread(pl_DlgThreadStub, NULL, 1024*1024, this);
+  /*// initialize dialog
+  init_dlg_struct ids = { sizeof(init_dlg_struct), this };
+  PMRASSERT(WinLoadDlg(HWND_DESKTOP, HWND_DESKTOP, pl_DlgProcStub, NULLHANDLE, DlgRID, &ids));*/
 }
 
 void PlaylistBase::DlgThread()
@@ -328,19 +339,8 @@ MRESULT PlaylistBase::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
     switch (SHORT2FROMMP(mp1))
     {case CN_CONTEXTMENU:
       { RecordBase* rec = (RecordBase*)mp2;
-        Source.clear();
-        if (rec)
-        { if (rec->IsRemoved())
-            break;
-          PMRASSERT(WinSendMsg(HwndContainer, CM_QUERYRECORDINFO, MPFROMP(&rec), MPFROMSHORT(1)));
-          // check wether the record is selected
-          if (rec->flRecordAttr & CRA_SELECTED)
-          { GetRecords(Source, CRA_SELECTED);
-            if (Source.size() == 0)
-              break;
-          } else
-            Source.append() = rec;
-        }
+        if (!GetSource(rec))
+          break;
         HWND hwndMenu = InitContextMenu(Source);
         if (hwndMenu != NULLHANDLE)
         { SetEmphasis(Source, CRA_SOURCE, true);
@@ -353,8 +353,66 @@ MRESULT PlaylistBase::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
         }
         break;
       }
+
+     // D'n'D Source
+     case CN_INITDRAG:
+      { CNRDRAGINIT* cdi = (CNRDRAGINIT*)mp2;
+        if (!GetSource((RecordBase*)cdi->pRecord))
+          return 0;
+        DragInit(Source);
+        return 0;
+      }
+
+     // D'n'D Target
+     case CN_DRAGOVER:
+     case CN_DRAGAFTER:
+      { CNRDRAGINFO* pcdi = (CNRDRAGINFO*)PVOIDFROMMP(mp2);
+        if (!DrgAccessDraginfo(pcdi->pDragInfo))
+        { // Most likely an error of the source application. So do not blow out.
+          DEBUGLOG(("PlaylistBase::DlgProc: CM_DRAG... - DrgAccessDraginfo failed\n"));
+          return MRFROM2SHORT(DOR_NEVERDROP, 0);
+        }
+        DragAfter = SHORT2FROMMP(mp1) == CN_DRAGAFTER;
+        MRESULT mr = DragOver(pcdi->pDragInfo, (RecordBase*)pcdi->pRecord);
+        DrgFreeDraginfo(pcdi->pDragInfo);
+        return mr;
+      } 
+     case CN_DROP:
+      { CNRDRAGINFO* pcdi = (CNRDRAGINFO*)PVOIDFROMMP(mp2);
+        if (!DrgAccessDraginfo(pcdi->pDragInfo))
+        { // Most likely an error of the source application. So do not blow out.
+          DEBUGLOG(("PlaylistBase::DlgProc: CM_DRAG... - DrgAccessDraginfo failed\n"));
+          return MRFROM2SHORT(DOR_NEVERDROP, 0);
+        }
+        DragDrop(pcdi->pDragInfo, (RecordBase*)pcdi->pRecord);
+        DrgFreeDraginfo(pcdi->pDragInfo);
+        return 0;
+      } 
     }  
     break;
+
+   case DM_RENDERCOMPLETE:
+    DropRenderComplete((DRAGTRANSFER*)PVOIDFROMMP(mp1), SHORT1FROMMP(mp2));
+    return 0;
+
+   case DM_DISCARDOBJECT:
+    { DRAGINFO* pdinfo = (DRAGINFO*)PVOIDFROMMP(mp1);
+      bool r = false;
+      if (DrgAccessDraginfo(pdinfo))
+      { r = DropDiscard(pdinfo);
+        DrgFreeDraginfo(pdinfo);
+      }
+      return MRFROMLONG(r ? DRR_SOURCE : DRR_ABORT);
+    }
+   case DM_RENDER:
+    { DRAGTRANSFER* pdtrans = (DRAGTRANSFER*)PVOIDFROMMP(mp1);
+      BOOL rc = DropRender(pdtrans);
+      DrgFreeDragtransfer(pdtrans);
+      return MRFROMLONG(rc);
+    }
+   case DM_ENDCONVERSATION:
+    DropEnd((RecordBase*)PVOIDFROMMP(mp1), !!(LONGFROMMP(mp2) & DMFL_TARGETSUCCESSFUL));
+    return 0;
     
    case WM_COMMAND:
     { DEBUGLOG(("PlaylistBase(%p{%s})::DlgProc: WM_COMMAND %u %u\n", this, DebugName().cdata(), SHORT1FROMMP(mp1), Source.size()));
@@ -412,12 +470,8 @@ MRESULT PlaylistBase::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
           return 0;
         }
        case IDM_PL_REMOVE:
-        { // This won't work for the tree view. Overload it!
-          for (RecordBase** rpp = Source.begin(); rpp != Source.end(); ++rpp)
-          { if ((Content->GetFlags() & Playable::Mutable) == Playable::Mutable) // don't modify constant object
-              ((Playlist&)*Content).RemoveItem((*rpp)->Content);
-          }
-          // the update of the container is implicitely done by the notification mechanism
+        { for (RecordBase** rpp = Source.begin(); rpp != Source.end(); ++rpp)
+            UserRemove(*rpp);
           return 0;
         }
        case IDM_PL_CLEARALL:
@@ -484,6 +538,25 @@ MRESULT PlaylistBase::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
    case UM_PLAYSTATUS:
     UpdatePlayStatus();
     return 0;
+    
+   case UM_INSERTITEM:
+    { InsertInfo* pii = (InsertInfo*)PVOIDFROMMP(mp1);
+      DEBUGLOG(("PlaylistBase::DlgProc: UM_INSERTITEM: %p{...,%s}\n", pii, RecordBase::DebugName(pii->Before).cdata()));
+      if (!RecordBase::IsRemoved(pii->Before))
+        UserInsert(pii);
+      FreeRecord(pii->Before);
+      delete pii;
+      return 0;
+    }
+    
+   case UM_REMOVERECORD:
+    { RecordBase* rec = (RecordBase*)PVOIDFROMMP(mp1);
+      DEBUGLOG(("PlaylistBase::DlgProc: UM_REMOVERECORD: %p\n", rec));
+      if (!rec->IsRemoved())
+        UserRemove(rec);
+      FreeRecord(rec);
+      return 0;
+    }
   }
   return WinDefDlgProc( HwndFrame, msg, mp1, mp2 );
 }
@@ -744,12 +817,29 @@ void PlaylistBase::GetRecords(vector<RecordBase>& result, USHORT emphasis) const
 { result.clear();
   RecordBase* rec = (RecordBase*)PVOIDFROMMR(WinSendMsg(HwndContainer, CM_QUERYRECORDEMPHASIS, MPFROMP(CMA_FIRST), MPFROMSHORT(emphasis)));
   while (rec != NULL && rec != (RecordBase*)-1)
-  { DEBUGLOG(("PlaylistBase::GetSourceRecords: %p\n", rec));
+  { DEBUGLOG(("PlaylistBase::GetRecords: %p\n", rec));
     if (!rec->IsRemoved()) // Skip removed
       result.append() = rec;
     rec = (RecordBase*)PVOIDFROMMR(WinSendMsg(HwndContainer, CM_QUERYRECORDEMPHASIS, MPFROMP(rec), MPFROMSHORT(emphasis)));
   }
   PMASSERT(rec != (RecordBase*)-1);
+}
+
+bool PlaylistBase::GetSource(RecordBase* rec)
+{ Source.clear();
+  if (rec)
+  { if (rec->IsRemoved())
+      return false;
+    PMRASSERT(WinSendMsg(HwndContainer, CM_QUERYRECORDINFO, MPFROMP(&rec), MPFROMSHORT(1)));
+    // check wether the record is selected
+    if (rec->flRecordAttr & CRA_SELECTED)
+    { GetRecords(Source, CRA_SELECTED);
+      if (Source.size() == 0)
+        return false;
+    } else
+      Source.append() = rec;
+  }
+  return true;
 }
 
 void PlaylistBase::SetEmphasis(const vector<RecordBase>& recs, USHORT emphasis, bool set) const
@@ -892,6 +982,12 @@ void PlaylistBase::UserAdd(DECODER_WIZZARD_FUNC wizzard, const char* title, Reco
   //sdrivedir( cfg.listdir, filedialog.szFullFile, sizeof( cfg.listdir ));
 }
 
+void PlaylistBase::UserInsert(const InsertInfo* pii)
+{ DEBUGLOG(("PlaylistBase(%p)::UserInsert(%p{{%s}, %s, %s, {%f,%f}, %s})\n", this,
+    pii, pii->Parent->GetURL().getShortName().cdata(), pii->URL.cdata(), pii->Alias.cdata(), pii->Slice.Start, pii->Slice.Stop, RecordBase::DebugName(pii->Before).cdata()));
+  pii->Parent->InsertItem(pii->URL, pii->Alias, pii->Slice, pii->Before ? pii->Before->Content : NULL);
+}
+
 void PlaylistBase::UserSave()
 { DEBUGLOG(("PlaylistBase(%p)::UserSave()\n", this));
   ASSERT(Content->GetFlags() & Playable::Enumerable);
@@ -977,5 +1073,398 @@ url PlaylistBase::PlaylistSelect(HWND owner, const char* title)
   } else
   { return url();
   }
+}
+
+/****************************************************************************  
+*
+*  Drag and drop - Target side
+*
+****************************************************************************/
+MRESULT PlaylistBase::DragOver(DRAGINFO* pdinfo, RecordBase* target)
+{ DEBUGLOG(("PlaylistBase::DragOver(%p{,,%x, %p, %i,%i, %u,}, %s) - %u\n",
+    pdinfo, pdinfo->usOperation, pdinfo->hwndSource, pdinfo->xDrop, pdinfo->yDrop, pdinfo->cditem,
+    RecordBase::DebugName(target).cdata(), DragAfter));
+  // Check source items
+  USHORT drag    = DOR_DROP;
+  USHORT drag_op = DO_DEFAULT;
+  for (int i = 0; i < pdinfo->cditem; ++i)
+  { DRAGITEM* pditem = DrgQueryDragitemPtr(pdinfo, i);
+    DEBUGLOG(("PlaylistBase::DragOver: item {%p, %p, %s, %s, %s, %s, %s, %i,%i, %x, %x}\n",
+      pditem->hwndItem, pditem->ulItemID, amp_string_from_drghstr(pditem->hstrType).cdata(), amp_string_from_drghstr(pditem->hstrRMF).cdata(),
+      amp_string_from_drghstr(pditem->hstrContainerName).cdata(), amp_string_from_drghstr(pditem->hstrSourceName).cdata(), amp_string_from_drghstr(pditem->hstrTargetName).cdata(),
+      pditem->cxOffset, pditem->cyOffset, pditem->fsControl, pditem->fsSupportedOps));
+
+    // File system object?
+    if (DrgVerifyRMF(pditem, "DRM_OS2FILE", NULL))
+    { if ( ( pdinfo->usOperation == DO_DEFAULT || pdinfo->usOperation == DO_LINK )
+        && pditem->fsSupportedOps & DO_LINKABLE )
+        drag_op = DO_LINK;
+      else
+        drag = DOR_NODROPOP;
+      continue;
+    }
+    // native PM123 object
+    else if (DrgVerifyRMF(pditem, "DRM_123FILE", NULL))
+    { if (pdinfo->usOperation == DO_DEFAULT)
+        drag_op = pdinfo->hwndSource == HwndFrame ? DO_MOVE : DO_COPY;
+      else if (pdinfo->usOperation == DO_COPY || pdinfo->usOperation == DO_MOVE)
+        drag_op = pdinfo->usOperation;
+      else
+        drag = DOR_NODROPOP;
+      continue;
+    }
+    // invalid object
+    return MRFROM2SHORT(DOR_NEVERDROP, 0);
+  }
+  // Check target
+  if (DragAfter)
+  { // ordered target
+    if ( (target != (RecordBase*)CMA_FIRST && RecordBase::IsRemoved(target))
+      || (Content->GetFlags() & Playable::Mutable) != Playable::Mutable )
+      drag = DOR_NODROP;
+  } else
+  { // drag on
+    if ( RecordBase::IsRemoved(target)
+      || (PlayableFromRec(target)->GetFlags() & Playable::Mutable) != Playable::Mutable )
+      drag = DOR_NODROP;
+  }
+  // finished
+  return MRFROM2SHORT(drag, drag_op);
+}
+
+void PlaylistBase::DragDrop(DRAGINFO* pdinfo, RecordBase* target)
+{ DEBUGLOG(("PlaylistBase::DragDrop(%p, %p)\n", pdinfo, target));
+  DEBUGLOG(("PlaylistBase::DragDrop(%p{,,%x, %p, %i,%i, %u,}, %s) - %u\n",
+    pdinfo, pdinfo->usOperation, pdinfo->hwndSource, pdinfo->xDrop, pdinfo->yDrop, pdinfo->cditem,
+    RecordBase::DebugName(target).cdata(), DragAfter));
+
+  // Locate parent
+  int_ptr<Playlist> parent = (Playlist*)(DragAfter ? (Playable*)Content : PlayableFromRec(target));
+  // Locate insertion point
+  if (!DragAfter)
+    target = NULL;
+  else if (target)
+  { if (target == (RecordBase*)CMA_FIRST)
+      target = NULL;
+    if (!RecordBase::IsRemoved(target))
+    { // Search record after target, because the container returns the record /before/ the insertion point,
+      // while PlayableCollection requires the entry /after/ the insertion point.
+      target = (RecordBase*)WinSendMsg(HwndContainer, CM_QUERYRECORD, MPFROMP(target), MPFROM2SHORT(target ? CMA_NEXT : CMA_FIRST, CMA_ITEMORDER));
+      PMASSERT(target != (RecordBase*)-1);
+    }
+    // In case the record is removed, we cannot determine the next record.
+    // However, we can't blow out, because we have to send DM_ENDCONVERSATION for all records. 
+  }
+  
+  // For each dropped item...
+  for (int i = 0; i < pdinfo->cditem; ++i)
+  { DRAGITEM* pditem = DrgQueryDragitemPtr(pdinfo, i);
+    DEBUGLOG(("PlaylistBase::DragDrop: item {%p, %p, %s, %s, %s, %s, %s, %i,%i, %x, %x}\n",
+      pditem->hwndItem, pditem->ulItemID, amp_string_from_drghstr(pditem->hstrType).cdata(), amp_string_from_drghstr(pditem->hstrRMF).cdata(),
+      amp_string_from_drghstr(pditem->hstrContainerName).cdata(), amp_string_from_drghstr(pditem->hstrSourceName).cdata(), amp_string_from_drghstr(pditem->hstrTargetName).cdata(),
+      pditem->cxOffset, pditem->cyOffset, pditem->fsControl, pditem->fsSupportedOps));
+    
+    ULONG reply = DMFL_TARGETFAIL;
+    
+    // fetch target name
+    xstring alias = amp_string_from_drghstr(pditem->hstrTargetName);
+    // Do not set an empty alias
+    if (alias.length() == 0)
+      alias = NULL;
+
+    if (DrgVerifyRMF(pditem, "DRM_OS2FILE", NULL))
+    {
+      // fetch full qualified path
+      size_t lenP = DrgQueryStrNameLen(pditem->hstrContainerName);
+      size_t lenN = DrgQueryStrNameLen(pditem->hstrSourceName);
+      xstring fullname;
+      char* cp = fullname.raw_init(lenP + lenN);
+      DrgQueryStrName(pditem->hstrContainerName, lenP+1, cp);
+      DrgQueryStrName(pditem->hstrSourceName,    lenN+1, cp+lenP);
+      // do not set identical alias
+      if (alias.length() == 0 || alias == fullname.cdata()+lenP)
+        alias = NULL;
+
+      if (pditem->hwndItem && DrgVerifyType(pditem, "UniformResourceLocator"))
+      { // URL => The droped item must be rendered.
+        DRAGTRANSFER* pdtrans = DrgAllocDragtransfer(1);
+        if (pdtrans)
+        { // Prevent the target from beeing disposed until the render has completed.
+          // However, the underlying PlayableInstance may still be removed, but this is checked.
+          BlockRecord(target);
+          DropInfo* pdsource = new DropInfo();
+          pdsource->Hwnd   = pditem->hwndItem;
+          pdsource->ItemID = pditem->ulItemID;
+          pdsource->Parent = parent;
+          pdsource->Alias  = alias;
+          pdsource->Before = target;
+
+          pdtrans->cb               = sizeof( DRAGTRANSFER );
+          pdtrans->hwndClient       = HwndFrame;
+          pdtrans->pditem           = pditem;
+          pdtrans->hstrSelectedRMF  = DrgAddStrHandle("<DRM_OS2FILE,DRF_TEXT>");
+          pdtrans->hstrRenderToName = 0;
+          pdtrans->ulTargetInfo     = (ULONG)pdsource;
+          pdtrans->fsReply          = 0;
+          pdtrans->usOperation      = pdinfo->usOperation;
+
+          // Send the message before setting a render-to name.
+          if ( pditem->fsControl & DC_PREPAREITEM
+            && !DrgSendTransferMsg(pditem->hwndItem, DM_RENDERPREPARE, (MPARAM)pdtrans, 0) )
+          { // Failure => do not send DM_ENDCONVERSATION 
+            DrgFreeDragtransfer(pdtrans);
+            delete pdsource;
+            continue;
+          }
+          pdtrans->hstrRenderToName = DrgAddStrHandle(tmpnam(NULL));
+          // Send the message after setting a render-to name.
+          if ( (pditem->fsControl & (DC_PREPARE | DC_PREPAREITEM)) == DC_PREPARE
+            && !DrgSendTransferMsg(pditem->hwndItem, DM_RENDERPREPARE, (MPARAM)pdtrans, 0) )
+          { // Failure => do not send DM_ENDCONVERSATION 
+            DrgFreeDragtransfer(pdtrans);
+            delete pdsource;
+            continue;
+          }
+          // Ask the source to render the selected item.
+          BOOL ok = LONGFROMMR(DrgSendTransferMsg(pditem->hwndItem, DM_RENDER, (MPARAM)pdtrans, 0));
+
+          if (ok) // OK => DM_ENDCONVERSATION is send at DM_RENDERCOMPLETE
+            continue;
+          // something failed => we have to cleanup ressources immediately and cancel the conversation
+          DrgFreeDragtransfer(pdtrans);
+          delete pdsource;
+          // ... send DM_ENDCONVERSATION below 
+        }
+      } else if (pditem->hstrContainerName && pditem->hstrSourceName)
+      { // Have full qualified file name.
+        // Hopefully this criterion is sufficient to identify folders.
+        if (pditem->fsControl & DC_CONTAINER)
+          fullname = fullname + "/";
+
+        // prepare insert item
+        if (!RecordBase::IsRemoved(target))
+        { BlockRecord(target);
+          InsertInfo* pii = new InsertInfo();
+          pii->Parent = parent;
+          pii->URL    = url::normalizeURL(fullname);
+          pii->Alias  = alias;
+          pii->Before = target;
+          WinPostMsg(HwndFrame, UM_INSERTITEM, MPFROMP(pii), 0);
+          reply = DMFL_TARGETSUCCESSFUL;
+        }
+      }
+
+    } else if (DrgVerifyRMF(pditem, "DRM_123FILE", NULL))
+    { // In the DRM_123FILE transfer mechanism the target is responsable for doing the target related stuff
+      // while the source does the source related stuff. So a DO_MOVE operation causes
+      // - a create in the target window and
+      // - a remove in the source window.
+      // The latter is done when DM_ENDCONVERSATION arrives with DMFL_TARGETSUCCESSFUL.   
+      
+      DRAGTRANSFER* pdtrans = DrgAllocDragtransfer(1);
+      if (pdtrans)
+      { pdtrans->cb               = sizeof(DRAGTRANSFER);
+        pdtrans->hwndClient       = HwndFrame;
+        pdtrans->pditem           = pditem;
+        pdtrans->hstrSelectedRMF  = DrgAddStrHandle("<DRM_123FILE,DRF_UNKNOWN>");
+        pdtrans->hstrRenderToName = 0;
+        pdtrans->fsReply          = 0;
+        pdtrans->usOperation      = pdinfo->usOperation;
+
+        // Ask the source to render the selected item.
+        DrgSendTransferMsg(pditem->hwndItem, DM_RENDER, (MPARAM)pdtrans, 0);
+
+        // insert item
+        if ((pdtrans->fsReply & DMFL_NATIVERENDER) && !RecordBase::IsRemoved(target))
+        { BlockRecord(target);
+          InsertInfo* pii = new InsertInfo();
+          pii->Parent = parent;
+          pii->URL    = amp_string_from_drghstr(pditem->hstrSourceName);
+          pii->Alias  = alias;
+          // TODO: The slice information is currently lost during D'n'd
+          pii->Before = target;
+          WinPostMsg(HwndFrame, UM_INSERTITEM, MPFROMP(pii), 0);
+          reply = DMFL_TARGETSUCCESSFUL;
+        }
+        // cleanup
+        DrgFreeDragtransfer(pdtrans);
+      }
+    }
+    // Tell the source you're done.
+    DrgSendTransferMsg(pditem->hwndItem, DM_ENDCONVERSATION, MPFROMLONG(pditem->ulItemID), MPFROMLONG(reply));
+  }
+  DrgDeleteDraginfoStrHandles(pdinfo);
+}
+
+void PlaylistBase::DropRenderComplete(DRAGTRANSFER* pdtrans, USHORT flags)
+{ DEBUGLOG(("PlaylistBase::DropRenderComplete(%p{, %x, %p{...}, %s, %s, %p, %i, %x}, %x)\n",
+    pdtrans, pdtrans->hwndClient, pdtrans->pditem, amp_string_from_drghstr(pdtrans->hstrSelectedRMF).cdata(), amp_string_from_drghstr(pdtrans->hstrRenderToName).cdata(),
+    pdtrans->ulTargetInfo, pdtrans->usOperation, pdtrans->fsReply, flags));
+  
+  ULONG reply = DMFL_TARGETFAIL;
+  DropInfo* pdsource = (DropInfo*)pdtrans->ulTargetInfo;
+  // If the rendering was successful, use the file, then delete it.
+  if ((flags & DMFL_RENDEROK) && pdsource)
+  { 
+    // fetch render to name
+    const xstring& rendered = amp_string_from_drghstr(pdtrans->hstrRenderToName);
+    // fetch file content
+    const xstring& fullname = amp_url_from_file(rendered);
+    DosDelete(rendered);
+
+    // insert item(s)
+    // In theory the items are not inserted in the right order if the DM_RENDERCOMPLETE messages
+    // arrive not in the same order as the dragitems in the DRAGINFO structure.
+    // Since this is very unlikely, we ignore that here.
+    if (!RecordBase::IsRemoved(pdsource->Before))
+    { // Since DM_RENDERCOMPLETE should be posted we do not need to post UM_INSERTITEM
+      pdsource->Parent->InsertItem(url::normalizeURL(fullname), pdsource->Alias, pdsource->Before ? pdsource->Before->Content : NULL);
+      reply = DMFL_TARGETSUCCESSFUL;
+    }
+  }
+
+  // Tell the source you're done.
+  DrgSendTransferMsg(pdsource->Hwnd, DM_ENDCONVERSATION, MPFROMLONG(pdsource->ItemID), MPFROMLONG(reply));
+  delete pdsource;
+
+  DrgDeleteStrHandle ( pdtrans->hstrSelectedRMF );
+  DrgDeleteStrHandle ( pdtrans->hstrRenderToName );
+  DrgFreeDragtransfer(pdtrans);
+}
+
+/****************************************************************************  
+*
+*  Drag and drop - Source side
+*
+****************************************************************************/
+void PlaylistBase::DragInit(vector<RecordBase>& recs)
+{ DEBUGLOG(("PlaylistBase::DragInit({%u:...})\n", recs.size()));
+
+  // If the Source Array is empty, we must be over whitespace,
+  // in which case we don't want to drag any records.
+  if (recs.size() == 0)
+    return;
+
+  SetEmphasis(recs, CRA_SOURCE, true);
+
+  // Let PM allocate enough memory for a DRAGINFO structure as well as
+  // a DRAGITEM structure for each record being dragged. It will allocate
+  // shared memory so other processes can participate in the drag/drop.
+  DRAGINFO* drag_infos = drag_infos = DrgAllocDraginfo(recs.size());
+  PMASSERT(drag_infos);
+
+  // Allocate an array of DRAGIMAGE structures. Each structure contains
+  // info about an image that will be under the mouse pointer during the
+  // drag. This image will represent a container record being dragged.
+  DRAGIMAGE* drag_images = new DRAGIMAGE[min(recs.size(), MAX_DRAG_IMAGES)]; 
+
+  for (int i = 0; i < recs.size(); ++i)
+  { RecordBase* rec = recs[i];
+    DEBUGLOG(("PlaylistBase::DragInit: init item %i: %s\n", i, rec->DebugName().cdata()));
+  
+    // Prevent the records from beeing disposed.
+    // The records are normally freed by DropEnd, except in case DrgDrag returns with an error.
+    BlockRecord(rec);
+
+    DRAGITEM* pditem = DrgQueryDragitemPtr(drag_infos, i);
+    pditem->hwndItem          = HwndFrame;
+    pditem->ulItemID          = (ULONG)rec;
+    pditem->hstrType          = DrgAddStrHandle(DRT_BINDATA);
+    pditem->hstrRMF           = DrgAddStrHandle("(DRM_123FILE,DRM_DISCARD)x(DRF_UNKNOWN)");
+    pditem->hstrContainerName = DrgAddStrHandle(Content->GetURL());
+    pditem->hstrSourceName    = DrgAddStrHandle(rec->Content->GetPlayable().GetURL());
+    if (rec->Content->GetAlias())
+      pditem->hstrTargetName    = DrgAddStrHandle(rec->Content->GetAlias());
+    pditem->fsSupportedOps    = DO_MOVEABLE | DO_COPYABLE;
+    DEBUGLOG(("PlaylistBase::DragInit: item {%p, %p, %s, %s, %s, %s, %s, %i,%i, %x, %x}\n",
+      pditem->hwndItem, pditem->ulItemID, amp_string_from_drghstr(pditem->hstrType).cdata(), amp_string_from_drghstr(pditem->hstrRMF).cdata(),
+      amp_string_from_drghstr(pditem->hstrContainerName).cdata(), amp_string_from_drghstr(pditem->hstrSourceName).cdata(), amp_string_from_drghstr(pditem->hstrTargetName).cdata(),
+      pditem->cxOffset, pditem->cyOffset, pditem->fsControl, pditem->fsSupportedOps));
+
+    if (i >= MAX_DRAG_IMAGES)
+      continue;
+    DRAGIMAGE* drag_image = drag_images + i;
+    drag_image->cb       = sizeof(DRAGIMAGE);
+    drag_image->hImage   = rec->hptrIcon;
+    drag_image->fl       = DRG_ICON|DRG_MINIBITMAP;
+    drag_image->cxOffset = 5 * i;
+    drag_image->cyOffset = -5 * i;
+  }
+
+  // If DrgDrag returns NULLHANDLE, that means the user hit Esc or F1
+  // while the drag was going on so the target didn't have a chance to
+  // delete the string handles. So it is up to the source window to do
+  // it. Unfortunately there doesn't seem to be a way to determine
+  // whether the NULLHANDLE means Esc was pressed as opposed to there
+  // being an error in the drag operation. So we don't attempt to figure
+  // that out. To us, a NULLHANDLE means Esc was pressed...
+  if (!DrgDrag(HwndFrame, drag_infos, drag_images, min(recs.size(), MAX_DRAG_IMAGES), VK_ENDDRAG, NULL))
+  { DEBUGLOG(("PlaylistBase::DragInit: DrgDrag returned FALSE - %x\n", WinGetLastError(NULL))); 
+    DrgDeleteDraginfoStrHandles(drag_infos);
+    // release the records
+    for (RecordBase** prec = recs.begin(); prec != recs.end(); ++prec)
+      FreeRecord(*prec);
+  }
+
+  DrgFreeDraginfo(drag_infos);
+  delete[] drag_images;
+
+  SetEmphasis(recs, CRA_SOURCE, false);
+}
+
+bool PlaylistBase::DropDiscard(DRAGINFO* pdinfo)
+{ DEBUGLOG(("PlaylistBase::DropDiscard(%p{,,%x, %p, %i,%i, %u,})\n",
+    pdinfo, pdinfo->usOperation, pdinfo->hwndSource, pdinfo->xDrop, pdinfo->yDrop, pdinfo->cditem));
+
+  for (int i = 0; i < pdinfo->cditem; ++i)
+  { DRAGITEM* pditem = DrgQueryDragitemPtr(pdinfo, i);
+    DEBUGLOG(("PlaylistBase::DropDiscard: item {%p, %p, %s, %s, %s, %s, %s, %i,%i, %x, %x}\n",
+      pditem->hwndItem, pditem->ulItemID, amp_string_from_drghstr(pditem->hstrType).cdata(), amp_string_from_drghstr(pditem->hstrRMF).cdata(),
+      amp_string_from_drghstr(pditem->hstrContainerName).cdata(), amp_string_from_drghstr(pditem->hstrSourceName).cdata(), amp_string_from_drghstr(pditem->hstrTargetName).cdata(),
+      pditem->cxOffset, pditem->cyOffset, pditem->fsControl, pditem->fsSupportedOps));
+
+    // get record
+    RecordBase* rec = (RecordBase*)pditem->ulItemID;
+    if (rec->IsRemoved())
+      continue;
+    // Remove object later
+    BlockRecord(rec);
+    WinPostMsg(HwndFrame, UM_REMOVERECORD, MPFROMP(rec), 0);
+  }
+  return true;
+}
+
+BOOL PlaylistBase::DropRender(DRAGTRANSFER* pdtrans)
+{ DEBUGLOG(("PlaylistBase::DropRender(%p{, %x, %p{...}, %s, %s, %p, %i, %x})\n",
+    pdtrans, pdtrans->hwndClient, pdtrans->pditem, amp_string_from_drghstr(pdtrans->hstrSelectedRMF).cdata(), amp_string_from_drghstr(pdtrans->hstrRenderToName).cdata(),
+    pdtrans->ulTargetInfo, pdtrans->usOperation, pdtrans->fsReply));
+  DEBUGLOG(("PlaylistBase::DropRender: item: {%p, %p, %s, %s, %s, %s, %s, %i,%i, %x, %x}\n",
+    pdtrans->pditem->hwndItem, pdtrans->pditem->ulItemID, amp_string_from_drghstr(pdtrans->pditem->hstrType).cdata(), amp_string_from_drghstr(pdtrans->pditem->hstrRMF).cdata(),
+    amp_string_from_drghstr(pdtrans->pditem->hstrContainerName).cdata(), amp_string_from_drghstr(pdtrans->pditem->hstrSourceName).cdata(), amp_string_from_drghstr(pdtrans->pditem->hstrTargetName).cdata(),
+    pdtrans->pditem->cxOffset, pdtrans->pditem->cyOffset, pdtrans->pditem->fsControl, pdtrans->pditem->fsSupportedOps));
+
+  // Remove record reference from the DRAGITEM structure unless opeartion is move.
+  // This turns the DropEnd into a NOP.
+  if (pdtrans->usOperation != DO_MOVE)
+  { RecordBase* rec = (RecordBase*)pdtrans->pditem->ulItemID;
+    pdtrans->pditem->ulItemID = 0;
+    FreeRecord(rec);
+    if (rec->IsRemoved())
+      return FALSE; // Error
+  }
+  pdtrans->fsReply = DMFL_NATIVERENDER;
+  return FALSE;
+}
+
+void PlaylistBase::DropEnd(RecordBase* rec, bool ok)
+{ DEBUGLOG(("PlaylistBase::DropEnd(%s, %i)\n", RecordBase::DebugName(rec).cdata(), ok));
+  if (!rec)
+    return;
+  if (!rec->IsRemoved() && ok)
+    // We do not lock the record here. Instead we do not /release/ it.
+    WinPostMsg(HwndFrame, UM_REMOVERECORD, MPFROMP(rec), 0);
+  else 
+    // Release the record locked in DragInit.
+    FreeRecord(rec);
 }
 

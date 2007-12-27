@@ -69,8 +69,8 @@ static char    visual_param[256];
 #define HAVE_BITBLT_BUG
 
 /* New characters needed: "[],%" 128 - 255 */
-static char AMP_CHARSET[] = "abcdefghijklmnopqrstuvwxyz-_&.0123456789 ()„”:,+%[]";
-static int  LEN_CHARSET   = sizeof( AMP_CHARSET ) - 1;
+static const char AMP_CHARSET[] = "abcdefghijklmnopqrstuvwxyz-_&.0123456789 ()„”:,+%[]";
+static const int  LEN_CHARSET   = sizeof( AMP_CHARSET ) - 1;
 
 /* The set of variables used during a text scroll. */
 static char    s_display[512];
@@ -236,6 +236,29 @@ typedef struct _BUNDLEHDR
 
 } BUNDLEHDR;
 
+
+/* Returns a width of the specified bitmap. */
+static int
+bmp_cx( int id )
+{
+  BITMAPINFOHEADER2 hdr;
+
+  hdr.cbFix = sizeof( BITMAPINFOHEADER2 );
+  GpiQueryBitmapInfoHeader( bmp_cache[id], &hdr );
+  return hdr.cx;
+}
+
+/* Returns a height of the specified bitmap. */
+static int
+bmp_cy( int id )
+{
+  BITMAPINFOHEADER2 hdr;
+
+  hdr.cbFix = sizeof( BITMAPINFOHEADER2 );
+  GpiQueryBitmapInfoHeader( bmp_cache[id], &hdr );
+  return hdr.cy;
+}
+
 /* Reads a bitmap file data into memory. */
 static BOOL
 bmp_read_bitmap( const char* filename, GBM* gbm, GBMRGB* gbmrgb, BYTE** ppbData )
@@ -363,7 +386,7 @@ bmp_make_bitmap( HWND hwnd, GBM* gbm, GBMRGB* gbmrgb, BYTE* pbData, HBITMAP* phb
 }
 
 /* Creates and loads a bitmap from a file, and returns the bitmap handle. */
-HBITMAP
+static HBITMAP
 bmp_load_bitmap( const char* filename )
 {
   GBM     gbm;
@@ -383,7 +406,7 @@ bmp_load_bitmap( const char* filename )
 }
 
 /* Draws a bitmap using the current image colors and mixes. */
-void
+static void
 bmp_draw_bitmap( HPS hps, int x, int y, int res )
 {
   POINTL pos[3];
@@ -398,10 +421,42 @@ bmp_draw_bitmap( HPS hps, int x, int y, int res )
   GpiWCBitBlt( hps, bmp_cache[res], 3, pos, ROP_SRCCOPY, BBO_AND );
 }
 
+static void
+bmp_draw_box3d( HPS hps, int x, int y, int cx, int cy, long clr1, long clr2 )
+{
+  POINTL pos;
+
+  pos.x = x;
+  pos.y = y;
+  GpiMove( hps, &pos );
+  GpiSetColor( hps, clr2 );
+  pos.x = x + cx;
+  GpiLine( hps, &pos );
+  GpiMove( hps, &pos );
+  pos.y = y + cy;
+  GpiLine( hps, &pos );
+  pos.x = x;
+  GpiSetColor( hps, clr1 );
+  GpiLine( hps, &pos );
+  GpiMove( hps, &pos );
+  pos.y = y;
+  GpiLine( hps, &pos );
+}
+
+/* Draws a 3D shade of the specified area. */
+static void
+bmp_draw_shade( HPS hps, int x, int y, int cx, int cy, long clr1, long clr2 )
+{
+  bmp_draw_box3d( hps, x, y, cx, cy, clr1, clr2 );
+  bmp_draw_box3d( hps, x + 1, y + 1, cx - 2, cy - 2, clr1, clr2 );
+}
+
 /* Draws the player background. */
 void
 bmp_draw_background( HPS hps, HWND hwnd )
 {
+  DEBUGLOG(("bmp_draw_background(%p, %p)\n", hps, hwnd));
+
   RECTL  rcl;
   POINTL pos;
 
@@ -526,38 +581,18 @@ bmp_draw_part_bg_to( HPS hps, int x1_1, int y1_1, int x1_2, int y1_2,
 }
 
 /* Draws the specified part of the player background. */
-void
+static void
 bmp_draw_part_bg( HPS hps, int x1, int y1, int x2, int y2 )
 {
   bmp_draw_part_bg_to( hps, x1, y1, x2, y2, x1, y1 );
-}
-
-/* Returns a width of the specified bitmap. */
-int
-bmp_cx( int id )
-{
-  BITMAPINFOHEADER2 hdr;
-
-  hdr.cbFix = sizeof( BITMAPINFOHEADER2 );
-  GpiQueryBitmapInfoHeader( bmp_cache[id], &hdr );
-  return hdr.cx;
-}
-
-/* Returns a height of the specified bitmap. */
-int
-bmp_cy( int id )
-{
-  BITMAPINFOHEADER2 hdr;
-
-  hdr.cbFix = sizeof( BITMAPINFOHEADER2 );
-  GpiQueryBitmapInfoHeader( bmp_cache[id], &hdr );
-  return hdr.cy;
 }
 
 /* Draws a activation led. */
 void
 bmp_draw_led( HPS hps, int active )
 {
+  DEBUGLOG(("bmp_draw_led(%p, %i)\n", hps, active));
+
   if( cfg.mode != CFG_MODE_TINY )
   {
     if( active ) {
@@ -925,41 +960,26 @@ bmp_pt_in_text( POINTL pos )
   }
 }
 
+/* Converts time to two integer suitable for display by the timer. */
+static void
+sec2num( double seconds, unsigned int* major, unsigned int* minor )
+{ unsigned int val = (unsigned int)(seconds / 3600);
+  unsigned int frac = 24;
+  if (val < 100*24)
+  { val = (unsigned int)(seconds / 60);
+    frac = 60;
+    if (val < 100*60)
+      val = (unsigned int)seconds;
+  }
+  *major = val / frac;
+  *minor = val % frac;
+}
+
 /* Draws a specified digit using the specified size. */
-void
+static void
 bmp_draw_digit( HPS hps, int x, int y, unsigned int digit, int size )
 {
   bmp_draw_bitmap( hps, x, y, size + digit );
-}
-
-static void
-bmp_draw_box3d( HPS hps, int x, int y, int cx, int cy, long clr1, long clr2 )
-{
-  POINTL pos;
-
-  pos.x = x;
-  pos.y = y;
-  GpiMove( hps, &pos );
-  GpiSetColor( hps, clr2 );
-  pos.x = x + cx;
-  GpiLine( hps, &pos );
-  GpiMove( hps, &pos );
-  pos.y = y + cy;
-  GpiLine( hps, &pos );
-  pos.x = x;
-  GpiSetColor( hps, clr1 );
-  GpiLine( hps, &pos );
-  GpiMove( hps, &pos );
-  pos.y = y;
-  GpiLine( hps, &pos );
-}
-
-/* Draws a 3D shade of the specified area. */
-void
-bmp_draw_shade( HPS hps, int x, int y, int cx, int cy, long clr1, long clr2 )
-{
-  bmp_draw_box3d( hps, x, y, cx, cy, clr1, clr2 );
-  bmp_draw_box3d( hps, x + 1, y + 1, cx - 2, cy - 2, clr1, clr2 );
 }
 
 /* Draws the main player timer. */
@@ -967,23 +987,23 @@ void
 bmp_draw_timer( HPS hps, double time )
 { DEBUGLOG(("bmp_draw_timer(%p, %f)\n", hps, time));
 
-  unsigned int major;
-  unsigned int minor;
   int x = bmp_pos[ POS_TIMER ].x;
   int y = bmp_pos[ POS_TIMER ].y;
 
-  sec2num( time, &major, &minor );
-
-  if( x != POS_UNDEF && y != POS_UNDEF )
+  if ( x != POS_UNDEF && y != POS_UNDEF && time >= 0 )
   {
-    bmp_draw_digit( hps, x, y, major / 10, DIG_BIG );
+    unsigned int major;
+    unsigned int minor;
+    sec2num( time, &major, &minor );
+
+    bmp_draw_digit( hps, x, y, major / 10 % 10, DIG_BIG );
     x += bmp_cx( major / 10 + DIG_BIG ) + bmp_ulong[ UL_TIMER_SPACE ];
     bmp_draw_digit( hps, x, y, major % 10, DIG_BIG );
     x += bmp_cx( major % 10 + DIG_BIG ) + bmp_ulong[ UL_TIMER_SPACE ];
 
     if( bmp_ulong[ UL_TIMER_SEPARATE ] )
     {
-      if( ((int)time) % 2 == 0 ) {
+      if( (unsigned int)(2*time) % 2 == 0 ) {
         bmp_draw_digit( hps, x, y, 10, DIG_BIG );
         x += bmp_cx( 10 + DIG_BIG ) + bmp_ulong[ UL_TIMER_SPACE ];
       } else {
@@ -994,7 +1014,7 @@ bmp_draw_timer( HPS hps, double time )
       x += max( bmp_ulong[ UL_TIMER_SPACE ], bmp_ulong[ UL_TIMER_SPACE ] * 2 );
     }
 
-    bmp_draw_digit( hps, x, y, minor / 10, DIG_BIG );
+    bmp_draw_digit( hps, x, y, minor / 10 % 10, DIG_BIG );
     x += bmp_cx( minor / 10 + DIG_BIG ) + bmp_ulong[ UL_TIMER_SPACE ];
     bmp_draw_digit( hps, x, y, minor % 10, DIG_BIG );
   }
@@ -1015,13 +1035,13 @@ bmp_draw_tiny_timer( HPS hps, int pos_id, double time )
   {
     if( time > 0 )
     {
-      bmp_draw_digit( hps, x, y, major / 10, DIG_TINY );
+      bmp_draw_digit( hps, x, y, major / 10 % 10, DIG_TINY );
       x += bmp_cx( DIG_TINY + major / 10 );
       bmp_draw_digit( hps, x, y, major % 10, DIG_TINY );
       x += bmp_cx( DIG_TINY + major % 10 );
       bmp_draw_digit( hps, x, y, 10, DIG_TINY );
       x += bmp_cx( DIG_TINY + 10 );
-      bmp_draw_digit( hps, x, y, minor / 10, DIG_TINY );
+      bmp_draw_digit( hps, x, y, minor / 10 % 10, DIG_TINY );
       x += bmp_cx( DIG_TINY + minor / 10 );
       bmp_draw_digit( hps, x, y, minor % 10, DIG_TINY );
     }
@@ -1044,6 +1064,8 @@ bmp_draw_tiny_timer( HPS hps, int pos_id, double time )
 void
 bmp_draw_channels( HPS hps, int channels )
 {
+  DEBUGLOG(("bmp_draw_channels(%p, %i)\n", hps, channels));
+
   int     id;
   POINTL* pos;
 
@@ -1104,6 +1126,8 @@ bmp_draw_channels( HPS hps, int channels )
 void
 bmp_draw_volume( HPS hps, int volume )
 {
+  DEBUGLOG(("bmp_draw_volume(%p, %i)\n", hps, volume));
+
   int x = bmp_pos[ POS_VOLBAR ].x;
   int y = bmp_pos[ POS_VOLBAR ].y;
   int xo, yo;
@@ -1195,7 +1219,7 @@ bmp_calc_volume( POINTL pos )
 void
 bmp_draw_rate( HPS hps, int rate )
 {
-  int  rate_index[] = { 0, 32, 48, 56, 64, 80, 96, 112, 128, 144, 160, 176, 192, 224, 256, 320 };
+  static const int  rate_index[] = { 0, 32, 48, 56, 64, 80, 96, 112, 128, 144, 160, 176, 192, 224, 256, 320 };
   int  i, index = 0;
   char buf[32];
   int  x = bmp_pos[ POS_BPS ].x;
@@ -1257,6 +1281,8 @@ bmp_draw_rate( HPS hps, int rate )
 void
 bmp_draw_plmode( HPS hps )
 {
+  DEBUGLOG(("bmp_draw_plmode(%p)\n", hps));
+
   if( cfg.mode == CFG_MODE_REGULAR && bmp_pos[ POS_PL_MODE ].x != POS_UNDEF &&
                                       bmp_pos[ POS_PL_MODE ].y != POS_UNDEF )
   {
@@ -1368,7 +1394,8 @@ bmp_draw_slider( HPS hps, double played, double total )
         pos = 0;
       else if (played >= total)
         pos = bmp_ulong[UL_SLIDER_WIDTH];
-      pos = (ULONG)(played/total * bmp_ulong[UL_SLIDER_WIDTH]);
+      else
+        pos = (ULONG)(played/total * bmp_ulong[UL_SLIDER_WIDTH]);
     }
 
     if( bmp_cache[ BMP_SLIDER_SHAFT ]   != 0 &&
@@ -1386,8 +1413,9 @@ bmp_draw_slider( HPS hps, double played, double total )
                              bmp_pos[ POS_SLIDER ].y + bmp_cy( BMP_SLIDER ) - 1 );
     }
 
-    bmp_draw_bitmap( hps, bmp_pos[ POS_SLIDER ].x + pos,
-                          bmp_pos[ POS_SLIDER ].y, BMP_SLIDER );
+    if (played >= 0)
+      bmp_draw_bitmap( hps, bmp_pos[ POS_SLIDER ].x + pos,
+                            bmp_pos[ POS_SLIDER ].y, BMP_SLIDER );
   }
 }
 
@@ -1437,6 +1465,8 @@ bmp_pt_in_slider( POINTL pos )
 void
 bmp_draw_timeleft( HPS hps )
 {
+  DEBUGLOG(("bmp_draw_timeleft(%p)\n", hps));
+  
   if( cfg.mode == CFG_MODE_REGULAR )
   {
     int_ptr<Playable> root = amp_get_current_root();
@@ -2114,6 +2144,8 @@ bmp_init_button( HWND hwnd, BMPBUTTON* button )
 void
 bmp_reflow_and_resize( HWND hframe )
 {
+  DEBUGLOG(("bmp_reflow_and_resize(%p)\n", hframe));
+
   HWND hplayer = WinWindowFromID( hframe, FID_CLIENT );
 
   switch( cfg.mode )

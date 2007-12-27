@@ -109,8 +109,9 @@ class PlaylistManager : public PlaylistRepository<PlaylistManager>
   // Update play status of one record
   virtual void      UpdatePlayStatus(RecordBase* rec);
 
- private:
-  //virtual void      Open(const char* URL);
+ protected:
+  // Remove item by Record pointer
+  virtual void      UserRemove(RecordBase* rec);
 
  private:
   // Create a playlist manager window for an URL, but don't open it.

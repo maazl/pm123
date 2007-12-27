@@ -187,26 +187,6 @@ MRESULT PlaylistManager::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
     } // switch (SHORT2FROMMP(mp1))
     break;
 
-   case WM_COMMAND:
-    { switch (SHORT1FROMMP(mp1))
-      {
-       case IDM_PL_REMOVE:
-        { Record* rec = (Record*)PVOIDFROMMR(WinSendMsg(HwndContainer, CM_QUERYRECORDEMPHASIS, MPFROMP(CMA_FIRST), MPFROMSHORT(CRA_SOURCE))); 
-          if (rec == NULL || rec->IsRemoved())
-            return 0;
-          DEBUGLOG(("PlaylistManager(%p{%s})::DlgProc: IDM_PL_REMOVE %p\n", this, DebugName().cdata(), rec));
-          // find parent playlist
-          Record* parent = rec->Data()->Parent;
-          Playable* playlist = PlayableFromRec(parent);
-          if (playlist->GetFlags() & Playable::Mutable) // don't modify constant object
-            ((Playlist&)*playlist).RemoveItem(rec->Content);
-          // the update of the container is implicitely done by the notification mechanism
-          return 0;
-        }
-      } // switch (SHORT1FROMMP(mp1))
-      break;
-    }
-
    case WM_WINDOWPOSCHANGED:
     // TODO: Bl”dsinn
     { SWP* pswp = (SWP*)PVOIDFROMMP(mp1);
@@ -471,9 +451,15 @@ void PlaylistManager::UpdatePlayStatus(RecordBase* rec)
   PMASSERT(rec != (RecordBase*)-1);
 }
 
-/*void PlaylistManager::Open(const char* URL)
-{
-}*/
+void PlaylistManager::UserRemove(RecordBase* rec)
+{ DEBUGLOG(("PlaylistManager(%p)::UserRemove(%s)\n", this, rec->DebugName().cdata()));
+  // find parent playlist
+  Record* parent = ((Record*)rec)->Data()->Parent;
+  Playable* playlist = PlayableFromRec(parent);
+  if (playlist->GetFlags() & Playable::Mutable) // don't modify constant object
+    ((Playlist&)*playlist).RemoveItem(rec->Content);
+  // the update of the container is implicitely done by the notification mechanism
+}
 
 /*
 

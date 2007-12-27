@@ -76,6 +76,7 @@
 #define  AMP_STOP             ( WM_USER + 78 )
 #define  AMP_PLAY             ( WM_USER + 79 )
 #define  AMP_PAUSE            ( WM_USER + 80 )
+#define  AMP_LOAD             ( WM_USER + 81 )
 
 #define  TID_UPDATE_TIMERS    ( TID_USERMAX - 1 )
 #define  TID_UPDATE_PLAYER    ( TID_USERMAX - 2 )
@@ -708,28 +709,11 @@ amp_show_context_menu( HWND parent )
                 PU_MOUSEBUTTON1 | PU_MOUSEBUTTON2 | PU_KEYBOARD   );
 }
 
-/* Reads url from specified file. */
-char*
-amp_url_from_file( char* result, const char* filename, size_t size )
-{
-  FILE* file = fopen( filename, "r" );
-
-  if( file ) {
-    if( fgets( result, size, file )) {
-        blank_strip( result );
-    }
-    fclose( file );
-  } else {
-    *result = 0;
-  }
-
-  return result;
-}
-
 /* Prepares the player to the drop operation. */
 static MRESULT
-amp_drag_over( HWND hwnd, PDRAGINFO pdinfo )
-{
+amp_drag_over( HWND hwnd, DRAGINFO* pdinfo )
+{ DEBUGLOG(("amp_drag_over(%p, %p)\n", hwnd, pdinfo));
+
   PDRAGITEM pditem;
   int       i;
   USHORT    drag_op = 0;
@@ -739,47 +723,19 @@ amp_drag_over( HWND hwnd, PDRAGINFO pdinfo )
     return MRFROM2SHORT( DOR_NEVERDROP, 0 );
   }
 
+  DEBUGLOG(("amp_drag_over(%p, %p{,,%x, %p, %i,%i, %u,})\n", hwnd,
+    pdinfo, pdinfo->usOperation, pdinfo->hwndSource, pdinfo->xDrop, pdinfo->yDrop, pdinfo->cditem));
+
   for( i = 0; i < pdinfo->cditem; i++ )
   {
     pditem = DrgQueryDragitemPtr( pdinfo, i );
 
-    /* debug
-    {
-      char info[2048];
-
-      printf( "hwndItem: %08X\n", pditem->hwndItem );
-      printf( "ulItemID: %lu\n", pditem->ulItemID );
-      DrgQueryStrName( pditem->hstrType, sizeof( info ), info );
-      printf( "hstrType: %s\n", info );
-      DrgQueryStrName( pditem->hstrRMF, sizeof( info ), info );
-      printf( "hstrRMF: %s\n", info );
-      DrgQueryStrName( pditem->hstrContainerName, sizeof( info ), info );
-      printf( "hstrContainerName: %s\n", info );
-      DrgQueryStrName( pditem->hstrSourceName, sizeof( info ), info );
-      printf( "hstrSourceName: %s\n", info );
-      DrgQueryStrName( pditem->hstrTargetName, sizeof( info ), info );
-      printf( "hstrTargetName: %s\n", info );
-      printf( "fsControl: %08X\n", pditem->fsControl );
-    } */
-
-/* TODO: needs playlist handle???
-    if( DrgVerifyRMF( pditem, "DRM_123FILE", NULL ) &&
-      ( pdinfo->cditem > 1 && pdinfo->hwndSource == hplaylist )) {
-
-      drag    = DOR_NEVERDROP;
-      drag_op = DO_UNKNOWN;
-      break;
-
-    } else*/ if( DrgVerifyRMF( pditem, "DRM_OS2FILE", NULL ) ||
-               DrgVerifyRMF( pditem, "DRM_123FILE", NULL )) {
-
-      drag    = DOR_DROP;
+    if (DrgVerifyRMF(pditem, "DRM_OS2FILE", NULL) || DrgVerifyRMF(pditem, "DRM_123FILE", NULL))
+    { drag    = DOR_DROP;
       drag_op = DO_COPY;
-
     } else {
-
       drag    = DOR_NEVERDROP;
-      drag_op = DO_UNKNOWN;
+      drag_op = 0;
       break;
     }
   }
@@ -788,14 +744,20 @@ amp_drag_over( HWND hwnd, PDRAGINFO pdinfo )
   return MPFROM2SHORT( drag, drag_op );
 }
 
+struct DropInfo
+{ //USHORT count;    // Count of dragged objects.
+  //USHORT index;    // Index of current item [0..Count)
+  xstring URL;      // Object URL
+  int     options;  // Options for amp_load_playable
+  HWND    hwndItem; // Window handle of the source of the drag operation.
+  ULONG   ulItemID; // Information used by the source to identify the
+                    // object being dragged.
+};
+
 /* Receives dropped files or playlist records. */
 static MRESULT
 amp_drag_drop( HWND hwnd, PDRAGINFO pdinfo )
 { DEBUGLOG(("amp_drag_drop(%p, %p)\n", hwnd, pdinfo));
-  PDRAGITEM pditem;
-
-  char fullname[_MAX_PATH];
-  int  i;
 
   if( !DrgAccessDraginfo( pdinfo )) {
     return 0;
@@ -804,96 +766,127 @@ amp_drag_drop( HWND hwnd, PDRAGINFO pdinfo )
   DEBUGLOG(("amp_drag_drop: {,%u,%x,%p, %u,%u, %u,}\n",
     pdinfo->cbDragitem, pdinfo->usOperation, pdinfo->hwndSource, pdinfo->xDrop, pdinfo->yDrop, pdinfo->cditem));
 
-  for( i = 0; i < pdinfo->cditem; i++ )
+  int options = AMP_LOAD_NOT_RECALL;
+  if (pdinfo->cditem > 1)
+  { options |= AMP_LOAD_APPEND;
+    // TODO: should be configurable
+    int_ptr<Playable> pp = DefaultPL->GetContent();
+    ASSERT(pp->GetFlags() & Playable::Mutable);
+    ((Playlist&)*pp).Clear();
+  }
+
+  for( int i = 0; i < pdinfo->cditem; i++ )
   {
-    pditem = DrgQueryDragitemPtr( pdinfo, i );
-
-    DrgQueryStrName( pditem->hstrContainerName, sizeof fullname, fullname );
-    size_t len = strlen(fullname);
-    DrgQueryStrName( pditem->hstrSourceName,    sizeof fullname - len, fullname+len );
-
+    DRAGITEM* pditem = DrgQueryDragitemPtr( pdinfo, i );
+    DEBUGLOG(("PlaylistBase::DragDrop: item {%p, %p, %s, %s, %s, %s, %s, %i,%i, %x, %x}\n",
+      pditem->hwndItem, pditem->ulItemID, amp_string_from_drghstr(pditem->hstrType).cdata(), amp_string_from_drghstr(pditem->hstrRMF).cdata(),
+      amp_string_from_drghstr(pditem->hstrContainerName).cdata(), amp_string_from_drghstr(pditem->hstrSourceName).cdata(), amp_string_from_drghstr(pditem->hstrTargetName).cdata(),
+      pditem->cxOffset, pditem->cyOffset, pditem->fsControl, pditem->fsSupportedOps));
+    
+    ULONG reply = DMFL_TARGETFAIL;
+    
     if( DrgVerifyRMF( pditem, "DRM_OS2FILE", NULL ))
     {
-      if( pditem->hstrContainerName && pditem->hstrSourceName ) {
-        // Have full qualified file name.
-        if( DrgVerifyType( pditem, "UniformResourceLocator" )) {
-          amp_url_from_file( fullname, fullname, sizeof( fullname ));
+      // fetch full qualified path
+      size_t lenP = DrgQueryStrNameLen(pditem->hstrContainerName);
+      size_t lenN = DrgQueryStrNameLen(pditem->hstrSourceName);
+      xstring fullname;
+      char* cp = fullname.raw_init(lenP + lenN);
+      DrgQueryStrName(pditem->hstrContainerName, lenP+1, cp);
+      DrgQueryStrName(pditem->hstrSourceName,    lenN+1, cp+lenP);
+
+      if (pditem->hwndItem && DrgVerifyType(pditem, "UniformResourceLocator"))
+      { // URL => The droped item must be rendered.
+        DRAGTRANSFER* pdtrans = DrgAllocDragtransfer(1);
+        if (pdtrans)
+        { DropInfo* pdsource = new DropInfo();
+          pdsource->options  = options;
+          pdsource->hwndItem = pditem->hwndItem;
+          pdsource->ulItemID = pditem->ulItemID;
+        
+          pdtrans->cb               = sizeof( DRAGTRANSFER );
+          pdtrans->hwndClient       = hwnd;
+          pdtrans->pditem           = pditem;
+          pdtrans->hstrSelectedRMF  = DrgAddStrHandle("<DRM_OS2FILE,DRF_TEXT>");
+          pdtrans->hstrRenderToName = 0;
+          pdtrans->ulTargetInfo     = (ULONG)pdsource;
+          pdtrans->fsReply          = 0;
+          pdtrans->usOperation      = pdinfo->usOperation;
+
+          // Send the message before setting a render-to name.
+          if ( pditem->fsControl & DC_PREPAREITEM
+            && !DrgSendTransferMsg(pditem->hwndItem, DM_RENDERPREPARE, (MPARAM)pdtrans, 0) )
+          { // Failure => do not send DM_ENDCONVERSATION 
+            DrgFreeDragtransfer(pdtrans);
+            delete pdsource;
+            continue;
+          }
+          pdtrans->hstrRenderToName = DrgAddStrHandle(tmpnam(NULL));
+          // Send the message after setting a render-to name.
+          if ( (pditem->fsControl & (DC_PREPARE | DC_PREPAREITEM)) == DC_PREPARE
+            && !DrgSendTransferMsg(pditem->hwndItem, DM_RENDERPREPARE, (MPARAM)pdtrans, 0) )
+          { // Failure => do not send DM_ENDCONVERSATION 
+            DrgFreeDragtransfer(pdtrans);
+            delete pdsource;
+            continue;
+          }
+          // Ask the source to render the selected item.
+          BOOL ok = LONGFROMMR(DrgSendTransferMsg(pditem->hwndItem, DM_RENDER, (MPARAM)pdtrans, 0));
+
+          if (ok) // OK => DM_ENDCONVERSATION is send at DM_RENDERCOMPLETE
+            continue;
+          // something failed => we have to cleanup ressources immediately and cancel the conversation
+          DrgFreeDragtransfer(pdtrans);
+          delete pdsource;
+          // ... send DM_ENDCONVERSATION below 
         }
-
-        if (is_dir(fullname))
-          strlcat(fullname, "/", sizeof fullname);
-
-        url URL = url::normalizeURL(fullname);
-
-        if( pdinfo->cditem == 1 ) {
-          amp_load_playable( URL, 0 );
-        } else {
-//        TODO !!!
-//          pl_add_file( fullname, NULL, 0 );
-        }
-
-        if( pditem->hwndItem ) {
-          // Tell the source you're done.
-          DrgSendTransferMsg( pditem->hwndItem, DM_ENDCONVERSATION, (MPARAM)pditem->ulItemID,
-                                                                    (MPARAM)DMFL_TARGETSUCCESSFUL );
-        }
+      } else if (pditem->hstrContainerName && pditem->hstrSourceName)
+      { // Have full qualified file name.
+        // Hopefully this criterion is sufficient to identify folders.
+        if (pditem->fsControl & DC_CONTAINER)
+          fullname = fullname + "/";
+          
+        DropInfo* pdsource = new DropInfo();
+        pdsource->URL      = url::normalizeURL(fullname); 
+        pdsource->options  = options;
+        WinPostMsg(hwnd, AMP_LOAD, MPFROMP(pdsource), 0);
+        reply = DMFL_TARGETSUCCESSFUL;
       }
-      else if( pditem->hwndItem &&
-               DrgVerifyType( pditem, "UniformResourceLocator" ))
-      {
-        // The droped item must be rendered.
-        PDRAGTRANSFER pdtrans  = DrgAllocDragtransfer(1);
-        AMP_DROPINFO* pdsource = (AMP_DROPINFO*)malloc( sizeof( AMP_DROPINFO ));
-        char renderto[_MAX_PATH];
-
-        if( !pdtrans || !pdsource ) {
-          return 0;
-        }
-
-        pdsource->cditem   = pdinfo->cditem;
-        pdsource->hwndItem = pditem->hwndItem;
-        pdsource->ulItemID = pditem->ulItemID;
-
-        pdtrans->cb               = sizeof( DRAGTRANSFER );
+      
+    } else if (DrgVerifyRMF(pditem, "DRM_123FILE", NULL))
+    { // In the DRM_123FILE transfer mechanism the target is responsable for doing the target related stuff
+      // while the source does the source related stuff. So a DO_MOVE operation causes
+      // - a create in the target window and
+      // - a remove in the source window.
+      // The latter is done when DM_ENDCONVERSATION arrives with DMFL_TARGETSUCCESSFUL.   
+      
+      DRAGTRANSFER* pdtrans = DrgAllocDragtransfer(1);
+      if (pdtrans)
+      { pdtrans->cb               = sizeof(DRAGTRANSFER);
         pdtrans->hwndClient       = hwnd;
         pdtrans->pditem           = pditem;
-        pdtrans->hstrSelectedRMF  = DrgAddStrHandle( "<DRM_OS2FILE,DRF_TEXT>" );
+        pdtrans->hstrSelectedRMF  = DrgAddStrHandle("<DRM_123FILE,DRF_UNKNOWN>");
         pdtrans->hstrRenderToName = 0;
-        pdtrans->ulTargetInfo     = (ULONG)pdsource;
         pdtrans->fsReply          = 0;
         pdtrans->usOperation      = pdinfo->usOperation;
 
-        // Send the message before setting a render-to name.
-        if( pditem->fsControl & DC_PREPAREITEM ) {
-          DrgSendTransferMsg( pditem->hwndItem, DM_RENDERPREPARE, (MPARAM)pdtrans, 0 );
-        }
-
-        strlcpy( renderto, startpath , sizeof( renderto ));
-        strlcat( renderto, "pm123.dd", sizeof( renderto ));
-
-        pdtrans->hstrRenderToName = DrgAddStrHandle( renderto );
-
-        // Send the message after setting a render-to name.
-        if(( pditem->fsControl & ( DC_PREPARE | DC_PREPAREITEM )) == DC_PREPARE ) {
-          DrgSendTransferMsg( pditem->hwndItem, DM_RENDERPREPARE, (MPARAM)pdtrans, 0 );
-        }
-
         // Ask the source to render the selected item.
-        DrgSendTransferMsg( pditem->hwndItem, DM_RENDER, (MPARAM)pdtrans, 0 );
+        DrgSendTransferMsg(pditem->hwndItem, DM_RENDER, (MPARAM)pdtrans, 0);
+
+        // insert item
+        if ((pdtrans->fsReply & DMFL_NATIVERENDER))
+        { DropInfo* pdsource = new DropInfo();
+          pdsource->URL      = amp_string_from_drghstr(pditem->hstrSourceName); 
+          pdsource->options  = options;
+          WinPostMsg(hwnd, AMP_LOAD, MPFROMP(pdsource), 0);
+          reply = DMFL_TARGETSUCCESSFUL;
+        }
+        // cleanup
+        DrgFreeDragtransfer(pdtrans);
       }
     }
-    /*else if( DrgVerifyRMF( pditem, "DRM_123FILE", NULL ))
-    { // TODO: @@@@@@@@ unsure whether this is good for anything
-      if( pdinfo->cditem == 1 ) {
-        if( pdinfo->hwndSource == hplaylist && amp_playmode == AMP_PLAYLIST ) {
-          amp_pl_play_record((PLRECORD*)pditem->ulItemID );
-        } else {
-          amp_load_singlefile( fullname, 0 );
-        }
-      } else {
-        pl_add_file( fullname, NULL, 0 );
-      }
-    }*/
+    // Tell the source you're done.
+    DrgSendTransferMsg(pditem->hwndItem, DM_ENDCONVERSATION, MPFROMLONG(pditem->ulItemID), MPFROMLONG(reply));
   }
 
   DrgDeleteDraginfoStrHandles( pdinfo );
@@ -905,35 +898,30 @@ amp_drag_drop( HWND hwnd, PDRAGINFO pdinfo )
 static MRESULT
 amp_drag_render_done( HWND hwnd, PDRAGTRANSFER pdtrans, USHORT rc )
 {
-  char rendered[_MAX_PATH];
-  char fullname[_MAX_PATH];
+  DropInfo* pdsource = (DropInfo*)pdtrans->ulTargetInfo;
 
-  AMP_DROPINFO* pdsource = (AMP_DROPINFO*)pdtrans->ulTargetInfo;
-
+  ULONG reply = DMFL_TARGETFAIL;
   // If the rendering was successful, use the file, then delete it.
-  if(( rc & DMFL_RENDEROK ) && pdsource &&
-       DrgQueryStrName( pdtrans->hstrRenderToName, sizeof( rendered ), rendered ))
-  {
-    amp_url_from_file( fullname, rendered, sizeof( fullname ));
-    DosDelete( rendered );
+  if ((rc & DMFL_RENDEROK) && pdsource)
+  { // fetch render to name
+    const xstring& rendered = amp_string_from_drghstr(pdtrans->hstrRenderToName); 
+    // fetch file content
+    const xstring& fullname = amp_url_from_file(rendered);
+    DosDelete(rendered);
 
-    if (is_dir(fullname))
-      strlcat(fullname, "/", sizeof fullname);
-
-    url URL = url::normalizeURL(fullname);
-
-    if( pdsource->cditem == 1 ) {
-      amp_load_playable( fullname, 0 );
-    } else {
-//    TODO !!!
-//    pl_add_file( fullname, NULL, 0 );
+    if (fullname)
+    { pdsource->URL = url::normalizeURL(fullname);
+      WinPostMsg(hwnd, AMP_LOAD, MPFROMP(pdsource), 0);
+      pdsource = NULL; // Do not delete the DropInfo below.
+      reply = DMFL_TARGETSUCCESSFUL;
     }
   }
 
   // Tell the source you're done.
   DrgSendTransferMsg( pdsource->hwndItem, DM_ENDCONVERSATION,
-                     (MPARAM)pdsource->ulItemID, (MPARAM)DMFL_TARGETSUCCESSFUL );
+                     (MPARAM)pdsource->ulItemID, (MPARAM)reply);
 
+  delete pdsource;
   DrgDeleteStrHandle ( pdtrans->hstrSelectedRMF );
   DrgDeleteStrHandle ( pdtrans->hstrRenderToName );
   DrgFreeDragtransfer( pdtrans );
@@ -2242,6 +2230,13 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
     case AMP_PAUSE:
       amp_pb_pause();
       return 0;
+
+    case AMP_LOAD:
+    { DropInfo* pdi = (DropInfo*)mp1;
+      amp_load_playable(pdi->URL, pdi->options);
+      delete pdi;
+      return 0;
+    }
 
     case AMP_DISPLAY_MSG:
       if( mp2 ) {

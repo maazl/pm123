@@ -140,21 +140,6 @@ amp_display_next_mode( void )
   amp_display_filename();
 }
 
-/* Converts time to two integer suitable for display by the timer. */
-void
-sec2num( double seconds, unsigned int* major, unsigned int* minor )
-{ unsigned int val = (unsigned int)(seconds / 3600);
-  unsigned int frac = 24;
-  if (val < 100*24)
-  { val = (unsigned int)(seconds / 60);
-    frac = 60;
-    if (val < 100*60)
-      val = (unsigned int)seconds;
-  }
-  *major = val / frac;
-  *minor = val % frac;
-}
-
 void DLLENTRY pm123_control( int index, void* param )
 {
   switch (index)
@@ -174,6 +159,7 @@ int DLLENTRY pm123_getstring( int index, int subindex, size_t bufsize, char* buf
      strlcpy( buf, AMP_FULLNAME, bufsize );
      break;
    case STR_DISPLAY_TEXT:
+     // TODO: reverse dependency???
      strlcpy( buf, bmp_query_text(), bufsize );
      break;
    case STR_FILENAME:
@@ -187,4 +173,33 @@ int DLLENTRY pm123_getstring( int index, int subindex, size_t bufsize, char* buf
  return(0);
 }
 
+/* Reads url from specified file. */
+xstring
+amp_url_from_file(const char* filename)
+{
+  FILE* file = fopen(filename, "r");
+  if (!file)
+    return (char*)NULL;
+  fseek(file, 0, SEEK_END);
+  long len = ftell(file);
+  if (len > 4095) // some limit...
+    len = 4095;
+  fseek(file, 0, SEEK_SET);
+  xstring ret;
+  if (len > 0)
+  { char* dp = ret.raw_init(len);
+    if (fgets(dp, len, file))
+      blank_strip(dp);
+    else
+      ret = NULL;
+  }
+  fclose(file);
+  return ret;
+}
 
+xstring amp_string_from_drghstr(HSTR hstr)
+{ size_t len = DrgQueryStrNameLen(hstr);
+  xstring ret;
+  DrgQueryStrName(hstr, len+1, ret.raw_init(len));
+  return ret;
+}

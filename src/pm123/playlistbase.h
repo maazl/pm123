@@ -105,8 +105,7 @@ class PlaylistBase : public IComparableTo<char>
       GUI->FreeRecord(Parent);
     }
   };
- protected:
-  // Message Processing
+ protected: // Message Processing
   enum
   { UM_UPDATEINFO = WM_USER+0x101,
     // Execute a command for a record, see below.
@@ -124,7 +123,15 @@ class PlaylistBase : public IComparableTo<char>
     UM_SYNCREMOVE,
     // Playstatus-Event hit.
     // mp1 = status
-    UM_PLAYSTATUS
+    UM_PLAYSTATUS,
+    // Asynchronouos insert operation
+    // mp1 = InsertInfo*
+    // The Record in InsertInfo is blocked with BlockRecord and has to be freed by the message handler.
+    UM_INSERTITEM,
+    // Remove item adressed by a record asynchronuously
+    // mp1 = Record*
+    // The reference counter of the Record is decremented after the message is processed.
+    UM_REMOVERECORD
   };
   // Valid flags in PostMsg fields
   enum RecordCommand
@@ -146,7 +153,7 @@ class PlaylistBase : public IComparableTo<char>
     // Update the alias text of a record
     RC_UPDATEALIAS,
     // Update starting position
-    RC_UPDATEPOS
+    RC_UPDATEPOS    
   };
  public:
   // return value of AnalyzeRecordTypes
@@ -159,6 +166,23 @@ class PlaylistBase : public IComparableTo<char>
     RT_Enum = 0x02,
     // record list contains at least one playlist
     RT_List = 0x04
+  };
+ protected: // User actions
+  struct InsertInfo
+  { int_ptr<Playlist> Parent; // List where to insert the new item
+    xstring      URL;         // URL to insert
+    xstring      Alias;       // Alias name (if desired)
+    PlayableInstance::slice Slice; // Slice (if desired)
+    RecordBase*  Before;      // Record where to do the insert
+  };
+ protected: // D'n'd
+  struct DropInfo
+  { HWND         Hwnd;    // Window handle of the source of the drag operation.
+    ULONG        ItemID;  // Information used by the source to identify the object being dragged.
+    int_ptr<Playlist> Parent; // List where to insert the new item
+    xstring      Alias;   // Alias name at the target
+    RecordBase*  Before;  // Record where to insert the item
+                          // Keeping the Record here requires an allocation with BlockRecord.
   };
  private:
   // wrap pointer to keep PM happy
@@ -202,6 +226,8 @@ class PlaylistBase : public IComparableTo<char>
   bool              NoRefresh;     // Avoid update events to ourself
   CommonState       EvntState;     // Event State
   vector<RecordBase> Source;
+  bool              DragAfter;     // Recent drag operation was ORDERED
+  bool              DragDoMove;    // Flag whether we do a  
  private:
   class_delegate2<PlaylistBase, const Playable::change_args, RecordBase*> RootInfoDelegate;
   class_delegate<PlaylistBase, const bool> RootPlayStatusDelegate;
@@ -228,6 +254,8 @@ class PlaylistBase : public IComparableTo<char>
   void              BlockRecord(RecordBase* rec)
                     { if (rec) InterlockedInc(rec->UseCount); }
   // Free a record after it is no longer used e.g. because a record message sent with PostRecordCommand completed.
+  // This function does not free the record immediately. It posts a message which does the job.
+  // So you can safely access the record data until the next PM call.
   void              FreeRecord(RecordBase* rec);
   // Post record message
   virtual void      PostRecordCommand(RecordBase* rec, RecordCommand cmd);
@@ -281,6 +309,8 @@ class PlaylistBase : public IComparableTo<char>
   
   // Return all records with a given emphasis or an empty list if none.
   void              GetRecords(vector<RecordBase>& result, USHORT emphasis) const;
+  // Populate Source Array
+  bool              GetSource(RecordBase* rec);
   // Set or clear the emphasis of a set of records
   void              SetEmphasis(const vector<RecordBase>& recs, USHORT emphasis, bool set) const;
 
@@ -309,8 +339,29 @@ class PlaylistBase : public IComparableTo<char>
   static url        PlaylistSelect(HWND owner, const char* title);
   // Add Item
   void              UserAdd(DECODER_WIZZARD_FUNC wizzard, const char* title, RecordBase* parent = NULL, RecordBase* before = NULL);
+  // Insert a new item
+  void              UserInsert(const InsertInfo* pii);
+  // Remove item by Record pointer
+  virtual void      UserRemove(RecordBase* rec) = 0;
   // Save list
   void              UserSave();
+  
+ protected: // D'n'd target
+  // Handle CN_DRAGOVER/CN_DRAGAFTER
+  MRESULT           DragOver(DRAGINFO* pdinfo, RecordBase* target);
+  // Handle CN_DROP
+  void              DragDrop(DRAGINFO* pdinfo, RecordBase* target);
+  // Handle DM_RENDERCOMPLETE
+  void              DropRenderComplete(DRAGTRANSFER* pdtrans, USHORT flags);
+ protected: // D'n'd source
+  // Handle CN_INITDRAG
+  void              DragInit(vector<RecordBase>& recs);
+  // Handle DM_DISCARDOBJECT
+  bool              DropDiscard(DRAGINFO* pdinfo);
+  // Handle DM_RENDER
+  BOOL              DropRender(DRAGTRANSFER* pdtrans);
+  // Handle DM_ENDCONVERSATION
+  void              DropEnd(RecordBase* rec, bool ok);
 
  public: // public interface
   virtual           ~PlaylistBase();

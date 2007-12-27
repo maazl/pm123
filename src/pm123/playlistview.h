@@ -61,6 +61,7 @@ class PlaylistView : public PlaylistRepository<PlaylistView>
   struct CPData : public CPDataBase
   { // Field attributes
     xstring             Pos;
+    xstring             End;
     xstring             Song;
     xstring             Size;
     xstring             Time;
@@ -74,6 +75,7 @@ class PlaylistView : public PlaylistRepository<PlaylistView>
   struct Record : public RecordBase
   { // Attribute references for PM
     const char*         Pos;
+    const char*         End;
     const char*         Song;
     const char*         Size;
     const char*         Time;
@@ -131,6 +133,11 @@ class PlaylistView : public PlaylistRepository<PlaylistView>
   virtual RecordBase* CreateNewRecord(PlayableInstance* obj, RecordBase* parent);
   // Update a record
   void              UpdateRecord(Record* rec, Playable::InfoFlags flags, PlayableInstance::StatusFlags iflags);
+  
+ protected:
+  // Remove item by Record pointer
+  virtual void      UserRemove(RecordBase* rec);
+
 };
 
 

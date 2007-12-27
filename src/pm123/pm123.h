@@ -38,21 +38,10 @@
 #include "copyright.h"
 
 #ifdef __cplusplus
+#include <cpp/xstring.h>
 extern "C" {
 #endif
 
-typedef struct {
-
-  USHORT cditem;    /*  Count of dragged objects. */
-  HWND   hwndItem;  /*  Window handle of the source of the drag operation. */
-  ULONG  ulItemID;  /*  Information used by the source to identify the
-                        object being dragged. */
-} AMP_DROPINFO;
-
-/* Converts time to two integer suitable for display by the timer. */
-void  sec2num( double seconds, unsigned int* major, unsigned int* minor );
-/* Reads url from specified file. */
-char* amp_url_from_file( char* result, const char* filename, size_t size );
 
 /* Constructs a string of the displayable text from the file information. */
 char* amp_construct_tag_string( char* result, const DECODER_INFO2* info, int size );
@@ -63,6 +52,11 @@ void  amp_display_next_mode( void );
 
 /* Loads *anything* to player. */
 BOOL  amp_load_playable( const char *url, int options );
+/* amp_load_playable options */
+#define AMP_LOAD_NOT_PLAY      0x0001 // Load a playable object, but do not start playback automatically
+#define AMP_LOAD_NOT_RECALL    0x0002 // Load a playable object, but do not add an entry into the list of recent files
+#define AMP_LOAD_KEEP_PLAYLIST 0x0004 // Play a playable object. If A playlist containing this item is loaded, the item is activated only.
+#define AMP_LOAD_APPEND        0x0008 // Take a playable object as part of multiple playable objects to load. 
 
 /* Begins playback of the currently loaded file from the specified position. */
 void  amp_play( float pos );
@@ -134,6 +128,11 @@ extern void DLLENTRY amp_display_error( const char* );
 
 #ifdef __cplusplus
 }
+/* Reads url from specified file. [123_utils] */
+xstring amp_url_from_file(const char* filename);
+/* Reads an String from a drag and drop structure */
+xstring amp_string_from_drghstr(HSTR hstr);
+
 #include "playable.h"
 /* Returns a information block of the currently loaded file or NULL if none. */
 int_ptr<Song>     amp_get_current_song();

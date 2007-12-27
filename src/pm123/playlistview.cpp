@@ -112,10 +112,15 @@ const PlaylistView::Column PlaylistView::MutableColumns[] =
     "Name (Alias)",
     offsetof(PlaylistView::Record, pszIcon)
   },
-  { CFA_STRING | CFA_HORZSEPARATOR,
+  { CFA_STRING | CFA_SEPARATOR | CFA_HORZSEPARATOR,
     CFA_FITITLEREADONLY,
     "Start",
     offsetof(PlaylistView::Record, Pos)
+  },
+  { CFA_STRING | CFA_HORZSEPARATOR,
+    CFA_FITITLEREADONLY,
+    "Stop",
+    offsetof(PlaylistView::Record, End)
   },
   { CFA_FIREADONLY | CFA_SEPARATOR | CFA_HORZSEPARATOR | CFA_STRING,
     CFA_FITITLEREADONLY,
@@ -231,7 +236,7 @@ void PlaylistView::InitDlg()
   if ((Content->GetFlags() & Playable::Mutable) == Playable::Mutable)
   { insert.cFieldInfoInsert = sizeof MutableColumns / sizeof *MutableColumns;
     first = MutableFieldinfo;
-    cnrinfo.pFieldInfoLast  = first->pNextFieldInfo->pNextFieldInfo; // The first 3 colums are left to the bar.
+    cnrinfo.pFieldInfoLast  = first->pNextFieldInfo->pNextFieldInfo->pNextFieldInfo; // The first 3 colums are left to the bar.
   } else
   { insert.cFieldInfoInsert = sizeof ConstColumns / sizeof *ConstColumns;
     first = ConstFieldinfo;
@@ -463,6 +468,13 @@ bool PlaylistView::CalcCols(Record* rec, Playable::InfoFlags flags, PlayableInst
     tmp = FormatTime(rec->Content->GetSlice().Start);
     rec->Pos = tmp;
     rec->Data()->Pos = tmp;
+    // Ending position
+    if (rec->Content->GetSlice().Stop < 0)
+      tmp = xstring::empty;
+    else
+      tmp = FormatTime(rec->Content->GetSlice().Stop);
+    rec->End = tmp;
+    rec->Data()->End = tmp;
     ret = true;
   }
   return ret;
@@ -522,4 +534,10 @@ void PlaylistView::UpdateRecord(Record* rec, Playable::InfoFlags flags, Playable
     PMRASSERT(WinSendMsg(HwndContainer, CM_INVALIDATERECORD, MPFROMP(&rec), MPFROM2SHORT(1, CMA_TEXTCHANGED)));
 }
 
-
+void PlaylistView::UserRemove(RecordBase* rec)
+{ DEBUGLOG(("PlaylistView(%p)::UserRemove(%s)\n", this, rec->DebugName().cdata()));
+  // find parent playlist
+  if (Content->GetFlags() & Playable::Mutable) // don't modify constant object
+    ((Playlist&)*Content).RemoveItem(rec->Content);
+  // the update of the container is implicitely done by the notification mechanism
+}
