@@ -225,16 +225,16 @@ class PlaylistBase : public IComparableTo<char>
  private:
   class_delegate2<PlaylistBase, const Playable::change_args, RecordBase*> RootInfoDelegate;
   class_delegate<PlaylistBase, const bool> RootPlayStatusDelegate;
-  TID               ThreadID;
+  //TID               ThreadID;
   bool              InitialVisible;
   int               Initialized;
 
  private:
   // Static members must not use EXPENTRY linkage with IBM VACPP.
-  friend void TFNENTRY pl_DlgThreadStub(void* arg);
+  //friend void TFNENTRY pl_DlgThreadStub(void* arg);
   friend MRESULT EXPENTRY pl_DlgProcStub(HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2);
   // Thread for this window instance
-  void              DlgThread();
+  //void              DlgThread();
 
  protected:
   // Create a playlist manager window for an URL, but don't open it.

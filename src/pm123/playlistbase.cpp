@@ -128,7 +128,7 @@ PlaylistBase::PlaylistBase(const char* url, const char* alias, ULONG rid)
   Source(8),
   RootInfoDelegate(*this, &PlaylistBase::InfoChangeEvent, NULL),
   RootPlayStatusDelegate(*this, &PlaylistBase::PlayStatEvent),
-  ThreadID(0),
+//  ThreadID(0),
   InitialVisible(false),
   Initialized(0)
 { DEBUGLOG(("PlaylistBase(%p)::PlaylistBase(%s)\n", this, url));
@@ -145,23 +145,23 @@ PlaylistBase::PlaylistBase(const char* url, const char* alias, ULONG rid)
 PlaylistBase::~PlaylistBase()
 { DEBUGLOG(("PlaylistBase(%p)::~PlaylistBase()\n", this));
   // The window may be closed already => ignore the error
-  WinPostMsg(HwndFrame, WM_QUIT, 0, 0);
+  WinDestroyWindow(HwndFrame);
   // This may give an error if called from our own thread. This is intensionally ignored here.
   //DosWaitThread(&ThreadID, DCWW_WAIT);
 }
 
-void TFNENTRY pl_DlgThreadStub(void* arg)
+/*void TFNENTRY pl_DlgThreadStub(void* arg)
 { ((PlaylistBase*)arg)->DlgThread();
-}
+}*/
 
 void PlaylistBase::StartDialog()
-{ ThreadID = _beginthread(pl_DlgThreadStub, NULL, 1024*1024, this);
-  /*// initialize dialog
+{ //ThreadID = _beginthread(pl_DlgThreadStub, NULL, 1024*1024, this);
+  // initialize dialog
   init_dlg_struct ids = { sizeof(init_dlg_struct), this };
-  PMRASSERT(WinLoadDlg(HWND_DESKTOP, HWND_DESKTOP, pl_DlgProcStub, NULLHANDLE, DlgRID, &ids));*/
+  PMRASSERT(WinLoadDlg(HWND_DESKTOP, HWND_DESKTOP, pl_DlgProcStub, NULLHANDLE, DlgRID, &ids));
 }
 
-void PlaylistBase::DlgThread()
+/*void PlaylistBase::DlgThread()
 { DEBUGLOG(("PlaylistBase(%p)::DlgThread()\n", this));
   // initialize PM
   HAB hab = WinInitialize(0);
@@ -177,10 +177,9 @@ void PlaylistBase::DlgThread()
     WinDispatchMsg(hab, &msg);
   // cleanup
   save_window_pos(HwndFrame, 0);
-  PMRASSERT(WinDestroyWindow(HwndFrame));
   PMRASSERT(WinDestroyMsgQueue(hmq));
   PMRASSERT(WinTerminate(hab));
-}
+}*/
 
 void PlaylistBase::PostRecordCommand(RecordBase* rec, RecordCommand cmd)
 { DEBUGLOG(("PlaylistBase(%p)::PostRecordCommand(%p, %u) - %x\n", this, rec, cmd, StateFromRec(rec).PostMsg));

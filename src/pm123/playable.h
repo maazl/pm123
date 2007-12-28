@@ -287,8 +287,7 @@ class PlayableInstance : public Iref_Count
     SF_InUse   = 0x01,
     SF_Alias   = 0x02,
     SF_Slice   = 0x04,
-    SF_All     = SF_InUse|SF_Alias|SF_Slice,
-    SF_Destroy = 0x80 // This is the last event of a playable instance when it goes out of scope.
+    SF_All     = SF_InUse|SF_Alias|SF_Slice
   };
   struct change_args
   { PlayableInstance& Instance;
@@ -313,7 +312,6 @@ class PlayableInstance : public Iref_Count
  protected:
   PlayableInstance(PlayableCollection& parent, Playable* playable);
  public:
-  ~PlayableInstance();
   // Get't the referenced content.
   // This Pointer is valid as long as the PlayableInstance exist and does not change.
   Playable*           GetPlayable() const { return RefTo; }

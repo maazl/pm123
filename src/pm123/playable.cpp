@@ -347,13 +347,6 @@ PlayableInstance::PlayableInstance(PlayableCollection& parent, Playable* playabl
     &parent, parent.GetURL().getShortName().cdata(), &*playable, playable->GetURL().getShortName().cdata()));
 }
 
-PlayableInstance::~PlayableInstance()
-{ DEBUGLOG(("PlayableInstance(%p)::~PlayableInstance() - %p\n", this, &*RefTo));
-  // signal dependant objects
-  StatusChange(change_args(*this, SF_Destroy));
-  DEBUGLOG(("PlayableInstance::~PlayableInstance() - done\n"));
-}
-
 void PlayableInstance::SetInUse(bool used)
 { DEBUGLOG(("PlayableInstance(%p)::SetInUse(%u)\n", this, used));
   PlayableStatus old_stat = Stat;
