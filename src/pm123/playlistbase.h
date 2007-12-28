@@ -62,11 +62,11 @@ class PlaylistBase : public IComparableTo<char>
   // C++ part of a record
   struct RecordBase;
   struct CPDataBase
-  { class_delegate2<PlaylistBase, const Playable::change_args        , RecordBase*> InfoChange;
-    class_delegate2<PlaylistBase, const PlayableInstance::change_args, RecordBase*> StatChange;
-    int_ptr<PlayableInstance> const Content; // The pointer to the backend content.
+  { int_ptr<PlayableInstance> const Content; // The pointer to the backend content.
     xstring             Text;      // Storage for alias name <-> pszIcon
     CommonState         EvntState;
+    class_delegate2<PlaylistBase, const Playable::change_args        , RecordBase*> InfoChange;
+    class_delegate2<PlaylistBase, const PlayableInstance::change_args, RecordBase*> StatChange;
     CPDataBase(PlayableInstance* content, PlaylistBase& pm,
                void (PlaylistBase::*infochangefn)(const Playable::change_args&,         RecordBase*),
                void (PlaylistBase::*statchangefn)(const PlayableInstance::change_args&, RecordBase*),

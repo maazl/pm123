@@ -101,7 +101,7 @@ void PlaylistManager::InitDlg()
   cnrInfo.cxTreeIndent = WinQuerySysValue(HWND_DESKTOP, SV_CYMENU) +2;
   //cnrInfo.cyLineSpacing = 0;
   DEBUGLOG(("PlaylistManager::InitDlg: %u\n", cnrInfo.slBitmapOrIcon.cx));
-  cnrInfo.pszCnrTitle  = "No playlist selected. Right click for menu.";
+  cnrInfo.pszCnrTitle  = "Emplty list. Right click for menu.";
   PMRASSERT(WinSendMsg(HwndContainer, CM_SETCNRINFO, MPFROMP(&cnrInfo), MPFROMLONG(CMA_FLWINDOWATTR|CMA_CXTREEINDENT|CMA_CNRTITLE|CMA_LINESPACING)));
 
   PlaylistBase::InitDlg();

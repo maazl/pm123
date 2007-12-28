@@ -1095,7 +1095,7 @@ bool Playlist::RemoveItem(PlayableInstance* item)
       return true; // early exit without change flag
     do
     { RemoveEntry(Head);
-      DEBUGLOG(("Playlist::RemoveItem - %p\n", Head));
+      DEBUGLOG(("Playlist::RemoveItem - %p\n", &*Head));
     } while (Head);
   }
   InfoChangeFlags |= IF_Other;

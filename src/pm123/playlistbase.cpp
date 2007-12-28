@@ -64,7 +64,7 @@
 
 #ifdef DEBUG
 xstring PlaylistBase::RecordBase::DebugName() const
-{ return xstring::sprintf("%p{%p{%s}}", this, Data->Content, Data->Content->GetPlayable()->GetURL().getShortName().cdata());
+{ return xstring::sprintf("%p{%p{%s}}", this, &*Data->Content, Data->Content->GetPlayable()->GetURL().getShortName().cdata());
 }
 xstring PlaylistBase::RecordBase::DebugName(const RecordBase* rec)
 { static const xstring nullstring = "<NULL>";

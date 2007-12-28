@@ -143,7 +143,7 @@ USHORT PlaylistMenu::InsertSeparator(HWND menu, SHORT where)
   mi.afStyle = MIS_SEPARATOR;
   mi.id = AllocateID();
   if (mi.id != (USHORT)MID_NONE)
-    PMXASSERT(SHORT1FROMMR(WinSendMsg(menu, MM_INSERTITEM, MPFROMP(&mi), 0)), != MIT_ERROR);
+    PMXASSERT(SHORT1FROMMR(WinSendMsg(menu, MM_INSERTITEM, MPFROMP(&mi), 0)), != (USHORT)MIT_ERROR);
   return mi.id;
 }
 
@@ -240,7 +240,7 @@ void PlaylistMenu::CreateSubItems(MapEntry* mapp)
     mi.afStyle     = MIS_TEXT|MIS_STATIC;
     mi.hwndSubMenu = NULLHANDLE;
     // Add menu item
-    PMXASSERT(SHORT1FROMMR(WinSendMsg(mapp->HwndMenu, MM_INSERTITEM, MPFROMP(&mi), MPFROMP("- none -"))), != MIT_ERROR);
+    PMXASSERT(SHORT1FROMMR(WinSendMsg(mapp->HwndMenu, MM_INSERTITEM, MPFROMP(&mi), MPFROMP("- none -"))), != (USHORT)MIT_ERROR);
   }
 }
 
