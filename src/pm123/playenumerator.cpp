@@ -185,7 +185,7 @@ int_ptr<Song> PlayEnumerator::PrevNextCore(int_ptr<Song> (PlayEnumerator::*subfn
       DEBUGLOG(("PlayEnumerator::PrevNextCore : last item\n"));
       return NULL;
     }
-    current = &(*Enumerator)->GetPlayable();
+    current = (*Enumerator)->GetPlayable();
   }
   DEBUGLOG(("PlayEnumerator::PrevNextCore : next item - %p\n", &*current));
   if (RecursionCheck(current))
@@ -214,7 +214,7 @@ PlayEnumerator::Status PlayEnumerator::GetStatus() const
     Mutex::Lock lock(Root->Mtx);
     sco_ptr<PlayableEnumerator> pe((NextEnumerator != NULL ? NextEnumerator : Enumerator)->Clone());
     while (pe->Prev())
-    { tech = *(*pe)->GetPlayable().GetInfo().tech;
+    { tech = *(*pe)->GetPlayable()->GetInfo().tech;
       if (s.CurrentTime >= 0)
       { if (tech.songlength >= 0)
         { s.CurrentTime += tech.songlength;

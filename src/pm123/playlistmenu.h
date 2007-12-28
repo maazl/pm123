@@ -81,7 +81,7 @@ class PlaylistMenu
     xstring         Alias;
     PlayableInstance::slice Slice;
     select_data(const PlayableInstance& data)
-     : Item(&data.GetPlayable()), Alias(data.GetAlias()), Slice(data.GetSlice()) {}
+     : Item(data.GetPlayable()), Alias(data.GetAlias()), Slice(data.GetSlice()) {}
     select_data(Playable* data)
      : Item(data), Alias() {}
   };

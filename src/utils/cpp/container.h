@@ -284,4 +284,5 @@ IComparableTo<K>* sorted_vector_base<K>::erase(const K* key)
   return binary_search(key, pos) ? vector<IComparableTo<K> >::erase(pos) : NULL;
 }
 
+
 #endif

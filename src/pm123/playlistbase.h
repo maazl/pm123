@@ -64,8 +64,10 @@ class PlaylistBase : public IComparableTo<char>
   struct CPDataBase
   { class_delegate2<PlaylistBase, const Playable::change_args        , RecordBase*> InfoChange;
     class_delegate2<PlaylistBase, const PlayableInstance::change_args, RecordBase*> StatChange;
+    int_ptr<PlayableInstance> const Content; // The pointer to the backend content.
     xstring             Text;      // Storage for alias name <-> pszIcon
-    CPDataBase(PlaylistBase& pm,
+    CommonState         EvntState;
+    CPDataBase(PlayableInstance* content, PlaylistBase& pm,
                void (PlaylistBase::*infochangefn)(const Playable::change_args&,         RecordBase*),
                void (PlaylistBase::*statchangefn)(const PlayableInstance::change_args&, RecordBase*),
                RecordBase* rec);
@@ -74,16 +76,12 @@ class PlaylistBase : public IComparableTo<char>
   };
   // POD part of a record
   struct RecordBase : public MINIRECORDCORE
-  { PlayableInstance*   Content;   // The pointer to the backend content may be NULL if the object is deleted.
-    volatile unsigned   UseCount;  // Reference counter to keep Records alive while Posted messages are on the way.
-    CommonState         EvntState;
+  { volatile unsigned   UseCount;  // Reference counter to keep Records alive while Posted messages are on the way.
     CPDataBase*         Data;      // C++ part of the object in the private memory arena.
     #ifdef DEBUG
     xstring             DebugName() const;
     static xstring      DebugName(const RecordBase* rec);
     #endif
-    bool                IsRemoved() const                { return Content == NULL; }
-    static bool         IsRemoved(const RecordBase* rec) { return rec != NULL && rec->IsRemoved(); }
   };
   struct UserAddCallbackParams;
   friend struct UserAddCallbackParams;
@@ -117,10 +115,6 @@ class PlaylistBase : public IComparableTo<char>
     // Delete a record structure and put it back to PM
     // mp1 = Record
     UM_DELETERECORD,
-    // Mark the record as removed
-    // This destroys the Content reference.
-    // You may send this message with async flag to free the record if it is no longer used by an outstanding message.
-    UM_SYNCREMOVE,
     // Playstatus-Event hit.
     // mp1 = status
     UM_PLAYSTATUS,
@@ -248,8 +242,8 @@ class PlaylistBase : public IComparableTo<char>
 
   void              StartDialog();
 
-  CommonState&      StateFromRec(RecordBase* rec) { return rec ? rec->EvntState : EvntState; }
-  Playable*         PlayableFromRec(RecordBase* rec) { return rec ? &rec->Content->GetPlayable() : &*Content; }
+  CommonState&      StateFromRec(RecordBase* rec) { return rec ? rec->Data->EvntState : EvntState; }
+  Playable*         PlayableFromRec(RecordBase* rec) { return rec ? rec->Data->Content->GetPlayable() : &*Content; }
   // Prevent a Record from deletion until FreeRecord is called
   void              BlockRecord(RecordBase* rec)
                     { if (rec) InterlockedInc(rec->UseCount); }
@@ -282,7 +276,7 @@ class PlaylistBase : public IComparableTo<char>
   // Set the window title
   void              SetTitle();
   // Analyze a collection of records for it's types.
-  static RecordType AnalyzeRecordTypes(vector<RecordBase>& recs);
+  static RecordType AnalyzeRecordTypes(const vector<RecordBase>& recs);
   // Load context menu for a record
   virtual HWND      InitContextMenu(vector<RecordBase>& recs) = 0;
 
@@ -380,11 +374,13 @@ class PlaylistBase : public IComparableTo<char>
 FLAGSATTRIBUTE(PlaylistBase::RecordType);
 
 inline PlaylistBase::CPDataBase::CPDataBase(
+  PlayableInstance* content,
   PlaylistBase& pm,
   void (PlaylistBase::*infochangefn)(const Playable::change_args&,         RecordBase*),
   void (PlaylistBase::*statchangefn)(const PlayableInstance::change_args&, RecordBase*),
   RecordBase* rec)
-: InfoChange(pm, infochangefn, rec),
+: Content(content),
+  InfoChange(pm, infochangefn, rec),
   StatChange(pm, statchangefn, rec)
 {}
 

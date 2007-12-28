@@ -64,9 +64,7 @@
 
 #ifdef DEBUG
 xstring PlaylistBase::RecordBase::DebugName() const
-{ if (IsRemoved())
-    return xstring::sprintf("%p{<removed>}", this);
-  return xstring::sprintf("%p{%p{%s}}", this, Content, Content->GetPlayable().GetURL().getShortName().cdata());
+{ return xstring::sprintf("%p{%p{%s}}", this, Data->Content, Data->Content->GetPlayable()->GetURL().getShortName().cdata());
 }
 xstring PlaylistBase::RecordBase::DebugName(const RecordBase* rec)
 { static const xstring nullstring = "<NULL>";
@@ -429,7 +427,7 @@ MRESULT PlaylistBase::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
         }
        case IDM_PL_USE:
         { for (RecordBase** rpp = Source.begin(); rpp != Source.end(); ++rpp)
-            amp_load_playable((*rpp)->Content->GetPlayable().GetURL(), rpp == Source.begin() ? 0 : AMP_LOAD_APPEND);
+            amp_load_playable((*rpp)->Data->Content->GetPlayable()->GetURL(), rpp == Source.begin() ? 0 : AMP_LOAD_APPEND);
           return 0;
         }
        case IDM_PL_TREEVIEWALL:
@@ -438,7 +436,7 @@ MRESULT PlaylistBase::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
         }
        case IDM_PL_TREEVIEW:
         { for (RecordBase** rpp = Source.begin(); rpp != Source.end(); ++rpp)
-          { Playable* pp = &(*rpp)->Content->GetPlayable();
+          { Playable* pp = (*rpp)->Data->Content->GetPlayable();
             if (pp->GetFlags() & Playable::Enumerable)
               PlaylistManager::Get(pp->GetURL())->SetVisible(true);
           }
@@ -450,7 +448,7 @@ MRESULT PlaylistBase::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
         }
        case IDM_PL_DETAILED:
         { for (RecordBase** rpp = Source.begin(); rpp != Source.end(); ++rpp)
-          { Playable* pp = &(*rpp)->Content->GetPlayable();
+          { Playable* pp = (*rpp)->Data->Content->GetPlayable();
             if (pp->GetFlags() & Playable::Enumerable)
               PlaylistView::Get(pp->GetURL())->SetVisible(true);
           }
@@ -458,12 +456,12 @@ MRESULT PlaylistBase::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
         }
        case IDM_PL_REFRESH:
         { for (RecordBase** rpp = Source.begin(); rpp != Source.end(); ++rpp)
-            (*rpp)->Content->GetPlayable().LoadInfoAsync(Playable::IF_All);
+            (*rpp)->Data->Content->GetPlayable()->LoadInfoAsync(Playable::IF_All);
           return 0;
         }
        case IDM_PL_EDIT:
         { for (RecordBase** rpp = Source.begin(); rpp != Source.end(); ++rpp)
-          { Playable* pp = &(*rpp)->Content->GetPlayable();
+          { Playable* pp = (*rpp)->Data->Content->GetPlayable();
             if (pp->GetInfo().meta_write)
               amp_info_edit(HwndFrame, pp->GetURL(), pp->GetDecoder());
           }
@@ -483,7 +481,7 @@ MRESULT PlaylistBase::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
        /*case IDM_PL_CLEAR:
         { DEBUGLOG(("PlaylistBase(%p{%s})::DlgProc: IDM_PL_CLEAR %p\n", this, DebugName().cdata(), focus));
           for (RecordBase** rpp = source.begin(); rpp != source.end(); ++rpp)
-          { Playable* pp = &(*rpp)->Content->GetPlayable();
+          { Playable* pp = (*rpp)->Data->Content->GetPlayable();
             if ((pp->GetFlags() & Playable::Mutable) == Playable::Mutable) // don't modify constant object
               ((Playlist*)pp)->Clear();
           }
@@ -526,15 +524,6 @@ MRESULT PlaylistBase::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
     DeleteEntry((RecordBase*)PVOIDFROMMP(mp1));
     return MRFROMLONG(TRUE);
 
-   case UM_SYNCREMOVE:
-    { RecordBase* rec = (RecordBase*)PVOIDFROMMP(mp1);
-      DEBUGLOG(("PlaylistBase::DlgProc: UM_SYNCREMOVE: %s}\n", RecordBase::DebugName(rec).cdata()));
-      rec->Content = NULL;
-      // deregister event handlers too.
-      rec->Data->DeregisterEvents();
-      return MRFROMLONG(TRUE);
-    }
-
    case UM_PLAYSTATUS:
     UpdatePlayStatus();
     return 0;
@@ -542,8 +531,7 @@ MRESULT PlaylistBase::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
    case UM_INSERTITEM:
     { InsertInfo* pii = (InsertInfo*)PVOIDFROMMP(mp1);
       DEBUGLOG(("PlaylistBase::DlgProc: UM_INSERTITEM: %p{...,%s}\n", pii, RecordBase::DebugName(pii->Before).cdata()));
-      if (!RecordBase::IsRemoved(pii->Before))
-        UserInsert(pii);
+      UserInsert(pii);
       FreeRecord(pii->Before);
       delete pii;
       return 0;
@@ -552,8 +540,7 @@ MRESULT PlaylistBase::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
    case UM_REMOVERECORD:
     { RecordBase* rec = (RecordBase*)PVOIDFROMMP(mp1);
       DEBUGLOG(("PlaylistBase::DlgProc: UM_REMOVERECORD: %p\n", rec));
-      if (!rec->IsRemoved())
-        UserRemove(rec);
+      UserRemove(rec);
       FreeRecord(rec);
       return 0;
     }
@@ -588,9 +575,9 @@ bool PlaylistBase::GetVisible() const
 }
 
 HPOINTER PlaylistBase::CalcIcon(RecordBase* rec)
-{ ASSERT(rec->Content != NULL);
-  DEBUGLOG(("PlaylistBase::CalcIcon(%s) - %u\n", RecordBase::DebugName(rec).cdata(), rec->Content->GetPlayable().GetStatus()));
-  switch (rec->Content->GetPlayable().GetStatus())
+{ ASSERT(rec->Data->Content != NULL);
+  DEBUGLOG(("PlaylistBase::CalcIcon(%s) - %u\n", RecordBase::DebugName(rec).cdata(), rec->Data->Content->GetPlayable()->GetStatus()));
+  switch (rec->Data->Content->GetPlayable()->GetStatus())
   {case STA_Unknown:
     return IcoWait;
    case STA_Invalid:
@@ -622,14 +609,10 @@ void PlaylistBase::SetTitle()
   Title = title;
 }
 
-PlaylistBase::RecordType PlaylistBase::AnalyzeRecordTypes(vector<RecordBase>& recs)
+PlaylistBase::RecordType PlaylistBase::AnalyzeRecordTypes(const vector<RecordBase>& recs)
 { RecordType ret = RT_None;
   for (RecordBase*const* rpp = recs.end(); rpp-- != recs.begin(); )
-  { if ((*rpp)->IsRemoved())
-    { recs.erase(rpp);
-      continue;
-    }
-    Playable::Flags flg = ((*rpp)->Content->GetPlayable().GetFlags());
+  { Playable::Flags flg = ((*rpp)->Data->Content->GetPlayable()->GetFlags());
     if (flg == Playable::None)
       ret |= RT_Song;
     else if (flg & Playable::Enumerable)
@@ -643,7 +626,7 @@ PlaylistBase::RecordType PlaylistBase::AnalyzeRecordTypes(vector<RecordBase>& re
 
 
 PlaylistBase::RecordBase* PlaylistBase::AddEntry(PlayableInstance* obj, RecordBase* parent, RecordBase* after)
-{ DEBUGLOG(("PlaylistBase(%p{%s})::AddEntry(%p{%s}, %p, %p)\n", this, DebugName().cdata(), obj, obj->GetPlayable().GetURL().getShortName().cdata(), parent, after));
+{ DEBUGLOG(("PlaylistBase(%p{%s})::AddEntry(%p{%s}, %p, %p)\n", this, DebugName().cdata(), obj, obj->GetPlayable()->GetURL().getShortName().cdata(), parent, after));
   /* Allocate a record in the HwndContainer */
   RecordBase* rec = CreateNewRecord(obj, parent);
   if (rec)
@@ -679,8 +662,6 @@ PlaylistBase::RecordBase* PlaylistBase::MoveEntry(RecordBase* entry, RecordBase*
 
 void PlaylistBase::RemoveEntry(RecordBase* const entry)
 { DEBUGLOG(("PlaylistBase(%p{%s})::RemoveEntry(%p)\n", this, DebugName().cdata(), entry));
-  // detach content
-  entry->Content = NULL;
   // deregister events
   entry->Data->DeregisterEvents();
   // Delete the children
@@ -711,13 +692,7 @@ int PlaylistBase::RemoveChildren(RecordBase* const rp)
 
 void PlaylistBase::RequestChildren(RecordBase* const rec)
 { DEBUGLOG(("PlaylistBase(%p)::RequestChildren(%s)\n", this, RecordBase::DebugName(rec).cdata()));
-  Playable* pp;
-  if (rec == NULL)
-    pp = Content;
-  else if (rec->IsRemoved())
-    return;
-  else
-    pp = &rec->Content->GetPlayable();
+  Playable* const pp = PlayableFromRec(rec);
   if ((pp->GetFlags() & Playable::Enumerable) == 0)
     return;
   // Call event either immediately or later, asynchronuously.
@@ -727,13 +702,7 @@ void PlaylistBase::RequestChildren(RecordBase* const rec)
 void PlaylistBase::UpdateChildren(RecordBase* const rp)
 { DEBUGLOG(("PlaylistBase(%p)::UpdateChildren(%s)\n", this, RecordBase::DebugName(rp).cdata()));
   // get content
-  Playable* pp;
-  if (rp == NULL)
-    pp = Content;
-  else if (rp->IsRemoved())
-    return; // record removed
-  else
-    pp = &rp->Content->GetPlayable();
+  Playable* const pp = PlayableFromRec(rp);
 
   DEBUGLOG(("PlaylistBase::UpdateChildren - %u\n", pp->GetStatus()));
   if ((pp->GetFlags() & Playable::Enumerable) == 0 || pp->GetStatus() <= STA_Invalid)
@@ -761,7 +730,7 @@ void PlaylistBase::UpdateChildren(RecordBase* const rp)
     // prefetch next record
     RecordBase* ncrp = (RecordBase*)WinSendMsg(HwndContainer, CM_QUERYRECORD, MPFROMP(crp), MPFROM2SHORT(CMA_NEXT, CMA_ITEMORDER));
     PMASSERT(ncrp != (RecordBase*)-1);
-    if (crp->Content)
+    if (crp->Data->Content)
       // record is valid => add to list
       old.insert(old.size()) = crp;
     else
@@ -781,16 +750,16 @@ void PlaylistBase::UpdateChildren(RecordBase* const rp)
       for (;;)
       { if (orpp == old.end())
         { // not found! => add
-          DEBUGLOG(("PlaylistBase::UpdateChildren - not found: %p{%s}\n", &**ep, (*ep)->GetPlayable().GetURL().getShortName().cdata()));
+          DEBUGLOG(("PlaylistBase::UpdateChildren - not found: %p{%s}\n", &**ep, (*ep)->GetPlayable()->GetURL().getShortName().cdata()));
           crp = AddEntry(&**ep, rp, crp);
           if (crp && (rp == NULL || (rp->flRecordAttr & CRA_EXPANDED)))
             RequestChildren(crp);
           break;
         }
         // In case we received a UM_SYNCREMOVE event for a record, the comparsion below will fail.
-        if ((*orpp)->Content == &**ep)
+        if ((*orpp)->Data->Content == &**ep)
         { // found!
-          DEBUGLOG(("PlaylistBase::UpdateChildren - found: %p{%s} at %u\n", &**ep, (*ep)->GetPlayable().GetURL().getShortName().cdata(), orpp - old.begin()));
+          DEBUGLOG(("PlaylistBase::UpdateChildren - found: %p{%s} at %u\n", &**ep, (*ep)->GetPlayable()->GetURL().getShortName().cdata(), orpp - old.begin()));
           if (orpp == old.begin())
             // already in right order
             crp = *orpp;
@@ -818,8 +787,7 @@ void PlaylistBase::GetRecords(vector<RecordBase>& result, USHORT emphasis) const
   RecordBase* rec = (RecordBase*)PVOIDFROMMR(WinSendMsg(HwndContainer, CM_QUERYRECORDEMPHASIS, MPFROMP(CMA_FIRST), MPFROMSHORT(emphasis)));
   while (rec != NULL && rec != (RecordBase*)-1)
   { DEBUGLOG(("PlaylistBase::GetRecords: %p\n", rec));
-    if (!rec->IsRemoved()) // Skip removed
-      result.append() = rec;
+    result.append() = rec;
     rec = (RecordBase*)PVOIDFROMMR(WinSendMsg(HwndContainer, CM_QUERYRECORDEMPHASIS, MPFROMP(rec), MPFROMSHORT(emphasis)));
   }
   PMASSERT(rec != (RecordBase*)-1);
@@ -828,9 +796,7 @@ void PlaylistBase::GetRecords(vector<RecordBase>& result, USHORT emphasis) const
 bool PlaylistBase::GetSource(RecordBase* rec)
 { Source.clear();
   if (rec)
-  { if (rec->IsRemoved())
-      return false;
-    PMRASSERT(WinSendMsg(HwndContainer, CM_QUERYRECORDINFO, MPFROMP(&rec), MPFROMSHORT(1)));
+  { PMRASSERT(WinSendMsg(HwndContainer, CM_QUERYRECORDINFO, MPFROMP(&rec), MPFROMSHORT(1)));
     // check wether the record is selected
     if (rec->flRecordAttr & CRA_SELECTED)
     { GetRecords(Source, CRA_SELECTED);
@@ -862,8 +828,6 @@ void PlaylistBase::UpdateStatus(RecordBase* rec)
     SetTitle();
   } else
   { // Record node
-    if (rec->IsRemoved())
-      return;
     HPOINTER icon = CalcIcon(rec);
     // update icon?
     if (rec->hptrIcon != icon)
@@ -880,10 +844,8 @@ void PlaylistBase::UpdateInstance(RecordBase* rec, PlayableInstance::StatusFlags
     SetTitle();
   } else
   { // Record node
-    if (rec->IsRemoved())
-      return;
     if (iflags & PlayableInstance::SF_Alias)
-    { xstring text = rec->Content->GetDisplayName();
+    { xstring text = rec->Data->Content->GetDisplayName();
       rec->pszIcon = (PSZ)text.cdata();
       PMRASSERT(WinSendMsg(HwndContainer, CM_INVALIDATERECORD, MPFROMP(&rec), MPFROM2SHORT(1, CMA_TEXTCHANGED)));
       rec->Data->Text = text; // now free the old text
@@ -903,7 +865,7 @@ void PlaylistBase::UpdatePlayStatus()
 
 void PlaylistBase::UpdatePlayStatus(RecordBase* rec)
 { DEBUGLOG(("PlaylistBase(%p)::UpdatePlayStatus(%p)\n", this, rec));
-  if (!rec->IsRemoved() && rec->Content->GetStatus() == STA_Used)
+  if (rec->Data->Content->GetStatus() == STA_Used)
     PostRecordCommand(rec, RC_UPDATESTATUS);
 }
 
@@ -925,13 +887,7 @@ void PlaylistBase::InfoChangeEvent(const Playable::change_args& args, RecordBase
 
 void PlaylistBase::StatChangeEvent(const PlayableInstance::change_args& args, RecordBase* rec)
 { DEBUGLOG(("PlaylistBase(%p{%s})::StatChangeEvent({%p{%s}, %x}, %p)\n", this, DebugName().cdata(),
-    &args.Instance, args.Instance.GetPlayable().GetURL().getShortName().cdata(), args.Flags, rec));
-
-  if (args.Flags & PlayableInstance::SF_Destroy)
-  { DEBUGLOG(("PlaylistBase::StatChangeEvent: SF_Destroy %p\n", rec));
-    RASSERT(WinSendMsg(HwndFrame, UM_SYNCREMOVE, MPFROMP(rec), 0));
-    return;
-  }
+    &args.Instance, args.Instance.GetPlayable()->GetURL().getShortName().cdata(), args.Flags, rec));
 
   if (args.Flags & PlayableInstance::SF_InUse)
     PostRecordCommand(rec, RC_UPDATESTATUS);
@@ -953,27 +909,19 @@ void PlaylistBase::PlayStatEvent(const bool& status)
 static void DLLENTRY UserAddCallback(void* param, const char* url)
 { DEBUGLOG(("UserAddCallback(%p, %s)\n", param, url));
   PlaylistBase::UserAddCallbackParams& ucp = *(PlaylistBase::UserAddCallbackParams*)param;
-  // parent might be no longer valid.
-  if (PlaylistBase::RecordBase::IsRemoved(ucp.Parent))
-    return; // Ignore (can't help)
-  int_ptr<Playable> play = ucp.Parent ? &ucp.Parent->Content->GetPlayable() : ucp.GUI->GetContent();
-  if ((play->GetFlags() & Playable::Mutable) != Playable::Mutable)
+  Playable* const pp = ucp.Parent ? &*ucp.Parent->Data->Content->GetPlayable() : ucp.GUI->GetContent();
+  if ((pp->GetFlags() & Playable::Mutable) != Playable::Mutable)
     return; // Can't add something to a non-playlist.
-  // On the first call Lock the Playlist until the Wizzard returns.
+  // On the first call lock the Playlist until the wizzard returns.
   if (ucp.Lock == NULL)
-    ucp.Lock = new Mutex::Lock(play->Mtx);
-  // parent and before might be no longer valid.
-  if (PlaylistBase::RecordBase::IsRemoved(ucp.Parent) || PlaylistBase::RecordBase::IsRemoved(ucp.Before))
-    return; // Ignore (can't help)
-  ((Playlist&)*play).InsertItem(url, (const char*)NULL, 0, ucp.Before ? ucp.Before->Content : NULL);
+    ucp.Lock = new Mutex::Lock(pp->Mtx);
+  ((Playlist*)pp)->InsertItem(url, (const char*)NULL, 0, ucp.Before ? &*ucp.Before->Data->Content : NULL);
 }
 
 void PlaylistBase::UserAdd(DECODER_WIZZARD_FUNC wizzard, const char* title, RecordBase* parent, RecordBase* before)
 { DEBUGLOG(("PlaylistBase(%p)::UserAdd(%p, %s, %p, %p)\n", this, wizzard, title, parent, before));
-  if (RecordBase::IsRemoved(parent) || RecordBase::IsRemoved(before))
-    return; // sync remove happened
-  Playable& play = parent ? parent->Content->GetPlayable() : *Content;
-  if ((play.GetFlags() & Playable::Mutable) != Playable::Mutable)
+  Playable* const pp = PlayableFromRec(parent);
+  if ((pp->GetFlags() & Playable::Mutable) != Playable::Mutable)
     return; // Can't add something to a non-playlist.
   UserAddCallbackParams ucp(this, parent, before);
   ULONG ul = (*wizzard)(HwndFrame, title, &UserAddCallback, &ucp);
@@ -985,7 +933,7 @@ void PlaylistBase::UserAdd(DECODER_WIZZARD_FUNC wizzard, const char* title, Reco
 void PlaylistBase::UserInsert(const InsertInfo* pii)
 { DEBUGLOG(("PlaylistBase(%p)::UserInsert(%p{{%s}, %s, %s, {%f,%f}, %s})\n", this,
     pii, pii->Parent->GetURL().getShortName().cdata(), pii->URL.cdata(), pii->Alias.cdata(), pii->Slice.Start, pii->Slice.Stop, RecordBase::DebugName(pii->Before).cdata()));
-  pii->Parent->InsertItem(pii->URL, pii->Alias, pii->Slice, pii->Before ? pii->Before->Content : NULL);
+  pii->Parent->InsertItem(pii->URL, pii->Alias, pii->Slice, pii->Before ? &*pii->Before->Data->Content : NULL);
 }
 
 void PlaylistBase::UserSave()
@@ -1117,17 +1065,8 @@ MRESULT PlaylistBase::DragOver(DRAGINFO* pdinfo, RecordBase* target)
     return MRFROM2SHORT(DOR_NEVERDROP, 0);
   }
   // Check target
-  if (DragAfter)
-  { // ordered target
-    if ( (target != (RecordBase*)CMA_FIRST && RecordBase::IsRemoved(target))
-      || (Content->GetFlags() & Playable::Mutable) != Playable::Mutable )
-      drag = DOR_NODROP;
-  } else
-  { // drag on
-    if ( RecordBase::IsRemoved(target)
-      || (PlayableFromRec(target)->GetFlags() & Playable::Mutable) != Playable::Mutable )
-      drag = DOR_NODROP;
-  }
+  if ( ((DragAfter ? &*Content : PlayableFromRec(target))->GetFlags() & Playable::Mutable) != Playable::Mutable )
+    drag = DOR_NODROP;
   // finished
   return MRFROM2SHORT(drag, drag_op);
 }
@@ -1146,14 +1085,10 @@ void PlaylistBase::DragDrop(DRAGINFO* pdinfo, RecordBase* target)
   else if (target)
   { if (target == (RecordBase*)CMA_FIRST)
       target = NULL;
-    if (!RecordBase::IsRemoved(target))
-    { // Search record after target, because the container returns the record /before/ the insertion point,
-      // while PlayableCollection requires the entry /after/ the insertion point.
-      target = (RecordBase*)WinSendMsg(HwndContainer, CM_QUERYRECORD, MPFROMP(target), MPFROM2SHORT(target ? CMA_NEXT : CMA_FIRST, CMA_ITEMORDER));
-      PMASSERT(target != (RecordBase*)-1);
-    }
-    // In case the record is removed, we cannot determine the next record.
-    // However, we can't blow out, because we have to send DM_ENDCONVERSATION for all records. 
+    // Search record after target, because the container returns the record /before/ the insertion point,
+    // while PlayableCollection requires the entry /after/ the insertion point.
+    target = (RecordBase*)WinSendMsg(HwndContainer, CM_QUERYRECORD, MPFROMP(target), MPFROM2SHORT(target ? CMA_NEXT : CMA_FIRST, CMA_ITEMORDER));
+    PMASSERT(target != (RecordBase*)-1);
   }
   
   // For each dropped item...
@@ -1242,16 +1177,14 @@ void PlaylistBase::DragDrop(DRAGINFO* pdinfo, RecordBase* target)
           fullname = fullname + "/";
 
         // prepare insert item
-        if (!RecordBase::IsRemoved(target))
-        { BlockRecord(target);
-          InsertInfo* pii = new InsertInfo();
-          pii->Parent = parent;
-          pii->URL    = url::normalizeURL(fullname);
-          pii->Alias  = alias;
-          pii->Before = target;
-          WinPostMsg(HwndFrame, UM_INSERTITEM, MPFROMP(pii), 0);
-          reply = DMFL_TARGETSUCCESSFUL;
-        }
+        BlockRecord(target);
+        InsertInfo* pii = new InsertInfo();
+        pii->Parent = parent;
+        pii->URL    = url::normalizeURL(fullname);
+        pii->Alias  = alias;
+        pii->Before = target;
+        WinPostMsg(HwndFrame, UM_INSERTITEM, MPFROMP(pii), 0);
+        reply = DMFL_TARGETSUCCESSFUL;
       }
 
     } else if (DrgVerifyRMF(pditem, "DRM_123FILE", NULL))
@@ -1275,7 +1208,7 @@ void PlaylistBase::DragDrop(DRAGINFO* pdinfo, RecordBase* target)
         DrgSendTransferMsg(pditem->hwndItem, DM_RENDER, (MPARAM)pdtrans, 0);
 
         // insert item
-        if ((pdtrans->fsReply & DMFL_NATIVERENDER) && !RecordBase::IsRemoved(target))
+        if (pdtrans->fsReply & DMFL_NATIVERENDER)
         { BlockRecord(target);
           InsertInfo* pii = new InsertInfo();
           pii->Parent = parent;
@@ -1316,19 +1249,17 @@ void PlaylistBase::DropRenderComplete(DRAGTRANSFER* pdtrans, USHORT flags)
     // In theory the items are not inserted in the right order if the DM_RENDERCOMPLETE messages
     // arrive not in the same order as the dragitems in the DRAGINFO structure.
     // Since this is very unlikely, we ignore that here.
-    if (!RecordBase::IsRemoved(pdsource->Before))
-    { // Since DM_RENDERCOMPLETE should be posted we do not need to post UM_INSERTITEM
-      pdsource->Parent->InsertItem(url::normalizeURL(fullname), pdsource->Alias, pdsource->Before ? pdsource->Before->Content : NULL);
-      reply = DMFL_TARGETSUCCESSFUL;
-    }
+    // Since DM_RENDERCOMPLETE should be posted we do not need to post UM_INSERTITEM
+    pdsource->Parent->InsertItem(url::normalizeURL(fullname), pdsource->Alias, pdsource->Before ? &*pdsource->Before->Data->Content : NULL);
+    reply = DMFL_TARGETSUCCESSFUL;
   }
 
   // Tell the source you're done.
   DrgSendTransferMsg(pdsource->Hwnd, DM_ENDCONVERSATION, MPFROMLONG(pdsource->ItemID), MPFROMLONG(reply));
   delete pdsource;
 
-  DrgDeleteStrHandle ( pdtrans->hstrSelectedRMF );
-  DrgDeleteStrHandle ( pdtrans->hstrRenderToName );
+  DrgDeleteStrHandle (pdtrans->hstrSelectedRMF);
+  DrgDeleteStrHandle (pdtrans->hstrRenderToName);
   DrgFreeDragtransfer(pdtrans);
 }
 
@@ -1372,9 +1303,9 @@ void PlaylistBase::DragInit(vector<RecordBase>& recs)
     pditem->hstrType          = DrgAddStrHandle(DRT_BINDATA);
     pditem->hstrRMF           = DrgAddStrHandle("(DRM_123FILE,DRM_DISCARD)x(DRF_UNKNOWN)");
     pditem->hstrContainerName = DrgAddStrHandle(Content->GetURL());
-    pditem->hstrSourceName    = DrgAddStrHandle(rec->Content->GetPlayable().GetURL());
-    if (rec->Content->GetAlias())
-      pditem->hstrTargetName    = DrgAddStrHandle(rec->Content->GetAlias());
+    pditem->hstrSourceName    = DrgAddStrHandle(rec->Data->Content->GetPlayable()->GetURL());
+    if (rec->Data->Content->GetAlias())
+      pditem->hstrTargetName  = DrgAddStrHandle(rec->Data->Content->GetAlias());
     pditem->fsSupportedOps    = DO_MOVEABLE | DO_COPYABLE;
     DEBUGLOG(("PlaylistBase::DragInit: item {%p, %p, %s, %s, %s, %s, %s, %i,%i, %x, %x}\n",
       pditem->hwndItem, pditem->ulItemID, amp_string_from_drghstr(pditem->hstrType).cdata(), amp_string_from_drghstr(pditem->hstrRMF).cdata(),
@@ -1425,8 +1356,6 @@ bool PlaylistBase::DropDiscard(DRAGINFO* pdinfo)
 
     // get record
     RecordBase* rec = (RecordBase*)pditem->ulItemID;
-    if (rec->IsRemoved())
-      continue;
     // Remove object later
     BlockRecord(rec);
     WinPostMsg(HwndFrame, UM_REMOVERECORD, MPFROMP(rec), 0);
@@ -1449,8 +1378,6 @@ BOOL PlaylistBase::DropRender(DRAGTRANSFER* pdtrans)
   { RecordBase* rec = (RecordBase*)pdtrans->pditem->ulItemID;
     pdtrans->pditem->ulItemID = 0;
     FreeRecord(rec);
-    if (rec->IsRemoved())
-      return FALSE; // Error
   }
   pdtrans->fsReply = DMFL_NATIVERENDER;
   return FALSE;
@@ -1460,7 +1387,7 @@ void PlaylistBase::DropEnd(RecordBase* rec, bool ok)
 { DEBUGLOG(("PlaylistBase::DropEnd(%s, %i)\n", RecordBase::DebugName(rec).cdata(), ok));
   if (!rec)
     return;
-  if (!rec->IsRemoved() && ok)
+  if (ok)
     // We do not lock the record here. Instead we do not /release/ it.
     WinPostMsg(HwndFrame, UM_REMOVERECORD, MPFROMP(rec), 0);
   else 

@@ -425,8 +425,8 @@ static void amp_AddMRU(Playlist* list, size_t max, const char* URL)
   while (pe->IsValid())
   { PlayableInstance* pi = *pe;
     pe->Next();
-    DEBUGLOG(("amp_AddMRU - %p{%s}\n", pi, pi->GetPlayable().GetURL().cdata()));
-    if (max == 0 || pi->GetPlayable().GetURL() == URL)
+    DEBUGLOG(("amp_AddMRU - %p{%s}\n", pi, pi->GetPlayable()->GetURL().cdata()));
+    if (max == 0 || pi->GetPlayable()->GetURL() == URL)
       list->RemoveItem(pi);
      else
       --max;

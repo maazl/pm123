@@ -339,8 +339,8 @@ int_ptr<Playable> Playable::GetByURL(const url& URL, const FORMAT_INFO2* ca_form
 PlayableInstance::slice PlayableInstance::slice::Initial;
 
 
-PlayableInstance::PlayableInstance(PlayableCollection& parent, int_ptr<Playable> playable)
-: Parent(parent),
+PlayableInstance::PlayableInstance(PlayableCollection& parent, Playable* playable)
+: Parent(&parent),
   RefTo(playable),
   Stat(STA_Normal)
 { DEBUGLOG(("PlayableInstance(%p)::PlayableInstance(%p{%s}, %p{%s})\n", this,
@@ -496,7 +496,8 @@ PlayableCollection::Entry* PlayableCollection::CreateEntry(const char* url, cons
 }
 
 void PlayableCollection::AppendEntry(Entry* entry)
-{ DEBUGLOG(("PlayableCollection(%p{%s})::AppendEntry(%p{%s,%p,%p})\n", this, GetURL().getShortName().cdata(), entry, entry->GetPlayable().GetURL().getShortName().cdata(), entry->Prev, entry->Next));
+{ DEBUGLOG(("PlayableCollection(%p{%s})::AppendEntry(%p{%s,%p,%p})\n", this, GetURL().getShortName().cdata(),
+    entry, entry->GetPlayable()->GetURL().getShortName().cdata(), &*entry->Prev, &*entry->Next));
   if ((entry->Prev = Tail) != NULL)
     Tail->Next = entry;
    else
@@ -508,7 +509,8 @@ void PlayableCollection::AppendEntry(Entry* entry)
 }
 
 void PlayableCollection::InsertEntry(Entry* entry, Entry* before)
-{ DEBUGLOG(("PlayableCollection(%p{%s})::InsertEntry(%p{%s,%p,%p}, %p{%s})\n", this, GetURL().getShortName().cdata(), entry, entry->GetPlayable().GetURL().getShortName().cdata(), entry->Prev, entry->Next, before, before->GetPlayable().GetURL().getShortName().cdata()));
+{ DEBUGLOG(("PlayableCollection(%p{%s})::InsertEntry(%p{%s,%p,%p}, %p{%s})\n", this, GetURL().getShortName().cdata(),
+    entry, entry->GetPlayable()->GetURL().getShortName().cdata(), &*entry->Prev, &*entry->Next, before, before->GetPlayable()->GetURL().getShortName().cdata()));
   entry->Next = before;
   if ((entry->Prev = before->Prev) != NULL)
     entry->Prev->Next = entry;
@@ -521,9 +523,12 @@ void PlayableCollection::InsertEntry(Entry* entry, Entry* before)
 }
 
 void PlayableCollection::RemoveEntry(Entry* entry)
-{ DEBUGLOG(("PlayableCollection(%p{%s})::RemoveEntry(%p{%s,%p,%p})\n", this, GetURL().getShortName().cdata(), entry, entry->GetPlayable().GetURL().getShortName().cdata(), entry->Prev, entry->Next));
+{ DEBUGLOG(("PlayableCollection(%p{%s})::RemoveEntry(%p{%s,%p,%p})\n", this, GetURL().getShortName().cdata(),
+    entry, entry->GetPlayable()->GetURL().getShortName().cdata(), &*entry->Prev, &*entry->Next));
   CollectionChange(change_args(*this, *entry, Delete));
   DEBUGLOG(("PlayableCollection::RemoveEntry - after event\n"));
+  ASSERT(entry->IsParent(this));
+  entry->Detach();
   if (entry->Prev)
     entry->Prev->Next = entry->Next;
    else
@@ -532,7 +537,6 @@ void PlayableCollection::RemoveEntry(Entry* entry)
     entry->Next->Prev = entry->Prev;
    else
     Tail = entry->Prev;
-  delete entry;
 }
 
 void PlayableCollection::AddTechInfo(TECH_INFO& dst, const TECH_INFO& tech)
@@ -668,7 +672,7 @@ bool PlayableCollection::SaveLST(XFILE* of, bool relative)
   sco_ptr<PlayableEnumerator> pe(GetEnumerator());
   while (pe->Next())
   { PlayableInstance* pi = *pe;
-    Playable& play = pi->GetPlayable();
+    Playable* pp = pi->GetPlayable();
     // alias
     if (pi->GetAlias())
     { xio_fputs("#ALIAS ", of);
@@ -682,8 +686,8 @@ bool PlayableCollection::SaveLST(XFILE* of, bool relative)
       xio_fputs(buf, of);
     }
     // comment
-    const TECH_INFO& tech = *play.GetInfo().tech;
-    if (play.GetStatus() > STA_Invalid && !play.CheckInfo(IF_Tech)) // only if immediately available
+    const TECH_INFO& tech = *pp->GetInfo().tech;
+    if (pp->GetStatus() > STA_Invalid && !pp->CheckInfo(IF_Tech)) // only if immediately available
     { char buf[50];
       xio_fputs("# ", of);
       if (tech.filesize < 0)
@@ -710,7 +714,7 @@ bool PlayableCollection::SaveLST(XFILE* of, bool relative)
       xio_fputs("\n", of);
     }
     // Object name
-    { xstring object = play.GetURL().makeRelative(GetURL(), relative);
+    { xstring object = pp->GetURL().makeRelative(GetURL(), relative);
       const char* cp = object;
       if (strnicmp(cp,"file://", 7) == 0)
       { cp += 5;
@@ -721,23 +725,23 @@ bool PlayableCollection::SaveLST(XFILE* of, bool relative)
       xio_fputs("\n", of);
     }
     // tech info
-    if (play.GetStatus() > STA_Invalid && play.CheckInfo(IF_Tech|IF_Format) != IF_Tech|IF_Format)
+    if (pp->GetStatus() > STA_Invalid && pp->CheckInfo(IF_Tech|IF_Format) != IF_Tech|IF_Format)
     { char buf[50];
-      if (play.CheckInfo(IF_Tech) == IF_None)
+      if (pp->CheckInfo(IF_Tech) == IF_None)
       { sprintf(buf, ">%i", tech.bitrate);
         xio_fputs(buf, of);
       } else
         xio_fputs(">", of);
-      if (play.CheckInfo(IF_Format) == IF_None)
-      { const FORMAT_INFO2& format = *play.GetInfo().format;
+      if (pp->CheckInfo(IF_Format) == IF_None)
+      { const FORMAT_INFO2& format = *pp->GetInfo().format;
         sprintf(buf, ",%i,%i", format.samplerate, format.channels);
         xio_fputs(buf, of);
       } else
         xio_fputs(",,", of);
-      if (play.CheckInfo(IF_Tech) == IF_None)
+      if (pp->CheckInfo(IF_Tech) == IF_None)
       { sprintf(buf, ",%.0f,%.3f", tech.filesize, tech.songlength);
         xio_fputs(buf, of);
-        if (play.GetFlags() & Enumerable)
+        if (pp->GetFlags() & Enumerable)
         sprintf(buf, ",%i,%i", tech.num_items, tech.recursive);
         xio_fputs(buf, of);
       }
@@ -754,9 +758,9 @@ bool PlayableCollection::SaveM3U(XFILE* of, bool relative)
   Mutex::Lock lock(Mtx);
   sco_ptr<PlayableEnumerator> pe(GetEnumerator());
   while (pe->Next())
-  { Playable& play = (*pe)->GetPlayable();
+  { Playable* pp = (*pe)->GetPlayable();
     // Object name
-    xstring object = play.GetURL().makeRelative(GetURL(), relative);
+    xstring object = pp->GetURL().makeRelative(GetURL(), relative);
     const char* cp = object;
     if (strnicmp(cp,"file://",7) == 0)
     { cp += 5;
@@ -1053,12 +1057,16 @@ bool Playlist::LoadList()
   return rc;
 }
 
-void Playlist::InsertItem(const char* url, const xstring& alias, const PlayableInstance::slice& sl, PlayableInstance* before)
+bool Playlist::InsertItem(const char* url, const xstring& alias, const PlayableInstance::slice& sl, PlayableInstance* before)
 { DEBUGLOG(("Playlist(%p{%s})::InsertItem(%s, %s, {%.1f,%.1f}, %p) - %u\n", this, GetURL().getShortName().cdata(), url, alias?alias.cdata():"<NULL>", sl.Start, sl.Stop, before, Stat));
+  Mutex::Lock lock(Mtx);
+  // Check whether the parameter before is still valid
+  if (before && !before->IsParent(this))
+    return false;
+  // point of no return...
   Entry* ep = CreateEntry(url);
   ep->SetAlias(alias);
   ep->SetSlice(sl);
-  Mutex::Lock lock(Mtx);
   if (Stat <= STA_Invalid)
     UpdateStatus(STA_Normal);
 
@@ -1075,16 +1083,23 @@ void Playlist::InsertItem(const char* url, const xstring& alias, const PlayableI
   LoadInfoAsync(InfoValid & IF_Tech);
   // raise InfoChange event?
   RaiseInfoChange();
+  // done!
+  return true;
 }
 
-void Playlist::RemoveItem(PlayableInstance* item)
-{ DEBUGLOG(("Playlist(%p{%s})::RemoveItem(%p{%s})\n", this, GetURL().getShortName().cdata(), item, item ? item->GetPlayable().GetURL().cdata() : ""));
+bool Playlist::RemoveItem(PlayableInstance* item)
+{ DEBUGLOG(("Playlist(%p{%s})::RemoveItem(%p{%s})\n", this, GetURL().getShortName().cdata(),
+    item, item ? item->GetPlayable()->GetURL().cdata() : ""));
   Mutex::Lock lock(Mtx);
+  // Check whether the item is still valid
+  if (item && !item->IsParent(this))
+    return false;
+  // now detach the item from the container
   if (item)
     RemoveEntry((Entry*)item);
   else
   { if (!Head)
-      return; // early exit without change flag
+      return true; // early exit without change flag
     do
     { RemoveEntry(Head);
       DEBUGLOG(("Playlist::RemoveItem - %p\n", Head));
@@ -1101,6 +1116,7 @@ void Playlist::RemoveItem(PlayableInstance* item)
   DEBUGLOG(("Playlist::RemoveItem: before raiseinfochange\n"));
   RaiseInfoChange();
   DEBUGLOG(("Playlist::RemoveItem: after raiseinfochange\n"));
+  return true;
 }
 
 bool Playlist::Save(const url& URL, save_options opt)

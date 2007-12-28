@@ -67,10 +67,10 @@ class PlaylistView : public PlaylistRepository<PlaylistView>
     xstring             Time;
     xstring             MoreInfo;
     // Constructor
-    CPData(PlaylistView& pm,
+    CPData(PlayableInstance* content, PlaylistView& pm,
            void (PlaylistBase::*infochangefn)(const Playable::change_args&, RecordBase*),
            void (PlaylistBase::*statchangefn)(const PlayableInstance::change_args&, RecordBase*),
-           Record* rec) : CPDataBase(pm, infochangefn, statchangefn, rec) {}
+           Record* rec) : CPDataBase(content, pm, infochangefn, statchangefn, rec) {}
   };
   struct Record : public RecordBase
   { // Attribute references for PM

@@ -114,16 +114,6 @@ MRESULT PlaylistManager::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
   {case WM_CONTROL:
     switch (SHORT2FROMMP(mp1))
     {
-#if 0
-     case CN_INITDRAG:
-      drag = (PMYMPREC) (((PCNRDRAGINIT) mp2) -> pRecord);
-      if (drag != NULL)
-      {
-
-      }
-      break;
-#endif
-
      case CN_HELP:
       amp_show_help( IDH_PM );
       return 0;
@@ -133,8 +123,8 @@ MRESULT PlaylistManager::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
         if (emphasis->fEmphasisMask & CRA_CURSORED)
         { // Update title
           Record* rec = (Record*)emphasis->pRecord;
-          if (rec != NULL && !rec->IsRemoved() && (rec->flRecordAttr & CRA_CURSORED))
-          { EmFocus = &rec->Content->GetPlayable();
+          if (rec != NULL && (rec->flRecordAttr & CRA_CURSORED))
+          { EmFocus = rec->Data()->Content->GetPlayable();
             if (EmFocus->EnsureInfoAsync(Playable::IF_Tech))
               PMRASSERT(WinPostMsg(HwndFrame, UM_UPDATEINFO, MPFROMP(&*EmFocus), 0));
           }
@@ -177,10 +167,8 @@ MRESULT PlaylistManager::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
       { CNREDITDATA* ed = (CNREDITDATA*)PVOIDFROMMP(mp2);
         Record* rec = (Record*)ed->pRecord;
         DEBUGLOG(("PlaylistManager::DlgProc CN_ENDEDIT %p{,%p->%p{%s},%u,} %p\n", ed, ed->ppszText, *ed->ppszText, *ed->ppszText, ed->cbText, rec));
-        if (rec->IsRemoved())
-          return 0; // record removed
         NoRefresh = true;
-        rec->Content->SetAlias(**ed->ppszText ? *ed->ppszText : NULL);
+        rec->Data()->Content->SetAlias(**ed->ppszText ? *ed->ppszText : NULL);
         NoRefresh = false;
       }
       return 0;
@@ -267,7 +255,7 @@ HWND PlaylistManager::InitContextMenu(vector<RecordBase>& recs)
     if (rt == RT_None)
       return NULLHANDLE;
       
-    mn_enable_item(hwndMenu, IDM_PL_EDIT,     recs[0]->Content->GetPlayable().GetInfo().meta_write);
+    mn_enable_item(hwndMenu, IDM_PL_EDIT,     recs[0]->Data->Content->GetPlayable()->GetInfo().meta_write);
     mn_enable_item(hwndMenu, IDM_PL_DETAILED, rt != RT_Song);
     mn_enable_item(hwndMenu, IDM_PL_TREEVIEW, rt != RT_Song);
     mn_enable_item(hwndMenu, IDM_PL_REFRESH,  rt == RT_Song);
@@ -289,9 +277,9 @@ void PlaylistManager::SetInfo(const xstring& text)
 
 PlaylistBase::ICP PlaylistManager::GetPlayableType(RecordBase* rec)
 { DEBUGLOG(("PlaylistManager::GetPlaylistState(%s)\n", Record::DebugName(rec).cdata()));
-  if ((rec->Content->GetPlayable().GetFlags() & Playable::Enumerable) == 0)
+  if ((rec->Data->Content->GetPlayable()->GetFlags() & Playable::Enumerable) == 0)
     return ICP_Song;
-  if (rec->Content->GetPlayable().GetInfo().tech->num_items == 0)
+  if (rec->Data->Content->GetPlayable()->GetInfo().tech->num_items == 0)
     return ICP_Empty;
   if (((CPData*)(rec->Data))->Recursive)
     return ICP_Recursive;
@@ -300,21 +288,21 @@ PlaylistBase::ICP PlaylistManager::GetPlayableType(RecordBase* rec)
 
 PlaylistBase::IC PlaylistManager::GetRecordUsage(RecordBase* rec)
 { DEBUGLOG(("PlaylistManager::GetRecordUsage(%s)\n", Record::DebugName(rec).cdata()));
-  if (rec->Content->GetPlayable().GetStatus() != STA_Used)
+  if (rec->Data->Content->GetPlayable()->GetStatus() != STA_Used)
   { DEBUGLOG(("PlaylistManager::GetRecordUsage: unused\n"));
     return IC_Normal;
   }
   // Check wether the current call stack is the same as for the current Record ...
   const Playable* root = amp_get_current_root(); // We need no ownership here, since we only compare the reference
   do
-  { if (&rec->Content->GetPlayable() == root)
+  { if (rec->Data->Content->GetPlayable() == root)
     { // We are a the current root, so the call stack compared equal.
       DEBUGLOG(("PlaylistManager::GetRecordUsage: current root\n"));
       if (!((CPData*)(rec->Data))->Recursive)
         break;
       return IC_Used;
     }
-    if (rec->Content->GetStatus() != STA_Used)
+    if (rec->Data->Content->GetStatus() != STA_Used)
     { // The PlayableInstance is not used, so the call stack is not equal.
       DEBUGLOG(("PlaylistManager::GetRecordUsage: instance unused\n"));
       return IC_Used;
@@ -334,10 +322,7 @@ bool PlaylistManager::RecursionCheck(Playable* pp, RecordBase* parent)
       { DEBUGLOG(("PlaylistManager::RecursionCheck: no rec.\n"));
         return false;
       }
-      if (parent->IsRemoved())
-         // Well, we return true in case of a removed record to avoid more actions
-         return true;
-      if (&parent->Content->GetPlayable() == pp)
+      if (parent->Data->Content->GetPlayable() == pp)
         break;
       parent = (Record*)WinSendMsg(HwndContainer, CM_QUERYRECORD, MPFROMP(parent), MPFROM2SHORT(CMA_PARENT, CMA_ITEMORDER));
       PMASSERT(parent != (Record*)-1);
@@ -350,7 +335,7 @@ bool PlaylistManager::RecursionCheck(Playable* pp, RecordBase* parent)
 }
 bool PlaylistManager::RecursionCheck(RecordBase* rp)
 { DEBUGLOG(("PlaylistManager::RecursionCheck(%s)\n", Record::DebugName(rp).cdata()));
-  Playable* pp = &rp->Content->GetPlayable();
+  Playable* pp = rp->Data->Content->GetPlayable();
   if (pp != &*Content)
   { do
     { rp = (Record*)WinSendMsg(HwndContainer, CM_QUERYRECORD, MPFROMP(rp), MPFROM2SHORT(CMA_PARENT, CMA_ITEMORDER));
@@ -358,10 +343,7 @@ bool PlaylistManager::RecursionCheck(RecordBase* rp)
       DEBUGLOG2(("PlaylistManager::RecursionCheck: recusrion check %p\n", rp));
       if (rp == NULL || rp == (Record*)-1)
         return false;
-      if (rp->IsRemoved())
-         // Well, we return true in case of a removed record to avoid more actions
-         return true;
-    } while (&rp->Content->GetPlayable() != pp);
+    } while (rp->Data->Content->GetPlayable() != pp);
     // recursion in playlist tree
   } // else recursion with top level
   DEBUGLOG(("PlaylistManager::RecursionCheck: recursion!\n"));
@@ -369,29 +351,21 @@ bool PlaylistManager::RecursionCheck(RecordBase* rp)
 }
 
 PlaylistBase::RecordBase* PlaylistManager::CreateNewRecord(PlayableInstance* obj, RecordBase* parent)
-{ DEBUGLOG(("PlaylistManager(%p{%s})::CreateNewRecord(%p{%s}, %p)\n", this, DebugName().cdata(), obj, obj->GetPlayable().GetURL().getShortName().cdata(), parent));
+{ DEBUGLOG(("PlaylistManager(%p{%s})::CreateNewRecord(%p{%s}, %p)\n", this, DebugName().cdata(), obj, obj->GetPlayable()->GetURL().getShortName().cdata(), parent));
   // Allocate a record in the HwndContainer
   Record* rec = (Record*)WinSendMsg(HwndContainer, CM_ALLOCRECORD, MPFROMLONG(sizeof(Record) - sizeof(MINIRECORDCORE)), MPFROMLONG(1));
   PMASSERT(rec != NULL);
   
-  if (Record::IsRemoved(parent))
-  { // Parent removed => forget about it
-    rec->Data() = NULL;
-    // delete the record
-    PMRASSERT(WinPostMsg(HwndFrame, UM_DELETERECORD, MPFROMP(rec), 0));
-    return NULL;
-  }
-  rec->Content         = obj;
   rec->UseCount        = 1;
-  rec->Data()          = new CPData(*this, &PlaylistManager::InfoChangeEvent, &PlaylistManager::StatChangeEvent, rec, (Record*)parent);
+  rec->Data()          = new CPData(obj, *this, &PlaylistManager::InfoChangeEvent, &PlaylistManager::StatChangeEvent, rec, (Record*)parent);
   // before we catch any information setup the update events
   // The record is not yet corretly initialized, but this don't metter since all that the event handlers can do
   // is to post a UM_RECORDCOMMAND which is not handled unless this message is completed.
-  obj->GetPlayable().InfoChange += rec->Data()->InfoChange;
-  obj->StatusChange             += rec->Data()->StatChange;
+  obj->GetPlayable()->InfoChange += rec->Data()->InfoChange;
+  obj->StatusChange              += rec->Data()->StatChange;
   // now get initial info's
   rec->Data()->Text    = obj->GetDisplayName();
-  rec->Data()->Recursive = obj->GetPlayable().GetInfo().tech->recursive && RecursionCheck(&obj->GetPlayable(), parent);
+  rec->Data()->Recursive = obj->GetPlayable()->GetInfo().tech->recursive && RecursionCheck(obj->GetPlayable(), parent);
 
   rec->flRecordAttr    = 0;
   rec->pszIcon         = (PSZ)rec->Data()->Text.cdata();
@@ -402,7 +376,7 @@ PlaylistBase::RecordBase* PlaylistManager::CreateNewRecord(PlayableInstance* obj
 void PlaylistManager::UpdateChildren(RecordBase* const rec)
 { DEBUGLOG(("PlaylistManager(%p)::UpdateChildren(%s)\n", this, Record::DebugName(rec).cdata()));
   // Do not update children of recursive records
-  if (rec && (rec->IsRemoved() || ((Record*)rec)->Data()->Recursive))
+  if (rec && ((Record*)rec)->Data()->Recursive)
     return;
 
   PlaylistBase::UpdateChildren(rec);
@@ -413,7 +387,7 @@ void PlaylistManager::UpdateChildren(RecordBase* const rec)
 void PlaylistManager::RequestChildren(RecordBase* const rec)
 { DEBUGLOG(("PlaylistManager(%p)::RequestChildren(%s)\n", this, Record::DebugName(rec).cdata()));
   // Do not request children of recursive records
-  if (rec && (rec->IsRemoved() || ((Record*)rec)->Data()->Recursive))
+  if (rec && ((Record*)rec)->Data()->Recursive)
     return;
 
   PlaylistBase::RequestChildren(rec);
@@ -421,17 +395,15 @@ void PlaylistManager::RequestChildren(RecordBase* const rec)
 
 void PlaylistManager::UpdateTech(Record* rec)
 { DEBUGLOG(("PlaylistManager(%p)::UpdateTech(%p)\n", this, rec));
-  if (Record::IsRemoved(rec))
-    return;
   if (rec) // not for root level
   { // techinfo changed => check whether it is currently visible.
     if (rec->flRecordAttr & CRA_CURSORED)
     { // TODO: maybe this should be better up to the calling thread
-      EmFocus = &rec->Content->GetPlayable();
+      EmFocus = rec->Data()->Content->GetPlayable();
       // continue later
       PMRASSERT(WinPostMsg(HwndFrame, UM_UPDATEINFO, MPFROMP(&*rec), 0));
     }
-    bool recursive = rec->Content->GetPlayable().GetInfo().tech->recursive && RecursionCheck(rec);
+    bool recursive = rec->Data()->Content->GetPlayable()->GetInfo().tech->recursive && RecursionCheck(rec);
     if (recursive != rec->Data()->Recursive)
     { rec->Data()->Recursive = recursive;
       // Update Icon also
@@ -457,7 +429,7 @@ void PlaylistManager::UserRemove(RecordBase* rec)
   Record* parent = ((Record*)rec)->Data()->Parent;
   Playable* playlist = PlayableFromRec(parent);
   if (playlist->GetFlags() & Playable::Mutable) // don't modify constant object
-    ((Playlist&)*playlist).RemoveItem(rec->Content);
+    ((Playlist&)*playlist).RemoveItem(rec->Data->Content);
   // the update of the container is implicitely done by the notification mechanism
 }
 

@@ -10,9 +10,9 @@ TARGET   = pm123.exe
 !include $(TOPDIR)\config\makerules
 
 OBJECTS  = button95$(CO) pm123$(CO) messages$(CO) 123_util$(CO)
-OBJECTS  = $(OBJECTS) playlistmanager$(CO)
 OBJECTS  = $(OBJECTS) plugman$(CO) plugman_base$(CO) iniman$(CO)
-OBJECTS  = $(OBJECTS) playlistbase$(CO) playlistview$(CO) properties$(CO) skin$(CO)
+OBJECTS  = $(OBJECTS) playlistbase$(CO) playlistview$(CO) playlistmanager$(CO)
+OBJECTS  = $(OBJECTS) properties$(CO) skin$(CO)
 OBJECTS  = $(OBJECTS) playable$(CO) playenumerator$(CO) url$(CO) playlistmenu$(CO)
 OBJECTS  = $(OBJECTS) docking$(CO)
 DEF      = pm123$(LDEF_SUFFX)

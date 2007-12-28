@@ -319,12 +319,6 @@ MRESULT PlaylistView::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
       }
       break; // continue in base class
     }
-
-   case UM_SYNCREMOVE:
-    { Record* rec = (Record*)PVOIDFROMMP(mp1);
-      rec->URL = NULL; // We have to discard the URL immediately because it is an alias of Content.
-      break; // continue in base class
-    }
   }
   return PlaylistBase::DlgProc(msg, mp1, mp2);
 }
@@ -356,7 +350,7 @@ HWND PlaylistView::InitContextMenu(vector<RecordBase>& recs)
     if (rt == RT_None)
       return NULLHANDLE;
     mn_enable_item(hwndMenu, IDM_PL_NAVIGATE, recs.size() == 1);
-    mn_enable_item(hwndMenu, IDM_PL_EDIT,     recs.size() == 1 && recs[0]->Content->GetPlayable().GetInfo().meta_write);
+    mn_enable_item(hwndMenu, IDM_PL_EDIT,     recs.size() == 1 && recs[0]->Data->Content->GetPlayable()->GetInfo().meta_write);
     mn_enable_item(hwndMenu, IDM_PL_REFRESH,  (rt & (RT_Enum|RT_List)) == 0);
     mn_enable_item(hwndMenu, IDM_PL_DETAILED, recs.size() == 1 && rt != RT_Song);
     mn_enable_item(hwndMenu, IDM_PL_TREEVIEW, recs.size() == 1 && rt != RT_Song);
@@ -368,17 +362,17 @@ HWND PlaylistView::InitContextMenu(vector<RecordBase>& recs)
 
 PlaylistBase::ICP PlaylistView::GetPlayableType(RecordBase* rec)
 { DEBUGLOG(("PlaylistView::GetPlaylistState(%s)\n", Record::DebugName(rec).cdata()));
-  if ((rec->Content->GetPlayable().GetFlags() & Playable::Enumerable) == 0)
+  if ((rec->Data->Content->GetPlayable()->GetFlags() & Playable::Enumerable) == 0)
     return ICP_Song;
   // TODO: the dependancy to the technical info is not handled by the update events
-  return rec->Content->GetPlayable().GetInfo().tech->num_items ? ICP_Closed : ICP_Empty;
+  return rec->Data->Content->GetPlayable()->GetInfo().tech->num_items ? ICP_Closed : ICP_Empty;
 }
 
 PlaylistBase::IC PlaylistView::GetRecordUsage(RecordBase* rec)
 { DEBUGLOG(("PlaylistView::GetRecordUsage(%s)\n", Record::DebugName(rec).cdata()));
-  if (rec->Content->GetPlayable().GetStatus() != STA_Used)
+  if (rec->Data->Content->GetPlayable()->GetStatus() != STA_Used)
     return IC_Normal;
-  if (rec->Content->GetStatus() != STA_Used)
+  if (rec->Data->Content->GetStatus() != STA_Used)
     return IC_Used;
   return decoder_playing() ? IC_Play : IC_Active;
 }
@@ -413,7 +407,7 @@ xstring PlaylistView::FormatTime(double time)
 
 bool PlaylistView::CalcCols(Record* rec, Playable::InfoFlags flags, PlayableInstance::StatusFlags iflags)
 { DEBUGLOG(("PlaylistView::CalcCols(%s, %x)\n", Record::DebugName(rec).cdata(), flags));
-  const DECODER_INFO2& info = rec->Content->GetPlayable().GetInfo();
+  const DECODER_INFO2& info = rec->Data()->Content->GetPlayable()->GetInfo();
   bool ret = false;
   xstring tmp;
   // Columns that only depend on metadata changes
@@ -458,21 +452,21 @@ bool PlaylistView::CalcCols(Record* rec, Playable::InfoFlags flags, PlayableInst
   // Colums that depend on PlayableInstance changes
   if (iflags & PlayableInstance::SF_Alias)
   { // Alias
-    tmp = rec->Content->GetDisplayName();
+    tmp = rec->Data()->Content->GetDisplayName();
     rec->pszIcon = (PSZ)tmp.cdata();
     rec->Data()->Text = tmp; // free old value
     ret = true;
   }
   if (iflags & PlayableInstance::SF_Slice)
   { // Starting position
-    tmp = FormatTime(rec->Content->GetSlice().Start);
+    tmp = FormatTime(rec->Data()->Content->GetSlice().Start);
     rec->Pos = tmp;
     rec->Data()->Pos = tmp;
     // Ending position
-    if (rec->Content->GetSlice().Stop < 0)
+    if (rec->Data()->Content->GetSlice().Stop < 0)
       tmp = xstring::empty;
     else
-      tmp = FormatTime(rec->Content->GetSlice().Stop);
+      tmp = FormatTime(rec->Data()->Content->GetSlice().Stop);
     rec->End = tmp;
     rec->Data()->End = tmp;
     ret = true;
@@ -481,24 +475,23 @@ bool PlaylistView::CalcCols(Record* rec, Playable::InfoFlags flags, PlayableInst
 }
 
 PlaylistBase::RecordBase* PlaylistView::CreateNewRecord(PlayableInstance* obj, RecordBase* parent)
-{ DEBUGLOG(("PlaylistView(%p{%s})::CreateNewRecord(%p{%s}, %p)\n", this, DebugName().cdata(), obj, obj->GetPlayable().GetURL().getShortName().cdata(), parent));
+{ DEBUGLOG(("PlaylistView(%p{%s})::CreateNewRecord(%p{%s}, %p)\n", this, DebugName().cdata(), obj, obj->GetPlayable()->GetURL().getShortName().cdata(), parent));
   // No nested records in this view
   ASSERT(parent == NULL);
   // Allocate a record in the HwndContainer
   Record* rec = (Record*)WinSendMsg(HwndContainer, CM_ALLOCRECORD, MPFROMLONG(sizeof(Record) - sizeof(MINIRECORDCORE)), MPFROMLONG(1));
   PMASSERT(rec != NULL);
 
-  rec->Content         = obj;
   rec->UseCount        = 1;
-  rec->Data()          = new CPData(*this, &PlaylistView::InfoChangeEvent, &PlaylistView::StatChangeEvent, rec);
+  rec->Data()          = new CPData(obj, *this, &PlaylistView::InfoChangeEvent, &PlaylistView::StatChangeEvent, rec);
   // before we catch any information setup the update events
   // The record is not yet corretly initialized, but this don't metter since all that the event handlers can do
   // is to post a UM_RECORDCOMMAND which is not handled unless this message is completed.
-  obj->GetPlayable().InfoChange += rec->Data()->InfoChange;
-  obj->StatusChange             += rec->Data()->StatChange;
+  obj->GetPlayable()->InfoChange += rec->Data()->InfoChange;
+  obj->StatusChange              += rec->Data()->StatChange;
 
-  rec->URL             = obj->GetPlayable().GetURL().cdata();
-  CalcCols(rec, obj->GetPlayable().EnsureInfoAsync(Playable::IF_Format|Playable::IF_Tech|Playable::IF_Meta), PlayableInstance::SF_All);
+  rec->URL             = obj->GetPlayable()->GetURL().cdata();
+  CalcCols(rec, obj->GetPlayable()->EnsureInfoAsync(Playable::IF_Format|Playable::IF_Tech|Playable::IF_Meta), PlayableInstance::SF_All);
 
   rec->flRecordAttr    = 0;
   rec->hptrIcon        = CalcIcon(rec);
@@ -507,8 +500,6 @@ PlaylistBase::RecordBase* PlaylistView::CreateNewRecord(PlayableInstance* obj, R
 
 void PlaylistView::UpdateRecord(Record* rec, Playable::InfoFlags flags, PlayableInstance::StatusFlags iflags)
 { DEBUGLOG(("PlaylistView(%p)::UpdateRecord(%p, %x, %x)\n", this, rec, flags, iflags));
-  if (Record::IsRemoved(rec))
-    return;
   // Check if UpdateChildren is waiting
   bool& wait = StateFromRec(rec).WaitUpdate;
   if (wait)
@@ -536,8 +527,7 @@ void PlaylistView::UpdateRecord(Record* rec, Playable::InfoFlags flags, Playable
 
 void PlaylistView::UserRemove(RecordBase* rec)
 { DEBUGLOG(("PlaylistView(%p)::UserRemove(%s)\n", this, rec->DebugName().cdata()));
-  // find parent playlist
   if (Content->GetFlags() & Playable::Mutable) // don't modify constant object
-    ((Playlist&)*Content).RemoveItem(rec->Content);
+    ((Playlist&)*Content).RemoveItem(rec->Data->Content);
   // the update of the container is implicitely done by the notification mechanism
 }

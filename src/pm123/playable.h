@@ -262,11 +262,24 @@ inline Playable::InfoFlags Playable::CheckInfo(InfoFlags what)
 class PlayableCollection;
 
 /* Instance to a Playable object. While the Playable objects are unique per URL
- * the PlayableInstances are not. The PlayableInstance is always owned by a parent PlayableCollection.
+ * the PlayableInstances are not.
  * In contrast to Playable PlayableInstance is not thread-safe.
  * It is usually protected by the collection it belongs to.
+ * But calling non-constant methods unsynchronized will not cause the application
+ * to have undefined behaviour. It will only cause the PlayableInstance to have a
+ * non-deterministic but valid state.
+ * The relationship of a PlayableInstance to it's container is weak.
+ * That means that the PlayableInstance may be detached from the container before it dies.
+ * A detached PlayableInstance will die as soon as it is no longer used. It will never be
+ * reattached to a container.
+ * That also means that there is no way to get a reference to the actual parent,
+ * because once you got the reference it might immediately get invalid.
+ * And to avoid this, the parent must be locked, which is impossible to ensure, of course.
+ * All you can do is to verify wether the current PlayableInstance belongs to a given parent
+ * while this parent is locked with the method IsParent. This is e.g. useful to ensure
+ * that a PlayableInstance is still valid before it is removed from the collection.
  */
-class PlayableInstance
+class PlayableInstance : public Iref_Count
 {public:
   // Parameters for StatusChange Event
   enum StatusFlags
@@ -289,29 +302,27 @@ class PlayableInstance
     slice(double start = 0, double stop = -1) : Start(start), Stop(stop) {}
   };
 
+ protected:
+  PlayableCollection* Parent;
  private:
-  PlayableCollection& Parent;
   const int_ptr<Playable> RefTo;
   PlayableStatus      Stat;
   xstring             Alias;
   slice               Slice;
 
  protected:
-  PlayableInstance(PlayableCollection& parent, int_ptr<Playable> playable);
-  ~PlayableInstance();
-
+  PlayableInstance(PlayableCollection& parent, Playable* playable);
  public:
-  Playable&           GetPlayable() const { return *RefTo; }
-  // Get the parent Collection containing this Playable object.
-  PlayableCollection& GetParent() const   { return Parent; }
+  ~PlayableInstance();
+  // Get't the referenced content.
+  // This Pointer is valid as long as the PlayableInstance exist and does not change.
+  Playable*           GetPlayable() const { return RefTo; }
+  // Check if this instance (still) belongs to a collection.
+  // The return value true is not reliable unless the collection is locked.
+  // Calling this method with NULL will check whether the instance does no longer belog to a collection.
+  // In this case only the return value true is reliable.  
+  bool                IsParent(PlayableCollection* parent) { return Parent == parent; }
 
-  // The Status-Interface of PlayableInstance is identical to that of Playable,
-  // but the only valid states for a PlayableInstance are Normal and Used.
-  // Status changes of a PlayableInstance are automatically reflected to the underlying Playable object,
-  // but /not/ the other way.
-  PlayableStatus      GetStatus() const   { return Stat; }
-  // Change status of this instance.
-  void                SetInUse(bool used);
   // Aliasname
   xstring             GetAlias() const    { return Alias; }
   void                SetAlias(const xstring& alias);
@@ -320,6 +331,15 @@ class PlayableInstance
   void                SetSlice(const slice& sl);
   // Display name
   xstring             GetDisplayName() const;
+
+  // The Status-Interface of PlayableInstance is identical to that of Playable,
+  // but the only valid states for a PlayableInstance are Normal and Used.
+  // Status changes of a PlayableInstance are automatically reflected to the underlying Playable object,
+  // but /not/ the other way.
+  PlayableStatus      GetStatus() const   { return Stat; }
+  // Change status of this instance.
+  void                SetInUse(bool used);
+
  public:
   // event on status change
   event<const change_args> StatusChange;
@@ -424,8 +444,8 @@ class PlayableCollection : public Playable
  protected:
   struct Entry : public PlayableInstance
   { typedef class_delegate<PlayableCollection, const Playable::change_args> TDType;
-    Entry* Prev;                   // link to the pervious entry or NULL if this is the first
-    Entry* Next;                   // link to the next entry or NULL if this is the last
+    int_ptr<Entry> Prev;      // link to the pervious entry or NULL if this is the first
+    int_ptr<Entry> Next;      // link to the next entry or NULL if this is the last
     TDType TechDelegate;
     Entry(PlayableCollection& parent, Playable* playable, TDType::func_type fn)
     : PlayableInstance(parent, playable),
@@ -433,14 +453,17 @@ class PlayableCollection : public Playable
       Next(NULL),
       TechDelegate(playable->InfoChange, parent, fn)
     {}
+    // Detach a PlayableInstance from the collection.
+    // This function must be called only by the parent collection and oly while it is locked.
+    void Detach()             { Parent = NULL; }
   };
 
  protected:
   static const FORMAT_INFO2 no_format;
   // The object list is implemented as a doubly linked list to keep the iterators valid on modifications.
-  Entry*      Head;
-  Entry*      Tail;
-  sort_order  Sort;
+  int_ptr<Entry> Head;
+  int_ptr<Entry> Tail;
+  sort_order     Sort;
 
  private:
   // Internal Subfunction to void CalcTechInfo(Playable& play);
@@ -515,6 +538,7 @@ FLAGSATTRIBUTE(PlayableCollection::save_options);
  */
 class Playlist : public PlayableCollection
 {private:
+  // Helper class to deserialize playlists 
   class LSTReader;
   friend class LSTReader;
   class LSTReader
@@ -561,12 +585,14 @@ class Playlist : public PlayableCollection
 
   // Insert a new item before the item "before".
   // If the prameter before is NULL the the item is appended.
-  virtual void                InsertItem(const char* url, const xstring& alias, const PlayableInstance::slice& sl, PlayableInstance* before = NULL);
-  void                        InsertItem(const char* url, const xstring& alias, PlayableInstance* before = NULL)
-                              { InsertItem(url, alias, PlayableInstance::slice::Initial, before); }
+  // The funtion fails with returning false if and only if the PlayableInstance before is no longer valid.
+  virtual bool                InsertItem(const char* url, const xstring& alias, const PlayableInstance::slice& sl, PlayableInstance* before = NULL);
+  bool                        InsertItem(const char* url, const xstring& alias, PlayableInstance* before = NULL)
+                              { return InsertItem(url, alias, PlayableInstance::slice::Initial, before); }
   // Remove an item from the playlist.
   // Attension: passing NULL as argument will remove all items.
-  virtual void                RemoveItem(PlayableInstance* item);
+  // The funtion fails with returning false if and only if the PlayableInstance before is no longer valid.
+  virtual bool                RemoveItem(PlayableInstance* item);
   // Remove all items from the playlist.
   void                        Clear() { RemoveItem(NULL); }
   // Save the current playlist as new file.

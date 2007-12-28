@@ -169,7 +169,7 @@ void PlaylistMenu::CreateSubItems(MapEntry* mapp)
   { sco_ptr<PlayableEnumerator> pe(((PlayableCollection&)*mapp->Data.Item).GetEnumerator());
     while (count < MAX_MENU && pe->Next())
     { // Get content
-      Playable* pp = &(*pe)->GetPlayable();
+      Playable* pp = (*pe)->GetPlayable();
       DEBUGLOG(("PlaylistMenu::CreateSubItems: at %s\n", pp->GetURL().getShortName().cdata()));
       // skip invalid?
       if ((mapp->Flags & SkipInvalid) && pp->GetStatus() <= STA_Invalid)
