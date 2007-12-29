@@ -965,21 +965,14 @@ static void
 sec2num( double seconds, unsigned int* major, unsigned int* minor )
 { unsigned int val = (unsigned int)(seconds / 3600);
   unsigned int frac = 24;
-  if (val < 100*24)
+  if (val*60 < 100*24)
   { val = (unsigned int)(seconds / 60);
     frac = 60;
-    if (val < 100*60)
+    if (val < 100)
       val = (unsigned int)seconds;
   }
   *major = val / frac;
   *minor = val % frac;
-}
-
-/* Draws a specified digit using the specified size. */
-static void
-bmp_draw_digit( HPS hps, int x, int y, unsigned int digit, int size )
-{
-  bmp_draw_bitmap( hps, x, y, size + digit );
 }
 
 /* Draws the main player timer. */
@@ -996,27 +989,30 @@ bmp_draw_timer( HPS hps, double time )
     unsigned int minor;
     sec2num( time, &major, &minor );
 
-    bmp_draw_digit( hps, x, y, major / 10 % 10, DIG_BIG );
-    x += bmp_cx( major / 10 + DIG_BIG ) + bmp_ulong[ UL_TIMER_SPACE ];
-    bmp_draw_digit( hps, x, y, major % 10, DIG_BIG );
-    x += bmp_cx( major % 10 + DIG_BIG ) + bmp_ulong[ UL_TIMER_SPACE ];
+    div_t d = div(major, 10);
+    d.quot %= 10; // limit
+    bmp_draw_bitmap( hps, x, y, d.quot + DIG_BIG );
+    x += bmp_cx( d.quot + DIG_BIG ) + bmp_ulong[ UL_TIMER_SPACE ];
+    bmp_draw_bitmap( hps, x, y, d.rem  + DIG_BIG );
+    x += bmp_cx( d.rem  + DIG_BIG ) + bmp_ulong[ UL_TIMER_SPACE ];
 
     if( bmp_ulong[ UL_TIMER_SEPARATE ] )
     {
-      if( (unsigned int)(2*time) % 2 == 0 ) {
-        bmp_draw_digit( hps, x, y, 10, DIG_BIG );
+      if( ((unsigned int)(2*time) & 1) == 0 ) {
+        bmp_draw_bitmap( hps, x, y, 10 + DIG_BIG );
         x += bmp_cx( 10 + DIG_BIG ) + bmp_ulong[ UL_TIMER_SPACE ];
       } else {
-        bmp_draw_digit( hps, x, y, 11, DIG_BIG );
+        bmp_draw_bitmap( hps, x, y, 11 + DIG_BIG );
         x += bmp_cx( 11 + DIG_BIG ) + bmp_ulong[ UL_TIMER_SPACE ];
       }
     } else {
       x += max( bmp_ulong[ UL_TIMER_SPACE ], bmp_ulong[ UL_TIMER_SPACE ] * 2 );
     }
 
-    bmp_draw_digit( hps, x, y, minor / 10 % 10, DIG_BIG );
-    x += bmp_cx( minor / 10 + DIG_BIG ) + bmp_ulong[ UL_TIMER_SPACE ];
-    bmp_draw_digit( hps, x, y, minor % 10, DIG_BIG );
+    d = div(minor, 10);
+    bmp_draw_bitmap( hps, x, y, d.quot + DIG_BIG );
+    x += bmp_cx( d.quot + DIG_BIG ) + bmp_ulong[ UL_TIMER_SPACE ];
+    bmp_draw_bitmap( hps, x, y, d.rem  + DIG_BIG );
   }
 }
 
@@ -1034,28 +1030,30 @@ bmp_draw_tiny_timer( HPS hps, int pos_id, double time )
   if( x != POS_UNDEF && y != POS_UNDEF )
   {
     if( time > 0 )
-    {
-      bmp_draw_digit( hps, x, y, major / 10 % 10, DIG_TINY );
-      x += bmp_cx( DIG_TINY + major / 10 );
-      bmp_draw_digit( hps, x, y, major % 10, DIG_TINY );
-      x += bmp_cx( DIG_TINY + major % 10 );
-      bmp_draw_digit( hps, x, y, 10, DIG_TINY );
+    { div_t d = div(major, 10);
+      d.quot %= 10;
+      bmp_draw_bitmap( hps, x, y, d.quot + DIG_TINY );
+      x += bmp_cx( d.quot + DIG_TINY );
+      bmp_draw_bitmap( hps, x, y, d.rem  + DIG_TINY );
+      x += bmp_cx( d.rem  + DIG_TINY );
+      bmp_draw_bitmap( hps, x, y, 10 + DIG_TINY );
       x += bmp_cx( DIG_TINY + 10 );
-      bmp_draw_digit( hps, x, y, minor / 10 % 10, DIG_TINY );
-      x += bmp_cx( DIG_TINY + minor / 10 );
-      bmp_draw_digit( hps, x, y, minor % 10, DIG_TINY );
+      d = div(minor, 10);
+      bmp_draw_bitmap( hps, x, y, d.quot + DIG_TINY );
+      x += bmp_cx( d.quot + DIG_TINY );
+      bmp_draw_bitmap( hps, x, y, d.rem  + DIG_TINY );
     }
     else
     {
-      bmp_draw_digit( hps, x, y, 11, DIG_TINY );
+      bmp_draw_bitmap( hps, x, y, 11 + DIG_TINY );
       x += bmp_cx( DIG_TINY + 11 );
-      bmp_draw_digit( hps, x, y, 11, DIG_TINY );
+      bmp_draw_bitmap( hps, x, y, 11 + DIG_TINY );
       x += bmp_cx( DIG_TINY + 11 );
-      bmp_draw_digit( hps, x, y, 12, DIG_TINY );
+      bmp_draw_bitmap( hps, x, y, 12 + DIG_TINY );
       x += bmp_cx( DIG_TINY + 12 );
-      bmp_draw_digit( hps, x, y, 11, DIG_TINY );
+      bmp_draw_bitmap( hps, x, y, 11 + DIG_TINY );
       x += bmp_cx( DIG_TINY + 11 );
-      bmp_draw_digit( hps, x, y, 11, DIG_TINY );
+      bmp_draw_bitmap( hps, x, y, 11 + DIG_TINY );
     }
   }
 }
@@ -1260,7 +1258,7 @@ bmp_draw_rate( HPS hps, int rate )
 
       if( rate > 999 && bmp_cache[ DIG_BPS + 10 ] ) {
         sprintf( buf, "%u", rate / 100 );
-        bmp_draw_digit( hps, x, y, 10, DIG_BPS );
+        bmp_draw_bitmap( hps, x, y, 10 + DIG_BPS );
         x -= bmp_cx( DIG_BPS );
       } else {
         sprintf( buf, "%u", rate );
@@ -1269,7 +1267,7 @@ bmp_draw_rate( HPS hps, int rate )
       for( i = strlen( buf ) - 1; i >= 0; i-- )
       {
         if( buf[i] != ' ' ) {
-          bmp_draw_digit( hps, x, y, buf[i] - 48, DIG_BPS );
+          bmp_draw_bitmap( hps, x, y, buf[i] - 48 + DIG_BPS );
           x -= bmp_cx( DIG_BPS );
         }
       }
@@ -1332,7 +1330,7 @@ bmp_draw_plind( HPS hps, int index, int total )
         for( i = strlen( buf ) - 1; i >= 0; i-- )
         {
           if( buf[i] != ' ' ) {
-            bmp_draw_digit( hps, x, y, buf[i] - 48, DIG_PL_INDEX );
+            bmp_draw_bitmap( hps, x, y, buf[i] - 48 + DIG_PL_INDEX );
           }
           x -= bmp_cx( DIG_PL_INDEX );
         }
@@ -1356,7 +1354,7 @@ bmp_draw_plind( HPS hps, int index, int total )
         for( i = strlen( buf ) - 1; i >= 0; i-- )
         {
           if( buf[i] != ' ' ) {
-            bmp_draw_digit( hps, x, y, buf[i] - 48, DIG_PL_INDEX );
+            bmp_draw_bitmap( hps, x, y, buf[i] - 48 + DIG_PL_INDEX );
           }
           x -= bmp_cx( DIG_PL_INDEX );
         }

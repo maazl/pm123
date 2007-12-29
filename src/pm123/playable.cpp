@@ -451,8 +451,7 @@ const FORMAT_INFO2 PlayableCollection::no_format =
 PlayableCollection::PlayableCollection(const url& URL, const TECH_INFO* ca_tech, const META_INFO* ca_meta)
 : Playable(URL, &no_format, ca_tech, ca_meta),
   Head(NULL),
-  Tail(NULL),
-  Sort(Native)
+  Tail(NULL)
 { DEBUGLOG(("PlayableCollection(%p)::PlayableCollection(%s, %p, %p)\n", this, URL.cdata(), ca_tech, ca_meta));
 }
 

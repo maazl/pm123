@@ -400,10 +400,6 @@ class PlayableEnumerator
  */
 class PlayableCollection : public Playable
 {public:
-  enum sort_order
-  { Native, // no user defined sort order
-    Name    // sort by URL
-  };
   enum change_type
   { Insert, // item just inserted
     Move,   // item just moved
@@ -461,7 +457,6 @@ class PlayableCollection : public Playable
   // The object list is implemented as a doubly linked list to keep the iterators valid on modifications.
   int_ptr<Entry> Head;
   int_ptr<Entry> Tail;
-  sort_order     Sort;
 
  private:
   // Internal Subfunction to void CalcTechInfo(Playable& play);
