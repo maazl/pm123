@@ -1168,21 +1168,26 @@ MRESULT PlaylistBase::DragOver(DRAGINFO* pdinfo, RecordBase* target)
       amp_string_from_drghstr(pditem->hstrContainerName).cdata(), amp_string_from_drghstr(pditem->hstrSourceName).cdata(), amp_string_from_drghstr(pditem->hstrTargetName).cdata(),
       pditem->cxOffset, pditem->cyOffset, pditem->fsControl, pditem->fsSupportedOps));
 
-    // File system object?
-    if (DrgVerifyRMF(pditem, "DRM_OS2FILE", NULL))
-    { if ( ( pdinfo->usOperation == DO_DEFAULT || pdinfo->usOperation == DO_LINK )
-        && pditem->fsSupportedOps & DO_LINKABLE )
-        drag_op = DO_LINK;
+    // native PM123 object
+    if (DrgVerifyRMF(pditem, "DRM_123FILE", NULL))
+    { // Check for recursive operation
+      if (!DragAfter && target && amp_string_from_drghstr(pditem->hstrSourceName) == target->Data->Content->GetPlayable()->GetURL())
+      { drag = DOR_NODROP;
+        break;
+      }
+      if (pdinfo->usOperation == DO_DEFAULT)
+        drag_op = pdinfo->hwndSource == HwndFrame ? DO_MOVE : DO_COPY;
+      else if (pdinfo->usOperation == DO_COPY || pdinfo->usOperation == DO_MOVE)
+        drag_op = pdinfo->usOperation;
       else
         drag = DOR_NODROPOP;
       continue;
     }
-    // native PM123 object
-    else if (DrgVerifyRMF(pditem, "DRM_123FILE", NULL))
-    { if (pdinfo->usOperation == DO_DEFAULT)
-        drag_op = pdinfo->hwndSource == HwndFrame ? DO_MOVE : DO_COPY;
-      else if (pdinfo->usOperation == DO_COPY || pdinfo->usOperation == DO_MOVE)
-        drag_op = pdinfo->usOperation;
+    // File system object?
+    else if (DrgVerifyRMF(pditem, "DRM_OS2FILE", NULL))
+    { if ( (pdinfo->usOperation == DO_DEFAULT || pdinfo->usOperation == DO_LINK)
+        && pditem->fsSupportedOps & DO_LINKABLE )
+        drag_op = DO_LINK;
       else
         drag = DOR_NODROPOP;
       continue;
