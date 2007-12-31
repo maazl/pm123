@@ -441,7 +441,7 @@ MRESULT PlaylistBase::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
         return 0;
 
        case IDM_PL_TREEVIEW:
-        Apply2Source(&UserOpenTreeView);
+        Apply2Source(&PlaylistBase::UserOpenTreeView);
         return 0;
 
        case IDM_PL_DETAILEDALL:
@@ -449,15 +449,15 @@ MRESULT PlaylistBase::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
         return 0;
 
        case IDM_PL_DETAILED:
-        Apply2Source(&UserOpenDetailedView);
+        Apply2Source(&PlaylistBase::UserOpenDetailedView);
         return 0;
 
        case IDM_PL_REFRESH:
-        Apply2Source(&UserReload);
+        Apply2Source(&PlaylistBase::UserReload);
         return 0;
 
        case IDM_PL_EDIT:
-        Apply2Source(&UserEditMeta);
+        Apply2Source(&PlaylistBase::UserEditMeta);
         return 0;
 
        case IDM_PL_REMOVE:
@@ -467,67 +467,67 @@ MRESULT PlaylistBase::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
         }
 
        case IDM_PL_SORT_URLALL:
-        SortComparer = &CompURL;
+        SortComparer = &PlaylistBase::CompURL;
         UserSort(Content);
         return 0;
        case IDM_PL_SORT_URL: 
-        SortComparer = &CompURL;
-        Apply2Source(&UserSort);
+        SortComparer = &PlaylistBase::CompURL;
+        Apply2Source(&PlaylistBase::UserSort);
         return 0;
        case IDM_PL_SORT_SONGALL:
-        SortComparer = &CompTitle;
+        SortComparer = &PlaylistBase::CompTitle;
         UserSort(Content);
         return 0;
        case IDM_PL_SORT_SONG: 
-        SortComparer = &CompTitle;
-        Apply2Source(&UserSort);
+        SortComparer = &PlaylistBase::CompTitle;
+        Apply2Source(&PlaylistBase::UserSort);
         return 0;
        case IDM_PL_SORT_ARTALL:
-        SortComparer = &CompArtist;
+        SortComparer = &PlaylistBase::CompArtist;
         UserSort(Content);
         return 0;
        case IDM_PL_SORT_ART: 
-        SortComparer = &CompArtist;
-        Apply2Source(&UserSort);
+        SortComparer = &PlaylistBase::CompArtist;
+        Apply2Source(&PlaylistBase::UserSort);
         return 0;
        case IDM_PL_SORT_ALBUMALL:
-        SortComparer = &CompAlbum;
+        SortComparer = &PlaylistBase::CompAlbum;
         UserSort(Content);
         return 0;
        case IDM_PL_SORT_ALBUM: 
-        SortComparer = &CompAlbum;
-        Apply2Source(&UserSort);
+        SortComparer = &PlaylistBase::CompAlbum;
+        Apply2Source(&PlaylistBase::UserSort);
         return 0;
        case IDM_PL_SORT_ALIASALL:
-        SortComparer = &CompAlias;
+        SortComparer = &PlaylistBase::CompAlias;
         UserSort(Content);
         return 0;
        case IDM_PL_SORT_ALIAS: 
-        SortComparer = &CompAlias;
-        Apply2Source(&UserSort);
+        SortComparer = &PlaylistBase::CompAlias;
+        Apply2Source(&PlaylistBase::UserSort);
         return 0;
        case IDM_PL_SORT_TIMEALL:
-        SortComparer = &CompTime;
+        SortComparer = &PlaylistBase::CompTime;
         UserSort(Content);
         return 0;
        case IDM_PL_SORT_TIME: 
-        SortComparer = &CompTime;
-        Apply2Source(&UserSort);
+        SortComparer = &PlaylistBase::CompTime;
+        Apply2Source(&PlaylistBase::UserSort);
         return 0;
        case IDM_PL_SORT_SIZEALL:
-        SortComparer = &CompSize;
+        SortComparer = &PlaylistBase::CompSize;
         UserSort(Content);
         return 0;
        case IDM_PL_SORT_SIZE: 
-        SortComparer = &CompSize;
-        Apply2Source(&UserSort);
+        SortComparer = &PlaylistBase::CompSize;
+        Apply2Source(&PlaylistBase::UserSort);
         return 0;
 
        case IDM_PL_SORT_RANDALL:
         UserShuffle(Content);
         return 0;
        case IDM_PL_SORT_RAND: 
-        Apply2Source(&UserShuffle);
+        Apply2Source(&PlaylistBase::UserShuffle);
         return 0;
 
        case IDM_PL_CLEARALL:
