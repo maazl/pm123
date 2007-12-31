@@ -82,3 +82,66 @@ void* vector_base::erase(void** where)
   return ret;
 }
 
+
+void rotate_array_base(void** begin, const size_t len, int shift)
+{ DEBUGLOG(("rotate_array(%p, %u, %i)\n", begin, len, shift));
+  if (len <= 1)
+    return;
+  // normalize shift
+  shift = (shift < 0)
+   ? -shift % len
+   : len-1 - (shift-1) % len; // fucking C++ division operators
+  // do the shift
+  size_t count = len; // count the number of moves rather than calculating the greatest common divider.
+  do
+  { register size_t p = shift;
+    register void** dp = begin;
+    void* t = *dp;
+    do
+    { void** sp = begin + p;
+      *dp = *sp;
+      --count;
+      p = (p + (size_t)shift) % len;
+      dp = sp;
+    } while (p);
+    *dp = t;
+    ++begin;
+  } while (--count);
+}
+
+void merge_sort_base(void** begin, void** end, int (*comp)(const void* l, const void* r))
+{ DEBUGLOG(("merge_sort(%p, %p, %p)\n", begin, end, comp));
+  void** mid;
+  // Section 1: split
+  { const size_t count = end - begin;
+    // just a few trivial cases
+    switch (count)
+    {case 2:
+      if ((*comp)(begin[0], begin[1]) > 0)
+        swap(begin[0], begin[1]);
+     case 1:
+     case 0:
+      return;
+    }
+    mid = begin + (count >> 1);
+    merge_sort(begin, mid, comp);
+    merge_sort(mid, end, comp);
+  }
+  // Section 2: merge
+  for(;;)
+  { // skip elements already in place
+    while ((*comp)(begin[0], mid[0]) <= 0)
+    { ++begin;
+      if (begin == mid)
+        return;
+    }
+    while ((*comp)(mid[-1], end[-1]) <= 0)
+      --end; // cannot give an infinite loop, becaus the above exit
+    // swap subarrays
+    size_t count = end - begin;
+    size_t shift = count - (mid - begin);
+    rotate_array_base(begin, count, shift);
+    mid = begin + shift;
+  }
+}
+

@@ -514,6 +514,35 @@ void PlayableCollection::InsertEntry(Entry* entry, Entry* before)
   DEBUGLOG(("PlayableCollection::InsertEntry - after event\n"));
 }
 
+bool PlayableCollection::MoveEntry(Entry* entry, Entry* before)
+{ DEBUGLOG(("PlayableCollection(%p{%s})::MoveEntry(%p{%s,%p,%p}, %p{%s})\n", this, GetURL().getShortName().cdata(),
+    entry, entry->GetPlayable()->GetURL().getShortName().cdata(), &*entry->Prev, &*entry->Next, before, before ? before->GetPlayable()->GetURL().getShortName().cdata() : ""));
+  if (entry == before || entry->Next == before)
+    return false; // No-op
+  // remove at old location
+  if (entry->Prev)
+    entry->Prev->Next = entry->Next;
+   else
+    Head = entry->Next;
+  if (entry->Next)
+    entry->Next->Prev = entry->Prev;
+   else
+    Tail = entry->Prev;
+  // insert at new location
+  entry->Next = before;
+  int_ptr<Entry>& next = before ? before->Prev : Tail;
+  if ((entry->Prev = next) != NULL)
+    next->Next = entry;
+   else
+    Head = entry;
+  next = entry;
+  // raise event
+  DEBUGLOG(("PlayableCollection::MoveEntry - before event\n"));
+  CollectionChange(change_args(*this, *entry, Move));
+  DEBUGLOG(("PlayableCollection::MoveEntry - after event\n"));
+  return true;
+}
+
 void PlayableCollection::RemoveEntry(Entry* entry)
 { DEBUGLOG(("PlayableCollection(%p{%s})::RemoveEntry(%p{%s,%p,%p})\n", this, GetURL().getShortName().cdata(),
     entry, entry->GetPlayable()->GetURL().getShortName().cdata(), &*entry->Prev, &*entry->Next));
@@ -1079,6 +1108,26 @@ bool Playlist::InsertItem(const char* url, const xstring& alias, const PlayableI
   return true;
 }
 
+bool Playlist::MoveItem(PlayableInstance* item, PlayableInstance* before)
+{ DEBUGLOG(("Playlist(%p{%s})::InsertItem(%p{%s}, %p{%s}) - %u\n", this, GetURL().getShortName().cdata(),
+    item, item->GetPlayable()->GetURL().cdata(), before ? before->GetPlayable()->GetURL().cdata() : ""));
+  Mutex::Lock lock(Mtx);
+  // Check whether the parameter before is still valid
+  if (!item->IsParent(this) || (before && !before->IsParent(this)))
+    return false;
+  // Now move the entry.
+  MoveEntry((Entry*)item, (Entry*)before);
+  InfoChangeFlags |= IF_Other;
+  if (!Modified)
+  { InfoChangeFlags |= IF_Status;
+    Modified = true;
+  }
+  // raise InfoChange event?
+  RaiseInfoChange();
+  // done!
+  return true;
+}
+
 bool Playlist::RemoveItem(PlayableInstance* item)
 { DEBUGLOG(("Playlist(%p{%s})::RemoveItem(%p{%s})\n", this, GetURL().getShortName().cdata(),
     item, item ? item->GetPlayable()->GetURL().cdata() : ""));
@@ -1109,6 +1158,66 @@ bool Playlist::RemoveItem(PlayableInstance* item)
   RaiseInfoChange();
   DEBUGLOG(("Playlist::RemoveItem: after raiseinfochange\n"));
   return true;
+}
+
+void Playlist::Sort(ItemComparer comp)
+{ DEBUGLOG(("Playlist(%p)::Sort(%p)\n", this, comp));
+  Mutex::Lock lock(Mtx);
+  if (Head == Tail)
+    return; // Empty or one element lists are always sorted.
+  // Create index array
+  vector<PlayableInstance> index(64);
+  Entry* ep = Head;
+  do
+  { index.append() = ep;
+    ep = ep->Next;
+  } while (ep);
+  // Sort index array
+  merge_sort(index.begin(), index.end(), comp);
+  // Adjust item sequence
+  ep = Head;
+  bool changed = false;
+  for (PlayableInstance** ipp = index.begin(); ipp != index.end(); ++ipp)
+  { changed |= MoveEntry((Entry*)*ipp, ep);
+    ep = ((Entry*)*ipp)->Next;
+  }
+  // done
+  if (changed)
+  { InfoChangeFlags |= IF_Other;
+    if (!Modified)
+    { InfoChangeFlags |= IF_Status;
+      Modified = true;
+  } }
+  // raise InfoChange event?
+  DEBUGLOG(("Playlist::Sort: before raiseinfochange\n"));
+  RaiseInfoChange();
+  DEBUGLOG(("Playlist::Sort: after raiseinfochange\n"));
+}
+
+void Playlist::Shuffle()
+{ DEBUGLOG(("Playlist(%p)::Shuffle()\n", this));
+  Mutex::Lock lock(Mtx);
+  if (Head == Tail)
+    return; // Empty or one element lists are always sorted.
+  // move records randomly to the beginning or the end.
+  Entry* current = Head;
+  bool changed = false;
+  do
+  { Entry* next = current->Next;
+    changed |= MoveEntry(current, rand() & 1 ? &*Head : NULL);
+    current = next;
+  } while (current);
+  // done
+  if (changed)
+  { InfoChangeFlags |= IF_Other;
+    if (!Modified)
+    { InfoChangeFlags |= IF_Status;
+      Modified = true;
+  } }
+  // raise InfoChange event?
+  DEBUGLOG(("Playlist::Shuffle: before raiseinfochange\n"));
+  RaiseInfoChange();
+  DEBUGLOG(("Playlist::Shuffle: after raiseinfochange\n")); 
 }
 
 bool Playlist::Save(const url& URL, save_options opt)

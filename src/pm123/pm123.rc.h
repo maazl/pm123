@@ -178,8 +178,8 @@
 #define PM_MAIN_MENU       1024
 #define PM_REC_MENU        2048
 
-#define IDM_PL_USEALL       910
-#define IDM_PL_USE          911
+#define IDM_PL_USE          910
+#define IDM_PL_USEALL       911
 #define IDM_PL_NAVIGATE     912
 #define IDM_PL_DETAILED     913
 #define IDM_PL_DETAILEDALL  914
@@ -193,17 +193,27 @@
 #define IDM_PL_EDIT         922
 #define IDM_PL_SORT         930
 #define IDM_PL_SORT_SIZE    931
-#define IDM_PL_SORT_PLTIME  932
-#define IDM_PL_SORT_NAME    933
+#define IDM_PL_SORT_TIME    932
+#define IDM_PL_SORT_URL     933
 #define IDM_PL_SORT_SONG    934
 #define IDM_PL_SORT_ALIAS   935
-#define IDM_PL_SORT_RANDOM  936
+#define IDM_PL_SORT_ART     936
+#define IDM_PL_SORT_ALBUM   937
+#define IDM_PL_SORT_RAND    939
+#define IDM_PL_SORT_SIZEALL 941
+#define IDM_PL_SORT_TIMEALL 942
+#define IDM_PL_SORT_URLALL  943
+#define IDM_PL_SORT_SONGALL 944
+#define IDM_PL_SORT_ALIASALL 945
+#define IDM_PL_SORT_ARTALL  946
+#define IDM_PL_SORT_ALBUMALL 947
+#define IDM_PL_SORT_RANDALL 949
 #define IDM_PL_APPEND      1100
 #define IDM_PL_APPFILE     1101
 #define IDM_PL_APPURL      1102
 #define IDM_PL_APPOTHER    1103 /* Need some IDs for plugin extensions.     */
-#define IDM_PL_OPEN         940
-#define IDM_PL_OPENLAST    1000 /* A lot of IDs after this need to be free. */
+#define IDM_PL_OPEN        1000
+#define IDM_PL_OPENLAST    1001 /* A lot of IDs after this need to be free. */
 #define IDM_PL_SAVE         960
 #define IDM_PL_MENU         970 /* invoke main menu */
 #define IDM_PL_MENUCONT     971 /* invoke record menu */ 

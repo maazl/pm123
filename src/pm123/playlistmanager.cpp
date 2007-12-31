@@ -118,8 +118,11 @@ MRESULT PlaylistManager::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
       amp_show_help( IDH_PM );
       return 0;
 
+     case WM_ERASEBACKGROUND:
+      return FALSE;
+
      case CN_EMPHASIS:
-      { PNOTIFYRECORDEMPHASIS emphasis = (PNOTIFYRECORDEMPHASIS)mp2;
+      { NOTIFYRECORDEMPHASIS* emphasis = (NOTIFYRECORDEMPHASIS*)mp2;
         if (emphasis->fEmphasisMask & CRA_CURSORED)
         { // Update title
           Record* rec = (Record*)emphasis->pRecord;
@@ -230,10 +233,10 @@ MRESULT PlaylistManager::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
   return PlaylistBase::DlgProc(msg, mp1, mp2);
 }
 
-HWND PlaylistManager::InitContextMenu(vector<RecordBase>& recs)
-{ DEBUGLOG(("PlaylistManager(%p)::InitContextMenu(%p{%u})\n", this, &recs, recs.size()));
-  HWND   hwndMenu;
-  if (recs.size() == 0)
+HWND PlaylistManager::InitContextMenu()
+{ DEBUGLOG(("PlaylistManager(%p)::InitContextMenu() - %u\n", this, Source.size()));
+  HWND hwndMenu;
+  if (Source.size() == 0)
   { // Nothing selected => menu for the whole container
     if (MainMenu == NULLHANDLE)
     { MainMenu = WinLoadMenu(HWND_OBJECT, 0, PM_MAIN_MENU);
@@ -244,22 +247,23 @@ HWND PlaylistManager::InitContextMenu(vector<RecordBase>& recs)
     mn_enable_item( hwndMenu, IDM_PL_APPEND, (Content->GetFlags() & Playable::Mutable) == Playable::Mutable );
   } else
   { // Selected object is record => record menu
-    ASSERT(recs.size() == 1);
+    ASSERT(Source.size() == 1);
     if (RecMenu == NULLHANDLE)
     { RecMenu = WinLoadMenu(HWND_OBJECT, 0, PM_REC_MENU);
       PMASSERT(RecMenu != NULLHANDLE);
       mn_make_conditionalcascade(RecMenu, IDM_PL_APPEND, IDM_PL_APPFILE);
     }
     hwndMenu = RecMenu;
-    RecordType rt = AnalyzeRecordTypes(recs);
+    RecordType rt = AnalyzeRecordTypes();
     if (rt == RT_None)
       return NULLHANDLE;
       
-    mn_enable_item(hwndMenu, IDM_PL_EDIT,     recs[0]->Data->Content->GetPlayable()->GetInfo().meta_write);
+    mn_enable_item(hwndMenu, IDM_PL_EDIT,     Source[0]->Data->Content->GetPlayable()->GetInfo().meta_write);
     mn_enable_item(hwndMenu, IDM_PL_DETAILED, rt != RT_Song);
     mn_enable_item(hwndMenu, IDM_PL_TREEVIEW, rt != RT_Song);
     mn_enable_item(hwndMenu, IDM_PL_REFRESH,  rt == RT_Song);
     mn_enable_item(hwndMenu, IDM_PL_APPEND,   rt == RT_List);
+    mn_enable_item(hwndMenu, IDM_PL_SORT,     rt == RT_List);
   }
   // emphasize record
   DEBUGLOG(("PlaylistManager::InitContextMenu: Menu: %p %p\n", MainMenu, RecMenu));
@@ -457,9 +461,6 @@ pm_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
     } // switch (SHORT2FROMMP(mp1))
     return 0;
 
-
-   case WM_ERASEBACKGROUND:
-    return FALSE;
 
    case WM_SYSCOMMAND:
     if( SHORT1FROMMP(mp1) == SC_CLOSE )

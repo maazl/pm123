@@ -285,4 +285,29 @@ IComparableTo<K>* sorted_vector_base<K>::erase(const K* key)
 }
 
 
+/* Algorithmns */
+// swap two objects
+template <class T>
+inline void swap(T& l, T& r)
+{ T t = r;
+  r = l;
+  l = t;
+} 
+
+// rotate pointer array in place
+void rotate_array_base(void** begin, const size_t len, int shift);
+
+template <class T>
+inline void rotate_array(T** begin, const size_t len, int shift)
+{ rotate_array_base((void**)begin, len, shift);
+}
+
+// Sort an array of pointers
+void merge_sort_base(void** begin, void** end, int (*comp)(const void* l, const void* r));
+
+template <class T>
+inline void merge_sort(T** begin, T** end, int (*comp)(const T* l, const T* r))
+{ merge_sort_base((void**)begin, (void**)end, (int (*)(const void* l, const void* r))comp);
+}
+
 #endif

@@ -114,7 +114,7 @@ class PlaylistView : public PlaylistRepository<PlaylistView>
   // Dialog procedure, called by DlgProcStub
   virtual MRESULT   DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2);
   // Load context menu for a record
-  virtual HWND      InitContextMenu(vector<RecordBase>& recs);
+  virtual HWND      InitContextMenu();
 
   // Determine type of Playable object
   // Subfunction to CalcIcon.

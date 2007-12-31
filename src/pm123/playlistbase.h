@@ -219,9 +219,10 @@ class PlaylistBase : public IComparableTo<char>
   DECODER_WIZZARD_FUNC LoadWizzards[20]; // Current load wizzards
   bool              NoRefresh;     // Avoid update events to ourself
   CommonState       EvntState;     // Event State
-  vector<RecordBase> Source;
+  vector<RecordBase> Source;       // Array of records used for source emphasis
+  HWND              HwndMenu;      // Window handle of last context menu
   bool              DragAfter;     // Recent drag operation was ORDERED
-  bool              DragDoMove;    // Flag whether we do a  
+  PlayableCollection::ItemComparer SortComparer; // Current comparer for next sort operation
  private:
   class_delegate2<PlaylistBase, const Playable::change_args, RecordBase*> RootInfoDelegate;
   class_delegate<PlaylistBase, const bool> RootPlayStatusDelegate;
@@ -275,10 +276,8 @@ class PlaylistBase : public IComparableTo<char>
   HPOINTER          CalcIcon(RecordBase* rec);
   // Set the window title
   void              SetTitle();
-  // Analyze a collection of records for it's types.
-  static RecordType AnalyzeRecordTypes(const vector<RecordBase>& recs);
   // Load context menu for a record
-  virtual HWND      InitContextMenu(vector<RecordBase>& recs) = 0;
+  virtual HWND      InitContextMenu() = 0;
 
   // Subfunction to the factory below.
   virtual RecordBase* CreateNewRecord(PlayableInstance* obj, RecordBase* parent) = 0;
@@ -301,12 +300,17 @@ class PlaylistBase : public IComparableTo<char>
   // rec == NULL => root node
   virtual void      UpdateChildren(RecordBase* const rec);
   
-  // Return all records with a given emphasis or an empty list if none.
-  void              GetRecords(vector<RecordBase>& result, USHORT emphasis) const;
-  // Populate Source Array
+  // Populate Source array with records with a given emphasis or an empty list if none.
+  void              GetRecords(USHORT emphasis);
+  // Populate Source array for context menu or drag and drop with anchor rec.
   bool              GetSource(RecordBase* rec);
-  // Set or clear the emphasis of a set of records
-  void              SetEmphasis(const vector<RecordBase>& recs, USHORT emphasis, bool set) const;
+  // Apply a function to all objects in the Source array.
+  void              Apply2Source(void (*op)(Playable*)) const;
+  void              Apply2Source(void (PlaylistBase::*op)(Playable*));
+  // Set or clear the emphasis of the records in the Source array.
+  void              SetEmphasis(USHORT emphasis, bool set) const;
+  // Analyze the records in the Source array for it's types.
+  RecordType        AnalyzeRecordTypes() const;
 
  protected: // Update Functions.
             // They are logically virtual, but they are not called from this class.
@@ -339,6 +343,28 @@ class PlaylistBase : public IComparableTo<char>
   virtual void      UserRemove(RecordBase* rec) = 0;
   // Save list
   void              UserSave();
+  // Open tree view 
+  static void       UserOpenTreeView(Playable* pp);
+  // Open detailed view 
+  static void       UserOpenDetailedView(Playable* pp);
+  // Clear playlist
+  static void       UserClearPlaylist(Playable* pp);
+  // Refresh records
+  void              UserReload(Playable* pp);
+  // Edit metadata
+  void              UserEditMeta(Playable* pp);
+  // Sort records
+  void              UserSort(Playable* pp);
+  // Place records in random order.
+  static void       UserShuffle(Playable* pp);
+  // comparers
+  static int        CompURL(const PlayableInstance* l, const PlayableInstance* r);
+  static int        CompTitle(const PlayableInstance* l, const PlayableInstance* r);
+  static int        CompArtist(const PlayableInstance* l, const PlayableInstance* r);
+  static int        CompAlbum(const PlayableInstance* l, const PlayableInstance* r);
+  static int        CompAlias(const PlayableInstance* l, const PlayableInstance* r);
+  static int        CompSize(const PlayableInstance* l, const PlayableInstance* r);
+  static int        CompTime(const PlayableInstance* l, const PlayableInstance* r);
   
  protected: // D'n'd target
   // Handle CN_DRAGOVER/CN_DRAGAFTER
@@ -349,7 +375,7 @@ class PlaylistBase : public IComparableTo<char>
   void              DropRenderComplete(DRAGTRANSFER* pdtrans, USHORT flags);
  protected: // D'n'd source
   // Handle CN_INITDRAG
-  void              DragInit(vector<RecordBase>& recs);
+  void              DragInit();
   // Handle DM_DISCARDOBJECT
   bool              DropDiscard(DRAGINFO* pdinfo);
   // Handle DM_RENDER

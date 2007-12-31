@@ -312,9 +312,12 @@ MRESULT PlaylistBase::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
     break;
 
    case WM_MENUEND:
-    GetRecords(Source, CRA_SOURCE);
-    DEBUGLOG(("PlaylistBase::DlgProc WM_MENUEND %u\n", Source.size()));
-    SetEmphasis(Source, CRA_SOURCE, false);
+    if (HWNDFROMMP(mp2) == HwndMenu)
+    { //GetRecords(CRA_SOURCE); //Should normally be unchanged...
+      DEBUGLOG(("PlaylistBase::DlgProc WM_MENUEND %u\n", Source.size()));
+      SetEmphasis(CRA_SOURCE, false);
+      HwndMenu = NULLHANDLE;
+    }
     break;
 
    case WM_WINDOWPOSCHANGED:
@@ -338,14 +341,14 @@ MRESULT PlaylistBase::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
       { RecordBase* rec = (RecordBase*)mp2;
         if (!GetSource(rec))
           break;
-        HWND hwndMenu = InitContextMenu(Source);
-        if (hwndMenu != NULLHANDLE)
-        { SetEmphasis(Source, CRA_SOURCE, true);
+        HwndMenu = InitContextMenu();
+        if (HwndMenu != NULLHANDLE)
+        { SetEmphasis(CRA_SOURCE, true);
           POINTL ptlMouse;
           PMRASSERT(WinQueryPointerPos(HWND_DESKTOP, &ptlMouse));
           // TODO: Mouse Position may not be reasonable, when the menu is invoked by keyboard.
 
-          PMRASSERT(WinPopupMenu(HWND_DESKTOP, HwndFrame, hwndMenu, ptlMouse.x, ptlMouse.y, 0,
+          PMRASSERT(WinPopupMenu(HWND_DESKTOP, HwndFrame, HwndMenu, ptlMouse.x, ptlMouse.y, 0,
                                  PU_HCONSTRAIN | PU_VCONSTRAIN | PU_MOUSEBUTTON1 | PU_MOUSEBUTTON2 | PU_KEYBOARD));
         }
         break;
@@ -356,7 +359,7 @@ MRESULT PlaylistBase::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
       { CNRDRAGINIT* cdi = (CNRDRAGINIT*)mp2;
         if (!GetSource((RecordBase*)cdi->pRecord))
           return 0;
-        DragInit(Source);
+        DragInit();
         return 0;
       }
 
@@ -413,6 +416,10 @@ MRESULT PlaylistBase::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
     
    case WM_COMMAND:
     { DEBUGLOG(("PlaylistBase(%p{%s})::DlgProc: WM_COMMAND %u %u\n", this, DebugName().cdata(), SHORT1FROMMP(mp1), Source.size()));
+      // Determine source in case of a accelerator-key 
+      if (SHORT1FROMMP(mp2) == CMDSRC_ACCELERATOR)
+        GetRecords(CRA_SELECTED);
+      
       if (SHORT1FROMMP(mp1) >= IDM_PL_APPFILE && SHORT1FROMMP(mp1) < IDM_PL_APPFILE + sizeof LoadWizzards / sizeof *LoadWizzards)
       { DECODER_WIZZARD_FUNC func = LoadWizzards[SHORT1FROMMP(mp1)-IDM_PL_APPFILE];
         if (func != NULL && Source.size() == 1)
@@ -426,57 +433,107 @@ MRESULT PlaylistBase::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
         }
        case IDM_PL_USE:
         { for (RecordBase** rpp = Source.begin(); rpp != Source.end(); ++rpp)
-            amp_load_playable((*rpp)->Data->Content->GetPlayable()->GetURL(), rpp == Source.begin() ? 0 : AMP_LOAD_APPEND);
+            amp_load_playable((*rpp)->Data->Content->GetPlayable()->GetURL(), Source.size() > 1 ? AMP_LOAD_APPEND : 0);
           return 0;
         }
        case IDM_PL_TREEVIEWALL:
-        { PlaylistManager::Get(Content->GetURL())->SetVisible(true);
-          return 0;
-        }
+        UserOpenTreeView(Content);
+        return 0;
+
        case IDM_PL_TREEVIEW:
-        { for (RecordBase** rpp = Source.begin(); rpp != Source.end(); ++rpp)
-          { Playable* pp = (*rpp)->Data->Content->GetPlayable();
-            if (pp->GetFlags() & Playable::Enumerable)
-              PlaylistManager::Get(pp->GetURL())->SetVisible(true);
-          }
-          return 0;
-        }
+        Apply2Source(&UserOpenTreeView);
+        return 0;
+
        case IDM_PL_DETAILEDALL:
-        { PlaylistView::Get(Content->GetURL())->SetVisible(true);
-          return 0;
-        }
+        UserOpenDetailedView(Content);
+        return 0;
+
        case IDM_PL_DETAILED:
-        { for (RecordBase** rpp = Source.begin(); rpp != Source.end(); ++rpp)
-          { Playable* pp = (*rpp)->Data->Content->GetPlayable();
-            if (pp->GetFlags() & Playable::Enumerable)
-              PlaylistView::Get(pp->GetURL())->SetVisible(true);
-          }
-          return 0;
-        }
+        Apply2Source(&UserOpenDetailedView);
+        return 0;
+
        case IDM_PL_REFRESH:
-        { for (RecordBase** rpp = Source.begin(); rpp != Source.end(); ++rpp)
-            (*rpp)->Data->Content->GetPlayable()->LoadInfoAsync(Playable::IF_All);
-          return 0;
-        }
+        Apply2Source(&UserReload);
+        return 0;
+
        case IDM_PL_EDIT:
-        { for (RecordBase** rpp = Source.begin(); rpp != Source.end(); ++rpp)
-          { Playable* pp = (*rpp)->Data->Content->GetPlayable();
-            if (pp->GetInfo().meta_write)
-              amp_info_edit(HwndFrame, pp->GetURL(), pp->GetDecoder());
-          }
-          return 0;
-        }
+        Apply2Source(&UserEditMeta);
+        return 0;
+
        case IDM_PL_REMOVE:
         { for (RecordBase** rpp = Source.begin(); rpp != Source.end(); ++rpp)
             UserRemove(*rpp);
           return 0;
         }
+
+       case IDM_PL_SORT_URLALL:
+        SortComparer = &CompURL;
+        UserSort(Content);
+        return 0;
+       case IDM_PL_SORT_URL: 
+        SortComparer = &CompURL;
+        Apply2Source(&UserSort);
+        return 0;
+       case IDM_PL_SORT_SONGALL:
+        SortComparer = &CompTitle;
+        UserSort(Content);
+        return 0;
+       case IDM_PL_SORT_SONG: 
+        SortComparer = &CompTitle;
+        Apply2Source(&UserSort);
+        return 0;
+       case IDM_PL_SORT_ARTALL:
+        SortComparer = &CompArtist;
+        UserSort(Content);
+        return 0;
+       case IDM_PL_SORT_ART: 
+        SortComparer = &CompArtist;
+        Apply2Source(&UserSort);
+        return 0;
+       case IDM_PL_SORT_ALBUMALL:
+        SortComparer = &CompAlbum;
+        UserSort(Content);
+        return 0;
+       case IDM_PL_SORT_ALBUM: 
+        SortComparer = &CompAlbum;
+        Apply2Source(&UserSort);
+        return 0;
+       case IDM_PL_SORT_ALIASALL:
+        SortComparer = &CompAlias;
+        UserSort(Content);
+        return 0;
+       case IDM_PL_SORT_ALIAS: 
+        SortComparer = &CompAlias;
+        Apply2Source(&UserSort);
+        return 0;
+       case IDM_PL_SORT_TIMEALL:
+        SortComparer = &CompTime;
+        UserSort(Content);
+        return 0;
+       case IDM_PL_SORT_TIME: 
+        SortComparer = &CompTime;
+        Apply2Source(&UserSort);
+        return 0;
+       case IDM_PL_SORT_SIZEALL:
+        SortComparer = &CompSize;
+        UserSort(Content);
+        return 0;
+       case IDM_PL_SORT_SIZE: 
+        SortComparer = &CompSize;
+        Apply2Source(&UserSort);
+        return 0;
+
+       case IDM_PL_SORT_RANDALL:
+        UserShuffle(Content);
+        return 0;
+       case IDM_PL_SORT_RAND: 
+        Apply2Source(&UserShuffle);
+        return 0;
+
        case IDM_PL_CLEARALL:
-        { Playable* pp = Content;
-          if ((pp->GetFlags() & Playable::Mutable) == Playable::Mutable) // don't modify constant object
-            ((Playlist*)pp)->Clear();
-          return 0;
-        }
+        UserClearPlaylist(Content);
+        return 0;
+
        /*case IDM_PL_CLEAR:
         { DEBUGLOG(("PlaylistBase(%p{%s})::DlgProc: IDM_PL_CLEAR %p\n", this, DebugName().cdata(), focus));
           for (RecordBase** rpp = source.begin(); rpp != source.end(); ++rpp)
@@ -487,12 +544,9 @@ MRESULT PlaylistBase::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
           return 0;
         }*/
        case IDM_PL_RELOAD:
-        { if ( !(Content->GetFlags() & Playable::Enumerable)
-            || !((PlayableCollection&)*Content).IsModified()
-            || amp_query(HwndFrame, "The current list is modified. Discard changes?") )
-            Content->LoadInfoAsync(Playable::IF_All);
-          return 0;
-        }
+        UserReload(Content);
+        return 0;
+
        case IDM_PL_OPEN:
         { url URL = PlaylistSelect(HwndFrame, "Open Playlist");
           if (URL)
@@ -608,21 +662,6 @@ void PlaylistBase::SetTitle()
   Title = title;
 }
 
-PlaylistBase::RecordType PlaylistBase::AnalyzeRecordTypes(const vector<RecordBase>& recs)
-{ RecordType ret = RT_None;
-  for (RecordBase*const* rpp = recs.end(); rpp-- != recs.begin(); )
-  { Playable::Flags flg = ((*rpp)->Data->Content->GetPlayable()->GetFlags());
-    if (flg == Playable::None)
-      ret |= RT_Song;
-    else if (flg & Playable::Enumerable)
-      ret |= RT_Enum;
-    else if (flg & Playable::Mutable)
-      ret |= RT_List;
-  }
-  DEBUGLOG(("PlaylistBase::AnalyzeRecordTypes(%p{%u}): %x\n", &recs, recs.size(), ret));
-  return ret;
-}
-
 
 PlaylistBase::RecordBase* PlaylistBase::AddEntry(PlayableInstance* obj, RecordBase* parent, RecordBase* after)
 { DEBUGLOG(("PlaylistBase(%p{%s})::AddEntry(%p{%s}, %p, %p)\n", this, DebugName().cdata(), obj, obj->GetPlayable()->GetURL().getShortName().cdata(), parent, after));
@@ -720,23 +759,16 @@ void PlaylistBase::UpdateChildren(RecordBase* const rp)
 
   PMRASSERT(WinEnableWindowUpdate(HwndContainer, FALSE)); // suspend redraw
   // First check what's currently in the container.
-  // The collection is not locked so far.
+  // The collection is /not/ locked so far.
   vector<RecordBase> old(32);
   RecordBase* crp = (RecordBase*)WinSendMsg(HwndContainer, CM_QUERYRECORD, MPFROMP(rp), MPFROM2SHORT(rp ? CMA_FIRSTCHILD : CMA_FIRST, CMA_ITEMORDER));
-  PMASSERT(crp != (RecordBase*)-1);
   while (crp != NULL && crp != (RecordBase*)-1)
   { DEBUGLOG(("PlaylistBase::UpdateChildren CM_QUERYRECORD: %s\n", RecordBase::DebugName(crp).cdata()));
     // prefetch next record
-    RecordBase* ncrp = (RecordBase*)WinSendMsg(HwndContainer, CM_QUERYRECORD, MPFROMP(crp), MPFROM2SHORT(CMA_NEXT, CMA_ITEMORDER));
-    PMASSERT(ncrp != (RecordBase*)-1);
-    if (crp->Data->Content)
-      // record is valid => add to list
-      old.insert(old.size()) = crp;
-    else
-      // Remove records where UM_SYNCREMOVE has been arrived to reduce the number of record moves.
-      RemoveEntry(crp);
-    crp = ncrp;
+    old.append() = crp;
+    crp = (RecordBase*)WinSendMsg(HwndContainer, CM_QUERYRECORD, MPFROMP(crp), MPFROM2SHORT(CMA_NEXT, CMA_ITEMORDER));
   }
+  PMASSERT(crp != (RecordBase*)-1);
 
   { // Now check what should be in the container
     DEBUGLOG(("PlaylistBase::UpdateChildren - check container.\n"));
@@ -755,7 +787,6 @@ void PlaylistBase::UpdateChildren(RecordBase* const rp)
             RequestChildren(crp);
           break;
         }
-        // In case we received a UM_SYNCREMOVE event for a record, the comparsion below will fail.
         if ((*orpp)->Data->Content == &**ep)
         { // found!
           DEBUGLOG(("PlaylistBase::UpdateChildren - found: %p{%s} at %u\n", &**ep, (*ep)->GetPlayable()->GetURL().getShortName().cdata(), orpp - old.begin()));
@@ -781,12 +812,12 @@ void PlaylistBase::UpdateChildren(RecordBase* const rp)
   PMRASSERT(WinEnableWindowUpdate(HwndContainer, TRUE));
 }
 
-void PlaylistBase::GetRecords(vector<RecordBase>& result, USHORT emphasis) const
-{ result.clear();
+void PlaylistBase::GetRecords(USHORT emphasis)
+{ Source.clear();
   RecordBase* rec = (RecordBase*)PVOIDFROMMR(WinSendMsg(HwndContainer, CM_QUERYRECORDEMPHASIS, MPFROMP(CMA_FIRST), MPFROMSHORT(emphasis)));
   while (rec != NULL && rec != (RecordBase*)-1)
   { DEBUGLOG(("PlaylistBase::GetRecords: %p\n", rec));
-    result.append() = rec;
+    Source.append() = rec;
     rec = (RecordBase*)PVOIDFROMMR(WinSendMsg(HwndContainer, CM_QUERYRECORDEMPHASIS, MPFROMP(rec), MPFROMSHORT(emphasis)));
   }
   PMASSERT(rec != (RecordBase*)-1);
@@ -796,9 +827,10 @@ bool PlaylistBase::GetSource(RecordBase* rec)
 { Source.clear();
   if (rec)
   { PMRASSERT(WinSendMsg(HwndContainer, CM_QUERYRECORDINFO, MPFROMP(&rec), MPFROMSHORT(1)));
+    DEBUGLOG(("PlaylistBase::GetSource(%p{...%x...})\n", rec, rec->flRecordAttr)); 
     // check wether the record is selected
     if (rec->flRecordAttr & CRA_SELECTED)
-    { GetRecords(Source, CRA_SELECTED);
+    { GetRecords(CRA_SELECTED);
       if (Source.size() == 0)
         return false;
     } else
@@ -807,18 +839,47 @@ bool PlaylistBase::GetSource(RecordBase* rec)
   return true;
 }
 
-void PlaylistBase::SetEmphasis(const vector<RecordBase>& recs, USHORT emphasis, bool set) const
-{ DEBUGLOG(("PlaylistBase(%p)::SetEmphasis(%p{%u}, %x, %u)\n", this, &recs, recs.size(), emphasis, set));
-  if (recs.size() == 0)
+void PlaylistBase::Apply2Source(void (*op)(Playable*)) const
+{ DEBUGLOG(("PlaylistBase(%p)::Apply2Source(%p) - %u\n", this, op, Source.size()));
+  for (RecordBase*const* rpp = Source.begin(); rpp != Source.end(); ++rpp)
+    (*op)((*rpp)->Data->Content->GetPlayable());
+}
+void PlaylistBase::Apply2Source(void (PlaylistBase::*op)(Playable*))
+{ DEBUGLOG(("PlaylistBase(%p)::Apply2Source(PlaylistBase::%p) - %u\n", this, op, Source.size()));
+  for (RecordBase*const* rpp = Source.begin(); rpp != Source.end(); ++rpp)
+    (this->*op)((*rpp)->Data->Content->GetPlayable());
+}
+
+void PlaylistBase::SetEmphasis(USHORT emphasis, bool set) const
+{ DEBUGLOG(("PlaylistBase(%p)::SetEmphasis(%x, %u) - %u\n", this, emphasis, set, Source.size()));
+  if (Source.size() == 0)
     PMRASSERT(WinSendMsg(HwndContainer, CM_SETRECORDEMPHASIS, MPFROMP(NULL), MPFROM2SHORT(set, emphasis)));
   else
-  { for (RecordBase*const* rpp = recs.begin(); rpp != recs.end(); ++rpp)
+  { for (RecordBase*const* rpp = Source.begin(); rpp != Source.end(); ++rpp)
     { DEBUGLOG(("PlaylistBase::SetEmphasis: %p\n", *rpp));
       PMRASSERT(WinSendMsg(HwndContainer, CM_SETRECORDEMPHASIS, MPFROMP(*rpp), MPFROM2SHORT(set, emphasis)));
     }
-    PMRASSERT(WinSendMsg(HwndContainer, CM_INVALIDATERECORD, MPFROMP(recs.begin()), MPFROM2SHORT(recs.size(), CMA_NOREPOSITION)));
+    // Somtimes the update is done automatically, sometimes not ...
+    if (!set)
+      PMRASSERT(WinSendMsg(HwndContainer, CM_INVALIDATERECORD, MPFROMP(Source.begin()), MPFROM2SHORT(Source.size(), CMA_NOREPOSITION|CMA_ERASE)));
   }
 }
+
+PlaylistBase::RecordType PlaylistBase::AnalyzeRecordTypes() const
+{ RecordType ret = RT_None;
+  for (RecordBase*const* rpp = Source.end(); rpp-- != Source.begin(); )
+  { Playable::Flags flg = ((*rpp)->Data->Content->GetPlayable()->GetFlags());
+    if (flg == Playable::None)
+      ret |= RT_Song;
+    else if (flg & Playable::Mutable)
+      ret |= RT_List;
+    else if (flg & Playable::Enumerable)
+      ret |= RT_Enum;
+  }
+  DEBUGLOG(("PlaylistBase::AnalyzeRecordTypes(): %u, %x\n", Source.size(), ret));
+  return ret;
+}
+
 
 void PlaylistBase::UpdateStatus(RecordBase* rec)
 { DEBUGLOG(("PlaylistBase(%p)::UpdateStatus(%p)\n", this, rec));
@@ -997,6 +1058,72 @@ void PlaylistBase::UserSave()
         amp_error(HwndFrame, "Failed to create playlist \"%s\". Error %s.", file.cdata(), xio_strerror(xio_errno()));
     }
   }
+}
+
+void PlaylistBase::UserOpenTreeView(Playable* pp)
+{ if (pp->GetFlags() & Playable::Enumerable)
+    PlaylistManager::Get(pp->GetURL())->SetVisible(true);
+}
+
+void PlaylistBase::UserOpenDetailedView(Playable* pp)
+{ if (pp->GetFlags() & Playable::Enumerable)
+    PlaylistView::Get(pp->GetURL())->SetVisible(true);
+}
+
+void PlaylistBase::UserClearPlaylist(Playable* pp)
+{ if ((pp->GetFlags() & Playable::Mutable) == Playable::Mutable) // don't modify constant object
+    ((Playlist*)pp)->Clear();
+}
+
+void PlaylistBase::UserReload(Playable* pp)
+{ if ( !(pp->GetFlags() & Playable::Enumerable)
+    || !((PlayableCollection&)*pp).IsModified()
+    || amp_query(HwndFrame, "The current list is modified. Discard changes?") )
+    pp->LoadInfoAsync(Playable::IF_All);
+}
+
+void PlaylistBase::UserEditMeta(Playable* pp)
+{ if (pp->GetInfo().meta_write)
+    amp_info_edit(HwndFrame, pp->GetURL(), pp->GetDecoder());
+}
+
+void PlaylistBase::UserSort(Playable* pp)
+{ DEBUGLOG(("PlaylistBase(%p)::UserSort(%p{%s})\n", this, pp, pp->GetURL().cdata()));
+  if ((pp->GetFlags() & Playable::Mutable) == Playable::Mutable) // don't modify constant object
+    ((Playlist*)pp)->Sort(SortComparer);
+}
+
+void PlaylistBase::UserShuffle(Playable* pp)
+{ if ((pp->GetFlags() & Playable::Mutable) == Playable::Mutable) // don't modify constant object
+    ((Playlist*)pp)->Shuffle();
+}
+
+int PlaylistBase::CompURL(const PlayableInstance* l, const PlayableInstance* r)
+{ return l->GetPlayable()->GetURL() > r->GetPlayable()->GetURL();
+}
+
+int PlaylistBase::CompTitle(const PlayableInstance* l, const PlayableInstance* r)
+{ return strnicmp(l->GetPlayable()->GetInfo().meta->title, r->GetPlayable()->GetInfo().meta->title, sizeof l->GetPlayable()->GetInfo().meta->title);
+}
+
+int PlaylistBase::CompArtist(const PlayableInstance* l, const PlayableInstance* r)
+{ return strnicmp(l->GetPlayable()->GetInfo().meta->artist, r->GetPlayable()->GetInfo().meta->artist, sizeof l->GetPlayable()->GetInfo().meta->artist);
+}
+
+int PlaylistBase::CompAlbum(const PlayableInstance* l, const PlayableInstance* r)
+{ return strnicmp(l->GetPlayable()->GetInfo().meta->album, r->GetPlayable()->GetInfo().meta->album, sizeof l->GetPlayable()->GetInfo().meta->album);
+}
+
+int PlaylistBase::CompAlias(const PlayableInstance* l, const PlayableInstance* r)
+{ return l->GetDisplayName() > r->GetDisplayName();
+}
+
+int PlaylistBase::CompSize(const PlayableInstance* l, const PlayableInstance* r)
+{ return l->GetPlayable()->GetInfo().tech->filesize > r->GetPlayable()->GetInfo().tech->filesize;
+}
+
+int PlaylistBase::CompTime(const PlayableInstance* l, const PlayableInstance* r)
+{ return l->GetPlayable()->GetInfo().tech->songlength > r->GetPlayable()->GetInfo().tech->songlength;
 }
 
 url PlaylistBase::PlaylistSelect(HWND owner, const char* title)
@@ -1267,29 +1394,29 @@ void PlaylistBase::DropRenderComplete(DRAGTRANSFER* pdtrans, USHORT flags)
 *  Drag and drop - Source side
 *
 ****************************************************************************/
-void PlaylistBase::DragInit(vector<RecordBase>& recs)
-{ DEBUGLOG(("PlaylistBase::DragInit({%u:...})\n", recs.size()));
+void PlaylistBase::DragInit()
+{ DEBUGLOG(("PlaylistBase::DragInit() - %u\n", Source.size()));
 
   // If the Source Array is empty, we must be over whitespace,
   // in which case we don't want to drag any records.
-  if (recs.size() == 0)
+  if (Source.size() == 0)
     return;
 
-  SetEmphasis(recs, CRA_SOURCE, true);
+  SetEmphasis(CRA_SOURCE, true);
 
   // Let PM allocate enough memory for a DRAGINFO structure as well as
   // a DRAGITEM structure for each record being dragged. It will allocate
   // shared memory so other processes can participate in the drag/drop.
-  DRAGINFO* drag_infos = drag_infos = DrgAllocDraginfo(recs.size());
+  DRAGINFO* drag_infos = drag_infos = DrgAllocDraginfo(Source.size());
   PMASSERT(drag_infos);
 
   // Allocate an array of DRAGIMAGE structures. Each structure contains
   // info about an image that will be under the mouse pointer during the
   // drag. This image will represent a container record being dragged.
-  DRAGIMAGE* drag_images = new DRAGIMAGE[min(recs.size(), MAX_DRAG_IMAGES)]; 
+  DRAGIMAGE* drag_images = new DRAGIMAGE[min(Source.size(), MAX_DRAG_IMAGES)]; 
 
-  for (int i = 0; i < recs.size(); ++i)
-  { RecordBase* rec = recs[i];
+  for (int i = 0; i < Source.size(); ++i)
+  { RecordBase* rec = Source[i];
     DEBUGLOG(("PlaylistBase::DragInit: init item %i: %s\n", i, rec->DebugName().cdata()));
   
     // Prevent the records from beeing disposed.
@@ -1328,18 +1455,18 @@ void PlaylistBase::DragInit(vector<RecordBase>& recs)
   // whether the NULLHANDLE means Esc was pressed as opposed to there
   // being an error in the drag operation. So we don't attempt to figure
   // that out. To us, a NULLHANDLE means Esc was pressed...
-  if (!DrgDrag(HwndFrame, drag_infos, drag_images, min(recs.size(), MAX_DRAG_IMAGES), VK_ENDDRAG, NULL))
+  if (!DrgDrag(HwndFrame, drag_infos, drag_images, min(Source.size(), MAX_DRAG_IMAGES), VK_ENDDRAG, NULL))
   { DEBUGLOG(("PlaylistBase::DragInit: DrgDrag returned FALSE - %x\n", WinGetLastError(NULL))); 
     DrgDeleteDraginfoStrHandles(drag_infos);
     // release the records
-    for (RecordBase** prec = recs.begin(); prec != recs.end(); ++prec)
+    for (RecordBase** prec = Source.begin(); prec != Source.end(); ++prec)
       FreeRecord(*prec);
   }
 
   DrgFreeDraginfo(drag_infos);
   delete[] drag_images;
 
-  SetEmphasis(recs, CRA_SOURCE, false);
+  SetEmphasis(CRA_SOURCE, false);
 }
 
 bool PlaylistBase::DropDiscard(DRAGINFO* pdinfo)

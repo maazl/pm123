@@ -80,7 +80,7 @@ class PlaylistManager : public PlaylistRepository<PlaylistManager>
   // Dialog procedure, called by DlgProcStub
   virtual MRESULT   DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2);
   // Load context menu for a record
-  virtual HWND      InitContextMenu(vector<RecordBase>& recs);
+  virtual HWND      InitContextMenu();
   // Set Status info
   void              SetInfo(const xstring& info);
   // initiate the display of a record's info

@@ -435,6 +435,7 @@ class PlayableCollection : public Playable
     virtual PlayableEnumerator* Clone() const;
   };
   friend class Enumerator;
+  typedef int (*ItemComparer)(const PlayableInstance* l, const PlayableInstance* r);  
  protected:
   struct Entry : public PlayableInstance
   { typedef class_delegate<PlayableCollection, const Playable::change_args> TDType;
@@ -474,6 +475,10 @@ class PlayableCollection : public Playable
   // Insert a new entry into the list.
   // The list must be locked before calling this Function.
   void                        InsertEntry(Entry* entry, Entry* before);
+  // Move a entry inside the list.
+  // The list must be locked before calling this Function.
+  // The function returns false if the move is a no-op.
+  bool                        MoveEntry(Entry* entry, Entry* before);
   // Remove an entry from the list.
   // The list must be locked before calling this Function.
   void                        RemoveEntry(Entry* entry);
@@ -577,17 +582,25 @@ class Playlist : public PlayableCollection
   virtual bool                IsModified() const;
 
   // Insert a new item before the item "before".
-  // If the prameter before is NULL the the item is appended.
+  // If the prameter before is NULL the item is appended.
   // The funtion fails with returning false if and only if the PlayableInstance before is no longer valid.
   virtual bool                InsertItem(const char* url, const xstring& alias, const PlayableInstance::slice& sl, PlayableInstance* before = NULL);
   bool                        InsertItem(const char* url, const xstring& alias, PlayableInstance* before = NULL)
                               { return InsertItem(url, alias, PlayableInstance::slice::Initial, before); }
+  // Move an item inside the list.
+  // If the prameter before is NULL the item is moved to the end.
+  // The funtion fails with returning false if and only if one of the PlayableInstances is no longer valid.
+  virtual bool                MoveItem(PlayableInstance* item, PlayableInstance* before);
   // Remove an item from the playlist.
   // Attension: passing NULL as argument will remove all items.
   // The funtion fails with returning false if and only if the PlayableInstance before is no longer valid.
   virtual bool                RemoveItem(PlayableInstance* item);
   // Remove all items from the playlist.
   void                        Clear() { RemoveItem(NULL); }
+  // Sort all items with a comparer.
+  virtual void                Sort(ItemComparer comp);
+  // Randomize record sequence.
+  virtual void                Shuffle();
   // Save the current playlist as new file.
   virtual bool                Save(const url& URL, save_options opt = SaveDefault);
 

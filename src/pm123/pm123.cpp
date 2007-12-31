@@ -614,69 +614,13 @@ amp_show_context_menu( HWND parent )
 
   // Update regulars.
   MENUITEM mi;
-  WinSendMsg( menu, MM_QUERYITEM,
-              MPFROM2SHORT( IDM_M_LOAD, TRUE ), MPFROMP( &mi ));
-
+  WinSendMsg( menu, MM_QUERYITEM, MPFROM2SHORT( IDM_M_LOAD, TRUE ), MPFROMP( &mi ));
   // Append asisstents from decoder plug-ins
   memset( load_wizzards+2, 0, sizeof load_wizzards - 2*sizeof *load_wizzards ); // You never know...
   append_load_menu( mi.hwndSubMenu, IDM_M_LOADOTHER, 2, load_wizzards+2, sizeof load_wizzards / sizeof *load_wizzards -2);
 
-  /*DEBUGLOG(("amp_show_context_menu: cfg.last = %s\n", cfg.last));
-  if( *cfg.last[0] )
-  {
-    // Add separator.
-    mi.iPosition = MIT_END;
-    mi.afStyle = MIS_SEPARATOR;
-    mi.afAttribute = 0;
-    mi.id = 0;
-    mi.hwndSubMenu = (HWND)NULLHANDLE;
-    mi.hItem = 0;
-
-    WinSendMsg( mh, MM_INSERTITEM, MPFROMP( &mi ), NULL );
-
-    // Fill the recall list.
-    for( i = 0; i < MAX_RECALL; i++ ) {
-      if( *cfg.last[i] )
-      {
-        sprintf( file, "~%u ", i + 1 );
-
-        if( is_url( cfg.last[i] ))
-        {
-          char buff[_MAX_PATH];
-
-          scheme( buff, cfg.last[i], sizeof( buff ));
-
-          if( strchr( buff, ':' ) != 0 ) {
-             *strchr( buff, ':' )  = 0;
-          }
-
-          strlcat( file, "[" , sizeof( file ));
-          strlcat( file, buff, sizeof( file ));
-          strlcat( file, "] ", sizeof( file ));
-          sfnameext( buff, cfg.last[i], sizeof( buff ));
-          sdecode( buff, buff, sizeof( buff ));
-          strlcat( file, buff, sizeof( buff ));
-        } else {
-          sfnameext( file + strlen( file ), cfg.last[i], sizeof( file ) - strlen( file ) );
-        }
-
-        mi.iPosition = MIT_END;
-        mi.afStyle = MIS_TEXT;
-        mi.afAttribute = 0;
-        mi.id = (IDM_M_LAST + 1) + i;
-        mi.hwndSubMenu = (HWND)NULLHANDLE;
-        mi.hItem = 0;
-
-        WinSendMsg( mh, MM_INSERTITEM, MPFROMP( &mi ), MPFROMP( file ));
-        DEBUGLOG2(("amp_show_context_menu: append recent \"%s\"\n", file));
-      }
-    }
-  }*/
-
   // Update plug-ins.
-  WinSendMsg( menu, MM_QUERYITEM,
-              MPFROM2SHORT( IDM_M_PLUG, TRUE ), MPFROMP( &mi ));
-
+  WinSendMsg( menu, MM_QUERYITEM, MPFROM2SHORT( IDM_M_PLUG, TRUE ), MPFROMP( &mi ));
   load_plugin_menu( mi.hwndSubMenu );
 
   // Update status
@@ -706,7 +650,7 @@ amp_show_context_menu( HWND parent )
 
   WinPopupMenu( parent, parent, menu, pos.x, pos.y, 0,
                 PU_HCONSTRAIN   | PU_VCONSTRAIN |
-                PU_MOUSEBUTTON1 | PU_MOUSEBUTTON2 | PU_KEYBOARD   );
+                PU_MOUSEBUTTON1 | PU_MOUSEBUTTON2 | PU_KEYBOARD );
 }
 
 /* Prepares the player to the drop operation. */

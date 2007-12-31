@@ -323,10 +323,10 @@ MRESULT PlaylistView::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
   return PlaylistBase::DlgProc(msg, mp1, mp2);
 }
 
-HWND PlaylistView::InitContextMenu(vector<RecordBase>& recs)
-{ DEBUGLOG(("PlaylistView(%p)::InitContextMenu(%p{%u})\n", this, &recs, recs.size()));
-  HWND   hwndMenu;
-  if (recs.size() == 0)
+HWND PlaylistView::InitContextMenu()
+{ DEBUGLOG(("PlaylistView(%p)::InitContextMenu() - %p{%u}\n", this, &Source, Source.size()));
+  HWND hwndMenu;
+  if (Source.size() == 0)
   { if (MainMenu == NULLHANDLE)
     { MainMenu = WinLoadMenu(HWND_OBJECT, 0, MNU_PLAYLIST);
       PMASSERT(MainMenu != NULLHANDLE);
@@ -346,14 +346,14 @@ HWND PlaylistView::InitContextMenu(vector<RecordBase>& recs)
       PMASSERT(RecMenu != NULLHANDLE);
     }
     hwndMenu = RecMenu;
-    RecordType rt = AnalyzeRecordTypes(recs);
+    RecordType rt = AnalyzeRecordTypes();
     if (rt == RT_None)
       return NULLHANDLE;
-    mn_enable_item(hwndMenu, IDM_PL_NAVIGATE, recs.size() == 1);
-    mn_enable_item(hwndMenu, IDM_PL_EDIT,     recs.size() == 1 && recs[0]->Data->Content->GetPlayable()->GetInfo().meta_write);
+    mn_enable_item(hwndMenu, IDM_PL_NAVIGATE, Source.size() == 1);
+    mn_enable_item(hwndMenu, IDM_PL_EDIT,     Source.size() == 1 && Source[0]->Data->Content->GetPlayable()->GetInfo().meta_write);
     mn_enable_item(hwndMenu, IDM_PL_REFRESH,  (rt & (RT_Enum|RT_List)) == 0);
-    mn_enable_item(hwndMenu, IDM_PL_DETAILED, recs.size() == 1 && rt != RT_Song);
-    mn_enable_item(hwndMenu, IDM_PL_TREEVIEW, recs.size() == 1 && rt != RT_Song);
+    mn_enable_item(hwndMenu, IDM_PL_DETAILED, Source.size() == 1 && rt != RT_Song);
+    mn_enable_item(hwndMenu, IDM_PL_TREEVIEW, Source.size() == 1 && rt != RT_Song);
   }
   // emphasize record
   DEBUGLOG2(("PlaylistView::InitContextMenu: Menu: %p %p\n", MainMenu, RecMenu));
