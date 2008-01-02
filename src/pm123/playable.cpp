@@ -460,14 +460,6 @@ PlayableCollection::~PlayableCollection()
   // frist disable all events
   CollectionChange.reset();
   InfoChange.reset();
-  // free nested entries
-  Entry* ep = Head;
-  Entry* ep2;
-  while (ep != NULL)
-  { ep2 = ep;
-    ep = ep->Next;
-    delete ep2;
-  }
 }
 
 Playable::Flags PlayableCollection::GetFlags() const
