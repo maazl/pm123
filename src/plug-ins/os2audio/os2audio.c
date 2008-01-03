@@ -470,12 +470,13 @@ output_play_samples( void* A, FORMAT_INFO* format, char* buf, int len, int posma
 
   DosRequestMutexSem( a->mutex, SEM_INDEFINITE_WAIT );
 
-  if( !a->drivethread )
-  {
-    PTIB ptib;
-
-    if( DosGetInfoBlocks( &ptib, NULL ) == NO_ERROR ) {
-      a->drivethread = ptib->tib_ptib2->tib2_ultid;
+  // Update TID always because the decoder thread may change while playing
+  // if( !a->drivethread )
+  { PTIB ptib;
+    DosGetInfoBlocks( &ptib, NULL );
+    if (a->drivethread != ptib->tib_ptib2->tib2_ultid)
+    { a->drivethread = ptib->tib_ptib2->tib2_ultid;
+      a->boosted = FALSE;
     }
   }
 
@@ -570,9 +571,9 @@ output_play_samples( void* A, FORMAT_INFO* format, char* buf, int len, int posma
     a->trashed     = FALSE;
   }
 
-  // If we're out of the water (3rd ahead buffer filled),
+  // If we're out of the water (5rd ahead buffer filled),
   // let's reduce the driver thread priority.
-  if( a->mci_to_fill == INFO( INFO( INFO(a->mci_is_play)->next )->next )->next ) {
+  if( a->mci_to_fill == INFO( INFO( INFO( INFO( INFO(a->mci_is_play)->next )->next )->next )->next )->next ) {
     output_normal_priority( a );
   }
 
