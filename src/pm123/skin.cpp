@@ -34,7 +34,6 @@
 #define  INCL_GPI
 #define  INCL_DEV
 #define  INCL_BITMAPFILEFORMAT
-#include <os2.h>
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -50,10 +49,12 @@
 #include <gbm.h>
 #include <gbmerr.h>
 #include <gbmht.h>
+#include "plugman.h"
 #include "skin.h"
 #include "pm123.h"
 #include "pm123.rc.h"
 #include "button95.h"
+#include <os2.h>
 
 #include <debuglog.h>
 
@@ -899,13 +900,6 @@ bmp_set_text( const char* string )
   vis_broadcast( WM_PLUGIN_CONTROL, MPFROMLONG( PN_TEXTCHANGED ), 0 );
 }
 
-/* Returns a pointer to the current selected text. */
-const char*
-bmp_query_text( void )
-{
-  return s_display;
-}
-
 /* Scrolls the current selected text. */
 BOOL
 bmp_scroll_text( void )
@@ -1277,23 +1271,19 @@ bmp_draw_rate( HPS hps, int rate )
 
 /* Draws the current playlist mode. */
 void
-bmp_draw_plmode( HPS hps )
+bmp_draw_plmode( HPS hps, BOOL valid, Playable::Flags flags )
 {
   DEBUGLOG(("bmp_draw_plmode(%p)\n", hps));
 
   if( cfg.mode == CFG_MODE_REGULAR && bmp_pos[ POS_PL_MODE ].x != POS_UNDEF &&
                                       bmp_pos[ POS_PL_MODE ].y != POS_UNDEF )
   {
-    int_ptr<Playable> root = amp_get_current_root();
-    if (root == NULL)
-        bmp_draw_bitmap( hps, bmp_pos[ POS_PL_MODE ].x,
-                              bmp_pos[ POS_PL_MODE ].y, BMP_NOFILE );
-     else if (root->GetFlags() & Playable::Enumerable)
-        bmp_draw_bitmap( hps, bmp_pos[ POS_PL_MODE ].x,
-                              bmp_pos[ POS_PL_MODE ].y, BMP_LISTPLAY );
-     else
-        bmp_draw_bitmap( hps, bmp_pos[ POS_PL_MODE ].x,
-                              bmp_pos[ POS_PL_MODE ].y, BMP_SINGLEPLAY );
+    if (!valid)
+      bmp_draw_bitmap( hps, bmp_pos[ POS_PL_MODE ].x, bmp_pos[ POS_PL_MODE ].y, BMP_NOFILE );
+    else if (flags & Playable::Enumerable)
+      bmp_draw_bitmap( hps, bmp_pos[ POS_PL_MODE ].x, bmp_pos[ POS_PL_MODE ].y, BMP_LISTPLAY );
+    else
+      bmp_draw_bitmap( hps, bmp_pos[ POS_PL_MODE ].x, bmp_pos[ POS_PL_MODE ].y, BMP_SINGLEPLAY );
   }
 }
 

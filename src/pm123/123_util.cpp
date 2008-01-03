@@ -37,140 +37,35 @@
 #include <utilfct.h>
 
 #include "pm123.h"
-#include "plugman.h"
 #include "playable.h"
 
-
 /* Constructs a string of the displayable text from the file information. */
-char*
-amp_construct_tag_string( char* result, const DECODER_INFO2* info, int size )
+xstring
+amp_construct_tag_string( const DECODER_INFO2* info )
 {
-  *result = 0;
+  // TODO: a string builder would be nice...
+  xstring result = xstring::empty;
 
   if( *info->meta->artist ) {
-    strlcat( result, info->meta->artist, size );
-    if( *info->meta->title ) {
-      strlcat( result, ": ", size );
-    }
+    result = info->meta->artist;
+    if( *info->meta->title )
+      result = result + ": ";
   }
 
-  if( *info->meta->title ) {
-    strlcat( result, info->meta->title, size );
-  }
+  if( *info->meta->title )
+    result = result + info->meta->title;
 
   if( *info->meta->album && *info->meta->year )
-  {
-    strlcat( result, " (", size );
-    strlcat( result, info->meta->album, size );
-    strlcat( result, ", ", size );
-    strlcat( result, info->meta->year,  size );
-    strlcat( result, ")",  size );
-  }
-  else
-  {
-    if( *info->meta->album && !*info->meta->year )
-    {
-      strlcat( result, " (", size );
-      strlcat( result, info->meta->album, size );
-      strlcat( result, ")",  size );
-    }
-    if( !*info->meta->album && *info->meta->year )
-    {
-      strlcat( result, " (", size );
-      strlcat( result, info->meta->year, size );
-      strlcat( result, ")",  size );
-    }
-  }
+    result = xstring::sprintf("%s (%s, %s)", result.cdata(), info->meta->album, info->meta->year);
+  else if( *info->meta->album )
+    result = xstring::sprintf("%s (%s)", result.cdata(), info->meta->album);
+  else if( *info->meta->year )
+    result = xstring::sprintf("%s (%s)", result.cdata(), info->meta->year);
 
   if( *info->meta->comment )
-  {
-    strlcat( result, " -- ", size );
-    strlcat( result, info->meta->comment, size );
-  }
+    result = xstring::sprintf("%s -- %s", result.cdata(), info->meta->comment);
 
   return result;
-}
-
-/* Constructs a information text for currently loaded file
-   and selects it for displaying. */
-void
-amp_display_filename( void )
-{
-  char display[512];
-
-  int_ptr<Song> song = amp_get_current_song();
-  DEBUGLOG(("amp_display_filename() %p %u\n", &*song, cfg.viewmode));
-  if (!song) {
-    bmp_set_text( "No file loaded" );
-    return;
-  }
-
-  switch( cfg.viewmode )
-  {
-    case CFG_DISP_ID3TAG:
-      amp_construct_tag_string( display, &song->GetInfo(), sizeof( display ));
-
-      if( *display ) {
-        bmp_set_text( display );
-        break;
-      }
-
-      // if tag is empty - use filename instead of it.
-
-    case CFG_DISP_FILENAME:
-      bmp_set_text( song->GetURL().getShortName() );
-      break;
-    
-    case CFG_DISP_FILEINFO:
-      bmp_set_text( song->GetInfo().tech->info );
-      break;
-  }
-}
-
-/* Switches to the next text displaying mode. */
-void
-amp_display_next_mode( void )
-{
-  if( cfg.viewmode == CFG_DISP_FILEINFO ) {
-    cfg.viewmode = CFG_DISP_FILENAME;
-  } else {
-    cfg.viewmode++;
-  }
-
-  amp_display_filename();
-}
-
-void DLLENTRY pm123_control( int index, void* param )
-{
-  switch (index)
-  {
-    case CONTROL_NEXTMODE:
-      amp_display_next_mode();
-      break;
-  }
-}
-
-int DLLENTRY pm123_getstring( int index, int subindex, size_t bufsize, char* buf )
-{ if (bufsize)
-    *buf = 0;
-  switch (index)
-  {
-   case STR_VERSION:
-     strlcpy( buf, AMP_FULLNAME, bufsize );
-     break;
-   case STR_DISPLAY_TEXT:
-     // TODO: reverse dependency???
-     strlcpy( buf, bmp_query_text(), bufsize );
-     break;
-   case STR_FILENAME:
-   { int_ptr<Song> song = amp_get_current_song();
-     if (song)
-       strlcpy(buf, song->GetURL(), bufsize);
-     break;
-   }
-   default: break;
-  }
- return(0);
 }
 
 /* Reads url from specified file. */
@@ -203,3 +98,4 @@ xstring amp_string_from_drghstr(HSTR hstr)
   DrgQueryStrName(hstr, len+1, ret.raw_init(len));
   return ret;
 }
+

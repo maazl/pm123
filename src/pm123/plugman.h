@@ -40,6 +40,7 @@
 #define OUTPUT_PLUGIN_LEVEL  2
 
 #include <plugin.h>
+#include <format.h>
 #include <output_plug.h>
 #include <filter_plug.h>
 #include <decoder_plug.h>

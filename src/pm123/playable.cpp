@@ -260,9 +260,7 @@ int Playable::WTid = -1;
 bool Playable::WTermRq = false;
 
 static void PlayableWorker(void*)
-{ HAB hab = WinInitialize(0);
-  HMQ hmq = WinCreateMsgQueue(hab, 0);
-  for (;;)
+{ for (;;)
   { DEBUGLOG(("PlayableWorker() looking for work\n"));
     queue<Playable::QEntry>::Reader rdr(Playable::WQueue);
     Playable::QEntry& qp = rdr;
@@ -275,8 +273,6 @@ static void PlayableWorker(void*)
     if (qp->InfoRequest)
       qp->LoadInfo((Playable::InfoFlags)qp->InfoRequest);
   }
-  WinDestroyMsgQueue(hmq);
-  WinTerminate(hab);
 }
 
 void Playable::Init()

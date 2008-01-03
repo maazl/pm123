@@ -1,8 +1,8 @@
 /*
  * Copyright 1997-2003 Samuel Audet <guardia@step.polymtl.ca>
  *                     Taneli Lepp„ <rosmo@sektori.com>
- *
  * Copyright 2004-2006 Dmitry A.Steklenev <glass@ptv.ru>
+ * Copyright 2007-2008 M.Mueller
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -63,6 +63,7 @@
 #include "messages.h"
 #include "playenumerator.h"
 #include "playlistmenu.h"
+#include "skin.h"
 
 #include <cpp/xstring.h>
 #include "url.h"
@@ -82,6 +83,7 @@
 #define  TID_UPDATE_PLAYER    ( TID_USERMAX - 2 )
 #define  TID_ONTOP            ( TID_USERMAX - 3 )
 
+
 //int       amp_playmode = AMP_NOFILE;
 
 /* Contains startup path of the program without its name.  */
@@ -98,9 +100,6 @@ static PlaylistManager*  DefaultPM = NULL;
 static PlaylistBase*     DefaultBM = NULL;
 // Most recent used entries in the load menu, representing LOADMRU.LST in the program folder.
 static int_ptr<Playlist> LoadMRU;
-
-// Default playlistmanager
-//static sco_ptr<PlaylistManager> DefaultPM;
 
 
 static HAB   hab        = NULLHANDLE;
@@ -236,7 +235,7 @@ amp_paint_fileinfo( HPS hps )
     bmp_draw_plind( hps, 0, 0 );
   }
 
-  bmp_draw_plmode  ( hps );
+  bmp_draw_plmode  ( hps, pp != NULL, pp ? pp->GetFlags() : Playable::None );
   bmp_draw_timeleft( hps );
   if (pp != NULL)
   { const TECH_INFO& tech = *pp->GetInfo().tech;
@@ -289,6 +288,81 @@ static void
 amp_set_bubbletext( USHORT id, const char *text )
 {
   WinSendDlgItemMsg( hplayer, id, WM_SETTEXT, MPFROMP(text), 0 );
+}
+
+/* Constructs a information text for currently loaded file
+   and selects it for displaying. */
+void
+amp_display_filename( void )
+{
+  int_ptr<Song> song = amp_get_current_song();
+  DEBUGLOG(("amp_display_filename() %p %u\n", &*song, cfg.viewmode));
+  if (!song) {
+    bmp_set_text( "No file loaded" );
+    return;
+  }
+
+  xstring text;
+  switch( cfg.viewmode )
+  {
+    case CFG_DISP_ID3TAG:
+      text = amp_construct_tag_string(&song->GetInfo());
+      if (text.length())
+        break;
+      // if tag is empty - use filename instead of it.
+    case CFG_DISP_FILENAME:
+      text = song->GetURL().getShortName();
+      break;
+    
+    case CFG_DISP_FILEINFO:
+      text = song->GetInfo().tech->info;
+      break;
+  }
+  bmp_set_text( text );
+}
+
+/* Switches to the next text displaying mode. */
+void
+amp_display_next_mode( void )
+{
+  if( cfg.viewmode == CFG_DISP_FILEINFO ) {
+    cfg.viewmode = CFG_DISP_FILENAME;
+  } else {
+    cfg.viewmode++;
+  }
+
+  amp_display_filename();
+}
+
+/* Begins playback of the currently loaded file from
+   the specified position. */
+static void amp_play( float pos ) {
+  DEBUGLOG(("amp_play(%f)\n", pos));
+  WinSendMsg( hplayer, AMP_PLAY, MPFROMLONG(*(int*)&pos), 0 );
+}
+
+/* Stops playback of the currently played file. */
+static void amp_stop( void ) {
+  WinSendMsg( hplayer, AMP_STOP, 0, 0 );
+}
+
+/* Suspends or resumes playback of the currently played file. */
+static void amp_pause( void ) {
+  WinSendMsg( hplayer, AMP_PAUSE, 0, 0 );
+}
+
+/* Stops playing and resets the player to its default state. */
+static void
+amp_reset( void )
+{
+  if( decoder_playing()) {
+    amp_stop();
+  }
+
+  Current.Attach(NULL);
+
+  amp_display_filename();
+  amp_invalidate( UPD_ALL );
 }
 
 /* Loads the specified playlist record into the player. */
@@ -437,7 +511,7 @@ static void amp_AddMRU(Playlist* list, size_t max, const char* URL)
 }
 
 /* Loads a standalone file or CD track to player. */
-BOOL
+void
 amp_load_playable( const char* url, int options )
 { DEBUGLOG(("amp_load_playable(%s, %x)\n", url, options));
 
@@ -456,17 +530,12 @@ amp_load_playable( const char* url, int options )
     }
     // append item
     pl->InsertItem(url, (const char*)NULL);
-    return TRUE;
+    return;
   }
   // no multi mode => always stop
   amp_stop();
     
   int_ptr<Playable> play = Playable::GetByURL(url);
-  play->EnsureInfo(Playable::IF_Status);
-  if (play->GetStatus() == STA_Invalid)
-  { amp_error(hframe, "Can't play %s.", url);
-    return FALSE;
-  }
 
   Current.Attach(play);
   // Move always to the first element.
@@ -484,8 +553,6 @@ amp_load_playable( const char* url, int options )
 
   if( !( options & AMP_LOAD_NOT_RECALL ))
     amp_AddMRU(LoadMRU, MAX_RECALL, url);
-
-  return TRUE;
 }
 
 /* Begins playback of the currently loaded file from the specified
@@ -564,23 +631,6 @@ amp_pb_pause( void )
       return;
     }
   }
-}
-
-/* Begins playback of the currently loaded file from
-   the specified position. */
-void amp_play( float pos ) {
-  DEBUGLOG(("amp_play(%f)\n", pos));
-  WinSendMsg( hplayer, AMP_PLAY, MPFROMLONG(*(int*)&pos), 0 );
-}
-
-/* Stops playback of the currently played file. */
-void amp_stop( void ) {
-  WinSendMsg( hplayer, AMP_STOP, 0, 0 );
-}
-
-/* Suspends or resumes playback of the currently played file. */
-void amp_pause( void ) {
-  WinSendMsg( hplayer, AMP_PAUSE, 0, 0 );
 }
 
 /* Shows the context menu of the playlist. */
@@ -1364,7 +1414,7 @@ amp_pipe_thread( void* scrap )
               } else if( stricmp( dork, "tag"  ) == 0 ) {
                 char info[512];
                 current->EnsureInfo(Playable::IF_All);
-                amp_pipe_write( hpipe, amp_construct_tag_string( info, &current->GetInfo(), sizeof( info )));
+                amp_pipe_write( hpipe, amp_construct_tag_string( &current->GetInfo() ).cdata() );
               } else if( stricmp( dork, "info" ) == 0 ) {
                 current->EnsureInfo(Playable::IF_Tech);
                 amp_pipe_write( hpipe, current->GetInfo().tech->info );
@@ -2605,9 +2655,9 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
     case PlaylistMenu::UM_SELECTED:
     { // bookmark selected
       const PlaylistMenu::select_data* data = (PlaylistMenu::select_data*)PVOIDFROMMP(mp1);
-      BOOL rc = amp_load_playable(data->Item->GetURL(), AMP_LOAD_NOT_PLAY|AMP_LOAD_NOT_RECALL|AMP_LOAD_KEEP_PLAYLIST);
-
-      if( rc && (cfg.playonload))
+      amp_load_playable(data->Item->GetURL(), AMP_LOAD_NOT_PLAY|AMP_LOAD_NOT_RECALL|AMP_LOAD_KEEP_PLAYLIST);
+      // TODO: there should be a more generic way to play from a specified location.
+      if( cfg.playonload )
         amp_play(data->Slice.Start);
     }
 
@@ -2781,20 +2831,6 @@ amp_sender_thread(void* param)
   WinTerminate(hab);
 }*/
 
-
-/* Stops playing and resets the player to its default state. */
-void
-amp_reset( void )
-{
-  if( decoder_playing()) {
-    amp_stop();
-  }
-
-  Current.Attach(NULL);
-
-  amp_display_filename();
-  amp_invalidate( UPD_ALL );
-}
 
 static USHORT
 amp_message_box( HWND owner, const char* title,

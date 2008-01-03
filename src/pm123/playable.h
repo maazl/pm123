@@ -36,7 +36,6 @@
 #include <cpp/event.h>
 #include <utilfct.h>
 #include <xio.h>
-#include <decoder_plug.h>
 #include <cpp/mutex.h>
 #include <cpp/smartptr.h>
 #include <cpp/xstring.h>
@@ -45,6 +44,8 @@
 #include <cpp/container.h>
 #include <strutils.h>
 #include "url.h"
+
+#include <decoder_plug.h>
 
 
 /* Status of Playable Objects and PlayableInstance.
@@ -217,10 +218,6 @@ class Playable : public Iref_Count, private IComparableTo<char>
 
  // asynchronuous request service
  private:
-  /*struct QEntry : public int_ptr<Playable> // derives operator ==
-  { InfoFlags              Request;
-    QEntry(Playable* obj, InfoFlags req) : int_ptr<Playable>(obj), Request(req) {}
-  };*/
   typedef int_ptr<Playable> QEntry;
 
  private:

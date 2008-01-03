@@ -32,7 +32,7 @@
 #ifndef  PM123_H
 #define  PM123_H
 
-#include "skin.h"
+//#include "skin.h"
 #include "plugman.h"
 #include "properties.h"
 #include "copyright.h"
@@ -40,32 +40,25 @@
 #ifdef __cplusplus
 #include <cpp/xstring.h>
 extern "C" {
-#endif
 
 
 /* Constructs a string of the displayable text from the file information. */
-char* amp_construct_tag_string( char* result, const DECODER_INFO2* info, int size );
+xstring amp_construct_tag_string( const DECODER_INFO2* info );
+#endif
+
 /* Constructs a information text for currently loaded file. */
 void  amp_display_filename( void );
 /* Switches to the next text displaying mode. */
 void  amp_display_next_mode( void );
 
 /* Loads *anything* to player. */
-BOOL  amp_load_playable( const char *url, int options );
+void  amp_load_playable( const char *url, int options );
 /* amp_load_playable options */
 #define AMP_LOAD_NOT_PLAY      0x0001 // Load a playable object, but do not start playback automatically
 #define AMP_LOAD_NOT_RECALL    0x0002 // Load a playable object, but do not add an entry into the list of recent files
 #define AMP_LOAD_KEEP_PLAYLIST 0x0004 // Play a playable object. If A playlist containing this item is loaded, the item is activated only.
 #define AMP_LOAD_APPEND        0x0008 // Take a playable object as part of multiple playable objects to load. 
 
-/* Begins playback of the currently loaded file from the specified position. */
-void  amp_play( float pos );
-/* Stops playback of the currently played file. */
-void  amp_stop( void );
-/* Suspends or resumes playback of the currently played file. */
-void  amp_pause( void );
-/* Stops playing and resets the player to its default state. */
-void  amp_reset( void );
 /* Marks the player window as needed of redrawing. */
 void  amp_invalidate( int options );
 
@@ -117,9 +110,6 @@ ULONG DLLENTRY amp_file_wizzard( HWND owner, const char* title, DECODER_WIZZARD_
 ULONG DLLENTRY amp_url_wizzard( HWND owner, const char* title, DECODER_WIZZARD_CALLBACK callback, void* param );
 
 BOOL  amp_load_eq_file( char* filename, float* gains, BOOL* mutes, float* preamp );
-
-int  DLLENTRY pm123_getstring( int index, int subindex, size_t bufsize, char* buf );
-void DLLENTRY pm123_control  ( int index, void* param );
 
 /* visualize errors from anywhere */
 extern void DLLENTRY amp_display_info ( const char* );

@@ -33,6 +33,7 @@
 #define PM123_SKIN_H
 
 #define INCL_WIN
+#include "playable.h"
 #include <os2.h>
 
 
@@ -102,7 +103,7 @@ void bmp_draw_rate( HPS hps, int rate );
 /* Draws the current playlist index. */
 void bmp_draw_plind( HPS hps, int index, int total );
 /* Draws the current playlist mode. */
-void bmp_draw_plmode( HPS hps );
+void bmp_draw_plmode( HPS hps, BOOL valid, Playable::Flags flags );
 /* Draws the current position slider. */
 void bmp_draw_slider( HPS hps, double played, double total );
 /* Draws a current displayed text using the current selected font. */
@@ -114,8 +115,6 @@ void bmp_draw_timeleft( HPS hps );
 void bmp_set_text( const char* string );
 /* Scrolls the current selected text. */
 BOOL bmp_scroll_text( void );
-/* Returns a pointer to the current selected text. */
-const char* bmp_query_text( void );
 
 /* Queries whether a point lies within a volume bar rectangle. */
 BOOL bmp_pt_in_volume( POINTL pos );
