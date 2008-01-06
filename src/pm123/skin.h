@@ -97,7 +97,7 @@ void bmp_draw_tiny_timer( HPS hps, int pos_id, double time );
 /* Draws the channels indicator. */
 void bmp_draw_channels( HPS hps, int channels );
 /* Draws the volume bar and volume slider. */
-void bmp_draw_volume( HPS hps, int volume );
+void bmp_draw_volume( HPS hps, double volume );
 /* Draws the file bitrate. */
 void bmp_draw_rate( HPS hps, int rate );
 /* Draws the current playlist index. */
@@ -109,12 +109,14 @@ void bmp_draw_slider( HPS hps, double played, double total );
 /* Draws a current displayed text using the current selected font. */
 void bmp_draw_text( HPS hps );
 /* Draws the time left and playlist left labels. */
-void bmp_draw_timeleft( HPS hps );
+void bmp_draw_timeleft( HPS hps, Playable* root );
 
 /* Sets the new displayed text. */
 void bmp_set_text( const char* string );
 /* Scrolls the current selected text. */
 BOOL bmp_scroll_text( void );
+/* Returns a pointer to the current selected text. */
+const char* bmp_query_text( void );
 
 /* Queries whether a point lies within a volume bar rectangle. */
 BOOL bmp_pt_in_volume( POINTL pos );
@@ -124,7 +126,7 @@ BOOL bmp_pt_in_text( POINTL pos );
 BOOL bmp_pt_in_slider( POINTL pos );
 
 /* Calculates a volume level on the basis of position of the pointer. */
-int  bmp_calc_volume( POINTL pos );
+double bmp_calc_volume( POINTL pos );
 /* Calculates a current seeking time on the basis of position of the pointer. */
 double bmp_calc_time( POINTL pos, double total );
 

@@ -166,10 +166,10 @@ void PlaylistMenu::CreateSubItems(MapEntry* mapp)
   { // not immediately availabe => do it later
     ResetDelegate(mapp);
   } else
-  { sco_ptr<PlayableEnumerator> pe(((PlayableCollection&)*mapp->Data.Item).GetEnumerator());
-    while (count < MAX_MENU && pe->Next())
+  { int_ptr<PlayableInstance> pi;
+    while (count < MAX_MENU && (pi = ((PlayableCollection&)*mapp->Data.Item).GetNext(pi)))
     { // Get content
-      Playable* pp = (*pe)->GetPlayable();
+      Playable* pp = pi->GetPlayable();
       DEBUGLOG(("PlaylistMenu::CreateSubItems: at %s\n", pp->GetURL().getShortName().cdata()));
       // skip invalid?
       if ((mapp->Flags & SkipInvalid) && pp->GetStatus() <= STA_Invalid)
@@ -199,9 +199,9 @@ void PlaylistMenu::CreateSubItems(MapEntry* mapp)
       // Add map entry
       MapEntry*& subp = MenuMap.get(&mi.id);
       ASSERT(subp == NULL);
-      subp = new MapEntry(mi.id, **pe, mapp->Flags, mapp->User, MIT_END);
+      subp = new MapEntry(mi.id, *pi, mapp->Flags, mapp->User, MIT_END);
       // Add menu item
-      subp->Text = (*pe)->GetDisplayName();
+      subp->Text = pi->GetDisplayName();
       if (subp->Text.length() > 30) // limit length?
         subp->Text = xstring(subp->Text, 0, 30) + "...";
       if (mapp->Flags & Enumerate) // prepend enumeration?

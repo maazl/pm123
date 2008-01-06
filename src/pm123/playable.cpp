@@ -404,39 +404,9 @@ Playable::InfoFlags Song::LoadInfo(InfoFlags what)
 
 /****************************************************************************
 *
-*  class PlayableEnumerator
-*
-****************************************************************************/
-
-void PlayableEnumerator::Reset()
-{ DEBUGLOG(("PlayableEnumerator(%p{%p})::Reset()\n", this, Current));
-  Current = NULL;
-}
-
-
-/****************************************************************************
-*
 *  class PlayableCollection
 *
 ****************************************************************************/
-
-bool PlayableCollection::Enumerator::Prev()
-{ DEBUGLOG(("PlayableCollection::Enumerator(%p{%p,->{%s}})::Prev()\n", this, Current, Parent->GetURL().getShortName().cdata()));
-  Current = Current ? ((Entry*)Current)->Prev : Parent->Tail;
-  DEBUGLOG(("PlayableCollection::Enumerator(%p)::Prev() - %p\n", this, Current));
-  return IsValid();
-}
-
-bool PlayableCollection::Enumerator::Next()
-{ DEBUGLOG(("PlayableCollection::Enumerator(%p{%p,->{%s}})::Next()\n", this, Current, Parent->GetURL().getShortName().cdata()));
-  Current = Current ? ((Entry*)Current)->Next : Parent->Head;
-  DEBUGLOG(("PlayableCollection::Enumerator(%p)::Next() - %p\n", this, Current));
-  return IsValid();
-}
-
-PlayableEnumerator* PlayableCollection::Enumerator::Clone() const
-{ return new Enumerator(*this);
-}
 
 const FORMAT_INFO2 PlayableCollection::no_format =
 { sizeof(FORMAT_INFO2),
@@ -627,10 +597,16 @@ void PlayableCollection::CalcTechInfo(TECH_INFO& dst)
   }
 }
 
-PlayableEnumerator* PlayableCollection::GetEnumerator()
-{ DEBUGLOG(("PlayableCollection(%p{%s})::GetEnumerator()\n", this, GetURL().getShortName().cdata()));
-  EnsureInfo(IF_Other);
-  return new Enumerator(this);
+int_ptr<PlayableInstance> PlayableCollection::GetPrev(PlayableInstance* cur) const
+{ DEBUGLOG(("PlayableCollection(%p)::Prev(%p{%s})\n", this, cur, cur ? cur->GetPlayable()->GetURL().cdata() : ""));
+  ASSERT(InfoValid & IF_Other);
+  return (PlayableInstance*)(cur ? ((Entry*)cur)->Prev : Tail);
+}
+
+int_ptr<PlayableInstance> PlayableCollection::GetNext(PlayableInstance* cur) const
+{ DEBUGLOG(("PlayableCollection(%p)::Next(%p{%s})\n", this, cur, cur ? cur->GetPlayable()->GetURL().cdata() : ""));
+  ASSERT(InfoValid & IF_Other);
+  return (PlayableInstance*)(cur ? ((Entry*)cur)->Next : Head);
 }
 
 Playable::InfoFlags PlayableCollection::LoadInfo(InfoFlags what)
@@ -678,10 +654,9 @@ bool PlayableCollection::SaveLST(XFILE* of, bool relative)
             "#\n", of);
   // Content
   Mutex::Lock lock(Mtx);
-  sco_ptr<PlayableEnumerator> pe(GetEnumerator());
-  while (pe->Next())
-  { PlayableInstance* pi = *pe;
-    Playable* pp = pi->GetPlayable();
+  int_ptr<PlayableInstance> pi;
+  while ((pi = GetNext(pi)) != NULL)
+  { Playable* pp = pi->GetPlayable();
     // alias
     if (pi->GetAlias())
     { xio_fputs("#ALIAS ", of);
@@ -765,9 +740,9 @@ bool PlayableCollection::SaveLST(XFILE* of, bool relative)
 bool PlayableCollection::SaveM3U(XFILE* of, bool relative)
 { DEBUGLOG(("PlayableCollection(%p{%s})::SaveM3U(%p, %u)\n", this, GetURL().cdata(), of, relative));
   Mutex::Lock lock(Mtx);
-  sco_ptr<PlayableEnumerator> pe(GetEnumerator());
-  while (pe->Next())
-  { Playable* pp = (*pe)->GetPlayable();
+  int_ptr<PlayableInstance> pi;
+  while ((pi = GetNext(pi)) != NULL)
+  { Playable* pp = pi->GetPlayable();
     // Object name
     xstring object = pp->GetURL().makeRelative(GetURL(), relative);
     const char* cp = object;

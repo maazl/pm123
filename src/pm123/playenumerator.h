@@ -51,23 +51,12 @@ class RecursiveEnumerator
   int_ptr<Playable>            Root;
   sco_ptr<RecursiveEnumerator> SubIterator;
   bool                         Valid;
-  // vars to handle asynchronuous deletion (only valid for PlayableCollection objects)
-  // Enumerator PrevEnum. NextEnum.  Valid  State
-  //   Reset      NULL      NULL     false  before start or at the end
-  // ->Current    NULL      NULL     true   at an item
-  //   Reset     ->Prev    ->Next    true   current item deleted, previous and next item prefetched
-  //            or Reset  or Reset
-  sco_ptr<PlayableEnumerator>  Enumerator;
-  sco_ptr<PlayableEnumerator>  PrevEnumerator;
-  sco_ptr<PlayableEnumerator>  NextEnumerator;
-  class_delegate<RecursiveEnumerator, const PlayableCollection::change_args> ListUpdateDelegate;
+  int_ptr<PlayableInstance>    Current;
 
  protected:
   RecursiveEnumerator(RecursiveEnumerator* parent = NULL);
   // Factory Function to initialize SubIterator
   virtual void                 InitNextLevel() = 0;
-  // Callback when the current list context changes.
-  virtual void                 ListUpdateFn(const PlayableCollection::change_args& args);
   // Fetch the previous element from the PlayableCollection, even if the current object already died.
   // The Function must be called while the underlying list is locked.
   virtual void                 PrevEnum();

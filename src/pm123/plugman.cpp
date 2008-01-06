@@ -302,10 +302,8 @@ ULONG dec_stop( void )
 
 /* set fast forward/rewind mode */
 ULONG dec_fast( DECFASTMODE mode )
-{ if (voutput.dparams.fast != mode)
-  { voutput.dparams.fast = mode;
-    voutput.dec_command( DECODER_FFWD );
-  }
+{ voutput.dparams.fast = mode;
+  voutput.dec_command( DECODER_FFWD );
   return 0;
 }
 
@@ -1032,56 +1030,6 @@ int out_set_active( int number )
 { return outputs.set_active(number) -1;
 }
 
-
-static void DLLENTRY pm123_control( int index, void* param )
-{
-  switch (index)
-  {
-    case CONTROL_NEXTMODE:
-      amp_display_next_mode();
-      break;
-  }
-}
-
-static int DLLENTRY pm123_getstring( int index, int subindex, size_t bufsize, char* buf )
-{ if (bufsize)
-    *buf = 0;
-  switch (index)
-  {case STR_VERSION:
-    strlcpy( buf, AMP_FULLNAME, bufsize );
-    break;
-
-   case STR_DISPLAY_TEXT:
-    { int_ptr<Song> song = amp_get_current_song();
-      xstring text;
-      switch( cfg.viewmode )
-      {case CFG_DISP_ID3TAG:
-        text = amp_construct_tag_string(&song->GetInfo());
-        if (text.length())
-          break;
-        // if tag is empty - use filename instead of it.
-       case CFG_DISP_FILENAME:
-        text = song->GetURL().getShortName();
-        break;
-      
-       case CFG_DISP_FILEINFO:
-        text = song->GetInfo().tech->info;
-        break;
-      }
-      strlcpy( buf, text, bufsize );
-    }
-    break;
-
-   case STR_FILENAME:
-   { int_ptr<Song> song = amp_get_current_song();
-     if (song)
-       strlcpy(buf, song->GetURL(), bufsize);
-     break;
-   }
-   default: break;
-  }
- return(0);
-}
 
 /* Initializes the specified visual plug-in. */
 BOOL vis_init( int i )

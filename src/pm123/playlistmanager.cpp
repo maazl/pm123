@@ -297,7 +297,7 @@ PlaylistBase::IC PlaylistManager::GetRecordUsage(RecordBase* rec)
     return IC_Normal;
   }
   // Check wether the current call stack is the same as for the current Record ...
-  const Playable* root = amp_get_current_root(); // We need no ownership here, since we only compare the reference
+  const Playable* root = Ctrl::GetRoot(); // We need no ownership here, since we only compare the reference
   do
   { if (rec->Data->Content->GetPlayable() == root)
     { // We are a the current root, so the call stack compared equal.

@@ -139,12 +139,6 @@
 #define MSG_JUMP              6
 #define MSG_SAVE              7
 
-/* amp_invalidate options */
-#define UPD_TIMERS           0x0001
-#define UPD_FILEINFO         0x0002
-#define UPD_DELAYED          0x8000
-#define UPD_ALL              0x7FFF
-
 /* file dialog additional flags */
 #define FDU_DIR_ENABLE       0x0001
 #define FDU_RECURSEBTN       0x0002

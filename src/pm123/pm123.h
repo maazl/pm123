@@ -32,7 +32,6 @@
 #ifndef  PM123_H
 #define  PM123_H
 
-//#include "skin.h"
 #include "plugman.h"
 #include "properties.h"
 #include "copyright.h"
@@ -51,8 +50,12 @@ void  amp_display_filename( void );
 /* Switches to the next text displaying mode. */
 void  amp_display_next_mode( void );
 
+void  DLLENTRY pm123_control( int index, void* param );
+
+int   DLLENTRY pm123_getstring( int index, int subindex, size_t bufsize, char* buf );
+
 /* Loads *anything* to player. */
-void  amp_load_playable( const char *url, int options );
+void  amp_load_playable( const char *url, double start, int options );
 /* amp_load_playable options */
 #define AMP_LOAD_NOT_PLAY      0x0001 // Load a playable object, but do not start playback automatically
 #define AMP_LOAD_NOT_RECALL    0x0002 // Load a playable object, but do not add an entry into the list of recent files
@@ -61,6 +64,11 @@ void  amp_load_playable( const char *url, int options );
 
 /* Marks the player window as needed of redrawing. */
 void  amp_invalidate( int options );
+/* amp_invalidate options */
+#define UPD_TIMERS           0x0001
+#define UPD_FILEINFO         0x0002
+#define UPD_DELAYED          0x8000
+#define UPD_ALL              0x7FFF
 
 /* Posts a message to the player window. */
 BOOL  amp_post_message( ULONG msg, MPARAM mp1, MPARAM mp2 );
@@ -82,25 +90,8 @@ BOOL  amp_warn_if_overwrite( HWND owner, const char* filename );
 /* Tells the help manager to display a specific help window. */
 void  amp_show_help( SHORT resid );
 
-/* Adds HTTP file to the playlist or load it to the player. */
-//void  amp_add_url( HWND owner, int options );
-/* Adds CD tracks to the playlist or load one to the player. */
-/*void  amp_add_tracks( HWND owner, int options );*/
-/* Adds user selected files or directory to the playlist. */
-//void  amp_add_files( HWND owner );
-
-/* Saves current playlist to the file specified by user. */
-//void  amp_save_list_as( HWND owner, int options );
-/* Loads a playlist selected by the user to the player. */
-//void  amp_load_list( HWND owner );
-/* Loads a file selected by the user to the player. */
-//void  amp_load_file( HWND owner );
-
 /* Edits a information for the specified file. */
 void  amp_info_edit( HWND owner, const char* filename, const char* decoder );
-
-/* Adjusts audio volume to level accordingly current playing mode. */
-void  amp_volume_adjust( void );
 
 /* Default dialog procedure for the file dialog. */
 MRESULT EXPENTRY amp_file_dlg_proc( HWND, ULONG, MPARAM, MPARAM );
@@ -123,17 +114,11 @@ xstring amp_url_from_file(const char* filename);
 /* Reads an String from a drag and drop structure */
 xstring amp_string_from_drghstr(HSTR hstr);
 
-#include "playable.h"
-/* Returns a information block of the currently loaded file or NULL if none. */
-int_ptr<Song>     amp_get_current_song();
-int_ptr<Playable> amp_get_current_root(); 
 extern "C" {
 #endif
 
 
 /* Global variables */
-
-//extern int      amp_playmode; /* Play mode        */
 
 /* Contains startup path of the program without its name. */
 extern char startpath[_MAX_PATH];

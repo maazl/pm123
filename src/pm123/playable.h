@@ -85,7 +85,7 @@ class Playable : public Iref_Count, private IComparableTo<char>
     IF_Format   = 0x01,// applies to GetInfo().format
     IF_Tech     = 0x02,// applies to GetInfo().tech
     IF_Meta     = 0x04,// applies to GetInfo().meta
-    IF_Other    = 0x08,// applies e.g. to PlayableCollection::GetEnumerator()
+    IF_Other    = 0x08,// applies e.g. to PlayableCollection::GetNext()
     IF_Status   = 0x10,// applies to GetStatus() and IsModified()
     IF_All      = IF_Format|IF_Tech|IF_Meta|IF_Other|IF_Status
   };
@@ -354,45 +354,6 @@ class Song : public Playable
 };
 
 
-/* Interface to enumerate the content of a Playlist or something like that.
- * The Enumerator is a bidirectional enumerator. Instances of this class are not
- * thread-safe.
- * Initially the Enumerator is before the start of the list, i.e. IsValid() returns false.
- * You must call Next() or Prev() to move to the first or last element respectively.
- * Remember that calling Prev() and then Next() is not neccessarily a no-op, when the underlying
- * collection is multi-threaded.
- */
-class PlayableEnumerator
-{protected:
-  // For performance reasons we do this jobs in the base class.
-  PlayableInstance*   Current;
- protected:
-  PlayableEnumerator::PlayableEnumerator() : Current(NULL) {}
- public:
-  virtual ~PlayableEnumerator() {}
-  // Check wether dereferencing the enumerator is currently allowed.
-  // The return value of this function is identical to that of the last call to Next() or Prev().
-  // It is always false if neither Next() nor Prev() have been called so far.
-  bool IsValid() const { return Current != NULL; }
-  // Dereference this instance. Calling this function is undefined when IsValid() returns false.
-  PlayableInstance& operator*() const { return *Current; }
-  // Shortcut for structured objects.
-  PlayableInstance* operator->() const { return Current; }
-  operator PlayableInstance*() const { return Current; }
-  // Reset the current enumerator to it's initial state before the first element.
-  virtual void Reset();
-  // Move to the pervious element. If the enumerator is initial Prev() moves to the last element.
-  // The function returns false if there are no more elements.
-  // The function is non-blocking.
-  virtual bool Prev() = 0;
-  // Move to the next element. If the enumerator is initial Prev() moves to the first element.
-  // The function returns false if there are no more elements.
-  // The function is non-blocking.
-  virtual bool Next() = 0;
-  // clone the current enumerator instance
-  virtual PlayableEnumerator* Clone() const = 0;
-};
-
 /* Abstract class representing a collection of PlayableInstances.
  */
 class PlayableCollection : public Playable
@@ -414,24 +375,6 @@ class PlayableCollection : public Playable
     change_args(PlayableCollection& coll, PlayableInstance& item, change_type type)
     : Collection(coll), Item(item), Type(type) {}
   };
-  class Enumerator : public PlayableEnumerator
-  {private:
-    int_ptr<PlayableCollection> Parent;
-
-   private:
-    Enumerator(const PlayableEnumerator& r);
-   public:
-    Enumerator(PlayableCollection* list) : Parent(list) {}
-    // Move to the pervious element. If the enumerator is initial Prev() moves to the last element.
-    // The function returns false if there are no more elements.
-    virtual bool Prev();
-    // Move to the next element. If the enumerator is initial Prev() moves to the first element.
-    // The function returns false if there are no more elements.
-    virtual bool Next();
-    // clone the current enumerator instance
-    virtual PlayableEnumerator* Clone() const;
-  };
-  friend class Enumerator;
   typedef int (*ItemComparer)(const PlayableInstance* l, const PlayableInstance* r);  
  protected:
   struct Entry : public PlayableInstance
@@ -446,7 +389,7 @@ class PlayableCollection : public Playable
       TechDelegate(playable->InfoChange, parent, fn)
     {}
     // Detach a PlayableInstance from the collection.
-    // This function must be called only by the parent collection and oly while it is locked.
+    // This function must be called only by the parent collection and only while it is locked.
     void Detach()             { Parent = NULL; }
   };
 
@@ -498,14 +441,15 @@ class PlayableCollection : public Playable
   // This is the behaviour of a read-only or a synchronized collection.
   virtual bool                IsModified() const;
 
-  // Get an enumerator for this instance.
-  // Generally you must delete the returned instance once you don't need it anymore.
-  // It is recommended to use sco_ptr for this purpose.
-  // Since the enumeration process is intrinsically not thread-safe you have to lock this collection
-  // during enumeration. Alternatively you have to catch the remove events of the current item.
-  // and do the Prev/Next operations together with the assignment of the remove events while
-  // you locked the collection.
-  virtual PlayableEnumerator* GetEnumerator();
+  // Iterate over the collection. While the following functions are atomic and therefore thread-safe
+  // the iteration itself is not because the collection may change at any time.
+  // Calling these function is not valid until the information IF_Other is loaded. 
+  // Get previous item of this collection. Passing NULL will return the last item.
+  // The function returns NULL if ther are no more items.
+  virtual int_ptr<PlayableInstance> GetPrev(PlayableInstance* cur) const;
+  // Get next item of this collection. Passing NULL will return the first item.
+  // The function returns NULL if ther are no more items.
+  virtual int_ptr<PlayableInstance> GetNext(PlayableInstance* cur) const;
   // Load Information from URL
   // This implementation is only the framework. It reqires LoadInfoCore() for it's work.
   virtual InfoFlags           LoadInfo(InfoFlags what);

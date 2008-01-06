@@ -34,57 +34,22 @@
 
 RecursiveEnumerator::RecursiveEnumerator(RecursiveEnumerator* parent)
 : Parent(parent),
-  Valid(false),
-  ListUpdateDelegate(*this, &PlayEnumerator::ListUpdateFn)
+  Valid(false)
 { DEBUGLOG(("RecursiveEnumerator(%p)::RecursiveEnumerator(%p)\n", this, parent));
 }
 
-void RecursiveEnumerator::ListUpdateFn(const PlayableCollection::change_args& args)
-{ DEBUGLOG(("RecursiveEnumerator(%p)::ListUpdateFn({%p,%p,%u}) - \n", this, &args.Collection, &args.Item, args.Type));
-  // for now we only handle delete events
-  if (args.Type != PlayableCollection::Delete)
-    return;
-  // Note: there is a little chance that we get here while *this is no longer attached to the
-  // sender of the event. In this case we simply ignore the event.
-  if (!Valid || &args.Collection != &*Root)
-    return; // not valid or different object
-  // check wether we have references to the deleted object
-  if (&**Enumerator == &args.Item)
-  { // current item is about to be deleted => prefetch Prev and Next
-    PrevEnumerator = Enumerator->Clone();
-    PrevEnumerator->Prev();
-    NextEnumerator = Enumerator->Clone();
-    NextEnumerator->Next();
-    Enumerator->Reset();
-  } else if (PrevEnumerator != NULL && &**PrevEnumerator == &args.Item)
-  { // prefetched previous item is about to be deleted => prefetch the item before
-    PrevEnumerator->Prev();
-  } else if (NextEnumerator != NULL && &**NextEnumerator == &args.Item)
-  { // prefetched next item is about to be deleted => prefetch the next item
-    NextEnumerator->Next();
-  }
-}
-
 void RecursiveEnumerator::PrevEnum()
-{ DEBUGLOG(("RecursiveEnumerator(%p)::PrevEnum() - %p %p %p\n", this, &*Enumerator, &*PrevEnumerator, &*NextEnumerator));
-  if (PrevEnumerator != NULL)
-  { Enumerator = PrevEnumerator;
-    PrevEnumerator = NULL;
-    NextEnumerator = NULL;
-  } else
-  { Enumerator->Prev();
-  }
+{ DEBUGLOG(("RecursiveEnumerator(%p)::PrevEnum() - %p\n", this, &*Current));
+  do
+    Current = ((PlayableCollection&)*Root).GetPrev(Current);
+  while (Current && !Current->IsParent((PlayableCollection*)&*Root));
 }
 
 void RecursiveEnumerator::NextEnum()
-{ DEBUGLOG(("RecursiveEnumerator(%p)::NextEnum() - %p %p %p\n", this, &*Enumerator, &*PrevEnumerator, &*NextEnumerator));
-  if (NextEnumerator != NULL)
-  { Enumerator = NextEnumerator;
-    PrevEnumerator = NULL;
-    NextEnumerator = NULL;
-  } else
-  { Enumerator->Next();
-  }
+{ DEBUGLOG(("RecursiveEnumerator(%p)::NextEnum() - %p\n", this, &*Current));
+  do
+    Current = ((PlayableCollection&)*Root).GetNext(Current);
+  while (Current && !Current->IsParent((PlayableCollection*)&*Root));
 }
 
 RecursiveEnumerator* RecursiveEnumerator::RecursionCheck(const Playable* item)
@@ -100,18 +65,15 @@ RecursiveEnumerator* RecursiveEnumerator::RecursionCheck(const Playable* item)
 
 void RecursiveEnumerator::Attach(Playable* play)
 { DEBUGLOG(("RecursiveEnumerator(%p)::Attach(%p{%s})\n", this, play, play ? play->GetURL().cdata() : "n/a"));
-  ListUpdateDelegate.detach();
   Reset();
-  SubIterator    = NULL;
-  Enumerator     = NULL;
-  ASSERT(PrevEnumerator == NULL && NextEnumerator == NULL);
+  SubIterator = NULL;
+  Current     = NULL;
   Root = play;
   if (Root && (Root->GetFlags() & Playable::Enumerable))
   { Mutex::Lock lock(Root->Mtx);
-    Enumerator = ((PlayableCollection&)*Root).GetEnumerator();
+    // TODO: is this the right place ?
+    Root->EnsureInfo(Playable::IF_Other);
     InitNextLevel();
-    ((PlayableCollection&)*Root).CollectionChange += ListUpdateDelegate;
-    DEBUGLOG(("RecursiveEnumerator::Attach - %p, %p\n", &*SubIterator, &*Enumerator));
   }
 }
 
@@ -119,10 +81,7 @@ void RecursiveEnumerator::Reset()
 { DEBUGLOG(("RecursiveEnumerator(%p)::Reset()\n", this));
   Valid = false;
   if (SubIterator != NULL)
-  { Enumerator->Reset();
-    PrevEnumerator = NULL;
-    NextEnumerator = NULL;
-  }
+    Current = NULL;
 }
 
 
@@ -177,7 +136,7 @@ int_ptr<Song> PlayEnumerator::PrevNextCore(int_ptr<Song> (PlayEnumerator::*subfn
   // next item
   { Mutex::Lock lock(Root->Mtx);
     (this->*enumfn)();
-    if (!Enumerator->IsValid())
+    if (Current == NULL)
     { // no more
       lock.Release();
       Valid = false;
@@ -185,7 +144,7 @@ int_ptr<Song> PlayEnumerator::PrevNextCore(int_ptr<Song> (PlayEnumerator::*subfn
       DEBUGLOG(("PlayEnumerator::PrevNextCore : last item\n"));
       return NULL;
     }
-    current = (*Enumerator)->GetPlayable();
+    current = Current->GetPlayable();
   }
   DEBUGLOG(("PlayEnumerator::PrevNextCore : next item - %p\n", &*current));
   if (RecursionCheck(current))
@@ -212,9 +171,10 @@ PlayEnumerator::Status PlayEnumerator::GetStatus() const
     // TODO: count is wrong in case of a recursion
     // look for subitems
     Mutex::Lock lock(Root->Mtx);
-    sco_ptr<PlayableEnumerator> pe((NextEnumerator != NULL ? NextEnumerator : Enumerator)->Clone());
-    while (pe->Prev())
-    { tech = *(*pe)->GetPlayable()->GetInfo().tech;
+    // TODO: Current->Next may also be deleted
+    int_ptr<PlayableInstance> pi(Current);
+    while ((pi = ((PlayableCollection&)*Root).GetPrev(pi)) != NULL)
+    { tech = *pi->GetPlayable()->GetInfo().tech;
       if (s.CurrentTime >= 0)
       { if (tech.songlength >= 0)
         { s.CurrentTime += tech.songlength;
@@ -247,32 +207,32 @@ void StatusPlayEnumerator::InitNextLevel()
 }
 
 void StatusPlayEnumerator::PrevEnum()
-{ DEBUGLOG(("StatusPlayEnumerator(%p)::PrevEnum() - %p\n", this, &*Enumerator));
+{ DEBUGLOG(("StatusPlayEnumerator(%p)::PrevEnum() - %p\n", this, &*Current));
   // Remove in use flag from the last item unless the item itself has been removed.
-  if (Enumerator->IsValid())
-    (*Enumerator)->SetInUse(false);
+  if (Current)
+    Current->SetInUse(false);
   PlayEnumerator::PrevEnum();
   // Set in use flag of the new item if any.
-  if (Enumerator->IsValid())
-    (*Enumerator)->SetInUse(true);
+  if (Current)
+    Current->SetInUse(true);
 }
 
 void StatusPlayEnumerator::NextEnum()
-{ DEBUGLOG(("StatusPlayEnumerator(%p)::NextEnum() - %p\n", this, &*Enumerator));
+{ DEBUGLOG(("StatusPlayEnumerator(%p)::NextEnum() - %p\n", this, &*Current));
   // Remove in use flag from the last item unless the item itself has been removed.
-  if (Enumerator->IsValid())
-    (*Enumerator)->SetInUse(false);
+  if (Current)
+    Current->SetInUse(false);
   PlayEnumerator::NextEnum();
   // Set in use flag of the new item if any.
-  if (Enumerator->IsValid())
-    (*Enumerator)->SetInUse(true);
+  if (Current)
+    Current->SetInUse(true);
 }
 
 void StatusPlayEnumerator::Reset()
-{ DEBUGLOG(("StatusPlayEnumerator(%p)::Reset() - %p\n", this, &*Enumerator));
+{ DEBUGLOG(("StatusPlayEnumerator(%p)::Reset() - %p\n", this, &*Current));
   // Remove in use flag from the last item unless the item itself has been removed.
-  if (SubIterator != NULL && Enumerator->IsValid())
-    (*Enumerator)->SetInUse(false);
+  if (SubIterator != NULL && Current)
+    Current->SetInUse(false);
   PlayEnumerator::Reset();
 }
 

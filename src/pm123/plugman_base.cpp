@@ -546,15 +546,18 @@ proxy_1_decoder_command( CL_DECODER_PROXY_1* op, void* w, ULONG msg, DECODER_PAR
    case DECODER_FFWD:
    case DECODER_REW:
     DEBUGLOG(("proxy_1_decoder_command:DECODER_FFWD: %u\n", params->fast));
+    if (op->lastfast && params->fast)
+    { // changing direction requires two commands
+      msg = op->lastfast == DECFAST_REWIND ? DECODER_REW : DECODER_FFWD;
+      par1.ffwd              = FALSE;
+      par1.rew               = FALSE;
+      (*op->vdecoder_command)(w, msg, &par1);
+      op->lastfast = params->fast;
+    }
     par1.ffwd                = params->fast == DECFAST_FORWARD;
     par1.rew                 = params->fast == DECFAST_REWIND;
-    if (params->fast != DECFAST_NORMAL_PLAY)
-      op->lastfast = params->fast;
-    if (op->lastfast == DECFAST_FORWARD)
-      msg = DECODER_FFWD;
-     else if (op->lastfast == DECFAST_REWIND)
-      msg = DECODER_REW;
-    op->temppos = out_playing_pos();
+    msg = (op->lastfast|params->fast) == DECFAST_REWIND ? DECODER_REW : DECODER_FFWD;
+    op->temppos  = out_playing_pos();
     op->lastfast = params->fast;
     break;
 

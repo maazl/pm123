@@ -40,6 +40,7 @@
 
 #define DECODER_PLUGIN_LEVEL 2
 #include "playable.h"
+#include "controller.h"
 #include <decoder_plug.h>
 #include <os2.h>
 
@@ -225,7 +226,7 @@ class PlaylistBase : public IComparableTo<char>
   PlayableCollection::ItemComparer SortComparer; // Current comparer for next sort operation
  private:
   class_delegate2<PlaylistBase, const Playable::change_args, RecordBase*> RootInfoDelegate;
-  class_delegate<PlaylistBase, const bool> RootPlayStatusDelegate;
+  class_delegate<PlaylistBase, const Ctrl::EventFlags> RootPlayStatusDelegate;
   //TID               ThreadID;
   bool              InitialVisible;
   int               Initialized;
@@ -330,7 +331,7 @@ class PlaylistBase : public IComparableTo<char>
   // This function is called when status information of a PlayableInstance changes.
   void              StatChangeEvent(const PlayableInstance::change_args& inst, RecordBase* rec);
   // This function is called when playing starts or stops.
-  void              PlayStatEvent(const bool& status);
+  void              PlayStatEvent(const Ctrl::EventFlags& flags);
 
  protected: // User actions
   // Select a list with a file dialog.

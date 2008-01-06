@@ -49,7 +49,6 @@
 #include "pm123.rc.h"
 #include "docking.h"
 #include "iniman.h"
-#include "messages.h" // PlayStatusChange event
 
 #include <stdarg.h>
 #include <snprintf.h>
@@ -250,7 +249,7 @@ void PlaylistBase::InitDlg()
 
   // register events
   Content->InfoChange += RootInfoDelegate;
-  PlayStatusChange += RootPlayStatusDelegate;
+  Ctrl::ChangeEvent += RootPlayStatusDelegate;
 
   SetTitle();
 
@@ -428,12 +427,12 @@ MRESULT PlaylistBase::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
       }
       switch (SHORT1FROMMP(mp1))
       {case IDM_PL_USEALL:
-        { amp_load_playable(Content->GetURL(), 0);
+        { amp_load_playable(Content->GetURL(), 0, 0);
           return 0;
         }
        case IDM_PL_USE:
         { for (RecordBase** rpp = Source.begin(); rpp != Source.end(); ++rpp)
-            amp_load_playable((*rpp)->Data->Content->GetPlayable()->GetURL(), Source.size() > 1 ? AMP_LOAD_APPEND : 0);
+            amp_load_playable((*rpp)->Data->Content->GetPlayable()->GetURL(), (*rpp)->Data->Content->GetSlice().Start, Source.size() > 1 ? AMP_LOAD_APPEND : 0);
           return 0;
         }
        case IDM_PL_TREEVIEWALL:
@@ -773,23 +772,23 @@ void PlaylistBase::UpdateChildren(RecordBase* const rp)
   { // Now check what should be in the container
     DEBUGLOG(("PlaylistBase::UpdateChildren - check container.\n"));
     Mutex::Lock lock(pp->Mtx); // Lock the collection
-    sco_ptr<PlayableEnumerator> ep(((PlayableCollection*)pp)->GetEnumerator());
+    int_ptr<PlayableInstance> pi;
     crp = NULL; // Last entry, insert new items after that.
-    while (ep->Next())
+    while ((pi = ((PlayableCollection*)pp)->GetNext(pi)) != NULL)
     { // Find entry in the current content
       RecordBase** orpp = old.begin();
       for (;;)
       { if (orpp == old.end())
         { // not found! => add
-          DEBUGLOG(("PlaylistBase::UpdateChildren - not found: %p{%s}\n", &**ep, (*ep)->GetPlayable()->GetURL().getShortName().cdata()));
-          crp = AddEntry(&**ep, rp, crp);
+          DEBUGLOG(("PlaylistBase::UpdateChildren - not found: %p{%s}\n", &*pi, pi->GetPlayable()->GetURL().getShortName().cdata()));
+          crp = AddEntry(pi, rp, crp);
           if (crp && (rp == NULL || (rp->flRecordAttr & CRA_EXPANDED)))
             RequestChildren(crp);
           break;
         }
-        if ((*orpp)->Data->Content == &**ep)
+        if ((*orpp)->Data->Content == pi)
         { // found!
-          DEBUGLOG(("PlaylistBase::UpdateChildren - found: %p{%s} at %u\n", &**ep, (*ep)->GetPlayable()->GetURL().getShortName().cdata(), orpp - old.begin()));
+          DEBUGLOG(("PlaylistBase::UpdateChildren - found: %p{%s} at %u\n", &*pi, pi->GetPlayable()->GetURL().getShortName().cdata(), orpp - old.begin()));
           if (orpp == old.begin())
             // already in right order
             crp = *orpp;
@@ -957,12 +956,14 @@ void PlaylistBase::StatChangeEvent(const PlayableInstance::change_args& args, Re
     PostRecordCommand(rec, RC_UPDATEPOS);
 }
 
-void PlaylistBase::PlayStatEvent(const bool& status)
-{ // Cancel any outstanding UM_PLAYSTATUS ...
-  QMSG qmsg;
-  WinPeekMsg(amp_player_hab(), &qmsg, HwndFrame, UM_PLAYSTATUS, UM_PLAYSTATUS, PM_REMOVE);
-  // ... and send a new one.
-  PMRASSERT(WinPostMsg(HwndFrame, UM_PLAYSTATUS, MPFROMLONG(status), 0));
+void PlaylistBase::PlayStatEvent(const Ctrl::EventFlags& flags)
+{ if (flags & Ctrl::EV_PlayStop)
+  { // Cancel any outstanding UM_PLAYSTATUS ...
+    QMSG qmsg;
+    WinPeekMsg(amp_player_hab(), &qmsg, HwndFrame, UM_PLAYSTATUS, UM_PLAYSTATUS, PM_REMOVE);
+    // ... and send a new one.
+    PMRASSERT(WinPostMsg(HwndFrame, UM_PLAYSTATUS, MPFROMLONG(Ctrl::IsPlaying()), 0));
+  }
 }
 
 

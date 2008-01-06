@@ -83,7 +83,7 @@ class PlaylistMenu
     select_data(const PlayableInstance& data)
      : Item(data.GetPlayable()), Alias(data.GetAlias()), Slice(data.GetSlice()) {}
     select_data(Playable* data)
-     : Item(data), Alias() {}
+     : Item(data) {}
   };
 
  private:

@@ -43,9 +43,9 @@ inline static T operator|(T l, T r) \
 inline static T operator&(T l, T r) \
 { return (T)((int)l&r); } \
 inline static T& operator|=(T& l, T r) \
-{ (int&)l |= r; return l; } \
+{ return l = (T)((int)l|r); } \
 inline static T& operator&=(T& l, T r) \
-{ (int&)l &= r; return l; } \
+{ return l = (T)((int)l&r); } \
 inline static T operator*(bool l, T r) \
 { return (T)(l*(int)r); } \
 inline static T operator*(T l, bool r) \

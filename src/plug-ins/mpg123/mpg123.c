@@ -281,7 +281,7 @@ end:
 
   DosPostEventSem   ( w->ok    );
   DosReleaseMutexSem( w->mutex );
-  _endthread();
+  // _endthread(); // implicit on return
 }
 
 /* Init function is called when PM123 needs the specified decoder to play

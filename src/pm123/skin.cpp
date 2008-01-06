@@ -900,6 +900,13 @@ bmp_set_text( const char* string )
   vis_broadcast( WM_PLUGIN_CONTROL, MPFROMLONG( PN_TEXTCHANGED ), 0 );
 }
 
+/* Returns a pointer to the current selected text. */
+const char*
+bmp_query_text( void )
+{
+  return s_display;
+}
+
 /* Scrolls the current selected text. */
 BOOL
 bmp_scroll_text( void )
@@ -1116,9 +1123,9 @@ bmp_draw_channels( HPS hps, int channels )
 
 /* Draws the volume bar and volume slider. */
 void
-bmp_draw_volume( HPS hps, int volume )
+bmp_draw_volume( HPS hps, double volume )
 {
-  DEBUGLOG(("bmp_draw_volume(%p, %i)\n", hps, volume));
+  DEBUGLOG(("bmp_draw_volume(%p, %f)\n", hps, volume));
 
   int x = bmp_pos[ POS_VOLBAR ].x;
   int y = bmp_pos[ POS_VOLBAR ].y;
@@ -1128,17 +1135,16 @@ bmp_draw_volume( HPS hps, int volume )
     return;
   }
 
-  if( volume < 0   ) {
+  if( volume < 0 ) {
     volume = 0;
-  }
-  if( volume > 100 ) {
-    volume = 100;
+  } else if( volume > 1 ) {
+    volume = 1;
   }
 
   if( !bmp_ulong[ UL_VOLUME_SLIDER ])
   {
-    xo = bmp_ulong[ UL_VOLUME_HRZ ] ? volume * bmp_cx( BMP_VOLBAR ) / 100 : 0;
-    yo = bmp_ulong[ UL_VOLUME_HRZ ] ? 0 : volume * bmp_cy( BMP_VOLBAR ) / 100;
+    xo = bmp_ulong[ UL_VOLUME_HRZ ] ? (int)(volume * bmp_cx( BMP_VOLBAR ) +.5) : 0;
+    yo = bmp_ulong[ UL_VOLUME_HRZ ] ? 0 : (int)(volume * bmp_cy( BMP_VOLBAR ) +.5);
 
     bmp_draw_bitmap ( hps, x, y, BMP_VOLBAR );
     bmp_draw_part_bg( hps, x + xo, y + yo, x + bmp_cx( BMP_VOLBAR ) - 1,
@@ -1148,7 +1154,7 @@ bmp_draw_volume( HPS hps, int volume )
   {
     if( !bmp_ulong[ UL_VOLUME_HRZ ] )
     {
-      yo = volume * ( bmp_cy( BMP_VOLBAR ) - bmp_cy( BMP_VOLSLIDER )) / 100;
+      yo = (int)(volume * ( bmp_cy( BMP_VOLBAR ) - bmp_cy( BMP_VOLSLIDER )) +.5);
 
       bmp_draw_bitmap( hps, x, y, BMP_VOLBAR );
       bmp_draw_bitmap( hps, x + bmp_pos[ POS_VOLSLIDER ].x,
@@ -1156,7 +1162,7 @@ bmp_draw_volume( HPS hps, int volume )
     }
     else
     {
-      xo = volume * ( bmp_cx( BMP_VOLBAR ) - bmp_cx( BMP_VOLSLIDER )) / 100;
+      xo = (int)(volume * ( bmp_cx( BMP_VOLBAR ) - bmp_cx( BMP_VOLSLIDER )) +.5);
 
       bmp_draw_bitmap( hps, x, y, BMP_VOLBAR );
       bmp_draw_bitmap( hps, x + bmp_pos[ POS_VOLSLIDER ].x + xo,
@@ -1186,22 +1192,21 @@ bmp_pt_in_volume( POINTL pos )
 
 /* Calculates a volume level on the basis of position of the
    mouse pointer concerning the volume bar. */
-int
+double
 bmp_calc_volume( POINTL pos )
 {
-  int volume;
+  double volume;
 
   if( bmp_ulong[ UL_VOLUME_HRZ ]) {
-    volume = ( pos.x - bmp_pos[ POS_VOLBAR ].x + 1 ) * 100 / bmp_cx( BMP_VOLBAR );
+    volume = ( pos.x - bmp_pos[ POS_VOLBAR ].x + 1. ) / bmp_cx( BMP_VOLBAR );
   } else {
-    volume = ( pos.y - bmp_pos[ POS_VOLBAR ].y + 1 ) * 100 / bmp_cy( BMP_VOLBAR );
+    volume = ( pos.y - bmp_pos[ POS_VOLBAR ].y + 1. ) / bmp_cy( BMP_VOLBAR );
   }
 
-  if( volume > 100 ) {
-      volume = 100;
-  }
-  if( volume < 0   ) {
-      volume = 0;
+  if( volume < 0) {
+    volume = 0;
+  } else if( volume > 1 ) {
+    volume = 1;
   }
 
   return volume;
@@ -1451,14 +1456,12 @@ bmp_pt_in_slider( POINTL pos )
 
 /* Draws the time left and playlist left labels. */
 void
-bmp_draw_timeleft( HPS hps )
+bmp_draw_timeleft( HPS hps, Playable* root )
 {
   DEBUGLOG(("bmp_draw_timeleft(%p)\n", hps));
   
   if( cfg.mode == CFG_MODE_REGULAR )
   {
-    int_ptr<Playable> root = amp_get_current_root();
-
     if( root == NULL ) {
       if( bmp_pos[ POS_NOTL ].x != POS_UNDEF &&
           bmp_pos[ POS_NOTL ].y != POS_UNDEF )
