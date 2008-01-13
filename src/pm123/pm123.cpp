@@ -61,7 +61,6 @@
 #include "docking.h"
 #include "iniman.h"
 #include "controller.h"
-#include "playenumerator.h"
 #include "playlistmenu.h"
 #include "skin.h"
 

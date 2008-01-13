@@ -31,7 +31,7 @@
 #define CONTROLLER_H
 
 
-#include "playenumerator.h"
+#include "playable.h"
 
 #include <decoder_plug.h>
 
