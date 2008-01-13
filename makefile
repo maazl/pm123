@@ -24,6 +24,8 @@ TARGET  = $(PARTS)
 
 !include src\config\makerules
 
+all: $(TARGET)
+
 src\utils\utilfct$(LBO):
 	cd src\utils
 	@$(MAKE) $(MFLAGS)
