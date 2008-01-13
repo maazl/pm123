@@ -28,10 +28,10 @@
 
 
 #include "container.h"
+#include "cpputil.h"
 
 #include <memory.h>
 #include <string.h>
-#include <assert.h>
 
 #include <debuglog.h>
 
@@ -40,19 +40,46 @@ vector_base::vector_base(size_t capacity)
 : Data((void**)malloc(capacity * sizeof *Data)),
   Size(0),
   Capacity(capacity)
-{ assert(capacity != 0); 
+{ ASSERT(Capacity != 0);
+}
+
+vector_base::vector_base(const vector_base& r, size_t spare)
+: Data((void**)malloc((r.Size + spare) * sizeof *Data)),
+  Size(r.Size),
+  Capacity(r.Size + spare)
+{ DEBUGLOG(("vector_base(%p)::vector_base(&%p, %u)\n", this, &r, spare));
+  ASSERT(Capacity != 0);
+  memcpy(Data, r.Data, Size * sizeof *Data);
 }
 
 vector_base::~vector_base()
 { free(Data);
 }
 
+vector_base& vector_base::operator=(const vector_base& r)
+{ if (r.Size > Capacity)
+  { Capacity += r.Size;
+    free(Data);
+    Data = (void**)malloc(Capacity * sizeof *Data);
+    ASSERT(Data != NULL);
+  }
+  Size = r.Size;
+  memcpy(Data, r.Data, Size * sizeof *Data);
+  return *this;
+}
+
+void vector_base::swap(vector_base& r)
+{ ::swap(Data, r.Data);
+  ::swap(Size, r.Size);
+  ::swap(Capacity, r.Capacity);
+}
+
 void*& vector_base::insert(size_t where)
-{ assert(where <= Size);
+{ ASSERT(where <= Size);
   if (Size >= Capacity)
   { Capacity <<= 1;
     Data = (void**)realloc(Data, Capacity * sizeof *Data);
-    assert(Data != NULL);
+    ASSERT(Data != NULL);
   }
   void** pp = Data + where;
   memmove(pp+1, pp, (Size-where) * sizeof *Data);
@@ -65,13 +92,13 @@ void*& vector_base::append()
 { if (Size >= Capacity)
   { Capacity <<= 1;
     Data = (void**)realloc(Data, Capacity * sizeof *Data);
-    assert(Data != NULL);
+    ASSERT(Data != NULL);
   }
   return Data[Size++];
 }
 
 void* vector_base::erase(void** where)
-{ assert(where >= Data && where < Data+Size);
+{ ASSERT(where >= Data && where < Data+Size);
   --Size;
   void* ret = *where;
   memmove(where, where+1, (const char*)(Data+Size) - (const char*)where);

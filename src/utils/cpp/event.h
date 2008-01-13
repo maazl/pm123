@@ -52,13 +52,14 @@ class event_base
 { friend class delegate_base;
  private:
   delegate_base* Root;
+  volatile unsigned Count; // Number of active eventhandlers
  private:
   // non-copyable
   event_base(const event_base& r);
   void operator=(const event_base& r);
  protected:
   // Create an event.
-  event_base() : Root(NULL) { DEBUGLOG(("event_base(%p)::event_base()\n", this)); }
+  event_base() : Root(NULL), Count(0) { DEBUGLOG(("event_base(%p)::event_base()\n", this)); }
   ~event_base();
   // Add a delegate to the current event
   void operator+=(delegate_base& d);
@@ -67,10 +68,12 @@ class event_base
   // longer called, because it may been raised already.
   bool operator-=(delegate_base& d);
   // Fire the event.
-  void operator()(dummy& param) const;
+  void operator()(dummy& param);
  public:
   // remove all registrated delegates
   void reset();
+  // remove all registrated delegates and wait for eventhandlers to complete (uses spin-lock!)
+  void sync_reset();
 };
 
 /* non-template base class for delegate

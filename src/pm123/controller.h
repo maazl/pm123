@@ -101,7 +101,93 @@ Commands can be linked by the Link field. Linked commands are executed without i
 If one of the commands fails, all further linked commands fail immediately with PM123RC_SubseqError too. 
 */
 
+/* Class to iterate over a PlayableCollection recursively returning only Song items.
+ * All non-const functions are not thread safe.
+ */
+class SongIterator
+{public:
+  struct Offsets
+  { int                       Index;     // Item index of the current PlayableInstance counting from the top level.
+    double                    Offset;    // Time offset of the current PlayableInstance counting from the top level or -1 if not available.
+    Offsets(int index, double offset) : Index(index), Offset(offset) {}
+  };
+  struct CallstackEntry : public Offsets
+  { int_ptr<PlayableInstance> Item;      // Current item in the PlayableCollection of the pervious Callstack entry if any or the root otherwise.
+    CallstackEntry()          : Offsets(-1, Offset = -1) {}
+  };
+  typedef vector<CallstackEntry> CallstackType; 
+  
+ private:
+  int_ptr<PlayableCollection> Root;      // Root collection to enumerate. 
+  CallstackType               Callstack; // Current callstack, excluding the top level playlist.
+                                         // The Callstack has at least one element for Current.
+                                         // This collection contains only enumerable objects except for the last entry.
+  PlayableSet                 Exclude;   // List of playable objects to exclude.
+                                         // This are in fact the enumerable objects from Callstack and the Root.
+  static const Offsets        ZeroOffsets; // Offsets for root entry.
 
+ protected: // internal functions, not thread-safe.
+  // Push the current item to the call stack.
+  // Precondition: Current is Enumerable.
+  void                        Enter();
+  // Pop the last object from the stack and make it to Current.
+  void                        Leave();
+  // Check wether to skip the current item.
+  // I.e. if the current item is already in the call stack.
+  bool                        SkipQ();
+  // Fetch length and number of subitems from a Playable object with respect to Exclude.
+  Offsets                     TechFromPlayable(PlayableCollection* pc);
+  Offsets                     TechFromPlayable(Playable* pp);
+  // Implementation of Prev and Next.
+  // dir must be -1 for backward direction and +1 for forward.
+  bool                        PrevNextCore(int dir);
+
+ public:
+  // Create a SongIterator for iteration over a PlayableCollection.
+                              SongIterator();
+  // Copy constructor                              
+                              SongIterator(const SongIterator& r);
+  // Cleanup (removes all strong references)
+                              ~SongIterator();
+  // swap two instances (fast)
+  void                        Swap(SongIterator& r);
+  /*#ifdef DEBUG
+  void                        DebugDump() const;
+  #endif*/  
+  
+  // Replace the attached root object. This resets the iterator.
+  void                        SetRoot(PlayableCollection* pc);
+  // Gets the current root.
+  PlayableCollection*         GetRoot() const          { return Root; }
+  // Gets the deepest playlist. This may be the root if the callstack is empty.
+  PlayableCollection*         GetList() const;
+  // Get Offsets of current item
+  Offsets                     GetOffset() const;
+  // Gets the call stack. Not thread-safe!
+  const CallstackType&        GetCallstack() const     { return Callstack; }
+  // Gets the excluded entries. Not thread-safe!
+  const PlayableSet&          GetExclude() const       { return Exclude; }
+  // Check whether a Playable object is in the call stack. Not thread-safe!
+  // This will return always false if the Playable object is not enumerable.
+  bool                        IsInCallstack(const Playable* pp) const { return Exclude.find(pp) != NULL; }
+
+  // Get the current song. This may be NULL.  
+  PlayableInstance*           GetCurrent() const;
+  PlayableInstance*           operator*() const        { return GetCurrent(); }
+  PlayableInstance*           operator->() const       { return GetCurrent(); }
+
+  // Go to the previous Song.
+  bool                        Prev()                   { return PrevNextCore(-1); }
+  // Go to the next Song.
+  bool                        Next()                   { return PrevNextCore(+1); }
+  // reset the Iterator to it's initial state. 
+  void                        Reset();
+};
+
+
+/* PM123 controller class.
+ * This class is static.
+ */
 class Ctrl
 {public:
   enum Command
@@ -138,6 +224,7 @@ class Ctrl
     RC_SubseqError,
     RC_BadArg,
     RC_NoSong,
+    RC_NoList,
     RC_EndOfList,
     RC_NotPlaying,
     RC_OutPlugErr,
@@ -148,8 +235,12 @@ class Ctrl
   { float bandgain[2][10];
   };
 
-  struct PlayStatus : public PlayEnumerator::Status
-  { double CurrentSongTime; // current time index in the current song
+  struct PlayStatus //: public PlayEnumerator::Status
+  { int    CurrentItem;     // index of the currently played song
+    int    TotalItems;      // total number of items in the queue
+    double CurrentTime;     // current time index from the start of the queue excluding the currently loaded one
+    double TotalTime;       // total time of all items in the queue
+    double CurrentSongTime; // current time index in the current song
     double TotalSongTime;   // total time of the current song
   };
 
@@ -196,7 +287,9 @@ class Ctrl
   };*/
 
  private: // working set
-  static StatusPlayEnumerator Current;  // Currently loaded object - that's what it's all about!
+  static int_ptr<Song>        CurrentSong;   // Current Song if a non-enumerable item is loaded.
+  static SongIterator         CurrentIter;   // Iterator over the current PlayableCollection if an enumerable item is loaded.
+
   static double               Location;
   static bool                 Playing;
   static bool                 Paused;
@@ -214,9 +307,12 @@ class Ctrl
   static PlayStatus           Status;
   static EventFlags           Pending;
 
+  static const SongIterator::CallstackType EmptyStack;
+
  private: // internal functions, not thread safe
   static bool SetFlag(bool& flag, Op op);
   static void SetVolume();
+  static void UpdateStackUsage(const SongIterator::CallstackType& oldstack, const SongIterator::CallstackType& newstack);
   friend void TFNENTRY ControllerWorkerStub(void*);
   static void Worker();
  private: // messages handlers, not thread safe  
@@ -230,6 +326,7 @@ class Ctrl
   static RC   MsgSave(const xstring& filename);
   static RC   MsgEqualize(const EQ_Data* data);
   static RC   MsgStatus();
+
  
  public: // management interface, not thread safe
   // initialize controller
@@ -245,11 +342,9 @@ class Ctrl
   static bool IsShuffle()     { return Shuffle; }
   static bool IsRepeat()      { return Repeat; }
   static xstring GetSavename(){ return Savename; }
-  /* TODO: need to synchronize to thead */
-  static int_ptr<Song> GetCurrentSong()
-  { return Current.GetCurrentSong(); }
+  static int_ptr<Song> GetCurrentSong();
   static int_ptr<Playable> GetRoot()
-  { return Current.GetRoot(); }
+  { CritSect cs(); return CurrentSong ? (Playable*)CurrentSong : CurrentIter.GetRoot(); }
 
  public: //message interface, thread safe
   // post a command to the controller Queue

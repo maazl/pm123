@@ -27,7 +27,9 @@
  */
 
 
+#define INCL_BASE
 #include "event.h"
+#include <os2.h>
 
 #include <debuglog.h>
 
@@ -59,8 +61,9 @@ bool event_base::operator-=(delegate_base& d)
   return false;
 }
 
-void event_base::operator()(dummy& param) const
+void event_base::operator()(dummy& param)
 { DEBUGLOG(("event_base(%p)::operator()(%p) - %p\n", this, &param, Root));
+  InterlockedInc(Count);
   delegate_base* mp = Root;
   // TODO: This no-lock implementation may not 100% safe with respect to operator-=.
   while (mp != NULL)
@@ -69,12 +72,13 @@ void event_base::operator()(dummy& param) const
     (*mp->Fn)(mp->Rcv, param); // callback
     mp = mp2;
   }
+  InterlockedDec(Count);
 }
 
 event_base::~event_base()
 { DEBUGLOG(("event_base(%p)::~event_base() - %p\n", this, Root));
   // detach events
-  reset();
+  sync_reset();
 }
 
 void event_base::reset()
@@ -86,6 +90,21 @@ void event_base::reset()
   { mp->Ev = NULL;
     mp = mp->Link;
   }
+}
+
+void event_base::sync_reset()
+{ DEBUGLOG(("event_base(%p)::sync_reset()\n", this));
+  reset();
+  // spin-lock
+  unsigned i = 5; // fast cycles
+  do
+  { if (!Count)
+      return;
+    DosSleep(0);
+  } while (--i);
+  // slow cycles
+  while (Count)
+    DosSleep(1);
 }
 
 

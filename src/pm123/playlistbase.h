@@ -394,7 +394,7 @@ class PlaylistBase : public IComparableTo<char>
   // Get an instance of the same type as the current instance for URL.
   virtual PlaylistBase* GetSame(const url& URL) = 0;
 
- private: // IComparableTo<char>
+  // IComparableTo<char>
   virtual int       CompareTo(const char* str) const;
 
 };

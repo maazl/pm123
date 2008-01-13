@@ -52,12 +52,12 @@ bool Mutex::Lock::Release()
 
 
 Mutex::Mutex(bool share)
-{  DEBUGLOG(("Mutex(%p{%p})::Mutex(%u)\n", this, Handle, share));
+{  DEBUGLOG(("Mutex(%p)::Mutex(%u)\n", this, share));
    ORASSERT(DosCreateMutexSem(NULL, &Handle, share*DC_SEM_SHARED, FALSE));
 }
 
 Mutex::Mutex(const char* name)
-{  DEBUGLOG(("Mutex(%p{%p})::Mutex(%s)\n", this, Handle, name));
+{  DEBUGLOG(("Mutex(%p)::Mutex(%s)\n", this, name));
    char* cp = new char[strlen(name)+8];
    strcpy(cp, "\\SEM32\\");
    strcpy(cp+7, name);

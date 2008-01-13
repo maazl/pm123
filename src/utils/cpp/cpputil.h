@@ -30,11 +30,13 @@
 #ifndef CPP_UTIL_H
 #define CPP_UTIL_H
 
-#include <stdarg.h>
-
-/*struct valist : public va_list
-{ valist(const va_list& va) : va_list(va) {}
-};*/
+// swap two objects
+template <class T>
+inline void swap(T& a, T& b)
+{ T c = a;
+  a = b;
+  b = c;
+}
 
 
 #define FLAGSATTRIBUTE(T) \

@@ -142,6 +142,9 @@ class int_ptr : protected int_ptr_base
   // This function must not be used to assing a newly constructed object because this will never be deleted.
   int_ptr<T>& assign_weak(T* ptr)            { delete (T*)reassign_weak(ptr); return *this; }
   void        swap(int_ptr<T>& r)            { int_ptr_base::swap(r); }
+  // manual resource management
+  T*          toCptr()                       { T* r = (T*)Ptr; Ptr = NULL; return r; }
+  int_ptr<T>& fromCptr(T* ptr)               { delete (T*)unassign(); Ptr = ptr; return *this; };
 };
 
 

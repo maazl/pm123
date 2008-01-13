@@ -97,9 +97,9 @@
  
 - Side-effect free assertion
  
-    RASSERT(expression, condition)
+    RASSERT(expression)
    
-  The condition is only checked in debug builds, but the expresion is always evaluated.
+  The expression is only checked in debug builds, but the expresion is always evaluated.
 
 - Return value assertion
  

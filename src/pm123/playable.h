@@ -73,7 +73,10 @@ enum PlayableStatus
  * it must create a int_ptr<Playable> object. This will work as expected.
  */
 static void TFNENTRY PlayableWorker(void*);
-class Playable : public Iref_Count, private IComparableTo<char>
+class Playable
+: public Iref_Count,
+  public InstanceCompareable<Playable>,
+  public IComparableTo<char>
 {public:
   enum Flags
   { None        = 0,   // This attribute implies that a cast to Song is valid.
@@ -237,8 +240,13 @@ class Playable : public Iref_Count, private IComparableTo<char>
   static sorted_vector<Playable, char> RPInst;
   static Mutex             RPMutex;
  private:
-  virtual int              CompareTo(const char* str) const;
+  #ifdef DEBUG
+  static void              RPDebugDump();
+  #endif
  public:
+  virtual int              CompareTo(const char* str) const;
+  // ICC don't know using
+  int                      CompareTo(const Playable* r) const { return InstanceCompareable<Playable>::CompareTo(r); }
   // Seek whether an URL is already loaded.
   static int_ptr<Playable> FindByURL(const char* url);
   // FACTORY! Get a new or an existing instance of this URL.
@@ -254,6 +262,19 @@ FLAGSATTRIBUTE(Playable::InfoFlags);
 inline Playable::InfoFlags Playable::CheckInfo(InfoFlags what)
 { return what & ~InfoValid;
 }
+
+
+// Unique sorted set of Playable objects
+struct PlayableSet
+: public sorted_vector<Playable, Playable>,
+  public IComparableTo<PlayableSet>
+{ static const PlayableSet Empty; // empty instance
+                           PlayableSet();
+  virtual int              CompareTo(const PlayableSet* r) const;
+  #ifdef DEBUG
+  xstring                  DebugDump() const;
+  #endif
+};
 
 
 class PlayableCollection;
@@ -287,53 +308,54 @@ class PlayableInstance : public Iref_Count
     SF_All     = SF_InUse|SF_Alias|SF_Slice
   };
   struct change_args
-  { PlayableInstance& Instance;
-    StatusFlags       Flags; // Bitvector of type StatusFlags
+  { PlayableInstance&      Instance;
+    StatusFlags            Flags; // Bitvector of type StatusFlags
     change_args(PlayableInstance& inst, StatusFlags flags) : Instance(inst), Flags(flags) {}
   };
   struct slice
-  { double            Start;
-    double            Stop;
-    static slice      Initial;
+  { double                 Start;
+    double                 Stop;
+    static slice           Initial;
     slice(double start = 0, double stop = -1) : Start(start), Stop(stop) {}
   };
 
  protected:
-  PlayableCollection* Parent;
+  PlayableCollection*      Parent;
  private:
-  const int_ptr<Playable> RefTo;
-  PlayableStatus      Stat;
-  xstring             Alias;
-  slice               Slice;
+  const int_ptr<Playable>  RefTo;
+  PlayableStatus           Stat;
+  xstring                  Alias;
+  slice                    Slice;
 
  protected:
   PlayableInstance(PlayableCollection& parent, Playable* playable);
  public:
+  virtual                  ~PlayableInstance() {}
   // Get't the referenced content.
   // This Pointer is valid as long as the PlayableInstance exist and does not change.
-  Playable*           GetPlayable() const { return RefTo; }
+  Playable*                GetPlayable() const { return RefTo; }
   // Check if this instance (still) belongs to a collection.
   // The return value true is not reliable unless the collection is locked.
   // Calling this method with NULL will check whether the instance does no longer belog to a collection.
   // In this case only the return value true is reliable.  
-  bool                IsParent(PlayableCollection* parent) { return Parent == parent; }
+  bool                     IsParent(const PlayableCollection* parent) { return Parent == parent; }
 
   // Aliasname
-  xstring             GetAlias() const    { return Alias; }
-  void                SetAlias(const xstring& alias);
+  xstring                  GetAlias() const    { return Alias; }
+  void                     SetAlias(const xstring& alias);
   // Play position
-  const slice&        GetSlice() const    { return Slice; }
-  void                SetSlice(const slice& sl);
+  const slice&             GetSlice() const    { return Slice; }
+  void                     SetSlice(const slice& sl);
   // Display name
-  xstring             GetDisplayName() const;
+  xstring                  GetDisplayName() const;
 
   // The Status-Interface of PlayableInstance is identical to that of Playable,
   // but the only valid states for a PlayableInstance are Normal and Used.
   // Status changes of a PlayableInstance are automatically reflected to the underlying Playable object,
   // but /not/ the other way.
-  PlayableStatus      GetStatus() const   { return Stat; }
+  PlayableStatus           GetStatus() const   { return Stat; }
   // Change status of this instance.
-  void                SetInUse(bool used);
+  void                     SetInUse(bool used);
 
  public:
   // event on status change
@@ -350,7 +372,7 @@ class Song : public Playable
   Song(const url& URL, const FORMAT_INFO2* ca_format = NULL, const TECH_INFO* ca_tech = NULL, const META_INFO* ca_meta = NULL)
    : Playable(URL, ca_format, ca_tech, ca_meta) { DEBUGLOG(("Song(%p)::Song(%s, %p, %p, %p)\n", this, URL.cdata(), ca_format, ca_tech, ca_meta)); }
 
-  virtual InfoFlags   LoadInfo(InfoFlags what);
+  virtual InfoFlags        LoadInfo(InfoFlags what);
 };
 
 
@@ -369,14 +391,28 @@ class PlayableCollection : public Playable
     SaveAsM3U        = 0x10
   };
   struct change_args
-  { PlayableCollection& Collection;
-    PlayableInstance&   Item;
-    change_type         Type;
+  { PlayableCollection&    Collection;
+    PlayableInstance&      Item;
+    change_type            Type;
     change_args(PlayableCollection& coll, PlayableInstance& item, change_type type)
     : Collection(coll), Item(item), Type(type) {}
   };
   typedef int (*ItemComparer)(const PlayableInstance* l, const PlayableInstance* r);  
+  // Information on PlayableCollection.
+  struct CollectionInfo
+  { double                 Songlength;
+    double                 Filesize;
+    int                    Items;
+    bool                   Excluded;
+
+    void                   Add(double songlength, double filesize, int items);
+    void                   Add(const CollectionInfo& ci)
+                           { Add(ci.Songlength, ci.Filesize, ci.Items); }
+    void                   Reset();
+    CollectionInfo()       { Reset(); }
+  };
  protected:
+  // internal representation of a PlayableInstance as linked list.
   struct Entry : public PlayableInstance
   { typedef class_delegate<PlayableCollection, const Playable::change_args> TDType;
     int_ptr<Entry> Prev;      // link to the pervious entry or NULL if this is the first
@@ -392,21 +428,29 @@ class PlayableCollection : public Playable
     // This function must be called only by the parent collection and only while it is locked.
     void Detach()             { Parent = NULL; }
   };
+  // CollectionInfo CacheEntry
+  struct CollectionInfoEntry
+  : public PlayableSet
+  { CollectionInfo         Info;
+    bool                   Valid;
+    CollectionInfoEntry() : Valid(true) {}
+  };
 
  protected:
   static const FORMAT_INFO2 no_format;
   // The object list is implemented as a doubly linked list to keep the iterators valid on modifications.
   int_ptr<Entry> Head;
   int_ptr<Entry> Tail;
+  // Cache mit subenumeration infos
+  // This object is protected by a critical section.
+  sorted_vector<CollectionInfoEntry, PlayableSet> CollectionInfoCache;
 
  private:
-  // Internal Subfunction to void CalcTechInfo(Playable& play);
-  static void                 AddTechInfo(TECH_INFO& dst, const TECH_INFO& tech);
   // This is called by the TechChange events of the children.
   void                        ChildInfoChange(const Playable::change_args& child);
  protected:
-  // (Re)calculate the TECH_INFO structure.
-  virtual void                CalcTechInfo(TECH_INFO& dst);
+  // Fill the THEC_INFO structure.
+  void                        CalcTechInfo(TECH_INFO& dst);
   // Create new entry and make the path absolute if required.
   virtual Entry*              CreateEntry(const char* url, const FORMAT_INFO2* ca_format = NULL, const TECH_INFO* ca_tech = NULL, const META_INFO* ca_meta = NULL);
   // Append a new entry at the end of the list.
@@ -450,6 +494,10 @@ class PlayableCollection : public Playable
   // Get next item of this collection. Passing NULL will return the first item.
   // The function returns NULL if ther are no more items.
   virtual int_ptr<PlayableInstance> GetNext(PlayableInstance* cur) const;
+
+  // Calculate the CollectionInfo structure.
+  // The collection must be locked when this function ist called;
+  const CollectionInfo&       GetCollectionInfo(const PlayableSet& excluding = PlayableSet::Empty);
   // Load Information from URL
   // This implementation is only the framework. It reqires LoadInfoCore() for it's work.
   virtual InfoFlags           LoadInfo(InfoFlags what);
@@ -472,6 +520,7 @@ class PlayableCollection : public Playable
   event<const change_args>    CollectionChange;
 };
 FLAGSATTRIBUTE(PlayableCollection::save_options);
+
 
 /* Class representing a playlist file.
  */
@@ -550,6 +599,7 @@ class Playlist : public PlayableCollection
   virtual void                NotifySourceChange();
 };
 
+
 /* Class representing a folder with songs.
  * (Something like an implicit playlist.)
  */
@@ -564,6 +614,7 @@ class PlayFolder : public PlayableCollection
   PlayFolder(const url& URL, const TECH_INFO* ca_tech = NULL, const META_INFO* ca_meta = NULL);
   virtual bool                LoadList();
 };
+
 
 #endif
 
