@@ -1116,7 +1116,6 @@ amp_pipe_thread( void* scrap )
               } else if( stricmp( dork, "file" ) == 0 ) {
                 amp_pipe_write( hpipe, current->GetURL().cdata() );
               } else if( stricmp( dork, "tag"  ) == 0 ) {
-                char info[512];
                 current->EnsureInfo(Playable::IF_All);
                 amp_pipe_write( hpipe, amp_construct_tag_string( &current->GetInfo() ).cdata() );
               } else if( stricmp( dork, "info" ) == 0 ) {
@@ -1964,6 +1963,7 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
             WinReleasePS( hps );
           }
           break;
+         default:; // supress warnings
         }
         // now the command can die
         delete cmd;

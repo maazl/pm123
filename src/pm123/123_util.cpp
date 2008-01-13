@@ -33,6 +33,7 @@
 #define  INCL_DOS
 #include <os2.h>
 #include <string.h>
+#include <stdio.h>
 
 #include <utilfct.h>
 

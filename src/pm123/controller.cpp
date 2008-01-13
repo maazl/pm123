@@ -603,8 +603,7 @@ void TFNENTRY ControllerWorkerStub(void*)
 }
 
 void Ctrl::Worker()
-{ bool term = false;
-  for(;;)
+{ for(;;)
   { DEBUGLOG(("Ctrl::Worker() looking for work\n"));
     queue<ControlCommand*>::Reader rdr(Queue);
     ControlCommand* qp = rdr;
