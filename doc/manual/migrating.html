@@ -1,0 +1,58 @@
+<html resid=1021>
+<head>
+   <title>Migrating to PM123 1.40</title>
+</head>
+<body>
+
+<h2>Migrating to PM123 1.40</h2>
+<p>There are some major changes in the GUI that you should be aware of when moving
+  from an earlier version. For further information see the <a href="../History.txt">changelog</a>.</p>
+<h4>Playlist windows</h4>
+<p>Playlists, the playlist manager and bookmarks are now basically the same.
+  Furthermore you can open multiple playlists. That means:</p>
+<ul>
+  <li>The <strong><a href="playlist.html">playlist window</a></strong> is now
+    nothing more than a <strong>detailed
+      view</strong> of a playlist.</li>
+  <li>A default playlist is used if you drop more than one object
+        on the player.</li>
+  <li>The <strong><a href="manager.html">playlist manager</a></strong> is a <strong>tree
+      view</strong> of
+    another default playlist, which usually contains other playlists, of course.</li>
+  <li>The <strong>bookmark editor</strong> is now a detailed view of a special
+    playlist that is visualized in the player's context menu too.</li>
+  <li>You can use drag and drop and direct manipulation to modify all of the
+    above.</li>
+  <li>Different views of the same content are immediately synchronized as long
+    they are part of the same PM123 instance.</li>
+</ul>
+
+<h4>Nested playlists</h4>
+<p>Playlists may contain other playlists and they may contain further playlists
+  too. That has the following effects:</p>
+<ul>
+  <li>While playing all items of a child playlist are played when the playback
+    reaches the sublist and before PM123 continues in the parent list.</li>
+  <li>In shuffle mode items in different sublists are not interchanged.</li>
+  <li>The PM123 main window flattens the nested lists and shows allways the index
+    and the time offsets in the virtually flattened list. To see what's going
+    on open a tree view of the currently played list.</li>
+  <li>Nested playlists in the bookmark list cause submenus.</li>
+  <li>When the playlists are nested recursively the play iterator will skip sublists
+    that are already in the call stack. This avoids an infinite recursion.</li>
+</ul>
+<h4>Filesystem folders</h4>
+<p>PM123 is able to play the content of filesystem folders directly without the
+  need to load all files into a playlist. This works as follows:</p>
+<ul>
+  <li>The content of a folder is handled as a virtual playlist.</li>
+  <li>Optionally subfolders are virtualized as nested playlists too.</li>
+  <li>Unplayable files are skipped during playback.</li>
+  <li>Changes in the filesystem are reflected to PM123 when PM123 is restarted
+    or a folder is manually refreshed.</li>
+  <li>If a folder is selected in the open dialog the content is no longer copied
+    into a real playlist.</li>
+  <li>You cannot modify virtual playlists.</li>
+</ul>
+</body>
+</html>
