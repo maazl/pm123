@@ -130,6 +130,7 @@
 #define IDH_SKIN_UTILITY   1018
 #define IDH_TROUBLES       1019
 #define IDH_PLAYLISTFORMAT 1020
+#define IDH_MIGRATE1_40    1021
 
 #define MSG_PLAY              1
 #define MSG_STOP              2
