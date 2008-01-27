@@ -736,7 +736,8 @@ MRESULT EXPENTRY proxy_1_decoder_winfn(HWND hwnd, ULONG msg, MPARAM mp1, MPARAM 
           titlepos = strstr( metadata, "StreamTitle='" );
           if ( titlepos )
           { titlepos += 13;
-            for( unsigned i = 0; i < sizeof( meta.title ) - 1 && *titlepos
+            unsigned i;
+            for( i = 0; i < sizeof( meta.title ) - 1 && *titlepos
                         && ( titlepos[0] != '\'' || titlepos[1] != ';' ); i++ )
               meta.title[i] = *titlepos++;
             meta.title[i] = 0;
