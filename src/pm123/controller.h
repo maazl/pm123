@@ -303,8 +303,13 @@ class Ctrl
   };*/
 
  private: // working set
-  static int_ptr<Song>        CurrentSong;   // Current Song if a non-enumerable item is loaded.
-  static vector<PrefetchEntry> PrefetchList; // List of prefetched iterators. The first entry is always the current iterator if a enumerable object is loaded.
+  // Current Song if a non-enumerable item is loaded.
+  static int_ptr<Song>        CurrentSong;
+  // List of prefetched iterators.
+  // The first entry is always the current iterator if a enumerable object is loaded.
+  // Write access to this list is only done by the controller thread. But since read access is done by other threads too,
+  // any write to PrefetchList must be protected by a critical section.
+  static vector<PrefetchEntry> PrefetchList;
 
   static T_TIME               Location;
   static bool                 Playing;
@@ -375,16 +380,16 @@ class Ctrl
   static void Uninit();
 
  public: // properties, thread safe
-  static bool IsPlaying()     { return Playing; }
-  static bool IsPaused()      { return Paused; }
-  static DECFASTMODE GetScan(){ return Scan; }
-  static double GetVolume()   { return Volume; }
-  static bool IsShuffle()     { return Shuffle; }
-  static bool IsRepeat()      { return Repeat; }
-  static xstring GetSavename(){ return Savename; }
+  static bool IsPlaying()                     { return Playing; }
+  static bool IsPaused()                      { return Paused; }
+  static DECFASTMODE GetScan()                { return Scan; }
+  static double GetVolume()                   { return Volume; }
+  static bool IsShuffle()                     { return Shuffle; }
+  static bool IsRepeat()                      { return Repeat; }
+  static xstring GetSavename()                { return Savename; }
   static int_ptr<Song> GetCurrentSong();
   static int_ptr<Playable> GetRoot()
-  { CritSect cs(); return PrefetchList.size() ? PrefetchList[0]->Iter.GetRoot() : (Playable*)CurrentSong; }
+  { CritSect cs; return PrefetchList.size() ? PrefetchList[0]->Iter.GetRoot() : (Playable*)CurrentSong; }
 
  public: //message interface, thread safe
   // post a command to the controller Queue
@@ -405,7 +410,7 @@ class Ctrl
   // The function must not be called from a thread which receives PM messages.
   static ControlCommand* SendCommand(ControlCommand* cmd);
 
-  // short-cuts
+  // short-cuts, side-effect free
   static ControlCommand* MkLoad(const xstring& url)
   { return new ControlCommand(Cmd_Load, url, 0., 0); }
   static ControlCommand* MkSkip(int count, bool relative)

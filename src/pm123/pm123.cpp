@@ -1997,6 +1997,7 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
       switch (LONGFROMMP(mp1))
       {case TID_ONTOP:
         WinSetWindowPos( hframe, HWND_TOP, 0, 0, 0, 0, SWP_ZORDER );
+        DEBUGLOG(("amp_dlg_proc: WM_TIMER done\n"));
         return 0;
 
        case TID_UPDATE_PLAYER:
@@ -2013,6 +2014,7 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
 
           WinReleasePS( hps );
         }
+        DEBUGLOG(("amp_dlg_proc: WM_TIMER done\n"));
         return 0;
 
        case TID_UPDATE_TIMERS:
@@ -2020,6 +2022,7 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
         {
           Ctrl::PostCommand(Ctrl::MkStatus(), &amp_control_event_callback);
         }
+        DEBUGLOG(("amp_dlg_proc: WM_TIMER done\n"));
         return 0;
       }
       break;

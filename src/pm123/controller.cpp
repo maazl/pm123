@@ -409,6 +409,7 @@ bool Ctrl::SkipCore(SongIterator& si, int count, bool relative)
 
 void Ctrl::PrefetchClear(bool keep)
 { DEBUGLOG(("Ctrl::PrefetchClear(%u)\n", keep));
+  CritSect cs();
   while (PrefetchList.size() > keep) // Hack: keep = false deletes all items while keep = true kepp the first item.
     delete PrefetchList.erase(PrefetchList.end()-1);
 }
@@ -642,8 +643,10 @@ Ctrl::RC Ctrl::MsgLoad(const xstring& url)
     // Both is related to IF_Other. The other informations are prefetched too.
     play->EnsureInfo(Playable::IF_All);
     if (play->GetFlags() & Playable::Enumerable)
-    { PrefetchList.append() = new PrefetchEntry();
-      Current()->Iter.SetRoot((PlayableCollection*)&*play);
+    { { CritSect cs();
+        PrefetchList.append() = new PrefetchEntry();
+        Current()->Iter.SetRoot((PlayableCollection*)&*play);
+      }
       play->SetInUse(true);
       // Move always to the first element.
       if (Current()->Iter.Next())
@@ -711,12 +714,13 @@ Ctrl::RC Ctrl::MsgStatus()
     if (n)
     { // At least one prefetched item has been played completely.
       UpdateStackUsage(Current()->Iter.GetCallstack(), PrefetchList[n]->Iter.GetCallstack());
+      // Set events
+      Pending |= EV_Song|EV_Tech|EV_Meta;
       // Cleanup prefetch list
+      CritSect cs;
       do
         delete PrefetchList.erase(--n);
       while (n);
-      // Set events
-      Pending |= EV_Song|EV_Tech|EV_Meta;
     }
   }
   
@@ -779,6 +783,7 @@ Ctrl::RC Ctrl::MsgDecStop()
       // skip invalid
     } while (pp->GetStatus() == STA_Invalid);
     // store result
+    CritSect cs;
     PrefetchList.append() = pep;
   }
 
@@ -932,20 +937,3 @@ Ctrl::ControlCommand* Ctrl::SendCommand(ControlCommand* cmd)
   return cmd;
 }
 
-// TODO:
-/*
-
-AT msg_stop:
-  
-  while( WinPeekMsg( hab, &qms, hplayer, WM_PLAYSTOP, WM_PLAYSTOP, PM_REMOVE )) {
-    DEBUGLOG(( "pm123: discards WM_PLAYSTOP message.\n" ));
-  }
-  while( WinPeekMsg( hab, &qms, hplayer, WM_OUTPUT_OUTOFDATA, WM_OUTPUT_OUTOFDATA, PM_REMOVE )) {
-    DEBUGLOG(( "pm123: discards WM_OUTPUT_OUTOFDATA message.\n" ));
-  }
-  while( WinPeekMsg( hab, &qms, hplayer, WM_PLAYERROR, WM_PLAYERROR, PM_REMOVE )) {
-    DEBUGLOG(( "pm123: discards WM_PLAYERROR message.\n" ));
-  }
-
-
-*/

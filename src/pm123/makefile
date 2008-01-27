@@ -39,24 +39,24 @@ clean: $(MDUMMY)
 # include depenencies
 pm123$(RES):    pm123.rc pm123.rc.h
 123_util.cpp:	..\utils\utilfct.h pm123.h playable.h
-pm123.h:	plugman.h properties.h copyright.h ..\utils\cpp/xstring.h playable.h
-plugman.h:	..\include\plugin.h ..\include\format.h ..\include\output_plug.h ..\include\filter_plug.h ..\include\decoder_plug.h ..\utils\utilfct.h
+pm123.h:	..\include\config.h ..\include\decoder_plug.h properties.h copyright.h ..\utils\cpp/xstring.h
+plugman.h:	..\include\plugin.h ..\include\format.h ..\include\output_plug.h ..\include\filter_plug.h ..\include\decoder_plug.h ..\utils\utilfct.h ..\utils\cpp/event.h
 playable.h:	..\utils\cpp/event.h ..\utils\utilfct.h ..\xio123\xio.h ..\utils\cpp/mutex.h ..\utils\cpp/smartptr.h ..\utils\cpp/xstring.h ..\utils\cpp/queue.h ..\utils\cpp/cpputil.h ..\utils\cpp/container.h ..\utils\strutils.h url.h ..\include\decoder_plug.h
 url.h:	..\utils\cpp/xstring.h
-controller.cpp:	plugman.h controller.h properties.h ..\utils\cpp/xstring.h
-controller.h:	playable.h ..\include\decoder_plug.h ..\utils\cpp/queue.h ..\utils\cpp/xstring.h ..\utils\cpp/event.h ..\utils\cpp/cpputil.h ..\utils\debuglog.h
+controller.cpp:	plugman.h controller.h properties.h pm123.h ..\utils\cpp/xstring.h
+controller.h:	playable.h plugman.h ..\include\decoder_plug.h ..\utils\cpp/queue.h ..\utils\cpp/xstring.h ..\utils\cpp/event.h ..\utils\cpp/cpputil.h ..\utils\debuglog.h
 playable.cpp:	plugman.h playable.h pm123.h ..\xio123\xio.h ..\utils\debuglog.h
-playlistbase.cpp:	..\utils\utilfct.h playlistbase.h playlistmanager.h playlistview.h playable.h pm123.h pm123.rc.h docking.h iniman.h ..\utils\snprintf.h ..\utils\cpp/smartptr.h url.h ..\utils\debuglog.h
+playlistbase.cpp:	..\utils\utilfct.h playlistbase.h playlistmanager.h playlistview.h playable.h pm123.h pm123.rc.h docking.h iniman.h plugman.h ..\utils\snprintf.h ..\utils\cpp/smartptr.h url.h ..\utils\debuglog.h
 playlistbase.h:	..\utils\cpp/queue.h ..\utils\cpp/event.h ..\utils\cpp/smartptr.h ..\utils\cpp/mutex.h ..\utils\cpp/container.h ..\utils\cpp/xstring.h playable.h controller.h ..\include\decoder_plug.h ..\utils\debuglog.h
 playlistmanager.h:	..\utils\cpp/queue.h ..\utils\cpp/event.h ..\utils\cpp/smartptr.h ..\utils\cpp/mutex.h ..\utils\cpp/container.h ..\utils\cpp/xstring.h playlistbase.h
 playlistview.h:	..\utils\cpp/queue.h ..\utils\cpp/event.h ..\utils\cpp/smartptr.h ..\utils\cpp/mutex.h ..\utils\cpp/container.h ..\utils\cpp/xstring.h playable.h playlistbase.h ..\include\decoder_plug.h
-playlistmanager.cpp:	pm123.h pm123.rc.h ..\utils\utilfct.h playlistmanager.h docking.h iniman.h playable.h ..\utils\cpp/smartptr.h url.h ..\utils\debuglog.h
+playlistmanager.cpp:	pm123.h pm123.rc.h ..\utils\utilfct.h playlistmanager.h docking.h iniman.h playable.h plugman.h ..\utils\cpp/smartptr.h url.h ..\utils\debuglog.h
 playlistmenu.cpp:	pm123.h pm123.rc.h playlistmenu.h ..\utils\debuglog.h
 playlistmenu.h:	playable.h ..\utils\vdelegate.h ..\utils\cpp/smartptr.h ..\utils\cpp/container.h ..\utils\cpp/xstring.h ..\utils\cpp/cpputil.h
-playlistview.cpp:	pm123.h pm123.rc.h ..\utils\utilfct.h playlistview.h docking.h iniman.h playable.h ..\utils\debuglog.h
-plugman.cpp:	..\utils\utilfct.h ..\include\format.h ..\utils\fileutil.h plugman_base.h pm123.h pm123.rc.h ..\utils\debuglog.h
+playlistview.cpp:	pm123.h pm123.rc.h ..\utils\utilfct.h playlistview.h docking.h iniman.h playable.h plugman.h ..\utils\debuglog.h
+plugman.cpp:	..\utils\utilfct.h ..\include\format.h ..\utils\fileutil.h plugman_base.h pm123.h playable.h pm123.rc.h ..\utils\debuglog.h
 plugman_base.h:	plugman.h ..\utils\vdelegate.h
-plugman_base.cpp:	..\utils\utilfct.h plugman_base.h pm123.h ..\utils\vdelegate.h ..\utils\debuglog.h
+plugman_base.cpp:	..\utils\utilfct.h plugman_base.h pm123.h playable.h ..\utils\vdelegate.h ..\utils\debuglog.h
 pm123.cpp:	..\utils\utilfct.h ..\xio123\xio.h pm123.h plugman.h button95.h playlistmanager.h playlistview.h copyright.h docking.h iniman.h controller.h playlistmenu.h skin.h ..\utils\cpp/xstring.h url.h pm123.rc.h ..\utils\debuglog.h
 skin.h:	playable.h
 skin.cpp:	..\gbm123\gbm.h ..\gbm123\gbmerr.h ..\gbm123\gbmht.h plugman.h skin.h pm123.h pm123.rc.h button95.h ..\utils\debuglog.h
@@ -64,5 +64,5 @@ url.cpp:	url.h ..\utils\strutils.h
 button95.c:	pm123.h button95.h
 docking.c:	pm123.h docking.h ..\utils\utilfct.h
 iniman.cpp:	..\utils\utilfct.h pm123.h iniman.h plugman.h
-properties.cpp:	..\xio123\xio.h properties.h pm123.h pm123.rc.h iniman.h
+properties.cpp:	..\utils\utilfct.h ..\xio123\xio.h properties.h pm123.h pm123.rc.h iniman.h plugman.h controller.h
 test.c:	..\utils\vdelegate.h ..\utils\vdelegate.c

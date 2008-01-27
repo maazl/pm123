@@ -42,35 +42,13 @@
 
 #include <errorstr.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* Logging */
 #ifdef DEBUG
-  #define INCL_DOS
-  #include <stdio.h>
-  #include <stdarg.h>
-  #include <time.h>
-  #include <os2.h>
-  #include <assert.h>
-  #include <malloc.h>
-
-  // log to stderr
-  static void
-  debuglog( const char* fmt, ... )
-  {
-    va_list va;
-    PTIB ptib;
-    PPIB ppib;
-
-    va_start( va, fmt );
-    DosGetInfoBlocks( &ptib, &ppib );
-    DosEnterCritSec();
-    fprintf( stderr, "%08ld %04lx:%04ld %08lx ", clock(), ppib->pib_ulpid, ptib->tib_ptib2->tib2_ultid, (ULONG)&fmt );
-    vfprintf( stderr, fmt, va );
-    assert(_heapchk() == _HEAPOK);
-    DosExitCritSec();
-    va_end( va );
-    // Dirty hack to enforce threading issues to occur.
-    DosSleep(0);
-  }
+  void debuglog( const char* fmt, ... );
 
   #define DEBUGLOG(x) debuglog x
 #else
@@ -159,23 +137,11 @@
   #define CASSERT(expr) ((expr) ? (void)0 : (DEBUGLOG(("Assertion at %s line %i failed: %s\n%s (%i)\n", __FILE__, __LINE__, #expr, clib_strerror(errno), errno)), abort()))
   #define CXASSERT(expr, cond) (((expr) cond) ? (void)0 : (DEBUGLOG(("Assertion at %s line %i failed: %s\n%s (%i)\n", __FILE__, __LINE__, #expr" "#cond, clib_strerror(errno), errno)), abort()))
 
-  static void oassert(unsigned long apiret, const char* file, int line, const char* msg)
-  { if (apiret)
-    { char buf[1024];
-      os2_strerror(apiret, buf, sizeof(buf));
-      DEBUGLOG(("Assertion at %s line %i failed: %s\n%s\n", file, line, msg, buf));
-      abort();    
-  } }
+  void oassert(unsigned long apiret, const char* file, int line, const char* msg);
   #define OASSERT(apiret) ((apiret) ? (void)0 : oassert(apiret, __FILE__, __LINE__, #apiret))
   #define ORASSERT(apiret) oassert(apiret, __FILE__, __LINE__, #apiret)
 
-  static void pmassert(const char* file, int line, const char* msg)
-  { char buf[1024];
-    os2pm_strerror(buf, sizeof(buf));
-    if (*buf)
-    { DEBUGLOG(("Assertion at %s line %i failed: %s\n%s\n", file, line, msg, buf));
-      abort();    
-  } }
+  void pmassert(const char* file, int line, const char* msg);
   #define PMASSERT(expr) ((expr) ? (void)0 : pmassert(__FILE__, __LINE__, #expr))
   #define PMXASSERT(expr, cond) (((expr) cond) ? (void)0 : pmassert(__FILE__, __LINE__, #expr" "#cond))
   #define PMRASSERT(expr) (!!(expr) ? (void)0 : pmassert(__FILE__, __LINE__, #expr))
@@ -195,6 +161,10 @@
   #define PMXASSERT(expr, cond) (expr)
   #define PMRASSERT(expr) (expr)
   #define PMEASSERT(expr) (expr)
+#endif
+
+#ifdef __cplusplus
+}
 #endif
 
 #endif
