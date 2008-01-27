@@ -4,7 +4,7 @@
 
 DLL     = yes
 TOPDIR  = ..
-TARGET  = 2
+TARGET  = all2
 
 !include $(TOPDIR)\config\makerules
 
