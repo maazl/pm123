@@ -32,15 +32,18 @@
 #define  INCL_DOS
 #define  INCL_WIN
 #define  INCL_ERRORS
-#include <os2.h>
 #include <stdio.h>
 #include <memory.h>
 
+#include <utilfct.h>
 #include <xio.h>
 #include "properties.h"
 #include "pm123.h"
 #include "pm123.rc.h"
 #include "iniman.h"
+#include "plugman.h"
+#include "controller.h"
+#include <os2.h>
 
 #define  CFG_REFRESH_LIST (WM_USER+1)
 #define  CFG_REFRESH_INFO (WM_USER+2)
@@ -301,7 +304,7 @@ cfg_page2_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
 
         fontdialog.cbSize         = sizeof( fontdialog );
         fontdialog.hpsScreen      = WinGetScreenPS( HWND_DESKTOP );
-        fontdialog.pszFamilyname  = malloc( FACESIZE );
+        fontdialog.pszFamilyname  = (PSZ)malloc( FACESIZE );
         fontdialog.usFamilyBufLen = FACESIZE;
         fontdialog.pszTitle       = "PM123 scroller font";
         fontdialog.pszPreview     = "128 kb/s, 44.1 kHz, Joint-Stereo";
@@ -562,7 +565,8 @@ cfg_page3_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
             if( !get_plugin_enabled(list[i]) ) {
               set_plugin_enabled(list[i], TRUE);
             } else {
-              if( dec_is_active(i) ) {
+              // This query is non-atomic, but nothing strange will happen anyway.
+              if( Ctrl::IsPlaying() && dec_is_active(i) ) {
                 amp_error( hwnd, "Cannot disable currently in use decoder." );
               } else {
                 set_plugin_enabled(list[i], FALSE);
@@ -578,7 +582,7 @@ cfg_page3_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
         {
           SHORT i = lb_cursored( hwnd, LB_DECPLUG );
           if( i != LIT_NONE ) {
-            if( decoder_playing() && dec_is_active(i) ) {
+            if( Ctrl::IsPlaying() && dec_is_active(i) ) {
               amp_error( hwnd, "Cannot unload currently used decoder." );
             } else {
               remove_decoder_plugin( i );

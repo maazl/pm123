@@ -165,9 +165,8 @@ class event : public event_base
  *   delegate<my_struct, int> Deleg(&foo, &Context);
  *   Ev += Deleg;
  *
- * It is essential that the lifetime of Deleg must not exceed the lifetime of Context
- * or Deleg must be deregistered from Ev before Context gets invalidated.
- * To ensure this Context might be a member of my_struct.
+ * It is essential that the lifetime of delegate must not exceed the lifetime of receiver
+ * or delegate must be deregistered from ev before receiver gets invalidated.
  */
 template <class R, class P>
 class delegate : public delegate_part<P>

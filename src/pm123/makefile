@@ -27,8 +27,8 @@ pm123.exe: $(OBJECTS) $(RESOURCE) $(DEF) $(LIBS)
 	execmode -sp pm123.exe
 	$(POSTLINKCMD)
 
-plugman$(CO):	plugman.cpp
-plugman_base$(CO):	plugman_base.cpp
+#plugman$(CO):	plugman.cpp
+#plugman_base$(CO):	plugman_base.cpp
 
 
 clean: $(MDUMMY)
@@ -63,6 +63,6 @@ skin.cpp:	..\gbm123\gbm.h ..\gbm123\gbmerr.h ..\gbm123\gbmht.h plugman.h skin.h 
 url.cpp:	url.h ..\utils\strutils.h
 button95.c:	pm123.h button95.h
 docking.c:	pm123.h docking.h ..\utils\utilfct.h
-iniman.c:	..\utils\utilfct.h pm123.h iniman.h plugman.h
-properties.c:	..\xio123\xio.h properties.h pm123.h pm123.rc.h iniman.h
+iniman.cpp:	..\utils\utilfct.h pm123.h iniman.h plugman.h
+properties.cpp:	..\xio123\xio.h properties.h pm123.h pm123.rc.h iniman.h
 test.c:	..\utils\vdelegate.h ..\utils\vdelegate.c

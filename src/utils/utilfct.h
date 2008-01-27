@@ -80,7 +80,9 @@ char* uncomment  ( char* string );
 /* Places the current thread into a wait state until another thread
    in the current process has ended. Kills another thread if the
    time expires. */
-void  wait_thread( TID tid, ULONG msec );
+BOOL  wait_thread( TID tid, ULONG msec );
+/* Same as wait_thread, but keep the PM message queue alive. */
+BOOL  wait_thread_pm( HAB hab, TID tid, ULONG msec );
 
 /* Makes a menu item selectable. */
 BOOL  mn_enable_item( HWND menu, SHORT id, BOOL enable );

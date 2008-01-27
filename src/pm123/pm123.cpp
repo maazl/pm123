@@ -116,7 +116,7 @@ static BOOL  is_arg_shuffle  = FALSE;
 static DECODER_WIZZARD_FUNC load_wizzards[20];
 
 /* Current seeking time. Valid if is_slider_drag == TRUE. */
-static double seeking_pos = 0;
+static T_TIME seeking_pos = 0;
 static int    upd_options = 0;
 
 /* Equalizer stuff. */
@@ -196,12 +196,9 @@ amp_paint_timers( HPS hps )
   DEBUGLOG(("amp_paint_timers(%p) - %i %i {%i/%i, %f/%f, %f/%f}\n", hps, cfg.mode, is_seeking,
     last_status.CurrentItem, last_status.TotalItems, last_status.CurrentTime, last_status.TotalTime, last_status.CurrentSongTime, last_status.TotalSongTime));
 
-  double list_left = 0;
-
-  // TODO: -> Controller
-  double play_time = is_seeking ? seeking_pos : last_status.CurrentSongTime;
-
-  double play_left = last_status.TotalSongTime;
+  T_TIME list_left = -1;
+  T_TIME play_time = is_seeking ? seeking_pos : last_status.CurrentSongTime;
+  T_TIME play_left = last_status.TotalSongTime;
   
   if (play_left > 0)
     play_left -= last_status.CurrentSongTime;
@@ -362,7 +359,7 @@ static void amp_AddMRU(Playlist* list, size_t max, const char* URL)
 
 /* Loads a standalone file or CD track to player. */
 void
-amp_load_playable( const char* url, double start, int options )
+amp_load_playable( const char* url, T_TIME start, int options )
 { DEBUGLOG(("amp_load_playable(%s, %x)\n", url, options));
 
   if (options & AMP_LOAD_APPEND)
@@ -1828,7 +1825,7 @@ static void amp_control_event_callback(Ctrl::ControlCommand* cmd)
 static MRESULT EXPENTRY
 amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
 {
-  DEBUGLOG2(("amp_dlg_proc(%p, %p, %p, %p)\n", hwnd, msg, mp1, mp2));
+  DEBUGLOG(("amp_dlg_proc(%p, %p, %p, %p)\n", hwnd, msg, mp1, mp2));
   switch( msg )
   {
     case WM_FOCUSCHANGE:
@@ -1975,7 +1972,7 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
       return 0;
 
     // TODO: move into controller
-    case WM_SEEKSTOP:
+    /*case WM_SEEKSTOP:
       DEBUGLOG(("amp_dlg_proc: WM_SEEKSTOP\n"));
       is_seeking = FALSE;
       return 0;
@@ -1986,29 +1983,7 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
       bmp_draw_rate( hps, LONGFROMMP( mp1 ) );
       WinReleasePS( hps );
       return 0;
-    }
-
-    // Posted by decoder
-    case WM_PLAYERROR:
-      // TODO: logic should be moved to the controller
-      if( dec_status() == DECODER_STOPPED || !out_playing_data()) {
-        Ctrl::PostCommand(Ctrl::MkPlayStop(Ctrl::Op_Clear));
-      }
-      return 0;
-
-    // Posted by decoder
-    case WM_PLAYSTOP:
-      DEBUGLOG(("WM_PLAYSTOP\n"));
-      // TODO: prepare next file
-      out_flush(); // flush remaining content, activate WM_OUTPUT_OUTOFDATA
-      return 0;
-
-    // Posted by the output plug-in
-    case WM_OUTPUT_OUTOFDATA:
-      DEBUGLOG(("WM_OUTPUT_OUTOFDATA\n"));
-      // All samples are played, let's stop.
-      amp_playstop( hwnd );
-      return 0;
+    }*/
 
     case DM_DRAGOVER:
       return amp_drag_over( hwnd, (PDRAGINFO)mp1 );
@@ -2022,7 +1997,7 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
       switch (LONGFROMMP(mp1))
       {case TID_ONTOP:
         WinSetWindowPos( hframe, HWND_TOP, 0, 0, 0, 0, SWP_ZORDER );
-        break;
+        return 0;
 
        case TID_UPDATE_PLAYER:
         { HPS hps = WinGetPS( hwnd );
@@ -2038,16 +2013,16 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
 
           WinReleasePS( hps );
         }
-        break;
+        return 0;
 
        case TID_UPDATE_TIMERS:
         if (decoder_playing() && cfg.mode == CFG_MODE_REGULAR )
         {
           Ctrl::PostCommand(Ctrl::MkStatus(), &amp_control_event_callback);
         }
-        break;
+        return 0;
       }
-      return 0;
+      break;
 
     case WM_ERASEBACKGROUND:
       return 0;
@@ -2152,8 +2127,8 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
           int_ptr<Song> song = Ctrl::GetCurrentSong();
           if (!song)
             return 0; // can't help, the file is gone
-
-          bm_add_bookmark(hwnd, song, PlayableInstance::slice(out_playing_pos()));
+          // Use the time index from last_status here.
+          bm_add_bookmark(hwnd, song, PlayableInstance::slice(last_status.CurrentSongTime));
           return 0;
         }
 
@@ -2441,7 +2416,8 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
       } else if( bmp_pt_in_slider( pos ) && decoder_playing()) {
         is_slider_drag = TRUE;
         is_seeking     = TRUE;
-        seeking_pos    = out_playing_pos();
+        // We can use the time index from last_status here because nothing else is shown currently.
+        seeking_pos    = last_status.CurrentSongTime;
         WinSetCapture( HWND_DESKTOP, hwnd );
       }
       return 0;
@@ -2594,10 +2570,6 @@ main2( void* arg )
   // these two are always constant
   load_wizzards[0] = amp_file_wizzard;
   load_wizzards[1] = amp_url_wizzard;
-  
-  // start controller
-  Ctrl::Init();
-  amp_reset_status();
 
   WinRegisterClass( hab, "PM123", amp_dlg_proc, CS_SIZEREDRAW /* | CS_SYNCPAINT */, 0 );
 
@@ -2608,6 +2580,13 @@ main2( void* arg )
 
   do_warpsans( hframe  );
   do_warpsans( hplayer );
+
+  // prepare pluginmanager
+  plugman_init();
+  
+  // start controller
+  Ctrl::Init();
+  amp_reset_status();
 
   Playable::Init();
 
@@ -2747,14 +2726,11 @@ main2( void* arg )
   remove_all_plugins();
   dk_term();
   Playable::Uninit();
+  plugman_uninit();
 
   WinDestroyWindow  ( hframe  );
   WinDestroyMsgQueue( hmq );
   WinTerminate( hab );
-
-  #ifdef __DEBUG_ALLOC__
-  _dump_allocated( 0 );
-  #endif
 }
 
 int
@@ -2831,3 +2807,14 @@ main( int argc, char *argv[] )
   main2(&args);
   return 0;
 }
+
+#ifdef __DEBUG_ALLOC__
+static struct MyTerm
+{ ~MyTerm();
+} MyTermInstance;
+
+MyTerm::~MyTerm()
+{ _dump_allocated( 0 );
+}
+#endif
+

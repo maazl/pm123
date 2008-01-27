@@ -34,6 +34,8 @@
 #include <cpp/mutex.h>
 #include <cpp/smartptr.h>
 
+#include <debuglog.h>
+
 
 class queue_base
 {public: // VAC++ 3.0 requires base types to be public
@@ -43,7 +45,7 @@ class queue_base
   class ReaderBase
   {public:
     queue_base& Queue;
-   private:
+   private: // non-copyable
     ReaderBase(const ReaderBase&);
     void operator=(const ReaderBase&);
    protected:
@@ -80,7 +82,7 @@ class queue : private queue_base
   class Reader : private ReaderBase
   {public:
     Reader(queue<T>& queue)       : ReaderBase(queue) {}
-    ~Reader()                     { ((queue<T>&)Queue).CommitRead(); }
+    ~Reader()                     { ((queue<T>&)Queue).CommitRead(); DEBUGLOG(("queue<T>::Reader::~Reader()\n")); }
     operator T&()                 { return ((Entry*)Queue.Read())->Data; }
   };
 

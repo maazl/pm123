@@ -32,9 +32,12 @@
 #ifndef  PM123_H
 #define  PM123_H
 
-#include "plugman.h"
+#define INCL_WIN
+#include <config.h>
+#include <decoder_plug.h>
 #include "properties.h"
 #include "copyright.h"
+#include <os2.h>
 
 #ifdef __cplusplus
 #include <cpp/xstring.h>

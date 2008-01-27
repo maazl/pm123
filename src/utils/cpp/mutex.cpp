@@ -107,7 +107,9 @@ bool Mutex::Release()
    ULONG count;
    DosQueryMutexSem(Handle, &pid, &tid, &count);
    DEBUGLOG(("Mutex(%p{%p})::Release() @ %u\n", this, Handle, count));
-   ORASSERT(DosReleaseMutexSem(Handle));
+   APIRET rc = DosReleaseMutexSem(Handle);
+   DEBUGLOG(("Mutex::Release() done %u\n", rc));
+   OASSERT(rc == NO_ERROR);
    return true;
    #else
    return DosReleaseMutexSem(Handle) == 0;
@@ -142,7 +144,8 @@ Event::Event(bool share)
 }
 
 Event::Event(const char* name)
-{  char* cp = new char[strlen(name)+8];
+{  DEBUGLOG(("Event(%p)::Event(%s)\n", this, name));
+   char* cp = new char[strlen(name)+8];
    strcpy(cp, "\\SEM32\\");
    strcpy(cp+7, name);
    APIRET rc;
@@ -158,11 +161,13 @@ Event::Event(const char* name)
 }
 
 Event::~Event()
-{  DosCloseEventSem(Handle); // can't handle errors here
+{  DEBUGLOG(("Event(%p)::~Event()\n", this));
+   DosCloseEventSem(Handle); // can't handle errors here
 }
 
 bool Event::Wait(long ms)
-{  APIRET rc = DosWaitEventSem(Handle, ms); // The mapping from ms == -1 to INFINITE is implicitely OK.
+{  DEBUGLOG(("Event(%p)::Wait(%li)\n", this, ms));
+   APIRET rc = DosWaitEventSem(Handle, ms); // The mapping from ms == -1 to INFINITE is implicitely OK.
    if (rc == 0)
      return true;
    #ifdef DEBUG
@@ -173,12 +178,14 @@ bool Event::Wait(long ms)
 }
 
 void Event::Set()
-{  ORASSERT(DosPostEventSem(Handle));
+{  DEBUGLOG(("Event(%p)::Set()\n", this));
+   ORASSERT(DosPostEventSem(Handle));
    //DEBUGLOG(("Event(%p)::Set - %x\n", this, rc));
 }
 
 void Event::Reset()
-{  ULONG cnt;
+{  DEBUGLOG(("Event(%p)::Reset()\n", this));
+   ULONG cnt;
    APIRET rc = DosResetEventSem(Handle, &cnt);
    ASSERT(rc == 0 || rc == ERROR_ALREADY_RESET);
 }
@@ -186,6 +193,7 @@ void Event::Reset()
 bool Event::IsSet() const
 {  ULONG cnt;
    DosQueryEventSem(Handle, &cnt);
+   DEBUGLOG(("Event(%p)::IsSet() - %lu\n", this, cnt));
    return cnt != 0; 
 }
 

@@ -35,6 +35,8 @@
 #include <os2.h>
 #include "utilfct.h"
 
+#include "debuglog.h"
+
 APIRET APIENTRY DosQueryModFromEIP( HMODULE *phMod, ULONG *pObjNum, ULONG BuffLen,
                                     PCHAR pBuff, ULONG *pOffset, ULONG Address );
 static BOOL have_warpsans = -1;
@@ -175,19 +177,40 @@ uncomment( char *string )
 /* Places the current thread into a wait state until another thread
    in the current process has ended. Kills another thread if the
    time expires. */
-void
+BOOL
 wait_thread( TID tid, ULONG msec )
 {
-  while( msec > 0 &&
-         DosWaitThread( &tid, DCWW_NOWAIT ) == ERROR_THREAD_NOT_TERMINATED )
-  {
+  while( DosWaitThread( &tid, DCWW_NOWAIT ) == ERROR_THREAD_NOT_TERMINATED )
+  { if (msec < 100)
+    { // Emergency exit
+      DEBUGLOG(("wait_thread: Thread %u has not terminated within time\n", tid));
+      DosKillThread( tid );
+      return FALSE;
+    }
     DosSleep( 100 );
     msec -= 100;
   }
+  return TRUE;
+}
 
-  if( DosWaitThread( &tid, DCWW_NOWAIT ) == ERROR_THREAD_NOT_TERMINATED ) {
-    DosKillThread( tid );
+BOOL
+wait_thread_pm( HAB hab, TID tid, ULONG msec )
+{
+  while( DosWaitThread( &tid, DCWW_NOWAIT ) == ERROR_THREAD_NOT_TERMINATED )
+  { QMSG qmsg;
+    if (WinPeekMsg(hab, &qmsg, NULLHANDLE, 0, 0, PM_REMOVE))
+      WinDispatchMsg( hab, &qmsg );
+    else if (msec < 31) // Well, not that exact
+    { // Emergency exit
+      DEBUGLOG(("wait_thread: Thread %u has not terminated within time\n", tid));
+      DosKillThread( tid );
+      return FALSE;
+    } else
+    { DosSleep( 31 );
+      msec -= 31;
+    }
   }
+  return TRUE;
 }
 
 /* Makes a menu item selectable. */

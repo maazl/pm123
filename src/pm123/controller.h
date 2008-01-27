@@ -32,6 +32,7 @@
 
 
 #include "playable.h"
+#include "plugman.h"
 
 #include <decoder_plug.h>
 
@@ -43,64 +44,6 @@
 #include <debuglog.h>
 
 
-/* PM123 commands
-
-Command    StrArg              NumArg/PtrArg       Flags               Meaning
-===============================================================================================================
-Load       URL                                                         Load an URL
-                                                                       The URL must be well formed.
----------------------------------------------------------------------------------------------------------------
-Skip                           Number of songs     0x01  relative      Move to song number or some songs forward
-                                                         navigation    or backward. This makes only sense if the
-                                                                       currently loaded object is enumerable.
-                                                                       Absolute positioning is not recommended.
-                                                                       Use Navigate instead.
----------------------------------------------------------------------------------------------------------------
-Navigate   Serialized iterator Location in         0x01  relative      Jump to location
-           optional            seconds                   location      This will change the Song and/or the
-                                                   0x02  playlist      playing position.
-                                                         scope
----------------------------------------------------------------------------------------------------------------
-PlayStop                                           0x01  play          Start or stop playing.
-                                                   0x02  stop
-                                                   0x03  toggle
----------------------------------------------------------------------------------------------------------------
-Pause                                              0x01  pause         Set or unset pause.
-                                                   0x02  resume        Pause is reset on stop.
-                                                   0x03  toggle
----------------------------------------------------------------------------------------------------------------
-Scan                                               0x01  scan on       Set/reset forwad/rewind.
-                                                   0x02  scan off      If flag 0x04 is not set fast forward is
-                                                   0x03  toggle        controlled. Setting fast forward
-                                                   0x04  rewind        automatically stops rewinding and vice
-                                                                       versa.
----------------------------------------------------------------------------------------------------------------
-Volume                         Volume [0..1]       0x01  relative      Set volume to level.
----------------------------------------------------------------------------------------------------------------
-Shuffle                                            0x01  enable        Enable/disable random play.
-                                                   0x02  disable
-                                                   0x03  toggle
----------------------------------------------------------------------------------------------------------------
-Repeat                                             0x01  on            Set/reset auto repeat.
-                                                   0x02  off
-                                                   0x03  toggle
----------------------------------------------------------------------------------------------------------------
-Equalize                       EQ_Data*                                Save stream of current decoder.
----------------------------------------------------------------------------------------------------------------
-Save       Filename                                                    Save stream of current decoder.
----------------------------------------------------------------------------------------------------------------
-Status                         out: PlayStatus*                        Return PlayStatus
----------------------------------------------------------------------------------------------------------------
-
-Commands can have an optional callback function which is called when the command is executed completely.
-The callback function must at least delete the ControlCommand instance.
-The callback function should not block.
-If a ControlCommand has no callback function, it is deleted by the Queue processor.
-
-Commands can be linked by the Link field. Linked commands are executed without interuption by other command sources.
-If one of the commands fails, all further linked commands fail immediately with PM123RC_SubseqError too. 
-*/
-
 /* Class to iterate over a PlayableCollection recursively returning only Song items.
  * All non-const functions are not thread safe.
  */
@@ -108,14 +51,14 @@ class SongIterator
 {public:
   struct Offsets
   { int                       Index;     // Item index of the current PlayableInstance counting from the top level.
-    double                    Offset;    // Time offset of the current PlayableInstance counting from the top level or -1 if not available.
-    Offsets(int index, double offset) : Index(index), Offset(offset) {}
+    T_TIME                    Offset;    // Time offset of the current PlayableInstance counting from the top level or -1 if not available.
+    Offsets(int index, T_TIME offset) : Index(index), Offset(offset) {}
   };
   struct CallstackEntry : public Offsets
   { int_ptr<PlayableInstance> Item;      // Current item in the PlayableCollection of the pervious Callstack entry if any or the root otherwise.
     CallstackEntry()          : Offsets(-1, Offset = -1) {}
   };
-  typedef vector<CallstackEntry> CallstackType; 
+  typedef vector<CallstackEntry> CallstackType;
   
  private:
   int_ptr<PlayableCollection> Root;      // Root collection to enumerate. 
@@ -182,17 +125,80 @@ class SongIterator
   bool                        Next()                   { return PrevNextCore(+1); }
   // reset the Iterator to it's initial state. 
   void                        Reset();
+  
+  // comparsion
+  friend bool                 operator==(const SongIterator& l, const SongIterator& r);
 };
 
 
 /* PM123 controller class.
+ * All playback activities are controlled by this class.
  * This class is static.
- */
+
+ * PM123 commands
+
+Command    StrArg              NumArg/PtrArg       Flags               Meaning
+===============================================================================================================
+Load       URL                                                         Load an URL
+                                                                       The URL must be well formed.
+---------------------------------------------------------------------------------------------------------------
+Skip                           Number of songs     0x01  relative      Move to song number or some songs forward
+                                                         navigation    or backward. This makes only sense if the
+                                                                       currently loaded object is enumerable.
+                                                                       Absolute positioning is not recommended.
+                                                                       Use Navigate instead.
+---------------------------------------------------------------------------------------------------------------
+Navigate   Serialized iterator Location in         0x01  relative      Jump to location
+           optional            seconds                   location      This will change the Song and/or the
+                                                   0x02  playlist      playing position.
+                                                         scope
+---------------------------------------------------------------------------------------------------------------
+PlayStop                                           0x01  play          Start or stop playing.
+                                                   0x02  stop
+                                                   0x03  toggle
+---------------------------------------------------------------------------------------------------------------
+Pause                                              0x01  pause         Set or unset pause.
+                                                   0x02  resume        Pause is reset on stop.
+                                                   0x03  toggle
+---------------------------------------------------------------------------------------------------------------
+Scan                                               0x01  scan on       Set/reset forwad/rewind.
+                                                   0x02  scan off      If flag 0x04 is not set fast forward is
+                                                   0x03  toggle        controlled. Setting fast forward
+                                                   0x04  rewind        automatically stops rewinding and vice
+                                                                       versa.
+---------------------------------------------------------------------------------------------------------------
+Volume                         Volume [0..1]       0x01  relative      Set volume to level.
+---------------------------------------------------------------------------------------------------------------
+Shuffle                                            0x01  enable        Enable/disable random play.
+                                                   0x02  disable
+                                                   0x03  toggle
+---------------------------------------------------------------------------------------------------------------
+Repeat                                             0x01  on            Set/reset auto repeat.
+                                                   0x02  off
+                                                   0x03  toggle
+---------------------------------------------------------------------------------------------------------------
+Equalize                       EQ_Data*                                Save stream of current decoder.
+---------------------------------------------------------------------------------------------------------------
+Save       Filename                                                    Save stream of current decoder.
+---------------------------------------------------------------------------------------------------------------
+Status                         out: PlayStatus*                        Return PlayStatus
+---------------------------------------------------------------------------------------------------------------
+DecStop                                                                The current decoder finished it's work.
+---------------------------------------------------------------------------------------------------------------
+
+Commands can have an optional callback function which is called when the command is executed completely.
+The callback function must at least delete the ControlCommand instance.
+The callback function should not block.
+If a ControlCommand has no callback function, it is deleted by the Queue processor.
+
+Commands can be linked by the Link field. Linked commands are executed without interuption by other command sources.
+If one of the commands fails, all further linked commands fail immediately with PM123RC_SubseqError too. 
+*/
 class Ctrl
 {public:
   enum Command
   { // current object control
-    Cmd_Load,
+    Cmd_Load = 1,
     Cmd_Skip,
     Cmd_Navigate,
     // play mode control
@@ -206,7 +212,9 @@ class Ctrl
     Cmd_Save,
     Cmd_Equalize,
     // queries
-    Cmd_Status
+    Cmd_Status,
+    // internal events
+    Cmd_DecStop
   };
 
   // Flags for setter commands 
@@ -238,10 +246,10 @@ class Ctrl
   struct PlayStatus //: public PlayEnumerator::Status
   { int    CurrentItem;     // index of the currently played song
     int    TotalItems;      // total number of items in the queue
-    double CurrentTime;     // current time index from the start of the queue excluding the currently loaded one
-    double TotalTime;       // total time of all items in the queue
-    double CurrentSongTime; // current time index in the current song
-    double TotalSongTime;   // total time of the current song
+    T_TIME CurrentTime;     // current time index from the start of the queue excluding the currently loaded one
+    T_TIME TotalTime;       // total time of all items in the queue
+    T_TIME CurrentSongTime; // current time index in the current song
+    T_TIME TotalSongTime;   // total time of the current song
   };
 
   struct ControlCommand;
@@ -281,6 +289,14 @@ class Ctrl
     EV_Tech     = 0x4000,
     EV_Meta     = 0x8000
   };
+  
+ private:
+  struct PrefetchEntry
+  { T_TIME                    Offset;        // Starting time index from the output's point of view.
+    SongIterator              Iter;          // Iterator that points to the song that starts at this position.
+    PrefetchEntry() : Offset(0) {}
+    PrefetchEntry(T_TIME offset, const SongIterator& iter) : Offset(offset), Iter(iter) {}
+  };
 
   /*struct ControlEventArgs
   { ControlEventFlags Flags;
@@ -288,9 +304,9 @@ class Ctrl
 
  private: // working set
   static int_ptr<Song>        CurrentSong;   // Current Song if a non-enumerable item is loaded.
-  static SongIterator         CurrentIter;   // Iterator over the current PlayableCollection if an enumerable item is loaded.
+  static vector<PrefetchEntry> PrefetchList; // List of prefetched iterators. The first entry is always the current iterator if a enumerable object is loaded.
 
-  static double               Location;
+  static T_TIME               Location;
   static bool                 Playing;
   static bool                 Paused;
   static DECFASTMODE          Scan;
@@ -306,27 +322,51 @@ class Ctrl
 
   static PlayStatus           Status;
   static EventFlags           Pending;
+  
+  static delegate<void, const dec_event_args> DecEventDelegate;
+  static delegate<void, const OUTEVENTTYPE> OutEventDelegate;
 
   static const SongIterator::CallstackType EmptyStack;
 
  private: // internal functions, not thread safe
-  static bool SetFlag(bool& flag, Op op);
-  static void SetVolume();
-  static void UpdateStackUsage(const SongIterator::CallstackType& oldstack, const SongIterator::CallstackType& newstack);
-  friend void TFNENTRY ControllerWorkerStub(void*);
-  static void Worker();
+  // Returns the current PrefetchEntry. I.e. the currently playing (or not playing) iterator.
+  // Precondition: a enumerable object must have been loaded.
+  static PrefetchEntry* Current() { return PrefetchList[0]; }
+  // Applies the operator op to flag and returns true if the flag has been changed.
+  static bool  SetFlag(bool& flag, Op op);
+  // Sets the volume according to this->Volume and the scan mode.
+  static void  SetVolume();
+  // Initializes the decoder engine and starts playback of the song pp with a time offset for the output.
+  // The function returns the result of dec_play.
+  // Precondition: The output must have been initialized.
+  // The function does not return unless the decoder is decoding or an error occured.
+  static ULONG DecoderStart(Song* pp, T_TIME offset = 0);
+  // Stops decoding and deinitializes the decoder plug-in.
+  static void  DecoderStop();
+  // Initializes the output for playing pp.
+  // The playable object is needed for naming purposes.
+  static ULONG OutputStart(Playable* pp);
+  // Stops playback and clears the prefetchlist.
+  static void  OutputStop();
+  static void  UpdateStackUsage(const SongIterator::CallstackType& oldstack, const SongIterator::CallstackType& newstack);
+  static bool  SkipCore(SongIterator& si, int count, bool relative);
+  static void  PrefetchClear(bool keep);
+  friend void  TFNENTRY ControllerWorkerStub(void*);
+  static void  Worker();
+  static void  DecEventHandler(void*, const dec_event_args& args);
+  static void  OutEventHandler(void*, const OUTEVENTTYPE& event);
  private: // messages handlers, not thread safe  
-  static RC   MsgPause(Op op);
-  static RC   MsgScan(Op op);
-  static RC   MsgVolume(double volume, bool relative);
-  static RC   MsgNavigate(const xstring& iter, double loc, int flags);
-  static RC   MsgPlayStop(Op op);
-  static RC   MsgSkip(int count, bool relative);
-  static RC   MsgLoad(const xstring& url);
-  static RC   MsgSave(const xstring& filename);
-  static RC   MsgEqualize(const EQ_Data* data);
-  static RC   MsgStatus();
-
+  static RC    MsgPause(Op op);
+  static RC    MsgScan(Op op);
+  static RC    MsgVolume(double volume, bool relative);
+  static RC    MsgNavigate(const xstring& iter, T_TIME loc, int flags);
+  static RC    MsgPlayStop(Op op);
+  static RC    MsgSkip(int count, bool relative);
+  static RC    MsgLoad(const xstring& url);
+  static RC    MsgSave(const xstring& filename);
+  static RC    MsgEqualize(const EQ_Data* data);
+  static RC    MsgStatus();
+  static RC    MsgDecStop();
  
  public: // management interface, not thread safe
   // initialize controller
@@ -344,7 +384,7 @@ class Ctrl
   static xstring GetSavename(){ return Savename; }
   static int_ptr<Song> GetCurrentSong();
   static int_ptr<Playable> GetRoot()
-  { CritSect cs(); return CurrentSong ? (Playable*)CurrentSong : CurrentIter.GetRoot(); }
+  { CritSect cs(); return PrefetchList.size() ? PrefetchList[0]->Iter.GetRoot() : (Playable*)CurrentSong; }
 
  public: //message interface, thread safe
   // post a command to the controller Queue
@@ -362,6 +402,7 @@ class Ctrl
   }
   // Post a command to the controller queue and wait for completion.
   // The function returns the control command which usually must be deleted.
+  // The function must not be called from a thread which receives PM messages.
   static ControlCommand* SendCommand(ControlCommand* cmd);
 
   // short-cuts
@@ -369,7 +410,7 @@ class Ctrl
   { return new ControlCommand(Cmd_Load, url, 0., 0); }
   static ControlCommand* MkSkip(int count, bool relative)
   { return new ControlCommand(Cmd_Skip, xstring(), count, relative); }
-  static ControlCommand* MkNavigate(const xstring& iter, double start, bool relative, bool global)
+  static ControlCommand* MkNavigate(const xstring& iter, T_TIME start, bool relative, bool global)
   { return new ControlCommand(Cmd_Navigate, iter, start, relative | (global<<1)); }
   static ControlCommand* MkPlayStop(Op op)
   { return new ControlCommand(Cmd_PlayStop, xstring(), 0., op); }
@@ -385,6 +426,8 @@ class Ctrl
   { return new ControlCommand(Cmd_Equalize, xstring(), (void*)data, 0); }
   static ControlCommand* MkStatus()
   { return new ControlCommand(Cmd_Status, xstring(), (void*)NULL, 0); }
+  static ControlCommand* MkDecStop()
+  { return new ControlCommand(Cmd_DecStop, xstring(), (void*)NULL, 0); }
 
  public: // notifications
   static event<const EventFlags> ChangeEvent;

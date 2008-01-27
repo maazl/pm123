@@ -47,6 +47,7 @@
 #include "docking.h"
 #include "iniman.h"
 #include "playable.h"
+#include "plugman.h"
 
 #include <stddef.h>
 

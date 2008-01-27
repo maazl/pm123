@@ -48,6 +48,7 @@
 #include <utilfct.h>
 #include "plugman_base.h"
 #include "pm123.h"
+#include "playable.h"
 #include <vdelegate.h>
 
 #include <limits.h>
@@ -231,6 +232,47 @@ void CL_PLUGIN::set_enabled(BOOL enabled)
 }
 
 
+HWND CL_PLUGIN::ServiceHwnd = NULLHANDLE;
+
+MRESULT EXPENTRY cl_plugin_winfn(HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2)
+{ DEBUGLOG(("cl_plugin_winfn(%p, %u, %p, %p)\n", hwnd, msg, mp1, mp2));
+  switch (msg)
+  {case CL_PLUGIN::UM_CREATEPROXYWINDOW:
+    { HWND proxyhwnd = WinCreateWindow(hwnd, (PSZ)PVOIDFROMMP(mp1), "", 0, 0,0, 0,0, NULLHANDLE, HWND_BOTTOM, 42, NULL, NULL);
+      PMASSERT(proxyhwnd != NULLHANDLE);
+      PMRASSERT(WinSetWindowPtr(proxyhwnd, 0, PVOIDFROMMP(mp2)));
+      return (MRESULT)proxyhwnd;
+    }
+   case CL_PLUGIN::UM_DESTROYPROXYWINDOW:
+    WinDestroyWindow(HWNDFROMMP(mp1));
+    return 0;
+   case WM_DESTROY:
+    CL_PLUGIN::ServiceHwnd = NULLHANDLE;
+    break;
+  }
+  return WinDefWindowProc(hwnd, msg, mp1, mp2);
+}
+
+HWND CL_PLUGIN::CreateProxyWindow(const char* cls, void* ptr)
+{ return (HWND)WinSendMsg(ServiceHwnd, UM_CREATEPROXYWINDOW, MPFROMP(cls), MPFROMP(ptr));
+}
+
+void CL_PLUGIN::DestroyProxyWindow(HWND hwnd)
+{ WinSendMsg(ServiceHwnd, UM_DESTROYPROXYWINDOW, MPFROMHWND(hwnd), 0);
+  PMEASSERT(1);
+}
+
+void CL_PLUGIN::init()
+{ PMRASSERT(WinRegisterClass(amp_player_hab(), "CL_MODULE_SERVICE", &cl_plugin_winfn, 0, 0));
+  ServiceHwnd = WinCreateWindow(amp_player_window(), "CL_MODULE_SERVICE", "", 0, 0,0, 0,0, NULLHANDLE, HWND_BOTTOM, 42, NULL, NULL);
+  PMASSERT(ServiceHwnd != NULLHANDLE);
+}
+
+void CL_PLUGIN::uninit()
+{ WinDestroyWindow(ServiceHwnd);
+}
+
+
 /****************************************************************************
 *
 * decoder interface
@@ -346,7 +388,8 @@ class CL_DECODER_PROXY_1 : public CL_DECODER
   ULONG  DLLENTRYP(vdecoder_length   )( void* w );
   void   DLLENTRYP(error_display)( char* );
   HWND   hwnd; // Window handle for catching event messages
-  ULONG  tid; // decoder thread id
+  ULONG  tid;  // decoder thread id
+  xstring url; // currently playing song
   double temppos;
   DECFASTMODE lastfast;
   char   metadata_buffer[128]; // Loaded in curtun on decoder's demand WM_METADATA.
@@ -506,14 +549,13 @@ proxy_1_decoder_command( CL_DECODER_PROXY_1* op, void* w, ULONG msg, DECODER_PAR
       } else
         par1.other = params->URL;
 
-      par1.jumpto              = (int)floor(params->jumpto*1000 + .5);
+      par1.jumpto = (int)floor(params->jumpto*1000 + .5);
+      op->url = params->URL; // keep URL
     }
     break;
 
    case DECODER_SETUP:
-    WinRegisterClass(amp_player_hab(), "CL_DECODER_PROXY_1", &proxy_1_decoder_winfn, 0, sizeof op);
-    op->hwnd = WinCreateWindow(amp_player_window(), "CL_DECODER_PROXY_1", "", 0, 0,0, 0,0, NULLHANDLE, HWND_BOTTOM, 42, NULL, NULL);
-    WinSetWindowPtr(op->hwnd, 0, op);
+    op->hwnd = CL_DECODER_PROXY_1::CreateProxyWindow("CL_DECODER_PROXY_1", op);
 
     par1.output_play_samples = (int DLLENTRYP()(void*, const FORMAT_INFO*, const char*, int, int))&PROXYFUNCREF(CL_DECODER_PROXY_1)proxy_1_decoder_play_samples;
     par1.a                   = op;
@@ -538,7 +580,8 @@ proxy_1_decoder_command( CL_DECODER_PROXY_1* op, void* w, ULONG msg, DECODER_PAR
     break;
 
    case DECODER_STOP:
-    WinDestroyWindow(op->hwnd);
+    op->url = NULL;
+    CL_DECODER_PROXY_1::DestroyProxyWindow(op->hwnd);
     op->hwnd = NULLHANDLE;
     op->temppos = out_playing_pos();
     break;
@@ -678,21 +721,27 @@ MRESULT EXPENTRY proxy_1_decoder_winfn(HWND hwnd, ULONG msg, MPARAM mp1, MPARAM 
     }
     return 0;
    case WM_METADATA:
-    { // TODO: the unchanged information is missing now
-      META_INFO meta = {sizeof(META_INFO)};
-      const char* metadata = (const char*)PVOIDFROMMP(mp1);
-      const char* titlepos;
-      // extract stream title
-      if( metadata ) {
-        titlepos = strstr( metadata, "StreamTitle='" );
-        if ( titlepos )
-        { unsigned int i;
-          titlepos += 13;
-          for( i = 0; i < sizeof( meta.title ) - 1 && *titlepos
-                      && ( titlepos[0] != '\'' || titlepos[1] != ';' ); i++ )
-            meta.title[i] = *titlepos++;
-          meta.title[i] = 0;
-          (*op->voutput_event)(op->a, DECEVENT_CHANGEMETA, &meta);
+    if (op->url)
+    { // Level 1 plug-ins can only handle Shoutcast stream infos.
+      // Keep anything but the title field at the old values.
+      int_ptr<Playable> pp = Playable::FindByURL(op->url);
+      if (pp)
+      { // Make this operation atomic
+        Mutex::Lock lck(pp->Mtx);
+        META_INFO meta = *pp->GetInfo().meta;
+        const char* metadata = (const char*)PVOIDFROMMP(mp1);
+        const char* titlepos;
+        // extract stream title
+        if( metadata ) {
+          titlepos = strstr( metadata, "StreamTitle='" );
+          if ( titlepos )
+          { titlepos += 13;
+            for( unsigned i = 0; i < sizeof( meta.title ) - 1 && *titlepos
+                        && ( titlepos[0] != '\'' || titlepos[1] != ';' ); i++ )
+              meta.title[i] = *titlepos++;
+            meta.title[i] = 0;
+            (*op->voutput_event)(op->a, DECEVENT_CHANGEMETA, &meta);
+          }
         }
       }
     }
@@ -703,6 +752,11 @@ MRESULT EXPENTRY proxy_1_decoder_winfn(HWND hwnd, ULONG msg, MPARAM mp1, MPARAM 
 
 CL_PLUGIN* CL_DECODER::factory(CL_MODULE& mod)
 { return mod.query_param.interface <= 1 ? new CL_DECODER_PROXY_1(mod) : new CL_DECODER(mod);
+}
+
+
+void CL_DECODER::init()
+{ PMRASSERT(WinRegisterClass(amp_player_hab(), "CL_DECODER_PROXY_1", &proxy_1_decoder_winfn, 0, sizeof(CL_DECODER_PROXY_1*)));
 }
 
 
@@ -822,10 +876,7 @@ proxy_1_output_command( CL_OUTPUT_PROXY_1* op, void* a, ULONG msg, OUTPUT_PARAMS
     break;
 
    case OUTPUT_SETUP:
-    WinRegisterClass(amp_player_hab(), "CL_OUTPUT_PROXY_1", &proxy_1_output_winfn, 0, sizeof op);
-    op->voutput_hwnd = WinCreateWindow(amp_player_window(), "CL_OUTPUT_PROXY_1", "", 0, 0,0, 0,0, NULLHANDLE, HWND_BOTTOM, 43, NULL, NULL);
-    //DEBUGLOG(("CL_OUTPUT_PROXY_1::init_plugin - C: %x, %x\n", voutput_hwnd, WinGetLastError(NULL)));
-    WinSetWindowPtr(op->voutput_hwnd, 0, op);
+    op->voutput_hwnd = CL_OUTPUT_PROXY_1::CreateProxyWindow("CL_OUTPUT_PROXY_1", op);
     // copy corresponding fields
     params.formatinfo.size       = sizeof params.formatinfo;
     params.formatinfo.samplerate = info->formatinfo.samplerate;
@@ -870,7 +921,7 @@ proxy_1_output_command( CL_OUTPUT_PROXY_1* op, void* a, ULONG msg, OUTPUT_PARAMS
     break;
 
    case OUTPUT_CLOSE:
-    WinDestroyWindow(op->voutput_hwnd);
+    CL_OUTPUT_PROXY_1::DestroyProxyWindow(op->voutput_hwnd);
     op->voutput_hwnd = NULLHANDLE;
   }
   DEBUGLOG(("proxy_1_output_command: %d\n", r));
@@ -957,6 +1008,11 @@ MRESULT EXPENTRY proxy_1_output_winfn(HWND hwnd, ULONG msg, MPARAM mp1, MPARAM m
 
 CL_PLUGIN* CL_OUTPUT::factory(CL_MODULE& mod)
 { return mod.query_param.interface <= 1 ? new CL_OUTPUT_PROXY_1(mod) : new CL_OUTPUT(mod);
+}
+
+
+void CL_OUTPUT::init()
+{ PMRASSERT(WinRegisterClass(amp_player_hab(), "CL_OUTPUT_PROXY_1", &proxy_1_output_winfn, 0, sizeof(CL_OUTPUT_PROXY_1*)));
 }
 
 

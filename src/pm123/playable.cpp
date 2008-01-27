@@ -205,11 +205,16 @@ void Playable::UpdateStatus(PlayableStatus stat)
   }
 }
 
-bool Playable::SetMetaInfo(const META_INFO* meta)
+void Playable::SetMetaInfo(const META_INFO* meta)
 { Mutex::Lock lock(Mtx);
   UpdateInfo(meta);
   RaiseInfoChange();
-  return true;
+}
+
+void Playable::SetTechInfo(const TECH_INFO* tech)
+{ Mutex::Lock lock(Mtx);
+  UpdateInfo(tech);
+  RaiseInfoChange();
 }
 
 void Playable::LoadInfoAsync(InfoFlags what)
@@ -267,7 +272,7 @@ void Playable::Uninit()
   WTermRq = true;
   WQueue.Write(NULL); // deadly pill
   if (WTid != -1)
-    DosWaitThread(&(TID&)WTid, DCWW_WAIT);
+    wait_thread_pm(amp_player_hab(), WTid, 60000);
   DEBUGLOG(("Playable::Uninit - complete\n"));
 }
 
@@ -643,14 +648,16 @@ void PlayableCollection::CalcTechInfo(TECH_INFO& dst)
 int_ptr<PlayableInstance> PlayableCollection::GetPrev(PlayableInstance* cur) const
 { DEBUGLOG(("PlayableCollection(%p)::GetPrev(%p{%s})\n", this, cur, cur ? cur->GetPlayable()->GetURL().cdata() : ""));
   ASSERT(InfoValid & IF_Other);
-  ASSERT(cur == NULL || cur->IsParent(this));
+  // The PlayableInstance (if any) may either belong the the current list or be removed earlier.
+  ASSERT(cur == NULL || cur->IsParent(NULL) || cur->IsParent(this));
   return (PlayableInstance*)(cur ? ((Entry*)cur)->Prev : Tail);
 }
 
 int_ptr<PlayableInstance> PlayableCollection::GetNext(PlayableInstance* cur) const
 { DEBUGLOG(("PlayableCollection(%p)::GetNext(%p{%s})\n", this, cur, cur ? cur->GetPlayable()->GetURL().cdata() : ""));
   ASSERT(InfoValid & IF_Other);
-  ASSERT(cur == NULL || cur->IsParent(this));
+  // The PlayableInstance (if any) may either belong the the current list or be removed earlier.
+  ASSERT(cur == NULL || cur->IsParent(NULL) || cur->IsParent(this));
   return (PlayableInstance*)(cur ? ((Entry*)cur)->Next : Head);
 }
 
@@ -1058,12 +1065,11 @@ bool Playlist::LoadMPL(XFILE* x)
 bool Playlist::LoadPLS(XFILE* x)
 { DEBUGLOG(("Playlist(%p{%s})::LoadPLS(%p)\n", this, GetURL().getShortName().cdata(), x));
 
-  char   file    [_MAX_PATH] = "";
-  char   title   [_MAX_PATH] = "";
+  xstring file;
+  xstring title;
   char   line    [4096];
   int    last_idx = -1;
-  BOOL   have_title = FALSE;
-  char*  eq_pos;
+  const char*  eq_pos;
 
   while( xio_fgets( line, sizeof(line), x))
   {
@@ -1076,21 +1082,23 @@ bool Playlist::LoadPLS(XFILE* x)
       if( eq_pos ) {
         if( strnicmp( line, "File", 4 ) == 0 )
         {
-          if( *file ) {
-            // TODO: title, position
-            AppendEntry(CreateEntry(file));
-            have_title = FALSE;
+          if( file ) {
+            // TODO: position
+            Entry* ep = CreateEntry(file);
+            ep->SetAlias(title);
+            AppendEntry(ep);
+            title = NULL;
+            file = NULL;
           }
 
-          strcpy( file, eq_pos + 1 );
+          file = eq_pos + 1;
           last_idx = atoi( &line[4] );
         }
         else if( strnicmp( line, "Title", 5 ) == 0 )
         {
           // We hope the title field always follows the file field
           if( last_idx == atoi( &line[5] )) {
-            strcpy( title, eq_pos + 1 );
-            have_title = TRUE;
+            title = eq_pos + 1;
           }
         }
       }
@@ -1099,8 +1107,10 @@ bool Playlist::LoadPLS(XFILE* x)
 
   if( *file ) {
     // TODO: fetch position
-    AppendEntry(CreateEntry(file));
-    //pl_add_file( file, have_title ? title : NULL, 0 );
+    Entry* ep = CreateEntry(file);
+    ep->SetAlias(title);
+    AppendEntry(ep);
+            
   }
 
   return true;

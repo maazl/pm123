@@ -9,6 +9,7 @@ extern "C" {
 
 #pragma pack(4)
 
+// Old style window messages
 #define WM_PLAYSTOP         (WM_USER +  69)
 #define WM_PLAYERROR        (WM_USER + 100)
 #define WM_SEEKSTOP         (WM_USER + 666)
@@ -17,17 +18,12 @@ extern "C" {
 #define WM_OUTPUT_OUTOFDATA (WM_USER + 667)
 #define WM_PLUGIN_CONTROL   (WM_USER + 668) /* Plugin notify message */
 
-/*
- * WM_PLUGIN_CONTROL
- *   LONGFROMMP(mp1) = notify code
- *   LONGFROMMP(mp2) = additional information
- *
- * Notify codes:
-*/
-
 #define PN_TEXTCHANGED  1   /* Display text changed */
 
 #define WAVE_FORMAT_PCM 0x0001
+
+typedef double T_TIME;
+typedef double T_SIZE;
 
 typedef struct _FORMAT_INFO
 {
@@ -50,9 +46,9 @@ typedef struct
 /* Technical information about the data source */
 typedef struct
 { unsigned int size;   /* size of this structure */
-  double songlength;   /* in milliseconds, smaller than 0 -> unknown */
+  T_TIME songlength;   /* in milliseconds, smaller than 0 -> unknown */
   int    bitrate;      /* in kbit/s, smaller than 0 -> unknown */
-  double filesize;     /* physical size of the file, smaller than 0 -> unknown */
+  T_SIZE filesize;     /* physical size of the file, smaller than 0 -> unknown */
   char   info[128];    /* general technical information string */
   int    num_items;    /* number of song items (for playlists), otherwise 1 */
   int    recursive;    /* Flag whether this object has some recursion in it's subobjects detected */

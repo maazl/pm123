@@ -45,6 +45,7 @@
 #include <filter_plug.h>
 #include <decoder_plug.h>
 #include <utilfct.h>
+#include <cpp/event.h>
 
 typedef struct
 {
@@ -62,14 +63,10 @@ typedef struct
 
 } VISUAL_PROPERTIES;
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 /****************************************************************************
 *
 *  Administrative interface of plug-in manager
-*  Not thread safe
+*  Not thread safe!
 *
 ****************************************************************************/
 BOOL  remove_decoder_plugin( int i );
@@ -84,6 +81,7 @@ void  load_default_outputs ( void );
 void  load_default_filters ( void );
 void  load_default_visuals ( void );
 
+// (de-)serialize currently loaded plugins.
 BOOL  load_decoders( BUFSTREAM* b );
 BOOL  load_outputs ( BUFSTREAM* b );
 BOOL  load_filters ( BUFSTREAM* b );
@@ -119,7 +117,7 @@ BOOL  configure_plugin( int type, int i, HWND hwnd );
 *
 ****************************************************************************/
 /* invoke decoder to play an URL */
-ULONG dec_play( const char* url, const char* decoder_name, double pos );
+ULONG dec_play( const char* url, const char* decoder_name, double offset, double pos );
 /* stop the current decoder immediately */
 ULONG dec_stop( void );
 /* set fast forward/rewind mode */
@@ -132,6 +130,18 @@ ULONG dec_eq  ( const float* bandgain );
 ULONG dec_save( const char* file );
 /* edit ID3-data of the given file, decoder_name is optional */
 ULONG dec_editmeta( HWND owner, const char* url, const char* decoder_name );
+/* get the minimum sample position of a block from the decoder since the last dec_play */
+double dec_minpos();
+/* get the maximum sample position of a block from the decoder since the last dec_play */
+double dec_maxpos();
+// Decoder events
+typedef struct
+{ DECEVENTTYPE type;
+  void*        param;
+} dec_event_args;
+extern event<const dec_event_args> dec_event;
+// Output events
+extern event<const OUTEVENTTYPE> out_event;
 
 /****************************************************************************
 *
@@ -162,6 +172,7 @@ ULONG out_close( void );
 void  out_set_volume( double volume ); // volume: [0,1]
 ULONG out_pause( BOOL pause );
 BOOL  out_flush( void );
+BOOL  out_trash( void );
 
 /****************************************************************************
 *
@@ -176,6 +187,12 @@ BOOL  DLLENTRY out_playing_data( void );
 /* Backward compatibility */
 BOOL  DLLENTRY decoder_playing( void );
 
+/****************************************************************************
+*
+*  Control interface for the isual plug-ins
+*  Not thread safe
+*
+****************************************************************************/
 /* initialize visual plug-in */
 BOOL  vis_init( int i );
 void  vis_init_all( BOOL skin );
@@ -195,8 +212,16 @@ void  load_plugin_menu( HWND hmenu );
 void  append_load_menu( HWND hMenu, ULONG id_base, SHORT where, DECODER_WIZZARD_FUNC* callbacks, int size );
 
 
-#ifdef __cplusplus
-}
-#endif
+/****************************************************************************
+*
+*  Global initialization functions
+*
+****************************************************************************/
+
+/* Initialize plug-in manager */
+void  plugman_init();
+/* Deinitialize plug-in manager */
+void  plugman_uninit();
+
 #endif /* PM123_PLUGMAN_H */
 

@@ -44,6 +44,7 @@
 #include <fileutil.h>
 #include "plugman_base.h"
 #include "pm123.h"
+#include "playable.h"
 #include "pm123.rc.h"
 
 //#define DEBUG 1
@@ -76,66 +77,80 @@ static CL_PLUGIN_LIST  visuals;  // only visuals
 *
 ****************************************************************************/
 
-static class CL_GLUE
+class CL_GLUE
 {private:
-         BOOL              initialized;       // whether the following vars are true
-         OUTPUT_PROCS      procs;             // entry points of the filter chain
-         OUTPUT_PARAMS2    params;            // parameters for output_command
-         DECODER_PARAMS2   dparams;           // parameters for decoder_command
+  static BOOL              initialized;       // whether the following vars are true
+  static OUTPUT_PROCS      procs;             // entry points of the filter chain
+  static OUTPUT_PARAMS2    params;            // parameters for output_command
+  static DECODER_PARAMS2   dparams;           // parameters for decoder_command
+  static xstring           url;               // current URL
+  static double            posoffset;         // Offset to posmarker parameter to make the output timeline monotonic
+  static FORMAT_INFO2      last_format;       // Format of last request_buffer
+  static double            minpos;            // minimum sample position of a block from the decoder since the last dec_play
+  static double            maxpos;            // maximum sample position of a block from the decoder since the last dec_play
 
  private:
   // Virtualize output procedures by invoking the filter plugin no. i.
-         void              virtualize         ( int i );
+  static void              virtualize         ( int i );
   // setup the entire filter chain
-         ULONG             init();
+  static ULONG             init();
   // uninitialize the filter chain
-         void              uninit();
+  static void              uninit();
   // Select decoder by index.
-         int               dec_set_active     ( int number )
+  static int               dec_set_active     ( int number )
                                               { return decoders.set_active(number); }
   // Select decoder by name.
   // Returns -1 if a error occured,
   // returns -2 if can't find nothing,
   // returns 0  if succesful.
-         int               dec_set_active     ( const char* name );
+  static int               dec_set_active     ( const char* name );
   // Send command to the current decoder using the current content of dparams.
-         ULONG             dec_command        ( ULONG msg );
+  static ULONG             dec_command        ( ULONG msg );
   // Send command to the current output and filter chain using the current content of params.
-         ULONG             out_command        ( ULONG msg )
+  static ULONG             out_command        ( ULONG msg )
                                               { return (*procs.output_command)( procs.a, msg, &params ); }
  public:
-                           CL_GLUE();
-
   // output control interface (C style)
   friend ULONG             out_setup          ( const FORMAT_INFO2* formatinfo, const char* URI );
   friend ULONG             out_close          ();
   friend void              out_set_volume     ( double volume );
   friend ULONG             out_pause          ( BOOL pause );
-  friend BOOL              out_flush          ( void );
+  friend BOOL              out_flush          ();
+  friend BOOL              out_trash          ();
   // decoder control interface (C style)
-  friend ULONG             dec_play           ( const char* url, const char* decoder_name, double pos );
-  friend ULONG             dec_stop           ( void );
+  friend ULONG             dec_play           ( const char* url, const char* decoder_name, double offset, double pos );
+  friend ULONG             dec_stop           ();
   friend ULONG             dec_fast           ( DECFASTMODE mode );
   friend ULONG             dec_jump           ( double pos );
   friend ULONG             dec_eq             ( const float* bandgain );
   friend ULONG             dec_save           ( const char* file );
+  friend double            dec_minpos         ();
+  friend double            dec_maxpos         ();
   // 4 visual interface (C style)
-  friend double DLLENTRY   out_playing_pos    ( void );
-  friend BOOL   DLLENTRY   out_playing_data   ( void );
+  friend double DLLENTRY   out_playing_pos    ();
+  friend BOOL   DLLENTRY   out_playing_data   ();
   friend ULONG  DLLENTRY   out_playing_samples( FORMAT_INFO* info, char* buf, int len );
 
  private: // glue
+  PROXYFUNCDEF int DLLENTRY glue_request_buffer( void* a, const FORMAT_INFO2* format, short** buf );
+  PROXYFUNCDEF void DLLENTRY glue_commit_buffer( void* a, int len, double posmarker );
   // 4 callback interface
-  PROXYFUNCDEF void DLLENTRY dec_event     ( void* a, DECEVENTTYPE event, void* param );
-  PROXYFUNCDEF void DLLENTRY out_event     ( void* w, OUTEVENTTYPE event );
-} voutput;
+  PROXYFUNCDEF void DLLENTRY dec_event_handler( void* a, DECEVENTTYPE event, void* param );
+  PROXYFUNCDEF void DLLENTRY out_event_handler( void* w, OUTEVENTTYPE event );
+};
 
-CL_GLUE::CL_GLUE()
-{ memset(&params, 0, sizeof params);
-}
+BOOL              CL_GLUE::initialized = false;
+OUTPUT_PROCS      CL_GLUE::procs;
+OUTPUT_PARAMS2    CL_GLUE::params = {0};
+DECODER_PARAMS2   CL_GLUE::dparams = {0};
+xstring           CL_GLUE::url;
+double            CL_GLUE::posoffset;
+FORMAT_INFO2      CL_GLUE::last_format;
+double            CL_GLUE::minpos;
+double            CL_GLUE::maxpos;
 
 void CL_GLUE::virtualize(int i)
-{ DEBUGLOG(("CL_GLUE(%p)::virtualize(%d)\n", this, i));
+{ DEBUGLOG(("CL_GLUE::virtualize(%d)\n", i));
 
   if (i < 0)
     return;
@@ -196,19 +211,19 @@ void CL_GLUE::virtualize(int i)
 
 // setup filter chain
 ULONG CL_GLUE::init()
-{ DEBUGLOG(("CL_GLUE(%p)::init\n", this));
+{ DEBUGLOG(("CL_GLUE::init\n"));
 
   params.size          = sizeof params;
   params.error_display = &amp_display_error;
   params.info_display  = &amp_display_info;
   // setup callback handlers
-  params.output_event  = &out_event;
-  params.w             = this; // not really required
+  params.output_event  = &out_event_handler;
+  params.w             = NULL; // not required
 
   memset(&dparams, 0, sizeof dparams);
   dparams.size            = sizeof dparams;
   // setup callback handlers
-  dparams.output_event    = &dec_event;
+  dparams.output_event    = &dec_event_handler;
   dparams.error_display   = &amp_display_error;
   dparams.info_display    = &amp_display_info;
   dparams.save_filename   = NULL;
@@ -231,7 +246,7 @@ ULONG CL_GLUE::init()
 }
 
 void CL_GLUE::uninit()
-{ DEBUGLOG(("CL_GLUE(%p)::uninit\n", this));
+{ DEBUGLOG(("CL_GLUE::uninit\n"));
 
   initialized = FALSE;
   // uninitialize filter chain
@@ -266,65 +281,71 @@ ULONG CL_GLUE::dec_command( ULONG msg )
 }
 
 /* invoke decoder to play an URL */
-ULONG dec_play( const char* url, const char* decoder_name, double pos )
+ULONG dec_play( const char* url, const char* decoder_name, double offset, double pos )
 {
   DEBUGLOG(("dec_play(%s, %s, %f)\n", url, decoder_name, pos));
-  ULONG rc = voutput.dec_set_active( decoder_name );
+  ULONG rc = CL_GLUE::dec_set_active( decoder_name );
   if ( rc != 0 )
     return rc;
 
-  voutput.dparams.URL                   = url;
-  voutput.dparams.jumpto                = pos;
-  voutput.dparams.output_request_buffer = voutput.procs.output_request_buffer;
-  voutput.dparams.output_commit_buffer  = voutput.procs.output_commit_buffer;
-  voutput.dparams.a                     = voutput.procs.a;
-  voutput.dparams.buffersize            = cfg.buff_size*1024;
-  voutput.dparams.bufferwait            = cfg.buff_wait;
-  voutput.dparams.proxyurl              = cfg.proxy;
-  voutput.dparams.httpauth              = cfg.auth;
+  CL_GLUE::posoffset = offset;
+  CL_GLUE::minpos = 1E99;
+  CL_GLUE::maxpos = 0;
 
-  rc = voutput.dec_command( DECODER_SETUP );
+  CL_GLUE::dparams.URL                   = url;
+  CL_GLUE::dparams.jumpto                = pos;
+  CL_GLUE::dparams.output_request_buffer = &glue_request_buffer;
+  CL_GLUE::dparams.output_commit_buffer  = &glue_commit_buffer;
+  CL_GLUE::dparams.a                     = CL_GLUE::procs.a;
+  CL_GLUE::dparams.buffersize            = cfg.buff_size*1024;
+  CL_GLUE::dparams.bufferwait            = cfg.buff_wait;
+  CL_GLUE::dparams.proxyurl              = cfg.proxy;
+  CL_GLUE::dparams.httpauth              = cfg.auth;
+
+  rc = CL_GLUE::dec_command( DECODER_SETUP );
   if ( rc != 0 )
     return rc;
+  CL_GLUE::url = url;
 
-  voutput.dec_command( DECODER_SAVEDATA );
+  CL_GLUE::dec_command( DECODER_SAVEDATA );
 
-  return voutput.dec_command( DECODER_PLAY );
+  return CL_GLUE::dec_command( DECODER_PLAY );
 }
 
 /* stop the current decoder immediately */
 ULONG dec_stop( void )
-{ ULONG rc = voutput.dec_command( DECODER_STOP );
+{ CL_GLUE::url = NULL;
+  ULONG rc = CL_GLUE::dec_command( DECODER_STOP );
   if (rc == 0)
-    voutput.dec_set_active( -1 );
+    CL_GLUE::dec_set_active( -1 );
   return rc;
 }
 
 /* set fast forward/rewind mode */
 ULONG dec_fast( DECFASTMODE mode )
-{ voutput.dparams.fast = mode;
-  voutput.dec_command( DECODER_FFWD );
+{ CL_GLUE::dparams.fast = mode;
+  CL_GLUE::dec_command( DECODER_FFWD );
   return 0;
 }
 
 /* jump to absolute position */
 ULONG dec_jump( double location )
-{ voutput.dparams.jumpto = location;
-  ULONG rc = voutput.dec_command( DECODER_JUMPTO );
-  if (rc == 0 && cfg.trash && voutput.initialized)
-  { voutput.params.temp_playingpos = location;
-    voutput.out_command( OUTPUT_TRASH_BUFFERS );
+{ CL_GLUE::dparams.jumpto = location;
+  ULONG rc = CL_GLUE::dec_command( DECODER_JUMPTO );
+  if (rc == 0 && cfg.trash && CL_GLUE::initialized)
+  { CL_GLUE::params.temp_playingpos = location;
+    CL_GLUE::out_command( OUTPUT_TRASH_BUFFERS );
   }
   return rc;
 }
 
 /* set equalizer parameters */
 ULONG dec_eq( const float* bandgain )
-{ voutput.dparams.bandgain  = bandgain;
-  voutput.dparams.equalizer = bandgain != NULL;
+{ CL_GLUE::dparams.bandgain  = bandgain;
+  CL_GLUE::dparams.equalizer = bandgain != NULL;
   ULONG status = dec_status();
   return status == DECODER_PLAYING || status == DECODER_STARTING
-   ? voutput.dec_command( DECODER_EQ )
+   ? CL_GLUE::dec_command( DECODER_EQ )
    : 0;
 }
 
@@ -332,123 +353,154 @@ ULONG dec_eq( const float* bandgain )
 ULONG dec_save( const char* file )
 { if (file != NULL && *file == 0)
     file = NULL;
-  voutput.dparams.save_filename = file;
+  CL_GLUE::dparams.save_filename = file;
   ULONG status = dec_status();
   return status == DECODER_PLAYING || status == DECODER_STARTING
-   ? voutput.dec_command( DECODER_SAVEDATA )
+   ? CL_GLUE::dec_command( DECODER_SAVEDATA )
    : 0;
 }
 
+double dec_minpos()
+{ return CL_GLUE::minpos;
+}
+
+double dec_maxpos()
+{ return CL_GLUE::maxpos;
+}
+
+event<const dec_event_args> dec_event;
 
 /* setup new output stage or change the properties of the current one */
 ULONG out_setup( const FORMAT_INFO2* formatinfo, const char* URI )
 { DEBUGLOG(("out_setup(%p{%i,%i,%i}, %s)\n", formatinfo, formatinfo->size, formatinfo->samplerate, formatinfo->channels, URI));
-  voutput.params.formatinfo = *formatinfo;
-  if (!voutput.initialized)
-  { ULONG rc = voutput.init(); // here we initialte the setup of the filter chain
+  CL_GLUE::params.formatinfo = *formatinfo;
+  if (!CL_GLUE::initialized)
+  { ULONG rc = CL_GLUE::init(); // here we initialte the setup of the filter chain
     if (rc != 0)
       return rc;
   }
-  voutput.params.URI = URI;
-  return voutput.out_command( OUTPUT_OPEN );
+  CL_GLUE::params.URI = URI;
+  return CL_GLUE::out_command( OUTPUT_OPEN );
 }
 
 /* closes output device and uninitializes all filter and output plugins */
 ULONG out_close()
-{ if (!voutput.initialized)
+{ if (!CL_GLUE::initialized)
     return (ULONG)-1;
-  voutput.params.temp_playingpos = (*voutput.procs.output_playing_pos)( voutput.procs.a );;
-  voutput.out_command( OUTPUT_TRASH_BUFFERS );
-  ULONG rc = voutput.out_command( OUTPUT_CLOSE );
-  voutput.uninit(); // Hmm, is it a good advise to do this in case of an error?
+  CL_GLUE::params.temp_playingpos = (*CL_GLUE::procs.output_playing_pos)( CL_GLUE::procs.a );;
+  CL_GLUE::out_command( OUTPUT_TRASH_BUFFERS );
+  ULONG rc = CL_GLUE::out_command( OUTPUT_CLOSE );
+  CL_GLUE::uninit(); // Hmm, is it a good advise to do this in case of an error?
   return rc;
 }
 
 /* adjust output volume */
 void out_set_volume( double volume )
-{ if (!voutput.initialized)
+{ if (!CL_GLUE::initialized)
     return; // can't help
-  voutput.params.volume = volume;
-  voutput.params.amplifier = 1.0;
-  voutput.out_command( OUTPUT_VOLUME );
+  CL_GLUE::params.volume = volume;
+  CL_GLUE::params.amplifier = 1.0;
+  CL_GLUE::out_command( OUTPUT_VOLUME );
 }
 
 ULONG out_pause( BOOL pause )
-{ if (!voutput.initialized)
+{ if (!CL_GLUE::initialized)
     return (ULONG)-1; // error
-  voutput.params.pause = pause;
-  return voutput.out_command( OUTPUT_PAUSE );
+  CL_GLUE::params.pause = pause;
+  return CL_GLUE::out_command( OUTPUT_PAUSE );
 }
 
 BOOL out_flush()
-{ if (!voutput.initialized)
+{ if (!CL_GLUE::initialized)
     return FALSE;
-  (*voutput.procs.output_request_buffer)( voutput.procs.a, NULL, NULL );
+  (*CL_GLUE::procs.output_request_buffer)( CL_GLUE::procs.a, NULL, NULL );
   return TRUE;
 }
 
+BOOL out_trash()
+{ if (!CL_GLUE::initialized)
+    return FALSE;
+  CL_GLUE::out_command( OUTPUT_TRASH_BUFFERS );
+  return TRUE;
+}
+
+event<const OUTEVENTTYPE> out_event;
+
 /* Returns 0 = success otherwize MMOS/2 error. */
 ULONG DLLENTRY out_playing_samples( FORMAT_INFO* info, char* buf, int len )
-{ if (!voutput.initialized)
+{ if (!CL_GLUE::initialized)
     return (ULONG)-1; // N/A
-  return (*voutput.procs.output_playing_samples)( voutput.procs.a, info, buf, len );
+  return (*CL_GLUE::procs.output_playing_samples)( CL_GLUE::procs.a, info, buf, len );
 }
 
 /* Returns time in ms. */
 double DLLENTRY out_playing_pos( void )
-{ if (!voutput.initialized)
+{ if (!CL_GLUE::initialized)
     return 0; // ??
-  return (*voutput.procs.output_playing_pos)( voutput.procs.a );
+  return (*CL_GLUE::procs.output_playing_pos)( CL_GLUE::procs.a );
 }
 
 /* if the output is playing. */
 BOOL DLLENTRY out_playing_data( void )
-{ if (!voutput.initialized)
+{ if (!CL_GLUE::initialized)
     return FALSE;
-  return (*voutput.procs.output_playing_data)( voutput.procs.a );
+  return (*CL_GLUE::procs.output_playing_data)( CL_GLUE::procs.a );
+}
+
+PROXYFUNCIMP(int DLLENTRY, CL_GLUE)
+glue_request_buffer( void* a, const FORMAT_INFO2* format, short** buf )
+{ CL_GLUE::last_format = *format;
+  return (*CL_GLUE::procs.output_request_buffer)(a, format, buf);
 }
 
 PROXYFUNCIMP(void DLLENTRY, CL_GLUE)
-dec_event( void* a, DECEVENTTYPE event, void* param )
-{ DEBUGLOG(("plugman:dec_event(%p, %d, %p)\n", a, event, param));
-  // TODO: remove this WM_ messages
-  ULONG msg;
+glue_commit_buffer( void* a, int len, double posmarker )
+{ if (CL_GLUE::minpos > posmarker)
+    CL_GLUE::minpos = posmarker;
+  double pos_e = posmarker + (double)len / CL_GLUE::last_format.samplerate;
+  if (CL_GLUE::maxpos < pos_e)
+    CL_GLUE::maxpos = pos_e;
+  (*CL_GLUE::procs.output_commit_buffer)(a, len, posmarker + CL_GLUE::posoffset);
+}
+
+PROXYFUNCIMP(void DLLENTRY, CL_GLUE)
+dec_event_handler( void* a, DECEVENTTYPE event, void* param )
+{ DEBUGLOG(("plugman:dec_event_handler(%p, %d, %p)\n", a, event, param));
+  // We handle some event here immediately.
   switch (event)
-  {default:
-    return;
-   case DECEVENT_PLAYSTOP:
-    msg = WM_PLAYSTOP;
+  {case DEVEVENT_CHANGETECH:
+    if (CL_GLUE::url)
+    { int_ptr<Playable> pp = Playable::FindByURL(CL_GLUE::url);
+      if (pp)
+        pp->SetTechInfo((TECH_INFO*)param);
+    }
     break;
-   case DECEVENT_PLAYERROR:
-    msg = WM_PLAYERROR;
-    break;
-   case DECEVENT_SEEKSTOP:
-    msg = WM_SEEKSTOP;
-    break;
-   /* TODO: can't handle this correctly at the moment
-   case DEVEVENT_CHANGETECH:
-    msg = WM_CHANGEBR;
-    break;
+    
    case DECEVENT_CHANGEMETA:
-    msg = WM_METADATA;
-    break;*/
-  };
-  WinPostMsg(amp_player_window(), msg, MPFROMP(param),0);
+    // Well,the backend does not support time dependant metadata.
+    // From the playlist view, metadata changes should be immediately visible.
+    // But during playback the change should be delayed until the apropriate buffer is really played.
+    // The latter cannot be implemented with the current backend.
+    if (CL_GLUE::url)
+    { int_ptr<Playable> pp = Playable::FindByURL(CL_GLUE::url);
+      if (pp)
+        pp->SetMetaInfo((META_INFO*)param);
+    }
+    break;
+  }   
+  const dec_event_args args = { event, param };
+  dec_event(args); 
 }
 
 /* proxy, because the decoder is not interested in OUTEVENT_END_OF_DATA */
 PROXYFUNCIMP(void DLLENTRY, CL_GLUE)
-out_event( void* w, OUTEVENTTYPE event )
-{ DEBUGLOG(("plugman:out_event(%p, %d)\n", w, event));
-
+out_event_handler( void* w, OUTEVENTTYPE event )
+{ DEBUGLOG(("plugman:out_event_handler(%p, %d)\n", w, event));
+  out_event(event); 
+  // route high/low water events to the decoder (if any)
   switch (event)
-  {case OUTEVENT_END_OF_DATA:
-    WinPostMsg(amp_player_window(),WM_OUTPUT_OUTOFDATA,0,0);
-    break;
-   case OUTEVENT_PLAY_ERROR:
-    WinPostMsg(amp_player_window(),WM_PLAYERROR,0,0);
-    break;
-   default:
+  {case OUTEVENT_LOW_WATER:
+   case OUTEVENT_HIGH_WATER:
     CL_DECODER* dp = (CL_DECODER*)decoders.current();
     if (dp != NULL)
       dp->get_procs().decoder_event(dp->get_procs().w, event);
@@ -944,6 +996,14 @@ dec_status( void )
   }
 }
 
+/* Backward compatibility */
+BOOL
+decoder_playing( void )
+{
+  ULONG status = dec_status();
+  return ( status == DECODER_PLAYING || status == DECODER_STARTING || out_playing_data());
+}
+
 /* Length in ms, should still be valid if decoder stops. */
 double DLLENTRY
 dec_length( void )
@@ -1087,14 +1147,6 @@ void vis_broadcast( ULONG msg, MPARAM mp1, MPARAM mp2 )
       WinSendMsg( vis.get_hwnd(), msg, mp1, mp2 );
     }
   }
-}
-
-/* Backward compatibility */
-BOOL
-decoder_playing( void )
-{
-  ULONG status = dec_status();
-  return ( status == DECODER_PLAYING || status == DECODER_STARTING || out_playing_data());
 }
 
 
@@ -1311,3 +1363,21 @@ void remove_all_plugins( void )
   num_entries = 0;
 }
 
+
+/****************************************************************************
+*
+*  Global initialization functions
+*
+****************************************************************************/
+
+void plugman_init()
+{ CL_PLUGIN::init();
+  CL_DECODER::init();
+  CL_OUTPUT::init();
+}
+
+void plugman_uninit()
+{ CL_OUTPUT::uninit();
+  CL_DECODER::uninit();
+  CL_PLUGIN::uninit();
+}

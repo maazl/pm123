@@ -208,11 +208,10 @@ class Playable
   InfoFlags           EnsureInfoAsync(InfoFlags what);
 
   // Set meta information.
-  // While this function is implemented it only updates the cache and fires the MetaChange event.
-  // So you should overload it if resident changes are intended.
   // Calling this function with meta == NULL deletes the meta information.
-  // The function returns false if the update failed.
-  virtual bool        SetMetaInfo(const META_INFO* meta);
+  void                SetMetaInfo(const META_INFO* meta);
+  // Set technical information.
+  void                SetTechInfo(const TECH_INFO* tech);
 
  public:
   // Event on info change

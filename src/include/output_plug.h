@@ -107,7 +107,7 @@ typedef struct _OUTPUT_PARAMS2
 
   /* --- OUTPUT_TRASH_BUFFERS */
 
-  double temp_playingpos;  // used until new buffers come in
+  T_TIME temp_playingpos;  // used until new buffers come in
 
   /* --- OUTPUT_OPEN */
 
@@ -123,8 +123,8 @@ ULONG  DLLENTRY output_playing_pos( void* a );
 #else
 ULONG  DLLENTRY output_command( void* a, ULONG msg, OUTPUT_PARAMS2* info );
 int    DLLENTRY output_request_buffer( void* a, const FORMAT_INFO2* format, short** buf );
-void   DLLENTRY output_commit_buffer( void* a, int len, double posmarker );
-double DLLENTRY output_playing_pos( void* a );
+void   DLLENTRY output_commit_buffer( void* a, int len, T_TIME posmarker );
+T_TIME DLLENTRY output_playing_pos( void* a );
 #endif
 ULONG  DLLENTRY output_playing_samples( void* a, FORMAT_INFO* info, char* buf, int len );
 BOOL   DLLENTRY output_playing_data( void* a );

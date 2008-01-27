@@ -184,6 +184,22 @@ class CL_PLUGIN : public CL_PLUGIN_BASE
           BOOL get_enabled() const { return enabled; }
   // Setter to the enabled state.
   virtual void set_enabled(BOOL enabled);
+
+  // global services
+ protected:
+  enum
+  { UM_CREATEPROXYWINDOW = WM_USER,
+    UM_DESTROYPROXYWINDOW
+  };
+ private:
+  static HWND ServiceHwnd;
+  friend MRESULT EXPENTRY cl_plugin_winfn(HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2);
+ protected:
+  static HWND CreateProxyWindow(const char* cls, void* ptr);
+  static void DestroyProxyWindow(HWND hwnd);
+ public: 
+  static void init();
+  static void uninit();
 };
 
 
@@ -244,6 +260,10 @@ class CL_DECODER : public CL_PLUGIN, protected DECODER_PROCS
   // It will especially virtualize decoders with an older interface level.
   // The returned object must be deleted if it is no longer used.
   static CL_PLUGIN* factory(CL_MODULE& mod);
+  
+  // initialize global services
+  static void init();
+  static void uninit()                   {}
 };
 
 
@@ -290,6 +310,10 @@ class CL_OUTPUT : public CL_PLUGIN, protected OUTPUT_PROCS
   // It will especially virtualize plug-ins with an older interface level.
   // The returned object must be deleted if it is no longer used.
   static CL_PLUGIN* factory(CL_MODULE& mod);
+
+  // initialize global services
+  static void init();
+  static void uninit()                   {}
 };
 
 

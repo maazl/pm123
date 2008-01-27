@@ -227,7 +227,6 @@ class PlaylistBase : public IComparableTo<char>
  private:
   class_delegate2<PlaylistBase, const Playable::change_args, RecordBase*> RootInfoDelegate;
   class_delegate<PlaylistBase, const Ctrl::EventFlags> RootPlayStatusDelegate;
-  //TID               ThreadID;
   bool              InitialVisible;
   int               Initialized;
 

@@ -117,14 +117,14 @@ typedef struct _DECODER_PARAMS2
 
    /* --- DECODER_REW, FFWD and JUMPTO */
 
-   double      jumpto;      /* absolute positioning in seconds */
+   T_TIME      jumpto;      /* absolute positioning in seconds */
    DECFASTMODE fast;        /* fast forward/rewind */
 
    /* --- DECODER_SETUP */
 
    /* specify a function which the decoder should use for output */
    int   DLLENTRYP(output_request_buffer )( void* a, const FORMAT_INFO2* format, short** buf );
-   void  DLLENTRYP(output_commit_buffer  )( void* a, int len, double posmarker );
+   void  DLLENTRYP(output_commit_buffer  )( void* a, int len, T_TIME posmarker );
    /* decoder events */
    void  DLLENTRYP(output_event          )( void* a, DECEVENTTYPE event, void* param );
    void* a;           /* only to be used with the precedent functions */
@@ -170,7 +170,7 @@ void  DLLENTRY decoder_event  ( void* w, OUTEVENTTYPE event );
 /* WARNING!! this _can_ change in time!!! returns stream length in ms */
 /* the decoder should keep in memory a last valid length so the call  */
 /* remains valid even if decoder_status() == DECODER_STOPPED          */
-double DLLENTRY decoder_length( void* w );
+T_TIME DLLENTRY decoder_length( void* w );
 #endif
 
 #define DECODER_STOPPED  0
@@ -287,6 +287,7 @@ ULONG DLLENTRY decoder_support( char* fileext[], int* size );
 
 #if defined(DECODER_PLUGIN_LEVEL) && DECODER_PLUGIN_LEVEL > 0 
 ULONG DLLENTRY decoder_editmeta ( HWND owner, const char* url );
+#endif
 
 typedef void  DLLENTRYP(DECODER_WIZZARD_CALLBACK)( void* param, const char* url );
 
@@ -305,7 +306,6 @@ typedef struct _DECODER_WIZZARD
 } DECODER_WIZZARD;
 
 const DECODER_WIZZARD* DLLENTRY decoder_getwizzard( );
-#endif
 
 #pragma pack()
 

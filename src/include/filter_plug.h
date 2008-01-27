@@ -38,8 +38,8 @@ typedef struct _FILTER_PARAMS2
   ULONG  DLLENTRYP(output_command)( void* a, ULONG msg, OUTPUT_PARAMS2* info );
   ULONG  DLLENTRYP(output_playing_samples)( void* a, FORMAT_INFO* info, char* buf, int len );
   int    DLLENTRYP(output_request_buffer)( void* a, const FORMAT_INFO2* format, short** buf );
-  void   DLLENTRYP(output_commit_buffer)( void* a, int len, double posmarker );
-  double DLLENTRYP(output_playing_pos)( void* a );
+  void   DLLENTRYP(output_commit_buffer)( void* a, int len, T_TIME posmarker );
+  T_TIME DLLENTRYP(output_playing_pos)( void* a );
   BOOL   DLLENTRYP(output_playing_data)( void* a );
   void*  a;  /* only to be used with the precedent functions */
   
