@@ -715,10 +715,20 @@ MRESULT EXPENTRY proxy_1_decoder_winfn(HWND hwnd, ULONG msg, MPARAM mp1, MPARAM 
     (*op->voutput_event)(op->a, DECEVENT_SEEKSTOP, NULL);
     return 0;
    case WM_CHANGEBR:
-    { // TODO: the unchanged information is missing now
-      TECH_INFO ti = {sizeof(TECH_INFO), -1, LONGFROMMP(mp1), -1, ""};
-      (*op->voutput_event)(op->a, DEVEVENT_CHANGETECH, &ti);
+    /* TODO: It does not make sense to update the metadata as fast.
+    if (op->url)
+    { // Level 1 plug-ins can only handle Shoutcast stream infos.
+      // Keep anything but the title field at the old values.
+      int_ptr<Playable> pp = Playable::FindByURL(op->url);
+      if (pp)
+      { // Make this operation atomic
+        Mutex::Lock lck(pp->Mtx);
+        TECH_INFO ti = *pp->GetInfo().tech;
+        ti.bitrate = LONGFROMMP(mp1);
+        (*op->voutput_event)(op->a, DEVEVENT_CHANGETECH, &ti);
+      }
     }
+    */
     return 0;
    case WM_METADATA:
     if (op->url)

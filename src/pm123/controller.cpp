@@ -195,7 +195,9 @@ bool SongIterator::PrevNextCore(int dir)
       { DEBUGLOG(("SongIterator::PrevNextCore - %p{%p{%s}}\n", &*pi, pi->GetPlayable(), pi->GetPlayable()->GetURL().getShortName().cdata()));
         return true;
       } else if (!SkipQ()) // skip objects in the call stack
+      { pi->GetPlayable()->EnsureInfo(Playable::IF_Other);
         Enter();
+      }
     }
   }
 }
@@ -641,7 +643,8 @@ Ctrl::RC Ctrl::MsgLoad(const xstring& url)
     // Only load items that have a minimum of well known properties.
     // In case of enumerable items the content is required, in case of songs the decoder.
     // Both is related to IF_Other. The other informations are prefetched too.
-    play->EnsureInfo(Playable::IF_All);
+    play->EnsureInfo(Playable::IF_Other);
+    play->EnsureInfoAsync(Playable::IF_All);
     if (play->GetFlags() & Playable::Enumerable)
     { { CritSect cs();
         PrefetchList.append() = new PrefetchEntry();
@@ -705,22 +708,24 @@ Ctrl::RC Ctrl::MsgStatus()
   if (Playing)
   { Status.CurrentSongTime = out_playing_pos();
     // Check whether the output played a prefetched item completely.
-    size_t n = 1;
-    // Since the item #1 is likely to compare less than CurrentSongTime a linear search is faster than a binary search.
-    while (n < PrefetchList.size() && Status.CurrentSongTime >= PrefetchList[n]->Offset)
-      ++n;
-    --n;
-    DEBUGLOG(("Ctrl::MsgStatus %f, %f -> %u\n", Status.CurrentSongTime, Current()->Offset, n));
-    if (n)
-    { // At least one prefetched item has been played completely.
-      UpdateStackUsage(Current()->Iter.GetCallstack(), PrefetchList[n]->Iter.GetCallstack());
-      // Set events
-      Pending |= EV_Song|EV_Tech|EV_Meta;
-      // Cleanup prefetch list
-      CritSect cs;
-      do
-        delete PrefetchList.erase(--n);
-      while (n);
+    if (PrefetchList.size()) 
+    { size_t n = 1;
+      // Since the item #1 is likely to compare less than CurrentSongTime a linear search is faster than a binary search.
+      while (n < PrefetchList.size() && Status.CurrentSongTime >= PrefetchList[n]->Offset)
+        ++n;
+      --n;
+      DEBUGLOG(("Ctrl::MsgStatus %f, %f -> %u\n", Status.CurrentSongTime, Current()->Offset, n));
+      if (n)
+      { // At least one prefetched item has been played completely.
+        UpdateStackUsage(Current()->Iter.GetCallstack(), PrefetchList[n]->Iter.GetCallstack());
+        // Set events
+        Pending |= EV_Song|EV_Tech|EV_Meta;
+        // Cleanup prefetch list
+        CritSect cs;
+        do
+          delete PrefetchList.erase(--n);
+        while (n);
+      }
     }
   }
   

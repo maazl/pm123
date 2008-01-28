@@ -76,7 +76,7 @@ class xstring
     #endif
                                             { assert(_heapchk() == _HEAPOK);
                                               char* cp = (char*)malloc(s+l+1);
-                                              DEBUGLOG(("xstring::StringRef::operator new(%u, %u) - %p\n", s, l, cp));
+                                              DEBUGLOG2(("xstring::StringRef::operator new(%u, %u) - %p\n", s, l, cp));
                                               ((size_t*)(cp+s))[-1] = l; // Dirty implicit assignment to Len before constructor entry...
                                               return cp;
                                             }
@@ -85,7 +85,7 @@ class xstring
     #else
     static void  operator delete(void* p)
     #endif
-                                            { DEBUGLOG(("xstring::StringRef::operator delete(%p)\n", p)); free(p); }
+                                            { DEBUGLOG2(("xstring::StringRef::operator delete(%p)\n", p)); free(p); }
            size_t Length() const            { return Len; }
            char* Ptr() const                { return (char*)(this+1); }
            char& operator[](size_t ix)      { return ((char*)(this+1))[ix]; }

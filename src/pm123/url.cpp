@@ -31,6 +31,9 @@
 #include <strutils.h>
 #include <ctype.h>
 
+#include <debuglog.h>
+
+
 void url::parse()
 {
 }

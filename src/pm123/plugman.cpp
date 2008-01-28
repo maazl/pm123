@@ -294,8 +294,8 @@ ULONG dec_play( const char* url, const char* decoder_name, double offset, double
 
   CL_GLUE::dparams.URL                   = url;
   CL_GLUE::dparams.jumpto                = pos;
-  CL_GLUE::dparams.output_request_buffer = &CL_GLUE::glue_request_buffer;
-  CL_GLUE::dparams.output_commit_buffer  = &CL_GLUE::glue_commit_buffer;
+  CL_GLUE::dparams.output_request_buffer = &PROXYFUNCREF(CL_GLUE)glue_request_buffer;
+  CL_GLUE::dparams.output_commit_buffer  = &PROXYFUNCREF(CL_GLUE)glue_commit_buffer;
   CL_GLUE::dparams.a                     = CL_GLUE::procs.a;
   CL_GLUE::dparams.buffersize            = cfg.buff_size*1024;
   CL_GLUE::dparams.bufferwait            = cfg.buff_wait;

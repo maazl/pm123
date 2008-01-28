@@ -60,7 +60,7 @@ plugman_base.cpp:	..\utils\utilfct.h plugman_base.h pm123.h playable.h ..\utils\
 pm123.cpp:	..\utils\utilfct.h ..\xio123\xio.h pm123.h plugman.h button95.h playlistmanager.h playlistview.h copyright.h docking.h iniman.h controller.h playlistmenu.h skin.h ..\utils\cpp/xstring.h url.h pm123.rc.h ..\utils\debuglog.h
 skin.h:	playable.h
 skin.cpp:	..\gbm123\gbm.h ..\gbm123\gbmerr.h ..\gbm123\gbmht.h plugman.h skin.h pm123.h pm123.rc.h button95.h ..\utils\debuglog.h
-url.cpp:	url.h ..\utils\strutils.h
+url.cpp:	url.h ..\utils\strutils.h ..\utils\debuglog.h
 button95.c:	pm123.h button95.h
 docking.c:	pm123.h docking.h ..\utils\utilfct.h
 iniman.cpp:	..\utils\utilfct.h pm123.h iniman.h plugman.h

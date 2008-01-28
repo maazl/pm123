@@ -38,6 +38,7 @@
  */
 
 #include "debuglog.h"
+#include "snprintf.h"
 
 #ifdef DEBUG
 
@@ -50,7 +51,7 @@
 #include <assert.h>
 #include <malloc.h>
 
-static HMTX logmutex = NULLHANDLE;
+//static HMTX logmutex = NULLHANDLE;
                         
 // log to stderr
 void debuglog( const char* fmt, ... )
@@ -58,6 +59,8 @@ void debuglog( const char* fmt, ... )
   va_list va;
   PTIB ptib;
   PPIB ppib;
+  static char buffer[28+1024+1];
+  ULONG dummy;
 
   // Hack to get a more precise stack info: count the number of % in the format string and subtracht taht from the stack.
   size_t n = 0;
@@ -78,22 +81,26 @@ void debuglog( const char* fmt, ... )
     break;
   }
 
-  if (logmutex == NULLHANDLE)
+  /*if (logmutex == NULLHANDLE)
   { // create mutex
     DosEnterCritSec();
     if (logmutex == NULLHANDLE)
       DosCreateMutexSem(NULL, &logmutex, 0, FALSE);
     DosExitCritSec();
-  }
+  }*/
 
   va_start( va, fmt );
   DosGetInfoBlocks( &ptib, &ppib );
-  DosRequestMutexSem( logmutex, SEM_INDEFINITE_WAIT );
-  fprintf( stderr, "%08ld %04lx:%04ld %08lx ", clock(), ppib->pib_ulpid, ptib->tib_ptib2->tib2_ultid, (ULONG)&fmt + n * sizeof(int) );
-  vfprintf( stderr, fmt, va );
-  assert(_heapchk() == _HEAPOK);
-  DosReleaseMutexSem( logmutex );
+  //DosRequestMutexSem( logmutex, SEM_INDEFINITE_WAIT );
+  DosEnterCritSec();
+  //                 8+  1+4+  1+4+  1+8+  1 = 28
+  sprintf( buffer, "%08ld %04lx:%04ld %08lx ", clock(), ppib->pib_ulpid, ptib->tib_ptib2->tib2_ultid, (ULONG)&fmt + n * sizeof(int) );
+  vsnprintf( buffer+28, 1024, fmt, va );
+  DosWrite( 2, buffer, 28 + strlen(buffer+28), &dummy);
+  //DosReleaseMutexSem( logmutex );
+  DosExitCritSec();
   va_end( va );
+  assert(_heapchk() == _HEAPOK);
   // Dirty hack to enforce threading issues to occur.
   DosSleep(0);
 }

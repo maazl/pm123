@@ -240,7 +240,7 @@ xstring xstring::sprintf(const char* fmt, ...)
 }
 
 xstring xstring::vsprintf(const char* fmt, va_list va)
-{ DEBUGLOG(("xstring::vsprintf(%s, %p)\n", fmt, va));
+{ DEBUGLOG2(("xstring::vsprintf(%s, %p)\n", fmt, va));
   xstring ret(vsnprintf(NULL, 0, fmt, va));
   vsnprintf(ret.Data->Ptr(), ret.length()+1, fmt, va);
   return ret;

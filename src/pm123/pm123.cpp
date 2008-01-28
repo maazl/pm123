@@ -1825,7 +1825,7 @@ static void amp_control_event_callback(Ctrl::ControlCommand* cmd)
 static MRESULT EXPENTRY
 amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
 {
-  DEBUGLOG(("amp_dlg_proc(%p, %p, %p, %p)\n", hwnd, msg, mp1, mp2));
+  DEBUGLOG2(("amp_dlg_proc(%p, %p, %p, %p)\n", hwnd, msg, mp1, mp2));
   switch( msg )
   {
     case WM_FOCUSCHANGE:
@@ -1970,20 +1970,6 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
     case WM_CONTEXTMENU:
       amp_show_context_menu( hwnd );
       return 0;
-
-    // TODO: move into controller
-    /*case WM_SEEKSTOP:
-      DEBUGLOG(("amp_dlg_proc: WM_SEEKSTOP\n"));
-      is_seeking = FALSE;
-      return 0;
-
-    case WM_CHANGEBR:
-    {
-      HPS hps = WinGetPS( hwnd );
-      bmp_draw_rate( hps, LONGFROMMP( mp1 ) );
-      WinReleasePS( hps );
-      return 0;
-    }*/
 
     case DM_DRAGOVER:
       return amp_drag_over( hwnd, (PDRAGINFO)mp1 );
