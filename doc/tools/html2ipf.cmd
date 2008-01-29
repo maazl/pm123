@@ -28,16 +28,16 @@
  Global.DefaultFont = ':font facename=default size=0x0.';
 /*                    ':font facename=''WarpSans Bold'' size=9x6.';   */
 /* fonts for headings (1 through 6)                                   */
- Global.HeaderFont.1 = ':font facename=''Helv'' size=32x20.';
- Global.HeaderFont.2 = ':font facename=''Helv'' size=20x12.';
- Global.HeaderFont.3 = ':font facename=''Tms Rmn'' size=18x10.'
- Global.HeaderFont.4 = ':font facename=''Tms Rmn'' size=16x8.'
- Global.HeaderFont.5 = ':font facename=''Tms Rmn'' size=14x8.'
- Global.HeaderFont.6 = ':font facename=''Tms Rmn'' size=12x6.'
+ Global.HeaderFont.1 = ':font facename=''Helv'' size=24x12.';
+ Global.HeaderFont.2 = ':font facename=''Helv'' size=18x10.';
+ Global.HeaderFont.3 = ':font facename=''Helv'' size=14x8.'
+ Global.HeaderFont.4 = ':font facename=''Helv'' size=12x8.'
+ Global.HeaderFont.5 = ':font facename=''Helv'' size=10x6.'
+ Global.HeaderFont.6 = ':font facename=''Helv'' size=9x6.'
 /* font for url links (which launches WebExplorer)                    */
  Global.URLinkFont  = ':font facename=''WarpSans Bold'' size=9x6.'
 /* proportional font (for <tt>...</tt>                                */
- Global.ProportFont = ':font facename=''System VIO'' size=14x6.';
+ Global.ProportFont = ':font facename=''System VIO'' size=9x6.';
 
 /* end of user-customisable section                                   */
 /*--------------------------------------------------------------------*/
@@ -316,6 +316,7 @@ ParseFile:
  Global.IsTable = 0;               /* We`re inside a <TABLE>...</TABLE> pair? */
  Global.IsCentered = 0;          /* We`re inside a <CENTER>...</CENTER> pair? */
  Global.IsOutputEnabled = 1; /* A global switch to enable/disable text output */
+ Global.IsPRETag = 0;                 /* We are inside a <PRE>...</PRE> pair? */
  Global.SkipSpaces = 0;                   /* set to 1 in lists to skip spaces */
  Global.AfterBreak = 0;            /* set to 1 after .br to avoid empty lines */
  call PutToken Global.EOL;                     /* initialize output subsystem */
@@ -793,10 +794,12 @@ return 0;
 
 doTagPRE:
  call NewLine;
+ Global.IsPRETag = 1;
  call PutToken ':cgraphic.';
 return 0;
 
 doTag!PRE:
+ Global.IsPRETag = 0;
  call PutToken ':ecgraphic.';
 return 0;
 
@@ -1115,6 +1118,7 @@ return 0;
 doTag!TH:
  call CloseRef;
  call doTag!U;
+ call PutToken Global.EOL;
 return 0;
 
 doTagTD:
@@ -1125,6 +1129,7 @@ return 0;
 
 doTag!TD:
  call CloseRef;
+ call PutToken Global.EOL;
 return 0;
 
 doTextEMPTY:
@@ -1375,7 +1380,7 @@ PutText:
   then return; /* Skip everything out of :c. ... :c. or :row. tags */
 
  if Global.SkipSpaces
-  then Output = strip(strip(Output, 'leading'), 'leading', d2c(9));
+  then Output = strip(strip(Output, 'leading', d2c(9)), 'leading');
 
  do while length(Output) > 0
   EOLpos = pos(Global.EOL, Output);
@@ -1385,10 +1390,22 @@ PutText:
           then _text_ = left(Output, EOLpos - 1);
          Output = substr(Output, EOLpos + 1);
          if EOLpos > 1
-          then call PutText _text_;
-         call PutToken Global.EOL;
+          then do
+                call PutText _text_;
+                call PutToken Global.EOL;
+               end;
         end;
    else do
+        /* condense duplicate whitespace */
+         if \Global.IsPRETag
+          then do
+                Output = strip(translate(Output, ' ', d2c(9)));
+                curpos = pos('  ', Output);
+                do while curpos > 0
+                 Output = left(Output, curpos)||substr(Output, curpos + 2);
+                 curpos = pos('  ', Output, curpos + 1);
+                end;
+               end;
          Global.SkipSpaces = 0;
         /* replace tab Characters with needed number of spaces */
          curpos = -1;
