@@ -154,7 +154,7 @@ class Playable
   static bool         IsPlaylist(const url& URL);
   // Get URL
   const url&          GetURL() const      { return URL; }
-  // RTTI by the back door.
+  // RTTI by the back door. (dynamic_cast<> would be much nicer, but this is not supported by icc 3.0.)
   virtual Flags       GetFlags() const;
   // Return Status of the current object
   PlayableStatus      GetStatus() const   { return Stat; }
@@ -316,6 +316,8 @@ class PlayableInstance : public Iref_Count
     double                 Stop;
     static slice           Initial;
     slice(double start = 0, double stop = -1) : Start(start), Stop(stop) {}
+    friend inline bool     operator==(const slice& l, const slice& r)
+                           { return l.Start == r.Start && l.Stop == r.Stop; }
   };
 
  protected:
@@ -359,6 +361,10 @@ class PlayableInstance : public Iref_Count
  public:
   // event on status change
   event<const change_args> StatusChange;
+  // Compare two PlayableInstance objects by value.
+  // Two instances are equal if on only if they belong to the same PlayableCollection,
+  // share the same Playable object (=URL) and have the same properties values for alias and slice.
+  friend bool              operator==(const PlayableInstance& l, const PlayableInstance& r);
 };
 // Flags Attribute for StatusFlags
 FLAGSATTRIBUTE(PlayableInstance::StatusFlags);

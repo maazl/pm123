@@ -33,6 +33,7 @@
 #include <stdio.h>
 
 #include "pm123.h"
+#include "properties.h"
 #include "docking.h"
 #include <utilfct.h>
 

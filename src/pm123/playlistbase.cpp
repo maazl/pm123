@@ -974,65 +974,7 @@ void PlaylistBase::UserInsert(const InsertInfo* pii)
 void PlaylistBase::UserSave()
 { DEBUGLOG(("PlaylistBase(%p)::UserSave()\n", this));
   ASSERT(Content->GetFlags() & Playable::Enumerable);
-
-  APSZ  types[] = {{ FDT_PLAYLIST_LST }, { FDT_PLAYLIST_M3U }, { 0 }};
-
-  FILEDLG filedialog = {sizeof(FILEDLG)};
-  filedialog.fl             = FDS_CENTER | FDS_SAVEAS_DIALOG | FDS_CUSTOM | FDS_ENABLEFILELB;
-  filedialog.pszTitle       = "Save playlist";
-  filedialog.hMod           = NULLHANDLE;
-  filedialog.usDlgId        = DLG_FILE;
-  filedialog.pfnDlgProc     = amp_file_dlg_proc;
-  filedialog.ulUser         = FDU_RELATIVBTN;
-  filedialog.papszITypeList = types;
-  filedialog.pszIType       = FDT_PLAYLIST_LST;
-
-  if ((Content->GetFlags() & Playable::Mutable) == Playable::Mutable && Content->GetURL().isScheme("file://"))
-  { // Playlist => save in place allowed => preselect our own file name
-    const char* cp = Content->GetURL().cdata() + 5;
-    if (cp[2] == '/')
-      cp += 3;
-    strlcpy(filedialog.szFullFile, cp, sizeof filedialog.szFullFile);
-    // preselect file type
-    if (Content->GetURL().getExtension().compareToI(".M3U") == 0)
-      filedialog.pszIType = FDT_PLAYLIST_M3U;
-    // TODO: other playlist types
-  } else
-  { // not mutable => only save as allowed
-    // TODO: preselect directory
-  }
-
-  PMXASSERT(WinFileDlg(HWND_DESKTOP, HwndFrame, &filedialog), != NULLHANDLE);
-
-  if(filedialog.lReturn == DID_OK)
-  { url file = url::normalizeURL(filedialog.szFullFile);
-    if (!(Playable::IsPlaylist(file)))
-    { if (file.getExtension().length() == 0)
-      { // no extension => choose automatically
-        if (strcmp(filedialog.pszIType, FDT_PLAYLIST_M3U) == 0)
-          file = file + ".m3u";
-        else // if (strcmp(filedialog.pszIType, FDT_PLAYLIST_LST) == 0)
-          file = file + ".lst";
-        // TODO: other playlist types
-      } else
-      { amp_error(HwndFrame, "PM123 cannot write playlist files with the unsupported extension %s.", file.getExtension().cdata());
-        return;
-      }
-    }
-    const char* cp = file.cdata() + 5;
-    if (cp[2] == '/')
-      cp += 3;
-    if (amp_warn_if_overwrite(HwndFrame, cp))
-    { PlayableCollection::save_options so = PlayableCollection::SaveDefault;
-      if (file.getExtension().compareToI(".m3u") == 0)
-        so |= PlayableCollection::SaveAsM3U;
-      if (filedialog.ulUser & FDU_RELATIV_ON)
-        so |= PlayableCollection::SaveRelativePath;
-      // now save
-      if (!((PlayableCollection&)*Content).Save(file, so))
-        amp_error(HwndFrame, "Failed to create playlist \"%s\". Error %s.", file.cdata(), xio_strerror(xio_errno()));
-    }
-  }
+  amp_save_playlist(HwndFrame, (PlayableCollection*)&*Content);
 }
 
 void PlaylistBase::UserOpenTreeView(Playable* pp)

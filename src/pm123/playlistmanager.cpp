@@ -262,6 +262,7 @@ HWND PlaylistManager::InitContextMenu()
     mn_enable_item(hwndMenu, IDM_PL_EDIT,     Source[0]->Data->Content->GetPlayable()->GetInfo().meta_write);
     mn_enable_item(hwndMenu, IDM_PL_DETAILED, rt != RT_Song);
     mn_enable_item(hwndMenu, IDM_PL_TREEVIEW, rt != RT_Song);
+    mn_enable_item(hwndMenu, IDM_PL_REMOVE,   (PlayableFromRec(((CPData*)Source[0]->Data)->Parent)->GetFlags() & Playable::Mutable) == Playable::Mutable );
     mn_enable_item(hwndMenu, IDM_PL_REFRESH,  rt == RT_Song);
     mn_enable_item(hwndMenu, IDM_PL_APPEND,   rt == RT_List);
     mn_enable_item(hwndMenu, IDM_PL_SORT,     rt == RT_List);
@@ -433,9 +434,10 @@ void PlaylistManager::UserRemove(RecordBase* rec)
   // find parent playlist
   Record* parent = ((Record*)rec)->Data()->Parent;
   Playable* playlist = PlayableFromRec(parent);
-  if (playlist->GetFlags() & Playable::Mutable) // don't modify constant object
+  //DEBUGLOG(("PlaylistManager::UserRemove %s %p %p\n", RecordBase::DebugName(parent).cdata(), parent, playlist));
+  if ((playlist->GetFlags() & Playable::Mutable) == Playable::Mutable) // don't modify constant object
     ((Playlist&)*playlist).RemoveItem(rec->Data->Content);
-  // the update of the container is implicitely done by the notification mechanism
+    // the update of the container is implicitely done by the notification mechanism
 }
 
 /*

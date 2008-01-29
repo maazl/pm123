@@ -40,6 +40,7 @@
 #include <os2.h>
 
 #ifdef __cplusplus
+#include "playable.h"
 #include <cpp/xstring.h>
 extern "C" {
 
@@ -112,6 +113,9 @@ extern void DLLENTRY amp_display_error( const char* );
 
 #ifdef __cplusplus
 }
+/* Saves a playlist */
+void  amp_save_playlist( HWND owner, PlayableCollection* playlist );
+
 /* Reads url from specified file. [123_utils] */
 xstring amp_url_from_file(const char* filename);
 /* Reads an String from a drag and drop structure */

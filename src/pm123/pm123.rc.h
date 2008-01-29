@@ -83,6 +83,14 @@
 #define IDM_M_VOL_RAISE     548
 #define IDM_M_VOL_LOWER     549
 #define IDM_M_MENU          550
+#define IDM_M_CURRENT_SONG  551
+#define IDM_M_DETAILED      552
+#define IDM_M_TREEVIEW      553
+#define IDM_M_ADDPLBOOK     554
+#define IDM_M_ADDBOOK_TIME  555
+#define IDM_M_PLSAVE        556
+#define IDM_M_ADDPMBOOK     557
+#define IDM_M_CURRENT_PL    558
 
 #define IDM_M_LOAD          600
 #define IDM_M_LOADFILE      601

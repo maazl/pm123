@@ -411,6 +411,13 @@ void PlayableInstance::SetSlice(const slice& sl)
   }
 }
 
+bool operator==(const PlayableInstance& l, const PlayableInstance& r)
+{ return l.Parent == r.Parent
+      && l.RefTo  == r.RefTo  // Instance equality is sufficient in case of the Playable class.
+      && l.Alias  == r.Alias
+      && l.Slice  == r.Slice;
+}
+
 
 /****************************************************************************
 *
@@ -1120,6 +1127,7 @@ bool Playlist::LoadList()
 { DEBUGLOG(("Playlist(%p{%s})::LoadList()\n", this, GetURL().getShortName().cdata()));
 
   // clear content if any
+  // TODO: more sophisticated approach
   while (Head)
     RemoveEntry(Head);
 
@@ -1361,6 +1369,10 @@ bool PlayFolder::LoadList()
 { DEBUGLOG(("PlayFolder(%p{%s})::LoadList()\n", this, GetURL().getShortName().cdata()));
   if (!GetURL().isScheme("file:")) // Can't handle anything but filesystem folders so far.
     return false;
+
+  while (Head)
+    RemoveEntry(Head);
+
   xstring name = GetURL().getBasePath();
   // strinp file:[///]
   if (memcmp(name.cdata()+5, "///", 3) == 0) // local path?
@@ -1377,7 +1389,7 @@ bool PlayFolder::LoadList()
   ULONG count = sizeof result / sizeof(FILEFINDBUF3);
   APIRET rc = DosFindFirst(name, &hdir, Recursive ? FILE_ARCHIVED|FILE_SYSTEM|FILE_HIDDEN|FILE_READONLY|FILE_DIRECTORY
                                                   : FILE_ARCHIVED|FILE_SYSTEM|FILE_HIDDEN|FILE_READONLY,
-    &result, sizeof result, &count, FIL_STANDARD);
+                           &result, sizeof result, &count, FIL_STANDARD);
   while (rc == 0)
   { // add files
     for (FILEFINDBUF3* fp = (FILEFINDBUF3*)result; count--; ((char*&)fp) += fp->oNextEntryOffset)

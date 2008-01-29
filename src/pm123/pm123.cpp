@@ -436,13 +436,10 @@ amp_show_context_menu( HWND parent )
 
   // Update status
   int_ptr<Song> song = Ctrl::GetCurrentSong();
-  #ifdef DEBUG
-  if (!song)
-    DEBUGLOG(("amp_show_context_menu: current = NULL\n"));
-   else
-    DEBUGLOG(("amp_show_context_menu: current = %p, meta_write = %i\n", song, song->GetInfo().meta_write ));
-  #endif
+  int_ptr<Playable> root = Ctrl::GetRoot();
+
   mn_enable_item( menu, IDM_M_TAG,     song != NULL && song->GetInfo().meta_write );
+  mn_enable_item( menu, IDM_M_CURRENT_PL, root != NULL && root->GetFlags() & Playable::Enumerable );
   mn_enable_item( menu, IDM_M_SMALL,   bmp_is_mode_supported( CFG_MODE_SMALL   ));
   mn_enable_item( menu, IDM_M_NORMAL,  bmp_is_mode_supported( CFG_MODE_REGULAR ));
   mn_enable_item( menu, IDM_M_TINY,    bmp_is_mode_supported( CFG_MODE_TINY    ));
@@ -1322,8 +1319,8 @@ amp_pipe_thread( void* scrap )
 
 
 /* Adds a user selected bookmark. */
-static void bm_add_bookmark(HWND owner, Playable* item, const PlayableInstance::slice& sl)
-{ DEBUGLOG(("bm_add_bookmark(%x, %p{%s}, {%.1f,%.1f})\n", owner, item, item->GetDisplayName().cdata(), sl.Start, sl.Stop));
+static void amp_add_bookmark(HWND owner, Playable* item, const PlayableInstance::slice& sl = PlayableInstance::slice::Initial)
+{ DEBUGLOG(("amp_add_bookmark(%x, %p{%s}, {%.1f,%.1f})\n", owner, item, item->GetDisplayName().cdata(), sl.Start, sl.Stop));
   // TODO: !!!!!! request information before
   const META_INFO& meta = *item->GetInfo().meta;
   xstring desc = "";
@@ -1350,6 +1347,69 @@ static void bm_add_bookmark(HWND owner, Playable* item, const PlayableInstance::
   }
 
   WinDestroyWindow(hdlg);
+}
+
+/* Saves a playlist */
+void amp_save_playlist(HWND owner, PlayableCollection* playlist)
+{
+  APSZ  types[] = {{ FDT_PLAYLIST_LST }, { FDT_PLAYLIST_M3U }, { 0 }};
+
+  FILEDLG filedialog = {sizeof(FILEDLG)};
+  filedialog.fl             = FDS_CENTER | FDS_SAVEAS_DIALOG | FDS_CUSTOM | FDS_ENABLEFILELB;
+  filedialog.pszTitle       = "Save playlist";
+  filedialog.hMod           = NULLHANDLE;
+  filedialog.usDlgId        = DLG_FILE;
+  filedialog.pfnDlgProc     = amp_file_dlg_proc;
+  filedialog.ulUser         = FDU_RELATIVBTN;
+  filedialog.papszITypeList = types;
+  filedialog.pszIType       = FDT_PLAYLIST_LST;
+
+  if ((playlist->GetFlags() & Playable::Mutable) == Playable::Mutable && playlist->GetURL().isScheme("file://"))
+  { // Playlist => save in place allowed => preselect our own file name
+    const char* cp = playlist->GetURL().cdata() + 5;
+    if (cp[2] == '/')
+      cp += 3;
+    strlcpy(filedialog.szFullFile, cp, sizeof filedialog.szFullFile);
+    // preselect file type
+    if (playlist->GetURL().getExtension().compareToI(".M3U") == 0)
+      filedialog.pszIType = FDT_PLAYLIST_M3U;
+    // TODO: other playlist types
+  } else
+  { // not mutable => only save as allowed
+    // TODO: preselect directory
+  }
+
+  PMXASSERT(WinFileDlg(HWND_DESKTOP, owner, &filedialog), != NULLHANDLE);
+
+  if(filedialog.lReturn == DID_OK)
+  { url file = url::normalizeURL(filedialog.szFullFile);
+    if (!(Playable::IsPlaylist(file)))
+    { if (file.getExtension().length() == 0)
+      { // no extension => choose automatically
+        if (strcmp(filedialog.pszIType, FDT_PLAYLIST_M3U) == 0)
+          file = file + ".m3u";
+        else // if (strcmp(filedialog.pszIType, FDT_PLAYLIST_LST) == 0)
+          file = file + ".lst";
+        // TODO: other playlist types
+      } else
+      { amp_error(owner, "PM123 cannot write playlist files with the unsupported extension %s.", file.getExtension().cdata());
+        return;
+      }
+    }
+    const char* cp = file.cdata() + 5;
+    if (cp[2] == '/')
+      cp += 3;
+    if (amp_warn_if_overwrite(owner, cp))
+    { PlayableCollection::save_options so = PlayableCollection::SaveDefault;
+      if (file.getExtension().compareToI(".m3u") == 0)
+        so |= PlayableCollection::SaveAsM3U;
+      if (filedialog.ulUser & FDU_RELATIV_ON)
+        so |= PlayableCollection::SaveRelativePath;
+      // now save
+      if (!playlist->Save(file, so))
+        amp_error(owner, "Failed to create playlist \"%s\". Error %s.", file.cdata(), xio_strerror(xio_errno()));
+    }
+  }
 }
 
 /* Loads a skin selected by the user. */
@@ -1983,7 +2043,7 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
       switch (LONGFROMMP(mp1))
       {case TID_ONTOP:
         WinSetWindowPos( hframe, HWND_TOP, 0, 0, 0, 0, SWP_ZORDER );
-        DEBUGLOG(("amp_dlg_proc: WM_TIMER done\n"));
+        DEBUGLOG2(("amp_dlg_proc: WM_TIMER done\n"));
         return 0;
 
        case TID_UPDATE_PLAYER:
@@ -2000,7 +2060,7 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
 
           WinReleasePS( hps );
         }
-        DEBUGLOG(("amp_dlg_proc: WM_TIMER done\n"));
+        DEBUGLOG2(("amp_dlg_proc: WM_TIMER done\n"));
         return 0;
 
        case TID_UPDATE_TIMERS:
@@ -2008,7 +2068,7 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
         {
           Ctrl::PostCommand(Ctrl::MkStatus(), &amp_control_event_callback);
         }
-        DEBUGLOG(("amp_dlg_proc: WM_TIMER done\n"));
+        DEBUGLOG2(("amp_dlg_proc: WM_TIMER done\n"));
         return 0;
       }
       break;
@@ -2112,12 +2172,22 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
           return 0;
 
         case IDM_M_ADDBOOK:
-        { // fetch song
-          int_ptr<Song> song = Ctrl::GetCurrentSong();
-          if (!song)
-            return 0; // can't help, the file is gone
-          // Use the time index from last_status here.
-          bm_add_bookmark(hwnd, song, PlayableInstance::slice(last_status.CurrentSongTime));
+        { int_ptr<Song> song = Ctrl::GetCurrentSong();
+          if (song)
+            amp_add_bookmark(hwnd, song);
+          return 0;
+        }
+        case IDM_M_ADDBOOK_TIME:
+        { int_ptr<Song> song = Ctrl::GetCurrentSong();
+          if (song)
+            // Use the time index from last_status here.
+            amp_add_bookmark(hwnd, song, PlayableInstance::slice(last_status.CurrentSongTime));
+          return 0;
+        }
+        case IDM_M_ADDPLBOOK:
+        { int_ptr<Playable> root = Ctrl::GetRoot();
+          if (root)
+            amp_add_bookmark(hwnd, root);
           return 0;
         }
 
@@ -2129,6 +2199,30 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
         { int_ptr<Song> song = Ctrl::GetCurrentSong();
           if (song)
             amp_info_edit( hwnd, song->GetURL(), song->GetDecoder() );
+          return 0;
+        }
+        case IDM_M_DETAILED:
+        { int_ptr<Playable> pp = Ctrl::GetRoot();
+          if (pp && (pp->GetFlags() & Playable::Enumerable))
+            PlaylistView::Get(pp->GetURL())->SetVisible(true);
+          return 0;
+        }
+        case IDM_M_TREEVIEW:
+        { int_ptr<Playable> pp = Ctrl::GetRoot();
+          if (pp && (pp->GetFlags() & Playable::Enumerable))
+            PlaylistManager::Get(pp->GetURL())->SetVisible(true);
+          return 0;
+        }
+        case IDM_M_ADDPMBOOK:
+        { int_ptr<Playable> pp = Ctrl::GetRoot();
+          if (pp)
+            ((Playlist*)DefaultPM->GetContent())->InsertItem(pp->GetURL(), (const char*)NULL);
+          return 0;
+        }
+        case IDM_M_PLSAVE:
+        { int_ptr<Playable> pp = Ctrl::GetRoot();
+          if (pp && (pp->GetFlags() & Playable::Enumerable))
+            amp_save_playlist( hwnd, (PlayableCollection*)&*pp );
           return 0;
         }
         case IDM_M_SAVE:

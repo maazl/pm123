@@ -41,7 +41,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "pm123.h"
 #include "button95.h"
 
 HBITMAP hbm, hbm2;

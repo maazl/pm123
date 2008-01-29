@@ -357,16 +357,18 @@ ICON   ICO_PLRECURSIVEPLAY ico\plrecursiveplay.ico
 
 ACCELTABLE ACL_MAIN
 BEGIN
-   "p",        IDM_M_PLAYLIST,  AF_CHAR | AF_CONTROL
-   "o",        IDM_M_LOADFILE,  AF_CHAR | AF_CONTROL
-   "u",        IDM_M_URL,       AF_CHAR | AF_ALT
-/* "t",        IDM_M_TRACK,     AF_CHAR | AF_ALT*/
-   "e",        IDM_M_TAG,       AF_CHAR | AF_CONTROL
-   "s",        IDM_M_SAVE,      AF_CHAR | AF_CONTROL
    "b",        IDM_M_ADDBOOK,   AF_CHAR | AF_CONTROL
-   "b",        IDM_M_EDITBOOK,  AF_CHAR | AF_ALT
-   "q",        IDM_M_EQUALIZE,  AF_CHAR | AF_CONTROL
+   "d",        IDM_M_DETAILED,  AF_CHAR | AF_CONTROL
+   "e",        IDM_M_TAG,       AF_CHAR | AF_CONTROL
    "m",        IDM_M_MANAGER,   AF_CHAR | AF_CONTROL
+   "o",        IDM_M_LOADFILE,  AF_CHAR | AF_CONTROL
+   "p",        IDM_M_PLAYLIST,  AF_CHAR | AF_CONTROL
+   "q",        IDM_M_EQUALIZE,  AF_CHAR | AF_CONTROL
+   "s",        IDM_M_SAVE,      AF_CHAR | AF_CONTROL
+   "t",        IDM_M_TREEVIEW,  AF_CHAR | AF_CONTROL
+   "b",        IDM_M_EDITBOOK,  AF_CHAR | AF_ALT
+/* "t",        IDM_M_TRACK,     AF_CHAR | AF_ALT*/
+   "u",        IDM_M_URL,       AF_CHAR | AF_ALT
    "+",        IDM_M_VOL_RAISE, AF_CHAR
    "=",        IDM_M_VOL_RAISE, AF_CHAR
    "-",        IDM_M_VOL_LOWER, AF_CHAR
@@ -391,17 +393,32 @@ MENU MNU_MAIN
      MENUITEM "~File...\t^O",               IDM_M_LOADFILE
      MENUITEM "~URL...\tAlt+U",             IDM_M_URL
    }
-   MENUITEM "~Edit file info...\t^E",       IDM_M_TAG
-   SUBMENU  "~Bookmarks",                   IDM_M_BOOKMARKS
+   SUBMENU "~Bookmarks",                    IDM_M_BOOKMARKS
    {
      MENUITEM "~Add current as bookmark\t^B", IDM_M_ADDBOOK
-     MENUITEM "~Edit bookmarks...\tAlt+B",        IDM_M_EDITBOOK
+     MENUITEM "~Edit bookmarks...\tAlt+B",  IDM_M_EDITBOOK
      MENUITEM SEPARATOR
    }
+   SUBMENU "~Current Song",                 IDM_M_CURRENT_SONG
+   {
+     MENUITEM "~Edit file info...\t^E",     IDM_M_TAG
+     MENUITEM SEPARATOR
+     MENUITEM "Add as ~bookmark\t^B",       IDM_M_ADDBOOK
+     MENUITEM "Add as bookmark with ~time", IDM_M_ADDBOOK_TIME
+   }
+   SUBMENU "Current Pla~ylist",             IDM_M_CURRENT_PL
+   {
+     MENUITEM "Show ~Detailed view\t^D",    IDM_M_DETAILED
+     MENUITEM "Show ~tree view\t^T",        IDM_M_TREEVIEW
+     MENUITEM SEPARATOR
+     MENUITEM "Add as ~bookmark",           IDM_M_ADDPLBOOK
+     MENUITEM "Append to playlist ~manager",IDM_M_ADDPMBOOK
+     MENUITEM SEPARATOR
+     MENUITEM "~Save...",                   IDM_M_PLSAVE
+   }
    MENUITEM SEPARATOR
-   MENUITEM "Edit ~Playlist\t^P",           IDM_M_PLAYLIST
-   MENUITEM "E~qualizer...\t^Q",            IDM_M_EQUALIZE
-   MENUITEM "Playlist ~Manager...\t^M",     IDM_M_MANAGER
+   MENUITEM "Default ~playlist\t^P",        IDM_M_PLAYLIST
+   MENUITEM "Playlist ~manager...\t^M",     IDM_M_MANAGER
    MENUITEM SEPARATOR
    MENUITEM "P~roperties...",               IDM_M_CFG
    SUBMENU  "Pl~ayback",                    IDM_M_PLAYBACK
@@ -437,6 +454,7 @@ MENU MNU_MAIN
      }
    }
    MENUITEM SEPARATOR
+   MENUITEM "E~qualizer...\t^Q",            IDM_M_EQUALIZE
    MENUITEM "~Save Stream...\t^S",          IDM_M_SAVE
    MENUITEM "~Float on Top",                IDM_M_FLOAT
    MENUITEM "~Hide Window\tAlt+F9",         IDM_M_MINIMIZE
