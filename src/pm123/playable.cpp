@@ -716,8 +716,10 @@ const PlayableCollection::CollectionInfo& PlayableCollection::GetCollectionInfo(
       DEBUGLOG(("PlayableCollection::GetCollectionInfo - Song\n"));
       Song* song = (Song*)pi->GetPlayable();
       song->EnsureInfo(IF_Tech);
-      const TECH_INFO& tech = *song->GetInfo().tech;
-      cic->Info.Add(tech.songlength, tech.filesize, 1);
+      if (song->GetStatus() > STA_Invalid)
+      { const TECH_INFO& tech = *song->GetInfo().tech;
+        cic->Info.Add(tech.songlength, tech.filesize, 1);
+      }
     }
   }
   return cic->Info;

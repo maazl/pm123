@@ -614,6 +614,7 @@ Ctrl::RC Ctrl::MsgSkip(int count, bool relative)
     if (pp != NULL && DecoderStart(pp) != 0)
     { OutputStop();
       Playing = false;
+      Pending |= EV_PlayStop;
       return RC_DecPlugErr;
     }
   }
@@ -795,15 +796,15 @@ Ctrl::RC Ctrl::MsgDecStop()
   // start decoder for the prefetched item
   DEBUGLOG(("Ctrl::MsgDecStop playing %s with offset %f\n", pp->GetURL().cdata(), pep->Offset));
   if (DecoderStart(pp, pep->Offset) != 0)
-  { OutputStop();
+  { // TODO: we should continue with the next song, and remove the current one from the prefetch list.
+    OutputStop();
     Playing = false;
+    Pending |= EV_PlayStop;
     return RC_DecPlugErr;
   }
   
   // In rewind mode we continue to rewind from the end of the prevois song.
   // TODO: Location problem.
-
-  // TODO: Status Problem. The display changes before the prefetched samples reaches the output.
   return RC_OK; 
 }
 

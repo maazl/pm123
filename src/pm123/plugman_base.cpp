@@ -385,6 +385,7 @@ class CL_DECODER_PROXY_1 : public CL_DECODER
   void*  a;
   ULONG  DLLENTRYP(vdecoder_fileinfo )( const char* filename, DECODER_INFO* info );
   ULONG  DLLENTRYP(vdecoder_trackinfo)( const char* drive, int track, DECODER_INFO* info );
+  ULONG  DLLENTRYP(vdecoder_cdinfo   )( const char* drive, DECODER_CDINFO* info );
   ULONG  DLLENTRYP(vdecoder_length   )( void* w );
   void   DLLENTRYP(error_display)( char* );
   HWND   hwnd; // Window handle for catching event messages
@@ -393,12 +394,14 @@ class CL_DECODER_PROXY_1 : public CL_DECODER
   double temppos;
   DECFASTMODE lastfast;
   char   metadata_buffer[128]; // Loaded in curtun on decoder's demand WM_METADATA.
-  VDELEGATE vd_decoder_command, vd_decoder_event, vd_decoder_fileinfo, vd_decoder_length;
+  Mutex  info_mtx; // Mutex to serialize access to the decoder_*info function.
+  VDELEGATE vd_decoder_command, vd_decoder_event, vd_decoder_fileinfo, vd_decoder_cdinfo, vd_decoder_length;
 
  private:
   PROXYFUNCDEF ULONG  DLLENTRY proxy_1_decoder_command     ( CL_DECODER_PROXY_1* op, void* w, ULONG msg, DECODER_PARAMS2* params );
   PROXYFUNCDEF void   DLLENTRY proxy_1_decoder_event       ( CL_DECODER_PROXY_1* op, void* w, OUTEVENTTYPE event );
   PROXYFUNCDEF ULONG  DLLENTRY proxy_1_decoder_fileinfo    ( CL_DECODER_PROXY_1* op, const char* filename, DECODER_INFO2* info );
+  PROXYFUNCDEF ULONG  DLLENTRY proxy_1_decoder_cdinfo      ( CL_DECODER_PROXY_1* op, const char* drive, DECODER_CDINFO* info );
   PROXYFUNCDEF int    DLLENTRY proxy_1_decoder_play_samples( CL_DECODER_PROXY_1* op, const FORMAT_INFO* format, const char* buf, int len, int posmarker );
   PROXYFUNCDEF double DLLENTRY proxy_1_decoder_length      ( CL_DECODER_PROXY_1* op, void* w );
   friend MRESULT EXPENTRY proxy_1_decoder_winfn(HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2);
@@ -439,11 +442,12 @@ BOOL CL_DECODER_PROXY_1::load_plugin()
     return FALSE;
 
   if (type & DECODER_TRACK)
-  { if ( !load_function(&decoder_cdinfo,     "decoder_cdinfo")
+  { if ( !load_function(&vdecoder_cdinfo,    "decoder_cdinfo")
       || !load_function(&vdecoder_trackinfo, "decoder_trackinfo") )
       return FALSE;
+    decoder_cdinfo  = vdelegate(&vd_decoder_cdinfo,   &proxy_1_decoder_cdinfo,   this);
   } else
-  { decoder_cdinfo = &stub_decoder_cdinfo;
+  { decoder_cdinfo  = &stub_decoder_cdinfo;
     vdecoder_trackinfo = NULL;
   }
   return TRUE;
@@ -656,6 +660,9 @@ proxy_1_decoder_fileinfo( CL_DECODER_PROXY_1* op, const char* filename, DECODER_
   { if ( cd_info.track == 0 ||            // can't handle sectors
          op->vdecoder_trackinfo == NULL ) // plug-in does not support trackinfo
       return 200;
+    // Serialize access to the info functions of old plug-ins.
+    // In theory the must be thread safe for older PM123 releases too. In practice they are not.
+    Mutex::Lock lock(op->info_mtx);
     rc = (*op->vdecoder_trackinfo)(cd_info.drive, cd_info.track, &old_info);
   } else
   { if (strnicmp(filename, "file:///", 8) == 0)
@@ -668,7 +675,11 @@ proxy_1_decoder_fileinfo( CL_DECODER_PROXY_1* op, const char* filename, DECODER_
       }
     }
     // DEBUGLOG(("proxy_1_decoder_fileinfo - %s\n", filename));
-    rc = (*op->vdecoder_fileinfo)(filename, &old_info);
+    { // Serialize access to the info functions of old plug-ins.
+      // In theory the must be thread safe for older PM123 releases too. In practice they are not.
+      Mutex::Lock lock(op->info_mtx);
+      rc = (*op->vdecoder_fileinfo)(filename, &old_info);
+    }
     // get file size
     // TODO: large file support
     struct stat fi;
@@ -694,6 +705,14 @@ proxy_1_decoder_fileinfo( CL_DECODER_PROXY_1* op, const char* filename, DECODER_
     info->meta_write      = op->decoder_editmeta && old_info.saveinfo;
   }
   return rc;
+}
+
+PROXYFUNCIMP(ULONG DLLENTRY, CL_DECODER_PROXY_1)
+proxy_1_decoder_cdinfo( CL_DECODER_PROXY_1* op, const char* drive, DECODER_CDINFO* info )
+{ // Serialize access to the info functions of old plug-ins.
+  // In theory the must be thread safe for older PM123 releases too. In practice they are not.
+  Mutex::Lock lock(op->info_mtx);
+  return (*op->vdecoder_cdinfo)(drive, info);
 }
 
 PROXYFUNCIMP(double DLLENTRY, CL_DECODER_PROXY_1)
