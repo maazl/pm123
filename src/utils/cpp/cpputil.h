@@ -41,19 +41,19 @@ inline void swap(T& a, T& b)
 
 #define FLAGSATTRIBUTE(T) \
 inline static T operator|(T l, T r) \
-{ return (T)((int)l|r); } \
+{ return (T)((unsigned)l|r); } \
 inline static T operator&(T l, T r) \
-{ return (T)((int)l&r); } \
+{ return (T)((unsigned)l&r); } \
 inline static T& operator|=(T& l, T r) \
-{ return l = (T)((int)l|r); } \
+{ return l = (T)((unsigned)l|r); } \
 inline static T& operator&=(T& l, T r) \
-{ return l = (T)((int)l&r); } \
+{ return l = (T)((unsigned)l&r); } \
 inline static T operator*(bool l, T r) \
-{ return (T)(l*(int)r); } \
+{ return (T)(l*(unsigned)r); } \
 inline static T operator*(T l, bool r) \
-{ return (T)((int)l*r); } \
+{ return (T)((unsigned)l*r); } \
 inline static T operator~(T a) \
-{ return (T)~(int)a; }
+{ return (T)~(unsigned)a; }
 
 
 #endif
