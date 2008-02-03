@@ -140,7 +140,7 @@ bool SongIterator::PrevNextCore(int dir)
   for (;;)
   { CallstackEntry* pce = Callstack[Callstack.size()-1];
     int_ptr<PlayableInstance> pi = dir < 0 ? GetList()->GetPrev(pce->Item) : GetList()->GetNext(pce->Item);
-    DEBUGLOG(("SongIterator::PrevNextCore - @%p\n", &*pi));
+    DEBUGLOG(("SongIterator::PrevNextCore - {%i, %f, %p} @%p\n", pce->Index, pce->Offset, &*pce->Item, &*pi));
     if (pi == NULL)
     { // store new item     
       pce->Item = pi;
@@ -156,11 +156,11 @@ bool SongIterator::PrevNextCore(int dir)
     { // update offsets
       if (pce->Item != NULL)
       { // relative offsets
-        DEBUGLOG(("SongIterator::PrevNextCore - relative offset\n"));
-        pce->Index += dir;
+        const Offsets& info = TechFromPlayable((dir < 0 ? pi : pce->Item)->GetPlayable());
+        DEBUGLOG(("SongIterator::PrevNextCore - relative offset - {%i, %f}\n", info.Index, info.Offset));
+        pce->Index += dir * info.Index;
         if (pce->Offset != -1)
-        { Offsets info = TechFromPlayable((dir < 0 ? pi : pce->Item)->GetPlayable());
-          // apply change
+        { // apply change
           if (pce->Offset >= 0)
           { if (info.Offset >= 0)
               pce->Offset += dir * info.Offset;
@@ -177,9 +177,9 @@ bool SongIterator::PrevNextCore(int dir)
         if (dir < 0)
         { // += length(parent) - length(new)
           DEBUGLOG(("SongIterator::PrevNextCore - reverse parent offset\n"));
-          Offsets pinfo = TechFromPlayable(GetList());
-          Offsets iinfo = TechFromPlayable(pi->GetPlayable());
-          pce->Index += pinfo.Index;
+          const Offsets& pinfo = TechFromPlayable(GetList());
+          const Offsets& iinfo = TechFromPlayable(pi->GetPlayable());
+          pce->Index += pinfo.Index - iinfo.Index;
           if (pce->Offset >= 0)
           { if (pinfo.Offset >= 0 && iinfo.Offset >= 0)
               pce->Offset += pinfo.Offset - iinfo.Offset;
@@ -193,7 +193,7 @@ bool SongIterator::PrevNextCore(int dir)
       pce->Item = pi;
       // item found => check wether it is enumerable
       if (!(pi->GetPlayable()->GetFlags() & Playable::Enumerable))
-      { DEBUGLOG(("SongIterator::PrevNextCore - %p{%p{%s}}\n", &*pi, pi->GetPlayable(), pi->GetPlayable()->GetURL().getShortName().cdata()));
+      { DEBUGLOG(("SongIterator::PrevNextCore - {%i, %f, %p{%p{%s}}}\n", pce->Index, pce->Offset, &*pi, pi->GetPlayable(), pi->GetPlayable()->GetURL().getShortName().cdata()));
         return true;
       } else if (!SkipQ()) // skip objects in the call stack
       { pi->GetPlayable()->EnsureInfo(Playable::IF_Other);
