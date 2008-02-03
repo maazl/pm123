@@ -255,6 +255,7 @@
 #define UL_VOLUME_SLIDER     27 /* Give volume bar a handle you can grab.             */
 #define UL_BPS_DIGITS        28 /* Draw bitrates with digits from resource 1830-1839. */
 #define UL_PL_INDEX          29 /* Draw playlist indicator with resources 1660-1669.  */
+                                /* Number of digits to draw. (min. 3)                 */
 #define UL_BUNDLE            30 /* The bundle file for this skin.                     */
 
 /* Bitmap identifiers for action buttons. */

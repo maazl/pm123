@@ -268,7 +268,6 @@ delegate<void, const OUTEVENTTYPE> Ctrl::OutEventDelegate(out_event, &Ctrl::OutE
 const SongIterator::CallstackType Ctrl::EmptyStack(1);
 
 
-
 int_ptr<Song> Ctrl::GetCurrentSong()
 { DEBUGLOG(("Ctrl::GetCurrentSong() - %p, %u\n", &*CurrentSong, PrefetchList.size()));
   CritSect cs();
@@ -747,7 +746,7 @@ Ctrl::RC Ctrl::MsgStatus()
     SongIterator::Offsets off = si.GetOffset();
     Status.CurrentItem     = off.Index;
     Status.TotalItems      = si.GetRoot()->GetInfo().tech->num_items;
-    Status.CurrentTime     = off.Offset >= 0 ? off.Offset + Status.CurrentSongTime : -1;
+    Status.CurrentTime     = off.Offset;
     Status.TotalTime       = si.GetRoot()->GetInfo().tech->songlength;
   } else
     // no root

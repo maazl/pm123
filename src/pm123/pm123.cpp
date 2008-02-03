@@ -201,7 +201,7 @@ amp_paint_timers( HPS hps )
   T_TIME play_left = last_status.TotalSongTime;
   
   if (play_left > 0)
-    play_left -= last_status.CurrentSongTime;
+    play_left -= play_time;
 
   if( !cfg.rpt && last_status.TotalTime > 0 )
     list_left = last_status.TotalTime - last_status.CurrentTime - play_time;
@@ -2452,14 +2452,13 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
 
       if( is_slider_drag )
       {
-        HPS    hps = WinGetPS( hwnd );
         POINTL pos;
-
         pos.x = SHORT1FROMMP(mp1);
         pos.y = SHORT2FROMMP(mp1);
-        seeking_pos = bmp_calc_time( pos, dec_length());
+        seeking_pos = bmp_calc_time( pos, last_status.TotalSongTime );
 
-        bmp_draw_slider( hps, seeking_pos, dec_length());
+        HPS hps = WinGetPS( hwnd );
+        bmp_draw_slider( hps, seeking_pos, last_status.TotalSongTime );
         bmp_draw_timer ( hps, seeking_pos );
         WinReleasePS( hps );
       }
@@ -2477,7 +2476,7 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
         POINTL pos;
         pos.x = SHORT1FROMMP(mp1);
         pos.y = SHORT2FROMMP(mp1);
-        seeking_pos = bmp_calc_time(pos, dec_length());
+        seeking_pos = bmp_calc_time(pos, last_status.TotalSongTime );
 
         // TODO: the song may have changed
         Ctrl::PostCommand(Ctrl::MkNavigate(xstring(), seeking_pos, false, false), &amp_control_event_callback);
@@ -2496,7 +2495,7 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
       if( bmp_pt_in_volume( pos )) {
         is_volume_drag = TRUE;
         WinSetCapture( HWND_DESKTOP, hwnd );
-      } else if( bmp_pt_in_slider( pos ) && decoder_playing()) {
+      } else if( bmp_pt_in_slider( pos ) && last_status.TotalSongTime > 0 && Ctrl::GetCurrentSong() ) {
         is_slider_drag = TRUE;
         is_seeking     = TRUE;
         // We can use the time index from last_status here because nothing else is shown currently.

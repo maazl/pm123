@@ -981,6 +981,10 @@ void
 bmp_draw_timer( HPS hps, double time )
 { DEBUGLOG(("bmp_draw_timer(%p, %f)\n", hps, time));
 
+  if( cfg.mode != CFG_MODE_REGULAR ) {
+    return;
+  }
+
   int x = bmp_pos[ POS_TIMER ].x;
   int y = bmp_pos[ POS_TIMER ].y;
 
@@ -998,15 +1002,11 @@ bmp_draw_timer( HPS hps, double time )
     x += bmp_cx( d.rem  + DIG_BIG ) + bmp_ulong[ UL_TIMER_SPACE ];
 
     if( bmp_ulong[ UL_TIMER_SEPARATE ] )
-    {
-      if( ((unsigned int)(2*time) & 1) == 0 ) {
-        bmp_draw_bitmap( hps, x, y, 10 + DIG_BIG );
-        x += bmp_cx( 10 + DIG_BIG ) + bmp_ulong[ UL_TIMER_SPACE ];
-      } else {
-        bmp_draw_bitmap( hps, x, y, 11 + DIG_BIG );
-        x += bmp_cx( 11 + DIG_BIG ) + bmp_ulong[ UL_TIMER_SPACE ];
-      }
+    { ULONG idx = DIG_BIG + 10 + ((unsigned int)(2*time) & 1);
+      bmp_draw_bitmap( hps, x, y, idx );
+      x += bmp_cx( idx ) + bmp_ulong[ UL_TIMER_SPACE ];
     } else {
+      // TODO: probably wrong
       x += max( bmp_ulong[ UL_TIMER_SPACE ], bmp_ulong[ UL_TIMER_SPACE ] * 2 );
     }
 
@@ -1022,6 +1022,10 @@ void
 bmp_draw_tiny_timer( HPS hps, int pos_id, double time )
 { DEBUGLOG(("bmp_draw_tiny_timer(%p, %i, %f)\n", hps, pos_id, time));
 
+  if( cfg.mode != CFG_MODE_REGULAR ) {
+    return;
+  }
+
   unsigned int major, minor;
   int x = bmp_pos[pos_id].x;
   int y = bmp_pos[pos_id].y;
@@ -1030,32 +1034,23 @@ bmp_draw_tiny_timer( HPS hps, int pos_id, double time )
 
   if( x != POS_UNDEF && y != POS_UNDEF )
   {
-    if( time > 0 )
+    if( time >= 0 )
     { div_t d = div(major, 10);
       d.quot %= 10;
-      bmp_draw_bitmap( hps, x, y, d.quot + DIG_TINY );
+      bmp_draw_bitmap( hps, x, y, d.quot ? d.quot + DIG_TINY : DIG_TINY + 11 );
       x += bmp_cx( d.quot + DIG_TINY );
       bmp_draw_bitmap( hps, x, y, d.rem  + DIG_TINY );
       x += bmp_cx( d.rem  + DIG_TINY );
-      bmp_draw_bitmap( hps, x, y, 10 + DIG_TINY );
-      x += bmp_cx( DIG_TINY + 10 );
+      ULONG idx = DIG_TINY + 10 + (((unsigned int)(2*time) & 1) << 1);
+      bmp_draw_bitmap( hps, x, y, idx );
+      x += bmp_cx( idx );
       d = div(minor, 10);
       bmp_draw_bitmap( hps, x, y, d.quot + DIG_TINY );
       x += bmp_cx( d.quot + DIG_TINY );
       bmp_draw_bitmap( hps, x, y, d.rem  + DIG_TINY );
-    }
-    else
-    {
-      bmp_draw_bitmap( hps, x, y, 11 + DIG_TINY );
-      x += bmp_cx( DIG_TINY + 11 );
-      bmp_draw_bitmap( hps, x, y, 11 + DIG_TINY );
-      x += bmp_cx( DIG_TINY + 11 );
-      bmp_draw_bitmap( hps, x, y, 12 + DIG_TINY );
-      x += bmp_cx( DIG_TINY + 12 );
-      bmp_draw_bitmap( hps, x, y, 11 + DIG_TINY );
-      x += bmp_cx( DIG_TINY + 11 );
-      bmp_draw_bitmap( hps, x, y, 11 + DIG_TINY );
-    }
+    } else
+      bmp_draw_part_bg( hps, x, y, x + bmp_cx( DIG_TINY ) * 4 + bmp_cx( DIG_TINY + 10 ),
+                                   y + bmp_cy( DIG_TINY ));
   }
 }
 
@@ -1297,37 +1292,32 @@ void
 bmp_draw_plind( HPS hps, int index, int total )
 {
   DEBUGLOG(("bmp_draw_plind(%p, %i, %i)\n", hps, index, total));
-  int  i, x, y;
-  char buf[64];
 
   if( cfg.mode != CFG_MODE_REGULAR ) {
     return;
   }
 
-  if( bmp_ulong[ UL_PL_INDEX ] )
+  int digits = bmp_ulong[ UL_PL_INDEX ];
+  if( digits )
   {
+    int i;
+    POINTL p;
+
+    if ( digits < 3 )
+      digits = 3;
+      
     if( bmp_pos[ POS_PL_INDEX ].x != POS_UNDEF &&
         bmp_pos[ POS_PL_INDEX ].y != POS_UNDEF )
     {
-      y = bmp_pos[ POS_PL_INDEX ].y;
-      x = bmp_pos[ POS_PL_INDEX ].x;
-
-      bmp_draw_part_bg( hps, x - bmp_cx( DIG_PL_INDEX ),
-                             y,
-                             x + bmp_cx( DIG_PL_INDEX ) * 3,
-                             y + bmp_cy( DIG_PL_INDEX ));
+      POINTL p = bmp_pos[ POS_PL_INDEX ];
+      bmp_draw_part_bg( hps, p.x, p.y, p.x + bmp_cx( DIG_PL_INDEX ) * digits,
+                                       p.y + bmp_cy( DIG_PL_INDEX ));
 
       if( index > 0 )
-      {
-        sprintf( buf, "%3u", index );
-        x += bmp_cx( DIG_PL_INDEX ) * 2;
-
-        for( i = strlen( buf ) - 1; i >= 0; i-- )
-        {
-          if( buf[i] != ' ' ) {
-            bmp_draw_bitmap( hps, x, y, buf[i] - 48 + DIG_PL_INDEX );
-          }
-          x -= bmp_cx( DIG_PL_INDEX );
+      { for( i = digits; --i >= 0; )
+        { div_t d = div( index, 10 );
+          bmp_draw_bitmap( hps, p.x + bmp_cx( DIG_PL_INDEX ) * i, p.y, index ? DIG_PL_INDEX + d.rem : DIG_PL_INDEX + 10 );
+          index = d.quot;
         }
       }
     }
@@ -1335,27 +1325,20 @@ bmp_draw_plind( HPS hps, int index, int total )
     if( bmp_pos[ POS_PL_TOTAL ].x != POS_UNDEF &&
         bmp_pos[ POS_PL_TOTAL ].y != POS_UNDEF )
     {
-      y = bmp_pos[ POS_PL_TOTAL ].y;
-      x = bmp_pos[ POS_PL_TOTAL ].x;
-
-      bmp_draw_part_bg( hps, x, y, x + bmp_cx( DIG_PL_INDEX ) * 3,
-                                   y + bmp_cy( DIG_PL_INDEX ));
+      POINTL p = bmp_pos[ POS_PL_TOTAL ];
+      bmp_draw_part_bg( hps, p.x, p.y, p.x + bmp_cx( DIG_PL_INDEX ) * digits,
+                                       p.y + bmp_cy( DIG_PL_INDEX ));
 
       if( total > 0 )
-      {
-        sprintf( buf, "%3u", total );
-        x += bmp_cx( DIG_PL_INDEX ) * 2;
-
-        for( i = strlen( buf ) - 1; i >= 0; i-- )
-        {
-          if( buf[i] != ' ' ) {
-            bmp_draw_bitmap( hps, x, y, buf[i] - 48 + DIG_PL_INDEX );
-          }
-          x -= bmp_cx( DIG_PL_INDEX );
+      { for( i = digits; --i >= 0; )
+        { div_t d = div( total, 10 );
+          bmp_draw_bitmap( hps, p.x + bmp_cx( DIG_PL_INDEX ) * i, p.y, total ? DIG_PL_INDEX + d.rem : DIG_PL_INDEX + 10 );
+          total = d.quot;
         }
       }
     }
   }
+  /* probably crap
   else
   {
     POINTL pos = { 158, 50 };
@@ -1371,26 +1354,16 @@ bmp_draw_plind( HPS hps, int index, int total )
       GpiMove( hps, &pos );
       GpiCharString( hps, strlen( buf ), buf );
     }
-  }
+  }*/
 }
 
 /* Draws the current position slider. */
 void
 bmp_draw_slider( HPS hps, double played, double total )
 { DEBUGLOG(("bmp_draw_slider(%p, %f, %f)\n", hps, played, total));
-  ULONG pos = 0;
-
+  
   if( cfg.mode == CFG_MODE_REGULAR )
   {
-    if( total > 0 ) {
-      if (played < 0)
-        pos = 0;
-      else if (played >= total)
-        pos = bmp_ulong[UL_SLIDER_WIDTH];
-      else
-        pos = (ULONG)(played/total * bmp_ulong[UL_SLIDER_WIDTH]);
-    }
-
     if( bmp_cache[ BMP_SLIDER_SHAFT ]   != 0 &&
         bmp_pos  [ POS_SLIDER_SHAFT ].x != POS_UNDEF &&
         bmp_pos  [ POS_SLIDER_SHAFT ].y != POS_UNDEF )
@@ -1406,9 +1379,14 @@ bmp_draw_slider( HPS hps, double played, double total )
                              bmp_pos[ POS_SLIDER ].y + bmp_cy( BMP_SLIDER ) - 1 );
     }
 
-    if (played >= 0)
+    if( total > 0 && played >= 0 )
+    { ULONG pos = played >= total
+        ? bmp_ulong[UL_SLIDER_WIDTH]
+        : (ULONG)(played/total * bmp_ulong[UL_SLIDER_WIDTH]);
+
       bmp_draw_bitmap( hps, bmp_pos[ POS_SLIDER ].x + pos,
                             bmp_pos[ POS_SLIDER ].y, BMP_SLIDER );
+    }
   }
 }
 
@@ -1499,16 +1477,20 @@ bmp_draw_timeleft( HPS hps, Playable* root )
 /* Loads specified bitmap to the bitmap cache if it is
    not loaded before. */
 static void
-bmp_load_default( HPS hps, int id )
+bmp_load_default( HPS hps, int id, int defid )
 {
-  if( bmp_cache[ id ] == 0 )
+  if( bmp_cache[ id ] == 0 && ( id == defid || bmp_cache[ defid ] != 0 ) )
   {
-    HBITMAP hbitmap = GpiLoadBitmap( hps, NULLHANDLE, id, 0, 0 );
+    HBITMAP hbitmap = GpiLoadBitmap( hps, NULLHANDLE, defid, 0, 0 );
 
     if( hbitmap != GPI_ERROR ) {
       bmp_cache[ id ] = hbitmap;
     }
   }
+}
+static inline void
+bmp_load_default( HPS hps, int id )
+{ bmp_load_default( hps, id, id );
 }
 
 /* Loads default bitmaps to the bitmap cache. */
@@ -1517,18 +1499,22 @@ bmp_init_skins_bitmaps( HPS hps )
 {
   int i;
 
-  for( i = DIG_SMALL; i < DIG_SMALL + 10; i++ ) {
+  for( i = DIG_SMALL; i < DIG_SMALL + 10; i++ )
     bmp_load_default( hps, i );
-  }
-  for( i = DIG_BIG; i < DIG_BIG + 12; i++ ) {
+    
+  bmp_load_default( hps, DIG_BIG + 11, DIG_BIG + 10 );
+  for( i = DIG_BIG; i < DIG_BIG + 12; i++ )
     bmp_load_default( hps, i );
-  }
-  for( i = DIG_TINY; i < DIG_TINY + 13; i++ ) {
+  
+  bmp_load_default( hps, DIG_TINY + 11, DIG_TINY );
+  bmp_load_default( hps, DIG_TINY + 12, DIG_TINY + 10 );
+  for( i = DIG_TINY; i < DIG_TINY + 13; i++ )
     bmp_load_default( hps, i );
-  }
-  for( i = DIG_PL_INDEX; i <   DIG_PL_INDEX + 10; i++ ) {
+  
+  bmp_load_default( hps, DIG_TINY + 10, DIG_TINY );
+  for( i = DIG_PL_INDEX; i < DIG_PL_INDEX + 11; i++ )
     bmp_load_default( hps, i );
-  }
+  
   for( i = DIG_BPS; i < DIG_BPS + 10; i++ ) {
     bmp_load_default( hps, i );
   }
@@ -1557,11 +1543,11 @@ bmp_init_skins_bitmaps( HPS hps )
   bmp_load_default( hps, BMP_N_PL       );
   bmp_load_default( hps, BMP_N_FLOAD    );
 
-  for( i = BMP_FONT1; i < BMP_FONT1 + 45; i++ ) {
+  for( i = BMP_FONT1; i < BMP_FONT1 + 51; i++ ) {
     bmp_load_default( hps, i );
   }
 
-  for( i = BMP_FONT2; i < BMP_FONT2 + 45; i++ ) {
+  for( i = BMP_FONT2; i < BMP_FONT2 + 51; i++ ) {
     bmp_load_default( hps, i );
   }
 
@@ -1651,8 +1637,8 @@ bmp_init_skin_positions( void )
   bmp_pos[ POS_T_POWER     ].x =       270; bmp_pos[ POS_T_POWER     ].y =         7;
   bmp_pos[ POS_T_STOP      ].x = POS_UNDEF; bmp_pos[ POS_T_STOP      ].y = POS_UNDEF;
   bmp_pos[ POS_T_FLOAD     ].x = POS_UNDEF; bmp_pos[ POS_T_FLOAD     ].y = POS_UNDEF;
-  bmp_pos[ POS_PL_INDEX    ].x =       152; bmp_pos[ POS_PL_INDEX    ].y =        62;
-  bmp_pos[ POS_PL_TOTAL    ].x =       152; bmp_pos[ POS_PL_TOTAL    ].y =        47;
+  bmp_pos[ POS_PL_INDEX    ].x =       143; bmp_pos[ POS_PL_INDEX    ].y =        62;
+  bmp_pos[ POS_PL_TOTAL    ].x =       143; bmp_pos[ POS_PL_TOTAL    ].y =        47;
   bmp_pos[ POS_SLIDER_SHAFT].x = POS_UNDEF; bmp_pos[ POS_SLIDER_SHAFT].y = POS_UNDEF;
 }
 
@@ -1681,7 +1667,7 @@ bmp_init_default_skin( HPS hps )
     bmp_load_default( hps, i );
   }
 
-  bmp_ulong[ UL_PL_INDEX     ] = TRUE;
+  bmp_ulong[ UL_PL_INDEX     ] = 4;
   bmp_ulong[ UL_IN_PIXELS    ] = TRUE;
   bmp_ulong[ UL_R_MSG_LEN    ] = 256;
   bmp_ulong[ UL_R_MSG_HEIGHT ] = 16;
@@ -1856,7 +1842,7 @@ bmp_load_skin( const char *filename, HAB hab, HWND hplayer, HPS hps )
   bmp_ulong[ UL_S_MSG_LEN      ] = 25;
   bmp_ulong[ UL_S_MSG_HEIGHT   ] = 0;
   bmp_ulong[ UL_FG_MSG_COLOR   ] = 0x00FFFFFFUL;
-  bmp_ulong[ UL_PL_INDEX       ] = FALSE;
+  bmp_ulong[ UL_PL_INDEX       ] = 0;
   bmp_ulong[ UL_FONT           ] = 0;
   bmp_ulong[ UL_ONE_FONT       ] = FALSE;
   bmp_ulong[ UL_IN_PIXELS      ] = FALSE;
@@ -1987,7 +1973,7 @@ bmp_load_skin( const char *filename, HAB hab, HWND hplayer, HPS hps )
           case UL_VOLUME_HRZ:     bmp_ulong[ UL_VOLUME_HRZ     ] = TRUE;    break;
           case UL_VOLUME_SLIDER:  bmp_ulong[ UL_VOLUME_SLIDER  ] = TRUE;    break;
           case UL_BPS_DIGITS:     bmp_ulong[ UL_BPS_DIGITS     ] = TRUE;    break;
-          case UL_PL_INDEX:       bmp_ulong[ UL_PL_INDEX       ] = TRUE;    break;
+          case UL_PL_INDEX:       bmp_ulong[ UL_PL_INDEX       ] = atoi(p); break;
           case UL_ONE_FONT:       bmp_ulong[ UL_ONE_FONT       ] = TRUE;    break;
           case UL_IN_PIXELS:      bmp_ulong[ UL_IN_PIXELS      ] = TRUE;    break;
           case UL_R_MSG_HEIGHT:   bmp_ulong[ UL_R_MSG_HEIGHT   ] = atoi(p); break;
