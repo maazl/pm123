@@ -1269,14 +1269,16 @@ bmp_draw_rate( HPS hps, int rate )
   }
 }
 
-/* Draws the current playlist mode. */
+/* Draws the current playlist mode and time left labels. */
 void
 bmp_draw_plmode( HPS hps, BOOL valid, Playable::Flags flags )
 {
-  DEBUGLOG(("bmp_draw_plmode(%p)\n", hps));
+  DEBUGLOG(("bmp_draw_plmode(%p, %u, %x)\n", hps, valid, flags));
 
-  if( cfg.mode == CFG_MODE_REGULAR && bmp_pos[ POS_PL_MODE ].x != POS_UNDEF &&
-                                      bmp_pos[ POS_PL_MODE ].y != POS_UNDEF )
+  if( cfg.mode != CFG_MODE_REGULAR )
+    return;
+  
+  if( bmp_pos[ POS_PL_MODE ].x != POS_UNDEF && bmp_pos[ POS_PL_MODE ].y != POS_UNDEF )
   {
     if (!valid)
       bmp_draw_bitmap( hps, bmp_pos[ POS_PL_MODE ].x, bmp_pos[ POS_PL_MODE ].y, BMP_NOFILE );
@@ -1284,6 +1286,22 @@ bmp_draw_plmode( HPS hps, BOOL valid, Playable::Flags flags )
       bmp_draw_bitmap( hps, bmp_pos[ POS_PL_MODE ].x, bmp_pos[ POS_PL_MODE ].y, BMP_LISTPLAY );
     else
       bmp_draw_bitmap( hps, bmp_pos[ POS_PL_MODE ].x, bmp_pos[ POS_PL_MODE ].y, BMP_SINGLEPLAY );
+  }
+  
+  if( !valid ) {
+    if( bmp_pos[ POS_NOTL ].x != POS_UNDEF && bmp_pos[ POS_NOTL ].y != POS_UNDEF )
+      bmp_draw_bitmap( hps, bmp_pos[ POS_NOTL ].x, bmp_pos[ POS_NOTL ].y, BMP_NOTL );
+  } else {
+    if( bmp_pos[ POS_TL ].x != POS_UNDEF && bmp_pos[ POS_TL ].y != POS_UNDEF )
+      bmp_draw_bitmap( hps, bmp_pos[ POS_TL   ].x, bmp_pos[ POS_TL   ].y, BMP_TL );
+  }
+
+  if( valid && (flags & Playable::Enumerable) && !cfg.rpt ) {
+    if( bmp_pos[ POS_PLIST   ].x != POS_UNDEF && bmp_pos[ POS_PLIST   ].y != POS_UNDEF )
+      bmp_draw_bitmap( hps, bmp_pos[ POS_PLIST   ].x, bmp_pos[ POS_PLIST   ].y, BMP_PLIST );
+  } else {
+    if( bmp_pos[ POS_NOPLIST ].x != POS_UNDEF && bmp_pos[ POS_NOPLIST ].y != POS_UNDEF )
+      bmp_draw_bitmap( hps, bmp_pos[ POS_NOPLIST ].x, bmp_pos[ POS_NOPLIST ].y, BMP_NOPLIST );
   }
 }
 
@@ -1428,49 +1446,6 @@ bmp_pt_in_slider( POINTL pos )
     return TRUE;
   } else {
     return FALSE;
-  }
-}
-
-
-/* Draws the time left and playlist left labels. */
-void
-bmp_draw_timeleft( HPS hps, Playable* root )
-{
-  DEBUGLOG(("bmp_draw_timeleft(%p)\n", hps));
-  
-  if( cfg.mode == CFG_MODE_REGULAR )
-  {
-    if( root == NULL ) {
-      if( bmp_pos[ POS_NOTL ].x != POS_UNDEF &&
-          bmp_pos[ POS_NOTL ].y != POS_UNDEF )
-      {
-        bmp_draw_bitmap( hps, bmp_pos[ POS_NOTL ].x,
-                              bmp_pos[ POS_NOTL ].y, BMP_NOTL );
-      }
-    } else {
-      if( bmp_pos[ POS_TL ].x != POS_UNDEF &&
-          bmp_pos[ POS_TL ].y != POS_UNDEF )
-      {
-        bmp_draw_bitmap( hps, bmp_pos[ POS_TL   ].x,
-                              bmp_pos[ POS_TL   ].y, BMP_TL );
-      }
-    }
-
-    if( root != NULL && (root->GetFlags() & Playable::Enumerable) && !cfg.rpt ) {
-      if( bmp_pos[ POS_PLIST   ].x != POS_UNDEF &&
-          bmp_pos[ POS_PLIST   ].y != POS_UNDEF )
-      {
-        bmp_draw_bitmap( hps, bmp_pos[ POS_PLIST   ].x,
-                              bmp_pos[ POS_PLIST   ].y, BMP_PLIST );
-      }
-    } else {
-      if( bmp_pos[ POS_NOPLIST ].x != POS_UNDEF &&
-          bmp_pos[ POS_NOPLIST ].y != POS_UNDEF )
-      {
-        bmp_draw_bitmap( hps, bmp_pos[ POS_NOPLIST ].x,
-                              bmp_pos[ POS_NOPLIST ].y, BMP_NOPLIST );
-      }
-    }
   }
 }
 

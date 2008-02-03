@@ -33,6 +33,7 @@
 #include "properties.h"
 #include "pm123.h"
 
+#include <cpp/mutex.h>
 #include <cpp/xstring.h>
 
 
@@ -259,11 +260,12 @@ TID                  Ctrl::WorkerTID = 0;
 
 Ctrl::PlayStatus     Ctrl::Status;
 
-Ctrl::EventFlags     Ctrl::Pending = Ctrl::EV_None;
+volatile unsigned    Ctrl::Pending   = Ctrl::EV_None;
 event<const Ctrl::EventFlags> Ctrl::ChangeEvent;
 
-delegate<void, const dec_event_args> Ctrl::DecEventDelegate(dec_event, &Ctrl::DecEventHandler);
-delegate<void, const OUTEVENTTYPE> Ctrl::OutEventDelegate(out_event, &Ctrl::OutEventHandler);
+delegate<void, const dec_event_args>        Ctrl::DecEventDelegate(dec_event, &Ctrl::DecEventHandler);
+delegate<void, const OUTEVENTTYPE>          Ctrl::OutEventDelegate(out_event, &Ctrl::OutEventHandler);
+delegate<void, const Playable::change_args> Ctrl::CurrentSongDelegate(&Ctrl::CurrentSongEventHandler);
 
 const SongIterator::CallstackType Ctrl::EmptyStack(1);
 
@@ -415,6 +417,31 @@ void Ctrl::PrefetchClear(bool keep)
     delete PrefetchList.erase(PrefetchList.end()-1);
 }
 
+void Ctrl::CheckPrefetch(double pos)
+{ DEBUGLOG(("Ctrl::CheckPrefetch(%f)\n", pos));
+  if (PrefetchList.size()) 
+  { size_t n = 1;
+    // Since the item #1 is likely to compare less than CurrentSongTime a linear search is faster than a binary search.
+    while (n < PrefetchList.size() && pos >= PrefetchList[n]->Offset)
+      ++n;
+    --n;
+    DEBUGLOG(("Ctrl::CheckPrefetch %f, %f -> %u\n", pos, Current()->Offset, n));
+    if (n)
+    { // At least one prefetched item has been played completely.
+      CurrentSongDelegate.detach();
+      UpdateStackUsage(Current()->Iter.GetCallstack(), PrefetchList[n]->Iter.GetCallstack());
+      Current()->Iter->GetPlayable()->InfoChange += CurrentSongDelegate;
+      // Set events
+      InterlockedOr(Pending, EV_Song|EV_Tech|EV_Meta);
+      // Cleanup prefetch list
+      CritSect cs;
+      do
+        delete PrefetchList.erase(--n);
+      while (n);
+    }
+  }
+}
+
 void Ctrl::DecEventHandler(void*, const dec_event_args& args)
 { DEBUGLOG(("Ctrl::DecEventHandler(, {%i, %p})\n", args.type, args.param));
   switch (args.type)
@@ -446,6 +473,18 @@ void Ctrl::OutEventHandler(void*, const OUTEVENTTYPE& event)
   }
 }
 
+void Ctrl::CurrentSongEventHandler(void*, const Playable::change_args& args)
+{ DEBUGLOG(("Ctrl::CurrentSongEventHandler(, {%p{%s}, %x})\n", &args.Instance, args.Instance.GetURL().cdata(), args.Flags));
+  if (GetCurrentSong() != &args.Instance)
+    return; // too late...
+  EventFlags events = EV_Tech * ((args.Flags & Playable::IF_Tech) != 0)
+                    | EV_Meta * ((args.Flags & Playable::IF_Meta) != 0);
+  if (events)
+  { InterlockedOr(Pending, events);
+    PostCommand(MkNop());
+  }  
+}
+
 /* Suspends or resumes playback of the currently played file. */
 Ctrl::RC Ctrl::MsgPause(Op op)
 { DEBUGLOG(("Ctrl::MsgPause(%x) - %u\n", op, Scan)); 
@@ -454,7 +493,7 @@ Ctrl::RC Ctrl::MsgPause(Op op)
 
   if (SetFlag(Paused, op))
   { out_pause(Paused);
-    Pending |= EV_Pause;
+    InterlockedOr(Pending, EV_Pause);
   }
   return RC_OK;
 }
@@ -490,9 +529,9 @@ Ctrl::RC Ctrl::MsgScan(Op op)
     dec_jump(out_playing_pos());
   // Update event flags
   if ((Scan & DECFAST_FORWARD) != (newscan & DECFAST_FORWARD))
-    Pending |= EV_Forward;
+    InterlockedOr(Pending, EV_Forward);
   if ((Scan & DECFAST_REWIND) != (newscan & DECFAST_REWIND))
-    Pending |= EV_Rewind;
+    InterlockedOr(Pending, EV_Rewind);
   Scan = newscan;
   SetVolume();
   return RC_OK;
@@ -510,7 +549,7 @@ Ctrl::RC Ctrl::MsgVolume(double volume, bool relative)
   if (volume != Volume)
   { Volume = volume;
     SetVolume();
-    Pending |= EV_Volume;
+    InterlockedOr(Pending, EV_Volume);
   }
   return RC_OK;
 }
@@ -551,7 +590,7 @@ Ctrl::RC Ctrl::MsgPlayStop(Op op)
 
     Playing = false;
   }
-  Pending |= EV_PlayStop;
+  InterlockedOr(Pending, EV_PlayStop);
   
   return RC_OK;
 }
@@ -600,12 +639,18 @@ Ctrl::RC Ctrl::MsgSkip(int count, bool relative)
     return RC_EndOfList;
   // commit
   { CritSect cs;
+    // deregister current song delegate
+    CurrentSongDelegate.detach();
+    // swap iterators
     Current()->Offset = 0;
     Current()->Iter.Swap(si);
   }
   // Events
   UpdateStackUsage(si.GetCallstack(), Current()->Iter.GetCallstack());
-  Pending |= EV_Song|EV_Tech|EV_Meta;
+  InterlockedOr(Pending, EV_Song|EV_Tech|EV_Meta);
+  // track updates
+  if (*Current()->Iter)
+    Current()->Iter->GetPlayable()->InfoChange += CurrentSongDelegate;
 
   // restart decoder immediately?
   if (decoder_was_playing)
@@ -613,7 +658,7 @@ Ctrl::RC Ctrl::MsgSkip(int count, bool relative)
     if (pp != NULL && DecoderStart(pp) != 0)
     { OutputStop();
       Playing = false;
-      Pending |= EV_PlayStop;
+      InterlockedOr(Pending, EV_PlayStop);
       return RC_DecPlugErr;
     }
   }
@@ -628,6 +673,7 @@ Ctrl::RC Ctrl::MsgLoad(const xstring& url)
   MsgPlayStop(Op_Reset);
 
   // detach
+  CurrentSongDelegate.detach();
   if (CurrentSong)
   { CurrentSong->SetInUse(false);
     CurrentSong = NULL;
@@ -653,13 +699,18 @@ Ctrl::RC Ctrl::MsgLoad(const xstring& url)
       play->SetInUse(true);
       // Move always to the first element.
       if (Current()->Iter.Next())
-        UpdateStackUsage(EmptyStack, Current()->Iter.GetCallstack());
+      { UpdateStackUsage(EmptyStack, Current()->Iter.GetCallstack());
+        // track changes
+        Current()->Iter->GetPlayable()->InfoChange += CurrentSongDelegate;
+      }
     } else
     { CurrentSong = (Song*)&*play;
       play->SetInUse(true);
+      // track changes
+      CurrentSong->InfoChange += CurrentSongDelegate;
     }
   }
-  Pending |= EV_Root|EV_Song|EV_Tech|EV_Meta;
+  InterlockedOr(Pending, EV_Root|EV_Song|EV_Tech|EV_Meta);
   DEBUGLOG(("Ctrl::MsgLoad - attached\n"));
 
   return RC_OK;
@@ -671,7 +722,7 @@ Ctrl::RC Ctrl::MsgSave(const xstring& filename)
 
   if (Savename == filename)
     return RC_OK;
-  Pending |= EV_Savename;
+  InterlockedOr(Pending, EV_Savename);
   Savename = filename;
 
   if (decoder_playing())
@@ -698,7 +749,7 @@ Ctrl::RC Ctrl::MsgEqualize(const EQ_Data* data)
       return RC_DecPlugErr;
     EqEnabled = false;
   }
-  Pending |= EV_Equalize;
+  InterlockedOr(Pending, EV_Equalize);
   return RC_OK;
 }
 
@@ -708,25 +759,7 @@ Ctrl::RC Ctrl::MsgStatus()
   if (Playing)
   { Status.CurrentSongTime = out_playing_pos();
     // Check whether the output played a prefetched item completely.
-    if (PrefetchList.size()) 
-    { size_t n = 1;
-      // Since the item #1 is likely to compare less than CurrentSongTime a linear search is faster than a binary search.
-      while (n < PrefetchList.size() && Status.CurrentSongTime >= PrefetchList[n]->Offset)
-        ++n;
-      --n;
-      DEBUGLOG(("Ctrl::MsgStatus %f, %f -> %u\n", Status.CurrentSongTime, Current()->Offset, n));
-      if (n)
-      { // At least one prefetched item has been played completely.
-        UpdateStackUsage(Current()->Iter.GetCallstack(), PrefetchList[n]->Iter.GetCallstack());
-        // Set events
-        Pending |= EV_Song|EV_Tech|EV_Meta;
-        // Cleanup prefetch list
-        CritSect cs;
-        do
-          delete PrefetchList.erase(--n);
-        while (n);
-      }
-    }
+    CheckPrefetch(Status.CurrentSongTime);
   }
   
   if (CurrentSong)
@@ -798,7 +831,7 @@ Ctrl::RC Ctrl::MsgDecStop()
   { // TODO: we should continue with the next song, and remove the current one from the prefetch list.
     OutputStop();
     Playing = false;
-    Pending |= EV_PlayStop;
+    InterlockedOr(Pending, EV_PlayStop);
     return RC_DecPlugErr;
   }
   
@@ -879,6 +912,9 @@ void Ctrl::Worker()
          case Cmd_DecStop:
           qp->Flags = MsgDecStop();
           break;
+         
+         case Cmd_Nop:
+          break;
         }
       DEBUGLOG(("Ctrl::Worker message %i completed, rc = %i\n", qp->Cmd, qp->Flags));
       fail = qp->Flags != RC_OK;
@@ -895,11 +931,10 @@ void Ctrl::Worker()
     } while (qp);
       
     // raise control event
-    DEBUGLOG(("Ctrl::Worker raising events %x\n", Pending));
-    if (Pending)
-    { ChangeEvent(Pending);
-      Pending = EV_None;
-    }
+    EventFlags events = (EventFlags)InterlockedXch(Pending, EV_None);
+    DEBUGLOG(("Ctrl::Worker raising events %x\n", events));
+    if (events)
+      ChangeEvent(events);
   }
   WinDestroyMsgQueue(hmq);
   WinTerminate(hab);
@@ -918,7 +953,7 @@ void Ctrl::Uninit()
 { DEBUGLOG(("Ctrl::Uninit()\n"));
   { Mutex::Lock l(Queue.Mtx);
     Queue.Purge();
-    PostCommand(MkPlayStop(Op_Reset));
+    PostCommand(MkLoad(xstring()));
     PostCommand(NULL);
   }
   if (WorkerTID != 0)

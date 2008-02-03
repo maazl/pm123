@@ -102,14 +102,12 @@ void bmp_draw_volume( HPS hps, double volume );
 void bmp_draw_rate( HPS hps, int rate );
 /* Draws the current playlist index. */
 void bmp_draw_plind( HPS hps, int index, int total );
-/* Draws the current playlist mode. */
+/* Draws the current playlist mode and time left labels. */
 void bmp_draw_plmode( HPS hps, BOOL valid, Playable::Flags flags );
 /* Draws the current position slider. */
 void bmp_draw_slider( HPS hps, double played, double total );
 /* Draws a current displayed text using the current selected font. */
 void bmp_draw_text( HPS hps );
-/* Draws the time left and playlist left labels. */
-void bmp_draw_timeleft( HPS hps, Playable* root );
 
 /* Sets the new displayed text. */
 void bmp_set_text( const char* string );

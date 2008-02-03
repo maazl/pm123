@@ -139,6 +139,8 @@ class SongIterator
 
 Command    StrArg              NumArg/PtrArg       Flags               Meaning
 ===============================================================================================================
+Nop                                                                    No operation (used to raies events)
+---------------------------------------------------------------------------------------------------------------
 Load       URL                                                         Load an URL
                                                                        The URL must be well formed.
 ---------------------------------------------------------------------------------------------------------------
@@ -196,9 +198,10 @@ If one of the commands fails, all further linked commands fail immediately with 
 */
 class Ctrl
 {public:
-  enum Command
-  { // current object control
-    Cmd_Load = 1,
+  enum Command // Control commands, see above.
+  { Cmd_Nop,
+    // current object control
+    Cmd_Load,
     Cmd_Skip,
     Cmd_Navigate,
     // play mode control
@@ -228,22 +231,22 @@ class Ctrl
 
   // return codes in Flags
   enum RC
-  { RC_OK,
-    RC_SubseqError,
-    RC_BadArg,
-    RC_NoSong,
-    RC_NoList,
-    RC_EndOfList,
-    RC_NotPlaying,
-    RC_OutPlugErr,
-    RC_DecPlugErr
+  { RC_OK,                  // Evenrything OK.
+    RC_SubseqError,         // The command is not processed because an earlier command in the current set of linked commands has failed.
+    RC_BadArg,              // Invalid command.
+    RC_NoSong,              // The command requires a current song.
+    RC_NoList,              // The command is only valid for enumerable objects like playlists.
+    RC_EndOfList,           // The navigation tried to move beyond the limits of the current playlist.
+    RC_NotPlaying,          // The command is only allowed while playing.
+    RC_OutPlugErr,          // The output plug-in returned an error.
+    RC_DecPlugErr           // The decoder plug-in returnd an error.
   };
 
   struct EQ_Data
   { float bandgain[2][10];
   };
 
-  struct PlayStatus //: public PlayEnumerator::Status
+  struct PlayStatus
   { int    CurrentItem;     // index of the currently played song
     int    TotalItems;      // total number of items in the queue
     T_TIME CurrentTime;     // current time index from the start of the queue excluding the currently loaded one
@@ -274,20 +277,20 @@ class Ctrl
   };
 
   enum EventFlags
-  { EV_None     = 0x0000,
-    EV_PlayStop = 0x0001,
-    EV_Pause    = 0x0002,
-    EV_Forward  = 0x0004,
-    EV_Rewind   = 0x0008,
-    EV_Shuffle  = 0x0010,
-    EV_Repeat   = 0x0020,
-    EV_Volume   = 0x0040,
-    EV_Savename = 0x0080,
-    EV_Equalize = 0x0100,
-    EV_Root     = 0x1000,
-    EV_Song     = 0x2000,
-    EV_Tech     = 0x4000,
-    EV_Meta     = 0x8000
+  { EV_None     = 0x0000,   // nothing
+    EV_PlayStop = 0x0001,   // The play/stop status has changed.
+    EV_Pause    = 0x0002,   // The pause status has changed.
+    EV_Forward  = 0x0004,   // The fast forward status has changed.
+    EV_Rewind   = 0x0008,   // The rewind status has changed.
+    EV_Shuffle  = 0x0010,   // The shuffle flag has changed.
+    EV_Repeat   = 0x0020,   // The repeat flag has changed.
+    EV_Volume   = 0x0040,   // The volume has changed.
+    EV_Savename = 0x0080,   // The savename has changed.
+    EV_Equalize = 0x0100,   // The equalizer settings have changed.
+    EV_Root     = 0x1000,   // The currently loaded root object has changed.
+    EV_Song     = 0x2000,   // The current song has changed. This always includes EV_Tech and EV_Meta.
+    EV_Tech     = 0x4000,   // The technical information have changed (e.g. song length).
+    EV_Meta     = 0x8000    // The meta data have changed (i.e. song title).
   };
   
  private:
@@ -307,30 +310,36 @@ class Ctrl
   static int_ptr<Song>        CurrentSong;
   // List of prefetched iterators.
   // The first entry is always the current iterator if a enumerable object is loaded.
-  // Write access to this list is only done by the controller thread. But since read access is done by other threads too,
+  // Write access to this list is only done by the controller thread.
+  // But since read access is done by other threads too,
   // any write to PrefetchList must be protected by a critical section.
   static vector<PrefetchEntry> PrefetchList;
 
-  static T_TIME               Location;
-  static bool                 Playing;
-  static bool                 Paused;
-  static DECFASTMODE          Scan;
-  static double               Volume;
-  static xstring              Savename;
-  static bool                 Shuffle;
-  static bool                 Repeat;
-  static bool                 EqEnabled;
-  static EQ_Data              EqData;
+  static T_TIME               Location;              // Location in case of seeking or !Playing
+  static bool                 Playing;               // True if a song is currently playing (not decoding)
+  static bool                 Paused;                // True if the current song is paused
+  static DECFASTMODE          Scan;                  // Current scan mode
+  static double               Volume;                // Current volume setting
+  static xstring              Savename;              // Current save file name (for the decoder)
+  static bool                 Shuffle;               // Shuffle flag
+  static bool                 Repeat;                // Repeat flag
+  static bool                 EqEnabled;             // Equalizer enabled flag
+  static EQ_Data              EqData;                // Equalizer data
 
-  static queue<ControlCommand*> Queue;
-  static TID                  WorkerTID;
+  static queue<ControlCommand*> Queue;               // Command queue of the controller (all messages pass this queue)
+  static TID                  WorkerTID;             // Thread ID of the worker
 
-  static PlayStatus           Status;
-  static EventFlags           Pending;
-  
-  static delegate<void, const dec_event_args> DecEventDelegate;
-  static delegate<void, const OUTEVENTTYPE> OutEventDelegate;
+  static PlayStatus           Status;                // Temporary storage: result of MsgStatus
+  static volatile unsigned    Pending;               // Pending events
+  // These events are set atomically from any thread.
+  // After each last message of a queued set of messages the events are raised and Pending is atomically reset.
 
+  // Delegates for the tracked events of the decoder, the output and the current song.  
+  static delegate<void, const dec_event_args>        DecEventDelegate;
+  static delegate<void, const OUTEVENTTYPE>          OutEventDelegate;
+  static delegate<void, const Playable::change_args> CurrentSongDelegate;
+
+  // Occasionally used constant.
   static const SongIterator::CallstackType EmptyStack;
 
  private: // internal functions, not thread safe
@@ -353,14 +362,37 @@ class Ctrl
   static ULONG OutputStart(Playable* pp);
   // Stops playback and clears the prefetchlist.
   static void  OutputStop();
+  // Updates the in-use status of PlayableInstance objects in the callstack by moving from oldstack to newstack.
+  // The status of common parts of the two stacks is not touched. 
+  // To set the in-use status initially pass EmptyStack as oldstack.
+  // To reset all in-use status pass EmptyStack as newstack.
   static void  UpdateStackUsage(const SongIterator::CallstackType& oldstack, const SongIterator::CallstackType& newstack);
+  // Core logic of MsgSkip.
+  // Move the current song pointer by count items if relative is true or to item number 'count' if relative is false.
+  // If we try to move the current song pointer out of the range of the PlayableCollection that si relies on,
+  // the function returns false and si is in reset state.
+  // The function is side effect free and only operates on si.
   static bool  SkipCore(SongIterator& si, int count, bool relative);
+  // Clears the prefetch list and keep the first element if keep is true.
+  // The operation is atomic.
   static void  PrefetchClear(bool keep);
+  // Check whether a prefetched item is completed.
+  // This is the case when the offset of the next item in PrefetchList is less than or equal to pos.
+  // In case a prefetch entry is removed from PrefetchList the in-use status is refreshed and the song
+  // change event is set.
+  static void  CheckPrefetch(double pos);
+  // Internal stub to provide the TFNENTRY calling convention for _beginthread.
   friend void  TFNENTRY ControllerWorkerStub(void*);
+  // Worker thread that processes the message queue.
   static void  Worker();
+  // Event handler for decoder events.
   static void  DecEventHandler(void*, const dec_event_args& args);
+  // Event handler for output events.
   static void  OutEventHandler(void*, const OUTEVENTTYPE& event);
- private: // messages handlers, not thread safe  
+  // Event handler for tracking modifications of the currently playing song.
+  static void  CurrentSongEventHandler(void*, const Playable::change_args& args);
+ private: // messages handlers, not thread safe
+  // The messages are descibed above before the class header.
   static RC    MsgPause(Op op);
   static RC    MsgScan(Op op);
   static RC    MsgVolume(double volume, bool relative);
@@ -380,14 +412,26 @@ class Ctrl
   static void Uninit();
 
  public: // properties, thread safe
+  // While the functions below are atomic their return values are not reliable because they can change everytime.
+  // So be careful.
+  // Check whether we are currently playing.
   static bool IsPlaying()                     { return Playing; }
+  // Check whether the current play status is paused.
   static bool IsPaused()                      { return Paused; }
+  // Return the current scanmode.
   static DECFASTMODE GetScan()                { return Scan; }
+  // Return the current volume. This doues not return a decreased value in scan mode.
   static double GetVolume()                   { return Volume; }
+  // Return the current shuffle status.
   static bool IsShuffle()                     { return Shuffle; }
+  // Return the current repeat status.
   static bool IsRepeat()                      { return Repeat; }
+  // Return the current savefile name.
   static xstring GetSavename()                { return Savename; }
+  // Return the current song (whether playing or not).
+  // If nothing is attached or if a playlist recently completed the function returns NULL.
   static int_ptr<Song> GetCurrentSong();
+  // Return the currently loaded root object. This might be enumerable or not.
   static int_ptr<Playable> GetRoot()
   { CritSect cs; return PrefetchList.size() ? PrefetchList[0]->Iter.GetRoot() : (Playable*)CurrentSong; }
 
@@ -410,7 +454,10 @@ class Ctrl
   // The function must not be called from a thread which receives PM messages.
   static ControlCommand* SendCommand(ControlCommand* cmd);
 
-  // short-cuts, side-effect free
+  // Short cuts for message creation, side-effect free.
+  // This is recommended over calling the ControllCommand constructor directly.
+  static ControlCommand* MkNop()
+  { return new ControlCommand(Cmd_Nop, xstring(), (void*)NULL, 0); }
   static ControlCommand* MkLoad(const xstring& url)
   { return new ControlCommand(Cmd_Load, url, 0., 0); }
   static ControlCommand* MkSkip(int count, bool relative)
@@ -435,6 +482,8 @@ class Ctrl
   { return new ControlCommand(Cmd_DecStop, xstring(), (void*)NULL, 0); }
 
  public: // notifications
+  // Notify about any changes. See EventFlags for details.
+  // The events are not synchonuous, i.e. they are not called before the things happen.
   static event<const EventFlags> ChangeEvent;
 };
 

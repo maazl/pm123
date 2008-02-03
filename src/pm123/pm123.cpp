@@ -222,14 +222,12 @@ amp_paint_fileinfo( HPS hps )
   DEBUGLOG(("amp_paint_fileinfo(%p)\n", hps));
 
   int_ptr<Playable> pp = Ctrl::GetRoot();
-
-  bmp_draw_plmode  ( hps, pp != NULL, pp ? pp->GetFlags() : Playable::None );
-  bmp_draw_timeleft( hps, pp );
+  bmp_draw_plmode( hps, pp != NULL, pp ? pp->GetFlags() : Playable::None );
+  
+  pp = Ctrl::GetCurrentSong();
   if (pp != NULL)
-  { const TECH_INFO& tech = *pp->GetInfo().tech;
-    bmp_draw_rate    ( hps, tech.bitrate );
-    const FORMAT_INFO2& format = *pp->GetInfo().format;
-    bmp_draw_channels( hps, format.channels );
+  { bmp_draw_rate    ( hps, pp->GetInfo().tech->bitrate );
+    bmp_draw_channels( hps, pp->GetInfo().format->channels );
   } else
   { bmp_draw_rate    ( hps, -1 );
     bmp_draw_channels( hps, -1 );
@@ -1930,7 +1928,8 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
       return 0;
 
     case AMP_CTRL_EVENT:
-      { Ctrl::EventFlags flags = (Ctrl::EventFlags)LONGFROMMP(mp1);
+      { // Event from the controller
+        Ctrl::EventFlags flags = (Ctrl::EventFlags)LONGFROMMP(mp1);
         DEBUGLOG(("amp_dlg_proc: AMP_CTRL_EVENT %x\n", flags));
         if (flags & Ctrl::EV_PlayStop)
         { if (Ctrl::IsPlaying()) 
