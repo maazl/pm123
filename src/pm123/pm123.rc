@@ -329,8 +329,8 @@ BITMAP (DIG_BPS+9)      bmp\bps9.bmp
 BITMAP BMP_R_BGROUND    bmp\background.bmp
 BITMAP BMP_NOTL         bmp\timeleft_dark.bmp
 BITMAP BMP_TL           bmp\timeleft.bmp
-BITMAP BMP_NOPLIST      bmp\timeleft_dark.bmp
-BITMAP BMP_PLIST        bmp\timeleft.bmp
+BITMAP BMP_NOPLIST      bmp\timeleft_pl_dark.bmp
+BITMAP BMP_PLIST        bmp\timeleft_pl.bmp
 
 /* Icons. */
 ICON   ICO_MAIN         ico\pm123.ico
