@@ -1339,7 +1339,8 @@ void Playlist::NotifySourceChange()
 ****************************************************************************/
 
 PlayFolder::PlayFolder(const url& URL, const TECH_INFO* ca_tech, const META_INFO* ca_meta)
-: PlayableCollection(URL, ca_tech, ca_meta)
+: PlayableCollection(URL, ca_tech, ca_meta),
+  Recursive(false)
 { DEBUGLOG(("PlayFolder(%p)::PlayFolder(%s, %p, %p)\n", this, URL.cdata(), ca_tech, ca_meta));
   ParseQueryParams();
 }
@@ -1395,28 +1396,29 @@ bool PlayFolder::LoadList()
                                                   : FILE_ARCHIVED|FILE_SYSTEM|FILE_HIDDEN|FILE_READONLY,
                            result, sizeof result, &count, FIL_STANDARD);
   DEBUGLOG(("PlayFolder::LoadList: %s, %p, %u, %u\n", name.cdata(), hdir, count, rc));
-  while (rc == 0)
-  { // add files
-    for (FILEFINDBUF3* fp = (FILEFINDBUF3*)result; count--; ((char*&)fp) += fp->oNextEntryOffset)
-    { DEBUGLOG(("PlayFolder::LoadList - %s, %x\n", fp->achName, fp->attrFile));
-      // skip . and ..
-      if (fp->achName[0] == '.' && (fp->achName[1] == 0 || (fp->achName[1] == '.' && fp->achName[2] == 0)))
-        continue;
-      Entry* ep;
-      if (fp->attrFile & FILE_DIRECTORY)
-      { // inherit parameters
-        xstring tmp = xstring::sprintf("%s/%s", fp->achName, GetURL().getParameter().cdata());
-        ep = CreateEntry(tmp);
-      } else
-        ep = CreateEntry(fp->achName);
-      AppendEntry(ep);
-    }
-    // next...
-    count = sizeof result / sizeof(FILEFINDBUF3);
-    rc = DosFindNext(hdir, &result, sizeof result, &count);
-  }
-  if (hdir != HDIR_CREATE)
+  if (rc == NO_ERROR)
+  { do
+    { // add files
+      for (FILEFINDBUF3* fp = (FILEFINDBUF3*)result; count--; ((char*&)fp) += fp->oNextEntryOffset)
+      { DEBUGLOG(("PlayFolder::LoadList - %s, %x\n", fp->achName, fp->attrFile));
+        // skip . and ..
+        if (fp->achName[0] == '.' && (fp->achName[1] == 0 || (fp->achName[1] == '.' && fp->achName[2] == 0)))
+          continue;
+        Entry* ep;
+        if (fp->attrFile & FILE_DIRECTORY)
+        { // inherit parameters
+          xstring tmp = xstring::sprintf("%s/%s", fp->achName, GetURL().getParameter().cdata());
+          ep = CreateEntry(tmp);
+        } else
+          ep = CreateEntry(fp->achName);
+        AppendEntry(ep);
+      }
+      // next...
+      count = sizeof result / sizeof(FILEFINDBUF3);
+      rc = DosFindNext(hdir, &result, sizeof result, &count);
+    } while (rc == 0);
     DosFindClose(hdir);
+  }
   DEBUGLOG(("PlayFolder::LoadList: %u\n", rc));
   switch (rc)
   {case NO_ERROR:
