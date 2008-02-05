@@ -3,7 +3,7 @@
 #
 
 TOPDIR   = ..\..
-INCDIR   = $(TOPDIR)\include;$(TOPDIR)\utils;.
+INCDIR   = $(TOPDIR)\include;..
 TARGET   = all2
 
 !include $(TOPDIR)\config\makerules
