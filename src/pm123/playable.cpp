@@ -719,7 +719,9 @@ const PlayableCollection::CollectionInfo& PlayableCollection::GetCollectionInfo(
       if (song->GetStatus() > STA_Invalid)
       { const TECH_INFO& tech = *song->GetInfo().tech;
         cic->Info.Add(tech.songlength, tech.filesize, 1);
-      }
+      } else
+        // only count invalid items
+        cic->Info.Add(0, 0, 1);
     }
   }
   return cic->Info;
