@@ -80,7 +80,7 @@ void SongIterator::Swap(SongIterator& r)
 void SongIterator::DebugDump() const
 { DEBUGLOG(("SongIterator(%p{%p, {%u }, {%u }})::DebugDump()\n", this, &*Root, Callstack.size(), Exclude.size()));
   for (const CallstackEntry*const* ppce = Callstack.begin(); ppce != Callstack.end(); ++ppce)
-    DEBUGLOG(("SongIterator::DebugDump %p{%i, %f, %p}\n", *ppce, (*ppce)->Index, (*ppce)->Offset, &*(*ppce)->Item));
+    DEBUGLOG(("SongIterator::DebugDump %p{%i, %g, %p}\n", *ppce, (*ppce)->Index, (*ppce)->Offset, &*(*ppce)->Item));
   Exclude.DebugDump();
 }
 #endif*/
@@ -140,7 +140,7 @@ bool SongIterator::PrevNextCore(int dir)
   for (;;)
   { CallstackEntry* pce = Callstack[Callstack.size()-1];
     int_ptr<PlayableInstance> pi = dir < 0 ? GetList()->GetPrev(pce->Item) : GetList()->GetNext(pce->Item);
-    DEBUGLOG(("SongIterator::PrevNextCore - {%i, %f, %p} @%p\n", pce->Index, pce->Offset, &*pce->Item, &*pi));
+    DEBUGLOG(("SongIterator::PrevNextCore - {%i, %g, %p} @%p\n", pce->Index, pce->Offset, &*pce->Item, &*pi));
     if (pi == NULL)
     { // store new item     
       pce->Item = pi;
@@ -157,7 +157,7 @@ bool SongIterator::PrevNextCore(int dir)
       if (pce->Item != NULL)
       { // relative offsets
         const Offsets& info = TechFromPlayable((dir < 0 ? pi : pce->Item)->GetPlayable());
-        DEBUGLOG(("SongIterator::PrevNextCore - relative offset - {%i, %f}\n", info.Index, info.Offset));
+        DEBUGLOG(("SongIterator::PrevNextCore - relative offset - {%i, %g}\n", info.Index, info.Offset));
         pce->Index += dir * info.Index;
         if (pce->Offset != -1)
         { // apply change
@@ -193,7 +193,7 @@ bool SongIterator::PrevNextCore(int dir)
       pce->Item = pi;
       // item found => check wether it is enumerable
       if (!(pi->GetPlayable()->GetFlags() & Playable::Enumerable))
-      { DEBUGLOG(("SongIterator::PrevNextCore - {%i, %f, %p{%p{%s}}}\n", pce->Index, pce->Offset, &*pi, pi->GetPlayable(), pi->GetPlayable()->GetURL().getShortName().cdata()));
+      { DEBUGLOG(("SongIterator::PrevNextCore - {%i, %g, %p{%p{%s}}}\n", pce->Index, pce->Offset, &*pi, pi->GetPlayable(), pi->GetPlayable()->GetURL().getShortName().cdata()));
         return true;
       } else if (!SkipQ()) // skip objects in the call stack
       { pi->GetPlayable()->EnsureInfo(Playable::IF_Other);
@@ -418,14 +418,14 @@ void Ctrl::PrefetchClear(bool keep)
 }
 
 void Ctrl::CheckPrefetch(double pos)
-{ DEBUGLOG(("Ctrl::CheckPrefetch(%f)\n", pos));
+{ DEBUGLOG(("Ctrl::CheckPrefetch(%g)\n", pos));
   if (PrefetchList.size()) 
   { size_t n = 1;
     // Since the item #1 is likely to compare less than CurrentSongTime a linear search is faster than a binary search.
     while (n < PrefetchList.size() && pos >= PrefetchList[n]->Offset)
       ++n;
     --n;
-    DEBUGLOG(("Ctrl::CheckPrefetch %f, %f -> %u\n", pos, Current()->Offset, n));
+    DEBUGLOG(("Ctrl::CheckPrefetch %g, %g -> %u\n", pos, Current()->Offset, n));
     if (n)
     { // At least one prefetched item has been played completely.
       CurrentSongDelegate.detach();
@@ -458,6 +458,8 @@ void Ctrl::DecEventHandler(void*, const dec_event_args& args)
     break;    
    case DECEVENT_CHANGEMETA:
     break; */
+   default: // avoid warnings
+    break;
   }
 }
 
@@ -469,6 +471,8 @@ void Ctrl::OutEventHandler(void*, const OUTEVENTTYPE& event)
    case OUTEVENT_PLAY_ERROR:
     // output error => full stop
     PostCommand(MkPlayStop(Ctrl::Op_Clear));
+    break;
+   default: // avoid warnings
     break;
   }
 }
@@ -538,7 +542,7 @@ Ctrl::RC Ctrl::MsgScan(Op op)
 }
 
 Ctrl::RC Ctrl::MsgVolume(double volume, bool relative)
-{ DEBUGLOG(("Ctrl::MsgVolume(%f, %u) - %f\n", volume, relative, Volume));
+{ DEBUGLOG(("Ctrl::MsgVolume(%g, %u) - %g\n", volume, relative, Volume));
   volume += Volume * relative;
   // Limits
   if (volume < 0)
@@ -596,7 +600,7 @@ Ctrl::RC Ctrl::MsgPlayStop(Op op)
 }
 
 Ctrl::RC Ctrl::MsgNavigate(const xstring& iter, T_TIME loc, int flags)
-{ DEBUGLOG(("Ctrl::MsgNavigate(%s, %f, %x)\n", iter.cdata(), loc, flags));
+{ DEBUGLOG(("Ctrl::MsgNavigate(%s, %g, %x)\n", iter.cdata(), loc, flags));
   if (!GetCurrentSong())
     return RC_NoSong;
   // TODO: the whole iterator stuff is missing
@@ -826,7 +830,7 @@ Ctrl::RC Ctrl::MsgDecStop()
   }
 
   // start decoder for the prefetched item
-  DEBUGLOG(("Ctrl::MsgDecStop playing %s with offset %f\n", pp->GetURL().cdata(), pep->Offset));
+  DEBUGLOG(("Ctrl::MsgDecStop playing %s with offset %g\n", pp->GetURL().cdata(), pep->Offset));
   if (DecoderStart(pp, pep->Offset) != 0)
   { // TODO: we should continue with the next song, and remove the current one from the prefetch list.
     OutputStop();
@@ -857,8 +861,8 @@ void Ctrl::Worker()
 
     bool fail = false;
     do
-    { DEBUGLOG(("Ctrl::Worker received message: %p{%i, %s, %f, %x, %p, %p} - %u\n",
-      qp, qp->Cmd, qp->StrArg, qp->NumArg, qp->Flags, qp->Callback, qp->Link, fail));
+    { DEBUGLOG(("Ctrl::Worker received message: %p{%i, %s, %g, %x, %p, %p} - %u\n",
+      qp, qp->Cmd, qp->StrArg ? qp->StrArg.cdata() : "<null>", qp->NumArg, qp->Flags, qp->Callback, qp->Link, fail));
       if (fail)
         qp->Flags = RC_SubseqError;
       else

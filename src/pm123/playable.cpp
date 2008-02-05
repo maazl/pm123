@@ -404,7 +404,7 @@ void PlayableInstance::SetAlias(const xstring& alias)
 }
 
 void PlayableInstance::SetSlice(const slice& sl)
-{ DEBUGLOG(("PlayableInstance(%p)::SetSlice({%f,%f})\n", this, sl.Start, sl.Stop));
+{ DEBUGLOG(("PlayableInstance(%p)::SetSlice({%g,%g})\n", this, sl.Start, sl.Stop));
   if (Slice.Start != sl.Start || Slice.Stop != sl.Stop)
   { Slice = sl;
     StatusChange(change_args(*this, SF_Slice));
@@ -455,7 +455,7 @@ Playable::InfoFlags Song::LoadInfo(InfoFlags what)
 ****************************************************************************/
 
 void PlayableCollection::CollectionInfo::Add(double songlength, double filesize, int items)
-{ DEBUGLOG(("PlayableCollection::CollectionInfo::Add(%f, %f, %i) - %f, %f, %i\n", songlength, filesize, items, Songlength, Filesize, Items));
+{ DEBUGLOG(("PlayableCollection::CollectionInfo::Add(%g, %g, %i) - %g, %g, %i\n", songlength, filesize, items, Songlength, Filesize, Items));
   // cummulate playing time
   if (Songlength >= 0)
   { if (songlength >= 0)
@@ -630,7 +630,7 @@ void PlayableCollection::CalcTechInfo(TECH_INFO& dst)
     dst.bitrate = (int)( dst.filesize >= 0 && dst.songlength > 0
       ? dst.filesize / dst.songlength / (1000/8)
       : -1 );
-    DEBUGLOG(("PlayableCollection::CalcTechInfo(): %s {%f, %i, %f}\n", GetURL().getShortName().cdata(), dst.songlength, dst.bitrate, dst.filesize));
+    DEBUGLOG(("PlayableCollection::CalcTechInfo(): %s {%g, %i, %g}\n", GetURL().getShortName().cdata(), dst.songlength, dst.bitrate, dst.filesize));
     // Info string
     // Since all strings are short, there may be no buffer overrun.
     if (dst.songlength < 0)
@@ -1390,10 +1390,11 @@ bool PlayFolder::LoadList()
     name = name + "*";
   HDIR hdir = HDIR_CREATE;
   char result[2048];
-  ULONG count = sizeof result / sizeof(FILEFINDBUF3);
+  ULONG count = sizeof result / (offsetof(FILEFINDBUF3, achName)+2); // Well, some starting value...
   APIRET rc = DosFindFirst(name, &hdir, Recursive ? FILE_ARCHIVED|FILE_SYSTEM|FILE_HIDDEN|FILE_READONLY|FILE_DIRECTORY
                                                   : FILE_ARCHIVED|FILE_SYSTEM|FILE_HIDDEN|FILE_READONLY,
-                           &result, sizeof result, &count, FIL_STANDARD);
+                           result, sizeof result, &count, FIL_STANDARD);
+  DEBUGLOG(("PlayFolder::LoadList: %s, %p, %u, %u\n", name.cdata(), hdir, count, rc));
   while (rc == 0)
   { // add files
     for (FILEFINDBUF3* fp = (FILEFINDBUF3*)result; count--; ((char*&)fp) += fp->oNextEntryOffset)
@@ -1414,8 +1415,9 @@ bool PlayFolder::LoadList()
     count = sizeof result / sizeof(FILEFINDBUF3);
     rc = DosFindNext(hdir, &result, sizeof result, &count);
   }
-  DosFindClose(hdir);
-  DEBUGLOG(("PlayFolder::LoadList: %s, %u\n", name.cdata(), rc));
+  if (hdir != HDIR_CREATE)
+    DosFindClose(hdir);
+  DEBUGLOG(("PlayFolder::LoadList: %u\n", rc));
   switch (rc)
   {case NO_ERROR:
    case ERROR_FILE_NOT_FOUND:

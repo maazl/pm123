@@ -283,7 +283,7 @@ ULONG CL_GLUE::dec_command( ULONG msg )
 /* invoke decoder to play an URL */
 ULONG dec_play( const char* url, const char* decoder_name, double offset, double pos )
 {
-  DEBUGLOG(("dec_play(%s, %s, %f)\n", url, decoder_name, pos));
+  DEBUGLOG(("dec_play(%s, %s, %g)\n", url, decoder_name, pos));
   ULONG rc = CL_GLUE::dec_set_active( decoder_name );
   if ( rc != 0 )
     return rc;
@@ -487,6 +487,9 @@ dec_event_handler( void* a, DECEVENTTYPE event, void* param )
         pp->SetMetaInfo((META_INFO*)param);
     }
     break;
+
+   default: // avoid warnings
+    break;
   }   
   const dec_event_args args = { event, param };
   dec_event(args); 
@@ -501,9 +504,13 @@ out_event_handler( void* w, OUTEVENTTYPE event )
   switch (event)
   {case OUTEVENT_LOW_WATER:
    case OUTEVENT_HIGH_WATER:
-    CL_DECODER* dp = (CL_DECODER*)decoders.current();
-    if (dp != NULL)
-      dp->get_procs().decoder_event(dp->get_procs().w, event);
+    { CL_DECODER* dp = (CL_DECODER*)decoders.current();
+      if (dp != NULL)
+        dp->get_procs().decoder_event(dp->get_procs().w, event);
+      break;
+    }
+   default: // avoid warnings
+    break;
   }
 }
 

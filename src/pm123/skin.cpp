@@ -979,7 +979,7 @@ sec2num( double seconds, unsigned int* major, unsigned int* minor )
 /* Draws the main player timer. */
 void
 bmp_draw_timer( HPS hps, double time )
-{ DEBUGLOG(("bmp_draw_timer(%p, %f)\n", hps, time));
+{ DEBUGLOG(("bmp_draw_timer(%p, %g)\n", hps, time));
 
   if( cfg.mode != CFG_MODE_REGULAR ) {
     return;
@@ -1020,7 +1020,7 @@ bmp_draw_timer( HPS hps, double time )
 /* Draws the tiny player timer. */
 void
 bmp_draw_tiny_timer( HPS hps, int pos_id, double time )
-{ DEBUGLOG(("bmp_draw_tiny_timer(%p, %i, %f)\n", hps, pos_id, time));
+{ DEBUGLOG(("bmp_draw_tiny_timer(%p, %i, %g)\n", hps, pos_id, time));
 
   if( cfg.mode != CFG_MODE_REGULAR ) {
     return;
@@ -1120,7 +1120,7 @@ bmp_draw_channels( HPS hps, int channels )
 void
 bmp_draw_volume( HPS hps, double volume )
 {
-  DEBUGLOG(("bmp_draw_volume(%p, %f)\n", hps, volume));
+  DEBUGLOG(("bmp_draw_volume(%p, %g)\n", hps, volume));
 
   int x = bmp_pos[ POS_VOLBAR ].x;
   int y = bmp_pos[ POS_VOLBAR ].y;
@@ -1378,7 +1378,7 @@ bmp_draw_plind( HPS hps, int index, int total )
 /* Draws the current position slider. */
 void
 bmp_draw_slider( HPS hps, double played, double total )
-{ DEBUGLOG(("bmp_draw_slider(%p, %f, %f)\n", hps, played, total));
+{ DEBUGLOG(("bmp_draw_slider(%p, %g, %g)\n", hps, played, total));
   
   if( cfg.mode == CFG_MODE_REGULAR )
   {

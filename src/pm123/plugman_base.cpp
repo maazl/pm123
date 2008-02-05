@@ -79,7 +79,7 @@
 // Convert timestamp in seconds to an integer in milliseconds.
 // Truncate leading bits in case of an overflow.
 static int tstmp_f2i(double pos)
-{ DEBUGLOG(("tstmp_f2i(%f)\n", pos));
+{ DEBUGLOG(("tstmp_f2i(%g)\n", pos));
   // We cast to unsigned first to ensure that the range of the int is fully used.
   return pos >= 0 ? (int)(unsigned)(fmod(pos*1000., UINT_MAX+1.) + .5) : -1;
 }
@@ -88,7 +88,7 @@ static int tstmp_f2i(double pos)
 // The missing bits are taken from a context time stamp which has to be sufficiently close
 // to the original time stamp. Sufficient is about ñ24 days.
 static double tstmp_i2f(int pos, double context)
-{ DEBUGLOG(("tstmp_i2f(%i, %f)\n", pos, context));
+{ DEBUGLOG(("tstmp_i2f(%i, %g)\n", pos, context));
   if (pos < 0)
     return -1;
   double r = pos / 1000.;
@@ -259,7 +259,6 @@ HWND CL_PLUGIN::CreateProxyWindow(const char* cls, void* ptr)
 
 void CL_PLUGIN::DestroyProxyWindow(HWND hwnd)
 { WinSendMsg(ServiceHwnd, UM_DESTROYPROXYWINDOW, MPFROMHWND(hwnd), 0);
-  PMEASSERT(1);
 }
 
 void CL_PLUGIN::init()
@@ -479,7 +478,7 @@ proxy_1_decoder_play_samples( CL_DECODER_PROXY_1* op, const FORMAT_INFO* format,
   while (rem)
   { short* dest;
     int l = (*op->voutput_request_buffer)(op->a, (FORMAT_INFO2*)format, &dest);
-    DEBUGLOG(("proxy_1_decoder_play_samples: now at %p %i %i %f\n", buf, l, rem, op->temppos));
+    DEBUGLOG(("proxy_1_decoder_play_samples: now at %p %i %i %g\n", buf, l, rem, op->temppos));
     if (op->temppos != -1)
     { (*op->voutput_commit_buffer)(op->a, 0, op->temppos); // no-op
       break;
@@ -504,7 +503,7 @@ proxy_1_decoder_play_samples( CL_DECODER_PROXY_1* op, const FORMAT_INFO* format,
     } else
     { memcpy(dest, buf, l*bps);
     }
-    DEBUGLOG(("proxy_1_decoder_play_samples: commit: %i %f\n", posmarker, posmarker/1000. + (double)(len-rem)/format->samplerate));
+    DEBUGLOG(("proxy_1_decoder_play_samples: commit: %i %g\n", posmarker, posmarker/1000. + (double)(len-rem)/format->samplerate));
     (*op->voutput_commit_buffer)(op->a, l, posmarker/1000. + (double)(len-rem)/format->samplerate);
     rem -= l;
     buf += l * bps;
@@ -609,7 +608,7 @@ proxy_1_decoder_command( CL_DECODER_PROXY_1* op, void* w, ULONG msg, DECODER_PAR
     break;
 
    case DECODER_JUMPTO:
-    DEBUGLOG(("proxy_1_decoder_command:DECODER_JUMPTO: %f\n", params->jumpto));
+    DEBUGLOG(("proxy_1_decoder_command:DECODER_JUMPTO: %g\n", params->jumpto));
     par1.jumpto              = (int)floor(params->jumpto*1000 +.5);
     op->temppos = params->jumpto;
     break;
@@ -999,7 +998,7 @@ proxy_1_output_request_buffer( CL_OUTPUT_PROXY_1* op, void* a, const FORMAT_INFO
 
 PROXYFUNCIMP(void DLLENTRY, CL_OUTPUT_PROXY_1)
 proxy_1_output_commit_buffer( CL_OUTPUT_PROXY_1* op, void* a, int len, double posmarker )
-{ DEBUGLOG(("proxy_1_output_commit_buffer(%p {%s}, %p, %i, %f) - %d\n",
+{ DEBUGLOG(("proxy_1_output_commit_buffer(%p {%s}, %p, %i, %g) - %d\n",
     op, op->module_name, a, len, posmarker, op->voutput_buffer_level));
 
   if (op->voutput_buffer_level == 0)
@@ -1248,7 +1247,7 @@ proxy_1_filter_request_buffer( CL_FILTER_PROXY_1* pp, const FORMAT_INFO2* format
 
 PROXYFUNCIMP(void DLLENTRY, CL_FILTER_PROXY_1)
 proxy_1_filter_commit_buffer( CL_FILTER_PROXY_1* pp, int len, double posmarker )
-{ DEBUGLOG(("proxy_1_filter_commit_buffer(%p, %d, %f)\n", pp, len, posmarker));
+{ DEBUGLOG(("proxy_1_filter_commit_buffer(%p, %d, %g)\n", pp, len, posmarker));
 
   if (len == 0)
     return;

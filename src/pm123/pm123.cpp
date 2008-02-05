@@ -194,7 +194,7 @@ int DLLENTRY pm123_getstring( int index, int subindex, size_t bufsize, char* buf
 static void
 amp_paint_timers( HPS hps )
 {
-  DEBUGLOG(("amp_paint_timers(%p) - %i %i {%i/%i, %f/%f, %f/%f}\n", hps, cfg.mode, is_seeking,
+  DEBUGLOG(("amp_paint_timers(%p) - %i %i {%i/%i, %g/%g, %g/%g}\n", hps, cfg.mode, is_seeking,
     last_status.CurrentItem, last_status.TotalItems, last_status.CurrentTime, last_status.TotalTime, last_status.CurrentSongTime, last_status.TotalSongTime));
 
   T_TIME list_left = -1;
@@ -346,7 +346,7 @@ static void amp_AddMRU(Playlist* list, size_t max, const char* URL)
   int_ptr<PlayableInstance> pi;
   // remove the desired item from the list and limit the list size
   while ((pi = list->GetNext(pi)) != NULL)
-  { DEBUGLOG(("amp_AddMRU - %p{%s}\n", pi, pi->GetPlayable()->GetURL().cdata()));
+  { DEBUGLOG(("amp_AddMRU - %p{%s}\n", &*pi, pi->GetPlayable()->GetURL().cdata()));
     if (max == 0 || pi->GetPlayable()->GetURL() == URL)
       list->RemoveItem(pi);
      else

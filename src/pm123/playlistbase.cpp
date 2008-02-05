@@ -966,7 +966,7 @@ void PlaylistBase::UserAdd(DECODER_WIZZARD_FUNC wizzard, const char* title, Reco
 }
 
 void PlaylistBase::UserInsert(const InsertInfo* pii)
-{ DEBUGLOG(("PlaylistBase(%p)::UserInsert(%p{{%s}, %s, %s, {%f,%f}, %s})\n", this,
+{ DEBUGLOG(("PlaylistBase(%p)::UserInsert(%p{{%s}, %s, %s, {%g,%g}, %s})\n", this,
     pii, pii->Parent->GetURL().getShortName().cdata(), pii->URL.cdata(), pii->Alias.cdata(), pii->Slice.Start, pii->Slice.Stop, RecordBase::DebugName(pii->Before).cdata()));
   pii->Parent->InsertItem(pii->URL, pii->Alias, pii->Slice, pii->Before ? &*pii->Before->Data->Content : NULL);
 }
