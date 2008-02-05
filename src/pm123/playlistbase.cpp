@@ -1222,7 +1222,8 @@ void PlaylistBase::DragDrop(DRAGINFO* pdinfo, RecordBase* target)
       { // Have full qualified file name.
         // Hopefully this criterion is sufficient to identify folders.
         if (pditem->fsControl & DC_CONTAINER)
-          fullname = fullname + "/";
+          // TODO: should be configurabe and alterable
+          fullname = fullname + "/?Recursive";
 
         // prepare insert item
         BlockRecord(target);

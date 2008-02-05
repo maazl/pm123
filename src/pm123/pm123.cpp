@@ -595,7 +595,8 @@ amp_drag_drop( HWND hwnd, PDRAGINFO pdinfo )
       { // Have full qualified file name.
         // Hopefully this criterion is sufficient to identify folders.
         if (pditem->fsControl & DC_CONTAINER)
-          fullname = fullname + "/";
+          // TODO: should be configurabe and alterable
+          fullname = fullname + "/?Recursive";
           
         DropInfo* pdsource = new DropInfo();
         pdsource->URL      = url::normalizeURL(fullname); 
