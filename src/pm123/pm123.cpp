@@ -111,6 +111,7 @@ static BOOL  is_volume_drag  = FALSE;
 static BOOL  is_seeking      = FALSE;
 static BOOL  is_slider_drag  = FALSE;
 static BOOL  is_arg_shuffle  = FALSE;
+static bool  is_msg_status   = FALSE; // true if a MsgStatus to the controller message is on the way
 
 /* Current load wizzards */
 static DECODER_WIZZARD_FUNC load_wizzards[20];
@@ -1919,8 +1920,10 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
         if (flags & Ctrl::EV_Repeat)
           WinSendDlgItemMsg(hplayer, BMP_REPEAT,  Ctrl::IsRepeat() ? WM_PRESS : WM_DEPRESS, 0, 0);
 
-        if (flags & Ctrl::EV_Song)
+        if (flags & Ctrl::EV_Song && !is_msg_status)
+        { is_msg_status = true;
           Ctrl::PostCommand(Ctrl::MkStatus(), &amp_control_event_callback);
+        }
 
         if (flags & (Ctrl::EV_Volume|Ctrl::EV_Tech|Ctrl::EV_Meta))
         { HPS hps = WinGetPS(hplayer);
@@ -1975,6 +1978,7 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
           is_seeking = FALSE;
           break;
          case Ctrl::Cmd_Status:
+          is_msg_status = false;
           if (cfg.mode == CFG_MODE_REGULAR)
           { HPS hps = WinGetPS( hwnd );
             if (cmd->Flags == Ctrl::RC_OK)
@@ -2029,8 +2033,8 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
         return 0;
 
        case TID_UPDATE_TIMERS:
-        if (decoder_playing() && cfg.mode == CFG_MODE_REGULAR )
-        {
+        if (decoder_playing() && cfg.mode == CFG_MODE_REGULAR && !is_msg_status)
+        { is_msg_status = true;
           Ctrl::PostCommand(Ctrl::MkStatus(), &amp_control_event_callback);
         }
         DEBUGLOG2(("amp_dlg_proc: WM_TIMER done\n"));
