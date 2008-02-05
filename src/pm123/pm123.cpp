@@ -1587,40 +1587,6 @@ amp_save_stream( HWND hwnd, BOOL enable )
   }
 }
 
-/* Starts playing a next file or stops the player if all files
-   already played. */
-// TODO: logic should be moved to the controller!   
-static void
-amp_playstop( HWND hwnd )
-{ DEBUGLOG(("amp_playstop(%p)\n", hwnd));
-
-  Ctrl::ControlCommand* cmd = Ctrl::MkSkip(1, true);
-  cmd->Link = Ctrl::MkPlayStop(Ctrl::Op_Set);
-  Ctrl::PostCommand(cmd);
-
-  /*if (Current.Next() || (cfg.rpt && Current.Next()))
-    amp_play( 0 );
-   else
-    amp_stop();*/
-
-  /* uhh, well, do we need some of that anymore ?
-  if( amp_playmode == AMP_PLAYLIST )
-  {
-    PLRECORD* rec = pl_query_next_record();
-    BOOL      eol = FALSE;
-
-    if( !rec ) {
-      pl_clean_shuffle();
-      rec = pl_query_first_record();
-      eol = TRUE;
-    }
-
-    if( rec && amp_pl_load_record( rec ) && ( cfg.rpt || !eol )) {
-      amp_play( 0 );
-    }
-  }*/
-}
-
 static void amp_eq_update()
 { DEBUGLOG(("amp_eq_update()\n"));
 
@@ -2109,40 +2075,6 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
       bmp_draw_volume    ( hps, Ctrl::GetVolume() );
 
       WinEndPaint( hps );
-      return 0;
-    }
-
-    case WM_METADATA:
-    {
-      // TODO: turn into general metadata replacement and move this to the plugman core
-      // and do the update by notifications.
-      /*char* metadata = (char*)PVOIDFROMMP(mp1);
-      char* titlepos;
-      int   i;
-
-      if( metadata ) {
-        titlepos = strstr( metadata, "StreamTitle='" );
-        if( titlepos )
-        {
-          META_INFO meta =
-          titlepos += 13;
-          for( i = 0; i < sizeof( current_file.info.meta.title ) - 1 && *titlepos
-                      && ( titlepos[0] != '\'' || titlepos[1] != ';' ); i++ )
-          {
-            current_file.info.meta.title[i] = *titlepos++;
-          }
-
-          current_file.info.meta.title[i] = 0;
-          amp_display_filename();
-          amp_invalidate( UPD_FILEINFO );
-
-          if( current_record != NULL ) {
-            free( current_record->songname );
-            current_record->songname = strdup( current_file.info.meta.title );
-            pl_refresh_record( current_record, CMA_TEXTCHANGED );
-          }
-        }
-      }*/
       return 0;
     }
 
