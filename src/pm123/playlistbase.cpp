@@ -574,7 +574,7 @@ MRESULT PlaylistBase::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
   return WinDefDlgProc( HwndFrame, msg, mp1, mp2 );
 }
 
-int PlaylistBase::CompareTo(const char* str) const
+int PlaylistBase::CompareTo(const char*const& str) const
 { return stricmp(Content->GetURL(), str);
 }
 

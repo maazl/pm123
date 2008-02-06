@@ -41,8 +41,8 @@
 #define MAX_MENU 100
 
 
-int PlaylistMenu::MapEntry::CompareTo(const USHORT* key) const
-{ return (int)IDMenu - *key;
+int PlaylistMenu::MapEntry::CompareTo(const USHORT& key) const
+{ return (int)IDMenu - key;
 }
 
 MRESULT EXPENTRY pm_DlgProcStub(PlaylistMenu* that, ULONG msg, MPARAM mp1, MPARAM mp2)
@@ -83,7 +83,7 @@ MRESULT PlaylistMenu::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
 
    case WM_INITMENU:
     { DEBUGLOG(("PlaylistMenu(%p)::DlgProc: WM_INITMENU(%u, %x)\n", this, SHORT1FROMMP(mp1), mp2));
-      MapEntry* mapp = MenuMap.find(&(const USHORT&)SHORT1FROMMP(mp1));
+      MapEntry* mapp = MenuMap.find(SHORT1FROMMP(mp1));
       if (mapp == NULL)
         break; // No registered map entry, continue default processing.
       mapp->HwndMenu = HWNDFROMMP(mp2);
@@ -101,7 +101,7 @@ MRESULT PlaylistMenu::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
    case WM_COMMAND:
     if (SHORT1FROMMP(mp2) == CMDSRC_MENU)
     { DEBUGLOG(("PlaylistMenu(%p)::DlgProc: WM_COMMAND(%u)\n", this, SHORT1FROMMP(mp1)));
-      MapEntry* mp = MenuMap.find(&(const USHORT&)SHORT1FROMMP(mp1));
+      MapEntry* mp = MenuMap.find(SHORT1FROMMP(mp1));
       if (mp) // ID unknown?
       { WinSendMsg(HwndOwner, UM_SELECTED, MPFROMP(&mp->Data), mp->User);
         return 0; // no further processing
@@ -123,7 +123,7 @@ MRESULT PlaylistMenu::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
 USHORT PlaylistMenu::AllocateID()
 { DEBUGLOG(("PlaylistMenu(%p)::AllocateID()\n", this));
   size_t pos;
-  if (!MenuMap.binary_search(&ID1stfree, pos))
+  if (!MenuMap.binary_search(ID1stfree, pos))
     return ID1stfree++; // immediate match
   // search the next free ID from here
   while (++ID1stfree <= IDlast)
@@ -197,7 +197,7 @@ void PlaylistMenu::CreateSubItems(MapEntry* mapp)
         PMASSERT(WinSendMsg(mi.hwndSubMenu, MM_SETDEFAULTITEMID, MPFROMLONG(mi.id), 0));
       }
       // Add map entry
-      MapEntry*& subp = MenuMap.get(&mi.id);
+      MapEntry*& subp = MenuMap.get(mi.id);
       ASSERT(subp == NULL);
       subp = new MapEntry(mi.id, *pi, mapp->Flags, mapp->User, MIT_END);
       // Add menu item
@@ -288,7 +288,7 @@ void PlaylistMenu::RemoveMapEntry(MapEntry* mapp)
 }
 void PlaylistMenu::RemoveMapEntry(USHORT mid)
 { DEBUGLOG(("PlaylistMenu(%p)::RemoveMapEntry(%u)\n", this, mid));
-  MapEntry* mapp = MenuMap.erase(&mid);
+  MapEntry* mapp = MenuMap.erase(mid);
   if (mapp)
     RemoveMapEntry(mapp);
 }
@@ -322,7 +322,7 @@ void PlaylistMenu::InfoChangeCallback(const Playable::change_args& args)
 bool PlaylistMenu::AttachMenu(USHORT menuid, Playable* data, EntryFlags flags, MPARAM user, USHORT pos)
 { DEBUGLOG(("PlaylistMenu(%p)::AttachMenu(%u, %p{%s}, %x, %p, %u)\n", this, menuid, &*data, data->GetURL().getShortName().cdata(), flags, user, pos));
 
-  MapEntry*& mapp = MenuMap.get(&menuid);
+  MapEntry*& mapp = MenuMap.get(menuid);
   if (mapp)
     // existing item => replace data
     mapp->Data = data;

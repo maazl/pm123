@@ -150,13 +150,13 @@ class vector : public vector_base
 };
 
 /* Interface for compareable objects.
- * A class that implements this interface with the template parameter K is comparable to const K*.
+ * A class that implements this interface with the template parameter K is comparable to const K&.
  * The type K may be the same as the class that implements this interface or not.
- * Note: you may implement IComparableTo<char> to be comparable to ordinary C strings.
+ * Note: you may implement IComparableTo<const char*> to be comparable to ordinary C strings.
  */
 template <class K>
 struct IComparableTo
-{ virtual int CompareTo(const K* key) const = 0;
+{ virtual int CompareTo(const K& key) const = 0;
  protected:
   // protect destructor to avoid that someone deletes an object of this type through the interface
   // without having a virtual destructor. However, we force the destructor to be virtual to keep gcc happy.
@@ -179,21 +179,21 @@ class sorted_vector : public vector<T>
   // The function returns whether you got an exact match or not.
   // The index of the first element >= key is always returned in the output parameter pos.
   // Precondition: none, Performance: O(log(n))
-  bool               binary_search(const K* key, size_t& pos) const;
+  bool               binary_search(const K& key, size_t& pos) const;
   // Find an element by it's key.
   // The function will return NULL if no such element is in the container.
   // Precondition: none, Performance: O(log(n))
-  T*                 find(const K* key) const;
+  T*                 find(const K& key) const;
   // Ensure an element with a particular key.
   // This will either return a reference to a pointer to an existing object which equals to key
   // or a reference to a NULL pointer which is automatically created at the location in the container
   // where a new object with key should be inserted. So you can store the Pointer to this object after the funtion returned.
   // Precondition: none, Performance: O(log(n))
-  T*&                get(const K* key);
+  T*&                get(const K& key);
   // Erase the element which equals key and return the removed pointer.
   // If no such element exists the function returns NULL.
   // Precondition: none, Performance: O(log(n))
-  T*                 erase(const K* key);
+  T*                 erase(const K& key);
   // IBM VAC++ can't parse using...
   T*                 erase(size_t where)            { return vector<T>::erase(where); }
 };
@@ -201,7 +201,7 @@ class sorted_vector : public vector<T>
 
 /* Template implementations */
 template <class T, class K>
-bool sorted_vector<T,K>::binary_search(const K* key, size_t& pos) const
+bool sorted_vector<T,K>::binary_search(const K& key, size_t& pos) const
 { // binary search                                  
   DEBUGLOG(("sorted_vector<T,K>(%p)::binary_search(%p,&%p) - %u\n", this, key, &pos, size()));
   size_t l = 0;
@@ -224,19 +224,19 @@ bool sorted_vector<T,K>::binary_search(const K* key, size_t& pos) const
 }
 
 template <class T, class K>
-T* sorted_vector<T,K>::find(const K* key) const
+T* sorted_vector<T,K>::find(const K& key) const
 { size_t pos;
   return binary_search(key, pos) ? (*this)[pos] : NULL;
 }
 
 template <class T, class K>
-T*& sorted_vector<T,K>::get(const K* key)
+T*& sorted_vector<T,K>::get(const K& key)
 { size_t pos;
   return binary_search(key, pos) ? (*this)[pos] : (insert(pos) = NULL);
 }
 
 template <class T, class K>
-T* sorted_vector<T,K>::erase(const K* key)
+T* sorted_vector<T,K>::erase(const K& key)
 { size_t pos;
   return binary_search(key, pos) ? vector<T>::erase(pos) : NULL;
 }
@@ -248,13 +248,13 @@ T* sorted_vector<T,K>::erase(const K* key)
 template <class T>
 class InstanceCompareable : public IComparableTo<T>
 {public:
-  virtual int CompareTo(const T* key) const;
+  virtual int CompareTo(const T& key) const;
 };
 
 template <class T>
-int InstanceCompareable<T>::CompareTo(const T* key) const
-{ DEBUGLOG2(("InstanceCompareable<T>(%p)::CompareTo(%p)\n", this, key));
-  return (char*)(T*)this - (char*)key; // Dirty but working unless the virtual address space is larger than 2 GiB, which is not the case on OS/2. 
+int InstanceCompareable<T>::CompareTo(const T& key) const
+{ DEBUGLOG2(("InstanceCompareable<T>(%p)::CompareTo(%p)\n", this, &key));
+  return (char*)(T*)this - (char*)&key; // Dirty but working unless the virtual address space is larger than 2 GiB, which is not the case on OS/2. 
 }
 
 

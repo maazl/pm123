@@ -103,7 +103,7 @@ void SongIterator::Enter()
   ASSERT(GetCurrent() != NULL);
   ASSERT(GetCurrent()->GetPlayable()->GetFlags() & Playable::Enumerable);
   Playable* pp = GetCurrent()->GetPlayable();
-  Exclude.get(pp) = pp;
+  Exclude.get(*pp) = pp;
   Callstack.append() = new CallstackEntry();
 }
 
@@ -111,7 +111,7 @@ void SongIterator::Leave()
 { DEBUGLOG(("SongIterator::Leave()\n"));
   ASSERT(Callstack.size() > 1); // Can't remove the last item.
   delete Callstack.erase(Callstack.end()-1);
-  RASSERT(Exclude.erase(GetCurrent()->GetPlayable()));
+  RASSERT(Exclude.erase(*GetCurrent()->GetPlayable()));
 }
 
 bool SongIterator::SkipQ()
@@ -314,12 +314,11 @@ ULONG Ctrl::DecoderStart(Song* pp, T_TIME offset)
   dec_save(Savename);
   dec_fast(Scan);
 
-  // TODO: offset
   ULONG rc = dec_play( pp->GetURL(), pp->GetDecoder(), offset, Location );
   if (rc != 0)
     return rc;
 
-  // TODO: CRAP!
+  // TODO: CRAP?
   while (dec_status() == DECODER_STARTING)
   { DEBUGLOG(("Ctrl::DecoderStart - waiting for Spinlock\n"));
     DosSleep( 1 );
@@ -333,7 +332,7 @@ void Ctrl::DecoderStop()
   // stop decoder
   dec_stop();
 
-  // TODO: CRAP! => we should disconnect decoder instead 
+  // TODO: CRAP? => we should disconnect decoder instead 
   while (dec_status() == DECODER_PLAYING)
   { DEBUGLOG(("Ctrl::DecoderStop - waiting for Spinlock\n"));
     DosSleep( 1 );

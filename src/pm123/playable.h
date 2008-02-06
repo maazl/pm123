@@ -76,7 +76,7 @@ static void TFNENTRY PlayableWorker(void*);
 class Playable
 : public Iref_Count,
   public InstanceCompareable<Playable>,
-  public IComparableTo<char>
+  public IComparableTo<const char*>
 {public:
   enum Flags
   { None        = 0,   // This attribute implies that a cast to Song is valid.
@@ -236,16 +236,16 @@ class Playable
 
  // Repository
  private:
-  static sorted_vector<Playable, char> RPInst;
+  static sorted_vector<Playable, const char*> RPInst;
   static Mutex             RPMutex;
  private:
   #ifdef DEBUG
   static void              RPDebugDump();
   #endif
  public:
-  virtual int              CompareTo(const char* str) const;
+  virtual int              CompareTo(const char*const& str) const;
   // ICC don't know using
-  int                      CompareTo(const Playable* r) const { return InstanceCompareable<Playable>::CompareTo(r); }
+  int                      CompareTo(const Playable& r) const { return InstanceCompareable<Playable>::CompareTo(r); }
   // Seek whether an URL is already loaded.
   static int_ptr<Playable> FindByURL(const char* url);
   // FACTORY! Get a new or an existing instance of this URL.
@@ -269,7 +269,7 @@ struct PlayableSet
   public IComparableTo<PlayableSet>
 { static const PlayableSet Empty; // empty instance
                            PlayableSet();
-  virtual int              CompareTo(const PlayableSet* r) const;
+  virtual int              CompareTo(const PlayableSet& r) const;
   #ifdef DEBUG
   xstring                  DebugDump() const;
   #endif

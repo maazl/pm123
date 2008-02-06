@@ -53,7 +53,7 @@
 *  Whether it is a tree view or a detailed view detremines the derived class.
 *
 ****************************************************************************/
-class PlaylistBase : public IComparableTo<char>
+class PlaylistBase : public IComparableTo<const char*>
 {public:
   struct CommonState
   { unsigned            PostMsg;   // Bitvector of outstanding record commands
@@ -393,8 +393,8 @@ class PlaylistBase : public IComparableTo<char>
   // Get an instance of the same type as the current instance for URL.
   virtual PlaylistBase* GetSame(const url& URL) = 0;
 
-  // IComparableTo<char>
-  virtual int       CompareTo(const char* str) const;
+  // IComparableTo<const char*>
+  virtual int       CompareTo(const char*const& str) const;
 
 };
 FLAGSATTRIBUTE(PlaylistBase::RecordType);
@@ -425,7 +425,7 @@ inline void PlaylistBase::CPDataBase::DeregisterEvents()
 template <class T>
 class PlaylistRepository : public PlaylistBase
 {private:
-  static sorted_vector<T, char> RPInst;
+  static sorted_vector<T, const char*> RPInst;
   static Mutex      RPMutex;
  public:
   // currently a no-op
@@ -445,7 +445,7 @@ class PlaylistRepository : public PlaylistBase
 };
 
 template <class T>
-sorted_vector<T, char> PlaylistRepository<T>::RPInst(8);
+sorted_vector<T, const char*> PlaylistRepository<T>::RPInst(8);
 template <class T>
 Mutex PlaylistRepository<T>::RPMutex;
 

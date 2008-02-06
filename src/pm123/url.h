@@ -59,7 +59,6 @@
  *   \\server\path\                          UNC folder
  *   drive:path\?...                         foldername only with parameters
  *   \\server\path\?...                      UNC folder with parameters
- *
  */
 class url : public xstring
 {protected:
@@ -69,6 +68,7 @@ class url : public xstring
   static bool isPathDelimiter(char c) { return c == '/' || c == '\\'; }
   static bool hasScheme(const char* str);
   static bool isAbsolute(const char* str);
+  //static 
   static url  normalizeURL(const char* str);
 
   url() {}

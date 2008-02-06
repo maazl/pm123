@@ -112,7 +112,7 @@ class SongIterator
   const PlayableSet&          GetExclude() const       { return Exclude; }
   // Check whether a Playable object is in the call stack. Not thread-safe!
   // This will return always false if the Playable object is not enumerable.
-  bool                        IsInCallstack(const Playable* pp) const { return Exclude.find(pp) != NULL; }
+  bool                        IsInCallstack(const Playable* pp) const { return Exclude.find(*pp) != NULL; }
 
   // Get the current song. This may be NULL.  
   PlayableInstance*           GetCurrent() const;

@@ -278,10 +278,10 @@ void Playable::Uninit()
 
 
 /* URL repository */
-sorted_vector<Playable, char> Playable::RPInst(RP_INITIAL_SIZE);
+sorted_vector<Playable, const char*> Playable::RPInst(RP_INITIAL_SIZE);
 Mutex Playable::RPMutex;
 
-int Playable::CompareTo(const char* str) const
+int Playable::CompareTo(const char*const& str) const
 { DEBUGLOG(("Playable(%p{%s})::CompareTo(%s)\n", this, URL.cdata(), str));
   return stricmp(URL, str);
 }
@@ -332,19 +332,19 @@ PlayableSet::PlayableSet()
 : sorted_vector<Playable, Playable>(8)
 {}
 
-int PlayableSet::CompareTo(const PlayableSet* r) const
+int PlayableSet::CompareTo(const PlayableSet& r) const
 { Playable*const* ppp1 = begin();
-  Playable*const* ppp2 = r->begin();
+  Playable*const* ppp2 = r.begin();
   for (;;)
   { // termination condition
-    if (ppp2 == r->end())
+    if (ppp2 == r.end())
       return ppp1 != end();
     else if (ppp1 == end())
       return -1;
     // compare content
-    int r = (*ppp1)->CompareTo(*ppp2);
-    if (r)
-      return r;
+    int ret = (*ppp1)->CompareTo(**ppp2);
+    if (ret)
+      return ret;
     ++ppp1;
     ++ppp2;
   }
@@ -610,7 +610,7 @@ void PlayableCollection::ChildInfoChange(const Playable::change_args& args)
   CritSect cs;
   for (CollectionInfoEntry** ciepp = CollectionInfoCache.begin(); ciepp != CollectionInfoCache.end(); ++ciepp)
     // Only items that do not have the sender in the exclusion list are invalidated.
-    if ((*ciepp)->find(&args.Instance) == NULL)
+    if ((*ciepp)->find(args.Instance) == NULL)
       (*ciepp)->Valid = false;
 }
 
@@ -676,7 +676,7 @@ const PlayableCollection::CollectionInfo& PlayableCollection::GetCollectionInfo(
   // We have to protect the CollectionInfoCache additionally by a critical section,
   // because the TechInfoChange event from the children cannot aquire the mutex.
   CritSect cs;
-  CollectionInfoEntry*& cic = CollectionInfoCache.get(&excluding);
+  CollectionInfoEntry*& cic = CollectionInfoCache.get(excluding);
   if (cic == NULL)
     cic = new CollectionInfoEntry();
   else if (cic->Valid)
@@ -695,7 +695,7 @@ const PlayableCollection::CollectionInfo& PlayableCollection::GetCollectionInfo(
     { // nested playlist
       PlayableCollection* pc = (PlayableCollection*)pi->GetPlayable();
       // check for recursion
-      if (excluding.find(pc) != NULL)
+      if (excluding.find(*pc) != NULL)
       { // recursion
         DEBUGLOG(("PlayableCollection::GetCollectionInfo - recursive!\n"));
         cic->Info.Excluded = true;
@@ -705,7 +705,7 @@ const PlayableCollection::CollectionInfo& PlayableCollection::GetCollectionInfo(
       // create new exclusions on demand
       if (xcl_sub == NULL)
       { xcl_sub = new PlayableSet(excluding); // deep copy
-        xcl_sub->get(this) = this;
+        xcl_sub->get(*this) = this;
       }
       // get sub info
       Mutex::Lock lck(pc->Mtx);
