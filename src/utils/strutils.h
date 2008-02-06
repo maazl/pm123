@@ -55,6 +55,10 @@ size_t strlcpy( char* dst, const char* src, size_t siz );
 
 size_t strlcat( char* dst, const char* src, size_t siz );
 
+/* Search the first ocurrency of c in the first siz bytes of string str.
+ */ 
+char* strnchr( const char* str, char c, size_t siz );
+
 /* Search the last ocurrency of c in the first siz bytes of string str.
  */ 
 char* strnrchr( const char* str, char c, size_t siz );

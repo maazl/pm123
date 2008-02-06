@@ -96,7 +96,7 @@ void Playable::DecoderInfo::operator=(const DECODER_INFO2& r)
 }
 
 
-Playable::Playable(const url& url, const FORMAT_INFO2* ca_format, const TECH_INFO* ca_tech, const META_INFO* ca_meta)
+Playable::Playable(const url123& url, const FORMAT_INFO2* ca_format, const TECH_INFO* ca_tech, const META_INFO* ca_meta)
 : URL(url),
   Stat(STA_Unknown),
   InfoValid(IF_None),
@@ -129,7 +129,7 @@ Playable::~Playable()
 }
 
 /* Returns true if the specified file is a playlist file. */
-bool Playable::IsPlaylist(const url& URL)
+bool Playable::IsPlaylist(const url123& URL)
 { const xstring& ext = URL.getExtension();
   DEBUGLOG(("Playable::IsPlaylist(%s) - %s\n", URL.cdata(), ext.cdata()));
   // TODO: this is a very bad criterion
@@ -281,8 +281,8 @@ void Playable::Uninit()
 sorted_vector<Playable, const char*> Playable::RPInst(RP_INITIAL_SIZE);
 Mutex Playable::RPMutex;
 
-int Playable::CompareTo(const char*const& str) const
-{ DEBUGLOG(("Playable(%p{%s})::CompareTo(%s)\n", this, URL.cdata(), str));
+int Playable::compareTo(const char*const& str) const
+{ DEBUGLOG(("Playable(%p{%s})::compareTo(%s)\n", this, URL.cdata(), str));
   return stricmp(URL, str);
 }
 
@@ -299,7 +299,7 @@ int_ptr<Playable> Playable::FindByURL(const char* url)
   return RPInst.find(url);
 }
 
-int_ptr<Playable> Playable::GetByURL(const url& URL, const FORMAT_INFO2* ca_format, const TECH_INFO* ca_tech, const META_INFO* ca_meta)
+int_ptr<Playable> Playable::GetByURL(const url123& URL, const FORMAT_INFO2* ca_format, const TECH_INFO* ca_tech, const META_INFO* ca_meta)
 { DEBUGLOG(("Playable::GetByURL(%s)\n", URL.cdata()));
   Mutex::Lock lock(RPMutex);
   #ifdef DEBUG
@@ -332,7 +332,7 @@ PlayableSet::PlayableSet()
 : sorted_vector<Playable, Playable>(8)
 {}
 
-int PlayableSet::CompareTo(const PlayableSet& r) const
+int PlayableSet::compareTo(const PlayableSet& r) const
 { Playable*const* ppp1 = begin();
   Playable*const* ppp2 = r.begin();
   for (;;)
@@ -342,7 +342,7 @@ int PlayableSet::CompareTo(const PlayableSet& r) const
     else if (ppp1 == end())
       return -1;
     // compare content
-    int ret = (*ppp1)->CompareTo(**ppp2);
+    int ret = (*ppp1)->compareTo(**ppp2);
     if (ret)
       return ret;
     ++ppp1;
@@ -492,7 +492,7 @@ const FORMAT_INFO2 PlayableCollection::no_format =
   -1
 };
 
-PlayableCollection::PlayableCollection(const url& URL, const TECH_INFO* ca_tech, const META_INFO* ca_meta)
+PlayableCollection::PlayableCollection(const url123& URL, const TECH_INFO* ca_tech, const META_INFO* ca_meta)
 : Playable(URL, &no_format, ca_tech, ca_meta),
   Head(NULL),
   Tail(NULL),
@@ -875,7 +875,7 @@ bool PlayableCollection::SaveM3U(XFILE* of, bool relative)
   return true;
 }
 
-bool PlayableCollection::Save(const url& URL, save_options opt)
+bool PlayableCollection::Save(const url123& URL, save_options opt)
 { DEBUGLOG(("PlayableCollection(%p{%s})::Save(%s, %x)\n", this, GetURL().cdata(), URL.cdata(), opt));
   // verify URL
   if (!IsPlaylist(URL))
@@ -1305,7 +1305,7 @@ void Playlist::Shuffle()
   DEBUGLOG(("Playlist::Shuffle: after raiseinfochange\n")); 
 }
 
-bool Playlist::Save(const url& URL, save_options opt)
+bool Playlist::Save(const url123& URL, save_options opt)
 { DEBUGLOG(("Playlist(%p)::Save(%s, %x)\n", this, URL.cdata(), opt));
   if (!PlayableCollection::Save(URL, opt))
     return false;
@@ -1338,7 +1338,7 @@ void Playlist::NotifySourceChange()
 *
 ****************************************************************************/
 
-PlayFolder::PlayFolder(const url& URL, const TECH_INFO* ca_tech, const META_INFO* ca_meta)
+PlayFolder::PlayFolder(const url123& URL, const TECH_INFO* ca_tech, const META_INFO* ca_meta)
 : PlayableCollection(URL, ca_tech, ca_meta),
   Recursive(false)
 { DEBUGLOG(("PlayFolder(%p)::PlayFolder(%s, %p, %p)\n", this, URL.cdata(), ca_tech, ca_meta));

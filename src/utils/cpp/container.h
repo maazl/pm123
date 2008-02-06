@@ -156,7 +156,7 @@ class vector : public vector_base
  */
 template <class K>
 struct IComparableTo
-{ virtual int CompareTo(const K& key) const = 0;
+{ virtual int compareTo(const K& key) const = 0;
  protected:
   // protect destructor to avoid that someone deletes an object of this type through the interface
   // without having a virtual destructor. However, we force the destructor to be virtual to keep gcc happy.
@@ -164,10 +164,8 @@ struct IComparableTo
 };
 
 
-/* Type-safe implementation of sorted_vector_base.
- * This class shares all properties of sorted_vector_base,
- * except that it is strongly typed to objects of type T which must implement IComparableTo<K>.
- * It is recommended to prefer this type-safe implementation over sorted_vector_base.
+/* Sorted variant of vector using the key type K.
+ * Object in this container must implement IComparableTo<K>
  */
 template <class T, class K>
 class sorted_vector : public vector<T>
@@ -208,7 +206,7 @@ bool sorted_vector<T,K>::binary_search(const K& key, size_t& pos) const
   size_t r = size();
   while (l < r)
   { size_t m = (l+r) >> 1;
-    int cmp = (*this)[m]->CompareTo(key);
+    int cmp = (*this)[m]->compareTo(key);
     DEBUGLOG2(("sorted_vector<T,K>::binary_search %u-%u %u->%p %i\n", l, r, m, (*this)[m], cmp));
     if (cmp == 0)
     { pos = m;
@@ -248,12 +246,12 @@ T* sorted_vector<T,K>::erase(const K& key)
 template <class T>
 class InstanceCompareable : public IComparableTo<T>
 {public:
-  virtual int CompareTo(const T& key) const;
+  virtual int compareTo(const T& key) const;
 };
 
 template <class T>
-int InstanceCompareable<T>::CompareTo(const T& key) const
-{ DEBUGLOG2(("InstanceCompareable<T>(%p)::CompareTo(%p)\n", this, &key));
+int InstanceCompareable<T>::compareTo(const T& key) const
+{ DEBUGLOG2(("InstanceCompareable<T>(%p)::compareTo(%p)\n", this, &key));
   return (char*)(T*)this - (char*)&key; // Dirty but working unless the virtual address space is larger than 2 GiB, which is not the case on OS/2.
 }
 

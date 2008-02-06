@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2007 Marcel Mueller
+ * Copyright (c) 2007-2008 Marcel Mueller
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -15,6 +15,19 @@
  */
 
 #include "strutils.h"
+
+/* Search the first ocurrency of c in the first siz bytes of string str.
+ */ 
+char*
+strnchr(const char *str, char c, size_t siz)
+{ while (siz && *str) 
+  { if (*str == c)
+      return (char*)str;
+    --siz;
+    ++str;
+  }
+  return NULL;
+}
 
 /* Search the last ocurrency of c in the first siz bytes of string str.
  */ 

@@ -27,18 +27,45 @@
  */
 
 
-#include "url.h"
+#include "url123.h"
 #include <strutils.h>
 #include <ctype.h>
+
+#include <string.h>
 
 #include <debuglog.h>
 
 
-void url::parse()
-{
+size_t url123::decode(char* dst, const char* src, size_t len)
+{ const char*const ep = src + len;
+  while (src != ep)
+  { switch (*src)
+    {case '+':
+      *dst = ' ';
+      break;
+     case '%':
+      if (ep - src >= 3) // too short?
+      { // replace % escapes
+        char cvt[3] = {src[0], src[1], 0};
+        char* res;
+        *dst = (char)strtoul(cvt, &res, 16);
+        if (res == cvt+2)
+        { src += 2;
+          len -= 2;
+          break;
+        }
+        // Error => restore
+      }
+     default:
+      *dst = *src;
+    }
+    ++src;
+    ++dst;
+  }
+  return len;
 }
 
-bool url::hasScheme(const char* str)
+bool url123::hasScheme(const char* str)
 { // exception for drive letters
   if (isalpha(str[0]) && str[1] == ':')
     return false;
@@ -59,15 +86,62 @@ bool url::hasScheme(const char* str)
     }
 }
 
-bool url::isAbsolute(const char* str)
-{ DEBUGLOG(("url::isAbsolute(%s)\n", str));
+bool url123::isAbsolute(const char* str)
+{ DEBUGLOG(("url123::isAbsolute(%s)\n", str));
   const char* cp = strpbrk(str, ":/\\");
   return cp != NULL && *cp == ':';
 }
 
-url url::normalizeURL(const char* str)
-{ DEBUGLOG(("url::normalzieURL(%s)\n", str));
-  url ret;
+void url123::parseParameter(stringmap& dest, const char* params)
+{ if (*params == '?')
+    ++params; // skip '?'
+
+  xstring key;
+  xstring val;
+
+  while (*params)   
+  { // find next '&'
+    const char* ap = strchr(params, '&');
+    const char* np; 
+    if (ap == NULL)
+      np = ap = params + strlen(params);
+    else
+      np = ap + 1;
+    // find '='
+    const char* ep = strnchr(params, '=', ap-params);
+    if (ep == NULL)
+    { // no value
+      ep = ap;
+      val = xstring::empty;
+    } else
+    { const size_t len = ap-ep-1;
+      char* vp = val.raw_init(len);
+      size_t nlen = decode(vp, ep+1, len);
+      if (nlen != len)
+        val.assign(val, 0, nlen); // shorten
+    }
+    // key
+    const size_t len = ep-params;
+    char* kp = key.raw_init(len);
+    size_t nlen = decode(kp, params, len);
+    if (nlen != len)
+      key.assign(key, 0, nlen); // shorten
+    // store
+    stringmapentry*& sep = dest.get(key);
+    if (sep)
+      // exists => overwrite
+      sep->Value.swap(val);
+    else
+      // new
+      sep = new stringmapentry(key, val);
+    // next      
+    params = np;
+  } 
+}
+
+url123 url123::normalizeURL(const char* str)
+{ DEBUGLOG(("url123::normalzieURL(%s)\n", str));
+  url123 ret;
   if (str == NULL)
     return ret;
   char* cp; // store part of string to check here
@@ -88,7 +162,7 @@ url url::normalizeURL(const char* str)
     memcpy(cp, str, len);
   } else if (!hasScheme(str))
   { // broken URL
-    DEBUGLOG(("url::normalizeURL - broken url %s\n", str));
+    DEBUGLOG(("url123::normalizeURL - broken url %s\n", str));
     return ret; // NULL
   } else if (strnicmp(str, "cd:", 3) == 0)
   { // turn into cdda:
@@ -109,7 +183,7 @@ url url::normalizeURL(const char* str)
   // reduce /xxx/.. - s/\/[^\/]\/\.\.//g;
   len = ret.length();
   for (cp2 = strstr(cp, "/."); cp2; cp2 = strstr(cp2, "/."))
-  { DEBUGLOG(("url::normalzieURL: removing? %s\n", cp2));
+  { DEBUGLOG(("url123::normalzieURL: removing? %s\n", cp2));
     char* cp3 = cp2;
     cp2 += 2; // move behind the match
     switch (*cp2)
@@ -120,7 +194,7 @@ url url::normalizeURL(const char* str)
       memmove(cp3, cp2, len-(cp2-cp)+1);
       len -= 2;
       cp2 = cp3;
-      DEBUGLOG(("url::normalzieURL: converted to %s\n", cp));
+      DEBUGLOG(("url123::normalzieURL: converted to %s\n", cp));
      default: // ignore names starting with .
       continue;
      case '.':
@@ -141,23 +215,23 @@ url url::normalizeURL(const char* str)
           break;
         }
       }
-      DEBUGLOG(("url::normalzieURL: converted to %s\n", cp));
+      DEBUGLOG(("url123::normalzieURL: converted to %s\n", cp));
      //default: // ignore names that start with ..
     }
   }
   if (len != ret.length())
     ret.assign(ret, 0, len); // shorten string
-  DEBUGLOG(("url::normalzieURL: %u, %s\n", len, ret.cdata()));
+  DEBUGLOG(("url123::normalzieURL: %u, %s\n", len, ret.cdata()));
   return ret;
 }
 
-xstring url::getBasePath() const
+xstring url123::getBasePath() const
 { const char* cp = strrchr(*this, '/');
   ASSERT(cp);
   return xstring(*this, 0, cp-cdata()+1);
 }
 
-xstring url::getObjectName() const
+xstring url123::getObjectName() const
 { const char* cp = strrchr(*this, '/');
   ASSERT(cp);
   ++cp;
@@ -165,7 +239,7 @@ xstring url::getObjectName() const
   return cp2 ? xstring(cp, cp2-cp) : xstring(cp);
 }
 
-xstring url::getExtension() const
+xstring url123::getExtension() const
 { const char* cp = strrchr(*this, '/');
   ASSERT(cp);
   ++cp;
@@ -176,12 +250,12 @@ xstring url::getExtension() const
   return cp3;
 }
 
-xstring url::getParameter() const
+xstring url123::getParameter() const
 { const char* cp = strchr(*this, '?');
   return cp ? xstring(cp) : xstring::empty;
 }
 
-xstring url::getDisplayName() const
+xstring url123::getDisplayName() const
 { const char* cp = *this;
   if (strnicmp(cp, "file:", 5) == 0)
   { cp += 5;
@@ -191,7 +265,7 @@ xstring url::getDisplayName() const
   return cp;
 }
 
-xstring url::getShortName() const
+xstring url123::getShortName() const
 { const char* cp = strrchr(*this, '/');
   ASSERT(cp);
   ++cp;
@@ -199,7 +273,7 @@ xstring url::getShortName() const
   if (*cp == 0 || *cp == '?')
   { const char* cp2 = --cp;
    next:
-    //DEBUGLOG(("url::getObjName - %c\n", cp2[-1]));
+    //DEBUGLOG(("url123::getObjName - %c\n", cp2[-1]));
     switch (*--cp2)
     {default:
       ASSERT(cp2 != *this);
@@ -218,14 +292,14 @@ xstring url::getShortName() const
   }
 }
 
-url url::makeAbsolute(const char* rel) const
-{ DEBUGLOG(("url(%p{%s})::makeAbsolute(%s)\n", this, cdata(), rel));
+url123 url123::makeAbsolute(const char* rel) const
+{ DEBUGLOG(("url123(%p{%s})::makeAbsolute(%s)\n", this, cdata(), rel));
   // Already absolute?
   if (isAbsolute(rel))
     return normalizeURL(rel);
   // extract path of current URL
   const char* cp = strrchr(*this, '/');
-  DEBUGLOG2(("url::makeAbsolute - %p %s %s\n", rel, rel, cp));
+  DEBUGLOG2(("url123::makeAbsolute - %p %s %s\n", rel, rel, cp));
   ASSERT(cp);
   ++cp;
   // join strings
@@ -238,8 +312,8 @@ url url::makeAbsolute(const char* rel) const
   return normalizeURL(dp.get());
 }
 
-xstring url::makeRelative(const char* root, bool useupdir) const
-{ DEBUGLOG(("url(%p{%s})::makeRelative(%s, %u)\n", this, cdata(), root, useupdir));
+xstring url123::makeRelative(const char* root, bool useupdir) const
+{ DEBUGLOG(("url123(%p{%s})::makeRelative(%s, %u)\n", this, cdata(), root, useupdir));
   // find common part
   const char* sp1 = *this;
   const char* sp2 = root;

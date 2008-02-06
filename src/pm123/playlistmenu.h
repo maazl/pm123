@@ -100,7 +100,7 @@ class PlaylistMenu
      : IDMenu(id), HwndMenu(NULLHANDLE), Data(data), Flags(flags), User(user), ID1((USHORT)MID_NONE), Pos(pos) {}
     MapEntry(USHORT id, Playable* data, EntryFlags flags, MPARAM user, SHORT pos)
      : IDMenu(id), HwndMenu(NULLHANDLE), Data(data), Flags(flags), User(user), ID1((USHORT)MID_NONE), Pos(pos) {}
-    virtual int     CompareTo(const USHORT& key) const;
+    virtual int     compareTo(const USHORT& key) const;
   };
 
  private:

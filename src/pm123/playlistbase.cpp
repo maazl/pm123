@@ -54,7 +54,7 @@
 #include <stdarg.h>
 #include <snprintf.h>
 #include <cpp/smartptr.h>
-#include "url.h"
+#include <cpp/url123.h>
 
 #include <debuglog.h>
 
@@ -521,7 +521,7 @@ MRESULT PlaylistBase::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
         return 0;
 
        case IDM_PL_OPEN:
-        { url URL = PlaylistSelect(HwndFrame, "Open Playlist");
+        { url123 URL = PlaylistSelect(HwndFrame, "Open Playlist");
           if (URL)
           { PlaylistBase* pp = GetSame(URL);
             pp->SetVisible(true);
@@ -574,7 +574,7 @@ MRESULT PlaylistBase::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
   return WinDefDlgProc( HwndFrame, msg, mp1, mp2 );
 }
 
-int PlaylistBase::CompareTo(const char*const& str) const
+int PlaylistBase::compareTo(const char*const& str) const
 { return stricmp(Content->GetURL(), str);
 }
 
@@ -1043,7 +1043,7 @@ int PlaylistBase::CompTime(const PlayableInstance* l, const PlayableInstance* r)
 { return l->GetPlayable()->GetInfo().tech->songlength > r->GetPlayable()->GetInfo().tech->songlength;
 }
 
-url PlaylistBase::PlaylistSelect(HWND owner, const char* title)
+url123 PlaylistBase::PlaylistSelect(HWND owner, const char* title)
 {
   APSZ types[] = {{ FDT_PLAYLIST }, { 0 }};
   FILEDLG filedialog = { sizeof(FILEDLG) };
@@ -1060,9 +1060,9 @@ url PlaylistBase::PlaylistSelect(HWND owner, const char* title)
 
   if( filedialog.lReturn == DID_OK )
   { sdrivedir( cfg.listdir, filedialog.szFullFile, sizeof cfg.listdir );
-    return url::normalizeURL(filedialog.szFullFile);
+    return url123::normalizeURL(filedialog.szFullFile);
   } else
-  { return url();
+  { return url123();
   }
 }
 
@@ -1229,7 +1229,7 @@ void PlaylistBase::DragDrop(DRAGINFO* pdinfo, RecordBase* target)
         BlockRecord(target);
         InsertInfo* pii = new InsertInfo();
         pii->Parent = parent;
-        pii->URL    = url::normalizeURL(fullname);
+        pii->URL    = url123::normalizeURL(fullname);
         pii->Alias  = alias;
         pii->Before = target;
         WinPostMsg(HwndFrame, UM_INSERTITEM, MPFROMP(pii), 0);
@@ -1299,7 +1299,7 @@ void PlaylistBase::DropRenderComplete(DRAGTRANSFER* pdtrans, USHORT flags)
     // arrive not in the same order as the dragitems in the DRAGINFO structure.
     // Since this is very unlikely, we ignore that here.
     // Since DM_RENDERCOMPLETE should be posted we do not need to post UM_INSERTITEM
-    pdsource->Parent->InsertItem(url::normalizeURL(fullname), pdsource->Alias, pdsource->Before ? &*pdsource->Before->Data->Content : NULL);
+    pdsource->Parent->InsertItem(url123::normalizeURL(fullname), pdsource->Alias, pdsource->Before ? &*pdsource->Before->Data->Content : NULL);
     reply = DMFL_TARGETSUCCESSFUL;
   }
 

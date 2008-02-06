@@ -50,7 +50,6 @@
 #include "plugman.h"
 
 #include <cpp/smartptr.h>
-#include "url.h"
 
 #include <debuglog.h>
 

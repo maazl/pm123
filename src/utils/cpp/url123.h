@@ -1,5 +1,5 @@
 /*
- * Copyright 2007-2007 M.Mueller
+ * Copyright 2007-2008 M.Mueller
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -31,6 +31,7 @@
 #define URL_H
 
 #include <cpp/xstring.h>
+#include <cpp/stringmap.h>
 
 /* class to handle PM123 URLs.
  *
@@ -60,20 +61,20 @@
  *   drive:path\?...                         foldername only with parameters
  *   \\server\path\?...                      UNC folder with parameters
  */
-class url : public xstring
+class url123 : public xstring
 {protected:
-  void parse();
+  static size_t decode(char* dst, const char* src, size_t len);
  public:
-  // 
+  //
   static bool isPathDelimiter(char c) { return c == '/' || c == '\\'; }
   static bool hasScheme(const char* str);
   static bool isAbsolute(const char* str);
-  //static 
-  static url  normalizeURL(const char* str);
+  static void parseParameter(stringmap& dest, const char* params);
+  static url123 normalizeURL(const char* str);
 
-  url() {}
-  url(const xstring& r) : xstring(r) {}
-  url(const char* r)    : xstring(r) {}
+  url123() {}
+  url123(const xstring& r) : xstring(r) {}
+  url123(const char* r)    : xstring(r) {}
 
   // Returns the path component of the url including a trailing slash.
   xstring getBasePath() const;
@@ -97,9 +98,9 @@ class url : public xstring
   bool    isScheme(const char* scheme) const { return startsWithI(scheme); }
   // Make the given URL absolute (if required) using the current object as starting point.
   // If the URL is already absolute it will simply create a normalized URL.
-  url     makeAbsolute(const char* rel) const;
+  url123  makeAbsolute(const char* rel) const;
   // Make URL relative (if possible) using root as starting point.
-  // This function makes use of ../ if required and useupdir is true. 
+  // This function makes use of ../ if required and useupdir is true.
   // If this is not possible, the current URL is returned.
   xstring makeRelative(const char* root, bool useupdir = true) const;
 };

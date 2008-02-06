@@ -41,7 +41,7 @@
 #define MAX_MENU 100
 
 
-int PlaylistMenu::MapEntry::CompareTo(const USHORT& key) const
+int PlaylistMenu::MapEntry::compareTo(const USHORT& key) const
 { return (int)IDMenu - key;
 }
 

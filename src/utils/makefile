@@ -13,7 +13,7 @@ all2: utilfct$(LBO) $(MDUMMY)
 OBJECTS = utilfct$(CO) bufstream$(CO) fileutil$(CO) filefind$(CO)
 OBJECTS = $(OBJECTS) errorstr$(CO) rel2abs$(CO) abs2rel$(CO) inimacro$(CO)
 OBJECTS = $(OBJECTS) charset$(CO) wildcards$(CO) queue$(CO) strlcpy$(CO)
-OBJECTS = $(OBJECTS) strlcat$(CO) snprintf$(CO) strnrchr$(CO) memcmpcpy$(CO)
+OBJECTS = $(OBJECTS) strlcat$(CO) snprintf$(CO) strnchr$(CO) memcmpcpy$(CO)
 OBJECTS = $(OBJECTS) vdelegate$(CO) debuglog$(CO)
 
 utilfct$(LBO): $(OBJECTS)
@@ -33,7 +33,7 @@ inimacro.c:	utilfct.h
 memcmpcpy.c:	strutils.h
 queue.c:	queue.h
 rel2abs.c:	rel2abs.h
-strnrchr.c:	strutils.h
+strnchr.c:	strutils.h
 utilfct.c:	utilfct.h debuglog.h
 vdelegate.c:	vdelegate.h
 vdelegate.h:	..\include\format.h

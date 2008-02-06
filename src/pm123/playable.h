@@ -42,8 +42,8 @@
 #include <cpp/queue.h>
 #include <cpp/cpputil.h>
 #include <cpp/container.h>
+#include <cpp/url123.h>
 #include <strutils.h>
-#include "url.h"
 
 #include <decoder_plug.h>
 
@@ -120,7 +120,7 @@ class Playable
   };
 
  private:
-  const url           URL;
+  const url123        URL;
  protected: // The following vars are protected by the mutex
   DecoderInfo         Info;
   PlayableStatus      Stat;
@@ -136,7 +136,7 @@ class Playable
   Playable(const Playable&);
   void operator=(const Playable&);
  protected:
-  Playable(const url& url, const FORMAT_INFO2* ca_format = NULL, const TECH_INFO* ca_tech = NULL, const META_INFO* ca_meta = NULL);
+  Playable(const url123& url, const FORMAT_INFO2* ca_format = NULL, const TECH_INFO* ca_tech = NULL, const META_INFO* ca_meta = NULL);
   // Update the structure components and return the required InfoChange Flags or 0 if no change has been made.
   void                UpdateInfo(const FORMAT_INFO2* info);
   void                UpdateInfo(const TECH_INFO* info);
@@ -151,9 +151,9 @@ class Playable
  public:
   virtual ~Playable();
   // Check whether a given URL is to be initialized as playlist.
-  static bool         IsPlaylist(const url& URL);
+  static bool         IsPlaylist(const url123& URL);
   // Get URL
-  const url&          GetURL() const      { return URL; }
+  const url123&       GetURL() const      { return URL; }
   // RTTI by the back door. (dynamic_cast<> would be much nicer, but this is not supported by icc 3.0.)
   virtual Flags       GetFlags() const;
   // Return Status of the current object
@@ -243,16 +243,16 @@ class Playable
   static void              RPDebugDump();
   #endif
  public:
-  virtual int              CompareTo(const char*const& str) const;
+  virtual int              compareTo(const char*const& str) const;
   // ICC don't know using
-  int                      CompareTo(const Playable& r) const { return InstanceCompareable<Playable>::CompareTo(r); }
+  int                      compareTo(const Playable& r) const { return InstanceCompareable<Playable>::compareTo(r); }
   // Seek whether an URL is already loaded.
   static int_ptr<Playable> FindByURL(const char* url);
   // FACTORY! Get a new or an existing instance of this URL.
   // The optional parameters ca_* are preloaded informations.
   // This is returned by the apropriate Get* functions without the need to access the underlying data source.
   // This is used to speed up large playlists.
-  static int_ptr<Playable> GetByURL(const url& URL, const FORMAT_INFO2* ca_format = NULL, const TECH_INFO* ca_tech = NULL, const META_INFO* ca_meta = NULL);
+  static int_ptr<Playable> GetByURL(const url123& URL, const FORMAT_INFO2* ca_format = NULL, const TECH_INFO* ca_tech = NULL, const META_INFO* ca_meta = NULL);
 };
 // Flags Attribute for StatusFlags
 FLAGSATTRIBUTE(Playable::InfoFlags);
@@ -269,7 +269,7 @@ struct PlayableSet
   public IComparableTo<PlayableSet>
 { static const PlayableSet Empty; // empty instance
                            PlayableSet();
-  virtual int              CompareTo(const PlayableSet& r) const;
+  virtual int              compareTo(const PlayableSet& r) const;
   #ifdef DEBUG
   xstring                  DebugDump() const;
   #endif
@@ -374,7 +374,7 @@ FLAGSATTRIBUTE(PlayableInstance::StatusFlags);
  */
 class Song : public Playable
 {public:
-  Song(const url& URL, const FORMAT_INFO2* ca_format = NULL, const TECH_INFO* ca_tech = NULL, const META_INFO* ca_meta = NULL)
+  Song(const url123& URL, const FORMAT_INFO2* ca_format = NULL, const TECH_INFO* ca_tech = NULL, const META_INFO* ca_meta = NULL)
    : Playable(URL, ca_format, ca_tech, ca_meta) { DEBUGLOG(("Song(%p)::Song(%s, %p, %p, %p)\n", this, URL.cdata(), ca_format, ca_tech, ca_meta)); }
 
   virtual InfoFlags        LoadInfo(InfoFlags what);
@@ -479,7 +479,7 @@ class PlayableCollection : public Playable
   // Save to stream as WinAmp playlist format
   bool                        SaveM3U(XFILE* of, bool relative);
   // Constructor with defaults if available.
-  PlayableCollection(const url& URL, const TECH_INFO* ca_tech = NULL, const META_INFO* ca_meta = NULL);
+  PlayableCollection(const url123& URL, const TECH_INFO* ca_tech = NULL, const META_INFO* ca_meta = NULL);
  public:
   virtual                     ~PlayableCollection();
   // RTTI by the back door.
@@ -511,7 +511,7 @@ class PlayableCollection : public Playable
   // However this might not succeed, if the URL is read-only.
   // Saving under a different name does not change the name of the curren object.
   // It is like save copy as.
-  virtual bool                Save(const url& URL, save_options opt = SaveDefault);
+  virtual bool                Save(const url123& URL, save_options opt = SaveDefault);
   bool                        Save(save_options opt = SaveDefault) { return Save(GetURL(), opt); }
 
  protected:
@@ -544,7 +544,7 @@ class Playlist : public PlayableCollection
     bool                      has_techinfo;
     xstring                   Alias;
     PlayableInstance::slice   Slice;
-    url                       URL;
+    url123                    URL;
    private:
     void                      Reset();
     void                      Create();
@@ -568,7 +568,7 @@ class Playlist : public PlayableCollection
   // really load the playlist
   virtual bool                LoadList();
  public:
-  Playlist(const url& URL, const TECH_INFO* ca_tech = NULL, const META_INFO* ca_meta = NULL)
+  Playlist(const url123& URL, const TECH_INFO* ca_tech = NULL, const META_INFO* ca_meta = NULL)
    : PlayableCollection(URL, ca_tech, ca_meta), Modified(false) { DEBUGLOG(("Playlist(%p)::Playlist(%s, %p, %p)\n", this, URL.cdata(), ca_tech, ca_meta)); }
   // Get attributes
   virtual Flags               GetFlags() const;
@@ -597,7 +597,7 @@ class Playlist : public PlayableCollection
   // Randomize record sequence.
   virtual void                Shuffle();
   // Save the current playlist as new file.
-  virtual bool                Save(const url& URL, save_options opt = SaveDefault);
+  virtual bool                Save(const url123& URL, save_options opt = SaveDefault);
 
  protected:
   // Notify that the data source is likely to have changed.
@@ -616,7 +616,7 @@ class PlayFolder : public PlayableCollection
  private:
   void                        ParseQueryParams();
  public:
-  PlayFolder(const url& URL, const TECH_INFO* ca_tech = NULL, const META_INFO* ca_meta = NULL);
+  PlayFolder(const url123& URL, const TECH_INFO* ca_tech = NULL, const META_INFO* ca_meta = NULL);
   virtual bool                LoadList();
 };
 

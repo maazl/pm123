@@ -37,6 +37,7 @@
 #include <cpp/mutex.h>
 #include <cpp/container.h>
 #include <cpp/xstring.h>
+#include <cpp/url123.h>
 
 #define DECODER_PLUGIN_LEVEL 2
 #include "playable.h"
@@ -334,7 +335,7 @@ class PlaylistBase : public IComparableTo<const char*>
 
  protected: // User actions
   // Select a list with a file dialog.
-  static url        PlaylistSelect(HWND owner, const char* title);
+  static url123     PlaylistSelect(HWND owner, const char* title);
   // Add Item
   void              UserAdd(DECODER_WIZZARD_FUNC wizzard, const char* title, RecordBase* parent = NULL, RecordBase* before = NULL);
   // Insert a new item
@@ -391,10 +392,10 @@ class PlaylistBase : public IComparableTo<const char*>
   // Gets the content
   Playable*         GetContent() { return Content; }
   // Get an instance of the same type as the current instance for URL.
-  virtual PlaylistBase* GetSame(const url& URL) = 0;
+  virtual PlaylistBase* GetSame(const url123& url) = 0;
 
   // IComparableTo<const char*>
-  virtual int       CompareTo(const char*const& str) const;
+  virtual int       compareTo(const char*const& str) const;
 
 };
 FLAGSATTRIBUTE(PlaylistBase::RecordType);
@@ -436,7 +437,7 @@ class PlaylistRepository : public PlaylistBase
   // If the specified instance already exists the parameter alias is ignored.
   static T*         Get(const char* url, const char* alias = NULL);
   // Get an instance of the same type as the current instance for URL.
-  virtual PlaylistBase* GetSame(const url& URL) { return Get(URL); }
+  virtual PlaylistBase* GetSame(const url123& url) { return Get(url); }
  protected:
   // Forward Constructor
   PlaylistRepository(const char* URL, const char* alias, ULONG rid) : PlaylistBase(URL, alias, rid) {}

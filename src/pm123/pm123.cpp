@@ -65,7 +65,7 @@
 #include "skin.h"
 
 #include <cpp/xstring.h>
-#include "url.h"
+#include <cpp/url123.h>
 #include "pm123.rc.h"
 
 #include <debuglog.h>
@@ -599,7 +599,7 @@ amp_drag_drop( HWND hwnd, PDRAGINFO pdinfo )
           fullname = fullname + "/?Recursive";
           
         DropInfo* pdsource = new DropInfo();
-        pdsource->URL      = url::normalizeURL(fullname); 
+        pdsource->URL      = url123::normalizeURL(fullname); 
         pdsource->options  = options;
         WinPostMsg(hwnd, AMP_LOAD, MPFROMP(pdsource), 0);
         reply = DMFL_TARGETSUCCESSFUL;
@@ -662,7 +662,7 @@ amp_drag_render_done( HWND hwnd, PDRAGTRANSFER pdtrans, USHORT rc )
     DosDelete(rendered);
 
     if (fullname)
-    { pdsource->URL = url::normalizeURL(fullname);
+    { pdsource->URL = url123::normalizeURL(fullname);
       WinPostMsg(hwnd, AMP_LOAD, MPFROMP(pdsource), 0);
       pdsource = NULL; // Do not delete the DropInfo below.
       reply = DMFL_TARGETSUCCESSFUL;
@@ -871,11 +871,11 @@ ULONG DLLENTRY amp_file_wizzard( HWND owner, const char* title, DECODER_WIZZARD_
     { DEBUGLOG(("amp_file_wizzard: %s\n", file));
       char fileurl[_MAX_FNAME+25]; // should be sufficient in all cases
       strcpy(fileurl, "file:///");
-      strcpy(fileurl + (url::isPathDelimiter(file[0]) && url::isPathDelimiter(file[1]) ? 5 : 8), file);
+      strcpy(fileurl + (url123::isPathDelimiter(file[0]) && url123::isPathDelimiter(file[1]) ? 5 : 8), file);
       char* dp = fileurl + strlen(fileurl);
       if (is_dir(file))
       { // Folder => add trailing slash
-        if (!url::isPathDelimiter(dp[-1]))
+        if (!url123::isPathDelimiter(dp[-1]))
           *dp++ = '/';
         if (filedialog.ulUser & FDU_RECURSE_ON)
         { strcpy(dp, "?recursive");
@@ -922,7 +922,7 @@ amp_url_dlg_proc(HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2)
       LONG len = WinQueryWindowTextLength(ent);
       xstring text;
       WinQueryWindowText(ent, len+1, text.raw_init(len));
-      if (url::normalizeURL(text))
+      if (url123::normalizeURL(text))
         break; // everything OK => continue
       WinMessageBox(HWND_DESKTOP, hwnd, xstring::sprintf("The URL \"%s\" is not well formed.", text.cdata()),
         NULL, 0, MB_CANCEL|MB_WARNING|MB_APPLMODAL|MB_MOVEABLE);
@@ -957,7 +957,7 @@ amp_url_wizzard( HWND owner, const char* title, DECODER_WIZZARD_CALLBACK callbac
   if (WinProcessDlg(hwnd) == DID_OK)
   { WinQueryDlgItemText(hwnd, ENT_URL, sizeof durl, durl);
     DEBUGLOG(("amp_url_wizzard: %s\n", durl));
-    url nurl = url::normalizeURL(durl);
+    url123 nurl = url123::normalizeURL(durl);
     DEBUGLOG(("amp_url_wizzard: %s\n", nurl.cdata()));
     (*callback)(param, nurl);
     ret = 0;
@@ -1089,7 +1089,7 @@ amp_pipe_thread( void* scrap )
       {
         if( is_dir( buffer ))
           strlcat(buffer, "/", sizeof buffer);
-        amp_load_playable( url::normalizeURL(buffer), 0, 0 );
+        amp_load_playable( url123::normalizeURL(buffer), 0, 0 );
       }
       else if( *buffer == '*' )
       {
@@ -1181,7 +1181,7 @@ amp_pipe_thread( void* scrap )
           if( stricmp( zork, "load" ) == 0 ) {
             if( dork ) {
               // TODO: dir
-              amp_load_playable( url::normalizeURL(dork), 0, 0 );
+              amp_load_playable( url123::normalizeURL(dork), 0, 0 );
             }
           }
           if( stricmp( zork, "hide"  ) == 0 ) {
@@ -1239,7 +1239,7 @@ amp_pipe_thread( void* scrap )
           if( stricmp( zork, "play" ) == 0 ) {
             if( dork ) {
               // TODO: dir
-              amp_load_playable( url::normalizeURL(dork), 0, AMP_LOAD_NOT_PLAY );
+              amp_load_playable( url123::normalizeURL(dork), 0, AMP_LOAD_NOT_PLAY );
               WinSendMsg( hplayer, WM_COMMAND, MPFROMSHORT( BMP_PLAY ), 0 );
             } else if( !decoder_playing()) {
               WinSendMsg( hplayer, WM_COMMAND, MPFROMSHORT( BMP_PLAY ), 0 );
@@ -1382,7 +1382,7 @@ void amp_save_playlist(HWND owner, PlayableCollection* playlist)
   PMXASSERT(WinFileDlg(HWND_DESKTOP, owner, &filedialog), != NULLHANDLE);
 
   if(filedialog.lReturn == DID_OK)
-  { url file = url::normalizeURL(filedialog.szFullFile);
+  { url123 file = url123::normalizeURL(filedialog.szFullFile);
     if (!(Playable::IsPlaylist(file)))
     { if (file.getExtension().length() == 0)
       { // no extension => choose automatically
@@ -2643,7 +2643,7 @@ main2( void* arg )
   delegate<void, const Ctrl::EventFlags> ctrl_delegate(Ctrl::ChangeEvent, &amp_control_event_handler);
 
   if( files == 1 && !is_dir( argv[argc - 1] )) {
-    amp_load_playable( url::normalizeURL(argv[argc - 1]), 0, 0 );
+    amp_load_playable( url123::normalizeURL(argv[argc - 1]), 0, 0 );
   } else if( files > 0 ) {
     // TODO: same as on load_file_callback
     /*for( i = 1; i < argc; i++ ) {
@@ -2672,7 +2672,7 @@ main2( void* arg )
   PlaylistManager::Init();
 
   // Init default lists
-  { const url path = url::normalizeURL(startpath);
+  { const url123 path = url123::normalizeURL(startpath);
     DefaultPL = PlaylistView::Get(path + "PM123.LST", "Default Playlist");
     DefaultPM = PlaylistManager::Get(path + "PFREQ.LST", "Playlist Manager");
     DefaultBM = PlaylistView::Get(path + "BOOKMARK.LST", "Bookmarks");
