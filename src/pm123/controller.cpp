@@ -263,8 +263,8 @@ Ctrl::PlayStatus     Ctrl::Status;
 volatile unsigned    Ctrl::Pending   = Ctrl::EV_None;
 event<const Ctrl::EventFlags> Ctrl::ChangeEvent;
 
-delegate<void, const dec_event_args>        Ctrl::DecEventDelegate(dec_event, &Ctrl::DecEventHandler);
-delegate<void, const OUTEVENTTYPE>          Ctrl::OutEventDelegate(out_event, &Ctrl::OutEventHandler);
+delegate<void, const dec_event_args>        Ctrl::DecEventDelegate(&Ctrl::DecEventHandler);
+delegate<void, const OUTEVENTTYPE>          Ctrl::OutEventDelegate(&Ctrl::OutEventHandler);
 delegate<void, const Playable::change_args> Ctrl::CurrentSongDelegate(&Ctrl::CurrentSongEventHandler);
 
 const SongIterator::CallstackType Ctrl::EmptyStack(1);
@@ -949,6 +949,8 @@ void Ctrl::Worker()
 
 void Ctrl::Init()
 { DEBUGLOG(("Ctrl::Init()\n"));
+  dec_event += DecEventDelegate;
+  out_event += OutEventDelegate;
   WorkerTID = _beginthread(&ControllerWorkerStub, NULL, 262144, NULL);
   ASSERT((int)WorkerTID != -1);
 }
@@ -959,6 +961,8 @@ void Ctrl::Uninit()
     Queue.Purge();
     PostCommand(MkLoad(xstring()));
     PostCommand(NULL);
+    DecEventDelegate.detach();
+    OutEventDelegate.detach();
   }
   if (WorkerTID != 0)
     wait_thread_pm(amp_player_hab(), WorkerTID, 30000);
