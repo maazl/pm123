@@ -63,7 +63,7 @@ class vector_base
   // Instead it returns a reference to the new location that should be assigned later.
   // The reference is valid until the next non-const member function call.
   // The initial value is undefined.
-  // The function is not type safe and should not be exposed public.  
+  // The function is not type safe and should not be exposed public.
   void*&             append();
   // Insert a new element in the vector at location where
   // Precondition: where in [0,size()], Performance: O(n)
@@ -71,15 +71,15 @@ class vector_base
   // Instead it returns a reference to the new location that should be assigned later.
   // The reference is valid until the next non-const member function call.
   // The initial value is undefined.
-  // The function is not type safe and should not be exposed public.  
+  // The function is not type safe and should not be exposed public.
   void*&             insert(size_t where);
   // Removes an element from the vector and return it's value.
   // Precondition: where in [begin(),end()), Performance: O(n)
-  // The function is not type safe and should not be exposed public.  
+  // The function is not type safe and should not be exposed public.
   void*              erase(void** where);
   // Removes an element from the vector and return it's value.
   // Precondition: where in [0,size()-1], Performance: O(n)
-  // The function is not type safe and should not be exposed public.  
+  // The function is not type safe and should not be exposed public.
   void*              erase(size_t where)            { return erase(Data + where); }
   // Access an element by number.
   // Precondition: where in [0,size()-1], Performance: O(1)
@@ -167,7 +167,7 @@ struct IComparableTo
 /* Type-safe implementation of sorted_vector_base.
  * This class shares all properties of sorted_vector_base,
  * except that it is strongly typed to objects of type T which must implement IComparableTo<K>.
- * It is recommended to prefer this type-safe implementation over sorted_vector_base. 
+ * It is recommended to prefer this type-safe implementation over sorted_vector_base.
  */
 template <class T, class K>
 class sorted_vector : public vector<T>
@@ -202,8 +202,8 @@ class sorted_vector : public vector<T>
 /* Template implementations */
 template <class T, class K>
 bool sorted_vector<T,K>::binary_search(const K& key, size_t& pos) const
-{ // binary search                                  
-  DEBUGLOG(("sorted_vector<T,K>(%p)::binary_search(%p,&%p) - %u\n", this, key, &pos, size()));
+{ // binary search
+  DEBUGLOG(("sorted_vector<T,K>(%p)::binary_search(%p,&%p) - %u\n", this, &key, &pos, size()));
   size_t l = 0;
   size_t r = size();
   while (l < r)
@@ -254,7 +254,7 @@ class InstanceCompareable : public IComparableTo<T>
 template <class T>
 int InstanceCompareable<T>::CompareTo(const T& key) const
 { DEBUGLOG2(("InstanceCompareable<T>(%p)::CompareTo(%p)\n", this, &key));
-  return (char*)(T*)this - (char*)&key; // Dirty but working unless the virtual address space is larger than 2 GiB, which is not the case on OS/2. 
+  return (char*)(T*)this - (char*)&key; // Dirty but working unless the virtual address space is larger than 2 GiB, which is not the case on OS/2.
 }
 
 
