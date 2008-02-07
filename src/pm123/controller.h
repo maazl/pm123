@@ -315,7 +315,7 @@ class Ctrl
   // any write to PrefetchList must be protected by a critical section.
   static vector<PrefetchEntry> PrefetchList;
 
-  static T_TIME               Location;              // Location in case of seeking or !Playing
+  static PlayableInstance::slice Slice;                 // Location in case of seeking or !Playing respectively Slice
   static bool                 Playing;               // True if a song is currently playing (not decoding)
   static bool                 Paused;                // True if the current song is paused
   static DECFASTMODE          Scan;                  // Current scan mode
@@ -354,7 +354,7 @@ class Ctrl
   // The function returns the result of dec_play.
   // Precondition: The output must have been initialized.
   // The function does not return unless the decoder is decoding or an error occured.
-  static ULONG DecoderStart(Song* pp, TIME_T offset);
+  static ULONG DecoderStart(Song* pp, T_TIME offset = 0);
   // Stops decoding and deinitializes the decoder plug-in.
   static void  DecoderStop();
   // Initializes the output for playing pp.
@@ -380,7 +380,7 @@ class Ctrl
   // This is the case when the offset of the next item in PrefetchList is less than or equal to pos.
   // In case a prefetch entry is removed from PrefetchList the in-use status is refreshed and the song
   // change event is set.
-  static void  CheckPrefetch(TIME_T pos);
+  static void  CheckPrefetch(T_TIME pos);
   // Internal stub to provide the TFNENTRY calling convention for _beginthread.
   friend void  TFNENTRY ControllerWorkerStub(void*);
   // Worker thread that processes the message queue.
@@ -414,6 +414,9 @@ class Ctrl
  public: // properties, thread safe
   // While the functions below are atomic their return values are not reliable because they can change everytime.
   // So be careful.
+
+  // Ist the currently loaded root enumerable?
+  static bool IsPlaylist()                    { return !!PrefetchList.size(); }
   // Check whether we are currently playing.
   static bool IsPlaying()                     { return Playing; }
   // Check whether the current play status is paused.

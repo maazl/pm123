@@ -87,12 +87,12 @@ class CL_GLUE
   static OUTPUT_PARAMS2    params;            // parameters for output_command
   static DECODER_PARAMS2   dparams;           // parameters for decoder_command
   static xstring           url;               // current URL
-  static TIME_T            stoptime;          // timeindex where to stop the current playback
+  static T_TIME            stoptime;          // timeindex where to stop the current playback
   static volatile unsigned playstopsent;      // DECEVENT_PLAYSTOP has been sent. May be set to 0 to discard samples.
-  static TIME_T            posoffset;         // Offset to posmarker parameter to make the output timeline monotonic
+  static T_TIME            posoffset;         // Offset to posmarker parameter to make the output timeline monotonic
   static FORMAT_INFO2      last_format;       // Format of last request_buffer
-  static TIME_T            minpos;            // minimum sample position of a block from the decoder since the last dec_play
-  static TIME_T            maxpos;            // maximum sample position of a block from the decoder since the last dec_play
+  static T_TIME            minpos;            // minimum sample position of a block from the decoder since the last dec_play
+  static T_TIME            maxpos;            // maximum sample position of a block from the decoder since the last dec_play
 
  private:
   // Virtualize output procedures by invoking the filter plugin no. i.
@@ -123,41 +123,41 @@ class CL_GLUE
   friend BOOL              out_flush          ();
   friend BOOL              out_trash          ();
   // decoder control interface (C style)
-  friend ULONG             dec_play           ( const char* url, const char* decoder_name, TIME_T offset, TIME_T start, TIME_T stop );
+  friend ULONG             dec_play           ( const char* url, const char* decoder_name, T_TIME offset, T_TIME start, T_TIME stop );
   friend ULONG             dec_stop           ();
   friend ULONG             dec_fast           ( DECFASTMODE mode );
-  friend ULONG             dec_jump           ( TIME_T pos );
+  friend ULONG             dec_jump           ( T_TIME pos );
   friend ULONG             dec_eq             ( const float* bandgain );
   friend ULONG             dec_save           ( const char* file );
-  friend TIME_T            dec_minpos         ();
-  friend TIME_T            dec_maxpos         ();
+  friend T_TIME            dec_minpos         ();
+  friend T_TIME            dec_maxpos         ();
   // 4 visual interface (C style)
-  friend TIME_T DLLENTRY   out_playing_pos    ();
+  friend T_TIME DLLENTRY   out_playing_pos    ();
   friend BOOL   DLLENTRY   out_playing_data   ();
   friend ULONG  DLLENTRY   out_playing_samples( FORMAT_INFO* info, char* buf, int len );
 
  private: // glue
   PROXYFUNCDEF int DLLENTRY glue_request_buffer( void* a, const FORMAT_INFO2* format, short** buf );
-  PROXYFUNCDEF void DLLENTRY glue_commit_buffer( void* a, int len, TIME_T posmarker );
+  PROXYFUNCDEF void DLLENTRY glue_commit_buffer( void* a, int len, T_TIME posmarker );
   // 4 callback interface
   PROXYFUNCDEF void DLLENTRY dec_event_handler( void* a, DECEVENTTYPE event, void* param );
   PROXYFUNCDEF void DLLENTRY out_event_handler( void* w, OUTEVENTTYPE event );
 };
 
 // statics
-static const dec_event_args CL_GLUE::ev_playstop = { DECEVENT_PLAYSTOP, NULL };
+const dec_event_args CL_GLUE::ev_playstop = { DECEVENT_PLAYSTOP, NULL };
 
 BOOL              CL_GLUE::initialized = false;
 OUTPUT_PROCS      CL_GLUE::procs;
 OUTPUT_PARAMS2    CL_GLUE::params = {0};
 DECODER_PARAMS2   CL_GLUE::dparams = {0};
 xstring           CL_GLUE::url;
-TIME_T            CL_GLUE::stoptime;
+T_TIME            CL_GLUE::stoptime;
 volatile unsigned CL_GLUE::playstopsent;
-TIME_T            CL_GLUE::posoffset;
+T_TIME            CL_GLUE::posoffset;
 FORMAT_INFO2      CL_GLUE::last_format;
-TIME_T            CL_GLUE::minpos;
-TIME_T            CL_GLUE::maxpos;
+T_TIME            CL_GLUE::minpos;
+T_TIME            CL_GLUE::maxpos;
 
 void CL_GLUE::virtualize(int i)
 { DEBUGLOG(("CL_GLUE::virtualize(%d)\n", i));
@@ -291,9 +291,9 @@ ULONG CL_GLUE::dec_command( ULONG msg )
 }
 
 /* invoke decoder to play an URL */
-ULONG dec_play( const char* url, const char* decoder_name, TIME_T offset, TIME_T start, TIME_T stop )
+ULONG dec_play( const char* url, const char* decoder_name, T_TIME offset, T_TIME start, T_TIME stop )
 {
-  DEBUGLOG(("dec_play(%s, %s, %g)\n", url, decoder_name, pos));
+  DEBUGLOG(("dec_play(%s, %s, %g, %g)\n", url, decoder_name, start, stop));
   ULONG rc = CL_GLUE::dec_set_active( decoder_name );
   if ( rc != 0 )
     return rc;
@@ -305,7 +305,7 @@ ULONG dec_play( const char* url, const char* decoder_name, TIME_T offset, TIME_T
   CL_GLUE::maxpos       = 0;
 
   CL_GLUE::dparams.URL                   = url;
-  CL_GLUE::dparams.jumpto                = pos;
+  CL_GLUE::dparams.jumpto                = start;
   CL_GLUE::dparams.output_request_buffer = &PROXYFUNCREF(CL_GLUE)glue_request_buffer;
   CL_GLUE::dparams.output_commit_buffer  = &PROXYFUNCREF(CL_GLUE)glue_commit_buffer;
   CL_GLUE::dparams.a                     = CL_GLUE::procs.a;
@@ -341,7 +341,7 @@ ULONG dec_fast( DECFASTMODE mode )
 }
 
 /* jump to absolute position */
-ULONG dec_jump( TIME_T location )
+ULONG dec_jump( T_TIME location )
 { // Discard stop time if we seek beyond this point.
   if (location >= CL_GLUE::stoptime)
     CL_GLUE::stoptime = 1E99;
@@ -375,11 +375,11 @@ ULONG dec_save( const char* file )
    : 0;
 }
 
-TIME_T dec_minpos()
+T_TIME dec_minpos()
 { return CL_GLUE::minpos;
 }
 
-TIME_T dec_maxpos()
+T_TIME dec_maxpos()
 { return CL_GLUE::maxpos;
 }
 
@@ -449,7 +449,7 @@ ULONG DLLENTRY out_playing_samples( FORMAT_INFO* info, char* buf, int len )
 }
 
 /* Returns time in ms. */
-TIME_T DLLENTRY out_playing_pos( void )
+T_TIME DLLENTRY out_playing_pos( void )
 { if (!CL_GLUE::initialized)
     return 0; // ??
   return (*CL_GLUE::procs.output_playing_pos)( CL_GLUE::procs.a );
@@ -476,14 +476,13 @@ glue_request_buffer( void* a, const FORMAT_INFO2* format, short** buf )
 }
 
 PROXYFUNCIMP(void DLLENTRY, CL_GLUE)
-glue_commit_buffer( void* a, int len, TIME_T posmarker )
+glue_commit_buffer( void* a, int len, T_TIME posmarker )
 { bool send_playstop = false;
-  TIME_T pos_e = posmarker + (TIME_T)len / CL_GLUE::last_format.samplerate;
+  T_TIME pos_e = posmarker + (T_TIME)len / CL_GLUE::last_format.samplerate;
   
   // check stop offset
   if (pos_e >= CL_GLUE::stoptime)
-  { CL_GLUE::decstopped = true;
-    pos_e = CL_GLUE::stoptime;
+  { pos_e = CL_GLUE::stoptime;
     // calcutate fractional part
     len = posmarker >= CL_GLUE::stoptime
       ? 0 // begin is already beyond the limit => cancel request
@@ -1060,7 +1059,7 @@ decoder_playing( void )
 }
 
 /* Length in ms, should still be valid if decoder stops. */
-TIME_T DLLENTRY
+T_TIME DLLENTRY
 dec_length( void )
 {
   const CL_DECODER* dp = (CL_DECODER*)decoders.current();

@@ -244,7 +244,7 @@ bool operator==(const SongIterator& l, const SongIterator& r)
 
 int_ptr<Song>        Ctrl::CurrentSong;
 vector<Ctrl::PrefetchEntry> Ctrl::PrefetchList(10);
-T_TIME               Ctrl::Location  = 0.;
+PlayableInstance::slice Ctrl::Slice  = PlayableInstance::slice::Initial;
 bool                 Ctrl::Playing   = false;
 bool                 Ctrl::Paused    = false;
 DECFASTMODE          Ctrl::Scan      = DECFAST_NORMAL_PLAY;
@@ -306,7 +306,7 @@ void Ctrl::SetVolume()
   out_set_volume(volume);
 }
 
-ULONG Ctrl::DecoderStart(Song* pp, const PlayableInstance::slice& slice)
+ULONG Ctrl::DecoderStart(Song* pp, T_TIME offset)
 { DEBUGLOG(("Ctrl::DecoderStart(%p)\n", pp));
   pp->EnsureInfo(Playable::IF_Other);
   SetVolume();
@@ -314,7 +314,7 @@ ULONG Ctrl::DecoderStart(Song* pp, const PlayableInstance::slice& slice)
   dec_save(Savename);
   dec_fast(Scan);
 
-  ULONG rc = dec_play( pp->GetURL(), pp->GetDecoder(), offset, Location );
+  ULONG rc = dec_play( pp->GetURL(), pp->GetDecoder(), offset, Slice.Start, Slice.Stop );
   if (rc != 0)
     return rc;
 
@@ -571,6 +571,7 @@ Ctrl::RC Ctrl::MsgPlayStop(Op op)
     if (OutputStart(pp) != 0)
       return RC_OutPlugErr;
 
+    Current()->Offset = 0;
     if (DecoderStart(pp) != 0)
     { OutputStop();
       return RC_DecPlugErr;
@@ -581,7 +582,9 @@ Ctrl::RC Ctrl::MsgPlayStop(Op op)
   { // stop playback
     MsgPause(Op_Clear);
     MsgScan(Op_Reset);
-    Location = 0;
+    Slice = IsPlaylist() && *Current()->Iter 
+     ? Current()->Iter->GetSlice()
+     : PlayableInstance::slice::Initial;
 
     DecoderStop();
     OutputStop();
@@ -604,7 +607,15 @@ Ctrl::RC Ctrl::MsgNavigate(const xstring& iter, T_TIME loc, int flags)
     return RC_NoSong;
   // TODO: the whole iterator stuff is missing
   // TODO: prefetch list?
-  Location = loc;
+  Slice = IsPlaylist()
+   ? Current()->Iter->GetSlice()
+   : PlayableInstance::slice::Initial;
+  if (loc >= 0)
+  { Slice.Start = loc;
+    if (Slice.Stop >= 0 && loc >= Slice.Stop)
+      Slice.Stop = -1;
+  }
+    
   if (Playing)
   { if ( dec_jump( loc ) != 0 )
       return RC_DecPlugErr; 
@@ -635,7 +646,7 @@ Ctrl::RC Ctrl::MsgSkip(int count, bool relative)
     out_trash(); // discard buffers
     PrefetchClear(true);
   }
-  Location = 0;
+  Slice = PlayableInstance::slice::Initial;
   // Navigation
   SongIterator si = Current()->Iter; // work on a temporary object => copy constructor
   if (!SkipCore(si, count, relative))
@@ -644,6 +655,8 @@ Ctrl::RC Ctrl::MsgSkip(int count, bool relative)
   { CritSect cs;
     // deregister current song delegate
     CurrentSongDelegate.detach();
+    // fetch slice
+    Slice = Current()->Iter->GetSlice();
     // swap iterators
     Current()->Offset = 0;
     Current()->Iter.Swap(si);
@@ -758,7 +771,7 @@ Ctrl::RC Ctrl::MsgEqualize(const EQ_Data* data)
 
 Ctrl::RC Ctrl::MsgStatus()
 { DEBUGLOG(("Ctrl::MsgStatus()\n"));
-  Status.CurrentSongTime = Location; // implicit else of the if below
+  Status.CurrentSongTime = Slice.Start; // implicit else of the if below
   if (Playing)
   { Status.CurrentSongTime = out_playing_pos();
     // Check whether the output played a prefetched item completely.
@@ -809,7 +822,7 @@ Ctrl::RC Ctrl::MsgDecStop()
   PrefetchEntry* pep = new PrefetchEntry(Current()->Offset + dec_maxpos(), Current()->Iter);
   pep->Offset += dec_maxpos();
   DecoderStop();
-  Location = 0;
+  Slice = PlayableInstance::slice::Initial;
 
   // Navigation
   Song* pp = NULL;
