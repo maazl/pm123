@@ -84,12 +84,19 @@ class PlaylistView : public PlaylistRepository<PlaylistView>
     // For convenience
     CPData*&        Data() { return (CPData*&)RecordBase::Data; }
   };
+  enum ColumnID
+  { CID_Alias = 1,
+    CID_Start,
+    CID_Stop,
+    CID_URL
+  };
  private:
   struct Column
-  { ULONG DataAttr;
-    ULONG TitleAttr;
-    const char* Title;
-    ULONG Offset;
+  { ULONG    DataAttr;
+    ULONG    TitleAttr;
+    const    char* Title;
+    ULONG    Offset;
+    ColumnID CID;
   };
  private:
   static const Column MutableColumns[];
@@ -123,21 +130,20 @@ class PlaylistView : public PlaylistRepository<PlaylistView>
   // Subfunction to CalcIcon.
   virtual IC        GetRecordUsage(RecordBase* rec);
   // Convert size [bytes] to a human readable format
-  xstring           FormatSize(double size);
+  static xstring    FormatSize(double size);
   // Convert time [s] to a human readable format
-  xstring           FormatTime(double time);
+  static xstring    FormatTime(double time);
+  // Parse time string for start and stop column.
+  static T_TIME     ParseTime(const xstring& str);
   // (re-)calculate colum content, return true if changes are made
   bool              CalcCols(Record* rec, Playable::InfoFlags flags, PlayableInstance::StatusFlags iflags);
 
   // Subfunction to the factory below.
   virtual RecordBase* CreateNewRecord(PlayableInstance* obj, RecordBase* parent);
+  // Find parent record. Returns NULL if rec is at the top level.
+  virtual RecordBase* GetParent(RecordBase* const rec);
   // Update a record
   void              UpdateRecord(Record* rec, Playable::InfoFlags flags, PlayableInstance::StatusFlags iflags);
-  
- protected:
-  // Remove item by Record pointer
-  virtual void      UserRemove(RecordBase* rec);
-
 };
 
 

@@ -98,6 +98,8 @@ class PlaylistManager : public PlaylistRepository<PlaylistManager>
  private: // Modifiying function and notifications
   // Subfunction to the factory below.
   virtual RecordBase* CreateNewRecord(PlayableInstance* obj, RecordBase* parent);
+  // Find parent record. Returns NULL if rec is at the top level.
+  virtual RecordBase* GetParent(RecordBase* const rec);
 
   // Update the list of children (if available) or schedule a request.
   virtual void      RequestChildren(RecordBase* const rec);
@@ -110,8 +112,6 @@ class PlaylistManager : public PlaylistRepository<PlaylistManager>
   virtual void      UpdatePlayStatus(RecordBase* rec);
 
  protected:
-  // Remove item by Record pointer
-  virtual void      UserRemove(RecordBase* rec);
 
  private:
   // Create a playlist manager window for an URL, but don't open it.

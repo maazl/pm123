@@ -122,7 +122,7 @@ class PlaylistBase : public IComparableTo<const char*>
     UM_PLAYSTATUS,
     // Asynchronouos insert operation
     // mp1 = InsertInfo*
-    // The Record in InsertInfo is blocked with BlockRecord and has to be freed by the message handler.
+    // The InsertInfo structure is deleted after the message is processed.
     UM_INSERTITEM,
     // Remove item adressed by a record asynchronuously
     // mp1 = Record*
@@ -132,19 +132,19 @@ class PlaylistBase : public IComparableTo<const char*>
   // Valid flags in PostMsg fields
   enum RecordCommand
   { // Update the children of the Record
-    // If mp2 == NULL the root node is refreshed.
+    // If mp1 == NULL the root node is refreshed.
     RC_UPDATECHILDREN,
     // Update the format information of a record
-    // If mp2 == NULL the root node is refreshed.
+    // If mp1 == NULL the root node is refreshed.
     RC_UPDATEFORMAT,
     // Update the technical information of a record
-    // If mp2 == NULL the root node is refreshed.
+    // If mp1 == NULL the root node is refreshed.
     RC_UPDATETECH,
     // Update the meta information of a record
-    // If mp2 == NULL the root node is refreshed.
+    // If mp1 == NULL the root node is refreshed.
     RC_UPDATEMETA,
     // Update the status of a record
-    // If mp2 == NULL the root node is refreshed.
+    // If mp1 == NULL the root node is refreshed.
     RC_UPDATESTATUS,
     // Update the alias text of a record
     RC_UPDATEALIAS,
@@ -169,7 +169,7 @@ class PlaylistBase : public IComparableTo<const char*>
     xstring      URL;         // URL to insert
     xstring      Alias;       // Alias name (if desired)
     PlayableInstance::slice Slice; // Slice (if desired)
-    RecordBase*  Before;      // Record where to do the insert
+    int_ptr<PlayableInstance> Before; // Item where to do the insert
   };
  protected: // D'n'd
   struct DropInfo
@@ -220,6 +220,7 @@ class PlaylistBase : public IComparableTo<const char*>
   xstring           Title;         // Keep the window title
   DECODER_WIZZARD_FUNC LoadWizzards[20]; // Current load wizzards
   bool              NoRefresh;     // Avoid update events to ourself
+  xstring           DirectEdit;    // String that holds result of direct manipulation
   CommonState       EvntState;     // Event State
   vector<RecordBase> Source;       // Array of records used for source emphasis
   HWND              HwndMenu;      // Window handle of last context menu
@@ -245,6 +246,7 @@ class PlaylistBase : public IComparableTo<const char*>
   void              StartDialog();
 
   CommonState&      StateFromRec(RecordBase* rec) { return rec ? rec->Data->EvntState : EvntState; }
+  // Fetch the Playable object associated with rec. If rec is NULL the root object is returned.
   Playable*         PlayableFromRec(RecordBase* rec) { return rec ? rec->Data->Content->GetPlayable() : &*Content; }
   // Prevent a Record from deletion until FreeRecord is called
   void              BlockRecord(RecordBase* rec)
@@ -291,6 +293,8 @@ class PlaylistBase : public IComparableTo<const char*>
   RecordBase*       MoveEntry(RecordBase* entry, RecordBase* parent, RecordBase* after);
   // Removes entries from the container
   void              RemoveEntry(RecordBase* const rec);
+  // Find parent record. Returns NULL if rec is at the top level.
+  virtual RecordBase* GetParent(RecordBase* const rec) = 0;
   // Remove all childrens (recursively) and return the number of deleted objects in the given level.
   // This function does not remove the record itself.
   // If root is NULL the entire Collection is cleared.
@@ -341,7 +345,7 @@ class PlaylistBase : public IComparableTo<const char*>
   // Insert a new item
   void              UserInsert(const InsertInfo* pii);
   // Remove item by Record pointer
-  virtual void      UserRemove(RecordBase* rec) = 0;
+  void              UserRemove(RecordBase* rec);
   // Save list
   void              UserSave();
   // Open tree view 

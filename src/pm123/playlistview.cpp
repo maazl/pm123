@@ -111,17 +111,20 @@ const PlaylistView::Column PlaylistView::MutableColumns[] =
   { CFA_STRING | CFA_SEPARATOR | CFA_HORZSEPARATOR,
     CFA_FITITLEREADONLY,
     "Name (Alias)",
-    offsetof(PlaylistView::Record, pszIcon)
+    offsetof(PlaylistView::Record, pszIcon),
+    CID_Alias,
   },
   { CFA_STRING | CFA_SEPARATOR | CFA_HORZSEPARATOR,
     CFA_FITITLEREADONLY,
     "Start",
-    offsetof(PlaylistView::Record, Pos)
+    offsetof(PlaylistView::Record, Pos),
+    CID_Start,
   },
   { CFA_STRING | CFA_HORZSEPARATOR,
     CFA_FITITLEREADONLY,
     "Stop",
-    offsetof(PlaylistView::Record, End)
+    offsetof(PlaylistView::Record, End),
+    CID_Stop,
   },
   { CFA_FIREADONLY | CFA_SEPARATOR | CFA_HORZSEPARATOR | CFA_STRING,
     CFA_FITITLEREADONLY,
@@ -146,7 +149,8 @@ const PlaylistView::Column PlaylistView::MutableColumns[] =
   { CFA_HORZSEPARATOR | CFA_STRING,
     CFA_FITITLEREADONLY,
     "Source",
-    offsetof(PlaylistView::Record, URL)
+    offsetof(PlaylistView::Record, URL),
+    CID_URL
   }
 };
 
@@ -201,6 +205,7 @@ FIELDINFO* PlaylistView::CreateFieldinfo(const Column* cols, size_t count)
     field->flTitle    = cp->TitleAttr;
     field->pTitleData = (PVOID)cp->Title;
     field->offStruct  = cp->Offset;
+    field->pUserData  = (PVOID)cp->CID;
     // next
     field = field->pNextFieldInfo;
     ++cp;
@@ -320,6 +325,64 @@ MRESULT PlaylistView::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
       }
       break; // continue in base class
     }
+
+   case WM_CONTROL:
+    switch (SHORT2FROMMP(mp1))
+    {
+     case CN_HELP:
+      amp_show_help( IDH_PL );
+      return 0;
+
+     /* TODO: normally we have to lock some functions here...
+      case CN_BEGINEDIT:
+      break; // Continue in base class;
+     */
+
+     case CN_ENDEDIT:
+      { CNREDITDATA* ed = (CNREDITDATA*)PVOIDFROMMP(mp2);
+        Record* rec = (Record*)ed->pRecord;
+        DEBUGLOG(("PlaylistView::DlgProc CN_ENDEDIT %p{,%p->%p{%s},%u,} %p %s\n", ed, ed->ppszText, *ed->ppszText, *ed->ppszText, ed->cbText, rec, DirectEdit.cdata()));
+        ASSERT(rec != NULL);
+        switch ((ColumnID)(ULONG)ed->pFieldInfo->pUserData)
+        {case CID_Alias:
+          rec->Data()->Content->SetAlias(DirectEdit.length() ? DirectEdit : xstring());
+          break;
+         case CID_Start:
+          { rec->Pos = rec->Data()->Pos.cdata(); // restore what PM changed (for now)
+            PlayableInstance::slice sl;
+            sl.Start = DirectEdit.length() ? ParseTime(DirectEdit) : 0;
+            if (sl.Start < 0)
+              break; // Error, hmm...
+            sl.Stop = rec->Data()->Content->GetSlice().Stop;
+            rec->Data()->Content->SetSlice(sl);
+          }
+          break;
+         case CID_Stop:
+          { rec->End = rec->Data()->End.cdata(); // restore what PM changed (for now)
+            PlayableInstance::slice sl;
+            sl.Stop = DirectEdit.length() ? ParseTime(DirectEdit) : -1;
+            if (sl.Start < 0)
+              break; // Error, hmm...
+            sl.Start = rec->Data()->Content->GetSlice().Start;
+            rec->Data()->Content->SetSlice(sl);
+          }
+          break;
+         case CID_URL:
+          { rec->URL    = xstring::empty; // intermediate string that is not invalidated
+            // Convert to insert/delete pair.
+            InsertInfo* pii = new InsertInfo();
+            pii->Parent = (Playlist*)PlayableFromRec(GetParent(rec));
+            pii->URL    = DirectEdit;
+            pii->Slice  = rec->Data()->Content->GetSlice();
+            pii->Before = rec->Data()->Content;
+            WinPostMsg(HwndFrame, UM_INSERTITEM, MPFROMP(pii), 0);
+            BlockRecord(rec);
+            WinPostMsg(HwndFrame, UM_REMOVERECORD, MPFROMP(rec), 0);
+          }
+        }
+      }
+      break;
+    }
   }
   return PlaylistBase::DlgProc(msg, mp1, mp2);
 }
@@ -380,7 +443,7 @@ PlaylistBase::IC PlaylistView::GetRecordUsage(RecordBase* rec)
 
 xstring PlaylistView::FormatSize(double size)
 { if (size <= 0)
-    return xstring();
+    return xstring::empty;
   char unit = 'k';
   unsigned long s = (unsigned long)(size / 1024.);
   if (s > 9999)
@@ -396,7 +459,7 @@ xstring PlaylistView::FormatSize(double size)
 
 xstring PlaylistView::FormatTime(double time)
 { if (time <= 0)
-    return xstring();
+    return xstring::empty;
   unsigned long s = (unsigned long)time;
   if (s < 60)
     return xstring::sprintf("%lu s", s);
@@ -404,6 +467,24 @@ xstring PlaylistView::FormatTime(double time)
     return xstring::sprintf("%lu:%02lu", s/60, s%60);
    else
     return xstring::sprintf("%lu:%02lu:%02lu", s/3600, s/60%60, s%60);
+}
+
+double PlaylistView::ParseTime(const xstring& str)
+{ size_t len;
+  double f1, f2, f3;
+  int n = sscanf(str.cdata(), "%lf%n:%lf%n:%lf%n%*[ \t]%n", &f1, &len, &f2, &len, &f3, &len, &len);
+  if (len != str.length())
+    return -1;
+  switch (n)
+  {default:
+    return -1;
+   case 1:
+    return f1;
+   case 2:
+    return 60.*f1 + f2;
+   case 3:
+    return 3600.*f1 + 60.*f2 + f3;
+  }
 }
 
 bool PlaylistView::CalcCols(Record* rec, Playable::InfoFlags flags, PlayableInstance::StatusFlags iflags)
@@ -499,6 +580,10 @@ PlaylistBase::RecordBase* PlaylistView::CreateNewRecord(PlayableInstance* obj, R
   return rec;
 }
 
+PlaylistView::RecordBase* PlaylistView::GetParent(RecordBase* const rec)
+{ return NULL;
+}
+
 void PlaylistView::UpdateRecord(Record* rec, Playable::InfoFlags flags, PlayableInstance::StatusFlags iflags)
 { DEBUGLOG(("PlaylistView(%p)::UpdateRecord(%p, %x, %x)\n", this, rec, flags, iflags));
   // Check if UpdateChildren is waiting
@@ -526,9 +611,3 @@ void PlaylistView::UpdateRecord(Record* rec, Playable::InfoFlags flags, Playable
     PMRASSERT(WinSendMsg(HwndContainer, CM_INVALIDATERECORD, MPFROMP(&rec), MPFROM2SHORT(1, CMA_TEXTCHANGED)));
 }
 
-void PlaylistView::UserRemove(RecordBase* rec)
-{ DEBUGLOG(("PlaylistView(%p)::UserRemove(%s)\n", this, rec->DebugName().cdata()));
-  if (Content->GetFlags() & Playable::Mutable) // don't modify constant object
-    ((Playlist&)*Content).RemoveItem(rec->Data->Content);
-  // the update of the container is implicitely done by the notification mechanism
-}

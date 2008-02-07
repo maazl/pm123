@@ -154,27 +154,18 @@ MRESULT PlaylistManager::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
       PostRecordCommand((Record*)PVOIDFROMMP(mp2), RC_UPDATESTATUS);
       return 0;
 
-     case CN_BEGINEDIT:
-      // TODO: normally we have to lock some functions here...
+     /* TODO: normally we have to lock some functions here...
+      case CN_BEGINEDIT:
       break; // Continue in base class;
-
-     case CN_REALLOCPSZ:
-      { CNREDITDATA* ed = (CNREDITDATA*)PVOIDFROMMP(mp2);
-        Record* rec = (Record*)ed->pRecord;
-        DEBUGLOG(("PlaylistManager::DlgProc CN_REALLOCPSZ %p{,%p->%p{%s},%u,} %p\n", ed, ed->ppszText, *ed->ppszText, *ed->ppszText, ed->cbText, rec));
-        *ed->ppszText = rec->Data()->Text.raw_init(ed->cbText); // because of the string sharing we always have to initialize the instance
-      }
-      return MRFROMLONG(TRUE);
+     */
 
      case CN_ENDEDIT:
       { CNREDITDATA* ed = (CNREDITDATA*)PVOIDFROMMP(mp2);
         Record* rec = (Record*)ed->pRecord;
         DEBUGLOG(("PlaylistManager::DlgProc CN_ENDEDIT %p{,%p->%p{%s},%u,} %p\n", ed, ed->ppszText, *ed->ppszText, *ed->ppszText, ed->cbText, rec));
-        NoRefresh = true;
-        rec->Data()->Content->SetAlias(**ed->ppszText ? *ed->ppszText : NULL);
-        NoRefresh = false;
+        rec->Data()->Content->SetAlias(DirectEdit.length() ? DirectEdit : xstring());
       }
-      return 0;
+      break;
     } // switch (SHORT2FROMMP(mp1))
     break;
 
@@ -378,6 +369,10 @@ PlaylistBase::RecordBase* PlaylistManager::CreateNewRecord(PlayableInstance* obj
   return rec;
 }
 
+PlaylistManager::RecordBase* PlaylistManager::GetParent(RecordBase* const rec)
+{ return ((Record*)rec)->Data()->Parent;
+}
+
 void PlaylistManager::UpdateChildren(RecordBase* const rec)
 { DEBUGLOG(("PlaylistManager(%p)::UpdateChildren(%s)\n", this, Record::DebugName(rec).cdata()));
   // Do not update children of recursive records
@@ -426,17 +421,6 @@ void PlaylistManager::UpdatePlayStatus(RecordBase* rec)
     rec = (RecordBase*)WinSendMsg(HwndContainer, CM_QUERYRECORD, MPFROMP(rec), MPFROM2SHORT(CMA_NEXT, CMA_ITEMORDER));
   }
   PMASSERT(rec != (RecordBase*)-1);
-}
-
-void PlaylistManager::UserRemove(RecordBase* rec)
-{ DEBUGLOG(("PlaylistManager(%p)::UserRemove(%s)\n", this, rec->DebugName().cdata()));
-  // find parent playlist
-  Record* parent = ((Record*)rec)->Data()->Parent;
-  Playable* playlist = PlayableFromRec(parent);
-  //DEBUGLOG(("PlaylistManager::UserRemove %s %p %p\n", RecordBase::DebugName(parent).cdata(), parent, playlist));
-  if ((playlist->GetFlags() & Playable::Mutable) == Playable::Mutable) // don't modify constant object
-    ((Playlist&)*playlist).RemoveItem(rec->Data->Content);
-    // the update of the container is implicitely done by the notification mechanism
 }
 
 /*

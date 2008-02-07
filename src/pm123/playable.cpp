@@ -718,7 +718,16 @@ const PlayableCollection::CollectionInfo& PlayableCollection::GetCollectionInfo(
       song->EnsureInfo(IF_Tech);
       if (song->GetStatus() > STA_Invalid)
       { const TECH_INFO& tech = *song->GetInfo().tech;
-        cic->Info.Add(tech.songlength, tech.filesize, 1);
+        // take care of slice
+        T_TIME length = tech.songlength;
+        if (pi->GetSlice().Stop >= 0 && length > pi->GetSlice().Stop)
+          length = pi->GetSlice().Stop;
+        if (pi->GetSlice().Start >= length)
+          length = 0;
+        else
+          length -= pi->GetSlice().Start;
+        // Scale filesize with slice to preserve bitrate. 
+        cic->Info.Add(length, tech.filesize * length / tech.songlength, 1);
       } else
         // only count invalid items
         cic->Info.Add(0, 0, 1);

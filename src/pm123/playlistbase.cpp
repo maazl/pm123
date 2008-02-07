@@ -327,6 +327,22 @@ MRESULT PlaylistBase::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
         break;
       }
 
+     case CN_BEGINEDIT:
+      DEBUGLOG(("PlaylistBase::DlgProc CN_BEGINEDIT\n"));
+      // TODO: normally we have to lock some functions here...
+      break; // Continue in base class;
+
+     case CN_REALLOCPSZ:
+      { CNREDITDATA* ed = (CNREDITDATA*)PVOIDFROMMP(mp2);
+        DEBUGLOG(("PlaylistBase::DlgProc CN_REALLOCPSZ %p{,%p->%p{%s},%u,}\n", ed, ed->ppszText, *ed->ppszText, *ed->ppszText, ed->cbText));
+        *ed->ppszText = DirectEdit.raw_init(ed->cbText-1); // because of the string sharing we always have to initialize the instance
+      }
+      return MRFROMLONG(TRUE);
+
+     case CN_ENDEDIT:
+      DirectEdit = NULL; // Free string
+      return 0;
+
      // D'n'D Source
      case CN_INITDRAG:
       { CNRDRAGINIT* cdi = (CNRDRAGINIT*)mp2;
@@ -556,16 +572,13 @@ MRESULT PlaylistBase::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
     
    case UM_INSERTITEM:
     { InsertInfo* pii = (InsertInfo*)PVOIDFROMMP(mp1);
-      DEBUGLOG(("PlaylistBase::DlgProc: UM_INSERTITEM: %p{...,%s}\n", pii, RecordBase::DebugName(pii->Before).cdata()));
       UserInsert(pii);
-      FreeRecord(pii->Before);
       delete pii;
       return 0;
     }
     
    case UM_REMOVERECORD:
     { RecordBase* rec = (RecordBase*)PVOIDFROMMP(mp1);
-      DEBUGLOG(("PlaylistBase::DlgProc: UM_REMOVERECORD: %p\n", rec));
       UserRemove(rec);
       FreeRecord(rec);
       return 0;
@@ -926,7 +939,7 @@ void PlaylistBase::StatChangeEvent(const PlayableInstance::change_args& args, Re
     PostRecordCommand(rec, RC_UPDATESTATUS);
   if (args.Flags & PlayableInstance::SF_Alias)
     PostRecordCommand(rec, RC_UPDATEALIAS);
-  if (args.Flags & PlayableInstance::SF_Alias)
+  if (args.Flags & PlayableInstance::SF_Slice)
     PostRecordCommand(rec, RC_UPDATEPOS);
 }
 
@@ -966,9 +979,19 @@ void PlaylistBase::UserAdd(DECODER_WIZZARD_FUNC wizzard, const char* title, Reco
 }
 
 void PlaylistBase::UserInsert(const InsertInfo* pii)
-{ DEBUGLOG(("PlaylistBase(%p)::UserInsert(%p{{%s}, %s, %s, {%g,%g}, %s})\n", this,
-    pii, pii->Parent->GetURL().getShortName().cdata(), pii->URL.cdata(), pii->Alias.cdata(), pii->Slice.Start, pii->Slice.Stop, RecordBase::DebugName(pii->Before).cdata()));
-  pii->Parent->InsertItem(pii->URL, pii->Alias, pii->Slice, pii->Before ? &*pii->Before->Data->Content : NULL);
+{ DEBUGLOG(("PlaylistBase(%p)::UserInsert(%p{{%s}, %s, %s, {%g,%g}, %p{%s}})\n", this,
+    pii, pii->Parent->GetURL().getShortName().cdata(), pii->URL.cdata(), pii->Alias.cdata(), pii->Slice.Start, pii->Slice.Stop, pii->Before, pii->Before ? pii->Before->GetPlayable()->GetURL().cdata() : ""));
+  pii->Parent->InsertItem(pii->URL, pii->Alias, pii->Slice, pii->Before);
+}
+
+void PlaylistBase::UserRemove(RecordBase* rec)
+{ DEBUGLOG(("PlaylistBase(%p)::UserRemove(%s)\n", this, rec->DebugName().cdata()));
+  // find parent playlist
+  Playable* playlist = PlayableFromRec(GetParent(rec));
+  //DEBUGLOG(("PlaylistBase::UserRemove %s %p %p\n", RecordBase::DebugName(parent).cdata(), parent, playlist));
+  if ((playlist->GetFlags() & Playable::Mutable) == Playable::Mutable) // don't modify constant object
+    ((Playlist&)*playlist).RemoveItem(rec->Data->Content);
+    // the update of the container is implicitely done by the notification mechanism
 }
 
 void PlaylistBase::UserSave()
@@ -1226,12 +1249,12 @@ void PlaylistBase::DragDrop(DRAGINFO* pdinfo, RecordBase* target)
           fullname = fullname + "/?Recursive";
 
         // prepare insert item
-        BlockRecord(target);
         InsertInfo* pii = new InsertInfo();
         pii->Parent = parent;
         pii->URL    = url123::normalizeURL(fullname);
         pii->Alias  = alias;
-        pii->Before = target;
+        if (target)
+          pii->Before = target->Data->Content;
         WinPostMsg(HwndFrame, UM_INSERTITEM, MPFROMP(pii), 0);
         reply = DMFL_TARGETSUCCESSFUL;
       }
@@ -1258,13 +1281,13 @@ void PlaylistBase::DragDrop(DRAGINFO* pdinfo, RecordBase* target)
 
         // insert item
         if (pdtrans->fsReply & DMFL_NATIVERENDER)
-        { BlockRecord(target);
-          InsertInfo* pii = new InsertInfo();
+        { InsertInfo* pii = new InsertInfo();
           pii->Parent = parent;
           pii->URL    = amp_string_from_drghstr(pditem->hstrSourceName);
           pii->Alias  = alias;
           // TODO: The slice information is currently lost during D'n'd
-          pii->Before = target;
+          if (target)
+            pii->Before = target->Data->Content;
           WinPostMsg(HwndFrame, UM_INSERTITEM, MPFROMP(pii), 0);
           reply = DMFL_TARGETSUCCESSFUL;
         }
