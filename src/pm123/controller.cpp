@@ -306,7 +306,7 @@ void Ctrl::SetVolume()
   out_set_volume(volume);
 }
 
-ULONG Ctrl::DecoderStart(Song* pp, T_TIME offset)
+ULONG Ctrl::DecoderStart(Song* pp, const PlayableInstance::slice& slice)
 { DEBUGLOG(("Ctrl::DecoderStart(%p)\n", pp));
   pp->EnsureInfo(Playable::IF_Other);
   SetVolume();

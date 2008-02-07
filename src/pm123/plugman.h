@@ -117,7 +117,7 @@ BOOL  configure_plugin( int type, int i, HWND hwnd );
 *
 ****************************************************************************/
 /* invoke decoder to play an URL */
-ULONG dec_play( const char* url, const char* decoder_name, double offset, double pos );
+ULONG dec_play( const char* url, const char* decoder_name, double offset, double start, double stop );
 /* stop the current decoder immediately */
 ULONG dec_stop( void );
 /* set fast forward/rewind mode */

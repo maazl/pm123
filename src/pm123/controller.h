@@ -354,7 +354,7 @@ class Ctrl
   // The function returns the result of dec_play.
   // Precondition: The output must have been initialized.
   // The function does not return unless the decoder is decoding or an error occured.
-  static ULONG DecoderStart(Song* pp, T_TIME offset = 0);
+  static ULONG DecoderStart(Song* pp, TIME_T offset);
   // Stops decoding and deinitializes the decoder plug-in.
   static void  DecoderStop();
   // Initializes the output for playing pp.
@@ -380,7 +380,7 @@ class Ctrl
   // This is the case when the offset of the next item in PrefetchList is less than or equal to pos.
   // In case a prefetch entry is removed from PrefetchList the in-use status is refreshed and the song
   // change event is set.
-  static void  CheckPrefetch(double pos);
+  static void  CheckPrefetch(TIME_T pos);
   // Internal stub to provide the TFNENTRY calling convention for _beginthread.
   friend void  TFNENTRY ControllerWorkerStub(void*);
   // Worker thread that processes the message queue.
