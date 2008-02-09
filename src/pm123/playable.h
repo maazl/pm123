@@ -420,14 +420,17 @@ class PlayableCollection : public Playable
   // internal representation of a PlayableInstance as linked list.
   struct Entry : public PlayableInstance
   { typedef class_delegate<PlayableCollection, const Playable::change_args> TDType;
+    typedef class_delegate<PlayableCollection, const PlayableInstance::change_args> IDType;
     int_ptr<Entry> Prev;      // link to the pervious entry or NULL if this is the first
     int_ptr<Entry> Next;      // link to the next entry or NULL if this is the last
     TDType TechDelegate;
-    Entry(PlayableCollection& parent, Playable* playable, TDType::func_type fn)
+    IDType InstDelegate;
+    Entry(PlayableCollection& parent, Playable* playable, TDType::func_type tfn, IDType::func_type ifn)
     : PlayableInstance(parent, playable),
       Prev(NULL),
       Next(NULL),
-      TechDelegate(playable->InfoChange, parent, fn)
+      TechDelegate(playable->InfoChange, parent, tfn),
+      InstDelegate(StatusChange, parent, ifn)
     {}
     // Detach a PlayableInstance from the collection.
     // This function must be called only by the parent collection and only while it is locked.
@@ -451,8 +454,10 @@ class PlayableCollection : public Playable
   sorted_vector<CollectionInfoEntry, PlayableSet> CollectionInfoCache;
 
  private:
-  // This is called by the TechChange events of the children.
-  void                        ChildInfoChange(const Playable::change_args& child);
+  // This is called by the InfoChange events of the children.
+  void                        ChildInfoChange(const Playable::change_args& args);
+  // This is called by the StatusChange events of the children.
+  void                        ChildInstChange(const PlayableInstance::change_args& args);
  protected:
   // Fill the THEC_INFO structure.
   void                        CalcTechInfo(TECH_INFO& dst);

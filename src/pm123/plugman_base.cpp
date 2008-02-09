@@ -49,6 +49,7 @@
 #include "plugman_base.h"
 #include "pm123.h"
 #include "playable.h"
+#include "controller.h" // for starting position work around
 #include <vdelegate.h>
 
 #include <limits.h>
@@ -391,9 +392,10 @@ class CL_DECODER_PROXY_1 : public CL_DECODER
   ULONG  tid;  // decoder thread id
   xstring url; // currently playing song
   double temppos;
+  int    juststarted; // Status whether the first samples after DECODER_PLAY did not yet arrive. 2 = no data arrived, 1 = no valid data arrived, 0 = OK
   DECFASTMODE lastfast;
   char   metadata_buffer[128]; // Loaded in curtun on decoder's demand WM_METADATA.
-  Mutex  info_mtx; // Mutex to serialize access to the decoder_*info function.
+  Mutex  info_mtx; // Mutex to serialize access to the decoder_*info functions.
   VDELEGATE vd_decoder_command, vd_decoder_event, vd_decoder_fileinfo, vd_decoder_cdinfo, vd_decoder_length;
 
  private:
@@ -405,7 +407,7 @@ class CL_DECODER_PROXY_1 : public CL_DECODER
   PROXYFUNCDEF double DLLENTRY proxy_1_decoder_length      ( CL_DECODER_PROXY_1* op, void* w );
   friend MRESULT EXPENTRY proxy_1_decoder_winfn(HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2);
  public:
-  CL_DECODER_PROXY_1(CL_MODULE& mod) : CL_DECODER(mod), hwnd(NULLHANDLE) {}
+  CL_DECODER_PROXY_1(CL_MODULE& mod) : CL_DECODER(mod), hwnd(NULLHANDLE), juststarted(0) {}
   virtual ~CL_DECODER_PROXY_1();
   virtual BOOL load_plugin();
 };
@@ -460,8 +462,35 @@ proxy_1_decoder_play_samples( CL_DECODER_PROXY_1* op, const FORMAT_INFO* format,
     op, op->module_name, format, format->size, format->samplerate, format->channels, buf, len, posmarker));
 
   if (format->format != WAVE_FORMAT_PCM || (format->bits != 16 && format->bits != 8))
-  { (*op->error_display)("PM123 does only accept PCM data with 8 or 16 bits per sample when using old-style plug-ins.");
+  { (*op->error_display)("PM123 does only accept PCM data with 8 or 16 bits per sample when using old-style decoder plug-ins.");
     return 0; // error
+  }
+
+  // prepare counters for output loop
+  const int bps = (format->bits >> 3) * format->channels;
+  len /= bps;
+  int rem = len;
+
+  // Work-around for decoders that do not support jumpto at DECODER_PLAY.
+  if (op->juststarted)
+  { if (posmarker < (int)(op->temppos*1000 + .5)) // before the desired start position?
+    { // => send navigate message the first time and eat the samples
+      // Eat all samples?
+      if (posmarker/1000. + (double)rem/format->samplerate <= op->temppos)
+      { DEBUGLOG(("proxy_1_decoder_play_samples juststarted = %i -> eating all samples.\n", op->juststarted));
+        if (op->juststarted == 2)
+        { Ctrl::PostCommand(Ctrl::MkNavigate(xstring(), op->temppos, false, false));
+          op->juststarted = 1;
+        }
+        return len * bps;
+      } else
+      { // calculate remaining part
+        rem = (op->temppos - posmarker/1000.) * format->samplerate;
+        DEBUGLOG(("proxy_1_decoder_play_samples juststarted = %i -> eating %i samples.\n", op->juststarted, rem));
+        buf += rem * bps;
+        rem = len - rem;
+    } }
+    op->juststarted = 0;
   }
 
   op->temppos = -1; // buffer is empty now
@@ -472,9 +501,6 @@ proxy_1_decoder_play_samples( CL_DECODER_PROXY_1* op, const FORMAT_INFO* format,
     op->tid = ptib->tib_ordinal;
   }
 
-  int bps = (format->bits >> 3) * format->channels;
-  len /= bps;
-  int rem = len;
   while (rem)
   { short* dest;
     int l = (*op->voutput_request_buffer)(op->a, (FORMAT_INFO2*)format, &dest);
@@ -553,6 +579,8 @@ proxy_1_decoder_command( CL_DECODER_PROXY_1* op, void* w, ULONG msg, DECODER_PAR
         par1.other = params->URL;
 
       par1.jumpto = (int)floor(params->jumpto*1000 + .5);
+      op->temppos = params->jumpto;
+      op->juststarted = 2;
       op->url = params->URL; // keep URL
     }
     break;
@@ -584,6 +612,7 @@ proxy_1_decoder_command( CL_DECODER_PROXY_1* op, void* w, ULONG msg, DECODER_PAR
 
    case DECODER_STOP:
     op->url = NULL;
+    op->juststarted = 0;
     CL_DECODER_PROXY_1::DestroyProxyWindow(op->hwnd);
     op->hwnd = NULLHANDLE;
     op->temppos = out_playing_pos();
@@ -611,6 +640,7 @@ proxy_1_decoder_command( CL_DECODER_PROXY_1* op, void* w, ULONG msg, DECODER_PAR
     DEBUGLOG(("proxy_1_decoder_command:DECODER_JUMPTO: %g\n", params->jumpto));
     par1.jumpto              = (int)floor(params->jumpto*1000 +.5);
     op->temppos = params->jumpto;
+    op->juststarted = 0;
     break;
 
    case DECODER_EQ:

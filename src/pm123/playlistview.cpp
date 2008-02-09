@@ -339,6 +339,7 @@ MRESULT PlaylistView::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
      */
 
      case CN_ENDEDIT:
+      if (DirectEdit) // ignore undo's
       { CNREDITDATA* ed = (CNREDITDATA*)PVOIDFROMMP(mp2);
         Record* rec = (Record*)ed->pRecord;
         DEBUGLOG(("PlaylistView::DlgProc CN_ENDEDIT %p{,%p->%p{%s},%u,} %p %s\n", ed, ed->ppszText, *ed->ppszText, *ed->ppszText, ed->cbText, rec, DirectEdit.cdata()));

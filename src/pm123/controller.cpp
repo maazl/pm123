@@ -319,9 +319,10 @@ ULONG Ctrl::DecoderStart(Song* pp, T_TIME offset)
     return rc;
 
   // TODO: CRAP?
+  int cnt = 0;
   while (dec_status() == DECODER_STARTING)
   { DEBUGLOG(("Ctrl::DecoderStart - waiting for Spinlock\n"));
-    DosSleep( 1 );
+    DosSleep( ++cnt > 10 );
   }
   DEBUGLOG(("Ctrl::DecoderStart - completed\n"));
   return 0;
@@ -333,9 +334,10 @@ void Ctrl::DecoderStop()
   dec_stop();
 
   // TODO: CRAP? => we should disconnect decoder instead 
+  int cnt = 0;
   while (dec_status() == DECODER_PLAYING)
   { DEBUGLOG(("Ctrl::DecoderStop - waiting for Spinlock\n"));
-    DosSleep( 1 );
+    DosSleep( ++cnt > 10 );
   }
   DEBUGLOG(("Ctrl::DecoderStop - completed\n"));
 }
@@ -719,11 +721,15 @@ Ctrl::RC Ctrl::MsgLoad(const xstring& url)
         // track changes
         Current()->Iter->GetPlayable()->InfoChange += CurrentSongDelegate;
       }
+      Slice = *Current()->Iter 
+       ? Current()->Iter->GetSlice()
+       : PlayableInstance::slice::Initial;
     } else
     { CurrentSong = (Song*)&*play;
       play->SetInUse(true);
       // track changes
       CurrentSong->InfoChange += CurrentSongDelegate;
+      Slice = PlayableInstance::slice::Initial;
     }
   }
   InterlockedOr(Pending, EV_Root|EV_Song|EV_Tech|EV_Meta);
@@ -791,7 +797,12 @@ Ctrl::RC Ctrl::MsgStatus()
     SongIterator& si = Current()->Iter;
     if (Playing)
       Status.CurrentSongTime -= Current()->Offset; // relocate playing position
-    Status.TotalSongTime   = *si ? si->GetPlayable()->GetInfo().tech->songlength : -1;
+    if (*si)
+    { Status.TotalSongTime = si->GetPlayable()->GetInfo().tech->songlength;
+      if (Slice.Stop >= 0 && Status.TotalSongTime > Slice.Stop)
+        Status.TotalSongTime = Slice.Stop;
+    } else
+      Status.TotalSongTime = -1;
     SongIterator::Offsets off = si.GetOffset();
     Status.CurrentItem     = off.Index;
     Status.TotalItems      = si.GetRoot()->GetInfo().tech->num_items;

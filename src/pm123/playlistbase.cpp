@@ -146,6 +146,7 @@ PlaylistBase::~PlaylistBase()
   // The window may be closed already => ignore the error
   // This may give an error if called from our own thread. This is intensionally ignored here.
   WinDestroyWindow(HwndFrame);
+  WinDestroyAccelTable(AccelTable);
 }
 
 void PlaylistBase::StartDialog()
@@ -228,11 +229,10 @@ void PlaylistBase::InitDlg()
   SetTitle();
 
   // TODO: acceleration table entries for plug-in extensions
-  HAB    hab   = WinQueryAnchorBlock( HwndFrame );
-  HACCEL accel = WinLoadAccelTable( hab, NULLHANDLE, ACL_PLAYLIST );
-  PMASSERT(accel != NULLHANDLE);
-  if( accel )
-    PMRASSERT(WinSetAccelTable( hab, accel, HwndFrame ));
+  HAB hab = WinQueryAnchorBlock( HwndFrame );
+  AccelTable = WinLoadAccelTable( hab, NULLHANDLE, ACL_PLAYLIST );
+  PMASSERT(AccelTable != NULLHANDLE);
+  PMRASSERT(WinSetAccelTable( hab, AccelTable, HwndFrame ));
     
   // Visibility
   Initialized = 1;
@@ -329,6 +329,7 @@ MRESULT PlaylistBase::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
 
      case CN_BEGINEDIT:
       DEBUGLOG(("PlaylistBase::DlgProc CN_BEGINEDIT\n"));
+      PMRASSERT(WinSetAccelTable(WinQueryAnchorBlock(HwndFrame), NULLHANDLE, HwndFrame));
       // TODO: normally we have to lock some functions here...
       break; // Continue in base class;
 
@@ -341,6 +342,7 @@ MRESULT PlaylistBase::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
 
      case CN_ENDEDIT:
       DirectEdit = NULL; // Free string
+      PMRASSERT(WinSetAccelTable(WinQueryAnchorBlock(HwndFrame), AccelTable, HwndFrame));
       return 0;
 
      // D'n'D Source

@@ -524,7 +524,7 @@ PlayableCollection::Entry* PlayableCollection::CreateEntry(const char* url, cons
   int_ptr<Playable> pp = GetByURL(GetURL().makeAbsolute(url), ca_format, ca_tech, ca_meta);
   // initiate prefetch of information
   pp->EnsureInfoAsync(IF_Status);
-  return new Entry(*this, pp, &PlayableCollection::ChildInfoChange);
+  return new Entry(*this, pp, &PlayableCollection::ChildInfoChange, &PlayableCollection::ChildInstChange);
 }
 
 void PlayableCollection::AppendEntry(Entry* entry)
@@ -603,15 +603,26 @@ void PlayableCollection::RemoveEntry(Entry* entry)
 void PlayableCollection::ChildInfoChange(const Playable::change_args& args)
 { DEBUGLOG(("PlayableCollection(%p{%s})::ChildInfoChange({{%s},%x})\n", this, GetURL().getShortName().cdata(),
     args.Instance.GetURL().getShortName().cdata(), args.Flags));
-  // Update dependant tech info, but only if already available
-  if (args.Flags & InfoValid & IF_Tech)
-    LoadInfoAsync(IF_Tech);
-  // Invalidate CollectionInfoCache entries.
-  CritSect cs;
-  for (CollectionInfoEntry** ciepp = CollectionInfoCache.begin(); ciepp != CollectionInfoCache.end(); ++ciepp)
-    // Only items that do not have the sender in the exclusion list are invalidated.
-    if ((*ciepp)->find(args.Instance) == NULL)
-      (*ciepp)->Valid = false;
+  if (args.Flags & IF_Tech)
+  { // Update dependant tech info, but only if already available
+    if (InfoValid & IF_Tech)
+      LoadInfoAsync(IF_Tech);
+    // Invalidate CollectionInfoCache entries.
+    CritSect cs;
+    for (CollectionInfoEntry** ciepp = CollectionInfoCache.begin(); ciepp != CollectionInfoCache.end(); ++ciepp)
+      // Only items that do not have the sender in the exclusion list are invalidated.
+      if ((*ciepp)->find(args.Instance) == NULL)
+        (*ciepp)->Valid = false;
+  }
+}
+
+void PlayableCollection::ChildInstChange(const PlayableInstance::change_args& args)
+{ DEBUGLOG(("PlayableCollection(%p{%s})::ChildInstChange({{%s},%x})\n", this, GetURL().getShortName().cdata(),
+    args.Instance.GetPlayable()->GetURL().getShortName().cdata(), args.Flags));
+  if (args.Flags & PlayableInstance::SF_Slice)
+    // Update dependant tech info, but only if already available
+    // Same as TechInfoChange => emulate another event
+    ChildInfoChange(Playable::change_args(*args.Instance.GetPlayable(), IF_Tech));
 }
 
 void PlayableCollection::CalcTechInfo(TECH_INFO& dst)  
