@@ -8,7 +8,7 @@
 
 #include "mpg123.h"
 #include "tables.h"
-#include "debuglog.h"
+#include <debuglog.h>
 
 #define  IS_4CH_TAG( ul, c1, c2, c3, c4 ) \
          ( ul == (((c1<<24)|(c2<<16)|(c3<<8)|(c4)) & 0xFFFFFFFFUL ))

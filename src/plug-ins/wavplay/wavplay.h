@@ -29,9 +29,9 @@
 #ifndef PM123_WAVPLAY_H
 #define PM123_WAVPLAY_H
 
-#include "sndfile.h"
-#include "format.h"
-#include "xio.h"
+#include <sndfile.h>
+#include <format.h>
+#include <xio.h>
 
 #ifdef __cplusplus
 extern "C" {

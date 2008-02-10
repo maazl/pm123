@@ -36,10 +36,10 @@
 #include <process.h>
 
 #include "wavplay.h"
-#include "decoder_plug.h"
-#include "plugin.h"
-#include "utilfct.h"
-#include "snprintf.h"
+#include <decoder_plug.h>
+#include <plugin.h>
+#include <utilfct.h>
+#include <snprintf.h>
 
 static sf_count_t DLLENTRY
 vio_fsize( void* x ) {

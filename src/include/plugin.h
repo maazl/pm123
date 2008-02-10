@@ -5,17 +5,17 @@
 #include <decoder_plug.h>
 #include <stdlib.h>
 
-#define PLUGIN_NULL    0x000
-#define PLUGIN_VISUAL  0x001
-#define PLUGIN_FILTER  0x002
-#define PLUGIN_DECODER 0x004
-#define PLUGIN_OUTPUT  0x008
-
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 #pragma pack(4)
+
+#define PLUGIN_NULL    0x000
+#define PLUGIN_VISUAL  0x001
+#define PLUGIN_FILTER  0x002
+#define PLUGIN_DECODER 0x004
+#define PLUGIN_OUTPUT  0x008
 
 /* see decoder_plug.h and output_plug.h for more information
    on some of these functions */

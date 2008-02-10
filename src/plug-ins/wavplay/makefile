@@ -22,3 +22,5 @@ wavplay$(CO): wavplay.c wavplay.h
 
 clean: $(MDUMMY)
 	-@del wavplay.dll $(OBJECTS) 2> nul
+wavplay.c:	wavplay.h ..\..\include\decoder_plug.h ..\..\include\plugin.h ..\..\utils\utilfct.h ..\..\utils\snprintf.h
+wavplay.h:	..\..\snd123\src\sndfile.h ..\..\include\format.h ..\..\xio123\xio.h

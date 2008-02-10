@@ -4,7 +4,7 @@
 
 DLL      = yes
 TOPDIR   = ..\..
-INCDIR   = $(TOPDIR)\utils;$(TOPDIR)\include;ciscgi
+INCDIR   = $(TOPDIR)\utils;$(TOPDIR)\include;
 TARGET   = cddaplay.dll
 
 !include $(TOPDIR)\config\makerules
@@ -24,11 +24,17 @@ ciscgi\ciscgi$(LBO):
 	@$(MAKE) $(MFLAGS)
 	@cd ..
 
-cddb$(CO): cddb.cpp ciscgi\cgicis.h
-readcd$(CO): readcd.cpp readcd.h
-
 clean: $(MDUMMY)
 	-@del cddaplay.dll $(OBJECTS) $(RESOURCE) 2> nul
 	cd ciscgi
 	@$(MAKE) $(MFLAGS) clean
 	@cd ..
+cdda.cpp:	..\..\include\config.h ..\..\utils\inimacro.h ..\..\include\format.h ..\..\include\decoder_plug.h ..\..\include\plugin.h ..\..\utils\snprintf.h readcd.h ..\..\utils\utilfct.h cdda.h cddarc.h ..\..\utils\debuglog.h
+readcd.h:	cddb.h
+cddb.h:	tcpipsock.h http.h
+tcpipsock.h:	..\..\utils\utilfct.h
+cdda.h:	cddb.h
+cddb.cpp:	..\..\utils\utilfct.h readcd.h tcpipsock.h http.h cddb.h ciscgi/cgicis.h cdda.h
+http.cpp:	..\..\utils\utilfct.h tcpipsock.h http.h cdda.h
+readcd.cpp:	..\..\utils\utilfct.h ..\..\utils\snprintf.h readcd.h cdda.h cddarc.h ..\..\utils\debuglog.h
+tcpipsock.cpp:	..\..\utils\utilfct.h tcpipsock.h cdda.h

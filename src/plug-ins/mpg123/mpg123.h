@@ -12,11 +12,10 @@
 #include <math.h>
 #include <float.h>
 
-#include "utilfct.h"
-#include "decoder_plug.h"
-#include "plugin.h"
-#include "xio.h"
-#include "dxhead.h"
+#include <utilfct.h>
+#include <decoder_plug.h>
+#include <xio.h>
+#include <dxhead.h>
 
 #if defined( OS2 )
 

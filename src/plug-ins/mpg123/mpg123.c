@@ -20,6 +20,7 @@
 
 #include "genre.h"
 
+#include <plugin.h>
 #include <debuglog.h>
 
 struct flags flags = { 0 , 0 };

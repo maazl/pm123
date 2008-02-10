@@ -42,12 +42,12 @@
 #include <netdb.h>
 #include <nerrno.h>
 
-#include "utilfct.h"
+#include <utilfct.h>
 #include "readcd.h"
 #include "tcpipsock.h"
 #include "http.h"
 #include "cddb.h"
-#include "cgicis.h"
+#include "ciscgi/cgicis.h"
 #include "cdda.h"
 
 CDDB_socket::CDDB_socket()

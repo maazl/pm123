@@ -21,3 +21,4 @@ os2rec.dll: $(OBJECTS) $(DEF) $(RESOURCE)
 
 clean: $(MDUMMY)
 	-@del os2rec.dll $(OBJECTS) $(RESOURCE) 2> nul
+os2rec.cpp:	..\..\utils\utilfct.h ..\..\utils\errorstr.h ..\..\include\format.h ..\..\include\decoder_plug.h ..\..\include\plugin.h os2rec.h ..\..\utils\debuglog.h

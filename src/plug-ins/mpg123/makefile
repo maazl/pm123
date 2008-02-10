@@ -42,3 +42,17 @@ tag$(CO):	    tag.c tag.h
 
 clean: $(MDUMMY)
 	-@del mpg123.dll $(OBJECTS) $(RESOURCE) 2> nul
+common.c:	mpg123.h tables.h ..\..\utils\debuglog.h
+mpg123.h:	..\..\utils\utilfct.h ..\..\include\decoder_plug.h ..\..\xio123\xio.h
+decode.c:	mpg123.h
+decode_2to1.c:	mpg123.h
+decode_4to1.c:	mpg123.h
+decode_i386.c:	mpg123.h
+dxhead.c:	dxhead.h
+equalizer.c:	mpg123.h
+layer1.c:	mpg123.h
+layer2.c:	mpg123.h
+layer3.c:	mpg123.h huffman.h ..\..\utils\debuglog.h
+mpg123.c:	mpg123.h mpg123def.h tag.h genre.h ..\..\include\plugin.h ..\..\utils\debuglog.h
+tag.h:	..\..\include\decoder_plug.h
+tag.c:	..\..\xio123\xio.h tag.h genre.h ..\..\utils\debuglog.h
