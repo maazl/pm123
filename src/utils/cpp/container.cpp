@@ -40,15 +40,13 @@ vector_base::vector_base(size_t capacity)
 : Data((void**)malloc(capacity * sizeof *Data)),
   Size(0),
   Capacity(capacity)
-{ ASSERT(Capacity != 0);
-}
+{}
 
 vector_base::vector_base(const vector_base& r, size_t spare)
 : Data((void**)malloc((r.Size + spare) * sizeof *Data)),
   Size(r.Size),
   Capacity(r.Size + spare)
 { DEBUGLOG(("vector_base(%p)::vector_base(&%p, %u)\n", this, &r, spare));
-  ASSERT(Capacity != 0);
   memcpy(Data, r.Data, Size * sizeof *Data);
 }
 
@@ -56,16 +54,15 @@ vector_base::~vector_base()
 { free(Data);
 }
 
-vector_base& vector_base::operator=(const vector_base& r)
+void vector_base::operator=(const vector_base& r)
 { if (r.Size > Capacity)
-  { Capacity += r.Size;
+  { // do not use realloc when we no longer need the old content
     free(Data);
-    Data = (void**)malloc(Capacity * sizeof *Data);
-    ASSERT(Data != NULL);
+    Data = NULL;
+    reserve(r.Size);
   }
   Size = r.Size;
   memcpy(Data, r.Data, Size * sizeof *Data);
-  return *this;
 }
 
 void vector_base::swap(vector_base& r)
@@ -77,10 +74,7 @@ void vector_base::swap(vector_base& r)
 void*& vector_base::insert(size_t where)
 { ASSERT(where <= Size);
   if (Size >= Capacity)
-  { Capacity <<= 1;
-    Data = (void**)realloc(Data, Capacity * sizeof *Data);
-    ASSERT(Data != NULL);
-  }
+    reserve(Capacity ? Capacity << 1 : 16);
   void** pp = Data + where;
   memmove(pp+1, pp, (Size-where) * sizeof *Data);
   ++Size;
@@ -90,10 +84,7 @@ void*& vector_base::insert(size_t where)
 
 void*& vector_base::append()
 { if (Size >= Capacity)
-  { Capacity <<= 1;
-    Data = (void**)realloc(Data, Capacity * sizeof *Data);
-    ASSERT(Data != NULL);
-  }
+    reserve(Capacity ? Capacity << 1 : 16);
   return Data[Size++];
 }
 
@@ -109,6 +100,22 @@ void* vector_base::erase(void** where)
   return ret;
 }
 
+void vector_base::reserve(size_t size)
+{ ASSERT(size >= Size);
+  Capacity = size;
+  Data = (void**)realloc(Data, Capacity * sizeof *Data);
+  ASSERT(Data != NULL || Capacity == 0);
+}
+
+void vector_base::prepare_assign(size_t size)
+{ Size = size;
+  if (size > Capacity)
+  { // do not use realloc when we no longer need the old content
+    free(Data);
+    Data = NULL;
+    reserve(size);
+  }
+}
 
 void rotate_array_base(void** begin, const size_t len, int shift)
 { DEBUGLOG(("rotate_array(%p, %u, %i)\n", begin, len, shift));

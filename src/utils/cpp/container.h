@@ -47,15 +47,16 @@ class vector_base
 
  protected:
   // create a new vector with a given initial capacity.
-  // The initial capacity must not be less or equal to 0.
-  vector_base(size_t capacity = 16);
+  // If capacity is 0 the vector is initially created empty
+  // and allocated with the default capacity when the first item is inserted. 
+  vector_base(size_t capacity = 0);
   // copy constructor
-  vector_base(const vector_base& r, size_t spare = 2);
+  vector_base(const vector_base& r, size_t spare = 0);
   // Destroy the vector and delete all stored references.
   // This will not affect the referenced objects.
   ~vector_base();
   // assignment
-  vector_base&       operator=(const vector_base& r);
+  void               operator=(const vector_base& r);
   // swap content of two instances
   void               swap(vector_base& r);
   // Append a new element to the end of the vector.
@@ -86,12 +87,18 @@ class vector_base
   // This is in fact like operator[], but since this method is not type safe
   // it should not be exposed public.
   void*&             at(size_t where) const         { return Data[where]; }
+  // Initialize storage for new assignment.
+  // Postcondition: Size = size && Capacity >= size.
+  void               prepare_assign(size_t size);
  public:
   // Return the number of elements in the container.
   // This is not equal to the storage capacity.
   size_t             size() const                   { return Size; }
   // Remove all elements
   void               clear()                        { Size = 0; }
+  // Ensure that the container can store size elements without reallocation.
+  // Reserve will also shrink the storage. It is an error if size is less than the actual size.
+  void               reserve(size_t size);
 };
 
 /* Type safe vector of reference type objects (pointers).
@@ -102,10 +109,11 @@ template <class T>
 class vector : public vector_base
 {public:
   // create a new vector with a given initial capacity.
-  // The initial capacity must not be less or equal to 0.
-  vector(size_t capacity = 16) : vector_base(capacity) {}
+  // If capacity is 0 the vector is initially created empty
+  // and allocated with the default capacity when the first item is inserted. 
+  vector(size_t capacity = 0) : vector_base(capacity) {}
   // assignment
-  vector_base&       operator=(const vector<T>& r)  { vector_base::operator=(r); return *this; }
+  //vector<T>&         operator=(const vector<T>& r)  { vector_base::operator=(r); return *this; }
   // swap content of two instances
   void               swap(vector<T>& r)             { vector_base::swap(r); }
   // Append a new element to the end of the vector.
@@ -149,6 +157,69 @@ class vector : public vector_base
   T**                end()                          { return &(*this)[size()]; }
 };
 
+/* Helper functions to implement some strongly typed functionality only once per type T.
+ * Intrnal use only
+ */
+template <class T>
+void vector_own_base_destroy(vector<T>& v)
+{ T** tpp = v.end();
+  while (tpp != v.begin())
+    delete *--tpp;
+}
+
+template <class T>
+void vector_own_base_copy(vector<T>& d, const T*const* spp)
+{ T** epp = d.end();
+  T** dpp = d.begin();
+  while (dpp != epp)
+    *dpp++ = new T(**spp++); // copy contructor of T
+}
+
+
+/* Type safe vector of reference type objects (pointers).
+ * The class owns the referenced objects.
+ * But only the function that delete or copy the entire container are different.
+ * To erase an elemet you must use "delete erase(...)".
+ * The class methods are not synchronized.
+ */
+template <class T>
+class vector_own : public vector<T>, protected vector_own_base<T>
+{public:
+  // create a new vector with a given initial capacity.
+  // If capacity is 0 the vector is initially created empty
+  // and allocated with the default capacity when the first item is inserted. 
+  vector_own(size_t capacity = 0) : vector<T>(capacity) {}
+  // copy constructor
+  vector_own(const vector_own<T>& r, size_t spare = 0);
+  // destructor
+                     ~vector_own()                  { clear(); }
+  // assignment
+  vector_own<T>&     operator=(const vector_own<T>& r);
+  // Remove all elements
+  void               clear();
+};
+
+template <class T>
+inline vector_own<T>::vector_own(const vector_own<T>& r, size_t spare)
+: vector<T>(r.size() + spare)
+{ vector_own_base_copy(*this, r.begin());
+}
+
+template <class T>
+vector_own<T>& vector_own<T>::operator=(const vector_own<T>& r)
+{ clear();
+  prepare_assign(r.size())
+  vector_own_base_copy(*this, r.begin());
+  return *this;
+}
+
+template <class T>
+inline void vector_own<T>::clear()
+{ vector_own_base_destroy(*this);
+  vector<T>::clear();
+}
+
+
 /* Interface for compareable objects.
  * A class that implements this interface with the template parameter K is comparable to const K&.
  * The type K may be the same as the class that implements this interface or not.
@@ -171,8 +242,9 @@ template <class T, class K>
 class sorted_vector : public vector<T>
 {public:
   // Create a new vector with a given initial capacity.
-  // The initial capacity must not be less or equal to 0.
-  sorted_vector(size_t capacity) : vector<T>(capacity) {}
+  // If capacity is 0 the vector is initially created empty
+  // and allocated with the default capacity when the first item is inserted. 
+  sorted_vector(size_t capacity = 0) : vector<T>(capacity) {}
   // Search for a given key.
   // The function returns whether you got an exact match or not.
   // The index of the first element >= key is always returned in the output parameter pos.
@@ -237,6 +309,50 @@ template <class T, class K>
 T* sorted_vector<T,K>::erase(const K& key)
 { size_t pos;
   return binary_search(key, pos) ? vector<T>::erase(pos) : NULL;
+}
+
+/* Sorted variant of vector_own using the key type K.
+ * Object in this container must implement IComparableTo<K>
+ * The class owns the referenced objects.
+ * But only the function that delete or copy the entire container are different.
+ * To erase an elemet you must use "delete erase(...)".
+ * The class methods are not synchronized.
+ */
+template <class T, class K>
+class sorted_vector_own : public sorted_vector<T, K>
+{public:
+  // create a new vector with a given initial capacity.
+  // If capacity is 0 the vector is initially created empty
+  // and allocated with the default capacity when the first item is inserted. 
+  sorted_vector_own(size_t capacity = 0) : sorted_vector<T, K>(capacity) {}
+  // copy constructor
+  sorted_vector_own(const sorted_vector_own<T, K>& r, size_t spare = 0);
+  // destructor
+                     ~sorted_vector_own()           { clear(); }
+  // assignment
+  sorted_vector_own<T, K>& operator=(const sorted_vector_own<T, K>& r);
+  // Remove all elements
+  void               clear();
+};
+
+template <class T, class K>
+inline sorted_vector_own<T, K>::sorted_vector_own(const sorted_vector_own<T, K>& r, size_t spare)
+: sorted_vector<T, K>(r.size() + spare)
+{ vector_own_base_copy(*(vector<T>*)this, r.begin());
+}
+
+template <class T, class K>
+sorted_vector_own<T, K>& sorted_vector_own<T, K>::operator=(const sorted_vector_own<T, K>& r)
+{ clear();
+  prepare_assign(r.size());
+  vector_own_base_copy(*this, r.begin());
+  return *this;
+}
+
+template <class T, class K>
+inline void sorted_vector_own<T, K>::clear()
+{ vector_own_base_destroy(*this);
+  vector<T>::clear();
 }
 
 
