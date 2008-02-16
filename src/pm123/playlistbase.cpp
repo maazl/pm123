@@ -118,7 +118,7 @@ void PlaylistBase::InitIcons()
   IcoPlayable[ICP_Recursive][IC_Play  ] = WinLoadPointer(HWND_DESKTOP, 0, ICO_PLRECURSIVEPLAY);
 }
 
-PlaylistBase::PlaylistBase(const char* url, const char* alias, ULONG rid)
+PlaylistBase::PlaylistBase(const char* url, const xstring& alias, ULONG rid)
 : Content(Playable::GetByURL(url)),
   Alias(alias),
   NameApp(""),
@@ -127,13 +127,13 @@ PlaylistBase::PlaylistBase(const char* url, const char* alias, ULONG rid)
   HwndContainer(NULLHANDLE),
   NoRefresh(false),
   Source(8),
-  AccelChanged(false),
+  DecChanged(false),
   RootInfoDelegate(*this, &PlaylistBase::InfoChangeEvent, NULL),
   RootPlayStatusDelegate(*this, &PlaylistBase::PlayStatEvent),
   PluginDelegate(plugin_event, *this, &PlaylistBase::PluginEvent),
   InitialVisible(false),
   Initialized(0)
-{ DEBUGLOG(("PlaylistBase(%p)::PlaylistBase(%s)\n", this, url));
+{ DEBUGLOG(("PlaylistBase(%p)::PlaylistBase(%s, %s, %u)\n", this, url, alias ? alias.cdata() : "<NULL>", rid));
   static bool first = true;
   if (first)
   { InitIcons();
@@ -230,8 +230,8 @@ void PlaylistBase::InitDlg()
   Ctrl::ChangeEvent += RootPlayStatusDelegate;
 
   SetTitle();
-
-  PMRASSERT(WinPostMsg(HwndFrame, UM_UPDATEACCEL, 0, 0));
+  // initialize decoder dependant information once.
+  PMRASSERT(WinPostMsg(HwndFrame, UM_UPDATEDEC, 0, 0));
     
   // Visibility
   Initialized = 1;
@@ -583,22 +583,18 @@ MRESULT PlaylistBase::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
       return 0;
     }
     
-   case UM_UPDATEACCEL:
-    { DEBUGLOG(("PlaylistBase::DlgProc: UM_UPDATEACCEL\n"));
-      // TODO: acceleration table entries for plug-in extensions
-      HAB hab = WinQueryAnchorBlock( HwndFrame );
-      AccelTable = WinLoadAccelTable( hab, NULLHANDLE, ACL_PLAYLIST );
-      PMASSERT(AccelTable != NULLHANDLE);
-      memset( LoadWizzards+2, 0, sizeof LoadWizzards - 2*sizeof *LoadWizzards); // You never know...
-      dec_append_accel_table( AccelTable, IDM_PL_APPOTHER, AF_SHIFT, LoadWizzards+2, sizeof LoadWizzards/sizeof *LoadWizzards - 2);
-      dec_append_accel_table( AccelTable, IDM_PL_APPOTHERALL, 0, LoadWizzards+2, sizeof LoadWizzards/sizeof *LoadWizzards - 2);
-      // Replace table of current window.   
+   case UM_UPDATEDEC:
+    { DEBUGLOG(("PlaylistBase::DlgProc: UM_UPDATEDEC\n"));
+      UpdateAccelTable();
+      // Replace table of current window.
+      HAB hab = WinQueryAnchorBlock(HwndFrame);   
       HACCEL haccel = WinQueryAccelTable(hab, HwndFrame);
       PMRASSERT(WinSetAccelTable(hab, AccelTable, HwndFrame));
       if (haccel != NULLHANDLE)
         PMRASSERT(WinDestroyAccelTable(haccel));
       // done
-      AccelChanged = true;
+      // Notify context menu handlers
+      DecChanged = true;
       return 0;
     }
   }
@@ -977,7 +973,8 @@ void PlaylistBase::PluginEvent(const PLUGIN_EVENTARGS& args)
     {case PLUGIN_EVENTARGS::Enable:
      case PLUGIN_EVENTARGS::Disable:
      case PLUGIN_EVENTARGS::Unload:
-      WinPostMsg(HwndFrame, UM_UPDATEACCEL, 0, 0);
+      WinPostMsg(HwndFrame, UM_UPDATEDEC, 0, 0);
+     default:; // avoid warnings
     }
   }
 }  
@@ -1000,8 +997,8 @@ void PlaylistBase::UserAdd(DECODER_WIZZARD_FUNC wizzard, RecordBase* parent, Rec
   if ((pp->GetFlags() & Playable::Mutable) != Playable::Mutable)
     return; // Can't add something to a non-playlist.
   // Dialog title
-  xstring title = "Append%s to " + (parent ? pp->GetDisplayName() : GetDisplayName());
   UserAddCallbackParams ucp(this, parent, before);
+  const xstring& title = "Append%s to " + (parent ? parent->Data->Content->GetDisplayName() : GetDisplayName());
   ULONG ul = (*wizzard)(HwndFrame, title, &UserAddCallback, &ucp);
   DEBUGLOG(("PlaylistBase::UserAdd - %u\n", ul));
   // TODO: cfg.listdir obsolete?
@@ -1032,12 +1029,20 @@ void PlaylistBase::UserSave()
 
 void PlaylistBase::UserOpenTreeView(Playable* pp)
 { if (pp->GetFlags() & Playable::Enumerable)
-    PlaylistManager::Get(pp->GetURL())->SetVisible(true);
+  { xstring alias;
+    if (pp == Content)
+      alias = Alias;
+    PlaylistManager::Get(pp->GetURL(), alias)->SetVisible(true);
+  }
 }
 
 void PlaylistBase::UserOpenDetailedView(Playable* pp)
 { if (pp->GetFlags() & Playable::Enumerable)
-    PlaylistView::Get(pp->GetURL())->SetVisible(true);
+  { xstring alias;
+    if (pp == Content)
+      alias = Alias;
+    PlaylistView::Get(pp->GetURL(), alias)->SetVisible(true);
+  }
 }
 
 void PlaylistBase::UserClearPlaylist(Playable* pp)

@@ -128,8 +128,8 @@ class PlaylistBase : public IComparableTo<const char*>
     // mp1 = Record*
     // The reference counter of the Record is decremented after the message is processed.
     UM_REMOVERECORD,
-    // Update accelerator table of the window.
-    UM_UPDATEACCEL
+    // Update decoder tables.
+    UM_UPDATEDEC
   };
   // Valid flags in PostMsg fields
   enum RecordCommand
@@ -229,7 +229,7 @@ class PlaylistBase : public IComparableTo<const char*>
   HWND              HwndMenu;      // Window handle of last context menu
   bool              DragAfter;     // Recent drag operation was ORDERED
   PlayableCollection::ItemComparer SortComparer; // Current comparer for next sort operation
-  bool              AccelChanged;  // Flag whether the acceleration table has changed since the last invokation of the context menu.
+  bool              DecChanged;    // Flag whether the decoder table has changed since the last invokation of the context menu.
  private:
   class_delegate2<PlaylistBase, const Playable::change_args, RecordBase*> RootInfoDelegate;
   class_delegate<PlaylistBase, const Ctrl::EventFlags> RootPlayStatusDelegate;
@@ -246,7 +246,7 @@ class PlaylistBase : public IComparableTo<const char*>
 
  protected:
   // Create a playlist manager window for an URL, but don't open it.
-  PlaylistBase(const char* URL, const char* alias, ULONG rid);
+  PlaylistBase(const char* URL, const xstring& alias, ULONG rid);
 
   void              StartDialog();
 
@@ -286,6 +286,8 @@ class PlaylistBase : public IComparableTo<const char*>
   void              SetTitle();
   // Load context menu for a record
   virtual HWND      InitContextMenu() = 0;
+  // Update plug-in specific accelerator table.
+  virtual void      UpdateAccelTable() = 0;
 
   // Subfunction to the factory below.
   virtual RecordBase* CreateNewRecord(PlayableInstance* obj, RecordBase* parent) = 0;
@@ -356,9 +358,9 @@ class PlaylistBase : public IComparableTo<const char*>
   // Save list
   void              UserSave();
   // Open tree view 
-  static void       UserOpenTreeView(Playable* pp);
+  void              UserOpenTreeView(Playable* pp);
   // Open detailed view 
-  static void       UserOpenDetailedView(Playable* pp);
+  void              UserOpenDetailedView(Playable* pp);
   // Clear playlist
   static void       UserClearPlaylist(Playable* pp);
   // Refresh records
@@ -448,12 +450,12 @@ class PlaylistRepository : public PlaylistBase
   static void       UnInit();
   // Factory method. Returns always the same instance for the same URL.
   // If the specified instance already exists the parameter alias is ignored.
-  static T*         Get(const char* url, const char* alias = NULL);
+  static T*         Get(const char* url, const xstring& alias = xstring());
   // Get an instance of the same type as the current instance for URL.
   virtual PlaylistBase* GetSame(const url123& url) { return Get(url); }
  protected:
   // Forward Constructor
-  PlaylistRepository(const char* URL, const char* alias, ULONG rid) : PlaylistBase(URL, alias, rid) {}
+  PlaylistRepository(const char* URL, const xstring& alias, ULONG rid) : PlaylistBase(URL, alias, rid) {}
   // Unregister from the repository automatically
   ~PlaylistRepository();
 };
@@ -475,8 +477,8 @@ void PlaylistRepository<T>::UnInit()
 }
 
 template <class T>
-T* PlaylistRepository<T>::Get(const char* url, const char* alias)
-{ DEBUGLOG(("PlaylistRepository<T>::Get(%s, %s)\n", url, alias ? alias : "<NULL>"));
+T* PlaylistRepository<T>::Get(const char* url, const xstring& alias)
+{ DEBUGLOG(("PlaylistRepository<T>::Get(%s, %s)\n", url, alias ? alias.cdata() : "<NULL>"));
   Mutex::Lock lock(RPMutex);
   T*& pp = RPInst.get(url);
   /*int_ptr<T> rp;

@@ -82,11 +82,11 @@ PlaylistView* PlaylistView::Get(const char* url, const char* alias)
 }*/
 
 
-PlaylistView::PlaylistView(const char* URL, const char* alias)
+PlaylistView::PlaylistView(const char* URL, const xstring& alias)
 : PlaylistRepository<PlaylistView>(URL, alias, DLG_PLAYLIST),
   MainMenu(NULLHANDLE),
   RecMenu(NULLHANDLE)
-{ DEBUGLOG(("PlaylistView::PlaylistView(%s, %s)\n", URL, alias));
+{ DEBUGLOG(("PlaylistView::PlaylistView(%s, %s)\n", URL, alias.cdata()));
   //HwndFrame = WinLoadDlg( HWND_DESKTOP, HWND_DESKTOP, pl_DlgProcStub, NULLHANDLE, DLG_PLAYLIST, &ids );
   StartDialog();
 }
@@ -392,14 +392,14 @@ HWND PlaylistView::InitContextMenu()
     { mn_enable_item(hwndMenu, IDM_PL_SAVE,   false);
       mn_enable_item(hwndMenu, IDM_PL_APPEND, false);
     }
-    // Populate context menu with plug-in specific stuff.
-    MENUITEM item;
-    PMRASSERT(WinSendMsg(hwndMenu, MM_QUERYITEM, MPFROM2SHORT(IDM_PL_APPENDALL, TRUE), MPFROMP(&item)));
-    memset(LoadWizzards+2, 0, sizeof LoadWizzards - 2*sizeof *LoadWizzards ); // You never know...
-    dec_append_load_menu(item.hwndSubMenu, IDM_PL_APPOTHERALL, 2, LoadWizzards+2, sizeof LoadWizzards/sizeof *LoadWizzards - 2);
     // Update accelerators?
-    if (AccelChanged || new_menu)
-    { AccelChanged = false;
+    if (DecChanged || new_menu)
+    { DecChanged = false;
+      // Populate context menu with plug-in specific stuff.
+      MENUITEM item;
+      PMRASSERT(WinSendMsg(hwndMenu, MM_QUERYITEM, MPFROM2SHORT(IDM_PL_APPENDALL, TRUE), MPFROMP(&item)));
+      memset(LoadWizzards+2, 0, sizeof LoadWizzards - 2*sizeof *LoadWizzards ); // You never know...
+      dec_append_load_menu(item.hwndSubMenu, IDM_PL_APPOTHERALL, 2, LoadWizzards+2, sizeof LoadWizzards/sizeof *LoadWizzards - 2);
       // gcc requires a temporary here. Reason unknown. Most probably a bug.
       HACCEL haccel = WinQueryAccelTable(WinQueryAnchorBlock(HwndFrame), HwndFrame);
       MenuShowAccel(haccel).ApplyTo(new_menu ? hwndMenu : item.hwndSubMenu);
@@ -425,6 +425,14 @@ HWND PlaylistView::InitContextMenu()
   // emphasize record
   DEBUGLOG2(("PlaylistView::InitContextMenu: Menu: %p %p\n", MainMenu, RecMenu));
   return hwndMenu;
+}
+
+void PlaylistView::UpdateAccelTable()
+{ DEBUGLOG(("PlaylistView::UpdateAccelTable()\n"));
+  AccelTable = WinLoadAccelTable( WinQueryAnchorBlock( HwndFrame ), NULLHANDLE, ACL_PLAYLIST );
+  PMASSERT(AccelTable != NULLHANDLE);
+  memset( LoadWizzards+2, 0, sizeof LoadWizzards - 2*sizeof *LoadWizzards); // You never know...
+  dec_append_accel_table( AccelTable, IDM_PL_APPOTHERALL, 0, LoadWizzards+2, sizeof LoadWizzards/sizeof *LoadWizzards - 2);
 }
 
 PlaylistBase::ICP PlaylistView::GetPlayableType(RecordBase* rec)

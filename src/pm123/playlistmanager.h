@@ -71,6 +71,7 @@ class PlaylistManager : public PlaylistRepository<PlaylistManager>
   HWND              MainMenu;
   HWND              RecMenu;
   int_ptr<Playable> EmFocus;       // Playable object to display at UM_SETTITLE
+  bool              DecChanged2;   // Shadow of PlaylistBase::DecChanged to handle the record menu independantly.
 
  private:
   // Post record message, filtered
@@ -81,6 +82,8 @@ class PlaylistManager : public PlaylistRepository<PlaylistManager>
   virtual MRESULT   DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2);
   // Load context menu for a record
   virtual HWND      InitContextMenu();
+  // Update plug-in specific accelerator table.
+  virtual void      UpdateAccelTable();
   // Set Status info
   void              SetInfo(const xstring& info);
   // initiate the display of a record's info
@@ -115,7 +118,7 @@ class PlaylistManager : public PlaylistRepository<PlaylistManager>
 
  private:
   // Create a playlist manager window for an URL, but don't open it.
-  PlaylistManager(const char* URL, const char* alias);
+  PlaylistManager(const char* URL, const xstring& alias);
 };
 
 

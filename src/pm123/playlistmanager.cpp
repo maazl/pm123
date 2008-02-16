@@ -61,11 +61,11 @@
 ****************************************************************************/
 
 
-PlaylistManager::PlaylistManager(const char* url, const char* alias)
+PlaylistManager::PlaylistManager(const char* url, const xstring& alias)
 : PlaylistRepository<PlaylistManager>(url, alias, DLG_PM),
   MainMenu(NULLHANDLE),
   RecMenu(NULLHANDLE)
-{ DEBUGLOG(("PlaylistManager(%p)::PlaylistManager(%s, %s)\n", this, url, alias));
+{ DEBUGLOG(("PlaylistManager(%p)::PlaylistManager(%s, %s)\n", this, url, alias.cdata()));
   NameApp = " (Tree)";
   //WinLoadDlg(HWND_DESKTOP, HWND_DESKTOP, pl_DlgProcStub, NULLHANDLE, DLG_PM, &ids);
   StartDialog();
@@ -221,6 +221,11 @@ MRESULT PlaylistManager::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
       break; // continue in base class
     }
 
+   case UM_UPDATEDEC:
+    PlaylistBase::DlgProc(msg, mp1, mp2);
+    DecChanged2 = true;
+    return 0;
+   
   } // switch (msg)
 
   return PlaylistBase::DlgProc(msg, mp1, mp2);
@@ -231,6 +236,7 @@ HWND PlaylistManager::InitContextMenu()
   HWND hwndMenu;
   MENUITEM item;
   bool new_menu = false;
+  bool* dec_changed;
   if (Source.size() == 0)
   { // Nothing selected => menu for the whole container
     if (MainMenu == NULLHANDLE)
@@ -243,6 +249,7 @@ HWND PlaylistManager::InitContextMenu()
     mn_enable_item(hwndMenu, IDM_PL_APPENDALL, (Content->GetFlags() & Playable::Mutable) == Playable::Mutable);
 
     item.id = IDM_PL_APPENDALL;
+    dec_changed = &DecChanged;
   } else
   { // Selected object is record => record menu
     ASSERT(Source.size() == 1);
@@ -266,15 +273,16 @@ HWND PlaylistManager::InitContextMenu()
     mn_enable_item(hwndMenu, IDM_PL_SORT,     rt == RT_List);
 
     item.id = IDM_PL_APPEND;
+    dec_changed = &DecChanged2;
   }
   // item.id contains the ID of the load menu
-  // Populate context menu with plug-in specific stuff.
-  PMRASSERT(WinSendMsg(hwndMenu, MM_QUERYITEM, MPFROM2SHORT(item.id, TRUE), MPFROMP(&item)));
-  memset(LoadWizzards+2, 0, sizeof LoadWizzards - 2*sizeof *LoadWizzards ); // You never know...
-  dec_append_load_menu(item.hwndSubMenu, item.id + IDM_PL_APPOTHER-IDM_PL_APPEND, 2, LoadWizzards+2, sizeof LoadWizzards/sizeof *LoadWizzards - 2);
   // Update accelerators?
-  if (AccelChanged || new_menu)
-  { AccelChanged = false;
+  if (*dec_changed || new_menu)
+  { *dec_changed = false;
+    // Populate context menu with plug-in specific stuff.
+    PMRASSERT(WinSendMsg(hwndMenu, MM_QUERYITEM, MPFROM2SHORT(item.id, TRUE), MPFROMP(&item)));
+    memset(LoadWizzards+2, 0, sizeof LoadWizzards - 2*sizeof *LoadWizzards ); // You never know...
+    dec_append_load_menu(item.hwndSubMenu, item.id + IDM_PL_APPOTHER-IDM_PL_APPEND, 2, LoadWizzards+2, sizeof LoadWizzards/sizeof *LoadWizzards - 2);
     // gcc requires a temporary here. Reason unknown. Most probably a bug.
     HACCEL haccel = WinQueryAccelTable(WinQueryAnchorBlock(HwndFrame), HwndFrame);
     MenuShowAccel(haccel).ApplyTo(new_menu ? hwndMenu : item.hwndSubMenu);
@@ -284,6 +292,15 @@ HWND PlaylistManager::InitContextMenu()
   return hwndMenu;
 }
   
+void PlaylistManager::UpdateAccelTable()
+{ DEBUGLOG(("PlaylistManager::UpdateAccelTable()\n"));
+  AccelTable = WinLoadAccelTable( WinQueryAnchorBlock( HwndFrame ), NULLHANDLE, ACL_PLAYLISTMAN );
+  PMASSERT(AccelTable != NULLHANDLE);
+  memset( LoadWizzards+2, 0, sizeof LoadWizzards - 2*sizeof *LoadWizzards); // You never know...
+  dec_append_accel_table( AccelTable, IDM_PL_APPOTHERALL, 0, LoadWizzards+2, sizeof LoadWizzards/sizeof *LoadWizzards - 2);
+  dec_append_accel_table( AccelTable, IDM_PL_APPOTHER, AF_SHIFT, LoadWizzards+2, sizeof LoadWizzards/sizeof *LoadWizzards - 2);
+}
+
 void PlaylistManager::SetInfo(const xstring& text)
 { DEBUGLOG(("PlaylistManager(%p)::SetInfo(%s)\n", this, text.cdata()));
   CNRINFO cnrInfo = { sizeof(CNRINFO) };

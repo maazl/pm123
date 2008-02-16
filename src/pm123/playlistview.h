@@ -109,7 +109,7 @@ class PlaylistView : public PlaylistRepository<PlaylistView>
 
  private:
   // Create a playlist manager window for an URL, but don't open it.
-  PlaylistView(const char* URL, const char* alias);
+  PlaylistView(const char* URL, const xstring& alias);
  
  private:
   // Post record message, filtered
@@ -122,6 +122,8 @@ class PlaylistView : public PlaylistRepository<PlaylistView>
   virtual MRESULT   DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2);
   // Load context menu for a record
   virtual HWND      InitContextMenu();
+  // Update plug-in specific accelerator table.
+  virtual void      UpdateAccelTable();
 
   // Determine type of Playable object
   // Subfunction to CalcIcon.

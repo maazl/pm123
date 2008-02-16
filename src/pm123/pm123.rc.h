@@ -172,6 +172,7 @@
 #define DLG_PLAYLIST         42
 #define CNR_PLAYLIST FID_CLIENT // TODO: remove
 #define ACL_PLAYLIST       8001
+#define ACL_PLAYLISTMAN    8002
 #define MNU_PLAYLIST        900
 #define MNU_RECORD          901
 /* Playlistmanager */
