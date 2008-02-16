@@ -298,11 +298,14 @@ typedef struct _DECODER_WIZZARD
   struct _DECODER_WIZZARD* link;
   /* String to be displayed in the context menu */
   const char*              prompt;
-  /* Accreleration Table entry */
-  USHORT                   accel_key;
-  USHORT                   accel_opt;
   /* Procedure to be called when the specified item is selected */
   DECODER_WIZZARD_FUNC     wizzard;
+  /* Accreleration Table entries for normal invokation */
+  USHORT                   accel_key;
+  USHORT                   accel_opt;
+  /* Accreleration Table entries for direct playlist manipulation in playlist manager */
+  USHORT                   accel_key2;
+  USHORT                   accel_opt2;
 } DECODER_WIZZARD;
 
 const DECODER_WIZZARD* DLLENTRY decoder_getwizzard( );
