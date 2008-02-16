@@ -175,7 +175,7 @@ void  dec_fill_types( char* result, size_t size );
 /* Add additional entries in load/add menu in the main and the playlist's pop-up menu */
 void  dec_append_load_menu( HWND hMenu, ULONG id_base, SHORT where, DECODER_WIZZARD_FUNC* callbacks, int size );
 /* Append accelerator table with plug-in specific entries */
-void  dec_append_accel_table( HACCEL& haccel, ULONG id_base, USHORT options, DECODER_WIZZARD_FUNC* callbacks, int size );
+void  dec_append_accel_table( HACCEL& haccel, ULONG id_base, LONG offset, DECODER_WIZZARD_FUNC* callbacks, int size );
 
 /****************************************************************************
 *

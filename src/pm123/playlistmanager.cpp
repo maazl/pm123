@@ -297,8 +297,7 @@ void PlaylistManager::UpdateAccelTable()
   AccelTable = WinLoadAccelTable( WinQueryAnchorBlock( HwndFrame ), NULLHANDLE, ACL_PLAYLISTMAN );
   PMASSERT(AccelTable != NULLHANDLE);
   memset( LoadWizzards+2, 0, sizeof LoadWizzards - 2*sizeof *LoadWizzards); // You never know...
-  dec_append_accel_table( AccelTable, IDM_PL_APPOTHERALL, 0, LoadWizzards+2, sizeof LoadWizzards/sizeof *LoadWizzards - 2);
-  dec_append_accel_table( AccelTable, IDM_PL_APPOTHER, AF_SHIFT, LoadWizzards+2, sizeof LoadWizzards/sizeof *LoadWizzards - 2);
+  dec_append_accel_table( AccelTable, IDM_PL_APPOTHERALL, IDM_PL_APPOTHER-IDM_PL_APPOTHERALL, LoadWizzards+2, sizeof LoadWizzards/sizeof *LoadWizzards - 2);
 }
 
 void PlaylistManager::SetInfo(const xstring& text)

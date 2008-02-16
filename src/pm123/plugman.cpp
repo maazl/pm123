@@ -1405,12 +1405,12 @@ dec_append_load_menu( HWND hMenu, ULONG id_base, SHORT where, DECODER_WIZZARD_FU
   }
 }
 
-void dec_append_accel_table( HACCEL& haccel, ULONG id_base, USHORT options, DECODER_WIZZARD_FUNC* callbacks, int size )
-{ DEBUGLOG(("dec_append_accel_table(%p, %u, %x, %p, %u)\n", haccel, id_base, options, callbacks, size));
+void dec_append_accel_table( HACCEL& haccel, ULONG id_base, LONG offset, DECODER_WIZZARD_FUNC* callbacks, int size )
+{ DEBUGLOG(("dec_append_accel_table(%p, %u, %u, %p, %u)\n", haccel, id_base, offset, callbacks, size));
   // Fetch content
   ULONG accelsize = WinCopyAccelTable(haccel, NULL, 0);
   PMASSERT(accelsize);
-  accelsize += size * sizeof(ACCEL); // space for plug-in entries 
+  accelsize += (size << (offset != 0)) * sizeof(ACCEL); // space for plug-in entries 
   ACCELTABLE* paccel = (ACCELTABLE*)alloca(accelsize);
   PMRASSERT(WinCopyAccelTable(haccel, paccel, accelsize));
   DEBUGLOG(("dec_append_accel_table: %i\n", paccel->cAccel));
@@ -1426,15 +1426,24 @@ void dec_append_accel_table( HACCEL& haccel, ULONG id_base, USHORT options, DECO
           goto nomore; // too many entries, can't help
         DEBUGLOG(("dec_append_accel_table: at %u: %s -> %x -> %p\n", id_base, da->prompt, da->accel_key, da->wizzard));
         *callbacks++ = da->wizzard;
-        if (da->accel_key == 0)
-          continue;
-        // Add table entry
-        ACCEL& accel = paccel->aaccel[paccel->cAccel++];
-        accel.fs  = da->accel_opt | options;
-        accel.key = da->accel_key;
-        accel.cmd = id_base;
-        DEBUGLOG(("dec_append_accel_table: add {%x, %x, %i}\n", accel.fs, accel.key, accel.cmd));
-        modified = true;
+        if (da->accel_key)
+        { // Add table entry
+          ACCEL& accel = paccel->aaccel[paccel->cAccel++];
+          accel.fs  = da->accel_opt;
+          accel.key = da->accel_key;
+          accel.cmd = id_base;
+          DEBUGLOG(("dec_append_accel_table: add {%x, %x, %i}\n", accel.fs, accel.key, accel.cmd));
+          modified = true;
+        }
+        if (da->accel_key2 && offset)
+        { // Add table entry
+          ACCEL& accel = paccel->aaccel[paccel->cAccel++];
+          accel.fs  = da->accel_opt2;
+          accel.key = da->accel_key2;
+          accel.cmd = id_base + offset;
+          DEBUGLOG(("dec_append_accel_table: add {%x, %x, %i}\n", accel.fs, accel.key, accel.cmd));
+          modified = true;
+        }
       }
     }
   }
