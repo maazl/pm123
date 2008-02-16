@@ -84,6 +84,13 @@
 #define  TID_UPDATE_PLAYER    ( TID_USERMAX - 2 )
 #define  TID_ONTOP            ( TID_USERMAX - 3 )
 
+/* file dialog additional flags */
+#define  FDU_DIR_ENABLE   0x0001
+#define  FDU_RECURSEBTN   0x0002
+#define  FDU_RECURSE_ON   0x0004
+#define  FDU_RELATIVBTN   0x0008
+#define  FDU_RELATIV_ON   0x0010
+
 
 /* Contains startup path of the program without its name.  */
 char startpath[_MAX_PATH];

@@ -45,6 +45,10 @@
 #include <decoder_plug.h>
 #include <os2.h>
 
+#ifndef DC_PREPAREITEM
+#define DC_PREPAREITEM   0x0040
+#endif
+
 #include <debuglog.h>
 
 

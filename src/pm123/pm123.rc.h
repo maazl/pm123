@@ -147,30 +147,8 @@
 #define MSG_JUMP              6
 #define MSG_SAVE              7
 
-/* file dialog additional flags */
-#define FDU_DIR_ENABLE       0x0001
-#define FDU_RECURSEBTN       0x0002
-#define FDU_RECURSE_ON       0x0004
-#define FDU_RELATIVBTN       0x0008
-#define FDU_RELATIV_ON       0x0010
-
-/* file dialog standard types */
-#define FDT_PLAYLIST         "Playlist files (*.LST;*.MPL;*.M3U;*.PLS)"
-#define FDT_PLAYLIST_LST     "Playlist files (*.LST)"
-#define FDT_PLAYLIST_M3U     "Playlist files (*.M3U)"
-#define FDT_AUDIO            "All supported audio files ("
-#define FDT_AUDIO_ALL        "All supported types (*.LST;*.MPL;*.M3U;*.PLS;"
-#define FDT_SKIN             "Skin files (*.SKN)"
-#define FDT_EQUALIZER        "Equalizer presets (*.EQ)"
-#define FDT_PLUGIN           "Plug-in (*.DLL)"
-
-#ifndef DC_PREPAREITEM
-#define DC_PREPAREITEM  0x0040
-#endif
-
 /* Playlist */
 #define DLG_PLAYLIST         42
-#define CNR_PLAYLIST FID_CLIENT // TODO: remove
 #define ACL_PLAYLIST       8001
 #define ACL_PLAYLISTMAN    8002
 #define MNU_PLAYLIST        900
@@ -226,9 +204,9 @@
 #define IDM_PL_MENUCONT     971 /* invoke record menu */ 
 
 /* Bookmark */
-#define DLG_BM_ADD           500
-#define ST_BM_DESC           501
-#define EF_BM_DESC           502
+#define DLG_BM_ADD          500
+#define ST_BM_DESC          501
+#define EF_BM_DESC          502
 
 /* SKIN */
 /* Special resources that control PM123 interface. */

@@ -92,6 +92,16 @@ void  amp_show_help( SHORT resid );
 /* Edits a information for the specified file. */
 void  amp_info_edit( HWND owner, const char* filename, const char* decoder );
 
+/* file dialog standard types */
+#define FDT_PLAYLIST         "Playlist files (*.LST;*.MPL;*.M3U;*.PLS)"
+#define FDT_PLAYLIST_LST     "Playlist files (*.LST)"
+#define FDT_PLAYLIST_M3U     "Playlist files (*.M3U)"
+#define FDT_AUDIO            "All supported audio files ("
+#define FDT_AUDIO_ALL        "All supported types (*.LST;*.MPL;*.M3U;*.PLS;"
+#define FDT_SKIN             "Skin files (*.SKN)"
+#define FDT_EQUALIZER        "Equalizer presets (*.EQ)"
+#define FDT_PLUGIN           "Plug-in (*.DLL)"
+
 /* Default dialog procedure for the file dialog. */
 MRESULT EXPENTRY amp_file_dlg_proc( HWND, ULONG, MPARAM, MPARAM );
 /* Wizzard function for the default entry "File..." */
