@@ -774,6 +774,7 @@ return 0;
 doTagP:
  call PutToken ':p.';
  Global.IsParagraph = 1;
+ Global.SkipSpaces = 1;
 return 0;
 
 doTag!P:
@@ -813,6 +814,7 @@ doTagH_begin:
   then do; call NewLine; call PutToken '.br'; end;
  call NewLine;
  Global.AfterBreak = 1;
+ Global.SkipSpaces = 1;
 return;
 
 doTagH1:
@@ -849,7 +851,7 @@ doTag!H6:
  if \Global.IsTable
   then do
         call NewLine; call PutToken '.br'; call NewLine;
-        call NewLine; call PutToken '.br';
+        /*call NewLine; call PutToken '.br';*/
        end;
  call NewLine;
  Global.AfterBreak = 1;
@@ -859,6 +861,7 @@ doTagHR:
  call NewLine;
  call PutToken ':cgraphic.'copies('Ä', 80)':ecgraphic.';
  call doTagBR;
+ Global.SkipSpaces = 1;
 return 0;
 
 doTagOL:
@@ -1113,6 +1116,7 @@ doTagTH:
  Global.IsOutputEnabled = 1;
  Global.Table.Width = Global.Table.Width + 1;
  call PutToken ':c.'; call doTagU;
+ Global.SkipSpaces = 1;
 return 0;
 
 doTag!TH:
@@ -1125,6 +1129,7 @@ doTagTD:
  Global.IsOutputEnabled = 1;
  Global.Table.Width = Global.Table.Width + 1;
  call PutToken ':c.';
+ Global.SkipSpaces = 1;
 return 0;
 
 doTag!TD:
@@ -1399,7 +1404,7 @@ PutText:
         /* condense duplicate whitespace */
          if \Global.IsPRETag
           then do
-                Output = strip(translate(Output, ' ', d2c(9)));
+                Output = translate(Output, ' ', d2c(9));
                 curpos = pos('  ', Output);
                 do while curpos > 0
                  Output = left(Output, curpos)||substr(Output, curpos + 2);

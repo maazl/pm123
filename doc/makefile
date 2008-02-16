@@ -7,7 +7,7 @@ TARGET = pm123.inf pm123_pdk.inf
 
 !include $(TOPDIR)\config\makerules
 
-MANLST = history.txt manual\index.html manual\advantage.html manual\interface.html
+MANLST = history.txt manual\index.html manual\advantage.html
 MANLST = $(MANLST) manual\mainwin.html manual\mainmenu.html manual\playlist.html
 MANLST = $(MANLST) manual\properties.html manual\id3.html manual\analyzer.html
 MANLST = $(MANLST) manual\eq.html manual\manager.html manual\parameters.html

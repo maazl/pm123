@@ -1,48 +1,85 @@
 <html resid=1014>
 <head>
-   <title>Playlist Menu</title>
+   <title>Playlist Window</title>
 </head>
 <body>
-<b><font size=+2>PM123's Playlist Menu</font></b>
-<p>PM123 playlist files always have the extension <tt>.LST</tt>
-and they contain simply CR separated lines of the files in playlist (plus
-<a href="manager.html">Playlist Manager</a> special lines starting with <tt>></tt>). PM123 also understands
-<tt>.MPL</tt> files used by WarpAMP and <tt>.M3U</tt> playlists 
-used over the Internet.
+<h2>PM123's Playlists</h2>
+<p>PM123 playlist files always have the extension <tt>.LST</tt>. They use a <a href="playlistformat.html">special format</a>.
+  PM123 also understands <tt>.MPL</tt> files used by WarpAMP and <tt>.M3U</tt> playlists used over the Internet.
+
+<h3>Window features</h3>
+<dl>
+  <dt><b>direct manipulation</b>
+  <dd>You can edit the alias name, the start and stop offsets and the source URL by direct manipulation.
+  <dt><b>Drag and Drop</b>
+  <dd>You can use Drag and Drop to rearrange the items in a playlist,
+    move or copy items between different playlist or playlist manager windows
+    or drop file or URL objects from other applications. In the latter case only shadows are allowed
+    since playlists only contain references to the original objects. 
+    You cannot drop PM123 objects on other applications.
+</dl>
+  
+<h3>Icons</h3>
+<table cellspacing=0 cellpadding=3 border=1>
+  <tr>
+    <th>Status</th>
+    <th>File</th>
+    <th>Folder</th>
+    <th>Playlist</th>
+  </tr>
+  <tr>
+    <td>Normal</td>
+    <td><img src="images/mp3.gif"></td>
+  </tr>
+  <tr>
+    <td>Used</td>
+  </tr>
+  <tr>
+    <td>Current root</td>
+  </tr>
+  <tr>
+    <td>Current stack</td>
+  </tr>
+  <tr>
+    <td>Empty</td>
+  </tr>
+  <tr>
+    <td>Invalid</td>
+  </tr>
+</table>     
+
+<h3>Context menu</h3>
 <blockquote>
 <img SRC="images/listmenu.gif">
 </blockquote>
-
 <dl>
-<dt><b>Use this playlist</b>
-<dd>Activates this playlist.
-<dt><b>Add...</b>
-<dd>Add files, files from the Internet for streaming or CD tracks to the playlist.  
-<dt><b>Clear</b>
-<dd>Clear the whole list.
-<dt><b>Sort</b>
-<dd>This submenu has options to sort the playlist by size, playing time, filename or songname.
-<dt><b>Open...</b>
-<dd>Loads a saved list.
-<dt><b>Save...</b>
-<dd>Saves the list.
+  <dt><b>Use this playlist</b>
+  <dd>Activates this playlist.
+  <dt><b>Add...</b>
+  <dd>Add files, files from the Internet for streaming or CD tracks to the playlist.  
+  <dt><b>Clear</b>
+  <dd>Clear the whole list.
+  <dt><b>Sort</b>
+  <dd>This submenu has options to sort the playlist by size, playing time, filename or songname.
+  <dt><b>Open...</b>
+  <dd>Loads a saved list.
+  <dt><b>Save...</b>
+  <dd>Saves the list.
 </dl>
-
 <blockquote>
 <img SRC="images/filemenu.gif">
 </blockquote>
-
 <dl>
-<dt><b>Load</b>
-<dd>Loads this file into the player.
-<dt><b>Remove from List</b>
-<dd>Removes this file from the playlist.
-<dt><b>Delete file</b>
-<dd>Removes selected files from the playlist and deletes this files from your disk.
-<dt><b>Edit Tag</b>
-<dd>Edits this file's <a href="id3.html">ID3 tag</a>.
-<dt><b>Delete Tag</b>
-<dd>Removes the ID3 tag from this file.
+  <dt><b>Load</b>
+  <dd>Loads this file into the player.
+  <dt><b>Remove from List</b>
+  <dd>Removes this file from the playlist.
+  <dt><b>Delete file</b>
+  <dd>Removes selected files from the playlist and deletes this files from your disk.
+  <dt><b>Edit Tag</b>
+  <dd>Edits this file's <a href="id3.html">ID3 tag</a>.
+  <dt><b>Delete Tag</b>
+  <dd>Removes the ID3 tag from this file.
 </dl>
 
 </body>
