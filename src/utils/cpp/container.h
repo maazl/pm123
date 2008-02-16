@@ -48,7 +48,7 @@ class vector_base
  protected:
   // create a new vector with a given initial capacity.
   // If capacity is 0 the vector is initially created empty
-  // and allocated with the default capacity when the first item is inserted. 
+  // and allocated with the default capacity when the first item is inserted.
   vector_base(size_t capacity = 0);
   // copy constructor
   vector_base(const vector_base& r, size_t spare = 0);
@@ -110,7 +110,7 @@ class vector : public vector_base
 {public:
   // create a new vector with a given initial capacity.
   // If capacity is 0 the vector is initially created empty
-  // and allocated with the default capacity when the first item is inserted. 
+  // and allocated with the default capacity when the first item is inserted.
   vector(size_t capacity = 0) : vector_base(capacity) {}
   // assignment
   //vector<T>&         operator=(const vector<T>& r)  { vector_base::operator=(r); return *this; }
@@ -183,11 +183,11 @@ void vector_own_base_copy(vector<T>& d, const T*const* spp)
  * The class methods are not synchronized.
  */
 template <class T>
-class vector_own : public vector<T>, protected vector_own_base<T>
+class vector_own : public vector<T>
 {public:
   // create a new vector with a given initial capacity.
   // If capacity is 0 the vector is initially created empty
-  // and allocated with the default capacity when the first item is inserted. 
+  // and allocated with the default capacity when the first item is inserted.
   vector_own(size_t capacity = 0) : vector<T>(capacity) {}
   // copy constructor
   vector_own(const vector_own<T>& r, size_t spare = 0);
@@ -208,7 +208,7 @@ inline vector_own<T>::vector_own(const vector_own<T>& r, size_t spare)
 template <class T>
 vector_own<T>& vector_own<T>::operator=(const vector_own<T>& r)
 { clear();
-  prepare_assign(r.size())
+  prepare_assign(r.size());
   vector_own_base_copy(*this, r.begin());
   return *this;
 }
@@ -243,7 +243,7 @@ class sorted_vector : public vector<T>
 {public:
   // Create a new vector with a given initial capacity.
   // If capacity is 0 the vector is initially created empty
-  // and allocated with the default capacity when the first item is inserted. 
+  // and allocated with the default capacity when the first item is inserted.
   sorted_vector(size_t capacity = 0) : vector<T>(capacity) {}
   // Search for a given key.
   // The function returns whether you got an exact match or not.
@@ -323,7 +323,7 @@ class sorted_vector_own : public sorted_vector<T, K>
 {public:
   // create a new vector with a given initial capacity.
   // If capacity is 0 the vector is initially created empty
-  // and allocated with the default capacity when the first item is inserted. 
+  // and allocated with the default capacity when the first item is inserted.
   sorted_vector_own(size_t capacity = 0) : sorted_vector<T, K>(capacity) {}
   // copy constructor
   sorted_vector_own(const sorted_vector_own<T, K>& r, size_t spare = 0);
