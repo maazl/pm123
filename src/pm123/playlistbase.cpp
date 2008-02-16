@@ -46,6 +46,7 @@
 #include "playlistview.h"
 #include "playable.h"
 #include "pm123.h"
+#include "123_util.h"
 #include "pm123.rc.h"
 #include "docking.h"
 #include "iniman.h"
@@ -126,8 +127,10 @@ PlaylistBase::PlaylistBase(const char* url, const char* alias, ULONG rid)
   HwndContainer(NULLHANDLE),
   NoRefresh(false),
   Source(8),
+  AccelChanged(false),
   RootInfoDelegate(*this, &PlaylistBase::InfoChangeEvent, NULL),
   RootPlayStatusDelegate(*this, &PlaylistBase::PlayStatEvent),
+  PluginDelegate(plugin_event, *this, &PlaylistBase::PluginEvent),
   InitialVisible(false),
   Initialized(0)
 { DEBUGLOG(("PlaylistBase(%p)::PlaylistBase(%s)\n", this, url));
@@ -228,11 +231,7 @@ void PlaylistBase::InitDlg()
 
   SetTitle();
 
-  // TODO: acceleration table entries for plug-in extensions
-  HAB hab = WinQueryAnchorBlock( HwndFrame );
-  AccelTable = WinLoadAccelTable( hab, NULLHANDLE, ACL_PLAYLIST );
-  PMASSERT(AccelTable != NULLHANDLE);
-  PMRASSERT(WinSetAccelTable( hab, AccelTable, HwndFrame ));
+  PMRASSERT(WinPostMsg(HwndFrame, UM_UPDATEACCEL, 0, 0));
     
   // Visibility
   Initialized = 1;
@@ -273,17 +272,6 @@ MRESULT PlaylistBase::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
     }
     break;
 
-   case WM_INITMENU:
-    switch (SHORT1FROMMP(mp1))
-    {case IDM_PL_APPEND:
-      { // Populate context menu with plug-in specific stuff.
-        memset(LoadWizzards+2, 0, sizeof LoadWizzards - 2*sizeof *LoadWizzards ); // You never know...
-        append_load_menu(HWNDFROMMP(mp2), SHORT1FROMMP(mp1) == IDM_PL_APPOTHER, 2,
-          LoadWizzards+2, sizeof LoadWizzards/sizeof *LoadWizzards - 2);
-      }
-    }
-    break;
-
    case WM_MENUEND:
     if (HWNDFROMMP(mp2) == HwndMenu)
     { //GetRecords(CRA_SOURCE); //Should normally be unchanged...
@@ -310,13 +298,15 @@ MRESULT PlaylistBase::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
 
    case WM_CONTROL:
     switch (SHORT2FROMMP(mp1))
-    {case CN_CONTEXTMENU:
+    {
+     case CN_CONTEXTMENU:
       { RecordBase* rec = (RecordBase*)mp2;
         if (!GetSource(rec))
           break;
         HwndMenu = InitContextMenu();
         if (HwndMenu != NULLHANDLE)
         { SetEmphasis(CRA_SOURCE, true);
+          // Show popup menu
           POINTL ptlMouse;
           PMRASSERT(WinQueryPointerPos(HWND_DESKTOP, &ptlMouse));
           // TODO: Mouse Position may not be reasonable, when the menu is invoked by keyboard.
@@ -327,11 +317,12 @@ MRESULT PlaylistBase::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
         break;
       }
 
+     // Direct editing
      case CN_BEGINEDIT:
       DEBUGLOG(("PlaylistBase::DlgProc CN_BEGINEDIT\n"));
       PMRASSERT(WinSetAccelTable(WinQueryAnchorBlock(HwndFrame), NULLHANDLE, HwndFrame));
       // TODO: normally we have to lock some functions here...
-      break; // Continue in base class;
+      return 0;
 
      case CN_REALLOCPSZ:
       { CNREDITDATA* ed = (CNREDITDATA*)PVOIDFROMMP(mp2);
@@ -411,10 +402,16 @@ MRESULT PlaylistBase::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
       if (SHORT1FROMMP(mp2) == CMDSRC_ACCELERATOR)
         GetRecords(CRA_SELECTED);
       
+      if (SHORT1FROMMP(mp1) >= IDM_PL_APPFILEALL && SHORT1FROMMP(mp1) < IDM_PL_APPFILEALL + sizeof LoadWizzards / sizeof *LoadWizzards)
+      { DECODER_WIZZARD_FUNC func = LoadWizzards[SHORT1FROMMP(mp1)-IDM_PL_APPFILEALL];
+        if (func != NULL)
+          UserAdd(func, NULL);
+        return 0;
+      }
       if (SHORT1FROMMP(mp1) >= IDM_PL_APPFILE && SHORT1FROMMP(mp1) < IDM_PL_APPFILE + sizeof LoadWizzards / sizeof *LoadWizzards)
       { DECODER_WIZZARD_FUNC func = LoadWizzards[SHORT1FROMMP(mp1)-IDM_PL_APPFILE];
         if (func != NULL && Source.size() == 1)
-          UserAdd(func, "Append%s", Source[0]);
+          UserAdd(func, Source[0]);
         return 0;
       }
       switch (SHORT1FROMMP(mp1))
@@ -585,6 +582,25 @@ MRESULT PlaylistBase::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
       FreeRecord(rec);
       return 0;
     }
+    
+   case UM_UPDATEACCEL:
+    { DEBUGLOG(("PlaylistBase::DlgProc: UM_UPDATEACCEL\n"));
+      // TODO: acceleration table entries for plug-in extensions
+      HAB hab = WinQueryAnchorBlock( HwndFrame );
+      AccelTable = WinLoadAccelTable( hab, NULLHANDLE, ACL_PLAYLIST );
+      PMASSERT(AccelTable != NULLHANDLE);
+      memset( LoadWizzards+2, 0, sizeof LoadWizzards - 2*sizeof *LoadWizzards); // You never know...
+      dec_append_accel_table( AccelTable, IDM_PL_APPOTHER, AF_SHIFT, LoadWizzards+2, sizeof LoadWizzards/sizeof *LoadWizzards - 2);
+      dec_append_accel_table( AccelTable, IDM_PL_APPOTHERALL, 0, LoadWizzards+2, sizeof LoadWizzards/sizeof *LoadWizzards - 2);
+      // Replace table of current window.   
+      HACCEL haccel = WinQueryAccelTable(hab, HwndFrame);
+      PMRASSERT(WinSetAccelTable(hab, AccelTable, HwndFrame));
+      if (haccel != NULLHANDLE)
+        PMRASSERT(WinDestroyAccelTable(haccel));
+      // done
+      AccelChanged = true;
+      return 0;
+    }
   }
   return WinDefDlgProc( HwndFrame, msg, mp1, mp2 );
 }
@@ -641,8 +657,7 @@ void PlaylistBase::SetTitle()
     break;
    default:;
   }
-  const xstring& dn = Content->GetURL().getDisplayName(); // must not use a temporary in a conditional expression with ICC
-  xstring title = xstring::sprintf("PM123: %s%s%s%s", (Alias ? Alias.cdata() : dn.cdata()), NameApp,
+  xstring title = xstring::sprintf("PM123: %s%s%s%s", GetDisplayName().cdata(), NameApp,
     (Content->GetFlags() & Playable::Enumerable) && ((PlayableCollection&)*Content).IsModified() ? " (*)" : "", append);
   // Update Window Title
   PMRASSERT(WinSetWindowText(HwndFrame, (char*)title.cdata()));
@@ -955,6 +970,17 @@ void PlaylistBase::PlayStatEvent(const Ctrl::EventFlags& flags)
   }
 }
 
+void PlaylistBase::PluginEvent(const PLUGIN_EVENTARGS& args)
+{ DEBUGLOG(("PlaylistBase(%p)::PluginEvent({%p, %x, %i})\n", this, args.plugin, args.type, args.operation));
+  if (args.type == PLUGIN_DECODER)
+  { switch (args.operation)
+    {case PLUGIN_EVENTARGS::Enable:
+     case PLUGIN_EVENTARGS::Disable:
+     case PLUGIN_EVENTARGS::Unload:
+      WinPostMsg(HwndFrame, UM_UPDATEACCEL, 0, 0);
+    }
+  }
+}  
 
 static void DLLENTRY UserAddCallback(void* param, const char* url)
 { DEBUGLOG(("UserAddCallback(%p, %s)\n", param, url));
@@ -968,11 +994,13 @@ static void DLLENTRY UserAddCallback(void* param, const char* url)
   ((Playlist*)pp)->InsertItem(url, (const char*)NULL, 0, ucp.Before ? &*ucp.Before->Data->Content : NULL);
 }
 
-void PlaylistBase::UserAdd(DECODER_WIZZARD_FUNC wizzard, const char* title, RecordBase* parent, RecordBase* before)
-{ DEBUGLOG(("PlaylistBase(%p)::UserAdd(%p, %s, %p, %p)\n", this, wizzard, title, parent, before));
+void PlaylistBase::UserAdd(DECODER_WIZZARD_FUNC wizzard, RecordBase* parent, RecordBase* before)
+{ DEBUGLOG(("PlaylistBase(%p)::UserAdd(%p, %p, %p)\n", this, wizzard, parent, before));
   Playable* const pp = PlayableFromRec(parent);
   if ((pp->GetFlags() & Playable::Mutable) != Playable::Mutable)
     return; // Can't add something to a non-playlist.
+  // Dialog title
+  xstring title = "Append%s to " + (parent ? pp->GetDisplayName() : GetDisplayName());
   UserAddCallbackParams ucp(this, parent, before);
   ULONG ul = (*wizzard)(HwndFrame, title, &UserAddCallback, &ucp);
   DEBUGLOG(("PlaylistBase::UserAdd - %u\n", ul));

@@ -573,7 +573,8 @@ Ctrl::RC Ctrl::MsgPlayStop(Op op)
     if (OutputStart(pp) != 0)
       return RC_OutPlugErr;
 
-    Current()->Offset = 0;
+    if (IsPlaylist())
+      Current()->Offset = 0;
     if (DecoderStart(pp) != 0)
     { OutputStop();
       return RC_DecPlugErr;

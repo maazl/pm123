@@ -32,7 +32,10 @@
 #ifndef  PM123_RC_H
 #define  PM123_RC_H
 
-#define ICO_MAIN              1
+#define WIN_MAIN              1
+#define HLP_MAIN              1
+#define ACL_MAIN              WIN_MAIN // neccessarily identical
+#define ICO_MAIN              WIN_MAIN // neccessarily identical
 #define ICO_MP3               1700
 #define ICO_MP3USED           1701
 #define ICO_MP3ACTIVE         1702
@@ -51,10 +54,6 @@
 #define ICO_PLCLOSEPLAY       1731
 #define ICO_PLOPENPLAY        1732
 #define ICO_PLRECURSIVEPLAY   1733
-
-#define WIN_MAIN              1
-#define HLP_MAIN              1
-#define ACL_MAIN              1
 
 #define MNU_MAIN            500
 #define IDM_M_SHUFFLE       505
@@ -215,6 +214,10 @@
 #define IDM_PL_APPFILE     1101
 #define IDM_PL_APPURL      1102
 #define IDM_PL_APPOTHER    1103 /* Need some IDs for plugin extensions.     */
+#define IDM_PL_APPENDALL   1200
+#define IDM_PL_APPFILEALL  1201
+#define IDM_PL_APPURLALL   1202
+#define IDM_PL_APPOTHERALL 1203 /* Need some IDs for plugin extensions.     */
 #define IDM_PL_OPEN        1000
 #define IDM_PL_OPENLAST    1001 /* A lot of IDs after this need to be free. */
 #define IDM_PL_SAVE         960

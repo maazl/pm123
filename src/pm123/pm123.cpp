@@ -53,6 +53,7 @@
 #include <utilfct.h>
 #include <xio.h>
 #include "pm123.h"
+#include "123_util.h"
 #include "plugman.h"
 #include "button95.h"
 #include "playlistmanager.h"
@@ -66,6 +67,7 @@
 
 #include <cpp/xstring.h>
 #include <cpp/url123.h>
+#include <cpp/showaccel.h>
 #include "pm123.rc.h"
 
 #include <debuglog.h>
@@ -76,6 +78,7 @@
 #define  AMP_LOAD             ( WM_USER + 81 )
 #define  AMP_CTRL_EVENT       ( WM_USER + 82 )
 #define  AMP_CTRL_EVENT_CB    ( WM_USER + 83 )
+#define  AMP_REFRESH_ACCEL    ( WM_USER + 84 )
 
 #define  TID_UPDATE_TIMERS    ( TID_USERMAX - 1 )
 #define  TID_UPDATE_PLAYER    ( TID_USERMAX - 2 )
@@ -106,12 +109,13 @@ static HPIPE hpipe      = NULLHANDLE;
 /* Pipe name decided on startup. */
 static char  pipename[_MAX_PATH] = "\\PIPE\\PM123";
 
-static BOOL  is_have_focus   = FALSE;
-static BOOL  is_volume_drag  = FALSE;
-static BOOL  is_seeking      = FALSE;
-static BOOL  is_slider_drag  = FALSE;
-static BOOL  is_arg_shuffle  = FALSE;
-static bool  is_msg_status   = FALSE; // true if a MsgStatus to the controller message is on the way
+static BOOL  is_have_focus    = FALSE;
+static BOOL  is_volume_drag   = FALSE;
+static BOOL  is_seeking       = FALSE;
+static BOOL  is_slider_drag   = FALSE;
+static BOOL  is_arg_shuffle   = FALSE;
+static bool  is_msg_status    = false; // true if a MsgStatus to the controller message is on the way
+static bool  is_accel_changed = false;
 
 /* Current load wizzards */
 static DECODER_WIZZARD_FUNC load_wizzards[20];
@@ -393,22 +397,37 @@ amp_load_playable( const char* url, T_TIME start, int options )
     amp_AddMRU(LoadMRU, MAX_RECALL, url);
 }
 
+/* loads the accelerater table and modifies it by the plugins */
+static void
+amp_load_accel()
+{ DEBUGLOG(("amp_load_accel()\n"));
+  // Generate new accelerator table.
+  HACCEL haccel = WinLoadAccelTable(hab, NULLHANDLE, ACL_MAIN);
+  PMASSERT(haccel != NULLHANDLE);
+  memset( load_wizzards+2, 0, sizeof load_wizzards - 2*sizeof *load_wizzards ); // You never know...
+  dec_append_accel_table( haccel, IDM_M_LOADOTHER, 0, load_wizzards+2, sizeof load_wizzards / sizeof *load_wizzards -2);
+  // Replace table of current window.   
+  HACCEL haccel_old = WinQueryAccelTable(hab, hframe);
+  PMRASSERT(WinSetAccelTable(hab, haccel, hframe));
+  if (haccel_old != NULLHANDLE)
+    PMRASSERT(WinDestroyAccelTable(haccel_old));
+  // done
+  is_accel_changed = true;
+}
+
 /* Shows the context menu of the playlist. */
 static void
 amp_show_context_menu( HWND parent )
 {
   static HWND menu = NULLHANDLE;
   if( menu == NULLHANDLE )
-  {
-    menu = WinLoadMenu( HWND_OBJECT, 0, MNU_MAIN );
-
+  { menu = WinLoadMenu( HWND_OBJECT, 0, MNU_MAIN );
     mn_make_conditionalcascade( menu, IDM_M_LOAD, IDM_M_LOADFILE );
-
+    
     PlaylistMenu* pmp = new PlaylistMenu(parent, IDM_M_LAST, IDM_M_LAST_E);
     pmp->AttachMenu(IDM_M_BOOKMARKS, DefaultBM->GetContent(), PlaylistMenu::DummyIfEmpty|PlaylistMenu::Recursive|PlaylistMenu::Enumerate, 0);
     pmp->AttachMenu(IDM_M_LOAD, LoadMRU, PlaylistMenu::Enumerate|PlaylistMenu::Separator, 0);
   }
-
   POINTL   pos;
   WinQueryPointerPos( HWND_DESKTOP, &pos );
   WinMapWindowPoints( HWND_DESKTOP, parent, &pos, 1 );
@@ -424,14 +443,19 @@ amp_show_context_menu( HWND parent )
 
   // Update regulars.
   MENUITEM mi;
-  WinSendMsg( menu, MM_QUERYITEM, MPFROM2SHORT( IDM_M_LOAD, TRUE ), MPFROMP( &mi ));
+  PMRASSERT(WinSendMsg( menu, MM_QUERYITEM, MPFROM2SHORT( IDM_M_LOAD, TRUE ), MPFROMP( &mi )));
   // Append asisstents from decoder plug-ins
   memset( load_wizzards+2, 0, sizeof load_wizzards - 2*sizeof *load_wizzards ); // You never know...
-  append_load_menu( mi.hwndSubMenu, IDM_M_LOADOTHER, 2, load_wizzards+2, sizeof load_wizzards / sizeof *load_wizzards -2);
+  dec_append_load_menu( mi.hwndSubMenu, IDM_M_LOADOTHER, 2, load_wizzards+2, sizeof load_wizzards / sizeof *load_wizzards -2);
 
   // Update plug-ins.
-  WinSendMsg( menu, MM_QUERYITEM, MPFROM2SHORT( IDM_M_PLUG, TRUE ), MPFROMP( &mi ));
+  PMRASSERT(WinSendMsg( menu, MM_QUERYITEM, MPFROM2SHORT( IDM_M_PLUG, TRUE ), MPFROMP( &mi )));
   load_plugin_menu( mi.hwndSubMenu );
+
+  if (is_accel_changed)
+  { is_accel_changed = false;
+    MenuShowAccel( WinQueryAccelTable( hab, hframe )).ApplyTo( menu );
+  }
 
   // Update status
   int_ptr<Song> song = Ctrl::GetCurrentSong();
@@ -1997,6 +2021,14 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
       }
       return 0;
 
+    case AMP_REFRESH_ACCEL:
+      { // eat other identical messages
+        QMSG qmsg;
+        while (WinPeekMsg(hab, &qmsg, hwnd, AMP_REFRESH_ACCEL, AMP_REFRESH_ACCEL, PM_REMOVE));
+      } 
+      amp_load_accel();
+      return 0;
+    
     case WM_CONTEXTMENU:
       amp_show_context_menu( hwnd );
       return 0;
@@ -2084,24 +2116,22 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
     }
 
     case WM_COMMAND:
-    { const CMDMSG* cm = COMMANDMSG(&msg);
-      if( cm->source == CMDSRC_MENU )
-      {
-        if( cm->cmd > IDM_M_PLUG ) {
-          configure_plugin( PLUGIN_NULL, cm->cmd - IDM_M_PLUG - 1, hplayer );
-          return 0;
-        }
-        if( cm->cmd >= IDM_M_LOADFILE &&
-            cm->cmd < IDM_M_LOADFILE + sizeof load_wizzards / sizeof *load_wizzards &&
-            load_wizzards[cm->cmd-IDM_M_LOADFILE] )
-        { // TODO: create temporary playlist
-          bool first = true;
-          ULONG rc = (*load_wizzards[cm->cmd-IDM_M_LOADFILE])( hwnd, "Load%s", &amp_load_file_callback, &first );
-          return 0;
-        }
+    { USHORT cmd = SHORT1FROMMP(mp1);
+      DEBUGLOG(("amp_dlg_proc: WM_COMMAND(%u, %u, %u)\n", cmd, SHORT1FROMMP(mp2), SHORT2FROMMP(mp2)));
+      if( cmd > IDM_M_PLUG ) {
+        configure_plugin( PLUGIN_NULL, cmd - IDM_M_PLUG - 1, hplayer );
+        return 0;
+      }
+      if( cmd >= IDM_M_LOADFILE &&
+          cmd < IDM_M_LOADFILE + sizeof load_wizzards / sizeof *load_wizzards &&
+          load_wizzards[cmd-IDM_M_LOADFILE] )
+      { // TODO: create temporary playlist
+        bool first = true;
+        (*load_wizzards[cmd-IDM_M_LOADFILE])( hwnd, "Load%s", &amp_load_file_callback, &first );
+        return 0;
       }
 
-      switch( cm->cmd )
+      switch( cmd )
       {
         case IDM_M_MANAGER:
           DefaultPM->SetVisible(true);
@@ -2335,7 +2365,7 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
     {
       HPS hps;
       hplayer = hwnd; /* we have to assign the window handle early, because WinCreateStdWindow does not have returned now. */
-
+      
       hps = WinGetPS( hwnd );
       bmp_load_skin( cfg.defskin, hab, hwnd, hps );
       WinReleasePS( hps );
@@ -2549,6 +2579,17 @@ amp_show_help( SHORT resid )
                                       MPFROMSHORT( HM_RESOURCEID ));
 }
 
+static void amp_plugin_eventhandler(void*, const PLUGIN_EVENTARGS& args)
+{ DEBUGLOG(("amp_plugin_eventhandler(, {%p, %x, %i})\n", args.plugin, args.type, args.operation));
+  if (args.type == PLUGIN_DECODER)
+  { switch (args.operation)
+    {case PLUGIN_EVENTARGS::Enable:
+     case PLUGIN_EVENTARGS::Disable:
+     case PLUGIN_EVENTARGS::Unload:
+      WinPostMsg(hplayer, AMP_REFRESH_ACCEL, 0, 0);
+    }
+  }  
+}
 
 struct args
 { int argc;
@@ -2573,7 +2614,7 @@ main2( void* arg )
   ///////////////////////////////////////////////////////////////////////////
   
   HELPINIT hinit;
-  ULONG    flCtlData = FCF_TASKLIST | FCF_NOBYTEALIGN | FCF_ACCELTABLE | FCF_ICON;
+  ULONG    flCtlData = FCF_TASKLIST | FCF_NOBYTEALIGN | FCF_ICON;
 
   hab = WinInitialize( 0 );
   PMXASSERT(hmq = WinCreateMsgQueue( hab, 0 ), != NULLHANDLE);
@@ -2589,10 +2630,10 @@ main2( void* arg )
   load_wizzards[0] = amp_file_wizzard;
   load_wizzards[1] = amp_url_wizzard;
 
-  WinRegisterClass( hab, "PM123", amp_dlg_proc, CS_SIZEREDRAW /* | CS_SYNCPAINT */, 0 );
-
+  PMRASSERT( WinRegisterClass( hab, "PM123", amp_dlg_proc, CS_SIZEREDRAW /* | CS_SYNCPAINT */, 0 ));
   hframe = WinCreateStdWindow( HWND_DESKTOP, 0, &flCtlData, "PM123",
                                AMP_FULLNAME, 0, NULLHANDLE, WIN_MAIN, &hplayer );
+  PMASSERT( hframe != NULLHANDLE );
 
   DEBUGLOG(("main: window created\n"));
 
@@ -2601,6 +2642,9 @@ main2( void* arg )
 
   // prepare pluginmanager
   plugman_init();
+  // Keep track of plugin changes.
+  delegate<void, const PLUGIN_EVENTARGS> plugin_delegate(plugin_event, &amp_plugin_eventhandler);
+  PMRASSERT( WinPostMsg( hplayer, AMP_REFRESH_ACCEL, 0, 0 )); // load accelerators
   
   // start controller
   Ctrl::Init();
@@ -2630,11 +2674,10 @@ main2( void* arg )
   hinit.pszHelpLibraryName = infname;
 
   hhelp = WinCreateHelpInstance( hab, &hinit );
-  if( !hhelp ) {
+  if( !hhelp )
     amp_error( hplayer, "Error create help instance: %s", infname );
-  }
-
-  WinAssociateHelpInstance( hhelp, hframe );
+  else
+    WinAssociateHelpInstance( hhelp, hframe );
 
   strcpy( bundle, startpath   );
   strcat( bundle, "pm123.lst" );

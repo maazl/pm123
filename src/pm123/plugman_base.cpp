@@ -229,7 +229,15 @@ CL_PLUGIN::~CL_PLUGIN()
 }
 
 void CL_PLUGIN::set_enabled(BOOL enabled)
-{ this->enabled = enabled;
+{ if (this->enabled == enabled)
+    return;
+  this->enabled = enabled;
+  raise_plugin_event(enabled ? PLUGIN_EVENTARGS::Enable : PLUGIN_EVENTARGS::Disable);
+}
+
+void CL_PLUGIN::raise_plugin_event(PLUGIN_EVENTARGS::event ev)
+{ const PLUGIN_EVENTARGS ea = { this, get_type(), ev };
+  plugin_event(ea);
 }
 
 
@@ -325,6 +333,10 @@ BOOL CL_DECODER::after_load()
   return TRUE;
 }
 
+PLUGIN_TYPE CL_DECODER::get_type() const
+{ return PLUGIN_DECODER;
+}
+
 /* Assigns the addresses of the decoder plug-in procedures. */
 BOOL CL_DECODER::load_plugin()
 { DEBUGLOG(("CL_DECODER(%p{%s})::load()\n", this, module_name));
@@ -358,14 +370,22 @@ BOOL CL_DECODER::load_plugin()
 BOOL CL_DECODER::init_plugin()
 { DEBUGLOG(("CL_DECODER(%p{%s})::init_plugin()\n", this, module_name));
 
-  return (*decoder_init)( &w ) != -1;
+  if ((*decoder_init)( &w ) == -1)
+  { w = NULL;
+    return FALSE;
+  }
+  raise_plugin_event(PLUGIN_EVENTARGS::Init);
+  return TRUE;
 }
 
 BOOL CL_DECODER::uninit_plugin()
 { DEBUGLOG(("CL_DECODER(%p{%s})::uninit_plugin()\n", this, module_name));
 
-  (*decoder_uninit)( w );
-  w = NULL;
+  if (is_initialized())
+  { (*decoder_uninit)( w );
+    w = NULL;
+    raise_plugin_event(PLUGIN_EVENTARGS::Uninit);
+  }
   return TRUE;
 }
 
@@ -825,6 +845,10 @@ void CL_DECODER::init()
 *
 ****************************************************************************/
 
+PLUGIN_TYPE CL_OUTPUT::get_type() const
+{ return PLUGIN_OUTPUT;
+}
+
 /* Assigns the addresses of the out7put plug-in procedures. */
 BOOL CL_OUTPUT::load_plugin()
 {
@@ -846,15 +870,23 @@ BOOL CL_OUTPUT::load_plugin()
 BOOL CL_OUTPUT::init_plugin()
 { DEBUGLOG(("CL_OUTPUT(%p{%s})::init_plugin()\n", this, module_name));
 
-  return (*output_init)( &a ) == 0;
+  if ((*output_init)( &a ) != 0)
+  { a = NULL;
+    return FALSE;
+  }
+  raise_plugin_event(PLUGIN_EVENTARGS::Init);
+  return TRUE;
 }
 
 BOOL CL_OUTPUT::uninit_plugin()
 { DEBUGLOG(("CL_OUTPUT(%p{%s})::uninit_plugin()\n", this, module_name));
 
-  (*output_command)( a, OUTPUT_CLOSE, NULL );
-  (*output_uninit)( a );
-  a = NULL;
+  if (is_initialized())
+  { (*output_command)( a, OUTPUT_CLOSE, NULL );
+    (*output_uninit)( a );
+    a = NULL;
+    raise_plugin_event(PLUGIN_EVENTARGS::Uninit);
+  }
   return TRUE;
 }
 
@@ -1081,6 +1113,10 @@ void CL_OUTPUT::init()
 *
 ****************************************************************************/
 
+PLUGIN_TYPE CL_FILTER::get_type() const
+{ return PLUGIN_FILTER;
+}
+
 /* Assigns the addresses of the filter plug-in procedures. */
 BOOL CL_FILTER::load_plugin()
 { DEBUGLOG(("CL_FILTER(%p{%s})::load_plugin\n", this, module_name));
@@ -1103,8 +1139,11 @@ BOOL CL_FILTER::init_plugin()
 BOOL CL_FILTER::uninit_plugin()
 { DEBUGLOG(("CL_FILTER(%p{%s})::uninit_plugin\n", this, module_name));
 
-  (*filter_uninit)(f);
-  f = NULL;
+  if (is_initialized())
+  { (*filter_uninit)(f);
+    f = NULL;
+    raise_plugin_event(PLUGIN_EVENTARGS::Uninit);
+  }
   return TRUE;
 }
 
@@ -1134,6 +1173,7 @@ BOOL CL_FILTER::initialize(FILTER_PARAMS2* params)
     if (par.output_playing_data     == params->output_playing_data)
       params->output_playing_data    = vreplace1(&vrstubs[5], par.output_playing_data, par.a);
   }
+  raise_plugin_event(PLUGIN_EVENTARGS::Init);
   return TRUE;
 }
 
@@ -1337,6 +1377,10 @@ CL_PLUGIN* CL_FILTER::factory(CL_MODULE& mod)
 *
 ****************************************************************************/
 
+PLUGIN_TYPE CL_VISUAL::get_type() const
+{ return PLUGIN_VISUAL;
+}
+
 /* Assigns the addresses of the visual plug-in procedures. */
 BOOL CL_VISUAL::load_plugin()
 {
@@ -1355,11 +1399,11 @@ BOOL CL_VISUAL::init_plugin()
 }
 
 BOOL CL_VISUAL::uninit_plugin()
-{ if (!is_initialized())
-    return TRUE;
-
-  (*plugin_deinit)(0);
-  hwnd = NULLHANDLE;
+{ if (is_initialized())
+  { (*plugin_deinit)(0);
+    hwnd = NULLHANDLE;
+    raise_plugin_event(PLUGIN_EVENTARGS::Uninit);
+  }
   return TRUE;
 }
 
@@ -1378,7 +1422,10 @@ BOOL CL_VISUAL::initialize(HWND hwnd, PLUGIN_PROCS* procs, int id)
   visinit.param   = props.param;
 
   this->hwnd = (*plugin_init)(&visinit);
-  return this->hwnd != NULLHANDLE;
+  if (this->hwnd == NULLHANDLE)
+    return FALSE;
+  raise_plugin_event(PLUGIN_EVENTARGS::Init);
+  return TRUE;
 }
 
 void CL_VISUAL::set_properties(const VISUAL_PROPERTIES* data)
@@ -1495,6 +1542,13 @@ int CL_PLUGIN_BASE_LIST::find_short(const char* name) const
 *
 ****************************************************************************/
 
+BOOL CL_PLUGIN_LIST::append(CL_PLUGIN* plugin)
+{ if (!CL_PLUGIN_BASE_LIST::append(plugin))
+    return FALSE;
+  plugin->raise_plugin_event(PLUGIN_EVENTARGS::Load);
+  return TRUE;
+}
+
 CL_PLUGIN* CL_PLUGIN_LIST::detach(int i)
 { DEBUGLOG(("CL_PLUGIN_LIST(%p)::detach(%i)\n", this, i));
 
@@ -1506,7 +1560,9 @@ CL_PLUGIN* CL_PLUGIN_LIST::detach(int i)
   { DEBUGLOG(("CL_PLUGIN_LIST::detach: plugin %s failed to uninitialize.\n", (*this)[i].module_name));
     return NULL;
   }
-  return (CL_PLUGIN*)CL_PLUGIN_BASE_LIST::detach(i);
+  CL_PLUGIN* plugin = (CL_PLUGIN*)CL_PLUGIN_BASE_LIST::detach(i);
+  plugin->raise_plugin_event(PLUGIN_EVENTARGS::Unload);
+  return plugin;
 }
 
 BOOL CL_PLUGIN_LIST::remove(int i)

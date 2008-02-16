@@ -50,6 +50,7 @@
 #include "plugman.h"
 
 #include <cpp/smartptr.h>
+#include <cpp/showaccel.h>
 
 #include <debuglog.h>
 
@@ -228,15 +229,21 @@ MRESULT PlaylistManager::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
 HWND PlaylistManager::InitContextMenu()
 { DEBUGLOG(("PlaylistManager(%p)::InitContextMenu() - %u\n", this, Source.size()));
   HWND hwndMenu;
+  MENUITEM item;
+  bool new_menu = false;
   if (Source.size() == 0)
   { // Nothing selected => menu for the whole container
     if (MainMenu == NULLHANDLE)
     { MainMenu = WinLoadMenu(HWND_OBJECT, 0, PM_MAIN_MENU);
       PMASSERT(MainMenu != NULLHANDLE);
-      mn_make_conditionalcascade(MainMenu, IDM_PL_APPEND, IDM_PL_APPFILE);
+      mn_make_conditionalcascade(MainMenu, IDM_PL_APPENDALL, IDM_PL_APPFILEALL);
+      MenuShowAccel(WinQueryAccelTable(WinQueryAnchorBlock(HwndFrame), HwndFrame)).ApplyTo(MainMenu);
+      new_menu = true; // force update below
     }
     hwndMenu = MainMenu;
-    mn_enable_item( hwndMenu, IDM_PL_APPEND, (Content->GetFlags() & Playable::Mutable) == Playable::Mutable );
+    mn_enable_item(hwndMenu, IDM_PL_APPENDALL, (Content->GetFlags() & Playable::Mutable) == Playable::Mutable);
+
+    item.id = IDM_PL_APPENDALL;
   } else
   { // Selected object is record => record menu
     ASSERT(Source.size() == 1);
@@ -244,6 +251,8 @@ HWND PlaylistManager::InitContextMenu()
     { RecMenu = WinLoadMenu(HWND_OBJECT, 0, PM_REC_MENU);
       PMASSERT(RecMenu != NULLHANDLE);
       mn_make_conditionalcascade(RecMenu, IDM_PL_APPEND, IDM_PL_APPFILE);
+      MenuShowAccel(WinQueryAccelTable(WinQueryAnchorBlock(HwndFrame), HwndFrame)).ApplyTo(RecMenu);
+      new_menu = true; // force update below
     }
     hwndMenu = RecMenu;
     RecordType rt = AnalyzeRecordTypes();
@@ -257,6 +266,18 @@ HWND PlaylistManager::InitContextMenu()
     mn_enable_item(hwndMenu, IDM_PL_REFRESH,  rt == RT_Song);
     mn_enable_item(hwndMenu, IDM_PL_APPEND,   rt == RT_List);
     mn_enable_item(hwndMenu, IDM_PL_SORT,     rt == RT_List);
+
+    item.id = IDM_PL_APPEND;
+  }
+  // item.id contains the ID of the load menu
+  // Populate context menu with plug-in specific stuff.
+  PMRASSERT(WinSendMsg(hwndMenu, MM_QUERYITEM, MPFROM2SHORT(item.id, TRUE), MPFROMP(&item)));
+  memset(LoadWizzards+2, 0, sizeof LoadWizzards - 2*sizeof *LoadWizzards ); // You never know...
+  dec_append_load_menu(item.hwndSubMenu, item.id + IDM_PL_APPOTHER-IDM_PL_APPEND, 2, LoadWizzards+2, sizeof LoadWizzards/sizeof *LoadWizzards - 2);
+  // Update accelerators?
+  if (AccelChanged || new_menu)
+  { AccelChanged = false;
+    MenuShowAccel(WinQueryAccelTable(WinQueryAnchorBlock(HwndFrame), HwndFrame)).ApplyTo(new_menu ? hwndMenu : item.hwndSubMenu);
   }
   // emphasize record
   DEBUGLOG(("PlaylistManager::InitContextMenu: Menu: %p %p\n", MainMenu, RecMenu));

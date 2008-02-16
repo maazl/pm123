@@ -48,6 +48,7 @@
 #include "iniman.h"
 #include "playable.h"
 #include "plugman.h"
+#include <cpp/showaccel.h>
 
 #include <stddef.h>
 
@@ -273,21 +274,6 @@ MRESULT PlaylistView::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
     amp_show_help( IDH_PL );
     return 0;
 
-   /*case WM_COMMAND:
-    { SHORT cmd = SHORT1FROMMP(mp1);
-      Record* focus = (Record*)CmFocus;
-      if (cmd >= IDM_PL_APPFILE && cmd < IDM_PL_APPFILE + sizeof LoadWizzards / sizeof *LoadWizzards)
-      { DECODER_WIZZARD_FUNC func = LoadWizzards[cmd-IDM_PL_APPFILE];
-        if (func != NULL)
-          //UserAdd(func, "Append%s", focus); // focus from CN_CONTEXTMENU
-        return 0;
-      }
-      switch (cmd)
-      {
-      }
-      break;
-    }*/
-
    case UM_RECORDCOMMAND:
     { Record* rec = (Record*)PVOIDFROMMP(mp1);
       DEBUGLOG(("PlaylistView::DlgProc: UM_RECORDCOMMAND: %s, %x\n", Record::DebugName(rec).cdata(), StateFromRec(rec).PostMsg));
@@ -392,7 +378,8 @@ HWND PlaylistView::InitContextMenu()
 { DEBUGLOG(("PlaylistView(%p)::InitContextMenu() - %p{%u}\n", this, &Source, Source.size()));
   HWND hwndMenu;
   if (Source.size() == 0)
-  { if (MainMenu == NULLHANDLE)
+  { bool new_menu;
+    if ((new_menu = MainMenu == NULLHANDLE) != false)
     { MainMenu = WinLoadMenu(HWND_OBJECT, 0, MNU_PLAYLIST);
       PMASSERT(MainMenu != NULLHANDLE);
       mn_make_conditionalcascade(MainMenu, IDM_PL_APPEND, IDM_PL_APPFILE);
@@ -405,10 +392,21 @@ HWND PlaylistView::InitContextMenu()
     { mn_enable_item(hwndMenu, IDM_PL_SAVE,   false);
       mn_enable_item(hwndMenu, IDM_PL_APPEND, false);
     }
+    // Populate context menu with plug-in specific stuff.
+    MENUITEM item;
+    PMRASSERT(WinSendMsg(hwndMenu, MM_QUERYITEM, MPFROM2SHORT(IDM_PL_APPENDALL, TRUE), MPFROMP(&item)));
+    memset(LoadWizzards+2, 0, sizeof LoadWizzards - 2*sizeof *LoadWizzards ); // You never know...
+    dec_append_load_menu(item.hwndSubMenu, IDM_PL_APPOTHERALL, 2, LoadWizzards+2, sizeof LoadWizzards/sizeof *LoadWizzards - 2);
+    // Update accelerators?
+    if (AccelChanged || new_menu)
+    { AccelChanged = false;
+      MenuShowAccel(WinQueryAccelTable(WinQueryAnchorBlock(HwndFrame), HwndFrame)).ApplyTo(new_menu ? hwndMenu : item.hwndSubMenu);
+    }
   } else
   { if (RecMenu == NULLHANDLE)
     { RecMenu = WinLoadMenu(HWND_OBJECT, 0, MNU_RECORD);
       PMASSERT(RecMenu != NULLHANDLE);
+      MenuShowAccel(WinQueryAccelTable(WinQueryAnchorBlock(HwndFrame), HwndFrame)).ApplyTo(RecMenu);
     }
     hwndMenu = RecMenu;
     RecordType rt = AnalyzeRecordTypes();

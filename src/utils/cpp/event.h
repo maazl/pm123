@@ -274,8 +274,12 @@ class PostMsgDelegateBase
 template <class P>
 class PostMsgDelegate : private PostMsgDelegateBase, public delegate_part<P>
 {public:
-  PostMsgDelegate(HWND window, ULONG msg, const void* param2)
-  : delegate_part<P>((func_type)&callback, (PostMsgDelegateBase*)this), PostMsgDelegateBase(window, msg, param2) {}
+  PostMsgDelegate(HWND window, ULONG msg, const void* param2 = NULL)
+  : delegate_part<P>((func_type)&callback, (PostMsgDelegateBase*)this)
+  , PostMsgDelegateBase(window, msg, param2) {}
+  PostMsgDelegate(event<P>& ev, HWND window, ULONG msg, const void* param2 = NULL)
+  : delegate_part<P>(ev, (func_type)&callback, (PostMsgDelegateBase*)this)
+  , PostMsgDelegateBase(window, msg, param2) {}
 };
 
 #endif

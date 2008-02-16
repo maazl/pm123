@@ -300,6 +300,7 @@ typedef struct _DECODER_WIZZARD
   const char*              prompt;
   /* Accreleration Table entry */
   USHORT                   accel_key;
+  USHORT                   accel_opt;
   /* Procedure to be called when the specified item is selected */
   DECODER_WIZZARD_FUNC     wizzard;
 } DECODER_WIZZARD;

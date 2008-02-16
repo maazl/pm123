@@ -1112,7 +1112,7 @@ const DECODER_WIZZARD* DLLENTRY decoder_getwizzard( )
   static const DECODER_WIZZARD wizzard =
   { NULL,
     "~Track(s)...",
-    't',
+    't', AF_ALT|AF_CHAR,
     &load_wizzard
   };
 

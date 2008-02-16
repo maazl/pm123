@@ -127,7 +127,9 @@ class PlaylistBase : public IComparableTo<const char*>
     // Remove item adressed by a record asynchronuously
     // mp1 = Record*
     // The reference counter of the Record is decremented after the message is processed.
-    UM_REMOVERECORD
+    UM_REMOVERECORD,
+    // Update accelerator table of the window.
+    UM_UPDATEACCEL
   };
   // Valid flags in PostMsg fields
   enum RecordCommand
@@ -221,15 +223,17 @@ class PlaylistBase : public IComparableTo<const char*>
   xstring           Title;         // Keep the window title
   DECODER_WIZZARD_FUNC LoadWizzards[20]; // Current load wizzards
   bool              NoRefresh;     // Avoid update events to ourself
-  xstring           DirectEdit;    // String that holds result of direct manipulation
+  xstring           DirectEdit;    // String that holds result of direct manipulation between CN_REALLOCPSZ and CN_ENDEDIT
   CommonState       EvntState;     // Event State
   vector<RecordBase> Source;       // Array of records used for source emphasis
   HWND              HwndMenu;      // Window handle of last context menu
   bool              DragAfter;     // Recent drag operation was ORDERED
   PlayableCollection::ItemComparer SortComparer; // Current comparer for next sort operation
+  bool              AccelChanged;  // Flag whether the acceleration table has changed since the last invokation of the context menu.
  private:
   class_delegate2<PlaylistBase, const Playable::change_args, RecordBase*> RootInfoDelegate;
   class_delegate<PlaylistBase, const Ctrl::EventFlags> RootPlayStatusDelegate;
+  class_delegate<PlaylistBase, const PLUGIN_EVENTARGS> PluginDelegate;
   bool              InitialVisible;
   int               Initialized;
 
@@ -337,12 +341,14 @@ class PlaylistBase : public IComparableTo<const char*>
   void              StatChangeEvent(const PlayableInstance::change_args& inst, RecordBase* rec);
   // This function is called when playing starts or stops.
   void              PlayStatEvent(const Ctrl::EventFlags& flags);
+  // This function is called when the list of enabled plug-ins changed.
+  void              PluginEvent(const PLUGIN_EVENTARGS& args);
 
  protected: // User actions
   // Select a list with a file dialog.
   static url123     PlaylistSelect(HWND owner, const char* title);
   // Add Item
-  void              UserAdd(DECODER_WIZZARD_FUNC wizzard, const char* title, RecordBase* parent = NULL, RecordBase* before = NULL);
+  void              UserAdd(DECODER_WIZZARD_FUNC wizzard, RecordBase* parent = NULL, RecordBase* before = NULL);
   // Insert a new item
   void              UserInsert(const InsertInfo* pii);
   // Remove item by Record pointer
@@ -396,6 +402,8 @@ class PlaylistBase : public IComparableTo<const char*>
   bool              GetVisible() const;
   // Gets the content
   Playable*         GetContent() { return Content; }
+  // Get the display name of this instance. This is either the alias (if any) or the display name of the underlying URL.
+  xstring           GetDisplayName() const { return Alias ? Alias : Content->GetURL().getDisplayName(); }
   // Get an instance of the same type as the current instance for URL.
   virtual PlaylistBase* GetSame(const url123& url) = 0;
 

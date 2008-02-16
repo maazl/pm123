@@ -41,12 +41,7 @@
 
 #ifdef __cplusplus
 #include "playable.h"
-#include <cpp/xstring.h>
 extern "C" {
-
-
-/* Constructs a string of the displayable text from the file information. */
-xstring amp_construct_tag_string( const DECODER_INFO2* info );
 #endif
 
 /* Constructs a information text for currently loaded file. */
@@ -115,11 +110,6 @@ extern void DLLENTRY amp_display_error( const char* );
 }
 /* Saves a playlist */
 void  amp_save_playlist( HWND owner, PlayableCollection* playlist );
-
-/* Reads url from specified file. [123_utils] */
-xstring amp_url_from_file(const char* filename);
-/* Reads an String from a drag and drop structure */
-xstring amp_string_from_drghstr(HSTR hstr);
 
 extern "C" {
 #endif

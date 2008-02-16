@@ -166,6 +166,8 @@ class CL_PLUGIN : public CL_PLUGIN_BASE
   // the plug-in list "plugins". If the module is not used by another plug-in
   // the module will be unloaded.
   virtual ~CL_PLUGIN();
+  // Return kind of Plugin handled by the class instance. (RTTI by the backdoor.)
+  virtual PLUGIN_TYPE get_type() const = 0;
   // Load the current plug-in. Return TRUE on success.
   // To be implemented by the particular plug-in flavour.
   virtual BOOL load_plugin() = 0;
@@ -181,9 +183,11 @@ class CL_PLUGIN : public CL_PLUGIN_BASE
   // Getter to the underlying module.
   CL_MODULE&   get_module() const  { return modref; }
   // Getter to the enabled state.
-          BOOL get_enabled() const { return enabled; }
+  BOOL         get_enabled() const { return enabled; }
   // Setter to the enabled state.
   virtual void set_enabled(BOOL enabled);
+  // Raise plugin_event
+  void         raise_plugin_event(PLUGIN_EVENTARGS::event ev);
 
   // global services
  protected:
@@ -244,6 +248,8 @@ class CL_DECODER : public CL_PLUGIN, protected DECODER_PROCS
   BOOL  after_load();
  public:
   virtual ~CL_DECODER();
+  // Return kind of Plugin handled by the class instance. (RTTI by the backdoor.)
+  virtual PLUGIN_TYPE get_type() const;
   // Load the plug-in that is identified as a decoder. Return TRUE on success.
   virtual BOOL load_plugin();
   // Initialize the decoder. Return TRUE on success.
@@ -294,6 +300,8 @@ class CL_OUTPUT : public CL_PLUGIN, protected OUTPUT_PROCS
   // instances of this class are only created by the factory function below.
   CL_OUTPUT(CL_MODULE& mod) : CL_PLUGIN(mod) { a = NULL; }
  public:
+  // Return kind of Plugin handled by the class instance. (RTTI by the backdoor.)
+  virtual PLUGIN_TYPE get_type() const;
   // Load the output plug-in. Return TRUE on success.
   virtual BOOL load_plugin();
   // Initialize the output plug-in. Return TRUE on success.
@@ -341,6 +349,8 @@ class CL_FILTER : public CL_PLUGIN, protected FILTER_PROCS
   // instances of this class are only created by the factory function below.
   CL_FILTER(CL_MODULE& mod) : CL_PLUGIN(mod) { f = NULL; }
  public:
+  // Return kind of Plugin handled by the class instance. (RTTI by the backdoor.)
+  virtual PLUGIN_TYPE get_type() const;
   // Load the filter plug-in. Return TRUE on success.
   virtual BOOL load_plugin();
   // No-op. Filters are initialized explicitely by calling initialize. Return TRUE.
@@ -392,6 +402,8 @@ class CL_VISUAL : public CL_PLUGIN, protected VISUAL_PROCS
   // instances of this class are only created by the factory function below.
   CL_VISUAL(CL_MODULE& mod) : CL_PLUGIN(mod), hwnd(NULLHANDLE) {}
  public:
+  // Return kind of Plugin handled by the class instance. (RTTI by the backdoor.)
+  virtual PLUGIN_TYPE get_type() const;
   // Load the visual plug-in. Return TRUE on success.
   virtual BOOL load_plugin();
   // No-op. Filters are initialized explicitely by calling initialize. Return TRUE.
@@ -503,7 +515,7 @@ class CL_MODULE_LIST : public CL_PLUGIN_BASE_LIST
 class CL_PLUGIN_LIST : public CL_PLUGIN_BASE_LIST
 {public:
   // append a new plug-in to the list.
-  BOOL            append(CL_PLUGIN* plugin) { return CL_PLUGIN_BASE_LIST::append(plugin); }
+  BOOL            append(CL_PLUGIN* plugin);
   // Remove the i-th plug-in from the list and return a pointer to it.
   CL_PLUGIN*      detach(int i);
   // Destroy the i-th plug-in in the list. Return TRUE on success.

@@ -883,7 +883,7 @@ const DECODER_WIZZARD* DLLENTRY decoder_getwizzard( )
   static const DECODER_WIZZARD wizzardentry =
   { NULL,
     "Record...",
-    0,
+    0, 0,
     &WizzardDlg
   };
 

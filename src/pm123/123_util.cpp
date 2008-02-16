@@ -36,6 +36,8 @@
 #include <stdio.h>
 
 #include <utilfct.h>
+#include <snprintf.h>
+#include <cpp/container.h>
 
 #include "pm123.h"
 #include "playable.h"

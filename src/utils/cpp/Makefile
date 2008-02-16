@@ -10,7 +10,7 @@ TARGET   = all2
 
 all2: cpputil$(LBO) $(MDUMMY)
 
-OBJECTS = event$(CO) mutex$(CO) container$(CO) queue$(CO)
+OBJECTS = showaccel$(CO) event$(CO) mutex$(CO) container$(CO) queue$(CO)
 OBJECTS = $(OBJECTS) xstring$(CO) url123$(CO) stringmap$(CO) smartptr$(CO)
 
 cpputil$(LBO): $(OBJECTS)
@@ -49,3 +49,5 @@ url123.cpp:	url123.h ..\strutils.h ..\debuglog.h
 url123.h:	..\cpp/xstring.h ..\cpp/stringmap.h
 xstring.cpp:	xstring.h ..\snprintf.h ..\debuglog.h
 xstring.h:	..\cpp/smartptr.h
+showaccel.cpp:	showaccel.h ..\snprintf.h
+showaccel.h:	..\cpp/container.h

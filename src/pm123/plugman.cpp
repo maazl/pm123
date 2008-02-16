@@ -73,6 +73,17 @@ static CL_PLUGIN_LIST  visuals;  // only visuals
 
 /****************************************************************************
 *
+* global events
+*
+****************************************************************************/
+
+event<const dec_event_args>   dec_event;
+event<const OUTEVENTTYPE>     out_event;
+event<const PLUGIN_EVENTARGS> plugin_event;
+
+
+/****************************************************************************
+*
 * virtual output interface, including filter plug-ins
 * This class logically connects the decoder and the output interface.
 *
@@ -383,7 +394,6 @@ T_TIME dec_maxpos()
 { return CL_GLUE::maxpos;
 }
 
-event<const dec_event_args> dec_event;
 
 /* setup new output stage or change the properties of the current one */
 ULONG out_setup( const FORMAT_INFO2* formatinfo, const char* URI )
@@ -438,8 +448,6 @@ BOOL out_trash()
   CL_GLUE::out_command( OUTPUT_TRASH_BUFFERS );
   return TRUE;
 }
-
-event<const OUTEVENTTYPE> out_event;
 
 /* Returns 0 = success otherwize MMOS/2 error. */
 ULONG DLLENTRY out_playing_samples( FORMAT_INFO* info, char* buf, int len )
@@ -600,10 +608,9 @@ static CL_PLUGIN* instantiate(CL_MODULE& mod, CL_PLUGIN* (*factory)(CL_MODULE& m
   { delete pp;
     DEBUGLOG(("plugman:instantiate: failed.\n"));
     return NULL;
-  } else
-  { pp->set_enabled(enabled);
-    return pp;
   }
+  pp->set_enabled(enabled);
+  return pp;
 }
 
 static int add_plugin_core(const char* name, const VISUAL_PROPERTIES* data, int mask, BOOL enabled = TRUE)
@@ -1358,15 +1365,14 @@ load_plugin_menu( HWND hMenu )
 }
 
 void
-append_load_menu( HWND hMenu, ULONG id_base, SHORT where, DECODER_WIZZARD_FUNC* callbacks, int size )
-{
-  DEBUGLOG(("append_load_menu(%p, %d, %d, %p, %d)\n", hMenu, id_base, callbacks, size));
+dec_append_load_menu( HWND hMenu, ULONG id_base, SHORT where, DECODER_WIZZARD_FUNC* callbacks, int size )
+{ DEBUGLOG(("dec_append_load_menu(%p, %d, %d, %p, %d)\n", hMenu, id_base, callbacks, size));
   int i;
   // cleanup
   SHORT lastcount = -1;
   for (i = 0; i < size; ++i)
   { SHORT newcount = SHORT1FROMMP(WinSendMsg(hMenu, MM_DELETEITEM, MPFROM2SHORT(id_base+i, FALSE), 0));
-    DEBUGLOG(("append_load_menu - %i %i\n", i, newcount));
+    DEBUGLOG(("dec_append_load_menu - %i %i\n", i, newcount));
     if (newcount == lastcount)
       break;
     lastcount = newcount;
@@ -1376,28 +1382,67 @@ append_load_menu( HWND hMenu, ULONG id_base, SHORT where, DECODER_WIZZARD_FUNC* 
   { CL_DECODER& dec = (CL_DECODER&)decoders[i];
     if (dec.get_enabled() && dec.get_procs().decoder_getwizzard)
     { const DECODER_WIZZARD* da = (*dec.get_procs().decoder_getwizzard)();
-      DEBUGLOG(("append_load_menu: %s - %p\n", dec.module_name, da));
+      DEBUGLOG(("dec_append_load_menu: %s - %p\n", dec.module_name, da));
       MENUITEM mi = {0};
       mi.iPosition   = where;
       mi.afStyle     = MIS_TEXT;
       //mi.afAttribute = 0;
       //mi.hwndSubMenu = NULLHANDLE;
       //mi.hItem       = 0;
-      while (da != NULL)
+      for (; da != NULL; da = da->link, ++id_base)
       { if (size-- == 0)
           return; // too many entries, can't help
         // Add menu item
-        mi.id        = id_base++;
+        mi.id        = id_base;
         SHORT pos = SHORT1FROMMR(WinSendMsg(hMenu, MM_INSERTITEM, MPFROMP(&mi), MPFROMP(da->prompt)));
-        DEBUGLOG(("append_load_menu: add %u: %s -> %p => %u\n", id_base, da->prompt, da->wizzard, pos));
+        DEBUGLOG(("dec_append_load_menu: add %u: %s -> %p => %u\n", id_base, da->prompt, da->wizzard, pos));
         // Add callback function
         *callbacks++ = da->wizzard;
         if (mi.iPosition != MIT_END)
           ++mi.iPosition;
-        // next entry
-        da = da->link;
       }
     }
+  }
+}
+
+void dec_append_accel_table( HACCEL& haccel, ULONG id_base, USHORT options, DECODER_WIZZARD_FUNC* callbacks, int size )
+{ DEBUGLOG(("dec_append_accel_table(%p, %u, %x, %p, %u)\n", haccel, id_base, options, callbacks, size));
+  // Fetch content
+  ULONG accelsize = WinCopyAccelTable(haccel, NULL, 0);
+  PMASSERT(accelsize);
+  accelsize += size * sizeof(ACCEL); // space for plug-in entries 
+  ACCELTABLE* paccel = (ACCELTABLE*)alloca(accelsize);
+  PMRASSERT(WinCopyAccelTable(haccel, paccel, accelsize));
+  DEBUGLOG(("dec_append_accel_table: %i\n", paccel->cAccel));
+  bool modified = false;
+  // Append plug-in accelerators
+  for (int i = 0; i < decoders.count(); ++i)
+  { CL_DECODER& dec = (CL_DECODER&)decoders[i];
+    if (dec.get_enabled() && dec.get_procs().decoder_getwizzard)
+    { const DECODER_WIZZARD* da = (*dec.get_procs().decoder_getwizzard)();
+      DEBUGLOG(("dec_append_accel_table: %s - %p\n", dec.module_name, da));
+      for (; da != NULL; da = da->link, ++id_base)
+      { if (size-- == 0)
+          goto nomore; // too many entries, can't help
+        DEBUGLOG(("dec_append_accel_table: at %u: %s -> %x -> %p\n", id_base, da->prompt, da->accel_key, da->wizzard));
+        *callbacks++ = da->wizzard;
+        if (da->accel_key == 0)
+          continue;
+        // Add table entry
+        ACCEL& accel = paccel->aaccel[paccel->cAccel++];
+        accel.fs  = da->accel_opt | options;
+        accel.key = da->accel_key;
+        accel.cmd = id_base;
+        DEBUGLOG(("dec_append_accel_table: add {%x, %x, %i}\n", accel.fs, accel.key, accel.cmd));
+        modified = true;
+      }
+    }
+  }
+ nomore:
+  if (modified)
+  { PMRASSERT(WinDestroyAccelTable(haccel));
+    haccel = WinCreateAccelTable(amp_player_hab(), paccel);
+    PMASSERT(haccel != NULLHANDLE);
   }
 }
 

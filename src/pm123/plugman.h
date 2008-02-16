@@ -48,20 +48,30 @@
 #include <cpp/event.h>
 
 typedef struct
-{
-  HMODULE module;
+{ HMODULE module;
   char    module_name[_MAX_PATH];
   PLUGIN_QUERYPARAM query_param;
-
 } PLUGIN_BASE;
 
 typedef struct
-{
-  int     x, y, cx, cy;
+{ int     x, y, cx, cy;
   BOOL    skin;
   char    param[256];
-
 } VISUAL_PROPERTIES;
+
+typedef struct
+{ PLUGIN_BASE* plugin;
+  PLUGIN_TYPE type;
+  enum event
+  { Load,
+    Unload,
+    Enable,
+    Disable,
+    Init,
+    Uninit
+  } operation;
+} PLUGIN_EVENTARGS;
+
 
 /****************************************************************************
 *
@@ -92,6 +102,9 @@ BOOL  save_filters ( BUFSTREAM* b );
 BOOL  save_visuals ( BUFSTREAM* b );
 
 ULONG add_plugin( const char* module_name, const VISUAL_PROPERTIES* data );
+
+extern event<const PLUGIN_EVENTARGS> plugin_event;
+
 
 /****************************************************************************
 *
@@ -151,13 +164,18 @@ extern event<const OUTEVENTTYPE> out_event;
 ****************************************************************************/
 /* check whether the specified decoder is currently in use */
 BOOL  dec_is_active( int number );
-/* gets a merged list of the file types supported by the enabled decoders */
-void  dec_fill_types( char* result, size_t size );
 
 ULONG DLLENTRY dec_fileinfo( const char* filename, DECODER_INFO2* info, char* name );
 ULONG DLLENTRY dec_cdinfo( const char* drive, DECODER_CDINFO* info );
 ULONG DLLENTRY dec_status( void );
 double DLLENTRY dec_length( void );
+
+/* gets a merged list of the file types supported by the enabled decoders */
+void  dec_fill_types( char* result, size_t size );
+/* Add additional entries in load/add menu in the main and the playlist's pop-up menu */
+void  dec_append_load_menu( HWND hMenu, ULONG id_base, SHORT where, DECODER_WIZZARD_FUNC* callbacks, int size );
+/* Append accelerator table with plug-in specific entries */
+void  dec_append_accel_table( HACCEL& haccel, ULONG id_base, USHORT options, DECODER_WIZZARD_FUNC* callbacks, int size );
 
 /****************************************************************************
 *
@@ -208,8 +226,6 @@ void  vis_deinit_all( BOOL skin );
 ****************************************************************************/
 /* Plug-in menu in the main pop-up menu */
 void  load_plugin_menu( HWND hmenu );
-/* Add additional entries in load/add menu in the main and the playlist's pop-up menu */
-void  append_load_menu( HWND hMenu, ULONG id_base, SHORT where, DECODER_WIZZARD_FUNC* callbacks, int size );
 
 
 /****************************************************************************

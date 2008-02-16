@@ -368,18 +368,16 @@ BEGIN
    "s",        IDM_M_SAVE,      AF_CHAR | AF_CONTROL
    "t",        IDM_M_TREEVIEW,  AF_CHAR | AF_CONTROL
    "b",        IDM_M_EDITBOOK,  AF_CHAR | AF_ALT
-/* "t",        IDM_M_TRACK,     AF_CHAR | AF_ALT*/
    "u",        IDM_M_URL,       AF_CHAR | AF_ALT
    "+",        IDM_M_VOL_RAISE, AF_CHAR
    "=",        IDM_M_VOL_RAISE, AF_CHAR
    "-",        IDM_M_VOL_LOWER, AF_CHAR
-    76,        BMP_PAUSE,       AF_SCANCODE
-
    VK_F4 ,     BMP_POWER,       AF_VIRTUALKEY | AF_ALT
    VK_F9 ,     IDM_M_MINIMIZE,  AF_VIRTUALKEY | AF_ALT
    VK_F11,     IDM_M_MINIMIZE,  AF_VIRTUALKEY | AF_ALT
-   VK_ENTER,   BMP_PLAY,        AF_VIRTUALKEY
    VK_NEWLINE, BMP_PLAY,        AF_VIRTUALKEY
+   VK_ENTER,   BMP_PLAY,        AF_VIRTUALKEY
+   VK_PAUSE,   BMP_PAUSE,       AF_VIRTUALKEY
    VK_RIGHT,   BMP_FWD,         AF_VIRTUALKEY
    VK_LEFT,    BMP_REW,         AF_VIRTUALKEY
    VK_DOWN,    BMP_NEXT,        AF_VIRTUALKEY
@@ -391,26 +389,26 @@ MENU MNU_MAIN
 {
    SUBMENU "~Load",                         IDM_M_LOAD
    {
-     MENUITEM "~File...\t^O",               IDM_M_LOADFILE
-     MENUITEM "~URL...\tAlt+U",             IDM_M_URL
+     MENUITEM "~File...",                   IDM_M_LOADFILE
+     MENUITEM "~URL...",                    IDM_M_URL
    }
    SUBMENU "~Bookmarks",                    IDM_M_BOOKMARKS
    {
-     MENUITEM "~Add current as bookmark\t^B", IDM_M_ADDBOOK
-     MENUITEM "~Edit bookmarks...\tAlt+B",  IDM_M_EDITBOOK
+     MENUITEM "~Add current as bookmark",   IDM_M_ADDBOOK
+     MENUITEM "~Edit bookmarks...",         IDM_M_EDITBOOK
      MENUITEM SEPARATOR
    }
    SUBMENU "~Current Song",                 IDM_M_CURRENT_SONG
    {
-     MENUITEM "~Edit file info...\t^E",     IDM_M_TAG
+     MENUITEM "~Edit file info...",         IDM_M_TAG
      MENUITEM SEPARATOR
-     MENUITEM "Add as ~bookmark\t^B",       IDM_M_ADDBOOK
+     MENUITEM "Add as ~bookmark",           IDM_M_ADDBOOK
      MENUITEM "Add as bookmark with ~time", IDM_M_ADDBOOK_TIME
    }
    SUBMENU "Current Pla~ylist",             IDM_M_CURRENT_PL
    {
-     MENUITEM "Show ~Detailed view\t^D",    IDM_M_DETAILED
-     MENUITEM "Show ~tree view\t^T",        IDM_M_TREEVIEW
+     MENUITEM "Show ~Detailed view",        IDM_M_DETAILED
+     MENUITEM "Show ~tree view",            IDM_M_TREEVIEW
      MENUITEM SEPARATOR
      MENUITEM "Add as ~bookmark",           IDM_M_ADDPLBOOK
      MENUITEM "Append to playlist ~manager",IDM_M_ADDPMBOOK
@@ -418,21 +416,21 @@ MENU MNU_MAIN
      MENUITEM "~Save...",                   IDM_M_PLSAVE
    }
    MENUITEM SEPARATOR
-   MENUITEM "Default ~playlist\t^P",        IDM_M_PLAYLIST
-   MENUITEM "Playlist ~manager...\t^M",     IDM_M_MANAGER
+   MENUITEM "Default ~playlist",            IDM_M_PLAYLIST
+   MENUITEM "Playlist ~manager...",         IDM_M_MANAGER
    MENUITEM SEPARATOR
    MENUITEM "P~roperties...",               IDM_M_CFG
    SUBMENU  "Pl~ayback",                    IDM_M_PLAYBACK
    {
-     MENUITEM "P~lay/Stop\tEnter",          BMP_PLAY
+     MENUITEM "P~lay/Stop",                 BMP_PLAY
      MENUITEM "~Pause\tPad 5",              BMP_PAUSE
-     MENUITEM "Fast ~forward\tLeft",        BMP_FWD
-     MENUITEM "Fast ~backward\tRight",      BMP_REW
+     MENUITEM "Fast ~forward",              BMP_FWD
+     MENUITEM "Fast ~backward",             BMP_REW
      MENUITEM "~Next\tDown",                BMP_NEXT
      MENUITEM "Pre~vious\tUp",              BMP_PREV
      MENUITEM SEPARATOR
-     MENUITEM "~Raise volume\t+",           IDM_M_VOL_RAISE
-     MENUITEM "~Lower volume\t-",           IDM_M_VOL_LOWER
+     MENUITEM "~Raise volume",              IDM_M_VOL_RAISE
+     MENUITEM "~Lower volume",              IDM_M_VOL_LOWER
    }
    SUBMENU "Plu~g-ins",                     IDM_M_PLUG
    {
@@ -455,10 +453,10 @@ MENU MNU_MAIN
      }
    }
    MENUITEM SEPARATOR
-   MENUITEM "E~qualizer...\t^Q",            IDM_M_EQUALIZE
-   MENUITEM "~Save Stream...\t^S",          IDM_M_SAVE
+   MENUITEM "E~qualizer...",                IDM_M_EQUALIZE
+   MENUITEM "~Save Stream...",              IDM_M_SAVE
    MENUITEM "~Float on Top",                IDM_M_FLOAT
-   MENUITEM "~Hide Window\tAlt+F9",         IDM_M_MINIMIZE
+   MENUITEM "~Hide Window",                 IDM_M_MINIMIZE
 }
 
 HELPTABLE HLP_MAIN
@@ -901,38 +899,38 @@ END
 ACCELTABLE ACL_PLAYLIST
 BEGIN
    "u",       IDM_PL_USEALL,      AF_CHAR|AF_CONTROL
-   "u",       IDM_PL_USE,         AF_CHAR|AF_CONTROL|AF_SHIFT
-   VK_INSERT, IDM_PL_APPFILE,     AF_VIRTUALKEY
-   "u",       IDM_PL_APPURL,      AF_CHAR|AF_ALT
+   "U",       IDM_PL_USE,         AF_CHAR|AF_CONTROL|AF_SHIFT
+   VK_INSERT, IDM_PL_APPFILEALL,  AF_VIRTUALKEY
+   VK_INSERT, IDM_PL_APPFILE,     AF_VIRTUALKEY|AF_SHIFT
+   "u",       IDM_PL_APPURLALL,   AF_CHAR|AF_ALT
+   "U",       IDM_PL_APPURL,      AF_CHAR|AF_ALT|AF_SHIFT
 /* "t",       IDM_PL_TRACK,       AF_CHAR|AF_ALT*/
    "c",       IDM_PL_CLEAR,       AF_CHAR|AF_CONTROL
    "s",       IDM_PL_SAVE,        AF_CHAR|AF_CONTROL
    "t",       IDM_PL_TREEVIEWALL, AF_CHAR|AF_CONTROL
-   "t",       IDM_PL_TREEVIEW,    AF_CHAR|AF_CONTROL|AF_SHIFT
+   "T",       IDM_PL_TREEVIEW,    AF_CHAR|AF_CONTROL|AF_SHIFT
    "d",       IDM_PL_DETAILEDALL, AF_CHAR|AF_CONTROL
-   "d",       IDM_PL_DETAILED,    AF_CHAR|AF_CONTROL|AF_SHIFT
+   "D",       IDM_PL_DETAILED,    AF_CHAR|AF_CONTROL|AF_SHIFT
    "e",       IDM_PL_EDIT,        AF_CHAR|AF_CONTROL
    "o",       IDM_PL_OPEN,        AF_CHAR|AF_CONTROL
    VK_DELETE, IDM_PL_REMOVE,      AF_VIRTUALKEY
-   VK_F10,    IDM_PL_MENUCONT,    AF_VIRTUALKEY | AF_SHIFT
+   VK_F10,    IDM_PL_MENUCONT,    AF_VIRTUALKEY|AF_SHIFT
    VK_SPACE,  IDM_PL_MENU,        AF_VIRTUALKEY
 /* VK_ENTER,  IDM_PL_USE,         AF_VIRTUALKEY*/
 END
 
 MENU MNU_PLAYLIST
 {
-   MENUITEM "~Load this Playlist\t^U",    IDM_PL_USEALL
-   MENUITEM "Show ~Detailed view\t^D",    IDM_PL_DETAILEDALL, 0, MIA_CHECKED|MIA_DISABLED
-   MENUITEM "Show ~tree view\t^T",        IDM_PL_TREEVIEWALL
-   SUBMENU "~Append...\tIns",             IDM_PL_APPEND
-   {
-     MENUITEM "~Files...\tIns",           IDM_PL_APPFILE
-     MENUITEM "~URL...\tAlt+U",           IDM_PL_APPURL
+   MENUITEM "~Load this Playlist",        IDM_PL_USEALL
+   MENUITEM "Show ~Detailed view",        IDM_PL_DETAILEDALL, 0, MIA_CHECKED|MIA_DISABLED
+   MENUITEM "Show ~tree view",            IDM_PL_TREEVIEWALL
+   SUBMENU "~Append...",                  IDM_PL_APPENDALL
+   { MENUITEM "~Files...",                IDM_PL_APPFILEALL
+     MENUITEM "~URL...",                  IDM_PL_APPURLALL
    }
    MENUITEM SEPARATOR
    SUBMENU "Sort",                        IDM_PL_SORT
-   {
-     MENUITEM "Display ~name",            IDM_PL_SORT_ALIASALL
+   { MENUITEM "Display ~name",            IDM_PL_SORT_ALIASALL
      MENUITEM "~Song name",               IDM_PL_SORT_SONGALL
      MENUITEM "~Artist name",             IDM_PL_SORT_ARTALL
      MENUITEM "Al~bum name",              IDM_PL_SORT_ALBUMALL
@@ -942,22 +940,22 @@ MENU MNU_PLAYLIST
      MENUITEM "~Random",                  IDM_PL_SORT_RANDALL
    }
    MENUITEM SEPARATOR
-   MENUITEM "~Clear\t^C",                 IDM_PL_CLEARALL
+   MENUITEM "~Clear",                     IDM_PL_CLEARALL
    MENUITEM "Reload",                     IDM_PL_RELOAD
    MENUITEM SEPARATOR
-   MENUITEM "~Open another...\t^O",       IDM_PL_OPEN
-   MENUITEM "~Save...\t^S",               IDM_PL_SAVE
+   MENUITEM "~Open another...",           IDM_PL_OPEN
+   MENUITEM "~Save...",                   IDM_PL_SAVE
 }
 
 MENU MNU_RECORD
 {
-   MENUITEM "~Load\tSh+^U",               IDM_PL_USE
-   MENUITEM "~Navigate to\tEnter",        IDM_PL_NAVIGATE
-   MENUITEM "~Edit meta info...\t^E",     IDM_PL_EDIT
-   MENUITEM "~Edit playlist...\tSh+^D",   IDM_PL_DETAILED
-   MENUITEM "Open in ~tree view\tSh+^T",  IDM_PL_TREEVIEW
+   MENUITEM "~Load",                      IDM_PL_USE
+   MENUITEM "~Navigate to",               IDM_PL_NAVIGATE
+   MENUITEM "~Edit meta info...",         IDM_PL_EDIT
+   MENUITEM "~Edit playlist...",          IDM_PL_DETAILED
+   MENUITEM "Open in ~tree view",         IDM_PL_TREEVIEW
    MENUITEM SEPARATOR
-   MENUITEM "~Remove from list\tDel",     IDM_PL_REMOVE
+   MENUITEM "~Remove from list",          IDM_PL_REMOVE
    MENUITEM SEPARATOR
    MENUITEM "Refresh status",             IDM_PL_REFRESH
 }
@@ -966,18 +964,17 @@ MENU MNU_RECORD
 
 MENU PM_MAIN_MENU
 {
-   MENUITEM "~Load all\t^U",              IDM_PL_USEALL
-   MENUITEM "Show ~Detailed view\t^D",    IDM_PL_DETAILEDALL
-   MENUITEM "Show ~Tree view\t^T",        IDM_PL_TREEVIEWALL, 0, MIA_CHECKED|MIA_DISABLED
+   MENUITEM "~Load all",                  IDM_PL_USEALL
+   MENUITEM "Show ~Detailed view",        IDM_PL_DETAILEDALL
+   MENUITEM "Show ~Tree view",            IDM_PL_TREEVIEWALL, 0, MIA_CHECKED|MIA_DISABLED
    MENUITEM SEPARATOR
-   SUBMENU  "~Append to...\tIns",         IDM_PL_APPEND
-   {  MENUITEM "~Files...\tIns",          IDM_PL_APPFILE
-      MENUITEM "~URL...",                 IDM_PL_APPURL
+   SUBMENU  "~Append to...",              IDM_PL_APPENDALL
+   {  MENUITEM "~Files...",               IDM_PL_APPFILEALL
+      MENUITEM "~URL...",                 IDM_PL_APPURLALL
    }
    MENUITEM SEPARATOR
    SUBMENU "Sort",                        IDM_PL_SORT
-   {
-     MENUITEM "Display ~name",            IDM_PL_SORT_ALIASALL
+   { MENUITEM "Display ~name",            IDM_PL_SORT_ALIASALL
      MENUITEM "~Song name",               IDM_PL_SORT_SONGALL
      MENUITEM "~Artist name",             IDM_PL_SORT_ARTALL
      MENUITEM "Al~bum name",              IDM_PL_SORT_ALBUMALL
@@ -987,32 +984,31 @@ MENU PM_MAIN_MENU
      MENUITEM "~Random",                  IDM_PL_SORT_RANDALL
    }
    MENUITEM SEPARATOR
-   MENUITEM "~Clear\t^C",                 IDM_PL_CLEARALL
+   MENUITEM "~Clear",                     IDM_PL_CLEARALL
    MENUITEM "Reload",                     IDM_PL_RELOAD
    MENUITEM SEPARATOR
-   MENUITEM "~Open another...\t^O",       IDM_PL_OPEN
-   MENUITEM "~Save...\tCtrl+S",           IDM_PL_SAVE
+   MENUITEM "~Open another...",           IDM_PL_OPEN
+   MENUITEM "~Save...",                   IDM_PL_SAVE
 }
 
 MENU PM_REC_MENU
 {
-   MENUITEM "~Load\tSh+^U",               IDM_PL_USE
-   MENUITEM "~Navigate to\tEnter",        IDM_PL_NAVIGATE
-   MENUITEM "~Edit meta info...\t^E",     IDM_PL_EDIT
-   MENUITEM "~Detailed view (edit)\tSh+^D",IDM_PL_DETAILED
-   MENUITEM "~Tree view from here\tSh+^T",IDM_PL_TREEVIEW
+   MENUITEM "~Load",                      IDM_PL_USE
+   MENUITEM "~Navigate to",               IDM_PL_NAVIGATE
+   MENUITEM "~Edit meta info...",         IDM_PL_EDIT
+   MENUITEM "~Detailed view (edit)",      IDM_PL_DETAILED
+   MENUITEM "~Tree view from here",       IDM_PL_TREEVIEW
    MENUITEM SEPARATOR
-   MENUITEM "~Remove Item\tDel",          IDM_PL_REMOVE
+   MENUITEM "~Remove Item",               IDM_PL_REMOVE
    MENUITEM SEPARATOR
    MENUITEM "Refresh status",             IDM_PL_REFRESH
-   SUBMENU  "~Append to...\tIns",         IDM_PL_APPEND
-   {  MENUITEM "~Files...\tIns",          IDM_PL_APPFILE
+   SUBMENU  "~Append to...",              IDM_PL_APPEND
+   {  MENUITEM "~Files...",               IDM_PL_APPFILE
       MENUITEM "~URL...",                 IDM_PL_APPURL
    }
    MENUITEM SEPARATOR
    SUBMENU "Sort",                        IDM_PL_SORT
-   {
-     MENUITEM "Display ~name",            IDM_PL_SORT_ALIAS
+   { MENUITEM "Display ~name",            IDM_PL_SORT_ALIAS
      MENUITEM "~Song name",               IDM_PL_SORT_SONG
      MENUITEM "~Artist name",             IDM_PL_SORT_ART
      MENUITEM "Al~bum name",              IDM_PL_SORT_ALBUM

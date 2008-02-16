@@ -11,11 +11,13 @@ extern "C" {
 
 #pragma pack(4)
 
-#define PLUGIN_NULL    0x000
-#define PLUGIN_VISUAL  0x001
-#define PLUGIN_FILTER  0x002
-#define PLUGIN_DECODER 0x004
-#define PLUGIN_OUTPUT  0x008
+typedef enum
+{ PLUGIN_NULL    = 0x000,
+  PLUGIN_VISUAL  = 0x001,
+  PLUGIN_FILTER  = 0x002,
+  PLUGIN_DECODER = 0x004,
+  PLUGIN_OUTPUT  = 0x008
+} PLUGIN_TYPE;
 
 /* see decoder_plug.h and output_plug.h for more information
    on some of these functions */
