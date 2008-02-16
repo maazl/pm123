@@ -237,7 +237,6 @@ HWND PlaylistManager::InitContextMenu()
     { MainMenu = WinLoadMenu(HWND_OBJECT, 0, PM_MAIN_MENU);
       PMASSERT(MainMenu != NULLHANDLE);
       mn_make_conditionalcascade(MainMenu, IDM_PL_APPENDALL, IDM_PL_APPFILEALL);
-      MenuShowAccel(WinQueryAccelTable(WinQueryAnchorBlock(HwndFrame), HwndFrame)).ApplyTo(MainMenu);
       new_menu = true; // force update below
     }
     hwndMenu = MainMenu;
@@ -251,7 +250,6 @@ HWND PlaylistManager::InitContextMenu()
     { RecMenu = WinLoadMenu(HWND_OBJECT, 0, PM_REC_MENU);
       PMASSERT(RecMenu != NULLHANDLE);
       mn_make_conditionalcascade(RecMenu, IDM_PL_APPEND, IDM_PL_APPFILE);
-      MenuShowAccel(WinQueryAccelTable(WinQueryAnchorBlock(HwndFrame), HwndFrame)).ApplyTo(RecMenu);
       new_menu = true; // force update below
     }
     hwndMenu = RecMenu;
@@ -277,7 +275,9 @@ HWND PlaylistManager::InitContextMenu()
   // Update accelerators?
   if (AccelChanged || new_menu)
   { AccelChanged = false;
-    MenuShowAccel(WinQueryAccelTable(WinQueryAnchorBlock(HwndFrame), HwndFrame)).ApplyTo(new_menu ? hwndMenu : item.hwndSubMenu);
+    // gcc requires a temporary here. Reason unknown. Most probably a bug.
+    HACCEL haccel = WinQueryAccelTable(WinQueryAnchorBlock(HwndFrame), HwndFrame);
+    MenuShowAccel(haccel).ApplyTo(new_menu ? hwndMenu : item.hwndSubMenu);
   }
   // emphasize record
   DEBUGLOG(("PlaylistManager::InitContextMenu: Menu: %p %p\n", MainMenu, RecMenu));

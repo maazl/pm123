@@ -400,13 +400,17 @@ HWND PlaylistView::InitContextMenu()
     // Update accelerators?
     if (AccelChanged || new_menu)
     { AccelChanged = false;
-      MenuShowAccel(WinQueryAccelTable(WinQueryAnchorBlock(HwndFrame), HwndFrame)).ApplyTo(new_menu ? hwndMenu : item.hwndSubMenu);
+      // gcc requires a temporary here. Reason unknown. Most probably a bug.
+      HACCEL haccel = WinQueryAccelTable(WinQueryAnchorBlock(HwndFrame), HwndFrame);
+      MenuShowAccel(haccel).ApplyTo(new_menu ? hwndMenu : item.hwndSubMenu);
     }
   } else
   { if (RecMenu == NULLHANDLE)
     { RecMenu = WinLoadMenu(HWND_OBJECT, 0, MNU_RECORD);
       PMASSERT(RecMenu != NULLHANDLE);
-      MenuShowAccel(WinQueryAccelTable(WinQueryAnchorBlock(HwndFrame), HwndFrame)).ApplyTo(RecMenu);
+      // gcc requires a temporary here. Reason unknown. Most probably a bug.
+      HACCEL haccel = WinQueryAccelTable(WinQueryAnchorBlock(HwndFrame), HwndFrame);
+      MenuShowAccel(haccel).ApplyTo(RecMenu);
     }
     hwndMenu = RecMenu;
     RecordType rt = AnalyzeRecordTypes();
@@ -609,4 +613,3 @@ void PlaylistView::UpdateRecord(Record* rec, Playable::InfoFlags flags, Playable
   if (update)
     PMRASSERT(WinSendMsg(HwndContainer, CM_INVALIDATERECORD, MPFROMP(&rec), MPFROM2SHORT(1, CMA_TEXTCHANGED)));
 }
-

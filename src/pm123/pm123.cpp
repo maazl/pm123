@@ -204,7 +204,7 @@ amp_paint_timers( HPS hps )
   T_TIME list_left = -1;
   T_TIME play_time = is_seeking ? seeking_pos : last_status.CurrentSongTime;
   T_TIME play_left = last_status.TotalSongTime;
-  
+
   if (play_left > 0)
     play_left -= play_time;
 
@@ -228,7 +228,7 @@ amp_paint_fileinfo( HPS hps )
 
   int_ptr<Playable> pp = Ctrl::GetRoot();
   bmp_draw_plmode( hps, pp != NULL, pp ? pp->GetFlags() : Playable::None );
-  
+
   pp = Ctrl::GetCurrentSong();
   if (pp != NULL)
   { bmp_draw_rate    ( hps, pp->GetInfo().tech->bitrate );
@@ -302,7 +302,7 @@ amp_display_filename( void )
     case CFG_DISP_FILENAME:
       text = song->GetURL().getShortName();
       break;
-    
+
     case CFG_DISP_FILEINFO:
       text = song->GetInfo().tech->info;
       break;
@@ -406,7 +406,7 @@ amp_load_accel()
   PMASSERT(haccel != NULLHANDLE);
   memset( load_wizzards+2, 0, sizeof load_wizzards - 2*sizeof *load_wizzards ); // You never know...
   dec_append_accel_table( haccel, IDM_M_LOADOTHER, 0, load_wizzards+2, sizeof load_wizzards / sizeof *load_wizzards -2);
-  // Replace table of current window.   
+  // Replace table of current window.
   HACCEL haccel_old = WinQueryAccelTable(hab, hframe);
   PMRASSERT(WinSetAccelTable(hab, haccel, hframe));
   if (haccel_old != NULLHANDLE)
@@ -423,7 +423,7 @@ amp_show_context_menu( HWND parent )
   if( menu == NULLHANDLE )
   { menu = WinLoadMenu( HWND_OBJECT, 0, MNU_MAIN );
     mn_make_conditionalcascade( menu, IDM_M_LOAD, IDM_M_LOADFILE );
-    
+
     PlaylistMenu* pmp = new PlaylistMenu(parent, IDM_M_LAST, IDM_M_LAST_E);
     pmp->AttachMenu(IDM_M_BOOKMARKS, DefaultBM->GetContent(), PlaylistMenu::DummyIfEmpty|PlaylistMenu::Recursive|PlaylistMenu::Enumerate, 0);
     pmp->AttachMenu(IDM_M_LOAD, LoadMRU, PlaylistMenu::Enumerate|PlaylistMenu::Separator, 0);
@@ -454,7 +454,9 @@ amp_show_context_menu( HWND parent )
 
   if (is_accel_changed)
   { is_accel_changed = false;
-    MenuShowAccel( WinQueryAccelTable( hab, hframe )).ApplyTo( menu );
+    // gcc requires a temporary here. Reason unknown. Most probably a parser bug.
+    HACCEL haccel = WinQueryAccelTable( hab, hframe );
+    MenuShowAccel( haccel ).ApplyTo( menu );
   }
 
   // Update status
@@ -557,9 +559,9 @@ amp_drag_drop( HWND hwnd, PDRAGINFO pdinfo )
       pditem->hwndItem, pditem->ulItemID, amp_string_from_drghstr(pditem->hstrType).cdata(), amp_string_from_drghstr(pditem->hstrRMF).cdata(),
       amp_string_from_drghstr(pditem->hstrContainerName).cdata(), amp_string_from_drghstr(pditem->hstrSourceName).cdata(), amp_string_from_drghstr(pditem->hstrTargetName).cdata(),
       pditem->cxOffset, pditem->cyOffset, pditem->fsControl, pditem->fsSupportedOps));
-    
+
     ULONG reply = DMFL_TARGETFAIL;
-    
+
     if( DrgVerifyRMF( pditem, "DRM_OS2FILE", NULL ))
     {
       // fetch full qualified path
@@ -578,7 +580,7 @@ amp_drag_drop( HWND hwnd, PDRAGINFO pdinfo )
           pdsource->options  = options;
           pdsource->hwndItem = pditem->hwndItem;
           pdsource->ulItemID = pditem->ulItemID;
-        
+
           pdtrans->cb               = sizeof( DRAGTRANSFER );
           pdtrans->hwndClient       = hwnd;
           pdtrans->pditem           = pditem;
@@ -591,7 +593,7 @@ amp_drag_drop( HWND hwnd, PDRAGINFO pdinfo )
           // Send the message before setting a render-to name.
           if ( pditem->fsControl & DC_PREPAREITEM
             && !DrgSendTransferMsg(pditem->hwndItem, DM_RENDERPREPARE, (MPARAM)pdtrans, 0) )
-          { // Failure => do not send DM_ENDCONVERSATION 
+          { // Failure => do not send DM_ENDCONVERSATION
             DrgFreeDragtransfer(pdtrans);
             delete pdsource;
             continue;
@@ -600,7 +602,7 @@ amp_drag_drop( HWND hwnd, PDRAGINFO pdinfo )
           // Send the message after setting a render-to name.
           if ( (pditem->fsControl & (DC_PREPARE | DC_PREPAREITEM)) == DC_PREPARE
             && !DrgSendTransferMsg(pditem->hwndItem, DM_RENDERPREPARE, (MPARAM)pdtrans, 0) )
-          { // Failure => do not send DM_ENDCONVERSATION 
+          { // Failure => do not send DM_ENDCONVERSATION
             DrgFreeDragtransfer(pdtrans);
             delete pdsource;
             continue;
@@ -613,7 +615,7 @@ amp_drag_drop( HWND hwnd, PDRAGINFO pdinfo )
           // something failed => we have to cleanup ressources immediately and cancel the conversation
           DrgFreeDragtransfer(pdtrans);
           delete pdsource;
-          // ... send DM_ENDCONVERSATION below 
+          // ... send DM_ENDCONVERSATION below
         }
       } else if (pditem->hstrContainerName && pditem->hstrSourceName)
       { // Have full qualified file name.
@@ -621,21 +623,21 @@ amp_drag_drop( HWND hwnd, PDRAGINFO pdinfo )
         if (pditem->fsControl & DC_CONTAINER)
           // TODO: should be configurabe and alterable
           fullname = fullname + "/?Recursive";
-          
+
         DropInfo* pdsource = new DropInfo();
-        pdsource->URL      = url123::normalizeURL(fullname); 
+        pdsource->URL      = url123::normalizeURL(fullname);
         pdsource->options  = options;
         WinPostMsg(hwnd, AMP_LOAD, MPFROMP(pdsource), 0);
         reply = DMFL_TARGETSUCCESSFUL;
       }
-      
+
     } else if (DrgVerifyRMF(pditem, "DRM_123FILE", NULL))
     { // In the DRM_123FILE transfer mechanism the target is responsable for doing the target related stuff
       // while the source does the source related stuff. So a DO_MOVE operation causes
       // - a create in the target window and
       // - a remove in the source window.
-      // The latter is done when DM_ENDCONVERSATION arrives with DMFL_TARGETSUCCESSFUL.   
-      
+      // The latter is done when DM_ENDCONVERSATION arrives with DMFL_TARGETSUCCESSFUL.
+
       DRAGTRANSFER* pdtrans = DrgAllocDragtransfer(1);
       if (pdtrans)
       { pdtrans->cb               = sizeof(DRAGTRANSFER);
@@ -652,7 +654,7 @@ amp_drag_drop( HWND hwnd, PDRAGINFO pdinfo )
         // insert item
         if ((pdtrans->fsReply & DMFL_NATIVERENDER))
         { DropInfo* pdsource = new DropInfo();
-          pdsource->URL      = amp_string_from_drghstr(pditem->hstrSourceName); 
+          pdsource->URL      = amp_string_from_drghstr(pditem->hstrSourceName);
           pdsource->options  = options;
           WinPostMsg(hwnd, AMP_LOAD, MPFROMP(pdsource), 0);
           reply = DMFL_TARGETSUCCESSFUL;
@@ -680,7 +682,7 @@ amp_drag_render_done( HWND hwnd, PDRAGTRANSFER pdtrans, USHORT rc )
   // If the rendering was successful, use the file, then delete it.
   if ((rc & DMFL_RENDEROK) && pdsource)
   { // fetch render to name
-    const xstring& rendered = amp_string_from_drghstr(pdtrans->hstrRenderToName); 
+    const xstring& rendered = amp_string_from_drghstr(pdtrans->hstrRenderToName);
     // fetch file content
     const xstring& fullname = amp_url_from_file(rendered);
     DosDelete(rendered);
@@ -1924,7 +1926,7 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
         Ctrl::EventFlags flags = (Ctrl::EventFlags)LONGFROMMP(mp1);
         DEBUGLOG(("amp_dlg_proc: AMP_CTRL_EVENT %x\n", flags));
         if (flags & Ctrl::EV_PlayStop)
-        { if (Ctrl::IsPlaying()) 
+        { if (Ctrl::IsPlaying())
           { WinSendDlgItemMsg(hplayer, BMP_PLAY,  WM_PRESS, 0, 0);
             amp_set_bubbletext(BMP_PLAY, "Stops playback");
           } else
@@ -1952,7 +1954,7 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
 
         if (flags & (Ctrl::EV_Volume|Ctrl::EV_Tech|Ctrl::EV_Meta))
         { HPS hps = WinGetPS(hplayer);
-          
+
           if (flags & Ctrl::EV_Volume)
             bmp_draw_volume(hps, Ctrl::GetVolume());
 
@@ -1973,7 +1975,7 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
         }
       }
       return 0;
-    
+
     case AMP_CTRL_EVENT_CB:
       { Ctrl::ControlCommand* cmd = (Ctrl::ControlCommand*)PVOIDFROMMP(mp1);
         DEBUGLOG(("amp_dlg_proc: AMP_CTRL_EVENT_CB %p{%i, %x}\n", cmd, cmd->Cmd, cmd->Flags));
@@ -2025,10 +2027,10 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
       { // eat other identical messages
         QMSG qmsg;
         while (WinPeekMsg(hab, &qmsg, hwnd, AMP_REFRESH_ACCEL, AMP_REFRESH_ACCEL, PM_REMOVE));
-      } 
+      }
       amp_load_accel();
       return 0;
-    
+
     case WM_CONTEXTMENU:
       amp_show_context_menu( hwnd );
       return 0;
@@ -2365,7 +2367,7 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
     {
       HPS hps;
       hplayer = hwnd; /* we have to assign the window handle early, because WinCreateStdWindow does not have returned now. */
-      
+
       hps = WinGetPS( hwnd );
       bmp_load_skin( cfg.defskin, hab, hwnd, hps );
       WinReleasePS( hps );
@@ -2587,8 +2589,9 @@ static void amp_plugin_eventhandler(void*, const PLUGIN_EVENTARGS& args)
      case PLUGIN_EVENTARGS::Disable:
      case PLUGIN_EVENTARGS::Unload:
       WinPostMsg(hplayer, AMP_REFRESH_ACCEL, 0, 0);
+     default:; // avoid warnings
     }
-  }  
+  }
 }
 
 struct args
@@ -2612,7 +2615,7 @@ main2( void* arg )
   ///////////////////////////////////////////////////////////////////////////
   // Initialization of infrastructure
   ///////////////////////////////////////////////////////////////////////////
-  
+
   HELPINIT hinit;
   ULONG    flCtlData = FCF_TASKLIST | FCF_NOBYTEALIGN | FCF_ICON;
 
@@ -2645,7 +2648,7 @@ main2( void* arg )
   // Keep track of plugin changes.
   delegate<void, const PLUGIN_EVENTARGS> plugin_delegate(plugin_event, &amp_plugin_eventhandler);
   PMRASSERT( WinPostMsg( hplayer, AMP_REFRESH_ACCEL, 0, 0 )); // load accelerators
-  
+
   // start controller
   Ctrl::Init();
   amp_reset_status();
@@ -2741,7 +2744,7 @@ main2( void* arg )
   //DefaultPL->SetVisible(cfg.show_playlist);
   //DefaultPM->SetVisible(cfg.show_plman);
   //DefaultBM->SetVisible(cfg.show_bmarks);
- 
+
   DEBUGLOG(("main: init complete\n"));
   //_beginthread(amp_sender_thread, NULL, 65536, NULL);
 
@@ -2782,7 +2785,7 @@ main2( void* arg )
 
   PlaylistManager::UnInit();
   PlaylistView::UnInit();
- 
+
   bmp_clean_skin();
   remove_all_plugins();
   dk_term();

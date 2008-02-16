@@ -1319,7 +1319,6 @@ bmp_draw_plind( HPS hps, int index, int total )
   if( digits )
   {
     int i;
-    POINTL p;
 
     if ( digits < 3 )
       digits = 3;
