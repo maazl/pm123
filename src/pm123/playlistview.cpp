@@ -400,17 +400,13 @@ HWND PlaylistView::InitContextMenu()
       PMRASSERT(WinSendMsg(hwndMenu, MM_QUERYITEM, MPFROM2SHORT(IDM_PL_APPENDALL, TRUE), MPFROMP(&item)));
       memset(LoadWizzards+2, 0, sizeof LoadWizzards - 2*sizeof *LoadWizzards ); // You never know...
       dec_append_load_menu(item.hwndSubMenu, IDM_PL_APPOTHERALL, 2, LoadWizzards+2, sizeof LoadWizzards/sizeof *LoadWizzards - 2);
-      // gcc requires a temporary here. Reason unknown. Most probably a bug.
-      HACCEL haccel = WinQueryAccelTable(WinQueryAnchorBlock(HwndFrame), HwndFrame);
-      MenuShowAccel(haccel).ApplyTo(new_menu ? hwndMenu : item.hwndSubMenu);
+      (MenuShowAccel(WinQueryAccelTable(WinQueryAnchorBlock(HwndFrame), HwndFrame))).ApplyTo(new_menu ? hwndMenu : item.hwndSubMenu);
     }
   } else
   { if (RecMenu == NULLHANDLE)
     { RecMenu = WinLoadMenu(HWND_OBJECT, 0, MNU_RECORD);
       PMASSERT(RecMenu != NULLHANDLE);
-      // gcc requires a temporary here. Reason unknown. Most probably a bug.
-      HACCEL haccel = WinQueryAccelTable(WinQueryAnchorBlock(HwndFrame), HwndFrame);
-      MenuShowAccel(haccel).ApplyTo(RecMenu);
+      (MenuShowAccel(WinQueryAccelTable(WinQueryAnchorBlock(HwndFrame), HwndFrame))).ApplyTo(RecMenu);
     }
     hwndMenu = RecMenu;
     RecordType rt = AnalyzeRecordTypes();

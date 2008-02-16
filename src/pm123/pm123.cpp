@@ -461,9 +461,7 @@ amp_show_context_menu( HWND parent )
 
   if (is_accel_changed)
   { is_accel_changed = false;
-    // gcc requires a temporary here. Reason unknown. Most probably a parser bug.
-    HACCEL haccel = WinQueryAccelTable( hab, hframe );
-    MenuShowAccel( haccel ).ApplyTo( menu );
+    ( MenuShowAccel( WinQueryAccelTable( hab, hframe ))).ApplyTo( menu );
   }
 
   // Update status

@@ -283,9 +283,7 @@ HWND PlaylistManager::InitContextMenu()
     PMRASSERT(WinSendMsg(hwndMenu, MM_QUERYITEM, MPFROM2SHORT(item.id, TRUE), MPFROMP(&item)));
     memset(LoadWizzards+2, 0, sizeof LoadWizzards - 2*sizeof *LoadWizzards ); // You never know...
     dec_append_load_menu(item.hwndSubMenu, item.id + IDM_PL_APPOTHER-IDM_PL_APPEND, 2, LoadWizzards+2, sizeof LoadWizzards/sizeof *LoadWizzards - 2);
-    // gcc requires a temporary here. Reason unknown. Most probably a bug.
-    HACCEL haccel = WinQueryAccelTable(WinQueryAnchorBlock(HwndFrame), HwndFrame);
-    MenuShowAccel(haccel).ApplyTo(new_menu ? hwndMenu : item.hwndSubMenu);
+    (MenuShowAccel(WinQueryAccelTable(WinQueryAnchorBlock(HwndFrame), HwndFrame))).ApplyTo(new_menu ? hwndMenu : item.hwndSubMenu);
   }
   // emphasize record
   DEBUGLOG(("PlaylistManager::InitContextMenu: Menu: %p %p\n", MainMenu, RecMenu));
