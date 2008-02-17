@@ -36,59 +36,20 @@
 #define INCL_GPI
 #define INCL_DOS
 
-#include <os2.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
 #include "button95.h"
+#include <os2.h>
 
 HBITMAP hbm, hbm2;
 ULONG bubbleStyle = FCF_BORDER;
 FONTMETRICS fontmetrics;
 
-/* bitmap cache for skin support */
-extern HBITMAP bmp_cache[8000];
-
-extern ULONG mainFg, mainDark, mainBright;
-#define NO_BORDERS
 
 void DrawButtonUnPressed(HPS hps, int x1, int y1, int x2, int y2, char *text, HBITMAP hbm, int id) {
   POINTL p;
-#ifndef NO_BORDERS
-  p.x = x1; p.y = y1;
-  GpiMove(hps, &p);
-
-  p.x = x2; p.y = y2;
-
-  GpiSetColor(hps, CLR_BLACK);
-
-  GpiBox(hps, DRO_OUTLINE, &p, 0, 0);
-
-  p.x = x1; p.y = y1; p.x; p.y++;
-  GpiMove(hps, &p);
-
-//  GpiSetColor(hps, CLR_PALEGRAY);
-  GpiSetColor(hps, mainFg);
-  p.x = x2-1; p.y = y2;
-
-  GpiBox(hps, DRO_FILL, &p, 0, 0);
-//  GpiSetColor(hps, CLR_DARKGRAY);
-  GpiSetColor(hps, mainDark);
-
-  GpiBox(hps, DRO_OUTLINE, &p, 0, 0);
-
-  p.y = y2; p.x = x1;
-//  GpiSetColor(hps, CLR_WHITE);
-  GpiSetColor(hps, mainBright);
-
-  GpiLine(hps, &p);
-
-  GpiMove(hps, &p);
-  p.x = x2 - 1;
-  GpiLine(hps, &p);
-#endif
-
   p.x = 0; p.y = 0;
 
 // draw the bitmap
@@ -108,40 +69,6 @@ void DrawButtonUnPressed(HPS hps, int x1, int y1, int x2, int y2, char *text, HB
 
 void DrawButtonPressed(HPS hps, int x1, int y1, int x2, int y2, char *text, HBITMAP hbm, int id) {
   POINTL p;
-
-#ifndef NO_BORDERS
-  p.x = x1; p.y = y1;
-  GpiMove(hps, &p);
-
-//  GpiSetColor(hps, CLR_PALEGRAY);
-  GpiSetColor(hps, mainFg);
-  p.x = x2; p.y = y2;
-
-  GpiBox(hps, DRO_FILL, &p, 0, 0);
-
-  p.x = x1; p.y = y1;
-  GpiMove(hps, &p);
-
-  p.x = x2; p.y = y2;
-
-  GpiSetColor(hps, CLR_BLACK);
-
-  GpiBox(hps, DRO_OUTLINE, &p, 0, 0);
-
-  GpiSetColor(hps, CLR_DARKGRAY);
-  GpiSetColor(hps, mainDark);
-
-  p.x = 2;
-  p.y = 1; GpiMove(hps, &p); p.x = x2; p.y = y2 - 1;
-  GpiBox(hps, DRO_OUTLINE, &p, 0, 0);
-
-
-//  GpiSetColor(hps, CLR_WHITE);
-  GpiSetColor(hps, mainBright);
-  p.x = x1; p.y = y1; GpiMove(hps, &p);
-  p.x = x2; GpiLine(hps, &p); GpiMove(hps, &p);
-  p.y = y2; GpiLine(hps, &p);
-#endif
 
   p.x = 0; p.y = 0;
 
@@ -254,8 +181,8 @@ MRESULT EXPENTRY ButtonWndProc (HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2)
                   WinInvalidateRect(hwnd, NULL, 1);
                   break;
    case WM_CHANGEBMP:
-                  bbb->bmp2 = LONGFROMMP(mp2);
-                  bbb->bmp1 = LONGFROMMP(mp1);
+                  bbb->bmp2 = PVOIDFROMMP(mp2);
+                  bbb->bmp1 = PVOIDFROMMP(mp1);
                   WinInvalidateRect(hwnd, NULL, 1);
                   break;
    case WM_PRESS:
@@ -324,11 +251,9 @@ MRESULT EXPENTRY ButtonWndProc (HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2)
                   break;
    case WM_PAINT:
                   hps  = WinBeginPaint(hwnd, NULLHANDLE, NULL);
-//                  hbm  = GpiLoadBitmap(hps, NULLHANDLE, bbb->bmp2, 0, 0);
-//                  hbm2 = GpiLoadBitmap(hps, NULLHANDLE, bbb->bmp1, 0, 0);
                   /* Skin support */
-                  hbm  = bmp_cache[bbb->bmp2];
-                  hbm2 = bmp_cache[bbb->bmp1];
+                  hbm  = *bbb->bmp2;
+                  hbm2 = *bbb->bmp1;
 
                   WinQueryWindowPos(hwnd, &swp);
 

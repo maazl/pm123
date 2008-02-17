@@ -2160,12 +2160,11 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
     case WM_COMMAND:
     { USHORT cmd = SHORT1FROMMP(mp1);
       DEBUGLOG(("amp_dlg_proc: WM_COMMAND(%u, %u, %u)\n", cmd, SHORT1FROMMP(mp2), SHORT2FROMMP(mp2)));
-      if( cmd > IDM_M_PLUG ) {
+      if( cmd > IDM_M_PLUG && cmd <= IDM_M_PLUG_E ) {
         configure_plugin( PLUGIN_NULL, cmd - IDM_M_PLUG - 1, hplayer );
         return 0;
       }
-      if( cmd >= IDM_M_LOADFILE &&
-          cmd < IDM_M_LOADFILE + sizeof load_wizzards / sizeof *load_wizzards &&
+      if( cmd >= IDM_M_LOADFILE && cmd < IDM_M_LOADFILE + sizeof load_wizzards / sizeof *load_wizzards &&
           load_wizzards[cmd-IDM_M_LOADFILE] )
       { // TODO: create temporary playlist
         bool first = true;

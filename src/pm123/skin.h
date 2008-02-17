@@ -36,6 +36,106 @@
 #include "playable.h"
 #include <os2.h>
 
+/* SKIN */
+
+/* Resource (bitmap) position settings. */
+enum
+{ POS_TIMER = 1,       /* Main timer.                                        */
+  POS_R_SIZE,          /* Main window size (sx, sy) for regular mode.        */
+  POS_R_PLAY,          /* Play button for regular mode.                      */
+  POS_R_PAUSE,         /* Pause button for regular mode.                     */
+  POS_R_REW,           /* Rewind button for regular mode.                    */
+  POS_R_FWD,           /* Fast forward button for regular mode.              */
+  POS_R_PL,            /* Playlist button for regular mode.                  */
+  POS_R_REPEAT,        /* Repeat button for regular mode.                    */
+  POS_R_SHUFFLE,       /* Shuffle button for regular mode.                   */
+  POS_R_PREV,          /* Previous button for regular mode.                  */
+  POS_R_NEXT,          /* Next button for regular mode.                      */
+  POS_R_POWER,         /* Power button for regular mode.                     */
+  POS_R_TEXT,          /* Text display for regular mode.                     */
+  POS_S_TEXT,          /* Text display for small mode.                       */
+  POS_NOTL,            /* "Time left", dark.                                 */
+  POS_TL,              /* "Time left", bright.                               */
+  POS_NOPLIST,         /* "Playlist left", dark.                             */
+  POS_PLIST,           /* "Playlist left", bright.                           */
+  POS_TIME_LEFT,       /* Time left timer.                                   */
+  POS_PL_LEFT,         /* Playlist left timer.                               */
+  POS_PL_MODE,         /* Playmode indicator (no file/single/playlist).      */
+  POS_LED,             /* Bright led (displayed when PM123 has focus).       */
+  POS_N_LED,           /* Dark led (displayed when PM123 is not focused).    */
+  POS_SLIDER,          /* Seek slider.                                       */
+  POS_VOLBAR,          /* Volume bar.                                        */
+  POS_NO_CHANNELS,     /* No channels indicator.                             */
+  POS_MONO,            /* Mono indicator.                                    */
+  POS_STEREO,          /* Stereo indicator.                                  */
+  POS_BPS,             /* Bitrate indicator.                                 */
+  POS_S_SIZE,          /* Main window size (sx, sy) for small mode.          */
+  POS_T_SIZE,          /* Main window size (sx, sy) for tiny mode.           */
+  POS_S_PLAY = 33,     /* Play button for small mode.                        */
+  POS_S_PAUSE,         /* Pause button for small mode.                       */
+  POS_S_REW,           /* Rewind button for small mode.                      */
+  POS_S_FWD,           /* Fast forward button for small mode.                */
+  POS_S_PL,            /* Playlist button for small mode.                    */
+  POS_S_REPEAT,        /* Repeat button for small mode.                      */
+  POS_S_SHUFFLE,       /* Shuffle button for small mode.                     */
+  POS_S_PREV,          /* Previous button for small mode.                    */
+  POS_S_NEXT,          /* Next button for small mode.                        */
+  POS_S_POWER,         /* Power button for small mode.                       */
+  POS_T_PLAY = 53,     /* Play button for tiny mode.                         */
+  POS_T_PAUSE,         /* Pause button for tiny mode.                        */
+  POS_T_REW,           /* Rewind button for tiny mode.                       */
+  POS_T_FWD,           /* Fast forward button for tiny mode.                 */
+  POS_T_PL,            /* Playlist button for tiny mode.                     */
+  POS_T_REPEAT,        /* Repeat button for tiny mode.                       */
+  POS_T_SHUFFLE,       /* Shuffle button for tiny mode.                      */
+  POS_T_PREV,          /* Previous button for tiny mode.                     */
+  POS_T_NEXT,          /* Next button for tiny mode.                         */
+  POS_T_POWER,         /* Power button for tiny mode.                        */
+  POS_PL_INDEX,        /* Playlist index indicator (1 of 2)                  */
+  POS_PL_TOTAL,        /* Playlist index indicator (1 of 2)                  */
+  POS_R_STOP,          /* Stop button for regular mode.                      */
+  POS_R_FLOAD,         /* Load file button for regular mode.                 */
+  POS_SLIDER_SHAFT,    /* Location for the slider shaft (bitmap 1906).       */
+  POS_S_STOP,          /* Stop button for small mode.                        */
+  POS_S_FLOAD,         /* Load file button for small mode.                   */
+  POS_T_STOP,          /* Stop button for tiny mode.                         */
+  POS_T_FLOAD,         /* Load file button for tiny mode.                    */
+  POS_VOLSLIDER,       /* Offset of the volume slider concerning a bar.      */
+  POS__MAX
+};
+
+/* Special resources that control PM123 interface. */
+enum
+{ UL_SHADE_BRIGHT = 1, /* Bright 3D-shade color.                             */
+  UL_SHADE_DARK,       /* Dark 3D-shade color.                               */
+  UL_SLIDER_BRIGHT,    /* Bright color of seek slider (obsolete).            */
+  UL_SLIDER_COLOR,     /* Color of seek slider border.                       */
+  UL_PL_COLOR,         /* Playlist position indicator color.                 */
+  UL_SHADE_STAT,       /* Disable 3D-shading of the statistics area.         */
+  UL_SHADE_VOLUME,     /* Disable 3D-shading of the volume bar.              */
+  UL_DISPLAY_MSG,      /* A string to be displayed on skin load (obsolete).  */
+  UL_SHADE_PLAYER,     /* Disable 3D-shading of the player window.           */
+  UL_SHADE_SLIDER,     /* Disable the seek slider border.                    */
+  UL_ONE_FONT,         /* Disable the second font.                           */
+  UL_TIMER_SEPSPACE,   /* Width of the main timer separator (obsolete).      */
+  UL_IN_PIXELS,        /* Measure width of the filename display in pixels.   */
+  UL_R_MSG_HEIGHT,     /* Height of the filename display for regular mode.   */
+  UL_S_MSG_HEIGHT,     /* Height of the filename display for small mode.     */
+  UL_FG_MSG_COLOR,     /* Foreground color of the filename display.          */
+  UL_R_MSG_LEN = 20,   /* Width of the filename display for regular mode.    */
+  UL_SLIDER_WIDTH,     /* Width the seek slider area in pixels.              */
+  UL_S_MSG_LEN,        /* Width of the filename display for small mode.      */
+  UL_FONT,             /* Initial font, 0 or 1.                              */
+  UL_TIMER_SPACE,      /* Space between the main timer digits (in pixels).   */
+  UL_TIMER_SEPARATE,   /* Disable separator between the main timer groups.   */
+  UL_VOLUME_HRZ,       /* Make volume bar horizontal.                        */
+  UL_VOLUME_SLIDER,    /* Give volume bar a handle you can grab.             */
+  UL_BPS_DIGITS,       /* Draw bitrates with digits from resource 1830-1839. */
+  UL_PL_INDEX,         /* Draw playlist indicator with resources 1660-1669.  */
+                       /* Number of digits to draw. (min. 3)                 */
+  UL_BUNDLE,           /* The bundle file for this skin.                     */
+  UL__MAX
+};
 
 typedef struct _BMPBUTTON
 {

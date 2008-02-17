@@ -58,10 +58,9 @@
 
 #include <debuglog.h>
 
-/* TODO: there is some dirty aliasing of this static around */
-HBITMAP bmp_cache[8000];
-static POINTL  bmp_pos  [1024];
-static ULONG   bmp_ulong[1024];
+static HBITMAP bmp_cache[8000];
+static POINTL  bmp_pos  [POS__MAX];
+static ULONG   bmp_ulong[UL__MAX];
 static char    visual_param[256];
 
 #define POS_UNDEF -1
@@ -1897,9 +1896,10 @@ bmp_load_skin( const char *filename, HAB hab, HWND hplayer, HPS hps )
         int i =  0;
 
         sscanf( line, "%d:%d,%d", &i, &x, &y );
-
-        bmp_pos[ i ].x = x;
-        bmp_pos[ i ].y = y;
+        if (i < POS__MAX)
+        { bmp_pos[ i ].x = x;
+          bmp_pos[ i ].y = y;
+        }
         break;
       }
 
@@ -2065,8 +2065,8 @@ bmp_init_button( HWND hwnd, BMPBUTTON* button )
     {
       btn_data.cb        =  sizeof( DATA95 );
       btn_data.Pressed   =  0;
-      btn_data.bmp1      =  release;
-      btn_data.bmp2      =  pressed;
+      btn_data.bmp1      =  bmp_cache + release;
+      btn_data.bmp2      =  bmp_cache + pressed;
       btn_data.stick     =  button->sticky;
       btn_data.stickvar  = &button->state;
       btn_data.hwndOwner =  hwnd;
@@ -2078,8 +2078,8 @@ bmp_init_button( HWND hwnd, BMPBUTTON* button )
     else
     {
       WinSetWindowPos( button->handle, HWND_TOP, x, y, cx, cy, SWP_MOVE | SWP_SIZE );
-      WinSendMsg( button->handle, WM_CHANGEBMP, MPFROMLONG( release ),
-                                                MPFROMLONG( pressed ));
+      WinSendMsg( button->handle, WM_CHANGEBMP, MPFROMP( bmp_cache + release ),
+                                                MPFROMP( bmp_cache + pressed ));
     }
   }
   else

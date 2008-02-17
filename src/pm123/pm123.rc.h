@@ -32,28 +32,27 @@
 #ifndef  PM123_RC_H
 #define  PM123_RC_H
 
+/* ID ranges:
+ *
+ *     0- 1999   PM123 core
+ **  500-  699   PM123 main menu
+ **  800-  899   PM123 Plalist/Playlist Manager misc
+ **  900-  999   PM123 Plalist/Playlist Manager menu
+ ** 1000- 1099   PM123 Help table
+ ** 1100- 1199   PM123 File, URL, EQ dialog
+ ** 1200- 1799   PM123 properties dialog
+ *  2000- 2999   PM123 Skin IDs
+ ** 2000- 2099   PM123 Skinned buttons
+ ** 2100- 2199   PM123 Skin misc
+ ** 2200- 2399   PM123 Skin digits
+ ** 2400- 2799   PM123 Skin fonts
+ * 10000-19999   PM123 Bookmark browser
+ */
+
 #define WIN_MAIN              1
 #define HLP_MAIN              1
 #define ACL_MAIN              WIN_MAIN // neccessarily identical
 #define ICO_MAIN              WIN_MAIN // neccessarily identical
-#define ICO_MP3               1700
-#define ICO_MP3USED           1701
-#define ICO_MP3ACTIVE         1702
-#define ICO_MP3PLAY           1703
-#define ICO_MP3INVLD          1708
-#define ICO_MP3WAIT           1709
-#define ICO_PLEMPTY           1710
-#define ICO_PLCLOSE           1711
-#define ICO_PLOPEN            1712
-#define ICO_PLRECURSIVE       1713
-#define ICO_PLACTIVE          1720
-#define ICO_PLCLOSEACTIVE     1721
-#define ICO_PLOPENACTIVE      1722
-#define ICO_PLRECURSIVEACTIVE 1723
-#define ICO_PLPLAY            1730
-#define ICO_PLCLOSEPLAY       1731
-#define ICO_PLOPENPLAY        1732
-#define ICO_PLRECURSIVEPLAY   1733
 
 #define MNU_MAIN            500
 #define IDM_M_SHUFFLE       505
@@ -90,29 +89,95 @@
 #define IDM_M_PLSAVE        556
 #define IDM_M_ADDPMBOOK     557
 #define IDM_M_CURRENT_PL    558
-
-#define IDM_M_LOAD          600
-#define IDM_M_LOADFILE      601
-#define IDM_M_URL           602
-#define IDM_M_LOADOTHER     603 /* reserve some ID's for several plug-ins.  */
+#define IDM_M_LOAD          560
+#define IDM_M_LOADFILE      561
+#define IDM_M_URL           562
+#define IDM_M_LOADOTHER     600 /* reserve some ID's for several plug-ins.  */
+#define IDM_M_PLUG          650 /* reserve some ID's for several plug-ins.  */
+#define IDM_M_PLUG_E        699
 
 #define IDM_M_LAST        10000 /* A lot of IDs after this need to be free. */
-#define IDM_M_LAST_E      14999
-//#define IDM_M_BOOKMARKS   11000 /* A lot of IDs after this need to be free. */
-//#define IDM_M_BOOKMARKS_E 11999
-#define IDM_M_PLUG        15000 /* A lot of IDs after this need to be free. */
+#define IDM_M_LAST_E      19999
 
-#define MNU_SUBFOLDER      1700
+#define MNU_SUBFOLDER       800
 
-#define DLG_URL            2014
-#define ENT_URL             101
+/* Playlist */
+#define DLG_PLAYLIST         42
+/* Playlistmanager */
+#define DLG_PM               48
 
-#define DLG_FILE           2100
-#define CB_RECURSE          500
-#define CB_RELATIV          501
+#define MNU_PLAYLIST        810
+#define MNU_RECORD          811
+#define ACL_PLAYLIST        812
+#define PM_MAIN_MENU        820
+#define PM_REC_MENU         821
+#define ACL_PLAYLISTMAN     822
 
-#define DLG_EQUALIZER      2015
+#define ICO_MP3             850
+#define ICO_MP3USED         851
+#define ICO_MP3ACTIVE       852
+#define ICO_MP3PLAY         853
+#define ICO_MP3INVLD        858
+#define ICO_MP3WAIT         859
+#define ICO_PLEMPTY         860
+#define ICO_PLCLOSE         861
+#define ICO_PLOPEN          862
+#define ICO_PLRECURSIVE     863
+#define ICO_PLACTIVE        870
+#define ICO_PLCLOSEACTIVE   871
+#define ICO_PLOPENACTIVE    872
+#define ICO_PLRECURSIVEACTIVE 873
+#define ICO_PLPLAY          880
+#define ICO_PLCLOSEPLAY     881
+#define ICO_PLOPENPLAY      882
+#define ICO_PLRECURSIVEPLAY 883
 
+#define IDM_PL_USE          900
+#define IDM_PL_USEALL       901
+#define IDM_PL_NAVIGATE     902
+#define IDM_PL_DETAILED     903
+#define IDM_PL_DETAILEDALL  904
+#define IDM_PL_TREEVIEW     905
+#define IDM_PL_TREEVIEWALL  906
+#define IDM_PL_REMOVE       907
+#define IDM_PL_CLEAR        908
+#define IDM_PL_CLEARALL     909
+#define IDM_PL_RELOAD       910
+#define IDM_PL_REFRESH      911
+#define IDM_PL_EDIT         912
+#define IDM_PL_SAVE         913
+#define IDM_PL_MENU         918 /* invoke main menu */
+#define IDM_PL_MENUCONT     919 /* invoke record menu */ 
+#define IDM_PL_SORT         920
+#define IDM_PL_SORT_SIZE    921
+#define IDM_PL_SORT_TIME    922
+#define IDM_PL_SORT_URL     923
+#define IDM_PL_SORT_SONG    924
+#define IDM_PL_SORT_ALIAS   925
+#define IDM_PL_SORT_ART     926
+#define IDM_PL_SORT_ALBUM   927
+#define IDM_PL_SORT_RAND    929
+#define IDM_PL_SORT_SIZEALL 931
+#define IDM_PL_SORT_TIMEALL 932
+#define IDM_PL_SORT_URLALL  933
+#define IDM_PL_SORT_SONGALL 934
+#define IDM_PL_SORT_ALIASALL 935
+#define IDM_PL_SORT_ARTALL  936
+#define IDM_PL_SORT_ALBUMALL 937
+#define IDM_PL_SORT_RANDALL 939
+#define IDM_PL_APPEND       940
+#define IDM_PL_APPFILE      941
+#define IDM_PL_APPURL       942
+#define IDM_PL_APPOTHER     943 /* Need some IDs for plugin extensions.     */
+#define IDM_PL_APPENDALL    960
+#define IDM_PL_APPFILEALL   961
+#define IDM_PL_APPURLALL    962
+#define IDM_PL_APPOTHERALL  963 /* Need some IDs for plugin extensions.     */
+#define IDM_PL_OPEN         980
+#define IDM_PL_OPENLAST     981 /* A lot of IDs after this need to be free. */
+
+
+/* Helptable */
 #define HLP_MAIN_TABLE      100
 #define HLP_NULL_TABLE      101
 
@@ -139,347 +204,216 @@
 #define IDH_PLAYLISTFORMAT 1020
 #define IDH_MIGRATE1_40    1021
 
-#define MSG_PLAY              1
-#define MSG_STOP              2
-#define MSG_PAUSE             3
-#define MSG_FWD               4
-#define MSG_REW               5
-#define MSG_JUMP              6
-#define MSG_SAVE              7
+/* Dialogs */
 
-/* Playlist */
-#define DLG_PLAYLIST         42
-#define ACL_PLAYLIST       8001
-#define ACL_PLAYLISTMAN    8002
-#define MNU_PLAYLIST        900
-#define MNU_RECORD          901
-/* Playlistmanager */
-#define DLG_PM               48
+/* File */
+#define DLG_FILE           1100
+#define CB_RECURSE         1101
+#define CB_RELATIV         1102
 
-#define PM_MAIN_MENU       1024
-#define PM_REC_MENU        2048
-
-#define IDM_PL_USE          910
-#define IDM_PL_USEALL       911
-#define IDM_PL_NAVIGATE     912
-#define IDM_PL_DETAILED     913
-#define IDM_PL_DETAILEDALL  914
-#define IDM_PL_TREEVIEW     915
-#define IDM_PL_TREEVIEWALL  916
-#define IDM_PL_REMOVE       917
-#define IDM_PL_CLEAR        918
-#define IDM_PL_CLEARALL     919
-#define IDM_PL_RELOAD       920
-#define IDM_PL_REFRESH      921
-#define IDM_PL_EDIT         922
-#define IDM_PL_SORT         930
-#define IDM_PL_SORT_SIZE    931
-#define IDM_PL_SORT_TIME    932
-#define IDM_PL_SORT_URL     933
-#define IDM_PL_SORT_SONG    934
-#define IDM_PL_SORT_ALIAS   935
-#define IDM_PL_SORT_ART     936
-#define IDM_PL_SORT_ALBUM   937
-#define IDM_PL_SORT_RAND    939
-#define IDM_PL_SORT_SIZEALL 941
-#define IDM_PL_SORT_TIMEALL 942
-#define IDM_PL_SORT_URLALL  943
-#define IDM_PL_SORT_SONGALL 944
-#define IDM_PL_SORT_ALIASALL 945
-#define IDM_PL_SORT_ARTALL  946
-#define IDM_PL_SORT_ALBUMALL 947
-#define IDM_PL_SORT_RANDALL 949
-#define IDM_PL_APPEND      1100
-#define IDM_PL_APPFILE     1101
-#define IDM_PL_APPURL      1102
-#define IDM_PL_APPOTHER    1103 /* Need some IDs for plugin extensions.     */
-#define IDM_PL_APPENDALL   1200
-#define IDM_PL_APPFILEALL  1201
-#define IDM_PL_APPURLALL   1202
-#define IDM_PL_APPOTHERALL 1203 /* Need some IDs for plugin extensions.     */
-#define IDM_PL_OPEN        1000
-#define IDM_PL_OPENLAST    1001 /* A lot of IDs after this need to be free. */
-#define IDM_PL_SAVE         960
-#define IDM_PL_MENU         970 /* invoke main menu */
-#define IDM_PL_MENUCONT     971 /* invoke record menu */ 
+/* URL */
+#define DLG_URL            1110
+#define ENT_URL            1111
 
 /* Bookmark */
-#define DLG_BM_ADD          500
-#define ST_BM_DESC          501
-#define EF_BM_DESC          502
+#define DLG_BM_ADD         1120
+#define ST_BM_DESC         1121
+#define EF_BM_DESC         1122
 
-/* SKIN */
-/* Special resources that control PM123 interface. */
-
-#define UL_SHADE_BRIGHT       1 /* Bright 3D-shade color.                             */
-#define UL_SHADE_DARK         2 /* Dark 3D-shade color.                               */
-#define UL_SLIDER_BRIGHT      3 /* Bright color of seek slider (obsolete).            */
-#define UL_SLIDER_COLOR       4 /* Color of seek slider border.                       */
-#define UL_PL_COLOR           5 /* Playlist position indicator color.                 */
-#define UL_SHADE_STAT         6 /* Disable 3D-shading of the statistics area.         */
-#define UL_SHADE_VOLUME       7 /* Disable 3D-shading of the volume bar.              */
-#define UL_DISPLAY_MSG        8 /* A string to be displayed on skin load (obsolete).  */
-#define UL_SHADE_PLAYER       9 /* Disable 3D-shading of the player window.           */
-#define UL_SHADE_SLIDER      10 /* Disable the seek slider border.                    */
-#define UL_ONE_FONT          11 /* Disable the second font.                           */
-#define UL_TIMER_SEPSPACE    12 /* Width of the main timer separator (obsolete).      */
-#define UL_IN_PIXELS         13 /* Measure width of the filename display in pixels.   */
-#define UL_R_MSG_HEIGHT      14 /* Height of the filename display for regular mode.   */
-#define UL_S_MSG_HEIGHT      15 /* Height of the filename display for small mode.     */
-#define UL_FG_MSG_COLOR      16 /* Foreground color of the filename display.          */
-#define UL_R_MSG_LEN         20 /* Width of the filename display for regular mode.    */
-#define UL_SLIDER_WIDTH      21 /* Width the seek slider area in pixels.              */
-#define UL_S_MSG_LEN         22 /* Width of the filename display for small mode.      */
-#define UL_FONT              23 /* Initial font, 0 or 1.                              */
-#define UL_TIMER_SPACE       24 /* Space between the main timer digits (in pixels).   */
-#define UL_TIMER_SEPARATE    25 /* Disable separator between the main timer groups.   */
-#define UL_VOLUME_HRZ        26 /* Make volume bar horizontal.                        */
-#define UL_VOLUME_SLIDER     27 /* Give volume bar a handle you can grab.             */
-#define UL_BPS_DIGITS        28 /* Draw bitrates with digits from resource 1830-1839. */
-#define UL_PL_INDEX          29 /* Draw playlist indicator with resources 1660-1669.  */
-                                /* Number of digits to draw. (min. 3)                 */
-#define UL_BUNDLE            30 /* The bundle file for this skin.                     */
-
-/* Bitmap identifiers for action buttons. */
-
-#define BMP_PLAY           1300 /* Play button down for regular mode.                 */
-#define BMP_PAUSE          1302 /* Pause button down for regular mode.                */
-#define BMP_REW            1303 /* Rewind button down for regular mode.               */
-#define BMP_FWD            1304 /* Fast forward button down for regular mode.         */
-#define BMP_POWER          1305 /* Power button down for regular mode.                */
-#define BMP_PREV           1306 /* Previous button down for regular mode.             */
-#define BMP_NEXT           1307 /* Next button down for regular mode.                 */
-#define BMP_SHUFFLE        1308 /* Shuffle button down for regular mode.              */
-#define BMP_REPEAT         1309 /* Repeat button down for regular mode.               */
-#define BMP_PL             1321 /* Playlist button down for regular mode.             */
-#define BMP_STOP           1322 /* Stop button down for regular mode.                 */
-#define BMP_FLOAD          1324 /* Load file button down for regular mode.            */
-
-#define BMP_N_PLAY         1310 /* Play button up for regular mode.                   */
-#define BMP_N_PAUSE        1312 /* Pause button up for regular mode.                  */
-#define BMP_N_REW          1313 /* Rewind button up for regular mode.                 */
-#define BMP_N_FWD          1314 /* Fast forward button up for regular mode.           */
-#define BMP_N_POWER        1315 /* Power button up for regular mode.                  */
-#define BMP_N_PREV         1316 /* Previous button up for regular mode.               */
-#define BMP_N_NEXT         1317 /* Next button up for regular mode.                   */
-#define BMP_N_SHUFFLE      1318 /* Shuffle button up for regular mode.                */
-#define BMP_N_REPEAT       1319 /* Repeat button up for regular mode.                 */
-#define BMP_N_PL           1320 /* Playlist button up for regular mode.               */
-#define BMP_N_STOP         1323 /* Stop button up for regular mode.                   */
-#define BMP_N_FLOAD        1325 /* Load file button up for regular mode.              */
-
-#define BMP_S_PLAY         5500 /* Play button down for small and tiny modes.         */
-#define BMP_S_PAUSE        5502 /* Pause button down for small and tiny modes.        */
-#define BMP_S_REW          5503 /* Rewind button down for small and tiny modes.       */
-#define BMP_S_FWD          5504 /* Fast forward button down for small and tiny modes. */
-#define BMP_S_POWER        5505 /* Power button down for small and tiny modes.        */
-#define BMP_S_PREV         5506 /* Previous button down for small and tiny modes.     */
-#define BMP_S_NEXT         5507 /* Next button down for small and tiny modes.         */
-#define BMP_S_SHUFFLE      5508 /* Shuffle button down for small and tiny modes.      */
-#define BMP_S_REPEAT       5509 /* Repeat button down for small and tiny modes.       */
-#define BMP_S_PL           5521 /* Playlist button down for small and tiny modes.     */
-#define BMP_S_STOP         5523 /* Stop button down for small and tiny modes.         */
-#define BMP_S_FLOAD        5524 /* Load file button down for small and tiny modes.    */
-
-#define BMP_SN_PLAY        5510 /* Play button up for small and tiny modes.           */
-#define BMP_SN_PAUSE       5512 /* Pause button up for small and tiny modes.          */
-#define BMP_SN_REW         5513 /* Rewind button up for small and tiny modes.         */
-#define BMP_SN_FWD         5514 /* Fast forward button up for small and tiny modes.   */
-#define BMP_SN_POWER       5515 /* Power button up for small and tiny modes.          */
-#define BMP_SN_PREV        5516 /* Previous button up for small and tiny modes.       */
-#define BMP_SN_NEXT        5517 /* Next button up for small and tiny modes.           */
-#define BMP_SN_SHUFFLE     5518 /* Shuffle button up for small and tiny modes.        */
-#define BMP_SN_REPEAT      5519 /* Repeat button up for small and tiny modes.         */
-#define BMP_SN_PL          5520 /* Playlist button up for small and tiny modes.       */
-#define BMP_SN_STOP        5522 /* Stop button up for small and tiny modes.           */
-#define BMP_SN_FLOAD       5525 /* Load file button down for small and tiny modes.    */
-
-#define BMP_KILL           1600
-#define BMP_LED            1820 /* Bright led (displayed when PM123 has focus).       */
-#define BMP_N_LED          1821 /* Dark   led (displayed when PM123 is not focused).  */
-#define BMP_FONT1          1400 /* Font 1.                                            */
-#define BMP_FONT2          4400 /* Font 2.                                            */
-#define BMP_R_BGROUND      1900 /* Background bitmap for regular mode.                */
-#define BMP_S_BGROUND      1611 /* Background bitmap for small mode.                  */
-#define BMP_T_BGROUND      1612 /* Background bitmap for tiny mode.                   */
-#define BMP_SLIDER         1610 /* Seek slider handle.                                */
-#define BMP_SLIDER_SHAFT   1906 /* Slider shaft (drawn before drawing slider handle). */
-#define BMP_NO_CHANNELS    1608 /* No channels (unknown, no file loaded) mode.        */
-#define BMP_STEREO         1601 /* Stereo mode.                                       */
-#define BMP_MONO           1602 /* Mono mode.                                         */
-#define BMP_VOLSLIDER      1620 /* Volume slider handle bitmap (only if enabled).     */
-#define BMP_VOLBAR         1630 /* Volume bar.                                        */
-#define BMP_SINGLEPLAY     1631 /* Indicator for single file play.                    */
-#define BMP_LISTPLAY       1632 /* Indicator for playlist play.                       */
-#define BMP_NOFILE         1633 /* Indicator for no file loaded.                      */
-#define BMP_BPS            1800 /* Bitmaps for bitrates 0 (no bitrate), 32, 48, 56,   */
-                                /* 64, 80, 96, 112, 128, 144, 160, 176, 192, 224, 256 */
-                                /* Not used if resource UL_BPS_DIGITS is enabled.     */
-#define BMP_NOTL           1901 /* "Time left", dark.                                 */
-#define BMP_TL             1902 /* "Time left", bright.                               */
-#define BMP_NOPLIST        1903 /* "Playlist left", dark.                             */
-#define BMP_PLIST          1904 /* "Playlist left", bright.                           */
-
-#define DIG_SMALL          1100
-#define DIG_BIG            1200 /* Digits 0-9 for the main ("big") timer.             */
-#define DIG_TINY           1640 /* Digits 0-9 for time and playlist left timers.      */
-#define DIG_PL_INDEX       1660 /* Digits 0-9 for playlist total/index displays.      */
-#define DIG_BPS            1830 /* Digits 0-9 for bitrates.                           */
-
-/* Resource (bitmap) position settings. */
-
-#define POS_TIMER             1 /* Main timer.                                        */
-#define POS_R_SIZE            2 /* Main window size (sx, sy) for regular mode.        */
-#define POS_R_PLAY            3 /* Play button for regular mode.                      */
-#define POS_R_PAUSE           4 /* Pause button for regular mode.                     */
-#define POS_R_REW             5 /* Rewind button for regular mode.                    */
-#define POS_R_FWD             6 /* Fast forward button for regular mode.              */
-#define POS_R_PL              7 /* Playlist button for regular mode.                  */
-#define POS_R_REPEAT          8 /* Repeat button for regular mode.                    */
-#define POS_R_SHUFFLE         9 /* Shuffle button for regular mode.                   */
-#define POS_R_PREV           10 /* Previous button for regular mode.                  */
-#define POS_R_NEXT           11 /* Next button for regular mode.                      */
-#define POS_R_POWER          12 /* Power button for regular mode.                     */
-#define POS_R_TEXT           13 /* Text display for regular mode.                     */
-#define POS_S_TEXT           14 /* Text display for small mode.                       */
-#define POS_NOTL             15 /* "Time left", dark.                                 */
-#define POS_TL               16 /* "Time left", bright.                               */
-#define POS_NOPLIST          17 /* "Playlist left", dark.                             */
-#define POS_PLIST            18 /* "Playlist left", bright.                           */
-#define POS_TIME_LEFT        19 /* Time left timer.                                   */
-#define POS_PL_LEFT          20 /* Playlist left timer.                               */
-#define POS_PL_MODE          21 /* Playmode indicator (no file/single/playlist).      */
-#define POS_LED              22 /* Bright led (displayed when PM123 has focus).       */
-#define POS_N_LED            23 /* Dark led (displayed when PM123 is not focused).    */
-#define POS_SLIDER           24 /* Seek slider.                                       */
-#define POS_VOLBAR           25 /* Volume bar.                                        */
-#define POS_NO_CHANNELS      26 /* No channels indicator.                             */
-#define POS_MONO             27 /* Mono indicator.                                    */
-#define POS_STEREO           28 /* Stereo indicator.                                  */
-#define POS_BPS              29 /* Bitrate indicator.                                 */
-#define POS_S_SIZE           30 /* Main window size (sx, sy) for small mode.          */
-#define POS_T_SIZE           31 /* Main window size (sx, sy) for tiny mode.           */
-#define POS_S_PLAY           33 /* Play button for small mode.                        */
-#define POS_S_PAUSE          34 /* Pause button for small mode.                       */
-#define POS_S_REW            35 /* Rewind button for small mode.                      */
-#define POS_S_FWD            36 /* Fast forward button for small mode.                */
-#define POS_S_PL             37 /* Playlist button for small mode.                    */
-#define POS_S_REPEAT         38 /* Repeat button for small mode.                      */
-#define POS_S_SHUFFLE        39 /* Shuffle button for small mode.                     */
-#define POS_S_PREV           40 /* Previous button for small mode.                    */
-#define POS_S_NEXT           41 /* Next button for small mode.                        */
-#define POS_S_POWER          42 /* Power button for small mode.                       */
-#define POS_T_PLAY           53 /* Play button for tiny mode.                         */
-#define POS_T_PAUSE          54 /* Pause button for tiny mode.                        */
-#define POS_T_REW            55 /* Rewind button for tiny mode.                       */
-#define POS_T_FWD            56 /* Fast forward button for tiny mode.                 */
-#define POS_T_PL             57 /* Playlist button for tiny mode.                     */
-#define POS_T_REPEAT         58 /* Repeat button for tiny mode.                       */
-#define POS_T_SHUFFLE        59 /* Shuffle button for tiny mode.                      */
-#define POS_T_PREV           60 /* Previous button for tiny mode.                     */
-#define POS_T_NEXT           61 /* Next button for tiny mode.                         */
-#define POS_T_POWER          62 /* Power button for tiny mode.                        */
-#define POS_PL_INDEX         63 /* Playlist index indicator (1 of 2)                  */
-#define POS_PL_TOTAL         64 /* Playlist index indicator (1 of 2)                  */
-#define POS_R_STOP           65 /* Stop button for regular mode.                      */
-#define POS_R_FLOAD          66 /* Load file button for regular mode.                 */
-#define POS_SLIDER_SHAFT     67 /* Location for the slider shaft (bitmap 1906).       */
-#define POS_S_STOP           68 /* Stop button for small mode.                        */
-#define POS_S_FLOAD          69 /* Load file button for small mode.                   */
-#define POS_T_STOP           70 /* Stop button for tiny mode.                         */
-#define POS_T_FLOAD          71 /* Load file button for tiny mode.                    */
-#define POS_VOLSLIDER        72 /* Offset of the volume slider concerning a bar.      */
+#define DLG_EQUALIZER      1150
+#define ST_EQ_PREAMP       1151
+#define ST_EQ_PREM12       1152
+#define ST_EQ_PREP12       1153
+#define SL_EQ_PREAMP       1154
+#define ST_EQ_MUTE         1155
+#define ST_EQ_M12DB        1156
+#define ST_EQ_P12DB        1157
+#define ST_EQ_0DB          1158
+#define SL_EQ_0            1160 /* Slider 0..9 */
+#define ST_EQ_0            1170 /* Text 0..9 */
+#define CB_EQ_0            1180 /* Mute button 0..9 */
+#define CB_EQ_ENABLED      1190
+#define BT_EQ_DEFAULT      1191
+#define BT_EQ_LOAD         1192
+#define BT_EQ_SAVE         1193
 
 /* Properties */
-#define DLG_CONFIG         2010
-#define NB_CONFIG           100
-#define PB_UNDO             101
-#define PB_DEFAULT          102
-#define PB_HELP             103
+#define DLG_CONFIG         1200
+#define NB_CONFIG          1201
+#define PB_UNDO            1202
+#define PB_DEFAULT         1203
+#define PB_HELP            1204
 
-#define CFG_SETTINGS1      3000
-#define GB_BEHAVIOUR       3001
-#define CB_PLAYONLOAD      3010
-#define CB_AUTOUSEPL       3020
-#define CB_AUTOPLAYPL      3030
-#define CB_SELECTPLAYED    3031
-#define CB_TRASHONSEEK     3040
-#define CB_DOCK            3150
-#define EF_DOCK            3151
-#define ST_PIXELS          3152
-#define GB_STREAMING       3160
-#define ST_PROXY_HOST      3170
-#define EF_PROXY_HOST      3171
-#define ST_PROXY_PORT      3172
-#define EF_PROXY_PORT      3173
-#define ST_PROXY_USER      3180
-#define EF_PROXY_USER      3181
-#define ST_PROXY_PASS      3182
-#define EF_PROXY_PASS      3183
-#define ST_BUFFERSIZE      3185
-#define SB_BUFFERSIZE      3190
-#define ST_KB              3195
-#define CB_FILLBUFFER      3200
+#define CFG_ABOUT          1210
+#define ST_TITLE1          1211
+#define ST_TITLE2          1212
+#define ST_BUILT           1213
+#define GB_AUTHORS         1214
+#define ST_AUTHORS         1215
+#define GB_CREDITS         1216
+#define ST_CREDITS         1217
 
-#define CFG_DISPLAY1       3500
-#define GB_TITLE           3501
-#define ST_SCROLL          3545
-#define RB_SCROLL_INFINITE 3550
-#define RB_SCROLL_ONCE     3551
-#define RB_SCROLL_DISABLE  3552
-#define ST_DISPLAY         3575
-#define RB_DISP_FILENAME   3580
-#define RB_DISP_ID3TAG     3581
-#define RB_DISP_FILEINFO   3582
-#define GB_FONT            3600
-#define CB_USE_SKIN_FONT   3610
-#define ST_FONT_SAMPLE     3630
-#define PB_FONT_SELECT     3640
+#define CFG_SETTINGS1      1300
+#define GB_BEHAVIOUR       1301
+#define CB_PLAYONLOAD      1302
+#define CB_AUTOUSEPL       1303
+#define CB_AUTOPLAYPL      1304
+#define CB_SELECTPLAYED    1305
+#define CB_TRASHONSEEK     1306
+#define CB_DOCK            1310
+#define EF_DOCK            1311
+#define ST_PIXELS          1312
+#define GB_STREAMING       1320
+#define ST_PROXY_HOST      1321
+#define EF_PROXY_HOST      1322
+#define ST_PROXY_PORT      1323
+#define EF_PROXY_PORT      1324
+#define ST_PROXY_USER      1325
+#define EF_PROXY_USER      1326
+#define ST_PROXY_PASS      1327
+#define EF_PROXY_PASS      1328
+#define ST_BUFFERSIZE      1329
+#define SB_BUFFERSIZE      1330
+#define ST_KB              1331
+#define CB_FILLBUFFER      1332
+ 
+#define CFG_DISPLAY1       1400
+#define GB_TITLE           1401
+#define ST_SCROLL          1410
+#define RB_SCROLL_INFINITE 1411
+#define RB_SCROLL_ONCE     1412
+#define RB_SCROLL_DISABLE  1413
+#define ST_DISPLAY         1420
+#define RB_DISP_FILENAME   1421
+#define RB_DISP_ID3TAG     1422
+#define RB_DISP_FILEINFO   1423
+#define GB_FONT            1430
+#define CB_USE_SKIN_FONT   1431
+#define ST_FONT_SAMPLE     1432
+#define PB_FONT_SELECT     1433
 
-#define CFG_CONFIG1        4000
-#define GB_VISUALPLUGINS   4001
-#define LB_VISPLUG         4010
-#define PB_VIS_ENABLE      4020
-#define PB_VIS_UNLOAD      4030
-#define ST_VIS_AUTHOR      4040
-#define ST_VIS_DESC        4050
-#define PB_VIS_CONFIG      4060
-#define PB_VIS_ADD         4070
-#define GB_DECODERPLUGINS  4071
-#define LB_DECPLUG         4080
-#define PB_DEC_ENABLE      4090
-#define PB_DEC_UNLOAD      4100
-#define ST_DEC_AUTHOR      4110
-#define ST_DEC_DESC        4120
-#define PB_DEC_CONFIG      4130
-#define PB_DEC_ADD         4140
+#define CFG_CONFIG1        1500
+#define GB_VISUALPLUGINS   1510
+#define LB_VISPLUG         1511
+#define PB_VIS_ENABLE      1512
+#define PB_VIS_UNLOAD      1513
+#define ST_VIS_AUTHOR      1514
+#define ST_VIS_DESC        1515
+#define PB_VIS_CONFIG      1516
+#define PB_VIS_ADD         1517
+#define GB_DECODERPLUGINS  1520
+#define LB_DECPLUG         1521
+#define PB_DEC_ENABLE      1522
+#define PB_DEC_UNLOAD      1523
+#define ST_DEC_AUTHOR      1524
+#define ST_DEC_DESC        1525
+#define PB_DEC_CONFIG      1526
+#define PB_DEC_ADD         1527
 
-#define CFG_CONFIG2        5000
-#define GB_FILPLUG         5005
-#define LB_FILPLUG         5010
-#define PB_FIL_ENABLE      5020
-#define PB_FIL_UNLOAD      5030
-#define ST_FIL_AUTHOR      5040
-#define ST_FIL_DESC        5050
-#define PB_FIL_CONFIG      5060
-#define PB_FIL_ADD         5070
-#define GB_OUTPLUG         5075
-#define LB_OUTPLUG         5080
-#define PB_OUT_ACTIVATE    5090
-#define PB_OUT_UNLOAD      5100
-#define ST_OUT_AUTHOR      5110
-#define ST_OUT_DESC        5120
-#define PB_OUT_CONFIG      5130
-#define PB_OUT_ADD         5140
+#define CFG_CONFIG2        1550
+#define GB_FILPLUG         1560
+#define LB_FILPLUG         1561
+#define PB_FIL_ENABLE      1562
+#define PB_FIL_UNLOAD      1563
+#define ST_FIL_AUTHOR      1564
+#define ST_FIL_DESC        1565
+#define PB_FIL_CONFIG      1566
+#define PB_FIL_ADD         1567
+#define GB_OUTPLUG         1570
+#define LB_OUTPLUG         1571
+#define PB_OUT_ACTIVATE    1572
+#define PB_OUT_UNLOAD      1573
+#define ST_OUT_AUTHOR      1574
+#define ST_OUT_DESC        1575
+#define PB_OUT_CONFIG      1576
+#define PB_OUT_ADD         1577
 
-#define CFG_ABOUT          2011
-#define ST_TITLE1          2020
-#define ST_TITLE2          2030
-#define ST_BUILT           2040
-#define GB_AUTHORS         2050
-#define ST_AUTHORS         2060
-#define GB_CREDITS         2070
-#define ST_CREDITS         2080
+/* SKINs ... */
+
+/* Bitmap identifiers for action buttons. */
+#define BMP_PLAY           2000 /* Play button down for regular mode.                 */
+#define BMP_PAUSE          2001 /* Pause button down for regular mode.                */
+#define BMP_REW            2002 /* Rewind button down for regular mode.               */
+#define BMP_FWD            2003 /* Fast forward button down for regular mode.         */
+#define BMP_POWER          2004 /* Power button down for regular mode.                */
+#define BMP_PREV           2005 /* Previous button down for regular mode.             */
+#define BMP_NEXT           2006 /* Next button down for regular mode.                 */
+#define BMP_SHUFFLE        2007 /* Shuffle button down for regular mode.              */
+#define BMP_REPEAT         2008 /* Repeat button down for regular mode.               */
+#define BMP_PL             2009 /* Playlist button down for regular mode.             */
+#define BMP_STOP           2010 /* Stop button down for regular mode.                 */
+#define BMP_FLOAD          2011 /* Load file button down for regular mode.            */
+
+#define BMP_N_PLAY         2020 /* Play button up for regular mode.                   */
+#define BMP_N_PAUSE        2021 /* Pause button up for regular mode.                  */
+#define BMP_N_REW          2022 /* Rewind button up for regular mode.                 */
+#define BMP_N_FWD          2023 /* Fast forward button up for regular mode.           */
+#define BMP_N_POWER        2024 /* Power button up for regular mode.                  */
+#define BMP_N_PREV         2025 /* Previous button up for regular mode.               */
+#define BMP_N_NEXT         2026 /* Next button up for regular mode.                   */
+#define BMP_N_SHUFFLE      2027 /* Shuffle button up for regular mode.                */
+#define BMP_N_REPEAT       2028 /* Repeat button up for regular mode.                 */
+#define BMP_N_PL           2029 /* Playlist button up for regular mode.               */
+#define BMP_N_STOP         2030 /* Stop button up for regular mode.                   */
+#define BMP_N_FLOAD        2031 /* Load file button up for regular mode.              */
+
+#define BMP_S_PLAY         2040 /* Play button down for small and tiny modes.         */
+#define BMP_S_PAUSE        2041 /* Pause button down for small and tiny modes.        */
+#define BMP_S_REW          2042 /* Rewind button down for small and tiny modes.       */
+#define BMP_S_FWD          2043 /* Fast forward button down for small and tiny modes. */
+#define BMP_S_POWER        2044 /* Power button down for small and tiny modes.        */
+#define BMP_S_PREV         2045 /* Previous button down for small and tiny modes.     */
+#define BMP_S_NEXT         2046 /* Next button down for small and tiny modes.         */
+#define BMP_S_SHUFFLE      2047 /* Shuffle button down for small and tiny modes.      */
+#define BMP_S_REPEAT       2048 /* Repeat button down for small and tiny modes.       */
+#define BMP_S_PL           2049 /* Playlist button down for small and tiny modes.     */
+#define BMP_S_STOP         2050 /* Stop button down for small and tiny modes.         */
+#define BMP_S_FLOAD        2051 /* Load file button down for small and tiny modes.    */
+
+#define BMP_SN_PLAY        2060 /* Play button up for small and tiny modes.           */
+#define BMP_SN_PAUSE       2061 /* Pause button up for small and tiny modes.          */
+#define BMP_SN_REW         2062 /* Rewind button up for small and tiny modes.         */
+#define BMP_SN_FWD         2063 /* Fast forward button up for small and tiny modes.   */
+#define BMP_SN_POWER       2064 /* Power button up for small and tiny modes.          */
+#define BMP_SN_PREV        2065 /* Previous button up for small and tiny modes.       */
+#define BMP_SN_NEXT        2066 /* Next button up for small and tiny modes.           */
+#define BMP_SN_SHUFFLE     2067 /* Shuffle button up for small and tiny modes.        */
+#define BMP_SN_REPEAT      2068 /* Repeat button up for small and tiny modes.         */
+#define BMP_SN_PL          2069 /* Playlist button up for small and tiny modes.       */
+#define BMP_SN_STOP        2070 /* Stop button up for small and tiny modes.           */
+#define BMP_SN_FLOAD       2071 /* Load file button down for small and tiny modes.    */
+
+#define BMP_LED            2100 /* Bright led (displayed when PM123 has focus).       */
+#define BMP_N_LED          2101 /* Dark   led (displayed when PM123 is not focused).  */
+#define BMP_R_BGROUND      2104 /* Background bitmap for regular mode.                */
+#define BMP_S_BGROUND      2105 /* Background bitmap for small mode.                  */
+#define BMP_T_BGROUND      2106 /* Background bitmap for tiny mode.                   */
+#define BMP_SLIDER         2107 /* Seek slider handle.                                */
+#define BMP_SLIDER_SHAFT   2108 /* Slider shaft (drawn before drawing slider handle). */
+#define BMP_NO_CHANNELS    2109 /* No channels (unknown, no file loaded) mode.        */
+#define BMP_STEREO         2110 /* Stereo mode.                                       */
+#define BMP_MONO           2111 /* Mono mode.                                         */
+#define BMP_VOLSLIDER      2112 /* Volume slider handle bitmap (only if enabled).     */
+#define BMP_VOLBAR         2113 /* Volume bar.                                        */
+#define BMP_SINGLEPLAY     2114 /* Indicator for single file play.                    */
+#define BMP_LISTPLAY       2115 /* Indicator for playlist play.                       */
+#define BMP_NOFILE         2116 /* Indicator for no file loaded.                      */
+#define BMP_NOTL           2117 /* "Time left", dark.                                 */
+#define BMP_TL             2118 /* "Time left", bright.                               */
+#define BMP_NOPLIST        2119 /* "Playlist left", dark.                             */
+#define BMP_PLIST          2120 /* "Playlist left", bright.                           */
+#define BMP_BPS            2180 /* Bitmaps for bitrates 0 (no bitrate), 32, 48, 56,   */
+                                /* 64, 80, 96, 112, 128, 144, 160, 176, 192, 224, 256 */
+                                /* Not used if resource UL_BPS_DIGITS is enabled.     */
+
+#define DIG_SMALL          2200 /* Digits 0-9 for ???                                 */
+#define DIG_BIG            2220 /* Digits 0-9 for the main ("big") timer.             */
+#define DIG_TINY           2240 /* Digits 0-9 for time and playlist left timers.      */
+#define DIG_PL_INDEX       2260 /* Digits 0-9 for playlist total/index displays.      */
+#define DIG_BPS            2280 /* Digits 0-9 for bitrates.                           */
+
+#define BMP_FONT1          2400 /* Font 1.                                            */
+#define BMP_FONT2          2600 /* Font 2.                                            */
 
 
 #endif

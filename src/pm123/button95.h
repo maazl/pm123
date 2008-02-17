@@ -70,7 +70,7 @@ typedef struct _BUTTONDATA {
 
 typedef struct _DATA95 {
   unsigned int cb;
-  int bmp1, bmp2;
+  const HBITMAP *bmp1, *bmp2;
   int stick;
   int *stickvar;
   int Pressed;
