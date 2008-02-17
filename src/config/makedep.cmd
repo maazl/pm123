@@ -40,7 +40,7 @@
 *  object files. Instead it will create empty rules for the source files.
 *  These rules will not cause any immediate action during build, but they
 *  invalidate their target in case of a newer source file. This is useful
-*  together with implicit rules. 
+*  together with implicit rules.
 *
 ****************************************************************************/
 
@@ -72,7 +72,7 @@ opt.recursive = 0
 opt.Irecursive = 0
 opt.verbose   = 0
 opt.wildcard  = 0
-   
+
 params = STRIP(ARG(1))
 nomoreopt = 0
 DO WHILE params \= ''
@@ -189,11 +189,11 @@ WriteRules: PROCEDURE EXPOSE opt. rule.
             ITERATE
             END
          /* replace rule */
-         data.line = OVERLAY(SUBSTR(dep, 2), data, q)
+         data.line = SUBSTR(data, 1, q-1)SUBSTR(dep, 2)
          END
       /* close the file */
       CALL STREAM ARG(1), "C", "CLOSE"
-      /* write back file content */        
+      /* write back file content */
       /* TODO: make backup copy */
       CALL SysFileDelete ARG(1)
       DO i = 1 TO line
@@ -228,7 +228,7 @@ DoFile: PROCEDURE EXPOSE opt. rule.
    rule.0 = i
    /* check source file */
    IF STREAM(ARG(1), "C", "QUERY EXISTS") = '' THEN
-      RETURN Warn(ARG(1)" does not exist") 
+      RETURN Warn(ARG(1)" does not exist")
    IF \ABBREV(STREAM(ARG(1), "C", "OPEN"), "READY") THEN
       RETURN Warn("Cannot open "ARG(1))
    /* Parse file */
