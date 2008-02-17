@@ -397,7 +397,7 @@
 #define PB_DEFAULT          102
 #define PB_HELP             103
 
-#define CFG_PAGE1          3000
+#define CFG_SETTINGS1      3000
 #define GB_BEHAVIOUR       3001
 #define CB_PLAYONLOAD      3010
 #define CB_AUTOUSEPL       3020
@@ -421,7 +421,7 @@
 #define ST_KB              3195
 #define CB_FILLBUFFER      3200
 
-#define CFG_PAGE2          3500
+#define CFG_DISPLAY1       3500
 #define GB_TITLE           3501
 #define ST_SCROLL          3545
 #define RB_SCROLL_INFINITE 3550
@@ -436,7 +436,7 @@
 #define ST_FONT_SAMPLE     3630
 #define PB_FONT_SELECT     3640
 
-#define CFG_PAGE3          4000
+#define CFG_CONFIG1        4000
 #define GB_VISUALPLUGINS   4001
 #define LB_VISPLUG         4010
 #define PB_VIS_ENABLE      4020
@@ -454,7 +454,7 @@
 #define PB_DEC_CONFIG      4130
 #define PB_DEC_ADD         4140
 
-#define CFG_PAGE4          5000
+#define CFG_CONFIG2        5000
 #define GB_FILPLUG         5005
 #define LB_FILPLUG         5010
 #define PB_FIL_ENABLE      5020

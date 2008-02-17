@@ -119,7 +119,7 @@ cfg_add_plugin( HWND hwnd, ULONG types )
 
 /* Processes messages of the setings page of the setup notebook. */
 static MRESULT EXPENTRY
-cfg_page1_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
+cfg_settings1_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
 {
   switch( msg ) {
     case WM_INITDLG:
@@ -267,7 +267,7 @@ cfg_attrs_to_font( const FATTRS* attrs, char* font, LONG size )
 
 /* Processes messages of the display page of the setup notebook. */
 static MRESULT EXPENTRY
-cfg_page2_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
+cfg_display1_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
 {
   static FATTRS font_attrs;
   static LONG   font_size;
@@ -391,7 +391,7 @@ cfg_page2_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
 
 /* Processes messages of the plug-ins page 1 of the setup notebook. */
 static MRESULT EXPENTRY
-cfg_page3_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
+cfg_config1_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
 {
   int num;
   PLUGIN_BASE*const* list;
@@ -606,7 +606,7 @@ cfg_page3_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
 
 /* Processes messages of the plug-ins page 2 of the setup notebook. */
 static MRESULT EXPENTRY
-cfg_page4_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
+cfg_config2_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
 {
   int num;
   PLUGIN_BASE*const* list;
@@ -823,7 +823,7 @@ cfg_page4_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
 
 /* Processes messages of the about page of the setup notebook. */
 static MRESULT EXPENTRY
-cfg_page5_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
+cfg_about_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
 {
   switch( msg )
   {
@@ -938,14 +938,9 @@ cfg_properties( HWND owner )
 {
   HWND hwnd;
   HWND book;
-  HWND page01;
-  HWND page02;
-  HWND page03;
-  HWND page04;
-  HWND page05;
+  HWND page[5];
 
   MRESULT id;
-  char built[512];
 
   hwnd = WinLoadDlg( HWND_DESKTOP, owner, cfg_dlg_proc, NULLHANDLE, DLG_CONFIG, 0 );
   do_warpsans( hwnd );
@@ -957,95 +952,98 @@ cfg_properties( HWND owner )
   WinSendMsg( book, BKM_SETNOTEBOOKCOLORS, MPFROMLONG ( SYSCLR_FIELDBACKGROUND ),
                                            MPFROMSHORT( BKA_BACKGROUNDPAGECOLORINDEX ));
 
-  page01 = WinLoadDlg( book, book, cfg_page1_dlg_proc, NULLHANDLE, CFG_PAGE1, 0 );
+  page[0] = WinLoadDlg( book, book, cfg_settings1_dlg_proc, NULLHANDLE, CFG_SETTINGS1, 0 );
 
-  do_warpsans( page01 );
-  do_warpsans( WinWindowFromID( page01, ST_PROXY_HOST ));
-  do_warpsans( WinWindowFromID( page01, ST_PROXY_PORT ));
-  do_warpsans( WinWindowFromID( page01, ST_PROXY_USER ));
-  do_warpsans( WinWindowFromID( page01, ST_PROXY_PASS ));
-  do_warpsans( WinWindowFromID( page01, ST_PIXELS     ));
-  do_warpsans( WinWindowFromID( page01, ST_BUFFERSIZE ));
+  do_warpsans( page[0] );
+  do_warpsans( WinWindowFromID( page[0], ST_PROXY_HOST ));
+  do_warpsans( WinWindowFromID( page[0], ST_PROXY_PORT ));
+  do_warpsans( WinWindowFromID( page[0], ST_PROXY_USER ));
+  do_warpsans( WinWindowFromID( page[0], ST_PROXY_PASS ));
+  do_warpsans( WinWindowFromID( page[0], ST_PIXELS     ));
+  do_warpsans( WinWindowFromID( page[0], ST_BUFFERSIZE ));
 
   id = WinSendMsg( book, BKM_INSERTPAGE, 0,
                    MPFROM2SHORT( BKA_AUTOPAGESIZE | BKA_MAJOR | BKA_STATUSTEXTON, BKA_FIRST ));
 
-  WinSendMsg( book, BKM_SETPAGEWINDOWHWND, MPFROMLONG( id ), MPFROMLONG( page01 ));
+  WinSendMsg( book, BKM_SETPAGEWINDOWHWND, MPFROMLONG( id ), MPFROMLONG( page[0] ));
   WinSendMsg( book, BKM_SETTABTEXT, MPFROMLONG( id ), MPFROMP( "~Settings" ));
 
-  page02 = WinLoadDlg( book, book, cfg_page2_dlg_proc, NULLHANDLE, CFG_PAGE2, 0 );
+  page[1] = WinLoadDlg( book, book, cfg_display1_dlg_proc, NULLHANDLE, CFG_DISPLAY1, 0 );
 
-  do_warpsans( page02 );
+  do_warpsans( page[1] );
 
   id = WinSendMsg( book, BKM_INSERTPAGE, 0,
                    MPFROM2SHORT( BKA_AUTOPAGESIZE | BKA_MAJOR | BKA_STATUSTEXTON, BKA_LAST ));
 
-  WinSendMsg( book, BKM_SETPAGEWINDOWHWND, MPFROMLONG( id ), MPFROMLONG( page02 ));
+  WinSendMsg( book, BKM_SETPAGEWINDOWHWND, MPFROMLONG( id ), MPFROMLONG( page[1] ));
   WinSendMsg( book, BKM_SETTABTEXT, MPFROMLONG( id ), MPFROMP( "~Display" ));
 
-  page03 = WinLoadDlg( book, book, cfg_page3_dlg_proc, NULLHANDLE, CFG_PAGE3, 0 );
+  page[2] = WinLoadDlg( book, book, cfg_config1_dlg_proc, NULLHANDLE, CFG_CONFIG1, 0 );
 
-  do_warpsans( page03 );
-  do_warpsans( WinWindowFromID( page03, ST_VIS_AUTHOR ));
-  do_warpsans( WinWindowFromID( page03, ST_VIS_DESC   ));
-  do_warpsans( WinWindowFromID( page03, ST_DEC_AUTHOR ));
-  do_warpsans( WinWindowFromID( page03, ST_DEC_DESC   ));
+  do_warpsans( page[2] );
+  do_warpsans( WinWindowFromID( page[2], ST_VIS_AUTHOR ));
+  do_warpsans( WinWindowFromID( page[2], ST_VIS_DESC   ));
+  do_warpsans( WinWindowFromID( page[2], ST_DEC_AUTHOR ));
+  do_warpsans( WinWindowFromID( page[2], ST_DEC_DESC   ));
 
   id = WinSendMsg( book, BKM_INSERTPAGE, 0,
                    MPFROM2SHORT( BKA_AUTOPAGESIZE | BKA_MAJOR | BKA_MINOR | BKA_STATUSTEXTON, BKA_LAST ));
 
-  WinSendMsg( book, BKM_SETPAGEWINDOWHWND, MPFROMLONG( id ), MPFROMLONG( page03 ));
+  WinSendMsg( book, BKM_SETPAGEWINDOWHWND, MPFROMLONG( id ), MPFROMLONG( page[2] ));
   WinSendMsg( book, BKM_SETTABTEXT, MPFROMLONG( id ), MPFROMP( "~Plug-Ins" ));
   WinSendMsg( book, BKM_SETSTATUSLINETEXT, MPFROMLONG( id ), MPFROMP( "Page 1 of 2" ));
 
-  page04 = WinLoadDlg( book, book, cfg_page4_dlg_proc, NULLHANDLE, CFG_PAGE4, 0 );
+  page[3] = WinLoadDlg( book, book, cfg_config2_dlg_proc, NULLHANDLE, CFG_CONFIG2, 0 );
 
-  do_warpsans( page04 );
-  do_warpsans( WinWindowFromID( page04, ST_FIL_AUTHOR ));
-  do_warpsans( WinWindowFromID( page04, ST_FIL_DESC   ));
-  do_warpsans( WinWindowFromID( page04, ST_OUT_AUTHOR ));
-  do_warpsans( WinWindowFromID( page04, ST_OUT_DESC   ));
+  do_warpsans( page[3] );
+  do_warpsans( WinWindowFromID( page[3], ST_FIL_AUTHOR ));
+  do_warpsans( WinWindowFromID( page[3], ST_FIL_DESC   ));
+  do_warpsans( WinWindowFromID( page[3], ST_OUT_AUTHOR ));
+  do_warpsans( WinWindowFromID( page[3], ST_OUT_DESC   ));
 
-  page05 = WinLoadDlg( book, book, cfg_page5_dlg_proc, NULLHANDLE, CFG_ABOUT, 0 );
+  page[4] = WinLoadDlg( book, book, cfg_about_dlg_proc, NULLHANDLE, CFG_ABOUT, 0 );
 
-  do_warpsans( page05 );
-  do_warpsans( WinWindowFromID( page05, ST_TITLE2 ));
-  do_warpsans( WinWindowFromID( page05, ST_BUILT  ));
+  do_warpsans( page[4] );
+  do_warpsans( WinWindowFromID( page[4], ST_TITLE2 ));
+  do_warpsans( WinWindowFromID( page[4], ST_BUILT  ));
 
   #if defined(__IBMC__)
-    sprintf( built, "(built %s", __DATE__ );
     #if __IBMC__ <= 300
-      strcat( built, " using IBM VisualAge C++ 3.08" );
+    const char built[] = "(built " __DATE__ " using IBM VisualAge C++ 3.08)";
     #else
-      strcat( built, " using IBM VisualAge C++ 3.6"  );
+    const char built[] = "(built " __DATE__ " using IBM VisualAge C++ 3.6)";
     #endif
-    strcat( built, ")" );
   #elif defined(__WATCOMC__)
+    char built[128];
     #if __WATCOMC__ < 1200
-      sprintf( built, "(built %s using Open Watcom C++ %d.%d",
-               __DATE__, __WATCOMC__ / 100, __WATCOMC__ % 100 );
+    sprintf( built, "(built " __DATE__ " using Open Watcom C++ %d.%d)", __WATCOMC__ / 100, __WATCOMC__ % 100 );
     #else
-      sprintf( built, "(built %s using Open Watcom C++ %d.%d",
-               __DATE__, __WATCOMC__ / 100 - 11, __WATCOMC__ % 100 );
+    sprintf( built, "(built " __DATE__ " using Open Watcom C++ %d.%d)", __WATCOMC__ / 100 - 11, __WATCOMC__ % 100 );
     #endif
-    strcat( built, ")" );
+  #elif defined(__GNUC__)
+    char built[128];
+    #if __GNUC__ < 3
+    sprintf( built, "(built " __DATE__ " using gcc %d.%d)", __GNUC__, __GNUC_MINOR__ );
+    #else
+    sprintf( built, "(built " __DATE__ " using gcc %d.%d.%d)", __GNUC__, __GNUC_MINOR__, __GNUC_PATCHLEVEL__ );
+    #endif  
   #else
-    *built = 0;
+    const char* built = 0;
   #endif
 
-  WinSetDlgItemText( page05, ST_BUILT, built );
+  WinSetDlgItemText( page[4], ST_BUILT, built );
 
   id = WinSendMsg( book, BKM_INSERTPAGE, MPFROMLONG( id),
                    MPFROM2SHORT( BKA_AUTOPAGESIZE | BKA_MINOR | BKA_STATUSTEXTON, BKA_NEXT ));
 
-  WinSendMsg( book, BKM_SETPAGEWINDOWHWND, MPFROMLONG( id ), MPFROMLONG( page04 ));
+  WinSendMsg( book, BKM_SETPAGEWINDOWHWND, MPFROMLONG( id ), MPFROMLONG( page[3] ));
   WinSendMsg( book, BKM_SETTABTEXT, MPFROMLONG( id ), MPFROMP( "~Plug-Ins" ));
   WinSendMsg( book, BKM_SETSTATUSLINETEXT, MPFROMLONG( id ), MPFROMP( "Page 2 of 2" ));
 
   id = WinSendMsg( book, BKM_INSERTPAGE, 0,
                    MPFROM2SHORT( BKA_AUTOPAGESIZE | BKA_MAJOR, BKA_LAST ));
 
-  WinSendMsg( book, BKM_SETPAGEWINDOWHWND, MPFROMLONG( id ), MPFROMLONG( page05 ));
+  WinSendMsg( book, BKM_SETPAGEWINDOWHWND, MPFROMLONG( id ), MPFROMLONG( page[4] ));
   WinSendMsg( book, BKM_SETTABTEXT, MPFROMLONG( id ), MPFROMP( "~About" ));
 
   rest_window_pos( hwnd, WIN_MAP_POINTS );

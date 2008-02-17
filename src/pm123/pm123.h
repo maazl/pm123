@@ -39,10 +39,7 @@
 #include "copyright.h"
 #include <os2.h>
 
-#ifdef __cplusplus
 #include "playable.h"
-extern "C" {
-#endif
 
 /* Constructs a information text for currently loaded file. */
 void  amp_display_filename( void );
@@ -116,13 +113,8 @@ extern void DLLENTRY amp_display_info ( const char* );
 extern void DLLENTRY amp_display_error( const char* );
 
 
-#ifdef __cplusplus
-}
 /* Saves a playlist */
 void  amp_save_playlist( HWND owner, PlayableCollection* playlist );
-
-extern "C" {
-#endif
 
 
 /* Global variables */
@@ -135,8 +127,5 @@ extern float gains[20];
 extern BOOL  mutes[20];
 extern float preamp;
 
-#ifdef __cplusplus
-}
-#endif
 #endif /* PM123_H */
 
