@@ -62,6 +62,6 @@ skin.h:	playable.h
 properties.cpp:	..\utils\utilfct.h ..\xio123\xio.h properties.h pm123.h pm123.rc.h iniman.h plugman.h controller.h
 skin.cpp:	..\gbm123\gbm.h ..\gbm123\gbmerr.h ..\gbm123\gbmht.h plugman.h skin.h pm123.h pm123.rc.h button95.h ..\utils\debuglog.h
 button95.c:	button95.h
-docking.c:	pm123.h properties.h docking.h ..\utils\utilfct.h
+docking.cpp:	pm123.h properties.h docking.h ..\utils\utilfct.h
 test.c:	..\utils\vdelegate.h ..\utils\vdelegate.c
 123_util.h:	..\include\decoder_plug.h

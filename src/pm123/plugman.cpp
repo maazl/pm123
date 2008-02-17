@@ -1109,20 +1109,8 @@ dec_fill_types( char* result, size_t size )
 
 ULONG
 dec_editmeta( HWND owner, const char* url, const char* decoder_name )
-{
+{ DEBUGLOG(("dec_editmeta(%x, %s, %s)\n", owner, url, decoder_name));
   ULONG rc;
-  DEBUGLOG(("dec_editmeta(%p, %s, %s)\n", owner, url, decoder_name));
-  // detect decoder if required
-  char decoder[_MAX_FNAME];
-  if (decoder_name == NULL || *decoder_name == 0)
-  { DECODER_INFO2 info;
-    // TODO: THREAD!
-    int rc = dec_fileinfo(url, &info, decoder);
-    if (rc != 0)
-      return rc;
-    decoder_name = decoder;
-  }
-
   // find decoder
   int i = decoders.find_short(decoder_name);
   if (i == -1)
@@ -1135,7 +1123,6 @@ dec_editmeta( HWND owner, const char* url, const char* decoder_name )
     { rc = 400;
     } else
     { // detach configure
-      // TODO: THREAD!
       rc = (*procs.decoder_editmeta)(owner, url);
     }
   }

@@ -79,6 +79,7 @@
 #define  AMP_CTRL_EVENT       ( WM_USER + 82 )
 #define  AMP_CTRL_EVENT_CB    ( WM_USER + 83 )
 #define  AMP_REFRESH_ACCEL    ( WM_USER + 84 )
+#define  AMP_INFO_EDIT        ( WM_USER + 85 )
 
 #define  TID_UPDATE_TIMERS    ( TID_USERMAX - 1 )
 #define  TID_UPDATE_PLAYER    ( TID_USERMAX - 2 )
@@ -966,7 +967,7 @@ amp_url_dlg_proc(HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2)
 /* Adds HTTP file to the playlist or load it to the player. */
 ULONG DLLENTRY
 amp_url_wizzard( HWND owner, const char* title, DECODER_WIZZARD_CALLBACK callback, void* param )
-{ DEBUGLOG(("amp_url_wizzard(%p, %s, %p, %p)\n", owner, title, callback, param));
+{ DEBUGLOG(("amp_url_wizzard(%x, %s, %p, %p)\n", owner, title, callback, param));
 
   HWND hwnd = WinLoadDlg( HWND_DESKTOP, owner, amp_url_dlg_proc, NULLHANDLE, DLG_URL, 0 );
   if (hwnd == NULLHANDLE)
@@ -1004,25 +1005,36 @@ amp_load_file_callback( void* param, const char* url )
   *(bool*)param = false;
 }
 
+struct info_edit;
+static void amp_info_event(info_edit* iep, const Playable::change_args& args);
+
+struct info_edit
+{ HWND              Owner;
+  int_ptr<Playable> Song;
+  delegate<info_edit, const Playable::change_args> InfoDelegate;
+  info_edit(HWND owner, Playable* song)
+  : Owner(owner),
+    Song(song),
+    InfoDelegate(song->InfoChange, &amp_info_event, this)
+  {}
+};
+
+void amp_info_event(info_edit* iep, const Playable::change_args& args)
+{ if (args.Flags & Playable::IF_Other)
+  { iep->InfoDelegate.detach();
+    PMRASSERT(WinPostMsg(hframe, AMP_INFO_EDIT, iep, 0));
+  }
+}
+
 /* Edits a ID3 tag for the specified file. */
 void
-amp_info_edit( HWND owner, const char* filename, const char* decoder )
-{
-  ULONG rc = dec_editmeta( owner, filename, decoder );
-  switch (rc)
-  { default:
-      amp_error( owner, "Cannot edit tag of file:\n%s", filename);
-      return;
-
-    case 0:   // tag changed
-      Playable::GetByURL(filename)->LoadInfoAsync(Playable::IF_Meta);
-      // Refresh will come automatically
-    case 300: // tag unchanged
-      return;
-
-    case 500:
-      amp_error( owner, "Unable write tag to file:\n%s\n%s", filename, clib_strerror(errno));
-      return;
+amp_info_edit( HWND owner, Playable* song )
+{ DEBUGLOG(("amp_info_edit(%x, %p)\n", owner, song));
+  info_edit* iep = new info_edit(owner, song);
+  if (song->EnsureInfoAsync(Playable::IF_Other))
+  { // Information immediately available => post message
+    iep->InfoDelegate.detach(); // do no longer wait for the event
+    PMRASSERT(WinPostMsg(hframe, AMP_INFO_EDIT, iep, 0));
   }
 }
 
@@ -1917,6 +1929,29 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
       return 0;
     }
 
+    case AMP_INFO_EDIT:
+    { info_edit* iep = (info_edit*)PVOIDFROMMP(mp1);
+      DEBUGLOG(("amp_dlg_proc: AMP_INFO_EDIT %p{%x, %p,}\n", iep, iep->Owner, &*iep->Song));
+      // TODO: THREAD?
+      ULONG rc = dec_editmeta( iep->Owner, iep->Song->GetURL(), iep->Song->GetDecoder());
+      DEBUGLOG(("amp_dlg_proc: AMP_INFO_EDIT rc = %u\n", rc));
+      switch (rc)
+      { default:
+          amp_error( iep->Owner, "Cannot edit tag of file:\n%s", iep->Song->GetURL().cdata());
+          break;
+        case 0:   // tag changed
+          iep->Song->LoadInfoAsync(Playable::IF_Meta);
+          // Refresh will come automatically
+        case 300: // tag unchanged
+          break;
+        case 500:
+          amp_error( iep->Owner, "Unable write tag to file:\n%s\n%s", iep->Song->GetURL().cdata(), clib_strerror(errno));
+          break;
+      }
+      delete iep;
+      return 0;
+    }
+
     case AMP_DISPLAY_MSG:
       if( mp2 ) {
         amp_error( hwnd, "%s", mp1 );
@@ -2171,7 +2206,7 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
         case IDM_M_TAG:
         { int_ptr<Song> song = Ctrl::GetCurrentSong();
           if (song)
-            amp_info_edit( hwnd, song->GetURL(), song->GetDecoder() );
+            amp_info_edit( hwnd, song );
           return 0;
         }
         case IDM_M_DETAILED:

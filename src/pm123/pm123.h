@@ -90,7 +90,7 @@ BOOL  amp_warn_if_overwrite( HWND owner, const char* filename );
 void  amp_show_help( SHORT resid );
 
 /* Edits a information for the specified file. */
-void  amp_info_edit( HWND owner, const char* filename, const char* decoder );
+void  amp_info_edit( HWND owner, Playable* song );
 
 /* file dialog standard types */
 #define FDT_PLAYLIST         "Playlist files (*.LST;*.MPL;*.M3U;*.PLS)"

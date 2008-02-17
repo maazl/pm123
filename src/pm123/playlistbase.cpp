@@ -1058,8 +1058,7 @@ void PlaylistBase::UserReload(Playable* pp)
 }
 
 void PlaylistBase::UserEditMeta(Playable* pp)
-{ if (pp->GetInfo().meta_write)
-    amp_info_edit(HwndFrame, pp->GetURL(), pp->GetDecoder());
+{ amp_info_edit(HwndFrame, pp);
 }
 
 void PlaylistBase::UserSort(Playable* pp)

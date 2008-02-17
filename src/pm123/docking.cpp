@@ -27,15 +27,15 @@
  */
 
 #define  INCL_WIN
-#include <os2.h>
 #include <stdlib.h>
 #include <memory.h>
 #include <stdio.h>
 
-#include "pm123.h"
+#include "pm123.h" // for amp_player_error
 #include "properties.h"
 #include "docking.h"
 #include <utilfct.h>
+#include <os2.h>
 
 #define IS_MASTER( data )   ( data->state &   DK_IS_MASTER )
 #define IS_GHOST( data )    ( data->state &   DK_IS_GHOST  )

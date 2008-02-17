@@ -217,7 +217,7 @@ class PlaylistBase : public IComparableTo<const char*>
   xstring           Alias;         // Alias name for the window title
   const char*       NameApp;       // Name apendix for window title
   const ULONG       DlgRID;        // Resource ID of the dialog template
-  HACCEL            AccelTable;    // Accelerator table
+  HACCEL            AccelTable;    // Accelerator table - TODO: use shared accelerator table
   #if DEBUG
   xstring           DebugName() const;
   #endif
