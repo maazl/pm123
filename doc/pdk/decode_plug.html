@@ -180,13 +180,14 @@ decoder. Extentions can be for example "*.MOD".
   the context menu is not extended with entries specific to this plug-in.
 <p>The field <code>prompt</code> is the menu text. It should not contain information about the accelerator key,
   because this is generated automatically.
-<p>The fields <code>accel_key</code> and <code>accel_opt</code> can be used to extend the accelerator table of PM123.
+<p>The fields <code>accel_key</code>[<code>2</code>] and <code>accel_opt</code>[<code>2</code>] can be used to extend the accelerator table of PM123.
   They correspond to the fields <code>key</code> and <code>fs</code> of the <code>ACCEL</code> structure.
-  You must not use the <code>AF_SHIFT</code> option because this is reserved to the Playlist Manager to
-  add items to nested playlists.<br>
+  The first set of entries is used for the PM123 main window and the playlist windows.
+  The second set is for the Playlist Manager to append to the currently selected playlist.<br>
   You should set <code>accel_key</code> to <code>0</code> if you do not want an accelerator key
   for your plug-in's wizzard dialog.
   Be careful with the choice of the accelerator keys because there may be clashes.
+  Using Alt and Shift-Alt as meta keys is recommended.
 <p>When the menu entry is selected the corresponding wizzard function is called by PM123.
 <blockquote>
 <pre>ULONG (DLLENTRYP <b>wizzard</b>)( HWND owner, const char* title,
