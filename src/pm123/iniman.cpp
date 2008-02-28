@@ -44,7 +44,7 @@
 #include "iniman.h"
 #include "plugman.h"
 
-void
+static void
 factory_settings( void )
 {
   memset( &cfg, 0, sizeof( cfg ));
@@ -67,8 +67,6 @@ factory_settings( void )
   cfg.trash         = TRUE;     // Flush buffers by default.
   cfg.buff_size     = 128;
   cfg.buff_wait     = FALSE;
-  cfg.shf           = FALSE;
-  cfg.rpt           = FALSE;
   cfg.floatontop    = FALSE;
   cfg.playonuse     = TRUE;
   cfg.scroll        = CFG_SCROLL_INFINITE;
@@ -116,8 +114,8 @@ load_ini( void )
     load_ini_value( INIhandle, cfg.mode );
     load_ini_value( INIhandle, cfg.font );
     load_ini_value( INIhandle, cfg.trash );
-    load_ini_value( INIhandle, cfg.shf );
-    load_ini_value( INIhandle, cfg.rpt );
+//    load_ini_value( INIhandle, cfg.shf );
+//    load_ini_value( INIhandle, cfg.rpt );
     load_ini_value( INIhandle, cfg.floatontop );
     load_ini_value( INIhandle, cfg.playonuse );
     load_ini_value( INIhandle, cfg.scroll );
@@ -239,8 +237,8 @@ save_ini( void )
     save_ini_value( INIhandle, cfg.mode );
     save_ini_value( INIhandle, cfg.font );
     save_ini_value( INIhandle, cfg.trash );
-    save_ini_value( INIhandle, cfg.shf );
-    save_ini_value( INIhandle, cfg.rpt );
+//    save_ini_value( INIhandle, cfg.shf );
+//    save_ini_value( INIhandle, cfg.rpt );
     save_ini_value( INIhandle, cfg.floatontop );
     save_ini_value( INIhandle, cfg.playonuse );
     save_ini_value( INIhandle, cfg.scroll );

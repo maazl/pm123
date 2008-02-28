@@ -71,8 +71,8 @@ typedef struct _amp_cfg {
   int    mode;                /* See CFG_MODE_*                         */
   int    font;                /* Use font 1 or font 2.                  */
   BOOL   trash;               /* Trash buffers on seek.                 */
-  BOOL   shf;                 /* The state of the "Shuffle" button.     */
-  BOOL   rpt;                 /* The state of the "Repeat" button.      */
+//  BOOL   shf;                 /* The state of the "Shuffle" button.     */
+//  BOOL   rpt;                 /* The state of the "Repeat" button.      */
   BOOL   floatontop;          /* Float on top.                          */
   BOOL   show_playlist;       /* Show playlist.                         */
   BOOL   show_bmarks;         /* Show bookmarks.                        */

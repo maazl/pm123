@@ -402,6 +402,8 @@ class Ctrl
   static RC    MsgLoad(const xstring& url);
   static RC    MsgSave(const xstring& filename);
   static RC    MsgEqualize(const EQ_Data* data);
+  static RC    MsgShuffle(Op op);
+  static RC    MsgRepeat(Op op);
   static RC    MsgStatus();
   static RC    MsgDecStop();
  
@@ -475,6 +477,10 @@ class Ctrl
   { return new ControlCommand(Cmd_Scan, xstring(), 0., op); }
   static ControlCommand* MkVolume(double volume, bool relative)
   { return new ControlCommand(Cmd_Volume, xstring(), volume, relative); }
+  static ControlCommand* MkShuffle(Op op)
+  { return new ControlCommand(Cmd_Shuffle, xstring(), 0., op); }
+  static ControlCommand* MkRepeat(Op op)
+  { return new ControlCommand(Cmd_Repeat, xstring(), 0., op); }
   static ControlCommand* MkSave(const xstring& filename)
   { return new ControlCommand(Cmd_Save, filename, 0., 0); }
   static ControlCommand* MkEqualize(const EQ_Data* data)

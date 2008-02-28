@@ -36,7 +36,6 @@
 #include <config.h>
 #include <decoder_plug.h>
 #include "properties.h"
-#include "copyright.h"
 #include <os2.h>
 
 #include "playable.h"

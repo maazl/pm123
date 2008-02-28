@@ -36,6 +36,7 @@
 #define AMP_NAME     "PM123"
 #define AMP_FULLNAME AMP_NAME " " AMP_VERSION
 
+#ifndef RC_INVOKED
 #define SDG_AUT "Marcel Mueller (http://www.maazl.de/)\n"\
                 "Dmitry A.Steklenev <glass@ptv.ru> (http://glass.os2.spb.ru/)\n"\
                 "Samuel Audet <guardia@step.polymtl.ca> (http://step.polymtl.ca/~guardia/)\n"\
@@ -182,5 +183,6 @@
 "IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) "\
 "ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE "\
 "POSSIBILITY OF SUCH DAMAGE."
+#endif
 
 #endif /* PM123_COPYRIGHT_H */

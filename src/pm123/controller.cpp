@@ -776,6 +776,22 @@ Ctrl::RC Ctrl::MsgEqualize(const EQ_Data* data)
   return RC_OK;
 }
 
+/* Adjusts shuffle flag. */
+Ctrl::RC Ctrl::MsgShuffle(Op op)
+{ DEBUGLOG(("Ctrl::MsgShuffle(%x) - %u\n", op, Scan)); 
+  if (SetFlag(Shuffle, op))
+    InterlockedOr(Pending, EV_Shuffle);
+  return RC_OK;
+}
+
+/* Adjusts repeat flag. */
+Ctrl::RC Ctrl::MsgRepeat(Op op)
+{ DEBUGLOG(("Ctrl::MsgRepeat(%x) - %u\n", op, Scan)); 
+  if (SetFlag(Repeat, op))
+    InterlockedOr(Pending, EV_Repeat);
+  return RC_OK;
+}
+
 Ctrl::RC Ctrl::MsgStatus()
 { DEBUGLOG(("Ctrl::MsgStatus()\n"));
   Status.CurrentSongTime = Slice.Start; // implicit else of the if below
@@ -923,7 +939,15 @@ void Ctrl::Worker()
          case Cmd_Volume:
           qp->Flags = MsgVolume(qp->NumArg, qp->Flags & 0x01);
           break;
-          
+
+         case Cmd_Shuffle:
+          qp->Flags = MsgShuffle((Op)qp->Flags);
+          break;
+
+         case Cmd_Repeat:
+          qp->Flags = MsgRepeat((Op)qp->Flags);
+          break;
+
          case Cmd_Save:
           qp->Flags = MsgSave(qp->StrArg);
           break;
@@ -977,6 +1001,17 @@ void Ctrl::Init()
   out_event += OutEventDelegate;
   WorkerTID = _beginthread(&ControllerWorkerStub, NULL, 262144, NULL);
   ASSERT((int)WorkerTID != -1);
+  // TODO: reasonable INI class
+  struct
+  { BOOL   shf;                 /* The state of the "Shuffle" button.     */
+    BOOL   rpt;                 /* The state of the "Repeat" button.      */
+  } cfg;
+  HINI hini = open_module_ini();
+  load_ini_value(hini, cfg.shf);
+  load_ini_value(hini, cfg.rpt);
+  close_ini(hini);
+  Shuffle = !!cfg.shf;
+  Repeat = !!cfg.rpt;
 }
 
 void Ctrl::Uninit()
@@ -988,6 +1023,16 @@ void Ctrl::Uninit()
     DecEventDelegate.detach();
     OutEventDelegate.detach();
   }
+  // TODO: reasonable INI class
+  struct
+  { BOOL   shf;                 /* The state of the "Shuffle" button.     */
+    BOOL   rpt;                 /* The state of the "Repeat" button.      */
+  } cfg = { Shuffle, Repeat };
+  HINI hini = open_module_ini();
+  save_ini_value(hini, cfg.shf);
+  save_ini_value(hini, cfg.rpt);
+  close_ini(hini);
+
   if (WorkerTID != 0)
     wait_thread_pm(amp_player_hab(), WorkerTID, 30000);
   // Now delete everything

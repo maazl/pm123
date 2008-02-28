@@ -37,12 +37,14 @@
 
 #include <utilfct.h>
 #include <xio.h>
+#include <snprintf.h>
 #include "properties.h"
 #include "pm123.h"
 #include "pm123.rc.h"
 #include "iniman.h"
 #include "plugman.h"
 #include "controller.h"
+#include "copyright.h"
 #include <os2.h>
 
 #define  CFG_REFRESH_LIST (WM_USER+1)
@@ -123,6 +125,15 @@ cfg_settings1_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
 {
   switch( msg ) {
     case WM_INITDLG:
+      do_warpsans( hwnd );
+      do_warpsans( WinWindowFromID( hwnd, ST_PROXY_HOST ));
+      do_warpsans( WinWindowFromID( hwnd, ST_PROXY_PORT ));
+      do_warpsans( WinWindowFromID( hwnd, ST_PROXY_USER ));
+      do_warpsans( WinWindowFromID( hwnd, ST_PROXY_PASS ));
+      do_warpsans( WinWindowFromID( hwnd, ST_PIXELS     ));
+      do_warpsans( WinWindowFromID( hwnd, ST_BUFFERSIZE ));
+
+    case CFG_UNDO:
     {
       char buffer[1024];
       PSZ cp;
@@ -165,10 +176,6 @@ cfg_settings1_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
 
     case WM_COMMAND:
     case WM_CONTROL:
-      return 0;
-
-    case CFG_UNDO:
-      WinSendMsg( hwnd, WM_INITDLG, 0, 0 );
       return 0;
 
     case CFG_DEFAULT:
@@ -275,6 +282,8 @@ cfg_display1_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
 
   switch( msg ) {
     case WM_INITDLG:
+      do_warpsans( hwnd );
+    case CFG_UNDO:
     {
       WinCheckButton( hwnd, RB_DISP_FILENAME   + cfg.viewmode, TRUE );
       WinCheckButton( hwnd, RB_SCROLL_INFINITE + cfg.scroll,   TRUE );
@@ -342,10 +351,6 @@ cfg_display1_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
       }
       return 0;
 
-    case CFG_UNDO:
-      WinSendMsg( hwnd, WM_INITDLG, 0, 0 );
-      return 0;
-
     case CFG_DEFAULT:
     {
       WinCheckButton( hwnd, RB_SCROLL_INFINITE, TRUE );
@@ -389,6 +394,50 @@ cfg_display1_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
   return WinDefDlgProc( hwnd, msg, mp1, mp2 );
 }
 
+static bool cfg_config_refresh_list(HWND hwnd, SHORT id, int (*enum_fn)(PLUGIN_BASE*const**))
+{ DEBUGLOG(("cfg_config_refresh_list(%x, %p, %i)\n", hwnd, enum_fn, id));
+  lb_remove_all( hwnd, id );
+  PLUGIN_BASE*const* list;
+  int num = (*enum_fn)(&list);
+  char filename[_MAX_FNAME];
+  for ( int i = 0; i < num; i++ )
+    lb_add_item( hwnd, id, sfname( filename, list[i]->module_name, sizeof( filename )));
+  if ( lb_size( hwnd, id))
+  { lb_select( hwnd, id, 0 );
+    return false;
+  }
+  return true;
+}
+
+static PLUGIN_BASE* cfg_config_refresh_info( HWND hwnd, int (*enum_fn)(PLUGIN_BASE*const**), SHORT i,
+  SHORT st_author, SHORT st_desc, SHORT pb_enable, SHORT pb_config, SHORT pb_unload )
+{ PLUGIN_BASE*const* list;
+  int num = (*enum_fn)(&list);
+  if( i < 0 || i >= num ) {
+    WinSetDlgItemText( hwnd, st_author, "Author: <none>" );
+    WinSetDlgItemText( hwnd, st_desc,   "Desc: <none>" );
+    WinSetDlgItemText( hwnd, pb_enable, "~Enable" );
+    WinEnableControl ( hwnd, pb_config, FALSE );
+    if (pb_enable)
+      WinEnableControl ( hwnd, pb_enable, FALSE );
+    WinEnableControl ( hwnd, pb_unload, FALSE );
+    return NULL;
+  } else {
+    char buffer[256];
+    snprintf( buffer, sizeof buffer,    "Author: %s", list[i]->query_param.author );
+    WinSetDlgItemText( hwnd, st_author, buffer );
+    snprintf( buffer, sizeof buffer,    "Desc: %s", list[i]->query_param.desc );
+    WinSetDlgItemText( hwnd, st_desc, buffer );
+    if (pb_enable)
+    { WinSetDlgItemText( hwnd, pb_enable, get_plugin_enabled(list[i]) ? "Disabl~e" : "~Enable" );
+      WinEnableControl ( hwnd, pb_enable, TRUE );
+    }
+    WinEnableControl ( hwnd, pb_unload, TRUE );
+    WinEnableControl ( hwnd, pb_config, list[i]->query_param.configurable && get_plugin_enabled(list[i]) );
+    return list[i];
+  }
+}
+
 /* Processes messages of the plug-ins page 1 of the setup notebook. */
 static MRESULT EXPENTRY
 cfg_config1_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
@@ -400,94 +449,34 @@ cfg_config1_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
   switch( msg )
   {
     case CFG_REFRESH_LIST:
-    {
-      int i;
-  
-      if( LONGFROMMP(mp1) & PLUGIN_VISUAL  )
-      {
-        lb_remove_all( hwnd, LB_VISPLUG );
-        num = enum_visual_plugins(&list);
-        for( i = 0; i < num; i++ ) {
-          lb_add_item( hwnd, LB_VISPLUG, sfname( filename, list[i]->module_name, sizeof( filename )));
-        }
-        if( lb_size( hwnd, LB_VISPLUG )) {
-          lb_select( hwnd, LB_VISPLUG, 0 );
-        } else {
-          WinSendMsg( hwnd, CFG_REFRESH_INFO,
-                      MPFROMLONG( PLUGIN_VISUAL ), MPFROMSHORT( LIT_NONE ));
-        }
+      if( LONGFROMMP(mp1) & PLUGIN_VISUAL )
+      { if (!cfg_config_refresh_list(hwnd, LB_VISPLUG, &enum_visual_plugins))
+          (unsigned&)mp1 &= ~PLUGIN_VISUAL;
       }
-
       if( LONGFROMMP(mp1) & PLUGIN_DECODER )
-      {
-        lb_remove_all( hwnd, LB_DECPLUG );
-        num = enum_decoder_plugins(&list);
-        for( i = 0; i < num; i++ ) {
-          lb_add_item( hwnd, LB_DECPLUG, sfname( filename, list[i]->module_name, sizeof( filename )));
-        }
-        if( lb_size( hwnd, LB_DECPLUG )) {
-          lb_select( hwnd, LB_DECPLUG, 0 );
-        } else {
-          WinSendMsg( hwnd, CFG_REFRESH_INFO,
-                      MPFROMLONG( PLUGIN_DECODER ), MPFROMSHORT( LIT_NONE ));
-        }
+      { if (!cfg_config_refresh_list(hwnd, LB_DECPLUG, &enum_decoder_plugins))
+          (unsigned&)mp1 &= ~PLUGIN_DECODER;
       }
-      return 0;
-    }
-
+      if (!mp1)
+        return 0;
+      mp2 = MPFROMSHORT( LIT_NONE ); // Uhh, dirty fallthrough!
     case CFG_REFRESH_INFO:
-    {
-      SHORT i = SHORT1FROMMP(mp2);
-      char  buffer[256];
-
-      if( LONGFROMMP(mp1) & PLUGIN_VISUAL  )
-      {
-        num = enum_visual_plugins(&list);
-        if( i < 0 || i >= num ) {
-          WinSetDlgItemText( hwnd, ST_VIS_AUTHOR, "Author: <none>" );
-          WinSetDlgItemText( hwnd, ST_VIS_DESC, "Desc: <none>" );
-          WinSetDlgItemText( hwnd, PB_VIS_ENABLE, "~Enable" );
-          WinEnableControl ( hwnd, PB_VIS_CONFIG, FALSE );
-          WinEnableControl ( hwnd, PB_VIS_ENABLE, FALSE );
-          WinEnableControl ( hwnd, PB_VIS_UNLOAD, FALSE );
-        } else {
-          sprintf( buffer, "Author: %s", list[i]->query_param.author );
-          WinSetDlgItemText( hwnd, ST_VIS_AUTHOR, buffer );
-          sprintf( buffer, "Desc: %s", list[i]->query_param.desc );
-          WinSetDlgItemText( hwnd, ST_VIS_DESC, buffer );
-          WinSetDlgItemText( hwnd, PB_VIS_ENABLE, get_plugin_enabled(list[i]) ? "Disabl~e" : "~Enable" );
-          WinEnableControl ( hwnd, PB_VIS_ENABLE, TRUE );
-          WinEnableControl ( hwnd, PB_VIS_UNLOAD, TRUE );
-          WinEnableControl ( hwnd, PB_VIS_CONFIG, list[i]->query_param.configurable &&
-                                                  get_plugin_enabled(list[i]) );
-        }
-      }
-      if( LONGFROMMP(mp1) & PLUGIN_DECODER ) {
-        num = enum_decoder_plugins(&list);
-        if( i < 0 || i >= num ) {
-          WinSetDlgItemText( hwnd, ST_DEC_AUTHOR, "Author: <none>" );
-          WinSetDlgItemText( hwnd, ST_DEC_DESC, "Desc: <none>" );
-          WinSetDlgItemText( hwnd, PB_DEC_ENABLE, "~Enable" );
-          WinEnableControl ( hwnd, PB_DEC_CONFIG, FALSE );
-          WinEnableControl ( hwnd, PB_DEC_ENABLE, FALSE );
-          WinEnableControl ( hwnd, PB_DEC_UNLOAD, FALSE );
-        } else {
-          sprintf( buffer, "Author: %s", list[i]->query_param.author );
-          WinSetDlgItemText( hwnd, ST_DEC_AUTHOR, buffer );
-          sprintf( buffer, "Desc: %s", list[i]->query_param.desc );
-          WinSetDlgItemText( hwnd, ST_DEC_DESC, buffer );
-          WinSetDlgItemText( hwnd, PB_DEC_ENABLE, get_plugin_enabled(list[i]) ? "Disabl~e" : "~Enable" );
-          WinEnableControl ( hwnd, PB_DEC_ENABLE, TRUE );
-          WinEnableControl ( hwnd, PB_DEC_UNLOAD, TRUE );
-          WinEnableControl ( hwnd, PB_DEC_CONFIG, list[i]->query_param.configurable &&
-                                                  get_plugin_enabled(list[i]) );
-        }
-      }
+      if( LONGFROMMP(mp1) & PLUGIN_VISUAL )
+        cfg_config_refresh_info( hwnd, &enum_visual_plugins, SHORT1FROMMP(mp2),
+          ST_VIS_AUTHOR, ST_VIS_DESC, PB_VIS_ENABLE, PB_VIS_CONFIG, PB_VIS_UNLOAD );
+      if( LONGFROMMP(mp1) & PLUGIN_DECODER )
+        cfg_config_refresh_info( hwnd, &enum_decoder_plugins, SHORT1FROMMP(mp2),
+          ST_DEC_AUTHOR, ST_DEC_DESC, PB_DEC_ENABLE, PB_DEC_CONFIG, PB_DEC_UNLOAD );
       return 0;
-    }
 
     case WM_INITDLG:
-      WinSendMsg( hwnd, CFG_REFRESH_LIST,
+      do_warpsans( hwnd );
+      do_warpsans( WinWindowFromID( hwnd, ST_VIS_AUTHOR ));
+      do_warpsans( WinWindowFromID( hwnd, ST_VIS_DESC   ));
+      do_warpsans( WinWindowFromID( hwnd, ST_DEC_AUTHOR ));
+      do_warpsans( WinWindowFromID( hwnd, ST_DEC_DESC   ));
+
+      WinPostMsg( hwnd, CFG_REFRESH_LIST,
                   MPFROMLONG( PLUGIN_VISUAL | PLUGIN_DECODER ), 0 );
       return 0;
 
@@ -497,10 +486,10 @@ cfg_config1_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
         int i = WinQueryLboxSelectedItem((HWND)mp2);
 
         if( SHORT1FROMMP( mp1 ) == LB_VISPLUG ) {
-          WinSendMsg( hwnd, CFG_REFRESH_INFO,
+          WinPostMsg( hwnd, CFG_REFRESH_INFO,
                       MPFROMLONG( PLUGIN_VISUAL  ), MPFROMSHORT( i ));
         } else if( SHORT1FROMMP( mp1 ) == LB_DECPLUG ) {
-          WinSendMsg( hwnd, CFG_REFRESH_INFO,
+          WinPostMsg( hwnd, CFG_REFRESH_INFO,
                       MPFROMLONG( PLUGIN_DECODER ), MPFROMSHORT( i ));
         }
       }
@@ -528,7 +517,7 @@ cfg_config1_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
               vis_init( i );
             }
             set_plugin_enabled(list[i], !get_plugin_enabled(list[i]));
-            WinSendMsg( hwnd, CFG_REFRESH_INFO,
+            WinPostMsg( hwnd, CFG_REFRESH_INFO,
                         MPFROMLONG( PLUGIN_VISUAL ), MPFROMSHORT( i ));
           }
           return 0;
@@ -540,7 +529,7 @@ cfg_config1_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
           if( i != LIT_NONE ) {
             remove_visual_plugin( i );
             if( lb_remove_item( hwnd, LB_VISPLUG, i ) == 0 ) {
-              WinSendMsg( hwnd, CFG_REFRESH_INFO,
+              WinPostMsg( hwnd, CFG_REFRESH_INFO,
                           MPFROMLONG( PLUGIN_VISUAL ), MPFROMSHORT( LIT_NONE ));
             } else {
               lb_select( hwnd, LB_VISPLUG, 0 );
@@ -572,7 +561,7 @@ cfg_config1_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
                 set_plugin_enabled(list[i], FALSE);
               }
             }
-            WinSendMsg( hwnd, CFG_REFRESH_INFO,
+            WinPostMsg( hwnd, CFG_REFRESH_INFO,
                         MPFROMLONG( PLUGIN_DECODER ), MPFROMSHORT( i ));
           }
           return 0;
@@ -615,91 +604,36 @@ cfg_config2_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
   switch( msg )
   {
     case CFG_REFRESH_LIST:
-    {
-      int i;
-
-      if( LONGFROMMP(mp1) & PLUGIN_OUTPUT  )
-      {
-        lb_remove_all( hwnd, LB_OUTPLUG );
-        num = enum_output_plugins(&list);
-        for( i = 0; i < num; i++ ) {
-          lb_add_item( hwnd, LB_OUTPLUG, sfname( filename, list[i]->module_name, sizeof( filename )));
-        }
-        if( lb_size( hwnd, LB_OUTPLUG )) {
-          lb_select( hwnd, LB_OUTPLUG, 0 );
-        } else {
-          WinSendMsg( hwnd, CFG_REFRESH_INFO,
-                      MPFROMLONG( PLUGIN_OUTPUT ), MPFROMSHORT( LIT_NONE ));
-        }
-      }
-
-      if( LONGFROMMP(mp1) & PLUGIN_FILTER )
-      {
-        lb_remove_all( hwnd, LB_FILPLUG );
-        num = enum_filter_plugins(&list);
-        for( i = 0; i < num; i++ ) {
-          lb_add_item( hwnd, LB_FILPLUG, sfname( filename, list[i]->module_name, sizeof( filename )));
-        }
-        if( lb_size( hwnd, LB_FILPLUG )) {
-          lb_select( hwnd, LB_FILPLUG, 0 );
-        } else {
-          WinSendMsg( hwnd, CFG_REFRESH_INFO,
-                      MPFROMLONG( PLUGIN_FILTER ), MPFROMSHORT( LIT_NONE ));
-        }
-      }
-      return 0;
-    }
-
-    case CFG_REFRESH_INFO:
-    {
-      SHORT i = SHORT1FROMMP(mp2);
-      char  buffer[256];
-
       if( LONGFROMMP(mp1) & PLUGIN_OUTPUT )
-      {
-        num = enum_output_plugins(&list);
-        if( i < 0 || i >= num ) {
-          WinSetDlgItemText( hwnd, ST_OUT_AUTHOR, "Author: <none>" );
-          WinSetDlgItemText( hwnd, ST_OUT_DESC, "Desc: <none>" );
-          WinEnableControl ( hwnd, PB_OUT_CONFIG, FALSE );
-          WinEnableControl ( hwnd, PB_OUT_ACTIVATE, FALSE );
-          WinEnableControl ( hwnd, PB_OUT_UNLOAD, FALSE );
-        } else {
-          sprintf( buffer, "Author: %s", list[i]->query_param.author );
-          WinSetDlgItemText( hwnd, ST_OUT_AUTHOR, buffer );
-          sprintf( buffer, "Desc: %s", list[i]->query_param.desc );
-          WinSetDlgItemText( hwnd, ST_OUT_DESC, buffer );
-          WinEnableControl ( hwnd, PB_OUT_UNLOAD, TRUE );
-          WinEnableControl ( hwnd, PB_OUT_ACTIVATE, !out_is_active(i) );
-          WinEnableControl ( hwnd, PB_OUT_CONFIG, list[i]->query_param.configurable );
-        }
+      { if (!cfg_config_refresh_list(hwnd, LB_OUTPLUG, &enum_output_plugins))
+          (unsigned&)mp1 &= ~PLUGIN_OUTPUT;
       }
-      if( LONGFROMMP(mp1) & PLUGIN_FILTER ) {
-        num = enum_filter_plugins(&list);
-        if( i < 0 || i >= num ) {
-          WinSetDlgItemText( hwnd, ST_FIL_AUTHOR, "Author: <none>" );
-          WinSetDlgItemText( hwnd, ST_FIL_DESC, "Desc: <none>" );
-          WinSetDlgItemText( hwnd, PB_FIL_ENABLE, "~Enable" );
-          WinEnableControl ( hwnd, PB_FIL_CONFIG, FALSE );
-          WinEnableControl ( hwnd, PB_FIL_ENABLE, FALSE );
-          WinEnableControl ( hwnd, PB_FIL_UNLOAD, FALSE );
-        } else {
-          sprintf( buffer, "Author: %s", list[i]->query_param.author );
-          WinSetDlgItemText( hwnd, ST_FIL_AUTHOR, buffer );
-          sprintf( buffer, "Desc: %s", list[i]->query_param.desc );
-          WinSetDlgItemText( hwnd, ST_FIL_DESC, buffer );
-          WinSetDlgItemText( hwnd, PB_FIL_ENABLE, get_plugin_enabled(list[i]) ? "Disabl~e" : "~Enable" );
-          WinEnableControl ( hwnd, PB_FIL_ENABLE, TRUE );
-          WinEnableControl ( hwnd, PB_FIL_UNLOAD, TRUE );
-          WinEnableControl ( hwnd, PB_FIL_CONFIG, list[i]->query_param.configurable &&
-                                                  get_plugin_enabled(list[i]) );
-        }
+      if( LONGFROMMP(mp1) & PLUGIN_FILTER )
+      { if (!cfg_config_refresh_list(hwnd, LB_FILPLUG, &enum_filter_plugins))
+          (unsigned&)mp1 &= ~PLUGIN_FILTER;
       }
+      if (!mp1)
+        return 0;
+      mp2 = MPFROMSHORT( LIT_NONE ); // Uhh, dirty fallthrough!
+    case CFG_REFRESH_INFO:
+      if( LONGFROMMP(mp1) & PLUGIN_OUTPUT )
+      { PLUGIN_BASE* plug = cfg_config_refresh_info( hwnd, &enum_output_plugins, SHORT1FROMMP(mp2),
+          ST_OUT_AUTHOR, ST_OUT_DESC, 0, PB_OUT_CONFIG, PB_OUT_UNLOAD );
+        WinEnableControl ( hwnd, PB_OUT_ACTIVATE, plug && !out_is_active(SHORT1FROMMP(mp2)) );
+      }
+      if( LONGFROMMP(mp1) & PLUGIN_FILTER )
+        cfg_config_refresh_info( hwnd, &enum_filter_plugins, SHORT1FROMMP(mp2),
+          ST_FIL_AUTHOR, ST_FIL_DESC, PB_FIL_ENABLE, PB_FIL_CONFIG, PB_FIL_UNLOAD );
       return 0;
-    }
 
     case WM_INITDLG:
-      WinSendMsg( hwnd, CFG_REFRESH_LIST,
+      do_warpsans( hwnd );
+      do_warpsans( WinWindowFromID( hwnd, ST_FIL_AUTHOR ));
+      do_warpsans( WinWindowFromID( hwnd, ST_FIL_DESC   ));
+      do_warpsans( WinWindowFromID( hwnd, ST_OUT_AUTHOR ));
+      do_warpsans( WinWindowFromID( hwnd, ST_OUT_DESC   ));
+
+      WinPostMsg( hwnd, CFG_REFRESH_LIST,
                   MPFROMLONG( PLUGIN_OUTPUT | PLUGIN_FILTER ), 0 );
       return 0;
 
@@ -737,7 +671,7 @@ cfg_config2_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
               amp_error( hwnd, "Cannot change active output while playing." );
             } else {
               out_set_active( i );
-              WinSendMsg( hwnd, CFG_REFRESH_INFO,
+              WinPostMsg( hwnd, CFG_REFRESH_INFO,
                           MPFROMLONG( PLUGIN_OUTPUT ), MPFROMSHORT( i ));
             }
           }
@@ -754,7 +688,7 @@ cfg_config2_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
             } else {
               remove_output_plugin( i );
               if( lb_remove_item( hwnd, LB_OUTPLUG, i ) == 0 ) {
-                WinSendMsg( hwnd, CFG_REFRESH_INFO,
+                WinPostMsg( hwnd, CFG_REFRESH_INFO,
                             MPFROMLONG( PLUGIN_OUTPUT ), MPFROMSHORT( LIT_NONE ));
               } else {
                 lb_select( hwnd, LB_OUTPLUG, 0 );
@@ -788,7 +722,7 @@ cfg_config2_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
                 amp_info( hwnd, "This filter will only be disabled after playback of the current file." );
               }
             }
-            WinSendMsg( hwnd, CFG_REFRESH_INFO,
+            WinPostMsg( hwnd, CFG_REFRESH_INFO,
                         MPFROMLONG( PLUGIN_FILTER ), MPFROMSHORT( i ));
           }
           return 0;
@@ -817,25 +751,6 @@ cfg_config2_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
         default:
           return 0;
       }
-  }
-  return WinDefDlgProc( hwnd, msg, mp1, mp2 );
-}
-
-/* Processes messages of the about page of the setup notebook. */
-static MRESULT EXPENTRY
-cfg_about_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
-{
-  switch( msg )
-  {
-    case WM_COMMAND:
-    case WM_CONTROL:
-      return 0;
-
-    case WM_INITDLG:
-      WinSetDlgItemText( hwnd, ST_AUTHORS, SDG_AUT );
-      WinSetDlgItemText( hwnd, ST_CREDITS, SDG_MSG );
-      WinSetDlgItemText( hwnd, ST_TITLE1,  AMP_FULLNAME );
-      return 0;
   }
   return WinDefDlgProc( hwnd, msg, mp1, mp2 );
 }
@@ -938,7 +853,7 @@ cfg_properties( HWND owner )
 {
   HWND hwnd;
   HWND book;
-  HWND page[5];
+  HWND page;
 
   MRESULT id;
 
@@ -952,64 +867,29 @@ cfg_properties( HWND owner )
   WinSendMsg( book, BKM_SETNOTEBOOKCOLORS, MPFROMLONG ( SYSCLR_FIELDBACKGROUND ),
                                            MPFROMSHORT( BKA_BACKGROUNDPAGECOLORINDEX ));
 
-  page[0] = WinLoadDlg( book, book, cfg_settings1_dlg_proc, NULLHANDLE, CFG_SETTINGS1, 0 );
+  PMRASSERT( nb_append_tab( book, WinLoadDlg( book, book, cfg_settings1_dlg_proc, NULLHANDLE, CFG_SETTINGS1, 0 ),
+                            "~Settings", MPFROM2SHORT( 1, 2 ) ));
 
-  do_warpsans( page[0] );
-  do_warpsans( WinWindowFromID( page[0], ST_PROXY_HOST ));
-  do_warpsans( WinWindowFromID( page[0], ST_PROXY_PORT ));
-  do_warpsans( WinWindowFromID( page[0], ST_PROXY_USER ));
-  do_warpsans( WinWindowFromID( page[0], ST_PROXY_PASS ));
-  do_warpsans( WinWindowFromID( page[0], ST_PIXELS     ));
-  do_warpsans( WinWindowFromID( page[0], ST_BUFFERSIZE ));
+  PMRASSERT( nb_append_tab( book, WinLoadDlg( book, book, cfg_settings1_dlg_proc, NULLHANDLE, CFG_SETTINGS2, 0 ),
+                            NULL, MPFROM2SHORT( 2, 2 ) ));
 
-  id = WinSendMsg( book, BKM_INSERTPAGE, 0,
-                   MPFROM2SHORT( BKA_AUTOPAGESIZE | BKA_MAJOR | BKA_STATUSTEXTON, BKA_FIRST ));
+  PMRASSERT( nb_append_tab( book, WinLoadDlg( book, book, cfg_display1_dlg_proc, NULLHANDLE, CFG_DISPLAY1, 0 ),
+                            "~Display", 0));
 
-  WinSendMsg( book, BKM_SETPAGEWINDOWHWND, MPFROMLONG( id ), MPFROMLONG( page[0] ));
-  WinSendMsg( book, BKM_SETTABTEXT, MPFROMLONG( id ), MPFROMP( "~Settings" ));
+  PMRASSERT( nb_append_tab( book, WinLoadDlg( book, book, cfg_config1_dlg_proc, NULLHANDLE, CFG_CONFIG1, 0 ),
+                            "~Plug-ins", MPFROM2SHORT( 1, 2 )));
 
-  page[1] = WinLoadDlg( book, book, cfg_display1_dlg_proc, NULLHANDLE, CFG_DISPLAY1, 0 );
+  PMRASSERT( nb_append_tab( book, WinLoadDlg( book, book, cfg_config2_dlg_proc, NULLHANDLE, CFG_CONFIG2, 0 ), 
+                            NULL, MPFROM2SHORT( 2, 2 )));
 
-  do_warpsans( page[1] );
 
-  id = WinSendMsg( book, BKM_INSERTPAGE, 0,
-                   MPFROM2SHORT( BKA_AUTOPAGESIZE | BKA_MAJOR | BKA_STATUSTEXTON, BKA_LAST ));
-
-  WinSendMsg( book, BKM_SETPAGEWINDOWHWND, MPFROMLONG( id ), MPFROMLONG( page[1] ));
-  WinSendMsg( book, BKM_SETTABTEXT, MPFROMLONG( id ), MPFROMP( "~Display" ));
-
-  page[2] = WinLoadDlg( book, book, cfg_config1_dlg_proc, NULLHANDLE, CFG_CONFIG1, 0 );
-
-  do_warpsans( page[2] );
-  do_warpsans( WinWindowFromID( page[2], ST_VIS_AUTHOR ));
-  do_warpsans( WinWindowFromID( page[2], ST_VIS_DESC   ));
-  do_warpsans( WinWindowFromID( page[2], ST_DEC_AUTHOR ));
-  do_warpsans( WinWindowFromID( page[2], ST_DEC_DESC   ));
-
-  id = WinSendMsg( book, BKM_INSERTPAGE, 0,
-                   MPFROM2SHORT( BKA_AUTOPAGESIZE | BKA_MAJOR | BKA_MINOR | BKA_STATUSTEXTON, BKA_LAST ));
-
-  WinSendMsg( book, BKM_SETPAGEWINDOWHWND, MPFROMLONG( id ), MPFROMLONG( page[2] ));
-  WinSendMsg( book, BKM_SETTABTEXT, MPFROMLONG( id ), MPFROMP( "~Plug-Ins" ));
-  WinSendMsg( book, BKM_SETSTATUSLINETEXT, MPFROMLONG( id ), MPFROMP( "Page 1 of 2" ));
-
-  page[3] = WinLoadDlg( book, book, cfg_config2_dlg_proc, NULLHANDLE, CFG_CONFIG2, 0 );
-
-  do_warpsans( page[3] );
-  do_warpsans( WinWindowFromID( page[3], ST_FIL_AUTHOR ));
-  do_warpsans( WinWindowFromID( page[3], ST_FIL_DESC   ));
-  do_warpsans( WinWindowFromID( page[3], ST_OUT_AUTHOR ));
-  do_warpsans( WinWindowFromID( page[3], ST_OUT_DESC   ));
-
-  page[4] = WinLoadDlg( book, book, cfg_about_dlg_proc, NULLHANDLE, CFG_ABOUT, 0 );
-
-  do_warpsans( page[4] );
-  do_warpsans( WinWindowFromID( page[4], ST_TITLE2 ));
-  do_warpsans( WinWindowFromID( page[4], ST_BUILT  ));
-
-  #if defined(__IBMC__)
-    #if __IBMC__ <= 300
-    const char built[] = "(built " __DATE__ " using IBM VisualAge C++ 3.08)";
+  page = WinLoadDlg( book, book, &WinDefDlgProc, NULLHANDLE, CFG_ABOUT, 0 );
+  do_warpsans( page );
+  do_warpsans( WinWindowFromID( page, ST_TITLE2 ));
+  do_warpsans( WinWindowFromID( page, ST_BUILT  ));
+  #if defined(__IBMCPP__)
+    #if __IBMCPP__ <= 300
+    const char built[] = "(built " __DATE__ " using IBM VisualAge C++ 3.0x)";
     #else
     const char built[] = "(built " __DATE__ " using IBM VisualAge C++ 3.6)";
     #endif
@@ -1030,21 +910,10 @@ cfg_properties( HWND owner )
   #else
     const char* built = 0;
   #endif
-
-  WinSetDlgItemText( page[4], ST_BUILT, built );
-
-  id = WinSendMsg( book, BKM_INSERTPAGE, MPFROMLONG( id),
-                   MPFROM2SHORT( BKA_AUTOPAGESIZE | BKA_MINOR | BKA_STATUSTEXTON, BKA_NEXT ));
-
-  WinSendMsg( book, BKM_SETPAGEWINDOWHWND, MPFROMLONG( id ), MPFROMLONG( page[3] ));
-  WinSendMsg( book, BKM_SETTABTEXT, MPFROMLONG( id ), MPFROMP( "~Plug-Ins" ));
-  WinSendMsg( book, BKM_SETSTATUSLINETEXT, MPFROMLONG( id ), MPFROMP( "Page 2 of 2" ));
-
-  id = WinSendMsg( book, BKM_INSERTPAGE, 0,
-                   MPFROM2SHORT( BKA_AUTOPAGESIZE | BKA_MAJOR, BKA_LAST ));
-
-  WinSendMsg( book, BKM_SETPAGEWINDOWHWND, MPFROMLONG( id ), MPFROMLONG( page[4] ));
-  WinSendMsg( book, BKM_SETTABTEXT, MPFROMLONG( id ), MPFROMP( "~About" ));
+  WinSetDlgItemText( page, ST_BUILT, built );
+  WinSetDlgItemText( page, ST_AUTHORS, SDG_AUT );
+  WinSetDlgItemText( page, ST_CREDITS, SDG_MSG );
+  PMRASSERT( nb_append_tab( book, page, "~About", 0));
 
   rest_window_pos( hwnd, WIN_MAP_POINTS );
   WinSetFocus( HWND_DESKTOP, book );

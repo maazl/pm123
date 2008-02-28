@@ -31,6 +31,7 @@
 #include "plugman.h"
 #include "playable.h"
 #include "pm123.h"
+#include "copyright.h"
 #include <xio.h>
 #include <stdio.h>
 #include <stddef.h>

@@ -1295,7 +1295,7 @@ bmp_draw_plmode( HPS hps, BOOL valid, Playable::Flags flags )
       bmp_draw_bitmap( hps, bmp_pos[ POS_TL   ].x, bmp_pos[ POS_TL   ].y, BMP_TL );
   }
 
-  if( valid && (flags & Playable::Enumerable) && !cfg.rpt ) {
+  if( valid && (flags & Playable::Enumerable) ) {
     if( bmp_pos[ POS_PLIST   ].x != POS_UNDEF && bmp_pos[ POS_PLIST   ].y != POS_UNDEF )
       bmp_draw_bitmap( hps, bmp_pos[ POS_PLIST   ].x, bmp_pos[ POS_PLIST   ].y, BMP_PLIST );
   } else {

@@ -90,9 +90,9 @@
 #define IDM_M_ADDPMBOOK     557
 #define IDM_M_CURRENT_PL    558
 #define IDM_M_LOAD          560
-#define IDM_M_LOADFILE      561
-#define IDM_M_URL           562
-#define IDM_M_LOADOTHER     600 /* reserve some ID's for several plug-ins.  */
+#define IDM_M_LOADFILE      600
+#define IDM_M_URL           601
+#define IDM_M_LOADOTHER     602 /* reserve some ID's for several plug-ins.  */
 #define IDM_M_PLUG          650 /* reserve some ID's for several plug-ins.  */
 #define IDM_M_PLUG_E        699
 
@@ -256,27 +256,34 @@
 #define CFG_SETTINGS1      1300
 #define GB_BEHAVIOUR       1301
 #define CB_PLAYONLOAD      1302
-#define CB_AUTOUSEPL       1303
-#define CB_AUTOPLAYPL      1304
-#define CB_SELECTPLAYED    1305
 #define CB_TRASHONSEEK     1306
-#define CB_DOCK            1310
-#define EF_DOCK            1311
-#define ST_PIXELS          1312
-#define GB_STREAMING       1320
-#define ST_PROXY_HOST      1321
-#define EF_PROXY_HOST      1322
-#define ST_PROXY_PORT      1323
-#define EF_PROXY_PORT      1324
-#define ST_PROXY_USER      1325
-#define EF_PROXY_USER      1326
-#define ST_PROXY_PASS      1327
-#define EF_PROXY_PASS      1328
-#define ST_BUFFERSIZE      1329
-#define SB_BUFFERSIZE      1330
-#define ST_KB              1331
-#define CB_FILLBUFFER      1332
- 
+#define CB_AUTOUSEPL       1351
+#define CB_AUTOPLAYPL      1352
+#define CB_RECURSEDND      1353
+#define CB_AUTOAPPENDDND   1354
+#define CB_AUTOAPPENDCMD   1355
+#define CB_QUEUEMODE       1356
+
+#define CFG_SETTINGS2      1350
+#define GB_GUIFEATURES     1351
+#define CB_SELECTPLAYED    1355
+#define CB_DOCK            1360
+#define EF_DOCK            1361
+#define ST_PIXELS          1362
+#define GB_STREAMING       1370
+#define ST_PROXY_HOST      1371
+#define EF_PROXY_HOST      1372
+#define ST_PROXY_PORT      1373
+#define EF_PROXY_PORT      1374
+#define ST_PROXY_USER      1375
+#define EF_PROXY_USER      1376
+#define ST_PROXY_PASS      1377
+#define EF_PROXY_PASS      1378
+#define ST_BUFFERSIZE      1379
+#define SB_BUFFERSIZE      1380
+#define ST_KB              1381
+#define CB_FILLBUFFER      1382
+
 #define CFG_DISPLAY1       1400
 #define GB_TITLE           1401
 #define ST_SCROLL          1410

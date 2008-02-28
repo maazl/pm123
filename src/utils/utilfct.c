@@ -32,19 +32,21 @@
 #define  INCL_DOS
 #define  INCL_PM
 #define  INCL_ERRORS
-#include <os2.h>
+
+#include <stdio.h>
 #include "utilfct.h"
+#include <os2.h>
 
 #include "debuglog.h"
 
 APIRET APIENTRY DosQueryModFromEIP( HMODULE *phMod, ULONG *pObjNum, ULONG BuffLen,
                                     PCHAR pBuff, ULONG *pOffset, ULONG Address );
-static BOOL have_warpsans = -1;
-
 /* Returns TRUE if WarpSans is supported by operating system. */
 BOOL
 check_warpsans( void )
 {
+  static int have_warpsans = -1;
+
   if( have_warpsans == -1 )
   {
     LONG fontcounter = 0;
@@ -209,6 +211,24 @@ wait_thread_pm( HAB hab, TID tid, ULONG msec )
     { DosSleep( 31 );
       msec -= 31;
     }
+  }
+  return TRUE;
+}
+
+/* Append a tabbed dialog page */
+BOOL
+nb_append_tab( HWND book, HWND page, const char* text, MPARAM index )
+{ USHORT style = BKA_AUTOPAGESIZE | ( SHORT2FROMMP( index ) > 1) * (BKA_MINOR|BKA_STATUSTEXTON) | (SHORT1FROMMP( index ) <= 1) * BKA_MAJOR;
+  ULONG id = LONGFROMMR( WinSendMsg( book, BKM_INSERTPAGE, 0, MPFROM2SHORT( style, BKA_LAST )));
+  if ( id == 0
+    || !WinSendMsg( book, BKM_SETPAGEWINDOWHWND, MPFROMLONG( id ), MPFROMHWND( page ))
+    || text && !WinSendMsg( book, BKM_SETTABTEXT, MPFROMLONG( id ), MPFROMP( text )) )
+    return FALSE;
+  if (style & BKA_STATUSTEXTON)
+  { char buf[20];
+    sprintf( buf, "Page %u of %u", SHORT1FROMMP( index ), SHORT2FROMMP( index ) );
+    if ( !WinSendMsg( book, BKM_SETSTATUSLINETEXT, MPFROMLONG( id ), MPFROMP( buf )) )
+      return FALSE;
   }
   return TRUE;
 }

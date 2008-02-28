@@ -84,6 +84,10 @@ BOOL  wait_thread( TID tid, ULONG msec );
 /* Same as wait_thread, but keep the PM message queue alive. */
 BOOL  wait_thread_pm( HAB hab, TID tid, ULONG msec );
 
+/* append a tabbed dialog page. The index param gives
+   the index (low word) and the total (high word) number of subpages (if any). */
+BOOL  nb_append_tab( HWND book, HWND page, const char* text, MPARAM index );
+
 /* Makes a menu item selectable. */
 BOOL  mn_enable_item( HWND menu, SHORT id, BOOL enable );
 /* Places a a check mark to the left of the menu item. */
