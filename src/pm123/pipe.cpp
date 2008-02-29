@@ -36,6 +36,7 @@
 #include "pm123.rc.h"
 #include "properties.h"
 #include "controller.h"
+#include "123_util.h"
 #include <cpp/xstring.h>
 #include <debuglog.h>
 #include <os2.h>
@@ -50,6 +51,7 @@ static char  Pipename[50] = "\\PIPE\\PM123";
 
 // Instance vars
 static int_ptr<PlayableCollection> CurPlaylist; // playlist where we currently operate
+static int_ptr<PlayableInstance>   CurItem;     // current item of the above playlist
 
 
 template <int LEN, class V>
@@ -124,6 +126,8 @@ const strmap<8, Ctrl::Op>* parse_op(const char* arg)
   return mapsearch(map, arg);
 }
 
+
+///// PLAY CONTROL
 
 static void cmd_load(xstring& ret, char* args)
 { if (is_dir(args))
@@ -219,6 +223,143 @@ static void cmd_repeat(xstring& ret, char* args)
   }
 }
 
+static void cmd_status(xstring& ret, char* args)
+{ static const strmap<6, cfg_disp> map[] =
+  { { "file", CFG_DISP_FILENAME },
+    { "info", CFG_DISP_FILEINFO },
+    { "tag",  CFG_DISP_ID3TAG }
+  };
+  const strmap<6, cfg_disp>* op = mapsearch(map, args);
+  if (op)
+  { int_ptr<Song> song = Ctrl::GetCurrentSong();
+    if (song)
+    { switch (op->Val)
+      {case CFG_DISP_ID3TAG:
+        ret = amp_construct_tag_string(&song->GetInfo());
+        if (ret.length())
+          break;
+        // if tag is empty - use filename instead of it.
+       case CFG_DISP_FILENAME:
+        ret = song->GetURL().getShortName();
+        break;
+
+       case CFG_DISP_FILEINFO:
+        ret = song->GetInfo().tech->info;
+        break;
+      }
+    }
+  }
+}
+
+
+///// PLAYLIST
+
+static void cmd_playlist(xstring& ret, char* args)
+{ int_ptr<Playable> pp = Playable::GetByURL(args);
+  if (pp->GetFlags() & Playable::Enumerable)
+  { CurPlaylist = (PlayableCollection*)&*pp;
+    CurItem = NULL;
+  }
+  // TODO: result 
+};
+
+static void cmd_pl_next(xstring& ret, char* args)
+{ if (CurPlaylist)
+  { CurItem = CurPlaylist->GetNext(CurItem);
+    if (CurItem)
+      ret = CurItem->GetPlayable()->GetURL();
+  }
+}
+
+static void cmd_pl_prev(xstring& ret, char* args)
+{ if (CurPlaylist)
+  { CurItem = CurPlaylist->GetPrev(CurItem);
+    if (CurItem)
+      ret = CurItem->GetPlayable()->GetURL();
+  }
+}
+
+static void cmd_pl_reset(xstring& ret, char* args)
+{ CurItem = NULL;
+}
+
+static void cmd_use(xstring& ret, char* args)
+{ if (CurPlaylist)
+  { amp_load_playable(CurPlaylist->GetURL(), 0, AMP_LOAD_NOT_RECALL);
+    // TODO: reply and sync wait
+  }
+};
+
+static void cmd_clear(xstring& ret, char* args)
+{ if (CurPlaylist && (CurPlaylist->GetFlags() & Playable::Mutable) == Playable::Mutable)
+  { ((Playlist&)*CurPlaylist).Clear();
+  }
+  // TODO: reply
+}
+
+static void cmd_remove(xstring& ret, char* args)
+{ if (CurItem && (CurPlaylist->GetFlags() & Playable::Mutable) == Playable::Mutable)
+  { ((Playlist&)*CurPlaylist).RemoveItem(CurItem);
+  }
+  // TODO: reply
+}
+
+static void cmd_add(xstring& ret, char* args)
+{ if (CurPlaylist && (CurPlaylist->GetFlags() & Playable::Mutable) == Playable::Mutable)
+  { Mutex::Lock lck(CurPlaylist->Mtx); // Atomic
+    // parse args
+    do
+    { char* cp = *args == '"' ? strchr(++args, '"') : strchr(args, ';');
+      if (cp)
+        *cp++ = 0;
+      if (*args)
+        ((Playlist&)*CurPlaylist).InsertItem(url123::normalizeURL(args), xstring(), CurItem);
+      args = cp;
+    } while (args); 
+  }
+  // TODO: reply
+}
+
+static void cmd_dir(xstring& ret, char* args)
+{ if (CurPlaylist && (CurPlaylist->GetFlags() & Playable::Mutable) == Playable::Mutable)
+  { Mutex::Lock lck(CurPlaylist->Mtx); // Atomic
+    // parse args
+    do
+    { char* cp = *args == '"' ? strchr(++args, '"') : strchr(args, ';');
+      if (cp)
+        *cp++ = 0;
+      if (*args)
+      { xstring url = url123::normalizeURL(args);
+        if (url[url.length()-1] != '/')
+          url = url + "/"; 
+        ((Playlist&)*CurPlaylist).InsertItem(url, xstring(), CurItem);
+      }
+      args = cp;
+    } while (args); 
+  }
+  // TODO: reply
+}
+
+static void cmd_rdir(xstring& ret, char* args)
+{ if (CurPlaylist && (CurPlaylist->GetFlags() & Playable::Mutable) == Playable::Mutable)
+  { Mutex::Lock lck(CurPlaylist->Mtx); // Atomic
+    // parse args
+    do
+    { char* cp = *args == '"' ? strchr(++args, '"') : strchr(args, ';');
+      if (cp)
+        *cp++ = 0;
+      if (*args)
+      { xstring url = url123::normalizeURL(args);
+        if (url[url.length()-1] != '/')
+          url = url + "/"; 
+        ((Playlist&)*CurPlaylist).InsertItem(url+"?recursive", xstring(), CurItem);
+      }
+      args = cp;
+    } while (args); 
+  }
+  // TODO: reply
+}
+
 ///// CONFIGURATION
 
 static void cmd_size(xstring& ret, char* args)
@@ -238,46 +379,32 @@ static void cmd_size(xstring& ret, char* args)
   }
 };
 
-///// PLAYLIST
-
-static void cmd_playlist(xstring& ret, char* args)
-{ int_ptr<Playable> pp = Playable::GetByURL(args);
-  if (pp->GetFlags() & Playable::Enumerable)
-    CurPlaylist = (PlayableCollection*)&*pp;
-  // TODO: result 
-};
-
-static void cmd_use(xstring& ret, char* args)
-{ if (CurPlaylist)
-  { amp_load_playable(CurPlaylist->GetURL(), 0, AMP_LOAD_NOT_RECALL);
-    // TODO: reply and sync wait
-  }
-};
-
-static void cmd_clear(xstring& ret, char* args)
-{ if (CurPlaylist && (CurPlaylist->GetFlags() & Playable::Mutable) == Playable::Mutable)
-  { ((Playlist&)*CurPlaylist).Clear();
-  }
-  // TODO: reply
-}
 
 static const struct CmdEntry
 { char Prefix[12];
   void (*ExecFn)(xstring& ret, char* args);
 } CmdList[] =
-{ { "clear",    &cmd_clear },
+{ { "add",      &cmd_add },
+  { "clear",    &cmd_clear },
+  { "dir",      &cmd_dir },
   { "forward",  &cmd_forward },
   { "jump",     &cmd_jump },
   { "load",     &cmd_load },
   { "next",     &cmd_next },
   { "pause",    &cmd_pause },
+  { "pl_next",  &cmd_pl_next },
+  { "pl_prev",  &cmd_pl_prev },
+  { "pl_reset", &cmd_pl_reset },
   { "play",     &cmd_play },
   { "playlist", &cmd_playlist },
   { "previous", &cmd_prev },
+  { "remove",   &cmd_remove },
   { "repeat",   &cmd_repeat },
   { "rewind",   &cmd_rewind },
+  { "rdir",     &cmd_rdir },
   { "size",     &cmd_size },
   { "shuffle",  &cmd_shuffle },
+  { "status",   &cmd_status },
   { "stop",     &cmd_stop },
   { "use",      &cmd_use },
   { "volume",   &cmd_volume }
@@ -316,7 +443,7 @@ static void execute_command(xstring& ret, char* buffer)
 #if 0
     if( zork )
     {
-      if( stricmp( zork, "status" ) == 0 ) {
+/*      if( stricmp( zork, "status" ) == 0 ) {
         if( dork ) {
           // TODO: makes no more sense with playlist objects
           int_ptr<Playable> current = Ctrl::GetRoot();
@@ -332,7 +459,7 @@ static void execute_command(xstring& ret, char* buffer)
             amp_pipe_write( hpipe, current->GetInfo().tech->info );
           }
         }
-      }
+      }*/
 /*      if( stricmp( zork, "size" ) == 0 ) {
         if( dork ) {
           if( stricmp( dork, "regular" ) == 0 ||
@@ -353,7 +480,7 @@ static void execute_command(xstring& ret, char* buffer)
           }
         }
       }*/
-      if( stricmp( zork, "rdir" ) == 0 ) {
+/*      if( stricmp( zork, "rdir" ) == 0 ) {
         if( dork ) {
           // TODO: edit playlist
           //pl_add_directory( dork, PL_DIR_RECURSIVE );
@@ -364,7 +491,7 @@ static void execute_command(xstring& ret, char* buffer)
           // TODO: edit playlist
           //pl_add_directory( dork, 0 );
         }
-      }
+      }*/
       if( stricmp( zork, "font" ) == 0 ) {
         if( dork ) {
           if( stricmp( dork, "1" ) == 0 ) {
@@ -375,7 +502,7 @@ static void execute_command(xstring& ret, char* buffer)
           }
         }
       }
-      if( stricmp( zork, "add" ) == 0 )
+/*      if( stricmp( zork, "add" ) == 0 )
       {
         char* file;
 
@@ -392,7 +519,7 @@ static void execute_command(xstring& ret, char* buffer)
             //pl_add_file( file, NULL, 0 );
           }
         }
-      }
+      }*/
 /*      if( stricmp( zork, "load" ) == 0 ) {
         if( dork ) {
           // TODO: dir
@@ -430,13 +557,13 @@ static void execute_command(xstring& ret, char* buffer)
       if( stricmp( zork, "previous" ) == 0 ) {
         WinSendMsg( hplayer, WM_COMMAND, MPFROMSHORT( BMP_PREV ), 0 );
       }*/
-      if( stricmp( zork, "remove" ) == 0 ) {
+      /*if( stricmp( zork, "remove" ) == 0 ) {
         // TODO: pipe interface have to be renewed
-        /*if( current_record ) {
+        if( current_record ) {
           PLRECORD* rec = current_record;
           pl_remove_record( &rec, 1 );
-        }*/
-      }
+        }
+      }*/
 /*      if( stricmp( zork, "forward" ) == 0 ) {
         WinSendMsg( hplayer, WM_COMMAND, MPFROMSHORT( BMP_FWD  ), 0 );
       }

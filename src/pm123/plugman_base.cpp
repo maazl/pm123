@@ -505,7 +505,7 @@ proxy_1_decoder_play_samples( CL_DECODER_PROXY_1* op, const FORMAT_INFO* format,
         return len * bps;
       } else
       { // calculate remaining part
-        rem = (op->temppos - posmarker/1000.) * format->samplerate;
+        rem = (int)floor(((op->temppos - posmarker/1000.) * format->samplerate));
         DEBUGLOG(("proxy_1_decoder_play_samples juststarted = %i -> eating %i samples.\n", op->juststarted, rem));
         buf += rem * bps;
         rem = len - rem;

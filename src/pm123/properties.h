@@ -38,19 +38,25 @@
 #define MAX_RECALL            9
 
 /* Possible sizes of the player window. */
-#define CFG_MODE_REGULAR      0
-#define CFG_MODE_SMALL        1
-#define CFG_MODE_TINY         2
+enum cfg_mode
+{ CFG_MODE_REGULAR,
+  CFG_MODE_SMALL,
+  CFG_MODE_TINY
+};
 
 /* Possible scroll modes. */
-#define CFG_SCROLL_INFINITE   0
-#define CFG_SCROLL_ONCE       1
-#define CFG_SCROLL_NONE       2
+enum cfg_scroll
+{ CFG_SCROLL_INFINITE,
+  CFG_SCROLL_ONCE,
+  CFG_SCROLL_NONE
+};
 
 /* Possible display modes. */
-#define CFG_DISP_FILENAME     0
-#define CFG_DISP_ID3TAG       1
-#define CFG_DISP_FILEINFO     2
+enum cfg_disp
+{ CFG_DISP_FILENAME,
+  CFG_DISP_ID3TAG,
+  CFG_DISP_FILEINFO
+};
 
 typedef struct _amp_cfg {
 

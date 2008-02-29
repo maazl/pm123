@@ -593,7 +593,7 @@ class Playlist : public PlayableCollection
   virtual bool                MoveItem(PlayableInstance* item, PlayableInstance* before);
   // Remove an item from the playlist.
   // Attension: passing NULL as argument will remove all items.
-  // The funtion fails with returning false if and only if the PlayableInstance before is no longer valid.
+  // The funtion fails with returning false if and only if the PlayableInstance is no longer valid.
   virtual bool                RemoveItem(PlayableInstance* item);
   // Remove all items from the playlist.
   void                        Clear() { RemoveItem(NULL); }
