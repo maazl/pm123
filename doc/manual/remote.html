@@ -189,18 +189,6 @@ commands (optional parameters are enclosed in square brackets).</p>
     <td>&nbsp;</td>
   </tr>
   <tr>
-    <td><tt>add <var>&lt;file&gt;</var></tt>|<var><tt>&lt;url&gt;</tt></var>[;...]</td>
-    <td>Adds item(s) to the current playlist. Multiple items must be separated
-      with '<tt>;</tt>' characters. The names or urls can be enclosed with double
-      quotes. The operation is atomic.</td>
-    <td>&nbsp;</td>
-  </tr>
-  <tr>
-    <td><tt>remove</tt></td>
-    <td>Removes currently loaded file from the current playlist.</td>
-    <td>&nbsp;</td>
-  </tr>
-  <tr>
     <td><tt>use</tt></td>
     <td>Use the current playlist. This is equivalent to '<tt>load <var>&lt;filepath
           to current playlist&gt;</var></tt>'.</td>
@@ -209,6 +197,13 @@ commands (optional parameters are enclosed in square brackets).</p>
   <tr>
     <td><tt>clear</tt></td>
     <td>Clears the current playlist.</td>
+    <td>&nbsp;</td>
+  </tr>
+  <tr>
+    <td><tt>add <var>&lt;file&gt;</var></tt>|<var><tt>&lt;url&gt;</tt></var>[<tt>;</tt>...]</td>
+    <td>Adds item(s) to the current playlist. Multiple items must be separated
+      with '<tt>;</tt>' characters. The names or urls can be enclosed with double
+      quotes. The operation is atomic.</td>
     <td>&nbsp;</td>
   </tr>
   <tr>
@@ -226,6 +221,11 @@ commands (optional parameters are enclosed in square brackets).</p>
     <td>Returns the information currently displayed in the scroller or returns
       nothing if "no file loaded".</td>
     <td>Info string.</td>
+  </tr>
+  <tr>
+    <td><tt>remove</tt></td>
+    <td>Removes currently loaded file from the current playlist.</td>
+    <td>&nbsp;</td>
   </tr>
 </table>
 <h4>Category Configuration</h4>
