@@ -55,6 +55,8 @@
   #define BKS_BUTTONAREA   0x00000200UL
 #endif
 
+#define TOSTRING(x) #x
+
 #ifdef __cplusplus
 extern "C" {
 #endif

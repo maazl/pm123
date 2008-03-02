@@ -358,7 +358,7 @@ ULONG dec_jump( T_TIME location )
     CL_GLUE::stoptime = 1E99;
   CL_GLUE::dparams.jumpto = location;
   ULONG rc = CL_GLUE::dec_command( DECODER_JUMPTO );
-  if (rc == 0 && cfg.trash && CL_GLUE::initialized)
+  if (rc == 0 && CL_GLUE::initialized)
   { CL_GLUE::params.temp_playingpos = location;
     CL_GLUE::out_command( OUTPUT_TRASH_BUFFERS );
   }

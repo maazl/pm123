@@ -42,8 +42,13 @@ xstring amp_construct_tag_string( const DECODER_INFO2* info );
 /* Reads url from specified file. [123_utils] */
 xstring amp_url_from_file(const char* filename);
 
-/* Reads an String from a drag and drop structure. [123_utils] */
+/* Reads an string from a drag and drop structure. [123_utils] */
 xstring amp_string_from_drghstr(HSTR hstr);
+
+/* Make readable string from font attributes */ 
+xstring amp_font_attrs_to_string(const FATTRS& attrs, unsigned size);
+/* Make font attributes from string. Return false on error */ 
+bool amp_string_to_font_attrs(FATTRS& attrs, unsigned& size, const char* name);
 
 #endif
 

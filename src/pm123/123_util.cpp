@@ -102,3 +102,36 @@ xstring amp_string_from_drghstr(HSTR hstr)
   return ret;
 }
 
+xstring amp_font_attrs_to_string(const FATTRS& attrs, unsigned size)
+{ xstring ret = xstring::sprintf("%u.%s", size, attrs.szFacename);
+  if (attrs.fsSelection & FATTR_SEL_BOLD      )
+    ret = ret + ".Bold";
+  if (attrs.fsSelection & FATTR_SEL_UNDERSCORE)
+    ret = ret + ".Underscore";
+  if (attrs.fsSelection & FATTR_SEL_ITALIC    )
+    ret = ret + ".Italic";
+  if (attrs.fsSelection & FATTR_SEL_OUTLINE   )
+    ret = ret + ".Outline";
+  if (attrs.fsSelection & FATTR_SEL_STRIKEOUT )
+    ret = ret + ".Strikeout";
+  return ret;
+}
+
+bool amp_string_to_font_attrs(FATTRS& attrs, unsigned& size, const char* name)
+{ size_t n;
+  if (sscanf(name, "%u.%" TOSTRING(FACESIZE) "[^.]%n", &size, attrs.szFacename, &n) != 2)
+    return false;
+  // Attributes
+  name += n;
+  if (strstr(name, ".Bold"))
+    attrs.fsSelection |= FATTR_SEL_BOLD;
+  if (strstr(name, ".Underscore"))
+    attrs.fsSelection |= FATTR_SEL_UNDERSCORE;
+  if (strstr(name, ".Italic"))
+    attrs.fsSelection |= FATTR_SEL_ITALIC;
+  if (strstr(name, ".Outline"))
+    attrs.fsSelection |= FATTR_SEL_OUTLINE;
+  if (strstr(name, ".Strikeout"))
+    attrs.fsSelection |= FATTR_SEL_STRIKEOUT;
+  return true;
+}

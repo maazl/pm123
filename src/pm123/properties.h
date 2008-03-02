@@ -59,48 +59,58 @@ enum cfg_disp
 };
 
 typedef struct _amp_cfg {
-
   // TODO: buffers too small for URLs!!!
-  char   filedir[_MAX_PATH];  /* The last directory used for addition of files.    */
-  char   listdir[_MAX_PATH];  /* The last directory used for access to a playlist. */
-  char   savedir[_MAX_PATH];  /* The last directory used for saving a stream.      */
-  char   lasteq [_MAX_PATH];  /* The last directory used for saving a state of an  */
-                              /* equalizer.                                        */
   char   defskin[_MAX_PATH];  /* Default skin.                                     */
 
-  BOOL   eq_enabled;          /* Is the equalizer enabled.              */
-  int    defaultvol;          /* Current audio volume.                  */
   BOOL   playonload;          /* Start playing on file load.            */
   BOOL   autouse;             /* Auto use playlist on add.              */
   BOOL   playonuse;           /* Auto play on use playlist.             */
   BOOL   selectplayed;        /* Select played file.                    */
-  int    mode;                /* See CFG_MODE_*                         */
+  BOOL   recurse_dnd;         /* Drag and drop of folders recursive     */
+  BOOL   append_dnd;          /* Drag and drop appends to default playlist */
+  BOOL   append_cmd;          /* Commandline appends to default playlist */
+  BOOL   queue_mode;          /* Delete played items from the default playlist */
+
   int    font;                /* Use font 1 or font 2.                  */
-  BOOL   trash;               /* Trash buffers on seek.                 */
-//  BOOL   shf;                 /* The state of the "Shuffle" button.     */
-//  BOOL   rpt;                 /* The state of the "Repeat" button.      */
+  BOOL   font_skinned;        /* Use skinned font.                      */
+  FATTRS font_attrs;          /* Font's attributes.                     */
+  LONG   font_size;           /* Font's point size.                     */
+
+  BOOL   trash;               /* Trash buffers on fast forward          */
   BOOL   floatontop;          /* Float on top.                          */
-  BOOL   show_playlist;       /* Show playlist.                         */
-  BOOL   show_bmarks;         /* Show bookmarks.                        */
-  BOOL   show_plman;          /* Show playlist manager.                 */
   int    scroll;              /* See CFG_SCROLL_*                       */
   int    viewmode;            /* See CFG_DISP_*                         */
   char   proxy[1024];         /* Proxy URL.                             */
   char   auth [1024];         /* HTTP authorization.                    */
   int    buff_wait;           /* Wait before playing.                   */
   int    buff_size;           /* Read ahead buffer size (KB).           */
+  char   pipe_name[_MAX_PATH];/* PM123 remote control pipe name         */
   BOOL   dock_windows;        /* Dock windows?                          */
   int    dock_margin;         /* The marging for docking window.        */
+
+// Player state
+  // TODO: buffers too small for URLs!!!
+  char   filedir[_MAX_PATH];  /* The last directory used for addition of files.    */
+  char   listdir[_MAX_PATH];  /* The last directory used for access to a playlist. */
+  char   savedir[_MAX_PATH];  /* The last directory used for saving a stream.      */
+  char   lasteq [_MAX_PATH];  /* The last directory used for saving a state of an  */
+                              /* equalizer.                                        */
+  BOOL   eq_enabled;          /* Is the equalizer enabled.              */
+
+  int    defaultvol;          /* Current audio volume.                  */
+  int    mode;                /* See CFG_MODE_*                         */
+
+  BOOL   show_playlist;       /* Show playlist.                         */
+  BOOL   show_bmarks;         /* Show bookmarks.                        */
+  BOOL   show_plman;          /* Show playlist manager.                 */
   BOOL   add_recursive;       /* Enable recursive addition.             */
   BOOL   save_relative;       /* Use relative paths in saved playlists. */
-  BOOL   font_skinned;        /* Use skinned font.                      */
-  FATTRS font_attrs;          /* Font's attributes.                     */
-  LONG   font_size;           /* Font's point size.                     */
   SWP    main;                /* Position of the player.                */
 
 } amp_cfg;
 
 extern amp_cfg cfg;
+extern const amp_cfg cfg_default;
 
 #ifdef __cplusplus
 extern "C" {

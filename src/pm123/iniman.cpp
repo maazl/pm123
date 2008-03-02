@@ -43,52 +43,7 @@
 #include "pm123.h"
 #include "iniman.h"
 #include "plugman.h"
-
-static void
-factory_settings( void )
-{
-  memset( &cfg, 0, sizeof( cfg ));
-
-  cfg.main.x = 1;
-  cfg.main.y = 1;
-
-  strcpy( cfg.filedir, "" );  // Directory for MPEG files.
-  strcpy( cfg.listdir, "" );  // Directory for playlists.
-  strcpy( cfg.savedir, "" );  // Directory used for saving a stream.
-  strcpy( cfg.defskin, "" );  // Default skin.
-  strcpy( cfg.proxy  , "" );  // No proxy.
-  strcpy( cfg.auth   , "" );  // No authentication.
-
-  cfg.defaultvol    = 38;       // Default maximum volume, of course.
-  cfg.playonload    = TRUE;     // Play file automatically on load.
-  cfg.autouse       = TRUE;     // Auto use playlist on load.
-  cfg.selectplayed  = FALSE;    // Don't select played file.
-  cfg.font          = 1;        // Make the bolder font a default.
-  cfg.trash         = TRUE;     // Flush buffers by default.
-  cfg.buff_size     = 128;
-  cfg.buff_wait     = FALSE;
-  cfg.floatontop    = FALSE;
-  cfg.playonuse     = TRUE;
-  cfg.scroll        = CFG_SCROLL_INFINITE;
-  cfg.viewmode      = CFG_DISP_FILENAME;
-  cfg.mode          = CFG_MODE_REGULAR;
-  cfg.show_playlist = FALSE;
-  cfg.show_bmarks   = FALSE;
-  cfg.show_plman    = FALSE;
-  cfg.dock_windows  = TRUE;
-  cfg.dock_margin   = 10;
-  cfg.add_recursive = TRUE;
-  cfg.save_relative = TRUE;
-  cfg.font_skinned  = TRUE;
-  cfg.font_size     = 2;
-
-  cfg.font_attrs.usRecordLength  = sizeof(FATTRS);
-  cfg.font_attrs.lMaxBaselineExt = 12L;
-  cfg.font_attrs.lAveCharWidth   =  5L;
-
-  strcpy( cfg.font_attrs.szFacename, "System VIO" );
-  // TODO: clear MRU lists
-}
+#include "properties.h"
 
 void
 load_ini( void )
@@ -103,7 +58,7 @@ load_ini( void )
   void *visuals_list;
   ULONG size;
 
-  factory_settings();
+  cfg = cfg_default;
 
   if(( INIhandle = open_module_ini()) != NULLHANDLE )
   {
@@ -111,6 +66,10 @@ load_ini( void )
     load_ini_value( INIhandle, cfg.playonload );
     load_ini_value( INIhandle, cfg.selectplayed );
     load_ini_value( INIhandle, cfg.autouse );
+    load_ini_value( INIhandle, cfg.recurse_dnd );
+    load_ini_value( INIhandle, cfg.append_dnd );
+    load_ini_value( INIhandle, cfg.append_cmd );
+    load_ini_value( INIhandle, cfg.queue_mode );
     load_ini_value( INIhandle, cfg.mode );
     load_ini_value( INIhandle, cfg.font );
     load_ini_value( INIhandle, cfg.trash );
@@ -122,6 +81,7 @@ load_ini( void )
     load_ini_value( INIhandle, cfg.viewmode );
     load_ini_value( INIhandle, cfg.buff_wait );
     load_ini_value( INIhandle, cfg.buff_size );
+    load_ini_value( INIhandle, cfg.pipe_name );
     load_ini_value( INIhandle, cfg.add_recursive );
     load_ini_value( INIhandle, cfg.save_relative );
     load_ini_value( INIhandle, cfg.eq_enabled );
@@ -234,6 +194,10 @@ save_ini( void )
     save_ini_value( INIhandle, cfg.playonload );
     save_ini_value( INIhandle, cfg.selectplayed );
     save_ini_value( INIhandle, cfg.autouse );
+    save_ini_value( INIhandle, cfg.recurse_dnd );
+    save_ini_value( INIhandle, cfg.append_dnd );
+    save_ini_value( INIhandle, cfg.append_cmd );
+    save_ini_value( INIhandle, cfg.queue_mode );
     save_ini_value( INIhandle, cfg.mode );
     save_ini_value( INIhandle, cfg.font );
     save_ini_value( INIhandle, cfg.trash );
@@ -245,6 +209,7 @@ save_ini( void )
     save_ini_value( INIhandle, cfg.viewmode );
     save_ini_value( INIhandle, cfg.buff_wait );
     save_ini_value( INIhandle, cfg.buff_size );
+    save_ini_value( INIhandle, cfg.pipe_name );
     save_ini_value( INIhandle, cfg.add_recursive );
     save_ini_value( INIhandle, cfg.save_relative );
     save_ini_value( INIhandle, cfg.eq_enabled );

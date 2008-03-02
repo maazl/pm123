@@ -1,8 +1,8 @@
 /*
  * Copyright 1997-2003 Samuel Audet  <guardia@step.polymtl.ca>
  *                     Taneli Lepp„  <rosmo@sektori.com>
- *
- * Copyright 2004 Dmitry A.Steklenev <glass@ptv.ru>
+ * Copyright 2004      Dmitry A.Steklenev <glass@ptv.ru>
+ * Copyright 2007-2008 Marcel Mueller
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -45,15 +45,59 @@
 #include "plugman.h"
 #include "controller.h"
 #include "copyright.h"
+#include "123_util.h"
+#include "pipe.h"
 #include <os2.h>
 
 #define  CFG_REFRESH_LIST (WM_USER+1)
 #define  CFG_REFRESH_INFO (WM_USER+2)
 #define  CFG_DEFAULT      (WM_USER+3)
 #define  CFG_UNDO         (WM_USER+4)
+#define  CFG_CHANGE       (WM_USER+5)
 
 // The properties!
-amp_cfg cfg;
+const amp_cfg cfg_default =
+{ "",
+  TRUE,
+  TRUE,
+  TRUE,
+  FALSE,
+  FALSE,
+  FALSE,
+  FALSE,
+  FALSE,
+  1, // font
+  TRUE,
+  { sizeof(FATTRS), 0, 0, "System VIO", 0, 0, 12L, 5L, 0, 0 },
+  8,
+  TRUE,
+  FALSE, // float on top
+  CFG_SCROLL_INFINITE,
+  CFG_DISP_FILENAME,
+  "", // Proxy
+  "",
+  FALSE,
+  128,
+  "\\PIPE\\PM123",
+  TRUE, // dock
+  10,
+// state  
+  "",
+  "",
+  "",
+  "",
+  FALSE, // EQ
+  50, // volume
+  CFG_MODE_REGULAR,
+  FALSE,
+  FALSE,
+  FALSE,
+  TRUE, // add recursive
+  TRUE, // save relative
+  { 0, 0,0, 1,1, 0, 0, 0, 0 }
+};
+
+amp_cfg cfg = cfg_default;
 
 
 /* Initialize properties, called from main. */
@@ -126,98 +170,137 @@ cfg_settings1_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
   switch( msg ) {
     case WM_INITDLG:
       do_warpsans( hwnd );
+      WinPostMsg(hwnd, CFG_CHANGE, MPFROMP(&cfg), 0);
+      break;
+
+    case CFG_UNDO:
+      WinPostMsg(hwnd, CFG_CHANGE, MPFROMP(&cfg), 0);
+      return 0;
+
+    case CFG_CHANGE:
+    { const amp_cfg& cfg = *(const amp_cfg*)PVOIDFROMMP(mp1);
+      WinCheckButton( hwnd, CB_PLAYONLOAD,    cfg.playonload  );
+      WinCheckButton( hwnd, CB_TRASHONSCAN,   cfg.trash       );
+
+      WinCheckButton( hwnd, CB_AUTOUSEPL,     cfg.autouse     );
+      WinCheckButton( hwnd, CB_AUTOPLAYPL,    cfg.playonuse   );
+      WinCheckButton( hwnd, CB_RECURSEDND,    cfg.recurse_dnd );
+      WinCheckButton( hwnd, CB_AUTOAPPENDDND, cfg.append_dnd  );
+      WinCheckButton( hwnd, CB_AUTOAPPENDCMD, cfg.append_cmd  );
+      WinCheckButton( hwnd, CB_QUEUEMODE,     cfg.queue_mode  );
+      return 0;
+    }
+    case CFG_DEFAULT:
+      WinPostMsg(hwnd, CFG_CHANGE, MPFROMP(&cfg_default), 0);
+    case WM_COMMAND:
+    case WM_CONTROL:
+      return 0;
+
+    case WM_DESTROY:
+      cfg.playonload  = WinQueryButtonCheckstate( hwnd, CB_PLAYONLOAD   );
+      cfg.trash       = WinQueryButtonCheckstate( hwnd, CB_TRASHONSCAN  );
+
+      cfg.autouse     = WinQueryButtonCheckstate( hwnd, CB_AUTOUSEPL    );
+      cfg.playonuse   = WinQueryButtonCheckstate( hwnd, CB_AUTOPLAYPL   );
+      cfg.recurse_dnd = WinQueryButtonCheckstate( hwnd, CB_RECURSEDND   );
+      cfg.append_dnd  = WinQueryButtonCheckstate( hwnd, CB_AUTOAPPENDDND);
+      cfg.append_cmd  = WinQueryButtonCheckstate( hwnd, CB_AUTOAPPENDCMD);
+      cfg.queue_mode  = WinQueryButtonCheckstate( hwnd, CB_QUEUEMODE    );
+      return 0;
+  }
+  return WinDefDlgProc( hwnd, msg, mp1, mp2 );
+}
+
+static MRESULT EXPENTRY
+cfg_settings2_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
+{ switch( msg ) {
+    case WM_INITDLG:
+      do_warpsans( hwnd );
       do_warpsans( WinWindowFromID( hwnd, ST_PROXY_HOST ));
       do_warpsans( WinWindowFromID( hwnd, ST_PROXY_PORT ));
       do_warpsans( WinWindowFromID( hwnd, ST_PROXY_USER ));
       do_warpsans( WinWindowFromID( hwnd, ST_PROXY_PASS ));
       do_warpsans( WinWindowFromID( hwnd, ST_PIXELS     ));
       do_warpsans( WinWindowFromID( hwnd, ST_BUFFERSIZE ));
+      WinPostMsg(hwnd, CFG_CHANGE, MPFROMP(&cfg), 0);
+      break;
 
     case CFG_UNDO:
-    {
+      WinPostMsg(hwnd, CFG_CHANGE, MPFROMP(&cfg), 0);
+      return 0;
+
+    case CFG_CHANGE:
+    { const amp_cfg& cfg = *(const amp_cfg*)PVOIDFROMMP(mp1);
       char buffer[1024];
-      PSZ cp;
+      const char* cp;
+      size_t l;
 
-      WinCheckButton( hwnd, CB_PLAYONLOAD,   cfg.playonload   );
-      WinCheckButton( hwnd, CB_AUTOUSEPL,    cfg.autouse      );
-      WinCheckButton( hwnd, CB_AUTOPLAYPL,   cfg.playonuse    );
       WinCheckButton( hwnd, CB_SELECTPLAYED, cfg.selectplayed );
-      WinCheckButton( hwnd, CB_TRASHONSEEK,  cfg.trash        );
       WinCheckButton( hwnd, CB_DOCK,         cfg.dock_windows );
-
       WinSetDlgItemText( hwnd, EF_DOCK, itoa( cfg.dock_margin, buffer, 10 ));
+
+      WinSetDlgItemText( hwnd, EF_PIPE, cfg.pipe_name );
+
       // proxy
       cp = strchr(cfg.proxy, ':');
-      if (cp == NULL) {
-        WinSetDlgItemText( hwnd, EF_PROXY_HOST, cfg.proxy );
-      } else {
-        size_t l = cp - cfg.proxy +1;
-        strlcpy( buffer, cfg.proxy, min( l, sizeof buffer ));
-        WinSetDlgItemText( hwnd, EF_PROXY_HOST, buffer );
-        WinSetDlgItemText( hwnd, EF_PROXY_PORT, cp+1 );
+      if (cp == NULL)
+      { l = strlen(cfg.proxy);
+        cp = cfg.proxy + l;
+        ++l;
+      } else
+      { ++cp;
+        l = cp - cfg.proxy;
       }
+      strlcpy( buffer, cfg.proxy, min( l, sizeof buffer ));
+      WinSetDlgItemText( hwnd, EF_PROXY_HOST, buffer );
+      WinSetDlgItemText( hwnd, EF_PROXY_PORT, cp );
       cp = strchr(cfg.auth, ':');
-      if (cp == NULL) {
-        WinSetDlgItemText( hwnd, EF_PROXY_USER, cfg.auth );
-      } else {
-        size_t l = cp - cfg.auth +1;
-        strlcpy( buffer, cfg.auth, min( l, sizeof buffer ));
-        WinSetDlgItemText( hwnd, EF_PROXY_USER, buffer );
-        WinSetDlgItemText( hwnd, EF_PROXY_PASS, cp+1 );
+      if (cp == NULL)
+      { l = strlen(cfg.auth);
+        cp = cfg.proxy + l;
+        ++l;
+      } else
+      { ++cp;
+        l = cp - cfg.auth;
       }
+      strlcpy( buffer, cfg.auth, min( l, sizeof buffer ));
+      WinSetDlgItemText( hwnd, EF_PROXY_USER, buffer );
+      WinSetDlgItemText( hwnd, EF_PROXY_PASS, cp );
+
       WinCheckButton   ( hwnd, CB_FILLBUFFER, cfg.buff_wait );
 
-      WinSendDlgItemMsg( hwnd, SB_BUFFERSIZE, SPBM_SETLIMITS,
-                               MPFROMLONG( 2048 ), MPFROMLONG( 0 ));
-      WinSendDlgItemMsg( hwnd, SB_BUFFERSIZE, SPBM_SETCURRENTVALUE,
-                               MPFROMLONG( cfg.buff_size ), 0 );
+      WinSendDlgItemMsg( hwnd, SB_BUFFERSIZE, SPBM_SETLIMITS, MPFROMLONG( 2048 ), MPFROMLONG( 0 ));
+      WinSendDlgItemMsg( hwnd, SB_BUFFERSIZE, SPBM_SETCURRENTVALUE, MPFROMLONG( cfg.buff_size ), 0 );
       return 0;
     }
 
+    case CFG_DEFAULT:
+      WinPostMsg(hwnd, CFG_CHANGE, MPFROMP(&cfg_default), 0);
     case WM_COMMAND:
     case WM_CONTROL:
       return 0;
-
-    case CFG_DEFAULT:
-    {
-      WinCheckButton( hwnd, CB_PLAYONLOAD,   TRUE  );
-      WinCheckButton( hwnd, CB_AUTOUSEPL,    TRUE  );
-      WinCheckButton( hwnd, CB_AUTOPLAYPL,   TRUE  );
-      WinCheckButton( hwnd, CB_SELECTPLAYED, FALSE );
-      WinCheckButton( hwnd, CB_TRASHONSEEK,  TRUE  );
-      WinCheckButton( hwnd, CB_DOCK,         TRUE  );
-      WinCheckButton( hwnd, CB_FILLBUFFER,   FALSE );
-
-      WinSetDlgItemText( hwnd, EF_DOCK,       "10" );
-      WinSetDlgItemText( hwnd, EF_PROXY_HOST,  ""  );
-      WinSetDlgItemText( hwnd, EF_PROXY_PORT,  ""  );
-      WinSetDlgItemText( hwnd, EF_PROXY_USER,  ""  );
-      WinSetDlgItemText( hwnd, EF_PROXY_PASS,  ""  );
-      WinSendDlgItemMsg( hwnd, SB_BUFFERSIZE, SPBM_SETCURRENTVALUE, MPFROMLONG( 128 ), 0 );
-      return 0;
-    }
 
     case WM_DESTROY:
     {
       char buffer[8];
       int  i;
 
-      cfg.playonload   = WinQueryButtonCheckstate( hwnd, CB_PLAYONLOAD   );
-      cfg.autouse      = WinQueryButtonCheckstate( hwnd, CB_AUTOUSEPL    );
-      cfg.playonuse    = WinQueryButtonCheckstate( hwnd, CB_AUTOPLAYPL   );
       cfg.selectplayed = WinQueryButtonCheckstate( hwnd, CB_SELECTPLAYED );
-      cfg.trash        = WinQueryButtonCheckstate( hwnd, CB_TRASHONSEEK  );
-      cfg.dock_windows = WinQueryButtonCheckstate( hwnd, CB_DOCK         );
 
-      WinQueryDlgItemText( hwnd, EF_DOCK, 8, buffer );
+      cfg.dock_windows = WinQueryButtonCheckstate( hwnd, CB_DOCK         );
+      WinQueryDlgItemText( hwnd, EF_DOCK, sizeof buffer, buffer );
       cfg.dock_margin = atoi( buffer );
 
-      WinSendDlgItemMsg( hwnd, SB_BUFFERSIZE, SPBM_QUERYVALUE,
-                         MPFROMP( &i ), MPFROM2SHORT( 0, SPBQ_DONOTUPDATE ));
+      WinQueryDlgItemText( hwnd, EF_PIPE, sizeof cfg.pipe_name, cfg.pipe_name );
+      // restatrt pipe worker
+      amp_pipe_destroy();
+      amp_pipe_create();
+
+      WinSendDlgItemMsg( hwnd, SB_BUFFERSIZE, SPBM_QUERYVALUE, MPFROMP( &i ), MPFROM2SHORT( 0, SPBQ_DONOTUPDATE ));
       cfg.buff_size = i;
       xio_set_buffer_size( cfg.buff_size * 1024 );
 
-      WinQueryDlgItemText( hwnd, EF_PROXY_HOST, sizeof( cfg.proxy ), cfg.proxy );
+      WinQueryDlgItemText( hwnd, EF_PROXY_HOST, sizeof cfg.proxy, cfg.proxy );
       xio_set_http_proxy_host( cfg.proxy );
       i = strlen( cfg.proxy );
       if ( i < sizeof cfg.proxy - 1 ) {
@@ -228,12 +311,12 @@ cfg_settings1_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
           cfg.proxy[i-1] = 0; // remove delimiter
       }
 
-      WinQueryDlgItemText( hwnd, EF_PROXY_USER, sizeof( cfg.auth ), cfg.auth );
+      WinQueryDlgItemText( hwnd, EF_PROXY_USER, sizeof cfg.auth, cfg.auth );
       xio_set_http_proxy_user( cfg.auth );
       i = strlen( cfg.auth );
       if ( i < sizeof cfg.auth - 1 ) {
         cfg.auth[i++] = ':'; // delimiter
-        WinQueryDlgItemText( hwnd, EF_PROXY_PASS, sizeof( cfg.auth ) - i, cfg.auth + i );
+        WinQueryDlgItemText( hwnd, EF_PROXY_PASS, sizeof cfg.auth - i, cfg.auth + i );
         xio_set_http_proxy_pass( cfg.auth + i );
         if ( cfg.auth[i] == 0 )
           cfg.auth[i-1] = 0; // remove delimiter
@@ -248,73 +331,54 @@ cfg_settings1_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
   return WinDefDlgProc( hwnd, msg, mp1, mp2 );
 }
 
-static char*
-cfg_attrs_to_font( const FATTRS* attrs, char* font, LONG size )
-{
-  sprintf( font, "%ld.%s", size, attrs->szFacename );
-
-  if( attrs->fsSelection & FATTR_SEL_ITALIC     ) {
-    strcat( font, ".Italic" );
-  }
-  if( attrs->fsSelection & FATTR_SEL_OUTLINE    ) {
-    strcat( font, ".Outline" );
-  }
-  if( attrs->fsSelection & FATTR_SEL_STRIKEOUT  ) {
-    strcat( font, ".Strikeout" );
-  }
-  if( attrs->fsSelection & FATTR_SEL_UNDERSCORE ) {
-    strcat( font, ".Underscore" );
-  }
-  if( attrs->fsSelection & FATTR_SEL_BOLD       ) {
-    strcat( font, ".Bold" );
-  }
-
-  return font;
-}
-
 /* Processes messages of the display page of the setup notebook. */
 static MRESULT EXPENTRY
 cfg_display1_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
 {
-  static FATTRS font_attrs;
-  static LONG   font_size;
-  static char   font_name[FACESIZE+64];
+  static FATTRS  font_attrs;
+  static LONG    font_size;
 
   switch( msg ) {
     case WM_INITDLG:
       do_warpsans( hwnd );
+      WinPostMsg(hwnd, CFG_CHANGE, MPFROMP(&cfg), 0);
+      break;
+
     case CFG_UNDO:
-    {
-      WinCheckButton( hwnd, RB_DISP_FILENAME   + cfg.viewmode, TRUE );
-      WinCheckButton( hwnd, RB_SCROLL_INFINITE + cfg.scroll,   TRUE );
-      WinCheckButton( hwnd, CB_USE_SKIN_FONT,    cfg.font_skinned   );
-      WinEnableControl( hwnd, PB_FONT_SELECT, !cfg.font_skinned );
-      WinEnableControl( hwnd, ST_FONT_SAMPLE, !cfg.font_skinned );
+      WinPostMsg(hwnd, CFG_CHANGE, MPFROMP(&cfg), 0);
+      return 0;
 
-      font_attrs = cfg.font_attrs;
-      font_size  = cfg.font_size;
+    case CFG_DEFAULT:
+      WinPostMsg(hwnd, CFG_CHANGE, MPFROMP(&cfg_default), 0);
+      return 0;
 
-      WinSetDlgItemText( hwnd, ST_FONT_SAMPLE,
-                         cfg_attrs_to_font( &font_attrs, font_name, font_size ));
-      WinSetPresParam  ( WinWindowFromID( hwnd, ST_FONT_SAMPLE ),
-                         PP_FONTNAMESIZE, strlen( font_name ) + 1,  font_name );
+    case CFG_CHANGE:
+    { if (mp1)
+      { // load GUI
+        const amp_cfg& cfg = *(const amp_cfg*)PVOIDFROMMP(mp1);
+        WinCheckButton( hwnd, RB_DISP_FILENAME   + cfg.viewmode, TRUE );
+        WinCheckButton( hwnd, RB_SCROLL_INFINITE + cfg.scroll,   TRUE );
+        WinCheckButton( hwnd, CB_USE_SKIN_FONT,    cfg.font_skinned   );
+        WinEnableControl( hwnd, PB_FONT_SELECT, !cfg.font_skinned );
+        WinEnableControl( hwnd, ST_FONT_SAMPLE, !cfg.font_skinned );
+
+        font_attrs = cfg.font_attrs;
+        font_size  = cfg.font_size;
+      }
+      // change sample font
+      xstring font_name  = amp_font_attrs_to_string( font_attrs, font_size );
+      WinSetDlgItemText( hwnd, ST_FONT_SAMPLE, font_name );
+      WinSetPresParam  ( WinWindowFromID( hwnd, ST_FONT_SAMPLE ), PP_FONTNAMESIZE, font_name.length() +1, (PVOID)font_name.cdata() );
       return 0;
     }
 
     case WM_COMMAND:
       if( COMMANDMSG( &msg )->cmd == PB_FONT_SELECT )
-      {
-        FONTDLG fontdialog;
-        char    fontname[ FACESIZE + 64 ];
-
-        WinQueryDlgItemText( hwnd, ST_FONT_SAMPLE, sizeof( fontname ), fontname );
-
-        memset( &fontdialog, 0, sizeof( FONTDLG ));
-
-        fontdialog.cbSize         = sizeof( fontdialog );
+      { char font_family[FACESIZE];
+        FONTDLG fontdialog = { sizeof( fontdialog ) };
         fontdialog.hpsScreen      = WinGetScreenPS( HWND_DESKTOP );
-        fontdialog.pszFamilyname  = (PSZ)malloc( FACESIZE );
-        fontdialog.usFamilyBufLen = FACESIZE;
+        fontdialog.pszFamilyname  = font_family;
+        fontdialog.usFamilyBufLen = sizeof font_family;
         fontdialog.pszTitle       = "PM123 scroller font";
         fontdialog.pszPreview     = "128 kb/s, 44.1 kHz, Joint-Stereo";
         fontdialog.fl             = FNTS_CENTER | FNTS_RESETBUTTON | FNTS_INITFROMFATTRS;
@@ -329,14 +393,8 @@ cfg_display1_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
         {
           font_attrs = fontdialog.fAttrs;
           font_size  = fontdialog.fxPointSize >> 16;
-
-          WinSetDlgItemText( hwnd, ST_FONT_SAMPLE,
-                             cfg_attrs_to_font( &font_attrs, font_name, font_size ));
-          WinSetPresParam  ( WinWindowFromID( hwnd, ST_FONT_SAMPLE ),
-                             PP_FONTNAMESIZE, strlen( font_name ) + 1,  font_name );
+          WinPostMsg( hwnd, CFG_CHANGE, 0, 0 );
         }
-
-        free( fontdialog.pszFamilyname );
       }
       return 0;
 
@@ -350,32 +408,6 @@ cfg_display1_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
         WinEnableControl( hwnd, ST_FONT_SAMPLE, !use );
       }
       return 0;
-
-    case CFG_DEFAULT:
-    {
-      WinCheckButton( hwnd, RB_SCROLL_INFINITE, TRUE );
-      WinCheckButton( hwnd, RB_DISP_FILENAME,   TRUE );
-      WinCheckButton( hwnd, CB_USE_SKIN_FONT,   TRUE );
-
-      font_size = 9;
-
-      memset( &font_attrs, 0, sizeof( font_attrs ));
-      strcpy( font_attrs.szFacename, "WarpSans Bold" );
-
-      font_attrs.usRecordLength  = sizeof(FATTRS);
-      font_attrs.lMaxBaselineExt = 14L;
-      font_attrs.lAveCharWidth   =  6L;
-
-      WinSetDlgItemText( hwnd, ST_FONT_SAMPLE,
-                         cfg_attrs_to_font( &font_attrs, font_name, font_size ));
-      WinSetPresParam  ( WinWindowFromID( hwnd, ST_FONT_SAMPLE ),
-                         PP_FONTNAMESIZE, strlen( font_name ) + 1,  font_name );
-
-      WinEnableControl( hwnd, PB_FONT_SELECT, FALSE );
-      WinEnableControl( hwnd, ST_FONT_SAMPLE, FALSE );
-
-      return 0;
-    }
 
     case WM_DESTROY:
     {
@@ -486,11 +518,9 @@ cfg_config1_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
         int i = WinQueryLboxSelectedItem((HWND)mp2);
 
         if( SHORT1FROMMP( mp1 ) == LB_VISPLUG ) {
-          WinPostMsg( hwnd, CFG_REFRESH_INFO,
-                      MPFROMLONG( PLUGIN_VISUAL  ), MPFROMSHORT( i ));
+          WinPostMsg( hwnd, CFG_REFRESH_INFO, MPFROMLONG( PLUGIN_VISUAL  ), MPFROMSHORT( i ));
         } else if( SHORT1FROMMP( mp1 ) == LB_DECPLUG ) {
-          WinPostMsg( hwnd, CFG_REFRESH_INFO,
-                      MPFROMLONG( PLUGIN_DECODER ), MPFROMSHORT( i ));
+          WinPostMsg( hwnd, CFG_REFRESH_INFO, MPFROMLONG( PLUGIN_DECODER ), MPFROMSHORT( i ));
         }
       }
       break;
@@ -517,8 +547,7 @@ cfg_config1_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
               vis_init( i );
             }
             set_plugin_enabled(list[i], !get_plugin_enabled(list[i]));
-            WinPostMsg( hwnd, CFG_REFRESH_INFO,
-                        MPFROMLONG( PLUGIN_VISUAL ), MPFROMSHORT( i ));
+            WinPostMsg( hwnd, CFG_REFRESH_INFO, MPFROMLONG( PLUGIN_VISUAL ), MPFROMSHORT( i ));
           }
           return 0;
         }
@@ -529,8 +558,7 @@ cfg_config1_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
           if( i != LIT_NONE ) {
             remove_visual_plugin( i );
             if( lb_remove_item( hwnd, LB_VISPLUG, i ) == 0 ) {
-              WinPostMsg( hwnd, CFG_REFRESH_INFO,
-                          MPFROMLONG( PLUGIN_VISUAL ), MPFROMSHORT( LIT_NONE ));
+              WinPostMsg( hwnd, CFG_REFRESH_INFO, MPFROMLONG( PLUGIN_VISUAL ), MPFROMSHORT( LIT_NONE ));
             } else {
               lb_select( hwnd, LB_VISPLUG, 0 );
             }
@@ -576,8 +604,7 @@ cfg_config1_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
             } else {
               remove_decoder_plugin( i );
               if( lb_remove_item( hwnd, LB_DECPLUG, i ) == 0 ) {
-                WinSendMsg( hwnd, CFG_REFRESH_INFO,
-                            MPFROMLONG( PLUGIN_DECODER ), MPFROMSHORT( LIT_NONE ));
+                WinSendMsg( hwnd, CFG_REFRESH_INFO, MPFROMLONG( PLUGIN_DECODER ), MPFROMSHORT( LIT_NONE ));
               } else {
                 lb_select( hwnd, LB_DECPLUG, 0 );
               }
@@ -643,11 +670,9 @@ cfg_config2_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
         int i = WinQueryLboxSelectedItem((HWND)mp2);
 
         if( SHORT1FROMMP( mp1 ) == LB_OUTPLUG ) {
-          WinSendMsg( hwnd, CFG_REFRESH_INFO,
-                      MPFROMLONG( PLUGIN_OUTPUT ), MPFROMSHORT( i ));
+          WinSendMsg( hwnd, CFG_REFRESH_INFO, MPFROMLONG( PLUGIN_OUTPUT ), MPFROMSHORT( i ));
         } else if( SHORT1FROMMP( mp1 ) == LB_FILPLUG ) {
-          WinSendMsg( hwnd, CFG_REFRESH_INFO,
-                      MPFROMLONG( PLUGIN_FILTER ), MPFROMSHORT( i ));
+          WinSendMsg( hwnd, CFG_REFRESH_INFO, MPFROMLONG( PLUGIN_FILTER ), MPFROMSHORT( i ));
         }
       }
       break;
@@ -671,8 +696,7 @@ cfg_config2_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
               amp_error( hwnd, "Cannot change active output while playing." );
             } else {
               out_set_active( i );
-              WinPostMsg( hwnd, CFG_REFRESH_INFO,
-                          MPFROMLONG( PLUGIN_OUTPUT ), MPFROMSHORT( i ));
+              WinPostMsg( hwnd, CFG_REFRESH_INFO, MPFROMLONG( PLUGIN_OUTPUT ), MPFROMSHORT( i ));
             }
           }
           return 0;
@@ -688,8 +712,7 @@ cfg_config2_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
             } else {
               remove_output_plugin( i );
               if( lb_remove_item( hwnd, LB_OUTPLUG, i ) == 0 ) {
-                WinPostMsg( hwnd, CFG_REFRESH_INFO,
-                            MPFROMLONG( PLUGIN_OUTPUT ), MPFROMSHORT( LIT_NONE ));
+                WinPostMsg( hwnd, CFG_REFRESH_INFO, MPFROMLONG( PLUGIN_OUTPUT ), MPFROMSHORT( LIT_NONE ));
               } else {
                 lb_select( hwnd, LB_OUTPLUG, 0 );
               }
@@ -722,8 +745,7 @@ cfg_config2_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
                 amp_info( hwnd, "This filter will only be disabled after playback of the current file." );
               }
             }
-            WinPostMsg( hwnd, CFG_REFRESH_INFO,
-                        MPFROMLONG( PLUGIN_FILTER ), MPFROMSHORT( i ));
+            WinPostMsg( hwnd, CFG_REFRESH_INFO, MPFROMLONG( PLUGIN_FILTER ), MPFROMSHORT( i ));
           }
           return 0;
         }
@@ -738,8 +760,7 @@ cfg_config2_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
             } else {
               remove_filter_plugin( i );
               if( lb_remove_item( hwnd, LB_FILPLUG, i ) == 0 ) {
-                WinSendMsg( hwnd, CFG_REFRESH_INFO,
-                            MPFROMLONG( PLUGIN_FILTER ), MPFROMSHORT( LIT_NONE ));
+                WinSendMsg( hwnd, CFG_REFRESH_INFO, MPFROMLONG( PLUGIN_FILTER ), MPFROMSHORT( LIT_NONE ));
               } else {
                 lb_select( hwnd, LB_FILPLUG, 0 );
               }
@@ -870,7 +891,7 @@ cfg_properties( HWND owner )
   PMRASSERT( nb_append_tab( book, WinLoadDlg( book, book, cfg_settings1_dlg_proc, NULLHANDLE, CFG_SETTINGS1, 0 ),
                             "~Settings", MPFROM2SHORT( 1, 2 ) ));
 
-  PMRASSERT( nb_append_tab( book, WinLoadDlg( book, book, cfg_settings1_dlg_proc, NULLHANDLE, CFG_SETTINGS2, 0 ),
+  PMRASSERT( nb_append_tab( book, WinLoadDlg( book, book, cfg_settings2_dlg_proc, NULLHANDLE, CFG_SETTINGS2, 0 ),
                             NULL, MPFROM2SHORT( 2, 2 ) ));
 
   PMRASSERT( nb_append_tab( book, WinLoadDlg( book, book, cfg_display1_dlg_proc, NULLHANDLE, CFG_DISPLAY1, 0 ),

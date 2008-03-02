@@ -83,7 +83,7 @@ event_base::~event_base()
 
 void event_base::reset()
 { DEBUGLOG(("event_base(%p)::reset()\n", this));
-  CritSect cs();
+  const CritSect& cs = CritSect();
   delegate_base* mp = Root;
   Root = NULL;
   while (mp != NULL)

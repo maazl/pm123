@@ -2449,9 +2449,7 @@ main2( void* arg )
 
   DEBUGLOG(("main: init complete\n"));
 
-  if( !amp_pipe_create()) {
-    exit(1);
-  }
+  amp_pipe_create();
 
   ///////////////////////////////////////////////////////////////////////////
   // Main loop

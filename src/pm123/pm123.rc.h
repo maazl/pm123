@@ -256,7 +256,7 @@
 #define CFG_SETTINGS1      1300
 #define GB_BEHAVIOUR       1301
 #define CB_PLAYONLOAD      1302
-#define CB_TRASHONSEEK     1306
+#define CB_TRASHONSCAN     1306
 #define CB_AUTOUSEPL       1351
 #define CB_AUTOPLAYPL      1352
 #define CB_RECURSEDND      1353
@@ -283,6 +283,9 @@
 #define SB_BUFFERSIZE      1380
 #define ST_KB              1381
 #define CB_FILLBUFFER      1382
+#define GB_REMOTE          1390
+#define ST_PIPE            1391
+#define EF_PIPE            1392
 
 #define CFG_DISPLAY1       1400
 #define GB_TITLE           1401
