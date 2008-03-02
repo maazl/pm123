@@ -435,10 +435,34 @@ void Ctrl::CheckPrefetch(double pos)
       // Set events
       InterlockedOr(Pending, EV_Song|EV_Tech|EV_Meta);
       // Cleanup prefetch list
-      CritSect cs;
+      vector<PrefetchEntry> ped(n);
+      { CritSect cs;
+        do
+          ped.append() = PrefetchList.erase(--n);
+        while (n);
+      }
+      // delete iterators and remove from play queue (if desired)
+      Playlist* plp = NULL;
+      if (cfg.queue_mode && (Current()->Iter.GetRoot()->GetFlags() & Playable::Mutable) == Playable::Mutable)
+      { plp = (Playlist*)Current()->Iter.GetRoot();
+        if (plp->GetURL() != url123::normalizeURL(startpath) + "PM123.LST")
+          plp = NULL;
+      }
+      DEBUGLOG(("Ctrl::CheckPrefetch: queue mode %p\n", plp));
+      // plp != NULL -> remove items       
+      n = ped.size();
       do
-        delete PrefetchList.erase(--n);
-      while (n);
+      { PrefetchEntry* pep = ped[--n]; 
+        if (plp)
+        { int_ptr<PlayableInstance> pip = pep->Iter.GetCallstack()[0]->Item;
+          DEBUGLOG(("Ctrl::CheckPrefetch: %u\n", pep->Iter.GetCallstack().size()));
+          if ( pep->Iter.GetCallstack().size() == 1       // we played an item at the top level
+            || !pep->Iter.Next()                          // we played the last item
+            || pep->Iter.GetCallstack()[0]->Item != pip ) // we played the last item of a top leven PlayableCollection  
+            plp->RemoveItem(pip);
+        }
+        delete pep;
+      } while (n);
     }
   }
 }
@@ -468,7 +492,8 @@ void Ctrl::OutEventHandler(void*, const OUTEVENTTYPE& event)
 { DEBUGLOG(("Ctrl::OutEventHandler(, %i)\n", event));
   switch (event)
   {case OUTEVENT_END_OF_DATA:
-    // Well, same as on play error.
+    PostCommand(MkOutStop());
+    break;
    case OUTEVENT_PLAY_ERROR:
     // output error => full stop
     PostCommand(MkPlayStop(Ctrl::Op_Clear));
@@ -884,6 +909,20 @@ Ctrl::RC Ctrl::MsgDecStop()
   return RC_OK; 
 }
 
+// The output completed playing
+Ctrl::RC Ctrl::MsgOutStop()
+{ DEBUGLOG(("Ctrl::MsgOutStop()\n"));
+  // Check whether we have to remove items in queue mode
+  if (cfg.queue_mode && IsPlaylist() && (Current()->Iter.GetRoot()->GetFlags() & Playable::Mutable) == Playable::Mutable)
+  { Playlist* plp = (Playlist*)Current()->Iter.GetRoot();
+    if (plp->GetURL() == url123::normalizeURL(startpath) + "PM123.LST")
+    { DEBUGLOG(("Ctrl::MsgOutStop: queue mode %p\n", plp));
+      plp->RemoveItem(Current()->Iter.GetCallstack()[0]->Item);
+    }
+  }
+  // In any case stop the engine
+  return MsgPlayStop(Op_Clear);
+}
 
 void TFNENTRY ControllerWorkerStub(void*)
 { Ctrl::Worker();
@@ -963,6 +1002,10 @@ void Ctrl::Worker()
          
          case Cmd_DecStop:
           qp->Flags = MsgDecStop();
+          break;
+         
+         case Cmd_OutStop:
+          qp->Flags = MsgOutStop();
           break;
          
          case Cmd_Nop:

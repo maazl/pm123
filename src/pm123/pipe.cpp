@@ -141,9 +141,9 @@ void cmd_op_BOOL(xstring& ret, const char* arg, BOOL& val)
 
 static void cmd_load(xstring& ret, char* args)
 { if (is_dir(args))
-    // TODO: buffer overrun!!!!
+    // TODO: buffer may overrun???
     strcat(args, "\\");
-  amp_load_playable(url123::normalizeURL(args), 0, AMP_LOAD_NOT_RECALL);
+  amp_load_playable(url123::normalizeURL(args), 0, AMP_LOAD_NOT_RECALL|(cfg.append_cmd*AMP_LOAD_APPEND));
   // TODO: reply and sync wait
 }
 
@@ -439,7 +439,7 @@ static void cmd_float(xstring& ret, char* args)
        case Ctrl::Op_Set:
         if (cfg.floatontop)
           return;
-        break;
+       default:;
       }
       WinSendMsg(amp_player_window(), WM_COMMAND, MPFROMSHORT(IDM_M_FLOAT), 0);
     } else

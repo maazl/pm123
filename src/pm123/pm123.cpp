@@ -552,12 +552,12 @@ amp_drag_drop( HWND hwnd, PDRAGINFO pdinfo )
     pdinfo->cbDragitem, pdinfo->usOperation, pdinfo->hwndSource, pdinfo->xDrop, pdinfo->yDrop, pdinfo->cditem));
 
   int options = AMP_LOAD_NOT_RECALL;
-  if (pdinfo->cditem > 1)
+  if (pdinfo->cditem > 1 || cfg.append_dnd)
   { options |= AMP_LOAD_APPEND;
-    // TODO: should be configurable
     int_ptr<Playable> pp = DefaultPL->GetContent();
     ASSERT(pp->GetFlags() & Playable::Mutable);
-    ((Playlist&)*pp).Clear();
+    if (!cfg.append_dnd)
+      ((Playlist&)*pp).Clear();
   }
 
   for( int i = 0; i < pdinfo->cditem; i++ )
@@ -628,8 +628,8 @@ amp_drag_drop( HWND hwnd, PDRAGINFO pdinfo )
       } else if (pditem->hstrContainerName && pditem->hstrSourceName)
       { // Have full qualified file name.
         // Hopefully this criterion is sufficient to identify folders.
-        if (pditem->fsControl & DC_CONTAINER)
-          // TODO: should be configurabe and alterable
+        if ((pditem->fsControl & DC_CONTAINER) && cfg.recurse_dnd)
+          // TODO: should be alterable
           fullname = fullname + "/?Recursive";
 
         DropInfo* pdsource = new DropInfo();
@@ -2539,7 +2539,7 @@ main( int argc, char *argv[] )
     else if( stricmp( argv[o], "-cmd" ) == 0 ||
              stricmp( argv[o], "/cmd" ) == 0  )
     {
-      char pipename[256] = "\\PIPE\\PM123";
+      char pipename[_MAX_PATH] = "\\PIPE\\PM123";
       o++;
       if( strncmp( argv[o], "\\\\", 2 ) == 0 )
       { // TODO: static buffer, pipe name

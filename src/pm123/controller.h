@@ -187,6 +187,8 @@ Status                         out: PlayStatus*                        Return Pl
 ---------------------------------------------------------------------------------------------------------------
 DecStop                                                                The current decoder finished it's work.
 ---------------------------------------------------------------------------------------------------------------
+OutStop                                                                The output finished playback.
+---------------------------------------------------------------------------------------------------------------
 
 Commands can have an optional callback function which is called when the command is executed completely.
 The callback function must at least delete the ControlCommand instance.
@@ -217,7 +219,8 @@ class Ctrl
     // queries
     Cmd_Status,
     // internal events
-    Cmd_DecStop
+    Cmd_DecStop,
+    Cmd_OutStop
   };
 
   // Flags for setter commands 
@@ -315,7 +318,7 @@ class Ctrl
   // any write to PrefetchList must be protected by a critical section.
   static vector<PrefetchEntry> PrefetchList;
 
-  static PlayableInstance::slice Slice;                 // Location in case of seeking or !Playing respectively Slice
+  static PlayableInstance::slice Slice;              // Location in case of seeking or !Playing respectively Slice
   static bool                 Playing;               // True if a song is currently playing (not decoding)
   static bool                 Paused;                // True if the current song is paused
   static DECFASTMODE          Scan;                  // Current scan mode
@@ -406,6 +409,7 @@ class Ctrl
   static RC    MsgRepeat(Op op);
   static RC    MsgStatus();
   static RC    MsgDecStop();
+  static RC    MsgOutStop();
  
  public: // management interface, not thread safe
   // initialize controller
@@ -418,21 +422,22 @@ class Ctrl
   // So be careful.
 
   // Ist the currently loaded root enumerable?
-  static bool IsPlaylist()                    { return !!PrefetchList.size(); }
+          // TODO: should be configurabe and alterable
+  static bool          IsPlaylist()           { return !!PrefetchList.size(); }
   // Check whether we are currently playing.
-  static bool IsPlaying()                     { return Playing; }
+  static bool          IsPlaying()            { return Playing; }
   // Check whether the current play status is paused.
-  static bool IsPaused()                      { return Paused; }
+  static bool          IsPaused()             { return Paused; }
   // Return the current scanmode.
-  static DECFASTMODE GetScan()                { return Scan; }
+  static DECFASTMODE   GetScan()              { return Scan; }
   // Return the current volume. This doues not return a decreased value in scan mode.
-  static double GetVolume()                   { return Volume; }
+  static double        GetVolume()            { return Volume; }
   // Return the current shuffle status.
-  static bool IsShuffle()                     { return Shuffle; }
+  static bool          IsShuffle()            { return Shuffle; }
   // Return the current repeat status.
-  static bool IsRepeat()                      { return Repeat; }
+  static bool          IsRepeat()             { return Repeat; }
   // Return the current savefile name.
-  static xstring GetSavename()                { return Savename; }
+  static xstring       GetSavename()          { return Savename; }
   // Return the current song (whether playing or not).
   // If nothing is attached or if a playlist recently completed the function returns NULL.
   static int_ptr<Song> GetCurrentSong();
@@ -489,6 +494,8 @@ class Ctrl
   { return new ControlCommand(Cmd_Status, xstring(), (void*)NULL, 0); }
   static ControlCommand* MkDecStop()
   { return new ControlCommand(Cmd_DecStop, xstring(), (void*)NULL, 0); }
+  static ControlCommand* MkOutStop()
+  { return new ControlCommand(Cmd_OutStop, xstring(), (void*)NULL, 0); }
 
  public: // notifications
   // Notify about any changes. See EventFlags for details.
