@@ -227,6 +227,7 @@ static void cmd_shuffle(xstring& ret, char* args)
 
 static void cmd_repeat(xstring& ret, char* args)
 { const strmap<8, Ctrl::Op>* op = parse_op1(args);
+  DEBUGLOG(("cmd_repeat: %p\n", op));
   if (op)
   { Ctrl::PostCommand(Ctrl::MkRepeat(op->Val));
     // TODO: reply and sync wait
@@ -261,6 +262,9 @@ static void cmd_status(xstring& ret, char* args)
   }
 }
 
+static void cmd_hide(xstring& ret, char* args)
+{ WinSendMsg( amp_player_window(), WM_COMMAND, MPFROMSHORT( IDM_M_MINIMIZE ), 0 );
+}
 
 ///// PLAYLIST
 
@@ -467,6 +471,7 @@ static const struct CmdEntry
   { "float",      &cmd_float      },
   { "font",       &cmd_font       },
   { "forward",    &cmd_forward    },
+  { "hide",       &cmd_hide       },
   { "jump",       &cmd_jump       },
   { "load",       &cmd_load       },
   { "next",       &cmd_next       },
@@ -478,11 +483,12 @@ static const struct CmdEntry
   { "playlist",   &cmd_playlist   },
   { "playonload", &cmd_playonload },
   { "playonuse",  &cmd_playonuse  },
+  { "prev",       &cmd_prev       },
   { "previous",   &cmd_prev       },
+  { "rdir",       &cmd_rdir       },
   { "remove",     &cmd_remove     },
   { "repeat",     &cmd_repeat     },
   { "rewind",     &cmd_rewind     },
-  { "rdir",       &cmd_rdir       },
   { "size",       &cmd_size       },
   { "shuffle",    &cmd_shuffle    },
   { "status",     &cmd_status     },
@@ -502,8 +508,9 @@ static void execute_command(xstring& ret, char* buffer)
     // extract command
     size_t len = strcspn(buffer, " \t");
     char* ap = buffer + len;
-    ap += strspn(buffer, " \t"); // skip leading blanks
+    ap += strspn(ap, " \t"); // skip leading blanks
     buffer[len] = 0;
+    DEBUGLOG(("execute_command: %s %u %s\n", buffer, len, ap));
     { // remove trailing blanks
       char* ape = ap + strlen(ap);
       while (ape != ap && (ape[-1] == ' ' || ape[-1] == '\t'))
@@ -520,14 +527,6 @@ static void execute_command(xstring& ret, char* buffer)
       (*cep->ExecFn)(ret, ap);
   }
 }   
-
-#if 0
-    if( zork )
-    {
-      if( stricmp( zork, "hide"  ) == 0 ) {
-        WinSendMsg( hplayer, WM_COMMAND, MPFROMSHORT( IDM_M_MINIMIZE ), 0 );
-      }
-#endif
 
 /* Dispatches requests received from the pipe. */
 // TODO: start the pipe thread!

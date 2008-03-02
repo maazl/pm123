@@ -272,7 +272,7 @@ const SongIterator::CallstackType Ctrl::EmptyStack(1);
 
 int_ptr<Song> Ctrl::GetCurrentSong()
 { DEBUGLOG(("Ctrl::GetCurrentSong() - %p, %u\n", &*CurrentSong, PrefetchList.size()));
-  CritSect cs();
+  CritSect cs;
   if (PrefetchList.size() == 0)
     return CurrentSong;
   PlayableInstance* pi = *Current()->Iter;
@@ -413,7 +413,7 @@ bool Ctrl::SkipCore(SongIterator& si, int count, bool relative)
 
 void Ctrl::PrefetchClear(bool keep)
 { DEBUGLOG(("Ctrl::PrefetchClear(%u)\n", keep));
-  CritSect cs();
+  CritSect cs;
   while (PrefetchList.size() > keep) // Hack: keep = false deletes all items while keep = true kepp the first item.
     delete PrefetchList.erase(PrefetchList.end()-1);
 }
@@ -711,7 +711,7 @@ Ctrl::RC Ctrl::MsgLoad(const xstring& url)
     play->EnsureInfo(Playable::IF_Other);
     play->EnsureInfoAsync(Playable::IF_All);
     if (play->GetFlags() & Playable::Enumerable)
-    { { CritSect cs();
+    { { CritSect cs;
         PrefetchList.append() = new PrefetchEntry();
         Current()->Iter.SetRoot((PlayableCollection*)&*play);
       }

@@ -37,7 +37,7 @@
 void event_base::operator+=(delegate_base& d)
 { DEBUGLOG(("event_base(%p)::operator+=(%p{%p}) - %p\n", this, &d, d.Rcv, Root));
   ASSERT(d.Ev == NULL);
-  CritSect cs();
+  CritSect cs;
   d.Ev = this;
   d.Link = Root;
   Root = &d;
@@ -46,7 +46,7 @@ void event_base::operator+=(delegate_base& d)
 bool event_base::operator-=(delegate_base& d)
 { DEBUGLOG(("event_base(%p)::operator-=(%p{%p})\n", this, &d, d.Rcv));
   delegate_base** mpp = &Root;
-  CritSect cs();
+  CritSect cs;
   while (*mpp != NULL)
   { if (*mpp == &d)
     { ASSERT(d.Ev == this);
@@ -83,7 +83,7 @@ event_base::~event_base()
 
 void event_base::reset()
 { DEBUGLOG(("event_base(%p)::reset()\n", this));
-  const CritSect& cs = CritSect();
+  CritSect cs;
   delegate_base* mp = Root;
   Root = NULL;
   while (mp != NULL)
@@ -113,7 +113,7 @@ delegate_base::delegate_base(event_base& ev, func_type fn, const void* rcv)
   Rcv(rcv),
   Ev(&ev)
 { DEBUGLOG(("delegate_base(%p)::delegate_base(%p, %p, %p)\n", this, &ev, fn, rcv));
-  CritSect cs();
+  CritSect cs;
   Link = ev.Root;
   ev.Root = this;
 } 
@@ -123,7 +123,7 @@ void delegate_base::detach()
   #ifdef DEBUG
   DEBUGLOG(("delegate_base(%p)::detach() - %p\n", this, Ev));
   if (Ev)
-  { CritSect cs();
+  { CritSect cs;
     if (Ev)
     { RASSERT((*Ev) -= *this);
       Ev = NULL;

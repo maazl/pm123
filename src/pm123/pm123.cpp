@@ -2088,6 +2088,9 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
 
       WinStartTimer( hab, hwnd, TID_UPDATE_TIMERS, 100 );
       WinStartTimer( hab, hwnd, TID_UPDATE_PLAYER,  50 );
+      
+      // fetch some initial states
+      WinPostMsg( hwnd, AMP_CTRL_EVENT, MPFROMLONG(Ctrl::EV_Repeat|Ctrl::EV_Shuffle), 0 );
       break;
     }
 
