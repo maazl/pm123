@@ -1277,10 +1277,15 @@ void PlaylistBase::DragDrop(DRAGINFO* pdinfo, RecordBase* target)
         }
       } else if (pditem->hstrContainerName && pditem->hstrSourceName)
       { // Have full qualified file name.
+        DEBUGLOG(("PlaylistBase::DragDrop: DRM_OS2FILE && !UniformResourceLocator - %x\n", pditem->fsControl));
         // Hopefully this criterion is sufficient to identify folders.
         if (pditem->fsControl & DC_CONTAINER)
-          // TODO: should be configurabe and alterable
-          fullname = fullname + "/?Recursive";
+        { // TODO: should be alterable
+          if (cfg.recurse_dnd)
+            fullname = fullname + "/?Recursive";
+          else
+            fullname = fullname + "/";
+        }
 
         // prepare insert item
         InsertInfo* pii = new InsertInfo();

@@ -563,7 +563,7 @@ amp_drag_drop( HWND hwnd, PDRAGINFO pdinfo )
   for( int i = 0; i < pdinfo->cditem; i++ )
   {
     DRAGITEM* pditem = DrgQueryDragitemPtr( pdinfo, i );
-    DEBUGLOG(("PlaylistBase::DragDrop: item {%p, %p, %s, %s, %s, %s, %s, %i,%i, %x, %x}\n",
+    DEBUGLOG(("amp_drag_drop: item {%p, %p, %s, %s, %s, %s, %s, %i,%i, %x, %x}\n",
       pditem->hwndItem, pditem->ulItemID, amp_string_from_drghstr(pditem->hstrType).cdata(), amp_string_from_drghstr(pditem->hstrRMF).cdata(),
       amp_string_from_drghstr(pditem->hstrContainerName).cdata(), amp_string_from_drghstr(pditem->hstrSourceName).cdata(), amp_string_from_drghstr(pditem->hstrTargetName).cdata(),
       pditem->cxOffset, pditem->cyOffset, pditem->fsControl, pditem->fsSupportedOps));
@@ -628,9 +628,13 @@ amp_drag_drop( HWND hwnd, PDRAGINFO pdinfo )
       } else if (pditem->hstrContainerName && pditem->hstrSourceName)
       { // Have full qualified file name.
         // Hopefully this criterion is sufficient to identify folders.
-        if ((pditem->fsControl & DC_CONTAINER) && cfg.recurse_dnd)
-          // TODO: should be alterable
-          fullname = fullname + "/?Recursive";
+        if (pditem->fsControl & DC_CONTAINER)
+        { // TODO: should be alterable
+          if (cfg.recurse_dnd)
+            fullname = fullname + "/?Recursive";
+          else
+            fullname = fullname + "/";
+        }
 
         DropInfo* pdsource = new DropInfo();
         pdsource->URL      = url123::normalizeURL(fullname);
