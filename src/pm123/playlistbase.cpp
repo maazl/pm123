@@ -118,8 +118,8 @@ void PlaylistBase::InitIcons()
   IcoPlayable[ICP_Recursive][IC_Play  ] = WinLoadPointer(HWND_DESKTOP, 0, ICO_PLRECURSIVEPLAY);
 }
 
-PlaylistBase::PlaylistBase(const char* url, const xstring& alias, ULONG rid)
-: Content(Playable::GetByURL(url)),
+PlaylistBase::PlaylistBase(Playable* content, const xstring& alias, ULONG rid)
+: Content(content),
   Alias(alias),
   NameApp(""),
   DlgRID(rid),
@@ -601,8 +601,8 @@ MRESULT PlaylistBase::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
   return WinDefDlgProc( HwndFrame, msg, mp1, mp2 );
 }
 
-int PlaylistBase::compareTo(const char*const& str) const
-{ return stricmp(Content->GetURL(), str);
+int PlaylistBase::compareTo(const Playable& r) const
+{ return Content.compareTo(r);
 }
 
 void PlaylistBase::SetVisible(bool show)

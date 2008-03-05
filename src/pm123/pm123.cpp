@@ -98,11 +98,11 @@
 char startpath[_MAX_PATH];
 
 // Default playlist, representing PM123.LST in the program folder.
-static PlaylistView*     DefaultPL = NULL;
+static int_ptr<Playlist> DefaultPL;
 // PlaylistManager window, representing PFREQ.LST in the program folder.
-static PlaylistManager*  DefaultPM = NULL;
+static int_ptr<Playlist> DefaultPM;
 // Default instance of bookmark window, representing BOOKMARK.LST in the program folder.
-static PlaylistBase*     DefaultBM = NULL;
+static int_ptr<Playlist> DefaultBM;
 // Most recent used entries in the load menu, representing LOADMRU.LST in the program folder.
 static int_ptr<Playlist> LoadMRU;
 
@@ -373,19 +373,18 @@ amp_load_playable( const char* url, T_TIME start, int options )
 
   if (options & AMP_LOAD_APPEND)
   { ASSERT(Ctrl::GetRoot() != NULL);
-    Playlist* pl = (Playlist*)DefaultPL->GetContent();
     PlayableInstance::slice sl(start);
     // multi mode
-    if (Ctrl::GetRoot() != pl)
+    if (Ctrl::GetRoot() != DefaultPL)
     { // we do not yet use the current playlist => use it
       // move current item to the list
-      pl->Clear();
-      pl->InsertItem(Ctrl::GetRoot()->GetURL(), (const char*)NULL, sl);
+      DefaultPL->Clear();
+      DefaultPL->InsertItem(Ctrl::GetRoot()->GetURL(), (const char*)NULL, sl);
       // reset current to first item of the playlist
-      Ctrl::PostCommand(Ctrl::MkLoad(pl->GetURL()));
+      Ctrl::PostCommand(Ctrl::MkLoad(DefaultPL->GetURL()));
     }
     // append item
-    pl->InsertItem(url, (const char*)NULL, sl);
+    DefaultPL->InsertItem(url, (const char*)NULL, sl);
     return;
   }
 
@@ -432,7 +431,7 @@ amp_show_context_menu( HWND parent )
     mn_make_conditionalcascade( menu, IDM_M_LOAD, IDM_M_LOADFILE );
 
     PlaylistMenu* pmp = new PlaylistMenu(parent, IDM_M_LAST, IDM_M_LAST_E);
-    pmp->AttachMenu(IDM_M_BOOKMARKS, DefaultBM->GetContent(), PlaylistMenu::DummyIfEmpty|PlaylistMenu::Recursive|PlaylistMenu::Enumerate, 0);
+    pmp->AttachMenu(IDM_M_BOOKMARKS, DefaultBM, PlaylistMenu::DummyIfEmpty|PlaylistMenu::Recursive|PlaylistMenu::Enumerate, 0);
     pmp->AttachMenu(IDM_M_LOAD, LoadMRU, PlaylistMenu::Enumerate|PlaylistMenu::Separator, 0);
     new_menu = true;
   }
@@ -1859,7 +1858,7 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
       switch( cmd )
       {
         case IDM_M_MANAGER:
-          DefaultPM->SetVisible(true);
+          PlaylistManager::Get(DefaultPM, "Playlist Manager")->SetVisible(true);
           return 0;
 
         case IDM_M_ADDBOOK:
@@ -1895,13 +1894,13 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
         case IDM_M_DETAILED:
         { int_ptr<Playable> pp = Ctrl::GetRoot();
           if (pp && (pp->GetFlags() & Playable::Enumerable))
-            PlaylistView::Get(pp->GetURL())->SetVisible(true);
+            PlaylistView::Get(pp)->SetVisible(true);
           return 0;
         }
         case IDM_M_TREEVIEW:
         { int_ptr<Playable> pp = Ctrl::GetRoot();
           if (pp && (pp->GetFlags() & Playable::Enumerable))
-            PlaylistManager::Get(pp->GetURL())->SetVisible(true);
+            PlaylistManager::Get(pp)->SetVisible(true);
           return 0;
         }
         case IDM_M_ADDPMBOOK:
@@ -1985,7 +1984,7 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
           return 0;
 
         case IDM_M_PLAYLIST:
-          DefaultPL->SetVisible(true);
+          PlaylistView::Get(DefaultPL, "Default Playlist")->SetVisible(true);
           return 0;
 
         case IDM_M_VOL_RAISE:
@@ -2005,8 +2004,10 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
           return 0;
 
         case BMP_PL:
-          DefaultPL->SetVisible(!DefaultPL->GetVisible());
+        { int_ptr<PlaylistView> pv = PlaylistView::Get(DefaultPL, "Default Playlist");
+          pv->SetVisible(!pv->GetVisible());
           return 0;
+        }
 
         case BMP_REPEAT:
           Ctrl::PostCommand(Ctrl::MkRepeat(Ctrl::Op_Toggle));
@@ -2428,9 +2429,9 @@ main2( void* arg )
 
   // Init default lists
   { const url123& path = url123::normalizeURL(startpath);
-    DefaultPL = PlaylistView::Get(path + "PM123.LST", "Default Playlist");
-    DefaultPM = PlaylistManager::Get(path + "PFREQ.LST", "Playlist Manager");
-    DefaultBM = PlaylistView::Get(path + "BOOKMARK.LST", "Bookmarks");
+    DefaultPL = (Playlist*)&*Playable::GetByURL(path + "PM123.LST");
+    DefaultPM = (Playlist*)&*Playable::GetByURL(path + "PFREQ.LST");
+    DefaultBM = (Playlist*)&*Playable::GetByURL(path + "BOOKMARK.LST", "Bookmarks");
     LoadMRU   = (Playlist*)&*Playable::GetByURL(path + "LOADMRU.LST");
     // The default playlist the bookmarks and the MRU list must be ready to use
     DefaultPL->GetContent()->EnsureInfo(Playable::IF_Other);
