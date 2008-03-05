@@ -290,13 +290,13 @@ MRESULT PlaylistBase::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
       if ((pswp[0].fl & (SWP_SHOW|SWP_HIDE)) == 0)
         break;
       dk_set_state( HwndFrame, pswp[0].fl & SWP_SHOW ? 0 : DK_IS_GHOST );
-      HSWITCH hswitch = WinQuerySwitchHandle( HwndFrame, 0 );
+      /*HSWITCH hswitch = WinQuerySwitchHandle( HwndFrame, 0 );
       if (hswitch == NULLHANDLE)
         break; // For some reasons the switchlist entry may be destroyed before.
       SWCNTRL swcntrl;
       PMXASSERT(WinQuerySwitchEntry(hswitch, &swcntrl), == 0);
       swcntrl.uchVisibility = pswp[0].fl & SWP_SHOW ? SWL_VISIBLE : SWL_INVISIBLE;
-      PMXASSERT(WinChangeSwitchEntry( hswitch, &swcntrl ), == 0);
+      PMXASSERT(WinChangeSwitchEntry( hswitch, &swcntrl ), == 0);*/
       break;
     }
 
