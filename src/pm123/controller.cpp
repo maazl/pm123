@@ -445,7 +445,7 @@ void Ctrl::CheckPrefetch(double pos)
       Playlist* plp = NULL;
       if (cfg.queue_mode && (Current()->Iter.GetRoot()->GetFlags() & Playable::Mutable) == Playable::Mutable)
       { plp = (Playlist*)Current()->Iter.GetRoot();
-        if (plp->GetURL() != url123::normalizeURL(startpath) + "PM123.LST")
+        if (plp->GetURL() != amp_get_default_pl()->GetURL())
           plp = NULL;
       }
       DEBUGLOG(("Ctrl::CheckPrefetch: queue mode %p\n", plp));
@@ -915,7 +915,7 @@ Ctrl::RC Ctrl::MsgOutStop()
   // Check whether we have to remove items in queue mode
   if (cfg.queue_mode && IsPlaylist() && (Current()->Iter.GetRoot()->GetFlags() & Playable::Mutable) == Playable::Mutable)
   { Playlist* plp = (Playlist*)Current()->Iter.GetRoot();
-    if (plp->GetURL() == url123::normalizeURL(startpath) + "PM123.LST")
+    if (plp->GetURL() == amp_get_default_pl()->GetURL())
     { DEBUGLOG(("Ctrl::MsgOutStop: queue mode %p\n", plp));
       plp->RemoveItem(Current()->Iter.GetCallstack()[0]->Item);
     }
@@ -1090,8 +1090,12 @@ static void SendCallbackFunc(Ctrl::ControlCommand* cmd)
 Ctrl::ControlCommand* Ctrl::SendCommand(ControlCommand* cmd)
 { DEBUGLOG(("Ctrl::SendCommand(%p{%i, ...})\n", cmd, cmd ? cmd->Cmd : -1));
   Event callback;
-  cmd->User = &callback;
-  cmd->Callback = &SendCallbackFunc;
+  // find last command
+  ControlCommand* cmde = cmd;
+  while (cmde->Link)
+    cmde = cmde->Link;
+  cmde->User = &callback;
+  cmde->Callback = &SendCallbackFunc;
   PostCommand(cmd);
   callback.Wait();
   return cmd;

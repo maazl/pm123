@@ -109,7 +109,7 @@ class PlaylistView : public PlaylistRepository<PlaylistView>
 
  private:
   // Create a playlist manager window for an URL, but don't open it.
-  PlaylistView(const char* URL, const xstring& alias);
+  PlaylistView(Playable* obj, const xstring& alias);
  
  private:
   // Post record message, filtered

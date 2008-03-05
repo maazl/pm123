@@ -492,6 +492,7 @@ class Ctrl
   { return new ControlCommand(Cmd_Equalize, xstring(), (void*)data, 0); }
   static ControlCommand* MkStatus()
   { return new ControlCommand(Cmd_Status, xstring(), (void*)NULL, 0); }
+ private: // internal messages
   static ControlCommand* MkDecStop()
   { return new ControlCommand(Cmd_DecStop, xstring(), (void*)NULL, 0); }
   static ControlCommand* MkOutStop()

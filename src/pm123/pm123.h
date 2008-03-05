@@ -121,6 +121,8 @@ void  amp_save_playlist( HWND owner, PlayableCollection* playlist );
 /* Contains startup path of the program without its name. */
 extern char startpath[_MAX_PATH];
 
+Playlist* amp_get_default_pl();
+
 /* Equalizer stuff. */
 extern float gains[20];
 extern BOOL  mutes[20];

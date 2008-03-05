@@ -82,11 +82,11 @@ PlaylistView* PlaylistView::Get(const char* url, const char* alias)
 }*/
 
 
-PlaylistView::PlaylistView(const char* URL, const xstring& alias)
-: PlaylistRepository<PlaylistView>(URL, alias, DLG_PLAYLIST),
+PlaylistView::PlaylistView(Playable* obj, const xstring& alias)
+: PlaylistRepository<PlaylistView>(obj, alias, DLG_PLAYLIST),
   MainMenu(NULLHANDLE),
   RecMenu(NULLHANDLE)
-{ DEBUGLOG(("PlaylistView::PlaylistView(%s, %s)\n", URL, alias.cdata()));
+{ DEBUGLOG(("PlaylistView::PlaylistView(%p, %s)\n", obj, alias.cdata()));
   //HwndFrame = WinLoadDlg( HWND_DESKTOP, HWND_DESKTOP, pl_DlgProcStub, NULLHANDLE, DLG_PLAYLIST, &ids );
   StartDialog();
 }

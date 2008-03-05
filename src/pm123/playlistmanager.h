@@ -118,7 +118,7 @@ class PlaylistManager : public PlaylistRepository<PlaylistManager>
 
  private:
   // Create a playlist manager window for an URL, but don't open it.
-  PlaylistManager(const char* URL, const xstring& alias);
+  PlaylistManager(Playable* obj, const xstring& alias);
 };
 
 

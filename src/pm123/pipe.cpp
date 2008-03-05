@@ -151,87 +151,114 @@ static void cmd_play(xstring& ret, char* args)
 { if (*args)
     cmd_load(ret, args);
   // TODO: make atomic
-  Ctrl::PostCommand(Ctrl::MkPlayStop(Ctrl::Op_Set));
-  // TODO: reply and sync wait
+  Ctrl::ControlCommand* cmd = Ctrl::SendCommand(Ctrl::MkPlayStop(Ctrl::Op_Set));
+  ret = xstring::sprintf("%i", cmd->Flags);
+  delete cmd;
 }
 
 static void cmd_stop(xstring& ret, char* args)
-{ Ctrl::PostCommand(Ctrl::MkPlayStop(Ctrl::Op_Clear));
-  // TODO: reply and sync wait
+{ Ctrl::ControlCommand* cmd = Ctrl::SendCommand(Ctrl::MkPlayStop(Ctrl::Op_Clear));
+  ret = xstring::sprintf("%i", cmd->Flags);
+  delete cmd;
 }
 
 static void cmd_pause(xstring& ret, char* args)
 { const strmap<8, Ctrl::Op>* op = parse_op1(args);
   if (op)
-  { Ctrl::PostCommand(Ctrl::MkPause(op->Val));
-    // TODO: reply and sync wait
-  }
+  { Ctrl::ControlCommand* cmd = Ctrl::SendCommand(Ctrl::MkPause(op->Val));
+    ret = xstring::sprintf("%i", cmd->Flags);
+    delete cmd;
+  } else
+    ret = xstring::sprintf("%i", Ctrl::RC_BadArg);
 }
 
 static void cmd_next(xstring& ret, char* args)
 { int count = 1;
   if (*args == 0 || parse_int(args, count))
-  { Ctrl::PostCommand(Ctrl::MkSkip(count, true));
-    // TODO: reply and sync wait
-  }
+  { Ctrl::ControlCommand* cmd = Ctrl::SendCommand(Ctrl::MkSkip(count, true));
+    ret = xstring::sprintf("%i", cmd->Flags);
+    delete cmd;
+  } else
+    ret = xstring::sprintf("%i", Ctrl::RC_BadArg);
 }
 
 static void cmd_prev(xstring& ret, char* args)
 { int count = 1;
   if (*args == 0 || parse_int(args, count))
-  { Ctrl::PostCommand(Ctrl::MkSkip(-count, true));
-    // TODO: reply and sync wait
-  }
+  { Ctrl::ControlCommand* cmd = Ctrl::SendCommand(Ctrl::MkSkip(-count, true));
+    ret = xstring::sprintf("%i", cmd->Flags);
+    delete cmd;
+  } else
+    ret = xstring::sprintf("%i", Ctrl::RC_BadArg);
 }
 
 static void cmd_rewind(xstring& ret, char* args)
 { const strmap<8, Ctrl::Op>* op = parse_op1(args);
   if (op)
-  { Ctrl::PostCommand(Ctrl::MkScan(op->Val|Ctrl::Op_Rewind));
-    // TODO: reply and sync wait
-  }
+  { Ctrl::ControlCommand* cmd = Ctrl::SendCommand(Ctrl::MkScan(op->Val|Ctrl::Op_Rewind));
+    ret = xstring::sprintf("%i", cmd->Flags);
+    delete cmd;
+  } else
+    ret = xstring::sprintf("%i", Ctrl::RC_BadArg);
 }
 
 static void cmd_forward(xstring& ret, char* args)
 { const strmap<8, Ctrl::Op>* op = parse_op1(args);
   if (op)
-  { Ctrl::PostCommand(Ctrl::MkScan(op->Val));
-    // TODO: reply and sync wait
-  }
+  { Ctrl::ControlCommand* cmd = Ctrl::SendCommand(Ctrl::MkScan(op->Val));
+    ret = xstring::sprintf("%i", cmd->Flags);
+    delete cmd;
+  } else
+    ret = xstring::sprintf("%i", Ctrl::RC_BadArg);
 }
 
 static void cmd_jump(xstring& ret, char* args)
 { double pos;
   if (parse_double(args, pos))
-  { Ctrl::PostCommand(Ctrl::MkNavigate(xstring(), pos, false, false));
-    // TODO: reply and sync wait
-  }
+  { Ctrl::ControlCommand* cmd = Ctrl::SendCommand(Ctrl::MkNavigate(xstring(), pos, false, false));
+    ret = xstring::sprintf("%i", cmd->Flags);
+    delete cmd;
+  } else
+    ret = xstring::sprintf("%i", Ctrl::RC_BadArg);
 }
 
 static void cmd_volume(xstring& ret, char* args)
-{ double vol;
-  bool sign = *args == '+' || *args == '-';
-  if (parse_double(args, vol))
-  { Ctrl::PostCommand(Ctrl::MkVolume(vol, sign));
-    // TODO: reply and sync wait
+{ ret = xstring::sprintf("%f", Ctrl::GetVolume());
+  if (*args)
+  { double vol;
+    bool sign = *args == '+' || *args == '-';
+    if (parse_double(args, vol))
+    { Ctrl::ControlCommand* cmd = Ctrl::SendCommand(Ctrl::MkVolume(vol, sign));
+      if (cmd->Flags != 0)
+        ret = xstring::empty; //error
+      delete cmd;
+    } else
+      ret = xstring::empty; //error
   }
 }
 
 static void cmd_shuffle(xstring& ret, char* args)
-{ const strmap<8, Ctrl::Op>* op = parse_op1(args);
+{ ret = Ctrl::IsShuffle() ? "on" : "off";
+  const strmap<8, Ctrl::Op>* op = parse_op1(args);
   if (op)
-  { Ctrl::PostCommand(Ctrl::MkShuffle(op->Val));
-    // TODO: reply and sync wait
-  }
+  { Ctrl::ControlCommand* cmd = Ctrl::SendCommand(Ctrl::MkShuffle(op->Val));
+    if (cmd->Flags != 0)
+      ret = xstring::empty; //error
+    delete cmd;
+  } else
+    ret = xstring::empty;
 }
 
 static void cmd_repeat(xstring& ret, char* args)
-{ const strmap<8, Ctrl::Op>* op = parse_op1(args);
-  DEBUGLOG(("cmd_repeat: %p\n", op));
+{ ret = Ctrl::IsRepeat() ? "on" : "off";
+  const strmap<8, Ctrl::Op>* op = parse_op1(args);
   if (op)
-  { Ctrl::PostCommand(Ctrl::MkRepeat(op->Val));
-    // TODO: reply and sync wait
-  }
+  { Ctrl::ControlCommand* cmd = Ctrl::SendCommand(Ctrl::MkRepeat(op->Val));
+    if (cmd->Flags != 0)
+      ret = xstring::empty; //error
+    delete cmd;
+  } else
+    ret = xstring::empty;
 }
 
 static void cmd_status(xstring& ret, char* args)
@@ -630,7 +657,7 @@ bool amp_pipe_create( void )
   }
   
   const url123& path = url123::normalizeURL(startpath);
-  CurPlaylist = (PlayableCollection*)&*Playable::FindByURL(path + "PM123.LST");
+  CurPlaylist = amp_get_default_pl();
   
   TIDWorker = _beginthread(pipe_thread, NULL, 65536, NULL);
   CASSERT(TIDWorker != -1);

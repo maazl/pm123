@@ -200,6 +200,10 @@ int DLLENTRY pm123_getstring( int index, int subindex, size_t bufsize, char* buf
  return(0);
 }
 
+Playlist* amp_get_default_pl()
+{ return DefaultPL;
+}
+
 /* Draws all player timers and the position slider. */
 static void
 amp_paint_timers( HPS hps )
@@ -553,10 +557,8 @@ amp_drag_drop( HWND hwnd, PDRAGINFO pdinfo )
   int options = AMP_LOAD_NOT_RECALL;
   if (pdinfo->cditem > 1 || cfg.append_dnd)
   { options |= AMP_LOAD_APPEND;
-    int_ptr<Playable> pp = DefaultPL->GetContent();
-    ASSERT(pp->GetFlags() & Playable::Mutable);
     if (!cfg.append_dnd)
-      ((Playlist&)*pp).Clear();
+      DefaultPL->Clear();
   }
 
   for( int i = 0; i < pdinfo->cditem; i++ )
@@ -1066,7 +1068,7 @@ static void amp_add_bookmark(HWND owner, Playable* item, const PlayableInstance:
     WinQueryDlgItemText(hdlg, EF_BM_DESC, alias.length()+1, cp);
     if (alias == desc)
       alias = NULL; // Don't set alias if not required.
-    ((Playlist&)*DefaultBM->GetContent()).InsertItem(item->GetURL(), alias, sl);
+    DefaultBM->InsertItem(item->GetURL(), alias, sl);
     // TODO !!!!!
     //bm_save( owner );
   }
@@ -1882,7 +1884,7 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
         }
 
         case IDM_M_EDITBOOK:
-          DefaultBM->SetVisible(true);
+          PlaylistView::Get(DefaultBM, "Bookmarks")->SetVisible(true);
           return 0;
 
         case IDM_M_TAG:
@@ -1906,7 +1908,7 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
         case IDM_M_ADDPMBOOK:
         { int_ptr<Playable> pp = Ctrl::GetRoot();
           if (pp)
-            ((Playlist*)DefaultPM->GetContent())->InsertItem(pp->GetURL(), (const char*)NULL);
+            DefaultPM->InsertItem(pp->GetURL(), (const char*)NULL);
           return 0;
         }
         case IDM_M_PLSAVE:
@@ -2431,11 +2433,11 @@ main2( void* arg )
   { const url123& path = url123::normalizeURL(startpath);
     DefaultPL = (Playlist*)&*Playable::GetByURL(path + "PM123.LST");
     DefaultPM = (Playlist*)&*Playable::GetByURL(path + "PFREQ.LST");
-    DefaultBM = (Playlist*)&*Playable::GetByURL(path + "BOOKMARK.LST", "Bookmarks");
+    DefaultBM = (Playlist*)&*Playable::GetByURL(path + "BOOKMARK.LST");
     LoadMRU   = (Playlist*)&*Playable::GetByURL(path + "LOADMRU.LST");
     // The default playlist the bookmarks and the MRU list must be ready to use
-    DefaultPL->GetContent()->EnsureInfo(Playable::IF_Other);
-    DefaultBM->GetContent()->EnsureInfo(Playable::IF_Other);
+    DefaultPL->EnsureInfo(Playable::IF_Other);
+    DefaultBM->EnsureInfo(Playable::IF_Other);
     LoadMRU->EnsureInfo(Playable::IF_Other);
   }
 
@@ -2490,13 +2492,13 @@ main2( void* arg )
   ///////////////////////////////////////////////////////////////////////////
   // Uninitialize infrastructure
   ///////////////////////////////////////////////////////////////////////////
+  PlaylistManager::UnInit();
+  PlaylistView::UnInit();
+
   LoadMRU   = NULL;
   DefaultBM = NULL;
   DefaultPM = NULL;
   DefaultPL = NULL;
-
-  PlaylistManager::UnInit();
-  PlaylistView::UnInit();
 
   bmp_clean_skin();
   remove_all_plugins();

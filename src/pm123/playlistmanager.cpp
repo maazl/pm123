@@ -61,11 +61,11 @@
 ****************************************************************************/
 
 
-PlaylistManager::PlaylistManager(const char* url, const xstring& alias)
-: PlaylistRepository<PlaylistManager>(url, alias, DLG_PM),
+PlaylistManager::PlaylistManager(Playable* content, const xstring& alias)
+: PlaylistRepository<PlaylistManager>(content, alias, DLG_PM),
   MainMenu(NULLHANDLE),
   RecMenu(NULLHANDLE)
-{ DEBUGLOG(("PlaylistManager(%p)::PlaylistManager(%s, %s)\n", this, url, alias.cdata()));
+{ DEBUGLOG(("PlaylistManager(%p)::PlaylistManager(%p, %s)\n", this, content, alias.cdata()));
   NameApp = " (Tree)";
   //WinLoadDlg(HWND_DESKTOP, HWND_DESKTOP, pl_DlgProcStub, NULLHANDLE, DLG_PM, &ids);
   StartDialog();

@@ -58,7 +58,7 @@
 *  Whether it is a tree view or a detailed view detremines the derived class.
 *
 ****************************************************************************/
-class PlaylistBase : public IComparableTo<const char*>
+class PlaylistBase : public Iref_Count, public IComparableTo<Playable>
 {public:
   struct CommonState
   { unsigned            PostMsg;   // Bitvector of outstanding record commands
@@ -235,6 +235,7 @@ class PlaylistBase : public IComparableTo<const char*>
   PlayableCollection::ItemComparer SortComparer; // Current comparer for next sort operation
   bool              DecChanged;    // Flag whether the decoder table has changed since the last invokation of the context menu.
  private:
+  int_ptr<PlaylistBase> Self;      // we hold a reference to ourself as long as the current window is open
   class_delegate2<PlaylistBase, const Playable::change_args, RecordBase*> RootInfoDelegate;
   class_delegate<PlaylistBase, const Ctrl::EventFlags> RootPlayStatusDelegate;
   class_delegate<PlaylistBase, const PLUGIN_EVENTARGS> PluginDelegate;
@@ -249,8 +250,8 @@ class PlaylistBase : public IComparableTo<const char*>
   //void              DlgThread();
 
  protected:
-  // Create a playlist manager window for an URL, but don't open it.
-  PlaylistBase(const char* URL, const xstring& alias, ULONG rid);
+  // Create a playlist manager window for an object, but don't open it.
+  PlaylistBase(Playable* content, const xstring& alias, ULONG rid);
 
   void              StartDialog();
 
@@ -406,15 +407,18 @@ class PlaylistBase : public IComparableTo<const char*>
   // Make the window visible (or not)
   void              SetVisible(bool show);
   bool              GetVisible() const;
+  // Force the window to close
+  // This removes the entry from the repository.
+  void              Destroy() { WinDestroyWindow(HwndFrame); }
   // Gets the content
   Playable*         GetContent() { return Content; }
   // Get the display name of this instance. This is either the alias (if any) or the display name of the underlying URL.
   xstring           GetDisplayName() const { return Alias ? Alias : Content->GetURL().getDisplayName(); }
   // Get an instance of the same type as the current instance for URL.
-  virtual PlaylistBase* GetSame(const url123& url) = 0;
+  virtual int_ptr<PlaylistBase> GetSame(Playable* obj) = 0;
 
-  // IComparableTo<const char*>
-  virtual int       compareTo(const char*const& str) const;
+  // IComparableTo<Playable>
+  virtual int       compareTo(const Playable& r) const;
 
 };
 FLAGSATTRIBUTE(PlaylistBase::RecordType);
@@ -445,27 +449,28 @@ inline void PlaylistBase::CPDataBase::DeregisterEvents()
 template <class T>
 class PlaylistRepository : public PlaylistBase
 {private:
-  static sorted_vector<T, const char*> RPInst;
+  static sorted_vector<T, Playable> RPInst;
   static Mutex      RPMutex;
  public:
   // currently a no-op
-  // TODO: we should cleanup unused and invisible instances once in a while.
   static void       Init() {}
   static void       UnInit();
-  // Factory method. Returns always the same instance for the same URL.
+  // Lookup wether an object is already in the repository. 
+  static int_ptr<T> Find(Playable* obj);
+  // Factory method. Returns always the same instance for the same Playable.
   // If the specified instance already exists the parameter alias is ignored.
-  static T*         Get(const char* url, const xstring& alias = xstring());
+  static int_ptr<T> Get(Playable* obj, const xstring& alias = xstring());
   // Get an instance of the same type as the current instance for URL.
-  virtual PlaylistBase* GetSame(const url123& url) { return Get(url); }
+  virtual int_ptr<PlaylistBase> GetSame(Playable* obj) { return &*Get(obj); }
  protected:
   // Forward Constructor
-  PlaylistRepository(const char* URL, const xstring& alias, ULONG rid) : PlaylistBase(URL, alias, rid) {}
+  PlaylistRepository(Playable* content, const xstring& alias, ULONG rid) : PlaylistBase(content, alias, rid) {}
   // Unregister from the repository automatically
   ~PlaylistRepository();
 };
 
 template <class T>
-sorted_vector<T, const char*> PlaylistRepository<T>::RPInst(8);
+sorted_vector<T, Playable> PlaylistRepository<T>::RPInst(8);
 template <class T>
 Mutex PlaylistRepository<T>::RPMutex;
 
@@ -473,27 +478,28 @@ Mutex PlaylistRepository<T>::RPMutex;
 template <class T>
 void PlaylistRepository<T>::UnInit()
 { DEBUGLOG(("PlaylistRepository::UnInit() - %d\n", RPInst.size()));
-  // Free stored instances.
+  // Close all windows.
   // The instances deregister itself from the repository.
   // Starting at the end avoids the memcpy calls for shrinking the vector.
-  while (RPInst.size())
-    delete RPInst[RPInst.size()-1];
+  size_t n = RPInst.size();
+  while (n)
+    RPInst[--n]->Destroy();
 }
 
 template <class T>
-T* PlaylistRepository<T>::Get(const char* url, const xstring& alias)
-{ DEBUGLOG(("PlaylistRepository<T>::Get(%s, %s)\n", url, alias ? alias.cdata() : "<NULL>"));
+int_ptr<T> PlaylistRepository<T>::Find(Playable* obj)
+{ DEBUGLOG(("PlaylistRepository<T>::Find(%p)\n", obj));
   Mutex::Lock lock(RPMutex);
-  T*& pp = RPInst.get(url);
-  /*int_ptr<T> rp;
-  // This assignment will not catch objects that are about to be deleted.
-  rp.assign_weak(pp);
-  if (!rp)
-    // In case the above assignment returned zero while the pointer is still in the repository
-    // the repository is updated immediately.
-  */
+  return RPInst.find(*obj);
+}
+
+template <class T>
+int_ptr<T> PlaylistRepository<T>::Get(Playable* obj, const xstring& alias)
+{ DEBUGLOG(("PlaylistRepository<T>::Get(%p, %s)\n", obj, alias ? alias.cdata() : "<NULL>"));
+  Mutex::Lock lock(RPMutex);
+  T*& pp = RPInst.get(*obj);
   if (!pp)
-    pp = new T(url, alias);
+    pp = new T(obj, alias);
   return pp;
 }
 
@@ -513,9 +519,9 @@ PlaylistRepository<T>::~PlaylistRepository()
   if (RPInst[pos] == this)
     RPInst.erase(pos);*/
   #if NDEBUG
-  RPInst.erase(((T*)this)->Content->GetURL());
+  RPInst.erase(*Content);
   #else
-  assert(RPInst.erase(((T*)this)->Content->GetURL()) != NULL);
+  assert(RPInst.erase(*Content) != NULL);
   #endif
 }
 

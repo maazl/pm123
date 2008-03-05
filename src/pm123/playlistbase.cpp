@@ -133,7 +133,7 @@ PlaylistBase::PlaylistBase(Playable* content, const xstring& alias, ULONG rid)
   PluginDelegate(plugin_event, *this, &PlaylistBase::PluginEvent),
   InitialVisible(false),
   Initialized(0)
-{ DEBUGLOG(("PlaylistBase(%p)::PlaylistBase(%s, %s, %u)\n", this, url, alias ? alias.cdata() : "<NULL>", rid));
+{ DEBUGLOG(("PlaylistBase(%p)::PlaylistBase(%p{%s}, %s, %u)\n", this, content, content->GetURL().cdata(), alias ? alias.cdata() : "<NULL>", rid));
   static bool first = true;
   if (first)
   { InitIcons();
@@ -146,9 +146,6 @@ PlaylistBase::PlaylistBase(Playable* content, const xstring& alias, ULONG rid)
 
 PlaylistBase::~PlaylistBase()
 { DEBUGLOG(("PlaylistBase(%p)::~PlaylistBase()\n", this));
-  // The window may be closed already => ignore the error
-  // This may give an error if called from our own thread. This is intensionally ignored here.
-  WinDestroyWindow(HwndFrame);
   WinDestroyAccelTable(AccelTable);
 }
 
@@ -194,8 +191,9 @@ MRESULT EXPENTRY pl_DlgProcStub(HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2)
   { // Attach the class instance to the window.
     PlaylistBase::init_dlg_struct* ip = (PlaylistBase::init_dlg_struct*)mp2;
     DEBUGLOG(("PlaylistBase::DlgProcStub: WM_INITDLG - %p{%i, %p}}\n", ip, ip->size, ip->pm));
-    PMRASSERT(WinSetWindowPtr(hwnd, QWL_USER, ip->pm));
-    pb = (PlaylistBase*)ip->pm;
+    pb = ip->pm;
+    PMRASSERT(WinSetWindowPtr(hwnd, QWL_USER, pb));
+    pb->Self = pb; // Keep instance alive
     pb->HwndFrame = hwnd; // Store the hwnd early, since LoadDlg will return too late.
   } else
   { // Lookup class instance
@@ -205,7 +203,13 @@ MRESULT EXPENTRY pl_DlgProcStub(HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2)
       return WinDefDlgProc(hwnd, msg, mp1, mp2);
   }
   // Now call the class method
-  return pb->DlgProc(msg, mp1, mp2);
+  MRESULT r = pb->DlgProc(msg, mp1, mp2);
+  if (msg == WM_DESTROY)
+  { // Keep instance no longer alive
+    PMRASSERT(WinSetWindowPtr(hwnd, QWL_USER, NULL));
+    pb->Self = NULL; // this aka pb may get invalid here
+  }
+  return r;
 }
 
 void PlaylistBase::InitDlg()
@@ -267,7 +271,7 @@ MRESULT PlaylistBase::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
 
    case WM_SYSCOMMAND:
     if( SHORT1FROMMP(mp1) == SC_CLOSE )
-    { SetVisible(false);
+    { Destroy();
       return 0;
     }
     break;
@@ -538,7 +542,7 @@ MRESULT PlaylistBase::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
        case IDM_PL_OPEN:
         { url123 URL = PlaylistSelect(HwndFrame, "Open Playlist");
           if (URL)
-          { PlaylistBase* pp = GetSame(URL);
+          { PlaylistBase* pp = GetSame(Playable::GetByURL(URL));
             pp->SetVisible(true);
           }
           return 0;
@@ -602,7 +606,7 @@ MRESULT PlaylistBase::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
 }
 
 int PlaylistBase::compareTo(const Playable& r) const
-{ return Content.compareTo(r);
+{ return Content->compareTo(r);
 }
 
 void PlaylistBase::SetVisible(bool show)
@@ -1032,7 +1036,7 @@ void PlaylistBase::UserOpenTreeView(Playable* pp)
   { xstring alias;
     if (pp == Content)
       alias = Alias;
-    PlaylistManager::Get(pp->GetURL(), alias)->SetVisible(true);
+    PlaylistManager::Get(pp, alias)->SetVisible(true);
   }
 }
 
@@ -1041,7 +1045,7 @@ void PlaylistBase::UserOpenDetailedView(Playable* pp)
   { xstring alias;
     if (pp == Content)
       alias = Alias;
-    PlaylistView::Get(pp->GetURL(), alias)->SetVisible(true);
+    PlaylistView::Get(pp, alias)->SetVisible(true);
   }
 }
 
