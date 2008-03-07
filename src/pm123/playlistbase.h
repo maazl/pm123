@@ -490,7 +490,8 @@ template <class T>
 int_ptr<T> PlaylistRepository<T>::Find(Playable* obj)
 { DEBUGLOG(("PlaylistRepository<T>::Find(%p)\n", obj));
   Mutex::Lock lock(RPMutex);
-  return RPInst.find(*obj);
+  T* pp = RPInst.find(*obj);
+  return pp || !pp->RefCountIsUnmanaged() ? pp : NULL;
 }
 
 template <class T>
@@ -498,7 +499,7 @@ int_ptr<T> PlaylistRepository<T>::Get(Playable* obj, const xstring& alias)
 { DEBUGLOG(("PlaylistRepository<T>::Get(%p, %s)\n", obj, alias ? alias.cdata() : "<NULL>"));
   Mutex::Lock lock(RPMutex);
   T*& pp = RPInst.get(*obj);
-  if (!pp)
+  if (!pp || pp->RefCountIsUnmanaged())
     pp = new T(obj, alias);
   return pp;
 }
