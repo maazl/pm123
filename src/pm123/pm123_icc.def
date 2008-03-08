@@ -1,3 +1,7 @@
-NAME PM123 WINDOWAPI
-DESCRIPTION 'PM123 (C) 1997-2006 Taneli Lepp„ <rosmo@sektori.com>, Samuel Audet <guardia@step.polymtl.ca>, Dmitry A.Steklenev <glass@ptv.ru>'
-STACKSIZE 1048576
+LIBRARY PM123 INITINSTANCE TERMINSTANCE
+DESCRIPTION 'PM123 Core Library'
+PROTMODE
+DATA MULTIPLE NONSHARED LOADONCALL
+EXPORTS
+
+  dll_main  @1

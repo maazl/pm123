@@ -36,11 +36,13 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <debuglog.h>
 
 #include "pm123.h"
 #include "utilfct.h"
 #include "plugman.h"
 #include "messages.h"
+#include "assertions.h"
 
 static OUTPUT_PARAMS out_params;
 
@@ -77,47 +79,67 @@ is_always_hungry( void ) {
   return out_params.always_hungry;
 }
 
-/* Begins playback of the specified file. */
+/* Returns TRUE if the the currently played
+   stream is saved. */
+BOOL
+is_stream_saved( void ) {
+  return *savename;
+}
+
+/* Begins playback of the specified file. Must be called
+   from the main thread. */
 BOOL
 msg_play( HWND hwnd, char* filename, char* decoder, const FORMAT_INFO* format, int pos )
 {
-  char cd_drive[3] = "";
-  char errorbuf[1024];
-  int  samplesize;
+  char  cd_drive[3] = "";
+  char  errorbuf[1024];
+  int   samplesize;
+  ULONG rc;
 
   DECODER_PARAMS dec_params = { 0 };
 
+  ASSERT_IS_MAIN_THREAD;
+
+  out_params.size          = sizeof( out_params );
   out_params.hwnd          = hwnd;
   out_params.boostclass    = PRTYC_TIMECRITICAL;
   out_params.normalclass   = PRTYC_REGULAR;
   out_params.boostdelta    = 0;
   out_params.normaldelta   = 31;
-  out_params.error_display = amp_display_error;
-  out_params.info_display  = amp_display_info;
+  out_params.error_display = pm123_display_error;
+  out_params.info_display  = pm123_display_info;
   out_params.formatinfo    = *format;
+  out_params.info          = &current_info;
 
-  // For fast reaction of the player we allocate the buffer in
-  // length approximately in 100 milliseconds.
-  samplesize = format->channels * ( format->bits / 8 );
-  if( samplesize ) {
-    out_params.buffersize = samplesize * format->samplerate / 10;
-  } else {
+  if( stricmp( decoder, "dpmikmod" ) == 0 ||
+      stricmp( decoder, "wvplay"   ) == 0 ) {
+    // Some too old plug-in ignores the suggested audio buffer size
+    // and always uses a 16K buffer.
     out_params.buffersize = 16384;
-  }
-
-  // Buffers are limited to 64K on Intel machines.
-  if( out_params.buffersize > 65535 ) {
-    out_params.buffersize = 65535;
-  }
-
-  // The buffer size must be an integer product of the number of
-  // channels and of the number of bits in the sample. Because of
-  // poor design of the mpg123 this size also must be an integer
-  // product of the 128.
-  if( samplesize ) {
-    out_params.buffersize = out_params.buffersize / samplesize / 128 * samplesize * 128;
   } else {
-    out_params.buffersize = out_params.buffersize / 128 * 128;
+    // For fast reaction of the player we allocate the buffer in
+    // length approximately in 100 milliseconds.
+    samplesize = format->channels * ( format->bits / 8 );
+    if( samplesize ) {
+      out_params.buffersize = samplesize * format->samplerate / 10;
+    } else {
+      out_params.buffersize = 16384;
+    }
+
+    // Buffers are limited to 64K on Intel machines.
+    if( out_params.buffersize > 65535 ) {
+      out_params.buffersize = 65535;
+    }
+
+    // The buffer size must be an integer product of the number of
+    // channels and of the number of bits in the sample. Because of
+    // poor design of the mpg123 this size also must be an integer
+    // product of the 128.
+    if( samplesize ) {
+      out_params.buffersize = out_params.buffersize / samplesize / 128 * samplesize * 128;
+    } else {
+      out_params.buffersize = out_params.buffersize / 128 * 128;
+    }
   }
 
   if( out_command( OUTPUT_SETUP, &out_params ) != 0 ) {
@@ -130,7 +152,7 @@ msg_play( HWND hwnd, char* filename, char* decoder, const FORMAT_INFO* format, i
     return FALSE;
   }
 
-  if( dec_set_name_active( decoder ) < 0 )
+  if( dec_set_active( decoder ) == PLUGIN_FAILED )
   {
     strlcpy( errorbuf, "Decoder module ", sizeof( errorbuf ));
     strlcat( errorbuf, decoder, sizeof( errorbuf ));
@@ -139,7 +161,7 @@ msg_play( HWND hwnd, char* filename, char* decoder, const FORMAT_INFO* format, i
     strlcat( errorbuf, " is not loaded or enabled.", sizeof( errorbuf ));
 
     msg_stop();
-    amp_display_error( errorbuf );
+    pm123_display_error( errorbuf );
     return FALSE;
   }
 
@@ -177,17 +199,24 @@ msg_play( HWND hwnd, char* filename, char* decoder, const FORMAT_INFO* format, i
   }
 
   dec_params.audio_buffersize = out_params.buffersize;
-  dec_params.error_display    = amp_display_error;
-  dec_params.info_display     = amp_display_info;
+  dec_params.error_display    = pm123_display_error;
+  dec_params.info_display     = pm123_display_info;
   dec_params.metadata_buffer  = metadata;
   dec_params.metadata_size    = sizeof( metadata );
 
+  dec_set_filters( &dec_params );
   dec_command( DECODER_SETUP, &dec_params );
-  dec_params.save_filename = *savename ? savename : NULL;
-  dec_command( DECODER_SAVEDATA, &dec_params );
-  dec_params.jumpto = pos;
 
-  if( dec_command( DECODER_PLAY, &dec_params ) != 0 ) {
+  dec_params.save_filename = is_stream_saved() ? savename : NULL;
+  if( dec_command( DECODER_SAVEDATA, &dec_params ) != PLUGIN_OK && is_stream_saved()) {
+    pm123_display_error( "The current active decoder don't support saving of a stream.\n" );
+    *savename = 0;
+  }
+
+  dec_params.jumpto = pos;
+  rc = dec_command( DECODER_PLAY, &dec_params );
+
+  if( rc != PLUGIN_OK && rc != PLUGIN_GO_ALREADY ) {
     msg_stop();
     return FALSE;
   }
@@ -201,57 +230,86 @@ msg_play( HWND hwnd, char* filename, char* decoder, const FORMAT_INFO* format, i
   return TRUE;
 }
 
-/* Stops playback of the currently played file. */
+/* Stops playback of the currently played file.
+   Must be called from the main thread. */
 BOOL
 msg_stop( void )
 {
   ULONG status = dec_status();
   DECODER_PARAMS dec_params = { 0 };
+  ULONG rc;
 
-  if( status == DECODER_PLAYING || status == DECODER_STARTING )
+  ASSERT_IS_MAIN_THREAD;
+
+  if( status == DECODER_PLAYING  ||
+      status == DECODER_STARTING ||
+      status == DECODER_PAUSED   )
   {
-    if( paused     ) { msg_pause  (); }
-    if( forwarding ) { msg_forward(); }
-    if( rewinding  ) { msg_rewind (); }
+    if( paused ) {
+      out_set_volume( 0 );
+      msg_pause();
+    }
+    if( forwarding ) {
+      msg_forward();
+    }
+    if( rewinding ) {
+      msg_rewind();
+    }
 
-    dec_command( DECODER_STOP, &dec_params );
+    rc = dec_command( DECODER_STOP, &dec_params );
 
-    forwarding = FALSE;
-    rewinding  = FALSE;
-    paused     = FALSE;
+    if( rc != PLUGIN_OK && rc != PLUGIN_GO_ALREADY ) {
+      return FALSE;
+    }
   }
+
+  forwarding = FALSE;
+  rewinding  = FALSE;
+  paused     = FALSE;
 
   if( out_playing_data()) {
     out_command( OUTPUT_TRASH_BUFFERS, &out_params );
   }
 
-  if( out_command( OUTPUT_CLOSE, &out_params ) != 0 ) {
-    return FALSE;
-  }
+  rc = out_command( OUTPUT_CLOSE, &out_params );
 
   while( decoder_playing()) {
+    DEBUGLOG(( "pm123: wait stopping, dec_status=%d, out_playing_data=%d\n",
+                dec_status(), out_playing_data()));
     DosSleep(1);
   }
 
-  return TRUE;
+  dec_set_filters( NULL );
+  return rc == 0;
 }
 
-/* Suspends or resumes playback of the currently played file. */
+/* Suspends or resumes playback of the currently played file.
+   Must be called from the main thread. */
 BOOL
 msg_pause( void )
 {
-  if( decoder_playing()) {
+  ASSERT_IS_MAIN_THREAD;
+
+  if( decoder_playing())
+  {
     out_params.pause = paused = !paused;
-    out_command( OUTPUT_PAUSE, &out_params );
+
+    if( paused ) {
+      out_command( OUTPUT_PAUSE, &out_params );
+    } else {
+      out_command( OUTPUT_PAUSE, &out_params );
+    }
   }
   return TRUE;
 }
 
-/* Toggles a fast forward of the currently played file. */
+/* Toggles a fast forward of the currently played file.
+   Must be called from the main thread. */
 BOOL
 msg_forward( void )
 {
   DECODER_PARAMS dec_params = { 0 };
+  ASSERT_IS_MAIN_THREAD;
 
   if( decoder_playing()) {
     if( rewinding ) {
@@ -262,7 +320,7 @@ msg_forward( void )
 
     dec_params.ffwd = forwarding = !forwarding;
 
-    if( dec_command( DECODER_FFWD, &dec_params ) != 0 ) {
+    if( dec_command( DECODER_FFWD, &dec_params ) != PLUGIN_OK ) {
       forwarding = FALSE;
     } else if( cfg.trash ) {
       // Going back in the stream to what is currently playing.
@@ -275,11 +333,13 @@ msg_forward( void )
   return TRUE;
 }
 
-/* Toggles a rewind of the currently played file. */
+/* Toggles a rewind of the currently played file.
+   Must be called from the main thread. */
 BOOL
 msg_rewind( void )
 {
   DECODER_PARAMS dec_params = { 0 };
+  ASSERT_IS_MAIN_THREAD;
 
   if( decoder_playing()) {
     if( forwarding ) {
@@ -290,7 +350,7 @@ msg_rewind( void )
 
     dec_params.rew = rewinding = !rewinding;
 
-    if( dec_command( DECODER_REW, &dec_params ) != 0 ) {
+    if( dec_command( DECODER_REW, &dec_params ) != PLUGIN_OK ) {
       rewinding = FALSE;
     } else if( cfg.trash ) {
       // Going back in the stream to what is currently playing.
@@ -303,11 +363,13 @@ msg_rewind( void )
   return TRUE;
 }
 
-/* Changes the current playing position of the currently played file. */
+/* Changes the current playing position of the currently played file.
+   Must be called from the main thread. */
 BOOL
 msg_seek( int pos )
 {
   DECODER_PARAMS dec_params = { 0 };
+  ASSERT_IS_MAIN_THREAD;
 
   if( decoder_playing()) {
     dec_params.jumpto = pos;
@@ -322,11 +384,13 @@ msg_seek( int pos )
   return TRUE;
 }
 
-/* Toggles a saving of the currently played stream. */
+/* Toggles a saving of the currently played stream.
+   Must be called from the main thread. */
 BOOL
 msg_savestream( const char* filename )
 {
   DECODER_PARAMS dec_params = { 0 };
+  ASSERT_IS_MAIN_THREAD;
 
   if( filename ) {
     strlcpy( savename, filename, sizeof( savename ));
@@ -337,12 +401,16 @@ msg_savestream( const char* filename )
   }
 
   if( decoder_playing()) {
-    dec_command( DECODER_SAVEDATA, &dec_params );
+    if( dec_command( DECODER_SAVEDATA, &dec_params ) != PLUGIN_OK && filename ) {
+      pm123_display_error( "The current active decoder don't support saving of a stream.\n" );
+      *savename = 0;
+    }
   }
   return TRUE;
 }
 
-/* Toggles a equalizing of the currently played file. */
+/* Toggles a equalizing of the currently played file.
+   Must be called from the main thread. */
 BOOL
 msg_equalize( float *gains, BOOL *mute, float preamp, BOOL enabled )
 {
@@ -350,6 +418,7 @@ msg_equalize( float *gains, BOOL *mute, float preamp, BOOL enabled )
   float bandgain[20];
   DECODER_PARAMS dec_params = { 0 };
 
+  ASSERT_IS_MAIN_THREAD;
   memcpy( bandgain, gains, sizeof( bandgain ));
 
   dec_params.bandgain  = bandgain;
@@ -368,4 +437,3 @@ msg_equalize( float *gains, BOOL *mute, float preamp, BOOL enabled )
   dec_command( DECODER_EQ, &dec_params );
   return TRUE;
 }
-

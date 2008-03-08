@@ -1,0 +1,86 @@
+LIBRARY VRB123 INITINSTANCE TERMINSTANCE
+DESCRIPTION 'PM123 Vorbis Library'
+PROTMODE
+DATA MULTIPLE NONSHARED LOADONCALL
+EXPORTS
+
+  vorbis_info_init             @1
+  vorbis_info_clear            @2
+  vorbis_info_blocksize        @3
+
+  vorbis_comment_init          @4
+  vorbis_comment_add           @5
+  vorbis_comment_add_tag       @6
+  vorbis_comment_query         @7
+  vorbis_comment_query_count   @8
+  vorbis_comment_clear         @9
+
+  vorbis_block_init            @10
+  vorbis_block_clear           @11
+  vorbis_dsp_clear             @12
+  vorbis_granule_time
+
+  vorbis_analysis_init         @13
+  vorbis_commentheader_out     @14
+  vorbis_analysis_headerout    @15
+  vorbis_analysis_buffer       @16
+  vorbis_analysis_wrote        @17
+  vorbis_analysis_blockout     @18
+  vorbis_analysis              @19
+  vorbis_bitrate_addblock      @20
+  vorbis_bitrate_flushpacket   @21
+
+  vorbis_synthesis_headerin    @22
+  vorbis_synthesis_init        @23
+  vorbis_synthesis_restart     @24
+  vorbis_synthesis             @25
+  vorbis_synthesis_trackonly   @26
+  vorbis_synthesis_blockin     @27
+  vorbis_synthesis_pcmout      @28
+  vorbis_synthesis_lapout      @29
+  vorbis_synthesis_read        @30
+  vorbis_packet_blocksize      @31
+  vorbis_synthesis_halfrate    @32
+  vorbis_synthesis_halfrate_p  @33
+
+  vorbis_encode_init           @34
+  vorbis_encode_setup_managed  @35
+  vorbis_encode_setup_vbr      @36
+  vorbis_encode_init_vbr       @37
+  vorbis_encode_setup_init     @38
+  vorbis_encode_ctl            @39
+
+  ov_clear                     @60
+  ov_open                      @61
+  ov_open_callbacks            @62
+  ov_bitrate                   @63
+  ov_bitrate_instant           @64
+  ov_streams                   @65
+  ov_seekable                  @66
+  ov_serialnumber              @67
+  ov_raw_total                 @68
+  ov_pcm_total                 @69
+  ov_time_total                @70
+  ov_raw_seek                  @71
+  ov_pcm_seek                  @72
+  ov_pcm_seek_page             @73
+  ov_time_seek                 @74
+  ov_time_seek_page            @75
+  ov_raw_seek_lap              @76
+  ov_pcm_seek_lap              @77
+  ov_pcm_seek_page_lap         @78
+  ov_time_seek_lap             @79
+  ov_time_seek_page_lap        @80
+  ov_raw_tell                  @81
+  ov_pcm_tell                  @82
+  ov_time_tell                 @83
+  ov_info                      @84
+  ov_comment                   @85
+  ov_read                      @86
+  ov_read_float                @87
+  ov_test                      @88
+  ov_test_callbacks            @89
+  ov_test_open                 @90
+  ov_crosslap                  @91
+  ov_halfrate                  @92
+  ov_halfrate_p                @93

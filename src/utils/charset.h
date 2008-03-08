@@ -1,5 +1,5 @@
 /*
- * Copyright 2005 Dmitry A.Steklenev
+ * Copyright 2005-2007 Dmitry A.Steklenev
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -36,9 +36,17 @@
 #define CH_CYR_DOS     866
 #define CH_CYR_866     866
 #define CH_CYR_OS2     866
+#define CH_ISO_8859_1  819
+#define CH_UCS_2      1200
+#define CH_UCS_2BOM   8200
+#define CH_UTF_8      1208
 #define CH_CYR_WIN    1251
 #define CH_CYR_1251   1251
 #define CH_CYR_AUTO     -1
+
+#define CH_SBCS       0x01
+#define CH_MBCS       0x02
+#define CH_DBCS       0x04
 
 #ifdef __cplusplus
 extern "C" {
@@ -50,12 +58,19 @@ typedef struct _CH_ENTRY {
 
   char    name[128];
   int     id;
+  int     type;
   _CH_PFN pfn;
 
 } CH_ENTRY;
 
 extern const CH_ENTRY ch_list[];
 extern const int      ch_list_size;
+
+/*
+ * ch_default: returns the current system character set.
+ */
+
+int ch_default( void );
 
 /*
  * ch_detect: determine a characters string character set.
@@ -72,7 +87,6 @@ int ch_detect( int ch_source, const char* source );
  * ch_convert: convert a characters string from one character
  *             set to another.
  *
- *    hab       program anchor block handle
  *    ch_source source character set
  *    source    source string
  *    ch_target target character set

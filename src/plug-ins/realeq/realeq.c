@@ -987,14 +987,13 @@ load_eq( HWND hwnd, float* gains, BOOL* mutes, float* preamp )
   return FALSE;
 }
 
-int DLLENTRY
+void DLLENTRY
 plugin_query( PLUGIN_QUERYPARAM *param )
 {
   param->type = PLUGIN_FILTER;
   param->author = "Samuel Audet";
   param->desc = PLUGIN;
   param->configurable = TRUE;
-  return 0;
 }
 
 static void
@@ -1034,12 +1033,11 @@ load_dialog( HWND hwnd )
       WinSendDlgItemMsg( hwnd, 200+NUM_BANDS*e+i, SLM_ADDDETENT,
                          MPFROMSHORT( 0 ), 0 );
 
-      range = (float)SHORT2FROMMR( rangevalue );
+      range = (float)( SHORT2FROMMR( rangevalue ) - 1 );
 
       WinSendDlgItemMsg( hwnd, 200+NUM_BANDS*e+i, SLM_SETSLIDERINFO,
                          MPFROM2SHORT( SMA_SLIDERARMPOSITION, SMA_RANGEVALUE ),
                          MPFROMSHORT((SHORT)( 20*log10( bandgain[e][i])/12*range/2+range/2 )));
-
       // mute check boxes
       WinSendDlgItemMsg( hwnd, 100+NUM_BANDS*e+i, BM_SETCHECK, MPFROMCHAR( mute[e][i] ), 0 );
     }
@@ -1316,7 +1314,7 @@ ConfigureDlgProc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
   return WinDefDlgProc( hwnd, msg, mp1, mp2 );
 }
 
-int DLLENTRY
+void DLLENTRY
 plugin_configure( HWND hwnd, HMODULE module )
 {
   if( !hdialog ) {
@@ -1326,7 +1324,6 @@ plugin_configure( HWND hwnd, HMODULE module )
 
   WinShowWindow( hdialog, TRUE );
   WinSetFocus  ( HWND_DESKTOP, WinWindowFromID( hdialog, EQ_ENABLED ));
-  return 0;
 }
 
 extern int INIT_ATTRIBUTE __dll_initialize( void )

@@ -1,0 +1,66 @@
+LIBRARY ZLB123 INITINSTANCE TERMINSTANCE
+DESCRIPTION 'PM123 ZLib'
+PROTMODE
+DATA MULTIPLE NONSHARED LOADONCALL
+EXPORTS
+
+; basic functions
+  zlibVersion          @1
+  deflate              @2
+  deflateEnd           @3
+  inflate              @4
+  inflateEnd           @5
+
+; advanced functions
+  deflateSetDictionary @10
+  deflateCopy          @11
+  deflateReset         @12
+  deflateParams        @13
+  deflateBound         @14
+  deflatePrime         @15
+  inflateSetDictionary @16
+  inflateSync          @17
+  inflateCopy          @18
+  inflateReset         @19
+  inflateBack          @20
+  inflateBackEnd       @21
+  zlibCompileFlags     @22
+
+; utility functions
+  compress             @30
+  compress2            @31
+  compressBound        @32
+  uncompress           @33
+  gzopen               @34
+  gzdopen              @35
+  gzsetparams          @36
+  gzread               @37
+  gzwrite              @38
+  gzprintf             @39
+  gzputs               @40
+  gzgets               @41
+  gzputc               @42
+  gzgetc               @43
+  gzungetc             @44
+  gzflush              @45
+  gzseek               @46
+  gzrewind             @47
+  gztell               @48
+  gzeof                @49
+  gzclose              @50
+  gzerror              @51
+  gzclearerr           @52
+
+; checksum functions
+  adler32              @60
+  crc32                @61
+
+; various hacks, don't look :)
+  deflateInit_         @70
+  deflateInit2_        @71
+  inflateInit_         @72
+  inflateInit2_        @73
+  inflateBackInit_     @74
+  inflateSyncPoint     @75
+  get_crc_table        @76
+  zError               @77

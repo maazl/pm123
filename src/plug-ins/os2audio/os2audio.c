@@ -36,6 +36,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <ctype.h>
+#include <math.h>
 
 #include "utilfct.h"
 #include "format.h"
@@ -58,11 +59,21 @@
          DosReleaseMutexSem( mutex )
 #endif
 
-static int device       = 0;
-static int numbuffers   = 32;
-static int lockdevice   = 0;
-static int kludge48as44 = 0;
-static int force8bit    = 0;
+#define RG_PREFER_ALBUM                   0
+#define RG_PREFER_ALBUM_AND_NOT_CLIPPING  1
+#define RG_PREFER_TRACK                   2
+#define RG_PREFER_TRACK_AND_NOT_CLIPPING  3
+
+static int   device       = 0;
+static int   numbuffers   = 32;
+static int   lockdevice   = 0;
+static int   kludge48as44 = 0;
+static int   force8bit    = 0;
+static int   enable_rg    = 0;
+static int   rg_type      = RG_PREFER_ALBUM;
+static float preamp_rg    = 3;
+static float preamp       = 0;
+static int   configured   = 0; /* Increased on 1 at each change of a configuration. */
 
 static void
 output_error( OS2AUDIO* a, ULONG ulError )
@@ -127,6 +138,7 @@ static LONG APIENTRY
 dart_event( ULONG status, MCI_MIX_BUFFER* buffer, ULONG flags )
 {
   OS2AUDIO* a = INFO(buffer)->a;
+  DEBUGLOG2(( "os2audio: receive DART event, status=%d, flags=%08X\n", status, flags ));
 
   if( flags & MIX_WRITE_COMPLETE )
   {
@@ -212,7 +224,6 @@ ULONG DLLENTRY
 output_close( void* A )
 {
   OS2AUDIO* a = (OS2AUDIO*)A;
-  ULONG resetcount;
   ULONG rc = 0;
 
   MCI_GENERIC_PARMS mgp = { 0 };
@@ -229,9 +240,10 @@ output_close( void* A )
   a->status = DEVICE_CLOSING;
   DosReleaseMutexSem( a->mutex );
 
-  while( !a->nomoredata ) {
-    DosWaitEventSem ( a->dataplayed, SEM_INDEFINITE_WAIT );
-    DosResetEventSem( a->dataplayed, &resetcount );
+  rc = mciSendCommand( a->mci_device_id, MCI_STOP,  MCI_WAIT, &mgp, 0 );
+
+  if( LOUSHORT(rc) != MCIERR_SUCCESS ) {
+    output_error( a, rc );
   }
 
   if( a->mci_buf_parms.ulNumBuffers ) {
@@ -243,7 +255,8 @@ output_close( void* A )
     }
   }
 
-  rc = mciSendCommand( a->mci_device_id, MCI_STOP,  MCI_WAIT, &mgp, 0 );
+  rc = mciSendCommand( a->mci_device_id, MCI_MIXSETUP,
+                       MCI_WAIT | MCI_MIXSETUP_DEINIT, &a->mci_mix, 0 );
 
   if( LOUSHORT(rc) != MCIERR_SUCCESS ) {
     output_error( a, rc );
@@ -266,6 +279,7 @@ output_close( void* A )
   a->mci_to_fill   = NULL;
   a->mci_device_id = 0;
   a->status        = DEVICE_CLOSED;
+  a->nomoredata    = TRUE;
 
   DEBUGLOG(( "os2audio: output device is successfully closed.\n" ));
   DosReleaseMutexSem( a->mutex );
@@ -337,6 +351,7 @@ output_open( OS2AUDIO* a )
 
   rc = mciSendCommand( 0, MCI_OPEN, MCI_WAIT | MCI_OPEN_TYPE_ID | openflags, &mci_aop, 0 );
   if( LOUSHORT(rc) != MCIERR_SUCCESS ) {
+    DEBUGLOG(( "os2audio: unable to open a mixer.\n" ));
     goto end;
   }
 
@@ -365,6 +380,7 @@ output_open( OS2AUDIO* a )
 
   rc = mciSendCommand( a->mci_device_id, MCI_MIXSETUP, MCI_WAIT | MCI_MIXSETUP_INIT, &a->mci_mix, 0 );
   if( LOUSHORT( rc ) != MCIERR_SUCCESS ) {
+    DEBUGLOG(( "os2audio: unable to setup a mixer.\n" ));
     goto end;
   }
 
@@ -452,6 +468,103 @@ end:
   return rc;
 }
 
+/* Calculates scale factor according to current replay gain values. */
+static void
+recalc_replay_gain( OS2AUDIO* a )
+{
+  float gain      = 0;
+  float peak      = 0;
+  float max_scale = 0;
+
+  if( enable_rg )
+  {
+    if(( rg_type == RG_PREFER_ALBUM ||
+         rg_type == RG_PREFER_ALBUM_AND_NOT_CLIPPING ||
+         a->track_gain == 0 ) && a->album_gain != 0 )
+    {
+      gain = a->album_gain;
+    } else {
+      gain = a->track_gain;
+    }
+
+    if(( rg_type == RG_PREFER_ALBUM ||
+         rg_type == RG_PREFER_ALBUM_AND_NOT_CLIPPING ||
+         a->track_peak == 0 ) && a->album_peak != 0 )
+    {
+      peak = a->album_peak;
+    } else {
+      peak = a->track_peak;
+    }
+
+    if( peak ) {
+      // If a peak value is above 1.0, this is already
+      // clipped by decoder and we must use 1.0 instead.
+      max_scale = 1.0 / min( peak, 1.0 );
+    }
+
+    if( gain != 0 ) {
+      gain += preamp_rg;
+    } else {
+      gain += preamp;
+    }
+
+    a->scale = pow( 10, gain / 20 );
+
+    if(( rg_type == RG_PREFER_ALBUM_AND_NOT_CLIPPING ||
+         rg_type == RG_PREFER_TRACK_AND_NOT_CLIPPING ) && max_scale )
+    {
+      a->scale = min( a->scale, max_scale );
+    }
+  } else {
+    a->scale = 1;
+  }
+
+  DEBUGLOG(( "os2audio: replay gain is %.2f dB, scale is %.8f (max is %.8f)\n",
+                                                      gain, a->scale, max_scale ));
+}
+
+/* Scales signed 16-bit samples according to current replay gain values. */
+static void
+scale_16_replay_gain( OS2AUDIO* a, short* buf, int count )
+{
+  int i, sample;
+
+  if( enable_rg && a->scale != 1 ) {
+    for( i = 0; i < count; i++ ) {
+      sample = buf[i] * a->scale;
+
+      if( sample > 32767 ) {
+        buf[i] =  32767;
+      } else if( sample < -32768 ) {
+        buf[i] = -32768;
+      } else {
+        buf[i] = sample;
+      }
+    }
+  }
+}
+
+/* Scales unsigned 8-bit samples according to current replay gain values. */
+static void
+scale_08_replay_gain( OS2AUDIO* a, unsigned char* buf, int count )
+{
+  int i, sample;
+
+  if( enable_rg && a->scale != 1 ) {
+    for( i = 0; i < count; i++ ) {
+      sample = ( buf[i] - 128 ) * a->scale + 128;
+
+      if( sample > 255 ) {
+        buf[i] = 255;
+      } else if( sample < 0 ) {
+        buf[i] = 0;
+      } else {
+        buf[i] = sample;
+      }
+    }
+  }
+}
+
 /* This function is called by the decoder or last in chain filter plug-in
    to play samples. */
 int DLLENTRY
@@ -469,6 +582,11 @@ output_play_samples( void* A, FORMAT_INFO* format, char* buf, int len, int posma
     if( DosGetInfoBlocks( &ptib, NULL ) == NO_ERROR ) {
       a->drivethread = ptib->tib_ptib2->tib2_ultid;
     }
+  }
+
+  if( a->configured != configured ) {
+    recalc_replay_gain( a );
+    a->configured = configured;
   }
 
   // Set the new format structure before re-opening.
@@ -545,6 +663,7 @@ output_play_samples( void* A, FORMAT_INFO* format, char* buf, int len, int posma
       for( i = 0; i < len / 2; i++ ) {
         out[i] = ( in[i] >> 8 ) + 128;
       }
+      scale_08_replay_gain( a, a->mci_to_fill->pBuffer, len / 2 );
     } else {
       if( len > a->mci_buf_parms.ulBufferSize ) {
         DEBUGLOG(( "os2audio: too many samples.\n" ));
@@ -553,6 +672,12 @@ output_play_samples( void* A, FORMAT_INFO* format, char* buf, int len, int posma
       }
 
       memcpy( a->mci_to_fill->pBuffer, buf, len );
+
+      if( a->original_info.formatinfo.bits == 8 ) {
+        scale_08_replay_gain( a, a->mci_to_fill->pBuffer, len );
+      } else if( a->original_info.formatinfo.bits == 16 ) {
+        scale_16_replay_gain( a, (short*)a->mci_to_fill->pBuffer, len / 2 );
+      }
     }
 
     INFO(a->mci_to_fill)->playingpos = posmarker;
@@ -590,7 +715,7 @@ output_playing_samples( void* A, FORMAT_INFO* info, char* buf, int len )
 
   if( !a->mci_is_play || a->status == DEVICE_CLOSED ) {
     DosReleaseMutexSem( a->mutex );
-    return 1;
+    return PLUGIN_FAILED;
   }
 
   info->bits       = a->mci_mix.ulBitsPerSample;
@@ -606,7 +731,7 @@ output_playing_samples( void* A, FORMAT_INFO* info, char* buf, int len )
 
     if( LOUSHORT( output_position( a, &position )) != MCIERR_SUCCESS ) {
       DosReleaseMutexSem( a->mutex );
-      return 1;
+      return PLUGIN_FAILED;
     }
 
     offsetof = ( position - a->mci_is_play->ulTime ) * a->mci_mix.ulSamplesPerSec / 1000 *
@@ -641,7 +766,7 @@ output_playing_samples( void* A, FORMAT_INFO* info, char* buf, int len )
   }
 
   DosReleaseMutexSem( a->mutex );
-  return 0;
+  return PLUGIN_OK;
 }
 
 /* Trashes all audio data received till this time. */
@@ -692,10 +817,11 @@ output_init( void** A )
   a->amplifier  = 1.0;
   a->status     = DEVICE_CLOSED;
   a->nomoredata = TRUE;
+  a->scale      = 1.0;
 
   DosCreateEventSem( NULL, &a->dataplayed, 0, FALSE );
   DosCreateMutexSem( NULL, &a->mutex, 0, FALSE );
-  return 0;
+  return PLUGIN_OK;
 }
 
 /* This function is called when another output plug-in
@@ -709,7 +835,7 @@ output_uninit( void* A )
   DosCloseMutexSem( a->mutex );
 
   free( a );
-  return 0;
+  return PLUGIN_OK;
 }
 
 /* Returns TRUE if the output plug-in still has some buffers to play. */
@@ -752,7 +878,7 @@ output_get_devices( char* name, int deviceid )
 }
 
 ULONG DLLENTRY
-output_command( void* A, ULONG msg, OUTPUT_PARAMS* info )
+output_command( void* A, ULONG msg, OUTPUT_PARAMS* params )
 {
   OS2AUDIO* a = (OS2AUDIO*)A;
 
@@ -762,28 +888,39 @@ output_command( void* A, ULONG msg, OUTPUT_PARAMS* info )
       return output_open( a );
 
     case OUTPUT_PAUSE:
-      return output_pause( a, info->pause );
+      return output_pause( a, params->pause );
 
     case OUTPUT_CLOSE:
       return output_close( a );
 
     case OUTPUT_VOLUME:
-      return output_set_volume( a, info->volume, info->amplifier );
+      return output_set_volume( a, params->volume, params->amplifier );
 
     case OUTPUT_SETUP:
       if( a->status != DEVICE_OPENED ) {
         // Otherwise, information on the current session are modified.
-        a->original_info = *info;
+        a->original_info = *params;
+        a->configured = configured;
+
+        if( params->size >= OUTPUT_SIZE_2 && params->info->size >= INFO_SIZE_2 )
+        {
+          a->album_gain = params->info->album_gain;
+          a->album_peak = params->info->album_peak;
+          a->track_gain = params->info->track_gain;
+          a->track_peak = params->info->track_peak;
+
+          recalc_replay_gain( a );
+        }
       }
-      info->always_hungry = FALSE;
+      params->always_hungry = FALSE;
       return 0;
 
     case OUTPUT_TRASH_BUFFERS:
-      output_trash_buffers( a, info->temp_playingpos );
+      output_trash_buffers( a, params->temp_playingpos );
       return 0;
   }
 
-  return 1;
+  return MCIERR_UNSUPPORTED_FUNCTION;
 }
 
 static void
@@ -798,6 +935,10 @@ save_ini( void )
     save_ini_value( hini, numbuffers );
     save_ini_value( hini, force8bit );
     save_ini_value( hini, kludge48as44 );
+    save_ini_value( hini, enable_rg );
+    save_ini_value( hini, rg_type );
+    save_ini_value( hini, preamp_rg );
+    save_ini_value( hini, preamp );
 
     close_ini( hini );
   }
@@ -813,6 +954,10 @@ load_ini( void )
   numbuffers   = 32;
   force8bit    = 0;
   kludge48as44 = 0;
+  enable_rg    = 0;
+  rg_type      = RG_PREFER_ALBUM;
+  preamp_rg    = 3;
+  preamp       = 0;
 
   if(( hini = open_module_ini()) != NULLHANDLE )
   {
@@ -821,6 +966,10 @@ load_ini( void )
     load_ini_value( hini, numbuffers );
     load_ini_value( hini, force8bit );
     load_ini_value( hini, kludge48as44 );
+    load_ini_value( hini, enable_rg );
+    load_ini_value( hini, rg_type );
+    load_ini_value( hini, preamp_rg );
+    load_ini_value( hini, preamp );
 
     close_ini( hini );
   }
@@ -847,54 +996,121 @@ cfg_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
 
       lb_select( hwnd, CB_DEVICE, device );
 
-      WinCheckButton( hwnd, CB_SHARED,  !lockdevice   );
-      WinCheckButton( hwnd, CB_8BIT,     force8bit    );
-      WinCheckButton( hwnd, CB_48KLUDGE, kludge48as44 );
+      WinCheckButton( hwnd, CB_SHARED,   !lockdevice   );
+      WinCheckButton( hwnd, CB_8BIT,      force8bit    );
+      WinCheckButton( hwnd, CB_48KLUDGE,  kludge48as44 );
+      WinCheckButton( hwnd, CB_RG_ENABLE, enable_rg    );
 
-      WinSendDlgItemMsg( hwnd, SB_BUFFERS, SPBM_SETLIMITS,
-                               MPFROMLONG( 200 ), MPFROMLONG( 5 ));
-      WinSendDlgItemMsg( hwnd, SB_BUFFERS, SPBM_SETCURRENTVALUE,
-                               MPFROMLONG( numbuffers ), 0 );
+      lb_add_item( hwnd, CB_RG_TYPE, "Prefer album gain" );
+      lb_add_item( hwnd, CB_RG_TYPE, "Prefer album gain and prevent clipping" );
+      lb_add_item( hwnd, CB_RG_TYPE, "Prefer track gain" );
+      lb_add_item( hwnd, CB_RG_TYPE, "Prefer track gain and prevent clipping" );
+      lb_select  ( hwnd, CB_RG_TYPE, rg_type );
+
+      WinSendDlgItemMsg( hwnd, SB_BUFFERS, SPBM_SETLIMITS, MPFROMLONG( 200 ), MPFROMLONG( 5 ));
+      WinSendDlgItemMsg( hwnd, SB_BUFFERS, SPBM_SETCURRENTVALUE, MPFROMLONG( numbuffers ), 0 );
+
+      WinEnableControl( hwnd, CB_RG_TYPE,   enable_rg );
+      WinEnableControl( hwnd, SB_RG_PREAMP, enable_rg );
+      WinEnableControl( hwnd, ST_RG_PREAMP, enable_rg );
+      WinEnableControl( hwnd, SB_PREAMP,    enable_rg );
+      WinEnableControl( hwnd, ST_PREAMP,    enable_rg );
       break;
     }
 
     case WM_COMMAND:
       if( SHORT1FROMMP( mp1 ) == DID_OK )
       {
-        device = lb_selected( hwnd, CB_DEVICE, LIT_FIRST );
+        int dB1, dB2;
 
-        lockdevice   = !WinQueryButtonCheckstate( hwnd, CB_SHARED   );
-        force8bit    =  WinQueryButtonCheckstate( hwnd, CB_8BIT     );
-        kludge48as44 =  WinQueryButtonCheckstate( hwnd, CB_48KLUDGE );
+        device = lb_selected( hwnd, CB_DEVICE,  LIT_FIRST );
+        rg_type= lb_selected( hwnd, CB_RG_TYPE, LIT_FIRST );
+
+        lockdevice   = !WinQueryButtonCheckstate( hwnd, CB_SHARED    );
+        force8bit    =  WinQueryButtonCheckstate( hwnd, CB_8BIT      );
+        kludge48as44 =  WinQueryButtonCheckstate( hwnd, CB_48KLUDGE  );
+        enable_rg    =  WinQueryButtonCheckstate( hwnd, CB_RG_ENABLE );
 
         WinSendDlgItemMsg( hwnd, SB_BUFFERS, SPBM_QUERYVALUE,
                            MPFROMP( &numbuffers ), MPFROM2SHORT( 0, SPBQ_DONOTUPDATE ));
+        WinSendDlgItemMsg( hwnd, SB_RG_PREAMP, SPBM_QUERYVALUE,
+                           MPFROMP( &dB1 ), MPFROM2SHORT( 0, SPBQ_DONOTUPDATE ));
+        WinSendDlgItemMsg( hwnd, SB_PREAMP, SPBM_QUERYVALUE,
+                           MPFROMP( &dB2 ), MPFROM2SHORT( 0, SPBQ_DONOTUPDATE ));
+
+        preamp_rg = (float)dB1 / 10 - 12;
+        preamp    = (float)dB2 / 10 - 12;
+
+        configured++;
         save_ini();
       }
       break;
+
+    case WM_CONTROL:
+      if( SHORT1FROMMP(mp1) == CB_RG_ENABLE &&
+        ( SHORT2FROMMP(mp1) == BN_CLICKED || SHORT2FROMMP(mp1) == BN_DBLCLICKED ))
+      {
+        BOOL enable = WinQueryButtonCheckstate( hwnd, CB_RG_ENABLE );
+
+        WinEnableControl( hwnd, CB_RG_TYPE,   enable );
+        WinEnableControl( hwnd, SB_RG_PREAMP, enable );
+        WinEnableControl( hwnd, ST_RG_PREAMP, enable );
+        WinEnableControl( hwnd, SB_PREAMP,    enable );
+        WinEnableControl( hwnd, ST_PREAMP,    enable );
+        return 0;
+      }
+      break;
+
   }
 
   return WinDefDlgProc( hwnd, msg, mp1, mp2 );
 }
 
 /* Configure plug-in. */
-int DLLENTRY
-plugin_configure( HWND hwnd, HMODULE module )
+void DLLENTRY
+plugin_configure( HWND howner, HMODULE module )
 {
-  WinDlgBox( HWND_DESKTOP, hwnd, cfg_dlg_proc, module, DLG_CONFIGURE, NULL );
-  return 0;
+  HWND  hwnd;
+  PSZ   dBList[242];
+  char  buffer[64];
+  int   i;
+  float dB;
+
+  hwnd = WinLoadDlg( HWND_DESKTOP, howner, cfg_dlg_proc, module, DLG_CONFIGURE, NULL );
+  do_warpsans( hwnd );
+
+  if( hwnd ) {
+    for( dB = -12.0, i = 0; dB < 12.1; dB += 0.1, i++ ) {
+      sprintf( buffer, "%+.1f dB", dB );
+      dBList[i] = strdup( buffer );
+    }
+
+    WinSendDlgItemMsg( hwnd, SB_RG_PREAMP, SPBM_SETARRAY, MPFROMP( &dBList ), MPFROMLONG( 241 ));
+    WinSendDlgItemMsg( hwnd, SB_PREAMP,    SPBM_SETARRAY, MPFROMP( &dBList ), MPFROMLONG( 241 ));
+
+    WinSendDlgItemMsg( hwnd, SB_RG_PREAMP,
+                       SPBM_SETCURRENTVALUE, MPFROMLONG( preamp_rg * 10 + 120 ), 0 );
+    WinSendDlgItemMsg( hwnd, SB_PREAMP,
+                       SPBM_SETCURRENTVALUE, MPFROMLONG( preamp * 10 + 120 ), 0 );
+
+    WinProcessDlg( hwnd );
+    WinDestroyWindow( hwnd );
+
+    for( dB = -12.0, i = 0; dB < 12.1; dB += 0.1, i++ ) {
+      free( dBList[i] );
+    }
+  }
 }
 
-int DLLENTRY
+void DLLENTRY
 plugin_query( PLUGIN_QUERYPARAM* param )
 {
   param->type         = PLUGIN_OUTPUT;
   param->author       = "Samuel Audet, Dmitry A.Steklenev";
-  param->desc         = "DART Output 1.30";
+  param->desc         = "DART Output 1.31";
   param->configurable = TRUE;
 
   load_ini();
-  return 0;
 }
 
 #if defined(__IBMC__) && defined(__DEBUG_ALLOC__)

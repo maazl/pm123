@@ -13,7 +13,7 @@ decoder_plug.h.
 </pre><ul>
 <li>w : Allocate any chunk of memory necessary for the decoder's
 function. This pointer will be passed to the other functions.
-<li>return value : -1 means the decoder was not initialized
+<li>return value : PLUGIN_FAILED (-1) means the decoder was not initialized
 successfully.
 </ul>
 <p>
@@ -43,14 +43,16 @@ equalization is cheap.
 <li>params: structure that contains the parameters needed by the preceding
 commands.
 <li>return value:<br>
-0 -> ok.<br>
-1 -> command unsupported.<br>
-1xx -> msg specific.<br>
+PLUGIN_OK (0) -> ok.<br>
+PLUGIN_UNSUPPORTED (1) -> command unsupported.<br>
+DECODER_PLAY and DECODER_STOP can return also PLUGIN_GO_ALREADY (101) and
+PLUGIN_GO_FAILED (102).
 </ul>
 <p>
 There is a lot of commands to implement for this function. Parameters
 needed for each of the are described in the definition of the structure
-in the .h file.
+in the decoder_plug.h file. The decoder necessarily should support following commands:
+DECODER_SETUP, DECODER_PLAY, DECODER_STOP and DECODER_JUMPTO.
 <p>
 The decoder plug-in MUST <i>WinPostMsg()</i> the following messages to <i>hwnd</i>:
 <ul>
@@ -81,6 +83,7 @@ Only StreamingTitle is used by PM123.
 DECODER_STOPPED<br>
 DECODER_PLAYING<br>
 DECODER_STARTING<br>
+DECODER_PAUSED<br>
 </ul>
 <pre>
      ULONG DLLENTRY decoder_length( void *w )
@@ -103,10 +106,9 @@ example).
 <li>track : CD tracks start from 1.
 <li>info : this structure must be filled with the required information.
 <li>return value:<br>
-0 = everything's perfect, structure is set.<br>
-100 = error reading file (too small?).<br>
-200 = decoder can't play that.<br>
-1001 = http error occured.<br>
+PLUGIN_OK (0) = everything's perfect, structure is set.<br>
+PLUGIN_NO_READ (100) = error reading file (too small?).<br>
+PLUGIN_NO_PLAY (200) = decoder can't play that.<br>
 other values = errno.
 </ul>
 <p>
@@ -119,11 +121,25 @@ conditions.
 </pre>
 <ul>
 <li>drive: ...
-<lI>info: required info on the number of tracks available from the
-decoder.</lI>
+<li>info: required info on the number of tracks available from the
+decoder.</li>
+<li>return value:<br>
+PLUGIN_OK (0) = everything's perfect, structure is set.<br>
+PLUGIN_NO_READ (100) = error reading required info.<br>
+other values = errno.
 </ul>
 <p>
 This is used by PM123 before calling <i>decoder_trackinfo</i>.
+<pre>
+    ULONG DLLENTRY decoder_saveinfo( char* filename, DECODER_INFO* info );
+</pre>
+<ul>
+<li>return value:<br>
+PLUGIN_OK (0) = everything's perfect, meta info is saved to <i>filename</i>.<br>
+other values = errno.
+</ul>
+<p>It is called if it is necessary to change the meta  information for 
+the specified file and the decoder supports this feature. See <i>decoder_support</i>.
 <pre>
     ULONG DLLENTRY decoder_support( char *fileext[], int *size )
 </pre>
@@ -137,11 +153,13 @@ fileext).
 DECODER_FILENAME<br>
 DECODER_URL<br>
 DECODER_TRACK<br>
-DECODER_OTHER
+DECODER_OTHER<br>
+and what features are supported by the decoder:<br>
+DECODER_METAINFO
 </ul>
 <p>
 This is used by PM123 to suggest to the user what he can play with the
-decoder. Extentions can be for example "*.MOD".
+decoder and what features are supported. Extentions can be for example "*.MOD".
 </body>
 </html>
 

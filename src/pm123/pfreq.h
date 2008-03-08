@@ -2,6 +2,8 @@
  * Copyright 1997-2003 Samuel Audet <guardia@step.polymtl.ca>
  *                     Taneli Lepp„ <rosmo@sektori.com>
  *
+ * Copyright 2007 Dmitry A.Steklenev <glass@ptv.ru>
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
  *
@@ -30,64 +32,53 @@
 #ifndef PM123_PFREQ_H
 #define PM123_PFREQ_H
 
-#define DLG_PM            48
+#define DLG_PM          48
+#define CNR_PM          FID_CLIENT
+#define ACL_PM          49
 
-#define PM_MAIN_MENU    1024
-#define IDM_PM_ADD      1000
-#define IDM_PM_CALC     1001
+#define MNU_MANAGER         1024
+#define IDM_PM_ADD          1000
+#define IDM_PM_CALC         1001
 
-#define PM_FILE_MENU    2048
-#define IDM_PM_F_RENAME 2049
-#define IDM_PM_F_LOAD   2050
+#define MNU_FILE            2048
+#define IDM_PM_F_RENAME     2049
+#define IDM_PM_F_LOAD       2050
 
-#define PM_LIST_MENU    3072
-#define IDM_PM_L_RENAME 3073
-#define IDM_PM_L_LOAD   3074
-#define IDM_PM_L_REMOVE 3075
-#define IDM_PM_L_DELETE 3076
-#define IDM_PM_L_CALC   3077
+#define MNU_LIST            3072
+#define IDM_PM_L_RENAME     3073
+#define IDM_PM_L_LOAD       3074
+#define IDM_PM_L_REMOVE     3075
+#define IDM_PM_L_DELETE     3076
 
-#define PM_TYPE_LIST    1
-#define PM_TYPE_FILE    2
-
+#define IDM_PM_MENU         4000
+#define IDM_PM_MENU_RECORD  4001
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-typedef struct
-{
-  int bitrate;
-  int freq;
-  int mode;
-  int length;
-  int secs;
+typedef void* HPOPULATE;
 
-} FREC, *PFREC;
+/* Begins population of the specified playlist. */
+HPOPULATE pm_begin_populate( const char* filename );
+/* Adds the specified file to the populated playlist. */
+BOOL pm_add_file( HPOPULATE handle, const char* filename,
+                  int bitrate, int samplerate, int mode, int filesize, int secs );
+/* Ends population of the specified playlist. */
+void pm_end_populate( HPOPULATE handle );
 
-typedef struct
-{
-  RECORDCORE rc;
-  int   type;
-  PSZ   text;
-  void* data;
-
-} PMREC, *PPMREC;
-
-typedef struct
-{
-  PPMREC parent;
-  char   playlist[256];
-
-} THREADINFO, *PTHREADINFO;
-
-/* Creates the playlist manager presentation window. */
-HWND pm_create( void );
-/* Sets the visibility state of the playlist manager presentation window. */
+/* Sets the visibility state of the playlist manager
+   presentation window. */
 void pm_show( BOOL show );
-/* Destroys the playlist manager presentation window. */
+/* Creates the playlist manager presentation window.
+   Must be called from the main thread. */
+HWND pm_create( void );
+/* Destroys the playlist manager presentation window.
+   Must be called from the main thread. */
 void pm_destroy( void );
 
+/* Changes the playlist manager colors. */
+BOOL pm_set_colors( ULONG, ULONG, ULONG, ULONG );
 
 #ifdef __cplusplus
 }

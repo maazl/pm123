@@ -7,23 +7,13 @@ BITS 32
 extern dct64_MMX
 extern decwins
 
-segment .data class=DATA use32 FLAT
-
-        align 32
-        bo   dd 01h
-
-segment .bss class=DATA use32 FLAT
-
-        align 32
-        buffs times 880h db 0
-
 segment .text class=CODE use32 FLAT
 
         align 32
 
 ; thanks to AMD!!
-global detect_mmx
-detect_mmx:
+global detect_MMX
+detect_MMX:
 	push ebx
         pushfd                  ; save EFLAGS
         pop  eax                ; store EFLAGS in EAX
@@ -63,17 +53,18 @@ synth_1to1_MMX:
         push    esi
 
         ; for _Optlink calling convention
-        mov     DWORD [20+esp], eax     ; bandPtr
-        mov     DWORD [24+esp], edx     ; channel
-        mov     DWORD [28+esp], ecx     ; out
+        mov     DWORD [20+esp], eax     ; synth_data
+        mov     DWORD [24+esp], edx     ; bandPtr
+        mov     DWORD [28+esp], ecx     ; channel
 
-        mov     ecx, DWORD [24+esp]     ; channel
-        mov     edi, DWORD [28+esp]     ; out
+        mov     ecx, DWORD [28+esp]     ; channel
+        mov     edi, DWORD [32+esp]     ; out
         mov     ebx, 15
-        mov     edx, bo                 ; bo
+        mov     edx, [20+esp]           ; synth_data.bo
         lea     edi, [edi+ecx*2]
         dec     ecx
-        mov     esi, buffs              ; buffs
+        mov     esi, [20+esp]           ; synth_data
+        add     esi, 4                  ; synth_data.buffs 
         mov     eax, DWORD [edx]
         jecxz   _L1
         dec     eax
@@ -84,7 +75,7 @@ _L1:
         lea     edx, [esi+eax*2]
         mov     ebp, eax
         inc     eax
-        push    DWORD [20+esp]          ; bandPtr
+        push    DWORD [24+esp]          ; bandPtr
         and     eax, ebx
         lea     ecx, [544+esi+eax*2]
         inc     ebx

@@ -92,6 +92,13 @@ long buffer_seek( XFILE* x, long offset, int origin );
    error or an unknown size. */
 long buffer_filesize( XFILE* x );
 
+/* Lengthens or cuts off the file to the length specified by size.
+   You must open the file in a mode that permits writing. Adds null
+   characters when it lengthens the file. When cuts off the file, it
+   erases all data from the end of the shortened file to the end
+   of the original file. */
+int  buffer_truncate( XFILE* x, long size );
+
 #ifdef __cplusplus
 }
 #endif

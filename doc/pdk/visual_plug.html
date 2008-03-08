@@ -5,12 +5,13 @@
 <body>
 <b><font size=+2>PM123 Visual plug-ins</font></b>
 <p>
-Visual plug-in's <i>vis_init()</i> routine gets called every time plug-in
-gets activated.
+Visual plug-ins must implement and export the functions defined in
+visual_plug.h.
 <pre>
      HWND DLLENTRY vis_init( PVISPLUGININIT initdata );
 </pre>
-The <i>VISPLUGININIT</i> structure contains the initialization data that
+Visual plug-in's <i>vis_init()</i> routine gets called every time plug-in
+gets activated. The <i>VISPLUGININIT</i> structure contains the initialization data that
 PM123 passes to the plug-in.
 <PRE>
      typedef struct {
@@ -24,6 +25,9 @@ PM123 passes to the plug-in.
         /* Plug-in's ID (1-32) */
        char          *param;
         /* Parameters passed to the plug-in */
+       HAB           hab;   
+        /* PM123's anchor block handle */
+
      } VISPLUGININIT, *PVISPLUGININIT;
 </pre>
 On return from the initialization function, the function should return
@@ -44,6 +48,7 @@ base yours on:
          case 0x041e:
          case WM_CONTEXTMENU:
          case WM_BUTTON2MOTIONSTART:
+         case WM_BUTTON1MOTIONSTART:
            WinSendMsg( plug.hwnd, msg, mp1, mp2 );
            break;
 
@@ -76,6 +81,11 @@ If you want to create a window inside PM123's window, use <i>WinCreateWindow()</
                                    NULL,
                                    NULL );
      return hwndClient;
+</pre>
+Visual plug-ins should deinitialize and destroy their windows and free allocated
+memory when receiving a
+<pre>
+     int DLLENTRY plugin_deinit();
 </pre>
 </body>
 </html>

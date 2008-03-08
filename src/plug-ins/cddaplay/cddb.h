@@ -39,7 +39,6 @@ extern "C" {
 /* Protocol level 6 is the same as level 5 except that the character set
    is now UTF-8 instead of ISO-8859-1. */
 #define CDDB_PROTOLEVEL       5
-#define CDDB_CHARSET          "UTF-8"
 
 #define CDDB_OK               200
 #define CDDB_NOT_MATCH        202
@@ -55,10 +54,6 @@ extern "C" {
 #define CDDB_YEAR   4
 #define CDDB_GENRE  5
 
-#if CDDB_PROTOLEVEL >= 6
-  #include <iconv.h>
-#endif
-
 typedef int CDDBRC;
 
 /* Keeping state about the connection to a CDDB server. */
@@ -69,10 +64,6 @@ typedef struct _CDDB_CONNECTION
   char    username[128];
   char    hostname[128];
   char    cachedir[_MAX_PATH];
-
-  #if CDDB_PROTOLEVEL >= 6
-  iconv_t charset;
-  #endif
 
   ULONG   discid;
   ULONG   year;
@@ -96,14 +87,6 @@ void cddb_close( CDDB_CONNECTION* c );
 void cddb_set_email_address( CDDB_CONNECTION* c, const char* email );
 /* Sets the CDDB server. */
 void cddb_set_server( CDDB_CONNECTION* c, const char* url );
-
-/* Set the character set. By default the FreeDB server uses UTF-8
-   when providing CD data. When a character set is defined with this
-   function any strings retrieved from or sent to the server
-   will automatically be converted. Returns -1 if the specified
-   character set is unknown, or no conversion from/to UTF-8 is
-   available. True otherwise. */
-int  cddb_set_charset( CDDB_CONNECTION* c, const char* charset );
 
 /* Changes the directory used for caching CDDB entries locally. Returns
    a value of 0 if the cache directory was successfully changed. A

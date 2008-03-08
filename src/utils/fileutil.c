@@ -201,6 +201,18 @@ sfnameext( char *result, const char* location, size_t size )
   return result;
 }
 
+/* Returns the base file name with file extension 
+   decoded from URL transmission. */
+char*
+sdnameext( char *result, const char* location, size_t size )
+{
+  if( is_url( location )) {
+    return sdecode( result, sfnameext( result, location, size ), size );
+  } else {
+    return sfnameext( result, location, size );
+  }
+}
+
 /* Returns the file name extension, if any,
    including the leading period (.). */
 char*
@@ -335,6 +347,18 @@ sfname( char* result, const char* location, size_t size )
 
   strlcpy( result, phead, min( ptail - phead + 1, size ));
   return result;
+}
+
+/* Returns the base file name without any extensions
+   decoded from URL transmission. */
+char*
+sdname( char *result, const char* location, size_t size )
+{
+  if( is_url( location )) {
+    return sdecode( result, sfname( result, location, size ), size );
+  } else {
+    return sfname( result, location, size );
+  }
 }
 
 /* Returns the drive letter or scheme and the path of

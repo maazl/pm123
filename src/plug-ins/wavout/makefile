@@ -16,11 +16,11 @@ RESOURCE = wavout$(RES)
 all: wavout.dll wavout$(LBI) $(MDUMMY)
 
 wavout.dll: $(OBJECTS) $(DEF) $(RESOURCE)
-	$(CL) $(LFLAGS) $(LFLAGS_OUT)$@ $(LOBJ_PREFX)$(OBJECTS) $(LIBS)$(LOBJ_SUFFX) $(LDEF_PREFX)$(DEF)
+	$(CL) $(LFLAGS) $(LFLAGS_OUT)$@ $(LOBJ_PREFX)$(OBJECTS)$(LOBJ_SUFFX) $(LLIB_PREFX)$(LIBS)$(LLIB_SUFFX) $(LDEF_PREFX)$(DEF)
 	$(RC) $(RFLAGS) $(RESOURCE) $@ > nul
 
 wavout$(LBI): $(DEF)
-	$(LI) $@ wavout.dll
+	$(LI) $(IFLAGS_OUT)$@ wavout.dll
 
 clean: $(MDUMMY)
 	-@del wavout$(LBI) wavout.dll $(OBJECTS) $(RESOURCE) 2> nul

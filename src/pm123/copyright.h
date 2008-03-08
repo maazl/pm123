@@ -2,7 +2,7 @@
  * Copyright 1997-2003 Samuel Audet  <guardia@step.polymtl.ca>
  *                     Taneli Lepp„  <rosmo@sektori.com>
  *
- * Copyright 2004-2006 Dmitry A.Steklenev <glass@ptv.ru>
+ * Copyright 2004-2007 Dmitry A.Steklenev <glass@ptv.ru>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -32,16 +32,17 @@
 #ifndef PM123_COPYRIGHT_H
 #define PM123_COPYRIGHT_H
 
-#define AMP_VERSION  "1.32 beta 1"
+#define AMP_VERSION  "1.32"
 #define AMP_NAME     "PM123"
 #define AMP_FULLNAME AMP_NAME " " AMP_VERSION
 
-#define SDG_AUT "Dmitry A.Steklenev <glass@ptv.ru> (http://glass.os2.spb.ru/)\n"\
+#define SDG_AUT "Dmitry A.Steklenev <glass@ptv.ru> (http://glass.ptv.ru/)\n"\
                 "Samuel Audet <guardia@step.polymtl.ca> (http://step.polymtl.ca/~guardia/)\n"\
                 "Taneli Lepp\204 <rosmo@sektori.com>\n"\
                 "Michael Hipp, Oliver Fromme (original mpg123: http://www.mpg123.org)"
 
-#define SDG_MSG "Rosmo's greetings go out to: Sektori.com folks, dink (check out his cool Z! MP3 player), Olli 'MrWizard' Maksimainen, Adrian 'ktk' Gschwend (Netlabs rules!), ml, Eirik 'Ltning' Overby, tSS, PartyGirl, Kerni, NuKe, WinAmp authors for inspiration, #os2finnin kanta-asiakkaat, #os2prog'ers (now #codepros no?), Sinebrychoff and all MP3 enthuastics.\n\n"\
+#define SDG_MSG "GlassMan thanks all PM123 sponsors: Cremer Oliver, Smedley Paul, Klein Thomas and Frazer Rick.\n\n"\
+                "Rosmo's greetings go out to: Sektori.com folks, dink (check out his cool Z! MP3 player), Olli 'MrWizard' Maksimainen, Adrian 'ktk' Gschwend (Netlabs rules!), ml, Eirik 'Ltning' Overby, tSS, PartyGirl, Kerni, NuKe, WinAmp authors for inspiration, #os2finnin kanta-asiakkaat, #os2prog'ers (now #codepros no?), Sinebrychoff and all MP3 enthuastics.\n\n"\
                 "Samuel's greetings: Mom, Miho, Sophie, Gerry, Marc, Olli Maksimainen, Mads Orbesen Troest (Leech it!), Eirik Overby (made some cool skins!), dink, nuke (EverBlue ready now?? :), Adrian Gschwend (aka ktk), GryGhost, Julien Pierre (who helped me with MMOS/2 before), Cow_woC, Sander van Leeuwen, Achim Hasenmueller (lou!! WHAT? Odin not ready yet? :) and of course Michael Hipp and Oliver Fromme!!\n\n"\
 "\n"\
 "Please read first the important information in the COPYRIGHT and COPYING "\
@@ -60,10 +61,11 @@
 "   Niklas Beisert <nbeisert@physik.tu-muenchen.de> MPEG 2.5 tables\n"\
 "   Henrik P Johnson: HTTP auth patch\n"\
 "\n"\
-"Graphical User Interface for pm123 by:\n"\
+"Graphical User Interface for PM123 by:\n"\
 "\n"\
 "   Taneli Lepp„ <rosmo@sektori.com>\n"\
-"   Samuel Audet <guardia@step.polymtl.ca> (http://www.step.polymtl.ca/~guardia/)\n"\
+"   Samuel Audet <guardia@step.polymtl.ca>\n"\
+"   Dmitry A.Steklenev <glass@ptv.ru>\n"\
 "\n"\
 "Generalized Bitmap Module by:\n"\
 "\n"\
@@ -81,10 +83,11 @@
 "COPYING\n"\
 "=======\n"\
 "\n"\
-"This license covers ONLY mpg123.dll, http123.dll and the related source files.\n"\
+"This license covers ONLY mpg123.dll and the related source files.\n"\
 "\n"\
 "Copyright (c) 1995-1999 by Michael Hipp, all rights reserved.\n"\
 "Copyright (c) 1998-2003 by Samuel Audet, all rights reserved.\n"\
+"Copyright (c) 2004-2007 by Dmitry A.Stekelnev, all rights reserved.\n"\
 "\n"\
 "Original mpg123 decoder written/modified by:\n"\
 "   Michael Hipp <Michael.Hipp@student.uni-tuebingen.de>\n"\
@@ -150,11 +153,10 @@
 "\n"\
 "This license covers the entirety of the PM123 source file distribution, "\
 "except GBM which is left into the public domain, and the mpg123 plug-in "\
-"(including http123.dll) which is left under the license found in the file "\
-"named COPYING.\n"\
+"(including http123.dll) which is left under the license found above.\n"\
 "\n"\
-"Copyright 1997-2003 Samuel Audet <guardia@step.polymtl.ca>\n"\
-"                    Taneli Lepp„ <rosmo@sektori.com>\n"\
+"Copyright 2004-2007 Dmitry A.Steklenev\n"\
+"Copyright 1997-2003 Samuel Audet and Taneli Lepp„\n"\
 "\n"\
 "Redistribution and use in source and binary forms, with or without "\
 "modification, are permitted provided that the following conditions are met:\n"\

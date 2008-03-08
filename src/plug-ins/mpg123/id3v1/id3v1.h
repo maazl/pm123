@@ -64,20 +64,30 @@ typedef struct _ID3V1_TAG
    the given structure. Returns 0 if it successfully reads the
    tag or if the input file don't have a ID3v1 tag. A nonzero
    return value indicates an error. */
-int id3v1_gettag( XFILE* x, ID3V1_TAG* tag );
+int id3v1_get_tag( XFILE* x, ID3V1_TAG* tag );
 
 /* Writes a ID3v1 tag from the given structure to the output
    file. Returns 0 if it successfully writes the tag. A nonzero
    return value indicates an error. */
-int id3v1_settag( XFILE* x, ID3V1_TAG* tag );
+int id3v1_set_tag( XFILE* x, ID3V1_TAG* tag );
 
-/* Cleanups  of a ID3v1 tag structure. */
-void id3v1_clrtag( ID3V1_TAG* tag );
+/* Remove the tag from the file. Takes care of resizing
+   the file, if needed. Returns 0 upon success, or -1 if an
+   error occured. */
+int id3v1_wipe_tag( XFILE* x );
+
+/* Cleanups of a ID3v1 tag structure. */
+void id3v1_clean_tag( ID3V1_TAG* tag );
 
 /* Returns a specified field of the given tag. */
-char* id3v1_getstring( ID3V1_TAG* tag, int type, char* result, int size );
+char* id3v1_get_string( ID3V1_TAG* tag, int type, char* result, int size );
 /* Sets a specified field of the given tag. */
-void  id3v1_setstring( ID3V1_TAG* tag, int type, char* source );
+void  id3v1_set_string( ID3V1_TAG* tag, int type, char* source );
+
+/* Sets the writing characters set. */
+void  id3v1_set_save_charset( int charset );
+/* Sets the reading characters set. */
+void  id3v1_set_read_charset( int charset );
 
 #ifdef __cplusplus
 }

@@ -40,13 +40,20 @@
 #include "pm123.h"
 #include "plugman.h"
 #include "iniman.h"
+#include "snprintf.h"
 
-#define  CFG_REFRESH_LIST (WM_USER+1)
-#define  CFG_REFRESH_INFO (WM_USER+2)
-#define  CFG_DEFAULT      (WM_USER+3)
-#define  CFG_UNDO         (WM_USER+4)
+#define  CFG_REFRESH_LIST ( WM_USER + 1000 )
+#define  CFG_REFRESH_INFO ( WM_USER + 1001 )
+#define  CFG_DEFAULT      ( WM_USER + 1002 )
+#define  CFG_UNDO         ( WM_USER + 1003 )
 
 amp_cfg cfg;
+
+static HWND page01;
+static HWND page02;
+static HWND page03;
+static HWND page04;
+static HWND page05;
 
 static ULONG
 cfg_add_plugin( HWND hwnd, ULONG types )
@@ -54,31 +61,34 @@ cfg_add_plugin( HWND hwnd, ULONG types )
   FILEDLG filedialog;
   ULONG   rc = 0;
   APSZ    ftypes[] = {{ FDT_PLUGIN }, { 0 }};
+  char    name[64];
 
   memset( &filedialog, 0, sizeof( FILEDLG ));
 
   filedialog.cbSize         = sizeof( FILEDLG );
   filedialog.fl             = FDS_CENTER | FDS_OPEN_DIALOG | FDS_CUSTOM;
   filedialog.pszTitle       = "Load a plug-in";
-  filedialog.hMod           = NULLHANDLE;
+  filedialog.hMod           = hmodule;
   filedialog.usDlgId        = DLG_FILE;
   filedialog.pfnDlgProc     = amp_file_dlg_proc;
   filedialog.papszITypeList = ftypes;
   filedialog.pszIType       = FDT_PLUGIN;
 
-
-  strcpy( filedialog.szFullFile, startpath );
+  strcpy( filedialog.szFullFile, cfg.plugdir );
   WinFileDlg( HWND_DESKTOP, hwnd, &filedialog );
 
   if( filedialog.lReturn == DID_OK ) {
-    rc = add_plugin( filedialog.szFullFile, NULL );
+    sdrivedir( cfg.plugdir, filedialog.szFullFile, sizeof( cfg.plugdir ));
+    rc = pg_load_plugin( filedialog.szFullFile, NULL );
     if( rc & PLUGIN_VISUAL ) {
-      vis_init( amp_player_window(), num_visuals - 1 );
+      vis_initialize( sfname( name, filedialog.szFullFile, sizeof( name )),
+                      amp_player_window());
     }
     if( rc & PLUGIN_FILTER && decoder_playing()) {
       amp_info( hwnd, "This filter will only be enabled after playback of the current file." );
     }
-    WinSendMsg( hwnd, CFG_REFRESH_LIST, MPFROMLONG( rc ), 0 );
+    WinSendMsg( page03, CFG_REFRESH_LIST, MPFROMLONG( rc ), 0 );
+    WinSendMsg( page04, CFG_REFRESH_LIST, MPFROMLONG( rc ), 0 );
   }
   return rc;
 }
@@ -104,17 +114,31 @@ cfg_page1_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
       WinSetDlgItemText( hwnd, EF_PROXY_PORT, itoa( cfg.proxy_port, buffer, 10 ));
       WinSetDlgItemText( hwnd, EF_PROXY_USER, cfg.proxy_user );
       WinSetDlgItemText( hwnd, EF_PROXY_PASS, cfg.proxy_pass );
-      WinCheckButton   ( hwnd, CB_FILLBUFFER, cfg.buff_wait );
+      WinCheckButton   ( hwnd, CB_FILLBUFFER, cfg.buff_wait  );
+      WinEnableControl ( hwnd, SB_FILLBUFFER, cfg.buff_wait  );
 
       WinSendDlgItemMsg( hwnd, SB_BUFFERSIZE, SPBM_SETLIMITS,
                                MPFROMLONG( 2048 ), MPFROMLONG( 0 ));
       WinSendDlgItemMsg( hwnd, SB_BUFFERSIZE, SPBM_SETCURRENTVALUE,
                                MPFROMLONG( cfg.buff_size ), 0 );
+      WinSendDlgItemMsg( hwnd, SB_FILLBUFFER, SPBM_SETLIMITS,
+                               MPFROMLONG( 100  ), MPFROMLONG( 1 ));
+      WinSendDlgItemMsg( hwnd, SB_FILLBUFFER, SPBM_SETCURRENTVALUE,
+                               MPFROMLONG( cfg.buff_fill ), 0 );
       return 0;
     }
 
     case WM_COMMAND:
+      return 0;
+
     case WM_CONTROL:
+      if( SHORT1FROMMP(mp1) == CB_FILLBUFFER &&
+        ( SHORT2FROMMP(mp1) == BN_CLICKED || SHORT2FROMMP(mp1) == BN_DBLCLICKED ))
+      {
+        BOOL fill = WinQueryButtonCheckstate( hwnd, CB_FILLBUFFER );
+
+        WinEnableControl( hwnd, SB_FILLBUFFER, fill );
+      }
       return 0;
 
     case CFG_UNDO:
@@ -137,6 +161,8 @@ cfg_page1_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
       WinSetDlgItemText( hwnd, EF_PROXY_USER,  ""  );
       WinSetDlgItemText( hwnd, EF_PROXY_PASS,  ""  );
       WinSendDlgItemMsg( hwnd, SB_BUFFERSIZE, SPBM_SETCURRENTVALUE, MPFROMLONG( 128 ), 0 );
+      WinSendDlgItemMsg( hwnd, SB_FILLBUFFER, SPBM_SETCURRENTVALUE, MPFROMLONG(  30 ), 0 );
+      WinEnableControl ( hwnd, SB_FILLBUFFER, FALSE );
       return 0;
     }
 
@@ -159,6 +185,10 @@ cfg_page1_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
                          MPFROMP( &i ), MPFROM2SHORT( 0, SPBQ_DONOTUPDATE ));
       cfg.buff_size = i;
 
+      WinSendDlgItemMsg( hwnd, SB_FILLBUFFER, SPBM_QUERYVALUE,
+                         MPFROMP( &i ), MPFROM2SHORT( 0, SPBQ_DONOTUPDATE ));
+      cfg.buff_fill = i;
+
       WinQueryDlgItemText( hwnd, EF_PROXY_HOST, sizeof( cfg.proxy_host ), cfg.proxy_host );
       WinQueryDlgItemText( hwnd, EF_PROXY_USER, sizeof( cfg.proxy_user ), cfg.proxy_user );
       WinQueryDlgItemText( hwnd, EF_PROXY_PASS, sizeof( cfg.proxy_pass ), cfg.proxy_pass );
@@ -173,6 +203,7 @@ cfg_page1_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
       xio_set_http_proxy_pass( cfg.proxy_pass );
       xio_set_buffer_size( cfg.buff_size * 1024 );
       xio_set_buffer_wait( cfg.buff_wait );
+      xio_set_buffer_fill( cfg.buff_fill );
 
       return 0;
     }
@@ -304,14 +335,14 @@ cfg_page2_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
       WinCheckButton( hwnd, RB_DISP_FILENAME,   TRUE );
       WinCheckButton( hwnd, CB_USE_SKIN_FONT,   TRUE );
 
-      font_size = 9;
+      font_size = 2;
 
       memset( &font_attrs, 0, sizeof( font_attrs ));
-      strcpy( font_attrs.szFacename, "WarpSans Bold" );
+      strcpy( font_attrs.szFacename, "System VIO" );
 
       font_attrs.usRecordLength  = sizeof(FATTRS);
-      font_attrs.lMaxBaselineExt = 14L;
-      font_attrs.lAveCharWidth   =  6L;
+      font_attrs.lMaxBaselineExt = 12L;
+      font_attrs.lAveCharWidth   =  5L;
 
       WinSetDlgItemText( hwnd, ST_FONT_SAMPLE,
                          cfg_attrs_to_font( &font_attrs, font_name, font_size ));
@@ -341,8 +372,6 @@ cfg_page2_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
       cfg.font_size    = font_size;
       cfg.font_attrs   = font_attrs;
 
-      amp_display_filename();
-      amp_invalidate( UPD_FILEINFO );
       return 0;
     }
   }
@@ -357,14 +386,11 @@ cfg_page3_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
   {
     case CFG_REFRESH_LIST:
     {
-      int i;
-
       if( LONGFROMMP(mp1) & PLUGIN_VISUAL  )
       {
         lb_remove_all( hwnd, LB_VISPLUG );
-        for( i = 0; i < num_visuals; i++ ) {
-          lb_add_item( hwnd, LB_VISPLUG, visuals[i].module_name );
-        }
+        pg_expand_to ( hwnd, LB_VISPLUG, PLUGIN_VISUAL );
+
         if( lb_size( hwnd, LB_VISPLUG )) {
           lb_select( hwnd, LB_VISPLUG, 0 );
         } else {
@@ -376,9 +402,8 @@ cfg_page3_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
       if( LONGFROMMP(mp1) & PLUGIN_DECODER )
       {
         lb_remove_all( hwnd, LB_DECPLUG );
-        for( i = 0; i < num_decoders; i++ ) {
-          lb_add_item( hwnd, LB_DECPLUG, decoders[i].module_name );
-        }
+        pg_expand_to ( hwnd, LB_DECPLUG, PLUGIN_DECODER );
+
         if( lb_size( hwnd, LB_DECPLUG )) {
           lb_select( hwnd, LB_DECPLUG, 0 );
         } else {
@@ -392,47 +417,56 @@ cfg_page3_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
     case CFG_REFRESH_INFO:
     {
       SHORT i = SHORT1FROMMP(mp2);
-      char  buffer[256];
+
+      char buffer[256];
+      char name[64];
+      BOOL enabled;
+
+      PLUGIN_QUERYPARAM info;
 
       if( LONGFROMMP(mp1) & PLUGIN_VISUAL  )
       {
-        if( i == LIT_NONE ) {
+        if( i != LIT_NONE ) {
+          lb_get_item( hwnd, LB_VISPLUG, i, name, sizeof( name ));
+          pg_get_info( name, PLUGIN_VISUAL, &info );
+          enabled = pg_is_enabled( name, PLUGIN_VISUAL );
+          sprintf( buffer, "Author: %s", info.author );
+          WinSetDlgItemText( hwnd, ST_VIS_AUTHOR, buffer );
+          sprintf( buffer, "Desc: %s", info.desc );
+          WinSetDlgItemText( hwnd, ST_VIS_DESC, buffer );
+          WinSetDlgItemText( hwnd, PB_VIS_ENABLE, enabled ? "Disabl~e" : "~Enable" );
+          WinEnableControl ( hwnd, PB_VIS_ENABLE, TRUE );
+          WinEnableControl ( hwnd, PB_VIS_UNLOAD, TRUE );
+          WinEnableControl ( hwnd, PB_VIS_CONFIG, info.configurable && enabled );
+        } else {
           WinSetDlgItemText( hwnd, ST_VIS_AUTHOR, "Author: <none>" );
           WinSetDlgItemText( hwnd, ST_VIS_DESC, "Desc: <none>" );
           WinSetDlgItemText( hwnd, PB_VIS_ENABLE, "~Enable" );
           WinEnableControl ( hwnd, PB_VIS_CONFIG, FALSE );
           WinEnableControl ( hwnd, PB_VIS_ENABLE, FALSE );
           WinEnableControl ( hwnd, PB_VIS_UNLOAD, FALSE );
-        } else {
-          sprintf( buffer, "Author: %s", visuals[i].query_param.author );
-          WinSetDlgItemText( hwnd, ST_VIS_AUTHOR, buffer );
-          sprintf( buffer, "Desc: %s", visuals[i].query_param.desc );
-          WinSetDlgItemText( hwnd, ST_VIS_DESC, buffer );
-          WinSetDlgItemText( hwnd, PB_VIS_ENABLE, visuals[i].enabled ? "Disabl~e" : "~Enable" );
-          WinEnableControl ( hwnd, PB_VIS_ENABLE, TRUE );
-          WinEnableControl ( hwnd, PB_VIS_UNLOAD, TRUE );
-          WinEnableControl ( hwnd, PB_VIS_CONFIG, visuals[i].query_param.configurable &&
-                                                  visuals[i].enabled );
         }
       }
       if( LONGFROMMP(mp1) & PLUGIN_DECODER ) {
-        if( i == LIT_NONE ) {
+        if( i != LIT_NONE ) {
+          lb_get_item( hwnd, LB_DECPLUG, i, name, sizeof( name ));
+          pg_get_info( name, PLUGIN_DECODER, &info );
+          enabled = pg_is_enabled( name, PLUGIN_DECODER );
+          snprintf( buffer, sizeof( buffer ), "Author: %s", info.author );
+          WinSetDlgItemText( hwnd, ST_DEC_AUTHOR, buffer );
+          snprintf( buffer, sizeof( buffer ), "Desc: %s", info.desc );
+          WinSetDlgItemText( hwnd, ST_DEC_DESC, buffer );
+          WinSetDlgItemText( hwnd, PB_DEC_ENABLE, enabled ? "Disabl~e" : "~Enable" );
+          WinEnableControl ( hwnd, PB_DEC_ENABLE, TRUE );
+          WinEnableControl ( hwnd, PB_DEC_UNLOAD, TRUE );
+          WinEnableControl ( hwnd, PB_DEC_CONFIG, info.configurable && enabled );
+        } else {
           WinSetDlgItemText( hwnd, ST_DEC_AUTHOR, "Author: <none>" );
           WinSetDlgItemText( hwnd, ST_DEC_DESC, "Desc: <none>" );
           WinSetDlgItemText( hwnd, PB_DEC_ENABLE, "~Enable" );
           WinEnableControl ( hwnd, PB_DEC_CONFIG, FALSE );
           WinEnableControl ( hwnd, PB_DEC_ENABLE, FALSE );
           WinEnableControl ( hwnd, PB_DEC_UNLOAD, FALSE );
-        } else {
-          sprintf( buffer, "Author: %s", decoders[i].query_param.author );
-          WinSetDlgItemText( hwnd, ST_DEC_AUTHOR, buffer );
-          sprintf( buffer, "Desc: %s", decoders[i].query_param.desc );
-          WinSetDlgItemText( hwnd, ST_DEC_DESC, buffer );
-          WinSetDlgItemText( hwnd, PB_DEC_ENABLE, decoders[i].enabled ? "Disabl~e" : "~Enable" );
-          WinEnableControl ( hwnd, PB_DEC_ENABLE, TRUE );
-          WinEnableControl ( hwnd, PB_DEC_UNLOAD, TRUE );
-          WinEnableControl ( hwnd, PB_DEC_CONFIG, decoders[i].query_param.configurable &&
-                                                  decoders[i].enabled );
         }
       }
       return 0;
@@ -468,8 +502,11 @@ cfg_page3_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
         case PB_VIS_CONFIG:
         {
           SHORT i = lb_cursored( hwnd, LB_VISPLUG );
+          char  name[64];
+
           if( i != LIT_NONE ) {
-            visuals[i].plugin_configure( hwnd, visuals[i].module );
+            lb_get_item ( hwnd, LB_VISPLUG, i, name, sizeof( name ));
+            pg_configure( name, PLUGIN_VISUAL, hwnd );
           }
           return 0;
         }
@@ -477,13 +514,17 @@ cfg_page3_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
         case PB_VIS_ENABLE:
         {
           SHORT i = lb_cursored( hwnd, LB_VISPLUG );
+          char  name[64];
+
           if( i != LIT_NONE ) {
-            if( visuals[i].enabled ) {
-              vis_deinit( i );
+            lb_get_item( hwnd, LB_VISPLUG, i, name, sizeof( name ));
+            if( pg_is_enabled( name, PLUGIN_VISUAL )) {
+              pg_enable( name, PLUGIN_VISUAL, FALSE );
+              vis_terminate( name );
             } else {
-              vis_init( amp_player_window(), i );
+              pg_enable( name, PLUGIN_VISUAL, TRUE  );
+              vis_initialize( name, amp_player_window());
             }
-            visuals[i].enabled = !visuals[i].enabled;
             WinSendMsg( hwnd, CFG_REFRESH_INFO,
                         MPFROMLONG( PLUGIN_VISUAL ), MPFROMSHORT( i ));
           }
@@ -493,8 +534,11 @@ cfg_page3_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
         case PB_VIS_UNLOAD:
         {
           SHORT i = lb_cursored( hwnd, LB_VISPLUG );
+          char  name[64];
+
           if( i != LIT_NONE ) {
-            remove_visual_plugin( &visuals[i] );
+            lb_get_item( hwnd, LB_VISPLUG, i, name, sizeof( name ));
+            pg_remove_visual( name );
             if( lb_remove_item( hwnd, LB_VISPLUG, i ) == 0 ) {
               WinSendMsg( hwnd, CFG_REFRESH_INFO,
                           MPFROMLONG( PLUGIN_VISUAL ), MPFROMSHORT( LIT_NONE ));
@@ -512,8 +556,11 @@ cfg_page3_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
         case PB_DEC_CONFIG:
         {
           SHORT i = lb_cursored( hwnd, LB_DECPLUG );
+          char  name[64];
+
           if( i != LIT_NONE ) {
-            decoders[i].plugin_configure( hwnd, decoders[i].module );
+            lb_get_item ( hwnd, LB_DECPLUG, i, name, sizeof( name ));
+            pg_configure( name, PLUGIN_DECODER, hwnd );
           }
           return 0;
         }
@@ -521,19 +568,22 @@ cfg_page3_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
         case PB_DEC_ENABLE:
         {
           SHORT i = lb_cursored( hwnd, LB_DECPLUG );
+          char  name[64];
+
           if( i != LIT_NONE ) {
-            if( !decoders[i].enabled ) {
-              decoders[i].enabled = TRUE;
+            lb_get_item( hwnd, LB_DECPLUG, i, name, sizeof( name ));
+            if( !pg_is_enabled( name, PLUGIN_DECODER )) {
+              pg_enable( name, PLUGIN_DECODER, TRUE );
             } else {
-              if( active_decoder == i ) {
+              if( dec_is_active( name )) {
                 if( decoder_playing()) {
                   amp_error( hwnd, "Cannot disable currently in use decoder." );
                 } else {
-                  decoders[i].enabled = FALSE;
-                  dec_set_name_active( NULL );
+                  pg_enable( name, PLUGIN_DECODER, FALSE );
+                  dec_set_active( NULL );
                 }
               } else {
-                decoders[i].enabled = FALSE;
+                pg_enable( name, PLUGIN_DECODER, FALSE );
               }
             }
             WinSendMsg( hwnd, CFG_REFRESH_INFO,
@@ -545,11 +595,16 @@ cfg_page3_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
         case PB_DEC_UNLOAD:
         {
           SHORT i = lb_cursored( hwnd, LB_DECPLUG );
-          if( i != LIT_NONE ) {
-            if( decoder_playing() && active_decoder == i ) {
+          char  name[64];
+
+          if( i != LIT_NONE )
+          {
+            lb_get_item( hwnd, LB_DECPLUG, i, name, sizeof( name ));
+
+            if( decoder_playing() && dec_is_active( name )) {
               amp_error( hwnd, "Cannot unload currently used decoder." );
             } else {
-              remove_decoder_plugin( &decoders[i] );
+              pg_remove_decoder( name );
               if( lb_remove_item( hwnd, LB_DECPLUG, i ) == 0 ) {
                 WinSendMsg( hwnd, CFG_REFRESH_INFO,
                             MPFROMLONG( PLUGIN_DECODER ), MPFROMSHORT( LIT_NONE ));
@@ -576,14 +631,11 @@ cfg_page4_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
   {
     case CFG_REFRESH_LIST:
     {
-      int i;
-
       if( LONGFROMMP(mp1) & PLUGIN_OUTPUT  )
       {
         lb_remove_all( hwnd, LB_OUTPLUG );
-        for( i = 0; i < num_outputs; i++ ) {
-          lb_add_item( hwnd, LB_OUTPLUG, outputs[i].module_name );
-        }
+        pg_expand_to ( hwnd, LB_OUTPLUG, PLUGIN_OUTPUT );
+
         if( lb_size( hwnd, LB_OUTPLUG )) {
           lb_select( hwnd, LB_OUTPLUG, 0 );
         } else {
@@ -595,9 +647,8 @@ cfg_page4_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
       if( LONGFROMMP(mp1) & PLUGIN_FILTER )
       {
         lb_remove_all( hwnd, LB_FILPLUG );
-        for( i = 0; i < num_filters; i++ ) {
-          lb_add_item( hwnd, LB_FILPLUG, filters[i].module_name );
-        }
+        pg_expand_to ( hwnd, LB_FILPLUG, PLUGIN_FILTER );
+
         if( lb_size( hwnd, LB_FILPLUG )) {
           lb_select( hwnd, LB_FILPLUG, 0 );
         } else {
@@ -611,44 +662,53 @@ cfg_page4_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
     case CFG_REFRESH_INFO:
     {
       SHORT i = SHORT1FROMMP(mp2);
-      char  buffer[256];
+
+      char buffer[256];
+      char name[64];
+      BOOL enabled;
+
+      PLUGIN_QUERYPARAM info;
 
       if( LONGFROMMP(mp1) & PLUGIN_OUTPUT )
       {
-        if( i == LIT_NONE ) {
+        if( i != LIT_NONE ) {
+          lb_get_item( hwnd, LB_OUTPLUG, i, name, sizeof( name ));
+          pg_get_info( name, PLUGIN_OUTPUT, &info );
+          snprintf( buffer, sizeof( buffer ), "Author: %s", info.author );
+          WinSetDlgItemText( hwnd, ST_OUT_AUTHOR, buffer );
+          snprintf( buffer, sizeof( buffer ), "Desc: %s", info.desc );
+          WinSetDlgItemText( hwnd, ST_OUT_DESC, buffer );
+          WinEnableControl ( hwnd, PB_OUT_UNLOAD, TRUE );
+          WinEnableControl ( hwnd, PB_OUT_ACTIVATE, !out_is_active( name ));
+          WinEnableControl ( hwnd, PB_OUT_CONFIG, info.configurable );
+        } else {
           WinSetDlgItemText( hwnd, ST_OUT_AUTHOR, "Author: <none>" );
           WinSetDlgItemText( hwnd, ST_OUT_DESC, "Desc: <none>" );
           WinEnableControl ( hwnd, PB_OUT_CONFIG, FALSE );
           WinEnableControl ( hwnd, PB_OUT_ACTIVATE, FALSE );
           WinEnableControl ( hwnd, PB_OUT_UNLOAD, FALSE );
-        } else {
-          sprintf( buffer, "Author: %s", outputs[i].query_param.author );
-          WinSetDlgItemText( hwnd, ST_OUT_AUTHOR, buffer );
-          sprintf( buffer, "Desc: %s", outputs[i].query_param.desc );
-          WinSetDlgItemText( hwnd, ST_OUT_DESC, buffer );
-          WinEnableControl ( hwnd, PB_OUT_UNLOAD, TRUE );
-          WinEnableControl ( hwnd, PB_OUT_ACTIVATE, active_output != i );
-          WinEnableControl ( hwnd, PB_OUT_CONFIG, outputs[i].query_param.configurable );
         }
       }
       if( LONGFROMMP(mp1) & PLUGIN_FILTER ) {
-        if( i == LIT_NONE ) {
+        if( i != LIT_NONE ) {
+          lb_get_item( hwnd, LB_FILPLUG, i, name, sizeof( name ));
+          pg_get_info( name, PLUGIN_FILTER, &info );
+          enabled = pg_is_enabled( name, PLUGIN_FILTER );
+          snprintf( buffer, sizeof( buffer ), "Author: %s", info.author );
+          WinSetDlgItemText( hwnd, ST_FIL_AUTHOR, buffer );
+          snprintf( buffer, sizeof( buffer ), "Desc: %s", info.desc );
+          WinSetDlgItemText( hwnd, ST_FIL_DESC, buffer );
+          WinSetDlgItemText( hwnd, PB_FIL_ENABLE, enabled ? "Disabl~e" : "~Enable" );
+          WinEnableControl ( hwnd, PB_FIL_ENABLE, TRUE );
+          WinEnableControl ( hwnd, PB_FIL_UNLOAD, TRUE );
+          WinEnableControl ( hwnd, PB_FIL_CONFIG, info.configurable && enabled );
+        } else {
           WinSetDlgItemText( hwnd, ST_FIL_AUTHOR, "Author: <none>" );
           WinSetDlgItemText( hwnd, ST_FIL_DESC, "Desc: <none>" );
           WinSetDlgItemText( hwnd, PB_FIL_ENABLE, "~Enable" );
           WinEnableControl ( hwnd, PB_FIL_CONFIG, FALSE );
           WinEnableControl ( hwnd, PB_FIL_ENABLE, FALSE );
           WinEnableControl ( hwnd, PB_FIL_UNLOAD, FALSE );
-        } else {
-          sprintf( buffer, "Author: %s", filters[i].query_param.author );
-          WinSetDlgItemText( hwnd, ST_FIL_AUTHOR, buffer );
-          sprintf( buffer, "Desc: %s", filters[i].query_param.desc );
-          WinSetDlgItemText( hwnd, ST_FIL_DESC, buffer );
-          WinSetDlgItemText( hwnd, PB_FIL_ENABLE, filters[i].enabled ? "Disabl~e" : "~Enable" );
-          WinEnableControl ( hwnd, PB_FIL_ENABLE, TRUE );
-          WinEnableControl ( hwnd, PB_FIL_UNLOAD, TRUE );
-          WinEnableControl ( hwnd, PB_FIL_CONFIG, filters[i].query_param.configurable &&
-                                                  filters[i].enabled );
         }
       }
       return 0;
@@ -684,8 +744,11 @@ cfg_page4_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
         case PB_OUT_CONFIG:
         {
           SHORT i = lb_cursored( hwnd, LB_OUTPLUG );
+          char  name[64];
+
           if( i != LIT_NONE ) {
-            outputs[i].plugin_configure( hwnd, outputs[i].module );
+            lb_get_item ( hwnd, LB_OUTPLUG, i, name, sizeof( name ));
+            pg_configure( name, PLUGIN_OUTPUT, hwnd );
           }
           return 0;
         }
@@ -693,12 +756,16 @@ cfg_page4_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
         case PB_OUT_ACTIVATE:
         {
           SHORT i = lb_cursored( hwnd, LB_OUTPLUG );
+          char  name[64];
 
-          if( i != LIT_NONE ) {
+          if( i != LIT_NONE )
+          {
+            lb_get_item( hwnd, LB_OUTPLUG, i, name, sizeof( name ));
+
             if( decoder_playing()) {
               amp_error( hwnd, "Cannot change active output while playing." );
             } else {
-              out_set_active( i );
+              out_set_active( name );
               WinSendMsg( hwnd, CFG_REFRESH_INFO,
                           MPFROMLONG( PLUGIN_OUTPUT ), MPFROMSHORT( i ));
             }
@@ -709,12 +776,16 @@ cfg_page4_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
         case PB_OUT_UNLOAD:
         {
           SHORT i = lb_cursored( hwnd, LB_OUTPLUG );
+          char  name[64];
 
-          if( i != LIT_NONE ) {
-            if( decoder_playing() && active_output == i ) {
+          if( i != LIT_NONE )
+          {
+            lb_get_item( hwnd, LB_OUTPLUG, i, name, sizeof( name ));
+
+            if( decoder_playing() && out_is_active( name )) {
               amp_error( hwnd, "Cannot unload currently used output." );
             } else {
-              remove_output_plugin( &outputs[i] );
+              pg_remove_output( name );
               if( lb_remove_item( hwnd, LB_OUTPLUG, i ) == 0 ) {
                 WinSendMsg( hwnd, CFG_REFRESH_INFO,
                             MPFROMLONG( PLUGIN_OUTPUT ), MPFROMSHORT( LIT_NONE ));
@@ -733,8 +804,11 @@ cfg_page4_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
         case PB_FIL_CONFIG:
         {
           SHORT i = lb_cursored( hwnd, LB_FILPLUG );
+          char  name[64];
+
           if( i != LIT_NONE ) {
-            filters[i].plugin_configure( hwnd, filters[i].module );
+            lb_get_item ( hwnd, LB_FILPLUG, i, name, sizeof( name ));
+            pg_configure( name, PLUGIN_FILTER, hwnd );
           }
           return 0;
         }
@@ -742,15 +816,19 @@ cfg_page4_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
         case PB_FIL_ENABLE:
         {
           SHORT i = lb_cursored( hwnd, LB_FILPLUG );
+          char  name[64];
 
-          if( i != LIT_NONE ) {
-            if( !filters[i].enabled ) {
-              filters[i].enabled = TRUE;
+          if( i != LIT_NONE )
+          {
+            lb_get_item( hwnd, LB_FILPLUG, i, name, sizeof( name ));
+
+            if( !pg_is_enabled( name, PLUGIN_FILTER )) {
+              pg_enable( name, PLUGIN_FILTER, TRUE  );
               if( decoder_playing()) {
                 amp_info( hwnd, "This filter will only be enabled after playback of the current file." );
               }
             } else {
-              filters[i].enabled = FALSE;
+              pg_enable( name, PLUGIN_FILTER, FALSE );
               if( decoder_playing()) {
                 amp_info( hwnd, "This filter will only be disabled after playback of the current file." );
               }
@@ -764,12 +842,16 @@ cfg_page4_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
         case PB_FIL_UNLOAD:
         {
           SHORT i = lb_cursored( hwnd, LB_FILPLUG );
+          char  name[64];
 
-          if( i != LIT_NONE ) {
+          if( i != LIT_NONE )
+          {
+            lb_get_item( hwnd, LB_FILPLUG, i, name, sizeof( name ));
+
             if( decoder_playing()) {
               amp_error( hwnd, "Cannot unload currently used filter." );
             } else {
-              remove_filter_plugin( &filters[i] );
+              pg_remove_filter( name );
               if( lb_remove_item( hwnd, LB_FILPLUG, i ) == 0 ) {
                 WinSendMsg( hwnd, CFG_REFRESH_INFO,
                             MPFROMLONG( PLUGIN_FILTER ), MPFROMSHORT( LIT_NONE ));
@@ -849,52 +931,10 @@ cfg_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
       return 0;
 
     case WM_WINDOWPOSCHANGED:
-    {
-      PSWP pswp = (PSWP)mp1;
-
-      if( pswp[0].fl & SWP_SIZE )
-      {
-        SWP  swps[3];
-        HWND hbtn[3];
-
-        LONG   ibtn = sizeof(hbtn)/sizeof(HWND)-1;
-        HWND   book = WinWindowFromID( hwnd, NB_CONFIG );
-        LONG   i;
-        RECTL  rect;
-        POINTL pos[2];
-
-        hbtn[0] = WinWindowFromID( hwnd, PB_UNDO    );
-        hbtn[1] = WinWindowFromID( hwnd, PB_DEFAULT );
-        hbtn[3] = WinWindowFromID( hwnd, PB_HELP    );
-
-        // Resizes notebook window.
-        if( WinQueryWindowRect( hwnd, &rect ))
-        {
-          WinCalcFrameRect( hwnd, &rect, TRUE );
-          pos[0].x = rect.xLeft;
-          pos[0].y = rect.yBottom;
-          pos[1].x = rect.xRight;
-          pos[1].y = rect.yTop;
-          WinMapDlgPoints( hwnd, pos, 2, FALSE );
-          pos[0].y += 20;
-          WinMapDlgPoints( hwnd, pos, 2, TRUE  );
-          WinSetWindowPos( book, 0, pos[0].x, pos[0].y,
-                           pos[1].x-pos[0].x, pos[1].y-pos[0].y, SWP_MOVE | SWP_SIZE );
-        }
-
-        // Centers notebook buttons.
-        if( WinQueryWindowPos( hbtn[   0], &swps[   0]) &&
-            WinQueryWindowPos( hbtn[ibtn], &swps[ibtn]))
-        {
-          LONG move = (pswp[0].cx - (swps[ibtn].x + swps[ibtn].cx - swps[0].x))/2 - swps[0].x;
-
-          for( i = 0; i <= ibtn; i++ )
-            if( WinQueryWindowPos( hbtn[i], &swps[i] ))
-              WinSetWindowPos( hbtn[i], 0, swps[i].x + move, swps[i].y, 0, 0, SWP_MOVE );
-        }
+      if(((PSWP)mp1)[0].fl & SWP_SIZE ) {
+        nb_adjust( hwnd );
       }
       break;
-    }
   }
   return WinDefDlgProc( hwnd, msg, mp1, mp2 );
 }
@@ -905,16 +945,11 @@ cfg_properties( HWND owner )
 {
   HWND hwnd;
   HWND book;
-  HWND page01;
-  HWND page02;
-  HWND page03;
-  HWND page04;
-  HWND page05;
 
   MRESULT id;
   char built[512];
 
-  hwnd = WinLoadDlg( HWND_DESKTOP, owner, cfg_dlg_proc, NULLHANDLE, DLG_CONFIG, 0 );
+  hwnd = WinLoadDlg( HWND_DESKTOP, owner, cfg_dlg_proc, hmodule, DLG_CONFIG, 0 );
   do_warpsans( hwnd );
   book = WinWindowFromID( hwnd, NB_CONFIG );
   do_warpsans( book );
@@ -924,7 +959,7 @@ cfg_properties( HWND owner )
   WinSendMsg( book, BKM_SETNOTEBOOKCOLORS, MPFROMLONG ( SYSCLR_FIELDBACKGROUND ),
                                            MPFROMSHORT( BKA_BACKGROUNDPAGECOLORINDEX ));
 
-  page01 = WinLoadDlg( book, book, cfg_page1_dlg_proc, NULLHANDLE, CFG_PAGE1, 0 );
+  page01 = WinLoadDlg( book, book, cfg_page1_dlg_proc, hmodule, CFG_PAGE1, 0 );
 
   do_warpsans( page01 );
   do_warpsans( WinWindowFromID( page01, ST_PROXY_HOST ));
@@ -933,6 +968,7 @@ cfg_properties( HWND owner )
   do_warpsans( WinWindowFromID( page01, ST_PROXY_PASS ));
   do_warpsans( WinWindowFromID( page01, ST_PIXELS     ));
   do_warpsans( WinWindowFromID( page01, ST_BUFFERSIZE ));
+  do_warpsans( WinWindowFromID( page01, ST_FILLBUFFER ));
 
   id = WinSendMsg( book, BKM_INSERTPAGE, 0,
                    MPFROM2SHORT( BKA_AUTOPAGESIZE | BKA_MAJOR | BKA_STATUSTEXTON, BKA_FIRST ));
@@ -940,7 +976,7 @@ cfg_properties( HWND owner )
   WinSendMsg( book, BKM_SETPAGEWINDOWHWND, MPFROMLONG( id ), MPFROMLONG( page01 ));
   WinSendMsg( book, BKM_SETTABTEXT, MPFROMLONG( id ), MPFROMP( "~Settings" ));
 
-  page02 = WinLoadDlg( book, book, cfg_page2_dlg_proc, NULLHANDLE, CFG_PAGE2, 0 );
+  page02 = WinLoadDlg( book, book, cfg_page2_dlg_proc, hmodule, CFG_PAGE2, 0 );
 
   do_warpsans( page02 );
   do_warpsans( WinWindowFromID( page02, ST_CHARSET    ));
@@ -951,7 +987,7 @@ cfg_properties( HWND owner )
   WinSendMsg( book, BKM_SETPAGEWINDOWHWND, MPFROMLONG( id ), MPFROMLONG( page02 ));
   WinSendMsg( book, BKM_SETTABTEXT, MPFROMLONG( id ), MPFROMP( "~Display" ));
 
-  page03 = WinLoadDlg( book, book, cfg_page3_dlg_proc, NULLHANDLE, CFG_PAGE3, 0 );
+  page03 = WinLoadDlg( book, book, cfg_page3_dlg_proc, hmodule, CFG_PAGE3, 0 );
 
   do_warpsans( page03 );
   do_warpsans( WinWindowFromID( page03, ST_VIS_AUTHOR ));
@@ -966,7 +1002,7 @@ cfg_properties( HWND owner )
   WinSendMsg( book, BKM_SETTABTEXT, MPFROMLONG( id ), MPFROMP( "~Plug-Ins" ));
   WinSendMsg( book, BKM_SETSTATUSLINETEXT, MPFROMLONG( id ), MPFROMP( "Page 1 of 2" ));
 
-  page04 = WinLoadDlg( book, book, cfg_page4_dlg_proc, NULLHANDLE, CFG_PAGE4, 0 );
+  page04 = WinLoadDlg( book, book, cfg_page4_dlg_proc, hmodule, CFG_PAGE4, 0 );
 
   do_warpsans( page04 );
   do_warpsans( WinWindowFromID( page04, ST_FIL_AUTHOR ));
@@ -974,7 +1010,7 @@ cfg_properties( HWND owner )
   do_warpsans( WinWindowFromID( page04, ST_OUT_AUTHOR ));
   do_warpsans( WinWindowFromID( page04, ST_OUT_DESC   ));
 
-  page05 = WinLoadDlg( book, book, cfg_page5_dlg_proc, NULLHANDLE, CFG_ABOUT, 0 );
+  page05 = WinLoadDlg( book, book, cfg_page5_dlg_proc, hmodule, CFG_ABOUT, 0 );
 
   do_warpsans( page05 );
   do_warpsans( WinWindowFromID( page05, ST_TITLE2 ));
@@ -983,20 +1019,21 @@ cfg_properties( HWND owner )
   #if defined(__IBMC__)
     sprintf( built, "(built %s", __DATE__ );
     #if __IBMC__ <= 300
-      strcat( built, " using IBM VisualAge C++ 3.08" );
+      strcat( built, " using IBM VisualAge C++ 3.08)" );
     #else
-      strcat( built, " using IBM VisualAge C++ 3.6"  );
+      strcat( built, " using IBM VisualAge C++ 3.6)"  );
     #endif
-    strcat( built, ")" );
   #elif defined(__WATCOMC__)
     #if __WATCOMC__ < 1200
-      sprintf( built, "(built %s using Open Watcom C++ %d.%d",
+      sprintf( built, "(built %s using Open Watcom C++ %d.%d)",
                __DATE__, __WATCOMC__ / 100, __WATCOMC__ % 100 );
     #else
-      sprintf( built, "(built %s using Open Watcom C++ %d.%d",
+      sprintf( built, "(built %s using Open Watcom C++ %d.%d)",
                __DATE__, __WATCOMC__ / 100 - 11, __WATCOMC__ % 100 );
     #endif
-    strcat( built, ")" );
+  #elif defined(__GNUC__)
+    sprintf( built, "(built %s using GNU C++ %d.%d.%d)",
+             __DATE__, __GNUC__, __GNUC_MINOR__, __GNUC_PATCHLEVEL__ );
   #else
     *built = 0;
   #endif

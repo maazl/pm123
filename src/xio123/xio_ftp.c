@@ -367,6 +367,18 @@ ftp_size( XFILE* x )
   return size;
 }
 
+/* Lengthens or cuts off the file to the length specified by size.
+   You must open the file in a mode that permits writing. Adds null
+   characters when it lengthens the file. When cuts off the file, it
+   erases all data from the end of the shortened file to the end
+   of the original file. */
+static int
+ftp_truncate( XFILE* x, long size )
+{
+  errno = EINVAL;
+  return -1;
+}
+
 /* Cleanups the ftp protocol. */
 static void
 ftp_terminate( XFILE* x )
@@ -400,14 +412,15 @@ ftp_initialize( XFILE* x )
     protocol->supports =
       XS_CAN_READ | XS_CAN_SEEK | XS_USE_SPOS;
 
-    protocol->open  = ftp_open;
-    protocol->read  = ftp_read;
-    protocol->write = ftp_write;
-    protocol->close = ftp_close;
-    protocol->tell  = ftp_tell;
-    protocol->seek  = ftp_seek;
-    protocol->size  = ftp_size;
-    protocol->clean = ftp_terminate;
+    protocol->open   = ftp_open;
+    protocol->read   = ftp_read;
+    protocol->write  = ftp_write;
+    protocol->close  = ftp_close;
+    protocol->tell   = ftp_tell;
+    protocol->seek   = ftp_seek;
+    protocol->chsize = ftp_truncate;
+    protocol->size   = ftp_size;
+    protocol->clean  = ftp_terminate;
   }
 
   return protocol;

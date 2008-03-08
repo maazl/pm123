@@ -20,7 +20,7 @@ gbm123.dll: $(OBJECTS) $(DEF)
 	$(CL) $(LFLAGS) $(LFLAGS_OUT)$@ $(LOBJ_PREFX)$(OBJECTS)$(LOBJ_SUFFX) $(LDEF_PREFX)$(DEF)
 
 gbm123$(LBI): $(DEF)
-	$(LI) $@ gbm123.dll
+	$(LI) $(IFLAGS_OUT)$@ gbm123.dll
 
 gbm$(CO):     gbm.c gbm.h gbmhelp.h gbmpgm.h gbmppm.h gbmbmp.h gbmtga.h gbmkps.h gbmiax.h gbmpcx.h gbmtif.h gbmlbm.h gbmvid.h gbmgif.h gbmxbm.h gbmspr.h gbmpsg.h gbmgem.h gbmcvp.h gbmjpg.h
 gbmpgm$(CO):  gbmpgm.c gbm.h gbmhelp.h gbmdesc.h

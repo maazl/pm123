@@ -27,6 +27,8 @@
  */
 
 #define  INCL_WIN
+#define  INCL_DOS
+#define  INCL_ERRORS
 #include <os2.h>
 #include <stdlib.h>
 #include <memory.h>
@@ -41,6 +43,42 @@
 #define IS_DOCKABLE( data ) ( data->state & ( DK_IS_MASTER | DK_IS_DOCKED ))
 
 static DK_DATA head;
+static HMTX    mutex;
+
+/* Requests ownership of the docking data. */
+static BOOL
+dk_request( void )
+{
+  APIRET rc = DosRequestMutexSem( mutex, SEM_INDEFINITE_WAIT );
+
+  if( rc != NO_ERROR )
+  {
+    char error[1024];
+    amp_player_error( "Unable request the mutex semaphore.\n%s\n",
+                      os2_strerror( rc, error, sizeof( error )));
+    return FALSE;
+  } else {
+    return TRUE;
+  }
+}
+
+/* Relinquishes ownership of the docking data was
+   requested by dk_request(). */
+static BOOL
+dk_release( void )
+{
+  APIRET rc = DosReleaseMutexSem( mutex );
+
+  if( rc != NO_ERROR )
+  {
+    char error[1024];
+    amp_player_error( "Unable release the mutex semaphore.\n%s\n",
+                      os2_strerror( rc, error, sizeof( error )));
+    return FALSE;
+  } else {
+    return TRUE;
+  }
+}
 
 /** Returns a pointer to the data of specified window or NULL if
     the specified window is not a part of a this docking subsystem. */
@@ -57,24 +95,42 @@ dk_get_window( HWND hwnd )
   return NULL;
 }
 
+/** Returns a pointer to the data of specified window and requests
+    ownership of the docking data. Returns NULL if the specified
+    window is not a part of a this docking subsystem. */
+static DK_DATA*
+dk_request_window( HWND hwnd )
+{
+  DK_DATA* window;
+
+  dk_request();
+  if(( window = dk_get_window( hwnd )) == NULL ) {
+    dk_release();
+  }
+
+  return window;
+}
+
 /** Returns a state of the specified window. */
 int
 dk_get_state( HWND hwnd )
 {
-  DK_DATA* window = dk_get_window( hwnd );
+  DK_DATA* window = dk_request_window( hwnd );
+  int state = 0;
 
   if( window ) {
-    return window->state;
-  } else {
-    return 0;
+    state = window->state;
+    dk_release();
   }
+
+  return state;
 }
 
 /** Sets a state of the specified window. */
 void
 dk_set_state( HWND hwnd, int state )
 {
-  DK_DATA* window = dk_get_window( hwnd );
+  DK_DATA* window = dk_request_window( hwnd );
 
   if( window ) {
     if( state & DK_IS_GHOST ) {
@@ -82,6 +138,7 @@ dk_set_state( HWND hwnd, int state )
     } else {
       window->state &= ~DK_IS_GHOST;
     }
+    dk_release();
   }
 }
 
@@ -394,34 +451,71 @@ dk_move_window( DK_DATA* window, PSWP swp_new, LONG fl )
 static MRESULT EXPENTRY
 dk_win_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
 {
-  DK_DATA* window = dk_get_window( hwnd );
+  DK_DATA* window;
+  MRESULT  rc = 0;
 
   switch( msg ) {
     case WM_DESTROY:
-      if( window ) {
+      if(( window = dk_request_window( hwnd )) != NULL ) {
         window->def_proc( hwnd, msg, mp1, mp2 );
         dk_remove_window( hwnd );
+        dk_release();
       }
       return 0;
 
     case WM_ACTIVATE:
       if( mp1 && cfg.dock_windows ) {
-        dk_move_window( window, NULL, SWP_ZORDER );
+        if(( window = dk_request_window( hwnd )) != NULL ) {
+          dk_move_window( window, NULL, SWP_ZORDER );
+          dk_release();
+        }
       }
       break;
 
     case WM_DOCKWINDOW:
     {
-      DK_DATA* dock = dk_get_window((HWND)mp1);
+      DK_DATA* dock = dk_request_window((HWND)mp1);
+      window = dk_get_window( hwnd );
 
       if( dock ) {
-        if( mp2 ) {
-          dk_dock  ( window, dock );
-        } else {
-          dk_undock( window, dock );
+        if( window ) {
+          if( mp2 ) {
+            dk_dock  ( window, dock );
+          } else {
+            dk_undock( window, dock );
+          }
         }
+        dk_release();
       }
       return 0;
+    }
+
+    case WM_WINDOWPOSCHANGED:
+    {
+      PSWP swp = (PSWP)mp1;
+
+      if( cfg.dock_windows ) {
+        if(( window = dk_request_window( hwnd )) != NULL ) {
+          if( swp->fl & ( SWP_MAXIMIZE )) {
+            // Cleanups all relationships with this window.
+            while( window->childs_count ) {
+              dk_undock( window, window->childs[0] );
+            }
+            while( window->owners_count ) {
+              dk_undock( window->owners[0], window );
+            }
+          } else if( swp->fl & ( SWP_RESTORE )) {
+            dk_try_to_dock_window( window, swp );
+          } else if( swp->fl & ( SWP_SIZE )) {
+            if( IS_MASTER( window )) {
+              // Rebuilds all relationships with this window.
+              dk_arrange( hwnd );
+            }
+          }
+          dk_release();
+        }
+      }
+      break;
     }
 
     case WM_ADJUSTWINDOWPOS:
@@ -429,42 +523,46 @@ dk_win_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
       PSWP swp = (PSWP)mp1;
 
       if( cfg.dock_windows ) {
-        if( swp->fl & ( SWP_MOVE | SWP_SIZE )) {
-          dk_try_to_dock_window( window, swp );
-        }
-        if( IS_MASTER( window )) {
-          if( swp->fl & ( SWP_MOVE )) {
-            // Moves all windows docked to this master.
-            dk_move_window( window, swp, SWP_MOVE );
+        if(( window = dk_request_window( hwnd )) != NULL ) {
+          if( swp->fl & ( SWP_MOVE | SWP_SIZE )) {
+            dk_try_to_dock_window( window, swp );
           }
-          if( swp->fl & ( SWP_HIDE )) {
-            // Hides all windows docked to this master.
-            dk_move_window( window, swp, SWP_HIDE );
+          if( IS_MASTER( window )) {
+            if( swp->fl & ( SWP_MOVE )) {
+              // Moves all windows docked to this master.
+              dk_move_window( window, swp, SWP_MOVE );
+            }
+            if( swp->fl & ( SWP_HIDE )) {
+              // Hides all windows docked to this master.
+              dk_move_window( window, swp, SWP_HIDE );
+            }
+            if( swp->fl & ( SWP_SHOW ) && !WinIsWindowVisible( hwnd )) {
+              // Shows all windows docked to this master.
+              dk_move_window( window, swp, SWP_SHOW );
+            }
+          } else {
+            if( swp->fl & ( SWP_HIDE )) {
+              // Cleanups all relationships with this window.
+              dk_cleanup( hwnd );
+            }
+            if( swp->fl & ( SWP_SHOW )) {
+              // Rebuilds all relationships with this window.
+              dk_arrange( hwnd );
+            }
           }
-          if( swp->fl & ( SWP_SHOW ) && !WinIsWindowVisible( hwnd )) {
-            // Shows all windows docked to this master.
-            dk_move_window( window, swp, SWP_SHOW );
-          }
-        } else {
-          if( swp->fl & ( SWP_HIDE )) {
-            // Cleanups all relationships with this window.
-            dk_cleanup( hwnd );
-          }
-          if( swp->fl & ( SWP_SHOW )) {
-            // Rebuilds all relationships with this window
-            dk_arrange( hwnd );
-          }
+          dk_release();
         }
       }
       break;
     }
   }
 
-  if( window ) {
-    return window->def_proc( hwnd, msg, mp1, mp2 );
-  } else {
-    return 0;
+  if(( window = dk_request_window( hwnd )) != NULL ) {
+    rc = window->def_proc( hwnd, msg, mp1, mp2 );
+    dk_release();
   }
+
+  return rc;
 }
 
 /** Adds a specified window to the docking subsystem. */
@@ -472,25 +570,28 @@ BOOL
 dk_add_window( HWND hwnd, int state )
 {
   DK_DATA* node;
+  dk_request();
 
-  if( head.childs_count >= DK_MAX_DOCKED ) {
-    return FALSE;
+  if( head.childs_count < DK_MAX_DOCKED )
+  {
+    node = (DK_DATA*)malloc( sizeof( DK_DATA ));
+
+    if( !node ) {
+      dk_release();
+      amp_player_error( "Not enough memory." );
+      return FALSE;
+    }
+
+    memset( node, 0, sizeof( DK_DATA ));
+
+    node->hwnd     = hwnd;
+    node->state    = state & ( DK_IS_MASTER | DK_IS_GHOST );
+    node->def_proc = WinSubclassWindow( hwnd, dk_win_proc );
+
+    head.childs[ head.childs_count++ ] = node;
   }
 
-  node = (DK_DATA*)malloc( sizeof( DK_DATA ));
-
-  if( !node ) {
-    amp_player_error( "Not enough memory." );
-    return FALSE;
-  }
-
-  memset( node, 0, sizeof( DK_DATA ));
-
-  node->hwnd     = hwnd;
-  node->state    = state & ( DK_IS_MASTER | DK_IS_GHOST );
-  node->def_proc = WinSubclassWindow( hwnd, dk_win_proc );
-
-  head.childs[ head.childs_count++ ] = node;
+  dk_release();
   return TRUE;
 }
 
@@ -498,7 +599,7 @@ dk_add_window( HWND hwnd, int state )
 BOOL
 dk_remove_window( HWND hwnd )
 {
-  DK_DATA* window = dk_get_window( hwnd );
+  DK_DATA* window = dk_request_window( hwnd );
 
   if( window ) {
     while( window->childs_count ) {
@@ -512,22 +613,24 @@ dk_remove_window( HWND hwnd )
     WinSubclassWindow( window->hwnd, window->def_proc );
     free( window );
 
+    dk_release();
     return TRUE;
-  } else {
-    return FALSE;
   }
+
+  return FALSE;
 }
 
 /* Cleanups all relationships with the specified window. */
 void
 dk_cleanup( HWND hwnd )
 {
-  DK_DATA* window = dk_get_window( hwnd );
+  DK_DATA* window = dk_request_window( hwnd );
 
   if( window ) {
     while( window->childs_count ) {
       dk_undock( window, window->childs[0] );
     }
+    dk_release();
   }
 }
 
@@ -535,7 +638,7 @@ dk_cleanup( HWND hwnd )
 void
 dk_arrange( HWND hwnd )
 {
-  DK_DATA* window = dk_get_window( hwnd );
+  DK_DATA* window = dk_request_window( hwnd );
   HAB      hab    = WinQueryAnchorBlock( hwnd );
   int      i;
   SWP      swp;
@@ -577,18 +680,25 @@ dk_arrange( HWND hwnd )
   for( i = 0; i < window->childs_count; i++ ) {
     dk_arrange( window->childs[i]->hwnd );
   }
+
+  dk_release();
 }
 
 /** Initializes of the docking subsystem. */
 void
-dk_init()
-{}
+dk_init() {
+  DosCreateMutexSem( NULL, &mutex, 0, FALSE );
+}
 
 /** Terminates  of the docking subsystem. */
 void
 dk_term()
 {
+  dk_request();
   while( head.childs_count ) {
     dk_remove_window( head.childs[0]->hwnd );
   }
+
+  dk_release();
+  DosCloseMutexSem( mutex );
 }

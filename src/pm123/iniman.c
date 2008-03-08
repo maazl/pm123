@@ -57,6 +57,7 @@ factory_settings( void )
   strcpy( cfg.filedir,    "" ); // Directory for MPEG files.
   strcpy( cfg.listdir,    "" ); // Directory for playlists.
   strcpy( cfg.savedir,    "" ); // Directory used for saving a stream.
+  strcpy( cfg.plugdir,    "" ); // Directory used for loading a plug-in.
   strcpy( cfg.cddrive,    "" ); // Default CD drive.
   strcpy( cfg.defskin,    "" ); // Default skin.
   strcpy( cfg.proxy,      "" ); // No proxy.
@@ -73,6 +74,7 @@ factory_settings( void )
   cfg.trash         = TRUE;     // Flush buffers by default.
   cfg.buff_size     = 128;
   cfg.buff_wait     = FALSE;
+  cfg.buff_fill     = 30;
   cfg.shf           = FALSE;
   cfg.rpt           = FALSE;
   cfg.floatontop    = FALSE;
@@ -87,10 +89,14 @@ factory_settings( void )
   cfg.dock_margin   = 10;
   cfg.add_recursive = TRUE;
   cfg.save_relative = TRUE;
+  cfg.save_type     = 0;
   cfg.tags_charset  = CH_DEFAULT;
   cfg.font_skinned  = TRUE;
   cfg.font_size     = 2;
   cfg.proxy_port    = 0;
+  cfg.sbar_playlist = 180;
+  cfg.sbar_bmarks   = 180;
+  cfg.tags_choice   = 0;
 
   cfg.font_attrs.usRecordLength  = sizeof(FATTRS);
   cfg.font_attrs.lMaxBaselineExt = 12L;
@@ -143,8 +149,10 @@ load_ini( void )
     load_ini_value( INIhandle, cfg.viewmode );
     load_ini_value( INIhandle, cfg.buff_wait );
     load_ini_value( INIhandle, cfg.buff_size );
+    load_ini_value( INIhandle, cfg.buff_fill );
     load_ini_value( INIhandle, cfg.add_recursive );
     load_ini_value( INIhandle, cfg.save_relative );
+    load_ini_value( INIhandle, cfg.save_type );
     load_ini_value( INIhandle, cfg.eq_enabled );
     load_ini_value( INIhandle, cfg.show_playlist );
     load_ini_value( INIhandle, cfg.show_bmarks );
@@ -156,11 +164,15 @@ load_ini( void )
     load_ini_value( INIhandle, cfg.font_attrs );
     load_ini_value( INIhandle, cfg.font_size );
     load_ini_value( INIhandle, cfg.main );
+    load_ini_value( INIhandle, cfg.sbar_playlist );
+    load_ini_value( INIhandle, cfg.sbar_bmarks );
+    load_ini_value( INIhandle, cfg.tags_choice );
     load_ini_value( INIhandle, cfg.last );
     load_ini_value( INIhandle, cfg.list );
 
     load_ini_string( INIhandle, cfg.filedir, sizeof( cfg.filedir ));
     load_ini_string( INIhandle, cfg.listdir, sizeof( cfg.listdir ));
+    load_ini_string( INIhandle, cfg.plugdir, sizeof( cfg.plugdir ));
     load_ini_string( INIhandle, cfg.savedir, sizeof( cfg.savedir ));
     load_ini_string( INIhandle, cfg.cddrive, sizeof( cfg.cddrive ));
     load_ini_string( INIhandle, cfg.proxy,   sizeof( cfg.proxy   ));
@@ -176,13 +188,13 @@ load_ini( void )
     {
       load_ini_data( INIhandle, decoders_list, size );
       b = open_bufstream( decoders_list, size );
-      if( !load_decoders( b )) {
-        load_default_decoders();
+      if( !pg_load_decoders( b )) {
+        pg_load_default_decoders();
       }
       close_bufstream( b );
       free( decoders_list );
     } else {
-      load_default_decoders();
+      pg_load_default_decoders();
     }
 
     load_ini_data_size( INIhandle, outputs_list, size );
@@ -190,13 +202,13 @@ load_ini( void )
     {
       load_ini_data( INIhandle, outputs_list, size );
       b = open_bufstream( outputs_list, size );
-      if( !load_outputs( b )) {
-        load_default_outputs();
+      if( !pg_load_outputs( b )) {
+        pg_load_default_outputs();
       }
       close_bufstream( b );
       free( outputs_list );
     } else {
-      load_default_outputs();
+      pg_load_default_outputs();
     }
 
     load_ini_data_size( INIhandle, filters_list, size );
@@ -204,13 +216,13 @@ load_ini( void )
     {
       load_ini_data( INIhandle, filters_list, size );
       b = open_bufstream( filters_list, size );
-      if( !load_filters( b )) {
-        load_default_filters();
+      if( !pg_load_filters( b )) {
+        pg_load_default_filters();
       }
       close_bufstream( b );
       free( filters_list );
     } else {
-      load_default_filters();
+      pg_load_default_filters();
     }
 
     load_ini_data_size( INIhandle, visuals_list, size );
@@ -218,13 +230,13 @@ load_ini( void )
     {
       load_ini_data( INIhandle, visuals_list, size );
       b = open_bufstream( visuals_list, size );
-      if( !load_visuals( b )) {
-        load_default_visuals();
+      if( !pg_load_visuals( b )) {
+        pg_load_default_visuals();
       }
       close_bufstream( b );
       free( visuals_list );
     } else {
-      load_default_visuals();
+      pg_load_default_visuals();
     }
 
     // Loading equalizer.
@@ -237,9 +249,7 @@ load_ini( void )
     }
 
     preamp = 1.0;
-
     load_ini_string( INIhandle, cfg.lasteq, sizeof( cfg.lasteq ));
-    amp_load_eq_file( cfg.lasteq, gains, mutes, &preamp );
 
     close_ini( INIhandle );
   }
@@ -274,8 +284,10 @@ save_ini( void )
     save_ini_value( INIhandle, cfg.viewmode );
     save_ini_value( INIhandle, cfg.buff_wait );
     save_ini_value( INIhandle, cfg.buff_size );
+    save_ini_value( INIhandle, cfg.buff_fill );
     save_ini_value( INIhandle, cfg.add_recursive );
     save_ini_value( INIhandle, cfg.save_relative );
+    save_ini_value( INIhandle, cfg.save_type );
     save_ini_value( INIhandle, cfg.eq_enabled );
     save_ini_value( INIhandle, cfg.show_playlist );
     save_ini_value( INIhandle, cfg.show_bmarks );
@@ -287,6 +299,9 @@ save_ini( void )
     save_ini_value( INIhandle, cfg.font_attrs );
     save_ini_value( INIhandle, cfg.font_size );
     save_ini_value( INIhandle, cfg.main );
+    save_ini_value( INIhandle, cfg.sbar_playlist );
+    save_ini_value( INIhandle, cfg.sbar_bmarks );
+    save_ini_value( INIhandle, cfg.tags_choice );
     save_ini_value( INIhandle, cfg.last );
     save_ini_value( INIhandle, cfg.list );
 
@@ -297,6 +312,7 @@ save_ini( void )
     save_ini_string( INIhandle, cfg.filedir );
     save_ini_string( INIhandle, cfg.listdir );
     save_ini_string( INIhandle, cfg.savedir );
+    save_ini_string( INIhandle, cfg.plugdir );
     save_ini_string( INIhandle, cfg.cddrive );
     save_ini_string( INIhandle, cfg.proxy   );
     save_ini_string( INIhandle, cfg.auth    );
@@ -304,25 +320,25 @@ save_ini( void )
     save_ini_string( INIhandle, cfg.lasteq  );
 
     b = create_bufstream( 1024 );
-    save_decoders( b );
+    pg_save_decoders( b );
     size = get_buffer_bufstream( b, &decoders_list );
     save_ini_data( INIhandle, decoders_list, size );
     close_bufstream( b );
 
     b = create_bufstream( 1024 );
-    save_outputs( b );
+    pg_save_outputs( b );
     size = get_buffer_bufstream( b, &outputs_list );
     save_ini_data( INIhandle, outputs_list, size );
     close_bufstream( b );
 
     b = create_bufstream( 1024 );
-    save_filters( b );
+    pg_save_filters( b );
     size = get_buffer_bufstream( b, &filters_list );
     save_ini_data( INIhandle, filters_list, size );
     close_bufstream( b );
 
     b = create_bufstream( 1024 );
-    save_visuals( b );
+    pg_save_visuals( b );
     size = get_buffer_bufstream( b, &visuals_list );
     save_ini_data( INIhandle, visuals_list, size );
     close_bufstream( b );

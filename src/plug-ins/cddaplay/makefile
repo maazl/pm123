@@ -16,11 +16,11 @@ RESOURCE = cddaplay$(RES)
 all: cddaplay.dll cddaplay$(LBI) $(MDUMMY)
 
 cddaplay.dll: $(OBJECTS) $(DEF) $(RESOURCE)
-  $(CL) $(LFLAGS) $(LFLAGS_OUT)$@ $(LOBJ_PREFX)$(OBJECTS) $(LIBS)$(LOBJ_SUFFX) $(LDEF_PREFX)$(DEF)
+  $(CL) $(LFLAGS) $(LFLAGS_OUT)$@ $(LOBJ_PREFX)$(OBJECTS)$(LOBJ_SUFFX) $(LLIB_PREFX)$(LIBS)$(LLIB_SUFFX) $(LDEF_PREFX)$(DEF)
   $(RC) $(RFLAGS) $(RESOURCE) $@ > nul
 
 cddaplay$(LBI): $(DEF)
-  $(LI) $@ cddaplay.dll
+  $(LI) $(IFLAGS_OUT)$@ cddaplay.dll
 
 cddb$(CO):     cddb.c   cddb.h
 readcd$(CO):   readcd.c readcd.h

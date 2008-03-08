@@ -47,12 +47,16 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 
-#include "gbm.h"
-#include "gbmerr.h"
-#include "gbmht.h"
+#include <gbm.h>
+#include <gbmerr.h>
+#include <gbmht.h>
+
 #include "skin.h"
 #include "pm123.h"
 #include "plugman.h"
+#include "playlist.h"
+#include "pfreq.h"
+#include "bookmark.h"
 #include "button95.h"
 
 HBITMAP bmp_cache[8000];
@@ -231,6 +235,27 @@ typedef struct _BUNDLEHDR
   ULONG length;
 
 } BUNDLEHDR;
+
+/* Converts time to two integer suitable for display by the timer. */
+void
+sec2num( long seconds, int* major, int* minor )
+{
+  int mi = seconds % 60;
+  int ma = seconds / 60;
+
+  if( ma > 99 ) {
+    mi = ma % 60; // minutes
+    ma = ma / 60; // hours
+  }
+
+  if( ma > 99 ) {
+    mi = ma % 24; // hours
+    ma = ma / 24; // days
+  }
+
+  *major = ma;
+  *minor = mi;
+}
 
 /* Reads a bitmap file data into memory. */
 static BOOL
@@ -430,10 +455,25 @@ bmp_draw_background( HPS hps, HWND hwnd )
                          bmp_ulong[ UL_SHADE_BRIGHT ]  );
   }
 
-  if( cfg.mode != CFG_MODE_TINY && bmp_ulong[ UL_SHADE_STAT ] )
+  if( cfg.mode == CFG_MODE_REGULAR && bmp_ulong[ UL_SHADE_STAT ] )
   {
     rcl.yBottom += 36;
     rcl.xLeft   += 26;
+    rcl.xRight  -=  6;
+    rcl.yTop    -=  6;
+
+    bmp_draw_shade( hps, rcl.xLeft,
+                         rcl.yBottom,
+                         rcl.xRight - rcl.xLeft   - 1,
+                         rcl.yTop   - rcl.yBottom - 1,
+                         bmp_ulong[ UL_SHADE_DARK   ],
+                         bmp_ulong[ UL_SHADE_BRIGHT ]  );
+  }
+
+  if( cfg.mode == CFG_MODE_SMALL && bmp_ulong[ UL_SHADE_STAT ] )
+  {
+    rcl.yBottom += 36;
+    rcl.xLeft   +=  6;
     rcl.xRight  -=  6;
     rcl.yTop    -=  6;
 
@@ -705,7 +745,10 @@ bmp_draw_text( HPS hps )
     return;
   }
 
-  GpiQueryBitmapDimension( s_bitmap, &size );
+  if( !GpiQueryBitmapDimension( s_bitmap, &size )) {
+    return;
+  }
+
   bmp_draw_part_bg_to( s_buffer, 0, 0, size.cx, size.cy,
                        rect.xLeft, rect.yBottom );
 
@@ -808,7 +851,7 @@ bmp_create_text_buffer( void )
 void
 bmp_set_text( const char* string )
 {
-  if( string ) {
+  if( string && string != s_display ) {
     strlcpy( s_display, string, sizeof( s_display ));
   }
 
@@ -1299,7 +1342,7 @@ bmp_draw_plind( HPS hps, int index, int total )
                              x + bmp_cx( DIG_PL_INDEX ) * 3,
                              y + bmp_cy( DIG_PL_INDEX ));
 
-      if( amp_playmode == AMP_PLAYLIST )
+      if( amp_playmode == AMP_PLAYLIST && index > 0 )
       {
         sprintf( buf, "%3u", index );
         x += bmp_cx( DIG_PL_INDEX ) * 2;
@@ -1360,13 +1403,9 @@ bmp_draw_plind( HPS hps, int index, int total )
 void
 bmp_draw_slider( HPS hps, int played, int total )
 {
-  int pos = 0;
-
   if( cfg.mode == CFG_MODE_REGULAR )
   {
-    if( total > 0 ) {
-      pos = (((float)played / (float)total ) * bmp_ulong[UL_SLIDER_WIDTH] );
-    }
+    int pos = (((float)played / (float)total ) * bmp_ulong[UL_SLIDER_WIDTH] );
 
     if( pos < 0 ) {
         pos = 0;
@@ -1390,8 +1429,10 @@ bmp_draw_slider( HPS hps, int played, int total )
                              bmp_pos[ POS_SLIDER ].y + bmp_cy( BMP_SLIDER ) - 1 );
     }
 
-    bmp_draw_bitmap( hps, bmp_pos[ POS_SLIDER ].x + pos,
-                          bmp_pos[ POS_SLIDER ].y, BMP_SLIDER );
+    if( total > 0 ) {
+      bmp_draw_bitmap( hps, bmp_pos[ POS_SLIDER ].x + pos,
+                            bmp_pos[ POS_SLIDER ].y, BMP_SLIDER );
+    }
   }
 }
 
@@ -1435,7 +1476,6 @@ bmp_pt_in_slider( POINTL pos )
     return FALSE;
   }
 }
-
 
 /* Draws the time left and playlist left labels. */
 void
@@ -1484,7 +1524,7 @@ bmp_load_default( HPS hps, int id )
 {
   if( bmp_cache[ id ] == 0 )
   {
-    HBITMAP hbitmap = GpiLoadBitmap( hps, NULLHANDLE, id, 0, 0 );
+    HBITMAP hbitmap = GpiLoadBitmap( hps, hmodule, id, 0, 0 );
 
     if( hbitmap != GPI_ERROR ) {
       bmp_cache[ id ] = hbitmap;
@@ -1577,20 +1617,20 @@ bmp_init_skin_positions( void )
 {
   bmp_pos[ POS_TIMER       ].x =       228; bmp_pos[ POS_TIMER       ].y =        48;
   bmp_pos[ POS_R_SIZE      ].x =       300; bmp_pos[ POS_R_SIZE      ].y =       110;
-  bmp_pos[ POS_R_PLAY      ].x =         6; bmp_pos[ POS_R_PLAY      ].y =         7;
-  bmp_pos[ POS_R_PAUSE     ].x =        29; bmp_pos[ POS_R_PAUSE     ].y =         7;
-  bmp_pos[ POS_R_REW       ].x =        52; bmp_pos[ POS_R_REW       ].y =         7;
-  bmp_pos[ POS_R_FWD       ].x =        75; bmp_pos[ POS_R_FWD       ].y =         7;
-  bmp_pos[ POS_R_PL        ].x =       108; bmp_pos[ POS_R_PL        ].y =         7;
-  bmp_pos[ POS_R_REPEAT    ].x =       165; bmp_pos[ POS_R_REPEAT    ].y =         7;
-  bmp_pos[ POS_R_SHUFFLE   ].x =       188; bmp_pos[ POS_R_SHUFFLE   ].y =         7;
-  bmp_pos[ POS_R_PREV      ].x =       211; bmp_pos[ POS_R_PREV      ].y =         7;
-  bmp_pos[ POS_R_NEXT      ].x =       234; bmp_pos[ POS_R_NEXT      ].y =         7;
-  bmp_pos[ POS_R_POWER     ].x =       270; bmp_pos[ POS_R_POWER     ].y =         7;
+  bmp_pos[ POS_R_PLAY      ].x =         6; bmp_pos[ POS_R_PLAY      ].y =         8;
+  bmp_pos[ POS_R_PAUSE     ].x =        29; bmp_pos[ POS_R_PAUSE     ].y =         8;
+  bmp_pos[ POS_R_REW       ].x =        52; bmp_pos[ POS_R_REW       ].y =         8;
+  bmp_pos[ POS_R_FWD       ].x =        75; bmp_pos[ POS_R_FWD       ].y =         8;
+  bmp_pos[ POS_R_PL        ].x =       108; bmp_pos[ POS_R_PL        ].y =         8;
+  bmp_pos[ POS_R_REPEAT    ].x =       165; bmp_pos[ POS_R_REPEAT    ].y =         8;
+  bmp_pos[ POS_R_SHUFFLE   ].x =       188; bmp_pos[ POS_R_SHUFFLE   ].y =         8;
+  bmp_pos[ POS_R_PREV      ].x =       211; bmp_pos[ POS_R_PREV      ].y =         8;
+  bmp_pos[ POS_R_NEXT      ].x =       234; bmp_pos[ POS_R_NEXT      ].y =         8;
+  bmp_pos[ POS_R_POWER     ].x =       270; bmp_pos[ POS_R_POWER     ].y =         8;
   bmp_pos[ POS_R_STOP      ].x = POS_UNDEF; bmp_pos[ POS_R_STOP      ].y = POS_UNDEF;
   bmp_pos[ POS_R_FLOAD     ].x = POS_UNDEF; bmp_pos[ POS_R_FLOAD     ].y = POS_UNDEF;
   bmp_pos[ POS_R_TEXT      ].x =        32; bmp_pos[ POS_R_TEXT      ].y =        84;
-  bmp_pos[ POS_S_TEXT      ].x =        32; bmp_pos[ POS_S_TEXT      ].y =        41;
+  bmp_pos[ POS_S_TEXT      ].x =        10; bmp_pos[ POS_S_TEXT      ].y =        41;
   bmp_pos[ POS_NOTL        ].x =       178; bmp_pos[ POS_NOTL        ].y =        62;
   bmp_pos[ POS_TL          ].x =       178; bmp_pos[ POS_TL          ].y =        62;
   bmp_pos[ POS_NOPLIST     ].x =       178; bmp_pos[ POS_NOPLIST     ].y =        47;
@@ -1608,28 +1648,28 @@ bmp_init_skin_positions( void )
   bmp_pos[ POS_BPS         ].x =       259; bmp_pos[ POS_BPS         ].y =        72;
   bmp_pos[ POS_S_SIZE      ].x = POS_UNDEF; bmp_pos[ POS_S_SIZE      ].y = POS_UNDEF;
   bmp_pos[ POS_T_SIZE      ].x = POS_UNDEF; bmp_pos[ POS_T_SIZE      ].y = POS_UNDEF;
-  bmp_pos[ POS_S_PLAY      ].x =         6; bmp_pos[ POS_S_PLAY      ].y =         7;
-  bmp_pos[ POS_S_PAUSE     ].x =        29; bmp_pos[ POS_S_PAUSE     ].y =         7;
-  bmp_pos[ POS_S_REW       ].x =        52; bmp_pos[ POS_S_REW       ].y =         7;
-  bmp_pos[ POS_S_FWD       ].x =        75; bmp_pos[ POS_S_FWD       ].y =         7;
-  bmp_pos[ POS_S_PL        ].x =       108; bmp_pos[ POS_S_PL        ].y =         7;
-  bmp_pos[ POS_S_REPEAT    ].x =       165; bmp_pos[ POS_S_REPEAT    ].y =         7;
-  bmp_pos[ POS_S_SHUFFLE   ].x =       188; bmp_pos[ POS_S_SHUFFLE   ].y =         7;
-  bmp_pos[ POS_S_PREV      ].x =       211; bmp_pos[ POS_S_PREV      ].y =         7;
-  bmp_pos[ POS_S_NEXT      ].x =       234; bmp_pos[ POS_S_NEXT      ].y =         7;
-  bmp_pos[ POS_S_POWER     ].x =       270; bmp_pos[ POS_S_POWER     ].y =         7;
+  bmp_pos[ POS_S_PLAY      ].x =         6; bmp_pos[ POS_S_PLAY      ].y =         8;
+  bmp_pos[ POS_S_PAUSE     ].x =        29; bmp_pos[ POS_S_PAUSE     ].y =         8;
+  bmp_pos[ POS_S_REW       ].x =        52; bmp_pos[ POS_S_REW       ].y =         8;
+  bmp_pos[ POS_S_FWD       ].x =        75; bmp_pos[ POS_S_FWD       ].y =         8;
+  bmp_pos[ POS_S_PL        ].x =       108; bmp_pos[ POS_S_PL        ].y =         8;
+  bmp_pos[ POS_S_REPEAT    ].x =       165; bmp_pos[ POS_S_REPEAT    ].y =         8;
+  bmp_pos[ POS_S_SHUFFLE   ].x =       188; bmp_pos[ POS_S_SHUFFLE   ].y =         8;
+  bmp_pos[ POS_S_PREV      ].x =       211; bmp_pos[ POS_S_PREV      ].y =         8;
+  bmp_pos[ POS_S_NEXT      ].x =       234; bmp_pos[ POS_S_NEXT      ].y =         8;
+  bmp_pos[ POS_S_POWER     ].x =       270; bmp_pos[ POS_S_POWER     ].y =         8;
   bmp_pos[ POS_S_STOP      ].x = POS_UNDEF; bmp_pos[ POS_S_STOP      ].y = POS_UNDEF;
   bmp_pos[ POS_S_FLOAD     ].x = POS_UNDEF; bmp_pos[ POS_S_FLOAD     ].y = POS_UNDEF;
-  bmp_pos[ POS_T_PLAY      ].x =         6; bmp_pos[ POS_T_PLAY      ].y =         7;
-  bmp_pos[ POS_T_PAUSE     ].x =        29; bmp_pos[ POS_T_PAUSE     ].y =         7;
-  bmp_pos[ POS_T_REW       ].x =        52; bmp_pos[ POS_T_REW       ].y =         7;
-  bmp_pos[ POS_T_FWD       ].x =        75; bmp_pos[ POS_T_FWD       ].y =         7;
-  bmp_pos[ POS_T_PL        ].x =       108; bmp_pos[ POS_T_PL        ].y =         7;
-  bmp_pos[ POS_T_REPEAT    ].x =       165; bmp_pos[ POS_T_REPEAT    ].y =         7;
-  bmp_pos[ POS_T_SHUFFLE   ].x =       188; bmp_pos[ POS_T_SHUFFLE   ].y =         7;
-  bmp_pos[ POS_T_PREV      ].x =       211; bmp_pos[ POS_T_PREV      ].y =         7;
-  bmp_pos[ POS_T_NEXT      ].x =       234; bmp_pos[ POS_T_NEXT      ].y =         7;
-  bmp_pos[ POS_T_POWER     ].x =       270; bmp_pos[ POS_T_POWER     ].y =         7;
+  bmp_pos[ POS_T_PLAY      ].x =         6; bmp_pos[ POS_T_PLAY      ].y =         8;
+  bmp_pos[ POS_T_PAUSE     ].x =        29; bmp_pos[ POS_T_PAUSE     ].y =         8;
+  bmp_pos[ POS_T_REW       ].x =        52; bmp_pos[ POS_T_REW       ].y =         8;
+  bmp_pos[ POS_T_FWD       ].x =        75; bmp_pos[ POS_T_FWD       ].y =         8;
+  bmp_pos[ POS_T_PL        ].x =       108; bmp_pos[ POS_T_PL        ].y =         8;
+  bmp_pos[ POS_T_REPEAT    ].x =       165; bmp_pos[ POS_T_REPEAT    ].y =         8;
+  bmp_pos[ POS_T_SHUFFLE   ].x =       188; bmp_pos[ POS_T_SHUFFLE   ].y =         8;
+  bmp_pos[ POS_T_PREV      ].x =       211; bmp_pos[ POS_T_PREV      ].y =         8;
+  bmp_pos[ POS_T_NEXT      ].x =       234; bmp_pos[ POS_T_NEXT      ].y =         8;
+  bmp_pos[ POS_T_POWER     ].x =       270; bmp_pos[ POS_T_POWER     ].y =         8;
   bmp_pos[ POS_T_STOP      ].x = POS_UNDEF; bmp_pos[ POS_T_STOP      ].y = POS_UNDEF;
   bmp_pos[ POS_T_FLOAD     ].x = POS_UNDEF; bmp_pos[ POS_T_FLOAD     ].y = POS_UNDEF;
   bmp_pos[ POS_PL_INDEX    ].x =       152; bmp_pos[ POS_PL_INDEX    ].y =        62;
@@ -1646,9 +1686,9 @@ bmp_init_default_skin( HPS hps )
 
   bmp_pos[ POS_S_SIZE      ].x = 300; bmp_pos[ POS_S_SIZE      ].y = 70;
   bmp_pos[ POS_T_SIZE      ].x = 300; bmp_pos[ POS_T_SIZE      ].y = 37;
-  bmp_pos[ POS_R_FLOAD     ].x = 131; bmp_pos[ POS_R_FLOAD     ].y =  7;
-  bmp_pos[ POS_S_FLOAD     ].x = 131; bmp_pos[ POS_S_FLOAD     ].y =  7;
-  bmp_pos[ POS_T_FLOAD     ].x = 131; bmp_pos[ POS_T_FLOAD     ].y =  7;
+  bmp_pos[ POS_R_FLOAD     ].x = 131; bmp_pos[ POS_R_FLOAD     ].y =  8;
+  bmp_pos[ POS_S_FLOAD     ].x = 131; bmp_pos[ POS_S_FLOAD     ].y =  8;
+  bmp_pos[ POS_T_FLOAD     ].x = 131; bmp_pos[ POS_T_FLOAD     ].y =  8;
   bmp_pos[ POS_NO_CHANNELS ].x = 235; bmp_pos[ POS_NO_CHANNELS ].y = 72;
   bmp_pos[ POS_MONO        ].x = 235; bmp_pos[ POS_MONO        ].y = 72;
   bmp_pos[ POS_STEREO      ].x = 235; bmp_pos[ POS_STEREO      ].y = 72;
@@ -1665,13 +1705,17 @@ bmp_init_default_skin( HPS hps )
   bmp_ulong[ UL_IN_PIXELS    ] = TRUE;
   bmp_ulong[ UL_R_MSG_LEN    ] = 256;
   bmp_ulong[ UL_R_MSG_HEIGHT ] = 16;
-  bmp_ulong[ UL_S_MSG_LEN    ] = 256;
+  bmp_ulong[ UL_S_MSG_LEN    ] = 276;
   bmp_ulong[ UL_S_MSG_HEIGHT ] = 16;
-  bmp_ulong[ UL_FG_MSG_COLOR ] = 0x0000FF00UL;
+  bmp_ulong[ UL_FG_MSG_COLOR ] = DEF_FG_MSG_COLOR;
+  bmp_ulong[ UL_FG_COLOR     ] = DEF_FG_COLOR;
+  bmp_ulong[ UL_BG_COLOR     ] = DEF_BG_COLOR;
+  bmp_ulong[ UL_HI_FG_COLOR  ] = DEF_HI_FG_COLOR;
+  bmp_ulong[ UL_HI_BG_COLOR  ] = DEF_HI_BG_COLOR;;
   bmp_ulong[ UL_BPS_DIGITS   ] = TRUE;
 
-  strcpy( visual.module_file, startpath );
-  strcat( visual.module_file, "visplug\\analyzer.dll" );
+  strcpy( visual.pc.file, startpath );
+  strcat( visual.pc.file, "visplug\\analyzer.dll" );
   strcpy( visual.param, "" );
 
   visual.skin = TRUE;
@@ -1680,7 +1724,18 @@ bmp_init_default_skin( HPS hps )
   visual.cx   = 95;
   visual.cy   = 30;
 
-  add_plugin( visual.module_file, &visual );
+  pg_load_plugin( visual.pc.file, &visual );
+}
+
+static void
+bmp_init_colors( void )
+{
+  pl_set_colors( bmp_ulong[ UL_FG_COLOR    ], bmp_ulong[ UL_BG_COLOR    ],
+                 bmp_ulong[ UL_HI_FG_COLOR ], bmp_ulong[ UL_HI_BG_COLOR ] );
+  pm_set_colors( bmp_ulong[ UL_FG_COLOR    ], bmp_ulong[ UL_BG_COLOR    ],
+                 bmp_ulong[ UL_HI_FG_COLOR ], bmp_ulong[ UL_HI_BG_COLOR ] );
+  bm_set_colors( bmp_ulong[ UL_FG_COLOR    ], bmp_ulong[ UL_BG_COLOR    ],
+                 bmp_ulong[ UL_HI_FG_COLOR ], bmp_ulong[ UL_HI_BG_COLOR ] );
 }
 
 /* Returns TRUE if specified mode supported by current skin. */
@@ -1810,14 +1865,7 @@ bmp_load_skin( const char *filename, HAB hab, HWND hplayer, HPS hps )
   }
 
   // Free loaded visual plugins.
-  i = 0;
-  while( i < num_visuals ) {
-    if( visuals[i].skin ) {
-      remove_visual_plugin( &visuals[i] );
-    } else {
-      ++i;
-    }
-  }
+  pg_remove_all_visuals( TRUE );
 
   bmp_clean_skin();
   bmp_init_skin_positions();
@@ -1841,6 +1889,10 @@ bmp_load_skin( const char *filename, HAB hab, HWND hplayer, HPS hps )
   bmp_ulong[ UL_S_MSG_LEN      ] = 25;
   bmp_ulong[ UL_S_MSG_HEIGHT   ] = 0;
   bmp_ulong[ UL_FG_MSG_COLOR   ] = 0x00FFFFFFUL;
+  bmp_ulong[ UL_FG_COLOR       ] = 0xFFFFFFFFUL;
+  bmp_ulong[ UL_BG_COLOR       ] = 0xFFFFFFFFUL;
+  bmp_ulong[ UL_HI_FG_COLOR    ] = 0xFFFFFFFFUL;
+  bmp_ulong[ UL_HI_BG_COLOR    ] = 0xFFFFFFFFUL;
   bmp_ulong[ UL_PL_INDEX       ] = FALSE;
   bmp_ulong[ UL_FONT           ] = 0;
   bmp_ulong[ UL_ONE_FONT       ] = FALSE;
@@ -1850,14 +1902,11 @@ bmp_load_skin( const char *filename, HAB hab, HWND hplayer, HPS hps )
   {
     bmp_init_skins_bitmaps( hps );
     bmp_init_default_skin ( hps );
-    bmp_reflow_and_resize ( WinQueryWindow( hplayer, QW_PARENT ));
+    bmp_init_colors();
+    bmp_reflow_and_resize( WinQueryWindow( hplayer, QW_PARENT ));
 
-    for( i = 0; i < num_visuals; i++ ) {
-      if( visuals[i].skin && visuals[i].enabled ) {
-        vis_init( hplayer, i );
-      }
-    }
 
+    vis_initialize_all( hplayer, TRUE );
     return FALSE;
   }
 
@@ -1887,8 +1936,7 @@ bmp_load_skin( const char *filename, HAB hab, HWND hplayer, HPS hps )
           break;
         }
 
-        rel2abs( startpath, p,
-                 visual.module_file, sizeof( visual.module_file ));
+        rel2abs( startpath, p, visual.pc.file, sizeof( visual.pc.file ));
 
         if(( p = strtok( NULL, "," )) != NULL ) {
           visual.x  = atoi(p);
@@ -1912,7 +1960,7 @@ bmp_load_skin( const char *filename, HAB hab, HWND hplayer, HPS hps )
         }
 
         visual.skin = TRUE;
-        add_plugin( visual.module_file, &visual );
+        pg_load_plugin( visual.pc.file, &visual );
         break;
       }
 
@@ -1940,6 +1988,10 @@ bmp_load_skin( const char *filename, HAB hab, HWND hplayer, HPS hps )
             i == UL_SLIDER_BRIGHT ||
             i == UL_SLIDER_COLOR  ||
             i == UL_PL_COLOR      ||
+            i == UL_FG_COLOR      ||
+            i == UL_BG_COLOR      ||
+            i == UL_HI_FG_COLOR   ||
+            i == UL_HI_BG_COLOR   ||
             i == UL_FG_MSG_COLOR   )
         {
             sscanf( p, "%d/%d/%d", &r, &g, &b );
@@ -1947,8 +1999,8 @@ bmp_load_skin( const char *filename, HAB hab, HWND hplayer, HPS hps )
             break;
         }
         switch( i ) {
-          case UL_SHADE_STAT:    bmp_ulong[ UL_SHADE_STAT    ] = FALSE;   break;
-          case UL_SHADE_VOLUME:  bmp_ulong[ UL_SHADE_VOLUME  ] = FALSE;   break;
+          case UL_SHADE_STAT:   bmp_ulong[ UL_SHADE_STAT    ] = FALSE;   break;
+          case UL_SHADE_VOLUME: bmp_ulong[ UL_SHADE_VOLUME  ] = FALSE;   break;
 
           case UL_DISPLAY_MSG:
             // Not supported since 1.32
@@ -2026,7 +2078,8 @@ bmp_load_skin( const char *filename, HAB hab, HWND hplayer, HPS hps )
   }
 
   bmp_init_skins_bitmaps( hps );
-  bmp_reflow_and_resize ( WinQueryWindow( hplayer, QW_PARENT ));
+  bmp_init_colors();
+  bmp_reflow_and_resize( WinQueryWindow( hplayer, QW_PARENT ));
 
   if( errors > 0 ) {
     if( !amp_query( hplayer, "Some bitmaps of this skin was not found. "
@@ -2038,7 +2091,6 @@ bmp_load_skin( const char *filename, HAB hab, HWND hplayer, HPS hps )
     }
   }
 
-  amp_display_filename();
   return TRUE;
 }
 
@@ -2087,15 +2139,15 @@ bmp_init_button( HWND hwnd, BMPBUTTON* button )
   if( x != POS_UNDEF && y != POS_UNDEF ) {
     if( button->handle == NULLHANDLE )
     {
-      btn_data.cb        =  sizeof( DATA95 );
-      btn_data.Pressed   =  0;
-      btn_data.bmp1      =  release;
-      btn_data.bmp2      =  pressed;
-      btn_data.stick     =  button->sticky;
-      btn_data.stickvar  = &button->state;
-      btn_data.hwndOwner =  hwnd;
+      btn_data.cb             =  sizeof( DATA95 );
+      btn_data.pressed        =  0;
+      btn_data.bmp_release_id =  release;
+      btn_data.bmp_pressed_id =  pressed;
+      btn_data.stick          =  button->sticky;
+      btn_data.stickvar       = &button->state;
+      btn_data.hwnd_owner     =  hwnd;
 
-      strcpy( btn_data.Help, button->help );
+      strcpy( btn_data.help, button->help );
       button->handle = WinCreateWindow( hwnd, CLASSNAME, "", WS_VISIBLE, x, y, cx, cy,
                                         hwnd, HWND_TOP, button->id_r_pressed, &btn_data, NULL );
     }
@@ -2119,19 +2171,13 @@ bmp_init_button( HWND hwnd, BMPBUTTON* button )
 void
 bmp_reflow_and_resize( HWND hframe )
 {
-  int  i;
   HWND hplayer = WinWindowFromID( hframe, FID_CLIENT );
 
   switch( cfg.mode )
   {
     case CFG_MODE_SMALL:
     {
-      for( i = 0; i < num_visuals; i++ ) {
-        if( visuals[i].skin ) {
-          vis_deinit( i );
-        }
-      }
-
+      vis_terminate_all( TRUE );
       WinSetWindowPos( hframe, HWND_TOP, 0, 0,
                        bmp_pos[POS_S_SIZE].x, bmp_pos[POS_S_SIZE].y, SWP_SIZE );
       break;
@@ -2139,12 +2185,7 @@ bmp_reflow_and_resize( HWND hframe )
 
     case CFG_MODE_TINY:
     {
-      for( i = 0; i < num_visuals; i++ ) {
-        if( visuals[i].skin ) {
-          vis_deinit( i );
-        }
-      }
-
+      vis_terminate_all( TRUE );
       WinSetWindowPos( hframe, HWND_TOP, 0, 0,
                        bmp_pos[POS_T_SIZE].x, bmp_pos[POS_T_SIZE].y, SWP_SIZE );
       break;
@@ -2155,11 +2196,7 @@ bmp_reflow_and_resize( HWND hframe )
       WinSetWindowPos( hframe, HWND_TOP, 0, 0,
                        bmp_pos[POS_R_SIZE].x, bmp_pos[POS_R_SIZE].y, SWP_SIZE );
 
-      for( i = 0; i < num_visuals; i++ ) {
-        if( visuals[i].skin && visuals[i].enabled ) {
-          vis_init( hplayer, i );
-        }
-      }
+      vis_initialize_all( hplayer, TRUE );
       break;
     }
   }
@@ -2178,7 +2215,6 @@ bmp_reflow_and_resize( HWND hframe )
   bmp_init_button( hplayer, &btn_fload   );
 
   bmp_delete_text_buffer();
-  amp_display_filename();
-  amp_invalidate( UPD_ALL );
+  amp_invalidate( UPD_WINDOW | UPD_FILENAME );
 }
 

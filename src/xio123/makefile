@@ -16,10 +16,10 @@ DEF     = xio$(LDEF_SUFFX)
 all: xio123.dll xio123$(LBI) $(MDUMMY)
 
 xio123.dll: $(OBJECTS) $(DEF)
-	$(CL) $(LFLAGS) $(LFLAGS_OUT)$@ $(LOBJ_PREFX)$(OBJECTS) $(LIBS)$(LOBJ_SUFFX) $(LDEF_PREFX)$(DEF)
+	$(CL) $(LFLAGS) $(LFLAGS_OUT)$@ $(LOBJ_PREFX)$(OBJECTS)$(LOBJ_SUFFX) $(LLIB_PREFX)$(LIBS)$(LLIB_SUFFX) $(LDEF_PREFX)$(DEF)
 
 xio123$(LBI): $(DEF)
-	$(LI) $@ xio123.dll
+	$(LI) $(IFLAGS_OUT)$@ xio123.dll
 
 xio$(CO):        xio.c        xio.h xio_protocol.h xio_socket.h xio_file.h xio_http.h xio_ftp.h xio_cddb.h xio_buffer.h
 xio_buffer$(CO): xio_buffer.c xio.h xio_protocol.h xio_buffer.h

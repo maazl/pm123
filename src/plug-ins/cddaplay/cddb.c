@@ -51,9 +51,6 @@ cddb_connect( void )
   CDDB_CONNECTION* c = calloc( sizeof( CDDB_CONNECTION ), 1 );
 
   if( c ) {
-    #if CDDB_PROTOLEVEL >= 6
-    c->charset = (iconv_t)-1;
-    #endif
     strcpy( c->servname, "cddbp://freedb.freedb.org:8880" );
   }
 
@@ -114,49 +111,6 @@ cddb_set_email_address( CDDB_CONNECTION* c, const char* email )
   } else {
     strlcpy( c->username, email, sizeof( c->username ));
   }
-}
-
-/* Set the character set. By default the FreeDB server uses UTF-8
-   when providing CD data. When a character set is defined with this
-   function any strings retrieved from or sent to the server
-   will automatically be converted. Returns -1 if the specified
-   character set is unknown, or no conversion from/to UTF-8 is
-   available. True otherwise. */
-int
-cddb_set_charset( CDDB_CONNECTION* c, const char* charset )
-{
-  #if CDDB_PROTOLEVEL >= 6
-    if( c->charset != (iconv_t)-1 ) {
-      iconv_close( c->charset );
-    }
-    c->charset = iconv_open( charset, CDDB_CHARSET );
-    if( c->charset == (iconv_t)-1 ) {
-      return -1;
-    }
-  #endif
-  return 0;
-}
-
-static void
-cddb_convert_charset( CDDB_CONNECTION* c, char* result, const char* source, int size )
-{
-  #if CDDB_PROTOLEVEL >= 6
-    if( c->charset != (iconv_t)-1 )
-    {
-      const char* in_str = source;
-      size_t      in_len = strlen( source );
-      char*       ou_str = result;
-      size_t      ou_len = size - 1;
-
-      if( iconv( c->charset, &in_str, &in_len, &ou_str, &ou_len ) != -1 ) {
-        *ou_str = 0;
-        return;
-      }
-    }
-  #endif
-
-  strlcpy( result, source, size );
-  return;
 }
 
 /* Creates a new directory with the specified pathname. Because only
@@ -437,7 +391,7 @@ cddb_disc( CDDB_CONNECTION* c, CDINFO* cdinfo, char* match, int size )
   strlcat( query, itoa( cdinfo->time, digit, 10 ), sizeof( query ));
   rc = cddb_send_query( c, query, match, size );
 
-  if( rc == CDDB_MORE_DATA ) {
+  if( rc == CDDB_MORE_DATA || rc == CDDB_DATA_FOLLOW ) {
     if(( rc = cddb_disc_next( c, match, size )) == CDDB_OK ) {
       return CDDB_MORE_DATA;
     }
@@ -603,17 +557,17 @@ cddb_getstring( CDDB_CONNECTION* c,
     switch( type ) {
       case CDDB_TITLE:
         if( c->track_title[track] ) {
-          cddb_convert_charset( c, result, c->track_title[track], size );
+          strlcpy( result, c->track_title[track], size );
         }
         break;
       case CDDB_ARTIST:
-        cddb_convert_charset( c, result, c->artist, size );
+        strlcpy( result, c->artist, size );
         break;
       case CDDB_ALBUM:
-        cddb_convert_charset( c, result, c->album,  size );
+        strlcpy( result, c->album,  size );
         break;
       case CDDB_GENRE:
-        cddb_convert_charset( c, result, c->genre,  size );
+        strlcpy( result, c->genre,  size );
         break;
       case CDDB_YEAR:
         if( c->year ) {

@@ -66,6 +66,8 @@
 #define SB_BUFFERSIZE      3190
 #define ST_KB              3195
 #define CB_FILLBUFFER      3200
+#define SB_FILLBUFFER      3201
+#define ST_FILLBUFFER      3202
 
 #define CFG_PAGE2          3500
 #define GB_TITLE           3501
@@ -152,6 +154,7 @@ typedef struct _amp_cfg {
   char   filedir[_MAX_PATH];  /* The last directory used for addition of files.    */
   char   listdir[_MAX_PATH];  /* The last directory used for access to a playlist. */
   char   savedir[_MAX_PATH];  /* The last directory used for saving a stream.      */
+  char   plugdir[_MAX_PATH];  /* The last directory used for loading a plug-in.    */
   char   lasteq [_MAX_PATH];  /* The last directory used for saving a state of an  */
                               /* equalizer.                                        */
   char   defskin[_MAX_PATH];  /* Default skin.                                     */
@@ -188,17 +191,23 @@ typedef struct _amp_cfg {
 
   int    buff_wait;           /* Wait before playing.                   */
   int    buff_size;           /* Read ahead buffer size (KB).           */
+  int    buff_fill;           /* Percent of prefilling of the buffer.   */
   BOOL   dock_windows;        /* Dock windows?                          */
   int    dock_margin;         /* The marging for docking window.        */
   BOOL   add_recursive;       /* Enable recursive addition.             */
   BOOL   save_relative;       /* Use relative paths in saved playlists. */
+  SHORT  save_type;           /* Type of the last saved playlist.       */
   int    tags_charset;        /* The character set used by the player   */
                               /* for tags, whose initial character set  */
                               /* is undefined.                          */
   BOOL   font_skinned;        /* Use skinned font.                      */
   FATTRS font_attrs;          /* Font's attributes.                     */
   LONG   font_size;           /* Font's point size.                     */
+
   SWP    main;                /* Position of the player.                */
+  LONG   sbar_playlist;       /* Playlist split bar position.           */
+  LONG   sbar_bmarks;         /* Bookmarks split bar position.          */
+  int    tags_choice;         /* Choice of file info dialog.            */
 
 } amp_cfg;
 

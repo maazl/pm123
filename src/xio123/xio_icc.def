@@ -10,6 +10,7 @@ EXPORTS
   xio_http_proxy_user      @5
   xio_http_proxy_pass      @6
   xio_http_proxy_addr      @7
+  xio_buffer_fill          @8
 
   xio_set_buffer_size      @21
   xio_set_buffer_wait      @22
@@ -20,6 +21,7 @@ EXPORTS
   xio_set_observer         @27
   xio_get_metainfo         @28
   xio_can_seek             @29
+  xio_set_buffer_fill      @30
 
   xio_fopen                @40
   xio_fread                @41
@@ -34,4 +36,7 @@ EXPORTS
   xio_rewind               @50
   xio_errno                @51
   xio_strerror             @52
-
+  xio_ftruncate            @53
+  xio_feof                 @54
+  xio_ferror               @55
+  xio_clearerr             @56

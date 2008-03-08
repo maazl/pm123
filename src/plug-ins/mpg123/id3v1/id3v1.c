@@ -38,9 +38,11 @@
 #include <io.h>
 
 #include "id3v1.h"
-#include "minmax.h"
+#include <minmax.h>
+#include <snprintf.h>
+#include <charset.h>
 
-#define GENRE_LARGEST 128
+#define GENRE_LARGEST 148
 static char *genres[] =
 {
   /*   0 */  "Blues",
@@ -194,6 +196,21 @@ static char *genres[] =
   /* 148 */  "Unknown"
 };
 
+static int id3v1_read_charset = CH_DEFAULT;
+static int id3v1_save_charset = CH_DEFAULT;
+
+/* Sets the writing characters set. */
+void
+id3v1_set_save_charset( int charset ) {
+  id3v1_save_charset = charset;
+}
+
+/* Sets the reading characters set. */
+void
+id3v1_set_read_charset( int charset ) {
+  id3v1_read_charset = charset;
+}
+
 /* Fetch string from tag. */
 static void
 safecopy( char* target, const char* source, int size )
@@ -216,9 +233,9 @@ spacecopy( char* target, const char* source, int size )
   strncpy( target, source, size );
 }
 
-/* Cleanups  of a ID3v1 tag structure. */
+/* Cleanups of a ID3v1 tag structure. */
 void
-id3v1_clrtag( ID3V1_TAG* tag )
+id3v1_clean_tag( ID3V1_TAG* tag )
 {
   memset( tag, 0, sizeof( *tag ));
   strcpy( tag->id, "TAG" );
@@ -230,20 +247,20 @@ id3v1_clrtag( ID3V1_TAG* tag )
    tag or if the input file don't have a ID3v1 tag. A nonzero
    return value indicates an error. */
 int
-id3v1_gettag( XFILE* x, ID3V1_TAG* tag )
+id3v1_get_tag( XFILE* x, ID3V1_TAG* tag )
 {
   if( xio_fseek( x, -128, XIO_SEEK_END ) == 0 ) {
     if( xio_fread( tag, 1, 128, x ) == 128 ) {
       if( strncmp( tag->id, "TAG", 3 ) == 0 ) {
         return 0;
       } else {
-        id3v1_clrtag( tag );
+        id3v1_clean_tag( tag );
         return 0;
       }
     }
   }
 
-  id3v1_clrtag( tag );
+  id3v1_clean_tag( tag );
   return -1;
 }
 
@@ -251,7 +268,7 @@ id3v1_gettag( XFILE* x, ID3V1_TAG* tag )
    file. Returns 0 if it successfully writes the tag. A nonzero
    return value indicates an error. */
 int
-id3v1_settag( XFILE* x, ID3V1_TAG* tag )
+id3v1_set_tag( XFILE* x, ID3V1_TAG* tag )
 {
   char id[3];
 
@@ -276,9 +293,31 @@ id3v1_settag( XFILE* x, ID3V1_TAG* tag )
   return -1;
 }
 
+/* Remove the tag from the file. Takes care of resizing
+   the file, if needed. Returns 0 upon success, or -1 if an
+   error occured. */
+int
+id3v1_wipe_tag( XFILE* x )
+{
+  char id[3];
+
+  if( xio_fseek( x, -128, XIO_SEEK_END ) == 0 ) {
+    if( xio_fread( id, 1, 3, x ) == 3 ) {
+      if( strncmp( id, "TAG", 3 ) == 0 ) {
+        if( xio_ftruncate( x, xio_fsize( x ) - 128 ) == 0 ) {
+          return 0;
+        }
+      } else {
+        return 0;
+      }
+    }
+  }
+  return -1;
+}
+
 /* Returns a specified field of the given tag. */
 char*
-id3v1_getstring( ID3V1_TAG* tag, int type, char* result, int size )
+id3v1_get_string( ID3V1_TAG* tag, int type, char* result, int size )
 {
   *result = 0;
 
@@ -287,18 +326,22 @@ id3v1_getstring( ID3V1_TAG* tag, int type, char* result, int size )
     {
       case ID3V1_TITLE:
         safecopy( result, tag->title, min( size, sizeof( tag->title )));
+        ch_convert( id3v1_read_charset, result, CH_DEFAULT, result, size );
         break;
 
       case ID3V1_ARTIST:
         safecopy( result, tag->artist, min( size, sizeof( tag->artist )));
+        ch_convert( id3v1_read_charset, result, CH_DEFAULT, result, size );
         break;
 
       case ID3V1_ALBUM:
         safecopy( result, tag->album, min( size, sizeof( tag->album )));
+        ch_convert( id3v1_read_charset, result, CH_DEFAULT, result, size );
         break;
 
       case ID3V1_YEAR:
         safecopy( result, tag->year, min( size, sizeof( tag->year )));
+        ch_convert( id3v1_read_charset, result, CH_DEFAULT, result, size );
         break;
 
       // Since all non-filled fields must be padded with zeroed bytes
@@ -315,14 +358,16 @@ id3v1_getstring( ID3V1_TAG* tag, int type, char* result, int size )
       case ID3V1_COMMENT:
         if( tag->empty || !tag->track ) {
           safecopy( result, tag->comment, min( size, 30 ));
+          ch_convert( id3v1_read_charset, result, CH_DEFAULT, result, size );
         } else {
           safecopy( result, tag->comment, min( size, sizeof( tag->comment )));
+          ch_convert( id3v1_read_charset, result, CH_DEFAULT, result, size );
         }
         break;
 
       case ID3V1_TRACK:
-        if( !tag->empty && tag->track && size > 3 ) {
-          ltoa( tag->track, result, 10 );
+        if( !tag->empty && tag->track ) {
+          snprintf( result, size, "%02d", tag->track );
         }
         break;
 
@@ -339,16 +384,37 @@ id3v1_getstring( ID3V1_TAG* tag, int type, char* result, int size )
 
 /* Sets a specified field of the given tag. */
 void
-id3v1_setstring( ID3V1_TAG* tag, int type, char* source )
+id3v1_set_string( ID3V1_TAG* tag, int type, char* source )
 {
+  char encoded[31];
+
   if( tag ) {
     switch( type )
     {
-      case ID3V1_TITLE:   spacecopy( tag->title,   source, sizeof( tag->title   )); break;
-      case ID3V1_ARTIST:  spacecopy( tag->artist,  source, sizeof( tag->artist  )); break;
-      case ID3V1_ALBUM:   spacecopy( tag->album,   source, sizeof( tag->album   )); break;
-      case ID3V1_YEAR:    spacecopy( tag->year,    source, sizeof( tag->year    )); break;
-      case ID3V1_COMMENT: spacecopy( tag->comment, source, sizeof( tag->comment )); break;
+      case ID3V1_TITLE:
+        ch_convert( CH_DEFAULT, source, id3v1_save_charset, encoded, sizeof( encoded ));
+        spacecopy( tag->title, encoded, sizeof( tag->title ));
+        break;
+
+      case ID3V1_ARTIST:
+        ch_convert( CH_DEFAULT, source, id3v1_save_charset, encoded, sizeof( encoded ));
+        spacecopy( tag->artist, encoded, sizeof( tag->artist ));
+        break;
+
+      case ID3V1_ALBUM:
+        ch_convert( CH_DEFAULT, source, id3v1_save_charset, encoded, sizeof( encoded ));
+        spacecopy( tag->album, encoded, sizeof( tag->album ));
+        break;
+
+      case ID3V1_YEAR:
+        ch_convert( CH_DEFAULT, source, id3v1_save_charset, encoded, sizeof( encoded ));
+        spacecopy( tag->year, encoded, sizeof( tag->year ));
+        break;
+
+      case ID3V1_COMMENT:
+        ch_convert( CH_DEFAULT, source, id3v1_save_charset, encoded, sizeof( encoded ));
+        spacecopy( tag->comment, encoded, sizeof( tag->comment ));
+        break;
 
       case ID3V1_TRACK:
         tag->empty = 0;
@@ -368,3 +434,4 @@ id3v1_setstring( ID3V1_TAG* tag, int type, char* source )
     }
   }
 }
+

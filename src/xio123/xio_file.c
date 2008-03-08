@@ -31,12 +31,31 @@
 #include <os2.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <string.h>
 #include <io.h>
 #include <share.h>
 #include <fcntl.h>
 #include <errno.h>
 #include <sys/stat.h>
+#include <ctype.h>
+
 #include "xio_file.h"
+#include "xio_url.h"
+
+#ifdef XIO_SERIALIZE_DISK_IO
+
+  HMTX serialize;
+
+  // Serializes all read and write disk operations. This is
+  // improve performance of poorly implemented filesystems (OS/2 version
+  // of FAT32 for example).
+
+  #define FILE_REQUEST_DISK() DosRequestMutexSem( serialize, SEM_INDEFINITE_WAIT )
+  #define FILE_RELEASE_DISK() DosReleaseMutexSem( serialize )
+#else
+  #define FILE_REQUEST_DISK()
+  #define FILE_RELEASE_DISK()
+#endif
 
 /* Opens the file specified by filename. Returns 0 if it
    successfully opens the file. A return value of -1 shows an error. */
@@ -59,23 +78,67 @@ file_open( XFILE* x, const char* filename, int oflags )
   if( oflags & XO_APPEND ) {
     omode |= O_APPEND;
   }
-  if( oflags & XO_APPEND ) {
+  if( oflags & XO_TRUNCATE ) {
     omode |= O_TRUNC;
   }
 
-  if(( x->protocol->s_handle = sopen( filename, omode, SH_DENYNO )) == -1 ) {
-    return -1;
+  if( strnicmp( filename, "file:", 5 ) == 0 )
+  {
+    XURL* url = url_allocate( filename );
+    char* p;
+
+    if( !url->path ) {
+      url_free( url );
+      errno = ENOENT;
+      return -1;
+    }
+
+    // Converts leading drive letters of the form C| to C:
+    // and if a drive letter is present strips off the slash that precedes
+    // path. Otherwise, the leading slash is used.
+
+    for( p = url->path; *p; p++ ) {
+      if( *p == '/'  ) {
+          *p = '\\';
+      }
+    }
+
+    p = url->path;
+
+    if( isalpha( p[1] ) && ( p[2] == '|' || p[2] == ':' )) {
+      p[2] = ':';
+      ++p;
+    }
+
+    FILE_REQUEST_DISK();
+    x->protocol->s_handle = sopen( p, omode, SH_DENYNO, S_IREAD | S_IWRITE );
+    FILE_RELEASE_DISK();
+    url_free( url );
+  } else {
+    FILE_REQUEST_DISK();
+    x->protocol->s_handle = sopen( filename, omode, SH_DENYNO, S_IREAD | S_IWRITE );
+    FILE_RELEASE_DISK();
   }
 
-  return 0;
+  if( x->protocol->s_handle == -1 ) {
+    return -1;
+  } else {
+    return  0;
+  }
 }
 
 /* Reads count bytes from the file into buffer. Returns the number
    of bytes placed in result. The return value 0 indicates an attempt
    to read at end-of-file. A return value -1 indicates an error.     */
 static int
-file_read( XFILE* x, char* result, unsigned int count ) {
-  return read( x->protocol->s_handle, result, count );
+file_read( XFILE* x, char* result, unsigned int count )
+{
+  int rc;
+
+  FILE_REQUEST_DISK();
+  rc = read( x->protocol->s_handle, result, count );
+  FILE_RELEASE_DISK();
+  return rc;
 }
 
 /* Writes count bytes from source into the file. Returns the number
@@ -83,23 +146,41 @@ file_read( XFILE* x, char* result, unsigned int count ) {
    be positive but less than count. A return value of -1 indicates an
    error */
 static int
-file_write( XFILE* x, const char* source, unsigned int count ) {
-  return write( x->protocol->s_handle, source, count );
+file_write( XFILE* x, const char* source, unsigned int count )
+{
+  int rc;
+
+  FILE_REQUEST_DISK();
+  rc = write( x->protocol->s_handle, source, count );
+  FILE_RELEASE_DISK();
+  return rc;
 }
 
 /* Closes the file. Returns 0 if it successfully closes the file. A
    return value of -1 shows an error. */
 static int
-file_close( XFILE* x ) {
-  return close( x->protocol->s_handle );
+file_close( XFILE* x )
+{
+  int rc;
+
+  FILE_REQUEST_DISK();
+  rc = close( x->protocol->s_handle );
+  FILE_RELEASE_DISK();
+  return rc;
 }
 
 /* Returns the current position of the file pointer. The position is
    the number of bytes from the beginning of the file. On devices
    incapable of seeking, the return value is -1L. */
 static long
-file_tell( XFILE* x ) {
-  return tell( x->protocol->s_handle );
+file_tell( XFILE* x )
+{
+  long rc;
+
+  FILE_REQUEST_DISK();
+  rc = tell( x->protocol->s_handle );
+  FILE_RELEASE_DISK();
+  return rc;
 }
 
 /* Moves any file pointer to a new location that is offset bytes from
@@ -109,7 +190,8 @@ file_tell( XFILE* x ) {
 static long
 file_seek( XFILE* x, long offset, int origin )
 {
-  int omode;
+  int  omode;
+  long rc;
 
   switch( origin ) {
     case XIO_SEEK_SET: omode = SEEK_SET; break;
@@ -120,7 +202,10 @@ file_seek( XFILE* x, long offset, int origin )
       return -1L;
   }
 
-  return lseek( x->protocol->s_handle, offset, omode );
+  FILE_REQUEST_DISK();
+  rc = lseek( x->protocol->s_handle, offset, omode );
+  FILE_RELEASE_DISK();
+  return rc;
 }
 
 /* Returns the size of the file. A return value of -1L indicates an
@@ -129,8 +214,27 @@ static long
 file_size( XFILE* x )
 {
   struct stat fi = {0};
+
+  FILE_REQUEST_DISK();
   fstat( x->protocol->s_handle, &fi );
+  FILE_RELEASE_DISK();
   return fi.st_size;
+}
+
+/* Lengthens or cuts off the file to the length specified by size.
+   You must open the file in a mode that permits writing. Adds null
+   characters when it lengthens the file. When cuts off the file, it
+   erases all data from the end of the shortened file to the end
+   of the original file. */
+static int
+file_truncate( XFILE* x, long size )
+{
+  int rc;
+
+  FILE_REQUEST_DISK();
+  rc = chsize( x->protocol->s_handle, size );
+  FILE_RELEASE_DISK();
+  return rc;
 }
 
 /* Cleanups the file protocol. */
@@ -166,14 +270,15 @@ file_initialize( XFILE* x )
       XS_CAN_READ   | XS_CAN_WRITE | XS_CAN_READWRITE |
       XS_CAN_CREATE | XS_CAN_SEEK  | XS_CAN_SEEK_FAST;
 
-    protocol->open  = file_open;
-    protocol->read  = file_read;
-    protocol->write = file_write;
-    protocol->close = file_close;
-    protocol->tell  = file_tell;
-    protocol->seek  = file_seek;
-    protocol->size  = file_size;
-    protocol->clean = file_terminate;
+    protocol->open   = file_open;
+    protocol->read   = file_read;
+    protocol->write  = file_write;
+    protocol->close  = file_close;
+    protocol->tell   = file_tell;
+    protocol->seek   = file_seek;
+    protocol->chsize = file_truncate;
+    protocol->size   = file_size;
+    protocol->clean  = file_terminate;
   }
 
   return protocol;

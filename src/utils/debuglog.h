@@ -45,22 +45,34 @@
   #include <stdio.h>
   #include <stdarg.h>
   #include <time.h>
+  #include <string.h>
+  #include "snprintf.h"
 
-  // log to stderr
+  #ifndef  OS2_INCLUDED
+  #define  INCL_DOS
+  #include <os2.h>
+  #endif
+
   static void
   debuglog( const char* fmt, ... )
   {
     va_list va;
-    PTIB ptib;
-    PPIB ppib;
+    PTIB    ptib;
+    PPIB    ppib;
+    char    buffer[2048];
+    int     size;
+    ULONG   done;
+
+    DosGetInfoBlocks( &ptib, &ppib );
+    snprintf( buffer, sizeof( buffer ), "%08d %04X:%04d ",
+              clock(), ppib->pib_ulpid, ptib->tib_ptib2->tib2_ultid );
+
+    size = strlen( buffer );
 
     va_start( va, fmt );
-    DosGetInfoBlocks( &ptib, &ppib );
-    DosEnterCritSec();
-    fprintf( stderr, "%08d %04X:%04d ", clock(), ppib->pib_ulpid, ptib->tib_ptib2->tib2_ultid );
-    vfprintf( stderr, fmt, va );
-    DosExitCritSec();
+    vsnprintf( buffer + size, sizeof( buffer ) - size, fmt, va );
     va_end( va );
+    DosWrite( 2, buffer, strlen( buffer ), &done );
   }
 
   #define DEBUGLOG(x) debuglog x

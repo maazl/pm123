@@ -25,10 +25,10 @@ OBJECTS = fft$(CO)
 all: fft123.dll fft123$(LBI) $(MDUMMY)
 
 fft123.dll: $(OBJECTS) $(LIBS) $(DEF)
-	$(CL) $(LFLAGS) $(LFLAGS_OUT)$@ $(LOBJ_PREFX) $(OBJECTS) $(LIBS) $(LOBJ_SUFFX) $(LDEF_PREFX)$(DEF)
+	$(CL) $(LFLAGS) $(LFLAGS_OUT)$@ $(LOBJ_PREFX)$(OBJECTS)$(LOBJ_SUFFX) $(LLIB_PREFX)$(LIBS)$(LLIB_SUFFX) $(LDEF_PREFX)$(DEF)
 
 fft123$(LBI): $(DEF)
-	$(LI) $@ fft123.dll
+	$(LI) $(IFLAGS_OUT)$@ fft123.dll
 
 kernel\kernel$(LBO):
 	cd kernel

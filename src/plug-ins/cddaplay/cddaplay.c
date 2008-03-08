@@ -57,6 +57,7 @@
 
 #define  WM_SAVE        ( WM_USER + 1 )
 #define  WM_UPDATE_DONE ( WM_USER + 2 )
+#define  WM_UPDATE_HOST ( WM_USER + 3 )
 
 #undef   CDDB_ALWAYS_QUERY
 
@@ -100,18 +101,6 @@ static HMTX mutex;
     }
 
     return cfg.tags_charset;
-  }
-#else
-  /* Returns the current system code page. */
-  static int
-  query_system_charset( void )
-  {
-    ULONG cpage[1] = { 0 };
-    ULONG incb     = sizeof( cpage );
-    ULONG oucb     = 0;
-
-    DosQueryCp( incb, cpage, &oucb );
-    return cpage[0];
   }
 #endif
 
@@ -241,10 +230,7 @@ end:
   }
   free( buffer );
 
-  w->decodertid = -1;
   w->status = DECODER_STOPPED;
-
-  DosPostEventSem   ( w->ok    );
   DosReleaseMutexSem( w->mutex );
   _endthread();
 }
@@ -258,12 +244,11 @@ decoder_init( void** returnw )
   *returnw = w;
 
   DosCreateEventSem( NULL, &w->play,  0, FALSE );
-  DosCreateEventSem( NULL, &w->ok,    0, FALSE );
   DosCreateMutexSem( NULL, &w->mutex, 0, FALSE );
 
   w->decodertid = -1;
   w->status = DECODER_STOPPED;
-  return 0;
+  return PLUGIN_OK;
 }
 
 /* Uninit function is called when another decoder than this is needed. */
@@ -274,7 +259,6 @@ decoder_uninit( void* arg )
 
   decoder_command ( w, DECODER_STOP, NULL );
   DosCloseEventSem( w->play  );
-  DosCloseEventSem( w->ok    );
   DosCloseMutexSem( w->mutex );
   free( w );
   return TRUE;
@@ -287,7 +271,6 @@ ULONG DLLENTRY
 decoder_command( void* arg, ULONG msg, DECODER_PARAMS* info )
 {
   DECODER_STRUCT* w = (DECODER_STRUCT*)arg;
-  ULONG resetcount;
 
   switch(msg)
   {
@@ -306,8 +289,12 @@ decoder_command( void* arg, ULONG msg, DECODER_PARAMS* info )
 
       if( w->decodertid != -1 ) {
         DosReleaseMutexSem( w->mutex );
-        decoder_command( w, DECODER_STOP, NULL );
-        DosRequestMutexSem( w->mutex, SEM_INDEFINITE_WAIT );
+        if( w->status == DECODER_STOPPED ) {
+          decoder_command( w, DECODER_STOP, NULL );
+          DosRequestMutexSem( w->mutex, SEM_INDEFINITE_WAIT );
+        } else {
+          return PLUGIN_GO_ALREADY;
+        }
       }
 
       w->drive[0]   = info->drive[0];
@@ -329,15 +316,16 @@ decoder_command( void* arg, ULONG msg, DECODER_PARAMS* info )
 
       if( w->decodertid == -1 ) {
         DosReleaseMutexSem( w->mutex );
-        break;
+        return PLUGIN_GO_ALREADY;
       }
 
       w->stop = TRUE;
 
-      DosResetEventSem  ( w->ok, &resetcount );
       DosReleaseMutexSem( w->mutex );
-      DosPostEventSem   ( w->play  );
-      DosWaitEventSem   ( w->ok, SEM_INDEFINITE_WAIT );
+      DosPostEventSem( w->play  );
+      wait_thread( w->decodertid, 5000 );
+      w->decodertid = -1;
+      w->status = DECODER_STOPPED;
       break;
     }
 
@@ -346,7 +334,7 @@ decoder_command( void* arg, ULONG msg, DECODER_PARAMS* info )
         DosRequestMutexSem( w->mutex, SEM_INDEFINITE_WAIT );
         if( w->decodertid == -1 ) {
           DosReleaseMutexSem( w->mutex );
-          return 1;
+          return PLUGIN_UNSUPPORTED;
         }
         DosReleaseMutexSem( w->mutex );
       }
@@ -358,7 +346,7 @@ decoder_command( void* arg, ULONG msg, DECODER_PARAMS* info )
         DosRequestMutexSem( w->mutex, SEM_INDEFINITE_WAIT );
         if( w->decodertid == -1 ) {
           DosReleaseMutexSem( w->mutex );
-          return 1;
+          return PLUGIN_UNSUPPORTED;
         }
         DosReleaseMutexSem( w->mutex );
       }
@@ -373,10 +361,10 @@ decoder_command( void* arg, ULONG msg, DECODER_PARAMS* info )
       break;
 
     default:
-      return 1;
+      return PLUGIN_UNSUPPORTED;
    }
 
-   return 0;
+   return PLUGIN_OK;
 }
 
 /* Returns number of milliseconds the stream lasts. */
@@ -404,7 +392,7 @@ decoder_status( void* arg ) {
 /* Returns information about specified file. */
 ULONG DLLENTRY
 decoder_fileinfo( char* filename, DECODER_INFO* info ) {
-  return 200;
+  return PLUGIN_NO_PLAY;
 }
 
 /* Returns information about a disc inserted to the specified drive. */
@@ -420,16 +408,16 @@ decoder_cdinfo( char* drive, DECODER_CDINFO* info )
   if(( rc = cd_open( drive, &disc )) != NO_ERROR  ) {
     if( rc == ERROR_NOT_READY ) {
       DEBUGLOG(( "cddaplay: drive %s is not ready\n", drive ));
-      return 0;
+      return PLUGIN_OK;
     } else {
       DEBUGLOG(( "cddaplay: unable open disc %s, rc = %08X\n", drive, rc ));
-      return 100;
+      return PLUGIN_NO_READ;
     }
   }
 
   if(( rc = cd_info( disc, &fresh_info )) != NO_ERROR ) {
     DEBUGLOG(( "cddaplay: unable get disc %s info, rc = %08X\n", drive, rc ));
-    return 100;
+    return PLUGIN_NO_READ;
   }
 
   cd_upc( disc, fresh_upc );
@@ -450,7 +438,7 @@ decoder_cdinfo( char* drive, DECODER_CDINFO* info )
               fresh_upc[4], fresh_upc[5], fresh_upc[6] ));
 
   cd_close( disc );
-  return 0;
+  return PLUGIN_OK;
 }
 
 /* Processes messages of the fuzzy match dialog. */
@@ -523,9 +511,6 @@ decoder_cddb_connect( void )
 {
   char progname[_MAX_PATH];
   char cachedir[_MAX_PATH];
-  #if CDDB_PROTOLEVEL >= 6
-  char charset [64];
-  #endif
 
   CDDB_CONNECTION* c;
 
@@ -534,11 +519,6 @@ decoder_cddb_connect( void )
     sdrivedir( cachedir, progname, sizeof( progname ));
     strlcat( cachedir, "cddb", sizeof( cachedir ));
     cddb_set_cache_dir( c, cachedir );
-
-    #if CDDB_PROTOLEVEL >= 6
-      snprintf( charset, sizeof( charset ), "CP%d", query_system_charset());
-      cddb_set_charset( c, charset );
-    #endif
   }
 
   return c;
@@ -602,11 +582,8 @@ decoder_trackinfo( char* drive, int track, DECODER_INFO* info )
   SHORT            i = -1, j;
   CDDB_CONNECTION* c;
 
-  memset( info, 0, sizeof( *info ));
-  info->size = sizeof( *info );
-
   if( cd_open( drive, &disc ) != NO_ERROR ) {
-    return 100;
+    return PLUGIN_NO_READ;
   }
 
   if( cd_upc( disc, last_upc ) == NO_ERROR &&
@@ -619,7 +596,7 @@ decoder_trackinfo( char* drive, int track, DECODER_INFO* info )
   } else {
     DEBUGLOG(( "cddaplay: cached disc info is obsolete.\n" ));
     if( cd_info( disc, &last_info ) != NO_ERROR ) {
-      return 100;
+      return PLUGIN_NO_READ;
     }
     DosRequestMutexSem( mutex, SEM_INDEFINITE_WAIT );
     disc_info = last_info;
@@ -633,12 +610,11 @@ decoder_trackinfo( char* drive, int track, DECODER_INFO* info )
   if( track > last_info.track_last  ||
       track < last_info.track_first || last_info.track_info[track].is_data )
   {
-    return 200;
+    return PLUGIN_NO_PLAY;
   }
 
   info->startsector       = last_info.track_info[track].start;
   info->endsector         = last_info.track_info[track].end;
-  info->filesize          = last_info.track_info[track].size;
   info->format.size       = sizeof( info->format );
   info->format.format     = WAVE_FORMAT_PCM;;
   info->format.samplerate = 44100;
@@ -651,19 +627,24 @@ decoder_trackinfo( char* drive, int track, DECODER_INFO* info )
 
   strcpy( info->tech_info, "True CD Quality" );
 
+  if( info->size >= INFO_SIZE_2 ) {
+    sprintf( info->track, "%02d", track );
+    info->filesize = last_info.track_info[track].size;
+  }
+
   if( !settings.use_cddb ) {
-    return 0;
+    return PLUGIN_OK;
   }
 
   for( j = 0; j < sizeof( negative_hits ) / sizeof( negative_hits[0] ); j++ ) {
      if( negative_hits[j] == last_info.discid ) {
        DEBUGLOG(( "cddaplay: cached negative hit: %08x\n", last_info.discid ));
-       return 0;
+       return PLUGIN_OK;
      }
   }
 
   if(( c = decoder_cddb_request()) == NULL ) {
-    return 0;
+    return PLUGIN_OK;
   }
 
   DEBUGLOG(( "cddaplay: cached CDDB id is %08lx, request %08lx\n", c->discid, last_info.discid ));
@@ -694,13 +675,15 @@ decoder_trackinfo( char* drive, int track, DECODER_INFO* info )
 
         do_warpsans( hwnd );
         do {
+          char item[2048];
+
           #if CDDB_PROTOLEVEL < 6
-            char item[2048];
             ch_convert( query_pm123_charset(), match, CH_DEFAULT, item, sizeof( item ));
-            lb_add_item( hwnd, LB_MATCHES, item  );
           #else
-            lb_add_item( hwnd, LB_MATCHES, match );
+            ch_convert( CH_UTF_8, match, CH_DEFAULT, item, sizeof( item ));
           #endif
+          lb_add_item( hwnd, LB_MATCHES, item  );
+
         } while ( cddb_disc_next( c, match, sizeof( match )) == CDDB_OK );
 
         lb_select( hwnd, LB_MATCHES, 0 );
@@ -728,7 +711,7 @@ decoder_trackinfo( char* drive, int track, DECODER_INFO* info )
          nh_head = 0;
       }
       decoder_cddb_release( c );
-      return 0;
+      return PLUGIN_OK;
     }
   }
 
@@ -742,11 +725,13 @@ decoder_trackinfo( char* drive, int track, DECODER_INFO* info )
   cddb_getstring( c, i, CDDB_GENRE,  info->genre,  sizeof( info->genre  ));
 
   #if CDDB_PROTOLEVEL >= 6
-  info->codepage = query_system_charset();
+  if( info->size >= INFO_SIZE_2 ) {
+    info->codepage = CH_UTF_8;
+  }
   #endif
 
   decoder_cddb_release( c );
-  return 0;
+  return PLUGIN_OK;
 }
 
 /* What can be played via the decoder. */
@@ -940,15 +925,7 @@ cfg_cddb_update_thread( void* arg )
     cddb_set_server( cddb, server );
     if( cddb_mirror( cddb, server, sizeof( server )) == CDDB_OK ) {
       do {
-        if( strnicmp( server, "http://", 7 ) == 0 ) {
-          if( lb_search( hwnd, LB_HTTPSERVERS, LIT_FIRST, server ) == LIT_NONE ) {
-            lb_add_item( hwnd, LB_HTTPSERVERS, server);
-          }
-        } else {
-          if( lb_search( hwnd, LB_CDDBSERVERS, LIT_FIRST, server ) == LIT_NONE ) {
-            lb_add_item( hwnd, LB_CDDBSERVERS, server);
-          }
-        }
+        WinPostMsg( hwnd, WM_UPDATE_HOST, strdup( server ), 0 );
       } while( cddb_mirror_next( cddb, server, sizeof( server )) == CDDB_OK );
     }
   }
@@ -967,11 +944,9 @@ cfg_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
   {
     case WM_DESTROY:
       if( tid_update != -1 ) {
-        DosKillThread(  tid_update );
-        DosWaitThread( &tid_update, DCWW_WAIT );
+        wait_thread( tid_update, 1000 );
+        tid_update = -1;
       }
-
-      WinSendMsg( hwnd, WM_UPDATE_DONE, 0, 0 );
       break;
 
     case WM_INITDLG:
@@ -1070,6 +1045,24 @@ cfg_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
       }
       break;
 
+    case WM_UPDATE_HOST:
+      if( mp1 )
+      {
+        char* server = (char*)mp1;
+
+        if( strnicmp( server, "http://", 7 ) == 0 ) {
+          if( lb_search( hwnd, LB_HTTPSERVERS, LIT_FIRST, server ) == LIT_NONE ) {
+            lb_add_item( hwnd, LB_HTTPSERVERS, server );
+          }
+        } else {
+          if( lb_search( hwnd, LB_CDDBSERVERS, LIT_FIRST, server ) == LIT_NONE ) {
+            lb_add_item( hwnd, LB_CDDBSERVERS, server );
+          }
+        }
+        free( server );
+      }
+      return 0;
+
     case WM_UPDATE_DONE:
       tid_update = -1;
       WinEnableControl( hwnd, DID_OK,     TRUE );
@@ -1151,15 +1144,13 @@ cfg_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
 }
 
 /* Configure plug-in. */
-int DLLENTRY
-plugin_configure( HWND hwnd, HMODULE module )
-{
+void DLLENTRY
+plugin_configure( HWND hwnd, HMODULE module ) {
   WinDlgBox( HWND_DESKTOP, hwnd, cfg_dlg_proc, module, DLG_CDDA, NULL );
-  return 0;
 }
 
 /* Returns information about plug-in. */
-int DLLENTRY
+void DLLENTRY
 plugin_query( PLUGIN_QUERYPARAM* param )
 {
    param->type         = PLUGIN_DECODER;
@@ -1168,7 +1159,6 @@ plugin_query( PLUGIN_QUERYPARAM* param )
    param->configurable = TRUE;
 
    load_ini();
-   return 0;
 }
 
 int INIT_ATTRIBUTE

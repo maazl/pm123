@@ -14,7 +14,7 @@ RES        = .res
 CC         = icc
 CFLAGS     = -Ss -Q -Gm -W3 -Wuse+ -DOS2
 CFLAGS_DLL = -Ge- -DLL
-CFLAGS_DBG = -Ti -Tx -DDEBUG=1
+CFLAGS_DBG = -Ti -Tx -DDEBUG=$(DEBUG)
 CFLAGS_MEM = -Tm
 CFLAGS_OPT = -Gf -Gi -O -G5 -Gl -qalias=ansi
 
@@ -24,20 +24,23 @@ LFLAGS_DLL = /DLL
 LFLAGS_PM  = /PM:PM
 LFLAGS_IO  = /PM:VIO
 LFLAGS_DBG = /DEB
-LFLAGS_OPT = /PACKC /PACKD /OPTF /EXEP:2
+LFLAGS_OPT = /OPTF /EXEP:2
 LFLAGS_OUT = /OUT:
 LDEF_PREFX =
 LDEF_SUFFX = _icc.def
 LOBJ_PREFX =
 LOBJ_SUFFX =
+LLIB_PREFX =
+LLIB_SUFFX =
 
 AS         = nasm
 AFLAGS     = -fobj
 
-LB         = ilib  /nofree /nobackup /quiet /nologo /noi
+LB         = ilib /nofree /nobackup /quiet /nologo /noi
 LBENDL     = ;
 
-LI         = implib /nologo /noi
+LI         = ilib /quiet /nologo
+IFLAGS_OUT = /genimplib:
 
 RC         = rc
 RFLAGS     = -n
@@ -51,6 +54,7 @@ LIBS_TCP = tcpip32.lib
 !endif
 
 LIBS_MM  = mmpm2.lib
+LIBS_UNI = libconv.lib libuls.lib
 INCLUDE  = $(INCDIR);$(INCLUDE)
 
 !ifdef EXE_PM
@@ -63,7 +67,7 @@ LFLAGS = $(LFLAGS) $(LFLAGS_IO)
 !ifdef DEBUG
 CFLAGS = $(CFLAGS) $(CFLAGS_DBG)
 LFLAGS = $(LFLAGS) $(LFLAGS_DBG)
-MFLAGS = $(MFLAGS) DEBUG=Yes
+MFLAGS = $(MFLAGS) DEBUG=$(DEBUG)
 !else
 !ifndef DEBUG_ALLOC
 CFLAGS = $(CFLAGS) $(CFLAGS_OPT)

@@ -69,8 +69,10 @@ void _CRT_term( void );
 #define SIZEOF_UNSIGNED_INT       4 /* The size of a `unsigned int', as computed by sizeof. */
 #define SIZEOF_UNSIGNED_LONG      8 /* The size of a `unsigned long', as computed by sizeof. */
 #define SIZEOF_VOID_P             4 /* The size of a `void*', as computed by sizeof. */
+#define SIZEOF_VOID_P_FAR         4 /* The size of a `void FAR*', as computed by sizeof. */
 #define SIZEOF_SIZE_T             4 /* The size of a `size_t', as computed by sizeof. */
 #define SIZEOF_OFF_T              4 /* The size of a `off_t', as computed by sizeof. */
+#define SIZEOF_PTRDIFF_T          4 /* The size of a `ptrdiff_t', as computed by sizeof. */
 #undef  SIZEOF_LONG_LONG            /* The size of a `long long', as computed by sizeof. */
 #undef  SIZEOF_UNSIGNED_LONG_LONG   /* The size of a `unsigned long long', as computed by sizeof. */
 #undef  SIZEOF_INT64_T              /* The size of a `int64_t', as computed by sizeof. */

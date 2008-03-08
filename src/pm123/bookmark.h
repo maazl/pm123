@@ -51,61 +51,32 @@
 #define IDM_BM_LOAD          903
 #define IDM_BM_ADDTOPL       904
 #define IDM_BM_RMENU         905
-#define IDM_BM_REPLACE       906
 #define IDM_BM_CLEAR         907
 #define IDM_BM_ADD           908
 #define IDM_BM_LMENU         909
-
-/* Structure that contains information for records in
-   the bookmarks container control. */
-
-typedef struct _BMRECORD {
-
-  RECORDCORE  rc;
-  char*       desc;     /* Name of the bookmark.     */
-  char*       filename; /* Full path and file name.  */
-  char*       time;     /* Displayed position time.  */
-  ULONG       play_pos; /* Position.                 */
-
-} BMRECORD, *PBMRECORD;
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-/* Creates the bookmarks presentation window. */
+/* Creates the bookmarks presentation window. Must be
+   called from the main thread. */
 HWND bm_create( void );
+/* Destroys the bookmarks presentation window. Must be
+   called from the main thread. */
+void bm_destroy( void );
 /* Sets the visibility state of the bookmarks presentation window. */
 void bm_show( BOOL show );
-/* Destroys the bookmark presentation window. */
-void bm_destroy( void );
 
-/* WARNING!! All functions returning a pointer to the
-   bookmark record, return a NULL if suitable record is not found. */
+/* Changes the bookmarks presentation window colors. */
+BOOL bm_set_colors( ULONG, ULONG, ULONG, ULONG );
 
-/* Returns the pointer to the first bookmark record. */
-BMRECORD* bm_first_record( void );
-/* Returns the pointer to the next bookmark record of specified. */
-BMRECORD* bm_next_record( BMRECORD* rec );
-/* Returns the pointer to the bookmark record with the specified description. */
-BMRECORD* bm_find_record( const char* desc );
-/* Returns the pointer to the first selected bookmark record. */
-BMRECORD* bm_first_selected( void );
-/* Returns the pointer to the next selected bookmark record of specified. */
-BMRECORD* bm_next_selected( BMRECORD* rec );
-/* Returns the pointer to the cursored bookmark record. */
-BMRECORD* bm_cursored( void );
-
-/* Loads bookmarks from the file. */
-BOOL bm_load( HWND owner );
-/* Saves bookmarks to the file. */
-BOOL bm_save( HWND owner );
-/* Adds a user selected bookmark. */
-void bm_add_bookmark( HWND owner );
-
-/* Bookmarks menu in the main pop-up menu */
-void load_bookmark_menu( HWND hmenu );
-BOOL process_possible_bookmark( USHORT cmd );
+/* Adds a user selected bookmark of the specified file. */
+void bm_add_bookmark( HWND owner, const char* filename, const DECODER_INFO* info, ULONG pos );
+/* Adds bookmarks to submenu in the main pop-up menu. */
+void bm_add_bookmarks_to_menu( HWND hmenu );
+/* Loads bookmark selected via pop-up menu. */
+void bm_use_bookmark_from_menu( USHORT id );
 
 #ifdef __cplusplus
 }

@@ -16,10 +16,10 @@ DEF      = wavplay$(LDEF_SUFFX)
 all: wavplay.dll wavplay$(LBI) $(MDUMMY)
 
 wavplay.dll: $(OBJECTS) $(DEF)
-	$(CL) $(LFLAGS) $(LFLAGS_OUT)$@ $(LOBJ_PREFX)$(OBJECTS) $(LIBS)$(LOBJ_SUFFX) $(LDEF_PREFX)$(DEF)
+	$(CL) $(LFLAGS) $(LFLAGS_OUT)$@ $(LOBJ_PREFX)$(OBJECTS)$(LOBJ_SUFFX) $(LLIB_PREFX)$(LIBS)$(LLIB_SUFFX) $(LDEF_PREFX)$(DEF)
 
 wavplay$(LBI): $(DEF)
-	$(LI) $@ wavplay.dll
+	$(LI) $(IFLAGS_OUT)$@ wavplay.dll
 
 wavplay$(CO): wavplay.c wavplay.h
 

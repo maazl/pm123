@@ -34,6 +34,12 @@
 #define SB_BUFFERS    1030
 #define CB_8BIT       1040
 #define CB_48KLUDGE   1050
+#define CB_RG_ENABLE  1060
+#define CB_RG_TYPE    1070
+#define SB_RG_PREAMP  1080
+#define ST_RG_PREAMP  1090
+#define SB_PREAMP     1100
+#define ST_PREAMP     1110
 
 typedef struct BUFFERINFO
 {
@@ -62,6 +68,13 @@ typedef struct OS2AUDIO
   int   volume;
   float amplifier;
   int   zero;         /* This is 128 for 8 bit unsigned.                      */
+  int   configured;
+
+  float track_gain;   /* Defines Replay Gain values as specified at           */
+  float track_peak;   /* http://www.replaygain.org                            */
+  float album_gain;
+  float album_peak;
+  float scale;
 
   BOOL  trashed;      /* A next waiting portion of samples should be trashed. */
   BOOL  nomoredata;   /* The audio device don't have audio buffers for play.  */

@@ -1,4 +1,4 @@
-# Open Watcon C++
+# Open Watcom C++
 
 .SUFFIXES:
 .SUFFIXES: .res .rc .obj .asm .c .cpp
@@ -13,21 +13,23 @@ LBO        = .lib
 RES        = .res
 
 CC         = wcl386
-CFLAGS     = -zq -zro -bm -ei -dOS2 -w3 -sg
+CFLAGS     = -zq -zro -zm -bm -ei -dOS2 -w3 -sg
 CFLAGS_DLL = -bd
-CFLAGS_DBG = -d2 -dDEBUG=1
+CFLAGS_DBG = -d2 -dDEBUG=$(DEBUG)
 CFLAGS_OPT = -otexan -5r -fp5
 
 CL         = wlink
 LFLAGS     = option quiet
 LFLAGS_DLL =
 LFLAGS_DBG = debug all
-LFLAGS_OPT =
+LFLAGS_OPT = option eliminate
 LFLAGS_OUT = name .\
 LDEF_PREFX = @
 LDEF_SUFFX = _wcc.def
-LOBJ_PREFX = libfile {
+LOBJ_PREFX = file {
 LOBJ_SUFFX = }
+LLIB_PREFX = library {
+LLIB_SUFFX = }
 
 AS         = nasm
 AFLAGS     = -fobj -DUNDERSCORE
@@ -36,12 +38,14 @@ LB         = wlib -b -c -q
 LBENDL     =
 
 LI         = wlib -b -c -q
+IFLAGS_OUT =
 
-RC         = rc
-RFLAGS     = -n
+RC         = wrc
+RFLAGS     = -q
 
 LIBS_TCP   =
 LIBS_MM    = mmpm2.lib
+LIBS_UNI   = libconv.lib libuls.lib
 
 %INCLUDE   = $(INCDIR);$(%INCLUDE)
 
@@ -52,7 +56,7 @@ LIBS_MM    = mmpm2.lib
 !ifdef DEBUG
 CFLAGS = $(CFLAGS) $(CFLAGS_DBG)
 LFLAGS = $(LFLAGS) $(LFLAGS_DBG)
-MFLAGS = $(MFLAGS) DEBUG=Yes
+MFLAGS = $(MFLAGS) DEBUG=$(DEBUG)
 !else
 CFLAGS = $(CFLAGS) $(CFLAGS_OPT)
 LFLAGS = $(LFLAGS) $(LFLAGS_OPT)

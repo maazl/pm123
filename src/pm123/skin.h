@@ -61,6 +61,10 @@
 #define UL_BPS_DIGITS        28 /* Draw bitrates with digits from resource 1830-1839. */
 #define UL_PL_INDEX          29 /* Draw playlist indicator with resources 1660-1669.  */
 #define UL_BUNDLE            30 /* The bundle file for this skin.                     */
+#define UL_FG_COLOR          31 /* Foreground color of the text in the playlist.      */
+#define UL_BG_COLOR          32 /* Background color of the text in the playlist.      */
+#define UL_HI_FG_COLOR       33 /* Foreground color of the selected text.             */
+#define UL_HI_BG_COLOR       34 /* Background color of the selected text.             */
 
 /* Bitmap identifiers for action buttons. */
 
@@ -212,6 +216,14 @@
 #define POS_T_FLOAD          71 /* Load file button for tiny mode.                    */
 #define POS_VOLSLIDER        72 /* Offset of the volume slider concerning a bar.      */
 
+/* Default playlist and etc. colors. */
+
+#define DEF_FG_MSG_COLOR 0x0000FF00UL
+#define DEF_FG_COLOR     0x0000FF00UL
+#define DEF_BG_COLOR     0x00000000UL
+#define DEF_HI_FG_COLOR  0x00FFFFFFUL
+#define DEF_HI_BG_COLOR  0x00808080UL
+
 typedef struct _BMPBUTTON
 {
   HWND  handle;           /* Button window handle.                          */
@@ -316,6 +328,9 @@ void bmp_reflow_and_resize( HWND hframe );
 BOOL bmp_is_mode_supported( int mode );
 /* Returns TRUE if specified font supported by current skin. */
 BOOL bmp_is_font_supported( int font );
+
+/* Converts time to two integer suitable for display by the timer. */
+void sec2num( long seconds, int* major, int* minor );
 
 #ifdef __cplusplus
 }

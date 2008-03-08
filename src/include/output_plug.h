@@ -2,6 +2,7 @@
 #define PM123_OUTPUT_PLUG_H
 
 #include "format.h"
+#include "decoder_plug.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -20,8 +21,12 @@ ULONG DLLENTRY output_uninit( void*  a );
 #define OUTPUT_TRASH_BUFFERS 6
 #define OUTPUT_NOBUFFERMODE  7 /* obsolete */
 
+#define OUTPUT_SIZE_1 76  /* size of the OUTPUT_PARAMS structure prior PM123 1.32 */
+#define OUTPUT_SIZE_2 80  /* size of the OUTPUT_PARAMS structure since PM123 1.32 */
+
 typedef struct _OUTPUT_PARAMS
 {
+  /* --- see OUTPUT_SIZE definitions */
   int size;
 
   /* --- OUTPUT_SETUP */
@@ -67,6 +72,10 @@ typedef struct _OUTPUT_PARAMS
 
   BOOL  always_hungry;    /* the output plug-in imposes no time restraint
                              it is always WM_OUTPUT_OUTOFDATA */
+
+  /* --- OUTPUT_SETUP */
+
+  DECODER_INFO* info;     /* added since PM123 1.32 */
 
 } OUTPUT_PARAMS;
 

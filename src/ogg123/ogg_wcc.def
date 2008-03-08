@@ -1,0 +1,74 @@
+SYSTEM OS2V2_DLL INITINSTANCE TERMINSTANCE
+OPTION MANYAUTODATA
+OPTION DESCRIPTION 'PM123 OGG Library'
+
+EXPORT oggpack_writeinit         .1
+EXPORT oggpack_writetrunc        .2
+EXPORT oggpack_writealign        .3
+EXPORT oggpack_writecopy         .4
+EXPORT oggpack_reset             .5
+EXPORT oggpack_writeclear        .6
+EXPORT oggpack_readinit          .7
+EXPORT oggpack_write             .8
+EXPORT oggpack_look              .9
+EXPORT oggpack_look1             .10
+EXPORT oggpack_adv               .11
+EXPORT oggpack_adv1              .12
+EXPORT oggpack_read              .13
+EXPORT oggpack_read1             .14
+EXPORT oggpack_bytes             .15
+EXPORT oggpack_bits              .16
+EXPORT oggpack_get_buffer        .17
+
+EXPORT oggpackB_writeinit        .30
+EXPORT oggpackB_writetrunc       .31
+EXPORT oggpackB_writealign       .32
+EXPORT oggpackB_writecopy        .33
+EXPORT oggpackB_reset            .34
+EXPORT oggpackB_writeclear       .35
+EXPORT oggpackB_readinit         .36
+EXPORT oggpackB_write            .37
+EXPORT oggpackB_look             .38
+EXPORT oggpackB_look1            .39
+EXPORT oggpackB_adv              .40
+EXPORT oggpackB_adv1             .41
+EXPORT oggpackB_read             .42
+EXPORT oggpackB_read1            .43
+EXPORT oggpackB_bytes            .44
+EXPORT oggpackB_bits             .45
+EXPORT oggpackB_get_buffer       .46
+
+EXPORT ogg_stream_packetin       .60
+EXPORT ogg_stream_pageout        .61
+EXPORT ogg_stream_flush          .62
+
+EXPORT ogg_sync_init             .70
+EXPORT ogg_sync_clear            .71
+EXPORT ogg_sync_reset            .72
+EXPORT ogg_sync_destroy          .73
+EXPORT ogg_sync_buffer           .74
+EXPORT ogg_sync_wrote            .75
+EXPORT ogg_sync_pageseek         .76
+EXPORT ogg_sync_pageout          .77
+EXPORT ogg_stream_pagein         .78
+EXPORT ogg_stream_packetout      .79
+EXPORT ogg_stream_packetpeek     .80
+
+EXPORT ogg_stream_init           .90
+EXPORT ogg_stream_clear          .91
+EXPORT ogg_stream_reset          .92
+EXPORT ogg_stream_reset_serialno .93
+EXPORT ogg_stream_destroy        .94
+EXPORT ogg_stream_eos            .95
+
+EXPORT ogg_page_checksum_set     .110
+EXPORT ogg_page_version          .111
+EXPORT ogg_page_continued        .112
+EXPORT ogg_page_bos              .113
+EXPORT ogg_page_eos              .114
+EXPORT ogg_page_granulepos       .115
+EXPORT ogg_page_serialno         .116
+EXPORT ogg_page_pageno           .117
+EXPORT ogg_page_packets          .118
+EXPORT ogg_packet_clear          .119
+

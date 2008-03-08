@@ -16,11 +16,11 @@ RESOURCE = realeq$(RES)
 all: realeq.dll realeq$(LBI) $(MDUMMY)
 
 realeq.dll: $(OBJECTS) $(DEF) $(RESOURCE)
-	$(CL) $(LFLAGS) $(LFLAGS_OUT)$@ $(LOBJ_PREFX)$(OBJECTS) $(LIBS)$(LOBJ_SUFFX) $(LDEF_PREFX)$(DEF)
+	$(CL) $(LFLAGS) $(LFLAGS_OUT)$@ $(LOBJ_PREFX)$(OBJECTS)$(LOBJ_SUFFX) $(LLIB_PREFX)$(LIBS)$(LLIB_SUFFX) $(LDEF_PREFX)$(DEF)
 	$(RC) $(RFLAGS) $(RESOURCE) $@ > nul
 
 realeq$(LBI): $(DEF)
-	$(LI) $@ realeq.dll
+	$(LI) $(IFLAGS_OUT)$@ realeq.dll
 
 clean: $(MDUMMY)
 	-@del realeq$(LBI) realeq.dll $(OBJECTS) $(RESOURCE) 2> nul

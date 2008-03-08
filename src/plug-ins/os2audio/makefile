@@ -16,11 +16,11 @@ RESOURCE = os2audio$(RES)
 all: os2audio.dll os2audio$(LBI) $(MDUMMY)
 
 os2audio.dll: $(OBJECTS) $(DEF) $(RESOURCE)
-	$(CL) $(LFLAGS) $(LFLAGS_OUT)$@ $(LOBJ_PREFX)$(OBJECTS) $(LIBS)$(LOBJ_SUFFX) $(LDEF_PREFX)$(DEF)
+	$(CL) $(LFLAGS) $(LFLAGS_OUT)$@ $(LOBJ_PREFX)$(OBJECTS)$(LOBJ_SUFFX) $(LLIB_PREFX)$(LIBS)$(LLIB_SUFFX) $(LDEF_PREFX)$(DEF)
 	$(RC) $(RFLAGS) $(RESOURCE) $@ > nul
 
 os2audio$(LBI): $(DEF)
-	$(LI) $@ os2audio.dll
+	$(LI) $(IFLAGS_OUT)$@ os2audio.dll
 
 os2audio$(CO): os2audio.c os2audio.h
 

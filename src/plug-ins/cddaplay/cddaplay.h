@@ -65,7 +65,6 @@ typedef struct _DECODER_STRUCT
   char      drive[4];
   int       track;
   HEV       play;         // For internal use to sync the decoder thread.
-  HEV       ok;           // For internal use to sync the decoder thread.
   HMTX      mutex;        // For internal use to sync the decoder thread.
   int       decodertid;   // Decoder thread indentifier.
   BOOL      stop;

@@ -14,7 +14,7 @@ Decoder plug-ins must implement and export the functions defined in
 <ul>
 <li>a : Allocate any chunk of memory necessary for the output's
 function. This pointer will be passed to the other functions.
-<li>return value : 0 means the output was initialized successfully.
+<li>return value : PLUGIN_OK (0) means the output was initialized successfully.
 </ul>
 <p>
 Init function is called when the user requests the use of your output
@@ -41,8 +41,8 @@ receive, boost priority values, error_display functions and hwnd.
 <li>info: structure that contains the parameters needed by the preceding
 commands
 <li>return value:<br>
-0 -> ok<br>
-others -> MMOS/2 errors or anything else
+PLUGIN_OK (0) -> ok.<br>
+others -> MMOS/2 errors or anything else.
 </ul>
 <p>
 There is a lot of commands to implement for this function.  Parameters
@@ -63,6 +63,11 @@ its buffers.  Not needed when <TT> always_hungry </TT> flag is enabled.
 <li>info - return the format of buf.
 <li>buf  - return len amount of data currently being played.
 <li>len  - requested amount of data to be placed in buf.
+<li>return value:<br>
+PLUGIN_OK (0) -> ok.<br>
+PLUGIN_FAILED (-1) -> the data is not available or error occured.
+</ul>
+
 </ul>
 <p>
 This function is used by visual plug-ins so the user can visualize what

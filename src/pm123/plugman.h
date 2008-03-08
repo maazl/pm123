@@ -36,24 +36,36 @@
 #include "decoder_plug.h"
 #include "output_plug.h"
 #include "filter_plug.h"
+#include "visual_plug.h"
 #include "plugin.h"
 #include "utilfct.h"
 
-#define  MAX_FILEEXT 32
+#define  _MAX_FILEEXT     32
+#define  _MAX_MODULE_NAME 16
 
-typedef struct
+typedef struct _PLUGIN
 {
   HMODULE module;
-  char    module_file[_MAX_PATH];
-  char    module_name[16];
+  char    file[_MAX_PATH];
+  char    name[_MAX_MODULE_NAME];
   BOOL    enabled;
-  char    fileext[MAX_FILEEXT][8];
-  int     fileext_size;
-  ULONG   support;
+  BOOL    init;
+  LONG    used;
+  HMTX    mutex;
 
-  PLUGIN_QUERYPARAM query_param;
+  PLUGIN_QUERYPARAM info;
+  void  (DLLENTRYP plugin_configure)( HWND hwnd, HMODULE module );
 
-  void* w;
+} PLUGIN;
+
+typedef struct _DECODER
+{
+  PLUGIN pc;
+  char   fileext[_MAX_FILEEXT][8];
+  int    fileext_size;
+  ULONG  support;
+
+  void*  data;
   int   (DLLENTRYP decoder_init     )( void** w );
   BOOL  (DLLENTRYP decoder_uninit   )( void*  w );
   ULONG (DLLENTRYP decoder_command  )( void*  w, ULONG msg, DECODER_PARAMS* params );
@@ -65,20 +77,13 @@ typedef struct
   ULONG (DLLENTRYP decoder_cdinfo   )( char*  drive, DECODER_CDINFO* info );
   ULONG (DLLENTRYP decoder_support  )( char*  ext[], int* size );
 
-  void  (DLLENTRYP plugin_query    )( PLUGIN_QUERYPARAM* param  );
-  void  (DLLENTRYP plugin_configure)( HWND hwnd, HMODULE module );
-
 } DECODER;
 
-typedef struct
+typedef struct _OUTPUT
 {
-  HMODULE module;
-  char    module_file[_MAX_PATH];
-  char    module_name[16];
+  PLUGIN pc;
 
-  PLUGIN_QUERYPARAM query_param;
-
-  void* a;
+  void*  data;
   ULONG (DLLENTRYP output_init           )( void** a );
   ULONG (DLLENTRYP output_uninit         )( void*  a );
   ULONG (DLLENTRYP output_command        )( void*  a, ULONG msg, OUTPUT_PARAMS* info );
@@ -87,125 +92,127 @@ typedef struct
   int   (DLLENTRYP output_playing_pos    )( void*  a );
   BOOL  (DLLENTRYP output_playing_data   )( void*  a );
 
-  void  (DLLENTRYP plugin_query    )( PLUGIN_QUERYPARAM* param  );
-  void  (DLLENTRYP plugin_configure)( HWND hwnd, HMODULE module );
-
 } OUTPUT;
 
-typedef struct
+typedef struct _FILTER
 {
-  HMODULE module;
-  char    module_file[_MAX_PATH];
-  char    module_name[16];
-  BOOL    enabled;
+  PLUGIN pc;
 
-  PLUGIN_QUERYPARAM query_param;
-
-  void  *f;
+  void*  data;
   ULONG (DLLENTRYP filter_init        )( void** f, FILTER_PARAMS* params );
   BOOL  (DLLENTRYP filter_uninit      )( void*  f );
   int   (DLLENTRYP filter_play_samples)( void*  f, FORMAT_INFO* format, char *buf, int len, int posmarker );
 
-  void  (DLLENTRYP plugin_query    )( PLUGIN_QUERYPARAM* param  );
-  void  (DLLENTRYP plugin_configure)( HWND hwnd, HMODULE module );
-
 } FILTER;
 
-typedef struct
+typedef struct _VISUAL
 {
-  HMODULE module;
-  char    module_file[_MAX_PATH];
-  char    module_name[16];
-  int     x, y, cx, cy;
-  BOOL    skin;
-  BOOL    enabled;
-  HWND    hwnd;
-  char    param[256];
-  BOOL    init;
+  PLUGIN pc;
+  int    x, y, cx, cy;
+  BOOL   skin;
+  HWND   hwnd;
+  char   param[256];
 
-  PLUGIN_QUERYPARAM query_param;
-
-  HWND  (DLLENTRYP plugin_init     )( VISPLUGININIT* init );
-  void  (DLLENTRYP plugin_query    )( PLUGIN_QUERYPARAM* param  );
-  void  (DLLENTRYP plugin_configure)( HWND hwnd, HMODULE module );
-  BOOL  (DLLENTRYP plugin_deinit   )( void* f );
+  HWND  (DLLENTRYP plugin_init  )( VISPLUGININIT* init );
+  BOOL  (DLLENTRYP plugin_deinit)( void );
 
 } VISUAL;
-
-// These externs are not supposed to be used to make stupid things,
-// but only to READ for configuration purposes, or set enabled flag.
-extern DECODER* decoders;
-extern int num_decoders;
-extern int active_decoder;
-extern OUTPUT* outputs;
-extern int num_outputs;
-extern int active_output;
-extern FILTER* filters;
-extern int num_filters;
-extern VISUAL* visuals;
-extern int num_visuals;
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-BOOL  remove_decoder_plugin( DECODER* plugin );
-BOOL  remove_output_plugin ( OUTPUT*  plugin );
-BOOL  remove_filter_plugin ( FILTER*  plugin );
-BOOL  remove_visual_plugin ( VISUAL*  plugin );
-void  remove_all_plugins   ( void );
+/** Initializes of the plug-ins manager. */
+void pg_init( void );
+/** Terminates  of the plug-ins manager. */
+void pg_term( void );
 
-void  load_default_decoders( void );
-void  load_default_outputs ( void );
-void  load_default_filters ( void );
-void  load_default_visuals ( void );
+/* Unloads and removes the specified plug-in from the list of loaded. */
+BOOL pg_remove_decoder( const char* name );
+BOOL pg_remove_output ( const char* name );
+BOOL pg_remove_filter ( const char* name );
+BOOL pg_remove_visual ( const char* name );
 
-BOOL  load_decoders( BUFSTREAM* b );
-BOOL  load_outputs ( BUFSTREAM* b );
-BOOL  load_filters ( BUFSTREAM* b );
-BOOL  load_visuals ( BUFSTREAM* b );
-BOOL  save_decoders( BUFSTREAM* b );
-BOOL  save_outputs ( BUFSTREAM* b );
-BOOL  save_filters ( BUFSTREAM* b );
-BOOL  save_visuals ( BUFSTREAM* b );
+/* Unloads and removes all visual plug-ins from the list of loaded. */
+void pg_remove_all_visuals( BOOL skinned );
 
-ULONG add_plugin( const char* module_name, const VISUAL* data );
+/* Adds a default plug-ins to the list of loaded. */
+void pg_load_default_decoders( void );
+void pg_load_default_outputs ( void );
+void pg_load_default_filters ( void );
+void pg_load_default_visuals ( void );
 
-int   dec_set_name_active( char* name );
-int   dec_set_active( int number );
-void  dec_fill_types( char* result, size_t size );
+/* Saves the current list of plug-ins. */
+BOOL pg_save_decoders( BUFSTREAM* b );
+BOOL pg_save_outputs ( BUFSTREAM* b );
+BOOL pg_save_filters ( BUFSTREAM* b );
+BOOL pg_save_visuals ( BUFSTREAM* b );
 
+/* Restores the plug-ins list to the state was in when save was last called. */
+BOOL pg_load_decoders( BUFSTREAM* b );
+BOOL pg_load_outputs ( BUFSTREAM* b );
+BOOL pg_load_filters ( BUFSTREAM* b );
+BOOL pg_load_visuals ( BUFSTREAM* b );
+
+/* Loads and adds the specified plug-in to the appropriate list of loaded.
+   Returns the types found or PLUGIN_ERROR. */
+int  pg_load_plugin( const char* filename, const VISUAL* data );
+
+/* Invokes a specified plug-in configuration dialog. */
+void pg_configure( const char* name, int type, HWND hwnd );
+/* Adds plug-ins names to the specified list box control. */
+void pg_expand_to( HWND hwnd, SHORT id, int type );
+/* Returns an information about specified plug-in. */
+void pg_get_info( const char* name, int type, PLUGIN_QUERYPARAM* info );
+/* Returns TRUE if the specified plug-in is enabled. */
+BOOL pg_is_enabled( const char* name, int type );
+/* Enables the specified plug-in. */
+BOOL pg_enable( const char* name, int type, BOOL enable );
+
+/* Cleanups the plug-ins submenu. */
+void pg_cleanup_plugin_menu( HWND menu );
+/* Prepares the plug-ins submenu. */
+void pg_prepare_plugin_menu( HWND menu );
+/* Pocesses the plug-ins submenu. */
+void pg_process_plugin_menu( HWND hwnd, HWND menu, SHORT id );
+
+/* Decoders control functions. */
+LONG  DLLENTRY dec_set_active( const char* name );
+BOOL  DLLENTRY dec_set_filters( DECODER_PARAMS* params );
 ULONG DLLENTRY dec_command( ULONG msg, DECODER_PARAMS* params );
-ULONG DLLENTRY dec_fileinfo( char* filename, DECODER_INFO* info, char* name );
-ULONG DLLENTRY dec_saveinfo( char* filename, DECODER_INFO* info, char* name );
+ULONG DLLENTRY dec_fileinfo( const char* filename, DECODER_INFO* info, char* name );
+ULONG DLLENTRY dec_saveinfo( const char* filename, DECODER_INFO* info, char* name );
+ULONG DLLENTRY dec_trackinfo( char* drive, int track, DECODER_INFO* info, char* name );
 ULONG DLLENTRY dec_cdinfo( char* drive, DECODER_CDINFO* info );
 ULONG DLLENTRY dec_status( void );
 ULONG DLLENTRY dec_length( void );
+void  DLLENTRY dec_fill_types( char* result, size_t size );
+BOOL  DLLENTRY dec_is_active( const char* name );
+char* DLLENTRY dec_get_description( const char* name, char* result, int size );
 
-int   out_set_name_active( char* name );
-int   out_set_active( int number );
-void  out_set_volume( int volume );
-
+/* Outputs control functions. */
+LONG  DLLENTRY out_set_active( const char* name );
 ULONG DLLENTRY out_command( ULONG msg, OUTPUT_PARAMS* info );
-ULONG DLLENTRY out_playing_samples( FORMAT_INFO* info, char* buf, int len );
+ULONG DLLENTRY out_set_volume( int volume );
+ULONG DLLENTRY out_playing_samples( FORMAT_INFO* info, char* buffer, int size );
 ULONG DLLENTRY out_playing_pos( void );
 BOOL  DLLENTRY out_playing_data( void );
+BOOL  DLLENTRY out_is_active( const char* name );
 
-BOOL  vis_init( HWND hwnd, int i );
-void  vis_broadcast( ULONG msg, MPARAM mp1, MPARAM mp2 );
-BOOL  vis_deinit( int i );
+/* Visuals control functions. */
+BOOL  DLLENTRY vis_initialize( const char* name, HWND hwnd );
+void  DLLENTRY vis_initialize_all( HWND hwnd, BOOL skinned );
+BOOL  DLLENTRY vis_terminate( const char* name );
+void  DLLENTRY vis_terminate_all( BOOL skinned );
+void  DLLENTRY vis_broadcast( ULONG msg, MPARAM mp1, MPARAM mp2 );
 
 /* Backward compatibility */
 BOOL  DLLENTRY decoder_playing( void );
 
 /* Returns a playing time of the current file, in seconds. */
-int   time_played( void );
+int time_played( void );
 /* Returns a total playing time of the current file. */
-int   time_total ( void );
-
-/* Plug-in menu in the main pop-up menu */
-void  load_plugin_menu( HWND hmenu );
-BOOL  process_possible_plugin( HWND hwnd, USHORT cmd );
+int time_total ( void );
 
 #ifdef __cplusplus
 }

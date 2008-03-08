@@ -41,6 +41,11 @@ BOOL is_forward( void );
 BOOL is_rewind( void );
 /* Returns TRUE if the output is always hungry. */
 BOOL is_always_hungry( void );
+/* Returns TRUE if the the currently played stream is saved. */
+BOOL is_stream_saved( void );
+
+/* WARNING!!! All the following functions must be called
+   from the main thread. */
 
 /* Begins playback of the specified file. */
 BOOL msg_play( HWND hwnd, char* filename, char* decoder, const FORMAT_INFO* format, int pos );

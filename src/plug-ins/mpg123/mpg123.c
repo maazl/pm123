@@ -1,113 +1,182 @@
 /*
- * Mpeg Layer audio decoder
- * ------------------------
- * Copyright (c) 1995,1996,1997 by Michael Hipp, All rights reserved.
+ * Copyright 2007 Dmitry A.Steklenev <glass@ptv.ru>
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are met:
+ *
+ *    1. Redistributions of source code must retain the above copyright notice,
+ *       this list of conditions and the following disclaimer.
+ *
+ *    2. Redistributions in binary form must reproduce the above copyright
+ *       notice, this list of conditions and the following disclaimer in the
+ *       documentation and/or other materials provided with the distribution.
+ *
+ *    3. The name of the author may not be used to endorse or promote products
+ *       derived from this software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR IMPLIED
+ * WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+ * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO
+ * EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+ * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
+ * OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+ * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+ * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
+ * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <stdlib.h>
+#define  INCL_PM
+#define  INCL_DOS
+#define  INCL_ERRORS
+#include <os2.h>
+
 #include <stdio.h>
 #include <malloc.h>
 #include <process.h>
-#include <sys/types.h>
-#include <sys/stat.h>
+#include <errno.h>
 
 #include "mpg123.h"
-#include "mpg123def.h"
-#include "output_plug.h"
-#include "id3v1.h"
 
-struct flags flags = { 0 , 0 };
+#include <utilfct.h>
+#include <output_plug.h>
+#include <decoder_plug.h>
+#include <debuglog.h>
+#include <id3v1.h>
+#include <id3v2.h>
 
-int mmx_enable = 0;
-int mmx_use    = 0;
+static DECODER_STRUCT** instances = NULL;
+static int  instances_count = 0;
+static HMTX mutex;
+static int  mmx_enable = 0;
 
-static long outscale    = 32768;
-static int  force_8bit  = 0;
-static int  force_mono  = 0;
-static int  down_sample = 0;
+static int tag_read_type          = TAG_READ_ID3V2_AND_ID3V1;
+static int tag_read_id3v2_charset = CH_DEFAULT;
+static int tag_read_id3v1_charset = CH_DEFAULT;
+static int tag_save_type          = TAG_SAVE_ID3V2_AND_ID3V1;
+static int tag_save_id3v2_charset = CH_UCS_2BOM;
+static int tag_save_id3v1_charset = CH_DEFAULT;
 
-extern int tabsel_123[2][3][16];
-static struct frame fr;
-
-/* Play a frame readed by read_frame(). (re)initialize audio if necessary. */
-static BOOL
-play_frame( DECODER_STRUCT* w, struct frame* fr )
+/* Open MPEG file. Returns 0 if it successfully opens the file.
+   A nonzero return value indicates an error. A -1 return value
+   indicates an unsupported format of the file. */
+static int
+plg_open_file( DECODER_STRUCT* w, const char* filename, const char* mode )
 {
-  int clip;
+  int rc;
+  DosRequestMutexSem( w->mutex, SEM_INDEFINITE_WAIT );
 
-  if( fr->error_protection ) {
-    getbits( 16 ); /* crc */
+  if( w->filename != filename ) {
+    strlcpy( w->filename, filename, sizeof( w->filename ));
   }
 
-  clip = (fr->do_layer)( w, fr );
+  if(( rc = mpg_open_file( &w->mpeg, w->filename, mode )) == 0 ) {
 
-  if( clip == -1 ) {
-    return FALSE;
-  } else {
-    return TRUE;
+    if( w->hwnd ) {
+      xio_set_observer( w->mpeg.file, w->hwnd, w->metadata_buff, w->metadata_size );
+    }
+
+    w->output_format.samplerate = w->mpeg.samplerate;
+    w->bitrate = w->mpeg.bitrate;
   }
+
+  DosReleaseMutexSem( w->mutex );
+  return rc;
 }
 
+/* Closes the MPEG file. */
 static void
-set_synth_functions( struct frame* fr )
+plg_close_file( DECODER_STRUCT* w )
 {
-  typedef int (*func)( real*, int, unsigned char* );
-  typedef int (*func_mono)( real*, unsigned char* );
-
-  static func funcs[2][3] = {
-    { synth_1to1, synth_2to1, synth_4to1 },
-    { synth_1to1_8bit, synth_2to1_8bit, synth_4to1_8bit }
-  };
-
-  static func_mono funcs_mono[2][2][3] = {
-    {{ synth_1to1_mono2stereo,
-       synth_2to1_mono2stereo,
-       synth_4to1_mono2stereo },
-     { synth_1to1_8bit_mono2stereo,
-       synth_2to1_8bit_mono2stereo,
-       synth_4to1_8bit_mono2stereo }},
-    {{ synth_1to1_mono,
-       synth_2to1_mono,
-       synth_4to1_mono },
-     { synth_1to1_8bit_mono,
-       synth_2to1_8bit_mono,
-      synth_4to1_8bit_mono }}
-  };
-
-  fr->synth      = funcs[force_8bit][fr->down_sample];
-  fr->synth_mono = funcs_mono[force_mono][force_8bit][fr->down_sample];
-  fr->block_size = 128 >> (force_mono+force_8bit+fr->down_sample);
+  DosRequestMutexSem( w->mutex, SEM_INDEFINITE_WAIT );
+  mpg_close( &w->mpeg );
+  DosReleaseMutexSem( w->mutex );
 }
 
-static void
-save_ini( void )
+/* Changes the current file position to a new time within the file.
+   Returns 0 if it successfully moves the pointer. A nonzero return
+   value indicates an error. On devices that cannot seek the return
+   value is nonzero. */
+static int
+seek_to( DECODER_STRUCT* w, int ms, int origin )
 {
-  HINI hini;
+  int rc;
 
-  if(( hini = open_module_ini()) != NULLHANDLE )
+  DosRequestMutexSem( w->mutex, SEM_INDEFINITE_WAIT );
+  rc = mpg_seek_ms( &w->mpeg, ms, origin );
+  DosReleaseMutexSem( w->mutex );
+  return rc;
+}
+
+/* Reads a next valid frame and decodes it. Returns 0 if it
+   successfully reads a frame, or -1 if any errors were detected. */
+static int
+read_and_save_frame( DECODER_STRUCT* w )
+{
+  char errorbuf[1024];
+  DosRequestMutexSem( w->mutex, SEM_INDEFINITE_WAIT );
+
+  if( mpg_read_frame( &w->mpeg ) != 0 ) {
+    DosReleaseMutexSem( w->mutex );
+    return -1;
+  }
+  if( w->posmarker < 0 ) {
+      w->posmarker = mpg_tell_ms( &w->mpeg );
+  }
+
+  if( !w->save && *w->savename ) {
+    // Opening a save stream.
+    if(!( w->save = xio_fopen( w->savename, "ab" )))
+    {
+      strlcpy( errorbuf, "Could not open file to save data:\n", sizeof( errorbuf ));
+      strlcat( errorbuf, w->savename, sizeof( errorbuf ));
+      strlcat( errorbuf, "\n", sizeof( errorbuf ));
+      strlcat( errorbuf, xio_strerror( xio_errno()), sizeof( errorbuf ));
+      w->info_display( errorbuf );
+      w->savename[0] = 0;
+    }
+  } else if( w->save && !*w->savename  ) {
+    // Closing a save stream.
+    xio_fclose( w->save );
+    w->save = NULL;
+  }
+
+  if( w->save ) {
+    if( mpg_save_frame( &w->mpeg, w->save ) != 0 )
+    {
+      strlcpy( errorbuf, "Error writing to stream save file:\n", sizeof( errorbuf ));
+      strlcat( errorbuf, w->savename, sizeof( errorbuf ));
+      strlcat( errorbuf, "\n", sizeof( errorbuf ));
+      strlcat( errorbuf, xio_strerror( xio_errno()), sizeof( errorbuf ));
+
+      xio_fclose( w->save );
+      w->save = NULL;
+      w->savename[0] = 0;
+      w->info_display( errorbuf );
+    }
+  }
+
+  if( w->mpeg.fr.bitrate != w->bitrate )
   {
-    save_ini_value( hini, force_mono  );
-    save_ini_value( hini, down_sample );
-    save_ini_value( hini, mmx_enable  );
-    close_ini( hini );
+    w->bitrate = w->mpeg.fr.bitrate;
+    WinPostMsg( w->hwnd, WM_CHANGEBR, MPFROMLONG( w->bitrate ), 0 );
   }
+
+  DosReleaseMutexSem( w->mutex );
+  return 0;
 }
 
 static void
-load_ini( void )
+flush_output( DECODER_STRUCT* w, unsigned char* buffer, int size )
 {
-  HINI hini;
-
-  force_mono  = 0;
-  down_sample = 0;
-  mmx_enable  = 0;
-
-  if(( hini = open_module_ini()) != NULLHANDLE )
-  {
-    load_ini_value( hini, force_mono  );
-    load_ini_value( hini, down_sample );
-    load_ini_value( hini, mmx_enable  );
-    close_ini( hini );
+  if( size ) {
+    if( w->posmarker < 0 ) {
+      w->posmarker = mpg_tell_ms( &w->mpeg );
+    }
+    if( w->output_play_samples( w->a, &w->output_format, buffer, size, w->posmarker ) != size ) {
+      WinPostMsg( w->hwnd, WM_PLAYERROR, 0, 0 );
+    }
+    w->posmarker = -1;
   }
 }
 
@@ -115,50 +184,47 @@ load_ini( void )
 static void TFNENTRY
 decoder_thread( void* arg )
 {
-  ULONG resetcount;
   DECODER_STRUCT* w = (DECODER_STRUCT*)arg;
+  unsigned char*  buffer = NULL;
 
-  w->frew = FALSE;
-  w->ffwd = FALSE;
-  w->stop = FALSE;
+  int   bufpos =  0;
+  int   done;
+  ULONG resetcount;
+  char  errorbuf[1024];
+  int   rc;
 
-  if(!( w->file = xio_fopen( w->filename, "rb" ))) {
+  if(( rc = plg_open_file( w, w->filename, "rb" )) != 0 ) {
     if( w->error_display )
     {
-      char errorbuf[1024];
-
       strlcpy( errorbuf, "Unable open file:\n", sizeof( errorbuf ));
       strlcat( errorbuf, w->filename, sizeof( errorbuf ));
       strlcat( errorbuf, "\n", sizeof( errorbuf ));
-      strlcat( errorbuf, xio_strerror( xio_errno()), sizeof( errorbuf ));
+
+      if( rc == -1 ) {
+        strlcat( errorbuf, "Unsupported format of the file.", sizeof( errorbuf ));
+      } else {
+        strlcat( errorbuf, xio_strerror( rc ), sizeof( errorbuf ));
+      }
+
       w->error_display( errorbuf );
     }
     WinPostMsg( w->hwnd, WM_PLAYERROR, 0, 0 );
     goto end;
   }
 
+  if(!( buffer = malloc( w->audio_buffersize ))) {
+    WinPostMsg( w->hwnd, WM_PLAYERROR, 0, 0 );
+    goto end;
+  }
+
+  w->frew = FALSE;
+  w->ffwd = FALSE;
+  w->stop = FALSE;
+
   // After opening a new file we so are in its beginning.
   if( w->jumptopos == 0 ) {
       w->jumptopos = -1;
   }
-
-  if(!( pcm_sample = (unsigned char*)malloc( w->audio_buffersize ))) {
-    WinPostMsg( w->hwnd, WM_PLAYERROR, 0, 0 );
-    goto end;
-  } else {
-    pcm_point = 0;
-  }
-
-  xio_set_observer( w->file, w->hwnd, w->metadata_buff, w->metadata_size );
-
-  if( !read_initialize( w, &fr )) {
-    WinPostMsg( w->hwnd, WM_PLAYERROR, 0, 0 );
-    goto end;
-  }
-
-  clear_decoder();
-  w->output_format.samplerate = freqs[ fr.sampling_frequency ] >> fr.down_sample;
-  init_eq( w->output_format.samplerate );
 
   for(;;)
   {
@@ -173,59 +239,39 @@ decoder_thread( void* arg )
 
     while( !w->stop )
     {
-      if( w->jumptopos >= 0 )
-      {
-        int jumptobyte;
+      if( w->jumptopos >= 0 ) {
+        seek_to( w, w->jumptopos, MPG_SEEK_SET );
 
-        if(( w->xing_header.flags & FRAMES_FLAG ) &&
-           ( w->xing_header.flags & TOC_FLAG    ) &&
-           ( w->xing_header.flags & BYTES_FLAG  ))
-        {
-          jumptobyte = SeekPoint( w->xing_TOC, w->xing_header.bytes,
-                                 (float)w->jumptopos * 100 / ( 1000.0 * 8 * 144 * w->xing_header.frames / freqs[fr.sampling_frequency] ));
-        }
-        else if(( w->xing_header.flags & FRAMES_FLAG ) &&
-                ( w->xing_header.flags & BYTES_FLAG  ))
-        {
-          int songlength = 8.0 * 144 * w->xing_header.frames * 1000 / freqs[fr.sampling_frequency];
-          jumptobyte = (float)w->jumptopos * w->xing_header.bytes / songlength;
-        } else {
-          jumptobyte = (float)w->jumptopos * w->abr * 125 / 1000;
-        }
-
-        jumptobyte += w->started;
-
-        clear_decoder();
-        seekto_pos( w, &fr, jumptobyte );
+        bufpos = 0;
+        w->posmarker = -1;
         w->jumptopos = -1;
+
         WinPostMsg( w->hwnd, WM_SEEKSTOP, 0, 0 );
       }
-
       if( w->frew ) {
-        /* ie.: ~1/4 second */
-        int bytes = xio_ftell( w->file ) - (tabsel_123[fr.lsf][fr.lay-1][fr.bitrate_index] * 125)/4;
-        if( bytes < 0 ) {
+        if( seek_to( w, -250, MPG_SEEK_CUR ) != 0 ) {
           break;
-        } else {
-          seekto_pos( w, &fr, bytes );
+        }
+      } else if( w->ffwd ) {
+        seek_to( w, 250, MPG_SEEK_CUR );
+      }
+
+      if( read_and_save_frame( w ) != 0 ) {
+        break;
+      }
+
+      while(( done = mpg_move_sound( &w->mpeg, buffer + bufpos, w->audio_buffersize - bufpos )) > 0 )
+      {
+        bufpos += done;
+
+        if( bufpos == w->audio_buffersize ) {
+          flush_output( w, buffer, bufpos );
+          bufpos = 0;
         }
       }
-
-      if( w->ffwd ) {
-        int bytes = xio_ftell( w->file ) + (tabsel_123[fr.lsf][fr.lay-1][fr.bitrate_index] * 125)/4;
-        seekto_pos( w, &fr, bytes );
-      }
-
-      if( !read_frame( w, &fr )) {
-        break;
-      }
-
-      if( !play_frame( w, &fr )) {
-        WinPostMsg( w->hwnd, WM_PLAYERROR, 0, 0 );
-        break;
-      }
     }
-    output_flush( w, &fr );
+
+    flush_output( w, buffer, bufpos );
     WinPostMsg( w->hwnd, WM_PLAYSTOP, 0, 0 );
     w->status = DECODER_STOPPED;
   }
@@ -233,24 +279,18 @@ decoder_thread( void* arg )
 end:
 
   DosRequestMutexSem( w->mutex, SEM_INDEFINITE_WAIT );
+  plg_close_file( w );
 
-  if( w->file ) {
-    xio_fclose( w->file );
-    w->file = NULL;
-  }
   if( w->save ) {
-    fclose( w->save );
+    xio_fclose( w->save );
     w->save = NULL;
   }
-  if( pcm_sample ) {
-    free( pcm_sample );
-    pcm_sample = NULL;
+  if( buffer ) {
+    free( buffer );
   }
 
-  w->decodertid = -1;
   w->status = DECODER_STOPPED;
-
-  DosPostEventSem   ( w->ok    );
+  w->decodertid = -1;
   DosReleaseMutexSem( w->mutex );
   _endthread();
 }
@@ -264,13 +304,17 @@ decoder_init( void** returnw )
   *returnw = w;
 
   DosCreateEventSem( NULL, &w->play,  0, FALSE );
-  DosCreateEventSem( NULL, &w->ok,    0, FALSE );
   DosCreateMutexSem( NULL, &w->mutex, 0, FALSE );
 
   w->decodertid = -1;
   w->status = DECODER_STOPPED;
-  w->xing_header.toc = w->xing_TOC;
-  return 0;
+
+  DosRequestMutexSem( mutex, SEM_INDEFINITE_WAIT );
+  instances = realloc( instances, ++instances_count * sizeof( DECODER_STRUCT* ));
+  instances[ instances_count - 1 ] = w;
+  DosReleaseMutexSem( mutex );
+
+  return PLUGIN_OK;
 }
 
 /* Uninit function is called when another decoder than yours is needed. */
@@ -278,47 +322,45 @@ BOOL DLLENTRY
 decoder_uninit( void* arg )
 {
   DECODER_STRUCT* w = arg;
+  int i;
 
-  decoder_command ( w, DECODER_STOP, NULL );
+  DosRequestMutexSem( mutex, SEM_INDEFINITE_WAIT );
+  decoder_command( w, DECODER_STOP, NULL );
+
+  for( i = 0; i < instances_count; i++ ) {
+    if( instances[i] == w ) {
+      if( i < instances_count - 1 ) {
+        memmove( instances + i, instances + i + 1,
+               ( instances_count - i - 1 ) * sizeof( DECODER_STRUCT* ));
+      }
+      instances = realloc( instances, --instances_count * sizeof( DECODER_STRUCT* ));
+    }
+  }
+
+  DosReleaseMutexSem( mutex  );
   DosCloseEventSem( w->play  );
-  DosCloseEventSem( w->ok    );
   DosCloseMutexSem( w->mutex );
   free( w );
+
   return TRUE;
 }
 
+/* There is a lot of commands to implement for this function. Parameters
+   needed for each of the are described in the definition of the structure
+   in the decoder_plug.h file. */
 ULONG DLLENTRY
 decoder_command( void* arg, ULONG msg, DECODER_PARAMS* info )
 {
   DECODER_STRUCT* w = arg;
-  ULONG resetcount;
 
   switch( msg )
   {
     case DECODER_SETUP:
-      mmx_use        = mmx_enable;
-      fr.down_sample = down_sample;
-      fr.synth       = synth_1to1;
 
-      w->output_format.size   = sizeof( w->output_format );
-      w->output_format.format = WAVE_FORMAT_PCM;
-      w->output_format.bits   = 16;
-
-      make_decode_tables( outscale );
-      init_layer2( fr.down_sample ); // also shared tables with layer1.
-      init_layer3( fr.down_sample );
-
-      if( force_mono ) {
-        // Left and right single mix.
-        fr.single = 3;
-        w->output_format.channels = 1;
-      } else {
-        // Both channels.
-        fr.single = -1;
-        w->output_format.channels = 2;
-      }
-
-      set_synth_functions( &fr );
+      w->output_format.size     = sizeof( w->output_format );
+      w->output_format.format   = WAVE_FORMAT_PCM;
+      w->output_format.bits     = 16;
+      w->output_format.channels = 2;
 
       w->hwnd                = info->hwnd;
       w->error_display       = info->error_display;
@@ -330,6 +372,8 @@ decoder_command( void* arg, ULONG msg, DECODER_PARAMS* info )
       w->metadata_buff[0]    = 0;
       w->metadata_size       = info->metadata_size;
       w->savename[0]         = 0;
+
+      mpg_init( &w->mpeg, mmx_enable );
       break;
 
     case DECODER_PLAY:
@@ -338,8 +382,12 @@ decoder_command( void* arg, ULONG msg, DECODER_PARAMS* info )
 
       if( w->decodertid != -1 ) {
         DosReleaseMutexSem( w->mutex );
-        decoder_command( w, DECODER_STOP, NULL );
-        DosRequestMutexSem( w->mutex, SEM_INDEFINITE_WAIT );
+        if( w->status == DECODER_STOPPED ) {
+          decoder_command( w, DECODER_STOP, NULL );
+          DosRequestMutexSem( w->mutex, SEM_INDEFINITE_WAIT );
+        } else {
+          return PLUGIN_GO_ALREADY;
+        }
       }
 
       strlcpy( w->filename, info->filename, sizeof( w->filename ));
@@ -359,25 +407,27 @@ decoder_command( void* arg, ULONG msg, DECODER_PARAMS* info )
 
       if( w->decodertid == -1 ) {
         DosReleaseMutexSem( w->mutex );
-        break;
+        return PLUGIN_GO_ALREADY;
       }
 
       w->stop = TRUE;
-
-      xio_fabort( w->file );
-      DosResetEventSem  ( w->ok, &resetcount );
+      mpg_abort( &w->mpeg );
       DosReleaseMutexSem( w->mutex );
-      DosPostEventSem   ( w->play  );
-      DosWaitEventSem   ( w->ok, SEM_INDEFINITE_WAIT );
+
+      DosPostEventSem( w->play  );
+      wait_thread( w->decodertid, 5000 );
+
+      w->status = DECODER_STOPPED;
+      w->decodertid = -1;
       break;
     }
 
     case DECODER_FFWD:
       if( info->ffwd ) {
         DosRequestMutexSem( w->mutex, SEM_INDEFINITE_WAIT );
-        if( w->decodertid == -1 || xio_can_seek( w->file ) != XIO_CAN_SEEK_FAST ) {
+        if( w->decodertid == -1 || w->mpeg.is_stream ) {
           DosReleaseMutexSem( w->mutex );
-          return 1;
+          return PLUGIN_UNSUPPORTED;
         }
         DosReleaseMutexSem( w->mutex );
       }
@@ -387,9 +437,9 @@ decoder_command( void* arg, ULONG msg, DECODER_PARAMS* info )
     case DECODER_REW:
       if( info->rew ) {
         DosRequestMutexSem( w->mutex, SEM_INDEFINITE_WAIT );
-        if( w->decodertid == -1 || xio_can_seek( w->file ) != XIO_CAN_SEEK_FAST ) {
+        if( w->decodertid == -1 || w->mpeg.is_stream ) {
           DosReleaseMutexSem( w->mutex );
-          return 1;
+          return PLUGIN_UNSUPPORTED;
         }
         DosReleaseMutexSem( w->mutex );
       }
@@ -397,36 +447,33 @@ decoder_command( void* arg, ULONG msg, DECODER_PARAMS* info )
       break;
 
     case DECODER_JUMPTO:
+      DosRequestMutexSem( w->mutex, SEM_INDEFINITE_WAIT );
       w->jumptopos = info->jumpto;
+      DosReleaseMutexSem( w->mutex );
+
       if( w->status == DECODER_STOPPED ) {
         DosPostEventSem( w->play );
       }
       break;
 
     case DECODER_EQ:
-      if(( flags.mp3_eq = flags.equalizer = info->equalizer ) == 1 ) {
-        memcpy( &octave_eq, info->bandgain, sizeof( octave_eq ));
-      }
-      if( w->status == DECODER_PLAYING ) {
-        init_eq( w->output_format.samplerate );
-      }
+      mpg_equalize( &w->mpeg, info->equalizer, info->bandgain );
       break;
 
     case DECODER_SAVEDATA:
+      DosRequestMutexSem( w->mutex, SEM_INDEFINITE_WAIT );
       if( info->save_filename == NULL ) {
         w->savename[0] = 0;
       } else {
         strlcpy( w->savename, info->save_filename, sizeof( w->savename ));
       }
+      DosReleaseMutexSem( w->mutex );
       break;
 
     default:
-      if( w->error_display ) {
-          w->error_display( "Unknown command." );
-      }
-      return 1;
+      return PLUGIN_UNSUPPORTED;
   }
-  return 0;
+  return PLUGIN_OK;
 }
 
 /* Returns current status of the decoder. */
@@ -437,153 +484,379 @@ decoder_status( void* arg ) {
 
 /* Returns number of milliseconds the stream lasts. */
 ULONG DLLENTRY
-decoder_length( void* arg )
-{
-  DECODER_STRUCT* w = arg;
-
-  _control87( EM_OVERFLOW | EM_UNDERFLOW | EM_ZERODIVIDE |
-              EM_INEXACT  | EM_INVALID   | EM_DENORMAL, MCW_EM );
-
-  if( w->file ) {
-    if( w->xing_header.flags & FRAMES_FLAG ) {
-      return (float)8 * 144 * w->xing_header.frames * 1000 / freqs[fr.sampling_frequency];
-    } else {
-      return (float)( xio_fsize( w->file ) - w->started ) * 1000 / w->abr / 125;
-    }
-  }
-  return 0;
+decoder_length( void* arg ) {
+  return ((DECODER_STRUCT*)arg)->mpeg.songlength;
 }
 
+void static
+copy_id3v2_string( ID3V2_TAG* tag, unsigned int id, char* result, int size )
+{
+  ID3V2_FRAME* frame = NULL;
+
+  if( !*result ) {
+    if(( frame = id3v2_get_frame( tag, id, 1 )) != NULL ) {
+      id3v2_get_string( frame, result, size );
+    }
+  }
+}
+
+void static
+copy_id3v2_tag( DECODER_INFO* info, ID3V2_TAG* tag )
+{
+  if( tag ) {
+    copy_id3v2_string( tag, ID3V2_TIT2, info->title,   sizeof( info->title   ));
+    copy_id3v2_string( tag, ID3V2_TPE1, info->artist,  sizeof( info->artist  ));
+    copy_id3v2_string( tag, ID3V2_TALB, info->album,   sizeof( info->album   ));
+    copy_id3v2_string( tag, ID3V2_COMM, info->comment, sizeof( info->comment ));
+    copy_id3v2_string( tag, ID3V2_TCON, info->genre,   sizeof( info->genre   ));
+    copy_id3v2_string( tag, ID3V2_TYER, info->year,    sizeof( info->year    ));
+
+    if( !*info->year ) {
+      copy_id3v2_string( tag, ID3V2_TDRC, info->year, sizeof( info->year ));
+    }
+
+    if( info->size >= INFO_SIZE_2 )
+    {
+      char buffer[128];
+      int  i;
+
+      ID3V2_FRAME* frame;
+
+      copy_id3v2_string( tag, ID3V2_TCOP, info->copyright, sizeof( info->copyright ));
+      copy_id3v2_string( tag, ID3V2_TRCK, info->track, sizeof( info->track ));
+
+      for( i = 1; ( frame = id3v2_get_frame( tag, ID3V2_TXXX, i )) != NULL ; i++ )
+      {
+        id3v2_get_description( frame, buffer, sizeof( buffer ));
+
+        if( stricmp( buffer, "replaygain_album_gain" ) == 0 ) {
+          info->album_gain = atof( id3v2_get_string( frame, buffer, sizeof( buffer )));
+        } else if( stricmp( buffer, "replaygain_album_peak" ) == 0 ) {
+          info->album_peak = atof( id3v2_get_string( frame, buffer, sizeof( buffer )));
+        } else if( stricmp( buffer, "replaygain_track_gain" ) == 0 ) {
+          info->track_gain = atof( id3v2_get_string( frame, buffer, sizeof( buffer )));
+        } else if( stricmp( buffer, "replaygain_track_peak" ) == 0 ) {
+          info->track_peak = atof( id3v2_get_string( frame, buffer, sizeof( buffer )));
+        }
+      }
+    }
+  }
+}
+
+void static
+copy_id3v1_string( ID3V1_TAG* tag, int id, char* result, int size )
+{
+  if( !*result ) {
+    id3v1_get_string( tag, id, result, size );
+  }
+}
+
+void static
+copy_id3v1_tag( DECODER_INFO* info, ID3V1_TAG* tag )
+{
+  copy_id3v1_string( tag, ID3V1_TITLE,   info->title,   sizeof( info->title   ));
+  copy_id3v1_string( tag, ID3V1_ARTIST,  info->artist,  sizeof( info->artist  ));
+  copy_id3v1_string( tag, ID3V1_ALBUM,   info->album,   sizeof( info->album   ));
+  copy_id3v1_string( tag, ID3V1_YEAR,    info->year,    sizeof( info->year    ));
+  copy_id3v1_string( tag, ID3V1_COMMENT, info->comment, sizeof( info->comment ));
+  copy_id3v1_string( tag, ID3V1_GENRE,   info->genre,   sizeof( info->genre   ));
+
+  if( info->size >= INFO_SIZE_2 ) {
+    copy_id3v1_string( tag, ID3V1_TRACK, info->track,   sizeof( info->track   ));
+  }
+}
+
+/* Returns information about specified file. */
 ULONG DLLENTRY
 decoder_fileinfo( char* filename, DECODER_INFO* info )
 {
-  unsigned long header;
-  struct frame fr;
-  int rc = 0;
+  int rc = PLUGIN_OK;
+  DECODER_STRUCT* w;
 
-  DECODER_STRUCT w = {0};
-
-  memset( info, 0, sizeof( *info ));
-  info->size = sizeof( *info );
-
-  if( !( w.file = xio_fopen( filename, "rb" ))) {
-    return xio_errno();
+  if( decoder_init((void**)(void*)&w ) != PLUGIN_OK ) {
+    return PLUGIN_NO_PLAY;
   }
 
-  if( read_first_frame_header( &w, &fr, &header ))
+  if(( rc = plg_open_file( w, filename, "rb" )) != 0 ) {
+    decoder_uninit( w );
+    return PLUGIN_NO_PLAY;
+  }
+
+  DosRequestMutexSem( w->mutex, SEM_INDEFINITE_WAIT );
+
+  info->format.size       = sizeof( info->format );
+  info->format.format     = WAVE_FORMAT_PCM;
+  info->format.bits       = 16;
+  info->format.channels   = 2;
+  info->format.samplerate = w->mpeg.samplerate;
+  info->mpeg              = w->mpeg.fr.mpeg25 ? 25 : ( w->mpeg.fr.lsf ? 20 : 10 );
+  info->layer             = w->mpeg.fr.layer;
+  info->mode              = w->mpeg.fr.mode;
+  info->modext            = w->mpeg.fr.mode_ext;
+  info->bpf               = w->mpeg.fr.framesize + 4;
+  info->bitrate           = w->mpeg.bitrate;
+  info->extention         = w->mpeg.fr.extension;
+  info->junklength        = w->mpeg.started;
+  info->songlength        = w->mpeg.songlength;
+
+  if( info->size >= INFO_SIZE_2 ) {
+      info->filesize = w->mpeg.filesize;
+  }
+
+  sprintf( info->tech_info, "%u kbs, %.1f kHz, %s",
+           info->bitrate, ( info->format.samplerate / 1000.0 ), modes( info->mode ));
+
+  if( w->mpeg.xing_header.flags & TOC_FLAG ) {
+    strcat( info->tech_info, ", Xing" );
+  }
+
+  xio_get_metainfo( w->mpeg.file, XIO_META_GENRE, info->genre,   sizeof( info->genre   ));
+  xio_get_metainfo( w->mpeg.file, XIO_META_NAME,  info->comment, sizeof( info->comment ));
+  xio_get_metainfo( w->mpeg.file, XIO_META_TITLE, info->title,   sizeof( info->title   ));
+
+  switch( tag_read_type ) {
+    case TAG_READ_ID3V2_AND_ID3V1:
+      copy_id3v2_tag( info,  w->mpeg.tagv2 );
+      copy_id3v1_tag( info, &w->mpeg.tagv1 );
+      break;
+    case TAG_READ_ID3V1_AND_ID3V2:
+      copy_id3v1_tag( info, &w->mpeg.tagv1 );
+      copy_id3v2_tag( info,  w->mpeg.tagv2 );
+      break;
+    case TAG_READ_ID3V2_ONLY:
+      copy_id3v2_tag( info,  w->mpeg.tagv2 );
+      break;
+    case TAG_READ_ID3V1_ONLY:
+      copy_id3v1_tag( info, &w->mpeg.tagv1 );
+      break;
+  }
+
+  if( !w->mpeg.is_stream && info->size >= INFO_SIZE_2 )
   {
-    info->format.size       = sizeof( info->format );
-    info->format.format     = WAVE_FORMAT_PCM;
-    info->format.bits       = 16;
-    info->format.samplerate = freqs[fr.sampling_frequency] >> down_sample;
-    info->format.channels   = force_mono ? 1 : 2;
-    info->mpeg              = fr.mpeg25 ? 25 : ( fr.lsf ? 20 : 10 );
-    info->layer             = fr.lay;
-    info->mode              = fr.mode;
-    info->modext            = fr.mode_ext;
-    info->bpf               = fr.framesize + 4;
-    info->bitrate           = tabsel_123[fr.lsf][fr.lay-1][fr.bitrate_index];
-    info->extention         = fr.extension;
-    info->junklength        = w.started;
-    info->filesize          = xio_fsize( w.file );
+    info->saveinfo = 1;
+    info->codepage = ch_default();
+    info->haveinfo = DECODER_HAVE_TITLE   |
+                     DECODER_HAVE_ARTIST  |
+                     DECODER_HAVE_ALBUM   |
+                     DECODER_HAVE_YEAR    |
+                     DECODER_HAVE_GENRE   |
+                     DECODER_HAVE_TRACK   |
+                     DECODER_HAVE_COMMENT ;
 
-    if( w.xing_header.flags & FRAMES_FLAG )
+    if( tag_read_type != TAG_READ_ID3V1_ONLY )
     {
-      info->songlength = 8.0 * 144 * w.xing_header.frames * 1000 / ( freqs[fr.sampling_frequency] << fr.lsf );
-
-      if( w.xing_header.flags & BYTES_FLAG ) {
-        info->bitrate = (float)w.xing_header.bytes / info->songlength * 1000 / 125;
-      }
+      info->haveinfo |= DECODER_HAVE_COPYRIGHT  |
+                        DECODER_HAVE_TRACK_GAIN |
+                        DECODER_HAVE_TRACK_PEAK |
+                        DECODER_HAVE_ALBUM_GAIN |
+                        DECODER_HAVE_ALBUM_PEAK ;
     }
-    else
-    {
-      if( !info->bitrate ) {
-        rc = 200;
-      } else {
-        info->songlength = (float)( xio_fsize( w.file ) - w.started ) * 1000 / ( info->bitrate * 125 );
-      }
-    }
-
-    sprintf( info->tech_info, "%u kbs, %.1f kHz, %s",
-             info->bitrate, ( info->format.samplerate / 1000.0 ), modes( info->mode ));
-
-    if( w.xing_header.flags & TOC_FLAG ) {
-      strcat( info->tech_info, ", Xing" );
-    }
-
-    xio_get_metainfo( w.file, XIO_META_GENRE, info->genre,   sizeof( info->genre   ));
-    xio_get_metainfo( w.file, XIO_META_NAME,  info->comment, sizeof( info->comment ));
-    xio_get_metainfo( w.file, XIO_META_TITLE, info->title,   sizeof( info->title   ));
-
-    if( xio_can_seek( w.file ) == XIO_CAN_SEEK_FAST )
-    {
-      ID3V1_TAG tag;
-
-      if( id3v1_gettag( w.file, &tag ) == 0 )
-      {
-        id3v1_getstring( &tag, ID3V1_TITLE,   info->title,   sizeof( info->title   ));
-        id3v1_getstring( &tag, ID3V1_ARTIST,  info->artist,  sizeof( info->artist  ));
-        id3v1_getstring( &tag, ID3V1_ALBUM,   info->album,   sizeof( info->album   ));
-        id3v1_getstring( &tag, ID3V1_YEAR,    info->year,    sizeof( info->year    ));
-        id3v1_getstring( &tag, ID3V1_COMMENT, info->comment, sizeof( info->comment ));
-        id3v1_getstring( &tag, ID3V1_GENRE,   info->genre,   sizeof( info->genre   ));
-        id3v1_getstring( &tag, ID3V1_TRACK,   info->track,   sizeof( info->track   ));
-      }
-
-      info->haveinfo = DECODER_HAVE_TITLE   |
-                       DECODER_HAVE_ARTIST  |
-                       DECODER_HAVE_ALBUM   |
-                       DECODER_HAVE_YEAR    |
-                       DECODER_HAVE_GENRE   |
-                       DECODER_HAVE_TRACK   |
-                       DECODER_HAVE_COMMENT ;
-
-      info->saveinfo = 1;
-    }
-  } else {
-    rc = 200;
   }
 
-  xio_fclose( w.file );
+  DosReleaseMutexSem( w->mutex );
+
+  plg_close_file( w );
+  decoder_uninit( w );
   return rc;
+}
+
+static void
+replace_id3v2_string( ID3V2_TAG* tag, unsigned int id, char* string )
+{
+  ID3V2_FRAME* frame = id3v2_get_frame( tag, id, 1 );
+
+  if( frame == NULL ) {
+    frame = id3v2_add_frame( tag, id );
+  }
+  if( frame != NULL ) {
+    id3v2_set_string( frame, string );
+  }
 }
 
 ULONG DLLENTRY
 decoder_saveinfo( char* filename, DECODER_INFO* info )
 {
-  ID3V1_TAG tag;
-  XFILE* file = xio_fopen( filename, "r+b" );
+  XFILE* save = NULL;
+  BOOL   copy = FALSE;
+  char   savename[_MAX_PATH];
+  ULONG  rc = PLUGIN_OK;
+  int    i;
+  int    started;
 
-  if( !file ) {
-    return xio_errno();
+  DECODER_STRUCT* w;
+
+  if( !*filename ) {
+    return EINVAL;
   }
 
-  id3v1_clrtag   ( &tag );
-  id3v1_setstring( &tag, ID3V1_TITLE,   info->title   );
-  id3v1_setstring( &tag, ID3V1_ARTIST,  info->artist  );
-  id3v1_setstring( &tag, ID3V1_ALBUM,   info->album   );
-  id3v1_setstring( &tag, ID3V1_YEAR,    info->year    );
-  id3v1_setstring( &tag, ID3V1_COMMENT, info->comment );
-  id3v1_setstring( &tag, ID3V1_GENRE,   info->genre   );
-  id3v1_setstring( &tag, ID3V1_TRACK,   info->track   );
+  strlcpy( savename, filename, sizeof( savename ));
+  savename[ strlen( savename ) - 1 ] = '~';
 
-  if( id3v1_settag( file, &tag ) != 0 ) {
-    xio_fclose( file );
-    return xio_errno();
+  if( decoder_init((void**)(void*)&w ) != PLUGIN_OK ) {
+    return errno;
   }
 
-  xio_fclose( file );
-  return 0;
+  if(( rc = plg_open_file( w, filename, "r+b" )) != 0 ) {
+    DEBUGLOG(( "mpg123: unable open file for saving %s, rc=%d\n", filename, rc ));
+    decoder_uninit( w );
+    return rc;
+  }
+
+  DosRequestMutexSem( w->mutex, SEM_INDEFINITE_WAIT );
+
+  if( !w->mpeg.tagv2 ) {
+    w->mpeg.tagv2 = id3v2_new_tag();
+  }
+
+  if( w->mpeg.tagv2->id3_started == 0 ) {
+    if( tag_save_type == TAG_SAVE_ID3V2_AND_ID3V1 ||
+        tag_save_type == TAG_SAVE_ID3V2           ||
+        tag_save_type == TAG_SAVE_ID3V2_ONLY       )
+    {
+      int set_rc;
+
+      replace_id3v2_string( w->mpeg.tagv2, ID3V2_TIT2, info->title     );
+      replace_id3v2_string( w->mpeg.tagv2, ID3V2_TPE1, info->artist    );
+      replace_id3v2_string( w->mpeg.tagv2, ID3V2_TALB, info->album     );
+      replace_id3v2_string( w->mpeg.tagv2, ID3V2_TYER, info->year      );
+      replace_id3v2_string( w->mpeg.tagv2, ID3V2_COMM, info->comment   );
+      replace_id3v2_string( w->mpeg.tagv2, ID3V2_TCON, info->genre     );
+      replace_id3v2_string( w->mpeg.tagv2, ID3V2_TCOP, info->copyright );
+      replace_id3v2_string( w->mpeg.tagv2, ID3V2_TRCK, info->track     );
+
+      xio_rewind( w->mpeg.file );
+      set_rc = id3v2_set_tag( w->mpeg.file, w->mpeg.tagv2, savename );
+
+      if( set_rc == 1 ) {
+        copy = TRUE;
+      } else if( set_rc == -1 ) {
+        rc = xio_errno();
+      }
+    } else if( tag_save_type == TAG_SAVE_ID3V1_ONLY && w->mpeg.tagv2->id3_newtag == 0 ) {
+      xio_rewind( w->mpeg.file );
+      if( id3v2_wipe_tag( w->mpeg.file, savename ) == 0 ) {
+        copy = TRUE;
+      } else {
+        rc = xio_errno();
+      }
+    }
+  }
+
+  if( rc == PLUGIN_OK ) {
+    if( copy ) {
+      if(( save = xio_fopen( savename, "r+b" )) == NULL ) {
+        rc = xio_errno();
+      }
+    } else {
+      save = w->mpeg.file;
+    }
+  } else {
+    DEBUGLOG(( "mpg123: unable save id3v2 tag, rc=%d\n", rc ));
+  }
+
+  if( rc == PLUGIN_OK )
+  {
+    if( tag_save_type == TAG_SAVE_ID3V2_AND_ID3V1 ||
+        tag_save_type == TAG_SAVE_ID3V1           ||
+        tag_save_type == TAG_SAVE_ID3V1_ONLY       )
+    {
+      id3v1_clean_tag ( &w->mpeg.tagv1 );
+      id3v1_set_string( &w->mpeg.tagv1, ID3V1_TITLE,   info->title   );
+      id3v1_set_string( &w->mpeg.tagv1, ID3V1_ARTIST,  info->artist  );
+      id3v1_set_string( &w->mpeg.tagv1, ID3V1_ALBUM,   info->album   );
+      id3v1_set_string( &w->mpeg.tagv1, ID3V1_YEAR,    info->year    );
+      id3v1_set_string( &w->mpeg.tagv1, ID3V1_COMMENT, info->comment );
+      id3v1_set_string( &w->mpeg.tagv1, ID3V1_GENRE,   info->genre   );
+      id3v1_set_string( &w->mpeg.tagv1, ID3V1_TRACK,   info->track   );
+
+      if( id3v1_set_tag( save, &w->mpeg.tagv1 ) != 0 ) {
+        rc = xio_errno();
+      }
+    } else if( tag_save_type == TAG_SAVE_ID3V2_ONLY ) {
+      if( id3v1_wipe_tag( save ) != 0 ) {
+        rc = xio_errno();
+      }
+    }
+    if( rc != PLUGIN_OK ) {
+      DEBUGLOG(( "mpg123: unable save id3v1 tag, rc=%d\n", rc ));
+    }
+  }
+
+  if( save && save != w->mpeg.file ) {
+    xio_fclose( save );
+  }
+
+  plg_close_file( w );
+  DosReleaseMutexSem( w->mutex );
+
+  if( rc != PLUGIN_OK || !copy ) {
+    decoder_uninit( w );
+    return rc;
+  }
+
+  if(( rc = plg_open_file( w, savename, "rb" )) != 0 ) {
+    decoder_uninit( w );
+    return rc;
+  } else {
+    // Remember a new position of the beginning of the data stream.
+    started = w->mpeg.started;
+    plg_close_file( w );
+    decoder_uninit( w );
+  }
+
+  // Suspend all active instances of the updated file.
+  DosRequestMutexSem( mutex, SEM_INDEFINITE_WAIT );
+
+  for( i = 0; i < instances_count; i++ )
+  {
+    w = instances[i];
+    DosRequestMutexSem( w->mutex, SEM_INDEFINITE_WAIT );
+
+    if( stricmp( w->filename, filename ) == 0 && w->mpeg.file ) {
+      DEBUGLOG(( "mpg123: suspend currently used file: %s\n", w->filename ));
+      w->resumepos = xio_ftell( w->mpeg.file ) - w->mpeg.started;
+      xio_fclose( w->mpeg.file );
+    } else {
+      w->resumepos = -1;
+    }
+  }
+
+  // Replace file.
+  if( remove( filename ) == 0 ) {
+    if( rename( savename, filename ) != 0 ) {
+      rc = errno;
+    }
+  } else {
+    rc = errno;
+    remove( savename );
+  }
+
+  // Resume all suspended instances of the updated file.
+  for( i = 0; i < instances_count; i++ )
+  {
+    w = instances[i];
+    if( w->resumepos != -1 ) {
+      DEBUGLOG(( "mpg123: resumes currently used file: %s\n", w->filename ));
+      if(( w->mpeg.file = xio_fopen( w->mpeg.filename, "rb" )) != NULL ) {
+        xio_fseek( w->mpeg.file, w->resumepos + started, XIO_SEEK_SET  );
+        w->mpeg.started = started;
+      }
+    }
+    DosReleaseMutexSem( w->mutex );
+  }
+
+  DosReleaseMutexSem( mutex );
+  return rc;
 }
 
 ULONG DLLENTRY
 decoder_trackinfo( char* drive, int track, DECODER_INFO* info ) {
-  return 200;
+  return PLUGIN_NO_PLAY;
 }
 
 ULONG DLLENTRY
 decoder_cdinfo( char* drive, DECODER_CDINFO* info ) {
-  return 100;
+  return PLUGIN_NO_READ;
 }
 
 ULONG DLLENTRY
@@ -592,14 +865,79 @@ decoder_support( char* ext[], int* size )
   if( size ) {
     if( ext != NULL && *size >= 3 )
     {
-      strcpy( ext[0], "*.MP1" );
+      strcpy( ext[0], "*.MP3" );
       strcpy( ext[1], "*.MP2" );
-      strcpy( ext[2], "*.MP3" );
+      strcpy( ext[2], "*.MP1" );
     }
     *size = 3;
   }
 
   return DECODER_FILENAME | DECODER_URL | DECODER_METAINFO;
+}
+
+static void
+init_tag( void )
+{
+  id3v2_set_read_charset( tag_read_id3v2_charset );
+  id3v2_set_save_charset( tag_save_id3v2_charset );
+  id3v1_set_read_charset( tag_read_id3v1_charset );
+  id3v1_set_save_charset( tag_save_id3v1_charset );
+}
+
+static void
+save_ini( void )
+{
+  HINI hini;
+
+  if(( hini = open_module_ini()) != NULLHANDLE )
+  {
+    save_ini_value( hini, tag_read_type          );
+    save_ini_value( hini, tag_read_id3v1_charset );
+    save_ini_value( hini, tag_read_id3v2_charset );
+    save_ini_value( hini, tag_save_type          );
+    save_ini_value( hini, tag_save_id3v1_charset );
+    save_ini_value( hini, tag_save_id3v2_charset );
+    save_ini_value( hini, mmx_enable  );
+    close_ini( hini );
+  }
+}
+
+static void
+load_ini( void )
+{
+  HINI hini;
+
+  mmx_enable  = 0;
+
+  if( ch_default() == CH_CYR_OS2 ) {
+    tag_read_type          = TAG_READ_ID3V2_AND_ID3V1;
+    tag_read_id3v2_charset = CH_CYR_WIN;
+    tag_read_id3v1_charset = CH_CYR_WIN;
+    tag_save_type          = TAG_SAVE_ID3V2_AND_ID3V1;
+    tag_save_id3v2_charset = CH_UCS_2BOM;
+    tag_save_id3v1_charset = CH_CYR_WIN;
+  } else {
+    tag_read_type          = TAG_READ_ID3V2_AND_ID3V1;
+    tag_read_id3v2_charset = CH_DEFAULT;
+    tag_read_id3v1_charset = CH_DEFAULT;
+    tag_save_type          = TAG_SAVE_ID3V2_AND_ID3V1;
+    tag_save_id3v2_charset = CH_UCS_2BOM;
+    tag_save_id3v1_charset = CH_DEFAULT;
+  }
+
+  if(( hini = open_module_ini()) != NULLHANDLE )
+  {
+    load_ini_value( hini, tag_read_type          );
+    load_ini_value( hini, tag_read_id3v1_charset );
+    load_ini_value( hini, tag_read_id3v2_charset );
+    load_ini_value( hini, tag_save_type          );
+    load_ini_value( hini, tag_save_id3v1_charset );
+    load_ini_value( hini, tag_save_id3v2_charset );
+    load_ini_value( hini, mmx_enable );
+    close_ini( hini );
+  }
+
+  init_tag();
 }
 
 /* Processes messages of the configuration dialog. */
@@ -609,23 +947,100 @@ cfg_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
   switch( msg )
   {
     case WM_INITDLG:
-      WinSendDlgItemMsg( hwnd, CB_FORCEMONO,  BM_SETCHECK, MPFROMSHORT( force_mono  ), 0 );
-      WinSendDlgItemMsg( hwnd, CB_DOWNSAMPLE, BM_SETCHECK, MPFROMSHORT( down_sample ), 0 );
-      WinSendDlgItemMsg( hwnd, CB_USEMMX,     BM_SETCHECK, MPFROMSHORT( mmx_enable  ), 0 );
+    {
+      int i;
 
-      if( !detect_mmx()) {
+      lb_add_item( hwnd, CB_READ, "ID3v2 + ID3v1"  );
+      lb_add_item( hwnd, CB_READ, "ID3v1 + ID3v2"  );
+      lb_add_item( hwnd, CB_READ, "ID3v2"          );
+      lb_add_item( hwnd, CB_READ, "ID3v1"          );
+      lb_select  ( hwnd, CB_READ, tag_read_type    );
+
+      for( i = 0; i < ch_list_size; i++ ) {
+        lb_add_item  ( hwnd, CB_ID3V1_RDCH, ch_list[i].name );
+        lb_set_handle( hwnd, CB_ID3V1_RDCH, i, (PVOID)ch_list[i].id );
+
+        if( ch_list[i].id == tag_read_id3v1_charset ) {
+          lb_select( hwnd, CB_ID3V1_RDCH, i );
+        }
+      }
+      for( i = 0; i < ch_list_size; i++ ) {
+        lb_add_item  ( hwnd, CB_ID3V2_RDCH, ch_list[i].name );
+        lb_set_handle( hwnd, CB_ID3V2_RDCH, i, (PVOID)ch_list[i].id );
+
+        if( ch_list[i].id == tag_read_id3v2_charset ) {
+          lb_select( hwnd, CB_ID3V2_RDCH, i );
+        }
+      }
+
+      lb_add_item( hwnd, CB_WRITE, "ID3v2 + ID3v1" );
+      lb_add_item( hwnd, CB_WRITE, "ID3v2"         );
+      lb_add_item( hwnd, CB_WRITE, "ID3v2 only"    );
+      lb_add_item( hwnd, CB_WRITE, "ID3v1"         );
+      lb_add_item( hwnd, CB_WRITE, "ID3v1 only"    );
+      lb_select  ( hwnd, CB_WRITE, tag_save_type   );
+
+      for( i = 0; i < ch_list_size; i++ ) {
+        // All except for auto detection.
+        if( ch_list[i].id >= 0 ) {
+          lb_add_item  ( hwnd, CB_ID3V1_WRCH, ch_list[i].name );
+          lb_set_handle( hwnd, CB_ID3V1_WRCH, i, (PVOID)ch_list[i].id );
+
+          if( ch_list[i].id == tag_save_id3v1_charset ) {
+            lb_select( hwnd, CB_ID3V1_WRCH, i );
+          }
+        }
+      }
+      for( i = 0; i < ch_list_size; i++ ) {
+        // All except for auto detection.
+        if( ch_list[i].id >= 0 ) {
+          lb_add_item  ( hwnd, CB_ID3V2_WRCH, ch_list[i].name );
+          lb_set_handle( hwnd, CB_ID3V2_WRCH, i, (PVOID)ch_list[i].id );
+
+          if( ch_list[i].id == tag_save_id3v2_charset ) {
+            lb_select( hwnd, CB_ID3V2_WRCH, i );
+          }
+        }
+      }
+
+      WinSendDlgItemMsg( hwnd, CB_USEMMX, BM_SETCHECK, MPFROMSHORT( mmx_enable ), 0 );
+
+      if( !detect_MMX()) {
         WinEnableWindow( WinWindowFromID( hwnd, CB_USEMMX ), FALSE );
       }
 
       do_warpsans( hwnd );
       break;
+    }
 
     case WM_COMMAND:
-      if( SHORT1FROMMP( mp1 ) == DID_OK ) {
-        force_mono  = (BOOL)WinSendDlgItemMsg( hwnd, CB_FORCEMONO,  BM_QUERYCHECK, 0, 0 );
-        down_sample = (BOOL)WinSendDlgItemMsg( hwnd, CB_DOWNSAMPLE, BM_QUERYCHECK, 0, 0 );
-        mmx_enable  = (BOOL)WinSendDlgItemMsg( hwnd, CB_USEMMX,     BM_QUERYCHECK, 0, 0 );
+      if( SHORT1FROMMP( mp1 ) == DID_OK )
+      {
+        int  i;
+
+        if(( i = lb_cursored( hwnd, CB_READ )) != LIT_NONE ) {
+          tag_read_type = i;
+        }
+        if(( i = lb_cursored( hwnd, CB_ID3V1_RDCH )) != LIT_NONE ) {
+          tag_read_id3v1_charset = (int)lb_get_handle( hwnd, CB_ID3V1_RDCH, i );
+        }
+        if(( i = lb_cursored( hwnd, CB_ID3V2_RDCH )) != LIT_NONE ) {
+          tag_read_id3v2_charset = (int)lb_get_handle( hwnd, CB_ID3V2_RDCH, i );
+        }
+
+        if(( i = lb_cursored( hwnd, CB_WRITE )) != LIT_NONE ) {
+          tag_save_type = i;
+        }
+        if(( i = lb_cursored( hwnd, CB_ID3V1_WRCH )) != LIT_NONE ) {
+          tag_save_id3v1_charset = (int)lb_get_handle( hwnd, CB_ID3V1_WRCH, i );
+        }
+        if(( i = lb_cursored( hwnd, CB_ID3V2_WRCH )) != LIT_NONE ) {
+          tag_save_id3v2_charset = (int)lb_get_handle( hwnd, CB_ID3V2_WRCH, i );
+        }
+
+        mmx_enable  = (BOOL)WinSendDlgItemMsg( hwnd, CB_USEMMX, BM_QUERYCHECK, 0, 0 );
         save_ini();
+        init_tag();
       }
       break;
   }
@@ -633,27 +1048,42 @@ cfg_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
 }
 
 /* Configure plug-in. */
-int DLLENTRY
-plugin_configure( HWND hwnd, HMODULE module )
-{
+void DLLENTRY
+plugin_configure( HWND hwnd, HMODULE module ) {
   WinDlgBox( HWND_DESKTOP, hwnd, cfg_dlg_proc, module, DLG_CONFIGURE, NULL );
-  return 0;
 }
 
 /* Returns information about plug-in. */
-int DLLENTRY
+void DLLENTRY
 plugin_query( PLUGIN_QUERYPARAM* param )
 {
-   param->type         = PLUGIN_DECODER;
-   param->author       = "Samuel Audet";
-   param->desc         = "MP3 Decoder 1.22";
-   param->configurable = TRUE;
+  param->type         = PLUGIN_DECODER;
+  param->author       = "Samuel Audet, Dmitry A.Steklenev";
+  param->desc         = "MP3 Decoder 1.23";
+  param->configurable = TRUE;
 
-   load_ini();
-   return 0;
+  load_ini();
 }
 
-#if defined(__IBMC__) && defined(__DEBUG_ALLOC__)
+int INIT_ATTRIBUTE
+__dll_initialize( void )
+{
+  if( DosCreateMutexSem( NULL, &mutex, 0, FALSE ) != NO_ERROR ) {
+    return 0;
+  }
+
+  return 1;
+}
+
+int TERM_ATTRIBUTE
+__dll_terminate( void )
+{
+  free( instances );
+  DosCloseMutexSem( mutex );
+  return 1;
+}
+
+#if defined(__IBMC__)
 unsigned long _System _DLL_InitTerm( unsigned long modhandle,
                                      unsigned long flag )
 {
@@ -661,9 +1091,12 @@ unsigned long _System _DLL_InitTerm( unsigned long modhandle,
     if( _CRT_init() == -1 ) {
       return 0UL;
     }
-    return 1UL;
+    return __dll_initialize();
   } else {
+    __dll_terminate();
+    #ifdef __DEBUG_ALLOC__
     _dump_allocated( 0 );
+    #endif
     _CRT_term();
     return 1UL;
   }

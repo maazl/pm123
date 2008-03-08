@@ -15,9 +15,9 @@ AS         = nasm
 AFLAGS     = -fobj -DUNDERSCORE
 
 CC         = g++
-CFLAGS     = -Wall -DOS2 -DOS2EMX_PLAIN_CHAR
+CFLAGS     = -Wall -Wno-uninitialized -DOS2 -DOS2EMX_PLAIN_CHAR
 CFLAGS_DLL =
-CFLAGS_DBG = -g -DDEBUG=1
+CFLAGS_DBG = -g -DDEBUG=$(DEBUG)
 CFLAGS_OPT = -O2
 
 CL         = g++
@@ -30,17 +30,21 @@ LDEF_PREFX =
 LDEF_SUFFX = _icc.def
 LOBJ_PREFX =
 LOBJ_SUFFX =
+LLIB_PREFX =
+LLIB_SUFFX =
 
 LB         = ar cr
 LBENDL     =
 
-LI         = emximp -o
+LI         = emximp
+IFLAGS_OUT = -o
 
 RC         = rc
 RFLAGS     = -n
 
 LIBS_TCP   =
 LIBS_MM    = -lmmpm2
+LIBS_UNI   =
 
 C_INCLUDE_PATH     = $(INCDIR);$(C_INCLUDE_PATH)
 CPLUS_INCLUDE_PATH = $(INCDIR);$(CPLUS_INCLUDE_PATH)
@@ -62,7 +66,7 @@ LFLAGS = $(LFLAGS) -L$(GCC_HOME)\lib\tcpipv4
 !ifdef DEBUG
 CFLAGS = $(CFLAGS) $(CFLAGS_DBG)
 LFLAGS = $(LFLAGS) $(LFLAGS_DBG)
-MFLAGS = $(MFLAGS) DEBUG=Yes
+MFLAGS = $(MFLAGS) DEBUG=$(DEBUG)
 !else
 CFLAGS = $(CFLAGS) $(CFLAGS_OPT)
 LFLAGS = $(LFLAGS) $(LFLAGS_OPT)

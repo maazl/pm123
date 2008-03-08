@@ -101,10 +101,10 @@ snd_open( DECODER_STRUCT* w, int mode )
   if(( w->sndfile = sf_open_virtual( &vio, mode, &w->sfinfo, w->file )) == NULL ) {
     xio_fclose( w->file );
     w->file = NULL;
-    return 200;
+    return PLUGIN_NO_PLAY;
   }
 
-  return 0;
+  return PLUGIN_OK;
 }
 
 static ULONG
@@ -127,6 +127,8 @@ decoder_thread( void* arg )
 {
   ULONG resetcount;
   ULONG markerpos;
+  ULONG rc;
+
   DECODER_STRUCT* w = (DECODER_STRUCT*)arg;
   char* buffer = NULL;
 
@@ -134,7 +136,7 @@ decoder_thread( void* arg )
   w->ffwd = FALSE;
   w->stop = FALSE;
 
-  if( snd_open( w, SFM_READ ) != 0 ) {
+  if(( rc = snd_open( w, SFM_READ )) != 0 ) {
     if( w->error_display )
     {
       char errorbuf[1024];
@@ -142,7 +144,11 @@ decoder_thread( void* arg )
       strlcpy( errorbuf, "Unable open file:\n", sizeof( errorbuf ));
       strlcat( errorbuf, w->filename, sizeof( errorbuf ));
       strlcat( errorbuf, "\n", sizeof( errorbuf ));
-      strlcat( errorbuf, xio_strerror( xio_errno()), sizeof( errorbuf ));
+      if( rc != PLUGIN_NO_PLAY ) {
+        strlcat( errorbuf, xio_strerror( xio_errno()), sizeof( errorbuf ));
+      } else {
+        strlcat( errorbuf, "Unsupported format of the file.", sizeof( errorbuf ));
+      }
 
       w->error_display( errorbuf );
     }
@@ -237,10 +243,8 @@ end:
   snd_close( w );
   free( buffer );
 
-  w->decodertid = -1;
   w->status = DECODER_STOPPED;
-
-  DosPostEventSem   ( w->ok    );
+  w->decodertid = -1;
   DosReleaseMutexSem( w->mutex );
   _endthread();
 }
@@ -254,12 +258,11 @@ decoder_init( void** returnw )
   *returnw = w;
 
   DosCreateEventSem( NULL, &w->play,  0, FALSE );
-  DosCreateEventSem( NULL, &w->ok,    0, FALSE );
   DosCreateMutexSem( NULL, &w->mutex, 0, FALSE );
 
   w->decodertid = -1;
   w->status = DECODER_STOPPED;
-  return 0;
+  return PLUGIN_OK;
 }
 
 /* Uninit function is called when another decoder than yours is needed. */
@@ -270,7 +273,6 @@ decoder_uninit( void* arg )
 
   decoder_command ( w, DECODER_STOP, NULL );
   DosCloseEventSem( w->play  );
-  DosCloseEventSem( w->ok    );
   DosCloseMutexSem( w->mutex );
   free( w );
   return TRUE;
@@ -280,7 +282,6 @@ ULONG DLLENTRY
 decoder_command( void* arg, ULONG msg, DECODER_PARAMS* info )
 {
   DECODER_STRUCT* w = arg;
-  ULONG resetcount;
 
   switch(msg)
   {
@@ -299,8 +300,12 @@ decoder_command( void* arg, ULONG msg, DECODER_PARAMS* info )
 
       if( w->decodertid != -1 ) {
         DosReleaseMutexSem( w->mutex );
-        decoder_command( w, DECODER_STOP, NULL );
-        DosRequestMutexSem( w->mutex, SEM_INDEFINITE_WAIT );
+        if( w->status == DECODER_STOPPED ) {
+          decoder_command( w, DECODER_STOP, NULL );
+          DosRequestMutexSem( w->mutex, SEM_INDEFINITE_WAIT );
+        } else {
+          return PLUGIN_GO_ALREADY;
+        }
       }
 
       strlcpy( w->filename, info->filename, sizeof( w->filename ));
@@ -320,16 +325,19 @@ decoder_command( void* arg, ULONG msg, DECODER_PARAMS* info )
 
       if( w->decodertid == -1 ) {
         DosReleaseMutexSem( w->mutex );
-        break;
+        return PLUGIN_GO_ALREADY;
       }
 
       w->stop = TRUE;
 
-      xio_fabort( w->file );
-      DosResetEventSem  ( w->ok, &resetcount );
+      if( w->file ) {
+        xio_fabort( w->file );
+      }
       DosReleaseMutexSem( w->mutex );
-      DosPostEventSem   ( w->play  );
-      DosWaitEventSem   ( w->ok, SEM_INDEFINITE_WAIT );
+      DosPostEventSem( w->play );
+      wait_thread( w->decodertid, 5000 );
+      w->status = DECODER_STOPPED;
+      w->decodertid = -1;
       break;
     }
 
@@ -338,7 +346,7 @@ decoder_command( void* arg, ULONG msg, DECODER_PARAMS* info )
         DosRequestMutexSem( w->mutex, SEM_INDEFINITE_WAIT );
         if( w->decodertid == -1 || xio_can_seek( w->file ) != XIO_CAN_SEEK_FAST ) {
           DosReleaseMutexSem( w->mutex );
-          return 1;
+          return PLUGIN_UNSUPPORTED;
         }
         DosReleaseMutexSem( w->mutex );
       }
@@ -350,7 +358,7 @@ decoder_command( void* arg, ULONG msg, DECODER_PARAMS* info )
         DosRequestMutexSem( w->mutex, SEM_INDEFINITE_WAIT );
         if( w->decodertid == -1 || xio_can_seek( w->file ) != XIO_CAN_SEEK_FAST ) {
           DosReleaseMutexSem( w->mutex );
-          return 1;
+          return PLUGIN_UNSUPPORTED;
         }
         DosReleaseMutexSem( w->mutex );
       }
@@ -365,10 +373,10 @@ decoder_command( void* arg, ULONG msg, DECODER_PARAMS* info )
       break;
 
     default:
-      return 1;
+      return PLUGIN_UNSUPPORTED;
    }
 
-   return 0;
+   return PLUGIN_OK;
 }
 
 /* Returns current status of the decoder. */
@@ -407,9 +415,6 @@ decoder_fileinfo( char* filename, DECODER_INFO* info )
   SF_FORMAT_INFO format_more;
   ULONG rc;
 
-  memset( info, 0, sizeof( *info ));
-  info->size = sizeof( *info );
-
   strlcpy( w.filename, filename, sizeof( w.filename ));
   if(( rc = snd_open( &w, SFM_READ )) == 0 )
   {
@@ -420,7 +425,10 @@ decoder_fileinfo( char* filename, DECODER_INFO* info )
     info->format.samplerate = w.sfinfo.samplerate;
     info->mode              = info->format.channels == 1 ? 3 : 0;
     info->songlength        = 1000.0 * w.sfinfo.frames / w.sfinfo.samplerate;
-    info->filesize          = xio_fsize( w.file );
+
+    if( info->size >= INFO_SIZE_2 ) {
+      info->filesize = xio_fsize( w.file );
+    }
 
     if( w.sfinfo.frames ) {
       info->bitrate = 8.0 * info->filesize * w.sfinfo.samplerate / w.sfinfo.frames / 1000;
@@ -435,18 +443,22 @@ decoder_fileinfo( char* filename, DECODER_INFO* info )
               format_info.name, format_more.name, (float)info->format.samplerate / 1000,
               info->format.channels == 1 ? "Mono" : "Stereo" );
 
-    copy_string( w.sndfile, info->title,     SF_STR_TITLE,     sizeof( info->title     ));
-    copy_string( w.sndfile, info->artist,    SF_STR_ARTIST,    sizeof( info->artist    ));
-    copy_string( w.sndfile, info->year,      SF_STR_DATE,      sizeof( info->year      ));
-    copy_string( w.sndfile, info->copyright, SF_STR_COPYRIGHT, sizeof( info->copyright ));
-    copy_string( w.sndfile, info->comment,   SF_STR_COMMENT,   sizeof( info->comment   ));
+    copy_string( w.sndfile, info->title,   SF_STR_TITLE,   sizeof( info->title   ));
+    copy_string( w.sndfile, info->artist,  SF_STR_ARTIST,  sizeof( info->artist  ));
+    copy_string( w.sndfile, info->year,    SF_STR_DATE,    sizeof( info->year    ));
+    copy_string( w.sndfile, info->comment, SF_STR_COMMENT, sizeof( info->comment ));
 
-    info->saveinfo = FALSE;
-    info->haveinfo = DECODER_HAVE_TITLE    |
-                     DECODER_HAVE_ARTIST   |
-                     DECODER_HAVE_YEAR     |
-                     DECODER_HAVE_COMMENT  |
-                     DECODER_HAVE_COPYRIGHT;
+    if( info->size >= INFO_SIZE_2 )
+    {
+      copy_string( w.sndfile, info->copyright, SF_STR_COPYRIGHT, sizeof( info->copyright ));
+
+      info->saveinfo = FALSE;
+      info->haveinfo = DECODER_HAVE_TITLE    |
+                       DECODER_HAVE_ARTIST   |
+                       DECODER_HAVE_YEAR     |
+                       DECODER_HAVE_COMMENT  |
+                       DECODER_HAVE_COPYRIGHT;
+    }
     snd_close( &w );
   }
 
@@ -455,46 +467,50 @@ decoder_fileinfo( char* filename, DECODER_INFO* info )
 
 ULONG DLLENTRY
 decoder_trackinfo( char* drive, int track, DECODER_INFO* info ) {
-  return 200;
+  return PLUGIN_NO_PLAY;
 }
 
 ULONG DLLENTRY
 decoder_cdinfo( char* drive, DECODER_CDINFO* info ) {
-  return 100;
+  return PLUGIN_NO_READ;
 }
 
 ULONG DLLENTRY
 decoder_support( char* ext[], int* size )
 {
   if( size ) {
-    if( ext != NULL && *size >= 10 )
+    if( ext != NULL && *size >= 15 )
     {
-      strcpy( ext[0], "*.WAV" );
-      strcpy( ext[1], "*.AIF" );
-      strcpy( ext[2], "*.AU"  );
-      strcpy( ext[3], "*.SND" );
-      strcpy( ext[4], "*.PAF" );
-      strcpy( ext[5], "*.IFF" );
-      strcpy( ext[6], "*.VOC" );
-      strcpy( ext[7], "*.W64" );
-      strcpy( ext[8], "*.PVF" );
-      strcpy( ext[9], "*.CAF" );
+      strcpy( ext[ 0], "*.WAV" );
+      strcpy( ext[ 1], "*.AIF" );
+      strcpy( ext[ 2], "*.AU"  );
+      strcpy( ext[ 3], "*.AVR" );
+      strcpy( ext[ 4], "*.CAF" );
+      strcpy( ext[ 5], "*.IFF" );
+      strcpy( ext[ 6], "*.MAT" );
+      strcpy( ext[ 7], "*.PAF" );
+      strcpy( ext[ 8], "*.PVF" );
+      strcpy( ext[ 9], "*.SD2" );
+      strcpy( ext[10], "*.SDS" );
+      strcpy( ext[11], "*.SF"  );
+      strcpy( ext[12], "*.VOC" );
+      strcpy( ext[13], "*.W64" );
+      strcpy( ext[14], "*.XI"  );
     }
-    *size = 10;
+    *size = 15;
   }
 
   return DECODER_FILENAME | DECODER_URL;
 }
 
 /* Returns information about plug-in. */
-int DLLENTRY
+void DLLENTRY
 plugin_query( PLUGIN_QUERYPARAM* param )
 {
   param->type         = PLUGIN_DECODER;
   param->author       = "Dmitry A.Steklenev";
   param->desc         = "WAV Play 2.00";
   param->configurable = FALSE;
-  return 0;
 }
 
 #if defined(__IBMC__) && defined(__DEBUG_ALLOC__)

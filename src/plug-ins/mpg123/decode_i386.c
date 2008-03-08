@@ -12,136 +12,64 @@
 
 #include <stdlib.h>
 #include <math.h>
-#include <string.h>
 
-#include "mpg123.h"
+#include "common.h"
 
-int synth_1to1_8bit(real *bandPtr,int channel,unsigned char *samples)
+int
+synth_1to1_mono2stereo( MPG_FILE* mpg, real* bandPtr, unsigned char* samples )
 {
-  short samples_tmp[64];
-  short *tmp1 = samples_tmp + channel;
-  int i,ret;
+  int i, ret = synth_1to1( mpg, bandPtr, 0, samples );
 
-  samples += channel;
-  ret = synth_1to1(bandPtr,channel,(unsigned char *)samples_tmp);
-
-  for(i=0;i<32;i++) {
-    *samples = conv16to8[*tmp1>>4];
-    samples += 2;
-    tmp1 += 2;
-  }
-
-  return ret;
-}
-
-int synth_1to1_8bit_mono(real *bandPtr,unsigned char *samples)
-{
-  short samples_tmp[64];
-  short *tmp1 = samples_tmp;
-  int i,ret;
-
-  ret = synth_1to1(bandPtr,0,(unsigned char *)samples_tmp);
-
-  for(i=0;i<32;i++) {
-    *samples++ = conv16to8[*tmp1>>4];
-    tmp1+=2;
-  }
-
-  return ret;
-}
-
-int synth_1to1_8bit_mono2stereo(real *bandPtr,unsigned char *samples)
-{
-  short samples_tmp[64];
-  short *tmp1 = samples_tmp;
-  int i,ret;
-
-  ret = synth_1to1(bandPtr,0,(unsigned char *)samples_tmp);
-
-  for(i=0;i<32;i++) {
-    *samples++ = conv16to8[*tmp1>>4];
-    *samples++ = conv16to8[*tmp1>>4];
-    tmp1 += 2;
-  }
-
-  return ret;
-}
-
-int synth_1to1_mono(real *bandPtr,unsigned char *samples)
-{
-  short samples_tmp[64];
-  short *tmp1 = samples_tmp;
-
-  int i,ret;
-
-  ret = synth_1to1(bandPtr,0,(unsigned char *) samples_tmp);
-
-  for(i=0;i<32;i++) {
-    *( (short *) samples) = *tmp1;
-    samples += 2;
-    tmp1 += 2;
+  for( i = 0; i < 32; i++ ) {
+    ((short*)samples )[1] = ((short*)samples )[0];
+    samples += 4;
   }
   return ret;
 }
 
-
-int synth_1to1_mono2stereo(real *bandPtr,unsigned char *samples)
+int
+synth_1to1( MPG_FILE* mpg, real* bandPtr, int channel, unsigned char* out )
 {
-  int i,ret = synth_1to1(bandPtr,0,samples);
-  for(i=0;i<32;i++) {
-    ((short *)samples)[1] = ((short *)samples)[0];
-    samples+=4;
+  #define STEP 2
+
+  if( mpg->use_common_eq ) {
+    do_common_eq( mpg, bandPtr, channel );
   }
-  return ret;
-}
 
-int synth_1to1(real *bandPtr,int channel,unsigned char *out)
-{
+  if( mpg->use_mmx ) {
+    return synth_1to1_MMX( &mpg->synth_data, bandPtr, channel, out );
+  } else {
+    real*  b0;
+    real  (*buf)[0x110];
+    short* samples = (short*)out;
+    int    clip = 0;
+    int    b1;
+    int    bo = mpg->synth_data.bo;
 
-  if(flags.equalizer)
-    do_equalizer(bandPtr,channel);
-
-  if(mmx_use)
-  {
-    return synth_1to1_MMX(bandPtr,channel,out);
-  }
-  else
-  {
-    static real buffs[2][2][0x110];
-    static const int step = 2;
-    static int bo = 1;
-    short *samples = (short *) out;
-
-    real *b0,(*buf)[0x110];
-    int clip = 0;
-    int bo1;
-
-    if(!channel) {
+    if( !channel ) {
       bo--;
       bo &= 0xf;
-      buf = buffs[0];
-    }
-    else {
+      buf = mpg->synth_data.buffs[0];
+    } else {
       samples++;
-      buf = buffs[1];
+      buf = mpg->synth_data.buffs[1];
     }
 
-    if(bo & 0x1) {
+    if( bo & 0x1 ) {
       b0 = buf[0];
-      bo1 = bo;
-      dct64(buf[1]+((bo+1)&0xf),buf[0]+bo,bandPtr);
-    }
-    else {
+      b1 = bo;
+      dct64( buf[1] + (( bo + 1 ) & 0xf ), buf[0] + bo, bandPtr );
+    } else {
       b0 = buf[1];
-      bo1 = bo+1;
-      dct64(buf[0]+bo,buf[1]+bo+1,bandPtr);
+      b1 = bo + 1;
+      dct64( buf[0] + bo, buf[1] + bo + 1, bandPtr );
     }
 
     {
       register int j;
-      real *window = decwin + 16 - bo1;
+      real* window = decwin + 16 - b1;
 
-      for (j=16;j;j--,b0+=0x10,window+=0x20,samples+=step)
+      for( j = 16; j; j--, b0 += 0x10, window += 0x20, samples += STEP )
       {
         real sum;
         sum  = window[0x0] * b0[0x0];
@@ -161,7 +89,7 @@ int synth_1to1(real *bandPtr,int channel,unsigned char *out)
         sum += window[0xE] * b0[0xE];
         sum -= window[0xF] * b0[0xF];
 
-        WRITE_SAMPLE(samples,sum,clip);
+        WRITE_SAMPLE( samples, sum, clip );
       }
 
       {
@@ -175,12 +103,12 @@ int synth_1to1(real *bandPtr,int channel,unsigned char *out)
         sum += window[0xC] * b0[0xC];
         sum += window[0xE] * b0[0xE];
 
-        WRITE_SAMPLE(samples,sum,clip);
-        b0-=0x10,window-=0x20,samples+=step;
+        WRITE_SAMPLE( samples, sum, clip );
+        b0 -= 0x10, window -= 0x20, samples += STEP;
       }
-      window += bo1<<1;
+      window += b1 << 1;
 
-      for (j=15;j;j--,b0-=0x10,window-=0x20,samples+=step)
+      for( j = 15; j; j--, b0 -= 0x10, window -= 0x20, samples += STEP )
       {
         real sum;
         sum = -window[-0x1] * b0[0x0];
@@ -200,9 +128,10 @@ int synth_1to1(real *bandPtr,int channel,unsigned char *out)
         sum -= window[-0xF] * b0[0xE];
         sum -= window[-0x0] * b0[0xF];
 
-        WRITE_SAMPLE(samples,sum,clip);
+        WRITE_SAMPLE( samples, sum, clip );
       }
     }
+    mpg->synth_data.bo = bo;
     return clip;
   }
 }

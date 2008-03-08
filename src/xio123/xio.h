@@ -64,6 +64,8 @@ typedef struct _XFILE {
   struct _XPROTOCOL* protocol;
   struct _XBUFFER*   buffer;
 
+  int serial;
+
 } XFILE;
 
 /* Open file. Returns a pointer to a file structure that can be used
@@ -116,6 +118,15 @@ xio_rewind( XFILE* x );
 long DLLENTRY
 xio_fsize( XFILE* x );
 
+/* Lengthens or cuts off the file to the length specified by size.
+   You must open the file in a mode that permits writing. Adds null
+   characters when it lengthens the file. When cuts off the file, it
+   erases all data from the end of the shortened file to the end
+   of the original file. Returns the value 0 if it successfully
+   changes the file size. A return value of -1 shows an error. */
+int DLLENTRY
+xio_ftruncate( XFILE* x, long size );
+
 /* Reads bytes from the current file position up to and including the
    first new-line character (\n), up to the end of the file, or until
    the number of bytes read is equal to n-1, whichever comes first.
@@ -139,6 +150,26 @@ xio_fputs( const char* string, XFILE* x );
    raise an error. */
 void DLLENTRY
 xio_fabort( XFILE* x );
+
+/* Indicates whether the end-of-file flag is set for the given stream.
+   The end-of-file flag is set by several functions to indicate the
+   end of the file. The end-of-file flag is cleared by calling xio_rewind,
+   xio_fseek, or xio_clearerr for this stream. */
+int DLLENTRY
+xio_feof( XFILE* x );
+
+/* Tests for an error in reading from or writing to the given stream.
+   If an error occurs, the error indicator for the stream remains set
+   until you close stream, call xio_rewind, or call xio_clearerr. */
+int DLLENTRY
+xio_ferror( XFILE* x );
+
+/* Resets the error indicator and end-of-file indicator for the
+   specified stream. Once set, the indicators for a specified stream
+   remain set until your program calls xio_clearerr or xio_rewind.
+   xio_fseek also clears the end-of-file indicator. */
+void DLLENTRY
+xio_clearerr( XFILE* x );
 
 /* Returns the last error code set by a library call in the current
    thread. Subsequent calls do not reset this error code. */
@@ -172,6 +203,9 @@ xio_buffer_size( void );
 /* Returns fills the buffer before reading state. */
 int DLLENTRY
 xio_buffer_wait( void );
+/* Returns value of prefilling of the buffer. */
+int DLLENTRY
+xio_buffer_fill( void );
 
 /* Sets the read-ahead buffer size. */
 void DLLENTRY
@@ -179,6 +213,9 @@ xio_set_buffer_size( int size );
 /* Sets fills the buffer before reading state. */
 void DLLENTRY
 xio_set_buffer_wait( int wait );
+/* Sets value of prefilling of the buffer. */
+void DLLENTRY
+xio_set_buffer_fill( int percent );
 
 /* Returns the name of the proxy server. */
 void DLLENTRY

@@ -49,6 +49,7 @@
 #include <utilfct.h>
 #include <format.h>
 #include <decoder_plug.h>
+#include <visual_plug.h>
 #include <plugin.h>
 
 #include "analyzer.h"
@@ -204,14 +205,13 @@ clear_analyzer( void )
 }
 
 /* Returns information about plug-in. */
-int DLLENTRY
+void DLLENTRY
 plugin_query( PPLUGIN_QUERYPARAM query )
 {
   query->type         = PLUGIN_VISUAL;
   query->author       = "Samuel Audet, Dmitry A.Steklenev ";
   query->desc         = "Spectrum Analyzer 2.00";
   query->configurable = 1;
-  return 0;
 }
 
 /* Processes messages of the configuration dialog. */
@@ -280,11 +280,9 @@ cfg_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
 }
 
 /* Configure plug-in. */
-int DLLENTRY
-plugin_configure( HWND hwnd, HMODULE module )
-{
+void DLLENTRY
+plugin_configure( HWND hwnd, HMODULE module ) {
   WinDlgBox( HWND_DESKTOP, hwnd, cfg_dlg_proc, module, DLG_CONFIGURE, NULL );
-  return 0;
 }
 
 static MRESULT EXPENTRY
@@ -478,7 +476,7 @@ plg_win_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
         }
       }
 
-      DiveEndImageBufferAccess( hdive, 0 );
+      DiveEndImageBufferAccess( hdive, image_id );
 
       if( _decoderPlaying() == 0 && !is_stopped )
       {
@@ -625,7 +623,6 @@ vis_init( PVISPLUGININIT init )
   }
 
   DiveSetSourcePalette( hdive, 0, sizeof( palette ) / sizeof( palette[0] ), (char*)&palette );
-  DiveSetDestinationPalette( hdive, 0, 0, 0 );
   WinSetVisibleRegionNotify( hanalyzer, TRUE );
 
   // Apparently the WM_VRNENABLED message not necessarily automatically
@@ -635,7 +632,7 @@ vis_init( PVISPLUGININIT init )
 }
 
 int DLLENTRY
-plugin_deinit( int unload )
+plugin_deinit( void )
 {
   HINI hini;
 
@@ -665,7 +662,7 @@ plugin_deinit( int unload )
   hdive = 0;
   hanalyzer = 0;
 
-  return 0;
+  return PLUGIN_OK;
 }
 
 #if defined(__IBMC__) && defined(__DEBUG_ALLOC__)
