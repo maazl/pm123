@@ -37,11 +37,12 @@ extern "C" {
 
 #define XIO_MAX_HOSTNAME  512
 #define XIO_MAX_USERNAME  128
-#define XIO_MAX_PASSWORD  123
+#define XIO_MAX_PASSWORD  128
 
 #define XIO_FILE          0
 #define XIO_HTTP          1
 #define XIO_FTP           2
+#define XIO_CDDB          3
 
 #define XIO_SEEK_SET      0
 #define XIO_SEEK_CUR      1

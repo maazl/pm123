@@ -43,8 +43,6 @@
 
 /* C compiler name and flags */
 #define FFTW_CC CCNAME
-/* Define to compile in long-double precision. */
-#undef  FFTW_LDOUBLE
 /* Define to compile in single precision. */
 #define FFTW_SINGLE 1
 /* Use standard C type functions. */

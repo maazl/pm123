@@ -38,6 +38,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include <snprintf.h>
 
 #include "pm123.h"
 #include "iniman.h"
@@ -58,6 +59,8 @@ factory_settings( void )
   strcpy( cfg.savedir,    "" ); // Directory used for saving a stream.
   strcpy( cfg.cddrive,    "" ); // Default CD drive.
   strcpy( cfg.defskin,    "" ); // Default skin.
+  strcpy( cfg.proxy,      "" ); // No proxy.
+  strcpy( cfg.auth,       "" ); // No authentication.
   strcpy( cfg.proxy_host, "" ); // No proxy.
   strcpy( cfg.proxy_user, "" ); // No authentication.
   strcpy( cfg.proxy_pass, "" ); // No authentication.
@@ -152,19 +155,21 @@ load_ini( void )
     load_ini_value( INIhandle, cfg.font_skinned );
     load_ini_value( INIhandle, cfg.font_attrs );
     load_ini_value( INIhandle, cfg.font_size );
-    load_ini_value( INIhandle, cfg.proxy_port );
     load_ini_value( INIhandle, cfg.main );
     load_ini_value( INIhandle, cfg.last );
     load_ini_value( INIhandle, cfg.list );
 
-    load_ini_string( INIhandle, cfg.filedir,    sizeof( cfg.filedir ));
-    load_ini_string( INIhandle, cfg.listdir,    sizeof( cfg.listdir ));
-    load_ini_string( INIhandle, cfg.savedir,    sizeof( cfg.savedir ));
-    load_ini_string( INIhandle, cfg.cddrive,    sizeof( cfg.cddrive ));
-    load_ini_string( INIhandle, cfg.proxy_host, sizeof( cfg.proxy_host ));
-    load_ini_string( INIhandle, cfg.proxy_user, sizeof( cfg.proxy_user ));
-    load_ini_string( INIhandle, cfg.proxy_pass, sizeof( cfg.proxy_pass ));
-    load_ini_string( INIhandle, cfg.defskin,    sizeof( cfg.defskin ));
+    load_ini_string( INIhandle, cfg.filedir, sizeof( cfg.filedir ));
+    load_ini_string( INIhandle, cfg.listdir, sizeof( cfg.listdir ));
+    load_ini_string( INIhandle, cfg.savedir, sizeof( cfg.savedir ));
+    load_ini_string( INIhandle, cfg.cddrive, sizeof( cfg.cddrive ));
+    load_ini_string( INIhandle, cfg.proxy,   sizeof( cfg.proxy   ));
+    load_ini_string( INIhandle, cfg.auth,    sizeof( cfg.auth    ));
+    load_ini_string( INIhandle, cfg.defskin, sizeof( cfg.defskin ));
+
+    // Used for compatibility.
+    sscanf( cfg.proxy, "%511[^:]:%d",    cfg.proxy_host, &cfg.proxy_port );
+    sscanf( cfg.auth,  "%127[^:]:%127s", cfg.proxy_user,  cfg.proxy_pass );
 
     load_ini_data_size( INIhandle, decoders_list, size );
     if( size > 0 && ( decoders_list = malloc( size )) != NULL )
@@ -281,18 +286,20 @@ save_ini( void )
     save_ini_value( INIhandle, cfg.font_skinned );
     save_ini_value( INIhandle, cfg.font_attrs );
     save_ini_value( INIhandle, cfg.font_size );
-    save_ini_value( INIhandle, cfg.proxy_port );
     save_ini_value( INIhandle, cfg.main );
     save_ini_value( INIhandle, cfg.last );
     save_ini_value( INIhandle, cfg.list );
+
+    // Used for compatibility.
+    snprintf( cfg.proxy, sizeof( cfg.proxy ), "%s:%d", cfg.proxy_host, cfg.proxy_port );
+    snprintf( cfg.auth,  sizeof( cfg.auth  ), "%s:%s", cfg.proxy_user, cfg.proxy_pass );
 
     save_ini_string( INIhandle, cfg.filedir );
     save_ini_string( INIhandle, cfg.listdir );
     save_ini_string( INIhandle, cfg.savedir );
     save_ini_string( INIhandle, cfg.cddrive );
-    save_ini_string( INIhandle, cfg.proxy_host );
-    save_ini_string( INIhandle, cfg.proxy_user );
-    save_ini_string( INIhandle, cfg.proxy_pass );
+    save_ini_string( INIhandle, cfg.proxy   );
+    save_ini_string( INIhandle, cfg.auth    );
     save_ini_string( INIhandle, cfg.defskin );
     save_ini_string( INIhandle, cfg.lasteq  );
 

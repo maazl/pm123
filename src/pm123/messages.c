@@ -42,9 +42,6 @@
 #include "plugman.h"
 #include "messages.h"
 
-extern void DLLENTRY amp_display_info ( char* );
-extern void DLLENTRY amp_display_error( char* );
-
 static OUTPUT_PARAMS out_params;
 
 static BOOL paused     = FALSE;
@@ -117,7 +114,11 @@ msg_play( HWND hwnd, char* filename, char* decoder, const FORMAT_INFO* format, i
   // channels and of the number of bits in the sample. Because of
   // poor design of the mpg123 this size also must be an integer
   // product of the 128.
-  out_params.buffersize = out_params.buffersize / samplesize / 128 * samplesize * 128;
+  if( samplesize ) {
+    out_params.buffersize = out_params.buffersize / samplesize / 128 * samplesize * 128;
+  } else {
+    out_params.buffersize = out_params.buffersize / 128 * 128;
+  }
 
   if( out_command( OUTPUT_SETUP, &out_params ) != 0 ) {
     return FALSE;

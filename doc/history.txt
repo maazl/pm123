@@ -36,6 +36,8 @@ PM123's History
     - The decoder now correctly decode mpeg 2.x layer 3 files with low 
       sample rate.
     - The decoder any more does not eat the end of the played file.
+    - Seeking completes correctly when the decoder is close by the end
+      of a played file.
 
     REALEQ:
     - The mute controls of the left and right channel are placed correctly.
@@ -48,10 +50,18 @@ PM123's History
     - Larger FIR size, now up to 12288.
 
     CDDAPLAY:
-    - Now shows correct bitrate at playing a track. Thanks to ntim.
+    - Now shows correct bitrate and track size at playing a track.
+    - Seeking completes correctly when the decoder is close by the end
+      of a played file.
+    - The CDDB cache now use the standard file-based form. Anyone can
+      install the offline version of FreeDB database and use it without
+      internet connection.
+    - The CDDB engine uses PM123 proxy settings.
 
     WAVPLAY:
-    - Now shows correct bitrate at playing a file. Thanks to ntim.
+    - Now shows correct bitrate at playing a file.
+    - Seeking completes correctly when the decoder is close by the end
+      of a played file.
 
     OS2AUDIO:
     - The output is more accurate and any more does not eat the head of the

@@ -48,6 +48,7 @@ extern "C" {
 #define XS_CAN_SEEK       0x0010
 #define XS_CAN_SEEK_FAST  0x0020
 #define XS_USE_SPOS       0x0040
+#define XS_NOT_BUFFERIZE  0x0080
 
 typedef struct _XPROTOCOL {
 
@@ -97,7 +98,7 @@ typedef struct _XPROTOCOL {
   HMTX mtx_file;   /* Serializes all i/o operations.            */
   int  abort;      /* Abnormal termination of all operations.   */
 
-  /* Can be used by protocols implementation. */
+  /* Can be used by protocol implementation. */
 
   int           s_handle;   /* Connection or file handle.                    */
   unsigned long s_pos;      /* Current position of the stream pointer.       */
@@ -116,10 +117,10 @@ typedef struct _XPROTOCOL {
   char  s_name [128];
   char  s_title[128];
 
-  /* Used by FTP protocol implementation. */
+  /* Used by FTP  protocol implementation. */
 
-  char s_reply[512];
-  int  s_datahandle;
+  char  s_reply[512];
+  int   s_datahandle;
 
 } XPROTOCOL;
 

@@ -189,24 +189,47 @@ distzip: distfiles $(MDUMMY)
 	cmd /c "cd dist\files & zip -rX ..\pm123-$(VERSION).zip * -x CVS\* .cvsignore "
 
 distclean: $(MDUMMY)
-	-@del dist\files\icons\* /n     2> nul
-	-@rd  dist\files\icons          2> nul
-	-@del dist\files\visplug\* /n   2> nul
-	-@rd  dist\files\visplug        2> nul
-	-@del dist\files\pdk\* /n       2> nul
-	-@rd  dist\files\pdk            2> nul
-	-@del dist\files\COPYING        2> nul
-	-@del dist\files\COPYRIGHT      2> nul
-	-@del dist\files\*.cmd          2> nul
-	-@del dist\files\*.dll          2> nul
-	-@del dist\files\*.exe          2> nul
-	-@del dist\files\*.skn          2> nul
-	-@del dist\files\*.inf          2> nul
-	-@del dist\files\*.txt          2> nul
-	-@del dist\files\*.ini          2> nul
-	-@del dist\files\*.lst          2> nul
-	-@del dist\files\*.bak          2> nul
-	-@del dist\files\*.log          2> nul
-	-@del dist\pm123-$(VERSION).exe 2> nul
-	-@del dist\pm123-$(VERSION).zip 2> nul
-	-@del dist\pm123-$(VERSION).wpi 2> nul
+	-@del dist\files\icons\* /n           2> nul
+	-@rd  dist\files\icons                2> nul
+	-@del dist\files\visplug\* /n         2> nul
+	-@rd  dist\files\visplug              2> nul
+	-@del dist\files\pdk\* /n             2> nul
+	-@rd  dist\files\pdk                  2> nul
+	-@del dist\files\cddb\blues\* /n      2> nul
+	-@rd  dist\files\cddb\blues           2> nul
+	-@del dist\files\cddb\classical\* /n  2> nul
+	-@rd  dist\files\cddb\classical       2> nul
+	-@del dist\files\cddb\country\* /n    2> nul
+	-@rd  dist\files\cddb\country         2> nul
+	-@del dist\files\cddb\data\* /n       2> nul
+	-@rd  dist\files\cddb\data            2> nul
+	-@del dist\files\cddb\folk\* /n       2> nul
+	-@rd  dist\files\cddb\folk            2> nul
+	-@del dist\files\cddb\jazz\* /n       2> nul
+	-@rd  dist\files\cddb\jazz            2> nul
+	-@del dist\files\cddb\newage\* /n     2> nul
+	-@rd  dist\files\cddb\newage          2> nul
+	-@del dist\files\cddb\reggae\* /n     2> nul
+	-@rd  dist\files\cddb\reggae          2> nul
+	-@del dist\files\cddb\rock\* /n       2> nul
+	-@rd  dist\files\cddb\rock            2> nul
+	-@del dist\files\cddb\soundtrack\* /n 2> nul
+	-@rd  dist\files\cddb\soundtrack      2> nul
+	-@del dist\files\cddb\misc\* /n       2> nul
+	-@rd  dist\files\cddb\misc            2> nul
+	-@rd  dist\files\cddb                 2> nul
+	-@del dist\files\COPYING              2> nul
+	-@del dist\files\COPYRIGHT            2> nul
+	-@del dist\files\*.cmd                2> nul
+	-@del dist\files\*.dll                2> nul
+	-@del dist\files\*.exe                2> nul
+	-@del dist\files\*.skn                2> nul
+	-@del dist\files\*.inf                2> nul
+	-@del dist\files\*.txt                2> nul
+	-@del dist\files\*.ini                2> nul
+	-@del dist\files\*.lst                2> nul
+	-@del dist\files\*.bak                2> nul
+	-@del dist\files\*.log                2> nul
+	-@del dist\pm123-$(VERSION).exe       2> nul
+	-@del dist\pm123-$(VERSION).zip       2> nul
+	-@del dist\pm123-$(VERSION).wpi       2> nul

@@ -42,10 +42,16 @@ LI         = implib /nologo /noi
 RC         = rc
 RFLAGS     = -n
 
-LIBS_TCP   = tcpip32.lib
-LIBS_MM    = mmpm2.lib
+!ifdef TCP40
+LIBS_TCP = so32dll.lib tcp32dll.lib
+MFLAGS   = $(MFLAGS) TCP40=Yes
+CFLAGS   = $(CFLAGS) -DTCPV40HDRS
+!else
+LIBS_TCP = tcpip32.lib
+!endif
 
-INCLUDE    = $(INCDIR);$(INCLUDE)
+LIBS_MM  = mmpm2.lib
+INCLUDE  = $(INCDIR);$(INCLUDE)
 
 !ifdef EXE_PM
 LFLAGS = $(LFLAGS) $(LFLAGS_PM)

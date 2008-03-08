@@ -1,0 +1,102 @@
+/*
+ * Copyright 1997-2003 Samuel Audet <guardia@step.polymtl.ca>
+ *                     Taneli Lepp„ <rosmo@sektori.com>
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are met:
+ *
+ *    1. Redistributions of source code must retain the above copyright notice,
+ *       this list of conditions and the following disclaimer.
+ *
+ *    2. Redistributions in binary form must reproduce the above copyright
+ *       notice, this list of conditions and the following disclaimer in the
+ *       documentation and/or other materials provided with the distribution.
+ *
+ *    3. The name of the author may not be used to endorse or promote products
+ *       derived from this software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR IMPLIED
+ * WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+ * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO
+ * EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+ * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
+ * OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+ * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+ * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
+ * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
+
+#define  INCL_WINSYS
+#define  INCL_WINBIDI
+#define  INCL_WINSTDDLGS
+#define  INCL_WINSTDSPIN
+#define  INCL_NLS
+#define  INCL_SW
+#include <os2.h>
+#include "cddaplay.h"
+
+DLGTEMPLATE DLG_MATCH
+BEGIN
+  DIALOG "CDDAPLAY - Found some FreeDB fuzzy matches, select one",
+         DLG_MATCH, 50, 50, 300, 120,
+         FS_NOBYTEALIGN | FS_DLGBORDER | WS_CLIPSIBLINGS | WS_SAVEBITS,
+         FCF_TITLEBAR | FCF_SYSMENU | FCF_CLOSEBUTTON
+  BEGIN
+    CONTROL "", LB_MATCHES, 6, 22, 287, 91, WC_LISTBOX,
+            LS_NOADJUSTPOS | WS_GROUP | WS_TABSTOP | WS_VISIBLE
+    PRESPARAMS PP_FONTNAMESIZE "8.Courier"
+    CONTROL "~OK", DID_OK, 5, 5, 38, 12, WC_BUTTON,
+            BS_PUSHBUTTON | BS_DEFAULT | WS_TABSTOP | WS_VISIBLE
+    CONTROL "~Cancel", DID_CANCEL, 48, 5, 38, 12, WC_BUTTON,
+            BS_PUSHBUTTON | WS_TABSTOP | WS_VISIBLE
+  END
+END
+
+DLGTEMPLATE DLG_CDDA
+BEGIN
+  DIALOG "CDDA Play", DLG_CDDA, 78, 42, 307, 165,,
+          FCF_TITLEBAR | FCF_SYSMENU | FCF_CLOSEBUTTON
+  BEGIN
+    CONTROL "Select FreeDB ~servers to use", ST_CDDBSERVERS, 10, 147, 100, 8, WC_STATIC,
+            SS_TEXT | DT_LEFT | DT_TOP | DT_MNEMONIC | WS_GROUP | WS_VISIBLE
+    CONTROL "", LB_CDDBSERVERS, 10, 91, 137, 53, WC_LISTBOX,
+            LS_NOADJUSTPOS | LS_MULTIPLESEL | WS_VISIBLE | WS_TABSTOP
+    CONTROL "~Add", PB_ADD1, 10, 74, 45, 12, WC_BUTTON,
+            BS_PUSHBUTTON | WS_TABSTOP | WS_VISIBLE
+    CONTROL "D~elete", PB_DELETE1, 60, 74, 45, 12, WC_BUTTON,
+            BS_PUSHBUTTON | WS_TABSTOP | WS_VISIBLE
+    CONTROL "Select FreeDB servers through ~HTTP to use", ST_HTTPSERVERS, 157, 147, 145, 8, WC_STATIC,
+            SS_TEXT | DT_LEFT | DT_TOP | DT_MNEMONIC | WS_GROUP | WS_VISIBLE
+    CONTROL "", LB_HTTPSERVERS, 157, 91, 138, 53, WC_LISTBOX,
+            LS_NOADJUSTPOS | LS_MULTIPLESEL | WS_VISIBLE | WS_TABSTOP
+    CONTROL "A~dd", PB_ADD2, 157, 74, 45, 12, WC_BUTTON,
+            BS_PUSHBUTTON | WS_TABSTOP | WS_VISIBLE
+    CONTROL "De~lete", PB_DELETE2, 207, 74, 45, 12, WC_BUTTON,
+            BS_PUSHBUTTON | WS_TABSTOP | WS_VISIBLE
+    CONTROL "Remote ~Update", PB_UPDATE, 10, 57, 70, 12, WC_BUTTON,
+            BS_PUSHBUTTON | WS_GROUP | WS_TABSTOP | WS_VISIBLE
+    CONTROL "Use FreeDB", CB_USECDDB, 10, 44, 71, 10, WC_BUTTON,
+            BS_AUTOCHECKBOX | WS_TABSTOP | WS_VISIBLE
+    CONTROL "Use HTTP", CB_USEHTTP, 10, 33, 71, 10, WC_BUTTON,
+            BS_AUTOCHECKBOX | WS_TABSTOP | WS_VISIBLE
+    CONTROL "~Try all servers", CB_TRYALL, 10, 22, 70, 10, WC_BUTTON,
+            BS_AUTOCHECKBOX | WS_TABSTOP | WS_VISIBLE
+    CONTROL "~New server", ST_NEWSERVER, 96, 60, 56, 8, WC_STATIC,
+            SS_TEXT | DT_RIGHT | DT_TOP | DT_MNEMONIC | WS_VISIBLE
+    CONTROL "", EF_NEWSERVER, 159, 61, 132, 8, WC_ENTRYFIELD,
+            ES_AUTOSCROLL | ES_MARGIN | ES_ANY | WS_TABSTOP | WS_VISIBLE
+            CTLDATA 8, 256, 0, 0
+    CONTROL "E-~mail (server ID)", ST_EMAIL, 96, 45, 56, 8, WC_STATIC,
+            SS_TEXT | DT_RIGHT | DT_TOP | DT_MNEMONIC | WS_VISIBLE
+            PRESPARAMS PP_FOREGROUNDCOLORINDEX, CLR_RED
+    CONTROL "", EF_EMAIL, 159, 46, 132, 8, WC_ENTRYFIELD,
+            ES_AUTOSCROLL | ES_MARGIN | ES_ANY | WS_TABSTOP | WS_VISIBLE
+              CTLDATA 8, 256, 0, 0
+
+    DEFPUSHBUTTON "~OK", DID_OK, 10, 5, 35, 13, WS_GROUP | WS_TABSTOP
+    PUSHBUTTON "~Cancel", DID_CANCEL, 50, 5, 45, 13
+
+  END
+END
+

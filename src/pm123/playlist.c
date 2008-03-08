@@ -350,14 +350,31 @@ pl_fill_record( PLRECORD* rec, const DECODER_INFO* info )
   rec->time = strdup( buffer );
 
   // Songname
-  rec->songname = malloc( strlen( info->artist ) + 2 +
-                          strlen( info->title  ) + 1 );
-  if( rec->songname ) {
-    strcpy( rec->songname, info->artist );
-    if( *info->title && *info->artist ) {
-      strcat( rec->songname, "- " );
+  if( *info->title || *info->artist )
+  {
+    rec->songname = malloc( strlen( info->artist ) + 3 +
+                            strlen( info->title  ) + 1 );
+    if( rec->songname ) {
+      strcpy( rec->songname, info->artist );
+      if( *info->title && *info->artist ) {
+        strcat( rec->songname, " - " );
+      }
+      strcat( rec->songname, info->title );
     }
-    strcat( rec->songname, info->title );
+  // If the song name is undefined then use the file name instead.
+  } else {
+    char  filename[_MAX_PATH];
+    char* p;
+
+    sfname( filename, rec->rc.pszIcon, sizeof( filename ));
+
+    for( p = filename; *p; ++p ) {
+      if( *p == '_' ) {
+          *p =  ' ';
+      }
+    }
+
+    rec->songname = strdup( filename );
   }
 
   // Information

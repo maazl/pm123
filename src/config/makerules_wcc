@@ -45,6 +45,10 @@ LIBS_MM    = mmpm2.lib
 
 %INCLUDE   = $(INCDIR);$(%INCLUDE)
 
+!ifdef TCP40
+!error The Open Watcom C++ does not support the TCP/IP v4.0.
+!endif
+
 !ifdef DEBUG
 CFLAGS = $(CFLAGS) $(CFLAGS_DBG)
 LFLAGS = $(LFLAGS) $(LFLAGS_DBG)

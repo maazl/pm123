@@ -134,7 +134,7 @@ buffer_initialize( XFILE* x )
   XBUFFER* buffer;
   int size = xio_buffer_size();
 
-  if( !size || ( x->oflags & XO_WRITE )) {
+  if( !size || ( x->oflags & XO_WRITE ) || ( x->protocol->supports & XS_NOT_BUFFERIZE )) {
     x->buffer = NULL;
     return;
   }

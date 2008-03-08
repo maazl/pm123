@@ -37,7 +37,7 @@
 #include "utilfct.h"
 
 /* Passed any string value, decode from URL transmission. */
-static char*
+char*
 url_decode( char* string )
 {
   const char* digits = "0123456789ABCDEF";
@@ -71,8 +71,8 @@ url_decode( char* string )
 }
 
 /* Passed any string value, encode for URL transmission. */
-static size_t
-url_encode_at( char* result, const char* source, size_t size )
+size_t
+url_encode( char* result, const char* source, size_t size )
 {
   const  char* digits = "0123456789ABCDEF";
   const  char* encode = " !\"#$%&'(),:;<=>?{\\}~+";
@@ -110,7 +110,7 @@ url_encode_at( char* result, const char* source, size_t size )
 
 /* Calculates a length of any string value encoded for
    URL transmission. */
-static size_t
+size_t
 url_encode_size( const char* string )
 {
   const char* encode = " !\"#$%&'(),:;<=>?{\\}~+";
@@ -223,7 +223,7 @@ XURL* url_allocate( const char* string )
   // the parse string before continuing.
 
   if(( pc = strchr( tail, '?' )) != NULL ) {
-    url->query = url_decode( strdup( pc + 1 ));
+    url->query = strdup( pc + 1 );
     *pc = 0;
   }
 
@@ -327,7 +327,7 @@ char* url_string( XURL* url, int part )
 
   if( part & XURL_STR_ENCODE ) {
     urllen = url_encode_size;
-    urlcat = url_encode_at;
+    urlcat = url_encode;
   } else {
     urllen = url_string_size;
     urlcat = strlcat;
@@ -415,7 +415,7 @@ char* url_string( XURL* url, int part )
   }
   if( url->query ) {
     strcat( string, "?" );
-    urlcat( string, url->query, size );
+    strcat( string, url->query );
   }
   if( url->fragment ) {
     strcat( string, "#" );

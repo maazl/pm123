@@ -42,6 +42,7 @@
 #include "xio_file.h"
 #include "xio_ftp.h"
 #include "xio_http.h"
+#include "xio_cddb.h"
 #include "xio_socket.h"
 #include "utilfct.h"
 #include "decoder_plug.h"
@@ -103,6 +104,11 @@ xio_fopen( const char* filename, const char* mode )
       x->scheme   = XIO_FTP;
       x->protocol = ftp_initialize( x );
     }
+  }
+  else if( strnicmp( filename, "cddbp:", 6 ) == 0 )
+  {
+    x->scheme   = XIO_CDDB;
+    x->protocol = cddb_initialize( x );
   } else {
     x->scheme   = XIO_FILE;
     x->protocol = file_initialize( x );
@@ -466,7 +472,9 @@ xio_errno( void ) {
 const char* DLLENTRY
 xio_strerror( int errnum )
 {
-  if( errnum >= FTPBASEERR ) {
+  if( errnum >= CDDBBASEERR ) {
+    return cddb_strerror( errnum );
+  } else if( errnum >= FTPBASEERR ) {
     return ftp_strerror( errnum );
   } else if( errnum >= HTTPBASEERR ) {
     return http_strerror( errnum );

@@ -178,6 +178,9 @@ typedef struct _amp_cfg {
   int    scroll;              /* See CFG_SCROLL_*                       */
   int    viewmode;            /* See CFG_DISP_*                         */
 
+  char   proxy[1024];         /* Used for compatibility.                */
+  char   auth [1024];         /* Used for compatibility.                */
+
   char   proxy_host[XIO_MAX_HOSTNAME];
   char   proxy_user[XIO_MAX_USERNAME];
   char   proxy_pass[XIO_MAX_PASSWORD];

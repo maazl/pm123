@@ -39,11 +39,25 @@ LI         = emximp -o
 RC         = rc
 RFLAGS     = -n
 
-LIBS_TCP   = -lsocket
+LIBS_TCP   =
 LIBS_MM    = -lmmpm2
 
 C_INCLUDE_PATH     = $(INCDIR);$(C_INCLUDE_PATH)
 CPLUS_INCLUDE_PATH = $(INCDIR);$(CPLUS_INCLUDE_PATH)
+
+!ifdef TCP40
+MFLAGS = $(MFLAGS) TCP40=Yes
+CFLAGS = $(CFLAGS) -DTCPV40HDRS
+!ifdef GCC_ROOT
+LFLAGS = $(LFLAGS) -L$(GCC_ROOT)\lib\tcpipv4
+!else
+!ifdef GCC_HOME
+LFLAGS = $(LFLAGS) -L$(GCC_HOME)\lib\tcpipv4
+!else
+!error GCC_HOME or GCC_ROOT must be defined.
+!endif
+!endif
+!endif
 
 !ifdef DEBUG
 CFLAGS = $(CFLAGS) $(CFLAGS_DBG)

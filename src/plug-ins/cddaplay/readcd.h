@@ -2,6 +2,8 @@
  * Copyright 1997-2003 Samuel Audet <guardia@step.polymtl.ca>
  *                     Taneli Lepp„ <rosmo@sektori.com>
  *
+ * Copyright 2006 Dmitry A.Steklenev <glass@ptv.ru>
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
  *
@@ -27,153 +29,160 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-typedef struct
+#ifndef READCD_H
+#define READCD_H
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+#define MODE_LBA   0
+#define MODE_MSF   1
+
+#define MAX_TRACKS 256
+#pragma pack(1)
+
+typedef struct _MSF
 {
-   UCHAR frame;
-   UCHAR second;
-   UCHAR minute;
-   UCHAR empty;
+  UCHAR frames;
+  UCHAR seconds;
+  UCHAR minutes;
+  UCHAR hours;              /* Assumes that there are always 0 hours.            */
+
 } MSF;
 
-#define MODE_LBA 0
-#define MODE_MSF 1
-
-typedef struct
+typedef struct _GETAUDIODISK_DATA
 {
-   UCHAR signature[4];
-   UCHAR addressingMode; /* 0 = LBA, 1 = MSF */
-   MSF start; /* can be LBA */
-   MSF end;
-} CDPLAYAUDIOPARAM;
+  UCHAR track_first;        /* First track number on the disc.                   */
+  UCHAR track_last;         /* Last track number on the disc.                    */
+  MSF   lead_out_address;   /* The address of the lead-out track in MSF format.  */
 
-typedef struct
-{
-   UCHAR firstTrack;
-   UCHAR lastTrack;
-   MSF leadOutAddress;
-} CDAUDIODISKINFODATA;
+} GETAUDIODISK_DATA;
 
-typedef struct
+typedef struct _GETAUDIOTRACK_PARM
 {
-   UCHAR signature[4];
-   UCHAR trackNum;
-} CDAUDIOTRACKINFOPARAM;
+  UCHAR signature[4];       /* Signature string of "CD01".                       */
+  UCHAR track;              /* Track number to return track information.         */
 
-typedef struct
-{
-   MSF address;
-   UCHAR info;
-   #if 0
-      bit 7  4 or 2 channels
-      bit 6  data or audio track
-      bit 5  copy ok or not ok
-      bit 4  with or without preemp
-      bit 3-0 ADR stuff?? whatever that is
-   #endif
-} CDAUDIOTRACKINFODATA;
+} GETAUDIOTRACK_PARM;
 
-typedef struct
+typedef struct _GETAUDIOTRACK_DATA
 {
-   MSF start;
-   MSF end;
-   MSF length;
-   ULONG size;
-   BOOL data;
-   USHORT channels;
-   USHORT number;
+  MSF   address;            /* The starting address of the track in MSF format.  */
+  UCHAR info;               /* The track-control information byte.               */
+
+} GETAUDIOTRACK_DATA;
+
+typedef struct _GETUPC_DATA
+{
+  UCHAR control_ADR;        /* The Track-Control Information byte.               */
+  UCHAR UPC[7];             /* Universal Product Code.                           */
+  UCHAR reserved;           /* Must be 0.                                        */
+  UCHAR frame;              /* Frame number of current head location.            */
+
+} GETUPC_DATA;
+
+typedef struct _CDREADLONG_PARM
+{
+  UCHAR  signature[4];      /* Signature string of "CD01".                       */
+  UCHAR  addressing_mode;   /* Addressing format of starting sector number.      */
+  USHORT number_sectors;    /* The number of 2352-byte sectors to read.          */
+  ULONG  start_sector;      /* The starting sector number of the read operation. */
+  UCHAR  reserved;          /* Not used. Must be 0.                              */
+  UCHAR  interleave_size;   /* Not used. Must be 0.                              */
+  UCHAR  interleave_skip_factor;
+
+} CDREADLONG_PARM;
+
+typedef struct _CDTRACKINFO
+{
+  ULONG  start;             /* The starting sector number of the track.          */
+  ULONG  end;               /* The ending sector number of the track.            */
+  ULONG  size;              /* Size of the track in bytes.                       */
+  BOOL   is_data;           /* Is it a data track.                               */
+  USHORT channels;          /* The number of the audio channels.                 */
+
 } CDTRACKINFO;
 
-#pragma pack(1)
-typedef struct
+typedef struct _CDINFO
 {
-   UCHAR signature[4];
-   UCHAR addressingMode; /* 0 = LBA, 1 = MSF */
-   USHORT numberSectors;
-   ULONG startSector;
-   UCHAR reserved;
-   UCHAR interleaveSize;
-   UCHAR interleaveSkipFactor;
-} CDREADLONGPARAM;
+  UCHAR track_first;        /* First track number on the disc.                   */
+  UCHAR track_last;         /* Last track number on the disc.                    */
+  ULONG track_count;        /* The number of tracks on the disc.                 */
+  ULONG lead_out_address;   /* The lead-out sector number.                       */
+  ULONG time;               /* The length of disc in milliseconds.               */
+  ULONG discid;             /* The FreeDB (CDDB) disc identifier.                */
+
+  CDTRACKINFO track_info[MAX_TRACKS];
+
+} CDINFO;
+
+typedef struct _CDFRAME
+{
+  UCHAR sync   [  12];
+  UCHAR header [   4];
+  UCHAR data   [2048];
+  UCHAR EDC_ECC[ 288];
+
+} CDFRAME;
+
+#define CDFRAME_SIZE sizeof( CDFRAME )
 #pragma pack()
 
-typedef struct
+typedef struct _CDHANDLE
 {
-   UCHAR sync[12];
-   UCHAR header[4];
-   UCHAR data[2048];
-   UCHAR EDC_ECC[288];
-} CDREADLONGDATA;
+  HFILE   handle;     /* Handle for the disc.                               */
+  CDFRAME frame;      /* Last readed disc frame.                            */
+  ULONG   extrabytes; /* Number of bytes remained after last reading.       */
+  ULONG   start;      /* The starting sector number of the selected track.  */
+  ULONG   end;        /* The ending sector number of the selected track.    */
+  ULONG   pos;        /* The current sector number of the selected track.   */
+  ULONG   size;       /* Size of the selected track in bytes.               */
+  USHORT  channels;   /* The number of the audio channels.                  */
 
-typedef struct
-{
-   UCHAR ControlADR;
-   UCHAR UPC[7];
-   UCHAR Reserved;
-   UCHAR Frame;
-} CDGETUPCDATA;
+} CDHANDLE;
 
+/* Opens a specified CD drive. Returns the operating system error code.
+   Also, a NULL pointer disc value indicates an error. */
+APIRET cd_open( char* drive, CDHANDLE** disc );
 
-class CD_drive
-{
-   public:
-      CD_drive();
-      ~CD_drive();
+/* Closes a handle to a CD drive.
+   Returns the operating system error code. */
+APIRET cd_close( CDHANDLE* disc );
 
-      BOOL open(char *drive);
-      BOOL close();
-      BOOL readCDInfo();
-      BOOL fillTrackInfo();
-      BOOL play(char track);
-      BOOL stop();
-      BOOL readSectors(CDREADLONGDATA data[], ULONG number, ULONG start);
+/* Returns the 7-bytes of the Universal Product Code. This is a unique
+   code identifying the disc. The UPC is 13 successive BCD digits (4
+   bits each) followed by 12 bits set to 0. Returns the operating system
+   error code. If no UPC was encoded on the disc, returns
+   ERROR_NOT_SUPPORTED. */
+APIRET cd_upc( CDHANDLE* disc, unsigned char* upc );
 
-      char getCount() { return cdInfo.lastTrack - cdInfo.firstTrack + 1; };
-      CDTRACKINFO *getTrackInfo(char track)
-         {
-           if(trackInfo == NULL) return NULL;
-           else if(track > cdInfo.lastTrack || track < cdInfo.firstTrack) return NULL;
-           else return &trackInfo[track-cdInfo.firstTrack]; };
-      CDAUDIODISKINFODATA *getCDInfo()
-         { return &cdInfo; };
+/* Returns the disc info.
+   Returns the operating system error code. */
+APIRET cd_info( CDHANDLE* disc, CDINFO* info );
 
-      USHORT getTime()
-         { return (cdInfo.leadOutAddress.minute*60 + cdInfo.leadOutAddress.second) -
-                  (trackInfo[0].start.minute*60 + trackInfo[0].start.second); };
+/* Selects specified audio track for reading. */
+void cd_select_track( CDHANDLE* disc, CDTRACKINFO* track );
 
+/* Returns the current position of the file pointer. The position is
+   the number of bytes from the beginning of the file. */
+long cd_tell( CDHANDLE* disc );
 
-      static ULONG getLBA(MSF input)
-      {
-         return (input.minute * 4500 + input.second * 75 + input.frame - 150);
-      };
+/* Moves read pointer to a new location that is offset bytes from
+   the beginning of the selected track. The offset bytes must be an
+   integer product of the number of channels and of the number of bits
+   in the sample. Returns the offset, in bytes, of the new position
+   from the beginning of the file. A return value of -1L indicates an
+   error. */
+long cd_seek( CDHANDLE* disc, long offset );
 
-      static MSF getMSF(ULONG input)
-      {
-         MSF output;
+/* Reads count bytes from the track into buffer. Returns the number
+   of bytes placed in result. The return value 0 indicates an attempt
+   to read at end-of-track. A return value -1 indicates an error. */
+int cd_read_data( CDHANDLE* disc, char* result, unsigned int count );
 
-         input += 150;
-         output.frame = input % 75;
-         input /= 75;
-         output.second = input % 60;
-         output.minute = input / 60;
-
-         return output;
-      };
-
-      BOOL getUPC(char UPC[7]);
-      char *getDriveLetter() { return driveLetter; }
-
-      void (DLLENTRYP error_display)(char *);
-
-   protected:
-      BOOL opened; /* hCDDrive cannot be negative and 0 is a valid handle
-                      so I keep another variable around */
-      HFILE hCDDrive;
-      CDAUDIODISKINFODATA cdInfo;
-      CDTRACKINFO *trackInfo;
-      char *driveLetter;
-
-      void updateError(char *fmt, ...);
-
-      BOOL readTrackInfo(char track, CDTRACKINFO *trackInfo);
-};
+#ifdef __cplusplus
+}
+#endif
+#endif /* READCD_H */
 

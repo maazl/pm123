@@ -1,6 +1,5 @@
 /*
- * Copyright 1997-2003 Samuel Audet <guardia@step.polymtl.ca>
- *                     Taneli Lepp„ <rosmo@sektori.com>
+ * Copyright 2007 Dmitry A.Steklenev <glass@ptv.ru>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -27,90 +26,114 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-/* CDDB functions */
+#ifndef CDDB_H
+#define CDDB_H
 
-#define COMMAND_ERROR 0
-#define COMMAND_OK    1
-#define COMMAND_MORE  2 /* more to read or write with appropriate member functions */
+#include <xio.h>
+#include "readcd.h"
 
-#define PROGRAM    "PM123"
-#define PROTOLEVEL 4
+#ifdef __cplusplus
+extern "C" {
+#endif
 
-/* for get_sites_req() */
-#define NOSERVER 0
-#define CDDB     1
-#define HTTP     2
+/* Protocol level 6 is the same as level 5 except that the character set
+   is now UTF-8 instead of ISO-8859-1. */
+#define CDDB_PROTOLEVEL       5
+#define CDDB_CHARSET          "UTF-8"
 
+#define CDDB_OK               200
+#define CDDB_NOT_MATCH        202
+#define CDDB_DATA_FOLLOW      210
+#define CDDB_MORE_DATA        211
+#define CDDB_NOT_FOUND        401
+#define CDDB_END_OF_DATA      998
+#define CDDB_PROTOCOL_ERROR   999
 
-typedef struct
+#define CDDB_TITLE  1
+#define CDDB_ARTIST 2
+#define CDDB_ALBUM  3
+#define CDDB_YEAR   4
+#define CDDB_GENRE  5
+
+#if CDDB_PROTOLEVEL >= 6
+  #include <iconv.h>
+#endif
+
+typedef int CDDBRC;
+
+/* Keeping state about the connection to a CDDB server. */
+typedef struct _CDDB_CONNECTION
 {
-   char category[24];
-   char title[80];
-   unsigned long discid_cd, discid_cddb;
-} CDDBQUERY_DATA;
+  char    servname[512];
+  XFILE*  handle;
+  char    username[128];
+  char    hostname[128];
+  char    cachedir[_MAX_PATH];
 
+  #if CDDB_PROTOLEVEL >= 6
+  iconv_t charset;
+  #endif
 
-class CDDB_socket: public tcpip_socket
-{
-   public:
-     CDDB_socket();
-     ~CDDB_socket();
+  ULONG   discid;
+  ULONG   year;
+  char    genre [512];
+  char    artist[512];
+  char    album [512];
 
-     unsigned long discid(CD_drive *cdDrive);
-     int banner_req();
-     int handshake_req(char *username, char *hostname);
+  char*   track_title[MAX_TRACKS];
 
-     int query_req(CD_drive *cdDrive, CDDBQUERY_DATA *output);
-     bool get_query_req(CDDBQUERY_DATA *output); /* returns one match after the other */
+} CDDB_CONNECTION;
 
-     int read_req(char *category, unsigned long discid);
-     void parse_read_reply(char *reply);
-     char *get_disc_title(int which) { return disctitle[which]; };
-     char *get_track_title(int track, int which) { return titles[track][which]; };
+/* Creates a new CDDB connection structure. Returns a pointer to a
+   CDDB structure that can be used to access the database. A NULL
+   pointer return value indicates an error. */
+CDDB_CONNECTION* cddb_connect( void );
+/* Free all resources associated with the given CDDB connection
+   structure. */
+void cddb_close( CDDB_CONNECTION* c );
 
-     int sites_req();
-     int get_sites_req(char *server, int size);
+/* Sets the user name and host name of the local machine. */
+void cddb_set_email_address( CDDB_CONNECTION* c, const char* email );
+/* Sets the CDDB server. */
+void cddb_set_server( CDDB_CONNECTION* c, const char* url );
 
-     char *gets_content(char *buffer, int size); /* read line of text from content */
+/* Set the character set. By default the FreeDB server uses UTF-8
+   when providing CD data. When a character set is defined with this
+   function any strings retrieved from or sent to the server
+   will automatically be converted. Returns -1 if the specified
+   character set is unknown, or no conversion from/to UTF-8 is
+   available. True otherwise. */
+int  cddb_set_charset( CDDB_CONNECTION* c, const char* charset );
 
-     bool isContent() { return content; };
+/* Changes the directory used for caching CDDB entries locally. Returns
+   a value of 0 if the cache directory was successfully changed. A
+   return value of -1 indicates an error. */
+int  cddb_set_cache_dir( CDDB_CONNECTION* c, const char* pathname );
 
-     /* used for HTTP kludge */
-     bool connect(char *http_URL, char *proxy_URL, char *path);
-     char *gets(char *buffer, int size);
-     int write(char *buffer, int size);
-     bool close();
-     bool cancel();
+/* Retrieve the first CDDB mirror server. Returns the CDDB_OK if it
+   successfully retrieves the server. */
+CDDBRC cddb_mirror( CDDB_CONNECTION* c, char* url, int size );
+/* Retrieve the next  CDDB mirror server. Returns the CDDB_OK if it
+   successfully retrieves the server. */
+CDDBRC cddb_mirror_next( CDDB_CONNECTION* c, char* url, int size );
 
-     char *get_raw_reply() { return raw_reply; }
+/* Query the CDDB database for a list of possible disc matches.
+   Returns the CDDB_OK if it founds exact match, or CDDB_MORE_DATA if
+   it founds inexact matches. */
+CDDBRC cddb_disc( CDDB_CONNECTION* c, CDINFO* cdinfo, char* match, int size );
+/* Retrive the next match in a CDDB query result set. Returns the CDDB_OK if it
+   successfully retrieves the next match. */
+CDDBRC cddb_disc_next( CDDB_CONNECTION* c, char* match, int size );
+/* Retrieve a disc record from the CDDB server. Returns the CDDB_OK if it
+   successfully retrieves the data. */
+CDDBRC cddb_read( CDDB_CONNECTION* c, CDINFO* cdinfo, char* match );
 
-   protected:
+/* Returns a specified field of the given disc record.
+   The tracks numeration is started from 0. */
+char*  cddb_getstring( CDDB_CONNECTION* c, int track, int type, char* result, int size );
 
-     /* this is inefficient for read memory access, but the database imposes
-       no rule on the order of the tracks, so it would be getting ugly to
-       write.  filled after a read_req() */
-     char *disctitle[3];   /* artist, disc title and extended stuff about disc */
-     char *titles[256][2]; /* [0][0] = title of first track
-                        [0][1] = extended stuff of first track */
-     /* frees above */
-     void free_junk();
+#ifdef __cplusplus
+}
+#endif
+#endif /* CDDB_H */
 
-     /* tells if a read should succeed */
-     bool content;
-
-     /* fallback server response processor */
-     int process_default(char *response);
-
-     /* CDDB server protocol level */
-     bool change_protolevel();
-     int protolevel;
-
-     /* used for HTTP kludge */
-     HTTP_socket *httpsocket;
-     char *CGI; /* path to CGI script */
-     char *username, *hostname; /* for hello */
-     char cgi_command[2048]; /* gets filled in write() if not EOL */
-
-     // raw data from read_req().  used for cache
-     char *raw_reply;
-};

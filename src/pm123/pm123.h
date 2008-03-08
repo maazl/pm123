@@ -288,8 +288,10 @@ MRESULT EXPENTRY amp_file_dlg_proc( HWND, ULONG, MPARAM, MPARAM );
 BOOL  amp_load_eq_file( char* filename, float* gains, BOOL* mutes, float* preamp );
 ULONG handle_dfi_error( ULONG rc, const char* file );
 
-int  DLLENTRY pm123_getstring( int index, int subindex, size_t bufsize, char* buf );
-void DLLENTRY pm123_control  ( int index, void* param );
+int  DLLENTRY pm123_getstring  ( int index, int subindex, size_t bufsize, char* buf );
+void DLLENTRY pm123_control    ( int index, void* param );
+void DLLENTRY amp_display_info ( char* );
+void DLLENTRY amp_display_error( char* );
 
 /* Global variables */
 
