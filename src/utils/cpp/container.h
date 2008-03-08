@@ -372,6 +372,24 @@ int InstanceCompareable<T>::compareTo(const T& key) const
 }
 
 
+/* Class to implement a repository of all objects instances of a certain type
+ * identified by a key K. The Instances of type T must implement ICompareable<K>.
+ * Classes of type T mut inherit from inst_repository<T, K> to implement this feature.
+ * The class below does not hold strong references to the  
+ */
+/*template <class T, class K>
+class inst_repository
+{private:
+  static sorted_vector<T, K> RPInst;
+  static Mutex      RPMutex; // protect the index above
+ protected:
+  inst_repository() {}
+  ~inst_repository() {}
+ public:
+  static int_ptr<T> FindByKey(const K& key);
+  static int_ptr<T> GetByKey(const K& key);
+};*/
+ 
 /* Algorithmns */
 
 // rotate pointer array in place

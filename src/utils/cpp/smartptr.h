@@ -83,6 +83,11 @@ class Iref_Count
   // you can safely assume that it is your's, unless you pass the reference explicitely or implicitly
   // to another thread or int_ptr instance.
   bool RefCountIsUnique() const { return Count == 1; } 
+  // Checks whether the object is not under control of a int_ptr.
+  // This is the case when the object is just constructed and not yet assigned to an int_ptr instance or
+  // if the object is about to be deleted. You should be able to distinguish thes two cases
+  // from the context of the call. Be very careful in multi-threaded environments.
+  bool RefCountIsUnmanaged() const { return Count == 0; } 
 };
 
 /* Abstract non-template base class of int_ptr */
