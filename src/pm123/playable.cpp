@@ -298,7 +298,8 @@ int_ptr<Playable> Playable::FindByURL(const char* url)
 { DEBUGLOG(("Playable::FindByURL(%s)\n", url));
   Mutex::Lock lock(RPMutex);
   Playable* pp = RPInst.find(url);
-  return pp || !pp->RefCountIsUnmanaged() ? pp : NULL;
+  CritSect cs;
+  return pp && !pp->RefCountIsUnmanaged() ? pp : NULL;
 }
 
 int_ptr<Playable> Playable::GetByURL(const url123& URL, const FORMAT_INFO2* ca_format, const TECH_INFO* ca_tech, const META_INFO* ca_meta)
@@ -308,8 +309,10 @@ int_ptr<Playable> Playable::GetByURL(const url123& URL, const FORMAT_INFO2* ca_f
   //RPDebugDump();
   #endif
   Playable*& pp = RPInst.get(URL);
-  if (pp && !pp->RefCountIsUnmanaged())
-    return pp;
+  { CritSect cs;
+    if (pp && !pp->RefCountIsUnmanaged())
+      return pp;
+  }
   // factory
   if (URL.isScheme("file:") && URL.getObjectName().length() == 0)
     pp = new PlayFolder(URL, ca_tech, ca_meta);

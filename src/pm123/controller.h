@@ -421,8 +421,7 @@ class Ctrl
   // While the functions below are atomic their return values are not reliable because they can change everytime.
   // So be careful.
 
-  // Ist the currently loaded root enumerable?
-          // TODO: should be configurabe and alterable
+  // Is the currently loaded root enumerable?
   static bool          IsPlaylist()           { return !!PrefetchList.size(); }
   // Check whether we are currently playing.
   static bool          IsPlaying()            { return Playing; }

@@ -491,7 +491,8 @@ int_ptr<T> PlaylistRepository<T>::Find(Playable* obj)
 { DEBUGLOG(("PlaylistRepository<T>::Find(%p)\n", obj));
   Mutex::Lock lock(RPMutex);
   T* pp = RPInst.find(*obj);
-  return pp || !pp->RefCountIsUnmanaged() ? pp : NULL;
+  CritSect cs;
+  return pp && !pp->RefCountIsUnmanaged() ? pp : NULL;
 }
 
 template <class T>
@@ -499,26 +500,17 @@ int_ptr<T> PlaylistRepository<T>::Get(Playable* obj, const xstring& alias)
 { DEBUGLOG(("PlaylistRepository<T>::Get(%p, %s)\n", obj, alias ? alias.cdata() : "<NULL>"));
   Mutex::Lock lock(RPMutex);
   T*& pp = RPInst.get(*obj);
-  if (!pp || pp->RefCountIsUnmanaged())
-    pp = new T(obj, alias);
+  { CritSect cs;
+    if (pp && !pp->RefCountIsUnmanaged())
+      return pp;
+  }
+  pp = new T(obj, alias);
   return pp;
 }
 
 template <class T>
 PlaylistRepository<T>::~PlaylistRepository()
 { Mutex::Lock lock(RPMutex);
-  /*size_t pos;
-  #if NDEBUG
-  RPInst.binary_search(Content->GetURL(), pos);
-  #else
-  assert(RPInst.binary_search(Content->GetURL(), pos));
-  #endif
-  // Only delete the index if it is really our own instance.
-  // A different instance might be in the repository if someone got a new instance
-  // by calling get while the reference counter of this instance was already zero
-  // but this code has not yet been executed.
-  if (RPInst[pos] == this)
-    RPInst.erase(pos);*/
   #if NDEBUG
   RPInst.erase(*Content);
   #else
