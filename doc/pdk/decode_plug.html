@@ -26,7 +26,7 @@ BOOL DLLENTRYP <b>decoder_uninit</b>( void *w  )
 <ul>
 <li>w : Allocate any chunk of memory necessary for the decoder's
 function. This pointer will be passed to the other functions.
-<li>return value : -1 means the decoder was not initialized
+<li>return value : PLUGIN_FAILED (-1) means the decoder was not initialized
 successfully.
 </ul>
 <p>
@@ -58,14 +58,16 @@ equalization is cheap.
 <li>params: structure that contains the parameters needed by the preceding
 commands.
 <li>return value:<br>
-0 -> ok.<br>
-1 -> command unsupported.<br>
-1xx -> msg specific.<br>
+PLUGIN_OK (0) -> ok.<br>
+PLUGIN_UNSUPPORTED (1) -> command unsupported.<br>
+DECODER_PLAY and DECODER_STOP can return also PLUGIN_GO_ALREADY (101) and
+PLUGIN_GO_FAILED (102).
 </ul>
 <p>
 There is a lot of commands to implement for this function. Parameters
 needed for each of the are described in the definition of the structure
-in the .h file.
+in the decoder_plug.h file. The decoder necessarily should support following commands:
+DECODER_SETUP, DECODER_PLAY, DECODER_STOP and DECODER_JUMPTO.
 <p><a name="url_samples"></a>In the level 2 interface the data source always passed as an URL.
   The URL parameter uses the following syntax:
 <blockquote>
@@ -85,6 +87,7 @@ in the .h file.
 DECODER_STOPPED<br>
 DECODER_PLAYING<br>
 DECODER_STARTING<br>
+DECODER_PAUSED<br>
 </ul>
 <blockquote>
 <pre>ULONG DLLENTRYP <b>decoder_length</b>( void *w )</pre>
@@ -111,9 +114,9 @@ The functions must be <em>thread safe</em>.
 <li><var>info</var> - this structure must be filled with the required information.
   See <tt>format.h</tt> for further details.
 <li><var>return value</var> -<br>
-0 = everything's perfect, structure is set.<br>
-100 = error reading file (too small?).<br>
-200 = decoder can't play that.<br>
+PLUGIN_OK (0) = everything's perfect, structure is set.<br>
+PLUGIN_NO_READ (100) = error reading file (too small?).<br>
+PLUGIN_NO_PLAY (200) = decoder can't play that.<br>
 1001 = http error occured.<br>
 other values = errno.
 </ul>
@@ -308,14 +311,16 @@ equalization is cheap.
 <li>params: structure that contains the parameters needed by the preceding
 commands.
 <li>return value:<br>
-0 -> ok.<br>
-1 -> command unsupported.<br>
-1xx -> msg specific.<br>
+PLUGIN_OK (0) -> ok.<br>
+PLUGIN_UNSUPPORTED (1) -> command unsupported.<br>
+DECODER_PLAY and DECODER_STOP can return also PLUGIN_GO_ALREADY (101) and
+PLUGIN_GO_FAILED (102).
 </ul>
 <p>
 There is a lot of commands to implement for this function. Parameters
 needed for each of the are described in the definition of the structure
-in the .h file.
+in the decoder_plug.h file. The decoder necessarily should support following commands:
+DECODER_SETUP, DECODER_PLAY, DECODER_STOP and DECODER_JUMPTO.
 <p>
 The decoder plug-in MUST <i>WinPostMsg()</i> the following messages to <i>hwnd</i>:
 <ul>
@@ -369,10 +374,9 @@ other values = errno.
 <li><var>track</var> - CD tracks start from 1.
 <li><var>info</var> - this structure must be filled with the required information.
 <li><var>return value</var> -<br>
-0 = everything's perfect, structure is set.<br>
-100 = error reading file (too small?).<br>
-200 = decoder can't play that.<br>
-1001 = http error occured.<br>
+PLUGIN_OK (0) = everything's perfect, structure is set.<br>
+PLUGIN_NO_READ (100) = error reading file (too small?).<br>
+PLUGIN_NO_PLAY (200) = decoder can't play that.<br>
 other values = errno.
 </ul>
 <blockquote>
@@ -381,6 +385,10 @@ other values = errno.
 <ul>
 <li>drive: ...
 <li><var>info</var> - required info on the number of tracks available from the decoder.</lI>
+<li>return value:<br>
+PLUGIN_OK (0) = everything's perfect, structure is set.<br>
+PLUGIN_NO_READ (100) = error reading required info.<br>
+other values = errno.
 </ul>
 <p>
 This function is unused by PM123 since version 1.40 but it might still be invoked by visual plug-ins.
@@ -403,7 +411,7 @@ The values may be ored.
 </ul>
 <p>
 This is used by PM123 to suggest to the user what he can play with the
-decoder. Extentions can be for example "*.MOD".
+decoder and what features are supported. Extentions can be for example "*.MOD".
 
 <h4>GUI enhancement interface</h4>
 <p>See <a href="#GUI_interface">level 2 GUI enhancement interface</a>.

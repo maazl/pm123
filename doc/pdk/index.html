@@ -58,7 +58,7 @@ The plug-in will then have to fill the variables in the <i>param</i> structure, 
 If you set <i>param->configurable = TRUE</i>, configuration dialog
 should appear when PM123 calls
 <pre>
-     int DLLENTRY <b>plugin_configure</b>( HWND hwnd, HMODULE module );
+     void DLLENTRY plugin_configure( HWND hwnd, HMODULE module );
 </pre>
 where <i>hwnd</i> is the notebook or player window so that you can "lock" your
 window on it if you want and where <i>module</i> can be used to load

@@ -21,7 +21,7 @@
 <ul>
 <li>a : Allocate any chunk of memory necessary for the output's
 function. This pointer will be passed to the other functions.
-<li>return value : 0 means the output was initialized successfully.
+<li>return value : PLUGIN_OK (0) means the output was initialized successfully.
 </ul>
 <p>
 Init function is called when the user requests the use of your output
@@ -52,7 +52,7 @@ plug-in is request by the user and should free the allocated memory for
 </ul>
 <li><var>info</var> - structure that contains the parameters needed by the preceding commands
 <li>return value:<br>
-0 -> ok<br>
+PLUGIN_OK (0) -> ok.<br>
 others -> MMOS/2 errors or anything else.
 </ul>
 <p>There is a lot of commands to implement for this function.  Parameters
@@ -106,6 +106,9 @@ in the .h file.</p>
 <li><var>return value</var> - the number of samples that fit in the returned buffer.
   The buffer size in bytes is this value multiplied by the number of channels and <code>sizeof(float)</code>.
   Return values &le;&nbsp;0 signals a fatal error, except for the flush signal which always returns zero.
+<li>return value:<br>
+PLUGIN_OK (0) -> ok.<br>
+PLUGIN_FAILED (-1) -> the data is not available or error occured.
 </ul>
 <p>This function is called by the decoder or last in chain filter plug-in to store samples for playing.
   The function call may block until enough buffer space is available.

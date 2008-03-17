@@ -1,0 +1,134 @@
+<html>
+<head>
+<title>Welcome to PM123</title>
+</head>
+<body>
+Welcome!
+<p>
+PM123 is a high-quality digital audio player for IBM's OS/2 Warp
+operating system. You can play MP3s, WAV-files and even audio CDs. PM123
+supports skins, audio streaming, plug-ins, visualization, CDDB and more!
+<p>
+<ol>
+<li>INSTALLATION
+   <p>
+   If you have not used the WarpIN package to install this software, use
+   makewps.cmd to create WPS Desktop objects for PM123.
+   <p>
+   If you install this package over the PM123 version less than 1.32, you
+   need to add manually oggplay.dll to the list of decoders using PM123
+   properties dialog.
+<li>DISTRIBUTION
+   <p>
+   Sources for new updates for pm123:
+   <p>
+   <a href="http://glass.ptv.ru/software/english/pm123.html">http://glass.ptv.ru/software/english/pm123.html</a><br>
+   <a href="http://hobbes.nmsu.edu/pub/os2/apps/mmedia/sound/players/">http://hobbes.nmsu.edu/pub/os2/apps/mmedia/sound/players/</a>
+   <p>
+   Original mpg123:
+   <p>
+   <a href="http://www.mpg123.org/">http://www.mpg123.org/</a>
+<li>KNOWN ISSUES
+   <p> 
+   Bugs
+   <ul>
+   <li>the GUI freezes in various places due to network access and the need
+       of threads for such operations.
+   <li>there still might be occasional redraw problems where pm123 plagues
+       the whole screen, not just pm123's windows.
+   </ul>
+   <p>
+   Missing Features
+   <ul>
+   <li>continuous playback would be nice
+   <li>the genre list is not editable
+   <li>no support for ID3v2
+   <li>the way the scroller scrolls is annoying for some people:
+       need of a "wrap around scroller"
+   <li>the "remote control" pipe does not report if pm123 is playing or not
+       (example: a "echo *status > \pipe\pm123" returning "stopped", "paused" 
+       or "playing" would be nice)
+   <li>FLAC, etc support... a generic plug-in that could use command
+       line decoders would also be nice
+   <li>drag & drop skin would be nice
+   <li>no support for "new" WinAmp 2.x or 3.x skins, only old ones for
+       WinAmp 1.x
+   <li>load all files from playlist file before loading information from
+       each file would be nice
+   <li>a "double size" would be nice
+   <li>automatic fade in / fade out would be nice
+   <li>add a status bar in the playlist window
+   <li>no transparent or non-square skins because too difficult and
+       ineffecient in OS/2
+   <li>no history for the "Load URL" dialog
+   <li>should load WinAmp skin directly instead of using a converter
+   <li>no way to display customized information from each song in the
+       playlist window or main window
+   <li>when loading an MP3 stream, there is no feedback when the buffer is
+       filling up
+   <li>no sound balance control
+   <li>no skin for the equalizer, playlist, etc windows
+   </ul>
+   <p>
+<li>COPYING AND COPYRIGHTS
+   <p>
+   Please read first the important information in the COPYRIGHT and COPYING
+   files.
+   <p>
+   Original mpg123 decoder written/modified by:
+   <dl>
+   <dd>Michael Hipp
+   <dd>Oliver Fromme
+   </dl><p>
+   with help and code from:
+   <dl>
+   <dd>Samuel Audet and Dmitry A.Steklenev: OS/2 port
+   <dd>MPEG Software Simulation Group: reference decoder package
+   <dd>Tobias Bading: idea for DCT64 in subband synthesis from maplay package
+   <dd>Jeff Tsay and Mikko Tommila: MDCT36 from maplay package
+   <dd>Philipp Knirsch: DCT36/manual unroll idea
+   <dd>Niklas Beisert: MPEG 2.5 tables
+   </dl><p>
+   Graphical User Interface for pm123 by:
+   <dl>
+   <dd>Dmitry A.Steklenev (<a href="http://glass.ptv.ru/">http://glass.ptv.ru/</a>)
+   <dd>Taneli Leppa
+   <dd>Samuel Audet (<a href="http://www.step.polymtl.ca/~guardia/">http://www.step.polymtl.ca/~guardia/</a>)
+   </dl><p>
+   Generalized Bitmap Module by:
+   <dl>
+   <dd>Andy Key (<a href="http://www.nyangau.fsnet.co.uk/">http://www.nyangau.fsnet.co.uk/</a>)
+   </dl><p>
+   Fast Fourier Transformation Library:
+   <dl>
+   <dd>FFT123.DLL contains free collection of fast C routines for computing the
+       Discrete Fourier Transform in one or more dimensions. FFTW was written by 
+       Matteo Frigo and Steven G. Johnson.  You can contact them at fftw@fftw.org.
+       The latest version of FFTW, benchmarks, links, and other information can 
+       be found at the FFTW home page (<a href="http://www.fftw.org/">http://www.fftw.org</a>).
+   </dl><p>
+   libsndfile:
+   <dl>
+   <dd>libsndfile is a library of C routines for reading and writing files
+       containing sampled audio data. The main author of libsndfile is Erik de
+       Castro Lopo.
+   </dl><p>
+   libogg and libvorbis:
+   <dl>
+   <dd>Vorbis is a general purpose audio and music encoding format
+       contemporary to MPEG-4's AAC and TwinVQ, the next generation beyond
+       MPEG audio layer 3. Unlike the MPEG sponsored formats (and other
+       proprietary formats such as RealAudio G2 and Windows' flavor of the
+       month), the Vorbis CODEC specification belongs to the public domain.
+       All the technical details are published and documented, and any
+       software entity may make full use of the format without license 
+       fee, royalty or patent concerns. Written by  Monty <monty@xiph.org>
+       and the rest of the Xiph.org Foundation (<a href="http://www.xiph.org/">http://www.xiph.org</a>).
+   </dl><p>
+   WarpIN Installer:
+   <dl>
+   <dd>Thanks to Ulrich M”ller for the nice installer for OS/2.
+       (<a href="http://warpin.netlabs.org/">http://warpin.netlabs.org</a>)
+   </dl>
+</body>
+</html>

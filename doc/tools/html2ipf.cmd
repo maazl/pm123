@@ -67,6 +67,7 @@
  Global.IMGSRC = '';    /* string so we can use Pos() and WordPos() functions */
  Global.SubLinks = 0;           /* This stem keeps track of the SUBLINKS tags */
  Global.NoSubLinks = 0;       /* This stem keeps track of the NOSUBLINKS tags */
+ Global.NewLine = 0;
 
 /* Default state for all switches */
  Global.optCO = 1;  /* COlored output */
@@ -789,11 +790,10 @@ doTagBR:
  call PutToken '.br';
  call NewLine;
  Global.AfterBreak = 1;
- if doCheckTag(':eul.') | doCheckTag(':edl.') | doCheckTag(':eol.')
-  then Global.SkipSpaces = 1;
 return 0;
 
 doTagPRE:
+ Global.SkipSpaces = 0;
  call NewLine;
  Global.IsPRETag = 1;
  call PutToken ':cgraphic.';
@@ -899,7 +899,6 @@ doTagLI:
   then call doOpenUL;
  call NewLine;
  call PutToken ':li.';
- Global.SkipSpaces = 1;
 return 0;
 
 doTagDL:
@@ -923,7 +922,6 @@ doTagDT:
  if doCheckTag(':edl.') = 0
   then call doOpenDL;
  call NewLine; call PutToken ':dt.';
- Global.SkipSpaces = 1;
  Global.DLTermDefined = 1;
  Global.DLDescDefined = 0;
 return 0;
@@ -937,7 +935,6 @@ doTagDD:
  if \Global.DLTermDefined
   then call doTagDT;
  call PutToken ':dd.';
- Global.SkipSpaces = 1;
  Global.DLTermDefined = 0;
  Global.DLDescDefined = 1;
 return 0;
@@ -1280,6 +1277,10 @@ return PictName||'*'||tmp;
 /* Actively search for file on all possible paths */
 FindFile:
  parse arg fName;
+ 
+ /* Skips full qualified URLs. */
+ if pos( "://", InitialLink ) > 0 then
+    return fName;
 
  ifName = fName;
  parse var fName prot ':' location;
@@ -1357,20 +1358,24 @@ PutToken:
  if Global.OptCH then return;
 
  if Output = Global.EOL
-  then if Global.AfterBreak
-        then Global.AfterBreak = 0;
-        else do
-              Global.Article.line.0 = Global.Article.line.0 + 1;
-              i = Global.Article.line.0;
-              Global.Article.line.i = '';
-             end;
-  else do
-        Global.AfterBreak = 0;
-        i = Global.Article.line.0;
-        if length(Global.Article.line.i) + length(Output) > Global.maxLineLength
-         then do; call PutToken Global.EOL; i = Global.Article.line.0; end;
-        Global.Article.line.i = Global.Article.line.i||Output;
-       end;
+  then do
+    if Global.AfterBreak then 
+       Global.AfterBreak = 0;
+    else do
+       Global.Article.line.0 = Global.Article.line.0 + 1;
+       i = Global.Article.line.0;
+       Global.Article.line.i = '';
+    end;
+    Global.NewLine = 1;
+  end
+ else do
+    Global.AfterBreak = 0;
+    Global.NewLine = 0;
+    i = Global.Article.line.0;
+    if length(Global.Article.line.i) + length(Output) > Global.maxLineLength
+      then do; call PutToken Global.EOL; i = Global.Article.line.0; end;
+    Global.Article.line.i = Global.Article.line.i||Output;
+ end;
 return;
 
 /* Put an text string into Output stream */
@@ -1384,10 +1389,19 @@ PutText:
  if (Global.IsTable) & (\Global.IsOutputEnabled)
   then return; /* Skip everything out of :c. ... :c. or :row. tags */
 
- if Global.SkipSpaces
-  then Output = strip(strip(Output, 'leading', d2c(9)), 'leading');
+ if Global.SkipSpaces & Global.Newline then
+  Output = strip(strip(Output, 'leading', d2c(9)), 'leading');
+  
 
  do while length(Output) > 0
+
+  if Global.SkipSpaces then do
+     Output = replace( Output, d2c(9), " " );
+     Output = replace( Output, "  ", " " );
+     if Global.NewLine then
+        Output = strip(Output, 'leading');
+  end
+
   EOLpos = pos(Global.EOL, Output);
   if EOLpos > 0
    then do
@@ -1732,3 +1746,19 @@ NoQuotes:
   text = _head||Token||_tail;
  end;
 return translate(text, '&', d2c(0));
+
+replace:
+
+  parse arg source, string, substitute
+  string = translate(string)
+
+  i = pos( string, translate(source))
+
+  do while i \= 0
+     source = substr( source, 1, i-1 ) || substitute ||,
+              substr( source, i+length(string))
+
+     i = pos( string, translate(source), i + length(substitute))
+  end
+     
+return source
