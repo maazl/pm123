@@ -1,8 +1,10 @@
 #ifndef PM123_DECODER_PLUG_H
 #define PM123_DECODER_PLUG_H
 
+#define INCL_BASE
 #include <format.h>
 #include <output_plug.h>
+#include <os2.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -20,7 +22,7 @@ typedef enum
   DECODER_STOP     = 2, /* returns 101 -> already stopped
                                    102 -> error, decoder killed (and stopped) */
   DECODER_FFWD     = 3,
-  DECODER_REW      = 4, /* Level 2 plug-ins always send DECODER_FFWD */ 
+  DECODER_REW      = 4, /* Level 2 plug-ins always send DECODER_FFWD */
   DECODER_JUMPTO   = 5,
   DECODER_SETUP    = 6,
   DECODER_EQ       = 7,
@@ -28,13 +30,25 @@ typedef enum
   DECODER_SAVEDATA = 9
 } DECMSGTYPE;
 
+/* return value:                                               */
+/* PLUGIN_OK          -> ok.                                   */
+/* PLUGIN_UNSUPPORTED -> command unsupported.                  */
+/*                                                             */
+/* DECODER_PLAY can return also:                               */
+/* PLUGIN_GO_ALREADY  -> already playing.                      */
+/* PLUGIN_GO_ERROR    -> error, decoder killed and restarted.  */
+/*                                                             */
+/* DECODER_STOP can return also:                               */
+/* PLUGIN_GO_ALREADY  -> already stopped.                      */
+/* PLUGIN_GO_ERROR    -> error, decoder killed and stopped.    */
+
 typedef enum
 {
   DECEVENT_PLAYSTOP   = 1, /* The decoder finished decoding */
   DECEVENT_PLAYERROR  = 2, /* A playback error occured so that PM123 should know to stop immediately */
   DECEVENT_SEEKSTOP   = 3, /* JUMPTO operation is completed */
   DEVEVENT_CHANGETECH = 4, /* change bitrate or samplingrate, param points to TECH_INFO structure */
-  DECEVENT_CHANGEMETA = 5  /* change metadata, param points to META_INFO structure */ 
+  DECEVENT_CHANGEMETA = 5  /* change metadata, param points to META_INFO structure */
 } DECEVENTTYPE;
 
 typedef enum
@@ -106,7 +120,6 @@ typedef struct _DECODER_PARAMS
 
 } DECODER_PARAMS;
 
-
 typedef struct _DECODER_PARAMS2
 {
    int   size;
@@ -158,7 +171,7 @@ typedef struct _DECODER_PARAMS2
 /* returns 0 -> ok
            1 -> command unsupported
            1xx -> msg specific */
-#if !defined(DECODER_PLUGIN_LEVEL) || DECODER_PLUGIN_LEVEL <= 1 
+#if !defined(DECODER_PLUGIN_LEVEL) || DECODER_PLUGIN_LEVEL <= 1
 ULONG DLLENTRY decoder_command( void* w, ULONG msg, DECODER_PARAMS* params );
 /* WARNING!! this _can_ change in time!!! returns stream length in ms */
 /* the decoder should keep in memory a last valid length so the call  */
@@ -176,7 +189,8 @@ T_TIME DLLENTRY decoder_length( void* w );
 #define DECODER_STOPPED  0
 #define DECODER_PLAYING  1
 #define DECODER_STARTING 2
-#define DECODER_ERROR    3
+#define DECODER_PAUSED   3
+#define DECODER_ERROR    200
 
 ULONG DLLENTRY decoder_status( void* w );
 
@@ -185,62 +199,89 @@ ULONG DLLENTRY decoder_status( void* w );
 #define DECODER_MODE_DUAL_CHANNEL   2
 #define DECODER_MODE_SINGLE_CHANNEL 3
 
+/* See haveinfo field of the DECODER_INFO structure. */
+#define DECODER_HAVE_TITLE      0x0001
+#define DECODER_HAVE_ARTIST     0x0002
+#define DECODER_HAVE_ALBUM      0x0004
+#define DECODER_HAVE_YEAR       0x0008
+#define DECODER_HAVE_COMMENT    0x0010
+#define DECODER_HAVE_GENRE      0x0020
+#define DECODER_HAVE_TRACK      0x0040
+#define DECODER_HAVE_COPYRIGHT  0x0080
+#define DECODER_HAVE_TRACK_GAIN 0x0100
+#define DECODER_HAVE_TRACK_PEAK 0x0200
+#define DECODER_HAVE_ALBUM_GAIN 0x0400
+#define DECODER_HAVE_ALBUM_PEAK 0x0800
+
+#define INFO_SIZE_1  976  /* size of the DECODER_INFO structure prior PM123 1.32 */
+#define INFO_SIZE_2 1264  /* size of the DECODER_INFO structure since PM123 1.32 */
+
 /* NOTE: the information returned is only based on the FIRST header */
 typedef struct _DECODER_INFO
 {
-   int  size;
+   int   size;            /* see INFO_SIZE definitions */
 
-   FORMAT_INFO format;  /* stream format after decoding */
+   FORMAT_INFO format;    /* stream format after decoding */
 
-   int  songlength;     /* in milliseconds, smaller than 0 -> unknown */
-   int  junklength;     /* bytes of junk before stream start, if < 0 -> unknown */
+   int   songlength;      /* in milliseconds, smaller than 0 -> unknown */
+   int   junklength;      /* bytes of junk before stream start, if < 0 -> unknown */
 
    /* mpeg stuff */
-   int  mpeg;           /* 25 = MPEG 2.5, 10 = MPEG 1.0, 20 = MPEG 2.0, 0 = not an MPEG */
-   int  layer;          /* 0 = unknown */
-   int  mode;           /* use it on modes(i) */
-   int  modext;         /* didn't check what this one does */
-   int  bpf;            /* bytes in the mpeg frame including header */
-   int  bitrate;        /* in kbit/s */
-   int  extention;      /* didn't check what this one does */
+   int   mpeg;            /* 25 = MPEG 2.5, 10 = MPEG 1.0, 20 = MPEG 2.0, 0 = not an MPEG */
+   int   layer;           /* 0 = unknown */
+   int   mode;            /* use it on modes(i) */
+   int   modext;          /* didn't check what this one does */
+   int   bpf;             /* bytes in the mpeg frame including header */
+   int   bitrate;         /* in kbit/s */
+   int   extention;       /* didn't check what this one does */
 
    /* track stuff */
-   int  startsector;
-   int  endsector;
+   int   startsector;
+   int   endsector;
 
    /* obsolete stuff */
-   int  unused1;        /* obsolete, must be 0 */
-   int  unused2;        /* obsolete, must be 0 */
-   int  unused3;        /* obsolete, must be 0 */
+   int   unused1;         /* obsolete, must be 0 */
+   int   unused2;         /* obsolete, must be 0 */
+   int   unused3;         /* obsolete, must be 0 */
 
    /* general technical information string */
-   char tech_info[128];
+   char  tech_info[128];
 
    /* meta information */
-   char title    [128];
-   char artist   [128];
-   char album    [128];
-   char year     [128];
-   char comment  [128];
-   char genre    [128];
-   char track    [128];
-   //char copyright[128];
-   int  codepage;       /* Code page of the meta info. Must be 0 if the
-                           code page is unknown. Don't place here any another
-                           value if it is not provided by meta info. */
-   int  filesize;       /* Size of the file. */
-   int  saveinfo;       /* Must be 1 if the decoder can update meta info of
-                           this file. Otherwise, must be 0. */
+   char  title    [128];
+   char  artist   [128];
+   char  album    [128];
+   char  year     [128];
+   char  comment  [128];
+   char  genre    [128];
+
+   /* added since PM123 1.32 */
+   char  track    [128];
+   char  copyright[128];
+   int   codepage;        /* Code page of the meta info. Must be 0 if the
+                             code page is unknown. Don't place here any another
+                             value if it is not provided by meta info. */
+   int   haveinfo;        /* This flags define what of fields of the block of the
+                             meta information are supported by the decoder. Can
+                             be 0 if the decoder supports all fields. */
+   int   saveinfo;        /* Must be 1 if the decoder can update meta info of
+                             this file. Otherwise, must be 0. */
+   int   filesize;        /* Size of the file. */
+
+   float track_gain;      /* Defines Replay Gain values as specified at */
+   float track_peak;      /* http://www.replaygain.org/ */
+   float album_gain;
+   float album_peak;
 
 } DECODER_INFO;
 
 /* NOTE: the information returned is only based on the FIRST header */
-typedef struct
+typedef struct _DECODER_INFO2
 {
    int  size;
 
    FORMAT_INFO2* format;  /* stream format after decoding */
-               
+
    TECH_INFO*    tech;    /* technical informations about the source */
 
    META_INFO*    meta;    /* song information */
@@ -249,11 +290,11 @@ typedef struct
 } DECODER_INFO2;
 
 /* returns
-         0 = everything's perfect, structure is set,
-       100 = error reading file (too small?),
-       200 = decoder can't play that,
-      other values = errno, check xio_strerror() for string. */
-#if defined(DECODER_PLUGIN_LEVEL) && DECODER_PLUGIN_LEVEL > 1 
+      PLUGIN_OK      = everything's perfect, structure is set,
+      PLUGIN_NO_READ = error reading file (too small?),
+      PLUGIN_NO_PLAY = decoder can't play that,
+      other values   = errno, check xio_strerror() for string. */
+#if defined(DECODER_PLUGIN_LEVEL) && DECODER_PLUGIN_LEVEL > 1
 ULONG DLLENTRY decoder_fileinfo   ( const char* url, DECODER_INFO2* info );
 #else
 ULONG DLLENTRY decoder_fileinfo   ( const char* filename, DECODER_INFO* info );
@@ -261,9 +302,9 @@ ULONG DLLENTRY decoder_trackinfo  ( const char* drive, int track, DECODER_INFO* 
 #endif
 
 /* returns
-        0 = everything's perfect, structure is saved,
-      other values = errno, check xio_strerror() for string. */
-ULONG DLLENTRY decoder_saveinfo( char* filename, DECODER_INFO* info );
+      PLUGIN_OK      = everything's perfect, structure is saved to filename,
+      other values   = errno, check xio_strerror() for string. */
+ULONG DLLENTRY decoder_saveinfo( const char* filename, const DECODER_INFO* info );
 
 typedef struct _DECODER_CDINFO
 {
@@ -273,19 +314,23 @@ typedef struct _DECODER_CDINFO
 
 } DECODER_CDINFO;
 
+/* returns
+      PLUGIN_OK      = everything's perfect, structure is set,
+      PLUGIN_NO_READ = error reading required info,
+      other values   = errno, check xio_strerror() for string. */
 ULONG DLLENTRY decoder_cdinfo( const char* drive, DECODER_CDINFO* info );
 
 /* returns ORed values */
 #define DECODER_FILENAME  0x0001 /* Decoder can play a regular file. */
 #define DECODER_URL       0x0002 /* Decoder can play a internet stream or file. */
 #define DECODER_TRACK     0x0004 /* Decoder can play a CD track. */
-#define DECODER_OTHER     0x0008 /* Decoder can play a something else. */
+#define DECODER_OTHER     0x0008 /* Decoder can play something else. */
 #define DECODER_METAINFO  0x8000 /* Decoder can save a meta info. */
 /* size is i/o and is the size of the array.
    each ext should not be bigger than 8bytes */
 ULONG DLLENTRY decoder_support( char* fileext[], int* size );
 
-#if defined(DECODER_PLUGIN_LEVEL) && DECODER_PLUGIN_LEVEL > 0 
+#if defined(DECODER_PLUGIN_LEVEL) && DECODER_PLUGIN_LEVEL > 0
 ULONG DLLENTRY decoder_editmeta ( HWND owner, const char* url );
 #endif
 
@@ -294,7 +339,7 @@ typedef void  DLLENTRYP(DECODER_WIZZARD_CALLBACK)( void* param, const char* url 
 typedef ULONG DLLENTRYP(DECODER_WIZZARD_FUNC)( HWND owner, const char* title, DECODER_WIZZARD_CALLBACK callback, void* param );
 
 typedef struct _DECODER_WIZZARD
-{ /* linked list */ 
+{ /* linked list */
   struct _DECODER_WIZZARD* link;
   /* String to be displayed in the context menu */
   const char*              prompt;

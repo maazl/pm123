@@ -43,8 +43,10 @@ char* sdrive   ( char* result, const char* location, size_t size );
 int   strack   ( const char* location );
 char* scheme   ( char* result, const char* location, size_t size );
 char* sfname   ( char* result, const char* location, size_t size );
+char* sdname   ( char* result, const char* location, size_t size );
 char* sfext    ( char* result, const char* location, size_t size );
 char* sfnameext( char* result, const char* location, size_t size );
+char* sdnameext( char* result, const char* location, size_t size );
 char* sdrivedir( char* result, const char* location, size_t size );
 char* sdecode  ( char* result, const char* location, size_t size );
 // Normalize an URL: enforce scheme, convert slashes

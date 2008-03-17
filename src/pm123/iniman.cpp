@@ -81,6 +81,7 @@ load_ini( void )
     load_ini_value( INIhandle, cfg.viewmode );
     load_ini_value( INIhandle, cfg.buff_wait );
     load_ini_value( INIhandle, cfg.buff_size );
+    load_ini_value( INIhandle, cfg.buff_fill );
     load_ini_value( INIhandle, cfg.pipe_name );
     load_ini_value( INIhandle, cfg.add_recursive );
     load_ini_value( INIhandle, cfg.save_relative );
@@ -209,6 +210,7 @@ save_ini( void )
     save_ini_value( INIhandle, cfg.viewmode );
     save_ini_value( INIhandle, cfg.buff_wait );
     save_ini_value( INIhandle, cfg.buff_size );
+    save_ini_value( INIhandle, cfg.buff_fill );
     save_ini_value( INIhandle, cfg.pipe_name );
     save_ini_value( INIhandle, cfg.add_recursive );
     save_ini_value( INIhandle, cfg.save_relative );

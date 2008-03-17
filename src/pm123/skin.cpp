@@ -58,7 +58,7 @@
 
 #include <debuglog.h>
 
-static HBITMAP bmp_cache[8000];
+static HBITMAP bmp_cache[3000];
 static POINTL  bmp_pos  [POS__MAX];
 static ULONG   bmp_ulong[UL__MAX];
 static char    visual_param[256];
@@ -84,149 +84,161 @@ static HPS     s_buffer = NULLHANDLE;
 static HBITMAP s_bitmap = NULLHANDLE;
 
 /* Buttons */
-BMPBUTTON btn_play    = { NULLHANDLE,     /* Button window handle.                          */
-                          BMP_PLAY,       /* Pressed state bitmap for regular mode.         */
-                          BMP_N_PLAY,     /* Release state bitmap for regular mode.         */
-                          POS_R_PLAY,     /* Button position for regular mode.              */
-                          BMP_S_PLAY,     /* Pressed state bitmap for small and tiny modes. */
-                          BMP_SN_PLAY,    /* Release state bitmap for small and tiny modes. */
-                          POS_S_PLAY,     /* Button position for small mode.                */
-                          POS_T_PLAY,     /* Button position for tiny mode.                 */
-                          0,              /* Button state.                                  */
-                          TRUE,           /* Is this a sticky button.                       */
-                          "Starts playing" };
+static BMPBUTTON btn_play = 
+{ NULLHANDLE,     /* Button window handle.                          */
+  BMP_PLAY,       /* Pressed state bitmap for regular mode.         */
+  BMP_N_PLAY,     /* Release state bitmap for regular mode.         */
+  POS_R_PLAY,     /* Button position for regular mode.              */
+  BMP_S_PLAY,     /* Pressed state bitmap for small and tiny modes. */
+  BMP_SN_PLAY,    /* Release state bitmap for small and tiny modes. */
+  POS_S_PLAY,     /* Button position for small mode.                */
+  POS_T_PLAY,     /* Button position for tiny mode.                 */
+  0,              /* Button state.                                  */
+  TRUE,           /* Is this a sticky button.                       */
+  "Starts playing" };
 
-BMPBUTTON btn_stop    = { NULLHANDLE,     /* Button window handle.                          */
-                          BMP_STOP,       /* Pressed state bitmap for regular mode.         */
-                          BMP_N_STOP,     /* Release state bitmap for regular mode.         */
-                          POS_R_STOP,     /* Button position for regular mode.              */
-                          BMP_S_STOP,     /* Pressed state bitmap for small and tiny modes. */
-                          BMP_SN_STOP,    /* Release state bitmap for small and tiny modes. */
-                          POS_S_STOP,     /* Button position for small mode.                */
-                          POS_T_STOP,     /* Button position for tiny mode.                 */
-                          0,              /* Button state.                                  */
-                          FALSE,          /* Is this a sticky button.                       */
-                          "Stops playing" };
+static BMPBUTTON btn_stop =
+{ NULLHANDLE,     /* Button window handle.                          */
+  BMP_STOP,       /* Pressed state bitmap for regular mode.         */
+  BMP_N_STOP,     /* Release state bitmap for regular mode.         */
+  POS_R_STOP,     /* Button position for regular mode.              */
+  BMP_S_STOP,     /* Pressed state bitmap for small and tiny modes. */
+  BMP_SN_STOP,    /* Release state bitmap for small and tiny modes. */
+  POS_S_STOP,     /* Button position for small mode.                */
+  POS_T_STOP,     /* Button position for tiny mode.                 */
+  0,              /* Button state.                                  */
+  FALSE,          /* Is this a sticky button.                       */
+  "Stops playing" };
 
-BMPBUTTON btn_pause   = { NULLHANDLE,     /* Button window handle.                          */
-                          BMP_PAUSE,      /* Pressed state bitmap for regular mode.         */
-                          BMP_N_PAUSE,    /* Release state bitmap for regular mode.         */
-                          POS_R_PAUSE,    /* Button position for regular mode.              */
-                          BMP_S_PAUSE,    /* Pressed state bitmap for small and tiny modes. */
-                          BMP_SN_PAUSE,   /* Release state bitmap for small and tiny modes. */
-                          POS_S_PAUSE,    /* Button position for small mode.                */
-                          POS_T_PAUSE,    /* Button position for tiny mode.                 */
-                          0,              /* Button state.                                  */
-                          TRUE,           /* Is this a sticky button.                       */
-                          "Pauses the playback" };
+static BMPBUTTON btn_pause =
+{ NULLHANDLE,     /* Button window handle.                          */
+  BMP_PAUSE,      /* Pressed state bitmap for regular mode.         */
+  BMP_N_PAUSE,    /* Release state bitmap for regular mode.         */
+  POS_R_PAUSE,    /* Button position for regular mode.              */
+  BMP_S_PAUSE,    /* Pressed state bitmap for small and tiny modes. */
+  BMP_SN_PAUSE,   /* Release state bitmap for small and tiny modes. */
+  POS_S_PAUSE,    /* Button position for small mode.                */
+  POS_T_PAUSE,    /* Button position for tiny mode.                 */
+  0,              /* Button state.                                  */
+  TRUE,           /* Is this a sticky button.                       */
+  "Pauses the playback" };
 
-BMPBUTTON btn_rew     = { NULLHANDLE,     /* Button window handle.                          */
-                          BMP_REW,        /* Pressed state bitmap for regular mode.         */
-                          BMP_N_REW,      /* Release state bitmap for regular mode.         */
-                          POS_R_REW,      /* Button position for regular mode.              */
-                          BMP_S_REW,      /* Pressed state bitmap for small and tiny modes. */
-                          BMP_SN_REW,     /* Release state bitmap for small and tiny modes. */
-                          POS_S_REW,      /* Button position for small mode.                */
-                          POS_T_REW,      /* Button position for tiny mode.                 */
-                          0,              /* Button state.                                  */
-                          TRUE,           /* Is this a sticky button.                       */
-                          "Seeks current song backward" };
+static BMPBUTTON btn_rew =
+{ NULLHANDLE,     /* Button window handle.                          */
+  BMP_REW,        /* Pressed state bitmap for regular mode.         */
+  BMP_N_REW,      /* Release state bitmap for regular mode.         */
+  POS_R_REW,      /* Button position for regular mode.              */
+  BMP_S_REW,      /* Pressed state bitmap for small and tiny modes. */
+  BMP_SN_REW,     /* Release state bitmap for small and tiny modes. */
+  POS_S_REW,      /* Button position for small mode.                */
+  POS_T_REW,      /* Button position for tiny mode.                 */
+  0,              /* Button state.                                  */
+  TRUE,           /* Is this a sticky button.                       */
+  "Seeks current song backward" };
 
-BMPBUTTON btn_fwd     = { NULLHANDLE,     /* Button window handle.                          */
-                          BMP_FWD,        /* Pressed state bitmap for regular mode.         */
-                          BMP_N_FWD,      /* Release state bitmap for regular mode.         */
-                          POS_R_FWD,      /* Button position for regular mode.              */
-                          BMP_S_FWD,      /* Pressed state bitmap for small and tiny modes. */
-                          BMP_SN_FWD,     /* Release state bitmap for small and tiny modes. */
-                          POS_S_FWD,      /* Button position for small mode.                */
-                          POS_T_FWD,      /* Button position for tiny mode.                 */
-                          0,              /* Button state.                                  */
-                          TRUE,           /* Is this a sticky button.                       */
-                          "Seeks current song forward" };
+static BMPBUTTON btn_fwd =
+{ NULLHANDLE,     /* Button window handle.                          */
+  BMP_FWD,        /* Pressed state bitmap for regular mode.         */
+  BMP_N_FWD,      /* Release state bitmap for regular mode.         */
+  POS_R_FWD,      /* Button position for regular mode.              */
+  BMP_S_FWD,      /* Pressed state bitmap for small and tiny modes. */
+  BMP_SN_FWD,     /* Release state bitmap for small and tiny modes. */
+  POS_S_FWD,      /* Button position for small mode.                */
+  POS_T_FWD,      /* Button position for tiny mode.                 */
+  0,              /* Button state.                                  */
+  TRUE,           /* Is this a sticky button.                       */
+  "Seeks current song forward" };
 
-BMPBUTTON btn_power   = { NULLHANDLE,     /* Button window handle.                          */
-                          BMP_POWER,      /* Pressed state bitmap for regular mode.         */
-                          BMP_N_POWER,    /* Release state bitmap for regular mode.         */
-                          POS_R_POWER,    /* Button position for regular mode.              */
-                          BMP_S_POWER,    /* Pressed state bitmap for small and tiny modes. */
-                          BMP_SN_POWER,   /* Release state bitmap for small and tiny modes. */
-                          POS_S_POWER,    /* Button position for small mode.                */
-                          POS_T_POWER,    /* Button position for tiny mode.                 */
-                          0,              /* Button state.                                  */
-                          FALSE,          /* Is this a sticky button.                       */
-                          "Quits PM123" };
+static BMPBUTTON btn_power =
+{ NULLHANDLE,     /* Button window handle.                          */
+  BMP_POWER,      /* Pressed state bitmap for regular mode.         */
+  BMP_N_POWER,    /* Release state bitmap for regular mode.         */
+  POS_R_POWER,    /* Button position for regular mode.              */
+  BMP_S_POWER,    /* Pressed state bitmap for small and tiny modes. */
+  BMP_SN_POWER,   /* Release state bitmap for small and tiny modes. */
+  POS_S_POWER,    /* Button position for small mode.                */
+  POS_T_POWER,    /* Button position for tiny mode.                 */
+  0,              /* Button state.                                  */
+  FALSE,          /* Is this a sticky button.                       */
+  "Quits PM123" };
 
-BMPBUTTON btn_prev    = { NULLHANDLE,     /* Button window handle.                          */
-                          BMP_PREV,       /* Pressed state bitmap for regular mode.         */
-                          BMP_N_PREV,     /* Release state bitmap for regular mode.         */
-                          POS_R_PREV,     /* Button position for regular mode.              */
-                          BMP_S_PREV,     /* Pressed state bitmap for small and tiny modes. */
-                          BMP_SN_PREV,    /* Release state bitmap for small and tiny modes. */
-                          POS_S_PREV,     /* Button position for small mode.                */
-                          POS_T_PREV,     /* Button position for tiny mode.                 */
-                          0,              /* Button state.                                  */
-                          FALSE,          /* Is this a sticky button.                       */
-                          "Selects previous song in playlist" };
+static BMPBUTTON btn_prev =
+{ NULLHANDLE,     /* Button window handle.                          */
+  BMP_PREV,       /* Pressed state bitmap for regular mode.         */
+  BMP_N_PREV,     /* Release state bitmap for regular mode.         */
+  POS_R_PREV,     /* Button position for regular mode.              */
+  BMP_S_PREV,     /* Pressed state bitmap for small and tiny modes. */
+  BMP_SN_PREV,    /* Release state bitmap for small and tiny modes. */
+  POS_S_PREV,     /* Button position for small mode.                */
+  POS_T_PREV,     /* Button position for tiny mode.                 */
+  0,              /* Button state.                                  */
+  FALSE,          /* Is this a sticky button.                       */
+  "Selects previous song in playlist" };
 
-BMPBUTTON btn_next    = { NULLHANDLE,     /* Button window handle.                          */
-                          BMP_NEXT,       /* Pressed state bitmap for regular mode.         */
-                          BMP_N_NEXT,     /* Release state bitmap for regular mode.         */
-                          POS_R_NEXT,     /* Button position for regular mode.              */
-                          BMP_S_NEXT,     /* Pressed state bitmap for small and tiny modes. */
-                          BMP_SN_NEXT,    /* Release state bitmap for small and tiny modes. */
-                          POS_S_NEXT,     /* Button position for small mode.                */
-                          POS_T_NEXT,     /* Button position for tiny mode.                 */
-                          0,              /* Button state.                                  */
-                          FALSE,          /* Is this a sticky button.                       */
-                          "Selects next song in playlist" };
+static BMPBUTTON btn_next =
+{ NULLHANDLE,     /* Button window handle.                          */
+  BMP_NEXT,       /* Pressed state bitmap for regular mode.         */
+  BMP_N_NEXT,     /* Release state bitmap for regular mode.         */
+  POS_R_NEXT,     /* Button position for regular mode.              */
+  BMP_S_NEXT,     /* Pressed state bitmap for small and tiny modes. */
+  BMP_SN_NEXT,    /* Release state bitmap for small and tiny modes. */
+  POS_S_NEXT,     /* Button position for small mode.                */
+  POS_T_NEXT,     /* Button position for tiny mode.                 */
+  0,              /* Button state.                                  */
+  FALSE,          /* Is this a sticky button.                       */
+  "Selects next song in playlist" };
 
-BMPBUTTON btn_shuffle = { NULLHANDLE,     /* Button window handle.                          */
-                          BMP_SHUFFLE,    /* Pressed state bitmap for regular mode.         */
-                          BMP_N_SHUFFLE,  /* Release state bitmap for regular mode.         */
-                          POS_R_SHUFFLE,  /* Button position for regular mode.              */
-                          BMP_S_SHUFFLE,  /* Pressed state bitmap for small and tiny modes. */
-                          BMP_SN_SHUFFLE, /* Release state bitmap for small and tiny modes. */
-                          POS_S_SHUFFLE,  /* Button position for small mode.                */
-                          POS_T_SHUFFLE,  /* Button position for tiny mode.                 */
-                          0,              /* Button state.                                  */
-                          TRUE,           /* Is this a sticky button.                       */
-                          "Plays randomly from the playlist" };
+static BMPBUTTON btn_shuffle =
+{ NULLHANDLE,     /* Button window handle.                          */
+  BMP_SHUFFLE,    /* Pressed state bitmap for regular mode.         */
+  BMP_N_SHUFFLE,  /* Release state bitmap for regular mode.         */
+  POS_R_SHUFFLE,  /* Button position for regular mode.              */
+  BMP_S_SHUFFLE,  /* Pressed state bitmap for small and tiny modes. */
+  BMP_SN_SHUFFLE, /* Release state bitmap for small and tiny modes. */
+  POS_S_SHUFFLE,  /* Button position for small mode.                */
+  POS_T_SHUFFLE,  /* Button position for tiny mode.                 */
+  0,              /* Button state.                                  */
+  TRUE,           /* Is this a sticky button.                       */
+  "Plays randomly from the playlist" };
 
-BMPBUTTON btn_repeat  = { NULLHANDLE,     /* Button window handle.                          */
-                          BMP_REPEAT,     /* Pressed state bitmap for regular mode.         */
-                          BMP_N_REPEAT,   /* Release state bitmap for regular mode.         */
-                          POS_R_REPEAT,   /* Button position for regular mode.              */
-                          BMP_S_REPEAT,   /* Pressed state bitmap for small and tiny modes. */
-                          BMP_SN_REPEAT,  /* Release state bitmap for small and tiny modes. */
-                          POS_S_REPEAT,   /* Button position for small mode.                */
-                          POS_T_REPEAT,   /* Button position for tiny mode.                 */
-                          0,              /* Button state.                                  */
-                          TRUE,           /* Is this a sticky button.                       */
-                          "Toggles playlist/song repeat" };
+static BMPBUTTON btn_repeat =
+{ NULLHANDLE,     /* Button window handle.                          */
+  BMP_REPEAT,     /* Pressed state bitmap for regular mode.         */
+  BMP_N_REPEAT,   /* Release state bitmap for regular mode.         */
+  POS_R_REPEAT,   /* Button position for regular mode.              */
+  BMP_S_REPEAT,   /* Pressed state bitmap for small and tiny modes. */
+  BMP_SN_REPEAT,  /* Release state bitmap for small and tiny modes. */
+  POS_S_REPEAT,   /* Button position for small mode.                */
+  POS_T_REPEAT,   /* Button position for tiny mode.                 */
+  0,              /* Button state.                                  */
+  TRUE,           /* Is this a sticky button.                       */
+  "Toggles playlist/song repeat" };
 
-BMPBUTTON btn_pl      = { NULLHANDLE,     /* Button window handle.                          */
-                          BMP_PL,         /* Pressed state bitmap for regular mode.         */
-                          BMP_N_PL,       /* Release state bitmap for regular mode.         */
-                          POS_R_PL,       /* Button position for regular mode.              */
-                          BMP_S_PL,       /* Pressed state bitmap for small and tiny modes. */
-                          BMP_SN_PL,      /* Release state bitmap for small and tiny modes. */
-                          POS_S_PL,       /* Button position for small mode.                */
-                          POS_T_PL,       /* Button position for tiny mode.                 */
-                          0,              /* Button state.                                  */
-                          FALSE,          /* Is this a sticky button.                       */
-                          "Opens/closes playlist window" };
+static BMPBUTTON btn_pl =
+{ NULLHANDLE,     /* Button window handle.                          */
+  BMP_PL,         /* Pressed state bitmap for regular mode.         */
+  BMP_N_PL,       /* Release state bitmap for regular mode.         */
+  POS_R_PL,       /* Button position for regular mode.              */
+  BMP_S_PL,       /* Pressed state bitmap for small and tiny modes. */
+  BMP_SN_PL,      /* Release state bitmap for small and tiny modes. */
+  POS_S_PL,       /* Button position for small mode.                */
+  POS_T_PL,       /* Button position for tiny mode.                 */
+  0,              /* Button state.                                  */
+  FALSE,          /* Is this a sticky button.                       */
+  "Opens/closes playlist window" };
 
-BMPBUTTON btn_fload   = { NULLHANDLE,     /* Button window handle.                          */
-                          BMP_FLOAD,      /* Pressed state bitmap for regular mode.         */
-                          BMP_N_FLOAD,    /* Release state bitmap for regular mode.         */
-                          POS_R_FLOAD,    /* Button position for regular mode.              */
-                          BMP_S_FLOAD,    /* Pressed state bitmap for small and tiny modes. */
-                          BMP_SN_FLOAD,   /* Release state bitmap for small and tiny modes. */
-                          POS_S_FLOAD,    /* Button position for small mode.                */
-                          POS_T_FLOAD,    /* Button position for tiny mode.                 */
-                          0,              /* Button state.                                  */
-                          FALSE,          /* Is this a sticky button.                       */
-                          "Load a file" };
+static BMPBUTTON btn_fload =
+{ NULLHANDLE,     /* Button window handle.                          */
+  BMP_FLOAD,      /* Pressed state bitmap for regular mode.         */
+  BMP_N_FLOAD,    /* Release state bitmap for regular mode.         */
+  POS_R_FLOAD,    /* Button position for regular mode.              */
+  BMP_S_FLOAD,    /* Pressed state bitmap for small and tiny modes. */
+  BMP_SN_FLOAD,   /* Release state bitmap for small and tiny modes. */
+  POS_S_FLOAD,    /* Button position for small mode.                */
+  POS_T_FLOAD,    /* Button position for tiny mode.                 */
+  0,              /* Button state.                                  */
+  FALSE,          /* Is this a sticky button.                       */
+  "Load a file" };
 
 typedef struct _BUNDLEHDR
 {
@@ -408,7 +420,7 @@ bmp_load_bitmap( const char* filename )
 /* Draws a bitmap using the current image colors and mixes. */
 static void
 bmp_draw_bitmap( HPS hps, int x, int y, int res )
-{
+{ DEBUGLOG(("bmp_draw_bitmap(%p, %i,%i, %i) - %p\n", hps, x, y, res, bmp_cache[res]));
   POINTL pos[3];
 
   pos[0].x = x;
@@ -418,7 +430,7 @@ bmp_draw_bitmap( HPS hps, int x, int y, int res )
   pos[2].x = 0;
   pos[2].y = 0;
 
-  GpiWCBitBlt( hps, bmp_cache[res], 3, pos, ROP_SRCCOPY, BBO_AND );
+  PMXASSERT(GpiWCBitBlt( hps, bmp_cache[res], 3, pos, ROP_SRCCOPY, BBO_AND ), != GPI_ERROR);
 }
 
 static void
@@ -489,10 +501,25 @@ bmp_draw_background( HPS hps, HWND hwnd )
                          bmp_ulong[ UL_SHADE_BRIGHT ]  );
   }
 
-  if( cfg.mode != CFG_MODE_TINY && bmp_ulong[ UL_SHADE_STAT ] )
+  if( cfg.mode == CFG_MODE_REGULAR && bmp_ulong[ UL_SHADE_STAT ] )
   {
     rcl.yBottom += 36;
     rcl.xLeft   += 26;
+    rcl.xRight  -=  6;
+    rcl.yTop    -=  6;
+
+    bmp_draw_shade( hps, rcl.xLeft,
+                         rcl.yBottom,
+                         rcl.xRight - rcl.xLeft   - 1,
+                         rcl.yTop   - rcl.yBottom - 1,
+                         bmp_ulong[ UL_SHADE_DARK   ],
+                         bmp_ulong[ UL_SHADE_BRIGHT ]  );
+  }
+
+  if( cfg.mode == CFG_MODE_SMALL && bmp_ulong[ UL_SHADE_STAT ] )
+  {
+    rcl.yBottom += 36;
+    rcl.xLeft   +=  6;
     rcl.xRight  -=  6;
     rcl.yTop    -=  6;
 
@@ -591,7 +618,7 @@ bmp_draw_part_bg( HPS hps, int x1, int y1, int x2, int y2 )
 void
 bmp_draw_led( HPS hps, int active )
 {
-  DEBUGLOG(("bmp_draw_led(%p, %i)\n", hps, active));
+  DEBUGLOG(("bmp_draw_led(%p, %i) %i,%i\n", hps, active, bmp_pos[ POS_N_LED ].x, bmp_pos[ POS_N_LED ].x));
 
   if( cfg.mode != CFG_MODE_TINY )
   {
@@ -744,7 +771,8 @@ bmp_draw_text( HPS hps )
     return;
   }
 
-  GpiQueryBitmapDimension( s_bitmap, &size );
+  if (!GpiQueryBitmapDimension( s_bitmap, &size ))
+    return;
   bmp_draw_part_bg_to( s_buffer, 0, 0, size.cx, size.cy,
                        rect.xLeft, rect.yBottom );
 
@@ -848,7 +876,7 @@ void
 bmp_set_text( const char* string )
 {
   DEBUGLOG(("bmp_set_text(%p)\n", string));
-  if( string ) {
+  if( string && string != s_display ) {
     strlcpy( s_display, string, sizeof( s_display ));
   }
 
@@ -1451,7 +1479,7 @@ bmp_pt_in_slider( POINTL pos )
    not loaded before. */
 static void
 bmp_load_default( HPS hps, int id, int defid )
-{
+{ DEBUGLOG(("bmp_load_default(%p, %i, %i)\n", hps, id, defid));
   if( bmp_cache[ id ] == 0 && ( id == defid || bmp_cache[ defid ] != 0 ) )
   {
     HBITMAP hbitmap = GpiLoadBitmap( hps, NULLHANDLE, defid, 0, 0 );
@@ -1459,6 +1487,14 @@ bmp_load_default( HPS hps, int id, int defid )
     if( hbitmap != GPI_ERROR ) {
       bmp_cache[ id ] = hbitmap;
     }
+    #ifdef DEBUG
+     else
+    { char buf[1024];
+      os2pm_strerror(buf, sizeof(buf));
+      if (*buf)
+        DEBUGLOG(("bmp_load_default: GpiLoadBitmap failed: %s\n", buf));
+    }
+    #endif
   }
 }
 static inline void
@@ -1516,11 +1552,11 @@ bmp_init_skins_bitmaps( HPS hps )
   bmp_load_default( hps, BMP_N_PL       );
   bmp_load_default( hps, BMP_N_FLOAD    );
 
-  for( i = BMP_FONT1; i < BMP_FONT1 + 51; i++ ) {
+  for( i = BMP_FONT1; i <= BMP_FONT1 + 101; i++ ) {
     bmp_load_default( hps, i );
   }
 
-  for( i = BMP_FONT2; i < BMP_FONT2 + 51; i++ ) {
+  for( i = BMP_FONT2; i <= BMP_FONT2 + 50; i++ ) {
     bmp_load_default( hps, i );
   }
 
@@ -1555,20 +1591,20 @@ bmp_init_skin_positions( void )
 {
   bmp_pos[ POS_TIMER       ].x =       228; bmp_pos[ POS_TIMER       ].y =        48;
   bmp_pos[ POS_R_SIZE      ].x =       300; bmp_pos[ POS_R_SIZE      ].y =       110;
-  bmp_pos[ POS_R_PLAY      ].x =         6; bmp_pos[ POS_R_PLAY      ].y =         7;
-  bmp_pos[ POS_R_PAUSE     ].x =        29; bmp_pos[ POS_R_PAUSE     ].y =         7;
-  bmp_pos[ POS_R_REW       ].x =        52; bmp_pos[ POS_R_REW       ].y =         7;
-  bmp_pos[ POS_R_FWD       ].x =        75; bmp_pos[ POS_R_FWD       ].y =         7;
-  bmp_pos[ POS_R_PL        ].x =       108; bmp_pos[ POS_R_PL        ].y =         7;
-  bmp_pos[ POS_R_REPEAT    ].x =       165; bmp_pos[ POS_R_REPEAT    ].y =         7;
-  bmp_pos[ POS_R_SHUFFLE   ].x =       188; bmp_pos[ POS_R_SHUFFLE   ].y =         7;
-  bmp_pos[ POS_R_PREV      ].x =       211; bmp_pos[ POS_R_PREV      ].y =         7;
-  bmp_pos[ POS_R_NEXT      ].x =       234; bmp_pos[ POS_R_NEXT      ].y =         7;
-  bmp_pos[ POS_R_POWER     ].x =       270; bmp_pos[ POS_R_POWER     ].y =         7;
+  bmp_pos[ POS_R_PLAY      ].x =         6; bmp_pos[ POS_R_PLAY      ].y =         8;
+  bmp_pos[ POS_R_PAUSE     ].x =        29; bmp_pos[ POS_R_PAUSE     ].y =         8;
+  bmp_pos[ POS_R_REW       ].x =        52; bmp_pos[ POS_R_REW       ].y =         8;
+  bmp_pos[ POS_R_FWD       ].x =        75; bmp_pos[ POS_R_FWD       ].y =         8;
+  bmp_pos[ POS_R_PL        ].x =       108; bmp_pos[ POS_R_PL        ].y =         8;
+  bmp_pos[ POS_R_REPEAT    ].x =       165; bmp_pos[ POS_R_REPEAT    ].y =         8;
+  bmp_pos[ POS_R_SHUFFLE   ].x =       188; bmp_pos[ POS_R_SHUFFLE   ].y =         8;
+  bmp_pos[ POS_R_PREV      ].x =       211; bmp_pos[ POS_R_PREV      ].y =         8;
+  bmp_pos[ POS_R_NEXT      ].x =       234; bmp_pos[ POS_R_NEXT      ].y =         8;
+  bmp_pos[ POS_R_POWER     ].x =       270; bmp_pos[ POS_R_POWER     ].y =         8;
   bmp_pos[ POS_R_STOP      ].x = POS_UNDEF; bmp_pos[ POS_R_STOP      ].y = POS_UNDEF;
   bmp_pos[ POS_R_FLOAD     ].x = POS_UNDEF; bmp_pos[ POS_R_FLOAD     ].y = POS_UNDEF;
   bmp_pos[ POS_R_TEXT      ].x =        32; bmp_pos[ POS_R_TEXT      ].y =        84;
-  bmp_pos[ POS_S_TEXT      ].x =        32; bmp_pos[ POS_S_TEXT      ].y =        41;
+  bmp_pos[ POS_S_TEXT      ].x =        10; bmp_pos[ POS_S_TEXT      ].y =        41;
   bmp_pos[ POS_NOTL        ].x =       178; bmp_pos[ POS_NOTL        ].y =        62;
   bmp_pos[ POS_TL          ].x =       178; bmp_pos[ POS_TL          ].y =        62;
   bmp_pos[ POS_NOPLIST     ].x =       178; bmp_pos[ POS_NOPLIST     ].y =        47;
@@ -1586,28 +1622,28 @@ bmp_init_skin_positions( void )
   bmp_pos[ POS_BPS         ].x =       259; bmp_pos[ POS_BPS         ].y =        72;
   bmp_pos[ POS_S_SIZE      ].x = POS_UNDEF; bmp_pos[ POS_S_SIZE      ].y = POS_UNDEF;
   bmp_pos[ POS_T_SIZE      ].x = POS_UNDEF; bmp_pos[ POS_T_SIZE      ].y = POS_UNDEF;
-  bmp_pos[ POS_S_PLAY      ].x =         6; bmp_pos[ POS_S_PLAY      ].y =         7;
-  bmp_pos[ POS_S_PAUSE     ].x =        29; bmp_pos[ POS_S_PAUSE     ].y =         7;
-  bmp_pos[ POS_S_REW       ].x =        52; bmp_pos[ POS_S_REW       ].y =         7;
-  bmp_pos[ POS_S_FWD       ].x =        75; bmp_pos[ POS_S_FWD       ].y =         7;
-  bmp_pos[ POS_S_PL        ].x =       108; bmp_pos[ POS_S_PL        ].y =         7;
-  bmp_pos[ POS_S_REPEAT    ].x =       165; bmp_pos[ POS_S_REPEAT    ].y =         7;
-  bmp_pos[ POS_S_SHUFFLE   ].x =       188; bmp_pos[ POS_S_SHUFFLE   ].y =         7;
-  bmp_pos[ POS_S_PREV      ].x =       211; bmp_pos[ POS_S_PREV      ].y =         7;
-  bmp_pos[ POS_S_NEXT      ].x =       234; bmp_pos[ POS_S_NEXT      ].y =         7;
-  bmp_pos[ POS_S_POWER     ].x =       270; bmp_pos[ POS_S_POWER     ].y =         7;
+  bmp_pos[ POS_S_PLAY      ].x =         6; bmp_pos[ POS_S_PLAY      ].y =         8;
+  bmp_pos[ POS_S_PAUSE     ].x =        29; bmp_pos[ POS_S_PAUSE     ].y =         8;
+  bmp_pos[ POS_S_REW       ].x =        52; bmp_pos[ POS_S_REW       ].y =         8;
+  bmp_pos[ POS_S_FWD       ].x =        75; bmp_pos[ POS_S_FWD       ].y =         8;
+  bmp_pos[ POS_S_PL        ].x =       108; bmp_pos[ POS_S_PL        ].y =         8;
+  bmp_pos[ POS_S_REPEAT    ].x =       165; bmp_pos[ POS_S_REPEAT    ].y =         8;
+  bmp_pos[ POS_S_SHUFFLE   ].x =       188; bmp_pos[ POS_S_SHUFFLE   ].y =         8;
+  bmp_pos[ POS_S_PREV      ].x =       211; bmp_pos[ POS_S_PREV      ].y =         8;
+  bmp_pos[ POS_S_NEXT      ].x =       234; bmp_pos[ POS_S_NEXT      ].y =         8;
+  bmp_pos[ POS_S_POWER     ].x =       270; bmp_pos[ POS_S_POWER     ].y =         8;
   bmp_pos[ POS_S_STOP      ].x = POS_UNDEF; bmp_pos[ POS_S_STOP      ].y = POS_UNDEF;
   bmp_pos[ POS_S_FLOAD     ].x = POS_UNDEF; bmp_pos[ POS_S_FLOAD     ].y = POS_UNDEF;
-  bmp_pos[ POS_T_PLAY      ].x =         6; bmp_pos[ POS_T_PLAY      ].y =         7;
-  bmp_pos[ POS_T_PAUSE     ].x =        29; bmp_pos[ POS_T_PAUSE     ].y =         7;
-  bmp_pos[ POS_T_REW       ].x =        52; bmp_pos[ POS_T_REW       ].y =         7;
-  bmp_pos[ POS_T_FWD       ].x =        75; bmp_pos[ POS_T_FWD       ].y =         7;
-  bmp_pos[ POS_T_PL        ].x =       108; bmp_pos[ POS_T_PL        ].y =         7;
-  bmp_pos[ POS_T_REPEAT    ].x =       165; bmp_pos[ POS_T_REPEAT    ].y =         7;
-  bmp_pos[ POS_T_SHUFFLE   ].x =       188; bmp_pos[ POS_T_SHUFFLE   ].y =         7;
-  bmp_pos[ POS_T_PREV      ].x =       211; bmp_pos[ POS_T_PREV      ].y =         7;
-  bmp_pos[ POS_T_NEXT      ].x =       234; bmp_pos[ POS_T_NEXT      ].y =         7;
-  bmp_pos[ POS_T_POWER     ].x =       270; bmp_pos[ POS_T_POWER     ].y =         7;
+  bmp_pos[ POS_T_PLAY      ].x =         6; bmp_pos[ POS_T_PLAY      ].y =         8;
+  bmp_pos[ POS_T_PAUSE     ].x =        29; bmp_pos[ POS_T_PAUSE     ].y =         8;
+  bmp_pos[ POS_T_REW       ].x =        52; bmp_pos[ POS_T_REW       ].y =         8;
+  bmp_pos[ POS_T_FWD       ].x =        75; bmp_pos[ POS_T_FWD       ].y =         8;
+  bmp_pos[ POS_T_PL        ].x =       108; bmp_pos[ POS_T_PL        ].y =         8;
+  bmp_pos[ POS_T_REPEAT    ].x =       165; bmp_pos[ POS_T_REPEAT    ].y =         8;
+  bmp_pos[ POS_T_SHUFFLE   ].x =       188; bmp_pos[ POS_T_SHUFFLE   ].y =         8;
+  bmp_pos[ POS_T_PREV      ].x =       211; bmp_pos[ POS_T_PREV      ].y =         8;
+  bmp_pos[ POS_T_NEXT      ].x =       234; bmp_pos[ POS_T_NEXT      ].y =         8;
+  bmp_pos[ POS_T_POWER     ].x =       270; bmp_pos[ POS_T_POWER     ].y =         8;
   bmp_pos[ POS_T_STOP      ].x = POS_UNDEF; bmp_pos[ POS_T_STOP      ].y = POS_UNDEF;
   bmp_pos[ POS_T_FLOAD     ].x = POS_UNDEF; bmp_pos[ POS_T_FLOAD     ].y = POS_UNDEF;
   bmp_pos[ POS_PL_INDEX    ].x =       143; bmp_pos[ POS_PL_INDEX    ].y =        62;
@@ -1625,9 +1661,9 @@ bmp_init_default_skin( HPS hps )
 
   bmp_pos[ POS_S_SIZE      ].x = 300; bmp_pos[ POS_S_SIZE      ].y = 70;
   bmp_pos[ POS_T_SIZE      ].x = 300; bmp_pos[ POS_T_SIZE      ].y = 37;
-  bmp_pos[ POS_R_FLOAD     ].x = 131; bmp_pos[ POS_R_FLOAD     ].y =  7;
-  bmp_pos[ POS_S_FLOAD     ].x = 131; bmp_pos[ POS_S_FLOAD     ].y =  7;
-  bmp_pos[ POS_T_FLOAD     ].x = 131; bmp_pos[ POS_T_FLOAD     ].y =  7;
+  bmp_pos[ POS_R_FLOAD     ].x = 131; bmp_pos[ POS_R_FLOAD     ].y =  8;
+  bmp_pos[ POS_S_FLOAD     ].x = 131; bmp_pos[ POS_S_FLOAD     ].y =  8;
+  bmp_pos[ POS_T_FLOAD     ].x = 131; bmp_pos[ POS_T_FLOAD     ].y =  8;
   bmp_pos[ POS_NO_CHANNELS ].x = 235; bmp_pos[ POS_NO_CHANNELS ].y = 72;
   bmp_pos[ POS_MONO        ].x = 235; bmp_pos[ POS_MONO        ].y = 72;
   bmp_pos[ POS_STEREO      ].x = 235; bmp_pos[ POS_STEREO      ].y = 72;
@@ -1644,9 +1680,13 @@ bmp_init_default_skin( HPS hps )
   bmp_ulong[ UL_IN_PIXELS    ] = TRUE;
   bmp_ulong[ UL_R_MSG_LEN    ] = 256;
   bmp_ulong[ UL_R_MSG_HEIGHT ] = 16;
-  bmp_ulong[ UL_S_MSG_LEN    ] = 256;
+  bmp_ulong[ UL_S_MSG_LEN    ] = 276;
   bmp_ulong[ UL_S_MSG_HEIGHT ] = 16;
-  bmp_ulong[ UL_FG_MSG_COLOR ] = 0x0000FF00UL;
+  bmp_ulong[ UL_FG_MSG_COLOR ] = DEF_FG_MSG_COLOR;
+  bmp_ulong[ UL_FG_COLOR     ] = DEF_FG_COLOR;    
+  bmp_ulong[ UL_BG_COLOR     ] = DEF_BG_COLOR;    
+  bmp_ulong[ UL_HI_FG_COLOR  ] = DEF_HI_FG_COLOR; 
+  bmp_ulong[ UL_HI_BG_COLOR  ] = DEF_HI_BG_COLOR;;
   bmp_ulong[ UL_BPS_DIGITS   ] = TRUE;
 
   strcpy( visual.param, "" );
@@ -1662,6 +1702,64 @@ bmp_init_default_skin( HPS hps )
   strlcat( module_name, "visplug\\analyzer.dll", sizeof module_name );
   add_plugin( module_name, &visual );
 }
+
+static void                                                                  
+bmp_init_colors( void )                                                      
+{                                                                            
+/* TODO: currently unsupported
+  pl_set_colors( bmp_ulong[ UL_FG_COLOR    ], bmp_ulong[ UL_BG_COLOR    ],   
+                 bmp_ulong[ UL_HI_FG_COLOR ], bmp_ulong[ UL_HI_BG_COLOR ] ); 
+  pm_set_colors( bmp_ulong[ UL_FG_COLOR    ], bmp_ulong[ UL_BG_COLOR    ],   
+                 bmp_ulong[ UL_HI_FG_COLOR ], bmp_ulong[ UL_HI_BG_COLOR ] ); 
+  bm_set_colors( bmp_ulong[ UL_FG_COLOR    ], bmp_ulong[ UL_BG_COLOR    ],   
+                 bmp_ulong[ UL_HI_FG_COLOR ], bmp_ulong[ UL_HI_BG_COLOR ] );
+*/ 
+}
+
+static int bmp_map_bitmap_id( int i )
+{
+  static const int button_map[] = {
+    BMP_PLAY, 0, BMP_PAUSE, BMP_REW, BMP_FWD, BMP_POWER, BMP_PREV, BMP_NEXT, BMP_SHUFFLE, BMP_REPEAT,
+    BMP_N_PLAY, 0, BMP_N_PAUSE, BMP_N_REW, BMP_N_FWD, BMP_N_POWER, BMP_N_PREV, BMP_N_NEXT, BMP_N_SHUFFLE, BMP_N_REPEAT,
+    BMP_N_PL, BMP_PL, BMP_N_STOP, BMP_STOP, BMP_N_FLOAD, BMP_FLOAD };
+  static const int misc1600_map[] = {
+    0, BMP_STEREO, BMP_MONO, 0, 0, 0, 0, 0, BMP_NO_CHANNELS, 0,
+    0, BMP_S_BGROUND, BMP_T_BGROUND, 0, 0, 0, 0, 0, 0, 0,
+    BMP_VOLSLIDER, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    BMP_VOLBAR, BMP_SINGLEPLAY, BMP_LISTPLAY, BMP_NOFILE };
+  static const int misc1900_map[] = {
+    BMP_R_BGROUND, BMP_NOTL, BMP_TL, BMP_NOPLIST, BMP_PLIST, 0, BMP_SLIDER_SHAFT };
+
+  switch ( i )
+  { case 1820: return BMP_LED;
+    case 1821: return BMP_N_LED;
+  }
+  if (i >= 1100 && i <= 1119)
+    return i + DIG_SMALL-1100;
+  if (i >= 1200 && i <= 1219)
+    return i += DIG_BIG-1200;
+  if (i >= 1300 && i < 1300 + sizeof button_map / sizeof *button_map)
+    return button_map[i-1300]; 
+  if (i >= 1600 && i < 1600 + sizeof misc1600_map / sizeof *misc1600_map)
+    return misc1600_map[i-1600];
+  if (i >= 1640 && i <= 1659)
+    return DIG_TINY-1640;
+  if (i >= 1660 && i <= 1679)
+    return i + DIG_PL_INDEX-1640;
+  if (i >= 1400 && i <= 1499)
+    return i + BMP_FONT1-1400;
+  if (i >= 1800 && i <= 1819)
+    return i + DIG_BPS-1800;
+  if (i >= 1830 && i <= 1839)
+    return i + DIG_BPS-1830;
+  if (i >= 1900 && i < 1900 + sizeof misc1900_map / sizeof *misc1900_map)
+    return misc1900_map[i-1600];
+  if (i >= 4400 && i <= 4499)
+    return i + BMP_FONT2-4400;
+  if (i >= 5500 && i < 5000 + sizeof button_map / sizeof *button_map)
+    return button_map[i-5500] + BMP_S_PLAY - BMP_PLAY;
+  return 0;
+}                                                                            
 
 /* Returns TRUE if specified mode supported by current skin. */
 BOOL
@@ -1714,10 +1812,15 @@ bmp_load_packfile( char *filename )
   {
     if( fread( &hdr, 1, sizeof( BUNDLEHDR ), pack ) == sizeof( BUNDLEHDR ) &&
         hdr.length > 0 )
-    {
-      if(( fbuf = (char*)malloc( hdr.length )) != NULL )
+    { if(( fbuf = (char*)malloc( hdr.length )) != NULL )
       {
         cb = fread( fbuf, 1, hdr.length, pack );
+        
+        // decouple from internal IDs
+        hdr.resource = bmp_map_bitmap_id( hdr.resource );
+        if ( hdr.resource == 0 )
+          continue;
+
         sprintf( tempname, "%spm123%s", startpath,
                            sfext( tempexts, hdr.filename, sizeof( tempexts )));
 
@@ -1725,6 +1828,7 @@ bmp_load_packfile( char *filename )
         {
           fwrite( fbuf, 1, cb, temp );
           fclose( temp );
+
 
           bmp_cache[ hdr.resource ] = bmp_load_bitmap( tempname );
           remove( tempname );
@@ -1815,6 +1919,10 @@ bmp_load_skin( const char *filename, HAB hab, HWND hplayer, HPS hps )
   bmp_ulong[ UL_S_MSG_LEN      ] = 25;
   bmp_ulong[ UL_S_MSG_HEIGHT   ] = 0;
   bmp_ulong[ UL_FG_MSG_COLOR   ] = 0x00FFFFFFUL;
+  bmp_ulong[ UL_FG_COLOR       ] = 0xFFFFFFFFUL;
+  bmp_ulong[ UL_BG_COLOR       ] = 0xFFFFFFFFUL;
+  bmp_ulong[ UL_HI_FG_COLOR    ] = 0xFFFFFFFFUL;
+  bmp_ulong[ UL_HI_BG_COLOR    ] = 0xFFFFFFFFUL;
   bmp_ulong[ UL_PL_INDEX       ] = 0;
   bmp_ulong[ UL_FONT           ] = 0;
   bmp_ulong[ UL_ONE_FONT       ] = FALSE;
@@ -1824,6 +1932,7 @@ bmp_load_skin( const char *filename, HAB hab, HWND hplayer, HPS hps )
   {
     bmp_init_skins_bitmaps( hps );
     bmp_init_default_skin ( hps );
+    bmp_init_colors();
     bmp_reflow_and_resize ( WinQueryWindow( hplayer, QW_PARENT ));
 
     vis_init_all( TRUE );
@@ -1914,11 +2023,15 @@ bmp_load_skin( const char *filename, HAB hab, HWND hplayer, HPS hps )
             i == UL_SLIDER_BRIGHT ||
             i == UL_SLIDER_COLOR  ||
             i == UL_PL_COLOR      ||
+            i == UL_FG_COLOR      ||
+            i == UL_BG_COLOR      ||
+            i == UL_HI_FG_COLOR   ||
+            i == UL_HI_BG_COLOR   ||
             i == UL_FG_MSG_COLOR   )
         {
-            sscanf( p, "%d/%d/%d", &r, &g, &b );
-            bmp_ulong[ i ] = r << 16 | g << 8 | b;
-            break;
+          sscanf( p, "%d/%d/%d", &r, &g, &b );
+          bmp_ulong[ i ] = r << 16 | g << 8 | b;
+          break;
         }
         switch( i ) {
           case UL_SHADE_STAT:    bmp_ulong[ UL_SHADE_STAT    ] = FALSE;   break;
@@ -1948,7 +2061,7 @@ bmp_load_skin( const char *filename, HAB hab, HWND hplayer, HPS hps )
           case UL_VOLUME_SLIDER:  bmp_ulong[ UL_VOLUME_SLIDER  ] = TRUE;    break;
           case UL_BPS_DIGITS:     bmp_ulong[ UL_BPS_DIGITS     ] = TRUE;    break;
           case UL_PL_INDEX:       bmp_ulong[ UL_PL_INDEX       ] = atoi(p); break;
-          case UL_ONE_FONT:       bmp_ulong[ UL_ONE_FONT       ] = TRUE;    break;
+          case UL_ONE_FONT:       bmp_ulong[ UL_ONE_FONT       ] = TRUE;    break;       
           case UL_IN_PIXELS:      bmp_ulong[ UL_IN_PIXELS      ] = TRUE;    break;
           case UL_R_MSG_HEIGHT:   bmp_ulong[ UL_R_MSG_HEIGHT   ] = atoi(p); break;
           case UL_S_MSG_HEIGHT:   bmp_ulong[ UL_S_MSG_HEIGHT   ] = atoi(p); break;
@@ -1963,14 +2076,15 @@ bmp_load_skin( const char *filename, HAB hab, HWND hplayer, HPS hps )
           }
 
           default:
-          {
-            char image[_MAX_PATH];
-
-            rel2abs( path, p, image, sizeof( image ));
-            bmp_cache[ i ] = bmp_load_bitmap( image );
-
-            if( bmp_cache[ i ] == NULLHANDLE ) {
-              ++errors;
+          { char image[_MAX_PATH];
+            // decouple skin IDs from internal IDs
+            i = bmp_map_bitmap_id(i);
+            if (i)
+            { rel2abs( path, p, image, sizeof( image ));
+              bmp_cache[ i ] = bmp_load_bitmap( image );
+              if( bmp_cache[ i ] == NULLHANDLE ) {
+                ++errors;
+              }
             }
             break;
           }
@@ -2002,6 +2116,7 @@ bmp_load_skin( const char *filename, HAB hab, HWND hplayer, HPS hps )
   }
 
   bmp_init_skins_bitmaps( hps );
+  bmp_init_colors();
   bmp_reflow_and_resize ( WinQueryWindow( hplayer, QW_PARENT ));
 
   if( errors > 0 ) {
@@ -2014,14 +2129,15 @@ bmp_load_skin( const char *filename, HAB hab, HWND hplayer, HPS hps )
     }
   }
 
-  amp_display_filename();
   return TRUE;
 }
 
 /* Initializes specified skin button. */
 static void
 bmp_init_button( HWND hwnd, BMPBUTTON* button )
-{
+{ DEBUGLOG(("bmp_init_button(%p, %p{%p, %i,%i, %i, %i,%i, %i, %i, %i, %i, %s})\n",
+    hwnd, button, button->handle, button->id_r_pressed, button->id_r_release, button->id_r_pos,
+    button->id_s_pressed, button->id_s_release, button->id_s_pos, button->id_t_pos, button->state, button->sticky, button->help));
   DATA95 btn_data;
   int    x, y, cx, cy;
   int    pressed;
@@ -2064,14 +2180,14 @@ bmp_init_button( HWND hwnd, BMPBUTTON* button )
     if( button->handle == NULLHANDLE )
     {
       btn_data.cb        =  sizeof( DATA95 );
-      btn_data.Pressed   =  0;
-      btn_data.bmp1      =  bmp_cache + release;
-      btn_data.bmp2      =  bmp_cache + pressed;
+      btn_data.pressed   =  0;
+      btn_data.bmp_release_id = bmp_cache + release;
+      btn_data.bmp_pressed_id = bmp_cache + pressed;
       btn_data.stick     =  button->sticky;
       btn_data.stickvar  = &button->state;
-      btn_data.hwndOwner =  hwnd;
+      btn_data.hwnd_owner =  hwnd;
 
-      strcpy( btn_data.Help, button->help );
+      strcpy( btn_data.help, button->help );
       button->handle = WinCreateWindow( hwnd, CLASSNAME, "", WS_VISIBLE, x, y, cx, cy,
                                         hwnd, HWND_TOP, button->id_r_pressed, &btn_data, NULL );
     }
@@ -2081,6 +2197,7 @@ bmp_init_button( HWND hwnd, BMPBUTTON* button )
       WinSendMsg( button->handle, WM_CHANGEBMP, MPFROMP( bmp_cache + release ),
                                                 MPFROMP( bmp_cache + pressed ));
     }
+    //DEBUGLOG(("bmp_init_button: after set bitmap %p %p\n", bmp_cache[release], bmp_cache[pressed]));
   }
   else
   {
@@ -2144,7 +2261,6 @@ bmp_reflow_and_resize( HWND hframe )
   bmp_init_button( hplayer, &btn_fload   );
 
   bmp_delete_text_buffer();
-  amp_display_filename();
-  amp_invalidate( UPD_ALL );
+  amp_invalidate( UPD_WINDOW | UPD_FILENAME );
 }
 

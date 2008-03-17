@@ -452,12 +452,26 @@ skin_convert( char *src )
   strcat( file, "pledit.txt" );
 
   flg[ UL_FG_MSG_COLOR ] = 0x00FFFFFFUL;
+  flg[ UL_FG_COLOR     ] = 0xFFFFFFFFUL;
+  flg[ UL_BG_COLOR     ] = 0xFFFFFFFFUL;
   f01 = fopen( file, "r" );
   if( f01 ) {
     while( !feof( f01 )) {
       fgets( file, sizeof( file ), f01 );
       if( strnicmp( file, "MbFG=#", 6 ) == 0 ) {
-        sscanf( file + 6, "%08lX", &flg[ UL_FG_MSG_COLOR ] );
+        sscanf( file +  6, "%08lX", &flg[ UL_FG_MSG_COLOR ] );
+      }
+      if( strnicmp( file, "Normal=#", 6 ) == 0 ) {
+        sscanf( file +  8,  "%08lX", &flg[ UL_FG_COLOR ] );
+      }
+      if( strnicmp( file, "NormalBG=#", 6 ) == 0 ) {
+        sscanf( file + 10, "%08lX", &flg[ UL_BG_COLOR ] );
+      }
+      if( strnicmp( file, "Current=#", 6 ) == 0 ) {
+        sscanf( file +  9, "%08lX", &flg[ UL_HI_FG_COLOR ] );
+      }
+      if( strnicmp( file, "SelectedBG=#", 6 ) == 0 ) {
+        sscanf( file + 12, "%08lX", &flg[ UL_HI_BG_COLOR ] );
       }
     }
     fclose( f01 );
@@ -691,6 +705,27 @@ skin_convert( char *src )
   fprintf( skin, "16,%ld/%ld/%ld\n", flg[ UL_FG_MSG_COLOR ] >> 16 & 0x000000FFUL,
                                      flg[ UL_FG_MSG_COLOR ] >>  8 & 0x000000FFUL,
                                      flg[ UL_FG_MSG_COLOR ]       & 0x000000FFUL );
+
+  if( flg[ UL_FG_COLOR ] != 0xFFFFFFFFUL ) {
+    fprintf( skin, "31,%ld/%ld/%ld\n", flg[ UL_FG_COLOR ] >> 16 & 0x000000FFUL,
+                                       flg[ UL_FG_COLOR ] >>  8 & 0x000000FFUL,
+                                       flg[ UL_FG_COLOR ]       & 0x000000FFUL );
+  }
+  if( flg[ UL_BG_COLOR ] != 0xFFFFFFFFUL ) {
+    fprintf( skin, "32,%ld/%ld/%ld\n", flg[ UL_BG_COLOR ] >> 16 & 0x000000FFUL,
+                                       flg[ UL_BG_COLOR ] >>  8 & 0x000000FFUL,
+                                       flg[ UL_BG_COLOR ]       & 0x000000FFUL );
+  }
+  if( flg[ UL_HI_FG_COLOR ] != 0xFFFFFFFFUL ) {
+    fprintf( skin, "33,%ld/%ld/%ld\n", flg[ UL_HI_FG_COLOR ] >> 16 & 0x000000FFUL,
+                                       flg[ UL_HI_FG_COLOR ] >>  8 & 0x000000FFUL,
+                                       flg[ UL_HI_FG_COLOR ]       & 0x000000FFUL );
+  }
+  if( flg[ UL_HI_BG_COLOR ] != 0xFFFFFFFFUL ) {
+    fprintf( skin, "34,%ld/%ld/%ld\n", flg[ UL_HI_BG_COLOR ] >> 16 & 0x000000FFUL,
+                                       flg[ UL_HI_BG_COLOR ] >>  8 & 0x000000FFUL,
+                                       flg[ UL_HI_BG_COLOR ]       & 0x000000FFUL );
+  }
 
   fprintf( skin, "20,%ld\n", flg[ UL_R_MSG_LEN   ]);
   fprintf( skin, "22,%ld\n", flg[ UL_S_MSG_LEN   ]);

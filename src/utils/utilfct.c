@@ -36,6 +36,7 @@
 #include <stdio.h>
 #include "utilfct.h"
 #include <os2.h>
+#include <ctype.h>
 
 #include "debuglog.h"
 
@@ -124,6 +125,29 @@ blank_strip( char* string )
   return string;
 }
 
+/* Replaces series of control characters by one space. */
+char*
+control_strip( char* string )
+{
+  char* s = string;
+  char* t = string;
+
+  while( *s ) {
+    if( iscntrl( *s )) {
+      while( *s && iscntrl( *s )) {
+        ++s;
+      }
+      if( *s ) {
+        *t++ = ' ';
+      }
+    } else {
+      *t++ = *s++;
+    }
+  }
+  *t = 0;
+  return string;
+}
+
 /* Removes leading and trailing spaces and quotes. */
 char*
 quote_strip( char* string )
@@ -178,7 +202,7 @@ uncomment( char *string )
 
 /* Places the current thread into a wait state until another thread
    in the current process has ended. Kills another thread if the
-   time expires. */
+   time expires and return FALSE. */
 BOOL
 wait_thread( TID tid, ULONG msec )
 {
@@ -233,6 +257,46 @@ nb_append_tab( HWND book, HWND page, const char* text, MPARAM index )
   return TRUE;
 }
 
+/* Adds an item into a menu control. */
+SHORT
+mn_add_item( HWND menu, SHORT id, const char* item, BOOL enable, BOOL check, PVOID handle )
+{
+  MENUITEM mi;
+
+  mi.iPosition   = MIT_END;
+  mi.afStyle     = MIS_TEXT;
+  mi.afAttribute = 0;
+  mi.hwndSubMenu = NULLHANDLE;
+  mi.hItem       = (ULONG)handle;
+  mi.id          = id;
+  mi.afAttribute = 0;
+
+  if( !enable ) {
+    mi.afAttribute |= MIA_DISABLED;
+  }
+  if( check ) {
+    mi.afAttribute |= MIA_CHECKED;
+  }
+
+  return SHORT1FROMMR( WinSendMsg( menu, MM_INSERTITEM, MPFROMP( &mi ), MPFROMP( item )));
+}
+
+/* Returns the identity of a menu item of a specified index. */
+SHORT
+mn_item_id( HWND menu, SHORT i )
+{
+  return SHORT1FROMMR( WinSendMsg( menu, MM_ITEMIDFROMPOSITION,
+                                   MPFROMSHORT( i ), 0 ));
+}
+
+/* Deletes an item from the menu control. */
+SHORT
+mn_remove_item( HWND menu, SHORT id )
+{
+  return SHORT1FROMMR( WinSendMsg( menu, MM_REMOVEITEM,
+                                   MPFROM2SHORT( id, TRUE ), 0 ));
+}
+
 /* Makes a menu item selectable. */
 BOOL
 mn_enable_item( HWND menu, SHORT id, BOOL enable )
@@ -252,12 +316,47 @@ mn_check_item( HWND menu, SHORT id, BOOL check )
 }
 
 /* Change a menu item to MS_CONDITIONALCASCADE and sets the default ID */
-BOOL  mn_make_conditionalcascade( HWND menu, SHORT submenuid, SHORT defaultid )
+BOOL mn_make_conditionalcascade( HWND menu, SHORT submenuid, SHORT defaultid )
 {
   MENUITEM mi;
   return WinSendMsg( menu, MM_QUERYITEM, MPFROM2SHORT( submenuid, TRUE ), MPFROMP( &mi ))
       && WinSetWindowBits( mi.hwndSubMenu, QWL_STYLE, MS_CONDITIONALCASCADE, MS_CONDITIONALCASCADE )
       && WinSendMsg( mi.hwndSubMenu, MM_SETDEFAULTITEMID, MPFROMLONG( defaultid ), 0 );
+}
+
+/* Returns the handle of the specified menu item. */
+PVOID
+mn_get_handle( HWND menu, SHORT id )
+{
+  MENUITEM mi;
+
+  if( LONGFROMMR( WinSendMsg( menu, MM_QUERYITEM,
+                              MPFROM2SHORT( id, TRUE ), MPFROMP( &mi )))) {
+    return (PVOID)mi.hItem;
+  } else {
+    return NULL;
+  }
+}
+
+/* Returns the handle of the specified submenu. */
+HWND
+mn_get_submenu( HWND menu, SHORT id )
+{
+  MENUITEM mi;
+
+  if( LONGFROMMR( WinSendMsg( menu, MM_QUERYITEM,
+                              MPFROM2SHORT( id, TRUE ), MPFROMP( &mi )))) {
+    return mi.hwndSubMenu;
+  } else {
+    return NULLHANDLE;
+  }
+}
+
+
+/* Returns a count of the number of items in the menu control. */
+SHORT
+mn_size( HWND menu ) {
+  return SHORT1FROMMR( WinSendMsg( menu, MM_QUERYITEMCOUNT, 0, 0 ));
 }
 
 /* Delete all the items in the list box. */
@@ -364,6 +463,89 @@ en_enable( HWND hwnd, SHORT id, BOOL enable )
   if( hcontrol ) {
     WinSendMsg( hcontrol, EM_SETREADONLY, MPFROMSHORT( !enable ), 0 );
     WinSetPresParam( hcontrol, PP_BACKGROUNDCOLORINDEX, sizeof( bg_color ), &bg_color );
+  }
+}
+
+/* Adjusting the position and size of a notebook window. */
+void
+nb_adjust( HWND hwnd )
+{
+  int    buttons_count = 0;
+  HWND   notebook = NULLHANDLE;
+  HENUM  henum;
+  HWND   hnext;
+  char   classname[128];
+  RECTL  rect;
+  POINTL pos[2];
+
+  struct BUTTON {
+    HWND hwnd;
+    SWP  swp;
+
+  } buttons[32];
+
+  henum = WinBeginEnumWindows( hwnd );
+
+  while(( hnext = WinGetNextWindow( henum )) != NULLHANDLE ) {
+    if( WinQueryClassName( hnext, sizeof( classname ), classname ) > 0 ) {
+      if( strcmp( classname, "#40" ) == 0 ) {
+        notebook = hnext;
+      } else if( strcmp( classname, "#3" ) == 0 ) {
+        if( buttons_count < sizeof( buttons ) / sizeof( struct BUTTON )) {
+          if( WinQueryWindowPos( hnext, &buttons[buttons_count].swp )) {
+            if(!( buttons[buttons_count].swp.fl & SWP_HIDE )) {
+              buttons[buttons_count].hwnd = hnext;
+              buttons_count++;
+            }
+          }
+        }
+      }
+    }
+  }
+  WinEndEnumWindows( henum );
+
+  if( !WinQueryWindowRect( hwnd, &rect ) ||
+      !WinCalcFrameRect  ( hwnd, &rect, TRUE ))
+  {
+    return;
+  }
+
+  // Resizes notebook window.
+  if( notebook != NULLHANDLE )
+  {
+    pos[0].x = rect.xLeft;
+    pos[0].y = rect.yBottom;
+    pos[1].x = rect.xRight;
+    pos[1].y = rect.yTop;
+
+    if( buttons_count ) {
+      WinMapDlgPoints( hwnd, pos, 2, FALSE );
+      pos[0].y += 14;
+      WinMapDlgPoints( hwnd, pos, 2, TRUE  );
+    }
+
+    WinSetWindowPos( notebook, 0, pos[0].x,  pos[0].y,
+                                  pos[1].x - pos[0].x, pos[1].y - pos[0].y, SWP_MOVE | SWP_SIZE );
+  }
+
+  // Adjust buttons.
+  if( buttons_count )
+  {
+    int total_width = buttons_count * 2;
+    int start;
+    int i;
+
+    for( i = 0; i < buttons_count; i++ ) {
+      total_width += buttons[i].swp.cx;
+    }
+
+    start = ( rect.xRight - rect.xLeft + 1 - total_width ) / 2;
+
+    for( i = 0; i < buttons_count; i++ ) {
+      WinSetWindowPos( buttons[i].hwnd, 0, start, buttons[i].swp.y, 0, 0, SWP_MOVE );
+      WinInvalidateRect( buttons[i].hwnd, NULL, FALSE );
+      start += buttons[i].swp.cx + 2;
+    }
   }
 }
 

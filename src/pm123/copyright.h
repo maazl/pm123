@@ -1,8 +1,8 @@
 /*
  * Copyright 1997-2003 Samuel Audet  <guardia@step.polymtl.ca>
  *                     Taneli Lepp„  <rosmo@sektori.com>
- *
- * Copyright 2004-2006 Dmitry A.Steklenev <glass@ptv.ru>
+ * Copyright 2004-2007 Dmitry A.Steklenev <glass@ptv.ru>
+ * Copyright 2006-2008 Marcel Mueller <pm123@maazl.de>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -38,7 +38,7 @@
 
 #ifndef RC_INVOKED
 #define SDG_AUT "Marcel Mueller (http://www.maazl.de/)\n"\
-                "Dmitry A.Steklenev <glass@ptv.ru> (http://glass.os2.spb.ru/)\n"\
+                "Dmitry A.Steklenev <glass@ptv.ru> (http://glass.spb.ru/)\n"\
                 "Samuel Audet <guardia@step.polymtl.ca> (http://step.polymtl.ca/~guardia/)\n"\
                 "Taneli Lepp\204 <rosmo@sektori.com>\n"\
                 "Michael Hipp, Oliver Fromme (original mpg123: http://www.mpg123.org)"
@@ -65,8 +65,8 @@
 "Graphical User Interface for pm123 by:\n"\
 "\n"\
 "   Taneli Lepp„ <rosmo@sektori.com>\n"\
-"   Samuel Audet <guardia@step.polymtl.ca> (http://www.step.polymtl.ca/~guardia/)\n"\
-"   Dmitry A.Steklenev <glass@ptv.ru> (http://glass.os2.spb.ru/)\n"\
+"   Samuel Audet <guardia@step.polymtl.ca>\n"\
+"   Dmitry A.Steklenev <glass@ptv.ru>\n"\
 "   Marcel Mueller (http://www.maazl.de/)\n"\
 "\n"\
 "Generalized Bitmap Module by:\n"\
@@ -85,10 +85,11 @@
 "COPYING\n"\
 "=======\n"\
 "\n"\
-"This license covers ONLY mpg123.dll, http123.dll and the related source files.\n"\
+"This license covers ONLY mpg123.dll and the related source files.\n"\
 "\n"\
 "Copyright (c) 1995-1999 by Michael Hipp, all rights reserved.\n"\
 "Copyright (c) 1998-2003 by Samuel Audet, all rights reserved.\n"\
+"Copyright (c) 2004-2007 by Dmitry A.Stekelnev, all rights reserved.\n"\
 "\n"\
 "Original mpg123 decoder written/modified by:\n"\
 "   Michael Hipp <Michael.Hipp@student.uni-tuebingen.de>\n"\
@@ -153,10 +154,10 @@
 "=========\n"\
 "\n"\
 "This license covers the entirety of the PM123 source file distribution, "\
-"except GBM which is left into the public domain, and the mpg123 plug-in "\
-"(including http123.dll) which is left under the license found in the file "\
-"named COPYING.\n"\
+"except GBM which is left into the public domain, and the plug-ins."\
 "\n"\
+"Copyright 2006-2008 Marcel Mueller\n"\
+"Copyright 2004-2007 Dmitry A.Steklenev\n"\
 "Copyright 1997-2003 Samuel Audet <guardia@step.polymtl.ca>\n"\
 "                    Taneli Lepp„ <rosmo@sektori.com>\n"\
 "\n"\

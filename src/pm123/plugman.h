@@ -39,11 +39,13 @@
 #define DECODER_PLUGIN_LEVEL 2
 #define OUTPUT_PLUGIN_LEVEL  2
 
+#include "playable.h"
 #include <plugin.h>
 #include <format.h>
 #include <output_plug.h>
 #include <filter_plug.h>
 #include <decoder_plug.h>
+#include <visual_plug.h>
 #include <utilfct.h>
 #include <cpp/event.h>
 
@@ -130,7 +132,7 @@ BOOL  configure_plugin( int type, int i, HWND hwnd );
 *
 ****************************************************************************/
 /* invoke decoder to play an URL */
-ULONG dec_play( const char* url, const char* decoder_name, double offset, double start, double stop );
+ULONG dec_play( const Song* song, double offset, double start, double stop );
 /* stop the current decoder immediately */
 ULONG dec_stop( void );
 /* set fast forward/rewind mode */
@@ -185,7 +187,7 @@ void  dec_append_accel_table( HACCEL& haccel, ULONG id_base, LONG offset, DECODE
 ****************************************************************************/
 BOOL  out_is_active( int number );
 int   out_set_active( int number );
-ULONG out_setup( const FORMAT_INFO2* formatinfo, const char* URI );
+ULONG out_setup( const Song* song );
 ULONG out_close( void );
 void  out_set_volume( double volume ); // volume: [0,1]
 ULONG out_pause( BOOL pause );

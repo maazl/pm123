@@ -127,14 +127,14 @@ class CL_GLUE
                                               { return (*procs.output_command)( procs.a, msg, &params ); }
  public:
   // output control interface (C style)
-  friend ULONG             out_setup          ( const FORMAT_INFO2* formatinfo, const char* URI );
+  friend ULONG             out_setup          ( const Song* song );
   friend ULONG             out_close          ();
   friend void              out_set_volume     ( double volume );
   friend ULONG             out_pause          ( BOOL pause );
   friend BOOL              out_flush          ();
   friend BOOL              out_trash          ();
   // decoder control interface (C style)
-  friend ULONG             dec_play           ( const char* url, const char* decoder_name, T_TIME offset, T_TIME start, T_TIME stop );
+  friend ULONG             dec_play           ( const Song* song, T_TIME offset, T_TIME start, T_TIME stop );
   friend ULONG             dec_stop           ();
   friend ULONG             dec_fast           ( DECFASTMODE mode );
   friend ULONG             dec_jump           ( T_TIME pos );
@@ -171,7 +171,7 @@ T_TIME            CL_GLUE::minpos;
 T_TIME            CL_GLUE::maxpos;
 
 void CL_GLUE::virtualize(int i)
-{ DEBUGLOG(("CL_GLUE::virtualize(%d)\n", i));
+{ DEBUGLOG(("CL_GLUE::virtualize(%d) - %p\n", i, params.info));
 
   if (i < 0)
     return;
@@ -298,14 +298,16 @@ ULONG CL_GLUE::dec_command( ULONG msg )
     return 3; // no decoder active
 
   const DECODER_PROCS& procs = ((CL_DECODER*)pp)->get_procs();
-  return (*procs.decoder_command)( procs.w, msg, &dparams );
+  ULONG ret = (*procs.decoder_command)( procs.w, msg, &dparams );
+  DEBUGLOG(("dec_command: %lu\n", ret));
+  return ret;
 }
 
 /* invoke decoder to play an URL */
-ULONG dec_play( const char* url, const char* decoder_name, T_TIME offset, T_TIME start, T_TIME stop )
+ULONG dec_play( const Song* song, T_TIME offset, T_TIME start, T_TIME stop )
 {
-  DEBUGLOG(("dec_play(%s, %s, %g, %g)\n", url, decoder_name, start, stop));
-  ULONG rc = CL_GLUE::dec_set_active( decoder_name );
+  DEBUGLOG(("dec_play(%p{%s}, %g, %g)\n", &*song, song->GetURL().cdata(), start, stop));
+  ULONG rc = CL_GLUE::dec_set_active(song->GetDecoder());
   if ( rc != 0 )
     return rc;
 
@@ -315,7 +317,7 @@ ULONG dec_play( const char* url, const char* decoder_name, T_TIME offset, T_TIME
   CL_GLUE::minpos       = 1E99;
   CL_GLUE::maxpos       = 0;
 
-  CL_GLUE::dparams.URL                   = url;
+  CL_GLUE::dparams.URL                   = song->GetURL();
   CL_GLUE::dparams.jumpto                = start;
   CL_GLUE::dparams.output_request_buffer = &PROXYFUNCREF(CL_GLUE)glue_request_buffer;
   CL_GLUE::dparams.output_commit_buffer  = &PROXYFUNCREF(CL_GLUE)glue_commit_buffer;
@@ -328,7 +330,7 @@ ULONG dec_play( const char* url, const char* decoder_name, T_TIME offset, T_TIME
   rc = CL_GLUE::dec_command( DECODER_SETUP );
   if ( rc != 0 )
     return rc;
-  CL_GLUE::url = url;
+  CL_GLUE::url = song->GetURL();
 
   CL_GLUE::dec_command( DECODER_SAVEDATA );
 
@@ -347,8 +349,7 @@ ULONG dec_stop( void )
 /* set fast forward/rewind mode */
 ULONG dec_fast( DECFASTMODE mode )
 { CL_GLUE::dparams.fast = mode;
-  CL_GLUE::dec_command( DECODER_FFWD );
-  return 0;
+  return CL_GLUE::dec_command( DECODER_FFWD );
 }
 
 /* jump to absolute position */
@@ -370,7 +371,7 @@ ULONG dec_eq( const float* bandgain )
 { CL_GLUE::dparams.bandgain  = bandgain;
   CL_GLUE::dparams.equalizer = bandgain != NULL;
   ULONG status = dec_status();
-  return status == DECODER_PLAYING || status == DECODER_STARTING
+  return status == DECODER_PLAYING || status == DECODER_STARTING || status == DECODER_PAUSED
    ? CL_GLUE::dec_command( DECODER_EQ )
    : 0;
 }
@@ -381,7 +382,7 @@ ULONG dec_save( const char* file )
     file = NULL;
   CL_GLUE::dparams.save_filename = file;
   ULONG status = dec_status();
-  return status == DECODER_PLAYING || status == DECODER_STARTING
+  return status == DECODER_PLAYING || status == DECODER_STARTING || status == DECODER_PAUSED
    ? CL_GLUE::dec_command( DECODER_SAVEDATA )
    : 0;
 }
@@ -396,15 +397,17 @@ T_TIME dec_maxpos()
 
 
 /* setup new output stage or change the properties of the current one */
-ULONG out_setup( const FORMAT_INFO2* formatinfo, const char* URI )
-{ DEBUGLOG(("out_setup(%p{%i,%i,%i}, %s)\n", formatinfo, formatinfo->size, formatinfo->samplerate, formatinfo->channels, URI));
-  CL_GLUE::params.formatinfo = *formatinfo;
+ULONG out_setup( const Song* song )
+{ DEBUGLOG(("out_setup(%p{%s,{%i,%i,%i}})\n", &*song, song->GetURL().cdata(), song->GetInfo().format->size, song->GetInfo().format->samplerate, song->GetInfo().format->channels));
+  CL_GLUE::params.formatinfo = *song->GetInfo().format;
+  CL_GLUE::params.URI        = song->GetURL();
+  CL_GLUE::params.info       = &song->GetInfo();
   if (!CL_GLUE::initialized)
   { ULONG rc = CL_GLUE::init(); // here we initialte the setup of the filter chain
     if (rc != 0)
       return rc;
   }
-  CL_GLUE::params.URI = URI;
+  DEBUGLOG(("out_setup before out_command %p\n", CL_GLUE::params.info));
   return CL_GLUE::out_command( OUTPUT_OPEN );
 }
 
@@ -1062,7 +1065,7 @@ BOOL
 decoder_playing( void )
 {
   ULONG status = dec_status();
-  return ( status == DECODER_PLAYING || status == DECODER_STARTING || out_playing_data());
+  return ( status == DECODER_PLAYING || status == DECODER_STARTING || status == DECODER_PAUSED || out_playing_data());
 }
 
 /* Length in ms, should still be valid if decoder stops. */

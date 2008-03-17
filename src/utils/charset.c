@@ -1,5 +1,5 @@
 /*
- * Copyright 2005 Dmitry A.Steklenev
+ * Copyright 2005-2007 Dmitry A.Steklenev
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -26,20 +26,20 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#define  INCL_DOS
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-#define  INCL_DOS
-#define  INCL_WIN
-#include <os2.h>
+#include "charset.h"
+#include "strutils.h"
+#include "debuglog.h"
 #include <uconv.h>
 #include <unidef.h>
 #include "utilfct.h"
+#include <os2.h>
 
 #include "debuglog.h"
-
-#include "charset.h"
 
 const CH_ENTRY ch_list[] =
 {
@@ -75,24 +75,28 @@ const CH_ENTRY ch_list[] =
   { "Canadian French (DOS, OS/2)",                  863        },
   { "Nordic (DOS, OS/2)",                           865        },
   { "Icelandic (DOS, OS/2)",                        861        },
-  { "Thai (DOS, OS/2)",                             874        }
+  { "Thai (DOS, OS/2)",                             874        },
+  { "UTF-8 (Unicode)",                              1208       },
+  { "UCS-2 (UTF-16, Unicode)",                      1200       }
 };
 
 const int ch_list_size = sizeof( ch_list ) / sizeof( CH_ENTRY );
 
 /*
- * ch_default_cp: returns the current system code page.
- *
+ * ch_default: returns the current system character set.
  */
 
-static int
-ch_default_cp( void )
+int
+ch_default( void )
 {
-  ULONG cpage[1] = { 0 };
-  ULONG incb     = sizeof( cpage );
-  ULONG oucb     = 0;
+  static ULONG cpage[1] = { 0 };
 
-  DosQueryCp( incb, cpage, &oucb );
+  ULONG incb = sizeof( cpage );
+  ULONG oucb = 0;
+
+  if( !cpage[0] ) {
+    DosQueryCp( incb, cpage, &oucb );
+  }
   return cpage[0];
 }
 
@@ -116,6 +120,32 @@ ch_find( ULONG codepage )
   }
 
   return NULL;
+}
+
+BOOL ch_info( ULONG codepage, uconv_attribute_t* attr )
+{
+  UniChar           uch_name[16];
+  UconvObject       uco;
+  int               rc;
+
+  if( codepage == CH_CP_NONE ) {
+    codepage = ch_default();
+  }
+  if(( rc = UniMapCpToUcsCp( codepage, uch_name, 16 )) != ULS_SUCCESS ) {
+    DEBUGLOG(( "charset: UniMapCpToUcsCp failed, rc=%08X\n", rc ));
+    return FALSE;
+  }
+  if(( rc = UniCreateUconvObject( uch_name, &uco )) != ULS_SUCCESS ) {
+    DEBUGLOG(( "charset: UniCreateUconvObject failed, rc=%08X\n", rc ));
+    return FALSE;
+  }
+  rc = UniQueryUconvObject( uco, attr, sizeof *attr, NULL, NULL, NULL );
+  UniFreeUconvObject( uco );
+  if(rc != ULS_SUCCESS) {
+    DEBUGLOG(( "charset: UniQueryUconvObject failed, rc=%08X\n", rc ));
+    return FALSE;
+  }
+  return TRUE;
 }
 
 /*
@@ -212,7 +242,7 @@ ch_detect( ULONG cp_source, const char* source )
     { UconvObject ucv;
     
       // load codepage
-      { UniChar cpname[32];
+      { UniChar cpname[16];
 
         if ( UniMapCpToUcsCp( cpage[i], cpname, sizeof cpname / sizeof *cpname ) != ULS_SUCCESS ||
              UniCreateUconvObject( cpname, &ucv ) != ULS_SUCCESS ) { 
@@ -271,41 +301,237 @@ ch_detect( ULONG cp_source, const char* source )
 }
 
 /*
- * ch_convert: convert a characters string from one character
- *             set to another.
+ * ch_convert: convert a character string from one character set to another.
  *
- *    hab       program anchor block handle
- *    ch_source source character set
+ *    cp_source source codepage or CH_CP_NONE (0) to use the application's default
  *    source    source string
- *    ch_target target character set
+ *    cp_target target codepage or CH_CP_NONE (0) to use the application's default
  *    target    result buffer
  *    size      size of result buffer
+ *    flags     see CH_FLAGS_...
  *
  *    return    != NULL: converted string
  *              == NULL: error
  */
 
 char*
-ch_convert( ULONG cp_source, const char* source, ULONG cp_target, char* target, size_t size )
+ch_convert( ULONG cp_source, const char* source, ULONG cp_target, char* target, size_t size, unsigned flags )
 {
+  UniChar           uch_name[16];
+  UconvObject       uco;
+  uconv_attribute_t uco_attr;
+  UniChar*          buffer = NULL;
+  const UniChar*    ucs_source;
+  size_t            src_chars;
+  char*             target_bak = target;
+  int               rc;
+
+  // default parameters
   if( cp_source == CH_CP_NONE ) {
-    cp_source = ch_default_cp();
+    cp_source = ch_default();
   }
   if( cp_target == CH_CP_NONE ) {
-    cp_target = ch_default_cp();
+    cp_target = ch_default();
   }
-
-  if ( cp_source == cp_target ) {
-    // no conversion required
-    strlcpy( target, source, size );
-  } else
-  if ( !WinCpTranslateString( NULLHANDLE, cp_source, (PSZ)source, cp_target, size, target ) ) {
-    // conversion error
+  // source uconv
+  if(( rc = UniMapCpToUcsCp( cp_source, uch_name, 16 )) != ULS_SUCCESS ) {
+    DEBUGLOG(( "charset: UniMapCpToUcsCp failed, rc=%08X\n", rc ));
     return NULL;
   }
+  if(( rc = UniCreateUconvObject( uch_name, &uco )) != ULS_SUCCESS ) {
+    DEBUGLOG(( "charset: UniCreateUconvObject failed, rc=%08X\n", rc ));
+    return NULL;
+  }
+  if(( rc = UniQueryUconvObject( uco, &uco_attr, sizeof uco_attr, NULL, NULL, NULL )) != ULS_SUCCESS) {
+    DEBUGLOG(( "charset: UniQueryUconvObject failed, rc=%08X\n", rc ));
+    UniFreeUconvObject( uco );
+    return NULL;
+  }
+  
+  if (( flags & CH_FLAGS_WRITE_BOM ) && size >= 4 )
+  { // Write byte order marker (but only if enough space for terminating zero)
+    switch ( cp_target ) {
+      case 1200:
+        *(UniChar*)target = 0xFEFF;
+        target += 2;
+        size   -= 2;
+        break;
+      case 1208:
+        target[0] = 0xEF; target[1] = 0xBB; target[2] = 0xBF;
+        target += 3;
+        size   -= 3;
+    }
+  } else if ( size == 0 ) { // avoid exception at size - 1 terms below 
+    UniFreeUconvObject( uco );
+    return target_bak;
+  }
 
-  return target;
+  // Convert source to UCS-2
+  if ( cp_source == 1200 && *(UniChar*)source != 0xFFFE ) // Is already UCS-2
+  { // convert target string directly from source
+    UniFreeUconvObject( uco );
+
+    // skip byte order mark
+    if( *(const UniChar*)source == 0xFEFF )
+      source += 2;
+    
+    if ( cp_source == cp_target ) {
+     copyDBCS:
+      // no conversion required
+      if ( size >= 2 ) {
+        UniStrncpy( (UniChar*)target, (const UniChar*)source, size / 2 );
+        ((UniChar*)target)[ size / 2 - 1 ] = 0; // always null-terminate
+      }
+      return target_bak;
+    }
+
+    ucs_source = (const UniChar*)source;
+    src_chars  = UniStrlen((UniChar*)source );
+
+  } else {
+    // not UCS-2 or little endian
+    void*       sbs_buffer;
+    size_t      sbs_bytesleft;
+    UniChar*    ucs_buffer;
+    size_t      ucs_charsleft;
+    size_t      nonidentical;
+  
+    if (( uco_attr.esid & 0xF00 ) == 0x200 ) { // is DBCS
+      // check for byte order mark
+      if ( cp_source == 1200 ) {
+        switch (*(UniChar*)source) {
+          case 0xFFFE:
+            // Modify uconv attributes to swap bytes
+            uco_attr.endian.source = ENDIAN_LITTLE;
+            if(( rc = UniSetUconvObject( uco, &uco_attr )) != ULS_SUCCESS) {
+              DEBUGLOG(( "charset: UniSetUconvObject failed, rc=%08X\n", rc ));
+              UniFreeUconvObject( uco );
+              return NULL;
+            }
+          case 0xFEFF: // Native byte order of this OS => ignore
+            source += 2;
+        }
+      }
+      
+      if ( cp_source == cp_target ) {
+        goto copyDBCS; // same as above
+      }
+
+      src_chars     = UniStrlen((UniChar*)source );
+      sbs_bytesleft = src_chars * 2;
+
+    } else {
+      // skip BOM?
+      // BOM is meaningless in UTF-8, however, this prevents not everyone from using it.
+      if( cp_source == 1208 && source[0] == 0xEF && source[1] == 0xBB && source[2] == 0xBF )
+      { source += 3;
+      }
+
+      if ( cp_source == cp_target ) {
+        // no conversion required
+        strlcpy( target, source, size );
+        UniFreeUconvObject( uco );
+        return target_bak;
+      }
+
+      src_chars     = strlen( source );
+      sbs_bytesleft = src_chars;
+    }
+
+    if ( cp_target == 1200 ) {
+      // target is UCS-2 => operate in-place
+      ucs_buffer = (UniChar*)target;
+      ucs_charsleft = size / 2 - 1;
+    } else {
+      // allocate temporary buffer
+      if(( buffer = (UniChar*)calloc( sizeof( UniChar ), src_chars + 1 )) == NULL ) {
+        UniFreeUconvObject( uco );
+        return NULL;
+      }
+      ucs_buffer = buffer;
+      ucs_charsleft = src_chars;
+    }
+    // Convert the source string to unicode.
+    sbs_buffer    = (void*)source;
+    nonidentical  = 0;
+
+    rc = UniUconvToUcs( uco, &sbs_buffer, &sbs_bytesleft,
+                             &ucs_buffer, &ucs_charsleft, &nonidentical );
+    UniFreeUconvObject( uco );
+
+    if( rc != ULS_SUCCESS && rc != ULS_BUFFERFULL ) {
+      free( buffer );
+      return NULL;
+    }
+    
+    if ( buffer == NULL )
+    { // in-place => so we are done
+      ((UniChar*)target)[ size / 2 - ucs_charsleft - 1 ] = 0;
+      return target_bak;
+    }
+    
+    // convert target from the temporary location
+    ucs_source = buffer;
+  }
+  // now ucs_buffer points to a big-endian UCS-2 string to convert into the target format
+
+  // target uconv
+  if(( rc = UniMapCpToUcsCp( cp_target, uch_name, 16 )) != ULS_SUCCESS ) {
+    DEBUGLOG(( "charset: UniMapCpToUcsCp failed (target), rc=%08X\n", rc ));
+    free( buffer );
+    return NULL;
+  }
+  if(( rc = UniCreateUconvObject( uch_name, &uco )) != ULS_SUCCESS ) {
+    DEBUGLOG(( "charset: UniCreateUconvObject failed (target), rc=%08X\n", rc ));
+    free( buffer );
+    return NULL;
+  }
+  if(( rc = UniQueryUconvObject( uco, &uco_attr, sizeof uco_attr, NULL, NULL, NULL )) != ULS_SUCCESS) {
+    DEBUGLOG(( "charset: UniQueryUconvObject failed (target), rc=%08X\n", rc ));
+    UniFreeUconvObject( uco );
+    free( buffer );
+    return NULL;
+  }
+  // Convert unicode to the target string.
+  { void*       sbs_buffer    = (void*)target;
+    size_t      sbs_bytesleft = size - 1;
+    UniChar*    ucs_buffer    = (UniChar*)ucs_source; // OS/2 and const...
+    size_t      ucs_charsleft = src_chars;
+    size_t      nonidentical  = 0;
+
+    rc = UniUconvFromUcs( uco, &ucs_buffer, &ucs_charsleft,
+                               &sbs_buffer, &sbs_bytesleft, &nonidentical );
+    UniFreeUconvObject( uco );
+    free( buffer );
+
+    if( rc != ULS_SUCCESS && rc != ULS_BUFFERFULL ) {
+      return NULL;
+    }
+
+    target[ size - sbs_bytesleft - 1 ] = 0;
+  }
+  return target_bak;
 }
+
+#if 0
+
+#include <stdio.h>
+#include <stdlib.h>
+
+int
+main( int argc, char* argv[] )
+{ static char buffer1[65536] = {0};
+  static char buffer2[65536];
+  size_t n;
+  freopen("","rb",stdin);
+  freopen("","wb",stdout);
+  n = fread(buffer1, sizeof buffer1, 1, stdin);
+  fprintf(stderr, "%i\n", ch_convert(atoi(argv[1]), buffer1, atoi(argv[2]), buffer2, sizeof buffer2, !!argv[3]));
+  fwrite(buffer2, sizeof buffer2, 1, stdout);
+  return 0;
+}
+
+#endif
 
 #if 0
 
@@ -350,10 +576,14 @@ main( int argc, char* argv[] )
     ch_source = ch_detect( ch_source, source );
   }
 
-  target = strdup( source );
-
-  if( !ch_convert( ch_source, source, ch_target, target, strlen( source ) + 1 )) {
+  if(( target = malloc( strlen( source ) * 5 + 1 )) == NULL ) {
+    fprintf( stderr, "Not enough memory.\n" );
+    return -1;
+  }
+  if( !ch_convert( ch_source, source, ch_target, target, strlen( source ) * 5 + 1 )) {
     fprintf( stderr, "Incorrect call of the utility.\n" );
+    free( target );
+    return -2;
   } else {
     fprintf( stdout, "%s\n", target );
   }

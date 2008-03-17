@@ -1,5 +1,5 @@
 /*
- * Copyright 2005 Dmitry A.Steklenev
+ * Copyright 2005-2007 Dmitry A.Steklenev
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -32,7 +32,7 @@
 #define INCL_PM
 #include <string.h>
 #include <os2.h>
-
+#include <uconv.h>
 
 // no code page
 #define CH_CP_NONE    0UL
@@ -53,6 +53,11 @@ extern const CH_ENTRY ch_list[];
 extern const int      ch_list_size;
 
 /*
+ * ch_default: returns the current system character set.
+ */
+int ch_default( void );
+
+/*
  * ch_find: returns a pointer to the character set entry for the
  *          specified codepage.
  *
@@ -61,6 +66,16 @@ extern const int      ch_list_size;
  *    return   pointer to matching CH_ENTRY or NULL if not found
  */
 const CH_ENTRY* ch_find( ULONG codepage );
+
+/*
+ * ch_info: get info about specified codepage.
+ *
+ *    codepage codepage to find.
+ *    attr     codepage attributes. See Unicode Programming Reference.
+ *
+ *    return   FALSE on error.
+ */
+BOOL ch_info( ULONG codepage, uconv_attribute_t* attr );
 
 /*
  * ch_detect: determine a characters string character set.
@@ -75,21 +90,23 @@ const CH_ENTRY* ch_find( ULONG codepage );
 ULONG ch_detect( ULONG codepage, const char* source );
 
 /*
- * ch_convert: convert a characters string from one character
- *             set to another.
+ * ch_convert: convert a characters string from one character set to another.
  *
- *    hab       program anchor block handle
- *    cp_source source codepage or CH_CP_NONE to use the application's default
+ *    cp_source source codepage or CH_CP_NONE (0) to use the application's default
  *    source    source string
- *    cp_target target codepage or CH_CP_NONE to use the application's default
+ *    cp_target target codepage or CH_CP_NONE (0) to use the application's default
  *    target    result buffer
  *    size      size of result buffer
+ *    flags     see CH_FLAGS_...
  *
  *    return    != NULL: converted string
  *              == NULL: error
  */
 char* ch_convert( ULONG cp_source, const char* source, 
-                  ULONG cp_target, char* target, size_t size );
+                  ULONG cp_target, char* target,
+                  size_t size, unsigned flags );
+
+#define CH_FLAGS_WRITE_BOM 0x01 // Write U+FEFF character, (UCS-2 and UTF-8 only)
 
 #ifdef __cplusplus
 }

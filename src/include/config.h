@@ -16,13 +16,13 @@
 #define PACKAGE_STRING PACKAGE" "VERSION
 
 #if defined(__GNUC__)
-  #include <config_gcc.h>
+  #include "config_gcc.h"
 #elif defined(__WATCOMC__)
-  #include <config_wcc.h>
+  #include "config_wcc.h"
 #elif (defined(__IBMC__) && __IBMC__ >  300) || (defined(__IBMCPP__) && __IBMCPP__ >  300)
-  #include <config_icc_36.h>
+  #include "config_icc_36.h"
 #elif (defined(__IBMC__) && __IBMC__ <= 300) || (defined(__IBMCPP__) && __IBMCPP__ <= 300)
-  #include <config_icc_30.h>
+  #include "config_icc_30.h"
 #else
   #error Unsupported compiler.
 #endif
@@ -39,12 +39,14 @@
 /* Target processor is little endian. */
 #define CPU_IS_LITTLE_ENDIAN 1
 
+/* XIO specific configuration */
+/* Disabled (MM). We are here not in the kindergarden. */
+/* #define XIO_SERIALIZE_DISK_IO 1 */
+
 /* FFTW specific configuration */
 
 /* C compiler name and flags */
 #define FFTW_CC CCNAME
-/* Define to compile in long-double precision. */
-#undef  FFTW_LDOUBLE
 /* Define to compile in single precision. */
 #define FFTW_SINGLE 1
 /* Use standard C type functions. */

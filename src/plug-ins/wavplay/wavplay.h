@@ -29,9 +29,13 @@
 #ifndef PM123_WAVPLAY_H
 #define PM123_WAVPLAY_H
 
+#define  INCL_WIN
 #include <sndfile.h>
 #include <format.h>
 #include <xio.h>
+#include <os2.h>
+
+#include <stdlib.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -47,7 +51,6 @@ typedef struct _DECODER_STRUCT
    SF_INFO     sfinfo;
 
    HEV   play;            // For internal use to sync the decoder thread.
-   HEV   ok;              // For internal use to sync the decoder thread.
    HMTX  mutex;           // For internal use to sync the decoder thread.
    int   decodertid;      // Decoder thread indentifier.
    BOOL  stop;

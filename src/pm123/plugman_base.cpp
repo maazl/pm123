@@ -957,8 +957,7 @@ proxy_1_output_command( CL_OUTPUT_PROXY_1* op, void* a, ULONG msg, OUTPUT_PARAMS
   if (info == NULL) // sometimes info is NULL
     return (*op->voutput_command)(a, msg, NULL);
 
-  OUTPUT_PARAMS params;
-  params.size                  = sizeof params;
+  OUTPUT_PARAMS params = { sizeof params };
 
   // preprocessing
   switch (msg)
@@ -967,15 +966,31 @@ proxy_1_output_command( CL_OUTPUT_PROXY_1* op, void* a, ULONG msg, OUTPUT_PARAMS
     break;
 
    case OUTPUT_SETUP:
-    op->voutput_hwnd = CL_OUTPUT_PROXY_1::CreateProxyWindow("CL_OUTPUT_PROXY_1", op);
-    // copy corresponding fields
-    params.formatinfo.size       = sizeof params.formatinfo;
-    params.formatinfo.samplerate = info->formatinfo.samplerate;
-    params.formatinfo.channels   = info->formatinfo.channels;
-    params.formatinfo.bits       = 16;
-    params.formatinfo.format     = WAVE_FORMAT_PCM;
-    params.hwnd                  = op->voutput_hwnd;
-    break;
+    { op->voutput_hwnd = CL_OUTPUT_PROXY_1::CreateProxyWindow("CL_OUTPUT_PROXY_1", op);
+      // convert format info
+      params.formatinfo.size       = sizeof params.formatinfo;
+      params.formatinfo.samplerate = info->formatinfo.samplerate;
+      params.formatinfo.channels   = info->formatinfo.channels;
+      params.formatinfo.bits       = 16;
+      params.formatinfo.format     = WAVE_FORMAT_PCM;
+      // convert DECODER_INFO2 to DECODER_INFO
+      DECODER_INFO dinfo = { sizeof dinfo };
+      const DECODER_INFO2& dinfo2 = *info->info;
+      dinfo.format     = params.formatinfo;
+      dinfo.songlength = (int)(dinfo2.tech->songlength*1000.);
+      dinfo.junklength = -1;
+      dinfo.bitrate    = dinfo2.tech->bitrate;
+      strlcpy(dinfo.tech_info, dinfo2.tech->info, sizeof dinfo.tech_info);
+      // this part of the structure is binary compatible
+      memcpy(dinfo.title, dinfo2.meta->title, offsetof(META_INFO, track) - offsetof(META_INFO, title));
+      if (dinfo2.meta->track)
+        sprintf(dinfo.track, "%i", dinfo2.meta->track);
+      dinfo.codepage = ch_default();
+      dinfo.filesize = (int)dinfo2.tech->filesize;
+      params.info = &dinfo;
+      params.hwnd                  = op->voutput_hwnd;
+      break;
+    }
   }
   params.buffersize            = BUFSIZE;
   params.boostclass            = DECODER_HIGH_PRIORITY_CLASS;

@@ -12,9 +12,9 @@ LBO        = .lib
 RES        = .res
 
 CC         = icc
-CFLAGS     = -Ss -Q -Gm -W3 -Wuse+ -DOS2 -Wdcl -Weff -Wenu -DTCPV40HDRS
+CFLAGS     = -Ss -Q -Gm -W3 -Wuse+ -DOS2 -Wdcl -Weff -Wenu
 CFLAGS_DLL = -Ge- -DLL
-CFLAGS_DBG = -Ti -Tx -DDEBUG=1
+CFLAGS_DBG = -Ti -Tx -DDEBUG=$(DEBUG)
 CFLAGS_MEM = -Tm -DDEBUG_ALLOC=1
 CFLAGS_OPT = -Gf -Gi -O -G5 -Gl -qalias=ansi
 
@@ -24,29 +24,38 @@ LFLAGS_DLL = /DLL
 LFLAGS_PM  = /PM:PM
 LFLAGS_IO  = /PM:VIO
 LFLAGS_DBG = /DEB
-LFLAGS_OPT = /PACKC /PACKD /OPTF /EXEP:2
+LFLAGS_OPT = /OPTF /EXEP:2
 LFLAGS_OUT = /OUT:
 LDEF_PREFX =
 LDEF_SUFFX = _icc.def
 LOBJ_PREFX =
 LOBJ_SUFFX =
+LLIB_PREFX =
+LLIB_SUFFX =
 
 AS         = nasm
 AFLAGS     = -fobj
 
-LB         = ilib  /nofree /nobackup /quiet /nologo /noi
+LB         = ilib /nofree /nobackup /quiet /nologo /noi
 LBENDL     = ;
 
-LI         = implib /nologo /noi
+LI         = ilib /quiet /nologo
+IFLAGS_OUT = /genimplib:
 
 RC         = rc
 RFLAGS     = -n
 
-LIBS_TCP   = tcp32dll.lib so32dll.lib
-LIBS_MM    = mmpm2.lib
-LIBS_UNI   = libuls.lib libconv.lib
+#!ifdef TCP40
+LIBS_TCP = so32dll.lib tcp32dll.lib
+MFLAGS   = $(MFLAGS) TCP40=Yes
+CFLAGS   = $(CFLAGS) -DTCPV40HDRS
+#!else
+#LIBS_TCP = tcpip32.lib
+#!endif
 
-INCLUDE    = $(INCDIR);$(INCLUDE)
+LIBS_MM  = mmpm2.lib
+LIBS_UNI = libconv.lib libuls.lib
+INCLUDE  = $(INCDIR);$(INCLUDE)
 
 !ifdef EXE_PM
 LFLAGS = $(LFLAGS) $(LFLAGS_PM)
@@ -58,7 +67,7 @@ LFLAGS = $(LFLAGS) $(LFLAGS_IO)
 !ifdef DEBUG
 CFLAGS = $(CFLAGS) $(CFLAGS_DBG)
 LFLAGS = $(LFLAGS) $(LFLAGS_DBG)
-MFLAGS = $(MFLAGS) DEBUG=1
+MFLAGS = $(MFLAGS) DEBUG=$(DEBUG)
 !else
 MFLAGS = $(MFLAGS) NDEBUG=1
 !ifndef DEBUG_ALLOC

@@ -15,11 +15,15 @@ OBJECTS = $(OBJECTS) errorstr$(CO) rel2abs$(CO) abs2rel$(CO) inimacro$(CO)
 OBJECTS = $(OBJECTS) charset$(CO) wildcards$(CO) queue$(CO) strlcpy$(CO)
 OBJECTS = $(OBJECTS) strlcat$(CO) snprintf$(CO) strnchr$(CO) memcmpcpy$(CO)
 OBJECTS = $(OBJECTS) vdelegate$(CO) debuglog$(CO)
+STDLIBS = $(LIBS_UNI)
 
 utilfct$(LBO): $(OBJECTS)
 	if exist $@ del $@
 	$(LB) $@ $(OBJECTS) $(LBENDL)
 
+charset.exe:	charset.obj
+	$(CL) $(LFLAGS) $(LFLAGS_OUT)$@ $(LOBJ_PREFX)$(OBJECTS) $(LIBS) $(STDLIBS)$(LOBJ_SUFFX) $(LDEF_PREFX)$(DEF)
+	
 clean: $(MDUMMY)
 	-@del utilfct$(LBO) $(OBJECTS) 2> nul
 

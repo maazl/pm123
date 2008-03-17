@@ -27,320 +27,193 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-/*
- * Windows'95 -style button, PM123 customized version
- *
- */
-
-#define INCL_WIN
-#define INCL_GPI
-#define INCL_DOS
-
+#define  INCL_WIN
+#define  INCL_GPI
+#define  INCL_DOS
+#include <os2.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
 #include "button95.h"
-#include <os2.h>
+#include <utilfct.h>
 
-HBITMAP hbm, hbm2;
-ULONG bubbleStyle = FCF_BORDER;
-FONTMETRICS fontmetrics;
+#include <debuglog.h>
 
-
-void DrawButtonUnPressed(HPS hps, int x1, int y1, int x2, int y2, char *text, HBITMAP hbm, int id) {
-  POINTL p;
-  p.x = 0; p.y = 0;
-
-// draw the bitmap
-  WinDrawBitmap(hps, hbm, NULL, &p, 0, 0, DBM_NORMAL);
-
-// draw the text
-
-  if (strcmp(text, "") != 0) {
-     GpiSetColor(hps, CLR_BLACK);
-
-     p.x = 24; p.y = 6;
-     GpiMove(hps, &p);
-
-     GpiCharString(hps, strlen(text), text);
-  }
-}
-
-void DrawButtonPressed(HPS hps, int x1, int y1, int x2, int y2, char *text, HBITMAP hbm, int id) {
-  POINTL p;
-
-  p.x = 0; p.y = 0;
-
-// draw the bitmap
-  WinDrawBitmap(hps, hbm, NULL, &p, 0, 0, DBM_NORMAL);
-
-// draw the text
-
-  if (strcmp(text, "") != 0) {
-
-    GpiSetColor(hps, CLR_BLACK);
-    p.x = 24; p.y = 6;
-    GpiMove(hps, &p);
-
-    GpiCharString(hps, strlen(text), text);
-  }
-}
-
-
-MRESULT EXPENTRY ButtonWndProc (HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2)
+static MRESULT EXPENTRY
+ButtonWndProc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
 {
- HPS hps;
- POINTL p;
- SWP swp;
- PDATA95 b, bbb;
- PCREATESTRUCT bb;
- RECTL rcl;
- POINTL ptl;
- int yy;
- ULONG rgb = 255 * 65536 + 255 * 256 + 128, foo;
+  PDATA95 btn = (PDATA95)WinQueryWindowPtr( hwnd, QWL_USER );
 
- bbb = (PDATA95)WinQueryWindowPtr(hwnd, QWL_USER);
+  switch( msg ) {
+    case WM_CHAR:
+    case WM_CONTEXTMENU:
+      WinSendMsg( btn->hwnd_owner, msg, mp1, mp2 );
+      break;
 
- switch (msg) {
-   case WM_CHAR:
-          WinSendMsg(bbb->hwndOwner, msg, mp1, mp2);
-          break;
-   case WM_SETTEXT:
-          strcpy(bbb->Help, (char *)mp1);
-          if (bbb->bubbling == 1) {
-              WinSetWindowText(bbb->BubbleClient, bbb->Help);
-              WinSetWindowPos(bbb->Bubble,
-                              HWND_TOP,
-                              0,
-                              0,
-                              (strlen(bbb->Help) * 5) + 6,
-                              18,
-                              SWP_SIZE | SWP_SHOW);
+    case WM_SETHELP:
+      strlcpy( btn->help, (char*)mp1, sizeof( btn->help ));
+
+      if( btn->bubbling == 1 ) {
+        WinSetWindowText( btn->hwnd_bubble, btn->help );
+        WinSetWindowPos ( btn->hwnd_bubble, HWND_TOP, 0, 0,
+                          strlen( btn->help ) * 5 + 6, 18, SWP_SIZE | SWP_SHOW);
+      }
+      break;
+
+    case WM_TIMER:
+    {
+      HPS    hps = WinGetPS( hwnd );
+      POINTL pos;
+      ULONG  rgb = 255 * 65536 + 255 * 256 + 128;
+
+      WinStopTimer( NULLHANDLE, hwnd, TID_USERMAX - 10 );
+
+      if( btn->mouse_in_button == 1 ) {
+        if( btn->bubbling == 0 )
+        {
+          ULONG style = FCF_BORDER;
+
+          btn->hwnd_bubble_frame =
+            WinCreateStdWindow( HWND_DESKTOP, 0, &style, WC_STATIC, "",
+                                SS_TEXT | DT_CENTER | DT_VCENTER,
+                                NULLHANDLE, 666, &btn->hwnd_bubble );
+
+          WinQueryPointerPos( HWND_DESKTOP, &pos );
+          WinSetPresParam( btn->hwnd_bubble, PP_FONTNAMESIZE, 13, "3.System VIO" );
+          rgb = GpiQueryNearestColor( hps, 0, rgb );
+          WinSetPresParam( btn->hwnd_bubble, PP_BACKGROUNDCOLORINDEX, 4, &rgb );
+          WinSetWindowText( btn->hwnd_bubble, btn->help );
+
+          if(( pos.y - 20) > 1 ) {
+            pos.y -= 30;
+          } else {
+            pos.y += 17;
           }
-          break;
-   case WM_TIMER:
-                hps = WinGetPS(hwnd);
-                WinStopTimer(NULLHANDLE, hwnd, TID_USERMAX - 10);
 
-                if (bbb->mouse_in_button == 1) {
-                   if (bbb->bubbling == 0) {
-                     bbb->Bubble = WinCreateStdWindow(HWND_DESKTOP,
-                                                      0,
-                                                      &bubbleStyle,
-                                                      WC_STATIC,
-                                                      "",
-                                                      SS_TEXT | DT_CENTER | DT_VCENTER,
-                                                      NULLHANDLE,
-                                                      666,
-                                                      &bbb->BubbleClient);
+          WinSetWindowPos( btn->hwnd_bubble_frame, HWND_TOP, pos.x, pos.y,
+                           strlen( btn->help ) * 5 + 6, 18, SWP_SIZE | SWP_MOVE | SWP_SHOW );
+          btn->bubbling = 1;
+        }
+      }
+      WinReleasePS( hps );
+      break;
+    }
 
-                     WinQueryPointerPos(HWND_DESKTOP, &ptl);
+    case 0x041e:
+      btn->mouse_in_button = 1;
+      WinSendMsg( btn->hwnd_owner, msg, mp1, mp2 );
+      WinStartTimer( NULLHANDLE, hwnd, TID_USERMAX - 10, 1000 );
+      break;
 
-                     WinSetPresParam(bbb->BubbleClient, PP_FONTNAMESIZE, 13, "3.System VIO");
-                     foo = GpiQueryNearestColor(hps, 0, rgb);
-                     WinSetPresParam(bbb->BubbleClient, PP_BACKGROUNDCOLORINDEX, 4, &foo);
+    case 0x041f:
+      if( btn->bubbling == 1 ) {
+        WinDestroyWindow( btn->hwnd_bubble_frame );
+        btn->bubbling = 0;
+      }
+      WinSendMsg( btn->hwnd_owner, msg, mp1, mp2 );
+      btn->mouse_in_button = 0;
+      break;
 
-//                     WinSetPresParam(bbb->BubbleClient, PP_BACKGROUNDCOLOR, sizeof(RGB), &rgb);
+    case WM_DEPRESS:
+      btn->pressed = 0;
+      if( btn->stick == 1 ) {
+         *btn->stickvar = 0;
+      }
+      WinInvalidateRect( hwnd, NULL, 1 );
+      break;
 
-                     WinSetWindowText(bbb->BubbleClient, bbb->Help);
+    case WM_PRESS:
+      btn->pressed = 1;
+      if( btn->stick == 1 ) {
+         *btn->stickvar = 1;
+      }
+      WinInvalidateRect( hwnd, NULL, 1 );
+      break;
 
-                     if ((ptl.y - 20) > 1) yy = ptl.y - 30; else yy = ptl.y + 17;
+    case WM_CHANGEBMP:
+      btn->bmp_release_id = PVOIDFROMMP(mp1);
+      btn->bmp_pressed_id = PVOIDFROMMP(mp2);
+      WinInvalidateRect( hwnd, NULL, 1 );
+      break;
 
-                     WinSetWindowPos(bbb->Bubble,
-                                     HWND_TOP,
-                                     ptl.x, yy,
-                                     (strlen(bbb->Help) * 5) + 6,
-                                     18,
-                                     SWP_SIZE | SWP_MOVE | SWP_SHOW);
+    case WM_BUTTON1DOWN:
+      btn->pressed = 1;
+      btn->mouse_in_button = 0; // We don't want bubbling after we've clicked on the button.
 
-                     bbb->bubbling = 1;
-                   }
+      WinFocusChange( HWND_DESKTOP, btn->hwnd_owner, 0 );
+      WinInvalidateRect( hwnd, NULL, 1 );
+      WinSetCapture( HWND_DESKTOP, hwnd );
+      break;
 
-                }
-                WinReleasePS(hps);
-                break;
-   case 0x041e:
-                bbb->mouse_in_button = 1;
-                WinSendMsg(bbb->hwndOwner, 0x041e, 0, 0);
-                WinStartTimer(NULLHANDLE, hwnd, TID_USERMAX - 10, 1000);
-                break;
-   case 0x041f:
-                if (bbb->bubbling == 1) {
-                  WinDestroyWindow(bbb->Bubble);
-                  bbb->bubbling = 0;
-                }
-                WinSendMsg(bbb->hwndOwner, 0x041f, 0, 0);
-                bbb->mouse_in_button = 0;
-                break;
-   case WM_DEPRESS:
-                  bbb->Pressed = 0;
-                  if (bbb->stick == 1) {
-                    *bbb->stickvar = 0;
-                  }
-                  WinInvalidateRect(hwnd, NULL, 1);
-                  break;
-   case WM_CHANGEBMP:
-                  bbb->bmp2 = PVOIDFROMMP(mp2);
-                  bbb->bmp1 = PVOIDFROMMP(mp1);
-                  WinInvalidateRect(hwnd, NULL, 1);
-                  break;
-   case WM_PRESS:
-                  bbb->Pressed = 1;
-                  if (bbb->stick == 1) {
-                    *bbb->stickvar = 1;
-                  }
-                  WinInvalidateRect(hwnd, NULL, 1);
-                  break;
-   case WM_CONTEXTMENU:
-                  WinPostMsg(bbb->hwndOwner, WM_CONTEXTMENU, 0, 0);
-                  break;
-   case WM_BUTTON1DOWN:
-                  bbb->Pressed = 1;
-                  bbb->mouse_in_button = 0; /* We don't want bubbling after
-                                               we've clicked on the button */
+    case WM_BUTTON1UP:
+    {
+      POINTL pos;
+      RECTL  rec;
 
-                  WinFocusChange(HWND_DESKTOP, bbb->hwndOwner, 0);
-                  WinInvalidateRect(hwnd, NULL, 1);
+      pos.x = SHORT1FROMMP(mp1);
+      pos.y = SHORT2FROMMP(mp1);
 
-                  WinSetCapture(HWND_DESKTOP, hwnd);
+      btn->mouse_in_button = 0; // We don't want bubbling after we've clicked on the button.
+      WinSetCapture( HWND_DESKTOP, NULLHANDLE );
+      WinQueryWindowRect( hwnd, &rec );
 
-                  break;
-   case WM_BUTTON1UP:
-                  bbb->mouse_in_button = 0; /* We don't want bubbling after
-                                               we've clicked on the button */
+      if( WinPtInRect( WinQueryAnchorBlock( hwnd ), &rec, &pos ) && btn->pressed == 1 )
+      {
+        btn->pressed = 0;
+        if( btn->stick == 1 ) {
+           *btn->stickvar = !*btn->stickvar;
+            WinInvalidateRect( hwnd, NULL, 1 );
+        }
 
-                  WinSetCapture(HWND_DESKTOP, NULLHANDLE);
-                  p.x = SHORT1FROMMP(mp1);
-                  p.y = SHORT2FROMMP(mp1);
-                  WinQueryWindowRect(hwnd, &rcl);
+        WinSendMsg( btn->hwnd_owner, WM_COMMAND,
+                    MPFROMLONG( btn->id ), MPFROM2SHORT( 0, SHORT2FROMMP( mp2 )));
+      }
+      btn->pressed = 0;
+      WinInvalidateRect( hwnd, NULL, 1 );
+      break;
+    }
 
-                  if (WinPtInRect( WinQueryAnchorBlock( hwnd ), &rcl, &p) && bbb->Pressed == 1) {
-                      bbb->Pressed = 0;
-                      if (bbb->stick == 1) {
-                        *bbb->stickvar = !*bbb->stickvar;
-                        WinInvalidateRect(hwnd, NULL, 1);
-                      }
-                      WinSendMsg(bbb->hwndOwner, WM_COMMAND, MPFROMLONG(bbb->id), MPFROM2SHORT(0, SHORT2FROMMP(mp2)));
-                  }
-                  bbb->Pressed = 0;
-                  WinInvalidateRect(hwnd, NULL, 1);
+    case WM_CREATE:
+    {
+      DATA95* data = (PDATA95)malloc( sizeof( DATA95 ));
 
-                  break;
-   case WM_CREATE:
-   {
-                  b = (PDATA95)malloc( sizeof(DATA95));
-                  WinSetWindowPtr(hwnd, QWL_USER, (PVOID)b);
+      WinSetWindowPtr( hwnd, QWL_USER, (PVOID)data );
+      *data = *(PDATA95)PVOIDFROMMP(mp1);
 
-                  bb = (PCREATESTRUCT)PVOIDFROMMP(mp2);
+      data->id       = ((PCREATESTRUCT)PVOIDFROMMP(mp2))->id;
+      data->pressed  = 0;
+      data->bubbling = 0;
+      break;
+    }
 
-                  bbb = (PDATA95)PVOIDFROMMP(mp1);
-                  memcpy(b, bbb, sizeof(DATA95));
-                  b->id = bb->id;
-                  b->Pressed = 0;
-                  b->bubbling = 0;
-                  break;
-   }
+    case WM_ERASEBACKGROUND:
+      break;
 
-   case WM_ERASEBACKGROUND:
-                  WinQueryWindowRect(hwnd, &rcl);
-                  hps = WinGetPS(hwnd);
-                  WinFillRect(hps, &rcl, CLR_BLACK);
-                  WinReleasePS(hps);
-                  return((MRESULT)1);
-                  break;
-   case WM_PAINT:
-                  hps  = WinBeginPaint(hwnd, NULLHANDLE, NULL);
-                  /* Skin support */
-                  hbm  = *bbb->bmp2;
-                  hbm2 = *bbb->bmp1;
+    case WM_PAINT:
+    { HPS    hps = WinBeginPaint( hwnd, NULLHANDLE, NULL );
+      static const POINTL pos = { 0, 0 };
 
-                  WinQueryWindowPos(hwnd, &swp);
+      //DEBUGLOG(("ButtonWndProc:WM_PAINT %p, %p\n", *btn->bmp_release_id, *btn->bmp_pressed_id));
+      PMRASSERT(WinDrawBitmap( hps, btn->pressed == 0 && ( btn->stick == 0 || *btn->stickvar == 0 )
+        ? *btn->bmp_release_id : *btn->bmp_pressed_id, NULL, (POINTL*)&pos, 0, 0, DBM_NORMAL ));
+      WinEndPaint(hps);
+      break;
+    }
 
-//                  if (playing == 0) pause_on = 0;
+    case WM_DESTROY:
+      free( btn );
+      break;
 
-                  if (bbb->stick == 1) {
-                     if (bbb->Pressed == 0 && *bbb->stickvar == 0) DrawButtonUnPressed(hps, 1, 1, swp.cx, swp.cy, "", hbm2, bbb->id); else
-                                                                   DrawButtonPressed(hps, 1, 1, swp.cx, swp.cy, "", hbm, bbb->id);
-                  } else {
-                     if (bbb->Pressed == 0) DrawButtonUnPressed(hps, 1, 1, swp.cx, swp.cy, "", hbm2, bbb->id); else
-                                            DrawButtonPressed(hps, 1, 1, swp.cx, swp.cy, "", hbm, bbb->id);
-                  }
-
-//                  GpiDeleteBitmap(hbm);
-//                  GpiDeleteBitmap(hbm2);
-
-                  bbb->wmpaint_kludge = 1;
-
-                  WinEndPaint(hps);
-                  break;
-   case WM_DESTROY:
-                  free(bbb);
-                  break;
-   default:       return WinDefWindowProc (hwnd, msg, mp1, mp2);
- }
- return 0;
+    default:
+      return WinDefWindowProc( hwnd, msg, mp1, mp2 );
+  }
+  return 0;
 }
 
-/*
- * Uncomment for main()
- *
-MRESULT EXPENTRY MyWinProc (HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2)
-{
- BUTTONDATA piip;
-
- switch (msg) {
-   case WM_CREATE:
-               strcpy(piip.Text, "Testi");
-               WinCreateWindow(hwnd, CLASSNAME, "Foo", WS_VISIBLE, 10, 10, 100, 60,
-                               hwnd, HWND_TOP, 1024, &piip, NULL);
-
-               break;
-   case WM_ERASEBACKGROUND:
-            return MRFROMLONG(TRUE);
-            break;
-   case WM_BUTTON1CLICK:
-            DosBeep(500, 100);
-            break;
-   default:
-           return WinDefWindowProc (hwnd, msg, mp1, mp2);
- }
- return 0;
-}*/
-
-
-void InitButton(HAB hab) {
-  WinRegisterClass(hab, CLASSNAME, (PFNWP)ButtonWndProc,
-                   CS_SYNCPAINT | CS_PARENTCLIP | CS_SIZEREDRAW,
-                   16);
+void
+InitButton( HAB hab ) {
+  WinRegisterClass( hab, CLASSNAME, (PFNWP)ButtonWndProc,
+                    CS_SYNCPAINT | CS_PARENTCLIP | CS_SIZEREDRAW, 16 );
 }
-
-/*
- * Uncomment for testing purposes only ;-)
- *
-void main() {
- ULONG flCtlData = FCF_SIZEBORDER | FCF_TASKLIST | FCF_TITLEBAR | FCF_SYSMENU;
-
- HAB  hab = WinInitialize(0);
- HMQ  hmq = WinCreateMsgQueue( hab, 0);
- HWND hwndFrame, hwndClient;
- QMSG qms;
-
- InitButton(hab);
-
- WinRegisterClass(hab, "template", MyWinProc, CS_SIZEREDRAW, 0);
-
- hwndFrame = WinCreateStdWindow(HWND_DESKTOP, WS_VISIBLE,
-            &flCtlData, "template", "Template",
-            0, NULLHANDLE, 0, &hwndClient);
-
- WinSetWindowPos(hwndFrame, HWND_TOP, 1, 1, 140, 120,
-                 SWP_ACTIVATE | SWP_MOVE | SWP_SIZE | SWP_SHOW);
-
- while (WinGetMsg(hab, &qms, (HWND)0, 0, 0)) WinDispatchMsg(hab, &qms);
-
- WinDestroyMsgQueue(hmq);
- WinTerminate(hab);
-
-}*/
 

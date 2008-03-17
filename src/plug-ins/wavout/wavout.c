@@ -32,9 +32,11 @@
 #define  INCL_PM
 #define  INCL_DOS
 #include <os2.h>
+#include <os2me.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <errno.h>
 
 #include <utilfct.h>
 #include <format.h>
@@ -151,8 +153,7 @@ MRESULT EXPENTRY cfg_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
 
 /* Configure plug-in. */
 int DLLENTRY
-plugin_configure( HWND hwnd, HMODULE module )
-{
+plugin_configure( HWND hwnd, HMODULE module ) {
   WinDlgBox( HWND_DESKTOP, hwnd, cfg_dlg_proc, module, DLG_CONFIGURE, (PVOID)module );
   return 0;
 }
@@ -206,6 +207,19 @@ output_open( WAVOUT* a )
     }
   }
 
+  if(( a->original_info.formatinfo.format != WAVE_FORMAT_PCM ) ||
+     ( a->original_info.formatinfo.bits != 16 && a->original_info.formatinfo.bits != 8 ) ||
+     ( a->original_info.formatinfo.channels > 2 ))
+  {
+    strlcpy( errorbuf, "Could not write output data to file:\n" , sizeof( errorbuf ));
+    strlcat( errorbuf, a->fullpath, sizeof( errorbuf ));
+    strlcat( errorbuf, "\n", sizeof( errorbuf ));
+    strlcat( errorbuf, "Unsupported format of the input stream.", sizeof( errorbuf ));
+
+    a->original_info.error_display( errorbuf );
+    return EINVAL;
+  }
+
   if(( a->file = fopen( a->fullpath, "wb" )) == NULL )
   {
     strlcpy( errorbuf, "Could not open file to output data:\n", sizeof( errorbuf ));
@@ -240,7 +254,7 @@ output_open( WAVOUT* a )
 
   if( fwrite( &a->header, 1, sizeof( a->header ), a->file ) != sizeof( a->header ))
   {
-    strlcpy( errorbuf, "Could not write output data  to file:\n", sizeof( errorbuf ));
+    strlcpy( errorbuf, "Could not write output data to file:\n", sizeof( errorbuf ));
     strlcat( errorbuf, a->fullpath, sizeof( errorbuf ));
     strlcat( errorbuf, "\n", sizeof( errorbuf ));
     strlcat( errorbuf, strerror( errno ), sizeof( errorbuf ));
@@ -250,7 +264,7 @@ output_open( WAVOUT* a )
     fclose( a->file );
     return errno;
   }
-  return 0;
+  return PLUGIN_OK;
 }
 
 /* Pauses a output file. */
@@ -311,7 +325,7 @@ output_command( void* A, ULONG msg, OUTPUT_PARAMS* info )
       return 0;
   }
 
-  return 1;
+  return MCIERR_UNSUPPORTED_FUNCTION;
 }
 
 /* This function is called by the decoder or last in chain
@@ -346,7 +360,7 @@ output_play_samples( void* A, FORMAT_INFO* format, char* buf, int len, int posma
         format->bits,
         format->format ));
 
-    a->original_info.info_display( "Warning: WAV data currently being written is in a different"
+    a->original_info.info_display( "WAV data currently being written is in a different"
                                    "format than the opened format. Generation of a probably"
                                    "invalid WAV file." );
 
@@ -383,14 +397,14 @@ output_playing_samples( void* A, FORMAT_INFO* info, char* buf, int len )
  *info = a->original_info.formatinfo;
 
   if( len > a->original_info.buffersize ) {
-    return -1;
+    return PLUGIN_FAILED;
   }
 
   if( buf && len ) {
     memcpy( buf, a->buffer, len );
   }
 
-  return 0;
+  return PLUGIN_OK;
 }
 
 /* Returns the playing position. */
@@ -437,7 +451,7 @@ output_init( void** A )
   memset( a, 0, sizeof(*a));
   DosCreateEventSem( NULL, &a->pause, 0, TRUE );
 
-  return 0;
+  return PLUGIN_OK;
 }
 
 /* Uninitialize the output plug-in. */
@@ -451,7 +465,7 @@ output_uninit( void* A )
   free( a->buffer );
   free( a );
 
-  return 0;
+  return PLUGIN_OK;
 }
 
 #if defined(__IBMC__) && defined(__DEBUG_ALLOC__)

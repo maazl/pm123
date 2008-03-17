@@ -126,28 +126,34 @@ qu_empty( PQUEUE queue ) {
 int
 qu_read( PQUEUE queue, unsigned long* request, void** data )
 {
-  qu_wait_data( queue );
-  qu_request  ( queue );
+  for(;;) {
+    qu_wait_data( queue );
+    qu_request  ( queue );
 
-  if( queue->first )
-  {
-    PQELEMENT node = queue->first;
+    if( queue->first )
+    {
+      PQELEMENT node = queue->first;
 
-    *request = node->request;
-    *data    = node->data;
+      *request = node->request;
+      *data    = node->data;
 
-    queue->first = node->next;
-    free( node );
+      queue->first = node->next;
+      free( node );
 
-    if( queue->first ) {
-      queue->first->prev = NULL;
+      if( queue->first ) {
+        queue->first->prev = NULL;
+      } else {
+        qu_no_data( queue );
+        queue->last = NULL;
+      }
+      qu_release( queue );
+      break;
     } else {
       qu_no_data( queue );
-      queue->last = NULL;
+      qu_release( queue );
     }
   }
 
-  qu_release( queue );
   return TRUE;
 }
 

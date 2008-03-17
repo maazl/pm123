@@ -62,11 +62,13 @@ void  amp_invalidate( int options );
 /* amp_invalidate options */
 #define UPD_TIMERS           0x0001
 #define UPD_FILEINFO         0x0002
+#define UPD_VOLUME           0x0004
+#define UPD_WINDOW           0x0008
+#define UPD_FILENAME         0x0010
 #define UPD_DELAYED          0x8000
-#define UPD_ALL              0x7FFF
 
-/* Posts a message to the player window. */
-BOOL  amp_post_message( ULONG msg, MPARAM mp1, MPARAM mp2 );
+/* Posts a command to the message queue associated with the player window. */
+//BOOL  amp_post_command( USHORT id );
 /* Returns the handle of the player window. */
 HWND  amp_player_window( void );
 /* Returns the anchor-block handle. */
@@ -89,11 +91,12 @@ void  amp_show_help( SHORT resid );
 void  amp_info_edit( HWND owner, Playable* song );
 
 /* file dialog standard types */
-#define FDT_PLAYLIST         "Playlist files (*.LST;*.MPL;*.M3U;*.PLS)"
-#define FDT_PLAYLIST_LST     "Playlist files (*.LST)"
-#define FDT_PLAYLIST_M3U     "Playlist files (*.M3U)"
+#define FDT_PLAYLIST         "Playlist files (*.LST;*.MPL;*.M3U;*.M3U8;*.PLS)"
+#define FDT_PLAYLIST_LST     "PM123 Playlist files (*.LST)"
+#define FDT_PLAYLIST_M3U     "Internet Playlist files (*.M3U)"
+#define FDT_PLAYLIST_M3U8    "Unicode Playlist files (*.M3U8)"
 #define FDT_AUDIO            "All supported audio files ("
-#define FDT_AUDIO_ALL        "All supported types (*.LST;*.MPL;*.M3U;*.PLS;"
+#define FDT_AUDIO_ALL        "All supported types (*.LST;*.MPL;*.M3U;*.M3U8;*.PLS;"
 #define FDT_SKIN             "Skin files (*.SKN)"
 #define FDT_EQUALIZER        "Equalizer presets (*.EQ)"
 #define FDT_PLUGIN           "Plug-in (*.DLL)"

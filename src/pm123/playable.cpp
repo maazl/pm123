@@ -28,6 +28,7 @@
 
 
 #define INCL_PM
+#define INCL_BASE
 #include "plugman.h"
 #include "playable.h"
 #include "pm123.h"

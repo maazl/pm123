@@ -1,0 +1,75 @@
+LIBRARY OGG123 INITINSTANCE TERMINSTANCE
+DESCRIPTION 'PM123 OGG Library'
+PROTMODE
+DATA MULTIPLE NONSHARED LOADONCALL
+EXPORTS
+
+  oggpack_writeinit         @1
+  oggpack_writetrunc        @2
+  oggpack_writealign        @3
+  oggpack_writecopy         @4
+  oggpack_reset             @5
+  oggpack_writeclear        @6
+  oggpack_readinit          @7
+  oggpack_write             @8
+  oggpack_look              @9
+  oggpack_look1             @10
+  oggpack_adv               @11
+  oggpack_adv1              @12
+  oggpack_read              @13
+  oggpack_read1             @14
+  oggpack_bytes             @15
+  oggpack_bits              @16
+  oggpack_get_buffer        @17
+
+  oggpackB_writeinit        @30
+  oggpackB_writetrunc       @31
+  oggpackB_writealign       @32
+  oggpackB_writecopy        @33
+  oggpackB_reset            @34
+  oggpackB_writeclear       @35
+  oggpackB_readinit         @36
+  oggpackB_write            @37
+  oggpackB_look             @38
+  oggpackB_look1            @39
+  oggpackB_adv              @40
+  oggpackB_adv1             @41
+  oggpackB_read             @42
+  oggpackB_read1            @43
+  oggpackB_bytes            @44
+  oggpackB_bits             @45
+  oggpackB_get_buffer       @46
+
+  ogg_stream_packetin       @60
+  ogg_stream_pageout        @61
+  ogg_stream_flush          @62
+
+  ogg_sync_init             @70
+  ogg_sync_clear            @71
+  ogg_sync_reset            @72
+  ogg_sync_destroy          @73
+  ogg_sync_buffer           @74
+  ogg_sync_wrote            @75
+  ogg_sync_pageseek         @76
+  ogg_sync_pageout          @77
+  ogg_stream_pagein         @78
+  ogg_stream_packetout      @79
+  ogg_stream_packetpeek     @80
+ 
+  ogg_stream_init           @90
+  ogg_stream_clear          @91
+  ogg_stream_reset          @92
+  ogg_stream_reset_serialno @93
+  ogg_stream_destroy        @94
+  ogg_stream_eos            @95
+
+  ogg_page_checksum_set     @110
+  ogg_page_version          @111
+  ogg_page_continued        @112
+  ogg_page_bos              @113
+  ogg_page_eos              @114
+  ogg_page_granulepos       @115
+  ogg_page_serialno         @116
+  ogg_page_pageno           @117
+  ogg_page_packets          @118
+  ogg_packet_clear          @119

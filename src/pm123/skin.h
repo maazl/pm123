@@ -32,9 +32,12 @@
 #ifndef PM123_SKIN_H
 #define PM123_SKIN_H
 
+#ifdef __cplusplus
+// Functions no longer supported in C mode
 #define INCL_WIN
 #include "playable.h"
 #include <os2.h>
+#endif
 
 /* SKIN */
 
@@ -134,8 +137,20 @@ enum
   UL_PL_INDEX,         /* Draw playlist indicator with resources 1660-1669.  */
                        /* Number of digits to draw. (min. 3)                 */
   UL_BUNDLE,           /* The bundle file for this skin.                     */
+  UL_FG_COLOR,         /* Foreground color of the text in the playlist.      */
+  UL_BG_COLOR,         /* Background color of the text in the playlist.      */
+  UL_HI_FG_COLOR,      /* Foreground color of the selected text.             */
+  UL_HI_BG_COLOR,      /* Background color of the selected text.             */
   UL__MAX
 };
+
+/* Default playlist and etc. colors. */
+
+#define DEF_FG_MSG_COLOR 0x0000FF00UL
+#define DEF_FG_COLOR     0x0000FF00UL
+#define DEF_BG_COLOR     0x00000000UL
+#define DEF_HI_FG_COLOR  0x00FFFFFFUL
+#define DEF_HI_BG_COLOR  0x00808080UL
 
 typedef struct _BMPBUTTON
 {
@@ -153,36 +168,8 @@ typedef struct _BMPBUTTON
 
 } BMPBUTTON, *PBMPBUTTON;
 
-extern BMPBUTTON btn_play;    /* Play button      */
-extern BMPBUTTON btn_stop;    /* Stop button      */
-extern BMPBUTTON btn_pause;   /* Pause button     */
-extern BMPBUTTON btn_rew;     /* Rewind button    */
-extern BMPBUTTON btn_fwd;     /* Forward button   */
-extern BMPBUTTON btn_power;   /* Power button     */
-extern BMPBUTTON btn_prev;    /* Prev button      */
-extern BMPBUTTON btn_next;    /* Next button      */
-extern BMPBUTTON btn_shuffle; /* Shuffle button   */
-extern BMPBUTTON btn_repeat;  /* Repeat button    */
-extern BMPBUTTON btn_pl;      /* Playlist button  */
-extern BMPBUTTON btn_fload;   /* Load a file      */
-
 #ifdef __cplusplus
-extern "C" {
-#endif
-
-/* Creates and loads a bitmap from a file, and returns the bitmap handle. */
-//HBITMAP bmp_load_bitmap( const char* filename );
-/* Draws a bit map using the current image colors and mixes. */
-//void bmp_draw_bitmap( HPS hps, int x, int y, int res );
-/* Draws a specified digit using the specified size. */
-//void bmp_draw_digit( HPS hps, int x, int y, unsigned int digit, int size );
-/* Draws a 3D shade of the specified area. */
-//void bmp_draw_shade( HPS hps, int x, int y, int cx, int cy, long clr1, long clr2 );
-
-/* Returns a width of the specified bitmap. */
-//int  bmp_cx( int id );
-/* Returns a height of the specified bitmap. */
-//int  bmp_cy( int id );
+// Function no longer supported in C mode
 
 /* Draws a activation led. */
 void bmp_draw_led( HPS hps, int active );
@@ -240,7 +227,5 @@ BOOL bmp_is_mode_supported( int mode );
 /* Returns TRUE if specified font supported by current skin. */
 BOOL bmp_is_font_supported( int font );
 
-#ifdef __cplusplus
-}
 #endif
 #endif /* PM123_SKIN_H */

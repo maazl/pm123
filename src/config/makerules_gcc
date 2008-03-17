@@ -2,6 +2,8 @@
 
 .SUFFIXES: .c .cpp .asm .o .obj .rc .res
 
+TCP
+
 MFLAGS     = -nologo
 MDUMMY     =
 
@@ -14,10 +16,10 @@ RES        = .res
 AS         = nasm
 AFLAGS     = -fobj -DUNDERSCORE
 
-CC         = gcc
-CFLAGS     = -Zcrtdll -Wall -DOS2 -DOS2EMX_PLAIN_CHAR -DTCPV40HDRS -funsigned-char
+CC         = g++
+CFLAGS     = -Zcrtdll -Wall -DOS2 -DOS2EMX_PLAIN_CHAR -funsigned-char
 CFLAGS_DLL =
-CFLAGS_DBG = -g -DDEBUG=1
+CFLAGS_DBG = -g -DDEBUG=$(DEBUG)
 CFLAGS_OPT = -O2
 
 CL         = gcc
@@ -30,26 +32,43 @@ LDEF_PREFX =
 LDEF_SUFFX = _icc.def
 LOBJ_PREFX =
 LOBJ_SUFFX =
+LLIB_PREFX =
+LLIB_SUFFX =
 
 LB         = ar cr
 LBENDL     =
 
-LI         = emximp -o
+LI         = emximp
+IFLAGS_OUT = -o
 
 RC         = rc
 RFLAGS     = -n
 
-LIBS_TCP   = -lsocket
+LIBS_TCP   =
 LIBS_MM    = -lmmpm2
 LIBS_UNI   =
 
 C_INCLUDE_PATH     = $(INCDIR);$(C_INCLUDE_PATH)
 CPLUS_INCLUDE_PATH = $(INCDIR);$(CPLUS_INCLUDE_PATH)
 
+#!ifdef TCP40
+MFLAGS = $(MFLAGS) TCP40=Yes
+CFLAGS = $(CFLAGS) -DTCPV40HDRS
+!ifdef GCC_ROOT
+LFLAGS = $(LFLAGS) -L$(GCC_ROOT)\lib\tcpipv4
+!else
+!ifdef GCC_HOME
+LFLAGS = $(LFLAGS) -L$(GCC_HOME)\lib\tcpipv4
+!else
+!error GCC_HOME or GCC_ROOT must be defined.
+!endif
+!endif
+#!endif
+
 !ifdef DEBUG
 CFLAGS = $(CFLAGS) $(CFLAGS_DBG)
 LFLAGS = $(LFLAGS) $(LFLAGS_DBG)
-MFLAGS = $(MFLAGS) DEBUG=1
+MFLAGS = $(MFLAGS) DEBUG=$(DEBUG)
 !else
 CFLAGS = $(CFLAGS) $(CFLAGS_OPT)
 LFLAGS = $(LFLAGS) $(LFLAGS_OPT)
@@ -75,5 +94,5 @@ LFLAGS = $(LFLAGS) $(LFLAGS_DLL)
 
 all:    $(TARGET) $(MDUMMY)
 
-depend: 
+depend:
 	$(TOPDIR)\config\makedep.cmd *.cpp *.c -r -x -I$(INCDIR)

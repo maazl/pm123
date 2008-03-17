@@ -84,6 +84,7 @@ typedef struct _amp_cfg {
   char   auth [1024];         /* HTTP authorization.                    */
   int    buff_wait;           /* Wait before playing.                   */
   int    buff_size;           /* Read ahead buffer size (KB).           */
+  int    buff_fill;           /* Percent of prefilling of the buffer.   */
   char   pipe_name[_MAX_PATH];/* PM123 remote control pipe name         */
   BOOL   dock_windows;        /* Dock windows?                          */
   int    dock_margin;         /* The marging for docking window.        */

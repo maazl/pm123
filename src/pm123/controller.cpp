@@ -314,7 +314,7 @@ ULONG Ctrl::DecoderStart(Song* pp, T_TIME offset)
   dec_save(Savename);
   dec_fast(Scan);
 
-  ULONG rc = dec_play( pp->GetURL(), pp->GetDecoder(), offset, Slice.Start, Slice.Stop );
+  ULONG rc = dec_play( pp, offset, Slice.Start, Slice.Stop );
   if (rc != 0)
     return rc;
 
@@ -334,20 +334,19 @@ void Ctrl::DecoderStop()
   dec_stop();
 
   // TODO: CRAP? => we should disconnect decoder instead 
-  int cnt = 0;
-  while (dec_status() == DECODER_PLAYING)
+  /*int cnt = 0;
+  while (dec_status() != DECODER_STOPPED && dec_status != DECODER_ERROR)
   { DEBUGLOG(("Ctrl::DecoderStop - waiting for Spinlock\n"));
     DosSleep( ++cnt > 10 );
-  }
+  }*/
   DEBUGLOG(("Ctrl::DecoderStop - completed\n"));
 }
 
-ULONG Ctrl::OutputStart(Playable* pp)
+ULONG Ctrl::OutputStart(Song* pp)
 { DEBUGLOG(("Ctrl::OutputStart(%p)\n", pp));
   pp->EnsureInfo(Playable::IF_Format|Playable::IF_Other);
-  FORMAT_INFO2 format = *pp->GetInfo().format;
-  ULONG rc = out_setup( &format, pp->GetURL() );
-  DEBUGLOG(("Ctrl::OutputStart: after setup %d %d - %d\n", format.samplerate, format.channels, rc));
+  ULONG rc = out_setup( pp );
+  DEBUGLOG(("Ctrl::OutputStart: after setup - %d\n", rc));
   return rc;
 }
 
@@ -669,17 +668,18 @@ Ctrl::RC Ctrl::MsgSkip(int count, bool relative)
       return RC_OK;*/
   }
 
+  // Navigation
+  SongIterator si = Current()->Iter; // work on a temporary object => copy constructor
+  if (!SkipCore(si, count, relative))
+    // TODO: configurable turn around option
+    return RC_EndOfList;
+  // commit
   if (decoder_was_playing)
   { DecoderStop();
     out_trash(); // discard buffers
     PrefetchClear(true);
   }
   Slice = PlayableInstance::slice::Initial;
-  // Navigation
-  SongIterator si = Current()->Iter; // work on a temporary object => copy constructor
-  if (!SkipCore(si, count, relative))
-    return RC_EndOfList;
-  // commit
   { CritSect cs;
     // deregister current song delegate
     CurrentSongDelegate.detach();
@@ -734,6 +734,8 @@ Ctrl::RC Ctrl::MsgLoad(const xstring& url)
     // In case of enumerable items the content is required, in case of songs the decoder.
     // Both is related to IF_Other. The other informations are prefetched too.
     play->EnsureInfo(Playable::IF_Other);
+    if (play->GetStatus() <= STA_Invalid)
+      return RC_InvalidItem;
     play->EnsureInfoAsync(Playable::IF_All);
     if (play->GetFlags() & Playable::Enumerable)
     { { CritSect cs;

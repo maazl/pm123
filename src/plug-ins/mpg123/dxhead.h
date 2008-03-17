@@ -19,6 +19,9 @@
  * e.g. half duration seek point = (toc[50]/256.0) * total_bitstream_bytes
  */
 
+#ifndef DXHEAD_H
+#define DXHEAD_H
+
 #define FRAMES_FLAG     0x0001
 #define BYTES_FLAG      0x0002
 #define TOC_FLAG        0x0004
@@ -52,3 +55,4 @@ int GetXingHeader( XHEADDATA* X, unsigned char* buf );
 // return seekpoint in bytes ( may be at eof if percent == 100.0 )
 int SeekPoint( unsigned char TOC[100], int file_bytes, float percent );
 
+#endif

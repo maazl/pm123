@@ -22,7 +22,7 @@ gbm123.dll: $(OBJECTS) $(DEF)
 	$(POSTLINKCMD)
 
 gbm123$(LBI): $(DEF)
-	$(LI) $@ gbm123.dll
+	$(LI) $(IFLAGS_OUT)$@ gbm123.dll
 
 gbm$(CO):     gbm.c gbm.h gbmhelp.h gbmpgm.h gbmppm.h gbmbmp.h gbmtga.h gbmkps.h gbmiax.h gbmpcx.h gbmtif.h gbmlbm.h gbmvid.h gbmgif.h gbmxbm.h gbmspr.h gbmpsg.h gbmgem.h gbmcvp.h gbmjpg.h
 gbmpgm$(CO):  gbmpgm.c gbm.h gbmhelp.h gbmdesc.h

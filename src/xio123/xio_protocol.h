@@ -48,10 +48,13 @@ extern "C" {
 #define XS_CAN_SEEK       0x0010
 #define XS_CAN_SEEK_FAST  0x0020
 #define XS_USE_SPOS       0x0040
+#define XS_NOT_BUFFERIZE  0x0080
 
 typedef struct _XPROTOCOL {
 
   int supports;
+  int eof;
+  int error;
 
   /* Note: All methods of the protocol are serialized by library
      except for close, tell, seek and size. */
@@ -63,17 +66,17 @@ typedef struct _XPROTOCOL {
   /* Reads count bytes from the file into buffer. Returns the number
      of bytes placed in result. The return value 0 indicates an attempt
      to read at end-of-file. A return value -1 indicates an error.     */
-  int (*read )( XFILE* x, char* result, unsigned int count );
+  int  (*read )( XFILE* x, char* result, unsigned int count );
 
   /* Writes count bytes from source into the file. Returns the number
      of bytes moved from the source to the file. The return value may
      be positive but less than count. A return value of -1 indicates an
      error */
-  int (*write)( XFILE* x, const char* source, unsigned int count );
+  int  (*write)( XFILE* x, const char* source, unsigned int count );
 
   /* Closes the file. Returns 0 if it successfully closes the file. A
      return value of -1 shows an error. */
-  int (*close)( XFILE* x );
+  int  (*close)( XFILE* x );
 
   /* Returns the current position of the file pointer. The position is
      the number of bytes from the beginning of the file. On devices
@@ -90,6 +93,14 @@ typedef struct _XPROTOCOL {
      error or an unknown size. */
   long (*size )( XFILE* x );
 
+  /* Lengthens or cuts off the file to the length specified by size.
+     You must open the file in a mode that permits writing. Adds null
+     characters when it lengthens the file. When cuts off the file, it
+     erases all data from the end of the shortened file to the end
+     of the original file. Returns the value 0 if it successfully
+     changes the file size. A return value of -1 shows an error. */
+  int  (*chsize)( XFILE* x, long size );
+
   /* Cleanups the protocol. */
   void (*clean)( XFILE* x );
 
@@ -97,7 +108,7 @@ typedef struct _XPROTOCOL {
   HMTX mtx_file;   /* Serializes all i/o operations.            */
   int  abort;      /* Abnormal termination of all operations.   */
 
-  /* Can be used by protocols implementation. */
+  /* Can be used by protocol implementation. */
 
   int           s_handle;   /* Connection or file handle.                    */
   unsigned long s_pos;      /* Current position of the stream pointer.       */
@@ -116,10 +127,10 @@ typedef struct _XPROTOCOL {
   char  s_name [128];
   char  s_title[128];
 
-  /* Used by FTP protocol implementation. */
+  /* Used by FTP  protocol implementation. */
 
-  char s_reply[512];
-  int  s_datahandle;
+  char  s_reply[512];
+  int   s_datahandle;
 
 } XPROTOCOL;
 

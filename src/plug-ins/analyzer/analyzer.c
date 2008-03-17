@@ -49,6 +49,7 @@
 
 #include <utilfct.h>
 #include <format.h>
+#include <visual_plug.h>
 #include <plugin.h>
 
 #ifndef M_PI
@@ -1040,7 +1041,6 @@ vis_init( PVISPLUGININIT init )
     load_default_palette();
 
   DiveSetSourcePalette( hdive, 0, sizeof( palette ) / sizeof( palette[0] ), (char*)&palette );
-  DiveSetDestinationPalette( hdive, 0, 0, 0 );
   WinSetVisibleRegionNotify( hanalyzer, TRUE );
 
   // Apparently the WM_VRNENABLED message not necessarily automatically

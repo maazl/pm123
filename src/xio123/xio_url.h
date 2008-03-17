@@ -29,28 +29,37 @@
 #ifndef XIO_URL_H
 #define XIO_URL_H
 
+#include <stdlib.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 typedef struct _XURL {
 
-  char*    scheme;
-  char*    username;
-  char*    password;
-  char*    host;
-  unsigned port;
-  char*    path;
-  char*    params;
-  char*    query;
-  char*    fragment;
+  char*    scheme;    /* Decoded. */
+  char*    username;  /* Decoded. */
+  char*    password;  /* Decoded. */
+  char*    host;      /* Decoded. */
+  unsigned port;      /* Decoded. */
+  char*    path;      /* Decoded. */
+  char*    params;    /* Decoded. */
+  char*    query;     /* Encoded. */
+  char*    fragment;  /* Decoded. */
 
 } XURL;
 
 /* Allocates a URL structure. */
-XURL* url_allocate( const char* url );
+XURL*  url_allocate( const char* url );
 /* Frees a URL structure. */
-void  url_free( XURL* url );
+void   url_free( XURL* url );
+
+/* Passed any string value, decode from URL transmission. */
+char*  url_decode( char* string );
+/* Passed any string value, encode for URL transmission. */
+size_t url_encode( char* result, const char* source, size_t size );
+/* Calculates a length of any string value encoded for URL transmission. */
+size_t url_encode_size( const char* string );
 
 #define XURL_STR_FULLAUTH 0x0000 // Complete URL string.
 #define XURL_STR_FULL     0x0001 // Complete URL string without username and password.
@@ -58,7 +67,7 @@ void  url_free( XURL* url );
 #define XURL_STR_ENCODE   0x8000 // Encode of the URL string.
 
 /* Returns the specified parts of the URL string. */
-char* url_string( XURL* url, int parts );
+char*  url_string( XURL* url, int parts );
 
 #ifdef __cplusplus
 }

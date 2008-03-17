@@ -242,7 +242,8 @@ class Ctrl
     RC_EndOfList,           // The navigation tried to move beyond the limits of the current playlist.
     RC_NotPlaying,          // The command is only allowed while playing.
     RC_OutPlugErr,          // The output plug-in returned an error.
-    RC_DecPlugErr           // The decoder plug-in returnd an error.
+    RC_DecPlugErr,          // The decoder plug-in returnd an error.
+    RC_InvalidItem          // Cannot load or play invalid object.
   };
 
   struct EQ_Data
@@ -362,7 +363,7 @@ class Ctrl
   static void  DecoderStop();
   // Initializes the output for playing pp.
   // The playable object is needed for naming purposes.
-  static ULONG OutputStart(Playable* pp);
+  static ULONG OutputStart(Song* pp);
   // Stops playback and clears the prefetchlist.
   static void  OutputStop();
   // Updates the in-use status of PlayableInstance objects in the callstack by moving from oldstack to newstack.

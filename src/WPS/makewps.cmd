@@ -41,6 +41,16 @@ if SysCreateObject( "WPProgram", "Online Help", "<PM123FOLDER>",,
    "PARAMETERS="||dir||"\PM123.INF;PROGTYPE=PM;EXENAME=VIEW.EXE;OBJECTID=<PM123_HELP>;", "REPLACE") = 0 then
    call error
 
+say "Creating PM123 history..."
+if SysCreateObject( "WPProgram", "History of Changes", "<PM123FOLDER>",,
+   "PARAMETERS="||dir||"\PM123.INF History of Changes;PROGTYPE=PM;EXENAME=VIEW.EXE;OBJECTID=<PM123_HISTORY>;", "REPLACE") = 0 then
+   call error
+
+say "Creating PM123 support & contacts..."
+if SysCreateObject( "WPProgram", "Support & Contacts", "<PM123FOLDER>",,
+   "PARAMETERS="||dir||"\PM123.INF Support & Contact;PROGTYPE=PM;EXENAME=VIEW.EXE;OBJECTID=<PM123_CONTACTS>;", "REPLACE") = 0 then
+   call error
+
 say "Creating PM123 Plug-in Developer's Guide..."
 if SysCreateObject( "WPProgram", "Plug-in Developer's Guide", "<PM123PDK>",,
    "PARAMETERS="||dir||"\PDK\PM123_PDK.INF;PROGTYPE=PM;EXENAME=VIEW.EXE;OBJECTID=<PM123_PDK_GUIDE>;", "REPLACE") = 0 then
@@ -51,52 +61,30 @@ if SysCreateObject( "WPShadow", "FFTW Guide", "<PM123PDK>",,
    "SHADOWID="||dir||"\PDK\FFT123.PDF;OBJECTID=<PM123_FFT_GUIDE>;", "REPLACE") = 0 then
    call error
 
-say "Associating PM123 with WAV files..."
-if SysCreateObject("WPProgram", "PM123[WAV]", "<PM123ASSOTIATIONS>",,
-   "PROGTYPE=PM;EXENAME="||dir||"\PM123.EXE;OBJECTID=<PM123_WAV>;ICONFILE="||dir||"\icons\wav.ico;STARTUPDIR="||dir||";ASSOCFILTER=*.WAV;", "REPLACE" ) = 0 then
-   call error
+extensions = "WAV AIF AU AVR CAF IFF MAT PAF PVF SD2 SDS SF VOC W64 XI " ||,
+             "MP1 MP2 MP3 M3U PLS MPL LST M3U8 OGG"
 
-say "Associating PM123 with MP2 files..."
-if SysCreateObject("WPProgram", "PM123[MP2]", "<PM123ASSOTIATIONS>",,
-   "PROGTYPE=PM;EXENAME="||dir||"\PM123.EXE;OBJECTID=<PM123_MP2>;ICONFILE="||dir||"\icons\mp2.ico;STARTUPDIR="||dir||";ASSOCFILTER=*.MP2;", "REPLACE" ) = 0 then
-   call error
+do i = 1 to words( extensions )
+   ext = word( extensions, i )
+   say "Associating PM123 with *."ext" files..."
 
-say "Associating PM123 with MP3 files..."
-if SysCreateObject("WPProgram", "PM123[MP3]", "<PM123ASSOTIATIONS>",,
-   "PROGTYPE=PM;EXENAME="||dir||"\PM123.EXE;OBJECTID=<PM123_MP3>;ICONFILE="||dir||"\icons\mp3.ico;STARTUPDIR="||dir||";ASSOCFILTER=*.MP3;", "REPLACE" ) = 0 then
-   call error
-
-say "Associating PM123 with M3U files..."
-if SysCreateObject("WPProgram", "PM123[M3U]", "<PM123ASSOTIATIONS>",,
-   "PROGTYPE=PM;EXENAME="||dir||"\PM123.EXE;OBJECTID=<PM123_M3U>;ICONFILE="||dir||"\icons\m3u.ico;STARTUPDIR="||dir||";ASSOCFILTER=*.M3U;", "REPLACE" ) = 0 then
-   call error
-
-say "Associating PM123 with PLS files..."
-if SysCreateObject("WPProgram", "PM123[PLS]", "<PM123ASSOTIATIONS>",,
-   "PROGTYPE=PM;EXENAME="||dir||"\PM123.EXE;OBJECTID=<PM123_PLS>;ICONFILE="||dir||"\icons\pls.ico;STARTUPDIR="||dir||";ASSOCFILTER=*.PLS;", "REPLACE" ) = 0 then
-   call error
-
-say "Associating PM123 with MPL files..."
-if SysCreateObject("WPProgram", "PM123[MPL]", "<PM123ASSOTIATIONS>",,
-   "PROGTYPE=PM;EXENAME="||dir||"\PM123.EXE;OBJECTID=<PM123_MPL>;ICONFILE="||dir||"\icons\mpl.ico;STARTUPDIR="||dir||";ASSOCFILTER=*.MPL;", "REPLACE" ) = 0 then
-   call error
-
-say "Associating PM123 with LST files..."
-if SysCreateObject("WPProgram", "PM123[LST]", "<PM123ASSOTIATIONS>",,
-   "PROGTYPE=PM;EXENAME="||dir||"\PM123.EXE;OBJECTID=<PM123_LST>;ICONFILE="||dir||"\icons\lst.ico;STARTUPDIR="||dir||";ASSOCFILTER=*.LST;", "REPLACE" ) = 0 then
-   call error
+   if SysCreateObject("WPProgram", "PM123["ext"]", "<PM123ASSOTIATIONS>",,
+      "PROGTYPE=PM;EXENAME="||dir||"\PM123.EXE;OBJECTID=<PM123_"ext">;ICONFILE="||dir||"\icons\"ext".ico;STARTUPDIR="||dir||";ASSOCFILTER=*."ext";", "REPLACE" ) = 0 then do
+      call error
+   end
+end
 
 call SysDestroyObject "<PM123MANUAL>"
 call SysDestroyObject "<PM123SKINSMANUAL>"
 call SysDestroyObject "<PM123NETSCAPE>"
 call SysDestroyObject "<PM123HISTORY>"
 
-say "Object creation was successful!"
+say "Objects creation was successful!"
 call end
 
 error:
-say "Object creation was NOT successful!"
-call end
+  say "Object creation was NOT successful!"
+  call end
 
 end:
-exit 0
+  exit 0

@@ -46,7 +46,7 @@ typedef struct
 /* Technical information about the data source */
 typedef struct
 { unsigned int size;   /* size of this structure */
-  T_TIME songlength;   /* in milliseconds, smaller than 0 -> unknown */
+  T_TIME songlength;   /* in seconds, smaller than 0 -> unknown */
   int    bitrate;      /* in kbit/s, smaller than 0 -> unknown */
   T_SIZE filesize;     /* physical size of the file, smaller than 0 -> unknown */
   char   info[128];    /* general technical information string */

@@ -442,6 +442,18 @@ http_size( XFILE* x )
   return size;
 }
 
+/* Lengthens or cuts off the file to the length specified by size.
+   You must open the file in a mode that permits writing. Adds null
+   characters when it lengthens the file. When cuts off the file, it
+   erases all data from the end of the shortened file to the end
+   of the original file. */
+static int
+http_truncate( XFILE* x, long size )
+{
+  errno = EINVAL;
+  return -1;
+}
+
 /* Cleanups the http protocol. */
 static void
 http_terminate( XFILE* x )
@@ -475,14 +487,15 @@ http_initialize( XFILE* x )
     protocol->supports =
       XS_CAN_READ | XS_CAN_SEEK | XS_USE_SPOS;
 
-    protocol->open  = http_open;
-    protocol->read  = http_read;
-    protocol->write = http_write;
-    protocol->close = http_close;
-    protocol->tell  = http_tell;
-    protocol->seek  = http_seek;
-    protocol->size  = http_size;
-    protocol->clean = http_terminate;
+    protocol->open   = http_open;
+    protocol->read   = http_read;
+    protocol->write  = http_write;
+    protocol->close  = http_close;
+    protocol->tell   = http_tell;
+    protocol->seek   = http_seek;
+    protocol->chsize = http_truncate;
+    protocol->size   = http_size;
+    protocol->clean  = http_terminate;
   }
 
   return protocol;

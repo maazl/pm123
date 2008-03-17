@@ -78,6 +78,7 @@ const amp_cfg cfg_default =
   "",
   FALSE,
   128,
+  30,
   "\\PIPE\\PM123",
   TRUE, // dock
   10,
@@ -124,6 +125,7 @@ void cfg_init( void )
   }
   xio_set_buffer_size( cfg.buff_size * 1024 );
   xio_set_buffer_wait( cfg.buff_wait );
+  xio_set_buffer_fill( cfg.buff_fill );
 }
 
 
@@ -222,6 +224,7 @@ cfg_settings2_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
       do_warpsans( WinWindowFromID( hwnd, ST_PROXY_PASS ));
       do_warpsans( WinWindowFromID( hwnd, ST_PIXELS     ));
       do_warpsans( WinWindowFromID( hwnd, ST_BUFFERSIZE ));
+      do_warpsans( WinWindowFromID( hwnd, ST_FILLBUFFER ));
       WinPostMsg(hwnd, CFG_CHANGE, MPFROMP(&cfg), 0);
       break;
 
@@ -271,13 +274,24 @@ cfg_settings2_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
 
       WinSendDlgItemMsg( hwnd, SB_BUFFERSIZE, SPBM_SETLIMITS, MPFROMLONG( 2048 ), MPFROMLONG( 0 ));
       WinSendDlgItemMsg( hwnd, SB_BUFFERSIZE, SPBM_SETCURRENTVALUE, MPFROMLONG( cfg.buff_size ), 0 );
+      WinSendDlgItemMsg( hwnd, SB_FILLBUFFER, SPBM_SETLIMITS, MPFROMLONG( 100  ), MPFROMLONG( 1 ));
+      WinSendDlgItemMsg( hwnd, SB_FILLBUFFER, SPBM_SETCURRENTVALUE, MPFROMLONG( cfg.buff_fill ), 0 );
       return 0;
     }
 
     case CFG_DEFAULT:
       WinPostMsg(hwnd, CFG_CHANGE, MPFROMP(&cfg_default), 0);
     case WM_COMMAND:
+      return 0;
+
     case WM_CONTROL:
+      if( SHORT1FROMMP(mp1) == CB_FILLBUFFER &&
+        ( SHORT2FROMMP(mp1) == BN_CLICKED || SHORT2FROMMP(mp1) == BN_DBLCLICKED ))
+      {
+        BOOL fill = WinQueryButtonCheckstate( hwnd, CB_FILLBUFFER );
+
+        WinEnableControl( hwnd, SB_FILLBUFFER, fill );
+      }
       return 0;
 
     case WM_DESTROY:
@@ -298,7 +312,9 @@ cfg_settings2_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
 
       WinSendDlgItemMsg( hwnd, SB_BUFFERSIZE, SPBM_QUERYVALUE, MPFROMP( &i ), MPFROM2SHORT( 0, SPBQ_DONOTUPDATE ));
       cfg.buff_size = i;
-      xio_set_buffer_size( cfg.buff_size * 1024 );
+
+      WinSendDlgItemMsg( hwnd, SB_FILLBUFFER, SPBM_QUERYVALUE, MPFROMP( &i ), MPFROM2SHORT( 0, SPBQ_DONOTUPDATE ));
+      cfg.buff_fill = i;
 
       WinQueryDlgItemText( hwnd, EF_PROXY_HOST, sizeof cfg.proxy, cfg.proxy );
       xio_set_http_proxy_host( cfg.proxy );
@@ -323,7 +339,10 @@ cfg_settings2_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
       }
 
       cfg.buff_wait = WinQueryButtonCheckstate( hwnd, CB_FILLBUFFER );
+
+      xio_set_buffer_size( cfg.buff_size * 1024 );
       xio_set_buffer_wait( cfg.buff_wait );
+      xio_set_buffer_fill( cfg.buff_fill );
 
       return 0;
     }
@@ -418,8 +437,6 @@ cfg_display1_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
       cfg.font_size     = font_size;
       cfg.font_attrs    = font_attrs;
 
-      amp_display_filename();
-      amp_invalidate( UPD_FILEINFO );
       return 0;
     }
   }
@@ -818,52 +835,10 @@ cfg_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
       return 0;
 
     case WM_WINDOWPOSCHANGED:
-    {
-      PSWP pswp = (PSWP)mp1;
-
-      if( pswp[0].fl & SWP_SIZE )
-      {
-        SWP  swps[3];
-        HWND hbtn[3];
-
-        LONG   ibtn = sizeof(hbtn)/sizeof(HWND)-1;
-        HWND   book = WinWindowFromID( hwnd, NB_CONFIG );
-        LONG   i;
-        RECTL  rect;
-        POINTL pos[2];
-
-        hbtn[0] = WinWindowFromID( hwnd, PB_UNDO    );
-        hbtn[1] = WinWindowFromID( hwnd, PB_DEFAULT );
-        hbtn[2] = WinWindowFromID( hwnd, PB_HELP    );
-
-        // Resizes notebook window.
-        if( WinQueryWindowRect( hwnd, &rect ))
-        {
-          WinCalcFrameRect( hwnd, &rect, TRUE );
-          pos[0].x = rect.xLeft;
-          pos[0].y = rect.yBottom;
-          pos[1].x = rect.xRight;
-          pos[1].y = rect.yTop;
-          WinMapDlgPoints( hwnd, pos, 2, FALSE );
-          pos[0].y += 20;
-          WinMapDlgPoints( hwnd, pos, 2, TRUE  );
-          WinSetWindowPos( book, 0, pos[0].x, pos[0].y,
-                           pos[1].x-pos[0].x, pos[1].y-pos[0].y, SWP_MOVE | SWP_SIZE );
-        }
-
-        // Centers notebook buttons.
-        if( WinQueryWindowPos( hbtn[   0], &swps[   0]) &&
-            WinQueryWindowPos( hbtn[ibtn], &swps[ibtn]))
-        {
-          LONG move = (pswp[0].cx - (swps[ibtn].x + swps[ibtn].cx - swps[0].x))/2 - swps[0].x;
-
-          for( i = 0; i <= ibtn; i++ )
-            if( WinQueryWindowPos( hbtn[i], &swps[i] ))
-              WinSetWindowPos( hbtn[i], 0, swps[i].x + move, swps[i].y, 0, 0, SWP_MOVE );
-        }
+      if(((PSWP)mp1)[0].fl & SWP_SIZE ) {
+        nb_adjust( hwnd );
       }
       break;
-    }
   }
   return WinDefDlgProc( hwnd, msg, mp1, mp2 );
 }

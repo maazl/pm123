@@ -32,8 +32,8 @@
 *
 *  This script will look for the immediate dependencies of a C source file.
 *  It will not care about #if blocks! So it is not possible to generate
-*  dependancies of conditional compile interfaces. Furthermore you should not
-*  generate dependancies to the runtime includes this way. Simply drop the
+*  dependencies of conditional compile interfaces. Furthermore you should not
+*  generate dependencies to the runtime includes this way. Simply drop the
 *  runtime include path from the -I directories.
 *
 *  This dependancy generator will not generate the dependencies for the

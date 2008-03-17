@@ -6,23 +6,16 @@ BITS 32
 %ifdef UNDERSCORE
   %define decwin    _decwin
   %define decwins   _decwins
-  %define conv16to8 _conv16to8
 %endif
 
 global decwin
 global decwins
-global conv16to8
 
 segment .bss class=DATA use32 FLAT
         align 32
         decwin  resd  2176+32
         align 32
         decwins resd  2176+32
-
-        align 32
-        conv16to8_buf resb 4096
-        align 32
-        conv16to8 dd conv16to8_buf+2048
 
 segment .data class=DATA use32 FLAT
         align 32

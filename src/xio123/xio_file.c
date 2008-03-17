@@ -31,60 +31,171 @@
 #include <os2.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <string.h>
 #include <io.h>
 #include <share.h>
 #include <fcntl.h>
 #include <errno.h>
 #include <sys/stat.h>
+#include <ctype.h>
+
 #include "xio_file.h"
-#include <string.h>
+#include "xio_url.h"
+
+#ifdef XIO_SERIALIZE_DISK_IO
+
+  HMTX serialize;
+
+  // Serializes all read and write disk operations. This is
+  // improve performance of poorly implemented filesystems (OS/2 version
+  // of FAT32 for example).
+
+  #define FILE_REQUEST_DISK() DosRequestMutexSem( serialize, SEM_INDEFINITE_WAIT )
+  #define FILE_RELEASE_DISK() DosReleaseMutexSem( serialize )
+#else
+  #define FILE_REQUEST_DISK()
+  #define FILE_RELEASE_DISK()
+#endif
+
+/* Map OS/2 APIRET errors to C errno. */
+static int map_os2_errors(APIRET rc)
+{
+  switch (rc) {
+    case NO_ERROR:
+      return 0;
+    case ERROR_FILE_NOT_FOUND:
+    case ERROR_PATH_NOT_FOUND: 
+    case ERROR_NOT_DOS_DISK: 
+    case ERROR_CANNOT_MAKE: 
+    case ERROR_FILENAME_EXCED_RANGE:
+      return ENOENT;
+    case ERROR_TOO_MANY_OPEN_FILES:
+      return EMFILE;
+    case ERROR_ACCESS_DENIED:
+    case ERROR_SHARING_VIOLATION: 
+    case ERROR_PIPE_BUSY:
+    case ERROR_LOCK_VIOLATION:
+    case ERROR_WRITE_PROTECT:
+      return EACCESS;
+    case ERROR_INVALID_ACCESS:
+    case ERROR_INVALID_PARAMETER:
+    case ERROR_INVALID_FUNCTION:
+    case ERROR_NEGATIVE_SEEK:
+      return EINVAL;
+    case ERROR_INVALID_HANDLE:
+      return EBADF;
+    case ERROR_DISK_FULL:
+      return ENOSPC;
+    default: // can't help
+      return -1;
+  }
+}
 
 /* Opens the file specified by filename. Returns 0 if it
    successfully opens the file. A return value of -1 shows an error. */
 static int
 file_open( XFILE* x, const char* filename, int oflags )
 {
-  int omode = O_BINARY;
+  char* openname = NULL; // generated filename from URL, must be freed.
+  ULONG flags = 0;
+  ULONG omode = OPEN_FLAGS_SEQUENTIAL | OPEN_FLAGS_NOINHERIT;
+  ULONG dummy;
+  APIRET rc;
 
   if(( oflags & XO_WRITE ) && ( oflags & XO_READ )) {
-    omode |= O_RDWR;
+    omode |= OPEN_ACCESS_READWRITE | OPEN_SHARE_DENYWRITE;
   } else if( oflags & XO_WRITE ) {
-    omode |= O_WRONLY;
+    omode |= OPEN_ACCESS_WRITEONLY | OPEN_SHARE_DENYWRITE;
   } else if( oflags & XO_READ ) {
-    omode |= O_RDONLY;
+    omode |= OPEN_ACCESS_READONLY  | OPEN_SHARE_DENYNONE;
   }
 
   if( oflags & XO_CREATE ) {
-    omode |= O_CREAT;
+    flags |= OPEN_ACTION_CREATE_IF_NEW;
   }
-  if( oflags & XO_APPEND ) {
-    omode |= O_APPEND;
-  }
-  if( oflags & XO_APPEND ) {
-    omode |= O_TRUNC;
+  if( oflags & XO_TRUNCATE ) {
+    flags |= OPEN_ACTION_REPLACE_IF_EXISTS;
+  } else {
+    flags |= OPEN_ACTION_OPEN_IF_EXISTS;
   }
 
-  // accept file:/// URLs too
-  if ( strnicmp(filename, "file:", 5) == 0 ) {
-    filename += 5;
-    if (memcmp(filename, "///", 3) == 0) {
-      filename += 3;
+  if( strnicmp( filename, "file:", 5 ) == 0 )
+  {
+    XURL* url = url_allocate( filename );
+    char* p;
+
+    if( !url->path ) {
+      url_free( url );
+      errno = ENOENT;
+      return -1;
+    }
+
+    /* OS/2 does not require this
+    for( p = url->path; *p; p++ ) {
+      if( *p == '/'  ) {
+          *p = '\\';
+      }
+    }*/
+
+    p = url->path;
+
+    // Convert file://server/share/path URLs to UNC path
+    if ( *p != '/' ) {
+      openname = malloc( strlen( p ) + 3 );
+      openname[0] = openname[1] = '/';
+      strcpy( openname + 2, p );
+    } else {
+      // Converts leading drive letters of the form C| to C:
+      // and if a drive letter is present strips off the slash that precedes
+      // path. URLs starting with file://///server/share are also stripped.
+      // Otherwise, the leading slash is used.
+      if( isalpha( p[1] ) && ( p[2] == '|' || p[2] == ':' ))
+        p[2] = ':';
+        ++p;
+      } else if ( p[1] == '/' && p[2] == '/' ) {
+        ++p;
+      }
+      openname = strdup( p );
     }
   }
-
-  if(( x->protocol->s_handle = sopen( filename, omode, SH_DENYNO )) == -1 ) {
-    return -1;
+  
+  FILE_REQUEST_DISK();
+  rc = DosOpen( openname ? openname : (PSZ)filename, (HFILE*)&x->protocol->s_handle,
+                &dummy, 0, FILE_NORMAL, flags, omode, NULL );
+  if ( rc == NO_ERROR && oflags & XO_APPEND ) {
+    rc = DosSetFilePtr( (HFILE)x->protocol->s_handle, 0, FILE_END, &dummy ); 
   }
+  FILE_RELEASE_DISK();
 
-  return 0;
+  free( openname );
+  
+  if ( rc != NO_ERROR ) {
+    errno = map_os2_errors( rc );
+    return -1;
+  } else { 
+    return 0;
+  }
 }
 
 /* Reads count bytes from the file into buffer. Returns the number
    of bytes placed in result. The return value 0 indicates an attempt
    to read at end-of-file. A return value -1 indicates an error.     */
 static int
-file_read( XFILE* x, char* result, unsigned int count ) {
-  return read( x->protocol->s_handle, result, count );
+file_read( XFILE* x, char* result, unsigned int count )
+{
+  APIRET rc;
+  ULONG actual;
+
+  FILE_REQUEST_DISK();
+  rc = DosRead( (HFILE)x->protocol->s_handle, result, count, &actual );
+  FILE_RELEASE_DISK();
+  
+  if ( rc != NO_ERROR )
+  { errno = map_os2_errors( rc );
+    return -1;
+  } else { 
+    return actual;
+  }
 }
 
 /* Writes count bytes from source into the file. Returns the number
@@ -92,23 +203,61 @@ file_read( XFILE* x, char* result, unsigned int count ) {
    be positive but less than count. A return value of -1 indicates an
    error */
 static int
-file_write( XFILE* x, const char* source, unsigned int count ) {
-  return write( x->protocol->s_handle, source, count );
+file_write( XFILE* x, const char* source, unsigned int count )
+{
+  APIRET rc;
+  ULONG actual;
+
+  FILE_REQUEST_DISK();
+  rc = DosWrite( (HFILE)x->protocol->s_handle, (PVOID)source, count, &actual );
+  FILE_RELEASE_DISK();
+
+  if ( rc != NO_ERROR )
+  { errno = map_os2_errors( rc );
+    return -1;
+  } else { 
+    return actual;
+  }
 }
 
 /* Closes the file. Returns 0 if it successfully closes the file. A
    return value of -1 shows an error. */
 static int
-file_close( XFILE* x ) {
-  return close( x->protocol->s_handle );
+file_close( XFILE* x )
+{
+  APIRET rc;
+
+  FILE_REQUEST_DISK();
+  rc = DosClose( (HFILE)x->protocol->s_handle );
+  FILE_RELEASE_DISK();
+
+  if ( rc != NO_ERROR ) {
+    errno = map_os2_errors( rc );
+    return -1;
+  } else { 
+    return 0;
+  }
 }
 
 /* Returns the current position of the file pointer. The position is
    the number of bytes from the beginning of the file. On devices
    incapable of seeking, the return value is -1L. */
 static long
-file_tell( XFILE* x ) {
-  return tell( x->protocol->s_handle );
+file_tell( XFILE* x )
+{
+  APIRET rc;
+  ULONG actual;
+
+  FILE_REQUEST_DISK();
+  rc = DosSetFilePtr( (HFILE)x->protocol->s_handle, 0, FILE_CURRENT, &actual );
+  FILE_RELEASE_DISK();
+
+  if ( rc != NO_ERROR )
+  { errno = map_os2_errors( rc );
+    return -1;
+  } else { 
+    return actual;
+  }
 }
 
 /* Moves any file pointer to a new location that is offset bytes from
@@ -118,18 +267,29 @@ file_tell( XFILE* x ) {
 static long
 file_seek( XFILE* x, long offset, int origin )
 {
-  int omode;
+  ULONG  mode;
+  APIRET rc;
+  ULONG actual;
 
   switch( origin ) {
-    case XIO_SEEK_SET: omode = SEEK_SET; break;
-    case XIO_SEEK_CUR: omode = SEEK_CUR; break;
-    case XIO_SEEK_END: omode = SEEK_END; break;
+    case XIO_SEEK_SET: mode = FILE_BEGIN;   break;
+    case XIO_SEEK_CUR: mode = FILE_CURRENT; break;
+    case XIO_SEEK_END: mode = FILE_END;     break;
     default:
       errno = EINVAL;
       return -1L;
   }
 
-  return lseek( x->protocol->s_handle, offset, omode );
+  FILE_REQUEST_DISK();
+  rc = DosSetFilePtr( (HFILE)x->protocol->s_handle, offset, mode, &actual );
+  FILE_RELEASE_DISK();
+
+  if ( rc != NO_ERROR )
+  { errno = map_os2_errors( rc );
+    return -1L;
+  } else { 
+    return actual;
+  }
 }
 
 /* Returns the size of the file. A return value of -1L indicates an
@@ -137,9 +297,41 @@ file_seek( XFILE* x, long offset, int origin )
 static long
 file_size( XFILE* x )
 {
-  struct stat fi = {0};
-  fstat( x->protocol->s_handle, &fi );
-  return fi.st_size;
+  APIRET rc;
+  FILESTATUS3 fi;
+  
+  FILE_REQUEST_DISK();
+  rc = DosQueryFileInfo( (HFILE)x->protocol->s_handle, FIL_STANDARD, &fi, sizeof fi );
+  FILE_RELEASE_DISK();
+  
+  if ( rc != NO_ERROR )
+  { errno = map_os2_errors( rc );
+    return -1L;
+  } else { 
+    return fi.cbFile;
+  }
+}
+
+/* Lengthens or cuts off the file to the length specified by size.
+   You must open the file in a mode that permits writing. Adds null
+   characters when it lengthens the file. When cuts off the file, it
+   erases all data from the end of the shortened file to the end
+   of the original file. */
+static int
+file_truncate( XFILE* x, long size )
+{
+  APIRET rc;
+
+  FILE_REQUEST_DISK();
+  rc = DosSetFileSize( (HFILE)x->protocol->s_handle, size );
+  FILE_RELEASE_DISK();
+
+  if ( rc != NO_ERROR )
+  { errno = map_os2_errors( rc );
+    return -1L;
+  } else { 
+    return 0;
+  }
 }
 
 /* Cleanups the file protocol. */
@@ -175,14 +367,15 @@ file_initialize( XFILE* x )
       XS_CAN_READ   | XS_CAN_WRITE | XS_CAN_READWRITE |
       XS_CAN_CREATE | XS_CAN_SEEK  | XS_CAN_SEEK_FAST;
 
-    protocol->open  = file_open;
-    protocol->read  = file_read;
-    protocol->write = file_write;
-    protocol->close = file_close;
-    protocol->tell  = file_tell;
-    protocol->seek  = file_seek;
-    protocol->size  = file_size;
-    protocol->clean = file_terminate;
+    protocol->open   = file_open;
+    protocol->read   = file_read;
+    protocol->write  = file_write;
+    protocol->close  = file_close;
+    protocol->tell   = file_tell;
+    protocol->seek   = file_seek;
+    protocol->chsize = file_truncate;
+    protocol->size   = file_size;
+    protocol->clean  = file_terminate;
   }
 
   return protocol;

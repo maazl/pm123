@@ -46,16 +46,29 @@
 #include <minmax.h>
 #include <strutils.h>
 
-#ifndef  BKS_TABBEDDIALOG
+#ifndef BKS_TABBEDDIALOG
   /* Tabbed dialog. */
   #define BKS_TABBEDDIALOG 0x00000800UL
 #endif
-#ifndef  BKS_BUTTONAREA
+#ifndef BKS_BUTTONAREA
   /* Reserve space for buttons. */
   #define BKS_BUTTONAREA   0x00000200UL
 #endif
 
 #define TOSTRING(x) #x
+
+#ifndef MRFROMBOOL
+  #define MRFROMBOOL(b) ((MRESULT)(BOOL)(b))
+#endif
+#ifndef BOOLFROMMR
+  #define BOOLFROMMR(m) ((BOOL)(m))
+#endif
+#ifndef MPFROMBOOL
+  #define MPFROMBOOL(b) ((MPARAM)(BOOL)(b))
+#endif
+#ifndef BOOLFROMMP
+  #define BOOLFROMMP(m) ((BOOL)(m))
+#endif
 
 #ifdef __cplusplus
 extern "C" {
@@ -74,6 +87,8 @@ void getExeName( char* name, int name_size );
 
 /* Removes leading and trailing spaces. */
 char* blank_strip( char* string );
+/* Replaces series of control characters by one space. */
+char* control_strip( char* string );
 /* Removes leading and trailing spaces and quotes. */
 char* quote_strip( char* string );
 /* Removes comments starting with "#". */
@@ -81,7 +96,7 @@ char* uncomment  ( char* string );
 
 /* Places the current thread into a wait state until another thread
    in the current process has ended. Kills another thread if the
-   time expires. */
+   time expires and return FALSE. */
 BOOL  wait_thread( TID tid, ULONG msec );
 /* Same as wait_thread, but keep the PM message queue alive. */
 BOOL  wait_thread_pm( HAB hab, TID tid, ULONG msec );
@@ -90,12 +105,24 @@ BOOL  wait_thread_pm( HAB hab, TID tid, ULONG msec );
    the index (low word) and the total (high word) number of subpages (if any). */
 BOOL  nb_append_tab( HWND book, HWND page, const char* text, MPARAM index );
 
+/* Adds an item into a menu control. */
+SHORT mn_add_item( HWND menu, SHORT id, const char* item, BOOL enable, BOOL check, PVOID handle );
+/* Returns the identity of a menu item of a specified index. */
+SHORT mn_item_id( HWND menu, SHORT i );
+/* Deletes an item from the menu control. */
+SHORT mn_remove_item( HWND menu, SHORT id );
 /* Makes a menu item selectable. */
 BOOL  mn_enable_item( HWND menu, SHORT id, BOOL enable );
 /* Places a a check mark to the left of the menu item. */
 BOOL  mn_check_item ( HWND menu, SHORT id, BOOL check  );
 /* Change a menu item to MS_CONDITIONALCASCADE and sets the default ID */
 BOOL  mn_make_conditionalcascade( HWND menu, SHORT submenuid, SHORT defaultid );
+/* Returns the handle of the specified menu item. */
+PVOID mn_get_handle( HWND menu, SHORT id );
+/* Returns the handle of the specified submenu. */
+HWND  mn_get_submenu( HWND menu, SHORT id );
+/* Returns a count of the number of items in the menu control. */
+SHORT mn_size( HWND menu );
 
 /* Delete all the items in the list box. */
 BOOL  lb_remove_all( HWND hwnd, SHORT id );
@@ -124,6 +151,13 @@ SHORT lb_search( HWND hwnd, SHORT id, SHORT starti, char *item );
 
 /* Sets the enable state of the entryfield in the dialog template to the enable flag. */
 void  en_enable( HWND hwnd, SHORT id, BOOL enable );
+
+/* Adjusting the position and size of a notebook window. */
+void  nb_adjust( HWND hwnd );
+
+/* This function sets the visibility state of a dialog item. */
+#define WinShowDlgItem( hwndDlg, idItem, fNewVisibility ) \
+        WinShowWindow( WinWindowFromID( hwndDlg, idItem ), fNewVisibility )
 
 #ifdef __cplusplus
 }

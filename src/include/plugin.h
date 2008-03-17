@@ -5,6 +5,15 @@
 #include <decoder_plug.h>
 #include <stdlib.h>
 
+#define PLUGIN_OK           0
+#define PLUGIN_UNSUPPORTED  1
+#define PLUGIN_NO_READ      100
+#define PLUGIN_NO_PLAY      200
+#define PLUGIN_GO_ALREADY   101
+#define PLUGIN_GO_FAILED    102
+#define PLUGIN_FAILED      -1
+#define PLUGIN_NO_USABLE   -2
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -19,66 +28,13 @@ typedef enum
   PLUGIN_OUTPUT  = 0x008
 } PLUGIN_TYPE;
 
-/* see decoder_plug.h and output_plug.h for more information
-   on some of these functions */
-typedef struct _PLUGIN_PROCS
-{
-  ULONG  DLLENTRYP(output_playing_samples)( FORMAT_INFO* info, char* buf, int len );
-  BOOL   DLLENTRYP(decoder_playing)( void );
-  double DLLENTRYP(output_playing_pos)( void );
-  ULONG  DLLENTRYP(decoder_status)( void );
-  /* name is the DLL filename of the decoder that can play that file */
-  ULONG  DLLENTRYP(decoder_fileinfo)( const char* URL, DECODER_INFO2* info, char* name );
-
-  int    DLLENTRYP(pm123_getstring)( int index, int subindex, size_t bufsize, char* buf );
-  void   DLLENTRYP(pm123_control)( int index, void* param );
-
-  /* name is the DLL filename of the decoder that can play that track */
-  ULONG  DLLENTRYP(decoder_cdinfo)( const char* drive, DECODER_CDINFO* info );
-  double DLLENTRYP(decoder_length)( void );
-
-} PLUGIN_PROCS, *PPLUGIN_PROCS;
-
-/*
- * int pm123_getstring( int index, int subindex, int bufsize, char* buf )
- *
- *  index    - which string (see STR_* defines below)
- *  subindex - not currently used
- *  bufsize  - bytes in buf
- *  buf      - buffer for the string
- */
-
-#define STR_NULL         0
-#define STR_VERSION      1 /* PM123 version          */
-#define STR_DISPLAY_TEXT 2 /* Display text           */
-#define STR_FILENAME     3 /* Currently loaded file  */
-
-/*
- * int pm123_control( int index, void* param );
- *
- *  index - operation
- *  param - parameter for the operation
- */
-
-#define CONTROL_NEXTMODE 1 /* Next display mode */
-
-typedef struct _VISPLUGININIT
-{
-  int           x, y, cx, cy;   /* Input        */
-  HWND          hwnd;           /* Input/Output */
-  PPLUGIN_PROCS procs;          /* Input        */
-  int           id;             /* Input        */
-  const char*   param;          /* Input        */
-
-} VISPLUGININIT, *PVISPLUGININIT;
-
 typedef struct _PLUGIN_QUERYPARAM
 {
-  int   type;         /* null, visual, filter, input. values can be ORred */
-  char* author;       /* Author of the plugin                             */
-  char* desc;         /* Description of the plugin                        */
-  int   configurable; /* Is the plugin configurable                       */
-  int   interface;    /* Interface revision                               */
+  int   type;         /* null, visual, filter, input. values can be ORed */
+  char* author;       /* Author of the plugin                            */
+  char* desc;         /* Description of the plugin                       */
+  int   configurable; /* Is the plugin configurable                      */
+  int   interface;    /* Interface revision                              */
 
 } PLUGIN_QUERYPARAM, *PPLUGIN_QUERYPARAM;
 
@@ -91,6 +47,7 @@ typedef struct _PLUGIN_QUERYPARAM
 /* returns 0 -> ok */
 int DLLENTRY plugin_query( PLUGIN_QUERYPARAM* param );
 int DLLENTRY plugin_configure( HWND hwnd, HMODULE module );
+int DLLENTRY plugin_deinit( int unload );
 
 #pragma pack()
 

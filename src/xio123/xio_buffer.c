@@ -35,9 +35,14 @@
 #include <process.h>
 #include <errno.h>
 
+#include <utilfct.h>
+#include <debuglog.h>
+
 #include "xio_buffer.h"
 #include "xio_protocol.h"
-#include "utilfct.h"
+
+#define  BUFFER_IS_HUNGRY   30 // %
+#define  BUFFER_IS_SATED    50 // %
 
 /* Advances a buffer pointer. */
 INLINE char*
@@ -61,6 +66,28 @@ distance( const XBUFFER* buffer, char* begin, char* end )
   }
 }
 
+/* Boosts a priority of the read-ahead thread. */
+static void
+buffer_boost_priority( XBUFFER* buffer )
+{
+  if( !buffer->boosted ) {
+    DEBUGLOG(( "xio123: boosts priority of the read-ahead thread %d (buffer is %d bytes).\n", buffer->tid, buffer->data_rest ));
+    DosSetPriority( PRTYS_THREAD, PRTYC_TIMECRITICAL, 0, buffer->tid );
+    buffer->boosted = 1;
+  }
+}
+
+/* Normalizes a priority of the read-ahead thread. */
+static void
+buffer_normal_priority( XBUFFER* buffer )
+{
+  if( buffer->boosted ) {
+    DEBUGLOG(( "xio123: normalizes priority of the read-ahead thread %d (buffer is %d bytes).\n", buffer->tid, buffer->data_rest ));
+    DosSetPriority( PRTYS_THREAD, PRTYC_REGULAR, 0, buffer->tid );
+    buffer->boosted = 0;
+  }
+}
+
 /* Read-ahead thread. */
 static void TFNENTRY
 buffer_read_ahead( void* arg )
@@ -70,9 +97,6 @@ buffer_read_ahead( void* arg )
   ULONG    post_count;
   int      read_size;
   int      read_done;
-
-  // The first post of this event means that the thread has started.
-  DosPostEventSem( buffer->evt_have_data );
 
   while( DosWaitEventSem( buffer->evt_read_data, SEM_INDEFINITE_WAIT ) == NO_ERROR && !buffer->end )
   {
@@ -85,7 +109,7 @@ buffer_read_ahead( void* arg )
       // for reading. The maximum size of a chunk is 4 kilobytes.
       read_size = distance( buffer, buffer->data_tail, buffer->tail );
       read_size = min( read_size, buffer->free );
-      read_size = min( read_size, 4096 );
+      read_size = min( read_size, 16384 );
 
       DosReleaseMutexSem( buffer->mtx_access );
       // It is possible to use the data_tail pointer without request of
@@ -114,17 +138,38 @@ buffer_read_ahead( void* arg )
       DosResetEventSem( buffer->evt_read_data, &post_count );
     }
 
-    if( buffer->boosted ) {
-      DosSetPriority( PRTYS_THREAD, PRTYC_REGULAR, 0, buffer->tid );
+
+    if( buffer->boosted && ( buffer->data_rest >= buffer->size * BUFFER_IS_SATED / 100 ||
+                             buffer->error || buffer->eof ))
+    {
+      // If buffer is sated, normalizes of the priority of the read-ahead thread.
+      buffer_normal_priority( buffer );
     }
 
     DosReleaseMutexSem( buffer->mtx_access );
     DosReleaseMutexSem( buffer->mtx_file   );
   }
 
-  buffer->tid = -1;
-  buffer_terminate( x );
   _endthread();
+}
+
+/* Resets the buffer. */
+static void
+buffer_reset( XFILE* x )
+{
+  XBUFFER* buffer = x->buffer;
+
+  buffer->tail       = buffer->head + buffer->size;
+  buffer->free       = buffer->size;
+  buffer->data_head  = buffer->head;
+  buffer->data_read  = buffer->head;
+  buffer->data_tail  = buffer->head;
+  buffer->data_size  = 0;
+  buffer->data_rest  = 0;
+  buffer->data_keep  = buffer->size / 5;
+  buffer->file_pos   = x->protocol->tell( x );
+  buffer->eof        = 0;
+  buffer->error      = 0;
 }
 
 /* Allocates and initializes the buffer. */
@@ -134,7 +179,7 @@ buffer_initialize( XFILE* x )
   XBUFFER* buffer;
   int size = xio_buffer_size();
 
-  if( !size || ( x->oflags & XO_WRITE )) {
+  if( !size || ( x->oflags & XO_WRITE ) || ( x->protocol->supports & XS_NOT_BUFFERIZE )) {
     x->buffer = NULL;
     return;
   }
@@ -166,43 +211,42 @@ buffer_initialize( XFILE* x )
       break;
     }
 
-    buffer->size      = size;
-    buffer->tail      = buffer->head + size;
-    buffer->free      = size;
-    buffer->data_head = buffer->head;
-    buffer->data_read = buffer->head;
-    buffer->data_tail = buffer->head;
-    buffer->data_keep = buffer->size / 5;
-    buffer->file_pos  = x->protocol->tell( x );
+    buffer->size = size;
+    buffer_reset( x );
 
     if( xio_buffer_wait())
     {
-      buffer->data_size = x->protocol->read( x, buffer->head, buffer->size );
+      int prefill = buffer->size * xio_buffer_fill() / 100;
 
-      if( buffer->data_size < 0 ) {
-        break;
-      }
-      if( buffer->data_size < buffer->size ) {
-        buffer->eof = 1;
-      }
+      if( prefill > 0 ) {
+        buffer->data_size = x->protocol->read( x, buffer->head, prefill );
 
-      buffer->data_rest = buffer->data_size;
-      buffer->data_tail = advance( buffer, buffer->data_head, buffer->data_size );
-      buffer->free      = buffer->size - buffer->data_size;
-    } else {
-      DosPostEventSem( buffer->evt_read_data );
+        if( buffer->data_size < 0 ) {
+          break;
+        }
+        if( buffer->data_size < prefill ) {
+          buffer->eof = 1;
+        }
+
+        buffer->data_rest = buffer->data_size;
+        buffer->data_tail = advance( buffer, buffer->data_head, buffer->data_size );
+        buffer->free      = buffer->size - buffer->data_size;
+      }
     }
 
     if(( buffer->tid = _beginthread( buffer_read_ahead, NULL, 65535, x )) == -1 ) {
       break;
     }
 
-    // Boosts of the priority of the read-ahead thread.
-    buffer->boosted = 1;
-    DosSetPriority( PRTYS_THREAD, PRTYC_TIMECRITICAL, 0, buffer->tid );
+    if( buffer->free && !buffer->eof ) {
+      // If buffer is not filled up, posts a notify to the read-ahead thread.
+      DosPostEventSem( buffer->evt_read_data );
+    }
+    if( buffer->data_size == 0 ) {
+      // If buffer is empty, boosts of the priority of the read-ahead thread.
+      buffer_boost_priority( buffer );
+    }
 
-    // The first post of this event means that the thread has started.
-    DosWaitEventSem( buffer->evt_have_data, SEM_INDEFINITE_WAIT );
     return;
   }
 
@@ -215,37 +259,38 @@ void buffer_terminate( XFILE* x )
 {
   XBUFFER* buffer = x->buffer;
 
-  if( buffer ) {
+  if( buffer )
+  {
+    // If the thread is started, set request about its termination.
     if( buffer->tid != -1 ) {
-      // If the thread is started, set request about its termination.
-      // At end the thread itself will clear the buffer.
       DosRequestMutexSem( buffer->mtx_access, SEM_INDEFINITE_WAIT );
       buffer->end = 1;
       DosPostEventSem( buffer->evt_read_data );
       DosReleaseMutexSem( buffer->mtx_access );
-    } else {
-      // Cleanups.
-      if( buffer->mtx_access ) {
-        DosCloseMutexSem( buffer->mtx_access );
-      }
-      if( buffer->mtx_file ) {
-        DosCloseMutexSem( buffer->mtx_file );
-      }
-      if( buffer->evt_read_data ) {
-        DosCloseEventSem( buffer->evt_read_data );
-      }
-      if( buffer->evt_have_data ) {
-        DosCloseEventSem( buffer->evt_have_data );
-      }
-      if( buffer->head ) {
-        free( buffer->head );
-      }
-      if( x->protocol ) {
-        x->protocol->clean( x );
-      }
-      free( buffer );
-      free( x );
+      DosWaitThread((PULONG)&buffer->tid, DCWW_WAIT );
     }
+
+    // Cleanups.
+    if( buffer->mtx_access ) {
+      DosCloseMutexSem( buffer->mtx_access );
+    }
+    if( buffer->mtx_file ) {
+      DosCloseMutexSem( buffer->mtx_file );
+    }
+    if( buffer->evt_read_data ) {
+      DosCloseEventSem( buffer->evt_read_data );
+    }
+    if( buffer->evt_have_data ) {
+      DosCloseEventSem( buffer->evt_have_data );
+    }
+    if( buffer->head ) {
+      free( buffer->head );
+    }
+    if( x->protocol ) {
+      x->protocol->clean( x );
+    }
+    free( buffer );
+    free( x );
   }
 }
 
@@ -298,6 +343,13 @@ buffer_read( XFILE* x, char* result, unsigned int count )
         DosPostEventSem( buffer->evt_read_data );
       }
 
+      if( !buffer->boosted &&  buffer->data_rest < buffer->size * BUFFER_IS_HUNGRY / 100
+                           && !buffer->error && !buffer->eof )
+      {
+        // If buffer is hungry, boosts of the priority of the read-ahead thread.
+        buffer_boost_priority( buffer );
+      }
+
       DosReleaseMutexSem( buffer->mtx_access );
     }
     else
@@ -318,8 +370,7 @@ buffer_read( XFILE* x, char* result, unsigned int count )
       DosPostEventSem ( buffer->evt_read_data );
 
       // Boosts of the priority of the read-ahead thread.
-      buffer->boosted = 1;
-      DosSetPriority( PRTYS_THREAD, PRTYC_TIMECRITICAL, 0, buffer->tid );
+      buffer_boost_priority( buffer );
       DosReleaseMutexSem( buffer->mtx_access );
 
       // Wait a next portion of data.
@@ -444,13 +495,38 @@ buffer_seek( XFILE* x, long offset, int origin )
       DosPostEventSem( buffer->evt_read_data );
 
       // Boosts of the priority of the read-ahead thread.
-      buffer->boosted = 1;
-      DosSetPriority( PRTYS_THREAD, PRTYC_TIMECRITICAL, 0, buffer->tid );
+      buffer_boost_priority( buffer );
     }
     DosReleaseMutexSem( buffer->mtx_file   );
   }
 
   DosReleaseMutexSem( buffer->mtx_access );
   return result;
+}
+
+/* Lengthens or cuts off the file to the length specified by size.
+   You must open the file in a mode that permits writing. Adds null
+   characters when it lengthens the file. When cuts off the file, it
+   erases all data from the end of the shortened file to the end
+   of the original file. */
+int
+buffer_truncate( XFILE* x, long size )
+{
+  XBUFFER* buffer = x->buffer;
+  int rc;
+
+  if( !buffer ) {
+    return x->protocol->chsize( x, size );
+  }
+
+  DosRequestMutexSem( buffer->mtx_file,   SEM_INDEFINITE_WAIT );
+  DosRequestMutexSem( buffer->mtx_access, SEM_INDEFINITE_WAIT );
+
+  rc = x->protocol->chsize( x, size );
+  buffer_reset( x );
+
+  DosReleaseMutexSem( buffer->mtx_access );
+  DosReleaseMutexSem( buffer->mtx_file   );
+  return rc;
 }
 

@@ -89,6 +89,7 @@
 #define IDM_M_PLSAVE        556
 #define IDM_M_ADDPMBOOK     557
 #define IDM_M_CURRENT_PL    558
+#define IDM_M_ADDPLBOOK_TIME 559
 #define IDM_M_LOAD          560
 #define IDM_M_LOADFILE      600
 #define IDM_M_URL           601
@@ -283,6 +284,8 @@
 #define SB_BUFFERSIZE      1380
 #define ST_KB              1381
 #define CB_FILLBUFFER      1382
+#define SB_FILLBUFFER      1383
+#define ST_FILLBUFFER      1384
 #define GB_REMOTE          1390
 #define ST_PIPE            1391
 #define EF_PIPE            1392
