@@ -6,6 +6,10 @@
 PM123's History<p>
 <b>PM123 1.40 (alpha 3)<b><p>
 <ul>
+<li>Gapless playback in playlist mode.
+    Subsequent songs are prefetched before the current song has finally ended.
+    The output and the filter plug-ins are no longer reinitialized between the
+    songs.
 <li>New plug-in interface with much more flexibility to buffer handling and
     filter plug-ins. This is required for future plug-ins like digital room
     correction.
@@ -20,7 +24,7 @@ PM123's History<p>
 <li>Decoder plug-ins may extend the Load/Add context menu.
     Moved the load track function into the CDDAPLAY plug-in.
 <li>Playlists, Playlist manager, Bookmarks are now basically the same.
-    This offers plenty much new features including nested playlists and native
+    This offers plenty much of new features including nested playlists and native
     references to entire folders.
 </ul>
 <p>
@@ -30,10 +34,10 @@ PM123's History<p>
 <li>Realeq does no longer delay the playback and cut the last samples.
     It operates now as zero-phase filter.
 <li>Enabling/disabling the EQ does no longer cause the playback to jump.
-<li>Changing the FIR order does no longer cause glitches.
+<li>Changing the FIR order does no longer cause major glitches.
 <li>The maximum FIR order is now 16384, giving very accurate results.
-<li>The maximum FFT size is now 32768.
-<li>The MMX and FFT convolution is finally removed. Both are outperformed by
+    The maximum FFT size is now 32768.
+<li>The MMX and ordinary convolution is finally removed. Both are outperformed by
     the new FFT convolution. This will cause low CPU usage even
     with large FIR orders.
 <li>Save the slider settings by value in REALEQ.INI. Now the restore do no
@@ -41,6 +45,8 @@ PM123's History<p>
     are kept after restart.
 <li>Added master gain and mute controls.
 <li>Added group delay equalization.
+    (Very powerful, e.g. for compensation of delay of resonances like with
+    speakers with vented enclosures.)
 <li>Scale FFT plansize and FIR order with the sampling rate.
 </ul>
 <p>
@@ -64,6 +70,12 @@ PM123's History<p>
 <p>
 <ul>
 <li>New plug-in to play immediately recorded streams.
+</ul>
+<p>
+<b>ANALYZER</b>
+<p>
+<ul>
+<li>Change the analyzer only by double-click to avoid accidential switches.
 </ul>
 <p>
 
