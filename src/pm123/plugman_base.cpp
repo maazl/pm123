@@ -696,13 +696,12 @@ PROXYFUNCIMP(ULONG DLLENTRY, CL_DECODER_PROXY_1)
 proxy_1_decoder_fileinfo( CL_DECODER_PROXY_1* op, const char* filename, DECODER_INFO2 *info )
 { DEBUGLOG(("proxy_1_decoder_fileinfo(%p, %s, %p{%u,%p,%p,%p})\n", op, filename, info, info->size, info->format, info->tech, info->meta));
 
-  DECODER_INFO old_info;
+  DECODER_INFO old_info = { sizeof old_info };
   CDDA_REGION_INFO cd_info;
   ULONG rc;
   char buf[300];
 
   // purge the structure because of buggy plug-ins
-  memset(&old_info, 0, sizeof old_info);
   info->tech->filesize   = -1;
 
   if (scdparams(&cd_info, filename))
@@ -751,7 +750,11 @@ proxy_1_decoder_fileinfo( CL_DECODER_PROXY_1* op, const char* filename, DECODER_
     // this part of the structure is binary compatible
     memcpy(&info->meta->title, old_info.title, offsetof(META_INFO, track) - offsetof(META_INFO, title));
     info->meta->track      = -1;
-    info->meta_write      = op->decoder_editmeta && old_info.saveinfo;
+    info->meta->track_gain = old_info.track_gain; 
+    info->meta->track_peak = old_info.track_peak; 
+    info->meta->album_gain = old_info.album_gain; 
+    info->meta->album_peak = old_info.album_peak; 
+    info->meta_write       = op->decoder_editmeta && old_info.saveinfo;
   }
   return rc;
 }
@@ -985,8 +988,12 @@ proxy_1_output_command( CL_OUTPUT_PROXY_1* op, void* a, ULONG msg, OUTPUT_PARAMS
       memcpy(dinfo.title, dinfo2.meta->title, offsetof(META_INFO, track) - offsetof(META_INFO, title));
       if (dinfo2.meta->track)
         sprintf(dinfo.track, "%i", dinfo2.meta->track);
-      dinfo.codepage = ch_default();
-      dinfo.filesize = (int)dinfo2.tech->filesize;
+      dinfo.codepage   = ch_default();
+      dinfo.filesize   = (int)dinfo2.tech->filesize;
+      dinfo.track_gain = dinfo2.meta->track_gain;
+      dinfo.track_peak = dinfo2.meta->track_peak;
+      dinfo.album_gain = dinfo2.meta->album_gain;
+      dinfo.album_peak = dinfo2.meta->album_peak;
       params.info = &dinfo;
       params.hwnd                  = op->voutput_hwnd;
       break;

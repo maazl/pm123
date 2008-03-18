@@ -886,7 +886,6 @@ plg_win_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
       break;
 
     case WM_BUTTON1DBLCLK:
-    case WM_BUTTON1CLICK:
       if( ++cfg.default_mode > SHOW_DISABLED ) {
         cfg.default_mode = SHOW_ANALYZER;
       }

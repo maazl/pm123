@@ -225,7 +225,7 @@ static BMPBUTTON btn_pl =
   POS_T_PL,       /* Button position for tiny mode.                 */
   0,              /* Button state.                                  */
   FALSE,          /* Is this a sticky button.                       */
-  "Opens/closes playlist window" };
+  "Opens/hides playlist window" };
 
 static BMPBUTTON btn_fload =
 { NULLHANDLE,     /* Button window handle.                          */

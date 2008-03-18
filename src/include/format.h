@@ -64,6 +64,10 @@ typedef struct
   char comment[128];
   char genre[128];
   int  track;          /* <0 = unknown */
+  float track_gain;    /* Defines Replay Gain values as specified at */
+  float track_peak;    /* http://www.replaygain.org/ */
+  float album_gain;
+  float album_peak;
 } META_INFO;
 
 #pragma pack()

@@ -669,6 +669,14 @@ decoder_fileinfo( const char* filename, DECODER_INFO* info )
 
   plg_close_file( w );
   decoder_uninit( w );
+  DEBUGLOG(("mpg123:decoder_fileinfo: %i {%i, {,%i,%i,%i,%i}, %i, %i,..., %s,\n"
+            "\t%s, %s, %s, %s, %s, %s, %s, %s\n"
+            "\t%i, %x, %i, %i, %f, %f, %f, %f}\n", rc,
+    info->size, info->format.samplerate, info->format.channels, info->format.bits, info->format.format,
+    info->songlength, info->junklength, info->tech_info,
+    info->title, info->artist, info->album, info->year, info->comment, info->genre, info->track, info->copyright,
+    info->codepage, info->haveinfo, info->saveinfo, info->filesize,
+    info->track_gain, info->track_peak, info->album_gain, info->album_peak));
   return rc;
 }
 
@@ -835,11 +843,13 @@ decoder_saveinfo( const char* filename, const DECODER_INFO* info )
 
   // Replace file.
   if( remove( filename ) == 0 ) {
+    DEBUGLOG(("mpg123:decoder_saveinfo: deleted %s, replacing by %s\n", filename, savename));
     if( rename( savename, filename ) != 0 ) {
       rc = errno;
     }
   } else {
     rc = errno;
+    DEBUGLOG(("mpg123:decoder_saveinfo: failed to delete %s (rc = %i), rollback %s\n", filename, errno, savename));
     remove( savename );
   }
 
