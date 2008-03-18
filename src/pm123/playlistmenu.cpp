@@ -184,8 +184,11 @@ void PlaylistMenu::CreateSubItems(MapEntry* mapp)
       mi.afStyle     = MIS_TEXT;
       mi.afAttribute = 0;
       mi.hwndSubMenu = NULLHANDLE;
+      // Invalid?
+      if (pp->GetStatus() <= STA_Invalid)
+      { mi.afAttribute |= MIA_DISABLED;
       // with submenu?
-      if ((mapp->Flags & Recursive) && (pp->GetFlags() & Playable::Enumerable))
+      } else if ((mapp->Flags & Recursive) && (pp->GetFlags() & Playable::Enumerable))
       { DEBUGLOG(("PlaylistMenu::CreateSubMenu: submenu!\n"));
         pp->EnsureInfoAsync(Playable::IF_Other); // Prefetch nested playlist content
         // Create submenu
