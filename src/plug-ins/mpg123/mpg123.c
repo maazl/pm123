@@ -1092,6 +1092,8 @@ id3_page_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
         WinSendDlgItemMsg( hwnd, CB_ID3_GENRE, LM_INSERTITEM,
                            MPFROMSHORT( LIT_END ), MPFROMP( genres[i] ));
       }
+      WinSendDlgItemMsg( hwnd, CB_ID3_GENRE, LM_INSERTITEM,
+                         MPFROMSHORT( LIT_END ), MPFROMP( "" ));
       break;
     }
 

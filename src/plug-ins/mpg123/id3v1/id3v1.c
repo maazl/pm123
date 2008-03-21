@@ -224,7 +224,7 @@ id3v1_get_string( ID3V1_TAG* tag, int type, char* result, int size )
       case ID3V1_GENRE:
         if( tag->genre <= GENRE_LARGEST ) {
           safecopy( result, genres[ tag->genre ], size );
-        } else
+        } else if ( tag->genre != 0xFF )
           snprintf( result, size, "#%u", tag->genre );
         break;
     }
@@ -274,15 +274,14 @@ id3v1_set_string( ID3V1_TAG* tag, int type, const char* source )
 
       case ID3V1_GENRE:
       { int i, l;
-        if (sscanf(source, "#%i%n", &i, &l) == 1 && l == strlen(source))
+        if (*source == 0)
+          tag->genre = 0xFF;
+        else if (sscanf(source, "#%i%n", &i, &l) == 1 && l == strlen(source))
           tag->genre = i;
         else
           for( tag->genre = 0; tag->genre <= GENRE_LARGEST; tag->genre++ ) {
             if( stricmp( source, genres[ tag->genre ] ) == 0 ) {
               break;
-            }
-            if( tag->genre > GENRE_LARGEST ) {
-              tag->genre = 0xFF;
             }
           }
         break;

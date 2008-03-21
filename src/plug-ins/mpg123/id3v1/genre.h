@@ -27,7 +27,7 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-static char *genres[] = {
+static const char *genres[] = {
 /*   0 */  "Blues",
 /*   1 */  "Classic Rock",
 /*   2 */  "Country",
@@ -177,4 +177,4 @@ static char *genres[] = {
 /* 146 */  "JPop",
 /* 147 */  "SynthPop"
 };
-#define GENRE_LARGEST (sizeof genres / sizeof *genres)
+#define GENRE_LARGEST (sizeof genres / sizeof *genres - 1)
