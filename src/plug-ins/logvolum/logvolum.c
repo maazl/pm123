@@ -92,9 +92,11 @@ static int DLLENTRY
 request_buffer( void* f, const FORMAT_INFO2* format, short** buf )
 { int r;
   DEBUGLOG(("logvolume:request_buffer(%p, %p, %p)\n", f, format, buf));
-  last_chan = format->channels;
-  r = (*f_request_buffer)(f_a, format, buf);
-  last_buf = *buf;
+  if (buf)
+  { last_chan = format->channels;
+    r = (*f_request_buffer)(f_a, format, buf);
+    last_buf = *buf;
+  }
   return r;
 }
 
