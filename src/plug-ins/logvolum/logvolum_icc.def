@@ -8,3 +8,4 @@ EXPORTS
    filter_update       @3
 
    plugin_query        @10
+   plugin_configure    @11

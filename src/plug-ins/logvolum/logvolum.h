@@ -30,6 +30,9 @@
 #ifndef LOGVOLUME_H
 #define LOGVOLUME_H
 
+#define DLG_CONFIGURE 1
+#define ID_NULL       1000
+#define CB_SOFTVOLUM  1010
 
 #endif
 

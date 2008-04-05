@@ -7,3 +7,4 @@ EXPORT filter_uninit       .2
 EXPORT filter_update       .3
 
 EXPORT plugin_query        .10
+EXPORT plugin_configure    .11
