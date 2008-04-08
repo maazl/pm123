@@ -173,7 +173,7 @@ WriteRules: PROCEDURE EXPOSE opt. rule.
             ITERATE
          /* check wether we have a rule */
          symname = SymName(STRIP(SUBSTR(data, 1, p-1)))
-         IF \VAR(symname) THEN
+         IF SYMBOL(symname) \= 'VAR' THEN
             ITERATE
          /* parse dependencies */
          q = VERIFY(data, "2009"x,, p+1)
@@ -219,7 +219,7 @@ WriteRules: PROCEDURE EXPOSE opt. rule.
 DoFile: PROCEDURE EXPOSE opt. rule.
    /* Do nothing if the file is already known */
    symname = SymName(ARG(1))
-   IF VAR(symname) THEN
+   IF SYMBOL(symname) = 'VAR' THEN
       RETURN ''
    CALL VALUE symname, ''
    /* remember list of rules */
