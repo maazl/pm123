@@ -58,6 +58,7 @@ static void  DLLENTRYP(f_commit_buffer) ( void* a, int len, T_TIME posmarker );
 static void* f_a;
 
 // Configuration
+#ifdef WITH_SOFT_VOLUME
 typedef struct
 { BOOL  use_software;
 } configuration;
@@ -70,6 +71,7 @@ static configuration cur_cfg;
 // Current state
 static short* last_buf;
 static int    last_chan;
+#endif
 static double last_volume;
  
 
@@ -80,14 +82,19 @@ filter_command( void* f, ULONG msg, OUTPUT_PARAMS2* info )
   {case OUTPUT_VOLUME:
     // This is no logarithm, but it is similar to it in a reasonable range
     // and it keep the zero value at zero.
+    #ifdef WITH_SOFT_VOLUME
     last_volume = info->volume / (scalefactor + 1. - scalefactor*info->volume);
     DEBUGLOG(("logvolume:filter_command vol=%f\n", last_volume));
     info->volume = cur_cfg.use_software ? 1. : last_volume;
+    #else
+    info->volume /= (scalefactor + 1. - scalefactor*info->volume);
+    #endif
     break;
   }
   return (*f_output_command)( f_a, msg, info );
 }
 
+#ifdef WITH_SOFT_VOLUME
 static int DLLENTRY
 request_buffer( void* f, const FORMAT_INFO2* format, short** buf )
 { int r;
@@ -116,6 +123,7 @@ commit_buffer( void* f, int len, T_TIME posmarker )
   }
   (*f_commit_buffer)(f_a, len, posmarker);
 }
+#endif
 
 
 /********** Entry point: Initialize
@@ -126,16 +134,22 @@ filter_init( void** F, FILTER_PARAMS2* params )
 
   *F = NULL; // we have no instance data
 
+  #ifdef WITH_SOFT_VOLUME
   cur_cfg = cfg;
+  #endif
 
   f_output_command = params->output_command;
+  #ifdef WITH_SOFT_VOLUME
   f_request_buffer = params->output_request_buffer;
   f_commit_buffer  = params->output_commit_buffer;
+  #endif
   f_a              = params->a;
   
   params->output_command        = &filter_command;
+  #ifdef WITH_SOFT_VOLUME
   params->output_request_buffer = &request_buffer;
   params->output_commit_buffer  = &commit_buffer;
+  #endif
 
   return 0;
 }
@@ -158,6 +172,7 @@ filter_uninit( void* F )
 
 
 /********** GUI stuff ******************************************************/
+#ifdef WITH_SOFT_VOLUME
 static void
 save_ini( void )
 {
@@ -206,15 +221,18 @@ cfg_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
 
   return WinDefDlgProc( hwnd, msg, mp1, mp2 );
 }
+#endif
 
 /* Configure plug-in. */
 int DLLENTRY
 plugin_configure( HWND howner, HMODULE module )
 {
+  #ifdef WITH_SOFT_VOLUME
   HWND hwnd = WinLoadDlg( HWND_DESKTOP, howner, cfg_dlg_proc, module, DLG_CONFIGURE, NULL );
   do_warpsans( hwnd );
   WinProcessDlg( hwnd );
   WinDestroyWindow( hwnd );
+  #endif
 
   return 0;
 }
@@ -226,10 +244,16 @@ plugin_query( PLUGIN_QUERYPARAM *param )
   param->type         = PLUGIN_FILTER;
   param->author       = "Marcel Mller";
   param->desc         = VERSION;
+  #ifdef WITH_SOFT_VOLUME
   param->configurable = TRUE;
+  #else
+  param->configurable = FALSE;
+  #endif
   param->interface    = FILTER_PLUGIN_LEVEL;
 
+  #ifdef WITH_SOFT_VOLUME
   load_ini();
+  #endif
 
   return 0;
 }

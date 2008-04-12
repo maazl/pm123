@@ -12,11 +12,15 @@ TARGET   = logvolum.dll
 OBJECTS  = logvolum$(CO)
 LIBS     = $(TOPDIR)\utils\utilfct$(LBO)
 DEF      = logvolum$(LDEF_SUFFX)
+!ifdef WITH_SOFT_VOLUME
 RESOURCE = logvolum$(RES)
+!endif
 
 logvolum.dll: $(OBJECTS) $(DEF) $(RESOURCE)
 	$(CL) $(LFLAGS) $(LFLAGS_OUT)$@ $(LOBJ_PREFX)$(OBJECTS)$(LOBJ_SUFFX) $(LLIB_PREFX)$(LIBS)$(LLIB_SUFFX) $(LDEF_PREFX)$(DEF)
+!ifdef WITH_SOFT_VOLUME
 	$(RC) $(RFLAGS) $(RESOURCE) $@ > nul
+!endif
 	$(POSTLINKCMD)
 
 clean: $(MDUMMY)

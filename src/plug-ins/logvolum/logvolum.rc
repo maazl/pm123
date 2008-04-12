@@ -26,6 +26,7 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#ifdef WITH_SOFT_VOLUME
 #include <os2.h>
 #include "logvolum.h"
 
@@ -41,3 +42,4 @@ BEGIN
 		PUSHBUTTON "~Cancel", DID_CANCEL, 48, 4, 32, 12
 	END
 END
+#endif
