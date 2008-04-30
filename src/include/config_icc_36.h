@@ -18,6 +18,7 @@ void _CRT_term( void );
 #define INLINE    _Inline
 #define DLLENTRY  _System
 #define DLLENTRYP(sym) (*DLLENTRY sym)
+#define DLLENTRYPF() (*DLLENTRY)
 #define DLLENTRYP2(sym) (DLLENTRY *sym)
 
 #define INIT_ATTRIBUTE

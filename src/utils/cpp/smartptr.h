@@ -1,5 +1,5 @@
 /*
- * Copyright 2007-2007 M.Mueller
+ * Copyright 2007-2008 M.Mueller
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -26,17 +26,12 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-/* This is a very simple and highly efficient reference counted smart pointer
- * implementation.
- * It relies on the fact that all managed objects must derive from ref_ctbl.
- * The implementation is thread-safe and lock-free.
- */
-
 #ifndef CPP_SMARTPTR_H
 #define CPP_SMARTPTR_H
 
 #include <config.h>
 #include <stdlib.h>
+#include <cpp/cpputil.h>
 
 #include <debuglog.h>
 
@@ -51,16 +46,40 @@ class sco_ptr
   // Store a new object under control or initialize a NULL pointer.
   sco_ptr(T* ptr = NULL) : Ptr(ptr)          { DEBUGLOG2(("sco_ptr(%p)::sco_ptr(%p)\n", this, ptr)); };
   // Destructor, frees the stored object.
-  ~sco_ptr()                                 { DEBUGLOG2(("sco_ptr(%p)::~sco_ptr(): %p\n", this, Ptr)); delete Ptr; }
+  ~sco_ptr();
   // Basic operators
-  T& operator*()  const                      { return *Ptr; }
-  T* operator->() const                      { return Ptr; }
-  sco_ptr<T>& operator=(T* ptr)              { DEBUGLOG2(("sco_ptr(%p)::operator=(%p): %p\n", this, ptr, Ptr)); delete Ptr; Ptr = ptr; return *this; }
+  T* get() const                             { return Ptr; }
+  T& operator*()  const                      { ASSERT(Ptr); return *Ptr; }
+  T* operator->() const                      { ASSERT(Ptr); return Ptr; }
+  sco_ptr<T>& operator=(T* ptr);
   // Swap two pointers
   void swap(sco_ptr<T>& r);
-  bool operator==(const T* ptr) const        { return Ptr == ptr; }
-  bool operator!=(const T* ptr) const        { return Ptr != ptr; }
+  // Take object with ownership from the sco_ptr
+  T* detach()                                { return xchg(Ptr, (T*)NULL); }
+  // Comparsion
+  friend bool operator==(const sco_ptr<T>& l, const sco_ptr<T>& r) { return l.Ptr == r.Ptr; }
+  friend bool operator==(const sco_ptr<T>& sco, const T* ptr) { return sco.Ptr == ptr; }
+  friend bool operator==(const T* ptr, const sco_ptr<T>& sco) { return sco.Ptr == ptr; }
+  friend bool operator!=(const sco_ptr<T>& l, const sco_ptr<T>& r) { return l.Ptr != r.Ptr; }
+  friend bool operator!=(const sco_ptr<T>& sco, const T* ptr) { return sco.Ptr != ptr; }
+  friend bool operator!=(const T* ptr, const sco_ptr<T>& sco) { return sco.Ptr != ptr; }
 };
+
+// IBM C++ work around:
+// These functions must not be declared in the class to avoid type dependency problems.
+template <class T>
+inline sco_ptr<T>::~sco_ptr()
+{ DEBUGLOG2(("sco_ptr(%p)::~sco_ptr(): %p\n", this, Ptr));
+  delete Ptr;
+}
+
+template <class T>
+inline sco_ptr<T>& sco_ptr<T>::operator=(T* ptr)
+{ DEBUGLOG2(("sco_ptr(%p)::operator=(%p): %p\n", this, ptr, Ptr));
+  delete Ptr;
+  Ptr = ptr;
+  return *this;
+}
 
 template <class T>
 inline void sco_ptr<T>::swap(sco_ptr<T>& r)
@@ -118,40 +137,80 @@ inline void int_ptr_base::swap(int_ptr_base& r)
   r.Ptr = tmp;
 }
 
-/* Reference counted smart pointer class for objects of type T.
+/* This is a very simple and highly efficient reference counted smart pointer
+ * implementation for objects of type T.
  * This class adds the type specific part to int_ptr_base.
  * The class is similar to boost::intrusive_ptr but works on very old C++ compilers. 
+ * It relies on the fact that all managed objects must derive from Iref_Count.
+ * The implementation is thread-safe and lock-free.
  */
 template <class T>
 class int_ptr : protected int_ptr_base
 {public:
   // Store a new object under reference count control or initialize a NULL pointer.
-  int_ptr(T* ptr = NULL) : int_ptr_base(ptr) {};
+  int_ptr(T* ptr = NULL);
   // Generated copy constructor should be sufficient.
   // Destructor, frees the stored object if this is the last reference.
-  ~int_ptr()                                 { delete (T*)unassign(); }
+  ~int_ptr();
   // Basic operators
+  T* get()        const                      { return (T*)Ptr; } 
   operator T*()   const                      { return (T*)Ptr; }
-  T& operator*()  const                      { return *(T*)Ptr; }
-  T* operator->() const                      { return (T*)Ptr; }
-  int_ptr<T>& operator=(T* ptr)              { delete (T*)reassign(ptr);   return *this; }
-  int_ptr<T>& operator=(const int_ptr<T>& r) { delete (T*)reassign(r.Ptr); return *this; }
+  T& operator*()  const                      { ASSERT(Ptr); return *(T*)Ptr; }
+  T* operator->() const                      { ASSERT(Ptr); return (T*)Ptr; }
+  int_ptr<T>& operator=(T* ptr);
+  int_ptr<T>& operator=(const int_ptr<T>& r);
   // Special function to assing only valid objects.
   // This function rejects the assignment if the assigned object is not owned by another instance
   // of int_ptr_base. This is particulary useful to avoid the assignment of objects that are about
   // to die. ptr is like treated as weak pointer to the object. But in contrast to real weak pointers
-  // the destructor must ensure that ptr is invalidated before the object dies completely.
+  // the destructor of the referenced object must ensure that ptr is invalidated before the object dies completely.
   // Of course, this has to been done synchronized with the call to assign_weak.
   // The time window between the reference count reaching zero and the invalidation of ptr by the destructor
   // is handled by this function the way that the current instance will be set to NULL in this case.
   // This function must not be used to assing a newly constructed object because this will never be deleted.
-  int_ptr<T>& assign_weak(T* ptr)            { delete (T*)reassign_weak(ptr); return *this; }
+  int_ptr<T>& assign_weak(T* ptr);
   void        swap(int_ptr<T>& r)            { int_ptr_base::swap(r); }
   // manual resource management
   T*          toCptr()                       { T* r = (T*)Ptr; Ptr = NULL; return r; }
-  int_ptr<T>& fromCptr(T* ptr)               { delete (T*)unassign(); Ptr = ptr; return *this; };
+  int_ptr<T>& fromCptr(T* ptr);
 };
 
+// IBM C++ work around:
+// These functions must not be declared in the class to avoid type dependency problems.
+template <class T>
+inline int_ptr<T>::int_ptr(T* ptr)
+: int_ptr_base(ptr)
+{}
+
+template <class T>
+inline int_ptr<T>::~int_ptr()
+{ delete (T*)unassign();
+}
+
+template <class T>
+inline int_ptr<T>& int_ptr<T>::operator=(T* ptr)
+{ delete (T*)reassign(ptr);
+  return *this;
+}
+
+template <class T>
+inline int_ptr<T>& int_ptr<T>::operator=(const int_ptr<T>& r)
+{ delete (T*)reassign(r.Ptr);
+  return *this;
+}
+
+template <class T>
+inline int_ptr<T>& int_ptr<T>::assign_weak(T* ptr)
+{ delete (T*)reassign_weak(ptr);
+  return *this;
+}
+
+template <class T>
+inline int_ptr<T>& int_ptr<T>::fromCptr(T* ptr)
+{ delete (T*)unassign();
+  Ptr = ptr;
+  return *this;
+};
 
 /* Scoped array class, non-copyable */
 template <class T>

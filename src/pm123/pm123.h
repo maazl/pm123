@@ -1,8 +1,8 @@
 /*
  * Copyright 1997-2003 Samuel Audet <guardia@step.polymtl.ca>
  *                     Taneli Lepp„ <rosmo@sektori.com>
- *
  * Copyright 2004-2006 Dmitry A.Steklenev <glass@ptv.ru>
+ * Copyright 2007-2008 M.Mueller
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -38,19 +38,28 @@
 #include "properties.h"
 #include <os2.h>
 
-#include "playable.h"
+#include "playablecollection.h"
+
+
+#define  AMP_REFRESH_CONTROLS   ( WM_USER + 1000 ) /* 0,         0                            */
+#define  AMP_PAINT              ( WM_USER + 1001 ) /* options,   0                            */
+#define  AMP_LOAD               ( WM_USER + 1002 )
+#define  AMP_DISPLAY_MESSAGE    ( WM_USER + 1013 ) /* message,   TRUE (info) or FALSE (error) */
+#define  AMP_DISPLAY_MODE       ( WM_USER + 1014 ) /* 0,         0                            */
+#define  AMP_QUERY_STRING       ( WM_USER + 1015 ) /* buffer,    size and type                */
+#define  AMP_INFO_EDIT          ( WM_USER + 1016 )
+#define  AMP_CTRL_EVENT         ( WM_USER + 1020 )
+#define  AMP_CTRL_EVENT_CB      ( WM_USER + 1021 )
+#define  AMP_REFRESH_ACCEL      ( WM_USER + 1022 )
+
 
 /* Constructs a information text for currently loaded file. */
 void  amp_display_filename( void );
 /* Switches to the next text displaying mode. */
 void  amp_display_next_mode( void );
 
-void  DLLENTRY pm123_control( int index, void* param );
-
-int   DLLENTRY pm123_getstring( int index, int subindex, size_t bufsize, char* buf );
-
 /* Loads *anything* to player. */
-void  amp_load_playable( const char *url, double start, int options );
+void  amp_load_playable( const PlayableSlice& ps, int options );
 /* amp_load_playable options */
 #define AMP_LOAD_NOT_PLAY      0x0001 // Load a playable object, but do not start playback automatically
 #define AMP_LOAD_NOT_RECALL    0x0002 // Load a playable object, but do not add an entry into the list of recent files
@@ -109,10 +118,6 @@ ULONG DLLENTRY amp_file_wizzard( HWND owner, const char* title, DECODER_WIZZARD_
 ULONG DLLENTRY amp_url_wizzard( HWND owner, const char* title, DECODER_WIZZARD_CALLBACK callback, void* param );
 
 BOOL  amp_load_eq_file( char* filename, float* gains, BOOL* mutes, float* preamp );
-
-/* visualize errors from anywhere */
-extern void DLLENTRY amp_display_info ( const char* );
-extern void DLLENTRY amp_display_error( const char* );
 
 
 /* Saves a playlist */

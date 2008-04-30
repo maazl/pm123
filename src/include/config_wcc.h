@@ -7,6 +7,7 @@
 #define INLINE    __inline
 #define DLLENTRY  _System
 #define DLLENTRYP(sym) (DLLENTRY *sym)
+#define DLLENTRYPF() (DLLENTRY *)
 #define DLLENTRYP2(sym) (DLLENTRY *sym)
 
 #define INIT_ATTRIBUTE

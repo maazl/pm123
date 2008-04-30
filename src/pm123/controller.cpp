@@ -36,204 +36,7 @@
 #include <cpp/mutex.h>
 #include <cpp/xstring.h>
 
-
-/****************************************************************************
-*
-*  class SongIterator
-*
-****************************************************************************/
-
-const SongIterator::Offsets SongIterator::ZeroOffsets(1, 0);
-
-
-SongIterator::SongIterator()
-: Callstack(8)
-{ DEBUGLOG(("SongIterator(%p)::SongIterator()\n", this));
-  // Always create a top level entry for Current.
-  Callstack.append() = new CallstackEntry();
-}
-
-SongIterator::SongIterator(const SongIterator& r)
-: Root(r.Root),
-  Callstack(r.Callstack.size() > 4 ? r.Callstack.size() + 4 : 8),
-  Exclude(r.Exclude)
-{ DEBUGLOG(("SongIterator(%p)::SongIterator(&%p)\n", this, &r));
-  // copy callstack
-  for (const CallstackEntry*const* ppce = r.Callstack.begin(); ppce != r.Callstack.end(); ++ppce)
-    Callstack.append() = new CallstackEntry(**ppce);
-}
-
-SongIterator::~SongIterator()
-{ DEBUGLOG(("SongIterator(%p)::~SongIterator()\n", this));
-  // destroy callstack entries
-  for (CallstackEntry** p = Callstack.begin(); p != Callstack.end(); ++p)
-    delete *p;
-}
-
-void SongIterator::Swap(SongIterator& r)
-{ Root.swap(r.Root);
-  Callstack.swap(r.Callstack);
-  Exclude.swap(r.Exclude);
-}
-
-/*#ifdef DEBUG
-void SongIterator::DebugDump() const
-{ DEBUGLOG(("SongIterator(%p{%p, {%u }, {%u }})::DebugDump()\n", this, &*Root, Callstack.size(), Exclude.size()));
-  for (const CallstackEntry*const* ppce = Callstack.begin(); ppce != Callstack.end(); ++ppce)
-    DEBUGLOG(("SongIterator::DebugDump %p{%i, %g, %p}\n", *ppce, (*ppce)->Index, (*ppce)->Offset, &*(*ppce)->Item));
-  Exclude.DebugDump();
-}
-#endif*/
-
-void SongIterator::SetRoot(PlayableCollection* pc)
-{ Root = pc;
-  Reset();
-}
-
-PlayableInstance* SongIterator::GetCurrent() const
-{ return Callstack[Callstack.size()-1]->Item;
-}
-
-SongIterator::Offsets SongIterator::GetOffset() const
-{ return *Callstack[Callstack.size()-1];
-}
-
-void SongIterator::Enter()
-{ DEBUGLOG(("SongIterator::Enter()\n"));
-  ASSERT(GetCurrent() != NULL);
-  ASSERT(GetCurrent()->GetPlayable()->GetFlags() & Playable::Enumerable);
-  Playable* pp = GetCurrent()->GetPlayable();
-  Exclude.get(*pp) = pp;
-  Callstack.append() = new CallstackEntry();
-}
-
-void SongIterator::Leave()
-{ DEBUGLOG(("SongIterator::Leave()\n"));
-  ASSERT(Callstack.size() > 1); // Can't remove the last item.
-  delete Callstack.erase(Callstack.end()-1);
-  RASSERT(Exclude.erase(*GetCurrent()->GetPlayable()));
-}
-
-bool SongIterator::SkipQ()
-{ return IsInCallstack(GetCurrent()->GetPlayable());
-}
-
-PlayableCollection* SongIterator::GetList() const
-{ return Callstack.size() > 1 ? (PlayableCollection*)Callstack[Callstack.size()-2]->Item->GetPlayable() : &*Root;
-}
-
-SongIterator::Offsets SongIterator::TechFromPlayable(PlayableCollection* pc)
-{ Mutex::Lock lck(pc->Mtx);
-  const PlayableCollection::CollectionInfo& ci = pc->GetCollectionInfo(Exclude);
-  return Offsets(ci.Items, ci.Songlength);
-} 
-SongIterator::Offsets SongIterator::TechFromPlayable(Playable* pp)
-{ if (pp->GetFlags() & Playable::Enumerable)
-    return TechFromPlayable((PlayableCollection*)pp);
-  // Song => use tech info
-  return Offsets(1, pp->GetInfo().tech->songlength);
-} 
-
-bool SongIterator::PrevNextCore(int dir)
-{ DEBUGLOG(("SongIterator(%p)::PrevNextCore(%i) - %u\n", this, dir, Callstack.size()));
-  ASSERT(dir == -1 || dir == 1);
-  for (;;)
-  { CallstackEntry* pce = Callstack[Callstack.size()-1];
-    int_ptr<PlayableInstance> pi = dir < 0 ? GetList()->GetPrev(pce->Item) : GetList()->GetNext(pce->Item);
-    DEBUGLOG(("SongIterator::PrevNextCore - {%i, %g, %p} @%p\n", pce->Index, pce->Offset, &*pce->Item, &*pi));
-    if (pi == NULL)
-    { // store new item     
-      pce->Item = pi;
-      // end of list => leave if there is something to leave
-      if (Callstack.size() == 1)
-      { DEBUGLOG(("SongIterator::PrevNextCore - NULL\n"));
-        pce->Index = -1;
-        pce->Offset = -1;
-        return false;
-      }
-      Leave();
-    } else
-    { // update offsets
-      if (pce->Item != NULL)
-      { // relative offsets
-        const Offsets& info = TechFromPlayable((dir < 0 ? pi : pce->Item)->GetPlayable());
-        DEBUGLOG(("SongIterator::PrevNextCore - relative offset - {%i, %g}\n", info.Index, info.Offset));
-        pce->Index += dir * info.Index;
-        if (pce->Offset != -1)
-        { // apply change
-          if (pce->Offset >= 0)
-          { if (info.Offset >= 0)
-              pce->Offset += dir * info.Offset;
-            else
-              pce->Offset = -1;
-          }
-        } 
-      } else
-      { // calculate offsets from parent
-        DEBUGLOG(("SongIterator::PrevNextCore - parent offset\n"));
-        // parent offsets, slicing!
-        (Offsets&)*pce = Callstack.size() > 1 ? (const Offsets&)*Callstack[Callstack.size()-2] : ZeroOffsets;
-        // calc from the end?
-        if (dir < 0)
-        { // += length(parent) - length(new)
-          DEBUGLOG(("SongIterator::PrevNextCore - reverse parent offset\n"));
-          const Offsets& pinfo = TechFromPlayable(GetList());
-          const Offsets& iinfo = TechFromPlayable(pi->GetPlayable());
-          pce->Index += pinfo.Index - iinfo.Index;
-          if (pce->Offset >= 0)
-          { if (pinfo.Offset >= 0 && iinfo.Offset >= 0)
-              pce->Offset += pinfo.Offset - iinfo.Offset;
-            else
-              pce->Offset = -1;
-          }
-        }
-      }
- 
-      // store new item     
-      pce->Item = pi;
-      // item found => check wether it is enumerable
-      if (!(pi->GetPlayable()->GetFlags() & Playable::Enumerable))
-      { DEBUGLOG(("SongIterator::PrevNextCore - {%i, %g, %p{%p{%s}}}\n", pce->Index, pce->Offset, &*pi, pi->GetPlayable(), pi->GetPlayable()->GetURL().getShortName().cdata()));
-        return true;
-      } else if (!SkipQ()) // skip objects in the call stack
-      { pi->GetPlayable()->EnsureInfo(Playable::IF_Other);
-        Enter();
-      }
-    }
-  }
-}
-
-void SongIterator::Reset()
-{ DEBUGLOG(("SongIterator(%p)::Reset()\n", this));
-  Exclude.clear();
-  if (Root)
-    Exclude.append() = Root;
-  // destroy callstack entries.
-  for (CallstackEntry** p = Callstack.begin(); p != Callstack.end(); ++p)
-    delete *p;
-  Callstack.clear();
-  // Always create a top level entry for Current.
-  Callstack.append() = new CallstackEntry();
-}
-
-bool operator==(const SongIterator& l, const SongIterator& r)
-{ if (l.Root != r.Root)
-    return false;
-  if (l.Root == NULL)
-    return true;
-  // compare callstack
-  if (l.Callstack.size() != r.Callstack.size())
-    return false;
-  const SongIterator::CallstackEntry*const* lcpp = l.Callstack.begin();
-  const SongIterator::CallstackEntry*const* rcpp = r.Callstack.begin();
-  while (lcpp != l.Callstack.end())
-  { if ((*lcpp)->Item != (*rcpp)->Item) // compare by instance
-      return false;
-    ++lcpp;
-    ++rcpp;
-  }
-  return true; 
-}
+#include <limits.h>
 
 
 /****************************************************************************
@@ -242,9 +45,7 @@ bool operator==(const SongIterator& l, const SongIterator& r)
 *
 ****************************************************************************/
 
-int_ptr<Song>        Ctrl::CurrentSong;
 vector<Ctrl::PrefetchEntry> Ctrl::PrefetchList(10);
-PlayableInstance::slice Ctrl::Slice  = PlayableInstance::slice::Initial;
 bool                 Ctrl::Playing   = false;
 bool                 Ctrl::Paused    = false;
 DECFASTMODE          Ctrl::Scan      = DECFAST_NORMAL_PLAY;
@@ -271,14 +72,23 @@ const SongIterator::CallstackType Ctrl::EmptyStack(1);
 
 
 int_ptr<Song> Ctrl::GetCurrentSong()
-{ DEBUGLOG(("Ctrl::GetCurrentSong() - %p, %u\n", &*CurrentSong, PrefetchList.size()));
-  CritSect cs;
-  if (PrefetchList.size() == 0)
-    return CurrentSong;
-  PlayableInstance* pi = *Current()->Iter;
-  return pi ? (Song*)pi->GetPlayable() : NULL;
+{ DEBUGLOG(("Ctrl::GetCurrentSong() - %u\n", PrefetchList.size()));
+  int_ptr<Playable> pp;
+  { CritSect cs;
+    if (PrefetchList.size())
+      pp = Current()->Iter.GetCurrent()->GetPlayable();
+  }
+  return pp && !(pp->GetFlags() & Playable::Enumerable) ? (Song*)pp.get() : NULL;
 }
 
+int_ptr<PlayableSlice> Ctrl::GetRoot()
+{ CritSect cs;
+  return PrefetchList.size() ? Current()->Iter.GetRoot() : NULL;
+}
+
+bool Ctrl::IsEnumerable()
+{ return PrefetchList.size() && (Current()->Iter.GetRoot()->GetPlayable()->GetFlags() & Playable::Enumerable);
+}
 
 bool Ctrl::SetFlag(bool& flag, Op op)
 { switch (op)
@@ -306,15 +116,18 @@ void Ctrl::SetVolume()
   out_set_volume(volume);
 }
 
-ULONG Ctrl::DecoderStart(Song* pp, T_TIME offset)
-{ DEBUGLOG(("Ctrl::DecoderStart(%p)\n", pp));
-  pp->EnsureInfo(Playable::IF_Other);
+ULONG Ctrl::DecoderStart(PlayableSlice* ps, T_TIME offset)
+{ DEBUGLOG(("Ctrl::DecoderStart(%p{%p})\n", ps, ps->GetPlayable()));
+  ps->GetPlayable()->EnsureInfo(Playable::IF_Other);
+  ASSERT(!(ps->GetPlayable()->GetFlags() & Playable::Enumerable));
   SetVolume();
   dec_eq(EqEnabled ? EqData.bandgain[0] : NULL);
   dec_save(Savename);
   dec_fast(Scan);
 
-  ULONG rc = dec_play( pp, offset, Slice.Start, Slice.Stop );
+  ULONG rc = dec_play((Song*)ps->GetPlayable(), offset,
+    ps->GetStart() ? ps->GetStart()->GetLocation() : 0,
+    ps->GetStop()  ? ps->GetStop() ->GetLocation() : -1);
   if (rc != 0)
     return rc;
 
@@ -335,7 +148,7 @@ void Ctrl::DecoderStop()
 
   // TODO: CRAP? => we should disconnect decoder instead 
   /*int cnt = 0;
-  while (dec_status() != DECODER_STOPPED && dec_status != DECODER_ERROR)
+  while (dec_status() != DECODER_STOPPED && dec_status() != DECODER_ERROR)
   { DEBUGLOG(("Ctrl::DecoderStop - waiting for Spinlock\n"));
     DosSleep( ++cnt > 10 );
   }*/
@@ -361,31 +174,35 @@ void Ctrl::OutputStop()
     Current()->Offset = 0;
 }
 
+void Ctrl::SetStackUsage(SongIterator::CallstackEntry*const* rbegin, SongIterator::CallstackEntry*const* rend, bool set)
+{ while (rend != rbegin)
+  { PlayableSlice* ps = (*--rend)->Item;
+    if (ps)
+      // Depending on the object type this updates the status of a PlayableInstance
+      // or only the status of the underlying Playable.
+      ps->SetInUse(set);
+  } 
+}
+
 void Ctrl::UpdateStackUsage(const SongIterator::CallstackType& oldstack, const SongIterator::CallstackType& newstack)
 { DEBUGLOG(("Ctrl::UpdateStackUsage({%u }, {%u })\n", oldstack.size(), newstack.size()));
   SongIterator::CallstackEntry*const* oldppi = oldstack.begin();
   SongIterator::CallstackEntry*const* newppi = newstack.begin();
   // skip identical part
   // TODO? a more optimized approach may work on the sorted exclude lists.
-  while (oldppi != oldstack.end() && newppi != newstack.end() && &*(*oldppi)->Item == &*(*newppi)->Item)
-  { DEBUGLOG(("Ctrl::UpdateStackUsage identical - %p == %p\n", &*(*oldppi)->Item, &*(*newppi)->Item));
+  while (oldppi != oldstack.end() && newppi != newstack.end() && (*oldppi)->Item == (*newppi)->Item)
+  { DEBUGLOG(("Ctrl::UpdateStackUsage identical - %p == %p\n", (*oldppi)->Item.get(), (*newppi)->Item.get()));
     ++oldppi;
     ++newppi;
   }
   // reset usage flags of part of old stack
-  SongIterator::CallstackEntry*const* ppi = oldstack.end();
-  while (ppi != oldppi)
-    if ((*--ppi)->Item)
-      (*ppi)->Item->SetInUse(false); 
+  SetStackUsage(oldppi, oldstack.end(), false);
   // set usage flags of part of the new stack
-  ppi = newstack.end();
-  while (ppi != newppi)
-    if ((*--ppi)->Item)
-      (*ppi)->Item->SetInUse(true); 
+  SetStackUsage(newppi, newstack.end(), true);
 }
 
 bool Ctrl::SkipCore(SongIterator& si, int count, bool relative)
-{ DEBUGLOG(("Ctrl::SkipCore(%i, %u)\n", count, relative));
+{ DEBUGLOG(("Ctrl::SkipCore({%s}, %i, %u)\n", si.Serialize(true).cdata(), count, relative));
   if (relative)
   { if (count < 0)
     { // previous    
@@ -410,6 +227,70 @@ bool Ctrl::SkipCore(SongIterator& si, int count, bool relative)
   return true;
 }
 
+void Ctrl::AdjustNext(SongIterator& si)
+{ PlayableSlice* ps = si.GetCurrent();
+  if (ps == NULL || (ps->GetPlayable()->GetFlags() & Playable::Enumerable))
+  { do
+    { si.Next();
+      ps = si.GetCurrent();
+    } while (ps != NULL && ps->GetPlayable()->GetStatus() == STA_Invalid);
+  }
+}
+
+Ctrl::RC Ctrl::NavigateCore(SongIterator& si)
+{ DEBUGLOG(("Ctrl::NavigateCore({%s}) - %s\n", si.Serialize(true).cdata(), Current()->Iter.Serialize(true).cdata()));
+  // Check whether the current song has changed?
+  int level = si.CompareTo(Current()->Iter);
+  DEBUGLOG(("Ctrl::NavigateCore - %i\n", level));
+  if (level == 0)
+    return RC_OK; // song and location identical => no-op
+  ASSERT(level != INT_MIN);
+  if (abs(level) > max(si.GetLevel(), Current()->Iter.GetLevel()))
+  { DEBUGLOG(("Ctrl::NavigateCore - seek to %f\n", Current()->Iter.GetLocation()));
+    // only location is different => seek only
+    if (Playing)
+    { if (dec_jump(si.GetLocation()) != 0)
+        return RC_DecPlugErr; 
+    }
+    CritSect cs;
+    Current()->Iter.Swap(si);
+    return RC_OK;
+  }
+  DEBUGLOG(("Ctrl::NavigateCore - Navigate - %u\n", Playing));
+  // Navigate to another item
+  if (Playing)
+  { DecoderStop();
+    out_trash(); // discard buffers
+    PrefetchClear(true);
+  }
+  { // Mutex because Current is modified.
+    CritSect cs;
+    // deregister current song delegate
+    CurrentSongDelegate.detach();
+    // swap iterators
+    Current()->Offset = 0;
+    Current()->Iter.Swap(si);
+  }
+  // Events
+  UpdateStackUsage(si.GetCallstack(), Current()->Iter.GetCallstack());
+  InterlockedOr(Pending, EV_Song|EV_Tech|EV_Meta);
+  // track updates
+  PlayableSlice* ps = Current()->Iter.GetCurrent();
+  if (ps)
+    ps->GetPlayable()->InfoChange += CurrentSongDelegate;
+
+  // restart decoder immediately?
+  if (Playing && ps)
+  { if (DecoderStart(ps, 0) != 0)
+    { OutputStop();
+      Playing = false;
+      InterlockedOr(Pending, EV_PlayStop);
+      return RC_DecPlugErr;
+    }
+  }
+  return RC_OK;
+}
+
 void Ctrl::PrefetchClear(bool keep)
 { DEBUGLOG(("Ctrl::PrefetchClear(%u)\n", keep));
   CritSect cs;
@@ -430,7 +311,7 @@ void Ctrl::CheckPrefetch(double pos)
     { // At least one prefetched item has been played completely.
       CurrentSongDelegate.detach();
       UpdateStackUsage(Current()->Iter.GetCallstack(), PrefetchList[n]->Iter.GetCallstack());
-      Current()->Iter->GetPlayable()->InfoChange += CurrentSongDelegate;
+      Current()->Iter.GetCurrent()->GetPlayable()->InfoChange += CurrentSongDelegate;
       // Set events
       InterlockedOr(Pending, EV_Song|EV_Tech|EV_Meta);
       // Cleanup prefetch list
@@ -442,8 +323,8 @@ void Ctrl::CheckPrefetch(double pos)
       }
       // delete iterators and remove from play queue (if desired)
       Playlist* plp = NULL;
-      if (cfg.queue_mode && (Current()->Iter.GetRoot()->GetFlags() & Playable::Mutable) == Playable::Mutable)
-      { plp = (Playlist*)Current()->Iter.GetRoot();
+      if (cfg.queue_mode && (Current()->Iter.GetRoot()->GetPlayable()->GetFlags() & Playable::Mutable) == Playable::Mutable)
+      { plp = (Playlist*)Current()->Iter.GetRoot()->GetPlayable();
         if (plp->GetURL() != amp_get_default_pl()->GetURL())
           plp = NULL;
       }
@@ -453,7 +334,7 @@ void Ctrl::CheckPrefetch(double pos)
       do
       { PrefetchEntry* pep = ped[--n]; 
         if (plp)
-        { int_ptr<PlayableInstance> pip = pep->Iter.GetCallstack()[0]->Item;
+        { int_ptr<PlayableInstance> pip = (PlayableInstance*)pep->Iter.GetCallstack()[0]->Item.get();
           DEBUGLOG(("Ctrl::CheckPrefetch: %u\n", pep->Iter.GetCallstack().size()));
           if ( pep->Iter.GetCallstack().size() == 1       // we played an item at the top level
             || !pep->Iter.Next()                          // we played the last item
@@ -464,6 +345,16 @@ void Ctrl::CheckPrefetch(double pos)
       } while (n);
     }
   }
+}
+
+T_TIME Ctrl::FetchCurrentSongTime()
+{ if (Playing)
+  { T_TIME time = out_playing_pos();
+    // Check whether the output played a prefetched item completely.
+    CheckPrefetch(time);
+    return time - Current()->Offset; // relocate playing position
+  } else
+    return Current()->Iter.GetLocation();
 }
 
 void Ctrl::DecEventHandler(void*, const dec_event_args& args)
@@ -597,9 +488,8 @@ Ctrl::RC Ctrl::MsgPlayStop(Op op)
     if (OutputStart(pp) != 0)
       return RC_OutPlugErr;
 
-    if (IsPlaylist())
-      Current()->Offset = 0;
-    if (DecoderStart(pp) != 0)
+    Current()->Offset = 0;
+    if (DecoderStart(Current()->Iter.GetCurrent(), 0) != 0)
     { OutputStop();
       return RC_DecPlugErr;
     }
@@ -609,9 +499,6 @@ Ctrl::RC Ctrl::MsgPlayStop(Op op)
   { // stop playback
     MsgPause(Op_Clear);
     MsgScan(Op_Reset);
-    Slice = IsPlaylist() && *Current()->Iter 
-     ? Current()->Iter->GetSlice()
-     : PlayableInstance::slice::Initial;
 
     DecoderStop();
     OutputStop();
@@ -632,29 +519,38 @@ Ctrl::RC Ctrl::MsgNavigate(const xstring& iter, T_TIME loc, int flags)
 { DEBUGLOG(("Ctrl::MsgNavigate(%s, %g, %x)\n", iter.cdata(), loc, flags));
   if (!GetCurrentSong())
     return RC_NoSong;
-  // TODO: the whole iterator stuff is missing
-  // TODO: prefetch list?
-  Slice = IsPlaylist()
-   ? Current()->Iter->GetSlice()
-   : PlayableInstance::slice::Initial;
-  if (loc >= 0)
-  { Slice.Start = loc;
-    if (Slice.Stop >= 0 && loc >= Slice.Stop)
-      Slice.Stop = -1;
+  sco_ptr<SongIterator> sip;
+  if (flags & 0x02)
+  { // Reset location
+    sip = new SongIterator();
+    sip->SetRoot(GetRoot());
+  } else
+  { // Start from current location
+    // We must fetch the current playing time first, because this may change Current().
+    T_TIME time = FetchCurrentSongTime();
+    sip = new SongIterator(Current()->Iter);
+    sip->SetLocation(time);
   }
-    
-  if (Playing)
-  { if ( dec_jump( loc ) != 0 )
-      return RC_DecPlugErr; 
+  if (iter)
+  { if (!IsEnumerable())
+      return RC_NoList;
+    const char* cp = iter.cdata();
+    sip->Deserialize(cp);
+    // TODO: Error
+    // Move forward to the next Song, if the current item is a playlist.
+    AdjustNext(*sip);
   }
-  return RC_OK;
+  sip->SetLocation(flags & 0x01 ? loc : sip->GetLocation() + loc);
+  // TODO: extend total playing time when leaving bounds of parent iterator?
+  
+  // commit
+  return NavigateCore(*sip);
 }
 
 Ctrl::RC Ctrl::MsgSkip(int count, bool relative)
 { DEBUGLOG(("Ctrl::MsgSkip(%i, %u) - %u\n", count, relative, decoder_playing()));
-  if (PrefetchList.size() == 0)
+  if (!IsEnumerable())
     return RC_NoList;
-  BOOL decoder_was_playing = decoder_playing();
   // some checks
   if (relative)
   { if (count == 0)
@@ -674,57 +570,21 @@ Ctrl::RC Ctrl::MsgSkip(int count, bool relative)
     // TODO: configurable turn around option
     return RC_EndOfList;
   // commit
-  if (decoder_was_playing)
-  { DecoderStop();
-    out_trash(); // discard buffers
-    PrefetchClear(true);
-  }
-  Slice = PlayableInstance::slice::Initial;
-  { CritSect cs;
-    // deregister current song delegate
-    CurrentSongDelegate.detach();
-    // fetch slice
-    Slice = Current()->Iter->GetSlice();
-    // swap iterators
-    Current()->Offset = 0;
-    Current()->Iter.Swap(si);
-  }
-  // Events
-  UpdateStackUsage(si.GetCallstack(), Current()->Iter.GetCallstack());
-  InterlockedOr(Pending, EV_Song|EV_Tech|EV_Meta);
-  // track updates
-  if (*Current()->Iter)
-    Current()->Iter->GetPlayable()->InfoChange += CurrentSongDelegate;
-
-  // restart decoder immediately?
-  if (decoder_was_playing)
-  { Song* pp = GetCurrentSong();
-    if (pp != NULL && DecoderStart(pp) != 0)
-    { OutputStop();
-      Playing = false;
-      InterlockedOr(Pending, EV_PlayStop);
-      return RC_DecPlugErr;
-    }
-  }
-  return RC_OK;
+  return NavigateCore(si);
 }
 
 /* Loads Playable object to player. */
-Ctrl::RC Ctrl::MsgLoad(const xstring& url)
-{ DEBUGLOG(("Ctrl::MsgLoad(%s)\n", url.cdata()));
+Ctrl::RC Ctrl::MsgLoad(const xstring& url, int flags)
+{ DEBUGLOG(("Ctrl::MsgLoad(%s, %x)\n", url.cdata(), flags));
 
   // always stop
   MsgPlayStop(Op_Reset);
 
   // detach
   CurrentSongDelegate.detach();
-  if (CurrentSong)
-  { CurrentSong->SetInUse(false);
-    CurrentSong = NULL;
-  }
   if (PrefetchList.size())
   { UpdateStackUsage(Current()->Iter.GetCallstack(), EmptyStack);
-    Current()->Iter.GetRoot()->SetInUse(false);
+    Current()->Iter.GetRoot()->GetPlayable()->SetInUse(false);
     PrefetchClear(false);
   }
   
@@ -737,27 +597,18 @@ Ctrl::RC Ctrl::MsgLoad(const xstring& url)
     if (play->GetStatus() <= STA_Invalid)
       return RC_InvalidItem;
     play->EnsureInfoAsync(Playable::IF_All);
-    if (play->GetFlags() & Playable::Enumerable)
-    { { CritSect cs;
-        PrefetchList.append() = new PrefetchEntry();
-        Current()->Iter.SetRoot((PlayableCollection*)&*play);
-      }
-      play->SetInUse(true);
-      // Move always to the first element.
-      if (Current()->Iter.Next())
-      { UpdateStackUsage(EmptyStack, Current()->Iter.GetCallstack());
-        // track changes
-        Current()->Iter->GetPlayable()->InfoChange += CurrentSongDelegate;
-      }
-      Slice = *Current()->Iter 
-       ? Current()->Iter->GetSlice()
-       : PlayableInstance::slice::Initial;
-    } else
-    { CurrentSong = (Song*)&*play;
-      play->SetInUse(true);
-      // track changes
-      CurrentSong->InfoChange += CurrentSongDelegate;
-      Slice = PlayableInstance::slice::Initial;
+    { CritSect cs;
+      PrefetchList.append() = new PrefetchEntry();
+      Current()->Iter.SetRoot(new PlayableSlice(play));
+    }
+    play->SetInUse(true);
+    // Move always to the first element if a playlist.
+    AdjustNext(Current()->Iter);
+    // track changes
+    PlayableSlice* ps = Current()->Iter.GetCurrent();
+    if (ps)
+    { UpdateStackUsage(EmptyStack, Current()->Iter.GetCallstack());
+      ps->GetPlayable()->InfoChange += CurrentSongDelegate;
     }
   }
   InterlockedOr(Pending, EV_Root|EV_Song|EV_Tech|EV_Meta);
@@ -821,40 +672,20 @@ Ctrl::RC Ctrl::MsgRepeat(Op op)
 
 Ctrl::RC Ctrl::MsgStatus()
 { DEBUGLOG(("Ctrl::MsgStatus()\n"));
-  Status.CurrentSongTime = Slice.Start; // implicit else of the if below
-  if (Playing)
-  { Status.CurrentSongTime = out_playing_pos();
-    // Check whether the output played a prefetched item completely.
-    CheckPrefetch(Status.CurrentSongTime);
-  }
-  
-  if (CurrentSong)
-  { // root is a song
-    CurrentSong->EnsureInfo(Playable::IF_Tech);
-    Status.TotalSongTime   = CurrentSong->GetInfo().tech->songlength;
-    Status.CurrentItem     = -1;
-    Status.TotalItems      = -1;
-    Status.CurrentTime     = -1;
-    Status.TotalTime       = -1;
-  } else if (PrefetchList.size())
-  { // root is enumerable
-    SongIterator& si = Current()->Iter;
-    if (Playing)
-      Status.CurrentSongTime -= Current()->Offset; // relocate playing position
-    if (*si)
-    { Status.TotalSongTime = si->GetPlayable()->GetInfo().tech->songlength;
-      if (Slice.Stop >= 0 && Status.TotalSongTime > Slice.Stop)
-        Status.TotalSongTime = Slice.Stop;
-    } else
-      Status.TotalSongTime = -1;
-    SongIterator::Offsets off = si.GetOffset();
-    Status.CurrentItem     = off.Index;
-    Status.TotalItems      = si.GetRoot()->GetInfo().tech->num_items;
-    Status.CurrentTime     = off.Offset;
-    Status.TotalTime       = si.GetRoot()->GetInfo().tech->songlength;
-  } else
-    // no root
-    return RC_NoSong;
+  if (!PrefetchList.size())
+    return RC_NoSong; // no root
+
+  Status.CurrentSongTime = FetchCurrentSongTime();
+  SongIterator& si = Current()->Iter;
+  if (si.GetCurrent())
+    Status.TotalSongTime = si.GetCurrent()->GetPlayable()->GetInfo().tech->songlength;
+  else
+    Status.TotalSongTime = -1;
+  SongIterator::Offsets off = si.GetOffset();
+  Status.CurrentItem     = off.Index;
+  Status.TotalItems      = si.GetRoot()->GetPlayable()->GetInfo().tech->num_items;
+  Status.CurrentTime     = off.Offset;
+  Status.TotalTime       = si.GetRoot()->GetPlayable()->GetInfo().tech->songlength;
   return RC_OK; 
 }
 
@@ -864,7 +695,7 @@ Ctrl::RC Ctrl::MsgDecStop()
   if (!Playing)
     return RC_NotPlaying;
 
-  if (PrefetchList.size() == 0)
+  if (!IsEnumerable())
   { // Song => Stop
    eol:
     out_flush();
@@ -877,28 +708,27 @@ Ctrl::RC Ctrl::MsgDecStop()
   PrefetchEntry* pep = new PrefetchEntry(Current()->Offset + dec_maxpos(), Current()->Iter);
   pep->Offset += dec_maxpos();
   DecoderStop();
-  Slice = PlayableInstance::slice::Initial;
 
   // Navigation
-  Song* pp = NULL;
+  PlayableSlice* ps = NULL;
   { do
     { if (!SkipCore(pep->Iter, dir, true))
       { delete pep;
         goto eol; // end of list => same as end of song
       }
 
-      pp = (Song*)pep->Iter.GetCurrent()->GetPlayable();
-      pp->EnsureInfo(Playable::IF_Other);
+      ps = pep->Iter.GetCurrent();
+      ps->GetPlayable()->EnsureInfo(Playable::IF_Other);
       // skip invalid
-    } while (pp->GetStatus() == STA_Invalid);
+    } while (ps->GetPlayable()->GetStatus() == STA_Invalid);
     // store result
     CritSect cs;
     PrefetchList.append() = pep;
   }
 
   // start decoder for the prefetched item
-  DEBUGLOG(("Ctrl::MsgDecStop playing %s with offset %g\n", pp->GetURL().cdata(), pep->Offset));
-  if (DecoderStart(pp, pep->Offset) != 0)
+  DEBUGLOG(("Ctrl::MsgDecStop playing %s with offset %g\n", ps->GetPlayable()->GetURL().cdata(), pep->Offset));
+  if (DecoderStart(ps, pep->Offset) != 0)
   { // TODO: we should continue with the next song, and remove the current one from the prefetch list.
     OutputStop();
     Playing = false;
@@ -915,11 +745,12 @@ Ctrl::RC Ctrl::MsgDecStop()
 Ctrl::RC Ctrl::MsgOutStop()
 { DEBUGLOG(("Ctrl::MsgOutStop()\n"));
   // Check whether we have to remove items in queue mode
-  if (cfg.queue_mode && IsPlaylist() && (Current()->Iter.GetRoot()->GetFlags() & Playable::Mutable) == Playable::Mutable)
+  if ( cfg.queue_mode && PrefetchList.size()
+    && (Current()->Iter.GetRoot()->GetPlayable()->GetFlags() & Playable::Mutable) == Playable::Mutable )
   { Playlist* plp = (Playlist*)Current()->Iter.GetRoot();
     if (plp->GetURL() == amp_get_default_pl()->GetURL())
     { DEBUGLOG(("Ctrl::MsgOutStop: queue mode %p\n", plp));
-      plp->RemoveItem(Current()->Iter.GetCallstack()[0]->Item);
+      plp->RemoveItem(&(PlayableInstance&)*Current()->Iter.GetCallstack()[0]->Item);
     }
   }
   // In any case stop the engine
@@ -954,7 +785,7 @@ void Ctrl::Worker()
           break;
           
          case Cmd_Load:
-          qp->Flags = MsgLoad(qp->StrArg);
+          qp->Flags = MsgLoad(qp->StrArg, qp->Flags);
           break;
           
          case Cmd_Skip:
@@ -1063,7 +894,7 @@ void Ctrl::Uninit()
 { DEBUGLOG(("Ctrl::Uninit()\n"));
   { Mutex::Lock l(Queue.Mtx);
     Queue.Purge();
-    PostCommand(MkLoad(xstring()));
+    PostCommand(MkLoad(xstring(), 0));
     PostCommand(NULL);
     DecEventDelegate.detach();
     OutEventDelegate.detach();

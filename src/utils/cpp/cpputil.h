@@ -38,6 +38,12 @@ inline void swap(T& a, T& b)
   b = c;
 }
 
+template <class T>
+inline T xchg(T& dst, T src)
+{ T c = dst;
+  dst = src;
+  return c;
+}
 
 #define FLAGSATTRIBUTE(T) \
 inline static T operator|(T l, T r) \
@@ -54,6 +60,10 @@ inline static T operator*(T l, bool r) \
 { return (T)((unsigned)l*r); } \
 inline static T operator~(T a) \
 { return (T)~(unsigned)a; }
+
+// Unspecified types for operator ! and == NULL
+struct unspecified_struct_type;
+typedef const volatile unspecified_struct_type* unspecified_bool_type;
 
 
 #endif

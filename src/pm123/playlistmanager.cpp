@@ -1,7 +1,7 @@
 /*
  * Copyright 1997-2003 Samuel Audet <guardia@step.polymtl.ca>
  *                     Taneli Lepp„ <rosmo@sektori.com>
- * Copyright 2007-2007 Marcel Mueller
+ * Copyright 2007-2008 Marcel Mueller
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -66,7 +66,6 @@ PlaylistManager::PlaylistManager(Playable* content, const xstring& alias)
   MainMenu(NULLHANDLE),
   RecMenu(NULLHANDLE)
 { DEBUGLOG(("PlaylistManager(%p)::PlaylistManager(%p, %s)\n", this, content, alias.cdata()));
-  NameApp = " (Tree)";
   //WinLoadDlg(HWND_DESKTOP, HWND_DESKTOP, pl_DlgProcStub, NULLHANDLE, DLG_PM, &ids);
   StartDialog();
 }
@@ -130,7 +129,7 @@ MRESULT PlaylistManager::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
           if (rec != NULL && (rec->flRecordAttr & CRA_CURSORED))
           { EmFocus = rec->Data()->Content->GetPlayable();
             if (EmFocus->EnsureInfoAsync(Playable::IF_Tech))
-              PMRASSERT(WinPostMsg(HwndFrame, UM_UPDATEINFO, MPFROMP(&*EmFocus), 0));
+              PMRASSERT(WinPostMsg(HwndFrame, UM_UPDATEINFO, MPFROMP(EmFocus.get()), 0));
           }
         }
       }
@@ -182,10 +181,10 @@ MRESULT PlaylistManager::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
     }
 
    case UM_UPDATEINFO:
-    { if (&*EmFocus != (Playable*)mp1)
+    { if (EmFocus.get() != (Playable*)mp1)
         return 0; // No longer neccessary, because another UM_UPDATEINFO message is in the queue or the record does no longer exists.
-      SetInfo(xstring::sprintf("%s, %s", &*EmFocus->GetURL().getDisplayName(), EmFocus->GetInfo().tech->info));
-      if (&*EmFocus == (Playable*)mp1) // double check, because EmFocus may change while SetInfo
+      SetInfo(xstring::sprintf("%s, %s", EmFocus->GetURL().getDisplayName().cdata(), EmFocus->GetInfo().tech->info));
+      if (EmFocus.get() == (Playable*)mp1) // double check, because EmFocus may change while SetInfo
         EmFocus = NULL;
       return 0;
     }
@@ -263,10 +262,11 @@ HWND PlaylistManager::InitContextMenu()
     RecordType rt = AnalyzeRecordTypes();
     if (rt == RT_None)
       return NULLHANDLE;
-      
-    mn_enable_item(hwndMenu, IDM_PL_EDIT,     Source[0]->Data->Content->GetPlayable()->GetInfo().meta_write);
+
+    mn_enable_item(hwndMenu, IDM_PL_NAVIGATE, IsUnderCurrentRoot(Source[0]));
     mn_enable_item(hwndMenu, IDM_PL_DETAILED, rt != RT_Song);
     mn_enable_item(hwndMenu, IDM_PL_TREEVIEW, rt != RT_Song);
+    mn_enable_item(hwndMenu, IDM_PL_EDIT,     Source[0]->Data->Content->GetPlayable()->GetInfo().meta_write);
     mn_enable_item(hwndMenu, IDM_PL_REMOVE,   (PlayableFromRec(((CPData*)Source[0]->Data)->Parent)->GetFlags() & Playable::Mutable) == Playable::Mutable );
     mn_enable_item(hwndMenu, IDM_PL_REFRESH,  rt == RT_Song);
     mn_enable_item(hwndMenu, IDM_PL_APPEND,   rt == RT_List);
@@ -292,7 +292,7 @@ HWND PlaylistManager::InitContextMenu()
   
 void PlaylistManager::UpdateAccelTable()
 { DEBUGLOG(("PlaylistManager::UpdateAccelTable()\n"));
-  AccelTable = WinLoadAccelTable( WinQueryAnchorBlock( HwndFrame ), NULLHANDLE, ACL_PLAYLISTMAN );
+  AccelTable = WinLoadAccelTable( WinQueryAnchorBlock( HwndFrame ), NULLHANDLE, ACL_PLAYLIST );
   PMASSERT(AccelTable != NULLHANDLE);
   memset( LoadWizzards+2, 0, sizeof LoadWizzards - 2*sizeof *LoadWizzards); // You never know...
   dec_append_accel_table( AccelTable, IDM_PL_APPOTHERALL, IDM_PL_APPOTHER-IDM_PL_APPOTHERALL, LoadWizzards+2, sizeof LoadWizzards/sizeof *LoadWizzards - 2);
@@ -307,30 +307,35 @@ void PlaylistManager::SetInfo(const xstring& text)
   Info = text;
 }
 
-PlaylistBase::ICP PlaylistManager::GetPlayableType(RecordBase* rec)
+PlaylistBase::ICP PlaylistManager::GetPlayableType(const RecordBase* rec) const
 { DEBUGLOG(("PlaylistManager::GetPlaylistState(%s)\n", Record::DebugName(rec).cdata()));
-  if ((rec->Data->Content->GetPlayable()->GetFlags() & Playable::Enumerable) == 0)
-    return ICP_Song;
-  if (rec->Data->Content->GetPlayable()->GetInfo().tech->num_items == 0)
-    return ICP_Empty;
-  if (((CPData*)(rec->Data))->Recursive)
-    return ICP_Recursive;
-  return (rec->flRecordAttr & CRA_EXPANDED) ? ICP_Open : ICP_Closed;
+  PlaylistBase::ICP ret;
+  const Playable* pp = rec->Data->Content->GetPlayable();
+  if ((pp->GetFlags() & Playable::Enumerable) == 0)
+    ret = ICP_Song;
+  else if (pp->GetInfo().tech->num_items == 0)
+    ret = ICP_Empty;
+  else if (((const Record*)rec)->Data()->Recursive)
+    ret = ICP_Recursive;
+  else
+    ret = (rec->flRecordAttr & CRA_EXPANDED) ? ICP_Open : ICP_Closed;
+  DEBUGLOG(("PlaylistManager::GetPlaylistState: %u\n", ret));
+  return ret;
 }
 
-PlaylistBase::IC PlaylistManager::GetRecordUsage(RecordBase* rec)
+PlaylistBase::IC PlaylistManager::GetRecordUsage(const RecordBase* rec) const
 { DEBUGLOG(("PlaylistManager::GetRecordUsage(%s)\n", Record::DebugName(rec).cdata()));
   if (rec->Data->Content->GetPlayable()->GetStatus() != STA_Used)
   { DEBUGLOG(("PlaylistManager::GetRecordUsage: unused\n"));
     return IC_Normal;
   }
   // Check wether the current call stack is the same as for the current Record ...
-  const Playable* root = Ctrl::GetRoot(); // We need no ownership here, since we only compare the reference
+  int_ptr<PlayableSlice> root = Ctrl::GetRoot();
   do
-  { if (rec->Data->Content->GetPlayable() == root)
+  { if (root && rec->Data->Content->GetPlayable() == root->GetPlayable())
     { // We are a the current root, so the call stack compared equal.
       DEBUGLOG(("PlaylistManager::GetRecordUsage: current root\n"));
-      if (!((CPData*)(rec->Data))->Recursive)
+      if (!((const Record*)rec)->Data()->Recursive)
         break;
       return IC_Used;
     }
@@ -339,41 +344,39 @@ PlaylistBase::IC PlaylistManager::GetRecordUsage(RecordBase* rec)
       DEBUGLOG(("PlaylistManager::GetRecordUsage: instance unused\n"));
       return IC_Used;
     }
-    rec = ((CPData*)(rec->Data))->Parent;
+    rec = ((const Record*)rec)->Data()->Parent;
   } while (rec != NULL);
   // No more Parent, let's consider this as (partially) equal.
   DEBUGLOG(("PlaylistManager::GetRecordUsage: top level\n"));
   return decoder_playing() ? IC_Play : IC_Active;
 }
 
-bool PlaylistManager::RecursionCheck(Playable* pp, RecordBase* parent)
+bool PlaylistManager::RecursionCheck(const Playable* pp, const RecordBase* parent) const
 { DEBUGLOG(("PlaylistManager(%p)::RecursionCheck(%p{%s}, %s)\n", this, pp, pp->GetURL().getShortName().cdata(), Record::DebugName(parent).cdata()));
-  if (pp != &*Content)
+  if (pp != Content.get())
   { for(;;)
-    { if (parent == NULL || parent == (Record*)-1)
+    { if (parent == NULL)
       { DEBUGLOG(("PlaylistManager::RecursionCheck: no rec.\n"));
         return false;
       }
       if (parent->Data->Content->GetPlayable() == pp)
         break;
-      parent = (Record*)WinSendMsg(HwndContainer, CM_QUERYRECORD, MPFROMP(parent), MPFROM2SHORT(CMA_PARENT, CMA_ITEMORDER));
-      PMASSERT(parent != (Record*)-1);
-      DEBUGLOG(("PlaylistManager::RecursionCheck: recusrion check %s\n", Record::DebugName(parent).cdata()));
+      parent = ((const Record*)parent)->Data()->Parent;
+      DEBUGLOG2(("PlaylistManager::RecursionCheck: recusrion check %s\n", Record::DebugName(parent).cdata()));
     }
     // recursion in playlist tree
   } // else recursion with top level
   DEBUGLOG(("PlaylistManager::RecursionCheck: recursion!\n"));
   return true;
 }
-bool PlaylistManager::RecursionCheck(RecordBase* rp)
+bool PlaylistManager::RecursionCheck(const RecordBase* rp) const
 { DEBUGLOG(("PlaylistManager::RecursionCheck(%s)\n", Record::DebugName(rp).cdata()));
-  Playable* pp = rp->Data->Content->GetPlayable();
-  if (pp != &*Content)
+  const Playable* pp = rp->Data->Content->GetPlayable();
+  if (pp != Content.get())
   { do
-    { rp = (Record*)WinSendMsg(HwndContainer, CM_QUERYRECORD, MPFROMP(rp), MPFROM2SHORT(CMA_PARENT, CMA_ITEMORDER));
-      PMASSERT(rp != (Record*)-1);
+    { rp = ((const Record*)rp)->Data()->Parent;
       DEBUGLOG2(("PlaylistManager::RecursionCheck: recusrion check %p\n", rp));
-      if (rp == NULL || rp == (Record*)-1)
+      if (rp == NULL)
         return false;
     } while (rp->Data->Content->GetPlayable() != pp);
     // recursion in playlist tree
@@ -381,6 +384,7 @@ bool PlaylistManager::RecursionCheck(RecordBase* rp)
   DEBUGLOG(("PlaylistManager::RecursionCheck: recursion!\n"));
   return true;
 }
+
 
 PlaylistBase::RecordBase* PlaylistManager::CreateNewRecord(PlayableInstance* obj, RecordBase* parent)
 { DEBUGLOG(("PlaylistManager(%p{%s})::CreateNewRecord(%p{%s}, %p)\n", this, DebugName().cdata(), obj, obj->GetPlayable()->GetURL().getShortName().cdata(), parent));
@@ -397,16 +401,18 @@ PlaylistBase::RecordBase* PlaylistManager::CreateNewRecord(PlayableInstance* obj
   obj->StatusChange              += rec->Data()->StatChange;
   // now get initial info's
   rec->Data()->Text    = obj->GetDisplayName();
-  rec->Data()->Recursive = obj->GetPlayable()->GetInfo().tech->recursive && RecursionCheck(obj->GetPlayable(), parent);
-
+  Playable* pp = obj->GetPlayable();
+  rec->Data()->Recursive = (pp->GetFlags() & Playable::Enumerable)
+                        && (!pp->CheckInfo(Playable::IF_Tech) || pp->GetInfo().tech->recursive)
+                        && RecursionCheck(pp, parent);
   rec->flRecordAttr    = 0;
   rec->pszIcon         = (PSZ)rec->Data()->Text.cdata();
   rec->hptrIcon        = CalcIcon(rec);
   return rec;
 }
 
-PlaylistManager::RecordBase* PlaylistManager::GetParent(RecordBase* const rec)
-{ return ((Record*)rec)->Data()->Parent;
+PlaylistManager::RecordBase* PlaylistManager::GetParent(const RecordBase* const rec) const
+{ return ((const Record*)rec)->Data()->Parent;
 }
 
 void PlaylistManager::UpdateChildren(RecordBase* const rec)
@@ -437,13 +443,16 @@ void PlaylistManager::UpdateTech(Record* rec)
     { // TODO: maybe this should be better up to the calling thread
       EmFocus = rec->Data()->Content->GetPlayable();
       // continue later
-      PMRASSERT(WinPostMsg(HwndFrame, UM_UPDATEINFO, MPFROMP(&*rec), 0));
+      PMRASSERT(WinPostMsg(HwndFrame, UM_UPDATEINFO, MPFROMP(rec), 0));
     }
     bool recursive = rec->Data()->Content->GetPlayable()->GetInfo().tech->recursive && RecursionCheck(rec);
     if (recursive != rec->Data()->Recursive)
     { rec->Data()->Recursive = recursive;
       // Update Icon also
       PostRecordCommand(rec, RC_UPDATESTATUS);
+      // Remove children?
+      if (recursive)
+        RemoveChildren(rec);
     }
   }
 }

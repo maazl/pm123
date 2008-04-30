@@ -1,7 +1,7 @@
 /*
  * Copyright 1997-2003 Samuel Audet <guardia@step.polymtl.ca>
  *                     Taneli Lepp„ <rosmo@sektori.com>
- * Copyright 2007-2007 Marcel Mueller
+ * Copyright 2007-2008 Marcel Mueller
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -336,22 +336,30 @@ MRESULT PlaylistView::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
           break;
          case CID_Start:
           { rec->Pos = rec->Data()->Pos.cdata(); // restore what PM changed (for now)
-            PlayableInstance::slice sl;
-            sl.Start = DirectEdit.length() ? ParseTime(DirectEdit) : 0;
-            if (sl.Start < 0)
-              break; // Error, hmm...
-            sl.Stop = rec->Data()->Content->GetSlice().Stop;
-            rec->Data()->Content->SetSlice(sl);
+            SongIterator* si = NULL;
+            if (DirectEdit.length())
+            { si = new SongIterator();
+              si->SetRoot(rec ? rec->Data()->Content.get() : new PlayableSlice(Content));
+              const char* cp = DirectEdit;
+              if (!si->Deserialize(cp))
+              { // TODO: Error message
+              }
+            }
+            rec->Data()->Content->SetStart(si);
           }
           break;
          case CID_Stop:
           { rec->End = rec->Data()->End.cdata(); // restore what PM changed (for now)
-            PlayableInstance::slice sl;
-            sl.Stop = DirectEdit.length() ? ParseTime(DirectEdit) : -1;
-            if (sl.Start < 0)
-              break; // Error, hmm...
-            sl.Start = rec->Data()->Content->GetSlice().Start;
-            rec->Data()->Content->SetSlice(sl);
+            SongIterator* si = NULL;
+            if (DirectEdit.length())
+            { si = new SongIterator();
+              si->SetRoot(rec ? rec->Data()->Content.get() : new PlayableSlice(Content));
+              const char* cp = DirectEdit;
+              if (!si->Deserialize(cp))
+              { // TODO: Error message
+              }
+            }
+            rec->Data()->Content->SetStop(si);
           }
           break;
          case CID_URL:
@@ -360,10 +368,16 @@ MRESULT PlaylistView::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
             InsertInfo* pii = new InsertInfo();
             pii->Parent = (Playlist*)PlayableFromRec(GetParent(rec));
             pii->URL    = DirectEdit;
-            pii->Slice  = rec->Data()->Content->GetSlice();
+            PlayableInstance* pi = rec->Data()->Content;
+            pii->Alias  = pi->GetAlias();
+            if (pi->GetStart())
+              pii->Start = pi->GetStart()->Serialize(true);
+            if (pi->GetStop())
+              pii->Stop = pi->GetStop()->Serialize(true);
             pii->Before = rec->Data()->Content;
-            WinPostMsg(HwndFrame, UM_INSERTITEM, MPFROMP(pii), 0);
+            // Send GUI commands
             BlockRecord(rec);
+            WinPostMsg(HwndFrame, UM_INSERTITEM, MPFROMP(pii), 0);
             WinPostMsg(HwndFrame, UM_REMOVERECORD, MPFROMP(rec), 0);
           }
         }
@@ -412,7 +426,7 @@ HWND PlaylistView::InitContextMenu()
     RecordType rt = AnalyzeRecordTypes();
     if (rt == RT_None)
       return NULLHANDLE;
-    mn_enable_item(hwndMenu, IDM_PL_NAVIGATE, Source.size() == 1);
+    mn_enable_item(hwndMenu, IDM_PL_NAVIGATE, Source.size() == 1 && IsUnderCurrentRoot(Source[0]));
     mn_enable_item(hwndMenu, IDM_PL_EDIT,     Source.size() == 1 && Source[0]->Data->Content->GetPlayable()->GetInfo().meta_write);
     mn_enable_item(hwndMenu, IDM_PL_REFRESH,  (rt & (RT_Enum|RT_List)) == 0);
     mn_enable_item(hwndMenu, IDM_PL_DETAILED, Source.size() == 1 && rt != RT_Song);
@@ -431,7 +445,7 @@ void PlaylistView::UpdateAccelTable()
   dec_append_accel_table( AccelTable, IDM_PL_APPOTHERALL, 0, LoadWizzards+2, sizeof LoadWizzards/sizeof *LoadWizzards - 2);
 }
 
-PlaylistBase::ICP PlaylistView::GetPlayableType(RecordBase* rec)
+PlaylistBase::ICP PlaylistView::GetPlayableType(const RecordBase* rec) const
 { DEBUGLOG(("PlaylistView::GetPlaylistState(%s)\n", Record::DebugName(rec).cdata()));
   if ((rec->Data->Content->GetPlayable()->GetFlags() & Playable::Enumerable) == 0)
     return ICP_Song;
@@ -439,7 +453,7 @@ PlaylistBase::ICP PlaylistView::GetPlayableType(RecordBase* rec)
   return rec->Data->Content->GetPlayable()->GetInfo().tech->num_items ? ICP_Closed : ICP_Empty;
 }
 
-PlaylistBase::IC PlaylistView::GetRecordUsage(RecordBase* rec)
+PlaylistBase::IC PlaylistView::GetRecordUsage(const RecordBase* rec) const
 { DEBUGLOG(("PlaylistView::GetRecordUsage(%s)\n", Record::DebugName(rec).cdata()));
   if (rec->Data->Content->GetPlayable()->GetStatus() != STA_Used)
     return IC_Normal;
@@ -548,14 +562,13 @@ bool PlaylistView::CalcCols(Record* rec, Playable::InfoFlags flags, PlayableInst
   }
   if (iflags & PlayableInstance::SF_Slice)
   { // Starting position
-    tmp = FormatTime(rec->Data()->Content->GetSlice().Start);
+    const SongIterator* si = rec->Data()->Content->GetStart();
+    tmp = si ? si->Serialize(true) : xstring::empty;
     rec->Pos = tmp;
     rec->Data()->Pos = tmp;
     // Ending position
-    if (rec->Data()->Content->GetSlice().Stop < 0)
-      tmp = xstring::empty;
-    else
-      tmp = FormatTime(rec->Data()->Content->GetSlice().Stop);
+    si = rec->Data()->Content->GetStop();
+    tmp = si ? si->Serialize(true) : xstring::empty;
     rec->End = tmp;
     rec->Data()->End = tmp;
     ret = true;
@@ -587,7 +600,7 @@ PlaylistBase::RecordBase* PlaylistView::CreateNewRecord(PlayableInstance* obj, R
   return rec;
 }
 
-PlaylistView::RecordBase* PlaylistView::GetParent(RecordBase* const rec)
+PlaylistView::RecordBase* PlaylistView::GetParent(const RecordBase* const rec) const
 { return NULL;
 }
 

@@ -12,7 +12,7 @@ all2: utilfct$(LBO) $(MDUMMY)
 
 OBJECTS = utilfct$(CO) bufstream$(CO) fileutil$(CO) filefind$(CO)
 OBJECTS = $(OBJECTS) errorstr$(CO) rel2abs$(CO) abs2rel$(CO) inimacro$(CO)
-OBJECTS = $(OBJECTS) charset$(CO) wildcards$(CO) queue$(CO) strlcpy$(CO)
+OBJECTS = $(OBJECTS) charset$(CO) wildcards$(CO) queue$(CO) strlcpy$(CO) strchomp$(CO)
 OBJECTS = $(OBJECTS) strlcat$(CO) snprintf$(CO) strnchr$(CO) memcmpcpy$(CO)
 OBJECTS = $(OBJECTS) vdelegate$(CO) debuglog$(CO)
 STDLIBS = $(LIBS_UNI)
@@ -29,7 +29,7 @@ clean: $(MDUMMY)
 
 abs2rel.c:	abs2rel.h
 bufstream.c:	bufstream.h
-charset.c:	utilfct.h debuglog.h charset.h
+charset.c:	charset.h strutils.h debuglog.h utilfct.h
 utilfct.h:	..\include\config.h .\rel2abs.h .\abs2rel.h .\bufstream.h .\charset.h .\wildcards.h .\filefind.h .\fileutil.h .\errorstr.h .\inimacro.h .\queue.h .\minmax.h .\strutils.h
 errorstr.c:	strutils.h snprintf.h
 fileutil.c:	fileutil.h strutils.h minmax.h
@@ -49,3 +49,5 @@ pcmconvert.h:	..\include\format.h
 pcmfloat2int_merge.c:	pcmconvert.h utilfct.h debuglog.h
 pcmint2float.c:	pcmconvert.h .\debuglog.h
 pcmint2float_extract.c:	pcmconvert.h .\debuglog.h
+debuglog.c:	debuglog.h snprintf.h
+strchomp.c:	strutils.h

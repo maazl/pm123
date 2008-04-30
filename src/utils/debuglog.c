@@ -105,6 +105,16 @@ void debuglog( const char* fmt, ... )
   DosSleep(0);
 }
 
+void dassert(const char* file, int line, const char* msg)
+{ DEBUGLOG(("Assertion at %s line %i failed: %s\n", file, line, msg));
+  abort();
+}
+
+void cassert(const char* file, int line, const char* msg)
+{ DEBUGLOG(("Assertion at %s line %i failed: %s\n%s (%i)\n", file, line, msg, clib_strerror(errno), errno));
+  abort();
+}
+
 void oassert(unsigned long apiret, const char* file, int line, const char* msg)
 { if (apiret)
   { char buf[1024];

@@ -1,6 +1,8 @@
 /*
  * Copyright 1997-2003 Samuel Audet <guardia@step.polymtl.ca>
  *                     Taneli Lepp„ <rosmo@sektori.com>
+ * Copyright 2004-2006 Dmitry A.Steklenev <glass@ptv.ru>
+ * Copyright 2007-2008 M.Mueller
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -850,6 +852,7 @@ BEGIN
   "U",       IDM_PL_USE,         AF_CHAR|AF_CONTROL|AF_SHIFT
   VK_INSERT, IDM_PL_APPFILEALL,  AF_VIRTUALKEY
   "u",       IDM_PL_APPURLALL,   AF_CHAR|AF_ALT
+  "U",       IDM_PL_APPURL,      AF_CHAR|AF_ALT|AF_SHIFT
   "c",       IDM_PL_CLEAR,       AF_CHAR|AF_CONTROL
   "s",       IDM_PL_SAVE,        AF_CHAR|AF_CONTROL
   "t",       IDM_PL_TREEVIEWALL, AF_CHAR|AF_CONTROL
@@ -861,7 +864,8 @@ BEGIN
   VK_DELETE, IDM_PL_REMOVE,      AF_VIRTUALKEY
   VK_F10,    IDM_PL_MENUCONT,    AF_VIRTUALKEY|AF_SHIFT
   VK_SPACE,  IDM_PL_MENU,        AF_VIRTUALKEY
-/* VK_ENTER,  IDM_PL_USE,         AF_VIRTUALKEY*/
+  VK_ENTER,  IDM_PL_NAVIGATE,    AF_VIRTUALKEY
+  VK_NEWLINE,IDM_PL_NAVIGATE,    AF_VIRTUALKEY
 END
 
 MENU MNU_PLAYLIST
@@ -904,28 +908,6 @@ MENU MNU_RECORD
 }
 
 /* Playlist Manager specific stuff */
-
-ACCELTABLE ACL_PLAYLISTMAN
-BEGIN
-  "u",       IDM_PL_USEALL,      AF_CHAR|AF_CONTROL
-  "U",       IDM_PL_USE,         AF_CHAR|AF_CONTROL|AF_SHIFT
-  VK_INSERT, IDM_PL_APPFILEALL,  AF_VIRTUALKEY
-  VK_INSERT, IDM_PL_APPFILE,     AF_VIRTUALKEY|AF_SHIFT
-  "u",       IDM_PL_APPURLALL,   AF_CHAR|AF_ALT
-  "U",       IDM_PL_APPURL,      AF_CHAR|AF_ALT|AF_SHIFT
-  "c",       IDM_PL_CLEAR,       AF_CHAR|AF_CONTROL
-  "s",       IDM_PL_SAVE,        AF_CHAR|AF_CONTROL
-  "t",       IDM_PL_TREEVIEWALL, AF_CHAR|AF_CONTROL
-  "T",       IDM_PL_TREEVIEW,    AF_CHAR|AF_CONTROL|AF_SHIFT
-  "d",       IDM_PL_DETAILEDALL, AF_CHAR|AF_CONTROL
-  "D",       IDM_PL_DETAILED,    AF_CHAR|AF_CONTROL|AF_SHIFT
-  "e",       IDM_PL_EDIT,        AF_CHAR|AF_CONTROL
-  "o",       IDM_PL_OPEN,        AF_CHAR|AF_CONTROL
-  VK_DELETE, IDM_PL_REMOVE,      AF_VIRTUALKEY
-  VK_F10,    IDM_PL_MENUCONT,    AF_VIRTUALKEY|AF_SHIFT
-  VK_SPACE,  IDM_PL_MENU,        AF_VIRTUALKEY
-/* VK_ENTER,  IDM_PL_USE,         AF_VIRTUALKEY*/
-END
 
 MENU PM_MAIN_MENU
 { MENUITEM "~Load all",                  IDM_PL_USEALL

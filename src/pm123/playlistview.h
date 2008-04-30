@@ -1,5 +1,5 @@
 /*
- * Copyright 2007-2007 Marcel Mueller
+ * Copyright 2007-2008 Marcel Mueller
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -127,10 +127,10 @@ class PlaylistView : public PlaylistRepository<PlaylistView>
 
   // Determine type of Playable object
   // Subfunction to CalcIcon.
-  virtual ICP       GetPlayableType(RecordBase* rec);
+  virtual ICP       GetPlayableType(const RecordBase* rec) const;
   // Gets the Usage type of a record.
   // Subfunction to CalcIcon.
-  virtual IC        GetRecordUsage(RecordBase* rec);
+  virtual IC        GetRecordUsage(const RecordBase* rec) const;
   // Convert size [bytes] to a human readable format
   static xstring    FormatSize(double size);
   // Convert time [s] to a human readable format
@@ -143,7 +143,7 @@ class PlaylistView : public PlaylistRepository<PlaylistView>
   // Subfunction to the factory below.
   virtual RecordBase* CreateNewRecord(PlayableInstance* obj, RecordBase* parent);
   // Find parent record. Returns NULL if rec is at the top level.
-  virtual RecordBase* GetParent(RecordBase* const rec);
+  virtual RecordBase* GetParent(const RecordBase* const rec) const;
   // Update a record
   void              UpdateRecord(Record* rec, Playable::InfoFlags flags, PlayableInstance::StatusFlags iflags);
 };

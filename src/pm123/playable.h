@@ -1,5 +1,5 @@
 /*
- * Copyright 2007-2007 Marcel Mueller
+ * Copyright 2007-2008 Marcel Mueller
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -31,11 +31,9 @@
 #define PLAYABLE_H
 
 #include <stdlib.h>
-#include <string.h>
 
 #include <cpp/event.h>
-#include <utilfct.h>
-#include <xio.h>
+//#include <utilfct.h>
 #include <cpp/mutex.h>
 #include <cpp/smartptr.h>
 #include <cpp/xstring.h>
@@ -43,7 +41,6 @@
 #include <cpp/cpputil.h>
 #include <cpp/container.h>
 #include <cpp/url123.h>
-#include <strutils.h>
 
 #include <decoder_plug.h>
 
@@ -145,9 +142,7 @@ class Playable
   void                UpdateStatus(PlayableStatus stat);
   // Raise the InfoChange event if required.
   // This function must be called in synchronized context.
-  void                RaiseInfoChange()   { if (InfoChangeFlags)
-                                              InfoChange(change_args(*this, InfoChangeFlags));
-                                            InfoChangeFlags = IF_None; }
+  void                RaiseInfoChange();
  public:
   virtual ~Playable();
   // Check whether a given URL is to be initialized as playlist.
@@ -276,100 +271,6 @@ struct PlayableSet
 };
 
 
-class PlayableCollection;
-
-/* Instance to a Playable object. While the Playable objects are unique per URL
- * the PlayableInstances are not.
- * In contrast to Playable PlayableInstance is not thread-safe.
- * It is usually protected by the collection it belongs to.
- * But calling non-constant methods unsynchronized will not cause the application
- * to have undefined behaviour. It will only cause the PlayableInstance to have a
- * non-deterministic but valid state.
- * The relationship of a PlayableInstance to it's container is weak.
- * That means that the PlayableInstance may be detached from the container before it dies.
- * A detached PlayableInstance will die as soon as it is no longer used. It will never be
- * reattached to a container.
- * That also means that there is no way to get a reference to the actual parent,
- * because once you got the reference it might immediately get invalid.
- * And to avoid this, the parent must be locked, which is impossible to ensure, of course.
- * All you can do is to verify wether the current PlayableInstance belongs to a given parent
- * while this parent is locked with the method IsParent. This is e.g. useful to ensure
- * that a PlayableInstance is still valid before it is removed from the collection.
- */
-class PlayableInstance : public Iref_Count
-{public:
-  // Parameters for StatusChange Event
-  enum StatusFlags
-  { SF_None    = 0,
-    SF_InUse   = 0x01,
-    SF_Alias   = 0x02,
-    SF_Slice   = 0x04,
-    SF_All     = SF_InUse|SF_Alias|SF_Slice
-  };
-  struct change_args
-  { PlayableInstance&      Instance;
-    StatusFlags            Flags; // Bitvector of type StatusFlags
-    change_args(PlayableInstance& inst, StatusFlags flags) : Instance(inst), Flags(flags) {}
-  };
-  struct slice
-  { double                 Start;
-    double                 Stop;
-    static slice           Initial;
-    slice(double start = 0, double stop = -1) : Start(start), Stop(stop) {}
-    friend inline bool     operator==(const slice& l, const slice& r)
-                           { return l.Start == r.Start && l.Stop == r.Stop; }
-  };
-
- protected:
-  PlayableCollection*      Parent;
- private:
-  const int_ptr<Playable>  RefTo;
-  PlayableStatus           Stat;
-  xstring                  Alias;
-  slice                    Slice;
-
- protected:
-  PlayableInstance(PlayableCollection& parent, Playable* playable);
- public:
-  virtual                  ~PlayableInstance() {}
-  // Get't the referenced content.
-  // This Pointer is valid as long as the PlayableInstance exist and does not change.
-  Playable*                GetPlayable() const { return RefTo; }
-  // Check if this instance (still) belongs to a collection.
-  // The return value true is not reliable unless the collection is locked.
-  // Calling this method with NULL will check whether the instance does no longer belog to a collection.
-  // In this case only the return value true is reliable.  
-  bool                     IsParent(const PlayableCollection* parent) { return Parent == parent; }
-
-  // Aliasname
-  xstring                  GetAlias() const    { return Alias; }
-  void                     SetAlias(const xstring& alias);
-  // Play position
-  const slice&             GetSlice() const    { return Slice; }
-  void                     SetSlice(const slice& sl);
-  // Display name
-  xstring                  GetDisplayName() const;
-
-  // The Status-Interface of PlayableInstance is identical to that of Playable,
-  // but the only valid states for a PlayableInstance are Normal and Used.
-  // Status changes of a PlayableInstance are automatically reflected to the underlying Playable object,
-  // but /not/ the other way.
-  PlayableStatus           GetStatus() const   { return Stat; }
-  // Change status of this instance.
-  void                     SetInUse(bool used);
-
- public:
-  // event on status change
-  event<const change_args> StatusChange;
-  // Compare two PlayableInstance objects by value.
-  // Two instances are equal if on only if they belong to the same PlayableCollection,
-  // share the same Playable object (=URL) and have the same properties values for alias and slice.
-  friend bool              operator==(const PlayableInstance& l, const PlayableInstance& r);
-};
-// Flags Attribute for StatusFlags
-FLAGSATTRIBUTE(PlayableInstance::StatusFlags);
-
-
 /* Class representing exactly one song.
  */
 class Song : public Playable
@@ -378,251 +279,6 @@ class Song : public Playable
    : Playable(URL, ca_format, ca_tech, ca_meta) { DEBUGLOG(("Song(%p)::Song(%s, %p, %p, %p)\n", this, URL.cdata(), ca_format, ca_tech, ca_meta)); }
 
   virtual InfoFlags        LoadInfo(InfoFlags what);
-};
-
-
-/* Abstract class representing a collection of PlayableInstances.
- */
-class PlayableCollection : public Playable
-{public:
-  enum change_type
-  { Insert, // item just inserted
-    Move,   // item just moved
-    Delete  // item about to be deleted
-  };
-  enum save_options
-  { SaveDefault      = 0x00,
-    SaveRelativePath = 0x01,
-    SaveAsM3U        = 0x10
-  };
-  struct change_args
-  { PlayableCollection&    Collection;
-    PlayableInstance&      Item;
-    change_type            Type;
-    change_args(PlayableCollection& coll, PlayableInstance& item, change_type type)
-    : Collection(coll), Item(item), Type(type) {}
-  };
-  typedef int (*ItemComparer)(const PlayableInstance* l, const PlayableInstance* r);  
-  // Information on PlayableCollection.
-  struct CollectionInfo
-  { double                 Songlength;
-    double                 Filesize;
-    int                    Items;
-    bool                   Excluded;
-
-    void                   Add(double songlength, double filesize, int items);
-    void                   Add(const CollectionInfo& ci)
-                           { Add(ci.Songlength, ci.Filesize, ci.Items); }
-    void                   Reset();
-    CollectionInfo()       { Reset(); }
-  };
- protected:
-  // internal representation of a PlayableInstance as linked list.
-  struct Entry : public PlayableInstance
-  { typedef class_delegate<PlayableCollection, const Playable::change_args> TDType;
-    typedef class_delegate<PlayableCollection, const PlayableInstance::change_args> IDType;
-    int_ptr<Entry> Prev;      // link to the pervious entry or NULL if this is the first
-    int_ptr<Entry> Next;      // link to the next entry or NULL if this is the last
-    TDType TechDelegate;
-    IDType InstDelegate;
-    Entry(PlayableCollection& parent, Playable* playable, TDType::func_type tfn, IDType::func_type ifn)
-    : PlayableInstance(parent, playable),
-      Prev(NULL),
-      Next(NULL),
-      TechDelegate(playable->InfoChange, parent, tfn),
-      InstDelegate(StatusChange, parent, ifn)
-    {}
-    // Detach a PlayableInstance from the collection.
-    // This function must be called only by the parent collection and only while it is locked.
-    void Detach()             { Parent = NULL; }
-  };
-  // CollectionInfo CacheEntry
-  struct CollectionInfoEntry
-  : public PlayableSet
-  { CollectionInfo         Info;
-    bool                   Valid;
-    CollectionInfoEntry() : Valid(true) {}
-  };
-
- protected:
-  static const FORMAT_INFO2 no_format;
-  // The object list is implemented as a doubly linked list to keep the iterators valid on modifications.
-  int_ptr<Entry> Head;
-  int_ptr<Entry> Tail;
-  // Cache mit subenumeration infos
-  // This object is protected by a critical section.
-  sorted_vector<CollectionInfoEntry, PlayableSet> CollectionInfoCache;
-
- private:
-  // This is called by the InfoChange events of the children.
-  void                        ChildInfoChange(const Playable::change_args& args);
-  // This is called by the StatusChange events of the children.
-  void                        ChildInstChange(const PlayableInstance::change_args& args);
- protected:
-  // Fill the THEC_INFO structure.
-  void                        CalcTechInfo(TECH_INFO& dst);
-  // Create new entry and make the path absolute if required.
-  virtual Entry*              CreateEntry(const char* url, const FORMAT_INFO2* ca_format = NULL, const TECH_INFO* ca_tech = NULL, const META_INFO* ca_meta = NULL);
-  // Append a new entry at the end of the list.
-  // The list must be locked before calling this Function.
-  void                        AppendEntry(Entry* entry);
-  // Insert a new entry into the list.
-  // The list must be locked before calling this Function.
-  void                        InsertEntry(Entry* entry, Entry* before);
-  // Move a entry inside the list.
-  // The list must be locked before calling this Function.
-  // The function returns false if the move is a no-op.
-  bool                        MoveEntry(Entry* entry, Entry* before);
-  // Remove an entry from the list.
-  // The list must be locked before calling this Function.
-  void                        RemoveEntry(Entry* entry);
-  // Subfunction to LoadInfo which really populates the linked list.
-  // The return value indicates whether the object is valid.
-  virtual bool                LoadList() = 0;
-  // Save to stream as PM123 playlist format
-  bool                        SaveLST(XFILE* of, bool relative);
-  // Save to stream as WinAmp playlist format
-  bool                        SaveM3U(XFILE* of, bool relative);
-  // Constructor with defaults if available.
-  PlayableCollection(const url123& URL, const TECH_INFO* ca_tech = NULL, const META_INFO* ca_meta = NULL);
- public:
-  virtual                     ~PlayableCollection();
-  // RTTI by the back door.
-  virtual Flags               GetFlags() const;
-  // Check whether the current Collection is a modified shadow of a unmodified backend.
-  // Calling Save() will turn the state into unmodified.
-  // The default implementation of this class will always return false.
-  // This is the behaviour of a read-only or a synchronized collection.
-  virtual bool                IsModified() const;
-
-  // Iterate over the collection. While the following functions are atomic and therefore thread-safe
-  // the iteration itself is not because the collection may change at any time.
-  // Calling these function is not valid until the information IF_Other is loaded. 
-  // Get previous item of this collection. Passing NULL will return the last item.
-  // The function returns NULL if ther are no more items.
-  virtual int_ptr<PlayableInstance> GetPrev(PlayableInstance* cur) const;
-  // Get next item of this collection. Passing NULL will return the first item.
-  // The function returns NULL if ther are no more items.
-  virtual int_ptr<PlayableInstance> GetNext(PlayableInstance* cur) const;
-
-  // Calculate the CollectionInfo structure.
-  // The collection must be locked when this function ist called;
-  const CollectionInfo&       GetCollectionInfo(const PlayableSet& excluding = PlayableSet::Empty);
-  // Load Information from URL
-  // This implementation is only the framework. It reqires LoadInfoCore() for it's work.
-  virtual InfoFlags           LoadInfo(InfoFlags what);
-  // Save the current playlist as new file.
-  // If the destination name is omitted, the data is saved under the current URL.
-  // However this might not succeed, if the URL is read-only.
-  // Saving under a different name does not change the name of the curren object.
-  // It is like save copy as.
-  virtual bool                Save(const url123& URL, save_options opt = SaveDefault);
-  bool                        Save(save_options opt = SaveDefault) { return Save(GetURL(), opt); }
-
- protected:
-  // Notify that the data source is likely to have changed.
-  // This is a NO-OP in the default implementation.
-  virtual void                NotifySourceChange();
- public:
-  // This event is raised whenever the collection has changed.
-  // The event may be called from any thread.
-  // The event is called in synchronized context.
-  event<const change_args>    CollectionChange;
-};
-FLAGSATTRIBUTE(PlayableCollection::save_options);
-
-
-/* Class representing a playlist file.
- */
-class Playlist : public PlayableCollection
-{private:
-  // Helper class to deserialize playlists 
-  class LSTReader;
-  friend class LSTReader;
-  class LSTReader
-  {private:
-    Playlist&                 List;
-    FORMAT_INFO2              Format;
-    TECH_INFO                 Tech;
-    bool                      has_format;
-    bool                      has_tech;
-    bool                      has_techinfo;
-    xstring                   Alias;
-    PlayableInstance::slice   Slice;
-    url123                    URL;
-   private:
-    void                      Reset();
-    void                      Create();
-   public:
-    LSTReader(Playlist& lst)  : List(lst) { Reset(); }
-    ~LSTReader()              { Create(); }
-    void                      ParseLine(char* line);
-  };
-
- private:
-  bool                        Modified;
-
- private:
-  // Loads the PM123 native playlist file.
-  bool                        LoadLST(XFILE* x);
-  // Loads the WarpAMP playlist file.
-  bool                        LoadMPL(XFILE* x);
-  // Loads the WinAMP playlist file.
-  bool                        LoadPLS(XFILE* x);
- protected:
-  // really load the playlist
-  virtual bool                LoadList();
- public:
-  Playlist(const url123& URL, const TECH_INFO* ca_tech = NULL, const META_INFO* ca_meta = NULL)
-   : PlayableCollection(URL, ca_tech, ca_meta), Modified(false) { DEBUGLOG(("Playlist(%p)::Playlist(%s, %p, %p)\n", this, URL.cdata(), ca_tech, ca_meta)); }
-  // Get attributes
-  virtual Flags               GetFlags() const;
-  // Check whether the current Collection is a modified shadow of a unmodified backend.
-  // Calling Save() will turn the state into unmodified.
-  virtual bool                IsModified() const;
-
-  // Insert a new item before the item "before".
-  // If the prameter before is NULL the item is appended.
-  // The funtion fails with returning false if and only if the PlayableInstance before is no longer valid.
-  virtual bool                InsertItem(const char* url, const xstring& alias, const PlayableInstance::slice& sl, PlayableInstance* before = NULL);
-  bool                        InsertItem(const char* url, const xstring& alias, PlayableInstance* before = NULL)
-                              { return InsertItem(url, alias, PlayableInstance::slice::Initial, before); }
-  // Move an item inside the list.
-  // If the prameter before is NULL the item is moved to the end.
-  // The funtion fails with returning false if and only if one of the PlayableInstances is no longer valid.
-  virtual bool                MoveItem(PlayableInstance* item, PlayableInstance* before);
-  // Remove an item from the playlist.
-  // Attension: passing NULL as argument will remove all items.
-  // The funtion fails with returning false if and only if the PlayableInstance is no longer valid.
-  virtual bool                RemoveItem(PlayableInstance* item);
-  // Remove all items from the playlist.
-  void                        Clear() { RemoveItem(NULL); }
-  // Sort all items with a comparer.
-  virtual void                Sort(ItemComparer comp);
-  // Randomize record sequence.
-  virtual void                Shuffle();
-  // Save the current playlist as new file.
-  virtual bool                Save(const url123& URL, save_options opt = SaveDefault);
-
- protected:
-  // Notify that the data source is likely to have changed.
-  virtual void                NotifySourceChange();
-};
-
-
-/* Class representing a folder with songs.
- * (Something like an implicit playlist.)
- */
-class PlayFolder : public PlayableCollection
-{private:
-  xstring                     Pattern;
-  bool                        Recursive;
-
- private:
-  void                        ParseQueryParams();
- public:
-  PlayFolder(const url123& URL, const TECH_INFO* ca_tech = NULL, const META_INFO* ca_meta = NULL);
-  virtual bool                LoadList();
 };
 
 

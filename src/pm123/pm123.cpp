@@ -74,17 +74,6 @@
 
 #include <debuglog.h>
 
-#define  AMP_REFRESH_CONTROLS   ( WM_USER + 1000 ) /* 0,         0                            */
-#define  AMP_PAINT              ( WM_USER + 1001 ) /* options,   0                            */
-#define  AMP_LOAD               ( WM_USER + 1002 )
-#define  AMP_DISPLAY_MESSAGE    ( WM_USER + 1013 ) /* message,   TRUE (info) or FALSE (error) */
-#define  AMP_DISPLAY_MODE       ( WM_USER + 1014 ) /* 0,         0                            */
-#define  AMP_QUERY_STRING       ( WM_USER + 1015 ) /* buffer,    size and type                */
-#define  AMP_INFO_EDIT          ( WM_USER + 1016 )
-#define  AMP_CTRL_EVENT         ( WM_USER + 1020 )
-#define  AMP_CTRL_EVENT_CB      ( WM_USER + 1021 )
-#define  AMP_REFRESH_ACCEL      ( WM_USER + 1022 )
-
 #define  TID_UPDATE_TIMERS    ( TID_USERMAX - 1 )
 #define  TID_UPDATE_PLAYER    ( TID_USERMAX - 2 )
 #define  TID_ONTOP            ( TID_USERMAX - 3 )
@@ -151,75 +140,6 @@ static void amp_reset_status()
   last_status.TotalSongTime   = -1;
 }
 
-void DLLENTRY
-amp_display_info( const char* info )
-{
-  char* message = strdup( info );
-  if( message ) {
-    WinPostMsg( hplayer, AMP_DISPLAY_MESSAGE, MPFROMP( message ), MPFROMLONG( FALSE ));
-  }
-  WinPostMsg( hplayer, WM_PLAYERROR, 0, 0 );
-}
-
-void DLLENTRY
-amp_display_error( const char *info )
-{
-  char* message = strdup( info );
-  if( message ) {
-    WinPostMsg( hplayer, AMP_DISPLAY_MESSAGE, MPFROMP( message ), MPFROMLONG( TRUE ));
-  }
-}
-
-void DLLENTRY pm123_control( int index, void* param )
-{
-  switch (index)
-  {
-    case CONTROL_NEXTMODE:
-      WinSendMsg( hplayer, AMP_DISPLAY_MODE, 0, 0 );
-      break;
-  }
-}
-
-int DLLENTRY pm123_getstring( int index, int subindex, size_t bufsize, char* buf )
-{ if (bufsize)
-    *buf = 0;
-  switch (index)
-  {case STR_VERSION:
-    strlcpy( buf, AMP_FULLNAME, bufsize );
-    break;
-
-   case STR_DISPLAY_TEXT:
-    strlcpy( buf, bmp_query_text(), bufsize );
-    break;
-
-   case STR_FILENAME:
-    { int_ptr<Song> song = Ctrl::GetCurrentSong();
-      if (song)
-        strlcpy(buf, song->GetURL(), bufsize);
-      break;
-    }
-   
-   case STR_DISPLAY_TAG:
-    { int_ptr<Song> song = Ctrl::GetCurrentSong();
-      if (song)
-      { const xstring& text = amp_construct_tag_string( &song->GetInfo() );
-        strlcpy(buf, text, bufsize);
-      }
-      break;
-    }
-    
-   case STR_DISPLAY_INFO:
-    { int_ptr<Song> song = Ctrl::GetCurrentSong();
-      if (song)
-        strlcpy(buf, song->GetInfo().tech->info, bufsize);
-      break;
-    }
-
-   default: break;
-  }
- return(0);
-}
-
 Playlist* amp_get_default_pl()
 { return DefaultPL;
 }
@@ -273,10 +193,10 @@ amp_paint_fileinfo( HPS hps )
 {
   DEBUGLOG(("amp_paint_fileinfo(%p)\n", hps));
 
-  int_ptr<Playable> pp = Ctrl::GetRoot();
-  bmp_draw_plmode( hps, pp != NULL, pp ? pp->GetFlags() : Playable::None );
+  int_ptr<PlayableSlice> ps = Ctrl::GetRoot();
+  bmp_draw_plmode( hps, ps != NULL, ps ? ps->GetPlayable()->GetFlags() : Playable::None );
 
-  pp = Ctrl::GetCurrentSong();
+  int_ptr<Song> pp = Ctrl::GetCurrentSong();
   if (pp != NULL)
   { bmp_draw_rate    ( hps, pp->GetInfo().tech->bitrate );
     bmp_draw_channels( hps, pp->GetInfo().format->channels );
@@ -333,7 +253,7 @@ void
 amp_display_filename( void )
 {
   int_ptr<Song> song = Ctrl::GetCurrentSong();
-  DEBUGLOG(("amp_display_filename() %p %u\n", &*song, cfg.viewmode));
+  DEBUGLOG(("amp_display_filename() %p %u\n", song.get(), cfg.viewmode));
   if (!song) {
     bmp_set_text( "No file loaded" );
     return;
@@ -379,56 +299,58 @@ amp_display_filename( void )
   return 1;
 }*/
 
-static void amp_AddMRU(Playlist* list, size_t max, const char* URL)
-{ DEBUGLOG(("amp_AddMRU(%p{%s}, %u, %s)\n", list, list->GetURL().cdata(), max, URL));
+static void amp_AddMRU(Playlist* list, size_t max, const PlayableSlice& ps)
+{ DEBUGLOG(("amp_AddMRU(%p{%s}, %u, %s)\n", list, list->GetURL().cdata(), max, ps.GetPlayable()->GetURL().cdata()));
   Mutex::Lock lock(list->Mtx);
   int_ptr<PlayableInstance> pi;
   // remove the desired item from the list and limit the list size
   while ((pi = list->GetNext(pi)) != NULL)
-  { DEBUGLOG(("amp_AddMRU - %p{%s}\n", &*pi, pi->GetPlayable()->GetURL().cdata()));
-    if (max == 0 || pi->GetPlayable()->GetURL() == URL)
+  { DEBUGLOG(("amp_AddMRU - %p{%s}\n", pi.get(), pi->GetPlayable()->GetURL().cdata()));
+    if (max == 0 || pi->GetPlayable() == ps.GetPlayable()) // Instance equality of Playable is sufficient
       list->RemoveItem(pi);
      else
       --max;
   }
   // prepend list with new item
-  list->InsertItem(URL, xstring(), list->GetNext(NULL));
+  list->InsertItem(ps, list->GetNext(NULL));
 }
 
 /* Loads a standalone file or CD track to player. */
 void
-amp_load_playable( const char* url, T_TIME start, int options )
-{ DEBUGLOG(("amp_load_playable(%s, %x)\n", url, options));
+amp_load_playable( const PlayableSlice& ps, int options )
+{ DEBUGLOG(("amp_load_playable({%s,...}, %x)\n", ps.GetPlayable()->GetURL().cdata(), options));
 
   if (options & AMP_LOAD_APPEND)
   { ASSERT(Ctrl::GetRoot() != NULL);
-    PlayableInstance::slice sl(start);
     // multi mode
-    if (Ctrl::GetRoot() != DefaultPL)
+    if (Ctrl::GetRoot()->GetPlayable() != DefaultPL)
     { // we do not yet use the current playlist => use it
       // move current item to the list
       DefaultPL->Clear();
-      DefaultPL->InsertItem(Ctrl::GetRoot()->GetURL(), (const char*)NULL, sl);
+      DefaultPL->InsertItem(*Ctrl::GetRoot());
       // reset current to first item of the playlist
-      Ctrl::PostCommand(Ctrl::MkLoad(DefaultPL->GetURL()));
+      Ctrl::PostCommand(Ctrl::MkLoad(DefaultPL->GetURL(), true));
     }
-    // append item
-    DefaultPL->InsertItem(url, (const char*)NULL, sl);
+    // append new item
+    DefaultPL->InsertItem(ps);
     return;
   }
 
-  Ctrl::ControlCommand* cmd = Ctrl::MkLoad(url);
-  if (start)
-    cmd->Link = Ctrl::MkNavigate(xstring(), start, false, false);
+  Ctrl::ControlCommand* cmd = Ctrl::MkLoad(ps.GetPlayable()->GetURL(), false);
+  Ctrl::ControlCommand* tail = cmd;
+  if (ps.GetStop() != NULL)
+    tail = tail->Link = Ctrl::MkStopAt(ps.GetStop()->Serialize(true), 0, false);
+  if (ps.GetStart() != NULL)
+    tail = tail->Link = Ctrl::MkNavigate(ps.GetStart()->Serialize(true), 0, false, false);
   if( !( options & AMP_LOAD_NOT_PLAY )) {
     if( cfg.playonload )
       // start playback immediately after loading has completed
-      (cmd->Link ? cmd->Link->Link : cmd->Link) = Ctrl::MkPlayStop(Ctrl::Op_Set);
+      tail = tail->Link = Ctrl::MkPlayStop(Ctrl::Op_Set);
   }
   Ctrl::PostCommand(cmd);
 
   if( !( options & AMP_LOAD_NOT_RECALL ))
-    amp_AddMRU(LoadMRU, MAX_RECALL, url);
+    amp_AddMRU(LoadMRU, MAX_RECALL, ps);
 }
 
 /* loads the accelerater table and modifies it by the plugins */
@@ -497,10 +419,10 @@ amp_show_context_menu( HWND parent )
 
   // Update status
   int_ptr<Song> song = Ctrl::GetCurrentSong();
-  int_ptr<Playable> root = Ctrl::GetRoot();
+  int_ptr<PlayableSlice> root = Ctrl::GetRoot();
 
   mn_enable_item( menu, IDM_M_TAG,     song != NULL && song->GetInfo().meta_write );
-  mn_enable_item( menu, IDM_M_CURRENT_PL, root != NULL && root->GetFlags() & Playable::Enumerable );
+  mn_enable_item( menu, IDM_M_CURRENT_PL, root != NULL && root->GetPlayable()->GetFlags() & Playable::Enumerable );
   mn_enable_item( menu, IDM_M_SMALL,   bmp_is_mode_supported( CFG_MODE_SMALL   ));
   mn_enable_item( menu, IDM_M_NORMAL,  bmp_is_mode_supported( CFG_MODE_REGULAR ));
   mn_enable_item( menu, IDM_M_TINY,    bmp_is_mode_supported( CFG_MODE_TINY    ));
@@ -560,7 +482,9 @@ amp_drag_over( HWND hwnd, DRAGINFO* pdinfo )
 struct DropInfo
 { //USHORT count;    // Count of dragged objects.
   //USHORT index;    // Index of current item [0..Count)
-  xstring URL;      // Object URL
+  xstring URL;      // Object to drop
+  xstring Start;    // Start Iterator
+  xstring Stop;     // Stop iterator
   int     options;  // Options for amp_load_playable
   HWND    hwndItem; // Window handle of the source of the drag operation.
   ULONG   ulItemID; // Information used by the source to identify the
@@ -693,6 +617,7 @@ amp_drag_drop( HWND hwnd, PDRAGINFO pdinfo )
         if ((pdtrans->fsReply & DMFL_NATIVERENDER))
         { DropInfo* pdsource = new DropInfo();
           pdsource->URL      = amp_string_from_drghstr(pditem->hstrSourceName);
+          // TODO: slice!
           pdsource->options  = options;
           WinPostMsg(hwnd, AMP_LOAD, MPFROMP(pdsource), 0);
           reply = DMFL_TARGETSUCCESSFUL;
@@ -1033,7 +958,7 @@ amp_url_wizzard( HWND owner, const char* title, DECODER_WIZZARD_CALLBACK callbac
 static void DLLENTRY
 amp_load_file_callback( void* param, const char* url )
 { DEBUGLOG(("amp_load_file_callback(%p{%u}, %s)\n", param, *(bool*)param, url));
-  amp_load_playable( url, 0, *(bool*)param ? 0 : AMP_LOAD_APPEND );
+  amp_load_playable( PlayableSlice(url), *(bool*)param ? 0 : AMP_LOAD_APPEND );
   *(bool*)param = false;
 }
 
@@ -1071,17 +996,17 @@ amp_info_edit( HWND owner, Playable* song )
 }
 
 /* Adds a user selected bookmark. */
-static void amp_add_bookmark(HWND owner, Playable* item, const PlayableInstance::slice& sl = PlayableInstance::slice::Initial)
-{ DEBUGLOG(("amp_add_bookmark(%x, %p{%s}, {%.1f,%.1f})\n", owner, item, item->GetDisplayName().cdata(), sl.Start, sl.Stop));
+static void amp_add_bookmark(HWND owner, PlayableSlice* item)
+{ DEBUGLOG(("amp_add_bookmark(%x, %p{%s})\n", owner, item, item->GetPlayable()->GetURL().cdata()));
   // TODO: !!!!!! request information before
-  const META_INFO& meta = *item->GetInfo().meta;
+  const META_INFO& meta = *item->GetPlayable()->GetInfo().meta;
   xstring desc = "";
   if (*meta.artist)
     desc = xstring(meta.artist) + "-";
   if (*meta.title)
     desc = desc + meta.title;
    else
-    desc = desc + item->GetURL().getShortName();
+    desc = desc + item->GetPlayable()->GetURL().getShortName();
 
   HWND hdlg = WinLoadDlg(HWND_DESKTOP, owner, &WinDefDlgProc, NULLHANDLE, DLG_BM_ADD, NULL);
 
@@ -1093,7 +1018,7 @@ static void amp_add_bookmark(HWND owner, Playable* item, const PlayableInstance:
     WinQueryDlgItemText(hdlg, EF_BM_DESC, alias.length()+1, cp);
     if (alias == desc)
       alias = NULL; // Don't set alias if not required.
-    DefaultBM->InsertItem(item->GetURL(), alias, sl);
+    DefaultBM->InsertItem(*item);
     // TODO !!!!!
     //bm_save( owner );
   }
@@ -1616,14 +1541,16 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
 
     case AMP_LOAD:
     { DropInfo* pdi = (DropInfo*)mp1;
-      amp_load_playable(pdi->URL, 0, pdi->options);
+      int_ptr<PlayableSlice> ps = new PlayableSlice(pdi->URL, xstring(), pdi->Start.cdata(), pdi->Stop.cdata());
+      ASSERT(ps->GetPlayable());
+      amp_load_playable(*ps, pdi->options);
       delete pdi;
       return 0;
     }
 
     case AMP_INFO_EDIT:
     { info_edit* iep = (info_edit*)PVOIDFROMMP(mp1);
-      DEBUGLOG(("amp_dlg_proc: AMP_INFO_EDIT %p{%x, %p,}\n", iep, iep->Owner, &*iep->Song));
+      DEBUGLOG(("amp_dlg_proc: AMP_INFO_EDIT %p{%x, %p,}\n", iep, iep->Owner, iep->Song.get()));
       // TODO: THREAD?
       ULONG rc = dec_editmeta( iep->Owner, iep->Song->GetURL(), iep->Song->GetDecoder());
       DEBUGLOG(("amp_dlg_proc: AMP_INFO_EDIT rc = %u\n", rc));
@@ -1753,7 +1680,7 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
           break;
          case Ctrl::Cmd_Save:
           if (cmd->Flags != Ctrl::RC_OK)
-            amp_display_error( "The current active decoder don't support saving of a stream.\n" );
+            amp_player_error( "The current active decoder don't support saving of a stream.\n" );
           break;
          case Ctrl::Cmd_Status:
           is_msg_status = false;
@@ -1765,6 +1692,12 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
               amp_reset_status();
             amp_paint_timers( hps );
             WinReleasePS( hps );
+          }
+          break;
+         case Ctrl::Cmd_Location:
+          { PlayableSlice* ps = new PlayableSlice(cmd->StrArg);
+            ps->SetStart((SongIterator*)cmd->PtrArg);
+            amp_add_bookmark(hwnd, ps);
           }
           break;
          default:; // supress warnings
@@ -1896,24 +1829,32 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
         case IDM_M_ADDBOOK:
         { int_ptr<Song> song = Ctrl::GetCurrentSong();
           if (song)
-            amp_add_bookmark(hwnd, song);
+            amp_add_bookmark(hwnd, new PlayableSlice(song));
           break;
         }
         case IDM_M_ADDBOOK_TIME:
         { int_ptr<Song> song = Ctrl::GetCurrentSong();
           if (song)
+          { PlayableSlice* ps = new PlayableSlice(song);
             // Use the time index from last_status here.
-            amp_add_bookmark(hwnd, song, PlayableInstance::slice(last_status.CurrentSongTime));
+            if (last_status.CurrentSongTime > 0)
+            { SongIterator* iter = new SongIterator();
+              iter->SetLocation(last_status.CurrentSongTime);
+              ps->SetStart(iter);
+            }
+            amp_add_bookmark(hwnd, ps);
+          }
           break;
         }
         case IDM_M_ADDPLBOOK:
-        { int_ptr<Playable> root = Ctrl::GetRoot();
+        { int_ptr<PlayableSlice> root = Ctrl::GetRoot();
           if (root)
             amp_add_bookmark(hwnd, root);
           break;
         }
         case IDM_M_ADDPLBOOK_TIME:
-        { // TODO:
+        { Ctrl::PostCommand(Ctrl::MkLocation(), &amp_control_event_callback);
+          // Continue at AMP_CTRL_EVENT_CB
           break;
         }
 
@@ -1928,27 +1869,27 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
           break;
         }
         case IDM_M_DETAILED:
-        { int_ptr<Playable> pp = Ctrl::GetRoot();
-          if (pp && (pp->GetFlags() & Playable::Enumerable))
-            PlaylistView::Get(pp)->SetVisible(true);
+        { int_ptr<PlayableSlice> pp = Ctrl::GetRoot();
+          if (pp && (pp->GetPlayable()->GetFlags() & Playable::Enumerable))
+            PlaylistView::Get(pp->GetPlayable())->SetVisible(true);
           break;
         }
         case IDM_M_TREEVIEW:
-        { int_ptr<Playable> pp = Ctrl::GetRoot();
-          if (pp && (pp->GetFlags() & Playable::Enumerable))
-            PlaylistManager::Get(pp)->SetVisible(true);
+        { int_ptr<PlayableSlice> pp = Ctrl::GetRoot();
+          if (pp && (pp->GetPlayable()->GetFlags() & Playable::Enumerable))
+            PlaylistManager::Get(pp->GetPlayable())->SetVisible(true);
           break;
         }
         case IDM_M_ADDPMBOOK:
-        { int_ptr<Playable> pp = Ctrl::GetRoot();
+        { int_ptr<PlayableSlice> pp = Ctrl::GetRoot();
           if (pp)
-            DefaultPM->InsertItem(pp->GetURL(), (const char*)NULL);
+            DefaultPM->InsertItem(*pp);
           break;
         }
         case IDM_M_PLSAVE:
-        { int_ptr<Playable> pp = Ctrl::GetRoot();
-          if (pp && (pp->GetFlags() & Playable::Enumerable))
-            amp_save_playlist( hwnd, (PlayableCollection*)&*pp );
+        { int_ptr<PlayableSlice> pp = Ctrl::GetRoot();
+          if (pp && (pp->GetPlayable()->GetFlags() & Playable::Enumerable))
+            amp_save_playlist( hwnd, (PlayableCollection*)pp->GetPlayable() );
           break;
         }
         case IDM_M_SAVE:
@@ -2101,7 +2042,8 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
     case PlaylistMenu::UM_SELECTED:
     { // bookmark selected
       const PlaylistMenu::select_data* data = (PlaylistMenu::select_data*)PVOIDFROMMP(mp1);
-      amp_load_playable(data->Item->GetURL(), data->Slice.Start, AMP_LOAD_NOT_RECALL|AMP_LOAD_KEEP_PLAYLIST);
+      // TODO: NAVIGATION in case data->slice->Start.Iter
+      amp_load_playable(*data->Item, AMP_LOAD_NOT_RECALL|AMP_LOAD_KEEP_PLAYLIST);
     }
 
     case WM_CREATE:
@@ -2434,7 +2376,7 @@ main2( void* arg )
   delegate<void, const Ctrl::EventFlags> ctrl_delegate(Ctrl::ChangeEvent, &amp_control_event_handler);
 
   if( files == 1 && !is_dir( argv[argc - 1] )) {
-    amp_load_playable( url123::normalizeURL(argv[argc - 1]), 0, 0 );
+    amp_load_playable(PlayableSlice(url123::normalizeURL(argv[argc - 1])), 0 );
   } else if( files > 0 ) {
     // TODO: same as on load_file_callback
     /*for( i = 1; i < argc; i++ ) {
@@ -2464,10 +2406,10 @@ main2( void* arg )
 
   // Init default lists
   { const url123& path = url123::normalizeURL(startpath);
-    DefaultPL = (Playlist*)&*Playable::GetByURL(path + "PM123.LST");
-    DefaultPM = (Playlist*)&*Playable::GetByURL(path + "PFREQ.LST");
-    DefaultBM = (Playlist*)&*Playable::GetByURL(path + "BOOKMARK.LST");
-    LoadMRU   = (Playlist*)&*Playable::GetByURL(path + "LOADMRU.LST");
+    DefaultPL = &(Playlist&)*Playable::GetByURL(path + "PM123.LST");
+    DefaultPM = &(Playlist&)*Playable::GetByURL(path + "PFREQ.LST");
+    DefaultBM = &(Playlist&)*Playable::GetByURL(path + "BOOKMARK.LST");
+    LoadMRU   = &(Playlist&)*Playable::GetByURL(path + "LOADMRU.LST");
     // The default playlist the bookmarks and the MRU list must be ready to use
     DefaultPL->EnsureInfo(Playable::IF_Other);
     DefaultBM->EnsureInfo(Playable::IF_Other);

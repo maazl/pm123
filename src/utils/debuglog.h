@@ -130,12 +130,14 @@ extern "C" {
 */
  
 #ifdef DEBUG
-  #define ASSERT(expr) ((expr) ? (void)0 : (DEBUGLOG(("Assertion at %s line %i failed: %s\n", __FILE__, __LINE__, #expr)), abort()))
-  #define RASSERT(expr) (!!(expr) ? (void)0 : (DEBUGLOG(("Assertion at %s line %i failed: %s\n", __FILE__, __LINE__, #expr)), abort())) 
-  #define XASSERT(expr, cond) (((expr) cond) ? (void)0 : (DEBUGLOG(("Assertion at %s %s failed: %s\n", __FILE__, __LINE__, #expr" "#cond)), abort()))
+  void dassert(const char* file, int line, const char* msg);
+  #define ASSERT(expr) ((expr) ? (void)0 : dassert(__FILE__, __LINE__, #expr))
+  #define RASSERT(expr) (!!(expr) ? (void)0 : dassert(__FILE__, __LINE__, #expr))
+  #define XASSERT(expr, cond) (((expr) cond) ? (void)0 : dassert(__FILE__, __LINE__, #expr" "#cond))
 
-  #define CASSERT(expr) ((expr) ? (void)0 : (DEBUGLOG(("Assertion at %s line %i failed: %s\n%s (%i)\n", __FILE__, __LINE__, #expr, clib_strerror(errno), errno)), abort()))
-  #define CXASSERT(expr, cond) (((expr) cond) ? (void)0 : (DEBUGLOG(("Assertion at %s line %i failed: %s\n%s (%i)\n", __FILE__, __LINE__, #expr" "#cond, clib_strerror(errno), errno)), abort()))
+  void cassert(const char* file, int line, const char* msg);
+  #define CASSERT(expr) ((expr) ? (void)0 : cassert(__FILE__, __LINE__, #expr))
+  #define CXASSERT(expr, cond) (((expr) cond) ? (void)0 : cassert(__FILE__, __LINE__, #expr" "#cond))
 
   void oassert(unsigned long apiret, const char* file, int line, const char* msg);
   #define OASSERT(apiret) ((apiret) ? (void)0 : oassert(apiret, __FILE__, __LINE__, #apiret))

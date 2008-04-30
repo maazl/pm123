@@ -2,8 +2,6 @@
 
 .SUFFIXES: .c .cpp .asm .o .obj .rc .res
 
-TCP
-
 MFLAGS     = -nologo
 MDUMMY     =
 
@@ -60,7 +58,11 @@ LFLAGS = $(LFLAGS) -L$(GCC_ROOT)\lib\tcpipv4
 !ifdef GCC_HOME
 LFLAGS = $(LFLAGS) -L$(GCC_HOME)\lib\tcpipv4
 !else
-!error GCC_HOME or GCC_ROOT must be defined.
+!ifdef PATH_EMXPGCC
+LFLAGS = $(LFLAGS) -L$(PATH_EMXPGCC)\lib\tcpipv4
+!else
+!error GCC_HOME or GCC_ROOT or PATH_EMXPGCC must be defined.
+!endif
 !endif
 !endif
 #!endif

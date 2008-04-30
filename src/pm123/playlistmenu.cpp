@@ -1,7 +1,7 @@
 /*
  * Copyright 1997-2003 Samuel Audet <guardia@step.polymtl.ca>
  *                     Taneli Lepp„ <rosmo@sektori.com>
- * Copyright 2007-2007 Marcel Mueller
+ * Copyright 2007-2008 Marcel Mueller
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -150,7 +150,7 @@ USHORT PlaylistMenu::InsertSeparator(HWND menu, SHORT where)
 void PlaylistMenu::CreateSubItems(MapEntry* mapp)
 { DEBUGLOG(("PlaylistMenu(%p)::CreateSubItems(%p{%u})\n", this, mapp, mapp->IDMenu));
   // is enumerable?
-  if (!(mapp->Data.Item->GetFlags() & Playable::Enumerable))
+  if (!(mapp->Data.Item->GetPlayable()->GetFlags() & Playable::Enumerable))
     return;
 
   MENUITEM mi = {0};
@@ -161,13 +161,13 @@ void PlaylistMenu::CreateSubItems(MapEntry* mapp)
   }
   size_t count = 0;
   // lock collection
-  Mutex::Lock lock(mapp->Data.Item->Mtx);
-  if (!mapp->Data.Item->EnsureInfoAsync(Playable::IF_Other))
+  Mutex::Lock lock(mapp->Data.Item->GetPlayable()->Mtx);
+  if (!mapp->Data.Item->GetPlayable()->EnsureInfoAsync(Playable::IF_Other))
   { // not immediately availabe => do it later
     ResetDelegate(mapp);
   } else
   { int_ptr<PlayableInstance> pi;
-    while (count < MAX_MENU && (pi = ((PlayableCollection&)*mapp->Data.Item).GetNext(pi)))
+    while (count < MAX_MENU && (pi = ((PlayableCollection&)*mapp->Data.Item->GetPlayable()).GetNext(pi)))
     { // Get content
       Playable* pp = pi->GetPlayable();
       DEBUGLOG(("PlaylistMenu::CreateSubItems: at %s\n", pp->GetURL().getShortName().cdata()));
@@ -307,7 +307,7 @@ void PlaylistMenu::ResetDelegate(MapEntry* mapp)
 { DEBUGLOG(("PlaylistMenu(%p)::ResetDelegate(%p)\n", this, mapp));
   ResetDelegate();
   UpdateEntry = mapp;
-  mapp->Data.Item->InfoChange += InfoDelegate;
+  mapp->Data.Item->GetPlayable()->InfoChange += InfoDelegate;
 }
 
 void PlaylistMenu::InfoChangeCallback(const Playable::change_args& args)
@@ -315,7 +315,7 @@ void PlaylistMenu::InfoChangeCallback(const Playable::change_args& args)
   if ((args.Flags & Playable::IF_Other) == 0)
     return; // not the right event
   InfoDelegate.detach(); // Only catch the first event
-  if (UpdateEntry == NULL || &args.Instance != &*UpdateEntry->Data.Item)
+  if (UpdateEntry == NULL || &args.Instance != UpdateEntry->Data.Item->GetPlayable())
     return; // event obsolete
   QMSG msg;
   if (!WinPeekMsg(amp_player_hab(), &msg, HwndOwner, UM_LATEUPDATE, UM_LATEUPDATE, PM_NOREMOVE))
@@ -323,7 +323,7 @@ void PlaylistMenu::InfoChangeCallback(const Playable::change_args& args)
 }
 
 bool PlaylistMenu::AttachMenu(USHORT menuid, Playable* data, EntryFlags flags, MPARAM user, USHORT pos)
-{ DEBUGLOG(("PlaylistMenu(%p)::AttachMenu(%u, %p{%s}, %x, %p, %u)\n", this, menuid, &*data, data->GetURL().getShortName().cdata(), flags, user, pos));
+{ DEBUGLOG(("PlaylistMenu(%p)::AttachMenu(%u, %p{%s}, %x, %p, %u)\n", this, menuid, data, data->GetURL().getShortName().cdata(), flags, user, pos));
 
   MapEntry*& mapp = MenuMap.get(menuid);
   if (mapp)

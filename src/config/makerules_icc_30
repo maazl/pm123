@@ -1,6 +1,6 @@
 # IBM Visualage C++ 3.0
 
-.SUFFIXES: .res .rc .obj .asm .c .cpp
+.SUFFIXES: .res .rc .obj .asm .cpp .c
 
 MFLAGS     = -nologo
 MDUMMY     =

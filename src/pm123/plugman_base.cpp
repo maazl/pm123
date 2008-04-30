@@ -1,5 +1,5 @@
 /*
- * Copyright 2006 M.Mueller
+ * Copyright 2006-2008 M.Mueller
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -382,8 +382,7 @@ BOOL CL_DECODER::uninit_plugin()
 { DEBUGLOG(("CL_DECODER(%p{%s})::uninit_plugin()\n", this, module_name));
 
   if (is_initialized())
-  { (*decoder_uninit)( w );
-    w = NULL;
+  { (*decoder_uninit)( xchg( w, (void*)NULL ) );
     raise_plugin_event(PLUGIN_EVENTARGS::Uninit);
   }
   return TRUE;
@@ -608,7 +607,7 @@ proxy_1_decoder_command( CL_DECODER_PROXY_1* op, void* w, ULONG msg, DECODER_PAR
    case DECODER_SETUP:
     op->hwnd = CL_DECODER_PROXY_1::CreateProxyWindow("CL_DECODER_PROXY_1", op);
 
-    par1.output_play_samples = (int DLLENTRYP()(void*, const FORMAT_INFO*, const char*, int, int))&PROXYFUNCREF(CL_DECODER_PROXY_1)proxy_1_decoder_play_samples;
+    par1.output_play_samples = (int DLLENTRYPF()(void*, const FORMAT_INFO*, const char*, int, int))&PROXYFUNCREF(CL_DECODER_PROXY_1)proxy_1_decoder_play_samples;
     par1.a                   = op;
     par1.proxyurl            = params->proxyurl;
     par1.httpauth            = params->httpauth;
@@ -1242,7 +1241,7 @@ BOOL CL_FILTER_PROXY_1::load_plugin()
     return FALSE;
 
   filter_init   = vdelegate(&vd_filter_init,   &proxy_1_filter_init,   this);
-  filter_update = (void DLLENTRYP()(void*, const FILTER_PARAMS2*)) // type of parameter is replaced too
+  filter_update = (void DLLENTRYPF()(void*, const FILTER_PARAMS2*)) // type of parameter is replaced too
                   vreplace1(&vr_filter_update, &proxy_1_filter_update, this);
   // filter_uninit is initialized at the filter_init call to a non-no-op function
   // However, the returned pointer will stay the same.
@@ -1259,7 +1258,7 @@ proxy_1_filter_init( CL_FILTER_PROXY_1* pp, void** f, FILTER_PARAMS2* params )
 
   FILTER_PARAMS par;
   par.size                = sizeof par;
-  par.output_play_samples = (int DLLENTRYP()(void*, const FORMAT_INFO*, const char*, int, int))
+  par.output_play_samples = (int DLLENTRYPF()(void*, const FORMAT_INFO*, const char*, int, int))
                             &PROXYFUNCREF(CL_FILTER_PROXY_1)proxy_1_filter_play_samples;
   par.a                   = pp;
   par.audio_buffersize    = BUFSIZE;
@@ -1283,9 +1282,9 @@ proxy_1_filter_init( CL_FILTER_PROXY_1* pp, void** f, FILTER_PARAMS2* params )
   vreplace1(&pp->vr_filter_uninit, pp->vfilter_uninit, pp->vf);
   // now return some values
   *f = pp;
-  params->output_request_buffer = (int  DLLENTRYP()(void*, const FORMAT_INFO2*, short**))
+  params->output_request_buffer = (int  DLLENTRYPF()(void*, const FORMAT_INFO2*, short**))
                                   &PROXYFUNCREF(CL_FILTER_PROXY_1)proxy_1_filter_request_buffer;
-  params->output_commit_buffer  = (void DLLENTRYP()(void*, int, double))
+  params->output_commit_buffer  = (void DLLENTRYPF()(void*, int, double))
                                   &PROXYFUNCREF(CL_FILTER_PROXY_1)proxy_1_filter_commit_buffer;
   return 0;
 }
@@ -1623,7 +1622,7 @@ int CL_PLUGIN_LIST1::set_active(int i)
   if (pp == active)
     return 0;
 
-  if ( active != NULL && !active->uninit_plugin() )
+  if ( active != NULL && !xchg(active, (CL_PLUGIN*)NULL)->uninit_plugin() )
     return -1;
 
   if (pp != NULL)

@@ -31,16 +31,92 @@
 
 #define  INCL_WIN
 #define  INCL_DOS
-#include <os2.h>
-#include <string.h>
-#include <stdio.h>
 
 #include <utilfct.h>
 #include <snprintf.h>
 #include <cpp/container.h>
 
+#include "123_util.h"
 #include "pm123.h"
 #include "playable.h"
+#include "copyright.h"
+#include "skin.h" // bmp_query_text
+#include "controller.h"
+#include <visual_plug.h>
+
+#include <os2.h>
+#include <string.h>
+#include <stdio.h>
+
+
+void DLLENTRY
+pm123_display_info( const char* info )
+{
+  char* message = strdup( info );
+  if( message ) {
+    WinPostMsg( amp_player_window(), AMP_DISPLAY_MESSAGE, MPFROMP( message ), MPFROMLONG( FALSE ));
+  }
+  WinPostMsg( amp_player_window(), WM_PLAYERROR, 0, 0 );
+}
+
+void DLLENTRY
+pm123_display_error( const char *info )
+{
+  char* message = strdup( info );
+  if( message ) {
+    WinPostMsg( amp_player_window(), AMP_DISPLAY_MESSAGE, MPFROMP( message ), MPFROMLONG( TRUE ));
+  }
+}
+
+void DLLENTRY pm123_control( int index, void* param )
+{
+  switch (index)
+  {
+    case CONTROL_NEXTMODE:
+      WinSendMsg( amp_player_window(), AMP_DISPLAY_MODE, 0, 0 );
+      break;
+  }
+}
+
+int DLLENTRY pm123_getstring( int index, int subindex, size_t bufsize, char* buf )
+{ if (bufsize)
+    *buf = 0;
+  switch (index)
+  {case STR_VERSION:
+    strlcpy( buf, AMP_FULLNAME, bufsize );
+    break;
+
+   case STR_DISPLAY_TEXT:
+    strlcpy( buf, bmp_query_text(), bufsize );
+    break;
+
+   case STR_FILENAME:
+    { int_ptr<Song> song = Ctrl::GetCurrentSong();
+      if (song)
+        strlcpy(buf, song->GetURL(), bufsize);
+      break;
+    }
+   
+   case STR_DISPLAY_TAG:
+    { int_ptr<Song> song = Ctrl::GetCurrentSong();
+      if (song)
+      { const xstring& text = amp_construct_tag_string( &song->GetInfo() );
+        strlcpy(buf, text, bufsize);
+      }
+      break;
+    }
+    
+   case STR_DISPLAY_INFO:
+    { int_ptr<Song> song = Ctrl::GetCurrentSong();
+      if (song)
+        strlcpy(buf, song->GetInfo().tech->info, bufsize);
+      break;
+    }
+
+   default: break;
+  }
+ return(0);
+}
 
 /* Constructs a string of the displayable text from the file information. */
 xstring

@@ -42,6 +42,8 @@
 #include "xio_file.h"
 #include "xio_url.h"
 
+#include <debuglog.h>
+
 #ifdef XIO_SERIALIZE_DISK_IO
 
   HMTX serialize;
@@ -101,6 +103,7 @@ file_open( XFILE* x, const char* filename, int oflags )
   ULONG omode = OPEN_FLAGS_SEQUENTIAL | OPEN_FLAGS_NOINHERIT;
   ULONG dummy;
   APIRET rc;
+  DEBUGLOG(("xio:file_open(%p, %s, %x)\n", x, filename, oflags));
 
   if(( oflags & XO_WRITE ) && ( oflags & XO_READ )) {
     omode |= OPEN_ACCESS_READWRITE | OPEN_SHARE_DENYWRITE;
@@ -138,7 +141,7 @@ file_open( XFILE* x, const char* filename, int oflags )
     }*/
 
     p = url->path;
-
+    DEBUGLOG(("xio:file_open %s\n", p));
     // Convert file://server/share/path URLs to UNC path
     if ( *p != '/' ) {
       openname = malloc( strlen( p ) + 3 );
@@ -149,7 +152,7 @@ file_open( XFILE* x, const char* filename, int oflags )
       // and if a drive letter is present strips off the slash that precedes
       // path. URLs starting with file://///server/share are also stripped.
       // Otherwise, the leading slash is used.
-      if( isalpha( p[1] ) && ( p[2] == '|' || p[2] == ':' ))
+      if( isalpha( p[1] ) && ( p[2] == '|' || p[2] == ':' )) {
         p[2] = ':';
         ++p;
       } else if ( p[1] == '/' && p[2] == '/' ) {

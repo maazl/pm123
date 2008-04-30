@@ -1,5 +1,6 @@
 /*
- * Copyright 2004-2005 Dmitry A.Steklenev <glass@ptv.ru>
+ * Copyright (c) 2004-2005 Dmitry A.Steklenev <glass@ptv.ru>
+ * Copyright (c) 2007-2008 Marcel Mueller
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -62,6 +63,11 @@ char* strnchr( const char* str, char c, size_t siz );
 /* Search the last ocurrency of c in the first siz bytes of string str.
  */ 
 char* strnrchr( const char* str, char c, size_t siz );
+
+/* remove line terminator from the end of the string.
+ * Works with \r, \n and \r\n.
+ */
+void strchomp( char* str );
 
 /* compare and copy memory
  * Moves len bytes from scr to dst returning 1 if at least one byte changed.

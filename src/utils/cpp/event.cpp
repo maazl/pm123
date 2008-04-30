@@ -37,6 +37,7 @@
 void event_base::operator+=(delegate_base& d)
 { DEBUGLOG(("event_base(%p)::operator+=(%p{%p}) - %p\n", this, &d, d.Rcv, Root));
   ASSERT(d.Ev == NULL);
+  ASSERT((unsigned)&d >= 0x10000); // OS/2 trick to validate pointer roughly.
   CritSect cs;
   d.Ev = this;
   d.Link = Root;

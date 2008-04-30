@@ -1,5 +1,5 @@
 /*
- * Copyright 2007-2007 Marcel Mueller
+ * Copyright 2007-2008 Marcel Mueller
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -77,13 +77,11 @@ class PlaylistMenu
     UM_SELECTED
   };
   struct select_data
-  { int_ptr<Playable> Item;
-    xstring         Alias;
-    PlayableInstance::slice Slice;
-    select_data(const PlayableInstance& data)
-     : Item(data.GetPlayable()), Alias(data.GetAlias()), Slice(data.GetSlice()) {}
-    select_data(Playable* data)
-     : Item(data) {}
+  { int_ptr<PlayableSlice> Item;
+    select_data(PlayableInstance& inst)
+     : Item(&inst) {}
+    select_data(Playable* play)
+     : Item(new PlayableSlice(play)) {}
   };
 
  private:
@@ -96,7 +94,7 @@ class PlaylistMenu
     USHORT          ID1;  // First generated item ID or MID_NONE (if none)
     USHORT          Pos;  // ID of the first object after the last generated entry or MIT_END if this is the end of the menu.
     xstring         Text; // Strong reference to the text.
-    MapEntry(USHORT id, const PlayableInstance& data, EntryFlags flags, MPARAM user, SHORT pos)
+    MapEntry(USHORT id, PlayableInstance& data, EntryFlags flags, MPARAM user, SHORT pos)
      : IDMenu(id), HwndMenu(NULLHANDLE), Data(data), Flags(flags), User(user), ID1((USHORT)MID_NONE), Pos(pos) {}
     MapEntry(USHORT id, Playable* data, EntryFlags flags, MPARAM user, SHORT pos)
      : IDMenu(id), HwndMenu(NULLHANDLE), Data(data), Flags(flags), User(user), ID1((USHORT)MID_NONE), Pos(pos) {}

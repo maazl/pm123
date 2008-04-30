@@ -1,0 +1,102 @@
+<html resid=1022>
+<head>
+   <title>PM123 playlist location strings</title>
+</head>
+<body>
+<h2>PM123 playlist location strings</h2>
+<p>PM123 uses a special notation to store playing positions. These strings are used at
+<ul>
+  <li>the start and stop positions of playlist items or bookmarks and
+  <li>the navigate command of the PM123 remote interface.
+</ul>
+<p>A location string defines an exact point inside a playlist and song.
+  In case of playlists it can consist of several parts separated by '<tt>;</tt>'
+  or new-line if the new-line character is allowed.
+  The parts may be enclosed with double quotes ('<tt>"</tt>') to avoid confusion with special characters.
+<p>The first part is the item in the playlist.
+  The last part is the playing position in the song.
+  If the playlist is deep additional parts in between define the items in the nested playlist structure.
+<p>A location string may be incomplete in the way that it does not provide a time offset in the song
+  or it does not navigate to the deepmost level of a tree of nested playlists. 
+<h4>Example:</h4>
+<blockquote>
+<pre>my_nested_playlist.lst
+my_favorite_song.mp3[2]
+3:44</pre>
+</blockquote>
+or
+<blockquote>
+<pre>my_nested_playlist.lst;"my_favorite_song.mp3"[2];3:44</pre>
+</blockquote>
+<p>The first part navigates to the first occurrency of the file <tt>my_nested_playlist.lst</tt> in the current playlist.<br>
+The second part navigates to the second occurrency of <tt>my_favorite_song.mp3</tt> in my_nested_playlist.lst.
+It is enclosed with quotes. In this case this is optional because the relative URL contains neither a semicolon nor square brackets at the end.<br>
+The last part navigates to the offset 3:44 within <tt>my_favorite_song.mp3</tt>.
+<blockquote>
+<pre>my_playlist.lst
+ +- my_favorite_song.mp3 <a href="#note1"><sup>(1)</sup></a>
+ +- another_song.mp3
+ <font color=red>+- my_nested_playlist.lst</font>
+     +- my_favorite_song.mp3 <a href="#note2"><sup>(2)</sup></a>
+     +- my_playlist.lst <a href="#note3"><sup>(3)</sup></a>
+     +- another_song.mp3
+     <font color=red>+- my_favorite_song.mp3</font>
+        <font color=red>Offset: 3:44</font>
+     +- song_#3.mp3
+     +- my_favorite_song.mp3
+ +- song_#4.mp3
+ +- another_nested playlist.lst</pre>
+</blockquote>
+Notes:
+<ol>
+  <li><a name="note1"></a>While this song is part of the location string it is not adressed
+    because the navigation goes into the nested playlist <tt>my_nested_playlist.lst</tt> first.
+  <li><a name="note2"></a>This item is skipped because the indexer <tt>[2]</tt> searches for the second location of this song.
+  <li><a name="note3"></a>This recursive entry is skipped anyway.
+</ol> 
+
+<h3>Playlist location syntax</h3>
+<p>To locate a playlist item use one of the following syntax variants:
+<ul>
+  <li><strong><tt><var>relative URL</var></tt> or<br>
+    <tt><var>absolute URL</var></tt></strong><br>
+    Navigates to the first occurency of the above <tt><var>URL</var></tt> within the playlist.<br>
+    The path is considered to be relativ within the context of the immediately enclosing playlist.
+    The use of '<tt>../</tt>' is allowed.
+  <li><strong><tt><var>relative URL</var>[<var>index</var>]</tt> or<br>
+    <tt><var>absolute URL</var>[<var>index</var>]</tt></strong><br>
+    Navigates to the occurency #<tt><var>index</var></tt> of <tt><var>URL</var></tt> within the playlist.
+  <li><strong><tt>[<var>index</var>]</tt></strong><br>
+    Navigates to item #<tt><var>index</var></tt> within the playlist.
+    It is not recommended to use this method because it easily may fail the goal when the list is modified.<br>
+    Note that the numbering differs from the item numbers displayed in the PM123 window,
+    because only the top-level items in the playlist count here.
+  <li><strong><tt>..</tt></strong><br>
+    Navigate one level up. This makes only sense if we do not start from the top level.
+</ul>
+<p>It is an error to
+<ul>
+  <li>navigate to a non-existing item,
+  <li>enclose <tt><var>index</var></tt> with quotes,
+  <li>navigate into a recursive item (see <a href="#note3">note 3</a>).
+</ul>
+<p>If relative navigation is used remember that the current location is always a song.
+  So you need at least one '<tt>..;</tt>' to get to the deepmost playlist.
+
+<h3>Song location syntax</h3>
+If the current item is a song you may only specify a time offset from the beginning. Syntax:
+<ul>
+  <li><strong><tt><var>seconds</var></tt></strong><br>
+  <li><strong><tt><var>seconds</var>.<var>fractionals</var></tt></strong><br>
+  <li><strong><tt><var>minutes</var>:<var>seconds</var></tt></strong><br>
+  <li><strong><tt><var>minutes</var>:<var>seconds</var>.<var>fractionals</var></tt></strong><br>
+  <li><strong><tt><var>hours</var>:<var>minutes</var>:<var>seconds</var></tt></strong><br>
+  <li><strong><tt><var>hours</var>:<var>minutes</var>:<var>seconds</var>.<var>fractionals</var></tt></strong><br>
+  <li><strong><tt><var>days</var>:<var>hours</var>:<var>minutes</var>:<var>seconds</var></tt></strong><br>
+  <li><strong><tt><var>days</var>:<var>hours</var>:<var>minutes</var>:<var>seconds</var>.<var>fractionals</var></tt></strong><br>
+</ul>
+<p>It is valid to specify offsets larger the one minute as seconds and so on.<br>
+  Using a sufficient number of fractional digits it is possible to address locations with an accouracy of one sample.
+  However, some decoder plug-ins may bend it.
+</body>
+</html>

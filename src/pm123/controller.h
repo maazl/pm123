@@ -33,6 +33,7 @@
 
 #include "playable.h"
 #include "plugman.h"
+#include "songiterator.h"
 
 #include <decoder_plug.h>
 
@@ -42,93 +43,6 @@
 #include <cpp/cpputil.h>
 
 #include <debuglog.h>
-
-
-/* Class to iterate over a PlayableCollection recursively returning only Song items.
- * All non-const functions are not thread safe.
- */
-class SongIterator
-{public:
-  struct Offsets
-  { int                       Index;     // Item index of the current PlayableInstance counting from the top level.
-    T_TIME                    Offset;    // Time offset of the current PlayableInstance counting from the top level or -1 if not available.
-    Offsets(int index, T_TIME offset) : Index(index), Offset(offset) {}
-  };
-  struct CallstackEntry : public Offsets
-  { int_ptr<PlayableInstance> Item;      // Current item in the PlayableCollection of the pervious Callstack entry if any or the root otherwise.
-    CallstackEntry()          : Offsets(-1, Offset = -1) {}
-  };
-  typedef vector<CallstackEntry> CallstackType;
-  
- private:
-  int_ptr<PlayableCollection> Root;      // Root collection to enumerate. 
-  CallstackType               Callstack; // Current callstack, excluding the top level playlist.
-                                         // The Callstack has at least one element for Current.
-                                         // This collection contains only enumerable objects except for the last entry.
-  PlayableSet                 Exclude;   // List of playable objects to exclude.
-                                         // This are in fact the enumerable objects from Callstack and the Root.
-  static const Offsets        ZeroOffsets; // Offsets for root entry.
-
- protected: // internal functions, not thread-safe.
-  // Push the current item to the call stack.
-  // Precondition: Current is Enumerable.
-  void                        Enter();
-  // Pop the last object from the stack and make it to Current.
-  void                        Leave();
-  // Check wether to skip the current item.
-  // I.e. if the current item is already in the call stack.
-  bool                        SkipQ();
-  // Fetch length and number of subitems from a Playable object with respect to Exclude.
-  Offsets                     TechFromPlayable(PlayableCollection* pc);
-  Offsets                     TechFromPlayable(Playable* pp);
-  // Implementation of Prev and Next.
-  // dir must be -1 for backward direction and +1 for forward.
-  bool                        PrevNextCore(int dir);
-
- public:
-  // Create a SongIterator for iteration over a PlayableCollection.
-                              SongIterator();
-  // Copy constructor                              
-                              SongIterator(const SongIterator& r);
-  // Cleanup (removes all strong references)
-                              ~SongIterator();
-  // swap two instances (fast)
-  void                        Swap(SongIterator& r);
-  /*#ifdef DEBUG
-  void                        DebugDump() const;
-  #endif*/  
-  
-  // Replace the attached root object. This resets the iterator.
-  void                        SetRoot(PlayableCollection* pc);
-  // Gets the current root.
-  PlayableCollection*         GetRoot() const          { return Root; }
-  // Gets the deepest playlist. This may be the root if the callstack is empty.
-  PlayableCollection*         GetList() const;
-  // Get Offsets of current item
-  Offsets                     GetOffset() const;
-  // Gets the call stack. Not thread-safe!
-  const CallstackType&        GetCallstack() const     { return Callstack; }
-  // Gets the excluded entries. Not thread-safe!
-  const PlayableSet&          GetExclude() const       { return Exclude; }
-  // Check whether a Playable object is in the call stack. Not thread-safe!
-  // This will return always false if the Playable object is not enumerable.
-  bool                        IsInCallstack(const Playable* pp) const { return Exclude.find(*pp) != NULL; }
-
-  // Get the current song. This may be NULL.  
-  PlayableInstance*           GetCurrent() const;
-  PlayableInstance*           operator*() const        { return GetCurrent(); }
-  PlayableInstance*           operator->() const       { return GetCurrent(); }
-
-  // Go to the previous Song.
-  bool                        Prev()                   { return PrevNextCore(-1); }
-  // Go to the next Song.
-  bool                        Next()                   { return PrevNextCore(+1); }
-  // reset the Iterator to it's initial state. 
-  void                        Reset();
-  
-  // comparsion
-  friend bool                 operator==(const SongIterator& l, const SongIterator& r);
-};
 
 
 /* PM123 controller class.
@@ -141,8 +55,8 @@ Command    StrArg              NumArg/PtrArg       Flags               Meaning
 ===============================================================================================================
 Nop                                                                    No operation (used to raies events)
 ---------------------------------------------------------------------------------------------------------------
-Load       URL                                                         Load an URL
-                                                                       The URL must be well formed.
+Load       URL                                     0x01  continue      Load an URL
+                                                         playing       The URL must be well formed.
 ---------------------------------------------------------------------------------------------------------------
 Skip                           Number of songs     0x01  relative      Move to song number or some songs forward
                                                          navigation    or backward. This makes only sense if the
@@ -154,6 +68,10 @@ Navigate   Serialized iterator Location in         0x01  relative      Jump to l
            optional            seconds                   location      This will change the Song and/or the
                                                    0x02  playlist      playing position.
                                                          scope
+---------------------------------------------------------------------------------------------------------------
+StopAt     Serialized iterator Location in         0x02  playlist      Stop at location
+           optional            seconds                   scope         This will stop the playback at the
+                                                                       specified location.
 ---------------------------------------------------------------------------------------------------------------
 PlayStop                                           0x01  play          Start or stop playing.
                                                    0x02  stop
@@ -185,6 +103,9 @@ Save       Filename                                                    Save stre
 ---------------------------------------------------------------------------------------------------------------
 Status                         out: PlayStatus*                        Return PlayStatus
 ---------------------------------------------------------------------------------------------------------------
+Location   out: Root URL       out: SongIterator*                      Return iterator with the current location.
+                               delete!                                 The returned SongIterator must be deleted.
+---------------------------------------------------------------------------------------------------------------
 DecStop                                                                The current decoder finished it's work.
 ---------------------------------------------------------------------------------------------------------------
 OutStop                                                                The output finished playback.
@@ -206,6 +127,7 @@ class Ctrl
     Cmd_Load,
     Cmd_Skip,
     Cmd_Navigate,
+    Cmd_StopAt,
     // play mode control
     Cmd_PlayStop,
     Cmd_Pause,
@@ -218,6 +140,7 @@ class Ctrl
     Cmd_Equalize,
     // queries
     Cmd_Status,
+    Cmd_Location,
     // internal events
     Cmd_DecStop,
     Cmd_OutStop
@@ -310,8 +233,6 @@ class Ctrl
   };*/
 
  private: // working set
-  // Current Song if a non-enumerable item is loaded.
-  static int_ptr<Song>        CurrentSong;
   // List of prefetched iterators.
   // The first entry is always the current iterator if a enumerable object is loaded.
   // Write access to this list is only done by the controller thread.
@@ -319,7 +240,6 @@ class Ctrl
   // any write to PrefetchList must be protected by a critical section.
   static vector<PrefetchEntry> PrefetchList;
 
-  static PlayableInstance::slice Slice;              // Location in case of seeking or !Playing respectively Slice
   static bool                 Playing;               // True if a song is currently playing (not decoding)
   static bool                 Paused;                // True if the current song is paused
   static DECFASTMODE          Scan;                  // Current scan mode
@@ -350,6 +270,8 @@ class Ctrl
   // Returns the current PrefetchEntry. I.e. the currently playing (or not playing) iterator.
   // Precondition: a enumerable object must have been loaded.
   static PrefetchEntry* Current() { return PrefetchList[0]; }
+  // Returns true if the current root is set and enumerable (of type PlayableCollection).
+  static bool  IsEnumerable();
   // Applies the operator op to flag and returns true if the flag has been changed.
   static bool  SetFlag(bool& flag, Op op);
   // Sets the volume according to this->Volume and the scan mode.
@@ -358,7 +280,7 @@ class Ctrl
   // The function returns the result of dec_play.
   // Precondition: The output must have been initialized.
   // The function does not return unless the decoder is decoding or an error occured.
-  static ULONG DecoderStart(Song* pp, T_TIME offset = 0);
+  static ULONG DecoderStart(PlayableSlice* ps, T_TIME offset);
   // Stops decoding and deinitializes the decoder plug-in.
   static void  DecoderStop();
   // Initializes the output for playing pp.
@@ -371,12 +293,18 @@ class Ctrl
   // To set the in-use status initially pass EmptyStack as oldstack.
   // To reset all in-use status pass EmptyStack as newstack.
   static void  UpdateStackUsage(const SongIterator::CallstackType& oldstack, const SongIterator::CallstackType& newstack);
+  // Internal subfunction to UpdateStackUsage
+  static void  SetStackUsage(SongIterator::CallstackEntry*const* rbegin, SongIterator::CallstackEntry*const* rend, bool set);
   // Core logic of MsgSkip.
   // Move the current song pointer by count items if relative is true or to item number 'count' if relative is false.
   // If we try to move the current song pointer out of the range of the PlayableCollection that si relies on,
   // the function returns false and si is in reset state.
   // The function is side effect free and only operates on si.
   static bool  SkipCore(SongIterator& si, int count, bool relative);
+  // Ensure that a SongIterator really points to a valid song by moving the iterator forward as required.
+  static void  AdjustNext(SongIterator& si);
+  // Jump to the location si. The function will destroy si.
+  static RC    NavigateCore(SongIterator& si);
   // Clears the prefetch list and keep the first element if keep is true.
   // The operation is atomic.
   static void  PrefetchClear(bool keep);
@@ -385,6 +313,8 @@ class Ctrl
   // In case a prefetch entry is removed from PrefetchList the in-use status is refreshed and the song
   // change event is set.
   static void  CheckPrefetch(T_TIME pos);
+  // Get the time in the current Song. This may cleanup the prefetch list by calling CheckPrefetch.
+  static T_TIME FetchCurrentSongTime();
   // Internal stub to provide the TFNENTRY calling convention for _beginthread.
   friend void  TFNENTRY ControllerWorkerStub(void*);
   // Worker thread that processes the message queue.
@@ -401,14 +331,16 @@ class Ctrl
   static RC    MsgScan(Op op);
   static RC    MsgVolume(double volume, bool relative);
   static RC    MsgNavigate(const xstring& iter, T_TIME loc, int flags);
+  static RC    MsgStopAt(const xstring& iter, T_TIME loc, int flags);
   static RC    MsgPlayStop(Op op);
   static RC    MsgSkip(int count, bool relative);
-  static RC    MsgLoad(const xstring& url);
+  static RC    MsgLoad(const xstring& url, int flags);
   static RC    MsgSave(const xstring& filename);
   static RC    MsgEqualize(const EQ_Data* data);
   static RC    MsgShuffle(Op op);
   static RC    MsgRepeat(Op op);
   static RC    MsgStatus();
+  static RC    MsgLocation();
   static RC    MsgDecStop();
   static RC    MsgOutStop();
  
@@ -422,15 +354,13 @@ class Ctrl
   // While the functions below are atomic their return values are not reliable because they can change everytime.
   // So be careful.
 
-  // Is the currently loaded root enumerable?
-  static bool          IsPlaylist()           { return !!PrefetchList.size(); }
   // Check whether we are currently playing.
   static bool          IsPlaying()            { return Playing; }
   // Check whether the current play status is paused.
   static bool          IsPaused()             { return Paused; }
   // Return the current scanmode.
   static DECFASTMODE   GetScan()              { return Scan; }
-  // Return the current volume. This doues not return a decreased value in scan mode.
+  // Return the current volume. This does not return a decreased value in scan mode.
   static double        GetVolume()            { return Volume; }
   // Return the current shuffle status.
   static bool          IsShuffle()            { return Shuffle; }
@@ -442,8 +372,7 @@ class Ctrl
   // If nothing is attached or if a playlist recently completed the function returns NULL.
   static int_ptr<Song> GetCurrentSong();
   // Return the currently loaded root object. This might be enumerable or not.
-  static int_ptr<Playable> GetRoot()
-  { CritSect cs; return PrefetchList.size() ? PrefetchList[0]->Iter.GetRoot() : (Playable*)CurrentSong; }
+  static int_ptr<PlayableSlice> GetRoot();
 
  public: //message interface, thread safe
   // post a command to the controller Queue
@@ -468,12 +397,14 @@ class Ctrl
   // This is recommended over calling the ControllCommand constructor directly.
   static ControlCommand* MkNop()
   { return new ControlCommand(Cmd_Nop, xstring(), (void*)NULL, 0); }
-  static ControlCommand* MkLoad(const xstring& url)
-  { return new ControlCommand(Cmd_Load, url, 0., 0); }
+  static ControlCommand* MkLoad(const xstring& url, bool keepplaying)
+  { return new ControlCommand(Cmd_Load, url, 0., keepplaying); }
   static ControlCommand* MkSkip(int count, bool relative)
   { return new ControlCommand(Cmd_Skip, xstring(), count, relative); }
   static ControlCommand* MkNavigate(const xstring& iter, T_TIME start, bool relative, bool global)
   { return new ControlCommand(Cmd_Navigate, iter, start, relative | (global<<1)); }
+  static ControlCommand* MkStopAt(const xstring& iter, T_TIME start, bool global)
+  { return new ControlCommand(Cmd_StopAt, iter, start, global<<1); }
   static ControlCommand* MkPlayStop(Op op)
   { return new ControlCommand(Cmd_PlayStop, xstring(), 0., op); }
   static ControlCommand* MkPause(Op op)
@@ -492,6 +423,8 @@ class Ctrl
   { return new ControlCommand(Cmd_Equalize, xstring(), (void*)data, 0); }
   static ControlCommand* MkStatus()
   { return new ControlCommand(Cmd_Status, xstring(), (void*)NULL, 0); }
+  static ControlCommand* MkLocation()
+  { return new ControlCommand(Cmd_Location, xstring(), (void*)NULL, 0); }
  private: // internal messages
   static ControlCommand* MkDecStop()
   { return new ControlCommand(Cmd_DecStop, xstring(), (void*)NULL, 0); }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2007-2007 Marcel Mueller
+ * Copyright 2007-2008 Marcel Mueller
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -63,6 +63,7 @@ class PlaylistManager : public PlaylistRepository<PlaylistManager>
   // POD part of a record
   struct Record : public RecordBase
   { // For convenience
+    const CPData*   Data() const { return (const CPData*&)RecordBase::Data; }
     CPData*&        Data() { return (CPData*&)RecordBase::Data; }
   };
 
@@ -74,6 +75,8 @@ class PlaylistManager : public PlaylistRepository<PlaylistManager>
   bool              DecChanged2;   // Shadow of PlaylistBase::DecChanged to handle the record menu independantly.
 
  private:
+  // Create a playlist manager window for an URL, but don't open it.
+  PlaylistManager(Playable* obj, const xstring& alias);
   // Post record message, filtered
   virtual void      PostRecordCommand(RecordBase* rec, RecordCommand cmd);
   // create container window
@@ -90,19 +93,20 @@ class PlaylistManager : public PlaylistRepository<PlaylistManager>
   void              ShowRecordAsync(Record* rec);
   // Determine type of Playable object
   // Subfunction to CalcIcon.
-  virtual ICP       GetPlayableType(RecordBase* rec);
+  virtual ICP       GetPlayableType(const RecordBase* rec) const;
   // Gets the Usage type of a record.
   // Subfunction to CalcIcon.
-  virtual IC        GetRecordUsage(RecordBase* rec);
+  virtual IC        GetRecordUsage(const RecordBase* rec) const;
   // check whether the current record is recursive
-  bool              RecursionCheck(RecordBase* rec);
+  bool              RecursionCheck(const RecordBase* rec) const;
   // same with explicit parent for new items not yet added
-  bool              RecursionCheck(Playable* pp, RecordBase* parent);
+  bool              RecursionCheck(const Playable* pp, const RecordBase* parent) const;
+
  private: // Modifiying function and notifications
   // Subfunction to the factory below.
   virtual RecordBase* CreateNewRecord(PlayableInstance* obj, RecordBase* parent);
   // Find parent record. Returns NULL if rec is at the top level.
-  virtual RecordBase* GetParent(RecordBase* const rec);
+  virtual RecordBase* GetParent(const RecordBase* const rec) const;
 
   // Update the list of children (if available) or schedule a request.
   virtual void      RequestChildren(RecordBase* const rec);
@@ -113,12 +117,6 @@ class PlaylistManager : public PlaylistRepository<PlaylistManager>
   void              UpdateTech(Record* rec);
   // Update play status of one record
   virtual void      UpdatePlayStatus(RecordBase* rec);
-
- protected:
-
- private:
-  // Create a playlist manager window for an URL, but don't open it.
-  PlaylistManager(Playable* obj, const xstring& alias);
 };
 
 

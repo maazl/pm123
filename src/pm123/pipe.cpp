@@ -143,7 +143,7 @@ static void cmd_load(xstring& ret, char* args)
 { if (is_dir(args))
     // TODO: buffer may overrun???
     strcat(args, "\\");
-  amp_load_playable(url123::normalizeURL(args), 0, AMP_LOAD_NOT_RECALL|(cfg.append_cmd*AMP_LOAD_APPEND));
+  amp_load_playable(PlayableSlice(Playable::GetByURL(url123::normalizeURL(args))), AMP_LOAD_NOT_RECALL|(cfg.append_cmd*AMP_LOAD_APPEND));
   // TODO: reply and sync wait
 }
 
@@ -326,7 +326,7 @@ static void cmd_pl_reset(xstring& ret, char* args)
 
 static void cmd_use(xstring& ret, char* args)
 { if (CurPlaylist)
-  { amp_load_playable(CurPlaylist->GetURL(), 0, AMP_LOAD_NOT_RECALL);
+  { amp_load_playable(PlayableSlice(CurPlaylist), AMP_LOAD_NOT_RECALL);
     // TODO: reply and sync wait
   }
 };
@@ -354,7 +354,7 @@ static void cmd_add(xstring& ret, char* args)
       if (cp)
         *cp++ = 0;
       if (*args)
-        ((Playlist&)*CurPlaylist).InsertItem(url123::normalizeURL(args), xstring(), CurItem);
+        ((Playlist&)*CurPlaylist).InsertItem(PlayableSlice(Playable::GetByURL(url123::normalizeURL(args))), CurItem);
       args = cp;
     } while (args); 
   }
@@ -373,7 +373,7 @@ static void cmd_dir(xstring& ret, char* args)
       { xstring url = url123::normalizeURL(args);
         if (url[url.length()-1] != '/')
           url = url + "/"; 
-        ((Playlist&)*CurPlaylist).InsertItem(url, xstring(), CurItem);
+        ((Playlist&)*CurPlaylist).InsertItem(PlayableSlice(Playable::GetByURL(url)), CurItem);
       }
       args = cp;
     } while (args); 
@@ -393,7 +393,7 @@ static void cmd_rdir(xstring& ret, char* args)
       { xstring url = url123::normalizeURL(args);
         if (url[url.length()-1] != '/')
           url = url + "/"; 
-        ((Playlist&)*CurPlaylist).InsertItem(url+"?recursive", xstring(), CurItem);
+        ((Playlist&)*CurPlaylist).InsertItem(PlayableSlice(Playable::GetByURL(url+"?recursive")), CurItem);
       }
       args = cp;
     } while (args); 

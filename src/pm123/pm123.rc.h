@@ -1,8 +1,8 @@
 /*
  * Copyright 1997-2003 Samuel Audet <guardia@step.polymtl.ca>
  *                     Taneli Lepp„ <rosmo@sektori.com>
- *
  * Copyright 2004-2006 Dmitry A.Steklenev <glass@ptv.ru>
+ * Copyright 2007-2008 M.Mueller
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -112,7 +112,7 @@
 #define ACL_PLAYLIST        812
 #define PM_MAIN_MENU        820
 #define PM_REC_MENU         821
-#define ACL_PLAYLISTMAN     822
+//#define ACL_PLAYLISTMAN     822
 
 #define ICO_MP3             850
 #define ICO_MP3USED         851
@@ -204,6 +204,7 @@
 #define IDH_TROUBLES       1019
 #define IDH_PLAYLISTFORMAT 1020
 #define IDH_MIGRATE1_40    1021
+#define IDH_LOCATION       1022
 
 /* Dialogs */
 

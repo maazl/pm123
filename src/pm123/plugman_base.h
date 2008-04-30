@@ -1,5 +1,5 @@
 /*
- * Copyright 2006 M.Mueller
+ * Copyright 2006-2008 M.Mueller
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:

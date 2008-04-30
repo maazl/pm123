@@ -1,5 +1,5 @@
 /*
- * Copyright 2007-2007 Marcel Mueller
+ * Copyright 2007-2008 Marcel Mueller
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -174,7 +174,8 @@ class PlaylistBase : public Iref_Count, public IComparableTo<Playable>
   { int_ptr<Playlist> Parent; // List where to insert the new item
     xstring      URL;         // URL to insert
     xstring      Alias;       // Alias name (if desired)
-    PlayableInstance::slice Slice; // Slice (if desired)
+    xstring      Start;       // Start of slice (if any)
+    xstring      Stop;        // Stop of slice (if any)
     int_ptr<PlayableInstance> Before; // Item where to do the insert
   };
  protected: // D'n'd
@@ -215,7 +216,6 @@ class PlaylistBase : public Iref_Count, public IComparableTo<Playable>
  protected: // content
   int_ptr<Playable> Content;
   xstring           Alias;         // Alias name for the window title
-  const char*       NameApp;       // Name apendix for window title
   const ULONG       DlgRID;        // Resource ID of the dialog template
   HACCEL            AccelTable;    // Accelerator table - TODO: use shared accelerator table
   #if DEBUG
@@ -255,9 +255,9 @@ class PlaylistBase : public Iref_Count, public IComparableTo<Playable>
 
   void              StartDialog();
 
-  CommonState&      StateFromRec(RecordBase* rec) { return rec ? rec->Data->EvntState : EvntState; }
+  CommonState&      StateFromRec(const RecordBase* rec) { return rec ? rec->Data->EvntState : EvntState; }
   // Fetch the Playable object associated with rec. If rec is NULL the root object is returned.
-  Playable*         PlayableFromRec(RecordBase* rec) { return rec ? rec->Data->Content->GetPlayable() : &*Content; }
+  Playable*         PlayableFromRec(const RecordBase* rec) const { return rec ? rec->Data->Content->GetPlayable() : &*Content; }
   // Prevent a Record from deletion until FreeRecord is called
   void              BlockRecord(RecordBase* rec)
                     { if (rec) InterlockedInc(rec->UseCount); }
@@ -281,10 +281,10 @@ class PlaylistBase : public Iref_Count, public IComparableTo<Playable>
 
   // Determine type of Playable object
   // Subfunction to CalcIcon.
-  virtual ICP       GetPlayableType(RecordBase* rec) = 0;
+  virtual ICP       GetPlayableType(const RecordBase* rec) const = 0;
   // Gets the Usage type of a record.
   // Subfunction to CalcIcon.
-  virtual IC        GetRecordUsage(RecordBase* rec) = 0;
+  virtual IC        GetRecordUsage(const RecordBase* rec) const = 0;
   // Calculate icon for a record. Content must be valid!
   HPOINTER          CalcIcon(RecordBase* rec);
   // Set the window title
@@ -306,7 +306,7 @@ class PlaylistBase : public Iref_Count, public IComparableTo<Playable>
   // Removes entries from the container
   void              RemoveEntry(RecordBase* const rec);
   // Find parent record. Returns NULL if rec is at the top level.
-  virtual RecordBase* GetParent(RecordBase* const rec) = 0;
+  virtual RecordBase* GetParent(const RecordBase* const rec) const = 0;
   // Remove all childrens (recursively) and return the number of deleted objects in the given level.
   // This function does not remove the record itself.
   // If root is NULL the entire Collection is cleared.
@@ -328,6 +328,9 @@ class PlaylistBase : public Iref_Count, public IComparableTo<Playable>
   void              SetEmphasis(USHORT emphasis, bool set) const;
   // Analyze the records in the Source array for it's types.
   RecordType        AnalyzeRecordTypes() const;
+  // Return true if and only if rec is a subitem of the currently loaded root.
+  // This will not return true if rec points directly to the current root.
+  bool              IsUnderCurrentRoot(RecordBase* rec) const;
 
  protected: // Update Functions.
             // They are logically virtual, but they are not called from this class.
@@ -362,6 +365,8 @@ class PlaylistBase : public Iref_Count, public IComparableTo<Playable>
   void              UserRemove(RecordBase* rec);
   // Save list
   void              UserSave();
+  // Navigate to
+  void              UserNavigate(const RecordBase* rec);
   // Open tree view 
   void              UserOpenTreeView(Playable* pp);
   // Open detailed view 

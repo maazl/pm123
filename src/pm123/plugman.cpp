@@ -3,7 +3,7 @@
  *                     Taneli Lepp„  <rosmo@sektori.com>
  *
  * Copyright 2004-2006 Dmitry A.Steklenev <glass@ptv.ru>
- * Copyright 2006      Marcel Mueller
+ * Copyright 2006-2008 Marcel Mueller
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -44,7 +44,9 @@
 #include <fileutil.h>
 #include <cpp/mutex.h>
 #include "plugman_base.h"
-#include "pm123.h"
+#include "123_util.h"
+#include "pm123.h" // for startpath
+#include "properties.h"
 #include "playable.h"
 #include "pm123.rc.h"
 
@@ -192,12 +194,10 @@ void CL_GLUE::virtualize(int i)
   par.a                      = procs.a;
   par.output_event           = params.output_event;
   par.w                      = params.w;
-  par.error_display          = &amp_display_error;
-  par.info_display           = &amp_display_info;
+  par.error_display          = &pm123_display_error;
+  par.info_display           = &pm123_display_info;
   if (!fil.initialize(&par))
-  { char msg[500];
-    sprintf(msg, "The filter plug-in %s failed to initialize.", fil.module_name);
-    amp_display_info(msg);
+  { pm123_display_info(xstring::sprintf("The filter plug-in %s failed to initialize.", fil.module_name));
     virtualize(i-1);
     return;
   }
@@ -235,8 +235,8 @@ ULONG CL_GLUE::init()
 { DEBUGLOG(("CL_GLUE::init\n"));
 
   params.size          = sizeof params;
-  params.error_display = &amp_display_error;
-  params.info_display  = &amp_display_info;
+  params.error_display = &pm123_display_error;
+  params.info_display  = &pm123_display_info;
   // setup callback handlers
   params.output_event  = &out_event_handler;
   params.w             = NULL; // not required
@@ -245,13 +245,13 @@ ULONG CL_GLUE::init()
   dparams.size            = sizeof dparams;
   // setup callback handlers
   dparams.output_event    = &dec_event_handler;
-  dparams.error_display   = &amp_display_error;
-  dparams.info_display    = &amp_display_info;
+  dparams.error_display   = &pm123_display_error;
+  dparams.info_display    = &pm123_display_info;
   dparams.save_filename   = NULL;
 
   CL_OUTPUT* op = (CL_OUTPUT*)outputs.current();
   if ( op == NULL )
-  { amp_player_error( "There is no active output plug-in." );
+  { pm123_display_error( "There is no active output plug-in." );
     return (ULONG)-1;  // ??
   }
 
@@ -563,7 +563,7 @@ out_event_handler( void* w, OUTEVENTTYPE event )
   {case OUTEVENT_LOW_WATER:
    case OUTEVENT_HIGH_WATER:
     { CL_DECODER* dp = (CL_DECODER*)decoders.current();
-      if (dp != NULL)
+      if (dp != NULL && dp->get_procs().w != NULL)
         dp->get_procs().decoder_event(dp->get_procs().w, event);
       break;
     }
@@ -603,7 +603,7 @@ static CL_PLUGIN* instantiate(CL_MODULE& mod, CL_PLUGIN* (*factory)(CL_MODULE& m
 { DEBUGLOG(("plugman:instantiate(%p{%s}, %p, %p, %i)\n", &mod, mod.module_name, factory, &list, enabled));
 
   if (list.find(mod) != -1)
-  { amp_player_error( "Tried to load the plug-in %s twice.\n", mod.module_name );
+  { pm123_display_error( xstring::sprintf("Tried to load the plug-in %s twice.\n", mod.module_name) );
     return NULL;
   }
   CL_PLUGIN* pp = (*factory)(mod);
@@ -1053,11 +1053,11 @@ ULONG DLLENTRY
 dec_status( void )
 {
   const CL_DECODER* dp = (CL_DECODER*)decoders.current();
-  if( dp != NULL ) {
+  // TODO: this check is still not 100% thread safe
+  if (dp != NULL && dp->get_procs().w != NULL)
     return dp->get_procs().decoder_status( dp->get_procs().w );
-  } else {
+  else
     return DECODER_ERROR;
-  }
 }
 
 /* Backward compatibility */
@@ -1073,11 +1073,11 @@ T_TIME DLLENTRY
 dec_length( void )
 {
   const CL_DECODER* dp = (CL_DECODER*)decoders.current();
-  if( dp != NULL ) {
+  // TODO: this check is still not 100% thread safe
+  if (dp != NULL && dp->get_procs().w != NULL)
     return dp->get_procs().decoder_length( dp->get_procs().w );
-  } else {
+  else
     return 0; // bah??
-  }
 }
 
 /* Fills specified buffer with the list of extensions of supported files. */
