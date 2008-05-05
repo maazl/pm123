@@ -48,6 +48,7 @@
 #include <utilfct.h>
 #include "plugman_base.h"
 #include "pm123.h"
+#include "dialog.h"
 #include "playable.h"
 #include "controller.h" // for starting position work around
 #include <vdelegate.h>

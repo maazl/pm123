@@ -41,6 +41,8 @@
 
 #include <os2.h>
 #include "pm123.h"
+#include "dialog.h"
+#include "properties.h"
 #include "pm123.rc.h"
 #include <utilfct.h>
 #include "playlistview.h"
@@ -87,7 +89,7 @@ PlaylistView::PlaylistView(Playable* obj, const xstring& alias)
   MainMenu(NULLHANDLE),
   RecMenu(NULLHANDLE)
 { DEBUGLOG(("PlaylistView::PlaylistView(%p, %s)\n", obj, alias.cdata()));
-  //HwndFrame = WinLoadDlg( HWND_DESKTOP, HWND_DESKTOP, pl_DlgProcStub, NULLHANDLE, DLG_PLAYLIST, &ids );
+  //GetHwnd() = WinLoadDlg( HWND_DESKTOP, HWND_DESKTOP, pl_DlgProcStub, NULLHANDLE, DLG_PLAYLIST, &ids );
   StartDialog();
 }
 
@@ -219,11 +221,11 @@ void PlaylistView::InitDlg()
 
   // Initializes the container of the playlist.
   #ifdef DEBUG
-  HwndContainer = WinCreateWindow( HwndFrame, WC_CONTAINER, "", WS_VISIBLE|CCS_EXTENDSEL|CCS_MINIICONS|CCS_MINIRECORDCORE|CCS_VERIFYPOINTERS,
-                                   0, 0, 0, 0, HwndFrame, HWND_TOP, FID_CLIENT, NULL, NULL);
+  HwndContainer = WinCreateWindow( GetHwnd(), WC_CONTAINER, "", WS_VISIBLE|CCS_EXTENDSEL|CCS_MINIICONS|CCS_MINIRECORDCORE|CCS_VERIFYPOINTERS,
+                                   0, 0, 0, 0, GetHwnd(), HWND_TOP, FID_CLIENT, NULL, NULL);
   #else
-  HwndContainer = WinCreateWindow( HwndFrame, WC_CONTAINER, "", WS_VISIBLE|CCS_EXTENDSEL|CCS_MINIICONS|CCS_MINIRECORDCORE,
-                                   0, 0, 0, 0, HwndFrame, HWND_TOP, FID_CLIENT, NULL, NULL);
+  HwndContainer = WinCreateWindow( GetHwnd(), WC_CONTAINER, "", WS_VISIBLE|CCS_EXTENDSEL|CCS_MINIICONS|CCS_MINIRECORDCORE,
+                                   0, 0, 0, 0, GetHwnd(), HWND_TOP, FID_CLIENT, NULL, NULL);
   #endif
   PMASSERT(HwndContainer != NULLHANDLE);
 
@@ -377,8 +379,8 @@ MRESULT PlaylistView::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
             pii->Before = rec->Data()->Content;
             // Send GUI commands
             BlockRecord(rec);
-            WinPostMsg(HwndFrame, UM_INSERTITEM, MPFROMP(pii), 0);
-            WinPostMsg(HwndFrame, UM_REMOVERECORD, MPFROMP(rec), 0);
+            WinPostMsg(GetHwnd(), UM_INSERTITEM, MPFROMP(pii), 0);
+            WinPostMsg(GetHwnd(), UM_REMOVERECORD, MPFROMP(rec), 0);
           }
         }
       }
@@ -414,19 +416,20 @@ HWND PlaylistView::InitContextMenu()
       PMRASSERT(WinSendMsg(hwndMenu, MM_QUERYITEM, MPFROM2SHORT(IDM_PL_APPENDALL, TRUE), MPFROMP(&item)));
       memset(LoadWizzards+2, 0, sizeof LoadWizzards - 2*sizeof *LoadWizzards ); // You never know...
       dec_append_load_menu(item.hwndSubMenu, IDM_PL_APPOTHERALL, 2, LoadWizzards+2, sizeof LoadWizzards/sizeof *LoadWizzards - 2);
-      (MenuShowAccel(WinQueryAccelTable(WinQueryAnchorBlock(HwndFrame), HwndFrame))).ApplyTo(new_menu ? hwndMenu : item.hwndSubMenu);
+      (MenuShowAccel(WinQueryAccelTable(WinQueryAnchorBlock(GetHwnd()), GetHwnd()))).ApplyTo(new_menu ? hwndMenu : item.hwndSubMenu);
     }
   } else
   { if (RecMenu == NULLHANDLE)
     { RecMenu = WinLoadMenu(HWND_OBJECT, 0, MNU_RECORD);
       PMASSERT(RecMenu != NULLHANDLE);
-      (MenuShowAccel(WinQueryAccelTable(WinQueryAnchorBlock(HwndFrame), HwndFrame))).ApplyTo(RecMenu);
+      (MenuShowAccel(WinQueryAccelTable(WinQueryAnchorBlock(GetHwnd()), GetHwnd()))).ApplyTo(RecMenu);
     }
     hwndMenu = RecMenu;
     RecordType rt = AnalyzeRecordTypes();
     if (rt == RT_None)
       return NULLHANDLE;
-    mn_enable_item(hwndMenu, IDM_PL_NAVIGATE, Source.size() == 1 && IsUnderCurrentRoot(Source[0]));
+    mn_enable_item(hwndMenu, IDM_PL_NAVIGATE, Source.size() == 1 && Content->GetStatus() == STA_Used);
+    mn_enable_item(hwndMenu, IDM_PL_INFO,     Source.size() == 1);
     mn_enable_item(hwndMenu, IDM_PL_EDIT,     Source.size() == 1 && Source[0]->Data->Content->GetPlayable()->GetInfo().meta_write);
     mn_enable_item(hwndMenu, IDM_PL_REFRESH,  (rt & (RT_Enum|RT_List)) == 0);
     mn_enable_item(hwndMenu, IDM_PL_DETAILED, Source.size() == 1 && rt != RT_Song);
@@ -439,7 +442,7 @@ HWND PlaylistView::InitContextMenu()
 
 void PlaylistView::UpdateAccelTable()
 { DEBUGLOG(("PlaylistView::UpdateAccelTable()\n"));
-  AccelTable = WinLoadAccelTable( WinQueryAnchorBlock( HwndFrame ), NULLHANDLE, ACL_PLAYLIST );
+  AccelTable = WinLoadAccelTable( WinQueryAnchorBlock( GetHwnd() ), NULLHANDLE, ACL_PLAYLIST );
   PMASSERT(AccelTable != NULLHANDLE);
   memset( LoadWizzards+2, 0, sizeof LoadWizzards - 2*sizeof *LoadWizzards); // You never know...
   dec_append_accel_table( AccelTable, IDM_PL_APPOTHERALL, 0, LoadWizzards+2, sizeof LoadWizzards/sizeof *LoadWizzards - 2);
@@ -630,3 +633,14 @@ void PlaylistView::UpdateRecord(Record* rec, Playable::InfoFlags flags, Playable
   if (update)
     PMRASSERT(WinSendMsg(HwndContainer, CM_INVALIDATERECORD, MPFROMP(&rec), MPFROM2SHORT(1, CMA_TEXTCHANGED)));
 }
+
+void PlaylistView::UserNavigate(const RecordBase* rec)
+{ DEBUGLOG(("PlaylistView(%p)::UserNavigate(%p)\n", this, rec));
+  // make navigation string
+  PlayableCollection* list = (PlayableCollection*)Content.get();
+  // TODO: Configuration options
+  xstring nav = "..;" + list->SerializeItem(rec->Data->Content, PlayableCollection::SerialRelativePath) + ";";
+  DEBUGLOG(("PlaylistManager::UserNavigate - %s\n", nav.cdata()));
+  Ctrl::PostCommand(Ctrl::MkNavigate(nav, 0, false, true));
+}
+

@@ -32,7 +32,9 @@
 #ifndef PM123_PROPERTIES_H
 #define PM123_PROPERTIES_H
 
+#define INCL_WIN
 #include <stdlib.h>
+#include <os2.h>
 
 /* Number of items in the recall list. */
 #define MAX_RECALL            9

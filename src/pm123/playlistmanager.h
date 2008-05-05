@@ -117,6 +117,8 @@ class PlaylistManager : public PlaylistRepository<PlaylistManager>
   void              UpdateTech(Record* rec);
   // Update play status of one record
   virtual void      UpdatePlayStatus(RecordBase* rec);
+  // Navigate to
+  virtual void      UserNavigate(const RecordBase* rec);
 };
 
 

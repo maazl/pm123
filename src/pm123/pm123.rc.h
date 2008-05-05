@@ -41,6 +41,7 @@
  ** 1000- 1099   PM123 Help table
  ** 1100- 1199   PM123 File, URL, EQ dialog
  ** 1200- 1799   PM123 properties dialog
+ ** 1800- 1899   PM123 info dialog
  *  2000- 2999   PM123 Skin IDs
  ** 2000- 2099   PM123 Skinned buttons
  ** 2100- 2199   PM123 Skin misc
@@ -72,6 +73,8 @@
 #define IDM_M_FLOAT         521
 #define IDM_M_EQUALIZE      522
 #define IDM_M_TAG           523
+#define IDM_M_INFO          524
+#define IDM_M_PLINFO        525
 #define IDM_M_MANAGER       540
 #define IDM_M_SAVE          542
 #define IDM_M_BOOKMARKS     544
@@ -147,6 +150,8 @@
 #define IDM_PL_REFRESH      911
 #define IDM_PL_EDIT         912
 #define IDM_PL_SAVE         913
+#define IDM_PL_INFO         914
+#define IDM_PL_INFOALL      915
 #define IDM_PL_MENU         918 /* invoke main menu */
 #define IDM_PL_MENUCONT     919 /* invoke record menu */ 
 #define IDM_PL_SORT         920
@@ -341,6 +346,56 @@
 #define ST_OUT_DESC        1575
 #define PB_OUT_CONFIG      1576
 #define PB_OUT_ADD         1577
+
+/* Object Info */
+#define DLG_INFO           1800
+#define NB_INFO            1802
+
+#define CFG_TECHINFO       1810
+#define ST_FILESIZE        1811
+#define EF_FILESIZE        1812
+#define ST_TOTALTIME       1813
+#define EF_TOTALTIME       1814
+#define ST_BITRATE         1815
+#define EF_BITRATE         1816
+#define ST_NUMITEMS        1817
+#define EF_NUMITEMS        1818
+#define CB_ITEMSRECURSIVE  1819
+#define ST_SAMPLERATE      1820
+#define EF_SAMPLERATE      1821
+#define ST_NUMCHANNELS     1822
+#define EF_NUMCHANNELS     1823
+#define ST_DECODER         1824
+#define EF_DECODER         1825
+#define ST_INFOSTRINGS     1826
+#define EF_INFOSTRINGS     1827
+
+#define CFG_METAINFO       1830
+#define ST_METATITLE       1831
+#define EF_METATITLE       1832 
+#define ST_METAARTIST      1833
+#define EF_METAARTIST      1834
+#define ST_METAALBUM       1835
+#define EF_METAALBUM       1836
+#define ST_METATRACK       1837
+#define EF_METATRACK       1838
+#define ST_METADATE        1839
+#define EF_METADATE        1840
+#define ST_METAGENRE       1841
+#define EF_METAGENRE       1842
+#define ST_METACOMMENT     1843
+#define EF_METACOMMENT     1844
+#define ST_METARPGAIN      1845
+#define EF_METARPGAINT     1846
+#define ST_METARPGAINT     1847
+#define EF_METARPGAINA     1848
+#define ST_METARPGAINA     1849
+#define ST_METARPPEAK      1850
+#define EF_METARPPEAKT     1851
+#define ST_METARPPEAKT     1852
+#define EF_METARPPEAKA     1853
+#define ST_METARPPEAKA     1854
+
 
 /* SKINs ... */
 

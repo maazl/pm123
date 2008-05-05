@@ -32,7 +32,7 @@
 #define  INCL_DOS
 #define  INCL_WIN
 #define  INCL_GPI
-#define  INCL_DEV
+//#define  INCL_DEV
 #define  INCL_BITMAPFILEFORMAT
 
 #include <stdio.h>
@@ -49,9 +49,10 @@
 #include <gbm.h>
 #include <gbmerr.h>
 #include <gbmht.h>
-#include "plugman.h"
+#include "properties.h"
 #include "skin.h"
 #include "pm123.h"
+#include "dialog.h"
 #include "pm123.rc.h"
 #include "button95.h"
 #include <os2.h>

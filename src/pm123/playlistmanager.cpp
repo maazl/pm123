@@ -41,6 +41,8 @@
 
 #include <os2.h>
 #include "pm123.h"
+#include "dialog.h"
+#include "properties.h"
 #include "pm123.rc.h"
 #include <utilfct.h>
 #include "playlistmanager.h"
@@ -86,11 +88,11 @@ void PlaylistManager::PostRecordCommand(RecordBase* rec, RecordCommand cmd)
 void PlaylistManager::InitDlg()
 { DEBUGLOG(("PlaylistManager(%p{%s})::InitDlg()\n", this, DebugName().cdata()));
   #ifdef DEBUG
-  HwndContainer = WinCreateWindow( HwndFrame, WC_CONTAINER, "", WS_VISIBLE|CCS_SINGLESEL|CCS_MINIICONS|CCS_MINIRECORDCORE|CCS_VERIFYPOINTERS,
-                                   0, 0, 0, 0, HwndFrame, HWND_TOP, FID_CLIENT, NULL, NULL);
+  HwndContainer = WinCreateWindow( GetHwnd(), WC_CONTAINER, "", WS_VISIBLE|CCS_SINGLESEL|CCS_MINIICONS|CCS_MINIRECORDCORE|CCS_VERIFYPOINTERS,
+                                   0, 0, 0, 0, GetHwnd(), HWND_TOP, FID_CLIENT, NULL, NULL);
   #else
-  HwndContainer = WinCreateWindow( HwndFrame, WC_CONTAINER, "", WS_VISIBLE|CCS_SINGLESEL|CCS_MINIICONS|CCS_MINIRECORDCORE,
-                                   0, 0, 0, 0, HwndFrame, HWND_TOP, FID_CLIENT, NULL, NULL);
+  HwndContainer = WinCreateWindow( GetHwnd(), WC_CONTAINER, "", WS_VISIBLE|CCS_SINGLESEL|CCS_MINIICONS|CCS_MINIRECORDCORE,
+                                   0, 0, 0, 0, GetHwnd(), HWND_TOP, FID_CLIENT, NULL, NULL);
   #endif
   PMASSERT(HwndContainer != NULLHANDLE);
 
@@ -129,7 +131,7 @@ MRESULT PlaylistManager::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
           if (rec != NULL && (rec->flRecordAttr & CRA_CURSORED))
           { EmFocus = rec->Data()->Content->GetPlayable();
             if (EmFocus->EnsureInfoAsync(Playable::IF_Tech))
-              PMRASSERT(WinPostMsg(HwndFrame, UM_UPDATEINFO, MPFROMP(EmFocus.get()), 0));
+              PMRASSERT(WinPostMsg(GetHwnd(), UM_UPDATEINFO, MPFROMP(EmFocus.get()), 0));
           }
         }
       }
@@ -263,7 +265,7 @@ HWND PlaylistManager::InitContextMenu()
     if (rt == RT_None)
       return NULLHANDLE;
 
-    mn_enable_item(hwndMenu, IDM_PL_NAVIGATE, IsUnderCurrentRoot(Source[0]));
+    mn_enable_item(hwndMenu, IDM_PL_NAVIGATE, !((Record*)Source[0])->Data()->Recursive && IsUnderCurrentRoot(Source[0]));
     mn_enable_item(hwndMenu, IDM_PL_DETAILED, rt != RT_Song);
     mn_enable_item(hwndMenu, IDM_PL_TREEVIEW, rt != RT_Song);
     mn_enable_item(hwndMenu, IDM_PL_EDIT,     Source[0]->Data->Content->GetPlayable()->GetInfo().meta_write);
@@ -283,7 +285,7 @@ HWND PlaylistManager::InitContextMenu()
     PMRASSERT(WinSendMsg(hwndMenu, MM_QUERYITEM, MPFROM2SHORT(item.id, TRUE), MPFROMP(&item)));
     memset(LoadWizzards+2, 0, sizeof LoadWizzards - 2*sizeof *LoadWizzards ); // You never know...
     dec_append_load_menu(item.hwndSubMenu, item.id + IDM_PL_APPOTHER-IDM_PL_APPEND, 2, LoadWizzards+2, sizeof LoadWizzards/sizeof *LoadWizzards - 2);
-    (MenuShowAccel(WinQueryAccelTable(WinQueryAnchorBlock(HwndFrame), HwndFrame))).ApplyTo(new_menu ? hwndMenu : item.hwndSubMenu);
+    (MenuShowAccel(WinQueryAccelTable(WinQueryAnchorBlock(GetHwnd()), GetHwnd()))).ApplyTo(new_menu ? hwndMenu : item.hwndSubMenu);
   }
   // emphasize record
   DEBUGLOG(("PlaylistManager::InitContextMenu: Menu: %p %p\n", MainMenu, RecMenu));
@@ -292,7 +294,7 @@ HWND PlaylistManager::InitContextMenu()
   
 void PlaylistManager::UpdateAccelTable()
 { DEBUGLOG(("PlaylistManager::UpdateAccelTable()\n"));
-  AccelTable = WinLoadAccelTable( WinQueryAnchorBlock( HwndFrame ), NULLHANDLE, ACL_PLAYLIST );
+  AccelTable = WinLoadAccelTable( WinQueryAnchorBlock( GetHwnd() ), NULLHANDLE, ACL_PLAYLIST );
   PMASSERT(AccelTable != NULLHANDLE);
   memset( LoadWizzards+2, 0, sizeof LoadWizzards - 2*sizeof *LoadWizzards); // You never know...
   dec_append_accel_table( AccelTable, IDM_PL_APPOTHERALL, IDM_PL_APPOTHER-IDM_PL_APPOTHERALL, LoadWizzards+2, sizeof LoadWizzards/sizeof *LoadWizzards - 2);
@@ -443,7 +445,7 @@ void PlaylistManager::UpdateTech(Record* rec)
     { // TODO: maybe this should be better up to the calling thread
       EmFocus = rec->Data()->Content->GetPlayable();
       // continue later
-      PMRASSERT(WinPostMsg(HwndFrame, UM_UPDATEINFO, MPFROMP(rec), 0));
+      PMRASSERT(WinPostMsg(GetHwnd(), UM_UPDATEINFO, MPFROMP(rec), 0));
     }
     bool recursive = rec->Data()->Content->GetPlayable()->GetInfo().tech->recursive && RecursionCheck(rec);
     if (recursive != rec->Data()->Recursive)
@@ -467,6 +469,38 @@ void PlaylistManager::UpdatePlayStatus(RecordBase* rec)
   }
   PMASSERT(rec != (RecordBase*)-1);
 }
+
+void PlaylistManager::UserNavigate(const RecordBase* rec)
+{ DEBUGLOG(("PlaylistManager(%p)::UserNavigate(%p)\n", this, rec));
+  if (((Record*)rec)->Data()->Recursive) // do not navigate to recursive items
+    return;
+  const Playable* pp;
+  // Fetch current root
+  { int_ptr<PlayableSlice> ps = Ctrl::GetRoot();
+    if (pp == NULL)
+      return;
+    pp = ps->GetPlayable();
+  }
+  // make navigation string starting from rec
+  xstring nav = xstring::empty;
+  while (rec)
+  { PlayableInstance* pi = rec->Data->Content;
+    // Find parent
+    rec = GetParent(rec);
+    PlayableCollection* list = (PlayableCollection*)PlayableFromRec(rec);
+    // TODO: Configuration options
+    nav = list->SerializeItem(pi, PlayableCollection::SerialRelativePath) + ";" + nav;
+    DEBUGLOG(("PlaylistManager::UserNavigate - %s\n", nav.cdata()));
+    if (list == pp)
+    { // now we are at the root => send navigation command
+      Ctrl::PostCommand(Ctrl::MkNavigate(nav, 0, false, true));
+      return;
+    }
+  }
+  // We did not reach the root => cannot navigate because callstack is incomplete.
+  // This may happen if the current root has recently changed.
+}
+
 
 /*
 

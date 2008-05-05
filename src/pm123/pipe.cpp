@@ -32,6 +32,7 @@
 #define INCL_BASE
 #define INCL_PM
 #include "pipe.h"
+#include "dialog.h"
 #include "pm123.h"
 #include "pm123.rc.h"
 #include "properties.h"

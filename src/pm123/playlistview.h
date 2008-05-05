@@ -146,6 +146,8 @@ class PlaylistView : public PlaylistRepository<PlaylistView>
   virtual RecordBase* GetParent(const RecordBase* const rec) const;
   // Update a record
   void              UpdateRecord(Record* rec, Playable::InfoFlags flags, PlayableInstance::StatusFlags iflags);
+  // Navigate to
+  virtual void      UserNavigate(const RecordBase* rec);
 };
 
 

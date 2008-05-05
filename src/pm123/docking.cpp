@@ -34,7 +34,8 @@
 #include <memory.h>
 #include <stdio.h>
 
-#include "pm123.h" // for amp_player_error
+#include "dialog.h" // for amp_player_error
+#include "properties.h"
 #include "docking.h"
 #include <utilfct.h>
 

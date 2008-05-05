@@ -34,11 +34,10 @@
 
 #define INCL_WIN
 #include <config.h>
-#include <decoder_plug.h>
-#include "properties.h"
-#include <os2.h>
 
 #include "playablecollection.h"
+#include "controller.h"
+#include <os2.h>
 
 
 #define  AMP_REFRESH_CONTROLS   ( WM_USER + 1000 ) /* 0,         0                            */
@@ -83,45 +82,10 @@ HWND  amp_player_window( void );
 /* Returns the anchor-block handle. */
 HAB   amp_player_hab( void );
 
-/* Creates and displays a error message window. */
-void  amp_error( HWND owner, const char* format, ... );
-/* Creates and displays a error message window. */
-void  amp_player_error( const char* format, ... );
-/* Creates and displays a message window. */
-void  amp_info ( HWND owner, const char* format, ... );
-/* Requests the user about specified action. */
-BOOL  amp_query( HWND owner, const char* format, ... );
-/* Requests the user about overwriting a file. */
-BOOL  amp_warn_if_overwrite( HWND owner, const char* filename );
-/* Tells the help manager to display a specific help window. */
-void  amp_show_help( SHORT resid );
-
 /* Edits a information for the specified file. */
 void  amp_info_edit( HWND owner, Playable* song );
 
-/* file dialog standard types */
-#define FDT_PLAYLIST         "Playlist files (*.LST;*.MPL;*.M3U;*.M3U8;*.PLS)"
-#define FDT_PLAYLIST_LST     "PM123 Playlist files (*.LST)"
-#define FDT_PLAYLIST_M3U     "Internet Playlist files (*.M3U)"
-#define FDT_PLAYLIST_M3U8    "Unicode Playlist files (*.M3U8)"
-#define FDT_AUDIO            "All supported audio files ("
-#define FDT_AUDIO_ALL        "All supported types (*.LST;*.MPL;*.M3U;*.M3U8;*.PLS;"
-#define FDT_SKIN             "Skin files (*.SKN)"
-#define FDT_EQUALIZER        "Equalizer presets (*.EQ)"
-#define FDT_PLUGIN           "Plug-in (*.DLL)"
-
-/* Default dialog procedure for the file dialog. */
-MRESULT EXPENTRY amp_file_dlg_proc( HWND, ULONG, MPARAM, MPARAM );
-/* Wizzard function for the default entry "File..." */
-ULONG DLLENTRY amp_file_wizzard( HWND owner, const char* title, DECODER_WIZZARD_CALLBACK callback, void* param );
-/* Wizzard function for the default entry "URL..." */
-ULONG DLLENTRY amp_url_wizzard( HWND owner, const char* title, DECODER_WIZZARD_CALLBACK callback, void* param );
-
-BOOL  amp_load_eq_file( char* filename, float* gains, BOOL* mutes, float* preamp );
-
-
-/* Saves a playlist */
-void  amp_save_playlist( HWND owner, PlayableCollection* playlist );
+void  amp_control_event_callback(Ctrl::ControlCommand* cmd);
 
 
 /* Global variables */
@@ -130,11 +94,7 @@ void  amp_save_playlist( HWND owner, PlayableCollection* playlist );
 extern char startpath[_MAX_PATH];
 
 Playlist* amp_get_default_pl();
-
-/* Equalizer stuff. */
-extern float gains[20];
-extern BOOL  mutes[20];
-extern float preamp;
+Playlist* amp_get_default_bm();
 
 #endif /* PM123_H */
 

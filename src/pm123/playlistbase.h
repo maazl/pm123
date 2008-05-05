@@ -31,6 +31,13 @@
 
 #define INCL_WIN
 
+#define DECODER_PLUGIN_LEVEL 2
+#include "windowbase.h"
+#include "playable.h"
+#include "controller.h"
+#include <decoder_plug.h>
+#include <os2.h>
+
 #include <cpp/queue.h>
 #include <cpp/event.h>
 #include <cpp/smartptr.h>
@@ -38,12 +45,6 @@
 #include <cpp/container.h>
 #include <cpp/xstring.h>
 #include <cpp/url123.h>
-
-#define DECODER_PLUGIN_LEVEL 2
-#include "playable.h"
-#include "controller.h"
-#include <decoder_plug.h>
-#include <os2.h>
 
 #ifndef DC_PREPAREITEM
 #define DC_PREPAREITEM   0x0040
@@ -58,7 +59,9 @@
 *  Whether it is a tree view or a detailed view detremines the derived class.
 *
 ****************************************************************************/
-class PlaylistBase : public Iref_Count, public IComparableTo<Playable>
+class PlaylistBase
+: public ManagedDialogBase,
+  public IComparableTo<Playable>
 {public:
   struct CommonState
   { unsigned            PostMsg;   // Bitvector of outstanding record commands
@@ -187,12 +190,6 @@ class PlaylistBase : public Iref_Count, public IComparableTo<Playable>
     RecordBase*  Before;  // Record where to insert the item
                           // Keeping the Record here requires an allocation with BlockRecord.
   };
- private:
-  // wrap pointer to keep PM happy
-  struct init_dlg_struct
-  { USHORT        size;
-    PlaylistBase* pm;
-  };
 
  protected: // Cached Icon ressources
   enum ICP
@@ -216,15 +213,12 @@ class PlaylistBase : public Iref_Count, public IComparableTo<Playable>
  protected: // content
   int_ptr<Playable> Content;
   xstring           Alias;         // Alias name for the window title
-  const ULONG       DlgRID;        // Resource ID of the dialog template
   HACCEL            AccelTable;    // Accelerator table - TODO: use shared accelerator table
   #if DEBUG
   xstring           DebugName() const;
   #endif
  protected: // working set
-  HWND              HwndFrame;     // playlist window handle
   HWND              HwndContainer; // content window handle
-  xstring           Title;         // Keep the window title
   DECODER_WIZZARD_FUNC LoadWizzards[20]; // Current load wizzards
   bool              NoRefresh;     // Avoid update events to ourself
   xstring           DirectEdit;    // String that holds result of direct manipulation between CN_REALLOCPSZ and CN_ENDEDIT
@@ -239,21 +233,10 @@ class PlaylistBase : public Iref_Count, public IComparableTo<Playable>
   class_delegate2<PlaylistBase, const Playable::change_args, RecordBase*> RootInfoDelegate;
   class_delegate<PlaylistBase, const Ctrl::EventFlags> RootPlayStatusDelegate;
   class_delegate<PlaylistBase, const PLUGIN_EVENTARGS> PluginDelegate;
-  bool              InitialVisible;
-  int               Initialized;
-
- private:
-  // Static members must not use EXPENTRY linkage with IBM VACPP.
-  //friend void TFNENTRY pl_DlgThreadStub(void* arg);
-  friend MRESULT EXPENTRY pl_DlgProcStub(HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2);
-  // Thread for this window instance
-  //void              DlgThread();
 
  protected:
   // Create a playlist manager window for an object, but don't open it.
   PlaylistBase(Playable* content, const xstring& alias, ULONG rid);
-
-  void              StartDialog();
 
   CommonState&      StateFromRec(const RecordBase* rec) { return rec ? rec->Data->EvntState : EvntState; }
   // Fetch the Playable object associated with rec. If rec is NULL the root object is returned.
@@ -272,6 +255,7 @@ class PlaylistBase : public Iref_Count, public IComparableTo<Playable>
   // The Record object is no longer valid after calling this function.
   void              DeleteEntry(RecordBase* entry);
 
+  void              StartDialog();
   // Called at WM_INITDLG
   // Should set Container
   virtual void      InitDlg();
@@ -366,11 +350,13 @@ class PlaylistBase : public Iref_Count, public IComparableTo<Playable>
   // Save list
   void              UserSave();
   // Navigate to
-  void              UserNavigate(const RecordBase* rec);
+  virtual void      UserNavigate(const RecordBase* rec) = 0;
   // Open tree view 
   void              UserOpenTreeView(Playable* pp);
   // Open detailed view 
   void              UserOpenDetailedView(Playable* pp);
+  // View Info
+  void              UserOpenInfoView(Playable* pp);
   // Clear playlist
   static void       UserClearPlaylist(Playable* pp);
   // Refresh records
@@ -409,12 +395,6 @@ class PlaylistBase : public Iref_Count, public IComparableTo<Playable>
 
  public: // public interface
   virtual           ~PlaylistBase();
-  // Make the window visible (or not)
-  void              SetVisible(bool show);
-  bool              GetVisible() const;
-  // Force the window to close
-  // This removes the entry from the repository.
-  void              Destroy() { WinDestroyWindow(HwndFrame); }
   // Gets the content
   Playable*         GetContent() { return Content; }
   // Get the display name of this instance. This is either the alias (if any) or the display name of the underlying URL.

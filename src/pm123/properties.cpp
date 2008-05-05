@@ -40,6 +40,7 @@
 #include <snprintf.h>
 #include "properties.h"
 #include "pm123.h"
+#include "dialog.h"
 #include "pm123.rc.h"
 #include "iniman.h"
 #include "plugman.h"

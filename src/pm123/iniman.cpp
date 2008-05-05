@@ -33,17 +33,18 @@
 #define  INCL_WIN
 #define  INCL_DOS
 #define  INCL_ERRORS
+
+#include <utilfct.h>
+#include "pm123.h"
+#include "dialog.h" // for global eq vars...
+#include "iniman.h"
+#include "plugman.h"
+#include "properties.h"
 #include <os2.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
-
-#include <utilfct.h>
-#include "pm123.h"
-#include "iniman.h"
-#include "plugman.h"
-#include "properties.h"
 
 void
 load_ini( void )

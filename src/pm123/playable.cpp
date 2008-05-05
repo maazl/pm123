@@ -253,7 +253,7 @@ static void PlayableWorker(void*)
   { DEBUGLOG(("PlayableWorker() looking for work\n"));
     queue<Playable::QEntry>::Reader rdr(Playable::WQueue);
     Playable::QEntry& qp = rdr;
-    DEBUGLOG(("PlayableWorker received message %p\n", &*qp));
+    DEBUGLOG(("PlayableWorker received message %p\n", qp.get()));
 
     if (Playable::WTermRq || !qp) // stop
       break;
