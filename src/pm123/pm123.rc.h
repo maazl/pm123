@@ -103,12 +103,13 @@
 #define IDM_M_LAST        10000 /* A lot of IDs after this need to be free. */
 #define IDM_M_LAST_E      19999
 
-#define MNU_SUBFOLDER       800
 
 /* Playlist */
-#define DLG_PLAYLIST         42
+#define DLG_PLAYLIST        800
+#define CNR_PLAYLIST        801
 /* Playlistmanager */
-#define DLG_PM               48
+#define DLG_PM              802
+#define CNR_PM              803
 
 #define MNU_PLAYLIST        810
 #define MNU_RECORD          811
@@ -182,6 +183,7 @@
 #define IDM_PL_OPEN         980
 #define IDM_PL_OPENLAST     981 /* A lot of IDs after this need to be free. */
 
+#define MNU_SUBFOLDER       999
 
 /* Helptable */
 #define HLP_MAIN_TABLE      100

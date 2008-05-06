@@ -68,6 +68,14 @@ PlayableSlice::PlayableSlice(Playable* pp)
 { DEBUGLOG(("PlayableSlice(%p)::PlayableSlice(%p)\n", this, pp));
   ASSERT(pp);
 }
+PlayableSlice::PlayableSlice(const PlayableSlice& r)
+: RefTo(r.RefTo),
+  Alias(r.Alias)
+{ if (r.Start)
+    Start = new SongIterator(*r.Start);
+  if (r.Stop)
+    Stop = new SongIterator(*r.Stop);
+}
 PlayableSlice::PlayableSlice(const url123& url, const xstring& alias)
 : RefTo(Playable::GetByURL(url)),
   Alias(alias),
@@ -111,25 +119,17 @@ PlayableSlice::~PlayableSlice()
   delete Stop;
 };
 
-const SongIterator* PlayableSlice::GetStart() const
-{ return Start;
-}
-
-const SongIterator* PlayableSlice::GetStop() const
-{ return Stop;
-}
-
 void PlayableSlice::SetStart(SongIterator* iter)
-{ DEBUGLOG(("PlayableSlice(%p)::SetStart(%p{%s})\n", this, iter, iter ? iter->Serialize(true).cdata() : ""));
+{ DEBUGLOG(("PlayableSlice(%p)::SetStart(%p{%s})\n", this, iter, SongIterator::DebugName(iter).cdata()));
   delete Start;
-  ASSERT(iter == NULL || iter->GetRoot() == this);
+  ASSERT(iter == NULL || iter->GetRoot()->GetPlayable() == GetPlayable());
   Start = iter;
 }
 
 void PlayableSlice::SetStop(SongIterator* iter)
-{ DEBUGLOG(("PlayableSlice(%p)::SetStop(%p{%s})\n", this, iter, iter ? iter->Serialize(true).cdata() : ""));
+{ DEBUGLOG(("PlayableSlice(%p)::SetStop(%p{%s})\n", this, iter, SongIterator::DebugName(iter).cdata()));
   delete Stop;
-  ASSERT(iter == NULL || iter->GetRoot() == this);
+  ASSERT(iter == NULL || iter->GetRoot()->GetPlayable() == GetPlayable());
   Stop = iter;
 }
 
@@ -147,8 +147,8 @@ void PlayableSlice::SetInUse(bool used)
 xstring PlayableSlice::DebugName() const
 { return xstring::sprintf("{%s, %s,%s, %s}",
     RefTo->GetURL().cdata(),
-    Start ? Start->Serialize(true).cdata() : "0",
-    Stop  ? Stop ->Serialize(true).cdata() : "end",
+    SongIterator::DebugName(Start).cdata(),
+    SongIterator::DebugName(Stop).cdata(),
     Alias ? Alias.cdata() : "");
 }
 #endif
@@ -193,7 +193,7 @@ xstring PlayableInstance::GetDisplayName() const
 }
 
 void PlayableInstance::SetStart(SongIterator* iter)
-{ DEBUGLOG(("PlayableInstance(%p)::SetStart(%p{%s})\n", this, iter, iter ? iter->Serialize(true).cdata() : ""));
+{ DEBUGLOG(("PlayableInstance(%p)::SetStart(%p{%s})\n", this, iter, SongIterator::DebugName(iter)));
   if ((!iter ^ !GetStart()) || iter && GetStart() && GetStart()->CompareTo(*iter) != 0)
   { PlayableSlice::SetStart(iter);
     StatusChange(change_args(*this, SF_Slice));
@@ -201,7 +201,7 @@ void PlayableInstance::SetStart(SongIterator* iter)
 }
 
 void PlayableInstance::SetStop(SongIterator* iter)
-{ DEBUGLOG(("PlayableInstance(%p)::SetStop(%p{%s})\n", this, iter, iter ? iter->Serialize(true).cdata() : ""));
+{ DEBUGLOG(("PlayableInstance(%p)::SetStop(%p{%s})\n", this, iter, SongIterator::DebugName(iter)));
   if ((!iter ^ !GetStop()) || iter && GetStop() && GetStop()->CompareTo(*iter) != 0)
   { PlayableSlice::SetStop(iter);
     StatusChange(change_args(*this, SF_Slice));
@@ -645,12 +645,12 @@ bool PlayableCollection::SaveLST(XFILE* of, bool relative)
     // slice
     if (pi->GetStart())
     { xio_fputs("#START", of);
-      xio_fputs(pi->GetStart()->Serialize(true), of);
+      xio_fputs(pi->GetStart()->Serialize(), of);
       xio_fputs("\n", of);
     }
     if (pi->GetStop())
     { xio_fputs("#STOP", of);
-      xio_fputs(pi->GetStop()->Serialize(true), of);
+      xio_fputs(pi->GetStop()->Serialize(), of);
       xio_fputs("\n", of);
     }
     // comment

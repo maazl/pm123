@@ -59,8 +59,6 @@ Ctrl::EQ_Data        Ctrl::EqData    = { { {1,1,1,1,1,1,1,1,1,1}, {1,1,1,1,1,1,1
 queue<Ctrl::ControlCommand*> Ctrl::Queue;
 TID                  Ctrl::WorkerTID = 0;
 
-Ctrl::PlayStatus     Ctrl::Status;
-
 volatile unsigned    Ctrl::Pending   = Ctrl::EV_None;
 event<const Ctrl::EventFlags> Ctrl::ChangeEvent;
 
@@ -202,7 +200,7 @@ void Ctrl::UpdateStackUsage(const SongIterator::CallstackType& oldstack, const S
 }
 
 bool Ctrl::SkipCore(SongIterator& si, int count, bool relative)
-{ DEBUGLOG(("Ctrl::SkipCore({%s}, %i, %u)\n", si.Serialize(true).cdata(), count, relative));
+{ DEBUGLOG(("Ctrl::SkipCore({%s}, %i, %u)\n", si.Serialize().cdata(), count, relative));
   if (relative)
   { if (count < 0)
     { // previous    
@@ -238,7 +236,7 @@ void Ctrl::AdjustNext(SongIterator& si)
 }
 
 Ctrl::RC Ctrl::NavigateCore(SongIterator& si)
-{ DEBUGLOG(("Ctrl::NavigateCore({%s}) - %s\n", si.Serialize(true).cdata(), Current()->Iter.Serialize(true).cdata()));
+{ DEBUGLOG(("Ctrl::NavigateCore({%s}) - %s\n", si.Serialize().cdata(), Current()->Iter.Serialize().cdata()));
   // Check whether the current song has changed?
   int level = si.CompareTo(Current()->Iter);
   DEBUGLOG(("Ctrl::NavigateCore - %i\n", level));
@@ -540,11 +538,22 @@ Ctrl::RC Ctrl::MsgNavigate(const xstring& iter, T_TIME loc, int flags)
     // Move forward to the next Song, if the current item is a playlist.
     AdjustNext(*sip);
   }
-  sip->SetLocation(flags & 0x01 ? loc : sip->GetLocation() + loc);
+  sip->SetLocation(flags & 0x01 ? sip->GetLocation() + loc : loc);
   // TODO: extend total playing time when leaving bounds of parent iterator?
   
   // commit
   return NavigateCore(*sip);
+}
+
+Ctrl::RC Ctrl::MsgJump(SongIterator& iter)
+{ DEBUGLOG(("Ctrl::MsgJump(...)\n"));
+  PlayableSlice* ps = GetRoot();
+  if (!ps)
+    return RC_NoSong;
+  if (!iter.GetRoot() || ps->GetPlayable() != iter.GetRoot()->GetPlayable())
+    return RC_InvalidItem;
+  
+  return NavigateCore(iter);
 }
 
 Ctrl::RC Ctrl::MsgSkip(int count, bool relative)
@@ -670,23 +679,36 @@ Ctrl::RC Ctrl::MsgRepeat(Op op)
   return RC_OK;
 }
 
-Ctrl::RC Ctrl::MsgStatus()
-{ DEBUGLOG(("Ctrl::MsgStatus()\n"));
+/*Ctrl::RC Ctrl::MsgStatus(PlayStatus* status)
+{ DEBUGLOG(("Ctrl::MsgStatus(%p)\n", status));
   if (!PrefetchList.size())
     return RC_NoSong; // no root
 
-  Status.CurrentSongTime = FetchCurrentSongTime();
+  status->CurrentSongTime = FetchCurrentSongTime();
   SongIterator& si = Current()->Iter;
-  if (si.GetCurrent())
-    Status.TotalSongTime = si.GetCurrent()->GetPlayable()->GetInfo().tech->songlength;
+  status->CurrentSong     = si.GetCurrent()->GetPlayable()->GetFlags() == Playable::None
+                            ? (Song*)si.GetCurrent()->GetPlayable() : NULL;
+  if (status->CurrentSong)
+    status->TotalSongTime = status->CurrentSong->GetInfo().tech->songlength;
   else
-    Status.TotalSongTime = -1;
-  SongIterator::Offsets off = si.GetOffset();
-  Status.CurrentItem     = off.Index;
-  Status.TotalItems      = si.GetRoot()->GetPlayable()->GetInfo().tech->num_items;
-  Status.CurrentTime     = off.Offset;
-  Status.TotalTime       = si.GetRoot()->GetPlayable()->GetInfo().tech->songlength;
+    status->TotalSongTime = -1;
+  const SongIterator::Offsets& off = si.GetOffset();
+  status->CurrentItem     = off.Index;
+  status->TotalItems      = si.GetRoot()->GetPlayable()->GetInfo().tech->num_items;
+  status->CurrentTime     = off.Offset;
+  status->TotalTime       = si.GetRoot()->GetPlayable()->GetInfo().tech->songlength;
   return RC_OK; 
+}*/
+
+Ctrl::RC Ctrl::MsgLocation(SongIterator* sip)
+{ DEBUGLOG(("Ctrl::MsgLocation(...)\n"));
+  if (!PrefetchList.size())
+    return RC_NoSong; // no root
+  // Fetch time first because that may change Current().
+  T_TIME pos = FetchCurrentSongTime();
+  *sip = Current()->Iter; // copy
+  sip->SetLocation(pos);
+  return RC_OK;
 }
 
 // The decoder completed decoding...
@@ -795,6 +817,10 @@ void Ctrl::Worker()
          case Cmd_Navigate:
           qp->Flags = MsgNavigate(qp->StrArg, qp->NumArg, qp->Flags);
           break;
+
+         case Cmd_Jump:
+          qp->Flags = MsgJump(*(SongIterator*)qp->PtrArg);
+          break;
          
          case Cmd_PlayStop:
           qp->Flags = MsgPlayStop((Op)qp->Flags);
@@ -828,9 +854,12 @@ void Ctrl::Worker()
           qp->Flags = MsgEqualize((EQ_Data*)qp->PtrArg);
           break;
           
-         case Cmd_Status:
-          qp->Flags = MsgStatus();
-          qp->PtrArg = &Status;
+         /*case Cmd_Status:
+          qp->Flags = MsgStatus((PlayStatus*)qp->PtrArg);
+          break;*/
+         
+         case Cmd_Location:
+          qp->Flags = MsgLocation((SongIterator*)qp->PtrArg);
           break;
          
          case Cmd_DecStop:

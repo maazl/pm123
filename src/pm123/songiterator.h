@@ -54,8 +54,14 @@ class SongIterator
   };
   struct CallstackEntry : public Offsets
   { int_ptr<PlayableSlice>    Item;
+    sco_ptr<SongIterator>     OverrideStart;
+    sco_ptr<SongIterator>     OverrideStop;
     CallstackEntry()          : Offsets(1, 0) {}
     CallstackEntry(const Offsets& r) : Offsets(r) {}
+    CallstackEntry(const CallstackEntry& r);
+    const SongIterator*       GetStart() const         { return OverrideStart != NULL ? OverrideStart.get() : Item->GetStart(); }
+    const SongIterator*       GetStop() const          { return OverrideStop != NULL ? OverrideStop.get() : Item->GetStop(); }
+    void                      Reset();
   };
   typedef vector<CallstackEntry> CallstackType;
   
@@ -66,17 +72,20 @@ class SongIterator
   PlayableSet                 Exclude;   // List of playable objects to exclude.
                                          // This are in fact the enumerable objects from Callstack.
   T_TIME                      Location;  // Location within the current song
+  int_ptr<PlayableSlice>      CurrentCache; // mutable!
   static const Offsets        ZeroOffsets; // Offsets for root entry.
 
- protected: // internal functions, not thread-safe.
+ private: // internal functions, not thread-safe.
+  // Get the current item. This may be NULL.  
+  PlayableSlice*              Current() const          { return Callstack[Callstack.size()-1]->Item; }
   // Push the current item to the call stack.
   // Precondition: Current is Enumerable.
   void                        Enter();
   // Pop the last object from the stack and make it to Current.
   void                        Leave();
   // Fetch length and number of subitems from a Playable object with respect to Exclude.
-  Offsets                     TechFromPlayable(PlayableCollection* pc);
   Offsets                     TechFromPlayable(Playable* pp);
+  Offsets                     TechFromCallstackEntry(const CallstackEntry& ce);
   // Navigate to the previous item im the current sublist, check start and stop offsets. 
   void                        PrevCore();
   // Navigate to the previous item im the current sublist, check start and stop offsets. 
@@ -95,14 +104,16 @@ class SongIterator
   // Create a SongIterator for iteration over a PlayableCollection.
                               SongIterator();
   // Copy constructor                              
-                              SongIterator(const SongIterator& r);
+                              SongIterator(const SongIterator& r, unsigned slice = 0);
   // Cleanup (removes all strong references)
                               ~SongIterator();
+  // assignment
+  SongIterator&               operator=(const SongIterator& r);                              
   // swap two instances (fast)
   void                        Swap(SongIterator& r);
-  /*#ifdef DEBUG
-  void                        DebugDump() const;
-  #endif*/  
+  #ifdef DEBUG
+  static xstring              DebugName(const SongIterator* sip);
+  #endif
   
   // Replace the attached root object. This resets the iterator.
   // You may explicitly set root to NULL to invalidate the iterator.
@@ -110,7 +121,7 @@ class SongIterator
   // Gets the current root.
   PlayableSlice*              GetRoot() const          { return Callstack[0]->Item; }
   // Get the current song. This may be NULL.  
-  PlayableSlice*              GetCurrent() const       { return Callstack[Callstack.size()-1]->Item; }
+  PlayableSlice*              GetCurrent() const;
   // Returns the depth of the current Instance. This is zero if no root is assigned,
   // 1 if the the current item is the root, 2 if root is a playlist and the current
   // item ist in this playlist and more if the current item is in a nested playlist.
@@ -119,7 +130,7 @@ class SongIterator
   // If no playlist is selected the function returns NULL.
   PlayableCollection*         GetList() const;
   // Get Offsets of current item
-  Offsets                     GetOffset() const;
+  Offsets                     GetOffset(bool withlocation) const;
   // Gets the call stack. Not thread-safe!
   // The callstack will always be empty if the Root is not enumerable.
   // Otherwise it will contain at least one element.
@@ -137,12 +148,13 @@ class SongIterator
   bool                        Next()                   { return PrevNextCore(&SongIterator::NextCore); }
   // reset the Iterator to it's initial state. 
   void                        Reset();
-
+  // return the start location within the current song.
   T_TIME                      GetLocation() const      { return Location; }
-  void                        SetLocation(T_TIME loc)  { Location = loc; }
+  // modify the start location within the current song.
+  void                        SetLocation(T_TIME loc)  { Location = loc; CurrentCache = NULL; }
 
   // Serialize the iterator into a string.
-  xstring                     Serialize(bool withlocation) const;
+  xstring                     Serialize(bool withlocation = true) const;
   // Deserialize the current instance from a string.
   // The current root must have been set before and it must be consistent with the iterator string
   // otherwise the function returns false. In case of an error a partial navigation may take place.

@@ -41,7 +41,7 @@
 
 
 #define  AMP_REFRESH_CONTROLS   ( WM_USER + 1000 ) /* 0,         0                            */
-#define  AMP_PAINT              ( WM_USER + 1001 ) /* options,   0                            */
+#define  AMP_PAINT              ( WM_USER + 1001 ) /* maske,     0                            */
 #define  AMP_LOAD               ( WM_USER + 1002 )
 #define  AMP_DISPLAY_MESSAGE    ( WM_USER + 1013 ) /* message,   TRUE (info) or FALSE (error) */
 #define  AMP_DISPLAY_MODE       ( WM_USER + 1014 ) /* 0,         0                            */
@@ -66,8 +66,8 @@ void  amp_load_playable( const PlayableSlice& ps, int options );
 #define AMP_LOAD_APPEND        0x0008 // Take a playable object as part of multiple playable objects to load. 
 
 /* Marks the player window as needed of redrawing. */
-void  amp_invalidate( int options );
-/* amp_invalidate options */
+void  amp_invalidate( unsigned options );
+/* amp_invalidate options - DO NOT CHANGE THESE CONSTANTS (dependencies) */
 #define UPD_TIMERS           0x0001
 #define UPD_FILEINFO         0x0002
 #define UPD_VOLUME           0x0004

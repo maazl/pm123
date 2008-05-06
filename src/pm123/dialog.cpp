@@ -361,17 +361,17 @@ ULONG DLLENTRY amp_url_wizzard( HWND owner, const char* title, DECODER_WIZZARD_C
 }
 
 /* Adds a user selected bookmark. */
-void amp_add_bookmark(HWND owner, PlayableSlice* item)
-{ DEBUGLOG(("amp_add_bookmark(%x, %p{%s})\n", owner, item, item->GetPlayable()->GetURL().cdata()));
+void amp_add_bookmark(HWND owner, const PlayableSlice& item)
+{ DEBUGLOG(("amp_add_bookmark(%x, {%s})\n", owner, item.GetPlayable()->GetURL().cdata()));
   // TODO: !!!!!! request information before
-  const META_INFO& meta = *item->GetPlayable()->GetInfo().meta;
+  const META_INFO& meta = *item.GetPlayable()->GetInfo().meta;
   xstring desc = "";
   if (*meta.artist)
     desc = xstring(meta.artist) + "-";
   if (*meta.title)
     desc = desc + meta.title;
    else
-    desc = desc + item->GetPlayable()->GetURL().getShortName();
+    desc = desc + item.GetPlayable()->GetURL().getShortName();
 
   HWND hdlg = WinLoadDlg(HWND_DESKTOP, owner, &WinDefDlgProc, NULLHANDLE, DLG_BM_ADD, NULL);
 
@@ -383,7 +383,7 @@ void amp_add_bookmark(HWND owner, PlayableSlice* item)
     WinQueryDlgItemText(hdlg, EF_BM_DESC, alias.length()+1, cp);
     if (alias == desc)
       alias = NULL; // Don't set alias if not required.
-    amp_get_default_bm()->InsertItem(*item);
+    amp_get_default_bm()->InsertItem(item);
     // TODO !!!!!
     //bm_save( owner );
   }
@@ -392,7 +392,7 @@ void amp_add_bookmark(HWND owner, PlayableSlice* item)
 }
 
 /* Saves a playlist */
-void amp_save_playlist(HWND owner, PlayableCollection* playlist)
+void amp_save_playlist(HWND owner, PlayableCollection& playlist)
 {
   APSZ  types[] = {{ FDT_PLAYLIST_LST }, { FDT_PLAYLIST_M3U }, { 0 }};
 
@@ -406,14 +406,14 @@ void amp_save_playlist(HWND owner, PlayableCollection* playlist)
   filedialog.papszITypeList = types;
   filedialog.pszIType       = FDT_PLAYLIST_LST;
 
-  if ((playlist->GetFlags() & Playable::Mutable) == Playable::Mutable && playlist->GetURL().isScheme("file://"))
+  if ((playlist.GetFlags() & Playable::Mutable) == Playable::Mutable && playlist.GetURL().isScheme("file://"))
   { // Playlist => save in place allowed => preselect our own file name
-    const char* cp = playlist->GetURL().cdata() + 5;
+    const char* cp = playlist.GetURL().cdata() + 5;
     if (cp[2] == '/')
       cp += 3;
     strlcpy(filedialog.szFullFile, cp, sizeof filedialog.szFullFile);
     // preselect file type
-    if (playlist->GetURL().getExtension().compareToI(".M3U") == 0)
+    if (playlist.GetURL().getExtension().compareToI(".M3U") == 0)
       filedialog.pszIType = FDT_PLAYLIST_M3U;
     // TODO: other playlist types
   } else
@@ -448,7 +448,7 @@ void amp_save_playlist(HWND owner, PlayableCollection* playlist)
       if (filedialog.ulUser & FDU_RELATIV_ON)
         so |= PlayableCollection::SaveRelativePath;
       // now save
-      if (!playlist->Save(file, so))
+      if (!playlist.Save(file, so))
         amp_error(owner, "Failed to create playlist \"%s\". Error %s.", file.cdata(), xio_strerror(xio_errno()));
     }
   }

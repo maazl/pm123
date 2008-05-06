@@ -87,14 +87,10 @@ void PlaylistManager::PostRecordCommand(RecordBase* rec, RecordCommand cmd)
 
 void PlaylistManager::InitDlg()
 { DEBUGLOG(("PlaylistManager(%p{%s})::InitDlg()\n", this, DebugName().cdata()));
-  #ifdef DEBUG
-  HwndContainer = WinCreateWindow( GetHwnd(), WC_CONTAINER, "", WS_VISIBLE|CCS_SINGLESEL|CCS_MINIICONS|CCS_MINIRECORDCORE|CCS_VERIFYPOINTERS,
-                                   0, 0, 0, 0, GetHwnd(), HWND_TOP, FID_CLIENT, NULL, NULL);
-  #else
-  HwndContainer = WinCreateWindow( GetHwnd(), WC_CONTAINER, "", WS_VISIBLE|CCS_SINGLESEL|CCS_MINIICONS|CCS_MINIRECORDCORE,
-                                   0, 0, 0, 0, GetHwnd(), HWND_TOP, FID_CLIENT, NULL, NULL);
-  #endif
+  HwndContainer = WinWindowFromID(GetHwnd(), CNR_PM);
   PMASSERT(HwndContainer != NULLHANDLE);
+  // Attension!!! Intended side effect: CCS_VERIFYPOINTERS is only set in degug builds
+  PMASSERT(WinSetWindowBits(HwndContainer, QWL_STYLE, CCS_VERIFYPOINTERS, CCS_VERIFYPOINTERS));
 
   CNRINFO cnrInfo = { sizeof(CNRINFO) };
   cnrInfo.flWindowAttr = CV_TREE|CV_NAME|CV_MINI|CA_TREELINE|CA_CONTAINERTITLE|CA_TITLELEFT|CA_TITLESEPARATOR|CA_TITLEREADONLY;

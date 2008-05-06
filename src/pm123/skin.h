@@ -191,8 +191,8 @@ void bmp_draw_rate( HPS hps, int rate );
 void bmp_draw_plind( HPS hps, int index, int total );
 /* Draws the current playlist mode and time left labels. */
 void bmp_draw_plmode( HPS hps, BOOL valid, Playable::Flags flags );
-/* Draws the current position slider. */
-void bmp_draw_slider( HPS hps, double played, double total );
+/* Draws the current position slider. Location [0,1]. <0 => no slider */
+void bmp_draw_slider( HPS hps, double location );
 /* Draws a current displayed text using the current selected font. */
 void bmp_draw_text( HPS hps );
 
@@ -212,8 +212,8 @@ BOOL bmp_pt_in_slider( POINTL pos );
 
 /* Calculates a volume level on the basis of position of the pointer. */
 double bmp_calc_volume( POINTL pos );
-/* Calculates a current seeking time on the basis of position of the pointer. */
-double bmp_calc_time( POINTL pos, double total );
+/* Calculates a current seeking location [0,1] on the basis of position of the pointer. */
+double bmp_calc_time( POINTL pos );
 
 /* Deallocates all resources used by current loaded skin. */
 void bmp_clean_skin( void );

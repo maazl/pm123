@@ -1404,8 +1404,8 @@ bmp_draw_plind( HPS hps, int index, int total )
 
 /* Draws the current position slider. */
 void
-bmp_draw_slider( HPS hps, double played, double total )
-{ DEBUGLOG(("bmp_draw_slider(%p, %g, %g)\n", hps, played, total));
+bmp_draw_slider( HPS hps, double location )
+{ DEBUGLOG(("bmp_draw_slider(%p, %f)\n", hps, location));
   
   if( cfg.mode == CFG_MODE_REGULAR )
   {
@@ -1424,10 +1424,10 @@ bmp_draw_slider( HPS hps, double played, double total )
                              bmp_pos[ POS_SLIDER ].y + bmp_cy( BMP_SLIDER ) - 1 );
     }
 
-    if( total > 0 && played >= 0 )
-    { ULONG pos = played >= total
+    if( location > 0 )
+    { ULONG pos = location >= 1
         ? bmp_ulong[UL_SLIDER_WIDTH]
-        : (ULONG)(played/total * bmp_ulong[UL_SLIDER_WIDTH]);
+        : (ULONG)(location * bmp_ulong[UL_SLIDER_WIDTH]);
 
       bmp_draw_bitmap( hps, bmp_pos[ POS_SLIDER ].x + pos,
                             bmp_pos[ POS_SLIDER ].y, BMP_SLIDER );
@@ -1435,23 +1435,17 @@ bmp_draw_slider( HPS hps, double played, double total )
   }
 }
 
-/* Calculates a current seeking time on the basis of position of the
-   mouse pointer concerning the position slider. */
+/* Calculates a current seeking location [0,1] on the basis of position of the pointer. */
 double
-bmp_calc_time( POINTL pos, double total )
+bmp_calc_time( POINTL pos )
 {
   double time = 0;
 
   if( bmp_ulong[ UL_SLIDER_WIDTH ] && pos.x >= bmp_pos[ POS_SLIDER ].x )
   {
-    time = total * ( pos.x - bmp_pos[ POS_SLIDER ].x ) / bmp_ulong[ UL_SLIDER_WIDTH ];
-
-    if( time < 0 ) {
-      time = 0;
-    }
-    if( time > total ) {
-      time = total;
-    }
+    time = (double)( pos.x - bmp_pos[ POS_SLIDER ].x ) / bmp_ulong[ UL_SLIDER_WIDTH ];
+    if( time > 1 )
+      time = 1;
   }
 
   return time;

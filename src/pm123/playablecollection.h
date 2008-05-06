@@ -76,9 +76,12 @@ class PlayableSlice : public Iref_Count
   SongIterator*            Stop;
  protected:
   const int_ptr<Playable>  RefTo;
+ private: // not assignable
+  void                     operator=(const PlayableSlice& r);
 
  public:
   PlayableSlice(Playable* pp);
+  PlayableSlice(const PlayableSlice& r);
   PlayableSlice(const url123& url, const xstring& alias = xstring());
   // Because of internal dependencies this constructor must be invoked by the new operator only.
   PlayableSlice(const url123& url, const xstring& alias, const char* start, const char* stop);
@@ -87,8 +90,8 @@ class PlayableSlice : public Iref_Count
   // This Pointer is valid as long as the PlayableInstance exist and does not change.
   Playable*                GetPlayable() const { return RefTo; }
   // Start and Stop position
-  virtual const SongIterator* GetStart() const;
-  virtual const SongIterator* GetStop() const;
+  const SongIterator*      GetStart() const    { return Start; }
+  const SongIterator*      GetStop() const     { return Stop; }
   // The functions take the ownership of the SongIterator. 
   virtual void             SetStart(SongIterator* iter);
   virtual void             SetStop (SongIterator* iter);

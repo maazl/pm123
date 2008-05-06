@@ -182,11 +182,18 @@ void PlaylistBase::StartDialog()
 }
 
 void PlaylistBase::InitDlg()
-{ HPOINTER hicon = WinLoadPointer(HWND_DESKTOP, 0, ICO_MAIN);
+{ // Icon  
+  HPOINTER hicon = WinLoadPointer(HWND_DESKTOP, 0, ICO_MAIN);
   PMASSERT(hicon != NULLHANDLE);
   PMRASSERT(WinSendMsg(GetHwnd(), WM_SETICON, (MPARAM)hicon, 0));
+  { // initial position
+    SWP swp;
+    PMXASSERT(WinQueryTaskSizePos(amp_player_hab(), 0, &swp), == 0);
+    PMRASSERT(WinSetWindowPos(GetHwnd(), NULLHANDLE, swp.x,swp.y, 0,0, SWP_MOVE));
+  }
   do_warpsans(GetHwnd());
-  { LONG     color;
+  { // set colors. PRESPARAMS in the RC file seems not to work for some reason.
+    LONG     color;
     color = CLR_GREEN;
     PMRASSERT(WinSetPresParam(HwndContainer, PP_FOREGROUNDCOLORINDEX, sizeof(color), &color));
     color = CLR_BLACK;
@@ -998,7 +1005,7 @@ void PlaylistBase::UserRemove(RecordBase* rec)
 void PlaylistBase::UserSave()
 { DEBUGLOG(("PlaylistBase(%p)::UserSave()\n", this));
   ASSERT(Content->GetFlags() & Playable::Enumerable);
-  amp_save_playlist(GetHwnd(), (PlayableCollection*)Content.get());
+  amp_save_playlist(GetHwnd(), (PlayableCollection&)*Content);
 }
 
 void PlaylistBase::UserOpenTreeView(Playable* pp)

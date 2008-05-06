@@ -111,28 +111,32 @@ static BOOL  is_volume_drag   = FALSE;
 static BOOL  is_seeking       = FALSE;
 static BOOL  is_slider_drag   = FALSE;
 static BOOL  is_arg_shuffle   = FALSE;
-static bool  is_msg_status    = false; // true if a MsgStatus to the controller message is on the way
 static bool  is_accel_changed = false;
 static bool  is_plugin_changed = true;
 
 /* Current load wizzards */
 static DECODER_WIZZARD_FUNC load_wizzards[20];
 
-/* Current seeking time. Valid if is_slider_drag == TRUE. */
-static T_TIME seeking_pos = 0;
-static int    upd_options = 0;
+static volatile unsigned upd_options = 0;
 
-/* status cache */
-static Ctrl::PlayStatus last_status;
+/* location cache */
+static SongIterator* CurrentIter = NULL; // current SongIterator
+static Song*         CurrentSong = NULL; // Song from the current SongIterator
+static Playable*     CurrentRoot = NULL; // Root from the current SongIterator, may be == CurrentSong
+static bool          IsLocMsg    = false;// true if a MsgLocation to the controller is on the way
+static unsigned      UpdAtLocMsg = 0;    // do these redraws (with amp_invalidate) when the next Location info arrives
+static SongIterator  LocationIter[2];    // Two SongIterators. CurrentIter points to one of them.
 
+/* Returns the handle of the player window. */
+HWND
+amp_player_window( void ) {
+  return hframe;
+}
 
-static void amp_reset_status()
-{ last_status.CurrentItem     = -1;
-  last_status.TotalItems      = -1;
-  last_status.CurrentTime     = -1;
-  last_status.TotalTime       = -1;
-  last_status.CurrentSongTime = -1;
-  last_status.TotalSongTime   = -1;
+/* Returns the anchor-block handle. */
+HAB
+amp_player_hab( void ) {
+  return hab;
 }
 
 Playlist* amp_get_default_pl()
@@ -164,26 +168,29 @@ void amp_control_event_callback(Ctrl::ControlCommand* cmd)
 static void
 amp_paint_timers( HPS hps )
 {
-  DEBUGLOG(("amp_paint_timers(%p) - %i %i {%i/%i, %g/%g, %g/%g}\n", hps, cfg.mode, is_seeking,
-    last_status.CurrentItem, last_status.TotalItems, last_status.CurrentTime, last_status.TotalTime, last_status.CurrentSongTime, last_status.TotalSongTime));
+  DEBUGLOG(("amp_paint_timers(%p) - %i %i\n", hps, cfg.mode, is_seeking));
 
+  if (CurrentIter == NULL)
+    return;
+    
+  T_TIME total_song = CurrentSong ? CurrentSong->GetInfo().tech->songlength : -1;
+  T_TIME total_time = CurrentRoot ? CurrentRoot->GetInfo().tech->songlength : -1;  
+  const SongIterator::Offsets& off = CurrentIter->GetOffset(false);
+  
   T_TIME list_left = -1;
-  T_TIME play_time = is_seeking ? seeking_pos : last_status.CurrentSongTime;
-  T_TIME play_left = last_status.TotalSongTime;
-
+  T_TIME play_left = total_song;
   if (play_left > 0)
-    play_left -= play_time;
+    play_left -= CurrentIter->GetLocation();
+  if( !Ctrl::IsRepeat() && total_time > 0 )
+    list_left = total_time - off.Offset - total_song;
 
-  if( !Ctrl::IsRepeat() && last_status.TotalTime > 0 )
-    list_left = last_status.TotalTime - last_status.CurrentTime - play_time;
-
-  bmp_draw_slider( hps, play_time, last_status.TotalSongTime);
-  bmp_draw_timer ( hps, play_time );
+  bmp_draw_slider( hps, CurrentIter->GetLocation()/total_song);
+  bmp_draw_timer ( hps, CurrentIter->GetLocation());
 
   bmp_draw_tiny_timer( hps, POS_TIME_LEFT, play_left );
   bmp_draw_tiny_timer( hps, POS_PL_LEFT,   list_left );
 
-  bmp_draw_plind( hps, last_status.CurrentItem, last_status.CurrentItem > 0 ? last_status.TotalItems : 0);
+  bmp_draw_plind( hps, off.Index, off.Index > 0 ? CurrentRoot->GetInfo().tech->num_items : 0);
 }
 
 /* Draws all attributes of the currently loaded file. */
@@ -192,13 +199,11 @@ amp_paint_fileinfo( HPS hps )
 {
   DEBUGLOG(("amp_paint_fileinfo(%p)\n", hps));
 
-  int_ptr<PlayableSlice> ps = Ctrl::GetRoot();
-  bmp_draw_plmode( hps, ps != NULL, ps ? ps->GetPlayable()->GetFlags() : Playable::None );
+  bmp_draw_plmode( hps, CurrentRoot != NULL, CurrentRoot ? CurrentRoot->GetFlags() : Playable::None );
 
-  int_ptr<Song> pp = Ctrl::GetCurrentSong();
-  if (pp != NULL)
-  { bmp_draw_rate    ( hps, pp->GetInfo().tech->bitrate );
-    bmp_draw_channels( hps, pp->GetInfo().format->channels );
+  if (CurrentSong != NULL)
+  { bmp_draw_rate    ( hps, CurrentSong->GetInfo().tech->bitrate );
+    bmp_draw_channels( hps, CurrentSong->GetInfo().format->channels );
   } else
   { bmp_draw_rate    ( hps, -1 );
     bmp_draw_channels( hps, -1 );
@@ -208,36 +213,16 @@ amp_paint_fileinfo( HPS hps )
 
 /* Marks the player window as needed of redrawing. */
 void
-amp_invalidate( int options )
+amp_invalidate( unsigned options )
 { DEBUGLOG(("amp_invalidate(%x)\n", options));
   if( options & UPD_WINDOW ) {
     WinInvalidateRect( hplayer, NULL, 1 );
     options &= ~UPD_WINDOW;
   }
-  if( options & UPD_DELAYED ) {
-    upd_options |= ( options & ~UPD_DELAYED );
-  } else {
-    WinPostMsg( hplayer, AMP_PAINT, MPFROMLONG( options ), 0 );
-  }
+  InterlockedOr(upd_options, options & ~UPD_DELAYED);
+  if(!(options & UPD_DELAYED))
+    WinPostMsg(hplayer, AMP_PAINT, MPFROMLONG(options), 0);
 }
-
-/* Returns the handle of the player window. */
-HWND
-amp_player_window( void ) {
-  return hframe;
-}
-
-/* Returns the anchor-block handle. */
-HAB
-amp_player_hab( void ) {
-  return hab;
-}
-
-/* Posts a command to the message queue associated with the player window. */
-/*BOOL
-amp_post_command( USHORT id ) {
-  return WinPostMsg( hplayer, WM_COMMAND, MPFROMSHORT( id ), 0 );
-}*/
 
 /* Sets bubble text for specified button. */
 static void
@@ -251,9 +236,8 @@ amp_set_bubbletext( USHORT id, const char *text )
 void
 amp_display_filename( void )
 {
-  int_ptr<Song> song = Ctrl::GetCurrentSong();
-  DEBUGLOG(("amp_display_filename() %p %u\n", song.get(), cfg.viewmode));
-  if (!song) {
+  DEBUGLOG(("amp_display_filename() %p %u\n", CurrentSong, cfg.viewmode));
+  if (!CurrentSong) {
     bmp_set_text( "No file loaded" );
     return;
   }
@@ -262,41 +246,30 @@ amp_display_filename( void )
   switch( cfg.viewmode )
   {
     case CFG_DISP_ID3TAG:
-      text = amp_construct_tag_string(&song->GetInfo());
+      text = amp_construct_tag_string(&CurrentSong->GetInfo());
       if (text.length())
         break;
       // if tag is empty - use filename instead of it.
     case CFG_DISP_FILENAME:
-      text = song->GetURL().getShortName();
+      text = CurrentSong->GetURL().getShortName();
       break;
 
     case CFG_DISP_FILEINFO:
-      text = song->GetInfo().tech->info;
+      text = CurrentSong->GetInfo().tech->info;
       break;
   }
   bmp_set_text( text );
 }
 
-/*static ULONG handle_dfi_error( ULONG rc, const char* file )
-{
-  char buf[512];
-
-  if (rc == 0) return 0;
-
-  *buf = '\0';
-
-  if( rc == 100 ) {
-    sprintf( buf, "The file %s could not be read.", file );
-  } else if( rc == 200 ) {
-    sprintf( buf, "The file %s cannot be played by PM123. The file might be corrupted or the necessary plug-in not loaded or enabled.", file );
-  } else {
-    amp_stop();
-    sprintf( buf, "%s: Error occurred: %s", file, xio_strerror( rc ));
+/* Ensure that a MsgLocation message is on processed by the controller */
+static void amp_force_locmsg()
+{ if (!IsLocMsg)
+  { IsLocMsg = true;
+    // Hack: the Location messages always writes to an iterator that is currently not in use by CurrentIter
+    // to avoid threading problems.
+    Ctrl::PostCommand(Ctrl::MkLocation(LocationIter + (CurrentIter == LocationIter)), &amp_control_event_callback);
   }
-
-  WinMessageBox( HWND_DESKTOP, HWND_DESKTOP, buf, "Error", 0, MB_ERROR | MB_OK );
-  return 1;
-}*/
+}
 
 static void amp_AddMRU(Playlist* list, size_t max, const PlayableSlice& ps)
 { DEBUGLOG(("amp_AddMRU(%p{%s}, %u, %s)\n", list, list->GetURL().cdata(), max, ps.GetPlayable()->GetURL().cdata()));
@@ -338,9 +311,9 @@ amp_load_playable( const PlayableSlice& ps, int options )
   Ctrl::ControlCommand* cmd = Ctrl::MkLoad(ps.GetPlayable()->GetURL(), false);
   Ctrl::ControlCommand* tail = cmd;
   if (ps.GetStop() != NULL)
-    tail = tail->Link = Ctrl::MkStopAt(ps.GetStop()->Serialize(true), 0, false);
+    tail = tail->Link = Ctrl::MkStopAt(ps.GetStop()->Serialize(), 0, false);
   if (ps.GetStart() != NULL)
-    tail = tail->Link = Ctrl::MkNavigate(ps.GetStart()->Serialize(true), 0, false, false);
+    tail = tail->Link = Ctrl::MkNavigate(ps.GetStart()->Serialize(), 0, false, false);
   if( !( options & AMP_LOAD_NOT_PLAY )) {
     if( cfg.playonload )
       // start playback immediately after loading has completed
@@ -417,19 +390,16 @@ amp_show_context_menu( HWND parent )
   }
 
   // Update status
-  int_ptr<Song> song = Ctrl::GetCurrentSong();
-  int_ptr<PlayableSlice> root = Ctrl::GetRoot();
-
-  mn_enable_item( menu, IDM_M_TAG,     song != NULL && song->GetInfo().meta_write );
-  mn_enable_item( menu, IDM_M_CURRENT_SONG, song != NULL );
-  mn_enable_item( menu, IDM_M_CURRENT_PL, root != NULL && root->GetPlayable()->GetFlags() & Playable::Enumerable );
+  mn_enable_item( menu, IDM_M_TAG,     CurrentSong != NULL && CurrentSong->GetInfo().meta_write );
+  mn_enable_item( menu, IDM_M_CURRENT_SONG, CurrentSong != NULL );
+  mn_enable_item( menu, IDM_M_CURRENT_PL, CurrentRoot != NULL && CurrentRoot->GetFlags() & Playable::Enumerable );
   mn_enable_item( menu, IDM_M_SMALL,   bmp_is_mode_supported( CFG_MODE_SMALL   ));
   mn_enable_item( menu, IDM_M_NORMAL,  bmp_is_mode_supported( CFG_MODE_REGULAR ));
   mn_enable_item( menu, IDM_M_TINY,    bmp_is_mode_supported( CFG_MODE_TINY    ));
   mn_enable_item( menu, IDM_M_FONT,    cfg.font_skinned );
   mn_enable_item( menu, IDM_M_FONT1,   bmp_is_font_supported( 0 ));
   mn_enable_item( menu, IDM_M_FONT2,   bmp_is_font_supported( 1 ));
-  mn_enable_item( menu, IDM_M_ADDBOOK, song != NULL );
+  mn_enable_item( menu, IDM_M_ADDBOOK, CurrentSong != NULL );
 
   mn_check_item ( menu, IDM_M_FLOAT,   cfg.floatontop  );
   mn_check_item ( menu, IDM_M_SAVE,    !!Ctrl::GetSavename() );
@@ -790,13 +760,14 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
         cfg.viewmode++;
       }
 
-      amp_invalidate( UPD_FILEINFO | UPD_FILENAME );
+      amp_invalidate(UPD_FILENAME);
       return 0;
 
     case AMP_CTRL_EVENT:
       { // Event from the controller
         Ctrl::EventFlags flags = (Ctrl::EventFlags)LONGFROMMP(mp1);
         DEBUGLOG(("amp_dlg_proc: AMP_CTRL_EVENT %x\n", flags));
+        unsigned inval = 0;
         if (flags & Ctrl::EV_PlayStop)
         { if (Ctrl::IsPlaying())
           { WinSendDlgItemMsg(hplayer, BMP_PLAY,  WM_PRESS, 0, 0);
@@ -805,10 +776,7 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
           { WinSendDlgItemMsg(hplayer, BMP_PLAY,  WM_DEPRESS, 0, 0);
             amp_set_bubbletext(BMP_PLAY, "Starts playback");
             WinSetWindowText (hframe,  AMP_FULLNAME);
-            if (!is_msg_status)
-            { is_msg_status = true;
-              Ctrl::PostCommand(Ctrl::MkStatus(), &amp_control_event_callback);
-            }
+            amp_force_locmsg();
             amp_invalidate( UPD_WINDOW );
           }
         }
@@ -822,34 +790,30 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
           WinSendDlgItemMsg(hplayer, BMP_SHUFFLE, Ctrl::IsShuffle() ? WM_PRESS : WM_DEPRESS, 0, 0);
         if (flags & Ctrl::EV_Repeat)
         { WinSendDlgItemMsg(hplayer, BMP_REPEAT,  Ctrl::IsRepeat() ? WM_PRESS : WM_DEPRESS, 0, 0);
-          amp_invalidate( UPD_TIMERS );
+          inval |= UPD_TIMERS;
         }
-        if (flags & Ctrl::EV_Song && !is_msg_status)
-        { is_msg_status = true;
-          Ctrl::PostCommand(Ctrl::MkStatus(), &amp_control_event_callback);
+        if (flags & Ctrl::EV_Song)
+          amp_force_locmsg();
+
+        if (flags & Ctrl::EV_Volume)
+          inval |= UPD_VOLUME;
+
+        if (flags & Ctrl::EV_Tech)
+        { UpdAtLocMsg |= UPD_FILEINFO; // update later
+          amp_force_locmsg();
         }
-
-        if (flags & (Ctrl::EV_Volume|Ctrl::EV_Tech|Ctrl::EV_Meta))
-        { HPS hps = WinGetPS(hplayer);
-
-          if (flags & Ctrl::EV_Volume)
-            bmp_draw_volume(hps, Ctrl::GetVolume());
-
-          if (flags & Ctrl::EV_Tech)
-            amp_paint_fileinfo(hps);
-          if (flags & Ctrl::EV_Meta)
-          { xstring title;
-            int_ptr<Song> song = Ctrl::GetCurrentSong();
-            if (song)
-              title = Ctrl::GetCurrentSong()->GetURL().getDisplayName() + " - " AMP_FULLNAME;
-            else
-              title = AMP_FULLNAME;
-            WinSetWindowText(hframe, title.cdata());
-            amp_display_filename();
-            amp_invalidate( UPD_FILEINFO );
-          }
-          WinReleasePS(hps);
+        if (flags & Ctrl::EV_Meta)
+        { int_ptr<Song> song = Ctrl::GetCurrentSong();
+          if (song)
+            WinSetWindowText(hframe, (song->GetURL().getDisplayName() + " - " AMP_FULLNAME).cdata());
+          else
+            WinSetWindowText (hframe,  AMP_FULLNAME);
+          UpdAtLocMsg |= UPD_FILENAME|UPD_FILEINFO; // update screen later
+          amp_force_locmsg();
         }
+        
+        if (inval)
+          amp_invalidate(inval);
       }
       return 0;
 
@@ -878,30 +842,36 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
             WinSendDlgItemMsg(hplayer, BMP_REW, WM_DEPRESS, 0, 0);
           }
           break;
-         case Ctrl::Cmd_Navigate:
+         case Ctrl::Cmd_Jump:
           is_seeking = FALSE;
+          delete (SongIterator*)cmd->PtrArg;
+          amp_force_locmsg();
           break;
          case Ctrl::Cmd_Save:
           if (cmd->Flags != Ctrl::RC_OK)
             amp_player_error( "The current active decoder don't support saving of a stream.\n" );
           break;
-         case Ctrl::Cmd_Status:
-          is_msg_status = false;
-          if (cfg.mode == CFG_MODE_REGULAR)
-          { HPS hps = WinGetPS( hwnd );
-            if (cmd->Flags == Ctrl::RC_OK)
-              last_status = *(Ctrl::PlayStatus*)cmd->PtrArg;
-            else
-              amp_reset_status();
-            amp_paint_timers( hps );
-            WinReleasePS( hps );
-          }
-          break;
          case Ctrl::Cmd_Location:
-          { PlayableSlice* ps = new PlayableSlice(cmd->StrArg);
-            ps->SetStart((SongIterator*)cmd->PtrArg);
-            amp_add_bookmark(hwnd, ps);
+          IsLocMsg = false;
+          if (is_seeking) // do not overwrite location while seeking
+            break;
+          // Fetch commonly used properties
+          if (cmd->Flags == Ctrl::RC_OK)
+          { CurrentIter = (SongIterator*)cmd->PtrArg;
+            PlayableSlice* psi = CurrentIter->GetCurrent();
+            CurrentSong = psi && psi->GetPlayable()->GetFlags() == Playable::None
+              ? (Song*)psi->GetPlayable() : NULL;
+            CurrentRoot = CurrentIter->GetRoot() ? CurrentIter->GetRoot()->GetPlayable() : NULL;
+          } else
+          { CurrentIter = NULL;
+            CurrentSong = NULL;
+            CurrentRoot = NULL;
           }
+          // Redraws
+          if (cfg.mode == CFG_MODE_REGULAR)
+            UpdAtLocMsg |= UPD_TIMERS;
+          amp_invalidate(UpdAtLocMsg);
+          UpdAtLocMsg = 0;
           break;
          default:; // supress warnings
         }
@@ -939,27 +909,24 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
         return 0;
 
        case TID_UPDATE_PLAYER:
-        { HPS hps = WinGetPS( hwnd );
-
-          if( bmp_scroll_text()) {
+        { if( bmp_scroll_text()) {
+            HPS hps = WinGetPS( hwnd );
             bmp_draw_text( hps );
+            WinReleasePS( hps );
           }
+          // initiate delayed paint
+          if( upd_options )
+            WinPostMsg( hwnd, AMP_PAINT, MPFROMLONG(-1), 0 );
 
-          if( upd_options ) {
-            WinPostMsg( hwnd, AMP_PAINT, MPFROMLONG( upd_options ), 0 );
-            upd_options = 0;
-          }
-
-          WinReleasePS( hps );
         }
         DEBUGLOG2(("amp_dlg_proc: WM_TIMER done\n"));
         return 0;
 
        case TID_UPDATE_TIMERS:
-        if (Ctrl::IsPlaying() && cfg.mode == CFG_MODE_REGULAR && !is_msg_status)
-        { is_msg_status = true;
-          Ctrl::PostCommand(Ctrl::MkStatus(), &amp_control_event_callback);
-        }
+        if (Ctrl::IsPlaying())
+        // We must not mask this message request further, because the controller relies on that polling
+        // to update it's internal status.
+           amp_force_locmsg();
         DEBUGLOG2(("amp_dlg_proc: WM_TIMER done\n"));
         return 0;
       }
@@ -973,24 +940,22 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
       break;
 
     case AMP_PAINT:
-    {
-      HPS hps     = WinGetPS( hwnd );
-      int options = LONGFROMMP( mp1 );
-
-      if( options & UPD_FILENAME ) {
-        amp_display_filename();
+    { int mask = LONGFROMMP( mp1 );
+      // is there anything to draw with HPS?
+      if (mask & upd_options & (UPD_FILENAME|UPD_TIMERS|UPD_FILEINFO|UPD_VOLUME))
+      { HPS hps  = WinGetPS( hwnd );
+        if ((mask & UPD_FILENAME) && InterlockedBtr(upd_options, 4))
+        { amp_display_filename();
+          bmp_draw_text(hps);
+        }
+        if ((mask & UPD_TIMERS  ) && InterlockedBtr(upd_options, 0))
+          amp_paint_timers(hps);
+        if ((mask & UPD_FILEINFO) && InterlockedBtr(upd_options, 1))
+          amp_paint_fileinfo(hps);
+        if ((mask & UPD_VOLUME  ) && InterlockedBtr(upd_options, 2))
+          bmp_draw_volume(hps, cfg.defaultvol);
+        WinReleasePS( hps );
       }
-      if( options & UPD_TIMERS   ) {
-        amp_paint_timers( hps );
-      }
-      if( options & UPD_FILEINFO ) {
-        amp_paint_fileinfo( hps );
-      }
-      if( options & UPD_VOLUME   ) {
-        bmp_draw_volume( hps, cfg.defaultvol );
-      }
-
-      WinReleasePS( hps );
       return 0;
     }
 
@@ -1030,85 +995,77 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
           break;
 
         case IDM_M_ADDBOOK:
-        { int_ptr<Song> song = Ctrl::GetCurrentSong();
-          if (song)
-            amp_add_bookmark(hwnd, new PlayableSlice(song));
+          if (CurrentSong)
+            amp_add_bookmark(hwnd, PlayableSlice(CurrentSong));
           break;
-        }
+
         case IDM_M_ADDBOOK_TIME:
-        { int_ptr<Song> song = Ctrl::GetCurrentSong();
-          if (song)
-          { PlayableSlice* ps = new PlayableSlice(song);
+          if (CurrentSong)
+          { PlayableSlice ps(CurrentSong);
             // Use the time index from last_status here.
-            if (last_status.CurrentSongTime > 0)
+            if (CurrentIter->GetLocation() > 0)
             { SongIterator* iter = new SongIterator();
-              iter->SetLocation(last_status.CurrentSongTime);
-              ps->SetStart(iter);
+              iter->SetLocation(CurrentIter->GetLocation());
+              ps.SetStart(iter);
             }
             amp_add_bookmark(hwnd, ps);
           }
           break;
-        }
+
         case IDM_M_ADDPLBOOK:
-        { int_ptr<PlayableSlice> root = Ctrl::GetRoot();
-          if (root)
-            amp_add_bookmark(hwnd, root);
+          if (CurrentRoot)
+            amp_add_bookmark(hwnd, *CurrentIter->GetRoot());
           break;
-        }
+
         case IDM_M_ADDPLBOOK_TIME:
-        { Ctrl::PostCommand(Ctrl::MkLocation(), &amp_control_event_callback);
-          // Continue at AMP_CTRL_EVENT_CB
+          if (CurrentRoot)
+          { PlayableSlice ps(*CurrentIter->GetRoot());
+            ps.SetStart(new SongIterator(*CurrentIter));
+            amp_add_bookmark(hwnd, ps);
+          }
           break;
-        }
 
         case IDM_M_EDITBOOK:
           PlaylistView::Get(DefaultBM, "Bookmarks")->SetVisible(true);
           break;
 
         case IDM_M_INFO:
-        { int_ptr<Song> song = Ctrl::GetCurrentSong();
-          if (song)
-            InfoDialog::GetByKey(song)->SetVisible(true);
+          if (CurrentSong)
+            InfoDialog::GetByKey(CurrentSong)->SetVisible(true);
           break;
-        }
+
         case IDM_M_PLINFO:
-        { int_ptr<PlayableSlice> pp = Ctrl::GetRoot();
-          if (pp)
-            InfoDialog::GetByKey(pp->GetPlayable())->SetVisible(true);
+          if (CurrentRoot)
+            InfoDialog::GetByKey(CurrentRoot)->SetVisible(true);
           break;
-        }
+
         case IDM_M_TAG:
-        { int_ptr<Song> song = Ctrl::GetCurrentSong();
-          if (song)
-            amp_info_edit( hwnd, song );
+          if (CurrentSong)
+            amp_info_edit(hwnd, CurrentSong);
           break;
-        }
+
         case IDM_M_DETAILED:
-        { int_ptr<PlayableSlice> pp = Ctrl::GetRoot();
-          if (pp && (pp->GetPlayable()->GetFlags() & Playable::Enumerable))
-            PlaylistView::Get(pp->GetPlayable())->SetVisible(true);
+          if (CurrentRoot && (CurrentRoot->GetFlags() & Playable::Enumerable))
+            PlaylistView::Get(CurrentRoot)->SetVisible(true);
           break;
-        }
+
         case IDM_M_TREEVIEW:
-        { int_ptr<PlayableSlice> pp = Ctrl::GetRoot();
-          if (pp && (pp->GetPlayable()->GetFlags() & Playable::Enumerable))
-            PlaylistManager::Get(pp->GetPlayable())->SetVisible(true);
+          if (CurrentRoot && (CurrentRoot->GetFlags() & Playable::Enumerable))
+            PlaylistManager::Get(CurrentRoot)->SetVisible(true);
           break;
-        }
+
         case IDM_M_ADDPMBOOK:
-        { int_ptr<PlayableSlice> pp = Ctrl::GetRoot();
-          if (pp)
-            DefaultPM->InsertItem(*pp);
+          if (CurrentRoot)
+            DefaultPM->InsertItem(*CurrentIter->GetRoot());
           break;
-        }
+
         case IDM_M_PLSAVE:
-        { int_ptr<PlayableSlice> pp = Ctrl::GetRoot();
-          if (pp && (pp->GetPlayable()->GetFlags() & Playable::Enumerable))
-            amp_save_playlist( hwnd, (PlayableCollection*)pp->GetPlayable() );
+          if (CurrentRoot && (CurrentRoot->GetFlags() & Playable::Enumerable))
+            amp_save_playlist(hwnd, (PlayableCollection&)*CurrentRoot);
           break;
-        }
+
         case IDM_M_SAVE:
-          amp_save_stream( hwnd, !Ctrl::GetSavename() );
+          amp_save_stream(hwnd, !Ctrl::GetSavename());
           break;
 
         case IDM_M_EQUALIZE:
@@ -1127,12 +1084,12 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
 
         case IDM_M_FONT1:
           cfg.font = 0;
-          amp_invalidate( UPD_FILEINFO | UPD_FILENAME );
+          amp_invalidate(UPD_FILENAME);
           break;
 
         case IDM_M_FONT2:
           cfg.font = 1;
-          amp_invalidate( UPD_FILEINFO | UPD_FILENAME );
+          amp_invalidate(UPD_FILENAME);
           break;
 
         case IDM_M_TINY:
@@ -1166,7 +1123,7 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
 
         case IDM_M_CFG:
           cfg_properties( hwnd );
-          amp_invalidate( UPD_FILEINFO | UPD_FILENAME );
+          amp_invalidate( UPD_FILENAME|UPD_DELAYED );
 
           if( cfg.dock_windows ) {
             dk_arrange( hframe );
@@ -1303,7 +1260,7 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
 
       if( bmp_pt_in_volume( pos ))
         Ctrl::PostCommand(Ctrl::MkVolume(bmp_calc_volume(pos), false));
-      else if( Ctrl::GetRoot() && bmp_pt_in_text( pos )) {
+      else if( CurrentRoot && bmp_pt_in_text( pos )) {
         WinPostMsg( hwnd, AMP_DISPLAY_MODE, 0, 0 );
       }
 
@@ -1325,34 +1282,13 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
         POINTL pos;
         pos.x = SHORT1FROMMP(mp1);
         pos.y = SHORT2FROMMP(mp1);
-        seeking_pos = bmp_calc_time( pos, last_status.TotalSongTime );
+        double location = bmp_calc_time(pos);
+        CurrentIter->SetLocation(bmp_calc_time(pos) * CurrentSong->GetInfo().tech->songlength);
 
-        HPS hps = WinGetPS( hwnd );
-        bmp_draw_slider( hps, seeking_pos, last_status.TotalSongTime );
-        bmp_draw_timer ( hps, seeking_pos );
-        WinReleasePS( hps );
+        amp_invalidate(UPD_TIMERS);
       }
 
       WinSetPointer( HWND_DESKTOP, WinQuerySysPointer( HWND_DESKTOP, SPTR_ARROW, FALSE ));
-      return 0;
-
-    case WM_BUTTON1MOTIONEND:
-      if( is_volume_drag ) {
-        is_volume_drag = FALSE;
-        WinSetCapture( HWND_DESKTOP, NULLHANDLE );
-      }
-      if( is_slider_drag )
-      {
-        POINTL pos;
-        pos.x = SHORT1FROMMP(mp1);
-        pos.y = SHORT2FROMMP(mp1);
-        seeking_pos = bmp_calc_time(pos, last_status.TotalSongTime );
-
-        // TODO: the song may have changed
-        Ctrl::PostCommand(Ctrl::MkNavigate(xstring(), seeking_pos, false, false), &amp_control_event_callback);
-        is_slider_drag = FALSE;
-        WinSetCapture( HWND_DESKTOP, NULLHANDLE );
-      }
       return 0;
 
     case WM_BUTTON1MOTIONSTART:
@@ -1365,15 +1301,31 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
       if( bmp_pt_in_volume( pos )) {
         is_volume_drag = TRUE;
         WinSetCapture( HWND_DESKTOP, hwnd );
-      } else if( bmp_pt_in_slider( pos ) && last_status.TotalSongTime > 0 && Ctrl::GetCurrentSong() ) {
+      } else if( bmp_pt_in_slider( pos ) && CurrentSong && CurrentSong->GetInfo().tech->songlength > 0 ) {
         is_slider_drag = TRUE;
         is_seeking     = TRUE;
-        // We can use the time index from last_status here because nothing else is shown currently.
-        seeking_pos    = last_status.CurrentSongTime;
         WinSetCapture( HWND_DESKTOP, hwnd );
       }
       return 0;
     }
+
+    case WM_BUTTON1MOTIONEND:
+      if( is_volume_drag ) {
+        is_volume_drag = FALSE;
+        WinSetCapture( HWND_DESKTOP, NULLHANDLE );
+      }
+      if( is_slider_drag )
+      {
+        POINTL pos;
+        pos.x = SHORT1FROMMP(mp1);
+        pos.y = SHORT2FROMMP(mp1);
+        CurrentIter->SetLocation(bmp_calc_time(pos) * CurrentSong->GetInfo().tech->songlength);
+        
+        Ctrl::PostCommand(Ctrl::MkJump(new SongIterator(*CurrentIter)), &amp_control_event_callback);
+        is_slider_drag = FALSE;
+        WinSetCapture( HWND_DESKTOP, NULLHANDLE );
+      }
+      return 0;
 
     case WM_BUTTON2MOTIONSTART:
       WinSendMsg( hframe, WM_TRACKFRAME, MPFROMSHORT( TF_MOVE | TF_STANDARD ), 0 );
@@ -1461,7 +1413,6 @@ main2( void* arg )
 
   // start controller
   Ctrl::Init();
-  amp_reset_status();
 
   Playable::Init();
 

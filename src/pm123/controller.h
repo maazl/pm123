@@ -69,6 +69,11 @@ Navigate   Serialized iterator Location in         0x01  relative      Jump to l
                                                    0x02  playlist      playing position.
                                                          scope
 ---------------------------------------------------------------------------------------------------------------
+Jump                           in/out:                                 Jump to location
+                               SongIterator*                           This will change the Song and/or the
+                                                                       playing position.
+                                                                       The old position is returned in place.
+---------------------------------------------------------------------------------------------------------------
 StopAt     Serialized iterator Location in         0x02  playlist      Stop at location
            optional            seconds                   scope         This will stop the playback at the
                                                                        specified location.
@@ -101,10 +106,9 @@ Equalize                       EQ_Data*                                Save stre
 ---------------------------------------------------------------------------------------------------------------
 Save       Filename                                                    Save stream of current decoder.
 ---------------------------------------------------------------------------------------------------------------
-Status                         out: PlayStatus*                        Return PlayStatus
+Status                         PlayStatus*                             Fill PlayStatus structure.
 ---------------------------------------------------------------------------------------------------------------
-Location   out: Root URL       out: SongIterator*                      Return iterator with the current location.
-                               delete!                                 The returned SongIterator must be deleted.
+Location   out: Root URL       SongIterator*                           Set the iterator to the current location.
 ---------------------------------------------------------------------------------------------------------------
 DecStop                                                                The current decoder finished it's work.
 ---------------------------------------------------------------------------------------------------------------
@@ -127,6 +131,7 @@ class Ctrl
     Cmd_Load,
     Cmd_Skip,
     Cmd_Navigate,
+    Cmd_Jump,
     Cmd_StopAt,
     // play mode control
     Cmd_PlayStop,
@@ -139,7 +144,7 @@ class Ctrl
     Cmd_Save,
     Cmd_Equalize,
     // queries
-    Cmd_Status,
+    //Cmd_Status,
     Cmd_Location,
     // internal events
     Cmd_DecStop,
@@ -173,14 +178,15 @@ class Ctrl
   { float bandgain[2][10];
   };
 
-  struct PlayStatus
-  { int    CurrentItem;     // index of the currently played song
-    int    TotalItems;      // total number of items in the queue
-    T_TIME CurrentTime;     // current time index from the start of the queue excluding the currently loaded one
-    T_TIME TotalTime;       // total time of all items in the queue
-    T_TIME CurrentSongTime; // current time index in the current song
-    T_TIME TotalSongTime;   // total time of the current song
-  };
+  /*struct PlayStatus
+  { int_ptr<Song>    CurrentSong;     // Currently active song
+    int              CurrentItem;     // index of the currently played song
+    int              TotalItems;      // total number of items in the queue
+    T_TIME           CurrentTime;     // current time index from the start of the queue excluding the currently loaded one
+    T_TIME           TotalTime;       // total time of all items in the queue
+    T_TIME           CurrentSongTime; // current time index in the current song
+    T_TIME           TotalSongTime;   // total time of the current song
+  };*/
 
   struct ControlCommand;
 
@@ -253,7 +259,7 @@ class Ctrl
   static queue<ControlCommand*> Queue;               // Command queue of the controller (all messages pass this queue)
   static TID                  WorkerTID;             // Thread ID of the worker
 
-  static PlayStatus           Status;                // Temporary storage: result of MsgStatus
+  //static PlayStatus           Status;                // Temporary storage: result of MsgStatus
   static volatile unsigned    Pending;               // Pending events
   // These events are set atomically from any thread.
   // After each last message of a queued set of messages the events are raised and Pending is atomically reset.
@@ -331,6 +337,7 @@ class Ctrl
   static RC    MsgScan(Op op);
   static RC    MsgVolume(double volume, bool relative);
   static RC    MsgNavigate(const xstring& iter, T_TIME loc, int flags);
+  static RC    MsgJump(SongIterator& iter);
   static RC    MsgStopAt(const xstring& iter, T_TIME loc, int flags);
   static RC    MsgPlayStop(Op op);
   static RC    MsgSkip(int count, bool relative);
@@ -339,8 +346,8 @@ class Ctrl
   static RC    MsgEqualize(const EQ_Data* data);
   static RC    MsgShuffle(Op op);
   static RC    MsgRepeat(Op op);
-  static RC    MsgStatus();
-  static RC    MsgLocation();
+  //static RC    MsgStatus(PlayStatus* status);
+  static RC    MsgLocation(SongIterator* sip);
   static RC    MsgDecStop();
   static RC    MsgOutStop();
  
@@ -403,6 +410,8 @@ class Ctrl
   { return new ControlCommand(Cmd_Skip, xstring(), count, relative); }
   static ControlCommand* MkNavigate(const xstring& iter, T_TIME start, bool relative, bool global)
   { return new ControlCommand(Cmd_Navigate, iter, start, relative | (global<<1)); }
+  static ControlCommand* MkJump(SongIterator* iter)
+  { return new ControlCommand(Cmd_Jump, xstring(), iter, 0); }
   static ControlCommand* MkStopAt(const xstring& iter, T_TIME start, bool global)
   { return new ControlCommand(Cmd_StopAt, iter, start, global<<1); }
   static ControlCommand* MkPlayStop(Op op)
@@ -421,10 +430,10 @@ class Ctrl
   { return new ControlCommand(Cmd_Save, filename, 0., 0); }
   static ControlCommand* MkEqualize(const EQ_Data* data)
   { return new ControlCommand(Cmd_Equalize, xstring(), (void*)data, 0); }
-  static ControlCommand* MkStatus()
-  { return new ControlCommand(Cmd_Status, xstring(), (void*)NULL, 0); }
-  static ControlCommand* MkLocation()
-  { return new ControlCommand(Cmd_Location, xstring(), (void*)NULL, 0); }
+  /*static ControlCommand* MkStatus(PlayStatus* dest)
+  { return new ControlCommand(Cmd_Status, xstring(), dest, 0); }*/
+  static ControlCommand* MkLocation(SongIterator* sip)
+  { return new ControlCommand(Cmd_Location, xstring(), sip, 0); }
  private: // internal messages
   static ControlCommand* MkDecStop()
   { return new ControlCommand(Cmd_DecStop, xstring(), (void*)NULL, 0); }

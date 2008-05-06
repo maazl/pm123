@@ -79,9 +79,9 @@ void amp_eq_show( void );
 
 
 /* Adds a user selected bookmark. */
-void  amp_add_bookmark(HWND owner, PlayableSlice* item);
+void  amp_add_bookmark(HWND owner, const PlayableSlice& item);
 /* Saves a playlist */
-void  amp_save_playlist( HWND owner, PlayableCollection* playlist );
+void  amp_save_playlist( HWND owner, PlayableCollection& playlist );
 /* Returns TRUE if the save stream feature has been enabled. */
 void  amp_save_stream( HWND hwnd, BOOL enable );
 

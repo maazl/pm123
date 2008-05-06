@@ -220,14 +220,10 @@ void PlaylistView::InitDlg()
 { DEBUGLOG(("PlaylistView(%p)::InitDlg()\n", this));
 
   // Initializes the container of the playlist.
-  #ifdef DEBUG
-  HwndContainer = WinCreateWindow( GetHwnd(), WC_CONTAINER, "", WS_VISIBLE|CCS_EXTENDSEL|CCS_MINIICONS|CCS_MINIRECORDCORE|CCS_VERIFYPOINTERS,
-                                   0, 0, 0, 0, GetHwnd(), HWND_TOP, FID_CLIENT, NULL, NULL);
-  #else
-  HwndContainer = WinCreateWindow( GetHwnd(), WC_CONTAINER, "", WS_VISIBLE|CCS_EXTENDSEL|CCS_MINIICONS|CCS_MINIRECORDCORE,
-                                   0, 0, 0, 0, GetHwnd(), HWND_TOP, FID_CLIENT, NULL, NULL);
-  #endif
+  HwndContainer = WinWindowFromID(GetHwnd(), CNR_PLAYLIST);
   PMASSERT(HwndContainer != NULLHANDLE);
+  // Attension!!! Intended side effect: CCS_VERIFYPOINTERS is only set in degug builds
+  PMASSERT(WinSetWindowBits(HwndContainer, QWL_STYLE, CCS_VERIFYPOINTERS, CCS_VERIFYPOINTERS));
 
   static bool initialized = false;
   if (!initialized)
@@ -373,9 +369,9 @@ MRESULT PlaylistView::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
             PlayableInstance* pi = rec->Data()->Content;
             pii->Alias  = pi->GetAlias();
             if (pi->GetStart())
-              pii->Start = pi->GetStart()->Serialize(true);
+              pii->Start = pi->GetStart()->Serialize();
             if (pi->GetStop())
-              pii->Stop = pi->GetStop()->Serialize(true);
+              pii->Stop = pi->GetStop()->Serialize();
             pii->Before = rec->Data()->Content;
             // Send GUI commands
             BlockRecord(rec);
@@ -566,12 +562,12 @@ bool PlaylistView::CalcCols(Record* rec, Playable::InfoFlags flags, PlayableInst
   if (iflags & PlayableInstance::SF_Slice)
   { // Starting position
     const SongIterator* si = rec->Data()->Content->GetStart();
-    tmp = si ? si->Serialize(true) : xstring::empty;
+    tmp = si ? si->Serialize() : xstring::empty;
     rec->Pos = tmp;
     rec->Data()->Pos = tmp;
     // Ending position
     si = rec->Data()->Content->GetStop();
-    tmp = si ? si->Serialize(true) : xstring::empty;
+    tmp = si ? si->Serialize() : xstring::empty;
     rec->End = tmp;
     rec->Data()->End = tmp;
     ret = true;
