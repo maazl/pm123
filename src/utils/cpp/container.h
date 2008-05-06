@@ -373,23 +373,90 @@ int InstanceCompareable<T>::compareTo(const T& key) const
 
 
 /* Class to implement a repository of all objects instances of a certain type
- * identified by a key K. The Instances of type T must implement ICompareable<K>.
- * Classes of type T mut inherit from inst_repository<T, K> to implement this feature.
- * The class below does not hold strong references to the  
+ * identified by a key K.
+ * The Instances of type T must implement Iref_Count and ICompareable<K*>.
+ * Classes of type T must inherit from inst_index<T, K> to implement this feature.
+ * You must redefine the static function GetByKey to provide a suitable factory
+ * for new T instances. In the easiest case this is simply a call to new T(key).
+ * The repository below does not handle the ownership of to the T instances.
+ * The class instances also do not hold the ownership of the keys.
+ * The lifetime management must be done somewhere else.
+ * The class is thread-safe.
  */
-/*template <class T, class K>
-class inst_repository
-{private:
-  static sorted_vector<T, K> RPInst;
-  static Mutex      RPMutex; // protect the index above
+template <class T, class K>
+class inst_index
+{public:
+  // abstract factory interface used for object instantiation
+  struct IFactory
+  { virtual T* operator()(K* key) = 0;
+  };
+
  protected:
-  inst_repository() {}
-  ~inst_repository() {}
+  const  K* const   Key;
+ protected: // It does not make sense to create objects of this type directly.
+  inst_index(const K* key) : Key(key) {}
+  ~inst_index();
+
  public:
-  static int_ptr<T> FindByKey(const K& key);
-  static int_ptr<T> GetByKey(const K& key);
-};*/
- 
+  // Get an existing instance of T or return NULL.
+  static int_ptr<T> FindByKey(const K* key);
+ protected:
+  // Get an existing instance of T or create a new one.
+  static int_ptr<T> GetByKey(K* key, IFactory& factory);
+ private:
+  static sorted_vector<T,const K*> Index;
+  static Mutex      Mtx; // protect the index above
+};
+
+template <class T, class K>
+inst_index<T,K>::~inst_index()
+{ DEBUGLOG(("inst_index<%p>::~inst_index()\n", &Index));
+  // Deregister from the repository
+  // The deregistration is a bit too late, because destructors from the derived
+  // class may already be called. But the objects T must be reference counted.
+  // And FindByKey/GetByKey checks for the reference counter before it takes
+  // T in the repository as a valid object. Furthermore we must check that the
+  // instance to remove is really our own one.
+  Mutex::Lock lock(Mtx);
+  size_t pos;
+  if (Index.binary_search(Key, pos))
+    if (Index[pos] == this)
+      Index.erase(pos);
+    // else => another instance is already in the index.
+  // else => there is no matching instance
+  // This may happen if the reference count on a T instance goes to zero and
+  // while the instance is not yet deregistered a new instance is created
+  // in the index and it's inst_index destructor is already called. 
+}
+
+template <class T, class K>
+int_ptr<T> inst_index<T,K>::FindByKey(const K* key)
+{ DEBUGLOG(("inst_index<%p>::FindByKey(%p)\n", &Index, key));
+  Mutex::Lock lock(Mtx);
+  T* p = Index.find(key);
+  CritSect cs;
+  return p && !p->RefCountIsUnmanaged() ? p : NULL; 
+}
+
+template <class T, class K>
+int_ptr<T> inst_index<T,K>::GetByKey(K* key, IFactory& factory)
+{ DEBUGLOG(("inst_index<%p>::GetByKey(%p, &%p)\n", &Index, key, &factory));
+  Mutex::Lock lock(Mtx);
+  T*& p = Index.get(key);
+  { CritSect cs;
+    if (p && !p->RefCountIsUnmanaged())
+      return p;
+  }
+  p = factory(key);
+  return p;
+}
+
+template <class T, class K>
+sorted_vector<T,const K*> inst_index<T,K>::Index;
+template <class T, class K>
+Mutex inst_index<T,K>::Mtx;
+  
+
 /* Algorithmns */
 
 // rotate pointer array in place
