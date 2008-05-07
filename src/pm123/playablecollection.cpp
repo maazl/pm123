@@ -71,7 +71,8 @@ PlayableSlice::PlayableSlice(Playable* pp)
 PlayableSlice::PlayableSlice(const PlayableSlice& r)
 : RefTo(r.RefTo),
   Alias(r.Alias)
-{ if (r.Start)
+{ DEBUGLOG(("PlayableSlice(%p)::PlayableSlice(&%p)\n", this, &r));
+  if (r.Start)
     Start = new SongIterator(*r.Start);
   if (r.Stop)
     Stop = new SongIterator(*r.Stop);
@@ -81,10 +82,10 @@ PlayableSlice::PlayableSlice(const url123& url, const xstring& alias)
   Alias(alias),
   Start(NULL),
   Stop(NULL)
-{ DEBUGLOG(("PlayableSlice(%p)::PlayableSlice(%s, %s) - %p\n", this, url.cdata(), alias.cdata(), RefTo.get()));
+{ DEBUGLOG(("PlayableSlice(%p)::PlayableSlice(%s, %s) - %p\n", this, url.cdata(), alias ? alias.cdata() : "<null>", RefTo.get()));
   ASSERT((int)RefTo.get() > 0x10000); // OS/2 check trick
-  ASSERT(GetPlayable());
-  if (Alias.length() == 0)
+  ASSERT(&RefTo);
+  if (Alias && Alias.length() == 0)
     Alias = NULL;
 }
 PlayableSlice::PlayableSlice(const url123& url, const xstring& alias, const char* start, const char* stop)
@@ -156,7 +157,7 @@ xstring PlayableSlice::DebugName() const
 /*PlayableInstRef::PlayableInstRef(PlayableInstance* ref)
 : PlayableSlice(ref->GetPlayable()),
   InstRef(ref)
-{}  
+{}
 
 PlayableInstance* PlayableInstRef::GetPlayableInstance() const
 { return InstRef;
@@ -170,8 +171,8 @@ PlayableInstance* PlayableInstRef::GetPlayableInstance() const
 ****************************************************************************/
 
 PlayableInstance::PlayableInstance(PlayableCollection& parent, Playable* playable)
-: Parent(&parent),
-  PlayableSlice(playable),
+: PlayableSlice(playable),
+  Parent(&parent),
   Stat(STA_Normal)
 { DEBUGLOG(("PlayableInstance(%p)::PlayableInstance(%p{%s}, %p{%s})\n", this,
     &parent, parent.GetURL().getShortName().cdata(), playable, playable->GetURL().getShortName().cdata()));
@@ -193,7 +194,7 @@ xstring PlayableInstance::GetDisplayName() const
 }
 
 void PlayableInstance::SetStart(SongIterator* iter)
-{ DEBUGLOG(("PlayableInstance(%p)::SetStart(%p{%s})\n", this, iter, SongIterator::DebugName(iter)));
+{ DEBUGLOG(("PlayableInstance(%p)::SetStart(%p{%s})\n", this, iter, SongIterator::DebugName(iter).cdata()));
   if ((!iter ^ !GetStart()) || iter && GetStart() && GetStart()->CompareTo(*iter) != 0)
   { PlayableSlice::SetStart(iter);
     StatusChange(change_args(*this, SF_Slice));
@@ -201,7 +202,7 @@ void PlayableInstance::SetStart(SongIterator* iter)
 }
 
 void PlayableInstance::SetStop(SongIterator* iter)
-{ DEBUGLOG(("PlayableInstance(%p)::SetStop(%p{%s})\n", this, iter, SongIterator::DebugName(iter)));
+{ DEBUGLOG(("PlayableInstance(%p)::SetStop(%p{%s})\n", this, iter, SongIterator::DebugName(iter).cdata()));
   if ((!iter ^ !GetStop()) || iter && GetStop() && GetStop()->CompareTo(*iter) != 0)
   { PlayableSlice::SetStop(iter);
     StatusChange(change_args(*this, SF_Slice));
@@ -427,7 +428,7 @@ void PlayableCollection::ChildInstChange(const PlayableInstance::change_args& ar
     ChildInfoChange(Playable::change_args(*args.Instance.GetPlayable(), IF_Tech));
 }
 
-void PlayableCollection::CalcTechInfo(TECH_INFO& dst)  
+void PlayableCollection::CalcTechInfo(TECH_INFO& dst)
 { DEBUGLOG(("PlayableCollection(%p{%s})::CalcTechInfo(%p{}) - %x\n", this, GetURL().getShortName().cdata(), &dst, InfoValid));
 
   if (Stat == STA_Invalid)
@@ -439,7 +440,7 @@ void PlayableCollection::CalcTechInfo(TECH_INFO& dst)
     dst.filesize   = ci.Filesize;
     dst.num_items  = ci.Items;
     dst.recursive  = ci.Excluded.find(*this) != NULL;
-    
+
     dst.bitrate = (int)( dst.filesize >= 0 && dst.songlength > 0
       ? dst.filesize / dst.songlength / (1000/8)
       : -1 );
@@ -518,7 +519,7 @@ int_ptr<PlayableInstance> PlayableCollection::DeserializeItem(const xstring& str
 const PlayableCollection::CollectionInfo& PlayableCollection::GetCollectionInfo(const PlayableSet& excluding)
 { DEBUGLOG(("PlayableCollection(%p{%s})::GetCollectionInfo({%i, %s}) - %x\n", this, GetURL().getShortName().cdata(), excluding.size(), excluding.DebugDump().cdata()));
   ASSERT(Mtx.GetStatus() == Mutex::Mine);
-  
+
   // cache lookup
   // We have to protect the CollectionInfoCache additionally by a critical section,
   // because the TechInfoChange event from the children cannot aquire the mutex.
@@ -556,7 +557,7 @@ const PlayableCollection::CollectionInfo& PlayableCollection::GetCollectionInfo(
         xcl_sub->get(*this) = this;
       }
       // get sub info
-      Mutex::Lock lck = pc->Mtx;
+      Mutex::Lock lck(pc->Mtx);
       cic->Info.Add(pc->GetCollectionInfo(*xcl_sub));
 
     } else
@@ -576,7 +577,7 @@ const PlayableCollection::CollectionInfo& PlayableCollection::GetCollectionInfo(
           else
             length -= pi->GetStart()->GetLocation();
         }
-        // Scale filesize with slice to preserve bitrate. 
+        // Scale filesize with slice to preserve bitrate.
         cic->Info.Add(length, tech.filesize * length / tech.songlength, 1);
       } else
         // only count invalid items
@@ -590,7 +591,7 @@ const PlayableCollection::CollectionInfo& PlayableCollection::GetCollectionInfo(
 
 Playable::InfoFlags PlayableCollection::LoadInfo(InfoFlags what)
 { DEBUGLOG(("PlayableCollection(%p{%s})::LoadInfo(%x) - %x %u\n", this, GetURL().getShortName().cdata(), what, InfoValid, Stat));
-  Mutex::Lock lock = Mtx;
+  Mutex::Lock lock(Mtx);
 
   // Need list content to generate tech info
   if ((what & IF_Tech) && !(InfoValid & IF_Other))
@@ -632,7 +633,7 @@ bool PlayableCollection::SaveLST(XFILE* of, bool relative)
             "# Lines starting with '>' are used for optimization.\n"
             "#\n", of);
   // Content
-  Mutex::Lock lock = Mtx;
+  Mutex::Lock lock(Mtx);
   int_ptr<PlayableInstance> pi;
   while ((pi = GetNext(pi)) != NULL)
   { Playable* pp = pi->GetPlayable();
@@ -723,7 +724,7 @@ bool PlayableCollection::SaveLST(XFILE* of, bool relative)
 
 bool PlayableCollection::SaveM3U(XFILE* of, bool relative)
 { DEBUGLOG(("PlayableCollection(%p{%s})::SaveM3U(%p, %u)\n", this, GetURL().cdata(), of, relative));
-  Mutex::Lock lock = Mtx;
+  Mutex::Lock lock(Mtx);
   int_ptr<PlayableInstance> pi;
   while ((pi = GetNext(pi)) != NULL)
   { Playable* pp = pi->GetPlayable();
@@ -946,7 +947,7 @@ bool Playlist::LoadMPL(XFILE* x)
   {
     char* cp = file + strspn(file, " \t");
     strchomp(cp);
-    
+
     if( *cp!= 0 && *cp!= '#' && *cp!= '[' && *cp!= '>' && *cp!= '<' )
     {
       eq_pos = strchr( cp, '=' );
@@ -975,7 +976,7 @@ bool Playlist::LoadPLS(XFILE* x)
   {
     char* cp = line + strspn(line, " \t");
     strchomp(cp);
-    
+
     if( *cp!= 0 && *cp != '#' && *cp != '[' && *cp != '>' && *cp != '<' )
     {
       eq_pos = strchr( cp, '=' );
@@ -1011,7 +1012,7 @@ bool Playlist::LoadPLS(XFILE* x)
     Entry* ep = CreateEntry(file);
     ep->SetAlias(title);
     AppendEntry(ep);
-            
+
   }
 
   return true;
@@ -1056,7 +1057,7 @@ bool Playlist::LoadList()
 
 bool Playlist::InsertItem(const PlayableSlice& item, PlayableInstance* before)
 { DEBUGLOG(("Playlist(%p{%s})::InsertItem(%s, %p) - %u\n", this, GetURL().getShortName().cdata(), item.DebugName().cdata(), before, Stat));
-  Mutex::Lock lock = Mtx;
+  Mutex::Lock lock(Mtx);
   // Check whether the parameter before is still valid
   if (before && !before->IsParent(this))
     return false;
@@ -1090,7 +1091,7 @@ bool Playlist::InsertItem(const PlayableSlice& item, PlayableInstance* before)
 bool Playlist::MoveItem(PlayableInstance* item, PlayableInstance* before)
 { DEBUGLOG(("Playlist(%p{%s})::InsertItem(%p{%s}, %p{%s}) - %u\n", this, GetURL().getShortName().cdata(),
     item, item->GetPlayable()->GetURL().cdata(), before ? before->GetPlayable()->GetURL().cdata() : ""));
-  Mutex::Lock lock = Mtx;
+  Mutex::Lock lock(Mtx);
   // Check whether the parameter before is still valid
   if (!item->IsParent(this) || (before && !before->IsParent(this)))
     return false;
@@ -1110,7 +1111,7 @@ bool Playlist::MoveItem(PlayableInstance* item, PlayableInstance* before)
 bool Playlist::RemoveItem(PlayableInstance* item)
 { DEBUGLOG(("Playlist(%p{%s})::RemoveItem(%p{%s})\n", this, GetURL().getShortName().cdata(),
     item, item ? item->GetPlayable()->GetURL().cdata() : ""));
-  Mutex::Lock lock = Mtx;
+  Mutex::Lock lock(Mtx);
   // Check whether the item is still valid
   if (item && !item->IsParent(this))
     return false;
@@ -1141,7 +1142,7 @@ bool Playlist::RemoveItem(PlayableInstance* item)
 
 void Playlist::Sort(ItemComparer comp)
 { DEBUGLOG(("Playlist(%p)::Sort(%p)\n", this, comp));
-  Mutex::Lock lock = Mtx;
+  Mutex::Lock lock(Mtx);
   if (Head == Tail)
     return; // Empty or one element lists are always sorted.
   // Create index array
@@ -1175,7 +1176,7 @@ void Playlist::Sort(ItemComparer comp)
 
 void Playlist::Shuffle()
 { DEBUGLOG(("Playlist(%p)::Shuffle()\n", this));
-  Mutex::Lock lock = Mtx;
+  Mutex::Lock lock(Mtx);
   if (Head == Tail)
     return; // Empty or one element lists are always sorted.
   // move records randomly to the beginning or the end.
@@ -1196,7 +1197,7 @@ void Playlist::Shuffle()
   // raise InfoChange event?
   DEBUGLOG(("Playlist::Shuffle: before raiseinfochange\n"));
   RaiseInfoChange();
-  DEBUGLOG(("Playlist::Shuffle: after raiseinfochange\n")); 
+  DEBUGLOG(("Playlist::Shuffle: after raiseinfochange\n"));
 }
 
 bool Playlist::Save(const url123& URL, save_options opt)
@@ -1205,7 +1206,7 @@ bool Playlist::Save(const url123& URL, save_options opt)
     return false;
   if (URL == GetURL())
   { // TODO: this should be done atomic with the save.
-    Mutex::Lock lock = Mtx;
+    Mutex::Lock lock(Mtx);
     if (Modified)
     { InfoChangeFlags |= IF_Status;
       Modified = false;
@@ -1217,7 +1218,7 @@ bool Playlist::Save(const url123& URL, save_options opt)
 
 void Playlist::NotifySourceChange()
 { DEBUGLOG(("Playlist(%p{%s})::NotifySourceChange()", this, GetURL().cdata()));
-  Mutex::Lock lock = Mtx;
+  Mutex::Lock lock(Mtx);
   if (!Modified)
   { InfoChangeFlags |= IF_Status;
     Modified = true;

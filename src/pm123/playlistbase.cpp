@@ -182,7 +182,7 @@ void PlaylistBase::StartDialog()
 }
 
 void PlaylistBase::InitDlg()
-{ // Icon  
+{ // Icon
   HPOINTER hicon = WinLoadPointer(HWND_DESKTOP, 0, ICO_MAIN);
   PMASSERT(hicon != NULLHANDLE);
   PMRASSERT(WinSendMsg(GetHwnd(), WM_SETICON, (MPARAM)hicon, 0));
@@ -333,7 +333,7 @@ MRESULT PlaylistBase::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
         MRESULT mr = DragOver(pcdi->pDragInfo, (RecordBase*)pcdi->pRecord);
         DrgFreeDraginfo(pcdi->pDragInfo);
         return mr;
-      } 
+      }
      case CN_DROP:
       { CNRDRAGINFO* pcdi = (CNRDRAGINFO*)PVOIDFROMMP(mp2);
         if (!DrgAccessDraginfo(pcdi->pDragInfo))
@@ -344,8 +344,8 @@ MRESULT PlaylistBase::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
         DragDrop(pcdi->pDragInfo, (RecordBase*)pcdi->pRecord);
         DrgFreeDraginfo(pcdi->pDragInfo);
         return 0;
-      } 
-    }  
+      }
+    }
     break;
 
    case DM_RENDERCOMPLETE:
@@ -370,13 +370,13 @@ MRESULT PlaylistBase::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
    case DM_ENDCONVERSATION:
     DropEnd((RecordBase*)PVOIDFROMMP(mp1), !!(LONGFROMMP(mp2) & DMFL_TARGETSUCCESSFUL));
     return 0;
-    
+
    case WM_COMMAND:
     { DEBUGLOG(("PlaylistBase(%p{%s})::DlgProc: WM_COMMAND %u %u\n", this, DebugName().cdata(), SHORT1FROMMP(mp1), Source.size()));
-      // Determine source in case of a accelerator-key 
+      // Determine source in case of a accelerator-key
       if (SHORT1FROMMP(mp2) == CMDSRC_ACCELERATOR)
         GetRecords(CRA_SELECTED);
-      
+
       if (SHORT1FROMMP(mp1) >= IDM_PL_APPFILEALL && SHORT1FROMMP(mp1) < IDM_PL_APPFILEALL + sizeof LoadWizzards / sizeof *LoadWizzards)
       { DECODER_WIZZARD_FUNC func = LoadWizzards[SHORT1FROMMP(mp1)-IDM_PL_APPFILEALL];
         if (func != NULL)
@@ -421,7 +421,7 @@ MRESULT PlaylistBase::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
        case IDM_PL_REFRESH:
         Apply2Source(&PlaylistBase::UserReload);
         break;
-       
+
        case IDM_PL_INFOALL:
         UserOpenInfoView(Content);
         break;
@@ -444,7 +444,7 @@ MRESULT PlaylistBase::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
         SortComparer = &PlaylistBase::CompURL;
         UserSort(Content);
         break;
-       case IDM_PL_SORT_URL: 
+       case IDM_PL_SORT_URL:
         SortComparer = &PlaylistBase::CompURL;
         Apply2Source(&PlaylistBase::UserSort);
         break;
@@ -452,7 +452,7 @@ MRESULT PlaylistBase::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
         SortComparer = &PlaylistBase::CompTitle;
         UserSort(Content);
         break;
-       case IDM_PL_SORT_SONG: 
+       case IDM_PL_SORT_SONG:
         SortComparer = &PlaylistBase::CompTitle;
         Apply2Source(&PlaylistBase::UserSort);
         break;
@@ -460,7 +460,7 @@ MRESULT PlaylistBase::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
         SortComparer = &PlaylistBase::CompArtist;
         UserSort(Content);
         break;
-       case IDM_PL_SORT_ART: 
+       case IDM_PL_SORT_ART:
         SortComparer = &PlaylistBase::CompArtist;
         Apply2Source(&PlaylistBase::UserSort);
         break;
@@ -468,7 +468,7 @@ MRESULT PlaylistBase::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
         SortComparer = &PlaylistBase::CompAlbum;
         UserSort(Content);
         break;
-       case IDM_PL_SORT_ALBUM: 
+       case IDM_PL_SORT_ALBUM:
         SortComparer = &PlaylistBase::CompAlbum;
         Apply2Source(&PlaylistBase::UserSort);
         break;
@@ -476,7 +476,7 @@ MRESULT PlaylistBase::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
         SortComparer = &PlaylistBase::CompAlias;
         UserSort(Content);
         break;
-       case IDM_PL_SORT_ALIAS: 
+       case IDM_PL_SORT_ALIAS:
         SortComparer = &PlaylistBase::CompAlias;
         Apply2Source(&PlaylistBase::UserSort);
         break;
@@ -484,7 +484,7 @@ MRESULT PlaylistBase::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
         SortComparer = &PlaylistBase::CompTime;
         UserSort(Content);
         break;
-       case IDM_PL_SORT_TIME: 
+       case IDM_PL_SORT_TIME:
         SortComparer = &PlaylistBase::CompTime;
         Apply2Source(&PlaylistBase::UserSort);
         break;
@@ -492,7 +492,7 @@ MRESULT PlaylistBase::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
         SortComparer = &PlaylistBase::CompSize;
         UserSort(Content);
         break;
-       case IDM_PL_SORT_SIZE: 
+       case IDM_PL_SORT_SIZE:
         SortComparer = &PlaylistBase::CompSize;
         Apply2Source(&PlaylistBase::UserSort);
         break;
@@ -500,7 +500,7 @@ MRESULT PlaylistBase::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
        case IDM_PL_SORT_RANDALL:
         UserShuffle(Content);
         break;
-       case IDM_PL_SORT_RAND: 
+       case IDM_PL_SORT_RAND:
         Apply2Source(&PlaylistBase::UserShuffle);
         break;
 
@@ -554,26 +554,26 @@ MRESULT PlaylistBase::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
    case UM_PLAYSTATUS:
     UpdatePlayStatus();
     return 0;
-    
+
    case UM_INSERTITEM:
     { InsertInfo* pii = (InsertInfo*)PVOIDFROMMP(mp1);
       UserInsert(pii);
       delete pii;
       return 0;
     }
-    
+
    case UM_REMOVERECORD:
     { RecordBase* rec = (RecordBase*)PVOIDFROMMP(mp1);
       UserRemove(rec);
       FreeRecord(rec);
       return 0;
     }
-    
+
    case UM_UPDATEDEC:
     { DEBUGLOG(("PlaylistBase::DlgProc: UM_UPDATEDEC\n"));
       UpdateAccelTable();
       // Replace table of current window.
-      HAB hab = WinQueryAnchorBlock(GetHwnd());   
+      HAB hab = WinQueryAnchorBlock(GetHwnd());
       HACCEL haccel = WinQueryAccelTable(hab, GetHwnd());
       PMRASSERT(WinSetAccelTable(hab, AccelTable, GetHwnd()));
       if (haccel != NULLHANDLE)
@@ -664,7 +664,7 @@ void PlaylistBase::RemoveEntry(RecordBase* const entry)
   // Delete the children
   RemoveChildren(entry);
   // Remove record from container
-  PMXASSERT(LONGFROMMR(WinSendMsg(HwndContainer, CM_REMOVERECORD, MPFROMP(&entry), MPFROM2SHORT(1, CMA_INVALIDATE))), != -1);
+  PMXASSERT(WinSendMsg(HwndContainer, CM_REMOVERECORD, MPFROMP(&entry), MPFROM2SHORT(1, CMA_INVALIDATE)), != (MRESULT)-1);
   // Release reference counter
   // The record will be deleted when no outstanding PostMsg is on the way.
   FreeRecord(entry);
@@ -786,7 +786,7 @@ bool PlaylistBase::GetSource(RecordBase* rec)
 { Source.clear();
   if (rec)
   { PMRASSERT(WinSendMsg(HwndContainer, CM_QUERYRECORDINFO, MPFROMP(&rec), MPFROMSHORT(1)));
-    DEBUGLOG(("PlaylistBase::GetSource(%p{...%x...})\n", rec, rec->flRecordAttr)); 
+    DEBUGLOG(("PlaylistBase::GetSource(%p{...%x...})\n", rec, rec->flRecordAttr));
     // check wether the record is selected
     if (rec->flRecordAttr & CRA_SELECTED)
     { GetRecords(CRA_SELECTED);
@@ -956,7 +956,7 @@ void PlaylistBase::PluginEvent(const PLUGIN_EVENTARGS& args)
      default:; // avoid warnings
     }
   }
-}  
+}
 
 static void DLLENTRY UserAddCallback(void* param, const char* url)
 { DEBUGLOG(("UserAddCallback(%p, %s)\n", param, url));
@@ -987,7 +987,7 @@ void PlaylistBase::UserAdd(DECODER_WIZZARD_FUNC wizzard, RecordBase* parent, Rec
 void PlaylistBase::UserInsert(const InsertInfo* pii)
 { DEBUGLOG(("PlaylistBase(%p)::UserInsert(%p{{%s}, %s, %s, {%s,%s}, %p{%s}})\n", this,
     pii, pii->Parent->GetURL().getShortName().cdata(), pii->URL.cdata(), pii->Alias.cdata(),
-    pii->Start.cdata(), pii->Stop.cdata(), pii->Before, pii->Before ? pii->Before->GetPlayable()->GetURL().cdata() : ""));
+    pii->Start.cdata(), pii->Stop.cdata(), pii->Before.get(), pii->Before ? pii->Before->GetPlayable()->GetURL().cdata() : ""));
   int_ptr<PlayableSlice> ps = new PlayableSlice(pii->URL, pii->Alias, pii->Start, pii->Stop);
   pii->Parent->InsertItem(*ps, pii->Before);
 }
@@ -1108,7 +1108,7 @@ url123 PlaylistBase::PlaylistSelect(HWND owner, const char* title)
   }
 }
 
-/****************************************************************************  
+/****************************************************************************
 *
 *  Drag and drop - Target side
 *
@@ -1180,7 +1180,7 @@ void PlaylistBase::DragDrop(DRAGINFO* pdinfo, RecordBase* target)
     target = (RecordBase*)WinSendMsg(HwndContainer, CM_QUERYRECORD, MPFROMP(target), MPFROM2SHORT(target ? CMA_NEXT : CMA_FIRST, CMA_ITEMORDER));
     PMASSERT(target != (RecordBase*)-1);
   }
-  
+
   // For each dropped item...
   for (int i = 0; i < pdinfo->cditem; ++i)
   { DRAGITEM* pditem = DrgQueryDragitemPtr(pdinfo, i);
@@ -1188,9 +1188,9 @@ void PlaylistBase::DragDrop(DRAGINFO* pdinfo, RecordBase* target)
       pditem->hwndItem, pditem->ulItemID, amp_string_from_drghstr(pditem->hstrType).cdata(), amp_string_from_drghstr(pditem->hstrRMF).cdata(),
       amp_string_from_drghstr(pditem->hstrContainerName).cdata(), amp_string_from_drghstr(pditem->hstrSourceName).cdata(), amp_string_from_drghstr(pditem->hstrTargetName).cdata(),
       pditem->cxOffset, pditem->cyOffset, pditem->fsControl, pditem->fsSupportedOps));
-    
+
     ULONG reply = DMFL_TARGETFAIL;
-    
+
     // fetch target name
     xstring alias = amp_string_from_drghstr(pditem->hstrTargetName);
     // Do not set an empty alias
@@ -1236,7 +1236,7 @@ void PlaylistBase::DragDrop(DRAGINFO* pdinfo, RecordBase* target)
           // Send the message before setting a render-to name.
           if ( pditem->fsControl & DC_PREPAREITEM
             && !DrgSendTransferMsg(pditem->hwndItem, DM_RENDERPREPARE, (MPARAM)pdtrans, 0) )
-          { // Failure => do not send DM_ENDCONVERSATION 
+          { // Failure => do not send DM_ENDCONVERSATION
             DrgFreeDragtransfer(pdtrans);
             delete pdsource;
             continue;
@@ -1245,7 +1245,7 @@ void PlaylistBase::DragDrop(DRAGINFO* pdinfo, RecordBase* target)
           // Send the message after setting a render-to name.
           if ( (pditem->fsControl & (DC_PREPARE | DC_PREPAREITEM)) == DC_PREPARE
             && !DrgSendTransferMsg(pditem->hwndItem, DM_RENDERPREPARE, (MPARAM)pdtrans, 0) )
-          { // Failure => do not send DM_ENDCONVERSATION 
+          { // Failure => do not send DM_ENDCONVERSATION
             DrgFreeDragtransfer(pdtrans);
             delete pdsource;
             continue;
@@ -1258,7 +1258,7 @@ void PlaylistBase::DragDrop(DRAGINFO* pdinfo, RecordBase* target)
           // something failed => we have to cleanup ressources immediately and cancel the conversation
           DrgFreeDragtransfer(pdtrans);
           delete pdsource;
-          // ... send DM_ENDCONVERSATION below 
+          // ... send DM_ENDCONVERSATION below
         }
       } else if (pditem->hstrContainerName && pditem->hstrSourceName)
       { // Have full qualified file name.
@@ -1288,8 +1288,8 @@ void PlaylistBase::DragDrop(DRAGINFO* pdinfo, RecordBase* target)
       // while the source does the source related stuff. So a DO_MOVE operation causes
       // - a create in the target window and
       // - a remove in the source window.
-      // The latter is done when DM_ENDCONVERSATION arrives with DMFL_TARGETSUCCESSFUL.   
-      
+      // The latter is done when DM_ENDCONVERSATION arrives with DMFL_TARGETSUCCESSFUL.
+
       DRAGTRANSFER* pdtrans = DrgAllocDragtransfer(1);
       if (pdtrans)
       { pdtrans->cb               = sizeof(DRAGTRANSFER);
@@ -1329,12 +1329,12 @@ void PlaylistBase::DropRenderComplete(DRAGTRANSFER* pdtrans, USHORT flags)
 { DEBUGLOG(("PlaylistBase::DropRenderComplete(%p{, %x, %p{...}, %s, %s, %p, %i, %x}, %x)\n",
     pdtrans, pdtrans->hwndClient, pdtrans->pditem, amp_string_from_drghstr(pdtrans->hstrSelectedRMF).cdata(), amp_string_from_drghstr(pdtrans->hstrRenderToName).cdata(),
     pdtrans->ulTargetInfo, pdtrans->usOperation, pdtrans->fsReply, flags));
-  
+
   ULONG reply = DMFL_TARGETFAIL;
   DropInfo* pdsource = (DropInfo*)pdtrans->ulTargetInfo;
   // If the rendering was successful, use the file, then delete it.
   if ((flags & DMFL_RENDEROK) && pdsource)
-  { 
+  {
     // fetch render to name
     const xstring& rendered = amp_string_from_drghstr(pdtrans->hstrRenderToName);
     // fetch file content
@@ -1346,7 +1346,7 @@ void PlaylistBase::DropRenderComplete(DRAGTRANSFER* pdtrans, USHORT flags)
     // arrive not in the same order as the dragitems in the DRAGINFO structure.
     // Since this is very unlikely, we ignore that here.
     // Since DM_RENDERCOMPLETE should be posted we do not need to post UM_INSERTITEM
-    
+
     pdsource->Parent->InsertItem(PlayableSlice(url123::normalizeURL(fullname), pdsource->Alias), pdsource->Before ? pdsource->Before->Data->Content.get() : NULL);
     reply = DMFL_TARGETSUCCESSFUL;
   }
@@ -1360,7 +1360,7 @@ void PlaylistBase::DropRenderComplete(DRAGTRANSFER* pdtrans, USHORT flags)
   DrgFreeDragtransfer(pdtrans);
 }
 
-/****************************************************************************  
+/****************************************************************************
 *
 *  Drag and drop - Source side
 *
@@ -1384,12 +1384,12 @@ void PlaylistBase::DragInit()
   // Allocate an array of DRAGIMAGE structures. Each structure contains
   // info about an image that will be under the mouse pointer during the
   // drag. This image will represent a container record being dragged.
-  DRAGIMAGE* drag_images = new DRAGIMAGE[min(Source.size(), MAX_DRAG_IMAGES)]; 
+  DRAGIMAGE* drag_images = new DRAGIMAGE[min(Source.size(), MAX_DRAG_IMAGES)];
 
-  for (int i = 0; i < Source.size(); ++i)
+  for (size_t i = 0; i < Source.size(); ++i)
   { RecordBase* rec = Source[i];
     DEBUGLOG(("PlaylistBase::DragInit: init item %i: %s\n", i, rec->DebugName().cdata()));
-  
+
     // Prevent the records from beeing disposed.
     // The records are normally freed by DropEnd, except in case DrgDrag returns with an error.
     BlockRecord(rec);
@@ -1427,7 +1427,7 @@ void PlaylistBase::DragInit()
   // being an error in the drag operation. So we don't attempt to figure
   // that out. To us, a NULLHANDLE means Esc was pressed...
   if (!DrgDrag(GetHwnd(), drag_infos, drag_images, min(Source.size(), MAX_DRAG_IMAGES), VK_ENDDRAG, NULL))
-  { DEBUGLOG(("PlaylistBase::DragInit: DrgDrag returned FALSE - %x\n", WinGetLastError(NULL))); 
+  { DEBUGLOG(("PlaylistBase::DragInit: DrgDrag returned FALSE - %x\n", WinGetLastError(NULL)));
     DrgDeleteDraginfoStrHandles(drag_infos);
     // release the records
     for (RecordBase** prec = Source.begin(); prec != Source.end(); ++prec)
@@ -1487,8 +1487,7 @@ void PlaylistBase::DropEnd(RecordBase* rec, bool ok)
   if (ok)
     // We do not lock the record here. Instead we do not /release/ it.
     WinPostMsg(GetHwnd(), UM_REMOVERECORD, MPFROMP(rec), 0);
-  else 
+  else
     // Release the record locked in DragInit.
     FreeRecord(rec);
 }
-

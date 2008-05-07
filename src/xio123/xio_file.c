@@ -66,19 +66,19 @@ static int map_os2_errors(APIRET rc)
     case NO_ERROR:
       return 0;
     case ERROR_FILE_NOT_FOUND:
-    case ERROR_PATH_NOT_FOUND: 
-    case ERROR_NOT_DOS_DISK: 
-    case ERROR_CANNOT_MAKE: 
+    case ERROR_PATH_NOT_FOUND:
+    case ERROR_NOT_DOS_DISK:
+    case ERROR_CANNOT_MAKE:
     case ERROR_FILENAME_EXCED_RANGE:
       return ENOENT;
     case ERROR_TOO_MANY_OPEN_FILES:
       return EMFILE;
     case ERROR_ACCESS_DENIED:
-    case ERROR_SHARING_VIOLATION: 
+    case ERROR_SHARING_VIOLATION:
     case ERROR_PIPE_BUSY:
     case ERROR_LOCK_VIOLATION:
     case ERROR_WRITE_PROTECT:
-      return EACCESS;
+      return EACCES;
     case ERROR_INVALID_ACCESS:
     case ERROR_INVALID_PARAMETER:
     case ERROR_INVALID_FUNCTION:
@@ -161,21 +161,21 @@ file_open( XFILE* x, const char* filename, int oflags )
       openname = strdup( p );
     }
   }
-  
+
   FILE_REQUEST_DISK();
   rc = DosOpen( openname ? openname : (PSZ)filename, (HFILE*)&x->protocol->s_handle,
                 &dummy, 0, FILE_NORMAL, flags, omode, NULL );
   if ( rc == NO_ERROR && oflags & XO_APPEND ) {
-    rc = DosSetFilePtr( (HFILE)x->protocol->s_handle, 0, FILE_END, &dummy ); 
+    rc = DosSetFilePtr( (HFILE)x->protocol->s_handle, 0, FILE_END, &dummy );
   }
   FILE_RELEASE_DISK();
 
   free( openname );
-  
+
   if ( rc != NO_ERROR ) {
     errno = map_os2_errors( rc );
     return -1;
-  } else { 
+  } else {
     return 0;
   }
 }
@@ -192,11 +192,11 @@ file_read( XFILE* x, char* result, unsigned int count )
   FILE_REQUEST_DISK();
   rc = DosRead( (HFILE)x->protocol->s_handle, result, count, &actual );
   FILE_RELEASE_DISK();
-  
+
   if ( rc != NO_ERROR )
   { errno = map_os2_errors( rc );
     return -1;
-  } else { 
+  } else {
     return actual;
   }
 }
@@ -218,7 +218,7 @@ file_write( XFILE* x, const char* source, unsigned int count )
   if ( rc != NO_ERROR )
   { errno = map_os2_errors( rc );
     return -1;
-  } else { 
+  } else {
     return actual;
   }
 }
@@ -237,7 +237,7 @@ file_close( XFILE* x )
   if ( rc != NO_ERROR ) {
     errno = map_os2_errors( rc );
     return -1;
-  } else { 
+  } else {
     return 0;
   }
 }
@@ -258,7 +258,7 @@ file_tell( XFILE* x )
   if ( rc != NO_ERROR )
   { errno = map_os2_errors( rc );
     return -1;
-  } else { 
+  } else {
     return actual;
   }
 }
@@ -290,7 +290,7 @@ file_seek( XFILE* x, long offset, int origin )
   if ( rc != NO_ERROR )
   { errno = map_os2_errors( rc );
     return -1L;
-  } else { 
+  } else {
     return actual;
   }
 }
@@ -302,15 +302,15 @@ file_size( XFILE* x )
 {
   APIRET rc;
   FILESTATUS3 fi;
-  
+
   FILE_REQUEST_DISK();
   rc = DosQueryFileInfo( (HFILE)x->protocol->s_handle, FIL_STANDARD, &fi, sizeof fi );
   FILE_RELEASE_DISK();
-  
+
   if ( rc != NO_ERROR )
   { errno = map_os2_errors( rc );
     return -1L;
-  } else { 
+  } else {
     return fi.cbFile;
   }
 }
@@ -332,7 +332,7 @@ file_truncate( XFILE* x, long size )
   if ( rc != NO_ERROR )
   { errno = map_os2_errors( rc );
     return -1L;
-  } else { 
+  } else {
     return 0;
   }
 }

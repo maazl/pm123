@@ -85,7 +85,7 @@ static HPS     s_buffer = NULLHANDLE;
 static HBITMAP s_bitmap = NULLHANDLE;
 
 /* Buttons */
-static BMPBUTTON btn_play = 
+static BMPBUTTON btn_play =
 { NULLHANDLE,     /* Button window handle.                          */
   BMP_PLAY,       /* Pressed state bitmap for regular mode.         */
   BMP_N_PLAY,     /* Release state bitmap for regular mode.         */
@@ -251,7 +251,7 @@ typedef struct _BUNDLEHDR
 
 
 /* Returns a width of the specified bitmap. */
-static int
+static ULONG
 bmp_cx( int id )
 {
   BITMAPINFOHEADER2 hdr;
@@ -262,7 +262,7 @@ bmp_cx( int id )
 }
 
 /* Returns a height of the specified bitmap. */
-static int
+static ULONG
 bmp_cy( int id )
 {
   BITMAPINFOHEADER2 hdr;
@@ -1240,7 +1240,7 @@ void
 bmp_draw_rate( HPS hps, int rate )
 {
   static const int  rate_index[] = { 0, 32, 48, 56, 64, 80, 96, 112, 128, 144, 160, 176, 192, 224, 256, 320 };
-  int  i, index = 0;
+  size_t index = 0;
   char buf[32];
   int  x = bmp_pos[ POS_BPS ].x;
   int  y = bmp_pos[ POS_BPS ].y;
@@ -1251,10 +1251,11 @@ bmp_draw_rate( HPS hps, int rate )
     return;
   }
 
-  for( i = 0; i < sizeof( rate_index ) / sizeof( int ); i++ ) {
-    if( rate_index[i] == rate ) {
-      index = i;
-      break;
+  { for( size_t i = 0; i < sizeof( rate_index ) / sizeof( int ); i++ ) {
+      if( rate_index[i] == rate ) {
+        index = i;
+        break;
+      }
     }
   }
 
@@ -1286,7 +1287,7 @@ bmp_draw_rate( HPS hps, int rate )
         sprintf( buf, "%u", rate );
       }
 
-      for( i = strlen( buf ) - 1; i >= 0; i-- )
+      for( int i = strlen( buf ) - 1; i >= 0; i-- )
       {
         if( buf[i] != ' ' ) {
           bmp_draw_bitmap( hps, x, y, buf[i] - 48 + DIG_BPS );
@@ -1305,7 +1306,7 @@ bmp_draw_plmode( HPS hps, BOOL valid, Playable::Flags flags )
 
   if( cfg.mode != CFG_MODE_REGULAR )
     return;
-  
+
   if( bmp_pos[ POS_PL_MODE ].x != POS_UNDEF && bmp_pos[ POS_PL_MODE ].y != POS_UNDEF )
   {
     if (!valid)
@@ -1315,7 +1316,7 @@ bmp_draw_plmode( HPS hps, BOOL valid, Playable::Flags flags )
     else
       bmp_draw_bitmap( hps, bmp_pos[ POS_PL_MODE ].x, bmp_pos[ POS_PL_MODE ].y, BMP_SINGLEPLAY );
   }
-  
+
   if( !valid ) {
     if( bmp_pos[ POS_NOTL ].x != POS_UNDEF && bmp_pos[ POS_NOTL ].y != POS_UNDEF )
       bmp_draw_bitmap( hps, bmp_pos[ POS_NOTL ].x, bmp_pos[ POS_NOTL ].y, BMP_NOTL );
@@ -1350,7 +1351,7 @@ bmp_draw_plind( HPS hps, int index, int total )
 
     if ( digits < 3 )
       digits = 3;
-      
+
     if( bmp_pos[ POS_PL_INDEX ].x != POS_UNDEF &&
         bmp_pos[ POS_PL_INDEX ].y != POS_UNDEF )
     {
@@ -1406,7 +1407,7 @@ bmp_draw_plind( HPS hps, int index, int total )
 void
 bmp_draw_slider( HPS hps, double location )
 { DEBUGLOG(("bmp_draw_slider(%p, %f)\n", hps, location));
-  
+
   if( cfg.mode == CFG_MODE_REGULAR )
   {
     if( bmp_cache[ BMP_SLIDER_SHAFT ]   != 0 &&
@@ -1505,20 +1506,20 @@ bmp_init_skins_bitmaps( HPS hps )
 
   for( i = DIG_SMALL; i < DIG_SMALL + 10; i++ )
     bmp_load_default( hps, i );
-    
+
   bmp_load_default( hps, DIG_BIG + 11, DIG_BIG + 10 );
   for( i = DIG_BIG; i < DIG_BIG + 12; i++ )
     bmp_load_default( hps, i );
-  
+
   bmp_load_default( hps, DIG_TINY + 11, DIG_TINY );
   bmp_load_default( hps, DIG_TINY + 12, DIG_TINY + 10 );
   for( i = DIG_TINY; i < DIG_TINY + 13; i++ )
     bmp_load_default( hps, i );
-  
+
   bmp_load_default( hps, DIG_TINY + 10, DIG_TINY );
   for( i = DIG_PL_INDEX; i < DIG_PL_INDEX + 11; i++ )
     bmp_load_default( hps, i );
-  
+
   for( i = DIG_BPS; i < DIG_BPS + 10; i++ ) {
     bmp_load_default( hps, i );
   }
@@ -1678,9 +1679,9 @@ bmp_init_default_skin( HPS hps )
   bmp_ulong[ UL_S_MSG_LEN    ] = 276;
   bmp_ulong[ UL_S_MSG_HEIGHT ] = 16;
   bmp_ulong[ UL_FG_MSG_COLOR ] = DEF_FG_MSG_COLOR;
-  bmp_ulong[ UL_FG_COLOR     ] = DEF_FG_COLOR;    
-  bmp_ulong[ UL_BG_COLOR     ] = DEF_BG_COLOR;    
-  bmp_ulong[ UL_HI_FG_COLOR  ] = DEF_HI_FG_COLOR; 
+  bmp_ulong[ UL_FG_COLOR     ] = DEF_FG_COLOR;
+  bmp_ulong[ UL_BG_COLOR     ] = DEF_BG_COLOR;
+  bmp_ulong[ UL_HI_FG_COLOR  ] = DEF_HI_FG_COLOR;
   bmp_ulong[ UL_HI_BG_COLOR  ] = DEF_HI_BG_COLOR;;
   bmp_ulong[ UL_BPS_DIGITS   ] = TRUE;
 
@@ -1698,20 +1699,20 @@ bmp_init_default_skin( HPS hps )
   add_plugin( module_name, &visual );
 }
 
-static void                                                                  
-bmp_init_colors( void )                                                      
-{                                                                            
+static void
+bmp_init_colors( void )
+{
 /* TODO: currently unsupported
-  pl_set_colors( bmp_ulong[ UL_FG_COLOR    ], bmp_ulong[ UL_BG_COLOR    ],   
-                 bmp_ulong[ UL_HI_FG_COLOR ], bmp_ulong[ UL_HI_BG_COLOR ] ); 
-  pm_set_colors( bmp_ulong[ UL_FG_COLOR    ], bmp_ulong[ UL_BG_COLOR    ],   
-                 bmp_ulong[ UL_HI_FG_COLOR ], bmp_ulong[ UL_HI_BG_COLOR ] ); 
-  bm_set_colors( bmp_ulong[ UL_FG_COLOR    ], bmp_ulong[ UL_BG_COLOR    ],   
+  pl_set_colors( bmp_ulong[ UL_FG_COLOR    ], bmp_ulong[ UL_BG_COLOR    ],
                  bmp_ulong[ UL_HI_FG_COLOR ], bmp_ulong[ UL_HI_BG_COLOR ] );
-*/ 
+  pm_set_colors( bmp_ulong[ UL_FG_COLOR    ], bmp_ulong[ UL_BG_COLOR    ],
+                 bmp_ulong[ UL_HI_FG_COLOR ], bmp_ulong[ UL_HI_BG_COLOR ] );
+  bm_set_colors( bmp_ulong[ UL_FG_COLOR    ], bmp_ulong[ UL_BG_COLOR    ],
+                 bmp_ulong[ UL_HI_FG_COLOR ], bmp_ulong[ UL_HI_BG_COLOR ] );
+*/
 }
 
-static int bmp_map_bitmap_id( int i )
+static int bmp_map_bitmap_id( unsigned i )
 {
   static const int button_map[] = {
     BMP_PLAY, 0, BMP_PAUSE, BMP_REW, BMP_FWD, BMP_POWER, BMP_PREV, BMP_NEXT, BMP_SHUFFLE, BMP_REPEAT,
@@ -1734,7 +1735,7 @@ static int bmp_map_bitmap_id( int i )
   if (i >= 1200 && i <= 1219)
     return i += DIG_BIG-1200;
   if (i >= 1300 && i < 1300 + sizeof button_map / sizeof *button_map)
-    return button_map[i-1300]; 
+    return button_map[i-1300];
   if (i >= 1600 && i < 1600 + sizeof misc1600_map / sizeof *misc1600_map)
     return misc1600_map[i-1600];
   if (i >= 1640 && i <= 1659)
@@ -1754,7 +1755,7 @@ static int bmp_map_bitmap_id( int i )
   if (i >= 5500 && i < 5000 + sizeof button_map / sizeof *button_map)
     return button_map[i-5500] + BMP_S_PLAY - BMP_PLAY;
   return 0;
-}                                                                            
+}
 
 /* Returns TRUE if specified mode supported by current skin. */
 BOOL
@@ -1810,7 +1811,7 @@ bmp_load_packfile( char *filename )
     { if(( fbuf = (char*)malloc( hdr.length )) != NULL )
       {
         cb = fread( fbuf, 1, hdr.length, pack );
-        
+
         // decouple from internal IDs
         hdr.resource = bmp_map_bitmap_id( hdr.resource );
         if ( hdr.resource == 0 )
@@ -2056,7 +2057,7 @@ bmp_load_skin( const char *filename, HAB hab, HWND hplayer, HPS hps )
           case UL_VOLUME_SLIDER:  bmp_ulong[ UL_VOLUME_SLIDER  ] = TRUE;    break;
           case UL_BPS_DIGITS:     bmp_ulong[ UL_BPS_DIGITS     ] = TRUE;    break;
           case UL_PL_INDEX:       bmp_ulong[ UL_PL_INDEX       ] = atoi(p); break;
-          case UL_ONE_FONT:       bmp_ulong[ UL_ONE_FONT       ] = TRUE;    break;       
+          case UL_ONE_FONT:       bmp_ulong[ UL_ONE_FONT       ] = TRUE;    break;
           case UL_IN_PIXELS:      bmp_ulong[ UL_IN_PIXELS      ] = TRUE;    break;
           case UL_R_MSG_HEIGHT:   bmp_ulong[ UL_R_MSG_HEIGHT   ] = atoi(p); break;
           case UL_S_MSG_HEIGHT:   bmp_ulong[ UL_S_MSG_HEIGHT   ] = atoi(p); break;
@@ -2258,4 +2259,3 @@ bmp_reflow_and_resize( HWND hframe )
   bmp_delete_text_buffer();
   amp_invalidate( UPD_WINDOW | UPD_FILENAME );
 }
-

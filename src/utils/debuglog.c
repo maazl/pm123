@@ -40,8 +40,6 @@
 #include "debuglog.h"
 #include "snprintf.h"
 
-#ifdef DEBUG
-
 #define INCL_DOS
 #include <stdio.h>
 #include <stdarg.h>
@@ -130,5 +128,3 @@ void pmassert(const char* file, int line, const char* msg)
   { DEBUGLOG(("Assertion at %s line %i failed: %s\n%s\n", file, line, msg, buf));
     abort();    
 } }
-
-#endif

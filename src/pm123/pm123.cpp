@@ -172,11 +172,11 @@ amp_paint_timers( HPS hps )
 
   if (CurrentIter == NULL)
     return;
-    
+
   T_TIME total_song = CurrentSong ? CurrentSong->GetInfo().tech->songlength : -1;
-  T_TIME total_time = CurrentRoot ? CurrentRoot->GetInfo().tech->songlength : -1;  
+  T_TIME total_time = CurrentRoot ? CurrentRoot->GetInfo().tech->songlength : -1;
   const SongIterator::Offsets& off = CurrentIter->GetOffset(false);
-  
+
   T_TIME list_left = -1;
   T_TIME play_left = total_song;
   if (play_left > 0)
@@ -811,7 +811,7 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
           UpdAtLocMsg |= UPD_FILENAME|UPD_FILEINFO; // update screen later
           amp_force_locmsg();
         }
-        
+
         if (inval)
           amp_invalidate(inval);
       }
@@ -1183,7 +1183,7 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
         case BMP_FLOAD:
         { bool first = true;
           // Well, only one load entry is supported this way.
-          ULONG rc = (*load_wizzards[0])( hwnd, "Load%s", &amp_load_file_callback, &first );
+          (*load_wizzards[0])( hwnd, "Load%s", &amp_load_file_callback, &first );
           break;
         }
         case BMP_STOP:
@@ -1243,7 +1243,7 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
 
       WinStartTimer( hab, hwnd, TID_UPDATE_TIMERS, 100 );
       WinStartTimer( hab, hwnd, TID_UPDATE_PLAYER,  50 );
-      
+
       // fetch some initial states
       WinPostMsg( hwnd, AMP_CTRL_EVENT, MPFROMLONG(Ctrl::EV_Repeat|Ctrl::EV_Shuffle), 0 );
       break;
@@ -1282,7 +1282,6 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
         POINTL pos;
         pos.x = SHORT1FROMMP(mp1);
         pos.y = SHORT2FROMMP(mp1);
-        double location = bmp_calc_time(pos);
         CurrentIter->SetLocation(bmp_calc_time(pos) * CurrentSong->GetInfo().tech->songlength);
 
         amp_invalidate(UPD_TIMERS);
@@ -1320,7 +1319,7 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
         pos.x = SHORT1FROMMP(mp1);
         pos.y = SHORT2FROMMP(mp1);
         CurrentIter->SetLocation(bmp_calc_time(pos) * CurrentSong->GetInfo().tech->songlength);
-        
+
         Ctrl::PostCommand(Ctrl::MkJump(new SongIterator(*CurrentIter)), &amp_control_event_callback);
         is_slider_drag = FALSE;
         WinSetCapture( HWND_DESKTOP, NULLHANDLE );

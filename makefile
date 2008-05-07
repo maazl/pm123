@@ -6,10 +6,9 @@ VERSION = 1_32
 PARTS   = src\utils\utilfct$(LBO) src\gbm123\gbm123.dll src\fft123\fft123.dll
 PARTS   = $(PARTS) src\xio123\xio123.dll
 PARTS   = $(PARTS) src\snd123\snd123.dll
-PARTS   = $(PARTS) src\gbm123\gbm123.dll
-PARTS   = $(PARTS) src\gbm123\ogg123.dll
-PARTS   = $(PARTS) src\gbm123\vrb123.dll
-PARTS   = $(PARTS) src\gbm123\zlb123.dll
+PARTS   = $(PARTS) src\ogg123\ogg123.dll
+PARTS   = $(PARTS) src\vrb123\vrb123.dll
+PARTS   = $(PARTS) src\zlb123\zlb123.dll
 PARTS   = $(PARTS) src\plug-ins\analyzer\analyzer.dll
 PARTS   = $(PARTS) src\plug-ins\cddaplay\cddaplay.dll
 PARTS   = $(PARTS) src\plug-ins\mpg123\mpg123.dll
@@ -34,6 +33,11 @@ src\utils\utilfct$(LBO):
 	cd src\utils
 	@$(MAKE) $(MFLAGS)
 	@cd ..\..
+
+src\utils\cpp\cpputil$(LBO):
+	cd src\utils\cpp
+	@$(MAKE) $(MFLAGS)
+	@cd ..\..\..
 
 src\gbm123\gbm123.dll:
 	cd src\gbm123
@@ -139,6 +143,9 @@ clean:  $(MDUMMY)
 	cd src\utils
 	@$(MAKE) $(MFLAGS) clean
 	@cd ..\..
+	cd src\utils\cpp
+	@$(MAKE) $(MFLAGS) clean
+	@cd ..\..\..
 	cd src\gbm123
 	@$(MAKE) $(MFLAGS) clean
 	@cd ..\..

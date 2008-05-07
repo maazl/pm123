@@ -40,6 +40,7 @@ int memcmpcpy( void* dst, const void* src, size_t len )
       return 1;
     }
     len -= sizeof(long);
+    // These lines give warnings in gcc, but otherwise we can't increment the pointers correctly.
     ++*(long**)&src;
     ++*(long**)&dst;
   }
@@ -52,6 +53,7 @@ int memcmpcpy( void* dst, const void* src, size_t len )
       return 1;
     }
     --len;
+    // These lines give warnings in gcc, but otherwise we can't increment the pointers correctly.
     ++*(char**)&src;
     ++*(char**)&dst;
   }

@@ -222,7 +222,7 @@ MRESULT PlaylistManager::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
     PlaylistBase::DlgProc(msg, mp1, mp2);
     DecChanged2 = true;
     return 0;
-   
+
   } // switch (msg)
 
   return PlaylistBase::DlgProc(msg, mp1, mp2);
@@ -287,7 +287,7 @@ HWND PlaylistManager::InitContextMenu()
   DEBUGLOG(("PlaylistManager::InitContextMenu: Menu: %p %p\n", MainMenu, RecMenu));
   return hwndMenu;
 }
-  
+
 void PlaylistManager::UpdateAccelTable()
 { DEBUGLOG(("PlaylistManager::UpdateAccelTable()\n"));
   AccelTable = WinLoadAccelTable( WinQueryAnchorBlock( GetHwnd() ), NULLHANDLE, ACL_PLAYLIST );
@@ -389,7 +389,7 @@ PlaylistBase::RecordBase* PlaylistManager::CreateNewRecord(PlayableInstance* obj
   // Allocate a record in the HwndContainer
   Record* rec = (Record*)WinSendMsg(HwndContainer, CM_ALLOCRECORD, MPFROMLONG(sizeof(Record) - sizeof(MINIRECORDCORE)), MPFROMLONG(1));
   PMASSERT(rec != NULL);
-  
+
   rec->UseCount        = 1;
   rec->Data()          = new CPData(obj, *this, &PlaylistManager::InfoChangeEvent, &PlaylistManager::StatChangeEvent, rec, (Record*)parent);
   // before we catch any information setup the update events
@@ -473,7 +473,7 @@ void PlaylistManager::UserNavigate(const RecordBase* rec)
   const Playable* pp;
   // Fetch current root
   { int_ptr<PlayableSlice> ps = Ctrl::GetRoot();
-    if (pp == NULL)
+    if (ps == NULL)
       return;
     pp = ps->GetPlayable();
   }
@@ -544,5 +544,3 @@ pm_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
   return WinDefDlgProc( hwnd, msg, mp1, mp2 );
 }
 */
-
-

@@ -83,7 +83,7 @@ const amp_cfg cfg_default =
   "\\PIPE\\PM123",
   TRUE, // dock
   10,
-// state  
+// state
   "",
   "",
   "",
@@ -298,7 +298,7 @@ cfg_settings2_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
     case WM_DESTROY:
     {
       char buffer[8];
-      int  i;
+      size_t i;
 
       cfg.selectplayed = WinQueryButtonCheckstate( hwnd, CB_SELECTPLAYED );
 
@@ -494,7 +494,6 @@ cfg_config1_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
 {
   int num;
   PLUGIN_BASE*const* list;
-  char filename[_MAX_FNAME];
 
   switch( msg )
   {
@@ -644,7 +643,6 @@ cfg_config2_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
 {
   int num;
   PLUGIN_BASE*const* list;
-  char filename[_MAX_FNAME];
 
   switch( msg )
   {
@@ -817,7 +815,7 @@ cfg_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
                                               BKM_QUERYPAGEWINDOWHWND, MPFROMLONG(id), 0 );
           }
 
-          if( page && page != BOOKERR_INVALID_PARAMETERS ) {
+          if( page && page != (HWND)BOOKERR_INVALID_PARAMETERS ) {
             WinSendMsg( page,
               COMMANDMSG( &msg )->cmd == PB_UNDO ? CFG_UNDO : CFG_DEFAULT, 0, 0 );
           }
@@ -852,8 +850,6 @@ cfg_properties( HWND owner )
   HWND book;
   HWND page;
 
-  MRESULT id;
-
   hwnd = WinLoadDlg( HWND_DESKTOP, owner, cfg_dlg_proc, NULLHANDLE, DLG_CONFIG, 0 );
   do_warpsans( hwnd );
   book = WinWindowFromID( hwnd, NB_CONFIG );
@@ -876,7 +872,7 @@ cfg_properties( HWND owner )
   PMRASSERT( nb_append_tab( book, WinLoadDlg( book, book, cfg_config1_dlg_proc, NULLHANDLE, CFG_CONFIG1, 0 ),
                             "~Plug-ins", MPFROM2SHORT( 1, 2 )));
 
-  PMRASSERT( nb_append_tab( book, WinLoadDlg( book, book, cfg_config2_dlg_proc, NULLHANDLE, CFG_CONFIG2, 0 ), 
+  PMRASSERT( nb_append_tab( book, WinLoadDlg( book, book, cfg_config2_dlg_proc, NULLHANDLE, CFG_CONFIG2, 0 ),
                             NULL, MPFROM2SHORT( 2, 2 )));
 
 
@@ -903,7 +899,7 @@ cfg_properties( HWND owner )
     sprintf( built, "(built " __DATE__ " using gcc %d.%d)", __GNUC__, __GNUC_MINOR__ );
     #else
     sprintf( built, "(built " __DATE__ " using gcc %d.%d.%d)", __GNUC__, __GNUC_MINOR__, __GNUC_PATCHLEVEL__ );
-    #endif  
+    #endif
   #else
     const char* built = 0;
   #endif
@@ -918,4 +914,3 @@ cfg_properties( HWND owner )
   WinProcessDlg   ( hwnd );
   WinDestroyWindow( hwnd );
 }
-

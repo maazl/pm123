@@ -43,8 +43,8 @@
 
 
 InfoDialog::PageBase::PageBase(InfoDialog& parent, ULONG rid)
-: Parent(parent),
-  DialogBase(rid, NULLHANDLE)
+: DialogBase(rid, NULLHANDLE),
+  Parent(parent)
 {}
 
 MRESULT InfoDialog::PageBase::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
@@ -61,7 +61,7 @@ MRESULT InfoDialog::PageBase::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
   }
   return DialogBase::DlgProc(msg, mp1, mp2);
 }
-   
+
 MRESULT InfoDialog::Page1Window::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
 { switch (msg)
   {case UM_UPDATE:
@@ -116,7 +116,7 @@ MRESULT InfoDialog::Page1Window::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
         PMRASSERT(WinSetDlgItemText(GetHwnd(), EF_DECODER, dec ? dec : "n/a"));
       }
       return 0;
-    } 
+    }
   }
   return PageBase::DlgProc(msg, mp1, mp2);
 }
@@ -127,7 +127,6 @@ MRESULT InfoDialog::Page2Window::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
     { // update info values
       DEBUGLOG(("InfoDialog(%p)::Page2Window::DlgProc: UM_UPDATE\n", &Parent));
       char buffer[32];
-      HWND ctrl;
       const META_INFO& meta = *Parent.Content->GetInfo().meta;
       PMRASSERT(WinSetDlgItemText(GetHwnd(), EF_METATITLE, meta.title));
       PMRASSERT(WinSetDlgItemText(GetHwnd(), EF_METAARTIST, meta.artist));
@@ -140,7 +139,7 @@ MRESULT InfoDialog::Page2Window::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
       PMRASSERT(WinSetDlgItemText(GetHwnd(), EF_METARPGAINA, meta.album_gain != 0 ? "" : (sprintf(buffer, "%.1f", meta.album_gain), buffer)));
       PMRASSERT(WinSetDlgItemText(GetHwnd(), EF_METARPPEAKA, meta.album_peak != 0 ? "" : (sprintf(buffer, "%.1f", meta.album_peak), buffer)));
       return 0;
-    }   
+    }
   }
   return PageBase::DlgProc(msg, mp1, mp2);
 }
@@ -151,7 +150,7 @@ InfoDialog::InfoDialog(Playable* p)
   Content(p),
   Page1(*this, CFG_TECHINFO),
   Page2(*this, CFG_METAINFO),
-  ContentChangeDeleg(*this, ContentChangeEvent)
+  ContentChangeDeleg(*this, &InfoDialog::ContentChangeEvent)
 { DEBUGLOG(("InfoDialog(%p)::InfoDialog(%p{%s})\n", this, p, p->GetURL().cdata()));
   StartDialog();
 }
@@ -173,7 +172,7 @@ void InfoDialog::StartDialog()
   PMRASSERT(nb_append_tab(book, Page1.GetHwnd(), "Tech. info", 0));
   PMRASSERT(nb_append_tab(book, Page2.GetHwnd(), "Meta info", 0));
 }
-  
+
 MRESULT InfoDialog::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
 { switch (msg)
   {case WM_INITDLG:
@@ -181,17 +180,17 @@ MRESULT InfoDialog::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
       SWP swp;
       PMXASSERT(WinQueryTaskSizePos(amp_player_hab(), 0, &swp), == 0);
       PMRASSERT(WinSetWindowPos(GetHwnd(), NULLHANDLE, swp.x,swp.y, 0,0, SWP_MOVE));
-    }  
+    }
     SetTitle(xstring::sprintf("PM123 Object info: %s", Content->GetURL().cdata()));
     do_warpsans(GetHwnd());
     // register for change event
     Content->InfoChange += ContentChangeDeleg;
     break;
-    
+
    case WM_DESTROY:
     ContentChangeDeleg.detach();
     break;
-   
+
    case WM_SYSCOMMAND:
     if( SHORT1FROMMP(mp1) == SC_CLOSE )
     { Destroy();
@@ -203,16 +202,16 @@ MRESULT InfoDialog::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
 }
 
 void InfoDialog::ContentChangeEvent(const Playable::change_args& args)
-{ if (args.Flags & (Playable::IF_Format|Playable::IF_Tech)) 
+{ if (args.Flags & (Playable::IF_Format|Playable::IF_Tech))
     WinPostMsg(Page1.GetHwnd(), UM_UPDATE, MPFROMLONG(args.Flags), 0);
-  if (args.Flags & Playable::IF_Meta) 
+  if (args.Flags & Playable::IF_Meta)
     WinPostMsg(Page2.GetHwnd(), UM_UPDATE, MPFROMLONG(args.Flags), 0);
 }
 
 /*void InfoDialog::SetVisible(bool show)
-{ 
+{
   if (show && !GetVisible())
-  
+
 }*/
 
 int_ptr<InfoDialog> InfoDialog::GetByKey(Playable* obj)

@@ -46,7 +46,7 @@
 
 
 static HPIPE HPipe        = NULLHANDLE;
-static TID   TIDWorker    = -1;
+static TID   TIDWorker    = (TID)-1;
 
 // Instance vars
 static int_ptr<PlayableCollection> CurPlaylist; // playlist where we currently operate
@@ -61,7 +61,7 @@ struct strmap
 
 template <class T>
 inline T* mapsearch2(T* map, size_t count, const char* cmd)
-{ return (T*)bsearch(cmd, map, count, sizeof(T), (int(TFNENTRY*)(const void*, const void*))&stricmp); 
+{ return (T*)bsearch(cmd, map, count, sizeof(T), (int(TFNENTRY*)(const void*, const void*))&stricmp);
 }
 #ifdef __IBMCPP__
 // IBM C work around
@@ -70,7 +70,7 @@ inline T* mapsearch2(T* map, size_t count, const char* cmd)
 #else
 template <size_t I, class T>
 inline T* mapsearch(T (&map)[I], const char* cmd)
-{ return (T*)bsearch(cmd, map, I, sizeof(T), (int(TFNENTRY*)(const void*, const void*))&stricmp); 
+{ return (T*)bsearch(cmd, map, I, sizeof(T), (int(TFNENTRY*)(const void*, const void*))&stricmp);
 }
 #endif
 
@@ -130,7 +130,7 @@ void cmd_op_BOOL(xstring& ret, const char* arg, BOOL& val)
         break;
        default:
         val = FALSE;
-        break; 
+        break;
       }
     } else
       ret = xstring::empty; // error
@@ -302,7 +302,7 @@ static void cmd_playlist(xstring& ret, char* args)
   { CurPlaylist = (PlayableCollection*)&*pp;
     CurItem = NULL;
   }
-  // TODO: result 
+  // TODO: result
 };
 
 static void cmd_pl_next(xstring& ret, char* args)
@@ -357,7 +357,7 @@ static void cmd_add(xstring& ret, char* args)
       if (*args)
         ((Playlist&)*CurPlaylist).InsertItem(PlayableSlice(Playable::GetByURL(url123::normalizeURL(args))), CurItem);
       args = cp;
-    } while (args); 
+    } while (args);
   }
   // TODO: reply
 }
@@ -373,11 +373,11 @@ static void cmd_dir(xstring& ret, char* args)
       if (*args)
       { xstring url = url123::normalizeURL(args);
         if (url[url.length()-1] != '/')
-          url = url + "/"; 
+          url = url + "/";
         ((Playlist&)*CurPlaylist).InsertItem(PlayableSlice(Playable::GetByURL(url)), CurItem);
       }
       args = cp;
-    } while (args); 
+    } while (args);
   }
   // TODO: reply
 }
@@ -393,11 +393,11 @@ static void cmd_rdir(xstring& ret, char* args)
       if (*args)
       { xstring url = url123::normalizeURL(args);
         if (url[url.length()-1] != '/')
-          url = url + "/"; 
+          url = url + "/";
         ((Playlist&)*CurPlaylist).InsertItem(PlayableSlice(Playable::GetByURL(url+"?recursive")), CurItem);
       }
       args = cp;
-    } while (args); 
+    } while (args);
   }
   // TODO: reply
 }
@@ -411,8 +411,8 @@ static void cmd_size(xstring& ret, char* args)
   { { "0",       IDM_M_NORMAL },
     { "1",       IDM_M_SMALL },
     { "2",       IDM_M_TINY },
-    { "normal",  IDM_M_NORMAL }, 
-    { "regular", IDM_M_NORMAL }, 
+    { "normal",  IDM_M_NORMAL },
+    { "regular", IDM_M_NORMAL },
     { "small",   IDM_M_SMALL },
     { "tiny",    IDM_M_TINY }
   };
@@ -546,7 +546,7 @@ static void execute_command(xstring& ret, char* buffer)
       *ape = 0;
     }
     // Now buffer points to the command, ap to the arguments. Both are stripped.
-  
+
     // Seach command handler ...
     const CmdEntry* cep = mapsearch(CmdList, buffer);
     DEBUGLOG(("execute_command: %s(%s) -> %p\n", buffer, ap, cep));
@@ -554,7 +554,7 @@ static void execute_command(xstring& ret, char* buffer)
       // ... and execute
       (*cep->ExecFn)(ret, ap);
   }
-}   
+}
 
 /* Dispatches requests received from the pipe. */
 // TODO: start the pipe thread!
@@ -585,7 +585,7 @@ static void TFNENTRY pipe_thread( void* )
     if (bytesread == 0)
       continue;
     buffer[bytesread] = 0; // ensure terminating zero
-    
+
     // execute commands
     char* cp = buffer;
     for (;;)
@@ -600,7 +600,7 @@ static void TFNENTRY pipe_thread( void* )
         { memmove(buffer, cp, len+1);
           bytesread -= cp - buffer;
           cp = buffer;
-        } 
+        }
         ULONG bytesread2;
         rc = DosRead(HPipe, buffer + bytesread, sizeof buffer - bytesread -1, &bytesread2);
         if (rc == NO_ERROR)
@@ -616,13 +616,13 @@ static void TFNENTRY pipe_thread( void* )
       // strip leading spaces
       char* cp2 = cp + strspn(cp, " \t");
       // and execute (if non-blank)
-      if (*cp2) 
+      if (*cp2)
       { xstring ret = xstring::empty;
         execute_command(ret, cp2);
         DEBUGLOG(("pipe_thread: command done: %s\n", ret.cdata()));
         // send reply
         ULONG actual;
-        DosWrite(HPipe, (PVOID)ret.cdata(), ret.length(), &actual); 
+        DosWrite(HPipe, (PVOID)ret.cdata(), ret.length(), &actual);
         DosResetBuffer(HPipe);
       }
       // next line
@@ -646,8 +646,6 @@ static void TFNENTRY pipe_thread( void* )
    intances. */
 bool amp_pipe_create( void )
 {
-  int   i = 1;
-
   ULONG rc = DosCreateNPipe( cfg.pipe_name, &HPipe,
                              NP_ACCESS_DUPLEX, NP_WAIT|NP_TYPE_BYTE|NP_READMODE_BYTE | 1,
                              2048, 2048, 500 );
@@ -656,10 +654,9 @@ bool amp_pipe_create( void )
     amp_player_error( "Could not create pipe %s, rc = %d.", cfg.pipe_name, rc );
     return false;
   }
-  
-  const url123& path = url123::normalizeURL(startpath);
+
   CurPlaylist = amp_get_default_pl();
-  
+
   TIDWorker = _beginthread(pipe_thread, NULL, 65536, NULL);
   CASSERT(TIDWorker != -1);
   return true;
@@ -694,5 +691,3 @@ bool amp_pipe_open_and_write( const char* pipename, const char* data, size_t siz
     return false;
   }
 }
-
-

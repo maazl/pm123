@@ -195,7 +195,7 @@ xstring amp_font_attrs_to_string(const FATTRS& attrs, unsigned size)
 
 bool amp_string_to_font_attrs(FATTRS& attrs, unsigned& size, const char* name)
 { size_t n;
-  if (sscanf(name, "%u.%" TOSTRING(FACESIZE) "[^.]%n", &size, attrs.szFacename, &n) != 2)
+  if (sscanf(name, "%u.%32[^.]%n", &size, attrs.szFacename, &n) != 2)
     return false;
   // Attributes
   name += n;

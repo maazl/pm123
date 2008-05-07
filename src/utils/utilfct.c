@@ -246,7 +246,7 @@ nb_append_tab( HWND book, HWND page, const char* text, MPARAM index )
   ULONG id = LONGFROMMR( WinSendMsg( book, BKM_INSERTPAGE, 0, MPFROM2SHORT( style, BKA_LAST )));
   if ( id == 0
     || !WinSendMsg( book, BKM_SETPAGEWINDOWHWND, MPFROMLONG( id ), MPFROMHWND( page ))
-    || text && !WinSendMsg( book, BKM_SETTABTEXT, MPFROMLONG( id ), MPFROMP( text )) )
+    || (text && !WinSendMsg( book, BKM_SETTABTEXT, MPFROMLONG( id ), MPFROMP( text ))) )
     return FALSE;
   if (style & BKA_STATUSTEXTON)
   { char buf[20];

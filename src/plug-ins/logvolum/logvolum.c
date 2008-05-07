@@ -26,7 +26,7 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-/* Filter plug-in to give the volume slider of PM123 a logarithmic characteristic. */ 
+/* Filter plug-in to give the volume slider of PM123 a logarithmic characteristic. */
 
 #define  INCL_BASE
 #define  INCL_WIN
@@ -53,8 +53,10 @@
 
 // internal vars
 static ULONG DLLENTRYP(f_output_command)( void* a, ULONG msg, OUTPUT_PARAMS2* info );
+#ifdef WITH_SOFT_VOLUME
 static int   DLLENTRYP(f_request_buffer)( void* a, const FORMAT_INFO2* format, short** buf );
 static void  DLLENTRYP(f_commit_buffer) ( void* a, int len, T_TIME posmarker );
+#endif
 static void* f_a;
 
 // Configuration
@@ -71,9 +73,9 @@ static configuration cur_cfg;
 // Current state
 static short* last_buf;
 static int    last_chan;
-#endif
 static double last_volume;
- 
+#endif
+
 
 static ULONG DLLENTRY
 filter_command( void* f, ULONG msg, OUTPUT_PARAMS2* info )
@@ -144,7 +146,7 @@ filter_init( void** F, FILTER_PARAMS2* params )
   f_commit_buffer  = params->output_commit_buffer;
   #endif
   f_a              = params->a;
-  
+
   params->output_command        = &filter_command;
   #ifdef WITH_SOFT_VOLUME
   params->output_request_buffer = &request_buffer;

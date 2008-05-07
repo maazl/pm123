@@ -515,7 +515,7 @@ MRESULT EXPENTRY wpMatch(HWND hwnd,ULONG msg,MPARAM mp1,MPARAM mp2)
          while(data->matches[i].discid_cddb)
          {
             // cddb is always ISO-8859-1 by definition unless we implement protocol level 6
-            ch_convert( 1004, data->matches[i].title, CH_CP_NONE, title, sizeof(title));
+            ch_convert( 1004, data->matches[i].title, CH_CP_NONE, title, sizeof(title), 0);
             int inserted = lb_add_item(hwnd,LB_MATCHES,data->matches[i].title);
             lb_set_handle(hwnd, LB_MATCHES,inserted,&data->matches[i]);
             i++;
@@ -1191,7 +1191,7 @@ MRESULT EXPENTRY OffDBDlgProc(HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2)
                         SHORT id;
 
                         // cddb is always ISO-8859-1 by definition unless we implement protocol level 6
-                        ch_convert( 1004, cdinfoBuffer, CH_CP_NONE, cdinfoBuffer, cdinfoSize );
+                        ch_convert( 1004, cdinfoBuffer, CH_CP_NONE, cdinfoBuffer, cdinfoSize, 0 );
                         CDDBSocket.parse_read_reply(cdinfoBuffer);
                         sprintf(temp,"%s: %s (discid: %s)", CDDBSocket.get_disc_title(CDDB_DISK_ARTIST), CDDBSocket.get_disc_title(CDDB_DISK_TITLE),next_discid);
                         id = lb_add_item(hwnd,LB_CDINFO,temp);

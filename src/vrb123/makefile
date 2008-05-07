@@ -8,7 +8,7 @@ TOPDIR  = ..
 !include $(TOPDIR)\config\makerules
 
 DEF     = vrb$(LDEF_SUFFX)
-LIBS    = lib\libvorbis$(LBO) $(TOPDIR)\ogg123\ogg123$(LBI) $(TOPDIR)\utils\utilfct$(LBI)
+LIBS    = lib\libvorbis$(LBO) $(TOPDIR)\ogg123\ogg123$(LBI) $(TOPDIR)\utils\utilfct$(LBO)
 OBJECTS = vrb$(CO)
 
 all: vrb123.dll vrb123$(LBI) $(MDUMMY)

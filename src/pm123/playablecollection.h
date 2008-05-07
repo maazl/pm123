@@ -65,17 +65,17 @@ inline bool                operator!=(const Slice& l, const Slice& r)
 
 /* Playable object together with a start and stop position.
  * Objects of this class may either be reference counted, managed by a int_ptr
- * or used as temporaries. 
+ * or used as temporaries.
  */
 class PlayableSlice : public Iref_Count
-{private:
+{protected:
+  const int_ptr<Playable>  RefTo;
+ private:
   xstring                  Alias;
   // Start and Stop are owned by PlayableSlice. But sind SongIterator is not yet a complete type
   // we have to deal with that manually. Furthermore Start and Stop MUST have *this as root.
   SongIterator*            Start;
   SongIterator*            Stop;
- protected:
-  const int_ptr<Playable>  RefTo;
  private: // not assignable
   void                     operator=(const PlayableSlice& r);
 
@@ -92,7 +92,7 @@ class PlayableSlice : public Iref_Count
   // Start and Stop position
   const SongIterator*      GetStart() const    { return Start; }
   const SongIterator*      GetStop() const     { return Stop; }
-  // The functions take the ownership of the SongIterator. 
+  // The functions take the ownership of the SongIterator.
   virtual void             SetStart(SongIterator* iter);
   virtual void             SetStop (SongIterator* iter);
   // Aliasname
@@ -111,7 +111,7 @@ class PlayableSlice : public Iref_Count
  public:
   PlayableInstRef(PlayableInstance* ref);
   virtual PlayableInstance* GetPlayableInstance() const;
-  
+
 };*/
 
 /* Instance to a Playable object. While the Playable objects are unique per URL
@@ -161,11 +161,11 @@ class PlayableInstance : public PlayableSlice
   // Check if this instance (still) belongs to a collection.
   // The return value true is not reliable unless the collection is locked.
   // Calling this method with NULL will check whether the instance does no longer belog to a collection.
-  // In this case only the return value true is reliable.  
+  // In this case only the return value true is reliable.
   bool                     IsParent(const PlayableCollection* parent) const { return Parent == parent; }
 
   // Play position
-  // The functions take the ownership of the SongIterator. 
+  // The functions take the ownership of the SongIterator.
   virtual void             SetStart(SongIterator* iter);
   virtual void             SetStop (SongIterator* iter);
   // Aliasname
@@ -227,7 +227,7 @@ class PlayableCollection : public Playable
     change_args(PlayableCollection& coll, PlayableInstance& item, change_type type)
     : Collection(coll), Item(item), Type(type) {}
   };
-  typedef int (*ItemComparer)(const PlayableInstance* l, const PlayableInstance* r);  
+  typedef int (*ItemComparer)(const PlayableInstance* l, const PlayableInstance* r);
   // Information on PlayableCollection.
   struct CollectionInfo
   { T_TIME                 Songlength;
@@ -321,7 +321,7 @@ class PlayableCollection : public Playable
 
   // Iterate over the collection. While the following functions are atomic and therefore thread-safe
   // the iteration itself is not because the collection may change at any time.
-  // Calling these function is not valid until the information IF_Other is loaded. 
+  // Calling these function is not valid until the information IF_Other is loaded.
   // Get previous item of this collection. Passing NULL will return the last item.
   // The function returns NULL if ther are no more items.
   virtual int_ptr<PlayableInstance> GetPrev(const PlayableInstance* cur) const;
@@ -329,7 +329,7 @@ class PlayableCollection : public Playable
   // The function returns NULL if ther are no more items.
   virtual int_ptr<PlayableInstance> GetNext(const PlayableInstance* cur) const;
   // Returns a string that represents a serialized version of a subitem.
-  // If index_only is true the string will be of the form "[index]". This is not recommended. 
+  // If index_only is true the string will be of the form "[index]". This is not recommended.
   xstring                     SerializeItem(const PlayableInstance* cur, serialization_options opt) const;
   // Returns the item that is adressed by the string str.
   // If the string is not valid or the collection is empty the function returns NULL.
@@ -367,7 +367,7 @@ FLAGSATTRIBUTE(PlayableCollection::save_options);
  */
 class Playlist : public PlayableCollection
 {private:
-  // Helper class to deserialize playlists 
+  // Helper class to deserialize playlists
   class LSTReader;
   friend class LSTReader;
   class LSTReader

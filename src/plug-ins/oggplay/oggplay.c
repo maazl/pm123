@@ -61,7 +61,7 @@ vio_seek( void* w, ogg_int64_t offset, int whence )
   int    pos = 0;
   XFILE* x   = ((DECODER_STRUCT*)w)->file;
   DEBUGLOG(("oggplay:vio_seek(%p, %li, %i)\n", w, offset, whence));
-  
+
   if( xio_can_seek(x) < XIO_CAN_SEEK_FAST ) {
     return -1;
   }
@@ -668,8 +668,8 @@ vce_write( void* ptr, size_t size, size_t count, void* file ) {
 ULONG DLLENTRY
 decoder_saveinfo( const char* filename, const DECODER_INFO* info )
 {
-  XFILE* file;
-  XFILE* save;
+  XFILE* file = NULL;
+  XFILE* save = NULL;
   int    rc = PLUGIN_OK;
   char   savename[_MAX_PATH];
   int    i;

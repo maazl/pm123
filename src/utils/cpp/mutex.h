@@ -47,16 +47,16 @@
 *  usage:
 *    Mutex mu;
 *    ...
-*    { Mutex::Lock(mu);   // disable thread switching
-*      ...                // critical code section
-*    }                    // release semaphore
+*    { Mutex::Lock lock(mu); // disable thread switching
+*      ...                   // critical code section
+*    }                       // release semaphore
 *
 *  named Mutex:
 *    Mutex mu("MySpecialMutex");
 *    ...
-*    { Mutex::Lock(mu);   // disable thread switching
-*      ...                // critical code section
-*    }                    // release semaphore
+*    { Mutex::Lock lock(mu); // thread switching
+*      ...                   // critical code section
+*    }                       // release semaphore
 *
 *  usage:
 *  - Create Mutex object at a shared memory location, e.g. as class
