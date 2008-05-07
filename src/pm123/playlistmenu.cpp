@@ -195,9 +195,9 @@ void PlaylistMenu::CreateSubItems(MapEntry* mapp)
         mi.afStyle     |= MIS_SUBMENU;
         mi.afAttribute |= MIA_DISABLED;
         mi.hwndSubMenu = WinLoadMenu(mapp->HwndMenu, NULLHANDLE, MNU_SUBFOLDER);
-        PMASSERT(WinSetWindowUShort(mi.hwndSubMenu, QWS_ID, mi.id));
-        PMASSERT(WinSetWindowBits(mi.hwndSubMenu, QWL_STYLE, MS_CONDITIONALCASCADE, MS_CONDITIONALCASCADE));
-        PMASSERT(WinSendMsg(mi.hwndSubMenu, MM_SETDEFAULTITEMID, MPFROMLONG(mi.id), 0));
+        PMRASSERT(WinSetWindowUShort(mi.hwndSubMenu, QWS_ID, mi.id));
+        PMRASSERT(WinSetWindowBits(mi.hwndSubMenu, QWL_STYLE, MS_CONDITIONALCASCADE, MS_CONDITIONALCASCADE));
+        PMRASSERT(WinSendMsg(mi.hwndSubMenu, MM_SETDEFAULTITEMID, MPFROMLONG(mi.id), 0));
       }
       // Add map entry
       MapEntry*& subp = MenuMap.get(mi.id);

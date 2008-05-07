@@ -87,7 +87,7 @@ void PlaylistManager::PostRecordCommand(RecordBase* rec, RecordCommand cmd)
 
 void PlaylistManager::InitDlg()
 { DEBUGLOG(("PlaylistManager(%p{%s})::InitDlg()\n", this, DebugName().cdata()));
-  HwndContainer = WinWindowFromID(GetHwnd(), CNR_PM);
+  HwndContainer = WinWindowFromID(GetHwnd(), FID_CLIENT);
   PMASSERT(HwndContainer != NULLHANDLE);
   // Attension!!! Intended side effect: CCS_VERIFYPOINTERS is only set in degug builds
   PMASSERT(WinSetWindowBits(HwndContainer, QWL_STYLE, CCS_VERIFYPOINTERS, CCS_VERIFYPOINTERS));

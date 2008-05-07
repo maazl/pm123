@@ -834,7 +834,7 @@ cfg_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
       return 0;
 
     case WM_WINDOWPOSCHANGED:
-      if(((PSWP)mp1)[0].fl & SWP_SIZE ) {
+      if(((SWP*)mp1)->fl & SWP_SIZE ) {
         nb_adjust( hwnd );
       }
       break;
@@ -851,7 +851,6 @@ cfg_properties( HWND owner )
   HWND page;
 
   hwnd = WinLoadDlg( HWND_DESKTOP, owner, cfg_dlg_proc, NULLHANDLE, DLG_CONFIG, 0 );
-  do_warpsans( hwnd );
   book = WinWindowFromID( hwnd, NB_CONFIG );
   do_warpsans( book );
 

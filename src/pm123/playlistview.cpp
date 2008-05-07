@@ -220,7 +220,7 @@ void PlaylistView::InitDlg()
 { DEBUGLOG(("PlaylistView(%p)::InitDlg()\n", this));
 
   // Initializes the container of the playlist.
-  HwndContainer = WinWindowFromID(GetHwnd(), CNR_PLAYLIST);
+  HwndContainer = WinWindowFromID(GetHwnd(), FID_CLIENT);
   PMASSERT(HwndContainer != NULLHANDLE);
   // Attension!!! Intended side effect: CCS_VERIFYPOINTERS is only set in degug builds
   PMASSERT(WinSetWindowBits(HwndContainer, QWL_STYLE, CCS_VERIFYPOINTERS, CCS_VERIFYPOINTERS));
@@ -337,7 +337,7 @@ MRESULT PlaylistView::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
             SongIterator* si = NULL;
             if (DirectEdit.length())
             { si = new SongIterator();
-              si->SetRoot(rec ? rec->Data()->Content.get() : new PlayableSlice(Content));
+              si->SetRoot(new PlayableSlice(PlayableFromRec(rec)));
               const char* cp = DirectEdit;
               if (!si->Deserialize(cp))
               { // TODO: Error message

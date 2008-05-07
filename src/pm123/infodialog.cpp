@@ -168,7 +168,7 @@ void InfoDialog::StartDialog()
   // setup notebook windows
   Page1.StartDialog();
   Page2.StartDialog();
-  HWND book = WinWindowFromID(GetHwnd(), NB_INFO);
+  HWND book = WinWindowFromID(GetHwnd(), FID_CLIENT);
   PMRASSERT(nb_append_tab(book, Page1.GetHwnd(), "Tech. info", 0));
   PMRASSERT(nb_append_tab(book, Page2.GetHwnd(), "Meta info", 0));
 }

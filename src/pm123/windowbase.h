@@ -56,7 +56,7 @@ class DialogBase
   const ULONG       DlgRID;        // Resource ID of the dialog template
   const HMODULE     ResModule;     // Module handle for the above resource
  private:
-  HWND              HwndFrame;     // playlist window handle
+  HWND              HwndFrame;     // Frame window handle
   bool              InitialVisible;
   int               Initialized;
   xstring           Title;         // Keep the window title storage

@@ -50,18 +50,6 @@ class PlayableCollection;
 class SongIterator;
 class PlayableInstance;
 
-/* slice of a playable object
- */
-/*struct Slice
-{ // TODO: cyclic references!!!
-  sco_ptr<SongIterator>    Start;
-  sco_ptr<SongIterator>    Stop;
-  friend bool              operator==(const Slice& l, const Slice& r);
-};
-inline bool                operator!=(const Slice& l, const Slice& r)
-{ return !(l == r);
-}*/
-
 
 /* Playable object together with a start and stop position.
  * Objects of this class may either be reference counted, managed by a int_ptr

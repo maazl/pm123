@@ -106,10 +106,8 @@
 
 /* Playlist */
 #define DLG_PLAYLIST        800
-#define CNR_PLAYLIST        801
 /* Playlistmanager */
 #define DLG_PM              802
-#define CNR_PM              803
 
 #define MNU_PLAYLIST        810
 #define MNU_RECORD          811
@@ -351,7 +349,6 @@
 
 /* Object Info */
 #define DLG_INFO           1800
-#define NB_INFO            1802
 
 #define CFG_TECHINFO       1810
 #define ST_FILESIZE        1811
