@@ -312,9 +312,9 @@ ParseFile:
  Global.Article.line.0 = 0;                      /* count of lines in Article */
  Global.Article.Hidden = 0;  /* Is current article hidden from book contents? */
  Global.Article.ResId  = 0;                    /* Article resource identifier */
+ Global.Article.Level = 0;        /* Overide automatic detection of deeplevel */ 
  Global.OpenTag.0 = 0;  /* keep track of open tags to close at end of chapter */
  Global.RefEndTag = '';       /* end tag to put at next end-of-reference <\a> */
- Global.IsParagraph = 0;                   /* We`re inside a <P>...</P> pair? */
  Global.IsTable = 0;               /* We`re inside a <TABLE>...</TABLE> pair? */
  Global.IsCentered = 0;          /* We`re inside a <CENTER>...</CENTER> pair? */
  Global.IsOutputEnabled = 1; /* A global switch to enable/disable text output */
@@ -363,6 +363,9 @@ ParseFile:
  call putline '.* Source filename: 'fName;
  if id > 0
   then do
+        /* Override deeplevel? */
+        if Global.Article.Level > 0
+         then DeepLevel = Global.Article.Level;
         if (Global.Article.Hidden) & (IndexFile \= 'Y')
          then do
                i = max(1, DeepLevel - 1);
@@ -647,10 +650,11 @@ ParseTag:
          end;
    when Prefix = 'HTML'
     then select
-	  when subTag = 'HIDDEN'	then call doTagHTML_HIDDEN;
-	  when subTag = 'SUBLINKS'	then call doTagHTML_SUBLINKS;
-	  when subTag = 'NOSUBLINKS'	then call doTagHTML_NOSUBLINKS;
-	  when subTag = 'RESID'	        then call doTagHTML_RESID;
+	  when subTag = 'HIDDEN'     then call doTagHTML_HIDDEN;
+	  when subTag = 'SUBLINKS'   then call doTagHTML_SUBLINKS;
+	  when subTag = 'NOSUBLINKS' then call doTagHTML_NOSUBLINKS;
+	  when subTag = 'RESID'      then call doTagHTML_RESID;
+	  when subTag = 'LEVEL'      then call doTagHTML_LEVEL;
           otherwise call logError 'Unexpected subTag 'subTag'="'subTagValue'"';
          end;
   end;
@@ -671,6 +675,10 @@ return 0;
 
 doTagHTML_RESID:
  Global.Article.ResID = SubTagValue;
+return 0;
+
+doTagHTML_LEVEL:
+ Global.Article.Level = SubTagValue;
 return 0;
 
 doTagHTML_SUBLINKS:
@@ -754,13 +762,11 @@ return 0;
 doTagBLOCKQUOTE:
  call PutToken ':lm margin=8.';
  Global.Paragraph = 'Req';
- Global.IsParagraph = 0;
 return 0;
 
 doTag!BLOCKQUOTE:
  call PutToken ':lm margin=1.';
  Global.Paragraph = 'Req';
- Global.IsParagraph = 0;
  Global.HasText = 0;
 return 0;
 
@@ -770,7 +776,6 @@ return 0;
 
 doTag!P:
  Global.Paragraph = 'Req';
- Global.IsParagraph = 0;
  Global.HasText = 0;
 return 0;
 
@@ -787,14 +792,12 @@ doTagPRE:
  call PutToken ':cgraphic.';
  Global.SkipSpaces = 0;
  Global.Paragraph = 'Inc';
- Global.IsParagraph = 0;
 return 0;
 
 doTag!PRE:
  Global.SkipSpaces = 1;
  call PutToken ':ecgraphic.';
  call PutToken Global.EOL;
- Global.IsParagraph = 0;
  Global.Paragraph = 'Req';
  Global.HasText = 0;
 return 0;
@@ -808,8 +811,6 @@ doTagH_begin:
   then do; call NewLine; call PutToken '.br'; end;*/
  call NewLine;
  call doOpenP 1;
- Global.IsParagraph = 1;
- /*Global.Paragraph = 'Req';*/
 return;
 
 doTagH1:
@@ -850,7 +851,6 @@ doTag!H6:
        end;*/
  call PutToken Global.EOL;
  Global.Paragraph = 'Req';
- Global.IsParagraph = 0;
  Global.HasText = 0;
 return 0;
 
@@ -859,7 +859,6 @@ doTagHR:
  call PutToken ':cgraphic.'copies('Ä', 80)':ecgraphic.';
  call PutToken Global.EOL;
  call PutToken Global.EOL;
- Global.IsParagraph = 0;
  Global.Paragraph = 'Inc';
  Global.HasText = 0;
 return 0;
@@ -989,17 +988,12 @@ doTagIMG:
          then do /* image is a link */
                call PutToken ':elink.';
               end;
-        /*if Global.IsParagraph
-         then call PutToken Global.EOL;*/
         Global.Picture.0 = Global.Picture.0 + 1;
         i = Global.Picture.0;
         Global.Picture.i.dst = left(_imgBitmap, pos('*', _imgBitmap) - 1);
         Global.Picture.i.src = substr(_imgBitmap, pos('*', _imgBitmap) + 1);
         Global.Picture.i.alt = Global._altName;
         call PutToken ':artwork name='''Global.Picture.i.dst''' align='Global._imgAlign' runin.';
-        /*if Global.IsParagraph
-         then call PutToken ' runin.';
-         else call PutToken '.';*/
         if pos(':elink.', Global.RefEndTag) > 0
          then do /* image is a link */
                call PutToken ':artlink.:link reftype=hd refid='Global.CurLink'.:eartlink.';
@@ -1043,7 +1037,6 @@ doTagCENTER:
   then return 0;
  Global.IsCentered = 1;
  call PutToken ':lines align=center.';
- Global.IsParagraph = 0;
 return 0;
 
 doTag!CENTER:
@@ -1057,7 +1050,6 @@ doTag!CENTER:
         call NewLine;
         call PutToken '.br';
        end;
- Global.IsParagraph = 0;
 return 0;
 
 doTagTABLE:
@@ -1203,7 +1195,6 @@ doCloseTag:
         return 1;
        end;
  Global.Paragraph = 'Req';
- Global.IsParagraph = 0;
 return 0;
 
 doCheckTag:
@@ -1222,7 +1213,6 @@ doOpenP:
    call NewLine;
    call PutToken ':p.';
    Global.HasText = 0;
-   Global.IsParagraph = 1;
    Global.Paragraph = 'Inc';
   end;
 return;
@@ -1437,7 +1427,7 @@ PutText:
         if Global.SkipSpaces & (verify(Output, ' ', 'N') = 0)
          then return;
         if Global.Newline then
-         Output = strip(Output, 'b');
+         Output = strip(Output, 'l');
         /*call PutToken '<@'left(Output,5,'_')'>';*/
         call doOpenP 0;
         /* replace tab Characters with needed number of spaces */
