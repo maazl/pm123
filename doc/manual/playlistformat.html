@@ -9,7 +9,7 @@
   The files are upwardly and downwardly compatible to the files of older PM123 releases, concerning the least common denominator. 
 <h4>Header</h4>
 <blockquote>
-<p>The head of a playlist file is a comment. This is not an essential part on input.<p>
+<p>The head of a playlist file is a comment. This is not an essential part on input.</p>
 <pre>#
 # Playlist created with PM123 1.40 alpha 3
 # Do not modify!
@@ -27,11 +27,12 @@
   <li><p>Information on start and stop position. <em>optional</em><br>
     The unit is seconds (with fractionals). A Stop position of -1 means till the end of the source.</p>
     <pre>#SLICE 3.921,-1.000</pre>
+  </li>
   <li><p>Filename or URL</p>
     <pre>SL060319_2204.ogg</pre>
-    On output PM123 writes Filenames with relative or absolute paths, and URLs.
+    <p>On output PM123 writes Filenames with relative or absolute paths, and URLs.
     On input file:/// URLs are accepted too. In fact any URL which is accepted by the Load URL dialog is accepted.
-    This may depend on the loaded plug-ins.
+    This may depend on the loaded plug-ins.</p>
   </li>
   <li><p>Technical information about the above entry</p>
     <pre>&gt;143,44100,0,22923026,1278.7</pre>
@@ -53,8 +54,8 @@
   </li>
   <li><p>Filename or URL</p>
     <pre>Taucher - Adult Music\Chill.lst</pre>
-    On output PM123 writes Filenames with relative or absolute paths, and URLs.
-    On input file:/// URLs are accepted too. Folder entries must end with a trailing <tt>/</tt>.
+    <p>On output PM123 writes Filenames with relative or absolute paths, and URLs.
+    On input file:/// URLs are accepted too. Folder entries must end with a trailing <tt>/</tt>.</p>
   </li>
   <li><p>Technical information about the last entry</p>
     <pre>&gt;136,-1,-1,896,1278.7,0,-1,15,0</pre>

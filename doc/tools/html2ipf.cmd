@@ -35,9 +35,10 @@
  Global.HeaderFont.5 = ':font facename=''Helv'' size=10x6.'
  Global.HeaderFont.6 = ':font facename=''Helv'' size=9x6.'
 /* font for url links (which launches WebExplorer)                    */
- Global.URLinkFont  = ':font facename=''WarpSans Bold'' size=9x6.'
+/* Global.URLinkFont  = ':font facename=''WarpSans Bold'' size=9x6.'  */
+ Global.URLinkFont  = '';
 /* proportional font (for <tt>...</tt>                                */
- Global.ProportFont = ':font facename=''System VIO'' size=9x6.';
+ Global.ProportFont = ':font facename=''System VIO'' size=11x6.';
 
 /* end of user-customisable section                                   */
 /*--------------------------------------------------------------------*/
@@ -67,7 +68,7 @@
  Global.IMGSRC = '';    /* string so we can use Pos() and WordPos() functions */
  Global.SubLinks = 0;           /* This stem keeps track of the SUBLINKS tags */
  Global.NoSubLinks = 0;       /* This stem keeps track of the NOSUBLINKS tags */
- Global.NewLine = 0;
+ Global.NewLine = 1;
 
 /* Default state for all switches */
  Global.optCO = 1;  /* COlored output */
@@ -237,11 +238,11 @@ OutputURLs:
 /* make a chapter with links to internet locations */
  if Global.URLinks = 0
   then return;
- call putline ':h1.External links';
+/* call putline ':h1.External links';
  call putline Global.DefaultFont;
  call putline ':p.This chapter contains all external links referenced in this book -';
  call putline 'either link is an Unified Resource Locator (URL) or simply to a';
- call putline 'local file which is not a part of this book.';
+ call putline 'local file which is not a part of this book.';*/
 /* Sort URLs alphabetically */
  if Global.OptS
   then do i = 1 to Global.URLinks;
@@ -270,7 +271,7 @@ OutputURLs:
  Global.CurrentDir = '';
  do i = 1 to Global.URLinks
   j = Global.URLinks.i;
-  call putline ':h2 id='GetLinkID(Global.LinkID.j)'.'IPFstring(Global.LinkID.j.RealName);
+  call putline ':h2 hide id='GetLinkID(Global.LinkID.j)'.'IPFstring(Global.LinkID.j.RealName);
   call putline Global.DefaultFont;
   call putline ':p.:lines align=center.';
   call putline IPFstring('The link you selected points to an external resource. Click the',
@@ -317,11 +318,11 @@ ParseFile:
  Global.IsTable = 0;               /* We`re inside a <TABLE>...</TABLE> pair? */
  Global.IsCentered = 0;          /* We`re inside a <CENTER>...</CENTER> pair? */
  Global.IsOutputEnabled = 1; /* A global switch to enable/disable text output */
- Global.IsPRETag = 0;                 /* We are inside a <PRE>...</PRE> pair? */
- Global.SkipSpaces = 0;                   /* set to 1 in lists to skip spaces */
- Global.AfterBreak = 0;            /* set to 1 after .br to avoid empty lines */
+ Global.SkipSpaces = 1;                   /* set to 1 in lists to skip spaces */
+ Global.HasText = 0;                  /* 1 if the current section has content */
+ Global.Paragraph = 'Inc';/* 'Inc' if a paragraph distance is included in last tag */
+                          /* 'Req' if a paragraph distance is required by the next text block */
  call PutToken Global.EOL;                     /* initialize output subsystem */
- Global.AfterBreak = 1;              /* avoid empty lines at start of Article */
  Global.EOF = 0;
  Global.CurFont = Global.DefaultFont;
 /* Remember the count of SUBLINKS and NOSUBLINKS to restore it later */
@@ -712,19 +713,23 @@ return 0;
 
 doTagCITE:
 doTagI:
+doTagEM:
  call PutToken ':hp1.';
 return 0;
 
 doTag!CITE:
 doTag!I:
+doTag!EM:
  call PutToken ':ehp1.';
 return 0;
 
 doTagB:
+doTagSTRONG:
  call PutToken ':hp2.';
 return 0;
 
 doTag!B:
+doTag!STRONG:
  call PutToken ':ehp2.';
 return 0;
 
@@ -734,22 +739,6 @@ return 0;
 
 doTag!U:
  call PutToken ':ehp5.';
-return 0;
-
-doTagEM:
- call PutToken ':hp3.';
-return 0;
-
-doTag!EM:
- call PutToken ':ehp3.';
-return 0;
-
-doTagSTRONG:
- call PutToken ':hp8.';
-return 0;
-
-doTag!STRONG:
- call PutToken ':ehp8.';
 return 0;
 
 doTagCODE:
@@ -763,58 +752,64 @@ doTag!TT:
 return 0;
 
 doTagBLOCKQUOTE:
- call PutToken ':p.';
  call PutToken ':lm margin=8.';
+ Global.Paragraph = 'Req';
+ Global.IsParagraph = 0;
 return 0;
 
 doTag!BLOCKQUOTE:
  call PutToken ':lm margin=1.';
- call PutToken ':p.';
+ Global.Paragraph = 'Req';
+ Global.IsParagraph = 0;
+ Global.HasText = 0;
 return 0;
 
 doTagP:
- call PutToken ':p.';
- Global.IsParagraph = 1;
- Global.SkipSpaces = 1;
+ call doOpenP 1;
 return 0;
 
 doTag!P:
+ Global.Paragraph = 'Req';
  Global.IsParagraph = 0;
+ Global.HasText = 0;
 return 0;
 
 doTagBR:
  if Global.IsTable
   then return 0; /* IPFC does not allow .br`s in tables */
- Global.AfterBreak = 0;
  call NewLine;
  call PutToken '.br';
- call NewLine;
- Global.AfterBreak = 1;
+ call PutToken Global.EOL;
 return 0;
 
 doTagPRE:
- Global.SkipSpaces = 0;
  call NewLine;
- Global.IsPRETag = 1;
  call PutToken ':cgraphic.';
+ Global.SkipSpaces = 0;
+ Global.Paragraph = 'Inc';
+ Global.IsParagraph = 0;
 return 0;
 
 doTag!PRE:
- Global.IsPRETag = 0;
+ Global.SkipSpaces = 1;
  call PutToken ':ecgraphic.';
+ call PutToken Global.EOL;
+ Global.IsParagraph = 0;
+ Global.Paragraph = 'Req';
+ Global.HasText = 0;
 return 0;
 
 doTagH_begin:
  arg i;
- call NewLine;
- if \Global.IsTable
-  then do; call PutToken '.br'; call NewLine; end;
+/* if \Global.IsTable
+  then do; call PutToken '.br'; call NewLine; end;*/
  call SetFont Global.HeaderFont.i;
- if \Global.IsTable
-  then do; call NewLine; call PutToken '.br'; end;
+/* if \Global.IsTable
+  then do; call NewLine; call PutToken '.br'; end;*/
  call NewLine;
- Global.AfterBreak = 1;
- Global.SkipSpaces = 1;
+ call doOpenP 1;
+ Global.IsParagraph = 1;
+ /*Global.Paragraph = 'Req';*/
 return;
 
 doTagH1:
@@ -848,20 +843,25 @@ doTag!H4:
 doTag!H5:
 doTag!H6:
  call SetFont Global.DefaultFont;
- if \Global.IsTable
-  then do
-        call NewLine; call PutToken '.br'; call NewLine;
-        /*call NewLine; call PutToken '.br';*/
-       end;
- call NewLine;
- Global.AfterBreak = 1;
+/* if \Global.IsTable
+  then do;
+        call NewLine;
+        call PutToken '.br';
+       end;*/
+ call PutToken Global.EOL;
+ Global.Paragraph = 'Req';
+ Global.IsParagraph = 0;
+ Global.HasText = 0;
 return 0;
 
 doTagHR:
  call NewLine;
  call PutToken ':cgraphic.'copies('Ä', 80)':ecgraphic.';
- call doTagBR;
- Global.SkipSpaces = 1;
+ call PutToken Global.EOL;
+ call PutToken Global.EOL;
+ Global.IsParagraph = 0;
+ Global.Paragraph = 'Inc';
+ Global.HasText = 0;
 return 0;
 
 doTagOL:
@@ -873,7 +873,6 @@ return 0;
 doTag!OL:
  if Global.IsTable
   then return 0;
- call NewLine;
  call doCloseTag ':eol.';
 return 0;
 
@@ -888,7 +887,6 @@ doTag!MENU:
 doTag!UL:
  if Global.IsTable
   then return 0;
- call NewLine;
  call doCloseTag ':eul.';
 return 0;
 
@@ -897,7 +895,7 @@ doTagLI:
   then return 0;
  if (doCheckTag(':eul.') = 0) & (doCheckTag(':eol.') = 0)
   then call doOpenUL;
- call NewLine;
+ call doOpenP 0;
  call PutToken ':li.';
 return 0;
 
@@ -910,7 +908,6 @@ return 0;
 doTag!DL:
  if Global.IsTable
   then return 0;
- call NewLine;
  if \Global.DLDescDefined 
   then call doTagDD;
  call doCloseTag ':edl.';
@@ -921,7 +918,8 @@ doTagDT:
   then return 0;
  if doCheckTag(':edl.') = 0
   then call doOpenDL;
- call NewLine; call PutToken ':dt.';
+ call doOpenP 0;
+ call PutToken ':dt.';
  Global.DLTermDefined = 1;
  Global.DLDescDefined = 0;
 return 0;
@@ -934,6 +932,7 @@ doTagDD:
  call NewLine;
  if \Global.DLTermDefined
   then call doTagDT;
+ call doOpenP 0;
  call PutToken ':dd.';
  Global.DLTermDefined = 0;
  Global.DLDescDefined = 1;
@@ -963,6 +962,8 @@ doTagA_NAME:
 return 0;
 
 doTagIMG:
+ call doOpenP 0;
+ Global.HasText = 1;
  Global._altName = 'missing Picture';
  Global._imgName = '';
  if Global.IsCentered /* Choose default picture alignment */
@@ -995,10 +996,10 @@ doTagIMG:
         Global.Picture.i.dst = left(_imgBitmap, pos('*', _imgBitmap) - 1);
         Global.Picture.i.src = substr(_imgBitmap, pos('*', _imgBitmap) + 1);
         Global.Picture.i.alt = Global._altName;
-        call PutToken ':artwork name='''Global.Picture.i.dst''' align='Global._imgAlign;
-        if Global.IsParagraph
+        call PutToken ':artwork name='''Global.Picture.i.dst''' align='Global._imgAlign' runin.';
+        /*if Global.IsParagraph
          then call PutToken ' runin.';
-         else call PutToken '.';
+         else call PutToken '.';*/
         if pos(':elink.', Global.RefEndTag) > 0
          then do /* image is a link */
                call PutToken ':artlink.:link reftype=hd refid='Global.CurLink'.:eartlink.';
@@ -1042,6 +1043,7 @@ doTagCENTER:
   then return 0;
  Global.IsCentered = 1;
  call PutToken ':lines align=center.';
+ Global.IsParagraph = 0;
 return 0;
 
 doTag!CENTER:
@@ -1052,23 +1054,23 @@ doTag!CENTER:
         Global.IsCentered = 0;
         call NewLine;
         call PutToken ':elines.';
-        call PutToken Global.EOL;
+        call NewLine;
         call PutToken '.br';
        end;
+ Global.IsParagraph = 0;
 return 0;
 
 doTagTABLE:
+ call doOpenP 0;
  Global.Table.WasCentered = Global.IsCentered;
  if Global.IsCentered
   then call doTag!CENTER;
  call NewLine;
- Global.AfterBreak = 0;
  call PutToken '.* table';
  Global.Table.Begin = Global.Article.Line.0;
  call NewLine;
  Global.Table.Width = 0;
  Global.Table.MaxWidth = 0;
- Global.AfterBreak = 1;
  Global.IsTable = 1;
  Global.IsOutputEnabled = 0;
 return 0;
@@ -1088,12 +1090,14 @@ doTag!TABLE:
         if \Global.OptCH
          then Global.Article.Line.i = ':table cols='''substr(tableCols, 2)'''.';
         call PutToken ':etable.';
+        call PutToken Global.EOL;
        end;
  Global.Table.Begin = 0;
  Global.IsTable = 0;
  Global.IsOutputEnabled = 1;
  if Global.Table.WasCentered
   then call doTagCENTER;
+ Global.Paragraph = '';
 return 0;
 
 doTagTR:
@@ -1113,25 +1117,21 @@ doTagTH:
  Global.IsOutputEnabled = 1;
  Global.Table.Width = Global.Table.Width + 1;
  call PutToken ':c.'; call doTagU;
- Global.SkipSpaces = 1;
 return 0;
 
 doTag!TH:
  call CloseRef;
  call doTag!U;
- call PutToken Global.EOL;
 return 0;
 
 doTagTD:
  Global.IsOutputEnabled = 1;
  Global.Table.Width = Global.Table.Width + 1;
  call PutToken ':c.';
- Global.SkipSpaces = 1;
 return 0;
 
 doTag!TD:
  call CloseRef;
- call PutToken Global.EOL;
 return 0;
 
 doTextEMPTY:
@@ -1180,10 +1180,12 @@ doOpenTag:
  i = Global.OpenTag.0;
  Global.OpenTag.i = ct;
  Global.OpenTag.i.open = ot;
+ Global.Paragraph = 'Inc';
 return;
 
 doCloseTag:
  parse arg bottom;
+ call NewLine;
  if length(bottom) = 0
   then i = 1
   else do i = Global.OpenTag.0 to 0 by -1
@@ -1200,6 +1202,8 @@ doCloseTag:
         Global.OpenTag.0 = i - 1;
         return 1;
        end;
+ Global.Paragraph = 'Req';
+ Global.IsParagraph = 0;
 return 0;
 
 doCheckTag:
@@ -1209,6 +1213,19 @@ doCheckTag:
    then return 1;
  end;
 return 0;
+
+/* Ensure that paragraph is open.
+ * If ARG is 1 a paragraph is enforced even if not required. */
+doOpenP:
+ if (Global.Paragraph = 'Req') | (ARG(1) & (Global.Paragraph \= 'Inc'))
+  then do
+   call NewLine;
+   call PutToken ':p.';
+   Global.HasText = 0;
+   Global.IsParagraph = 1;
+   Global.Paragraph = 'Inc';
+  end;
+return;
 
 /* Set the current font in output stream */
 SetFont:
@@ -1359,22 +1376,20 @@ PutToken:
 
  if Output = Global.EOL
   then do
-    if Global.AfterBreak then 
-       Global.AfterBreak = 0;
-    else do
-       Global.Article.line.0 = Global.Article.line.0 + 1;
-       i = Global.Article.line.0;
-       Global.Article.line.i = '';
-    end;
+    Global.Article.line.0 = Global.Article.line.0 + 1;
+    i = Global.Article.line.0;
+    Global.Article.line.i = '';
     Global.NewLine = 1;
   end
  else do
-    Global.AfterBreak = 0;
-    Global.NewLine = 0;
     i = Global.Article.line.0;
     if length(Global.Article.line.i) + length(Output) > Global.maxLineLength
-      then do; call PutToken Global.EOL; i = Global.Article.line.0; end;
+      then do; 
+        call PutToken Global.EOL; 
+        i = Global.Article.line.0; 
+      end;
     Global.Article.line.i = Global.Article.line.i||Output;
+    Global.NewLine = 0;
  end;
 return;
 
@@ -1389,18 +1404,21 @@ PutText:
  if (Global.IsTable) & (\Global.IsOutputEnabled)
   then return; /* Skip everything out of :c. ... :c. or :row. tags */
 
- if Global.SkipSpaces & Global.Newline then
-  Output = strip(strip(Output, 'leading', d2c(9)), 'leading');
+ if Global.SkipSpaces then do
+    Output = replace( Output, d2c(9), " " );
+    /* condense blanks */
+    curpos = 1;
+    do forever
+      curpos = pos('  ', Output, curpos);
+      if curpos = 0 then leave;
+      endpos = verify(Output, ' ', 'N', curpos + 2);
+      if endpos = 0
+        then Output = left(Output, curpos)
+        else Output = left(Output, curpos)||substr(Output, endpos)
+    end;
+ end
   
-
  do while length(Output) > 0
-
-  if Global.SkipSpaces then do
-     Output = replace( Output, d2c(9), " " );
-     Output = replace( Output, "  ", " " );
-     if Global.NewLine then
-        Output = strip(Output, 'leading');
-  end
 
   EOLpos = pos(Global.EOL, Output);
   if EOLpos > 0
@@ -1409,23 +1427,19 @@ PutText:
           then _text_ = left(Output, EOLpos - 1);
          Output = substr(Output, EOLpos + 1);
          if EOLpos > 1
-          then do
-                call PutText _text_;
-                call PutToken Global.EOL;
-               end;
+          then call PutText _text_;
+         /*call PutToken '.* XXX';*/
+         if Global.SkipSpaces
+          then call NewLine;
+          else call PutToken Global.EOL;
         end;
    else do
-        /* condense duplicate whitespace */
-         if \Global.IsPRETag
-          then do
-                Output = translate(Output, ' ', d2c(9));
-                curpos = pos('  ', Output);
-                do while curpos > 0
-                 Output = left(Output, curpos)||substr(Output, curpos + 2);
-                 curpos = pos('  ', Output, curpos + 1);
-                end;
-               end;
-         Global.SkipSpaces = 0;
+        if Global.SkipSpaces & (verify(Output, ' ', 'N') = 0)
+         then return;
+        if Global.Newline then
+         Output = strip(Output, 'b');
+        /*call PutToken '<@'left(Output,5,'_')'>';*/
+        call doOpenP 0;
         /* replace tab Characters with needed number of spaces */
          curpos = -1;
          do forever
@@ -1448,7 +1462,7 @@ PutText:
                   curpos = curpos + 1; tmpS = substr(tmpS, 2);
                  end;
                 end;
-          Output = left(Output, tabpos - 1)||copies(' ',
+          Output = left(Output, tabpos - 1)||copies(' ', 
            ,8 - (curpos + tabpos - 1)//8)||substr(Output, tabpos + 1);
          end;
          Output = IPFstring(Output);
@@ -1479,9 +1493,10 @@ PutText:
          end;
          Global.Article.line.i = Global.Article.line.i||Output;
          Output = '';
+         Global.Paragraph = '';
+         Global.HasText = 1;
         end;
  end;
- Global.AfterBreak = 0;
 return;
 
 PutLine:
@@ -1491,9 +1506,14 @@ PutLine:
 return;
 
 NewLine:
+ procedure expose Global.
  nli = Global.Article.line.0;
  if length(Global.Article.line.nli) > 0
-  then do; call PutToken Global.EOL; return 1; end;
+  then do;
+   /*call PutToken '.* YYY "'Global.Article.line.nli'"'*/
+   call PutToken Global.EOL;
+   return 1;
+  end;
 return 0;
 
 IPFstring:
@@ -1513,7 +1533,9 @@ return StrReplace(d2c(0), '&', ins);
 */
 ChangeStr:
  procedure expose Global.;
- parse arg src,var,trg;
+ src = ARG(1)
+ var = ARG(2)
+ trg = ARG(3)
  curpos = 1;
  do forever
   curpos = pos(src, var, curpos);

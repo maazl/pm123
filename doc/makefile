@@ -23,19 +23,22 @@ PDKLST = $(PDKLST) pdk\output_plug.html pdk\visual_plug.html pdk\style.html
 pm123.inf: pm123.ipf
 	ipfc pm123.ipf /d:1 /c:850 $@
 
-pm123.ipf: $(MANLST)
+pm123.ipf: $(MANLST) tools\html2ipf.cmd
+	setlocal
 	set path=$(PATH);tools
 	tools\html2ipf.cmd -co- -so- manual\index.html $@
+	endlocal
 
 pm123_pdk.inf: pm123_pdk.ipf
 	ipfc pm123_pdk.ipf /d:1 /c:850 $@
 
-pm123_pdk.ipf: $(PDKLST)
+pm123_pdk.ipf: $(PDKLST) tools\html2ipf.cmd
+	setlocal
 	set path=$(PATH);tools
 	tools\html2ipf.cmd -co- -so- pdk\index.html $@
+	endlocal
 
 clean: $(MDUMMY)
 	-@del *.inf 2> nul
 	-@del *.ipf 2> nul
 	-@del manual\images\*.bmp 2> nul
-
