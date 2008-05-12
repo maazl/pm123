@@ -284,7 +284,6 @@ MRESULT PlaylistBase::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
           // Show popup menu
           POINTL ptlMouse;
           PMRASSERT(WinQueryPointerPos(HWND_DESKTOP, &ptlMouse));
-          // TODO: Mouse Position may not be reasonable, when the menu is invoked by keyboard.
 
           PMRASSERT(WinPopupMenu(HWND_DESKTOP, GetHwnd(), HwndMenu, ptlMouse.x, ptlMouse.y, 0,
                                  PU_HCONSTRAIN | PU_VCONSTRAIN | PU_MOUSEBUTTON1 | PU_MOUSEBUTTON2 | PU_KEYBOARD));
@@ -390,7 +389,25 @@ MRESULT PlaylistBase::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
         return 0;
       }
       switch (SHORT1FROMMP(mp1))
-      {case IDM_PL_USEALL:
+      {case IDM_PL_MENU:
+        { RecordBase* rec = (RecordBase*)mp2;
+          if (!GetSource(rec))
+            break;
+          HwndMenu = InitContextMenu();
+          if (HwndMenu != NULLHANDLE)
+          { SetEmphasis(CRA_SOURCE, true);
+            // Show popup menu
+            POINTL ptlMouse;
+            PMRASSERT(WinQueryPointerPos(HWND_DESKTOP, &ptlMouse));
+            // TODO: Mouse Position is not be reasonable, when the menu is invoked by keyboard.
+
+            PMRASSERT(WinPopupMenu(HWND_DESKTOP, GetHwnd(), HwndMenu, ptlMouse.x, ptlMouse.y, 0,
+                                   PU_HCONSTRAIN | PU_VCONSTRAIN | PU_MOUSEBUTTON1 | PU_MOUSEBUTTON2 | PU_KEYBOARD));
+          }
+          break;
+        }
+
+       case IDM_PL_USEALL:
         { amp_load_playable(PlayableSlice(Content), 0);
           break;
         }
@@ -693,7 +710,11 @@ void PlaylistBase::RequestChildren(RecordBase* const rec)
   if ((pp->GetFlags() & Playable::Enumerable) == 0)
     return;
   // Call event either immediately or later, asynchronuously.
-  InfoChangeEvent(Playable::change_args(*pp, pp->EnsureInfoAsync(Playable::IF_Other|Playable::IF_Tech)), rec);
+  // But only the playlist content is requested at high priority;
+  Playable::InfoFlags
+  avail = pp->EnsureInfoAsync(Playable::IF_Tech, true);
+  avail |= pp->EnsureInfoAsync(Playable::IF_Other, false);
+  InfoChangeEvent(Playable::change_args(*pp, avail), rec);
 }
 
 void PlaylistBase::UpdateChildren(RecordBase* const rp)

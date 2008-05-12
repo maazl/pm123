@@ -121,20 +121,36 @@ ULONG Ctrl::DecoderStart(PlayableSlice* ps, T_TIME offset)
   SetVolume();
   dec_eq(EqEnabled ? EqData.bandgain[0] : NULL);
   dec_save(Savename);
-  dec_fast(Scan);
 
-  ULONG rc = dec_play((Song*)ps->GetPlayable(), offset,
-    ps->GetStart() ? ps->GetStart()->GetLocation() : 0,
-    ps->GetStop()  ? ps->GetStop() ->GetLocation() : -1);
+  T_TIME start = ps->GetStart() ? ps->GetStart()->GetLocation() : 0;
+  T_TIME stop = ps->GetStop()  ? ps->GetStop() ->GetLocation() : -1;
+  if (Scan == DECFAST_REWIND)
+  { if (stop > 0)
+    { start = stop - 1.; // do not seek to the end, because this will cause problems.
+    } else if (ps->GetPlayable()->GetInfo().tech->songlength > 0)
+    { start = ps->GetPlayable()->GetInfo().tech->songlength - 1.;
+    } else
+    { // no songlength => error => undo MsgScan
+      Scan = DECFAST_NORMAL_PLAY;
+      InterlockedOr(Pending, EV_Rewind);
+    }
+    if (start < 0) // Do not hit negative values for very short songs.
+      start = 0;
+  }
+    
+  ULONG rc = dec_play((Song*)ps->GetPlayable(), offset, start, stop);
   if (rc != 0)
     return rc;
 
-  // TODO: CRAP?
+  // TODO: I hate this delay with a spinlock.
   int cnt = 0;
   while (dec_status() == DECODER_STARTING)
   { DEBUGLOG(("Ctrl::DecoderStart - waiting for Spinlock\n"));
     DosSleep( ++cnt > 10 );
   }
+
+  if (Scan != DECFAST_NORMAL_PLAY)
+    dec_fast(Scan);
   DEBUGLOG(("Ctrl::DecoderStart - completed\n"));
   return 0;
 }
@@ -421,8 +437,6 @@ Ctrl::RC Ctrl::MsgScan(Op op)
 { DEBUGLOG(("Ctrl::MsgScan(%x) - %u\n", op, Scan)); 
   if (op & ~7)
     return RC_BadArg;
-  if (!decoder_playing())
-    return op & Op_Set ? RC_NotPlaying : RC_OK;
 
   static const DECFASTMODE opmatrix[8][3] =
   { {DECFAST_NORMAL_PLAY, DECFAST_NORMAL_PLAY, DECFAST_NORMAL_PLAY},
@@ -438,13 +452,19 @@ Ctrl::RC Ctrl::MsgScan(Op op)
   // Check for NOP.
   if (Scan == newscan)
     return RC_OK;
-  // => Decoder
-  if (dec_fast(newscan) != 0)
-    return RC_DecPlugErr;
-  else if (cfg.trash)
-    // Going back in the stream to what is currently playing.
-    // TODO: discard prefetch buffer.
-    dec_jump(out_playing_pos());
+
+  if (Playing)
+  { // => Decoder
+    if (dec_fast(newscan) != 0)
+      return RC_DecPlugErr;
+    else if (cfg.trash)
+      // Going back in the stream to what is currently playing.
+      // TODO: discard prefetch buffer.
+      dec_jump(FetchCurrentSongTime());
+
+  } else if (op & Op_Set)
+    return RC_NotPlaying;
+
   // Update event flags
   if ((Scan & DECFAST_FORWARD) != (newscan & DECFAST_FORWARD))
     InterlockedOr(Pending, EV_Forward);
@@ -475,6 +495,17 @@ Ctrl::RC Ctrl::MsgVolume(double volume, bool relative)
 /* change play/stop status */
 Ctrl::RC Ctrl::MsgPlayStop(Op op)
 { DEBUGLOG(("Ctrl::MsgPlayStop(%x) - %u\n", op, Playing));
+
+  if (Playing)
+  { // Set new playing position
+    if ( cfg.retainonstop && op != Op_Reset
+      && Current()->Iter.GetCurrent()->GetPlayable()->GetInfo().tech->songlength > 0 )
+    { T_TIME time = FetchCurrentSongTime();
+      Current()->Iter.SetLocation(time); 
+    } else
+      Current()->Iter.SetLocation(0);
+  } 
+
   if (!SetFlag(Playing, op))
     return RC_OK;
 
@@ -495,12 +526,12 @@ Ctrl::RC Ctrl::MsgPlayStop(Op op)
   
   } else
   { // stop playback
+    DecoderStop();
+    OutputStop();
+
     MsgPause(Op_Clear);
     MsgScan(Op_Reset);
 
-    DecoderStop();
-    OutputStop();
-    
     while (out_playing_data())
     { DEBUGLOG(("Ctrl::MsgPlayStop - Spinlock\n"));
       DosSleep(1);
@@ -605,7 +636,7 @@ Ctrl::RC Ctrl::MsgLoad(const xstring& url, int flags)
     play->EnsureInfo(Playable::IF_Other);
     if (play->GetStatus() <= STA_Invalid)
       return RC_InvalidItem;
-    play->EnsureInfoAsync(Playable::IF_All);
+    play->EnsureInfoAsync(Playable::IF_All, true);
     { CritSect cs;
       PrefetchList.append() = new PrefetchEntry();
       Current()->Iter.SetRoot(new PlayableSlice(play));
@@ -776,7 +807,7 @@ Ctrl::RC Ctrl::MsgOutStop()
     }
   }
   // In any case stop the engine
-  return MsgPlayStop(Op_Clear);
+  return MsgPlayStop(Op_Reset);
 }
 
 void TFNENTRY ControllerWorkerStub(void*)
@@ -788,10 +819,12 @@ void Ctrl::Worker()
   HMQ hmq = WinCreateMsgQueue(hab, 0);
   for(;;)
   { DEBUGLOG(("Ctrl::Worker() looking for work\n"));
-    queue<ControlCommand*>::Reader rdr(Queue);
-    ControlCommand* qp = rdr;
+    Queue.RequestRead();
+    ControlCommand* qp = *Queue.Read();
     if (qp == NULL)
+    { Queue.CommitRead();
       break; // deadly pill
+    }
 
     bool fail = false;
     do
@@ -892,6 +925,9 @@ void Ctrl::Worker()
     DEBUGLOG(("Ctrl::Worker raising events %x\n", events));
     if (events)
       ChangeEvent(events);
+      
+    // done
+    Queue.CommitRead();
   }
   WinDestroyMsgQueue(hmq);
   WinTerminate(hab);

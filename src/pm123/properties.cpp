@@ -60,21 +60,22 @@
 const amp_cfg cfg_default =
 { "",
   TRUE,
+  FALSE,
   TRUE,
   TRUE,
   FALSE,
+  TRUE, // recurse_dnd
   FALSE,
   FALSE,
-  FALSE,
-  FALSE,
+  TRUE,
   1, // font
-  TRUE,
+  FALSE,
   { sizeof(FATTRS), 0, 0, "System VIO", 0, 0, 12L, 5L, 0, 0 },
   8,
   TRUE,
   FALSE, // float on top
   CFG_SCROLL_INFINITE,
-  CFG_DISP_FILENAME,
+  CFG_DISP_ID3TAG,
   "", // Proxy
   "",
   FALSE,
@@ -89,7 +90,7 @@ const amp_cfg cfg_default =
   "",
   "",
   FALSE, // EQ
-  50, // volume
+  100, // volume
   CFG_MODE_REGULAR,
   FALSE,
   FALSE,
@@ -184,6 +185,8 @@ cfg_settings1_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
     { const amp_cfg& cfg = *(const amp_cfg*)PVOIDFROMMP(mp1);
       WinCheckButton( hwnd, CB_PLAYONLOAD,    cfg.playonload  );
       WinCheckButton( hwnd, CB_TRASHONSCAN,   cfg.trash       );
+      WinCheckButton( hwnd, CB_RETAINONEXIT,  cfg.retainonexit);
+      WinCheckButton( hwnd, CB_RETAINONSTOP,  cfg.retainonstop);
 
       WinCheckButton( hwnd, CB_AUTOUSEPL,     cfg.autouse     );
       WinCheckButton( hwnd, CB_AUTOPLAYPL,    cfg.playonuse   );
@@ -202,6 +205,8 @@ cfg_settings1_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
     case WM_DESTROY:
       cfg.playonload  = WinQueryButtonCheckstate( hwnd, CB_PLAYONLOAD   );
       cfg.trash       = WinQueryButtonCheckstate( hwnd, CB_TRASHONSCAN  );
+      cfg.retainonexit= WinQueryButtonCheckstate( hwnd, CB_RETAINONEXIT );
+      cfg.retainonstop= WinQueryButtonCheckstate( hwnd, CB_RETAINONSTOP );
 
       cfg.autouse     = WinQueryButtonCheckstate( hwnd, CB_AUTOUSEPL    );
       cfg.playonuse   = WinQueryButtonCheckstate( hwnd, CB_AUTOPLAYPL   );
@@ -239,7 +244,6 @@ cfg_settings2_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
       const char* cp;
       size_t l;
 
-      WinCheckButton( hwnd, CB_SELECTPLAYED, cfg.selectplayed );
       WinCheckButton( hwnd, CB_DOCK,         cfg.dock_windows );
       WinSetDlgItemText( hwnd, EF_DOCK, itoa( cfg.dock_margin, buffer, 10 ));
 
@@ -299,8 +303,6 @@ cfg_settings2_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
     {
       char buffer[8];
       size_t i;
-
-      cfg.selectplayed = WinQueryButtonCheckstate( hwnd, CB_SELECTPLAYED );
 
       cfg.dock_windows = WinQueryButtonCheckstate( hwnd, CB_DOCK         );
       WinQueryDlgItemText( hwnd, EF_DOCK, sizeof buffer, buffer );

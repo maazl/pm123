@@ -42,7 +42,7 @@ class queue_base
   struct EntryBase
   { EntryBase* Next;
   };
-  class ReaderBase
+  /*class ReaderBase
   {public:
     queue_base& Queue;
    private: // non-copyable
@@ -50,7 +50,7 @@ class queue_base
     void operator=(const ReaderBase&);
    protected:
     ReaderBase(queue_base& queue);
-  };
+  };*/
 
  protected:
   EntryBase* Head;
@@ -62,36 +62,38 @@ class queue_base
 
  protected: // class should not be used directly!
              queue_base()         : Head(NULL), Tail(NULL) { EvRead.Set(); }
+  EntryBase* Read() const         { return Head; }
   EntryBase* CommitRead();
  public:
   void       RequestRead();
-  EntryBase* Read()               { return Head; }
+ protected:
   void       Write(EntryBase* entry);
+  void       Write(EntryBase* entry, EntryBase* after);
 };
 
 template <class T>
-class queue : private queue_base
-{private:
+class queue : public queue_base
+{protected:
   struct Entry : public EntryBase
   { T        Data;
     Entry(const T& data) : Data(data) {}
   };
  public:
-  class Reader;
+  /*class Reader;
   friend class Reader;
   class Reader : private ReaderBase
   {public:
     Reader(queue<T>& queue)       : ReaderBase(queue) {}
     ~Reader()                     { ((queue<T>&)Queue).CommitRead(); DEBUGLOG(("queue<T>::Reader::~Reader()\n")); }
     operator T&()                 { return ((Entry*)Queue.Read())->Data; }
-  };
+  };*/
 
- public:     queue_base::Mtx;
-
- protected:
-  void       CommitRead()         { delete (Entry*)queue_base::CommitRead(); }
  public:
              ~queue()             { Purge(); }
+  // Read the current head
+  T*         Read();
+  // Read complete => remove item from the queue
+  void       CommitRead()         { delete (Entry*)queue_base::CommitRead(); }
   // Post an element to the Queue
   void       Write(const T& data) { queue_base::Write(new Entry(data)); }
   // Remove all elements from the queue
@@ -110,6 +112,12 @@ class queue : private queue_base
   // will block until the read is commited.
   int        ForceRemove(const T& data);
 };
+
+template <class T>
+T* queue<T>::Read()
+{ EntryBase* ep = queue_base::Read();
+  return ep ? &((Entry*)ep)->Data : NULL;
+}
 
 template <class T>
 void queue<T>::Purge()

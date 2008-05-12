@@ -246,8 +246,7 @@ PlayableCollection* SongIterator::GetList() const
 
 SongIterator::Offsets SongIterator::TechFromPlayable(Playable* pp)
 { if (pp->GetFlags() & Playable::Enumerable)
-  { Mutex::Lock lck(pp->Mtx);
-    const PlayableCollection::CollectionInfo& ci = ((PlayableCollection*)pp)->GetCollectionInfo(Exclude);
+  { const PlayableCollection::CollectionInfo& ci = ((PlayableCollection*)pp)->GetCollectionInfo(Exclude);
     return Offsets(ci.Items, ci.Songlength);
   } else
     // Song => use tech info

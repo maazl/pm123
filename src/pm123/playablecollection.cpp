@@ -74,8 +74,12 @@ PlayableSlice::PlayableSlice(const PlayableSlice& r)
 { DEBUGLOG(("PlayableSlice(%p)::PlayableSlice(&%p)\n", this, &r));
   if (r.Start)
     Start = new SongIterator(*r.Start);
+  else
+    Start = NULL;
   if (r.Stop)
     Stop = new SongIterator(*r.Stop);
+  else
+    Stop = NULL;
 }
 PlayableSlice::PlayableSlice(const url123& url, const xstring& alias)
 : RefTo(Playable::GetByURL(url)),
@@ -326,7 +330,7 @@ PlayableCollection::Entry* PlayableCollection::CreateEntry(const char* url, cons
   // now create the entry with absolute path
   int_ptr<Playable> pp = GetByURL(GetURL().makeAbsolute(url), ca_format, ca_tech, ca_meta);
   // initiate prefetch of information
-  pp->EnsureInfoAsync(IF_Status);
+  pp->EnsureInfoAsync(IF_Status, true);
   return new Entry(*this, pp, &PlayableCollection::ChildInfoChange, &PlayableCollection::ChildInstChange);
 }
 
@@ -516,10 +520,29 @@ int_ptr<PlayableInstance> PlayableCollection::DeserializeItem(const xstring& str
   return NULL;
 }
 
-const PlayableCollection::CollectionInfo& PlayableCollection::GetCollectionInfo(const PlayableSet& excluding)
-{ DEBUGLOG(("PlayableCollection(%p{%s})::GetCollectionInfo({%i, %s}) - %x\n", this, GetURL().getShortName().cdata(), excluding.size(), excluding.DebugDump().cdata()));
-  ASSERT(Mtx.GetStatus() == Mutex::Mine);
+void PlayableCollection::PrefetchSubInfo(const PlayableSet& excluding)
+{ DEBUGLOG(("PlayableCollection(%p{%s})::PrefetchSubInfo() - %x\n", this, GetURL().getShortName().cdata(), InfoValid));
+  EnsureInfo(IF_Other);
+  int_ptr<PlayableInstance> pi;
+  sco_ptr<PlayableSet> xcl_sub;
+  while ((pi = GetNext(pi)) != NULL)
+  { Playable* pp = pi->GetPlayable();
+    if (excluding.find(*pp) != NULL)
+      continue; // recursion
+    if (pp->GetFlags() & Playable::Enumerable)
+    { // create new exclusions on demand
+      if (xcl_sub == NULL)
+      { xcl_sub = new PlayableSet(excluding); // deep copy
+        xcl_sub->get(*this) = this;
+      }
+      // prefetch sublists too.
+      ((PlayableCollection*)pp)->PrefetchSubInfo(*xcl_sub);
+    }
+  }
+}
 
+const PlayableCollection::CollectionInfo& PlayableCollection::GetCollectionInfo(const PlayableSet& excluding)
+{ DEBUGLOG(("PlayableCollection(%p{%s})::GetCollectionInfo({%i, %s})\n", this, GetURL().getShortName().cdata(), excluding.size(), excluding.DebugDump().cdata()));
   // cache lookup
   // We have to protect the CollectionInfoCache additionally by a critical section,
   // because the TechInfoChange event from the children cannot aquire the mutex.
@@ -533,10 +556,21 @@ const PlayableCollection::CollectionInfo& PlayableCollection::GetCollectionInfo(
     cic->Info.Reset();
   cs.~CritSect(); // Hmm, dirty but working.
 
+  // If we do not own the mutex so far we ensure some information on sub items
+  // before we request access to the mutex to avoid deadlocks.
+  // If we already own the mutex it makes no difference anyway.
+  if (Mtx.GetStatus() != Mutex::Mine)
+    PrefetchSubInfo(excluding);
+  else
+    // Ensure to have the list content before anything else
+    // This is inclusive in the above term. 
+    EnsureInfo(IF_Other);
+
   // (re)create information
-  EnsureInfo(IF_Other);
   sco_ptr<PlayableSet> xcl_sub;
   PlayableInstance* pi = NULL;
+  // now it's time to lock the collection (if not yet done)
+  Mutex::Lock lock(Mtx);
   while ((pi = GetNext(pi)) != NULL)
   { DEBUGLOG(("PlayableCollection::GetCollectionInfo Item %p{%p{%s}}\n", pi, pi->GetPlayable(), pi->GetPlayable()->GetURL().cdata()));
     if (pi->GetPlayable()->GetFlags() & Playable::Enumerable)
@@ -557,7 +591,6 @@ const PlayableCollection::CollectionInfo& PlayableCollection::GetCollectionInfo(
         xcl_sub->get(*this) = this;
       }
       // get sub info
-      Mutex::Lock lck(pc->Mtx);
       cic->Info.Add(pc->GetCollectionInfo(*xcl_sub));
 
     } else
@@ -605,6 +638,7 @@ Playable::InfoFlags PlayableCollection::LoadInfo(InfoFlags what)
     else
       stat = STA_Invalid;
     UpdateStatus(stat);
+    strcpy(Decoder, "PM123");
     InfoValid |= IF_Other;
     what |= IF_Other|IF_Status;
   }
@@ -618,10 +652,9 @@ Playable::InfoFlags PlayableCollection::LoadInfo(InfoFlags what)
   DEBUGLOG(("PlayableCollection::LoadInfo completed - %x %x\n", InfoValid, InfoChangeFlags));
   // default implementation to fullfill the minimum requirements of LoadInfo.
   InfoValid |= what;
-  InterlockedAnd(InfoRequest, ~what);
   // raise InfoChange event?
   RaiseInfoChange();
-  return what;
+  return Playable::LoadInfo(what);
 }
 
 bool PlayableCollection::SaveLST(XFILE* of, bool relative)

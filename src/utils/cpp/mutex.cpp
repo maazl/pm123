@@ -179,7 +179,8 @@ bool Event::Wait(long ms)
 
 void Event::Set()
 {  DEBUGLOG(("Event(%p)::Set()\n", this));
-   ORASSERT(DosPostEventSem(Handle));
+   APIRET rc = DosPostEventSem(Handle);
+   OASSERT(rc == 0 || rc == ERROR_ALREADY_POSTED);
    //DEBUGLOG(("Event(%p)::Set - %x\n", this, rc));
 }
 
@@ -187,7 +188,7 @@ void Event::Reset()
 {  DEBUGLOG(("Event(%p)::Reset()\n", this));
    ULONG cnt;
    APIRET rc = DosResetEventSem(Handle, &cnt);
-   ASSERT(rc == 0 || rc == ERROR_ALREADY_RESET);
+   OASSERT(rc == 0 || rc == ERROR_ALREADY_RESET);
 }
 
 bool Event::IsSet() const

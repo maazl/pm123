@@ -187,6 +187,7 @@
 #define HLP_MAIN_TABLE      100
 #define HLP_NULL_TABLE      101
 
+/* Help page IDs. DO NEVER CHANGE THAT */
 #define IDH_MAIN           1000
 #define IDH_ADVANTAGES     1001
 #define IDH_ANALYZER       1002
@@ -210,6 +211,8 @@
 #define IDH_PLAYLISTFORMAT 1020
 #define IDH_MIGRATE1_40    1021
 #define IDH_LOCATION       1022
+#define IDH_KEYBOARD       1023
+#define IDH_ANALYZERFORMAT 1024
 
 /* Dialogs */
 
@@ -263,17 +266,20 @@
 #define CFG_SETTINGS1      1300
 #define GB_BEHAVIOUR       1301
 #define CB_PLAYONLOAD      1302
-#define CB_TRASHONSCAN     1306
-#define CB_AUTOUSEPL       1351
-#define CB_AUTOPLAYPL      1352
-#define CB_RECURSEDND      1353
-#define CB_AUTOAPPENDDND   1354
-#define CB_AUTOAPPENDCMD   1355
-#define CB_QUEUEMODE       1356
+#define CB_TRASHONSCAN     1303
+#define ST_RETAINPOS       1304
+#define CB_RETAINONEXIT    1305
+#define CB_RETAINONSTOP    1306   
+#define CB_AUTOUSEPL       1311
+#define CB_AUTOPLAYPL      1312
+#define CB_RECURSEDND      1313
+#define ST_AUTOAPPEND      1314
+#define CB_AUTOAPPENDDND   1315
+#define CB_AUTOAPPENDCMD   1316
+#define CB_QUEUEMODE       1317
 
 #define CFG_SETTINGS2      1350
 #define GB_GUIFEATURES     1351
-#define CB_SELECTPLAYED    1355
 #define CB_DOCK            1360
 #define EF_DOCK            1361
 #define ST_PIXELS          1362

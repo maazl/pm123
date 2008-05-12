@@ -121,11 +121,12 @@ class Playable
  protected: // The following vars are protected by the mutex
   DecoderInfo         Info;
   PlayableStatus      Stat;
-  char                Decoder[_MAX_FNAME];
+  char                Decoder[12];
   InfoFlags           InfoValid;       // Bitvector of type InfoFlags
   InfoFlags           InfoChangeFlags; // Bitvector with stored events
-  // ... except for this one
+ private: // ... except for this ones
   unsigned            InfoRequest;     // Bitvector with requested information
+  unsigned            InfoRequestLow;  // Bitvector with requested low priority information
  public:
   Mutex               Mtx;   // protect this instance
 
@@ -181,9 +182,11 @@ class Playable
   inline InfoFlags    CheckInfo(InfoFlags what); // can't define here because of missing FLAGSATTRIBUTE(InfoFlags).
   // This function is called to populate the info fields.
   // The parameter what is the requested information. The function returns the retrieved information.
-  // The retrieved information must mot be less than the requested information. But it might be more.
+  // The retrieved information must not be less than the requested information. But it might be more.
   // This is a mutable Function when the info-fields are not initialized yet (late initialization).
   // Normally this function is called automatically. However, you may want to force a synchronuous refresh.
+  // When overiding this function you MUST call Playable::LoadInfo with the flags you want to return at last.
+  // Playable::LoadInfo is abstract but implemented. 
   virtual InfoFlags   LoadInfo(InfoFlags what) = 0;
   // Ensure that the info fields are loaded from the ressource.
   // This function may block until the data is available.
@@ -193,14 +196,18 @@ class Playable
   // When the requested information is availabe the InfoChange event is raised.
   // But this is done only if the information really has changed.
   // Of course yo have to register the eventhandler before the call to LoadInfoAsync.
-  void                LoadInfoAsync(InfoFlags what);
+  // The parameter lowpri shedules the rquest at low priority.
+  // This is useful for prefetching.
+  void                LoadInfoAsync(InfoFlags what, bool lowpri = false);
   // Call LoadInfo asynchronuously if the requested information is not yet available.
   // The function returns the flags of the requested information that is immediately available.
   // For all the missing bits you should use the InfoChange event to get the requested information.
   // If no information is yet available, the function retorns IF_None.
   // Of course yo have to register the eventhandler before the call to EnsureInfoAsync.
   // If EnsureInfoAsync returned true the InfoChange event is not raised.
-  InfoFlags           EnsureInfoAsync(InfoFlags what);
+  // The parameter lowpri shedules the rquest at low priority.
+  // This is useful for prefetching.
+  InfoFlags           EnsureInfoAsync(InfoFlags what, bool lowpri = false);
 
   // Set meta information.
   // Calling this function with meta == NULL deletes the meta information.
@@ -214,11 +221,21 @@ class Playable
   event<const change_args> InfoChange;
 
  // asynchronuous request service
- private:
+ public: // VAC++ 3.0 requires base types to be public
   typedef int_ptr<Playable> QEntry;
+ private:
+  // Priority enhanced Queue
+  class worker_queue : public queue<QEntry>
+  { EntryBase* HPTail; // Tail of high priority items
+   public:
+    // Remove item from queue
+    void       CommitRead();
+    // Write item with priority
+    void       Write(const QEntry& data, bool lowpri);
+  };
 
  private:
-  static queue<QEntry>     WQueue;
+  static worker_queue      WQueue;
   static int               WTid;          // Thread ID of the worker
   static bool              WTermRq;       // Termination Request to Worker
 

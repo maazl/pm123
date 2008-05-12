@@ -303,12 +303,33 @@ ULONG DLLENTRY amp_file_wizzard( HWND owner, const char* title, DECODER_WIZZARD_
 static MRESULT EXPENTRY amp_url_dlg_proc(HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2)
 { switch( msg )
   {case WM_CONTROL:
-    if (MPFROM2SHORT(ENT_URL, EN_CHANGE) != mp1)
-      break;
-   case WM_INITDLG:
-    // Update enabled status of the OK-Button
-    WinEnableWindow(WinWindowFromID(hwnd, DID_OK), WinQueryDlgItemTextLength(hwnd, ENT_URL) != 0);
+    if (SHORT1FROMMP(mp1) == ENT_URL)
+      switch (SHORT2FROMMP(mp1))
+      {case CBN_EFCHANGE:
+        // Update enabled status of the OK-Button
+        DEBUGLOG(("amp_url_dlg_proc: WM_CONTROL: CBN_EFCHANGE\n"));
+        PMRASSERT(WinEnableWindow(WinWindowFromID(hwnd, DID_OK), WinQueryWindowTextLength(HWNDFROMMP(mp2)) != 0));
+        break;
+       /*case CBN_ENTER:
+        WinSendMsg(hwnd, WM_COMMAND, MPFROMSHORT(DID_OK), MPFROM2SHORT(CMDSRC_OTHER, FALSE));
+        break;*/
+      }
     break;
+
+   case WM_INITDLG:
+    { // populate drop down list
+      Playlist* mru = amp_get_url_mru();
+      HWND ctrl = WinWindowFromID(hwnd, ENT_URL);
+      int_ptr<PlayableInstance> pi;
+      for(;;)
+      { pi = mru->GetNext(pi);
+        DEBUGLOG(("amp_url_dlg_proc: WM_INITDLG %p %p\n", pi.get(), ctrl));
+        if (pi == NULL)
+          break;
+        PMXASSERT(WinSendMsg(ctrl, LM_INSERTITEM, MPFROMSHORT(LIT_END), MPFROMP(pi->GetPlayable()->GetURL().cdata())), >= 0);
+      }
+      break;
+    }
 
    case WM_COMMAND:
     DEBUGLOG(("amp_url_dlg_proc: WM_COMMAND: %i\n", SHORT1FROMMP(mp1)));
@@ -331,6 +352,8 @@ static MRESULT EXPENTRY amp_url_dlg_proc(HWND hwnd, ULONG msg, MPARAM mp1, MPARA
 ULONG DLLENTRY amp_url_wizzard( HWND owner, const char* title, DECODER_WIZZARD_CALLBACK callback, void* param )
 { DEBUGLOG(("amp_url_wizzard(%x, %s, %p, %p)\n", owner, title, callback, param));
 
+  amp_get_url_mru()->EnsureInfo(Playable::IF_Other);
+
   HWND hwnd = WinLoadDlg( HWND_DESKTOP, owner, amp_url_dlg_proc, NULLHANDLE, DLG_URL, 0 );
   if (hwnd == NULLHANDLE)
     return 500;
@@ -339,9 +362,9 @@ ULONG DLLENTRY amp_url_wizzard( HWND owner, const char* title, DECODER_WIZZARD_C
 
   xstring wintitle = xstring::sprintf(title, " URL");
   WinSetWindowText(hwnd, (PSZ)&*wintitle);
-
-  // TODO: absolute size limit???
-  char durl[2048];
+  
+  // Hmm, absolute size limit???
+  char durl[4096];
   WinSendDlgItemMsg( hwnd, ENT_URL, EM_SETTEXTLIMIT, MPFROMSHORT(sizeof durl), 0 );
 
   // TODO: last URL
@@ -354,6 +377,7 @@ ULONG DLLENTRY amp_url_wizzard( HWND owner, const char* title, DECODER_WIZZARD_C
     url123 nurl = url123::normalizeURL(durl);
     DEBUGLOG(("amp_url_wizzard: %s\n", nurl.cdata()));
     (*callback)(param, nurl);
+    amp_AddMRU(amp_get_url_mru(), MAX_RECALL, PlayableSlice(nurl));
     ret = 0;
   }
   WinDestroyWindow(hwnd);
@@ -374,18 +398,21 @@ void amp_add_bookmark(HWND owner, const PlayableSlice& item)
     desc = desc + item.GetPlayable()->GetURL().getShortName();
 
   HWND hdlg = WinLoadDlg(HWND_DESKTOP, owner, &WinDefDlgProc, NULLHANDLE, DLG_BM_ADD, NULL);
-
+  do_warpsans(hdlg);
   WinSetDlgItemText(hdlg, EF_BM_DESC, desc);
 
   if (WinProcessDlg(hdlg) == DID_OK)
   { xstring alias;
     char* cp = alias.raw_init(WinQueryDlgItemTextLength(hdlg, EF_BM_DESC));
     WinQueryDlgItemText(hdlg, EF_BM_DESC, alias.length()+1, cp);
-    if (alias == desc)
-      alias = NULL; // Don't set alias if not required.
-    amp_get_default_bm()->InsertItem(item);
-    // TODO !!!!!
-    //bm_save( owner );
+    if (alias != desc) // Don't set alias if not required.
+    { // We have to copy the PlayableSlice to modify it.
+      PlayableSlice ps(item);
+      ps.SetAlias(alias);
+      amp_get_default_bm()->InsertItem(ps);
+    } else
+      amp_get_default_bm()->InsertItem(item);
+    amp_get_default_bm()->Save(PlayableCollection::SaveRelativePath);
   }
 
   WinDestroyWindow(hdlg);

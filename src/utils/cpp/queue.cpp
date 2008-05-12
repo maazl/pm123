@@ -31,10 +31,10 @@
 #include <debuglog.h>
 
 
-queue_base::ReaderBase::ReaderBase(queue_base& queue)
+/*queue_base::ReaderBase::ReaderBase(queue_base& queue)
 : Queue(queue)
 { Queue.RequestRead();
-}
+}*/
 
 void queue_base::RequestRead()
 { DEBUGLOG(("queue_base(%p)::RequestRead()\n", this));
@@ -78,5 +78,24 @@ void queue_base::Write(EntryBase* entry)
     EvEmpty.Set(); // First Element => Set Event
   }
   Tail = entry;
+}
+
+void queue_base::Write(EntryBase* entry, EntryBase* after)
+{ DEBUGLOG(("queue_base(%p)::Write(%p, %p)\n", this, entry, after));
+  Mutex::Lock lock(Mtx);
+  if (after == NULL)
+  { // insert at head
+    entry->Next = Head;
+    Head = entry;
+    if (Tail == NULL)
+    { Tail = entry;
+      EvEmpty.Set(); // First Element => Set Event
+    }
+  } else
+  { entry->Next = after->Next;
+    after->Next = entry;
+    if (Tail == after)
+      Tail = entry;
+  }
 }
 

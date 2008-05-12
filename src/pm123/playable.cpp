@@ -100,7 +100,8 @@ Playable::Playable(const url123& url, const FORMAT_INFO2* ca_format, const TECH_
   Stat(STA_Unknown),
   InfoValid(IF_None),
   InfoChangeFlags(IF_None),
-  InfoRequest(IF_None)
+  InfoRequest(IF_None),
+  InfoRequestLow(IF_None)
 { DEBUGLOG(("Playable(%p)::Playable(%s, %p, %p, %p)\n", this, url.cdata(), ca_format, ca_tech, ca_meta));
   Info.Reset();
 
@@ -223,44 +224,86 @@ void Playable::SetTechInfo(const TECH_INFO* tech)
   RaiseInfoChange();
 }
 
-void Playable::LoadInfoAsync(InfoFlags what)
-{ DEBUGLOG(("Playable(%p{%s})::LoadInfoAsync(%x) - %x\n", this, GetURL().getShortName().cdata(), what, InfoValid));
+Playable::InfoFlags Playable::LoadInfo(InfoFlags what)
+{ // We always reset the flags of both priorities.
+  InterlockedAnd(InfoRequest, ~what);
+  InterlockedAnd(InfoRequestLow, ~what);
+  // Well we might remove an outstanding request in the worker queue here,
+  // but it is simply faster to wait for the request to arrive and ignore it then.
+  return what;
+}
+
+void Playable::LoadInfoAsync(InfoFlags what, bool lowpri)
+{ DEBUGLOG(("Playable(%p{%s})::LoadInfoAsync(%x, %u) - %x %x %x\n", this, GetURL().getShortName().cdata(), what, lowpri, InfoValid, InfoRequest, InfoRequestLow));
   if (what == 0)
     return;
   // schedule request
-  InfoFlags oldrq = (InfoFlags)InfoRequest; // This read is non-atomic. But on the worst case an empty request is scheduled to the worker thread.
-  InterlockedOr(InfoRequest, what);
-  // Only write the Queue if ther was no request before.
+  unsigned& rq = lowpri ? InfoRequestLow : InfoRequest;
+  InfoFlags oldrq = (InfoFlags)rq; // This read is non-atomic. But on the worst case an empty request is scheduled to the worker thread.
+  InterlockedOr(rq, what);
+  // Only write the Queue if there was no request before.
   if (!oldrq)
-    WQueue.Write(this);
+    WQueue.Write(this, lowpri);
 }
 
-Playable::InfoFlags Playable::EnsureInfoAsync(InfoFlags what)
+Playable::InfoFlags Playable::EnsureInfoAsync(InfoFlags what, bool lowpri)
 { InfoFlags avail = what & InfoValid;
   if ((what &= ~avail) != 0)
     // schedule request
-    LoadInfoAsync(what);
+    LoadInfoAsync(what, lowpri);
   return avail;
 }
 
 /* Worker Queue */
-queue<Playable::QEntry> Playable::WQueue;
+void Playable::worker_queue::CommitRead()
+{ DEBUGLOG(("Playable::worker_queue::CommitRead() - %p %p %p\n", Head, HPTail, Tail));
+  Mutex::Lock lock(Mtx);
+  if (HPTail == Head)
+    HPTail = NULL;
+  queue<QEntry>::CommitRead();
+}
+
+void Playable::worker_queue::Write(const QEntry& data, bool lowpri)
+{ DEBUGLOG(("Playable::worker_queue::Write(%p, %u) - %p %p %p\n", data.get(), lowpri, Head, HPTail, Tail));
+  Mutex::Lock lock(Mtx);
+  // if low priority or high priority with insert at the end
+  if (lowpri || HPTail == Tail || (Head == Tail && EvRead.IsSet()))
+    queue<QEntry>::Write(data);
+  else
+  { // high priority insert in the middle
+    // If no high priority item currently in the queue and the head is in use.
+    // => insert after head, else insert behind HPTail
+    EntryBase* after = HPTail == NULL && EvRead.IsSet() ? Head : HPTail;
+    EntryBase* newitem = new Entry(data);
+    queue_base::Write(newitem, after);
+    HPTail = newitem->Next;
+  }
+}
+
+Playable::worker_queue Playable::WQueue;
 int Playable::WTid = -1;
 bool Playable::WTermRq = false;
 
 static void PlayableWorker(void*)
 { for (;;)
   { DEBUGLOG(("PlayableWorker() looking for work\n"));
-    queue<Playable::QEntry>::Reader rdr(Playable::WQueue);
-    Playable::QEntry& qp = rdr;
+    Playable::WQueue.RequestRead();
+    Playable::QEntry& qp = *Playable::WQueue.Read();
     DEBUGLOG(("PlayableWorker received message %p\n", qp.get()));
 
     if (Playable::WTermRq || !qp) // stop
+    { Playable::WQueue.CommitRead();
       break;
+    }
 
     // Do the work
+    // Handle low priority requests correctly if no other requests are on the way.
+    if (qp->InfoRequest == 0)
+      InterlockedOr(qp->InfoRequest, qp->InfoRequestLow);
     if (qp->InfoRequest)
-      qp->LoadInfo((Playable::InfoFlags)qp->InfoRequest);
+      Playable::InfoFlags what = qp->LoadInfo((Playable::InfoFlags)qp->InfoRequest);
+    // finished
+    Playable::WQueue.CommitRead();
   }
 }
 
@@ -276,7 +319,7 @@ void Playable::Init()
 void Playable::Uninit()
 { DEBUGLOG(("Playable::Uninit()\n"));
   WTermRq = true;
-  WQueue.Write(NULL); // deadly pill
+  WQueue.Write(NULL, false); // deadly pill
   if (WTid != -1)
     wait_thread_pm(amp_player_hab(), WTid, 60000);
   DEBUGLOG(("Playable::Uninit - complete\n"));
@@ -315,28 +358,32 @@ int_ptr<Playable> Playable::GetByURL(const url123& URL, const FORMAT_INFO2* ca_f
   #endif
   Playable*& pp = RPInst.get(URL);
   { CritSect cs;
-    if (pp && !pp->RefCountIsUnmanaged())
-    { lock.Release();
-      // Merge meta info
-      Mutex::Lock lock2(pp->Mtx);
-      if (ca_format && !(pp->InfoValid & IF_Format))
-        pp->UpdateInfo(ca_format);
-      if (ca_tech && !(pp->InfoValid & IF_Tech))
-        pp->UpdateInfo(ca_tech);
-      if (ca_meta && !(pp->InfoValid & IF_Meta))
-        pp->UpdateInfo(ca_meta);
-      pp->RaiseInfoChange();
-      return pp;
-    }
+    if (pp && pp->RefCountIsUnmanaged())
+      pp = NULL; // Do not return itmes that are about to die.
   }
-  // factory
-  if (URL.isScheme("file:") && URL.getObjectName().length() == 0)
-    pp = new PlayFolder(URL, ca_tech, ca_meta);
-   else if (IsPlaylist(URL))
-    pp = new Playlist(URL, ca_tech, ca_meta);
-   else // Song
-    pp = new Song(URL, ca_format, ca_tech, ca_meta);
-  DEBUGLOG(("Playable::GetByURL: factory &%p{%p}\n", &pp, pp));
+  if (pp == NULL)
+  { // factory
+    if (URL.isScheme("file:") && URL.getObjectName().length() == 0)
+      pp = new PlayFolder(URL, ca_tech, ca_meta);
+     else if (IsPlaylist(URL))
+      pp = new Playlist(URL, ca_tech, ca_meta);
+     else // Song
+      pp = new Song(URL, ca_format, ca_tech, ca_meta);
+    DEBUGLOG(("Playable::GetByURL: factory &%p{%p}\n", &pp, pp));
+  } else if ( (ca_format && !(pp->InfoValid & IF_Format)) // Double check
+           || (ca_tech && !(pp->InfoValid & IF_Tech))
+           || (ca_meta && !(pp->InfoValid & IF_Meta)) )
+  { // Merge meta info, but do this outside the above mutex
+    lock.Release();
+    Mutex::Lock lock2(pp->Mtx);
+    if (ca_format && !(pp->InfoValid & IF_Format))
+      pp->UpdateInfo(ca_format);
+    if (ca_tech && !(pp->InfoValid & IF_Tech))
+      pp->UpdateInfo(ca_tech);
+    if (ca_meta && !(pp->InfoValid & IF_Meta))
+      pp->UpdateInfo(ca_meta);
+    pp->RaiseInfoChange();
+  }
   return pp;
 }
 
@@ -395,7 +442,7 @@ Playable::InfoFlags Song::LoadInfo(InfoFlags what)
   // get information
   sco_ptr<DecoderInfo> info(new DecoderInfo()); // a bit much for the stack
   Mutex::Lock lock(Mtx);
-  int rc = dec_fileinfo(GetURL(), info.get(), Decoder);
+  int rc = dec_fileinfo(GetURL(), info.get(), Decoder, sizeof Decoder);
   PlayableStatus stat;
   DEBUGLOG(("Song::LoadInfo - rc = %i\n", rc));
   // update information
@@ -407,8 +454,7 @@ Playable::InfoFlags Song::LoadInfo(InfoFlags what)
   UpdateStatus(stat);
   UpdateInfo(info.get());
   InfoValid |= IF_All;
-  InfoRequest = 0;
   RaiseInfoChange();
-  return IF_All;
+  return Playable::LoadInfo(IF_All);
 }
 

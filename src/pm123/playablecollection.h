@@ -271,6 +271,8 @@ class PlayableCollection : public Playable
   // This is called by the StatusChange events of the children.
   void                        ChildInstChange(const PlayableInstance::change_args& args);
  protected:
+  // Prefetch some information to avoid deadlocks in GetCollectionInfo.
+  void                        PrefetchSubInfo(const PlayableSet& excluding);
   // Fill the THEC_INFO structure.
   void                        CalcTechInfo(TECH_INFO& dst);
   // Create new entry and make the path absolute if required.
@@ -324,7 +326,6 @@ class PlayableCollection : public Playable
   int_ptr<PlayableInstance>   DeserializeItem(const xstring& str) const;
 
   // Calculate the CollectionInfo structure.
-  // The collection must be locked when this function ist called;
   const CollectionInfo&       GetCollectionInfo(const PlayableSet& excluding = PlayableSet::Empty);
   // Load Information from URL
   // This implementation is only the framework. It reqires LoadInfoCore() for it's work.
@@ -421,6 +422,8 @@ class Playlist : public PlayableCollection
   virtual void                Shuffle();
   // Save the current playlist as new file.
   virtual bool                Save(const url123& URL, save_options opt = SaveDefault);
+  // There is no using... in IBM VAC++
+  bool                        Save(save_options opt = SaveDefault) { return PlayableCollection::Save(opt); }
 
  protected:
   // Notify that the data source is likely to have changed.

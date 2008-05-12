@@ -752,6 +752,7 @@ static MRESULT EXPENTRY WizzardDlgProc(HWND hwnd, ULONG msg, MPARAM mp1, MPARAM 
   {case WM_INITDLG:
     // Store data pointer
     WinSetWindowULong(hwnd, QWL_USER, (ULONG)mp2);
+    do_warpsans(hwnd);
 
     // Window Title
     { char wintitle[300]; // hopefully large enough

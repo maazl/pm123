@@ -616,6 +616,7 @@ static CL_PLUGIN* instantiate(CL_MODULE& mod, CL_PLUGIN* (*factory)(CL_MODULE& m
   return pp;
 }
 
+/* load a plug-in, return 0 on error */
 static int add_plugin_core(const char* name, const VISUAL_PROPERTIES* data, int mask, BOOL enabled = TRUE)
 {
   #ifdef DEBUG
@@ -644,7 +645,7 @@ static int add_plugin_core(const char* name, const VISUAL_PROPERTIES* data, int 
   // load module
   int p = get_module(module_name);
   if (p == -1)
-    return FALSE;
+    return 0;
   // load as plugin
   int result = 0;
   CL_MODULE& module = plugins[p];
@@ -665,6 +666,7 @@ static int add_plugin_core(const char* name, const VISUAL_PROPERTIES* data, int 
   // visual
   if (mask & PLUGIN_VISUAL)
   { int q = visuals.find(module);
+    DEBUGLOG(("plugman:add_plugin_core: visuals.find returned %i\n", q));
     if (q != -1)
     { // existing plugin. update some values
       ((CL_VISUAL&)visuals[q]).set_properties(data);
@@ -977,7 +979,7 @@ static BOOL is_file_supported(const char* const* support, const char* url)
 /* Returns the decoder NAME that can play this file and returns 0
    if not returns error 200 = nothing can play that. */
 ULONG DLLENTRY
-dec_fileinfo( const char* filename, DECODER_INFO2* info, char* name )
+dec_fileinfo( const char* filename, DECODER_INFO2* info, char* name, size_t name_size )
 {
   DEBUGLOG(("dec_fileinfo(%s, %p{%u,%p,%p,%p}, %s)\n", filename, info, info->size, info->format, info->tech, info->meta, name));
   BOOL* checked = (BOOL*)alloca( sizeof( BOOL ) * decoders.count() );
@@ -1025,7 +1027,7 @@ dec_fileinfo( const char* filename, DECODER_INFO2* info, char* name )
     info->tech->size, info->tech->songlength, info->tech->bitrate, info->tech->filesize, info->tech->info, info->tech->num_items,
     name));
   if (name)
-    sfnameext( name, dp->module_name, _MAX_FNAME );
+    sfnameext( name, dp->module_name, name_size );
   return 0;
 }
 

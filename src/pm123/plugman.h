@@ -167,7 +167,7 @@ extern event<const OUTEVENTTYPE> out_event;
 /* check whether the specified decoder is currently in use */
 BOOL  dec_is_active( int number );
 
-ULONG DLLENTRY dec_fileinfo( const char* filename, DECODER_INFO2* info, char* name );
+ULONG DLLENTRY dec_fileinfo( const char* filename, DECODER_INFO2* info, char* name, size_t name_size );
 ULONG DLLENTRY dec_cdinfo( const char* drive, DECODER_CDINFO* info );
 ULONG DLLENTRY dec_status( void );
 double DLLENTRY dec_length( void );

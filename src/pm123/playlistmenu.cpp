@@ -187,13 +187,15 @@ void PlaylistMenu::CreateSubItems(MapEntry* mapp)
       // Invalid?
       if (pp->GetStatus() <= STA_Invalid)
       { mi.afAttribute |= MIA_DISABLED;
+        // TODO: What if the status gets valid later ???
       // with submenu?
       } else if ((mapp->Flags & Recursive) && (pp->GetFlags() & Playable::Enumerable))
       { DEBUGLOG(("PlaylistMenu::CreateSubMenu: submenu!\n"));
-        pp->EnsureInfoAsync(Playable::IF_Other); // Prefetch nested playlist content
         // Create submenu
-        mi.afStyle     |= MIS_SUBMENU;
-        mi.afAttribute |= MIA_DISABLED;
+        mi.afStyle |= MIS_SUBMENU;
+        // Prefetch nested playlist content.
+        if ((pp->EnsureInfoAsync(Playable::IF_Other, true) & Playable::IF_Other) == 0)
+          mi.afAttribute |= MIA_DISABLED;
         mi.hwndSubMenu = WinLoadMenu(mapp->HwndMenu, NULLHANDLE, MNU_SUBFOLDER);
         PMRASSERT(WinSetWindowUShort(mi.hwndSubMenu, QWS_ID, mi.id));
         PMRASSERT(WinSetWindowBits(mi.hwndSubMenu, QWL_STYLE, MS_CONDITIONALCASCADE, MS_CONDITIONALCASCADE));
@@ -214,7 +216,7 @@ void PlaylistMenu::CreateSubItems(MapEntry* mapp)
         ++mi.iPosition;
       DEBUGLOG(("PlaylistMenu::CreateSubItems: new item %u->%s - %i\n", mi.id, subp->Text.cdata(), rs));
       // Separator before?
-      if ((mapp->Flags & Separator) && rs != 0)
+      if ((mapp->Flags & Separator) && rs != 0 && count == 1)
       { USHORT id = InsertSeparator(mapp->HwndMenu, rs);
         if (id != (USHORT)MID_NONE)
         { mapp->ID1 = id;

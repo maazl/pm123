@@ -19,7 +19,7 @@ typedef struct _PLUGIN_PROCS
   double DLLENTRYP(output_playing_pos)( void );
   ULONG  DLLENTRYP(decoder_status)( void );
   /* name is the DLL filename of the decoder that can play that file */
-  ULONG  DLLENTRYP(decoder_fileinfo)( const char* URL, DECODER_INFO2* info, char* name );
+  ULONG  DLLENTRYP(decoder_fileinfo)( const char* URL, DECODER_INFO2* info, char* name, size_t name_len );
 
   int    DLLENTRYP(pm123_getstring)( int index, int subindex, size_t bufsize, char* buf );
   void   DLLENTRYP(pm123_control)( int index, void* param );

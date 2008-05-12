@@ -1425,7 +1425,7 @@ bmp_draw_slider( HPS hps, double location )
                              bmp_pos[ POS_SLIDER ].y + bmp_cy( BMP_SLIDER ) - 1 );
     }
 
-    if( location > 0 )
+    if( location >= 0 )
     { ULONG pos = location >= 1
         ? bmp_ulong[UL_SLIDER_WIDTH]
         : (ULONG)(location * bmp_ulong[UL_SLIDER_WIDTH]);

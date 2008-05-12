@@ -65,8 +65,9 @@ load_ini( void )
   {
     load_ini_value( INIhandle, cfg.defaultvol );
     load_ini_value( INIhandle, cfg.playonload );
-    load_ini_value( INIhandle, cfg.selectplayed );
     load_ini_value( INIhandle, cfg.autouse );
+    load_ini_value( INIhandle, cfg.retainonexit );
+    load_ini_value( INIhandle, cfg.retainonstop );
     load_ini_value( INIhandle, cfg.recurse_dnd );
     load_ini_value( INIhandle, cfg.append_dnd );
     load_ini_value( INIhandle, cfg.append_cmd );
@@ -194,8 +195,9 @@ save_ini( void )
   {
     save_ini_value( INIhandle, cfg.defaultvol );
     save_ini_value( INIhandle, cfg.playonload );
-    save_ini_value( INIhandle, cfg.selectplayed );
     save_ini_value( INIhandle, cfg.autouse );
+    save_ini_value( INIhandle, cfg.retainonexit );
+    save_ini_value( INIhandle, cfg.retainonstop );
     save_ini_value( INIhandle, cfg.recurse_dnd );
     save_ini_value( INIhandle, cfg.append_dnd );
     save_ini_value( INIhandle, cfg.append_cmd );

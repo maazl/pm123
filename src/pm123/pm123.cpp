@@ -100,6 +100,8 @@ static int_ptr<Playlist> DefaultPM;
 static int_ptr<Playlist> DefaultBM;
 // Most recent used entries in the load menu, representing LOADMRU.LST in the program folder.
 static int_ptr<Playlist> LoadMRU;
+// Most recent used entries in the load URL dialog, representing URLMRU.LST in the program folder.
+static int_ptr<Playlist> UrlMRU;
 
 
 static HAB   hab        = NULLHANDLE;
@@ -147,6 +149,10 @@ Playlist* amp_get_default_bm()
 { return DefaultBM;
 }
 
+Playlist* amp_get_url_mru()
+{ return UrlMRU;
+}
+
 static void amp_control_event_handler(void* rcv, const Ctrl::EventFlags& flags)
 { DEBUGLOG(("amp_control_event_handler(%p, %x)\n", rcv, flags));
   QMSG msg;
@@ -173,8 +179,9 @@ amp_paint_timers( HPS hps )
   if (CurrentIter == NULL)
     return;
 
+  const bool is_playlist = CurrentRoot && (CurrentRoot->GetFlags() & Playable::Enumerable);
   T_TIME total_song = CurrentSong ? CurrentSong->GetInfo().tech->songlength : -1;
-  T_TIME total_time = CurrentRoot ? CurrentRoot->GetInfo().tech->songlength : -1;
+  T_TIME total_time = is_playlist ? CurrentRoot->GetInfo().tech->songlength : -1;
   const SongIterator::Offsets& off = CurrentIter->GetOffset(false);
 
   T_TIME list_left = -1;
@@ -182,15 +189,16 @@ amp_paint_timers( HPS hps )
   if (play_left > 0)
     play_left -= CurrentIter->GetLocation();
   if( !Ctrl::IsRepeat() && total_time > 0 )
-    list_left = total_time - off.Offset - total_song;
+    list_left = total_time - off.Offset - CurrentIter->GetLocation();
 
-  bmp_draw_slider( hps, CurrentIter->GetLocation()/total_song);
+  bmp_draw_slider( hps, total_song <= 0 ? -1. : CurrentIter->GetLocation()/total_song);
   bmp_draw_timer ( hps, CurrentIter->GetLocation());
 
   bmp_draw_tiny_timer( hps, POS_TIME_LEFT, play_left );
   bmp_draw_tiny_timer( hps, POS_PL_LEFT,   list_left );
 
-  bmp_draw_plind( hps, off.Index, off.Index > 0 ? CurrentRoot->GetInfo().tech->num_items : 0);
+  int index = is_playlist ? off.Index : 0;
+  bmp_draw_plind( hps, index, index > 0 ? CurrentRoot->GetInfo().tech->num_items : 0);
 }
 
 /* Draws all attributes of the currently loaded file. */
@@ -271,7 +279,7 @@ static void amp_force_locmsg()
   }
 }
 
-static void amp_AddMRU(Playlist* list, size_t max, const PlayableSlice& ps)
+void amp_AddMRU(Playlist* list, size_t max, const PlayableSlice& ps)
 { DEBUGLOG(("amp_AddMRU(%p{%s}, %u, %s)\n", list, list->GetURL().cdata(), max, ps.GetPlayable()->GetURL().cdata()));
   Mutex::Lock lock(list->Mtx);
   int_ptr<PlayableInstance> pi;
@@ -672,6 +680,7 @@ void
 amp_info_edit( HWND owner, Playable* song )
 { DEBUGLOG(("amp_info_edit(%x, %p)\n", owner, song));
   info_edit* iep = new info_edit(owner, song);
+  // At least we need the decoder to process this request.
   if (song->EnsureInfoAsync(Playable::IF_Other))
   { // Information immediately available => post message
     iep->InfoDelegate.detach(); // do no longer wait for the event
@@ -842,6 +851,9 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
             WinSendDlgItemMsg(hplayer, BMP_REW, WM_DEPRESS, 0, 0);
           }
           break;
+         case Ctrl::Cmd_Volume:
+          amp_invalidate(UPD_VOLUME);
+          break;
          case Ctrl::Cmd_Jump:
           is_seeking = FALSE;
           delete (SongIterator*)cmd->PtrArg;
@@ -953,7 +965,7 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
         if ((mask & UPD_FILEINFO) && InterlockedBtr(upd_options, 1))
           amp_paint_fileinfo(hps);
         if ((mask & UPD_VOLUME  ) && InterlockedBtr(upd_options, 2))
-          bmp_draw_volume(hps, cfg.defaultvol);
+          bmp_draw_volume(hps, Ctrl::GetVolume());
         WinReleasePS( hps );
       }
       return 0;
@@ -1274,7 +1286,7 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
         POINTL pos;
         pos.x = SHORT1FROMMP(mp1);
         pos.y = SHORT2FROMMP(mp1);
-        Ctrl::PostCommand(Ctrl::MkVolume(bmp_calc_volume(pos), false));
+        Ctrl::PostCommand(Ctrl::MkVolume(bmp_calc_volume(pos), false), &amp_control_event_callback);
       }
 
       if( is_slider_drag )
@@ -1357,6 +1369,11 @@ static void amp_plugin_eventhandler(void*, const PLUGIN_EVENTARGS& args)
     is_plugin_changed = true;
    default:; // avoid warnings
   }
+}
+
+static void amp_save_modified_list(Playlist& pl)
+{ if (pl.CheckInfo(Playable::IF_Other) && pl.IsModified())
+    pl.Save(PlayableCollection::SaveRelativePath);
 }
 
 struct args
@@ -1463,6 +1480,7 @@ main2( void* arg )
     DefaultPM = &(Playlist&)*Playable::GetByURL(path + "PFREQ.LST");
     DefaultBM = &(Playlist&)*Playable::GetByURL(path + "BOOKMARK.LST");
     LoadMRU   = &(Playlist&)*Playable::GetByURL(path + "LOADMRU.LST");
+    UrlMRU    = &(Playlist&)*Playable::GetByURL(path + "URLMRU.LST");
     // The default playlist the bookmarks and the MRU list must be ready to use
     DefaultPL->EnsureInfo(Playable::IF_Other);
     DefaultBM->EnsureInfo(Playable::IF_Other);
@@ -1505,11 +1523,15 @@ main2( void* arg )
   // Stop and save configuration
   ///////////////////////////////////////////////////////////////////////////
   ctrl_delegate.detach();
+  // TODO: save volume
   Ctrl::Uninit();
 
   save_ini();
-//  bm_save( hplayer );
-//  pl_save_bundle( bundle, 0 );
+  amp_save_modified_list(*DefaultBM);
+  amp_save_modified_list(*DefaultPM);
+  amp_save_modified_list(*DefaultPL);
+  amp_save_modified_list(*LoadMRU);
+  amp_save_modified_list(*UrlMRU);
 
   plugin_delegate.detach();
   // deinitialize all visual plug-ins
@@ -1524,6 +1546,7 @@ main2( void* arg )
   PlaylistManager::UnInit();
   PlaylistView::UnInit();
 
+  UrlMRU    = NULL;
   LoadMRU   = NULL;
   DefaultBM = NULL;
   DefaultPM = NULL;

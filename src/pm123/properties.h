@@ -36,7 +36,7 @@
 #include <stdlib.h>
 #include <os2.h>
 
-/* Number of items in the recall list. */
+// Number of items in the recall lists.
 #define MAX_RECALL            9
 
 /* Possible sizes of the player window. */
@@ -62,34 +62,35 @@ enum cfg_disp
 
 typedef struct _amp_cfg {
   // TODO: buffers too small for URLs!!!
-  char   defskin[_MAX_PATH];  /* Default skin.                                     */
-
-  BOOL   playonload;          /* Start playing on file load.            */
-  BOOL   autouse;             /* Auto use playlist on add.              */
-  BOOL   playonuse;           /* Auto play on use playlist.             */
-  BOOL   selectplayed;        /* Select played file.                    */
-  BOOL   recurse_dnd;         /* Drag and drop of folders recursive     */
-  BOOL   append_dnd;          /* Drag and drop appends to default playlist */
-  BOOL   append_cmd;          /* Commandline appends to default playlist */
-  BOOL   queue_mode;          /* Delete played items from the default playlist */
-
-  int    font;                /* Use font 1 or font 2.                  */
-  BOOL   font_skinned;        /* Use skinned font.                      */
-  FATTRS font_attrs;          /* Font's attributes.                     */
-  LONG   font_size;           /* Font's point size.                     */
-
-  BOOL   trash;               /* Trash buffers on fast forward          */
-  BOOL   floatontop;          /* Float on top.                          */
-  int    scroll;              /* See CFG_SCROLL_*                       */
-  int    viewmode;            /* See CFG_DISP_*                         */
-  char   proxy[1024];         /* Proxy URL.                             */
-  char   auth [1024];         /* HTTP authorization.                    */
-  int    buff_wait;           /* Wait before playing.                   */
-  int    buff_size;           /* Read ahead buffer size (KB).           */
-  int    buff_fill;           /* Percent of prefilling of the buffer.   */
-  char   pipe_name[_MAX_PATH];/* PM123 remote control pipe name         */
-  BOOL   dock_windows;        /* Dock windows?                          */
-  int    dock_margin;         /* The marging for docking window.        */
+  char   defskin[_MAX_PATH];  // Default skin.
+                                
+  BOOL   playonload;          // Start playing on file load.
+  BOOL   autouse;             // Auto use playlist on add.
+  BOOL   playonuse;           // Auto play on use playlist.
+  BOOL   retainonexit;        // Retain playing position on exit.
+  BOOL   retainonstop;        // Retain playing position on stop.
+  BOOL   recurse_dnd;         // Drag and drop of folders recursive
+  BOOL   append_dnd;          // Drag and drop appends to default playlist
+  BOOL   append_cmd;          // Commandline appends to default playlist
+  BOOL   queue_mode;          // Delete played items from the default playlist
+                                
+  int    font;                // Use font 1 or font 2.
+  BOOL   font_skinned;        // Use skinned font.
+  FATTRS font_attrs;          // Font's attributes.
+  LONG   font_size;           // Font's point size.
+                                
+  BOOL   trash;               // Trash buffers on fast forward
+  BOOL   floatontop;          // Float on top.
+  int    scroll;              // See CFG_SCROLL_*
+  int    viewmode;            // See CFG_DISP_*
+  char   proxy[1024];         // Proxy URL.
+  char   auth [1024];         // HTTP authorization.
+  int    buff_wait;           // Wait before playing.
+  int    buff_size;           // Read ahead buffer size (KB).
+  int    buff_fill;           // Percent of prefilling of the buffer.
+  char   pipe_name[_MAX_PATH];// PM123 remote control pipe name
+  BOOL   dock_windows;        // Dock windows?
+  int    dock_margin;         // The marging for docking window.
 
 // Player state
   // TODO: buffers too small for URLs!!!

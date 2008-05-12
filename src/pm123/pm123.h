@@ -87,6 +87,9 @@ void  amp_info_edit( HWND owner, Playable* song );
 
 void  amp_control_event_callback(Ctrl::ControlCommand* cmd);
 
+// Update an MRU list with item ps and maximum size max
+void  amp_AddMRU(Playlist* list, size_t max, const PlayableSlice& ps);
+
 
 /* Global variables */
 
@@ -95,6 +98,7 @@ extern char startpath[_MAX_PATH];
 
 Playlist* amp_get_default_pl();
 Playlist* amp_get_default_bm();
+Playlist* amp_get_url_mru();
 
 #endif /* PM123_H */
 

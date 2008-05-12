@@ -478,7 +478,7 @@ BOOL CL_DECODER_PROXY_1::load_plugin()
 /* proxy for the output callback of decoder interface level 0/1 */
 PROXYFUNCIMP(int DLLENTRY, CL_DECODER_PROXY_1)
 proxy_1_decoder_play_samples( CL_DECODER_PROXY_1* op, const FORMAT_INFO* format, const char* buf, int len, int posmarker )
-{ DEBUGLOG(("proxy_1_decoder_play_samples(%p {%s}, %p {%u,%u,%u}, %p, %i, %i)\n",
+{ DEBUGLOG(("proxy_1_decoder_play_samples(%p{%s}, %p{%u,%u,%u}, %p, %i, %i)\n",
     op, op->module_name, format, format->size, format->samplerate, format->channels, buf, len, posmarker));
 
   if (format->format != WAVE_FORMAT_PCM || (format->bits != 16 && format->bits != 8))
