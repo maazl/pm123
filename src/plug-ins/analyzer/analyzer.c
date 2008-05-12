@@ -499,12 +499,12 @@ clear_analyzer( void )
   ULONG cx, cy;
   char* image;
 
-  DiveBeginImageBufferAccess( hdive, image_id, &image, &cx, &cy );
+  ORASSERT(DiveBeginImageBufferAccess( hdive, image_id, &image, &cx, &cy ));
   memset( image, 0, cx * cy );
   if (bars != NULL)
     memset(bars , 0, bars_count * sizeof *bars);
-  DiveEndImageBufferAccess( hdive, image_id );
-  DiveBlitImage( hdive, image_id, 0 );
+  ORASSERT(DiveEndImageBufferAccess( hdive, image_id ));
+  ORASSERT(DiveBlitImage( hdive, image_id, 0 ));
 }
 
 static BOOL do_analysis(void)
@@ -564,10 +564,11 @@ static void update_analyzer(void)
   unsigned long image_cx, image_cy;
   char* image = NULL;
 
+  DEBUGLOG(("analyzer:update_analyzer %lu %d %d\n", hdive, needinit, needclear));
+
   if( decoderPlaying() == 0 )
   { if ( !is_stopped )
     { is_stopped = TRUE;
-      DiveBlitImage( hdive, 0, 0 );
       if (bars != NULL)
         memset(bars,  0, bars_count * sizeof *bars);
     }
@@ -575,7 +576,6 @@ static void update_analyzer(void)
   }
   // now _decoderPlaying() == 1
 
-  DEBUGLOG(("update_analyzer %d %d\n", needinit, needclear));
   // update initialization ?
   if (needinit)
   { if (decoderPlayingSamples(&lastformat, NULL, 0) != 0)
@@ -590,7 +590,7 @@ static void update_analyzer(void)
      && !do_analysis() )
     return; // no changes or error
 
-  DiveBeginImageBufferAccess( hdive, image_id, &image, &image_cx, &image_cy );
+  ORASSERT(DiveBeginImageBufferAccess( hdive, image_id, &image, &image_cx, &image_cy ));
 
   if (needclear)
   { memset( image, 0, image_cx * image_cy );
@@ -599,7 +599,7 @@ static void update_analyzer(void)
     needclear = FALSE;
   }
 
-  DEBUGLOG(("ANA: before switch %d\n", active_cfg.default_mode));
+  DEBUGLOG(("analyzer:update_analyzer: before switch %d %p\n", active_cfg.default_mode, image));
   switch (active_cfg.default_mode)
   {case SHOW_ANALYZER:
     memset( image, 0, image_cx * image_cy );
@@ -711,10 +711,10 @@ static void update_analyzer(void)
   }
 
   if (image != NULL)
-  { DiveEndImageBufferAccess( hdive, 0 );
-    DiveBlitImage( hdive, image_id, 0 );
+  { ORASSERT(DiveEndImageBufferAccess( hdive, image_id ));
+    ORASSERT(DiveBlitImage( hdive, image_id, 0 ));
   }
-  DEBUGLOG(("update_analyzer at end\n"));
+  DEBUGLOG(("analyzer:update_analyzer at end\n"));
   is_stopped = FALSE;
 }
 
@@ -822,11 +822,11 @@ plg_win_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
     case WM_CONTEXTMENU:
     case WM_BUTTON2MOTIONSTART:
     case WM_BUTTON1MOTIONSTART:
+      // Delegate some messages to the player
       return WinSendMsg( plug.hwnd, msg, mp1, mp2 );
 
     case WM_VRNENABLED:
     {
-
       HPS     hps  = WinGetPS( hwnd );
       HRGN    hrgn = GpiCreateRegion( hps, 0, NULL );
 
@@ -835,6 +835,7 @@ plg_win_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
       SWP     swp;
       POINTL  pos;
 
+      DEBUGLOG(("analyzer:plg_win_proc: WM_VRNENABLED: %p\n", hrgn));
       if( hrgn )
       {
         WinQueryVisibleRegion( hwnd, hrgn );
@@ -870,7 +871,7 @@ plg_win_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
           setup.ulNumDstRects     = rgn_control.crcReturned;
           setup.pVisDstRects      = rgn_rectangles;
 
-          DiveSetupBlitter( hdive, &setup );
+          ORASSERT(DiveSetupBlitter( hdive, &setup ));
         }
 
         GpiDestroyRegion( hps, hrgn );
@@ -882,7 +883,8 @@ plg_win_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
     }
 
     case WM_VRNDISABLED:
-      DiveSetupBlitter( hdive, 0 );
+      WinStopTimer( hab, hanalyzer, TID_UPDATE );
+      ORASSERT(DiveSetupBlitter( hdive, 0 ));
       break;
 
     case WM_BUTTON1DBLCLK:
@@ -904,12 +906,9 @@ plg_win_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
       break;
 
     case WM_DESTROY: // we deinitialize here to avoid access to memory objects that are already freed.
-      DiveFreeImageBuffer( hdive, image_id );
-
-      DiveClose( hdive );
-
-      if (hconfigure)
-        WinDismissDlg( hconfigure, 0 );
+      DEBUGLOG(("analyzer:plg_win_proc: WM_DESTROY\n"));
+      ORASSERT(DiveFreeImageBuffer( hdive, image_id ));
+      ORASSERT(DiveClose( hdive ));
 
       free_bands();
       specana_uninit();
@@ -918,6 +917,9 @@ plg_win_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
 
       hdive = 0;
       hanalyzer = 0;
+
+      if (hconfigure)
+        WinDismissDlg( hconfigure, 0 );
 
       destroy_pending = FALSE;
       break;
@@ -936,7 +938,7 @@ vis_init( PVISPLUGININIT init )
   int   i;
   int   display_percent;
 
-  DEBUGLOG(("vis_init: %s\n", plug.param));
+  DEBUGLOG(("analyzer:vis_init: %s\n", plug.param));
   // wait for old instances to complete destruction, since many variables are static.
   for (i = 0; destroy_pending; ++i)
   { if (i > 10)
@@ -993,23 +995,30 @@ vis_init( PVISPLUGININIT init )
   decoderPlayingSamples = init->procs->output_playing_samples;
   decoderPlaying        = init->procs->decoder_playing;
 
+  hab = 0;
+  hconfigure = 0;
+  hanalyzer = 0;
+  hdive = 0;
+  image_id = 0;
+  is_stopped = TRUE;
+  last_samplerate = 0;
   needinit = TRUE;
   needclear = TRUE;
 
   // Open up DIVE
   if( DiveOpen( &hdive, FALSE, 0 ) != DIVE_SUCCESS ) {
+    DEBUGLOG(("analyzer:vis_init: DiveOpen failed.\n"));
     return 0;
   }
 
   /* Allocate image buffer (256-color) */
-  image_id = 0;
   if( DiveAllocImageBuffer( hdive, &image_id, FOURCC_LUT8,
                             plug.cx, plug.cy, 0, NULL ) != DIVE_SUCCESS )
   {
+    DEBUGLOG(("analyzer:vis_init: DiveAllocImageBuffer failed.\n"));
     DiveClose( hdive );
 
     hdive = 0;
-    hanalyzer = 0;
 
     return 0;
   }
@@ -1039,7 +1048,7 @@ vis_init( PVISPLUGININIT init )
   } else
     load_default_palette();
 
-  DiveSetSourcePalette( hdive, 0, sizeof( palette ) / sizeof( palette[0] ), (char*)&palette );
+  ORASSERT(DiveSetSourcePalette( hdive, 0, sizeof( palette ) / sizeof( palette[0] ), (char*)&palette ));
   WinSetVisibleRegionNotify( hanalyzer, TRUE );
 
   // Apparently the WM_VRNENABLED message not necessarily automatically
@@ -1068,7 +1077,7 @@ plugin_deinit( int unload )
   }
 
   destroy_pending = TRUE;
-  WinStopTimer( hab, hanalyzer, TID_USERMAX - 1 );
+  WinStopTimer( hab, hanalyzer, TID_UPDATE );
   WinDestroyWindow( hanalyzer );
   // continue in window procedure
 
