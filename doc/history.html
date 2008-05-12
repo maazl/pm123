@@ -3,83 +3,105 @@
 <title>History of changes</title>
 </head>
 <body>
-PM123's History<p>
-<b>PM123 1.40 (alpha 3)<b><p>
+<h2>PM123's History</h2>
+<h3>PM123 1.40 (beta 1)</h3>
 <ul>
 <li>Gapless playback in playlist mode.
     Subsequent songs are prefetched before the current song has finally ended.
     The output and the filter plug-ins are no longer reinitialized between the
     songs.
-<li>New plug-in interface with much more flexibility to buffer handling and
-    filter plug-ins. This is required for future plug-ins like digital room
-    correction.
-    The new plug-in manager checks whether the PM123/plug-in pair is known to
-    work. It can load all old plug-ins except for visual plug-ins throgh an
-    virtualization layer. The visual plug-in compatibility is broken since
-    PM123 1.32 anyway.
-<li>Changed the internal data structures to use always 16 bits per sample to
-    reduce complexity of code and plug-ins.
+<li>Navigation across song borders. A seek in playlist mode will restore the
+    previous song if that changed meanwhile.
+<li>Scanning across song borders. A forward or rewind will no longer stop at song borders.
+<li>Retain playing position on player exit/restart.
+<li>Added queue mode that automatically discards played items from the default playlist.<br>
+    Furthermore you may append dropped or double-clicked items to the default playlist
+    instead of loading them immediately.
+<li>Playlists, Playlist manager, Bookmarks are now basically the same.
+    This offers <em>plenty much of new features</em>.
+<li>Support for nested playlists.
+    Playlists may be nested as deep as you like.
+<li>Properly handling of recursions in nested playlists.
+<li>Support for directories. PM123 no longer needs to expand the folder content
+    at the moment where a folder is dropped to the player or a playlist.
+<li>Added song and playlist slicing. A playlist entry may now only reference a part
+    of a song or another playlist.
+<li>Added support for bookmarks with current playling position.
+<li>Added support for bookmarks to playlists and playlist items.
+<li>Configure the name of the remote pipe to control more than one active player instance.  
 <li>Moved the ID3 tag editor to MPG123. Consequently the related setting are
     now in the plug-ins configure dialog.
 <li>Decoder plug-ins may extend the Load/Add context menu.
     Moved the load track function into the CDDAPLAY plug-in.
-<li>Playlists, Playlist manager, Bookmarks are now basically the same.
-    This offers plenty much of new features including nested playlists and native
-    references to entire folders.
+<li>New plug-in interface with much more flexibility to buffer handling and
+    filter plug-ins.
+<li>The new plug-in manager checks whether the PM123/plug-in pair is known to
+    work. It can load all old plug-ins except for visual plug-ins throgh an
+    virtualization layer.
+<li>Changed the internal data structures to use always 16 bits per sample to
+    reduce complexity of code and plug-ins.
 </ul>
-<p>
-<b>REALEQ</b>
-<p>
+<blockquote>
+<h4>REALEQ</h4>
+</blockquote>
 <ul>
 <li>Realeq does no longer delay the playback and cut the last samples.
-    It operates now as zero-phase filter.
+    It operates now as virtually zero-phase filter.
 <li>Enabling/disabling the EQ does no longer cause the playback to jump.
 <li>Changing the FIR order does no longer cause major glitches.
 <li>The maximum FIR order is now 16384, giving very accurate results.
     The maximum FFT size is now 32768.
 <li>The MMX and ordinary convolution is finally removed. Both are outperformed by
-    the new FFT convolution. This will cause low CPU usage even
+    the new FFT convolution. This will cause <em>low CPU usage</em> even
     with large FIR orders.
 <li>Save the slider settings by value in REALEQ.INI. Now the restore do no
     longer depend on the last loaded file and changes to the loaded settings
     are kept after restart.
 <li>Added master gain and mute controls.
 <li>Added group delay equalization.
-    (Very powerful, e.g. for compensation of delay of resonances like with
-    speakers with vented enclosures.)
 <li>Scale FFT plansize and FIR order with the sampling rate.
 </ul>
-<p>
-<b>MPG123</b>
-<p>
+<blockquote>
+<h4>MPG123</h4>
+</blockquote>
 <ul>
 <li>Implemented ID3 tag editor (was in PM123 core).
 <li>Fix: continue playing on sideinfo error.
     (Message: "Blocktype == 0 and window-switching == 1 not allowed.")
 </ul>
-<p>
-<b>CDDAPLAY</b>
-<p>
+<blockquote>
+<h4>CDDAPLAY</h4>
+</blockquote>
 <ul>
 <li>Implemented assistent to load CD tracks (was in PM123 core)
 <li>Fixed crash when decoder_trackinfo is called from seperate threads
     (playlist and main).
 </ul>
-<p>
-<b>OS2REC</b>
-<p>
+<blockquote>
+<h4>OS2REC</h4>
+</blockquote>
 <ul>
 <li>New plug-in to play immediately recorded streams.
 </ul>
-<p>
-<b>ANALYZER</b>
-<p>
+<blockquote>
+<h4>ANALYZER</h4>
+</blockquote>
 <ul>
+<li>Added two neat spectroscope display modes which offers a graphical representation
+    of the time dependent frequency spectrum of the currently playing music
+    (similar to the spectrum display of audio editors like Audacity).
 <li>Change the analyzer only by double-click to avoid accidential switches.
 </ul>
-<p>
+</ul>
+<blockquote>
+<h4>LOGVOLUM</h4>
+</blockquote>
+<ul>
+<li>New plug-in to compensate for the non-logarithmic bahaviour of the
+    volume controller of cheap sound devices. (Disabled by default)
+</ul>
 
-<b>PM123 1.32</b><p>
+<h3>PM123 1.32</h3>
 <ul>
 <li>Docking of windows became more accurate and powerful.
 <li>Addition of a bookmark is disabled if is not present a loaded file.
@@ -124,9 +146,11 @@ PM123's History<p>
 <li>Used new nice and fully colored icons.
 <li>The skin now can define colors of the playlist and other PM123 windows. 
     The SKINUTIL also define these colors during the WinAmp skin conversion.
-<p>
-<b>MPG123</b>
-<p>
+</ul>
+<blockquote>
+<h4>MPG123</h4>
+</blockquote>
+<ul>
 <li>Improved support of VBR mp3 files having a correct VBR header. Also
     improved support of VBR files without such header: timers and length of
     a song can be wrong, but there are no jerks of the seek slider.
@@ -139,8 +163,11 @@ PM123's History<p>
 <li>Seeking completes correctly when the decoder is close by the end
     of a played file.
 <li>Supports ID3v2 tags.
-<p>
-<b>REALEQ</b>
+</ul>
+<blockquote>
+<h4>REALEQ</h4>
+</blockquote>
+<ul>
 <p>
 <li>The mute controls of the left and right channel are placed correctly.
 <li>Fixed a behaviour of sliders at reaching the topmost position.<br>
@@ -148,12 +175,14 @@ PM123's History<p>
 <li>Now used FFT convolution algorithm. The FFT convolution is about 10 times
     faster than MMX.
 <li>Significantly improved filter kernel design.
-<li>Thread-safe plansize & FIRorder changes.
+<li>Thread-safe plansize &amp; FIRorder changes.
 <li>More aggressive window function.
 <li>Larger FIR size, now up to 12288.
-<p>
-<b>CDDAPLAY</b>
-<p>
+</ul>
+<blockquote>
+<h4>CDDAPLAY</h4>
+</blockquote>
+<ul>
 <li>Now shows correct bitrate and track size at playing a track.
 <li>Seeking completes correctly when the decoder is close by the end
     of a played file.
@@ -161,9 +190,11 @@ PM123's History<p>
     install the offline version of FreeDB database and use it without
     internet connection.
 <li>The CDDB engine uses PM123 proxy settings.
-<p>
-<b>WAVPLAY</b>
-<p>
+</ul>
+<blockquote>
+<h4>WAVPLAY</h4>
+</blockquote>
+<ul>
 <li>Now shows correct bitrate at playing a file.
 <li>Seeking completes correctly when the decoder is close by the end
     of a played file.
@@ -174,24 +205,27 @@ PM123's History<p>
     SDS (Midi Sample Dump Standard), SF (Berkeley/IRCAM/CARL),
     VOC (Creative Labs), W64 (SoundFoundry WAVE 64), XI (FastTracker 2).
 <li>Now can play files from FTP and HTTP servers.
-<p>
-<b>OS2AUDIO</b>
-<p>
+</ul>
+<blockquote>
+<h4>OS2AUDIO</h4>
+</blockquote>
+<ul>
 <li>The output is more accurate and any more does not eat the head of the
     played file.
 <li>Can adjust gain of the currently played file according to the recommended
     replay gain value (if decoder provide it). See plug-in configuration 
     dialog and <a href="http://www.replaygain.org/">http://www.replaygain.org</a>.
-<p>
-<b>OGGPLAY</b>
-<p>
+</ul>
+<blockquote>
+<h4>OGGPLAY</h4>
+</blockquote>
+<ul>
 <li>Can play Ogg Vorbis audio files.
 <li>HTTP and FTP Streaming support including SHOUTcast and icecast.
 <li>Fully supports Ogg Vorbis comment fields.
 </ul>
-<p>
-<b>PM123 1.31</b>
-<p>
+
+<h3>PM123 1.31</h3>
 <ul>
 <li>The Playlist Manager closes a playlist file after its use.
 <li>Improved some remote control commands.
@@ -221,37 +255,45 @@ PM123's History<p>
 <li>The name of the loaded playlist file is displayed in a title of the 
     playlist window.
 <li>Added ID3 tag charset conversion.
-<p>
-<b>CDDAPLAY</b>
-<p>
+</ul>
+<blockquote>
+<h4>CDDAPLAY</h4>
+</blockquote>
+<ul>
 <li>The FreeDB online search now can be turned off.
 <li>GUI is not freezed during getting the servers-list.
 <li>If the CD disk is not found in the FreeDB, this negative hit is 
     cached up to restart of the program.
 <li>Settings of the module do not resetting as a result of reinstallation
     of the program.
-<p>  
-<b>ANALYZER</b>
-<p>
+</ul>
+<blockquote>
+<h4>ANALYZER</h4>
+</blockquote>
+<ul>
 <li>Fixed the minimal value of update frequency and percent of spectrum 
     display. Zero values caused crash of the program.
 <li>The spectrum analyzer uses new FFT library and works more accurately.
 <li>Added the new display mode with thick bars and using a logarithmic 
     scale of frequencies.
-<p>
-<b>MPG123</b>
-<p>
+</ul>
+<blockquote>
+<h4>MPG123</h4>
+</blockquote>
+<ul>
 <li>Fixed possible crash during playing local files. Thank to Rafal Szymczak.
 <li>The MP3 decoder does not stop at playing some broken files.
-<p>
-<b>REALEQ</b>
-<p>
+</ul>
+<blockquote>
+<h4>REALEQ</h4>
+</blockquote>
+<ul>
 <li>New preset are used immediately after loading an equalizer from a file.
 <li>If the "zero" has been pressed then the current preset will not be 
     loaded after restart of the program.
 </ul>
-<p>
-<b>PM123 1.30</b>
+
+<h3>PM123 1.30</h3>
 <ul>
 <li>The bitrate of the 320 bps is now displayed correctly.
 <li>Fixed some problems with closing and saving of a position of an 
@@ -311,8 +353,8 @@ PM123's History<p>
 <li>The sources now can be compiled via VAC++ 3.6.
 <li>Integrated last source codes of the Generalised Bitmap Module.
 </ul>
-<p>
-<b>PM123 1.21</b>
+
+<h3>PM123 1.21</h3>
 <ul>
 <li>The playlist will now open back automatically if PM123 is closed with
     the playlist window left opened.
@@ -320,8 +362,8 @@ PM123's History<p>
     "Slider 123" (see the extras in the source code package).  Can be
     adapted to windows from plug-ins or other processes too.
 </ul>
-<p>
-<b>PM123 1.2</b>
+
+<h3>PM123 1.2</h3>
 <ul>
 <li>PM123 is now free software!  It is released under a BSD-style license.
     The OS/2 market is no longer viable, but thanks to all who paid to make
@@ -345,14 +387,16 @@ PM123's History<p>
     the seconds should not "skip" anymore.
 <li>Fixed a possible crash when an error occurs in wavout.dll.
 <li>Fixed crashing skinutil.exe when displaying help screen.
-<p>
-<b>MPG123</b>
-<p>
+</ul>
+<blockquote>
+<h4>MPG123</h4>
+</blockquote>
+<ul>
 <li>Added MMX support to use with slow energy conservative CPUs.
 <li>Will now load some corrupted VBR files properly.
 </ul>
-<p>
-<b>PM123 1.1 beta 4</b>
+
+<h3>PM123 1.1 beta 4</h3>
 <ul>
 <li>Fixed crash when using "add" pipe command.
 <li>Load Plug-in file dialog showed "pm123.exe*.dll" instead of "*.dll"
@@ -373,9 +417,11 @@ PM123's History<p>
 <li>Fixed a bug in playlist recursive add where PM123 would not read
     some directories at all (giving errors like "can't read x:\dir1\dir1")
 <li>Increased stack size to prevent crash in DOSCALL1.DLL during recursive add.
-<p>
-<b>MPG123</b>
-<p>
+</ul>
+<blockquote>
+<h4>MPG123</h4>
+</blockquote>
+<ul>
 <li>Fixed some non-MP3 files being recognized as MP3.
 <li>Fixed more floating point crashes (any left?) due to corrupted MP3.
 <li>Fixed a buffer overload crash that would sometimes happen.
@@ -383,9 +429,8 @@ PM123's History<p>
 <li>Enhanced MP3 detection mechanism.  Once more less non-MP3 are identified
     as MP3 files..
 </ul>
-<p>
-<b>PM123 1.1 beta 3</b>
-<p>
+
+<h3>PM123 1.1 beta 3</h3>
 <ul>
 <li>fixed unjustified "could not load some bitmap" errors from loading skins.
 <li>wavplay.dll would play part of the last buffer twice.
@@ -413,15 +458,16 @@ PM123's History<p>
     a la URL using % is now automatically so all filenames containing
     the wildest characters you can imagine coming from your server will load
     properly.
-<p>
-<b>MPG123</b>
-<p>
+</ul>
+<blockquote>
+<h4>MPG123</h4>
+</blockquote>
+<ul>
 <li>HTTP content length was not always found from some HTTP servers. fixed in
     http123.dll 1.04
 </ul>
-<p>
-<b>PM123 1.1 beta 2</b>
-<p>
+
+<h3>PM123 1.1 beta 2</h3>
 <ul>
 <li>Song information from the decoder is now loaded in playlist.
 <li>Server name and genre are now loaded in playlist.
@@ -469,9 +515,11 @@ PM123's History<p>
 <li>"*volume" pipe command now also returns the current volume.
 <li>fixed +/- keyboard volume hotkeys
 <li>relative paths to plug-ins in skins are now relative to pm123.exe
-<p>
-<b>MPG123</b>
-<p>
+</ul>
+<blockquote>
+<h4>MPG123</h4>
+</blockquote>
+<ul>
 <li>Implemented title streaming code, and code for "Save stream".
 <li>SHOUTcast and icecast server information now passed on to pm123 with
     decoder_fileinfo().
@@ -483,8 +531,8 @@ PM123's History<p>
 <li>Read ahead buffer thread now runs at critical priority, so no more skip
     when read ahead buffer is activated.
 </ul>
-<p>
-<b>PM123 1.1 beta 1</b>
+
+<h3>PM123 1.1 beta 1</h3>
 <ul>
 <li>Fixed file with spaces in pipe commands.
 <li>execmode -sp executed on pm123.exe so it now runs in Warp Server 4 SMP
@@ -539,9 +587,11 @@ PM123's History<p>
 <li>HTTP URL with no filename like SHOUTcast now show the complete host
     instead of interpreting it as a filename. Title streaming is on its
     way...
-<p>
-<b>MPG123</b>
-<p>
+</ul>
+<blockquote>
+<h4>MPG123</h4>
+</blockquote>
+<ul>
 <li>Fixed streaming audio by adding two in a row header checking.
 <li>Implements new pm123 decoder plug-in interface.
 <li>Fixed floating point exception crashes.  Let me know if you can
@@ -592,8 +642,8 @@ PM123's History<p>
 <li>audio engine now fills empty buffers with 128 value instead of 0 for 8
     bit playback (removes the clicks, but it still sounds like shit :).
 </ul>
-<p>
-<b>PM123 1.01</b>
+
+<h3>PM123 1.01</h3>
 <ul>
 <li>Fixed bug in WinAmp skin loading that caused PM123 to crash
 <li>Fixed a WinAmp skin seek slider glitch - please reconvert
@@ -622,15 +672,17 @@ PM123's History<p>
     which can be activated by starting PM123 with the "-smooth" switch
 <li>Improved 256-color support
 <li>Shift-click Play/Stop button while playing to fade out and stop playing
-<p>
-<b>MPG123</b>
-<p>
+</ul>
+<blockquote>
+<h4>MPG123</h4>
+</blockquote>
+<ul>
 <li>fixed timing bug between MP123_PLAY and MP123_STOP
 <li>added buffer mode to HTTP123.DLL and in MPG123.DLL.  rewing and fast
     forward will give a quirk in buffer mode sometimes.
 </ul>
-<p>
-<b>PM123 1.0</b>
+
+<h3>PM123 1.0</h3>
 <ul>
 <li>Improved skin handling (making it possible to make PM123 look
     almost 1:1 with WinAmp)
@@ -661,9 +713,11 @@ PM123's History<p>
 <li>Added M3U support in playlist
 <li>Spectrum analyzer, CPU usage and oscilloscope plugin
 <li>Real Equalizer
-<p>
-<b>MPG123</b>
-<p>
+</ul>
+<blockquote>
+<h4>MPG123</h4>
+</blockquote>
+<ul>
 <li>decoderFileInfo can now be called more than once at the same time
 <li>kludged the jump to command to trash the first buffer (until I figure out
     more on the digital audio processing and where it keeps the buffer)
@@ -690,8 +744,8 @@ PM123's History<p>
     *OR* 2. sounds real bad (aliasing and company)
 <li>HTTP module now in HTTP.DLL
 </uL>
-<p>
-<b>PM123 pre 1.0 Beta 2</b>
+
+<h3>PM123 pre 1.0 Beta 2</h3>
 <ul>
 <li>Added keyboard shortcuts:<br>
     * Left/Right = Rewind/Fast Forward<br>
@@ -707,9 +761,11 @@ PM123's History<p>
 <li>Fixed control button errors
 <li>Enhanced/fixed tag editor
 <li>WarpAMP playlist loading
-<p>
-<b>MPG123</b>
-<p>
+</ul>
+<blockquote>
+<h4>MPG123</h4>
+</blockquote>
+<ul>
 <li>decoderTime(PLAYEDSECS) now shows the position being played, not decoded.
 <li>when buffers are trashed for rew and ffwd, the mpeg stream file position
     is brought to the file position that the decoder was at when it filled
@@ -739,14 +795,10 @@ PM123's History<p>
     with the total time.
 <li>added REXX support ... hum
 </ul>
-<p>
-<b>PM123 pre 1.0 Beta 1</b>
+
+<h3>PM123 pre 1.0 Beta 1</h3>
 <ul>
 <li>First public release
-<p>
-<b>MPG123</b>
-<p>
-<li>initial release
 </ul>
 </body>
 </html>

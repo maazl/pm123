@@ -1,11 +1,9 @@
-<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
-<html resid="1002">
+<html resid="1002" level=3>
 <head>
   <title>Sound Visualization Plug-in</title>
 </head>
 <body>
-<b><font size="+2">PM123's Sound Visualization
-Plug-in</font></b>
+<h2>PM123's Sound Visualization Plug-in</h2>
 <p>PM123 comes with a sound visualization plugin, <tt>ANALYZER.DLL</tt>
 which is located in the visplug directory. The plugin is visible right
 next to the volume bar. By default it shows the spectrum analyzer.
@@ -13,12 +11,13 @@ Click
 it to switch between the different visualization styles.
 </p>
 <blockquote><img src="images/analyze1.gif">
-  <img src="images/analyze2.gif" height="54" width="124"> <img src="images/analyze3.gif"> <img src="images/analyze4.gif"> <img src="images/analyze5.gif"></blockquote>
+  <img src="images/analyze2.gif" height="54" width="124">
+  <img src="images/analyze3.gif">
+  <img src="images/analyze4.gif">
+  <img src="images/analyze5.gif"></blockquote>
 <p>Note that because the spectrum analyzer is <i>visual
-plugin</i> and it
-is <i>skin specific</i> and will not display on older
-PM123 skins. But
-you can add them easily to any skin by editing the skin's <tt>.SKN</tt>
+plugin</i> and it is <i>skin specific</i> and will not display on older
+PM123 skins. But you can add them easily to any skin by editing the skin's <tt>.SKN</tt>
 file and adding this to it:
 </p>
 <blockquote>
@@ -28,7 +27,9 @@ file and adding this to it:
 is <i>skin specific</i> and will not display on older PM123 skins. But
 you can add them easily to any skin by editing the skin's <tt>.SKN</tt>
 file and adding this to it:
-<pre>1=visplug/analyzer.dll,x,y,size-x,size-y</pre>
+<blockquote>
+  <pre>1=visplug/analyzer.dll,x,y,size-x,size-y</pre>
+</blockquote>
 <p>Replace <tt>x, y, size-x</tt> and <tt>size-y</tt> with suitable coordinates
 (a easy way to find out the coordinates for a certain area is to load up
 <a href="http://www.pmview.com">PMView</a>, take a Window capture of the skin and
@@ -39,109 +40,7 @@ files like this:
 <blockquote>
   <pre>1=visplug/analyzer.dll,x,y,size-x,size-y,viscolor.txt</pre>
 </blockquote>
-<p>The plugin will then read <tt>viscolor.txt</tt>
-and adapt to colors specified
-in it! This text file contains all the 24 colours that will be shown in
-the
-visualization area when it is active (oscilloscope or spectrum
-analyzer).
-</p>
-<p>Each colour is defined by three decimal numbers (red, green
-and blue components)
-separated by a comma, everything between "//" and the end of a line is
-a comment,
-it won't be taken into account. Each component range between 0 (no
-colour, black)
-to 255 (full colour: red, green or blue), so 0,0,0 is black,
-255,255,255 is white.
-The order of the colours is defined in the followed table: the fist two
-colours
-define the background and dots (check it to see what are the dots), the
-next 16
-colours are the analyzer's colours from top to bottom, the next 5
-colours are
-the oscilloscope's ones, from center to top/bottom, the last colour is
-for the
-analyzer's peak markers.
-</p>
-<p>
-<table border="1" cellspacing="0">
-  <tbody>
-    <tr>
-      <th>Line</th>
-      <th>Description</th>
-    </tr>
-    <tr>
-      <td>1</td>
-      <td>Background color</td>
-    </tr>
-    <tr>
-      <td>2</td>
-      <td>Dots color</td>
-    </tr>
-    <tr>
-      <td>3</td>
-      <td>Top of spectrum analyzer</td>
-    </tr>
-    <tr>
-      <td>4&nbsp;- 17</td>
-      <td>Spectrum analyzer</td>
-    </tr>
-    <tr>
-      <td>18</td>
-      <td>Bottom of spectrum analyzer</td>
-    </tr>
-    <tr>
-      <td>19</td>
-      <td>Oscilloscope 1 (centre)</td>
-    </tr>
-    <tr>
-      <td>20</td>
-      <td>Oscilloscope 2</td>
-    </tr>
-    <tr>
-      <td>21</td>
-      <td>Oscilloscope 3</td>
-    </tr>
-    <tr>
-      <td>22</td>
-      <td>Oscilloscope 4</td>
-    </tr>
-    <tr>
-      <td>23</td>
-      <td>Oscilloscope 5</td>
-    </tr>
-    <tr>
-      <td>24</td>
-      <td>Spectrum analyzer peak dots (Peak dots not used this
-time, but this color is used for very high intensities in the
-spectroscope mode.)</td>
-    </tr>
-  </tbody>
-</table>
-</p>
-<p>Since version 2.10 of&nbsp;<tt>ANALYZER.DLL</tt>
-the coloring file may also have the following, new format:</p>
-<blockquote>
-  <pre>// ANALYZER 21 (this comment line is required at the top!)<br>// This file represents the default values<br>// general colors ...<br>BACKGROUND=0,0,0<br>DOTS=0,90,0<br>PEAK=0,255,0<br>// oscilloscope colors [0..4] ...<br>OSCILLOSCOPE-0=0,180,0<br>OSCILLOSCOPE-3=0,255,0<br>// spectrum analyzer colors [0..30] ...<br>ANALYZER-0=255,0,0<br>ANALYZER-100%=0,255,0<br>// spectroscope colors [0..63] ...<br>SPECTROSCOPE-0=0,0,0<br>SPECTROSCOPE-8=0,0,32<br>SPECTROSCOPE-16=128,0,0<br>SPECTROSCOPE-24=255,0,0<br>SPECTROSCOPE-40=255,255,0<br>SPECTROSCOPE-55=128,255,255<br>SPECTROSCOPE-63=255,255,255<br></pre>
-</blockquote>
-<p>The color ranges <tt>OSCILLOSCOPE</tt> and <tt>SPECTRUM</tt>need not
-to be fully defined. The missing values are interpolated
-automatically. But keep in mind that the interpolation is done in YDbDr
-color space in cylindrical coordinates. The color index may be specified relative when followed by a <tt>%</tt> sign. Fractional numbers are allowed.</p>
-<p>The range <tt>OSCILLOSCOPE-0</tt> to <tt>OSCILLOSCOPE-4</tt>
-maps to line 19 to 23 in the old WinAmp-compatible file format. The
-range <tt>ANALYZER-24</tt> to <tt>ANALYZER-55</tt>
-is equivalent to line 18 to 3 (in reverse order) in the old
-format. Now there are 31 colors instead of 16 colors. The range <tt>SPECTRUM-0</tt>
-to <tt>SPECTRUM-63</tt> is new and used for the spectroscope display.</p>
-<p>When loading a <tt>viscolor.txt</tt> file in the old
-format the interpolation is also used to get the colors in the new
-format. The new color range <tt>SPECTRUM-0</tt>
-to <tt>SPECTRUM-63</tt>
-is created by interpolating between line 0 (background) to line 18
-(analyzer bottom) following the analyzer colors to line 3 (analyzer
-top) and then to line 24
-(analyzer peak). This is currently the only use of line 24. </p>
+<p>The plugin will then read <tt>viscolor.txt</tt> and adapt to colors specified in it!
+See <a href="analyzerformat.html">Analyzer color configuration file</a> for details about this file.</p>
 </body>
 </html>

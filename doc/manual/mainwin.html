@@ -1,45 +1,42 @@
-<html resid=1010>
+<html resid=1010 level=3>
 <head>
    <title>Main Window</title>
 </head>
 <body>
-<b><font size=+2>PM123's Main Window</font></b>
+<h2>PM123's Main Window</h2>
 
 <blockquote>
 <img SRC="images/mainwin.gif">
 </blockquote>
 This is PM123's main window on startup. The window has several controls
-and lots of status information. The main playing controls are these:
-<blockquote>
-<img SRC="images/playctrl.gif">
-</blockquote>
-From left to right: play, pause, rewind, fast forward, open/close palylist, load a file,
-repeat mode, randomize playlist, next song, previous song and power off.
-Volume can be controlled clicking and dragging the volume bar:
-<blockquote>
-<img SRC="images/volume.gif">
-</blockquote>
-While playing there are some status indicators such as stereo/mono indicator and bitrate
-indicator or playlist index/total indicators:
-<blockquote>
-<img SRC="images/playmode.gif"><p>
-<img SRC="images/plind.gif">
-</blockquote>
+and lots of status information.
+<ol>
+  <li>From left to right: <b>play/stop</b>, <b>pause</b>, <b>rewind</b>, <b>fast forward</b>,
+    <b>open/close default playlist</b>, <b>load a file</b>,
+    <b>repeat mode</b>, <b>randomize playlist</b>, <b>next song</b>, <b>previous song</b> and <b>power off</b>.</li>
+  <li><b>Volume</b> can be controlled clicking and dragging the volume bar.<br>
+    If you have to turn the voluem quite low to sound significantly more quietly
+    try to enable the LOGVOLUM plug-in in the properties dialog.</li>
+  <li>The slider can be dragged to <b>navigate</b> within the current song.
+    You can do this while not playing also to adjust the starting position.<br>
+    In playlist mode you you may navigate within the whole playlist by pressing the Alt key.</li>
+  <li>While playing there are some status indicators. This is the <b>current song</b>.<br>
+    By clicking the title you may switch between the file name, the song title and the technical info.</li>
+  <li>This is the <b>playing position</b> within the current song.<br>
+    If the time exceeds 99 Minutes the display switches to <var>hours</var>:<var>seconds</var></li>
+  <li>The <b>bitrate</b> of the current song (if available).</li>
+  <li><b>Stereo indicator</b>.</li>
+  <li><b>Remaining time</b> of the current song.</li>
+  <li>In playlist mode this is the <b>remaining time</b> of all items (if available and finite).</li>
+  <li>Absolute <b>song number</b> within the current playlist.</li>
+  <li>The <b>total number of songs</b> in the current playlist. 
+    It also includes songs in nested playlists.</li>
+  <li>Here shows the <b>visualization plug-in</b> its ability.
+    Double-click here to switch between different views.</li>
+</ol>   
 
-<p>You can right click the player to open up the <a href="mainmenu.html">main menu</a>.
-<p><b>Keyboard shortcuts</b>: We have defined some keyboard shortcuts to
-be used from the main window:
-<ul>
-<li>Enter: Play/Stop</li>
-<li>Number keypad 5: Pause</li>
-<li>Left arrow key: Rewind</li>
-<li>Right arrow key: Fast forward</li>
-<li>Up arrow key: Previous song</li>
-<li>Down arrow key: Next song</li>
-<li>Plus/Minus: Increase/decrease volume</li>
-<li>Space: Open main menu</li>
-<li>Esc: Cancel slider drag</li>
-</ul>
+<p>You can right click the player to open up the <a href="mainmenu.html">main menu</a>.<br>
+Or you can use <a href="keyboard.html">keyboard shortcuts</a>.
 
 </body>
 </html>

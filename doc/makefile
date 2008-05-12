@@ -18,7 +18,7 @@ MANLST = $(MANLST) manual\contact.html manual\copyright.html manual\netscape.htm
 MANLST = $(MANLST) manual\sguide.html manual\troubleshooting.html
 
 PDKLST = pdk\index.html pdk\decode_plug.html pdk\filter_plug.html
-PDKLST = $(PDKLST) pdk\output_plug.html pdk\visual_plug.html pdk\style.html
+PDKLST = $(PDKLST) pdk\output_plug.html pdk\visual_plug.html
 
 pm123.inf: pm123.ipf
 	ipfc pm123.ipf /d:1 /c:850 $@
@@ -26,7 +26,7 @@ pm123.inf: pm123.ipf
 pm123.ipf: $(MANLST) tools\html2ipf.cmd
 	setlocal
 	set path=$(PATH);tools
-	tools\html2ipf.cmd -co- -so- manual\index.html $@
+	tools\html2ipf.cmd -co- -so- -p+ manual\index.html $@
 	endlocal
 
 pm123_pdk.inf: pm123_pdk.ipf
@@ -35,7 +35,7 @@ pm123_pdk.inf: pm123_pdk.ipf
 pm123_pdk.ipf: $(PDKLST) tools\html2ipf.cmd
 	setlocal
 	set path=$(PATH);tools
-	tools\html2ipf.cmd -co- -so- pdk\index.html $@
+	tools\html2ipf.cmd -co- -so- -p+ pdk\index.html $@
 	endlocal
 
 clean: $(MDUMMY)

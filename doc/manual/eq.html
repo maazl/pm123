@@ -1,59 +1,76 @@
-<html resid=1006>
+<html resid=1006 level=3>
 <head>
    <title>Graphical Sound Equalizer</title>
 </head>
 <body>
-<b><font size=+2>PM123's Real Equalizer</font></b>
+<h2>PM123's Real Equalizer</h2>
 <p>The <b>Real Equalizer</b> plugin provides a 1/3-octave equalizer and excellent
 sound quality. The plugin is provided with
-PM123 and is located in file <tt>REALEQ.DLL</tt>. Install it via PM123's
-<a href="properties.html">Properties dialog</a> (Add filter plugin button).
-You can display the configuration window by pressing the <b>Configure</b>
-button in the same dialog.
+PM123 and is located in file <tt>REALEQ.DLL</tt>.
+You can display the configuration window by selecting the <em>Real Equalizer</em> item in the
+Plug-ins submenu of PM123's <a href="mainmenu.html">main menu</a>
+or by pressing the <em>Configure</em> button in the <a href="properties.html">properties dialog</a>,
+page Plug-ins 2/2.
 <blockquote>
-<img SRC="images/realeq.gif">
+<img SRC="images/realeq.png">
 </blockquote>
-<p>Adjust <b>FIR Order</b> to suit your machine (at least P150 recommended
-for FIR order 64).
-<p>This Equalizer is a THE real thing. A full fledged FIR designed with
-the window method using RDFT and a Hamming window. This
-equalizer can also be used with any decoders contrarily to the MPEG
-audio decoder!  Also since it's a real EQ, it uses juice. I mean major
-juice.  Although, with MMX, the overhead is reduced A LOT. I'm planning
-on using a Remez exchange algorithm instead of the window method to
-optimize the FIR order needed to achieve the desired result.  All I know
-is that it can "significantly reduce the order of a FIR filter", what
-that exactly means, I don't know. I also don't have time to work on an
-IIR based filter, MMX being pretty much the savior of FIR filters on the
-Intel platform and because IIR filters dephase the sound (lower quality).
-<p>To come back on the filter order for the casual user, this is the number of
-samples processed (in addition to the current sample) to obtain a new
-sample. What does this means?  Ok say you are playing at 44100Hz, this
-means there are 44100 samples passing per second in the filter also, right?
-Ok, so say you'd like to catch 20Hz and filter that decently.  This means
-you will need a filter order of at least 44100/20-1 = 2204!!!  With values
-in this range, you can make your stereo EQ jealous. Get a Pentium III
-or Athlon and ditch your stereo.
-<p>This also means that with a small 64 coeficient filter order, the EQ
-cannot process frequencies under 44100/(64+1) = ~678Hz properly. So the
-choice of any bands under this frequency might be irrelevant, and
-modifying one of the other might give the same effect (if any effect at
-all). The 32 middle octave bands are calculated by step of 1/3 octave as
-defined by the ISO standard and are as follow in Hz:
-<p>16.0, 20.0, 25.0, 31.5, 40.0, 50.0, 63.0, 80.0, 100, 125, 160, 200, 250,
-315, 400, 500, 630, 800, 1000, 1250, 1600, 2000, 2500, 3150, 4000, 5000,
-6300, 8000, 10000, 12500, 16000, 20000.
-<p>The FIR order needs to be a multiple of 2 (or 16 because of MMX). The
-plansize is for the initial FFT and therefore needs to be a power of 2.
-Just leave it at 8192, that's fine, unless you are planning on playing
-anything way over 48000kHz.
-<p><strong>WARNING!!</strong> If you do not "Use MMX", the FPU will be used
-and you might not be able to get away with 512 coeficients with the FPU.
-So change it to some more reasonable values such as 64 before trying
-it.
-<p>With MMX, it can play realtime with 768 coeficients on a P166 MMX and it
-can easily do 4096 with a Celeron 500!!  This is pretty much as good as
-most professional EQs...!!
-
+<p>The equalizer is completle controlled by this dialog.
+  All changes are immediately applied to the sound processing engine.<br>
+  Nevertheless it may take up to one second for the changes to take effect,
+  because there are already processed samples in the buffer of the output plug-in.
+</p> 
+<ol>
+  <li><p>Checkbox this to <b>enable the RealEQ</b> operation.
+    If it is unchecked all other settings have no effect and
+    RealEQ does not consume CPU ressources on playback.</p></li>
+  <li><p>These are the <b>main control sliders</b>.
+    They allow to adjust each frequency in a range of &plusmn;12dB.</p></li>
+  <li><p>The mute checkboxes can be used to exclude some frequencies from the spectrum.
+    This can be useful for testing purposes.</p></li>
+  <li><p>If you check <b>Lock Left/Right</b> all changes to the slides or mute check boxes
+    are immediately reflected to the other channel.</p></li>
+  <li><p>The <b>master controls</b> affect the whole channel.
+    You might say this is redundant to the volume slider. It is not.
+    Most sounds come in 16 bits resolution and are (nearly) normalized to 0dB FSR.
+    This causes the sound to overdrive easily if one of the lower frequency silders
+    (up to about 200Hz) is significantly above zero.
+    Take back the master volume of RealEQ in case of distortions and raise the volume
+    of your speakers instead.</p></li>
+  <li><p>Here you can switch between the <b>frequency spectrum</b> and the <b>group delay</b> view.
+    The group delay is a completely independent set of sliders that introduce a frequency
+    dependent delay into the sound. You can adjust the delay in the range of &plusmn; 12 milliseconds
+    for each frequency. You may wonder that negative values are possible.
+    Never fear, we don't break Einstein's rules. RealEQ simply prefetches some samples
+    from the decoder plug-in before they are really played. Setting large group delays will
+    degrade the frequency response of the equalizer at low frequencies and/or require a larger FIR order.<br>
+    Negative group delays can be used to compensate for delays of resonances of vented enclosures,
+    room resonances or passive speaker crossovers. If you don't know what I am talking about
+    simply let all group delay sliders at zero.</p></li>
+  <li><p>Here you can adjust the working precision of the equalizer engine.
+    The FIR order controls the accouracy. And the FFT plansize controls the latency and the CPU usage.
+    But the plansize must always be significantly larger than the FIR order.
+    Reasonable values are:
+    <table border=1 cellspacing=0>
+      <tr align=left>
+        <th>Quality</th>
+        <th>FIR order</th>
+        <th>FFT plansize</th>
+      </tr><tr>
+        <td>high precision</td>
+        <td>16384</td>
+        <td>32767</td>
+      </tr><tr>
+        <td>balanced</td>
+        <td>8192</td>
+        <td>16384</td>
+      </tr><tr>
+        <td>low CPU usage</td>
+        <td>4096</td>
+        <td>8192</td>
+      </tr>
+    </table>
+  <li><p>Here yo can <b>load and save</b> equalizer setups. The filename above the buttons
+    is the last used file. It is grayed out if the settings are modified.</p></li>
+</ol>
 </body>
 </html>

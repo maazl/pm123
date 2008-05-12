@@ -1,0 +1,131 @@
+<html resid="1024" level=3>
+<head>
+  <title>Sound Visualization color cofiguration file</title>
+</head>
+<body>
+<h2>PM123's Sound Visualization color cofiguration file</h2>
+<p>The <a href="analyzer.html">Analyzer plug-in</a> will read a text file
+with color configurations if the <a href="sguide.html">skin configuration file</a> contains its name in
+the <tt>1=visplug/analyzer.dll</tt>... line.</p>
+<p>This text file contains all the colours that will be shown in
+the visualization area when it is active (oscilloscope, spectrum or spectroscope
+analyzer).</p>
+<p>Each color is defined by three decimal numbers (red, green
+and blue components)
+separated by a comma, everything between "//" and the end of a line is
+a comment,
+it won't be taken into account. Each component range between 0 (no
+colour, black)
+to 255 (full colour: red, green or blue), so 0,0,0 is black,
+255,255,255 is white.
+The order of the colours is defined in the followed table: the fist two
+colours
+define the background and dots (check it to see what are the dots), the
+next 16
+colours are the analyzer's colours from top to bottom, the next 5
+colours are
+the oscilloscope's ones, from center to top/bottom, the last colour is
+for the
+analyzer's peak markers.
+</p>
+<p>
+<table border="1" cellspacing="0">
+  <tbody>
+    <tr>
+      <th>Line</th>
+      <th>Description</th>
+    </tr>
+    <tr>
+      <td>1</td>
+      <td>Background color</td>
+    </tr>
+    <tr>
+      <td>2</td>
+      <td>Dots color</td>
+    </tr>
+    <tr>
+      <td>3</td>
+      <td>Top of spectrum analyzer</td>
+    </tr>
+    <tr>
+      <td>4&nbsp;- 17</td>
+      <td>Spectrum analyzer</td>
+    </tr>
+    <tr>
+      <td>18</td>
+      <td>Bottom of spectrum analyzer</td>
+    </tr>
+    <tr>
+      <td>19</td>
+      <td>Oscilloscope 1 (centre)</td>
+    </tr>
+    <tr>
+      <td>20</td>
+      <td>Oscilloscope 2</td>
+    </tr>
+    <tr>
+      <td>21</td>
+      <td>Oscilloscope 3</td>
+    </tr>
+    <tr>
+      <td>22</td>
+      <td>Oscilloscope 4</td>
+    </tr>
+    <tr>
+      <td>23</td>
+      <td>Oscilloscope 5</td>
+    </tr>
+    <tr>
+      <td>24</td>
+      <td>Spectrum analyzer peak dots (Peak dots not used this
+time, but this color is used for very high intensities in the
+spectroscope mode.)</td>
+    </tr>
+  </tbody>
+</table>
+</p>
+<p>Since <strong>version 2.10</strong> of&nbsp;<tt>ANALYZER.DLL</tt>
+the coloring file may also have the following, new format:</p>
+<blockquote>
+<pre>// ANALYZER 21 (this comment line is required at the top!)
+// This file represents the default values
+// general colors ...
+BACKGROUND=0,0,0
+DOTS=0,90,0
+PEAK=0,255,0
+// oscilloscope colors [0..4] ...
+OSCILLOSCOPE-0=0,180,0
+OSCILLOSCOPE-3=0,255,0
+// spectrum analyzer colors [0..30] ...
+ANALYZER-0=255,0,0
+ANALYZER-100%=0,255,0
+// spectroscope colors [0..63] ...
+SPECTROSCOPE-0=0,0,0
+SPECTROSCOPE-8=0,0,32
+SPECTROSCOPE-16=128,0,0
+SPECTROSCOPE-24=255,0,0
+SPECTROSCOPE-40=255,255,0
+SPECTROSCOPE-55=128,255,255
+SPECTROSCOPE-63=255,255,255</pre>
+</blockquote>
+<p>The color ranges <tt>OSCILLOSCOPE</tt> and <tt>SPECTRUM</tt> need not
+to be fully defined. The missing values are interpolated
+automatically. But keep in mind that the interpolation is done in YDbDr
+color space in cylindrical coordinates. The color index may be specified
+relative when followed by a <tt>%</tt> sign. Fractional numbers are allowed.</p>
+<p>The range <tt>OSCILLOSCOPE-0</tt> to <tt>OSCILLOSCOPE-4</tt>
+maps to line 19 to 23 in the old WinAmp-compatible file format. The
+range <tt>ANALYZER-24</tt> to <tt>ANALYZER-55</tt>
+is equivalent to line 18 to 3 (in reverse order) in the old
+format. Now there are 31 colors instead of 16 colors. The range <tt>SPECTRUM-0</tt>
+to <tt>SPECTRUM-63</tt> is new and used for the spectroscope display.</p>
+<p>When loading a <tt>viscolor.txt</tt> file in the old
+format the interpolation is also used to get the colors in the new
+format. The new color range <tt>SPECTRUM-0</tt>
+to <tt>SPECTRUM-63</tt>
+is created by interpolating between line 0 (background) to line 18
+(analyzer bottom) following the analyzer colors to line 3 (analyzer
+top) and then to line 24
+(analyzer peak). This is currently the only use of line 24. </p>
+</body>
+</html>
