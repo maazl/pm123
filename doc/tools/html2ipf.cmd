@@ -18,7 +18,8 @@
 /* or equivalent functionality, please mail me                        */
 /* Global.ImageConvert = 'alchemy.exe -o -O -8 <input> <output> >nul';*/
 /* Global.ImageConvert = 'gbmbpp.exe <input> <output> >nul';          */
- Global.ImageConvert = 'gif2bmp.exe <input> <output> >nul';
+/* Global.ImageConvert = 'gif2bmp.exe <input> <output>';*/
+ Global.ImageConvert = 'nconvert -out bmp -wflag os2 -o "<output>" "<input>"'
 /* Executable/description of an external WWW browser to launch when   */
 /* user selects an URL link. Normally, you shouldn`t change it (even  */
 /* if you have Netscape) since WebEx is found on almost every OS/2    */
@@ -139,8 +140,8 @@ AnalyseOptions:
          if OptState > 0
           then nw = left(nw, length(nw) - 1);
           else OptState = 2;
-	 OptState = OptState - 1;
-	 select
+         OptState = OptState - 1;
+         select
           when abbrev('COLORS', nw, 2)
            then Global.OptCO = OptState;
           when abbrev('CENTER', nw, 2)
@@ -217,20 +218,28 @@ exit(1);
 ConvertPictures:
  procedure expose Global.;
  if (\Global.optP) | (Global.OptCH) then return;
+
  do i = 1 to Global.Picture.0
-  if stream(Global.Picture.i.dst, 'c', 'Query Exists') = '' then
+  /* get time stamp of destination file */
+  tstmp = translate('123456789abc', stream(Global.Picture.i.dst, 'c', 'Query Datetime'), '56 34 12 78 9a bc');
+  /*say Global.Picture.i.src'_'Global.Picture.i.dst'_'stream(Global.Picture.i.dst, 'c', 'Query Exists')*/
+  if (tstmp = '') | (tstmp < translate('123456789abc', stream(Global.Picture.i.src, 'c', 'Query Datetime'), '56 34 12 78 9a bc')) then
      call RunCmd Global.ImageConvert, Global.Picture.i.src, Global.Picture.i.dst;
  end;
 return;
 
 RunCmd:
- parse arg cmd, in, out;
-
+ procedure expose Global.;
+ cmd = arg(1);
+ in = arg(2);
+ out = arg(3);
  call SetColor lGreen
  ip = pos('<input>', cmd);
  if ip <> 0 then cmd = left(cmd, ip - 1)||translate(in,"/","\" )||substr(cmd, ip + 7);
  op = pos('<output>', cmd);
  if op <> 0 then cmd = left(cmd, op - 1)||translate(out,"/","\")||substr(cmd, op + 8);
+ /*say "XXX"cmd'_'in'_'out'_'*/
+
  cmd;
 return;
 
@@ -592,6 +601,8 @@ ParseContents:
           when Tag = '!MENU'	then TagBreakPos = doTag!MENU();
           when Tag = 'CODE'	then TagBreakPos = doTagCODE();
           when Tag = '!CODE'	then TagBreakPos = doTag!CODE();
+          when Tag = 'VAR'	then TagBreakPos = doTagVAR();
+          when Tag = '!VAR'	then TagBreakPos = doTag!VAR();
           when Tag = 'STRONG'	then TagBreakPos = doTagSTRONG();
           when Tag = '!STRONG'	then TagBreakPos = doTag!STRONG();
           when Tag = 'ADDRESS'	then TagBreakPos = doTagADDRESS();
@@ -722,12 +733,14 @@ return 0;
 doTagCITE:
 doTagI:
 doTagEM:
+doTagVAR:
  call PutToken ':hp1.';
 return 0;
 
 doTag!CITE:
 doTag!I:
 doTag!EM:
+doTag!VAR:
  call PutToken ':ehp1.';
 return 0;
 
@@ -760,7 +773,7 @@ doTag!TT:
 return 0;
 
 doTagBLOCKQUOTE:
- call PutToken ':lm margin=8.';
+ call PutToken ':lm margin=6.';
  Global.Paragraph = 'Req';
 return 0;
 
@@ -858,8 +871,7 @@ doTagHR:
  call NewLine;
  call PutToken ':cgraphic.'copies('Ä', 80)':ecgraphic.';
  call PutToken Global.EOL;
- call PutToken Global.EOL;
- Global.Paragraph = 'Inc';
+ Global.Paragraph = 'Req';
  Global.HasText = 0;
 return 0;
 
@@ -994,6 +1006,7 @@ doTagIMG:
         Global.Picture.i.src = substr(_imgBitmap, pos('*', _imgBitmap) + 1);
         Global.Picture.i.alt = Global._altName;
         call PutToken ':artwork name='''Global.Picture.i.dst''' align='Global._imgAlign' runin.';
+        Global.Paragraph = '';
         if pos(':elink.', Global.RefEndTag) > 0
          then do /* image is a link */
                call PutToken ':artlink.:link reftype=hd refid='Global.CurLink'.:eartlink.';
@@ -1089,7 +1102,7 @@ doTag!TABLE:
  Global.IsOutputEnabled = 1;
  if Global.Table.WasCentered
   then call doTagCENTER;
- Global.Paragraph = '';
+ Global.Paragraph = 'Inc';
 return 0;
 
 doTagTR:
@@ -1134,7 +1147,7 @@ return;
 
 doTextHEAD:
  if Global.grabTitle = 1
-  then Global.Article.Title = Global.Article.Title||IPFstring(translate(Token, '  ', d2c(9)d2c(10)))
+  then Global.Article.Title = Global.Article.Title||translate(Token, '  ', d2c(9)d2c(10))
   else call dotextempty;
 return;
 
@@ -1192,10 +1205,10 @@ doCloseTag:
          call PutToken Global.EOL;
         end;
         Global.OpenTag.0 = i - 1;
+        Global.Paragraph = 'Req';
         return 1;
        end;
- Global.Paragraph = 'Req';
-return 0;
+ return 0;
 
 doCheckTag:
  parse arg SearchArg;
@@ -1428,7 +1441,7 @@ PutText:
          then return;
         if Global.Newline then
          Output = strip(Output, 'l');
-        /*call PutToken '<@'left(Output,5,'_')'>';*/
+        /*call PutToken '<@'left(Output,4,'_')','Global.Paragraph'>';*/
         call doOpenP 0;
         /* replace tab Characters with needed number of spaces */
          curpos = -1;
@@ -1455,7 +1468,6 @@ PutText:
           Output = left(Output, tabpos - 1)||copies(' ', 
            ,8 - (curpos + tabpos - 1)//8)||substr(Output, tabpos + 1);
          end;
-         Output = IPFstring(Output);
         /* SubDivide Output string if it is too long */
          i = Global.Article.line.0;
          do while length(Global.Article.line.i) + length(Output) > Global.maxLineLength
@@ -1496,7 +1508,7 @@ PutLine:
 return;
 
 NewLine:
- procedure expose Global.
+ procedure expose Global.;
  nli = Global.Article.line.0;
  if length(Global.Article.line.nli) > 0
   then do;
@@ -1506,34 +1518,31 @@ NewLine:
   end;
 return 0;
 
+/* replace special charaters with IFP symbols
+ * ARG(1) string to convert
+ * ARG(2) characters to replace
+ */
 IPFstring:
- parse arg ins;
- return ChangeStr(d2c(0), ,
-         ChangeStr(':', ,
-          ChangeStr('&', ,
-           ChangeStr('.', ins, d2c(0)'per.'), ,
-          '&amp.'), ,
-         '&colon.'), ,
-        '&');
-/*
- ins = StrReplace('.', d2c(0)'per.', ins);
- ins = StrReplace('&', '&amp.', ins);
- ins = StrReplace(':', '&colon.', ins);
-return StrReplace(d2c(0), '&', ins);
-*/
-ChangeStr:
- procedure expose Global.;
- src = ARG(1)
- var = ARG(2)
- trg = ARG(3)
+ procedure;
+ str = arg(1);
+ if arg(2, 'e')
+  then match = arg(2);
+  else match = '&.:';
  curpos = 1;
- do forever
-  curpos = pos(src, var, curpos);
-  if curpos = 0 then leave;
-  var = left(var, curpos - 1)||trg||substr(var, curpos + 1);
-  curpos = curpos + length(trg);
+ do forever;
+  curpos = verify(str, match, 'M', curpos);
+  if curpos = 0 then return str;
+  select
+   when substr(str, curpos, 1) = ':';
+   then repl = '&colon.';
+   when substr(str, curpos, 1) = '.';
+   then repl = '&per.';
+   when substr(str, curpos, 1) = '&';
+   then repl = '&amp.';
+  end;
+  str = left(str, curpos-1)||repl||substr(str, curpos+1);
+  curpos = curpos + length(repl);
  end;
-return var;
 
 Shorten:
  parse arg fName;
@@ -1620,125 +1629,126 @@ ColorNo:
 DefineQuotes:
 /* --------------------------------------------- */
 /* constants contributed by tremro@digicom.qc.ca */
+/* modified by Marcel Mueller, defaults commented out */
 /* --------------------------------------------- */
  Global.Quotes = ,
-  "COPY   (C)",
-  "SPACE  0x20",
-  "QUOT   0x22",
-  "AMP    0x00",
-  "LT     <",
-  "GT     >",
-  "NBSP   0x20",
-  "#160   0x20",
-  "IEXCL  0xA1",
-  "CENT   0xA2",
-  "POUND  0xA3",
-  "CURREN 0xA4",
-  "YEN    0xA5",
-  "BRVBAR 0xA6",
-  "SECT   0xA7",
-  "UML    0xA8",
-  "COPY   0xA9",
-  "ORDF   0xAA",
-  "LAQNO  0xAB",
-  "NOT    0xAC",
-  "SHY    0xAD",
-  "REG    0xAE",
-  "HIBAR  0xAF",
-  "DEG    0xB0",
-  "PLUSMN 0xB1",
-  "SUP2   0xB2",
-  "SUP3   0xB3",
-  "ACUTE  0xB4",
-  "MICRO  0xB4",
-  "PARA   0xB6",
-  "MIDDOT 0xB7",
-  "CEDIL  0xB8",
-  "SUP1   0xB9",
-  "ORDM   0xBA",
-  "RAQUO  0xBB",
-  "FRAC14 0xBC",
-  "FRAC12 0xBD",
-  "FRAC34 0xBE",
-  "IQUEST 0xBF",
-  "AGRAVE 0xC0",
-  "AACUTE 0xC1",
-  "ACIRC  0xC2",
-  "ATILDE 0xC3",
-  "AUML   0xC4",
-  "ARING  0xC5",
-  "AELIG  0xC6",
-  "CCEDIL 0xC7",
-  "EGRAVE 0xC8",
-  "EACUTE 0xC9",
-  "ECIRC  0xCA",
-  "EUML   0xCB",
-  "IGRAVE 0xCC",
-  "IACUTE 0xCD",
-  "ICIRC  0xCE",
-  "IUML   0xCF",
-  "ETH    0xD0",
-  "NTILDE 0xD1",
-  "OGRAVE 0xD2",
-  "OACUTE 0xD3",
-  "OCIRC  0xD4",
-  "OTILDE 0xD5",
-  "OUML   0xD6",
-  "TIMES  0xD7",
-  "OSLASH 0xD8",
-  "UGRAVE 0xD9",
-  "UACUTE 0xDA",
-  "UCIRC  0xDB",
-  "UUML   0xDC",
-  "YACUTE 0xDD",
-  "THORN  0xDE",
-  "SZLIG  0xDF",
-  "AGRAVE 0xE0",
-  "AACUTE 0xE1",
-  "ACIRC  0xE2",
-  "ATILDE 0xE3",
-  "AUML   0xE4",
-  "ARING  0xE5",
-  "AELIG  0xE6",
-  "CCEDIL 0xE7",
-  "EGRAVE 0xE8",
-  "EACUTE 0xE9",
-  "ECIRC  0xEA",
-  "EUML   0xEB",
-  "IGRAVE 0xEC",
-  "IACUTE 0xED",
-  "ICIRC  0xEE",
-  "IUML   0xEF",
+  "copy   (C)",
+  "space  0x20",
+  "quot   0x22",
+  "nbsp   &rbl.",
+  "#160   &rbl.",
+  "iexcl  &inve.",
+  "pound  &Lsterling.",
+  "curren &bx1202.",
+  "brvbar &splitvbar.",
+  "sect   0xA7",
+  "uml    0xA8",
+  "ordf   &aus.",
+  "laqno  &odqf.",
+  "not    &lnot.",
+  "shy    -",
+  "reg    (R)",
+  "hibar  0xAF",
+  "deg    &deg.",
+  "plusmn &pm.",
+  "acute  ï",
+  "micro  &mu.",
+  "para   ?",
+  "middot &dot.",
+  "cedil  0xB8",
+  "ordm   &ous.",
+  "raquo  &cdqf.",
+  "iquest &invq.",
+  "agrave &ag.",
+  "Agrave &Ag.",
+  "aacute &aa.",
+  "Aacute &Aa.",
+  "acirc  &ac.",
+  "Acirc  &Ac.",
+  "atilde &at.",
+  "Atilde &At.",
+  "auml   &ae.",
+  "Auml   &Ae.",
+  "aring  &ao.",
+  "Aring  &Ao.",
+  "ccedil &cc.",
+  "Ccedil &Cc.",
+  "egrave &eg.",
+  "Egrave &Eg.",
+  "eacute &ea.",
+  "Eacute &Ea.",
+  "ecirc  &ec.",
+  "Ecirc  &Ec.",
+  "euml   &ee.",
+  "Euml   &Ee.",
+  "igrave &ig.",
+  "Igrave &Ig.",
+  "iacute &ia.",
+  "Iacute &Ia.",
+  "icirc  &ic.",
+  "Icirc  &Ic.",
+  "iuml   &ie.",
+  "Iuml   &Ie.",
+  "eth    0xD0",
   "ETH    0xF0",
-  "NTILDE 0xF1",
-  "OGRAVE 0xF2",
-  "OACUTE 0xF3",
-  "OCIRC  0xF4",
-  "OTILDE 0xF5",
-  "OUML   0xF6",
-  "DIVIDE 0xF7",
-  "OSLASH 0xF8",
-  "UGRAVE 0xF9",
-  "UACUTE 0xFA",
-  "UCIRC  0xFB",
-  "UUML   0xFC",
-  "YACUTE 0xFD",
+  "ntilde &nt.",
+  "Ntilde &Nt.",
+  "ograve &og.",
+  "Ograve &Og.",
+  "oacute &oa.",
+  "Oacute &Oa.",
+  "ocirc  &oc.",
+  "Ocirc  &Oc.",
+  "otilde &ot.",
+  "Otilde &Ot.",
+  "ouml   &oe.",
+  "Ouml   &Oe.",
+  "times  0xD7",
+  "oslash 0xD8",
+  "Oslash 0xF8",
+  "ugrave &ug.",
+  "Ugrave &Ug.",
+  "uacute &ua.",
+  "Uacute &Ua.",
+  "ucirc  &uc.",
+  "Ucirc  &Uc.",
+  "uuml   &ue.",
+  "Uuml   &Ue.",
+  "yacute &ya.",
+  "Yacute &Ya.",
+  "yuml   &ye.",
+  "thorn  0xDE",
   "THORN  0xFE",
-  "YUML   0xFF";
+  "szlig  &Beta.";
+/*"lt     <",
+  "gt     >",*/
+/*"aelig  &aelig.",
+  "AElig  &AElig.",*/
+/*"frac14 &frac14.",
+  "frac12 &frac12.",
+  "frac34 &frac34.",*/
+/*"sup1   &sup1.",*/
+/*"sup2   &sup2.",
+  "sup3   &sup3.",*/
+/*"yen    &yen.",*/
+/*"cent   &cent.",*/
+/*"amp    &amp.",*/
+/*"divide &divide.";*/
 return;
 
 /* substitute quoted Characters */
 NoQuotes:
- parse arg text;
-
- sPos = 1;
- do forever
-  qPos = pos('&', text, sPos);
+ procedure expose Global.;
+ text = ARG(1);
+ cPos = 1;
+ do forever;
+  sPos = pos('&', text, cPos);
+  if sPos == 0 then leave;
+  qPos = pos(';', text, sPos + 1);
   if qPos == 0 then leave;
-  if pos(';', text, qPos + 1 ) == 0 then leave
-  parse var text _head '&' Token ';' _tail
+  Token = substr(text, sPos + 1, qPos - sPos - 1);
 
-  wordN = wordpos(translate(Token), Global.Quotes);
+  wordN = wordpos(Token, Global.Quotes);
   if wordN = 0
    then do
          if (left(Token, 1)='#') & (datatype(substr(Token, 2), 'num'))
@@ -1747,17 +1757,19 @@ NoQuotes:
                 Token = d2c(Token);
                end
           else do
-                Token=d2c(0)||Token||';'
+                Token = '&'||Token||'.';
                end
         end
    else do
          Token = word(Global.Quotes, wordN + 1);
          if left(Token, 2)="0x" then Token=x2c(substr(Token, 3));
         end
-  sPos = qPos + 1;
-  text = _head||Token||_tail;
+  cvttext = IPFstring(substr(text, cPos, sPos - cPos));
+  text = left(text, cPos - 1)||cvttext||Token||substr(text, qPos+1);
+  cPos = cPos + length(cvttext) + length(Token);
  end;
-return translate(text, '&', d2c(0));
+ 
+return left(text, cPos - 1)||IPFstring(substr(text, cPos));
 
 replace:
 
@@ -1773,4 +1785,4 @@ replace:
      i = pos( string, translate(source), i + length(substitute))
   end
      
-return source
+return source;
