@@ -1085,10 +1085,6 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
           amp_save_stream(hwnd, !Ctrl::GetSavename());
           break;
 
-        case IDM_M_EQUALIZE:
-          amp_eq_show();
-          break;
-
         case IDM_M_FLOAT:
           cfg.floatontop = !cfg.floatontop;
 

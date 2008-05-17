@@ -139,8 +139,6 @@ ULONG dec_stop( void );
 ULONG dec_fast( DECFASTMODE mode );
 /* jump to absolute position */
 ULONG dec_jump( double location );
-/* set equalizer parameters */
-ULONG dec_eq  ( const float* bandgain );
 /* set savefilename to save the raw stream data */
 ULONG dec_save( const char* file );
 /* edit ID3-data of the given file, decoder_name is optional */

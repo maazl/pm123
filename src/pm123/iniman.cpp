@@ -161,20 +161,6 @@ load_ini( void )
       load_default_visuals();
     }
 
-    // Loading equalizer.
-
-    for( i = 0; i < 20; i++ ) {
-      gains[i] = 1.0;
-    }
-    for( i = 0; i < 20; i++ ) {
-      mutes[i] = 0;
-    }
-
-    preamp = 1.0;
-
-    load_ini_string( INIhandle, cfg.lasteq, sizeof( cfg.lasteq ));
-    amp_load_eq_file( cfg.lasteq, gains, mutes, &preamp );
-
     close_ini( INIhandle );
   }
 }

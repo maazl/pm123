@@ -142,7 +142,6 @@ class Ctrl
     Cmd_Shuffle,
     Cmd_Repeat,
     Cmd_Save,
-    Cmd_Equalize,
     // queries
     //Cmd_Status,
     Cmd_Location,
@@ -172,10 +171,6 @@ class Ctrl
     RC_OutPlugErr,          // The output plug-in returned an error.
     RC_DecPlugErr,          // The decoder plug-in returnd an error.
     RC_InvalidItem          // Cannot load or play invalid object.
-  };
-
-  struct EQ_Data
-  { float bandgain[2][10];
   };
 
   /*struct PlayStatus
@@ -219,7 +214,6 @@ class Ctrl
     EV_Repeat   = 0x0020,   // The repeat flag has changed.
     EV_Volume   = 0x0040,   // The volume has changed.
     EV_Savename = 0x0080,   // The savename has changed.
-    EV_Equalize = 0x0100,   // The equalizer settings have changed.
     EV_Root     = 0x1000,   // The currently loaded root object has changed.
     EV_Song     = 0x2000,   // The current song has changed. This always includes EV_Tech and EV_Meta.
     EV_Tech     = 0x4000,   // The technical information have changed (e.g. song length).
@@ -253,8 +247,6 @@ class Ctrl
   static xstring              Savename;              // Current save file name (for the decoder)
   static bool                 Shuffle;               // Shuffle flag
   static bool                 Repeat;                // Repeat flag
-  static bool                 EqEnabled;             // Equalizer enabled flag
-  static EQ_Data              EqData;                // Equalizer data
 
   static queue<ControlCommand*> Queue;               // Command queue of the controller (all messages pass this queue)
   static TID                  WorkerTID;             // Thread ID of the worker
@@ -343,7 +335,6 @@ class Ctrl
   static RC    MsgSkip(int count, bool relative);
   static RC    MsgLoad(const xstring& url, int flags);
   static RC    MsgSave(const xstring& filename);
-  static RC    MsgEqualize(const EQ_Data* data);
   static RC    MsgShuffle(Op op);
   static RC    MsgRepeat(Op op);
   //static RC    MsgStatus(PlayStatus* status);
@@ -428,8 +419,6 @@ class Ctrl
   { return new ControlCommand(Cmd_Repeat, xstring(), 0., op); }
   static ControlCommand* MkSave(const xstring& filename)
   { return new ControlCommand(Cmd_Save, filename, 0., 0); }
-  static ControlCommand* MkEqualize(const EQ_Data* data)
-  { return new ControlCommand(Cmd_Equalize, xstring(), (void*)data, 0); }
   /*static ControlCommand* MkStatus(PlayStatus* dest)
   { return new ControlCommand(Cmd_Status, xstring(), dest, 0); }*/
   static ControlCommand* MkLocation(SongIterator* sip)

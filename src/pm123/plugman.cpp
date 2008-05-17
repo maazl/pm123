@@ -366,16 +366,6 @@ ULONG dec_jump( T_TIME location )
   return rc;
 }
 
-/* set equalizer parameters */
-ULONG dec_eq( const float* bandgain )
-{ CL_GLUE::dparams.bandgain  = bandgain;
-  CL_GLUE::dparams.equalizer = bandgain != NULL;
-  ULONG status = dec_status();
-  return status == DECODER_PLAYING || status == DECODER_STARTING || status == DECODER_PAUSED
-   ? CL_GLUE::dec_command( DECODER_EQ )
-   : 0;
-}
-
 /* set savefilename to save the raw stream data */
 ULONG dec_save( const char* file )
 { if (file != NULL && *file == 0)

@@ -53,8 +53,6 @@ double               Ctrl::Volume    = 1.;
 xstring              Ctrl::Savename;
 bool                 Ctrl::Shuffle   = false;
 bool                 Ctrl::Repeat    = false;
-bool                 Ctrl::EqEnabled = false;
-Ctrl::EQ_Data        Ctrl::EqData    = { { {1,1,1,1,1,1,1,1,1,1}, {1,1,1,1,1,1,1,1,1,1} } };
 
 queue<Ctrl::ControlCommand*> Ctrl::Queue;
 TID                  Ctrl::WorkerTID = 0;
@@ -119,7 +117,6 @@ ULONG Ctrl::DecoderStart(PlayableSlice* ps, T_TIME offset)
   ps->GetPlayable()->EnsureInfo(Playable::IF_Other);
   ASSERT(!(ps->GetPlayable()->GetFlags() & Playable::Enumerable));
   SetVolume();
-  dec_eq(EqEnabled ? EqData.bandgain[0] : NULL);
   dec_save(Savename);
 
   T_TIME start = ps->GetStart() ? ps->GetStart()->GetLocation() : 0;
@@ -672,28 +669,6 @@ Ctrl::RC Ctrl::MsgSave(const xstring& filename)
   return RC_OK;
 }
 
-Ctrl::RC Ctrl::MsgEqualize(const EQ_Data* data)
-{ DEBUGLOG(("Ctrl::MsgEqualize(%p)\n", data));
-  if (data)
-  { // set EQ
-    if (EqEnabled && memcmp(data, &EqData, sizeof(EQ_Data)) == 0)
-      return RC_OK;
-    if (decoder_playing() && dec_eq(data->bandgain[0]))
-      return RC_DecPlugErr;
-    EqData = *data;
-    EqEnabled = true;
-  } else
-  { // disable EQ
-    if (!EqEnabled)
-      return RC_OK;
-    if (decoder_playing() && dec_eq(NULL))
-      return RC_DecPlugErr;
-    EqEnabled = false;
-  }
-  InterlockedOr(Pending, EV_Equalize);
-  return RC_OK;
-}
-
 /* Adjusts shuffle flag. */
 Ctrl::RC Ctrl::MsgShuffle(Op op)
 { DEBUGLOG(("Ctrl::MsgShuffle(%x) - %u\n", op, Scan)); 
@@ -881,10 +856,6 @@ void Ctrl::Worker()
 
          case Cmd_Save:
           qp->Flags = MsgSave(qp->StrArg);
-          break;
-          
-         case Cmd_Equalize:
-          qp->Flags = MsgEqualize((EQ_Data*)qp->PtrArg);
           break;
           
          /*case Cmd_Status:

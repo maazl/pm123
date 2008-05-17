@@ -50,7 +50,7 @@ controller.h:	playable.h plugman.h songiterator.h ..\include\decoder_plug.h ..\u
 docking.cpp:	dialog.h properties.h docking.h ..\utils\utilfct.h
 iniman.cpp:	..\utils\utilfct.h pm123.h dialog.h iniman.h plugman.h properties.h
 playable.cpp:	playable.h plugman.h pm123.h ..\utils\debuglog.h
-playlistbase.cpp:	..\utils\utilfct.h playlistbase.h playlistmanager.h playlistview.h playable.h pm123.h dialog.h properties.h 123_util.h pm123.rc.h docking.h iniman.h plugman.h ..\utils\snprintf.h ..\utils\cpp/smartptr.h ..\utils\cpp/url123.h ..\utils\debuglog.h
+playlistbase.cpp:	..\utils\utilfct.h playlistbase.h playlistmanager.h playlistview.h infodialog.h playable.h pm123.h properties.h 123_util.h pm123.rc.h docking.h iniman.h plugman.h ..\utils\snprintf.h ..\utils\cpp/smartptr.h ..\utils\cpp/url123.h ..\utils\debuglog.h
 playlistbase.h:	windowbase.h playable.h controller.h ..\include\decoder_plug.h ..\utils\cpp/queue.h ..\utils\cpp/event.h ..\utils\cpp/smartptr.h ..\utils\cpp/mutex.h ..\utils\cpp/container.h ..\utils\cpp/xstring.h ..\utils\cpp/url123.h ..\utils\debuglog.h
 playlistmanager.h:	..\utils\cpp/queue.h ..\utils\cpp/event.h ..\utils\cpp/smartptr.h ..\utils\cpp/mutex.h ..\utils\cpp/container.h ..\utils\cpp/xstring.h playlistbase.h
 playlistview.h:	..\utils\cpp/queue.h ..\utils\cpp/event.h ..\utils\cpp/smartptr.h ..\utils\cpp/mutex.h ..\utils\cpp/container.h ..\utils\cpp/xstring.h playable.h playlistbase.h ..\include\decoder_plug.h

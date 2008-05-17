@@ -39,7 +39,7 @@
  **  800-  899   PM123 Plalist/Playlist Manager misc
  **  900-  999   PM123 Plalist/Playlist Manager menu
  ** 1000- 1099   PM123 Help table
- ** 1100- 1199   PM123 File, URL, EQ dialog
+ ** 1100- 1199   PM123 File, URL etc.
  ** 1200- 1799   PM123 properties dialog
  ** 1800- 1899   PM123 info dialog
  *  2000- 2999   PM123 Skin IDs
@@ -71,7 +71,6 @@
 #define IDM_M_SKIN          519
 #define IDM_M_SKINLOAD      520
 #define IDM_M_FLOAT         521
-#define IDM_M_EQUALIZE      522
 #define IDM_M_TAG           523
 #define IDM_M_INFO          524
 #define IDM_M_PLINFO        525
@@ -229,23 +228,6 @@
 #define DLG_BM_ADD         1120
 #define ST_BM_DESC         1121
 #define EF_BM_DESC         1122
-
-#define DLG_EQUALIZER      1150
-#define ST_EQ_PREAMP       1151
-#define ST_EQ_PREM12       1152
-#define ST_EQ_PREP12       1153
-#define SL_EQ_PREAMP       1154
-#define ST_EQ_MUTE         1155
-#define ST_EQ_M12DB        1156
-#define ST_EQ_P12DB        1157
-#define ST_EQ_0DB          1158
-#define SL_EQ_0            1160 /* Slider 0..9 */
-#define ST_EQ_0            1170 /* Text 0..9 */
-#define CB_EQ_0            1180 /* Mute button 0..9 */
-#define CB_EQ_ENABLED      1190
-#define BT_EQ_DEFAULT      1191
-#define BT_EQ_LOAD         1192
-#define BT_EQ_SAVE         1193
 
 /* Properties */
 #define DLG_CONFIG         1200

@@ -74,22 +74,12 @@ ULONG DLLENTRY amp_url_wizzard( HWND owner, const char* title, DECODER_WIZZARD_C
 void amp_loadskin( HAB hab, HWND hwnd, HPS hps );
 
 
-BOOL  amp_load_eq_file( char* filename, float* gains, BOOL* mutes, float* preamp );
-void amp_eq_show( void );
-
-
 /* Adds a user selected bookmark. */
 void  amp_add_bookmark(HWND owner, const PlayableSlice& item);
 /* Saves a playlist */
 void  amp_save_playlist( HWND owner, PlayableCollection& playlist );
 /* Returns TRUE if the save stream feature has been enabled. */
 void  amp_save_stream( HWND hwnd, BOOL enable );
-
-
-/* Equalizer stuff. */
-extern float gains[20];
-extern BOOL  mutes[20];
-extern float preamp;
 
 
 /* global init */
