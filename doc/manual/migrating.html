@@ -54,5 +54,18 @@
     into a real playlist.</li>
   <li>You cannot modify virtual playlists.</li>
 </ul>
+
+<h3>Equalizer has vanished</h3>
+<p>Well, that's true.
+  The simple equalizer from the context menu has been removed because the only plug-in
+  that supported it was mpg123. Any other plug-in including WAV and OggVorbis playback
+  silently ignored it. This causes the sound to depend on the encoding and to change
+  within playlists. A bad thing.</p>
+<p>I recommend to use the powerful <a href="realeq.html">RealEQ plug-in</a> as an alternative.
+  If you do not care about its precision use conservative setting like an FIR order of 4096.</p>
+<p>If you do not like this alternative or it eats too much CPU for your purposes,
+  you have to wait for a parametric EQ plug-in which uses very fast IIR filters.
+  This will require nearly no CPU cycles and work with any source although.
+  However, one must do the job.</p>
 </body>
 </html>
