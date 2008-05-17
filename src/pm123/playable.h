@@ -121,7 +121,7 @@ class Playable
  protected: // The following vars are protected by the mutex
   DecoderInfo         Info;
   PlayableStatus      Stat;
-  char                Decoder[12];
+  char                Decoder[13];
   InfoFlags           InfoValid;       // Bitvector of type InfoFlags
   InfoFlags           InfoChangeFlags; // Bitvector with stored events
  private: // ... except for this ones

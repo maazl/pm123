@@ -306,7 +306,7 @@ ULONG CL_GLUE::dec_command( ULONG msg )
 /* invoke decoder to play an URL */
 ULONG dec_play( const Song* song, T_TIME offset, T_TIME start, T_TIME stop )
 {
-  DEBUGLOG(("dec_play(%p{%s}, %g, %g)\n", &*song, song->GetURL().cdata(), start, stop));
+  DEBUGLOG(("dec_play(%p{%s}, %f, %f, %f)\n", &*song, song->GetURL().cdata(), offset, start, stop));
   ULONG rc = CL_GLUE::dec_set_active(song->GetDecoder());
   if ( rc != 0 )
     return rc;
