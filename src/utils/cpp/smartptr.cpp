@@ -35,19 +35,19 @@
 
 int_ptr_base::int_ptr_base(const Iref_Count* ptr)
 : Ptr((Iref_Count*)ptr) // constness is handled in the derived class
-{ DEBUGLOG2(("int_ptr_base(%p)::int_ptr_base(%p)\n", this, ptr));
+{ DEBUGLOG(("int_ptr_base(%p)::int_ptr_base(%p{%i})\n", this, ptr, ptr ? ptr->Count : -1));
   if (Ptr)
     InterlockedInc(Ptr->Count);
 }
 int_ptr_base::int_ptr_base(const int_ptr_base& r)
 : Ptr(r.Ptr)
-{ DEBUGLOG2(("int_ptr_base(%p)::int_ptr_base(&%p{%p})\n", this, &r, r.Ptr));
+{ DEBUGLOG(("int_ptr_base(%p)::int_ptr_base(&%p{%p{%i}})\n", this, &r, r.Ptr, r.Ptr ? r.Ptr->Count : -1));
   if (Ptr)
     InterlockedInc(Ptr->Count);
 }
 
 Iref_Count* int_ptr_base::reassign(const Iref_Count* ptr)
-{ DEBUGLOG2(("int_ptr_base(%p)::reassign(%p): %p\n", this, ptr, Ptr));
+{ DEBUGLOG(("int_ptr_base(%p)::reassign(%p{%i}): %p{%i}\n", this, ptr, ptr ? ptr->Count : -1, Ptr, Ptr ? Ptr->Count : -1));
   // Hack to avoid problems with (rarely used) p = p statements: increment new counter first.
   if (ptr)
     InterlockedInc(((Iref_Count*)ptr)->Count);
@@ -59,7 +59,7 @@ Iref_Count* int_ptr_base::reassign(const Iref_Count* ptr)
 }
 
 Iref_Count* int_ptr_base::reassign_weak(const Iref_Count* ptr)
-{ DEBUGLOG2(("int_ptr_base(%p)::reassign_weak(%p): %p\n", this, ptr, Ptr));
+{ DEBUGLOG(("int_ptr_base(%p)::reassign_weak(%p{%i}): %p{%i}\n", this, ptr, ptr ? ptr->Count : -1, Ptr, Ptr ? Ptr->Count : -1));
   // Hack to avoid problems with (rarely used) p = p statements: increment new counter first.
   if (ptr)
   { CritSect cs;
@@ -81,7 +81,7 @@ Iref_Count* int_ptr_base::reassign_weak(const Iref_Count* ptr)
 }
 
 Iref_Count* int_ptr_base::unassign()
-{ DEBUGLOG2(("int_ptr_base(%p)::unassign(): %p, %i\n", this, Ptr, Ptr ? Ptr->Count : 0));
+{ DEBUGLOG(("int_ptr_base(%p)::unassign(): %p{%i}\n", this, Ptr, Ptr ? Ptr->Count : -1));
   return Ptr && InterlockedDec(Ptr->Count) == 0 ? Ptr : NULL;
 }
 

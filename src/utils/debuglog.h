@@ -120,6 +120,7 @@ extern "C" {
     PMRASSERT(expression)
  
   Similar to PMXASSERT but with the default condition to check whether expression is true.
+  In fact also the same as PMASSERT but expression is always evaluated.
 
 - PM assertion
  

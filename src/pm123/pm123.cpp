@@ -129,6 +129,10 @@ static bool          IsLocMsg    = false;// true if a MsgLocation to the control
 static unsigned      UpdAtLocMsg = 0;    // do these redraws (with amp_invalidate) when the next Location info arrives
 static SongIterator  LocationIter[2];    // Two SongIterators. CurrentIter points to one of them.
 
+static bool          Terminate   = false;// True when WM_QUIT arrived
+static PlaylistMenu* MenuWorker  = NULL; // Instance of PlaylistMenu to handle events of the context menu.
+
+
 /* Returns the handle of the player window. */
 HWND
 amp_player_window( void ) {
@@ -361,9 +365,9 @@ amp_show_context_menu( HWND parent )
   { menu = WinLoadMenu( HWND_OBJECT, 0, MNU_MAIN );
     mn_make_conditionalcascade( menu, IDM_M_LOAD, IDM_M_LOADFILE );
 
-    PlaylistMenu* pmp = new PlaylistMenu(parent, IDM_M_LAST, IDM_M_LAST_E);
-    pmp->AttachMenu(IDM_M_BOOKMARKS, DefaultBM, PlaylistMenu::DummyIfEmpty|PlaylistMenu::Recursive|PlaylistMenu::Enumerate, 0);
-    pmp->AttachMenu(IDM_M_LOAD, LoadMRU, PlaylistMenu::Enumerate|PlaylistMenu::Separator, 0);
+    MenuWorker = new PlaylistMenu(parent, IDM_M_LAST, IDM_M_LAST_E);
+    MenuWorker->AttachMenu(IDM_M_BOOKMARKS, DefaultBM, PlaylistMenu::DummyIfEmpty|PlaylistMenu::Recursive|PlaylistMenu::Enumerate, 0);
+    MenuWorker->AttachMenu(IDM_M_LOAD, LoadMRU, PlaylistMenu::Enumerate|PlaylistMenu::Separator, 0);
     new_menu = true;
   }
   POINTL   pos;
@@ -974,13 +978,14 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
     case WM_PAINT:
     {
       HPS hps = WinBeginPaint( hwnd, NULLHANDLE, NULL );
-
       bmp_draw_background( hps, hwnd );
-      amp_paint_fileinfo ( hps );
-      amp_paint_timers   ( hps );
+      if (!Terminate)
+      { amp_paint_fileinfo ( hps );
+        amp_paint_timers   ( hps );
+        bmp_draw_volume    ( hps, Ctrl::GetVolume() );
+      }
       bmp_draw_led       ( hps, is_have_focus  );
-      bmp_draw_volume    ( hps, Ctrl::GetVolume() );
-
+      
       WinEndPaint( hps );
       return 0;
     }
@@ -1253,7 +1258,7 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
       if ( is_arg_shuffle )
         Ctrl::PostCommand(Ctrl::MkShuffle(Ctrl::Op_Set));
 
-      WinStartTimer( hab, hwnd, TID_UPDATE_TIMERS, 100 );
+      WinStartTimer( hab, hwnd, TID_UPDATE_TIMERS,  80 );
       WinStartTimer( hab, hwnd, TID_UPDATE_PLAYER,  50 );
 
       // fetch some initial states
@@ -1516,6 +1521,7 @@ main2( void* arg )
     DEBUGLOG2(("main: after WinDispatchMsg - %p, %p\n", qmsg.hwnd, qmsg.msg));
   }
   DEBUGLOG(("main: dispatcher ended\n"));
+  Terminate = true;
 
   amp_pipe_destroy();
 
@@ -1523,6 +1529,12 @@ main2( void* arg )
   // Stop and save configuration
   ///////////////////////////////////////////////////////////////////////////
   ctrl_delegate.detach();
+  plugin_delegate.detach();
+  delete MenuWorker;
+  // Eat user messages from the queue
+  while (WinPeekMsg( hab, &qmsg, hframe, WM_USER, 0xbfff, PM_REMOVE));
+  LocationIter[0].SetRoot(NULL);
+  LocationIter[1].SetRoot(NULL);
   // TODO: save volume
   Ctrl::Uninit();
 
@@ -1533,7 +1545,6 @@ main2( void* arg )
   amp_save_modified_list(*LoadMRU);
   amp_save_modified_list(*UrlMRU);
 
-  plugin_delegate.detach();
   // deinitialize all visual plug-ins
   vis_deinit_all( TRUE );
   vis_deinit_all( FALSE );
