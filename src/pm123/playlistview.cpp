@@ -394,7 +394,7 @@ HWND PlaylistView::InitContextMenu()
     if ((new_menu = MainMenu == NULLHANDLE) != false)
     { MainMenu = WinLoadMenu(HWND_OBJECT, 0, MNU_PLAYLIST);
       PMASSERT(MainMenu != NULLHANDLE);
-      mn_make_conditionalcascade(MainMenu, IDM_PL_APPEND, IDM_PL_APPFILE);
+      PMRASSERT(mn_make_conditionalcascade(MainMenu, IDM_PL_APPENDALL, IDM_PL_APPFILEALL));
     }
     hwndMenu = MainMenu;
     if ((Content->GetFlags() & Playable::Mutable) == Playable::Mutable)

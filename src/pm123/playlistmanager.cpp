@@ -239,7 +239,7 @@ HWND PlaylistManager::InitContextMenu()
     if (MainMenu == NULLHANDLE)
     { MainMenu = WinLoadMenu(HWND_OBJECT, 0, PM_MAIN_MENU);
       PMASSERT(MainMenu != NULLHANDLE);
-      mn_make_conditionalcascade(MainMenu, IDM_PL_APPENDALL, IDM_PL_APPFILEALL);
+      PMRASSERT(mn_make_conditionalcascade(MainMenu, IDM_PL_APPENDALL, IDM_PL_APPFILEALL));
       new_menu = true; // force update below
     }
     hwndMenu = MainMenu;
@@ -253,7 +253,7 @@ HWND PlaylistManager::InitContextMenu()
     if (RecMenu == NULLHANDLE)
     { RecMenu = WinLoadMenu(HWND_OBJECT, 0, PM_REC_MENU);
       PMASSERT(RecMenu != NULLHANDLE);
-      mn_make_conditionalcascade(RecMenu, IDM_PL_APPEND, IDM_PL_APPFILE);
+      PMRASSERT(mn_make_conditionalcascade(RecMenu, IDM_PL_APPEND, IDM_PL_APPFILE));
       new_menu = true; // force update below
     }
     hwndMenu = RecMenu;

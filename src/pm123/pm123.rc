@@ -998,7 +998,7 @@ MENU PM_MAIN_MENU
   MENUITEM "Show ~Tree view",            IDM_PL_TREEVIEWALL, 0, MIA_CHECKED|MIA_DISABLED
   MENUITEM "Show Content ~info",         IDM_PL_INFOALL
   MENUITEM SEPARATOR
-  SUBMENU  "~Append to...",              IDM_PL_APPENDALL
+  SUBMENU  "~Append...",                 IDM_PL_APPENDALL
   { MENUITEM "~Files...",                IDM_PL_APPFILEALL
     MENUITEM "~URL...",                  IDM_PL_APPURLALL
   }
