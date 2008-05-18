@@ -989,19 +989,28 @@ bmp_pt_in_text( POINTL pos )
   }
 }
 
-/* Converts time to two integer suitable for display by the timer. */
-static void
+/* Converts time to two integer suitable for display by the timer.
+ * Returns 0 if the result is mm:ss,
+ *         1 if the result is HH:mm
+ *     and 2 if the result is dd:hh
+ */
+static int
 sec2num( double seconds, unsigned int* major, unsigned int* minor )
 { unsigned int val = (unsigned int)(seconds / 3600);
   unsigned int frac = 24;
+  int ret = 2;
   if (val*60 < 100*24)
   { val = (unsigned int)(seconds / 60);
     frac = 60;
+    ret = 1;
     if (val < 100)
-      val = (unsigned int)seconds;
+    { val = (unsigned int)seconds;
+      ret = 0;
+    }
   }
   *major = val / frac;
   *minor = val % frac;
+  return ret;
 }
 
 /* Draws the main player timer. */
@@ -1020,7 +1029,7 @@ bmp_draw_timer( HPS hps, double time )
   {
     unsigned int major;
     unsigned int minor;
-    sec2num( time, &major, &minor );
+    const int mode = sec2num( time, &major, &minor );
 
     div_t d = div(major, 10);
     d.quot %= 10; // limit
@@ -1030,7 +1039,15 @@ bmp_draw_timer( HPS hps, double time )
     x += bmp_cx( d.rem  + DIG_BIG ) + bmp_ulong[ UL_TIMER_SPACE ];
 
     if( bmp_ulong[ UL_TIMER_SEPARATE ] )
-    { ULONG idx = DIG_BIG + 10 + ((unsigned int)(2*time) & 1);
+    { ULONG idx = DIG_BIG + 10;
+      switch (mode)
+      {case 2:
+        ++idx;
+        break;
+       case 0:
+        idx += ((unsigned int)(2*time) & 1);
+        break;
+      }
       bmp_draw_bitmap( hps, x, y, idx );
       x += bmp_cx( idx ) + bmp_ulong[ UL_TIMER_SPACE ];
     } else {
@@ -1058,7 +1075,7 @@ bmp_draw_tiny_timer( HPS hps, int pos_id, double time )
   int x = bmp_pos[pos_id].x;
   int y = bmp_pos[pos_id].y;
 
-  sec2num( time, &major, &minor );
+  const int mode = sec2num( time, &major, &minor );
 
   if( x != POS_UNDEF && y != POS_UNDEF )
   {
@@ -1069,7 +1086,15 @@ bmp_draw_tiny_timer( HPS hps, int pos_id, double time )
       x += bmp_cx( d.quot + DIG_TINY );
       bmp_draw_bitmap( hps, x, y, d.rem  + DIG_TINY );
       x += bmp_cx( d.rem  + DIG_TINY );
-      ULONG idx = DIG_TINY + 10 + (((unsigned int)(2*time) & 1) << 1);
+      ULONG idx = DIG_TINY + 10;
+      switch (mode)
+      {case 2:
+        idx += 2;
+        break;
+       case 0:
+        idx +=  + (((unsigned int)(2*time) & 1) << 1);
+        break;
+      }
       bmp_draw_bitmap( hps, x, y, idx );
       x += bmp_cx( idx );
       d = div(minor, 10);
