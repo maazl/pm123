@@ -71,7 +71,6 @@ class PlayableSlice : public Iref_Count
   PlayableSlice(Playable* pp);
   PlayableSlice(const PlayableSlice& r);
   PlayableSlice(const url123& url, const xstring& alias = xstring());
-  // Because of internal dependencies this constructor must be invoked by the new operator only.
   PlayableSlice(const url123& url, const xstring& alias, const char* start, const char* stop);
   virtual                  ~PlayableSlice();
   // Get't the referenced content.
@@ -246,7 +245,7 @@ class PlayableCollection : public Playable
     {}
     // Detach a PlayableInstance from the collection.
     // This function must be called only by the parent collection and only while it is locked.
-    void Detach()             { Parent = NULL; }
+    void Detach()          { Parent = NULL; }
   };
   // CollectionInfo CacheEntry
   struct CollectionInfoEntry

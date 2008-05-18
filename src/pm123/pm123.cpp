@@ -727,9 +727,9 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
 
     case AMP_LOAD:
     { DropInfo* pdi = (DropInfo*)mp1;
-      int_ptr<PlayableSlice> ps = new PlayableSlice(pdi->URL, xstring(), pdi->Start.cdata(), pdi->Stop.cdata());
-      ASSERT(ps->GetPlayable());
-      amp_load_playable(*ps, pdi->options);
+      PlayableSlice ps(pdi->URL, xstring(), pdi->Start.cdata(), pdi->Stop.cdata());
+      ASSERT(ps.GetPlayable());
+      amp_load_playable(ps, pdi->options);
       delete pdi;
       return 0;
     }

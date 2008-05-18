@@ -94,28 +94,32 @@ PlayableSlice::PlayableSlice(const url123& url, const xstring& alias)
 }
 PlayableSlice::PlayableSlice(const url123& url, const xstring& alias, const char* start, const char* stop)
 : RefTo(Playable::GetByURL(url)),
-  Alias(alias)
+  Alias(alias),
+  Start(NULL),
+  Stop(NULL)
 { DEBUGLOG(("PlayableSlice(%p)::PlayableSlice(%s, %s, %s, %s) - %p\n", this,
     url.cdata() ? url.cdata() : "<NULL>", alias.cdata() ? alias.cdata() : "<NULL>",
     start ? start : "<NULL>", stop ? stop : "<NULL>", RefTo.get()));
   if (Alias && Alias.length() == 0)
     Alias = NULL;
-  if (start && *start)
-  { SongIterator* psi = new SongIterator();
-    psi->SetRoot(this);
-    psi->Deserialize(start);
-    // TODO: errors
-    Start = psi;
-  } else
-    Start = NULL;
-  if (stop && *stop)
-  { SongIterator* psi = new SongIterator();
-    psi->SetRoot(this);
-    psi->Deserialize(stop);
-    // TODO: errors
-    Stop = psi;
-  } else
-    Stop = NULL;
+  if ((start && *start) || (stop && *stop))
+  { // Internal instance to avoid cyclic references
+    PlayableSlice* ps = new PlayableSlice(GetPlayable());
+    if (start && *start)
+    { SongIterator* psi = new SongIterator();
+      psi->SetRoot(ps);
+      psi->Deserialize(start);
+      // TODO: errors
+      Start = psi;
+    }
+    if (stop && *stop)
+    { SongIterator* psi = new SongIterator();
+      psi->SetRoot(ps);
+      psi->Deserialize(stop);
+      // TODO: errors
+      Stop = psi;
+    }
+  }
 }
 
 PlayableSlice::~PlayableSlice()
@@ -301,8 +305,6 @@ const FORMAT_INFO2 PlayableCollection::no_format =
 
 PlayableCollection::PlayableCollection(const url123& URL, const TECH_INFO* ca_tech, const META_INFO* ca_meta)
 : Playable(URL, &no_format, ca_tech, ca_meta),
-  Head(NULL),
-  Tail(NULL),
   CollectionInfoCache(16)
 { DEBUGLOG(("PlayableCollection(%p)::PlayableCollection(%s, %p, %p)\n", this, URL.cdata(), ca_tech, ca_meta));
 }
@@ -315,6 +317,18 @@ PlayableCollection::~PlayableCollection()
   // Cleanup SubInfoCache
   for (CollectionInfoEntry** ppci = CollectionInfoCache.begin(); ppci != CollectionInfoCache.end(); ++ppci)
     delete *ppci;
+  // Cleanup container items because removing Head and Tail is not sufficient
+  // since the doubly linked list has implicit cyclic references.
+  while (Head)
+  { ASSERT(Head->IsParent(this));
+    Entry* ep = Head;
+    Head = Head->Next;
+    // ep ist still valid because the item is still held by Head->Prev or Tail.
+    ep->Detach();
+    ep->Prev = NULL;
+    ep->Next = NULL;
+  }
+  // *Tail is implicitely deleted by the destructor of Tail. 
 }
 
 Playable::Flags PlayableCollection::GetFlags() const
@@ -326,7 +340,8 @@ bool PlayableCollection::IsModified() const
 }
 
 PlayableCollection::Entry* PlayableCollection::CreateEntry(const char* url, const FORMAT_INFO2* ca_format, const TECH_INFO* ca_tech, const META_INFO* ca_meta)
-{ DEBUGLOG(("PlayableCollection(%p{%s})::CreateEntry(%s)\n", this, GetURL().getShortName().cdata(), url));
+{ DEBUGLOG(("PlayableCollection(%p{%s})::CreateEntry(%s, %p, %p, %p)\n",
+    this, GetURL().getShortName().cdata(), url, ca_format, ca_tech, ca_meta));
   // now create the entry with absolute path
   int_ptr<Playable> pp = GetByURL(GetURL().makeAbsolute(url), ca_format, ca_tech, ca_meta);
   // initiate prefetch of information
