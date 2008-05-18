@@ -915,6 +915,10 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
       return amp_drag_drop( hwnd, (PDRAGINFO)mp1 );
     case DM_RENDERCOMPLETE:
       return amp_drag_render_done( hwnd, (PDRAGTRANSFER)mp1, SHORT1FROMMP( mp2 ));
+    case DM_DROPHELP:
+      amp_show_help( IDH_DRAG_AND_DROP );
+      // Continue in default procedure to free ressources.
+      break;
 
     case WM_TIMER:
       DEBUGLOG2(("amp_dlg_proc: WM_TIMER - %x\n", LONGFROMMP(mp1)));
@@ -1074,6 +1078,13 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
         case IDM_M_ADDPMBOOK:
           if (CurrentRoot)
             DefaultPM->InsertItem(*CurrentIter->GetRoot());
+          break;
+
+        case IDM_M_PLRELOAD:
+          if ( CurrentRoot && (CurrentRoot->GetFlags() & Playable::Enumerable)
+            && ( !((PlayableCollection&)*CurrentRoot).IsModified()
+              || amp_query(hwnd, "The current list is modified. Discard changes?") ))
+            CurrentRoot->LoadInfoAsync(Playable::IF_All);
           break;
 
         case IDM_M_PLSAVE:

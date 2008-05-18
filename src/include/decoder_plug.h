@@ -25,7 +25,7 @@ typedef enum
   DECODER_REW      = 4, /* Level 2 plug-ins always send DECODER_FFWD */
   DECODER_JUMPTO   = 5,
   DECODER_SETUP    = 6,
-  DECODER_EQ       = 7,
+  DECODER_EQ       = 7, /* obsolete, no longer used since PM123 1.40b */
   DECODER_BUFFER   = 8, /* obsolete, don't used anymore */
   DECODER_SAVEDATA = 9
 } DECMSGTYPE;

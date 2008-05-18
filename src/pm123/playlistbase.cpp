@@ -344,6 +344,9 @@ MRESULT PlaylistBase::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
         DrgFreeDraginfo(pcdi->pDragInfo);
         return 0;
       }
+     case CN_DROPHELP:
+      amp_show_help( IDH_DRAG_AND_DROP );
+      return 0;
     }
     break;
 

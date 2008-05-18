@@ -93,6 +93,7 @@
 #define IDM_M_CURRENT_PL    558
 #define IDM_M_ADDPLBOOK_TIME 559
 #define IDM_M_LOAD          560
+#define IDM_M_PLRELOAD      561
 #define IDM_M_LOADFILE      600
 #define IDM_M_URL           601
 #define IDM_M_LOADOTHER     602 /* reserve some ID's for several plug-ins.  */
@@ -188,11 +189,11 @@
 
 /* Help page IDs. DO NEVER CHANGE THAT */
 #define IDH_MAIN           1000
-#define IDH_ADVANTAGES     1001
+//#define IDH_ADVANTAGES     1001
 #define IDH_ANALYZER       1002
 #define IDH_SUPPORT        1003
 #define IDH_COPYRIGHT      1004
-//#define IDH_DRAG_AND_DROP  1005
+#define IDH_DRAG_AND_DROP  1005
 #define IDH_EQUALIZER      1006
 #define IDH_ID3_EDITOR     1007
 #define IDH_INTERFACE      1008
