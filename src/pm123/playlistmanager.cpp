@@ -311,7 +311,7 @@ PlaylistBase::ICP PlaylistManager::GetPlayableType(const RecordBase* rec) const
   const Playable* pp = rec->Data->Content->GetPlayable();
   if ((pp->GetFlags() & Playable::Enumerable) == 0)
     ret = ICP_Song;
-  else if (pp->GetInfo().tech->num_items == 0)
+  else if (pp->GetInfo().phys->num_items == 0)
     ret = ICP_Empty;
   else if (((const Record*)rec)->Data()->Recursive)
     ret = ICP_Recursive;

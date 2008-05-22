@@ -1102,7 +1102,7 @@ int PlaylistBase::CompAlias(const PlayableInstance* l, const PlayableInstance* r
 }
 
 int PlaylistBase::CompSize(const PlayableInstance* l, const PlayableInstance* r)
-{ return l->GetPlayable()->GetInfo().tech->filesize > r->GetPlayable()->GetInfo().tech->filesize;
+{ return l->GetPlayable()->GetInfo().phys->filesize > r->GetPlayable()->GetInfo().phys->filesize;
 }
 
 int PlaylistBase::CompTime(const PlayableInstance* l, const PlayableInstance* r)

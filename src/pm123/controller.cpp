@@ -284,7 +284,7 @@ Ctrl::RC Ctrl::NavigateCore(SongIterator& si)
   }
   // Events
   UpdateStackUsage(si.GetCallstack(), Current()->Iter.GetCallstack());
-  InterlockedOr(Pending, EV_Song|EV_Tech|EV_Meta);
+  InterlockedOr(Pending, EV_Song|EV_Phys|EV_Tech|EV_Meta);
   // track updates
   PlayableSlice* ps = Current()->Iter.GetCurrent();
   if (ps)
@@ -324,7 +324,7 @@ void Ctrl::CheckPrefetch(double pos)
       UpdateStackUsage(Current()->Iter.GetCallstack(), PrefetchList[n]->Iter.GetCallstack());
       Current()->Iter.GetCurrent()->GetPlayable()->InfoChange += CurrentSongDelegate;
       // Set events
-      InterlockedOr(Pending, EV_Song|EV_Tech|EV_Meta);
+      InterlockedOr(Pending, EV_Song|EV_Phys|EV_Tech|EV_Meta);
       // Cleanup prefetch list
       vector<PrefetchEntry> ped(n);
       { CritSect cs;
@@ -408,7 +408,8 @@ void Ctrl::CurrentSongEventHandler(void*, const Playable::change_args& args)
 { DEBUGLOG(("Ctrl::CurrentSongEventHandler(, {%p{%s}, %x})\n", &args.Instance, args.Instance.GetURL().cdata(), args.Flags));
   if (GetCurrentSong() != &args.Instance)
     return; // too late...
-  EventFlags events = EV_Tech * ((args.Flags & Playable::IF_Tech) != 0)
+  EventFlags events = EV_Phys * ((args.Flags & Playable::IF_Phys) != 0)
+                    | EV_Tech * ((args.Flags & Playable::IF_Tech) != 0)
                     | EV_Meta * ((args.Flags & Playable::IF_Meta) != 0);
   if (events)
   { InterlockedOr(Pending, events);
@@ -633,6 +634,7 @@ Ctrl::RC Ctrl::MsgLoad(const xstring& url, int flags)
     play->EnsureInfo(Playable::IF_Other);
     if (play->GetStatus() <= STA_Invalid)
       return RC_InvalidItem;
+    play->EnsureInfoAsync(Playable::IF_Phys);
     play->EnsureInfoAsync(Playable::IF_All, true);
     { CritSect cs;
       PrefetchList.append() = new PrefetchEntry();
@@ -648,7 +650,7 @@ Ctrl::RC Ctrl::MsgLoad(const xstring& url, int flags)
       ps->GetPlayable()->InfoChange += CurrentSongDelegate;
     }
   }
-  InterlockedOr(Pending, EV_Root|EV_Song|EV_Tech|EV_Meta);
+  InterlockedOr(Pending, EV_Root|EV_Song|EV_Phys|EV_Tech|EV_Meta);
   DEBUGLOG(("Ctrl::MsgLoad - attached\n"));
 
   return RC_OK;

@@ -447,9 +447,9 @@ bool SongIterator::Navigate(const xstring& url, int index)
   if (!url)
   { // address from back
     if (index < 0)
-      index += list->GetInfo().tech->num_items +1;
+      index += list->GetInfo().phys->num_items +1;
     // address by index
-    if (index <= 0 || index > list->GetInfo().tech->num_items)
+    if (index <= 0 || index > list->GetInfo().phys->num_items)
       return false; // index out of range
     CallstackEntry* cep = Callstack[Callstack.size()-1];
     // List is not yet open. Enter it.
@@ -461,9 +461,9 @@ bool SongIterator::Navigate(const xstring& url, int index)
     // Offsets structure slicing
     (Offsets&)*cep = (const Offsets&)*Callstack[Callstack.size()-2];
     /*// Speed up: start from back if closer to it
-    if ((index<<1) > list->GetInfo().tech->num_items)
+    if ((index<<1) > list->GetInfo().phys->num_items)
     { // iterate from behind
-      index = list->GetInfo().tech->num_items - index;
+      index = list->GetInfo().phys->num_items - index;
       do
         pi = list->GetPrev(pi);
       while (index--);

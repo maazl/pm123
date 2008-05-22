@@ -272,10 +272,11 @@ class PlayableCollection : public Playable
  protected:
   // Prefetch some information to avoid deadlocks in GetCollectionInfo.
   void                        PrefetchSubInfo(const PlayableSet& excluding);
-  // Fill the THEC_INFO structure.
+  // Fill the TECH_INFO structure.
   void                        CalcTechInfo(TECH_INFO& dst);
   // Create new entry and make the path absolute if required.
-  virtual Entry*              CreateEntry(const char* url, const FORMAT_INFO2* ca_format = NULL, const TECH_INFO* ca_tech = NULL, const META_INFO* ca_meta = NULL);
+  virtual Entry*              CreateEntry(const char* url, const FORMAT_INFO2* ca_format, const TECH_INFO* ca_tech, const META_INFO* ca_meta, const PHYS_INFO* ca_phys);
+  Entry*                      CreateEntry(const char* url) { return CreateEntry(url, NULL, NULL, NULL, NULL); }
   // Append a new entry at the end of the list.
   // The list must be locked before calling this Function.
   void                        AppendEntry(Entry* entry);
@@ -297,7 +298,7 @@ class PlayableCollection : public Playable
   // Save to stream as WinAmp playlist format
   bool                        SaveM3U(XFILE* of, bool relative);
   // Constructor with defaults if available.
-  PlayableCollection(const url123& URL, const TECH_INFO* ca_tech = NULL, const META_INFO* ca_meta = NULL);
+  PlayableCollection(const url123& URL, const TECH_INFO* ca_tech = NULL, const META_INFO* ca_meta = NULL, const PHYS_INFO* ca_phys = NULL);
  public:
   virtual                     ~PlayableCollection();
   // RTTI by the back door.
@@ -363,9 +364,11 @@ class Playlist : public PlayableCollection
     Playlist&                 List;
     FORMAT_INFO2              Format;
     TECH_INFO                 Tech;
+    PHYS_INFO                 Phys;
     bool                      has_format;
     bool                      has_tech;
     bool                      has_techinfo;
+    bool                      has_phys;
     xstring                   Alias;
     xstring                   Start;
     xstring                   Stop;

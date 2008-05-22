@@ -55,10 +55,12 @@ void Playable::DecoderInfo::Init()
 { Format.size   = sizeof Format;
   TechInfo.size = sizeof TechInfo;
   MetaInfo.size = sizeof MetaInfo;
+  PhysInfo.size = sizeof PhysInfo;
   size          = sizeof(DECODER_INFO2);
   format        = &Format;
   tech          = &TechInfo;
   meta          = &MetaInfo;
+  phys          = &PhysInfo;
 }
 
 void Playable::DecoderInfo::Reset()
@@ -70,9 +72,12 @@ void Playable::DecoderInfo::Reset()
   Format  .channels   = -1;
   TechInfo.songlength = -1;
   TechInfo.bitrate    = -1;
-  TechInfo.filesize   = -1;
-  TechInfo.num_items  = -1;
+  TechInfo.totalsize  = -1;
+  TechInfo.total_items = -1;
+  TechInfo.recursive  = 0;
   MetaInfo.track      = -1;
+  PhysInfo.filesize   = -1;
+  PhysInfo.num_items  = -1;
 }
 
 void Playable::DecoderInfo::operator=(const DECODER_INFO2& r)
@@ -90,12 +95,16 @@ void Playable::DecoderInfo::operator=(const DECODER_INFO2& r)
     memcpy(&MetaInfo, r.meta, r.meta->size);
    else
     MetaInfo = *r.meta;
+  if (r.phys->size < sizeof PhysInfo)
+    memcpy(&MetaInfo, r.phys, r.phys->size);
+   else
+    PhysInfo = *r.phys;
   memcpy((DECODER_INFO2*)this, &r, sizeof(DECODER_INFO2));
   Init();
 }
 
 
-Playable::Playable(const url123& url, const FORMAT_INFO2* ca_format, const TECH_INFO* ca_tech, const META_INFO* ca_meta)
+Playable::Playable(const url123& url, const FORMAT_INFO2* ca_format, const TECH_INFO* ca_tech, const META_INFO* ca_meta, const PHYS_INFO* ca_phys)
 : URL(url),
   Stat(STA_Unknown),
   InfoValid(IF_None),
@@ -117,6 +126,10 @@ Playable::Playable(const url123& url, const FORMAT_INFO2* ca_format, const TECH_
   { *Info.meta = *ca_meta;
     InfoValid |= IF_Meta;
   }
+  if (ca_phys)
+  { *Info.phys = *ca_phys;
+    InfoValid |= IF_Phys;
+  } 
   Decoder[0] = 0;
 }
 
@@ -184,6 +197,14 @@ void Playable::UpdateInfo(const META_INFO* info)
   InfoChangeFlags |= (Playable::InfoFlags)(memcmpcpy(Info.meta, info, sizeof *Info.meta) * IF_Meta);
   DEBUGLOG(("Playable::UpdateInfo: %x %u\n", InfoValid, InfoChangeFlags));
 }
+void Playable::UpdateInfo(const PHYS_INFO* info)
+{ DEBUGLOG(("Playable::UpdateInfo(PHYS_INFO* %p)\n", info));
+  if (!info)
+    info = DecoderInfo::InitialInfo.phys;
+  InfoValid |= IF_Phys;
+  InfoChangeFlags |= (Playable::InfoFlags)(memcmpcpy(Info.phys, info, sizeof *Info.phys) * IF_Phys);
+  DEBUGLOG(("Playable::UpdateInfo: %x %u\n", InfoValid, InfoChangeFlags));
+}
 void Playable::UpdateInfo(const DECODER_INFO2* info)
 { DEBUGLOG(("Playable::UpdateInfo(DECODER_INFO2* %p)\n", info));
   if (!info)
@@ -194,6 +215,7 @@ void Playable::UpdateInfo(const DECODER_INFO2* info)
   UpdateInfo(info->format);
   UpdateInfo(info->tech);
   UpdateInfo(info->meta);
+  UpdateInfo(info->phys);
 }
 
 void Playable::UpdateStatus(PlayableStatus stat)
@@ -350,8 +372,8 @@ int_ptr<Playable> Playable::FindByURL(const char* url)
   return pp && !pp->RefCountIsUnmanaged() ? pp : NULL;
 }
 
-int_ptr<Playable> Playable::GetByURL(const url123& URL, const FORMAT_INFO2* ca_format, const TECH_INFO* ca_tech, const META_INFO* ca_meta)
-{ DEBUGLOG(("Playable::GetByURL(%s)\n", URL.cdata()));
+int_ptr<Playable> Playable::GetByURL(const url123& URL, const FORMAT_INFO2* ca_format, const TECH_INFO* ca_tech, const META_INFO* ca_meta, const PHYS_INFO* ca_phys)
+{ DEBUGLOG(("Playable::GetByURL(%s, %p, %p, %p, %p)\n", URL.cdata(), ca_format, ca_tech, ca_meta, ca_phys));
   Mutex::Lock lock(RPMutex);
   #ifdef DEBUG
   //RPDebugDump();
@@ -372,7 +394,8 @@ int_ptr<Playable> Playable::GetByURL(const url123& URL, const FORMAT_INFO2* ca_f
     DEBUGLOG(("Playable::GetByURL: factory &%p{%p}\n", &pp, pp));
   } else if ( (ca_format && !(pp->InfoValid & IF_Format)) // Double check
            || (ca_tech && !(pp->InfoValid & IF_Tech))
-           || (ca_meta && !(pp->InfoValid & IF_Meta)) )
+           || (ca_meta && !(pp->InfoValid & IF_Meta))
+           || (ca_phys && !(pp->InfoValid & IF_Phys)) )
   { // Merge meta info, but do this outside the above mutex
     lock.Release();
     Mutex::Lock lock2(pp->Mtx);
@@ -382,6 +405,8 @@ int_ptr<Playable> Playable::GetByURL(const url123& URL, const FORMAT_INFO2* ca_f
       pp->UpdateInfo(ca_tech);
     if (ca_meta && !(pp->InfoValid & IF_Meta))
       pp->UpdateInfo(ca_meta);
+    if (ca_phys && !(pp->InfoValid & IF_Phys))
+      pp->UpdateInfo(ca_phys);
     pp->RaiseInfoChange();
   }
   return pp;

@@ -280,11 +280,10 @@ typedef struct _DECODER_INFO2
 {
    int  size;
 
-   FORMAT_INFO2* format;  /* stream format after decoding */
-
-   TECH_INFO*    tech;    /* technical informations about the source */
-
-   META_INFO*    meta;    /* song information */
+   FORMAT_INFO2* format;  /* Stream format after decoding */
+   TECH_INFO*    tech;    /* Technical informations about the source */
+   META_INFO*    meta;    /* Song information */
+   PHYS_INFO*    phys;    /* Basic Information about the source */
    BOOL          meta_write; /* support editing the metadata (same as saveinfo in DECODER_INFO) */
 
 } DECODER_INFO2;

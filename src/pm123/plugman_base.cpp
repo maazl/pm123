@@ -701,8 +701,7 @@ proxy_1_decoder_fileinfo( CL_DECODER_PROXY_1* op, const char* filename, DECODER_
   ULONG rc;
   char buf[300];
 
-  // purge the structure because of buggy plug-ins
-  info->tech->filesize   = -1;
+  info->phys->filesize   = -1;
 
   if (scdparams(&cd_info, filename))
   { if ( cd_info.track == 0 ||            // can't handle sectors
@@ -732,8 +731,12 @@ proxy_1_decoder_fileinfo( CL_DECODER_PROXY_1* op, const char* filename, DECODER_
     // TODO: large file support
     struct stat fi;
     if ( rc == 0 && is_file(filename) && stat( filename, &fi ) == 0 )
-      info->tech->filesize = fi.st_size;
+      info->phys->filesize = fi.st_size;
   }
+  info->phys->num_items = 1;
+  info->tech->totalsize = info->phys->filesize;
+  info->tech->total_items= 1;
+  info->tech->recursive  = FALSE;
   DEBUGLOG(("proxy_1_decoder_fileinfo: %lu\n", rc));
 
   // convert information to new format
@@ -744,12 +747,10 @@ proxy_1_decoder_fileinfo( CL_DECODER_PROXY_1* op, const char* filename, DECODER_
     info->tech->songlength = old_info.songlength < 0 ? -1 : old_info.songlength/1000.;
     info->tech->bitrate    = old_info.bitrate;
     strlcpy(info->tech->info, old_info.tech_info, sizeof info->tech->info);
-    info->tech->num_items  = 1;
-    info->tech->recursive  = FALSE;
 
     // this part of the structure is binary compatible
     memcpy(&info->meta->title, old_info.title, offsetof(META_INFO, track) - offsetof(META_INFO, title));
-    info->meta->track      = -1;
+    info->meta->track      = atoi(old_info.track);
     info->meta->track_gain = old_info.track_gain; 
     info->meta->track_peak = old_info.track_peak; 
     info->meta->album_gain = old_info.album_gain; 
@@ -989,7 +990,7 @@ proxy_1_output_command( CL_OUTPUT_PROXY_1* op, void* a, ULONG msg, OUTPUT_PARAMS
       if (dinfo2.meta->track)
         sprintf(dinfo.track, "%i", dinfo2.meta->track);
       dinfo.codepage   = ch_default();
-      dinfo.filesize   = (int)dinfo2.tech->filesize;
+      dinfo.filesize   = (int)dinfo2.phys->filesize;
       dinfo.track_gain = dinfo2.meta->track_gain;
       dinfo.track_peak = dinfo2.meta->track_peak;
       dinfo.album_gain = dinfo2.meta->album_gain;

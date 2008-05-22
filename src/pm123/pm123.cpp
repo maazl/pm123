@@ -202,7 +202,7 @@ amp_paint_timers( HPS hps )
   bmp_draw_tiny_timer( hps, POS_PL_LEFT,   list_left );
 
   int index = is_playlist ? off.Index : 0;
-  bmp_draw_plind( hps, index, index > 0 ? CurrentRoot->GetInfo().tech->num_items : 0);
+  bmp_draw_plind( hps, index, index > 0 ? CurrentRoot->GetInfo().tech->total_items : 0);
 }
 
 /* Draws all attributes of the currently loaded file. */
@@ -805,7 +805,7 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
         { WinSendDlgItemMsg(hplayer, BMP_REPEAT,  Ctrl::IsRepeat() ? WM_PRESS : WM_DEPRESS, 0, 0);
           inval |= UPD_TIMERS;
         }
-        if (flags & Ctrl::EV_Song)
+        if (flags & (Ctrl::EV_Song|Ctrl::EV_Phys))
           amp_force_locmsg();
 
         if (flags & Ctrl::EV_Volume)

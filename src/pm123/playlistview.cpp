@@ -445,7 +445,7 @@ PlaylistBase::ICP PlaylistView::GetPlayableType(const RecordBase* rec) const
   if ((rec->Data->Content->GetPlayable()->GetFlags() & Playable::Enumerable) == 0)
     return ICP_Song;
   // TODO: the dependancy to the technical info is not handled by the update events
-  return rec->Data->Content->GetPlayable()->GetInfo().tech->num_items ? ICP_Closed : ICP_Empty;
+  return rec->Data->Content->GetPlayable()->GetInfo().phys->num_items ? ICP_Closed : ICP_Empty;
 }
 
 PlaylistBase::IC PlaylistView::GetRecordUsage(const RecordBase* rec) const
@@ -520,13 +520,16 @@ bool PlaylistView::CalcCols(Record* rec, Playable::InfoFlags flags, PlayableInst
     rec->Song = tmp;
     rec->Data()->Song = tmp; // free old value
   }
-  // Columns that only depend on tech changes
-  if (flags & Playable::IF_Tech)
+  // Columns that only depend on phys changes
+  if (flags & Playable::IF_Phys)
   { // size
-    tmp = FormatSize(info.tech->filesize);
+    tmp = FormatSize(info.phys->filesize);
     rec->Size = tmp;
     rec->Data()->Size = tmp; // free old value
-    // time
+  }
+  // Columns that only depend on tech changes
+  if (flags & Playable::IF_Tech)
+  { // time
     tmp = FormatTime(info.tech->songlength);
     rec->Time = tmp;
     rec->Data()->Time = tmp; // free old value

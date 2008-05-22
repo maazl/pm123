@@ -40,7 +40,7 @@
     the number of channels as mode (0=stereo, 3=mono),<br>
     the file size [bytes] or <tt>-1</tt> if unknown and<br>
     the songlength [s] or <tt>-1</tt> if unknown.</p>
-    <pre>&gt;143,44100,0,22923026,1278.7,0.0,-1</pre>
+    <!--pre>&gt;143,44100,0,22923026,1278.7,0.0,-1</pre-->
   </li>
 </ul>
 <h4>For each playlist or folder entry</h4>
@@ -57,12 +57,14 @@
     On input file:/// URLs are accepted too. Folder entries must end with a trailing <tt>/</tt>.</p>
   </li>
   <li><p>Technical information about the last entry</p>
-    <pre>&gt;136,-1,-1,896,1278.7,0,-1,15,0</pre>
+    <pre>&gt;136,-1,-1,896,1278.7,145,19775.4,15,0</pre>
     <p>This is the average bitrate [kbps] or -1 if unknown,<br>
     two constants (<tt>-1,-1</tt>) indicating unknown samplingrate and channels,<br>
     the file size [bytes] or <tt>-1</tt> if unknown,<br>
     the total length [s] or <tt>-1</tt> if unknown,<br>
-    the number of items (including subitems) in the referenced playlist and<br>
+    the number of song items (including subitems) in the referenced playlist,<br>
+    the total file size of all song items (including subitems),<br>
+    the number of items in the referenced playlist and<br>
     a flag whether the content is known to contain itself recursively is added.</p>
   </li>
 </ul>

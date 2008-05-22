@@ -1012,9 +1012,10 @@ dec_fileinfo( const char* filename, DECODER_INFO2* info, char* name, size_t name
 
   return 200;
  ok:
-  DEBUGLOG(("dec_fileinfo: {{%d, %d, %d}, {%d, %lf, %d, %lf, %s, %d}} -> %s\n",
+  DEBUGLOG(("dec_fileinfo: {{%d, %d, %d}, {%d, %lf, %d, %lf, %d, %u, %s}, {%d, %lf, %d}} -> %s\n",
     info->format->size, info->format->samplerate, info->format->channels,
-    info->tech->size, info->tech->songlength, info->tech->bitrate, info->tech->filesize, info->tech->info, info->tech->num_items,
+    info->tech->size, info->tech->songlength, info->tech->bitrate, info->tech->totalsize, info->tech->total_items, info->tech->recursive, info->tech->info,
+    info->phys->size, info->phys->filesize, info->phys->num_items,
     name));
   if (name)
     sfnameext( name, dp->module_name, name_size );

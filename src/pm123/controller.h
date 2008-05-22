@@ -214,10 +214,11 @@ class Ctrl
     EV_Repeat   = 0x0020,   // The repeat flag has changed.
     EV_Volume   = 0x0040,   // The volume has changed.
     EV_Savename = 0x0080,   // The savename has changed.
-    EV_Root     = 0x1000,   // The currently loaded root object has changed.
-    EV_Song     = 0x2000,   // The current song has changed. This always includes EV_Tech and EV_Meta.
-    EV_Tech     = 0x4000,   // The technical information have changed (e.g. song length).
-    EV_Meta     = 0x8000    // The meta data have changed (i.e. song title).
+    EV_Root     = 0x0100,   // The currently loaded root object has changed.
+    EV_Song     = 0x0200,   // The current song has changed. This always includes EV_Phys, EV_Tech and EV_Meta.
+    EV_Phys     = 0x0400,   // The physical file information has changed (e.g. number of items).
+    EV_Tech     = 0x0800,   // The technical information have changed (e.g. song length).
+    EV_Meta     = 0x1000    // The meta data have changed (i.e. song title).
   };
   
  private:

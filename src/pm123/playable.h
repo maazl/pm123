@@ -85,9 +85,10 @@ class Playable
     IF_Format   = 0x01,// applies to GetInfo().format
     IF_Tech     = 0x02,// applies to GetInfo().tech
     IF_Meta     = 0x04,// applies to GetInfo().meta
-    IF_Other    = 0x08,// applies e.g. to PlayableCollection::GetNext()
-    IF_Status   = 0x10,// applies to GetStatus() and IsModified()
-    IF_All      = IF_Format|IF_Tech|IF_Meta|IF_Other|IF_Status
+    IF_Phys     = 0x08,// applies to GetInfo().phys
+    IF_Other    = 0x10,// applies to GetDecoder() and PlayableCollection::GetNext()
+    IF_Status   = 0x20,// applies to GetStatus() and IsModified()
+    IF_All      = IF_Format|IF_Tech|IF_Meta|IF_Phys|IF_Other|IF_Status
   };
   // Parameters for InfoChange Event
   struct change_args
@@ -102,6 +103,7 @@ class Playable
     FORMAT_INFO2      Format;
     TECH_INFO         TechInfo;
     META_INFO         MetaInfo;
+    PHYS_INFO         PhysInfo;
    public:
     static const DecoderInfo InitialInfo;
    private:
@@ -134,11 +136,12 @@ class Playable
   Playable(const Playable&);
   void operator=(const Playable&);
  protected:
-  Playable(const url123& url, const FORMAT_INFO2* ca_format = NULL, const TECH_INFO* ca_tech = NULL, const META_INFO* ca_meta = NULL);
+  Playable(const url123& url, const FORMAT_INFO2* ca_format = NULL, const TECH_INFO* ca_tech = NULL, const META_INFO* ca_meta = NULL, const PHYS_INFO* ca_phys = NULL);
   // Update the structure components and return the required InfoChange Flags or 0 if no change has been made.
   void                UpdateInfo(const FORMAT_INFO2* info);
   void                UpdateInfo(const TECH_INFO* info);
   void                UpdateInfo(const META_INFO* info);
+  void                UpdateInfo(const PHYS_INFO* info);
   void                UpdateInfo(const DECODER_INFO2* info);
   void                UpdateStatus(PlayableStatus stat);
   // Raise the InfoChange event if required.
@@ -264,7 +267,8 @@ class Playable
   // The optional parameters ca_* are preloaded informations.
   // This is returned by the apropriate Get* functions without the need to access the underlying data source.
   // This is used to speed up large playlists.
-  static int_ptr<Playable> GetByURL(const url123& URL, const FORMAT_INFO2* ca_format = NULL, const TECH_INFO* ca_tech = NULL, const META_INFO* ca_meta = NULL);
+  static int_ptr<Playable> GetByURL(const url123& URL, const FORMAT_INFO2* ca_format, const TECH_INFO* ca_tech, const META_INFO* ca_meta, const PHYS_INFO* ca_phys);
+  static int_ptr<Playable> GetByURL(const url123& URL) { return GetByURL(URL, NULL, NULL, NULL, NULL); }
 };
 // Flags Attribute for StatusFlags
 FLAGSATTRIBUTE(Playable::InfoFlags);
@@ -292,8 +296,8 @@ struct PlayableSet
  */
 class Song : public Playable
 {public:
-  Song(const url123& URL, const FORMAT_INFO2* ca_format = NULL, const TECH_INFO* ca_tech = NULL, const META_INFO* ca_meta = NULL)
-   : Playable(URL, ca_format, ca_tech, ca_meta) { DEBUGLOG(("Song(%p)::Song(%s, %p, %p, %p)\n", this, URL.cdata(), ca_format, ca_tech, ca_meta)); }
+  Song(const url123& URL, const FORMAT_INFO2* ca_format = NULL, const TECH_INFO* ca_tech = NULL, const META_INFO* ca_meta = NULL, const PHYS_INFO* ca_phys = NULL)
+   : Playable(URL, ca_format, ca_tech, ca_meta, ca_phys) { DEBUGLOG(("Song(%p)::Song(%s, %p, %p, %p, %p)\n", this, URL.cdata(), ca_format, ca_tech, ca_meta, ca_phys)); }
 
   virtual InfoFlags        LoadInfo(InfoFlags what);
 };
