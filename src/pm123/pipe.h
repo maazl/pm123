@@ -34,6 +34,8 @@
 
 #include <config.h>
 #include <stdlib.h>
+#include <cpp/xstring.h>
+#include "playablecollection.h"
 
 
 /* Create main pipe with only one instance possible since these pipe
@@ -46,6 +48,59 @@ void amp_pipe_destroy();
 /* Opens specified pipe and writes data to it. */
 bool amp_pipe_open_and_write( const char* pipename, const char* data, size_t size );
 
+
+/* Class to execute pipe commands with a local context. */
+class CommandProcessor
+{private:
+  static const struct CmdEntry
+  { char Prefix[12];
+    void (CommandProcessor::*ExecFn)(xstring& ret, char* args);
+  } CmdList[];
+
+ private:
+  int_ptr<PlayableCollection> CurPlaylist; // playlist where we currently operate
+  int_ptr<PlayableInstance>   CurItem;     // current item of the above playlist
+ private:
+  void CmdLoad(xstring& ret, char* args);
+  void CmdPlay(xstring& ret, char* args);
+  void CmdStop(xstring& ret, char* args);
+  void CmdPause(xstring& ret, char* args);
+  void CmdNext(xstring& ret, char* args);
+  void CmdPrev(xstring& ret, char* args);
+  void CmdRewind(xstring& ret, char* args);
+  void CmdForward(xstring& ret, char* args);
+  void CmdJump(xstring& ret, char* args);
+  void CmdVolume(xstring& ret, char* args);
+  void CmdShuffle(xstring& ret, char* args);
+  void CmdRepeat(xstring& ret, char* args);
+  void CmdStatus(xstring& ret, char* args);
+  void CmdHide(xstring& ret, char* args);
+  // PLAYLIST
+  void CmdPlaylist(xstring& ret, char* args);
+  void CmdPlNext(xstring& ret, char* args);
+  void CmdPlPrev(xstring& ret, char* args);
+  void CmdPlReset(xstring& ret, char* args);
+  void CmdUse(xstring& ret, char* args);
+  void CmdClear(xstring& ret, char* args);
+  void CmdRemove(xstring& ret, char* args);
+  void CmdAdd(xstring& ret, char* args);
+  void CmdDir(xstring& ret, char* args);
+  void CmdRdir(xstring& ret, char* args);
+  // CONFIGURATION
+  void CmdSize(xstring& ret, char* args);
+  void CmdFont(xstring& ret, char* args);
+  void CmdFloat(xstring& ret, char* args);
+  void CmdAutouse(xstring& ret, char* args);
+  void CmdPlayonload(xstring& ret, char* args);
+  void CmdPlayonuse(xstring& ret, char* args);
+ public:
+  CommandProcessor();
+  // Executes the Command cmd and return a value in ret.
+  // Note that cmd is mutable. The buffer content will be destroyed.
+  void Execute(xstring& ret, char* cmd);
+  // Same as above, but copies the command buffer first.
+  void Execute(xstring& ret, const char* cmd);
+};
 
 #endif
 
