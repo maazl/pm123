@@ -919,7 +919,7 @@ void Ctrl::Init()
   struct
   { BOOL   shf;                 /* The state of the "Shuffle" button.     */
     BOOL   rpt;                 /* The state of the "Repeat" button.      */
-  } cfg;
+  } cfg = { Shuffle, Repeat };
   HINI hini = open_module_ini();
   load_ini_value(hini, cfg.shf);
   load_ini_value(hini, cfg.rpt);
