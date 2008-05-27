@@ -1,0 +1,49 @@
+<html resid=1051 sublinks="*">
+<head>
+   <title>Configuration Settings 2/2</title>
+</head>
+<body>
+<h2>PM123's Configuration Settings 2/2</h2>
+
+<blockquote>
+<img SRC="images/prop1a.png"><br>
+</blockquote>
+
+<h3>User interface</h3>
+<dl>
+  <dt><b>Dock windows to <var>x</var> pixels</b>
+  <dd>This will allow the windows to dock into the main player window so that when
+  then main window is moved, the docked window follows. Specify the distance in
+  pixels to allow for docking.
+</dl>
+
+<h3>Remote control</h3>
+<dl>
+  <dt><b>Pipe name</b>
+  <dd>Specify the name of the named pipe that is used to control PM123 remotely.
+    Only one instance of PM123 can listen at a certain pipe name.
+    If you want to control different instances remotely at the same time
+    they mus use different pipe names and therefore different configuration files.
+    The pipe name must start with <tt>\PIPE\</tt>.
+</dl>
+
+<h3>Streaming audio</h3>
+<dl>
+<dt><b>HTTP proxy</b>
+<dd>Specify the name or numeric IP address of your HTTP proxy server here.
+<dt><b>port</b>
+<dd>Specify the port of your HTTP proxy server.
+<dt><b>User name</b>
+<dd>This is your HTTP authentication name.
+<dt><b>password</b>
+<dd>This is your HTTP authentication password.
+<dt><b>Buffer size</b>
+<dd>Specifies the read ahead buffer size (useful when plaing across a network or from a streaming source).
+You can disable the buffer having chosen the zero size, but it will dramatically decrease
+player performance.
+<dt><b>Fill <var>x</var>% of the buffer before playing</b>
+<dd>Fills the buffer (see above) before playing.
+</dl>
+
+</body>
+</html>

@@ -9,13 +9,16 @@ TARGET = pm123.inf pm123_pdk.inf
 
 all: pm123.inf pm123_pdk.inf $(MDUMMY)
 
-MANLST = history.html manual\index.html manual\advantage.html
-MANLST = $(MANLST) manual\mainwin.html manual\mainmenu.html manual\playlist.html
-MANLST = $(MANLST) manual\properties.html manual\id3.html manual\analyzer.html
-MANLST = $(MANLST) manual\realeq.html manual\manager.html manual\parameters.html
-MANLST = $(MANLST) manual\playlistformat.html manual\skins.html manual\remote.html
-MANLST = $(MANLST) manual\contact.html manual\copyright.html manual\netscape.html
-MANLST = $(MANLST) manual\sguide.html manual\troubleshooting.html
+MANLST = history.html manual\analyzer.html manual\analyzerformat.html manual\contact.html 
+MANLST = $(MANLST) manual\copyright.html manual\display.html manual\dragndrop.html 
+MANLST = $(MANLST) manual\gui.html manual\id3.html manual\index.html manual\integration.html 
+MANLST = $(MANLST) manual\keyboard.html manual\location.html manual\mainmenu.html
+MANLST = $(MANLST) manual\mainwin.html manual\manager.html manual\migrating.html 
+MANLST = $(MANLST) manual\netscape.html manual\parameters.html manual\playlist.html 
+MANLST = $(MANLST) manual\playlistformat.html manual\plug-ins.html manual\plug-ins_cfg.html 
+MANLST = $(MANLST) manual\properties.html manual\realeq.html manual\remote.html 
+MANLST = $(MANLST) manual\settings1.html manual\settings2.html manual\sguide.html 
+MANLST = $(MANLST) manual\skins.html manual\tech.html manual\troubleshooting.html 
 
 PDKLST = pdk\index.html pdk\decode_plug.html pdk\filter_plug.html
 PDKLST = $(PDKLST) pdk\output_plug.html pdk\visual_plug.html

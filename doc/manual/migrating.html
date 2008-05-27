@@ -1,4 +1,4 @@
-<html resid=1021>
+<html resid=1021 sublinks="*">
 <head>
    <title>Migrating to PM123 1.40</title>
 </head>
@@ -7,6 +7,30 @@
 <h2>Migrating to PM123 1.40</h2>
 <p>There are some major changes in the GUI that you should be aware of when moving
   from an earlier version. For further information see the <a href="../History.txt">changelog</a>.</p>
+<h3>Main window</h3>
+<h4>Visual plug-in</h4>
+<p>You must use a double click to change the visual plug-in style.
+  This prevents from switching the styl accidentially.</p>
+<h4>Alternate navigation</h4>
+<blockquote>
+<img src="images/altslider.png">
+</blockquote>
+<p>While playing a playlist you can navigate with the slider through the entire list
+  by pressing the Alt key. The exact behaviour is controlled by the <a href="settings1.html">navigation settings</a>
+  in the <a href="properties.html">properties dialog</a>.  
+<h4>Equalizer has vanished</h4>
+<p>Well, that's true.
+  The simple equalizer from the context menu has been removed because the only plug-in
+  that supported it was mpg123. Any other plug-in including WAV and Ogg-Vorbis playback
+  silently ignored it. This causes the sound to depend on the encoding and to change
+  within playlists. A bad thing.</p>
+<p>I recommend to use the powerful <a href="realeq.html">RealEQ plug-in</a> as an alternative.
+  If you do not care about its precision use conservative setting like an FIR order of 4096.</p>
+<p>If you do not like this alternative or it eats too much CPU for your purposes,
+  you have to wait for a parametric EQ plug-in which uses very fast IIR filters.
+  This will require nearly no CPU cycles and work with any source although.
+  However, one must do the job.</p>
+
 <h3>Playlist windows</h3>
 <img src="images/playlist.gif">
 <p>Playlists, the playlist manager and bookmarks are now basically the same thing.
@@ -61,17 +85,5 @@
   This allows to reflect changes to the folder to PM123.
   See <a href="dragndrop.html">Drag & Drop</a> for further details.</p>
 
-<h3>Equalizer has vanished</h3>
-<p>Well, that's true.
-  The simple equalizer from the context menu has been removed because the only plug-in
-  that supported it was mpg123. Any other plug-in including WAV and Ogg-Vorbis playback
-  silently ignored it. This causes the sound to depend on the encoding and to change
-  within playlists. A bad thing.</p>
-<p>I recommend to use the powerful <a href="realeq.html">RealEQ plug-in</a> as an alternative.
-  If you do not care about its precision use conservative setting like an FIR order of 4096.</p>
-<p>If you do not like this alternative or it eats too much CPU for your purposes,
-  you have to wait for a parametric EQ plug-in which uses very fast IIR filters.
-  This will require nearly no CPU cycles and work with any source although.
-  However, one must do the job.</p>
 </body>
 </html>

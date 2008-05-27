@@ -67,8 +67,6 @@
  Global.Title = '';                                             /* book Title */
  Global.HREF = '';   /* Speedup: keep all encountered HREFs and IMG_SRCs in a */
  Global.IMGSRC = '';    /* string so we can use Pos() and WordPos() functions */
- Global.SubLinks = 0;           /* This stem keeps track of the SUBLINKS tags */
- Global.NoSubLinks = 0;       /* This stem keeps track of the NOSUBLINKS tags */
  Global.NewLine = 1;
 
 /* Default state for all switches */
@@ -114,8 +112,6 @@
  call time 'R'
  call ParseFile _fName, 1;
  do until ResolveLinks(1) = 0;
-  Global.Sublinks = 0;
-  Global.NoSublinks = 0;/* Include all unresolved sublinks */
  end;
  call ConvertPictures;
  call OutputURLs;
@@ -331,10 +327,14 @@ ParseFile:
  Global.HasText = 0;                  /* 1 if the current section has content */
  Global.Paragraph = 'Inc';/* 'Inc' if a paragraph distance is included in last tag */
                           /* 'Req' if a paragraph distance is required by the next text block */
+ Global.PageLinks = 0;  /* This stem keeps track of links in the current page */
+ Global.SubLinks = 0;           /* This stem keeps track of the SUBLINKS tags */
+ Global.NoSubLinks = 0;       /* This stem keeps track of the NOSUBLINKS tags */
  call PutToken Global.EOL;                     /* initialize output subsystem */
  Global.EOF = 0;
  Global.CurFont = Global.DefaultFont;
 /* Remember the count of SUBLINKS and NOSUBLINKS to restore it later */
+ locPagelinks = Global.Pagelinks;
  locSublinks = Global.Sublinks;
  locNoSublinks = Global.NoSublinks;
 
@@ -405,6 +405,7 @@ ParseFile:
  call ResolveLinks DeepLevel+1;
 
 /* Restore the SUBLINKS and NOSUBLINKS counter */
+ Global.PageLinks = locPagelinks;
  Global.Sublinks = locSublinks;
  Global.NoSublinks = locNoSublinks;
 return;
@@ -415,26 +416,36 @@ ResolveLinks:
  LinkCount = 0;
  Links.0 = 0;
 
+ /* for all unresolved links ... */
  do i = 1 to Global.LinkID
-  if (\Global.LinkID.i.Resolved)
-   then do
-         if Global.SubLinks > 0
-          then do
-                do j = 1 to Global.SubLinks
-                 if Pos(Global.SubLinks.j, translate(Global.LinkID.i.InitialName)) = 1
-                  then do; j = -1; leave; end;
-                end;
-                if j \= -1 then Iterate;
-               end;
-         do j = 1 to Global.NoSubLinks
-          if Pos(Global.NoSubLinks.j, translate(Global.LinkID.i.InitialName)) = 1
-           then do; j = -1; leave; end;
-         end;
-         if j = -1 then Iterate;
-         Links.0 = Links.0 + 1; j = Links.0;
-         Links.j = Global.LinkID.i.RealName;
-         Global.LinkID.i.Resolved = 1;
-        end;
+  if (\Global.LinkID.i.Resolved) then do
+   /* restrict to explicit sublinks if any */
+   if Global.SubLinks > 0 then do
+    do j = 1 to Global.SubLinks
+     if Pos(Global.SubLinks.j, translate(Global.LinkID.i.InitialName)) = 1
+      then do; j = -1; leave; end;
+    end;
+    if j \= -1 then Iterate;
+   end;
+   /* otherwise restrict to links that are part of the current page. */
+   else do;
+    do j = 1 to Global.PageLinks
+     if Pos(Global.PageLinks.j, translate(Global.LinkID.i.InitialName)) = 1
+      then do; j = -1; leave; end;
+    end;
+    if j \= -1 then Iterate;
+   end;
+   /* always exclude nosublinks */
+   do j = 1 to Global.NoSubLinks
+    if Pos(Global.NoSubLinks.j, translate(Global.LinkID.i.InitialName)) = 1
+     then do; j = -1; leave; end;
+   end;
+   if j = -1 then Iterate;
+   /* add link to the list of files to process */
+   Links.0 = Links.0 + 1; j = Links.0;
+   Links.j = Global.LinkID.i.RealName;
+   Global.LinkID.i.Resolved = 1;
+  end;
  end;
  if Global.OptS
   then call SortLinks 1, Links.0;
@@ -443,6 +454,7 @@ ResolveLinks:
   call ParseFile translate(Links.i, '/', '\'), DeepLevel;
   LinkCount = LinkCount + 1;
  end;
+ drop Global.PageLinks.;
  drop Global.SubLinks.;
  drop Global.NoSubLinks.;
 return LinkCount;
@@ -959,12 +971,17 @@ doTag!A:
 return 0;
 
 doTagA_HREF:
+ /* create link */
  i = GetLinkID(subTagValue);
  if i > 0
   then do
         call PutToken ':link reftype=hd refid='i'.';
         Global.CurLink = i;
         Global.RefEndTag = ':elink.'||Global.RefEndTag;
+        /* remeber links in this page */
+        i = Global.PageLinks;
+        Global.PageLinks = i + 1;
+        Global.PageLinks.i = translate(subTagValue);
        end;
 return 0;
 

@@ -1,109 +1,21 @@
-<html resid=1015 level=3>
+<html resid=1015>
 <head>
    <title>Configuration Dialog</title>
 </head>
 <body>
-<b><font size=+2>PM123's Configuration Dialog</font></b>
+<h2>PM123's Configuration Dialog</h2>
 
 <blockquote>
-<img SRC="images/prop1.gif"><br>
+<img SRC="images/prop1.png"><br>
 </blockquote>
 This proporties dialog can be accessed from the <a href="mainmenu.html">main
-menu.</a> In the dialog you can configure PM123's audio engine and interface.
-<dl>
-<dt><b>Start playing on file load</b>
-<dd>Automatically starts playing when you load a file.
-<dt><b>Auto 'use playlist' on add</b>
-<dd>Automatically selects "Use this playlist" when adding files or directories to the playlist.
-<dt><b>Auto 'play' on 'use playlist</b>
-<dd>Automatically starts playing on "Use playlist".
-<dt><b>Select played file</b>
-<dd>Automatically selects currently playing file in the playlist.
-<dt><b>Trash buffers on seek</b>
-<dd>This option provides a much faster response on seek operations (fast forward, rewind, jump to position), but consumes more CPU time during the seek.
-<p>
-<dt><b>Dock windows to x pixels</b>
-<dd>This will allow the windows to dock into the main player window so that when
-then main window is moved, the docked window follows. Specify the distance in
-pixels to allow for docking.
-<p>
-<dt><b>HTTP proxy</b>
-<dd>Specify the name or numeric IP address of your HTTP proxy server here.
-<dt><b>port</b>
-<dd>Specify the port of your HTTP proxy server.
-<dt><b>User name</b>
-<dd>This is your HTTP authentication name.
-<dt><b>password</b>
-<dd>This is your HTTP authentication password.
-<dt><b>Buffer size</b>
-<dd>Specifies the read ahead buffer size (useful when plaing across a network or from a streaming source).
-You can disable the buffer having chosen the zero size, but it will dramatically decrease
-player performance.
-<dt><b>Fill buffer before playing</b>
-<dd>Fills the buffer (see above) before playing.
-</dl>
-<blockquote>
-<img SRC="images/prop1a.gif"><br>
-</blockquote>
-<dl>
-<p>
-<dt><b>Characters encoding</b>
-<dd>Specifies the default characters encoding of the information about
-song (artist, album etc.). This is used only if the decoder don't provide
-encoding information.
-<p>
-<dt><b>Scroll title / Infinite</b>
-<dd>Keeps scrolling the display forth and back until you start feeling sick :-)
-<dt><b>Scroll title / Once</b>
-<dd>Scrolls the display forth and back once.
-<dt><b>Scroll title / Disable</b>
-<dd>Prevents the display from scrolling. Useful if you are scroll-sick.
-<p>
-<dt><b>Default display / Filename</b>
-<dd>Display the filename by default.
-<dt><b>Default display / Song information</b>
-<dd>Display the song title by default.
-<dt><b>Default display / Tech information</b>
-<dd>Display the file technical information by default (bitrate, frequency, mode).
-<p>
-<dt><b>Use skinned font for display</b>
-<dd>Allows to choose between skinned and non skinned font for display of title.
-</dl>
-<blockquote>
-<img SRC="images/prop2.gif"><br>
-</blockquote>
-This dialog is divided into two parts - one for the visual plug-ins
-and the second for decoder plug-ins.
-<dl>
-<dt><b>Enable/Disable</b>
-<dd>Enables/disables the selected plugin.
-<dt><b>Unload</b>
-<dd>Unloads the plugin completely.
-<dt><b>Configure</b>
-<dd>Avalaible only if the plugin is configurable. Click this button to set plugin's settings.
-<dt><b>Add</b>
-<dd>Add a plugin (some visual plugins are skin specific, see <a href="analyzer.html">PM123 sound visualization</a>).
-</dl>
-<blockquote>
-<img SRC="images/prop3.gif"><br>
-</blockquote>
-<p>This dialog is also divided into two parts - in filter plugins part,
-you can add a filter, in output plugins part you can use a output plugins.
-<dl>
-<dt><b>Enable/Disable</b>
-<dd>Enables/disables the selected plugin.
-<dt><b>Unload</b>
-<dd>Unloads the plugin completely.
-<dt><b>Configure</b>
-<dd>Avalaible only if the plugin is configurable. Click this button to set plugin's settings.
-<dt><b>Add</b>
-<dd>Add a plugin.
-<dt><b>Activate</b>
-<dd>Activate an output plugin. There must be always one active output plug-in. With wavout
-plugin, you can save the music to a WAV file. Wavout plugin is very useful for gabbing CD
-audio tracks... ;-)
-</dl>
-<p>Last properties dialog is About dialog. There are some info about PM123,
-author etc.
+menu</a>. In the dialog you can configure PM123's engine and interface.
+It consists of:
+<ul>
+  <li>The configuration settings <a href="settings1.html">page 1</a> and <a href="settings2.html">page 2</a>,
+  <li>the <a href="display.html">display configuration</a>,
+  <li>the <a href="plug-ins_cfg.html">plug-in configuration</a> and
+  <li>last but not least the About dialog. There are some info about PM123, author etc.
+</ul>
 </body>
 </html>
