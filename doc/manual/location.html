@@ -6,19 +6,15 @@
 <h2>PM123 playlist location strings</h2>
 <p>PM123 uses a special notation to store playing positions. These strings are used at
 <ul>
-  <li>the start and stop positions of playlist items or bookmarks and
-  <li>the navigate command of the PM123 remote interface.
+  <li>the <strong>start</strong> and <strong>stop positions</strong> of playlist items or bookmarks and
+  <li>the navigate command of the PM123 <strong>remote interface</strong>.  
 </ul>
-<p>A location string defines an exact point inside a playlist and song.
+<p>A location string defines an exact point inside a playlist or song.
   In case of playlists it can consist of several parts separated by '<tt>;</tt>'
   or new-line if the new-line character is allowed.
-  The parts may be enclosed with double quotes ('<tt>"</tt>') to avoid confusion with special characters.
-<p>The first part is the item in the playlist.
-  The last part is the playing position in the song.
-  If the playlist is deep additional parts in between define the items in the nested playlist structure.
-<p>A location string may be incomplete in the way that it does not provide a time offset in the song
-  or it does not navigate to the deepmost level of a tree of nested playlists. 
-<h4>Example:</h4>
+  URLs in the parts may be enclosed with double quotes ('<tt>"</tt>') to
+avoid confusion with special characters.
+<h3>Examples:</h3>
 <blockquote>
 <pre>my_nested_playlist.lst
 my_favorite_song.mp3[2]
@@ -47,15 +43,54 @@ The last part navigates to the offset 3:44 within <tt>my_favorite_song.mp3</tt>.
  +- song_#4.mp3
  +- another_nested playlist.lst</pre>
 </blockquote>
-Notes:
+<u>Notes:</u>
 <ol>
   <li><a name="note1"></a>While this song is part of the location string it is not adressed
     because the navigation goes into the nested playlist <tt>my_nested_playlist.lst</tt> first.
   <li><a name="note2"></a>This item is skipped because the indexer <tt>[2]</tt> searches for the second location of this song.
   <li><a name="note3"></a>This recursive entry is skipped anyway.
 </ol> 
-
-<h3>Playlist location syntax</h3>
+<p>All the following location strings also navigate to the same location as above.
+</p>
+<blockquote>
+  <pre>[3]
+[4]
+3:44</pre>
+</blockquote>
+<p>The above utilizes the <strong>index navigation</strong>. If you
+  omit the URL in a part all items within the particular playlist count. Note
+  that this includes items that are skipped because they would create a recursion
+  as in <a href="#note3">note 3</a>. However, it is an error to address this
+  item.</p>
+<blockquote>
+  <pre>*&quot;my_favorite_song.mp3&quot;[3]
+3:44</pre>
+</blockquote>
+<p>The <strong>flat navigation</strong> is identified by
+    the leading asterisk. Flat navigation means that all all non-recursive songs
+    in the nested playlists are taken as one
+    linear playlist. Within this context it is the <em>third</em> instance
+of <tt>my_favorite_song.mp3</tt>.
+Therefore the index <tt>[3]</tt>.</p>
+<blockquote>
+  <pre>my_nested_playlist.lst[-1]
+my_favorite_song[2]
+-1:34</pre>
+  <pre>*my_favorite_song[-2]
+-1:34</pre>
+</blockquote>
+<p>Using negative numbers you may do <strong>reverse navigation</strong> at
+    some parts which may be applied to playlists as well as to songs. It is asumed
+    that <tt>my_favorite_song.mp3</tt> has
+    a length of 5:18 in this case. Reverse navigation may be combined with flat
+navigation as shown in the second example.</p>
+<blockquote>
+  <pre>*21:06</pre>
+</blockquote>
+<p><strong>Flat time navigation</strong> can be used to navigate within all songs of a playlist
+  based on the total playing time. Assuming that <tt>another_song.mp3</tt> has
+a length of 3:23 the total time index of our playing location is 21:06.</p>
+<h3>Playlist location syntax reference</h3>
 <p>To locate a playlist item use one of the following syntax variants:
 <ul>
   <li><strong><tt><var>relative URL</var></tt> or<br>
@@ -65,14 +100,46 @@ Notes:
     The use of '<tt>../</tt>' is allowed.
   <li><strong><tt><var>relative URL</var>[<var>index</var>]</tt> or<br>
     <tt><var>absolute URL</var>[<var>index</var>]</tt></strong><br>
-    Navigates to the occurency #<tt><var>index</var></tt> of <tt><var>URL</var></tt> within the playlist.
+  Navigates to the occurency #<tt><var>index</var></tt> of <tt><var>URL</var></tt> within the playlist.    
+  <li><strong><tt><var>relative URL</var>[-<var>index</var>]</tt> or<br>
+        <tt><var>absolute URL</var>[-<var>index</var>]</tt></strong><br>
+  Navigates to the occurency #<tt><var>index</var></tt> of <tt><var>URL</var></tt> within
+  the playlist counting from the back of playlist.
   <li><strong><tt>[<var>index</var>]</tt></strong><br>
     Navigates to item #<tt><var>index</var></tt> within the playlist.
     It is not recommended to use this method because it easily may fail the goal when the list is modified.<br>
-    Note that the numbering differs from the item numbers displayed in the PM123 window,
-    because only the top-level items in the playlist count here.
+    Note that the numbering differs from the item numbers displayed in the PM123
+    window, because only the immediate subitems in the playlist
+    count here.
+    <li><strong><tt>[-<var>index</var>]</tt></strong><br>
+  Navigates to item #<tt><var>index</var></tt> within the playlist counting from
+  the back.
+    <li><strong><tt>*<var>relative URL</var></tt> or<br>
+    <tt>*<var>absolute URL</var></tt></strong><br>
+      Navigates to the first song with the above URL in the current playlist
+        or any of the nested playlists. If the URL is relative it is always resolved
+        within the context of the current playlist also if the nested playlist
+        where it is effectively found resides in
+  a different folder.
+  <li>  <strong><tt>*<var>relative URL</var>[<var>index</var>]</tt> or<br>
+      <tt>*<var>absolute URL</var>[<var>index</var>]</tt></strong><br>
+      Navigates to the <tt>index</tt>th song with the above URL in the current
+  playlist or any of the nested playlists.  
+  <li><strong><tt>*<var>relative URL</var>[-<var>index</var>]</tt> or<br>
+        <tt>*<var>absolute URL</var>[-<var>index</var>]</tt></strong><br>
+  Navigates to the <tt>index</tt>th song from the back with the above URL in
+  the current playlist or any of the nested playlists.
+  <li><strong><tt>*[<var>index</var>]</tt></strong><br>
+  Navigates to the <tt>index</tt>th Song within the current playlist and it's
+  sublists.  
+  <li><strong><tt>*[-<var>index</var>]</tt></strong><br>
+Navigates to the <tt>index</tt>th Song from the back within the current playlist
+and
+it's
+sublists.  
   <li><strong><tt>..</tt></strong><br>
-    Navigate one level up. This makes only sense if we do not start from the top level.
+  Navigate one level up. This makes only sense if we are currently not at the
+    top level.  
 </ul>
 <p>It is an error to
 <ul>
@@ -83,7 +150,7 @@ Notes:
 <p>If relative navigation is used remember that the current location is always a song.
   So you need at least one '<tt>..;</tt>' to get to the deepmost playlist.
 
-<h3>Song location syntax</h3>
+<h4>Time syntax</h4>
 If the current item is a song you may only specify a time offset from the beginning. Syntax:
 <ul>
   <li><strong><tt><var>seconds</var></tt></strong><br>
