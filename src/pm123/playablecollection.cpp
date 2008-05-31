@@ -432,7 +432,7 @@ void PlayableCollection::ChildInfoChange(const Playable::change_args& args)
     // Invalidate CollectionInfoCache entries.
     CritSect cs;
     for (CollectionInfoEntry** ciepp = CollectionInfoCache.begin(); ciepp != CollectionInfoCache.end(); ++ciepp)
-      // Only items that do not have the sender in the exclusion list are invalidated.
+      // Only items that do not have the sender in the exclusion list are invalidated to prevent recursions.
       if ((*ciepp)->find(args.Instance) == NULL)
         (*ciepp)->Valid = false;
   }
@@ -558,34 +558,42 @@ void PlayableCollection::PrefetchSubInfo(const PlayableSet& excluding)
 
 const PlayableCollection::CollectionInfo& PlayableCollection::GetCollectionInfo(const PlayableSet& excluding)
 { DEBUGLOG(("PlayableCollection(%p{%s})::GetCollectionInfo({%i, %s})\n", this, GetURL().getShortName().cdata(), excluding.size(), excluding.DebugDump().cdata()));
+  ASSERT(excluding.find(*this) == NULL);
+
+  CollectionInfoEntry* cic;
   // cache lookup
   // We have to protect the CollectionInfoCache additionally by a critical section,
   // because the TechInfoChange event from the children cannot aquire the mutex.
-  CritSect cs;
-  CollectionInfoEntry*& cic = CollectionInfoCache.get(excluding);
-  if (cic == NULL)
-    cic = new CollectionInfoEntry();
-  else if (cic->Valid)
-    return cic->Info;
-  else
-    cic->Info.Reset();
-  cs.~CritSect(); // Hmm, dirty but working.
-
+  { CritSect cs;
+    cic = CollectionInfoCache.find(excluding);
+  }
   // If we do not own the mutex so far we ensure some information on sub items
   // before we request access to the mutex to avoid deadlocks.
   // If we already own the mutex it makes no difference anyway.
-  if (Mtx.GetStatus() != Mutex::Mine)
+  if (cic == NULL && Mtx.GetStatus() != Mutex::Mine)
     PrefetchSubInfo(excluding);
-  else
-    // Ensure to have the list content before anything else
-    // This is inclusive in the above term. 
-    EnsureInfo(IF_Other);
-
+  // Lock the collection
+  Mutex::Lock lock(Mtx);
+  if (cic == NULL) // double check
+  { // cache lookup
+    // We have to protect the CollectionInfoCache additionally by a critical section,
+    // because the TechInfoChange event from the children cannot aquire the mutex.
+    CritSect cs;
+    CollectionInfoEntry*& cicr = CollectionInfoCache.get(excluding);
+    if (cicr == NULL)
+      cicr = new CollectionInfoEntry(excluding);
+    cic = cicr;
+  }  
+  if (cic->Valid)
+  { DEBUGLOG(("PlayableCollection::GetCollectionInfo HIT\n"));
+    return cic->Info;
+  }
+  DEBUGLOG(("PlayableCollection::GetCollectionInfo LOAD\n"));
+    
   // (re)create information
+  EnsureInfo(IF_Other);
   sco_ptr<PlayableSet> xcl_sub;
   PlayableInstance* pi = NULL;
-  // now it's time to lock the collection (if not yet done)
-  Mutex::Lock lock(Mtx);
   while ((pi = GetNext(pi)) != NULL)
   { DEBUGLOG(("PlayableCollection::GetCollectionInfo Item %p{%p{%s}}\n", pi, pi->GetPlayable(), pi->GetPlayable()->GetURL().cdata()));
     if (pi->GetPlayable()->GetFlags() & Playable::Enumerable)
@@ -632,6 +640,7 @@ const PlayableCollection::CollectionInfo& PlayableCollection::GetCollectionInfo(
         cic->Info.Add(0, 0, 1);
     }
   }
+  cic->Valid = true;
   DEBUGLOG(("PlayableCollection::GetCollectionInfo: {%f, %f, %i, {%u,...}}}\n",
     cic->Info.Songlength, cic->Info.Filesize, cic->Info.Items, cic->Info.Excluded.size()));
   return cic->Info;

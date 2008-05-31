@@ -252,7 +252,7 @@ class PlayableCollection : public Playable
   : public PlayableSet
   { CollectionInfo         Info;
     bool                   Valid;
-    CollectionInfoEntry() : Valid(true) {}
+    CollectionInfoEntry(const PlayableSet& r) : PlayableSet(r), Valid(false) {}
   };
 
  protected:

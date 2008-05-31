@@ -1397,6 +1397,15 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
           break;
         }
       }
+      #ifdef DEBUG
+      // Force heap dumps by the D key
+      if ((fsflags & (KC_CHAR|KC_ALT|KC_CTRL)) == (KC_CHAR) && toupper(SHORT1FROMMP(mp2)) == 'D')
+      { if (fsflags & KC_SHIFT)
+          _dump_allocated_delta(0);
+        else
+          _dump_allocated(0);
+      }
+      #endif
       break;
     }
     

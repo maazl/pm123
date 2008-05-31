@@ -49,28 +49,44 @@ class SongIterator
   { int                       Index;     // Item index of the current PlayableInstance counting from the top level.
     T_TIME                    Offset;    // Time offset of the current PlayableInstance counting from the top level or -1 if not available.
     Offsets(int index, T_TIME offset) : Index(index), Offset(offset) {}
-    void                      Add(const Offsets& r);
-    void                      Sub(const Offsets& r);
+    void                      Add(const PlayableCollection::CollectionInfo& r);
+    void                      Sub(const PlayableCollection::CollectionInfo& r);
   };
   struct CallstackEntry : public Offsets
   { int_ptr<PlayableSlice>    Item;
+    PlayableSet               Exclude;   // List of playable objects to exclude.
+                                         // This are in fact the enumerable objects from Callstack objects above this.
     sco_ptr<SongIterator>     OverrideStart;
     sco_ptr<SongIterator>     OverrideStop;
+   protected:
+    // For CallstackSubEntry
+    CallstackEntry(const Offsets& off, const PlayableSet& exc, Playable* add);
+   public:
     CallstackEntry()          : Offsets(1, 0) {}
-    CallstackEntry(const Offsets& r) : Offsets(r) {}
+    //CallstackEntry(const Offsets& r) : Offsets(r) {}
     CallstackEntry(const CallstackEntry& r);
+    CallstackEntry*           CreateSubEntry()         { return new CallstackEntry(*this, Exclude, Item->GetPlayable()); }
+    void                      Swap(CallstackEntry& r);
     const SongIterator*       GetStart() const         { return OverrideStart != NULL ? OverrideStart.get() : Item->GetStart(); }
     const SongIterator*       GetStop() const          { return OverrideStop != NULL ? OverrideStop.get() : Item->GetStop(); }
+    PlayableCollection::CollectionInfo GetInfo() const;
+    bool                      IsExcluded() const       { ASSERT(Item); return Exclude.find(*Item->GetPlayable()) != NULL; }
     void                      Reset();
   };
   typedef vector<CallstackEntry> CallstackType;
+ private:
+  // Helper class to create subentries in the callstack.
+  // They have the given offsets, and the PlayableSet extended by add.
+  // The constructor of this class is a factory.
+  // But this factory can create stack objects.
+  struct CallstackSubEntry : public CallstackEntry
+  { CallstackSubEntry(const CallstackEntry& r)         : CallstackEntry(r, r.Exclude, r.Item->GetPlayable()) {}
+  };
   
  private:
   CallstackType               Callstack; // Current callstack, including the top level playlist.
                                          // This collection contains only enumerable objects except for the last entry.
                                          // The callstack has at least one element.
-  PlayableSet                 Exclude;   // List of playable objects to exclude.
-                                         // This are in fact the enumerable objects from Callstack.
   T_TIME                      Location;  // Location within the current song
   int_ptr<PlayableSlice>      CurrentCache; // mutable!
   static const Offsets        ZeroOffsets; // Offsets for root entry.
@@ -83,15 +99,13 @@ class SongIterator
   void                        Enter();
   // Pop the last object from the stack and make it to Current.
   void                        Leave();
-  // Fetch length and number of subitems from a Playable object with respect to Exclude.
-  Offsets                     TechFromPlayable(Playable* pp);
-  Offsets                     TechFromCallstackEntry(const CallstackEntry& ce);
   // Navigate to the previous item im the current sublist, check start and stop offsets. 
   void                        PrevCore();
   // Navigate to the previous item im the current sublist, check start and stop offsets. 
   void                        NextCore();
   // Implementation of Prev and Next. Pass &PrevCore or &NextCore.
-  bool                        PrevNextCore(void (SongIterator::*func)());
+  // The iteration stops when the callstack comes to level slice.
+  bool                        PrevNextCore(void (SongIterator::*func)(), unsigned slice = 0);
 
  public:
   // Create a SongIterator for iteration over a PlayableCollection.
@@ -128,10 +142,10 @@ class SongIterator
   const CallstackType&        GetCallstack() const     { return Callstack; }
   // Gets the excluded entries. Not thread-safe!
   // This is a sorted list of all playlists in the callstack.
-  const PlayableSet&          GetExclude() const       { return Exclude; }
+  const PlayableSet&          GetExclude() const       { return Callstack[Callstack.size()-1]->Exclude; }
   // Check whether a Playable object is in the call stack. Not thread-safe!
   // This will return always false if the Playable object is not enumerable.
-  bool                        IsInCallstack(const Playable* pp) const { return Exclude.find(*pp) != NULL; }
+  bool                        IsInCallstack(const Playable* pp) const { return GetExclude().find(*pp) != NULL; }
 
   // Get Offsets of current item
   Offsets                     GetOffset(bool withlocation) const;

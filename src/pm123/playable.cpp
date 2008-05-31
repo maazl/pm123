@@ -426,7 +426,8 @@ PlayableSet::PlayableSet()
 {}
 
 int PlayableSet::compareTo(const PlayableSet& r) const
-{ Playable*const* ppp1 = begin();
+{ DEBUGLOG(("PlayableSet(%p{%u,...})::compareTo(&%p{%u,...})\n", this, size(), &r, r.size()));
+  Playable*const* ppp1 = begin();
   Playable*const* ppp2 = r.begin();
   for (;;)
   { // termination condition
@@ -436,6 +437,7 @@ int PlayableSet::compareTo(const PlayableSet& r) const
       return -1;
     // compare content
     int ret = (*ppp1)->compareTo(**ppp2);
+    DEBUGLOG2(("PlayableSet::compareTo %i\n", ret));
     if (ret)
       return ret;
     ++ppp1;
