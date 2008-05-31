@@ -20,10 +20,11 @@
   in the <a href="properties.html">properties dialog</a>.  
 <h4>Equalizer has vanished</h4>
 <p>Well, that's true.
-  The simple equalizer from the context menu has been removed because the only plug-in
-  that supported it was mpg123. Any other plug-in including WAV and Ogg-Vorbis playback
-  silently ignored it. This causes the sound to depend on the encoding and to change
-  within playlists. A bad thing.</p>
+  The simple equalizer from the context menu has been removed because the only
+  plug-in that supported it was mpg123. Any other plug-in including WAV and Ogg-Vorbis
+  playback
+  silently ignored it. This caused the sound to depend on the encoding and to
+  change within playlists. A bad thing.</p>
 <p>I recommend to use the powerful <a href="realeq.html">RealEQ plug-in</a> as an alternative.
   If you do not care about its precision use conservative setting like an FIR order of 4096.</p>
 <p>If you do not like this alternative or it eats too much CPU for your purposes,
@@ -36,15 +37,16 @@
 <p>Playlists, the playlist manager and bookmarks are now basically the same thing.
   Furthermore you can <strong>open multiple playlists</strong>. That means:</p>
 <ul>
-  <li>The <strong><a href="playlist.html">playlist window</a></strong> is now
+  <li>The <strong><a href="playlist.html">Playlist Window</a></strong> is now
     nothing more than a <strong>detailed view</strong> of a playlist.</li>
-  <li>A default playlist is used if you drop more than one object
+  <li>The <strong>playlist button</strong> will open the <strong>default playlist</strong>.</li>
+  <li>The default playlist is used if you drop more than one object
         on the player.</li>
-  <li>The <strong><a href="manager.html">playlist manager</a></strong> is a <strong>tree
+  <li>The <strong><a href="manager.html">Playlist Manager</a></strong> is a <strong>tree
       view</strong> of
     another default playlist, which usually contains other playlists, of course.</li>
   <li>The <strong>bookmark editor</strong> is now a detailed view of a special
-    playlist that is visualized in the player's context menu too.</li>
+    playlist that is visualized in the player's context menu.</li>
   <li>You can use drag and drop and direct manipulation to modify all of the
     above.</li>
   <li>Different views of the same content are immediately synchronized as long
@@ -59,11 +61,11 @@
     reaches the sublist and before PM123 continues in the parent list.</li>
   <li>In shuffle mode items in different sublists are not interchanged.</li>
   <li>The PM123 main window flattens the nested lists and shows allways the index
-    and the time offsets in the virtually flattened list. To see what's going
-    on open a tree view of the currently played list
+    and the time offsets within all Song items in the nested list structure.
+    To see what's going on open a tree view of the currently played list
     (<a href="mainmenu.html">Context menu</a>/Current Playlist/Show tree view).</li>
   <li>Nested playlists in the bookmark list cause submenus.</li>
-  <li>When the playlists are nested recursively the play iterator will skip sublists
+  <li>When the playlists are nested recursively the player will ignore sublists
     that are already in the call stack. This avoids an infinite recursion.</li>
 </ul>
 <h4>Filesystem folders</h4>
