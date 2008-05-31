@@ -64,6 +64,7 @@ const amp_cfg cfg_default =
   TRUE,
   TRUE,
   FALSE,
+  CFG_ANAV_SONGTIME,
   TRUE, // recurse_dnd
   FALSE,
   FALSE,
@@ -187,6 +188,8 @@ cfg_settings1_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
       WinCheckButton( hwnd, CB_TRASHONSCAN,   cfg.trash       );
       WinCheckButton( hwnd, CB_RETAINONEXIT,  cfg.retainonexit);
       WinCheckButton( hwnd, CB_RETAINONSTOP,  cfg.retainonstop);
+      
+      WinCheckButton( hwnd, RB_SONGONLY + cfg.altnavig, TRUE );
 
       WinCheckButton( hwnd, CB_AUTOUSEPL,     cfg.autouse     );
       WinCheckButton( hwnd, CB_AUTOPLAYPL,    cfg.playonuse   );
@@ -207,6 +210,13 @@ cfg_settings1_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
       cfg.trash       = WinQueryButtonCheckstate( hwnd, CB_TRASHONSCAN  );
       cfg.retainonexit= WinQueryButtonCheckstate( hwnd, CB_RETAINONEXIT );
       cfg.retainonstop= WinQueryButtonCheckstate( hwnd, CB_RETAINONSTOP );
+      
+      if (WinQueryButtonCheckstate( hwnd, RB_SONGONLY ))
+        cfg.altnavig = CFG_ANAV_SONG;
+      else if (WinQueryButtonCheckstate( hwnd, RB_SONGTIME ))
+        cfg.altnavig = CFG_ANAV_SONGTIME;
+      else if (WinQueryButtonCheckstate( hwnd, RB_TIMEONLY ))
+        cfg.altnavig = CFG_ANAV_TIME;
 
       cfg.autouse     = WinQueryButtonCheckstate( hwnd, CB_AUTOUSEPL    );
       cfg.playonuse   = WinQueryButtonCheckstate( hwnd, CB_AUTOPLAYPL   );
@@ -224,13 +234,6 @@ cfg_settings2_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
 { switch( msg ) {
     case WM_INITDLG:
       do_warpsans( hwnd );
-      do_warpsans( WinWindowFromID( hwnd, ST_PROXY_HOST ));
-      do_warpsans( WinWindowFromID( hwnd, ST_PROXY_PORT ));
-      do_warpsans( WinWindowFromID( hwnd, ST_PROXY_USER ));
-      do_warpsans( WinWindowFromID( hwnd, ST_PROXY_PASS ));
-      do_warpsans( WinWindowFromID( hwnd, ST_PIXELS     ));
-      do_warpsans( WinWindowFromID( hwnd, ST_BUFFERSIZE ));
-      do_warpsans( WinWindowFromID( hwnd, ST_FILLBUFFER ));
       WinPostMsg(hwnd, CFG_CHANGE, MPFROMP(&cfg), 0);
       break;
 

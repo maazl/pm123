@@ -112,6 +112,7 @@ static BOOL  is_have_focus    = FALSE;
 static BOOL  is_volume_drag   = FALSE;
 static BOOL  is_seeking       = FALSE;
 static BOOL  is_slider_drag   = FALSE;
+static bool  is_pl_slider     = false;
 static BOOL  is_arg_shuffle   = FALSE;
 static bool  is_accel_changed = false;
 static bool  is_plugin_changed = true;
@@ -192,10 +193,43 @@ amp_paint_timers( HPS hps )
   T_TIME play_left = total_song;
   if (play_left > 0)
     play_left -= CurrentIter->GetLocation();
-  if( !Ctrl::IsRepeat() && total_time > 0 )
+  if (total_time > 0)
     list_left = total_time - off.Offset - CurrentIter->GetLocation();
 
-  bmp_draw_slider( hps, total_song <= 0 ? -1. : CurrentIter->GetLocation()/total_song);
+  double pos = -1.;
+  if (!is_pl_slider)
+  { if (total_song > 0)
+      pos = CurrentIter->GetLocation()/total_song;
+  } else switch (cfg.altnavig)
+  {case CFG_ANAV_SONG:
+    if (is_playlist)
+    { int total_items = CurrentRoot->GetInfo().tech->total_items;
+      if (total_items == 1)
+        pos = 0;
+      else if (total_items > 1)
+        pos = (off.Index-1) / (double)(total_items-1);
+    }
+    break;
+   case CFG_ANAV_TIME:
+    if (CurrentRoot->GetInfo().tech->songlength > 0)
+    { pos = (off.Offset + CurrentIter->GetLocation()) / CurrentRoot->GetInfo().tech->songlength;
+      break;
+    } // else CFG_ANAV_SONGTIME
+   case CFG_ANAV_SONGTIME:
+    if (is_playlist)
+    { int total_items = CurrentRoot->GetInfo().tech->total_items;
+      if (total_items == 1)
+        pos = 0;
+      else if (total_items > 1)
+        pos = off.Index-1;
+      else break;
+      // Add current song time
+      if (total_song > 0)
+        pos += CurrentIter->GetLocation()/total_song;
+      pos /= total_items;
+    }
+  }
+  bmp_draw_slider( hps, pos, is_pl_slider );
   bmp_draw_timer ( hps, CurrentIter->GetLocation());
 
   bmp_draw_tiny_timer( hps, POS_TIME_LEFT, play_left );
@@ -1261,9 +1295,6 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
       if( Ctrl::IsShuffle() ) {
         WinSendDlgItemMsg( hwnd, BMP_SHUFFLE, WM_PRESS, 0, 0 );
       }
-      // TODO: the controller should initialize from the startup environment
-      if ( is_arg_shuffle )
-        Ctrl::PostCommand(Ctrl::MkShuffle(Ctrl::Op_Set));
 
       WinStartTimer( hab, hwnd, TID_UPDATE_TIMERS,  80 );
       WinStartTimer( hab, hwnd, TID_UPDATE_PLAYER,  50 );
@@ -1300,16 +1331,8 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
         pos.y = SHORT2FROMMP(mp1);
         Ctrl::PostCommand(Ctrl::MkVolume(bmp_calc_volume(pos), false), &amp_control_event_callback);
       }
-
       if( is_slider_drag )
-      {
-        POINTL pos;
-        pos.x = SHORT1FROMMP(mp1);
-        pos.y = SHORT2FROMMP(mp1);
-        CurrentIter->SetLocation(bmp_calc_time(pos) * CurrentSong->GetInfo().tech->songlength);
-
-        amp_invalidate(UPD_TIMERS);
-      }
+        WinPostMsg(hwnd, AMP_SLIDERDRAG, mp1, MPFROMSHORT(FALSE));
 
       WinSetPointer( HWND_DESKTOP, WinQuerySysPointer( HWND_DESKTOP, SPTR_ARROW, FALSE ));
       return 0;
@@ -1321,13 +1344,17 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
       pos.x = SHORT1FROMMP(mp1);
       pos.y = SHORT2FROMMP(mp1);
 
-      if( bmp_pt_in_volume( pos )) {
-        is_volume_drag = TRUE;
+      if( bmp_pt_in_volume( pos ))
+      { is_volume_drag = TRUE;
         WinSetCapture( HWND_DESKTOP, hwnd );
-      } else if( bmp_pt_in_slider( pos ) && CurrentSong && CurrentSong->GetInfo().tech->songlength > 0 ) {
-        is_slider_drag = TRUE;
-        is_seeking     = TRUE;
-        WinSetCapture( HWND_DESKTOP, hwnd );
+      } else if( bmp_pt_in_slider( pos ) )
+      { if (CurrentSong && ( is_pl_slider
+          ? CurrentRoot->GetInfo().tech->total_items > 0
+          : CurrentSong->GetInfo().tech->songlength > 0 ))
+        { is_slider_drag = TRUE;
+          is_seeking     = TRUE;
+          WinSetCapture( HWND_DESKTOP, hwnd );
+        }
       }
       return 0;
     }
@@ -1339,13 +1366,7 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
       }
       if( is_slider_drag )
       {
-        POINTL pos;
-        pos.x = SHORT1FROMMP(mp1);
-        pos.y = SHORT2FROMMP(mp1);
-        CurrentIter->SetLocation(bmp_calc_time(pos) * CurrentSong->GetInfo().tech->songlength);
-
-        Ctrl::PostCommand(Ctrl::MkJump(new SongIterator(*CurrentIter)), &amp_control_event_callback);
-        is_slider_drag = FALSE;
+        WinPostMsg(hwnd, AMP_SLIDERDRAG, mp1, MPFROMSHORT(TRUE));
         WinSetCapture( HWND_DESKTOP, NULLHANDLE );
       }
       return 0;
@@ -1356,13 +1377,88 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
       return 0;
 
     case WM_CHAR:
-      if(!( SHORT1FROMMP(mp1) & KC_KEYUP ) && ( SHORT1FROMMP(mp1) & KC_VIRTUALKEY )) {
-        if( SHORT2FROMMP(mp2) == VK_ESC ) {
-          is_slider_drag = FALSE;
-          is_seeking     = FALSE;
+    { USHORT fsflags = SHORT1FROMMP(mp1);
+      DEBUGLOG(("amp_dlg_proc: WM_CHAR: %x, %u, %u, %x, %x\n", fsflags, SHORT2FROMMP(mp1)&0xff, SHORT2FROMMP(mp1)>>8, SHORT1FROMMP(mp2), SHORT2FROMMP(mp2)));
+      if (fsflags & KC_VIRTUALKEY)
+      { switch (SHORT2FROMMP(mp2))
+        {case VK_ESC:
+          if(!(fsflags & KC_KEYUP))
+          { is_slider_drag = FALSE;
+            is_seeking     = FALSE;
+          }
+          break;
+         /*case VK_ALT:
+         case VK_ALTGRAF:*/
+         case VK_CTRL:
+          if (is_pl_slider != !(fsflags & KC_KEYUP));
+          { is_pl_slider = !(fsflags & KC_KEYUP);
+            amp_invalidate(UPD_TIMERS);
+          }
+          break;
         }
       }
       break;
+    }
+    
+    case AMP_SLIDERDRAG:
+    if (is_slider_drag)
+    { // get position
+      POINTL pos;
+      pos.x = SHORT1FROMMP(mp1);
+      pos.y = SHORT2FROMMP(mp1);
+      double relpos = bmp_calc_time(pos);
+      // adjust CurrentIter from pos
+      if (!is_pl_slider)
+      { // navigation within the current song
+        if (CurrentSong->GetInfo().tech->songlength <= 0)
+          return 0;
+        CurrentIter->SetLocation(relpos * CurrentSong->GetInfo().tech->songlength);
+      } else switch (cfg.altnavig)
+      {case CFG_ANAV_TIME:
+        // Navigate only at the time scale
+        if (CurrentRoot->GetInfo().tech->songlength > 0)
+        { CurrentIter->Reset();
+          bool r = CurrentIter->SetTimeOffset(relpos * CurrentRoot->GetInfo().tech->songlength);
+          DEBUGLOG(("amp_dlg_proc: AMP_SLIDERDRAG: CFG_ANAV_TIME: %u\n", r));
+          break;
+        }
+        // else if no total time is availabe use song time navigation 
+       case CFG_ANAV_SONG:
+       case CFG_ANAV_SONGTIME:
+        // navigate at song and optional time scale
+        { const int num_items = CurrentRoot->GetInfo().tech->total_items;
+          if (num_items <= 0)
+            return 0;
+          relpos *= num_items;
+          relpos += 1.;
+          if (relpos > num_items)
+            relpos = num_items;
+          CurrentIter->Reset();
+          bool r = CurrentIter->NavigateFlat(xstring(), (int)floor(relpos));
+          DEBUGLOG(("amp_dlg_proc: AMP_SLIDERDRAG: CFG_ANAV_SONG: %f, %u\n", relpos, r));
+          // update CurrentSong
+          PlayableSlice* psi = CurrentIter->GetCurrent();
+          CurrentSong = psi && psi->GetPlayable()->GetFlags() == Playable::None
+            ? (Song*)psi->GetPlayable() : NULL;
+          // navigate within the song
+          if (cfg.altnavig != CFG_ANAV_SONG && CurrentSong && CurrentSong->GetInfo().tech->songlength > 0)
+          { relpos -= floor(relpos);
+            CurrentIter->SetLocation(relpos * CurrentSong->GetInfo().tech->songlength);
+          }
+        }
+      }
+      // new position set
+      if (SHORT1FROMMP(mp2))
+      { Ctrl::PostCommand(Ctrl::MkJump(new SongIterator(*CurrentIter)), &amp_control_event_callback);
+        is_slider_drag = FALSE;
+      } else
+        amp_invalidate(UPD_TIMERS|(UPD_FILEINFO|UPD_FILENAME)*is_pl_slider);
+    }
+    return 0;
+    
+    /*case WM_SYSCOMMAND:
+      DEBUGLOG(("amp_dlg_proc: WM_SYSCVOMMAND: %u, %u, %u\n", SHORT1FROMMP(mp1), SHORT1FROMMP(mp2), SHORT2FROMMP(mp2)));
+      break;*/
   }
 
   DEBUGLOG2(("amp_dlg_proc: before WinDefWindowProc\n"));
@@ -1441,6 +1537,8 @@ main2( void* arg )
 
   // start controller
   Ctrl::Init();
+  if ( is_arg_shuffle )
+    Ctrl::PostCommand(Ctrl::MkShuffle(Ctrl::Op_Set));
 
   Playable::Init();
 

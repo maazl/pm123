@@ -294,6 +294,7 @@ BITMAP BMP_N_LED        bmp\noled.bmp
 BITMAP BMP_STEREO       bmp\stereo.bmp
 BITMAP BMP_MONO         bmp\mono.bmp
 BITMAP BMP_NO_CHANNELS  bmp\nochannels.bmp
+BITMAP BMP_ALTSLIDER    bmp\altslider.bmp
 BITMAP BMP_SLIDER       bmp\slider.bmp
 BITMAP BMP_S_BGROUND    bmp\smallbg.bmp
 BITMAP BMP_VOLBAR       bmp\volbar.bmp
@@ -540,30 +541,36 @@ END
 
 DLGTEMPLATE CFG_SETTINGS1
 BEGIN
-  DIALOG "", CFG_SETTINGS1, 0, 0, 260, 154, NOT FS_DLGBORDER|FS_NOBYTEALIGN
+  DIALOG "", CFG_SETTINGS1, 0, 0, 260, 148, NOT FS_DLGBORDER|FS_NOBYTEALIGN
     PRESPARAMS PP_FONTNAMESIZE "8.Helv"
   BEGIN
-    GROUPBOX     " Behaviour ",                                                GB_BEHAVIOUR,      6, 80, 246, 36, NOT WS_TABSTOP|WS_GROUP
+    GROUPBOX     " Behaviour ",                                               GB_BEHAVIOUR,      4, 108, 248, 36, NOT WS_TABSTOP|WS_GROUP
       PRESPARAMS PP_FONTNAMESIZE "9.WarpSans Bold"
-
-    AUTOCHECKBOX "~Start playing on file load",                                CB_PLAYONLOAD,    12, 96, 112, 12
-    AUTOCHECKBOX "~Trash buffers on fast forward/rewind",                      CB_TRASHONSCAN,  132, 96, 112, 12
-    LTEXT        "Retain playing position:",                                   ST_RETAINPOS,     12, 84, 112, 12, DT_VCENTER
+    AUTOCHECKBOX "~Start playing on file load",                               CB_PLAYONLOAD,    12, 124, 112, 12
+    AUTOCHECKBOX "~Trash buffers on fast forward/rewind",                     CB_TRASHONSCAN,  132, 124, 112, 12
+    LTEXT        "Retain playing position:",                                  ST_RETAINPOS,     12, 112, 112, 12, DT_VCENTER
       PRESPARAMS PP_FOREGROUNDCOLORINDEX , SYSCLR_WINDOWTEXT
-    AUTOCHECKBOX "on e~xit",                                                   CB_RETAINONEXIT, 132, 84, 54,  12
-    AUTOCHECKBOX "on st~op",                                                   CB_RETAINONSTOP, 192, 84, 54,  12
+    AUTOCHECKBOX "on e~xit",                                                  CB_RETAINONEXIT, 132, 112,  54, 12
+    AUTOCHECKBOX "on st~op",                                                  CB_RETAINONSTOP, 192, 112,  54, 12
 
-    GROUPBOX     " Playlists ",                                                GB_STREAMING,      6,  4, 246, 72, NOT WS_TABSTOP|WS_GROUP
+    GROUPBOX     " Navigation ",                                              GB_NAVIGATION,     4,  80, 248, 24, NOT WS_TABSTOP|WS_GROUP
       PRESPARAMS PP_FONTNAMESIZE "9.WarpSans Bold"
-
-    AUTOCHECKBOX "Auto '~play' on 'use playlist'",                             CB_AUTOPLAYPL,    12, 56, 112, 12
-    AUTOCHECKBOX "Auto '~use playlist' on add",                                CB_AUTOUSEPL,    132, 56, 112, 12
-    AUTOCHECKBOX "~Recurse into subdirectories at drag & drop by default",     CB_RECURSEDND,    12, 44, 234, 12
-    LTEXT        "Append to the default playlist:",                            ST_AUTOAPPEND,    12, 32, 232,  8, DT_VCENTER
+    LTEXT        "Alternate s~lider:",                                        ST_ALTSLIDER,     12,  84,  56, 12, DT_VCENTER|DT_MNEMONIC
       PRESPARAMS PP_FOREGROUNDCOLORINDEX , SYSCLR_WINDOWTEXT
-    AUTOCHECKBOX "at ~drag & drop to the main window",                         CB_AUTOAPPENDDND, 12, 24, 112,  8
-    AUTOCHECKBOX "at ~command line invokation",                                CB_AUTOAPPENDCMD,132, 24, 112,  8
-    AUTOCHECKBOX "~Queue mode: delete played objects in the default playlist", CB_QUEUEMODE,     12,  8, 234, 12
+    AUTORADIOBUTTON "Song only",                                              RB_SONGONLY,      72,  84,  56, 12, WS_GROUP|WS_TABSTOP
+    AUTORADIOBUTTON "Song & time",                                            RB_SONGTIME,     132,  84,  56, 12
+    AUTORADIOBUTTON "Time only",                                              RB_TIMEONLY,     192,  84,  56, 12
+
+    GROUPBOX     " Playlists ",                                               GB_STREAMING,      4,   4, 248, 72, NOT WS_TABSTOP|WS_GROUP
+      PRESPARAMS PP_FONTNAMESIZE "9.WarpSans Bold"
+    AUTOCHECKBOX "Auto '~play' on 'use playlist'",                            CB_AUTOPLAYPL,    12,  56, 112, 12
+    AUTOCHECKBOX "Auto '~use playlist' on add",                               CB_AUTOUSEPL,    132,  56, 112, 12
+    AUTOCHECKBOX "~Recurse into subdirectories at drag & drop by default",    CB_RECURSEDND,    12,  44, 234, 12
+    LTEXT        "Append to the default playlist:",                           ST_AUTOAPPEND,    12,  32, 232,  8, DT_VCENTER
+      PRESPARAMS PP_FOREGROUNDCOLORINDEX , SYSCLR_WINDOWTEXT
+    AUTOCHECKBOX "at ~drag & drop to the main window",                        CB_AUTOAPPENDDND, 12,  24, 112,  8
+    AUTOCHECKBOX "at ~command line invokation",                               CB_AUTOAPPENDCMD,132,  24, 112,  8
+    AUTOCHECKBOX "~Queue mode: delete played objects in the default playlist",CB_QUEUEMODE,     12,   8, 234, 12
   END
 END
 
@@ -574,7 +581,6 @@ BEGIN
   BEGIN
     GROUPBOX     " User interface ",                    GB_GUIFEATURES,    6, 92, 246, 24, NOT WS_TABSTOP|WS_GROUP
       PRESPARAMS PP_FONTNAMESIZE "9.WarpSans Bold"
-
     AUTOCHECKBOX "~Dock windows at",                    CB_DOCK,          12, 96,  60, 12
     ENTRYFIELD   "",                                    EF_DOCK,          76, 98,  12,  8, ES_MARGIN
       CTLDATA 8, 2, 0, 0
@@ -584,11 +590,11 @@ BEGIN
     GROUPBOX     " Remote control ",                    GB_REMOTE,         6, 64, 246, 24
       PRESPARAMS PP_FONTNAMESIZE "9.WarpSans Bold"
     RTEXT        "~Pipe name",                          ST_PIPE,          12, 68 , 42, 12, DT_VCENTER|DT_MNEMONIC
+      PRESPARAMS PP_FOREGROUNDCOLORINDEX, SYSCLR_WINDOWTEXT
     ENTRYFIELD   "PM123",                               EF_PIPE,          58, 70,  68,  8, ES_MARGIN
 
     GROUPBOX     " Streaming audio ",                   GB_STREAMING,      6,  4, 246, 56, NOT WS_TABSTOP|WS_GROUP
       PRESPARAMS PP_FONTNAMESIZE "9.WarpSans Bold"
-
     RTEXT        "~HTTP Proxy",                         ST_PROXY_HOST,    12, 40,  42, 12, DT_VCENTER|DT_MNEMONIC
       PRESPARAMS PP_FOREGROUNDCOLORINDEX, SYSCLR_WINDOWTEXT
     ENTRYFIELD   "",                                    EF_PROXY_HOST,    58, 42, 130,  8, ES_MARGIN
@@ -641,7 +647,7 @@ BEGIN
     GROUPBOX " Font ", GB_FONT, 6, 6, 244, 38, NOT WS_TABSTOP|WS_GROUP
       PRESPARAMS PP_FONTNAMESIZE "9.WarpSans Bold"
     AUTOCHECKBOX "~Use skinned font for display (possibly no international titles support)", CB_USE_SKIN_FONT, 11, 25, 210, 10
-    PUSHBUTTON "~Choice font", PB_FONT_SELECT, 11, 12,  51, 12
+    PUSHBUTTON "~Choose font", PB_FONT_SELECT, 11, 12,  51, 12
     LTEXT "9.WarpSans Bold",   ST_FONT_SAMPLE, 66, 12, 175, 12, DT_VCENTER
       PRESPARAMS PP_FOREGROUNDCOLORINDEX, SYSCLR_WINDOWTEXT
   END

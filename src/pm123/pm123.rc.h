@@ -213,6 +213,10 @@
 #define IDH_LOCATION       1022
 #define IDH_KEYBOARD       1023
 #define IDH_ANALYZERFORMAT 1024
+#define IDH_SETTINGS1      1050
+#define IDH_SETTINGS2      1051
+#define IDH_DISPLAY        1055
+#define IDH_PLUGINS        1060
 
 /* Dialogs */
 
@@ -252,14 +256,20 @@
 #define CB_TRASHONSCAN     1303
 #define ST_RETAINPOS       1304
 #define CB_RETAINONEXIT    1305
-#define CB_RETAINONSTOP    1306   
-#define CB_AUTOUSEPL       1311
-#define CB_AUTOPLAYPL      1312
-#define CB_RECURSEDND      1313
-#define ST_AUTOAPPEND      1314
-#define CB_AUTOAPPENDDND   1315
-#define CB_AUTOAPPENDCMD   1316
-#define CB_QUEUEMODE       1317
+#define CB_RETAINONSTOP    1306
+#define GB_NAVIGATION      1310
+#define ST_ALTSLIDER       1311
+#define RB_SONGONLY        1312
+#define RB_SONGTIME        1313
+#define RB_TIMEONLY        1314
+#define GB_PLAYLIST        1320
+#define CB_AUTOUSEPL       1321
+#define CB_AUTOPLAYPL      1322
+#define CB_RECURSEDND      1323
+#define ST_AUTOAPPEND      1324
+#define CB_AUTOAPPENDDND   1325
+#define CB_AUTOAPPENDCMD   1326
+#define CB_QUEUEMODE       1327
 
 #define CFG_SETTINGS2      1350
 #define GB_GUIFEATURES     1351
@@ -450,19 +460,20 @@
 #define BMP_S_BGROUND      2105 /* Background bitmap for small mode.                  */
 #define BMP_T_BGROUND      2106 /* Background bitmap for tiny mode.                   */
 #define BMP_SLIDER         2107 /* Seek slider handle.                                */
-#define BMP_SLIDER_SHAFT   2108 /* Slider shaft (drawn before drawing slider handle). */
-#define BMP_NO_CHANNELS    2109 /* No channels (unknown, no file loaded) mode.        */
-#define BMP_STEREO         2110 /* Stereo mode.                                       */
-#define BMP_MONO           2111 /* Mono mode.                                         */
-#define BMP_VOLSLIDER      2112 /* Volume slider handle bitmap (only if enabled).     */
-#define BMP_VOLBAR         2113 /* Volume bar.                                        */
-#define BMP_SINGLEPLAY     2114 /* Indicator for single file play.                    */
-#define BMP_LISTPLAY       2115 /* Indicator for playlist play.                       */
-#define BMP_NOFILE         2116 /* Indicator for no file loaded.                      */
-#define BMP_NOTL           2117 /* "Time left", dark.                                 */
-#define BMP_TL             2118 /* "Time left", bright.                               */
-#define BMP_NOPLIST        2119 /* "Playlist left", dark.                             */
-#define BMP_PLIST          2120 /* "Playlist left", bright.                           */
+#define BMP_ALTSLIDER      2108 /* Seek slider handle.                                */
+#define BMP_SLIDER_SHAFT   2109 /* Slider shaft (drawn before drawing slider handle). */
+#define BMP_NO_CHANNELS    2110 /* No channels (unknown, no file loaded) mode.        */
+#define BMP_STEREO         2111 /* Stereo mode.                                       */
+#define BMP_MONO           2112 /* Mono mode.                                         */
+#define BMP_VOLSLIDER      2113 /* Volume slider handle bitmap (only if enabled).     */
+#define BMP_VOLBAR         2114 /* Volume bar.                                        */
+#define BMP_SINGLEPLAY     2115 /* Indicator for single file play.                    */
+#define BMP_LISTPLAY       2116 /* Indicator for playlist play.                       */
+#define BMP_NOFILE         2117 /* Indicator for no file loaded.                      */
+#define BMP_NOTL           2120 /* "Time left", dark.                                 */
+#define BMP_TL             2121 /* "Time left", bright.                               */
+#define BMP_NOPLIST        2122 /* "Playlist left", dark.                             */
+#define BMP_PLIST          2123 /* "Playlist left", bright.                           */
 #define BMP_BPS            2180 /* Bitmaps for bitrates 0 (no bitrate), 32, 48, 56,   */
                                 /* 64, 80, 96, 112, 128, 144, 160, 176, 192, 224, 256 */
                                 /* Not used if resource UL_BPS_DIGITS is enabled.     */

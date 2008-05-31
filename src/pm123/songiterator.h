@@ -76,7 +76,7 @@ class SongIterator
   static const Offsets        ZeroOffsets; // Offsets for root entry.
 
  private: // internal functions, not thread-safe.
-  // Get the current item. This may be NULL.  
+  // Get the current item. This may be NULL if and only if not root is assigned.  
   PlayableSlice*              Current() const          { return Callstack[Callstack.size()-1]->Item; }
   // Push the current item to the call stack.
   // Precondition: Current is Enumerable.
@@ -90,15 +90,8 @@ class SongIterator
   void                        PrevCore();
   // Navigate to the previous item im the current sublist, check start and stop offsets. 
   void                        NextCore();
-  // Implementation of Prev and Next.
-  // dir must be -1 for backward direction and +1 for forward.
+  // Implementation of Prev and Next. Pass &PrevCore or &NextCore.
   bool                        PrevNextCore(void (SongIterator::*func)());
-  // Navigate to url[index] within the current deepmost playlist.
-  // If the addressed item is a playlist the list is entered implicitely.
-  // If the url is '..' the current playlist is left.
-  // If the url is NULL only the index is used.
-  // A negative index counts from the back. The index must not be 0.
-  bool                        Navigate(const xstring& url, int index);
 
  public:
   // Create a SongIterator for iteration over a PlayableCollection.
@@ -129,8 +122,6 @@ class SongIterator
   // Gets the deepest playlist. This may be the root if the callstack is empty.
   // If no playlist is selected the function returns NULL.
   PlayableCollection*         GetList() const;
-  // Get Offsets of current item
-  Offsets                     GetOffset(bool withlocation) const;
   // Gets the call stack. Not thread-safe!
   // The callstack will always be empty if the Root is not enumerable.
   // Otherwise it will contain at least one element.
@@ -142,6 +133,18 @@ class SongIterator
   // This will return always false if the Playable object is not enumerable.
   bool                        IsInCallstack(const Playable* pp) const { return Exclude.find(*pp) != NULL; }
 
+  // Get Offsets of current item
+  Offsets                     GetOffset(bool withlocation) const;
+  // Set the current location and song as time offset.
+  // If the offset is less than zero it counts from the back.
+  // The Navigation starts from the current location.
+  // If this is a song, the call is similar to SetLocation().
+  // If current is a playlist the navigation applies to the whole list content.
+  // If you want to Navigate within the root call Reset before.
+  // The function returns true if the navigation was successful.
+  // In this case the current item is always a song.
+  bool                        SetTimeOffset(T_TIME offset);
+
   // Go to the previous Song.
   bool                        Prev()                   { return PrevNextCore(&SongIterator::PrevCore); }
   // Go to the next Song.
@@ -152,6 +155,19 @@ class SongIterator
   T_TIME                      GetLocation() const      { return Location; }
   // modify the start location within the current song.
   void                        SetLocation(T_TIME loc)  { Location = loc; CurrentCache = NULL; }
+
+  // Navigate to url[index] within the current deepmost playlist.
+  // If the addressed item is a playlist the list is entered implicitely.
+  // If the url is '..' the current playlist is left.
+  // If the url is NULL only the index is used.
+  // A negative index counts from the back. The index must not be 0, otherwise navigation fails.
+  // The function returns true if the Navigation succeeded.
+  bool                        Navigate(const xstring& url, int index);
+  // Same as Navigate but all content from the current deepmost playlist is flattened.
+  // So the Navigation goes to the item in the set of non-recursive items in the current playlist
+  // and all sublists that matches url/index.
+  // If NavigateFlat succeeds, the current item is always a song.
+  bool                        NavigateFlat(const xstring& url, int index);
 
   // Serialize the iterator into a string.
   xstring                     Serialize(bool withlocation = true) const;

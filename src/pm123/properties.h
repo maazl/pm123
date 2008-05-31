@@ -60,6 +60,13 @@ enum cfg_disp
   CFG_DISP_FILEINFO
 };
 
+// Alternate navigation methods
+enum
+{ CFG_ANAV_SONG,
+  CFG_ANAV_SONGTIME,
+  CFG_ANAV_TIME
+};
+
 typedef struct _amp_cfg {
   // TODO: buffers too small for URLs!!!
   char   defskin[_MAX_PATH];  // Default skin.
@@ -69,6 +76,7 @@ typedef struct _amp_cfg {
   BOOL   playonuse;           // Auto play on use playlist.
   BOOL   retainonexit;        // Retain playing position on exit.
   BOOL   retainonstop;        // Retain playing position on stop.
+  int    altnavig;            // Alternate navigation method 0=song only, 1=song&time, 2=time only
   BOOL   recurse_dnd;         // Drag and drop of folders recursive
   BOOL   append_dnd;          // Drag and drop appends to default playlist
   BOOL   append_cmd;          // Commandline appends to default playlist

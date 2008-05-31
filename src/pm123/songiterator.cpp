@@ -190,23 +190,6 @@ PlayableSlice* SongIterator::GetCurrent() const
   return CurrentCache;
 }
 
-SongIterator::Offsets SongIterator::GetOffset(bool withlocation) const
-{ DEBUGLOG(("SongIterator(%p)::GetOffset(%u)\n", this, withlocation));
-  ASSERT(Callstack.size());
-
-  const CallstackEntry* cep = Callstack[Callstack.size()-1];
-  Offsets ret = *cep;
-
-  if (withlocation && cep->Item && cep->Item->GetPlayable()->GetFlags() == Playable::None)
-  { ret.Offset += Location;
-    const SongIterator* start = cep->GetStart();
-    DEBUGLOG(("SongIterator::GetOffset - %f %s\n", Location, DebugName(start).cdata()));
-    if (start)
-      ret.Offset -= start->GetLocation();
-  }
-  return ret;
-}
-
 void SongIterator::Enter()
 { DEBUGLOG(("SongIterator::Enter()\n"));
   PlayableSlice* psp = Current(); // The ownership is held anyway by the callstack object.
@@ -435,8 +418,90 @@ bool SongIterator::PrevNextCore(void (SongIterator::*func)())
   }
 }
 
+SongIterator::Offsets SongIterator::GetOffset(bool withlocation) const
+{ DEBUGLOG(("SongIterator(%p)::GetOffset(%u)\n", this, withlocation));
+  ASSERT(Callstack.size());
+
+  const CallstackEntry* cep = Callstack[Callstack.size()-1];
+  Offsets ret = *cep;
+
+  if (withlocation && cep->Item && cep->Item->GetPlayable()->GetFlags() == Playable::None)
+  { ret.Offset += Location;
+    const SongIterator* start = cep->GetStart();
+    DEBUGLOG(("SongIterator::GetOffset - %f %s\n", Location, DebugName(start).cdata()));
+    if (start)
+      ret.Offset -= start->GetLocation();
+  }
+  return ret;
+}
+
+bool SongIterator::SetTimeOffset(T_TIME offset)
+{ DEBUGLOG(("SongIterator(%p)::SetTimeOffset(%f)\n", this, offset));
+  PlayableSlice* cur = Current();
+  ASSERT(cur);
+  if (cur->GetPlayable()->GetFlags() & Playable::Enumerable)
+  { // Current is a playlist
+    PlayableCollection* list = (PlayableCollection*)cur->GetPlayable();
+    list->EnsureInfo(Playable::IF_Other);
+    // lock collection
+    Mutex::Lock lck(list->Mtx);
+    // calculate and verify offset
+    if (offset < 0)
+    { const PlayableCollection::CollectionInfo& ci = list->GetCollectionInfo(Exclude);
+      if (ci.Songlength < 0)
+      { DEBUGLOG(("SongIterator::SetTimeOffset: undefined playlist length with reverse navigation\n"));
+        return false;
+      }
+      offset += ci.Songlength;
+      if (offset < 0)
+      { DEBUGLOG(("SongIterator::SetTimeOffset: reverse navigation out of bounds %f/%f\n", offset, ci.Songlength));
+        return false;
+      }
+    }
+    // do the navigation
+    CurrentCache = NULL;
+    // Enter the playlist
+    Enter();
+    // loop until we cross the offset
+    for (;;)
+    { // fetch first/next element
+      NextCore();
+      CallstackEntry* cep = Callstack[Callstack.size()-1];
+      if (cep->Item == NULL)
+      { DEBUGLOG(("SongIterator::SetTimeOffset: unexpected end of list. Offset out of range.\n"));
+        return false;
+      }
+      const Offsets& off = TechFromCallstackEntry(*cep);
+      // Terminate loop if the length of the current item is not finite or if it is larger than the required offset.
+      if (off.Offset < 0 || off.Offset > offset)
+        break;
+      offset -= off.Offset;
+    }
+    // We found a matching location. Apply the residual offset to the subitem.
+    return SetTimeOffset(offset);
+
+  } else
+  { // current is a song
+    if (offset < 0)
+    { T_TIME length = cur->GetPlayable()->GetInfo().tech->songlength;
+      if (length < 0)
+      { DEBUGLOG(("SongIterator::SetTimeOffset: reverse navigation requires songlength\n"));
+        return false;
+      }
+      offset += length;
+      if (offset < 0)
+      { DEBUGLOG(("SongIterator::SetTimeOffset: reverse navigation out of bounds\n"));
+        return false;
+      }
+    }
+    SetLocation(offset);
+    return true;
+  }
+}
+
 bool SongIterator::Navigate(const xstring& url, int index)
 { DEBUGLOG(("SongIterator(%p)::Navigate(%s, %i)\n", this, url ? url.cdata() : "<null>", index));
+  ASSERT(index);
   PlayableCollection* list = GetList();
   ASSERT(list);
   if (index == 0)
@@ -445,7 +510,8 @@ bool SongIterator::Navigate(const xstring& url, int index)
   Mutex::Lock lck(list->Mtx);
   // search item in the list
   if (!url)
-  { // address from back
+  { list->EnsureInfo(Playable::IF_Phys|Playable::IF_Other);
+    // address from back
     if (index < 0)
       index += list->GetInfo().phys->num_items +1;
     // address by index
@@ -456,10 +522,11 @@ bool SongIterator::Navigate(const xstring& url, int index)
     if (cep->Item->GetPlayable() == list)
     { Enter();
       cep = Callstack[Callstack.size()-1];
-    }
-    cep->Item = NULL; // Start over
+    } else
+      cep->Item = NULL; // Start over
     // Offsets structure slicing
     (Offsets&)*cep = (const Offsets&)*Callstack[Callstack.size()-2];
+    CurrentCache = NULL;
     /*// Speed up: start from back if closer to it
     if ((index<<1) > list->GetInfo().phys->num_items)
     { // iterate from behind
@@ -469,7 +536,6 @@ bool SongIterator::Navigate(const xstring& url, int index)
       while (index--);
     } else*/
     { // iterate from the front
-      list->EnsureInfo(Playable::IF_Other);
       for(;;)
       { cep->Item = list->GetNext((PlayableInstance*)cep->Item.get());
         if (--index == 0)
@@ -497,8 +563,11 @@ bool SongIterator::Navigate(const xstring& url, int index)
     if (IsInCallstack(pp))
       return false; // Error: Cannot navigate to recursive item
     // List is not yet open. Enter it.
+    list->EnsureInfo(Playable::IF_Other);
     if (Current()->GetPlayable() == list)
       Enter();
+    else
+      Callstack[Callstack.size()-1]->Item = NULL; // Start over
     CallstackEntry ce((const Offsets&)*Callstack[Callstack.size()-2]);
     if (index > 0)
     { // forward lookup
@@ -532,6 +601,105 @@ bool SongIterator::Navigate(const xstring& url, int index)
   if (Current() && (Current()->GetPlayable()->GetFlags() & Playable::Enumerable))
     Enter();*/
   return true;
+}
+
+bool SongIterator::NavigateFlat(const xstring& url, int index)
+{ DEBUGLOG(("SongIterator(%p)::NavigateFlat(%s, %i)\n", this, url ? url.cdata() : "<null>", index));
+  ASSERT(index);
+  PlayableSlice* cur = Current();
+  PlayableCollection* list = GetList();
+  ASSERT(list);
+  // Implicitely leave song items
+  if (!(cur->GetPlayable()->GetFlags() & Playable::Enumerable))
+    Leave();
+  if (index == 0)
+    return false;
+  // search item in the list
+  if (!url)
+  { // Navigation by index only
+    list->EnsureInfo(Playable::IF_Other);
+    CallstackEntry* cep;
+    { // lock collection
+      Mutex::Lock lck(list->Mtx);
+      const PlayableCollection::CollectionInfo& ci = list->GetCollectionInfo(Exclude);
+      if (ci.Items < 0)
+      { DEBUGLOG(("SongIterator::NavigateFlat: undefined number of playlist items\n"));
+        return false;
+      }
+      // calculate and verify offset
+      if (index < 0)
+        index += ci.Items + 1;
+      if (index < 1 || index > ci.Items)
+      { DEBUGLOG(("SongIterator::NavigateFlat: index out of bounds %i/%i\n", index, ci.Items));
+        return false;
+      }
+      // do the navigation
+      CurrentCache = NULL;
+      // Enter the playlist
+      Enter();
+      // loop until we cross the number of items
+      for (;;)
+      { // fetch first/next element
+        NextCore();
+        cep = Callstack[Callstack.size()-1];
+        if (cep->Item == NULL)
+        { DEBUGLOG(("SongIterator::NavigateFlat: unexpected end of list. ???\n"));
+          Leave(); // Rollback
+          return false;
+        }
+        const Offsets& off = TechFromCallstackEntry(*cep);
+        // Terminate loop if the number of subitems is unknown or if it is larger than the required index.
+        if (off.Index < 0 || off.Index >= index)
+          break;
+        index -= off.Index;
+      }
+    }
+    // We found a matching location. Apply the residual offset to the subitem if any.
+    if (cep->Item->GetPlayable()->GetFlags() & Playable::Enumerable)
+      return NavigateFlat(url, index);
+    // If we are at a song item, the index should match exactly.
+    ASSERT(index == 1);
+    return true;
+
+  } else if (url == "..")
+  { // invalid within this context
+    return false;
+
+  } else
+  { // look for a certain URL
+    url123 absurl = list->GetURL().makeAbsolute(url);
+    const int_ptr<Playable>& pp = Playable::FindByURL(absurl);
+    if (pp == NULL)
+    { DEBUGLOG(("SongIterator::NavigateFlat: URL not well known.\n"));
+      return false; // If the url is in the playlist it /must/ exist in the repository, otherwise => error.
+    }
+    if (IsInCallstack(pp))
+    { DEBUGLOG(("SongIterator::NavigateFlat: Cannot navigate to recursive item.\n"));
+      return false; // Error: Cannot navigate to recursive item
+    }
+    // do the navigation
+    CurrentCache = NULL;
+    // Enter the playlist
+    Enter();
+    if (index > 0)
+    { // forward lookup
+      do 
+      { if (!PrevNextCore(&SongIterator::NextCore))
+          return false; // Error: not found
+        // TODO: stop when list is left also.
+      } while (stricmp(Current()->GetPlayable()->GetURL(), absurl) != 0 || --index != 0);
+    } else
+    { // reverse lookup
+      do
+      { if (!PrevNextCore(&SongIterator::PrevCore))
+          return false; // Error: not found
+        // TODO: stop when list is left also.
+      } while (stricmp(Current()->GetPlayable()->GetURL(), absurl) != 0 || --index != 0);
+    }
+    // commit
+    // TODO: well we should support rollback.
+    return true;
+  }
 }
 
 xstring SongIterator::Serialize(bool withlocation) const

@@ -40,16 +40,17 @@
 #include <os2.h>
 
 
-#define  AMP_REFRESH_CONTROLS   ( WM_USER + 1000 ) /* 0,         0                            */
-#define  AMP_PAINT              ( WM_USER + 1001 ) /* maske,     0                            */
+#define  AMP_REFRESH_CONTROLS   ( WM_USER + 1000 ) // 0,         0
+#define  AMP_PAINT              ( WM_USER + 1001 ) // maske,     0
 #define  AMP_LOAD               ( WM_USER + 1002 )
-#define  AMP_DISPLAY_MESSAGE    ( WM_USER + 1013 ) /* message,   TRUE (info) or FALSE (error) */
-#define  AMP_DISPLAY_MODE       ( WM_USER + 1014 ) /* 0,         0                            */
-#define  AMP_QUERY_STRING       ( WM_USER + 1015 ) /* buffer,    size and type                */
+#define  AMP_DISPLAY_MESSAGE    ( WM_USER + 1013 ) // message,   TRUE (info) or FALSE (error)
+#define  AMP_DISPLAY_MODE       ( WM_USER + 1014 ) // 0,         0
+#define  AMP_QUERY_STRING       ( WM_USER + 1015 ) // buffer,    size and type
 #define  AMP_INFO_EDIT          ( WM_USER + 1016 )
 #define  AMP_CTRL_EVENT         ( WM_USER + 1020 )
 #define  AMP_CTRL_EVENT_CB      ( WM_USER + 1021 )
 #define  AMP_REFRESH_ACCEL      ( WM_USER + 1022 )
+#define  AMP_SLIDERDRAG         ( WM_USER + 1023 ) // pos(x,y),  TRUE: navigate and complete
 
 
 /* Constructs a information text for currently loaded file. */

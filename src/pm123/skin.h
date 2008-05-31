@@ -191,8 +191,8 @@ void bmp_draw_rate( HPS hps, int rate );
 void bmp_draw_plind( HPS hps, int index, int total );
 /* Draws the current playlist mode and time left labels. */
 void bmp_draw_plmode( HPS hps, BOOL valid, Playable::Flags flags );
-/* Draws the current position slider. Location [0,1]. <0 => no slider */
-void bmp_draw_slider( HPS hps, double location );
+/* Draws the current position slider. Location [0,1]. <0 => no slider, alt = alternate slider */
+void bmp_draw_slider( HPS hps, double location, bool alt );
 /* Draws a current displayed text using the current selected font. */
 void bmp_draw_text( HPS hps );
 

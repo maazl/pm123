@@ -1430,7 +1430,7 @@ bmp_draw_plind( HPS hps, int index, int total )
 
 /* Draws the current position slider. */
 void
-bmp_draw_slider( HPS hps, double location )
+bmp_draw_slider( HPS hps, double location, bool alt )
 { DEBUGLOG(("bmp_draw_slider(%p, %f)\n", hps, location));
 
   if( cfg.mode == CFG_MODE_REGULAR )
@@ -1456,7 +1456,7 @@ bmp_draw_slider( HPS hps, double location )
         : (ULONG)(location * bmp_ulong[UL_SLIDER_WIDTH]);
 
       bmp_draw_bitmap( hps, bmp_pos[ POS_SLIDER ].x + pos,
-                            bmp_pos[ POS_SLIDER ].y, BMP_SLIDER );
+                            bmp_pos[ POS_SLIDER ].y, alt && bmp_cache[BMP_ALTSLIDER] ? BMP_ALTSLIDER : BMP_SLIDER );
     }
   }
 }
@@ -1585,6 +1585,7 @@ bmp_init_skins_bitmaps( HPS hps )
   bmp_load_default( hps, BMP_MONO         );
   bmp_load_default( hps, BMP_NO_CHANNELS  );
   bmp_load_default( hps, BMP_SLIDER       );
+  bmp_load_default( hps, BMP_ALTSLIDER    );
   bmp_load_default( hps, BMP_S_BGROUND    );
   bmp_load_default( hps, BMP_T_BGROUND    );
   bmp_load_default( hps, BMP_VOLSLIDER    );
@@ -1744,8 +1745,8 @@ static int bmp_map_bitmap_id( unsigned i )
     BMP_N_PLAY, 0, BMP_N_PAUSE, BMP_N_REW, BMP_N_FWD, BMP_N_POWER, BMP_N_PREV, BMP_N_NEXT, BMP_N_SHUFFLE, BMP_N_REPEAT,
     BMP_N_PL, BMP_PL, BMP_N_STOP, BMP_STOP, BMP_N_FLOAD, BMP_FLOAD };
   static const int misc1600_map[] = {
-    0, BMP_STEREO, BMP_MONO, 0, 0, 0, 0, 0, BMP_NO_CHANNELS, 0,
-    0, BMP_S_BGROUND, BMP_T_BGROUND, 0, 0, 0, 0, 0, 0, 0,
+    0, BMP_STEREO, BMP_MONO, 0, 0, 0, 0, 0, BMP_NO_CHANNELS, BMP_ALTSLIDER,
+    BMP_SLIDER, BMP_S_BGROUND, BMP_T_BGROUND, 0, 0, 0, 0, 0, 0, 0,
     BMP_VOLSLIDER, 0, 0, 0, 0, 0, 0, 0, 0, 0,
     BMP_VOLBAR, BMP_SINGLEPLAY, BMP_LISTPLAY, BMP_NOFILE };
   static const int misc1900_map[] = {
