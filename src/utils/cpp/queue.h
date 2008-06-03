@@ -38,7 +38,7 @@
 
 
 class queue_base
-{public: // VAC++ 3.0 requires base types to be public
+{public:
   struct EntryBase
   { EntryBase* Next;
   };
@@ -63,7 +63,7 @@ class queue_base
  protected: // class should not be used directly!
              queue_base()         : Head(NULL), Tail(NULL) { EvRead.Set(); }
   EntryBase* Read() const         { return Head; }
-  EntryBase* CommitRead();
+  void       CommitRead(EntryBase* e);
  public:
   void       RequestRead();
  protected:
@@ -73,12 +73,11 @@ class queue_base
 
 template <class T>
 class queue : public queue_base
-{protected:
-  struct Entry : public EntryBase
+{public:
+  struct qentry : public queue_base::EntryBase
   { T        Data;
-    Entry(const T& data) : Data(data) {}
+    qentry(const T& data) : Data(data) {}
   };
- public:
   /*class Reader;
   friend class Reader;
   class Reader : private ReaderBase
@@ -91,18 +90,18 @@ class queue : public queue_base
  public:
              ~queue()             { Purge(); }
   // Read the current head
-  T*         Read();
+  qentry*    Read()               { return (qentry*)queue_base::Read(); }
   // Read complete => remove item from the queue
-  void       CommitRead()         { delete (Entry*)queue_base::CommitRead(); }
+  void       CommitRead(qentry* e){ queue_base::CommitRead(e); delete e; }
   // Post an element to the Queue
-  void       Write(const T& data) { queue_base::Write(new Entry(data)); }
+  void       Write(const T& data) { queue_base::Write(new qentry(data)); }
   // Remove all elements from the queue
   void       Purge();
   // Search for the first Element matching templ in the queue.
   // This function is not reliable unless it is called
   // while the current objects Mutex is locked.
   // So be careful
-  T*         Find(const T& templ, bool& inuse);
+  qentry*    Find(const T& templ, bool& inuse);
   // Remove all elements which equals data from the queue and
   // return the number of removed Elements.
   // Elements in current uncommited reads are not affected.
@@ -114,49 +113,43 @@ class queue : public queue_base
 };
 
 template <class T>
-T* queue<T>::Read()
-{ EntryBase* ep = queue_base::Read();
-  return ep ? &((Entry*)ep)->Data : NULL;
-}
-
-template <class T>
 void queue<T>::Purge()
 { if (Head == NULL)
     return;
-  Entry* ep;
+  qentry* ep;
   { Mutex::Lock lock(Mtx);
-    ep = (Entry*)Head;
+    ep = (qentry*)Head;
     if (ep == NULL)
       return;
-    ep = (Entry*)ep->Next;
+    ep = (qentry*)ep->Next;
     if (EvRead.IsSet())
     { // reader is active, keep the first element
       Head->Next = NULL; // truncate
     } else
     { // reader is inactive, delete all
-      delete (Entry*)Head;
+      delete (qentry*)Head;
       Head = NULL;
     }
     Tail = Head;
     EvEmpty.Reset();
   } // we do no longer need the Mutex
   while (ep)
-  { Entry* ep2 = ep;
-    ep = (Entry*)ep->Next;
+  { qentry* ep2 = ep;
+    ep = (qentry*)ep->Next;
     delete ep2;
   }
 }
 
 template <class T>
-T* queue<T>::Find(const T& templ, bool& inuse)
+queue<T>::qentry* queue<T>::Find(const T& templ, bool& inuse)
 { Mutex::Lock lock(Mtx);
-  Entry* ep = (Entry*)Head;
+  qentry* ep = (qentry*)Head;
   while (ep)
   { if (ep->Data == templ)
     { inuse = ep == Head && !EvRead.IsSet();
-      return &ep->Data;
+      return ep;
     }
-    ep = (Entry*)ep->Next;
+    ep = (qentry*)ep->Next;
   }
   return NULL;
 }
@@ -167,7 +160,7 @@ int queue<T>::Remove(const T& data)
   Mutex::Lock lock(Mtx);
   EntryBase** epp = &Head;
   for (;;)
-  { Entry* ep = (Entry*)*epp;
+  { qentry* ep = (qentry*)*epp;
     if (ep == NULL)
       break;
     if (ep->Data == data && (epp != &Head || EvRead.IsSet()))
@@ -188,7 +181,7 @@ int queue<T>::ForceRemove(const T& data)
   { Mutex::Lock lock(Mtx);
     EntryBase** epp = &Head;
     for (;;)
-    { Entry* ep = (Entry*)*epp;
+    { qentry* ep = (qentry*)*epp;
       if (ep == NULL)
         break;
       if (!(ep->Data == data))

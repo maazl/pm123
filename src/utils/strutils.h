@@ -70,9 +70,10 @@ char* strnrchr( const char* str, char c, size_t siz );
 void strchomp( char* str );
 
 /* compare and copy memory
- * Moves len bytes from scr to dst returning 1 if at least one byte changed.
+ * Moves len bytes from src to dst returning the index of the first byte that changed.
+ * If there are no changes the function returns ~0 (i.e. all bits set).
  */
-int memcmpcpy( void* dst, const void* src, size_t len );
+size_t memcmpcpy( void* dst, const void* src, size_t len );
 
 #ifdef __cplusplus
 }

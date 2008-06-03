@@ -32,12 +32,22 @@
 #include "strutils.h"
 #include <string.h>
 
-int memcmpcpy( void* dst, const void* src, size_t len )
-{ // work in units of 4 Bytes
+size_t memcmpcpy( void* dst, const void* src, size_t len )
+{ size_t ret = len;
+  // work in units of 4 Bytes
   while (len >= sizeof(long))
   { if (*(long*)dst != *(long*)src)
-    { memcpy(dst, src, len);
-      return 1;
+    { // determine exact location of the difference
+      if (((char*)dst)[0] == ((char*)src)[0])
+      { ++ret;
+        if (((char*)dst)[1] == ((char*)src)[1])
+        { ++ret;
+          if (((char*)dst)[2] == ((char*)src)[2])
+            ++ret;
+        }
+      }
+      memcpy(dst, src, len);
+      return ret - len;
     }
     len -= sizeof(long);
     // These lines give warnings in gcc, but otherwise we can't increment the pointers correctly.
@@ -47,15 +57,16 @@ int memcmpcpy( void* dst, const void* src, size_t len )
   // remaining part
   while (len)
   { if (*(char*)dst != *(char*)src)
-    { do
+    { ret -= len;
+      do
       { *(*(char**)&dst)++ = *(*(char**)&src)++;
       } while (--len);
-      return 1;
+      return ret;
     }
     --len;
     // These lines give warnings in gcc, but otherwise we can't increment the pointers correctly.
     ++*(char**)&src;
     ++*(char**)&dst;
   }
-  return 0;
+  return ~0;
 }

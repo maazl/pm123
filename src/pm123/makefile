@@ -68,7 +68,7 @@ properties.cpp:	..\utils\utilfct.h ..\xio123\xio.h ..\utils\snprintf.h propertie
 skin.cpp:	..\gbm123\gbm.h ..\gbm123\gbmerr.h ..\gbm123\gbmht.h properties.h skin.h pm123.h dialog.h pm123.rc.h button95.h ..\utils\debuglog.h
 button95.c:	button95.h ..\utils\utilfct.h ..\utils\debuglog.h
 pipe.cpp:	pipe.h dialog.h pm123.h pm123.rc.h properties.h controller.h 123_util.h ..\utils\cpp/xstring.h ..\utils\debuglog.h
-pipe.h:	..\include\config.h
+pipe.h:	..\include\config.h ..\utils\cpp/xstring.h playablecollection.h
 songiterator.h:	..\include\format.h playable.h playablecollection.h ..\utils\cpp/container.h ..\utils\cpp/xstring.h
 docking.mm.cpp:	pm123.h properties.h docking.h ..\utils\utilfct.h
 songiterator.cpp:	songiterator.h properties.h ..\utils\cpp/mutex.h ..\utils\cpp/xstring.h ..\utils\strutils.h

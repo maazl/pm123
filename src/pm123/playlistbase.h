@@ -152,6 +152,12 @@ class PlaylistBase
     // Update the meta information of a record
     // If mp1 == NULL the root node is refreshed.
     RC_UPDATEMETA,
+    // Update the physical file information of a record
+    // If mp1 == NULL the root node is refreshed.
+    RC_UPDATEPHYS,
+    // Update the recursive playlist information of a record
+    // If mp1 == NULL the root node is refreshed.
+    RC_UPDATERPL,
     // Update the status of a record
     // If mp1 == NULL the root node is refreshed.
     RC_UPDATESTATUS,

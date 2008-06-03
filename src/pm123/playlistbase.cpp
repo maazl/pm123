@@ -714,9 +714,8 @@ void PlaylistBase::RequestChildren(RecordBase* const rec)
     return;
   // Call event either immediately or later, asynchronuously.
   // But only the playlist content is requested at high priority;
-  Playable::InfoFlags
-  avail = pp->EnsureInfoAsync(Playable::IF_Tech, true);
-  avail |= pp->EnsureInfoAsync(Playable::IF_Other, false);
+  Playable::InfoFlags avail = pp->EnsureInfoAsync(Playable::IF_Other|Playable::IF_Rpl, false)
+                            | pp->EnsureInfoAsync(Playable::IF_Tech, true);
   InfoChangeEvent(Playable::change_args(*pp, avail), rec);
 }
 
@@ -734,8 +733,8 @@ void PlaylistBase::UpdateChildren(RecordBase* const rp)
     return;
   }
 
-  // Check if techinfo is available, otherwise wait
-  if (pp->EnsureInfoAsync(Playable::IF_Tech) == 0)
+  // Check if recursion info is available, otherwise wait
+  if (pp->EnsureInfoAsync(Playable::IF_Rpl) == 0)
   { StateFromRec(rp).WaitUpdate = true;
     return;
   }
@@ -945,6 +944,10 @@ void PlaylistBase::InfoChangeEvent(const Playable::change_args& args, RecordBase
     PostRecordCommand(rec, RC_UPDATETECH);
   if (args.Flags & Playable::IF_Meta)
     PostRecordCommand(rec, RC_UPDATEMETA);
+  if (args.Flags & Playable::IF_Phys)
+    PostRecordCommand(rec, RC_UPDATEPHYS);
+  if (args.Flags & Playable::IF_Rpl)
+    PostRecordCommand(rec, RC_UPDATERPL);
 }
 
 void PlaylistBase::StatChangeEvent(const PlayableInstance::change_args& args, RecordBase* rec)

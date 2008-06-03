@@ -969,54 +969,54 @@ static BOOL is_file_supported(const char* const* support, const char* url)
 /* Returns the decoder NAME that can play this file and returns 0
    if not returns error 200 = nothing can play that. */
 ULONG DLLENTRY
-dec_fileinfo( const char* filename, DECODER_INFO2* info, char* name, size_t name_size )
+dec_fileinfo( const char* filename, INFOTYPE* what, DECODER_INFO2* info, char* name, size_t name_size )
 {
-  DEBUGLOG(("dec_fileinfo(%s, %p{%u,%p,%p,%p}, %s)\n", filename, info, info->size, info->format, info->tech, info->meta, name));
+  DEBUGLOG(("dec_fileinfo(%s, %x, %p{%u,%p,%p,%p}, %s)\n", filename, what, info, info->size, info->format, info->tech, info->meta, name));
   BOOL* checked = (BOOL*)alloca( sizeof( BOOL ) * decoders.count() );
-  int   i;
   const CL_DECODER* dp;
 
   memset( checked, 0, sizeof( BOOL ) * decoders.count() );
 
   if (is_track(filename))
   { // check decoders that claim to support tracks
-    for( i = 0; i < decoders.count(); i++ )
+    for( int i = 0; i < decoders.count(); i++ )
     { dp = &(const CL_DECODER&)decoders[i];
       if (!dp->get_enabled() || !(dp->get_procs().type & DECODER_TRACK) )
         continue;
       checked[i] = TRUE;
-      if (dp->get_procs().decoder_fileinfo(filename, info) == 0)
+      if (dp->get_procs().decoder_fileinfo(filename, what, info) == 0)
         goto ok;
     }
     return 200; // It makes no sense to check the others in this case.
   } else
   { // First checks decoders supporting the specified type of files.
-    for (i = 0; i < decoders.count(); i++)
+    for ( int i = 0; i < decoders.count(); i++)
     { dp = &(const CL_DECODER&)decoders[i];
       if (!dp->get_enabled() || !is_file_supported(dp->get_procs().support, filename))
         continue;
       checked[i] = TRUE;
-      if (dp->get_procs().decoder_fileinfo(filename, info) == 0)
+      if (dp->get_procs().decoder_fileinfo(filename, what, info) == 0)
         goto ok;
     }
   }
 
-  // Next checks the rest decoders.
-  for( i = 0; i < decoders.count(); i++ )
-  { dp = &(const CL_DECODER&)decoders[i];
-    if (!dp->get_enabled() || checked[i])
-      continue;
-    if( (*dp->get_procs().decoder_fileinfo)( filename, info ) == 0 )
-      goto ok;
+  { // Next checks the rest decoders.
+    for( int i = 0; i < decoders.count(); i++ )
+    { dp = &(const CL_DECODER&)decoders[i];
+      if (!dp->get_enabled() || checked[i])
+        continue;
+      if( (*dp->get_procs().decoder_fileinfo)( filename, what, info ) == 0 )
+        goto ok;
+    }
   }
-
   return 200;
  ok:
-  DEBUGLOG(("dec_fileinfo: {{%d, %d, %d}, {%d, %lf, %d, %lf, %d, %u, %s}, {%d, %lf, %d}} -> %s\n",
+  DEBUGLOG(("dec_fileinfo: {{%d, %d, %d}, {%d, %lf, %d, %lf, %d}, {%d, %lf, %d}, {%u, %s}} -> %s, %x\n",
     info->format->size, info->format->samplerate, info->format->channels,
-    info->tech->size, info->tech->songlength, info->tech->bitrate, info->tech->totalsize, info->tech->total_items, info->tech->recursive, info->tech->info,
+    info->tech->size, info->tech->songlength, info->tech->bitrate, info->tech->totalsize, info->tech->info,
     info->phys->size, info->phys->filesize, info->phys->num_items,
-    name));
+    info->rpl->total_items, info->rpl->recursive,
+    name, what));
   if (name)
     sfnameext( name, dp->module_name, name_size );
   return 0;

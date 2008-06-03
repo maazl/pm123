@@ -217,10 +217,10 @@ class PlayableCollection : public Playable
   typedef int (*ItemComparer)(const PlayableInstance* l, const PlayableInstance* r);
   // Information on PlayableCollection.
   struct CollectionInfo
-  { T_TIME                 Songlength;
-    double                 Filesize;
-    int                    Items;
-    sorted_vector<Playable, Playable> Excluded;
+  { T_TIME                 Songlength; // Tech info
+    double                 Filesize;   // Tech info
+    int                    Items;      // PL info
+    PlayableSet            Excluded;   // PL info
 
     void                   Add(T_TIME songlength, double filesize, int items);
     void                   Add(const CollectionInfo& ci);
@@ -251,12 +251,11 @@ class PlayableCollection : public Playable
   struct CollectionInfoEntry
   : public PlayableSet
   { CollectionInfo         Info;
-    bool                   Valid;
-    CollectionInfoEntry(const PlayableSet& r) : PlayableSet(r), Valid(false) {}
+    InfoFlags              Valid; // only IF_Tech and IF_Pl are significant here
+    CollectionInfoEntry(const PlayableSet& r) : PlayableSet(r), Valid(IF_None) {}
   };
 
  protected:
-  static const FORMAT_INFO2 no_format;
   // The object list is implemented as a doubly linked list to keep the iterators valid on modifications.
   int_ptr<Entry> Head;
   int_ptr<Entry> Tail;
@@ -272,11 +271,8 @@ class PlayableCollection : public Playable
  protected:
   // Prefetch some information to avoid deadlocks in GetCollectionInfo.
   void                        PrefetchSubInfo(const PlayableSet& excluding);
-  // Fill the TECH_INFO structure.
-  void                        CalcTechInfo(TECH_INFO& dst);
   // Create new entry and make the path absolute if required.
-  virtual Entry*              CreateEntry(const char* url, const FORMAT_INFO2* ca_format, const TECH_INFO* ca_tech, const META_INFO* ca_meta, const PHYS_INFO* ca_phys);
-  Entry*                      CreateEntry(const char* url) { return CreateEntry(url, NULL, NULL, NULL, NULL); }
+  virtual Entry*              CreateEntry(const char* url, const DECODER_INFO2* ca = NULL);
   // Append a new entry at the end of the list.
   // The list must be locked before calling this Function.
   void                        AppendEntry(Entry* entry);
@@ -298,7 +294,7 @@ class PlayableCollection : public Playable
   // Save to stream as WinAmp playlist format
   bool                        SaveM3U(XFILE* of, bool relative);
   // Constructor with defaults if available.
-  PlayableCollection(const url123& URL, const TECH_INFO* ca_tech = NULL, const META_INFO* ca_meta = NULL, const PHYS_INFO* ca_phys = NULL);
+  PlayableCollection(const url123& URL, const DECODER_INFO2* ca = NULL);
  public:
   virtual                     ~PlayableCollection();
   // RTTI by the back door.
@@ -326,7 +322,13 @@ class PlayableCollection : public Playable
   int_ptr<PlayableInstance>   DeserializeItem(const xstring& str) const;
 
   // Calculate the CollectionInfo structure.
-  const CollectionInfo&       GetCollectionInfo(const PlayableSet& excluding = PlayableSet::Empty);
+  // This returns context dependant information on the current collection.
+  // In fact all items in the set excluding and their subitems are excluded from the calculation.
+  // The function uses an internal cache (CollectionInfoCache) to optimize access.
+  // This cache is automatically invalidated.
+  // If you call this function while the requested flags of InfoValid are not yet set,
+  // you will get incomplete information. This is not an error.
+  const CollectionInfo&       GetCollectionInfo(InfoFlags what, const PlayableSet& excluding = PlayableSet::Empty);
   // Load Information from URL
   // This implementation is only the framework. It reqires LoadInfoCore() for it's work.
   virtual InfoFlags           LoadInfo(InfoFlags what);
@@ -365,10 +367,8 @@ class Playlist : public PlayableCollection
     FORMAT_INFO2              Format;
     TECH_INFO                 Tech;
     PHYS_INFO                 Phys;
-    bool                      has_format;
-    bool                      has_tech;
-    bool                      has_techinfo;
-    bool                      has_phys;
+    RPL_INFO                  Rpl;
+    DECODER_INFO2             Info;
     xstring                   Alias;
     xstring                   Start;
     xstring                   Stop;
@@ -396,8 +396,8 @@ class Playlist : public PlayableCollection
   // really load the playlist
   virtual bool                LoadList();
  public:
-  Playlist(const url123& URL, const TECH_INFO* ca_tech = NULL, const META_INFO* ca_meta = NULL)
-   : PlayableCollection(URL, ca_tech, ca_meta), Modified(false) { DEBUGLOG(("Playlist(%p)::Playlist(%s, %p, %p)\n", this, URL.cdata(), ca_tech, ca_meta)); }
+  Playlist(const url123& URL, const DECODER_INFO2* ca = NULL)
+   : PlayableCollection(URL, ca), Modified(false) { DEBUGLOG(("Playlist(%p)::Playlist(%s, %p)\n", this, URL.cdata(), ca)); }
   // Get attributes
   virtual Flags               GetFlags() const;
   // Check whether the current Collection is a modified shadow of a unmodified backend.
@@ -444,7 +444,7 @@ class PlayFolder : public PlayableCollection
  private:
   void                        ParseQueryParams();
  public:
-  PlayFolder(const url123& URL, const TECH_INFO* ca_tech = NULL, const META_INFO* ca_meta = NULL);
+  PlayFolder(const url123& URL, const DECODER_INFO2* ca = NULL);
   virtual bool                LoadList();
 };
 

@@ -77,7 +77,6 @@ void PlaylistManager::PostRecordCommand(RecordBase* rec, RecordCommand cmd)
   // Ignore some messages
   switch (cmd)
   {case RC_UPDATEFORMAT:
-   case RC_UPDATEMETA:
    case RC_UPDATEPOS:
     return;
    default:
@@ -194,7 +193,7 @@ MRESULT PlaylistManager::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
       do
       { // We do the processing here step by step because the processing may set some of the bits
         // that are handled later. This avoids double actions and reduces the number of posted messages.
-        if (il.bitrst(RC_UPDATETECH))
+        if (il.bitrst(RC_UPDATERPL))
         { // Check if UpdateChildren is waiting
           bool& wait = StateFromRec(rec).WaitUpdate;
           if (wait)
@@ -202,18 +201,18 @@ MRESULT PlaylistManager::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
             wait = false;
             il.bitset(RC_UPDATECHILDREN);
           }
-          UpdateTech(rec); // may set RC_UPDATESTATUS
+          UpdateRpl(rec); // may set RC_UPDATESTATUS
         }
+        if (il.bitrst(RC_UPDATETECH))
+          UpdateTech(rec);
         if (il.bitrst(RC_UPDATECHILDREN))
           UpdateChildren(rec); // may set RC_UPDATESTATUS
-        if (il.bitrst(RC_UPDATESTATUS))
+        if (il.bitrst(RC_UPDATESTATUS) | il.bitrst(RC_UPDATEPHYS)) // RC_UPDATEPHYS covers changes of num_items
           UpdateStatus(rec);
-        if (il.bitrst(RC_UPDATEALIAS))
+        if (il.bitrst(RC_UPDATEALIAS) | il.bitrst(RC_UPDATEMETA)) // Changing of meta data may reflect to the display name too.
           UpdateInstance(rec, PlayableInstance::SF_Alias);
-        // It is essential that all messages that are not masked by the overloaded PosRecordCommand
-        // are handled here. Otherwise: infinite loop. The assertion below checks for this.
-        ASSERT((il & ~(1<<RC_UPDATETECH | 1<<RC_UPDATECHILDREN | 1<<RC_UPDATESTATUS | 1<<RC_UPDATEALIAS)) == 0);
-        il &= ~(1<<RC_UPDATETECH | 1<<RC_UPDATECHILDREN | 1<<RC_UPDATESTATUS | 1<<RC_UPDATEALIAS);
+        // It is essential that all messages are handled here. Otherwise: infinite loop.
+        ASSERT((il & ~(1<<RC_UPDATERPL|1<<RC_UPDATETECH|1<<RC_UPDATESTATUS|1<<RC_UPDATEPHYS|1<<RC_UPDATEALIAS|1<<RC_UPDATEMETA)) == 0);
       } while (il);
       break; // continue in base class
     }
@@ -401,7 +400,7 @@ PlaylistBase::RecordBase* PlaylistManager::CreateNewRecord(PlayableInstance* obj
   rec->Data()->Text    = obj->GetDisplayName();
   Playable* pp = obj->GetPlayable();
   rec->Data()->Recursive = (pp->GetFlags() & Playable::Enumerable)
-                        && (!pp->CheckInfo(Playable::IF_Tech) || pp->GetInfo().tech->recursive)
+                        && (!pp->CheckInfo(Playable::IF_Rpl) || pp->GetInfo().rpl->recursive)
                         && RecursionCheck(pp, parent);
   rec->flRecordAttr    = 0;
   rec->pszIcon         = (PSZ)rec->Data()->Text.cdata();
@@ -420,8 +419,6 @@ void PlaylistManager::UpdateChildren(RecordBase* const rec)
     return;
 
   PlaylistBase::UpdateChildren(rec);
-  // Update icon always because the number of items may have changed from or to zero.
-  PostRecordCommand(rec, RC_UPDATESTATUS);
 }
 
 void PlaylistManager::RequestChildren(RecordBase* const rec)
@@ -443,7 +440,13 @@ void PlaylistManager::UpdateTech(Record* rec)
       // continue later
       PMRASSERT(WinPostMsg(GetHwnd(), UM_UPDATEINFO, MPFROMP(rec), 0));
     }
-    bool recursive = rec->Data()->Content->GetPlayable()->GetInfo().tech->recursive && RecursionCheck(rec);
+  }
+}
+
+void PlaylistManager::UpdateRpl(Record* rec)
+{ DEBUGLOG(("PlaylistManager(%p)::UpdateRpl(%p)\n", this, rec));
+  if (rec) // not for root level
+  { bool recursive = rec->Data()->Content->GetPlayable()->GetInfo().rpl->recursive && RecursionCheck(rec);
     if (recursive != rec->Data()->Recursive)
     { rec->Data()->Recursive = recursive;
       // Update Icon also
@@ -453,7 +456,7 @@ void PlaylistManager::UpdateTech(Record* rec)
         RemoveChildren(rec);
     }
   }
-}
+}  
 
 void PlaylistManager::UpdatePlayStatus(RecordBase* rec)
 { DEBUGLOG(("PlaylistManager(%p)::UpdatePlayStatus(%p)\n", this, rec));

@@ -203,7 +203,7 @@ amp_paint_timers( HPS hps )
   } else switch (cfg.altnavig)
   {case CFG_ANAV_SONG:
     if (is_playlist)
-    { int total_items = CurrentRoot->GetInfo().tech->total_items;
+    { int total_items = CurrentRoot->GetInfo().rpl->total_items;
       if (total_items == 1)
         pos = 0;
       else if (total_items > 1)
@@ -217,7 +217,7 @@ amp_paint_timers( HPS hps )
     } // else CFG_ANAV_SONGTIME
    case CFG_ANAV_SONGTIME:
     if (is_playlist)
-    { int total_items = CurrentRoot->GetInfo().tech->total_items;
+    { int total_items = CurrentRoot->GetInfo().rpl->total_items;
       if (total_items == 1)
         pos = 0;
       else if (total_items > 1)
@@ -236,7 +236,7 @@ amp_paint_timers( HPS hps )
   bmp_draw_tiny_timer( hps, POS_PL_LEFT,   list_left );
 
   int index = is_playlist ? off.Index : 0;
-  bmp_draw_plind( hps, index, index > 0 ? CurrentRoot->GetInfo().tech->total_items : 0);
+  bmp_draw_plind( hps, index, index > 0 ? CurrentRoot->GetInfo().rpl->total_items : 0);
 }
 
 /* Draws all attributes of the currently loaded file. */
@@ -1349,7 +1349,7 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
         WinSetCapture( HWND_DESKTOP, hwnd );
       } else if( bmp_pt_in_slider( pos ) )
       { if (CurrentSong && ( is_pl_slider
-          ? CurrentRoot->GetInfo().tech->total_items > 0
+          ? CurrentRoot->GetInfo().rpl->total_items > 0
           : CurrentSong->GetInfo().tech->songlength > 0 ))
         { is_slider_drag = TRUE;
           is_seeking     = TRUE;
@@ -1435,7 +1435,7 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
        case CFG_ANAV_SONG:
        case CFG_ANAV_SONGTIME:
         // navigate at song and optional time scale
-        { const int num_items = CurrentRoot->GetInfo().tech->total_items;
+        { const int num_items = CurrentRoot->GetInfo().rpl->total_items;
           if (num_items <= 0)
             return 0;
           relpos *= num_items;

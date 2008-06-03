@@ -297,16 +297,14 @@ void PlayableCollection::CollectionInfo::Reset()
   Excluded.clear();
 }
 
-const FORMAT_INFO2 PlayableCollection::no_format =
-{ sizeof(FORMAT_INFO2),
-  -1,
-  -1
-};
-
-PlayableCollection::PlayableCollection(const url123& URL, const TECH_INFO* ca_tech, const META_INFO* ca_meta, const PHYS_INFO* ca_phys)
-: Playable(URL, &no_format, ca_tech, ca_meta, ca_phys),
+PlayableCollection::PlayableCollection(const url123& URL, const DECODER_INFO2* ca)
+: Playable(URL, ca),
   CollectionInfoCache(16)
-{ DEBUGLOG(("PlayableCollection(%p)::PlayableCollection(%s, %p, %p, %p)\n", this, URL.cdata(), ca_tech, ca_meta, ca_phys));
+{ DEBUGLOG(("PlayableCollection(%p)::PlayableCollection(%s, %p)\n", this, URL.cdata(), ca));
+  // Always overwrite format info
+  static const FORMAT_INFO2 no_format = { sizeof(FORMAT_INFO2), -1, -1 };
+  *Info.format = no_format;
+  InfoValid |= IF_Format;
 }
 
 PlayableCollection::~PlayableCollection()
@@ -339,11 +337,11 @@ bool PlayableCollection::IsModified() const
 { return false;
 }
 
-PlayableCollection::Entry* PlayableCollection::CreateEntry(const char* url, const FORMAT_INFO2* ca_format, const TECH_INFO* ca_tech, const META_INFO* ca_meta, const PHYS_INFO* ca_phys)
-{ DEBUGLOG(("PlayableCollection(%p{%s})::CreateEntry(%s, %p, %p, %p, %p)\n",
-    this, GetURL().getShortName().cdata(), url, ca_format, ca_tech, ca_meta, ca_phys));
+PlayableCollection::Entry* PlayableCollection::CreateEntry(const char* url, const DECODER_INFO2* ca)
+{ DEBUGLOG(("PlayableCollection(%p{%s})::CreateEntry(%s, %p)\n",
+    this, GetURL().getShortName().cdata(), url, ca));
   // now create the entry with absolute path
-  int_ptr<Playable> pp = GetByURL(GetURL().makeAbsolute(url), ca_format, ca_tech, ca_meta, ca_phys);
+  int_ptr<Playable> pp = GetByURL(GetURL().makeAbsolute(url), ca);
   // initiate prefetch of information
   pp->EnsureInfoAsync(IF_Status, true);
   return new Entry(*this, pp, &PlayableCollection::ChildInfoChange, &PlayableCollection::ChildInstChange);
@@ -425,16 +423,17 @@ void PlayableCollection::RemoveEntry(Entry* entry)
 void PlayableCollection::ChildInfoChange(const Playable::change_args& args)
 { DEBUGLOG(("PlayableCollection(%p{%s})::ChildInfoChange({{%s},%x})\n", this, GetURL().getShortName().cdata(),
     args.Instance.GetURL().getShortName().cdata(), args.Flags));
-  if (args.Flags & IF_Tech)
-  { // Update dependant tech info, but only if already available
-    if (InfoValid & IF_Tech)
-      LoadInfoAsync(IF_Tech);
+  InfoFlags f = args.Flags & (IF_Tech|IF_Rpl);
+  if (f)
+  { // Update dependant info, but only if already available
+    LoadInfoAsync(f & InfoValid);
     // Invalidate CollectionInfoCache entries.
     CritSect cs;
+    f = ~f; // prepare flags for deletion
     for (CollectionInfoEntry** ciepp = CollectionInfoCache.begin(); ciepp != CollectionInfoCache.end(); ++ciepp)
       // Only items that do not have the sender in the exclusion list are invalidated to prevent recursions.
       if ((*ciepp)->find(args.Instance) == NULL)
-        (*ciepp)->Valid = false;
+        (*ciepp)->Valid &= f;
   }
 }
 
@@ -445,47 +444,6 @@ void PlayableCollection::ChildInstChange(const PlayableInstance::change_args& ar
     // Update dependant tech info, but only if already available
     // Same as TechInfoChange => emulate another event
     ChildInfoChange(Playable::change_args(*args.Instance.GetPlayable(), IF_Tech));
-}
-
-void PlayableCollection::CalcTechInfo(TECH_INFO& dst)
-{ DEBUGLOG(("PlayableCollection(%p{%s})::CalcTechInfo(%p{}) - %x\n", this, GetURL().getShortName().cdata(), &dst, InfoValid));
-
-  if (Stat == STA_Invalid)
-    strcpy(dst.info, "invalid");
-  else
-  { // generate Info
-    const CollectionInfo& ci = GetCollectionInfo();
-    dst.songlength = ci.Songlength;
-    dst.totalsize  = ci.Filesize;
-    dst.total_items= ci.Items;
-    dst.recursive  = ci.Excluded.find(*this) != NULL;
-
-    dst.bitrate = (int)( dst.totalsize >= 0 && dst.songlength > 0
-      ? dst.totalsize / dst.songlength / (1000/8)
-      : -1 );
-    DEBUGLOG(("PlayableCollection::CalcTechInfo(): %s {%g, %i, %g, %i, %u}\n",
-      GetURL().getShortName().cdata(), dst.songlength, dst.bitrate, dst.totalsize, dst.total_items, dst.recursive));
-    // Info string
-    // Since all strings are short, there may be no buffer overrun.
-    if (dst.songlength < 0)
-      strcpy(dst.info, "unknown length");
-     else
-    { int days = (int)(dst.songlength / 86400.);
-      double rem = dst.songlength - 86400.*days;
-      int hours = (int)(rem / 3600.);
-      rem -= 3600*hours;
-      int minutes = (int)(rem / 60);
-      rem -= 60*minutes;
-      if (days)
-        sprintf(dst.info, "Total: %ud %u:%02u:%02u", days, hours, minutes, (int)rem);
-      else if (hours)
-        sprintf(dst.info, "Total: %u:%02u:%02u", hours, minutes, (int)rem);
-      else
-        sprintf(dst.info, "Total: %u:%02u", minutes, (int)rem);
-    }
-    if (dst.recursive)
-      strcat(dst.info, ", recursion");
-  }
 }
 
 int_ptr<PlayableInstance> PlayableCollection::GetPrev(const PlayableInstance* cur) const
@@ -542,10 +500,10 @@ void PlayableCollection::PrefetchSubInfo(const PlayableSet& excluding)
   sco_ptr<PlayableSet> xcl_sub;
   while ((pi = GetNext(pi)) != NULL)
   { Playable* pp = pi->GetPlayable();
-    if (excluding.find(*pp) != NULL)
-      continue; // recursion
     if (pp->GetFlags() & Playable::Enumerable)
-    { // create new exclusions on demand
+    { if (excluding.find(*pp) != NULL)
+        continue; // recursion
+      // create new exclusions on demand
       if (xcl_sub == NULL)
       { xcl_sub = new PlayableSet(excluding); // deep copy
         xcl_sub->get(*this) = this;
@@ -556,9 +514,11 @@ void PlayableCollection::PrefetchSubInfo(const PlayableSet& excluding)
   }
 }
 
-const PlayableCollection::CollectionInfo& PlayableCollection::GetCollectionInfo(const PlayableSet& excluding)
-{ DEBUGLOG(("PlayableCollection(%p{%s})::GetCollectionInfo({%i, %s})\n", this, GetURL().getShortName().cdata(), excluding.size(), excluding.DebugDump().cdata()));
+const PlayableCollection::CollectionInfo& PlayableCollection::GetCollectionInfo(InfoFlags what, const PlayableSet& excluding)
+{ DEBUGLOG(("PlayableCollection(%p{%s})::GetCollectionInfo(%x, {%i, %s})\n", this, GetURL().getShortName().cdata(), what, excluding.size(), excluding.DebugDump().cdata()));
   ASSERT(excluding.find(*this) == NULL);
+  what &= IF_Tech|IF_Rpl; // only these two flags are handled here.
+  ASSERT(what);
 
   CollectionInfoEntry* cic;
   // cache lookup
@@ -574,7 +534,7 @@ const PlayableCollection::CollectionInfo& PlayableCollection::GetCollectionInfo(
     PrefetchSubInfo(excluding);
   // Lock the collection
   Mutex::Lock lock(Mtx);
-  if (cic == NULL) // double check
+  if (cic == NULL) // double check below
   { // cache lookup
     // We have to protect the CollectionInfoCache additionally by a critical section,
     // because the TechInfoChange event from the children cannot aquire the mutex.
@@ -583,12 +543,13 @@ const PlayableCollection::CollectionInfo& PlayableCollection::GetCollectionInfo(
     if (cicr == NULL)
       cicr = new CollectionInfoEntry(excluding);
     cic = cicr;
-  }  
-  if (cic->Valid)
-  { DEBUGLOG(("PlayableCollection::GetCollectionInfo HIT\n"));
+  }
+  what &= ~cic->Valid;  
+  if (!what)
+  { DEBUGLOG(("PlayableCollection::GetCollectionInfo HIT: %x\n", cic->Valid));
     return cic->Info;
   }
-  DEBUGLOG(("PlayableCollection::GetCollectionInfo LOAD\n"));
+  DEBUGLOG(("PlayableCollection::GetCollectionInfo LOAD: %x %x\n", cic->Valid, what));
     
   // (re)create information
   EnsureInfo(IF_Other);
@@ -614,33 +575,44 @@ const PlayableCollection::CollectionInfo& PlayableCollection::GetCollectionInfo(
         xcl_sub->get(*this) = this;
       }
       // get sub info
-      cic->Info.Add(pc->GetCollectionInfo(*xcl_sub));
+      cic->Info.Add(pc->GetCollectionInfo(what, *xcl_sub));
 
-    } else
-    { // Song
+    } else if (what & IF_Tech)
+    { // Song, but only if IF_Tech is requested
       DEBUGLOG(("PlayableCollection::GetCollectionInfo - Song\n"));
       Song* song = (Song*)pi->GetPlayable();
       song->EnsureInfo(IF_Tech|IF_Phys);
       if (song->GetStatus() > STA_Invalid)
-      { const DECODER_INFO2& info = song->GetInfo();
-        // take care of slice
+      { // take care of slice
+        const DECODER_INFO2& info = song->GetInfo();
         T_TIME length = info.tech->songlength;
-        if (pi->GetStop() && length > pi->GetStop()->GetLocation())
-          length = pi->GetStop()->GetLocation();
-        if (pi->GetStart())
-        { if (pi->GetStart()->GetLocation() >= length)
-            length = 0;
-          else
-            length -= pi->GetStart()->GetLocation();
+        DEBUGLOG(("PlayableCollection::GetCollectionInfo - len = %f\n", length));
+        if (length < 0)
+        { cic->Info.Add(-1, info.phys->filesize, 1);
+          // TODO: use bitrate for slicing ???
+        } else
+        { if (pi->GetStop() && length > pi->GetStop()->GetLocation())
+            length = pi->GetStop()->GetLocation();
+          if (pi->GetStart())
+          { if (pi->GetStart()->GetLocation() >= length)
+              length = 0;
+            else
+              length -= pi->GetStart()->GetLocation();
+          }
+          // Scale filesize with slice to preserve bitrate.
+          cic->Info.Add(length, info.phys->filesize * length / info.tech->songlength, 1);
         }
-        // Scale filesize with slice to preserve bitrate.
-        cic->Info.Add(length, info.phys->filesize * length / info.tech->songlength, 1);
       } else
         // only count invalid items
         cic->Info.Add(0, 0, 1);
+    } else
+    { // Song Item without IF_Tech => only count
+      DEBUGLOG(("PlayableCollection::GetCollectionInfo - Song, no detail\n"));
+      cic->Info.Add(0, 0, 1);
     }
+    DEBUGLOG(("PlayableCollection::GetCollectionInfo - loop end\n"));
   }
-  cic->Valid = true;
+  cic->Valid |= what | IF_Rpl; // IF_Rpl is always included
   DEBUGLOG(("PlayableCollection::GetCollectionInfo: {%f, %f, %i, {%u,...}}}\n",
     cic->Info.Songlength, cic->Info.Filesize, cic->Info.Items, cic->Info.Excluded.size()));
   return cic->Info;
@@ -664,20 +636,58 @@ Playable::InfoFlags PlayableCollection::LoadInfo(InfoFlags what)
     UpdateStatus(stat);
     strcpy(Decoder, "PM123.EXE");
     InfoValid |= IF_Other;
+    InfoChangeFlags |= IF_Other;
     what |= IF_Other|IF_Status;
   }
   
-  if (what & IF_Tech)
+  if (what & (IF_Tech|IF_Rpl))
   { // update tech info
-    TECH_INFO tech;
-    CalcTechInfo(tech);
-    UpdateInfo(&tech);
+    TECH_INFO tech = { sizeof(TECH_INFO), -1, -1, -1, "invalid" };
+    RPL_INFO rpl = { sizeof(RPL_INFO) };
+    if (Stat != STA_Invalid)
+    { // generate Info
+      const CollectionInfo& ci = GetCollectionInfo(what);
+      tech.songlength = ci.Songlength;
+      tech.totalsize  = ci.Filesize;
+      rpl.total_items = ci.Items;
+      rpl.recursive   = ci.Excluded.find(*this) != NULL;
+      if (what & IF_Tech)
+      { // calculate dependant information in tech
+        tech.bitrate = (int)( tech.totalsize >= 0 && tech.songlength > 0
+          ? tech.totalsize / tech.songlength / (1000/8)
+          : -1 );
+        DEBUGLOG(("PlayableCollection::LoadInfo: %s {%g, %i, %g}\n",
+          GetURL().getShortName().cdata(), tech.songlength, tech.bitrate, tech.totalsize));
+        // Info string
+        // Since all strings are short, there may be no buffer overrun.
+        if (tech.songlength < 0)
+          strcpy(tech.info, "unknown length");
+         else
+        { int days = (int)(tech.songlength / 86400.);
+          double rem = tech.songlength - 86400.*days;
+          int hours = (int)(rem / 3600.);
+          rem -= 3600*hours;
+          int minutes = (int)(rem / 60);
+          rem -= 60*minutes;
+          if (days)
+            sprintf(tech.info, "Total: %ud %u:%02u:%02u", days, hours, minutes, (int)rem);
+          else if (hours)
+            sprintf(tech.info, "Total: %u:%02u:%02u", hours, minutes, (int)rem);
+          else
+            sprintf(tech.info, "Total: %u:%02u", minutes, (int)rem);
+        }
+        if (rpl.recursive)
+          strcat(tech.info, ", recursion");
+      }
+    }
+    if (what & IF_Tech)
+      UpdateInfo(&tech);
+    if (what & IF_Rpl)
+      UpdateInfo(&rpl);
   }
   DEBUGLOG(("PlayableCollection::LoadInfo completed - %x %x\n", InfoValid, InfoChangeFlags));
   // default implementation to fullfill the minimum requirements of LoadInfo.
   InfoValid |= what;
-  strcpy(Decoder, "PM123.EXE");
-  InfoValid |= IF_Other;
   // raise InfoChange event?
   RaiseInfoChange();
   return Playable::LoadInfo(what);
@@ -714,22 +724,21 @@ bool PlayableCollection::SaveLST(XFILE* of, bool relative)
       xio_fputs("\n", of);
     }
     // comment
-    const TECH_INFO& tech = *pp->GetInfo().tech;
-    const PHYS_INFO& phys = *pp->GetInfo().phys;
+    register const DECODER_INFO2& info = pp->GetInfo();
     if (pp->GetStatus() > STA_Invalid && pp->CheckInfo(IF_Tech|IF_Phys) == 0) // only if immediately available
     { char buf[50];
       xio_fputs("# ", of);
-      if (phys.filesize < 0)
+      if (info.phys->filesize < 0)
         xio_fputs("n/a", of);
       else
-      { sprintf(buf, "%.0lfkiB", phys.filesize/1024.);
+      { sprintf(buf, "%.0lfkiB", info.phys->filesize/1024.);
         xio_fputs(buf, of);
       }
       xio_fputs(", ", of);
-      if (tech.songlength < 0)
+      if (info.tech->songlength < 0)
         xio_fputs("n/a", of);
       else
-      { unsigned long s = (unsigned long)tech.songlength;
+      { unsigned long s = (unsigned long)info.tech->songlength;
         if (s < 60)
           sprintf(buf, "%lu s", s);
         else if (s < 3600)
@@ -739,7 +748,7 @@ bool PlayableCollection::SaveLST(XFILE* of, bool relative)
         xio_fputs(buf, of);
       }
       xio_fputs(", ", of);
-      xio_fputs(tech.info, of);
+      xio_fputs(info.tech->info, of);
       xio_fputs("\n", of);
     }
     // Object name
@@ -754,20 +763,39 @@ bool PlayableCollection::SaveLST(XFILE* of, bool relative)
       xio_fputs("\n", of);
     }
     // tech info
-    if (pp->GetStatus() > STA_Invalid && pp->CheckInfo(IF_Tech|IF_Format|IF_Phys) == 0)
+    if (pp->GetStatus() > STA_Invalid && (InfoValid & (IF_Tech|IF_Format|IF_Phys|IF_Rpl)))
     { char buf[128];
       // 0: bitrate, 1: samplingrate, 2: channels, 3: file size, 4: total length,
-      // 5: no. of song items, 6: total file size, 7: no. of items, 8: recursive. 
-      const FORMAT_INFO2& format = *pp->GetInfo().format;
-      sprintf(buf, ">%i,%i,%i,%.0f,%.3f", tech.bitrate, format.samplerate, format.channels,
-        phys.filesize, tech.songlength);
+      // 5: no. of song items, 6: total file size, 7: no. of items, 8: recursive.
+      strcpy(buf, ">,");
+      if (InfoValid & IF_Tech)
+        sprintf(buf + 1, "%i,", info.tech->bitrate);
+      else
+      if (InfoValid & IF_Format)
+        sprintf(buf + strlen(buf), "%i,%i,", info.format->samplerate, info.format->channels);
+      else
+        strcat(buf + 2, ",,");
+      if (InfoValid & IF_Phys)
+        sprintf(buf + strlen(buf), "%.0f,", info.phys->filesize);
+      else
+        strcat(buf + 4, ",");
+      if (InfoValid & IF_Tech)
+        sprintf(buf + strlen(buf), "%.0f", info.tech->songlength);
       xio_fputs(buf, of);
       // Playlists only...
       if (pp->GetFlags() & Enumerable)
-      { sprintf(buf, ",%i,%.0f,%i", tech.total_items, tech.totalsize, phys.num_items);
+      { strcpy(buf, ",");
+        if (InfoValid & IF_Rpl)
+          sprintf(buf + 1, ",%i", info.rpl->total_items);
+        if (InfoValid & IF_Tech)  
+          sprintf(buf + strlen(buf), ",%.0f", info.tech->totalsize);
+        else
+          strcat(buf + 1, ",");
+        if (InfoValid & IF_Phys)
+          sprintf(buf + strlen(buf), ",%i", info.phys->num_items);
+        if (InfoValid & IF_Rpl && info.rpl->recursive)
+          strcat(buf + 2, ",1");
         xio_fputs(buf, of);
-        if (tech.recursive)
-          xio_fputs(",1", of);
       }
       xio_fputs("\n", of);
     }
@@ -842,20 +870,19 @@ void PlayableCollection::NotifySourceChange()
 
 void Playlist::LSTReader::Reset()
 { DEBUGLOG(("Playlist::LSTReader::Reset()\n"));
-  has_format   = false;
-  has_tech     = false;
-  has_techinfo = false;
-  has_phys     = false;
-  Alias        = NULL;
-  Start        = NULL;
-  Stop         = NULL;
-  URL          = NULL;
+  memset(&Info, 0, sizeof Info);
+  Info.size = sizeof Info;
+  Alias = NULL;
+  Start = NULL;
+  Stop  = NULL;
+  URL   = NULL;
 }
 
 void Playlist::LSTReader::Create()
-{ DEBUGLOG(("Playlist::LSTReader::Create() - %p, %u, %u, %u, %u\n", URL.cdata(), has_format, has_tech, has_techinfo, has_phys));
+{ DEBUGLOG(("Playlist::LSTReader::Create() - %p, {%p, %p, %p, %p, %p}\n",
+    URL.cdata(), Info.format, Info.tech, Info.tech, Info.phys, Info.rpl));
   if (URL)
-  { Entry* ep = List.CreateEntry(URL, has_format ? &Format : NULL, has_tech && has_techinfo ? &Tech : NULL, NULL, has_phys ? &Phys : NULL);
+  { Entry* ep = List.CreateEntry(URL, &Info);
     ep->SetAlias(Alias);
     if (Start || Stop)
     { PlayableSlice* ps = new PlayableSlice(ep->GetPlayable());
@@ -902,7 +929,7 @@ void Playlist::LSTReader::ParseLine(char* line)
       { cp = strstr(cp+2, ", ");
         if (cp)
         { strlcpy(Tech.info, cp+2, sizeof Tech.info);
-          has_techinfo = true;
+          // has_techinfo = true; ... only if further info below is available too
       } }
     }
     break;
@@ -932,18 +959,23 @@ void Playlist::LSTReader::ParseLine(char* line)
       DEBUGLOG(("Playlist::LSTReader::ParseLine: tokens %s, %s, %s, %s, %s, %s, %s, %s, %s\n", tokens[0], tokens[1], tokens[2], tokens[3], tokens[4], tokens[5], tokens[6], tokens[7], tokens[8]));
       // make tech info
       if (tokens[0] && tokens[4])
-      { has_tech = true;
+      { Info.tech = &Tech;
         // memset(Tech, 0, sizeof Tech);
         Tech.size       = sizeof Tech;
         Tech.bitrate    = atoi(tokens[0]);
         Tech.songlength = atof(tokens[4]);
         Tech.totalsize  = tokens[6] ? atof(tokens[6]) : -1;
-        Tech.total_items = tokens[5] ? atoi(tokens[5]) : 1;
-        Tech.recursive  = tokens[8] != NULL;
+      }
+      // make playlist info, unconditional
+      { Info.rpl = &Rpl;
+        // memset(Tech, 0, sizeof Tech);
+        Rpl.size        = sizeof Rpl;
+        Rpl.total_items = tokens[5] ? atoi(tokens[5]) : 1;
+        Rpl.recursive   = tokens[8] != NULL;
       }
       // make phys info
       if (tokens[3])
-      { has_phys = true;
+      { Info.phys = &Phys;
         // memset(Phys, 0, sizeof Tech);
         Phys.size       = sizeof Tech;
         Phys.filesize   = atof(tokens[3]);
@@ -951,7 +983,7 @@ void Playlist::LSTReader::ParseLine(char* line)
       }
       // make format info
       if (tokens[1] && tokens[2])
-      { has_format = true;
+      { Info.format = &Format;
         // memset(Format, 0, sizeof Format);
         Format.size       = sizeof Format;
         Format.samplerate = atoi(tokens[1]);
@@ -1154,13 +1186,15 @@ bool Playlist::InsertItem(const PlayableSlice& item, PlayableInstance* before)
     AppendEntry(ep);
    else
     InsertEntry(ep, (Entry*)before);
-  InfoChangeFlags |= IF_Other;
+
+  ++Info.phys->num_items;
+  InfoChangeFlags |= IF_Other|IF_Phys;
   if (!Modified)
   { InfoChangeFlags |= IF_Status;
     Modified = true;
   }
   // update info
-  LoadInfoAsync(InfoValid & IF_Tech);
+  LoadInfoAsync(InfoValid & (IF_Tech|IF_Rpl));
   // raise InfoChange event?
   RaiseInfoChange();
   // done!
@@ -1205,13 +1239,15 @@ bool Playlist::RemoveItem(PlayableInstance* item)
       DEBUGLOG(("Playlist::RemoveItem - %p\n", Head.get()));
     } while (Head);
   }
-  InfoChangeFlags |= IF_Other;
+
+  --Info.phys->num_items;
+  InfoChangeFlags |= IF_Other|IF_Phys;
   if (!Modified)
   { InfoChangeFlags |= IF_Status;
     Modified = true;
   }
   // update tech info
-  LoadInfoAsync(InfoValid & IF_Tech);
+  LoadInfoAsync(InfoValid & (IF_Tech|IF_Rpl));
   // raise InfoChange event?
   DEBUGLOG(("Playlist::RemoveItem: before raiseinfochange\n"));
   RaiseInfoChange();
@@ -1312,10 +1348,10 @@ void Playlist::NotifySourceChange()
 *
 ****************************************************************************/
 
-PlayFolder::PlayFolder(const url123& URL, const TECH_INFO* ca_tech, const META_INFO* ca_meta)
-: PlayableCollection(URL, ca_tech, ca_meta),
+PlayFolder::PlayFolder(const url123& URL, const DECODER_INFO2* ca)
+: PlayableCollection(URL, ca),
   Recursive(false)
-{ DEBUGLOG(("PlayFolder(%p)::PlayFolder(%s, %p, %p)\n", this, URL.cdata(), ca_tech, ca_meta));
+{ DEBUGLOG(("PlayFolder(%p)::PlayFolder(%s, %p)\n", this, URL.cdata(), ca));
   ParseQueryParams();
 }
 
@@ -1363,10 +1399,7 @@ bool PlayFolder::LoadList()
     name = name + Pattern;
    else
     name = name + "*";
-  PHYS_INFO phys;
-  phys.size = sizeof(phys);
-  phys.filesize = -1;
-  phys.num_items = 0;
+  PHYS_INFO phys = { sizeof(phys), -1, 0 };
   HDIR hdir = HDIR_CREATE;
   char result[2048];
   ULONG count = sizeof result / (offsetof(FILEFINDBUF3, achName)+2); // Well, some starting value...

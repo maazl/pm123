@@ -408,9 +408,7 @@ void Ctrl::CurrentSongEventHandler(void*, const Playable::change_args& args)
 { DEBUGLOG(("Ctrl::CurrentSongEventHandler(, {%p{%s}, %x})\n", &args.Instance, args.Instance.GetURL().cdata(), args.Flags));
   if (GetCurrentSong() != &args.Instance)
     return; // too late...
-  EventFlags events = EV_Phys * ((args.Flags & Playable::IF_Phys) != 0)
-                    | EV_Tech * ((args.Flags & Playable::IF_Tech) != 0)
-                    | EV_Meta * ((args.Flags & Playable::IF_Meta) != 0);
+  EventFlags events = (EventFlags)((int)(args.Flags & (Playable::IF_Tech|Playable::IF_Meta|Playable::IF_Phys|Playable::IF_Rpl)) * (int)EV_Tech / Playable::IF_Tech);
   if (events)
   { InterlockedOr(Pending, events);
     PostCommand(MkNop());
@@ -634,7 +632,7 @@ Ctrl::RC Ctrl::MsgLoad(const xstring& url, int flags)
     play->EnsureInfo(Playable::IF_Other);
     if (play->GetStatus() <= STA_Invalid)
       return RC_InvalidItem;
-    play->EnsureInfoAsync(Playable::IF_Phys);
+    play->EnsureInfoAsync(Playable::IF_Phys|Playable::IF_Rpl);
     play->EnsureInfoAsync(Playable::IF_All, true);
     { CritSect cs;
       PrefetchList.append() = new PrefetchEntry();
@@ -797,101 +795,102 @@ void Ctrl::Worker()
   for(;;)
   { DEBUGLOG(("Ctrl::Worker() looking for work\n"));
     Queue.RequestRead();
-    ControlCommand* qp = *Queue.Read();
+    queue<ControlCommand*>::qentry* qp = Queue.Read();
     if (qp == NULL)
-    { Queue.CommitRead();
+    { Queue.CommitRead(qp);
       break; // deadly pill
     }
 
     bool fail = false;
+    ControlCommand* ccp = qp->Data;
     do
     { DEBUGLOG(("Ctrl::Worker received message: %p{%i, %s, %g, %x, %p, %p} - %u\n",
-      qp, qp->Cmd, qp->StrArg ? qp->StrArg.cdata() : "<null>", qp->NumArg, qp->Flags, qp->Callback, qp->Link, fail));
+      ccp, ccp->Cmd, ccp->StrArg ? ccp->StrArg.cdata() : "<null>", ccp->NumArg, ccp->Flags, ccp->Callback, ccp->Link, fail));
       if (fail)
-        qp->Flags = RC_SubseqError;
+        ccp->Flags = RC_SubseqError;
       else
         // Do the work
-        switch (qp->Cmd)
+        switch (ccp->Cmd)
         {default:
-          qp->Flags = RC_BadArg;
+          ccp->Flags = RC_BadArg;
           break;
           
          case Cmd_Load:
-          qp->Flags = MsgLoad(qp->StrArg, qp->Flags);
+          ccp->Flags = MsgLoad(ccp->StrArg, ccp->Flags);
           break;
           
          case Cmd_Skip:
-          qp->Flags = MsgSkip((int)qp->NumArg, qp->Flags & 0x01);
+          ccp->Flags = MsgSkip((int)ccp->NumArg, ccp->Flags & 0x01);
           break;
           
          case Cmd_Navigate:
-          qp->Flags = MsgNavigate(qp->StrArg, qp->NumArg, qp->Flags);
+          ccp->Flags = MsgNavigate(ccp->StrArg, ccp->NumArg, ccp->Flags);
           break;
 
          case Cmd_Jump:
-          qp->Flags = MsgJump(*(SongIterator*)qp->PtrArg);
+          ccp->Flags = MsgJump(*(SongIterator*)ccp->PtrArg);
           break;
          
          case Cmd_PlayStop:
-          qp->Flags = MsgPlayStop((Op)qp->Flags);
+          ccp->Flags = MsgPlayStop((Op)ccp->Flags);
           break;
          
          case Cmd_Pause:
-          qp->Flags = MsgPause((Op)qp->Flags);
+          ccp->Flags = MsgPause((Op)ccp->Flags);
           break;
           
          case Cmd_Scan:
-          qp->Flags = MsgScan((Op)qp->Flags);
+          ccp->Flags = MsgScan((Op)ccp->Flags);
           break;
           
          case Cmd_Volume:
-          qp->Flags = MsgVolume(qp->NumArg, qp->Flags & 0x01);
+          ccp->Flags = MsgVolume(ccp->NumArg, ccp->Flags & 0x01);
           break;
 
          case Cmd_Shuffle:
-          qp->Flags = MsgShuffle((Op)qp->Flags);
+          ccp->Flags = MsgShuffle((Op)ccp->Flags);
           break;
 
          case Cmd_Repeat:
-          qp->Flags = MsgRepeat((Op)qp->Flags);
+          ccp->Flags = MsgRepeat((Op)ccp->Flags);
           break;
 
          case Cmd_Save:
-          qp->Flags = MsgSave(qp->StrArg);
+          ccp->Flags = MsgSave(ccp->StrArg);
           break;
           
          /*case Cmd_Status:
-          qp->Flags = MsgStatus((PlayStatus*)qp->PtrArg);
+          ccp->Flags = MsgStatus((PlayStatus*)ccp->PtrArg);
           break;*/
          
          case Cmd_Location:
-          qp->Flags = MsgLocation((SongIterator*)qp->PtrArg);
+          ccp->Flags = MsgLocation((SongIterator*)ccp->PtrArg);
           break;
          
          case Cmd_DecStop:
-          qp->Flags = MsgDecStop();
+          ccp->Flags = MsgDecStop();
           break;
          
          case Cmd_OutStop:
-          qp->Flags = MsgOutStop();
+          ccp->Flags = MsgOutStop();
           break;
          
          case Cmd_Nop:
           break;
         }
-      DEBUGLOG(("Ctrl::Worker message %i completed, rc = %i\n", qp->Cmd, qp->Flags));
-      fail = qp->Flags != RC_OK;
+      DEBUGLOG(("Ctrl::Worker message %i completed, rc = %i\n", ccp->Cmd, ccp->Flags));
+      fail = ccp->Flags != RC_OK;
 
       // link
-      ControlCommand* qpl = qp->Link;
+      ControlCommand* ccpl = ccp->Link;
       // cleanup
-      if (qp->Callback)
-        (*qp->Callback)(qp);
+      if (ccp->Callback)
+        (*ccp->Callback)(ccp);
       else
-        delete qp;
+        delete ccp;
 
-      qp = qpl;
-    } while (qp);
+      ccp = ccpl;
+    } while (ccp);
       
     // raise control event
     EventFlags events = (EventFlags)InterlockedXch(Pending, EV_None);
@@ -900,7 +899,7 @@ void Ctrl::Worker()
       ChangeEvent(events);
       
     // done
-    Queue.CommitRead();
+    Queue.CommitRead(qp);
   }
   WinDestroyMsgQueue(hmq);
   WinTerminate(hab);

@@ -80,15 +80,16 @@ class Playable
     Enumerable  = 1,   // This attribute implies that a cast to PlayableCollection is valid.
     Mutable     = 3    // This attribute implies that a cast to PlayableCollection and Playlist is valid.
   };
-  enum InfoFlags
+  enum InfoFlags // must be aligned to InfoType
   { IF_None     = 0,
     IF_Format   = 0x01,// applies to GetInfo().format
     IF_Tech     = 0x02,// applies to GetInfo().tech
     IF_Meta     = 0x04,// applies to GetInfo().meta
     IF_Phys     = 0x08,// applies to GetInfo().phys
-    IF_Other    = 0x10,// applies to GetDecoder() and PlayableCollection::GetNext()
-    IF_Status   = 0x20,// applies to GetStatus() and IsModified()
-    IF_All      = IF_Format|IF_Tech|IF_Meta|IF_Phys|IF_Other|IF_Status
+    IF_Rpl      = 0x10,// applies to GetInfo().rpl
+    IF_Other    = 0x20,// applies to GetDecoder() and PlayableCollection::GetNext()
+    IF_Status   = 0x40,// applies to GetStatus() and IsModified()
+    IF_All      = IF_Format|IF_Tech|IF_Meta|IF_Phys|IF_Rpl|IF_Other|IF_Status
   };
   // Parameters for InfoChange Event
   struct change_args
@@ -104,6 +105,7 @@ class Playable
     TECH_INFO         TechInfo;
     META_INFO         MetaInfo;
     PHYS_INFO         PhysInfo;
+    RPL_INFO          RplInfo;
    public:
     static const DecoderInfo InitialInfo;
    private:
@@ -136,12 +138,19 @@ class Playable
   Playable(const Playable&);
   void operator=(const Playable&);
  protected:
-  Playable(const url123& url, const FORMAT_INFO2* ca_format = NULL, const TECH_INFO* ca_tech = NULL, const META_INFO* ca_meta = NULL, const PHYS_INFO* ca_phys = NULL);
+  // Create Playable object. Preset some info types according to ca.
+  // Each infotype in ca may be NULL, indicating that the desired information is not yet known.
+  // For non NULL info blocks in ca the apropriate bits in InfoValid are set.
+  Playable(const url123& url, const DECODER_INFO2* ca = NULL);
   // Update the structure components and return the required InfoChange Flags or 0 if no change has been made.
+  // Calling this Functions with NULL resets the Information to its default value.
+  // This does not reset the InfoValid bits.
   void                UpdateInfo(const FORMAT_INFO2* info);
   void                UpdateInfo(const TECH_INFO* info);
   void                UpdateInfo(const META_INFO* info);
   void                UpdateInfo(const PHYS_INFO* info);
+  void                UpdateInfo(const RPL_INFO* info);
+  // Update all kind of information.
   void                UpdateInfo(const DECODER_INFO2* info);
   void                UpdateStatus(PlayableStatus stat);
   // Raise the InfoChange event if required.
@@ -194,7 +203,7 @@ class Playable
   // Ensure that the info fields are loaded from the ressource.
   // This function may block until the data is available.
   // To be reliable you shound be in synchronized context.
-  void                EnsureInfo(InfoFlags what) { InfoFlags i = CheckInfo(what); if (i != 0) LoadInfo(i); }
+  void                EnsureInfo(InfoFlags what);
   // Call LoadInfo asynchronuously. This is a service of Playable.
   // When the requested information is availabe the InfoChange event is raised.
   // But this is done only if the information really has changed.
@@ -232,9 +241,15 @@ class Playable
   { EntryBase* HPTail; // Tail of high priority items
    public:
     // Remove item from queue
-    void       CommitRead();
+    void       CommitRead(qentry* qp);
     // Write item with priority
     void       Write(const QEntry& data, bool lowpri);
+    void       Purge()     { queue<QEntry>::Purge(); HPTail = NULL; }
+    #ifdef DEBUG
+    // Read the current head
+    void       DumpQ() const;
+    qentry*    Read() { DumpQ(); return queue<QEntry>::Read(); }
+    #endif
   };
 
  private:
@@ -267,8 +282,7 @@ class Playable
   // The optional parameters ca_* are preloaded informations.
   // This is returned by the apropriate Get* functions without the need to access the underlying data source.
   // This is used to speed up large playlists.
-  static int_ptr<Playable> GetByURL(const url123& URL, const FORMAT_INFO2* ca_format, const TECH_INFO* ca_tech, const META_INFO* ca_meta, const PHYS_INFO* ca_phys);
-  static int_ptr<Playable> GetByURL(const url123& URL) { return GetByURL(URL, NULL, NULL, NULL, NULL); }
+  static int_ptr<Playable> GetByURL(const url123& URL, const DECODER_INFO2* ca = NULL);
 };
 // Flags Attribute for StatusFlags
 FLAGSATTRIBUTE(Playable::InfoFlags);
@@ -296,8 +310,7 @@ struct PlayableSet
  */
 class Song : public Playable
 {public:
-  Song(const url123& URL, const FORMAT_INFO2* ca_format = NULL, const TECH_INFO* ca_tech = NULL, const META_INFO* ca_meta = NULL, const PHYS_INFO* ca_phys = NULL)
-   : Playable(URL, ca_format, ca_tech, ca_meta, ca_phys) { DEBUGLOG(("Song(%p)::Song(%s, %p, %p, %p, %p)\n", this, URL.cdata(), ca_format, ca_tech, ca_meta, ca_phys)); }
+  Song(const url123& URL, const DECODER_INFO2* ca = NULL);
 
   virtual InfoFlags        LoadInfo(InfoFlags what);
 };

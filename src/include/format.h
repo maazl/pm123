@@ -49,8 +49,6 @@ typedef struct         /* for playlists only */
   T_TIME songlength;   /* in seconds, smaller than 0 -> unknown */
   int    bitrate;      /* in kbit/s, smaller than 0 -> unknown */
   T_SIZE totalsize;    /* physical size of all included files, smaller than 0 -> unknown */
-  int    total_items;  /* number of song items (for playlists), otherwise 1 */
-  int    recursive;    /* Flag whether this object has some recursion in it's subobjects detected */
   char   info[128];    /* general technical information string */
 } TECH_INFO;
 
@@ -76,6 +74,13 @@ typedef struct
   T_SIZE filesize;     /* physical size of the file, smaller than 0 -> unknown */
   int    num_items;    /* number of immediate sub items (for playlists), otherwise 1 */
 } PHYS_INFO;
+
+/* information on recursive playlist items */
+typedef struct
+{ unsigned int size;   /* size of this structure */
+  int    total_items;  /* number of song items (for playlists), otherwise 1 */
+  int    recursive;    /* Flag whether this object has some recursion in it's subobjects detected */
+} RPL_INFO;  
 
 #pragma pack()
 

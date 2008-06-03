@@ -421,7 +421,7 @@ class CL_DECODER_PROXY_1 : public CL_DECODER
  private:
   PROXYFUNCDEF ULONG  DLLENTRY proxy_1_decoder_command     ( CL_DECODER_PROXY_1* op, void* w, ULONG msg, DECODER_PARAMS2* params );
   PROXYFUNCDEF void   DLLENTRY proxy_1_decoder_event       ( CL_DECODER_PROXY_1* op, void* w, OUTEVENTTYPE event );
-  PROXYFUNCDEF ULONG  DLLENTRY proxy_1_decoder_fileinfo    ( CL_DECODER_PROXY_1* op, const char* filename, DECODER_INFO2* info );
+  PROXYFUNCDEF ULONG  DLLENTRY proxy_1_decoder_fileinfo    ( CL_DECODER_PROXY_1* op, const char* filename, INFOTYPE* what, DECODER_INFO2* info );
   PROXYFUNCDEF ULONG  DLLENTRY proxy_1_decoder_cdinfo      ( CL_DECODER_PROXY_1* op, const char* drive, DECODER_CDINFO* info );
   PROXYFUNCDEF int    DLLENTRY proxy_1_decoder_play_samples( CL_DECODER_PROXY_1* op, const FORMAT_INFO* format, const char* buf, int len, int posmarker );
   PROXYFUNCDEF double DLLENTRY proxy_1_decoder_length      ( CL_DECODER_PROXY_1* op, void* w );
@@ -693,8 +693,8 @@ proxy_1_decoder_event( CL_DECODER_PROXY_1* op, void* w, OUTEVENTTYPE event )
 }
 
 PROXYFUNCIMP(ULONG DLLENTRY, CL_DECODER_PROXY_1)
-proxy_1_decoder_fileinfo( CL_DECODER_PROXY_1* op, const char* filename, DECODER_INFO2 *info )
-{ DEBUGLOG(("proxy_1_decoder_fileinfo(%p, %s, %p{%u,%p,%p,%p})\n", op, filename, info, info->size, info->format, info->tech, info->meta));
+proxy_1_decoder_fileinfo( CL_DECODER_PROXY_1* op, const char* filename, INFOTYPE* what, DECODER_INFO2 *info )
+{ DEBUGLOG(("proxy_1_decoder_fileinfo(%p, %s, %x, %p{%u,%p,%p,%p})\n", op, filename, what, info, info->size, info->format, info->tech, info->meta));
 
   DECODER_INFO old_info = { sizeof old_info };
   CDDA_REGION_INFO cd_info;
@@ -735,8 +735,6 @@ proxy_1_decoder_fileinfo( CL_DECODER_PROXY_1* op, const char* filename, DECODER_
   }
   info->phys->num_items = 1;
   info->tech->totalsize = info->phys->filesize;
-  info->tech->total_items= 1;
-  info->tech->recursive  = FALSE;
   DEBUGLOG(("proxy_1_decoder_fileinfo: %lu\n", rc));
 
   // convert information to new format
@@ -756,6 +754,8 @@ proxy_1_decoder_fileinfo( CL_DECODER_PROXY_1* op, const char* filename, DECODER_
     info->meta->album_gain = old_info.album_gain; 
     info->meta->album_peak = old_info.album_peak; 
     info->meta_write       = op->decoder_editmeta && old_info.saveinfo;
+    // old decoders always load all kind of information
+    *what = (INFOTYPE)(*what | INFO_ALL);
   }
   return rc;
 }

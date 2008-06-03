@@ -57,39 +57,11 @@
 #include <debuglog.h>
 
 
-/*sorted_vector<PlaylistView, char> PlaylistView::RPInst(8);
-Mutex PlaylistView::RPMutex;
-
-void PlaylistView::Init()
-{ // currently a no-op
-  // TODO: we should cleanup unused and invisibla PlaylistManager instances once in a while.
-}
-
-void PlaylistView::UnInit()
-{ DEBUGLOG(("PlaylistView::UnInit()\n"));
-  // Free stored instances.
-  // The instances deregister itself from the repository.
-  // Starting at the end avoids the memcpy calls for shrinking the vector.
-  while (RPInst.size())
-    delete RPInst[RPInst.size()-1];
-}
-
-PlaylistView* PlaylistView::Get(const char* url, const char* alias)
-{ DEBUGLOG(("PlaylistView::Get(%s, %s)\n", url, alias ? alias : "<NULL>"));
-  Mutex::Lock lock(RPMutex);
-  PlaylistView*& pp = RPInst.get(url);
-  if (!pp)
-    pp = new PlaylistView(url, alias);
-  return pp;
-}*/
-
-
 PlaylistView::PlaylistView(Playable* obj, const xstring& alias)
 : PlaylistRepository<PlaylistView>(obj, alias, DLG_PLAYLIST),
   MainMenu(NULLHANDLE),
   RecMenu(NULLHANDLE)
 { DEBUGLOG(("PlaylistView::PlaylistView(%p, %s)\n", obj, alias.cdata()));
-  //GetHwnd() = WinLoadDlg( HWND_DESKTOP, HWND_DESKTOP, pl_DlgProcStub, NULLHANDLE, DLG_PLAYLIST, &ids );
   StartDialog();
 }
 
@@ -97,6 +69,7 @@ void PlaylistView::PostRecordCommand(RecordBase* rec, RecordCommand cmd)
 { // Ignore some messages
   switch (cmd)
   {case RC_UPDATEFORMAT:
+    break;
    case RC_UPDATEMETA:
     if (rec == NULL)
       break;
@@ -278,10 +251,10 @@ MRESULT PlaylistView::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
           break;
         Playable::InfoFlags flg = Playable::IF_None;
         PlayableInstance::StatusFlags iflg = PlayableInstance::SF_None;
-        if (flags & 1<<RC_UPDATEFORMAT)
-          flg |= Playable::IF_Format;
-        if (flags & 1<<RC_UPDATETECH)
-        { flg |= Playable::IF_Tech;
+        if (flags & 1<<RC_UPDATEPHYS)
+          flg |= Playable::IF_Phys;
+        if (flags & 1<<RC_UPDATERPL)
+        { flg |= Playable::IF_Rpl;
           bool& wait = StateFromRec(rec).WaitUpdate;
           if (wait)
           { // Schedule UpdateChildren too
@@ -289,6 +262,8 @@ MRESULT PlaylistView::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
             flags |= 1<<RC_UPDATECHILDREN;
           }
         }
+        if (flags & 1<<RC_UPDATETECH)
+          flg |= Playable::IF_Tech;
         if (flags & 1<<RC_UPDATEMETA)
           flg |= Playable::IF_Meta;
         if (flags & 1<<RC_UPDATEALIAS)
@@ -444,7 +419,6 @@ PlaylistBase::ICP PlaylistView::GetPlayableType(const RecordBase* rec) const
 { DEBUGLOG(("PlaylistView::GetPlaylistState(%s)\n", Record::DebugName(rec).cdata()));
   if ((rec->Data->Content->GetPlayable()->GetFlags() & Playable::Enumerable) == 0)
     return ICP_Song;
-  // TODO: the dependancy to the technical info is not handled by the update events
   return rec->Data->Content->GetPlayable()->GetInfo().phys->num_items ? ICP_Closed : ICP_Empty;
 }
 
@@ -591,7 +565,7 @@ PlaylistBase::RecordBase* PlaylistView::CreateNewRecord(PlayableInstance* obj, R
   obj->StatusChange              += rec->Data()->StatChange;
 
   rec->URL             = obj->GetPlayable()->GetURL().cdata();
-  CalcCols(rec, obj->GetPlayable()->EnsureInfoAsync(Playable::IF_Format|Playable::IF_Tech|Playable::IF_Meta), PlayableInstance::SF_All);
+  CalcCols(rec, obj->GetPlayable()->EnsureInfoAsync(Playable::IF_Tech|Playable::IF_Meta|Playable::IF_Phys), PlayableInstance::SF_All);
 
   rec->flRecordAttr    = 0;
   rec->hptrIcon        = CalcIcon(rec);
@@ -604,16 +578,9 @@ PlaylistView::RecordBase* PlaylistView::GetParent(const RecordBase* const rec) c
 
 void PlaylistView::UpdateRecord(Record* rec, Playable::InfoFlags flags, PlayableInstance::StatusFlags iflags)
 { DEBUGLOG(("PlaylistView(%p)::UpdateRecord(%p, %x, %x)\n", this, rec, flags, iflags));
-  // Check if UpdateChildren is waiting
-  bool& wait = StateFromRec(rec).WaitUpdate;
-  if (wait)
-  { // Try again
-    wait = false;
-    PostRecordCommand(rec, RC_UPDATECHILDREN);
-  }
   bool update = false;
   // update icon?
-  if (rec && ((flags & Playable::IF_Tech) != 0 || (iflags & PlayableInstance::SF_InUse) != 0))
+  if (rec && ((flags & Playable::IF_Phys) != 0 || (iflags & PlayableInstance::SF_InUse) != 0))
   { HPOINTER icon = CalcIcon(rec);
     // update icon?
     if (rec->hptrIcon != icon)

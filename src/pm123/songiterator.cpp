@@ -99,6 +99,7 @@ void SongIterator::CallstackEntry::Reset()
   OverrideStop  = NULL;
 }
 
+// TODO: Recalculate offsets if the techinfo changes
 PlayableCollection::CollectionInfo SongIterator::CallstackEntry::GetInfo() const
 { PlayableCollection::CollectionInfo ret;
   ret.Filesize = -1; // not supported by this function
@@ -112,7 +113,7 @@ PlayableCollection::CollectionInfo SongIterator::CallstackEntry::GetInfo() const
   { // use total length
     Playable* pp = Item->GetPlayable();
     if (pp->GetFlags() & Playable::Enumerable)
-      ret = ((PlayableCollection*)pp)->GetCollectionInfo(Exclude);
+      ret = ((PlayableCollection*)pp)->GetCollectionInfo(Playable::IF_Tech|Playable::IF_Rpl, Exclude);
     else
     { // Song => use tech info
       ret.Items = 1;

@@ -96,14 +96,6 @@ MRESULT InfoDialog::Page1Window::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
             sprintf(buffer, "%lu:%02lu:%02lu", s/3600, s/60%60, s%60);
         }
         PMRASSERT(WinSetDlgItemText(GetHwnd(), EF_TOTALTIME, buffer));
-        // number of songs
-        ctrl = WinWindowFromID(GetHwnd(), EF_SONGITEMS);
-        PMRASSERT(WinSetWindowText(ctrl, tech.total_items <= 0 ? "n/a" : (sprintf(buffer, "%i", tech.total_items), buffer)));
-        PMRASSERT(WinEnableWindow(ctrl, is_playlist));
-        // recursion flag
-        ctrl = WinWindowFromID(GetHwnd(), CB_ITEMSRECURSIVE);
-        WinSendMsg(ctrl, BM_SETCHECK, MPFROMSHORT(!!tech.recursive), 0);
-        PMRASSERT(WinEnableWindow(ctrl, is_playlist));
         // bitrate
         ctrl = WinWindowFromID(GetHwnd(), EF_BITRATE);
         PMRASSERT(WinSetWindowText(ctrl, tech.bitrate < 0 ? "n/a" : (sprintf(buffer, "%i kbps", tech.bitrate), buffer)));
@@ -111,7 +103,16 @@ MRESULT InfoDialog::Page1Window::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
         // info string
         PMRASSERT(WinSetDlgItemText(GetHwnd(), EF_INFOSTRINGS, tech.info));
       }
-      
+      { const RPL_INFO& rpl = *Parent.Content->GetInfo().rpl;
+        // number of songs
+        ctrl = WinWindowFromID(GetHwnd(), EF_SONGITEMS);
+        PMRASSERT(WinSetWindowText(ctrl, rpl.total_items <= 0 ? "n/a" : (sprintf(buffer, "%i", rpl.total_items), buffer)));
+        PMRASSERT(WinEnableWindow(ctrl, is_playlist));
+        // recursion flag
+        ctrl = WinWindowFromID(GetHwnd(), CB_ITEMSRECURSIVE);
+        WinSendMsg(ctrl, BM_SETCHECK, MPFROMSHORT(!!rpl.recursive), 0);
+        PMRASSERT(WinEnableWindow(ctrl, is_playlist));
+      }
       { const FORMAT_INFO2& format = *Parent.Content->GetInfo().format;
         // sampling rate
         ctrl = WinWindowFromID(GetHwnd(), EF_SAMPLERATE);

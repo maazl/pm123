@@ -115,6 +115,8 @@ class PlaylistManager : public PlaylistRepository<PlaylistManager>
   virtual void      UpdateChildren(RecordBase* const rec);
   // Update the tech info of a record
   void              UpdateTech(Record* rec);
+  // Update the tech info of a record
+  void              UpdateRpl(Record* rec);
   // Update play status of one record
   virtual void      UpdatePlayStatus(RecordBase* rec);
   // Navigate to

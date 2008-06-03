@@ -275,16 +275,26 @@ typedef struct _DECODER_INFO
 
 } DECODER_INFO;
 
-/* NOTE: the information returned is only based on the FIRST header */
+/* Information types for DECODER_INFO2 */
+typedef enum
+{  INFO_FORMAT = 0x01,
+   INFO_TECH   = 0x02,
+   INFO_META   = 0x04,
+   INFO_PHYS   = 0x08,
+   INFO_RPL    = 0x10,
+   INFO_ALL    = INFO_FORMAT|INFO_TECH|INFO_META|INFO_PHYS|INFO_RPL
+} INFOTYPE;
+
 typedef struct _DECODER_INFO2
 {
    int  size;
 
-   FORMAT_INFO2* format;  /* Stream format after decoding */
-   TECH_INFO*    tech;    /* Technical informations about the source */
-   META_INFO*    meta;    /* Song information */
-   PHYS_INFO*    phys;    /* Basic Information about the source */
-   BOOL          meta_write; /* support editing the metadata (same as saveinfo in DECODER_INFO) */
+   FORMAT_INFO2* format;  /* [INFO_FORMAT] Stream format after decoding */
+   TECH_INFO*    tech;    /* [INFO_TECH] Technical informations about the source */
+   META_INFO*    meta;    /* [INFO_META] Song information */
+   BOOL          meta_write; /* [INFO_META] support editing the metadata (same as saveinfo in DECODER_INFO) */
+   PHYS_INFO*    phys;    /* [INFO_PHYS] Basic Information about the source */
+   RPL_INFO*     rpl;     /* [INFO_RPL] Playlist extensions */
 
 } DECODER_INFO2;
 
@@ -294,7 +304,16 @@ typedef struct _DECODER_INFO2
       PLUGIN_NO_PLAY = decoder can't play that,
       other values   = errno, check xio_strerror() for string. */
 #if defined(DECODER_PLUGIN_LEVEL) && DECODER_PLUGIN_LEVEL > 1
-ULONG DLLENTRY decoder_fileinfo   ( const char* url, DECODER_INFO2* info );
+/* Request the information 'what' about 'url' from the decoder
+ * 'what' is an input/output parameter. On input it is the requested information,
+ * on output the returned information which must not be less than the requested bits.
+ * If some type of information is not available, the bits in the return value of what
+ * must be set either. The fields in the DECODER_INFO2 structure should be set
+ * to their invalid values. This is the default.
+ * decoder_fileinfo must not change fields that correspond to reset bits in what.
+ * It must not change the pointers in DECODER_INFO2 either.
+ */
+ULONG DLLENTRY decoder_fileinfo   ( const char* url, int* what, DECODER_INFO2* info );
 #else
 ULONG DLLENTRY decoder_fileinfo   ( const char* filename, DECODER_INFO* info );
 ULONG DLLENTRY decoder_trackinfo  ( const char* drive, int track, DECODER_INFO* info );
