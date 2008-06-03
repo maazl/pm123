@@ -1397,7 +1397,7 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
           break;
         }
       }
-      #ifdef DEBUG
+      #ifdef __DEBUG_ALLOC__
       // Force heap dumps by the D key
       if ((fsflags & (KC_CHAR|KC_ALT|KC_CTRL)) == (KC_CHAR) && toupper(SHORT1FROMMP(mp2)) == 'D')
       { if (fsflags & KC_SHIFT)

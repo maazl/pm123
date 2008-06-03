@@ -68,8 +68,8 @@ void SongIterator::Offsets::Sub(const PlayableCollection::CollectionInfo& r)
 
 SongIterator::CallstackEntry::CallstackEntry(const CallstackEntry& r)
 : SongIterator::Offsets(r),
-  Exclude(r.Exclude),
-  Item(r.Item)
+  Item(r.Item),
+  Exclude(r.Exclude)
 { if (r.OverrideStart != NULL)
     OverrideStart = new SongIterator(*r.OverrideStart);
   if (r.OverrideStop != NULL)

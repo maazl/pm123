@@ -394,7 +394,7 @@ static void PlayableWorker(void*)
     if (qp->Data->InfoRequest == 0)
       InterlockedOr(qp->Data->InfoRequest, qp->Data->InfoRequestLow);
     while (qp->Data->InfoRequest)
-      Playable::InfoFlags what = qp->Data->LoadInfo((Playable::InfoFlags)qp->Data->InfoRequest);
+      qp->Data->LoadInfo((Playable::InfoFlags)qp->Data->InfoRequest);
     // finished
     Playable::WQueue.CommitRead(qp);
   }
