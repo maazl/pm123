@@ -1,5 +1,5 @@
 /*
- * Copyright 2007-2007 M.Mueller
+ * Copyright 2007-2008 M.Mueller
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -34,6 +34,85 @@
 #include <config.h>
 #include <assert.h>
 #include <os2.h>
+
+#include <debuglog.h>
+
+
+/*****************************************************************************
+*
+*  Primitive functions to do atomic operations.
+*
+*****************************************************************************/
+
+extern const unsigned char InterlockedXchCode[];
+extern const unsigned char InterlockedIncCode[];
+extern const unsigned char InterlockedDecCode[];
+extern const unsigned char InterlockedAddCode[];
+extern const unsigned char InterlockedSubCode[];
+extern const unsigned char InterlockedAndCode[];
+extern const unsigned char InterlockedOrCode[];
+extern const unsigned char InterlockedXorCode[];
+extern const unsigned char InterlockedBtsCode[];
+extern const unsigned char InterlockedBtrCode[];
+extern const unsigned char InterlockedBtcCode[];
+
+#if defined(__GNUC__)
+  #define REGCALL __attribute__((regparm(2)))
+  #define InterlockedXch(x,n) (*(unsigned REGCALL(*)(volatile unsigned*,unsigned))InterlockedXchCode)(&(x),(n))
+  #define InterlockedInc(x)   (*(void     REGCALL(*)(volatile unsigned*))InterlockedIncCode)(&(x))
+  #define InterlockedDec(x)   (*(char     REGCALL(*)(volatile unsigned*))InterlockedDecCode)(&(x))
+  #define InterlockedAdd(x,n) (*(void     REGCALL(*)(volatile unsigned*,unsigned))InterlockedAddCode)(&(x),(n))
+  #define InterlockedSub(x,n) (*(char     REGCALL(*)(volatile unsigned*,unsigned))InterlockedSubCode)(&(x),(n))
+  #define InterlockedAnd(x,n) (*(char     REGCALL(*)(volatile unsigned*,unsigned))InterlockedAndCode)(&(x),(n))
+  #define InterlockedOr(x,n)  (*(void     REGCALL(*)(volatile unsigned*,unsigned))InterlockedOrCode)(&(x),(n))
+  #define InterlockedXor(x,n) (*(char     REGCALL(*)(volatile unsigned*,unsigned))InterlockedXorCode)(&(x),(n))
+  #define InterlockedBts(x,n) (*(char     REGCALL(*)(volatile unsigned*,unsigned))InterlockedBtsCode)(&(x),(n))
+  #define InterlockedBtr(x,n) (*(char     REGCALL(*)(volatile unsigned*,unsigned))InterlockedBtrCode)(&(x),(n))
+  #define InterlockedBtc(x,n) (*(char     REGCALL(*)(volatile unsigned*,unsigned))InterlockedBtcCode)(&(x),(n))
+#elif defined(__WATCOMC__)
+  #error TODO!
+#elif defined(__IBMC__) || defined(__IBMCPP__)
+  #define InterlockedXch(x,n) (*(unsigned(_Optlink*)(volatile unsigned*,unsigned))InterlockedXchCode)(&(x),(n))
+  #define InterlockedInc(x)   (*(void(_Optlink*)(volatile unsigned*))InterlockedIncCode)(&(x))
+  #define InterlockedDec(x)   (*(char(_Optlink*)(volatile unsigned*))InterlockedDecCode)(&(x))
+  #define InterlockedAdd(x,n) (*(void(_Optlink*)(volatile unsigned*,unsigned))InterlockedAddCode)(&(x),(n))
+  #define InterlockedSub(x,n) (*(char(_Optlink*)(volatile unsigned*,unsigned))InterlockedSubCode)(&(x),(n))
+  #define InterlockedAnd(x,n) (*(char(_Optlink*)(volatile unsigned*,unsigned))InterlockedAndCode)(&(x),(n))
+  #define InterlockedOr(x,n)  (*(void(_Optlink*)(volatile unsigned*,unsigned))InterlockedOrCode)(&(x),(n))
+  #define InterlockedXor(x,n) (*(char(_Optlink*)(volatile unsigned*,unsigned))InterlockedXorCode)(&(x),(n))
+  #define InterlockedBts(x,n) (*(char(_Optlink*)(volatile unsigned*,unsigned))InterlockedBtsCode)(&(x),(n))
+  #define InterlockedBtr(x,n) (*(char(_Optlink*)(volatile unsigned*,unsigned))InterlockedBtrCode)(&(x),(n))
+  #define InterlockedBtc(x,n) (*(char(_Optlink*)(volatile unsigned*,unsigned))InterlockedBtcCode)(&(x),(n))
+#else
+  #error Unsupported compiler.
+#endif
+
+class Interlocked
+{private:
+  unsigned& data;
+ public:
+  Interlocked(unsigned& i)        : data(i) {}
+  unsigned swap(unsigned n)       { return InterlockedXch(data, n); }
+  void     operator++()           { InterlockedInc(data); }
+  char     operator--()           { return InterlockedDec(data); }
+  void     operator+=(unsigned n) { InterlockedAdd(data, n); }
+  char     operator-=(unsigned n) { return InterlockedSub(data, n); }
+  char     operator&=(unsigned n) { return InterlockedAnd(data, n); }
+  void     operator|=(unsigned n) { InterlockedOr(data, n); }
+  char     operator^=(unsigned n) { return InterlockedXor(data, n); }
+  char     bitset(unsigned n)     { return InterlockedBts(data, n); } 
+  char     bitrst(unsigned n)     { return InterlockedBtr(data, n); } 
+  char     bitnot(unsigned n)     { return InterlockedBtc(data, n); }
+  // non synchronized operators
+  operator unsigned()             { return data; }
+  bool     operator!()            { return !data; }
+  bool     operator==(unsigned r) { return data == r; }
+  bool     operator!=(unsigned r) { return data != r; }
+  bool     operator<(unsigned r)  { return data < r; }
+  bool     operator<=(unsigned r) { return data <= r; }
+  bool     operator>(unsigned r)  { return data > r; }
+  bool     operator>=(unsigned r) { return data >= r; }
+};
 
 
 /*****************************************************************************
@@ -177,8 +256,39 @@ class CritSect
        CritSect (const CritSect&);
   void operator=(const CritSect&);
  public:
-       CritSect  () { DosEnterCritSec(); }
-       ~CritSect () { DosExitCritSec();  }
+       CritSect  () { DEBUGLOG(("CritSect::CritSect()\n")); DosEnterCritSec(); }
+       ~CritSect () { DosExitCritSec(); DEBUGLOG(("CritSect::~CritSect()\n")); }
+};
+
+
+/*****************************************************************************
+*
+*  spin-lock class
+*
+*  This class retains a counter that counts the calls of Inc minus Dec.
+*  The Function Wait will block until Count returns to zero.
+*  But Count may no longer be zero when Wait returns.
+*
+*****************************************************************************/
+class SpinLock
+{private:
+  volatile unsigned Count;
+ public:
+               SpinLock()        : Count(0) {}
+  void         Inc()             { InterlockedInc(Count); }
+  bool         Dec()             { return InterlockedDec(Count); }
+  unsigned     Reset()           { return InterlockedXch(Count, 0); } 
+  void         Wait();
+ public:
+  class Use
+  { SpinLock&  SL;
+   private:    // non-copyable
+               Use(const Use&);
+    void       operator=(const Use&);
+   public:
+               Use(SpinLock& sl) : SL(sl) { sl.Inc(); }
+               ~Use()            { SL.Dec(); }
+  };
 };
 
 
@@ -214,84 +324,6 @@ class Event
   void   Reset();
   // Check whether the event is set.
   bool   IsSet() const;
-};
-
-
-/*****************************************************************************
-*
-*  Primitive functions to do atomic operations.
-*
-*****************************************************************************/
-
-
-extern const unsigned char InterlockedXchCode[];
-extern const unsigned char InterlockedIncCode[];
-extern const unsigned char InterlockedDecCode[];
-extern const unsigned char InterlockedAddCode[];
-extern const unsigned char InterlockedSubCode[];
-extern const unsigned char InterlockedAndCode[];
-extern const unsigned char InterlockedOrCode[];
-extern const unsigned char InterlockedXorCode[];
-extern const unsigned char InterlockedBtsCode[];
-extern const unsigned char InterlockedBtrCode[];
-extern const unsigned char InterlockedBtcCode[];
-
-#if defined(__GNUC__)
-  #define REGCALL __attribute__((regparm(2)))
-  #define InterlockedXch(x,n) (*(unsigned REGCALL(*)(volatile unsigned*,unsigned))InterlockedXchCode)(&(x),(n))
-  #define InterlockedInc(x)   (*(void     REGCALL(*)(volatile unsigned*))InterlockedIncCode)(&(x))
-  #define InterlockedDec(x)   (*(char     REGCALL(*)(volatile unsigned*))InterlockedDecCode)(&(x))
-  #define InterlockedAdd(x,n) (*(void     REGCALL(*)(volatile unsigned*,unsigned))InterlockedAddCode)(&(x),(n))
-  #define InterlockedSub(x,n) (*(char     REGCALL(*)(volatile unsigned*,unsigned))InterlockedSubCode)(&(x),(n))
-  #define InterlockedAnd(x,n) (*(char     REGCALL(*)(volatile unsigned*,unsigned))InterlockedAndCode)(&(x),(n))
-  #define InterlockedOr(x,n)  (*(void     REGCALL(*)(volatile unsigned*,unsigned))InterlockedOrCode)(&(x),(n))
-  #define InterlockedXor(x,n) (*(char     REGCALL(*)(volatile unsigned*,unsigned))InterlockedXorCode)(&(x),(n))
-  #define InterlockedBts(x,n) (*(char     REGCALL(*)(volatile unsigned*,unsigned))InterlockedBtsCode)(&(x),(n))
-  #define InterlockedBtr(x,n) (*(char     REGCALL(*)(volatile unsigned*,unsigned))InterlockedBtrCode)(&(x),(n))
-  #define InterlockedBtc(x,n) (*(char     REGCALL(*)(volatile unsigned*,unsigned))InterlockedBtcCode)(&(x),(n))
-#elif defined(__WATCOMC__)
-  #error TODO!
-#elif defined(__IBMC__) || defined(__IBMCPP__)
-  #define InterlockedXch(x,n) (*(unsigned(_Optlink*)(volatile unsigned*,unsigned))InterlockedXchCode)(&(x),(n))
-  #define InterlockedInc(x)   (*(void(_Optlink*)(volatile unsigned*))InterlockedIncCode)(&(x))
-  #define InterlockedDec(x)   (*(char(_Optlink*)(volatile unsigned*))InterlockedDecCode)(&(x))
-  #define InterlockedAdd(x,n) (*(void(_Optlink*)(volatile unsigned*,unsigned))InterlockedAddCode)(&(x),(n))
-  #define InterlockedSub(x,n) (*(char(_Optlink*)(volatile unsigned*,unsigned))InterlockedSubCode)(&(x),(n))
-  #define InterlockedAnd(x,n) (*(char(_Optlink*)(volatile unsigned*,unsigned))InterlockedAndCode)(&(x),(n))
-  #define InterlockedOr(x,n)  (*(void(_Optlink*)(volatile unsigned*,unsigned))InterlockedOrCode)(&(x),(n))
-  #define InterlockedXor(x,n) (*(char(_Optlink*)(volatile unsigned*,unsigned))InterlockedXorCode)(&(x),(n))
-  #define InterlockedBts(x,n) (*(char(_Optlink*)(volatile unsigned*,unsigned))InterlockedBtsCode)(&(x),(n))
-  #define InterlockedBtr(x,n) (*(char(_Optlink*)(volatile unsigned*,unsigned))InterlockedBtrCode)(&(x),(n))
-  #define InterlockedBtc(x,n) (*(char(_Optlink*)(volatile unsigned*,unsigned))InterlockedBtcCode)(&(x),(n))
-#else
-  #error Unsupported compiler.
-#endif
-
-class Interlocked
-{private:
-  unsigned& data;
- public:
-  Interlocked(unsigned& i)        : data(i) {}
-  unsigned swap(unsigned n)       { return InterlockedXch(data, n); }
-  void     operator++()           { InterlockedInc(data); }
-  char     operator--()           { return InterlockedDec(data); }
-  void     operator+=(unsigned n) { InterlockedAdd(data, n); }
-  char     operator-=(unsigned n) { return InterlockedSub(data, n); }
-  char     operator&=(unsigned n) { return InterlockedAnd(data, n); }
-  void     operator|=(unsigned n) { InterlockedOr(data, n); }
-  char     operator^=(unsigned n) { return InterlockedXor(data, n); }
-  char     bitset(unsigned n)     { return InterlockedBts(data, n); } 
-  char     bitrst(unsigned n)     { return InterlockedBtr(data, n); } 
-  char     bitnot(unsigned n)     { return InterlockedBtc(data, n); }
-  // non synchronized operators
-  operator unsigned()             { return data; }
-  bool     operator!()            { return !data; }
-  bool     operator==(unsigned r) { return data == r; }
-  bool     operator!=(unsigned r) { return data != r; }
-  bool     operator<(unsigned r)  { return data < r; }
-  bool     operator<=(unsigned r) { return data <= r; }
-  bool     operator>(unsigned r)  { return data > r; }
-  bool     operator>=(unsigned r) { return data >= r; }
 };
 
 #endif

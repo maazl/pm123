@@ -77,9 +77,17 @@
 
 #include <debuglog.h>
 
+
+// Cache lifetime of unused playable objects in seconds
+// Objects are removed after [CLEANUP_INTERVALL, 2*CLEANUP_INTERVALL].
+// However, since the romoved objects may hold references to other objects,
+// only one generation is cleand up per time.
+#define  CLEANUP_INTERVALL 10
+
 #define  TID_UPDATE_TIMERS    ( TID_USERMAX - 1 )
 #define  TID_UPDATE_PLAYER    ( TID_USERMAX - 2 )
 #define  TID_ONTOP            ( TID_USERMAX - 3 )
+#define  TID_CLEANUP          ( TID_USERMAX - 4 )
 
 /* file dialog additional flags */
 #define  FDU_DIR_ENABLE   0x0001
@@ -983,6 +991,10 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
            amp_force_locmsg();
         DEBUGLOG2(("amp_dlg_proc: WM_TIMER done\n"));
         return 0;
+       
+       case TID_CLEANUP:
+        Playable::Cleanup();
+        return 0;
       }
       break;
 
@@ -1298,6 +1310,7 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
 
       WinStartTimer( hab, hwnd, TID_UPDATE_TIMERS,  80 );
       WinStartTimer( hab, hwnd, TID_UPDATE_PLAYER,  50 );
+      WinStartTimer( hab, hwnd, TID_CLEANUP, 1000*CLEANUP_INTERVALL );
 
       // fetch some initial states
       WinPostMsg( hwnd, AMP_CTRL_EVENT, MPFROMLONG(Ctrl::EV_Repeat|Ctrl::EV_Shuffle), 0 );
@@ -1677,9 +1690,10 @@ main2( void* arg )
   DefaultPM = NULL;
   DefaultPL = NULL;
 
-  remove_all_plugins();
   dk_term();
   Playable::Uninit();
+  Playable::Clear();
+  remove_all_plugins();
   plugman_uninit();
 
   WinDestroyWindow(hframe);

@@ -70,7 +70,7 @@ Iref_Count* int_ptr_base::reassign_weak(const Iref_Count* ptr)
       ptr = NULL;
      else
       // This is done in the above critical section.
-      // This avoids that the counter reaces zero between the above check an the increment here.
+      // This avoids that the counter reaches zero between the above check an the increment here.
       ++((Iref_Count*)ptr)->Count;
   }
   Iref_Count* ret = NULL;

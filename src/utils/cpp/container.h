@@ -75,13 +75,14 @@ class vector_base
   // The function is not type safe and should not be exposed public.
   void*&             insert(size_t where);
   // Removes an element from the vector and return it's value.
+  // The where pointer is set to the next item after the removed one.
   // Precondition: where in [begin(),end()), Performance: O(n)
   // The function is not type safe and should not be exposed public.
-  void*              erase(void** where);
+  void*              erase(void**& where);
   // Removes an element from the vector and return it's value.
   // Precondition: where in [0,size()-1], Performance: O(n)
   // The function is not type safe and should not be exposed public.
-  void*              erase(size_t where)            { return erase(Data + where); }
+  void*              erase(size_t where)            { void** p = Data + where; return erase(p); }
   // Access an element by number.
   // Precondition: where in [0,size()-1], Performance: O(1)
   // This is in fact like operator[], but since this method is not type safe
@@ -131,7 +132,7 @@ class vector : public vector_base
   T*&                insert(size_t where)           { return (T*&)vector_base::insert(where); }
   // Removes an element from the vector and return it's value.
   // Precondition: where in [begin(),end()), Performance: O(n)
-  T*                 erase(T*const* where)          { return (T*)vector_base::erase((void**)where); }
+  T*                 erase(T*const*& where)         { return (T*)vector_base::erase((void**&)where); }
   // Removes an element from the vector and return it's value.
   // Precondition: where in [0,size()-1], Performance: O(n)
   T*                 erase(size_t where)            { return (T*)vector_base::erase(where); }
@@ -265,6 +266,7 @@ class sorted_vector : public vector<T>
   // Precondition: none, Performance: O(log(n))
   T*                 erase(const K& key);
   // IBM VAC++ can't parse using...
+  T*                 erase(T*const*& where)         { return vector<T>::erase(where); }
   T*                 erase(size_t where)            { return vector<T>::erase(where); }
 };
 
@@ -273,7 +275,7 @@ class sorted_vector : public vector<T>
 template <class T, class K>
 bool sorted_vector<T,K>::binary_search(const K& key, size_t& pos) const
 { // binary search
-  DEBUGLOG(("sorted_vector<T,K>(%p)::binary_search(%p,&%p) - %u\n", this, &key, &pos, size()));
+  DEBUGLOG2(("sorted_vector<T,K>(%p)::binary_search(%p,&%p) - %u\n", this, &key, &pos, size()));
   size_t l = 0;
   size_t r = size();
   while (l < r)

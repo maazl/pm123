@@ -46,6 +46,7 @@
 ****************************************************************************/
 
 vector<Ctrl::PrefetchEntry> Ctrl::PrefetchList(10);
+Mutex                Ctrl::PLMtx;
 bool                 Ctrl::Playing   = false;
 bool                 Ctrl::Paused    = false;
 DECFASTMODE          Ctrl::Scan      = DECFAST_NORMAL_PLAY;
@@ -70,15 +71,15 @@ const SongIterator::CallstackType Ctrl::EmptyStack(1);
 int_ptr<Song> Ctrl::GetCurrentSong()
 { DEBUGLOG(("Ctrl::GetCurrentSong() - %u\n", PrefetchList.size()));
   int_ptr<Playable> pp;
-  { CritSect cs;
+  { Mutex::Lock lock(PLMtx);
     if (PrefetchList.size())
-      pp = Current()->Iter.GetCurrent()->GetPlayable();
+      pp = Current()->Iter.GetCurrentItem();
   }
   return pp && !(pp->GetFlags() & Playable::Enumerable) ? (Song*)pp.get() : NULL;
 }
 
 int_ptr<PlayableSlice> Ctrl::GetRoot()
-{ CritSect cs;
+{ Mutex::Lock lock(PLMtx);
   return PrefetchList.size() ? Current()->Iter.GetRoot() : NULL;
 }
 
@@ -263,7 +264,7 @@ Ctrl::RC Ctrl::NavigateCore(SongIterator& si)
     { if (dec_jump(si.GetLocation()) != 0)
         return RC_DecPlugErr; 
     }
-    CritSect cs;
+    Mutex::Lock lock(PLMtx);
     Current()->Iter.Swap(si);
     return RC_OK;
   }
@@ -275,7 +276,7 @@ Ctrl::RC Ctrl::NavigateCore(SongIterator& si)
     PrefetchClear(true);
   }
   { // Mutex because Current is modified.
-    CritSect cs;
+    Mutex::Lock lock(PLMtx);
     // deregister current song delegate
     CurrentSongDelegate.detach();
     // swap iterators
@@ -304,9 +305,10 @@ Ctrl::RC Ctrl::NavigateCore(SongIterator& si)
 
 void Ctrl::PrefetchClear(bool keep)
 { DEBUGLOG(("Ctrl::PrefetchClear(%u)\n", keep));
-  CritSect cs;
+  Mutex::Lock lock(PLMtx);
+  Ctrl::PrefetchEntry*const* where = PrefetchList.end();
   while (PrefetchList.size() > keep) // Hack: keep = false deletes all items while keep = true kepp the first item.
-    delete PrefetchList.erase(PrefetchList.end()-1);
+    delete PrefetchList.erase(--where);
 }
 
 void Ctrl::CheckPrefetch(double pos)
@@ -327,7 +329,7 @@ void Ctrl::CheckPrefetch(double pos)
       InterlockedOr(Pending, EV_Song|EV_Phys|EV_Tech|EV_Meta);
       // Cleanup prefetch list
       vector<PrefetchEntry> ped(n);
-      { CritSect cs;
+      { Mutex::Lock lock(PLMtx);
         do
           ped.append() = PrefetchList.erase(--n);
         while (n);
@@ -634,7 +636,7 @@ Ctrl::RC Ctrl::MsgLoad(const xstring& url, int flags)
       return RC_InvalidItem;
     play->EnsureInfoAsync(Playable::IF_Phys|Playable::IF_Rpl);
     play->EnsureInfoAsync(Playable::IF_All, true);
-    { CritSect cs;
+    { Mutex::Lock lock(PLMtx);
       PrefetchList.append() = new PrefetchEntry();
       Current()->Iter.SetRoot(new PlayableSlice(play));
     }
@@ -750,7 +752,7 @@ Ctrl::RC Ctrl::MsgDecStop()
       // skip invalid
     } while (ps->GetPlayable()->GetStatus() == STA_Invalid);
     // store result
-    CritSect cs;
+    Mutex::Lock lock(PLMtx);
     PrefetchList.append() = pep;
   }
 
@@ -794,15 +796,14 @@ void Ctrl::Worker()
   HMQ hmq = WinCreateMsgQueue(hab, 0);
   for(;;)
   { DEBUGLOG(("Ctrl::Worker() looking for work\n"));
-    Queue.RequestRead();
-    queue<ControlCommand*>::qentry* qp = Queue.Read();
-    if (qp == NULL)
+    queue<ControlCommand*>::qentry* qp = Queue.RequestRead();
+    ControlCommand* ccp = qp->Data;
+    if (ccp == NULL)
     { Queue.CommitRead(qp);
       break; // deadly pill
     }
 
     bool fail = false;
-    ControlCommand* ccp = qp->Data;
     do
     { DEBUGLOG(("Ctrl::Worker received message: %p{%i, %s, %g, %x, %p, %p} - %u\n",
       ccp, ccp->Cmd, ccp->StrArg ? ccp->StrArg.cdata() : "<null>", ccp->NumArg, ccp->Flags, ccp->Callback, ccp->Link, fail));

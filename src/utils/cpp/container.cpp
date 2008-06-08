@@ -88,14 +88,19 @@ void*& vector_base::append()
   return Data[Size++];
 }
 
-void* vector_base::erase(void** where)
-{ ASSERT(where >= Data && where < Data+Size);
+void* vector_base::erase(void**& where)
+{ DEBUGLOG(("vector_base(%p)::erase(&%p) - %p %u\n", this, where, Data, Size));
+  ASSERT(where >= Data && where < Data+Size);
   --Size;
   void* ret = *where;
-  memmove(where, where+1, (const char*)(Data+Size) - (const char*)where);
-  if (Size+16 < (Capacity>>1))
-  { Capacity >>= 1;
-    Data = (void**)realloc(Data, Capacity * sizeof *Data);
+  memmove(where, where+1, (char*)(Data+Size) - (char*)where);
+  if (Size+16 < (Capacity>>2))
+  { Capacity >>= 2;
+    void** newdata = (void**)realloc(Data, Capacity * sizeof *Data);
+    ASSERT(newdata);
+    // relocate where
+    (char*&)where += (char*)newdata - (char*)Data;
+    Data = newdata;
   }
   return ret;
 }
@@ -118,7 +123,7 @@ void vector_base::prepare_assign(size_t size)
 }
 
 void rotate_array_base(void** begin, const size_t len, int shift)
-{ DEBUGLOG(("rotate_array(%p, %u, %i)\n", begin, len, shift));
+{ DEBUGLOG(("rotate_array_base(%p, %u, %i)\n", begin, len, shift));
   if (len <= 1)
     return;
   // normalize shift
@@ -144,7 +149,7 @@ void rotate_array_base(void** begin, const size_t len, int shift)
 }
 
 void merge_sort_base(void** begin, void** end, int (*comp)(const void* l, const void* r))
-{ DEBUGLOG(("merge_sort(%p, %p, %p)\n", begin, end, comp));
+{ DEBUGLOG(("merge_sort_base(%p, %p, %p)\n", begin, end, comp));
   void** mid;
   // Section 1: split
   { const size_t count = end - begin;

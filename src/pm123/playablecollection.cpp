@@ -259,8 +259,8 @@ int PlayableInstance::CompareTo(const PlayableInstance& r) const
 *
 ****************************************************************************/
 
-void PlayableCollection::CollectionInfo::Add(double songlength, double filesize, int items)
-{ DEBUGLOG(("PlayableCollection::CollectionInfo::Add(%g, %g, %i) - %g, %g, %i\n", songlength, filesize, items, Songlength, Filesize, Items));
+void PlayableCollection::CollectionInfo::Add(T_TIME songlength, T_SIZE filesize, int items)
+{ DEBUGLOG(("PlayableCollection::CollectionInfo::Add(%f, %f, %i) - %f, %f, %i\n", songlength, filesize, items, Songlength, Filesize, Items));
   // cummulate playing time
   if (Songlength >= 0)
   { if (songlength >= 0)
@@ -297,6 +297,9 @@ void PlayableCollection::CollectionInfo::Reset()
   Excluded.clear();
 }
 
+
+Mutex PlayableCollection::CollectionInfoCacheMtx;
+
 PlayableCollection::PlayableCollection(const url123& URL, const DECODER_INFO2* ca)
 : Playable(URL, ca),
   CollectionInfoCache(16)
@@ -310,9 +313,11 @@ PlayableCollection::PlayableCollection(const url123& URL, const DECODER_INFO2* c
 PlayableCollection::~PlayableCollection()
 { DEBUGLOG(("PlayableCollection(%p{%s})::~PlayableCollection()\n", this, GetURL().getShortName().cdata()));
   // frist disable all events
-  CollectionChange.sync_reset();
-  InfoChange.sync_reset();
+  CollectionChange.reset();
+  InfoChange.reset();
   // Cleanup SubInfoCache
+  // We do not need to lock CollectionInfoCacheMtx here, because at the destructor the instance
+  // is no longer shared between threads.
   for (CollectionInfoEntry** ppci = CollectionInfoCache.begin(); ppci != CollectionInfoCache.end(); ++ppci)
     delete *ppci;
   // Cleanup container items because removing Head and Tail is not sufficient
@@ -320,13 +325,14 @@ PlayableCollection::~PlayableCollection()
   while (Head)
   { ASSERT(Head->IsParent(this));
     Entry* ep = Head;
+    ep->Detach();
     Head = Head->Next;
     // ep ist still valid because the item is still held by Head->Prev or Tail.
-    ep->Detach();
     ep->Prev = NULL;
     ep->Next = NULL;
   }
-  // *Tail is implicitely deleted by the destructor of Tail. 
+  Tail = NULL;
+  DEBUGLOG(("PlayableCollection::~PlayableCollection done\n"));
 }
 
 Playable::Flags PlayableCollection::GetFlags() const
@@ -428,7 +434,7 @@ void PlayableCollection::ChildInfoChange(const Playable::change_args& args)
   { // Update dependant info, but only if already available
     LoadInfoAsync(f & InfoValid);
     // Invalidate CollectionInfoCache entries.
-    CritSect cs;
+    Mutex::Lock lock(CollectionInfoCacheMtx);
     f = ~f; // prepare flags for deletion
     for (CollectionInfoEntry** ciepp = CollectionInfoCache.begin(); ciepp != CollectionInfoCache.end(); ++ciepp)
       // Only items that do not have the sender in the exclusion list are invalidated to prevent recursions.
@@ -524,21 +530,21 @@ const PlayableCollection::CollectionInfo& PlayableCollection::GetCollectionInfo(
   // cache lookup
   // We have to protect the CollectionInfoCache additionally by a critical section,
   // because the TechInfoChange event from the children cannot aquire the mutex.
-  { CritSect cs;
+  { Mutex::Lock lock(CollectionInfoCacheMtx);
     cic = CollectionInfoCache.find(excluding);
   }
   // If we do not own the mutex so far we ensure some information on sub items
   // before we request access to the mutex to avoid deadlocks.
   // If we already own the mutex it makes no difference anyway.
-  if (cic == NULL && Mtx.GetStatus() != Mutex::Mine)
-    PrefetchSubInfo(excluding);
+  /*if (cic == NULL && Mtx.GetStatus() != Mutex::Mine)
+    PrefetchSubInfo(excluding);*/
   // Lock the collection
   Mutex::Lock lock(Mtx);
   if (cic == NULL) // double check below
   { // cache lookup
-    // We have to protect the CollectionInfoCache additionally by a critical section,
-    // because the TechInfoChange event from the children cannot aquire the mutex.
-    CritSect cs;
+    // We have to protect the CollectionInfoCache additionally,
+    // because the TechInfoChange event from the children must not aquire the instance mutex.
+    Mutex::Lock lock(CollectionInfoCacheMtx);
     CollectionInfoEntry*& cicr = CollectionInfoCache.get(excluding);
     if (cicr == NULL)
       cicr = new CollectionInfoEntry(excluding);
@@ -957,6 +963,8 @@ void Playlist::LSTReader::ParseLine(char* line)
       // 0: bitrate, 1: samplingrate, 2: channels, 3: file size, 4: total length,
       // 5: no. of song items, 6: total file size, 7: no. of items, 8: recursive. 
       DEBUGLOG(("Playlist::LSTReader::ParseLine: tokens %s, %s, %s, %s, %s, %s, %s, %s, %s\n", tokens[0], tokens[1], tokens[2], tokens[3], tokens[4], tokens[5], tokens[6], tokens[7], tokens[8]));
+      // Data type conversion
+      
       // make tech info
       if (tokens[0] && tokens[4])
       { Info.tech = &Tech;
@@ -977,7 +985,7 @@ void Playlist::LSTReader::ParseLine(char* line)
       if (tokens[3])
       { Info.phys = &Phys;
         // memset(Phys, 0, sizeof Tech);
-        Phys.size       = sizeof Tech;
+        Phys.size       = sizeof Phys;
         Phys.filesize   = atof(tokens[3]);
         Phys.num_items  = tokens[7] ? atoi(tokens[7]) : 1;
       }

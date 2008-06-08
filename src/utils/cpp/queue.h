@@ -41,31 +41,22 @@ class queue_base
 {public:
   struct EntryBase
   { EntryBase* Next;
+    bool     ReadActive;
   };
-  /*class ReaderBase
-  {public:
-    queue_base& Queue;
-   private: // non-copyable
-    ReaderBase(const ReaderBase&);
-    void operator=(const ReaderBase&);
-   protected:
-    ReaderBase(queue_base& queue);
-  };*/
 
  protected:
   EntryBase* Head;
   EntryBase* Tail;
-  Event      EvEmpty;
-  Event      EvRead;
+  Event      EvEmpty; // set when the queue is not empty
+  Event      EvRead;  // set when a reader completes
  public:
   Mutex      Mtx;
 
  protected: // class should not be used directly!
              queue_base()         : Head(NULL), Tail(NULL) { EvRead.Set(); }
-  EntryBase* Read() const         { return Head; }
-  void       CommitRead(EntryBase* e);
- public:
-  void       RequestRead();
+  EntryBase* RequestRead();
+  void       CommitRead(EntryBase* entry);
+  void       RollbackRead(EntryBase* entry);
  protected:
   void       Write(EntryBase* entry);
   void       Write(EntryBase* entry, EntryBase* after);
@@ -78,21 +69,15 @@ class queue : public queue_base
   { T        Data;
     qentry(const T& data) : Data(data) {}
   };
-  /*class Reader;
-  friend class Reader;
-  class Reader : private ReaderBase
-  {public:
-    Reader(queue<T>& queue)       : ReaderBase(queue) {}
-    ~Reader()                     { ((queue<T>&)Queue).CommitRead(); DEBUGLOG(("queue<T>::Reader::~Reader()\n")); }
-    operator T&()                 { return ((Entry*)Queue.Read())->Data; }
-  };*/
 
  public:
              ~queue()             { Purge(); }
-  // Read the current head
-  qentry*    Read()               { return (qentry*)queue_base::Read(); }
+  // Read the next item
+  qentry*    RequestRead()        { return (qentry*)queue_base::RequestRead(); }
   // Read complete => remove item from the queue
   void       CommitRead(qentry* e){ queue_base::CommitRead(e); delete e; }
+  // Read aborted => reactivate the item in the queue
+  void       RollbackRead(qentry* e){ queue_base::RollbackRead(e); }
   // Post an element to the Queue
   void       Write(const T& data) { queue_base::Write(new qentry(data)); }
   // Remove all elements from the queue
@@ -114,7 +99,8 @@ class queue : public queue_base
 
 template <class T>
 void queue<T>::Purge()
-{ if (Head == NULL)
+{ DEBUGLOG(("queue<T>(%p)::Purge() - %p %p %u\n", this, Head, Tail, EvRead.IsSet())); 
+  if (Head == NULL)
     return;
   qentry* ep;
   { Mutex::Lock lock(Mtx);
@@ -122,7 +108,7 @@ void queue<T>::Purge()
     if (ep == NULL)
       return;
     ep = (qentry*)ep->Next;
-    if (EvRead.IsSet())
+    if (!EvRead.IsSet())
     { // reader is active, keep the first element
       Head->Next = NULL; // truncate
     } else
@@ -146,7 +132,7 @@ queue<T>::qentry* queue<T>::Find(const T& templ, bool& inuse)
   qentry* ep = (qentry*)Head;
   while (ep)
   { if (ep->Data == templ)
-    { inuse = ep == Head && !EvRead.IsSet();
+    { inuse = ep->ReadActive;
       return ep;
     }
     ep = (qentry*)ep->Next;
@@ -163,7 +149,7 @@ int queue<T>::Remove(const T& data)
   { qentry* ep = (qentry*)*epp;
     if (ep == NULL)
       break;
-    if (ep->Data == data && (epp != &Head || EvRead.IsSet()))
+    if (ep->Data == data && !ep->ReadActive)
     { *epp = ep->Next;
       epp = &ep->Next;
       delete ep;
@@ -177,27 +163,30 @@ int queue<T>::Remove(const T& data)
 template <class T>
 int queue<T>::ForceRemove(const T& data)
 { int r = 0;
-  bool syncreader = false;
-  { Mutex::Lock lock(Mtx);
-    EntryBase** epp = &Head;
-    for (;;)
-    { qentry* ep = (qentry*)*epp;
-      if (ep == NULL)
-        break;
-      if (!(ep->Data == data))
-        epp = &ep->Next;
-       else if (epp == &Head && !EvRead.IsSet())
-      { syncreader = true;
-        epp = &ep->Next;
-      } else
-      { *epp = ep->Next;
-        epp = &ep->Next;
-        delete ep;
-        ++r;
-  } } }
-  if (syncreader) // Well, this /may/ wait for the next reader.
+  for(;;)
+  { { Mutex::Lock lock(Mtx);
+      bool syncreader = false;
+      EntryBase** epp = &Head;
+      for (;;)
+      { qentry* ep = (qentry*)*epp;
+        if (ep == NULL)
+          break;
+        if (!(ep->Data == data))
+          epp = &ep->Next;
+         else if (ep->ReadActive)
+        { syncreader = true;
+          epp = &ep->Next;
+        } else
+        { *epp = ep->Next;
+          epp = &ep->Next;
+          delete ep;
+          ++r;
+      } }
+      if (!syncreader)
+        return r;
+    }
     EvRead.Wait();
-  return r;
+  }
 }
 
 #endif

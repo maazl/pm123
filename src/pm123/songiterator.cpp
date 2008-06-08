@@ -260,7 +260,7 @@ void SongIterator::Enter()
 void SongIterator::Leave()
 { DEBUGLOG(("SongIterator::Leave()\n"));
   ASSERT(Callstack.size() > 1); // Can't remove the last item.
-  delete Callstack.erase(Callstack.end()-1);
+  delete Callstack.erase(Callstack.size()-1);
   Location = 0;
 }
 

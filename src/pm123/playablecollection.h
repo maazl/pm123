@@ -202,30 +202,30 @@ class PlayableCollection : public Playable
     SerialIndexOnly    = 0x10
   };
   enum save_options
-  { SaveDefault      = 0x00,
-    SaveRelativePath = 0x01,
-    SaveUseUpdir     = 0x02,
-    SaveAsM3U        = 0x10
+  { SaveDefault        = 0x00,
+    SaveRelativePath   = 0x01,
+    SaveUseUpdir       = 0x02,
+    SaveAsM3U          = 0x10
   };
   struct change_args
-  { PlayableCollection&    Collection;
-    PlayableInstance&      Item;
-    change_type            Type;
+  { PlayableCollection&       Collection;
+    PlayableInstance&         Item;
+    change_type               Type;
     change_args(PlayableCollection& coll, PlayableInstance& item, change_type type)
     : Collection(coll), Item(item), Type(type) {}
   };
   typedef int (*ItemComparer)(const PlayableInstance* l, const PlayableInstance* r);
   // Information on PlayableCollection.
   struct CollectionInfo
-  { T_TIME                 Songlength; // Tech info
-    double                 Filesize;   // Tech info
-    int                    Items;      // PL info
-    PlayableSet            Excluded;   // PL info
+  { T_TIME                    Songlength; // Tech info
+    T_SIZE                    Filesize;   // Tech info
+    int                       Items;      // PL info
+    PlayableSet               Excluded;   // PL info
 
-    void                   Add(T_TIME songlength, double filesize, int items);
-    void                   Add(const CollectionInfo& ci);
-    void                   Reset();
-    CollectionInfo()       { Reset(); }
+    void                      Add(T_TIME songlength, double filesize, int items);
+    void                      Add(const CollectionInfo& ci);
+    void                      Reset();
+    CollectionInfo()          { Reset(); }
   };
  protected:
   // internal representation of a PlayableInstance as linked list.
@@ -242,16 +242,17 @@ class PlayableCollection : public Playable
       Next(NULL),
       TechDelegate(playable->InfoChange, parent, tfn),
       InstDelegate(StatusChange, parent, ifn)
-    {}
+    { DEBUGLOG(("PlayableCollection::Entry(%p)::Entry(&%p, %p, )", this, &parent, playable)); }
+    ~Entry() { DEBUGLOG(("PlayableCollection::Entry(%p)::~Entry()", this)); }
     // Detach a PlayableInstance from the collection.
     // This function must be called only by the parent collection and only while it is locked.
-    void Detach()          { Parent = NULL; }
+    void Detach()             { Parent = NULL; }
   };
   // CollectionInfo CacheEntry
   struct CollectionInfoEntry
   : public PlayableSet
-  { CollectionInfo         Info;
-    InfoFlags              Valid; // only IF_Tech and IF_Pl are significant here
+  { CollectionInfo            Info;
+    InfoFlags                 Valid; // only IF_Tech and IF_Pl are significant here
     CollectionInfoEntry(const PlayableSet& r) : PlayableSet(r), Valid(IF_None) {}
   };
 
@@ -259,9 +260,13 @@ class PlayableCollection : public Playable
   // The object list is implemented as a doubly linked list to keep the iterators valid on modifications.
   int_ptr<Entry> Head;
   int_ptr<Entry> Tail;
+ private:
   // Cache mit subenumeration infos
   // This object is protected by a critical section.
   sorted_vector<CollectionInfoEntry, PlayableSet> CollectionInfoCache;
+  // One Mutex to protect CollectionInfoCache of all instances.
+  // You must not aquire another Mutex while holding this one.
+  static Mutex                CollectionInfoCacheMtx;
 
  private:
   // This is called by the InfoChange events of the children.

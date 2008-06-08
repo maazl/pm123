@@ -1011,12 +1011,12 @@ dec_fileinfo( const char* filename, INFOTYPE* what, DECODER_INFO2* info, char* n
   }
   return 200;
  ok:
-  DEBUGLOG(("dec_fileinfo: {{%d, %d, %d}, {%d, %lf, %d, %lf, %d}, {%d, %lf, %d}, {%u, %s}} -> %s, %x\n",
+  DEBUGLOG(("dec_fileinfo: {{%d, %d, %d}, {%d, %lf, %d, %lf, %s}, {%d, %lf, %d}, {%d, %d, %d}} -> %s, %x\n",
     info->format->size, info->format->samplerate, info->format->channels,
     info->tech->size, info->tech->songlength, info->tech->bitrate, info->tech->totalsize, info->tech->info,
     info->phys->size, info->phys->filesize, info->phys->num_items,
-    info->rpl->total_items, info->rpl->recursive,
-    name, what));
+    info->rpl->size, info->rpl->total_items, info->rpl->recursive,
+    name, *what));
   if (name)
     sfnameext( name, dp->module_name, name_size );
   return 0;

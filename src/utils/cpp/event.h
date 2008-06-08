@@ -1,5 +1,5 @@
 /*
- * Copyright 2007-2007 M.Mueller
+ * Copyright 2007-2008 M.Mueller
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -30,8 +30,8 @@
 #define CPP_EVENT_H
 
 #define INCL_PM
-#include <cpp/mutex.h>
 #include <config.h>
+#include <cpp/mutex.h>
 #include <os2.h>
 
 #include <debuglog.h>
@@ -52,28 +52,29 @@ class event_base
 { friend class delegate_base;
  private:
   delegate_base* Root;
-  volatile unsigned Count; // Number of active eventhandlers
+  SpinLock       Count; // Number of active eventhandlers
  private:
   // non-copyable
-  event_base(const event_base& r);
+       event_base(const event_base& r);
   void operator=(const event_base& r);
  protected:
   // Create an event.
-  event_base() : Root(NULL), Count(0) { DEBUGLOG(("event_base(%p)::event_base()\n", this)); }
-  ~event_base();
+  event_base()
+  : Root(NULL)
+  { DEBUGLOG(("event_base(%p)::event_base()\n", this)); }
+  ~event_base()
+  { DEBUGLOG(("event_base(%p)::~event_base() - %p\n", this, Root)); reset(); }
   // Add a delegate to the current event
-  void operator+=(delegate_base& d);
+  void           operator+=(delegate_base& d);
   // Remove a delegate from the current event and return true if succeeded.
   // Note that removing a delegate from an event does not ensure that the event is no
   // longer called, because it may been raised already.
-  bool operator-=(delegate_base& d);
+  bool           operator-=(delegate_base& d);
   // Fire the event.
-  void operator()(dummy& param);
+  void           operator()(dummy& param);
  public:
-  // remove all registrated delegates
-  void reset();
-  // remove all registrated delegates and wait for eventhandlers to complete (uses spin-lock!)
-  void sync_reset();
+  // remove all registered delegates and wait for eventhandlers to complete (uses spin-lock!)
+  void           reset();
 };
 
 /* non-template base class for delegate
@@ -87,9 +88,10 @@ class delegate_base
   const void*    Rcv;
   event_base*    Ev; // attached to this event
   delegate_base* Link;
- private:
-  delegate_base(const delegate_base& r); // non-copyable
-  void operator=(const delegate_base& r);
+  SpinLock       Count; // Number of active eventhandlers
+ private: // non-copyable
+                 delegate_base(const delegate_base& r);
+  void           operator=(const delegate_base& r);
  protected:
   // Construct unattached delegate
   delegate_base(func_type fn, const void* rcv) : Fn(fn), Rcv(rcv), Ev(NULL) { DEBUGLOG(("delegate_base(%p)::delegate_base(%p, %p)\n", this, fn, rcv)); }
@@ -97,7 +99,7 @@ class delegate_base
   delegate_base(event_base& ev, func_type fn, const void* rcv);
   ~delegate_base()                             { DEBUGLOG(("delegate_base(%p)::~delegate_base() - %p\n", this, Ev)); detach(); }
  public:
-  // Detach the delegate from the event, if any.
+  // Detach the delegate from the event, if any, and wait for outstanding eventhandlers to complete.
   void           detach();
 };
 
@@ -120,9 +122,9 @@ class delegate_part : public delegate_base
   typedef void (*func_type)(const void* receiver, P& param);
  protected:
   delegate_part(func_type fn, const void* rcv)
-    : delegate_base((delegate_base::func_type)fn, rcv) {}
+  : delegate_base((delegate_base::func_type)fn, rcv) {}
   delegate_part(event<P>& ev, func_type fn, const void* rcv)
-    : delegate_base(ev, (delegate_base::func_type)fn, rcv) {}
+  : delegate_base(ev, (delegate_base::func_type)fn, rcv) {}
 };
 
 /* Application even class.

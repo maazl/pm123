@@ -33,7 +33,7 @@ unittest.exe: $(OBJECTS) $(LIBS)
 container.cpp:	container.h cpputil.h ..\debuglog.h
 container.h:	..\cpp/mutex.h ..\cpp/smartptr.h
 event.cpp:	event.h ..\debuglog.h
-event.h:	..\cpp/mutex.h ..\..\include\config.h ..\debuglog.h
+event.h:	..\..\include\config.h ..\cpp/mutex.h ..\debuglog.h
 mutex.cpp:	mutex.h ..\debuglog.h
 mutex.h:	..\..\include\config.h
 queue.cpp:	queue.h ..\debuglog.h

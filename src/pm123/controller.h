@@ -40,6 +40,7 @@
 #include <cpp/queue.h>
 #include <cpp/xstring.h>
 #include <cpp/event.h>
+#include <cpp/mutex.h>
 #include <cpp/cpputil.h>
 
 #include <debuglog.h>
@@ -241,6 +242,7 @@ class Ctrl
   // But since read access is done by other threads too,
   // any write to PrefetchList must be protected by a critical section.
   static vector<PrefetchEntry> PrefetchList;
+  static Mutex                PLMtx;                 // Mutex to protect the above list.
 
   static bool                 Playing;               // True if a song is currently playing (not decoding)
   static bool                 Paused;                // True if the current song is paused

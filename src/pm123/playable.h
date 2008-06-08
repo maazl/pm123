@@ -30,8 +30,6 @@
 #ifndef PLAYABLE_H
 #define PLAYABLE_H
 
-#include <stdlib.h>
-
 #include <cpp/event.h>
 //#include <utilfct.h>
 #include <cpp/mutex.h>
@@ -41,6 +39,9 @@
 #include <cpp/cpputil.h>
 #include <cpp/container.h>
 #include <cpp/url123.h>
+
+#include <stdlib.h>
+#include <time.h>
 
 #include <decoder_plug.h>
 
@@ -248,7 +249,7 @@ class Playable
     #ifdef DEBUG
     // Read the current head
     void       DumpQ() const;
-    qentry*    Read() { DumpQ(); return queue<QEntry>::Read(); }
+    qentry*    RequestRead() { DumpQ(); return queue<QEntry>::RequestRead(); }
     #endif
   };
 
@@ -261,17 +262,22 @@ class Playable
   // Worker thread (free function because of IBM VAC restrictions)
   friend void TFNENTRY PlayableWorker(void*);
  public:
+  // Initialize worker
   static void              Init();
+  // Destroy worker
   static void              Uninit();
 
  // Repository
  private:
   static sorted_vector<Playable, const char*> RPInst;
   static Mutex             RPMutex;
+  static clock_t           LastCleanup;   // Time index of last cleanup run
+  clock_t                  LastAccess;    // Time index of last access to this instance (used by Cleanup)
  private:
   #ifdef DEBUG
   static void              RPDebugDump();
   #endif
+  static void              DetachObjects(const vector<Playable>& list);
  public:
   virtual int              compareTo(const char*const& str) const;
   // ICC don't know using
@@ -283,6 +289,13 @@ class Playable
   // This is returned by the apropriate Get* functions without the need to access the underlying data source.
   // This is used to speed up large playlists.
   static int_ptr<Playable> GetByURL(const url123& URL, const DECODER_INFO2* ca = NULL);
+  // Cleanup unused items from the repository
+  // One call to Cleanup deletes all unused items that are not requested since the /last/ call to Cleanup.
+  // So the distance between the calls to Cleanup defines the minimum cache lifetime.
+  static void              Cleanup();
+  // clears the repository
+  // Used items may stay alive until their reference count goes to zero.
+  static void              Clear();     
 };
 // Flags Attribute for StatusFlags
 FLAGSATTRIBUTE(Playable::InfoFlags);

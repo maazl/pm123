@@ -38,4 +38,3 @@ stringmap_own::~stringmap_own()
 { while (size())
     delete erase(size()-1);
 }
- 

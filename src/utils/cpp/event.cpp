@@ -1,5 +1,5 @@
 /*
- * Copyright 2007-2007 M.Mueller
+ * Copyright 2007-2008 M.Mueller
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -29,13 +29,14 @@
 
 #define INCL_BASE
 #include "event.h"
+
 #include <os2.h>
 
 #include <debuglog.h>
 
 
 void event_base::operator+=(delegate_base& d)
-{ DEBUGLOG(("event_base(%p)::operator+=(%p{%p}) - %p\n", this, &d, d.Rcv, Root));
+{ DEBUGLOG(("event_base(%p)::operator+=(%p{%p}) - %p, %u\n", this, &d, d.Rcv, Root, Count));
   ASSERT(d.Ev == NULL);
   ASSERT((unsigned)&d >= 0x10000); // OS/2 trick to validate pointer roughly.
   CritSect cs;
@@ -45,67 +46,65 @@ void event_base::operator+=(delegate_base& d)
 }
 
 bool event_base::operator-=(delegate_base& d)
-{ DEBUGLOG(("event_base(%p)::operator-=(%p{%p})\n", this, &d, d.Rcv));
+{ DEBUGLOG(("event_base(%p)::operator-=(%p{%p}) - %u\n", this, &d, d.Rcv, Count));
+  event_base* ev = NULL; // removed event, must not be dereferenced
   delegate_base** mpp = &Root;
-  CritSect cs;
-  while (*mpp != NULL)
-  { if (*mpp == &d)
-    { ASSERT(d.Ev == this);
-      d.Ev = NULL;
-      *mpp = d.Link;
-      DEBUGLOG(("event_base::operator-= OK\n"));
-      return true;
+  { CritSect cs;
+    while (*mpp != NULL)
+    { if (*mpp == &d)
+      { ev = d.Ev; // do not assert in crtitical section (see below)
+        d.Ev = NULL;
+        *mpp = d.Link;
+        break;
+      }
+      mpp = &(*mpp)->Link;
     }
-    mpp = &(*mpp)->Link;
   }
-  DEBUGLOG(("event_base::operator-= FAILED\n"));
-  return false;
+  DEBUGLOG(("event_base::operator-= %p\n", ev));
+  ASSERT(ev == NULL || ev == this);
+  return ev != NULL;
 }
 
 void event_base::operator()(dummy& param)
 { DEBUGLOG(("event_base(%p)::operator()(%p) - %p\n", this, &param, Root));
-  InterlockedInc(Count);
-  delegate_base* mp = Root;
-  // TODO: This no-lock implementation may not 100% safe with respect to operator-=.
-  while (mp != NULL)
-  { delegate_base* mp2 = mp->Link; // threading issue...
-    DEBUGLOG(("event_base::operator() - %p{%p,%p} &%p{%p}\n", mp, mp->Fn, mp->Rcv, &param, param.dummy));
-    (*mp->Fn)(mp->Rcv, param); // callback
-    mp = mp2;
+  SpinLock::Use useev(Count);
+  // Fetch and lock delegate
+  delegate_base* mp;
+  { CritSect cs;
+    mp = Root;
+    if (mp == NULL)
+      return;
+    mp->Count.Inc();
   }
-  InterlockedDec(Count);
-}
-
-event_base::~event_base()
-{ DEBUGLOG(("event_base(%p)::~event_base() - %p\n", this, Root));
-  // detach events
-  sync_reset();
+  for(;;)
+  { DEBUGLOG(("event_base::operator() - %p{%p,%p,%p} &%p{%p}\n", mp, mp->Fn, mp->Rcv, mp->Ev, &param, param.dummy));
+    (*mp->Fn)(mp->Rcv, param); // callback
+    // unlock delegate and fetch and lock next
+    do
+    { CritSect cs;
+      mp->Count.Dec();
+      mp = mp->Link;
+      if (mp == NULL)
+        return; // no more
+      mp->Count.Inc();
+      // Skip detached delegates (unlikely, but may happen because of threading)
+    } while (mp->Ev == NULL);
+  }
 }
 
 void event_base::reset()
 { DEBUGLOG(("event_base(%p)::reset()\n", this));
-  CritSect cs;
-  delegate_base* mp = Root;
-  Root = NULL;
-  while (mp != NULL)
-  { mp->Ev = NULL;
-    mp = mp->Link;
+  { CritSect cs;
+    delegate_base* mp = Root;
+    Root = NULL;
+    while (mp != NULL)
+    { mp->Ev = NULL;
+      delegate_base* mp2 = mp->Link;
+      mp->Link = NULL; // Abort any currently working operator() after this item.
+      mp = mp2;
+    }
   }
-}
-
-void event_base::sync_reset()
-{ DEBUGLOG(("event_base(%p)::sync_reset()\n", this));
-  reset();
-  // spin-lock
-  unsigned i = 5; // fast cycles
-  do
-  { if (!Count)
-      return;
-    DosSleep(0);
-  } while (--i);
-  // slow cycles
-  while (Count)
-    DosSleep(1);
+  Count.Wait();
 }
 
 
@@ -113,7 +112,7 @@ delegate_base::delegate_base(event_base& ev, func_type fn, const void* rcv)
 : Fn(fn),
   Rcv(rcv),
   Ev(&ev)
-{ DEBUGLOG(("delegate_base(%p)::delegate_base(%p, %p, %p)\n", this, &ev, fn, rcv));
+{ DEBUGLOG(("delegate_base(%p)::delegate_base(&%p, %p, %p)\n", this, &ev, fn, rcv));
   CritSect cs;
   Link = ev.Root;
   ev.Root = this;
@@ -121,23 +120,14 @@ delegate_base::delegate_base(event_base& ev, func_type fn, const void* rcv)
 
 void delegate_base::detach()
 {
-  #ifdef DEBUG
   DEBUGLOG(("delegate_base(%p)::detach() - %p\n", this, Ev));
   if (Ev)
-  { CritSect cs;
-    if (Ev)
-    { RASSERT((*Ev) -= *this);
-      Ev = NULL;
-  } }
-  #else
-  // no critical section required in case of non-debug builds,
-  // because operator -= simply will turn into a no-op in doubt.
-  if (Ev)
   { (*Ev) -= *this;
-    Ev = NULL;
-  }
-  #endif
+    ASSERT(Ev == NULL);
+  }   
+  Count.Wait();
 } 
+
 
 void PostMsgDelegateBase::callback(PostMsgDelegateBase* receiver, const void* param)
 { WinPostMsg(receiver->Window, receiver->Msg, MPFROMP(param), MPFROMP(receiver->Param2));

@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2007 Marcel Mueller
+ * Copyright 2002-2008 Marcel Mueller
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -58,18 +58,17 @@ Mutex::Mutex(bool share)
 
 Mutex::Mutex(const char* name)
 {  DEBUGLOG(("Mutex(%p)::Mutex(%s)\n", this, name));
-   char* cp = new char[strlen(name)+8];
+   char* cp = (char*)alloca(strlen(name)+8);
    strcpy(cp, "\\SEM32\\");
    strcpy(cp+7, name);
    APIRET rc;
    do
-   {  rc = DosCreateMutexSem((PSZ)name, &Handle, DC_SEM_SHARED, FALSE);
+   {  rc = DosCreateMutexSem((PSZ)cp, &Handle, DC_SEM_SHARED, FALSE);
       if (rc != ERROR_DUPLICATE_NAME)
          break;
-      Handle = 0;
-      rc = DosOpenMutexSem((PSZ)name, &Handle);
+      Handle = NULLHANDLE;
+      rc = DosOpenMutexSem((PSZ)cp, &Handle);
    } while (rc == ERROR_SEM_NOT_FOUND);
-   delete[] cp;
    OASSERT(rc);
 }
 
@@ -134,6 +133,28 @@ Mutex::Status Mutex::GetStatus() const
 
 /*****************************************************************************
 *
+*  SpinLock class
+*
+*****************************************************************************/
+
+void SpinLock::Wait()
+{ DEBUGLOG(("SpinLock(%p)::Wait() - %u\n", this, Count));
+  unsigned i = 5; // fast cycles
+  do
+  { if (!Count)
+      return;
+    DosSleep(0);
+  } while (--i);
+  // slow cycles
+  while (Count)
+  { DEBUGLOG(("SpinLock::Wait loop %u\n", Count));
+    DosSleep(1);
+  }
+}
+
+
+/*****************************************************************************
+*
 *  Event class
 *  Wrapper to OS2 EventSem.
 *
@@ -180,7 +201,7 @@ bool Event::Wait(long ms)
 void Event::Set()
 {  DEBUGLOG(("Event(%p)::Set()\n", this));
    APIRET rc = DosPostEventSem(Handle);
-   OASSERT(rc == 0 || rc == ERROR_ALREADY_POSTED);
+   OASSERT(rc == 0 || rc == ERROR_ALREADY_POSTED || rc == ERROR_TOO_MANY_POSTS);
    //DEBUGLOG(("Event(%p)::Set - %x\n", this, rc));
 }
 

@@ -40,7 +40,7 @@
 #include "debuglog.h"
 #include "snprintf.h"
 
-#define INCL_DOS
+#define INCL_BASE
 #include <stdio.h>
 #include <stdarg.h>
 #include <string.h>
@@ -49,6 +49,7 @@
 #include <assert.h>
 #include <malloc.h>
 
+static char logmutexname[] = "\\SEM32\\PM123-log-1234";
 static HMTX logmutex = NULLHANDLE;
                         
 // log to stderr
@@ -79,28 +80,35 @@ void debuglog( const char* fmt, ... )
     break;
   }
 
+  DosGetInfoBlocks( &ptib, &ppib );
+
   if (logmutex == NULLHANDLE)
   { // create mutex
-    DosEnterCritSec();
-    if (logmutex == NULLHANDLE)
-      DosCreateMutexSem(NULL, &logmutex, 0, FALSE);
-    DosExitCritSec();
+    // This code may run in parallel, however it makes no difference
+    APIRET rc;
+    // Mutex name
+    sprintf(logmutexname + sizeof logmutexname - 5, "%04x", ppib->pib_ulpid);
+    do
+    { rc = DosCreateMutexSem(logmutexname, &logmutex, DC_SEM_SHARED, FALSE);
+      if (rc != ERROR_DUPLICATE_NAME)
+        break;
+      logmutex = NULLHANDLE;
+      rc = DosOpenMutexSem(logmutexname, &logmutex);
+    } while (rc == ERROR_SEM_NOT_FOUND);
+    OASSERT(rc);
   }
 
   va_start( va, fmt );
-  DosGetInfoBlocks( &ptib, &ppib );
   DosRequestMutexSem( logmutex, SEM_INDEFINITE_WAIT );
-  //DosEnterCritSec();
   //                 8+  1+4+  1+4+  1+8+  1 = 28
   sprintf( buffer, "%08ld %04lx:%04ld %08lx ", clock(), ppib->pib_ulpid, ptib->tib_ptib2->tib2_ultid, (ULONG)&fmt + n * sizeof(int) );
   vsnprintf( buffer+28, 1024, fmt, va );
   DosWrite( 2, buffer, 28 + strlen(buffer+28), &dummy);
   DosReleaseMutexSem( logmutex );
-  //DosExitCritSec();
   va_end( va );
   assert(_heapchk() == _HEAPOK);
   // Dirty hack to enforce threading issues to occur.
-  DosSleep(0);
+  //DosSleep(0);
 }
 
 void dassert(const char* file, int line, const char* msg)

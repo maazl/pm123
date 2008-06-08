@@ -126,7 +126,8 @@ Playable::Playable(const url123& url, const DECODER_INFO2* ca)
   InfoValid(IF_None),
   InfoChangeFlags(IF_None),
   InfoRequest(IF_None),
-  InfoRequestLow(IF_None)
+  InfoRequestLow(IF_None),
+  LastAccess(clock())
 { DEBUGLOG(("Playable(%p)::Playable(%s, %p)\n", this, url.cdata(), ca));
   Info.Reset();
   if (ca)
@@ -157,10 +158,15 @@ Playable::Playable(const url123& url, const DECODER_INFO2* ca)
 
 Playable::~Playable()
 { DEBUGLOG(("Playable(%p{%s})::~Playable()\n", this, URL.cdata()));
-  // Deregister from repository automatically
+  /*// Deregister from repository automatically
   { Mutex::Lock lock(RPMutex);
+    #ifdef DEBUG
+    for (const Playable*const* ppp = RPInst.begin(); ppp != RPInst.end(); ++ppp)
+      DEBUGLOG(("Playable::~Playable: DUMP %p{%s}\n", *ppp, (*ppp)->GetURL().cdata())); 
+    #endif
     XASSERT(RPInst.erase(URL), != NULL);
-  }
+  }*/
+  DEBUGLOG(("Playable::~Playable done\n"));
 }
 
 /* Returns true if the specified file is a playlist file. */
@@ -245,8 +251,10 @@ void Playable::UpdateInfo(const DECODER_INFO2* info)
   if (!info)
     info = &DecoderInfo::InitialInfo;
   InfoValid |= IF_Other;
-  if (~memcmpcpy(&Info.meta_write, &info->meta_write, sizeof(DECODER_INFO2) - offsetof(DECODER_INFO2, meta_write)))
+  if (Info.meta_write != info->meta_write)
+  { Info.meta_write = info->meta_write;
     InfoChangeFlags |= IF_Other;
+  }
   DEBUGLOG(("Playable::UpdateInfo: %x %u\n", InfoValid, InfoChangeFlags));
   UpdateInfo(info->format);
   UpdateInfo(info->tech);
@@ -296,8 +304,12 @@ Playable::InfoFlags Playable::LoadInfo(InfoFlags what)
 void Playable::EnsureInfo(InfoFlags what)
 { DEBUGLOG(("Playable(%p{%s})::EnsureInfo(%x) - %x\n", this, GetURL().getShortName().cdata(), what, InfoValid));
   InfoFlags i = CheckInfo(what);
-  if (i != 0)
-    LoadInfo(i);
+  if (i)
+  { Mutex::Lock lock(Mtx);
+    i = CheckInfo(what);
+    if (i) // double check
+      LoadInfo(i);
+  }
 }
 
 void Playable::LoadInfoAsync(InfoFlags what, bool lowpri)
@@ -309,7 +321,7 @@ void Playable::LoadInfoAsync(InfoFlags what, bool lowpri)
   InfoFlags oldrq = (InfoFlags)rq; // This read is non-atomic. But at the worst case an empty request is scheduled to the worker thread.
   InterlockedOr(rq, what);
   // Only write the Queue if there was no request before.
-  if (!oldrq)
+  if (!oldrq && !WTermRq)
     WQueue.Write(this, lowpri);
 }
 
@@ -325,16 +337,8 @@ Playable::InfoFlags Playable::EnsureInfoAsync(InfoFlags what, bool lowpri)
 void Playable::worker_queue::CommitRead(qentry* qp)
 { DEBUGLOG(("Playable::worker_queue::CommitRead(%p) - %p %p %p\n", qp, Head, HPTail, Tail));
   Mutex::Lock lock(Mtx);
-  if (HPTail && HPTail->Next == qp)
-  { // remove low priority item that is preceeded by a high priority one.
-    HPTail->Next = qp->Next;
-    if (qp->Next == NULL)
-      Tail = HPTail;
-    EvRead.Set();
-    return;
-  }
-  if (HPTail == Head)
-    HPTail = NULL;
+  if (HPTail == qp)
+    HPTail = qp->Next;
   queue<QEntry>::CommitRead(qp);
   #ifdef DEBUG
   DumpQ();
@@ -343,17 +347,14 @@ void Playable::worker_queue::CommitRead(qentry* qp)
 
 void Playable::worker_queue::Write(const QEntry& data, bool lowpri)
 { DEBUGLOG(("Playable::worker_queue::Write(%p, %u) - %p %p %p\n", data.get(), lowpri, Head, HPTail, Tail));
-  Mutex::Lock lock(Mtx);
   // if low priority or high priority with insert at the end
-  if (lowpri || HPTail == Tail || (Head == Tail && EvRead.IsSet()))
+  if (lowpri)
     queue<QEntry>::Write(data);
   else
   { // high priority insert in the middle
-    // If no high priority item currently in the queue and the head is in use.
-    // => insert after head, else insert behind HPTail
-    EntryBase* after = HPTail == NULL && EvRead.IsSet() ? Head : HPTail;
+    Mutex::Lock lock(Mtx);
     EntryBase* newitem = new qentry(data);
-    queue_base::Write(newitem, after);
+    queue_base::Write(newitem, HPTail);
     HPTail = newitem;
   }
   #ifdef DEBUG
@@ -373,17 +374,17 @@ void Playable::worker_queue::DumpQ() const
 #endif
 
 Playable::worker_queue Playable::WQueue;
-int Playable::WTid = -1;
-bool Playable::WTermRq = false;
+int     Playable::WTid        = -1;
+bool    Playable::WTermRq     = false;
+clock_t Playable::LastCleanup = 0;
 
 static void PlayableWorker(void*)
 { for (;;)
   { DEBUGLOG(("PlayableWorker() looking for work\n"));
-    Playable::WQueue.RequestRead();
-    queue<Playable::QEntry>::qentry* qp = Playable::WQueue.Read();
-    DEBUGLOG(("PlayableWorker received message %p\n", qp));
+    queue<Playable::QEntry>::qentry* qp = Playable::WQueue.RequestRead();
+    DEBUGLOG(("PlayableWorker received message %p %p\n", qp, qp->Data.get()));
 
-    if (Playable::WTermRq || !qp) // stop
+    if (Playable::WTermRq || !qp->Data) // stop
     { Playable::WQueue.CommitRead(qp);
       break;
     }
@@ -412,12 +413,15 @@ void Playable::Init()
 void Playable::Uninit()
 { DEBUGLOG(("Playable::Uninit()\n"));
   WTermRq = true;
+  WQueue.Purge();
   WQueue.Write(NULL, false); // deadly pill
   if (WTid != -1)
     wait_thread_pm(amp_player_hab(), WTid, 60000);
-  DEBUGLOG(("Playable::Uninit - complete\n"));
+  // destroy all remaining instances immediately
+  LastCleanup = clock();
+  Cleanup();
+  DEBUGLOG(("Playable::Uninit - complete - %u\n", RPInst.size()));
 }
-
 
 /* URL repository */
 sorted_vector<Playable, const char*> Playable::RPInst(RP_INITIAL_SIZE);
@@ -438,9 +442,7 @@ void Playable::RPDebugDump()
 int_ptr<Playable> Playable::FindByURL(const char* url)
 { DEBUGLOG(("Playable::FindByURL(%s)\n", url));
   Mutex::Lock lock(RPMutex);
-  Playable* pp = RPInst.find(url);
-  CritSect cs;
-  return pp && !pp->RefCountIsUnmanaged() ? pp : NULL;
+  return RPInst.find(url);
 }
 
 int_ptr<Playable> Playable::GetByURL(const url123& URL, const DECODER_INFO2* ca)
@@ -452,23 +454,23 @@ int_ptr<Playable> Playable::GetByURL(const url123& URL, const DECODER_INFO2* ca)
     //RPDebugDump();
     #endif
     Playable*& ppn = RPInst.get(URL);
-    { CritSect cs;
-      if (ppn && ppn->RefCountIsUnmanaged())
-        ppn = NULL; // Do not return itmes that are about to die.
-    }
     if (ppn == NULL)
     { // no match => factory
+      int_ptr<Playable> ppf;
       if (URL.isScheme("file:") && URL.getObjectName().length() == 0)
-        ppn = new PlayFolder(URL, ca);
+        ppf = new PlayFolder(URL, ca);
        else if (IsPlaylist(URL))
-        ppn = new Playlist(URL, ca);
+        ppf = new Playlist(URL, ca);
        else // Song
-        ppn = new Song(URL, ca);
-      DEBUGLOG(("Playable::GetByURL: factory &%p{%p}\n", &pp, pp));
+        ppf = new Song(URL, ca);
+      DEBUGLOG(("Playable::GetByURL: factory &%p{%p}\n", &ppn, ppn));
+      ppn = ppf.toCptr(); // keep reference count alive
+      // The opposite function is at Cleanup().
       return ppn;
     }
     // else match
     pp = ppn;
+    pp->LastAccess = clock();
   }
   
   if (ca)
@@ -496,6 +498,44 @@ int_ptr<Playable> Playable::GetByURL(const url123& URL, const DECODER_INFO2* ca)
     }
   }
   return pp;
+}
+
+void Playable::DetachObjects(const vector<Playable>& list)
+{ DEBUGLOG(("Playable::DetachObjects({%u,})\n", list.size()));
+  int_ptr<Playable> killer;
+  for (Playable*const* ppp = list.begin(); ppp != list.end(); ++ppp)
+  { DEBUGLOG(("Playable::DetachObjects - detaching %p{%s}\n", *ppp, (*ppp)->GetURL().cdata()));
+    killer.fromCptr(*ppp);
+  }
+}
+
+void Playable::Cleanup()
+{ DEBUGLOG(("Playable::Cleanup() - %u\n", LastCleanup));
+  // Keep destructor calls out of the mutex
+  vector<Playable> todelete(32);
+  // serach for unused items
+  { Mutex::Lock lock(RPMutex);
+    for (Playable*const* ppp = RPInst.end(); --ppp != RPInst.begin(); )
+    { if ((*ppp)->RefCountIsUnique() && (long)((*ppp)->LastAccess - LastCleanup) <= 0)
+        todelete.append() = RPInst.erase(ppp);
+    }
+  }
+  // Destroy items
+  DetachObjects(todelete);
+  // prepare next run
+  LastCleanup = clock();
+}
+
+void Playable::Clear()
+{ DEBUGLOG(("Playable::Clear()\n"));
+  // Keep destructor calls out of the mutex
+  static sorted_vector<Playable, const char*> rp;
+  { // detach all items
+    Mutex::Lock lock(RPMutex);
+    rp.swap(RPInst);
+  }
+  // Detach items
+  DetachObjects(rp);
 }
 
 

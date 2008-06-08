@@ -31,44 +31,72 @@
 #include <debuglog.h>
 
 
-/*queue_base::ReaderBase::ReaderBase(queue_base& queue)
-: Queue(queue)
-{ Queue.RequestRead();
-}*/
-
-void queue_base::RequestRead()
+queue_base::EntryBase* queue_base::RequestRead()
 { DEBUGLOG(("queue_base(%p)::RequestRead()\n", this));
   for(;;)
-  { if (Head) // Double check
-    { Mutex::Lock lock(Mtx);
-      if (Head)
-      { ASSERT(EvRead.IsSet());
-        EvRead.Reset();
-        DEBUGLOG(("queue_base::RequestRead() - %p\n", Head));
-        return;
+  { EvEmpty.Wait();
+    Mutex::Lock lock(Mtx);
+    EntryBase* qp = Head;
+    while (qp)
+    { if (!qp->ReadActive)
+      { qp->ReadActive = true;
+        DEBUGLOG(("queue_base::RequestRead() - %p\n", qp));
+        return qp;
       }
-      EvEmpty.Reset();
+      // Skip pending
+      qp = qp->Next;
     }
-    EvEmpty.Wait();
+    EvEmpty.Reset();
   }
 }
 
 void queue_base::CommitRead(EntryBase* qp)
 { DEBUGLOG(("queue_base(%p)::CommitRead(%p) - %p %p\n", this, qp, Head, Tail));
-  ASSERT(!EvRead.IsSet());
-  ASSERT(qp == Head);
+  ASSERT(qp);
+  ASSERT(qp->ReadActive);
   Mutex::Lock lock(Mtx);
-  Head = Head->Next;
-  if (Head == NULL)
-  { Tail = NULL;
-    EvEmpty.Reset();
-  }
+  EntryBase* bp = NULL;
+  if (qp != Head)
+  { // Well, we have to use linear search here.
+    // But it is unlikely that there are many uncommited items.
+    bp = Head;
+    for(;;)
+    { ASSERT(bp);
+      if (bp->Next == qp)
+        break;
+      bp = bp->Next;
+    }
+    // unlink
+    bp->Next = qp->Next;
+    if (qp->Next == NULL)
+      // at the end
+      Tail = bp;
+  } else
+  { Head = qp->Next;
+    if (Head == NULL)
+    { Tail = NULL;
+      EvEmpty.Reset();
+  } }
+
+  qp->ReadActive = false;
   EvRead.Set();
+  EvRead.Reset(); // Hmm, does this reliable unblock all threads once?
+}
+
+void queue_base::RollbackRead(EntryBase* qp)
+{ DEBUGLOG(("queue_base(%p)::RollbackRead(%p)\n", this, qp));
+  ASSERT(qp);
+  ASSERT(qp->ReadActive);
+  // implicitely atomic
+  qp->ReadActive = false;
+  EvRead.Set();
+  EvRead.Reset();
 }
 
 void queue_base::Write(EntryBase* entry)
 { DEBUGLOG(("queue_base(%p)::Write(%p)\n", this, entry));
   entry->Next = NULL;
+  entry->ReadActive = false;
   Mutex::Lock lock(Mtx);
   if (Tail)
     Tail->Next = entry;
@@ -81,20 +109,16 @@ void queue_base::Write(EntryBase* entry)
 
 void queue_base::Write(EntryBase* entry, EntryBase* after)
 { DEBUGLOG(("queue_base(%p)::Write(%p, %p)\n", this, entry, after));
+  entry->ReadActive = false;
   Mutex::Lock lock(Mtx);
-  if (after == NULL)
-  { // insert at head
-    entry->Next = Head;
-    Head = entry;
-    if (Tail == NULL)
-    { Tail = entry;
-      EvEmpty.Set(); // First Element => Set Event
-    }
-  } else
-  { entry->Next = after->Next;
-    after->Next = entry;
-    if (Tail == after)
-      Tail = entry;
-  }
+  // insert
+  EntryBase*& qp = after ? after->Next : Head;
+  entry->Next = qp;
+  qp = entry;
+  // update Tail
+  if (Tail == after)
+    Tail = entry;
+  // signal readers
+  EvEmpty.Set();
 }
 
