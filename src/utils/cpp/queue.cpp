@@ -89,6 +89,8 @@ void queue_base::RollbackRead(EntryBase* qp)
   ASSERT(qp->ReadActive);
   // implicitely atomic
   qp->ReadActive = false;
+  if (Head == qp && Tail == qp);
+    EvEmpty.Set(); // The only element => Set Event
   EvRead.Set();
   EvRead.Reset();
 }
@@ -102,7 +104,7 @@ void queue_base::Write(EntryBase* entry)
     Tail->Next = entry;
    else
   { Head = entry;
-    EvEmpty.Set(); // First Element => Set Event
+    EvEmpty.Set(); // First element => Set Event
   }
   Tail = entry;
 }
@@ -120,5 +122,31 @@ void queue_base::Write(EntryBase* entry, EntryBase* after)
     Tail = entry;
   // signal readers
   EvEmpty.Set();
+}
+
+queue_base::EntryBase* queue_base::Purge()
+{ DEBUGLOG(("queue_base(%p)::Purge() - %p, %p\n", this, Head, Tail));
+  EntryBase* rhead = NULL;
+  // extract all inactive entries into queue rhead
+  Mutex::Lock lock(Mtx);
+  Tail = NULL; // may be overwritten below
+  EntryBase** epp = &Head;
+  for (;;)
+  { EntryBase* ep = *epp;
+    if (ep == NULL)
+      break;
+    if (ep->ReadActive)
+      Tail = ep; // Tail will stay at the last non-removed entry.
+    else
+    { // unlink queue entry
+      *epp = ep->Next;
+      // enqueue (reversely) to rhead
+      ep->Next = rhead;
+      rhead = ep;
+    }
+    // next entry
+    epp = &ep->Next;
+  }
+  return rhead;
 }
 

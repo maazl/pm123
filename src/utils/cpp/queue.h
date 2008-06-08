@@ -60,6 +60,7 @@ class queue_base
  protected:
   void       Write(EntryBase* entry);
   void       Write(EntryBase* entry, EntryBase* after);
+  EntryBase* Purge();
 };
 
 template <class T>
@@ -99,30 +100,11 @@ class queue : public queue_base
 
 template <class T>
 void queue<T>::Purge()
-{ DEBUGLOG(("queue<T>(%p)::Purge() - %p %p %u\n", this, Head, Tail, EvRead.IsSet())); 
-  if (Head == NULL)
-    return;
-  qentry* ep;
-  { Mutex::Lock lock(Mtx);
-    ep = (qentry*)Head;
-    if (ep == NULL)
-      return;
-    ep = (qentry*)ep->Next;
-    if (!EvRead.IsSet())
-    { // reader is active, keep the first element
-      Head->Next = NULL; // truncate
-    } else
-    { // reader is inactive, delete all
-      delete (qentry*)Head;
-      Head = NULL;
-    }
-    Tail = Head;
-    EvEmpty.Reset();
-  } // we do no longer need the Mutex
-  while (ep)
-  { qentry* ep2 = ep;
-    ep = (qentry*)ep->Next;
-    delete ep2;
+{ qentry* rhead = (qentry*)queue_base::Purge();
+  while (rhead)
+  { qentry* ep = rhead;
+    rhead = (qentry*)ep->Next;
+    delete ep;
   }
 }
 
