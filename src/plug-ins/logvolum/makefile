@@ -16,7 +16,7 @@ DEF      = logvolum$(LDEF_SUFFX)
 RESOURCE = logvolum$(RES)
 !endif
 
-logvolum.dll: $(OBJECTS) $(DEF) $(RESOURCE)
+logvolum.dll: $(OBJECTS) $(LIBS) $(DEF) $(RESOURCE)
 	$(CL) $(LFLAGS) $(LFLAGS_OUT)$@ $(LOBJ_PREFX)$(OBJECTS)$(LOBJ_SUFFX) $(LLIB_PREFX)$(LIBS)$(LLIB_SUFFX) $(LDEF_PREFX)$(DEF)
 !ifdef WITH_SOFT_VOLUME
 	$(RC) $(RFLAGS) $(RESOURCE) $@ > nul

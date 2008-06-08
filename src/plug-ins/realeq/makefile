@@ -14,7 +14,7 @@ LIBS     = $(TOPDIR)\utils\utilfct$(LBO) $(TOPDIR)\fft123\fft123$(LBI)
 DEF      = realeq$(LDEF_SUFFX)
 RESOURCE = realeq$(RES)
 
-realeq.dll: $(OBJECTS) $(DEF) $(RESOURCE)
+realeq.dll: $(OBJECTS) $(LIBS) $(DEF) $(RESOURCE)
 	$(CL) $(LFLAGS) $(LFLAGS_OUT)$@ $(LOBJ_PREFX)$(OBJECTS)$(LOBJ_SUFFX) $(LLIB_PREFX)$(LIBS)$(LLIB_SUFFX) $(LDEF_PREFX)$(DEF)
 	$(RC) $(RFLAGS) $(RESOURCE) $@ > nul
 	$(POSTLINKCMD)

@@ -15,6 +15,7 @@ all: vrb123.dll vrb123$(LBI) $(MDUMMY)
 
 vrb123.dll: $(OBJECTS) $(LIBS) $(DEF)
 	$(CL) $(LFLAGS) $(LFLAGS_OUT)$@ $(LOBJ_PREFX) $(OBJECTS) $(LIBS) $(LOBJ_SUFFX) $(LDEF_PREFX)$(DEF)
+	$(POSTLINKCMD)
 
 vrb123$(LBI): $(DEF)
 	$(LI) $(IFLAGS_OUT)$@ vrb123.dll

@@ -10,14 +10,15 @@ INCDIR   = $(INCDIR);$(TOPDIR)\ogg123\include
 !include $(TOPDIR)\config\makerules
 
 OBJECTS  = oggplay$(CO) vcedit$(CO)
-LIBS     = $(LIBS_UNI) $(TOPDIR)\utils\utilfct$(LBO) $(TOPDIR)\vrb123\vrb123$(LBI)
+LIBS     = $(TOPDIR)\utils\utilfct$(LBO) $(TOPDIR)\vrb123\vrb123$(LBI)
 LIBS     = $(LIBS) $(TOPDIR)\ogg123\ogg123$(LBI) $(TOPDIR)\xio123\xio123$(LBI)
 DEF      = oggplay$(LDEF_SUFFX)
+STDLIBS  = $(LIBS_UNI)
 
 all: oggplay.dll oggplay$(LBI) $(MDUMMY)
 
-oggplay.dll: $(OBJECTS) $(DEF)
-	$(CL) $(LFLAGS) $(LFLAGS_OUT)$@ $(LOBJ_PREFX)$(OBJECTS)$(LOBJ_SUFFX) $(LLIB_PREFX)$(LIBS)$(LLIB_SUFFX) $(LDEF_PREFX)$(DEF)
+oggplay.dll: $(OBJECTS) $(LIBS) $(DEF)
+	$(CL) $(LFLAGS) $(LFLAGS_OUT)$@ $(LOBJ_PREFX)$(OBJECTS)$(LOBJ_SUFFX) $(LLIB_PREFX)$(LIBS) $(STDLIBS)$(LLIB_SUFFX) $(LDEF_PREFX)$(DEF)
 
 oggplay$(LBI): $(DEF)
 	$(LI) $(IFLAGS_OUT)$@ oggplay.dll

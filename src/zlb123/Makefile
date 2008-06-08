@@ -15,8 +15,9 @@ DEF     = zlib$(LDEF_SUFFX)
 
 all: zlb123.dll zlb123$(LBI) $(MDUMMY)
 
-zlb123.dll: $(OBJECTS) $(DEF)
+zlb123.dll: $(OBJECTS) $(LIBS) $(DEF)
 	$(CL) $(LFLAGS) $(LFLAGS_OUT)$@ $(LOBJ_PREFX)$(OBJECTS)$(LOBJ_SUFFX) $(LLIB_PREFX)$(LIBS)$(LLIB_SUFFX) $(LDEF_PREFX)$(DEF)
+	$(POSTLINKCMD)
 
 zlb123$(LBI): zlb123.dll $(DEF)
 	$(LI) $(IFLAGS_OUT)$@ zlb123.dll

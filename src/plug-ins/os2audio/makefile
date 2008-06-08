@@ -10,12 +10,13 @@ TARGET   = os2audio.dll
 !include $(TOPDIR)\config\makerules
 
 OBJECTS  = os2audio$(CO)
-LIBS     = $(LIBS_MM) $(TOPDIR)\utils\utilfct$(LBO)
+LIBS     = $(TOPDIR)\utils\utilfct$(LBO)
 DEF      = os2audio$(LDEF_SUFFX)
 RESOURCE = os2audio$(RES)
+STDLIBS  = $(LIBS_MM)
 
-os2audio.dll: $(OBJECTS) $(DEF) $(RESOURCE)
-	$(CL) $(LFLAGS) $(LFLAGS_OUT)$@ $(LOBJ_PREFX)$(OBJECTS)$(LOBJ_SUFFX) $(LLIB_PREFX)$(LIBS)$(LLIB_SUFFX) $(LDEF_PREFX)$(DEF)
+os2audio.dll: $(OBJECTS) $(LIBS) $(DEF) $(RESOURCE)
+	$(CL) $(LFLAGS) $(LFLAGS_OUT)$@ $(LOBJ_PREFX)$(OBJECTS)$(LOBJ_SUFFX) $(LLIB_PREFX)$(LIBS) $(STDLIBS)$(LLIB_SUFFX) $(LDEF_PREFX)$(DEF)
 	$(RC) $(RFLAGS) $(RESOURCE) $@ > nul
 	$(POSTLINKCMD)
 

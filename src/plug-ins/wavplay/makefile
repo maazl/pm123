@@ -14,7 +14,7 @@ LIBS     = $(TOPDIR)\utils\utilfct$(LBO) $(TOPDIR)\snd123\snd123$(LBI)
 LIBS     = $(LIBS) $(TOPDIR)\xio123\xio123$(LBI)
 DEF      = wavplay$(LDEF_SUFFX)
 
-wavplay.dll: $(OBJECTS) $(DEF)
+wavplay.dll: $(OBJECTS) $(LIBS) $(DEF)
 	$(CL) $(LFLAGS) $(LFLAGS_OUT)$@ $(LOBJ_PREFX)$(OBJECTS) $(LIBS)$(LOBJ_SUFFX) $(LDEF_PREFX)$(DEF)
 	$(POSTLINKCMD)
 

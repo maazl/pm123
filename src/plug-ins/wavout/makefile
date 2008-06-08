@@ -10,12 +10,13 @@ TARGET   = wavout.dll
 !include $(TOPDIR)\config\makerules
 
 OBJECTS  = wavout$(CO)
-LIBS     = $(LIBS_MM) $(TOPDIR)\utils\utilfct$(LBO)
+LIBS     = $(TOPDIR)\utils\utilfct$(LBO)
 DEF      = wavout$(LDEF_SUFFX)
 RESOURCE = wavout$(RES)
+STDLIBS  = $(LIBS_MM)
 
-wavout.dll: $(OBJECTS) $(DEF) $(RESOURCE)
-	$(CL) $(LFLAGS) $(LFLAGS_OUT)$@ $(LOBJ_PREFX)$(OBJECTS)$(LOBJ_SUFFX) $(LLIB_PREFX)$(LIBS)$(LLIB_SUFFX) $(LDEF_PREFX)$(DEF)
+wavout.dll: $(OBJECTS) $(LIBS) $(DEF) $(RESOURCE)
+	$(CL) $(LFLAGS) $(LFLAGS_OUT)$@ $(LOBJ_PREFX)$(OBJECTS)$(LOBJ_SUFFX) $(LLIB_PREFX)$(LIBS) $(STDLIBS)$(LLIB_SUFFX) $(LDEF_PREFX)$(DEF)
 	$(RC) $(RFLAGS) $(RESOURCE) $@ > nul
 	$(POSTLINKCMD)
 
