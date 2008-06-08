@@ -117,7 +117,7 @@ static ULONG
 ogg_open( DECODER_STRUCT* w )
 {
   ov_callbacks callbacks;
-  DEBUGLOG(("oggplay:ogg_read(%p, %f, %i)\n", w, secs, origin));
+  DEBUGLOG(("oggplay:ogg_open(%p)\n", w));
   DosRequestMutexSem( w->mutex, SEM_INDEFINITE_WAIT );
 
   w->comment = NULL;
