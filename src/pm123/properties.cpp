@@ -69,10 +69,13 @@ const amp_cfg cfg_default =
   FALSE,
   FALSE,
   TRUE,
+  2,
+  
   1, // font
   FALSE,
   { sizeof(FATTRS), 0, 0, "System VIO", 0, 0, 12L, 5L, 0, 0 },
-  8,
+  10,
+  
   TRUE,
   FALSE, // float on top
   CFG_SCROLL_INFINITE,
@@ -89,8 +92,6 @@ const amp_cfg cfg_default =
   "",
   "",
   "",
-  "",
-  FALSE, // EQ
   100, // volume
   CFG_MODE_REGULAR,
   FALSE,

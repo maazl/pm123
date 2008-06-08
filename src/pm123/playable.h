@@ -255,7 +255,8 @@ class Playable
 
  private:
   static worker_queue      WQueue;
-  static int               WTid;          // Thread ID of the worker
+  static int*              WTids;         // Thread IDs of the workers (type int[])
+  static size_t            WNumWorkers;   // number of workers in the above list
   static bool              WTermRq;       // Termination Request to Worker
 
  private:

@@ -73,6 +73,7 @@ load_ini( void )
     load_ini_value( INIhandle, cfg.append_dnd );
     load_ini_value( INIhandle, cfg.append_cmd );
     load_ini_value( INIhandle, cfg.queue_mode );
+    load_ini_value( INIhandle, cfg.num_workers );
     load_ini_value( INIhandle, cfg.mode );
     load_ini_value( INIhandle, cfg.font );
     load_ini_value( INIhandle, cfg.trash );
@@ -88,7 +89,6 @@ load_ini( void )
     load_ini_value( INIhandle, cfg.pipe_name );
     load_ini_value( INIhandle, cfg.add_recursive );
     load_ini_value( INIhandle, cfg.save_relative );
-    load_ini_value( INIhandle, cfg.eq_enabled );
     load_ini_value( INIhandle, cfg.show_playlist );
     load_ini_value( INIhandle, cfg.show_bmarks );
     load_ini_value( INIhandle, cfg.show_plman );
@@ -190,6 +190,7 @@ save_ini( void )
     save_ini_value( INIhandle, cfg.append_dnd );
     save_ini_value( INIhandle, cfg.append_cmd );
     save_ini_value( INIhandle, cfg.queue_mode );
+    save_ini_value( INIhandle, cfg.num_workers );
     save_ini_value( INIhandle, cfg.mode );
     save_ini_value( INIhandle, cfg.font );
     save_ini_value( INIhandle, cfg.trash );
@@ -205,7 +206,6 @@ save_ini( void )
     save_ini_value( INIhandle, cfg.pipe_name );
     save_ini_value( INIhandle, cfg.add_recursive );
     save_ini_value( INIhandle, cfg.save_relative );
-    save_ini_value( INIhandle, cfg.eq_enabled );
     save_ini_value( INIhandle, cfg.show_playlist );
     save_ini_value( INIhandle, cfg.show_bmarks );
     save_ini_value( INIhandle, cfg.show_plman );
@@ -222,7 +222,6 @@ save_ini( void )
     save_ini_string( INIhandle, cfg.proxy );
     save_ini_string( INIhandle, cfg.auth );
     save_ini_string( INIhandle, cfg.defskin );
-    save_ini_string( INIhandle, cfg.lasteq  );
 
     b = create_bufstream( 1024 );
     save_decoders( b );

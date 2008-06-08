@@ -81,6 +81,7 @@ typedef struct _amp_cfg {
   BOOL   append_dnd;          // Drag and drop appends to default playlist
   BOOL   append_cmd;          // Commandline appends to default playlist
   BOOL   queue_mode;          // Delete played items from the default playlist
+  int    num_workers;         // Number of worker threads for Playable objects
                                 
   int    font;                // Use font 1 or font 2.
   BOOL   font_skinned;        // Use skinned font.
@@ -105,9 +106,6 @@ typedef struct _amp_cfg {
   char   filedir[_MAX_PATH];  /* The last directory used for addition of files.    */
   char   listdir[_MAX_PATH];  /* The last directory used for access to a playlist. */
   char   savedir[_MAX_PATH];  /* The last directory used for saving a stream.      */
-  char   lasteq [_MAX_PATH];  /* The last directory used for saving a state of an  */
-                              /* equalizer.                                        */
-  BOOL   eq_enabled;          /* Is the equalizer enabled.              */
 
   int    defaultvol;          /* Current audio volume.                  */
   int    mode;                /* See CFG_MODE_*                         */

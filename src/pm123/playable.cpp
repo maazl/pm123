@@ -32,6 +32,7 @@
 #include "playable.h"
 #include "plugman.h"
 #include "pm123.h"
+#include "properties.h"
 #include <string.h>
 
 #include <debuglog.h>
@@ -158,15 +159,6 @@ Playable::Playable(const url123& url, const DECODER_INFO2* ca)
 
 Playable::~Playable()
 { DEBUGLOG(("Playable(%p{%s})::~Playable()\n", this, URL.cdata()));
-  /*// Deregister from repository automatically
-  { Mutex::Lock lock(RPMutex);
-    #ifdef DEBUG
-    for (const Playable*const* ppp = RPInst.begin(); ppp != RPInst.end(); ++ppp)
-      DEBUGLOG(("Playable::~Playable: DUMP %p{%s}\n", *ppp, (*ppp)->GetURL().cdata())); 
-    #endif
-    XASSERT(RPInst.erase(URL), != NULL);
-  }*/
-  DEBUGLOG(("Playable::~Playable done\n"));
 }
 
 /* Returns true if the specified file is a playlist file. */
@@ -340,9 +332,9 @@ void Playable::worker_queue::CommitRead(qentry* qp)
   if (HPTail == qp)
     HPTail = qp->Next;
   queue<QEntry>::CommitRead(qp);
-  #ifdef DEBUG
+  /*#ifdef DEBUG
   DumpQ();
-  #endif
+  #endif*/
 }
 
 void Playable::worker_queue::Write(const QEntry& data, bool lowpri)
@@ -357,9 +349,9 @@ void Playable::worker_queue::Write(const QEntry& data, bool lowpri)
     queue_base::Write(newitem, HPTail);
     HPTail = newitem;
   }
-  #ifdef DEBUG
+  /*#ifdef DEBUG
   DumpQ();
-  #endif
+  #endif*/
 }
 
 #ifdef DEBUG
@@ -374,7 +366,8 @@ void Playable::worker_queue::DumpQ() const
 #endif
 
 Playable::worker_queue Playable::WQueue;
-int     Playable::WTid        = -1;
+int*    Playable::WTids       = NULL;
+size_t  Playable::WNumWorkers = 0;
 bool    Playable::WTermRq     = false;
 clock_t Playable::LastCleanup = 0;
 
@@ -385,7 +378,8 @@ static void PlayableWorker(void*)
     DEBUGLOG(("PlayableWorker received message %p %p\n", qp, qp->Data.get()));
 
     if (Playable::WTermRq || !qp->Data) // stop
-    { Playable::WQueue.CommitRead(qp);
+    { // leave the deadly pill for the next thread
+      Playable::WQueue.RollbackRead(qp);
       break;
     }
     
@@ -403,11 +397,15 @@ static void PlayableWorker(void*)
 
 void Playable::Init()
 { DEBUGLOG(("Playable::Init()\n"));
-  // start the worker
-  ASSERT(WTid == -1);
+  // start the worker threads
+  ASSERT(WTids == NULL);
   WTermRq = false;
-  WTid = _beginthread(&PlayableWorker, NULL, 65536, NULL);
-  ASSERT(WTid != -1);
+  WNumWorkers = cfg.num_workers; // sample this atomically
+  WTids = new int[WNumWorkers];
+  for (int* tidp = WTids + WNumWorkers; tidp != WTids; )
+  { *--tidp = _beginthread(&PlayableWorker, NULL, 65536, NULL);
+    ASSERT(*tidp != -1);
+  }
 }
 
 void Playable::Uninit()
@@ -415,8 +413,11 @@ void Playable::Uninit()
   WTermRq = true;
   WQueue.Purge();
   WQueue.Write(NULL, false); // deadly pill
-  if (WTid != -1)
-    wait_thread_pm(amp_player_hab(), WTid, 60000);
+  // syncronize worker threads
+  for (int* tidp = WTids + WNumWorkers; tidp != WTids; )
+    wait_thread_pm(amp_player_hab(), *--tidp, 60000);
+  // Now remove the deadly pill from the queue
+  WQueue.Purge();
   // destroy all remaining instances immediately
   LastCleanup = clock();
   Cleanup();
