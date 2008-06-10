@@ -536,8 +536,8 @@ const PlayableCollection::CollectionInfo& PlayableCollection::GetCollectionInfo(
   // If we do not own the mutex so far we ensure some information on sub items
   // before we request access to the mutex to avoid deadlocks.
   // If we already own the mutex it makes no difference anyway.
-  /*if (cic == NULL && Mtx.GetStatus() != Mutex::Mine)
-    PrefetchSubInfo(excluding);*/
+  if (cic == NULL && Mtx.GetStatus() != Mutex::Mine)
+    PrefetchSubInfo(excluding);
   // Lock the collection
   Mutex::Lock lock(Mtx);
   if (cic == NULL) // double check below
@@ -556,6 +556,7 @@ const PlayableCollection::CollectionInfo& PlayableCollection::GetCollectionInfo(
     return cic->Info;
   }
   DEBUGLOG(("PlayableCollection::GetCollectionInfo LOAD: %x %x\n", cic->Valid, what));
+  cic->Info.Reset();
     
   // (re)create information
   EnsureInfo(IF_Other);

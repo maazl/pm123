@@ -722,8 +722,7 @@ void amp_info_event(info_edit* iep, const Playable::change_args& args)
 }
 
 /* Edits a ID3 tag for the specified file. */
-void
-amp_info_edit( HWND owner, Playable* song )
+void amp_info_edit( HWND owner, Playable* song )
 { DEBUGLOG(("amp_info_edit(%x, %p)\n", owner, song));
   info_edit* iep = new info_edit(owner, song);
   // At least we need the decoder to process this request.
@@ -734,6 +733,13 @@ amp_info_edit( HWND owner, Playable* song )
   }
 }
 
+/* set alternate navigation status to 'alt'. */
+static void amp_set_alt_slider(bool alt)
+{ if (is_pl_slider != alt);
+  { is_pl_slider = alt;
+    amp_invalidate(UPD_TIMERS);
+  }
+}
 
 /* Processes messages of the player client window. */
 static MRESULT EXPENTRY
@@ -748,6 +754,9 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
       is_have_focus = SHORT1FROMMP( mp2 );
       bmp_draw_led( hps, is_have_focus  );
       WinReleasePS( hps );
+      // return to basic slider behaviour when focus is lost
+      if (!is_have_focus)
+        amp_set_alt_slider(false);
       break;
     }
 
@@ -979,7 +988,6 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
           // initiate delayed paint
           if( upd_options )
             WinPostMsg( hwnd, AMP_PAINT, MPFROMLONG(-1), 0 );
-
         }
         DEBUGLOG2(("amp_dlg_proc: WM_TIMER done\n"));
         return 0;
@@ -1390,8 +1398,10 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
       return 0;
 
     case WM_CHAR:
-    { USHORT fsflags = SHORT1FROMMP(mp1);
-      DEBUGLOG(("amp_dlg_proc: WM_CHAR: %x, %u, %u, %x, %x\n", fsflags, SHORT2FROMMP(mp1)&0xff, SHORT2FROMMP(mp1)>>8, SHORT1FROMMP(mp2), SHORT2FROMMP(mp2)));
+    { // Force heap dumps by the D key
+      USHORT fsflags = SHORT1FROMMP(mp1);
+      DEBUGLOG(("amp_dlg_proc: WM_CHAR: %x, %u, %u, %x, %x\n", fsflags,
+        SHORT2FROMMP(mp1)&0xff, SHORT2FROMMP(mp1)>>8, SHORT1FROMMP(mp2), SHORT2FROMMP(mp2)));
       if (fsflags & KC_VIRTUALKEY)
       { switch (SHORT2FROMMP(mp2))
         {case VK_ESC:
@@ -1400,18 +1410,9 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
             is_seeking     = FALSE;
           }
           break;
-         /*case VK_ALT:
-         case VK_ALTGRAF:*/
-         case VK_CTRL:
-          if (is_pl_slider != !(fsflags & KC_KEYUP));
-          { is_pl_slider = !(fsflags & KC_KEYUP);
-            amp_invalidate(UPD_TIMERS);
-          }
-          break;
         }
       }
       #ifdef __DEBUG_ALLOC__
-      // Force heap dumps by the D key
       if ((fsflags & (KC_CHAR|KC_ALT|KC_CTRL)) == (KC_CHAR) && toupper(SHORT1FROMMP(mp2)) == 'D')
       { if (fsflags & KC_SHIFT)
           _dump_allocated_delta(0);
@@ -1422,6 +1423,25 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
       break;
     }
     
+    case WM_TRANSLATEACCEL:
+    { /* WM_CHAR with VK_ALT and KC_KEYUP does not survive this message, so we catch it before. */
+      QMSG* pqmsg = (QMSG*)mp1;
+      DEBUGLOG(("amp_dlg_proc: WM_TRANSLATEACCEL: %x, %x, %x\n", pqmsg->msg, pqmsg->mp1, pqmsg->mp2));
+      if (pqmsg->msg == WM_CHAR)
+      { USHORT fsflags = SHORT1FROMMP(pqmsg->mp1);
+        if (fsflags & KC_VIRTUALKEY)
+        { switch (SHORT2FROMMP(pqmsg->mp2))
+          {case VK_ALT:
+           case VK_ALTGRAF:
+           //case VK_CTRL:
+            amp_set_alt_slider(!(fsflags & KC_KEYUP));
+            break;
+          }
+        }
+      }
+      break;
+    }
+
     case AMP_SLIDERDRAG:
     if (is_slider_drag)
     { // get position
