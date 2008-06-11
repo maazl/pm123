@@ -260,6 +260,8 @@ class PlayableCollection : public Playable
   // The object list is implemented as a doubly linked list to keep the iterators valid on modifications.
   int_ptr<Entry> Head;
   int_ptr<Entry> Tail;
+  bool                        Modified;
+
  private:
   // Cache mit subenumeration infos
   // This object is protected by a critical section.
@@ -306,9 +308,7 @@ class PlayableCollection : public Playable
   virtual Flags               GetFlags() const;
   // Check whether the current Collection is a modified shadow of a unmodified backend.
   // Calling Save() will turn the state into unmodified.
-  // The default implementation of this class will always return false.
-  // This is the behaviour of a read-only or a synchronized collection.
-  virtual bool                IsModified() const;
+  bool                        IsModified() const { return Modified; }
 
   // Iterate over the collection. While the following functions are atomic and therefore thread-safe
   // the iteration itself is not because the collection may change at any time.
@@ -337,6 +337,26 @@ class PlayableCollection : public Playable
   // Load Information from URL
   // This implementation is only the framework. It reqires LoadInfoCore() for it's work.
   virtual InfoFlags           LoadInfo(InfoFlags what);
+
+  // Insert a new item before the item "before".
+  // If the prameter before is NULL the item is appended.
+  // The funtion fails with returning false if and only if the PlayableInstance before is no longer valid.
+  virtual bool                InsertItem(const PlayableSlice& item, PlayableInstance* before = NULL);
+  // Move an item inside the list.
+  // If the prameter before is NULL the item is moved to the end.
+  // The funtion fails with returning false if and only if one of the PlayableInstances is no longer valid.
+  virtual bool                MoveItem(PlayableInstance* item, PlayableInstance* before);
+  // Remove an item from the playlist.
+  // Attension: passing NULL as argument will remove all items.
+  // The funtion fails with returning false if and only if the PlayableInstance is no longer valid.
+  virtual bool                RemoveItem(PlayableInstance* item);
+  // Remove all items from the playlist.
+  void                        Clear() { RemoveItem(NULL); }
+  // Sort all items with a comparer.
+  virtual void                Sort(ItemComparer comp);
+  // Randomize record sequence.
+  virtual void                Shuffle();
+
   // Save the current playlist as new file.
   // If the destination name is omitted, the data is saved under the current URL.
   // However this might not succeed, if the URL is read-only.
@@ -388,9 +408,6 @@ class Playlist : public PlayableCollection
   };
 
  private:
-  bool                        Modified;
-
- private:
   // Loads the PM123 native playlist file.
   bool                        LoadLST(XFILE* x);
   // Loads the WarpAMP playlist file.
@@ -402,31 +419,10 @@ class Playlist : public PlayableCollection
   virtual bool                LoadList();
  public:
   Playlist(const url123& URL, const DECODER_INFO2* ca = NULL)
-   : PlayableCollection(URL, ca), Modified(false) { DEBUGLOG(("Playlist(%p)::Playlist(%s, %p)\n", this, URL.cdata(), ca)); }
+   : PlayableCollection(URL, ca) { DEBUGLOG(("Playlist(%p)::Playlist(%s, %p)\n", this, URL.cdata(), ca)); }
   // Get attributes
   virtual Flags               GetFlags() const;
-  // Check whether the current Collection is a modified shadow of a unmodified backend.
-  // Calling Save() will turn the state into unmodified.
-  virtual bool                IsModified() const;
 
-  // Insert a new item before the item "before".
-  // If the prameter before is NULL the item is appended.
-  // The funtion fails with returning false if and only if the PlayableInstance before is no longer valid.
-  virtual bool                InsertItem(const PlayableSlice& item, PlayableInstance* before = NULL);
-  // Move an item inside the list.
-  // If the prameter before is NULL the item is moved to the end.
-  // The funtion fails with returning false if and only if one of the PlayableInstances is no longer valid.
-  virtual bool                MoveItem(PlayableInstance* item, PlayableInstance* before);
-  // Remove an item from the playlist.
-  // Attension: passing NULL as argument will remove all items.
-  // The funtion fails with returning false if and only if the PlayableInstance is no longer valid.
-  virtual bool                RemoveItem(PlayableInstance* item);
-  // Remove all items from the playlist.
-  void                        Clear() { RemoveItem(NULL); }
-  // Sort all items with a comparer.
-  virtual void                Sort(ItemComparer comp);
-  // Randomize record sequence.
-  virtual void                Shuffle();
   // Save the current playlist as new file.
   virtual bool                Save(const url123& URL, save_options opt = SaveDefault);
   // There is no using... in IBM VAC++
@@ -448,6 +444,8 @@ class PlayFolder : public PlayableCollection
 
  private:
   void                        ParseQueryParams();
+  static int                  CompName(const PlayableInstance* l, const PlayableInstance* r);
+  static int                  CompNameFoldersFirst(const PlayableInstance* l, const PlayableInstance* r);
  public:
   PlayFolder(const url123& URL, const DECODER_INFO2* ca = NULL);
   virtual bool                LoadList();

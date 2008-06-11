@@ -754,7 +754,7 @@ void PlaylistBase::UpdateChildren(RecordBase* const rp)
 
   { // Now check what should be in the container
     DEBUGLOG(("PlaylistBase::UpdateChildren - check container.\n"));
-    Mutex::Lock lock(pp->Mtx); // Lock the collection
+    Playable::Lock lock(*pp); // Lock the collection
     int_ptr<PlayableInstance> pi;
     crp = NULL; // Last entry, insert new items after that.
     while ((pi = ((PlayableCollection*)pp)->GetNext(pi)) != NULL)
@@ -993,7 +993,7 @@ static void DLLENTRY UserAddCallback(void* param, const char* url)
     return; // Can't add something to a non-playlist.
   // On the first call lock the Playlist until the wizzard returns.
   if (ucp.Lock == NULL)
-    ucp.Lock = new Mutex::Lock(pp->Mtx);
+    ucp.Lock = new Playable::Lock(*pp);
   ((Playlist*)pp)->InsertItem(PlayableSlice(Playable::GetByURL(url)), ucp.Before ? ucp.Before->Data->Content.get() : NULL);
 }
 

@@ -98,7 +98,7 @@ class PlaylistBase
   { PlaylistBase* GUI;
     PlaylistBase::RecordBase* Parent;
     PlaylistBase::RecordBase* Before;
-    sco_ptr<Mutex::Lock> Lock;
+    sco_ptr<Playable::Lock> Lock;
     UserAddCallbackParams(PlaylistBase* gui, PlaylistBase::RecordBase* parent, PlaylistBase::RecordBase* before)
     : GUI(gui),
       Parent(parent),

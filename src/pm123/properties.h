@@ -78,6 +78,8 @@ typedef struct _amp_cfg {
   BOOL   retainonstop;        // Retain playing position on stop.
   int    altnavig;            // Alternate navigation method 0=song only, 1=song&time, 2=time only
   BOOL   recurse_dnd;         // Drag and drop of folders recursive
+  BOOL   sort_folders;        // Automatically sort filesystem folders (by name)
+  BOOL   folders_first;       // Place subfolders before content
   BOOL   append_dnd;          // Drag and drop appends to default playlist
   BOOL   append_cmd;          // Commandline appends to default playlist
   BOOL   queue_mode;          // Delete played items from the default playlist

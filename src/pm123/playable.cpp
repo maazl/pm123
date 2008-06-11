@@ -50,6 +50,12 @@
 *
 ****************************************************************************/
 
+Playable::Lock::~Lock()
+{ if (P.Mtx.GetStatus() == 1)
+    P.RaiseInfoChange();
+  P.Mtx.Release();
+}
+
 const Playable::DecoderInfo Playable::DecoderInfo::InitialInfo;
 
 void Playable::DecoderInfo::Init()
@@ -178,7 +184,7 @@ Playable::Flags Playable::GetFlags() const
 
 void Playable::SetInUse(bool used)
 { DEBUGLOG(("Playable(%p{%s})::SetInUse(%u)\n", this, URL.cdata(), used));
-  Mutex::Lock lock(Mtx);
+  Lock lock(*this);
   if (Stat <= STA_Invalid)
     return; // can't help
   UpdateStatus(used ? STA_Used : STA_Normal);
@@ -265,22 +271,20 @@ void Playable::UpdateStatus(PlayableStatus stat)
 }
 
 void Playable::RaiseInfoChange()
-{ ASSERT(Mtx.GetStatus() == Mutex::Mine);
+{ DEBUGLOG(("Playable(%p)::RaiseInfoChange()\n", this));
   if (InfoChangeFlags)
     InfoChange(change_args(*this, InfoChangeFlags));
   InfoChangeFlags = IF_None;
 }
 
 void Playable::SetMetaInfo(const META_INFO* meta)
-{ Mutex::Lock lock(Mtx);
+{ Lock lock(*this);
   UpdateInfo(meta);
-  RaiseInfoChange();
 }
 
 void Playable::SetTechInfo(const TECH_INFO* tech)
-{ Mutex::Lock lock(Mtx);
+{ Lock lock(*this);
   UpdateInfo(tech);
-  RaiseInfoChange();
 }
 
 Playable::InfoFlags Playable::LoadInfo(InfoFlags what)
@@ -297,7 +301,7 @@ void Playable::EnsureInfo(InfoFlags what)
 { DEBUGLOG(("Playable(%p{%s})::EnsureInfo(%x) - %x\n", this, GetURL().getShortName().cdata(), what, InfoValid));
   InfoFlags i = CheckInfo(what);
   if (i)
-  { Mutex::Lock lock(Mtx);
+  { Lock lock(*this);
     i = CheckInfo(what);
     if (i) // double check
       LoadInfo(i);
@@ -484,7 +488,7 @@ int_ptr<Playable> Playable::GetByURL(const url123& URL, const DECODER_INFO2* ca)
       || (ca->phys   && !(pp->InfoValid & IF_Phys  ))
       || (ca->rpl    && !(pp->InfoValid & IF_Rpl   )) )
     { // Merge meta info
-      Mutex::Lock lock(pp->Mtx);
+      Lock lock(*pp);
       if (ca->format && !(pp->InfoValid & IF_Format))
         pp->UpdateInfo(ca->format);
       if (ca->tech   && !(pp->InfoValid & IF_Tech  ))
@@ -495,7 +499,6 @@ int_ptr<Playable> Playable::GetByURL(const url123& URL, const DECODER_INFO2* ca)
         pp->UpdateInfo(ca->phys);
       if (ca->rpl    && !(pp->InfoValid & IF_Rpl   ))
         pp->UpdateInfo(ca->rpl);
-      pp->RaiseInfoChange();
     }
   }
   return pp;
@@ -604,7 +607,7 @@ Playable::InfoFlags Song::LoadInfo(InfoFlags what)
 { DEBUGLOG(("Song(%p)::LoadInfo() - %s\n", this, Decoder));
   // get information
   sco_ptr<DecoderInfo> info(new DecoderInfo()); // a bit much for the stack
-  Mutex::Lock lock(Mtx);
+  Lock lock(*this);
   INFOTYPE what2 = (INFOTYPE)what; // incompatible type
   int rc = dec_fileinfo(GetURL(), &what2, info.get(), Decoder, sizeof Decoder);
   PlayableStatus stat;
@@ -620,7 +623,6 @@ Playable::InfoFlags Song::LoadInfo(InfoFlags what)
   UpdateStatus(stat);
   UpdateInfo(info.get());
   InfoValid |= what;
-  RaiseInfoChange();
   return Playable::LoadInfo(what);
 }
 

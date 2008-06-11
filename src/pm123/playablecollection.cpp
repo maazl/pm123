@@ -32,6 +32,7 @@
 //#include "plugman.h"
 #include "playablecollection.h"
 #include "songiterator.h"
+#include "properties.h"
 #include "123_util.h"
 #include "copyright.h"
 #include <xio.h>
@@ -302,6 +303,7 @@ Mutex PlayableCollection::CollectionInfoCacheMtx;
 
 PlayableCollection::PlayableCollection(const url123& URL, const DECODER_INFO2* ca)
 : Playable(URL, ca),
+  Modified(false),
   CollectionInfoCache(16)
 { DEBUGLOG(("PlayableCollection(%p)::PlayableCollection(%s, %p)\n", this, URL.cdata(), ca));
   // Always overwrite format info
@@ -337,10 +339,6 @@ PlayableCollection::~PlayableCollection()
 
 Playable::Flags PlayableCollection::GetFlags() const
 { return Enumerable;
-}
-
-bool PlayableCollection::IsModified() const
-{ return false;
 }
 
 PlayableCollection::Entry* PlayableCollection::CreateEntry(const char* url, const DECODER_INFO2* ca)
@@ -385,6 +383,8 @@ bool PlayableCollection::MoveEntry(Entry* entry, Entry* before)
     entry, entry->GetPlayable()->GetURL().getShortName().cdata(), entry->Prev.get(), entry->Next.get(), before, before ? before->GetPlayable()->GetURL().getShortName().cdata() : ""));
   if (entry == before || entry->Next == before)
     return false; // No-op
+  // Keep entry alive
+  int_ptr<Entry> keep = entry;
   // remove at old location
   if (entry->Prev)
     entry->Prev->Next = entry->Next;
@@ -536,10 +536,10 @@ const PlayableCollection::CollectionInfo& PlayableCollection::GetCollectionInfo(
   // If we do not own the mutex so far we ensure some information on sub items
   // before we request access to the mutex to avoid deadlocks.
   // If we already own the mutex it makes no difference anyway.
-  if (cic == NULL && Mtx.GetStatus() != Mutex::Mine)
+  if (cic == NULL && !IsMine())
     PrefetchSubInfo(excluding);
   // Lock the collection
-  Mutex::Lock lock(Mtx);
+  Lock lock(*this);
   if (cic == NULL) // double check below
   { // cache lookup
     // We have to protect the CollectionInfoCache additionally,
@@ -627,7 +627,7 @@ const PlayableCollection::CollectionInfo& PlayableCollection::GetCollectionInfo(
 
 Playable::InfoFlags PlayableCollection::LoadInfo(InfoFlags what)
 { DEBUGLOG(("PlayableCollection(%p{%s})::LoadInfo(%x) - %x %u\n", this, GetURL().getShortName().cdata(), what, InfoValid, Stat));
-  Mutex::Lock lock(Mtx);
+  Lock lock(*this);
 
   // Need list content to generate tech info
   if ((what & IF_Phys|IF_Tech) && !(InfoValid & IF_Other))
@@ -642,6 +642,10 @@ Playable::InfoFlags PlayableCollection::LoadInfo(InfoFlags what)
       stat = STA_Invalid;
     UpdateStatus(stat);
     strcpy(Decoder, "PM123.EXE");
+    if (Modified)
+    { InfoChangeFlags |= IF_Status;
+      Modified = false;
+    }
     InfoValid |= IF_Other;
     InfoChangeFlags |= IF_Other;
     what |= IF_Other|IF_Status;
@@ -696,8 +700,143 @@ Playable::InfoFlags PlayableCollection::LoadInfo(InfoFlags what)
   // default implementation to fullfill the minimum requirements of LoadInfo.
   InfoValid |= what;
   // raise InfoChange event?
-  RaiseInfoChange();
   return Playable::LoadInfo(what);
+}
+
+bool PlayableCollection::InsertItem(const PlayableSlice& item, PlayableInstance* before)
+{ DEBUGLOG(("PlayableCollection(%p{%s})::InsertItem(%s, %p) - %u\n", this, GetURL().getShortName().cdata(), item.DebugName().cdata(), before, Stat));
+  Lock lock(*this);
+  // Check whether the parameter before is still valid
+  if (before && !before->IsParent(this))
+    return false;
+  // point of no return...
+  Entry* ep = CreateEntry(item.GetPlayable()->GetURL());
+  ep->SetAlias(item.GetAlias());
+  if (item.GetStart())
+    ep->SetStart(new SongIterator(*item.GetStart()));
+  if (item.GetStop())
+    ep->SetStop(new SongIterator(*item.GetStop()));
+  if (Stat <= STA_Invalid)
+    UpdateStatus(STA_Normal);
+
+  if (before == NULL)
+    AppendEntry(ep);
+   else
+    InsertEntry(ep, (Entry*)before);
+
+  ++Info.phys->num_items;
+  InfoChangeFlags |= IF_Other|IF_Phys;
+  if (!Modified)
+  { InfoChangeFlags |= IF_Status;
+    Modified = true;
+  }
+  // update info
+  LoadInfoAsync(InfoValid & (IF_Tech|IF_Rpl));
+  // done!
+  return true;
+}
+
+bool PlayableCollection::MoveItem(PlayableInstance* item, PlayableInstance* before)
+{ DEBUGLOG(("PlayableCollection(%p{%s})::InsertItem(%p{%s}, %p{%s}) - %u\n", this, GetURL().getShortName().cdata(),
+    item, item->GetPlayable()->GetURL().cdata(), before ? before->GetPlayable()->GetURL().cdata() : ""));
+  Lock lock(*this);
+  // Check whether the parameter before is still valid
+  if (!item->IsParent(this) || (before && !before->IsParent(this)))
+    return false;
+  // Now move the entry.
+  MoveEntry((Entry*)item, (Entry*)before);
+  InfoChangeFlags |= IF_Other;
+  if (!Modified)
+  { InfoChangeFlags |= IF_Status;
+    Modified = true;
+  }
+  // done!
+  return true;
+}
+
+bool PlayableCollection::RemoveItem(PlayableInstance* item)
+{ DEBUGLOG(("PlayableCollection(%p{%s})::RemoveItem(%p{%s})\n", this, GetURL().getShortName().cdata(),
+    item, item ? item->GetPlayable()->GetURL().cdata() : ""));
+  Lock lock(*this);
+  // Check whether the item is still valid
+  if (item && !item->IsParent(this))
+    return false;
+  // now detach the item from the container
+  if (item)
+    RemoveEntry((Entry*)item);
+  else
+  { if (!Head)
+      return true; // early exit without change flag
+    do
+    { RemoveEntry(Head);
+      DEBUGLOG(("PlayableCollection::RemoveItem - %p\n", Head.get()));
+    } while (Head);
+  }
+
+  --Info.phys->num_items;
+  InfoChangeFlags |= IF_Other|IF_Phys;
+  if (!Modified)
+  { InfoChangeFlags |= IF_Status;
+    Modified = true;
+  }
+  // update tech info
+  LoadInfoAsync(InfoValid & (IF_Tech|IF_Rpl));
+  DEBUGLOG(("PlayableCollection::RemoveItem: done\n"));
+  return true;
+}
+
+void PlayableCollection::Sort(ItemComparer comp)
+{ DEBUGLOG(("PlayableCollection(%p)::Sort(%p)\n", this, comp));
+  Lock lock(*this);
+  if (Head == Tail)
+    return; // Empty or one element lists are always sorted.
+  // Create index array
+  vector<PlayableInstance> index(64);
+  Entry* ep = Head;
+  do
+  { index.append() = ep;
+    ep = ep->Next;
+  } while (ep);
+  // Sort index array
+  merge_sort(index.begin(), index.end(), comp);
+  // Adjust item sequence
+  ep = Head;
+  bool changed = false;
+  for (PlayableInstance** ipp = index.begin(); ipp != index.end(); ++ipp)
+  { changed |= MoveEntry((Entry*)*ipp, ep);
+    ep = ((Entry*)*ipp)->Next;
+  }
+  // done
+  if (changed)
+  { InfoChangeFlags |= IF_Other;
+    if (!Modified)
+    { InfoChangeFlags |= IF_Status;
+      Modified = true;
+  } }
+  DEBUGLOG(("PlayableCollection::Sort: done\n"));
+}
+
+void PlayableCollection::Shuffle()
+{ DEBUGLOG(("PlayableCollection(%p)::Shuffle()\n", this));
+  Lock lock(*this);
+  if (Head == Tail)
+    return; // Empty or one element lists are always sorted.
+  // move records randomly to the beginning or the end.
+  Entry* current = Head;
+  bool changed = false;
+  do
+  { Entry* next = current->Next;
+    changed |= MoveEntry(current, rand() & 1 ? Head.get() : NULL);
+    current = next;
+  } while (current);
+  // done
+  if (changed)
+  { InfoChangeFlags |= IF_Other;
+    if (!Modified)
+    { InfoChangeFlags |= IF_Status;
+      Modified = true;
+  } }
+  DEBUGLOG(("PlayableCollection::Shuffle: done\n"));
 }
 
 bool PlayableCollection::SaveLST(XFILE* of, bool relative)
@@ -709,7 +848,7 @@ bool PlayableCollection::SaveLST(XFILE* of, bool relative)
             "# Lines starting with '>' are used for optimization.\n"
             "#\n", of);
   // Content
-  Mutex::Lock lock(Mtx);
+  Lock lock(*this);
   int_ptr<PlayableInstance> pi;
   while ((pi = GetNext(pi)) != NULL)
   { Playable* pp = pi->GetPlayable();
@@ -814,7 +953,7 @@ bool PlayableCollection::SaveLST(XFILE* of, bool relative)
 
 bool PlayableCollection::SaveM3U(XFILE* of, bool relative)
 { DEBUGLOG(("PlayableCollection(%p{%s})::SaveM3U(%p, %u)\n", this, GetURL().cdata(), of, relative));
-  Mutex::Lock lock(Mtx);
+  Lock lock(*this);
   int_ptr<PlayableInstance> pi;
   while ((pi = GetNext(pi)) != NULL)
   { Playable* pp = pi->GetPlayable();
@@ -1022,10 +1161,6 @@ Playable::Flags Playlist::GetFlags() const
 { return Mutable;
 }
 
-bool Playlist::IsModified() const
-{ return Modified;
-}
-
 bool Playlist::LoadLST(XFILE* x)
 { DEBUGLOG(("Playlist(%p{%s})::LoadLST(%p)\n", this, GetURL().getShortName().cdata(), x));
 
@@ -1168,160 +1303,7 @@ bool Playlist::LoadList()
     // Write phys
     UpdateInfo(&phys);
   }
-  if (Modified)
-  { InfoChangeFlags |= IF_Status;
-    Modified = false;
-  }
   return rc;
-}
-
-bool Playlist::InsertItem(const PlayableSlice& item, PlayableInstance* before)
-{ DEBUGLOG(("Playlist(%p{%s})::InsertItem(%s, %p) - %u\n", this, GetURL().getShortName().cdata(), item.DebugName().cdata(), before, Stat));
-  Mutex::Lock lock(Mtx);
-  // Check whether the parameter before is still valid
-  if (before && !before->IsParent(this))
-    return false;
-  // point of no return...
-  Entry* ep = CreateEntry(item.GetPlayable()->GetURL());
-  ep->SetAlias(item.GetAlias());
-  if (item.GetStart())
-    ep->SetStart(new SongIterator(*item.GetStart()));
-  if (item.GetStop())
-    ep->SetStop(new SongIterator(*item.GetStop()));
-  if (Stat <= STA_Invalid)
-    UpdateStatus(STA_Normal);
-
-  if (before == NULL)
-    AppendEntry(ep);
-   else
-    InsertEntry(ep, (Entry*)before);
-
-  ++Info.phys->num_items;
-  InfoChangeFlags |= IF_Other|IF_Phys;
-  if (!Modified)
-  { InfoChangeFlags |= IF_Status;
-    Modified = true;
-  }
-  // update info
-  LoadInfoAsync(InfoValid & (IF_Tech|IF_Rpl));
-  // raise InfoChange event?
-  RaiseInfoChange();
-  // done!
-  return true;
-}
-
-bool Playlist::MoveItem(PlayableInstance* item, PlayableInstance* before)
-{ DEBUGLOG(("Playlist(%p{%s})::InsertItem(%p{%s}, %p{%s}) - %u\n", this, GetURL().getShortName().cdata(),
-    item, item->GetPlayable()->GetURL().cdata(), before ? before->GetPlayable()->GetURL().cdata() : ""));
-  Mutex::Lock lock(Mtx);
-  // Check whether the parameter before is still valid
-  if (!item->IsParent(this) || (before && !before->IsParent(this)))
-    return false;
-  // Now move the entry.
-  MoveEntry((Entry*)item, (Entry*)before);
-  InfoChangeFlags |= IF_Other;
-  if (!Modified)
-  { InfoChangeFlags |= IF_Status;
-    Modified = true;
-  }
-  // raise InfoChange event?
-  RaiseInfoChange();
-  // done!
-  return true;
-}
-
-bool Playlist::RemoveItem(PlayableInstance* item)
-{ DEBUGLOG(("Playlist(%p{%s})::RemoveItem(%p{%s})\n", this, GetURL().getShortName().cdata(),
-    item, item ? item->GetPlayable()->GetURL().cdata() : ""));
-  Mutex::Lock lock(Mtx);
-  // Check whether the item is still valid
-  if (item && !item->IsParent(this))
-    return false;
-  // now detach the item from the container
-  if (item)
-    RemoveEntry((Entry*)item);
-  else
-  { if (!Head)
-      return true; // early exit without change flag
-    do
-    { RemoveEntry(Head);
-      DEBUGLOG(("Playlist::RemoveItem - %p\n", Head.get()));
-    } while (Head);
-  }
-
-  --Info.phys->num_items;
-  InfoChangeFlags |= IF_Other|IF_Phys;
-  if (!Modified)
-  { InfoChangeFlags |= IF_Status;
-    Modified = true;
-  }
-  // update tech info
-  LoadInfoAsync(InfoValid & (IF_Tech|IF_Rpl));
-  // raise InfoChange event?
-  DEBUGLOG(("Playlist::RemoveItem: before raiseinfochange\n"));
-  RaiseInfoChange();
-  DEBUGLOG(("Playlist::RemoveItem: after raiseinfochange\n"));
-  return true;
-}
-
-void Playlist::Sort(ItemComparer comp)
-{ DEBUGLOG(("Playlist(%p)::Sort(%p)\n", this, comp));
-  Mutex::Lock lock(Mtx);
-  if (Head == Tail)
-    return; // Empty or one element lists are always sorted.
-  // Create index array
-  vector<PlayableInstance> index(64);
-  Entry* ep = Head;
-  do
-  { index.append() = ep;
-    ep = ep->Next;
-  } while (ep);
-  // Sort index array
-  merge_sort(index.begin(), index.end(), comp);
-  // Adjust item sequence
-  ep = Head;
-  bool changed = false;
-  for (PlayableInstance** ipp = index.begin(); ipp != index.end(); ++ipp)
-  { changed |= MoveEntry((Entry*)*ipp, ep);
-    ep = ((Entry*)*ipp)->Next;
-  }
-  // done
-  if (changed)
-  { InfoChangeFlags |= IF_Other;
-    if (!Modified)
-    { InfoChangeFlags |= IF_Status;
-      Modified = true;
-  } }
-  // raise InfoChange event?
-  DEBUGLOG(("Playlist::Sort: before raiseinfochange\n"));
-  RaiseInfoChange();
-  DEBUGLOG(("Playlist::Sort: after raiseinfochange\n"));
-}
-
-void Playlist::Shuffle()
-{ DEBUGLOG(("Playlist(%p)::Shuffle()\n", this));
-  Mutex::Lock lock(Mtx);
-  if (Head == Tail)
-    return; // Empty or one element lists are always sorted.
-  // move records randomly to the beginning or the end.
-  Entry* current = Head;
-  bool changed = false;
-  do
-  { Entry* next = current->Next;
-    changed |= MoveEntry(current, rand() & 1 ? Head.get() : NULL);
-    current = next;
-  } while (current);
-  // done
-  if (changed)
-  { InfoChangeFlags |= IF_Other;
-    if (!Modified)
-    { InfoChangeFlags |= IF_Status;
-      Modified = true;
-  } }
-  // raise InfoChange event?
-  DEBUGLOG(("Playlist::Shuffle: before raiseinfochange\n"));
-  RaiseInfoChange();
-  DEBUGLOG(("Playlist::Shuffle: after raiseinfochange\n"));
 }
 
 bool Playlist::Save(const url123& URL, save_options opt)
@@ -1330,11 +1312,10 @@ bool Playlist::Save(const url123& URL, save_options opt)
     return false;
   if (URL == GetURL())
   { // TODO: this should be done atomic with the save.
-    Mutex::Lock lock(Mtx);
+    Lock lock(*this);
     if (Modified)
     { InfoChangeFlags |= IF_Status;
       Modified = false;
-      RaiseInfoChange();
     }
   }
   return true;
@@ -1342,11 +1323,10 @@ bool Playlist::Save(const url123& URL, save_options opt)
 
 void Playlist::NotifySourceChange()
 { DEBUGLOG(("Playlist(%p{%s})::NotifySourceChange()", this, GetURL().cdata()));
-  Mutex::Lock lock(Mtx);
+  Lock lock(*this);
   if (!Modified)
   { InfoChangeFlags |= IF_Status;
     Modified = true;
-    RaiseInfoChange();
   }
 }
 
@@ -1387,6 +1367,17 @@ void PlayFolder::ParseQueryParams()
     cp = cp2 +1;
   }
   DEBUGLOG(("PlayFolder::ParseQueryParams: %s %u\n", Pattern ? Pattern.cdata() : "<null>", Recursive));
+}
+
+int PlayFolder::CompName(const PlayableInstance* l, const PlayableInstance* r)
+{ // map to IComparableTo<const char*>
+  return l->GetPlayable()->compareTo(r->GetPlayable()->GetURL().cdata());
+}
+
+int PlayFolder::CompNameFoldersFirst(const PlayableInstance* l, const PlayableInstance* r)
+{ int d = (r->GetPlayable()->GetFlags() & Playable::Mutable & ~Playable::Enumerable)
+        - (l->GetPlayable()->GetFlags() & Playable::Mutable & ~Playable::Enumerable);
+  return d != 0 ? d : CompName(l, r);
 }
 
 bool PlayFolder::LoadList()
@@ -1446,6 +1437,8 @@ bool PlayFolder::LoadList()
   {case NO_ERROR:
    case ERROR_FILE_NOT_FOUND:
    case ERROR_NO_MORE_FILES:
+    if (cfg.sort_folders)
+      Sort(cfg.folders_first ? &PlayFolder::CompNameFoldersFirst : &PlayFolder::CompName);
     return true;
    default:
     return false;

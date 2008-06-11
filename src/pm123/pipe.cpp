@@ -344,7 +344,7 @@ void CommandProcessor::CmdRemove(xstring& ret, char* args)
 
 void CommandProcessor::CmdAdd(xstring& ret, char* args)
 { if (CurPlaylist && (CurPlaylist->GetFlags() & Playable::Mutable) == Playable::Mutable)
-  { Mutex::Lock lck(CurPlaylist->Mtx); // Atomic
+  { Playable::Lock lck(*CurPlaylist); // Atomic
     // parse args
     do
     { char* cp = *args == '"' ? strchr(++args, '"') : strchr(args, ';');
@@ -360,7 +360,7 @@ void CommandProcessor::CmdAdd(xstring& ret, char* args)
 
 void CommandProcessor::CmdDir(xstring& ret, char* args)
 { if (CurPlaylist && (CurPlaylist->GetFlags() & Playable::Mutable) == Playable::Mutable)
-  { Mutex::Lock lck(CurPlaylist->Mtx); // Atomic
+  { Playable::Lock lck(*CurPlaylist); // Atomic
     // parse args
     do
     { char* cp = *args == '"' ? strchr(++args, '"') : strchr(args, ';');
@@ -380,7 +380,7 @@ void CommandProcessor::CmdDir(xstring& ret, char* args)
 
 void CommandProcessor::CmdRdir(xstring& ret, char* args)
 { if (CurPlaylist && (CurPlaylist->GetFlags() & Playable::Mutable) == Playable::Mutable)
-  { Mutex::Lock lck(CurPlaylist->Mtx); // Atomic
+  { Playable::Lock lck(*CurPlaylist); // Atomic
     // parse args
     do
     { char* cp = *args == '"' ? strchr(++args, '"') : strchr(args, ';');

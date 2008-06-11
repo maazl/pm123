@@ -203,11 +203,6 @@ class Mutex
     operator   bool() const                  { return Own; }
   };
 
-  enum Status
-  { Unowned    = 0,
-    Owned      = 1,
-    Mine       = 3
-  };
  protected:
   HMTX         Handle;
  private:      // non-copyable
@@ -223,8 +218,13 @@ class Mutex
   // Release the Mutex object
   // On error, e.g. if you are not owner, the funtion returns false.
   bool         Release();
-  // Check whether the current thread already owns a the Mutex.
-  Status       GetStatus() const;
+  // Check whether the current mutex is owned.
+  // The function returns the number of nested requests currently active.
+  // If the mutex is unowned the return value is zero.
+  // If the return value is negative the requests belong to another thread.
+  // If the return value is positive the Mutex is owned by the current thread.
+  // These are the only reliable return values.
+  int          GetStatus() const;
 };
 
 

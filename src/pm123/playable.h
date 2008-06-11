@@ -98,6 +98,17 @@ class Playable
     InfoFlags         Flags; // Bitvector of type InfoFlags
     change_args(Playable& inst, InfoFlags flags) : Instance(inst), Flags(flags) {}
   };
+  class Lock;
+  friend class Lock;
+  class Lock
+  { Playable&  P;   // Playable object
+   private:    // non-copyable
+               Lock(const Lock&);
+    void       operator=(const Lock&);
+   public:
+               Lock(Playable& p) : P(p)      { p.Mtx.Request(); }
+               ~Lock();
+  };
  protected:
   // C++ version of DECODER_INFO2
   class DecoderInfo : public DECODER_INFO2
@@ -132,8 +143,7 @@ class Playable
  private: // ... except for this ones
   unsigned            InfoRequest;     // Bitvector with requested information
   unsigned            InfoRequestLow;  // Bitvector with requested low priority information
- public:
-  Mutex               Mtx;   // protect this instance
+  Mutex               Mtx;             // protect this instance
 
  private: // non-copyable
   Playable(const Playable&);
@@ -154,8 +164,10 @@ class Playable
   // Update all kind of information.
   void                UpdateInfo(const DECODER_INFO2* info);
   void                UpdateStatus(PlayableStatus stat);
+ private:
   // Raise the InfoChange event if required.
-  // This function must be called in synchronized context.
+  // This function is automatically called before releasing the Mutex by the current thread.
+  // Normally 
   void                RaiseInfoChange();
  public:
   virtual ~Playable();
@@ -165,6 +177,8 @@ class Playable
   const url123&       GetURL() const      { return URL; }
   // RTTI by the back door. (dynamic_cast<> would be much nicer, but this is not supported by icc 3.0.)
   virtual Flags       GetFlags() const;
+  // Check whether the current instance is locked by the current thread.
+  bool                IsMine() const      { return Mtx.GetStatus() > 0; }
   // Return Status of the current object
   PlayableStatus      GetStatus() const   { return Stat; }
   // Mark the object as used (or not)

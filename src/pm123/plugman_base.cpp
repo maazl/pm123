@@ -809,7 +809,7 @@ MRESULT EXPENTRY proxy_1_decoder_winfn(HWND hwnd, ULONG msg, MPARAM mp1, MPARAM 
       int_ptr<Playable> pp = Playable::FindByURL(op->url);
       if (pp)
       { // Make this operation atomic
-        Mutex::Lock lck(pp->Mtx);
+        Playable::Lock lck(*pp);
         META_INFO meta = *pp->GetInfo().meta;
         const char* metadata = (const char*)PVOIDFROMMP(mp1);
         const char* titlepos;

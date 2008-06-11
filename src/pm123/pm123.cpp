@@ -327,7 +327,7 @@ static void amp_force_locmsg()
 
 void amp_AddMRU(Playlist* list, size_t max, const PlayableSlice& ps)
 { DEBUGLOG(("amp_AddMRU(%p{%s}, %u, %s)\n", list, list->GetURL().cdata(), max, ps.GetPlayable()->GetURL().cdata()));
-  Mutex::Lock lock(list->Mtx);
+  Playable::Lock lock(*list);
   int_ptr<PlayableInstance> pi;
   // remove the desired item from the list and limit the list size
   while ((pi = list->GetNext(pi)) != NULL)

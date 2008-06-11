@@ -115,19 +115,19 @@ bool Mutex::Release()
    #endif
 }
 
-Mutex::Status Mutex::GetStatus() const
+int Mutex::GetStatus() const
 {  DEBUGLOG2(("Mutex(%p)::GetStatus()\n", this));
    PID pid;
    TID tid;
    ULONG count;
    APIRET rc = DosQueryMutexSem(Handle, &pid, &tid, &count);
    if (rc == ERROR_SEM_OWNER_DIED || count == 0)
-     return Unowned;
+     return 0;
    OASSERT(rc);
    PTIB tib;
    PPIB pib;
    DosGetInfoBlocks(&tib, &pib);
-   return tib->tib_ptib2->tib2_ultid == tid && pib->pib_ulpid ? Mine : Owned;
+   return tib->tib_ptib2->tib2_ultid == tid && pib->pib_ulpid == pid ? count : -count;
 }
 
 

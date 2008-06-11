@@ -66,6 +66,8 @@ const amp_cfg cfg_default =
   FALSE,
   CFG_ANAV_SONGTIME,
   TRUE, // recurse_dnd
+  TRUE,
+  FALSE,
   FALSE,
   FALSE,
   TRUE,
@@ -185,19 +187,19 @@ cfg_settings1_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
 
     case CFG_CHANGE:
     { const amp_cfg& cfg = *(const amp_cfg*)PVOIDFROMMP(mp1);
-      WinCheckButton( hwnd, CB_PLAYONLOAD,    cfg.playonload  );
-      WinCheckButton( hwnd, CB_TRASHONSCAN,   cfg.trash       );
-      WinCheckButton( hwnd, CB_RETAINONEXIT,  cfg.retainonexit);
-      WinCheckButton( hwnd, CB_RETAINONSTOP,  cfg.retainonstop);
+      WinCheckButton( hwnd, CB_PLAYONLOAD,    cfg.playonload   );
+      WinCheckButton( hwnd, CB_TRASHONSCAN,   cfg.trash        );
+      WinCheckButton( hwnd, CB_RETAINONEXIT,  cfg.retainonexit );
+      WinCheckButton( hwnd, CB_RETAINONSTOP,  cfg.retainonstop );
       
-      WinCheckButton( hwnd, RB_SONGONLY + cfg.altnavig, TRUE );
-
-      WinCheckButton( hwnd, CB_AUTOUSEPL,     cfg.autouse     );
-      WinCheckButton( hwnd, CB_AUTOPLAYPL,    cfg.playonuse   );
-      WinCheckButton( hwnd, CB_RECURSEDND,    cfg.recurse_dnd );
-      WinCheckButton( hwnd, CB_AUTOAPPENDDND, cfg.append_dnd  );
-      WinCheckButton( hwnd, CB_AUTOAPPENDCMD, cfg.append_cmd  );
-      WinCheckButton( hwnd, CB_QUEUEMODE,     cfg.queue_mode  );
+      WinCheckButton( hwnd, CB_AUTOUSEPL,     cfg.autouse      );
+      WinCheckButton( hwnd, CB_AUTOPLAYPL,    cfg.playonuse    );
+      WinCheckButton( hwnd, CB_RECURSEDND,    cfg.recurse_dnd  );
+      WinCheckButton( hwnd, CB_SORTFOLDERS,   cfg.sort_folders );
+      WinCheckButton( hwnd, CB_FOLDERSFIRST,  cfg.folders_first);
+      WinCheckButton( hwnd, CB_AUTOAPPENDDND, cfg.append_dnd   );
+      WinCheckButton( hwnd, CB_AUTOAPPENDCMD, cfg.append_cmd   );
+      WinCheckButton( hwnd, CB_QUEUEMODE,     cfg.queue_mode   );
       return 0;
     }
     case CFG_DEFAULT:
@@ -212,16 +214,11 @@ cfg_settings1_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
       cfg.retainonexit= WinQueryButtonCheckstate( hwnd, CB_RETAINONEXIT );
       cfg.retainonstop= WinQueryButtonCheckstate( hwnd, CB_RETAINONSTOP );
       
-      if (WinQueryButtonCheckstate( hwnd, RB_SONGONLY ))
-        cfg.altnavig = CFG_ANAV_SONG;
-      else if (WinQueryButtonCheckstate( hwnd, RB_SONGTIME ))
-        cfg.altnavig = CFG_ANAV_SONGTIME;
-      else if (WinQueryButtonCheckstate( hwnd, RB_TIMEONLY ))
-        cfg.altnavig = CFG_ANAV_TIME;
-
       cfg.autouse     = WinQueryButtonCheckstate( hwnd, CB_AUTOUSEPL    );
       cfg.playonuse   = WinQueryButtonCheckstate( hwnd, CB_AUTOPLAYPL   );
       cfg.recurse_dnd = WinQueryButtonCheckstate( hwnd, CB_RECURSEDND   );
+      cfg.sort_folders= WinQueryButtonCheckstate( hwnd, CB_SORTFOLDERS  );
+      cfg.folders_first= WinQueryButtonCheckstate( hwnd, CB_FOLDERSFIRST);
       cfg.append_dnd  = WinQueryButtonCheckstate( hwnd, CB_AUTOAPPENDDND);
       cfg.append_cmd  = WinQueryButtonCheckstate( hwnd, CB_AUTOAPPENDCMD);
       cfg.queue_mode  = WinQueryButtonCheckstate( hwnd, CB_QUEUEMODE    );
@@ -248,10 +245,7 @@ cfg_settings2_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
       const char* cp;
       size_t l;
 
-      WinCheckButton( hwnd, CB_DOCK,         cfg.dock_windows );
-      WinSetDlgItemText( hwnd, EF_DOCK, itoa( cfg.dock_margin, buffer, 10 ));
-
-      WinSetDlgItemText( hwnd, EF_PIPE, cfg.pipe_name );
+      WinCheckButton( hwnd, RB_SONGONLY + cfg.altnavig, TRUE );
 
       // proxy
       cp = strchr(cfg.proxy, ':');
@@ -308,9 +302,12 @@ cfg_settings2_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
       char buffer[8];
       size_t i;
 
-      cfg.dock_windows = WinQueryButtonCheckstate( hwnd, CB_DOCK         );
-      WinQueryDlgItemText( hwnd, EF_DOCK, sizeof buffer, buffer );
-      cfg.dock_margin = atoi( buffer );
+      if (WinQueryButtonCheckstate( hwnd, RB_SONGONLY ))
+        cfg.altnavig = CFG_ANAV_SONG;
+      else if (WinQueryButtonCheckstate( hwnd, RB_SONGTIME ))
+        cfg.altnavig = CFG_ANAV_SONGTIME;
+      else if (WinQueryButtonCheckstate( hwnd, RB_TIMEONLY ))
+        cfg.altnavig = CFG_ANAV_TIME;
 
       WinQueryDlgItemText( hwnd, EF_PIPE, sizeof cfg.pipe_name, cfg.pipe_name );
       // restatrt pipe worker
@@ -379,8 +376,15 @@ cfg_display1_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
       return 0;
 
     case CFG_CHANGE:
-    { if (mp1)
-      { // load GUI
+    { 
+      if (mp1)
+      { char buffer[20];
+        WinCheckButton( hwnd, CB_DOCK,         cfg.dock_windows );
+        WinSetDlgItemText( hwnd, EF_DOCK, itoa( cfg.dock_margin, buffer, 10 ));
+
+        WinSetDlgItemText( hwnd, EF_PIPE, cfg.pipe_name );
+
+        // load GUI
         const amp_cfg& cfg = *(const amp_cfg*)PVOIDFROMMP(mp1);
         WinCheckButton( hwnd, RB_DISP_FILENAME   + cfg.viewmode, TRUE );
         WinCheckButton( hwnd, RB_SCROLL_INFINITE + cfg.scroll,   TRUE );
@@ -437,6 +441,11 @@ cfg_display1_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
 
     case WM_DESTROY:
     {
+      char buffer[8];
+      cfg.dock_windows = WinQueryButtonCheckstate( hwnd, CB_DOCK         );
+      WinQueryDlgItemText( hwnd, EF_DOCK, sizeof buffer, buffer );
+      cfg.dock_margin = atoi( buffer );
+
       cfg.scroll   = LONGFROMMR( WinSendDlgItemMsg( hwnd, RB_SCROLL_INFINITE, BM_QUERYCHECKINDEX, 0, 0 ));
       cfg.viewmode = LONGFROMMR( WinSendDlgItemMsg( hwnd, RB_DISP_FILENAME,   BM_QUERYCHECKINDEX, 0, 0 ));
 

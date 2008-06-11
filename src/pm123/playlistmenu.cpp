@@ -161,7 +161,7 @@ void PlaylistMenu::CreateSubItems(MapEntry* mapp)
   }
   size_t count = 0;
   // lock collection
-  Mutex::Lock lock(mapp->Data.Item->GetPlayable()->Mtx);
+  Playable::Lock lock(*mapp->Data.Item->GetPlayable());
   if (!mapp->Data.Item->GetPlayable()->EnsureInfoAsync(Playable::IF_Other))
   { // not immediately availabe => do it later
     ResetDelegate(mapp);

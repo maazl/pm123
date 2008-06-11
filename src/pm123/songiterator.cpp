@@ -497,7 +497,7 @@ bool SongIterator::SetTimeOffset(T_TIME offset)
     // loop until we cross the offset
     { pp->EnsureInfo(Playable::IF_Other);
       // lock collection
-      Mutex::Lock lck(pp->Mtx);
+      Playable::Lock lock(*pp);
       for (;;)
       { // fetch first/next element
         NextCore();
@@ -531,7 +531,7 @@ bool SongIterator::Navigate(const xstring& url, int index)
   if (index == 0)
     return false;
   // lock collection
-  Mutex::Lock lck(list->Mtx);
+  Playable::Lock lck(*list);
   // search item in the list
   if (!url)
   { list->EnsureInfo(Playable::IF_Phys|Playable::IF_Other);
@@ -648,7 +648,7 @@ bool SongIterator::NavigateFlat(const xstring& url, int index)
   { // Navigation by index only
     list->EnsureInfo(Playable::IF_Other);
     { // lock collection
-      Mutex::Lock lck(list->Mtx);
+      Playable::Lock lck(*list);
       const PlayableCollection::CollectionInfo& ci = cep->GetInfo();
       if (ci.Items < 0)
       { DEBUGLOG(("SongIterator::NavigateFlat: undefined number of playlist items\n"));
