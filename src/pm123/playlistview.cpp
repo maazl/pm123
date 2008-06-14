@@ -360,6 +360,7 @@ MRESULT PlaylistView::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
 HWND PlaylistView::InitContextMenu()
 { DEBUGLOG(("PlaylistView(%p)::InitContextMenu() - %p{%u}\n", this, &Source, Source.size()));
   HWND hwndMenu;
+  const bool ismutable = (Content->GetFlags() & Playable::Mutable) == Playable::Mutable;
   if (Source.size() == 0)
   { bool new_menu;
     if ((new_menu = MainMenu == NULLHANDLE) != false)
@@ -368,13 +369,7 @@ HWND PlaylistView::InitContextMenu()
       PMRASSERT(mn_make_conditionalcascade(MainMenu, IDM_PL_APPENDALL, IDM_PL_APPFILEALL));
     }
     hwndMenu = MainMenu;
-    if ((Content->GetFlags() & Playable::Mutable) == Playable::Mutable)
-    { mn_enable_item(hwndMenu, IDM_PL_SAVE,   true);
-      mn_enable_item(hwndMenu, IDM_PL_APPEND, true);
-    } else
-    { mn_enable_item(hwndMenu, IDM_PL_SAVE,   false);
-      mn_enable_item(hwndMenu, IDM_PL_APPEND, false);
-    }
+    mn_enable_item(hwndMenu, IDM_PL_APPEND, ismutable);
     // Update accelerators?
     if (DecChanged || new_menu)
     { DecChanged = false;
@@ -389,6 +384,7 @@ HWND PlaylistView::InitContextMenu()
   { if (RecMenu == NULLHANDLE)
     { RecMenu = WinLoadMenu(HWND_OBJECT, 0, MNU_RECORD);
       PMASSERT(RecMenu != NULLHANDLE);
+      PMRASSERT(mn_make_conditionalcascade(RecMenu, IDM_PL_FLATTEN, IDM_PL_FLATTEN_1));
       (MenuShowAccel(WinQueryAccelTable(WinQueryAnchorBlock(GetHwnd()), GetHwnd()))).ApplyTo(RecMenu);
     }
     hwndMenu = RecMenu;
@@ -398,6 +394,7 @@ HWND PlaylistView::InitContextMenu()
     mn_enable_item(hwndMenu, IDM_PL_NAVIGATE, Source.size() == 1 && Content->GetStatus() == STA_Used);
     mn_enable_item(hwndMenu, IDM_PL_INFO,     Source.size() == 1);
     mn_enable_item(hwndMenu, IDM_PL_EDIT,     Source.size() == 1 && Source[0]->Data->Content->GetPlayable()->GetInfo().meta_write);
+    mn_enable_item(hwndMenu, IDM_PL_FLATTEN,  ismutable && (rt & RT_List) );
     mn_enable_item(hwndMenu, IDM_PL_REFRESH,  (rt & (RT_Enum|RT_List)) == 0);
     mn_enable_item(hwndMenu, IDM_PL_DETAILED, Source.size() == 1 && rt != RT_Song);
     mn_enable_item(hwndMenu, IDM_PL_TREEVIEW, Source.size() == 1 && rt != RT_Song);

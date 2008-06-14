@@ -544,27 +544,27 @@ BEGIN
   DIALOG "", CFG_SETTINGS1, 0, 0, 260, 148, NOT FS_DLGBORDER|FS_NOBYTEALIGN
     PRESPARAMS PP_FONTNAMESIZE "8.Helv"
   BEGIN
-    GROUPBOX     " Behaviour ",                                               GB_BEHAVIOUR,      4,  90, 248, 36, NOT WS_TABSTOP|WS_GROUP
+    GROUPBOX     " Behaviour ",                                            GB_BEHAVIOUR,      4,  90, 248, 36, NOT WS_TABSTOP|WS_GROUP
       PRESPARAMS PP_FONTNAMESIZE "9.WarpSans Bold"
-    AUTOCHECKBOX "~Start playing on file load",                               CB_PLAYONLOAD,    12, 106, 112, 12
-    AUTOCHECKBOX "~Trash buffers on fast forward/rewind",                     CB_TRASHONSCAN,  132, 106, 112, 12
-    LTEXT        "Retain playing position:",                                  ST_RETAINPOS,     12,  94, 112, 12, DT_VCENTER
+    AUTOCHECKBOX "~Start playing on file load",                            CB_PLAYONLOAD,    12, 106, 112, 12
+    AUTOCHECKBOX "~Trash buffers on fast forward/rewind",                  CB_TRASHONSCAN,  132, 106, 112, 12
+    LTEXT        "Retain playing position:",                               ST_RETAINPOS,     12,  94, 112, 12, DT_VCENTER
       PRESPARAMS PP_FOREGROUNDCOLORINDEX , SYSCLR_WINDOWTEXT
-    AUTOCHECKBOX "on e~xit",                                                  CB_RETAINONEXIT, 132,  94,  52, 12
-    AUTOCHECKBOX "on st~op",                                                  CB_RETAINONSTOP, 192,  94,  52, 12
+    AUTOCHECKBOX "on e~xit",                                               CB_RETAINONEXIT, 132,  94,  52, 12
+    AUTOCHECKBOX "on st~op",                                               CB_RETAINONSTOP, 192,  94,  52, 12
 
-    GROUPBOX     " Playlists ",                                               GB_STREAMING,      4,   4, 248, 84, NOT WS_TABSTOP|WS_GROUP
+    GROUPBOX     " Playlists ",                                            GB_STREAMING,      4,   4, 248, 84, NOT WS_TABSTOP|WS_GROUP
       PRESPARAMS PP_FONTNAMESIZE "9.WarpSans Bold"
-    AUTOCHECKBOX "Auto '~play' on 'use playlist'",                            CB_AUTOPLAYPL,    12,  68, 112, 12
-    AUTOCHECKBOX "Auto '~use playlist' on add",                               CB_AUTOUSEPL,    132,  68, 112, 12
-    AUTOCHECKBOX "~Recurse into subdirectories at drag & drop by default",    CB_RECURSEDND,    12,  56, 232, 12
-    AUTOCHECKBOX "Sort folder content by ~name",                              CB_SORTFOLDERS,   12,  44, 112, 12
-    AUTOCHECKBOX "Sub~folders first",                                         CB_FOLDERSFIRST, 132,  44, 112, 12
-    LTEXT        "Append to the default playlist:",                           ST_AUTOAPPEND,    12,  32, 232, 12, DT_BOTTOM
+    AUTOCHECKBOX "Auto '~play' on 'use playlist'",                         CB_AUTOPLAYPL,    12,  68, 112, 12
+    AUTOCHECKBOX "Auto '~use playlist' on add",                            CB_AUTOUSEPL,    132,  68, 112, 12
+    AUTOCHECKBOX "~Recurse into subdirectories at drag & drop by default", CB_RECURSEDND,    12,  56, 232, 12
+    AUTOCHECKBOX "Sort folder content by ~name",                           CB_SORTFOLDERS,   12,  44, 112, 12
+    AUTOCHECKBOX "Sub~folders first",                                      CB_FOLDERSFIRST, 132,  44, 112, 12
+    LTEXT        "Append to the default playlist:",                        ST_AUTOAPPEND,    12,  32, 232, 12, DT_BOTTOM
       PRESPARAMS PP_FOREGROUNDCOLORINDEX , SYSCLR_WINDOWTEXT
-    AUTOCHECKBOX "at ~drag & drop to the main window",                        CB_AUTOAPPENDDND, 12,  20, 112,  8
-    AUTOCHECKBOX "at ~command line invokation",                               CB_AUTOAPPENDCMD,132,  20, 112,  8
-    AUTOCHECKBOX "~Queue mode: delete played objects in the default playlist",CB_QUEUEMODE,     12,   8, 234, 12
+    AUTOCHECKBOX "at ~drag & drop to the main window",                     CB_AUTOAPPENDDND, 12,  20, 112,  8
+    AUTOCHECKBOX "at ~command line invokation",                            CB_AUTOAPPENDCMD,132,  20, 112,  8
+    AUTOCHECKBOX "~Queue mode (delete played objects in the default playlist)",CB_QUEUEMODE, 12,   8, 234, 12
   END
 END
 
@@ -585,7 +585,7 @@ BEGIN
       PRESPARAMS PP_FONTNAMESIZE "9.WarpSans Bold"
     RTEXT        "~Pipe name",                          ST_PIPE,          12, 64 , 40, 12, DT_VCENTER|DT_MNEMONIC
       PRESPARAMS PP_FOREGROUNDCOLORINDEX, SYSCLR_WINDOWTEXT
-    ENTRYFIELD   "PM123",                               EF_PIPE,          60, 66,  72,  8, ES_MARGIN
+    ENTRYFIELD   "",                                    EF_PIPE,          60, 66,  72,  8, ES_MARGIN
 
     GROUPBOX     " Streaming audio ",                   GB_STREAMING,      4,  4, 248, 54, NOT WS_TABSTOP|WS_GROUP
       PRESPARAMS PP_FONTNAMESIZE "9.WarpSans Bold"
@@ -882,7 +882,7 @@ MENU MNU_PLAYLIST
   MENUITEM "Show ~Detailed view",        IDM_PL_DETAILEDALL, 0, MIA_CHECKED|MIA_DISABLED
   MENUITEM "Show ~tree view",            IDM_PL_TREEVIEWALL
   MENUITEM "Show Content ~info",         IDM_PL_INFOALL
-  SUBMENU "~Append...",                  IDM_PL_APPENDALL
+  SUBMENU  "~Append...",                 IDM_PL_APPENDALL
   { MENUITEM "~Files...",                IDM_PL_APPFILEALL
     MENUITEM "~URL...",                  IDM_PL_APPURLALL
   }
@@ -914,6 +914,10 @@ MENU MNU_RECORD
   MENUITEM "~Edit meta info...",         IDM_PL_EDIT
   MENUITEM SEPARATOR
   MENUITEM "~Remove from list",          IDM_PL_REMOVE
+  SUBMENU  "~Flatten playlist",          IDM_PL_FLATTEN
+  { MENUITEM "Expand ~1 level",          IDM_PL_FLATTEN_1
+    MENUITEM "Expand ~all songs",        IDM_PL_FLATTEN_ALL
+  }
   MENUITEM SEPARATOR
   MENUITEM "Refresh status",             IDM_PL_REFRESH
 }
@@ -958,6 +962,10 @@ MENU PM_REC_MENU
   MENUITEM "~Edit meta info...",         IDM_PL_EDIT
   MENUITEM SEPARATOR
   MENUITEM "~Remove Item",               IDM_PL_REMOVE
+  SUBMENU  "~Flatten playlist",          IDM_PL_FLATTEN
+  { MENUITEM "Expand ~1 level",          IDM_PL_FLATTEN_1
+    MENUITEM "Expand ~all songs",        IDM_PL_FLATTEN_ALL
+  }
   MENUITEM SEPARATOR
   MENUITEM "Refresh",                    IDM_PL_REFRESH
   SUBMENU  "~Append to...",              IDM_PL_APPEND
@@ -965,7 +973,7 @@ MENU PM_REC_MENU
     MENUITEM "~URL...",                  IDM_PL_APPURL
   }
   MENUITEM SEPARATOR
-  SUBMENU "Sort",                        IDM_PL_SORT
+  SUBMENU "~Sort",                       IDM_PL_SORT
   { MENUITEM "Display ~name",            IDM_PL_SORT_ALIAS
     MENUITEM "~Song name",               IDM_PL_SORT_SONG
     MENUITEM "~Artist name",             IDM_PL_SORT_ART

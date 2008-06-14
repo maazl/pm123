@@ -247,6 +247,8 @@ cfg_settings2_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
 
       WinCheckButton( hwnd, RB_SONGONLY + cfg.altnavig, TRUE );
 
+      WinSetDlgItemText( hwnd, EF_PIPE, cfg.pipe_name );
+
       // proxy
       cp = strchr(cfg.proxy, ':');
       if (cp == NULL)
@@ -381,8 +383,6 @@ cfg_display1_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
       { char buffer[20];
         WinCheckButton( hwnd, CB_DOCK,         cfg.dock_windows );
         WinSetDlgItemText( hwnd, EF_DOCK, itoa( cfg.dock_margin, buffer, 10 ));
-
-        WinSetDlgItemText( hwnd, EF_PIPE, cfg.pipe_name );
 
         // load GUI
         const amp_cfg& cfg = *(const amp_cfg*)PVOIDFROMMP(mp1);

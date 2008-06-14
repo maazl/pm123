@@ -208,10 +208,13 @@ void SongIterator::Reset()
   CurrentCache = NULL;
 }
 
-void SongIterator::SetRoot(PlayableSlice* pc)
-{ DEBUGLOG(("SongIterator(%p)::SetRoot(%p)\n", this, pc));
+void SongIterator::SetRoot(PlayableSlice* pc, Playable* exclude)
+{ DEBUGLOG(("SongIterator(%p)::SetRoot(%p, %p)\n", this, pc, exclude));
   Reset();
   Callstack[0]->Item = pc;
+  Callstack[0]->Exclude.clear();
+  if (exclude)
+    Callstack[0]->Exclude.append() = exclude;
   // The offsets of the root node are zero anyway.
 }
 
@@ -323,6 +326,12 @@ void SongIterator::PrevCore()
       pce->Sub(pce->GetInfo());
   }
 
+  // Skip objects in the callstack
+  while (pce->Item && IsInCallstack(pce->Item->GetPlayable()))
+  { pce->Item = ((PlayableCollection*)pce2->Item->GetPlayable())->GetPrev((PlayableInstance*)pce->Item.get());
+    // TODO: Update overridden stop iterator if any
+  }
+
   pce->OverrideStart = NULL;
   if (pce->Item != NULL)
   { // Check wether we have to override the start iterator
@@ -358,8 +367,8 @@ void SongIterator::NextCore()
   ASSERT(Callstack.size() > 1);
   CallstackEntry* const pce  = Callstack[Callstack.size()-1]; // The item
   CallstackEntry* const pce2 = Callstack[Callstack.size()-2]; // The playlist
-  pce->OverrideStart = NULL;
   Location = 0;
+  pce->OverrideStart = NULL;
   if (pce->Item == NULL)
   { // Navigate to the first item.
     const SongIterator* start = pce2->GetStart();
@@ -388,9 +397,19 @@ void SongIterator::NextCore()
     pce->Item = ((PlayableCollection*)pce2->Item->GetPlayable())->GetNext((PlayableInstance*)pce->Item.get());
   }
 
+  // Skip objects in the callstack
+  while (pce->Item && IsInCallstack(pce->Item->GetPlayable()))
+  { pce->Item = ((PlayableCollection*)pce2->Item->GetPlayable())->GetNext((PlayableInstance*)pce->Item.get());
+    // TODO: Update overridden start iterator if any
+  }
+
   pce->OverrideStop = NULL;
   if (pce->Item != NULL)
-  { // set Location in case of a song
+  { // Override stop if the stop iterator of the parent callstack entry 
+    // is less than the end of the current item. Signal the end of the list
+    // if it is less than the start of the current item.
+
+    // set Location in case of a song
     { const SongIterator* start = pce->GetStart();
       if (start && start->GetCallstack().size() == 1)
         Location = start->GetLocation();
@@ -418,7 +437,7 @@ void SongIterator::NextCore()
 }
 
 bool SongIterator::PrevNextCore(void (SongIterator::*func)(), unsigned slice)
-{ DEBUGLOG(("SongIterator(%p)::PrevNextCore(%p, %u) - %u\n", this, func, slice, Callstack.size()));
+{ DEBUGLOG(("SongIterator(%p)::PrevNextCore(, %u) - %u\n", this, slice, Callstack.size()));
   ASSERT(Callstack.size() >= slice);
   ASSERT(GetList());
   CurrentCache = NULL;
@@ -431,7 +450,7 @@ bool SongIterator::PrevNextCore(void (SongIterator::*func)(), unsigned slice)
   { (this->*func)();
     CallstackEntry* pce = Callstack[Callstack.size()-1];
     const PlayableSlice* pi = pce->Item;
-    DEBUGLOG(("SongIterator::PrevNextCore - {%i, %g, %p, %p, %p}\n", pce->Index, pce->Offset, pi, pce->OverrideStart.get(), pce->OverrideStop.get()));
+    DEBUGLOG(("SongIterator::PrevNextCore - {%i, %f, %p, %p, %p}\n", pce->Index, pce->Offset, pi, pce->OverrideStart.get(), pce->OverrideStop.get()));
     if (pi == NULL)
     { // end of list => leave
       Leave();
@@ -443,9 +462,9 @@ bool SongIterator::PrevNextCore(void (SongIterator::*func)(), unsigned slice)
     { // item found => check wether it is enumerable
       if (!(pi->GetPlayable()->GetFlags() & Playable::Enumerable))
       { Location = 0;
-        DEBUGLOG(("SongIterator::PrevNextCore - {%i, %g, %p{%p{%s}}}\n", pce->Index, pce->Offset, &*pi, pi->GetPlayable(), pi->GetPlayable()->GetURL().getShortName().cdata()));
+        DEBUGLOG(("SongIterator::PrevNextCore - {%i, %f, %p{%p{%s}}}\n", pce->Index, pce->Offset, &*pi, pi->GetPlayable(), pi->GetPlayable()->GetURL().getShortName().cdata()));
         return true;
-      } else if (!IsInCallstack(Current()->GetPlayable())) // skip objects in the call stack
+      } else
       { pi->GetPlayable()->EnsureInfo(Playable::IF_Other);
         Enter();
       }

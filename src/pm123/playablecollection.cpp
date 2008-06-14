@@ -521,7 +521,7 @@ void PlayableCollection::PrefetchSubInfo(const PlayableSet& excluding)
 }
 
 const PlayableCollection::CollectionInfo& PlayableCollection::GetCollectionInfo(InfoFlags what, const PlayableSet& excluding)
-{ DEBUGLOG(("PlayableCollection(%p{%s})::GetCollectionInfo(%x, {%i, %s})\n", this, GetURL().getShortName().cdata(), what, excluding.size(), excluding.DebugDump().cdata()));
+{ DEBUGLOG(("PlayableCollection(%p{%s})::GetCollectionInfo(%x, [%s])\n", this, GetURL().getShortName().cdata(), what, excluding.DebugDump().cdata()));
   ASSERT(excluding.find(*this) == NULL);
   what &= IF_Tech|IF_Rpl; // only these two flags are handled here.
   ASSERT(what);

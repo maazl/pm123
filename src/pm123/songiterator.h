@@ -124,7 +124,7 @@ class SongIterator
   
   // Replace the attached root object. This resets the iterator.
   // You may explicitly set root to NULL to invalidate the iterator.
-  void                        SetRoot(PlayableSlice* pp);
+  void                        SetRoot(PlayableSlice* pp, Playable* exclude = NULL);
   // Gets the current root.
   PlayableSlice*              GetRoot() const          { return Callstack[0]->Item; }
   // Get the current song. This may be NULL.

@@ -312,8 +312,8 @@ class PlaylistBase
   // Populate Source array for context menu or drag and drop with anchor rec.
   bool              GetSource(RecordBase* rec);
   // Apply a function to all objects in the Source array.
-  void              Apply2Source(void (*op)(Playable*)) const;
   void              Apply2Source(void (PlaylistBase::*op)(Playable*));
+  void              Apply2Source(void (PlaylistBase::*op)(RecordBase*));
   // Set or clear the emphasis of the records in the Source array.
   void              SetEmphasis(USHORT emphasis, bool set) const;
   // Analyze the records in the Source array for it's types.
@@ -353,6 +353,10 @@ class PlaylistBase
   void              UserInsert(const InsertInfo* pii);
   // Remove item by Record pointer
   void              UserRemove(RecordBase* rec);
+  // Flatten item by Record pointer, non-recursive
+  void              UserFlatten(RecordBase* rec);
+  // Flatten item by Record pointer, recursive
+  void              UserFlattenAll(RecordBase* rec);
   // Save list
   void              UserSave();
   // Navigate to
@@ -364,7 +368,7 @@ class PlaylistBase
   // View Info
   void              UserOpenInfoView(Playable* pp);
   // Clear playlist
-  static void       UserClearPlaylist(Playable* pp);
+  void              UserClearPlaylist(Playable* pp);
   // Refresh records
   void              UserReload(Playable* pp);
   // Edit metadata
@@ -372,7 +376,7 @@ class PlaylistBase
   // Sort records
   void              UserSort(Playable* pp);
   // Place records in random order.
-  static void       UserShuffle(Playable* pp);
+  void              UserShuffle(Playable* pp);
   // comparers
   static int        CompURL(const PlayableInstance* l, const PlayableInstance* r);
   static int        CompTitle(const PlayableInstance* l, const PlayableInstance* r);

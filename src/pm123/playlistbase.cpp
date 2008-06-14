@@ -455,10 +455,15 @@ MRESULT PlaylistBase::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
         break;
 
        case IDM_PL_REMOVE:
-        { for (RecordBase** rpp = Source.begin(); rpp != Source.end(); ++rpp)
-            UserRemove(*rpp);
-          break;
-        }
+        Apply2Source(&PlaylistBase::UserRemove);
+        break;
+        
+       case IDM_PL_FLATTEN_1:
+        Apply2Source(&PlaylistBase::UserFlatten);
+        break;
+       case IDM_PL_FLATTEN_ALL:
+        Apply2Source(&PlaylistBase::UserFlattenAll);
+        break;
 
        case IDM_PL_SORT_URLALL:
         SortComparer = &PlaylistBase::CompURL;
@@ -821,15 +826,20 @@ bool PlaylistBase::GetSource(RecordBase* rec)
   return true;
 }
 
-void PlaylistBase::Apply2Source(void (*op)(Playable*)) const
+/*void PlaylistBase::Apply2Source(void (*op)(Playable*)) const
 { DEBUGLOG(("PlaylistBase(%p)::Apply2Source(%p) - %u\n", this, op, Source.size()));
   for (RecordBase*const* rpp = Source.begin(); rpp != Source.end(); ++rpp)
     (*op)((*rpp)->Data->Content->GetPlayable());
-}
+}*/
 void PlaylistBase::Apply2Source(void (PlaylistBase::*op)(Playable*))
-{ DEBUGLOG(("PlaylistBase(%p)::Apply2Source(PlaylistBase::%p) - %u\n", this, op, Source.size()));
+{ DEBUGLOG(("PlaylistBase(%p)::Apply2Source(Playable::%p) - %u\n", this, op, Source.size()));
   for (RecordBase*const* rpp = Source.begin(); rpp != Source.end(); ++rpp)
     (this->*op)((*rpp)->Data->Content->GetPlayable());
+}
+void PlaylistBase::Apply2Source(void (PlaylistBase::*op)(RecordBase*))
+{ DEBUGLOG(("PlaylistBase(%p)::Apply2Source(RecorsBase::%p) - %u\n", this, op, Source.size()));
+  for (RecordBase*const* rpp = Source.begin(); rpp != Source.end(); ++rpp)
+    (this->*op)(*rpp);
 }
 
 void PlaylistBase::SetEmphasis(USHORT emphasis, bool set) const
@@ -1024,9 +1034,74 @@ void PlaylistBase::UserRemove(RecordBase* rec)
   // find parent playlist
   Playable* playlist = PlayableFromRec(GetParent(rec));
   //DEBUGLOG(("PlaylistBase::UserRemove %s %p %p\n", RecordBase::DebugName(parent).cdata(), parent, playlist));
-  if ((playlist->GetFlags() & Playable::Mutable) == Playable::Mutable) // don't modify constant object
-    ((Playlist&)*playlist).RemoveItem(rec->Data->Content);
+  if (playlist->GetFlags() & Playable::Enumerable) // don't modify songs
+    ((PlayableCollection&)*playlist).RemoveItem(rec->Data->Content);
     // the update of the container is implicitely done by the notification mechanism
+}
+
+void PlaylistBase::UserFlatten(RecordBase* rec)
+{ DEBUGLOG(("PlaylistBase(%p)::UserFlatten(%s)\n", this, rec->DebugName().cdata()));
+  ASSERT(rec);
+  // find parent playlist
+  Playable* parent = PlayableFromRec(GetParent(rec));
+  Playable* subitem = rec->Data->Content->GetPlayable();
+  if ( (parent->GetFlags() & Playable::Mutable) == Playable::Mutable // don't modify constant object
+    && (subitem->GetFlags() & Playable::Enumerable) // and only playlists
+    && subitem != parent ) // and not recursive
+  { PlayableCollection& pc = (PlayableCollection&)*parent;
+    Playable::Lock lock(pc); // lock collection and avoid unneccessary events
+    if (!rec->Data->Content->IsParent(&pc))
+      return; // somebody else has been faster
+
+    // insert subitems before the old one
+    int_ptr<PlayableInstance> pi = NULL;
+    for(;;)
+    { pi = ((PlayableCollection&)*subitem).GetNext(pi);
+      if (pi == NULL)
+        break;
+      pc.InsertItem(*pi, rec->Data->Content);
+    }
+
+    // then delete the old one
+    pc.RemoveItem(rec->Data->Content);
+  } // the update of the container is implicitely done by the notification mechanism
+}
+
+void PlaylistBase::UserFlattenAll(RecordBase* rec)
+{ DEBUGLOG(("PlaylistBase(%p)::UserFlattenAll(%s)\n", this, rec->DebugName().cdata()));
+  ASSERT(rec);
+  // find parent playlist
+  Playable* parent = PlayableFromRec(GetParent(rec));
+  Playable* subitem = rec->Data->Content->GetPlayable();
+  if ( (parent->GetFlags() & Playable::Mutable) == Playable::Mutable // don't modify constant object
+    && (subitem->GetFlags() & Playable::Enumerable) // and only playlists
+    && subitem != parent ) // and not recursive
+  { // fetch desired content before we lock the collection to avoid deadlocks
+    vector<PlayableSlice> new_items;
+    int_ptr<PlayableSlice> ps;
+    { SongIterator si;
+      si.SetRoot(rec->Data->Content, parent);
+      while (si.Next())
+      { ps = si.GetCurrent();
+        DEBUGLOG(("PlaylistBase::UserFlattenAll found %p\n", ps.get()));
+        new_items.append() = ps.toCptr(); // keep the reference active
+      }
+    }
+    DEBUGLOG(("PlaylistBase::UserFlattenAll replacing by %u items\n", new_items.size()));
+
+    PlayableCollection& pc = (PlayableCollection&)*parent;
+    Playable::Lock lock(pc); // lock collection and avoid unneccessary events
+    if (!rec->Data->Content->IsParent(&pc))
+      return; // somebody else has been faster
+    // insert new subitems before the old one
+    for (PlayableSlice** pps = new_items.begin(); pps != new_items.end(); ++pps)
+    { ps.fromCptr(*pps); // this implicitely decrements the reference
+      pc.InsertItem(*ps, rec->Data->Content);
+    }
+    // then delete the old one
+    pc.RemoveItem(rec->Data->Content);
+
+  } // the update of the container is implicitely done by the notification mechanism
 }
 
 void PlaylistBase::UserSave()

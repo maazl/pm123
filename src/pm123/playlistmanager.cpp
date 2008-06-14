@@ -252,6 +252,7 @@ HWND PlaylistManager::InitContextMenu()
     if (RecMenu == NULLHANDLE)
     { RecMenu = WinLoadMenu(HWND_OBJECT, 0, PM_REC_MENU);
       PMASSERT(RecMenu != NULLHANDLE);
+      PMRASSERT(mn_make_conditionalcascade(RecMenu, IDM_PL_FLATTEN, IDM_PL_FLATTEN_1));
       PMRASSERT(mn_make_conditionalcascade(RecMenu, IDM_PL_APPEND, IDM_PL_APPFILE));
       new_menu = true; // force update below
     }
@@ -260,11 +261,12 @@ HWND PlaylistManager::InitContextMenu()
     if (rt == RT_None)
       return NULLHANDLE;
 
+    const bool parentmutable = (PlayableFromRec(((CPData*)Source[0]->Data)->Parent)->GetFlags() & Playable::Mutable) == Playable::Mutable;
     mn_enable_item(hwndMenu, IDM_PL_NAVIGATE, !((Record*)Source[0])->Data()->Recursive && IsUnderCurrentRoot(Source[0]));
     mn_enable_item(hwndMenu, IDM_PL_DETAILED, rt != RT_Song);
     mn_enable_item(hwndMenu, IDM_PL_TREEVIEW, rt != RT_Song);
     mn_enable_item(hwndMenu, IDM_PL_EDIT,     Source[0]->Data->Content->GetPlayable()->GetInfo().meta_write);
-    mn_enable_item(hwndMenu, IDM_PL_REMOVE,   (PlayableFromRec(((CPData*)Source[0]->Data)->Parent)->GetFlags() & Playable::Mutable) == Playable::Mutable );
+    mn_enable_item(hwndMenu, IDM_PL_FLATTEN,  parentmutable && rt != RT_Song );
     mn_enable_item(hwndMenu, IDM_PL_REFRESH,  rt == RT_Song);
     mn_enable_item(hwndMenu, IDM_PL_APPEND,   rt == RT_List);
     mn_enable_item(hwndMenu, IDM_PL_SORT,     rt == RT_List);
