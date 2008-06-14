@@ -212,7 +212,7 @@ MRESULT PlaylistManager::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
         if (il.bitrst(RC_UPDATEALIAS) | il.bitrst(RC_UPDATEMETA)) // Changing of meta data may reflect to the display name too.
           UpdateInstance(rec, PlayableInstance::SF_Alias);
         // It is essential that all messages are handled here. Otherwise: infinite loop.
-        ASSERT((il & ~(1<<RC_UPDATERPL|1<<RC_UPDATETECH|1<<RC_UPDATESTATUS|1<<RC_UPDATEPHYS|1<<RC_UPDATEALIAS|1<<RC_UPDATEMETA)) == 0);
+        ASSERT((il & ~(1<<RC_UPDATERPL|1<<RC_UPDATECHILDREN|1<<RC_UPDATETECH|1<<RC_UPDATESTATUS|1<<RC_UPDATEPHYS|1<<RC_UPDATEALIAS|1<<RC_UPDATEMETA)) == 0);
       } while (il);
       break; // continue in base class
     }
