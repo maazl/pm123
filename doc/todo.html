@@ -1,0 +1,51 @@
+<html>
+<head>
+<title>ToDo list</title>
+</head>
+<body>
+<h2>PM123's ToDo list</h2>
+<table cellpadding=3 cellspacing=0 border=1><tr align=left bgcolor=#CCCCCC>
+  <th>Type</th>
+  <th>Topic</th>
+  <th>Status</th>
+  <th>Details</th>
+</tr><tr>
+  <td bgcolor=#FFFFCC>todo</td>
+  <td>Shuffle not working</td>
+  <td bgcolor=#FFCCCC>open</td>
+  <td>There are some open issues how this should work with respect to
+    nested playlists and the previous/next buttons when the playlist is modified.</td>
+</tr><tr>
+  <td bgcolor=#FFCCCC>fault</td>
+  <td>PM123 sometimes crashes when starting playback</td>
+  <td bgcolor=#FFCCCC>open</td>
+  <td>Sometimes the decoder thread runs into a access violation at start of playback.<br>
+    Reason unknown. Perhaps some threading issue.</td>
+</tr><tr>
+  <td bgcolor=#FFFFCC>todo</td>
+  <td>Handling of start and stop positions in nested playlists</td>
+  <td bgcolor=#FFFFCC>untested</td>
+  <td>There are several complications when start/stop iterators of nested playlists have conflicting settings.</td>
+</tr><tr>
+  <td bgcolor=#FFCCCC>fault</td>
+  <td>Messages about non-existing files at first start up</td>
+  <td bgcolor=#FFCCCC>open</td>
+  <td>When starting the first error messages about non-existing show up.
+    This messages should be supressed.</td>
+</tr><tr>
+  <td bgcolor=#FFCCCC>fault</td>
+  <td>Decoder starts at wrong priority</td>
+  <td bgcolor=#FFCCCC>open</td>
+  <td>In playlist mode when the data for the next song is prefetched
+    the new decoder thread does not inherit the priority from the old thread.
+    This may cause the playback to have drop outs.</td>
+</tr><tr>
+  <td bgcolor=#FFCCCC>fault</td>
+  <td>Deadlocks with recursive playlists</td>
+  <td bgcolor=#FFCCCC>open</td>
+  <td>With recursive playlist structures PM123 somtimes deadlocks
+    because the list semaphore are not requested top down.
+    In fact there is no top and no bottom in this case.</td>
+</tr></table>
+</body>
+</html>
