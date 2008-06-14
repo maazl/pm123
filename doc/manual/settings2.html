@@ -9,12 +9,26 @@
 <img SRC="images/prop1a.png"><br>
 </blockquote>
 
-<h3>User interface</h3>
+<h3>Navigation</h3>
 <dl>
-  <dt><b>Dock windows to <var>x</var> pixels</b>
-  <dd>This will allow the windows to dock into the main player window so that when
-  then main window is moved, the docked window follows. Specify the distance in
-  pixels to allow for docking.
+  <dt><img src="images/altslider.bmp" align=right> <b>Alternate slider</b>
+  <dd>Alternate navigation is available in playlist mode to navigate directly through the entire playlist.
+    It is activated by pressing the Alt key while the main window has the focus.
+    You can choose between three types of behaviour:
+    <ul>
+      <li><b>Song only</b><br>
+        This allows you to use the slider to jump to the <em>beginning</em>
+        of an arbitrary song within a playlist.
+      <li><b>Song & time</b><br>
+        This option will map all songs in the playlist to equidistant slices of the slider.
+        Within this blocks you can navigate to an relative location within the song item
+        (if it has finite length).
+      <li><b>Time only</b><br>
+        This will navigate within the currently loaded playlist at a linear time scale
+        as if it were one very long song. If the total playing time of the playlist
+        is unknown (e.g. because a radio stream is part of the it)
+        alternate navigation will fallback to "Song & time". 
+    </ul>
 </dl>
 
 <h3>Remote control</h3>
@@ -22,9 +36,10 @@
   <dt><b>Pipe name</b>
   <dd>Specify the name of the named pipe that is used to control PM123 remotely.
     Only one instance of PM123 can listen at a certain pipe name.
-    If you want to control different instances remotely at the same time
-    they mus use different pipe names and therefore different configuration files.
-    The pipe name must start with <tt>\PIPE\</tt>.
+    The pipe name must start with <tt>\PIPE\</tt>.<br>
+    If you want to control different instances remotely at the same time,
+    they must use different pipe names and therefore different configuration files.
+    Otherwise the pipe interface of the second instance will be deactivated.
 </dl>
 
 <h3>Streaming audio</h3>

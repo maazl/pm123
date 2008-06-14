@@ -1,0 +1,277 @@
+<html level=3>
+<head>
+  <title>Remote Command Reference</title>
+</head>
+<body>
+<h2>PM123's Remote Command Reference</h2>
+<p> PM123 currently understands the following
+commands (optional parameters are enclosed in square brackets).</p>
+<h3>Category playback control</h3>
+<table border="1" cellpadding="5" cellspacing="0">
+<tbody>
+<tr>
+<th>Comand</th>
+<th>Desription</th>
+<th>Reply</th>
+</tr>
+<tr valign="baseline">
+<td><tt>load </tt>[<tt><var>&lt;file&gt;</var></tt>|<tt><var>&lt;url&gt;</var></tt>]</td>
+<td>Loads a <var><tt>&lt;file&gt;</tt></var>
+or <tt><var>&lt;url&gt;</var></tt>
+into the player. Plays it too, if '<i>auto play on load</i>'
+is set.</td>
+<td>Result code, non-zero = error.</td>
+</tr>
+<tr valign="baseline">
+<td><tt>play </tt>[<tt><var>&lt;file&gt;</var></tt>|<tt><var>&lt;url&gt;</var></tt>]</td>
+<td>Starts playing.<br>
+If <tt><var>&lt;file&gt;</var></tt> or
+<tt><var>&lt;url&gt;</var></tt>
+was specified, it will be first loaded and playback will be started.
+Any currently playing item will be aborted.</td>
+<td>Result code, non-zero = error.</td>
+</tr>
+<tr valign="baseline">
+<td><tt>stop</tt></td>
+<td>Stops playback.</td>
+<td>Result code, non-zero = error.</td>
+</tr>
+<tr valign="baseline">
+<td><tt>pause </tt>[<tt>on</tt>|<tt>off</tt>]<sup><a href="#note1">(1)</a></sup></td>
+<td>Pauses or unpauses the playback.</td>
+<td>Result code, non-zero = error.</td>
+</tr>
+<tr valign="baseline">
+<td><tt>next </tt>[<var><tt>&lt;count&gt;</tt></var>]</td>
+<td>Selects the next song in playlist. If <var><tt>&lt;count&gt;</tt></var>
+is specified, you can skip more than one song at once.</td>
+<td>Result code, non-zero = error.</td>
+</tr>
+<tr valign="baseline">
+<td><tt>previous </tt>[<var><tt>&lt;count&gt;</tt></var>]</td>
+<td>Selects the previous song in playlist. If <var><tt>&lt;count&gt;</tt></var>
+is specified, you can skip more than one song at once.</td>
+<td>Result code, non-zero = error.</td>
+</tr>
+<tr valign="baseline">
+<td><tt>rewind </tt>[<tt>on</tt>|<tt>off</tt>]<sup><a href="#note1">(1)</a></sup></td>
+<td>Toggles or (re)sets rewind of the currently playing
+file. If rewind is activated fast forward is implicitely deactivated.</td>
+<td>Result code, non-zero = error.</td>
+</tr>
+<tr valign="baseline">
+<td><tt>forward </tt>[<tt>on</tt>|<tt>off</tt>]<sup><a href="#note1">(1)</a></sup></td>
+<td>Toggles or (re)sets fast forward of the currently
+playing file. If fast forward is activated rewind is implicitely
+deactivated.</td>
+<td>Result code, non-zero = error.</td>
+</tr>
+<tr valign="baseline">
+<td><tt>navigate<br>
+</tt><tt>song <var>&lt;url&gt;</var></tt><br>
+[<tt>time </tt><var><tt>&lt;time&gt;</tt></var>[<tt>%</tt>]]</td>
+<td>Navigate within the currently loaded playlist. Examples:<br>
+'<tt>navigate path ;D:\songs\song1.mp3</tt>' navigates to
+the start of the song within the currently loaded playlist. If the file
+is referenced twice, the first instance s taken.<br>
+'<tt>navigate song D:\songs\song1.mp3 time 1:02.7</tt>'
+navigates to location 62.7 seconds within the next occourency of .</td>
+<td>Result code, non-zero = error.</td>
+</tr>
+<tr valign="baseline">
+<td><tt>navigate<br>
+</tt><tt>path </tt>[<tt>;</tt>]<tt><var>&lt;item&gt;</var></tt>[<tt>;<var>&lt;subitem&gt;</var></tt>[<tt>;</tt>...]]<br>
+[<tt>time </tt><var><tt>&lt;time&gt;</tt></var>[<tt>%</tt>]]</td>
+<td>Navigate within the currently loaded playlist. Examples:<br>
+'<tt>navigate path ;D:\songs\song1.mp3</tt>' navigates to
+the start of the song within the currently loaded playlist. If the file
+is referenced twice, the first instance s taken.<br>
+'<tt>navigate song D:\songs\song1.mp3 time 1:02.7</tt>'
+navigates to location 62.7 seconds within the next occourency of .</td>
+<td>Result code, non-zero = error.</td>
+</tr>
+<tr valign="baseline">
+<td><tt>jump <var>&lt;n&gt;</var></tt></td>
+<td>Jump to <tt><var>&lt;n&gt;</var></tt>
+seconds in the currently playing file. <tt><var>&lt;n&gt;</var></tt>
+may be a fractional number.</td>
+<td>Result code, non-zero = error.</td>
+</tr>
+<tr valign="baseline">
+<td><tt>volume </tt>[[<tt>+</tt>|<tt>-</tt>]<tt><var>&lt;n&gt;</var></tt>]</td>
+<td>Sets volume to <tt><var>&lt;n&gt;</var></tt>%
+(scale 0-100, of course). If a sign is included, <tt><var>&lt;n&gt;</var></tt>
+is added to the current volume level. If <tt><var>&lt;n&gt;</var></tt>
+is ommitted the volume is unchanged.</td>
+<td>Previous volume setting or empty string on error.</td>
+</tr>
+<tr valign="baseline">
+<td><tt>shuffle </tt>[<tt>on</tt>|<tt>off</tt>]<sup><a href="#note1">(1)</a></sup></td>
+<td>Toggles or (re)sets shuffling.</td>
+<td>Previous setting or empty string on error.</td>
+</tr>
+<tr valign="baseline">
+<td><tt>repeat </tt>[<tt>on</tt>|<tt>off</tt>]<sup><a href="#note1">(1)</a></sup></td>
+<td>Toggles or (re)sets repeat.</td>
+<td>Previous setting or empty string on error.</td>
+</tr>
+<tr valign="baseline">
+<td><tt>hide</tt></td>
+<td>Hides the player window.</td>
+<td>&nbsp;</td>
+</tr>
+<tr valign="baseline">
+<td><tt>status tag</tt>|<tt>file</tt>|<tt>info</tt></td>
+<td>Returns the information currently displayed in the
+scroller or returns nothing if "no file loaded".</td>
+<td>Info string.</td>
+</tr>
+</tbody>
+</table>
+<h3>Category Playlists</h3>
+<table border="1" cellpadding="5" cellspacing="0">
+<tbody>
+<tr>
+<th>Comand</th>
+<th>Desription</th>
+<th>Reply</th>
+</tr>
+<tr valign="baseline">
+<td><tt>playlist <var>&lt;file&gt;|&lt;folder&gt;</var></tt></td>
+<td>Select a playlist or a folder. This setting only affects the pipe
+interface.</td>
+<td>Full qualified URL or empty string on error.</td>
+</tr>
+<tr valign="baseline">
+<td><tt>pl_next</tt><a href="#note3"><sup>(3)</sup></a></td>
+<td>Navigate to the next item in the current playlist.</td>
+<td>URL of the item or an empty string at the end of the
+list.</td>
+</tr>
+<tr valign="baseline">
+<td><tt>pl_previous</tt><a href="#note3"><sup>(3)</sup></a></td>
+<td>Navigate to the previous item in the current playlist.</td>
+<td>URL of the item or an empty string at the end of the
+list.</td>
+</tr>
+<tr valign="baseline">
+<td><tt>pl_reset</tt><a href="#note3"><sup>(3)</sup></a></td>
+<td>Reset the current item of the playlist. The current location is now before
+  the start or past the end respectively.</td>
+<td>&nbsp;</td>
+</tr>
+<tr valign="baseline">
+<td><tt>use</tt></td>
+<td>Use the current playlist. This is equivalent to '<tt>load
+<var>&lt;filepath to current playlist&gt;</var></tt>'.</td>
+<td>&nbsp;</td>
+</tr>
+<tr valign="baseline">
+<td><tt>clear</tt></td>
+<td>Clears the current playlist.</td>
+<td>&nbsp;</td>
+</tr>
+<tr valign="baseline">
+<td><tt>add <var>&lt;file&gt;</var></tt>|<var><tt>&lt;url&gt;</tt></var>[<tt>;</tt>...]</td>
+<td>Adds item(s) to the current playlist. The items are added before the current
+  item. If the current item is past the end the new items are appended.<br>
+  Multiple items
+must be separated with '<tt>;</tt>' characters. The names
+or urls can be enclosed with double quotes. The operation is atomic.</td>
+<td>&nbsp;</td>
+</tr>
+<tr valign="baseline">
+<td><tt>dir <var>&lt;directory&gt;</var></tt><sup><a href="#note1">(2)</a></sup></td>
+<td>Add <tt><var>&lt;directory&gt;</var></tt>
+to the playlist (non-recursive).</td>
+<td>&nbsp;</td>
+</tr>
+<tr valign="baseline">
+<td><tt>rdir <var>&lt;directory&gt;</var></tt><sup><a href="#note1">(2)</a></sup></td>
+<td>Add <tt><var>&lt;directory&gt;</var></tt>
+to the playlist (recursive).</td>
+<td>&nbsp;</td>
+</tr>
+<tr valign="baseline">
+<td><tt>remove</tt></td>
+<td>Removes currently loaded file from the current playlist.</td>
+<td>Full qualified URL of the removed item or empty string on error.</td>
+</tr>
+<tr valign="baseline">
+  <td><tt>save </tt>[<var><tt>&lt;file&gt;</tt></var>]</td>
+  <td>Save the current playlist as <var><tt>&lt;file&gt;</tt></var>. If <var><tt>&lt;file&gt;</tt></var> is
+    omitted the playlist is saved in place. This only works on mutable lists.</td>
+  <td>&nbsp;</td>
+</tr>
+</tbody>
+</table>
+<h3>Category Configuration</h3>
+<table border="1" cellpadding="5" cellspacing="0">
+<tbody>
+<tr>
+<th>Comand</th>
+<th>Desription</th>
+<th>Reply</th>
+</tr>
+<tr valign="baseline">
+<td><tt>autouse </tt>[<tt>on</tt>|<tt>off</tt>|<tt>toggle</tt>]<sup><a href="#note1">(1)</a></sup></td>
+<td>Toggles or (re)sets '<i>auto use playlist on add</i>'.<br>
+  Without an argument only the current setting is returned.</td>
+<td>Previous setting or empty string on error.</td>
+</tr>
+<tr valign="baseline">
+<td><tt>playonload </tt>[<tt>on</tt>|<tt>off</tt>|<tt>toggle</tt>]<sup><a href="#note1">(1)</a></sup></td>
+<td>Toggles or (re)sets '<i>auto play on load</i>'.<br>
+  Without an argument only the current setting is returned.</td>
+<td>Previous setting or empty string on error.</td>
+</tr>
+<tr valign="baseline">
+<td><tt>playonuse </tt>[<tt>on</tt>|<tt>off</tt>|<tt>toggle</tt>]<sup><a href="#note1">(1)</a></sup></td>
+<td>Toggles or (re)sets '<i>auto play on playlist use</i>'.<br>
+  Without an argument only the current setting is returned.</td>
+<td>Previous setting or empty string on error.</td>
+</tr>
+<tr valign="baseline">
+<td><tt>float </tt>[<tt>on</tt>|<tt>off</tt>|<tt>toggle</tt>]<sup><a href="#note1">(1)</a></sup></td>
+<td>Toggles or (re)sets '<i>float on top</i>'.<br>
+  Without an argument only the current setting is returned.</td>
+<td>Previous setting or empty string on error.</td>
+</tr>
+<tr valign="baseline">
+<td><tt>font </tt>[<tt>1</tt>|<tt>2</tt>|<var><tt>&lt;font&gt;</tt></var>]</td>
+<td>Selects font 1 or font 2 or a non-skinned OS/2 font. <var><tt>&lt;font&gt;</tt></var>
+is in the PM syntax like '<tt>8.Helvetica</tt>'.<br>
+Without an argument only the current setting is returned.</td>
+<td>Previous setting or empty string on error.</td>
+</tr>
+<tr valign="baseline">
+<td><tt>size </tt>[<tt>0</tt>|<tt>normal</tt>|<tt>regular</tt>
+| <tt>1</tt>|<tt>small</tt> | <tt>2</tt>|<tt>tiny</tt>]</td>
+<td>Selects the player size.<br>
+  Without an argument only the current setting is returned.</td>
+<td>Previous setting [<tt>0</tt>|<tt>1</tt>|<tt>2</tt>] or empty string on error.</td>
+</tr>
+</tbody>
+</table>
+<h3>Notes</h3>
+<ol>
+<li>
+<p>All boolean parameters may use '<tt>on</tt>', '<tt>1</tt>',
+'<tt>true</tt>' or '<tt>yes</tt>' for the
+logical true value and '<tt>off</tt>', '<tt>0</tt>',
+'<tt>false</tt>' or '<tt>no</tt>' for false.</p>
+</li>
+<li>
+<p>The behaviour of the directory commands has significantly
+changed with PM123 1.40. The content of the directories is no longer
+expanded inline into the playlist. A reference to the diretory is added
+to the playlist instead. This has several side effects. Unplayable
+items appear in the navigation. The directory is rescanned everytime
+the playlist is loaded.</p>
+</li>
+<li>In PM123 before version 1.40 the playlist manipulation
+commands always operate on the currently playing item. Now the new
+commands <tt>pl_prev</tt>, <tt>pl_next</tt>
+and <tt>pl_reset</tt> are dedicated to playlist operations.</li>
+</ol>
+</body></html>

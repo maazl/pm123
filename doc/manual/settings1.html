@@ -22,28 +22,6 @@
     is to drag the slider to the start or to change the current song.
 </dl>
 
-<h3>Navigation</h3>
-<dl>
-  <dt><b>Alternate navigation</b>
-  <dd>Alternate navigation is available in playlist mode to navigate directly through the entire playlist.
-    It is activated by pressing the Alt key while the main window has the focus.
-    You can choose between three types of behaviour:
-    <ul>
-      <li><b>Song only</b><br>
-        This allows you to use the slider to jump to the <em>beginning</em>
-        of an arbitrary song within a playlist.
-      <li><b>Song & time</b><br>
-        This option will map all songs in the playlist to equidistant slices of the slider.
-        Within this block you can navigate to an absolute location within the song item
-        (if it has finite length).
-      <li><b>Time only</b><br>
-        This will navigate within the currently loaded playlist at a linear time scale
-        as if it were one very long song. If the total playing time of the playlist
-        is unknown (e.g. because a radio stream is part of the it)
-        alternate navigation will behave the same as with option "Song & time". 
-    </ul>
-</dl>
-
 <h3>Playlists</h3>
 <dl>
   <dt><b>Auto 'play' on 'use playlist'</b>
@@ -53,6 +31,11 @@
   <dt><b>Recurse into subdirectories at drag & drop by default</b>
   <dd>When you drop a folder to PM123 it will be added as a virtual playlist
     that also contains the subfolders as vitual playlists.
+  <dt><b>Sort folder content by name</b>
+  <dd>When a filesystem folder is opened by PM123 the files are always sorted by their name.
+  <dt><b>Subfolders first</b>
+  <dd>Additionally the subfolders are placed before any file items.
+    Otherwise subfolders will show up between the files according to their name.
   <dt><b>Append to default playlist</b>
   <dd>When you drop items to PM123 or call PM123 with a filename in the command line
     (most likely by a association of the PMSHELL) you may append these items to the default
