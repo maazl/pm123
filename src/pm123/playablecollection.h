@@ -76,6 +76,9 @@ class PlayableSlice : public Iref_Count
   // Get't the referenced content.
   // This Pointer is valid as long as the PlayableInstance exist and does not change.
   Playable*                GetPlayable() const { return RefTo; }
+  // Swap instance properties (fast)
+  // You must not swap instances that belong to different Playable objects.
+  virtual void             Swap(PlayableSlice& r);
   // Start and Stop position
   const SongIterator*      GetStart() const    { return Start; }
   const SongIterator*      GetStop() const     { return Stop; }
@@ -150,6 +153,13 @@ class PlayableInstance : public PlayableSlice
   // Calling this method with NULL will check whether the instance does no longer belog to a collection.
   // In this case only the return value true is reliable.
   bool                     IsParent(const PlayableCollection* parent) const { return Parent == parent; }
+  // Display name
+  xstring                  GetDisplayName() const;
+
+  // Swap instance properties (fast)
+  // You must not swap instances that belong to different PlayableCollection objects.
+  // The collection must be locked when calling Swap.
+  virtual void             Swap(PlayableSlice& r);
 
   // Play position
   // The functions take the ownership of the SongIterator.
@@ -157,8 +167,6 @@ class PlayableInstance : public PlayableSlice
   virtual void             SetStop (SongIterator* iter);
   // Aliasname
   virtual void             SetAlias(const xstring& alias);
-  // Display name
-  xstring                  GetDisplayName() const;
 
   // The Status-Interface of PlayableInstance is identical to that of Playable,
   // but the only valid states for a PlayableInstance are Normal and Used.
@@ -168,7 +176,6 @@ class PlayableInstance : public PlayableSlice
   // Change status of this instance.
   virtual void             SetInUse(bool used);
 
- public:
   // event on status change
   event<const change_args> StatusChange;
   // Compare two PlayableInstance objects by value.
@@ -236,17 +243,13 @@ class PlayableCollection : public Playable
     int_ptr<Entry> Next;      // link to the next entry or NULL if this is the last
     TDType TechDelegate;
     IDType InstDelegate;
-    Entry(PlayableCollection& parent, Playable* playable, TDType::func_type tfn, IDType::func_type ifn)
-    : PlayableInstance(parent, playable),
-      Prev(NULL),
-      Next(NULL),
-      TechDelegate(playable->InfoChange, parent, tfn),
-      InstDelegate(StatusChange, parent, ifn)
-    { DEBUGLOG(("PlayableCollection::Entry(%p)::Entry(&%p, %p, )", this, &parent, playable)); }
+    Entry(PlayableCollection& parent, Playable* playable, TDType::func_type tfn, IDType::func_type ifn);
     ~Entry() { DEBUGLOG(("PlayableCollection::Entry(%p)::~Entry()", this)); }
+    // Activate the event handlers
+    void Attach();
     // Detach a PlayableInstance from the collection.
     // This function must be called only by the parent collection and only while it is locked.
-    void Detach()             { Parent = NULL; }
+    void Detach();
   };
   // CollectionInfo CacheEntry
   struct CollectionInfoEntry
@@ -258,8 +261,9 @@ class PlayableCollection : public Playable
 
  protected:
   // The object list is implemented as a doubly linked list to keep the iterators valid on modifications.
-  int_ptr<Entry> Head;
-  int_ptr<Entry> Tail;
+  int_ptr<Entry>              Head;
+  int_ptr<Entry>              Tail;
+  int_ptr<Entry>              OldTail;  // New head pointer between BeginRefresh and EndRefresh
   bool                        Modified;
 
  private:
@@ -279,13 +283,13 @@ class PlayableCollection : public Playable
   // Prefetch some information to avoid deadlocks in GetCollectionInfo.
   void                        PrefetchSubInfo(const PlayableSet& excluding);
   // Create new entry and make the path absolute if required.
-  virtual Entry*              CreateEntry(const char* url, const DECODER_INFO2* ca = NULL);
-  // Append a new entry at the end of the list.
-  // The list must be locked before calling this Function.
-  void                        AppendEntry(Entry* entry);
+  Entry*                      CreateEntry(const char* url, const DECODER_INFO2* ca = NULL);
   // Insert a new entry into the list.
   // The list must be locked before calling this Function.
   void                        InsertEntry(Entry* entry, Entry* before);
+  // Append a new entry at the end of the list.
+  // The list must be locked before calling this Function.
+  void                        AppendEntry(Entry* entry) { InsertEntry(entry, NULL); }
   // Move a entry inside the list.
   // The list must be locked before calling this Function.
   // The function returns false if the move is a no-op.
@@ -293,6 +297,12 @@ class PlayableCollection : public Playable
   // Remove an entry from the list.
   // The list must be locked before calling this Function.
   void                        RemoveEntry(Entry* entry);
+  // This function logically removes all items from the list but keeps them alive until
+  // EndRefresh is called or they are reused by AppendEntry. This mechanismn avoids
+  // that the unmodified PlayableInstance objects are recreated.
+  void                        BeginRefresh();
+  // Refresh has been completed. This deletes all items that are not reused so far.  
+  void                        EndRefresh();
   // Subfunction to LoadInfo which really populates the linked list.
   // The return value indicates whether the object is valid.
   virtual bool                LoadList() = 0;

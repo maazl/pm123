@@ -170,7 +170,7 @@ class Playable
   // Normally 
   void                RaiseInfoChange();
  public:
-  virtual ~Playable();
+  virtual             ~Playable();
   // Check whether a given URL is to be initialized as playlist.
   static bool         IsPlaylist(const url123& URL);
   // Get URL

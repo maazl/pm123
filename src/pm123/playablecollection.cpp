@@ -129,6 +129,14 @@ PlayableSlice::~PlayableSlice()
   delete Stop;
 };
 
+void PlayableSlice::Swap(PlayableSlice& r)
+{ DEBUGLOG(("PlayableSlice(%p)::Swap(&%p)\n", this, &r));
+  ASSERT(GetPlayable() == r.GetPlayable());
+  Alias.swap(r.Alias);
+  swap(Start, r.Start);
+  swap(Stop, r.Stop);
+}
+
 void PlayableSlice::SetStart(SongIterator* iter)
 { DEBUGLOG(("PlayableSlice(%p)::SetStart(%p{%s})\n", this, iter, SongIterator::DebugName(iter).cdata()));
   delete Start;
@@ -187,19 +195,15 @@ PlayableInstance::PlayableInstance(PlayableCollection& parent, Playable* playabl
     &parent, parent.GetURL().getShortName().cdata(), playable, playable->GetURL().getShortName().cdata()));
 }
 
-void PlayableInstance::SetInUse(bool used)
-{ DEBUGLOG(("PlayableInstance(%p)::SetInUse(%u) - %u\n", this, used, Stat));
-  PlayableStatus old_stat = Stat;
-  Stat = used ? STA_Used : STA_Normal;
-  if (Stat != old_stat)
-  { RefTo->SetInUse(used);
-    StatusChange(change_args(*this, SF_InUse));
-  }
-}
-
 xstring PlayableInstance::GetDisplayName() const
 { DEBUGLOG2(("PlayableInstance(%p)::GetDisplayName()\n", this));
   return GetAlias() ? GetAlias() : RefTo->GetDisplayName();
+}
+
+void PlayableInstance::Swap(PlayableSlice& r)
+{ DEBUGLOG(("PlayableInstance(%p)::Swap(&%p)\n", this, &r));
+  ASSERT(Parent == ((PlayableInstance&)r).Parent);
+  PlayableSlice::Swap(r);
 }
 
 void PlayableInstance::SetStart(SongIterator* iter)
@@ -223,6 +227,16 @@ void PlayableInstance::SetAlias(const xstring& alias)
   if (GetAlias() != alias)
   { PlayableSlice::SetAlias(alias);
     StatusChange(change_args(*this, SF_Alias));
+  }
+}
+
+void PlayableInstance::SetInUse(bool used)
+{ DEBUGLOG(("PlayableInstance(%p)::SetInUse(%u) - %u\n", this, used, Stat));
+  PlayableStatus old_stat = Stat;
+  Stat = used ? STA_Used : STA_Normal;
+  if (Stat != old_stat)
+  { RefTo->SetInUse(used);
+    StatusChange(change_args(*this, SF_InUse));
   }
 }
 
@@ -299,6 +313,27 @@ void PlayableCollection::CollectionInfo::Reset()
 }
 
 
+PlayableCollection::Entry::Entry(PlayableCollection& parent, Playable* playable, TDType::func_type tfn, IDType::func_type ifn)
+: PlayableInstance(parent, playable),
+  Prev(NULL),
+  Next(NULL),
+  TechDelegate(parent, tfn),
+  InstDelegate(parent, ifn)
+{ DEBUGLOG(("PlayableCollection::Entry(%p)::Entry(&%p, %p, )", this, &parent, playable));
+}
+
+void PlayableCollection::Entry::Attach()
+{ GetPlayable()->InfoChange += TechDelegate;
+  StatusChange += InstDelegate;
+}
+
+void PlayableCollection::Entry::Detach()
+{ TechDelegate.detach();
+  InstDelegate.detach();
+  Parent = NULL;
+}
+
+
 Mutex PlayableCollection::CollectionInfoCacheMtx;
 
 PlayableCollection::PlayableCollection(const url123& URL, const DECODER_INFO2* ca)
@@ -351,28 +386,45 @@ PlayableCollection::Entry* PlayableCollection::CreateEntry(const char* url, cons
   return new Entry(*this, pp, &PlayableCollection::ChildInfoChange, &PlayableCollection::ChildInstChange);
 }
 
-void PlayableCollection::AppendEntry(Entry* entry)
-{ DEBUGLOG(("PlayableCollection(%p{%s})::AppendEntry(%p{%s,%p,%p})\n", this, GetURL().getShortName().cdata(),
-    entry, entry->GetPlayable()->GetURL().getShortName().cdata(), entry->Prev.get(), entry->Next.get()));
-  if ((entry->Prev = Tail) != NULL)
-    Tail->Next = entry;
-   else
-    Head = entry;
-  Tail = entry;
-  DEBUGLOG(("PlayableCollection::AppendEntry - before event\n"));
-  CollectionChange(change_args(*this, *entry, Insert));
-  DEBUGLOG(("PlayableCollection::AppendEntry - after event\n"));
-}
-
 void PlayableCollection::InsertEntry(Entry* entry, Entry* before)
 { DEBUGLOG(("PlayableCollection(%p{%s})::InsertEntry(%p{%s,%p,%p}, %p{%s})\n", this, GetURL().getShortName().cdata(),
-    entry, entry->GetPlayable()->GetURL().getShortName().cdata(), entry->Prev.get(), entry->Next.get(), before, before->GetPlayable()->GetURL().getShortName().cdata()));
+    entry, entry->GetPlayable()->GetURL().getShortName().cdata(), entry->Prev.get(), entry->Next.get(), before, before ? before->GetPlayable()->GetURL().getShortName().cdata() : ""));
+  // Check wether we are between BeginRefresh and EndRefresh and may recycle an existing item.
+  if (OldTail)
+  { ASSERT(before == NULL); // only append is supported in refresh mode
+    Entry* ep = Head;
+    while (ep)
+    { // is matching entry?
+      // We ignore the properties of PlayableInstance here
+      if (ep->GetPlayable() == entry->GetPlayable())
+      { DEBUGLOG(("PlayableCollection::InsertEntry match: %p\n", ep));
+        // Match! => Swap properties
+        ep->Swap(*entry);
+        // destroy original
+        if (entry->RefCountIsUnmanaged()) // Normally we sould assign entry to an int_ptr instance.
+          delete entry;                   // But this is reliable too.
+        // update OldTail if we reuse the entry where it points to.
+        if (OldTail == ep)
+          OldTail = ep->Prev;
+        // move entry to the new location
+        MoveEntry(ep, before);
+        return;
+      }
+      // do not search the new entries
+      if (ep == OldTail)
+        break;
+      // next old entry
+      ep = ep->Next;
+    }
+  }
+  // insert new item at the desired location
+  entry->Attach();
+  int_ptr<Entry>& rptr = before ? before->Prev : Tail; // right owner (next item or Tail)
+  int_ptr<Entry>& lptr = rptr   ? rptr->Next   : Head; // left owner (previous item or Head)
   entry->Next = before;
-  if ((entry->Prev = before->Prev) != NULL)
-    entry->Prev->Next = entry;
-   else
-    Head = entry;
-  before->Prev = entry;
+  entry->Prev = rptr;
+  rptr = entry;
+  lptr = entry;
   DEBUGLOG(("PlayableCollection::InsertEntry - before event\n"));
   CollectionChange(change_args(*this, *entry, Insert));
   DEBUGLOG(("PlayableCollection::InsertEntry - after event\n"));
@@ -424,6 +476,22 @@ void PlayableCollection::RemoveEntry(Entry* entry)
     entry->Next->Prev = entry->Prev;
    else
     Tail = entry->Prev;
+}
+
+void PlayableCollection::BeginRefresh()
+{ DEBUGLOG(("PlayableCollection(%p)::BeginRefresh()\n", this));
+  ASSERT(OldTail == NULL);
+  OldTail = Tail;
+}
+
+void PlayableCollection::EndRefresh()
+{ DEBUGLOG(("PlayableCollection(%p)::EndRefresh() - %p\n", this, OldTail.get()));
+  if (OldTail)
+  { Entry* end = OldTail->Next;
+    do
+      RemoveEntry(Head);
+    while (Head != end);
+  }
 }
 
 void PlayableCollection::ChildInfoChange(const Playable::change_args& args)
@@ -719,10 +787,7 @@ bool PlayableCollection::InsertItem(const PlayableSlice& item, PlayableInstance*
   if (Stat <= STA_Invalid)
     UpdateStatus(STA_Normal);
 
-  if (before == NULL)
-    AppendEntry(ep);
-   else
-    InsertEntry(ep, (Entry*)before);
+  InsertEntry(ep, (Entry*)before);
 
   ++Info.phys->num_items;
   InfoChangeFlags |= IF_Other|IF_Phys;
@@ -1263,15 +1328,11 @@ bool Playlist::LoadPLS(XFILE* x)
 bool Playlist::LoadList()
 { DEBUGLOG(("Playlist(%p{%s})::LoadList()\n", this, GetURL().getShortName().cdata()));
 
-  // clear content if any
-  // TODO: more sophisticated approach
-  while (Head)
-    RemoveEntry(Head);
-
   bool rc = false;
-
   xstring ext = GetURL().getExtension();
 
+  // Prepare to reuse PlayableInstance objects
+  BeginRefresh();
   // open file
   XFILE* x = xio_fopen(GetURL(), "r");
   if (x == NULL)
@@ -1303,6 +1364,8 @@ bool Playlist::LoadList()
     // Write phys
     UpdateInfo(&phys);
   }
+  // Cleanup reuse of PlayableInstance objects
+  EndRefresh();
   return rc;
 }
 
@@ -1385,8 +1448,8 @@ bool PlayFolder::LoadList()
   if (!GetURL().isScheme("file:")) // Can't handle anything but filesystem folders so far.
     return false;
 
-  while (Head)
-    RemoveEntry(Head);
+  // Prepare to reuse PlayableInstance objects
+  BeginRefresh();
 
   xstring name = GetURL().getBasePath();
   // strinp file:[///]
@@ -1432,6 +1495,8 @@ bool PlayFolder::LoadList()
     DosFindClose(hdir);
   }
   UpdateInfo(&phys);
+  // Cleanup reuse of PlayableInstance objects
+  EndRefresh();
   DEBUGLOG(("PlayFolder::LoadList: %u\n", rc));
   switch (rc)
   {case NO_ERROR:

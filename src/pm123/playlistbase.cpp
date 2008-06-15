@@ -796,7 +796,8 @@ void PlaylistBase::UpdateChildren(RecordBase* const rp)
   for (RecordBase** orpp = old.begin(); orpp != old.end(); ++orpp)
     RemoveEntry(*orpp);
   // resume redraw
-  PMRASSERT(WinEnableWindowUpdate(HwndContainer, TRUE));
+  PMRASSERT(WinShowWindow(HwndContainer, TRUE));
+  //PMRASSERT(WinEnableWindowUpdate(HwndContainer, TRUE));
 }
 
 void PlaylistBase::GetRecords(USHORT emphasis)
