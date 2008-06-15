@@ -744,7 +744,15 @@ void PlaylistBase::UpdateChildren(RecordBase* const rp)
     return;
   }
 
-  PMRASSERT(WinEnableWindowUpdate(HwndContainer, FALSE)); // suspend redraw
+  // Check wether we should supend the redraw.
+  bool pauseredraw = false;
+  { RecordBase* parent = GetParent(rp);
+    if (parent == NULL || parent->flRecordAttr & CRA_EXPANDED)
+    { pauseredraw = true;
+      PMRASSERT(WinEnableWindowUpdate(HwndContainer, FALSE)); // suspend redraw
+    }
+  }
+
   // First check what's currently in the container.
   // The collection is /not/ locked so far.
   vector<RecordBase> old(32);
@@ -796,7 +804,8 @@ void PlaylistBase::UpdateChildren(RecordBase* const rp)
   for (RecordBase** orpp = old.begin(); orpp != old.end(); ++orpp)
     RemoveEntry(*orpp);
   // resume redraw
-  PMRASSERT(WinShowWindow(HwndContainer, TRUE));
+  if (pauseredraw)
+    PMRASSERT(WinShowWindow(HwndContainer, TRUE));
   //PMRASSERT(WinEnableWindowUpdate(HwndContainer, TRUE));
 }
 
