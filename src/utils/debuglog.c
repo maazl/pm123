@@ -49,8 +49,8 @@
 #include <assert.h>
 #include <malloc.h>
 
-static char logmutexname[] = "\\SEM32\\PM123-log-1234";
-static HMTX logmutex = NULLHANDLE;
+/*static char logmutexname[] = "\\SEM32\\PM123-log-1234";
+static HMTX logmutex = NULLHANDLE;*/
                         
 // log to stderr
 void debuglog( const char* fmt, ... )
@@ -58,7 +58,7 @@ void debuglog( const char* fmt, ... )
   va_list va;
   PTIB ptib;
   PPIB ppib;
-  static char buffer[28+1024+1];
+  char buffer[28+1024+1];
   ULONG dummy;
 
   // Hack to get a more precise stack info: count the number of % in the format string and subtracht taht from the stack.
@@ -82,7 +82,7 @@ void debuglog( const char* fmt, ... )
 
   DosGetInfoBlocks( &ptib, &ppib );
 
-  if (logmutex == NULLHANDLE)
+  /*if (logmutex == NULLHANDLE)
   { // create mutex
     // This code may run in parallel, however it makes no difference
     APIRET rc;
@@ -96,15 +96,15 @@ void debuglog( const char* fmt, ... )
       rc = DosOpenMutexSem(logmutexname, &logmutex);
     } while (rc == ERROR_SEM_NOT_FOUND);
     OASSERT(rc);
-  }
+  }*/
 
   va_start( va, fmt );
-  DosRequestMutexSem( logmutex, SEM_INDEFINITE_WAIT );
+  //DosRequestMutexSem( logmutex, SEM_INDEFINITE_WAIT );
   //                 8+  1+4+  1+4+  1+8+  1 = 28
   sprintf( buffer, "%08ld %04lx:%04ld %08lx ", clock(), ppib->pib_ulpid, ptib->tib_ptib2->tib2_ultid, (ULONG)&fmt + n * sizeof(int) );
   vsnprintf( buffer+28, 1024, fmt, va );
   DosWrite( 2, buffer, 28 + strlen(buffer+28), &dummy);
-  DosReleaseMutexSem( logmutex );
+  //DosReleaseMutexSem( logmutex );
   va_end( va );
   assert(_heapchk() == _HEAPOK);
   // Dirty hack to enforce threading issues to occur.
