@@ -882,6 +882,7 @@ MENU MNU_PLAYLIST
   MENUITEM "Show ~Detailed view",        IDM_PL_DETAILEDALL, 0, MIA_CHECKED|MIA_DISABLED
   MENUITEM "Show ~tree view",            IDM_PL_TREEVIEWALL
   MENUITEM "Show Content ~info",         IDM_PL_INFOALL
+  MENUITEM SEPARATOR
   SUBMENU  "~Append...",                 IDM_PL_APPENDALL
   { MENUITEM "~Files...",                IDM_PL_APPFILEALL
     MENUITEM "~URL...",                  IDM_PL_APPURLALL
