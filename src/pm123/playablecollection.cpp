@@ -204,6 +204,15 @@ void PlayableInstance::Swap(PlayableSlice& r)
 { DEBUGLOG(("PlayableInstance(%p)::Swap(&%p)\n", this, &r));
   ASSERT(Parent == ((PlayableInstance&)r).Parent);
   PlayableSlice::Swap(r);
+  // Fire events?
+  StatusFlags events = SF_None;
+  if (GetAlias() != r.GetAlias())
+    events |= SF_Alias;
+  if ( GetStart() != r.GetStart() // This in fact checks if both iterators are zero
+    || GetStop()  != r.GetStop() )
+    events |= SF_Slice;
+  if (events)
+    StatusChange(change_args(*this, events));
 }
 
 void PlayableInstance::SetStart(SongIterator* iter)
@@ -492,6 +501,7 @@ void PlayableCollection::EndRefresh()
       RemoveEntry(Head);
     while (Head != end);
   }
+  OldTail = NULL;
 }
 
 void PlayableCollection::ChildInfoChange(const Playable::change_args& args)
