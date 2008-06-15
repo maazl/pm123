@@ -711,6 +711,7 @@ void load_default_decoders( void )
 
   add_plugin_core("mpg123.dll",   NULL, PLUGIN_DECODER);
   add_plugin_core("wavplay.dll",  NULL, PLUGIN_DECODER);
+  add_plugin_core("oggplay.dll",  NULL, PLUGIN_DECODER);
   add_plugin_core("cddaplay.dll", NULL, PLUGIN_DECODER);
   add_plugin_core("os2rec.dll",   NULL, PLUGIN_DECODER);
 }
