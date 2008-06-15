@@ -19,6 +19,8 @@ MANLST = $(MANLST) manual\playlistformat.html manual\plug-ins.html manual\plug-i
 MANLST = $(MANLST) manual\properties.html manual\realeq.html manual\remote.html 
 MANLST = $(MANLST) manual\settings1.html manual\settings2.html manual\sguide.html 
 MANLST = $(MANLST) manual\skins.html manual\tech.html manual\troubleshooting.html 
+MANLST = $(MANLST) manual\playfolder.html manual\bookmark.html manual\playlist_cm.html 
+MANLST = $(MANLST) manual\playlist_cmi.html 
 
 PDKLST = pdk\index.html pdk\decode_plug.html pdk\filter_plug.html
 PDKLST = $(PDKLST) pdk\output_plug.html pdk\visual_plug.html

@@ -1,0 +1,57 @@
+<html sublinks="*">
+<head>
+   <title>Playlist Item Context Menu</title>
+</head>
+<body>
+<h2>PM123's Playlist Item Context menu</h2>
+<p>Clicking the second mouse button on an item in the playlist, playlist manager or bookmark window
+  opens the context menu of this item. In the detailed view you may also select multiple items.
+<blockquote>
+  <p><b><a href="playlist.html">Playlist editor</a></b><br>
+    <img SRC="images/filemenu.gif"> <img SRC="images/listmenu.gif"></p>
+  <p><b><a href="manager.html">Playlist Manager</a> (Tree view)</b><br>
+    <img SRC="images/pmlist.gif"> <img SRC="images/pmfile.gif"></p>
+</blockquote>
+<dl>
+  <dt><b>Load</b>
+  <dd><p>Load a playlist item into the player. This will stop any other playback if any.<br>
+  <dt><b>Navigate to</b>
+  <dd><p>Navigates to the desired item of the currently playing playlist.
+    This is disabled if the selected item is no unambiguous subitem of a currently loaded playlist.
+  <dt><b>Edit Playlist</b> / <b>Detaild view</b>
+  <dd><p>Opens the selected playlist in the <a href="playlist.html">playlist editor</a>.
+  <dt><b>Open in tree view</b> / <b>Tree view from here</b>
+  <dd><p>Opens the selected playlist in the <a href="manager.html">playlist manager view</a>.
+  <dt><b>Show item info</b>
+  <dd><p>Show a dialog with informations to the selected item.
+  <dt><b>Edit song info...</b>
+  <dd><p>Edits the <a href="id3.html">song info</a> of the currently loaded file.
+    This is disabled if the apropriate decoders do not support this for the selected files.
+  <dt><b>Refresh status</b>
+  <dd><p>Reloads the meta information of the selected song(s).
+  <dt><b>Append to...</b> <i>(Tree view only)</i>
+  <dd><p><img SRC="images/listmenu_append.gif"><br>
+    Appends one or multiple files, an URL from the Internet for streaming or
+    CD tracks to the selected playlist.
+  <dt><b>Sort</b> <i>(Tree view only)</i>
+  <dd><p>This submenu has options to sort the selected playlist by size, playing time, filename or songname and so on.
+  <dt><b>Remove item</b>
+  <dd><p>Removes a song or nested playlaylist from it's parent.
+    This does not immediately modify or delete the file on disk. It also does not touch the removed file.
+  <dt><b>Flatten</b>
+  <dd><p><img src="images/pmlist_flatten.gif"></p>
+    <p><dl>
+      <dt><b>Expand 1 level</b>
+      <dd>Copies all items of the selected playlist into the parent playlist
+        at the location where the selected playlist has been.
+      <dt><b>Expand all songs</b>
+      <dd>Copies all songs in the selected playlist and it's nested lists
+        at the location where the selected playlist has been.
+        This is the recursive replacement of 'Expand 1 level'.
+    </dl>
+    <p>Flattening a playlist does not modify the songs played by PM123.
+      It only changes the playlist structure.
+</dl>
+
+</body>
+</html>

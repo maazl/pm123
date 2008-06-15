@@ -412,7 +412,7 @@ return;
 
 ResolveLinks:
  procedure expose Global.;
- arg DeepLevel;
+ DeepLevel = ARG(1);
  LinkCount = 0;
  Links.0 = 0;
 
@@ -979,8 +979,8 @@ doTagA_HREF:
         Global.CurLink = i;
         Global.RefEndTag = ':elink.'||Global.RefEndTag;
         /* remeber links in this page */
-        i = Global.PageLinks;
-        Global.PageLinks = i + 1;
+        i = Global.PageLinks +1;
+        Global.PageLinks = i;
         Global.PageLinks.i = translate(subTagValue);
        end;
 return 0;
@@ -1262,7 +1262,7 @@ return;
 /* Returns 0 if link belongs to same page (alas, IPF doesn`t permit this...) */
 GetLinkID:
  procedure expose Global.;
- parse arg link;
+ link = ARG(1);
 
  InitialLink = link;
  if pos('#', link) > 0
@@ -1294,7 +1294,7 @@ return i;
 /* transform image extension into .bmp */
 GetPictureID:
  procedure expose Global.;
- parse arg PictName;
+ PictName = ARG(1);
 
  PictName = FindFile(PictName);
  if length(stream(PictName, 'c', 'query exists')) > 0
@@ -1313,10 +1313,11 @@ return PictName||'*'||tmp;
 
 /* Actively search for file on all possible paths */
 FindFile:
- parse arg fName;
+ procedure expose Global.;
+ fName = ARG(1);
  
  /* Skips full qualified URLs. */
- if pos( "://", InitialLink ) > 0 then
+ if pos( "://", fName ) > 0 then
     return fName;
 
  ifName = fName;
@@ -1334,11 +1335,7 @@ FindFile:
   if length(tmp) > 0 then return Shorten(tmp);
   tmp = stream(Global.CurrentDir||fName, 'c', 'query exists');
   if length(tmp) > 0 then return Shorten(tmp);
-  tmp1 = Pos('/', fName);
-  tmp2 = Pos('\', fName);
-  if (tmp2 < tmp1) & (tmp2 > 0)
-   then tmp = tmp2
-   else tmp = tmp1;
+  tmp = verify(fName, '/\', 'M')
   if tmp > 0
    then fName = substr(fName, tmp)
    else fName = '';
@@ -1390,7 +1387,7 @@ return Token;
 /* put an IPF Token into output stream */
 PutToken:
  procedure expose Global.;
- parse arg Output;
+ Output = ARG(1);
 
  if Global.OptCH then return;
 
@@ -1562,10 +1559,10 @@ IPFstring:
  end;
 
 Shorten:
- parse arg fName;
- fName = translate(stream(fName, 'c', 'query exists'), '/', '\');
+ procedure;
+ fName = translate(stream(ARG(1), 'c', 'query exists'), '/', '\');
  tmp = translate(Directory(), '/', '\');
- if Pos(tmp, fName) = 1
+ if abbrev(fName, tmp)
   then return substr(fName, length(tmp) + 2);
  if substr(fName, 2, 1) = ':'
   then return substr(fName, 3);

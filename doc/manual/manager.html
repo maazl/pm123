@@ -3,47 +3,36 @@
    <title>Playlist Manager</title>
 </head>
 <body>
-<b><font size=+2>PM123's Playlist Manager</font></b>
-<p>Playlist Manager is provided for browsing and managing
-playlists. Note that Playlist Manager <b>is not</b> a replacement for the
-playlist. You can add and remove lists from Playlist Manager, load lists
-into the normal playlist, load single files and calculate statistics. Also
-note that some of Playlist Manager's options only work with .LST playlists saved
-with PM123.
+<h2>PM123's Playlist Manager</h2>
+<p>Playlist Manager is provided for browsing and managing playlists.
+  In fact it is nothing else but a tree view of some default plalist file.
+  The Playlist Manager window will remember the objects added to it next time you open it.
+<p>If you open any other playlist in the tree view you have to save the changes on your own.
+  If the playlist is modified '<tt>(*)</tt>' will show up in the window title.
+  However, you won't see if a nested playlist is modified.
+  
 <blockquote>
 <img SRC="images/pm.gif">
 </blockquote>
-<p>Playlist Manager will remember the playlist added to it next time you
-open it. Right click on an empty space (the title, for example) to get
-the main menu:
-<blockquote>
-<img SRC="images/pmmain.gif">
-</blockquote>
+
+<h3>Window features</h3>
 <dl>
-<dt><b>Add a Playlist</b>
-<dd>Adds a new playlist to the Playlist Manager.
-<dt><b>Statistics</b>
-<dd>Shows statistics for all playlists and files in Playlist Manager.
-</dl>
-<p>Right click on a playlist to get the list menu:
-<blockquote>
-<img SRC="images/pmlist.gif">
-</blockquote>
-<dl>
-<dt><b>Load this Playlist</b>
-<dd>Loads this playlist into PM123 playlist.
-<dt><b>Remove from List</b>
-<dd>Removes this playlist from Playlist Manager.
-<dt><b>Delete</b>
-<dd>Removes this playlist from Playlist Manager and your hard disk.
-</dl>
-<p>Right click on a file to get the file menu:
-<blockquote>
-<img SRC="images/pmfile.gif">
-</blockquote>
-<dl>
-<dt><b>Load this file</b>
-<dd>Loads this file into PM123.
+  <dt><b>Direct manipulation</b>
+  <dd>You can edit the alias name.<br>
+    Note that changing the the name does not change any file name.
+    It only changes the display string of the item in this playlist.
+  <dt><b>Drag and Drop</b>
+  <dd>You can use <a href="dragndrop.html">Drag and Drop</a> to rearrange the items in the playlists,
+    move or copy items between different playlist or playlist manager windows
+    or drop file or URL objects from other applications. In the latter case only shadows are allowed
+    since playlists only contain references to the original objects. 
+    You cannot drop PM123 objects on other applications.
+  <dt><b>Context menu</b>
+  <dd>Right click on an empty space (the title, for example) to get
+    the <a href="playlist_cm.html">main context menu</a>.<br>
+    Right click on a item to get the <a href="playlist_cmi.html">item's context menu</a>.
+  <dt><b>Keayboard accelerators</b>
+  <dd>You may use the <a href="keyboard.html">accelerator keys</a> to call functions from the context menu quickly.
 </dl>
 
 </body>

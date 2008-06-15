@@ -1,4 +1,4 @@
-<html resid=1014 level=3 sublinks="*">
+<html resid=1014 level=3 sublinks="playlist_cm.html" sublinks="playlist_cmi.html">
 <head>
    <title>Playlist Window</title>
 </head>
@@ -7,17 +7,34 @@
 <p>PM123 playlist files always have the extension <tt>.LST</tt>. They use a <a href="playlistformat.html">special format</a>.
   PM123 also understands <tt>.MPL</tt> files used by WarpAMP and <tt>.M3U</tt> playlists used over the Internet.
 
+<h3>The Default Playlist</h3>
+<p>PM123 has a special default playlist file named "PM123.LST" in your PM123 folder.
+  This file is used to hold a sequence of objects if you load more than one file to the player.
+  <em>You should not use this file for your favorite playlist</em> since it is overwritten
+  each time it is needed for other purposes.
+
 <h3>Window features</h3>
 <dl>
-  <dt><b>direct manipulation</b>
+  <dt><b>Direct manipulation</b>
   <dd>You can edit the alias name, the start and stop offsets and the source URL by direct manipulation.
+    Note that changing the the name does not change any file name.
+    It only changes the display string of the item in this playlist.
+    This is e.g. used to label <a href="bookmark.html">bookmarks</a>.
   <dt><b>Drag and Drop</b>
-  <dd>You can use Drag and Drop to rearrange the items in a playlist,
+  <dd>You can use <a href="dragndrop.html">Drag and Drop</a> to rearrange the items in a playlist,
     move or copy items between different playlist or playlist manager windows
     or drop file or URL objects from other applications. In the latter case only shadows are allowed
     since playlists only contain references to the original objects. 
     You cannot drop PM123 objects on other applications.
+  <dt><b>Context menu</b>
+  <dd>With the right mouse button you can invoke the <a href="playlist_cm.html">context menu of the entire list</a>
+    or the <a href="playlist_cmi.html">context menu of the selected item(s)</a>.
+  <dt><b>Keayboard accelerators</b>
+  <dd>You may use the <a href="keyboard.html">accelerator keys</a> to call functions from the context menu quickly.
 </dl>
+
+<p>If the playlist is modified '<tt>(*)</tt>' will show up in the window title.
+  However, you won't see if a nested playlist is modified.
   
 <h3>Icons</h3>
 <table cellspacing=0 cellpadding=3 border=1>
@@ -47,40 +64,6 @@
     <td>Invalid</td>
   </tr>
 </table>     
-
-<h3>Context menu</h3>
-<blockquote>
-<img SRC="images/listmenu.gif">
-</blockquote>
-<dl>
-  <dt><b>Use this playlist</b>
-  <dd>Activates this playlist.
-  <dt><b>Add...</b>
-  <dd>Add files, files from the Internet for streaming or CD tracks to the playlist.  
-  <dt><b>Clear</b>
-  <dd>Clear the whole list.
-  <dt><b>Sort</b>
-  <dd>This submenu has options to sort the playlist by size, playing time, filename or songname.
-  <dt><b>Open...</b>
-  <dd>Loads a saved list.
-  <dt><b>Save...</b>
-  <dd>Saves the list.
-</dl>
-<blockquote>
-<img SRC="images/filemenu.gif">
-</blockquote>
-<dl>
-  <dt><b>Load</b>
-  <dd>Loads this file into the player.
-  <dt><b>Remove from List</b>
-  <dd>Removes this file from the playlist.
-  <dt><b>Delete file</b>
-  <dd>Removes selected files from the playlist and deletes this files from your disk.
-  <dt><b>Edit Tag</b>
-  <dd>Edits this file's <a href="id3.html">ID3 tag</a>.
-  <dt><b>Delete Tag</b>
-  <dd>Removes the ID3 tag from this file.
-</dl>
 
 </body>
 </html>
