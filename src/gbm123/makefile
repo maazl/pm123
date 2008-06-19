@@ -24,24 +24,48 @@ gbm123.dll: $(OBJECTS) $(DEF)
 gbm123$(LBI): $(DEF)
 	$(LI) $(IFLAGS_OUT)$@ gbm123.dll
 
-gbm$(CO):     gbm.c gbm.h gbmhelp.h gbmpgm.h gbmppm.h gbmbmp.h gbmtga.h gbmkps.h gbmiax.h gbmpcx.h gbmtif.h gbmlbm.h gbmvid.h gbmgif.h gbmxbm.h gbmspr.h gbmpsg.h gbmgem.h gbmcvp.h gbmjpg.h
-gbmpgm$(CO):  gbmpgm.c gbm.h gbmhelp.h gbmdesc.h
-gbmppm$(CO):  gbmppm.c gbm.h gbmhelp.h gbmdesc.h
-gbmbmp$(CO):  gbmbmp.c gbm.h gbmhelp.h gbmdesc.h
-gbmtga$(CO):  gbmtga.c gbm.h gbmhelp.h gbmdesc.h
-gbmkps$(CO):  gbmkps.c gbm.h gbmhelp.h gbmdesc.h
-gbmiax$(CO):  gbmiax.c gbm.h gbmhelp.h gbmdesc.h
-gbmpcx$(CO):  gbmpcx.c gbm.h gbmhelp.h gbmdesc.h
-gbmlbm$(CO):  gbmlbm.c gbm.h gbmhelp.h gbmdesc.h
-gbmvid$(CO):  gbmvid.c gbm.h gbmhelp.h gbmdesc.h
-gbmgif$(CO):  gbmgif.c gbm.h gbmhelp.h gbmdesc.h
-gbmxbm$(CO):  gbmxbm.c gbm.h gbmhelp.h gbmdesc.h
-gbmspr$(CO):  gbmspr.c gbm.h gbmhelp.h gbmdesc.h
-gbmpsg$(CO):  gbmpsg.c gbm.h gbmhelp.h gbmdesc.h
-gbmgem$(CO):  gbmgem.c gbm.h gbmhelp.h gbmdesc.h
-gbmcvp$(CO):  gbmcvp.c gbm.h gbmhelp.h gbmdesc.h
-gbmhelp$(CO): gbmhelp.c gbm.h
-gbmmap$(CO):  gbmmap.c gbm.h gbmmap.h
-
 clean: $(MDUMMY)
 	-@del gbm123$(LBI) gbm123.dll $(OBJECTS) 2> nul
+
+gbm.c:		gbm.h gbmhelp.h gbmpbm.h gbmpgm.h gbmpnm.h gbmppm.h gbmpng.h gbmbmp.h gbmtga.h gbmkps.h gbmiax.h gbmpcx.h gbmtif.h gbmlbm.h gbmvid.h gbmgif.h gbmxbm.h gbmspr.h gbmpsg.h gbmgem.h gbmcvp.h gbmjpg.h
+gbmbmp.c:	gbm.h gbmhelp.h gbmdesc.h
+gbmbpp.c:	gbm.h gbmerr.h gbmtrunc.h gbmht.h gbmhist.h gbmmcut.h gbmtool.h
+gbmconv.c:	gbm.h gbmtool.h
+gbmcpal.c:	gbm.h gbmhist.h gbmmcut.h gbmtool.h
+gbmcvp.c:	gbm.h gbmhelp.h gbmdesc.h
+gbmerr.c:	gbm.h
+gbmgamma.c:	gbm.h gbmtool.h
+gbmgem.c:	gbm.h gbmhelp.h gbmdesc.h
+gbmgif.c:	gbm.h gbmhelp.h gbmdesc.h
+gbmhdr.c:	gbm.h gbmtool.h
+gbmhelp.c:	gbm.h
+gbmhist.c:	gbm.h
+gbmht.c:	gbm.h
+gbmiax.c:	gbm.h gbmhelp.h gbmdesc.h
+gbmjpg.c:	gbm.h gbmhelp.h gbmdesc.h
+gbmkps.c:	gbm.h gbmhelp.h gbmdesc.h
+gbmlbm.c:	gbm.h gbmhelp.h gbmdesc.h
+gbmmap.c:	gbm.h gbmmap.h
+gbmmcut.c:	gbm.h
+gbmmir.c:	gbm.h
+gbmpbm.c:	gbm.h gbmhelp.h gbmdesc.h
+gbmpcx.c:	gbm.h gbmhelp.h gbmdesc.h
+gbmpgm.c:	gbm.h gbmhelp.h gbmdesc.h
+gbmpng.c:	gbm.h gbmhelp.h gbmdesc.h gbmmap.h
+gbmpnm.c:	gbm.h gbmhelp.h gbmdesc.h gbmpbm.h gbmpgm.h gbmppm.h
+gbmppm.c:	gbm.h gbmhelp.h gbmdesc.h
+gbmpsg.c:	gbm.h gbmhelp.h gbmdesc.h
+gbmrect.c:	gbm.h
+gbmref.c:	gbm.h gbmmir.h gbmtool.h
+gbmscale.c:	gbm.h
+gbmsize.c:	gbm.h gbmscale.h gbmtool.h
+gbmspr.c:	gbm.h gbmhelp.h gbmdesc.h
+gbmsub.c:	gbm.h gbmrect.h gbmtool.h
+gbmtga.c:	gbm.h gbmhelp.h gbmdesc.h
+gbmtif.c:	gbm.h gbmhelp.h gbmdesc.h gbmmap.h
+gbmtool.c:	gbm.h gbmtool.h
+gbmtos2.c:	gbm.h gbmtool.h
+gbmtrunc.c:	gbm.h
+gbmver.c:	gbm.h gbmtool.h
+gbmvid.c:	gbm.h gbmhelp.h gbmdesc.h
+gbmxbm.c:	gbm.h gbmhelp.h gbmdesc.h

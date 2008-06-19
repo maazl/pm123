@@ -690,6 +690,8 @@ read_next_frame( MPG_FILE* mpg )
   mpg->bs.bsnum ^= 1;
   done = xio_fread( mpg->bs.bsbuf[mpg->bs.bsnum].data, 1, mpg->fr.framesize, mpg->file );
 
+  DEBUGLOG2(( "mpg123: read %d bytes from %d to %08X\n", done, 
+                               mpg->fr.framesize, &mpg->bs.bsbuf[mpg->bs.bsnum].data ));
   if( done <= 0 ) {
     return -1;
   } else if( done != mpg->fr.framesize ) {
@@ -717,6 +719,14 @@ mpg_read_frame( MPG_FILE* mpg )
     getbits( &mpg->bs, 16 ); // crc
   }
 
+  return 0;
+}
+
+/* Decodes current frame. Returns 0 if it
+   successfully decodes a frame, or -1 if any errors were detected. */
+int
+mpg_decode_frame( MPG_FILE* mpg )
+{
   switch( mpg->fr.layer )
   {
     case 1:
@@ -750,7 +760,7 @@ mpg_move_sound( MPG_FILE* mpg, unsigned char* buffer, int count )
 }
 
 /* Saves a currently loaded frame. Returns 0 if it
-   successfully reads a frame, or -1 if any errors were detected. */
+   successfully saves a frame, or -1 if any errors were detected. */
 int
 mpg_save_frame( MPG_FILE* mpg, XFILE* save )
 {
@@ -765,9 +775,11 @@ mpg_save_frame( MPG_FILE* mpg, XFILE* save )
       xio_fwrite( mpg->bs.bsbuf[mpg->bs.bsnum].data, 1, mpg->fr.framesize, save ) != mpg->fr.framesize )
   {
     return -1;
-  } else {
-    return  0;
   }
+   
+  DEBUGLOG2(( "mpg123: save %d bytes from %08X\n", mpg->fr.framesize, 
+                                                  &mpg->bs.bsbuf[mpg->bs.bsnum].data ));
+  return 0;
 }
 
 int

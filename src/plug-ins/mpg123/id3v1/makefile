@@ -16,9 +16,10 @@ id3v1$(LBO): $(OBJECTS)
 	if exist $@ del $@
 	$(LB) $@ $(OBJECTS) $(LBENDL)
 
-id3v1$(CO): id3v1.c id3v1.h
-
-clean: $(MDUMMY)
+clean:  $(MDUMMY)
 	-@del id3v1$(LBO) $(OBJECTS) 2> nul
+depend: $(MDUMMY)
+	@$(TOPDIR)\config\makedep.cmd *.c -r -x -I$(INCDIR)
+
 id3v1.c:	id3v1.h ..\..\..\utils\minmax.h ..\..\..\utils\snprintf.h ..\..\..\utils\charset.h genre.h
 id3v1.h:	..\..\..\xio123\xio.h

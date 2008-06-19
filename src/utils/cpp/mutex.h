@@ -256,8 +256,8 @@ class CritSect
        CritSect (const CritSect&);
   void operator=(const CritSect&);
  public:
-       CritSect  () { DEBUGLOG(("CritSect::CritSect()\n")); DosEnterCritSec(); }
-       ~CritSect () { DosExitCritSec(); DEBUGLOG(("CritSect::~CritSect()\n")); }
+       CritSect  () { DEBUGLOG2(("CritSect::CritSect()\n")); DosEnterCritSec(); }
+       ~CritSect () { DosExitCritSec(); DEBUGLOG2(("CritSect::~CritSect()\n")); }
 };
 
 

@@ -14,13 +14,15 @@ LIBS     = $(TOPDIR)\utils\utilfct$(LBO) $(TOPDIR)\snd123\snd123$(LBI)
 LIBS     = $(LIBS) $(TOPDIR)\xio123\xio123$(LBI)
 DEF      = wavplay$(LDEF_SUFFX)
 
-wavplay.dll: $(OBJECTS) $(LIBS) $(DEF)
-	$(CL) $(LFLAGS) $(LFLAGS_OUT)$@ $(LOBJ_PREFX)$(OBJECTS) $(LIBS)$(LOBJ_SUFFX) $(LDEF_PREFX)$(DEF)
+wavplay.dll: $(OBJECTS) $(DEF) $(LIBS)
+	$(CL) $(LFLAGS) $(LFLAGS_OUT)$@ $(LOBJ_PREFX)$(OBJECTS)$(LOBJ_SUFFX) $(LLIB_PREFX)$(LIBS)$(LLIB_SUFFX) $(LDEF_PREFX)$(DEF)
 	$(POSTLINKCMD)
 
-wavplay$(CO): wavplay.c wavplay.h
+wavplay$(LBI): $(DEF)
+	$(LI) $(IFLAGS_OUT)$@ wavplay.dll
 
-clean: $(MDUMMY)
-	-@del wavplay.dll $(OBJECTS) 2> nul
+clean:  $(MDUMMY)
+	-@del wavplay$(LBI) wavplay.dll $(OBJECTS) 2> nul
+
 wavplay.c:	wavplay.h ..\..\include\decoder_plug.h ..\..\include\plugin.h ..\..\utils\utilfct.h ..\..\utils\snprintf.h
 wavplay.h:	..\..\snd123\src\sndfile.h ..\..\include\format.h ..\..\xio123\xio.h

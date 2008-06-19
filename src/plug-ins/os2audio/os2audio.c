@@ -39,16 +39,14 @@
 #include <math.h>
 
 #include <utilfct.h>
-#include <debuglog.h>
 #include <format.h>
 #include <output_plug.h>
 #include <decoder_plug.h>
 #include <plugin.h>
+#include <debuglog.h>
 
 #include "os2audio.h"
-#include "debuglog.h"
-
-#define  INFO( mb ) ((BUFFERINFO*)(mb)->ulUserParm)
+#define   INFO( mb ) ((BUFFERINFO*)(mb)->ulUserParm)
 
 #if 0
 #define  DosRequestMutexSem( mutex, wait )                                                 \
@@ -140,7 +138,7 @@ static LONG APIENTRY
 dart_event( ULONG status, MCI_MIX_BUFFER* buffer, ULONG flags )
 {
   OS2AUDIO* a = INFO(buffer)->a;
-  DEBUGLOG2(( "os2audio: receive DART event, status=%d, flags=%08X\n", status, flags ));
+  DEBUGLOG(( "os2audio: receive DART event, status=%d, flags=%08X\n", status, flags ));
 
   if( flags & MIX_WRITE_COMPLETE )
   {

@@ -13,12 +13,16 @@ OBJECTS  = wavout$(CO)
 LIBS     = $(TOPDIR)\utils\utilfct$(LBO)
 DEF      = wavout$(LDEF_SUFFX)
 RESOURCE = wavout$(RES)
-STDLIBS  = $(LIBS_MM)
+SYSLIBS  = $(LIBS_MM)
 
-wavout.dll: $(OBJECTS) $(LIBS) $(DEF) $(RESOURCE)
-	$(CL) $(LFLAGS) $(LFLAGS_OUT)$@ $(LOBJ_PREFX)$(OBJECTS)$(LOBJ_SUFFX) $(LLIB_PREFX)$(LIBS) $(STDLIBS)$(LLIB_SUFFX) $(LDEF_PREFX)$(DEF)
+all: wavout.dll $(MDUMMY)
+
+wavout.dll: $(OBJECTS) $(DEF) $(RESOURCE) $(LIBS)
+	$(CL) $(LFLAGS) $(LFLAGS_OUT)$@ $(LOBJ_PREFX)$(OBJECTS)$(LOBJ_SUFFX) $(LLIB_PREFX)$(LIBS) $(SYSLIBS)$(LLIB_SUFFX) $(LDEF_PREFX)$(DEF)
 	$(RC) $(RFLAGS) $(RESOURCE) $@ > nul
 	$(POSTLINKCMD)
 
-clean: $(MDUMMY)
-	-@del wavout.dll $(OBJECTS) $(RESOURCE) 2> nul
+clean:  $(MDUMMY)
+	-@del wavout$(LBI) wavout.dll $(OBJECTS) $(RESOURCE) 2> nul
+
+wavout.c:	wavout.h

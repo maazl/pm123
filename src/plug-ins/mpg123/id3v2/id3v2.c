@@ -3,7 +3,7 @@
  * Copyright (C) 2000-2004 Haavard Kvaalen
  * Copyright (C) 2007 Dmitry A.Steklenev
  *
- * $Id: id3v2.c,v 1.1 2007/10/08 07:54:14 glass Exp $
+ * $Id: id3v2.c,v 1.4 2008/04/21 08:30:11 glass Exp $
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -20,7 +20,7 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  */
 
-#include "config.h"
+#include <config.h>
 
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -166,8 +166,8 @@ static void
 id3v2_init_tag( ID3V2_TAG* id3 )
 {
   // Initialize header.
-  id3->id3_version   = 3;
-  id3->id3_revision  = 0;
+  id3->id3_version   = ID3V2_VERSION;
+  id3->id3_revision  = ID3V2_REVISION;
   id3->id3_flags     = ID3V2_THFLAG_USYNC | ID3V2_THFLAG_EXP;
   id3->id3_size      = 0;
   id3->id3_totalsize = 0;
@@ -426,8 +426,8 @@ id3v2_write_tag( XFILE* file, ID3V2_TAG* id3 )
 
   // Write tag header.
 
-  buf[0] = id3->id3_version;
-  buf[1] = id3->id3_revision;
+  buf[0] = ID3V2_VERSION;
+  buf[1] = ID3V2_REVISION;
   buf[2] = id3->id3_flags;
 
   ID3_SET_SIZE28( id3->id3_size, buf[3], buf[4], buf[5], buf[6] );
@@ -460,10 +460,16 @@ id3v2_write_tag( XFILE* file, ID3V2_TAG* id3 )
     fhdr[1] = fr->fr_desc->fd_idstr[1];
     fhdr[2] = fr->fr_desc->fd_idstr[2];
     fhdr[3] = fr->fr_desc->fd_idstr[3];
-    fhdr[4] = ( fr->fr_raw_size >> 24 ) & 0xFF;
-    fhdr[5] = ( fr->fr_raw_size >> 16 ) & 0xFF;
-    fhdr[6] = ( fr->fr_raw_size >> 8  ) & 0xFF;
-    fhdr[7] = ( fr->fr_raw_size       ) & 0xFF;
+
+    #if ID3V2_VERSION < 4
+      fhdr[4] = ( fr->fr_raw_size >> 24 ) & 0xFF;
+      fhdr[5] = ( fr->fr_raw_size >> 16 ) & 0xFF;
+      fhdr[6] = ( fr->fr_raw_size >> 8  ) & 0xFF;
+      fhdr[7] = ( fr->fr_raw_size       ) & 0xFF;
+    #else
+      ID3_SET_SIZE28( fr->fr_raw_size, fhdr[4], fhdr[5], fhdr[6], fhdr[7] )
+    #endif
+
     fhdr[8] = ( fr->fr_flags    >> 8  ) & 0xFF;
     fhdr[9] = ( fr->fr_flags          ) & 0xFF;
 

@@ -2109,12 +2109,12 @@ do_layer3( MPG_FILE* mpg )
   if( mpg->fr.lsf ) {
     granules = 1;
     if( !III_get_side_info_2( &mpg->bs, &sideinfo, mpg->fr.channels, ms_stereo, sfreq )) {
-      return clip; // do not blow out
+      return clip;
     }
   } else {
     granules = 2;
     if( !III_get_side_info_1( &mpg->bs, &sideinfo, mpg->fr.channels, ms_stereo, sfreq )) {
-      return clip; // do not blow out
+      return clip;
     }
   }
 

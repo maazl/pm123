@@ -132,6 +132,10 @@ typedef struct _XPROTOCOL {
   char  s_reply[512];
   int   s_datahandle;
 
+  #ifdef XIO_SERIALIZE_DISK_IO
+  int   s_serialized;
+  #endif
+
 } XPROTOCOL;
 
 #ifdef __cplusplus

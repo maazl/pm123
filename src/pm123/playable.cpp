@@ -620,6 +620,7 @@ Playable::InfoFlags Song::LoadInfo(InfoFlags what)
   { stat = Stat == STA_Used ? STA_Used : STA_Normal;
     what |= (InfoFlags)what2; // ensure not to reset bits
   }
+  what |= IF_Status; // That's always inclusive when we call dec_fileinfo
   UpdateStatus(stat);
   UpdateInfo(info.get());
   InfoValid |= what;

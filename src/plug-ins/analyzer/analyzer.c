@@ -884,7 +884,7 @@ plg_win_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
 
     case WM_VRNDISABLED:
       WinStopTimer( hab, hanalyzer, TID_UPDATE );
-      ORASSERT(DiveSetupBlitter( hdive, 0 ));
+      DiveSetupBlitter( hdive, 0 );
       break;
 
     case WM_BUTTON1DBLCLK:
@@ -1004,6 +1004,7 @@ vis_init( PVISPLUGININIT init )
   last_samplerate = 0;
   needinit = TRUE;
   needclear = TRUE;
+  is_stopped = FALSE;
 
   // Open up DIVE
   if( DiveOpen( &hdive, FALSE, 0 ) != DIVE_SUCCESS ) {

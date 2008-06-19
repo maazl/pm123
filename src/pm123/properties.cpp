@@ -64,7 +64,7 @@ const amp_cfg cfg_default =
   TRUE,
   TRUE,
   FALSE,
-  CFG_ANAV_SONGTIME,
+  CFG_ANAV_SONG,
   TRUE, // recurse_dnd
   TRUE,
   FALSE,

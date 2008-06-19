@@ -11,16 +11,18 @@ TARGET   = os2audio.dll
 
 OBJECTS  = os2audio$(CO)
 LIBS     = $(TOPDIR)\utils\utilfct$(LBO)
+SYSLIBS  = $(LIBS_MM)
 DEF      = os2audio$(LDEF_SUFFX)
 RESOURCE = os2audio$(RES)
-STDLIBS  = $(LIBS_MM)
 
-os2audio.dll: $(OBJECTS) $(LIBS) $(DEF) $(RESOURCE)
-	$(CL) $(LFLAGS) $(LFLAGS_OUT)$@ $(LOBJ_PREFX)$(OBJECTS)$(LOBJ_SUFFX) $(LLIB_PREFX)$(LIBS) $(STDLIBS)$(LLIB_SUFFX) $(LDEF_PREFX)$(DEF)
+all: os2audio.dll $(MDUMMY)
+
+os2audio.dll: $(OBJECTS) $(DEF) $(RESOURCE) $(LIBS)
+	$(CL) $(LFLAGS) $(LFLAGS_OUT)$@ $(LOBJ_PREFX)$(OBJECTS)$(LOBJ_SUFFX) $(LLIB_PREFX)$(LIBS) $(SYSLIBS)$(LLIB_SUFFX) $(LDEF_PREFX)$(DEF)
 	$(RC) $(RFLAGS) $(RESOURCE) $@ > nul
 	$(POSTLINKCMD)
 
-os2audio$(CO): os2audio.c os2audio.h $(TOPDIR)\include\decoder_plug.h
+clean:  $(MDUMMY)
+	-@del os2audio$(LBI) os2audio.dll $(OBJECTS) $(RESOURCE) 2> nul
 
-clean: $(MDUMMY)
-	-@del os2audio.dll $(OBJECTS) $(RESOURCE) 2> nul
+os2audio.c:	..\..\utils\utilfct.h ..\..\include\format.h ..\..\include\output_plug.h ..\..\include\decoder_plug.h ..\..\include\plugin.h ..\..\utils\debuglog.h os2audio.h

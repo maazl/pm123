@@ -42,7 +42,7 @@
 #include "xio_url.h"
 #include "xio_socket.h"
 #include "xio.h"
-#include "utilfct.h"
+#include <utilfct.h>
 
 /* Get and parse HTTP reply. */
 static int

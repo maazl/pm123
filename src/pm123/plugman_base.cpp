@@ -1266,6 +1266,8 @@ proxy_1_filter_init( CL_FILTER_PROXY_1* pp, void** f, FILTER_PARAMS2* params )
   par.audio_buffersize    = BUFSIZE;
   par.error_display       = params->error_display;
   par.info_display        = params->info_display;
+  par.pm123_getstring     = params->pm123_getstring;
+  par.pm123_control       = params->pm123_control;
   int r = (*pp->vfilter_init)(&pp->vf, &par);
   if (r != 0)
     return r;

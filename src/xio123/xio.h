@@ -29,7 +29,7 @@
 #ifndef XIO_H
 #define XIO_H
 
-#include "config.h"
+#include <config.h>
 
 #ifdef __cplusplus
 extern "C" {

@@ -1,5 +1,5 @@
 /*
- * Copyright 2006 Dmitry A.Steklenev <glass@ptv.ru>
+ * Copyright 2008 Dmitry A.Steklenev
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -26,51 +26,16 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef PM123_WAVPLAY_H
-#define PM123_WAVPLAY_H
-
-#define INCL_BASE
-#include <sndfile.h>
-#include <format.h>
-#include <xio.h>
-#include <os2.h>
-
-#include <stdlib.h>
+#ifndef EAUTILS_H
+#define EAUTILS_H
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-typedef struct _DECODER_STRUCT
-{
-   XFILE*   file;
-   char     filename[_MAX_PATH];
-   SNDFILE* sndfile;
-
-   FORMAT_INFO output_format;
-   SF_INFO     sfinfo;
-
-   HEV   play;            // For internal use to sync the decoder thread.
-   HMTX  mutex;           // For internal use to sync the decoder thread.
-   int   decodertid;      // Decoder thread indentifier.
-   BOOL  stop;
-   BOOL  frew;
-   BOOL  ffwd;
-   int   jumptopos;
-   ULONG status;
-   HWND  hwnd;            // PM interface main frame window handle.
-
-   void  DLLENTRYP(error_display)( const char* );
-   void  DLLENTRYP(info_display )( const char* );
-   int   DLLENTRYP(output_play_samples)( void* a, const FORMAT_INFO* format, const char* buf, int len, int posmarker );
-
-   void* a;               // Only to be used with the precedent function.
-   int   audio_buffersize;
-
-} DECODER_STRUCT;
+APIRET eacopy( const char* source, const char* target );
 
 #ifdef __cplusplus
 }
 #endif
-#endif /* PM123_WAVPLAY_H */
-
+#endif

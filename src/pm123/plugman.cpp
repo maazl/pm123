@@ -196,6 +196,8 @@ void CL_GLUE::virtualize(int i)
   par.w                      = params.w;
   par.error_display          = &pm123_display_error;
   par.info_display           = &pm123_display_info;
+  par.pm123_getstring        = &pm123_getstring;
+  par.pm123_control          = &pm123_control;
   if (!fil.initialize(&par))
   { pm123_display_info(xstring::sprintf("The filter plug-in %s failed to initialize.", fil.module_name));
     virtualize(i-1);
@@ -972,7 +974,7 @@ static BOOL is_file_supported(const char* const* support, const char* url)
 ULONG DLLENTRY
 dec_fileinfo( const char* filename, INFOTYPE* what, DECODER_INFO2* info, char* name, size_t name_size )
 {
-  DEBUGLOG(("dec_fileinfo(%s, %x, %p{%u,%p,%p,%p}, %s)\n", filename, what, info, info->size, info->format, info->tech, info->meta, name));
+  DEBUGLOG(("dec_fileinfo(%s, %x, %p{%u,%p,%p,%p}, %s)\n", filename, *what, info, info->size, info->format, info->tech, info->meta, name));
   BOOL* checked = (BOOL*)alloca( sizeof( BOOL ) * decoders.count() );
   const CL_DECODER* dp;
 

@@ -41,6 +41,7 @@
 #include <decoder_plug.h>
 #include <plugin.h>
 #include <utilfct.h>
+#include <eautils.h>
 #include <snprintf.h>
 #include <debuglog.h>
 
@@ -774,6 +775,9 @@ decoder_saveinfo( const char* filename, const DECODER_INFO* info )
       w->resume_pcms = -1;
     }
   }
+
+  // Preserve EAs.
+  eacopy( filename, savename );
 
   // Replace file.
   if( remove( filename ) == 0 ) {

@@ -11,7 +11,7 @@
  ********************************************************************
 
  function: stdio-based convenience library for opening/seeking/decoding
- last mod: $Id: vorbisfile.c,v 1.2 2007/03/21 13:03:40 glass Exp $
+ last mod: $Id: vorbisfile.c,v 1.3 2008/04/04 13:11:32 glass Exp $
 
  ********************************************************************/
 
@@ -76,6 +76,7 @@ static long _get_data(OggVorbis_File *vf){
 
 /* save a tiny smidge of verbosity to make the code more readable */
 static void _seek_helper(OggVorbis_File *vf,ogg_int64_t offset){
+  DEBUGLOG(("vrb123:_seek_helper(%p, %li) - %p)\n", vf, offset, vf->datasource));
   if(vf->datasource){
     (vf->callbacks.seek_func)(vf->datasource, offset, SEEK_SET);
     vf->offset=offset;
@@ -144,11 +145,13 @@ static ogg_int64_t _get_prev_page(OggVorbis_File *vf,ogg_page *og){
   ogg_int64_t offset=-1;
 
   while(offset==-1){
+    DEBUGLOG(("vrb123:_get_prev_page: %lu, %lu, %lu\n", begin, end, vf->offset));
     begin-=CHUNKSIZE;
     if(begin<0)
       begin=0;
     _seek_helper(vf,begin);
     while(vf->offset<end){
+      DEBUGLOG(("vrb123:_get_prev_page: B %lu, %lu, %lu\n", begin, end, vf->offset));
       ret=_get_next_page(vf,og,end-vf->offset);
       if(ret==OV_EREAD)return(OV_EREAD);
       if(ret<0){
@@ -196,6 +199,7 @@ static int _bisect_forward_serialno(OggVorbis_File *vf,
     }
 
     _seek_helper(vf,bisect);
+    DEBUGLOG(("vrb123:_bisect_forward_serialno: %lu, %lu, %lu\n", searched, endsearched));
     ret=_get_next_page(vf,&og,-1);
     if(ret==OV_EREAD)return(OV_EREAD);
     if(ret<0 || ogg_page_serialno(&og)!=currentno){
@@ -1134,9 +1138,8 @@ int ov_pcm_seek_page(OggVorbis_File *vf,ogg_int64_t pos){
         bisect=begin;
       }else{
         /* take a (pretty decent) guess. */
-        bisect=begin
-          + (ogg_int64_t)((double)(target-begintime)*(end-begin)/(endtime-begintime))
-          - CHUNKSIZE;
+        bisect=begin +
+          (ogg_int64_t)((double)(target-begintime)*(end-begin)/(endtime-begintime)) - CHUNKSIZE;
         if(bisect<=begin)
           bisect=begin+1;
       }
@@ -1175,7 +1178,8 @@ int ov_pcm_seek_page(OggVorbis_File *vf,ogg_int64_t pos){
                 end=result;
                 bisect-=CHUNKSIZE; /* an endless loop otherwise. */
                 if(bisect<=begin)bisect=begin+1;
-                _seek_helper(vf,bisect);
+                  _seek_helper(vf,bisect);
+                DEBUGLOG(("ov_pcm_seek_page - B %li,%li %li,%li %li %li -> %li\n", begin, end, begintime, endtime, target, best, bisect));
               }else{
                 end=result;
                 endtime=granulepos;
@@ -1227,6 +1231,7 @@ int ov_pcm_seek_page(OggVorbis_File *vf,ogg_int64_t pos){
 
           for(;;){
             result=_get_prev_page(vf,&og);
+            DEBUGLOG(("ov_pcm_seek_page - C %li\n", result));
             if(result<0) goto seek_error;
             if(ogg_page_granulepos(&og)>-1 ||
                !ogg_page_continued(&og)){

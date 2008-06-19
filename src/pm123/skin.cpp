@@ -421,7 +421,7 @@ bmp_load_bitmap( const char* filename )
 /* Draws a bitmap using the current image colors and mixes. */
 static void
 bmp_draw_bitmap( HPS hps, int x, int y, int res )
-{ DEBUGLOG(("bmp_draw_bitmap(%p, %i,%i, %i) - %p\n", hps, x, y, res, bmp_cache[res]));
+{ DEBUGLOG2(("bmp_draw_bitmap(%p, %i,%i, %i) - %p\n", hps, x, y, res, bmp_cache[res]));
   POINTL pos[3];
 
   pos[0].x = x;

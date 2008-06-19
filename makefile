@@ -173,10 +173,16 @@ clean:  $(MDUMMY)
 	cd src\plug-ins\cddaplay
 	@$(MAKE) $(MFLAGS) clean
 	@cd ..\..\..
+	cd src\plug-ins\logvolum
+	@$(MAKE) $(MFLAGS) clean
+	@cd ..\..\..
 	cd src\plug-ins\mpg123
 	@$(MAKE) $(MFLAGS) clean
 	@cd ..\..\..
 	cd src\plug-ins\os2audio
+	@$(MAKE) $(MFLAGS) clean
+	@cd ..\..\..
+	cd src\plug-ins\os2rec
 	@$(MAKE) $(MFLAGS) clean
 	@cd ..\..\..
 	cd src\plug-ins\realeq
@@ -207,6 +213,56 @@ clean:  $(MDUMMY)
 	@$(MAKE) $(MFLAGS) clean
 	@cd ..
 
+depend: $(MDUMMY)
+	cd src\utils
+	@$(MAKE) $(MFLAGS) depend
+	@cd ..\..
+	cd src\gbm123
+	@$(MAKE) $(MFLAGS) depend
+	@cd ..\..
+	cd src\xio123
+	@$(MAKE) $(MFLAGS) depend
+	@cd ..\..
+	cd src\plug-ins\analyzer
+	@$(MAKE) $(MFLAGS) depend
+	@cd ..\..\..
+	cd src\plug-ins\cddaplay
+	@$(MAKE) $(MFLAGS) depend
+	@cd ..\..\..
+	cd src\plug-ins\logvolum
+	@$(MAKE) $(MFLAGS) depend
+	@cd ..\..\..
+	cd src\plug-ins\mpg123
+	@$(MAKE) $(MFLAGS) depend
+	@cd ..\..\..
+	cd src\plug-ins\os2audio
+	@$(MAKE) $(MFLAGS) depend
+	@cd ..\..\..
+	cd src\plug-ins\os2rec
+	@$(MAKE) $(MFLAGS) depend
+	@cd ..\..\..
+	cd src\plug-ins\realeq
+	@$(MAKE) $(MFLAGS) depend
+	@cd ..\..\..
+	cd src\plug-ins\wavplay
+	@$(MAKE) $(MFLAGS) depend
+	@cd ..\..\..
+	cd src\plug-ins\wavout
+	@$(MAKE) $(MFLAGS) depend
+	@cd ..\..\..
+	cd src\plug-ins\oggplay
+	@$(MAKE) $(MFLAGS) depend
+	@cd ..\..\..
+	cd src\pm123
+	@$(MAKE) $(MFLAGS) depend
+	@cd ..\..
+	cd src\main
+	@$(MAKE) $(MFLAGS) depend
+	@cd ..\..
+	cd src\skinutil
+	@$(MAKE) $(MFLAGS) depend
+	@cd ..\..
+
 dist: distfiles distpackage distzip $(MDUMMY)
 
 distfiles: distclean $(MDUMMY)
@@ -234,7 +290,6 @@ distfiles: distclean $(MDUMMY)
 	copy src\pm123\default.skn dist\files
 	copy src\skinutil\skinutil.exe dist\files
 	copy doc\history.html dist\files
-	copy doc\pm123.html dist\files
 	copy doc\pm123.inf dist\files
 	copy doc\pm123_pdk.inf dist\files\pdk
 	copy src\WPS\icons\*.ico dist\files\icons
