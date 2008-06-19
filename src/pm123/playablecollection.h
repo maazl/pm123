@@ -159,6 +159,7 @@ class PlayableInstance : public PlayableSlice
   // Swap instance properties (fast)
   // You must not swap instances that belong to different PlayableCollection objects.
   // The collection must be locked when calling Swap.
+  // Swap does not swap the current status.
   virtual void             Swap(PlayableSlice& r);
 
   // Play position
@@ -451,6 +452,8 @@ class PlayFolder : public PlayableCollection
 {private:
   xstring                     Pattern;
   bool                        Recursive;
+  signed char                 SortMode;     // 1 = yes, -1 = no, 0 = default
+  signed char                 FoldersFirst; // 1 = yes, -1 = no, 0 = default 
 
  private:
   void                        ParseQueryParams();

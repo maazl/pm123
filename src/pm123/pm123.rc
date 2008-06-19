@@ -911,16 +911,16 @@ MENU MNU_RECORD
   MENUITEM "~Navigate to",               IDM_PL_NAVIGATE
   MENUITEM "~Edit playlist...",          IDM_PL_DETAILED
   MENUITEM "Open in ~tree view",         IDM_PL_TREEVIEW
+  MENUITEM SEPARATOR
   MENUITEM "Show Item ~info",            IDM_PL_INFO
   MENUITEM "~Edit meta info...",         IDM_PL_EDIT
+  MENUITEM "Refresh status",             IDM_PL_REFRESH
   MENUITEM SEPARATOR
   MENUITEM "~Remove from list",          IDM_PL_REMOVE
   SUBMENU  "~Flatten playlist",          IDM_PL_FLATTEN
   { MENUITEM "Expand ~1 level",          IDM_PL_FLATTEN_1
     MENUITEM "Expand ~all songs",        IDM_PL_FLATTEN_ALL
   }
-  MENUITEM SEPARATOR
-  MENUITEM "Refresh status",             IDM_PL_REFRESH
 }
 
 /* Playlist Manager specific stuff */
@@ -959,16 +959,11 @@ MENU PM_REC_MENU
   MENUITEM "~Navigate to",               IDM_PL_NAVIGATE
   MENUITEM "~Detailed view (edit)",      IDM_PL_DETAILED
   MENUITEM "~Tree view from here",       IDM_PL_TREEVIEW
+  MENUITEM SEPARATOR
   MENUITEM "Show Item ~info",            IDM_PL_INFO
   MENUITEM "~Edit meta info...",         IDM_PL_EDIT
-  MENUITEM SEPARATOR
-  MENUITEM "~Remove Item",               IDM_PL_REMOVE
-  SUBMENU  "~Flatten playlist",          IDM_PL_FLATTEN
-  { MENUITEM "Expand ~1 level",          IDM_PL_FLATTEN_1
-    MENUITEM "Expand ~all songs",        IDM_PL_FLATTEN_ALL
-  }
-  MENUITEM SEPARATOR
   MENUITEM "Refresh",                    IDM_PL_REFRESH
+  MENUITEM SEPARATOR
   SUBMENU  "~Append to...",              IDM_PL_APPEND
   { MENUITEM "~Files...",                IDM_PL_APPFILE
     MENUITEM "~URL...",                  IDM_PL_APPURL
@@ -983,6 +978,12 @@ MENU PM_REC_MENU
     MENUITEM "~Playing time",            IDM_PL_SORT_TIME
     MENUITEM "Physical si~ze",           IDM_PL_SORT_SIZE
     MENUITEM "~Random",                  IDM_PL_SORT_RAND
+  }
+  MENUITEM SEPARATOR
+  MENUITEM "~Remove Item",               IDM_PL_REMOVE
+  SUBMENU  "~Flatten playlist",          IDM_PL_FLATTEN
+  { MENUITEM "Expand ~1 level",          IDM_PL_FLATTEN_1
+    MENUITEM "Expand ~all songs",        IDM_PL_FLATTEN_ALL
   }
 }
 

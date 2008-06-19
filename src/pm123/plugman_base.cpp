@@ -1295,12 +1295,11 @@ PROXYFUNCIMP(void DLLENTRY, CL_FILTER_PROXY_1)
 proxy_1_filter_update( CL_FILTER_PROXY_1* pp, const FILTER_PARAMS2* params )
 { DEBUGLOG(("proxy_1_filter_update(%p{%s}, %p)\n", pp, pp->module_name, params));
 
-  DosEnterCritSec();
+  CritSect cs;
   // replace function pointers
   pp->output_request_buffer = params->output_request_buffer;
   pp->output_commit_buffer  = params->output_commit_buffer;
   pp->a                     = params->a;
-  DosExitCritSec();
 }
 
 PROXYFUNCIMP(BOOL DLLENTRY, CL_FILTER_PROXY_1)

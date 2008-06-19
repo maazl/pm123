@@ -216,6 +216,8 @@
 #define IDH_LOCATION       1022
 #define IDH_KEYBOARD       1023
 #define IDH_ANALYZERFORMAT 1024
+#define IDH_BOOKMARK       1025
+#define IDH_PLAYFOLDER     1026
 #define IDH_SETTINGS1      1050
 #define IDH_SETTINGS2      1051
 #define IDH_DISPLAY        1055

@@ -746,11 +746,9 @@ void PlaylistBase::UpdateChildren(RecordBase* const rp)
 
   // Check wether we should supend the redraw.
   bool pauseredraw = false;
-  { RecordBase* parent = GetParent(rp);
-    if (parent == NULL || parent->flRecordAttr & CRA_EXPANDED)
-    { pauseredraw = true;
-      PMRASSERT(WinEnableWindowUpdate(HwndContainer, FALSE)); // suspend redraw
-    }
+  if (rp == NULL || rp->flRecordAttr & CRA_EXPANDED)
+  { pauseredraw = true;
+    PMRASSERT(WinEnableWindowUpdate(HwndContainer, FALSE)); // suspend redraw
   }
 
   // First check what's currently in the container.

@@ -754,9 +754,9 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
       is_have_focus = SHORT1FROMMP( mp2 );
       bmp_draw_led( hps, is_have_focus  );
       WinReleasePS( hps );
-      // return to basic slider behaviour when focus is lost
-      if (!is_have_focus)
-        amp_set_alt_slider(false);
+      // Return to basic slider behaviour when focus is lost.
+      // Set the slider behaviour according to the Alt key when the focus is set.
+      amp_set_alt_slider(is_have_focus && ((WinGetKeyState(HWND_DESKTOP, VK_ALT)|WinGetKeyState(HWND_DESKTOP, VK_ALTGRAF)) & 0x8000));
       break;
     }
 

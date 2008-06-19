@@ -203,16 +203,18 @@ xstring PlayableInstance::GetDisplayName() const
 void PlayableInstance::Swap(PlayableSlice& r)
 { DEBUGLOG(("PlayableInstance(%p)::Swap(&%p)\n", this, &r));
   ASSERT(Parent == ((PlayableInstance&)r).Parent);
-  PlayableSlice::Swap(r);
-  // Fire events?
+  // Analyze changes
   StatusFlags events = SF_None;
   if (GetAlias() != r.GetAlias())
     events |= SF_Alias;
   if ( GetStart() != r.GetStart() // This in fact checks if both iterators are zero
     || GetStop()  != r.GetStop() )
     events |= SF_Slice;
+  // Execute changes
   if (events)
+  { PlayableSlice::Swap(r);
     StatusChange(change_args(*this, events));
+  }
 }
 
 void PlayableInstance::SetStart(SongIterator* iter)
@@ -1412,7 +1414,9 @@ void Playlist::NotifySourceChange()
 
 PlayFolder::PlayFolder(const url123& URL, const DECODER_INFO2* ca)
 : PlayableCollection(URL, ca),
-  Recursive(false)
+  Recursive(false),
+  SortMode(0),
+  FoldersFirst(0)
 { DEBUGLOG(("PlayFolder(%p)::PlayFolder(%s, %p)\n", this, URL.cdata(), ca));
   ParseQueryParams();
 }
@@ -1430,9 +1434,13 @@ void PlayFolder::ParseQueryParams()
     xstring arg(cp, cp2 ? cp2-cp : params.cdata()+params.length()-cp);
     DEBUGLOG(("PlayFolder::ParseQueryParams: arg=%s\n", arg.cdata()));
     if (arg.startsWithI("pattern="))
-      Pattern.assign(arg.cdata() +8);
+      Pattern = arg.cdata() +8;
     else if (arg.startsWithI("recursive"))
       Recursive = true;
+    else if (arg.startsWithI("sort="))
+      SortMode = (signed char)atoi(arg.cdata() +5);
+    else if (arg.startsWithI("foldersfirst="))
+      FoldersFirst = (signed char)atoi(arg.cdata() +13);
     else
       DEBUGLOG(("PlayFolder::ParseQueryParams: invalid option %s\n", arg.cdata()));
     if (cp2 == NULL)
@@ -1512,8 +1520,8 @@ bool PlayFolder::LoadList()
   {case NO_ERROR:
    case ERROR_FILE_NOT_FOUND:
    case ERROR_NO_MORE_FILES:
-    if (cfg.sort_folders)
-      Sort(cfg.folders_first ? &PlayFolder::CompNameFoldersFirst : &PlayFolder::CompName);
+    if (SortMode + cfg.sort_folders > 0)
+      Sort(FoldersFirst + cfg.folders_first > 0 ? &PlayFolder::CompNameFoldersFirst : &PlayFolder::CompName);
     return true;
    default:
     return false;
