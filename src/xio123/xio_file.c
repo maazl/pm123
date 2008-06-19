@@ -42,6 +42,8 @@
 #include "xio_file.h"
 #include "xio_url.h"
 
+#include <debuglog.h>
+
 #ifdef XIO_SERIALIZE_DISK_IO
 
   HMTX serialize;
@@ -50,11 +52,56 @@
   // improve performance of poorly implemented filesystems (OS/2 version
   // of FAT32 for example).
 
-  #define FILE_REQUEST_DISK() DosRequestMutexSem( serialize, SEM_INDEFINITE_WAIT )
-  #define FILE_RELEASE_DISK() DosReleaseMutexSem( serialize )
+  #define FILE_REQUEST_DISK( x ) if( x->protocol->s_serialized ) { DosRequestMutexSem( serialize, SEM_INDEFINITE_WAIT );}
+  #define FILE_RELEASE_DISK( x ) if( x->protocol->s_serialized ) { DosReleaseMutexSem( serialize ); }
 #else
-  #define FILE_REQUEST_DISK()
-  #define FILE_RELEASE_DISK()
+  #define FILE_REQUEST_DISK( x )
+  #define FILE_RELEASE_DISK( x )
+#endif
+
+#ifdef XIO_SERIALIZE_DISK_IO
+static int
+is_singletasking_fs( const char* filename )
+{
+  if( isalpha( filename[0] ) && filename[1] == ':' )
+  {
+    // Return-data buffer should be large enough to hold FSQBUFFER2
+    // and the maximum data for szName, szFSDName, and rgFSAData
+    // Typically, the data isn't that large.
+
+    BYTE fsqBuffer[ sizeof( FSQBUFFER2 ) + ( 3 * CCHMAXPATH )] = { 0 };
+    PFSQBUFFER2 pfsqBuffer = (PFSQBUFFER2)fsqBuffer;
+
+    ULONG  cbBuffer        = sizeof( fsqBuffer );
+    PBYTE  pszFSDName      = NULL;
+    UCHAR  szDeviceName[3] = "x:";
+    APIRET rc;
+
+    szDeviceName[0] = filename[0];
+
+    rc = DosQueryFSAttach( szDeviceName,    // Logical drive of attached FS
+                           0,               // Ignored for FSAIL_QUERYNAME
+                           FSAIL_QUERYNAME, // Return data for a Drive or Device
+                           pfsqBuffer,      // Returned data
+                          &cbBuffer );      // Returned data length
+
+    // On successful return, the fsqBuffer structure contains
+    // a set of information describing the specified attached
+    // file system and the DataBufferLen variable contains
+    // the size of information within the structure.
+
+    if( rc == NO_ERROR ) {
+      pszFSDName = pfsqBuffer->szName + pfsqBuffer->cbName + 1;
+      if( stricmp( pszFSDName, "FAT32" ) == 0 ) {
+        DEBUGLOG(( "xio123: detected %s filesystem for file %s, serialize access.\n", pszFSDName, filename ));
+        return 1;
+      } else {
+        DEBUGLOG(( "xio123: detected %s filesystem for file %s.\n", pszFSDName, filename ));
+      }
+    }
+  }
+  return 0;
+}
 #endif
 
 /* Opens the file specified by filename. Returns 0 if it
@@ -94,8 +141,9 @@ file_open( XFILE* x, const char* filename, int oflags )
     }
 
     // Converts leading drive letters of the form C| to C:
-    // and if a drive letter is present strips off the slash that precedes
-    // path. Otherwise, the leading slash is used.
+    // and if a drive letter is present or we have UNC path
+    // strips off the slash that precedes path. Otherwise,
+    // the leading slash is used.
 
     for( p = url->path; *p; p++ ) {
       if( *p == '/'  ) {
@@ -108,16 +156,26 @@ file_open( XFILE* x, const char* filename, int oflags )
     if( isalpha( p[1] ) && ( p[2] == '|' || p[2] == ':' )) {
       p[2] = ':';
       ++p;
+    } else if ( p[1] == '\\' && p[2] == '\\' ) {
+      ++p;
     }
 
-    FILE_REQUEST_DISK();
+    #ifdef XIO_SERIALIZE_DISK_IO
+    x->protocol->s_serialized = is_singletasking_fs( p );
+    #endif
+
+    FILE_REQUEST_DISK(x);
     x->protocol->s_handle = sopen( p, omode, SH_DENYNO, S_IREAD | S_IWRITE );
-    FILE_RELEASE_DISK();
+    FILE_RELEASE_DISK(x);
     url_free( url );
   } else {
-    FILE_REQUEST_DISK();
+    #ifdef XIO_SERIALIZE_DISK_IO
+    x->protocol->s_serialized = is_singletasking_fs( filename );
+    #endif
+
+    FILE_REQUEST_DISK(x);
     x->protocol->s_handle = sopen( filename, omode, SH_DENYNO, S_IREAD | S_IWRITE );
-    FILE_RELEASE_DISK();
+    FILE_RELEASE_DISK(x);
   }
 
   if( x->protocol->s_handle == -1 ) {
@@ -135,9 +193,9 @@ file_read( XFILE* x, char* result, unsigned int count )
 {
   int rc;
 
-  FILE_REQUEST_DISK();
+  FILE_REQUEST_DISK(x);
   rc = read( x->protocol->s_handle, result, count );
-  FILE_RELEASE_DISK();
+  FILE_RELEASE_DISK(x);
   return rc;
 }
 
@@ -150,9 +208,9 @@ file_write( XFILE* x, const char* source, unsigned int count )
 {
   int rc;
 
-  FILE_REQUEST_DISK();
+  FILE_REQUEST_DISK(x);
   rc = write( x->protocol->s_handle, source, count );
-  FILE_RELEASE_DISK();
+  FILE_RELEASE_DISK(x);
   return rc;
 }
 
@@ -163,9 +221,9 @@ file_close( XFILE* x )
 {
   int rc;
 
-  FILE_REQUEST_DISK();
+  FILE_REQUEST_DISK(x);
   rc = close( x->protocol->s_handle );
-  FILE_RELEASE_DISK();
+  FILE_RELEASE_DISK(x);
   return rc;
 }
 
@@ -177,9 +235,9 @@ file_tell( XFILE* x )
 {
   long rc;
 
-  FILE_REQUEST_DISK();
+  FILE_REQUEST_DISK(x);
   rc = tell( x->protocol->s_handle );
-  FILE_RELEASE_DISK();
+  FILE_RELEASE_DISK(x);
   return rc;
 }
 
@@ -202,9 +260,9 @@ file_seek( XFILE* x, long offset, int origin )
       return -1L;
   }
 
-  FILE_REQUEST_DISK();
+  FILE_REQUEST_DISK(x);
   rc = lseek( x->protocol->s_handle, offset, omode );
-  FILE_RELEASE_DISK();
+  FILE_RELEASE_DISK(x);
   return rc;
 }
 
@@ -215,9 +273,9 @@ file_size( XFILE* x )
 {
   struct stat fi = {0};
 
-  FILE_REQUEST_DISK();
+  FILE_REQUEST_DISK(x);
   fstat( x->protocol->s_handle, &fi );
-  FILE_RELEASE_DISK();
+  FILE_RELEASE_DISK(x);
   return fi.st_size;
 }
 
@@ -231,9 +289,9 @@ file_truncate( XFILE* x, long size )
 {
   int rc;
 
-  FILE_REQUEST_DISK();
+  FILE_REQUEST_DISK(x);
   rc = chsize( x->protocol->s_handle, size );
-  FILE_RELEASE_DISK();
+  FILE_RELEASE_DISK(x);
   return rc;
 }
 

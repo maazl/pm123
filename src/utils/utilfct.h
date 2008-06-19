@@ -32,7 +32,7 @@
 #ifndef PM123_UTILS_H
 #define PM123_UTILS_H
 
-#include "config.h"
+#include <config.h>
 #include "rel2abs.h"
 #include "abs2rel.h"
 #include "bufstream.h"
@@ -45,6 +45,7 @@
 #include "queue.h"
 #include "minmax.h"
 #include "strutils.h"
+#include "eautils.h"
 
 #if !defined( bool ) && (!defined(__WATCOMC__) || !defined(__cplusplus))
   typedef int   bool;

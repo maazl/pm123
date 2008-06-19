@@ -220,7 +220,7 @@ typedef struct _DECODER_CDINFO
       PLUGIN_OK      = everything's perfect, structure is set,
       PLUGIN_NO_READ = error reading required info,
       other values   = errno, check xio_strerror() for string. */
-ULONG DLLENTRY decoder_cdinfo( char* drive, DECODER_CDINFO* info );
+ULONG DLLENTRY decoder_cdinfo( const char* drive, DECODER_CDINFO* info );
 
 /* returns ORed values */
 #define DECODER_FILENAME  0x0001 /* Decoder can play a regular file. */

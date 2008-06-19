@@ -39,9 +39,9 @@
 #include <math.h>
 #include <malloc.h>
 
-#include "utilfct.h"
+#include <utilfct.h>
+#include <fftw3.h>
 #include "plugman.h"
-#include "fftw3.h"
 
 #define  M_PI 3.14159265358979323846
 

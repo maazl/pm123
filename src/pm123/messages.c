@@ -37,9 +37,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <debuglog.h>
+#include <utilfct.h>
 
 #include "pm123.h"
-#include "utilfct.h"
 #include "plugman.h"
 #include "messages.h"
 #include "assertions.h"

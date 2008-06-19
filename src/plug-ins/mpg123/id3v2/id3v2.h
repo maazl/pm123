@@ -3,7 +3,7 @@
  * Copyright (C) 2000-2004 Haavard Kvaalen
  * Copyright (C) 2007 Dmitry A.Steklenev
  *
- * $Id: id3v2.h,v 1.3 2008/02/20 15:00:52 glass Exp $
+ * $Id: id3v2.h,v 1.4 2008/03/28 13:26:40 glass Exp $
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -34,6 +34,9 @@ typedef unsigned char uint8_t;
 typedef unsigned long uint32_t;
 #endif
 
+#define ID3V2_VERSION   4
+#define ID3V2_REVISION  0
+
 /* Option flags to id3_get_*(). */
 #define ID3V2_GET_NONE    0x0000
 #define ID3V2_GET_NOCHECK 0x0001
@@ -41,6 +44,7 @@ typedef unsigned long uint32_t;
 
 /* The size of the read/write buffer used by file operations. */
 #define ID3V2_FILE_BUFSIZE  8192
+
 
 /* Structure describing the ID3 tag. */
 typedef struct _ID3V2_TAG

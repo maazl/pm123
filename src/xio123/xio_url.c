@@ -34,7 +34,7 @@
 #include <ctype.h>
 
 #include "xio_url.h"
-#include "utilfct.h"
+#include <utilfct.h>
 
 /* Passed any string value, decode from URL transmission. */
 char*

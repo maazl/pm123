@@ -356,6 +356,7 @@ plg_win_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
     }
 
     case WM_VRNDISABLED:
+      WinStopTimer( hab, hanalyzer, TID_UPDATE );
       DiveSetupBlitter( hdive, 0 );
       break;
 
@@ -535,6 +536,7 @@ vis_init( PVISPLUGININIT init )
   _specana_dobands       = init->procs->specana_dobands;
 
   init_bands();
+  is_stopped = FALSE;
 
   // Open up DIVE
   if( DiveOpen( &hdive, FALSE, 0 ) != DIVE_SUCCESS ) {
@@ -648,8 +650,8 @@ plugin_deinit( void )
   }
 
   WinStopTimer( hab, hanalyzer, TID_USERMAX - 1 );
-  DiveFreeImageBuffer( hdive, image_id );
   WinDestroyWindow( hanalyzer );
+  DiveFreeImageBuffer( hdive, image_id );
 
   DiveClose( hdive );
 

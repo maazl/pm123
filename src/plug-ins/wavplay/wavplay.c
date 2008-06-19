@@ -36,10 +36,10 @@
 #include <process.h>
 
 #include "wavplay.h"
-#include "decoder_plug.h"
-#include "plugin.h"
-#include "utilfct.h"
-#include "snprintf.h"
+#include <decoder_plug.h>
+#include <plugin.h>
+#include <utilfct.h>
+#include <snprintf.h>
 
 static sf_count_t DLLENTRY
 vio_fsize( void* x ) {
@@ -471,7 +471,7 @@ decoder_trackinfo( char* drive, int track, DECODER_INFO* info ) {
 }
 
 ULONG DLLENTRY
-decoder_cdinfo( char* drive, DECODER_CDINFO* info ) {
+decoder_cdinfo( const char* drive, DECODER_CDINFO* info ) {
   return PLUGIN_NO_READ;
 }
 

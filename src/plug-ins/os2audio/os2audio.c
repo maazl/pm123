@@ -38,15 +38,15 @@
 #include <ctype.h>
 #include <math.h>
 
-#include "utilfct.h"
-#include "format.h"
-#include "output_plug.h"
-#include "decoder_plug.h"
-#include "plugin.h"
-#include "os2audio.h"
-#include "debuglog.h"
+#include <utilfct.h>
+#include <format.h>
+#include <output_plug.h>
+#include <decoder_plug.h>
+#include <plugin.h>
+#include <debuglog.h>
 
-#define  INFO( mb ) ((BUFFERINFO*)(mb)->ulUserParm)
+#include "os2audio.h"
+#define   INFO( mb ) ((BUFFERINFO*)(mb)->ulUserParm)
 
 #if 0
 #define  DosRequestMutexSem( mutex, wait )                                                 \

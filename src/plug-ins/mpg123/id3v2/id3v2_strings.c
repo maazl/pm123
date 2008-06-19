@@ -3,7 +3,7 @@
  * Copyright (C) 2000-2004 Haavard Kvaalen
  * Copyright (C) 2007 Dmitry A.Steklenev
  *
- * $Id: id3v2_strings.c,v 1.2 2008/02/20 15:00:52 glass Exp $
+ * $Id: id3v2_strings.c,v 1.5 2008/06/10 16:55:20 glass Exp $
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -19,7 +19,7 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  */
 
-#include "config.h"
+#include <config.h>
 
 #include <stdarg.h>
 #include <stdio.h>
@@ -253,7 +253,7 @@ id3v2_decode( int8_t encoding, const char* source, char* result, int size )
       break;
 
     case ID3V2_ENCODING_UTF16:
-      ch_convert( CH_UCS_2, source, CH_DEFAULT, result, size );
+      ch_convert( CH_UCS_2BE, source, CH_DEFAULT, result, size );
       break;
 
     case ID3V2_ENCODING_UTF16_BOM:
@@ -283,7 +283,7 @@ id3v2_encode( int8_t encoding, const char* source )
         break;
 
       case ID3V2_ENCODING_UTF16:
-        ch_convert( CH_DEFAULT, source, CH_UCS_2, result, size );
+        ch_convert( CH_DEFAULT, source, CH_UCS_2BE, result, size );
         break;
 
       case ID3V2_ENCODING_UTF16_BOM:
@@ -463,6 +463,7 @@ id3v2_get_description( ID3V2_FRAME* frame, char* result, int size )
   // If predefined frame, return description.
   if( frame->fr_desc->fd_id != ID3V2_TXXX &&
       frame->fr_desc->fd_id != ID3V2_WXXX &&
+      frame->fr_desc->fd_id != ID3V2_RVA2 &&
       frame->fr_desc->fd_id != ID3V2_COMM )
   {
     strlcpy( result, frame->fr_desc->fd_description, size );
@@ -484,8 +485,13 @@ id3v2_get_description( ID3V2_FRAME* frame, char* result, int size )
     return result;
   }
 
-  return id3v2_decode( ID3V2_TEXT_FRAME_ENCODING( frame ),
-                       ID3V2_TEXT_FRAME_PTR( frame ) + offset, result, size );
+  if( id3v2_is_text_frame( frame )) {
+    return id3v2_decode( ID3V2_TEXT_FRAME_ENCODING( frame ),
+                         ID3V2_TEXT_FRAME_PTR( frame ) + offset, result, size );
+  } else {
+    strlcpy( result, (char*)frame->fr_data, size );
+    return result;
+  }
 }
 
 

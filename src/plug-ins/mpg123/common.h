@@ -214,6 +214,7 @@ extern int  mpg_open_file ( MPG_FILE*, const char* filename, const char* mode );
 extern int  mpg_close( MPG_FILE* );
 extern void mpg_abort( MPG_FILE* );
 extern int  mpg_read_frame( MPG_FILE* );
+extern int  mpg_decode_frame( MPG_FILE* );
 extern int  mpg_save_frame( MPG_FILE*, XFILE* save );
 extern int  mpg_move_sound( MPG_FILE*, unsigned char* buffer, int size );
 

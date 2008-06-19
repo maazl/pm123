@@ -144,7 +144,7 @@ typedef struct _CDHANDLE
 
 /* Opens a specified CD drive. Returns the operating system error code.
    Also, a NULL pointer disc value indicates an error. */
-APIRET cd_open( char* drive, CDHANDLE** disc );
+APIRET cd_open( const char* drive, CDHANDLE** disc );
 
 /* Closes a handle to a CD drive.
    Returns the operating system error code. */

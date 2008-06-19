@@ -15,7 +15,7 @@ DEF      = wavplay$(LDEF_SUFFX)
 
 all: wavplay.dll wavplay$(LBI) $(MDUMMY)
 
-wavplay.dll: $(OBJECTS) $(DEF)
+wavplay.dll: $(OBJECTS) $(DEF) $(LIBS)
 	$(CL) $(LFLAGS) $(LFLAGS_OUT)$@ $(LOBJ_PREFX)$(OBJECTS)$(LOBJ_SUFFX) $(LLIB_PREFX)$(LIBS)$(LLIB_SUFFX) $(LDEF_PREFX)$(DEF)
 
 wavplay$(LBI): $(DEF)
@@ -23,5 +23,10 @@ wavplay$(LBI): $(DEF)
 
 wavplay$(CO): wavplay.c wavplay.h
 
-clean: $(MDUMMY)
+clean:  $(MDUMMY)
 	-@del wavplay$(LBI) wavplay.dll $(OBJECTS) 2> nul
+depend: $(MDUMMY)
+	@$(TOPDIR)\config\makedep.cmd *.c -r -x -I$(INCDIR)
+
+wavplay.c:	wavplay.h ..\..\include\decoder_plug.h ..\..\include\plugin.h ..\..\utils\utilfct.h ..\..\utils\snprintf.h
+wavplay.h:	..\..\snd123\src\sndfile.h ..\..\include\format.h ..\..\xio123\xio.h

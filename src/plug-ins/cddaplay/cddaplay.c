@@ -397,11 +397,12 @@ decoder_fileinfo( char* filename, DECODER_INFO* info ) {
 
 /* Returns information about a disc inserted to the specified drive. */
 ULONG DLLENTRY
-decoder_cdinfo( char* drive, DECODER_CDINFO* info )
+decoder_cdinfo( const char* drive, DECODER_CDINFO* info )
 {
   CDHANDLE* disc;
   CDINFO    fresh_info;
   APIRET    rc;
+  int       i;
 
   unsigned char fresh_upc[7] = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF };
 
@@ -427,10 +428,6 @@ decoder_cdinfo( char* drive, DECODER_CDINFO* info )
   memcpy( disc_upc, fresh_upc, sizeof( disc_upc ));
   DosReleaseMutexSem( mutex );
 
-  info->sectors    = fresh_info.lead_out_address;
-  info->firsttrack = fresh_info.track_first;
-  info->lasttrack  = fresh_info.track_last;
-
   // I on a regular basis receive a UPC not similar to BCD format.
   // Why? But it is unique for each disc.
   DEBUGLOG(( "cddaplay: disc UPC is %02X%02X%02X%02X%02X%02X%02X\n",
@@ -438,6 +435,26 @@ decoder_cdinfo( char* drive, DECODER_CDINFO* info )
               fresh_upc[4], fresh_upc[5], fresh_upc[6] ));
 
   cd_close( disc );
+
+  info->sectors    = fresh_info.lead_out_address;
+  info->firsttrack = 0;
+  info->lasttrack  = 0;
+
+  // Try to remove data tracks from the beginning and the end of a CD.
+  // More correct processing requires change of the interface.
+  for( i = fresh_info.track_first; i <= fresh_info.track_last; i++ ) {
+    if( !fresh_info.track_info[i].is_data ) {
+      info->firsttrack = i;
+      break;
+    }
+  }
+  for( i = fresh_info.track_last; i >= fresh_info.track_first; i-- ) {
+    if( !fresh_info.track_info[i].is_data ) {
+      info->lasttrack  = i;
+      break;
+    }
+  }
+
   return PLUGIN_OK;
 }
 

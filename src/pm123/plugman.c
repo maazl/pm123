@@ -40,12 +40,12 @@
 #include <io.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <utilfct.h>
+#include <debuglog.h>
+#include <snprintf.h>
 
 #include "pm123.h"
-#include "utilfct.h"
 #include "plugman.h"
-#include "debuglog.h"
-#include "snprintf.h"
 
 DECODER** decoders       = NULL;
 int       num_decoders   = 0;
@@ -1574,9 +1574,12 @@ dec_set_filters( DECODER_PARAMS* decode_params )
 
       if( filters[i]->pc.enabled )
       {
+        filter_params.size             = sizeof( FILTER_PARAMS );
         filter_params.error_display    = decode_params->error_display;
         filter_params.info_display     = decode_params->error_display;
         filter_params.audio_buffersize = decode_params->audio_buffersize;
+        filter_params.pm123_getstring  = pm123_getstring;
+        filter_params.pm123_control    = pm123_control;
 
         if( filter ) {
           filter_params.output_play_samples = filter->filter_play_samples;
@@ -1995,6 +1998,7 @@ ULONG DLLENTRY
 out_command( ULONG msg, OUTPUT_PARAMS* ai )
 {
   ULONG rc = PLUGIN_NO_USABLE;
+  ai->size = sizeof( OUTPUT_PARAMS );
 
   pg_request();
   if( active_output != -1 ) {
@@ -2010,6 +2014,7 @@ out_set_volume( int volume )
 {
   OUTPUT_PARAMS out_params = { 0 };
 
+  out_params.size      = sizeof( OUTPUT_PARAMS );
   out_params.volume    = volume;
   out_params.amplifier = 1.0;
 

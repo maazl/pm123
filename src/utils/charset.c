@@ -48,7 +48,8 @@ const CH_ENTRY ch_list[] =
   { "Cyrillic (Windows-1251)", CH_CYR_WIN,    CH_SBCS, 0             },
   { "Western (ISO-8859-1)",    CH_ISO_8859_1, CH_SBCS, 0             },
   { "Unicode (UTF-8)",         CH_UTF_8,      CH_MBCS, 0             },
-  { "Unicode (UCS-2)",         CH_UCS_2,      CH_DBCS, 0             },
+  { "Unicode (UCS-2 BE)",      CH_UCS_2BE,    CH_DBCS, 0             },
+  { "Unicode (UCS-2 LE)",      CH_UCS_2LE,    CH_DBCS, 0             },
   { "Unicode (UCS-2 BOM)",     CH_UCS_2BOM,   CH_DBCS, 0             },
   { "Russian (Auto-Detect)",   CH_CYR_AUTO,   CH_SBCS, ch_rus_detect }
 };
@@ -283,8 +284,12 @@ ch_convert_mbcs( int ch_source, int ch_source_type, const char* source,
   }
 
   // Convert the source string to unicode.
-  if( ch_source == CH_UCS_2 ) {
+  if( ch_source == CH_UCS_2LE ) {
     UniStrncpy( buffer, (UniChar*)source, src_chars );
+  } else if( ch_source == CH_UCS_2BE ) {
+    for( i = 0, j = 0; i <= src_chars; i++, j += 2 ) {
+      buffer[i] = source[j] << 8 | source[j+1];
+    }
   } else if( ch_source == CH_UCS_2BOM ) {
     if((unsigned char)source[0] == 0xFF &&
        (unsigned char)source[1] == 0xFE )
@@ -324,10 +329,18 @@ ch_convert_mbcs( int ch_source, int ch_source_type, const char* source,
   }
 
   // Convert unicode to the target string.
-  if( ch_target == CH_UCS_2 ) {
+  if( ch_target == CH_UCS_2LE ) {
     if( size >= 2 ) {
       UniStrncpy((UniChar*)target, buffer, size / 2 );
       ((UniChar*)target)[ size / 2 - 1 ] = 0;
+    }
+  } else if( ch_target == CH_UCS_2BE  ) {
+    if( size >= 2 ) {
+      for( i = 0, j = 0; i < size / 2 && i <= src_chars; i++, j += 2 ) {
+        target[j  ] = ( buffer[i] >> 8 ) & 0xFF;
+        target[j+1] = ( buffer[i]      ) & 0xFF;
+      }
+     ((UniChar*)target)[ size / 2 - 1 ] = 0;
     }
   } else if( ch_target == CH_UCS_2BOM ) {
     if( size >= 2 ) {

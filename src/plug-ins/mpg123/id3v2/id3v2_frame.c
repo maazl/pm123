@@ -3,7 +3,7 @@
  * Copyright (C) 2000-2004 Haavard Kvaalen
  * Copyright (C) 2007 Dmitry A.Steklenev
  *
- * $Id: id3v2_frame.c,v 1.3 2008/02/20 15:00:52 glass Exp $
+ * $Id: id3v2_frame.c,v 1.6 2008/04/21 08:30:11 glass Exp $
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -20,7 +20,7 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  */
 
-#include "config.h"
+#include <config.h>
 
 #include <zlib.h>
 #include <stdio.h>
@@ -371,8 +371,9 @@ id3v2_read_frame_v22( ID3V2_TAG* id3 )
   id3->id3_frames = realloc( id3->id3_frames, ++id3->id3_frames_count * sizeof( ID3V2_FRAME* ));
   id3->id3_frames[ id3->id3_frames_count - 1 ] = frame;
 
-  DEBUGLOG(( "id3v2: read frame %c%c%c, fl=%04X, size=%08d (%s)\n",
-             buf[0], buf[1], buf[2], frame->fr_flags, frame->fr_raw_size,
+  DEBUGLOG(( "id3v2: read frame %c%c%c%c [%c%c%c], fl=%04X, size=%08d (%s)\n",
+             idv24 >> 24, idv24 >> 16, idv24 >> 8, idv24, buf[0], buf[1], buf[2],
+             frame->fr_flags, frame->fr_raw_size,
              id3v2_get_description( frame, desc, sizeof( desc ))));
   return 0;
 }
@@ -384,6 +385,7 @@ id3v2_read_frame( ID3V2_TAG* id3 )
 {
   ID3V2_FRAME* frame;
   uint32_t id;
+  uint32_t raw_size;
   uint8_t* buf;
 
   if( id3->id3_version == 2 ) {
@@ -408,22 +410,47 @@ id3v2_read_frame( ID3V2_TAG* id3 )
 
   id = ID3V2_FRAME_ID( buf[0], buf[1], buf[2], buf[3] );
 
-  // Allocate frame.
-  frame = calloc( 1, sizeof( *frame ));
-  frame->fr_owner = id3;
-  frame->fr_flags = buf[8] << 8 | buf[9];
-  frame->fr_desc  = id3v2_find_frame_description( id );
-
   if( id3->id3_version >= 4 ) {
-    frame->fr_raw_size = ID3_GET_SIZE28( buf[4], buf[5], buf[6], buf[7] );
+    raw_size = ID3_GET_SIZE28( buf[4], buf[5], buf[6], buf[7] );
   } else {
-    frame->fr_raw_size = buf[4] << 24 | buf[5] << 16 | buf[6] << 8 | buf[7];
+    raw_size = buf[4] << 24 | buf[5] << 16 | buf[6] << 8 | buf[7];
   }
 
-  if( frame->fr_raw_size > 1000000 ) {
-    free( frame );
+  if( raw_size > 1000000 ) {
     return -1;
   }
+
+  // Convert v2.3 frames to v2.4 if it is possible.
+  switch( id ) {
+    case ID3V2_TYER:
+      id = ID3V2_TDRC;
+      break;
+
+    case ID3V2_EQUA:  /* Could be converted to EQU2 */
+    case ID3V2_IPLS:  /* Could be converted to TMCL and TIPL */
+    case ID3V2_RVAD:  /* Could be converted to RVA2 */
+    case ID3V2_TDAT:  /* Could be converted to TDRC */
+    case ID3V2_TIME:  /* Could be converted to TDRC */
+    case ID3V2_TORY:  /* Could be converted to TDOR */
+    case ID3V2_TRDA:  /* Could be converted to TDRC */
+    case ID3V2_TSIZ:  /* Obsolete */
+    {
+      DEBUGLOG(( "id3v2: skip frame %c%c%c%c\n", id >> 24, id >> 16, id >> 8, id ));
+
+      if( id3->id3_seek( id3, raw_size ) < 0 ) {
+        return -1;
+      }
+      return 0;
+    }
+  }
+
+  // Allocate frame.
+  frame = calloc( 1, sizeof( *frame ));
+
+  frame->fr_owner    = id3;
+  frame->fr_flags    = buf[8] << 8 | buf[9];
+  frame->fr_desc     = id3v2_find_frame_description( id );
+  frame->fr_raw_size = raw_size;
 
   // Check if frame had a valid id.
   if( frame->fr_desc == NULL ) {
@@ -459,8 +486,9 @@ id3v2_read_frame( ID3V2_TAG* id3 )
   id3->id3_frames = realloc( id3->id3_frames, ++id3->id3_frames_count * sizeof( ID3V2_FRAME* ));
   id3->id3_frames[ id3->id3_frames_count - 1 ] = frame;
 
-  DEBUGLOG(( "id3v2: read frame %c%c%c%c, fl=%04X, size=%08d (%s)\n",
-             buf[0], buf[1], buf[2], buf[3], frame->fr_flags, frame->fr_raw_size,
+  DEBUGLOG(( "id3v2: read frame %c%c%c%c [%c%c%c%c], fl=%04X, size=%08d (%s)\n",
+             id >> 24, id >> 16, id >> 8, id, buf[0], buf[1], buf[2], buf[3],
+             frame->fr_flags, frame->fr_raw_size,
              id3v2_get_description( frame, desc, sizeof( desc ))));
   return 0;
 }

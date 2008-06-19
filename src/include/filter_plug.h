@@ -9,6 +9,9 @@ extern "C" {
 
 #pragma pack(4)
 
+#define PARAMS_SIZE_1 24  /* size of the FILTER_PARAMS structure prior PM123 1.32 */
+#define PARAMS_SIZE_2 32  /* size of the FILTER_PARAMS structure since PM123 1.32 */
+
 typedef struct _FILTER_PARAMS
 {
   int size;
@@ -24,6 +27,10 @@ typedef struct _FILTER_PARAMS
   /* info message function the filter plug-in should use */
   /* this information is always displayed to the user right away */
   void (DLLENTRYP info_display)( char* );
+
+  /* added since PM123 1.32 */
+  int   (DLLENTRYP pm123_getstring)( int index, int subindex, int bufsize, char* buf );
+  void  (DLLENTRYP pm123_control)( int index, void* param );
 
 } FILTER_PARAMS;
 

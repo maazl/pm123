@@ -34,7 +34,7 @@
 
 #ifndef  RC_INVOKED
 #include <stdlib.h>
-#include "xio.h"
+#include <xio.h>
 #endif
 
 #define DLG_CONFIG         2010

@@ -43,27 +43,27 @@ extern "C" {
 
 typedef struct _DATA95 {
 
-  int   cb;
-  HWND  hwnd_owner;
-  HWND  hwnd_bubble;
-  HWND  hwnd_bubble_frame;
-  int   id;
-  char  help[256];
+  int  cb;
+  HWND hwnd_owner;
+  HWND hwnd_bubble;
+  HWND hwnd_bubble_frame;
+  int  id;
+  char help[256];
 
-  int   bubbling;
-  int   mouse_in_button;
-  int   pressed;
-  int   stick;
-  int*  stickvar;
+  int  bubbling;
+  int  mouse_in_button;
+  int  pressed;
+  int  stick;
+  int* stickvar;
 
-  int   bmp_release_id;
-  int   bmp_pressed_id;
+  HBITMAP* bmp_release;
+  HBITMAP* bmp_pressed;
 
 } DATA95, *PDATA95;
 
 void InitButton( HAB hab );
 
 #ifdef __cplusplus
-extern "C" {
+}
 #endif
 #endif

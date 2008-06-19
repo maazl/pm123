@@ -29,9 +29,9 @@
 #ifndef PM123_OGGPLAY_H
 #define PM123_OGGPLAY_H
 
-#include "format.h"
-#include "xio.h"
-#include "ogg/ogg.h"
+#include <format.h>
+#include <xio.h>
+#include <ogg/ogg.h>
 
 #ifdef __cplusplus
 extern "C" {

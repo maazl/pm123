@@ -36,7 +36,7 @@
 
 #include "pm123.h"
 #include "docking.h"
-#include "utilfct.h"
+#include <utilfct.h>
 
 #define IS_MASTER( data )   ( data->state &   DK_IS_MASTER )
 #define IS_GHOST( data )    ( data->state &   DK_IS_GHOST  )

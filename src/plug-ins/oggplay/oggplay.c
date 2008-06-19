@@ -769,6 +769,9 @@ decoder_saveinfo( char* filename, DECODER_INFO* info )
     }
   }
 
+  // Preserve EAs.
+  eacopy( filename, savename );
+
   // Replace file.
   if( remove( filename ) == 0 ) {
     if( rename( savename, filename ) != 0 ) {
@@ -804,7 +807,7 @@ decoder_trackinfo( char* drive, int track, DECODER_INFO* info ) {
 
 /* Returns information about a disc inserted to the specified drive. */
 ULONG DLLENTRY
-decoder_cdinfo( char* drive, DECODER_CDINFO* info ) {
+decoder_cdinfo( const char* drive, DECODER_CDINFO* info ) {
   return PLUGIN_NO_READ;
 }
 

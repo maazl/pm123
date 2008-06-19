@@ -30,7 +30,7 @@
 #define PM123_CDDAPLAY_H
 
 #ifndef  RC_INVOKED
-#include "format.h"
+#include <format.h>
 #endif
 
 #ifdef __cplusplus

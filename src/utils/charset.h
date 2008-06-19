@@ -38,7 +38,9 @@
 #define CH_CYR_OS2     866
 #define CH_ISO_8859_1  819
 #define CH_UCS_2      1200
+#define CH_UCS_2LE    1200
 #define CH_UCS_2BOM   8200
+#define CH_UCS_2BE    9200
 #define CH_UTF_8      1208
 #define CH_CYR_WIN    1251
 #define CH_CYR_1251   1251

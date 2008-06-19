@@ -33,8 +33,8 @@
 #define PM123_PLAYLIST_H
 
 #ifndef  RC_INVOKED
-#include "format.h"
-#include "decoder_plug.h"
+#include <format.h>
+#include <decoder_plug.h>
 #endif
 
 #define DLG_PLAYLIST         42

@@ -51,6 +51,7 @@
 
 #include <utilfct.h>
 #include <snprintf.h>
+#include <debuglog.h>
 
 #include "pm123.h"
 #include "bookmark.h"
@@ -59,7 +60,6 @@
 #include "docking.h"
 #include "iniman.h"
 #include "messages.h"
-#include "debuglog.h"
 #include "assertions.h"
 #include "playlist.h"
 #include "tags.h"
@@ -123,6 +123,13 @@ static BOOL  is_terminate    = FALSE;
 static int   seeking_pos = 0;
 static int   upd_options = 0;
 
+typedef struct {
+
+  USHORT count;
+  USHORT first;
+
+} CD_INFO;
+
 /* Equalizer stuff. */
 float gains[20];
 BOOL  mutes[20];
@@ -163,6 +170,27 @@ pm123_display_error( char* info )
   if( message ) {
     WinPostMsg( hplayer, AMP_DISPLAY_MESSAGE, MPFROMP( message ), MPFROMLONG( TRUE  ));
   }
+}
+
+/* Returns the information about installed CD drivers. */
+static USHORT
+amp_pb_cd_info( CD_INFO* info )
+{
+  HFILE hcdrom;
+  ULONG action;
+  ULONG len = sizeof( *info );
+
+  memset( info, 0, sizeof( *info ));
+
+  if( DosOpen( "\\DEV\\CD-ROM2$", &hcdrom, &action, 0,
+               FILE_NORMAL, OPEN_ACTION_OPEN_IF_EXISTS,
+               OPEN_SHARE_DENYNONE | OPEN_ACCESS_READONLY, NULL ) == NO_ERROR )
+  {
+    DosDevIOCtl( hcdrom, 0x82, 0x60, NULL, 0, NULL, info, len, &len );
+    DosClose( hcdrom );
+  }
+
+  return info->count;
 }
 
 /* Adjusts audio volume to level accordingly current playing mode.
@@ -687,6 +715,7 @@ amp_pb_show_context_menu( HWND parent )
   short    id;
   int      i;
   int      count;
+  CD_INFO  cdinfo;
 
   ASSERT_IS_MAIN_THREAD;
 
@@ -702,6 +731,12 @@ amp_pb_show_context_menu( HWND parent )
 
     WinSendMsg( mi.hwndSubMenu, MM_SETDEFAULTITEMID,
                                 MPFROMLONG( IDM_M_LOAD_FILE ), 0 );
+
+    WinSendMsg( hmenu, MM_QUERYITEM,
+                MPFROM2SHORT( IDM_M_DISCS, TRUE ), MPFROMP( &mi ));
+
+    WinSetWindowULong( mi.hwndSubMenu, QWL_STYLE,
+      WinQueryWindowULong( mi.hwndSubMenu, QWL_STYLE ) | MS_CONDITIONALCASCADE );
   }
 
   WinQueryPointerPos( HWND_DESKTOP, &pos );
@@ -715,7 +750,56 @@ amp_pb_show_context_menu( HWND parent )
     pos.y = swp.cy / 2;
   }
 
-  // Update regulars.
+  // Update CDs menu.
+  WinSendMsg( hmenu, MM_QUERYITEM,
+              MPFROM2SHORT( IDM_M_DISCS, TRUE ), MPFROMP( &mi ));
+
+  mh    = mi.hwndSubMenu;
+  count = LONGFROMMR( WinSendMsg( mh, MM_QUERYITEMCOUNT, 0, 0 ));
+
+  // Remove all items from the CDs menu.
+  for( i = 0; i < count; i++ ) {
+    id = LONGFROMMR( WinSendMsg( mh, MM_ITEMIDFROMPOSITION, MPFROMSHORT(0), 0 ));
+    WinSendMsg( mh, MM_DELETEITEM, MPFROM2SHORT( id, FALSE ), 0 );
+  }
+
+  if( amp_pb_cd_info( &cdinfo ) == 0 )
+  {
+    mi.iPosition = MIT_END;
+    mi.afStyle = MIS_TEXT;
+    mi.afAttribute = 0;
+    mi.id = (IDM_M_DISCS + 1);
+    mi.hwndSubMenu = (HWND)NULLHANDLE;
+    mi.hItem = 0;
+
+    WinSendMsg( mh, MM_INSERTITEM, MPFROMP( &mi ), MPFROMP( "No CDs" ));
+    mn_enable_item( hmenu, IDM_M_DISCS, FALSE );
+  } else {
+    char drive[3] = "X:";
+    LONG defcd    = IDM_M_DISCS + 1 + cdinfo.first;
+
+    for( i = 0; i < cdinfo.count; i++ ) {
+      drive[0] = 'A' + cdinfo.first + i;
+
+      mi.iPosition = MIT_END;
+      mi.afStyle = MIS_TEXT;
+      mi.afAttribute = 0;
+      mi.id = (IDM_M_DISCS + i + 1 + cdinfo.first );
+      mi.hwndSubMenu = (HWND)NULLHANDLE;
+      mi.hItem = 0;
+
+      WinSendMsg( mh, MM_INSERTITEM, MPFROMP( &mi ), MPFROMP( drive ));
+
+      if( stricmp( cfg.cddrive, drive ) == 0 ) {
+        defcd = IDM_M_DISCS + i + 1 + cdinfo.first;
+      }
+    }
+
+    WinSendMsg( mh, MM_SETDEFAULTITEMID, MPFROMLONG( defcd ), 0 );
+    mn_enable_item( hmenu, IDM_M_DISCS, TRUE );
+  }
+
+  // Update load menu.
   WinSendMsg( hmenu, MM_QUERYITEM,
               MPFROM2SHORT( IDM_M_LOAD_MENU, TRUE ), MPFROMP( &mi ));
 
@@ -945,25 +1029,17 @@ amp_pb_load_track( HWND owner, int options )
                FILE_NORMAL, OPEN_ACTION_OPEN_IF_EXISTS,
                OPEN_SHARE_DENYNONE | OPEN_ACCESS_READONLY, NULL ) == NO_ERROR )
   {
-    struct {
-      USHORT count;
-      USHORT first;
-    } cd_info;
+    CD_INFO cdinfo;
+    char    drive[3] = "X:";
+    ULONG   i;
 
-    char  drive[3] = "X:";
-    ULONG len = sizeof( cd_info );
-    ULONG i;
-
-    if( DosDevIOCtl( hcdrom, 0x82, 0x60, NULL, 0, NULL,
-                             &cd_info, len, &len ) == NO_ERROR )
-    {
-      for( i = 0; i < cd_info.count; i++ ) {
-        drive[0] = 'A' + cd_info.first + i;
+    if( amp_pb_cd_info( &cdinfo ) > 0 ) {
+      for( i = 0; i < cdinfo.count; i++ ) {
+        drive[0] = 'A' + cdinfo.first + i;
         WinSendDlgItemMsg( hwnd, CB_DRIVE, LM_INSERTITEM,
                            MPFROMSHORT( LIT_END ), MPFROMP( drive ));
       }
     }
-    DosClose( hcdrom );
 
     if( *cfg.cddrive ) {
       WinSetDlgItemText( hwnd, CB_DRIVE, cfg.cddrive );
@@ -1005,6 +1081,33 @@ amp_pb_load_track( HWND owner, int options )
   }
   WinDestroyWindow( hwnd );
   return TRUE;
+}
+
+/* Adds all CD tracks to the playlist.
+   Must be called from the main thread. */
+static void
+amp_pb_load_disc( int drive_no )
+{
+  char drive[ 3] = "X:";
+  char cdurl[64];
+  int  i;
+
+  DECODER_CDINFO cdinfo;
+  ASSERT_IS_MAIN_THREAD;
+
+  drive[0] = 'A' + drive_no;
+
+  if( dec_cdinfo( drive, &cdinfo ) == 0 ) {
+    if( cdinfo.firsttrack ) {
+      pl_clear();
+      for( i = cdinfo.firsttrack; i <= cdinfo.lasttrack; i++ ) {
+        sprintf( cdurl, "cd:///%s\\Track %02d", drive, i );
+        pl_add_file( cdurl, NULL, 0 );
+      }
+      pl_completed();
+      strcpy( cfg.cddrive, drive );
+    }
+  }
 }
 
 /* Adds CD tracks to the playlist or load one to the player. */
@@ -2632,6 +2735,10 @@ amp_pb_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
     case WM_COMMAND:
       if( COMMANDMSG(&msg)->source == CMDSRC_MENU )
       {
+        if( COMMANDMSG(&msg)->cmd > IDM_M_DISCS ) {
+          amp_pb_load_disc( COMMANDMSG(&msg)->cmd - IDM_M_DISCS - 1 );
+          return 0;
+        }
         if( COMMANDMSG(&msg)->cmd > IDM_M_PLUGINS ) {
           pg_process_plugin_menu( hwnd, mn_get_submenu( hmenu, IDM_M_PLUGINS  ),
                                                         COMMANDMSG(&msg)->cmd );
@@ -2707,6 +2814,17 @@ amp_pb_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
 
         case IDM_M_LOAD_TRACK:
           amp_pb_load_track( hwnd, TRK_ADD_TO_PLAYER );
+          return 0;
+
+        case IDM_M_LOAD_DISC:
+          if( *cfg.cddrive ) {
+            amp_pb_load_disc( toupper( cfg.cddrive[0] ) - 'A' );
+          } else {
+            CD_INFO cdinfo;
+            if( amp_pb_cd_info( &cdinfo ) > 0 ) {
+              amp_pb_load_disc( cdinfo.first );
+            }
+          }
           return 0;
 
         case IDM_M_FONT_SET1:

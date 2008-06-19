@@ -37,7 +37,7 @@
 #include <stdio.h>
 
 #include "readcd.h"
-#include "debuglog.h"
+#include <debuglog.h>
 
 /* Converts MSF address to the LBA format. */
 static ULONG
@@ -48,7 +48,7 @@ cd_to_LBA( MSF msf ) {
 /* Opens a specified CD drive. Returns the operating system error code.
    Also, a NULL *disc value indicates an error. */
 APIRET
-cd_open( char* drive, CDHANDLE** disc )
+cd_open( const char* drive, CDHANDLE** disc )
 {
   ULONG  ulAction;
   APIRET rc;
@@ -56,7 +56,7 @@ cd_open( char* drive, CDHANDLE** disc )
   *disc = calloc( 1, sizeof( CDHANDLE ));
 
   if( *disc ) {
-    if(( rc = DosOpen( drive, &(*disc)->handle, &ulAction, 0,
+    if(( rc = DosOpen((PSZ)drive, &(*disc)->handle, &ulAction, 0,
                        FILE_NORMAL, OPEN_ACTION_OPEN_IF_EXISTS,
                        OPEN_SHARE_DENYNONE | OPEN_ACCESS_READONLY | OPEN_FLAGS_DASD,
                        NULL )) != NO_ERROR )

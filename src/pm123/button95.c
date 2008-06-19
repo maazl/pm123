@@ -36,10 +36,7 @@
 #include <string.h>
 
 #include "button95.h"
-#include "utilfct.h"
-
-/* Bitmap cache for skin support. */
-extern  HBITMAP bmp_cache[8000];
+#include <utilfct.h>
 
 static MRESULT EXPENTRY
 ButtonWndProc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
@@ -133,8 +130,8 @@ ButtonWndProc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
       break;
 
     case WM_CHANGEBMP:
-      btn->bmp_release_id = LONGFROMMP(mp1);
-      btn->bmp_pressed_id = LONGFROMMP(mp2);
+      btn->bmp_release = (HBITMAP*)mp1;
+      btn->bmp_pressed = (HBITMAP*)mp2;
       WinInvalidateRect( hwnd, NULL, 1 );
       break;
 
@@ -197,9 +194,9 @@ ButtonWndProc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
       POINTL pos = { 0, 0 };
 
       if( btn->pressed == 0 && ( btn->stick == 0 || *btn->stickvar == 0 )) {
-        WinDrawBitmap( hps, bmp_cache[btn->bmp_release_id], NULL, &pos, 0, 0, DBM_NORMAL );
+        WinDrawBitmap( hps, *btn->bmp_release, NULL, &pos, 0, 0, DBM_NORMAL );
       } else {
-        WinDrawBitmap( hps, bmp_cache[btn->bmp_pressed_id], NULL, &pos, 0, 0, DBM_NORMAL );
+        WinDrawBitmap( hps, *btn->bmp_pressed, NULL, &pos, 0, 0, DBM_NORMAL );
       }
       WinEndPaint(hps);
       break;

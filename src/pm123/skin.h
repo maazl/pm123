@@ -118,7 +118,7 @@
 #define BMP_SN_REPEAT      5519 /* Repeat button up for small and tiny modes.         */
 #define BMP_SN_PL          5520 /* Playlist button up for small and tiny modes.       */
 #define BMP_SN_STOP        5522 /* Stop button up for small and tiny modes.           */
-#define BMP_SN_FLOAD       5525 /* Load file button down for small and tiny modes.    */
+#define BMP_SN_FLOAD       5525 /* Load file button up for small and tiny modes.      */
 
 #define BMP_KILL           1600
 #define BMP_LED            1820 /* Bright led (displayed when PM123 has focus).       */

@@ -18,3 +18,10 @@ id3v2$(LBO): $(OBJECTS)
 
 clean: $(MDUMMY)
 	-@del id3v2$(LBO) $(OBJECTS) 2> nul
+depend: $(MDUMMY)
+	@$(TOPDIR)\config\makedep.cmd *.c -r -x -I$(INCDIR)
+
+id3v2.c:	 ..\..\..\include\config.h ..\..\..\utils\charset.h ..\..\..\utils\debuglog.h ..\..\..\utils\minmax.h id3v2.h id3v2_header.h
+id3v2.h:	 ..\..\..\xio123\xio.h
+id3v2_frame.c:	 ..\..\..\include\config.h ..\..\..\zlb123\zlib.h ..\..\..\utils\debuglog.h id3v2.h id3v2_header.h
+id3v2_strings.c: ..\..\..\include\config.h ..\..\..\utils\strutils.h ..\..\..\utils\charset.h id3v2.h id3v2_header.h

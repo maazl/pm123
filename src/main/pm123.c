@@ -7,8 +7,8 @@
 #include <stdlib.h>
 #include <stdio.h>
 
-#include "utilfct.h"
-#include "debuglog.h"
+#include <utilfct.h>
+#include <debuglog.h>
 
 typedef int (DLLENTRYP dll_main)( int argc, char* argv[] );
 

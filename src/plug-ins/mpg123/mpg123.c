@@ -42,6 +42,7 @@
 #include <output_plug.h>
 #include <decoder_plug.h>
 #include <debuglog.h>
+#include <snprintf.h>
 #include <id3v1.h>
 #include <id3v2.h>
 
@@ -155,6 +156,8 @@ read_and_save_frame( DECODER_STRUCT* w )
       w->info_display( errorbuf );
     }
   }
+
+  mpg_decode_frame( &w->mpeg );
 
   if( w->mpeg.fr.bitrate != w->bitrate )
   {
@@ -503,27 +506,74 @@ copy_id3v2_string( ID3V2_TAG* tag, unsigned int id, char* result, int size )
 void static
 copy_id3v2_tag( DECODER_INFO* info, ID3V2_TAG* tag )
 {
+  ID3V2_FRAME* frame;
+  char buffer[128];
+  int  i;
+
   if( tag ) {
     copy_id3v2_string( tag, ID3V2_TIT2, info->title,   sizeof( info->title   ));
     copy_id3v2_string( tag, ID3V2_TPE1, info->artist,  sizeof( info->artist  ));
     copy_id3v2_string( tag, ID3V2_TALB, info->album,   sizeof( info->album   ));
-    copy_id3v2_string( tag, ID3V2_COMM, info->comment, sizeof( info->comment ));
     copy_id3v2_string( tag, ID3V2_TCON, info->genre,   sizeof( info->genre   ));
-    copy_id3v2_string( tag, ID3V2_TYER, info->year,    sizeof( info->year    ));
+    copy_id3v2_string( tag, ID3V2_TDRC, info->year,    sizeof( info->year    ));
 
-    if( !*info->year ) {
-      copy_id3v2_string( tag, ID3V2_TDRC, info->year, sizeof( info->year ));
+    for( i = 1; ( frame = id3v2_get_frame( tag, ID3V2_COMM, i )) != NULL ; i++ )
+    {
+      id3v2_get_description( frame, buffer, sizeof( buffer ));
+
+      // Skip iTunes specific comment tags.
+      if( strnicmp( buffer, "iTun", 4 ) != 0 ) {
+        id3v2_get_string( frame, info->comment, sizeof( info->comment ) );
+        break;
+      }
     }
 
     if( info->size >= INFO_SIZE_2 )
     {
-      char buffer[128];
-      int  i;
-
-      ID3V2_FRAME* frame;
-
       copy_id3v2_string( tag, ID3V2_TCOP, info->copyright, sizeof( info->copyright ));
       copy_id3v2_string( tag, ID3V2_TRCK, info->track, sizeof( info->track ));
+
+      // Remove all unwanted track info.
+      if(( i = atol( info->track )) != 0 ) {
+        snprintf( info->track, sizeof( info->track ), "%02ld", atol( info->track ));
+      } else {
+        *info->track = 0;
+      }
+
+      for( i = 1; ( frame = id3v2_get_frame( tag, ID3V2_RVA2, i )) != NULL ; i++ )
+      {
+        float gain = 0;
+        unsigned char* data = (unsigned char*)frame->fr_data;
+
+        // Format of RVA2 frame:
+        //
+        // Identification          <text string> $00
+        // Type of channel         $xx
+        // Volume adjustment       $xx xx
+        // Bits representing peak  $xx
+        // Peak volume             $xx (xx ...)
+
+        id3v2_get_description( frame, buffer, sizeof( buffer ));
+
+        // Skip identification string.
+        data += strlen((char*)data ) + 1;
+        // Search the master volume.
+        while( data - (unsigned char*)frame->fr_data < frame->fr_size ) {
+          if( *data == 0x01 ) {
+            gain = (float)((signed char)data[1] << 8 | data[2] ) / 512;
+            break;
+          } else {
+            data += 3 + (( data[3] + 7 ) / 8 );
+          }
+        }
+        if( gain != 0 ) {
+          if( stricmp( buffer, "album" ) == 0 ) {
+            info->album_gain = gain;
+          } else {
+            info->track_gain = gain;
+          }
+        }
+      }
 
       for( i = 1; ( frame = id3v2_get_frame( tag, ID3V2_TXXX, i )) != NULL ; i++ )
       {
@@ -663,7 +713,23 @@ decoder_fileinfo( char* filename, DECODER_INFO* info )
 static void
 replace_id3v2_string( ID3V2_TAG* tag, unsigned int id, char* string )
 {
-  ID3V2_FRAME* frame = id3v2_get_frame( tag, id, 1 );
+  ID3V2_FRAME* frame;
+  char buffer[128];
+  int  i;
+
+  if( id == ID3V2_COMM ) {
+    for( i = 1; ( frame = id3v2_get_frame( tag, ID3V2_COMM, i )) != NULL ; i++ )
+    {
+      id3v2_get_description( frame, buffer, sizeof( buffer ));
+
+      // Skip iTunes specific comment tags.
+      if( strnicmp( buffer, "iTun", 4 ) != 0 ) {
+        break;
+      }
+    }
+  } else {
+    frame = id3v2_get_frame( tag, id, 1 );
+  }
 
   if( frame == NULL ) {
     frame = id3v2_add_frame( tag, id );
@@ -715,10 +781,12 @@ decoder_saveinfo( char* filename, DECODER_INFO* info )
     {
       int set_rc;
 
+      // FIX ME: Replay gain info also must be saved.
+
       replace_id3v2_string( w->mpeg.tagv2, ID3V2_TIT2, info->title     );
       replace_id3v2_string( w->mpeg.tagv2, ID3V2_TPE1, info->artist    );
       replace_id3v2_string( w->mpeg.tagv2, ID3V2_TALB, info->album     );
-      replace_id3v2_string( w->mpeg.tagv2, ID3V2_TYER, info->year      );
+      replace_id3v2_string( w->mpeg.tagv2, ID3V2_TDRC, info->year      );
       replace_id3v2_string( w->mpeg.tagv2, ID3V2_COMM, info->comment   );
       replace_id3v2_string( w->mpeg.tagv2, ID3V2_TCON, info->genre     );
       replace_id3v2_string( w->mpeg.tagv2, ID3V2_TCOP, info->copyright );
@@ -821,6 +889,9 @@ decoder_saveinfo( char* filename, DECODER_INFO* info )
     }
   }
 
+  // Preserve EAs.
+  eacopy( filename, savename );
+
   // Replace file.
   if( remove( filename ) == 0 ) {
     if( rename( savename, filename ) != 0 ) {
@@ -855,7 +926,7 @@ decoder_trackinfo( char* drive, int track, DECODER_INFO* info ) {
 }
 
 ULONG DLLENTRY
-decoder_cdinfo( char* drive, DECODER_CDINFO* info ) {
+decoder_cdinfo( const char* drive, DECODER_CDINFO* info ) {
   return PLUGIN_NO_READ;
 }
 
@@ -948,7 +1019,7 @@ cfg_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
   {
     case WM_INITDLG:
     {
-      int i;
+      int i, n;
 
       lb_add_item( hwnd, CB_READ, "ID3v2 + ID3v1"  );
       lb_add_item( hwnd, CB_READ, "ID3v1 + ID3v2"  );
@@ -957,19 +1028,19 @@ cfg_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
       lb_select  ( hwnd, CB_READ, tag_read_type    );
 
       for( i = 0; i < ch_list_size; i++ ) {
-        lb_add_item  ( hwnd, CB_ID3V1_RDCH, ch_list[i].name );
-        lb_set_handle( hwnd, CB_ID3V1_RDCH, i, (PVOID)ch_list[i].id );
+        n = lb_add_item  ( hwnd, CB_ID3V1_RDCH, ch_list[i].name );
+        lb_set_handle( hwnd, CB_ID3V1_RDCH, n, (PVOID)ch_list[i].id );
 
         if( ch_list[i].id == tag_read_id3v1_charset ) {
-          lb_select( hwnd, CB_ID3V1_RDCH, i );
+          lb_select( hwnd, CB_ID3V1_RDCH, n );
         }
       }
       for( i = 0; i < ch_list_size; i++ ) {
-        lb_add_item  ( hwnd, CB_ID3V2_RDCH, ch_list[i].name );
-        lb_set_handle( hwnd, CB_ID3V2_RDCH, i, (PVOID)ch_list[i].id );
+        n = lb_add_item  ( hwnd, CB_ID3V2_RDCH, ch_list[i].name );
+        lb_set_handle( hwnd, CB_ID3V2_RDCH, n, (PVOID)ch_list[i].id );
 
         if( ch_list[i].id == tag_read_id3v2_charset ) {
-          lb_select( hwnd, CB_ID3V2_RDCH, i );
+          lb_select( hwnd, CB_ID3V2_RDCH, n );
         }
       }
 
@@ -981,24 +1052,24 @@ cfg_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
       lb_select  ( hwnd, CB_WRITE, tag_save_type   );
 
       for( i = 0; i < ch_list_size; i++ ) {
-        // All except for auto detection.
-        if( ch_list[i].id >= 0 ) {
-          lb_add_item  ( hwnd, CB_ID3V1_WRCH, ch_list[i].name );
-          lb_set_handle( hwnd, CB_ID3V1_WRCH, i, (PVOID)ch_list[i].id );
+        // All except for auto detection and UCS-2 LE.
+        if( ch_list[i].id >= 0 && ch_list[i].id != CH_UCS_2LE ) {
+          n = lb_add_item  ( hwnd, CB_ID3V1_WRCH, ch_list[i].name );
+          lb_set_handle( hwnd, CB_ID3V1_WRCH, n, (PVOID)ch_list[i].id );
 
           if( ch_list[i].id == tag_save_id3v1_charset ) {
-            lb_select( hwnd, CB_ID3V1_WRCH, i );
+            lb_select( hwnd, CB_ID3V1_WRCH, n );
           }
         }
       }
       for( i = 0; i < ch_list_size; i++ ) {
-        // All except for auto detection.
-        if( ch_list[i].id >= 0 ) {
-          lb_add_item  ( hwnd, CB_ID3V2_WRCH, ch_list[i].name );
-          lb_set_handle( hwnd, CB_ID3V2_WRCH, i, (PVOID)ch_list[i].id );
+        // All except for auto detection and UCS-2 LE.
+        if( ch_list[i].id >= 0 && ch_list[i].id != CH_UCS_2LE ) {
+          n = lb_add_item  ( hwnd, CB_ID3V2_WRCH, ch_list[i].name );
+          lb_set_handle( hwnd, CB_ID3V2_WRCH, n, (PVOID)ch_list[i].id );
 
           if( ch_list[i].id == tag_save_id3v2_charset ) {
-            lb_select( hwnd, CB_ID3V2_WRCH, i );
+            lb_select( hwnd, CB_ID3V2_WRCH, n );
           }
         }
       }
@@ -1059,7 +1130,7 @@ plugin_query( PLUGIN_QUERYPARAM* param )
 {
   param->type         = PLUGIN_DECODER;
   param->author       = "Samuel Audet, Dmitry A.Steklenev";
-  param->desc         = "MP3 Decoder 1.23";
+  param->desc         = "MP3 Decoder 1.25";
   param->configurable = TRUE;
 
   load_ini();

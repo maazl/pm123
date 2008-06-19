@@ -39,10 +39,10 @@
 #include <string.h>
 #include <time.h>
 #include <snprintf.h>
+#include <utilfct.h>
 
 #include "pm123.h"
 #include "iniman.h"
-#include "utilfct.h"
 #include "plugman.h"
 
 void

@@ -188,6 +188,50 @@ clean:  $(MDUMMY)
 	@$(MAKE) $(MFLAGS) clean
 	@cd ..
 
+depend: $(MDUMMY)
+	cd src\utils
+	@$(MAKE) $(MFLAGS) depend
+	@cd ..\..
+	cd src\gbm123
+	@$(MAKE) $(MFLAGS) depend
+	@cd ..\..
+	cd src\xio123
+	@$(MAKE) $(MFLAGS) depend
+	@cd ..\..
+	cd src\plug-ins\analyzer
+	@$(MAKE) $(MFLAGS) depend
+	@cd ..\..\..
+	cd src\plug-ins\cddaplay
+	@$(MAKE) $(MFLAGS) depend
+	@cd ..\..\..
+	cd src\plug-ins\mpg123
+	@$(MAKE) $(MFLAGS) depend
+	@cd ..\..\..
+	cd src\plug-ins\os2audio
+	@$(MAKE) $(MFLAGS) depend
+	@cd ..\..\..
+	cd src\plug-ins\realeq
+	@$(MAKE) $(MFLAGS) depend
+	@cd ..\..\..
+	cd src\plug-ins\wavplay
+	@$(MAKE) $(MFLAGS) depend
+	@cd ..\..\..
+	cd src\plug-ins\wavout
+	@$(MAKE) $(MFLAGS) depend
+	@cd ..\..\..
+	cd src\plug-ins\oggplay
+	@$(MAKE) $(MFLAGS) depend
+	@cd ..\..\..
+	cd src\pm123
+	@$(MAKE) $(MFLAGS) depend
+	@cd ..\..
+	cd src\main
+	@$(MAKE) $(MFLAGS) depend
+	@cd ..\..
+	cd src\skinutil
+	@$(MAKE) $(MFLAGS) depend
+	@cd ..\..
+
 dist: distclean distfiles distpackage distzip $(MDUMMY)
 
 distfiles: $(MDUMMY)

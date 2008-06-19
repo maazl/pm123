@@ -11,7 +11,7 @@
  ********************************************************************
 
  function: stdio-based convenience library for opening/seeking/decoding
- last mod: $Id: vorbisfile.c,v 1.2 2007/03/21 13:03:40 glass Exp $
+ last mod: $Id: vorbisfile.c,v 1.3 2008/04/04 13:11:32 glass Exp $
 
  ********************************************************************/
 
@@ -1133,7 +1133,7 @@ int ov_pcm_seek_page(OggVorbis_File *vf,ogg_int64_t pos){
       }else{
         /* take a (pretty decent) guess. */
         bisect=begin +
-          (target-begintime)*(end-begin)/(endtime-begintime) - CHUNKSIZE;
+          (ogg_int64_t)((double)(target-begintime)*(end-begin)/(endtime-begintime)) - CHUNKSIZE;
         if(bisect<=begin)
           bisect=begin+1;
       }

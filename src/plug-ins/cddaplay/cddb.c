@@ -38,9 +38,9 @@
 #include <direct.h>
 
 #include "cddb.h"
-#include "utilfct.h"
-#include "snprintf.h"
-#include "debuglog.h"
+#include <utilfct.h>
+#include <snprintf.h>
+#include <debuglog.h>
 
 /* Creates a new CDDB connection structure. Returns a pointer to a
    CDDB structure that can be used to access the database. A NULL

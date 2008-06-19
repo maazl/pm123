@@ -2139,13 +2139,13 @@ bmp_init_button( HWND hwnd, BMPBUTTON* button )
   if( x != POS_UNDEF && y != POS_UNDEF ) {
     if( button->handle == NULLHANDLE )
     {
-      btn_data.cb             =  sizeof( DATA95 );
-      btn_data.pressed        =  0;
-      btn_data.bmp_release_id =  release;
-      btn_data.bmp_pressed_id =  pressed;
-      btn_data.stick          =  button->sticky;
-      btn_data.stickvar       = &button->state;
-      btn_data.hwnd_owner     =  hwnd;
+      btn_data.cb          =  sizeof( DATA95 );
+      btn_data.pressed     =  0;
+      btn_data.bmp_release = &bmp_cache[ release ];
+      btn_data.bmp_pressed = &bmp_cache[ pressed ];
+      btn_data.stick       =  button->sticky;
+      btn_data.stickvar    = &button->state;
+      btn_data.hwnd_owner  =  hwnd;
 
       strcpy( btn_data.help, button->help );
       button->handle = WinCreateWindow( hwnd, CLASSNAME, "", WS_VISIBLE, x, y, cx, cy,
@@ -2154,8 +2154,8 @@ bmp_init_button( HWND hwnd, BMPBUTTON* button )
     else
     {
       WinSetWindowPos( button->handle, HWND_TOP, x, y, cx, cy, SWP_MOVE | SWP_SIZE );
-      WinSendMsg( button->handle, WM_CHANGEBMP, MPFROMLONG( release ),
-                                                MPFROMLONG( pressed ));
+      WinSendMsg( button->handle, WM_CHANGEBMP, MPFROMLONG( &bmp_cache[ release ] ),
+                                                MPFROMLONG( &bmp_cache[ pressed ] ));
     }
   }
   else

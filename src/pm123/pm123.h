@@ -33,7 +33,7 @@
 #define  PM123_H
 
 #ifndef  RC_INVOKED
-#include "decoder_plug.h"
+#include <decoder_plug.h>
 #include "skin.h"
 #include "properties.h"
 #include "copyright.h"
@@ -84,10 +84,12 @@
 #define IDM_M_QUIT          532
 #define IDM_M_MINIMIZE      533
 #define IDM_M_MENU          534
+#define IDM_M_LOAD_DISC     535
 
 #define IDM_M_LOAD_LAST   10000 /* A lot of IDs after this need to be free. */
 #define IDM_M_BOOKMARKS   11000 /* A lot of IDs after this need to be free. */
 #define IDM_M_PLUGINS     15000 /* A lot of IDs after this need to be free. */
+#define IDM_M_DISCS       16000 /* A lot of IDs after this need to be free. */
 
 #define DLG_URL            2014
 #define ENT_URL             101

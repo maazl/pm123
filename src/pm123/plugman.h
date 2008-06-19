@@ -32,13 +32,13 @@
 #ifndef PM123_PLUGMAN_H
 #define PM123_PLUGMAN_H
 
-#include "format.h"
-#include "decoder_plug.h"
-#include "output_plug.h"
-#include "filter_plug.h"
-#include "visual_plug.h"
-#include "plugin.h"
-#include "utilfct.h"
+#include <format.h>
+#include <decoder_plug.h>
+#include <output_plug.h>
+#include <filter_plug.h>
+#include <visual_plug.h>
+#include <plugin.h>
+#include <utilfct.h>
 
 #define  _MAX_FILEEXT     32
 #define  _MAX_MODULE_NAME 16

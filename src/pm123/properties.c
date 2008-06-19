@@ -35,12 +35,12 @@
 #include <os2.h>
 #include <stdio.h>
 #include <memory.h>
+#include <snprintf.h>
 
 #include "properties.h"
 #include "pm123.h"
 #include "plugman.h"
 #include "iniman.h"
-#include "snprintf.h"
 
 #define  CFG_REFRESH_LIST ( WM_USER + 1000 )
 #define  CFG_REFRESH_INFO ( WM_USER + 1001 )
@@ -1032,8 +1032,13 @@ cfg_properties( HWND owner )
                __DATE__, __WATCOMC__ / 100 - 11, __WATCOMC__ % 100 );
     #endif
   #elif defined(__GNUC__)
-    sprintf( built, "(built %s using GNU C++ %d.%d.%d)",
-             __DATE__, __GNUC__, __GNUC_MINOR__, __GNUC_PATCHLEVEL__ );
+    #if __GNUC__ < 3
+      sprintf( built, "(built " __DATE__ " using GNU C++ %d.%d)",
+               __GNUC__, __GNUC_MINOR__ );
+    #else
+      sprintf( built, "(built " __DATE__ " using GNU C++ %d.%d.%d)",
+               __GNUC__, __GNUC_MINOR__, __GNUC_PATCHLEVEL__ );
+    #endif
   #else
     *built = 0;
   #endif
