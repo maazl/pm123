@@ -134,6 +134,7 @@ Playable::Playable(const url123& url, const DECODER_INFO2* ca)
   InfoChangeFlags(IF_None),
   InfoRequest(IF_None),
   InfoRequestLow(IF_None),
+  InService(1),
   LastAccess(clock())
 { DEBUGLOG(("Playable(%p)::Playable(%s, %p)\n", this, url.cdata(), ca));
   Info.Reset();
@@ -244,8 +245,8 @@ void Playable::UpdateInfo(const RPL_INFO* info)
     InfoChangeFlags |= IF_Rpl;
   DEBUGLOG(("Playable::UpdateInfo: %x %u\n", InfoValid, InfoChangeFlags));
 }
-void Playable::UpdateInfo(const DECODER_INFO2* info)
-{ DEBUGLOG(("Playable::UpdateInfo(DECODER_INFO2* %p)\n", info));
+void Playable::UpdateInfo(const DECODER_INFO2* info, InfoFlags what)
+{ DEBUGLOG(("Playable::UpdateInfo(DECODER_INFO2* %p, %x)\n", info, what));
   if (!info)
     info = &DecoderInfo::InitialInfo;
   InfoValid |= IF_Other;
@@ -254,11 +255,16 @@ void Playable::UpdateInfo(const DECODER_INFO2* info)
     InfoChangeFlags |= IF_Other;
   }
   DEBUGLOG(("Playable::UpdateInfo: %x %u\n", InfoValid, InfoChangeFlags));
-  UpdateInfo(info->format);
-  UpdateInfo(info->tech);
-  UpdateInfo(info->meta);
-  UpdateInfo(info->phys);
-  UpdateInfo(info->rpl);
+  if (what & IF_Format)
+    UpdateInfo(info->format);
+  if (what & IF_Tech)
+    UpdateInfo(info->tech);
+  if (what & IF_Meta)
+    UpdateInfo(info->meta);
+  if (what & IF_Phys)
+    UpdateInfo(info->phys);
+  if (what & IF_Rpl)
+    UpdateInfo(info->rpl);
 }
 
 void Playable::UpdateStatus(PlayableStatus stat)
@@ -289,6 +295,7 @@ void Playable::SetTechInfo(const TECH_INFO* tech)
 
 Playable::InfoFlags Playable::LoadInfo(InfoFlags what)
 { DEBUGLOG(("Playable(%p)::LoadInfo(%x) - %x, %x\n", this, what, InfoRequest, InfoRequestLow));
+  InfoValid |= what;
   // We always reset the flags of both priorities.
   InterlockedAnd(InfoRequest, ~what);
   InterlockedAnd(InfoRequestLow, ~what);
@@ -313,7 +320,7 @@ void Playable::LoadInfoAsync(InfoFlags what, bool lowpri)
   if (what == 0)
     return;
   // schedule request
-  unsigned& rq = lowpri ? InfoRequestLow : InfoRequest;
+  volatile unsigned& rq = lowpri ? InfoRequestLow : InfoRequest;
   InfoFlags oldrq = (InfoFlags)rq; // This read is non-atomic. But at the worst case an empty request is scheduled to the worker thread.
   InterlockedOr(rq, what);
   // Only write the Queue if there was no request before.
@@ -389,11 +396,23 @@ static void PlayableWorker(void*)
     
     // Do the work
     DEBUGLOG(("PlayableWorker handle %x %x\n", qp->Data->InfoRequest, qp->Data->InfoRequestLow));
-    // Handle low priority requests correctly if no other requests are on the way.
-    if (qp->Data->InfoRequest == 0)
-      InterlockedOr(qp->Data->InfoRequest, qp->Data->InfoRequestLow);
-    while (qp->Data->InfoRequest)
-      qp->Data->LoadInfo((Playable::InfoFlags)qp->Data->InfoRequest);
+    // Do not handle the same item by two threads.
+    if (!InterlockedDec(qp->Data->InService))
+    { // Handle low priority requests correctly if no other requests are on the way.
+      if (qp->Data->InfoRequest == 0)
+        InterlockedOr(qp->Data->InfoRequest, qp->Data->InfoRequestLow);
+      while (qp->Data->InfoRequest)
+        qp->Data->LoadInfo((Playable::InfoFlags)qp->Data->InfoRequest);
+      // Free instance
+      if (InterlockedXch(qp->Data->InService, 1))
+      { // If the value wasn't zero, at least one queue item was skipped.
+        // In this case we have to reschedule outstanding low priority requests.
+        // There is a small chance that such a request is already scheduled.
+        // But this will only be a no-op to the worker.
+        if (qp->Data->InfoRequestLow)
+          Playable::WQueue.Write(qp->Data, true);
+      }
+    }
     // finished
     Playable::WQueue.CommitRead(qp);
   }
@@ -567,11 +586,36 @@ int PlayableSet::compareTo(const PlayableSet& r) const
       return -1;
     // compare content
     int ret = (*ppp1)->compareTo(**ppp2);
-    DEBUGLOG2(("PlayableSet::compareTo %i\n", ret));
+    DEBUGLOG2(("PlayableSet::compareTo %p <=> %p = %i\n", **ppp1, **ppp2, ret));
     if (ret)
       return ret;
     ++ppp1;
     ++ppp2;
+  }
+}
+
+bool PlayableSet::isSubsetOf(const PlayableSet& r) const
+{ DEBUGLOG(("PlayableSet(%p{%u,...})::isSubsetOf(&%p{%u,...})\n", this, size(), &r, r.size()));
+  if (size() > r.size())
+    return false; // since PlayableSet is a unique container this condition is sufficient
+  if (size() == 0)
+    return true; // an empty set is always included
+  Playable*const* ppp1 = begin();
+  Playable*const* ppp2 = r.begin();
+  for (;;)
+  { // compare content
+    int ret = (*ppp1)->compareTo(**ppp2);
+    DEBUGLOG2(("PlayableSet::isSubsetOf %p <=> %p = %i\n", **ppp1, **ppp2, ret));
+    if (ret > 0)
+      return false; // no match for **ppp1
+    ++ppp2;
+    if (ppp2 == r.end())
+      return false; // no match for **ppp1 because no more elements in r
+    if (ret < 0)
+      continue; // only increment ppp2
+    ++ppp1;
+    if (ppp1 == end())
+      return true; // all elements found
   }
 }
 
@@ -604,26 +648,26 @@ Song::Song(const url123& URL, const DECODER_INFO2* ca)
 }
 
 Playable::InfoFlags Song::LoadInfo(InfoFlags what)
-{ DEBUGLOG(("Song(%p)::LoadInfo() - %s\n", this, Decoder));
+{ DEBUGLOG(("Song(%p)::LoadInfo(%x) - %s\n", this, what, Decoder));
+
   // get information
   sco_ptr<DecoderInfo> info(new DecoderInfo()); // a bit much for the stack
+  INFOTYPE what2 = (INFOTYPE)((int)what & INFO_ALL); // inclompatible types
   Lock lock(*this);
-  INFOTYPE what2 = (INFOTYPE)what; // incompatible type
   int rc = dec_fileinfo(GetURL(), &what2, info.get(), Decoder, sizeof Decoder);
+  what = (InfoFlags)what2 | Playable::IF_Other|Playable::IF_Status; // That's always inclusive when we call dec_fileinfo
+
   PlayableStatus stat;
   DEBUGLOG(("Song::LoadInfo - rc = %i\n", rc));
   // update information
   if (rc != 0)
   { stat = STA_Invalid;
-    info = NULL; // free structure
+    info = NULL;
   } else
-  { stat = Stat == STA_Used ? STA_Used : STA_Normal;
-    what |= (InfoFlags)what2; // ensure not to reset bits
-  }
-  what |= IF_Status; // That's always inclusive when we call dec_fileinfo
+    stat = Stat == STA_Used ? STA_Used : STA_Normal;
   UpdateStatus(stat);
-  UpdateInfo(info.get());
-  InfoValid |= what;
+  UpdateInfo(info.get(), what); // Reset fields
+  
   return Playable::LoadInfo(what);
 }
 

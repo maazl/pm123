@@ -221,6 +221,12 @@ class SongIterator
 inline SongIterator::CallstackEntry::~CallstackEntry()
 {}*/
 
+inline bool operator==(const SongIterator& l, const SongIterator& r)
+{ return l.CompareTo(r) == 0;
+}
+inline bool operator!=(const SongIterator& l, const SongIterator& r)
+{ return l.CompareTo(r) != 0;
+}
 inline bool operator<(const SongIterator& l, const SongIterator& r)
 { return l.CompareTo(r) < 0;
 }

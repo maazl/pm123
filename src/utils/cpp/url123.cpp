@@ -36,6 +36,8 @@
 #include <debuglog.h>
 
 
+const url123 url123::EmptyURL = "";
+
 size_t url123::decode(char* dst, const char* src, size_t len)
 { const char*const ep = src + len;
   while (src != ep)

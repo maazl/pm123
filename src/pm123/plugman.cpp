@@ -977,6 +977,7 @@ dec_fileinfo( const char* filename, INFOTYPE* what, DECODER_INFO2* info, char* n
   DEBUGLOG(("dec_fileinfo(%s, %x, %p{%u,%p,%p,%p}, %s)\n", filename, *what, info, info->size, info->format, info->tech, info->meta, name));
   BOOL* checked = (BOOL*)alloca( sizeof( BOOL ) * decoders.count() );
   const CL_DECODER* dp;
+  INFOTYPE what2;
 
   memset( checked, 0, sizeof( BOOL ) * decoders.count() );
 
@@ -987,9 +988,11 @@ dec_fileinfo( const char* filename, INFOTYPE* what, DECODER_INFO2* info, char* n
       if (!dp->get_enabled() || !(dp->get_procs().type & DECODER_TRACK) )
         continue;
       checked[i] = TRUE;
-      if (dp->get_procs().decoder_fileinfo(filename, what, info) == 0)
+      what2 = *what;
+      if (dp->get_procs().decoder_fileinfo(filename, &what2, info) == 0)
         goto ok;
     }
+    *what = INFO_ALL; // Even in case of an error the requested information is in fact available.
     return 200; // It makes no sense to check the others in this case.
   } else
   { // First checks decoders supporting the specified type of files.
@@ -998,7 +1001,8 @@ dec_fileinfo( const char* filename, INFOTYPE* what, DECODER_INFO2* info, char* n
       if (!dp->get_enabled() || !is_file_supported(dp->get_procs().support, filename))
         continue;
       checked[i] = TRUE;
-      if (dp->get_procs().decoder_fileinfo(filename, what, info) == 0)
+      what2 = *what;
+      if (dp->get_procs().decoder_fileinfo(filename, &what2, info) == 0)
         goto ok;
     }
   }
@@ -1008,10 +1012,12 @@ dec_fileinfo( const char* filename, INFOTYPE* what, DECODER_INFO2* info, char* n
     { dp = &(const CL_DECODER&)decoders[i];
       if (!dp->get_enabled() || checked[i])
         continue;
-      if( (*dp->get_procs().decoder_fileinfo)( filename, what, info ) == 0 )
+      what2 = *what;
+      if( (*dp->get_procs().decoder_fileinfo)( filename, &what2, info ) == 0 )
         goto ok;
     }
   }
+  *what = INFO_ALL; // Even in case of an error the requested information is in fact available.
   return 200;
  ok:
   DEBUGLOG(("dec_fileinfo: {{%d, %d, %d}, {%d, %lf, %d, %lf, %s}, {%d, %lf, %d}, {%d, %d, %d}} -> %s, %x\n",
@@ -1019,7 +1025,9 @@ dec_fileinfo( const char* filename, INFOTYPE* what, DECODER_INFO2* info, char* n
     info->tech->size, info->tech->songlength, info->tech->bitrate, info->tech->totalsize, info->tech->info,
     info->phys->size, info->phys->filesize, info->phys->num_items,
     info->rpl->size, info->rpl->total_items, info->rpl->recursive,
-    name, *what));
+    dp->module_name, what2));
+  ASSERT((*what & ~what2) == 0); // The decoder must not reset bits.
+  *what = (INFOTYPE)(what2 | *what); // do not reset bits
   if (name)
     sfnameext( name, dp->module_name, name_size );
   return 0;

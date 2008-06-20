@@ -200,6 +200,21 @@ xstring PlayableInstance::GetDisplayName() const
   return GetAlias() ? GetAlias() : RefTo->GetDisplayName();
 }
 
+int PlayableInstance::CompareSliceBorder(const SongIterator* l, const SongIterator* r, SliceBorder type)
+{ DEBUGLOG(("PlayableInstance::CompareSliceBorder(%p, %p, %i)\n", l, r, type));
+  if (l == NULL)
+  { if (r == NULL)
+      return 0; // both iterators are zero
+    else
+      return type;
+  } else
+  { if (r == NULL)
+      return -type;
+    else
+      return l->CompareTo(*r);
+  }
+}
+
 void PlayableInstance::Swap(PlayableSlice& r)
 { DEBUGLOG(("PlayableInstance(%p)::Swap(&%p)\n", this, &r));
   ASSERT(Parent == ((PlayableInstance&)r).Parent);
@@ -207,8 +222,8 @@ void PlayableInstance::Swap(PlayableSlice& r)
   StatusFlags events = SF_None;
   if (GetAlias() != r.GetAlias())
     events |= SF_Alias;
-  if ( GetStart() != r.GetStart() // This in fact checks if both iterators are zero
-    || GetStop()  != r.GetStop() )
+  if ( CompareSliceBorder(GetStart(), r.GetStart(), SB_Start)
+    || CompareSliceBorder(GetStop(),  r.GetStop(),  SB_Stop) )
     events |= SF_Slice;
   // Execute changes
   if (events)
@@ -350,7 +365,8 @@ Mutex PlayableCollection::CollectionInfoCacheMtx;
 PlayableCollection::PlayableCollection(const url123& URL, const DECODER_INFO2* ca)
 : Playable(URL, ca),
   Modified(false),
-  CollectionInfoCache(16)
+  CollectionInfoCache(16),
+  RefreshActive(false)
 { DEBUGLOG(("PlayableCollection(%p)::PlayableCollection(%s, %p)\n", this, URL.cdata(), ca));
   // Always overwrite format info
   static const FORMAT_INFO2 no_format = { sizeof(FORMAT_INFO2), -1, -1 };
@@ -387,13 +403,60 @@ Playable::Flags PlayableCollection::GetFlags() const
 { return Enumerable;
 }
 
+void PlayableCollection::InvalidateCIC(InfoFlags what, Playable& p)
+{ DEBUGLOG(("PlayableCollection::InvalidateCIC(%x, &%p) %u\n", what, &p, RefreshActive));
+  if (RefreshActive)
+  { // Invalidate CIC later to avoid O(n^2)
+    ModifiedSubitems.get(p) = &p;
+    return;
+  }
+                         
+  Mutex::Lock lock(CollectionInfoCacheMtx);
+  what = ~what; // prepare flags for deletion
+  for (CollectionInfoEntry** ciepp = CollectionInfoCache.begin(); ciepp != CollectionInfoCache.end(); ++ciepp)
+    // Only items that do not have the object in the exclusion list are invalidated to prevent recursions.
+    if ((*ciepp)->find(p) == NULL)
+      (*ciepp)->Valid &= what;
+}
+void PlayableCollection::InvalidateCIC(InfoFlags what, const PlayableSet& set)    
+{ DEBUGLOG(("PlayableCollection::InvalidateCIC(%x, {%u,...})\n", what, set.size()));
+  Mutex::Lock lock(CollectionInfoCacheMtx);
+  what = ~what; // prepare flags for deletion
+  for (CollectionInfoEntry** ciepp = CollectionInfoCache.begin(); ciepp != CollectionInfoCache.end(); ++ciepp)
+    // Only items that do not have all objects in the exclusion list are invalidated to prevent recursions.
+    if (!set.isSubsetOf(**ciepp))
+      (*ciepp)->Valid &= what;
+}
+
+void PlayableCollection::ChildInfoChange(const Playable::change_args& args)
+{ DEBUGLOG(("PlayableCollection(%p{%s})::ChildInfoChange({{%s},%x})\n", this, GetURL().getShortName().cdata(),
+    args.Instance.GetURL().getShortName().cdata(), args.Flags));
+  InfoFlags f = args.Flags & (IF_Tech|IF_Rpl);
+  if (f)
+  { // Invalidate dependant info and reaload if already known
+    LoadInfoAsync(f & InfoValid, true);
+    //InfoValid &= ~f; // not a good idea so far, because requested information may be invalidated before it ever gets signalled. 
+    // Invalidate CollectionInfoCache entries.
+    InvalidateCIC(f, args.Instance);
+  }
+}
+
+void PlayableCollection::ChildInstChange(const PlayableInstance::change_args& args)
+{ DEBUGLOG(("PlayableCollection(%p{%s})::ChildInstChange({{%s},%x})\n", this, GetURL().getShortName().cdata(),
+    args.Instance.GetPlayable()->GetURL().getShortName().cdata(), args.Flags));
+  if (args.Flags & PlayableInstance::SF_Slice)
+    // Update dependant tech info, but only if already available
+    // Same as TechInfoChange => emulate another event
+    ChildInfoChange(Playable::change_args(*args.Instance.GetPlayable(), IF_Tech));
+}
+
 PlayableCollection::Entry* PlayableCollection::CreateEntry(const char* url, const DECODER_INFO2* ca)
 { DEBUGLOG(("PlayableCollection(%p{%s})::CreateEntry(%s, %p)\n",
     this, GetURL().getShortName().cdata(), url, ca));
   // now create the entry with absolute path
   int_ptr<Playable> pp = GetByURL(GetURL().makeAbsolute(url), ca);
   // initiate prefetch of information
-  pp->EnsureInfoAsync(IF_Status, true);
+  //pp->EnsureInfoAsync(IF_Status, true);
   return new Entry(*this, pp, &PlayableCollection::ChildInfoChange, &PlayableCollection::ChildInstChange);
 }
 
@@ -410,6 +473,7 @@ void PlayableCollection::InsertEntry(Entry* entry, Entry* before)
       if (ep->GetPlayable() == entry->GetPlayable())
       { DEBUGLOG(("PlayableCollection::InsertEntry match: %p\n", ep));
         // Match! => Swap properties
+        // If the slice changes this way an ChildInstChange event is fired here that invalidates the CollectionInfoCache.
         ep->Swap(*entry);
         // destroy original
         if (entry->RefCountIsUnmanaged()) // Normally we sould assign entry to an int_ptr instance.
@@ -437,13 +501,15 @@ void PlayableCollection::InsertEntry(Entry* entry, Entry* before)
   rptr = entry;
   lptr = entry;
   DEBUGLOG(("PlayableCollection::InsertEntry - before event\n"));
+  InvalidateCIC(IF_All, *entry->GetPlayable());
   CollectionChange(change_args(*this, *entry, Insert));
   DEBUGLOG(("PlayableCollection::InsertEntry - after event\n"));
 }
 
 bool PlayableCollection::MoveEntry(Entry* entry, Entry* before)
 { DEBUGLOG(("PlayableCollection(%p{%s})::MoveEntry(%p{%s,%p,%p}, %p{%s})\n", this, GetURL().getShortName().cdata(),
-    entry, entry->GetPlayable()->GetURL().getShortName().cdata(), entry->Prev.get(), entry->Next.get(), before, before ? before->GetPlayable()->GetURL().getShortName().cdata() : ""));
+    entry, entry->GetPlayable()->GetURL().getShortName().cdata(), entry->Prev.get(), entry->Next.get(),
+    before, (before ? before->GetPlayable()->GetURL() : url123::EmptyURL).getShortName().cdata()));
   if (entry == before || entry->Next == before)
     return false; // No-op
   // Keep entry alive
@@ -475,6 +541,7 @@ bool PlayableCollection::MoveEntry(Entry* entry, Entry* before)
 void PlayableCollection::RemoveEntry(Entry* entry)
 { DEBUGLOG(("PlayableCollection(%p{%s})::RemoveEntry(%p{%s,%p,%p})\n", this, GetURL().getShortName().cdata(),
     entry, entry->GetPlayable()->GetURL().getShortName().cdata(), entry->Prev.get(), entry->Next.get()));
+  InvalidateCIC(IF_All, *entry->GetPlayable());
   CollectionChange(change_args(*this, *entry, Delete));
   DEBUGLOG(("PlayableCollection::RemoveEntry - after event\n"));
   ASSERT(entry->IsParent(this));
@@ -491,12 +558,14 @@ void PlayableCollection::RemoveEntry(Entry* entry)
 
 void PlayableCollection::BeginRefresh()
 { DEBUGLOG(("PlayableCollection(%p)::BeginRefresh()\n", this));
-  ASSERT(OldTail == NULL);
+  ASSERT(!RefreshActive);
+  RefreshActive = true;
   OldTail = Tail;
 }
 
 void PlayableCollection::EndRefresh()
 { DEBUGLOG(("PlayableCollection(%p)::EndRefresh() - %p\n", this, OldTail.get()));
+  ASSERT(RefreshActive);
   if (OldTail)
   { Entry* end = OldTail->Next;
     do
@@ -504,32 +573,11 @@ void PlayableCollection::EndRefresh()
     while (Head != end);
   }
   OldTail = NULL;
-}
-
-void PlayableCollection::ChildInfoChange(const Playable::change_args& args)
-{ DEBUGLOG(("PlayableCollection(%p{%s})::ChildInfoChange({{%s},%x})\n", this, GetURL().getShortName().cdata(),
-    args.Instance.GetURL().getShortName().cdata(), args.Flags));
-  InfoFlags f = args.Flags & (IF_Tech|IF_Rpl);
-  if (f)
-  { // Update dependant info, but only if already available
-    LoadInfoAsync(f & InfoValid);
-    // Invalidate CollectionInfoCache entries.
-    Mutex::Lock lock(CollectionInfoCacheMtx);
-    f = ~f; // prepare flags for deletion
-    for (CollectionInfoEntry** ciepp = CollectionInfoCache.begin(); ciepp != CollectionInfoCache.end(); ++ciepp)
-      // Only items that do not have the sender in the exclusion list are invalidated to prevent recursions.
-      if ((*ciepp)->find(args.Instance) == NULL)
-        (*ciepp)->Valid &= f;
-  }
-}
-
-void PlayableCollection::ChildInstChange(const PlayableInstance::change_args& args)
-{ DEBUGLOG(("PlayableCollection(%p{%s})::ChildInstChange({{%s},%x})\n", this, GetURL().getShortName().cdata(),
-    args.Instance.GetPlayable()->GetURL().getShortName().cdata(), args.Flags));
-  if (args.Flags & PlayableInstance::SF_Slice)
-    // Update dependant tech info, but only if already available
-    // Same as TechInfoChange => emulate another event
-    ChildInfoChange(Playable::change_args(*args.Instance.GetPlayable(), IF_Tech));
+  RefreshActive = false;
+  // execute delayed CollectionInfoCache invalidations
+  if (ModifiedSubitems.size())
+    InvalidateCIC(IF_All, ModifiedSubitems);
+  ModifiedSubitems.clear();
 }
 
 int_ptr<PlayableInstance> PlayableCollection::GetPrev(const PlayableInstance* cur) const
@@ -707,32 +755,38 @@ const PlayableCollection::CollectionInfo& PlayableCollection::GetCollectionInfo(
 
 Playable::InfoFlags PlayableCollection::LoadInfo(InfoFlags what)
 { DEBUGLOG(("PlayableCollection(%p{%s})::LoadInfo(%x) - %x %u\n", this, GetURL().getShortName().cdata(), what, InfoValid, Stat));
-  Lock lock(*this);
+  // Step 1: load the list content
+  { Lock lock(*this);
+    // Need list content to generate tech info
+    if (what & IF_Phys|IF_Tech)
+      what |= CheckInfo(IF_Other);
 
-  // Need list content to generate tech info
-  if ((what & IF_Phys|IF_Tech) && !(InfoValid & IF_Other))
-    what |= IF_Other;
-
-  if (what & (IF_Other|IF_Status))
-  { // load playlist content
-    PlayableStatus stat;
-    if (LoadList())
-      stat = Stat == STA_Used ? STA_Used : STA_Normal;
-    else
-      stat = STA_Invalid;
-    UpdateStatus(stat);
-    strcpy(Decoder, "PM123.EXE");
-    if (Modified)
-    { InfoChangeFlags |= IF_Status;
-      Modified = false;
+    if (what & (IF_Other|IF_Status))
+    { // load playlist content
+      PlayableStatus stat;
+      if (LoadList())
+        stat = Stat == STA_Used ? STA_Used : STA_Normal;
+      else
+        stat = STA_Invalid;
+      UpdateStatus(stat);
+      strcpy(Decoder, "PM123.EXE");
+      if (Modified)
+      { InfoChangeFlags |= IF_Status;
+        Modified = false;
+      }
+      InfoChangeFlags |= IF_Other;
+      what |= IF_Other|IF_Status|IF_Phys;
     }
-    InfoValid |= IF_Other;
-    InfoChangeFlags |= IF_Other;
-    what |= IF_Other|IF_Status;
+    // End of step 1, raise the first events here
+    Playable::LoadInfo(what & ~(IF_Tech|IF_Rpl));
   }
   
+  // Stage 2: calculate information from sublist entries.
   if (what & (IF_Tech|IF_Rpl))
-  { // update tech info
+  { // Prefetch some infos before the mutex to avoid deadlocks with recursive playlists.
+    PrefetchSubInfo(PlayableSet::Empty);
+    Lock lock(*this);
+    // update tech info
     TECH_INFO tech = { sizeof(TECH_INFO), -1, -1, -1, "invalid" };
     RPL_INFO rpl = { sizeof(RPL_INFO) };
     if (Stat != STA_Invalid)
@@ -775,12 +829,12 @@ Playable::InfoFlags PlayableCollection::LoadInfo(InfoFlags what)
       UpdateInfo(&tech);
     if (what & IF_Rpl)
       UpdateInfo(&rpl);
+    // end of step 2, raise the remaining events
+    Playable::LoadInfo(what & (IF_Tech|IF_Rpl));
   }
-  DEBUGLOG(("PlayableCollection::LoadInfo completed - %x %x\n", InfoValid, InfoChangeFlags));
+  DEBUGLOG(("PlayableCollection::LoadInfo completed: %x - %x %x\n", what, InfoValid, InfoChangeFlags));
   // default implementation to fullfill the minimum requirements of LoadInfo.
-  InfoValid |= what;
-  // raise InfoChange event?
-  return Playable::LoadInfo(what);
+  return what;
 }
 
 bool PlayableCollection::InsertItem(const PlayableSlice& item, PlayableInstance* before)

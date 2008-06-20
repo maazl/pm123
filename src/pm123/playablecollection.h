@@ -138,12 +138,22 @@ class PlayableInstance : public PlayableSlice
     StatusFlags            Flags; // Bitvector of type StatusFlags
     change_args(PlayableInstance& inst, StatusFlags flags) : Instance(inst), Flags(flags) {}
   };
+ private:
+  enum SliceBorder
+  { SB_Start               = 1,
+    SB_Stop                = -1
+  };
 
  protected:
   PlayableCollection*      Parent; // Weak reference to the parent Collection
  private:
   PlayableStatus           Stat;
 
+ private:
+  // Compares two slice borders taking NULL iterators by default as
+  // at the start, if type is SB_Start, or at the end if type is SB_Stop.
+  // Otherwise the same as SongIterator::CopareTo.
+  static int               CompareSliceBorder(const SongIterator* l, const SongIterator* r, SliceBorder type);
  protected:
   PlayableInstance(PlayableCollection& parent, Playable* playable);
  public:
@@ -264,18 +274,31 @@ class PlayableCollection : public Playable
   // The object list is implemented as a doubly linked list to keep the iterators valid on modifications.
   int_ptr<Entry>              Head;
   int_ptr<Entry>              Tail;
-  int_ptr<Entry>              OldTail;  // New head pointer between BeginRefresh and EndRefresh
   bool                        Modified;
 
  private:
-  // Cache mit subenumeration infos
+  // Cache with subenumeration infos
   // This object is protected by a critical section.
   sorted_vector<CollectionInfoEntry, PlayableSet> CollectionInfoCache;
   // One Mutex to protect CollectionInfoCache of all instances.
   // You must not aquire another Mutex while holding this one.
   static Mutex                CollectionInfoCacheMtx;
+ private: // Entries used by BeginRefresh/EndRefresh ...
+  // Flag whether BeginRefresh has been called and EndRefresh not.
+  bool                        RefreshActive;
+  // New head pointer between BeginRefresh and EndRefresh
+  int_ptr<Entry>              OldTail;
+  // List of Playable objects that are removed, added or their PlayableInstance is modified.
+  // This list does not hold the ownership of the Playable objects inside.
+  // So you must not dereference them anymore. However, comparing the pointers for instance
+  // equality is safe, since Playable objects are unique with respect to their primary key.
+  PlayableSet                 ModifiedSubitems;
 
  private:
+  // Invalidate CollectionInfoCache by single object.
+  void                        InvalidateCIC(InfoFlags what, Playable& p);
+  // Invalidate CollectionInfoCache by multiple objects.
+  void                        InvalidateCIC(InfoFlags what, const PlayableSet& set);
   // This is called by the InfoChange events of the children.
   void                        ChildInfoChange(const Playable::change_args& args);
   // This is called by the StatusChange events of the children.

@@ -62,7 +62,10 @@
  *   \\server\path\?...                      UNC folder with parameters
  */
 class url123 : public xstring
-{protected:
+{
+ public: // Work around to avoid temporaries in conditional expressions.
+  static const url123 EmptyURL;
+ protected:
   static size_t decode(char* dst, const char* src, size_t len);
  public:
   //

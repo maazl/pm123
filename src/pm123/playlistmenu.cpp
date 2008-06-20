@@ -187,6 +187,7 @@ void PlaylistMenu::CreateSubItems(MapEntry* mapp)
       // Invalid?
       if (pp->GetStatus() <= STA_Invalid)
       { mi.afAttribute |= MIA_DISABLED;
+        pp->EnsureInfoAsync(Playable::IF_Status);
         // TODO: What if the status gets valid later ???
       // with submenu?
       } else if ((mapp->Flags & Recursive) && (pp->GetFlags() & Playable::Enumerable))

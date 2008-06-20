@@ -141,8 +141,9 @@ class Playable
   InfoFlags           InfoValid;       // Bitvector of type InfoFlags
   InfoFlags           InfoChangeFlags; // Bitvector with stored events
  private: // ... except for this ones
-  unsigned            InfoRequest;     // Bitvector with requested information
-  unsigned            InfoRequestLow;  // Bitvector with requested low priority information
+  volatile unsigned   InfoRequest;     // Bitvector with requested information
+  volatile unsigned   InfoRequestLow;  // Bitvector with requested low priority information
+  volatile unsigned   InService;       // 1 = unused, 0 = in service by a worker, <0 queue entries skipped
   Mutex               Mtx;             // protect this instance
 
  private: // non-copyable
@@ -162,7 +163,7 @@ class Playable
   void                UpdateInfo(const PHYS_INFO* info);
   void                UpdateInfo(const RPL_INFO* info);
   // Update all kind of information.
-  void                UpdateInfo(const DECODER_INFO2* info);
+  void                UpdateInfo(const DECODER_INFO2* info, InfoFlags what);
   void                UpdateStatus(PlayableStatus stat);
  private:
   // Raise the InfoChange event if required.
@@ -213,6 +214,7 @@ class Playable
   // This is a mutable Function when the info-fields are not initialized yet (late initialization).
   // Normally this function is called automatically. However, you may want to force a synchronuous refresh.
   // When overiding this function you MUST call Playable::LoadInfo with the flags you want to return at last.
+  // This atomically resets the matching bits in the InfoRequest fields and sets them in InfoValid.
   // Playable::LoadInfo is abstract but implemented. 
   virtual InfoFlags   LoadInfo(InfoFlags what) = 0;
   // Ensure that the info fields are loaded from the ressource.
@@ -322,12 +324,17 @@ inline Playable::InfoFlags Playable::CheckInfo(InfoFlags what)
 
 
 // Unique sorted set of Playable objects
+// This class does not take ownership of the Playable objects.
+// So you have to ensure that the Playable objects are held by another int_ptr instance
+// as long as they are in this collection.
 struct PlayableSet
 : public sorted_vector<Playable, Playable>,
   public IComparableTo<PlayableSet>
 { static const PlayableSet Empty; // empty instance
                            PlayableSet();
   virtual int              compareTo(const PlayableSet& r) const;
+  // returns true if and only if all elements in this set are also in r.
+  bool                     isSubsetOf(const PlayableSet& r) const;
   #ifdef DEBUG
   xstring                  DebugDump() const;
   #endif
