@@ -103,10 +103,9 @@ void queue_base::Write(EntryBase* entry)
   if (Tail)
     Tail->Next = entry;
    else
-  { Head = entry;
-    EvEmpty.Set(); // First element => Set Event
-  }
+    Head = entry;
   Tail = entry;
+  EvEmpty.Set();
 }
 
 void queue_base::Write(EntryBase* entry, EntryBase* after)
