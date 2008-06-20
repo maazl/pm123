@@ -107,19 +107,64 @@ They should always be functionnaly and give consistent results in any conditions
 The functions must be <em>thread safe</em>.
 </p>
 <blockquote>
-<pre>ULONG DLLENTRYP <b>decoder_fileinfo</b>( const char *url, DECODER_INFO2 *info )</pre>
+<pre>ULONG DLLENTRYP <b>decoder_fileinfo</b>( const char *url, int* what, DECODER_INFO2 *info )</pre>
 </blockquote>
 <ul>
 <li><var>url</var> - URL to the desired stream. See <a href="#url_samples">URL samples</a>.
-<li><var>info</var> - this structure must be filled with the required information.
-  See <tt>format.h</tt> for further details.
+<li><var>what</var> (in/out) - The requested fields in <tt>DECODER_INFO2</tt>.
+  See <tt>decoder_plug.h</tt> for more details.<br>
+  The decoder may return more information than requested if it is cheap to do so.
+  In this case it should set the additional bits in <tt>*<var>what</var></tt> to notify PM123
+  that the desired information is valid.<br>
+  The decoder <em>must not return less information</em> than requested.<br>
+  If <tt>*<var>what</var></tt> is zero on input, the information in <tt>DECODER_INFO2</tt> is not required at all.
+  Only the return value of <tt>decoder_fileinfo</tt> is used.
+  However, the decoder may return more even in this case.
+<li><var>info</var> - this structure must be filled at least with the information required by <tt>*<var>what</var></tt>.
+  See <tt>format.h</tt> for further details.<br>
+  If some information is not available, the requested fields in <tt>DECODER_INFO2</tt>
+  should be left unchanged. The initial state is always equivalent to 'unavailable'.
+  Note, that this is different from unrequested informations where the corresponding bits in <tt>*<var>what</var></tt> are not set.
+  In the latter case the information <em>might</em> be available. It is just not yet known.
 <li><var>return value</var> -<br>
-PLUGIN_OK (0) = everything's perfect, structure is set.<br>
-PLUGIN_NO_READ (100) = error reading file (too small?).<br>
-PLUGIN_NO_PLAY (200) = decoder can't play that.<br>
-1001 = http error occured.<br>
-other values = errno.
+  PLUGIN_OK (0) = everything's perfect, structure is set.<br>
+  PLUGIN_NO_READ (100) = error reading file (too small?).<br>
+  PLUGIN_NO_PLAY (200) = decoder can't play that.<br>
+  1001 = http error occured.<br>
+  other values = errno.
 </ul>
+<blockquote>
+<table cellspacing=0 cellpadding=3 border=1><tr>
+  <th>Bit in <tt>*<var>what</var></tt> on input</th>
+  <th>Bit in <tt>*<var>what</var></tt> on return</th>
+  <th>Corresponding info available</th>
+  <th>Corresponding fields in <tt>DECODER_INFO2</tt></th>
+</tr><tr>
+  <td align=center>reset</td>
+  <td align=center>reset</td>
+  <td align=center>don't care</td> 
+  <td>ignored</td> 
+</tr><tr>
+  <td align=center>set</td>
+  <td align=center>reset</td>
+  <td align=center>don't care</td> 
+  <td><em>not allowed!</em></td> 
+</tr><tr>
+  <td align=center>don't care</td>
+  <td align=center>set</td>
+  <td align=center>no</td> 
+  <td>unmodified</td> 
+</tr><tr>
+  <td align=center>don't care</td>
+  <td align=center>set</td>
+  <td align=center>yes</td> 
+  <td>filled with valid content</td> 
+</tr></table>
+  If a decoder knows that some information, that is not explicitely requested,
+  is not available for the current URL or it knows it's content during processing of the request,
+  it should always set the corresponding bit in <tt>*<var>what</var></tt> and return the information if applicable.
+  This avoids redundant calls to <tt>decoder_fileinfo</tt>.
+</blockquote>
 <blockquote>
 <pre>ULONG DLLENTRYP <b>decoder_cdinfo</b>( const char *drive, DECODER_CDINFO *info )</pre>
 </blockquote>
