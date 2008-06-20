@@ -36,6 +36,9 @@
 #include "xio_url.h"
 #include <utilfct.h>
 
+#include <debuglog.h>
+
+
 /* Passed any string value, decode from URL transmission. */
 char*
 url_decode( char* string )
@@ -139,12 +142,13 @@ url_string_size( const char* string ) {
 
 /* Allocates a URL structure. */
 XURL* url_allocate( const char* string )
-{
-  char* parsed;
+{ char* parsed;
   char* tail;
   char* location = NULL;
   char* pc;
   XURL* url = calloc( 1, sizeof( XURL ));
+
+  DEBUGLOG(("xio:url_allocate(%s) -> %p\n", string, url));
 
   if( !url || !string ) {
     return url;
@@ -299,6 +303,8 @@ XURL* url_allocate( const char* string )
 /* Frees a URL structure. */
 void url_free( XURL* url )
 {
+  DEBUGLOG(("xio:url_free(%p)\n", url));
+
   if( url ) {
     free( url->scheme   );
     free( url->username );

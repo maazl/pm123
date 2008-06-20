@@ -210,6 +210,7 @@ file_open( XFILE* x, const char* filename, int oflags )
       }
       openname = strdup( p );
     }
+    url_free( url );
   }
 
   FILE_REQUEST_DISK(x);
