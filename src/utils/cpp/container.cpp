@@ -55,13 +55,7 @@ vector_base::~vector_base()
 }
 
 void vector_base::operator=(const vector_base& r)
-{ if (r.Size > Capacity)
-  { // do not use realloc when we no longer need the old content
-    free(Data);
-    Data = NULL;
-    reserve(r.Size);
-  }
-  Size = r.Size;
+{ prepare_assign(r.Size);
   memcpy(Data, r.Data, Size * sizeof *Data);
 }
 
@@ -74,7 +68,7 @@ void vector_base::swap(vector_base& r)
 void*& vector_base::insert(size_t where)
 { ASSERT(where <= Size);
   if (Size >= Capacity)
-    reserve(Capacity ? Capacity << 1 : 16);
+    reserve(Capacity > 8 ? Capacity << 1 : 16);
   void** pp = Data + where;
   memmove(pp+1, pp, (Size-where) * sizeof *Data);
   ++Size;
@@ -84,7 +78,7 @@ void*& vector_base::insert(size_t where)
 
 void*& vector_base::append()
 { if (Size >= Capacity)
-    reserve(Capacity ? Capacity << 1 : 16);
+    reserve(Capacity > 8 ? Capacity << 1 : 16);
   return Data[Size++];
 }
 
@@ -113,13 +107,14 @@ void vector_base::reserve(size_t size)
 }
 
 void vector_base::prepare_assign(size_t size)
-{ Size = size;
-  if (size > Capacity)
-  { // do not use realloc when we no longer need the old content
+{ if (size > Capacity || size+16 < Capacity>>2)
+  { // Do not use reserve directly because the data is not needed here
     free(Data);
     Data = NULL;
+    Size = 0;
     reserve(size);
   }
+  Size = size;
 }
 
 void rotate_array_base(void** begin, const size_t len, int shift)
