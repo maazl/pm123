@@ -227,7 +227,7 @@ void class_delegate<C, P>::CallFunc(class_delegate<C, P>* rcv, P& param)
 template <class C, class P, class P2>
 class class_delegate2 : public delegate<class_delegate2<C, P, P2>, P>
 {public:
-  typedef void (C::*func_type)(P&, P2);
+  typedef void (C::*func_type)(P&, P2&);
  private:
   C&              Inst;
   func_type const Func;
@@ -235,36 +235,36 @@ class class_delegate2 : public delegate<class_delegate2<C, P, P2>, P>
  private:
   static void CallFunc(class_delegate2<C, P, P2>* rcv, P& param);
  public:
-  class_delegate2(C& inst, func_type fn, P2 param2)
+  class_delegate2(C& inst, func_type fn, P2& param2)
   : delegate<class_delegate2<C, P, P2> ,P>(&CallFunc, this)
   , Inst(inst)
   , Func(fn)
   , Param(param2)
-  { DEBUGLOG2(("class_delegate2(%p)::class_delegate2(%p, %p, %p)\n", this, &inst, fn, param2)); }
-  class_delegate2(event<P>& ev, C& inst, func_type fn, P2 param2)
+  { DEBUGLOG2(("class_delegate2(%p)::class_delegate2(&%p, %p, &%p)\n", this, &inst, fn, &param2)); }
+  class_delegate2(event<P>& ev, C& inst, func_type fn, P2& param2)
   : delegate<class_delegate2<C, P, P2> ,P>(ev, &CallFunc, this)
   , Inst(inst)
   , Func(fn)
   , Param(param2)
-  { DEBUGLOG2(("class_delegate2(%p)::class_delegate2(%p, %p, %p)\n", this, &inst, fn, param2)); }
+  { DEBUGLOG2(("class_delegate2(%p)::class_delegate2(&%p, %p, &%p)\n", this, &inst, fn, &param2)); }
 };
 
 template <class C, class P, class P2>
 void class_delegate2<C, P, P2>::CallFunc(class_delegate2<C, P, P2>* rcv, P& param)
-{ DEBUGLOG2(("class_delegate2::CallFunc(%p{%p, xx, %p}, %p)\n", rcv, &rcv->Inst, rcv->Param, &param));
+{ DEBUGLOG2(("class_delegate2::CallFunc(%p{%p, ...}, &%p)\n", rcv, &rcv->Inst, &param));
   (rcv->Inst.*rcv->Func)(param, rcv->Param);
 }
 
 /* Non-template base to PostMsgDelegate */
 class PostMsgDelegateBase
 {private:
-  const HWND        Window;
-  const ULONG       Msg;
-  const void* const Param2;
+  const HWND   Window;
+  const ULONG  Msg;
+  const MPARAM MP2;
  protected:
   static void callback(PostMsgDelegateBase* receiver, const void* param);
  protected:
-  PostMsgDelegateBase(HWND window, ULONG msg, const void* param2 = NULL) : Window(window), Msg(msg), Param2(param2) {}
+  PostMsgDelegateBase(HWND window, ULONG msg, MPARAM mp2) : Window(window), Msg(msg), MP2(mp2) {}
 };
 
 /* This class posts a window message when the event is raised.
@@ -276,12 +276,12 @@ class PostMsgDelegateBase
 template <class P>
 class PostMsgDelegate : private PostMsgDelegateBase, public delegate_part<P>
 {public:
-  PostMsgDelegate(HWND window, ULONG msg, const void* param2 = NULL)
+  PostMsgDelegate(HWND window, ULONG msg, MPARAM mp2 = NULL)
   : delegate_part<P>((func_type)&callback, (PostMsgDelegateBase*)this)
-  , PostMsgDelegateBase(window, msg, param2) {}
-  PostMsgDelegate(event<P>& ev, HWND window, ULONG msg, const void* param2 = NULL)
+  , PostMsgDelegateBase(window, msg, mp2) {}
+  PostMsgDelegate(event<P>& ev, HWND window, ULONG msg, MPARAM mp2 = NULL)
   : delegate_part<P>(ev, (func_type)&callback, (PostMsgDelegateBase*)this)
-  , PostMsgDelegateBase(window, msg, param2) {}
+  , PostMsgDelegateBase(window, msg, mp2) {}
 };
 
 #endif

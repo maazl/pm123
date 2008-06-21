@@ -130,6 +130,6 @@ void delegate_base::detach()
 
 
 void PostMsgDelegateBase::callback(PostMsgDelegateBase* receiver, const void* param)
-{ WinPostMsg(receiver->Window, receiver->Msg, MPFROMP(param), MPFROMP(receiver->Param2));
+{ WinPostMsg(receiver->Window, receiver->Msg, MPFROMP(param), receiver->MP2);
 }
 

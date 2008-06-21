@@ -1290,10 +1290,8 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
     }
 
     case PlaylistMenu::UM_SELECTED:
-    { // bookmark selected
-      const PlaylistMenu::select_data* data = (PlaylistMenu::select_data*)PVOIDFROMMP(mp1);
-      // TODO: NAVIGATION in case data->slice->Start.Iter
-      amp_load_playable(*data->Item, AMP_LOAD_NOT_RECALL|AMP_LOAD_KEEP_PLAYLIST);
+    { // bookmark is selected
+      amp_load_playable(*(PlayableSlice*)PVOIDFROMMP(mp1), AMP_LOAD_NOT_RECALL|AMP_LOAD_KEEP_PLAYLIST);
     }
 
     case WM_CREATE:

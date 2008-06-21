@@ -71,34 +71,38 @@ class PlaylistMenu
   enum // The ID's here must be distinct from the user messages of any other window.
   { // This message is internally used by this class to notify changes of the selected items.
     UM_LATEUPDATE = WM_USER+0x201,
+    // Status of the underlying Playable object of a menu item arrived.
+    // mp1 id of the subitem
+    // mp2 MapEntry* for the ID. This is used for validation.
+    UM_UPDATESTAT,
     // This message is send to the owner of the menu when a generated subitem of the menu is selected.
     // mp1 is set to a pointer to a select_data structure. The pointer is only valid while the message is sent.
     // mp2 is the user parameter passed to AttachMenu.
     UM_SELECTED
   };
-  struct select_data
-  { int_ptr<PlayableSlice> Item;
-    select_data(PlayableInstance& inst)
-     : Item(&inst) {}
-    select_data(Playable* play)
-     : Item(new PlayableSlice(play)) {}
-  };
 
  private:
-  struct MapEntry : public IComparableTo<USHORT>
-  { USHORT          IDMenu;
-    HWND            HwndMenu;
-    select_data     Data;
+  class MapEntry;
+  friend class MapEntry;
+  class MapEntry : public IComparableTo<USHORT>
+  {public:
+    PlaylistMenu&   Owner;       // Owning PlaylistMenu instance.
+    const USHORT    IDMenu;      // Menu item ID, primary key
+    const HWND      HwndParent;  // Menu window handle.
+    HWND            HwndSub;     // Sub menu window handle. Not Valid until WM_INITMENU of the submenu if any.
+    int_ptr<PlayableSlice> Data; // Backend data
     EntryFlags      Flags;
-    MPARAM          User;
-    USHORT          ID1;  // First generated item ID or MID_NONE (if none)
-    USHORT          Pos;  // ID of the first object after the last generated entry or MIT_END if this is the end of the menu.
-    xstring         Text; // Strong reference to the text.
-    MapEntry(USHORT id, PlayableInstance& data, EntryFlags flags, MPARAM user, SHORT pos)
-     : IDMenu(id), HwndMenu(NULLHANDLE), Data(data), Flags(flags), User(user), ID1((USHORT)MID_NONE), Pos(pos) {}
-    MapEntry(USHORT id, Playable* data, EntryFlags flags, MPARAM user, SHORT pos)
-     : IDMenu(id), HwndMenu(NULLHANDLE), Data(data), Flags(flags), User(user), ID1((USHORT)MID_NONE), Pos(pos) {}
+    const MPARAM    User;        // User param from AttachMenu. Inherited to submenus.
+    USHORT          ID1;         // First generated item ID or MID_NONE (if none)
+    USHORT          Pos;         // ID of the first object after the last generated entry or MIT_END if this is the end of the menu.
+    xstring         Text;        // Strong reference to the text.
+    class_delegate<MapEntry, const Playable::change_args> InfoDelegate;
+   public:
+    MapEntry(PlaylistMenu& owner, USHORT id, PlayableInstance& data, MapEntry& parent, SHORT pos);
+    MapEntry(PlaylistMenu& owner, USHORT id, Playable* data, EntryFlags flags, MPARAM user, SHORT pos);
     virtual int     compareTo(const USHORT& key) const;
+   private:
+    void            InfoChangeCallback(const Playable::change_args& args);
   };
 
  private:
@@ -110,7 +114,6 @@ class PlaylistMenu
   PFNWP             Old_DlgProc;
   sorted_vector<MapEntry, USHORT> MenuMap;
   USHORT            ID1stfree;
-  class_delegate<PlaylistMenu, const Playable::change_args> InfoDelegate;
   MapEntry*         UpdateEntry;
 
  private:
@@ -134,7 +137,6 @@ class PlaylistMenu
  private:
   void              ResetDelegate();
   void              ResetDelegate(MapEntry* mapp);
-  void              InfoChangeCallback(const Playable::change_args& args);
 
  public:
   PlaylistMenu(HWND owner, USHORT mid1st, USHORT midlast);

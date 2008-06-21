@@ -948,7 +948,7 @@ void PlaylistBase::UpdatePlayStatus(RecordBase* rec)
     PostRecordCommand(rec, RC_UPDATESTATUS);
 }
 
-void PlaylistBase::InfoChangeEvent(const Playable::change_args& args, RecordBase* rec)
+void PlaylistBase::InfoChangeEvent(const Playable::change_args& args, RecordBase*const& rec)
 { DEBUGLOG(("PlaylistBase(%p{%s})::InfoChangeEvent({%p{%s}, %x}, %s)\n", this, DebugName().cdata(),
     &args.Instance, args.Instance.GetURL().getShortName().cdata(), args.Flags, RecordBase::DebugName(rec).cdata()));
 
@@ -968,7 +968,7 @@ void PlaylistBase::InfoChangeEvent(const Playable::change_args& args, RecordBase
     PostRecordCommand(rec, RC_UPDATERPL);
 }
 
-void PlaylistBase::StatChangeEvent(const PlayableInstance::change_args& args, RecordBase* rec)
+void PlaylistBase::StatChangeEvent(const PlayableInstance::change_args& args, RecordBase*const& rec)
 { DEBUGLOG(("PlaylistBase(%p{%s})::StatChangeEvent({%p{%s}, %x}, %p)\n", this, DebugName().cdata(),
     &args.Instance, args.Instance.GetPlayable()->GetURL().getShortName().cdata(), args.Flags, rec));
 

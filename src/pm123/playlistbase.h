@@ -74,11 +74,11 @@ class PlaylistBase
   { int_ptr<PlayableInstance> const Content; // The pointer to the backend content.
     xstring             Text;      // Storage for alias name <-> pszIcon
     CommonState         EvntState;
-    class_delegate2<PlaylistBase, const Playable::change_args        , RecordBase*> InfoChange;
-    class_delegate2<PlaylistBase, const PlayableInstance::change_args, RecordBase*> StatChange;
+    class_delegate2<PlaylistBase, const Playable::change_args        , RecordBase*const> InfoChange;
+    class_delegate2<PlaylistBase, const PlayableInstance::change_args, RecordBase*const> StatChange;
     CPDataBase(PlayableInstance* content, PlaylistBase& pm,
-               void (PlaylistBase::*infochangefn)(const Playable::change_args&,         RecordBase*),
-               void (PlaylistBase::*statchangefn)(const PlayableInstance::change_args&, RecordBase*),
+               void (PlaylistBase::*infochangefn)(const Playable::change_args&,         RecordBase*const&),
+               void (PlaylistBase::*statchangefn)(const PlayableInstance::change_args&, RecordBase*const&),
                RecordBase* rec);
     virtual             ~CPDataBase() {} // free the right objects
     virtual void        DeregisterEvents();
@@ -236,7 +236,7 @@ class PlaylistBase
   bool              DecChanged;    // Flag whether the decoder table has changed since the last invokation of the context menu.
  private:
   int_ptr<PlaylistBase> Self;      // we hold a reference to ourself as long as the current window is open
-  class_delegate2<PlaylistBase, const Playable::change_args, RecordBase*> RootInfoDelegate;
+  class_delegate2<PlaylistBase, const Playable::change_args, RecordBase*const> RootInfoDelegate;
   class_delegate<PlaylistBase, const Ctrl::EventFlags> RootPlayStatusDelegate;
   class_delegate<PlaylistBase, const PLUGIN_EVENTARGS> PluginDelegate;
 
@@ -336,9 +336,9 @@ class PlaylistBase
 
  protected: // Notifications by the underlying Playable objects.
   // This function is called when meta, status or technical information of a node changes.
-  void              InfoChangeEvent(const Playable::change_args& args, RecordBase* rec);
+  void              InfoChangeEvent(const Playable::change_args& args, RecordBase*const& rec);
   // This function is called when status information of a PlayableInstance changes.
-  void              StatChangeEvent(const PlayableInstance::change_args& inst, RecordBase* rec);
+  void              StatChangeEvent(const PlayableInstance::change_args& inst, RecordBase*const& rec);
   // This function is called when playing starts or stops.
   void              PlayStatEvent(const Ctrl::EventFlags& flags);
   // This function is called when the list of enabled plug-ins changed.
@@ -421,8 +421,8 @@ FLAGSATTRIBUTE(PlaylistBase::RecordType);
 inline PlaylistBase::CPDataBase::CPDataBase(
   PlayableInstance* content,
   PlaylistBase& pm,
-  void (PlaylistBase::*infochangefn)(const Playable::change_args&,         RecordBase*),
-  void (PlaylistBase::*statchangefn)(const PlayableInstance::change_args&, RecordBase*),
+  void (PlaylistBase::*infochangefn)(const Playable::change_args&,         RecordBase*const&),
+  void (PlaylistBase::*statchangefn)(const PlayableInstance::change_args&, RecordBase*const&),
   RecordBase* rec)
 : Content(content),
   InfoChange(pm, infochangefn, rec),
