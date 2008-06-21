@@ -137,17 +137,19 @@ output_normal_priority( OS2AUDIO* a )
 static LONG APIENTRY
 dart_event( ULONG status, MCI_MIX_BUFFER* buffer, ULONG flags )
 {
-  OS2AUDIO* a = INFO(buffer)->a;
   DEBUGLOG(( "os2audio: receive DART event, status=%d, flags=%08X\n", status, flags ));
 
   if( flags & MIX_WRITE_COMPLETE )
   {
-    DosRequestMutexSem( a->mutex, SEM_INDEFINITE_WAIT );
+    OS2AUDIO* a = INFO(buffer)->a;
+    
+    //DosRequestMutexSem( a->mutex, SEM_INDEFINITE_WAIT );
+    
+    // Now the next buffer is playing => update time index, set next buffer.
+    // Since the DART thread has very high priority this is implicitely atomic
+    // with respect to other PM123 threads.
+    a->mci_time    = buffer->ulTime;
     a->mci_is_play = INFO(buffer)->next;
-
-    // Current time of the device is placed at end of
-    // playing the buffer, but we require this already now.
-    output_position( a, &a->mci_is_play->ulTime );
 
     // If we're about to be short of decoder's data
     // (2nd ahead buffer not filled), let's boost its priority!
@@ -155,25 +157,30 @@ dart_event( ULONG status, MCI_MIX_BUFFER* buffer, ULONG flags )
       if( !a->nomoredata ) {
         output_boost_priority(a);
       }
+    } else
+    // If we're out of the water (5th ahead buffer filled),
+    // let's reduce the driver thread priority.
+    if( a->mci_to_fill == INFO( INFO( INFO( INFO( INFO(a->mci_is_play)->next )->next )->next )->next )->next ) {
+      output_normal_priority( a );
     }
 
     // Just too bad, the decoder fell behind...
     if( a->mci_is_play == a->mci_to_fill )
-    {
-      DEBUGLOG(( "os2audio: output is hungry.\n" ));
+    { // Implicitely atomic with the above condition unless we do the DEBUGLOG.
       a->mci_to_fill = INFO(a->mci_is_play)->next;
       a->nomoredata  = TRUE;
+      DEBUGLOG(( "os2audio: output is hungry.\n" ));
       WinPostMsg( a->original_info.hwnd, WM_OUTPUT_OUTOFDATA, 0, 0 );
     } else {
       a->playingpos = INFO(a->mci_is_play)->playingpos;
     }
 
     // Clear the played buffer and to place it to the end of the queue.
-    // By the moment of playing of this buffer, it  already must contain a new data.
+    // By the moment of playing of this buffer, it already must contain a new data.
     memset( buffer->pBuffer, a->zero, a->mci_buf_parms.ulBufferSize );
     a->mci_mix.pmixWrite( a->mci_mix.ulMixHandle, buffer, 1 );
 
-    DosReleaseMutexSem( a->mutex );
+    //DosReleaseMutexSem( a->mutex );
     DosPostEventSem( a->dataplayed );
   }
   return TRUE;
@@ -580,15 +587,15 @@ output_play_samples( void* A, FORMAT_INFO* format, char* buf, int len, int posma
   DEBUGLOG(("output_play_samples({%i,%i,%i,%i,%x}, %p, %i, %i)\n",
       format->size, format->samplerate, format->channels, format->bits, format->format, buf, len, posmarker));
 
-  DosRequestMutexSem( a->mutex, SEM_INDEFINITE_WAIT );
-
-  // Update TID always because the decoder thread may change while playing
-  // if( !a->drivethread )
+  // Update TID always because the decoder thread may change while playing gapless.
   { PTIB ptib;
     DosGetInfoBlocks( &ptib, NULL );
     if (a->drivethread != ptib->tib_ptib2->tib2_ultid)
     { a->drivethread = ptib->tib_ptib2->tib2_ultid;
-      a->boosted = FALSE;
+      // If we were already boosted we also have to boost the new thread
+      if (a->boosted)
+        DosSetPriority( PRTYS_THREAD, a->original_info.boostclass,
+                                      a->original_info.boostdelta, a->drivethread );
     }
   }
 
@@ -600,10 +607,7 @@ output_play_samples( void* A, FORMAT_INFO* format, char* buf, int len, int posma
   // Set the new format structure before re-opening.
   if( memcmp( format, &a->original_info.formatinfo, sizeof( FORMAT_INFO )) != 0 || a->status == DEVICE_CLOSED )
   {
-    DosReleaseMutexSem( a->mutex );
-
     DEBUGLOG(( "os2audio: old format: size %d, sample: %d, channels: %d, bits: %d, id: %d\n",
-
         a->original_info.formatinfo.size,
         a->original_info.formatinfo.samplerate,
         a->original_info.formatinfo.channels,
@@ -611,23 +615,19 @@ output_play_samples( void* A, FORMAT_INFO* format, char* buf, int len, int posma
         a->original_info.formatinfo.format ));
 
     DEBUGLOG(( "os2audio: new format: size %d, sample: %d, channels: %d, bits: %d, id: %d\n",
-
         format->size,
         format->samplerate,
         format->channels,
         format->bits,
         format->format ));
 
-    a->original_info.formatinfo = *format;
-
     if( output_close(a) != 0 ) {
       return 0;
     }
+    a->original_info.formatinfo = *format;
     if( output_open (a) != 0 ) {
       return 0;
     }
-  } else {
-    DosReleaseMutexSem( a->mutex );
   }
 
   if( a->status != DEVICE_OPENED ) {
@@ -646,14 +646,14 @@ output_play_samples( void* A, FORMAT_INFO* format, char* buf, int len, int posma
     }
   }
 
-  DosRequestMutexSem( a->mutex, SEM_INDEFINITE_WAIT );
-
   // A following buffer is already cashed by the audio device. Therefore
   // it is necessary to skip it and to fill the second buffer from current.
+  DosEnterCritSec();
   if( a->mci_to_fill == INFO(a->mci_is_play)->next ) {
     INFO(a->mci_to_fill)->playingpos = a->playingpos;
     a->mci_to_fill = INFO(a->mci_to_fill)->next;
   }
+  DosExitCritSec();
 
   if( len > 0 ) {
     if( a->force8bit && a->original_info.formatinfo.bits == 16 )
@@ -664,7 +664,6 @@ output_play_samples( void* A, FORMAT_INFO* format, char* buf, int len, int posma
 
       if( len / 2 > a->mci_buf_parms.ulBufferSize ) {
         DEBUGLOG(( "os2audio: too many samples.\n" ));
-        DosReleaseMutexSem( a->mutex );
         return 0;
       }
 
@@ -675,7 +674,6 @@ output_play_samples( void* A, FORMAT_INFO* format, char* buf, int len, int posma
     } else {
       if( len > a->mci_buf_parms.ulBufferSize ) {
         DEBUGLOG(( "os2audio: too many samples.\n" ));
-        DosReleaseMutexSem( a->mutex );
         return 0;
       }
 
@@ -688,20 +686,15 @@ output_play_samples( void* A, FORMAT_INFO* format, char* buf, int len, int posma
       }
     }
 
+    DosEnterCritSec();
     INFO(a->mci_to_fill)->playingpos = posmarker;
 
     a->mci_to_fill = INFO(a->mci_to_fill)->next;
     a->nomoredata  = FALSE;
     a->trashed     = FALSE;
+    DosExitCritSec();
   }
 
-  // If we're out of the water (5rd ahead buffer filled),
-  // let's reduce the driver thread priority.
-  if( a->mci_to_fill == INFO( INFO( INFO( INFO( INFO(a->mci_is_play)->next )->next )->next )->next )->next ) {
-    output_normal_priority( a );
-  }
-
-  DosReleaseMutexSem( a->mutex );
   return len;
 }
 
@@ -709,7 +702,29 @@ output_play_samples( void* A, FORMAT_INFO* format, char* buf, int len, int posma
    currently hears. */
 ULONG DLLENTRY
 output_playing_pos( void* A ) {
-  return ((OS2AUDIO*)A)->playingpos;
+  OS2AUDIO* a = (OS2AUDIO*)A;
+  ULONG     position, playingpos;
+  
+  DosRequestMutexSem( a->mutex, SEM_INDEFINITE_WAIT );
+
+  if( !a->mci_is_play || a->status == DEVICE_CLOSED ) {
+    DosReleaseMutexSem( a->mutex );
+    return PLUGIN_FAILED;
+  }
+
+  DosEnterCritSec();
+  // This difference may overflow, but this is compensated below.
+  playingpos = a->playingpos - a->mci_time;
+  DosExitCritSec();
+
+  if( LOUSHORT( output_position( a, &position )) != MCIERR_SUCCESS ) {
+    DosReleaseMutexSem( a->mutex );
+    return PLUGIN_FAILED;
+  }
+
+  DosReleaseMutexSem( a->mutex );
+
+  return playingpos + position;
 }
 
 /* This function is used by visual plug-ins so the user can visualize
@@ -733,18 +748,23 @@ output_playing_samples( void* A, FORMAT_INFO* info, char* buf, int len )
 
   if( buf && len )
   {
-    MCI_MIX_BUFFER* mci_buffer = a->mci_is_play;
+    MCI_MIX_BUFFER* mci_buffer;
     ULONG position = 0;
     LONG  offsetof = 0;
 
+    DosEnterCritSec();
+    mci_buffer = a->mci_is_play;
+    offsetof   = a->mci_time;
+    DosExitCritSec();
+    
     if( LOUSHORT( output_position( a, &position )) != MCIERR_SUCCESS ) {
       DosReleaseMutexSem( a->mutex );
       return PLUGIN_FAILED;
     }
 
-    offsetof = ( position - a->mci_is_play->ulTime ) * a->mci_mix.ulSamplesPerSec / 1000 *
-                                                       a->mci_mix.ulChannels *
-                                                       a->mci_mix.ulBitsPerSample / 8;
+    offsetof = ( position - offsetof ) * a->mci_mix.ulSamplesPerSec / 1000 *
+                                         a->mci_mix.ulChannels *
+                                         a->mci_mix.ulBitsPerSample / 8;
 
     while( INFO(mci_buffer)->next != a->mci_to_fill && offsetof > mci_buffer->ulBufferLength ) {
       offsetof  -= mci_buffer->ulBufferLength;
@@ -802,12 +822,14 @@ output_trash_buffers( void* A, ULONG temp_playingpos )
 
   // A following buffer is already cashed by the audio device. Therefore
   // it is necessary to skip it and to fill the second buffer from current.
+  DosEnterCritSec();
   a->mci_to_fill = INFO(a->mci_is_play)->next;
   INFO(a->mci_to_fill)->playingpos = temp_playingpos;
   a->mci_to_fill = INFO(a->mci_to_fill)->next;
+  DosExitCritSec();
 
-  DEBUGLOG(( "os2audio: audio buffers is successfully trashed.\n" ));
   DosReleaseMutexSem( a->mutex );
+  DEBUGLOG(( "os2audio: audio buffers is successfully trashed.\n" ));
 }
 
 /* This function is called when the user requests
@@ -839,6 +861,8 @@ output_uninit( void* A )
 {
   OS2AUDIO* a = (OS2AUDIO*)A;
   DEBUGLOG(("output_uninit: %p\n", a));
+
+  output_close( a );
 
   DosCloseEventSem( a->dataplayed );
   DosCloseMutexSem( a->mutex );

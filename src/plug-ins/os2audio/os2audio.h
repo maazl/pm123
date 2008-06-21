@@ -43,9 +43,9 @@
 
 typedef struct BUFFERINFO
 {
-  MCI_MIX_BUFFER*  next;
-  ULONG            playingpos;
-  struct OS2AUDIO* a;
+  MCI_MIX_BUFFER*  next;       /* cyclic linked list                          C* */
+  ULONG            playingpos; /* playing position of the buffer              Dm */
+  struct OS2AUDIO* a;          /* Pointer to the internal working set         C* */
 
 } BUFFERINFO;
 
@@ -57,43 +57,62 @@ typedef struct BUFFERINFO
 
 typedef struct OS2AUDIO
 {
-  ULONG playingpos;
-  int   device;
-  int   lockdevice;
-  int   numbuffers;   /* Suggested total audio buffers, bare minimum = 4      */
-                      /* (see prio boost check).                              */
-  int   kludge48as44;
-  int   force8bit;
-  int   buffersize;   /* Suggested size of the audio buffers.                 */
-  int   volume;
-  float amplifier;
-  int   zero;         /* This is 128 for 8 bit unsigned.                      */
+  ULONG playingpos;   /* Playing position of the currently playing buffer     Md */
+  int   device;       /*                                                      C  */
+  int   lockdevice;   /*                                                      C  */
+  int   numbuffers;   /* Suggested total audio buffers, bare minimum = 4      C  */
+                      /* (see prio boost check).                                 */
+  int   kludge48as44; /*                                                      C  */
+  int   force8bit;    /*                                                      Cd */
+  int   buffersize;   /* Suggested size of the audio buffers.                 C  */
+  int   volume;       /*                                                      C  */
+  float amplifier;    /*                                                      C  */
+  int   zero;         /* This is 128 for 8 bit unsigned.                      C* */
   int   configured;
 
-  float track_gain;   /* Defines Replay Gain values as specified at           */
-  float track_peak;   /* http://www.replaygain.org                            */
-  float album_gain;
-  float album_peak;
-  float scale;
+  float track_gain;   /* Defines Replay Gain values as specified at           Cd */
+  float track_peak;   /* http://www.replaygain.org                            Cd */
+  float album_gain;   /*                                                      Cd */
+  float album_peak;   /*                                                      Cd */
+  float scale;        /* Scalefactor for replaygain                           D  */
 
-  BOOL  trashed;      /* A next waiting portion of samples should be trashed. */
-  BOOL  nomoredata;   /* The audio device don't have audio buffers for play.  */
-  HEV   dataplayed;   /* Posted after playing of the next audio buffer.       */
-  HMTX  mutex;        /* Serializes access to this structure.                 */
-  int   status;       /* See DEVICE_* definitions.                            */
+  BOOL  trashed;      /* A next waiting portion of samples should be trashed. Cd */
+  BOOL  nomoredata;   /* The audio device don't have audio buffers for play.  Md */
+  HEV   dataplayed;   /* Posted after playing of the next audio buffer.       P* */
+  HMTX  mutex;        /* Serializes access to this structure.                 Pc */
+  int   status;       /* See DEVICE_* definitions.                            C* */
 
-  OUTPUT_PARAMS original_info;
+  OUTPUT_PARAMS original_info;      /*                                        C* */
 
-  TID   drivethread;  /* An identifier of the driver thread.                  */
-  BOOL  boosted;      /* The priority of the driver thread is boosted.        */
+  TID   drivethread;  /* An identifier of the driver thread.                  Dm */
+  BOOL  boosted;      /* The priority of the driver thread is boosted.        Md */
 
-  USHORT             mci_device_id; /* An identifier of the audio device.     */
-  MCI_MIXSETUP_PARMS mci_mix;       /* Parameters of the audio mixer.         */
-  MCI_BUFFER_PARMS   mci_buf_parms; /* Parameters of the audio buffers.       */
-  MCI_MIX_BUFFER*    mci_buffers;   /* Audio buffers.                         */
-  BUFFERINFO*        mci_buff_info; /* Audio buffers additional information.  */
-  MCI_MIX_BUFFER*    mci_to_fill;   /* The buffer for a next portion of data. */
-  MCI_MIX_BUFFER*    mci_is_play;   /* The buffer played now.                 */
+  USHORT             mci_device_id; /* An identifier of the audio device.     C* */
+  USHORT             reserved;      /* ensure alignment for atomic operations    */
+  MCI_MIXSETUP_PARMS mci_mix;       /* Parameters of the audio mixer.         C* */
+  MCI_BUFFER_PARMS   mci_buf_parms; /* Parameters of the audio buffers.       C* */
+  MCI_MIX_BUFFER*    mci_buffers;   /* Audio buffers.                         C* */
+  BUFFERINFO*        mci_buff_info; /* Audio buffers additional information.  C* */
+  MCI_MIX_BUFFER*    mci_to_fill;   /* The buffer for a next portion of data. Dm */
+  MCI_MIX_BUFFER*    mci_is_play;   /* The buffer played now.                 Md */
+  ULONG              mci_time;      /* MCI time of the last playaed buffer    M  */
 
 } OS2AUDIO;
+
+/* Sharing policy:
+ *  uppercase = writer of the field
+ *  lowercase = reader of the field 
+ *  D/d = decoder thread
+ *  M/m = MCI (DART) thread
+ *  C/c = control thread (only while not playing)
+ *        This may in fact be the decoder thread too if the sampling rate changes.
+ *  P   = plug-in manager
+ *  *   = any thread (always reader)
+ * Examples:
+ *  C* Once initialized by the controller, this member is read-only to the threads.
+ *  Md This member is written by the DART thread and read by the decoder thread.
+ *     The access is implicitely atomic.
+ *  Dm This member is written by the decoder thread and read by the DART thread.
+ *     The access is implicitely atomic.
+ */
 
