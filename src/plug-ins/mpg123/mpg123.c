@@ -42,6 +42,7 @@
 #include <decoder_plug.h>
 #include <debuglog.h>
 #include <snprintf.h>
+#include <eautils.h>
 #include <id3v1.h>
 #include <id3v2.h>
 

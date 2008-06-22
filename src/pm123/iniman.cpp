@@ -51,7 +51,6 @@ load_ini( void )
 {
   HINI INIhandle;
   BUFSTREAM *b;
-  int i;
 
   void *outputs_list;
   void *decoders_list;

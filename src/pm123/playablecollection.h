@@ -267,7 +267,10 @@ class PlayableCollection : public Playable
   : public PlayableSet
   { CollectionInfo            Info;
     InfoFlags                 Valid; // only IF_Tech and IF_Pl are significant here
-    CollectionInfoEntry(const PlayableSet& r) : PlayableSet(r), Valid(IF_None) {}
+    CollectionInfoEntry(const PlayableSet& r) : PlayableSet(r), Valid(IF_None) { DEBUGLOG(("PlayableCollection::CollectionInfoEntry(%p)::CollectionInfoEntry({%u,...})\n", this, r.size())); }
+    #ifdef DEBUG
+    ~CollectionInfoEntry()    { DEBUGLOG(("PlayableCollection::CollectionInfoEntry(%p)::~CollectionInfoEntry()\n", this)); }
+    #endif
   };
 
  protected:

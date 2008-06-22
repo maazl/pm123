@@ -36,7 +36,7 @@
 
 
 void event_base::operator+=(delegate_base& d)
-{ DEBUGLOG(("event_base(%p)::operator+=(%p{%p}) - %p, %u\n", this, &d, d.Rcv, Root, Count));
+{ DEBUGLOG(("event_base(%p)::operator+=(%p{%p}) - %p, %u\n", this, &d, d.Rcv, Root, Count.Peek()));
   ASSERT(d.Ev == NULL);
   ASSERT((unsigned)&d >= 0x10000); // OS/2 trick to validate pointer roughly.
   CritSect cs;
@@ -46,7 +46,7 @@ void event_base::operator+=(delegate_base& d)
 }
 
 bool event_base::operator-=(delegate_base& d)
-{ DEBUGLOG(("event_base(%p)::operator-=(%p{%p}) - %u\n", this, &d, d.Rcv, Count));
+{ DEBUGLOG(("event_base(%p)::operator-=(%p{%p}) - %u\n", this, &d, d.Rcv, Count.Peek()));
   event_base* ev = NULL; // removed event, must not be dereferenced
   delegate_base** mpp = &Root;
   { CritSect cs;

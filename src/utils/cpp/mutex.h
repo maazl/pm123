@@ -275,6 +275,7 @@ class SpinLock
   volatile unsigned Count;
  public:
                SpinLock()        : Count(0) {}
+  unsigned     Peek() const      { return Count; }             
   void         Inc()             { InterlockedInc(Count); }
   bool         Dec()             { return InterlockedDec(Count); }
   unsigned     Reset()           { return InterlockedXch(Count, 0); } 

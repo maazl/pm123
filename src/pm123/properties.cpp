@@ -301,7 +301,6 @@ cfg_settings2_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
 
     case WM_DESTROY:
     {
-      char buffer[8];
       size_t i;
 
       if (WinQueryButtonCheckstate( hwnd, RB_SONGONLY ))

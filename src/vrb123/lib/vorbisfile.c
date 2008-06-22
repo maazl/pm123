@@ -995,7 +995,7 @@ int ov_raw_seek(OggVorbis_File *vf,ogg_int64_t pos){
     int lastblock=0;
     int accblock=0;
     int thisblock;
-    int eosflag;
+    int eosflag=0;
 
     ogg_stream_init(&work_os,vf->current_serialno); /* get the memory ready */
     ogg_stream_reset(&work_os); /* eliminate the spurious OV_HOLE
