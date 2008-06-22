@@ -308,8 +308,14 @@ void Playable::EnsureInfo(InfoFlags what)
 { DEBUGLOG(("Playable(%p{%s})::EnsureInfo(%x) - %x\n", this, GetURL().getShortName().cdata(), what, InfoValid));
   InfoFlags i = CheckInfo(what);
   if (i)
-  { Lock lock(*this);
-    i = CheckInfo(what);
+  { { Lock lock(*this);
+      i = CheckInfo(what);
+      // We release the lock before we load the desired information
+      // to avoid deadlocks with recursive playlists.
+      // There is a small chance that the Informatione is requested by another thread
+      // immediately after doing that. But this price we have to pay. In this case
+      // the information is loaded twice. 
+    }
     if (i) // double check
       LoadInfo(i);
   }

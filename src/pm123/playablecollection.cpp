@@ -1047,7 +1047,6 @@ bool PlayableCollection::SaveLST(XFILE* of, bool relative)
       strcpy(buf, ">,");
       if (InfoValid & IF_Tech)
         sprintf(buf + 1, "%i,", info.tech->bitrate);
-      else
       if (InfoValid & IF_Format)
         sprintf(buf + strlen(buf), "%i,%i,", info.format->samplerate, info.format->channels);
       else
@@ -1057,7 +1056,7 @@ bool PlayableCollection::SaveLST(XFILE* of, bool relative)
       else
         strcat(buf + 4, ",");
       if (InfoValid & IF_Tech)
-        sprintf(buf + strlen(buf), "%.0f", info.tech->songlength);
+        sprintf(buf + strlen(buf), "%.3f", info.tech->songlength);
       xio_fputs(buf, of);
       // Playlists only...
       if (pp->GetFlags() & Enumerable)
@@ -1233,7 +1232,8 @@ void Playlist::LSTReader::ParseLine(char* line)
       }
       // 0: bitrate, 1: samplingrate, 2: channels, 3: file size, 4: total length,
       // 5: no. of song items, 6: total file size, 7: no. of items, 8: recursive. 
-      DEBUGLOG(("Playlist::LSTReader::ParseLine: tokens %s, %s, %s, %s, %s, %s, %s, %s, %s\n", tokens[0], tokens[1], tokens[2], tokens[3], tokens[4], tokens[5], tokens[6], tokens[7], tokens[8]));
+      DEBUGLOG(("Playlist::LSTReader::ParseLine: tokens %s, %s, %s, %s, %s, %s, %s, %s, %s\n",
+        tokens[0], tokens[1], tokens[2], tokens[3], tokens[4], tokens[5], tokens[6], tokens[7], tokens[8]));
       // Data type conversion
       
       // make tech info

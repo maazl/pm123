@@ -1524,8 +1524,8 @@ static void amp_plugin_eventhandler(void*, const PLUGIN_EVENTARGS& args)
   }
 }
 
-static void amp_save_modified_list(Playlist& pl)
-{ if (pl.CheckInfo(Playable::IF_Other) && pl.IsModified())
+static void amp_save_list(Playlist& pl)
+{ if (!pl.CheckInfo(Playable::IF_Other))
     pl.Save(PlayableCollection::SaveRelativePath);
 }
 
@@ -1689,11 +1689,11 @@ main2( void* arg )
   Ctrl::Uninit();
 
   save_ini();
-  amp_save_modified_list(*DefaultBM);
-  amp_save_modified_list(*DefaultPM);
-  amp_save_modified_list(*DefaultPL);
-  amp_save_modified_list(*LoadMRU);
-  amp_save_modified_list(*UrlMRU);
+  amp_save_list(*DefaultBM);
+  amp_save_list(*DefaultPM);
+  amp_save_list(*DefaultPL);
+  amp_save_list(*LoadMRU);
+  amp_save_list(*UrlMRU);
 
   // deinitialize all visual plug-ins
   vis_deinit_all( TRUE );
@@ -1798,7 +1798,7 @@ main( int argc, char *argv[] )
   return 0;
 }
 
-#ifdef __DEBUG_ALLOC__
+/*#ifdef __DEBUG_ALLOC__
 static struct MyTerm
 { ~MyTerm();
 } MyTermInstance;
@@ -1806,5 +1806,5 @@ static struct MyTerm
 MyTerm::~MyTerm()
 { _dump_allocated( 0 );
 }
-#endif
+#endif*/
 
