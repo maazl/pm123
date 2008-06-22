@@ -602,7 +602,7 @@ BOOL amp_query( HWND owner, const char* format, ... )
 }
 
 /* Requests the user about specified action. Provodes a cancel button.
-   Returns the pressed Button (MB_xxx constants) */
+   Returns the pressed Button (MBID_xxx constants) */
 USHORT amp_query3( HWND owner, const char* format, ... )
 { va_list args;
   va_start(args, format);

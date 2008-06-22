@@ -262,7 +262,7 @@ output_close( void* A )
   }
 
   rc = mciSendCommand( a->mci_device_id, MCI_MIXSETUP,
-                                MCI_WAIT | MCI_MIXSETUP_DEINIT, &a->mci_mix, 0 );
+                       MCI_WAIT | MCI_MIXSETUP_DEINIT, &a->mci_mix, 0 );
 
   if( LOUSHORT(rc) != MCIERR_SUCCESS ) {
     output_error( a, rc );
@@ -343,7 +343,7 @@ output_open( OS2AUDIO* a )
   if( info->formatinfo.format != WAVE_FORMAT_PCM ||
       info->formatinfo.samplerate <= 0 ||
       ( info->formatinfo.bits != 16 && info->formatinfo.bits != 8 ) ||
-      info->formatinfo.channels < 0 || info->formatinfo.channels > 2 )
+      info->formatinfo.channels <= 0 || info->formatinfo.channels > 2 )
   { rc = MCIERR_UNSUPP_FORMAT_MODE;
     goto end;
   }
@@ -360,8 +360,7 @@ output_open( OS2AUDIO* a )
 
   rc = LOUSHORT(mciSendCommand( 0, MCI_OPEN, MCI_WAIT | MCI_OPEN_TYPE_ID | openflags, &mci_aop, 0 ));
   if( rc != MCIERR_SUCCESS ) {
-    DEBUGLOG(( "os2audio:output_open: MCI_OPEN failed: %u.\n", rc ));
-    DEBUGLOG(( "os2audio: unable to open a mixer.\n" ));
+    DEBUGLOG(( "os2audio:output_open:  unable to open a mixer: %u.\n", rc ));
     goto end;
   }
 
@@ -919,12 +918,6 @@ output_command( void* A, ULONG msg, OUTPUT_PARAMS* params )
   switch( msg )
   {
     case OUTPUT_OPEN:
-      /*
-      // We ignore this message if we do not yet know the sampling rate and the number of channels.
-      // The output will be opened automatically when the first samples arrive.
-      if ( a->original_info.formatinfo.samplerate < 0 || a->original_info.formatinfo.channels < 0 ) {
-        return PLUGIN_OK;
-      }*/
       return output_open( a );
 
     case OUTPUT_PAUSE:

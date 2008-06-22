@@ -95,7 +95,7 @@ typedef struct OS2AUDIO
   BUFFERINFO*        mci_buff_info; /* Audio buffers additional information.  C* */
   MCI_MIX_BUFFER*    mci_to_fill;   /* The buffer for a next portion of data. Dm */
   MCI_MIX_BUFFER*    mci_is_play;   /* The buffer played now.                 Md */
-  ULONG              mci_time;      /* MCI time of the last playaed buffer    M  */
+  ULONG              mci_time;      /* MCI time of the last played buffer     M  */
 
 } OS2AUDIO;
 
