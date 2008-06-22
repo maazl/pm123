@@ -1040,36 +1040,37 @@ bool PlayableCollection::SaveLST(XFILE* of, bool relative)
       xio_fputs("\n", of);
     }
     // tech info
-    if (pp->GetStatus() > STA_Invalid && (InfoValid & (IF_Tech|IF_Format|IF_Phys|IF_Rpl)))
+    InfoFlags infovalid = ~pp->CheckInfo(IF_All);
+    if (pp->GetStatus() > STA_Invalid && (infovalid & (IF_Tech|IF_Format|IF_Phys|IF_Rpl)))
     { char buf[128];
       // 0: bitrate, 1: samplingrate, 2: channels, 3: file size, 4: total length,
       // 5: no. of song items, 6: total file size, 7: no. of items, 8: recursive.
       strcpy(buf, ">,");
-      if (InfoValid & IF_Tech)
+      if (infovalid & IF_Tech)
         sprintf(buf + 1, "%i,", info.tech->bitrate);
-      if (InfoValid & IF_Format)
+      if (infovalid & IF_Format)
         sprintf(buf + strlen(buf), "%i,%i,", info.format->samplerate, info.format->channels);
       else
         strcat(buf + 2, ",,");
-      if (InfoValid & IF_Phys)
+      if (infovalid & IF_Phys)
         sprintf(buf + strlen(buf), "%.0f,", info.phys->filesize);
       else
         strcat(buf + 4, ",");
-      if (InfoValid & IF_Tech)
+      if (infovalid & IF_Tech)
         sprintf(buf + strlen(buf), "%.3f", info.tech->songlength);
       xio_fputs(buf, of);
       // Playlists only...
       if (pp->GetFlags() & Enumerable)
       { strcpy(buf, ",");
-        if (InfoValid & IF_Rpl)
+        if (infovalid & IF_Rpl)
           sprintf(buf + 1, ",%i", info.rpl->total_items);
-        if (InfoValid & IF_Tech)  
+        if (infovalid & IF_Tech)  
           sprintf(buf + strlen(buf), ",%.0f", info.tech->totalsize);
         else
           strcat(buf + 1, ",");
-        if (InfoValid & IF_Phys)
+        if (infovalid & IF_Phys)
           sprintf(buf + strlen(buf), ",%i", info.phys->num_items);
-        if (InfoValid & IF_Rpl && info.rpl->recursive)
+        if (infovalid & IF_Rpl && info.rpl->recursive)
           strcat(buf + 2, ",1");
         xio_fputs(buf, of);
       }
@@ -1245,11 +1246,12 @@ void Playlist::LSTReader::ParseLine(char* line)
         Tech.songlength = atof(tokens[4]);
         Tech.totalsize  = tokens[6] ? atof(tokens[6]) : -1;
       }
-      // make playlist info, unconditional
+      // make playlist info
+      if (tokens[5])
       { Info.rpl = &Rpl;
         // memset(Tech, 0, sizeof Tech);
         Rpl.size        = sizeof Rpl;
-        Rpl.total_items = tokens[5] ? atoi(tokens[5]) : 1;
+        Rpl.total_items = atoi(tokens[5]);
         Rpl.recursive   = tokens[8] != NULL;
       }
       // make phys info

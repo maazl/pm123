@@ -207,7 +207,7 @@ class Playable
 
   // Check wether the requested information is immediately available.
   // Return the bits in what that are /not/ available.
-  inline InfoFlags    CheckInfo(InfoFlags what); // can't define here because of missing FLAGSATTRIBUTE(InfoFlags).
+  inline InfoFlags    CheckInfo(InfoFlags what) const; // can't define here because of missing FLAGSATTRIBUTE(InfoFlags).
   // This function is called to populate the info fields.
   // The parameter what is the requested information. The function returns the retrieved information.
   // The retrieved information must not be less than the requested information. But it might be more.
@@ -318,7 +318,7 @@ class Playable
 FLAGSATTRIBUTE(Playable::InfoFlags);
 
 
-inline Playable::InfoFlags Playable::CheckInfo(InfoFlags what)
+inline Playable::InfoFlags Playable::CheckInfo(InfoFlags what) const
 { return what & ~InfoValid;
 }
 
