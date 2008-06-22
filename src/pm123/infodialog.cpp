@@ -214,7 +214,7 @@ MRESULT InfoDialog::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
 }
 
 void InfoDialog::ContentChangeEvent(const Playable::change_args& args)
-{ if (args.Flags & (Playable::IF_Format|Playable::IF_Tech))
+{ if (args.Flags & (Playable::IF_Format|Playable::IF_Tech|Playable::IF_Phys|Playable::IF_Rpl|Playable::IF_Other))
     WinPostMsg(Page1.GetHwnd(), UM_UPDATE, MPFROMLONG(args.Flags), 0);
   if (args.Flags & Playable::IF_Meta)
     WinPostMsg(Page2.GetHwnd(), UM_UPDATE, MPFROMLONG(args.Flags), 0);
