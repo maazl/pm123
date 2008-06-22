@@ -601,6 +601,17 @@ BOOL amp_query( HWND owner, const char* format, ... )
   return amp_message_box( owner, "PM123 Query", message, MB_QUERY | MB_YESNO | MB_MOVEABLE ) == MBID_YES;
 }
 
+/* Requests the user about specified action. Provodes a cancel button.
+   Returns the pressed Button (MB_xxx constants) */
+USHORT amp_query3( HWND owner, const char* format, ... )
+{ va_list args;
+  va_start(args, format);
+  xstring message = xstring::vsprintf(format, args);
+  va_end(args);
+
+  return amp_message_box( owner, "PM123 Query", message, MB_QUERY | MB_YESNOCANCEL | MB_MOVEABLE );
+}
+
 /* Requests the user about overwriting a file. Returns
    TRUE at confirmation or at absence of a file. */
 BOOL amp_warn_if_overwrite( HWND owner, const char* filename )

@@ -47,6 +47,8 @@ void  amp_player_error( const char* format, ... );
 void  amp_info ( HWND owner, const char* format, ... );
 /* Requests the user about specified action. */
 BOOL  amp_query( HWND owner, const char* format, ... );
+/* Requests the user about specified action. With cancel button. */
+USHORT amp_query3( HWND owner, const char* format, ... );
 /* Requests the user about overwriting a file. */
 BOOL  amp_warn_if_overwrite( HWND owner, const char* filename );
 /* Tells the help manager to display a specific help window. */

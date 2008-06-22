@@ -242,7 +242,17 @@ MRESULT PlaylistBase::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
 
    case WM_SYSCOMMAND:
     if( SHORT1FROMMP(mp1) == SC_CLOSE )
-    { Destroy();
+    { if ( (Content->GetFlags() & Playable::Enumerable)
+        && ((PlayableCollection&)*Content).IsModified() )
+      { switch (amp_query3(GetHwnd(), "The current list is modified. Save changes?"))
+        {default: // cancel
+          return 0;
+         case MBID_YES:
+          UserSave();
+         case MBID_NO:;
+        }
+      }
+      Destroy();
       return 0;
     }
     break;
