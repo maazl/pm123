@@ -298,8 +298,14 @@ MRESULT PlaylistBase::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
           PMRASSERT(WinPopupMenu(HWND_DESKTOP, GetHwnd(), HwndMenu, ptlMouse.x, ptlMouse.y, 0,
                                  PU_HCONSTRAIN | PU_VCONSTRAIN | PU_MOUSEBUTTON1 | PU_MOUSEBUTTON2 | PU_KEYBOARD));
         }
-        break;
       }
+      break;
+
+     case CN_ENTER:
+      { NOTIFYRECORDENTER* nre = (NOTIFYRECORDENTER*)mp2; 
+        UserOpenDetailedView(PlayableFromRec((RecordBase*)nre->pRecord));
+      }
+      break;       
 
      // Direct editing
      case CN_BEGINEDIT:
