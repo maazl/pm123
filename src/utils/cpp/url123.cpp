@@ -269,22 +269,25 @@ xstring url123::getDisplayName() const
 
 xstring url123::getShortName() const
 { const char* cp = strrchr(*this, '/');
-  ASSERT(cp);
-  ++cp;
+  if (cp)
+    ++cp;
+  else
+    cp = *this;
   // Exception for Path URLs: return the last path component
   if (*cp == 0 || *cp == '?')
   { const char* cp2 = --cp;
    next:
     //DEBUGLOG(("url123::getObjName - %c\n", cp2[-1]));
     switch (*--cp2)
-    {default:
-      ASSERT(cp2 != *this);
-      goto next;
-     case '/':
+    {case '/':
      case ':':
+      ++cp2;
       break;
+     default:
+      if (cp2 != cdata()) 
+        goto next;
     }
-    return xstring(cp2+1, cp-cp2-1);
+    return xstring(cp2, cp-cp2);
   } else
   { const char* cp2 = strchr(cp, '?');
     const char* cp3 = cp2 ? strnrchr(cp, '.', cp2-cp) : strrchr(cp, '.');
