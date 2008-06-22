@@ -94,6 +94,7 @@
 #define IDM_M_ADDPLBOOK_TIME 559
 #define IDM_M_LOAD          560
 #define IDM_M_PLRELOAD      561
+#define IDM_M_RELOAD        562
 #define IDM_M_LOADFILE      600
 #define IDM_M_URL           601
 #define IDM_M_LOADOTHER     602 /* reserve some ID's for several plug-ins.  */

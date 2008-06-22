@@ -410,6 +410,8 @@ MENU MNU_MAIN
     MENUITEM SEPARATOR
     MENUITEM "~Bookmark Song...",          IDM_M_ADDBOOK
     MENUITEM "Bookmark Song with ~start...",IDM_M_ADDBOOK_TIME
+    MENUITEM SEPARATOR
+    MENUITEM "~Refresh",                   IDM_M_RELOAD
   }
   SUBMENU "Current Pla~ylist",             IDM_M_CURRENT_PL
   { MENUITEM "Show Playlist ~info",        IDM_M_PLINFO

@@ -1119,6 +1119,11 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
             amp_info_edit(hwnd, CurrentSong);
           break;
 
+        case IDM_M_RELOAD:
+          if (CurrentSong)
+            CurrentSong->LoadInfoAsync(Playable::IF_All);
+          break;
+
         case IDM_M_DETAILED:
           if (CurrentRoot && (CurrentRoot->GetFlags() & Playable::Enumerable))
             PlaylistView::Get(CurrentRoot)->SetVisible(true);
