@@ -69,20 +69,23 @@ MRESULT InfoDialog::Page1Window::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
       DEBUGLOG(("InfoDialog(%p)::Page1Window::DlgProc: UM_UPDATE\n", &Parent));
       char buffer[32];
       HWND ctrl;
-      bool is_playlist = !!Parent.Content->GetFlags() & Playable::Enumerable;
       { const PHYS_INFO& phys = *Parent.Content->GetInfo().phys;
+        const bool enabled = Parent.Content->CheckInfo(Playable::IF_Phys) == 0;
         // filesize
-        PMRASSERT(WinSetDlgItemText(GetHwnd(), EF_FILESIZE, phys.filesize < 0 ? "n/a" : (sprintf(buffer, "%.3f kiB", phys.filesize/1024.), buffer)));
+        ctrl = WinWindowFromID(GetHwnd(), EF_FILESIZE);
+        PMRASSERT(WinSetWindowText(ctrl, phys.filesize < 0 ? "n/a" : (sprintf(buffer, "%.3f kiB", phys.filesize/1024.), buffer)));
+        PMRASSERT(WinEnableWindow(ctrl, enabled));
         // number of items
         ctrl = WinWindowFromID(GetHwnd(), EF_NUMITEMS);
         PMRASSERT(WinSetWindowText(ctrl, phys.num_items <= 0 ? "n/a" : (sprintf(buffer, "%i", phys.num_items), buffer)));
-        PMRASSERT(WinEnableWindow(ctrl, is_playlist));
+        PMRASSERT(WinEnableWindow(ctrl, enabled));
       }
       { const TECH_INFO& tech = *Parent.Content->GetInfo().tech;
+        const bool enabled = Parent.Content->CheckInfo(Playable::IF_Tech) == 0;
         // total filesize
         ctrl = WinWindowFromID(GetHwnd(), EF_TOTALSIZE);
         PMRASSERT(WinSetWindowText(ctrl, tech.totalsize < 0 ? "n/a" : (sprintf(buffer, "%.3f MiB", tech.totalsize/(1024.*1024.)), buffer)));
-        PMRASSERT(WinEnableWindow(ctrl, is_playlist));
+        PMRASSERT(WinEnableWindow(ctrl, enabled));
         // playing time
         if (tech.songlength < 0)
           strcpy(buffer, "n/a");
@@ -95,37 +98,46 @@ MRESULT InfoDialog::Page1Window::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
            else
             sprintf(buffer, "%lu:%02lu:%02lu", s/3600, s/60%60, s%60);
         }
-        PMRASSERT(WinSetDlgItemText(GetHwnd(), EF_TOTALTIME, buffer));
+        ctrl = WinWindowFromID(GetHwnd(), EF_TOTALTIME);
+        PMRASSERT(WinSetWindowText(ctrl, buffer));
+        PMRASSERT(WinEnableWindow(ctrl, enabled));
         // bitrate
         ctrl = WinWindowFromID(GetHwnd(), EF_BITRATE);
         PMRASSERT(WinSetWindowText(ctrl, tech.bitrate < 0 ? "n/a" : (sprintf(buffer, "%i kbps", tech.bitrate), buffer)));
-        PMRASSERT(WinEnableWindow(ctrl, !is_playlist));
+        PMRASSERT(WinEnableWindow(ctrl, enabled));
         // info string
-        PMRASSERT(WinSetDlgItemText(GetHwnd(), EF_INFOSTRINGS, tech.info));
+        ctrl = WinWindowFromID(GetHwnd(), EF_INFOSTRINGS);
+        PMRASSERT(WinSetWindowText(ctrl, tech.info));
+        PMRASSERT(WinEnableWindow(ctrl, enabled));
       }
       { const RPL_INFO& rpl = *Parent.Content->GetInfo().rpl;
+        const bool enabled = (Parent.Content->GetFlags() & Playable::Enumerable) && Parent.Content->CheckInfo(Playable::IF_Rpl) == 0;
         // number of songs
         ctrl = WinWindowFromID(GetHwnd(), EF_SONGITEMS);
         PMRASSERT(WinSetWindowText(ctrl, rpl.total_items <= 0 ? "n/a" : (sprintf(buffer, "%i", rpl.total_items), buffer)));
-        PMRASSERT(WinEnableWindow(ctrl, is_playlist));
+        PMRASSERT(WinEnableWindow(ctrl, enabled));
         // recursion flag
         ctrl = WinWindowFromID(GetHwnd(), CB_ITEMSRECURSIVE);
         WinSendMsg(ctrl, BM_SETCHECK, MPFROMSHORT(!!rpl.recursive), 0);
-        PMRASSERT(WinEnableWindow(ctrl, is_playlist));
+        PMRASSERT(WinEnableWindow(ctrl, enabled));
       }
       { const FORMAT_INFO2& format = *Parent.Content->GetInfo().format;
+        const bool enabled = Parent.Content->CheckInfo(Playable::IF_Format) == 0;
         // sampling rate
         ctrl = WinWindowFromID(GetHwnd(), EF_SAMPLERATE);
         PMRASSERT(WinSetWindowText(ctrl, format.samplerate < 0 ? "n/a" : (sprintf(buffer, "%i Hz", format.samplerate), buffer)));
-        PMRASSERT(WinEnableWindow(ctrl, !is_playlist));
+        PMRASSERT(WinEnableWindow(ctrl, enabled));
         // channels
         ctrl = WinWindowFromID(GetHwnd(), EF_NUMCHANNELS);
         PMRASSERT(WinSetDlgItemText(GetHwnd(), EF_NUMCHANNELS, format.channels < 0 ? "n/a" : (sprintf(buffer, "%i", format.channels), buffer)));
-        PMRASSERT(WinEnableWindow(ctrl, !is_playlist));
+        PMRASSERT(WinEnableWindow(ctrl, enabled));
       }
       { // Decoder
         const char* dec = Parent.Content->GetDecoder();
-        PMRASSERT(WinSetDlgItemText(GetHwnd(), EF_DECODER, dec ? dec : "n/a"));
+        const bool enabled = Parent.Content->CheckInfo(Playable::IF_Other) == 0;
+        ctrl = WinWindowFromID(GetHwnd(), EF_DECODER);
+        PMRASSERT(WinSetWindowText(ctrl, dec ? dec : "n/a"));
+        PMRASSERT(WinEnableWindow(ctrl, enabled));
       }
       return 0;
     }
@@ -139,17 +151,39 @@ MRESULT InfoDialog::Page2Window::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
     { // update info values
       DEBUGLOG(("InfoDialog(%p)::Page2Window::DlgProc: UM_UPDATE\n", &Parent));
       char buffer[32];
+      HWND ctrl;
       const META_INFO& meta = *Parent.Content->GetInfo().meta;
-      PMRASSERT(WinSetDlgItemText(GetHwnd(), EF_METATITLE, meta.title));
-      PMRASSERT(WinSetDlgItemText(GetHwnd(), EF_METAARTIST, meta.artist));
-      PMRASSERT(WinSetDlgItemText(GetHwnd(), EF_METAALBUM, meta.album));
-      PMRASSERT(WinSetDlgItemText(GetHwnd(), EF_METATRACK, meta.track < 0 ? "" : (sprintf(buffer, "%i", meta.track), buffer)));
-      PMRASSERT(WinSetDlgItemText(GetHwnd(), EF_METADATE, meta.year));
-      PMRASSERT(WinSetDlgItemText(GetHwnd(), EF_METAGENRE, meta.genre));
-      PMRASSERT(WinSetDlgItemText(GetHwnd(), EF_METARPGAINT, meta.track_gain != 0 ? "" : (sprintf(buffer, "%.1f", meta.track_gain), buffer)));
-      PMRASSERT(WinSetDlgItemText(GetHwnd(), EF_METARPPEAKT, meta.track_peak != 0 ? "" : (sprintf(buffer, "%.1f", meta.track_peak), buffer)));
-      PMRASSERT(WinSetDlgItemText(GetHwnd(), EF_METARPGAINA, meta.album_gain != 0 ? "" : (sprintf(buffer, "%.1f", meta.album_gain), buffer)));
-      PMRASSERT(WinSetDlgItemText(GetHwnd(), EF_METARPPEAKA, meta.album_peak != 0 ? "" : (sprintf(buffer, "%.1f", meta.album_peak), buffer)));
+      const bool enabled = Parent.Content->CheckInfo(Playable::IF_Meta) == 0;
+      ctrl = WinWindowFromID(GetHwnd(), EF_METATITLE);
+      PMRASSERT(WinSetWindowText(ctrl, meta.title));
+      PMRASSERT(WinEnableWindow(ctrl, enabled));
+      ctrl = WinWindowFromID(GetHwnd(), EF_METAARTIST);
+      PMRASSERT(WinSetWindowText(ctrl, meta.artist));
+      PMRASSERT(WinEnableWindow(ctrl, enabled));
+      ctrl = WinWindowFromID(GetHwnd(), EF_METAALBUM);
+      PMRASSERT(WinSetWindowText(ctrl, meta.album));
+      PMRASSERT(WinEnableWindow(ctrl, enabled));
+      ctrl = WinWindowFromID(GetHwnd(), EF_METATRACK);
+      PMRASSERT(WinSetWindowText(ctrl, meta.track < 0 ? "" : (sprintf(buffer, "%i", meta.track), buffer)));
+      PMRASSERT(WinEnableWindow(ctrl, enabled));
+      ctrl = WinWindowFromID(GetHwnd(), EF_METADATE);
+      PMRASSERT(WinSetWindowText(ctrl, meta.year));
+      PMRASSERT(WinEnableWindow(ctrl, enabled));
+      ctrl = WinWindowFromID(GetHwnd(), EF_METAGENRE);
+      PMRASSERT(WinSetWindowText(ctrl, meta.genre));
+      PMRASSERT(WinEnableWindow(ctrl, enabled));
+      ctrl = WinWindowFromID(GetHwnd(), EF_METARPGAINT);
+      PMRASSERT(WinSetWindowText(ctrl, meta.track_gain != 0 ? "" : (sprintf(buffer, "%.1f", meta.track_gain), buffer)));
+      PMRASSERT(WinEnableWindow(ctrl, enabled));
+      ctrl = WinWindowFromID(GetHwnd(), EF_METARPPEAKT);
+      PMRASSERT(WinSetWindowText(ctrl, meta.track_peak != 0 ? "" : (sprintf(buffer, "%.1f", meta.track_peak), buffer)));
+      PMRASSERT(WinEnableWindow(ctrl, enabled));
+      ctrl = WinWindowFromID(GetHwnd(), EF_METARPGAINA);
+      PMRASSERT(WinSetWindowText(ctrl, meta.album_gain != 0 ? "" : (sprintf(buffer, "%.1f", meta.album_gain), buffer)));
+      PMRASSERT(WinEnableWindow(ctrl, enabled));
+      ctrl = WinWindowFromID(GetHwnd(), EF_METARPPEAKA);
+      PMRASSERT(WinSetWindowText(ctrl, meta.album_peak != 0 ? "" : (sprintf(buffer, "%.1f", meta.album_peak), buffer)));
+      PMRASSERT(WinEnableWindow(ctrl, enabled));
       return 0;
     }
   }

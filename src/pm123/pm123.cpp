@@ -1798,7 +1798,7 @@ main( int argc, char *argv[] )
   return 0;
 }
 
-/*#ifdef __DEBUG_ALLOC__
+#ifdef __DEBUG_ALLOC__
 static struct MyTerm
 { ~MyTerm();
 } MyTermInstance;
@@ -1806,5 +1806,5 @@ static struct MyTerm
 MyTerm::~MyTerm()
 { _dump_allocated( 0 );
 }
-#endif*/
+#endif
 
