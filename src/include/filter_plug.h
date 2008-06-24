@@ -4,6 +4,8 @@
 #include <format.h>
 #include <output_plug.h>
 
+#include <stdlib.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif

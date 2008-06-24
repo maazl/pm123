@@ -3,7 +3,7 @@
 #
 
 VERSION = 1_32
-PARTS   = src\utils\utilfct$(LBO) src\gbm123\gbm123.dll src\fft123\fft123.dll
+PARTS   = src\utils\utilfct$(LBO) src\utils\cpp\cpputil$(LBO) src\gbm123\gbm123.dll src\fft123\fft123.dll
 PARTS   = $(PARTS) src\xio123\xio123.dll
 PARTS   = $(PARTS) src\snd123\snd123.dll
 PARTS   = $(PARTS) src\ogg123\ogg123.dll
@@ -217,6 +217,9 @@ depend: $(MDUMMY)
 	cd src\utils
 	@$(MAKE) $(MFLAGS) depend
 	@cd ..\..
+	cd src\utils\cpp
+	@$(MAKE) $(MFLAGS) depend
+	@cd ..\..\..
 	cd src\gbm123
 	@$(MAKE) $(MFLAGS) depend
 	@cd ..\..
