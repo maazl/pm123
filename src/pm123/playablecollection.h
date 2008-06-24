@@ -60,8 +60,10 @@ class PlayableSlice : public Iref_Count
   const int_ptr<Playable>  RefTo;
  private:
   xstring                  Alias;
-  // Start and Stop are owned by PlayableSlice. But sind SongIterator is not yet a complete type
-  // we have to deal with that manually. Furthermore Start and Stop MUST have *this as root.
+ protected:
+  // Start and Stop are owned by PlayableSlice. But since SongIterator is not yet a complete type
+  // we have to deal with that manually. Furthermore Start and Stop MUST have RefTo as root,
+  // but they must not use *this as root to avoid cyclic references.
   SongIterator*            Start;
   SongIterator*            Stop;
  private: // not assignable

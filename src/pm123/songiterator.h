@@ -95,7 +95,8 @@ class SongIterator
                                          // This collection contains only enumerable objects except for the last entry.
                                          // The callstack has at least one element.
   T_TIME                      Location;  // Location within the current song
-  int_ptr<PlayableSlice>      CurrentCache; // mutable!
+  int_ptr<PlayableSlice>      CurrentCache; // mutable! Points either to CurrentCacheRef or to CurrentCacheInst or is NULL.
+  bool                        CurrentCacheValid;
   static const Offsets        ZeroOffsets; // Offsets for root entry.
   static InitialCallstackType InitialCallstack; // Initial Callstack of a newly created Item
 
@@ -104,6 +105,7 @@ class SongIterator
   // This function must always be called before doing any modifications to the Callstack.
   // It is the essential part of the copy on write semantic.
   void                        MakeCallstackUnique();
+  void                        InvalidateCurrentCache() { CurrentCacheValid = false; }
   // Get the current item. This may be NULL if and only if not root is assigned.  
   PlayableSlice*              Current() const          { return (*Callstack)[Callstack->size()-1]->Item; }
   // Push the current item to the call stack.

@@ -164,7 +164,8 @@ SongIterator::InitialCallstackType SongIterator::InitialCallstack;
 
 SongIterator::SongIterator()
 : Callstack(&InitialCallstack),
-  Location(0)
+  Location(0),
+  CurrentCacheValid(false)
 { DEBUGLOG(("SongIterator(%p)::SongIterator()\n", this));
 }
 
@@ -172,13 +173,15 @@ SongIterator::SongIterator()
 SongIterator::SongIterator(const SongIterator& r)
 : Callstack(r.Callstack), // reference the other callstack until changes apply
   Location(r.Location),
-  CurrentCache(r.CurrentCache) // CurrentCache is also valid until changes apply
+  CurrentCache(r.CurrentCacheValid ? r.CurrentCache.get() : NULL), // CurrentCache is also valid until changes apply
+  CurrentCacheValid(r.CurrentCacheValid)
 { DEBUGLOG(("SongIterator(%p)::SongIterator(&%p)\n", this, &r));
 }
 
 SongIterator::SongIterator(const SongIterator& r, unsigned slice)
 : Location(r.Location),
-  CurrentCache(r.CurrentCache) // Even with slicing CurrentCache is also valid until changes apply
+  CurrentCache(r.CurrentCacheValid ? r.CurrentCache.get() : NULL), // Even with slicing CurrentCache is also valid until changes apply
+  CurrentCacheValid(r.CurrentCacheValid)
 { DEBUGLOG(("SongIterator(%p)::SongIterator(&%p, %u)\n", this, &r, slice));
   ASSERT(slice <= r.Callstack->size());
   if (slice)
@@ -200,7 +203,8 @@ SongIterator& SongIterator::operator=(const SongIterator& r)
 { DEBUGLOG2(("SongIterator(%p)::operator=(%s)\n", this, r.Serialize().cdata()));
   Callstack    = r.Callstack; // reference the other callstack until changes apply
   Location     = r.Location;
-  CurrentCache = r.CurrentCache; // CurrentCache is also valid until changes apply
+  CurrentCache = r.CurrentCacheValid ? r.CurrentCache.get() : NULL; // CurrentCache is also valid until changes apply
+  CurrentCacheValid = r.CurrentCacheValid;
   return *this;
 }
 
@@ -208,6 +212,7 @@ void SongIterator::Swap(SongIterator& r)
 { Callstack.swap(r.Callstack);
   swap(Location, r.Location);
   CurrentCache.swap(r.CurrentCache);
+  swap(CurrentCacheValid, r.CurrentCacheValid);
 }
 
 #ifdef DEBUG
@@ -245,7 +250,7 @@ void SongIterator::Reset()
       delete Callstack->erase(Callstack->size()-1);
     while (Callstack->size() > 1);
   }
-  CurrentCache = NULL;
+  InvalidateCurrentCache();
 }
 
 void SongIterator::SetRoot(PlayableSlice* pc, Playable* exclude)
@@ -261,28 +266,48 @@ void SongIterator::SetRoot(PlayableSlice* pc, Playable* exclude)
 }
 
 PlayableSlice* SongIterator::GetCurrent() const
-{ if (!CurrentCache)
-  { const CallstackEntry* cep = (*Callstack)[Callstack->size()-1];
+{ if (!CurrentCacheValid)
+  { // The cache is not valid => fill it, but cause as few reallocations as possible.
+    const CallstackEntry* cep = (*Callstack)[Callstack->size()-1];
     if (cep->OverrideStart != NULL || cep->OverrideStop != NULL || Location != 0)
     { // We have to create a virtual slice
-      ((SongIterator*)this)->CurrentCache = new PlayableSlice(cep->Item->GetPlayable());
+      // Make new or unique current cache that belongs to the current playable
+      if (!CurrentCache || !CurrentCache->RefCountIsUnique() || CurrentCache->GetPlayable() != cep->Item->GetPlayable())
+        // Modify mutable object
+        ((SongIterator*)this)->CurrentCache = new PlayableSlice(cep->Item->GetPlayable());
       CurrentCache->SetAlias(cep->Item->GetAlias());
       const SongIterator* si = cep->GetStart();
-      if (Location)
-      { SongIterator* si2;
+      if (Location || si)
+      { // Dirty Hack: we modify CurrentCache->Start by the backdoor to avoid unneccessary reallocations.
+        SongIterator* si2 = (SongIterator*)CurrentCache->GetStart();
         if (si)
-          si2 = new SongIterator(*si);
-        else
-        { si2 = new SongIterator();
-          si2->SetRoot(new PlayableSlice(CurrentCache->GetPlayable()));
+        { if (si2)
+            *si2 = *si;
+          else
+          { si2 = new SongIterator(*si);
+            CurrentCache->SetStart(si2);
+          }
+        } else
+        { if (!si2) 
+          { si2 = new SongIterator();
+            si2->SetRoot(new PlayableSlice(CurrentCache->GetPlayable()));
+            CurrentCache->SetStart(si2);
+          } else
+            si2->SetRoot(new PlayableSlice(CurrentCache->GetPlayable()));
         }
         si2->SetLocation(Location);
-        CurrentCache->SetStart(si2);
-      } else if (si)
-        CurrentCache->SetStart(new SongIterator(*si));
+      } else
+        CurrentCache->SetStart(NULL);
       si = cep->GetStop();
       if (si)
-        CurrentCache->SetStop(new SongIterator(*si));
+      { // Dirty Hack: we modify CurrentCache->Stop by the backdoor to avoid unneccessary reallocations.
+        SongIterator* si2 = (SongIterator*)CurrentCache->GetStop();
+        if (si2)
+          *si2 = *si;
+        else
+          CurrentCache->SetStop(new SongIterator(*si));
+      } else
+        CurrentCache->SetStop(NULL);
     } else
       ((SongIterator*)this)->CurrentCache = cep->Item;
   }
@@ -483,7 +508,7 @@ bool SongIterator::PrevNextCore(void (SongIterator::*func)(), unsigned slice)
   ASSERT(Callstack->size() >= slice);
   ASSERT(GetList());
   MakeCallstackUnique();
-  CurrentCache = NULL;
+  InvalidateCurrentCache();
   // Do we have to enter a List first?
   if (Current()->GetPlayable()->GetFlags() & Playable::Enumerable)
   { Current()->GetPlayable()->EnsureInfo(Playable::IF_Other);
@@ -556,7 +581,7 @@ bool SongIterator::SetTimeOffset(T_TIME offset)
   { // Current is a playlist
     // Enter the playlist
     Enter();
-    CurrentCache = NULL;
+    InvalidateCurrentCache();
     // loop until we cross the offset
     { pp->EnsureInfo(Playable::IF_Other);
       // lock collection
@@ -614,7 +639,7 @@ bool SongIterator::Navigate(const xstring& url, int index)
       cep->Item = NULL; // Start over
     // Offsets structure slicing
     (Offsets&)*cep = (const Offsets&)*(*Callstack)[Callstack->size()-2];
-    CurrentCache = NULL;
+    InvalidateCurrentCache();
     /*// Speed up: start from back if closer to it
     if ((index<<1) > list->GetInfo().phys->num_items)
     { // iterate from behind
@@ -768,7 +793,7 @@ bool SongIterator::NavigateFlat(const xstring& url, int index)
       return false; // Error: Cannot navigate to recursive item
     }
     // do the navigation
-    CurrentCache = NULL;
+    InvalidateCurrentCache();
     size_t level = Callstack->size() -1;
     if (index > 0)
     { // forward lookup
@@ -848,7 +873,7 @@ bool SongIterator::Deserialize(const char*& str)
 { DEBUGLOG(("SongIterator(%p)::Deserialize(%s)\n", this, str));
   ASSERT(GetRoot());
   MakeCallstackUnique();
-  CurrentCache = NULL;
+  InvalidateCurrentCache();
   for (; *str; str += strspn(str, ";\r\n"))
   { PlayableSlice* pi = (*Callstack)[Callstack->size()-1]->Item;
     if (pi == NULL || (pi->GetPlayable()->GetFlags() & Playable::Enumerable))
