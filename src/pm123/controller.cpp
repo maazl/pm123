@@ -687,27 +687,6 @@ Ctrl::RC Ctrl::MsgRepeat(Op op)
   return RC_OK;
 }
 
-/*Ctrl::RC Ctrl::MsgStatus(PlayStatus* status)
-{ DEBUGLOG(("Ctrl::MsgStatus(%p)\n", status));
-  if (!PrefetchList.size())
-    return RC_NoSong; // no root
-
-  status->CurrentSongTime = FetchCurrentSongTime();
-  SongIterator& si = Current()->Iter;
-  status->CurrentSong     = si.GetCurrent()->GetPlayable()->GetFlags() == Playable::None
-                            ? (Song*)si.GetCurrent()->GetPlayable() : NULL;
-  if (status->CurrentSong)
-    status->TotalSongTime = status->CurrentSong->GetInfo().tech->songlength;
-  else
-    status->TotalSongTime = -1;
-  const SongIterator::Offsets& off = si.GetOffset();
-  status->CurrentItem     = off.Index;
-  status->TotalItems      = si.GetRoot()->GetPlayable()->GetInfo().tech->num_items;
-  status->CurrentTime     = off.Offset;
-  status->TotalTime       = si.GetRoot()->GetPlayable()->GetInfo().tech->songlength;
-  return RC_OK; 
-}*/
-
 Ctrl::RC Ctrl::MsgLocation(SongIterator* sip)
 { DEBUGLOG(("Ctrl::MsgLocation(...)\n"));
   if (!PrefetchList.size())
@@ -860,10 +839,6 @@ void Ctrl::Worker()
           ccp->Flags = MsgSave(ccp->StrArg);
           break;
           
-         /*case Cmd_Status:
-          ccp->Flags = MsgStatus((PlayStatus*)ccp->PtrArg);
-          break;*/
-         
          case Cmd_Location:
           ccp->Flags = MsgLocation((SongIterator*)ccp->PtrArg);
           break;

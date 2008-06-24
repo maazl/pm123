@@ -77,6 +77,13 @@
   <td bgcolor=#FFCCCC>open</td>
   <td>If the input and output codepage is different the ID3 tags are not turn around stable.
     This causes special characters to be destroyed when sving the tag.</td>
+</tr><tr>
+  <td bgcolor=#FFFFCC>todo</td>
+  <td bgcolor=#FFFFCC>medium</td>
+  <td>PM lock-up when slider is used while a worker thread gets information on a playlist.</td>
+  <td bgcolor=#FFCCCC>open</td>
+  <td>Thread 1 aquires playlist mutex when slider is used. Can cause SIQ locks.
+    Maybe the Worker should not lock the entire playlist while calculation tech infos.</td>
 </tr></table>
 </body>
 </html>

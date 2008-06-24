@@ -107,8 +107,6 @@ Equalize                       EQ_Data*                                Save stre
 ---------------------------------------------------------------------------------------------------------------
 Save       Filename                                                    Save stream of current decoder.
 ---------------------------------------------------------------------------------------------------------------
-Status                         PlayStatus*                             Fill PlayStatus structure.
----------------------------------------------------------------------------------------------------------------
 Location   out: Root URL       SongIterator*                           Set the iterator to the current location.
 ---------------------------------------------------------------------------------------------------------------
 DecStop                                                                The current decoder finished it's work.
@@ -144,7 +142,6 @@ class Ctrl
     Cmd_Repeat,
     Cmd_Save,
     // queries
-    //Cmd_Status,
     Cmd_Location,
     // internal events
     Cmd_DecStop,
@@ -173,16 +170,6 @@ class Ctrl
     RC_DecPlugErr,          // The decoder plug-in returnd an error.
     RC_InvalidItem          // Cannot load or play invalid object.
   };
-
-  /*struct PlayStatus
-  { int_ptr<Song>    CurrentSong;     // Currently active song
-    int              CurrentItem;     // index of the currently played song
-    int              TotalItems;      // total number of items in the queue
-    T_TIME           CurrentTime;     // current time index from the start of the queue excluding the currently loaded one
-    T_TIME           TotalTime;       // total time of all items in the queue
-    T_TIME           CurrentSongTime; // current time index in the current song
-    T_TIME           TotalSongTime;   // total time of the current song
-  };*/
 
   struct ControlCommand;
 
@@ -255,7 +242,6 @@ class Ctrl
   static queue<ControlCommand*> Queue;               // Command queue of the controller (all messages pass this queue)
   static TID                  WorkerTID;             // Thread ID of the worker
 
-  //static PlayStatus           Status;                // Temporary storage: result of MsgStatus
   static volatile unsigned    Pending;               // Pending events
   // These events are set atomically from any thread.
   // After each last message of a queued set of messages the events are raised and Pending is atomically reset.
@@ -341,7 +327,6 @@ class Ctrl
   static RC    MsgSave(const xstring& filename);
   static RC    MsgShuffle(Op op);
   static RC    MsgRepeat(Op op);
-  //static RC    MsgStatus(PlayStatus* status);
   static RC    MsgLocation(SongIterator* sip);
   static RC    MsgDecStop();
   static RC    MsgOutStop();
@@ -423,8 +408,6 @@ class Ctrl
   { return new ControlCommand(Cmd_Repeat, xstring(), 0., op); }
   static ControlCommand* MkSave(const xstring& filename)
   { return new ControlCommand(Cmd_Save, filename, 0., 0); }
-  /*static ControlCommand* MkStatus(PlayStatus* dest)
-  { return new ControlCommand(Cmd_Status, xstring(), dest, 0); }*/
   static ControlCommand* MkLocation(SongIterator* sip)
   { return new ControlCommand(Cmd_Location, xstring(), sip, 0); }
  private: // internal messages

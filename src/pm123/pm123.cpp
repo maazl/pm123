@@ -136,7 +136,7 @@ static Song*         CurrentSong = NULL; // Song from the current SongIterator
 static Playable*     CurrentRoot = NULL; // Root from the current SongIterator, may be == CurrentSong
 static bool          IsLocMsg    = false;// true if a MsgLocation to the controller is on the way
 static unsigned      UpdAtLocMsg = 0;    // do these redraws (with amp_invalidate) when the next Location info arrives
-static SongIterator  LocationIter[2];    // Two SongIterators. CurrentIter points to one of them.
+static SongIterator* LocationIter;       // Two SongIterators. CurrentIter points to one of them. (Initialized lately)
 
 static bool          Terminate   = false;// True when WM_QUIT arrived
 static PlaylistMenu* MenuWorker  = NULL; // Instance of PlaylistMenu to handle events of the context menu.
@@ -1586,6 +1586,10 @@ main2( void* arg )
     Ctrl::PostCommand(Ctrl::MkShuffle(Ctrl::Op_Set));
 
   Playable::Init();
+  
+  // Initialize the two songiterators for status updates.
+  // They must not be static to avoid initialization sequence problems.
+  LocationIter = new SongIterator[2];
 
   dk_init();
   dk_add_window( hframe, DK_IS_MASTER );
@@ -1683,10 +1687,9 @@ main2( void* arg )
   delete MenuWorker;
   // Eat user messages from the queue
   while (WinPeekMsg( hab, &qmsg, hframe, WM_USER, 0xbfff, PM_REMOVE));
-  LocationIter[0].SetRoot(NULL);
-  LocationIter[1].SetRoot(NULL);
   // TODO: save volume
   Ctrl::Uninit();
+  delete[] LocationIter;
 
   save_ini();
   amp_save_list(*DefaultBM);

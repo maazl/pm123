@@ -305,8 +305,8 @@ Playable::InfoFlags Playable::LoadInfo(InfoFlags what)
 }
 
 void Playable::EnsureInfo(InfoFlags what)
-{ DEBUGLOG(("Playable(%p{%s})::EnsureInfo(%x) - %x\n", this, GetURL().getShortName().cdata(), what, InfoValid));
-  InfoFlags i = CheckInfo(what);
+{ InfoFlags i = CheckInfo(what);
+  DEBUGLOG(("Playable(%p{%s})::EnsureInfo(%x) - %x, %x\n", this, GetURL().getShortName().cdata(), what, InfoValid, i));
   if (i)
   { { Lock lock(*this);
       i = CheckInfo(what);
