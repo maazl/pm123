@@ -41,14 +41,6 @@
 #define SB_PREAMP     1100
 #define ST_PREAMP     1110
 
-typedef struct BUFFERINFO
-{
-  MCI_MIX_BUFFER*  next;       /* cyclic linked list                          C* */
-  ULONG            playingpos; /* playing position of the buffer              Dm */
-  struct OS2AUDIO* a;          /* Pointer to the internal working set         C* */
-
-} BUFFERINFO;
-
 #define DEVICE_OPENING  1
 #define DEVICE_OPENED   2
 #define DEVICE_CLOSING  3
@@ -57,13 +49,16 @@ typedef struct BUFFERINFO
 
 typedef struct OS2AUDIO
 {
-  ULONG playingpos;   /* Playing position of the currently playing buffer     Md */
   int   device;       /*                                                      C  */
   int   lockdevice;   /*                                                      C  */
   int   numbuffers;   /* Suggested total audio buffers, bare minimum = 4      C  */
                       /* (see prio boost check).                                 */
   int   kludge48as44; /*                                                      C  */
   int   force8bit;    /*                                                      Cd */
+  int   low_water_mark;/* When the number of filled buffers reaches this      Cm
+                          the decoder thread is boosted.                         */
+  int   high_water_mark;/* When the number of buffers reaches this level      Cm
+                           the decoder thread returns to normal priority.        */
   int   buffersize;   /* Suggested size of the audio buffers.                 C  */
   int   volume;       /*                                                      C  */
   float amplifier;    /*                                                      C  */
@@ -92,10 +87,10 @@ typedef struct OS2AUDIO
   MCI_MIXSETUP_PARMS mci_mix;       /* Parameters of the audio mixer.         C* */
   MCI_BUFFER_PARMS   mci_buf_parms; /* Parameters of the audio buffers.       C* */
   MCI_MIX_BUFFER*    mci_buffers;   /* Audio buffers.                         C* */
-  BUFFERINFO*        mci_buff_info; /* Audio buffers additional information.  C* */
-  MCI_MIX_BUFFER*    mci_to_fill;   /* The buffer for a next portion of data. Dm */
-  MCI_MIX_BUFFER*    mci_is_play;   /* The buffer played now.                 Md */
-  ULONG              mci_time;      /* MCI time of the last played buffer     M  */
+  ULONG*             buf_positions; /* Playing position of the buffers.       Dm */
+  int                buf_to_fill;   /* The buffer for a next portion of data. Dm */
+  int                buf_is_play;   /* The buffer played now.                 Mdc*/
+  ULONG              mci_time;      /* MCI time of the last played buffer     Mc */
 
 } OS2AUDIO;
 
