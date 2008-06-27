@@ -62,11 +62,11 @@ load_ini( void )
 
   if(( INIhandle = open_module_ini()) != NULLHANDLE )
   {
-    load_ini_value( INIhandle, cfg.defaultvol );
     load_ini_value( INIhandle, cfg.playonload );
     load_ini_value( INIhandle, cfg.autouse );
     load_ini_value( INIhandle, cfg.retainonexit );
     load_ini_value( INIhandle, cfg.retainonstop );
+    load_ini_value( INIhandle, cfg.restartonstart );
     load_ini_value( INIhandle, cfg.altnavig );
     load_ini_value( INIhandle, cfg.recurse_dnd );
     load_ini_value( INIhandle, cfg.sort_folders );
@@ -181,11 +181,11 @@ save_ini( void )
 
   if(( INIhandle = open_module_ini()) != NULLHANDLE )
   {
-    save_ini_value( INIhandle, cfg.defaultvol );
     save_ini_value( INIhandle, cfg.playonload );
     save_ini_value( INIhandle, cfg.autouse );
     save_ini_value( INIhandle, cfg.retainonexit );
     save_ini_value( INIhandle, cfg.retainonstop );
+    save_ini_value( INIhandle, cfg.restartonstart );
     save_ini_value( INIhandle, cfg.altnavig );
     save_ini_value( INIhandle, cfg.recurse_dnd );
     save_ini_value( INIhandle, cfg.sort_folders );

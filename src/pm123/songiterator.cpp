@@ -278,7 +278,7 @@ PlayableSlice* SongIterator::GetCurrent() const
       CurrentCache->SetAlias(cep->Item->GetAlias());
       const SongIterator* si = cep->GetStart();
       if (Location || si)
-      { // Dirty Hack: we modify CurrentCache->Start by the backdoor to avoid unneccessary reallocations.
+      { // Dirty hack: we modify CurrentCache->Start by the backdoor to avoid unneccessary reallocations.
         SongIterator* si2 = (SongIterator*)CurrentCache->GetStart();
         if (si)
         { if (si2)
@@ -300,7 +300,7 @@ PlayableSlice* SongIterator::GetCurrent() const
         CurrentCache->SetStart(NULL);
       si = cep->GetStop();
       if (si)
-      { // Dirty Hack: we modify CurrentCache->Stop by the backdoor to avoid unneccessary reallocations.
+      { // Dirty hack: we modify CurrentCache->Stop by the backdoor to avoid unneccessary reallocations.
         SongIterator* si2 = (SongIterator*)CurrentCache->GetStop();
         if (si2)
           *si2 = *si;
@@ -851,19 +851,20 @@ xstring SongIterator::Serialize(bool withlocation) const
     if (Location < 0)
       *cp++ = '-';
     T_TIME loc = fabs(Location);
-    unsigned secs = (unsigned)loc;
+    unsigned long secs = (unsigned long)loc;
     if (secs >= 86400)
-      sprintf(cp, "%d:%02d:%02d", secs / 86400, secs / 3600 % 60, secs / 60 % 60);
+      sprintf(cp, "%ld:%02ld:%02ld", secs / 86400, secs / 3600 % 60, secs / 60 % 60);
     else if (secs > 3600)
-      sprintf(cp, "%d:%02d", secs / 3600, secs / 60 % 60);
+      sprintf(cp, "%ld:%02ld", secs / 3600, secs / 60 % 60);
     else
-      sprintf(cp, "%d", secs / 60);
+      sprintf(cp, "%ld", secs / 60);
     cp += strlen(cp);
-    sprintf(cp, ":%02d", secs % 60);
     loc -= secs;
     ASSERT(loc >= 0 && loc < 1);
     if (loc)
-      sprintf(cp+3, "%f", loc);
+      sprintf(cp+2, "%f", loc); // Dirty hack to remove the leading 0.
+    sprintf(cp, ":%02ld", secs % 60);
+    cp[3] = '.';
     ret = ret + buf;
   }
   return ret;

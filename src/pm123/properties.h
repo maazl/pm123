@@ -76,6 +76,7 @@ typedef struct _amp_cfg {
   BOOL   playonuse;           // Auto play on use playlist.
   BOOL   retainonexit;        // Retain playing position on exit.
   BOOL   retainonstop;        // Retain playing position on stop.
+  BOOL   restartonstart;      // Restart playing on startup.
   int    altnavig;            // Alternate navigation method 0=song only, 1=song&time, 2=time only
   BOOL   recurse_dnd;         // Drag and drop of folders recursive
   BOOL   sort_folders;        // Automatically sort filesystem folders (by name)
@@ -104,12 +105,10 @@ typedef struct _amp_cfg {
   int    dock_margin;         // The marging for docking window.
 
 // Player state
-  // TODO: buffers too small for URLs!!!
   char   filedir[_MAX_PATH];  /* The last directory used for addition of files.    */
   char   listdir[_MAX_PATH];  /* The last directory used for access to a playlist. */
   char   savedir[_MAX_PATH];  /* The last directory used for saving a stream.      */
 
-  int    defaultvol;          /* Current audio volume.                  */
   int    mode;                /* See CFG_MODE_*                         */
 
   BOOL   show_playlist;       /* Show playlist.                         */

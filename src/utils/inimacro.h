@@ -53,15 +53,15 @@ BOOL close_ini( HINI hini );
 
 /* Saves a numeric or boolean value to the specified profile file. */
 #define save_ini_value( hini, var ) \
-  PrfWriteProfileData ( hini, INI_SECTION, #var, &var, sizeof( var ));
+  PrfWriteProfileData ( hini, INI_SECTION, #var, &var, sizeof( var ))
 
 /* Saves a characters string to the specified profile file. */
 #define save_ini_string( hini, var ) \
-  PrfWriteProfileString( hini, INI_SECTION, #var, var );
+  PrfWriteProfileString( hini, INI_SECTION, #var, var )
 
 /* Saves a binary data to the specified profile file. */
 #define save_ini_data( hini, var, size ) \
-  PrfWriteProfileData( hini, INI_SECTION, #var, var, size );
+  PrfWriteProfileData( hini, INI_SECTION, #var, var, size )
 
 /* Loads a numeric or boolean value from the specified profile file. */
 #define load_ini_value( hini, var )                                  \
@@ -75,7 +75,7 @@ BOOL close_ini( HINI hini );
 
 /* Loads a characters string from the specified profile file. */
 #define load_ini_string( hini, var, size ) \
-  PrfQueryProfileString( hini, INI_SECTION, #var, NULL, var, size );
+  PrfQueryProfileString( hini, INI_SECTION, #var, NULL, var, size )
 
 /* Querys a size of the binary data saved to the specified profile file. */
 #define load_ini_data_size( hini, var, size )                        \

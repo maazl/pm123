@@ -115,7 +115,7 @@ static void
 output_boost_priority( OS2AUDIO* a )
 {
   if( a->drivethread && !a->boosted ) {
-    DEBUGLOG(( "os2audio: boosts priority of the driver thread %d.\n", a->drivethread ));
+    DEBUGLOG(( "os2audio: boosts priority of the driver thread %d to %d/%d.\n", a->drivethread, a->original_info.boostclass, a->original_info.boostdelta ));
     DosSetPriority( PRTYS_THREAD, a->original_info.boostclass,
                                   a->original_info.boostdelta, a->drivethread );
     a->boosted = TRUE;
@@ -127,7 +127,7 @@ static void
 output_normal_priority( OS2AUDIO* a )
 {
   if( a->drivethread && a->boosted ) {
-    DEBUGLOG(( "os2audio: normalizes priority of the driver thread %d.\n", a->drivethread ));
+    DEBUGLOG(( "os2audio: normalizes priority of the driver thread %d to %d/%d.\n", a->drivethread, a->original_info.normalclass, a->original_info.normaldelta ));
     DosSetPriority( PRTYS_THREAD, a->original_info.normalclass,
                                   a->original_info.normaldelta, a->drivethread );
     a->boosted = FALSE;
@@ -156,14 +156,11 @@ dart_event( ULONG status, MCI_MIX_BUFFER* buffer, ULONG flags )
     // Number of currently filled buffers.
     filled = ( a->buf_to_fill - a->buf_is_play ) % a->mci_buf_parms.ulNumBuffers;
     DEBUGLOG(("os2audio:dart_event: filled=%i time=%lu\n", filled, buffer->ulTime));
-    // If we're about to be short of decoder's data
-    // (2nd ahead buffer not filled), let's boost its priority!
+    // If we're about to be short of decoder's data, let's boost its priority!
     if( filled <= a->low_water_mark && !a->nomoredata ) {
       output_boost_priority(a);
-    } else
-    // If we're out of the water (5th ahead buffer filled),
-    // let's reduce the driver thread priority.
-    if( filled >= a->high_water_mark ) {
+    // If we're out of the water, let's reduce the driver thread priority.
+    } else if( filled >= a->high_water_mark ) {
       output_normal_priority( a );
     }
 
@@ -318,8 +315,8 @@ output_open( OS2AUDIO* a )
   a->numbuffers      = numbuffers;
   a->kludge48as44    = kludge48as44;
   a->force8bit       = force8bit;
-  a->low_water_mark  = 2; /* Hard coded so far... */
-  a->high_water_mark = 5; /* Hard coded so far... */ 
+  a->low_water_mark  = 4; /* Hard coded so far... */
+  a->high_water_mark = 7; /* Hard coded so far... */ 
   a->mci_device_id   = 0;
   a->drivethread     = 0;
   a->boosted         = FALSE;
@@ -1046,7 +1043,7 @@ cfg_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
       lb_add_item( hwnd, CB_RG_TYPE, "Prefer track gain and prevent clipping" );
       lb_select  ( hwnd, CB_RG_TYPE, rg_type );
 
-      WinSendDlgItemMsg( hwnd, SB_BUFFERS, SPBM_SETLIMITS, MPFROMLONG( 200 ), MPFROMLONG( 5 ));
+      WinSendDlgItemMsg( hwnd, SB_BUFFERS, SPBM_SETLIMITS, MPFROMLONG( 200 ), MPFROMLONG( 8 ));
       WinSendDlgItemMsg( hwnd, SB_BUFFERS, SPBM_SETCURRENTVALUE, MPFROMLONG( numbuffers ), 0 );
 
       WinEnableControl( hwnd, CB_RG_TYPE,   enable_rg );

@@ -33,12 +33,36 @@
 #include "properties.h"
 #include "pm123.h"
 
+#include <inimacro.h>
 #include <cpp/mutex.h>
 #include <cpp/xstring.h>
 
 #include <limits.h>
 
 
+/* Ini file stuff, a bit dirty */
+
+struct ctrl_state
+{ double  volume;        // Position of the volume slider
+  BOOL    shf;           // The state of the "Shuffle" button.
+  BOOL    rpt;           // The state of the "Repeat" button.
+  xstring current_root;  // The currently loaded root.
+  xstring current_iter;  // The current location within the root.
+  BOOL    was_playing;   // Restart playback on start-up
+  ctrl_state() : volume(-1), shf(FALSE), rpt(FALSE) {}
+};
+
+void prf_query_xstring( HINI hini, const char* app, const char* key, xstring& var )
+{ ULONG len;
+  if (PrfQueryProfileSize( hini, app, key, &len ))
+  { char* dst = var.raw_init(++len);
+    PrfQueryProfileString( hini, app, key, NULL, dst, len );
+  }
+}
+
+#define load_ini_xstring( hini, var ) \
+  prf_query_xstring( hini, INI_SECTION, #var, var )
+                                             
 /****************************************************************************
 *
 *  class Ctrl
@@ -890,42 +914,68 @@ void Ctrl::Init()
   out_event += OutEventDelegate;
   WorkerTID = _beginthread(&ControllerWorkerStub, NULL, 262144, NULL);
   ASSERT((int)WorkerTID != -1);
-  // TODO: reasonable INI class
-  struct
-  { BOOL   shf;                 /* The state of the "Shuffle" button.     */
-    BOOL   rpt;                 /* The state of the "Repeat" button.      */
-  } cfg = { Shuffle, Repeat };
+  // load the state
+  ctrl_state state;
   HINI hini = open_module_ini();
-  load_ini_value(hini, cfg.shf);
-  load_ini_value(hini, cfg.rpt);
+  load_ini_value(hini, state.volume);
+  load_ini_value(hini, state.shf);
+  load_ini_value(hini, state.rpt);
+  load_ini_xstring(hini, state.current_root);
+  load_ini_xstring(hini, state.current_iter);
+  load_ini_value(hini, state.was_playing);
   close_ini(hini);
-  Shuffle = !!cfg.shf;
-  Repeat = !!cfg.rpt;
+  PostCommand(MkShuffle(state.shf ? Op_Set : Op_Clear));
+  PostCommand(MkRepeat(state.rpt ? Op_Set : Op_Clear));
+  if (state.volume >= 0)
+    PostCommand(MkVolume(state.volume, false));
+  if (state.current_root)
+  { ControlCommand* head = MkLoad(state.current_root, false);
+    ControlCommand* tail = head;
+    if (state.current_iter)
+      tail = tail->Link = MkNavigate(state.current_iter, 0, true, true);
+    if (cfg.restartonstart && state.was_playing)
+      tail = tail->Link = MkPlayStop(Op_Set);
+    PostCommand(head);
+  }
 }
 
 void Ctrl::Uninit()
 { DEBUGLOG(("Ctrl::Uninit()\n"));
+  ctrl_state state;
+  state.volume = GetVolume();
+  state.was_playing = IsPlaying();
+  SongIterator last; // last playing location
   { Mutex::Lock l(Queue.Mtx);
     Queue.Purge();
+    PostCommand(MkLocation(&last));
     PostCommand(MkLoad(xstring(), 0));
     PostCommand(NULL);
     DecEventDelegate.detach();
     OutEventDelegate.detach();
   }
-  // TODO: reasonable INI class
-  struct
-  { BOOL   shf;                 /* The state of the "Shuffle" button.     */
-    BOOL   rpt;                 /* The state of the "Repeat" button.      */
-  } cfg = { Shuffle, Repeat };
-  HINI hini = open_module_ini();
-  save_ini_value(hini, cfg.shf);
-  save_ini_value(hini, cfg.rpt);
-  close_ini(hini);
-
   if (WorkerTID != 0)
     wait_thread_pm(amp_player_hab(), WorkerTID, 30000);
+
+  // save the state
+  state.shf = IsShuffle();
+  state.rpt = IsRepeat();
+  if (last.GetRoot())
+  { state.current_root = last.GetRoot()->GetPlayable()->GetURL();
+    state.current_iter = last.Serialize(!!cfg.retainonexit);
+    DEBUGLOG(("last_loc: %s %s\n", state.current_root.cdata(), state.current_iter.cdata()));
+  }
+  HINI hini = open_module_ini();
+  save_ini_value(hini, state.volume);
+  save_ini_value(hini, state.shf);
+  save_ini_value(hini, state.rpt);
+  save_ini_string(hini, state.current_root);
+  save_ini_string(hini, state.current_iter);
+  save_ini_value(hini, state.was_playing);
+  close_ini(hini);
+
   // Now delete everything
   PrefetchClear(false);
+
   DEBUGLOG(("CtrlUninit complete\n"));
 }
 

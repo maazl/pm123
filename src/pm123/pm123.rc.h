@@ -263,6 +263,7 @@
 #define ST_RETAINPOS       1304
 #define CB_RETAINONEXIT    1305
 #define CB_RETAINONSTOP    1306
+#define CB_RESTARTONSTART  1307
 #define GB_PLAYLIST        1320
 #define CB_AUTOUSEPL       1321
 #define CB_AUTOPLAYPL      1322

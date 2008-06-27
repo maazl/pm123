@@ -462,14 +462,15 @@ MENU MNU_MAIN
   MENUITEM "~Float on Top",                IDM_M_FLOAT
   MENUITEM "~Hide Window",                 IDM_M_MINIMIZE
   MENUITEM SEPARATOR
-  MENUITEM "~Quit\tAlt+F4",                BMP_POWER
+  MENUITEM "~Help",                        IDH_MAIN, MIS_HELP
+  MENUITEM "~Quit",                        BMP_POWER
 }
 
 HELPTABLE HLP_MAIN
 { HELPITEM WIN_MAIN,      HLP_MAIN_TABLE, IDH_MAIN_WINDOW
   HELPITEM DLG_URL,       HLP_NULL_TABLE, IDH_MAIN
   HELPITEM DLG_CONFIG,    HLP_NULL_TABLE, IDH_PROPERTIES
-  HELPITEM DLG_BM_ADD,    HLP_NULL_TABLE, IDH_MAIN
+  HELPITEM DLG_BM_ADD,    HLP_NULL_TABLE, IDH_BOOKMARK
   HELPITEM DLG_PLAYLIST,  HLP_NULL_TABLE, IDH_PL
   HELPITEM DLG_PM,        HLP_NULL_TABLE, IDH_PM
   HELPITEM DLG_INFO,      HLP_NULL_TABLE, IDH_MAIN
@@ -546,10 +547,11 @@ BEGIN
   DIALOG "", CFG_SETTINGS1, 0, 0, 260, 148, NOT FS_DLGBORDER|FS_NOBYTEALIGN
     PRESPARAMS PP_FONTNAMESIZE "8.Helv"
   BEGIN
-    GROUPBOX     " Behaviour ",                                            GB_BEHAVIOUR,      4,  90, 248, 36, NOT WS_TABSTOP|WS_GROUP
+    GROUPBOX     " Behaviour ",                                            GB_BEHAVIOUR,      4,  90, 248, 48, NOT WS_TABSTOP|WS_GROUP
       PRESPARAMS PP_FONTNAMESIZE "9.WarpSans Bold"
+    AUTOCHECKBOX "~Trash buffers on fast forward/rewind",                  CB_TRASHONSCAN,   12, 118, 232, 12
     AUTOCHECKBOX "~Start playing on file load",                            CB_PLAYONLOAD,    12, 106, 112, 12
-    AUTOCHECKBOX "~Trash buffers on fast forward/rewind",                  CB_TRASHONSCAN,  132, 106, 112, 12
+    AUTOCHECKBOX "Restart playing on start-up",                            CB_RESTARTONSTART,132,106, 112, 12
     LTEXT        "Retain playing position:",                               ST_RETAINPOS,     12,  94, 112, 12, DT_VCENTER
       PRESPARAMS PP_FOREGROUNDCOLORINDEX , SYSCLR_WINDOWTEXT
     AUTOCHECKBOX "on e~xit",                                               CB_RETAINONEXIT, 132,  94,  52, 12

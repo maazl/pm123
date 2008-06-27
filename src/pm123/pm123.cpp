@@ -1299,6 +1299,10 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
       amp_load_playable(*(PlayableSlice*)PVOIDFROMMP(mp1), AMP_LOAD_NOT_RECALL|AMP_LOAD_KEEP_PLAYLIST);
     }
 
+    case WM_HELP:
+     DEBUGLOG(("amp_dlg_proc: WM_HELP(%u, %u, %u)\n", SHORT1FROMMP(mp1), SHORT1FROMMP(mp2), SHORT2FROMMP(mp2)));
+     break;
+
     case WM_CREATE:
     {
       HPS hps;
@@ -1310,13 +1314,6 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
 
       if( cfg.floatontop ) {
         WinStartTimer( hab, hwnd, TID_ONTOP, 100 );
-      }
-
-      if( Ctrl::IsRepeat() ) {
-        WinSendDlgItemMsg( hwnd, BMP_REPEAT,  WM_PRESS, 0, 0 );
-      }
-      if( Ctrl::IsShuffle() ) {
-        WinSendDlgItemMsg( hwnd, BMP_SHUFFLE, WM_PRESS, 0, 0 );
       }
 
       WinStartTimer( hab, hwnd, TID_UPDATE_TIMERS,  80 );
@@ -1580,13 +1577,15 @@ main2( void* arg )
   delegate<void, const PLUGIN_EVENTARGS> plugin_delegate(plugin_event, &amp_plugin_eventhandler);
   PMRASSERT( WinPostMsg( hframe, AMP_REFRESH_ACCEL, 0, 0 )); // load accelerators
 
+  Playable::Init();
+  
+  // register control event handler
+  delegate<void, const Ctrl::EventFlags> ctrl_delegate(Ctrl::ChangeEvent, &amp_control_event_handler);
   // start controller
   Ctrl::Init();
   if ( is_arg_shuffle )
     Ctrl::PostCommand(Ctrl::MkShuffle(Ctrl::Op_Set));
 
-  Playable::Init();
-  
   // Initialize the two songiterators for status updates.
   // They must not be static to avoid initialization sequence problems.
   LocationIter = new SongIterator[2];
@@ -1600,9 +1599,6 @@ main2( void* arg )
 
   strcpy( bundle, startpath   );
   strcat( bundle, "pm123.lst" );
-
-  // register control event handler
-  delegate<void, const Ctrl::EventFlags> ctrl_delegate(Ctrl::ChangeEvent, &amp_control_event_handler);
 
   if( files == 1 && !is_dir( argv[argc - 1] )) {
     amp_load_playable(PlayableSlice(url123::normalizeURL(argv[argc - 1])), 0 );

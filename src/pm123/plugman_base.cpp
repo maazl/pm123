@@ -60,10 +60,12 @@
 
 
 /* thread priorities for decoder thread */
+/*#define  DECODER_HIGH_PRIORITY_CLASS PRTYC_TIMECRITICAL
+#define  DECODER_HIGH_PRIORITY_DELTA 0*/
 #define  DECODER_HIGH_PRIORITY_CLASS PRTYC_FOREGROUNDSERVER // sorry, we should not lockup the system with time-critical priority
 #define  DECODER_HIGH_PRIORITY_DELTA 20
-#define  DECODER_LOW_PRIORITY_CLASS  PRTYC_REGULAR
-#define  DECODER_LOW_PRIORITY_DELTA  1
+#define  DECODER_LOW_PRIORITY_CLASS  PRTYC_FOREGROUNDSERVER
+#define  DECODER_LOW_PRIORITY_DELTA  0
 
 
 #define DO_8(p,x) \

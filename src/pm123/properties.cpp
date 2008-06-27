@@ -64,6 +64,7 @@ const amp_cfg cfg_default =
   TRUE,
   TRUE,
   FALSE,
+  FALSE,
   CFG_ANAV_SONG,
   TRUE, // recurse_dnd
   TRUE,
@@ -94,7 +95,6 @@ const amp_cfg cfg_default =
   "",
   "",
   "",
-  100, // volume
   CFG_MODE_REGULAR,
   FALSE,
   FALSE,
@@ -191,6 +191,7 @@ cfg_settings1_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
       WinCheckButton( hwnd, CB_TRASHONSCAN,   cfg.trash        );
       WinCheckButton( hwnd, CB_RETAINONEXIT,  cfg.retainonexit );
       WinCheckButton( hwnd, CB_RETAINONSTOP,  cfg.retainonstop );
+      WinCheckButton( hwnd, CB_RESTARTONSTART,cfg.restartonstart);
       
       WinCheckButton( hwnd, CB_AUTOUSEPL,     cfg.autouse      );
       WinCheckButton( hwnd, CB_AUTOPLAYPL,    cfg.playonuse    );
@@ -213,6 +214,7 @@ cfg_settings1_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
       cfg.trash       = WinQueryButtonCheckstate( hwnd, CB_TRASHONSCAN  );
       cfg.retainonexit= WinQueryButtonCheckstate( hwnd, CB_RETAINONEXIT );
       cfg.retainonstop= WinQueryButtonCheckstate( hwnd, CB_RETAINONSTOP );
+      cfg.restartonstart= WinQueryButtonCheckstate( hwnd, CB_RESTARTONSTART);
       
       cfg.autouse     = WinQueryButtonCheckstate( hwnd, CB_AUTOUSEPL    );
       cfg.playonuse   = WinQueryButtonCheckstate( hwnd, CB_AUTOPLAYPL   );
