@@ -88,6 +88,8 @@ event<const Ctrl::EventFlags> Ctrl::ChangeEvent;
 delegate<void, const dec_event_args>        Ctrl::DecEventDelegate(&Ctrl::DecEventHandler);
 delegate<void, const OUTEVENTTYPE>          Ctrl::OutEventDelegate(&Ctrl::OutEventHandler);
 delegate<void, const Playable::change_args> Ctrl::CurrentSongDelegate(&Ctrl::CurrentSongEventHandler);
+delegate<void, const Playable::change_args> Ctrl::CurrentRootDelegate(&Ctrl::CurrentRootEventHandler);
+delegate<void, const int>                   Ctrl::SongIteratorDelegate(&Ctrl::SongIteratorEventHandler);
 
 const SongIterator::CallstackType Ctrl::EmptyStack(1);
 
@@ -309,11 +311,10 @@ Ctrl::RC Ctrl::NavigateCore(SongIterator& si)
   }
   // Events
   UpdateStackUsage(si.GetCallstack(), Current()->Iter.GetCallstack());
-  InterlockedOr(Pending, EV_Song|EV_Phys|EV_Tech|EV_Meta);
+  InterlockedOr(Pending, EV_SongAll);
   // track updates
   PlayableSlice* ps = Current()->Iter.GetCurrent();
-  if (ps)
-    ps->GetPlayable()->InfoChange += CurrentSongDelegate;
+  AttachCurrentSong(ps);
 
   // restart decoder immediately?
   if (Playing && ps)
@@ -325,6 +326,14 @@ Ctrl::RC Ctrl::NavigateCore(SongIterator& si)
     }
   }
   return RC_OK;
+}
+
+void Ctrl::AttachCurrentSong(PlayableSlice* ps)
+{ DEBUGLOG(("Ctrl::AttachCurrentSong(%p)\n", ps));
+  if (ps)
+  { ps->GetPlayable()->EnsureInfoAsync(Playable::IF_Format|Playable::IF_Tech|Playable::IF_Meta|Playable::IF_Phys);
+    ps->GetPlayable()->InfoChange += CurrentSongDelegate;
+  }
 }
 
 void Ctrl::PrefetchClear(bool keep)
@@ -348,16 +357,22 @@ void Ctrl::CheckPrefetch(double pos)
     { // At least one prefetched item has been played completely.
       CurrentSongDelegate.detach();
       UpdateStackUsage(Current()->Iter.GetCallstack(), PrefetchList[n]->Iter.GetCallstack());
-      Current()->Iter.GetCurrent()->GetPlayable()->InfoChange += CurrentSongDelegate;
       // Set events
-      InterlockedOr(Pending, EV_Song|EV_Phys|EV_Tech|EV_Meta);
+      InterlockedOr(Pending, EV_SongAll);
       // Cleanup prefetch list
       vector<PrefetchEntry> ped(n);
       { Mutex::Lock lock(PLMtx);
+        // detach the songiterator event
+        SongIteratorDelegate.detach();
         do
           ped.append() = PrefetchList.erase(--n);
         while (n);
+        // attach the songiterator delegate to the new head
+        Current()->Iter.Change += SongIteratorDelegate;
       }
+      // Now keep track of the next entry
+      AttachCurrentSong(Current()->Iter.GetCurrent());
+
       // delete iterators and remove from play queue (if desired)
       Playlist* plp = NULL;
       if (cfg.queue_mode && (Current()->Iter.GetRoot()->GetPlayable()->GetFlags() & Playable::Mutable) == Playable::Mutable)
@@ -434,11 +449,31 @@ void Ctrl::CurrentSongEventHandler(void*, const Playable::change_args& args)
 { DEBUGLOG(("Ctrl::CurrentSongEventHandler(, {%p{%s}, %x})\n", &args.Instance, args.Instance.GetURL().cdata(), args.Flags));
   if (GetCurrentSong() != &args.Instance)
     return; // too late...
-  EventFlags events = (EventFlags)((int)(args.Flags & (Playable::IF_Tech|Playable::IF_Meta|Playable::IF_Phys|Playable::IF_Rpl)) * (int)EV_Tech / Playable::IF_Tech);
+  EventFlags events = (EventFlags)( (int)(args.Flags & (Playable::IF_Tech|Playable::IF_Meta|Playable::IF_Phys))
+                                  / Playable::IF_Tech * (int)EV_SongTech ); // Dirty hack to shift the bits to match EV_Song*
   if (events)
   { InterlockedOr(Pending, events);
     PostCommand(MkNop());
   }  
+}
+
+void Ctrl::CurrentRootEventHandler(void*, const Playable::change_args& args)
+{ DEBUGLOG(("Ctrl::CurrentRootEventHandler(, {%p{%s}, %x})\n", &args.Instance, args.Instance.GetURL().cdata(), args.Flags));
+  if (GetRoot()->GetPlayable() != &args.Instance)
+    return; // too late...
+  EventFlags events = (EventFlags)( (int)(args.Flags & (Playable::IF_Tech|Playable::IF_Meta|Playable::IF_Phys))
+                                  / Playable::IF_Tech * (int)EV_RootTech ); // Dirty hack to shift the bits to match EV_Root*
+  if (events)
+  { InterlockedOr(Pending, events);
+    PostCommand(MkNop());
+  }  
+}
+
+void Ctrl::SongIteratorEventHandler(void*, const& i)
+{ DEBUGLOG(("Ctrl::SongIteratorEventHandler(,)\n"));
+  // Currently there is no other event dispatched by the SongIterator.
+  InterlockedOr(Pending, EV_Offset);
+  PostCommand(MkNop());
 }
 
 /* Suspends or resumes playback of the currently played file. */
@@ -629,8 +664,22 @@ Ctrl::RC Ctrl::MsgSkip(int count, bool relative)
   // Navigation
   SongIterator si = Current()->Iter; // work on a temporary object => copy constructor
   if (!SkipCore(si, count, relative))
-    // TODO: configurable turn around option
+  { if (cfg.autoturnaround)
+    { si.Reset();
+      switch (count)
+      {case 1:
+        if (si.Next())
+          goto ok;
+        break;
+       case -1:
+        if (si.Prev())
+          goto ok;
+        break;
+      }
+    }   
     return RC_EndOfList;
+  }
+ ok:
   // commit
   return NavigateCore(si);
 }
@@ -644,6 +693,7 @@ Ctrl::RC Ctrl::MsgLoad(const xstring& url, int flags)
 
   // detach
   CurrentSongDelegate.detach();
+  CurrentRootDelegate.detach();
   if (PrefetchList.size())
   { UpdateStackUsage(Current()->Iter.GetCallstack(), EmptyStack);
     Current()->Iter.GetRoot()->GetPlayable()->SetInUse(false);
@@ -663,18 +713,22 @@ Ctrl::RC Ctrl::MsgLoad(const xstring& url, int flags)
     { Mutex::Lock lock(PLMtx);
       PrefetchList.append() = new PrefetchEntry();
       Current()->Iter.SetRoot(new PlayableSlice(play));
+      // assign change event handler
+      Current()->Iter.Change += SongIteratorDelegate;
     }
     play->SetInUse(true);
+    // Track root changes
+    play->InfoChange += CurrentRootDelegate;
     // Move always to the first element if a playlist.
     AdjustNext(Current()->Iter);
     // track changes
     PlayableSlice* ps = Current()->Iter.GetCurrent();
     if (ps)
     { UpdateStackUsage(EmptyStack, Current()->Iter.GetCallstack());
-      ps->GetPlayable()->InfoChange += CurrentSongDelegate;
+      AttachCurrentSong(ps);
     }
   }
-  InterlockedOr(Pending, EV_Root|EV_Song|EV_Phys|EV_Tech|EV_Meta);
+  InterlockedOr(Pending, EV_RootAll|EV_SongAll);
   DEBUGLOG(("Ctrl::MsgLoad - attached\n"));
 
   return RC_OK;
@@ -768,6 +822,10 @@ Ctrl::RC Ctrl::MsgDecStop()
     InterlockedOr(Pending, EV_PlayStop);
     return RC_DecPlugErr;
   }
+  
+  // Once the player arrives the prefetched item it requests some information.
+  // Let's try to prefetch this information at low priority to avoid latencies.
+  ps->GetPlayable()->EnsureInfoAsync(Playable::IF_Format|Playable::IF_Tech|Playable::IF_Meta|Playable::IF_Phys, true);
   
   // In rewind mode we continue to rewind from the end of the prevois song.
   // TODO: Location problem.

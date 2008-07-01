@@ -46,48 +46,48 @@
 *
 ****************************************************************************/
 
-void SongIterator::Offsets::Add(const PlayableCollection::CollectionInfo& r)
-{ Index += r.Items;
+void SongIterator::Offsets::Add(int index, T_TIME offset)
+{ Index += index;
   if (Offset >= 0)
-  { if (r.Songlength < 0)
+  { if (offset < 0)
       Offset = -1;
     else
-      Offset += r.Songlength;
+      Offset += offset;
   }
 }
 
-void SongIterator::Offsets::Sub(const PlayableCollection::CollectionInfo& r)
-{ Index -= r.Items;
+void SongIterator::Offsets::Sub(int index, T_TIME offset)
+{ Index -= index;
   if (Offset >= 0)
-  { if (r.Songlength < 0)
+  { if (offset < 0)
       Offset = -1;
     else
-      Offset -= r.Songlength;
+      Offset -= offset;
   }
+}
+
+SongIterator::CallstackEntry::CallstackEntry(const PlayableSet& exc)
+: OffValid(true),
+  Exclude(exc)
+{ DEBUGLOG(("SongIterator::CallstackEntry(%p)::CallstackEntry(&%p{%u,...})\n", this, &exc, exc.size()));
 }
 
 SongIterator::CallstackEntry::CallstackEntry(const CallstackEntry& r)
-: SongIterator::Offsets(r),
+: Off(r.Off),
+  OffValid(r.OffValid),
   Item(r.Item),
   Exclude(r.Exclude)
-{ if (r.OverrideStart != NULL)
+{ DEBUGLOG(("SongIterator::CallstackEntry(%p)::CallstackEntry(&%p)\n", &r));
+  if (r.OverrideStart != NULL)
     OverrideStart = new SongIterator(*r.OverrideStart);
   if (r.OverrideStop != NULL)
     OverrideStop = new SongIterator(*r.OverrideStop);
 }
 
-SongIterator::CallstackEntry::CallstackEntry(const Offsets& off, const PlayableSet& exc, Playable* add)
-: SongIterator::Offsets(off),
-  Exclude(exc)
-{ DEBUGLOG(("SongIterator::CallstackEntry(%p)::CallstackEntry({%i, %f}, &%p{%u,...}, %p)\n", this, off.Index, off.Offset, &exc, exc.size(), add));
-  Exclude.append() = add;
-}
-
 void SongIterator::CallstackEntry::Swap(CallstackEntry& r)
-{ Offsets off = *this;
-  (Offsets&)*this = r;
-  (Offsets&)r = off;
-  Item.swap(r.Item);
+{ Item.swap(r.Item);
+  swap(Off, r.Off);
+  swap((bool&)OffValid, (bool&)r.OffValid);
   Exclude.swap(r.Exclude);
   OverrideStart.swap(r.OverrideStart);
   OverrideStop.swap(r.OverrideStop);
@@ -95,11 +95,24 @@ void SongIterator::CallstackEntry::Swap(CallstackEntry& r)
 
 void SongIterator::CallstackEntry::Reset()
 { Item          = NULL;
+  Off.Index     = 0;
+  Off.Offset    = 0;
   OverrideStart = NULL;
   OverrideStop  = NULL;
 }
 
-// TODO: Recalculate offsets if the techinfo changes
+void SongIterator::CallstackEntry::Assign(PlayableSlice* pc, Playable* exclude)
+{ DEBUGLOG(("SongIterator::CallstackEntry(%p)::Assign(%p, %p)\n", this, pc, exclude));
+  Item          = pc;
+  Off.Index     = 0;
+  Off.Offset    = 0;
+  OverrideStart = NULL;
+  OverrideStop  = NULL;
+  Exclude.clear();
+  if (exclude)
+    Exclude.append() = exclude;
+}
+
 PlayableCollection::CollectionInfo SongIterator::CallstackEntry::GetInfo() const
 { PlayableCollection::CollectionInfo ret;
   ret.Filesize = -1; // not supported by this function
@@ -140,12 +153,24 @@ PlayableCollection::CollectionInfo SongIterator::CallstackEntry::GetInfo() const
   return ret;
 }
 
-SongIterator::CallstackType::~CallstackType()
-{ DEBUGLOG(("SongIterator::CallstackType(%p)::~CallstackType()\n", this));
-  // destroy callstack entries
-  for (CallstackEntry** p = begin(); p != end(); ++p)
-    delete *p;
+SongIterator::CallstackSubFactory::CallstackSubFactory(const CallstackEntry& parent)
+: SongIterator::CallstackEntry(parent.GetExclude())
+{ ASSERT(parent.Item);
+  Playable* pp = parent.Item->GetPlayable();
+  ASSERT(pp->GetFlags() & Playable::Enumerable);
+  Exclude.get(*pp) = pp;
 }
+
+SongIterator::CallstackSubEntry::CallstackSubEntry(const CallstackSubEntry& r, SongIterator& owner)
+: SongIterator::CallstackSubFactory(r),
+  ChangeDeleg(*r.ChangeDeleg.get_event(), owner, &SongIterator::ListChangeHandler, this)
+{}
+
+SongIterator::CallstackSubEntry::CallstackSubEntry(SongIterator& owner, const CallstackEntry& parent)
+: SongIterator::CallstackSubFactory(parent),
+  ChangeDeleg(((PlayableCollection&)*parent.Item->GetPlayable()).CollectionChange, owner, &SongIterator::ListChangeHandler, this)
+{}
+
 
 // In fact static constructor of SongIterator::InitialCallstack.
 SongIterator::InitialCallstackType::InitialCallstackType()
@@ -157,8 +182,6 @@ SongIterator::InitialCallstackType::InitialCallstackType()
   ptr.toCptr();
 }
 
-
-const SongIterator::Offsets SongIterator::ZeroOffsets(1, 0);
 SongIterator::InitialCallstackType SongIterator::InitialCallstack;
 
 
@@ -187,8 +210,10 @@ SongIterator::SongIterator(const SongIterator& r, unsigned slice)
   if (slice)
   { Callstack = new CallstackType(r.Callstack->size() - slice > 4 ? r.Callstack->size() - slice + 4 : 8);
     // copy callstack
-    for (const CallstackEntry*const* ppce = r.Callstack->begin() + slice; ppce != r.Callstack->end(); ++ppce)
-      Callstack->append() = new CallstackEntry(**ppce);
+    const CallstackEntry*const* ppce = r.Callstack->begin() + slice;
+    Callstack->append() = new CallstackEntry(**ppce);
+    while (++ppce != r.Callstack->end())
+      Callstack->append() = new CallstackSubEntry((CallstackSubEntry&)**ppce, *this);
     // TODO: do we need to remove the non copied callstack entries from exclude?
   } else
     Callstack = r.Callstack;
@@ -234,8 +259,10 @@ void SongIterator::MakeCallstackUnique()
   // create new callstack
   CallstackType* newstack = new CallstackType(max(Callstack->size(), 8));
   // copy callstack
-  for (const CallstackEntry*const* ppce = Callstack->begin(); ppce != Callstack->end(); ++ppce)
-    newstack->append() = new CallstackEntry(**ppce);
+  const CallstackEntry*const* ppce = Callstack->begin();
+  newstack->append() = new CallstackEntry(**ppce);
+  while (++ppce != Callstack->end())
+    newstack->append() = new CallstackSubEntry((CallstackSubEntry&)**ppce, *this);
   // replace by unique copy
   Callstack = newstack;
 }
@@ -257,12 +284,7 @@ void SongIterator::SetRoot(PlayableSlice* pc, Playable* exclude)
 { DEBUGLOG(("SongIterator(%p)::SetRoot(%p, %p)\n", this, pc, exclude));
   MakeCallstackUnique();
   Reset();
-  CallstackEntry* cep = (*Callstack)[0];
-  cep->Item = pc;
-  cep->Exclude.clear();
-  if (exclude)
-    cep->Exclude.append() = exclude;
-  // The offsets of the root node are zero anyway.
+  (*Callstack)[0]->Assign(pc, exclude);
 }
 
 PlayableSlice* SongIterator::GetCurrent() const
@@ -319,11 +341,9 @@ void SongIterator::Enter()
   PlayableSlice* psp = Current(); // The ownership is held anyway by the callstack object.
   ASSERT(psp != NULL);
   ASSERT(psp->GetPlayable()->GetFlags() & Playable::Enumerable);
-  CallstackEntry* cep = (*Callstack)[Callstack->size()-1];
   // We must do this in two steps, because of the side effects of Callstack.append().
-  cep = cep->CreateSubEntry();
-  // push
-  Callstack->append() = cep;
+  CallstackEntry* cep = (*Callstack)[Callstack->size()-1];
+  Callstack->append() = new CallstackSubEntry(*this, *cep);
   Location = 0;
 }
 
@@ -372,13 +392,14 @@ void SongIterator::PrevCore()
     { // move to the last item
       pce->Item = ((PlayableCollection*)pce2->Item->GetPlayable())->GetPrev(NULL);
     }
-    // derive offsets
-    (Offsets&)*pce = *pce2;
-    // calc from the end
-    // += length(parent)
-    pce->Add(pce2->GetInfo());
-    // -= length(current)
-    pce->Sub(pce->GetInfo());
+    if (pce->OffValid)
+    { // calc from the end
+      pce->Off.Reset();
+      // += length(parent)
+      pce->Off += pce2->GetInfo();
+      // -= length(current)
+      pce->Off -= pce->GetInfo();
+    }
   } else
   { // The fact that we had a overridden start iterator
     // is suficcient to know that we do not need to look for further items.
@@ -389,8 +410,8 @@ void SongIterator::PrevCore()
     // move to the previous item
     pce->Item = ((PlayableCollection*)pce2->Item->GetPlayable())->GetPrev((PlayableInstance*)pce->Item.get());
     // calc offsets
-    if (pce->Item)
-      pce->Sub(pce->GetInfo());
+    if (pce->OffValid && pce->Item)
+      pce->Off -= pce->GetInfo();
   }
 
   // Skip objects in the callstack
@@ -449,8 +470,9 @@ void SongIterator::NextCore()
     { // move to the first item
       pce->Item = ((PlayableCollection*)pce2->Item->GetPlayable())->GetNext(NULL);
     }
-    // derive offsets
-    (Offsets&)*pce = *pce2;
+    // clear offsets
+    pce->Off.Reset();
+    pce->OffValid = true; // this is cheap
   } else
   { // The fact that we had a overridden stop iterator
     // is suficcient to know that we do not need to look for further items.
@@ -459,7 +481,8 @@ void SongIterator::NextCore()
       return;
     }
     // calc offsets
-    pce->Add(pce->GetInfo());
+    if (pce->OffValid)
+      pce->Off += pce->GetInfo();
     // move to the next item
     pce->Item = ((PlayableCollection*)pce2->Item->GetPlayable())->GetNext((PlayableInstance*)pce->Item.get());
   }
@@ -518,7 +541,7 @@ bool SongIterator::PrevNextCore(void (SongIterator::*func)(), unsigned slice)
   { (this->*func)();
     CallstackEntry* pce = (*Callstack)[Callstack->size()-1];
     const PlayableSlice* pi = pce->Item;
-    DEBUGLOG(("SongIterator::PrevNextCore - {%i, %f, %p, %p, %p}\n", pce->Index, pce->Offset, pi, pce->OverrideStart.get(), pce->OverrideStop.get()));
+    DEBUGLOG(("SongIterator::PrevNextCore - {%i, %f, %p, %p, %p}\n", pce->Off.Index, pce->Off.Offset, pi, pce->OverrideStart.get(), pce->OverrideStop.get()));
     if (pi == NULL)
     { // end of list => leave
       Leave();
@@ -530,7 +553,7 @@ bool SongIterator::PrevNextCore(void (SongIterator::*func)(), unsigned slice)
     { // item found => check wether it is enumerable
       if (!(pi->GetPlayable()->GetFlags() & Playable::Enumerable))
       { Location = 0;
-        DEBUGLOG(("SongIterator::PrevNextCore - {%i, %f, %p{%p{%s}}}\n", pce->Index, pce->Offset, &*pi, pi->GetPlayable(), pi->GetPlayable()->GetURL().getShortName().cdata()));
+        DEBUGLOG(("SongIterator::PrevNextCore - {%i, %f, %p{%p{%s}}}\n", pce->Off.Index, pce->Off.Offset, &*pi, pi->GetPlayable(), pi->GetPlayable()->GetURL().getShortName().cdata()));
         return true;
       } else
       { pi->GetPlayable()->EnsureInfo(Playable::IF_Other);
@@ -540,12 +563,60 @@ bool SongIterator::PrevNextCore(void (SongIterator::*func)(), unsigned slice)
   }
 }
 
+void SongIterator::EnsureOffset(CallstackEntry& ce, PlayableCollection& parent)
+{ DEBUGLOG(("SongIterator::EnsureOffset(&%p, &%p)\n", ce, &parent));
+  while (!ce.OffValid)
+  {restart:
+    // recalculate offset
+    DEBUGLOG(("SongIterator::EnsureOffset - reload\n"));
+    ce.OffValid = true;
+    ce.Off.Reset();
+    PlayableInstance* pi = (PlayableInstance*)ce.Item.get();
+    // If no item is set -> leave offset at zero.
+    if (pi == NULL)
+      continue;
+    for(;;)
+    { pi = parent.GetPrev(pi);
+      // No more previous items => finished
+      if (pi == NULL)
+        break;
+      // Abort because the offset is invalidated anew.
+      if (!ce.OffValid)
+      { // We make a small break here to let the things consolidate.
+        DosSleep(1);
+        goto restart;
+      }
+      ce.Off += ce.GetInfo();
+    }
+  }
+}
+
+void SongIterator::ListChangeHandler(const PlayableCollection::change_args& args, CallstackEntry*const& cep)
+{ DEBUGLOG(("SongIterator(%p)::ListChangeHandler(, %p)\n", this, cep));
+  // It is cheaper to invalidate the offset always than to check whether we must invalidate the offset or not.
+  cep->OffValid = false;
+  Change(0);
+}
+
 SongIterator::Offsets SongIterator::GetOffset(bool withlocation) const
-{ DEBUGLOG(("SongIterator(%p)::GetOffset(%u)\n", this, withlocation));
+{ DEBUGLOG(("SongIterator(%p)::GetOffset(%u) - %u\n", this, withlocation, Callstack->size()));
   ASSERT(Callstack->size());
 
-  const CallstackEntry* cep = (*Callstack)[Callstack->size()-1];
-  Offsets ret = *cep;
+  // Sum all offsets
+  CallstackEntry*const* cepp = Callstack->begin();
+  CallstackEntry* cep = *cepp;
+  Offsets ret = cep->Off;
+  while (++cepp != Callstack->end())
+  { // The is another subentry => Item of the last entry must be non-zero and a enumerable.
+    ASSERT(cep->Item);
+    ASSERT(cep->Item->GetPlayable()->GetFlags() & Playable::Enumerable);
+    PlayableCollection& parent = (PlayableCollection&)*cep->Item->GetPlayable();
+    cep = *cepp;
+    EnsureOffset(*cep, parent);
+    ret += (*cepp)->Off;
+  }
+  DEBUGLOG(("SongIterator::GetOffset: {%i, %f}\n", ret.Index, ret.Offset));
+  // cep now points to current
 
   if (withlocation && cep->Item && cep->Item->GetPlayable()->GetFlags() == Playable::None)
   { ret.Offset += Location;
@@ -655,7 +726,7 @@ bool SongIterator::Navigate(const xstring& url, int index)
           break;
         // adjust offsets
         if (!IsInCallstack(cep->Item->GetPlayable()))
-          cep->Add(cep->GetInfo());
+          cep->Off += cep->GetInfo();
       }
       // TODO: conflicting start offsets?
     }
@@ -681,7 +752,7 @@ bool SongIterator::Navigate(const xstring& url, int index)
       Enter();
     else
       (*Callstack)[Callstack->size()-1]->Item = NULL; // Start over
-    CallstackSubEntry ce(*(*Callstack)[Callstack->size()-2]);
+    CallstackSubFactory ce(*(*Callstack)[Callstack->size()-2]);
     if (index > 0)
     { // forward lookup
       for(;;)
@@ -692,7 +763,7 @@ bool SongIterator::Navigate(const xstring& url, int index)
           break;
         // adjust offsets
         if (!ce.IsExcluded())
-          ce.Add(ce.GetInfo());
+          ce.Off += ce.GetInfo();
       }
     } else
     { // reverse lookup
@@ -705,7 +776,7 @@ bool SongIterator::Navigate(const xstring& url, int index)
       PlayableSlice* found = ce.Item; // save Item because we abuse ce for offset calculation
       while ((ce.Item = list->GetPrev((PlayableInstance*)ce.Item.get())) != NULL)
         if (!ce.IsExcluded())
-          ce.Add(ce.GetInfo());
+          ce.Off += ce.GetInfo();
       // restore item
       ce.Item = found;
     }

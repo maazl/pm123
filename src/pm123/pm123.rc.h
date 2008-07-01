@@ -281,6 +281,7 @@
 #define RB_SONGONLY        1353
 #define RB_SONGTIME        1354
 #define RB_TIMEONLY        1355
+#define CB_TURNAROUND      1356
 #define GB_GUIFEATURES     1360
 #define CB_DOCK            1361
 #define EF_DOCK            1362

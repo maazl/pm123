@@ -68,6 +68,7 @@ load_ini( void )
     load_ini_value( INIhandle, cfg.retainonstop );
     load_ini_value( INIhandle, cfg.restartonstart );
     load_ini_value( INIhandle, cfg.altnavig );
+    load_ini_value( INIhandle, cfg.autoturnaround );
     load_ini_value( INIhandle, cfg.recurse_dnd );
     load_ini_value( INIhandle, cfg.sort_folders );
     load_ini_value( INIhandle, cfg.folders_first );
@@ -187,6 +188,7 @@ save_ini( void )
     save_ini_value( INIhandle, cfg.retainonstop );
     save_ini_value( INIhandle, cfg.restartonstart );
     save_ini_value( INIhandle, cfg.altnavig );
+    save_ini_value( INIhandle, cfg.autoturnaround );
     save_ini_value( INIhandle, cfg.recurse_dnd );
     save_ini_value( INIhandle, cfg.sort_folders );
     save_ini_value( INIhandle, cfg.folders_first );

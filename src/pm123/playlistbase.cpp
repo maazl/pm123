@@ -759,6 +759,17 @@ void PlaylistBase::UpdateChildren(RecordBase* const rp)
   { StateFromRec(rp).WaitUpdate = true;
     return;
   }
+  
+  // Check whether to request state information immediately.
+  bool reqstate;
+  if (rp == NULL)
+    // Root node -> always yes
+    reqstate = true;
+  else
+  { // If not the root check if the parent is expanded
+    PMRASSERT(WinSendMsg(HwndContainer, CM_QUERYRECORDINFO, MPFROMP(&(MINIRECORDCORE*&)rp), MPFROMSHORT(1)));
+    reqstate = (rp->flRecordAttr & CRA_EXPANDED) != 0;
+  }  
 
   // Check wether we should supend the redraw.
   bool pauseredraw = false;
@@ -785,7 +796,10 @@ void PlaylistBase::UpdateChildren(RecordBase* const rp)
     int_ptr<PlayableInstance> pi;
     crp = NULL; // Last entry, insert new items after that.
     while ((pi = ((PlayableCollection*)pp)->GetNext(pi)) != NULL)
-    { // Find entry in the current content
+    { // request state?
+      if (reqstate)
+        pi->GetPlayable()->EnsureInfoAsync(Playable::IF_Status);
+      // Find entry in the current content
       RecordBase** orpp = old.begin();
       for (;;)
       { if (orpp == old.end())

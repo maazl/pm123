@@ -98,6 +98,8 @@ class delegate_base
   // Construct delegate and attach it to an event immediately
   delegate_base(event_base& ev, func_type fn, const void* rcv);
   ~delegate_base()                             { DEBUGLOG(("delegate_base(%p)::~delegate_base() - %p\n", this, Ev)); detach(); }
+  // Return currently attached event
+  event_base*    get_event() const             { return Ev; }
  public:
   // Detach the delegate from the event, if any, and wait for outstanding eventhandlers to complete.
   void           detach();
@@ -125,6 +127,9 @@ class delegate_part : public delegate_base
   : delegate_base((delegate_base::func_type)fn, rcv) {}
   delegate_part(event<P>& ev, func_type fn, const void* rcv)
   : delegate_base(ev, (delegate_base::func_type)fn, rcv) {}
+ public:
+  // Return currently attached event
+  event<P>*      get_event() const             { return (event<P>*)delegate_base::get_event(); }
 };
 
 /* Application even class.
@@ -151,7 +156,7 @@ class event : public event_base
 /* Fully typed delegate.
  * Use this delegate to call free function or static class member functions.
  *
- * An istance of delegate must not be bound to more than one event.
+ * An istance of delegate must not be bound to more than one event at a time.
  * When the delegete is destroyed it is automatically deregistered from the event.
  * When the event is destroyed the delegate gets silently deregistered.
  *

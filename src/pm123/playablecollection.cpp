@@ -717,7 +717,7 @@ const PlayableCollection::CollectionInfo& PlayableCollection::GetCollectionInfo(
       DEBUGLOG(("PlayableCollection::GetCollectionInfo - Song\n"));
       Song* song = (Song*)pi->GetPlayable();
       song->EnsureInfo(IF_Tech|IF_Phys);
-      if (song->GetStatus() > STA_Invalid)
+      if (song->GetStatus() != STA_Invalid)
       { // take care of slice
         const DECODER_INFO2& info = song->GetInfo();
         T_TIME length = info.tech->songlength;

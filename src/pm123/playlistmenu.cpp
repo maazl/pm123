@@ -165,8 +165,8 @@ MRESULT PlaylistMenu::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
    case UM_UPDATESTAT:
     { MapEntry* mp = MenuMap.find(SHORT1FROMMP(mp1));
       DEBUGLOG(("PlaylistMenu(%p)::DlgProc: UM_UPDATESTAT(%u) - %p\n", this, SHORT1FROMMP(mp1), mp));
-      if (mp) // ID unknown?
-      { DEBUGLOG(("%p, %p, ...\n", mp->HwndParent, mp->Data.get()));
+      if (mp && mp->HwndParent != NULLHANDLE) // ID known and not the root node?
+      { DEBUGLOG2(("%p, %u, %p, ...\n", mp->HwndParent, mp->IDMenu, mp->Data.get()));
         PMRASSERT(mn_enable_item(mp->HwndParent, mp->IDMenu, mp->Data->GetPlayable()->GetStatus() > STA_Invalid));
       }
     }

@@ -78,6 +78,7 @@ typedef struct _amp_cfg {
   BOOL   retainonstop;        // Retain playing position on stop.
   BOOL   restartonstart;      // Restart playing on startup.
   int    altnavig;            // Alternate navigation method 0=song only, 1=song&time, 2=time only
+  BOOL   autoturnaround;      // Turn around at prev/next when at the end of a playlist
   BOOL   recurse_dnd;         // Drag and drop of folders recursive
   BOOL   sort_folders;        // Automatically sort filesystem folders (by name)
   BOOL   folders_first;       // Place subfolders before content

@@ -141,6 +141,7 @@ MRESULT PlaylistManager::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
         while (rec != NULL && rec != (Record*)-1)
         { DEBUGLOG(("CM_QUERYRECORD: %s\n", Record::DebugName(rec).cdata()));
           RequestChildren(rec);
+          rec->Data()->Content->GetPlayable()->EnsureInfoAsync(Playable::IF_Status);
           rec = (Record*)WinSendMsg(HwndContainer, CM_QUERYRECORD, MPFROMP(rec), MPFROM2SHORT(CMA_NEXT, CMA_ITEMORDER));
         }
         PMASSERT(rec != (Record*)-1);

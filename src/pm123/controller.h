@@ -48,9 +48,9 @@
 
 /* PM123 controller class.
  * All playback activities are controlled by this class.
- * This class is static.
+ * This class is static (singleton).
 
- * PM123 commands
+ * PM123 control commands
 
 Command    StrArg              NumArg/PtrArg       Flags               Meaning
 ===============================================================================================================
@@ -193,21 +193,28 @@ class Ctrl
   };
 
   enum EventFlags
-  { EV_None     = 0x0000,   // nothing
-    EV_PlayStop = 0x0001,   // The play/stop status has changed.
-    EV_Pause    = 0x0002,   // The pause status has changed.
-    EV_Forward  = 0x0004,   // The fast forward status has changed.
-    EV_Rewind   = 0x0008,   // The rewind status has changed.
-    EV_Shuffle  = 0x0010,   // The shuffle flag has changed.
-    EV_Repeat   = 0x0020,   // The repeat flag has changed.
-    EV_Volume   = 0x0040,   // The volume has changed.
-    EV_Savename = 0x0080,   // The savename has changed.
-    EV_Root     = 0x0100,   // The currently loaded root object has changed.
-    EV_Song     = 0x0200,   // The current song has changed. This always includes EV_Phys, EV_Tech and EV_Meta.
-    EV_Tech     = 0x0400,   // The technical information have changed (e.g. song length).
-    EV_Meta     = 0x0800,   // The meta data have changed (i.e. song title).
-    EV_Phys     = 0x1000,   // The physical file information has changed (e.g. number of items).
-    EV_Rpl      = 0x2000    // The recursive playlist information has changed
+  { EV_None     = 0x00000000, // nothing
+    EV_PlayStop = 0x00000001, // The play/stop status has changed.
+    EV_Pause    = 0x00000002, // The pause status has changed.
+    EV_Forward  = 0x00000004, // The fast forward status has changed.
+    EV_Rewind   = 0x00000008, // The rewind status has changed.
+    EV_Shuffle  = 0x00000010, // The shuffle flag has changed.
+    EV_Repeat   = 0x00000020, // The repeat flag has changed.
+    EV_Volume   = 0x00000040, // The volume has changed.
+    EV_Savename = 0x00000080, // The savename has changed.
+    EV_Offset   = 0x00000100, // The current playing offset has changed
+    EV_Root     = 0x00001000, // The currently loaded root object has changed. This Always implies EV_Root*.
+    EV_RootTech = 0x00002000, // The technical information of the root object has changed (e.g. total length).
+    EV_RootMeta = 0x00004000, // The meta data of the root has changed.
+    EV_RootPhys = 0x00008000, // The physical file information has changed (e.g. number of items).
+    EV_RootRpl  = 0x00010000, // The recursive playlist information has changed (e.g. total number of sogs)
+    EV_RootAll  = EV_Root|EV_RootTech|EV_RootMeta|EV_RootPhys|EV_RootRpl, // internal: root object changed
+    EV_Song     = 0x00100000, // The current song has changed. This always includes EV_Song*.
+    EV_SongTech = 0x00200000, // The technical information have changed (e.g. song length).
+    EV_SongMeta = 0x00400000, // The meta data of the current song has changed (i.e. song title).
+    EV_SongPhys = 0x00800000, // The physical song information has changed (e.g. the file size).
+    //EV_Rpl    = 0x01000000, // The recursive playlist information has changed
+    EV_SongAll  = EV_Song|EV_SongTech|EV_SongMeta|EV_SongPhys // internal: song changed
   };
   
  private:
@@ -226,8 +233,6 @@ class Ctrl
   // List of prefetched iterators.
   // The first entry is always the current iterator if a enumerable object is loaded.
   // Write access to this list is only done by the controller thread.
-  // But since read access is done by other threads too,
-  // any write to PrefetchList must be protected by a critical section.
   static vector<PrefetchEntry> PrefetchList;
   static Mutex                PLMtx;                 // Mutex to protect the above list.
 
@@ -250,6 +255,8 @@ class Ctrl
   static delegate<void, const dec_event_args>        DecEventDelegate;
   static delegate<void, const OUTEVENTTYPE>          OutEventDelegate;
   static delegate<void, const Playable::change_args> CurrentSongDelegate;
+  static delegate<void, const Playable::change_args> CurrentRootDelegate;
+  static delegate<void, const int>                   SongIteratorDelegate;
 
   // Occasionally used constant.
   static const SongIterator::CallstackType EmptyStack;
@@ -291,8 +298,10 @@ class Ctrl
   static bool  SkipCore(SongIterator& si, int count, bool relative);
   // Ensure that a SongIterator really points to a valid song by moving the iterator forward as required.
   static void  AdjustNext(SongIterator& si);
-  // Jump to the location si. The function will destroy si.
+  // Jump to the location si. The function will destroy the content of si.
   static RC    NavigateCore(SongIterator& si);
+  // Register events to a new current song and request some information if not yet known.
+  static void  AttachCurrentSong(PlayableSlice* ps);
   // Clears the prefetch list and keep the first element if keep is true.
   // The operation is atomic.
   static void  PrefetchClear(bool keep);
@@ -313,6 +322,10 @@ class Ctrl
   static void  OutEventHandler(void*, const OUTEVENTTYPE& event);
   // Event handler for tracking modifications of the currently playing song.
   static void  CurrentSongEventHandler(void*, const Playable::change_args& args);
+  // Event handler for tracking modifications of the currently loaded object.
+  static void  CurrentRootEventHandler(void*, const Playable::change_args& args);
+  // Event handler for asynchronuous changes to the songiterator (not any prefetched one).
+  static void  SongIteratorEventHandler(void*, const& i);
  private: // messages handlers, not thread safe
   // The messages are descibed above before the class header.
   static RC    MsgPause(Op op);

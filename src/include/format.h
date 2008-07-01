@@ -75,7 +75,10 @@ typedef struct
   int    num_items;    /* number of immediate sub items (for playlists), otherwise 1 */
 } PHYS_INFO;
 
-/* information on recursive playlist items */
+/* information on recursive playlist items
+ * This information is not an aggregate of information of the immediate subitems.
+ * This is not available for songs.
+ */
 typedef struct
 { unsigned int size;   /* size of this structure */
   int    total_items;  /* number of song items (for playlists), otherwise 1 */

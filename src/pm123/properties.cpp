@@ -66,6 +66,7 @@ const amp_cfg cfg_default =
   FALSE,
   FALSE,
   CFG_ANAV_SONG,
+  TRUE,
   TRUE, // recurse_dnd
   TRUE,
   FALSE,
@@ -247,6 +248,7 @@ cfg_settings2_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
       const char* cp;
       size_t l;
 
+      WinCheckButton( hwnd, CB_TURNAROUND,cfg.autoturnaround );
       WinCheckButton( hwnd, RB_SONGONLY + cfg.altnavig, TRUE );
 
       WinSetDlgItemText( hwnd, EF_PIPE, cfg.pipe_name );
@@ -305,6 +307,7 @@ cfg_settings2_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
     {
       size_t i;
 
+      cfg.autoturnaround = WinQueryButtonCheckstate( hwnd, CB_TURNAROUND );
       if (WinQueryButtonCheckstate( hwnd, RB_SONGONLY ))
         cfg.altnavig = CFG_ANAV_SONG;
       else if (WinQueryButtonCheckstate( hwnd, RB_SONGTIME ))

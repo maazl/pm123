@@ -215,7 +215,7 @@ amp_paint_timers( HPS hps )
       if (total_items == 1)
         pos = 0;
       else if (total_items > 1)
-        pos = (off.Index-1) / (double)(total_items-1);
+        pos = off.Index / (double)(total_items-1);
     }
     break;
    case CFG_ANAV_TIME:
@@ -229,7 +229,7 @@ amp_paint_timers( HPS hps )
       if (total_items == 1)
         pos = 0;
       else if (total_items > 1)
-        pos = off.Index-1;
+        pos = off.Index;
       else break;
       // Add current song time
       if (total_song > 0)
@@ -243,7 +243,7 @@ amp_paint_timers( HPS hps )
   bmp_draw_tiny_timer( hps, POS_TIME_LEFT, play_left );
   bmp_draw_tiny_timer( hps, POS_PL_LEFT,   list_left );
 
-  int index = is_playlist ? off.Index : 0;
+  int index = is_playlist ? off.Index+1 : 0;
   bmp_draw_plind( hps, index, index > 0 ? CurrentRoot->GetInfo().rpl->total_items : 0);
 }
 
@@ -856,17 +856,17 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
         { WinSendDlgItemMsg(hplayer, BMP_REPEAT,  Ctrl::IsRepeat() ? WM_PRESS : WM_DEPRESS, 0, 0);
           inval |= UPD_TIMERS;
         }
-        if (flags & (Ctrl::EV_Song|Ctrl::EV_Phys))
+        if (flags & (Ctrl::EV_Song|Ctrl::EV_SongPhys|Ctrl::EV_RootTech|Ctrl::EV_RootRpl))
           amp_force_locmsg();
 
         if (flags & Ctrl::EV_Volume)
           inval |= UPD_VOLUME;
 
-        if (flags & Ctrl::EV_Tech)
+        if (flags & Ctrl::EV_SongTech)
         { UpdAtLocMsg |= UPD_FILEINFO; // update later
           amp_force_locmsg();
         }
-        if (flags & Ctrl::EV_Meta)
+        if (flags & Ctrl::EV_SongMeta)
         { int_ptr<Song> song = Ctrl::GetCurrentSong();
           if (song)
             WinSetWindowText(hframe, (song->GetURL().getDisplayName() + " - " AMP_FULLNAME).cdata());
