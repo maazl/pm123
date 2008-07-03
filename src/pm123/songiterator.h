@@ -277,7 +277,7 @@ class SongIterator
   // level must be less than the current depth of *this.
   // The absolute return value will not be less than level except for a equal condition.
   // The current thread must own both SongIterators.
-  int                         CompareTo(const SongIterator& r, unsigned level = 0) const;
+  int                         CompareTo(const SongIterator& r, unsigned level = 0, bool withlocation = true) const;
 };
 
 // Now we can include the implementation of the above predeclared classes.

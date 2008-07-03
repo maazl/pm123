@@ -782,24 +782,26 @@ Ctrl::RC Ctrl::MsgDecStop()
   if (!Playing)
     return RC_NotPlaying;
 
-  if (!IsEnumerable())
-  { // Song => Stop
+  if (!IsEnumerable() && !Repeat)
+  { // Song, no repeat => stop
    eol:
     out_flush();
     // Continue at OUTEVENT_END_OF_DATA
     return RC_OK;
   }
-
-  int dir = Scan == DECFAST_REWIND ? -1 : 1;
-
+    
   PrefetchEntry* pep = new PrefetchEntry(Current()->Offset + dec_maxpos(), Current()->Iter);
   pep->Offset += dec_maxpos();
+  int dir = Scan == DECFAST_REWIND ? -1 : 1; // DecoderStop resets scan mode
   DecoderStop();
 
   // Navigation
   PlayableSlice* ps = NULL;
+  if (IsEnumerable())
   { do
-    { if (!SkipCore(pep->Iter, dir, true))
+    { if ( ( !SkipCore(pep->Iter, dir, true)
+          && (!Repeat || !SkipCore(pep->Iter, dir, true)) )
+        || (Repeat && pep->Iter.CompareTo(Current()->Iter, 0, false) == 0) ) // no infinite loop
       { delete pep;
         goto eol; // end of list => same as end of song
       }
@@ -808,10 +810,12 @@ Ctrl::RC Ctrl::MsgDecStop()
       ps->GetPlayable()->EnsureInfo(Playable::IF_Other);
       // skip invalid
     } while (ps->GetPlayable()->GetStatus() == STA_Invalid);
-    // store result
-    Mutex::Lock lock(PLMtx);
-    PrefetchList.append() = pep;
+  } else
+  { ps = pep->Iter.GetCurrent();
   }
+  // store result
+  Mutex::Lock lock(PLMtx);
+  PrefetchList.append() = pep;
 
   // start decoder for the prefetched item
   DEBUGLOG(("Ctrl::MsgDecStop playing %s with offset %g\n", ps->GetPlayable()->GetURL().cdata(), pep->Offset));

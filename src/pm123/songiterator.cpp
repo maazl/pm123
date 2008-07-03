@@ -1060,7 +1060,7 @@ bool SongIterator::Deserialize(const char*& str)
   return true;
 }
 
-int SongIterator::CompareTo(const SongIterator& r, unsigned level) const
+int SongIterator::CompareTo(const SongIterator& r, unsigned level, bool withlocation) const
 { DEBUGLOG(("SongIterator(%p)::CompareTo(%p) - %s - %s\n", this, &r, Serialize().cdata(), r.Serialize().cdata()));
   ASSERT(level < Callstack->size());
   const SongIterator::CallstackEntry*const* lcpp = Callstack->begin() + level;
@@ -1079,7 +1079,7 @@ int SongIterator::CompareTo(const SongIterator& r, unsigned level) const
     { if (rcpp != r.Callstack->end() && (*rcpp)->Item != NULL)
         return -level; // current SongIterator is deeper
       // Item identical => compare location below
-      if (Location == r.Location || (Location < 0 && r.Location < 0))
+      if (!withlocation || Location == r.Location || (Location < 0 && r.Location < 0))
         return 0; // same
       ++level; // Location difference returns level+1
       return Location < 0 || (r.Location >= 0 && Location > r.Location) ? level : -level;
