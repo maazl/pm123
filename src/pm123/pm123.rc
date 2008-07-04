@@ -337,29 +337,45 @@ BITMAP BMP_NOPLIST      bmp\timeleft_pl_dark.bmp
 BITMAP BMP_PLIST        bmp\timeleft_pl.bmp
 
 /* Icons. */
-ICON   ICO_MAIN         ico\pm123.ico
+ICON   ICO_MAIN            "ico\\pm123.ico"
 
-ICON   ICO_MP3          ico\mp3.ico
-ICON   ICO_MP3USED      ico\mp3used.ico
-ICON   ICO_MP3ACTIVE    ico\mp3active.ico
-ICON   ICO_MP3PLAY      ico\mp3play.ico
-ICON   ICO_MP3INVLD     ico\mp3gray.ico
-ICON   ICO_MP3WAIT      ico\wait.ico
-ICON   ICO_PLEMPTY      ico\plempty.ico
-ICON   ICO_PLCLOSE      ico\plclose.ico
-ICON   ICO_PLOPEN       ico\plopen.ico
-ICON   ICO_PLRECURSIVE  ico\plrecursive.ico
-ICON   ICO_PLACTIVE     ico\plactive.ico
-ICON   ICO_PLCLOSEACTIVE ico\plcloseactive.ico
-ICON   ICO_PLOPENACTIVE ico\plopenactive.ico
-ICON   ICO_PLRECURSIVEACTIVE ico\plrecursiveactive.ico
-ICON   ICO_PLPLAY       ico\plplay.ico
-ICON   ICO_PLCLOSEPLAY  ico\plcloseplay.ico
-ICON   ICO_PLOPENPLAY   ico\plopenplay.ico
-ICON   ICO_PLRECURSIVEPLAY ico\plrecursiveplay.ico
-
-/*ICON   ICO_BOOKMARK     ico\bookmark.ico*/
-
+ICON   ICO_WAIT            "ico\\wait.ico"
+ICON   ICO_SONG            "ico\\song.ico"
+ICON   ICO_SONG_ACTIVE     "ico\\song_l.ico"
+ICON   ICO_SONG_PLAY       "ico\\song_p.ico"
+ICON   ICO_SONG_SHADOW     "ico\\song_s.ico"
+ICON   ICO_SONG_INVALID    "ico\\song_invld.ico"
+ICON   ICO_PL_EMPTY        "ico\\list.ico"
+ICON   ICO_PL_EMPTY_ACTIVE "ico\\list_l.ico"
+ICON   ICO_PL_EMPTY_PLAY   "ico\\list_p.ico"
+ICON   ICO_PL_EMPTY_SHADOW "ico\\list_s.ico"
+ICON   ICO_PL_INVALID      "ico\\list_invld.ico"
+ICON   ICO_PL_CLOSE        "ico\\list+.ico"
+ICON   ICO_PL_CLOSE_ACTIVE "ico\\list+_l.ico"
+ICON   ICO_PL_CLOSE_PLAY   "ico\\list+_p.ico"
+ICON   ICO_PL_CLOSE_SHADOW "ico\\list+_s.ico"
+ICON   ICO_PL_OPEN         "ico\\list-.ico"
+ICON   ICO_PL_OPEN_ACTIVE  "ico\\list-_l.ico"
+ICON   ICO_PL_OPEN_PLAY    "ico\\list-_p.ico"
+ICON   ICO_PL_OPEN_SHADOW  "ico\\list-_s.ico"
+ICON   ICO_PL_RECSV        "ico\\recu.ico"
+ICON   ICO_PL_RECSV_ACTIVE "ico\\recu_l.ico"
+ICON   ICO_PL_RECSV_PLAY   "ico\\recu_p.ico"
+ICON   ICO_FL_EMPTY        "ico\\fold.ico"
+ICON   ICO_FL_EMPTY_ACTIVE "ico\\fold_l.ico"
+ICON   ICO_FL_EMPTY_PLAY   "ico\\fold_p.ico"
+ICON   ICO_FL_EMPTY_SHADOW "ico\\fold_s.ico"
+ICON   ICO_FL_INVALID      "ico\\fold_invld.ico"
+ICON   ICO_FL_CLOSE        "ico\\fold+.ico"
+ICON   ICO_FL_CLOSE_ACTIVE "ico\\fold+_l.ico"
+ICON   ICO_FL_CLOSE_PLAY   "ico\\fold+_p.ico"
+ICON   ICO_FL_CLOSE_SHADOW "ico\\fold+_s.ico"
+ICON   ICO_FL_OPEN         "ico\\fold-.ico"
+ICON   ICO_FL_OPEN_ACTIVE  "ico\\fold-_l.ico"
+ICON   ICO_FL_OPEN_PLAY    "ico\\fold-_p.ico"
+ICON   ICO_FL_OPEN_SHADOW  "ico\\fold-_s.ico"
+       
+       
 ACCELTABLE ACL_MAIN
 BEGIN
   "B",        IDM_M_ADDBOOK,        CHAR|CONTROL|SHIFT

@@ -49,7 +49,6 @@
 #include "docking.h"
 #include "iniman.h"
 #include "playable.h"
-#include "plugman.h"
 #include <cpp/showaccel.h>
 
 #include <stddef.h>
@@ -412,20 +411,18 @@ void PlaylistView::UpdateAccelTable()
   dec_append_accel_table( AccelTable, IDM_PL_APPOTHERALL, 0, LoadWizzards+2, sizeof LoadWizzards/sizeof *LoadWizzards - 2);
 }
 
-PlaylistBase::ICP PlaylistView::GetPlayableType(const RecordBase* rec) const
-{ DEBUGLOG(("PlaylistView::GetPlaylistState(%s)\n", Record::DebugName(rec).cdata()));
-  if ((rec->Data->Content->GetPlayable()->GetFlags() & Playable::Enumerable) == 0)
-    return ICP_Song;
+PlaylistBase::ICP PlaylistView::GetPlaylistType(const RecordBase* rec) const
+{ DEBUGLOG(("PlaylistView::GetPlaylistType(%s)\n", Record::DebugName(rec).cdata()));
   return rec->Data->Content->GetPlayable()->GetInfo().phys->num_items ? ICP_Closed : ICP_Empty;
 }
 
 PlaylistBase::IC PlaylistView::GetRecordUsage(const RecordBase* rec) const
 { DEBUGLOG(("PlaylistView::GetRecordUsage(%s)\n", Record::DebugName(rec).cdata()));
-  if (rec->Data->Content->GetPlayable()->GetStatus() != STA_Used)
-    return IC_Normal;
-  if (rec->Data->Content->GetStatus() != STA_Used)
-    return IC_Used;
-  return decoder_playing() ? IC_Play : IC_Active;
+  int_ptr<PlayableSlice> root = Ctrl::GetRoot();
+  PlayableInstance* cur = rec->Data->Content;
+  if (cur->GetStatus() != STA_Used && (!root || root->GetPlayable() != cur->GetPlayable()))
+    return IC_Shadow;
+  return Ctrl::IsPlaying() ? IC_Play : IC_Active;
 }
 
 xstring PlaylistView::FormatSize(double size)

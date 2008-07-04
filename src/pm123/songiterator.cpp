@@ -741,6 +741,8 @@ bool SongIterator::Navigate(const xstring& url, int index)
   } else
   { // look for a certain URL
     url123 absurl = list->GetURL().makeAbsolute(url);
+    if (!absurl)
+      return false; // The URL is broken. This may happen if a time offset is applied to a playlist.
     const int_ptr<Playable>& pp = Playable::FindByURL(absurl);
     if (pp == NULL)
       return false; // If the url is in the playlist it /must/ exist in the repository, otherwise => error.

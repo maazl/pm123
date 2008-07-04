@@ -93,7 +93,7 @@ class PlaylistManager : public PlaylistRepository<PlaylistManager>
   void              ShowRecordAsync(Record* rec);
   // Determine type of Playable object
   // Subfunction to CalcIcon.
-  virtual ICP       GetPlayableType(const RecordBase* rec) const;
+  virtual ICP       GetPlaylistType(const RecordBase* rec) const;
   // Gets the Usage type of a record.
   // Subfunction to CalcIcon.
   virtual IC        GetRecordUsage(const RecordBase* rec) const;

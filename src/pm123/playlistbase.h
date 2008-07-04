@@ -199,21 +199,27 @@ class PlaylistBase
 
  protected: // Cached Icon ressources
   enum ICP
-  { ICP_Song,
-    ICP_Empty,
+  { ICP_Empty,
     ICP_Closed,
     ICP_Open,
     ICP_Recursive
   };
   enum IC
-  { IC_Normal,
-    IC_Used,
-    IC_Active,
-    IC_Play
+  { IC_Pending = STA_Unknown,
+    IC_Invalid = STA_Invalid,
+    IC_Normal  = STA_Normal,
+    IC_Active  = STA_Used,
+    IC_Play,
+    IC_Shadow
   };
-  static HPOINTER   IcoWait;
-  static HPOINTER   IcoInvalid;
-  static HPOINTER   IcoPlayable[5][4];
+  // Song icons
+  // Dimension 1: IC_*
+  static HPOINTER   IcoSong[6];
+  // Playlist icons
+  // Dimension 1: [Playlist, Folder]
+  // Dimension 2: IC_*
+  // Dimension 3: ICP_*
+  static HPOINTER   IcoPlaylist[2][6][4];
   static void       InitIcons();
 
  protected: // content
@@ -269,11 +275,13 @@ class PlaylistBase
   // Dialog procedure, called by DlgProcStub
   virtual MRESULT   DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2);
 
-  // Determine type of Playable object
+  // Determine type of Playable object. See ICP_* constants.
   // Subfunction to CalcIcon.
-  virtual ICP       GetPlayableType(const RecordBase* rec) const = 0;
-  // Gets the Usage type of a record.
+  // This function is only called for enumerable items.
+  virtual ICP       GetPlaylistType(const RecordBase* rec) const = 0;
+  // Gets the display state of a record. See IC_* constants.
   // Subfunction to CalcIcon.
+  // This function is only called for used items.
   virtual IC        GetRecordUsage(const RecordBase* rec) const = 0;
   // Calculate icon for a record. Content must be valid!
   HPOINTER          CalcIcon(RecordBase* rec);

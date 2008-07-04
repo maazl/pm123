@@ -53,7 +53,6 @@
 #include "pm123.rc.h"
 #include "docking.h"
 #include "iniman.h"
-#include "plugman.h"
 
 #include <stdarg.h>
 #include <snprintf.h>
@@ -92,33 +91,56 @@ xstring PlaylistBase::DebugName() const
 *
 ****************************************************************************/
 
-HPOINTER PlaylistBase::IcoWait;
-HPOINTER PlaylistBase::IcoInvalid;
-HPOINTER PlaylistBase::IcoPlayable[5][4];
+HPOINTER PlaylistBase::IcoSong[6];
+HPOINTER PlaylistBase::IcoPlaylist[2][6][4] = { 0 };
 
 void PlaylistBase::InitIcons()
-{ IcoWait                               = WinLoadPointer(HWND_DESKTOP, 0, ICO_MP3WAIT);
-  IcoInvalid                            = WinLoadPointer(HWND_DESKTOP, 0, ICO_MP3INVLD);
-  IcoPlayable[ICP_Song     ][IC_Normal] = WinLoadPointer(HWND_DESKTOP, 0, ICO_MP3);
-  IcoPlayable[ICP_Song     ][IC_Used  ] = WinLoadPointer(HWND_DESKTOP, 0, ICO_MP3USED);
-  IcoPlayable[ICP_Song     ][IC_Active] = WinLoadPointer(HWND_DESKTOP, 0, ICO_MP3ACTIVE);
-  IcoPlayable[ICP_Song     ][IC_Play  ] = WinLoadPointer(HWND_DESKTOP, 0, ICO_MP3PLAY);
-  IcoPlayable[ICP_Empty    ][IC_Normal] = WinLoadPointer(HWND_DESKTOP, 0, ICO_PLEMPTY);
-  IcoPlayable[ICP_Empty    ][IC_Used  ] = IcoPlayable[ICP_Empty    ][IC_Normal];
-  IcoPlayable[ICP_Empty    ][IC_Active] = WinLoadPointer(HWND_DESKTOP, 0, ICO_PLACTIVE);
-  IcoPlayable[ICP_Empty    ][IC_Play  ] = WinLoadPointer(HWND_DESKTOP, 0, ICO_PLPLAY);
-  IcoPlayable[ICP_Closed   ][IC_Normal] = WinLoadPointer(HWND_DESKTOP, 0, ICO_PLCLOSE);
-  IcoPlayable[ICP_Closed   ][IC_Used  ] = IcoPlayable[ICP_Closed   ][IC_Normal];
-  IcoPlayable[ICP_Closed   ][IC_Active] = WinLoadPointer(HWND_DESKTOP, 0, ICO_PLCLOSEACTIVE);
-  IcoPlayable[ICP_Closed   ][IC_Play  ] = WinLoadPointer(HWND_DESKTOP, 0, ICO_PLCLOSEPLAY);
-  IcoPlayable[ICP_Open     ][IC_Normal] = WinLoadPointer(HWND_DESKTOP, 0, ICO_PLOPEN);
-  IcoPlayable[ICP_Open     ][IC_Used  ] = IcoPlayable[ICP_Open     ][IC_Normal];
-  IcoPlayable[ICP_Open     ][IC_Active] = WinLoadPointer(HWND_DESKTOP, 0, ICO_PLOPENACTIVE);
-  IcoPlayable[ICP_Open     ][IC_Play  ] = WinLoadPointer(HWND_DESKTOP, 0, ICO_PLOPENPLAY);
-  IcoPlayable[ICP_Recursive][IC_Normal] = WinLoadPointer(HWND_DESKTOP, 0, ICO_PLRECURSIVE);
-  IcoPlayable[ICP_Recursive][IC_Used  ] = IcoPlayable[ICP_Recursive][IC_Normal];
-  IcoPlayable[ICP_Recursive][IC_Active] = WinLoadPointer(HWND_DESKTOP, 0, ICO_PLRECURSIVEACTIVE);
-  IcoPlayable[ICP_Recursive][IC_Play  ] = WinLoadPointer(HWND_DESKTOP, 0, ICO_PLRECURSIVEPLAY);
+{ IcoSong       [IC_Pending]                = WinLoadPointer(HWND_DESKTOP, 0, ICO_WAIT);
+  IcoSong       [IC_Invalid]                = WinLoadPointer(HWND_DESKTOP, 0, ICO_SONG_INVALID);
+  IcoSong       [IC_Normal ]                = WinLoadPointer(HWND_DESKTOP, 0, ICO_SONG);
+  IcoSong       [IC_Active ]                = WinLoadPointer(HWND_DESKTOP, 0, ICO_SONG_ACTIVE);
+  IcoSong       [IC_Play   ]                = WinLoadPointer(HWND_DESKTOP, 0, ICO_SONG_PLAY);
+  IcoSong       [IC_Shadow ]                = WinLoadPointer(HWND_DESKTOP, 0, ICO_SONG_SHADOW);
+  // Playlists
+  IcoPlaylist[0][IC_Pending][ICP_Empty    ] = IcoSong       [IC_Pending];
+  IcoPlaylist[0][IC_Invalid][ICP_Empty    ] = WinLoadPointer(HWND_DESKTOP, 0, ICO_PL_INVALID);
+  IcoPlaylist[0][IC_Normal ][ICP_Empty    ] = WinLoadPointer(HWND_DESKTOP, 0, ICO_PL_EMPTY);
+  IcoPlaylist[0][IC_Active ][ICP_Empty    ] = WinLoadPointer(HWND_DESKTOP, 0, ICO_PL_EMPTY_ACTIVE);
+  IcoPlaylist[0][IC_Play   ][ICP_Empty    ] = WinLoadPointer(HWND_DESKTOP, 0, ICO_PL_EMPTY_PLAY);
+  IcoPlaylist[0][IC_Shadow ][ICP_Empty    ] = WinLoadPointer(HWND_DESKTOP, 0, ICO_PL_EMPTY_SHADOW);
+  IcoPlaylist[0][IC_Pending][ICP_Closed   ] = IcoPlaylist[0][IC_Pending][ICP_Empty    ];
+  IcoPlaylist[0][IC_Normal ][ICP_Closed   ] = WinLoadPointer(HWND_DESKTOP, 0, ICO_PL_CLOSE);
+  IcoPlaylist[0][IC_Active ][ICP_Closed   ] = WinLoadPointer(HWND_DESKTOP, 0, ICO_PL_CLOSE_ACTIVE);
+  IcoPlaylist[0][IC_Play   ][ICP_Closed   ] = WinLoadPointer(HWND_DESKTOP, 0, ICO_PL_CLOSE_PLAY);
+  IcoPlaylist[0][IC_Shadow ][ICP_Closed   ] = WinLoadPointer(HWND_DESKTOP, 0, ICO_PL_CLOSE_SHADOW);
+  IcoPlaylist[0][IC_Normal ][ICP_Open     ] = WinLoadPointer(HWND_DESKTOP, 0, ICO_PL_OPEN);
+  IcoPlaylist[0][IC_Active ][ICP_Open     ] = WinLoadPointer(HWND_DESKTOP, 0, ICO_PL_OPEN_ACTIVE);
+  IcoPlaylist[0][IC_Play   ][ICP_Open     ] = WinLoadPointer(HWND_DESKTOP, 0, ICO_PL_OPEN_PLAY);
+  IcoPlaylist[0][IC_Shadow ][ICP_Open     ] = WinLoadPointer(HWND_DESKTOP, 0, ICO_PL_OPEN_SHADOW);
+  IcoPlaylist[0][IC_Normal ][ICP_Recursive] = WinLoadPointer(HWND_DESKTOP, 0, ICO_PL_RECSV);
+  IcoPlaylist[0][IC_Active ][ICP_Recursive] = WinLoadPointer(HWND_DESKTOP, 0, ICO_PL_RECSV_ACTIVE);
+  IcoPlaylist[0][IC_Play   ][ICP_Recursive] = WinLoadPointer(HWND_DESKTOP, 0, ICO_PL_RECSV_PLAY);
+  IcoPlaylist[0][IC_Shadow ][ICP_Recursive] = IcoPlaylist[0][IC_Normal ][ICP_Recursive];
+  // Folders
+  IcoPlaylist[1][IC_Pending][ICP_Empty    ] = IcoPlaylist[0][IC_Pending][ICP_Empty    ];
+  IcoPlaylist[1][IC_Invalid][ICP_Empty    ] = WinLoadPointer(HWND_DESKTOP, 0, ICO_FL_INVALID);
+  IcoPlaylist[1][IC_Normal ][ICP_Empty    ] = WinLoadPointer(HWND_DESKTOP, 0, ICO_FL_EMPTY);
+  IcoPlaylist[1][IC_Active ][ICP_Empty    ] = WinLoadPointer(HWND_DESKTOP, 0, ICO_FL_EMPTY_ACTIVE);
+  IcoPlaylist[1][IC_Play   ][ICP_Empty    ] = WinLoadPointer(HWND_DESKTOP, 0, ICO_FL_EMPTY_PLAY);
+  IcoPlaylist[1][IC_Shadow ][ICP_Empty    ] = WinLoadPointer(HWND_DESKTOP, 0, ICO_FL_EMPTY_SHADOW);
+  IcoPlaylist[1][IC_Pending][ICP_Closed   ] = IcoPlaylist[1][IC_Pending][ICP_Empty    ];
+  IcoPlaylist[1][IC_Normal ][ICP_Closed   ] = WinLoadPointer(HWND_DESKTOP, 0, ICO_FL_CLOSE);
+  IcoPlaylist[1][IC_Active ][ICP_Closed   ] = WinLoadPointer(HWND_DESKTOP, 0, ICO_FL_CLOSE_ACTIVE);
+  IcoPlaylist[1][IC_Play   ][ICP_Closed   ] = WinLoadPointer(HWND_DESKTOP, 0, ICO_FL_CLOSE_PLAY);
+  IcoPlaylist[1][IC_Shadow ][ICP_Closed   ] = WinLoadPointer(HWND_DESKTOP, 0, ICO_FL_CLOSE_SHADOW);
+  IcoPlaylist[1][IC_Normal ][ICP_Open     ] = WinLoadPointer(HWND_DESKTOP, 0, ICO_FL_OPEN);
+  IcoPlaylist[1][IC_Active ][ICP_Open     ] = WinLoadPointer(HWND_DESKTOP, 0, ICO_FL_OPEN_ACTIVE);
+  IcoPlaylist[1][IC_Play   ][ICP_Open     ] = WinLoadPointer(HWND_DESKTOP, 0, ICO_FL_OPEN_PLAY);
+  IcoPlaylist[1][IC_Shadow ][ICP_Open     ] = WinLoadPointer(HWND_DESKTOP, 0, ICO_FL_OPEN_SHADOW);
+  IcoPlaylist[1][IC_Normal ][ICP_Recursive] = IcoPlaylist[0][IC_Normal ][ICP_Recursive];
+  IcoPlaylist[1][IC_Active ][ICP_Recursive] = IcoPlaylist[0][IC_Active ][ICP_Recursive];
+  IcoPlaylist[1][IC_Play   ][ICP_Recursive] = IcoPlaylist[0][IC_Play   ][ICP_Recursive];
+  IcoPlaylist[1][IC_Shadow ][ICP_Recursive] = IcoPlaylist[0][IC_Normal ][ICP_Recursive];
 }
 
 PlaylistBase::PlaylistBase(Playable* content, const xstring& alias, ULONG rid)
@@ -634,15 +656,16 @@ int PlaylistBase::compareTo(const Playable& r) const
 
 HPOINTER PlaylistBase::CalcIcon(RecordBase* rec)
 { ASSERT(rec->Data->Content != NULL);
-  DEBUGLOG(("PlaylistBase::CalcIcon(%s) - %u\n", RecordBase::DebugName(rec).cdata(), rec->Data->Content->GetPlayable()->GetStatus()));
-  switch (rec->Data->Content->GetPlayable()->GetStatus())
-  {case STA_Unknown:
-    return IcoWait;
-   case STA_Invalid:
-    return IcoInvalid;
-   default:
-    return IcoPlayable[GetPlayableType(rec)][GetRecordUsage(rec)];
-  }
+  Playable* pp = rec->Data->Content->GetPlayable();
+  DEBUGLOG(("PlaylistBase::CalcIcon(%s) - %u\n", RecordBase::DebugName(rec).cdata(), pp->GetStatus()));
+  Playable::Flags flags = pp->GetFlags();
+  IC state = (IC)pp->GetStatus(); // Dirty hack! The enumerations are compatible
+  if (state == IC_Active)
+    state = GetRecordUsage(rec);
+  if (flags & Playable::Enumerable)
+    return IcoPlaylist[(flags & Playable::Mutable) == Playable::Enumerable][state][GetPlaylistType(rec)];
+  else
+    return IcoSong[state];
 }
 
 void PlaylistBase::SetTitle()
@@ -971,10 +994,9 @@ void PlaylistBase::UpdatePlayStatus()
   }
   PMASSERT(rec != (RecordBase*)-1);
 }
-
 void PlaylistBase::UpdatePlayStatus(RecordBase* rec)
 { DEBUGLOG(("PlaylistBase(%p)::UpdatePlayStatus(%p)\n", this, rec));
-  if (rec->Data->Content->GetStatus() == STA_Used)
+  if (rec->Data->Content->GetPlayable()->GetStatus() == STA_Used)
     PostRecordCommand(rec, RC_UPDATESTATUS);
 }
 

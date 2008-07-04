@@ -49,7 +49,6 @@
 #include "docking.h"
 #include "iniman.h"
 #include "playable.h"
-#include "plugman.h"
 
 #include <cpp/smartptr.h>
 #include <cpp/showaccel.h>
@@ -307,48 +306,42 @@ void PlaylistManager::SetInfo(const xstring& text)
   Info = text;
 }
 
-PlaylistBase::ICP PlaylistManager::GetPlayableType(const RecordBase* rec) const
-{ DEBUGLOG(("PlaylistManager::GetPlaylistState(%s)\n", Record::DebugName(rec).cdata()));
+PlaylistBase::ICP PlaylistManager::GetPlaylistType(const RecordBase* rec) const
+{ DEBUGLOG(("PlaylistManager::GetPlaylistType(%s)\n", Record::DebugName(rec).cdata()));
   PlaylistBase::ICP ret;
   const Playable* pp = rec->Data->Content->GetPlayable();
-  if ((pp->GetFlags() & Playable::Enumerable) == 0)
-    ret = ICP_Song;
-  else if (pp->GetInfo().phys->num_items == 0)
+  if (pp->GetInfo().phys->num_items == 0)
     ret = ICP_Empty;
   else if (((const Record*)rec)->Data()->Recursive)
     ret = ICP_Recursive;
   else
     ret = (rec->flRecordAttr & CRA_EXPANDED) ? ICP_Open : ICP_Closed;
-  DEBUGLOG(("PlaylistManager::GetPlaylistState: %u\n", ret));
+  DEBUGLOG(("PlaylistManager::GetPlaylistType: %u\n", ret));
   return ret;
 }
 
 PlaylistBase::IC PlaylistManager::GetRecordUsage(const RecordBase* rec) const
 { DEBUGLOG(("PlaylistManager::GetRecordUsage(%s)\n", Record::DebugName(rec).cdata()));
-  if (rec->Data->Content->GetPlayable()->GetStatus() != STA_Used)
-  { DEBUGLOG(("PlaylistManager::GetRecordUsage: unused\n"));
-    return IC_Normal;
-  }
   // Check wether the current call stack is the same as for the current Record ...
   int_ptr<PlayableSlice> root = Ctrl::GetRoot();
+  if (root == NULL)
+    return IC_Normal;
   do
-  { if (root && rec->Data->Content->GetPlayable() == root->GetPlayable())
+  { if (rec->Data->Content->GetPlayable() == root->GetPlayable())
     { // We are a the current root, so the call stack compared equal.
       DEBUGLOG(("PlaylistManager::GetRecordUsage: current root\n"));
-      if (!((const Record*)rec)->Data()->Recursive)
-        break;
-      return IC_Used;
+      break;
     }
     if (rec->Data->Content->GetStatus() != STA_Used)
     { // The PlayableInstance is not used, so the call stack is not equal.
       DEBUGLOG(("PlaylistManager::GetRecordUsage: instance unused\n"));
-      return IC_Used;
+      return IC_Shadow;
     }
     rec = ((const Record*)rec)->Data()->Parent;
   } while (rec != NULL);
   // No more Parent, let's consider this as (partially) equal.
   DEBUGLOG(("PlaylistManager::GetRecordUsage: top level\n"));
-  return decoder_playing() ? IC_Play : IC_Active;
+  return Ctrl::IsPlaying() ? IC_Play : IC_Active;
 }
 
 bool PlaylistManager::RecursionCheck(const Playable* pp, const RecordBase* parent) const
