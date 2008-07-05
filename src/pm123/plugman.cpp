@@ -990,7 +990,7 @@ dec_fileinfo( const char* filename, INFOTYPE* what, DECODER_INFO2* info, char* n
         continue;
       checked[i] = TRUE;
       what2 = *what;
-      rc = dp->get_procs().decoder_fileinfo(filename, &what2, info);
+      rc = (*dp->get_procs().decoder_fileinfo)(filename, &what2, info);
       if (rc != PLUGIN_NO_PLAY)
         goto ok;
     }
@@ -1004,7 +1004,7 @@ dec_fileinfo( const char* filename, INFOTYPE* what, DECODER_INFO2* info, char* n
         continue;
       checked[i] = TRUE;
       what2 = *what;
-      rc = dp->get_procs().decoder_fileinfo(filename, &what2, info) == 0;
+      rc = (*dp->get_procs().decoder_fileinfo)(filename, &what2, info);
       if (rc != PLUGIN_NO_PLAY)
         goto ok;
     }
@@ -1016,7 +1016,7 @@ dec_fileinfo( const char* filename, INFOTYPE* what, DECODER_INFO2* info, char* n
       if (!dp->get_enabled() || checked[i])
         continue;
       what2 = *what;
-      rc = dp->get_procs().decoder_fileinfo(filename, &what2, info) == 0;
+      rc = (*dp->get_procs().decoder_fileinfo)(filename, &what2, info);
       if (rc != PLUGIN_NO_PLAY)
         goto ok;
     }

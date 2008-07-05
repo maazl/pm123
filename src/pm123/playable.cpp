@@ -459,7 +459,7 @@ sorted_vector<Playable, const char*> Playable::RPInst(RP_INITIAL_SIZE);
 Mutex Playable::RPMutex;
 
 int Playable::compareTo(const char*const& str) const
-{ DEBUGLOG(("Playable(%p{%s})::compareTo(%s)\n", this, URL.cdata(), str));
+{ DEBUGLOG2(("Playable(%p{%s})::compareTo(%s)\n", this, URL.cdata(), str));
   return stricmp(URL, str);
 }
 
