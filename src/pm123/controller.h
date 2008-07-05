@@ -208,13 +208,15 @@ class Ctrl
     EV_RootMeta = 0x00004000, // The meta data of the root has changed.
     EV_RootPhys = 0x00008000, // The physical file information has changed (e.g. number of items).
     EV_RootRpl  = 0x00010000, // The recursive playlist information has changed (e.g. total number of sogs)
-    EV_RootAll  = EV_Root|EV_RootTech|EV_RootMeta|EV_RootPhys|EV_RootRpl, // internal: root object changed
+    EV_RootStat = 0x00040000, // The root status has changed
+    EV_RootAll  = EV_Root|EV_RootTech|EV_RootMeta|EV_RootPhys|EV_RootRpl|EV_RootStat, // internal: root object changed
     EV_Song     = 0x00100000, // The current song has changed. This always includes EV_Song*.
     EV_SongTech = 0x00200000, // The technical information have changed (e.g. song length).
     EV_SongMeta = 0x00400000, // The meta data of the current song has changed (i.e. song title).
     EV_SongPhys = 0x00800000, // The physical song information has changed (e.g. the file size).
     //EV_Rpl    = 0x01000000, // The recursive playlist information has changed
-    EV_SongAll  = EV_Song|EV_SongTech|EV_SongMeta|EV_SongPhys // internal: song changed
+    EV_SongStat = 0x04000000, // The song status has changed
+    EV_SongAll  = EV_Song|EV_SongTech|EV_SongMeta|EV_SongPhys|EV_SongStat // internal: song changed
   };
   
  private:

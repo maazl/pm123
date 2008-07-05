@@ -34,6 +34,7 @@
 #include "pm123.h"
 #include "properties.h"
 #include <string.h>
+#include <stdio.h>
 
 #include <debuglog.h>
 
@@ -662,13 +663,14 @@ Playable::InfoFlags Song::LoadInfo(InfoFlags what)
   Lock lock(*this);
   int rc = dec_fileinfo(GetURL(), &what2, info.get(), Decoder, sizeof Decoder);
   what = (InfoFlags)what2 | Playable::IF_Other|Playable::IF_Status; // That's always inclusive when we call dec_fileinfo
-
+  
   PlayableStatus stat;
   DEBUGLOG(("Song::LoadInfo - rc = %i\n", rc));
   // update information
   if (rc != 0)
   { stat = STA_Invalid;
-    info = NULL;
+    if (*info->tech->info == 0)
+      sprintf(info->tech->info, "Decoder error %i", rc);
   } else
     stat = Stat == STA_Used ? STA_Used : STA_Normal;
   UpdateStatus(stat);

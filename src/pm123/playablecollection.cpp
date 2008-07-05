@@ -37,6 +37,7 @@
 #include "copyright.h"
 #include <xio.h>
 #include <strutils.h>
+#include <snprintf.h>
 #include <stdio.h>
 #include <stddef.h>
 #include <string.h>
@@ -1404,9 +1405,10 @@ bool Playlist::LoadList()
   // open file
   XFILE* x = xio_fopen(GetURL(), "r");
   if (x == NULL)
-    // TODO: error handling should be up to the caller
-    pm123_display_error(xstring::sprintf("Unable open playlist file:\n%s\n%s", GetURL().cdata(), xio_strerror(xio_errno())));
-   else
+  { snprintf( Info.tech->info, sizeof Info.tech->info,
+      "Unable open file:\n%s\n%s", GetURL().cdata(), xio_strerror(xio_errno()) );
+    InfoChangeFlags |= IF_Tech;
+  } else
   { if ( stricmp( ext, ".lst" ) == 0 || stricmp( ext, ".m3u" ) == 0 )
       rc = LoadLST(x);
     else if ( stricmp( ext, ".mpl" ) == 0 )
@@ -1544,8 +1546,17 @@ bool PlayFolder::LoadList()
                                                   : FILE_ARCHIVED|FILE_SYSTEM|FILE_HIDDEN|FILE_READONLY,
                            result, sizeof result, &count, FIL_STANDARD);
   DEBUGLOG(("PlayFolder::LoadList: %s, %p, %u, %u\n", name.cdata(), hdir, count, rc));
-  if (rc == NO_ERROR)
-  { do
+  switch (rc)
+  {default:
+    { size_t len = snprintf( Info.tech->info, sizeof Info.tech->info,
+        "Unable open folder (%ul):\n%s\n", rc, GetURL().cdata() );
+      if (len < sizeof Info.tech->info - 1)
+        os2_strerror(rc, Info.tech->info + len, sizeof Info.tech->info - len);
+      InfoChangeFlags |= IF_Tech;
+      break;
+    } 
+   case NO_ERROR:
+    do
     { // add files
       for (FILEFINDBUF3* fp = (FILEFINDBUF3*)result; count--; ((char*&)fp) += fp->oNextEntryOffset)
       { DEBUGLOG(("PlayFolder::LoadList - %s, %x\n", fp->achName, fp->attrFile));
@@ -1567,6 +1578,8 @@ bool PlayFolder::LoadList()
       rc = DosFindNext(hdir, &result, sizeof result, &count);
     } while (rc == 0);
     DosFindClose(hdir);
+   case ERROR_NO_MORE_FILES:
+   case ERROR_FILE_NOT_FOUND:;
   }
   UpdateInfo(&phys);
   // Cleanup reuse of PlayableInstance objects

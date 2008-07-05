@@ -978,6 +978,7 @@ dec_fileinfo( const char* filename, INFOTYPE* what, DECODER_INFO2* info, char* n
   BOOL* checked = (BOOL*)alloca( sizeof( BOOL ) * decoders.count() );
   const CL_DECODER* dp;
   INFOTYPE what2;
+  ULONG rc;
 
   memset( checked, 0, sizeof( BOOL ) * decoders.count() );
 
@@ -989,11 +990,12 @@ dec_fileinfo( const char* filename, INFOTYPE* what, DECODER_INFO2* info, char* n
         continue;
       checked[i] = TRUE;
       what2 = *what;
-      if (dp->get_procs().decoder_fileinfo(filename, &what2, info) == 0)
+      rc = dp->get_procs().decoder_fileinfo(filename, &what2, info);
+      if (rc != PLUGIN_NO_PLAY)
         goto ok;
     }
-    *what = INFO_ALL; // Even in case of an error the requested information is in fact available.
-    return 200; // It makes no sense to check the others in this case.
+    strcpy(info->tech->info, "Cannot find a decoder that supports CD tracks.");
+    goto nodec;
   } else
   { // First checks decoders supporting the specified type of files.
     for ( int i = 0; i < decoders.count(); i++)
@@ -1002,7 +1004,8 @@ dec_fileinfo( const char* filename, INFOTYPE* what, DECODER_INFO2* info, char* n
         continue;
       checked[i] = TRUE;
       what2 = *what;
-      if (dp->get_procs().decoder_fileinfo(filename, &what2, info) == 0)
+      rc = dp->get_procs().decoder_fileinfo(filename, &what2, info) == 0;
+      if (rc != PLUGIN_NO_PLAY)
         goto ok;
     }
   }
@@ -1013,12 +1016,15 @@ dec_fileinfo( const char* filename, INFOTYPE* what, DECODER_INFO2* info, char* n
       if (!dp->get_enabled() || checked[i])
         continue;
       what2 = *what;
-      if( (*dp->get_procs().decoder_fileinfo)( filename, &what2, info ) == 0 )
+      rc = dp->get_procs().decoder_fileinfo(filename, &what2, info) == 0;
+      if (rc != PLUGIN_NO_PLAY)
         goto ok;
     }
   }
+  strcpy(info->tech->info, "Cannot find a decoder that supports this item.");
+ nodec:
   *what = INFO_ALL; // Even in case of an error the requested information is in fact available.
-  return 200;
+  return PLUGIN_NO_PLAY;
  ok:
   DEBUGLOG(("dec_fileinfo: {{%d, %d, %d}, {%d, %lf, %d, %lf, %s}, {%d, %lf, %d}, {%d, %d, %d}} -> %s, %x\n",
     info->format->size, info->format->samplerate, info->format->channels,
@@ -1030,7 +1036,7 @@ dec_fileinfo( const char* filename, INFOTYPE* what, DECODER_INFO2* info, char* n
   *what = (INFOTYPE)(what2 | *what); // do not reset bits
   if (name)
     sfnameext( name, dp->module_name, name_size );
-  return 0;
+  return rc;
 }
 
 ULONG DLLENTRY

@@ -140,6 +140,7 @@ void CommandProcessor::CmdLoad(xstring& ret, char* args)
 { if (is_dir(args))
     // TODO: buffer may overrun???
     strcat(args, "\\");
+  // TODO: connect controller directly to avoid dialog messages.
   amp_load_playable(PlayableSlice(Playable::GetByURL(url123::normalizeURL(args))), AMP_LOAD_NOT_RECALL|(cfg.append_cmd*AMP_LOAD_APPEND));
   // TODO: reply and sync wait
 }

@@ -449,8 +449,7 @@ void Ctrl::CurrentSongEventHandler(void*, const Playable::change_args& args)
 { DEBUGLOG(("Ctrl::CurrentSongEventHandler(, {%p{%s}, %x})\n", &args.Instance, args.Instance.GetURL().cdata(), args.Flags));
   if (GetCurrentSong() != &args.Instance)
     return; // too late...
-  EventFlags events = (EventFlags)( (int)(args.Flags & (Playable::IF_Tech|Playable::IF_Meta|Playable::IF_Phys))
-                                  / Playable::IF_Tech * (int)EV_SongTech ); // Dirty hack to shift the bits to match EV_Song*
+  EventFlags events = (EventFlags)((unsigned)args.Flags / Playable::IF_Tech * (unsigned)EV_SongTech) & EV_SongAll & ~EV_Song; // Dirty hack to shift the bits to match EV_Song*
   if (events)
   { InterlockedOr(Pending, events);
     PostCommand(MkNop());
@@ -461,8 +460,7 @@ void Ctrl::CurrentRootEventHandler(void*, const Playable::change_args& args)
 { DEBUGLOG(("Ctrl::CurrentRootEventHandler(, {%p{%s}, %x})\n", &args.Instance, args.Instance.GetURL().cdata(), args.Flags));
   if (GetRoot()->GetPlayable() != &args.Instance)
     return; // too late...
-  EventFlags events = (EventFlags)( (int)(args.Flags & (Playable::IF_Tech|Playable::IF_Meta|Playable::IF_Phys))
-                                  / Playable::IF_Tech * (int)EV_RootTech ); // Dirty hack to shift the bits to match EV_Root*
+  EventFlags events = (EventFlags)((unsigned)args.Flags / Playable::IF_Tech * (unsigned)EV_RootTech) & EV_RootAll & ~EV_Root; // Dirty hack to shift the bits to match EV_Root*
   if (events)
   { InterlockedOr(Pending, events);
     PostCommand(MkNop());

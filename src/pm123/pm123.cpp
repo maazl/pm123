@@ -306,6 +306,9 @@ amp_display_filename( void )
       // if tag is empty - use filename instead of it.
     case CFG_DISP_FILENAME:
       text = CurrentSong->GetURL().getShortName();
+      // In case of an invalid item display an error message.
+      if (CurrentSong->GetStatus() == STA_Invalid)
+        text = text + " - " + CurrentSong->GetInfo().tech->info;
       break;
 
     case CFG_DISP_FILEINFO:
@@ -355,7 +358,7 @@ amp_load_playable( const PlayableSlice& ps, int options )
       DefaultPL->Clear();
       DefaultPL->InsertItem(*Ctrl::GetRoot());
       // reset current to first item of the playlist
-      Ctrl::PostCommand(Ctrl::MkLoad(DefaultPL->GetURL(), true));
+      Ctrl::PostCommand(Ctrl::MkLoad(DefaultPL->GetURL(), true), &amp_control_event_callback);
     }
     // append new item
     DefaultPL->InsertItem(ps);
@@ -373,7 +376,7 @@ amp_load_playable( const PlayableSlice& ps, int options )
       // start playback immediately after loading has completed
       tail = tail->Link = Ctrl::MkPlayStop(Ctrl::Op_Set);
   }
-  Ctrl::PostCommand(cmd);
+  Ctrl::PostCommand(cmd, &amp_control_event_callback);
 
   if( !( options & AMP_LOAD_NOT_RECALL ))
     amp_AddMRU(LoadMRU, MAX_RECALL, ps);
@@ -866,7 +869,7 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
         { UpdAtLocMsg |= UPD_FILEINFO; // update later
           amp_force_locmsg();
         }
-        if (flags & Ctrl::EV_SongMeta)
+        if (flags & (Ctrl::EV_SongMeta|Ctrl::EV_SongStat))
         { int_ptr<Song> song = Ctrl::GetCurrentSong();
           if (song)
             WinSetWindowText(hframe, (song->GetURL().getDisplayName() + " - " AMP_FULLNAME).cdata());
@@ -885,7 +888,12 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
       { Ctrl::ControlCommand* cmd = (Ctrl::ControlCommand*)PVOIDFROMMP(mp1);
         DEBUGLOG(("amp_dlg_proc: AMP_CTRL_EVENT_CB %p{%i, %x}\n", cmd, cmd->Cmd, cmd->Flags));
         switch (cmd->Cmd)
-        {case Ctrl::Cmd_Skip:
+        {case Ctrl::Cmd_Load:
+          // Successful? if not display error.
+          if (cmd->Flags != Ctrl::RC_OK)
+            pm123_display_error(xstring::sprintf("Error loading %s\n%s", cmd->StrArg.cdata(), Playable::GetByURL(cmd->StrArg)->GetInfo().tech->info));
+          break;
+         case Ctrl::Cmd_Skip:
           WinSendDlgItemMsg(hplayer, BMP_PREV, WM_DEPRESS, 0, 0);
           WinSendDlgItemMsg(hplayer, BMP_NEXT, WM_DEPRESS, 0, 0);
           break;
