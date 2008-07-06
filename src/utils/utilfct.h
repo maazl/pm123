@@ -101,10 +101,6 @@ BOOL  wait_thread( TID tid, ULONG msec );
 /* Same as wait_thread, but keep the PM message queue alive. */
 BOOL  wait_thread_pm( HAB hab, TID tid, ULONG msec );
 
-/* append a tabbed dialog page. The index param gives
-   the index (low word) and the total (high word) number of subpages (if any). */
-BOOL  nb_append_tab( HWND book, HWND page, const char* text, MPARAM index );
-
 /* Adds an item into a menu control. */
 SHORT mn_add_item( HWND menu, SHORT id, const char* item, BOOL enable, BOOL check, PVOID handle );
 /* Returns the identity of a menu item of a specified index. */
@@ -152,6 +148,9 @@ SHORT lb_search( HWND hwnd, SHORT id, SHORT starti, char *item );
 /* Sets the enable state of the entryfield in the dialog template to the enable flag. */
 void  en_enable( HWND hwnd, SHORT id, BOOL enable );
 
+/* append a tabbed dialog page. The index param gives
+   the index (low word) and the total (high word) number of subpages (if any). */
+BOOL  nb_append_tab( HWND book, HWND page, const char* major, char* minor, MPARAM index );
 /* Adjusting the position and size of a notebook window. */
 void  nb_adjust( HWND hwnd );
 

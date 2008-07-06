@@ -239,24 +239,6 @@ wait_thread_pm( HAB hab, TID tid, ULONG msec )
   return TRUE;
 }
 
-/* Append a tabbed dialog page */
-BOOL
-nb_append_tab( HWND book, HWND page, const char* text, MPARAM index )
-{ USHORT style = BKA_AUTOPAGESIZE | ( SHORT2FROMMP( index ) > 1) * (BKA_MINOR|BKA_STATUSTEXTON) | (SHORT1FROMMP( index ) <= 1) * BKA_MAJOR;
-  ULONG id = LONGFROMMR( WinSendMsg( book, BKM_INSERTPAGE, 0, MPFROM2SHORT( style, BKA_LAST )));
-  if ( id == 0
-    || !WinSendMsg( book, BKM_SETPAGEWINDOWHWND, MPFROMLONG( id ), MPFROMHWND( page ))
-    || (text && !WinSendMsg( book, BKM_SETTABTEXT, MPFROMLONG( id ), MPFROMP( text ))) )
-    return FALSE;
-  if (style & BKA_STATUSTEXTON)
-  { char buf[20];
-    sprintf( buf, "Page %u of %u", SHORT1FROMMP( index ), SHORT2FROMMP( index ) );
-    if ( !WinSendMsg( book, BKM_SETSTATUSLINETEXT, MPFROMLONG( id ), MPFROMP( buf )) )
-      return FALSE;
-  }
-  return TRUE;
-}
-
 /* Adds an item into a menu control. */
 SHORT
 mn_add_item( HWND menu, SHORT id, const char* item, BOOL enable, BOOL check, PVOID handle )
@@ -464,6 +446,40 @@ en_enable( HWND hwnd, SHORT id, BOOL enable )
     WinSendMsg( hcontrol, EM_SETREADONLY, MPFROMSHORT( !enable ), 0 );
     WinSetPresParam( hcontrol, PP_BACKGROUNDCOLORINDEX, sizeof( bg_color ), &bg_color );
   }
+}
+
+/* Append a tabbed dialog page */
+BOOL
+nb_append_tab(HWND book, HWND page, const char* major, char* minor, MPARAM index)
+{ USHORT style = BKA_AUTOPAGESIZE | (SHORT2FROMMP(index) > 1) * (BKA_MINOR|BKA_STATUSTEXTON) | (SHORT1FROMMP(index) <= 1) * BKA_MAJOR;
+  BOOKPAGEINFO bi = { sizeof bi };
+  ULONG id = LONGFROMMR(WinSendMsg(book, BKM_INSERTPAGE, 0, MPFROM2SHORT(style, BKA_LAST)));
+  HWND hw1, hw2;
+  USHORT wid;
+  if (id == 0)
+    return FALSE;
+  bi.fl = BFA_PAGEFROMHWND;
+  bi.hwndPage = page;
+  // set major text if supplied
+  if (major)
+  { bi.fl |= BFA_MAJORTABTEXT;
+    bi.cbMajorTab = strlen(major);
+    bi.pszMajorTab = (PSZ)major;
+  }
+  // set minor text if supplied
+  if (minor)
+  { bi.fl |= BFA_MINORTABTEXT;
+    bi.cbMinorTab = strlen(minor);
+    bi.pszMinorTab = (PSZ)minor;
+  }
+  // set status text if multiple pages
+  if (style & BKA_STATUSTEXTON)
+  { char buf[32];
+    bi.fl |= BFA_STATUSLINE;
+    bi.cbStatusLine = sprintf(buf, "Page %u of %u", SHORT1FROMMP(index), SHORT2FROMMP(index));
+    bi.pszStatusLine = buf;
+  }
+  return LONGFROMMR(WinSendMsg(book, BKM_SETPAGEINFO, MPFROMLONG(id), MPFROMP(&bi)));
 }
 
 /* Adjusting the position and size of a notebook window. */
