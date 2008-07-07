@@ -52,8 +52,7 @@
 
 #define  CFG_REFRESH_LIST (WM_USER+1)
 #define  CFG_REFRESH_INFO (WM_USER+2)
-#define  CFG_DEFAULT      (WM_USER+3)
-#define  CFG_UNDO         (WM_USER+4)
+#define  CFG_GLOB_BUTTON  (WM_USER+3)
 #define  CFG_CHANGE       (WM_USER+5)
 
 // The properties!
@@ -136,42 +135,6 @@ void cfg_init( void )
 }
 
 
-static ULONG
-cfg_add_plugin( HWND hwnd, ULONG types )
-{
-  FILEDLG filedialog;
-  ULONG   rc = 0;
-  APSZ    ftypes[] = {{ FDT_PLUGIN }, { 0 }};
-
-  memset( &filedialog, 0, sizeof( FILEDLG ));
-
-  filedialog.cbSize         = sizeof( FILEDLG );
-  filedialog.fl             = FDS_CENTER | FDS_OPEN_DIALOG | FDS_CUSTOM;
-  filedialog.pszTitle       = "Load a plug-in";
-  filedialog.hMod           = NULLHANDLE;
-  filedialog.usDlgId        = DLG_FILE;
-  filedialog.pfnDlgProc     = amp_file_dlg_proc;
-  filedialog.papszITypeList = ftypes;
-  filedialog.pszIType       = FDT_PLUGIN;
-
-
-  strcpy( filedialog.szFullFile, startpath );
-  WinFileDlg( HWND_DESKTOP, hwnd, &filedialog );
-
-  if( filedialog.lReturn == DID_OK ) {
-    rc = add_plugin( filedialog.szFullFile, NULL );
-    if( rc & PLUGIN_VISUAL ) {
-      int num = enum_visual_plugins(NULL);
-      vis_init( num - 1 );
-    }
-    if( rc & PLUGIN_FILTER && decoder_playing()) {
-      amp_info( hwnd, "This filter will only be enabled after playback of the current file." );
-    }
-    WinSendMsg( hwnd, CFG_REFRESH_LIST, MPFROMLONG( rc ), 0 );
-  }
-  return rc;
-}
-
 /* Processes messages of the setings page of the setup notebook. */
 static MRESULT EXPENTRY
 cfg_settings1_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
@@ -181,10 +144,6 @@ cfg_settings1_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
       do_warpsans( hwnd );
       WinPostMsg(hwnd, CFG_CHANGE, MPFROMP(&cfg), 0);
       break;
-
-    case CFG_UNDO:
-      WinPostMsg(hwnd, CFG_CHANGE, MPFROMP(&cfg), 0);
-      return 0;
 
     case CFG_CHANGE:
     { const amp_cfg& cfg = *(const amp_cfg*)PVOIDFROMMP(mp1);
@@ -204,11 +163,17 @@ cfg_settings1_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
       WinCheckButton( hwnd, CB_QUEUEMODE,     cfg.queue_mode   );
       return 0;
     }
-    case CFG_DEFAULT:
-      WinPostMsg(hwnd, CFG_CHANGE, MPFROMP(&cfg_default), 0);
-    case WM_COMMAND:
-    case WM_CONTROL:
+
+    case CFG_GLOB_BUTTON:
+    { const amp_cfg* data = &cfg;
+      switch (SHORT1FROMMP(mp1))
+      {case PB_DEFAULT:
+        data = &cfg_default;
+       case PB_UNDO:
+        WinPostMsg(hwnd, CFG_CHANGE, MPFROMP(data), 0);
+      }
       return 0;
+    }
 
     case WM_DESTROY:
       cfg.playonload  = WinQueryButtonCheckstate( hwnd, CB_PLAYONLOAD   );
@@ -225,6 +190,8 @@ cfg_settings1_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
       cfg.append_dnd  = WinQueryButtonCheckstate( hwnd, CB_AUTOAPPENDDND);
       cfg.append_cmd  = WinQueryButtonCheckstate( hwnd, CB_AUTOAPPENDCMD);
       cfg.queue_mode  = WinQueryButtonCheckstate( hwnd, CB_QUEUEMODE    );
+    case WM_COMMAND:
+    case WM_CONTROL:
       return 0;
   }
   return WinDefDlgProc( hwnd, msg, mp1, mp2 );
@@ -237,10 +204,6 @@ cfg_settings2_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
       do_warpsans( hwnd );
       WinPostMsg(hwnd, CFG_CHANGE, MPFROMP(&cfg), 0);
       break;
-
-    case CFG_UNDO:
-      WinPostMsg(hwnd, CFG_CHANGE, MPFROMP(&cfg), 0);
-      return 0;
 
     case CFG_CHANGE:
     { const amp_cfg& cfg = *(const amp_cfg*)PVOIDFROMMP(mp1);
@@ -288,10 +251,16 @@ cfg_settings2_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
       return 0;
     }
 
-    case CFG_DEFAULT:
-      WinPostMsg(hwnd, CFG_CHANGE, MPFROMP(&cfg_default), 0);
-    case WM_COMMAND:
+    case CFG_GLOB_BUTTON:
+    { const amp_cfg* data = &cfg;
+      switch (SHORT1FROMMP(mp1))
+      {case PB_DEFAULT:
+        data = &cfg_default;
+       case PB_UNDO:
+        WinPostMsg(hwnd, CFG_CHANGE, MPFROMP(data), 0);
+      }
       return 0;
+    }
 
     case WM_CONTROL:
       if( SHORT1FROMMP(mp1) == CB_FILLBUFFER &&
@@ -301,6 +270,7 @@ cfg_settings2_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
 
         WinEnableControl( hwnd, SB_FILLBUFFER, fill );
       }
+    case WM_COMMAND:
       return 0;
 
     case WM_DESTROY:
@@ -373,14 +343,6 @@ cfg_display1_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
       WinPostMsg(hwnd, CFG_CHANGE, MPFROMP(&cfg), 0);
       break;
 
-    case CFG_UNDO:
-      WinPostMsg(hwnd, CFG_CHANGE, MPFROMP(&cfg), 0);
-      return 0;
-
-    case CFG_DEFAULT:
-      WinPostMsg(hwnd, CFG_CHANGE, MPFROMP(&cfg_default), 0);
-      return 0;
-
     case CFG_CHANGE:
     { 
       if (mp1)
@@ -403,6 +365,17 @@ cfg_display1_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
       xstring font_name  = amp_font_attrs_to_string( font_attrs, font_size );
       WinSetDlgItemText( hwnd, ST_FONT_SAMPLE, font_name );
       WinSetPresParam  ( WinWindowFromID( hwnd, ST_FONT_SAMPLE ), PP_FONTNAMESIZE, font_name.length() +1, (PVOID)font_name.cdata() );
+      return 0;
+    }
+
+    case CFG_GLOB_BUTTON:
+    { const amp_cfg* data = &cfg;
+      switch (SHORT1FROMMP(mp1))
+      {case PB_DEFAULT:
+        data = &cfg_default;
+       case PB_UNDO:
+        WinPostMsg(hwnd, CFG_CHANGE, MPFROMP(data), 0);
+      }
       return 0;
     }
 
@@ -463,352 +436,249 @@ cfg_display1_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
   return WinDefDlgProc( hwnd, msg, mp1, mp2 );
 }
 
-static bool cfg_config_refresh_list(HWND hwnd, SHORT id, int (*enum_fn)(PLUGIN_BASE*const**))
-{ DEBUGLOG(("cfg_config_refresh_list(%x, %p, %i)\n", hwnd, enum_fn, id));
-  lb_remove_all( hwnd, id );
+struct plugin_context
+{ size_t size; // structure size
+  ULONG  type; // plug-in type
+  int  (*enum_fn)(PLUGIN_BASE*const**);
+  BOOL (*remove_fn)(int i);
+  BOOL (*move_fn)(int i, int j);
+  BOOL (*is_active_fn)(int i);
+  int    recent_level; // most recent interface level
+
+  bool (plugin_context::*enable_hook)(int i, bool enable);
+
+  HWND   hwnd;
+    
+  void         refresh_list();
+  PLUGIN_BASE* refresh_info(int i);
+  ULONG        add_plugin();
+
+  bool         decoder_enable_hook(int i, bool enable);
+  bool         filter_enable_hook(int i, bool enable);
+  bool         output_enable_hook(int i, bool enable);
+  bool         visual_enable_hook(int i, bool enable);
+};
+
+void plugin_context::refresh_list()
+{ DEBUGLOG(("plugin_context::refresh_list()\n"));
+  HWND lb = WinWindowFromID(hwnd, LB_PLUGINS);
+  PMASSERT(lb != NULLHANDLE);
+  WinSendMsg(lb, LM_DELETEALL, 0, 0);
   PLUGIN_BASE*const* list;
   int num = (*enum_fn)(&list);
   char filename[_MAX_FNAME];
-  for ( int i = 0; i < num; i++ )
-    lb_add_item( hwnd, id, sfname( filename, list[i]->module_name, sizeof( filename )));
-  if ( lb_size( hwnd, id))
-  { lb_select( hwnd, id, 0 );
+  for (int i = 0; i < num; i++)
+    WinSendMsg(lb, LM_INSERTITEM, MPFROMSHORT(LIT_END), MPFROMP(sfname(filename, list[i]->module_name, sizeof filename)));
+}
+
+PLUGIN_BASE* plugin_context::refresh_info(int i)
+{ PLUGIN_BASE*const* list;       
+  int num = (*enum_fn)(&list);
+  if (i < 0 || i >= num)
+  { WinSetDlgItemText(hwnd, ST_PLG_AUTHOR, "");
+    WinSetDlgItemText(hwnd, ST_PLG_DESC,   "");
+    WinSetDlgItemText(hwnd, ST_PLG_LEVEL,  "");
+    // The following function give an error if no such buttons. This is ignored.
+    WinSetDlgItemText(hwnd, PB_PLG_ENABLE, "~Enable");
+    WinEnableControl (hwnd, PB_PLG_UNLOAD, FALSE);
+    WinEnableControl (hwnd, PB_PLG_UP,     FALSE);
+    WinEnableControl (hwnd, PB_PLG_DOWN,   FALSE);
+    WinEnableControl (hwnd, PB_PLG_ENABLE, FALSE);
+    WinEnableControl (hwnd, PB_PLG_ACTIVATE, FALSE);
+    WinEnableControl (hwnd, PB_PLG_CONFIG, FALSE);
+    return NULL;
+  } else
+  { char buffer[64];
+    WinSetDlgItemText(hwnd, ST_PLG_AUTHOR, list[i]->query_param.author);
+    WinSetDlgItemText(hwnd, ST_PLG_DESC,   list[i]->query_param.desc);
+    snprintf(buffer, sizeof buffer,        "Interface level %i%s",
+      list[i]->query_param.interface, list[i]->query_param.interface >= recent_level ? "" : " (virtualized)");
+    WinSetDlgItemText(hwnd, ST_PLG_LEVEL,  buffer);
+    WinSetDlgItemText(hwnd, PB_PLG_ENABLE, get_plugin_enabled(list[i]) ? "Disabl~e" : "~Enable");
+    WinEnableControl (hwnd, PB_PLG_UNLOAD, TRUE);
+    WinEnableControl (hwnd, PB_PLG_UP,     i > 0);
+    WinEnableControl (hwnd, PB_PLG_DOWN,   i < num-1);
+    WinEnableControl (hwnd, PB_PLG_ENABLE, TRUE);
+    if (is_active_fn)
+      WinEnableControl (hwnd, PB_PLG_ACTIVATE, !(*is_active_fn)(i));
+    WinEnableControl (hwnd, PB_PLG_CONFIG, list[i]->query_param.configurable && get_plugin_enabled(list[i]) );
+    return list[i];
+  }
+}
+
+ULONG plugin_context::add_plugin()
+{
+  FILEDLG filedialog;
+  ULONG   rc = 0;
+  APSZ    ftypes[] = {{ FDT_PLUGIN }, { 0 }};
+
+  memset(&filedialog, 0, sizeof(FILEDLG));
+
+  filedialog.cbSize         = sizeof(FILEDLG);
+  filedialog.fl             = FDS_CENTER|FDS_OPEN_DIALOG|FDS_CUSTOM;
+  filedialog.pszTitle       = "Load a plug-in";
+  filedialog.hMod           = NULLHANDLE;
+  filedialog.usDlgId        = DLG_FILE;
+  filedialog.pfnDlgProc     = amp_file_dlg_proc;
+  filedialog.papszITypeList = ftypes;
+  filedialog.pszIType       = FDT_PLUGIN;
+
+  strcpy(filedialog.szFullFile, startpath);
+  WinFileDlg(HWND_DESKTOP, hwnd, &filedialog);
+
+  if (filedialog.lReturn == DID_OK)
+  { rc = ::add_plugin( filedialog.szFullFile, NULL );
+    if (rc & PLUGIN_VISUAL)
+    { int num = enum_visual_plugins(NULL);
+      vis_init( num - 1 );
+    }
+    if (rc & PLUGIN_FILTER && Ctrl::IsPlaying())
+      amp_info( hwnd, "This filter will only be enabled after playback stops." );
+    if (rc & type)
+      WinSendMsg(hwnd, CFG_REFRESH_LIST, 0, MPFROMSHORT((*enum_fn)(NULL) -1));
+  }
+  return rc;
+}
+
+bool plugin_context::visual_enable_hook(int i, bool enable)
+{ if (enable)
+    vis_init(i);
+  else
+    vis_deinit(i);
+  return true;
+}
+
+bool plugin_context::decoder_enable_hook(int i, bool enable)
+{ // This query is non-atomic, but nothing strange will happen anyway.
+  if (!enable && Ctrl::IsPlaying() && dec_is_active(i))
+  { amp_error(hwnd, "Cannot disable currently in use decoder.");
     return false;
   }
   return true;
 }
 
-static PLUGIN_BASE* cfg_config_refresh_info( HWND hwnd, int (*enum_fn)(PLUGIN_BASE*const**), SHORT i,
-  SHORT st_author, SHORT st_desc, SHORT pb_enable, SHORT pb_config, SHORT pb_unload )
-{ PLUGIN_BASE*const* list;
-  int num = (*enum_fn)(&list);
-  if( i < 0 || i >= num ) {
-    WinSetDlgItemText( hwnd, st_author, "Author: <none>" );
-    WinSetDlgItemText( hwnd, st_desc,   "Desc: <none>" );
-    WinSetDlgItemText( hwnd, pb_enable, "~Enable" );
-    WinEnableControl ( hwnd, pb_config, FALSE );
-    if (pb_enable)
-      WinEnableControl ( hwnd, pb_enable, FALSE );
-    WinEnableControl ( hwnd, pb_unload, FALSE );
-    return NULL;
-  } else {
-    char buffer[256];
-    snprintf( buffer, sizeof buffer,    "Author: %s", list[i]->query_param.author );
-    WinSetDlgItemText( hwnd, st_author, buffer );
-    snprintf( buffer, sizeof buffer,    "Desc: %s", list[i]->query_param.desc );
-    WinSetDlgItemText( hwnd, st_desc, buffer );
-    if (pb_enable)
-    { WinSetDlgItemText( hwnd, pb_enable, get_plugin_enabled(list[i]) ? "Disabl~e" : "~Enable" );
-      WinEnableControl ( hwnd, pb_enable, TRUE );
-    }
-    WinEnableControl ( hwnd, pb_unload, TRUE );
-    WinEnableControl ( hwnd, pb_config, list[i]->query_param.configurable && get_plugin_enabled(list[i]) );
-    return list[i];
+bool plugin_context::output_enable_hook(int i, bool enable)
+{ if (Ctrl::IsPlaying())
+  { amp_error(hwnd, "Cannot change active output while playing.");
+    return false;
   }
+  return out_set_active(i);
 }
 
-/* Processes messages of the plug-ins page 1 of the setup notebook. */
+bool plugin_context::filter_enable_hook(int i, bool enable)
+{ int num;
+  PLUGIN_BASE*const* list;
+  enum_filter_plugins(&list);
+  if (Ctrl::IsPlaying() && get_plugin_in_use(list[i]))
+    amp_info(hwnd, enable
+      ? "This filter will only be enabled after playback stops."
+      : "This filter will only be disabled after playback stops.");
+  return true;
+}
+
+/* Processes messages of the plug-ins pages of the setup notebook. */
 static MRESULT EXPENTRY
-cfg_config1_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
+cfg_config_dlg_proc(HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2)
 {
+  plugin_context* context = (plugin_context*)WinQueryWindowULong(hwnd, QWL_USER);
   int num;
   PLUGIN_BASE*const* list;
+  SHORT i;
 
   switch( msg )
-  {
-    case CFG_REFRESH_LIST:
-      if( LONGFROMMP(mp1) & PLUGIN_VISUAL )
-      { if (!cfg_config_refresh_list(hwnd, LB_VISPLUG, &enum_visual_plugins))
-          (unsigned&)mp1 &= ~PLUGIN_VISUAL;
-      }
-      if( LONGFROMMP(mp1) & PLUGIN_DECODER )
-      { if (!cfg_config_refresh_list(hwnd, LB_DECPLUG, &enum_decoder_plugins))
-          (unsigned&)mp1 &= ~PLUGIN_DECODER;
-      }
-      if (!mp1)
-        return 0;
-      mp2 = MPFROMSHORT( LIT_NONE ); // Uhh, dirty fallthrough!
+  { case CFG_REFRESH_LIST:
+      context->refresh_list();
+      lb_select(hwnd, LB_PLUGINS, SHORT1FROMMP(mp2));
+      return 0;
+      
     case CFG_REFRESH_INFO:
-      if( LONGFROMMP(mp1) & PLUGIN_VISUAL )
-        cfg_config_refresh_info( hwnd, &enum_visual_plugins, SHORT1FROMMP(mp2),
-          ST_VIS_AUTHOR, ST_VIS_DESC, PB_VIS_ENABLE, PB_VIS_CONFIG, PB_VIS_UNLOAD );
-      if( LONGFROMMP(mp1) & PLUGIN_DECODER )
-        cfg_config_refresh_info( hwnd, &enum_decoder_plugins, SHORT1FROMMP(mp2),
-          ST_DEC_AUTHOR, ST_DEC_DESC, PB_DEC_ENABLE, PB_DEC_CONFIG, PB_DEC_UNLOAD );
+      context->refresh_info(SHORT1FROMMP(mp2));
       return 0;
 
     case WM_INITDLG:
-      do_warpsans( hwnd );
-      do_warpsans( WinWindowFromID( hwnd, ST_VIS_AUTHOR ));
-      do_warpsans( WinWindowFromID( hwnd, ST_VIS_DESC   ));
-      do_warpsans( WinWindowFromID( hwnd, ST_DEC_AUTHOR ));
-      do_warpsans( WinWindowFromID( hwnd, ST_DEC_DESC   ));
-
-      WinPostMsg( hwnd, CFG_REFRESH_LIST,
-                  MPFROMLONG( PLUGIN_VISUAL | PLUGIN_DECODER ), 0 );
+      context = (plugin_context*)mp2;
+      context->hwnd = hwnd;
+      WinSetWindowULong(hwnd, QWL_USER, (ULONG)context);
+      do_warpsans(hwnd);
+      WinPostMsg(hwnd, CFG_REFRESH_LIST, 0, MPFROMSHORT(LIT_NONE));
       return 0;
+
+    // TODO: undo/default
 
     case WM_CONTROL:
-      if( SHORT2FROMMP( mp1 ) == LN_SELECT )
-      {
-        int i = WinQueryLboxSelectedItem((HWND)mp2);
-
-        if( SHORT1FROMMP( mp1 ) == LB_VISPLUG ) {
-          WinPostMsg( hwnd, CFG_REFRESH_INFO, MPFROMLONG( PLUGIN_VISUAL  ), MPFROMSHORT( i ));
-        } else if( SHORT1FROMMP( mp1 ) == LB_DECPLUG ) {
-          WinPostMsg( hwnd, CFG_REFRESH_INFO, MPFROMLONG( PLUGIN_DECODER ), MPFROMSHORT( i ));
-        }
+      switch (SHORT2FROMMP(mp1))
+      {case LN_SELECT:
+        i = WinQueryLboxSelectedItem(HWNDFROMMP(mp2));
+        WinPostMsg(hwnd, CFG_REFRESH_INFO, 0, MPFROMSHORT(i));
+        break;
+       case LN_ENTER:
+        i = WinQueryLboxSelectedItem(HWNDFROMMP(mp2));
+        configure_plugin(context->type, i, hwnd);
+        break;
       }
-      break;
-
-    case WM_COMMAND:
-      switch( COMMANDMSG( &msg )->cmd )
-      {
-        case PB_VIS_ADD:
-          cfg_add_plugin( hwnd, PLUGIN_VISUAL );
-          return 0;
-
-        case PB_VIS_CONFIG:
-          configure_plugin( PLUGIN_VISUAL, lb_cursored( hwnd, LB_VISPLUG ), hwnd );
-          return 0;
-
-        case PB_VIS_ENABLE:
-        {
-          SHORT i = lb_cursored( hwnd, LB_VISPLUG );
-          num = enum_visual_plugins(&list);
-          if( i >= 0 && i < num ) {
-            if( get_plugin_enabled(list[i]) ) {
-              vis_deinit( i );
-            } else {
-              vis_init( i );
-            }
-            set_plugin_enabled(list[i], !get_plugin_enabled(list[i]));
-            WinPostMsg( hwnd, CFG_REFRESH_INFO, MPFROMLONG( PLUGIN_VISUAL ), MPFROMSHORT( i ));
-          }
-          return 0;
-        }
-
-        case PB_VIS_UNLOAD:
-        {
-          SHORT i = lb_cursored( hwnd, LB_VISPLUG );
-          if( i != LIT_NONE ) {
-            remove_visual_plugin( i );
-            if( lb_remove_item( hwnd, LB_VISPLUG, i ) == 0 ) {
-              WinPostMsg( hwnd, CFG_REFRESH_INFO, MPFROMLONG( PLUGIN_VISUAL ), MPFROMSHORT( LIT_NONE ));
-            } else {
-              lb_select( hwnd, LB_VISPLUG, 0 );
-            }
-          }
-          return 0;
-        }
-
-        case PB_DEC_ADD:
-          cfg_add_plugin( hwnd, PLUGIN_DECODER );
-          return 0;
-
-        case PB_DEC_CONFIG:
-          configure_plugin( PLUGIN_DECODER, lb_cursored( hwnd, LB_DECPLUG ), hwnd );
-          return 0;
-
-        case PB_DEC_ENABLE:
-        {
-          SHORT i = lb_cursored( hwnd, LB_DECPLUG );
-          num = enum_decoder_plugins(&list);
-          if( i >= 0 && i < num ) {
-            if( !get_plugin_enabled(list[i]) ) {
-              set_plugin_enabled(list[i], TRUE);
-            } else {
-              // This query is non-atomic, but nothing strange will happen anyway.
-              if( Ctrl::IsPlaying() && dec_is_active(i) ) {
-                amp_error( hwnd, "Cannot disable currently in use decoder." );
-              } else {
-                set_plugin_enabled(list[i], FALSE);
-              }
-            }
-            WinPostMsg( hwnd, CFG_REFRESH_INFO,
-                        MPFROMLONG( PLUGIN_DECODER ), MPFROMSHORT( i ));
-          }
-          return 0;
-        }
-
-        case PB_DEC_UNLOAD:
-        {
-          SHORT i = lb_cursored( hwnd, LB_DECPLUG );
-          if( i != LIT_NONE ) {
-            if( Ctrl::IsPlaying() && dec_is_active(i) ) {
-              amp_error( hwnd, "Cannot unload currently used decoder." );
-            } else {
-              remove_decoder_plugin( i );
-              if( lb_remove_item( hwnd, LB_DECPLUG, i ) == 0 ) {
-                WinSendMsg( hwnd, CFG_REFRESH_INFO, MPFROMLONG( PLUGIN_DECODER ), MPFROMSHORT( LIT_NONE ));
-              } else {
-                lb_select( hwnd, LB_DECPLUG, 0 );
-              }
-            }
-          }
-          return 0;
-        }
-
-        default:
-          return 0;
-      }
-  }
-  return WinDefDlgProc( hwnd, msg, mp1, mp2 );
-}
-
-/* Processes messages of the plug-ins page 2 of the setup notebook. */
-static MRESULT EXPENTRY
-cfg_config2_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
-{
-  int num;
-  PLUGIN_BASE*const* list;
-
-  switch( msg )
-  {
-    case CFG_REFRESH_LIST:
-      if( LONGFROMMP(mp1) & PLUGIN_OUTPUT )
-      { if (!cfg_config_refresh_list(hwnd, LB_OUTPLUG, &enum_output_plugins))
-          (unsigned&)mp1 &= ~PLUGIN_OUTPUT;
-      }
-      if( LONGFROMMP(mp1) & PLUGIN_FILTER )
-      { if (!cfg_config_refresh_list(hwnd, LB_FILPLUG, &enum_filter_plugins))
-          (unsigned&)mp1 &= ~PLUGIN_FILTER;
-      }
-      if (!mp1)
-        return 0;
-      mp2 = MPFROMSHORT( LIT_NONE ); // Uhh, dirty fallthrough!
-    case CFG_REFRESH_INFO:
-      if( LONGFROMMP(mp1) & PLUGIN_OUTPUT )
-      { PLUGIN_BASE* plug = cfg_config_refresh_info( hwnd, &enum_output_plugins, SHORT1FROMMP(mp2),
-          ST_OUT_AUTHOR, ST_OUT_DESC, 0, PB_OUT_CONFIG, PB_OUT_UNLOAD );
-        WinEnableControl ( hwnd, PB_OUT_ACTIVATE, plug && !out_is_active(SHORT1FROMMP(mp2)) );
-      }
-      if( LONGFROMMP(mp1) & PLUGIN_FILTER )
-        cfg_config_refresh_info( hwnd, &enum_filter_plugins, SHORT1FROMMP(mp2),
-          ST_FIL_AUTHOR, ST_FIL_DESC, PB_FIL_ENABLE, PB_FIL_CONFIG, PB_FIL_UNLOAD );
       return 0;
 
-    case WM_INITDLG:
-      do_warpsans( hwnd );
-      do_warpsans( WinWindowFromID( hwnd, ST_FIL_AUTHOR ));
-      do_warpsans( WinWindowFromID( hwnd, ST_FIL_DESC   ));
-      do_warpsans( WinWindowFromID( hwnd, ST_OUT_AUTHOR ));
-      do_warpsans( WinWindowFromID( hwnd, ST_OUT_DESC   ));
-
-      WinPostMsg( hwnd, CFG_REFRESH_LIST,
-                  MPFROMLONG( PLUGIN_OUTPUT | PLUGIN_FILTER ), 0 );
-      return 0;
-
-    case WM_CONTROL:
-      if( SHORT2FROMMP( mp1 ) == LN_SELECT )
-      {
-        int i = WinQueryLboxSelectedItem((HWND)mp2);
-
-        if( SHORT1FROMMP( mp1 ) == LB_OUTPLUG ) {
-          WinSendMsg( hwnd, CFG_REFRESH_INFO, MPFROMLONG( PLUGIN_OUTPUT ), MPFROMSHORT( i ));
-        } else if( SHORT1FROMMP( mp1 ) == LB_FILPLUG ) {
-          WinSendMsg( hwnd, CFG_REFRESH_INFO, MPFROMLONG( PLUGIN_FILTER ), MPFROMSHORT( i ));
-        }
-      }
-      break;
-
     case WM_COMMAND:
-      switch( COMMANDMSG( &msg )->cmd )
-      {
-        case PB_OUT_ADD:
-          cfg_add_plugin( hwnd, PLUGIN_OUTPUT );
-          return 0;
-
-        case PB_OUT_CONFIG:
-          configure_plugin( PLUGIN_OUTPUT, lb_cursored( hwnd, LB_OUTPLUG ), hwnd );
-          return 0;
-
-        case PB_OUT_ACTIVATE:
-        {
-          SHORT i = lb_cursored( hwnd, LB_OUTPLUG );
-          if( i != LIT_NONE ) {
-            if( decoder_playing()) {
-              amp_error( hwnd, "Cannot change active output while playing." );
-            } else {
-              out_set_active( i );
-              WinPostMsg( hwnd, CFG_REFRESH_INFO, MPFROMLONG( PLUGIN_OUTPUT ), MPFROMSHORT( i ));
+      i = lb_cursored(hwnd, LB_PLUGINS);
+      switch (SHORT1FROMMP(mp1))
+      { case PB_PLG_UNLOAD:
+          num = (*context->enum_fn)(&list);
+          if (i >= 0 && i < num)
+          { if (get_plugin_in_use(list[i]))
+              amp_error(hwnd, "Cannot unload currently used plug-in.");
+            else if (lb_remove_item(hwnd, LB_PLUGINS, i) == 0)
+            { // something wrong => reload list
+              WinPostMsg(hwnd, CFG_REFRESH_LIST, 0, MPFROMSHORT(i));
+            } else
+            { (*context->remove_fn)(i);
+              if (i >= lb_size(hwnd, LB_PLUGINS))
+                WinPostMsg(hwnd, CFG_REFRESH_INFO, 0, MPFROMSHORT(LIT_NONE));
+              else
+                lb_select(hwnd, LB_PLUGINS, i);
             }
           }
-          return 0;
-        }
+          break;
 
-        case PB_OUT_UNLOAD:
-        {
-          SHORT i = lb_cursored( hwnd, LB_OUTPLUG );
+        case PB_PLG_ADD:
+          context->add_plugin();
+          break;
 
-          if( i != LIT_NONE ) {
-            if( decoder_playing() && out_is_active(i) ) {
-              amp_error( hwnd, "Cannot unload currently used output." );
-            } else {
-              remove_output_plugin( i );
-              if( lb_remove_item( hwnd, LB_OUTPLUG, i ) == 0 ) {
-                WinPostMsg( hwnd, CFG_REFRESH_INFO, MPFROMLONG( PLUGIN_OUTPUT ), MPFROMSHORT( LIT_NONE ));
-              } else {
-                lb_select( hwnd, LB_OUTPLUG, 0 );
-              }
+        case PB_PLG_UP:
+          if ( i != LIT_NONE && i > 0
+            && (*context->move_fn)(i, i-1) )
+            WinPostMsg(hwnd, CFG_REFRESH_LIST, 0, MPFROMSHORT(i-1));
+          break;
+
+        case PB_PLG_DOWN:
+          if ( i != LIT_NONE && i < lb_size(hwnd, LB_PLUGINS)-1
+            && (*context->move_fn)(i, i+1) )
+            WinPostMsg(hwnd, CFG_REFRESH_LIST, 0, MPFROMSHORT(i+1));
+          break;
+
+        case PB_PLG_ENABLE:
+          num = (*context->enum_fn)(&list);
+          if (i >= 0 && i < num)
+          { bool enable = !get_plugin_enabled(list[i]);
+            if ((context->*context->enable_hook)(i, enable))
+            { set_plugin_enabled(list[i], enable);
+              WinPostMsg(hwnd, CFG_REFRESH_INFO, 0, MPFROMSHORT(i));
             }
           }
-          return 0;
-        }
+          break;
 
-        case PB_FIL_ADD:
-          cfg_add_plugin( hwnd, PLUGIN_FILTER );
-          return 0;
+        case PB_PLG_ACTIVATE:
+          if (i != LIT_NONE && (context->*context->enable_hook)(i, true))
+            WinPostMsg(hwnd, CFG_REFRESH_INFO, 0, MPFROMSHORT(i));
+          break;
 
-        case PB_FIL_CONFIG:
-          configure_plugin( PLUGIN_FILTER, lb_cursored( hwnd, LB_FILPLUG ), hwnd );
-          return 0;
-
-        case PB_FIL_ENABLE:
-        {
-          SHORT i = lb_cursored( hwnd, LB_FILPLUG );
-          num = enum_filter_plugins(&list);
-          if( i >= 0 && i < num ) {
-            if( !get_plugin_enabled(list[i]) ) {
-              set_plugin_enabled(list[i], TRUE);
-              if( decoder_playing()) {
-                amp_info( hwnd, "This filter will only be enabled after playback of the current file." );
-              }
-            } else {
-              set_plugin_enabled(list[i], FALSE);
-              if( decoder_playing()) {
-                amp_info( hwnd, "This filter will only be disabled after playback of the current file." );
-              }
-            }
-            WinPostMsg( hwnd, CFG_REFRESH_INFO, MPFROMLONG( PLUGIN_FILTER ), MPFROMSHORT( i ));
-          }
-          return 0;
-        }
-
-        case PB_FIL_UNLOAD:
-        {
-          SHORT i = lb_cursored( hwnd, LB_FILPLUG );
-
-          if( i != LIT_NONE ) {
-            if( decoder_playing()) {
-              amp_error( hwnd, "Cannot unload currently used filter." );
-            } else {
-              remove_filter_plugin( i );
-              if( lb_remove_item( hwnd, LB_FILPLUG, i ) == 0 ) {
-                WinSendMsg( hwnd, CFG_REFRESH_INFO, MPFROMLONG( PLUGIN_FILTER ), MPFROMSHORT( LIT_NONE ));
-              } else {
-                lb_select( hwnd, LB_FILPLUG, 0 );
-              }
-            }
-          }
-          return 0;
-        }
-
-        default:
-          return 0;
+        case PB_PLG_CONFIG:
+          if (i != LIT_NONE)
+            configure_plugin(context->type, i, hwnd);
+          break;
       }
+      return 0;
   }
-  return WinDefDlgProc( hwnd, msg, mp1, mp2 );
+  return WinDefDlgProc(hwnd, msg, mp1, mp2);
 }
 
 /* Processes messages of the setup dialog. */
@@ -818,7 +688,7 @@ cfg_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
   switch( msg )
   {
     case WM_COMMAND:
-      switch( COMMANDMSG( &msg )->cmd )
+      switch (SHORT1FROMMP(mp1))
       {
         case PB_UNDO:
         case PB_DEFAULT:
@@ -835,8 +705,7 @@ cfg_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
           }
 
           if( page && page != (HWND)BOOKERR_INVALID_PARAMETERS ) {
-            WinSendMsg( page,
-              COMMANDMSG( &msg )->cmd == PB_UNDO ? CFG_UNDO : CFG_DEFAULT, 0, 0 );
+            WinPostMsg( page, CFG_GLOB_BUTTON, mp1, mp2 );
           }
           return MRFROMLONG(1L);
         }
@@ -879,20 +748,65 @@ cfg_properties( HWND owner )
                                            MPFROMSHORT( BKA_BACKGROUNDPAGECOLORINDEX ));
 
   PMRASSERT( nb_append_tab( book, WinLoadDlg( book, book, cfg_settings1_dlg_proc, NULLHANDLE, CFG_SETTINGS1, 0 ),
-                            "~Settings", MPFROM2SHORT( 1, 2 ) ));
+                            "~Settings", NULL, MPFROM2SHORT( 1, 2 ) ));
 
   PMRASSERT( nb_append_tab( book, WinLoadDlg( book, book, cfg_settings2_dlg_proc, NULLHANDLE, CFG_SETTINGS2, 0 ),
-                            NULL, MPFROM2SHORT( 2, 2 ) ));
+                            NULL, NULL, MPFROM2SHORT( 2, 2 ) ));
 
   PMRASSERT( nb_append_tab( book, WinLoadDlg( book, book, cfg_display1_dlg_proc, NULLHANDLE, CFG_DISPLAY1, 0 ),
-                            "~Display", 0));
+                            "~Display", NULL, 0));
 
-  PMRASSERT( nb_append_tab( book, WinLoadDlg( book, book, cfg_config1_dlg_proc, NULLHANDLE, CFG_CONFIG1, 0 ),
-                            "~Plug-ins", MPFROM2SHORT( 1, 2 )));
+  plugin_context decoder_context =
+  { sizeof (plugin_context), 
+    PLUGIN_DECODER,
+    &enum_decoder_plugins,
+    &remove_decoder_plugin,
+    &move_decoder_plugin,
+    NULL,
+    DECODER_PLUGIN_LEVEL,
+    &plugin_context::decoder_enable_hook
+  };
+  PMRASSERT( nb_append_tab( book, WinLoadDlg( book, book, cfg_config_dlg_proc, NULLHANDLE, CFG_DEC_CONFIG, &decoder_context ),
+                            "~Plug-ins", "Decoder Plug-ins", MPFROM2SHORT( 1, 4 )));
 
-  PMRASSERT( nb_append_tab( book, WinLoadDlg( book, book, cfg_config2_dlg_proc, NULLHANDLE, CFG_CONFIG2, 0 ),
-                            NULL, MPFROM2SHORT( 2, 2 )));
+  plugin_context filter_context =
+  { sizeof (plugin_context), 
+    PLUGIN_FILTER,
+    &enum_filter_plugins,
+    &remove_filter_plugin,
+    &move_filter_plugin,
+    NULL,
+    FILTER_PLUGIN_LEVEL,
+    &plugin_context::filter_enable_hook
+  };
+  PMRASSERT( nb_append_tab( book, WinLoadDlg( book, book, cfg_config_dlg_proc, NULLHANDLE, CFG_FIL_CONFIG, &filter_context ),
+                            NULL, "Filter Plug-ins", MPFROM2SHORT( 2, 4 )));
 
+  plugin_context output_context =
+  { sizeof (plugin_context), 
+    PLUGIN_OUTPUT,
+    &enum_output_plugins,
+    &remove_output_plugin,
+    NULL,
+    &out_is_active,
+    OUTPUT_PLUGIN_LEVEL,
+    &plugin_context::output_enable_hook
+  };
+  PMRASSERT( nb_append_tab( book, WinLoadDlg( book, book, cfg_config_dlg_proc, NULLHANDLE, CFG_OUT_CONFIG, &output_context ),
+                            NULL, "Output Plug-ins", MPFROM2SHORT( 3, 4 )));
+
+  plugin_context visual_context =
+  { sizeof (plugin_context), 
+    PLUGIN_VISUAL,
+    &enum_visual_plugins,
+    &remove_visual_plugin,
+    NULL,
+    NULL,
+    VISUAL_PLUGIN_LEVEL,
+    &plugin_context::visual_enable_hook
+  };
+  PMRASSERT( nb_append_tab( book, WinLoadDlg( book, book, cfg_config_dlg_proc, NULLHANDLE, CFG_VIS_CONFIG, &visual_context ),
+                            NULL, "Visual Plug-ins", MPFROM2SHORT( 4, 4 )));
 
   page = WinLoadDlg( book, book, &WinDefDlgProc, NULLHANDLE, CFG_ABOUT, 0 );
   do_warpsans( page );
@@ -924,7 +838,7 @@ cfg_properties( HWND owner )
   WinSetDlgItemText( page, ST_BUILT, built );
   WinSetDlgItemText( page, ST_AUTHORS, SDG_AUT );
   WinSetDlgItemText( page, ST_CREDITS, SDG_MSG );
-  PMRASSERT( nb_append_tab( book, page, "~About", 0));
+  PMRASSERT( nb_append_tab( book, page, "~About", NULL, 0));
 
   rest_window_pos( hwnd, WIN_MAP_POINTS );
   WinSetFocus( HWND_DESKTOP, book );

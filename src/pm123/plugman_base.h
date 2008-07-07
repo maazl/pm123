@@ -462,6 +462,9 @@ class CL_PLUGIN_BASE_LIST
   BOOL            append(CL_PLUGIN_BASE* plugin);
   // Remove the i-th object from the list and return a pointer to it.
   CL_PLUGIN_BASE* detach(int i);
+  // Move the i-th module in the list to the location where j is now.
+  // Shift items in between. Return TRUE on success.
+  BOOL            move(int i, int j);
   // Return the i-th object in the list.
   CL_PLUGIN_BASE& operator[](int i) { return *list[i]; }
   // Destroy the current list.

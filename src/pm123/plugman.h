@@ -81,12 +81,24 @@ typedef struct
 *  Not thread safe!
 *
 ****************************************************************************/
+
+/* Unloads and removes the specified decoder plug-in from the list of loaded. */
 BOOL  remove_decoder_plugin( int i );
+/* Unloads and removes the specified output plug-in from the list of loaded. */
 BOOL  remove_output_plugin ( int i );
+/* Unloads and removes the specified filter plug-in from the list of loaded. */
 BOOL  remove_filter_plugin ( int i );
+/* Unloads and removes the specified visual plug-in from the list of loaded. */
 BOOL  remove_visual_plugin ( int i );
 void  remove_visual_plugins( BOOL skin );
 void  remove_all_plugins   ( void );
+
+/* Move the i-th decoder plug-in in the list to the location where j is now.
+   Shift items in between. Return TRUE on success. */
+BOOL  move_decoder_plugin  ( int i, int j );
+/* Move the i-th filter plug-in in the list to the location where j is now.
+   Shift items in between. Return TRUE on success. */
+BOOL  move_filter_plugin   ( int i, int j );
 
 void  load_default_decoders( void );
 void  load_default_outputs ( void );
@@ -103,8 +115,11 @@ BOOL  save_outputs ( BUFSTREAM* b );
 BOOL  save_filters ( BUFSTREAM* b );
 BOOL  save_visuals ( BUFSTREAM* b );
 
+/* Loads and adds the specified plug-in to the appropriate list of loaded.
+   Returns the types found or 0. */
 ULONG add_plugin( const char* module_name, const VISUAL_PROPERTIES* data );
 
+// Notify changes to the plugin-list.
 extern event<const PLUGIN_EVENTARGS> plugin_event;
 
 
@@ -121,6 +136,8 @@ int   enum_visual_plugins (PLUGIN_BASE*const** list);
 
 BOOL  get_plugin_enabled(const PLUGIN_BASE* plugin);
 void  set_plugin_enabled(PLUGIN_BASE* plugin, BOOL enabled);
+
+BOOL  get_plugin_in_use(const PLUGIN_BASE* plugin);
 
 /* launch the configue dialog of the n-th plugin of a certain type. Use PLUGIN_NULL to use an index in the global plug-in list */ 
 BOOL  configure_plugin( int type, int i, HWND hwnd );

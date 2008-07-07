@@ -789,7 +789,7 @@ MRESULT EXPENTRY proxy_1_decoder_winfn(HWND hwnd, ULONG msg, MPARAM mp1, MPARAM 
     (*op->voutput_event)(op->a, DECEVENT_SEEKSTOP, NULL);
     return 0;
    case WM_CHANGEBR:
-    /* TODO: It does not make sense to update the metadata as fast.
+    /* It does not make sense to update the metadata as fast.
     if (op->url)
     { // Level 1 plug-ins can only handle Shoutcast stream infos.
       // Keep anything but the title field at the old values.
@@ -1522,6 +1522,25 @@ CL_PLUGIN_BASE* CL_PLUGIN_BASE_LIST::detach(int i)
 
   DEBUGLOG(("CL_PLUGIN_BASE_LIST::detach: %p\n", r));
   return r;
+}
+
+BOOL CL_PLUGIN_BASE_LIST::move(int i, int j)
+{ DEBUGLOG(("CL_PLUGIN_BASE_LIST(%p{%p,%d,%d})::move(%i, %j)\n", this, list, num, size, i, j));
+
+  if (i < 0 || i > num || j < 0 || j > num)
+  { DEBUGLOG(("CL_PLUGIN_BASE_LIST::move: index out of range\n"));
+    return false;
+  }
+  
+  if (i != j) // no-op?
+  { CL_PLUGIN_BASE* p = list[i];
+    if (i < j)
+      memmove(list + i, list + i +1, (j - i) * sizeof *list);
+    else
+      memmove(list + j +1, list + j, (i - j) * sizeof *list);
+    list[j] = p;
+  }
+  return true;
 }
 
 /* find a plug-in in the list

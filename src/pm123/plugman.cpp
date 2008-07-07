@@ -675,22 +675,26 @@ static int add_plugin_core(const char* name, const VISUAL_PROPERTIES* data, int 
   return result;
 }
 
-/* Unloads and removes the specified decoder plug-in from the list of loaded. */
 BOOL remove_decoder_plugin( int i )
 { return decoders.remove(i);
 }
 
-/* Unloads and removes the specified output plug-in from the list of loaded. */
+BOOL move_decoder_plugin( int i, int j )
+{ return decoders.move(i, j);
+}
+
 BOOL remove_output_plugin( int i )
 { return outputs.remove(i);
 }
 
-/* Unloads and removes the specified filter plug-in from the list of loaded. */
 BOOL remove_filter_plugin( int i )
 { return filters.remove(i);
 }
 
-/* Unloads and removes the specified visual plug-in from the list of loaded. */
+BOOL move_filter_plugin( int i, int j )
+{ return filters.move(i, j);
+}
+
 BOOL remove_visual_plugin( int i )
 { return visuals.remove(i);
 }
@@ -953,6 +957,10 @@ void set_plugin_enabled(PLUGIN_BASE* plugin, BOOL enabled)
 { ((CL_PLUGIN*)plugin)->set_enabled(enabled);
 }
 
+BOOL get_plugin_in_use(const PLUGIN_BASE* plugin)
+{ return ((const CL_PLUGIN*)plugin)->is_initialized();
+}
+
 BOOL dec_is_active( int number )
 { return number >= 0 && number < decoders.count() && &decoders[number] == decoders.current();
 }
@@ -982,25 +990,23 @@ dec_fileinfo( const char* filename, INFOTYPE* what, DECODER_INFO2* info, char* n
 
   memset( checked, 0, sizeof( BOOL ) * decoders.count() );
 
-  if (is_track(filename))
-  { // check decoders that claim to support tracks
-    for( int i = 0; i < decoders.count(); i++ )
-    { dp = &(const CL_DECODER&)decoders[i];
-      if (!dp->get_enabled() || !(dp->get_procs().type & DECODER_TRACK) )
-        continue;
-      checked[i] = TRUE;
-      what2 = *what;
-      rc = (*dp->get_procs().decoder_fileinfo)(filename, &what2, info);
-      if (rc != PLUGIN_NO_PLAY)
-        goto ok;
-    }
-    strcpy(info->tech->info, "Cannot find a decoder that supports CD tracks.");
-    goto nodec;
-  } else
+  // Determine decoder types that should be considered
+  ULONG decoder_type_mask;
+  if (is_cdda(filename))
+    decoder_type_mask = DECODER_TRACK;
+  else if (strnicmp("file:/", filename, 6) == 0)
+    decoder_type_mask = DECODER_FILENAME;
+  else if (strnicmp("http:/", filename, 6) == 0 || strnicmp("ftp:/", filename, 6) == 0)
+    decoder_type_mask = DECODER_URL;
+  else
+    // Always tyr URL too.
+    decoder_type_mask = DECODER_URL|DECODER_OTHER;
+
   { // First checks decoders supporting the specified type of files.
     for ( int i = 0; i < decoders.count(); i++)
     { dp = &(const CL_DECODER&)decoders[i];
-      if (!dp->get_enabled() || !is_file_supported(dp->get_procs().support, filename))
+      if ( !dp->get_enabled() || !(dp->get_procs().type & decoder_type_mask)
+        || !is_file_supported(dp->get_procs().support, filename) )
         continue;
       checked[i] = TRUE;
       what2 = *what;
@@ -1013,7 +1019,7 @@ dec_fileinfo( const char* filename, INFOTYPE* what, DECODER_INFO2* info, char* n
   { // Next checks the rest decoders.
     for( int i = 0; i < decoders.count(); i++ )
     { dp = &(const CL_DECODER&)decoders[i];
-      if (!dp->get_enabled() || checked[i])
+      if (checked[i] || !dp->get_enabled() || !(dp->get_procs().type & decoder_type_mask))
         continue;
       what2 = *what;
       rc = (*dp->get_procs().decoder_fileinfo)(filename, &what2, info);
@@ -1021,8 +1027,8 @@ dec_fileinfo( const char* filename, INFOTYPE* what, DECODER_INFO2* info, char* n
         goto ok;
     }
   }
+  // No decoder found
   strcpy(info->tech->info, "Cannot find a decoder that supports this item.");
- nodec:
   *what = INFO_ALL; // Even in case of an error the requested information is in fact available.
   return PLUGIN_NO_PLAY;
  ok:
@@ -1242,11 +1248,12 @@ BOOL configure_plugin(int type, int i, HWND hwnd)
   }
   if (i < 0 || i >= list->count())
     return FALSE;
+  // get module
+  CL_MODULE& mod = type == PLUGIN_NULL ? ((CL_MODULE&)(*list)[i]) : ((CL_PLUGIN&)(*list)[i]).get_module();
   // launch dialog
-  if (type == PLUGIN_NULL)
-    ((CL_MODULE&)(*list)[i]).config(hwnd);
-   else
-    ((CL_PLUGIN&)(*list)[i]).get_module().config(hwnd);
+  if (!mod.query_param.configurable)
+    return FALSE;
+  mod.config(hwnd);
   return TRUE;
 }
 

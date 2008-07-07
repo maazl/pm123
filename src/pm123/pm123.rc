@@ -641,7 +641,7 @@ END
 
 DLGTEMPLATE CFG_DISPLAY1
 BEGIN
-  DIALOG "", CFG_DISPLAY1, 0, 0, 260, 154, NOT FS_DLGBORDER|FS_NOBYTEALIGN
+  DIALOG "", CFG_DISPLAY1, 0, 0, 260, 150, NOT FS_DLGBORDER|FS_NOBYTEALIGN
     PRESPARAMS PP_FONTNAMESIZE "8.Helv"
   BEGIN
     GROUPBOX     " User interface ",                    GB_GUIFEATURES,    4, 100, 248, 24, NOT WS_TABSTOP|WS_GROUP
@@ -667,75 +667,99 @@ BEGIN
     AUTORADIOBUTTON "~Song Information", RB_DISP_ID3TAG,     76, 60, 68, 10
     AUTORADIOBUTTON "~Tech Information", RB_DISP_FILEINFO,   76, 50, 68, 10
 
-    GROUPBOX        " Font ",            GB_FONT,             4,  4, 248, 40, NOT WS_TABSTOP|WS_GROUP
+    GROUPBOX        " Font ",            GB_FONT,             4,  4,248, 40, NOT WS_TABSTOP|WS_GROUP
       PRESPARAMS PP_FONTNAMESIZE "9.WarpSans Bold"
     AUTOCHECKBOX    "~Use skinned font for display (possibly no international titles support)",
-                                         CB_USE_SKIN_FONT,   12, 24, 232, 12
-    PUSHBUTTON      "~Choose font",      PB_FONT_SELECT,     12, 10,  56, 12
-    LTEXT           "9.WarpSans Bold",   ST_FONT_SAMPLE,     76, 10, 168, 12, DT_VCENTER
+                                         CB_USE_SKIN_FONT,   12, 24,232, 12
+    PUSHBUTTON      "~Choose font",      PB_FONT_SELECT,     12, 10, 56, 12
+    LTEXT           "9.WarpSans Bold",   ST_FONT_SAMPLE,     76, 10,168, 12, DT_VCENTER
       PRESPARAMS PP_FOREGROUNDCOLORINDEX, SYSCLR_WINDOWTEXT
   END
 END
 
-DLGTEMPLATE CFG_CONFIG1
+DLGTEMPLATE CFG_DEC_CONFIG
 BEGIN
-  DIALOG "", CFG_CONFIG1, 0, 0, 260, 138, NOT FS_DLGBORDER|FS_NOBYTEALIGN
-  PRESPARAMS PP_FONTNAMESIZE "8.Helv"
+  DIALOG       "Decoder Plug-ins",        CFG_DEC_CONFIG,    0,  0, 260,150, NOT FS_DLGBORDER|FS_NOBYTEALIGN
+    PRESPARAMS PP_FONTNAMESIZE "8.Helv"
   BEGIN
-    GROUPBOX " Visual Plugins ", GB_VISUALPLUGINS, 6, 63, 245, 56, NOT WS_TABSTOP|WS_GROUP
+    GROUPBOX   " Decoders ",              GB_PLUGINS,        4, 62, 248, 82, NOT WS_TABSTOP|WS_GROUP
       PRESPARAMS PP_FONTNAMESIZE "9.WarpSans Bold"
-    LISTBOX                 LB_VISPLUG,     13,  68, 102, 44, WS_GROUP
-    PUSHBUTTON "~Enable",   PB_VIS_ENABLE, 119, 100,  32, 12, WS_GROUP
-    PUSHBUTTON "U~nload",   PB_VIS_UNLOAD, 152, 100,  31, 12
-    LTEXT "Author: <none>", ST_VIS_AUTHOR, 122,  92, 123,  7, NOT WS_GROUP|DT_VCENTER
-      PRESPARAMS PP_FOREGROUNDCOLORINDEX, SYSCLR_WINDOWTEXT
-    LTEXT "Desc: <none>",   ST_VIS_DESC,   122,  84, 123,  7, NOT WS_GROUP|DT_VCENTER
-      PRESPARAMS PP_FOREGROUNDCOLORINDEX, SYSCLR_WINDOWTEXT
-    PUSHBUTTON "~Configure",PB_VIS_CONFIG, 119,  65,  44, 12
-    PUSHBUTTON "~Add",      PB_VIS_ADD,    164,  65,  44, 12
-
-    GROUPBOX " Decoder Plugins ", GB_DECODERPLUGINS, 6, 5, 245, 56, NOT WS_TABSTOP|WS_GROUP
+    LISTBOX                               LB_PLUGINS,       12, 68,  80, 64, WS_GROUP
+    PUSHBUTTON "U~nload",                 PB_PLG_UNLOAD,   100,122,  44, 12, WS_GROUP|WS_DISABLED
+    PUSHBUTTON "~Add",                    PB_PLG_ADD,      148,122,  44, 12
+    PUSHBUTTON "\036 ~Up \036",           PB_PLG_UP,       100,106,  44, 12, WS_GROUP|WS_DISABLED
+    PUSHBUTTON "\037 ~Down \037",         PB_PLG_DOWN,     148,106,  44, 12, WS_DISABLED
+    LTEXT      "",                        ST_PLG_AUTHOR,   100, 90, 144,  8, DT_VCENTER
+    LTEXT      "",                        ST_PLG_DESC,     100, 98, 144,  8, DT_VCENTER
+    LTEXT      "",                        ST_PLG_LEVEL,    100, 82, 144,  8, DT_VCENTER
+    PUSHBUTTON "~Enable",                 PB_PLG_ENABLE,   100, 68,  44, 12, WS_GROUP|WS_DISABLED
+    PUSHBUTTON "~Configure",              PB_PLG_CONFIG,   148, 68,  44, 12, WS_DISABLED
+    
+    GROUPBOX   " Plug-in specific ",      GB_SPECIFIC,       4,  4, 248, 56, NOT WS_TABSTOP|WS_GROUP
       PRESPARAMS PP_FONTNAMESIZE "9.WarpSans Bold"
-    LISTBOX                 LB_DECPLUG,     13, 10, 102, 44, WS_GROUP
-    PUSHBUTTON "~Enable",   PB_DEC_ENABLE, 119, 42,  32, 12, WS_GROUP
-    PUSHBUTTON "U~nload",   PB_DEC_UNLOAD, 152, 42,  31, 12
-    LTEXT "Author: <none>", ST_DEC_AUTHOR, 122, 35, 123,  7, NOT WS_GROUP|DT_VCENTER
+    LTEXT      "Supported file ~types:",  ST_DEC_FILETYPES, 12, 44,  80,  8, WS_GROUP|DT_BOTTOM
       PRESPARAMS PP_FOREGROUNDCOLORINDEX, SYSCLR_WINDOWTEXT
-    LTEXT "Desc: <none>",   ST_DEC_DESC,   122, 27, 123,  7, NOT WS_GROUP|DT_VCENTER
-      PRESPARAMS PP_FOREGROUNDCOLORINDEX, SYSCLR_WINDOWTEXT
-    PUSHBUTTON "~Configure",PB_DEC_CONFIG, 119,  7,  44, 12
-    PUSHBUTTON "~Add",      PB_DEC_ADD,    164,  7,  44, 12
+    MLE        "",                        ML_DEC_FILETYPES, 12, 10,  80, 32, MLS_VSCROLL
+    AUTOCHECKBOX "~Try unsupported file extensions and types too",
+                                          CB_DEC_TRYOTHER, 100, 40, 144, 12, WS_GROUP
+    AUTOCHECKBOX "~Serialize access to decoder info",
+                                          CB_DEC_SERIALIZE,100, 28, 144, 12, WS_GROUP
   END
 END
 
-DLGTEMPLATE CFG_CONFIG2
+DLGTEMPLATE CFG_FIL_CONFIG
 BEGIN
-  DIALOG "", CFG_CONFIG2, 0, 0, 260, 138, NOT FS_DLGBORDER|FS_NOBYTEALIGN
-  PRESPARAMS PP_FONTNAMESIZE "8.Helv"
+  DIALOG       "Filter Plug-ins",         CFG_FIL_CONFIG,    0,  0, 260,150, NOT FS_DLGBORDER|FS_NOBYTEALIGN
+    PRESPARAMS PP_FONTNAMESIZE "8.Helv"
   BEGIN
-    GROUPBOX " Filter Plugins ", GB_FILPLUG, 6, 63, 245, 56, NOT WS_TABSTOP|WS_GROUP
+    GROUPBOX   " Filter plug-ins ",       GB_PLUGINS,        4,  4, 248, 82, NOT WS_TABSTOP|WS_GROUP
       PRESPARAMS PP_FONTNAMESIZE "9.WarpSans Bold"
-    LISTBOX                 LB_FILPLUG,     13,  68, 102, 44, WS_GROUP
-    PUSHBUTTON "~Enable",   PB_FIL_ENABLE, 119, 100,  32, 12, WS_GROUP
-    PUSHBUTTON "U~nload",   PB_FIL_UNLOAD, 152, 100,  31, 12
-    LTEXT "Author: <none>", ST_FIL_AUTHOR, 122,  92, 123,  7, NOT WS_GROUP|DT_VCENTER
-      PRESPARAMS PP_FOREGROUNDCOLORINDEX, SYSCLR_WINDOWTEXT
-    LTEXT "Desc: <none>",   ST_FIL_DESC,   122,  84, 123,  7, NOT WS_GROUP|DT_VCENTER
-      PRESPARAMS PP_FOREGROUNDCOLORINDEX, SYSCLR_WINDOWTEXT
-    PUSHBUTTON "~Configure",PB_FIL_CONFIG, 119,  65,  44, 12
-    PUSHBUTTON "~Add",      PB_FIL_ADD,    164,  65,  44, 12
+    LISTBOX                               LB_PLUGINS,       12, 10,  80, 66, WS_GROUP
+    PUSHBUTTON "U~nload",                 PB_PLG_UNLOAD,   100, 64,  44, 12, WS_GROUP|WS_DISABLED
+    PUSHBUTTON "~Add",                    PB_PLG_ADD,      148, 64,  44, 12
+    PUSHBUTTON "\036 ~Up \036",           PB_PLG_UP,       100, 48,  44, 12, WS_GROUP|WS_DISABLED
+    PUSHBUTTON "\037 ~Down \037",         PB_PLG_DOWN,     148, 48,  44, 12, WS_DISABLED
+    LTEXT      "",                        ST_PLG_AUTHOR,   100, 32, 144,  8, DT_VCENTER
+    LTEXT      "",                        ST_PLG_DESC,     100, 40, 144,  8, DT_VCENTER
+    LTEXT      "",                        ST_PLG_LEVEL,    100, 24, 144,  8, DT_VCENTER
+    PUSHBUTTON "~Enable",                 PB_PLG_ENABLE,   100, 10,  44, 12, WS_GROUP|WS_DISABLED
+    PUSHBUTTON "~Configure",              PB_PLG_CONFIG,   148, 10,  44, 12, WS_DISABLED
+  END
+END
 
-    GROUPBOX " Output Plugins ", GB_OUTPLUG, 6, 5, 245, 56, NOT WS_TABSTOP|WS_GROUP
+DLGTEMPLATE CFG_OUT_CONFIG
+BEGIN
+  DIALOG       "Output Plug-ins",         CFG_OUT_CONFIG,    0,  0, 260,150, NOT FS_DLGBORDER|FS_NOBYTEALIGN
+    PRESPARAMS PP_FONTNAMESIZE "8.Helv"
+  BEGIN
+    GROUPBOX   " Output plug-ins ",       GB_PLUGINS,        4,  4, 248, 68, NOT WS_TABSTOP|WS_GROUP
       PRESPARAMS PP_FONTNAMESIZE "9.WarpSans Bold"
-    LISTBOX                 LB_OUTPLUG,     13, 10, 102, 44, WS_GROUP
-    PUSHBUTTON "~Activate", PB_OUT_ACTIVATE,119, 42, 32, 12, WS_GROUP
-    PUSHBUTTON "U~nload",   PB_OUT_UNLOAD, 152, 42,  31, 12
-    LTEXT "Author: <none>", ST_OUT_AUTHOR, 122, 35, 123,  7, NOT WS_GROUP|DT_VCENTER
-      PRESPARAMS PP_FOREGROUNDCOLORINDEX, SYSCLR_WINDOWTEXT
-    LTEXT "Desc: <none>",   ST_OUT_DESC,   122, 27, 123,  7, NOT WS_GROUP|DT_VCENTER
-      PRESPARAMS PP_FOREGROUNDCOLORINDEX, SYSCLR_WINDOWTEXT
-    PUSHBUTTON "~Configure",PB_OUT_CONFIG, 119,  7,  44, 12
-    PUSHBUTTON "~Add",      PB_OUT_ADD,    164,  7,  44, 12
+    LISTBOX                               LB_PLUGINS,       12, 10,  80, 52, WS_GROUP
+    PUSHBUTTON "U~nload",                 PB_PLG_UNLOAD,   100, 50,  44, 12, WS_GROUP|WS_DISABLED
+    PUSHBUTTON "~Add",                    PB_PLG_ADD,      148, 50,  44, 12
+    LTEXT      "",                        ST_PLG_AUTHOR,   100, 32, 144,  8, DT_VCENTER
+    LTEXT      "",                        ST_PLG_DESC,     100, 40, 144,  8, DT_VCENTER
+    LTEXT      "",                        ST_PLG_LEVEL,    100, 24, 144,  8, DT_VCENTER
+    PUSHBUTTON "~Activate",               PB_PLG_ACTIVATE, 100, 10,  44, 12, WS_GROUP|WS_DISABLED
+    PUSHBUTTON "~Configure",              PB_PLG_CONFIG,   148, 10,  44, 12, WS_DISABLED
+  END
+END
+
+DLGTEMPLATE CFG_VIS_CONFIG
+BEGIN
+  DIALOG       "Visual Plug-ins",         CFG_VIS_CONFIG,    0,  0, 260,150, NOT FS_DLGBORDER|FS_NOBYTEALIGN
+    PRESPARAMS PP_FONTNAMESIZE "8.Helv"
+  BEGIN
+    GROUPBOX   " Visual plug-ins ",       GB_PLUGINS,        4,  4, 248, 68, NOT WS_TABSTOP|WS_GROUP
+      PRESPARAMS PP_FONTNAMESIZE "9.WarpSans Bold"
+    LISTBOX                               LB_PLUGINS,       12, 10,  80, 52, WS_GROUP
+    PUSHBUTTON "U~nload",                 PB_PLG_UNLOAD,   100, 50,  44, 12, WS_GROUP|WS_DISABLED
+    PUSHBUTTON "~Add",                    PB_PLG_ADD,      148, 50,  44, 12
+    LTEXT      "",                        ST_PLG_AUTHOR,   100, 32, 144,  8, DT_VCENTER
+    LTEXT      "",                        ST_PLG_DESC,     100, 40, 144,  8, DT_VCENTER
+    LTEXT      "",                        ST_PLG_LEVEL,    100, 24, 144,  8, DT_VCENTER
+    PUSHBUTTON "~Enable",                 PB_PLG_ENABLE,   100, 10,  44, 12, WS_GROUP|WS_DISABLED
+    PUSHBUTTON "~Configure",              PB_PLG_CONFIG,   148, 10,  44, 12, WS_DISABLED
   END
 END
 
