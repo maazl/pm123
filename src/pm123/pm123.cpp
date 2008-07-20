@@ -1064,7 +1064,7 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
         cmd -= IDM_M_PLUG;
         // atomic plug-in request
         Module* plug;
-        { const Module::IXAccess& ix = Module::AccessIndex();
+        { const Module::IXAccess ix;
           if (cmd >= ix->size())
             return 0;
           plug = (*ix)[cmd];
@@ -1526,8 +1526,8 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
 
 
 static void amp_plugin_eventhandler(void*, const Plugin::EventArgs& args)
-{ DEBUGLOG(("amp_plugin_eventhandler(, {%p{%s}, %i})\n",
-    args.Plug, args.Plug.GetModuleName().cdata(), args.Operation));
+{ DEBUGLOG(("amp_plugin_eventhandler(, {&%p{%s}, %i})\n",
+    &args.Plug, args.Plug.GetModuleName().cdata(), args.Operation));
   switch (args.Operation)
   {case Plugin::EventArgs::Enable:
    case Plugin::EventArgs::Disable:

@@ -353,7 +353,7 @@ int Plugin::Deserialize(const char* str, int mask, bool skinned)
         break;
       *cp++ = '\\';
   } }
-  if (strchr(modulename, ':') == NULL && modulename[0] != '\\' && modulename[0] != '/')
+  if (strchr(modulename, ':') == NULL && modulename[0U] != '\\' && modulename[0U] != '/')
     // relative path
     modulename = startpath + modulename;
   // load module
@@ -408,10 +408,10 @@ void PluginList::append(Plugin* plugin)
   plugin->RaisePluginChange(Plugin::EventArgs::Load);
 }
 
-Plugin* PluginList::erase(int i)
-{ DEBUGLOG(("PluginList(%p)::erase(%i)\n", this, i));
+Plugin* PluginList::erase(size_t i)
+{ DEBUGLOG(("PluginList(%p)::erase(%u)\n", this, i));
 
-  if (i > size() && i <= 0)
+  if (i > size())
   { DEBUGLOG(("PluginList::erase: index out of range\n"));
     return NULL;
   }
@@ -432,14 +432,14 @@ bool PluginList::remove(int i)
 
 int PluginList::find(const Plugin* plugin) const
 { DEBUGLOG(("PluginList(%p)::find(Plugin* %p)\n", this, plugin));
-  for (int i = 0; i < size(); ++i)
+  for (size_t i = 0; i < size(); ++i)
     if ((*this)[i] == plugin)
       return i;
   return -1;
 }
 int PluginList::find(const Module* module) const
 { DEBUGLOG(("PluginList(%p)::find(Module* %p)\n", this, module));
-  for (int i = 0; i < size(); ++i)
+  for (size_t i = 0; i < size(); ++i)
     if (&(*this)[i]->GetModule() == module)
       return i;
   return -1;
@@ -447,7 +447,7 @@ int PluginList::find(const Module* module) const
 int PluginList::find(const char* module) const
 { DEBUGLOG(("PluginList(%p)::find(%s)\n", this, module));
   module = sfnameext2(module);
-  for (int i = 0; i < size(); ++i)
+  for (size_t i = 0; i < size(); ++i)
     if (stricmp(sfnameext2((*this)[i]->GetModuleName()), module) == 0)
       return i;
   return -1;
@@ -466,7 +466,7 @@ PluginList::RC PluginList::Deserialize(const xstring& str)
 { // Check which plug-ins are no longer in the list.
   const char* sp = str;
   int i;
-  { sco_arr<bool> keep = new bool[size()];
+  { sco_arr<bool> keep(new bool[size()]);
     memset(keep.get(), false, size() * sizeof(bool));
     for(;;)
     { const char* cp = strchr(sp, '\n');
@@ -524,7 +524,7 @@ PluginList::RC PluginList::Deserialize(const xstring& str)
 *
 ****************************************************************************/
 
-Plugin* PluginList1::erase(int i)
+Plugin* PluginList1::erase(size_t i)
 { Plugin* pp = PluginList::erase(i);
   if ( pp == Active )
     Active = NULL;
@@ -607,7 +607,7 @@ load_plugin_menu( HWND hMenu )
     WinSendMsg( hMenu, MM_DELETEITEM, MPFROM2SHORT( item, FALSE ), 0);
   }
   { // Fetch list of plug-ins atomically
-    const Module::IXAccess& ix = Module::AccessIndex();
+    const Module::IXAccess ix;
     num_entries = ix->size();
     entries = new PLUGIN_ENTRY[num_entries];
 

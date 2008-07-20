@@ -679,7 +679,7 @@ proxy_1_decoder_fileinfo( DecoderProxy1* op, const char* filename, INFOTYPE* wha
       return 200;
     // Serialize access to the info functions of old plug-ins.
     // In theory the must be thread safe for older PM123 releases too. In practice they are not.
-    sco_ptr<Mutex::Lock> lock = op->SerializeInfo ? new Mutex::Lock(op->info_mtx) : NULL;
+    sco_ptr<Mutex::Lock> lock(op->SerializeInfo ? new Mutex::Lock(op->info_mtx) : NULL);
     rc = (*op->vdecoder_trackinfo)(cd_info.drive, cd_info.track, &old_info);
   } else
   { if (strnicmp(filename, "file:///", 8) == 0)
@@ -694,7 +694,7 @@ proxy_1_decoder_fileinfo( DecoderProxy1* op, const char* filename, INFOTYPE* wha
     // DEBUGLOG(("proxy_1_decoder_fileinfo - %s\n", filename));
     { // Serialize access to the info functions of old plug-ins.
       // In theory the must be thread safe for older PM123 releases too. In practice they are not.
-      sco_ptr<Mutex::Lock> lock = op->SerializeInfo ? new Mutex::Lock(op->info_mtx) : NULL;
+      sco_ptr<Mutex::Lock> lock(op->SerializeInfo ? new Mutex::Lock(op->info_mtx) : NULL);
       rc = (*op->vdecoder_fileinfo)(filename, &old_info);
     }
     // get file size
@@ -734,7 +734,7 @@ PROXYFUNCIMP(ULONG DLLENTRY, DecoderProxy1)
 proxy_1_decoder_cdinfo( DecoderProxy1* op, const char* drive, DECODER_CDINFO* info )
 { // Serialize access to the info functions of old plug-ins.
   // In theory the must be thread safe for older PM123 releases too. In practice they are not.
-  sco_ptr<Mutex::Lock> lock = op->SerializeInfo ? new Mutex::Lock(op->info_mtx) : NULL;
+  sco_ptr<Mutex::Lock> lock(op->SerializeInfo ? new Mutex::Lock(op->info_mtx) : NULL);
   return (*op->vdecoder_cdinfo)(drive, info);
 }
 

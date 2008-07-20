@@ -73,9 +73,9 @@ SongIterator::CallstackEntry::CallstackEntry(const PlayableSet& exc)
 }
 
 SongIterator::CallstackEntry::CallstackEntry(const CallstackEntry& r)
-: Off(r.Off),
+: Item(r.Item),
+  Off(r.Off),
   OffValid(r.OffValid),
-  Item(r.Item),
   Exclude(r.Exclude)
 { DEBUGLOG(("SongIterator::CallstackEntry(%p)::CallstackEntry(&%p)\n", &r));
   if (r.OverrideStart != NULL)
@@ -257,7 +257,7 @@ void SongIterator::MakeCallstackUnique()
 { if (Callstack->RefCountIsUnique())
     return;
   // create new callstack
-  CallstackType* newstack = new CallstackType(max(Callstack->size(), 8));
+  CallstackType* newstack = new CallstackType(Callstack->size() > 8 ? Callstack->size() : 8);
   // copy callstack
   const CallstackEntry*const* ppce = Callstack->begin();
   newstack->append() = new CallstackEntry(**ppce);
@@ -564,7 +564,7 @@ bool SongIterator::PrevNextCore(void (SongIterator::*func)(), unsigned slice)
 }
 
 void SongIterator::EnsureOffset(CallstackEntry& ce, PlayableCollection& parent)
-{ DEBUGLOG(("SongIterator::EnsureOffset(&%p, &%p)\n", ce, &parent));
+{ DEBUGLOG(("SongIterator::EnsureOffset(&%p, &%p)\n", &ce, &parent));
   while (!ce.OffValid)
   {restart:
     // recalculate offset

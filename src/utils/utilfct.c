@@ -454,8 +454,6 @@ nb_append_tab(HWND book, HWND page, const char* major, char* minor, MPARAM index
 { USHORT style = BKA_AUTOPAGESIZE | (SHORT2FROMMP(index) > 1) * (BKA_MINOR|BKA_STATUSTEXTON) | (SHORT1FROMMP(index) <= 1) * BKA_MAJOR;
   BOOKPAGEINFO bi = { sizeof bi };
   ULONG id = LONGFROMMR(WinSendMsg(book, BKM_INSERTPAGE, 0, MPFROM2SHORT(style, BKA_LAST)));
-  HWND hw1, hw2;
-  USHORT wid;
   if (id == 0)
     return FALSE;
   bi.fl = BFA_PAGEFROMHWND;

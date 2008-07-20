@@ -103,7 +103,7 @@ class Module
   virtual int compareTo(const xstring& key) const;
   // Ensure access to a Module.
   // The function returns NULL if the Module cannot be instantiated.
-  static int_ptr<Module> GetByKey(const xstring& name) { return inst_index<Module, const xstring>::GetByKey(name, (ModuleFactory&)ModuleFactory()); }
+  static int_ptr<Module> GetByKey(const xstring& name) { ModuleFactory mf; return inst_index<Module, const xstring>::GetByKey(name, (ModuleFactory&)mf); }
 };
 
 
@@ -239,7 +239,7 @@ class PluginList : public vector_own<Plugin>
   // append a new plug-in to the list.
   virtual void    append(Plugin* plugin);
   // Remove the i-th plug-in from the list and return a pointer to it.
-  virtual Plugin* erase(int i);
+  virtual Plugin* erase(size_t i);
   // Destroy the i-th plug-in in the list. Return TRUE on success.
   virtual bool    remove(int i);
   // Return index of Plugin or -1
@@ -262,7 +262,7 @@ class PluginList1 : public PluginList
                   PluginList1(PLUGIN_TYPE type, const char* def) : PluginList(type, def), Active(NULL) {}
   // Remove the i-th plug-in from the list and return a pointer to it.
   // If it was the activated one it is deactivated (uninit) first.
-  virtual Plugin* erase(int i);
+  virtual Plugin* erase(size_t i);
   // Return the index of the currently active plug-in.
   // Returns -1 if no plug-in is active.
   int             GetActive() const   { return Active ? find(Active) : -1; }

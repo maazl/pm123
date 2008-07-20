@@ -387,12 +387,14 @@ class inst_index
   struct IFactory
   { virtual T* operator()(K& key) = 0;
   };
+  // Reques an exclusive read-only access to the index repository.
+  class IXAccess;
+  friend class IXAccess;
   class IXAccess : public Mutex::Lock
-  { friend class inst_index<T,K>;
-   private:
+  {private:
     sorted_vector<T,K>& IX;
-    IXAccess(sorted_vector<T,K>& ix, Mutex& mtx) : Mutex::Lock(mtx), IX(ix) {};
    public:
+    IXAccess() : Mutex::Lock(inst_index<T,K>::Mtx), IX(inst_index<T,K>::Index) {};
     operator const sorted_vector<T,K>*() const { return &IX; };
     const sorted_vector<T,K>& operator*() const { return IX; };
     const sorted_vector<T,K>* operator->() const { return &IX; };
@@ -408,8 +410,6 @@ class inst_index
   inst_index(const K& key) : Key(key) {}
   ~inst_index();
  public:
-  // Reques an exclusive read-only access to the index repository.
-  static IXAccess   AccessIndex()        { return IXAccess(Index, Mtx); };
   // Get an existing instance of T or return NULL.
   static int_ptr<T> FindByKey(const K& key);
  protected:
@@ -419,7 +419,7 @@ class inst_index
 
 template <class T, class K>
 inst_index<T,K>::~inst_index()
-{ DEBUGLOG(("inst_index<%p>(%p)::~inst_index() - %p\n", &Index, this, Key));
+{ DEBUGLOG(("inst_index<%p>(%p)::~inst_index()\n", &Index, this));
   // Deregister from the repository
   // The deregistration is a bit too late, because destructors from the derived
   // class may already be called. But the objects T must be reference counted.

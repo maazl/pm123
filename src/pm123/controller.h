@@ -327,7 +327,7 @@ class Ctrl
   // Event handler for tracking modifications of the currently loaded object.
   static void  CurrentRootEventHandler(void*, const Playable::change_args& args);
   // Event handler for asynchronuous changes to the songiterator (not any prefetched one).
-  static void  SongIteratorEventHandler(void*, const& i);
+  static void  SongIteratorEventHandler(void*, const int& i);
  private: // messages handlers, not thread safe
   // The messages are descibed above before the class header.
   static RC    MsgPause(Op op);

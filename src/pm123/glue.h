@@ -123,13 +123,13 @@ BOOL  DLLENTRY out_playing_data( void );
 *
 ****************************************************************************/
 /* initialize non-skinned visual plug-in */
-BOOL  vis_init( int i );
+bool  vis_init(size_t i);
 /* initialize all skinned/non-skinned visual plug-ins */
-void  vis_init_all( BOOL skin );
+void  vis_init_all(bool skin);
 void  vis_broadcast( ULONG msg, MPARAM mp1, MPARAM mp2 );
 /* deinitialize visual plug-in */
-BOOL  vis_deinit( int i );
-void  vis_deinit_all( BOOL skin );
+bool  vis_deinit(size_t i);
+void  vis_deinit_all(bool skin);
 
 
 #endif /* PM123_GLUE_H */

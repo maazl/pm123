@@ -450,7 +450,7 @@ struct PluginContext
   { CF_None    = 0,
     CF_List1   = 1  // List is of type PluginList1
   } const      Flags;
-  bool (PluginContext::*enable_hook)(int i, bool enable); // Hook for Enable/Disable button
+  bool (PluginContext::*enable_hook)(size_t i, bool enable); // Hook for Enable/Disable button
   xstring      UndoCfg;
 
   // Working set
@@ -459,15 +459,15 @@ struct PluginContext
   PluginContext(PluginList* list1, PluginList* list2, int level, CtrlFlags flags);
   
   void         RefreshList();
-  Plugin*      RefreshInfo(int i);
+  Plugin*      RefreshInfo(size_t i);
   ULONG        AddPlugin();
-  bool         Configure(int i);
-  bool         SetParams(int i);
+  bool         Configure(size_t i);
+  bool         SetParams(size_t i);
 
-  bool         decoder_enable_hook(int i, bool enable);
-  bool         filter_enable_hook(int i, bool enable);
-  bool         output_enable_hook(int i, bool enable);
-  bool         visual_enable_hook(int i, bool enable);
+  bool         decoder_enable_hook(size_t i, bool enable);
+  bool         filter_enable_hook(size_t i, bool enable);
+  bool         output_enable_hook(size_t i, bool enable);
+  bool         visual_enable_hook(size_t i, bool enable);
 };
 FLAGSATTRIBUTE(PluginContext::CtrlFlags);
 
@@ -492,6 +492,8 @@ PluginContext::PluginContext(PluginList* list1, PluginList* list2, int level, Ct
    case PLUGIN_VISUAL:
     enable_hook = &PluginContext::visual_enable_hook;
     break;
+   default:
+    ASSERT(1==2);
   }
 }
 
@@ -501,7 +503,6 @@ void PluginContext::RefreshList()
   PMASSERT(lb != NULLHANDLE);
   WinSendMsg(lb, LM_DELETEALL, 0, 0);
 
-  char filename[_MAX_FNAME];
   Plugin*const* ppp;
   for (ppp = List->begin(); ppp != List->end(); ++ppp)
   { const char* cp = (*ppp)->GetModuleName().cdata() + (*ppp)->GetModuleName().length();
@@ -519,10 +520,10 @@ void PluginContext::RefreshList()
   }
 }
 
-Plugin* PluginContext::RefreshInfo(int i)
+Plugin* PluginContext::RefreshInfo(const size_t i)
 { DEBUGLOG(("PluginContext::RefreshInfo(%i)\n", i));
   Plugin* pp = NULL;
-  if (i < 0 || i >= List->size())
+  if (i >= List->size())
   { // The following functions give an error if no such buttons. This is ignored.
     WinSetDlgItemText(Hwnd, PB_PLG_ENABLE, "~Enable");
     WinEnableControl (Hwnd, PB_PLG_UNLOAD, FALSE);
@@ -635,11 +636,8 @@ ULONG PluginContext::AddPlugin()
   return rc;
 }
 
-bool PluginContext::Configure(int i)
-{ if (i < 0)
-    return false;
-
-  Plugin* pp = NULL;
+bool PluginContext::Configure(size_t i)
+{ Plugin* pp = NULL;
   if (i < List->size())
     pp = (*List)[i];
   else if (List2 && i < List->size() + List2->size())
@@ -652,8 +650,8 @@ bool PluginContext::Configure(int i)
     return false;
 }
 
-bool PluginContext::SetParams(int i)
-{ if (i < 0 || i >= List->size())
+bool PluginContext::SetParams(size_t i)
+{ if (i >= List->size())
     return false;
   Plugin* pp = (*List)[i];
 
@@ -672,7 +670,7 @@ bool PluginContext::SetParams(int i)
   return true;
 }
 
-bool PluginContext::visual_enable_hook(int i, bool enable)
+bool PluginContext::visual_enable_hook(size_t i, bool enable)
 { if (enable)
     vis_init(i);
   else
@@ -680,9 +678,9 @@ bool PluginContext::visual_enable_hook(int i, bool enable)
   return true;
 }
 
-bool PluginContext::decoder_enable_hook(int i, bool enable)
+bool PluginContext::decoder_enable_hook(size_t i, bool enable)
 { // This query is non-atomic, but nothing strange will happen anyway.
-  if (i < 0 || i > Decoders.size())
+  if (i > Decoders.size())
     return false;
   if (!enable && Decoders[i]->IsInitialized())
   { amp_error(Hwnd, "Cannot disable currently in use decoder.");
@@ -691,7 +689,7 @@ bool PluginContext::decoder_enable_hook(int i, bool enable)
   return true;
 }
 
-bool PluginContext::output_enable_hook(int i, bool enable)
+bool PluginContext::output_enable_hook(size_t i, bool enable)
 { if (Ctrl::IsPlaying())
   { amp_error(Hwnd, "Cannot change active output while playing.");
     return false;
@@ -699,9 +697,8 @@ bool PluginContext::output_enable_hook(int i, bool enable)
   return true;
 }
 
-bool PluginContext::filter_enable_hook(int i, bool enable)
-{ int num;
-  if (Ctrl::IsPlaying() && i < List->size() && (*List)[i]->IsInitialized())
+bool PluginContext::filter_enable_hook(size_t i, bool enable)
+{ if (Ctrl::IsPlaying() && i < List->size() && (*List)[i]->IsInitialized())
     amp_info(Hwnd, enable
       ? "This filter will only be enabled after playback stops."
       : "This filter will only be disabled after playback stops.");
@@ -726,8 +723,7 @@ cfg_config_dlg_proc(HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2)
       return 0;
 
     case CFG_GLOB_BUTTON:
-    { const amp_cfg* data = &cfg;
-      switch (SHORT1FROMMP(mp1))
+    { switch (SHORT1FROMMP(mp1))
       {case PB_DEFAULT:
         if (Ctrl::IsPlaying())
           amp_error(hwnd, "Cannot load defaults while playing.");

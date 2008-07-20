@@ -249,7 +249,7 @@ void Glue::uninit()
 
   initialized = FALSE;
   // uninitialize filter chain
-  for (int i = 0; i < Filters.size(); ++i)
+  for (size_t i = 0; i < Filters.size(); ++i)
     if (Filters[i]->IsInitialized())
       Filters[i]->UninitPlugin();
 }
@@ -550,7 +550,7 @@ ULONG DLLENTRY dec_fileinfo( const char* url, INFOTYPE* what, DECODER_INFO2* inf
   const Decoder* dp;
   INFOTYPE what2;
   ULONG rc;
-  int i;
+  size_t i;
 
   memset(checked, 0, sizeof *checked * Decoders.size());
 
@@ -615,9 +615,8 @@ ULONG DLLENTRY dec_fileinfo( const char* url, INFOTYPE* what, DECODER_INFO2* inf
 ULONG DLLENTRY dec_cdinfo( const char *drive, DECODER_CDINFO *info )
 { DEBUGLOG(("dec_cdinfo(%s, %p)\n", drive, info));
   ULONG last_rc = 200;
-  int i;
 
-  for( i = 0; i < Decoders.size(); i++ )
+  for( size_t i = 0; i < Decoders.size(); i++ )
   { const Decoder& dec = (const Decoder&)*Decoders[i];
     if ( dec.GetEnabled()
       && (dec.GetType() & DECODER_TRACK)
@@ -710,10 +709,10 @@ dec_editmeta( HWND owner, const char* url, const char* decoder_name )
 }
 
 
-static BOOL vis_init_core(Visual* vis, int id)
+static bool vis_init_core(Visual* vis, int id)
 {
   if (!vis->GetEnabled() || vis->IsInitialized())
-    return FALSE;
+    return false;
 
   PLUGIN_PROCS  procs;
   procs.output_playing_samples = out_playing_samples;
@@ -730,41 +729,39 @@ static BOOL vis_init_core(Visual* vis, int id)
 }
 
 /* Initializes the specified visual plug-in. */
-BOOL vis_init( int i )
+bool vis_init(size_t i)
 { DEBUGLOG(("plugman:vis_init(%d)\n", i));
 
   if (i < 0 || i >= Visuals.size())
-    return FALSE;
+    return false;
 
   return vis_init_core((Visual*)Visuals[i], i);
 }
 
 
-void vis_init_all( BOOL skin )
+void vis_init_all(bool skin)
 { PluginList& list = skin ? VisualsSkinned : Visuals;
-  for( int i = 0; i < list.size(); i++ )
-    if( list[i]->GetEnabled() )
+  for (size_t i = 0; i < list.size(); i++)
+    if (list[i]->GetEnabled())
       vis_init_core((Visual*)list[i], i + 16*skin);
 }
 
 /* Terminates the specified visual plug-in. */
-BOOL vis_deinit( int i )
-{ if ( i < 0 || i >= Visuals.size() )
-    return FALSE;
+bool vis_deinit(size_t i)
+{ if (i >= Visuals.size())
+    return false;
   return Visuals[i]->UninitPlugin();
 }
 
-void vis_deinit_all( BOOL skin )
+void vis_deinit_all(bool skin)
 { PluginList& list = skin ? VisualsSkinned : Visuals;
-  for( int i = 0; i < list.size(); i++ )
+  for (size_t i = 0; i < list.size(); i++)
     list[i]->UninitPlugin();
 }
 
 /* Broadcats specified message to all enabled visual plug-ins. */
-void vis_broadcast( ULONG msg, MPARAM mp1, MPARAM mp2 )
-{
-  int  i;
-
+void vis_broadcast(ULONG msg, MPARAM mp1, MPARAM mp2)
+{ size_t i;
   for( i = 0; i < Visuals.size(); i++ ) {
     Visual* vis = (Visual*)Visuals[i];
     if( vis->GetEnabled() && vis->IsInitialized() )

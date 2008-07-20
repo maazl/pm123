@@ -67,11 +67,9 @@
 
 
 /* Equalizer stuff. */
-static HWND  heq        = NULLHANDLE;
-
-float gains[20];
+/*float gains[20];
 BOOL  mutes[20];
-float preamp;
+float preamp;*/
 
 
 static HWND  hhelp      = NULLHANDLE;
@@ -655,11 +653,10 @@ void amp_show_help( SHORT resid )
 }
 
 
-
 /* global init */
 void dlg_init()
 {
-  xstring infname = xstring::sprintf("%s%s", startpath, "pm123.inf");
+  xstring infname(startpath + "pm123.inf");
   struct stat fi;
   if( stat( infname, &fi ) != 0  )
     // If the file of the help does not placed together with the program,

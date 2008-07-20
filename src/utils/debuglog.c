@@ -125,7 +125,7 @@ void pmassert(const char* file, int line, const char* msg)
  * OS/2 recovers better from traps than from an abort at bad places.
  */
 void abort(void)
-{ int i = 0;
+{ volatile int i = 0;
   i /= i;
 }
 
