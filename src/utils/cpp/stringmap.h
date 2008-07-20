@@ -36,16 +36,24 @@
 /* Element class to provide a string repository with a sorted_vector<> as storage container.
  * This class should be extended to provide a mapping to a target type.
  */
-struct strkey_base : public IComparableTo<xstring>
+struct strkey : public IComparableTo<xstring>
 { const xstring Key;
-  strkey_base(const xstring& key) : Key(key) {}
+  strkey(const xstring& key) : Key(key) {}
   virtual int compareTo(const xstring& key) const;
 };
 
+typedef sorted_vector<strkey, xstring> stringset;
+
+class stringset_own : public stringset
+{public:
+  stringset_own(size_t capacity) : stringset(capacity) {}
+  ~stringset_own();
+};
+
 template <class V>
-struct strmapentry : public strkey_base
+struct strmapentry : public strkey
 { V Value;
-  strmapentry(const xstring& key, const V& value) : strkey_base(key), Value(value) {}
+  strmapentry(const xstring& key, const V& value) : strkey(key), Value(value) {}
 };
 
 typedef strmapentry<xstring> stringmapentry;

@@ -30,11 +30,18 @@
 #include "stringmap.h"
 
 
-int strkey_base::compareTo(const xstring& key) const
-{ return Key.compareTo(key);
+int strkey::compareTo(const xstring& key) const
+{ DEBUGLOG2(("strkey(%p{%s})::compareTo(%s)\n", this, Key.cdata(), key.cdata()));
+  return Key.compareTo(key);
 }
 
 stringmap_own::~stringmap_own()
 { while (size())
     delete erase(size()-1);
 }
+
+stringset_own::~stringset_own()
+{ while (size())
+    delete erase(size()-1);
+}
+
