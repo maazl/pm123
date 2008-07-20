@@ -30,7 +30,7 @@
 #ifndef CPP_MUTEX_H
 #define CPP_MUTEX_H
 
-#define INCL_DOS
+#define INCL_BASE
 #include <config.h>
 #include <assert.h>
 #include <interlocked.h>
