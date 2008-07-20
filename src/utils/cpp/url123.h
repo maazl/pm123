@@ -68,11 +68,12 @@ class url123 : public xstring
  protected:
   static size_t decode(char* dst, const char* src, size_t len);
  public:
-  //
-  static bool isPathDelimiter(char c) { return c == '/' || c == '\\'; }
-  static bool hasScheme(const char* str);
-  static bool isAbsolute(const char* str);
-  static void parseParameter(stringmap& dest, const char* params);
+  static bool   isPathDelimiter(char c) { return c == '/' || c == '\\'; }
+  static bool   hasScheme(const char* str);
+  static bool   isAbsolute(const char* str);
+  static void   parseParameter(stringmap& dest, const char* params);
+  static xstring makeParameter(const stringmap& params); 
+  static bool*  parseBoolean(const char* val);
   static url123 normalizeURL(const char* str);
 
   url123() {}

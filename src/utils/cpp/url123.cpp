@@ -95,7 +95,9 @@ bool url123::isAbsolute(const char* str)
 }
 
 void url123::parseParameter(stringmap& dest, const char* params)
-{ if (*params == '?')
+{ if (params == NULL)
+    return;
+  if (*params == '?')
     ++params; // skip '?'
 
   xstring key;
@@ -114,7 +116,7 @@ void url123::parseParameter(stringmap& dest, const char* params)
     if (ep == NULL)
     { // no value
       ep = ap;
-      val = xstring::empty;
+      val = NULL;
     } else
     { const size_t len = ap-ep-1;
       char* vp = val.raw_init(len);
@@ -139,6 +141,55 @@ void url123::parseParameter(stringmap& dest, const char* params)
     // next      
     params = np;
   } 
+}
+
+xstring url123::makeParameter(const stringmap& params)
+{ xstring ret;
+  stringmapentry*const* p;
+  // calculate string length
+  size_t len = 0;
+  for (p = params.begin(); p != params.end(); ++p)
+  { len += (*p)->Key.length() +1;
+    if ((*p)->Value)
+      len += (*p)->Value.length() +1;
+  }
+  if (len != 0)
+  { --len;
+    // make parameter string
+    char* cp = ret.raw_init(len);
+    p = params.begin();
+    for (;;)
+    { memcpy(cp, (*p)->Key.cdata(), (*p)->Key.length()+1);
+      cp += (*p)->Key.length();
+      if ((*p)->Value)
+      { *cp++ = '=';
+        memcpy(cp, (*p)->Value.cdata(), (*p)->Value.length()+1);
+        cp += (*p)->Value.length();
+      }
+      if (++p == params.end())
+        break;
+      *cp++ = '&'; // delimiter 
+    }
+  }
+  return ret;
+}
+
+bool* url123::parseBoolean(const char* val)
+{ static const struct mapentry
+  { char Text[6];
+    bool Val;
+  } textmap[] =
+  { {"0",     false},
+    {"1",     true},
+    {"false", false},
+    {"no",    false},
+    {"off",   false},
+    {"on",    true},
+    {"true",  true},
+    {"yes",   true}
+  };
+  mapentry* mep = (mapentry*)bsearch(val, textmap, sizeof textmap/sizeof *textmap, sizeof *textmap, (int(TFNENTRY*)(const void*, const void*))&stricmp);
+  return mep ? &mep->Val : NULL;
 }
 
 url123 url123::normalizeURL(const char* str)
