@@ -97,9 +97,15 @@ class vector_base
   size_t             size() const                   { return Size; }
   // Remove all elements
   void               clear()                        { Size = 0; }
+  // Move the i-th element in the list to the location where j is now.
+  // Precondition: from and to in [0,size()-1], Performance: O(n)
+  void               move(size_t from, size_t to);
   // Ensure that the container can store size elements without reallocation.
   // Reserve will also shrink the storage. It is an error if size is less than the actual size.
   void               reserve(size_t size);
+
+  friend bool        binary_search_base(const vector_base& data, int (*fcmp)(const void* elem, const void* key),
+                                        const void* key, size_t& pos);
 };
 
 /* Type safe vector of reference type objects (pointers).
@@ -131,6 +137,7 @@ class vector : public vector_base
   // The initial value of the new element is undefined and must be assigned before the next access.
   T*&                insert(size_t where)           { return (T*&)vector_base::insert(where); }
   // Removes an element from the vector and return it's value.
+  // The where pointer is set to the next item after the removed one.
   // Precondition: where in [begin(),end()), Performance: O(n)
   T*                 erase(T*const*& where)         { return (T*)vector_base::erase((void**&)where); }
   // Removes an element from the vector and return it's value.
@@ -185,32 +192,30 @@ void vector_own_base_copy(vector<T>& d, const T*const* spp)
  */
 template <class T>
 class vector_own : public vector<T>
-{public:
+{protected:
+  // copy constructor
+  // Note that since vector_own own its object exclusively this copy constructor must do
+  // a deep copy of the vector. This is up to the derived class!
+  // You may use vector_own_base_copy to do the job.
+  vector_own(const vector_own<T>& r, size_t spare = 0) : vector<T>(r.size() + spare) {}
+  // assignment: same problem as above
+  vector_own<T>&     operator=(const vector_own<T>& r);
+ public:
   // create a new vector with a given initial capacity.
   // If capacity is 0 the vector is initially created empty
   // and allocated with the default capacity when the first item is inserted.
   vector_own(size_t capacity = 0) : vector<T>(capacity) {}
-  // copy constructor
-  vector_own(const vector_own<T>& r, size_t spare = 0);
   // destructor
                      ~vector_own()                  { clear(); }
-  // assignment
-  vector_own<T>&     operator=(const vector_own<T>& r);
   // Remove all elements
   void               clear();
 };
 
 template <class T>
-inline vector_own<T>::vector_own(const vector_own<T>& r, size_t spare)
-: vector<T>(r.size() + spare)
-{ vector_own_base_copy(*this, r.begin());
-}
-
-template <class T>
 vector_own<T>& vector_own<T>::operator=(const vector_own<T>& r)
 { clear();
   prepare_assign(r.size());
-  vector_own_base_copy(*this, r.begin());
+  //vector_own_base_copy(*this, r.begin());
   return *this;
 }
 
@@ -236,6 +241,9 @@ struct IComparableTo
 };
 
 
+bool binary_search_base(const vector_base& data, int (*fcmp)(const void* elem, const void* key),
+  const void* key, size_t& pos);
+
 /* Sorted variant of vector using the key type K.
  * Object in this container must implement IComparableTo<K>
  */
@@ -250,7 +258,8 @@ class sorted_vector : public vector<T>
   // The function returns whether you got an exact match or not.
   // The index of the first element >= key is always returned in the output parameter pos.
   // Precondition: none, Performance: O(log(n))
-  bool               binary_search(const K& key, size_t& pos) const;
+  bool               binary_search(const K& key, size_t& pos) const
+                     { return binary_search_base(*this, &sorted_vector<T,K>::Comparer, &key, pos); }
   // Find an element by it's key.
   // The function will return NULL if no such element is in the container.
   // Precondition: none, Performance: O(log(n))
@@ -268,33 +277,12 @@ class sorted_vector : public vector<T>
   // IBM VAC++ can't parse using...
   T*                 erase(T*const*& where)         { return vector<T>::erase(where); }
   T*                 erase(size_t where)            { return vector<T>::erase(where); }
+ private:
+  static int         Comparer(const void* elem, const void* key);
 };
 
 
 /* Template implementations */
-template <class T, class K>
-bool sorted_vector<T,K>::binary_search(const K& key, size_t& pos) const
-{ // binary search
-  DEBUGLOG2(("sorted_vector<T,K>(%p)::binary_search(%p,&%p) - %u\n", this, &key, &pos, size()));
-  size_t l = 0;
-  size_t r = size();
-  while (l < r)
-  { size_t m = (l+r) >> 1;
-    int cmp = (*this)[m]->compareTo(key);
-    DEBUGLOG2(("sorted_vector<T,K>::binary_search %u-%u %u->%p %i\n", l, r, m, (*this)[m], cmp));
-    if (cmp == 0)
-    { pos = m;
-      return true;
-    }
-    if (cmp < 0)
-      l = m+1;
-    else
-      r = m;
-  }
-  pos = l;
-  return false;
-}
-
 template <class T, class K>
 T* sorted_vector<T,K>::find(const K& key) const
 { size_t pos;
@@ -312,6 +300,12 @@ T* sorted_vector<T,K>::erase(const K& key)
 { size_t pos;
   return binary_search(key, pos) ? vector<T>::erase(pos) : NULL;
 }
+
+template <class T, class K>
+int sorted_vector<T,K>::Comparer(const void* elem, const void* key)
+{ return ((T*)elem)->compareTo(*(const K*)key);
+}
+
 
 /* Sorted variant of vector_own using the key type K.
  * Object in this container must implement IComparableTo<K>
@@ -376,7 +370,8 @@ int InstanceCompareable<T>::compareTo(const T& key) const
 
 /* Class to implement a repository of all objects instances of a certain type
  * identified by a key K.
- * The Instances of type T must implement Iref_Count and ICompareable<K*>.
+ * The Instances of type T must implement Iref_Count and ICompareable<K*>
+ * and both must be /before/ inst_index in the base class list to avoid undefined bahavior.
  * Classes of type T must inherit from inst_index<T, K> to implement this feature.
  * You must redefine the static function GetByKey to provide a suitable factory
  * for new T instances. In the easiest case this is simply a call to new T(key).
@@ -390,29 +385,41 @@ class inst_index
 {public:
   // abstract factory interface used for object instantiation
   struct IFactory
-  { virtual T* operator()(K* key) = 0;
+  { virtual T* operator()(K& key) = 0;
+  };
+  class IXAccess : public Mutex::Lock
+  { friend class inst_index<T,K>;
+   private:
+    sorted_vector<T,K>& IX;
+    IXAccess(sorted_vector<T,K>& ix, Mutex& mtx) : Mutex::Lock(mtx), IX(ix) {};
+   public:
+    operator const sorted_vector<T,K>*() const { return &IX; };
+    const sorted_vector<T,K>& operator*() const { return IX; };
+    const sorted_vector<T,K>* operator->() const { return &IX; };
   };
 
- protected:
-  const  K* const   Key;
- protected: // It does not make sense to create objects of this type directly.
-  inst_index(const K* key) : Key(key) {}
-  ~inst_index();
-
  public:
+  const K           Key;        
+ private:
+  static sorted_vector<T,K> Index;
+  static Mutex      Mtx; // protect the index above
+
+ protected: // It does not make sense to create objects of this type directly.
+  inst_index(const K& key) : Key(key) {}
+  ~inst_index();
+ public:
+  // Reques an exclusive read-only access to the index repository.
+  static IXAccess   AccessIndex()        { return IXAccess(Index, Mtx); };
   // Get an existing instance of T or return NULL.
-  static int_ptr<T> FindByKey(const K* key);
+  static int_ptr<T> FindByKey(const K& key);
  protected:
   // Get an existing instance of T or create a new one.
-  static int_ptr<T> GetByKey(K* key, IFactory& factory);
- private:
-  static sorted_vector<T,const K*> Index;
-  static Mutex      Mtx; // protect the index above
+  static int_ptr<T> GetByKey(K& key, IFactory& factory);
 };
 
 template <class T, class K>
 inst_index<T,K>::~inst_index()
-{ DEBUGLOG(("inst_index<%p>::~inst_index()\n", &Index));
+{ DEBUGLOG(("inst_index<%p>(%p)::~inst_index() - %p\n", &Index, this, Key));
   // Deregister from the repository
   // The deregistration is a bit too late, because destructors from the derived
   // class may already be called. But the objects T must be reference counted.
@@ -422,18 +429,21 @@ inst_index<T,K>::~inst_index()
   Mutex::Lock lock(Mtx);
   size_t pos;
   if (Index.binary_search(Key, pos))
+  { DEBUGLOG(("inst_index::~inst_index: found at %i - %u\n", pos, Index[pos] == this));
     if (Index[pos] == this)
       Index.erase(pos);
     // else => another instance is already in the index.
-  // else => there is no matching instance
-  // This may happen if the reference count on a T instance goes to zero and
-  // while the instance is not yet deregistered a new instance is created
-  // in the index and it's inst_index destructor is already called. 
+  } else 
+    DEBUGLOG(("inst_index::~inst_index: not found at %i\n", pos));
+    // else => there is no matching instance
+    // This may happen if the reference count on a T instance goes to zero and
+    // while the instance is not yet deregistered a new instance is created
+    // in the index and it's inst_index destructor is already called. 
 }
 
 template <class T, class K>
-int_ptr<T> inst_index<T,K>::FindByKey(const K* key)
-{ DEBUGLOG(("inst_index<%p>::FindByKey(%p)\n", &Index, key));
+int_ptr<T> inst_index<T,K>::FindByKey(const K& key)
+{ DEBUGLOG(("inst_index<>(%p)::FindByKey(&%p)\n", &Index, &key));
   Mutex::Lock lock(Mtx);
   T* p = Index.find(key);
   CritSect cs;
@@ -441,8 +451,8 @@ int_ptr<T> inst_index<T,K>::FindByKey(const K* key)
 }
 
 template <class T, class K>
-int_ptr<T> inst_index<T,K>::GetByKey(K* key, IFactory& factory)
-{ DEBUGLOG(("inst_index<%p>::GetByKey(%p, &%p)\n", &Index, key, &factory));
+int_ptr<T> inst_index<T,K>::GetByKey(K& key, IFactory& factory)
+{ DEBUGLOG(("inst_index<>(%p)::GetByKey(&%p, &%p)\n", &Index, &key, &factory));
   Mutex::Lock lock(Mtx);
   T*& p = Index.get(key);
   { CritSect cs;
@@ -454,7 +464,7 @@ int_ptr<T> inst_index<T,K>::GetByKey(K* key, IFactory& factory)
 }
 
 template <class T, class K>
-sorted_vector<T,const K*> inst_index<T,K>::Index;
+sorted_vector<T,K> inst_index<T,K>::Index;
 template <class T, class K>
 Mutex inst_index<T,K>::Mtx;
   

@@ -99,6 +99,19 @@ void* vector_base::erase(void**& where)
   return ret;
 }
 
+void vector_base::move(size_t from, size_t to)
+{ ASSERT(from < Size);
+  ASSERT(to < Size);
+  if (from == to)
+    return; // no-op
+  void* p = Data[from];
+  if (from < to)
+    memmove(Data + from, Data + from +1, (to - from) * sizeof *Data);
+  else
+    memmove(Data + to +1, Data + to, (from - to) * sizeof *Data);
+  Data[to] = p;
+}
+
 void vector_base::reserve(size_t size)
 { ASSERT(size >= Size);
   Capacity = size;
@@ -115,6 +128,29 @@ void vector_base::prepare_assign(size_t size)
     reserve(size);
   }
   Size = size;
+}
+
+bool binary_search_base(const vector_base& data, int (*fcmp)(const void* elem, const void* key),
+  const void* key, size_t& pos)
+{ DEBUGLOG(("binary_search_base(&%p{%u}, *%p, %p, &%p)\n", &data, data.size(), fcmp, key, &pos));
+  size_t l = 0;
+  size_t r = data.size();
+  while (l < r)
+  { size_t m = (l+r) >> 1;
+    DEBUGLOG(("sorted_vector<T,K>::binary_search %u-%u %u->%p\n", l, r, m, data.at(m)));
+    int cmp = (*fcmp)(data.at(m), key);
+    DEBUGLOG(("sorted_vector<T,K>::binary_search cmp = %i\n", cmp));
+    if (cmp == 0)
+    { pos = m;
+      return true;
+    }
+    if (cmp < 0)
+      l = m+1;
+    else
+      r = m;
+  }
+  pos = l;
+  return false;
 }
 
 void rotate_array_base(void** begin, const size_t len, int shift)
