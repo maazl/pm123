@@ -344,9 +344,13 @@ ULONG DLLENTRY decoder_cdinfo( const char* drive, DECODER_CDINFO* info );
 #define DECODER_TRACK     0x0004 /* Decoder can play a CD track. */
 #define DECODER_OTHER     0x0008 /* Decoder can play something else. */
 #define DECODER_METAINFO  0x8000 /* Decoder can save a meta info. */
+#if defined(DECODER_PLUGIN_LEVEL) && DECODER_PLUGIN_LEVEL > 1
+ULONG DLLENTRY decoder_support( const char** fileext, const char** filetype );
+#else
 /* size is i/o and is the size of the array.
    each ext should not be bigger than 8bytes */
 ULONG DLLENTRY decoder_support( char* fileext[], int* size );
+#endif
 
 #if defined(DECODER_PLUGIN_LEVEL) && DECODER_PLUGIN_LEVEL > 0
 ULONG DLLENTRY decoder_editmeta ( HWND owner, const char* url );
