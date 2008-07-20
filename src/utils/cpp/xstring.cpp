@@ -97,11 +97,9 @@ int xstring::compareTo(const xstring& r) const
   size_t ll = length();
   size_t rl = r.length();
   if (ll < rl)
-    return ((memcmp(Data->Ptr(), r.Data->Ptr(), ll) <= 0) << 1) -1;
-  if (ll == rl)
-    return memcmp(Data->Ptr(), r.Data->Ptr(), ll);
-   else
-    return ((memcmp(Data->Ptr(), r.Data->Ptr(), rl) < 0) << 1) -1;
+    return -(memcmp(r.Data->Ptr(), Data->Ptr(), ll) | 1);
+  else
+    return memcmp(Data->Ptr(), r.Data->Ptr(), rl) | (ll != rl);
 }
 int xstring::compareTo(const char* str) const
 { if (!Data)
@@ -113,11 +111,9 @@ int xstring::compareTo(const char* str) const
   size_t ll = length();
   size_t rl = strlen(str);
   if (ll < rl)
-    return ((memcmp(Data->Ptr(), str, ll) <= 0) << 1) -1;
-  if (ll == rl)
-    return memcmp(Data->Ptr(), str, ll);
+    return -(memcmp(str, Data->Ptr(), ll) | 1);
    else
-    return ((memcmp(Data->Ptr(), str, rl) < 0) << 1) -1;
+    return memcmp(Data->Ptr(), str, rl) | (ll != rl);
 }
 int xstring::compareTo(const char* str, size_t rl) const
 { if (!Data)
@@ -128,11 +124,9 @@ int xstring::compareTo(const char* str, size_t rl) const
     return 1;
   size_t ll = length();
   if (ll < rl)
-    return ((memcmp(Data->Ptr(), str, ll) <= 0) << 1) -1;
-  if (ll == rl)
-    return memcmp(Data->Ptr(), str, ll);
+    return -(memcmp(str, Data->Ptr(), ll) | 1);
    else
-    return ((memcmp(Data->Ptr(), str, rl) < 0) << 1) -1;
+    return memcmp(Data->Ptr(), str, rl) | (ll != rl);
 }
 
 int xstring::compareToI(const xstring& r) const
@@ -145,11 +139,9 @@ int xstring::compareToI(const xstring& r) const
   size_t ll = length();
   size_t rl = r.length();
   if (ll < rl)
-    return ((compareI(Data->Ptr(), r.Data->Ptr(), ll) <= 0) << 1) -1;
-  if (ll == rl)
-    return compareI(Data->Ptr(), r.Data->Ptr(), ll);
+    return -(compareI(r.Data->Ptr(), Data->Ptr(), ll) | 1);
    else
-    return ((compareI(Data->Ptr(), r.Data->Ptr(), rl) < 0) << 1) -1;
+    return compareI(Data->Ptr(), r.Data->Ptr(), rl) | (ll != rl);
 }
 int xstring::compareToI(const char* str) const
 { if (!Data)
@@ -161,11 +153,9 @@ int xstring::compareToI(const char* str) const
   size_t ll = length();
   size_t rl = strlen(str);
   if (ll < rl)
-    return ((compareI(Data->Ptr(), str, ll) <= 0) << 1) -1;
-  if (ll == rl)
-    return compareI(Data->Ptr(), str, ll);
+    return -(compareI(str, Data->Ptr(), ll) | 1);
    else
-    return ((compareI(Data->Ptr(), str, rl) < 0) << 1) -1;
+    return compareI(Data->Ptr(), str, rl) | (ll != rl);
 }
 int xstring::compareToI(const char* str, size_t rl) const
 { if (!Data)
@@ -176,11 +166,9 @@ int xstring::compareToI(const char* str, size_t rl) const
     return 1;
   size_t ll = length();
   if (ll < rl)
-    return ((compareI(Data->Ptr(), str, ll) <= 0) << 1) -1;
-  if (ll == rl)
-    return compareI(Data->Ptr(), str, ll);
+    return -(compareI(Data->Ptr(), str, ll) | 1);
    else
-    return ((compareI(Data->Ptr(), str, rl) < 0) << 1) -1;
+    return compareI(Data->Ptr(), str, rl) | (ll != rl);
 }
 
 bool xstring::startsWith(const char* r, size_t len) const
