@@ -30,9 +30,10 @@
 #define INCL_PM
 #define INCL_BASE
 #include "playable.h"
-#include "plugman.h"
 #include "pm123.h"
 #include "properties.h"
+#include <strutils.h>
+#include <utilfct.h>
 #include <string.h>
 #include <stdio.h>
 

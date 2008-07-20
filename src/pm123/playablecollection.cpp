@@ -29,7 +29,6 @@
 
 #define INCL_PM
 #define INCL_BASE
-//#include "plugman.h"
 #include "playablecollection.h"
 #include "songiterator.h"
 #include "properties.h"

@@ -55,15 +55,15 @@ BOOL  amp_warn_if_overwrite( HWND owner, const char* filename );
 void  amp_show_help( SHORT resid );
 
 /* file dialog standard types */
-#define FDT_PLAYLIST         "Playlist files (*.LST;*.MPL;*.M3U;*.M3U8;*.PLS)"
-#define FDT_PLAYLIST_LST     "PM123 Playlist files (*.LST)"
-#define FDT_PLAYLIST_M3U     "Internet Playlist files (*.M3U)"
-#define FDT_PLAYLIST_M3U8    "Unicode Playlist files (*.M3U8)"
+#define FDT_PLAYLIST         "Playlist files (*.lst;*.mpl;*.m3u;*.m3u8;*.pls)"
+#define FDT_PLAYLIST_LST     "PM123 Playlist files (*.lst)"
+#define FDT_PLAYLIST_M3U     "Internet Playlist files (*.m3u)"
+#define FDT_PLAYLIST_M3U8    "Unicode Playlist files (*.m3u8)"
 #define FDT_AUDIO            "All supported audio files ("
-#define FDT_AUDIO_ALL        "All supported types (*.LST;*.MPL;*.M3U;*.M3U8;*.PLS;"
-#define FDT_SKIN             "Skin files (*.SKN)"
-#define FDT_EQUALIZER        "Equalizer presets (*.EQ)"
-#define FDT_PLUGIN           "Plug-in (*.DLL)"
+#define FDT_AUDIO_ALL        "All supported types (*.lst;*.mpl;*.m3u;*.m3u8;*.pls;"
+#define FDT_SKIN             "Skin files (*.skn)"
+//#define FDT_EQUALIZER        "Equalizer presets (*.eq)"
+#define FDT_PLUGIN           "Plug-in (*.dll)"
 /* Default dialog procedure for the file dialog. */
 MRESULT EXPENTRY amp_file_dlg_proc( HWND, ULONG, MPARAM, MPARAM );
 /* Wizzard function for the default entry "File..." */

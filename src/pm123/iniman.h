@@ -32,12 +32,25 @@
 #ifndef PM123_INIMAN_H
 #define PM123_INIMAN_H
 
+#include <cpp/xstring.h>
+
+
 /* save_window_pos and rest_window_pos options */
 #define WIN_MAP_POINTS  1
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+// read xstring
+xstring ini_query_xstring(HINI hini, const char* app, const char* key);
+// write xstring
+inline BOOL ini_write_xstring(HINI hini, const char* app, const char* key, const xstring& str)
+{ return PrfWriteProfileData(hini, app, key, (PVOID)str.cdata(), str ? str.length() : 0);
+}
+
+#define load_ini_xstring(hini, var) \
+  var = ini_query_xstring((hini), INI_SECTION, #var)
+
+#define save_ini_xstring(hini, var) \
+  ini_write_xstring((hini), INI_SECTION, #var, var)
+
 
 void load_ini( void );
 void save_ini( void );
@@ -47,7 +60,4 @@ BOOL save_window_pos( HWND, int options );
 /* Restores the current size and position of the window. */
 BOOL rest_window_pos( HWND, int options );
 
-#ifdef __cplusplus
-}
-#endif
 #endif /* PM123_INIMAN_H */

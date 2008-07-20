@@ -34,6 +34,7 @@
 #define DECODER_PLUGIN_LEVEL 2
 #include "windowbase.h"
 #include "playable.h"
+#include "plugman.h"
 #include "controller.h"
 #include <decoder_plug.h>
 #include <os2.h>
@@ -244,7 +245,7 @@ class PlaylistBase
   int_ptr<PlaylistBase> Self;      // we hold a reference to ourself as long as the current window is open
   class_delegate2<PlaylistBase, const Playable::change_args, RecordBase*const> RootInfoDelegate;
   class_delegate<PlaylistBase, const Ctrl::EventFlags> RootPlayStatusDelegate;
-  class_delegate<PlaylistBase, const PLUGIN_EVENTARGS> PluginDelegate;
+  class_delegate<PlaylistBase, const Plugin::EventArgs> PluginDelegate;
 
  protected:
   // Create a playlist manager window for an object, but don't open it.
@@ -350,7 +351,7 @@ class PlaylistBase
   // This function is called when playing starts or stops.
   void              PlayStatEvent(const Ctrl::EventFlags& flags);
   // This function is called when the list of enabled plug-ins changed.
-  void              PluginEvent(const PLUGIN_EVENTARGS& args);
+  void              PluginEvent(const Plugin::EventArgs& args);
 
  protected: // User actions
   // Select a list with a file dialog.

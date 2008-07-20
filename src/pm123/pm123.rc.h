@@ -359,6 +359,7 @@
 #define ML_DEC_FILETYPES   1532
 #define CB_DEC_TRYOTHER    1533
 #define CB_DEC_SERIALIZE   1534
+#define PB_PLG_SET         1539
 
 /* Object Info */
 #define DLG_INFO           1800

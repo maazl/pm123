@@ -95,7 +95,7 @@ void  amp_AddMRU(Playlist* list, size_t max, const PlayableSlice& ps);
 /* Global variables */
 
 /* Contains startup path of the program without its name. */
-extern char startpath[_MAX_PATH];
+extern const xstring& startpath;
 
 Playlist* amp_get_default_pl();
 Playlist* amp_get_default_bm();

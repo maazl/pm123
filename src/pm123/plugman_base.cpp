@@ -46,12 +46,14 @@
 //#define DEBUG 2
 
 #include <utilfct.h>
+#include <eautils.h>
 #include "plugman_base.h"
-#include "pm123.h"
+#include "pm123.h" // for hab
 #include "dialog.h"
 #include "playable.h"
 #include "controller.h" // for starting position work around
 #include <vdelegate.h>
+#include <cpp/url123.h>
 
 #include <limits.h>
 #include <math.h>
@@ -102,305 +104,194 @@ static double tstmp_i2f(int pos, double context)
 
 /****************************************************************************
 *
-* CL_PLUGIN_BASE - C++ version of PLUGIN_BASE
-*
-****************************************************************************/
-
-/* Assigns the address of the specified procedure within a plug-in. */
-BOOL CL_PLUGIN_BASE::load_optional_function( void* function, const char* function_name )
-{ return DosQueryProcAddr( module, 0L, (PSZ)function_name, (PFN*)function ) == NO_ERROR;
-}
-
-/* Assigns the address of the specified procedure within a plug-in. */
-BOOL CL_PLUGIN_BASE::load_function( void* function, const char* function_name )
-{ ULONG rc = DosQueryProcAddr( module, 0L, (PSZ)function_name, (PFN*)function );
-  if( rc != NO_ERROR ) {
-    char  error[1024];
-    *((ULONG*)function) = 0;
-    amp_player_error( "Could not load \"%s\" from %s\n%s", function_name,
-                      module_name, os2_strerror( rc, error, sizeof( error )));
-    return FALSE;
-  }
-  return TRUE;
-}
-
-
-/****************************************************************************
-*
-* CL_MODULE - object representing a plugin-DLL
-*
-****************************************************************************/
-
-CL_MODULE::CL_MODULE(const char* name)
-: refcount(0)
-{ module = NULLHANDLE;
-  strlcpy(module_name, name, sizeof module_name);
-}
-
-CL_MODULE::~CL_MODULE()
-{ if (refcount)
-    amp_player_error( "Fatal internal error in module handler:\n"
-                      "trying to unload module %s with %d references.",
-                      module_name, refcount);
-   else
-    unload_module();
-}
-
-/* Loads a plug-in dynamic link module. */
-BOOL CL_MODULE::load_module()
-{ char  load_error[_MAX_PATH];
-  *load_error = 0;
-  DEBUGLOG(("CL_MODULE(%p{%s})::load_module()\n", this, module_name));
-  APIRET rc = DosLoadModule( load_error, sizeof( load_error ), (PSZ)module_name, &module );
-  DEBUGLOG(("CL_MODULE::load_module: %p - %u\n", module, rc));
-  // For some reason the API sometimes returns ERROR_INVALID_PARAMETER when loading oggplay.dll.
-  // However, the module is loaded successfully.
-  if( rc != NO_ERROR && rc != ERROR_INVALID_PARAMETER ) {
-    char  error[1024];
-    amp_player_error( "Could not load %s, %s. Error %d\n%s",
-                      module_name, load_error, rc, os2_strerror( rc, error, sizeof( error )));
-    return FALSE;
-  }
-  DEBUGLOG(("CL_MODULE({%p,%s})::load_module: TRUE\n", module, module_name));
-  return TRUE;
-}
-
-/* Unloads a plug-in dynamic link module. */
-BOOL CL_MODULE::unload_module()
-{ DEBUGLOG(("CL_MODULE(%p{%p,%s}))::unload_module()\n", this, module, module_name));
-  if (module == NULLHANDLE)
-    return TRUE;
-  APIRET rc = DosFreeModule( module );
-  if( rc != NO_ERROR && rc != ERROR_INVALID_ACCESS ) {
-    char  error[1024];
-    amp_player_error( "Could not unload %s. Error %d\n%s",
-                      module_name, rc, os2_strerror( rc, error, sizeof( error )));
-    return FALSE;
-  }
-  module = NULLHANDLE;
-  return TRUE;
-}
-
-/* Fills the basic properties of any plug-in.
-         module:      input
-         module_name: input
-         query_param  output
-         plugin_configure output
-   return FALSE = error */
-BOOL CL_MODULE::load()
-{ DEBUGLOG(("CL_MODULE(%p{%s})::load()\n", this, module_name));
-
-  void DLLENTRYP(plugin_query)( PLUGIN_QUERYPARAM *param );
-  if ( !load_module() || !load_function( &plugin_query, "plugin_query" ) )
-    return FALSE;
-
-  query_param.interface = 0; // unchanged by old plug-ins
-  (*plugin_query)(&query_param);
-
-  if (query_param.interface > MAX_PLUGIN_LEVEL)
-  {
-    #define toconststring(x) #x
-    amp_player_error( "Could not load plug-in %s because it requires a newer version of the PM123 core\n"
-                      "Requested interface revision: %d, max. supported: " toconststring(MAX_PLUGIN_LEVEL),
-      module_name, query_param.interface);
-    #undef toconststring
-    return FALSE;
-  }
-
-  return !query_param.configurable || load_function( &plugin_configure, "plugin_configure" );
-}
-
-
-/****************************************************************************
-*
-* CL_PLUGIN - object representing a plugin instance
-*
-****************************************************************************/
-
-CL_PLUGIN::CL_PLUGIN(CL_MODULE& mod)
-: CL_PLUGIN_BASE(mod), // copy global properties
-  modref(mod),
-  enabled(false)
-{ mod.attach(this);
-}
-
-CL_PLUGIN::~CL_PLUGIN()
-{ DEBUGLOG(("CL_PLUGIN(%p{%s})::~CL_PLUGIN\n", this, module_name));
-
-  if (modref.detach(this)) // is last reference
-    delete plugins.detach(plugins.find(modref)); // remove plugin from memory
-}
-
-void CL_PLUGIN::set_enabled(BOOL enabled)
-{ if (this->enabled == enabled)
-    return;
-  this->enabled = enabled;
-  raise_plugin_event(enabled ? PLUGIN_EVENTARGS::Enable : PLUGIN_EVENTARGS::Disable);
-}
-
-void CL_PLUGIN::raise_plugin_event(PLUGIN_EVENTARGS::event ev)
-{ const PLUGIN_EVENTARGS ea = { this, get_type(), ev };
-  plugin_event(ea);
-}
-
-
-HWND CL_PLUGIN::ServiceHwnd = NULLHANDLE;
-
-MRESULT EXPENTRY cl_plugin_winfn(HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2)
-{ DEBUGLOG(("cl_plugin_winfn(%p, %u, %p, %p)\n", hwnd, msg, mp1, mp2));
-  switch (msg)
-  {case CL_PLUGIN::UM_CREATEPROXYWINDOW:
-    { HWND proxyhwnd = WinCreateWindow(hwnd, (PSZ)PVOIDFROMMP(mp1), "", 0, 0,0, 0,0, NULLHANDLE, HWND_BOTTOM, 42, NULL, NULL);
-      PMASSERT(proxyhwnd != NULLHANDLE);
-      PMRASSERT(WinSetWindowPtr(proxyhwnd, 0, PVOIDFROMMP(mp2)));
-      return (MRESULT)proxyhwnd;
-    }
-   case CL_PLUGIN::UM_DESTROYPROXYWINDOW:
-    WinDestroyWindow(HWNDFROMMP(mp1));
-    return 0;
-   case WM_DESTROY:
-    CL_PLUGIN::ServiceHwnd = NULLHANDLE;
-    break;
-  }
-  return WinDefWindowProc(hwnd, msg, mp1, mp2);
-}
-
-HWND CL_PLUGIN::CreateProxyWindow(const char* cls, void* ptr)
-{ return (HWND)WinSendMsg(ServiceHwnd, UM_CREATEPROXYWINDOW, MPFROMP(cls), MPFROMP(ptr));
-}
-
-void CL_PLUGIN::DestroyProxyWindow(HWND hwnd)
-{ WinSendMsg(ServiceHwnd, UM_DESTROYPROXYWINDOW, MPFROMHWND(hwnd), 0);
-}
-
-void CL_PLUGIN::init()
-{ PMRASSERT(WinRegisterClass(amp_player_hab(), "CL_MODULE_SERVICE", &cl_plugin_winfn, 0, 0));
-  ServiceHwnd = WinCreateWindow(amp_player_window(), "CL_MODULE_SERVICE", "", 0, 0,0, 0,0, NULLHANDLE, HWND_BOTTOM, 42, NULL, NULL);
-  PMASSERT(ServiceHwnd != NULLHANDLE);
-}
-
-void CL_PLUGIN::uninit()
-{ WinDestroyWindow(ServiceHwnd);
-}
-
-
-/****************************************************************************
-*
 * decoder interface
 *
 ****************************************************************************/
 
-CL_DECODER::~CL_DECODER()
-{ DEBUGLOG(("CL_DECODER(%p{%s})::~CL_DECODER %p\n", this, module_name, support));
+/*Decoder::~Decoder()
+{ DEBUGLOG(("Decoder(%p{%s})::~Decoder%p\n", this, ModuleName, Support));
+}*/
 
-  if( support ) {
-    char** cpp = support;
-    while (*cpp)
-      free(*cpp++);
-    free( support );
-  }
+bool Decoder::AfterLoad()
+{ DEBUGLOG(("Decoder(%p{%s})::AfterLoad()\n", this, GetModuleName().cdata()));
+
+  ULONG DLLENTRYP(decoder_support)( const char** fileext, const char** filetype );
+  if (!GetModule().LoadFunction(&decoder_support,  "decoder_support" ))
+    return false;
+
+  const char* fileext;
+  const char* filetype;
+
+  Type = decoder_support( &fileext, &filetype );
+  Extensions = fileext;
+  FileTypes = filetype;
+
+  return true;
 }
 
-BOOL CL_DECODER::after_load()
-{ DEBUGLOG(("CL_DECODER(%p{%s})::after_load()\n", this, module_name));
-
-  char*   my_support[20];
-  int     size = sizeof( my_support ) / sizeof( *my_support );
-  int     i;
-
-  w = NULL;
-  enabled = TRUE;
-
-  my_support[0] = (char*)malloc( _MAX_EXT * size );
-  if( !my_support[0] ) {
-    amp_player_error( "Not enough memory to decoder load." );
-    return FALSE;
-  }
-  for( i = 1; i < size; i++ ) {
-    my_support[i] = my_support[i-1] + _MAX_EXT;
-  }
-
-  type = decoder_support( my_support, &size );
-  support = (char**)malloc(( size + 1 ) * sizeof( char* ));
-
-  for( i = 0; i < size; i++ ) {
-    support[i] = strdup( strupr( my_support[i] ));
-    if( !support[i] ) {
-      amp_player_error( "Not enough memory to decoder load." );
-      return FALSE;
-    }
-  }
-  support[i] = NULL;
-
-  free( my_support[0] );
-  return TRUE;
-}
-
-PLUGIN_TYPE CL_DECODER::get_type() const
+PLUGIN_TYPE Decoder::GetType() const
 { return PLUGIN_DECODER;
 }
 
 /* Assigns the addresses of the decoder plug-in procedures. */
-BOOL CL_DECODER::load_plugin()
-{ DEBUGLOG(("CL_DECODER(%p{%s})::load()\n", this, module_name));
+bool Decoder::LoadPlugin()
+{ DEBUGLOG(("Decoder(%p{%s})::LoadPlugin()\n", this, GetModuleName().cdata()));
+  const Module& mod = GetModule();
+  
+  if ( !(mod.GetParams().type & PLUGIN_DECODER)
+    || !mod.LoadFunction(&decoder_init,     "decoder_init"    )
+    || !mod.LoadFunction(&decoder_uninit,   "decoder_uninit"  )
+    || !mod.LoadFunction(&decoder_command,  "decoder_command" )
+    || !mod.LoadFunction(&decoder_status,   "decoder_status"  )
+    || !mod.LoadFunction(&decoder_length,   "decoder_length"  )
+    || !mod.LoadFunction(&decoder_fileinfo, "decoder_fileinfo")
+    || !mod.LoadFunction(&decoder_event,    "decoder_event"   ) )
+    return false;
 
-  if ( !(query_param.type & PLUGIN_DECODER)
-    || !load_function(&decoder_init,     "decoder_init"    )
-    || !load_function(&decoder_uninit,   "decoder_uninit"  )
-    || !load_function(&decoder_command,  "decoder_command" )
-    || !load_function(&decoder_status,   "decoder_status"  )
-    || !load_function(&decoder_length,   "decoder_length"  )
-    || !load_function(&decoder_fileinfo, "decoder_fileinfo")
-    || !load_function(&decoder_support,  "decoder_support" )
-    || !load_function(&decoder_event,    "decoder_event"   ) )
-    return FALSE;
+  mod.LoadOptionalFunction(&decoder_editmeta, "decoder_editmeta");
+  mod.LoadOptionalFunction(&decoder_getwizzard, "decoder_getwizzard");
 
-  load_optional_function(&decoder_editmeta, "decoder_editmeta");
-  load_optional_function(&decoder_getwizzard, "decoder_getwizzard");
+  if (!AfterLoad())
+    return false;
+  
+  W = NULL;
 
-  if (!after_load())
-    return FALSE;
-
-  if (type & DECODER_TRACK)
-  { if (!load_function(&decoder_cdinfo,   "decoder_cdinfo"))
-      return FALSE;
+  if (Type & DECODER_TRACK)
+  { if (!mod.LoadFunction(&decoder_cdinfo,   "decoder_cdinfo"))
+      return false;
   } else
   { decoder_cdinfo = &stub_decoder_cdinfo;
   }
-  return TRUE;
+  return true;
 }
 
-BOOL CL_DECODER::init_plugin()
-{ DEBUGLOG(("CL_DECODER(%p{%s})::init_plugin()\n", this, module_name));
+bool Decoder::InitPlugin()
+{ DEBUGLOG(("Decoder(%p{%s})::InitPlugin()\n", this, GetModuleName().cdata()));
 
-  if ((*decoder_init)( &w ) == -1)
-  { w = NULL;
-    return FALSE;
+  if ((*decoder_init)(&W) == -1)
+  { W = NULL;
+    return false;
   }
-  raise_plugin_event(PLUGIN_EVENTARGS::Init);
-  return TRUE;
+  RaisePluginChange(EventArgs::Init);
+  return true;
 }
 
-BOOL CL_DECODER::uninit_plugin()
-{ DEBUGLOG(("CL_DECODER(%p{%s})::uninit_plugin()\n", this, module_name));
+bool Decoder::UninitPlugin()
+{ DEBUGLOG(("Decoder(%p{%s})::UninitPlugin()\n", this, GetModuleName().cdata()));
 
-  if (is_initialized())
-  { (*decoder_uninit)( xchg( w, (void*)NULL ) );
-    raise_plugin_event(PLUGIN_EVENTARGS::Uninit);
+  if (IsInitialized())
+  { (*decoder_uninit)( xchg(W, (void*)NULL));
+    RaisePluginChange(EventArgs::Uninit);
   }
-  return TRUE;
+  return true;
 }
 
-PROXYFUNCIMP(ULONG DLLENTRY, CL_DECODER)
-stub_decoder_cdinfo( const char* drive, DECODER_CDINFO* info )
+bool Decoder::IsFileSupported(const char* url) const
+{ DEBUGLOG(("Decoder(%p{%s})::IsFileSupported(%s) - %s, %s\n", this, GetModuleName().cdata(),
+    url, Extensions ? Extensions.cdata() : "<null>", FileTypes ? FileTypes.cdata() : "<null>"));
+
+  // Can't probe anything but files so far
+  if (strnicmp("file:", url, 5) != 0)
+    return true;
+
+  // Try file name match
+  if (Extensions)
+  { // extract filename
+    const xstring& objname = url123(url).getObjectName();
+    if (wildcardfit(Extensions, url))
+    { DEBUGLOG(("Decoder::IsFileSupported: wildcard match of %s with %s\n", objname.cdata(), Extensions.cdata()));
+      return true;
+  } }
+
+  // Try file type match
+  if (FileTypes)
+  { // extract file name from url
+    url += 5;
+    if (url[2] == '/')
+      url += 3;
+    // retrieve .TYPE EA
+    size_t size = 0;
+    char* eadata = NULL;
+    APIRET rc = eaget(url, ".TYPE", &eadata, &size);
+    DEBUGLOG(("Decoder::IsFileSupported - read .TYPE EA: %u\n", rc));
+    if (rc == NO_ERROR)
+    { const USHORT* data = (USHORT*)eadata;
+      bool ret = DoFileTypeMatch(*data++, data);
+      free(eadata);
+      return ret; 
+    }
+  }
+
+  // no match 
+  return false;
+}
+
+bool Decoder::DoFileTypeMatch(USHORT type, const USHORT*& eadata) const
+{ DEBUGLOG(("Decoder::DoFileTypeMatch(%04x, %04x...)\n", type, eadata[0]));
+  switch (type)
+  {case EAT_ASCII:
+    if (wildcardfit(FileTypes, xstring((const char*)(eadata + 1), eadata[0])))
+      return true;
+   default:
+    (const char*&)eadata += sizeof(USHORT) + eadata[0];
+    break;
+
+   case EAT_MVST:
+    { size_t count = eadata[1];
+      USHORT type = eadata[2];
+      eadata += 3;
+      while (count--)
+        if (DoFileTypeMatch(type, eadata))
+          return true;
+    }
+    break;
+
+   case EAT_MVMT:
+    { size_t count = eadata[1];
+      eadata += 2;
+      while (count--)
+        if (DoFileTypeMatch(*eadata++, eadata))
+          return true;
+    }
+   case EAT_ASN1: // not supported
+    break;
+  }
+  return false;
+}
+
+void Decoder::GetParams(stringmap& params) const
+{ Plugin::GetParams(params);
+  static const xstring troparam = "tryothers";
+  params.get(troparam) = new stringmapentry(troparam, TryOthers ? "yes" : "no");
+}
+
+bool Decoder::SetParam(const char* param, const xstring& value)
+{ if (stricmp(param, "tryothers") == 0)
+  { bool* b = url123::parseBoolean(value);
+    DEBUGLOG(("Decoder::SetParam: tryothers = %u\n", b ? *b : -1));
+    if (b)
+    { TryOthers = *b;
+      return true;
+    }
+    return false;
+  }
+  return Plugin::SetParam(param, value);
+}
+
+
+PROXYFUNCIMP(ULONG DLLENTRY, Decoder)
+stub_decoder_cdinfo(const char* drive, DECODER_CDINFO* info)
 { return 100; // can't play CD
 }
 
 
 // Proxy for level 1 decoder interface
-class CL_DECODER_PROXY_1 : public CL_DECODER
-{private:
-  ULONG  DLLENTRYP(vdecoder_command      )( void*  w, ULONG msg, DECODER_PARAMS* params );
+class DecoderProxy1 : public Decoder
+{protected:
+  bool         SerializeInfo;
+
+ private:
+  ULONG  DLLENTRYP(vdecoder_command      )( void* w, ULONG msg, DECODER_PARAMS* params );
   int    DLLENTRYP(voutput_request_buffer)( void* a, const FORMAT_INFO2* format, short** buf );
   void   DLLENTRYP(voutput_commit_buffer )( void* a, int len, double posmarker );
   void   DLLENTRYP(voutput_event         )( void* a, DECEVENTTYPE event, void* param );
@@ -421,67 +312,143 @@ class CL_DECODER_PROXY_1 : public CL_DECODER
   VDELEGATE vd_decoder_command, vd_decoder_event, vd_decoder_fileinfo, vd_decoder_cdinfo, vd_decoder_length;
 
  private:
-  PROXYFUNCDEF ULONG  DLLENTRY proxy_1_decoder_command     ( CL_DECODER_PROXY_1* op, void* w, ULONG msg, DECODER_PARAMS2* params );
-  PROXYFUNCDEF void   DLLENTRY proxy_1_decoder_event       ( CL_DECODER_PROXY_1* op, void* w, OUTEVENTTYPE event );
-  PROXYFUNCDEF ULONG  DLLENTRY proxy_1_decoder_fileinfo    ( CL_DECODER_PROXY_1* op, const char* filename, INFOTYPE* what, DECODER_INFO2* info );
-  PROXYFUNCDEF ULONG  DLLENTRY proxy_1_decoder_cdinfo      ( CL_DECODER_PROXY_1* op, const char* drive, DECODER_CDINFO* info );
-  PROXYFUNCDEF int    DLLENTRY proxy_1_decoder_play_samples( CL_DECODER_PROXY_1* op, const FORMAT_INFO* format, const char* buf, int len, int posmarker );
-  PROXYFUNCDEF double DLLENTRY proxy_1_decoder_length      ( CL_DECODER_PROXY_1* op, void* w );
+  PROXYFUNCDEF ULONG  DLLENTRY proxy_1_decoder_command     ( DecoderProxy1* op, void* w, ULONG msg, DECODER_PARAMS2* params );
+  PROXYFUNCDEF void   DLLENTRY proxy_1_decoder_event       ( DecoderProxy1* op, void* w, OUTEVENTTYPE event );
+  PROXYFUNCDEF ULONG  DLLENTRY proxy_1_decoder_fileinfo    ( DecoderProxy1* op, const char* filename, INFOTYPE* what, DECODER_INFO2* info );
+  PROXYFUNCDEF ULONG  DLLENTRY proxy_1_decoder_cdinfo      ( DecoderProxy1* op, const char* drive, DECODER_CDINFO* info );
+  PROXYFUNCDEF int    DLLENTRY proxy_1_decoder_play_samples( DecoderProxy1* op, const FORMAT_INFO* format, const char* buf, int len, int posmarker );
+  PROXYFUNCDEF double DLLENTRY proxy_1_decoder_length      ( DecoderProxy1* op, void* w );
   friend MRESULT EXPENTRY proxy_1_decoder_winfn(HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2);
+ 
+ protected:
+  virtual bool AfterLoad();
  public:
-  CL_DECODER_PROXY_1(CL_MODULE& mod) : CL_DECODER(mod), hwnd(NULLHANDLE), juststarted(0) {}
-  virtual ~CL_DECODER_PROXY_1();
-  virtual BOOL load_plugin();
+  DecoderProxy1(Module* mod) : Decoder(mod), SerializeInfo(false), hwnd(NULLHANDLE), juststarted(0) {}
+  virtual ~DecoderProxy1();
+  virtual bool LoadPlugin();
+  virtual void GetParams(stringmap& map) const;
+  virtual bool SetParam(const char* param, const xstring& value);
 };
 
-CL_DECODER_PROXY_1::~CL_DECODER_PROXY_1()
+DecoderProxy1::~DecoderProxy1()
 { if (hwnd != NULLHANDLE)
     WinDestroyWindow(hwnd);
 }
 
 /* Assigns the addresses of the decoder plug-in procedures. */
-BOOL CL_DECODER_PROXY_1::load_plugin()
-{ DEBUGLOG(("CL_DECODER_PROXY_1(%p{%s})::load()\n", this, module_name));
+bool DecoderProxy1::LoadPlugin()
+{ DEBUGLOG(("DecoderProxy1(%p{%s})::load()\n", this, GetModuleName().cdata()));
+  const Module& mod = GetModule();
 
-  if ( !(query_param.type & PLUGIN_DECODER)
-    || !load_function(&decoder_init,       "decoder_init")
-    || !load_function(&decoder_uninit,     "decoder_uninit")
-    || !load_function(&decoder_status,     "decoder_status")
-    || !load_function(&vdecoder_length,    "decoder_length")
-    || !load_function(&vdecoder_fileinfo,  "decoder_fileinfo")
-    || !load_function(&decoder_support,    "decoder_support")
-    || !load_function(&vdecoder_command,   "decoder_command") )
-    return FALSE;
+  if ( !(mod.GetParams().type & PLUGIN_DECODER)
+    || !mod.LoadFunction(&decoder_init,       "decoder_init")
+    || !mod.LoadFunction(&decoder_uninit,     "decoder_uninit")
+    || !mod.LoadFunction(&decoder_status,     "decoder_status")
+    || !mod.LoadFunction(&vdecoder_length,    "decoder_length")
+    || !mod.LoadFunction(&vdecoder_fileinfo,  "decoder_fileinfo")
+    || !mod.LoadFunction(&vdecoder_command,   "decoder_command") )
+    return false;
 
-  load_optional_function(&decoder_editmeta, "decoder_editmeta");
-  load_optional_function(&decoder_getwizzard, "decoder_getwizzard");
+  mod.LoadOptionalFunction(&decoder_editmeta, "decoder_editmeta");
+  mod.LoadOptionalFunction(&decoder_getwizzard, "decoder_getwizzard");
   decoder_command   = vdelegate(&vd_decoder_command,  &proxy_1_decoder_command,  this);
   decoder_event     = vdelegate(&vd_decoder_event,    &proxy_1_decoder_event,    this);
   decoder_fileinfo  = vdelegate(&vd_decoder_fileinfo, &proxy_1_decoder_fileinfo, this);
   decoder_length    = vdelegate(&vd_decoder_length,   &proxy_1_decoder_length,   this);
   tid = (ULONG)-1;
 
-  if (!after_load())
-    return FALSE;
+  if (!AfterLoad())
+    return false;
 
-  if (type & DECODER_TRACK)
-  { if ( !load_function(&vdecoder_cdinfo,    "decoder_cdinfo")
-      || !load_function(&vdecoder_trackinfo, "decoder_trackinfo") )
-      return FALSE;
+  W = NULL;
+
+  if (Type & DECODER_TRACK)
+  { if ( !mod.LoadFunction(&vdecoder_cdinfo,    "decoder_cdinfo")
+      || !mod.LoadFunction(&vdecoder_trackinfo, "decoder_trackinfo") )
+      return false;
     decoder_cdinfo  = vdelegate(&vd_decoder_cdinfo,   &proxy_1_decoder_cdinfo,   this);
   } else
   { decoder_cdinfo  = &stub_decoder_cdinfo;
     vdecoder_trackinfo = NULL;
   }
-  return TRUE;
+  return true;
+}
+
+bool DecoderProxy1::AfterLoad()
+{ DEBUGLOG(("DecoderProxy1(%p{%s})::AfterLoad()\n", this, GetModuleName().cdata()));
+
+  ULONG DLLENTRYP(decoder_support)( char* fileext[], int* size );
+  if (!GetModule().LoadFunction(&decoder_support,  "decoder_support" ))
+    return false;
+
+  char**  my_support = NULL;
+  int     size = 0;
+  int     i;
+
+  // determine size
+  decoder_support( my_support, &size );
+
+  FileTypes = NULL;
+  if (size)
+  { my_support = (char**)malloc((_MAX_EXT + sizeof *my_support) * size);
+    // initialize array
+    my_support[0] = (char*)(my_support + size);
+    for( i = 1; i < size; i++ ) {
+      my_support[i] = my_support[i-1] + _MAX_EXT;
+    }
+
+    Type = decoder_support( my_support, &size );
+
+    // calculate total result string size
+    size_t len = size-1; // delimiters
+    for( i = 0; i < size; i++ )
+      len += strlen(my_support[i]);
+
+    // copy content
+    char* dst = Extensions.raw_init(len);
+    i = 0;
+    for(;;)
+    { strcpy(dst, strlwr(my_support[i]));
+      dst += strlen(dst);
+      if (++i >= size)
+        break;
+      *dst++ = ';';
+    }
+    *dst = 0;
+    
+    free(my_support);
+  } else
+  { // no types supported
+    Extensions = NULL;
+  }
+  return true;
+} 
+
+void DecoderProxy1::GetParams(stringmap& params) const
+{ Decoder::GetParams(params);
+  static const xstring siparam = "serializeinfo";
+  params.get(siparam) = new stringmapentry(siparam, SerializeInfo ? "yes" : "no");
+}
+
+bool DecoderProxy1::SetParam(const char* param, const xstring& value)
+{ if (stricmp(param, "serializeinfo") == 0)
+  { bool* b = url123::parseBoolean(value);
+    DEBUGLOG(("DecoderProxy1::SetParam: serializeinfo = %u\n", b ? *b : -1));
+    if (b)
+    { SerializeInfo = *b;
+      return true;
+    }
+    return false;
+  }
+  return Decoder::SetParam(param, value);
 }
 
 
 /* proxy for the output callback of decoder interface level 0/1 */
-PROXYFUNCIMP(int DLLENTRY, CL_DECODER_PROXY_1)
-proxy_1_decoder_play_samples( CL_DECODER_PROXY_1* op, const FORMAT_INFO* format, const char* buf, int len, int posmarker )
+PROXYFUNCIMP(int DLLENTRY, DecoderProxy1)
+proxy_1_decoder_play_samples( DecoderProxy1* op, const FORMAT_INFO* format, const char* buf, int len, int posmarker )
 { DEBUGLOG(("proxy_1_decoder_play_samples(%p{%s}, %p{%u,%u,%u}, %p, %i, %i)\n",
-    op, op->module_name, format, format->size, format->samplerate, format->channels, buf, len, posmarker));
+    op, op->GetModuleName().cdata(), format, format->size, format->samplerate, format->channels, buf, len, posmarker));
 
   if (format->format != WAVE_FORMAT_PCM || (format->bits != 16 && format->bits != 8))
   { (*op->error_display)("PM123 does only accept PCM data with 8 or 16 bits per sample when using old-style decoder plug-ins.");
@@ -560,9 +527,10 @@ proxy_1_decoder_play_samples( CL_DECODER_PROXY_1* op, const FORMAT_INFO* format,
 }
 
 /* Proxy for loading interface level 0/1 */
-PROXYFUNCIMP(ULONG DLLENTRY, CL_DECODER_PROXY_1)
-proxy_1_decoder_command( CL_DECODER_PROXY_1* op, void* w, ULONG msg, DECODER_PARAMS2* params )
-{ DEBUGLOG(("proxy_1_decoder_command(%p {%s}, %p, %d, %p)\n", op, op->module_name, w, msg, params));
+PROXYFUNCIMP(ULONG DLLENTRY, DecoderProxy1)
+proxy_1_decoder_command( DecoderProxy1* op, void* w, ULONG msg, DECODER_PARAMS2* params )
+{ DEBUGLOG(("proxy_1_decoder_command(%p {%s}, %p, %d, %p)\n",
+    op, op->GetModuleName().cdata(), w, msg, params));
 
   if (params == NULL) // well, sometimes wired things may happen
     return (*op->vdecoder_command)(w, msg, NULL);
@@ -608,9 +576,9 @@ proxy_1_decoder_command( CL_DECODER_PROXY_1* op, void* w, ULONG msg, DECODER_PAR
     break;
 
    case DECODER_SETUP:
-    op->hwnd = CL_DECODER_PROXY_1::CreateProxyWindow("CL_DECODER_PROXY_1", op);
+    op->hwnd = DecoderProxy1::CreateProxyWindow("DecoderProxy1", op);
 
-    par1.output_play_samples = (int DLLENTRYPF()(void*, const FORMAT_INFO*, const char*, int, int))&PROXYFUNCREF(CL_DECODER_PROXY_1)proxy_1_decoder_play_samples;
+    par1.output_play_samples = (int DLLENTRYPF()(void*, const FORMAT_INFO*, const char*, int, int))&PROXYFUNCREF(DecoderProxy1)proxy_1_decoder_play_samples;
     par1.a                   = op;
     par1.proxyurl            = params->proxyurl;
     par1.httpauth            = params->httpauth;
@@ -635,7 +603,7 @@ proxy_1_decoder_command( CL_DECODER_PROXY_1* op, void* w, ULONG msg, DECODER_PAR
    case DECODER_STOP:
     op->url = NULL;
     op->juststarted = 0;
-    CL_DECODER_PROXY_1::DestroyProxyWindow(op->hwnd);
+    DecoderProxy1::DestroyProxyWindow(op->hwnd);
     op->hwnd = NULLHANDLE;
     op->temppos = out_playing_pos();
     break;
@@ -679,9 +647,9 @@ proxy_1_decoder_command( CL_DECODER_PROXY_1* op, void* w, ULONG msg, DECODER_PAR
 }
 
 /* Proxy for loading interface level 0/1 */
-PROXYFUNCIMP(void DLLENTRY, CL_DECODER_PROXY_1)
-proxy_1_decoder_event( CL_DECODER_PROXY_1* op, void* w, OUTEVENTTYPE event )
-{ DEBUGLOG(("proxy_1_decoder_event(%p {%s}, %p, %d)\n", op, op->module_name, w, event));
+PROXYFUNCIMP(void DLLENTRY, DecoderProxy1)
+proxy_1_decoder_event( DecoderProxy1* op, void* w, OUTEVENTTYPE event )
+{ DEBUGLOG(("proxy_1_decoder_event(%p {%s}, %p, %d)\n", op, op->GetModuleName().cdata(), w, event));
 
   switch (event)
   {case OUTEVENT_LOW_WATER:
@@ -694,8 +662,8 @@ proxy_1_decoder_event( CL_DECODER_PROXY_1* op, void* w, OUTEVENTTYPE event )
   }
 }
 
-PROXYFUNCIMP(ULONG DLLENTRY, CL_DECODER_PROXY_1)
-proxy_1_decoder_fileinfo( CL_DECODER_PROXY_1* op, const char* filename, INFOTYPE* what, DECODER_INFO2 *info )
+PROXYFUNCIMP(ULONG DLLENTRY, DecoderProxy1)
+proxy_1_decoder_fileinfo( DecoderProxy1* op, const char* filename, INFOTYPE* what, DECODER_INFO2 *info )
 { DEBUGLOG(("proxy_1_decoder_fileinfo(%p, %s, %x, %p{%u,%p,%p,%p})\n", op, filename, what, info, info->size, info->format, info->tech, info->meta));
 
   DECODER_INFO old_info = { sizeof old_info };
@@ -711,7 +679,7 @@ proxy_1_decoder_fileinfo( CL_DECODER_PROXY_1* op, const char* filename, INFOTYPE
       return 200;
     // Serialize access to the info functions of old plug-ins.
     // In theory the must be thread safe for older PM123 releases too. In practice they are not.
-    Mutex::Lock lock(op->info_mtx);
+    sco_ptr<Mutex::Lock> lock = op->SerializeInfo ? new Mutex::Lock(op->info_mtx) : NULL;
     rc = (*op->vdecoder_trackinfo)(cd_info.drive, cd_info.track, &old_info);
   } else
   { if (strnicmp(filename, "file:///", 8) == 0)
@@ -726,7 +694,7 @@ proxy_1_decoder_fileinfo( CL_DECODER_PROXY_1* op, const char* filename, INFOTYPE
     // DEBUGLOG(("proxy_1_decoder_fileinfo - %s\n", filename));
     { // Serialize access to the info functions of old plug-ins.
       // In theory the must be thread safe for older PM123 releases too. In practice they are not.
-      Mutex::Lock lock(op->info_mtx);
+      sco_ptr<Mutex::Lock> lock = op->SerializeInfo ? new Mutex::Lock(op->info_mtx) : NULL;
       rc = (*op->vdecoder_fileinfo)(filename, &old_info);
     }
     // get file size
@@ -762,24 +730,25 @@ proxy_1_decoder_fileinfo( CL_DECODER_PROXY_1* op, const char* filename, INFOTYPE
   return rc;
 }
 
-PROXYFUNCIMP(ULONG DLLENTRY, CL_DECODER_PROXY_1)
-proxy_1_decoder_cdinfo( CL_DECODER_PROXY_1* op, const char* drive, DECODER_CDINFO* info )
+PROXYFUNCIMP(ULONG DLLENTRY, DecoderProxy1)
+proxy_1_decoder_cdinfo( DecoderProxy1* op, const char* drive, DECODER_CDINFO* info )
 { // Serialize access to the info functions of old plug-ins.
   // In theory the must be thread safe for older PM123 releases too. In practice they are not.
-  Mutex::Lock lock(op->info_mtx);
+  sco_ptr<Mutex::Lock> lock = op->SerializeInfo ? new Mutex::Lock(op->info_mtx) : NULL;
   return (*op->vdecoder_cdinfo)(drive, info);
 }
 
-PROXYFUNCIMP(double DLLENTRY, CL_DECODER_PROXY_1)
-proxy_1_decoder_length( CL_DECODER_PROXY_1* op, void* a )
+PROXYFUNCIMP(double DLLENTRY, DecoderProxy1)
+proxy_1_decoder_length( DecoderProxy1* op, void* a )
 { DEBUGLOG(("proxy_1_decoder_length(%p, %p)\n", op, a));
   int i = (*op->vdecoder_length)(a);
   return i < 0 ? -1 : i / 1000.;
 }
 
 MRESULT EXPENTRY proxy_1_decoder_winfn(HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2)
-{ CL_DECODER_PROXY_1* op = (CL_DECODER_PROXY_1*)WinQueryWindowPtr(hwnd, 0);
-  DEBUGLOG(("proxy_1_decoder_winfn(%p, %u, %p, %p) - %p {%s}\n", hwnd, msg, mp1, mp2, op, op == NULL ? NULL : op->module_name));
+{ DecoderProxy1* op = (DecoderProxy1*)WinQueryWindowPtr(hwnd, 0);
+  DEBUGLOG(("proxy_1_decoder_winfn(%p, %u, %p, %p) - %p {%s}\n",
+    hwnd, msg, mp1, mp2, op, op == NULL ? NULL : op->GetModuleName().cdata()));
   switch (msg)
   {case WM_PLAYSTOP:
     (*op->voutput_event)(op->a, DECEVENT_PLAYSTOP, NULL);
@@ -835,13 +804,13 @@ MRESULT EXPENTRY proxy_1_decoder_winfn(HWND hwnd, ULONG msg, MPARAM mp1, MPARAM 
   return WinDefWindowProc(hwnd, msg, mp1, mp2);
 }
 
-CL_PLUGIN* CL_DECODER::factory(CL_MODULE& mod)
-{ return mod.query_param.interface <= 1 ? new CL_DECODER_PROXY_1(mod) : new CL_DECODER(mod);
+Plugin* Decoder::Factory(Module* mod)
+{ return mod->GetParams().interface <= 1 ? new DecoderProxy1(mod) : new Decoder(mod);
 }
 
 
-void CL_DECODER::init()
-{ PMRASSERT(WinRegisterClass(amp_player_hab(), "CL_DECODER_PROXY_1", &proxy_1_decoder_winfn, 0, sizeof(CL_DECODER_PROXY_1*)));
+void Decoder::Init()
+{ PMRASSERT(WinRegisterClass(amp_player_hab(), "DecoderProxy1", &proxy_1_decoder_winfn, 0, sizeof(DecoderProxy1*)));
 }
 
 
@@ -851,54 +820,56 @@ void CL_DECODER::init()
 *
 ****************************************************************************/
 
-PLUGIN_TYPE CL_OUTPUT::get_type() const
+PLUGIN_TYPE Output::GetType() const
 { return PLUGIN_OUTPUT;
 }
 
 /* Assigns the addresses of the out7put plug-in procedures. */
-BOOL CL_OUTPUT::load_plugin()
-{
-  if ( !(query_param.type & PLUGIN_OUTPUT)
-    || !load_function(&output_init,            "output_init")
-    || !load_function(&output_uninit,          "output_uninit")
-    || !load_function(&output_playing_samples, "output_playing_samples")
-    || !load_function(&output_playing_pos,     "output_playing_pos")
-    || !load_function(&output_playing_data,    "output_playing_data")
-    || !load_function(&output_command,         "output_command")
-    || !load_function(&output_request_buffer,  "output_request_buffer")
-    || !load_function(&output_commit_buffer,   "output_commit_buffer") )
-    return FALSE;
+bool Output::LoadPlugin()
+{ DEBUGLOG(("Output(%p{%s})::LoadPlugin()\n", this, GetModuleName().cdata()));
+  const Module& mod = GetModule();
 
-  a = NULL;
-  return TRUE;
+  if ( !(mod.GetParams().type & PLUGIN_OUTPUT)
+    || !mod.LoadFunction(&output_init,            "output_init")
+    || !mod.LoadFunction(&output_uninit,          "output_uninit")
+    || !mod.LoadFunction(&output_playing_samples, "output_playing_samples")
+    || !mod.LoadFunction(&output_playing_pos,     "output_playing_pos")
+    || !mod.LoadFunction(&output_playing_data,    "output_playing_data")
+    || !mod.LoadFunction(&output_command,         "output_command")
+    || !mod.LoadFunction(&output_request_buffer,  "output_request_buffer")
+    || !mod.LoadFunction(&output_commit_buffer,   "output_commit_buffer") )
+    return false;
+
+  A = NULL;
+  return true;
 }
 
-BOOL CL_OUTPUT::init_plugin()
-{ DEBUGLOG(("CL_OUTPUT(%p{%s})::init_plugin()\n", this, module_name));
+bool Output::InitPlugin()
+{ DEBUGLOG(("Output(%p{%s})::InitPlugin()\n", this, GetModuleName().cdata()));
 
-  if ((*output_init)( &a ) != 0)
-  { a = NULL;
-    return FALSE;
+  if ((*output_init)(&A) != 0)
+  { A = NULL;
+    return false;
   }
-  raise_plugin_event(PLUGIN_EVENTARGS::Init);
-  return TRUE;
+  RaisePluginChange(EventArgs::Init);
+  return true;
 }
 
-BOOL CL_OUTPUT::uninit_plugin()
-{ DEBUGLOG(("CL_OUTPUT(%p{%s})::uninit_plugin()\n", this, module_name));
+bool Output::UninitPlugin()
+{ DEBUGLOG(("Output(%p{%s})::UninitPlugin()\n", this, GetModuleName().cdata()));
 
-  if (is_initialized())
-  { (*output_command)( a, OUTPUT_CLOSE, NULL );
-    (*output_uninit)( a );
-    a = NULL;
-    raise_plugin_event(PLUGIN_EVENTARGS::Uninit);
+  if (IsInitialized())
+  { (*output_command)(A, OUTPUT_CLOSE, NULL);
+    (*output_uninit)(A);
+    A = NULL;
+    RaisePluginChange(EventArgs::Uninit);
   }
-  return TRUE;
+  return true;
 }
 
 
 // Proxy for loading level 1 plug-ins
-class CL_OUTPUT_PROXY_1 : public CL_OUTPUT
+class OutputProxy1 : public Output
 {private:
   int         DLLENTRYP(voutput_command     )( void* a, ULONG msg, OUTPUT_PARAMS* info );
   int         DLLENTRYP(voutput_play_samples)( void* a, const FORMAT_INFO* format, const char* buf, int len, int posmarker );
@@ -917,48 +888,50 @@ class CL_OUTPUT_PROXY_1 : public CL_OUTPUT
   VDELEGATE   vd_output_command, vd_output_request_buffer, vd_output_commit_buffer, vd_output_playing_pos;
 
  private:
-  PROXYFUNCDEF ULONG  DLLENTRY proxy_1_output_command       ( CL_OUTPUT_PROXY_1* op, void* a, ULONG msg, OUTPUT_PARAMS2* info );
-  PROXYFUNCDEF int    DLLENTRY proxy_1_output_request_buffer( CL_OUTPUT_PROXY_1* op, void* a, const FORMAT_INFO2* format, short** buf );
-  PROXYFUNCDEF void   DLLENTRY proxy_1_output_commit_buffer ( CL_OUTPUT_PROXY_1* op, void* a, int len, double posmarker );
-  PROXYFUNCDEF double DLLENTRY proxy_1_output_playing_pos   ( CL_OUTPUT_PROXY_1* op, void* a );
+  PROXYFUNCDEF ULONG  DLLENTRY proxy_1_output_command       ( OutputProxy1* op, void* a, ULONG msg, OUTPUT_PARAMS2* info );
+  PROXYFUNCDEF int    DLLENTRY proxy_1_output_request_buffer( OutputProxy1* op, void* a, const FORMAT_INFO2* format, short** buf );
+  PROXYFUNCDEF void   DLLENTRY proxy_1_output_commit_buffer ( OutputProxy1* op, void* a, int len, double posmarker );
+  PROXYFUNCDEF double DLLENTRY proxy_1_output_playing_pos   ( OutputProxy1* op, void* a );
   friend MRESULT EXPENTRY proxy_1_output_winfn(HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2);
  public:
-  CL_OUTPUT_PROXY_1(CL_MODULE& mod) : CL_OUTPUT(mod), voutput_hwnd(NULLHANDLE), voutput_posmarker(0) {}
-  virtual ~CL_OUTPUT_PROXY_1();
-  virtual BOOL load_plugin();
+  OutputProxy1(Module* mod) : Output(mod), voutput_hwnd(NULLHANDLE), voutput_posmarker(0) {}
+  virtual ~OutputProxy1();
+  virtual bool LoadPlugin();
 };
 
-CL_OUTPUT_PROXY_1::~CL_OUTPUT_PROXY_1()
+OutputProxy1::~OutputProxy1()
 { if (voutput_hwnd != NULLHANDLE)
     WinDestroyWindow(voutput_hwnd);
 }
 
 /* Assigns the addresses of the out7put plug-in procedures. */
-BOOL CL_OUTPUT_PROXY_1::load_plugin()
-{
-  if ( !(query_param.type & PLUGIN_OUTPUT)
-    || !load_function(&output_init,            "output_init")
-    || !load_function(&output_uninit,          "output_uninit")
-    || !load_function(&output_playing_samples, "output_playing_samples")
-    || !load_function(&voutput_playing_pos,    "output_playing_pos")
-    || !load_function(&output_playing_data,    "output_playing_data")
-    || !load_function(&voutput_command,        "output_command")
-    || !load_function(&voutput_play_samples,   "output_play_samples") )
-    return FALSE;
+bool OutputProxy1::LoadPlugin()
+{ DEBUGLOG(("OutputProxy1(%p{%s})::LoadPlugin()\n", this, GetModuleName().cdata()));
+  const Module& mod = GetModule();
+
+  if ( !(mod.GetParams().type & PLUGIN_OUTPUT)
+    || !mod.LoadFunction(&output_init,            "output_init")
+    || !mod.LoadFunction(&output_uninit,          "output_uninit")
+    || !mod.LoadFunction(&output_playing_samples, "output_playing_samples")
+    || !mod.LoadFunction(&voutput_playing_pos,    "output_playing_pos")
+    || !mod.LoadFunction(&output_playing_data,    "output_playing_data")
+    || !mod.LoadFunction(&voutput_command,        "output_command")
+    || !mod.LoadFunction(&voutput_play_samples,   "output_play_samples") )
+    return false;
 
   output_command        = vdelegate(&vd_output_command,        &proxy_1_output_command,        this);
   output_request_buffer = vdelegate(&vd_output_request_buffer, &proxy_1_output_request_buffer, this);
   output_commit_buffer  = vdelegate(&vd_output_commit_buffer,  &proxy_1_output_commit_buffer,  this);
   output_playing_pos    = vdelegate(&vd_output_playing_pos,    &proxy_1_output_playing_pos,    this);
 
-  a = NULL;
-  return TRUE;
+  A = NULL;
+  return true;
 }
 
 /* virtualization of level 1 output plug-ins */
-PROXYFUNCIMP(ULONG DLLENTRY, CL_OUTPUT_PROXY_1)
-proxy_1_output_command( CL_OUTPUT_PROXY_1* op, void* a, ULONG msg, OUTPUT_PARAMS2* info )
-{ DEBUGLOG(("proxy_1_output_command(%p {%s}, %p, %d, %p)\n", op, op->module_name, a, msg, info));
+PROXYFUNCIMP(ULONG DLLENTRY, OutputProxy1)
+proxy_1_output_command( OutputProxy1* op, void* a, ULONG msg, OUTPUT_PARAMS2* info )
+{ DEBUGLOG(("proxy_1_output_command(%p {%s}, %p, %d, %p)\n", op, op->GetModuleName().cdata(), a, msg, info));
 
   if (info == NULL) // sometimes info is NULL
     return (*op->voutput_command)(a, msg, NULL);
@@ -972,7 +945,7 @@ proxy_1_output_command( CL_OUTPUT_PROXY_1* op, void* a, ULONG msg, OUTPUT_PARAMS
     break;
 
    case OUTPUT_SETUP:
-    { op->voutput_hwnd = CL_OUTPUT_PROXY_1::CreateProxyWindow("CL_OUTPUT_PROXY_1", op);
+    { op->voutput_hwnd = OutputProxy1::CreateProxyWindow("OutputProxy1", op);
       // convert format info
       params.formatinfo.size       = sizeof params.formatinfo;
       params.formatinfo.samplerate = info->formatinfo.samplerate;
@@ -1037,15 +1010,15 @@ proxy_1_output_command( CL_OUTPUT_PROXY_1* op, void* a, ULONG msg, OUTPUT_PARAMS
     break;
 
    case OUTPUT_CLOSE:
-    CL_OUTPUT_PROXY_1::DestroyProxyWindow(op->voutput_hwnd);
+    OutputProxy1::DestroyProxyWindow(op->voutput_hwnd);
     op->voutput_hwnd = NULLHANDLE;
   }
   DEBUGLOG(("proxy_1_output_command: %d\n", r));
   return r;
 }
 
-PROXYFUNCIMP(int DLLENTRY, CL_OUTPUT_PROXY_1)
-proxy_1_output_request_buffer( CL_OUTPUT_PROXY_1* op, void* a, const FORMAT_INFO2* format, short** buf )
+PROXYFUNCIMP(int DLLENTRY, OutputProxy1)
+proxy_1_output_request_buffer( OutputProxy1* op, void* a, const FORMAT_INFO2* format, short** buf )
 {
   #ifdef DEBUG
   if (format != NULL)
@@ -1083,10 +1056,10 @@ proxy_1_output_request_buffer( CL_OUTPUT_PROXY_1* op, void* a, const FORMAT_INFO
   return op->voutput_bufsamples - op->voutput_buffer_level;
 }
 
-PROXYFUNCIMP(void DLLENTRY, CL_OUTPUT_PROXY_1)
-proxy_1_output_commit_buffer( CL_OUTPUT_PROXY_1* op, void* a, int len, double posmarker )
+PROXYFUNCIMP(void DLLENTRY, OutputProxy1)
+proxy_1_output_commit_buffer( OutputProxy1* op, void* a, int len, double posmarker )
 { DEBUGLOG(("proxy_1_output_commit_buffer(%p {%s}, %p, %i, %g) - %d\n",
-    op, op->module_name, a, len, posmarker, op->voutput_buffer_level));
+    op, op->GetModuleName().cdata(), a, len, posmarker, op->voutput_buffer_level));
 
   if (op->voutput_buffer_level == 0)
     op->voutput_posmarker = posmarker;
@@ -1098,15 +1071,15 @@ proxy_1_output_commit_buffer( CL_OUTPUT_PROXY_1* op, void* a, int len, double po
   }
 }
 
-PROXYFUNCIMP(double DLLENTRY, CL_OUTPUT_PROXY_1)
-proxy_1_output_playing_pos( CL_OUTPUT_PROXY_1* op, void* a )
-{ DEBUGLOG(("proxy_1_output_playing_pos(%p {%s}, %p)\n", op, op->module_name, a));
+PROXYFUNCIMP(double DLLENTRY, OutputProxy1)
+proxy_1_output_playing_pos( OutputProxy1* op, void* a )
+{ DEBUGLOG(("proxy_1_output_playing_pos(%p {%s}, %p)\n", op, op->GetModuleName().cdata(), a));
   return tstmp_i2f((*op->voutput_playing_pos)(a), op->voutput_posmarker);
 }
 
 MRESULT EXPENTRY proxy_1_output_winfn(HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2)
-{ CL_OUTPUT_PROXY_1* op = (CL_OUTPUT_PROXY_1*)WinQueryWindowPtr(hwnd, 0);
-  DEBUGLOG2(("proxy_1_output_winfn(%p, %u, %p, %p) - %p {%s}\n", hwnd, msg, mp1, mp2, op, op == NULL ? NULL : op->module_name));
+{ OutputProxy1* op = (OutputProxy1*)WinQueryWindowPtr(hwnd, 0);
+  DEBUGLOG2(("proxy_1_output_winfn(%p, %u, %p, %p) - %p {%s}\n", hwnd, msg, mp1, mp2, op, op == NULL ? NULL : op->ModuleName.cdata()));
   switch (msg)
   {case WM_PLAYERROR:
     (*op->voutput_event)(op->voutput_w, OUTEVENT_PLAY_ERROR);
@@ -1114,7 +1087,7 @@ MRESULT EXPENTRY proxy_1_output_winfn(HWND hwnd, ULONG msg, MPARAM mp1, MPARAM m
    case WM_OUTPUT_OUTOFDATA:
     if (op->voutput_flush_request) // don't care unless we have a flush_request condition
     { op->voutput_flush_request = FALSE;
-      (*op->voutput_event)(op->a, OUTEVENT_END_OF_DATA);
+      (*op->voutput_event)(op->A, OUTEVENT_END_OF_DATA);
     }
     return 0;
   }
@@ -1122,13 +1095,13 @@ MRESULT EXPENTRY proxy_1_output_winfn(HWND hwnd, ULONG msg, MPARAM mp1, MPARAM m
 }
 
 
-CL_PLUGIN* CL_OUTPUT::factory(CL_MODULE& mod)
-{ return mod.query_param.interface <= 1 ? new CL_OUTPUT_PROXY_1(mod) : new CL_OUTPUT(mod);
+Plugin* Output::Factory(Module* mod)
+{ return mod->GetParams().interface <= 1 ? new OutputProxy1(mod) : new Output(mod);
 }
 
 
-void CL_OUTPUT::init()
-{ PMRASSERT(WinRegisterClass(amp_player_hab(), "CL_OUTPUT_PROXY_1", &proxy_1_output_winfn, 0, sizeof(CL_OUTPUT_PROXY_1*)));
+void Output::Init()
+{ PMRASSERT(WinRegisterClass(amp_player_hab(), "OutputProxy1", &proxy_1_output_winfn, 0, sizeof(OutputProxy1*)));
 }
 
 
@@ -1138,73 +1111,74 @@ void CL_OUTPUT::init()
 *
 ****************************************************************************/
 
-PLUGIN_TYPE CL_FILTER::get_type() const
+PLUGIN_TYPE Filter::GetType() const
 { return PLUGIN_FILTER;
 }
 
 /* Assigns the addresses of the filter plug-in procedures. */
-BOOL CL_FILTER::load_plugin()
-{ DEBUGLOG(("CL_FILTER(%p{%s})::load_plugin\n", this, module_name));
+bool Filter::LoadPlugin()
+{ DEBUGLOG(("Filter(%p{%s})::LoadPlugin\n", this, GetModuleName().cdata()));
+  const Module& mod = GetModule();
 
-  if ( !(query_param.type & PLUGIN_FILTER)
-    || !load_function(&filter_init,   "filter_init")
-    || !load_function(&filter_update, "filter_update")
-    || !load_function(&filter_uninit, "filter_uninit") )
-    return FALSE;
+  if ( !(mod.GetParams().type & PLUGIN_FILTER)
+    || !mod.LoadFunction(&filter_init,   "filter_init")
+    || !mod.LoadFunction(&filter_update, "filter_update")
+    || !mod.LoadFunction(&filter_uninit, "filter_uninit") )
+    return false;
 
-  f = NULL;
-  enabled = TRUE;
-  return TRUE;
+  F = NULL;
+  Enabled = true;
+  return true;
 }
 
-BOOL CL_FILTER::init_plugin()
-{ return TRUE; // filters are not initialized unless they are used
+bool Filter::InitPlugin()
+{ return true; // filters are not initialized unless they are used
 }
 
-BOOL CL_FILTER::uninit_plugin()
-{ DEBUGLOG(("CL_FILTER(%p{%s})::uninit_plugin\n", this, module_name));
+bool Filter::UninitPlugin()
+{ DEBUGLOG(("Filter(%p{%s})::UninitPlugin\n", this, GetModuleName().cdata()));
 
-  if (is_initialized())
-  { (*filter_uninit)(f);
-    f = NULL;
-    raise_plugin_event(PLUGIN_EVENTARGS::Uninit);
+  if (IsInitialized())
+  { (*filter_uninit)(F);
+    F = NULL;
+    RaisePluginChange(EventArgs::Uninit);
   }
-  return TRUE;
+  return true;
 }
 
-BOOL CL_FILTER::initialize(FILTER_PARAMS2* params)
-{ DEBUGLOG(("CL_FILTER(%p{%s})::initialize(%p)\n", this, module_name, params));
+bool Filter::Initialize(FILTER_PARAMS2* params)
+{ DEBUGLOG(("Filter(%p{%s})::Initialize(%p)\n", this, GetModuleName().cdata(), params));
 
   FILTER_PARAMS2 par = *params;
-  if (is_initialized() || (*filter_init)(&f, params) != 0)
-    return FALSE;
+  if (IsInitialized() || (*filter_init)(&F, params) != 0)
+    return false;
 
-  if (f == NULL)
+  if (F == NULL)
   { // plug-in does not require local structures
     // => pass the pointer of the next stage and skip virtualization of untouched function
-    f = par.a;
+    F = par.a;
   } else
   { // virtualize untouched functions
     if (par.output_command          == params->output_command)
-      params->output_command         = vreplace1(&vrstubs[0], par.output_command, par.a);
+      params->output_command         = vreplace1(&VRStubs[0], par.output_command, par.a);
     if (par.output_playing_samples  == params->output_playing_samples)
-      params->output_playing_samples = vreplace1(&vrstubs[1], par.output_playing_samples, par.a);
+      params->output_playing_samples = vreplace1(&VRStubs[1], par.output_playing_samples, par.a);
     if (par.output_request_buffer   == params->output_request_buffer)
-      params->output_request_buffer  = vreplace1(&vrstubs[2], par.output_request_buffer, par.a);
+      params->output_request_buffer  = vreplace1(&VRStubs[2], par.output_request_buffer, par.a);
     if (par.output_commit_buffer    == params->output_commit_buffer)
-      params->output_commit_buffer   = vreplace1(&vrstubs[3], par.output_commit_buffer, par.a);
+      params->output_commit_buffer   = vreplace1(&VRStubs[3], par.output_commit_buffer, par.a);
     if (par.output_playing_pos      == params->output_playing_pos)
-      params->output_playing_pos     = vreplace1(&vrstubs[4], par.output_playing_pos, par.a);
+      params->output_playing_pos     = vreplace1(&VRStubs[4], par.output_playing_pos, par.a);
     if (par.output_playing_data     == params->output_playing_data)
-      params->output_playing_data    = vreplace1(&vrstubs[5], par.output_playing_data, par.a);
+      params->output_playing_data    = vreplace1(&VRStubs[5], par.output_playing_data, par.a);
   }
-  raise_plugin_event(PLUGIN_EVENTARGS::Init);
-  return TRUE;
+  RaisePluginChange(EventArgs::Init);
+  return true;
 }
 
 
 // proxy for level 1 filters
-class CL_FILTER_PROXY_1 : public CL_FILTER
+class FilterProxy1 : public Filter
 {private:
   int   DLLENTRYP(vfilter_init         )( void** f, FILTER_PARAMS* params );
   BOOL  DLLENTRYP(vfilter_uninit       )( void*  f );
@@ -1225,24 +1199,26 @@ class CL_FILTER_PROXY_1 : public CL_FILTER
   VREPLACE1   vr_filter_uninit;
 
  private:
-  PROXYFUNCDEF ULONG DLLENTRY proxy_1_filter_init          ( CL_FILTER_PROXY_1* pp, void** f, FILTER_PARAMS2* params );
-  PROXYFUNCDEF void  DLLENTRY proxy_1_filter_update        ( CL_FILTER_PROXY_1* pp, const FILTER_PARAMS2* params );
+  PROXYFUNCDEF ULONG DLLENTRY proxy_1_filter_init          ( FilterProxy1* pp, void** f, FILTER_PARAMS2* params );
+  PROXYFUNCDEF void  DLLENTRY proxy_1_filter_update        ( FilterProxy1* pp, const FILTER_PARAMS2* params );
   PROXYFUNCDEF BOOL  DLLENTRY proxy_1_filter_uninit        ( void* f ); // empty stub
-  PROXYFUNCDEF int   DLLENTRY proxy_1_filter_request_buffer( CL_FILTER_PROXY_1* f, const FORMAT_INFO2* format, short** buf );
-  PROXYFUNCDEF void  DLLENTRY proxy_1_filter_commit_buffer ( CL_FILTER_PROXY_1* f, int len, double posmarker );
-  PROXYFUNCDEF int   DLLENTRY proxy_1_filter_play_samples  ( CL_FILTER_PROXY_1* f, const FORMAT_INFO* format, const char *buf, int len, int posmarker );
+  PROXYFUNCDEF int   DLLENTRY proxy_1_filter_request_buffer( FilterProxy1* f, const FORMAT_INFO2* format, short** buf );
+  PROXYFUNCDEF void  DLLENTRY proxy_1_filter_commit_buffer ( FilterProxy1* f, int len, double posmarker );
+  PROXYFUNCDEF int   DLLENTRY proxy_1_filter_play_samples  ( FilterProxy1* f, const FORMAT_INFO* format, const char *buf, int len, int posmarker );
  public:
-  CL_FILTER_PROXY_1(CL_MODULE& mod) : CL_FILTER(mod) {}
-  virtual BOOL load_plugin();
+  FilterProxy1(Module* mod) : Filter(mod) {}
+  virtual bool LoadPlugin();
 };
 
-BOOL CL_FILTER_PROXY_1::load_plugin()
-{
-  if ( !(query_param.type & PLUGIN_FILTER)
-    || !load_function(&vfilter_init,         "filter_init")
-    || !load_function(&vfilter_uninit,       "filter_uninit")
-    || !load_function(&vfilter_play_samples, "filter_play_samples") )
-    return FALSE;
+bool FilterProxy1::LoadPlugin()
+{ DEBUGLOG(("FilterProxy1(%p{%s})::LoadPlugin()\n", this, GetModuleName().cdata()));
+  const Module& mod = GetModule();
+
+  if ( !(mod.GetParams().type & PLUGIN_FILTER)
+    || !mod.LoadFunction(&vfilter_init,         "filter_init")
+    || !mod.LoadFunction(&vfilter_uninit,       "filter_uninit")
+    || !mod.LoadFunction(&vfilter_play_samples, "filter_play_samples") )
+    return false;
 
   filter_init   = vdelegate(&vd_filter_init,   &proxy_1_filter_init,   this);
   filter_update = (void DLLENTRYPF()(void*, const FILTER_PARAMS2*)) // type of parameter is replaced too
@@ -1251,19 +1227,19 @@ BOOL CL_FILTER_PROXY_1::load_plugin()
   // However, the returned pointer will stay the same.
   filter_uninit = vreplace1(&vr_filter_uninit, &proxy_1_filter_uninit, (void*)NULL);
 
-  f = NULL;
-  enabled = TRUE;
-  return TRUE;
+  F = NULL;
+  Enabled = true;
+  return true;
 }
 
-PROXYFUNCIMP(ULONG DLLENTRY, CL_FILTER_PROXY_1)
-proxy_1_filter_init( CL_FILTER_PROXY_1* pp, void** f, FILTER_PARAMS2* params )
-{ DEBUGLOG(("proxy_1_filter_init(%p{%s}, %p, %p{a=%p})\n", pp, pp->module_name, f, params, params->a));
+PROXYFUNCIMP(ULONG DLLENTRY, FilterProxy1)
+proxy_1_filter_init( FilterProxy1* pp, void** f, FILTER_PARAMS2* params )
+{ DEBUGLOG(("proxy_1_filter_init(%p{%s}, %p, %p{a=%p})\n", pp, pp->GetModuleName().cdata(), f, params, params->a));
 
   FILTER_PARAMS par;
   par.size                = sizeof par;
   par.output_play_samples = (int DLLENTRYPF()(void*, const FORMAT_INFO*, const char*, int, int))
-                            &PROXYFUNCREF(CL_FILTER_PROXY_1)proxy_1_filter_play_samples;
+                            &PROXYFUNCREF(FilterProxy1)proxy_1_filter_play_samples;
   par.a                   = pp;
   par.audio_buffersize    = BUFSIZE;
   par.error_display       = params->error_display;
@@ -1289,15 +1265,15 @@ proxy_1_filter_init( CL_FILTER_PROXY_1* pp, void** f, FILTER_PARAMS2* params )
   // now return some values
   *f = pp;
   params->output_request_buffer = (int  DLLENTRYPF()(void*, const FORMAT_INFO2*, short**))
-                                  &PROXYFUNCREF(CL_FILTER_PROXY_1)proxy_1_filter_request_buffer;
+                                  &PROXYFUNCREF(FilterProxy1)proxy_1_filter_request_buffer;
   params->output_commit_buffer  = (void DLLENTRYPF()(void*, int, double))
-                                  &PROXYFUNCREF(CL_FILTER_PROXY_1)proxy_1_filter_commit_buffer;
+                                  &PROXYFUNCREF(FilterProxy1)proxy_1_filter_commit_buffer;
   return 0;
 }
 
-PROXYFUNCIMP(void DLLENTRY, CL_FILTER_PROXY_1)
-proxy_1_filter_update( CL_FILTER_PROXY_1* pp, const FILTER_PARAMS2* params )
-{ DEBUGLOG(("proxy_1_filter_update(%p{%s}, %p)\n", pp, pp->module_name, params));
+PROXYFUNCIMP(void DLLENTRY, FilterProxy1)
+proxy_1_filter_update( FilterProxy1* pp, const FILTER_PARAMS2* params )
+{ DEBUGLOG(("proxy_1_filter_update(%p{%s}, %p)\n", pp, pp->GetModuleName().cdata(), params));
 
   CritSect cs;
   // replace function pointers
@@ -1306,13 +1282,13 @@ proxy_1_filter_update( CL_FILTER_PROXY_1* pp, const FILTER_PARAMS2* params )
   pp->a                     = params->a;
 }
 
-PROXYFUNCIMP(BOOL DLLENTRY, CL_FILTER_PROXY_1)
+PROXYFUNCIMP(BOOL DLLENTRY, FilterProxy1)
 proxy_1_filter_uninit( void* )
 { return TRUE;
 }
 
-PROXYFUNCIMP(int DLLENTRY, CL_FILTER_PROXY_1)
-proxy_1_filter_request_buffer( CL_FILTER_PROXY_1* pp, const FORMAT_INFO2* format, short** buf )
+PROXYFUNCIMP(int DLLENTRY, FilterProxy1)
+proxy_1_filter_request_buffer( FilterProxy1* pp, const FORMAT_INFO2* format, short** buf )
 { DEBUGLOG(("proxy_1_filter_request_buffer(%p, %p, %p)\n", pp, format, buf));
 
   if ( pp->trash_buffer )
@@ -1341,8 +1317,8 @@ proxy_1_filter_request_buffer( CL_FILTER_PROXY_1* pp, const FORMAT_INFO2* format
   return pp->vbufsamples - pp->vbuflevel;
 }
 
-PROXYFUNCIMP(void DLLENTRY, CL_FILTER_PROXY_1)
-proxy_1_filter_commit_buffer( CL_FILTER_PROXY_1* pp, int len, double posmarker )
+PROXYFUNCIMP(void DLLENTRY, FilterProxy1)
+proxy_1_filter_commit_buffer( FilterProxy1* pp, int len, double posmarker )
 { DEBUGLOG(("proxy_1_filter_commit_buffer(%p, %d, %g)\n", pp, len, posmarker));
 
   if (len == 0)
@@ -1360,8 +1336,8 @@ proxy_1_filter_commit_buffer( CL_FILTER_PROXY_1* pp, int len, double posmarker )
   }
 }
 
-PROXYFUNCIMP(int DLLENTRY, CL_FILTER_PROXY_1)
-proxy_1_filter_play_samples( CL_FILTER_PROXY_1* pp, const FORMAT_INFO* format, const char *buf, int len, int posmarker_i )
+PROXYFUNCIMP(int DLLENTRY, FilterProxy1)
+proxy_1_filter_play_samples(FilterProxy1* pp, const FORMAT_INFO* format, const char *buf, int len, int posmarker_i)
 { DEBUGLOG(("proxy_1_filter_play_samples(%p, %p{%d,%d,%d,%d}, %p, %d, %d)\n",
     pp, format, format->samplerate, format->channels, format->bits, format->format, buf, len, posmarker_i));
 
@@ -1392,8 +1368,8 @@ proxy_1_filter_play_samples( CL_FILTER_PROXY_1* pp, const FORMAT_INFO* format, c
 }
 
 
-CL_PLUGIN* CL_FILTER::factory(CL_MODULE& mod)
-{ return mod.query_param.interface <= 1 ? new CL_FILTER_PROXY_1(mod) : new CL_FILTER(mod);
+Plugin* Filter::Factory(Module* mod)
+{ return mod->GetParams().interface <= 1 ? new FilterProxy1(mod) : new Filter(mod);
 }
 
 
@@ -1403,261 +1379,80 @@ CL_PLUGIN* CL_FILTER::factory(CL_MODULE& mod)
 *
 ****************************************************************************/
 
-PLUGIN_TYPE CL_VISUAL::get_type() const
+PLUGIN_TYPE Visual::GetType() const
 { return PLUGIN_VISUAL;
 }
 
 /* Assigns the addresses of the visual plug-in procedures. */
-BOOL CL_VISUAL::load_plugin()
-{
-  if ( !(query_param.type & PLUGIN_VISUAL)
-    || !load_function(&plugin_deinit, "plugin_deinit")
-    || !load_function(&plugin_init,   "vis_init") )
-    return FALSE;
+bool Visual::LoadPlugin()
+{ DEBUGLOG(("Visual(%p{%s})::LoadPlugin()\n", this, GetModuleName().cdata()));
+  const Module& mod = GetModule();
 
-  enabled = TRUE;
-  hwnd = NULLHANDLE;
-  return TRUE;
-}
-
-BOOL CL_VISUAL::init_plugin()
-{ return TRUE; // no automatic init
-}
-
-BOOL CL_VISUAL::uninit_plugin()
-{ if (is_initialized())
-  { (*plugin_deinit)(0);
-    hwnd = NULLHANDLE;
-    raise_plugin_event(PLUGIN_EVENTARGS::Uninit);
-  }
-  return TRUE;
-}
-
-BOOL CL_VISUAL::initialize(HWND hwnd, PLUGIN_PROCS* procs, int id)
-{ DEBUGLOG(("CL_VISUAL(%p{%s})::initialize(%x, %p, %d) - %d %d, %d %d, %s\n",
-    this, module_name, hwnd, procs, id, props.x, props.y, props.cx, props.cy, props.param));
-
-  VISPLUGININIT visinit;
-  visinit.x       = props.x;
-  visinit.y       = props.y;
-  visinit.cx      = props.cx;
-  visinit.cy      = props.cy;
-  visinit.hwnd    = hwnd;
-  visinit.procs   = procs;
-  visinit.id      = id;
-  visinit.param   = props.param;
-
-  this->hwnd = (*plugin_init)(&visinit);
-  if (this->hwnd == NULLHANDLE)
-    return FALSE;
-  raise_plugin_event(PLUGIN_EVENTARGS::Init);
-  return TRUE;
-}
-
-void CL_VISUAL::set_properties(const VISUAL_PROPERTIES* data)
-{
-  #ifdef DEBUG
-  if (data)
-    DEBUGLOG(("CL_VISUAL(%p{%s})::set_properties(%p{%d %d, %d %d, %s})\n",
-      this, module_name, data, data->x, data->y, data->cx, data->cy, data->param));
-  else
-    DEBUGLOG(("CL_VISUAL(%p{%s})::set_properties(%p)\n", this, module_name, data));
-  #endif
-  static const VISUAL_PROPERTIES def_visuals = {0,0,0,0, FALSE, ""};
-  props = data == NULL ? def_visuals : *data;
-}
-
-
-CL_PLUGIN* CL_VISUAL::factory(CL_MODULE& mod)
-{ if (mod.query_param.interface == 0)
-  { amp_player_error( "Could not load visual plug-in %s because it is designed for PM123 before vesion 1.32\n"
-                      "Please get a newer version of this plug-in which supports at least interface revision 1.",
-      mod.module_name);
-    return NULL;
-  }
-  return new CL_VISUAL(mod);
-}
-
-
-/****************************************************************************
-*
-* PLUGIN_BASE_LIST collection
-*
-****************************************************************************/
-
-/* append an new plug-in record to the list */
-BOOL CL_PLUGIN_BASE_LIST::append(CL_PLUGIN_BASE* plugin)
-{ DEBUGLOG(("CL_PLUGIN_BASE_LIST(%p{%p,%d,%d})::append(%p{%p,%s})\n",
-    this, list, num, size, plugin, plugin->module, plugin->module_name));
-
-  if (num >= size)
-  { int l = size + 8;
-    // Note: The Debug memory management of IMB C++ will claim the objects allocated here are not freed
-    // until the program ends. This is not true. The clean-up function of the debug memory manager is only called
-    // before the destructors of the static objects.
-    CL_PLUGIN_BASE** np = (CL_PLUGIN_BASE**)realloc(list, l * sizeof *list);
-    if (np == NULL)
-    { DEBUGLOG(("CL_PLUGIN_BASE_LIST::append: internal memory allocation error\n"));
-      return FALSE;
-    }
-    list = np;
-    size = l;
-  }
-
-  list[num++] = plugin;
-  return TRUE;
-}
-
-/* remove the i-th plug-in record from the list */
-CL_PLUGIN_BASE* CL_PLUGIN_BASE_LIST::detach(int i)
-{ DEBUGLOG(("CL_PLUGIN_BASE_LIST(%p{%p,%d,%d})::detach(%i)\n", this, list, num, size, i));
-
-  if (i > num && i <= 0)
-  { DEBUGLOG(("CL_PLUGIN_BASE_LIST::detach: index out of range\n"));
-    return NULL;
-  }
-
-  CL_PLUGIN_BASE* r = list[i];
-  memmove(list + i, list + i +1, (--num - i) * sizeof *list);
-
-  DEBUGLOG(("CL_PLUGIN_BASE_LIST::detach: %p\n", r));
-  return r;
-}
-
-BOOL CL_PLUGIN_BASE_LIST::move(int i, int j)
-{ DEBUGLOG(("CL_PLUGIN_BASE_LIST(%p{%p,%d,%d})::move(%i, %j)\n", this, list, num, size, i, j));
-
-  if (i < 0 || i > num || j < 0 || j > num)
-  { DEBUGLOG(("CL_PLUGIN_BASE_LIST::move: index out of range\n"));
+  if ( !(mod.GetParams().type & PLUGIN_VISUAL)
+    || !mod.LoadFunction(&plugin_deinit, "plugin_deinit")
+    || !mod.LoadFunction(&plugin_init,   "vis_init") )
     return false;
-  }
-  
-  if (i != j) // no-op?
-  { CL_PLUGIN_BASE* p = list[i];
-    if (i < j)
-      memmove(list + i, list + i +1, (j - i) * sizeof *list);
-    else
-      memmove(list + j +1, list + j, (i - j) * sizeof *list);
-    list[j] = p;
+
+  Enabled = true;
+  Hwnd = NULLHANDLE;
+  return true;
+}
+
+bool Visual::InitPlugin()
+{ return true; // no automatic init
+}
+
+bool Visual::UninitPlugin()
+{ if (IsInitialized())
+  { (*plugin_deinit)(0);
+    Hwnd = NULLHANDLE;
+    RaisePluginChange(EventArgs::Uninit);
   }
   return true;
 }
 
-/* find a plug-in in the list
-   return the position in the list or -1 if not found */
-int CL_PLUGIN_BASE_LIST::find(const PLUGIN_BASE& plugin) const
-{ CL_PLUGIN_BASE** pp = list + num;
-  while (pp-- != list)
-    if ((*pp)->module == plugin.module)
-      return pp - list;
-  return -1;
-}
-int CL_PLUGIN_BASE_LIST::find(const char* name) const
-{ CL_PLUGIN_BASE** pp = list + num;
-  while (pp-- != list)
-  { //fprintf(stderr, "CL_PLUGIN_BASE_LIST::find %s %s\n", (*pp)->module_name, name);
-    if (strcmp((*pp)->module_name, name) == 0)
-      return pp - list;
-  }
-  return -1;
-}
+bool Visual::Initialize(HWND hwnd, PLUGIN_PROCS* procs, int id)
+{ DEBUGLOG(("Visual(%p{%s})::initialize(%x, %p, %d) - %d %d, %d %d, %s\n",
+    this, GetModuleName().cdata(), hwnd, procs, id, Props.x, Props.y, Props.cx, Props.cy, Props.param));
 
-int CL_PLUGIN_BASE_LIST::find_short(const char* name) const
-{ CL_PLUGIN_BASE** pp = list + num;
-  while (pp-- != list)
-  { char filename[_MAX_FNAME];
-    sfnameext( filename, (*pp)->module_name, sizeof( filename ));
-    if( stricmp( filename, name ) == 0 )
-      return pp - list;
-  }
-  return -1;
+  VISPLUGININIT visinit;
+  visinit.x       = Props.x;
+  visinit.y       = Props.y;
+  visinit.cx      = Props.cx;
+  visinit.cy      = Props.cy;
+  visinit.hwnd    = hwnd;
+  visinit.procs   = procs;
+  visinit.id      = id;
+  visinit.param   = Props.param;
+
+  Hwnd = (*plugin_init)(&visinit);
+  if (Hwnd == NULLHANDLE)
+    return false;
+  RaisePluginChange(EventArgs::Init);
+  return true;
 }
 
-
-/****************************************************************************
-*
-* MODULE_LIST collection
-*
-****************************************************************************/
-
-
-/****************************************************************************
-*
-* PLUGIN_LIST collection
-*
-****************************************************************************/
-
-BOOL CL_PLUGIN_LIST::append(CL_PLUGIN* plugin)
-{ if (!CL_PLUGIN_BASE_LIST::append(plugin))
-    return FALSE;
-  plugin->raise_plugin_event(PLUGIN_EVENTARGS::Load);
-  return TRUE;
+void Visual::SetProperties(const VISUAL_PROPERTIES* data)
+{
+  #ifdef DEBUG
+  if (data)
+    DEBUGLOG(("Visual(%p{%s})::set_properties(%p{%d %d, %d %d, %s})\n",
+      this, GetModuleName().cdata(), data, data->x, data->y, data->cx, data->cy, data->param));
+  else
+    DEBUGLOG(("Visual(%p{%s})::set_properties(%p)\n", this, GetModuleName().cdata(), data));
+  #endif
+  static const VISUAL_PROPERTIES def_visuals = {0,0,0,0, FALSE, ""};
+  Props = data == NULL ? def_visuals : *data;
 }
 
-CL_PLUGIN* CL_PLUGIN_LIST::detach(int i)
-{ DEBUGLOG(("CL_PLUGIN_LIST(%p)::detach(%i)\n", this, i));
 
-  if (i > count() && i <= 0)
-  { DEBUGLOG(("CL_PLUGIN_LIST::detach: index out of range\n"));
+Plugin* Visual::Factory(Module* mod)
+{ if (mod->GetParams().interface == 0)
+  { amp_player_error( "Could not load visual plug-in %s because it is designed for PM123 before vesion 1.32\n"
+                      "Please get a newer version of this plug-in which supports at least interface revision 1.",
+      mod->GetModuleName().cdata());
     return NULL;
   }
-  if ((*this)[i].is_initialized() && !(*this)[i].uninit_plugin())
-  { DEBUGLOG(("CL_PLUGIN_LIST::detach: plugin %s failed to uninitialize.\n", (*this)[i].module_name));
-    return NULL;
-  }
-  CL_PLUGIN* plugin = (CL_PLUGIN*)CL_PLUGIN_BASE_LIST::detach(i);
-  plugin->raise_plugin_event(PLUGIN_EVENTARGS::Unload);
-  return plugin;
+  return new Visual(mod);
 }
-
-BOOL CL_PLUGIN_LIST::remove(int i)
-{ CL_PLUGIN* pp = detach(i);
-  delete pp;
-  return pp != NULL;
-}
-
-void CL_PLUGIN_LIST::clear()
-{ while (count())
-  { CL_PLUGIN* pp = detach(count()-1);
-    DEBUGLOG(("CL_PLUGIN_LIST::clear: %p.\n", pp));
-    delete pp;
-  }
-}
-
-
-/****************************************************************************
-*
-* PLUGIN_LIST collection with one active plugin
-*
-****************************************************************************/
-
-CL_PLUGIN* CL_PLUGIN_LIST1::detach(int i)
-{ CL_PLUGIN* pp = CL_PLUGIN_LIST::detach(i);
-  if ( pp == active )
-    active = NULL;
-  return pp;
-}
-
-int CL_PLUGIN_LIST1::set_active(int i)
-{ if ( i >= count() || i < -1 )
-    return -1;
-
-  CL_PLUGIN* pp = i == -1 ? NULL : &(*this)[i];
-  if (pp == active)
-    return 0;
-
-  if ( active != NULL && !xchg(active, (CL_PLUGIN*)NULL)->uninit_plugin() )
-    return -1;
-
-  if (pp != NULL)
-  { if (!pp->get_enabled())
-      return -2;
-    if (!pp->init_plugin())
-      return -1;
-  }
-  active = pp;
-  return 0;
-}
-
-
 

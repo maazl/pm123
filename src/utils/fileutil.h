@@ -51,6 +51,8 @@ char* sdrivedir( char* result, const char* location, size_t size );
 char* sdecode  ( char* result, const char* location, size_t size );
 // Normalize an URL: enforce scheme, convert slashes
 char* snormal  ( char* result, const char* location, size_t size );
+// Fast in place version of sfname aliasing, cannot deal with ? parameters.
+const char* sfnameext2( const char* file );
 
 typedef struct
 { char drive[4]; // we need only 3 but we don't want to run into alignment trouble

@@ -697,13 +697,14 @@ BEGIN
     
     GROUPBOX   " Plug-in specific ",      GB_SPECIFIC,       4,  4, 248, 56, NOT WS_TABSTOP|WS_GROUP
       PRESPARAMS PP_FONTNAMESIZE "9.WarpSans Bold"
-    LTEXT      "Supported file ~types:",  ST_DEC_FILETYPES, 12, 44,  80,  8, WS_GROUP|DT_BOTTOM
+    LTEXT      "Supported file ~types:",  ST_DEC_FILETYPES, 12, 44,  80,  8, WS_GROUP|DT_BOTTOM|DT_MNEMONIC
       PRESPARAMS PP_FOREGROUNDCOLORINDEX, SYSCLR_WINDOWTEXT
-    MLE        "",                        ML_DEC_FILETYPES, 12, 10,  80, 32, MLS_VSCROLL
+    MLE        "",                        ML_DEC_FILETYPES, 12, 10,  80, 32, MLS_VSCROLL|WS_DISABLED
     AUTOCHECKBOX "~Try unsupported file extensions and types too",
-                                          CB_DEC_TRYOTHER, 100, 40, 144, 12, WS_GROUP
+                                          CB_DEC_TRYOTHER, 100, 40, 144, 12, WS_GROUP|WS_DISABLED
     AUTOCHECKBOX "~Serialize access to decoder info",
-                                          CB_DEC_SERIALIZE,100, 28, 144, 12, WS_GROUP
+                                          CB_DEC_SERIALIZE,100, 28, 144, 12, WS_GROUP|WS_DISABLED
+    PUSHBUTTON "Save",                    PB_PLG_SET,      200, 10,  44, 12, WS_GROUP|WS_DISABLED
   END
 END
 

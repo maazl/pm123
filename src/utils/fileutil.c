@@ -537,6 +537,14 @@ CDDA_REGION_INFO* scdparams( CDDA_REGION_INFO* result, const char* location )
   return result;
 }
 
+// Fast in place version of sfname aliasing, cannot deal with ? parameter.
+const char* sfnameext2( const char* file )
+{ register const char* cp = file + strlen(file);
+  while (cp != file && cp[-1] != '\\' && cp[-1] != ':' && cp[-1] != '/')
+    --cp;
+  return cp;
+}
+
 /* Returns TRUE if the specified location is a root directory. */
 BOOL
 is_root( const char* location )

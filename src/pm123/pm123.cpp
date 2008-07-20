@@ -98,7 +98,8 @@
 
 
 /* Contains startup path of the program without its name.  */
-char startpath[_MAX_PATH];
+static xstring startpath_local;
+const xstring& startpath = startpath_local;
 
 // Default playlist, representing PM123.LST in the program folder.
 static int_ptr<Playlist> DefaultPL;
@@ -1060,7 +1061,15 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
     { USHORT cmd = SHORT1FROMMP(mp1);
       DEBUGLOG(("amp_dlg_proc: WM_COMMAND(%u, %u, %u)\n", cmd, SHORT1FROMMP(mp2), SHORT2FROMMP(mp2)));
       if( cmd > IDM_M_PLUG && cmd <= IDM_M_PLUG_E ) {
-        configure_plugin( PLUGIN_NULL, cmd - IDM_M_PLUG - 1, hframe );
+        cmd -= IDM_M_PLUG;
+        // atomic plug-in request
+        Module* plug;
+        { const Module::IXAccess& ix = Module::AccessIndex();
+          if (cmd >= ix->size())
+            return 0;
+          plug = (*ix)[cmd];
+        }
+        plug->Config(hwnd);
         return 0;
       }
       if( cmd >= IDM_M_LOADFILE && cmd < IDM_M_LOADFILE + sizeof load_wizzards / sizeof *load_wizzards
@@ -1516,13 +1525,14 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
 }
 
 
-static void amp_plugin_eventhandler(void*, const PLUGIN_EVENTARGS& args)
-{ DEBUGLOG(("amp_plugin_eventhandler(, {%p, %x, %i})\n", args.plugin, args.type, args.operation));
-  switch (args.operation)
-  {case PLUGIN_EVENTARGS::Enable:
-   case PLUGIN_EVENTARGS::Disable:
-   case PLUGIN_EVENTARGS::Unload:
-    if (args.type == PLUGIN_DECODER)
+static void amp_plugin_eventhandler(void*, const Plugin::EventArgs& args)
+{ DEBUGLOG(("amp_plugin_eventhandler(, {%p{%s}, %i})\n",
+    args.Plug, args.Plug.GetModuleName().cdata(), args.Operation));
+  switch (args.Operation)
+  {case Plugin::EventArgs::Enable:
+   case Plugin::EventArgs::Disable:
+   case Plugin::EventArgs::Unload:
+    if (args.Plug.GetType() == PLUGIN_DECODER)
       WinPostMsg(hframe, AMP_REFRESH_ACCEL, 0, 0);
     is_plugin_changed = true;
    default:; // avoid warnings
@@ -1547,7 +1557,6 @@ main2( void* arg )
   char** argv = ((args*)arg)->argv;
   int    files = ((args*)arg)->files;
   HMQ    hmq;
-  char   bundle [_MAX_PATH];
   QMSG   qmsg;
 
   ///////////////////////////////////////////////////////////////////////////
@@ -1582,7 +1591,7 @@ main2( void* arg )
   // prepare pluginmanager
   plugman_init();
   // Keep track of plugin changes.
-  delegate<void, const PLUGIN_EVENTARGS> plugin_delegate(plugin_event, &amp_plugin_eventhandler);
+  delegate<void, const Plugin::EventArgs> plugin_delegate(Plugin::ChangeEvent, &amp_plugin_eventhandler);
   PMRASSERT( WinPostMsg( hframe, AMP_REFRESH_ACCEL, 0, 0 )); // load accelerators
 
   Playable::Init();
@@ -1605,9 +1614,6 @@ main2( void* arg )
 
   dlg_init();
 
-  strcpy( bundle, startpath   );
-  strcat( bundle, "pm123.lst" );
-
   if( files == 1 && !is_dir( argv[argc - 1] )) {
     amp_load_playable(PlayableSlice(url123::normalizeURL(argv[argc - 1])), 0 );
   } else if( files > 0 ) {
@@ -1622,12 +1628,6 @@ main2( void* arg )
       }
     }
     pl_completed();*/
-  } else {
-    struct stat fi;
-    if( stat( bundle, &fi ) == 0 ) {
-      // TODO: what's that?
-//      pl_load_bundle( bundle, 0 );
-    }
   }
 
   WinSetWindowPos( hframe, HWND_TOP,
@@ -1723,7 +1723,6 @@ main2( void* arg )
   dk_term();
   Playable::Uninit();
   Playable::Clear();
-  remove_all_plugins();
   plugman_uninit();
 
   WinDestroyWindow(hframe);
@@ -1737,7 +1736,7 @@ main( int argc, char *argv[] )
 {
   int    i, o, files = 0;
   char   exename[_MAX_PATH];
-  char   command[1024];
+  char   buffer[1024];
 
   // used for debug printf()s
   setvbuf( stderr, NULL, _IONBF, 0 );
@@ -1749,7 +1748,8 @@ main( int argc, char *argv[] )
   }
 
   getExeName( exename, sizeof( exename ));
-  sdrivedir ( startpath, exename, sizeof( startpath ));
+  sdrivedir ( buffer, exename, sizeof buffer);
+  startpath_local = buffer;
 
   for( o = 1; o < argc; o++ )
   {
@@ -1775,14 +1775,14 @@ main( int argc, char *argv[] )
         strcat( pipename, "\\PIPE\\PM123" );
         o++;
       }
-      strcpy( command, "*" );
+      strcpy( buffer, "*" );
       for( i = o; i < argc; i++ )
       {
-        strcat( command, argv[i] );
-        strcat( command, " " );
+        strcat( buffer, argv[i] );
+        strcat( buffer, " " );
       }
 
-      amp_pipe_open_and_write( pipename, command, strlen( command ) + 1 );
+      amp_pipe_open_and_write( pipename, buffer, strlen( buffer ) + 1 );
       exit(0);
     }
   }

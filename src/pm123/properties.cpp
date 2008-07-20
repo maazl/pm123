@@ -44,10 +44,13 @@
 #include "pm123.rc.h"
 #include "iniman.h"
 #include "plugman.h"
+#include "plugman_base.h"
 #include "controller.h"
 #include "copyright.h"
 #include "123_util.h"
 #include "pipe.h"
+#include <cpp/url123.h>
+#include <cpp/stringmap.h>
 #include <os2.h>
 
 #define  CFG_REFRESH_LIST (WM_USER+1)
@@ -436,77 +439,171 @@ cfg_display1_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
   return WinDefDlgProc( hwnd, msg, mp1, mp2 );
 }
 
-struct plugin_context
-{ size_t size; // structure size
-  ULONG  type; // plug-in type
-  int  (*enum_fn)(PLUGIN_BASE*const**);
-  BOOL (*remove_fn)(int i);
-  BOOL (*move_fn)(int i, int j);
-  BOOL (*is_active_fn)(int i);
-  int    recent_level; // most recent interface level
+struct PluginContext
+{ // Head
+  const size_t Size;        // structure size
+  // Configuration
+  PluginList*const List;    // List to visualize
+  PluginList*const List2;   // Secondary List for visual Plug-Ins
+  const int    RecentLevel; // Most recent interface level
+  enum CtrlFlags            // Cotrol flags
+  { CF_None    = 0,
+    CF_List1   = 1  // List is of type PluginList1
+  } const      Flags;
+  bool (PluginContext::*enable_hook)(int i, bool enable); // Hook for Enable/Disable button
+  xstring      UndoCfg;
 
-  bool (plugin_context::*enable_hook)(int i, bool enable);
-
-  HWND   hwnd;
+  // Working set
+  HWND         Hwnd;
     
-  void         refresh_list();
-  PLUGIN_BASE* refresh_info(int i);
-  ULONG        add_plugin();
+  PluginContext(PluginList* list1, PluginList* list2, int level, CtrlFlags flags);
+  
+  void         RefreshList();
+  Plugin*      RefreshInfo(int i);
+  ULONG        AddPlugin();
+  bool         Configure(int i);
+  bool         SetParams(int i);
 
   bool         decoder_enable_hook(int i, bool enable);
   bool         filter_enable_hook(int i, bool enable);
   bool         output_enable_hook(int i, bool enable);
   bool         visual_enable_hook(int i, bool enable);
 };
+FLAGSATTRIBUTE(PluginContext::CtrlFlags);
 
-void plugin_context::refresh_list()
-{ DEBUGLOG(("plugin_context::refresh_list()\n"));
-  HWND lb = WinWindowFromID(hwnd, LB_PLUGINS);
-  PMASSERT(lb != NULLHANDLE);
-  WinSendMsg(lb, LM_DELETEALL, 0, 0);
-  PLUGIN_BASE*const* list;
-  int num = (*enum_fn)(&list);
-  char filename[_MAX_FNAME];
-  for (int i = 0; i < num; i++)
-    WinSendMsg(lb, LM_INSERTITEM, MPFROMSHORT(LIT_END), MPFROMP(sfname(filename, list[i]->module_name, sizeof filename)));
-}
-
-PLUGIN_BASE* plugin_context::refresh_info(int i)
-{ PLUGIN_BASE*const* list;       
-  int num = (*enum_fn)(&list);
-  if (i < 0 || i >= num)
-  { WinSetDlgItemText(hwnd, ST_PLG_AUTHOR, "");
-    WinSetDlgItemText(hwnd, ST_PLG_DESC,   "");
-    WinSetDlgItemText(hwnd, ST_PLG_LEVEL,  "");
-    // The following function give an error if no such buttons. This is ignored.
-    WinSetDlgItemText(hwnd, PB_PLG_ENABLE, "~Enable");
-    WinEnableControl (hwnd, PB_PLG_UNLOAD, FALSE);
-    WinEnableControl (hwnd, PB_PLG_UP,     FALSE);
-    WinEnableControl (hwnd, PB_PLG_DOWN,   FALSE);
-    WinEnableControl (hwnd, PB_PLG_ENABLE, FALSE);
-    WinEnableControl (hwnd, PB_PLG_ACTIVATE, FALSE);
-    WinEnableControl (hwnd, PB_PLG_CONFIG, FALSE);
-    return NULL;
-  } else
-  { char buffer[64];
-    WinSetDlgItemText(hwnd, ST_PLG_AUTHOR, list[i]->query_param.author);
-    WinSetDlgItemText(hwnd, ST_PLG_DESC,   list[i]->query_param.desc);
-    snprintf(buffer, sizeof buffer,        "Interface level %i%s",
-      list[i]->query_param.interface, list[i]->query_param.interface >= recent_level ? "" : " (virtualized)");
-    WinSetDlgItemText(hwnd, ST_PLG_LEVEL,  buffer);
-    WinSetDlgItemText(hwnd, PB_PLG_ENABLE, get_plugin_enabled(list[i]) ? "Disabl~e" : "~Enable");
-    WinEnableControl (hwnd, PB_PLG_UNLOAD, TRUE);
-    WinEnableControl (hwnd, PB_PLG_UP,     i > 0);
-    WinEnableControl (hwnd, PB_PLG_DOWN,   i < num-1);
-    WinEnableControl (hwnd, PB_PLG_ENABLE, TRUE);
-    if (is_active_fn)
-      WinEnableControl (hwnd, PB_PLG_ACTIVATE, !(*is_active_fn)(i));
-    WinEnableControl (hwnd, PB_PLG_CONFIG, list[i]->query_param.configurable && get_plugin_enabled(list[i]) );
-    return list[i];
+PluginContext::PluginContext(PluginList* list1, PluginList* list2, int level, CtrlFlags flags)
+: Size(sizeof(PluginContext)),
+  List(list1),
+  List2(list2),
+  RecentLevel(level),
+  Flags(flags),
+  enable_hook(NULL),
+  UndoCfg(list1->Serialize())
+{ switch (List->Type)
+  {case PLUGIN_DECODER:
+    enable_hook = &PluginContext::decoder_enable_hook;
+    break;
+   case PLUGIN_FILTER:
+    enable_hook = &PluginContext::filter_enable_hook;
+    break;
+   case PLUGIN_OUTPUT:
+    enable_hook = &PluginContext::output_enable_hook;
+    break;
+   case PLUGIN_VISUAL:
+    enable_hook = &PluginContext::visual_enable_hook;
+    break;
   }
 }
 
-ULONG plugin_context::add_plugin()
+void PluginContext::RefreshList()
+{ DEBUGLOG(("PluginContext::RefreshList()\n"));
+  HWND lb = WinWindowFromID(Hwnd, LB_PLUGINS);
+  PMASSERT(lb != NULLHANDLE);
+  WinSendMsg(lb, LM_DELETEALL, 0, 0);
+
+  char filename[_MAX_FNAME];
+  Plugin*const* ppp;
+  for (ppp = List->begin(); ppp != List->end(); ++ppp)
+  { const char* cp = (*ppp)->GetModuleName().cdata() + (*ppp)->GetModuleName().length();
+    while (cp != (*ppp)->GetModuleName().cdata() && cp[-1] != '\\' && cp[-1] != ':' && cp[-1] != '/')
+      --cp;
+    WinSendMsg(lb, LM_INSERTITEM, MPFROMSHORT(LIT_END), MPFROMP(cp));
+  }
+  if (List2 == NULL)
+    return;
+  for (ppp = List2->begin(); ppp != List2->end(); ++ppp)
+  { const char* cp = (*ppp)->GetModuleName().cdata() + (*ppp)->GetModuleName().length();
+    while (cp != (*ppp)->GetModuleName().cdata() && cp[-1] != '\\' && cp[-1] != ':' && cp[-1] != '/')
+      --cp;
+    WinSendMsg(lb, LM_INSERTITEM, MPFROMSHORT(LIT_END), MPFROMP((xstring(cp)+" (Skin)").cdata()));
+  }
+}
+
+Plugin* PluginContext::RefreshInfo(int i)
+{ DEBUGLOG(("PluginContext::RefreshInfo(%i)\n", i));
+  Plugin* pp = NULL;
+  if (i < 0 || i >= List->size())
+  { // The following functions give an error if no such buttons. This is ignored.
+    WinSetDlgItemText(Hwnd, PB_PLG_ENABLE, "~Enable");
+    WinEnableControl (Hwnd, PB_PLG_UNLOAD, FALSE);
+    WinEnableControl (Hwnd, PB_PLG_UP,     FALSE);
+    WinEnableControl (Hwnd, PB_PLG_DOWN,   FALSE);
+    WinEnableControl (Hwnd, PB_PLG_ENABLE, FALSE);
+    WinEnableControl (Hwnd, PB_PLG_ACTIVATE, FALSE);
+    // decode specific stuff
+    if (List->Type == PLUGIN_DECODER)
+    { HWND ctrl = WinWindowFromID(Hwnd, ML_DEC_FILETYPES);
+      WinSetWindowText(ctrl, "");
+      WinEnableWindow (ctrl, FALSE);
+      ctrl = WinWindowFromID(Hwnd, CB_DEC_TRYOTHER);
+      WinSendMsg      (ctrl, BM_SETCHECK, MPFROMSHORT(FALSE), 0);
+      WinEnableWindow (ctrl, FALSE);
+      ctrl = WinWindowFromID(Hwnd, CB_DEC_SERIALIZE);
+      WinSendMsg      (ctrl, BM_SETCHECK, MPFROMSHORT(FALSE), 0);
+      WinEnableWindow (ctrl, FALSE);
+      WinEnableControl(Hwnd, PB_PLG_SET, FALSE);
+    }
+  } else
+  { pp = (*List)[i];
+    WinSetDlgItemText(Hwnd, PB_PLG_ENABLE, pp->GetEnabled() ? "Disabl~e" : "~Enable");
+    WinEnableControl (Hwnd, PB_PLG_UNLOAD, TRUE);
+    WinEnableControl (Hwnd, PB_PLG_UP,     i > 0);
+    WinEnableControl (Hwnd, PB_PLG_DOWN,   i < List->size()-1);
+    WinEnableControl (Hwnd, PB_PLG_ENABLE, TRUE);
+    if (Flags & CF_List1)
+      WinEnableControl (Hwnd, PB_PLG_ACTIVATE, !((PluginList1*)List)->GetActive() == i);
+    // decode specific stuff
+    if (List->Type == PLUGIN_DECODER)
+    { stringmap_own sm(20);
+      pp->GetParams(sm);
+      stringmapentry* smp = sm.find("filetypes");
+      const xstring& filetypes = smp && smp->Value ? smp->Value : ((Decoder*)pp)->GetFileTypes();
+      char* cp;
+      if (filetypes)
+      { cp = (char*)alloca(filetypes.length()+1);
+        memcpy(cp, filetypes.cdata(), filetypes.length()+1);
+        for (char* cp2 = cp; *cp2; ++cp2)
+          if (*cp2 == ';')
+            *cp2 = '\n';
+      } else
+        cp = "";
+      HWND ctrl = WinWindowFromID(Hwnd, ML_DEC_FILETYPES);
+      WinSetWindowText(ctrl, cp);
+      WinEnableWindow (ctrl, TRUE);
+      smp = sm.find("tryothers");
+      bool* b = smp && smp->Value ? url123::parseBoolean(smp->Value) : NULL;
+      ctrl = WinWindowFromID(Hwnd, CB_DEC_TRYOTHER);
+      WinSendMsg      (ctrl, BM_SETCHECK, MPFROMSHORT(b && *b), 0);
+      WinEnableWindow (ctrl, !!b);
+      smp = sm.find("serializeinfo");
+      b = smp && smp->Value ? url123::parseBoolean(smp->Value) : NULL;
+      ctrl = WinWindowFromID(Hwnd, CB_DEC_SERIALIZE);
+      WinSendMsg      (ctrl, BM_SETCHECK, MPFROMSHORT(b && *b), 0);
+      WinEnableWindow (ctrl, !!b);
+      WinEnableControl(Hwnd, PB_PLG_SET, FALSE);
+    }
+  }
+  if (pp == NULL && i >= 0 && List2 && i < List->size() + List2->size())
+    pp = (*List2)[i - List->size()];
+  if (pp == NULL)
+  { WinSetDlgItemText(Hwnd, ST_PLG_AUTHOR, "");
+    WinSetDlgItemText(Hwnd, ST_PLG_DESC,   "");
+    WinSetDlgItemText(Hwnd, ST_PLG_LEVEL,  "");
+    WinEnableControl (Hwnd, PB_PLG_CONFIG, FALSE);
+  } else
+  { char buffer[64];
+    const PLUGIN_QUERYPARAM& params = pp->GetModule().GetParams();
+    WinSetDlgItemText(Hwnd, ST_PLG_AUTHOR, params.author);
+    WinSetDlgItemText(Hwnd, ST_PLG_DESC,   params.desc);
+    snprintf(buffer, sizeof buffer,        "Interface level %i%s",
+      params.interface, params.interface >= RecentLevel ? "" : " (virtualized)");
+    WinSetDlgItemText(Hwnd, ST_PLG_LEVEL,  buffer);
+    WinEnableControl (Hwnd, PB_PLG_CONFIG, params.configurable && pp->GetEnabled());
+  }
+  return pp;
+}
+
+ULONG PluginContext::AddPlugin()
 {
   FILEDLG filedialog;
   ULONG   rc = 0;
@@ -524,23 +621,58 @@ ULONG plugin_context::add_plugin()
   filedialog.pszIType       = FDT_PLUGIN;
 
   strcpy(filedialog.szFullFile, startpath);
-  WinFileDlg(HWND_DESKTOP, hwnd, &filedialog);
+  WinFileDlg(HWND_DESKTOP, Hwnd, &filedialog);
 
   if (filedialog.lReturn == DID_OK)
-  { rc = ::add_plugin( filedialog.szFullFile, NULL );
+  { rc = Plugin::Deserialize(filedialog.szFullFile, List->Type);
     if (rc & PLUGIN_VISUAL)
-    { int num = enum_visual_plugins(NULL);
-      vis_init( num - 1 );
-    }
+      vis_init(List->size()-1);
     if (rc & PLUGIN_FILTER && Ctrl::IsPlaying())
-      amp_info( hwnd, "This filter will only be enabled after playback stops." );
-    if (rc & type)
-      WinSendMsg(hwnd, CFG_REFRESH_LIST, 0, MPFROMSHORT((*enum_fn)(NULL) -1));
+      amp_info(Hwnd, "This filter will only be enabled after playback stops.");
+    if (rc)
+      WinSendMsg(Hwnd, CFG_REFRESH_LIST, 0, MPFROMSHORT(List->size()-1));
   }
   return rc;
 }
 
-bool plugin_context::visual_enable_hook(int i, bool enable)
+bool PluginContext::Configure(int i)
+{ if (i < 0)
+    return false;
+
+  Plugin* pp = NULL;
+  if (i < List->size())
+    pp = (*List)[i];
+  else if (List2 && i < List->size() + List2->size())
+    pp = (*List2)[i - List->size()];
+
+  if (pp)
+  { pp->GetModule().Config(Hwnd);
+    return true;
+  } else
+    return false;
+}
+
+bool PluginContext::SetParams(int i)
+{ if (i < 0 || i >= List->size())
+    return false;
+  Plugin* pp = (*List)[i];
+
+  if (List->Type == PLUGIN_DECODER)
+  { HWND ctrl = WinWindowFromID(Hwnd, ML_DEC_FILETYPES);
+    ULONG len = WinQueryWindowTextLength(ctrl) +1;
+    char* filetypes = (char*)alloca(len);
+    WinQueryWindowText(ctrl, len, filetypes);
+    for (char* cp2 = filetypes; *cp2; ++cp2)
+      if (*cp2 == '\n')
+        *cp2 = ';';
+    pp->SetParam("filetypes", filetypes);
+    pp->SetParam("tryothers", WinQueryButtonCheckstate(Hwnd, CB_DEC_TRYOTHER) ? "1" : "0");
+    pp->SetParam("serializeinfo", WinQueryButtonCheckstate(Hwnd, CB_DEC_SERIALIZE) ? "1" : "0");
+  }
+  return true;
+}
+
+bool PluginContext::visual_enable_hook(int i, bool enable)
 { if (enable)
     vis_init(i);
   else
@@ -548,29 +680,29 @@ bool plugin_context::visual_enable_hook(int i, bool enable)
   return true;
 }
 
-bool plugin_context::decoder_enable_hook(int i, bool enable)
+bool PluginContext::decoder_enable_hook(int i, bool enable)
 { // This query is non-atomic, but nothing strange will happen anyway.
-  if (!enable && Ctrl::IsPlaying() && dec_is_active(i))
-  { amp_error(hwnd, "Cannot disable currently in use decoder.");
+  if (i < 0 || i > Decoders.size())
+    return false;
+  if (!enable && Decoders[i]->IsInitialized())
+  { amp_error(Hwnd, "Cannot disable currently in use decoder.");
     return false;
   }
   return true;
 }
 
-bool plugin_context::output_enable_hook(int i, bool enable)
+bool PluginContext::output_enable_hook(int i, bool enable)
 { if (Ctrl::IsPlaying())
-  { amp_error(hwnd, "Cannot change active output while playing.");
+  { amp_error(Hwnd, "Cannot change active output while playing.");
     return false;
   }
-  return out_set_active(i);
+  return true;
 }
 
-bool plugin_context::filter_enable_hook(int i, bool enable)
+bool PluginContext::filter_enable_hook(int i, bool enable)
 { int num;
-  PLUGIN_BASE*const* list;
-  enum_filter_plugins(&list);
-  if (Ctrl::IsPlaying() && get_plugin_in_use(list[i]))
-    amp_info(hwnd, enable
+  if (Ctrl::IsPlaying() && i < List->size() && (*List)[i]->IsInitialized())
+    amp_info(Hwnd, enable
       ? "This filter will only be enabled after playback stops."
       : "This filter will only be disabled after playback stops.");
   return true;
@@ -579,25 +711,42 @@ bool plugin_context::filter_enable_hook(int i, bool enable)
 /* Processes messages of the plug-ins pages of the setup notebook. */
 static MRESULT EXPENTRY
 cfg_config_dlg_proc(HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2)
-{
-  plugin_context* context = (plugin_context*)WinQueryWindowULong(hwnd, QWL_USER);
-  int num;
-  PLUGIN_BASE*const* list;
+{ DEBUGLOG(("cfg_config_dlg_proc(%p, %x, %x, %x)\n", hwnd, msg, mp1, mp2));
+  PluginContext* context = (PluginContext*)WinQueryWindowULong(hwnd, QWL_USER);
   SHORT i;
 
   switch( msg )
   { case CFG_REFRESH_LIST:
-      context->refresh_list();
+      context->RefreshList();
       lb_select(hwnd, LB_PLUGINS, SHORT1FROMMP(mp2));
       return 0;
       
     case CFG_REFRESH_INFO:
-      context->refresh_info(SHORT1FROMMP(mp2));
+      context->RefreshInfo(SHORT1FROMMP(mp2));
       return 0;
 
+    case CFG_GLOB_BUTTON:
+    { const amp_cfg* data = &cfg;
+      switch (SHORT1FROMMP(mp1))
+      {case PB_DEFAULT:
+        if (Ctrl::IsPlaying())
+          amp_error(hwnd, "Cannot load defaults while playing.");
+        else
+          context->List->LoadDefaults();
+        WinPostMsg(hwnd, CFG_REFRESH_LIST, 0, MPFROMSHORT(LIT_NONE));
+        break;
+       case PB_UNDO:
+        // TODO: The used plug-ins may have changed meanwhile causing Deserialize to fail.
+        if (context->List->Deserialize(context->UndoCfg) == PluginList::RC_OK)
+          WinPostMsg(hwnd, CFG_REFRESH_LIST, 0, MPFROMSHORT(LIT_NONE));
+        break;
+      }
+      return 0;
+    }
+
     case WM_INITDLG:
-      context = (plugin_context*)mp2;
-      context->hwnd = hwnd;
+      context = (PluginContext*)mp2;
+      context->Hwnd = hwnd;
       WinSetWindowULong(hwnd, QWL_USER, (ULONG)context);
       do_warpsans(hwnd);
       WinPostMsg(hwnd, CFG_REFRESH_LIST, 0, MPFROMSHORT(LIT_NONE));
@@ -606,75 +755,100 @@ cfg_config_dlg_proc(HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2)
     // TODO: undo/default
 
     case WM_CONTROL:
-      switch (SHORT2FROMMP(mp1))
-      {case LN_SELECT:
-        i = WinQueryLboxSelectedItem(HWNDFROMMP(mp2));
-        WinPostMsg(hwnd, CFG_REFRESH_INFO, 0, MPFROMSHORT(i));
+      switch (SHORT1FROMMP(mp1))
+      {case LB_PLUGINS:
+        switch (SHORT2FROMMP(mp1))
+        {case LN_SELECT:
+          i = WinQueryLboxSelectedItem(HWNDFROMMP(mp2));
+          WinPostMsg(hwnd, CFG_REFRESH_INFO, 0, MPFROMSHORT(i));
+          break;
+         case LN_ENTER:
+          i = WinQueryLboxSelectedItem(HWNDFROMMP(mp2));
+          context->Configure(i);
+          break;
+        }
         break;
-       case LN_ENTER:
-        i = WinQueryLboxSelectedItem(HWNDFROMMP(mp2));
-        configure_plugin(context->type, i, hwnd);
+
+       case ML_DEC_FILETYPES:
+        switch (SHORT2FROMMP(mp1))
+        {case MLN_CHANGE:
+          WinEnableControl(hwnd, PB_PLG_SET, TRUE);
+        }
         break;
+
+       case CB_DEC_TRYOTHER:
+       case CB_DEC_SERIALIZE:
+        switch (SHORT2FROMMP(mp1))
+        {case BN_CLICKED:
+          WinEnableControl(hwnd, PB_PLG_SET, TRUE);
+        }
+        break;
+
       }
       return 0;
 
     case WM_COMMAND:
       i = lb_cursored(hwnd, LB_PLUGINS);
       switch (SHORT1FROMMP(mp1))
-      { case PB_PLG_UNLOAD:
-          num = (*context->enum_fn)(&list);
-          if (i >= 0 && i < num)
-          { if (get_plugin_in_use(list[i]))
-              amp_error(hwnd, "Cannot unload currently used plug-in.");
-            else if (lb_remove_item(hwnd, LB_PLUGINS, i) == 0)
-            { // something wrong => reload list
-              WinPostMsg(hwnd, CFG_REFRESH_LIST, 0, MPFROMSHORT(i));
-            } else
-            { (*context->remove_fn)(i);
-              if (i >= lb_size(hwnd, LB_PLUGINS))
-                WinPostMsg(hwnd, CFG_REFRESH_INFO, 0, MPFROMSHORT(LIT_NONE));
-              else
-                lb_select(hwnd, LB_PLUGINS, i);
-            }
+      {case PB_PLG_UNLOAD:
+        if (i >= 0 && i < context->List->size())
+        { if ((*context->List)[i]->IsInitialized())
+            amp_error(hwnd, "Cannot unload currently used plug-in.");
+          else if (lb_remove_item(hwnd, LB_PLUGINS, i) == 0)
+          { // something wrong => reload list
+            WinPostMsg(hwnd, CFG_REFRESH_LIST, 0, MPFROMSHORT(i));
+          } else
+          { context->List->remove(i);
+            if (i >= lb_size(hwnd, LB_PLUGINS))
+              WinPostMsg(hwnd, CFG_REFRESH_INFO, 0, MPFROMSHORT(LIT_NONE));
+            else
+              lb_select(hwnd, LB_PLUGINS, i);
           }
-          break;
+        }
+        break;
 
-        case PB_PLG_ADD:
-          context->add_plugin();
-          break;
+       case PB_PLG_ADD:
+        context->AddPlugin();
+        break;
 
-        case PB_PLG_UP:
-          if ( i != LIT_NONE && i > 0
-            && (*context->move_fn)(i, i-1) )
-            WinPostMsg(hwnd, CFG_REFRESH_LIST, 0, MPFROMSHORT(i-1));
-          break;
+       case PB_PLG_UP:
+        if (i != LIT_NONE && i > 0 && i < context->List->size())
+        { context->List->move(i, i-1);
+          WinPostMsg(hwnd, CFG_REFRESH_LIST, 0, MPFROMSHORT(i-1));
+        }
+        break;
 
-        case PB_PLG_DOWN:
-          if ( i != LIT_NONE && i < lb_size(hwnd, LB_PLUGINS)-1
-            && (*context->move_fn)(i, i+1) )
-            WinPostMsg(hwnd, CFG_REFRESH_LIST, 0, MPFROMSHORT(i+1));
-          break;
+       case PB_PLG_DOWN:
+        if (i != LIT_NONE && i < context->List->size()-1)
+        { context->List->move(i, i+1);
+          WinPostMsg(hwnd, CFG_REFRESH_LIST, 0, MPFROMSHORT(i+1));
+        }
+        break;
 
-        case PB_PLG_ENABLE:
-          num = (*context->enum_fn)(&list);
-          if (i >= 0 && i < num)
-          { bool enable = !get_plugin_enabled(list[i]);
-            if ((context->*context->enable_hook)(i, enable))
-            { set_plugin_enabled(list[i], enable);
-              WinPostMsg(hwnd, CFG_REFRESH_INFO, 0, MPFROMSHORT(i));
-            }
-          }
-          break;
-
-        case PB_PLG_ACTIVATE:
-          if (i != LIT_NONE && (context->*context->enable_hook)(i, true))
+       case PB_PLG_ENABLE:
+        if (i >= 0 && i < context->List->size())
+        { Plugin* pp = (*context->List)[i];
+          bool enable = !pp->GetEnabled();
+          if ((context->*context->enable_hook)(i, enable))
+          { pp->SetEnabled(enable);
             WinPostMsg(hwnd, CFG_REFRESH_INFO, 0, MPFROMSHORT(i));
-          break;
+          }
+        }
+        break;
 
-        case PB_PLG_CONFIG:
-          if (i != LIT_NONE)
-            configure_plugin(context->type, i, hwnd);
-          break;
+       case PB_PLG_ACTIVATE:
+        if ( i != LIT_NONE && (context->Flags & PluginContext::CF_List1) && (context->*context->enable_hook)(i, true)
+          && ((PluginList1*)context->List)->SetActive(i) )
+          WinPostMsg(hwnd, CFG_REFRESH_INFO, 0, MPFROMSHORT(i));
+        break;
+
+       case PB_PLG_CONFIG:
+        context->Configure(i);
+        break;
+
+       case PB_PLG_SET:
+        context->SetParams(i);
+        break;
       }
       return 0;
   }
@@ -756,55 +930,19 @@ cfg_properties( HWND owner )
   PMRASSERT( nb_append_tab( book, WinLoadDlg( book, book, cfg_display1_dlg_proc, NULLHANDLE, CFG_DISPLAY1, 0 ),
                             "~Display", NULL, 0));
 
-  plugin_context decoder_context =
-  { sizeof (plugin_context), 
-    PLUGIN_DECODER,
-    &enum_decoder_plugins,
-    &remove_decoder_plugin,
-    &move_decoder_plugin,
-    NULL,
-    DECODER_PLUGIN_LEVEL,
-    &plugin_context::decoder_enable_hook
-  };
+  PluginContext decoder_context(&Decoders, NULL, DECODER_PLUGIN_LEVEL, PluginContext::CF_None);
   PMRASSERT( nb_append_tab( book, WinLoadDlg( book, book, cfg_config_dlg_proc, NULLHANDLE, CFG_DEC_CONFIG, &decoder_context ),
                             "~Plug-ins", "Decoder Plug-ins", MPFROM2SHORT( 1, 4 )));
 
-  plugin_context filter_context =
-  { sizeof (plugin_context), 
-    PLUGIN_FILTER,
-    &enum_filter_plugins,
-    &remove_filter_plugin,
-    &move_filter_plugin,
-    NULL,
-    FILTER_PLUGIN_LEVEL,
-    &plugin_context::filter_enable_hook
-  };
+  PluginContext filter_context(&Filters, NULL, FILTER_PLUGIN_LEVEL, PluginContext::CF_None);
   PMRASSERT( nb_append_tab( book, WinLoadDlg( book, book, cfg_config_dlg_proc, NULLHANDLE, CFG_FIL_CONFIG, &filter_context ),
                             NULL, "Filter Plug-ins", MPFROM2SHORT( 2, 4 )));
 
-  plugin_context output_context =
-  { sizeof (plugin_context), 
-    PLUGIN_OUTPUT,
-    &enum_output_plugins,
-    &remove_output_plugin,
-    NULL,
-    &out_is_active,
-    OUTPUT_PLUGIN_LEVEL,
-    &plugin_context::output_enable_hook
-  };
+  PluginContext output_context(&Outputs, NULL, OUTPUT_PLUGIN_LEVEL, PluginContext::CF_List1);
   PMRASSERT( nb_append_tab( book, WinLoadDlg( book, book, cfg_config_dlg_proc, NULLHANDLE, CFG_OUT_CONFIG, &output_context ),
                             NULL, "Output Plug-ins", MPFROM2SHORT( 3, 4 )));
 
-  plugin_context visual_context =
-  { sizeof (plugin_context), 
-    PLUGIN_VISUAL,
-    &enum_visual_plugins,
-    &remove_visual_plugin,
-    NULL,
-    NULL,
-    VISUAL_PLUGIN_LEVEL,
-    &plugin_context::visual_enable_hook
-  };
+  PluginContext visual_context(&Visuals, &VisualsSkinned, VISUAL_PLUGIN_LEVEL, PluginContext::CF_None);
   PMRASSERT( nb_append_tab( book, WinLoadDlg( book, book, cfg_config_dlg_proc, NULLHANDLE, CFG_VIS_CONFIG, &visual_context ),
                             NULL, "Visual Plug-ins", MPFROM2SHORT( 4, 4 )));
 

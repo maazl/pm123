@@ -168,3 +168,32 @@ eacopy( const char* source, const char* target )
 
   return rc;
 }
+
+APIRET eaget( const char* file, const char* eaname, char** eadata, size_t* easize )
+{
+  APIRET rc;
+  EAOP2  eaop2;
+  size_t len = strlen(eaname);
+  eaop2.fpGEA2List = (GEA2LIST*)alloca(sizeof(GEA2LIST) + len);
+  eaop2.fpGEA2List->cbList = sizeof(GEA2LIST) + len;
+  eaop2.fpGEA2List->list[0].oNextEntryOffset = 0;
+  eaop2.fpGEA2List->list[0].cbName = len;
+  memcpy(eaop2.fpGEA2List->list[0].szName, eaname, len + 1);
+  
+  // Since there is nor reasonable efficient way to determine the size of one EA
+  // a rather large buffer is allocated. EAs must not be larger than 64k anyway.
+  eaop2.fpFEA2List = (FEA2LIST*)malloc(sizeof(FEA2LIST) + sizeof(FEA2) + 65534);
+  eaop2.fpFEA2List->cbList = sizeof(FEA2LIST) + sizeof(FEA2) + 65534;
+
+  rc = DosQueryPathInfo((PSZ)file, FIL_QUERYEASFROMLIST, &eaop2, sizeof eaop2);
+  if (rc == NO_ERROR)
+  {
+    if (easize)
+      *easize = eaop2.fpFEA2List->list[0].cbValue;
+    eadata = malloc(eaop2.fpFEA2List->list[0].cbValue);
+    memcpy(eadata, eaop2.fpFEA2List->list[0].szName + eaop2.fpFEA2List->list[0].cbValue + 1, eaop2.fpFEA2List->list[0].cbValue);
+  }
+
+  free (eaop2.fpFEA2List);
+  return rc;
+}

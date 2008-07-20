@@ -46,17 +46,25 @@
 #include <string.h>
 #include <time.h>
 
+
+// support xstring
+xstring ini_query_xstring(HINI hini, const char* app, const char* key)
+{ xstring ret; 
+  ULONG len;
+  if (PrfQueryProfileSize(hini, app, key, &len))
+  { char* data = ret.raw_init(len);
+    if (!PrfQueryProfileData(hini, app, key, data, &len))
+      ret = NULL;
+  }
+  return ret;
+}
+
+
 void
 load_ini( void )
 {
   HINI INIhandle;
-  BUFSTREAM *b;
-
-  void *outputs_list;
-  void *decoders_list;
-  void *filters_list;
-  void *visuals_list;
-  ULONG size;
+  xstring tmp;
 
   cfg = cfg_default;
 
@@ -108,61 +116,21 @@ load_ini( void )
     load_ini_string( INIhandle, cfg.auth,     sizeof( cfg.auth ));
     load_ini_string( INIhandle, cfg.defskin,  sizeof( cfg.defskin ));
 
-    load_ini_data_size( INIhandle, decoders_list, size );
-    if( size > 0 && ( decoders_list = malloc( size )) != NULL )
-    {
-      load_ini_data( INIhandle, decoders_list, size );
-      b = open_bufstream( decoders_list, size );
-      if( !load_decoders( b )) {
-        load_default_decoders();
-      }
-      close_bufstream( b );
-      free( decoders_list );
-    } else {
-      load_default_decoders();
-    }
+    tmp = ini_query_xstring(INIhandle, INI_SECTION, "decoders_list");
+    if (!tmp || Decoders.Deserialize(tmp) == PluginList::RC_Error)
+      Decoders.LoadDefaults();
 
-    load_ini_data_size( INIhandle, outputs_list, size );
-    if( size > 0 && ( outputs_list = malloc( size )) != NULL )
-    {
-      load_ini_data( INIhandle, outputs_list, size );
-      b = open_bufstream( outputs_list, size );
-      if( !load_outputs( b )) {
-        load_default_outputs();
-      }
-      close_bufstream( b );
-      free( outputs_list );
-    } else {
-      load_default_outputs();
-    }
+    tmp = ini_query_xstring(INIhandle, INI_SECTION, "outputs_list");
+    if (!tmp || Outputs.Deserialize(tmp) == PluginList::RC_Error)
+      Outputs.LoadDefaults();
 
-    load_ini_data_size( INIhandle, filters_list, size );
-    if( size > 0 && ( filters_list = malloc( size )) != NULL )
-    {
-      load_ini_data( INIhandle, filters_list, size );
-      b = open_bufstream( filters_list, size );
-      if( !load_filters( b )) {
-        load_default_filters();
-      }
-      close_bufstream( b );
-      free( filters_list );
-    } else {
-      load_default_filters();
-    }
+    tmp = ini_query_xstring(INIhandle, INI_SECTION, "filters_list");
+    if (!tmp || Filters.Deserialize(tmp) == PluginList::RC_Error)
+      Filters.LoadDefaults();
 
-    load_ini_data_size( INIhandle, visuals_list, size );
-    if( size > 0 && ( visuals_list = malloc( size )) != NULL )
-    {
-      load_ini_data( INIhandle, visuals_list, size );
-      b = open_bufstream( visuals_list, size );
-      if( !load_visuals( b )) {
-        load_default_visuals();
-      }
-      close_bufstream( b );
-      free( visuals_list );
-    } else {
-      load_default_visuals();
-    }
+    tmp = ini_query_xstring(INIhandle, INI_SECTION, "visuals_list");
+    if (!tmp || Visuals.Deserialize(tmp) == PluginList::RC_Error)
+      Visuals.LoadDefaults();
 
     close_ini( INIhandle );
   }
@@ -172,13 +140,6 @@ void
 save_ini( void )
 {
   HINI INIhandle;
-  BUFSTREAM *b;
-
-  void *outputs_list;
-  void *decoders_list;
-  void *filters_list;
-  void *visuals_list;
-  ULONG size;
 
   if(( INIhandle = open_module_ini()) != NULLHANDLE )
   {
@@ -228,29 +189,10 @@ save_ini( void )
     save_ini_string( INIhandle, cfg.auth );
     save_ini_string( INIhandle, cfg.defskin );
 
-    b = create_bufstream( 1024 );
-    save_decoders( b );
-    size = get_buffer_bufstream( b, &decoders_list );
-    save_ini_data( INIhandle, decoders_list, size );
-    close_bufstream( b );
-
-    b = create_bufstream( 1024 );
-    save_outputs( b );
-    size = get_buffer_bufstream( b, &outputs_list );
-    save_ini_data( INIhandle, outputs_list, size );
-    close_bufstream( b );
-
-    b = create_bufstream( 1024 );
-    save_filters( b );
-    size = get_buffer_bufstream( b, &filters_list );
-    save_ini_data( INIhandle, filters_list, size );
-    close_bufstream( b );
-
-    b = create_bufstream( 1024 );
-    save_visuals( b );
-    size = get_buffer_bufstream( b, &visuals_list );
-    save_ini_data( INIhandle, visuals_list, size );
-    close_bufstream( b );
+    ini_write_xstring(INIhandle, INI_SECTION, "decoders_list", Decoders.Serialize());
+    ini_write_xstring(INIhandle, INI_SECTION, "outputs_list",  Outputs.Serialize());
+    ini_write_xstring(INIhandle, INI_SECTION, "filters_list",  Filters.Serialize());
+    ini_write_xstring(INIhandle, INI_SECTION, "visuals_list",  Visuals.Serialize());
 
     close_ini(INIhandle);
   }

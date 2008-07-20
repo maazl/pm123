@@ -32,7 +32,7 @@
 
 
 #include "playable.h"
-#include "plugman.h"
+#include "glue.h"
 #include "songiterator.h"
 
 #include <decoder_plug.h>

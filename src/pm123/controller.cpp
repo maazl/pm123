@@ -477,7 +477,7 @@ void Ctrl::SongIteratorEventHandler(void*, const& i)
 /* Suspends or resumes playback of the currently played file. */
 Ctrl::RC Ctrl::MsgPause(Op op)
 { DEBUGLOG(("Ctrl::MsgPause(%x) - %u\n", op, Scan)); 
-  if (!decoder_playing())
+  if (!IsPlaying)
     return op & Op_Set ? RC_NotPlaying : RC_OK;
 
   if (SetFlag(Paused, op))
@@ -643,7 +643,7 @@ Ctrl::RC Ctrl::MsgJump(SongIterator& iter)
 }
 
 Ctrl::RC Ctrl::MsgSkip(int count, bool relative)
-{ DEBUGLOG(("Ctrl::MsgSkip(%i, %u) - %u\n", count, relative, decoder_playing()));
+{ DEBUGLOG(("Ctrl::MsgSkip(%i, %u) - %u\n", count, relative, IsPlaying));
   if (!IsEnumerable())
     return RC_NoList;
   // some checks
@@ -741,9 +741,9 @@ Ctrl::RC Ctrl::MsgSave(const xstring& filename)
   InterlockedOr(Pending, EV_Savename);
   Savename = filename;
 
-  if (decoder_playing())
+  if (IsPlaying && dec_status() == DECODER_PLAYING)
     dec_save(Savename);
-
+  // TODO: is it really a good idea to save different streams into the same file???
   return RC_OK;
 }
 

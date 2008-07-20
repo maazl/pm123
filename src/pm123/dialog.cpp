@@ -42,7 +42,7 @@
 #include <utilfct.h>
 #include <cpp/xstring.h>
 #include <cpp/container.h>
-
+#include <cpp/stringmap.h>
 #include "properties.h"
 #include "controller.h"
 #include "copyright.h"
@@ -79,7 +79,7 @@ static HWND  hhelp      = NULLHANDLE;
 
 /* Default dialog procedure for the file dialog. */
 MRESULT EXPENTRY amp_file_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
-{ DEBUGLOG(("amp_file_dlg_proc(%x, %x, %x, %x)\n", hwnd, msg, mp1, mp2));
+{ DEBUGLOG2(("amp_file_dlg_proc(%x, %x, %x, %x)\n", hwnd, msg, mp1, mp2));
   FILEDLG* filedialog =
     (FILEDLG*)WinQueryWindowULong( hwnd, QWL_USER );
 
@@ -218,16 +218,39 @@ MRESULT EXPENTRY amp_file_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2
   return WinDefFileDlgProc( hwnd, msg, mp1, mp2 );
 }
 
+static xstring joinstringset(const stringset& set, char delim)
+{ size_t len = 0;
+  strkey*const* sp;
+  // determine required size
+  for (sp = set.begin(); sp != set.end(); ++sp)
+    len += (*sp)->Key.length() +1;
+  if (len == 0)
+    return xstring::empty;
+  // concatenate string
+  xstring ret;
+  char* dp = ret.raw_init(len-1);
+  sp = set.begin();
+  for(;;)
+  { memcpy(dp, (*sp)->Key.cdata(), (*sp)->Key.length() +1);
+    if (++sp == set.end())
+      break;
+    dp += (*sp)->Key.length();
+    *dp++ = delim;
+  }
+  return ret; 
+}
+
 /* Wizzard function for the default entry "File..." */
 ULONG DLLENTRY amp_file_wizzard( HWND owner, const char* title, DECODER_WIZZARD_CALLBACK callback, void* param )
 { DEBUGLOG(("amp_file_wizzard(%p, %s, %p, %p)\n", owner, title, callback, param));
 
   FILEDLG filedialog = { sizeof( FILEDLG ) };
-  { char  buf[2048]; // well, static buffer size...
-    buf[2047] = 0;
-    dec_fill_types( buf, sizeof buf-1 );
-    xstring type_audio = xstring::sprintf(FDT_AUDIO"%s)", buf);
-    xstring type_all = xstring::sprintf(FDT_AUDIO_ALL"%s)", buf);
+  { stringset_own ext(32);
+    dec_merge_extensions(ext);
+    const xstring& se = joinstringset(ext, ';') + ")"; 
+
+    xstring type_audio = FDT_AUDIO + se;
+    xstring type_all = FDT_AUDIO_ALL + se;
 
     APSZ types[] = {
       { (PSZ)&*type_audio }, // OS/2 and const...
@@ -239,12 +262,12 @@ ULONG DLLENTRY amp_file_wizzard( HWND owner, const char* title, DECODER_WIZZARD_
 
     filedialog.fl             = FDS_CENTER | FDS_OPEN_DIALOG | FDS_CUSTOM | FDS_MULTIPLESEL;
     filedialog.ulUser         = FDU_DIR_ENABLE | FDU_RECURSEBTN;
-    filedialog.pszTitle       = (PSZ)&*wintitle; // OS/2 and const...
+    filedialog.pszTitle       = (PSZ)wintitle.cdata(); // OS/2 and const...
     filedialog.hMod           = NULLHANDLE;
     filedialog.usDlgId        = DLG_FILE;
     filedialog.pfnDlgProc     = amp_file_dlg_proc;
     filedialog.papszITypeList = types;
-    filedialog.pszIType       = (PSZ)&*type_all; // OS/2 and const...
+    filedialog.pszIType       = (PSZ)type_all.cdata(); // OS/2 and const...
 
     strlcpy( filedialog.szFullFile, cfg.filedir, sizeof filedialog.szFullFile );
     PMRASSERT( WinFileDlg( HWND_DESKTOP, owner, &filedialog ));

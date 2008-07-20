@@ -55,6 +55,8 @@
 #include "dialog.h"
 #include "pm123.rc.h"
 #include "button95.h"
+#include "plugman.h"
+#include <strutils.h>
 #include <os2.h>
 
 #include <debuglog.h>
@@ -1677,8 +1679,6 @@ bmp_init_skin_positions( void )
 static void
 bmp_init_default_skin( HPS hps )
 {
-  VISUAL_PROPERTIES visual;
-  char module_name[_MAX_PATH];
   int    i;
 
   bmp_pos[ POS_S_SIZE      ].x = 300; bmp_pos[ POS_S_SIZE      ].y = 70;
@@ -1711,18 +1711,16 @@ bmp_init_default_skin( HPS hps )
   bmp_ulong[ UL_HI_BG_COLOR  ] = DEF_HI_BG_COLOR;;
   bmp_ulong[ UL_BPS_DIGITS   ] = TRUE;
 
-  strcpy( visual.param, "" );
-
+  VISUAL_PROPERTIES visual;
   visual.skin = TRUE;
   visual.x    = 32;
   visual.y    = 49;
   visual.cx   = 95;
   visual.cy   = 30;
   strlcpy( visual.param, visual_param, sizeof visual.param );
-
-  strlcpy( module_name, startpath, sizeof module_name );
-  strlcat( module_name, "visplug\\analyzer.dll", sizeof module_name );
-  add_plugin( module_name, &visual );
+  
+  Plugin::VisualProps = visual;
+  Plugin::Deserialize(startpath + "visplug\\analyzer.dll", PLUGIN_VISUAL, true);
 }
 
 static void
@@ -1843,7 +1841,7 @@ bmp_load_packfile( char *filename )
         if ( hdr.resource == 0 )
           continue;
 
-        sprintf( tempname, "%spm123%s", startpath,
+        sprintf( tempname, "%spm123%s", startpath.cdata(),
                            sfext( tempexts, hdr.filename, sizeof( tempexts )));
 
         if(( temp = fopen( tempname, "wb" )) != NULL )
@@ -1916,7 +1914,7 @@ bmp_load_skin( const char *filename, HAB hab, HWND hplayer, HPS hps )
   }
 
   // Free loaded visual plugins.
-  remove_visual_plugins( TRUE );
+  VisualsSkinned.clear();
 
   bmp_clean_skin();
   bmp_init_skin_positions();
@@ -2016,7 +2014,8 @@ bmp_load_skin( const char *filename, HAB hab, HWND hplayer, HPS hps )
 
         visual.skin = TRUE;
         strlcpy( visual.param, visual_param, sizeof visual.param );
-        add_plugin( module_name, &visual );
+        Plugin::VisualProps = visual;
+        Plugin::Deserialize(module_name, PLUGIN_VISUAL, true);
         break;
       }
 

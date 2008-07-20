@@ -48,16 +48,16 @@
 class InfoDialog 
 : public ManagedDialogBase,
   public IComparableTo<const Playable*>,
-  public inst_index<InfoDialog, Playable>
+  public inst_index<InfoDialog, Playable*>
 {private:
   class Factory;
   friend class Factory;
-  class Factory : public inst_index<InfoDialog, Playable>::IFactory
+  class Factory : public inst_index<InfoDialog, Playable*>::IFactory
   { // singleton
     Factory() {}
    public:
     static Factory  Instance;
-    virtual InfoDialog* operator()(Playable* key);
+    virtual InfoDialog* operator()(Playable*& key);
   };
   class PageBase;
   friend class PageBase;

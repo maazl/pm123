@@ -35,6 +35,7 @@
 #include "pm123.h"
 #include "pm123.rc.h"
 #include <decoder_plug.h>
+#include <utilfct.h>
 
 #include <stdio.h>
 
@@ -192,7 +193,7 @@ MRESULT InfoDialog::Page2Window::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
 
 InfoDialog::InfoDialog(Playable* p)
 : ManagedDialogBase(DLG_INFO, NULLHANDLE),
-  inst_index<InfoDialog, Playable>(p),
+  inst_index<InfoDialog, Playable*>(p),
   Content(p),
   Page1(*this, CFG_TECHINFO),
   Page2(*this, CFG_METAINFO),
@@ -204,7 +205,7 @@ InfoDialog::InfoDialog(Playable* p)
 
 InfoDialog::Factory InfoDialog::Factory::Instance;
 
-InfoDialog* InfoDialog::Factory::operator()(Playable* key)
+InfoDialog* InfoDialog::Factory::operator()(Playable*& key)
 { return new InfoDialog(key);
 }
 
@@ -262,7 +263,7 @@ void InfoDialog::ContentChangeEvent(const Playable::change_args& args)
 
 int_ptr<InfoDialog> InfoDialog::GetByKey(Playable* obj)
 { // provide factory
-  return inst_index<InfoDialog, Playable>::GetByKey(obj, Factory::Instance);
+  return inst_index<InfoDialog, Playable*>::GetByKey(obj, Factory::Instance);
 }
 
 int InfoDialog::compareTo(const Playable*const& r) const

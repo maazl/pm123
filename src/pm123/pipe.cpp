@@ -38,6 +38,7 @@
 #include "properties.h"
 #include "controller.h"
 #include "123_util.h"
+#include <utilfct.h>
 #include <cpp/xstring.h>
 #include <debuglog.h>
 #include <os2.h>

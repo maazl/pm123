@@ -39,6 +39,8 @@
 #include "plugman.h"
 #include <vdelegate.h>
 
+#include <cpp/smartptr.h>
+
 
 /* Define the macro NOSYSTEMSTATICMEMBER to work around for the IBMVAC++ restriction
  * that static class functions may not have a defined calling convention.
@@ -87,128 +89,6 @@
 
 /****************************************************************************
 *
-* CL_PLUGIN_BASE - C++ version of PLUGIN_BASE
-*
-* This is still a POD and therefore binary compatible to PLUGIN_BASE.
-*
-****************************************************************************/
-
-class CL_PLUGIN_BASE : public PLUGIN_BASE
-{protected:
-  // Load the address of a dll entry point. Return TRUE on success.
-  BOOL load_optional_function(void* function, const char* function_name);
-  // Same as abobe, but raise amp_player_error in case of an error.
-  BOOL load_function(void* function, const char* function_name);
-};
-
-/****************************************************************************
-*
-* CL_MODULE - object representing a plugin-DLL
-*
-* This class ist thred-safe on per instance basis.
-*
-****************************************************************************/
-
-class CL_PLUGIN;
-
-class CL_MODULE : public CL_PLUGIN_BASE
-{private:
-  // internal reference counter
-  int  refcount;
-  // Entry point of the configure dialog (if any).
-  void DLLENTRYP(plugin_configure)(HWND hwnd, HMODULE module);
- private:
-  CL_MODULE(const CL_MODULE&); // non-existent, avoid copy construction
-  // Load the DLL
-  BOOL load_module();
-  // Unload the DLL
-  BOOL unload_module();
- public:
-  // Create a MODULE object from the modules file name.
-  CL_MODULE(const char* name);
-  ~CL_MODULE();
-  // Load a new DLL as plug-in. The plug-in flavour is specialized later.
-  // Returns TRUE on success, otherwise return FALSE and call amp_player_error.
-  BOOL load();
-  // Launch the configure dialog.
-  void config(HWND hwnd) const       { (*plugin_configure)(hwnd, module); }
-  // For internal use by CL_PUGIN only!
-  // Attach a new plug-in to this module.
-  void attach(const CL_PLUGIN* inst) { ++refcount; }
-  // For internal use by CL_PUGIN only!
-  // Detach a plug-in from this module.
-  BOOL detach(const CL_PLUGIN* inst) { return --refcount == 0; }
-};
-
-
-/****************************************************************************
-*
-* CL_PLUGIN - abstract object representing a plugin instance
-*
-* This class ist thred-safe on per instance basis.
-*
-****************************************************************************/
-
-class CL_PLUGIN : public CL_PLUGIN_BASE
-{protected:
-  // reference to the underlying module.
-  CL_MODULE& modref;
-  // Enabled flag. TRUE in doubt.
-  BOOL enabled;
- private:
-  CL_PLUGIN(const CL_PLUGIN&); // non-existent, avoid copy construction
- protected:
-  // instanciate a new plug-in.
-  // The properties of the underlying POD PLUGIN_BASE are copied 
-  CL_PLUGIN(CL_MODULE& mod);
- public:
-  // Destroy the current plug-in. This will implicitely deregister it from
-  // the plug-in list "plugins". If the module is not used by another plug-in
-  // the module will be unloaded.
-  virtual ~CL_PLUGIN();
-  // Return kind of Plugin handled by the class instance. (RTTI by the backdoor.)
-  virtual PLUGIN_TYPE get_type() const = 0;
-  // Load the current plug-in. Return TRUE on success.
-  // To be implemented by the particular plug-in flavour.
-  virtual BOOL load_plugin() = 0;
-  // Initialize the current plug-in. Return TRUE on success.
-  // To be implemented by the particular plug-in flavour.
-  virtual BOOL init_plugin() = 0;
-  // Uninitialize the current plug-in. Return TRUE on success.
-  // To be implemented by the particular plug-in flavour.
-  virtual BOOL uninit_plugin() = 0;
-  // Tell whether the plug-in is currently initialized.
-  // To be implemented by the particular plug-in flavour.
-  virtual BOOL is_initialized() const = 0;
-  // Getter to the underlying module.
-  CL_MODULE&   get_module() const  { return modref; }
-  // Getter to the enabled state.
-  BOOL         get_enabled() const { return enabled; }
-  // Setter to the enabled state.
-  virtual void set_enabled(BOOL enabled);
-  // Raise plugin_event
-  void         raise_plugin_event(PLUGIN_EVENTARGS::event ev);
-
-  // global services
- protected:
-  enum
-  { UM_CREATEPROXYWINDOW = WM_USER,
-    UM_DESTROYPROXYWINDOW
-  };
- private:
-  static HWND ServiceHwnd;
-  friend MRESULT EXPENTRY cl_plugin_winfn(HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2);
- protected:
-  static HWND CreateProxyWindow(const char* cls, void* ptr);
-  static void DestroyProxyWindow(HWND hwnd);
- public: 
-  static void init();
-  static void uninit();
-};
-
-
-/****************************************************************************
-*
 * Decoder plug-in interface
 *
 * This class ist thred-safe on per instance basis.
@@ -216,8 +96,8 @@ class CL_PLUGIN : public CL_PLUGIN_BASE
 ****************************************************************************/
 
 // Set of entry points related to decoder plug-ins.
-struct DECODER_PROCS
-{ void* w;
+struct DecoderProcs
+{ void*  W;
   int    DLLENTRYP(decoder_init     )( void** w );
   BOOL   DLLENTRYP(decoder_uninit   )( void*  w );
   ULONG  DLLENTRYP(decoder_command  )( void*  w, ULONG msg, DECODER_PARAMS2* params );
@@ -227,49 +107,72 @@ struct DECODER_PROCS
   ULONG  DLLENTRYP(decoder_fileinfo )( const char* filename, INFOTYPE* what, DECODER_INFO2* info );
   ULONG  DLLENTRYP(decoder_setmeta  )( const char* filename, const META_INFO* meta );
   ULONG  DLLENTRYP(decoder_cdinfo   )( const char* drive, DECODER_CDINFO* info );
-  ULONG  DLLENTRYP(decoder_support  )( char*  ext[], int* size );
   ULONG  DLLENTRYP(decoder_editmeta )( HWND owner, const char* url );
   const  DECODER_WIZZARD*
          DLLENTRYP(decoder_getwizzard)( );
-  // Result from the decoder_support call. Supported data sources.
-  int    type;
-  // Result from the decoder_support call. Supported file types.
-  char** support;
+  // Init structure
+         DecoderProcs()              { memset(this, 0, sizeof *this); } // Uh, well, allowed for PODs
 };
 
 // specialized class for decoders
-class CL_DECODER : public CL_PLUGIN, protected DECODER_PROCS
-{private:
+class Decoder
+: public Plugin,
+  protected DecoderProcs
+{protected:
+  // Result from the decoder_support call. Supported data sources.
+  int          Type;
+  // Result from the decoder_support call. Supported file types.
+  xstring      Extensions;
+  // Result from the decoder_support call. Supported file types.
+  xstring      FileTypes;
+ public:
+  // Try unsupported file extensions and types too.
+  bool         TryOthers;
+ private:
   PROXYFUNCDEF ULONG DLLENTRY stub_decoder_cdinfo( const char* drive, DECODER_CDINFO* info );
  protected:
   // instances of this class are only created by the factory function below.
-  CL_DECODER(CL_MODULE& mod) : CL_PLUGIN(mod) { memset((DECODER_PROCS*)this, 0, sizeof(DECODER_PROCS)); }
+               Decoder(Module* mod)  : Plugin(mod), TryOthers(false) {}
   // Get some information about the decoder. (decoder_support)
-  BOOL  after_load();
+  virtual bool AfterLoad();
  public:
-  virtual ~CL_DECODER();
+  //virtual      ~Decoder();
   // Return kind of Plugin handled by the class instance. (RTTI by the backdoor.)
-  virtual PLUGIN_TYPE get_type() const;
+  virtual PLUGIN_TYPE GetType() const;
   // Load the plug-in that is identified as a decoder. Return TRUE on success.
-  virtual BOOL load_plugin();
+  virtual bool LoadPlugin();
   // Initialize the decoder. Return TRUE on success.
-  virtual BOOL init_plugin();
+  virtual bool InitPlugin();
   // Uninitialize the decoder. Return TRUE on success.
-  virtual BOOL uninit_plugin();
+  virtual bool UninitPlugin();
   // Implementation of CL_PLUGIN::is_initialized.
-  virtual BOOL is_initialized() const    { return w != NULL; }
+  virtual bool IsInitialized() const   { return W != NULL; }
+  // Return a combination of DECODER_* flags to determine what kind of objects are supported.
+  int          GetObjectTypes() const  { return Type; }
   // Getter to the decoder entry points.
-  const DECODER_PROCS& get_procs() const { return *this; }
-  
+  const DecoderProcs& GetProcs() const { return *this; }
+  // Get supported extensions or NULL
+  const xstring& GetExtensions() const { return Extensions; }
+  // Get Supported EA types or NULL
+  const xstring& GetFileTypes() const  { return FileTypes; }
+  // Checks wether a decoder claims to support a certain URL.
+  bool         IsFileSupported(const char* url) const;
+  // Overloaded for parameter recognition
+  virtual void GetParams(stringmap& map) const;
+  virtual bool SetParam(const char* param, const xstring& value);
+ private:
+  bool         DoFileTypeMatch(USHORT type, const USHORT*& eadata) const;
+
+ public:  
   // Factory function to create a new decoder instance from a module object.
   // This function will perform all necessary tasks to load a decoder.
   // It will especially virtualize decoders with an older interface level.
   // The returned object must be deleted if it is no longer used.
-  static CL_PLUGIN* factory(CL_MODULE& mod);
+  static Plugin* Factory(Module* mod);
   
   // initialize global services
-  static void init();
-  static void uninit()                   {}
+  static void  Init();
+  static void  Uninit()                {}
 };
 
 
@@ -282,8 +185,8 @@ class CL_DECODER : public CL_PLUGIN, protected DECODER_PROCS
 ****************************************************************************/
 
 // Set of entry points related to output plug-ins.
-struct OUTPUT_PROCS
-{ void* a;
+struct OutputProcs
+{ void*  A;
   ULONG  DLLENTRYP(output_init           )( void** a );
   ULONG  DLLENTRYP(output_uninit         )( void*  a );
   ULONG  DLLENTRYP(output_command        )( void*  a, ULONG msg, OUTPUT_PARAMS2* info );
@@ -292,36 +195,39 @@ struct OUTPUT_PROCS
   ULONG  DLLENTRYP(output_playing_samples)( void*  a, FORMAT_INFO* info, char* buf, int len );
   double DLLENTRYP(output_playing_pos    )( void*  a );
   BOOL   DLLENTRYP(output_playing_data   )( void*  a );
+         OutputProcs()                    { memset(this, 0, sizeof *this); } // Uh, well, allowed for PODs
 };
 
 // specialized class for output plug-ins
-class CL_OUTPUT : public CL_PLUGIN, protected OUTPUT_PROCS
+class Output
+: public    Plugin,
+  protected OutputProcs
 {protected:
   // instances of this class are only created by the factory function below.
-  CL_OUTPUT(CL_MODULE& mod) : CL_PLUGIN(mod) { a = NULL; }
+               Output(Module* mod)        : Plugin(mod) { Enabled = true; }
  public:
   // Return kind of Plugin handled by the class instance. (RTTI by the backdoor.)
-  virtual PLUGIN_TYPE get_type() const;
+  virtual PLUGIN_TYPE GetType() const;
   // Load the output plug-in. Return TRUE on success.
-  virtual BOOL load_plugin();
+  virtual bool LoadPlugin();
   // Initialize the output plug-in. Return TRUE on success.
-  virtual BOOL init_plugin();
+  virtual bool InitPlugin();
   // Uninitialize the output plug-in. Return TRUE on success.
-  virtual BOOL uninit_plugin();
+  virtual bool UninitPlugin();
   // Implementation of CL_PLUGIN::is_initialized.
-  virtual BOOL is_initialized() const        { return a != NULL; }
+  virtual bool IsInitialized() const      { return A != NULL; }
   // Getter to the entry points.
-  const OUTPUT_PROCS& get_procs() const      { return *this; }
+  const OutputProcs& GetProcs() const     { return *this; }
 
   // Factory function to create a new output plug-in instance from a module object.
   // This function will perform all necessary tasks to load the plug-in.
   // It will especially virtualize plug-ins with an older interface level.
   // The returned object must be deleted if it is no longer used.
-  static CL_PLUGIN* factory(CL_MODULE& mod);
+  static Plugin* Factory(Module* mod);
 
   // initialize global services
-  static void init();
-  static void uninit()                   {}
+  static void  Init();
+  static void  Uninit()                   {}
 };
 
 
@@ -334,45 +240,46 @@ class CL_OUTPUT : public CL_PLUGIN, protected OUTPUT_PROCS
 ****************************************************************************/
 
 // Set of entry points related to filter plug-ins.
-struct FILTER_PROCS
-{ void  *f;
+struct FilterProcs
+{ void*  F;
   ULONG  DLLENTRYP(filter_init        )( void** f, FILTER_PARAMS2* params );
   void   DLLENTRYP(filter_update      )( void*  f, const FILTER_PARAMS2* params );
   BOOL   DLLENTRYP(filter_uninit      )( void*  f );
+         FilterProcs()                 { memset(this, 0, sizeof *this); } // Uh, well, allowed for PODs
 };
 
 // specialized class for filter plug-ins
-class CL_FILTER : public CL_PLUGIN, protected FILTER_PROCS
+class Filter : public Plugin, protected FilterProcs
 {private:
-  VREPLACE1    vrstubs[6];
+  VREPLACE1    VRStubs[6];
  protected:
   // instances of this class are only created by the factory function below.
-  CL_FILTER(CL_MODULE& mod) : CL_PLUGIN(mod) { f = NULL; }
+               Filter(Module* mod)     : Plugin(mod) {}
  public:
   // Return kind of Plugin handled by the class instance. (RTTI by the backdoor.)
-  virtual PLUGIN_TYPE get_type() const;
+  virtual PLUGIN_TYPE GetType() const;
   // Load the filter plug-in. Return TRUE on success.
-  virtual BOOL load_plugin();
+  virtual bool LoadPlugin();
   // No-op. Filters are initialized explicitely by calling initialize. Return TRUE.
-  virtual BOOL init_plugin();
+  virtual bool InitPlugin();
   // Uninitialize the filter.
-  virtual BOOL uninit_plugin();
+  virtual bool UninitPlugin();
   // Implementation of CL_PLUGIN::is_initialized.
-  virtual BOOL is_initialized() const     { return f != NULL; }
+  virtual bool IsInitialized() const   { return F != NULL; }
   // Initialize the filter.
   // params: pointer to a FILTER_PARAMS2 structure.
   //         [in] Entry points of the downstream filter or output.
   //         [out] Entry points of this filter instance.
   // Return TRUE on success.
-  virtual BOOL initialize(FILTER_PARAMS2* params);
+  virtual bool Initialize(FILTER_PARAMS2* params);
   // Getter to the entry points.
-  const FILTER_PROCS& get_procs() const   { return *this; }
+  const FilterProcs& GetProcs() const  { return *this; }
 
   // Factory function to create a new filter plug-in instance from a module object.
   // This function will perform all necessary tasks to load the plug-in.
   // It will especially virtualize plug-ins with an older interface level.
   // The returned object must be deleted if it is no longer used.
-  static CL_PLUGIN* factory(CL_MODULE& mod);
+  static Plugin* Factory(Module* mod);
 };
 
 
@@ -385,192 +292,55 @@ class CL_FILTER : public CL_PLUGIN, protected FILTER_PROCS
 ****************************************************************************/
 
 // Set of entry points related to visual plug-ins.
-struct VISUAL_PROCS
+struct VisualProcs
 { HWND   DLLENTRYP(plugin_init     )( VISPLUGININIT* init );
   BOOL   DLLENTRYP(plugin_deinit   )( int unload );
+         VisualProcs()              { memset(this, 0, sizeof *this); } // Uh, well, allowed for PODs
 };
 
 // specialized class for visual plug-ins
-class CL_VISUAL : public CL_PLUGIN, protected VISUAL_PROCS
+class Visual : public Plugin, protected VisualProcs
 {protected:
   // Properties of this plug-in when it is part of a skin.
-  VISUAL_PROPERTIES props;
+  VISUAL_PROPERTIES Props;
   // Window handle of the visual plug-in.
-  HWND              hwnd;
+  HWND              Hwnd;
 
  protected:
   // instances of this class are only created by the factory function below.
-  CL_VISUAL(CL_MODULE& mod) : CL_PLUGIN(mod), hwnd(NULLHANDLE) {}
+               Visual(Module* mod)    : Plugin(mod), Hwnd(NULLHANDLE) {}
  public:
   // Return kind of Plugin handled by the class instance. (RTTI by the backdoor.)
-  virtual PLUGIN_TYPE get_type() const;
+  virtual PLUGIN_TYPE GetType() const;
   // Load the visual plug-in. Return TRUE on success.
-  virtual BOOL load_plugin();
+  virtual bool LoadPlugin();
   // No-op. Filters are initialized explicitely by calling initialize. Return TRUE.
-  virtual BOOL init_plugin();
+  virtual bool InitPlugin();
   // Uninitialize the plug-in.
-  virtual BOOL uninit_plugin();
+  virtual bool UninitPlugin();
   // Implementation of CL_PLUGIN::is_initialized.
-  virtual BOOL is_initialized() const   { return hwnd != NULLHANDLE; }
+  virtual bool IsInitialized() const  { return Hwnd != NULLHANDLE; }
   // Initialize the plug-in.
   // hwnd:  PM123 window handle
   // procs: procedure entry points for the visual plug-in
   // id:    plug-in number
   // Return TRUE on success
-  virtual BOOL initialize(HWND hwnd, PLUGIN_PROCS* procs, int id);
+  virtual bool Initialize(HWND hwnd, PLUGIN_PROCS* procs, int id);
   // Getter to the properties of this plug-in.
-  const VISUAL_PROPERTIES& get_properties() const { return props; }
+  const VISUAL_PROPERTIES& GetProperties() const { return Props; }
   // Setter to the properties of this plug-in instance.
-  virtual void set_properties(const VISUAL_PROPERTIES* data);
+  virtual void SetProperties(const VISUAL_PROPERTIES* data);
   // Getter to the entry points of this plug-in.
-  const VISUAL_PROCS& get_procs() const { return *this; }
+  const VisualProcs& GetProcs() const { return *this; }
   // Get the plug-in's window handle.
-  HWND         get_hwnd() const         { return hwnd; }
+  HWND         GetHwnd() const        { return Hwnd; }
   
   // Factory function to create a new visual plug-in instance from a module object.
   // This function will perform all necessary tasks to load the plug-in.
   // It will especially virtualize plug-ins with an older interface level.
   // The returned object must be deleted if it is no longer used.
-  static CL_PLUGIN* factory(CL_MODULE& mod);
+  static Plugin* Factory(Module* mod);
 };
-
-
-/****************************************************************************
-*
-* PLUGIN_BASE_LIST collection
-*
-* Collection of plug-ins or modules
-* This class ist thred-safe on per instance basis.
-*
-****************************************************************************/
-
-class CL_PLUGIN_BASE_LIST
-{private:
-  // List of the pointers to the plug-ins.
-  CL_PLUGIN_BASE** list;
-  // Number of plug-ins currently in the list.
-  int             num;
-  // Current size of the list. This may be lagreg or equal to num.
-  int             size;
- protected:
-  // Create an empty list
-  CL_PLUGIN_BASE_LIST() : list(NULL), num(0), size(0) {}
-
- public:
-  // The following functions are replaced by type-safe ones in the derived classes.
-  // Append a new object to the list.
-  BOOL            append(CL_PLUGIN_BASE* plugin);
-  // Remove the i-th object from the list and return a pointer to it.
-  CL_PLUGIN_BASE* detach(int i);
-  // Move the i-th module in the list to the location where j is now.
-  // Shift items in between. Return TRUE on success.
-  BOOL            move(int i, int j);
-  // Return the i-th object in the list.
-  CL_PLUGIN_BASE& operator[](int i) { return *list[i]; }
-  // Destroy the current list.
-  // we do not clean up the objects in the list here, since the underlying
-  // object CL_PLUGIN_BASE has no virtual destructor.
-  ~CL_PLUGIN_BASE_LIST()            { free(list); }
-  // Search for a list entry by the module handle.
-  // Return the index in the list or -1 if not found.
-  int             find(const PLUGIN_BASE& plugin) const;
-  // Search for a list entry by the module name.
-  // Return the index in the list or -1 if not found.
-  int             find(const char* name) const;
-  // Search for a list entry by the short module name.
-  // Return the index in the list or -1 if not found.
-  int             find_short(const char* name) const;
-  // Get the number of entries in the list.
-  int             count() const     { return num; }
-  // Get the root object of the list.
-  const CL_PLUGIN_BASE* const* get_list() const { return list; }
-};
-
-
-/****************************************************************************
-*
-* MODULE_LIST collection
-*
-* List of loaded DLL modules.
-* This class ist thred-safe on per instance basis.
-*
-****************************************************************************/
-
-class CL_MODULE_LIST : public CL_PLUGIN_BASE_LIST
-{public:
-  // Append a new module to the list.
-  BOOL            append(CL_MODULE* plugin) { return CL_PLUGIN_BASE_LIST::append(plugin); }
-  // Remove the i-th module from the list and return a pointer to it.
-  CL_MODULE*      detach(int i)             { return (CL_MODULE*)CL_PLUGIN_BASE_LIST::detach(i); }
-  // Get the i-th module in the list.
-  CL_MODULE&      operator[](int i) { return (CL_MODULE&)CL_PLUGIN_BASE_LIST::operator[](i); }
-};
-
-
-/****************************************************************************
-*
-* PLUGIN_LIST collection
-*
-* Collection of plug-ins of any kind.
-*
-****************************************************************************/
-
-class CL_PLUGIN_LIST : public CL_PLUGIN_BASE_LIST
-{public:
-  // append a new plug-in to the list.
-  BOOL            append(CL_PLUGIN* plugin);
-  // Remove the i-th plug-in from the list and return a pointer to it.
-  CL_PLUGIN*      detach(int i);
-  // Destroy the i-th plug-in in the list. Return TRUE on success.
-  BOOL            remove(int i);
-  // Destroy all plug-ins in the list.
-  void            clear();
-  // Get the i-th plug-in in the list.
-  CL_PLUGIN&      operator[](int i)  { return (CL_PLUGIN&)CL_PLUGIN_BASE_LIST::operator[](i); }
-};
-
-
-/****************************************************************************
-*
-* PLUGIN_LIST collection with one active plugin
-*
-* This specializes CL_PLUGIN_LIST for plug-in types where at most one plug-in
-* of the list is active at a time.
-* This class ist thred-safe on per instance basis.
-*
-****************************************************************************/
-
-class CL_PLUGIN_LIST1 : public CL_PLUGIN_LIST
-{private:
-  // current active plug-in.
-  CL_PLUGIN*      active;
- public:
-  CL_PLUGIN_LIST1() : active(NULL)   {}
-  // Remove the i-th plug-in from the list and return a pointer to it.
-  // If it was the activated one it is deactivated (uninit) first.
-  CL_PLUGIN*      detach(int i);
-  // Return the index of the currently active plug-in.
-  // Returns -1 if no plug-in is active.
-  int             get_active() const { return active ? find(*active) : -1; }
-  // Change the currently activated plug-in.
-  // If there is another plug-in active it is deactivated (uninit) first.
-  // If the desired plug-in is already active this is a no-op.
-  // Return 0 on success.
-  int             set_active(int i);
-  // Returnthe currently active plug-in or NULL if none.
-  CL_PLUGIN*      current() const    { return active; }
-};
-
-
-/****************************************************************************
-*
-* global lists
-*
-****************************************************************************/
-
-// List of all modules
-// Owned by plugman, but updated by the CL_PLUGIN constructor and destructor.
-extern CL_MODULE_LIST plugins;
 
 
 #endif

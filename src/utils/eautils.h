@@ -29,11 +29,22 @@
 #ifndef EAUTILS_H
 #define EAUTILS_H
 
+#include <stdlib.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
 
+/* Copies extended attributes from one file or directory to another.
+ * Attributes are added to a target file or replaced.
+ */
 APIRET eacopy( const char* source, const char* target );
+
+/* Reads the value of the extended attribute eaname from file and returns it in eadata.
+ * You must free eadata when you don't need it anymore.
+ * The length of eadata is returned in easize. 
+ */
+APIRET eaget( const char* file, const char* eaname, char** eadata, size_t* easize );
 
 #ifdef __cplusplus
 }
