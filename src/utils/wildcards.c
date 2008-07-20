@@ -33,14 +33,17 @@
 static int asterisk (const char **wildcard, const char **test);
 /* scans an asterisk */
 
-int wildcardfit (const char *wildcard, const  char *test)
+int wildcardfit (const char *wildcard, const char *test)
 {
   int fit = 1;
-  
-  for (; ('\000' != *wildcard) && (1 == fit) && ('\000' != *test); wildcard++)
+
+  // loop over different wildcard strings
+  do
+  {
+    for (; (0 != *wildcard || ';' != *wildcard) && (1 == fit) && (0 != *test); wildcard++)
     {
       switch (*wildcard)
-        {
+      {
         case '?':
           test++;
           break;
@@ -53,13 +56,18 @@ int wildcardfit (const char *wildcard, const  char *test)
         default:
           fit = (int) (toupper(*wildcard) == toupper(*test));
           test++;
-        }
+      }
     }
-  while ((*wildcard == '*') && (1 == fit)) 
-    /* here the teststring is empty otherwise you cannot */
-    /* leave the previous loop */ 
-    wildcard++;
-  return (int) ((1 == fit) && ('\0' == *test) && ('\0' == *wildcard));
+    while ((*wildcard == '*') && (1 == fit)) 
+      /* here the teststring is empty otherwise you cannot */
+      /* leave the previous loop */ 
+      wildcard++;
+    if ((1 == fit) && (0 == *test) && (0 == *wildcard || ';' == *wildcard))
+      return 1;
+
+  } while (*wildcard++ == ';');
+  // no more wildcards
+  return 0;
 }
 
 static int asterisk (const char **wildcard, const char **test)
@@ -82,9 +90,9 @@ static int asterisk (const char **wildcard, const char **test)
   while ('*' == (**wildcard))
     (*wildcard)++;
 
-  if (('\0' == (**test)) && ('\0' != (**wildcard)))
+  if (0 == **test && 0 != **wildcard && ';' != **wildcard)
     return (fit = 0);
-  if (('\0' == (**test)) && ('\0' == (**wildcard)))
+  if (0 == **test && (0 == **wildcard || ';' == **wildcard))
     return (fit = 1); 
   else
     {
@@ -105,7 +113,7 @@ static int asterisk (const char **wildcard, const char **test)
                  (0 == wildcardfit (*wildcard, (*test))) 
                  : (0 != (fit = 0)));
         }
-      if (('\0' == **test) && ('\0' == **wildcard))
+      if ((0 == **test) && (0 == **wildcard || ';' == **wildcard))
         fit = 1;
       return (fit);
     }

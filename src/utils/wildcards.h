@@ -29,6 +29,8 @@ int wildcardfit (const char *wildcard, const char *test);
 /* this function implements the UN*X wildcards and returns  */
 /* 0  if *wildcard does not match *test                     */
 /* 1  if *wildcard matches *test                            */
+/* Multiple wildcard strings may be separated by ';'.       */
+/* The function returns 1 if at least one of them matches.  */
 
 #ifdef __cplusplus
 }
