@@ -240,7 +240,10 @@
 #define IDH_SETTINGS1      1050
 #define IDH_SETTINGS2      1051
 #define IDH_DISPLAY        1055
-#define IDH_PLUGINS        1060
+#define IDH_DEC_PLUGINS    1060
+#define IDH_FIL_PLUGINS    1061
+#define IDH_OUT_PLUGINS    1062
+#define IDH_VIS_PLUGINS    1063
 
 /* Dialogs */
 

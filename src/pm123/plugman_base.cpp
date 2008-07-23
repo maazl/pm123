@@ -259,10 +259,20 @@ bool Decoder::DoFileTypeMatch(USHORT type, const USHORT*& eadata) const
   return false;
 }
 
+xstring Decoder::GetFileTypes() const
+{ if (FileTypes && AddFileTypes)
+    return xstring::sprintf("%s;%s", FileTypes.cdata(), AddFileTypes.cdata());
+  if (AddFileTypes)
+    return AddFileTypes;
+  return FileTypes;
+}
+
 void Decoder::GetParams(stringmap& params) const
 { Plugin::GetParams(params);
   static const xstring troparam = "tryothers";
   params.get(troparam) = new stringmapentry(troparam, TryOthers ? "yes" : "no");
+  static const xstring eftparam = "filetypes";
+  params.get(eftparam) = new stringmapentry(eftparam, AddFileTypes);
 }
 
 bool Decoder::SetParam(const char* param, const xstring& value)
@@ -274,6 +284,9 @@ bool Decoder::SetParam(const char* param, const xstring& value)
       return true;
     }
     return false;
+  } else if (stricmp(param, "filetypes") == 0)
+  { AddFileTypes = value;
+    return true; 
   }
   return Plugin::SetParam(param, value);
 }

@@ -991,10 +991,10 @@ void Ctrl::Init()
   if (state.current_root)
   { ControlCommand* head = MkLoad(state.current_root, false);
     ControlCommand* tail = head;
-    if (state.current_iter)
-      tail = tail->Link = MkNavigate(state.current_iter, 0, true, true);
     if (cfg.restartonstart && state.was_playing)
       tail = tail->Link = MkPlayStop(Op_Set);
+    if (state.current_iter)
+      tail = tail->Link = MkNavigate(state.current_iter, 0, true, true);
     PostCommand(head);
   }
 }

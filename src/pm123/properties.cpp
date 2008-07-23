@@ -459,7 +459,7 @@ struct PluginContext
   PluginContext(PluginList* list1, PluginList* list2, int level, CtrlFlags flags);
   
   void         RefreshList();
-  Plugin*      RefreshInfo(size_t i);
+  Plugin*      RefreshInfo(const size_t i);
   ULONG        AddPlugin();
   bool         Configure(size_t i);
   bool         SetParams(size_t i);
@@ -557,8 +557,9 @@ Plugin* PluginContext::RefreshInfo(const size_t i)
     if (List->Type == PLUGIN_DECODER)
     { stringmap_own sm(20);
       pp->GetParams(sm);
-      stringmapentry* smp = sm.find("filetypes");
-      const xstring& filetypes = smp && smp->Value ? smp->Value : ((Decoder*)pp)->GetFileTypes();
+      // TODO: Decoder supported file types vs. user file types.
+      stringmapentry* smp; // = sm.find("filetypes");
+      const xstring& filetypes = ((Decoder*)pp)->GetFileTypes();
       char* cp;
       if (filetypes)
       { cp = (char*)alloca(filetypes.length()+1);
@@ -667,6 +668,7 @@ bool PluginContext::SetParams(size_t i)
     pp->SetParam("tryothers", WinQueryButtonCheckstate(Hwnd, CB_DEC_TRYOTHER) ? "1" : "0");
     pp->SetParam("serializeinfo", WinQueryButtonCheckstate(Hwnd, CB_DEC_SERIALIZE) ? "1" : "0");
   }
+  WinEnableControl(Hwnd, PB_PLG_SET, FALSE);
   return true;
 }
 

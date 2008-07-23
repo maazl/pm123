@@ -175,7 +175,9 @@ xstring url123::makeParameter(const stringmap& params)
 }
 
 bool* url123::parseBoolean(const char* val)
-{ static const struct mapentry
+{ if (val == NULL)
+    return NULL;
+  static const struct mapentry
   { char Text[6];
     bool Val;
   } textmap[] =

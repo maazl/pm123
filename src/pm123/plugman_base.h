@@ -121,10 +121,12 @@ class Decoder
 {protected:
   // Result from the decoder_support call. Supported data sources.
   int          Type;
-  // Result from the decoder_support call. Supported file types.
+  // Result from the decoder_support call. Supported file extensions.
   xstring      Extensions;
   // Result from the decoder_support call. Supported file types.
   xstring      FileTypes;
+  // Additional supported file types.
+  xstring      AddFileTypes;
  public:
   // Try unsupported file extensions and types too.
   bool         TryOthers;
@@ -154,7 +156,7 @@ class Decoder
   // Get supported extensions or NULL
   const xstring& GetExtensions() const { return Extensions; }
   // Get Supported EA types or NULL
-  const xstring& GetFileTypes() const  { return FileTypes; }
+  xstring      GetFileTypes() const;
   // Checks wether a decoder claims to support a certain URL.
   bool         IsFileSupported(const char* url) const;
   // Overloaded for parameter recognition
