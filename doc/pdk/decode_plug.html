@@ -19,14 +19,14 @@ Decoder plug-ins must implement and export the functions defined in
 decoder_plug.h.
 <blockquote>
 <pre>
-int  DLLENTRYP <b>decoder_init</b>  ( void **w )
-BOOL DLLENTRYP <b>decoder_uninit</b>( void *w  )
+int  DLLENTRYP <b>decoder_init</b>  ( void **<var>w</var> )
+BOOL DLLENTRYP <b>decoder_uninit</b>( void *<var>w</var>  )
 </pre>
 </blockquote>
 <ul>
-<li>w : Allocate any chunk of memory necessary for the decoder's
+<li><var>w</var> - Allocate any chunk of memory necessary for the decoder's
 function. This pointer will be passed to the other functions.
-<li>return value : PLUGIN_FAILED (-1) means the decoder was not initialized
+<li>return value - PLUGIN_FAILED (-1) means the decoder was not initialized
 successfully.
 </ul>
 <p>
@@ -125,7 +125,8 @@ The functions must be <em>thread safe</em>.
   If some information is not available, the requested fields in <tt>DECODER_INFO2</tt>
   should be left unchanged. The initial state is always equivalent to 'unavailable'.
   Note, that this is different from unrequested informations where the corresponding bits in <tt>*<var>what</var></tt> are not set.
-  In the latter case the information <em>might</em> be available. It is just not yet known.
+  In the latter case the information <em>might</em> be available. It is just not yet known.<br>
+  In case of an error the decoder should return an error text in the <tt>tech-&gt;info</tt> field.
 <li><var>return value</var> -<br>
   PLUGIN_OK (0) = everything's perfect, structure is set.<br>
   PLUGIN_NO_READ (100) = error reading file (too small?).<br>
@@ -177,24 +178,35 @@ decoder.</lI>
 This function is unused by PM123 since version 1.40 but it might still be invoked by visual plug-ins.
 You need not to export this function unless <code>decoder_support</code> returns the DECODER_TRACK flag. 
 <blockquote>
-<pre>ULONG DLLENTRYP <b>decoder_support</b>( char *const fileext[], int *size )</pre>
+<pre>ULONG DLLENTRYP <b>decoder_support</b>( const char** fileext, const char** filetype )</pre>
 </blockquote>
 <ul>
-<li><var>fileext</var> - fill this array with all the wildcard expression matching
-filenames this decoder can play (each element is a 8 bytes char array).
-<li><var>size</var> - number of wildcard expressions returned (if this value is not
-big enough, ie.: 0, return the appropriate size without filling
-fileext).
+<li><var>fileext</var> [out] - Return a pointer to a list of file extensions that are likely to be supported
+  by the current decoder. The list items are delimited by '<tt>;</tt>'.
+  Example: <samp>*.mp1;*.mp2;*.mp3</samp><br>
+  The storage where the returned pointer points to must be valid until the next call to
+  <tt>decoder_support</tt> or <tt>plugin_configure</tt>.
+<li><var>filetype</var> [out] - Return a pointer to a list of file types that are likely to be supported
+  by the decoder. The list items are delimited by '<tt>;</tt>'.
+  The file types are the common PM file types that are stored in the <tt>.TYPE</tt> extended attribute.
+  Example: <samp>DigitalAudio;Audio-Stream</samp><br>
+  The storage where the returned pointer points to must be valid until the next call to
+  <tt>decoder_support</tt> or <tt>plugin_configure</tt>.
+  If the decoder is not sensitive to EA types a return value of NULL is sufficient.
 <li><var>return value</var> - return what kind of stream can the decoder play:<br>
-DECODER_FILENAME<br>
-DECODER_URL<br>
-DECODER_TRACK<br>
-DECODER_OTHER<br>
+DECODER_FILENAME - Anything that is represented by a physical file.<br>
+DECODER_URL - Anything that is a http or ftp URL.<br>
+DECODER_TRACK - CD tracks.<br>
+DECODER_OTHER - Anything else (like recording).<br>
 The values may be ored.
 </ul>
 <p>
-This is used by PM123 to suggest to the user what he can play with the
-decoder. Extentions can be for example "*.MOD".
+This is used by PM123 to suggest to the user what he can play with the decoder.
+Furthermore PM123 will normally not query the decoder about files or other objects
+that are not supported.
+<p>
+The function is called again after a successful call to <tt>plugin_configure</tt>.
+This allows to modify the supported file types through the configuration.
 
 <h4><a name="GUI_interface"></a>GUI enhancement interface</h4>
 <p>The following functions are used to improove the GUI of PM123 with plug-in specific content.<br>

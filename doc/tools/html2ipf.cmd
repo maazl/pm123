@@ -19,7 +19,7 @@
 /* Global.ImageConvert = 'alchemy.exe -o -O -8 <input> <output> >nul';*/
 /* Global.ImageConvert = 'gbmbpp.exe <input> <output> >nul';          */
 /* Global.ImageConvert = 'gif2bmp.exe <input> <output>';*/
- Global.ImageConvert = 'nconvert -out bmp -wflag os2 -o "<output>" "<input>"'
+ Global.ImageConvert = 'nconvert -out bmp -wflag os2 -swap bgr -o "<output>" "<input>"'
 /* Executable/description of an external WWW browser to launch when   */
 /* user selects an URL link. Normally, you shouldn`t change it (even  */
 /* if you have Netscape) since WebEx is found on almost every OS/2    */
@@ -108,6 +108,9 @@
  call putline '.*'copies('-', 76)'*';
  call putline ':userdoc.';
  call putline ':docprof toc=12345.';
+ call putline ':ctrldef.';
+ call putline ":ctrl controls='Esc Search Print Contents Back Forward' coverpage.";
+ call putline ':ectrldef.';
 
  call time 'R'
  call ParseFile _fName, 1;
@@ -333,10 +336,6 @@ ParseFile:
  call PutToken Global.EOL;                     /* initialize output subsystem */
  Global.EOF = 0;
  Global.CurFont = Global.DefaultFont;
-/* Remember the count of SUBLINKS and NOSUBLINKS to restore it later */
- locPagelinks = Global.Pagelinks;
- locSublinks = Global.Sublinks;
- locNoSublinks = Global.NoSublinks;
 
  fExt = max(lastPos('/', fName), lastPos('\', fName));
  if lastPos('.', fName) > fExt
@@ -403,11 +402,6 @@ ParseFile:
  call CRLF;
 
  call ResolveLinks DeepLevel+1;
-
-/* Restore the SUBLINKS and NOSUBLINKS counter */
- Global.PageLinks = locPagelinks;
- Global.Sublinks = locSublinks;
- Global.NoSublinks = locNoSublinks;
 return;
 
 ResolveLinks:
@@ -416,37 +410,47 @@ ResolveLinks:
  LinkCount = 0;
  Links.0 = 0;
 
- /* for all unresolved links ... */
- do i = 1 to Global.LinkID
-  if (\Global.LinkID.i.Resolved) then do
-   /* restrict to explicit sublinks if any */
-   if Global.SubLinks > 0 then do
-    do j = 1 to Global.SubLinks
-     if Pos(Global.SubLinks.j, translate(Global.LinkID.i.InitialName)) = 1
-      then do; j = -1; leave; end;
-    end;
-    if j \= -1 then Iterate;
-   end;
-   /* otherwise restrict to links that are part of the current page. */
-   else do;
-    do j = 1 to Global.PageLinks
-     if Pos(Global.PageLinks.j, translate(Global.LinkID.i.InitialName)) = 1
-      then do; j = -1; leave; end;
-    end;
-    if j \= -1 then Iterate;
-   end;
+ /* follow explicit sublinks if any */
+ if Global.SubLinks > 0 then
+  do i = 1 to Global.SubLinks
+   id = GetLinkID(Global.SubLinks.i);
+   if id = 0 then iterate;
+   /* skip resolved */
+   if Global.LinkID.id.Resolved then iterate;
    /* always exclude nosublinks */
    do j = 1 to Global.NoSubLinks
-    if Pos(Global.NoSubLinks.j, translate(Global.LinkID.i.InitialName)) = 1
+    if Global.NoSubLinks.j = Global.SubLinks.i
      then do; j = -1; leave; end;
    end;
    if j = -1 then Iterate;
    /* add link to the list of files to process */
    Links.0 = Links.0 + 1; j = Links.0;
-   Links.j = Global.LinkID.i.RealName;
-   Global.LinkID.i.Resolved = 1;
+   Links.j = Global.LinkID.id.RealName;
+   Global.LinkID.id.Resolved = 1;
   end;
- end;
+ /* otherwise follow page links */
+ else
+  do i = 1 to Global.PageLinks
+   id = GetLinkID(Global.PageLinks.i);
+   if id = 0 then iterate;
+   /* skip resolved */
+   if Global.LinkID.id.Resolved then iterate;
+   /* always exclude nosublinks */
+   do j = 1 to Global.NoSubLinks
+    if Global.NoSubLinks.j = Global.SubLinks.i
+     then do; j = -1; leave; end;
+   end;
+   if j = -1 then Iterate;
+   /* add link to the list of files to process */
+   Links.0 = Links.0 + 1; j = Links.0;
+   Links.j = Global.LinkID.id.RealName;
+   Global.LinkID.id.Resolved = 1;
+  end;
+  
+ drop Global.PageLinks.;
+ drop Global.SubLinks.;
+ drop Global.NoSubLinks.;
+
  if Global.OptS
   then call SortLinks 1, Links.0;
  if DeepLevel > 6 then DeepLevel = 6;
@@ -454,9 +458,6 @@ ResolveLinks:
   call ParseFile translate(Links.i, '/', '\'), DeepLevel;
   LinkCount = LinkCount + 1;
  end;
- drop Global.PageLinks.;
- drop Global.SubLinks.;
- drop Global.NoSubLinks.;
 return LinkCount;
 
 SortLinks:
@@ -615,6 +616,8 @@ ParseContents:
           when Tag = '!CODE'	then TagBreakPos = doTag!CODE();
           when Tag = 'VAR'	then TagBreakPos = doTagVAR();
           when Tag = '!VAR'	then TagBreakPos = doTag!VAR();
+          when Tag = 'SAMP'	then TagBreakPos = doTagSAMP();
+          when Tag = '!SAMP'	then TagBreakPos = doTag!SAMP();
           when Tag = 'STRONG'	then TagBreakPos = doTagSTRONG();
           when Tag = '!STRONG'	then TagBreakPos = doTag!STRONG();
           when Tag = 'ADDRESS'	then TagBreakPos = doTagADDRESS();
@@ -775,11 +778,13 @@ doTag!U:
 return 0;
 
 doTagCODE:
+doTagSAMP:
 doTagTT:
  call SetFont Global.ProportFont;
 return 0;
 
 doTag!CODE:
+doTag!SAMP:
 doTag!TT:
  call SetFont Global.DefaultFont;
 return 0;
@@ -1733,21 +1738,27 @@ DefineQuotes:
   "yuml   &ye.",
   "thorn  0xDE",
   "THORN  0xFE",
-  "szlig  &Beta.";
+  "szlig  &Beta.",
+  "uarr   &uarrow.",
+  "darr   &darrow.",
+  "larr   &larrow.",
+  "rarr   &rarrow.",
+  "infin  &infinity.",
 /*"lt     <",
   "gt     >",*/
-/*"aelig  &aelig.",
-  "AElig  &AElig.",*/
-/*"frac14 &frac14.",
+/* no-ops
+  "aelig  &aelig.",
+  "AElig  &AElig.",
+  "frac14 &frac14.",
   "frac12 &frac12.",
-  "frac34 &frac34.",*/
-/*"sup1   &sup1.",*/
-/*"sup2   &sup2.",
-  "sup3   &sup3.",*/
-/*"yen    &yen.",*/
-/*"cent   &cent.",*/
-/*"amp    &amp.",*/
-/*"divide &divide.";*/
+  "frac34 &frac34.",
+  "sup1   &sup1.",
+  "sup2   &sup2.",
+  "sup3   &sup3.",
+  "yen    &yen.",
+  "cent   &cent.",
+  "amp    &amp.",
+  "divide &divide.",*/
 return;
 
 /* substitute quoted Characters */

@@ -1,4 +1,4 @@
-<html resid=1014 level=3 sublinks="playlist_cm.html" sublinks="playlist_cmi.html">
+<html resid=1014 level=3 sublinks="playlist_cm.html" sublinks="playlist_cmi.html" sublinks="icons.html" sublinks="slicing.html">
 <head>
    <title>Playlist Window</title>
 </head>
@@ -7,16 +7,14 @@
 <p>PM123 playlist files always have the extension <tt>.LST</tt>. They use a <a href="playlistformat.html">special format</a>.
   PM123 also understands <tt>.MPL</tt> files used by WarpAMP and <tt>.M3U</tt> playlists used over the Internet.
 
-<h3>The Default Playlist</h3>
-<p>PM123 has a special default playlist file named "PM123.LST" in your PM123 folder.
-  This file is used to hold a sequence of objects if you load more than one file to the player.
-  <em>You should not use this file for your favorite playlist</em> since it is overwritten
-  each time it is needed for other purposes.
+<blockquote>
+<img SRC="images/playlist.png">
+</blockquote>
 
 <h3>Window features</h3>
 <dl>
   <dt><b>Direct manipulation</b>
-  <dd>You can edit the alias name, the start and stop offsets and the source URL by direct manipulation.
+  <dd>You can edit the <i>alias name</i>, the <a href="slicing.html"><i>start</i> and <i>stop offsets</i></a> and the source URL by direct manipulation.
     Note that changing the the name does not change any file name.
     It only changes the display string of the item in this playlist.
     This is e.g. used to label <a href="bookmark.html">bookmarks</a>.
@@ -31,39 +29,18 @@
     or the <a href="playlist_cmi.html">context menu of the selected item(s)</a>.
   <dt><b>Keayboard accelerators</b>
   <dd>You may use the <a href="keyboard.html">accelerator keys</a> to call functions from the context menu quickly.
+  <dt><b>Icons</b>
+  <dd>The <a href="icons.html">icons</a> show the type and the status of playlist item.
 </dl>
 
 <p>If the playlist is modified '<tt>(*)</tt>' will show up in the window title.
   However, you won't see if a nested playlist is modified.
   
-<h3>Icons</h3>
-<table cellspacing=0 cellpadding=3 border=1>
-  <tr>
-    <th>Status</th>
-    <th>File</th>
-    <th>Folder</th>
-    <th>Playlist</th>
-  </tr>
-  <tr>
-    <td>Normal</td>
-    <td><img src="images/mp3.gif"></td>
-  </tr>
-  <tr>
-    <td>Used</td>
-  </tr>
-  <tr>
-    <td>Current root</td>
-  </tr>
-  <tr>
-    <td>Current stack</td>
-  </tr>
-  <tr>
-    <td>Empty</td>
-  </tr>
-  <tr>
-    <td>Invalid</td>
-  </tr>
-</table>     
+<h3>The Default Playlist</h3>
+<p>PM123 has a special default playlist file named "PM123.LST" in your PM123 folder.
+  This file is used to hold a sequence of objects if you load more than one file to the player.
+  <em>You should not use this file for your favorite playlist</em> since it is overwritten
+  each time it is needed for other purposes.
 
 </body>
 </html>

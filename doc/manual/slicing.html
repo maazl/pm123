@@ -1,0 +1,49 @@
+<html sublinks="*">
+<head>
+   <title>Playlist Item Slicing</title>
+</head>
+<body>
+<h2>PM123's Playlist Item Slicing</h2>
+
+<p>Each playlist item contains <strong>optional start- and stop location</strong>.
+  When an item with a start location is loaded the playback begins at this offset.
+  If the currently playing item has a stop location from the enclosing playlist,
+  the playback stops as soon as the stop location is reached and continues with
+  the next item in the playlist (if any).
+<ul>
+  <li>In context with <strong>bookmarks</strong> the slicing is also used
+    to remember the current playing position.
+  <li>You cannot use slicing with items that do not support navigation like internet streams.
+  <li>Only playlist items may use slicing.
+</ul>
+
+<h3>Slicing songs</h3>
+<p>A start or stop location within a song is always a time index.
+  You may enter it in the form [[<tt><var>hh</var>:</tt>]<tt><var>mm</var>:</tt>]<tt><var>ss</var></tt>[<tt>.<var>fff</var></tt>]
+  with <tt><var>hh</var></tt>&nbsp;= hours, <tt><var>mm</var></tt>&nbsp;= minutes,
+  <tt><var>ss</var></tt>&nbsp;= seconds and <tt><var>fff</var></tt>&nbsp;= fractional seconds.
+  See <a href="location.html">PM123 location strings</a> for more details.
+
+<p>This offsers the opportunity to link only a <strong>slice</strong> of a song into a playlist.
+  You may e.g. use this to create a <em>cue sheet</em> to a very long file.
+
+<h3>Slicing playlists</h3>
+<p>In conjunction with playlists slicing is a bit more complicated.
+  You now have to navigate to a song or in general an item.
+  But furthermore this may containg a location <em>within</em> that song.
+  And in case of <em>nested playlists</em> the location will be an entire <em>call stack</em>.
+<p>The locations in a playlist may be specified by song (or item) name and/or by ordinal number.
+  See <a href="location.html">PM123 location strings</a> for detailed syntax and examples.
+
+<h4>Conflicting slices</h4>
+<p>If a location in a nested playlist navigates to a subitem that has also a start and/or stop location
+  conficts may occur. In fact the start position may point to a location that
+  is <em>before</em> the start position of the item within the nested playlist.
+  This is not allowed since this part of the song has never been part of the
+  nested playlist.
+<p>PM123 currently always uses the <strong>intersection</strong> of conflicting slices.
+  Effectively only parts of songs or playlists are played that are in the range [start,&nbsp;stop)
+  of <em>all</em> playlists in the current call stack.
+
+</body>
+</html>

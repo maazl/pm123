@@ -76,14 +76,27 @@
   <td>Codepage handling of ID3 V1.x and ID3 V2.x tags</td>
   <td bgcolor=#FFCCCC>open</td>
   <td>If the input and output codepage is different the ID3 tags are not turn around stable.
-    This causes special characters to be destroyed when sving the tag.</td>
+    This causes special characters to be destroyed when saving the tag.</td>
 </tr><tr>
   <td bgcolor=#FFFFCC>todo</td>
   <td bgcolor=#FFFFCC>medium</td>
   <td>PM lock-up when slider is used while a worker thread gets information on a playlist.</td>
   <td bgcolor=#FFCCCC>open</td>
   <td>Thread 1 aquires playlist mutex when slider is used. Can cause SIQ locks.
-    Maybe the Worker should not lock the entire playlist while calculation tech infos.</td>
+    Maybe the Worker should not lock the entire playlist while calculation of tech infos.</td>
+</tr><tr>
+  <td bgcolor=#FFCCCC>fault</td>
+  <td bgcolor=#FFFFCC>medium</td>
+  <td>NavigateTo does not work if we see a slice of the current root.</td>
+  <td bgcolor=#FFCCCC>open</td>
+  <td>If the currently visible windows root is below the currently loaded root, navigate to
+    starts at the loaded root rather than the window's root. This consequently fails.</td>
+</tr><tr>
+  <td bgcolor=#FFCCCC>fault</td>
+  <td bgcolor=#CCFFCC>minor</td>
+  <td>Glitches of the slider when seeking or starting at a certain location.</td>
+  <td bgcolor=#FFCCCC>open</td>
+  <td>When playback starts at a non-zero starting point the slider jumps to zero for the time of the initialization.</td>
 </tr></table>
 </body>
 </html>

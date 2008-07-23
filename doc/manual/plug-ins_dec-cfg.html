@@ -1,0 +1,52 @@
+<html resid=1060 sublinks="*">
+<head>
+   <title>Plug-ins Configuration 1/4 - Decoders</title>
+</head>
+<body>
+<h2>PM123's Decoder Plug-ins Configuration</h2>
+
+<blockquote>
+<img SRC="images/prop_decoder.png"><br>
+</blockquote>
+<h3>Decoder List</h3>
+  <strong>Select</strong> a decoder from the list to view additional information
+  and manipulate the plug-in.<br>
+<h4>Buttons</h4>
+<dl>
+  <dt><b>Unload</b>
+  <dd>Unloads the currently selected plug-in completely.
+  <dt><b>Add</b>
+  <dd>Add a plugin DLL.
+  <dt><b>Up / Down</b>
+  <dd>Move the selected plug-in up or down in the list.
+    This has at the very most performace effects
+    as long as you do not use different plug-ins that can handle the same files.
+  <dt><b>Enable / Disable</b>
+  <dd>Enables/disables the selected plug-in.
+  <dt><b>Configure</b>
+  <dd>Avalaible only if the plug-in is configurable.
+    Click this button to set plugin's settings.<br>
+    Double-click a plug-in from the listbox aside has the same effect.
+</dl>
+
+<h3>Plug-in specific settings</h3>
+  Here you can adjust some plug-in specific settings.
+  Remeber that you won't change anything unless you press the <strong>save button</strong>.
+<dl>
+  <dt><b>Supported file types</b>
+  <dd>Use the plug-in for this (additional) file types.
+  <dt><b>Try unsupported files too</b>
+  <dd>Normally a decoder is not invoked for files
+    that do not match either the list of supported file extensions provided by the decoder
+    or one of the PM file types from the list at the left.
+    Checking this options tries to invoke this decoder for other files too
+    if no other decoder is able to handle the file.
+    Anyway the decoder must support the file content and the transfer protocol.
+  <dt><b>Serialize access to decoder info</b>
+  <dd>This option is available for plug-ins with the older interface.
+    It is a work-around for broken plug-ins.
+    You should enable it, if you encounter crashes when loading or viewing large playlists
+    with many objects that are handled by the selected decoder.
+</dl>
+</body>
+</html>

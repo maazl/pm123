@@ -6,14 +6,17 @@
 <h2>PM123 playlist location strings</h2>
 <p>PM123 uses a special notation to store playing positions. These strings are used at
 <ul>
-  <li>the <strong>start</strong> and <strong>stop positions</strong> of playlist items or bookmarks and
-  <li>the navigate command of the PM123 <strong>remote interface</strong>.  
+  <li>the <strong>start</strong> and <strong>stop positions</strong> (<a href="slicing.html">slicing</a>)
+  of <a href="playlist.html">playlist</a> items or
+  <li>the current playing position of <a href="bokkmark.html">bookmarks</a> and
+  <li>the navigate command of the PM123 <a href="remote.html"><strong>remote interface</strong></a>.  
 </ul>
 <p>A location string defines an exact point inside a playlist or song.
-  In case of playlists it can consist of several parts separated by '<tt>;</tt>'
-  or new-line if the new-line character is allowed.
+  In case of playlists it is an entire call stack.
+  A call stack in genera consists of several parts separated by '<tt>;</tt>'
+  or new-line (if the new-line character is allowed).
   URLs in the parts may be enclosed with double quotes ('<tt>"</tt>') to
-avoid confusion with special characters.
+  avoid confusion with special characters.
 <h3>Examples:</h3>
 <blockquote>
 <pre>my_nested_playlist.lst

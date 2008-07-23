@@ -6,7 +6,8 @@
 
 <h2>Migrating to PM123 1.40</h2>
 <p>There are some major changes in the GUI that you should be aware of when moving
-  from an earlier version. For further information see the <a href="../History.txt">changelog</a>.</p>
+  from an earlier version. The most important ones are listed below.
+  For further information see the <a href="../History.txt">changelog</a>.</p>
 
 <h3>Main window</h3>
 <h4>Visual plug-in</h4>
@@ -35,7 +36,7 @@
   However, one must do the job.</p>
 
 <h3>Playlist windows</h3>
-<img src="images/playlist.gif">
+<img src="images/playlist.png">
 <p>Playlists, the playlist manager and bookmarks are now basically the same thing.
   Furthermore you can <strong>open multiple playlists</strong>. That means:</p>
 <ul>
@@ -65,7 +66,8 @@
   <li>The PM123 main window flattens the nested lists and shows allways the index
     and the time offsets within all Song items in the nested list structure.
     To see what's going on open a tree view of the currently played list
-    (<a href="mainmenu.html">Context menu</a>/Current Playlist/Show tree view).</li>
+    ('<a href="mainmenu.html">Context menu</a>/Current Playlist/Show tree view'
+    or simply 'Ctrl+T').</li>
   <li>Nested playlists in the bookmark list cause submenus.</li>
   <li>When the playlists are nested recursively the player will ignore sublists
     that are already in the call stack. This avoids an infinite recursion.</li>
@@ -74,13 +76,13 @@
 <p>PM123 is able to play the content of <a href="playfolder.html">filesystem folders</a> directly without the
   need to load all files into a playlist. This works as follows:</p>
 <ul>
-  <li>The content of a folder is handled as a virtual playlist.</li>
+  <li>The content of a folder is handled as a <strong>virtual playlist</strong>.</li>
   <li>Optionally subfolders are virtualized as nested playlists too.</li>
-  <li>Unplayable files are skipped during playback.</li>
+  <li>Unplayable files are skipped during playback but shown in the folder views.</li>
   <li>Changes in the filesystem are reflected to PM123 when PM123 is restarted
     or a folder is manually refreshed.</li>
-  <li>If a folder is selected in the open dialog the content is no longer copied
-    into a real playlist.</li>
+  <li>If a folder is selected in the open dialog or by drag and drop
+    the content is no longer copied into a real playlist.</li>
 </ul>
 <p>This feature also changed the behavoiur when <b>dropping a folder</b> at PM123.
   The objects in the folder are no longer expanded immediately.
@@ -88,7 +90,7 @@
   This allows to reflect changes to the folder to PM123.
   See <a href="dragndrop.html">Drag & Drop</a> for further details.<br>
   To get the old behaviour add the folder to a <a href="playlist.html">playlist</a>
-  and choose 'Flatten' from the context menu of the folder.</p>
+  and choose 'Flatten' from the <a href="playlist_cmi.html">context menu</a> of the folder.</p>
 
 </body>
 </html>
