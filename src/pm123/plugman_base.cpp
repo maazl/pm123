@@ -198,7 +198,7 @@ bool Decoder::IsFileSupported(const char* url) const
   if (Extensions)
   { // extract filename
     const xstring& objname = url123(url).getObjectName();
-    if (wildcardfit(Extensions, url))
+    if (wildcardfit(Extensions, objname))
     { DEBUGLOG(("Decoder::IsFileSupported: wildcard match of %s with %s\n", objname.cdata(), Extensions.cdata()));
       return true;
   } }

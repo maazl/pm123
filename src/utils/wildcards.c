@@ -26,46 +26,47 @@
  *   Florian Schintke (schintke@gmx.de)
  */
 
+#include "wildcards.h"
 #include <stdio.h>
 #include <ctype.h>
-#include "wildcards.h"
+#include <string.h>
 
 static int asterisk (const char **wildcard, const char **test);
 /* scans an asterisk */
 
-int wildcardfit (const char *wildcard, const char *test)
+int wildcardfit (const char *wildcard, const char* test)
 {
-  int fit = 1;
-
   // loop over different wildcard strings
   do
-  {
-    for (; (0 != *wildcard || ';' != *wildcard) && (1 == fit) && (0 != *test); wildcard++)
+  { int fit = 1;
+    const char* test2 = test;
+    for (; 0 != *wildcard && ';' != *wildcard && 1 == fit && 0 != *test2; wildcard++)
     {
       switch (*wildcard)
       {
         case '?':
-          test++;
+          test2++;
           break;
         case '*':
-          fit = asterisk (&wildcard, &test);
+          fit = asterisk (&wildcard, &test2);
           /* the asterisk was skipped by asterisk() but the loop will */
           /* increment by itself. So we have to decrement */
           wildcard--;
           break;
         default:
-          fit = (int) (toupper(*wildcard) == toupper(*test));
-          test++;
+          fit = (int) (toupper(*wildcard) == toupper(*test2));
+          test2++;
       }
     }
     while ((*wildcard == '*') && (1 == fit)) 
       /* here the teststring is empty otherwise you cannot */
       /* leave the previous loop */ 
       wildcard++;
-    if ((1 == fit) && (0 == *test) && (0 == *wildcard || ';' == *wildcard))
+    if ((1 == fit) && (0 == *test2) && (0 == *wildcard || ';' == *wildcard))
       return 1;
 
-  } while (*wildcard++ == ';');
+    wildcard = strchr(wildcard, ';');
+  } while (wildcard++);
   // no more wildcards
   return 0;
 }
