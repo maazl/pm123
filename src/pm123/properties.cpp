@@ -79,8 +79,8 @@ const amp_cfg cfg_default =
   
   1, // font
   FALSE,
-  { sizeof(FATTRS), 0, 0, "System VIO", 0, 0, 12L, 5L, 0, 0 },
-  10,
+  { sizeof(FATTRS), 0, 0, "WarpSans Bold", 0, 0, 16, 7, 0, 0 },
+  9,
   
   TRUE,
   FALSE, // float on top
