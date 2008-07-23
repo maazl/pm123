@@ -31,6 +31,7 @@
 #include <string.h>
 #include <snprintf.h>
 
+#undef DEBUG
 #include <debuglog.h>
 
 
