@@ -1,8 +1,9 @@
-PM123 1.32 Source File Distribution
+PM123 1.40 Source File Distribution
 
-Copyright 1997-2003 Samuel Audet <guardia@step.polymtl.ca>
-                    Taneli LeppÑ <rosmo@sektori.com>
+Copyright 1997-2003 Samuel Audet
+                    Taneli LeppÑ
 Copyright 2004-2007 Dmitry A.Steklenev <glass@ptv.ru>
+Copyright 2005-2008 Marcel MÅller <pm123@maazl.de>
 
 Introduction
 ============
@@ -16,21 +17,23 @@ Tools Needed to Compile
 You will need the following tools and libraries to compile PM123
 via IBM Visualage C++:
 
-  VisualAge C++ 3.6 fixpak 2
+  VisualAge C++ 3.6 fixpak 2 or VisualAge C++ 3.0 fixpack 8
   A recent IBM OS/2 Developer's Toolkit
   NASM
   WarpIN (if you want to create an installation package)
   Info-ZIP (if you want to create the ZIP package)
 
 You will need the following tools and libraries to compile PM123 via
-Open Watcom C++:
+gcc:
 
-  Open Watcom C++ 1.7
+  gcc 3.3.5 csd 1
   NASM
   Operating System/2 Information Presentation Facility Compiler (included in to
   IBM OS/2 Developer's Toolkit).
   WarpIN (if you want to create an installation package)
   Info-ZIP (if you want to create the ZIP package)
+
+Open Watcom C++ is currently untested and likely to fail at some C++ codes.
 
 Also, I have been using cmd.exe at all times, so disable 4os2 or other cmd.exe
 replacement when using this distribution's makefiles.
@@ -68,6 +71,7 @@ the source code of PM123.
 |   +gbm123
 |   +include
 |   +main
+|   +logformater
 |   +ogg123
 |   +plug-ins
 |   |   |
@@ -77,8 +81,10 @@ the source code of PM123.
 |   |   |   |
 |   |   |   +id3v1
 |   |   |   +id3v2
+|   |   +logvolum
 |   |   +oggplay
 |   |   +os2audio
+|   |   +os2rec
 |   |   +realeq
 |   |   +wavout
 |   |   +wavplay
@@ -86,9 +92,10 @@ the source code of PM123.
 |   +pm123
 |   |   |
 |   |   +bmp
-|   |       |
-|   |       +font1
-|   |       +font2
+|   |   |   |
+|   |   |   +font1
+|   |   |   +font2
+|   |   +ico
 |   +skinutil
 |   +snd123
 |   +utils
@@ -139,6 +146,8 @@ oggplay
    The Ogg Vorbis decoder with streaming support.
 os2audio
    The output plug-in that uses DART to access the sound card.
+os2rec
+   The recording plug-in.
 realeq
    The Real Equalizer plug-in, with MMX support and all.
 wavout
@@ -186,3 +195,5 @@ Samuel Audet and Taneli LeppÑ
 September 2003
 Dmitry A.Steklenev
 November 2007
+Marcel MÅller
+July 2008
