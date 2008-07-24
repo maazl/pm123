@@ -459,8 +459,18 @@ int_ptr<T> inst_index<T,K>::GetByKey(K& key, IFactory& factory)
     if (p && !p->RefCountIsUnmanaged())
       return p;
   }
-  p = factory(key);
-  return p;
+  // We must not assign p directly because the factory might have destroyed *p already
+  // by deleting the newly created item. Also the factory might never have created an item of
+  // type T. In this case we have to destroy the entry.
+  T* pf = factory(key);
+  if (pf == NULL)
+    // Factory failed => remove the slot immediately if not yet done.
+    // There is nothing to delete since we did not yet assign anything.
+    Index.erase(key);
+  else
+    // Succseeded => assign the newly created instance.
+    p = pf;
+  return pf;
 }
 
 template <class T, class K>
