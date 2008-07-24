@@ -190,8 +190,8 @@ APIRET eaget( const char* file, const char* eaname, char** eadata, size_t* easiz
   {
     if (easize)
       *easize = eaop2.fpFEA2List->list[0].cbValue;
-    eadata = malloc(eaop2.fpFEA2List->list[0].cbValue);
-    memcpy(eadata, eaop2.fpFEA2List->list[0].szName + eaop2.fpFEA2List->list[0].cbValue + 1, eaop2.fpFEA2List->list[0].cbValue);
+    *eadata = malloc(eaop2.fpFEA2List->list[0].cbValue);
+    memcpy(*eadata, eaop2.fpFEA2List->list[0].szName + eaop2.fpFEA2List->list[0].cbName + 1, eaop2.fpFEA2List->list[0].cbValue);
   }
 
   free (eaop2.fpFEA2List);

@@ -204,7 +204,8 @@ bool Decoder::IsFileSupported(const char* url) const
   } }
 
   // Try file type match
-  if (FileTypes)
+  const xstring& filetypes = GetFileTypes();
+  if (filetypes)
   { // extract file name from url
     url += 5;
     if (url[2] == '/')
@@ -212,11 +213,11 @@ bool Decoder::IsFileSupported(const char* url) const
     // retrieve .TYPE EA
     size_t size = 0;
     char* eadata = NULL;
-    APIRET rc = eaget(url, ".TYPE", &eadata, &size);
-    DEBUGLOG(("Decoder::IsFileSupported - read .TYPE EA: %u\n", rc));
-    if (rc == NO_ERROR)
+    APIRET rc = eaget(url, ".type", &eadata, &size);
+    DEBUGLOG(("Decoder::IsFileSupported - read .TYPE EA: %u %u\n", rc, size));
+    if (rc == NO_ERROR && eadata)
     { const USHORT* data = (USHORT*)eadata;
-      bool ret = DoFileTypeMatch(*data++, data);
+      bool ret = DoFileTypeMatch(filetypes, *data++, data);
       free(eadata);
       return ret; 
     }
@@ -226,11 +227,11 @@ bool Decoder::IsFileSupported(const char* url) const
   return false;
 }
 
-bool Decoder::DoFileTypeMatch(USHORT type, const USHORT*& eadata) const
+bool Decoder::DoFileTypeMatch(const char* filetypes, USHORT type, const USHORT*& eadata)
 { DEBUGLOG(("Decoder::DoFileTypeMatch(%04x, %04x...)\n", type, eadata[0]));
   switch (type)
   {case EAT_ASCII:
-    if (wildcardfit(FileTypes, xstring((const char*)(eadata + 1), eadata[0])))
+    if (wildcardfit(filetypes, xstring((const char*)(eadata + 1), eadata[0])))
       return true;
    default:
     (const char*&)eadata += sizeof(USHORT) + eadata[0];
@@ -241,7 +242,7 @@ bool Decoder::DoFileTypeMatch(USHORT type, const USHORT*& eadata) const
       USHORT type = eadata[2];
       eadata += 3;
       while (count--)
-        if (DoFileTypeMatch(type, eadata))
+        if (DoFileTypeMatch(filetypes, type, eadata))
           return true;
     }
     break;
@@ -250,7 +251,7 @@ bool Decoder::DoFileTypeMatch(USHORT type, const USHORT*& eadata) const
     { size_t count = eadata[1];
       eadata += 2;
       while (count--)
-        if (DoFileTypeMatch(*eadata++, eadata))
+        if (DoFileTypeMatch(filetypes, *eadata++, eadata))
           return true;
     }
    case EAT_ASN1: // not supported

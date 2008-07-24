@@ -3,72 +3,77 @@
    <title>Troubleshooting</title>
 </head>
 <body>
-<b><font size=+2>PM123's Troubleshooting</font></b>
-<p>
-<b>1. The player skips and/or the audio doesn't sound right!</b>
-<blockquote>
-There might be multiple reasons if you encounter this problem.
-Some of them are listed here. First of all, <b>check your MP3 file</b>.
-It may be broken. It might play succesfully on another player, but mpg123
-may not necessarily like it. If you think it's not related to the input
-stream, maybe the problem is one of these:
-<ul>
-<li>You have a polling device driver (for example, a very old 2x CD-ROM or <tt>PRINT01.SYS</tt>
-without <tt>/IRQ</tt> switch)</li>
-<li>Bad CD-ROMs tend to seek the disk often. This usually takes 100% CPU and
-halts I/O operation until the drive completes the seek. You can try cleaning
-the CD.</li>
-<li>You have a video card that supports "<i>automatic PCI bus retry</i>", but
-your motherboard stops processing during those retries. Disable the feature
-(video driver).</li>
-<li>You have an ATI Mach64 and you are experiencing a bug in the video driver
-using software mouse pointers (ie. colored mouse pointers).</li>
-<li>You have a process that hogs all the CPU. Get a CPU monitor (we recommend
-CPUMon) and a process killer from <tt><a href="http://hobbes.nmsu.edu">hobbes.nmsu.edu</a></tt>.</li>
-<li>You have Full Window Drag enabled. It sucks 100% CPU power when you use
-it. On Warp 4, disable it from System / User Interface / Window Manipulation / Full Window Dragging.</li>
-<li>Your CPU is too slow (or overheated). We recommend you have at least a
-Pentium machine.</li>
-<li>You have outdated, old or <b>buggy sound drivers</b>. This is a common
-problem. Many sound drivers out there for OS/2 just plain suck. We have
-tried to test PM123 on as many drivers as we can, but some drivers are
-incomplete and/or buggy.</li>
-<li>You have a very old or just generally bad motherboard, video card or IO
-controller card. This is a rare problem, though.</li>
-</ul>
-</blockquote>
-<b>2. The player crashes on startup.</b>
-<blockquote>
-<ul>
-<li>You have an old <tt>MPG123.DLL</tt> (or some other DLL PM123 comes with)
-in your <tt>LIBPATH</tt>.</li>
-<li>Your system doesn't support DIVE (Direct Video Extensions). Try renaming
-<tt>visplug\analyzer.dll</tt>
-to something else.</li>
-<li>Something is very wrong...</a>.</li>
-</ul>
-</blockquote>
-<b>3. My mouse cursor is jerky or jumpy!</b>
-<blockquote>
-<ul>
-<li>You have a bad video driver. You should try
-<a href="http://www.scitechsoft.com/sdd_os2.html">Scitech Display
-Drivers</a> which should fix all your problems. If this does
-not work out, we cannot help you more on this matter, but we urge you to
-call/mail your video driver manufacturer about this problem.
-<li>You have a colored or animated mouse pointer that is not supported
-properly by your video driver. They are <b>software mouse cursors</b>
-and they don't mix very well with high performance multimedia
-applications that draw rapidly to the screen.  SDD drivers do not
-exhibit this problem.  Switch back to the old black and white OS/2
-default mouse pointer and/or disable pointer animation. The default b/w
-pointer is a <b>hardware mouse cursor</b>. This problem is often caused
-by all high speed DIVE applications.
-<li>If all fails, one way to fix this problem is to set analyzer disabled by
-default (Properties -> Plug-Ins -> analyzer.dll -> Configure). Of
-course you won't see the cool graphics then.
-</ul>
-</blockquote>
+<h2>PM123's Troubleshooting</h2>
+<ol>
+<li><p><b>The player says that no matching decoder plug-in is available
+  when playing files without standard extensions.</b>
+  <p>By default PM123 tries decoders only if either the file extension is known to work
+  with this decoder or the file type is listed in the file type list of the matching
+  decoder plug-in in the <a href="plug-ins_dec-cfg.html">configuration dialog</a>. 
+  <ul>
+    <li>Either add one of the file types that the file has in the file's properties
+    dialog to the list of known types for the matching decode plug-in or
+    <li>check the box 'Try unsupported file extensions and types too'
+    for the desired plug-in.
+  </ul>
+<li><p><b>The player skips and/or the audio doesn't sound right!</b>
+  <p>There might be multiple reasons if you encounter this problem.
+  Some of them are listed here. First of all, <b>check your MP3 file</b>.
+  It may be broken. It might play succesfully on another player, but mpg123
+  may not necessarily like it. If you think it's not related to the input
+  stream, maybe the problem is one of these:
+  <ul>
+    <li>You have a polling device driver (for example, a very old 2x CD-ROM or <tt>PRINT01.SYS</tt>
+    without <tt>/IRQ</tt> switch)</li>
+    <li>Bad CD-ROMs tend to seek the disk often. This usually takes 100% CPU and
+    halts I/O operation until the drive completes the seek. You can try cleaning
+    the CD.</li>
+    <li>You have a video card that supports "<i>automatic PCI bus retry</i>", but
+    your motherboard stops processing during those retries. Disable the feature
+    (video driver).</li>
+    <li>You have an ATI Mach64 and you are experiencing a bug in the video driver
+    using software mouse pointers (ie. colored mouse pointers).</li>
+    <li>You have a process that hogs all the CPU. Get a CPU monitor (we recommend
+    CPUMon) and a process killer from <tt><a href="http://hobbes.nmsu.edu">hobbes.nmsu.edu</a></tt>.</li>
+    <li>You have Full Window Drag enabled. It sucks 100% CPU power when you use
+    it. On Warp 4, disable it from System / User Interface / Window Manipulation / Full Window Dragging.</li>
+    <li>Your CPU is too slow (or overheated). We recommend you have at least a
+    Pentium machine.</li>
+    <li>You have outdated, old or <b>buggy sound drivers</b>. This is a common
+    problem. Many sound drivers out there for OS/2 just plain suck. We have
+    tried to test PM123 on as many drivers as we can, but some drivers are
+    incomplete and/or buggy.</li>
+    <li>You have a very old or just generally bad motherboard, video card or IO
+    controller card. This is a rare problem, though.</li>
+  </ul>
+<li><p><b>The player crashes on startup.</b>
+  <ul>
+    <li>You have an old <tt>MPG123.DLL</tt> (or some other DLL PM123 comes with)
+    in your <tt>LIBPATH</tt>.</li>
+    <li>Your system doesn't support DIVE (Direct Video Extensions). Try renaming
+    <tt>visplug\analyzer.dll</tt>
+    to something else.</li>
+    <li>Something is very wrong...</a>.</li>
+  </ul>
+<li><p><b>My mouse cursor is jerky or jumpy!</b>
+  <ul>
+    <li>You have a bad video driver. You should try
+    <a href="http://www.scitechsoft.com/sdd_os2.html">Scitech Display
+    Drivers</a> which should fix all your problems. If this does
+    not work out, we cannot help you more on this matter, but we urge you to
+    call/mail your video driver manufacturer about this problem.
+    <li>You have a colored or animated mouse pointer that is not supported
+    properly by your video driver. They are <b>software mouse cursors</b>
+    and they don't mix very well with high performance multimedia
+    applications that draw rapidly to the screen.  SDD drivers do not
+    exhibit this problem.  Switch back to the old black and white OS/2
+    default mouse pointer and/or disable pointer animation. The default b/w
+    pointer is a <b>hardware mouse cursor</b>. This problem is often caused
+    by all high speed DIVE applications.
+    <li>If all fails, one way to fix this problem is to set analyzer disabled by
+    default (Properties -> Plug-Ins -> analyzer.dll -> Configure). Of
+    course you won't see the cool graphics then.
+  </ul>
 
 </body>
 </html>

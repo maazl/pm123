@@ -68,7 +68,7 @@
 
 PluginList1 Decoders(PLUGIN_DECODER, // only decoders
   "mpg123.dll?enabled=true\n"
-  "wavplay.dll?enabled=true\n"
+  "wavplay.dll?enabled=true&filetypes=Digital Audio\n"
   "oggplay.dll?enabled=true\n"
   "cddaplay.dll?enabled=true\n"
   "os2rec.dll?enabled=true\n");

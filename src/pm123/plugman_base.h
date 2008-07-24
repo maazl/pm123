@@ -163,7 +163,7 @@ class Decoder
   virtual void GetParams(stringmap& map) const;
   virtual bool SetParam(const char* param, const xstring& value);
  private:
-  bool         DoFileTypeMatch(USHORT type, const USHORT*& eadata) const;
+  static bool  DoFileTypeMatch(const char* filetypes, USHORT type, const USHORT*& eadata);
 
  public:  
   // Factory function to create a new decoder instance from a module object.
