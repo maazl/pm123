@@ -122,12 +122,14 @@ class Plugin
   struct EventArgs
   { Plugin&     Plug;
     enum event
-    { Load,
-      Unload,
-      Enable,
-      Disable,
-      Init,
-      Uninit
+    { Load,     // The plug-in is loaded by the user
+      Unload,   // The plug-in is unloaded by the user
+      Enable,   // The plug-in is enabled by the user
+      Disable,  // The plug-in is disabled by the user
+      Init,     // The plug-in is instanciated by the plug-in manager
+      Uninit,   // The plug-in instance is destroyed by the plug-in manager 
+      Active,   // The plug-in is activated (outputs and decoders only)
+      Inactive  // The plug-in is deactivated (outputs and decoders only)
     }           Operation;
   };
 

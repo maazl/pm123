@@ -527,7 +527,9 @@ PluginList::RC PluginList::Deserialize(const xstring& str)
 Plugin* PluginList1::erase(size_t i)
 { Plugin* pp = PluginList::erase(i);
   if ( pp == Active )
+  { pp->RaisePluginChange(Plugin::EventArgs::Inactive);
     Active = NULL;
+  }
   return pp;
 }
 
@@ -539,14 +541,20 @@ int PluginList1::SetActive(int i)
   if (pp == Active)
     return 0;
 
-  if (Active != NULL && !xchg(Active, (Plugin*)NULL)->UninitPlugin() )
-    return -1;
+  if (Active != NULL)
+  { Plugin* ppold = xchg(Active, (Plugin*)NULL);
+    if (ppold)
+    { ppold->RaisePluginChange(Plugin::EventArgs::Inactive);
+      ppold->UninitPlugin();
+    }
+  }  
 
   if (pp != NULL)
   { if (!pp->GetEnabled())
       return -2;
     if (!pp->InitPlugin())
       return -1;
+    pp->RaisePluginChange(Plugin::EventArgs::Active);
   }
   Active = pp;
   return 0;

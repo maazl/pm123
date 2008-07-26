@@ -137,7 +137,7 @@ bool binary_search_base(const vector_base& data, int (*fcmp)(const void* elem, c
   size_t r = data.size();
   while (l < r)
   { size_t m = (l+r) >> 1;
-    DEBUGLOG(("sorted_vector<T,K>::binary_search %u-%u %u->%p\n", l, r, m, data.at(m)));
+    DEBUGLOG2(("binary_search_base %u-%u %u->%p\n", l, r, m, data.at(m)));
     // Dirty hack: NULL references do always match exactly
     // This removes problems with the initialization sequence of inst_index.
     if (!data.at(m))
@@ -145,7 +145,7 @@ bool binary_search_base(const vector_base& data, int (*fcmp)(const void* elem, c
       return true;
     }
     int cmp = (*fcmp)(data.at(m), key);
-    DEBUGLOG(("sorted_vector<T,K>::binary_search cmp = %i\n", cmp));
+    DEBUGLOG2(("binary_search_base cmp = %i\n", cmp));
     if (cmp == 0)
     { pos = m;
       return true;

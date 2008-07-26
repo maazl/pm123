@@ -661,9 +661,17 @@ bool PluginContext::SetParams(size_t i)
     ULONG len = WinQueryWindowTextLength(ctrl) +1;
     char* filetypes = (char*)alloca(len);
     WinQueryWindowText(ctrl, len, filetypes);
-    for (char* cp2 = filetypes; *cp2; ++cp2)
-      if (*cp2 == '\n')
+    char* cp2 = filetypes;
+    while ( *cp2)
+    { switch (*cp2)
+      {case '\r':
+        strcpy(cp2, cp2+1);
+        continue;
+       case '\n':
         *cp2 = ';';
+      }
+      ++cp2;
+    }
     pp->SetParam("filetypes", filetypes);
     pp->SetParam("tryothers", WinQueryButtonCheckstate(Hwnd, CB_DEC_TRYOTHER) ? "1" : "0");
     pp->SetParam("serializeinfo", WinQueryButtonCheckstate(Hwnd, CB_DEC_SERIALIZE) ? "1" : "0");
@@ -710,7 +718,7 @@ bool PluginContext::filter_enable_hook(size_t i, bool enable)
 /* Processes messages of the plug-ins pages of the setup notebook. */
 static MRESULT EXPENTRY
 cfg_config_dlg_proc(HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2)
-{ DEBUGLOG(("cfg_config_dlg_proc(%p, %x, %x, %x)\n", hwnd, msg, mp1, mp2));
+{ DEBUGLOG2(("cfg_config_dlg_proc(%p, %x, %x, %x)\n", hwnd, msg, mp1, mp2));
   PluginContext* context = (PluginContext*)WinQueryWindowULong(hwnd, QWL_USER);
   SHORT i;
 
@@ -837,7 +845,9 @@ cfg_config_dlg_proc(HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2)
        case PB_PLG_ACTIVATE:
         if ( i != LIT_NONE && (context->Flags & PluginContext::CF_List1) && (context->*context->enable_hook)(i, true)
           && ((PluginList1*)context->List)->SetActive(i) )
-          WinPostMsg(hwnd, CFG_REFRESH_INFO, 0, MPFROMSHORT(i));
+        { WinPostMsg(hwnd, CFG_REFRESH_INFO, 0, MPFROMSHORT(i));
+          PMRASSERT(WinEnableControl(hwnd, PB_PLG_ACTIVATE, FALSE));
+        }  
         break;
 
        case PB_PLG_CONFIG:

@@ -1061,7 +1061,7 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
     { USHORT cmd = SHORT1FROMMP(mp1);
       DEBUGLOG(("amp_dlg_proc: WM_COMMAND(%u, %u, %u)\n", cmd, SHORT1FROMMP(mp2), SHORT2FROMMP(mp2)));
       if( cmd > IDM_M_PLUG && cmd <= IDM_M_PLUG_E ) {
-        cmd -= IDM_M_PLUG;
+        cmd -= IDM_M_PLUG+1;
         // atomic plug-in request
         Module* plug;
         { const Module::IXAccess ix;
@@ -1535,6 +1535,11 @@ static void amp_plugin_eventhandler(void*, const Plugin::EventArgs& args)
     if (args.Plug.GetType() == PLUGIN_DECODER)
       WinPostMsg(hframe, AMP_REFRESH_ACCEL, 0, 0);
     is_plugin_changed = true;
+    break;
+   case Plugin::EventArgs::Active:
+   case Plugin::EventArgs::Inactive:
+    if (args.Plug.GetType() == PLUGIN_OUTPUT)
+      is_plugin_changed = true;
    default:; // avoid warnings
   }
 }

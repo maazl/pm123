@@ -187,8 +187,9 @@ bool Decoder::UninitPlugin()
 }
 
 bool Decoder::IsFileSupported(const char* url) const
-{ DEBUGLOG(("Decoder(%p{%s})::IsFileSupported(%s) - %s, %s\n", this, GetModuleName().cdata(),
-    url, Extensions ? Extensions.cdata() : "<null>", FileTypes ? FileTypes.cdata() : "<null>"));
+{ DEBUGLOG(("Decoder(%p{%s})::IsFileSupported(%s) - %s, %s, %s\n", this, GetModuleName().cdata(),
+    url, Extensions ? Extensions.cdata() : "<null>", FileTypes ? FileTypes.cdata() : "<null>",
+    AddFileTypes ? AddFileTypes.cdata() : "<null>"));
 
   // Can't probe anything but files so far
   if (strnicmp("file:", url, 5) != 0)
@@ -400,7 +401,7 @@ bool DecoderProxy1::AfterLoad()
   int     i;
 
   // determine size
-  decoder_support( my_support, &size );
+  Type = decoder_support( my_support, &size );
 
   FileTypes = NULL;
   if (size)
