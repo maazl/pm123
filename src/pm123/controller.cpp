@@ -868,8 +868,8 @@ void Ctrl::Worker()
 
     bool fail = false;
     do
-    { DEBUGLOG(("Ctrl::Worker received message: %p{%i, %s, %g, %x, %p, %p} - %u\n",
-      ccp, ccp->Cmd, ccp->StrArg ? ccp->StrArg.cdata() : "<null>", ccp->NumArg, ccp->Flags, ccp->Callback, ccp->Link, fail));
+    { DEBUGLOG(("Ctrl::Worker received message: %p{%i, %s, %08x%08x, %x, %p, %p} - %u\n",
+      ccp, ccp->Cmd, ccp->StrArg ? ccp->StrArg.cdata() : "<null>", ccp->PtrArg, (&ccp->PtrArg)[1], ccp->Flags, ccp->Callback, ccp->Link, fail));
       if (fail)
         ccp->Flags = RC_SubseqError;
       else
