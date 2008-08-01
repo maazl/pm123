@@ -279,7 +279,7 @@ void Playable::UpdateStatus(PlayableStatus stat)
 }
 
 void Playable::RaiseInfoChange()
-{ DEBUGLOG(("Playable(%p)::RaiseInfoChange()\n", this));
+{ DEBUGLOG(("Playable(%p)::RaiseInfoChange() - %x\n", this, InfoChangeFlags));
   if (InfoChangeFlags)
     InfoChange(change_args(*this, InfoChangeFlags));
   InfoChangeFlags = IF_None;
@@ -301,7 +301,7 @@ Playable::InfoFlags Playable::LoadInfo(InfoFlags what)
   // We always reset the flags of both priorities.
   InterlockedAnd(InfoRequest, ~what);
   InterlockedAnd(InfoRequestLow, ~what);
-  // Well we might remove an outstanding request in the worker queue here,
+  // Well, we might remove an outstanding request in the worker queue here,
   // but it is simply faster to wait for the request to arrive and ignore it then.
   return what;
 }
@@ -314,7 +314,7 @@ void Playable::EnsureInfo(InfoFlags what)
       i = CheckInfo(what);
       // We release the lock before we load the desired information
       // to avoid deadlocks with recursive playlists.
-      // There is a small chance that the Informatione is requested by another thread
+      // There is a small chance that the Information is requested by another thread
       // immediately after doing that. But this price we have to pay. In this case
       // the information is loaded twice. 
     }

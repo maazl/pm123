@@ -717,13 +717,16 @@ const PlayableCollection::CollectionInfo& PlayableCollection::GetCollectionInfo(
       DEBUGLOG(("PlayableCollection::GetCollectionInfo - Song\n"));
       Song* song = (Song*)pi->GetPlayable();
       song->EnsureInfo(IF_Tech|IF_Phys);
-      if (song->GetStatus() != STA_Invalid)
+      if (song->GetStatus() == STA_Invalid)
+      { // only count invalid items
+        cic->Info.Add(0, 0, 1);
+      } else
       { // take care of slice
         const DECODER_INFO2& info = song->GetInfo();
         T_TIME length = info.tech->songlength;
         DEBUGLOG(("PlayableCollection::GetCollectionInfo - len = %f\n", length));
-        if (length < 0)
-        { cic->Info.Add(-1, info.phys->filesize, 1);
+        if (length <= 0)
+        { cic->Info.Add(length, info.phys->filesize, 1);
           // TODO: use bitrate for slicing ???
         } else
         { if (pi->GetStop() && length > pi->GetStop()->GetLocation())
@@ -737,9 +740,7 @@ const PlayableCollection::CollectionInfo& PlayableCollection::GetCollectionInfo(
           // Scale filesize with slice to preserve bitrate.
           cic->Info.Add(length, info.phys->filesize * length / info.tech->songlength, 1);
         }
-      } else
-        // only count invalid items
-        cic->Info.Add(0, 0, 1);
+      }
     } else
     { // Song Item without IF_Tech => only count
       DEBUGLOG(("PlayableCollection::GetCollectionInfo - Song, no detail\n"));
