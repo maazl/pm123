@@ -36,19 +36,19 @@
 
 int_ptr_base::int_ptr_base(const Iref_Count* ptr)
 : Ptr((Iref_Count*)ptr) // constness is handled in the derived class
-{ DEBUGLOG(("int_ptr_base(%p)::int_ptr_base(%p{%i})\n", this, ptr, ptr ? ptr->Count : 0));
+{ DEBUGLOG2(("int_ptr_base(%p)::int_ptr_base(%p{%i})\n", this, ptr, ptr ? ptr->Count : 0));
   if (Ptr)
     InterlockedInc(Ptr->Count);
 }
 int_ptr_base::int_ptr_base(const int_ptr_base& r)
 : Ptr(r.Ptr)
-{ DEBUGLOG(("int_ptr_base(%p)::int_ptr_base(&%p{%p{%i}})\n", this, &r, r.Ptr, r.Ptr ? r.Ptr->Count : 0));
+{ DEBUGLOG2(("int_ptr_base(%p)::int_ptr_base(&%p{%p{%i}})\n", this, &r, r.Ptr, r.Ptr ? r.Ptr->Count : 0));
   if (Ptr)
     InterlockedInc(Ptr->Count);
 }
 
 Iref_Count* int_ptr_base::reassign(const Iref_Count* ptr)
-{ DEBUGLOG(("int_ptr_base(%p)::reassign(%p{%i}): %p{%i}\n", this, ptr, ptr ? ptr->Count : 0, Ptr, Ptr ? Ptr->Count : 0));
+{ DEBUGLOG2(("int_ptr_base(%p)::reassign(%p{%i}): %p{%i}\n", this, ptr, ptr ? ptr->Count : 0, Ptr, Ptr ? Ptr->Count : 0));
   // Hack to avoid problems with (rarely used) p = p statements: increment new counter first.
   if (ptr)
     InterlockedInc(((Iref_Count*)ptr)->Count);
@@ -60,7 +60,7 @@ Iref_Count* int_ptr_base::reassign(const Iref_Count* ptr)
 }
 
 Iref_Count* int_ptr_base::reassign_weak(const Iref_Count* ptr)
-{ DEBUGLOG(("int_ptr_base(%p)::reassign_weak(%p{%i}): %p{%i}\n", this, ptr, ptr ? ptr->Count : 0, Ptr, Ptr ? Ptr->Count : 0));
+{ DEBUGLOG2(("int_ptr_base(%p)::reassign_weak(%p{%i}): %p{%i}\n", this, ptr, ptr ? ptr->Count : 0, Ptr, Ptr ? Ptr->Count : 0));
   // Hack to avoid problems with (rarely used) p = p statements: increment new counter first.
   if (ptr)
   { CritSect cs;
@@ -82,7 +82,7 @@ Iref_Count* int_ptr_base::reassign_weak(const Iref_Count* ptr)
 }
 
 Iref_Count* int_ptr_base::unassign()
-{ DEBUGLOG(("int_ptr_base(%p)::unassign(): %p{%i}\n", this, Ptr, Ptr ? Ptr->Count : 0));
+{ DEBUGLOG2(("int_ptr_base(%p)::unassign(): %p{%i}\n", this, Ptr, Ptr ? Ptr->Count : 0));
   return Ptr && InterlockedDec(Ptr->Count) == 0 ? Ptr : NULL;
 }
 
