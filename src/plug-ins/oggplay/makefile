@@ -19,6 +19,7 @@ all: oggplay.dll $(MDUMMY)
 
 oggplay.dll: $(OBJECTS) $(DEF) $(LIBS)
 	$(CL) $(LFLAGS) $(LFLAGS_OUT)$@ $(LOBJ_PREFX)$(OBJECTS)$(LOBJ_SUFFX) $(LLIB_PREFX)$(LIBS) $(SYSLIBS)$(LLIB_SUFFX) $(LDEF_PREFX)$(DEF)
+	$(POSTLINKCMD)
 
 oggplay$(LBI): $(DEF)
 	$(LI) $(IFLAGS_OUT)$@ oggplay.dll
