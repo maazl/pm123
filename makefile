@@ -2,12 +2,10 @@
 #  makefile for the whole pm123 package
 #
 
-VERSION = 1_32
+VERSION = 1.40
 PARTS   = src\utils\utilfct$(LBO) src\utils\cpp\cpputil$(LBO) src\gbm123\gbm123.dll src\fft123\fft123.dll
 PARTS   = $(PARTS) src\xio123\xio123.dll
 PARTS   = $(PARTS) src\snd123\snd123.dll
-PARTS   = $(PARTS) src\ogg123\ogg123.dll
-PARTS   = $(PARTS) src\vrb123\vrb123.dll
 PARTS   = $(PARTS) src\zlb123\zlb123.dll
 PARTS   = $(PARTS) src\plug-ins\analyzer\analyzer.dll
 PARTS   = $(PARTS) src\plug-ins\cddaplay\cddaplay.dll
@@ -109,7 +107,7 @@ src\plug-ins\wavout\wavout.dll:
 	@$(MAKE) $(MFLAGS)
 	@cd ..\..\..
 
-src\plug-ins\oggplay\oggplay.dll:
+src\plug-ins\oggplay\oggplay.dll: src\ogg123\ogg123.dll src\vrb123\vrb123.dll
 	cd src\plug-ins\oggplay
 	@$(MAKE) $(MFLAGS)
 	@cd ..\..\..
@@ -276,8 +274,6 @@ distfiles: distclean $(MDUMMY)
 	copy src\fft123\fft123.dll dist\files
 	copy src\xio123\xio123.dll dist\files
 	copy src\snd123\snd123.dll dist\files
-	copy src\ogg123\ogg123.dll dist\files
-	copy src\vrb123\vrb123.dll dist\files
 	copy src\zlb123\zlb123.dll dist\files
 	copy src\plug-ins\analyzer\analyzer.dll dist\files\visplug
 	copy src\plug-ins\cddaplay\cddaplay.dll dist\files
