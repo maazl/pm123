@@ -568,16 +568,20 @@ Ctrl::RC Ctrl::MsgPlayStop(Op op)
   { // start playback
     Song* pp = GetCurrentSong();
     if (pp == NULL)
+    { Playing = false;
       return RC_NoSong;
+    }
     if (OutputStart(pp) != 0)
+    { Playing = false;
       return RC_OutPlugErr;
+    }
 
     Current()->Offset = 0;
     if (DecoderStart(Current()->Iter.GetCurrent(), 0) != 0)
     { OutputStop();
+      Playing = false;
       return RC_DecPlugErr;
     }
-    Playing = true;
   
   } else
   { // stop playback
@@ -591,8 +595,6 @@ Ctrl::RC Ctrl::MsgPlayStop(Op op)
     { DEBUGLOG(("Ctrl::MsgPlayStop - Spinlock\n"));
       DosSleep(1);
     }
-
-    Playing = false;
   }
   InterlockedOr(Pending, EV_PlayStop);
   
