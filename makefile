@@ -2,7 +2,7 @@
 #  makefile for the whole pm123 package
 #
 
-VERSION = 1.40
+VERSION = 1.40a3
 PARTS   = src\utils\utilfct$(LBO) src\utils\cpp\cpputil$(LBO) src\gbm123\gbm123.dll src\fft123\fft123.dll
 PARTS   = $(PARTS) src\xio123\xio123.dll
 PARTS   = $(PARTS) src\snd123\snd123.dll
