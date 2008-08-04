@@ -652,7 +652,8 @@ T_TIME DLLENTRY dec_length( void )
 
 // merge semicolon separated entries into a stringset
 static void merge_ssv_list(stringset& dest, const char* entries)
-{ if (entries == NULL)
+{ DEBUGLOG(("merge_ssv_list(&%p, %s)\n", &dest, entries ? entries : "<null>"));
+  if (entries == NULL)
     return;
   for (;;)
   { const char* cp = strchr(entries, ';');

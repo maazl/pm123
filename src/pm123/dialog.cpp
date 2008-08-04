@@ -230,9 +230,9 @@ static xstring joinstringset(const stringset& set, char delim)
   sp = set.begin();
   for(;;)
   { memcpy(dp, (*sp)->Key.cdata(), (*sp)->Key.length() +1);
+    dp += (*sp)->Key.length();
     if (++sp == set.end())
       break;
-    dp += (*sp)->Key.length();
     *dp++ = delim;
   }
   return ret; 
