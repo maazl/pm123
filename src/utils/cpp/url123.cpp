@@ -376,7 +376,7 @@ xstring url123::makeRelative(const char* root, bool useupdir) const
   // find common part
   const char* sp1 = *this;
   const char* sp2 = root;
-  while (*sp1 == *sp2 && *sp1)
+  while (tolower(*sp1) == tolower(*sp2) && *sp1)
     ++sp1, ++sp2;
 
   // Count number of '/' in root after common part of root URL.
@@ -411,5 +411,6 @@ xstring url123::makeRelative(const char* root, bool useupdir) const
     dp += 3;
   }
   memcpy(dp, sp1, len);
+  DEBUGLOG(("url123::makeRelative: %s\n", ret.cdata()));
   return ret;
 }
