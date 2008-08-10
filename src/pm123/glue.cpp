@@ -37,6 +37,7 @@
 #include "properties.h"
 #include "pm123.h"
 #include <fileutil.h>
+#include <eautils.h>
 #include <os2.h>
 
 #include <cpp/container.h>
@@ -549,6 +550,8 @@ ULONG DLLENTRY dec_fileinfo( const char* url, INFOTYPE* what, DECODER_INFO2* inf
   bool* checked = (bool*)alloca(sizeof(bool) * Decoders.size());
   const Decoder* dp;
   INFOTYPE what2;
+  const char* file = NULL;
+  char* eadata = NULL;
   ULONG rc;
   size_t i;
 
@@ -558,8 +561,19 @@ ULONG DLLENTRY dec_fileinfo( const char* url, INFOTYPE* what, DECODER_INFO2* inf
   if (is_cdda(url))
     type_mask = DECODER_TRACK;
   else if (strnicmp("file:", url, 5) == 0)
-    type_mask = DECODER_FILENAME;
-  else if (strnicmp("http:", url, 5) == 0 || strnicmp("https:", url, 6) == 0 || strnicmp("ftp:", url, 4) == 0)
+  { type_mask = DECODER_FILENAME;
+    file = url + 5;
+    if (file[2] == '/')
+      file += 3;
+    size_t size = 0;
+    APIRET rc = eaget(file, ".type", &eadata, &size);
+    if (rc != NO_ERROR)
+    { // Errors of DosQueryPathInfo are considered to be permanent.
+      os2_strerror(rc, info->tech->info, sizeof info->tech->info);
+      *what = INFO_ALL; // Even in case of an error the requested information is in fact available.
+      return PLUGIN_NO_PLAY;
+    }
+  } else if (strnicmp("http:", url, 5) == 0 || strnicmp("https:", url, 6) == 0 || strnicmp("ftp:", url, 4) == 0)
     type_mask = DECODER_URL;
   else
     // Always try URL too.
@@ -568,10 +582,10 @@ ULONG DLLENTRY dec_fileinfo( const char* url, INFOTYPE* what, DECODER_INFO2* inf
   // First checks decoders supporting the specified type of files.
   for (i = 0; i < Decoders.size(); i++)
   { dp = (Decoder*)Decoders[i];
-    DEBUGLOG(("dec_fileinfo: %s -> %u %x/%x %u\n", sfnameext2(dp->GetModuleName().cdata()),
-      dp->GetEnabled(), dp->GetObjectTypes(), type_mask, dp->IsFileSupported(url)));
+    DEBUGLOG(("dec_fileinfo: %s -> %u %x/%x\n", sfnameext2(dp->GetModuleName().cdata()),
+      dp->GetEnabled(), dp->GetObjectTypes(), type_mask));
     if (dp->GetEnabled() && (dp->GetObjectTypes() & type_mask))
-    { if (!dp->IsFileSupported(url))
+    { if (file && !dp->IsFileSupported(file, eadata))
         continue;
       what2 = *what;
       rc = (*dp->GetProcs().decoder_fileinfo)(url, &what2, info);

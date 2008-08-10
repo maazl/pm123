@@ -35,17 +35,6 @@
 #define  INCL_DOSERRORS
 #define  INCL_WINSTDDRAG
 #include <os2.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <stdarg.h>
-#include <ctype.h>
-#include <string.h>
-#include <time.h>
-#include <sys/time.h>
-#include <sys/stat.h>
-#include <math.h>
-#include <float.h>
-#include <process.h>
 
 //#undef DEBUG
 //#define DEBUG 2
@@ -74,6 +63,18 @@
 #include <cpp/url123.h>
 #include <cpp/showaccel.h>
 #include "pm123.rc.h"
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <stdarg.h>
+#include <ctype.h>
+#include <string.h>
+#include <time.h>
+#include <sys/time.h>
+#include <sys/stat.h>
+#include <math.h>
+#include <float.h>
+#include <process.h>
 
 #include <debuglog.h>
 
@@ -351,7 +352,8 @@ amp_load_playable( const PlayableSlice& ps, int options )
 { DEBUGLOG(("amp_load_playable({%s,...}, %x)\n", ps.GetPlayable()->GetURL().cdata(), options));
 
   if (options & AMP_LOAD_APPEND)
-  { ASSERT(Ctrl::GetRoot() != NULL);
+  { // TODO:!!! The controller might not yet have executed the command for loading the default playlist. 
+    ASSERT(Ctrl::GetRoot() != NULL);
     // multi mode
     if (Ctrl::GetRoot()->GetPlayable() != DefaultPL)
     { // we do not yet use the current playlist => use it
@@ -1619,22 +1621,6 @@ main2( void* arg )
 
   dlg_init();
 
-  if( files == 1 && !is_dir( argv[argc - 1] )) {
-    amp_load_playable(PlayableSlice(url123::normalizeURL(argv[argc - 1])), 0 );
-  } else if( files > 0 ) {
-    // TODO: same as on load_file_callback
-    /*for( i = 1; i < argc; i++ ) {
-      if( argv[i][0] != '/' && argv[i][0] != '-' ) {
-        if( is_dir( argv[i] )) {
-          pl_add_directory( argv[i], PL_DIR_RECURSIVE );
-        } else {
-          pl_add_file( argv[i], NULL, 0 );
-        }
-      }
-    }
-    pl_completed();*/
-  }
-
   WinSetWindowPos( hframe, HWND_TOP,
                    cfg.main.x, cfg.main.y, 0, 0, SWP_ACTIVATE | SWP_MOVE | SWP_SHOW );
 
@@ -1674,6 +1660,22 @@ main2( void* arg )
   DEBUGLOG(("main: init complete\n"));
 
   amp_pipe_create();
+
+  if (files)
+  { // Files passed at command line => load them initially.
+    // TODO: do not load last used file in this case!
+    const url123& cwd = amp_get_cwd();
+    bool first = true;
+    for (int i = 1; i < argc; i++)
+    { if (argv[i][0] != '/' && argv[i][0] != '-')
+      { const url123& url = cwd.makeAbsolute(argv[i]);
+        if (!url)
+          amp_player_error( "Invalid file or URL: '%s'", argv[i]);
+        else
+          amp_load_file_callback(&first, url);
+      }
+    }
+  }
 
   ///////////////////////////////////////////////////////////////////////////
   // Main loop

@@ -462,7 +462,8 @@ PlayableCollection::Entry* PlayableCollection::CreateEntry(const char* url, cons
 
 void PlayableCollection::InsertEntry(Entry* entry, Entry* before)
 { DEBUGLOG(("PlayableCollection(%p{%s})::InsertEntry(%p{%s,%p,%p}, %p{%s})\n", this, GetURL().getShortName().cdata(),
-    entry, entry->GetPlayable()->GetURL().getShortName().cdata(), entry->Prev.get(), entry->Next.get(), before, before ? before->GetPlayable()->GetURL().getShortName().cdata() : ""));
+    entry, entry->GetPlayable()->GetURL().getShortName().cdata(), entry->Prev.get(), entry->Next.get(),
+    before, before ? before->GetPlayable()->GetURL().cdata() : ""));
   // Check wether we are between BeginRefresh and EndRefresh and may recycle an existing item.
   if (OldTail)
   { ASSERT(before == NULL); // only append is supported in refresh mode
@@ -839,7 +840,8 @@ Playable::InfoFlags PlayableCollection::LoadInfo(InfoFlags what)
 }
 
 bool PlayableCollection::InsertItem(const PlayableSlice& item, PlayableInstance* before)
-{ DEBUGLOG(("PlayableCollection(%p{%s})::InsertItem(%s, %p) - %u\n", this, GetURL().getShortName().cdata(), item.DebugName().cdata(), before, Stat));
+{ DEBUGLOG(("PlayableCollection(%p{%s})::InsertItem(%s, %p{%s}) - %u\n", this, GetURL().getShortName().cdata(),
+    item.DebugName().cdata(), before, before ? before->GetPlayable()->GetURL().cdata() : "", Stat));
   Lock lock(*this);
   // Check whether the parameter before is still valid
   if (before && !before->IsParent(this))
