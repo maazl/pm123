@@ -170,9 +170,11 @@ class vector : public vector_base
  */
 template <class T>
 void vector_own_base_destroy(vector<T>& v)
-{ T** tpp = v.end();
+{ T*const* tpp = v.end();
   while (tpp != v.begin())
+  { DEBUGLOG2(("vector_own_base_destroy &%p, %u\n", &v, v.size()));
     delete *--tpp;
+  }
 }
 
 template <class T>

@@ -85,7 +85,8 @@ SongIterator::CallstackEntry::CallstackEntry(const CallstackEntry& r)
 }
 
 void SongIterator::CallstackEntry::Swap(CallstackEntry& r)
-{ Item.swap(r.Item);
+{ DEBUGLOG(("SongIterator::CallstackEntry(%p)::Swap(&%p)\n", this, &r));
+  Item.swap(r.Item);
   swap(Off, r.Off);
   swap((bool&)OffValid, (bool&)r.OffValid);
   Exclude.swap(r.Exclude);
@@ -153,6 +154,25 @@ PlayableCollection::CollectionInfo SongIterator::CallstackEntry::GetInfo() const
   return ret;
 }
 
+
+SongIterator::CallstackType::CallstackType(const CallstackType& r)
+//: vector_own<CallstackEntry>(r.size() > 8 ? r.size() : 8);
+{ DEBUGLOG(("SongIterator::CallstackType(%p)::CallstackType(&%p)\n", this, &r));
+  // copy callstack
+  const CallstackEntry*const* ppce = r.begin();
+  append() = new CallstackEntry(**ppce);
+  while (++ppce != r.end())
+    append() = new CallstackSubEntry((CallstackSubEntry&)**ppce, *this);
+}
+
+void SongIterator::CallstackType::ListChangeHandler(const PlayableCollection::change_args& args, CallstackEntry* cep)
+{ DEBUGLOG(("SongIterator::CallstackType(%p)::ListChangeHandler(, %p)\n", this, cep));
+  // It is cheaper to invalidate the offset always than to check whether we must invalidate the offset or not.
+  cep->OffValid = false;
+  Change(*cep);
+}
+
+
 SongIterator::CallstackSubFactory::CallstackSubFactory(const CallstackEntry& parent)
 : SongIterator::CallstackEntry(parent.GetExclude())
 { ASSERT(parent.Item);
@@ -161,15 +181,17 @@ SongIterator::CallstackSubFactory::CallstackSubFactory(const CallstackEntry& par
   Exclude.get(*pp) = pp;
 }
 
-SongIterator::CallstackSubEntry::CallstackSubEntry(const CallstackSubEntry& r, SongIterator& owner)
+SongIterator::CallstackSubEntry::CallstackSubEntry(const CallstackSubEntry& r, CallstackType& owner)
 : SongIterator::CallstackSubFactory(r),
-  ChangeDeleg(*r.ChangeDeleg.get_event(), owner, &SongIterator::ListChangeHandler, this)
-{}
+  ChangeDeleg(*r.ChangeDeleg.get_event(), owner, &SongIterator::CallstackType::ListChangeHandler, this)
+{ DEBUGLOG(("SongIterator::CallstackSubEntry(%p)::CallstackSubEntry(const CallstackEntry& %p, CallstackType& %p)\n", this, &r, &owner));
+}
 
-SongIterator::CallstackSubEntry::CallstackSubEntry(SongIterator& owner, const CallstackEntry& parent)
+SongIterator::CallstackSubEntry::CallstackSubEntry(CallstackType& owner, const CallstackEntry& parent)
 : SongIterator::CallstackSubFactory(parent),
-  ChangeDeleg(((PlayableCollection&)*parent.Item->GetPlayable()).CollectionChange, owner, &SongIterator::ListChangeHandler, this)
-{}
+  ChangeDeleg(((PlayableCollection&)*parent.Item->GetPlayable()).CollectionChange, owner, &SongIterator::CallstackType::ListChangeHandler, this)
+{ DEBUGLOG(("SongIterator::CallstackSubEntry(%p)::CallstackSubEntry(CallstackType& %p, const CallStackEntry& %p)\n", this, &owner, parent));
+}
 
 
 // In fact static constructor of SongIterator::InitialCallstack.
@@ -188,7 +210,8 @@ SongIterator::InitialCallstackType SongIterator::InitialCallstack;
 SongIterator::SongIterator()
 : Callstack(&InitialCallstack),
   Location(0),
-  CurrentCacheValid(false)
+  CurrentCacheValid(false),
+  CallstackDeleg(*this, &SongIterator::CallstackChangeHandler)
 { DEBUGLOG(("SongIterator(%p)::SongIterator()\n", this));
 }
 
@@ -197,14 +220,16 @@ SongIterator::SongIterator(const SongIterator& r)
 : Callstack(r.Callstack), // reference the other callstack until changes apply
   Location(r.Location),
   CurrentCache(r.CurrentCacheValid ? r.CurrentCache.get() : NULL), // CurrentCache is also valid until changes apply
-  CurrentCacheValid(r.CurrentCacheValid)
+  CurrentCacheValid(r.CurrentCacheValid),
+  CallstackDeleg(Callstack->Change, *this, &SongIterator::CallstackChangeHandler)
 { DEBUGLOG(("SongIterator(%p)::SongIterator(&%p)\n", this, &r));
 }
 
 SongIterator::SongIterator(const SongIterator& r, unsigned slice)
 : Location(r.Location),
   CurrentCache(r.CurrentCacheValid ? r.CurrentCache.get() : NULL), // Even with slicing CurrentCache is also valid until changes apply
-  CurrentCacheValid(r.CurrentCacheValid)
+  CurrentCacheValid(r.CurrentCacheValid),
+  CallstackDeleg(Callstack->Change, *this, &SongIterator::CallstackChangeHandler)
 { DEBUGLOG(("SongIterator(%p)::SongIterator(&%p, %u)\n", this, &r, slice));
   ASSERT(slice <= r.Callstack->size());
   if (slice)
@@ -213,7 +238,7 @@ SongIterator::SongIterator(const SongIterator& r, unsigned slice)
     const CallstackEntry*const* ppce = r.Callstack->begin() + slice;
     Callstack->append() = new CallstackEntry(**ppce);
     while (++ppce != r.Callstack->end())
-      Callstack->append() = new CallstackSubEntry((CallstackSubEntry&)**ppce, *this);
+      Callstack->append() = new CallstackSubEntry((CallstackSubEntry&)**ppce, *Callstack);
     // TODO: do we need to remove the non copied callstack entries from exclude?
   } else
     Callstack = r.Callstack;
@@ -226,15 +251,24 @@ SongIterator::~SongIterator()
 // Identical to the standard assignment operator so far
 SongIterator& SongIterator::operator=(const SongIterator& r)
 { DEBUGLOG2(("SongIterator(%p)::operator=(%s)\n", this, r.Serialize().cdata()));
+  CallstackDeleg.detach();
   Callstack    = r.Callstack; // reference the other callstack until changes apply
   Location     = r.Location;
   CurrentCache = r.CurrentCacheValid ? r.CurrentCache.get() : NULL; // CurrentCache is also valid until changes apply
   CurrentCacheValid = r.CurrentCacheValid;
+  Callstack->Change += CallstackDeleg;
   return *this;
 }
 
 void SongIterator::Swap(SongIterator& r)
-{ Callstack.swap(r.Callstack);
+{ DEBUGLOG(("SongIterator(%p)::Swap(&%p)\n", this, &r));
+  // swap callstack
+  CallstackDeleg.detach();
+  r.CallstackDeleg.detach();
+  Callstack.swap(r.Callstack);
+  Callstack->Change += CallstackDeleg;
+  r.Callstack->Change += r.CallstackDeleg;
+  // swap other vars
   swap(Location, r.Location);
   CurrentCache.swap(r.CurrentCache);
   swap(CurrentCacheValid, r.CurrentCacheValid);
@@ -257,14 +291,9 @@ void SongIterator::MakeCallstackUnique()
 { if (Callstack->RefCountIsUnique())
     return;
   // create new callstack
-  CallstackType* newstack = new CallstackType(Callstack->size() > 8 ? Callstack->size() : 8);
-  // copy callstack
-  const CallstackEntry*const* ppce = Callstack->begin();
-  newstack->append() = new CallstackEntry(**ppce);
-  while (++ppce != Callstack->end())
-    newstack->append() = new CallstackSubEntry((CallstackSubEntry&)**ppce, *this);
-  // replace by unique copy
-  Callstack = newstack;
+  Callstack = new CallstackType(*Callstack);
+  CallstackDeleg.detach();
+  Callstack->Change += CallstackDeleg;
 }
 
 void SongIterator::Reset()
@@ -337,18 +366,18 @@ PlayableSlice* SongIterator::GetCurrent() const
 }
 
 void SongIterator::Enter()
-{ DEBUGLOG(("SongIterator::Enter()\n"));
+{ DEBUGLOG(("SongIterator(%p)::Enter()\n", this));
   PlayableSlice* psp = Current(); // The ownership is held anyway by the callstack object.
   ASSERT(psp != NULL);
   ASSERT(psp->GetPlayable()->GetFlags() & Playable::Enumerable);
   // We must do this in two steps, because of the side effects of Callstack.append().
   CallstackEntry* cep = (*Callstack)[Callstack->size()-1];
-  Callstack->append() = new CallstackSubEntry(*this, *cep);
+  Callstack->append() = new CallstackSubEntry(*Callstack, *cep);
   Location = 0;
 }
 
 void SongIterator::Leave()
-{ DEBUGLOG(("SongIterator::Leave()\n"));
+{ DEBUGLOG(("SongIterator(%p)::Leave()\n", this));
   ASSERT(Callstack->size() > 1); // Can't remove the last item.
   delete Callstack->erase(Callstack->size()-1);
   Location = 0;
@@ -591,11 +620,8 @@ void SongIterator::EnsureOffset(CallstackEntry& ce, PlayableCollection& parent)
   }
 }
 
-void SongIterator::ListChangeHandler(const PlayableCollection::change_args& args, CallstackEntry*const& cep)
-{ DEBUGLOG(("SongIterator(%p)::ListChangeHandler(, %p)\n", this, cep));
-  // It is cheaper to invalidate the offset always than to check whether we must invalidate the offset or not.
-  cep->OffValid = false;
-  Change(0);
+void SongIterator::CallstackChangeHandler(const CallstackEntry& ce)
+{ Change(ce);
 }
 
 SongIterator::Offsets SongIterator::GetOffset(bool withlocation) const
@@ -607,7 +633,7 @@ SongIterator::Offsets SongIterator::GetOffset(bool withlocation) const
   CallstackEntry* cep = *cepp;
   Offsets ret = cep->Off;
   while (++cepp != Callstack->end())
-  { // The is another subentry => Item of the last entry must be non-zero and a enumerable.
+  { // There is another subentry => Item of the last entry must be non-zero and a enumerable.
     ASSERT(cep->Item);
     ASSERT(cep->Item->GetPlayable()->GetFlags() & Playable::Enumerable);
     PlayableCollection& parent = (PlayableCollection&)*cep->Item->GetPlayable();

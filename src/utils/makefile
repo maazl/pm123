@@ -10,7 +10,7 @@ TARGET   = all2
 
 all2: utilfct$(LBO) $(MDUMMY)
 
-OBJECTS = utilfct$(CO) bufstream$(CO) fileutil$(CO) filefind$(CO)
+OBJECTS = utilfct$(CO) bufstream$(CO) fileutil$(CO) filefind$(CO) fileheader$(CO)
 OBJECTS = $(OBJECTS) errorstr$(CO) rel2abs$(CO) abs2rel$(CO) inimacro$(CO)
 OBJECTS = $(OBJECTS) charset$(CO) wildcards$(CO) queue$(CO) strlcpy$(CO) strchomp$(CO)
 OBJECTS = $(OBJECTS) strlcat$(CO) snprintf$(CO) eautils$(CO) strnchr$(CO) memcmpcpy$(CO)
@@ -33,7 +33,7 @@ charset.c:	charset.h strutils.h debuglog.h utilfct.h
 utilfct.h:	..\include\config.h .\rel2abs.h .\abs2rel.h .\bufstream.h .\charset.h .\wildcards.h .\filefind.h .\fileutil.h .\errorstr.h .\inimacro.h .\queue.h .\minmax.h .\strutils.h
 errorstr.c:	strutils.h snprintf.h
 fileutil.c:	fileutil.h strutils.h minmax.h
-inimacro.c:	utilfct.h
+inimacro.cpp:	utilfct.h
 memcmpcpy.c:	strutils.h
 queue.c:	queue.h
 rel2abs.c:	rel2abs.h

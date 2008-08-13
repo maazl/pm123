@@ -580,7 +580,8 @@ const PlayableSet PlayableSet::Empty;
 
 PlayableSet::PlayableSet()
 : sorted_vector<Playable, Playable>(8)
-{}
+{ DEBUGLOG(("PlayableSet(%p)::PlayableSet()\n", this));
+}
 
 int PlayableSet::compareTo(const PlayableSet& r) const
 { DEBUGLOG(("PlayableSet(%p{%u,...})::compareTo(&%p{%u,...})\n", this, size(), &r, r.size()));

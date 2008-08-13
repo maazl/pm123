@@ -89,7 +89,7 @@ delegate<void, const dec_event_args>        Ctrl::DecEventDelegate(&Ctrl::DecEve
 delegate<void, const OUTEVENTTYPE>          Ctrl::OutEventDelegate(&Ctrl::OutEventHandler);
 delegate<void, const Playable::change_args> Ctrl::CurrentSongDelegate(&Ctrl::CurrentSongEventHandler);
 delegate<void, const Playable::change_args> Ctrl::CurrentRootDelegate(&Ctrl::CurrentRootEventHandler);
-delegate<void, const int>                   Ctrl::SongIteratorDelegate(&Ctrl::SongIteratorEventHandler);
+delegate<void, const SongIterator::CallstackEntry> Ctrl::SongIteratorDelegate(&Ctrl::SongIteratorEventHandler);
 
 const SongIterator::CallstackType Ctrl::EmptyStack(1);
 
@@ -467,11 +467,13 @@ void Ctrl::CurrentRootEventHandler(void*, const Playable::change_args& args)
   }  
 }
 
-void Ctrl::SongIteratorEventHandler(void*, const int& i)
-{ DEBUGLOG(("Ctrl::SongIteratorEventHandler(,)\n"));
+void Ctrl::SongIteratorEventHandler(void*, const SongIterator::CallstackEntry& ce)
+{ DEBUGLOG(("Ctrl::SongIteratorEventHandler(,&%p)\n", &ce));
   // Currently there is no other event dispatched by the SongIterator.
-  InterlockedOr(Pending, EV_Offset);
-  PostCommand(MkNop());
+  if (!(Pending & EV_Offset)) // Effectively a double-check
+  { InterlockedOr(Pending, EV_Offset);
+    PostCommand(MkNop());
+  }
 }
 
 /* Suspends or resumes playback of the currently played file. */

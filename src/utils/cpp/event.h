@@ -75,6 +75,8 @@ class event_base
  public:
   // remove all registered delegates and wait for eventhandlers to complete (uses spin-lock!)
   void           reset();
+  // Wait for eventhandler to complete (uses spin lock)
+  void           sync()                        { Count.Wait(); }
 };
 
 /* non-template base class for delegate
@@ -83,9 +85,10 @@ class delegate_base
 { friend class event_base;
  protected:
   typedef void (*func_type)(const void* receiver, dummy& param);
- private:
+ protected:
   func_type      Fn;
   const void*    Rcv;
+ private:
   event_base*    Ev; // attached to this event
   delegate_base* Link;
   SpinLock       Count; // Number of active eventhandlers
@@ -100,9 +103,16 @@ class delegate_base
   ~delegate_base()                             { DEBUGLOG(("delegate_base(%p)::~delegate_base() - %p\n", this, Ev)); detach(); }
   // Return currently attached event
   event_base*    get_event() const             { return Ev; }
+  // Atomically rebind the delegate to another target.
+  void           rebind(func_type fn, const void* rcv);
+  // Swap receiver part, i.e. the function pointer and the Rcv param.
+  // Note: you cannot swap the event registration.
+  void           swap_rcv(delegate_base& r);
  public:
   // Detach the delegate from the event, if any, and wait for outstanding eventhandlers to complete.
   void           detach();
+  // Wait for eventhandler to complete (uses spin lock)
+  void           sync()                        { Count.Wait(); }
 };
 
 /* Partial typed delegate class.
@@ -182,10 +192,17 @@ class delegate : public delegate_part<P>
  public:
   delegate(func_type fn, R* rcv = NULL)
   : delegate_part<P>((delegate_part<P>::func_type)fn, rcv)
-  { DEBUGLOG2(("delegate(%p)::delegate(%p, %p)\n", this, fn, rcv)); }
+  { DEBUGLOG2(("delegate<>(%p)::delegate(%p, %p)\n", this, fn, rcv)); }
   delegate(event<P>& ev, func_type fn, R* rcv = NULL)
   : delegate_part<P>(ev, (delegate_part<P>::func_type)fn, rcv)
-  { DEBUGLOG2(("delegate(%p)::delegate(%p, %p, %p)\n", this, &ev, fn, rcv)); }
+  { DEBUGLOG2(("delegate<>(%p)::delegate(%p, %p, %p)\n", this, &ev, fn, rcv)); }
+  ~delegate()
+  { DEBUGLOG2(("delegate<>(%p)::~delegate()\n", this)); }
+  // Atomically rebind the delegate to another target.
+  void           rebind(func_type fn, R* rcv) { delegate_base::rebind((delegate_base::func_type)fn, rcv); }
+  // Swap receiver part, i.e. the function pointer and the Rcv param.
+  // Note: you cannot swap the event registration.
+  void           swap_rcv(delegate<R,P>& r) { delegate_part<P>::swap_rcv(r); }
 };
 
 /* Use this delegate to call a non-static member function of your class.
@@ -206,71 +223,88 @@ template <class C, class P>
 class class_delegate : public delegate<class_delegate<C, P>, P>
 {public:
   typedef void (C::*func_type)(P& param);
- private:
-  C&              Inst;
-  func_type const Func;
+ public: // You might change the target parameters, but be careful to do this synchronized.
+  C*              Inst;
+  func_type       Func;
  private:
   static void CallFunc(class_delegate<C, P>* rcv, P& param);
  public:
   class_delegate(C& inst, func_type fn)
   : delegate<class_delegate<C, P> ,P>(&CallFunc, this)
-  , Inst(inst)
+  , Inst(&inst)
   , Func(fn)
   {}
   class_delegate(event<P>& ev, C& inst, func_type fn)
   : delegate<class_delegate<C, P> ,P>(ev, &CallFunc, this)
-  , Inst(inst)
+  , Inst(&inst)
   , Func(fn)
   {}
+ private: // revoke access
+  void           rebind();
+  void           swap_rcv();
 };
 
 template <class C, class P>
 void class_delegate<C, P>::CallFunc(class_delegate<C, P>* rcv, P& param)
-{ (rcv->Inst.*rcv->Func)(param);
+{ (rcv->Inst->*rcv->Func)(param);
 }
 
+
+/* Use this delegate to call a non-static member function of your class
+ * and pass an arbitrary parameter. Note that Parameter is stored by reference.
+ * so ensure that the storage stays valid until the delegate is no longer used.
+ * This variant is useful for container classes.
+ */
 template <class C, class P, class P2>
 class class_delegate2 : public delegate<class_delegate2<C, P, P2>, P>
 {public:
-  typedef void (C::*func_type)(P&, P2&);
- private:
-  C&              Inst;
-  func_type const Func;
-  P2              Param;
+  typedef void (C::*func_type)(P&, P2*);
+ public: // You might change the target parameters, but be careful to do this synchronized.
+  C*              Inst;
+  func_type       Func;
+  P2*             Param;
  private:
   static void CallFunc(class_delegate2<C, P, P2>* rcv, P& param);
  public:
-  class_delegate2(C& inst, func_type fn, P2& param2)
+  class_delegate2(C& inst, func_type fn, P2* param2)
   : delegate<class_delegate2<C, P, P2> ,P>(&CallFunc, this)
-  , Inst(inst)
+  , Inst(&inst)
   , Func(fn)
   , Param(param2)
-  { DEBUGLOG2(("class_delegate2(%p)::class_delegate2(&%p, %p, &%p)\n", this, &inst, fn, &param2)); }
-  class_delegate2(event<P>& ev, C& inst, func_type fn, P2& param2)
+  { DEBUGLOG2(("class_delegate2<>(%p)::class_delegate2(&%p, %p, &%p)\n", this, &inst, fn, param2)); }
+  class_delegate2(event<P>& ev, C& inst, func_type fn, P2* param2)
   : delegate<class_delegate2<C, P, P2> ,P>(ev, &CallFunc, this)
-  , Inst(inst)
+  , Inst(&inst)
   , Func(fn)
   , Param(param2)
-  { DEBUGLOG2(("class_delegate2(%p)::class_delegate2(&%p, %p, &%p)\n", this, &inst, fn, &param2)); }
+  { DEBUGLOG2(("class_delegate2<>(%p)::class_delegate2(&%p, %p, &%p)\n", this, &inst, fn, param2)); }
+  ~class_delegate2()
+  { DEBUGLOG2(("class_delegate2<>(%p)::~class_delegate2()\n", this)); }
+ private: // revoke access
+  void           rebind();
+  void           swap_rcv();
 };
 
 template <class C, class P, class P2>
 void class_delegate2<C, P, P2>::CallFunc(class_delegate2<C, P, P2>* rcv, P& param)
-{ DEBUGLOG2(("class_delegate2::CallFunc(%p{%p, ...}, &%p)\n", rcv, &rcv->Inst, &param));
-  (rcv->Inst.*rcv->Func)(param, rcv->Param);
+{ DEBUGLOG(("class_delegate2<>::CallFunc(%p{%p, ...}, &%p)\n", rcv, rcv->Inst, &param));
+  (rcv->Inst->*rcv->Func)(param, rcv->Param);
 }
 
 /* Non-template base to PostMsgDelegate */
-class PostMsgDelegateBase
+/*class PostMsgDelegateBase
 {private:
-  const HWND   Window;
-  const ULONG  Msg;
-  const MPARAM MP2;
+  HWND           Window;
+  ULONG          Msg;
+  MPARAM         MP2;
  protected:
   static void callback(PostMsgDelegateBase* receiver, const void* param);
  protected:
   PostMsgDelegateBase(HWND window, ULONG msg, MPARAM mp2) : Window(window), Msg(msg), MP2(mp2) {}
-};
+  // Swap receiver part.
+  // Note: you cannot swap the event registration.
+  void           swap_rcv(PostMsgDelegateBase& r);
+};*/
 
 /* This class posts a window message when the event is raised.
  * The message has the following properties:
@@ -278,7 +312,7 @@ class PostMsgDelegateBase
  * mp1       - event parameter
  * mp2       - param2 from constructor
  */
-template <class P>
+/*template <class P>
 class PostMsgDelegate : private PostMsgDelegateBase, public delegate_part<P>
 {public:
   PostMsgDelegate(HWND window, ULONG msg, MPARAM mp2 = NULL)
@@ -287,6 +321,9 @@ class PostMsgDelegate : private PostMsgDelegateBase, public delegate_part<P>
   PostMsgDelegate(event<P>& ev, HWND window, ULONG msg, MPARAM mp2 = NULL)
   : delegate_part<P>(ev, (func_type)&callback, (PostMsgDelegateBase*)this)
   , PostMsgDelegateBase(window, msg, mp2) {}
-};
+  // Swap receiver part.
+  // Note: you cannot swap the event registration.
+  void           swap_rcv(PostMsgDelegate<P>& r) { PostMsgDelegateBase::swap(r); }
+};*/
 
 #endif

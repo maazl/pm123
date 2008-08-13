@@ -1,8 +1,5 @@
 /*
- * Copyright 1997-2003 Samuel Audet <guardia@step.polymtl.ca>
- *                     Taneli Lepp„ <rosmo@sektori.com>
- *
- * Copyright 2006 Dmitry A.Steklenev <glass@ptv.ru>
+ * Copyright 2008      Marcel Mueller
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -29,40 +26,25 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#define  INCL_WIN
-#define  INCL_ERRORS
-#include <os2.h>
-#include "utilfct.h"
+#ifndef FILEHEADER_H
+#define FILEHEADER_H
 
-/* Opens the specified profile file. */
-HINI
-open_ini( const char* filename ) {
-  return PrfOpenProfile( WinQueryAnchorBlock( HWND_DESKTOP ), (PSZ)filename );
+#include <stdio.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+/* Replaces the first old_header_len bytes of file by new_header.
+ * The operation is in place, preserving all file attributes and even hard links!
+ * Therefore new_headerlen must not be too much larger than old_header_len.
+ * Returns non zero OS/2 APIRET on error.
+ */
+unsigned long filehdr_replace( const char* file, unsigned long old_header_len,
+                               const void* new_header, unsigned long new_header_len );
+
+#ifdef __cplusplus
 }
+#endif
 
-/* Opens a profile file by the name of the module in the program directory. */
-HINI
-open_module_ini( void )
-{
-  HMODULE module;
-  char    exe_path[CCHMAXPATH];
-  char    mod_filename[CCHMAXPATH];
-  char    ini_filename[CCHMAXPATH];
-
-  getModule ( &module, mod_filename, CCHMAXPATH );
-  getExeName( exe_path, CCHMAXPATH );
-  sfname    ( mod_filename, mod_filename, sizeof( mod_filename ));
-  sdrivedir ( ini_filename, exe_path, sizeof( ini_filename ));
-  strlcat   ( ini_filename, mod_filename, sizeof( ini_filename ));
-  strlcat   ( ini_filename, ".ini", sizeof( ini_filename ));
-
-  return open_ini( ini_filename );
-}
-
-/* Closes a opened profile file. */
-BOOL
-close_ini( HINI hini ) {
-  return PrfCloseProfile( hini );
-}
-
-
+#endif /* FILEHEADER_H */

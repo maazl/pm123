@@ -174,6 +174,7 @@ APIRET eaget( const char* file, const char* eaname, char** eadata, size_t* easiz
   APIRET rc;
   EAOP2  eaop2;
   size_t len = strlen(eaname);
+  DEBUGLOG(("eaget(%s, %s, %p, *%u)\n", file, eaname, eadata, *easize));
   eaop2.fpGEA2List = (GEA2LIST*)alloca(sizeof(GEA2LIST) + len);
   eaop2.fpGEA2List->cbList = sizeof(GEA2LIST) + len;
   eaop2.fpGEA2List->list[0].oNextEntryOffset = 0;

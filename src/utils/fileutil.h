@@ -41,12 +41,22 @@ extern "C" {
 
 char* sdrive   ( char* result, const char* location, size_t size );
 int   strack   ( const char* location );
+/* Returns the scheme followed by a colon (:) of the specified location. */
 char* scheme   ( char* result, const char* location, size_t size );
+/* Returns the base file name without any extensions. */
 char* sfname   ( char* result, const char* location, size_t size );
+/* Returns the base file name without any extensions decoded from URL transmission. */
 char* sdname   ( char* result, const char* location, size_t size );
+/* Returns the file name extension, if any, including the leading period (.). */
 char* sfext    ( char* result, const char* location, size_t size );
+/* Returns the base file name with file extension. */
 char* sfnameext( char* result, const char* location, size_t size );
+/* Returns the base file name with file extension decoded from URL transmission. */
 char* sdnameext( char* result, const char* location, size_t size );
+/* Returns the drive letter or scheme and the path of
+   subdirectories, if any, including the trailing slash.
+   Slashes (/), backslashes (\), or both may be present
+   in location. */
 char* sdrivedir( char* result, const char* location, size_t size );
 char* sdecode  ( char* result, const char* location, size_t size );
 // Normalize an URL: enforce scheme, convert slashes
@@ -68,6 +78,7 @@ BOOL is_file ( const char* location );
 BOOL is_url  ( const char* location );
 BOOL is_root ( const char* location );
 BOOL is_dir  ( const char* location );
+
 
 #ifdef __cplusplus
 }

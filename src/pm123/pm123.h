@@ -42,7 +42,7 @@
 
 #define  AMP_REFRESH_CONTROLS   ( WM_USER + 1000 ) // 0,         0
 #define  AMP_PAINT              ( WM_USER + 1001 ) // maske,     0
-#define  AMP_LOAD               ( WM_USER + 1002 )
+#define  AMP_LOAD               ( WM_USER + 1002 ) // LoadHelper* 
 #define  AMP_DISPLAY_MESSAGE    ( WM_USER + 1013 ) // message,   TRUE (info) or FALSE (error)
 #define  AMP_DISPLAY_MODE       ( WM_USER + 1014 ) // 0,         0
 #define  AMP_QUERY_STRING       ( WM_USER + 1015 ) // buffer,    size and type
@@ -58,8 +58,42 @@ void  amp_display_filename( void );
 /* Switches to the next text displaying mode. */
 void  amp_display_next_mode( void );
 
-/* Loads *anything* to player. */
-void  amp_load_playable( const PlayableSlice& ps, int options );
+/* Helper class to load one or more objects into PM123.
+ */
+class LoadHelper : public Iref_Count
+{public:
+  enum Options
+  { OptDefault       = 0,
+    LoadPlay         = 0x01, // Start Playing when completed
+    LoadRecall       = 0x02, // Add item to the MRU-List if it is only one
+    LoadAppend       = 0x04, // Always append to the default playlist
+    LoadKeepPlaylist = 0x08, // Play a playable object. If A playlist containing this item is loaded, the item is activated only.
+    ShowErrors       = 0x10, // Show errors on failure.
+    AutoPost         = 0x20, // Auto post command if the class instance is destroyed.
+    PostDelayed      = 0x40  // Do the job by the main message queue.
+  };
+ private:
+  Options                Opt;
+  vector<PlayableSlice>  Items;
+ private:
+  // Returns /one/ PlayableSlices that represents all the objects in the list.
+  PlayableSlice*         ToPlayableSlice();
+  // Create a sequence of controller commands from the current list.
+  Ctrl::ControlCommand*  ToCommand();
+  // Release references to stored PlayableSlice objects.
+  void                   FreeItems();
+ public:
+  // Initialize LoadHelper
+  LoadHelper(Options opt) : Opt(opt), Items(20) {}
+  ~LoadHelper();
+  // Add a item to play to the list of items.
+  void AddItem(int_ptr<PlayableSlice> ps) { Items.append() = ps.toCptr(); }
+  // Post the command above (if any)
+  void                   PostCommand();
+};
+FLAGSATTRIBUTE(LoadHelper::Options);
+
+
 /* amp_load_playable options */
 #define AMP_LOAD_NOT_PLAY      0x0001 // Load a playable object, but do not start playback automatically
 #define AMP_LOAD_NOT_RECALL    0x0002 // Load a playable object, but do not add an entry into the list of recent files

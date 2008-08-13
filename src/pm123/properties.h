@@ -33,6 +33,7 @@
 #define PM123_PROPERTIES_H
 
 #define INCL_WIN
+#include <config.h>
 #include <stdlib.h>
 #include <os2.h>
 
@@ -71,29 +72,28 @@ typedef struct _amp_cfg {
   // TODO: buffers too small for URLs!!!
   char   defskin[_MAX_PATH];  // Default skin.
                                 
-  BOOL   playonload;          // Start playing on file load.
-  BOOL   autouse;             // Auto use playlist on add.
-  BOOL   playonuse;           // Auto play on use playlist.
-  BOOL   retainonexit;        // Retain playing position on exit.
-  BOOL   retainonstop;        // Retain playing position on stop.
-  BOOL   restartonstart;      // Restart playing on startup.
+  bool   playonload;          // Start playing on file load.
+  bool   autouse;             // Auto use playlist on add.
+  bool   retainonexit;        // Retain playing position on exit.
+  bool   retainonstop;        // Retain playing position on stop.
+  bool   restartonstart;      // Restart playing on startup.
   int    altnavig;            // Alternate navigation method 0=song only, 1=song&time, 2=time only
-  BOOL   autoturnaround;      // Turn around at prev/next when at the end of a playlist
-  BOOL   recurse_dnd;         // Drag and drop of folders recursive
-  BOOL   sort_folders;        // Automatically sort filesystem folders (by name)
-  BOOL   folders_first;       // Place subfolders before content
-  BOOL   append_dnd;          // Drag and drop appends to default playlist
-  BOOL   append_cmd;          // Commandline appends to default playlist
-  BOOL   queue_mode;          // Delete played items from the default playlist
+  bool   autoturnaround;      // Turn around at prev/next when at the end of a playlist
+  bool   recurse_dnd;         // Drag and drop of folders recursive
+  bool   sort_folders;        // Automatically sort filesystem folders (by name)
+  bool   folders_first;       // Place subfolders before content
+  bool   append_dnd;          // Drag and drop appends to default playlist
+  bool   append_cmd;          // Commandline appends to default playlist
+  bool   queue_mode;          // Delete played items from the default playlist
   int    num_workers;         // Number of worker threads for Playable objects
                                 
   int    font;                // Use font 1 or font 2.
-  BOOL   font_skinned;        // Use skinned font.
+  bool   font_skinned;        // Use skinned font.
   FATTRS font_attrs;          // Font's attributes.
   LONG   font_size;           // Font's point size.
                                 
-  BOOL   trash;               // Trash buffers on fast forward
-  BOOL   floatontop;          // Float on top.
+  bool   trash;               // Trash buffers on fast forward
+  bool   floatontop;          // Float on top.
   int    scroll;              // See CFG_SCROLL_*
   int    viewmode;            // See CFG_DISP_*
   char   proxy[1024];         // Proxy URL.
@@ -102,7 +102,7 @@ typedef struct _amp_cfg {
   int    buff_size;           // Read ahead buffer size (KB).
   int    buff_fill;           // Percent of prefilling of the buffer.
   char   pipe_name[_MAX_PATH];// PM123 remote control pipe name
-  BOOL   dock_windows;        // Dock windows?
+  bool   dock_windows;        // Dock windows?
   int    dock_margin;         // The marging for docking window.
 
 // Player state
@@ -112,11 +112,11 @@ typedef struct _amp_cfg {
 
   int    mode;                /* See CFG_MODE_*                         */
 
-  BOOL   show_playlist;       /* Show playlist.                         */
-  BOOL   show_bmarks;         /* Show bookmarks.                        */
-  BOOL   show_plman;          /* Show playlist manager.                 */
-  BOOL   add_recursive;       /* Enable recursive addition.             */
-  BOOL   save_relative;       /* Use relative paths in saved playlists. */
+  bool   show_playlist;       /* Show playlist.                         */
+  bool   show_bmarks;         /* Show bookmarks.                        */
+  bool   show_plman;          /* Show playlist manager.                 */
+  bool   add_recursive;       /* Enable recursive addition.             */
+  bool   save_relative;       /* Use relative paths in saved playlists. */
   SWP    main;                /* Position of the player.                */
 
 } amp_cfg;

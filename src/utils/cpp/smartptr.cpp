@@ -86,3 +86,11 @@ Iref_Count* int_ptr_base::unassign()
   return Ptr && InterlockedDec(Ptr->Count) == 0 ? Ptr : NULL;
 }
 
+Iref_Count* int_ptr_base::detach()
+{ DEBUGLOG2(("int_ptr_base(%p)::detach(): %p{%i}\n", this, Ptr, Ptr ? Ptr->Count : 0));
+  Iref_Count* ret = Ptr;
+  Ptr = NULL;
+  return ret;
+}
+
+

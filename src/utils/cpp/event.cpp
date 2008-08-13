@@ -29,14 +29,14 @@
 
 #define INCL_BASE
 #include "event.h"
-
+#include "cpputil.h"
 #include <os2.h>
 
 #include <debuglog.h>
 
 
 void event_base::operator+=(delegate_base& d)
-{ DEBUGLOG(("event_base(%p)::operator+=(%p{%p}) - %p, %u\n", this, &d, d.Rcv, Root, Count.Peek()));
+{ DEBUGLOG(("event_base(%p)::operator+=(&%p{%p}) - %p, %u\n", this, &d, d.Rcv, Root, Count.Peek()));
   ASSERT(d.Ev == NULL);
   ASSERT((unsigned)&d >= 0x10000); // OS/2 trick to validate pointer roughly.
   CritSect cs;
@@ -46,7 +46,7 @@ void event_base::operator+=(delegate_base& d)
 }
 
 bool event_base::operator-=(delegate_base& d)
-{ DEBUGLOG(("event_base(%p)::operator-=(%p{%p}) - %u\n", this, &d, d.Rcv, Count.Peek()));
+{ DEBUGLOG(("event_base(%p)::operator-=(&%p{%p}) - %u\n", this, &d, d.Rcv, Count.Peek()));
   event_base* ev = NULL; // removed event, must not be dereferenced
   delegate_base** mpp = &Root;
   { CritSect cs;
@@ -77,7 +77,8 @@ void event_base::operator()(dummy& param)
     mp->Count.Inc();
   }
   for(;;)
-  { DEBUGLOG(("event_base::operator() - %p{%p,%p,%p} &%p{%p}\n", mp, mp->Fn, mp->Rcv, mp->Ev, &param, param.dummy));
+  { DEBUGLOG(("event_base::operator() - %p{%p,%p,%p,%p,%u} &%p{%p}\n",
+      mp, mp->Fn, mp->Rcv, mp->Ev, mp->Link, mp->Count.Peek(), &param, param.dummy));
     (*mp->Fn)(mp->Rcv, param); // callback
     // unlock delegate and fetch and lock next
     do
@@ -93,7 +94,7 @@ void event_base::operator()(dummy& param)
 }
 
 void event_base::reset()
-{ DEBUGLOG(("event_base(%p)::reset()\n", this));
+{ DEBUGLOG(("event_base(%p)::reset() %p\n", this, Root));
   { CritSect cs;
     delegate_base* mp = Root;
     Root = NULL;
@@ -104,7 +105,7 @@ void event_base::reset()
       mp = mp2;
     }
   }
-  Count.Wait();
+  sync();
 }
 
 
@@ -118,18 +119,41 @@ delegate_base::delegate_base(event_base& ev, func_type fn, const void* rcv)
   ev.Root = this;
 } 
 
+void delegate_base::rebind(func_type fn, const void* rcv)
+{ DEBUGLOG(("delegate_base(%p)::rebind(%p, %p)\n", this, fn, rcv));
+  sync();
+  CritSect cs;
+  Fn  = fn;
+  Rcv = Rcv;
+}
+
+void delegate_base::swap_rcv(delegate_base& r)
+{ DEBUGLOG(("delegate_base(%p)::swap_rcv(&%p)\n", this, &r));
+  sync();
+  CritSect cs;
+  swap(Fn,  r.Fn);
+  swap(Rcv, r.Rcv);
+}
+
 void delegate_base::detach()
-{
-  DEBUGLOG(("delegate_base(%p)::detach() - %p\n", this, Ev));
+{ DEBUGLOG(("delegate_base(%p)::detach() - %p\n", this, Ev));
   if (Ev)
   { (*Ev) -= *this;
     ASSERT(Ev == NULL);
   }   
-  Count.Wait();
+  sync();
 } 
 
-
-void PostMsgDelegateBase::callback(PostMsgDelegateBase* receiver, const void* param)
+/*void PostMsgDelegateBase::callback(PostMsgDelegateBase* receiver, const void* param)
 { WinPostMsg(receiver->Window, receiver->Msg, MPFROMP(param), receiver->MP2);
 }
+
+void PostMsgDelegateBase::swap_rcv(PostMsgDelegateBase& r)
+{ DEBUGLOG(("PostMsgDelegateBase(%p)::swap_rcv(&%p)\n", this, r));
+  sync();
+  CritSect cs;
+  swap(Window, r.Window);
+  swap(Msg, r.Msg);
+  swap(MP2, r.MP2);
+}*/
 
