@@ -424,10 +424,13 @@ void SongIterator::PrevCore()
     if (pce->OffValid)
     { // calc from the end
       pce->Off.Reset();
-      // += length(parent)
-      pce->Off += pce2->GetInfo();
-      // -= length(current)
-      pce->Off -= pce->GetInfo();
+      // If the List is (now) empty, leave the offset at zero
+      if (pce->Item != NULL)
+      { // += length(parent)
+        pce->Off += pce2->GetInfo();
+        // -= length(current)
+        pce->Off -= pce->GetInfo();
+      }
     }
   } else
   { // The fact that we had a overridden start iterator
