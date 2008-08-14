@@ -190,7 +190,7 @@ SongIterator::CallstackSubEntry::CallstackSubEntry(const CallstackSubEntry& r, C
 SongIterator::CallstackSubEntry::CallstackSubEntry(CallstackType& owner, const CallstackEntry& parent)
 : SongIterator::CallstackSubFactory(parent),
   ChangeDeleg(((PlayableCollection&)*parent.Item->GetPlayable()).CollectionChange, owner, &SongIterator::CallstackType::ListChangeHandler, this)
-{ DEBUGLOG(("SongIterator::CallstackSubEntry(%p)::CallstackSubEntry(CallstackType& %p, const CallStackEntry& %p)\n", this, &owner, parent));
+{ DEBUGLOG(("SongIterator::CallstackSubEntry(%p)::CallstackSubEntry(CallstackType& %p, const CallStackEntry& %p)\n", this, &owner, &parent));
 }
 
 
