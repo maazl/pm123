@@ -708,7 +708,8 @@ proxy_1_decoder_fileinfo( DecoderProxy1* op, const char* filename, INFOTYPE* wha
   // convert information to new format
   if (rc == 0)
   { // Slicing: the structure FORMAT_INFO2 is a subset of FORMAT_INFO.
-    *info->format          = *(const FORMAT_INFO2*)&old_info.format;
+    info->format->samplerate = old_info.format.samplerate;
+    info->format->channels = old_info.format.channels;
 
     info->tech->songlength = old_info.songlength < 0 ? -1 : old_info.songlength/1000.;
     info->tech->bitrate    = old_info.bitrate;
