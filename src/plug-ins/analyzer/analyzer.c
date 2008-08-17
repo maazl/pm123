@@ -564,7 +564,7 @@ static void update_analyzer(void)
   unsigned long image_cx, image_cy;
   char* image = NULL;
 
-  DEBUGLOG(("analyzer:update_analyzer %lu %d %d\n", hdive, needinit, needclear));
+  DEBUGLOG2(("analyzer:update_analyzer %lu %d %d\n", hdive, needinit, needclear));
 
   if( decoderPlaying() == 0 )
   { if ( !is_stopped )
