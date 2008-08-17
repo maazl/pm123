@@ -194,7 +194,7 @@ bool Decoder::IsFileSupported(const char* file, const char* eatype) const
   if (Extensions)
   { // extract filename
     char fname[_MAX_PATH];
-    sfname(fname, file, sizeof fname);
+    sfnameext(fname, file, sizeof fname);
     if (wildcardfit(Extensions, fname))
     { DEBUGLOG(("Decoder::IsFileSupported: wildcard match of %s with %s\n", fname, Extensions.cdata()));
       return true;
