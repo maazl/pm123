@@ -324,7 +324,7 @@ inline Playable::InfoFlags Playable::CheckInfo(InfoFlags what) const
 
 
 // Unique sorted set of Playable objects
-// This class does not take ownership of the Playable objects.
+// This class does not take ownership of the Playable objects!
 // So you have to ensure that the Playable objects are held by another int_ptr instance
 // as long as they are in this collection.
 struct PlayableSet

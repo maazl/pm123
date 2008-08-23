@@ -73,13 +73,13 @@ void*& vector_base::insert(size_t where)
   memmove(pp+1, pp, (Size-where) * sizeof *Data);
   ++Size;
   //DEBUGLOG(("vector_base::insert - %p, %u, %u\n", pp, Size, Capacity));
-  return *pp;
+  return *pp = NULL;
 }
 
 void*& vector_base::append()
 { if (Size >= Capacity)
     reserve(Capacity > 8 ? Capacity << 1 : 16);
-  return Data[Size++];
+  return Data[Size++] = NULL;
 }
 
 void* vector_base::erase(void**& where)

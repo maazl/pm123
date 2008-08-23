@@ -360,7 +360,7 @@ PlayableSlice* LoadHelper::ToPlayableSlice()
     // Load multiple items => Use default playlist
     if (!(Opt & LoadAppend))
       DefaultPL->Clear();
-    for (PlayableSlice*const* ppps = Items.begin(); ppps != Items.end(); ++ppps)
+    for (const int_ptr<PlayableSlice>* ppps = Items.begin(); ppps != Items.end(); ++ppps)
       DefaultPL->InsertItem(**ppps);
     return new PlayableSlice(DefaultPL);
   }
@@ -395,21 +395,14 @@ void LoadHelper::PostCommand()
   { Ctrl::ControlCommand* cmd = ToCommand();
     if (cmd)
     { Ctrl::PostCommand(cmd);
-      FreeItems();
+      Items.clear();
     }
   }
 }
 
-void LoadHelper::FreeItems()
-{ int_ptr<PlayableSlice> ptr;
-  for (PlayableSlice*const* ppps = Items.begin(); ppps != Items.end(); ++ppps)
-    ptr.fromCptr(*ppps);
-}
-  
 LoadHelper::~LoadHelper()
 { if (Opt & AutoPost)
     PostCommand();
-  FreeItems();
 }
 
 

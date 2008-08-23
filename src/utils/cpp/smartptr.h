@@ -131,6 +131,9 @@ class int_ptr_base
   Iref_Count* detach();
   // Swap two pointers
   void swap(int_ptr_base& r);
+ //public:
+  // convert to untyped raw pointer
+  //Iref_Count* toCrawptr()             { return detach(); }
 };
 
 inline void int_ptr_base::swap(int_ptr_base& r)
@@ -175,6 +178,8 @@ class int_ptr : protected int_ptr_base
   // manual resource management
   T*          toCptr()                       { return (T*)detach(); }
   int_ptr<T>& fromCptr(T* ptr);
+  // convert from untyped raw pointer
+  //int_ptr<T>& fromCrawptr(Iref_count* ptr)   { delete (T*)unassign(); Ptr = ptr; return *this; }
 };
 
 // IBM C++ work around:

@@ -1140,14 +1140,12 @@ void PlaylistBase::UserFlattenAll(RecordBase* rec)
     && (subitem->GetFlags() & Playable::Enumerable) // and only playlists
     && subitem != parent ) // and not recursive
   { // fetch desired content before we lock the collection to avoid deadlocks
-    vector<PlayableSlice> new_items;
-    int_ptr<PlayableSlice> ps;
+    vector_int<PlayableSlice> new_items;
     { SongIterator si;
       si.SetRoot(rec->Data->Content, parent);
       while (si.Next())
-      { ps = si.GetCurrent();
-        DEBUGLOG(("PlaylistBase::UserFlattenAll found %p\n", ps.get()));
-        new_items.append() = ps.toCptr(); // keep the reference active
+      { new_items.append() = si.GetCurrent();
+        DEBUGLOG(("PlaylistBase::UserFlattenAll found %p\n", &*new_items[new_items.size()-1]));
       }
     }
     DEBUGLOG(("PlaylistBase::UserFlattenAll replacing by %u items\n", new_items.size()));
@@ -1157,10 +1155,8 @@ void PlaylistBase::UserFlattenAll(RecordBase* rec)
     if (!rec->Data->Content->IsParent(&pc))
       return; // somebody else has been faster
     // insert new subitems before the old one
-    for (PlayableSlice** pps = new_items.begin(); pps != new_items.end(); ++pps)
-    { ps.fromCptr(*pps); // this implicitely decrements the reference
-      pc.InsertItem(*ps, rec->Data->Content);
-    }
+    for (const int_ptr<PlayableSlice>* pps = new_items.begin(); pps != new_items.end(); ++pps)
+      pc.InsertItem(**pps, rec->Data->Content);
     // then delete the old one
     pc.RemoveItem(rec->Data->Content);
 

@@ -73,23 +73,21 @@ class LoadHelper : public Iref_Count
     PostDelayed      = 0x40  // Do the job by the main message queue.
   };
  private:
-  Options                Opt;
-  vector<PlayableSlice>  Items;
+  Options               Opt;
+  vector_int<PlayableSlice> Items;
  private:
   // Returns /one/ PlayableSlices that represents all the objects in the list.
-  PlayableSlice*         ToPlayableSlice();
+  PlayableSlice*        ToPlayableSlice();
   // Create a sequence of controller commands from the current list.
-  Ctrl::ControlCommand*  ToCommand();
-  // Release references to stored PlayableSlice objects.
-  void                   FreeItems();
+  Ctrl::ControlCommand* ToCommand();
  public:
   // Initialize LoadHelper
-  LoadHelper(Options opt) : Opt(opt), Items(20) {}
-  ~LoadHelper();
+                        LoadHelper(Options opt)    : Opt(opt), Items(20) {}
+                        ~LoadHelper();
   // Add a item to play to the list of items.
-  void AddItem(int_ptr<PlayableSlice> ps) { Items.append() = ps.toCptr(); }
+  void                  AddItem(PlayableSlice* ps) { Items.append() = ps; }
   // Post the command above (if any)
-  void                   PostCommand();
+  void                  PostCommand();
 };
 FLAGSATTRIBUTE(LoadHelper::Options);
 
