@@ -316,6 +316,7 @@ vector_int<T>& vector_int<T>::operator=(const vector_int<T>& r)
   return *this; 
 }
 
+
 /* Interface for compareable objects.
  * A class that implements this interface with the template parameter K is comparable to const K&.
  * The type K may be the same as the class that implements this interface or not.
