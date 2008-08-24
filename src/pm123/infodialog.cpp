@@ -173,17 +173,20 @@ MRESULT InfoDialog::Page2Window::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
       ctrl = WinWindowFromID(GetHwnd(), EF_METAGENRE);
       PMRASSERT(WinSetWindowText(ctrl, meta.genre));
       PMRASSERT(WinEnableWindow(ctrl, enabled));
+      ctrl = WinWindowFromID(GetHwnd(), EF_METACOMMENT);
+      PMRASSERT(WinSetWindowText(ctrl, meta.comment));
+      PMRASSERT(WinEnableWindow(ctrl, enabled));
       ctrl = WinWindowFromID(GetHwnd(), EF_METARPGAINT);
-      PMRASSERT(WinSetWindowText(ctrl, meta.track_gain != 0 ? "" : (sprintf(buffer, "%.1f", meta.track_gain), buffer)));
+      PMRASSERT(WinSetWindowText(ctrl, meta.track_gain == 0 ? "" : (sprintf(buffer, "%.1f", meta.track_gain), buffer)));
       PMRASSERT(WinEnableWindow(ctrl, enabled));
       ctrl = WinWindowFromID(GetHwnd(), EF_METARPPEAKT);
-      PMRASSERT(WinSetWindowText(ctrl, meta.track_peak != 0 ? "" : (sprintf(buffer, "%.1f", meta.track_peak), buffer)));
+      PMRASSERT(WinSetWindowText(ctrl, meta.track_peak == 0 ? "" : (sprintf(buffer, "%.1f", meta.track_peak), buffer)));
       PMRASSERT(WinEnableWindow(ctrl, enabled));
       ctrl = WinWindowFromID(GetHwnd(), EF_METARPGAINA);
-      PMRASSERT(WinSetWindowText(ctrl, meta.album_gain != 0 ? "" : (sprintf(buffer, "%.1f", meta.album_gain), buffer)));
+      PMRASSERT(WinSetWindowText(ctrl, meta.album_gain == 0 ? "" : (sprintf(buffer, "%.1f", meta.album_gain), buffer)));
       PMRASSERT(WinEnableWindow(ctrl, enabled));
       ctrl = WinWindowFromID(GetHwnd(), EF_METARPPEAKA);
-      PMRASSERT(WinSetWindowText(ctrl, meta.album_peak != 0 ? "" : (sprintf(buffer, "%.1f", meta.album_peak), buffer)));
+      PMRASSERT(WinSetWindowText(ctrl, meta.album_peak == 0 ? "" : (sprintf(buffer, "%.1f", meta.album_peak), buffer)));
       PMRASSERT(WinEnableWindow(ctrl, enabled));
       return 0;
     }

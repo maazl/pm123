@@ -92,7 +92,6 @@ class CommandProcessor
   void CmdFloat(xstring& ret, char* args);
   void CmdAutouse(xstring& ret, char* args);
   void CmdPlayonload(xstring& ret, char* args);
-  void CmdPlayonuse(xstring& ret, char* args);
  public:
   CommandProcessor();
   // Executes the Command cmd and return a value in ret.

@@ -49,6 +49,7 @@
 #include "skin.h"
 #include "iniman.h"
 #include "pm123.h"
+#include "123_util.h"
 #include <os2.h>
 #include "pm123.rc.h"
 
@@ -73,6 +74,13 @@ float preamp;*/
 
 
 static HWND  hhelp      = NULLHANDLE;
+
+xstring amp_get_window_text( HWND hwnd )
+{ xstring ret;
+  char* dst = ret.raw_init(WinQueryWindowTextLength(hwnd));
+  PMXASSERT(WinQueryWindowText(hwnd, ret.length()+1, dst), == ret.length());
+  return ret;
+}
 
 
 /* Default dialog procedure for the file dialog. */
@@ -230,9 +238,9 @@ static xstring joinstringset(const stringset& set, char delim)
   sp = set.begin();
   for(;;)
   { memcpy(dp, (*sp)->Key.cdata(), (*sp)->Key.length() +1);
+    dp += (*sp)->Key.length();
     if (++sp == set.end())
       break;
-    dp += (*sp)->Key.length();
     *dp++ = delim;
   }
   return ret; 
@@ -356,14 +364,16 @@ static MRESULT EXPENTRY amp_url_dlg_proc(HWND hwnd, ULONG msg, MPARAM mp1, MPARA
     DEBUGLOG(("amp_url_dlg_proc: WM_COMMAND: %i\n", SHORT1FROMMP(mp1)));
     if (SHORT1FROMMP(mp1) == DID_OK)
     { HWND ent = WinWindowFromID(hwnd, ENT_URL);
-      LONG len = WinQueryWindowTextLength(ent);
-      xstring text;
-      WinQueryWindowText(ent, len+1, text.raw_init(len));
-      if (url123::normalizeURL(text))
-        break; // everything OK => continue
-      WinMessageBox(HWND_DESKTOP, hwnd, xstring::sprintf("The URL \"%s\" is not well formed.", text.cdata()),
-        NULL, 0, MB_CANCEL|MB_WARNING|MB_APPLMODAL|MB_MOVEABLE);
-      return 0; // cancel
+      const xstring& text = amp_get_window_text(ent);
+      const url123& url = amp_get_cwd().makeAbsolute(text);
+      if (!url)
+      { WinMessageBox(HWND_DESKTOP, hwnd, xstring::sprintf("The URL \"%s\" is not well formed.", text.cdata()),
+          NULL, 0, MB_CANCEL|MB_WARNING|MB_APPLMODAL|MB_MOVEABLE);
+        return 0; // cancel
+      }
+      // Replace the text by the expanded URL
+      PMRASSERT(WinSetWindowText(ent, url.cdata()));
+      break; // everything OK => continue
     }
   }
   return WinDefDlgProc(hwnd, msg, mp1, mp2);
@@ -384,21 +394,14 @@ ULONG DLLENTRY amp_url_wizzard( HWND owner, const char* title, DECODER_WIZZARD_C
   xstring wintitle = xstring::sprintf(title, " URL");
   WinSetWindowText(hwnd, (PSZ)&*wintitle);
   
-  // Hmm, absolute size limit???
-  char durl[4096];
-  WinSendDlgItemMsg( hwnd, ENT_URL, EM_SETTEXTLIMIT, MPFROMSHORT(sizeof durl), 0 );
-
   // TODO: last URL
-  // TODO: 2. recent URLs
 
   ULONG ret = 300;
   if (WinProcessDlg(hwnd) == DID_OK)
-  { WinQueryDlgItemText(hwnd, ENT_URL, sizeof durl, durl);
-    DEBUGLOG(("amp_url_wizzard: %s\n", durl));
-    url123 nurl = url123::normalizeURL(durl);
-    DEBUGLOG(("amp_url_wizzard: %s\n", nurl.cdata()));
-    (*callback)(param, nurl);
-    amp_AddMRU(amp_get_url_mru(), MAX_RECALL, PlayableSlice(nurl));
+  { const xstring& url = amp_get_window_text(WinWindowFromID(hwnd, ENT_URL));
+    DEBUGLOG(("amp_url_wizzard: %s\n", url.cdata()));
+    (*callback)(param, url);
+    amp_AddMRU(amp_get_url_mru(), MAX_RECALL, PlayableSlice(url));
     ret = 0;
   }
   WinDestroyWindow(hwnd);
@@ -423,9 +426,7 @@ void amp_add_bookmark(HWND owner, const PlayableSlice& item)
   WinSetDlgItemText(hdlg, EF_BM_DESC, desc);
 
   if (WinProcessDlg(hdlg) == DID_OK)
-  { xstring alias;
-    char* cp = alias.raw_init(WinQueryDlgItemTextLength(hdlg, EF_BM_DESC));
-    WinQueryDlgItemText(hdlg, EF_BM_DESC, alias.length()+1, cp);
+  { const xstring& alias = amp_get_window_text(WinWindowFromID(hdlg, EF_BM_DESC));
     if (alias != desc) // Don't set alias if not required.
     { // We have to copy the PlayableSlice to modify it.
       PlayableSlice ps(item);

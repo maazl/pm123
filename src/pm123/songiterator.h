@@ -105,8 +105,23 @@ class SongIterator
   // This is a vector_own with an intrusive reference count.
   // vector_own destroys the objects from back to front. This is required because the callstack entry objects contain delegates
   // that rely on the parent playlist. This is always held by one entry before the current.
-  struct CallstackType : public Iref_Count, public vector_own<CallstackEntry>
-  { CallstackType(size_t capacity) : vector_own<CallstackEntry>(capacity) {}
+  class CallstackType;
+  friend class CallstackType;
+  class CallstackSubEntry;
+  friend class CallstackSubEntry;
+  class CallstackType : public Iref_Count, public vector_own<CallstackEntry>
+  { friend class CallstackSubEntry;
+   private:
+    // Event when a open callstackentry changes
+    void                      ListChangeHandler(const PlayableCollection::change_args& args, CallstackEntry* cep);
+   public:
+    CallstackType(size_t capacity) : vector_own<CallstackEntry>(capacity)
+    { DEBUGLOG(("SongIterator::CallstackType(%p)::CallstackType(%u)\n", this, capacity)); }
+    CallstackType(const CallstackType& r);
+    ~CallstackType()
+    { DEBUGLOG(("SongIterator::CallstackType(%p)::~CallstackType() %u\n", this, size())); }
+    // This event is signalled whenever the offset of a callstack entry is invalidated.
+    event<const CallstackEntry> Change;
   };
  private:
   // Subentries in the callstack.
@@ -118,16 +133,18 @@ class SongIterator
     // Precondition: Item is not NULL && Item->GetPlayable() is enumerable.
     CallstackSubFactory(const CallstackEntry& parent);
   };
-  class CallstackSubEntry;
-  friend class CallstackSubEntry;
   class CallstackSubEntry : public CallstackSubFactory
   {private:
-    class_delegate2<SongIterator, const PlayableCollection::change_args, CallstackEntry*const> ChangeDeleg;
+    class_delegate2<CallstackType, const PlayableCollection::change_args, CallstackEntry> ChangeDeleg;
    public:
-    CallstackSubEntry(const CallstackSubEntry& r, SongIterator& owner);
+    CallstackSubEntry(const CallstackSubEntry& r, CallstackType& owner);
     // Create Callstackentry for the next deeper level
     // Precondition: Item is not NULL && Item->GetPlayable() is enumerable.
-    CallstackSubEntry(SongIterator& owner, const CallstackEntry& parent);
+    CallstackSubEntry(CallstackType& owner, const CallstackEntry& parent);
+    #ifdef DEBUG
+    virtual                   ~CallstackSubEntry()
+    { DEBUGLOG(("SongIterator::CallstackSubEntry(%p)::~CallstackSubEntry()\n", this)); }
+    #endif
   };
   // Thhis type is only to have a static constructor.
   struct InitialCallstackType : public CallstackType
@@ -142,8 +159,8 @@ class SongIterator
   T_TIME                      Location;  // Location within the current song
   int_ptr<PlayableSlice>      CurrentCache; // mutable! Points either to CurrentCacheRef or to CurrentCacheInst or is NULL.
   bool                        CurrentCacheValid;
-  //static const Offsets        ZeroOffsets; // Offsets for root entry.
   static InitialCallstackType InitialCallstack; // Initial Callstack of a newly created Item
+  class_delegate<SongIterator, const CallstackEntry> CallstackDeleg;
 
  private: // internal functions, not thread-safe.
   // Ensures that only this instance owns the callstack.
@@ -168,7 +185,7 @@ class SongIterator
   // Recalculate offset if lost
   static void                 EnsureOffset(CallstackEntry& ce, PlayableCollection& parent);
   // Event when a open callstackentry changes
-  void                        ListChangeHandler(const PlayableCollection::change_args& args, CallstackEntry*const& cep);
+  void                        CallstackChangeHandler(const CallstackEntry& ce);
 
  public:
   // Create a SongIterator for iteration over a PlayableCollection.
@@ -260,7 +277,7 @@ class SongIterator
   bool                        Deserialize(const char*& str);
   
   // This event is signalled whenever the offset of a callstack item is invalidated.
-  event<const int>            Change;
+  event<const CallstackEntry> Change;
   
   // relational comparsion
   // The return value is zero if the iterators are equal.

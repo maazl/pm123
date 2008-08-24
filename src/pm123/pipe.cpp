@@ -113,20 +113,20 @@ inline static const strmap<8, Ctrl::Op>* parse_op2(const char* arg)
 { return mapsearch2(opmap+1, (sizeof opmap / sizeof *opmap)-1, arg);
 }
 
-void cmd_op_BOOL(xstring& ret, const char* arg, BOOL& val)
+void cmd_op_bool(xstring& ret, const char* arg, bool& val)
 { ret = val ? "on" : "off";
   if (*arg)
   { const strmap<8, Ctrl::Op>* op = parse_op2(arg);
     if (op)
     { switch (op->Val)
       {case Ctrl::Op_Set:
-        val = TRUE;
+        val = true;
         break;
        case Ctrl::Op_Toggle:
         val = !val;
         break;
        default:
-        val = FALSE;
+        val = false;
         break;
       }
     } else
@@ -141,8 +141,13 @@ void CommandProcessor::CmdLoad(xstring& ret, char* args)
 { if (is_dir(args))
     // TODO: buffer may overrun???
     strcat(args, "\\");
-  // TODO: connect controller directly to avoid dialog messages.
-  amp_load_playable(PlayableSlice(Playable::GetByURL(url123::normalizeURL(args))), AMP_LOAD_NOT_RECALL|(cfg.append_cmd*AMP_LOAD_APPEND));
+  const url123& url = amp_get_cwd().makeAbsolute(args);
+  if (!url)
+  { ret = "-1";
+    return;
+  }
+  LoadHelper lh(cfg.playonload*LoadHelper::LoadPlay | cfg.append_cmd*LoadHelper::LoadAppend | LoadHelper::AutoPost);
+  lh.AddItem(new PlayableSlice(Playable::GetByURL(url)));
   // TODO: reply and sync wait
 }
 
@@ -325,7 +330,8 @@ void CommandProcessor::CmdPlReset(xstring& ret, char* args)
 
 void CommandProcessor::CmdUse(xstring& ret, char* args)
 { if (CurPlaylist)
-  { amp_load_playable(PlayableSlice(CurPlaylist), AMP_LOAD_NOT_RECALL);
+  { LoadHelper lh(cfg.playonload*LoadHelper::LoadPlay | cfg.append_cmd*LoadHelper::LoadAppend | LoadHelper::AutoPost);
+    lh.AddItem(new PlayableSlice(CurPlaylist->GetURL()));
     // TODO: reply and sync wait
   }
 };
@@ -474,15 +480,11 @@ void CommandProcessor::CmdFloat(xstring& ret, char* args)
 }
 
 void CommandProcessor::CmdAutouse(xstring& ret, char* args)
-{ cmd_op_BOOL(ret, args, cfg.autouse);
+{ cmd_op_bool(ret, args, cfg.autouse);
 }
 
 void CommandProcessor::CmdPlayonload(xstring& ret, char* args)
-{ cmd_op_BOOL(ret, args, cfg.playonload);
-}
-
-void CommandProcessor::CmdPlayonuse(xstring& ret, char* args)
-{ cmd_op_BOOL(ret, args, cfg.playonuse);
+{ cmd_op_bool(ret, args, cfg.playonload);
 }
 
 const CommandProcessor::CmdEntry CommandProcessor::CmdList[] = // list must be sorted!!!
@@ -504,7 +506,6 @@ const CommandProcessor::CmdEntry CommandProcessor::CmdList[] = // list must be s
   { "play",       &CommandProcessor::CmdPlay       },
   { "playlist",   &CommandProcessor::CmdPlaylist   },
   { "playonload", &CommandProcessor::CmdPlayonload },
-  { "playonuse",  &CommandProcessor::CmdPlayonuse  },
   { "prev",       &CommandProcessor::CmdPrev       },
   { "previous",   &CommandProcessor::CmdPrev       },
   { "rdir",       &CommandProcessor::CmdRdir       },

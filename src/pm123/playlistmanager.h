@@ -55,8 +55,8 @@ class PlaylistManager : public PlaylistRepository<PlaylistManager>
   { Record*           Parent;    // Pointer to parent Record or NULL if we are at the root level.
     bool              Recursive; // Flag whether this node is in the current callstack.
     CPData(PlayableInstance* content, PlaylistManager& pm,
-           void (PlaylistBase::*infochangefn)(const Playable::change_args&, RecordBase*const&),
-           void (PlaylistBase::*statchangefn)(const PlayableInstance::change_args&, RecordBase*const&),
+           void (PlaylistBase::*infochangefn)(const Playable::change_args&, RecordBase*),
+           void (PlaylistBase::*statchangefn)(const PlayableInstance::change_args&, RecordBase*),
            RecordBase* rec,
            Record* parent);
   };
@@ -127,8 +127,8 @@ class PlaylistManager : public PlaylistRepository<PlaylistManager>
 inline PlaylistManager::CPData::CPData(
   PlayableInstance* content,
   PlaylistManager& pm,
-  void (PlaylistBase::*infochangefn)(const Playable::change_args&, RecordBase*const&),
-  void (PlaylistBase::*statchangefn)(const PlayableInstance::change_args&, RecordBase*const&),
+  void (PlaylistBase::*infochangefn)(const Playable::change_args&, RecordBase*),
+  void (PlaylistBase::*statchangefn)(const PlayableInstance::change_args&, RecordBase*),
   RecordBase* rec,
   Record* parent)
 : PlaylistBase::CPDataBase(content, pm, infochangefn, statchangefn, rec),

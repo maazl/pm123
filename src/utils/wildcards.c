@@ -31,11 +31,13 @@
 #include <ctype.h>
 #include <string.h>
 
+#include <debuglog.h>
+
 static int asterisk (const char **wildcard, const char **test);
 /* scans an asterisk */
 
 int wildcardfit (const char *wildcard, const char* test)
-{
+{ DEBUGLOG2(("wildcardfit(%s, %s)\n", wildcard, test));
   // loop over different wildcard strings
   do
   { int fit = 1;

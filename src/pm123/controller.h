@@ -258,7 +258,7 @@ class Ctrl
   static delegate<void, const OUTEVENTTYPE>          OutEventDelegate;
   static delegate<void, const Playable::change_args> CurrentSongDelegate;
   static delegate<void, const Playable::change_args> CurrentRootDelegate;
-  static delegate<void, const int>                   SongIteratorDelegate;
+  static delegate<void, const SongIterator::CallstackEntry> SongIteratorDelegate;
 
   // Occasionally used constant.
   static const SongIterator::CallstackType EmptyStack;
@@ -327,7 +327,7 @@ class Ctrl
   // Event handler for tracking modifications of the currently loaded object.
   static void  CurrentRootEventHandler(void*, const Playable::change_args& args);
   // Event handler for asynchronuous changes to the songiterator (not any prefetched one).
-  static void  SongIteratorEventHandler(void*, const int& i);
+  static void  SongIteratorEventHandler(void*, const SongIterator::CallstackEntry& ce);
  private: // messages handlers, not thread safe
   // The messages are descibed above before the class header.
   static RC    MsgPause(Op op);

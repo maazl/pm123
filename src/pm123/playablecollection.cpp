@@ -462,7 +462,8 @@ PlayableCollection::Entry* PlayableCollection::CreateEntry(const char* url, cons
 
 void PlayableCollection::InsertEntry(Entry* entry, Entry* before)
 { DEBUGLOG(("PlayableCollection(%p{%s})::InsertEntry(%p{%s,%p,%p}, %p{%s})\n", this, GetURL().getShortName().cdata(),
-    entry, entry->GetPlayable()->GetURL().getShortName().cdata(), entry->Prev.get(), entry->Next.get(), before, before ? before->GetPlayable()->GetURL().getShortName().cdata() : ""));
+    entry, entry->GetPlayable()->GetURL().getShortName().cdata(), entry->Prev.get(), entry->Next.get(),
+    before, before ? before->GetPlayable()->GetURL().cdata() : ""));
   // Check wether we are between BeginRefresh and EndRefresh and may recycle an existing item.
   if (OldTail)
   { ASSERT(before == NULL); // only append is supported in refresh mode
@@ -717,13 +718,16 @@ const PlayableCollection::CollectionInfo& PlayableCollection::GetCollectionInfo(
       DEBUGLOG(("PlayableCollection::GetCollectionInfo - Song\n"));
       Song* song = (Song*)pi->GetPlayable();
       song->EnsureInfo(IF_Tech|IF_Phys);
-      if (song->GetStatus() != STA_Invalid)
+      if (song->GetStatus() == STA_Invalid)
+      { // only count invalid items
+        cic->Info.Add(0, 0, 1);
+      } else
       { // take care of slice
         const DECODER_INFO2& info = song->GetInfo();
         T_TIME length = info.tech->songlength;
         DEBUGLOG(("PlayableCollection::GetCollectionInfo - len = %f\n", length));
-        if (length < 0)
-        { cic->Info.Add(-1, info.phys->filesize, 1);
+        if (length <= 0)
+        { cic->Info.Add(length, info.phys->filesize, 1);
           // TODO: use bitrate for slicing ???
         } else
         { if (pi->GetStop() && length > pi->GetStop()->GetLocation())
@@ -737,9 +741,7 @@ const PlayableCollection::CollectionInfo& PlayableCollection::GetCollectionInfo(
           // Scale filesize with slice to preserve bitrate.
           cic->Info.Add(length, info.phys->filesize * length / info.tech->songlength, 1);
         }
-      } else
-        // only count invalid items
-        cic->Info.Add(0, 0, 1);
+      }
     } else
     { // Song Item without IF_Tech => only count
       DEBUGLOG(("PlayableCollection::GetCollectionInfo - Song, no detail\n"));
@@ -838,7 +840,8 @@ Playable::InfoFlags PlayableCollection::LoadInfo(InfoFlags what)
 }
 
 bool PlayableCollection::InsertItem(const PlayableSlice& item, PlayableInstance* before)
-{ DEBUGLOG(("PlayableCollection(%p{%s})::InsertItem(%s, %p) - %u\n", this, GetURL().getShortName().cdata(), item.DebugName().cdata(), before, Stat));
+{ DEBUGLOG(("PlayableCollection(%p{%s})::InsertItem(%s, %p{%s}) - %u\n", this, GetURL().getShortName().cdata(),
+    item.DebugName().cdata(), before, before ? before->GetPlayable()->GetURL().cdata() : "", Stat));
   Lock lock(*this);
   // Check whether the parameter before is still valid
   if (before && !before->IsParent(this))

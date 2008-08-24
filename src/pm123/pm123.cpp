@@ -35,17 +35,6 @@
 #define  INCL_DOSERRORS
 #define  INCL_WINSTDDRAG
 #include <os2.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <stdarg.h>
-#include <ctype.h>
-#include <string.h>
-#include <time.h>
-#include <sys/time.h>
-#include <sys/stat.h>
-#include <math.h>
-#include <float.h>
-#include <process.h>
 
 //#undef DEBUG
 //#define DEBUG 2
@@ -74,6 +63,18 @@
 #include <cpp/url123.h>
 #include <cpp/showaccel.h>
 #include "pm123.rc.h"
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <stdarg.h>
+#include <ctype.h>
+#include <string.h>
+#include <time.h>
+#include <sys/time.h>
+#include <sys/stat.h>
+#include <math.h>
+#include <float.h>
+#include <process.h>
 
 #include <debuglog.h>
 
@@ -345,43 +346,72 @@ void amp_AddMRU(Playlist* list, size_t max, const PlayableSlice& ps)
   list->InsertItem(ps, list->GetNext(NULL));
 }
 
-/* Loads a standalone file or CD track to player. */
-void
-amp_load_playable( const PlayableSlice& ps, int options )
-{ DEBUGLOG(("amp_load_playable({%s,...}, %x)\n", ps.GetPlayable()->GetURL().cdata(), options));
 
-  if (options & AMP_LOAD_APPEND)
-  { ASSERT(Ctrl::GetRoot() != NULL);
-    // multi mode
-    if (Ctrl::GetRoot()->GetPlayable() != DefaultPL)
-    { // we do not yet use the current playlist => use it
-      // move current item to the list
+PlayableSlice* LoadHelper::ToPlayableSlice()
+{ switch (Items.size())
+  {case 0:
+    return NULL;
+   case 1:
+    if (Opt & LoadRecall)
+      amp_AddMRU(LoadMRU, MAX_RECALL, *Items[0]);
+    if (!(Opt & LoadAppend))
+      return Items[0];
+   default:
+    // Load multiple items => Use default playlist
+    if (!(Opt & LoadAppend))
       DefaultPL->Clear();
-      DefaultPL->InsertItem(*Ctrl::GetRoot());
-      // reset current to first item of the playlist
-      Ctrl::PostCommand(Ctrl::MkLoad(DefaultPL->GetURL(), true), &amp_control_event_callback);
-    }
-    // append new item
-    DefaultPL->InsertItem(ps);
-    return;
+    for (PlayableSlice*const* ppps = Items.begin(); ppps != Items.end(); ++ppps)
+      DefaultPL->InsertItem(**ppps);
+    return new PlayableSlice(DefaultPL);
   }
-
-  Ctrl::ControlCommand* cmd = Ctrl::MkLoad(ps.GetPlayable()->GetURL(), false);
-  Ctrl::ControlCommand* tail = cmd;
-  if (ps.GetStop() != NULL)
-    tail = tail->Link = Ctrl::MkStopAt(ps.GetStop()->Serialize(), 0, false);
-  if (ps.GetStart() != NULL)
-    tail = tail->Link = Ctrl::MkNavigate(ps.GetStart()->Serialize(), 0, false, false);
-  if( !( options & AMP_LOAD_NOT_PLAY )) {
-    if( cfg.playonload )
-      // start playback immediately after loading has completed
-      tail = tail->Link = Ctrl::MkPlayStop(Ctrl::Op_Set);
-  }
-  Ctrl::PostCommand(cmd, &amp_control_event_callback);
-
-  if( !( options & AMP_LOAD_NOT_RECALL ))
-    amp_AddMRU(LoadMRU, MAX_RECALL, ps);
 }
+
+Ctrl::ControlCommand* LoadHelper::ToCommand()
+{ int_ptr<PlayableSlice> ps = ToPlayableSlice();
+  if (ps == NULL)
+    return NULL;
+  // TODO: LoadKeepPlaylist
+  Ctrl::ControlCommand* cmd = Ctrl::MkLoad(ps->GetPlayable()->GetURL(), false);
+  if (Opt & ShowErrors)
+    cmd->Callback = &amp_control_event_callback;
+  Ctrl::ControlCommand* tail = cmd;
+  if (ps->GetStop() != NULL)
+    tail = tail->Link = Ctrl::MkStopAt(ps->GetStop()->Serialize(), 0, false);
+  if (ps->GetStart() != NULL)
+    tail = tail->Link = Ctrl::MkNavigate(ps->GetStart()->Serialize(), 0, false, false);
+  if (Opt & LoadPlay)
+    // start playback immediately after loading has completed
+    tail = tail->Link = Ctrl::MkPlayStop(Ctrl::Op_Set);
+  return cmd;
+}
+
+void LoadHelper::PostCommand()
+{ if (Opt & PostDelayed)
+  { // Clone the current instance (destructive) because of persistence issues.
+    LoadHelper* lhp = new LoadHelper(Opt & ~PostDelayed | AutoPost);
+    lhp->Items.swap(Items);
+    WinPostMsg(hframe, AMP_LOAD, MPFROMP(lhp), 0);
+  } else
+  { Ctrl::ControlCommand* cmd = ToCommand();
+    if (cmd)
+    { Ctrl::PostCommand(cmd);
+      FreeItems();
+    }
+  }
+}
+
+void LoadHelper::FreeItems()
+{ int_ptr<PlayableSlice> ptr;
+  for (PlayableSlice*const* ppps = Items.begin(); ppps != Items.end(); ++ppps)
+    ptr.fromCptr(*ppps);
+}
+  
+LoadHelper::~LoadHelper()
+{ if (Opt & AutoPost)
+    PostCommand();
+  FreeItems();
+}
+
 
 /* loads the accelerater table and modifies it by the plugins */
 static void
@@ -513,6 +543,7 @@ struct DropInfo
   xstring URL;      // Object to drop
   xstring Start;    // Start Iterator
   xstring Stop;     // Stop iterator
+  int_ptr<LoadHelper> LH;
   int     options;  // Options for amp_load_playable
   HWND    hwndItem; // Window handle of the source of the drag operation.
   ULONG   ulItemID; // Information used by the source to identify the
@@ -531,12 +562,12 @@ amp_drag_drop( HWND hwnd, PDRAGINFO pdinfo )
   DEBUGLOG(("amp_drag_drop: {,%u,%x,%p, %u,%u, %u,}\n",
     pdinfo->cbDragitem, pdinfo->usOperation, pdinfo->hwndSource, pdinfo->xDrop, pdinfo->yDrop, pdinfo->cditem));
 
-  int options = AMP_LOAD_NOT_RECALL;
-  if (pdinfo->cditem > 1 || cfg.append_dnd)
-  { options |= AMP_LOAD_APPEND;
-    if (!cfg.append_dnd)
-      DefaultPL->Clear();
-  }
+  int_ptr<LoadHelper> lhp = new LoadHelper(
+    cfg.playonload*LoadHelper::LoadPlay | 
+    cfg.append_dnd*LoadHelper::LoadAppend | 
+    LoadHelper::ShowErrors |
+    LoadHelper::PostDelayed | 
+    LoadHelper::AutoPost);
 
   for( int i = 0; i < pdinfo->cditem; i++ )
   {
@@ -563,7 +594,7 @@ amp_drag_drop( HWND hwnd, PDRAGINFO pdinfo )
         DRAGTRANSFER* pdtrans = DrgAllocDragtransfer(1);
         if (pdtrans)
         { DropInfo* pdsource = new DropInfo();
-          pdsource->options  = options;
+          pdsource->LH       = lhp;
           pdsource->hwndItem = pditem->hwndItem;
           pdsource->ulItemID = pditem->ulItemID;
 
@@ -614,11 +645,12 @@ amp_drag_drop( HWND hwnd, PDRAGINFO pdinfo )
             fullname = fullname + "/";
         }
 
-        DropInfo* pdsource = new DropInfo();
-        pdsource->URL      = url123::normalizeURL(fullname);
-        pdsource->options  = options;
-        WinPostMsg(hwnd, AMP_LOAD, MPFROMP(pdsource), 0);
-        reply = DMFL_TARGETSUCCESSFUL;
+        const url123& url = url123::normalizeURL(fullname);
+        DEBUGLOG(("amp_drag_drop: url=%s\n", url ? url.cdata() : "<null>"));
+        if (url)
+        { lhp->AddItem(new PlayableSlice(url));
+          reply = DMFL_TARGETSUCCESSFUL;
+        }
       }
 
     } else if (DrgVerifyRMF(pditem, "DRM_123FILE", NULL))
@@ -643,11 +675,8 @@ amp_drag_drop( HWND hwnd, PDRAGINFO pdinfo )
 
         // insert item
         if ((pdtrans->fsReply & DMFL_NATIVERENDER))
-        { DropInfo* pdsource = new DropInfo();
-          pdsource->URL      = amp_string_from_drghstr(pditem->hstrSourceName);
-          // TODO: slice!
-          pdsource->options  = options;
-          WinPostMsg(hwnd, AMP_LOAD, MPFROMP(pdsource), 0);
+        { // TODO: slice!
+          lhp->AddItem(new PlayableSlice(amp_string_from_drghstr(pditem->hstrSourceName)));
           reply = DMFL_TARGETSUCCESSFUL;
         }
         // cleanup
@@ -656,7 +685,8 @@ amp_drag_drop( HWND hwnd, PDRAGINFO pdinfo )
     }
     // Tell the source you're done.
     DrgSendTransferMsg(pditem->hwndItem, DM_ENDCONVERSATION, MPFROMLONG(pditem->ulItemID), MPFROMLONG(reply));
-  }
+
+  } // foreach pditem
 
   DrgDeleteDraginfoStrHandles( pdinfo );
   DrgFreeDraginfo( pdinfo );
@@ -679,10 +709,12 @@ amp_drag_render_done( HWND hwnd, PDRAGTRANSFER pdtrans, USHORT rc )
     DosDelete(rendered);
 
     if (fullname)
-    { pdsource->URL = url123::normalizeURL(fullname);
-      WinPostMsg(hwnd, AMP_LOAD, MPFROMP(pdsource), 0);
-      pdsource = NULL; // Do not delete the DropInfo below.
-      reply = DMFL_TARGETSUCCESSFUL;
+    { const url123& url = url123::normalizeURL(fullname);
+      DEBUGLOG(("amp_drag_render_done: url=%s\n", url ? url.cdata() : "<null>"));
+      if (url)
+      { pdsource->LH->AddItem(new PlayableSlice(url));
+        reply = DMFL_TARGETSUCCESSFUL;
+      }
     }
   }
 
@@ -699,9 +731,8 @@ amp_drag_render_done( HWND hwnd, PDRAGTRANSFER pdtrans, USHORT rc )
 
 static void DLLENTRY
 amp_load_file_callback( void* param, const char* url )
-{ DEBUGLOG(("amp_load_file_callback(%p{%u}, %s)\n", param, *(bool*)param, url));
-  amp_load_playable( PlayableSlice(url), *(bool*)param ? 0 : AMP_LOAD_APPEND );
-  *(bool*)param = false;
+{ DEBUGLOG(("amp_load_file_callback(%p, %s)\n", param, url));
+  ((LoadHelper*)param)->AddItem(new PlayableSlice(url));
 }
 
 struct info_edit;
@@ -781,11 +812,8 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
       return 0;
 
     case AMP_LOAD:
-    { DropInfo* pdi = (DropInfo*)mp1;
-      PlayableSlice ps(pdi->URL, xstring(), pdi->Start.cdata(), pdi->Stop.cdata());
-      ASSERT(ps.GetPlayable());
-      amp_load_playable(ps, pdi->options);
-      delete pdi;
+    { DEBUGLOG(("amp_dlg_proc: AMP_LOAD %p\n", mp1));
+      delete (LoadHelper*)mp1; // This implicitely posts the command!
       return 0;
     }
 
@@ -1075,8 +1103,9 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
       if( cmd >= IDM_M_LOADFILE && cmd < IDM_M_LOADFILE + sizeof load_wizzards / sizeof *load_wizzards
         && load_wizzards[cmd-IDM_M_LOADFILE] )
       { // TODO: create temporary playlist
-        bool first = true;
-        (*load_wizzards[cmd-IDM_M_LOADFILE])( hwnd, "Load%s", &amp_load_file_callback, &first );
+        LoadHelper lh(cfg.playonload*LoadHelper::LoadPlay | LoadHelper::LoadRecall | LoadHelper::ShowErrors | LoadHelper::PostDelayed);
+        if ((*load_wizzards[cmd-IDM_M_LOADFILE])(hwnd, "Load%s", &amp_load_file_callback, &lh) == 0)
+          lh.PostCommand();
         return 0;
       }
 
@@ -1281,11 +1310,8 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
           break;
 
         case BMP_FLOAD:
-        { bool first = true;
-          // Well, only one load entry is supported this way.
-          (*load_wizzards[0])( hwnd, "Load%s", &amp_load_file_callback, &first );
-          break;
-        }
+          return WinSendMsg(hwnd, WM_COMMAND, MPFROMSHORT(IDM_M_LOADFILE), mp2);
+
         case BMP_STOP:
           Ctrl::PostCommand(Ctrl::MkPlayStop(Ctrl::Op_Clear));
           // TODO: probably inclusive when the iterator is destroyed
@@ -1313,7 +1339,8 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
 
     case PlaylistMenu::UM_SELECTED:
     { // bookmark is selected
-      amp_load_playable(*(PlayableSlice*)PVOIDFROMMP(mp1), AMP_LOAD_NOT_RECALL|AMP_LOAD_KEEP_PLAYLIST);
+      LoadHelper lh(cfg.playonload*LoadHelper::LoadPlay | LoadHelper::ShowErrors | LoadHelper::AutoPost | LoadHelper::PostDelayed );
+      lh.AddItem((PlayableSlice*)PVOIDFROMMP(mp1));
     }
 
     case WM_HELP:
@@ -1619,22 +1646,6 @@ main2( void* arg )
 
   dlg_init();
 
-  if( files == 1 && !is_dir( argv[argc - 1] )) {
-    amp_load_playable(PlayableSlice(url123::normalizeURL(argv[argc - 1])), 0 );
-  } else if( files > 0 ) {
-    // TODO: same as on load_file_callback
-    /*for( i = 1; i < argc; i++ ) {
-      if( argv[i][0] != '/' && argv[i][0] != '-' ) {
-        if( is_dir( argv[i] )) {
-          pl_add_directory( argv[i], PL_DIR_RECURSIVE );
-        } else {
-          pl_add_file( argv[i], NULL, 0 );
-        }
-      }
-    }
-    pl_completed();*/
-  }
-
   WinSetWindowPos( hframe, HWND_TOP,
                    cfg.main.x, cfg.main.y, 0, 0, SWP_ACTIVATE | SWP_MOVE | SWP_SHOW );
 
@@ -1674,6 +1685,22 @@ main2( void* arg )
   DEBUGLOG(("main: init complete\n"));
 
   amp_pipe_create();
+
+  if (files)
+  { // Files passed at command line => load them initially.
+    // TODO: do not load last used file in this case!
+    const url123& cwd = amp_get_cwd();
+    LoadHelper lh(cfg.playonload*LoadHelper::LoadPlay | LoadHelper::LoadRecall | LoadHelper::ShowErrors | LoadHelper::AutoPost | LoadHelper::PostDelayed);
+    for (int i = 1; i < argc; i++)
+    { if (argv[i][0] != '/' && argv[i][0] != '-')
+      { const url123& url = cwd.makeAbsolute(argv[i]);
+        if (!url)
+          amp_player_error( "Invalid file or URL: '%s'", argv[i]);
+        else
+          lh.AddItem(new PlayableSlice(url));
+      }
+    }
+  }
 
   ///////////////////////////////////////////////////////////////////////////
   // Main loop

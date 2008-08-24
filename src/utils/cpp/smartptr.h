@@ -127,6 +127,8 @@ class int_ptr_base
   Iref_Count* reassign_weak(const Iref_Count* ptr);
   // Destructor core
   Iref_Count* unassign();
+  // core of toCptr
+  Iref_Count* detach();
   // Swap two pointers
   void swap(int_ptr_base& r);
 };
@@ -171,7 +173,7 @@ class int_ptr : protected int_ptr_base
   int_ptr<T>& assign_weak(T* ptr);
   void        swap(int_ptr<T>& r)            { int_ptr_base::swap(r); }
   // manual resource management
-  T*          toCptr()                       { T* r = (T*)Ptr; Ptr = NULL; return r; }
+  T*          toCptr()                       { return (T*)detach(); }
   int_ptr<T>& fromCptr(T* ptr);
 };
 

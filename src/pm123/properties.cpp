@@ -61,49 +61,48 @@
 // The properties!
 const amp_cfg cfg_default =
 { "",
-  TRUE,
-  FALSE,
-  TRUE,
-  TRUE,
-  FALSE,
-  FALSE,
+  true,
+  false,
+  true,
+  false,
+  false,
   CFG_ANAV_SONG,
-  TRUE,
-  TRUE, // recurse_dnd
-  TRUE,
-  FALSE,
-  FALSE,
-  FALSE,
-  TRUE,
+  true,
+  true, // recurse_dnd
+  true,
+  false,
+  false,
+  false,
+  true,
   2,
   
   1, // font
-  FALSE,
+  false,
   { sizeof(FATTRS), 0, 0, "WarpSans Bold", 0, 0, 16, 7, 0, 0 },
   9,
   
-  TRUE,
-  FALSE, // float on top
+  true,
+  false, // float on top
   CFG_SCROLL_INFINITE,
   CFG_DISP_ID3TAG,
   "", // Proxy
   "",
-  FALSE,
+  false,
   128,
   30,
   "\\PIPE\\PM123",
-  TRUE, // dock
+  true, // dock
   10,
 // state
   "",
   "",
   "",
   CFG_MODE_REGULAR,
-  FALSE,
-  FALSE,
-  FALSE,
-  TRUE, // add recursive
-  TRUE, // save relative
+  false,
+  false,
+  false,
+  true, // add recursive
+  true, // save relative
   { 0, 0,0, 1,1, 0, 0, 0, 0 }
 };
 
@@ -157,7 +156,6 @@ cfg_settings1_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
       WinCheckButton( hwnd, CB_RESTARTONSTART,cfg.restartonstart);
       
       WinCheckButton( hwnd, CB_AUTOUSEPL,     cfg.autouse      );
-      WinCheckButton( hwnd, CB_AUTOPLAYPL,    cfg.playonuse    );
       WinCheckButton( hwnd, CB_RECURSEDND,    cfg.recurse_dnd  );
       WinCheckButton( hwnd, CB_SORTFOLDERS,   cfg.sort_folders );
       WinCheckButton( hwnd, CB_FOLDERSFIRST,  cfg.folders_first);
@@ -186,7 +184,6 @@ cfg_settings1_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
       cfg.restartonstart= WinQueryButtonCheckstate( hwnd, CB_RESTARTONSTART);
       
       cfg.autouse     = WinQueryButtonCheckstate( hwnd, CB_AUTOUSEPL    );
-      cfg.playonuse   = WinQueryButtonCheckstate( hwnd, CB_AUTOPLAYPL   );
       cfg.recurse_dnd = WinQueryButtonCheckstate( hwnd, CB_RECURSEDND   );
       cfg.sort_folders= WinQueryButtonCheckstate( hwnd, CB_SORTFOLDERS  );
       cfg.folders_first= WinQueryButtonCheckstate( hwnd, CB_FOLDERSFIRST);

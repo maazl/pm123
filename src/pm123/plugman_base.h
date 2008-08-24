@@ -158,7 +158,7 @@ class Decoder
   // Get Supported EA types or NULL
   xstring      GetFileTypes() const;
   // Checks wether a decoder claims to support a certain URL.
-  bool         IsFileSupported(const char* url) const;
+  bool         IsFileSupported(const char* file, const char* eatype) const;
   // Overloaded for parameter recognition
   virtual void GetParams(stringmap& map) const;
   virtual bool SetParam(const char* param, const xstring& value);

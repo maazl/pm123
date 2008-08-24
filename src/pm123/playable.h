@@ -332,12 +332,13 @@ struct PlayableSet
   public IComparableTo<PlayableSet>
 { static const PlayableSet Empty; // empty instance
                            PlayableSet();
+  #ifdef DEBUG
+                           ~PlayableSet() { DEBUGLOG(("PlayableSet(%p)::~PlayableSet()\n", this)); }
+  xstring                  DebugDump() const;
+  #endif
   virtual int              compareTo(const PlayableSet& r) const;
   // returns true if and only if all elements in this set are also in r.
   bool                     isSubsetOf(const PlayableSet& r) const;
-  #ifdef DEBUG
-  xstring                  DebugDump() const;
-  #endif
 };
 
 

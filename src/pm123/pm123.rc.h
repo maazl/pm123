@@ -287,7 +287,6 @@
 #define CB_RESTARTONSTART  1307
 #define GB_PLAYLIST        1320
 #define CB_AUTOUSEPL       1321
-#define CB_AUTOPLAYPL      1322
 #define CB_RECURSEDND      1323
 #define CB_SORTFOLDERS     1324
 #define CB_FOLDERSFIRST    1325

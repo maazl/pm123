@@ -35,6 +35,7 @@
 #define INCL_WIN
 #include <decoder_plug.h>
 #include <cpp/xstring.h>
+#include <cpp/url123.h>
 #include <os2.h>
 
 /* visualize errors from anywhere */
@@ -47,6 +48,9 @@ int  DLLENTRY pm123_getstring( int index, int subindex, size_t bufsize, char* bu
 
 /* Constructs a string of the displayable text from the file information. [123_utils] */
 xstring amp_construct_tag_string( const DECODER_INFO2* info );
+
+/* Get current working directory */
+url123 amp_get_cwd();
 
 /* Reads url from specified file. [123_utils] */
 xstring amp_url_from_file(const char* filename);

@@ -449,12 +449,14 @@ MRESULT PlaylistBase::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
         }
 
        case IDM_PL_USEALL:
-        { amp_load_playable(PlayableSlice(Content), 0);
+        { LoadHelper lh(cfg.playonload*LoadHelper::LoadPlay | LoadHelper::LoadRecall|LoadHelper::ShowErrors|LoadHelper::AutoPost|LoadHelper::PostDelayed);
+          lh.AddItem(new PlayableSlice(Content));
           break;
         }
        case IDM_PL_USE:
-        { for (RecordBase** rpp = Source.begin(); rpp != Source.end(); ++rpp)
-            amp_load_playable(*(*rpp)->Data->Content, Source.size() > 1 ? AMP_LOAD_APPEND : 0);
+        { LoadHelper lh(cfg.playonload*LoadHelper::LoadPlay | LoadHelper::LoadRecall|LoadHelper::ShowErrors|LoadHelper::AutoPost|LoadHelper::PostDelayed);
+          for (RecordBase** rpp = Source.begin(); rpp != Source.end(); ++rpp)
+            lh.AddItem(&*(*rpp)->Data->Content);
           break;
         }
        case IDM_PL_NAVIGATE:
@@ -1000,7 +1002,7 @@ void PlaylistBase::UpdatePlayStatus(RecordBase* rec)
     PostRecordCommand(rec, RC_UPDATESTATUS);
 }
 
-void PlaylistBase::InfoChangeEvent(const Playable::change_args& args, RecordBase*const& rec)
+void PlaylistBase::InfoChangeEvent(const Playable::change_args& args, RecordBase* rec)
 { DEBUGLOG(("PlaylistBase(%p{%s})::InfoChangeEvent({%p{%s}, %x}, %s)\n", this, DebugName().cdata(),
     &args.Instance, args.Instance.GetURL().getShortName().cdata(), args.Flags, RecordBase::DebugName(rec).cdata()));
 
@@ -1020,7 +1022,7 @@ void PlaylistBase::InfoChangeEvent(const Playable::change_args& args, RecordBase
     PostRecordCommand(rec, RC_UPDATERPL);
 }
 
-void PlaylistBase::StatChangeEvent(const PlayableInstance::change_args& args, RecordBase*const& rec)
+void PlaylistBase::StatChangeEvent(const PlayableInstance::change_args& args, RecordBase* rec)
 { DEBUGLOG(("PlaylistBase(%p{%s})::StatChangeEvent({%p{%s}, %x}, %p)\n", this, DebugName().cdata(),
     &args.Instance, args.Instance.GetPlayable()->GetURL().getShortName().cdata(), args.Flags, rec));
 

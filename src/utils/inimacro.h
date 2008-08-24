@@ -36,6 +36,11 @@
 #define INI_SECTION  "Settings"
 #endif
 
+#define  INCL_WIN
+#include <config.h>
+#include <os2.h>
+#include <stdlib.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -51,31 +56,23 @@ BOOL close_ini( HINI hini );
 }
 #endif
 
-/* Saves a numeric or boolean value to the specified profile file. */
-#define save_ini_value( hini, var ) \
-  PrfWriteProfileData ( hini, INI_SECTION, #var, &var, sizeof( var ))
-
-/* Saves a characters string to the specified profile file. */
-#define save_ini_string( hini, var ) \
-  PrfWriteProfileString( hini, INI_SECTION, #var, var )
-
 /* Saves a binary data to the specified profile file. */
 #define save_ini_data( hini, var, size ) \
   PrfWriteProfileData( hini, INI_SECTION, #var, var, size )
 
-/* Loads a numeric or boolean value from the specified profile file. */
-#define load_ini_value( hini, var )                                  \
-{                                                                    \
-  ULONG datasize;                                                    \
-  PrfQueryProfileSize( hini, INI_SECTION, #var, &datasize );         \
-  if( datasize == sizeof( var )) {                                   \
-    PrfQueryProfileData( hini, INI_SECTION, #var, &var, &datasize ); \
-  }                                                                  \
-}
+/* Saves a generic value binary to the specified profile file. */
+#define save_ini_value( hini, var ) \
+  PrfWriteProfileData ( hini, INI_SECTION, #var, &var, sizeof var )
 
-/* Loads a characters string from the specified profile file. */
-#define load_ini_string( hini, var, size ) \
-  PrfQueryProfileString( hini, INI_SECTION, #var, NULL, var, size )
+/* Saves a generic value binary to the specified profile file. */
+#ifdef __cplusplus
+#define save_ini_bool( hini, var ) \
+  PrfWriteProfileData( hini, INI_SECTION, #var, &var, 1 )
+#endif
+
+/* Saves a characters string to the specified profile file. */
+#define save_ini_string( hini, var ) \
+  PrfWriteProfileString( hini, INI_SECTION, #var, var )
 
 /* Querys a size of the binary data saved to the specified profile file. */
 #define load_ini_data_size( hini, var, size )                        \
@@ -85,13 +82,23 @@ BOOL close_ini( HINI hini );
 }
 
 /* Loads a binary data from the specified profile file. */
+void load_ini_data_core( HINI hini, const char* section, const char* key, void* dst, size_t size );
 #define load_ini_data( hini, var, size )                             \
-{                                                                    \
-  ULONG datasize;                                                    \
-  PrfQueryProfileSize( hini, INI_SECTION, #var, &datasize );         \
-  if( datasize == size ) {                                           \
-    PrfQueryProfileData( hini, INI_SECTION, #var, var, &datasize );  \
-  }                                                                  \
-}
+  load_ini_data_core( hini, INI_SECTION, #var, &var, size );
+
+/* Loads a generic value binary from the specified profile file. */
+#define load_ini_value( hini, var )                                  \
+  load_ini_data_core( hini, INI_SECTION, #var, &var, sizeof var );
+
+/* Loads a generic value binary from the specified profile file. */
+#ifdef __cplusplus
+void load_ini_bool_core( HINI hini, const char* section, const char* key, bool* dst );
+#define load_ini_bool( hini, var )                                   \
+  load_ini_bool_core( hini, INI_SECTION, #var, &var );
+#endif
+
+/* Loads a characters string from the specified profile file. */
+#define load_ini_string( hini, var, size ) \
+  PrfQueryProfileString( hini, INI_SECTION, #var, NULL, var, size )
 
 #endif

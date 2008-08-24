@@ -38,6 +38,8 @@
 
 #include "playablecollection.h"
 
+/* Get window text as xstring without length limitation. */
+xstring amp_get_window_text( HWND hwnd );
 
 /* Creates and displays a error message window. */
 void  amp_error( HWND owner, const char* format, ... );

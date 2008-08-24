@@ -46,7 +46,6 @@
 //#define DEBUG 2
 
 #include <utilfct.h>
-#include <eautils.h>
 #include "plugman_base.h"
 #include "pm123.h" // for hab
 #include "dialog.h"
@@ -186,42 +185,26 @@ bool Decoder::UninitPlugin()
   return true;
 }
 
-bool Decoder::IsFileSupported(const char* url) const
-{ DEBUGLOG(("Decoder(%p{%s})::IsFileSupported(%s) - %s, %s, %s\n", this, GetModuleName().cdata(),
-    url, Extensions ? Extensions.cdata() : "<null>", FileTypes ? FileTypes.cdata() : "<null>",
+bool Decoder::IsFileSupported(const char* file, const char* eatype) const
+{ DEBUGLOG(("Decoder(%p{%s})::IsFileSupported(%s, %p) - %s, %s, %s\n", this, GetModuleName().cdata(),
+    file, eatype, Extensions ? Extensions.cdata() : "<null>", FileTypes ? FileTypes.cdata() : "<null>",
     AddFileTypes ? AddFileTypes.cdata() : "<null>"));
-
-  // Can't probe anything but files so far
-  if (strnicmp("file:", url, 5) != 0)
-    return true;
 
   // Try file name match
   if (Extensions)
   { // extract filename
-    const xstring& objname = url123(url).getObjectName();
-    if (wildcardfit(Extensions, objname))
-    { DEBUGLOG(("Decoder::IsFileSupported: wildcard match of %s with %s\n", objname.cdata(), Extensions.cdata()));
+    char fname[_MAX_PATH];
+    sfnameext(fname, file, sizeof fname);
+    if (wildcardfit(Extensions, fname))
+    { DEBUGLOG(("Decoder::IsFileSupported: wildcard match of %s with %s\n", fname, Extensions.cdata()));
       return true;
   } }
 
   // Try file type match
   const xstring& filetypes = GetFileTypes();
-  if (filetypes)
-  { // extract file name from url
-    url += 5;
-    if (url[2] == '/')
-      url += 3;
-    // retrieve .TYPE EA
-    size_t size = 0;
-    char* eadata = NULL;
-    APIRET rc = eaget(url, ".type", &eadata, &size);
-    DEBUGLOG(("Decoder::IsFileSupported - read .TYPE EA: %u %u\n", rc, size));
-    if (rc == NO_ERROR && eadata)
-    { const USHORT* data = (USHORT*)eadata;
-      bool ret = DoFileTypeMatch(filetypes, *data++, data);
-      free(eadata);
-      return ret; 
-    }
+  if (filetypes && eatype)
+  { const USHORT* data = (USHORT*)eatype;
+    return DoFileTypeMatch(filetypes, *data++, data);
   }
 
   // no match 
@@ -725,7 +708,8 @@ proxy_1_decoder_fileinfo( DecoderProxy1* op, const char* filename, INFOTYPE* wha
   // convert information to new format
   if (rc == 0)
   { // Slicing: the structure FORMAT_INFO2 is a subset of FORMAT_INFO.
-    *info->format          = *(const FORMAT_INFO2*)&old_info.format;
+    info->format->samplerate = old_info.format.samplerate;
+    info->format->channels = old_info.format.channels;
 
     info->tech->songlength = old_info.songlength < 0 ? -1 : old_info.songlength/1000.;
     info->tech->bitrate    = old_info.bitrate;

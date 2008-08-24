@@ -47,6 +47,7 @@
 #include <os2.h>
 #include <string.h>
 #include <stdio.h>
+#include <direct.h>
 
 
 void DLLENTRY
@@ -145,6 +146,19 @@ amp_construct_tag_string( const DECODER_INFO2* info )
     result = xstring::sprintf("%s -- %s", result.cdata(), info->meta->comment);
 
   return result;
+}
+
+/* Get current working directory */
+url123 amp_get_cwd()
+{ char cdir[_MAX_PATH+1];
+  RASSERT(_getcwd(cdir, sizeof cdir -1));
+  size_t len = strlen(cdir);
+  // Append trailing slash?
+  if (cdir[len-1] != '\\')
+  { cdir[len] = '\\';
+    cdir[len+1] = 0; 
+  }
+  return url123::normalizeURL(cdir);
 }
 
 /* Reads url from specified file. */

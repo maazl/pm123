@@ -575,7 +575,6 @@ BEGIN
 
     GROUPBOX     " Playlists ",                                            GB_STREAMING,      4,   4, 248, 84, NOT WS_TABSTOP|WS_GROUP
       PRESPARAMS PP_FONTNAMESIZE "9.WarpSans Bold"
-    AUTOCHECKBOX "Auto '~play' on 'use playlist'",                         CB_AUTOPLAYPL,    12,  68, 112, 12
     AUTOCHECKBOX "Auto '~use playlist' on add",                            CB_AUTOUSEPL,    132,  68, 112, 12
     AUTOCHECKBOX "~Recurse into subdirectories at drag & drop by default", CB_RECURSEDND,    12,  56, 232, 12
     AUTOCHECKBOX "Sort folder content by ~name",                           CB_SORTFOLDERS,   12,  44, 112, 12
