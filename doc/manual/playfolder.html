@@ -1,50 +1,48 @@
-<html resid=1026 level=3 sublinks="playlist_cm.html" sublinks="playlist_cmi.html">
-<head>
-   <title>Filesystem Folders</title>
-</head>
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html resid="1026" level="3" sublinks="playlist_cmi.html"><head>
+   <title>Filesystem Folders</title></head>
 <body>
-<h2>Playing Filesystem Folders</h2>
-<p>PM123 can play the whole content of a filesystem folder without the need to create a playlist.
+<h2>Playing File system Folders</h2>
+<p>PM123 can play the whole content of a file system folder without the need to create a playlist.
   This is done by creating a virtual playlist in memory with all items in the folder.
 
-<h3>URL syntax</h3>
-<p>Filesystem folders use a special URL syntax. The object name always ends with a trailing slash.
+</p><h3>URL syntax</h3>
+<p>File system folders use a special URL syntax. The object name always ends with a trailing slash.
   Example:
-<blockquote>
-<pre>file:///E:/AUDIO/4CD/sascha mÅller/</pre> 
+</p><blockquote>
+<pre>file:///E:/AUDIO/4CD/sascha m&uuml;ller/</pre> 
 </blockquote>
 <p>The URL may use parameters for options.
-  They start with a '<tt>?</tt>' and are seperated by '<tt>&amp;</tt>' as HTTP parameters too.
+  They start with a '<tt>?</tt>' and are separated by '<tt>&amp;</tt>' as HTTP parameters too.
   Example:
-<blockquote>
-<pre>file:///E:/AUDIO/4CD/sascha m&uuml;ller/?recursive&pattern=*.mp3</pre> 
+</p><blockquote>
+<pre>file:///E:/AUDIO/4CD/sascha m&uuml;ller/?recursive&amp;pattern=*.mp3</pre> 
 </blockquote>
-<table cellspacing=0 cellpadding=3 border=1>
-  <tr align=left>
+<table border="1" cellpadding="3" cellspacing="0">
+  <tbody><tr align="left">
     <th>Syntax</th>
     <th>Description</th>
     <th>Example</th>
-  </tr><tr valign=baseline>
+  </tr><tr valign="baseline">
     <td><tt>recursive</tt></td>
     <td>This option includes all nested folders as virtual nested playlists.
       All parameters are inherited.</td>
     <td>...<tt>/?recursive</tt></td>
-  </tr><tr valign=baseline>
+  </tr><tr valign="baseline">
     <td><tt>pattern=<var>wildcard</var></tt></td>
     <td>This restricts the files to that ones that match the wildcard name.</td>
     <td>...<tt>/?pattern=*.mp3</tt></td>
-  </tr><tr valign=baseline>
+  </tr><tr valign="baseline">
     <td><tt>sort=</tt>{<tt>1</tt>|<tt>-1</tt>}</td>
     <td>Override the <a href="settings1.html">configuration setting</a>
       whether to sort the content of folders by name.<br>
       '<tt>-1</tt>' will force the option off for this folder.</td>
     <td>...<tt>/?sort=1</tt></td>
-  </tr><tr valign=baseline>
+  </tr><tr valign="baseline">
     <td><tt>foldersfirst=</tt>{<tt>1</tt>|<tt>-1</tt>}</td>
     <td>Override the <a href="settings1.html">configuration setting</a>
-      whether to place subfolders before any other content.<br>
+      whether to place sub folders before any other content.<br>
       '<tt>-1</tt>' will force the option off for this folder.</td>
     <td>...<tt>/?foldersfirst=-1</tt></td>
-</table>
-</body>
-</html>
+</tr></tbody></table>
+</body></html>

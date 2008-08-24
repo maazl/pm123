@@ -1,64 +1,62 @@
-<html resid=1051 sublinks="*">
-<head>
-   <title>Configuration Settings 2/2</title>
-</head>
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html resid="1051" sublinks="*"><head>
+   <title>Configuration Settings 2/2</title></head>
 <body>
 <h2>PM123's Configuration Settings 2/2</h2>
 
 <blockquote>
-<img SRC="images/prop1a.png"><br>
+<img src="images/prop1a.png"><br>
 </blockquote>
 
 <h3>Navigation</h3>
 <dl>
-  <dt><b>Alternate slider</b> <img src="images/altslider.bmp" align=baseline>
-  <dd>Alternate navigation is available in playlist mode to navigate directly through the entire playlist.
+  <dt><b>Alternate slider</b> <img src="images/altslider.bmp" align="bottom">
+  </dt><dd>Alternate navigation is available in playlist mode to navigate directly through the entire playlist.
     It is activated by pressing the Alt key while the main window has the focus.
-    You can choose between three types of behaviour:
+    You can choose between three types of behavior:
     <ul>
       <li><b>Song only</b><br>
         This allows you to use the slider to jump to the <em>beginning</em>
         of an arbitrary song within a playlist.
-      <li><b>Song & time</b><br>
+      </li><li><b>Song &amp; time</b><br>
         This option will map all songs in the playlist to equidistant slices of the slider.
         Within this blocks you can navigate to an relative location within the song item
         (if it has finite length).
-      <li><b>Time only</b><br>
+      </li><li><b>Time only</b><br>
         This will navigate within the currently loaded playlist at a linear time scale
         as if it were one very long song. If the total playing time of the playlist
         is unknown (e.g. because a radio stream is part of the it)
-        alternate navigation will fallback to "Song & time". 
-    </ul>
-</dl>
+        alternate navigation will fall back to "Song &amp; time". 
+    </li></ul>
+</dd></dl>
 
 <h3>Remote control</h3>
 <dl>
   <dt><b>Pipe name</b>
-  <dd>Specify the name of the named pipe that is used to control PM123 remotely.
+  </dt><dd>Specify the name of the named pipe that is used to control PM123 remotely.
     Only one instance of PM123 can listen at a certain pipe name.
     The pipe name must start with <tt>\PIPE\</tt>.<br>
     If you want to control different instances remotely at the same time,
     they must use different pipe names and therefore different configuration files.
     Otherwise the pipe interface of the second instance will be deactivated.
-</dl>
+</dd></dl>
 
 <h3>Streaming audio</h3>
 <dl>
 <dt><b>HTTP proxy</b>
-<dd>Specify the name or numeric IP address of your HTTP proxy server here.
-<dt><b>port</b>
-<dd>Specify the port of your HTTP proxy server.
-<dt><b>User name</b>
-<dd>This is your HTTP authentication name.
-<dt><b>password</b>
-<dd>This is your HTTP authentication password.
-<dt><b>Buffer size</b>
-<dd>Specifies the read ahead buffer size (useful when plaing across a network or from a streaming source).
+</dt><dd>Specify the name or numeric IP address of your HTTP proxy server here.
+</dd><dt><b>port</b>
+</dt><dd>Specify the port of your HTTP proxy server.
+</dd><dt><b>User name</b>
+</dt><dd>This is your HTTP authentication name.
+</dd><dt><b>password</b>
+</dt><dd>This is your HTTP authentication password.
+</dd><dt><b>Buffer size</b>
+</dt><dd>Specifies the read ahead buffer size (useful when playing across a network or from a streaming source).
 You can disable the buffer having chosen the zero size, but it will dramatically decrease
 player performance.
-<dt><b>Fill <var>x</var>% of the buffer before playing</b>
-<dd>Fills the buffer (see above) before playing.
-</dl>
+</dd><dt><b>Fill <var>x</var>% of the buffer before playing</b>
+</dt><dd>Fills the buffer (see above) before playing.
+</dd></dl>
 
-</body>
-</html>
+</body></html>

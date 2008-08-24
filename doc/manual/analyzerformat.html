@@ -1,13 +1,12 @@
-<html resid="1024" level=3 sublinks="*">
-<head>
-  <title>Sound Visualization color cofiguration file</title>
-</head>
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html resid="1024" level="3" sublinks="*"><head>
+  <title>Sound Visualization color cofiguration file</title></head>
 <body>
-<h2>PM123's Sound Visualization color cofiguration file</h2>
+<h2>PM123's Sound Visualization color configuration file</h2>
 <p>The <a href="analyzer.html">Analyzer plug-in</a> will read a text file
 with color configurations if the <a href="sguide.html">skin configuration file</a> contains its name in
 the <tt>1=visplug/analyzer.dll</tt>... line.</p>
-<p>This text file contains all the colours that will be shown in
+<p>This text file contains all the colors that will be shown in
 the visualization area when it is active (oscilloscope, spectrum or spectroscope
 analyzer).</p>
 <p>Each color is defined by three decimal numbers (red, green
@@ -15,16 +14,16 @@ and blue components)
 separated by a comma, everything between "//" and the end of a line is
 a comment,
 it won't be taken into account. Each component range between 0 (no
-colour, black)
-to 255 (full colour: red, green or blue), so 0,0,0 is black,
+color, black)
+to 255 (full color: red, green or blue), so 0,0,0 is black,
 255,255,255 is white.
-The order of the colours is defined in the followed table: the fist two
-colours
+The order of the colors is defined in the followed table: the fist two
+colors
 define the background and dots (check it to see what are the dots), the
 next 16
-colours are the analyzer's colours from top to bottom, the next 5
-colours are
-the oscilloscope's ones, from center to top/bottom, the last colour is
+colors are the analyzer's colors from top to bottom, the next 5
+colors are
+the oscilloscope's ones, from center to top/bottom, the last color is
 for the
 analyzer's peak markers.
 </p>
@@ -57,7 +56,7 @@ analyzer's peak markers.
     </tr>
     <tr>
       <td>19</td>
-      <td>Oscilloscope 1 (centre)</td>
+      <td>Oscilloscope 1 (center)</td>
     </tr>
     <tr>
       <td>20</td>
@@ -87,26 +86,7 @@ spectroscope mode.)</td>
 <p>Since <strong>version 2.10</strong> of&nbsp;<tt>ANALYZER.DLL</tt>
 the coloring file may also have the following, new format:</p>
 <blockquote>
-<pre>// ANALYZER 21 (this comment line is required at the top!)
-// This file represents the default values
-// general colors ...
-BACKGROUND=0,0,0
-DOTS=0,90,0
-PEAK=0,255,0
-// oscilloscope colors [0..4] ...
-OSCILLOSCOPE-0=0,180,0
-OSCILLOSCOPE-3=0,255,0
-// spectrum analyzer colors [0..30] ...
-ANALYZER-0=255,0,0
-ANALYZER-100%=0,255,0
-// spectroscope colors [0..63] ...
-SPECTROSCOPE-0=0,0,0
-SPECTROSCOPE-8=0,0,32
-SPECTROSCOPE-16=128,0,0
-SPECTROSCOPE-24=255,0,0
-SPECTROSCOPE-40=255,255,0
-SPECTROSCOPE-55=128,255,255
-SPECTROSCOPE-63=255,255,255</pre>
+<pre>// ANALYZER 21 (this comment line is required at the top!)<br>// This file represents the default values<br>// general colors ...<br>BACKGROUND=0,0,0<br>DOTS=0,90,0<br>PEAK=0,255,0<br>// oscilloscope colors [0..4] ...<br>OSCILLOSCOPE-0=0,180,0<br>OSCILLOSCOPE-3=0,255,0<br>// spectrum analyzer colors [0..30] ...<br>ANALYZER-0=255,0,0<br>ANALYZER-100%=0,255,0<br>// spectroscope colors [0..63] ...<br>SPECTROSCOPE-0=0,0,0<br>SPECTROSCOPE-8=0,0,32<br>SPECTROSCOPE-16=128,0,0<br>SPECTROSCOPE-24=255,0,0<br>SPECTROSCOPE-40=255,255,0<br>SPECTROSCOPE-55=128,255,255<br>SPECTROSCOPE-63=255,255,255</pre>
 </blockquote>
 <p>The color ranges <tt>OSCILLOSCOPE</tt> and <tt>SPECTRUM</tt> need not
 to be fully defined. The missing values are interpolated
@@ -127,5 +107,4 @@ is created by interpolating between line 0 (background) to line 18
 (analyzer bottom) following the analyzer colors to line 3 (analyzer
 top) and then to line 24
 (analyzer peak). This is currently the only use of line 24. </p>
-</body>
-</html>
+</body></html>

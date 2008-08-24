@@ -1,8 +1,8 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
 <html level="3"><head>
-<title>Recording Plug-in</title></head>
-<body>
+<title>Recording Plug-in</title></head><body>
 <h2>PM123's&nbsp;Recording Plug-in (OS2REC)</h2>
-<p>OS2REC supports playing of audiodata just recorded from line-in.
+<p>OS2REC supports playing of audio data just recorded from line-in.
   You say it makes no sense? It makes sense!
   E.g. if you want to use the <a href="realeq.html">Equalizer Plug-In</a> with an external audio source.</p>
 <h3>Usage</h3>
@@ -14,7 +14,7 @@
 <tt>AMPMIX<var>xx</var></tt>. The Device ID <tt>0</tt>
 is the default MMOS2 sound device.<br>
 The parameters below may be used to control the recording parameters.</p>
-<table border="1" cellpadding="3" cellspacing="0"><tr>
+<table border="1" cellpadding="3" cellspacing="0"><tbody><tr>
   <th>Parameter</th>
   <th>Value</th>
   <th>Default</th>
@@ -54,7 +54,7 @@ The parameters below may be used to control the recording parameters.</p>
   <td><tt>l</tt>[<tt>ine</tt>]|<tt>m</tt>[<tt>ic</tt>]|<tt>d</tt>[<tt>igital</tt>]</td>
   <td><tt>line</tt></td>
   <td>&nbsp;</td>
-</tr></table>
+</tr></tbody></table>
 </blockquote>
 
 <h3>Examples</h3>
@@ -75,7 +75,7 @@ The parameters below may be used to control the recording parameters.</p>
 <ul>
 <li>The plug-in should introduce a <strong>defined
   latency</strong> before passing the buffers to the output.<br>
-  Since the playback is normally absolutely synchronuous you may never
+  Since the playback is normally absolutely synchronous you may never
   get the buffers filled. So drops in the sound are very likely to happen
   at the beginning.</li>
 <li>When the recording and the playback is not done on same

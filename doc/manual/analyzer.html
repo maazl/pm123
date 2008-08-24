@@ -1,11 +1,10 @@
-<html resid="1002" level=3 sublinks="*">
-<head>
-  <title>Sound Visualization Plug-in</title>
-</head>
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html resid="1002" level="3" sublinks="*"><head>
+  <title>Sound Visualization Plug-in</title></head>
 <body>
 <h2>PM123's Sound Visualization Plug-in</h2>
-<p>PM123 comes with a sound visualization plugin, <tt>ANALYZER.DLL</tt>
-which is located in the visplug directory. The plugin is visible right
+<p>PM123 comes with a sound visualization plug-in, <tt>ANALYZER.DLL</tt>
+which is located in the <tt>visplug</tt> directory. The plug-in is visible right
 next to the volume bar. By default it shows the spectrum analyzer.
 Click
 it to switch between the different visualization styles.
@@ -23,11 +22,11 @@ file and adding this to it:
 <blockquote>
   <pre>1=visplug/analyzer.dll,x,y,size-x,size-y</pre>
 </blockquote>
-<p>Note that because the spectrum analyzer is <i>visual plugin</i> and it
+<p>Note that because the spectrum analyzer is <i>visual plug-in</i> and it
 is <i>skin specific</i> and will not display on older PM123 skins. But
 you can add them easily to any skin by editing the skin's <tt>.SKN</tt>
 file and adding this to it:
-<blockquote>
+</p><blockquote>
   <pre>1=visplug/analyzer.dll,x,y,size-x,size-y</pre>
 </blockquote>
 <p>Replace <tt>x, y, size-x</tt> and <tt>size-y</tt> with suitable coordinates
@@ -40,7 +39,6 @@ files like this:
 <blockquote>
   <pre>1=visplug/analyzer.dll,x,y,size-x,size-y,viscolor.txt</pre>
 </blockquote>
-<p>The plugin will then read <tt>viscolor.txt</tt> and adapt to colors specified in it!
+<p>The plug-in will then read <tt>viscolor.txt</tt> and adapt to colors specified in it!
 See <a href="analyzerformat.html">Analyzer color configuration file</a> for details about this file.</p>
-</body>
-</html>
+</body></html>

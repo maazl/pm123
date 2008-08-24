@@ -1,7 +1,6 @@
-<html level=3>
-<head>
-  <title>Remote Command Reference</title>
-</head>
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html level="3"><head>
+  <title>Remote Command Reference</title></head>
 <body>
 <h2>PM123's Remote Command Reference</h2>
 <p> PM123 currently understands the following
@@ -10,8 +9,8 @@ commands (optional parameters are enclosed in square brackets).</p>
 <table border="1" cellpadding="5" cellspacing="0">
 <tbody>
 <tr>
-<th>Comand</th>
-<th>Desription</th>
+<th>Command</th>
+<th>Description</th>
 <th>Reply</th>
 </tr>
 <tr valign="baseline">
@@ -38,7 +37,7 @@ Any currently playing item will be aborted.</td>
 </tr>
 <tr valign="baseline">
 <td><tt>pause </tt>[<tt>on</tt>|<tt>off</tt>]<sup><a href="#note1">(1)</a></sup></td>
-<td>Pauses or unpauses the playback.</td>
+<td>Pauses or resumes the playback.</td>
 <td>Result code, non-zero = error.</td>
 </tr>
 <tr valign="baseline">
@@ -56,13 +55,13 @@ is specified, you can skip more than one song at once.</td>
 <tr valign="baseline">
 <td><tt>rewind </tt>[<tt>on</tt>|<tt>off</tt>]<sup><a href="#note1">(1)</a></sup></td>
 <td>Toggles or (re)sets rewind of the currently playing
-file. If rewind is activated fast forward is implicitely deactivated.</td>
+file. If rewind is activated fast forward is implicitly deactivated.</td>
 <td>Result code, non-zero = error.</td>
 </tr>
 <tr valign="baseline">
 <td><tt>forward </tt>[<tt>on</tt>|<tt>off</tt>]<sup><a href="#note1">(1)</a></sup></td>
 <td>Toggles or (re)sets fast forward of the currently
-playing file. If fast forward is activated rewind is implicitely
+playing file. If fast forward is activated rewind is implicitly
 deactivated.</td>
 <td>Result code, non-zero = error.</td>
 </tr>
@@ -75,19 +74,19 @@ deactivated.</td>
 the start of the song within the currently loaded playlist. If the file
 is referenced twice, the first instance s taken.<br>
 '<tt>navigate song D:\songs\song1.mp3 time 1:02.7</tt>'
-navigates to location 62.7 seconds within the next occourency of .</td>
+navigates to location 62.7 seconds within the next occurrence of .</td>
 <td>Result code, non-zero = error.</td>
 </tr>
 <tr valign="baseline">
 <td><tt>navigate<br>
-</tt><tt>path </tt>[<tt>;</tt>]<tt><var>&lt;item&gt;</var></tt>[<tt>;<var>&lt;subitem&gt;</var></tt>[<tt>;</tt>...]]<br>
+</tt><tt>path </tt>[<tt>;</tt>]<tt><var>&lt;item&gt;</var></tt>[<tt>;<var>&lt;sub item&gt;</var></tt>[<tt>;</tt>...]]<br>
 [<tt>time </tt><var><tt>&lt;time&gt;</tt></var>[<tt>%</tt>]]</td>
 <td>Navigate within the currently loaded playlist. Examples:<br>
 '<tt>navigate path ;D:\songs\song1.mp3</tt>' navigates to
 the start of the song within the currently loaded playlist. If the file
 is referenced twice, the first instance s taken.<br>
 '<tt>navigate song D:\songs\song1.mp3 time 1:02.7</tt>'
-navigates to location 62.7 seconds within the next occourency of .</td>
+navigates to location 62.7 seconds within the next occurrence of .</td>
 <td>Result code, non-zero = error.</td>
 </tr>
 <tr valign="baseline">
@@ -102,7 +101,7 @@ may be a fractional number.</td>
 <td>Sets volume to <tt><var>&lt;n&gt;</var></tt>%
 (scale 0-100, of course). If a sign is included, <tt><var>&lt;n&gt;</var></tt>
 is added to the current volume level. If <tt><var>&lt;n&gt;</var></tt>
-is ommitted the volume is unchanged.</td>
+is omitted the volume is unchanged.</td>
 <td>Previous volume setting or empty string on error.</td>
 </tr>
 <tr valign="baseline">
@@ -132,8 +131,8 @@ scroller or returns nothing if "no file loaded".</td>
 <table border="1" cellpadding="5" cellspacing="0">
 <tbody>
 <tr>
-<th>Comand</th>
-<th>Desription</th>
+<th>Command</th>
+<th>Description</th>
 <th>Reply</th>
 </tr>
 <tr valign="baseline">
@@ -177,7 +176,7 @@ list.</td>
   item. If the current item is past the end the new items are appended.<br>
   Multiple items
 must be separated with '<tt>;</tt>' characters. The names
-or urls can be enclosed with double quotes. The operation is atomic.</td>
+or URLs can be enclosed with double quotes. The operation is atomic.</td>
 <td>&nbsp;</td>
 </tr>
 <tr valign="baseline">
@@ -209,8 +208,8 @@ to the playlist (recursive).</td>
 <table border="1" cellpadding="5" cellspacing="0">
 <tbody>
 <tr>
-<th>Comand</th>
-<th>Desription</th>
+<th>Command</th>
+<th>Description</th>
 <th>Reply</th>
 </tr>
 <tr valign="baseline">
@@ -256,11 +255,11 @@ logical true value and '<tt>off</tt>', '<tt>0</tt>',
 '<tt>false</tt>' or '<tt>no</tt>' for false.</p>
 </li>
 <li>
-<p>The behaviour of the directory commands has significantly
+<p>The behavior of the directory commands has significantly
 changed with PM123 1.40. The content of the directories is no longer
-expanded inline into the playlist. A reference to the diretory is added
+expanded inline into the playlist. A reference to the directory is added
 to the playlist instead. This has several side effects. Unplayable
-items appear in the navigation. The directory is rescanned everytime
+items appear in the navigation. The directory is rescanned every time
 the playlist is loaded.</p>
 </li>
 <li>In PM123 before version 1.40 the playlist manipulation
