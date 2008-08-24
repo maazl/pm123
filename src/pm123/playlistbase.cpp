@@ -109,6 +109,7 @@ void PlaylistBase::InitIcons()
   IcoPlaylist[0][IC_Play   ][ICP_Empty    ] = WinLoadPointer(HWND_DESKTOP, 0, ICO_PL_EMPTY_PLAY);
   IcoPlaylist[0][IC_Shadow ][ICP_Empty    ] = WinLoadPointer(HWND_DESKTOP, 0, ICO_PL_EMPTY_SHADOW);
   IcoPlaylist[0][IC_Pending][ICP_Closed   ] = IcoPlaylist[0][IC_Pending][ICP_Empty    ];
+  IcoPlaylist[0][IC_Invalid][ICP_Closed   ] = IcoPlaylist[0][IC_Invalid][ICP_Empty    ];
   IcoPlaylist[0][IC_Normal ][ICP_Closed   ] = WinLoadPointer(HWND_DESKTOP, 0, ICO_PL_CLOSE);
   IcoPlaylist[0][IC_Active ][ICP_Closed   ] = WinLoadPointer(HWND_DESKTOP, 0, ICO_PL_CLOSE_ACTIVE);
   IcoPlaylist[0][IC_Play   ][ICP_Closed   ] = WinLoadPointer(HWND_DESKTOP, 0, ICO_PL_CLOSE_PLAY);
@@ -129,6 +130,7 @@ void PlaylistBase::InitIcons()
   IcoPlaylist[1][IC_Play   ][ICP_Empty    ] = WinLoadPointer(HWND_DESKTOP, 0, ICO_FL_EMPTY_PLAY);
   IcoPlaylist[1][IC_Shadow ][ICP_Empty    ] = WinLoadPointer(HWND_DESKTOP, 0, ICO_FL_EMPTY_SHADOW);
   IcoPlaylist[1][IC_Pending][ICP_Closed   ] = IcoPlaylist[1][IC_Pending][ICP_Empty    ];
+  IcoPlaylist[1][IC_Invalid][ICP_Closed   ] = IcoPlaylist[1][IC_Invalid][ICP_Empty    ];
   IcoPlaylist[1][IC_Normal ][ICP_Closed   ] = WinLoadPointer(HWND_DESKTOP, 0, ICO_FL_CLOSE);
   IcoPlaylist[1][IC_Active ][ICP_Closed   ] = WinLoadPointer(HWND_DESKTOP, 0, ICO_FL_CLOSE_ACTIVE);
   IcoPlaylist[1][IC_Play   ][ICP_Closed   ] = WinLoadPointer(HWND_DESKTOP, 0, ICO_FL_CLOSE_PLAY);
