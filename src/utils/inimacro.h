@@ -52,10 +52,6 @@ HINI open_module_ini( void );
 /* Closes a opened profile file. */
 BOOL close_ini( HINI hini );
 
-#ifdef __cplusplus
-}
-#endif
-
 /* Saves a binary data to the specified profile file. */
 #define save_ini_data( hini, var, size ) \
   PrfWriteProfileData( hini, INI_SECTION, #var, var, size )
@@ -100,5 +96,9 @@ void load_ini_bool_core( HINI hini, const char* section, const char* key, bool* 
 /* Loads a characters string from the specified profile file. */
 #define load_ini_string( hini, var, size ) \
   PrfQueryProfileString( hini, INI_SECTION, #var, NULL, var, size )
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif
