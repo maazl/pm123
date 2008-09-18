@@ -4,9 +4,9 @@
 <body>
 <h2>PM123's Troubleshooting</h2>
 <ol>
-<li><p><b>The player says that no matching decoder plug-in is available
-  when playing files without standard extensions.</b>
-  </p><p>By default PM123 tries decoders only if either the file extension is known to work
+<li><h4>The player says that no matching decoder plug-in is available
+  when playing files without standard extensions.</h4>
+  <p>By default PM123 tries decoders only if either the file extension is known to work
   with this decoder or the file type is listed in the file type list of the matching
   decoder plug-in in the <a href="plug-ins_dec-cfg.html">configuration dialog</a>. 
   </p><ul>
@@ -14,9 +14,9 @@
     dialog to the list of known types for the matching decode plug-in or
     </li><li>check the box 'Try unsupported file extensions and types too'
     for the desired plug-in.
-  </li></ul>
-</li><li><p><b>The player skips and/or the audio doesn't sound right!</b>
-  </p><p>There might be multiple reasons if you encounter this problem.
+  </li></ul></li>
+<li><h4>The player skips and/or the audio doesn't sound right!</h4>
+  <p>There might be multiple reasons if you encounter this problem.
   Some of them are listed here. First of all, <b>check your MP3 file</b>.
   It may be broken. It might play successfully on another player, but mpg123
   may not necessarily like it. If you think it's not related to the input
@@ -44,18 +44,20 @@
     incomplete and/or buggy.</li>
     <li>You have a very old or just generally bad motherboard, video card or IO
     controller card. This is a rare problem, though.</li>
-  </ul>
-</li><li><p><b>The player crashes on startup.</b>
-  </p><ul>
+  </ul></li>
+<li><h4>The player crashes on startup.</h4>
+  <ul>
     <li>You have an old <tt>MPG123.DLL</tt> (or some other DLL PM123 comes with)
-    in your <tt>LIBPATH</tt>.</li>
+    in your <tt>LIBPATH</tt>.
+    Or you tried to start different versions of PM123 from different directories
+    at the same time.<br>
+    Set <tt>LIBPATHSTRICT=T</tt> to get this working. (Requires recent kernel.)</li>
     <li>Your system doesn't support DIVE (Direct Video Extensions). Try renaming
-    <tt>visplug\analyzer.dll</tt>
-    to something else.</li>
+    <tt>visplug\analyzer.dll</tt> to something else.</li>
     <li>Something is very wrong....</li>
-  </ul>
-</li><li><p><b>My mouse cursor is jerky or jumpy!</b>
-  </p><ul>
+  </ul></li>
+<li><h4>My mouse cursor is jerky or jumpy!</h4>
+  <ul>
     <li>You have a bad video driver. You should try
     <a href="http://www.scitechsoft.com/sdd_os2.html">SciTech Display
     Drivers</a> which should fix all your problems. If this does
@@ -72,6 +74,12 @@
     </li><li>If all fails, one way to fix this problem is to set analyzer disabled by
     default (Properties -&gt; Plug-Ins -&gt; analyzer.dll -&gt; Configure). Of
     course you won't see the cool graphics then.
-  </li></ul>
-
-</li></ol></body></html>
+  </li></ul></li>
+<li><h4>The analyzer and the timers stop woring after long playbacks.</h4>
+  <p>This is a bug in some sound drivers that prevents MMOS2
+    to return playing times beyond 2**<sup>30</sup> samples.
+    This is after about 6 to 7 hours at 44 to 48 kHz sampling rate.<br>
+    If you activated 'retain playing position on stop' press the play/stop
+    button twice and the sound device is reinitialized. This gives you another 6 hours.</p>
+</ol>
+</body></html>
