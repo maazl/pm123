@@ -325,6 +325,8 @@ ParseFile:
  Global.RefEndTag = '';       /* end tag to put at next end-of-reference <\a> */
  Global.IsTable = 0;               /* We`re inside a <TABLE>...</TABLE> pair? */
  Global.IsCentered = 0;          /* We`re inside a <CENTER>...</CENTER> pair? */
+ Global.TextStyle = '';                 /* Collection of current text styles: */
+                       /* I(talic), U(nderline), B(old), E(mphasis), S(trong) */
  Global.IsOutputEnabled = 1; /* A global switch to enable/disable text output */
  Global.SkipSpaces = 1;                   /* set to 1 in lists to skip spaces */
  Global.HasText = 0;                  /* 1 if the current section has content */
@@ -747,34 +749,46 @@ return 0;
 
 doTagCITE:
 doTagI:
-doTagEM:
 doTagVAR:
- call PutToken ':hp1.';
+ call doSetEmphasis 'I';
 return 0;
 
 doTag!CITE:
 doTag!I:
-doTag!EM:
 doTag!VAR:
- call PutToken ':ehp1.';
+ call doResetEmphasis 'I';
+return 0;
+
+doTagEM:
+ call doSetEmphasis 'E';
+return 0;
+
+doTag!EM:
+ call doResetEmphasis 'E';
 return 0;
 
 doTagB:
-doTagSTRONG:
- call PutToken ':hp2.';
+ call doSetEmphasis 'B';
 return 0;
 
 doTag!B:
+ call doResetEmphasis 'B';
+return 0;
+
+doTagSTRONG:
+ call doSetEmphasis 'R';
+return 0;
+
 doTag!STRONG:
- call PutToken ':ehp2.';
+ call doResetEmphasis 'R';
 return 0;
 
 doTagU:
- call PutToken ':hp5.';
+ call doSetEmphasis 'U';
 return 0;
 
 doTag!U:
- call PutToken ':ehp5.';
+ call doResetEmphasis 'U';
 return 0;
 
 doTagCODE:
@@ -1198,6 +1212,51 @@ CloseRef:
  call PutToken Global.RefEndTag;
  Global.RefEndTag = '';
 return;
+
+/* Text emphasis */
+doSetEmphasis:
+ procedure expose Global.;
+ p = pos(Global.TextStyle, ARG(1));
+ if p = 0
+  then do
+   oldipfstyle = GetIPFStyle(Global.TextStyle);
+   Global.TextStyle = Global.TextStyle||ARG(1);
+   call ChangeIPFStyle oldipfstyle, GetIPFStyle(Global.TextStyle);
+  end;
+return;
+
+doResetEmphasis:
+ procedure expose Global.;
+ p = pos(Global.TextStyle, ARG(1));
+ if p > 0
+  then do
+   oldipfstyle = GetIPFStyle(Global.TextStyle);
+   Global.TextStyle = substr(Global.TextStyle, 1, p-1)||substr(Global.TextStyle, p+1);
+   call ChangeIPFStyle oldipfstyle, GetIPFStyle(Global.TextStyle);
+  end;
+return;
+
+ChangeIPFStyle:
+ procedure expose Global.;
+ if ARG(1) <> ARG(2)
+  then do
+   if ARG(1) <> 0 then
+    call PutToken ':ehp'ARG(1)'.';
+   if ARG(2) <> 0 then
+    call PutToken ':hp'ARG(2)'.';
+  end;
+return;
+
+GetIPFStyle:
+ procedure;
+ if pos(ARG(1), 'S') <> 0 then return 8;
+ if pos(ARG(1), 'E') <> 0 then return 4;
+ s = 0;
+ if pos(ARG(1), 'I') <> 0 then s = s + 1;
+ if pos(ARG(1), 'B') <> 0 then s = s + 2;
+ if pos(ARG(1), 'U') <> 0 then s = s + 5;
+ if s = 8 then return 9;
+return s;
 
 /* recursive Tags management */
 doOpenTag:
