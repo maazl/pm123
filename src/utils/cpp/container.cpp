@@ -55,7 +55,8 @@ vector_base::~vector_base()
 }
 
 void vector_base::operator=(const vector_base& r)
-{ prepare_assign(r.Size);
+{ DEBUGLOG(("vector_base(%p)::operator=(&%p)\n", this, &r));
+  prepare_assign(r.Size);
   memcpy(Data, r.Data, Size * sizeof *Data);
 }
 

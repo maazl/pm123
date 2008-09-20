@@ -53,6 +53,7 @@
 #include "pm123.rc.h"
 #include "docking.h"
 #include "iniman.h"
+#include "filedlg.h"
 
 #include <stdarg.h>
 #include <snprintf.h>
@@ -1252,16 +1253,13 @@ url123 PlaylistBase::PlaylistSelect(HWND owner, const char* title)
 {
   APSZ types[] = {{ FDT_PLAYLIST }, { 0 }};
   FILEDLG filedialog = { sizeof(FILEDLG) };
-  filedialog.fl             = FDS_CENTER | FDS_OPEN_DIALOG | FDS_CUSTOM;
+  filedialog.fl             = FDS_CENTER | FDS_OPEN_DIALOG;
   filedialog.pszTitle       = (PSZ)title;
-  filedialog.hMod           = NULLHANDLE;
-  filedialog.usDlgId        = DLG_FILE;
-  filedialog.pfnDlgProc     = amp_file_dlg_proc;
   filedialog.papszITypeList = types;
   filedialog.pszIType       = FDT_PLAYLIST;
 
   strncpy( filedialog.szFullFile, cfg.listdir, sizeof filedialog.szFullFile );
-  PMXASSERT(WinFileDlg(HWND_DESKTOP, owner, &filedialog), != NULLHANDLE);
+  PMXASSERT(amp_file_dlg(HWND_DESKTOP, owner, &filedialog), != NULLHANDLE);
 
   if( filedialog.lReturn == DID_OK )
   { sdrivedir( cfg.listdir, filedialog.szFullFile, sizeof cfg.listdir );

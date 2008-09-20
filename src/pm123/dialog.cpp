@@ -50,6 +50,7 @@
 #include "iniman.h"
 #include "pm123.h"
 #include "123_util.h"
+#include "filedlg.h"
 #include <os2.h>
 #include "pm123.rc.h"
 
@@ -57,14 +58,6 @@
 
 
 #define  AMP_REFRESH_CONTROLS   ( WM_USER + 1000 ) /* 0,         0                            */
-
-
-/* file dialog additional flags */
-#define  FDU_DIR_ENABLE   0x0001
-#define  FDU_RECURSEBTN   0x0002
-#define  FDU_RECURSE_ON   0x0004
-#define  FDU_RELATIVBTN   0x0008
-#define  FDU_RELATIV_ON   0x0010
 
 
 /* Equalizer stuff. */
@@ -80,148 +73,6 @@ xstring amp_get_window_text( HWND hwnd )
   char* dst = ret.raw_init(WinQueryWindowTextLength(hwnd));
   PMXASSERT(WinQueryWindowText(hwnd, ret.length()+1, dst), == ret.length());
   return ret;
-}
-
-
-/* Default dialog procedure for the file dialog. */
-MRESULT EXPENTRY amp_file_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
-{ DEBUGLOG2(("amp_file_dlg_proc(%x, %x, %x, %x)\n", hwnd, msg, mp1, mp2));
-  FILEDLG* filedialog =
-    (FILEDLG*)WinQueryWindowULong( hwnd, QWL_USER );
-
-  switch( msg )
-  {
-    case WM_INITDLG:
-      if( filedialog && !(filedialog->ulUser & FDU_RECURSEBTN )) {
-        WinShowWindow( WinWindowFromID( hwnd, CB_RECURSE ), FALSE );
-      } else {
-        WinCheckButton( hwnd, CB_RECURSE, cfg.add_recursive );
-      }
-      if( filedialog && !(filedialog->ulUser & FDU_RELATIVBTN )) {
-        WinShowWindow( WinWindowFromID( hwnd, CB_RELATIV ), FALSE );
-      } else {
-        WinCheckButton( hwnd, CB_RELATIV, cfg.save_relative );
-      }
-      if( filedialog && filedialog->ulUser & FDU_DIR_ENABLE ) {
-        WinEnableControl( hwnd, DID_OK, TRUE  );
-      }
-      do_warpsans( hwnd );
-      break;
-
-    case WM_HELP:
-      amp_show_help( IDH_MAIN );
-      return 0;
-
-    case WM_CONTROL:
-      if( SHORT1FROMMP(mp1) == DID_FILENAME_ED && SHORT2FROMMP(mp1) == EN_CHANGE )
-      {
-        char file[_MAX_PATH];
-        WinQueryDlgItemText( hwnd, DID_FILENAME_ED, sizeof(file), file );
-
-        if( filedialog->ulUser & FDU_RECURSEBTN ) {
-          if( !*file || strcmp( file, "*"   ) == 0 ||
-                        strcmp( file, "*.*" ) == 0 )
-          {
-            WinEnableControl( hwnd, CB_RECURSE, TRUE  );
-          } else {
-            WinEnableControl( hwnd, CB_RECURSE, FALSE );
-          }
-        }
-
-        // Prevents DID_OK from being greyed out.
-        if( filedialog->ulUser & FDU_DIR_ENABLE ) {
-          return 0;
-        }
-      }
-      break;
-
-    case WM_COMMAND:
-      if( SHORT1FROMMP(mp1) == DID_OK )
-      {
-        if( filedialog->ulUser & FDU_RELATIVBTN ) {
-          if( !WinQueryButtonCheckstate( hwnd, CB_RELATIV )) {
-            filedialog->ulUser &= ~FDU_RELATIV_ON;
-            cfg.save_relative = FALSE;
-          } else {
-            filedialog->ulUser |=  FDU_RELATIV_ON;
-            cfg.save_relative = TRUE;
-          }
-        }
-
-        if( filedialog->ulUser & FDU_DIR_ENABLE )
-        {
-          char file[_MAX_PATH];
-          WinQueryDlgItemText( hwnd, DID_FILENAME_ED, sizeof(file), file );
-
-          if( !*file ||
-              strcmp( file, "*"   ) == 0 ||
-              strcmp( file, "*.*" ) == 0 )
-          {
-            if( !is_root( filedialog->szFullFile )) {
-              filedialog->szFullFile[strlen(filedialog->szFullFile)-1] = 0;
-            }
-
-            filedialog->lReturn    = DID_OK;
-            filedialog->ulFQFCount = 1;
-
-            if( filedialog->ulUser & FDU_RECURSEBTN ) {
-              if( !WinQueryButtonCheckstate( hwnd, CB_RECURSE )) {
-                filedialog->ulUser &= ~FDU_RECURSE_ON;
-                cfg.add_recursive = FALSE;
-              } else {
-                filedialog->ulUser |=  FDU_RECURSE_ON;
-                cfg.add_recursive = TRUE;
-              }
-            }
-
-            WinDismissDlg( hwnd, DID_OK );
-            return 0;
-          }
-        }
-      }
-      break;
-
-    case FDM_FILTER:
-    {
-      HWND  hcbox = WinWindowFromID( hwnd, DID_FILTER_CB );
-      ULONG pos   = WinQueryLboxSelectedItem( hcbox );
-      ULONG len   = LONGFROMMR( WinSendMsg( hcbox, LM_QUERYITEMTEXTLENGTH, MPFROMSHORT(pos), 0 ));
-      char* type  = (char*)malloc( len );
-      BOOL  rc    = FALSE;
-      char* filt;
-      char  file[_MAX_PATH];
-
-      if( !type ) {
-        return WinDefFileDlgProc( hwnd, msg, mp1, mp2 );
-      }
-
-      WinQueryLboxItemText( hcbox, pos, type, len );
-      WinQueryDlgItemText ( hwnd, DID_FILENAME_ED, sizeof(file), file );
-
-      // If the selected type is not have extensions list - that it <All Files>
-      // which OS/2 always adds in the list.
-      if( !strchr( type, '(' )) {
-        rc = TRUE;
-      } else {
-        strtok( type, "(" );
-
-        while(( filt = strtok( NULL, ";)" )) != NULL ) {
-          if( wildcardfit( filt, (char*)mp1 )) {
-            rc = TRUE;
-            break;
-          }
-        }
-      }
-
-      if( rc && ( strchr( file, '*' ) || strchr( file, '?' ))) {
-        rc = wildcardfit( file, (char*)mp1 );
-      }
-
-      free( type );
-      return MRFROMLONG( rc );
-    }
-  }
-  return WinDefFileDlgProc( hwnd, msg, mp1, mp2 );
 }
 
 static xstring joinstringset(const stringset& set, char delim)
@@ -266,17 +117,14 @@ ULONG DLLENTRY amp_file_wizzard( HWND owner, const char* title, DECODER_WIZZARD_
 
     xstring wintitle = xstring::sprintf(title, " file(s)");
 
-    filedialog.fl             = FDS_CENTER | FDS_OPEN_DIALOG | FDS_CUSTOM | FDS_MULTIPLESEL;
+    filedialog.fl             = FDS_CENTER | FDS_OPEN_DIALOG | FDS_MULTIPLESEL;
     filedialog.ulUser         = FDU_DIR_ENABLE | FDU_RECURSEBTN;
     filedialog.pszTitle       = (PSZ)wintitle.cdata(); // OS/2 and const...
-    filedialog.hMod           = NULLHANDLE;
-    filedialog.usDlgId        = DLG_FILE;
-    filedialog.pfnDlgProc     = amp_file_dlg_proc;
     filedialog.papszITypeList = types;
     filedialog.pszIType       = (PSZ)type_all.cdata(); // OS/2 and const...
 
     strlcpy( filedialog.szFullFile, cfg.filedir, sizeof filedialog.szFullFile );
-    PMRASSERT( WinFileDlg( HWND_DESKTOP, owner, &filedialog ));
+    PMRASSERT(amp_file_dlg( HWND_DESKTOP, owner, &filedialog ));
   }
 
   ULONG ret = 300; // Cancel unless DID_OK
@@ -446,11 +294,8 @@ void amp_save_playlist(HWND owner, PlayableCollection& playlist)
   APSZ  types[] = {{ FDT_PLAYLIST_LST }, { FDT_PLAYLIST_M3U }, { 0 }};
 
   FILEDLG filedialog = {sizeof(FILEDLG)};
-  filedialog.fl             = FDS_CENTER | FDS_SAVEAS_DIALOG | FDS_CUSTOM | FDS_ENABLEFILELB;
+  filedialog.fl             = FDS_CENTER | FDS_SAVEAS_DIALOG | FDS_ENABLEFILELB;
   filedialog.pszTitle       = "Save playlist";
-  filedialog.hMod           = NULLHANDLE;
-  filedialog.usDlgId        = DLG_FILE;
-  filedialog.pfnDlgProc     = amp_file_dlg_proc;
   filedialog.ulUser         = FDU_RELATIVBTN;
   filedialog.papszITypeList = types;
   filedialog.pszIType       = FDT_PLAYLIST_LST;
@@ -470,7 +315,7 @@ void amp_save_playlist(HWND owner, PlayableCollection& playlist)
     // TODO: preselect directory
   }
 
-  PMXASSERT(WinFileDlg(HWND_DESKTOP, owner, &filedialog), != NULLHANDLE);
+  PMXASSERT(amp_file_dlg(HWND_DESKTOP, owner, &filedialog), != NULLHANDLE);
 
   if(filedialog.lReturn == DID_OK)
   { url123 file = url123::normalizeURL(filedialog.szFullFile);
@@ -512,16 +357,13 @@ void amp_loadskin( HAB hab, HWND hwnd, HPS hps )
   memset( &filedialog, 0, sizeof( FILEDLG ));
 
   filedialog.cbSize         = sizeof( FILEDLG );
-  filedialog.fl             = FDS_CENTER | FDS_OPEN_DIALOG | FDS_CUSTOM;
+  filedialog.fl             = FDS_CENTER | FDS_OPEN_DIALOG;
   filedialog.pszTitle       = "Load PM123 skin";
-  filedialog.hMod           = NULLHANDLE;
-  filedialog.usDlgId        = DLG_FILE;
-  filedialog.pfnDlgProc     = amp_file_dlg_proc;
   filedialog.papszITypeList = types;
   filedialog.pszIType       = FDT_SKIN;
 
   sdrivedir( filedialog.szFullFile, cfg.defskin, sizeof( filedialog.szFullFile ));
-  WinFileDlg( HWND_DESKTOP, HWND_DESKTOP, &filedialog );
+  amp_file_dlg( HWND_DESKTOP, HWND_DESKTOP, &filedialog );
 
   if( filedialog.lReturn == DID_OK ) {
     bmp_load_skin( filedialog.szFullFile, hab, hwnd, hps );
@@ -539,14 +381,11 @@ void amp_save_stream( HWND hwnd, BOOL enable )
 
     memset( &filedialog, 0, sizeof( FILEDLG ));
     filedialog.cbSize     = sizeof( FILEDLG );
-    filedialog.fl         = FDS_CENTER | FDS_SAVEAS_DIALOG | FDS_CUSTOM;
+    filedialog.fl         = FDS_CENTER | FDS_SAVEAS_DIALOG | FDS_ENABLEFILELB;
     filedialog.pszTitle   = "Save stream as";
-    filedialog.hMod       = NULLHANDLE;
-    filedialog.usDlgId    = DLG_FILE;
-    filedialog.pfnDlgProc = amp_file_dlg_proc;
 
     strcpy( filedialog.szFullFile, cfg.savedir );
-    WinFileDlg( HWND_DESKTOP, hwnd, &filedialog );
+    amp_file_dlg( HWND_DESKTOP, hwnd, &filedialog );
 
     if( filedialog.lReturn == DID_OK ) {
       if( amp_warn_if_overwrite( hwnd, filedialog.szFullFile ))
@@ -681,3 +520,4 @@ void dlg_init()
 void dlg_uninit()
 {
 }
+

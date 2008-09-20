@@ -113,7 +113,8 @@ vio_close( void* w )
 }
 
 /* Opens Ogg Vorbis file. Returns 0 if it successfully opens the file.
-   A nonzero return value indicates an error. */
+   A nonzero return value indicates an error. A -1 return value
+   indicates an unsupported format of the file. */
 static ULONG
 ogg_open( DECODER_STRUCT* w )
 {
@@ -140,13 +141,13 @@ ogg_open( DECODER_STRUCT* w )
   if( ov_open_callbacks( w, &w->vrbfile, NULL, 0, callbacks ) < 0 ) {
     vio_close( w );
     DosReleaseMutexSem( w->mutex );
-    return PLUGIN_NO_PLAY;
+    return -1;
   }
 
   if(( w->vrbinfo = ov_info( &w->vrbfile, -1 )) == NULL ) {
     ov_clear( &w->vrbfile );
     DosReleaseMutexSem( w->mutex );
-    return PLUGIN_NO_PLAY;
+    return -1;
   }
 
   w->songlength  = ov_time_total( &w->vrbfile, -1 ) * 1000.0;
@@ -166,7 +167,7 @@ ogg_open( DECODER_STRUCT* w )
   }
 
   DosReleaseMutexSem( w->mutex );
-  return PLUGIN_OK;
+  return 0;
 }
 
 /* Reads up to count pcm bytes from the Ogg Vorbis stream and
@@ -312,7 +313,7 @@ decoder_thread( void* arg )
     strlcpy( errorbuf, "Unable open file:\n", sizeof( errorbuf ));
     strlcat( errorbuf, w->filename, sizeof( errorbuf ));
     strlcat( errorbuf, "\n", sizeof( errorbuf ));
-    if( rc != PLUGIN_NO_PLAY ) {
+    if( rc != -1 ) {
       strlcat( errorbuf, xio_strerror( xio_errno()), sizeof( errorbuf ));
     } else {
       strlcat( errorbuf, "Unsupported format of the file.", sizeof( errorbuf ));
@@ -566,6 +567,7 @@ ULONG DLLENTRY
 decoder_fileinfo( const char* filename, DECODER_INFO* info )
 {
   DECODER_STRUCT* w;
+  int rc;
 
   if( decoder_init((void**)(void*)&w ) != PLUGIN_OK ) {
     return PLUGIN_NO_PLAY;
@@ -574,9 +576,9 @@ decoder_fileinfo( const char* filename, DECODER_INFO* info )
   DosRequestMutexSem( w->mutex, SEM_INDEFINITE_WAIT );
   strlcpy( w->filename, filename, sizeof( w->filename ));
 
-  if( ogg_open( w ) != PLUGIN_OK ) {
+  if(( rc = ogg_open( w )) != 0 ) {
     DosReleaseMutexSem( w->mutex );
-    return PLUGIN_NO_PLAY;
+    return rc == -1 ? PLUGIN_NO_PLAY : PLUGIN_NO_READ;
   }
 
   info->format     = w->output_format;

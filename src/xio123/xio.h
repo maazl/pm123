@@ -249,6 +249,14 @@ xio_set_http_proxy_user( char* username );
 void DLLENTRY
 xio_set_http_proxy_pass( char* password );
 
+/* Returns the TCP/IP connection timeout. */
+int DLLENTRY
+xio_connect_timeout( void );
+
+/* Sets the TCP/IP connection timeout. */
+void DLLENTRY
+xio_set_connect_timeout( int seconds );
+
 #ifdef __cplusplus
 }
 #endif

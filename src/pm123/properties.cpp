@@ -49,6 +49,7 @@
 #include "copyright.h"
 #include "123_util.h"
 #include "pipe.h"
+#include "filedlg.h"
 #include <cpp/url123.h>
 #include <cpp/stringmap.h>
 #include <os2.h>
@@ -611,16 +612,13 @@ ULONG PluginContext::AddPlugin()
   memset(&filedialog, 0, sizeof(FILEDLG));
 
   filedialog.cbSize         = sizeof(FILEDLG);
-  filedialog.fl             = FDS_CENTER|FDS_OPEN_DIALOG|FDS_CUSTOM;
+  filedialog.fl             = FDS_CENTER|FDS_OPEN_DIALOG;
   filedialog.pszTitle       = "Load a plug-in";
-  filedialog.hMod           = NULLHANDLE;
-  filedialog.usDlgId        = DLG_FILE;
-  filedialog.pfnDlgProc     = amp_file_dlg_proc;
   filedialog.papszITypeList = ftypes;
   filedialog.pszIType       = FDT_PLUGIN;
 
   strcpy(filedialog.szFullFile, startpath);
-  WinFileDlg(HWND_DESKTOP, Hwnd, &filedialog);
+  amp_file_dlg(HWND_DESKTOP, Hwnd, &filedialog);
 
   if (filedialog.lReturn == DID_OK)
   { rc = Plugin::Deserialize(filedialog.szFullFile, List->Type);

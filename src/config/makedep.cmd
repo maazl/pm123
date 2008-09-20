@@ -60,18 +60,20 @@ IF ARG(1) = '' THEN DO
    SAY "         Same as -r but also deal with include files in -I path"
    SAY " -v      verbose mode"
    SAY " -x      Unix like file expansion, e.g. *.cpp"
+   SAY " -q      Do not print warnings"
    SAY " --      no more options"
    EXIT 48
    END
 
-files         = 0
-opt.makefile  = "Makefile"
-opt.append    = 0
-includes      = 0
-opt.recursive = 0
+files          = 0
+opt.makefile   = "makefile"
+opt.append     = 0
+opt.quiet      = 0
+includes       = 0
+opt.recursive  = 0
 opt.Irecursive = 0
-opt.verbose   = 0
-opt.wildcard  = 0
+opt.verbose    = 0
+opt.wildcard   = 0
 
 params = STRIP(ARG(1))
 nomoreopt = 0
@@ -91,6 +93,8 @@ DO WHILE params \= ''
          opt.makefile = SUBSTR(param, 3)
        WHEN SUBSTR(param, 2) = 'a' THEN
          opt.append = 1
+       WHEN SUBSTR(param, 2) = 'q' THEN
+         opt.quiet = 1
        WHEN SUBSTR(param, 2, 1) = 'I' THEN DO
          pdata = SUBSTR(param, 3)
          DO WHILE pdata \= ''
@@ -208,7 +212,10 @@ WriteRules: PROCEDURE EXPOSE opt. rule.
       IF dep = '' THEN
          ITERATE
       /* append rule */
-      CALL LINEOUT ARG(1), rule.i||":"||"09"x||SUBSTR(dep, 2)
+      IF length(rule.i) < 7 THEN
+         CALL LINEOUT ARG(1), rule.i":"||"09"x||"09"x||SUBSTR(dep, 2)
+      ELSE
+         CALL LINEOUT ARG(1), rule.i":"||"09"x||SUBSTR(dep, 2)
       END
 
    RETURN
@@ -320,8 +327,8 @@ Error: PROCEDURE
    CALL LINEOUT STDERR, ARG(2)
    EXIT ARG(1)
 
-Warn: PROCEDURE
-   IF ARG(1) \= '' THEN
+Warn: PROCEDURE EXPOSE opt.
+   IF ARG(1) \= '' & \opt.quiet THEN
       CALL LINEOUT STDERR, ARG(1)
    RETURN ARG(1)
 

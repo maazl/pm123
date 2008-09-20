@@ -129,10 +129,14 @@ The functions must be <em>thread safe</em>.
   In case of an error the decoder should return an error text in the <tt>tech-&gt;info</tt> field.
 <li><var>return value</var> -<br>
   PLUGIN_OK (0) = everything's perfect, structure is set.<br>
-  PLUGIN_NO_READ (100) = error reading file (too small?).<br>
-  PLUGIN_NO_PLAY (200) = decoder can't play that.<br>
-  1001 = http error occured.<br>
-  other values = errno.
+  PLUGIN_NO_READ (100) = error reading file.
+    This error should only be set if there is no chance that any other plug-in
+    may read this URL.
+    E.g. if it is a file URL and the file does not exist
+    or if it is a http URL and the domain does not exist
+    or the server does not respond on the port.<br>
+  PLUGIN_NO_PLAY (200) = this decoder can't play that.
+    PM123 will try other decoders if available.
 </ul>
 <blockquote>
 <table cellspacing=0 cellpadding=3 border=1><tr>
@@ -417,11 +421,14 @@ The functions must be <em>thread-safe</em>.
 <li><var>url</var> - full path or URL to the desired stream.
 <li><var>info</var> - this structure must be filled with the required information.
 <li><var>return value</var> -<br>
-0 = everything's perfect, structure is set.<br>
-100 = error reading file (too small?).<br>
-200 = decoder can't play that.<br>
-1001 = http error occured.<br>
-other values = errno.
+  0 = everything's perfect, structure is set.<br>
+  100 = error reading file.
+    This error should only be set if there is no chance that any other plug-in
+    may read this URL. E.g. if the file does not exist
+    or if it is a http URL and the domain does not exist
+    or the server does not respond on the port.<br>
+  200 = this decoder can't play that.
+    PM123 will try other decoders if available.
 </ul>
 <blockquote>
 <pre>ULONG DLLENTRYP <b>decoder_trackinfo</b>( const char *drive, int track, DECODER_INFO *info )</pre>

@@ -384,7 +384,7 @@ ULONG out_setup( const Song* song )
 ULONG out_close()
 { if (!Glue::initialized)
     return (ULONG)-1;
-  Glue::params.temp_playingpos = (*Glue::procs.output_playing_pos)( Glue::procs.A );;
+  Glue::params.temp_playingpos = (*Glue::procs.output_playing_pos)( Glue::procs.A );
   Glue::out_command( OUTPUT_TRASH_BUFFERS );
   ULONG rc = Glue::out_command( OUTPUT_CLOSE );
   Glue::uninit(); // Hmm, is it a good advise to do this in case of an error?
@@ -590,7 +590,7 @@ ULONG DLLENTRY dec_fileinfo( const char* url, INFOTYPE* what, DECODER_INFO2* inf
       what2 = *what;
       rc = (*dp->GetProcs().decoder_fileinfo)(url, &what2, info);
       if (rc != PLUGIN_NO_PLAY)
-        goto ok;
+        goto ok; // This also happens in case of a plug-in independent error
     }
     checked[i] = TRUE;
   }
@@ -605,7 +605,7 @@ ULONG DLLENTRY dec_fileinfo( const char* url, INFOTYPE* what, DECODER_INFO2* inf
     what2 = *what;
     rc = (*dp->GetProcs().decoder_fileinfo)(url, &what2, info);
     if (rc != PLUGIN_NO_PLAY)
-      goto ok;
+      goto ok; // This also happens in case of a plug-in independent error
   }
 
   // No decoder found

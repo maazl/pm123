@@ -250,7 +250,7 @@ SongIterator::~SongIterator()
 
 // Identical to the standard assignment operator so far
 SongIterator& SongIterator::operator=(const SongIterator& r)
-{ DEBUGLOG2(("SongIterator(%p)::operator=(%s)\n", this, r.Serialize().cdata()));
+{ DEBUGLOG(("SongIterator(%p)::operator=(%s)\n", this, r.Serialize().cdata()));
   CallstackDeleg.detach();
   Callstack    = r.Callstack; // reference the other callstack until changes apply
   Location     = r.Location;

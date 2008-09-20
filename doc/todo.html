@@ -1,87 +1,77 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
 <html><head>
-<meta content="text/html;charset=ISO-8859-1" http-equiv="Content-Type">
-<title>PM123 Known Problems &amp; ToDo list</title>
-<meta content="Marcel M&uuml;ller" name="author">
+<meta http-equiv="Content-Type" content="text/html;charset=ISO-8859-1"><title>PM123 Known Problems &amp; ToDo list</title>
+
+<meta name="author" content="Marcel M&uuml;ller">
+<style type="text/css">
+strong
+{ color: red;
+}
+.open {
+background-color: #ffcccc;
+}
+.test {
+background-color: #ffffcc;
+}
+.fixed {
+background-color: #ccffcc;
+}
+</style>
 </head>
 <body>
 <h2>PM123's Known Problems &amp; Todo list</h2>
 <table border="1" cellpadding="3" cellspacing="0">
 <tbody>
 <tr align="left" bgcolor="#cccccc">
-<th width="3%">No.</th>
-<th width="4%">Type</th>
-<th width="5%">Sever.</th>
+<th>Attributes</th>
 <th width="25%">Topic</th>
-<th width="5%">Status</th>
 <th width="55%">Details</th>
 </tr>
-<tr>
-<td>1</td>
-<td bgcolor="#ffffcc">todo</td>
-<td bgcolor="#ffcccc">major</td>
+<tr class="open">
+<td><strong>1 major todo, open</strong></td>
 <td>Shuffle not working</td>
-<td bgcolor="#ffcccc">open</td>
 <td>There are some open issues how this should work with
 respect to nested playlists and the previous/next buttons when the
 playlist is modified.</td>
 </tr>
-<tr>
-<td>2</td>
-<td bgcolor="#ffcccc">fault</td>
-<td bgcolor="#ffffcc">medium</td>
+<tr class="test">
+<td><em>2 medium&nbsp;bug, testing</em></td>
 <td>PM123 sometimes crashes when starting playback</td>
-<td bgcolor="#ffffcc">testing</td>
 <td>Sometimes the decoder thread runs into a access
 violation at start of playback.<br>
 Reason unknown. Perhaps some threading issue.<br>
 Seems to have gone.</td>
 </tr>
-<tr>
-<td>3</td>
-<td bgcolor="#ffffcc">todo</td>
-<td bgcolor="#ccffcc">minor</td>
+<tr class="test">
+<td>3 minor todo, untested</td>
 <td>Handling of start and stop positions in nested playlists</td>
-<td bgcolor="#ffffcc">untested</td>
 <td>There are several complications when start/stop
 iterators of nested playlists have conflicting settings.</td>
 </tr>
-<tr>
-<td>4</td>
-<td bgcolor="#ffcccc">fault</td>
-<td bgcolor="#ffffcc">medium</td>
+<tr class="fixed">
+<td><em>4 medium&nbsp;bug, fixed</em></td>
 <td>Messages about non-existing files at first start up</td>
-<td bgcolor="#ccffcc">fixed</td>
 <td>When starting the first error messages about
 non-existing show up. This messages should be suppressed.</td>
 </tr>
-<tr>
-<td>5</td>
-<td bgcolor="#ffcccc">fault</td>
-<td bgcolor="#ffffcc">medium</td>
+<tr class="open">
+<td><em>5 medium bug, open</em></td>
 <td>Decoder starts at wrong priority</td>
-<td bgcolor="#ffcccc">open</td>
 <td>In playlist mode when the data for the next song is
 prefetched the new decoder thread does not inherit the priority from
 the old thread. This may cause the playback to have drop outs.</td>
 </tr>
-<tr>
-<td>6</td>
-<td bgcolor="#ffcccc">fault</td>
-<td bgcolor="#ffffcc">medium</td>
+<tr class="open">
+<td><em>6 medium bug, open</em></td>
 <td>Deadlocks with recursive playlists</td>
-<td bgcolor="#ffcccc">open</td>
 <td>With recursive playlist structures PM123 sometimes
 deadlocks because the list semaphore are not requested top down. In
 fact there is no top and no bottom in this case. Maybe implicitly
 fixed by #10.</td>
 </tr>
-<tr>
-<td>7</td>
-<td bgcolor="#ffffcc">todo</td>
-<td bgcolor="#ffffcc">medium</td>
+<tr class="open">
+<td><em>7 medium todo, open</em></td>
 <td>Invalid HTTP URLs take minutes</td>
-<td bgcolor="#ffcccc">open</td>
 <td>When an URL target is not available or invalid, it may
 take several minutes for PM123 to notify this. If you have many of such
 links e.g. in the bookmarks PM123 may be not responsive for a
@@ -89,56 +79,55 @@ considerable amount of time.<br>
 This is a design problem, because any decoder plug-in might try to open
 the URL without success, every time waiting for a timeout.</td>
 </tr>
-<tr>
-<td>8</td>
-<td bgcolor="#ffcccc">fault</td>
-<td bgcolor="#ffcccc">major</td>
+<tr class="test">
+<td><strong>8 major bug, untested</strong></td>
 <td>EAs lost when editing meta information</td>
-<td bgcolor="#ffffcc">untested</td>
 <td>The 'Edit file info' feature of mpg123 and oggplay
 destroys any EA information.</td>
 </tr>
-<tr>
-<td>9</td>
-<td bgcolor="#ffffcc">todo</td>
-<td bgcolor="#ccffcc">minor</td>
+<tr class="open">
+<td>9 minor todo, open</td>
 <td>Code page handling of ID3 V1.x and ID3 V2.x tags</td>
-<td bgcolor="#ffcccc">open</td>
 <td>If the input and output code page is different the ID3
 tags are not turn around stable. This causes special characters to be
 destroyed when saving the tag.</td>
 </tr>
-<tr>
-<td>10</td>
-<td bgcolor="#ffffcc">todo</td>
-<td bgcolor="#ffffcc">medium</td>
+<tr class="open">
+<td><em>10 medium todo, open</em></td>
 <td>PM lock-up when slider is used while a worker thread
 gets information on a playlist.</td>
-<td bgcolor="#ffcccc">open</td>
 <td>Thread 1 acquires playlist mutex when slider is used.
 Can cause SIQ locks. Maybe the Worker should not lock the entire
 playlist while calculation of tech infos.</td>
 </tr>
-<tr>
-<td>11</td>
-<td bgcolor="#ffcccc">fault</td>
-<td bgcolor="#ffffcc">medium</td>
+<tr class="open">
+<td><em>11 medium bug, open</em></td>
 <td>NavigateTo does not work if we see a slice of the
 current root.</td>
-<td bgcolor="#ffcccc">open</td>
 <td>If the currently visible windows root is below the
 currently loaded root, navigate to starts at the loaded root rather
 than the window's root. This consequently fails.</td>
 </tr>
-<tr>
-<td>12</td>
-<td bgcolor="#ffcccc">fault</td>
-<td bgcolor="#ccffcc">minor</td>
+<tr class="open">
+<td><em>12 medium bug, open</em></td>
 <td>Glitches of the slider when seeking or starting at a
 certain location.</td>
-<td bgcolor="#ffcccc">open</td>
 <td>When playback starts at a non-zero starting point the
 slider jumps to zero for the time of the initialization.</td>
+</tr>
+<tr class="open">
+<td><em>13 medium todo, open</em></td>
+<td>M3U8 support</td>
+<td>PM123 1.32 also support Unicode playlist files. This
+has to be ported.</td>
+</tr>
+<tr class="open">
+<td>14 minor todo, open</td>
+<td>Feature: continue playing when loading an enclosing
+playlist.</td>
+<td>If the currently playing item is part of the actually
+loaded playlist, playing should not be aborted. This is a configuration
+option.</td>
 </tr>
 </tbody>
 </table>

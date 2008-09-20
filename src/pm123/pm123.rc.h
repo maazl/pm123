@@ -250,7 +250,7 @@
 /* File */
 #define DLG_FILE           1100
 #define CB_RECURSE         1101
-#define CB_RELATIV         1102
+#define CB_RELATIVE        1102
 
 /* URL */
 #define DLG_URL            1110

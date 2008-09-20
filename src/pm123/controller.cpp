@@ -400,7 +400,8 @@ void Ctrl::CheckPrefetch(double pos)
 }
 
 T_TIME Ctrl::FetchCurrentSongTime()
-{ if (Playing)
+{ DEBUGLOG(("Ctrl::FetchCurrentSongTime() - %u\n", Playing));
+  if (Playing)
   { T_TIME time = out_playing_pos();
     // Check whether the output played a prefetched item completely.
     CheckPrefetch(time);
@@ -768,7 +769,7 @@ Ctrl::RC Ctrl::MsgRepeat(Op op)
 }
 
 Ctrl::RC Ctrl::MsgLocation(SongIterator* sip)
-{ DEBUGLOG(("Ctrl::MsgLocation(...)\n"));
+{ DEBUGLOG(("Ctrl::MsgLocation(%p)\n", sip));
   if (!PrefetchList.size())
     return RC_NoSong; // no root
   // Fetch time first because that may change Current().

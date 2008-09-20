@@ -348,9 +348,9 @@ class Ctrl
  
  public: // management interface, not thread safe
   // initialize controller
-  static void Init();
+  static void  Init();
   // uninitialize controller
-  static void Uninit();
+  static void  Uninit();
 
  public: // properties, thread safe
   // While the functions below are atomic their return values are not reliable because they can change everytime.

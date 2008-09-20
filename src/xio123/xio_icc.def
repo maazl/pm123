@@ -11,6 +11,7 @@ EXPORTS
   xio_http_proxy_pass      @6
   xio_http_proxy_addr      @7
   xio_buffer_fill          @8
+  xio_connect_timeout      @10
 
   xio_set_buffer_size      @21
   xio_set_buffer_wait      @22
@@ -22,6 +23,7 @@ EXPORTS
   xio_get_metainfo         @28
   xio_can_seek             @29
   xio_set_buffer_fill      @30
+  xio_set_connect_timeout  @31
 
   xio_fopen                @40
   xio_fread                @41
