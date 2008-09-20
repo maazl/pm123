@@ -629,7 +629,7 @@ decoder_fileinfo( char* filename, DECODER_INFO* info )
 
   if(( rc = plg_open_file( w, filename, "rb" )) != 0 ) {
     decoder_uninit( w );
-    return PLUGIN_NO_PLAY;
+    return rc == -1 ? PLUGIN_NO_PLAY : PLUGIN_NO_READ;
   }
 
   DosRequestMutexSem( w->mutex, SEM_INDEFINITE_WAIT );

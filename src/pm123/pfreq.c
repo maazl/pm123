@@ -49,6 +49,7 @@
 #include "playlist.h"
 #include "assertions.h"
 #include "iniman.h"
+#include "filedlg.h"
 
 static HWND plman;
 static HWND container;
@@ -1063,16 +1064,13 @@ pm_m_add_playlist( HWND hwnd )
   ASSERT_IS_MAIN_THREAD;
 
   filedialog.cbSize         = sizeof( FILEDLG );
-  filedialog.fl             = FDS_CENTER | FDS_OPEN_DIALOG | FDS_CUSTOM;
+  filedialog.fl             = FDS_CENTER | FDS_OPEN_DIALOG;
   filedialog.pszTitle       = "Add Playlist(s)";
-  filedialog.hMod           = hmodule;
-  filedialog.usDlgId        = DLG_FILE;
-  filedialog.pfnDlgProc     = amp_file_dlg_proc;
   filedialog.papszITypeList = types;
   filedialog.pszIType       = FDT_PLAYLIST;
 
   strcpy( filedialog.szFullFile, cfg.listdir );
-  WinFileDlg( HWND_DESKTOP, HWND_DESKTOP, &filedialog );
+  amp_file_dlg( HWND_DESKTOP, HWND_DESKTOP, &filedialog );
 
   if( filedialog.lReturn == DID_OK ) {
     if( filedialog.ulFQFCount > 1 ) {

@@ -26,11 +26,15 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#define  BSD_SELECT
+
 #include <stdlib.h>
 #include <string.h>
 #include <types.h>
 #include <sys/time.h>
 #include <sys/socket.h>
+#include <sys/ioctl.h>
+#include <sys/select.h>
 #include <netinet/in.h>
 #include <netdb.h>
 #include <nerrno.h>
@@ -39,6 +43,12 @@
 #include <arpa/inet.h>
 #include <unistd.h>
 #endif
+
+#ifdef   __IBMC__
+#pragma  info( nocnd )
+#endif
+
+#define  NONBLOCKED_CONNECT
 
 #include "xio_socket.h"
 #include "xio.h"
@@ -151,15 +161,50 @@ so_connect( u_long address, int port )
 
   if(( s = socket( PF_INET, SOCK_STREAM, 0 )) != -1 )
   {
+    #ifdef NONBLOCKED_CONNECT
+    int dontblock;
+    #endif
+
     server.sin_family = AF_INET;
     server.sin_addr.s_addr = address;
     server.sin_port = htons( port );
 
-    if( connect( s, (struct sockaddr*)&server, sizeof( server )) == -1 ) {
-      errno = sock_errno();
-      soclose( s );
-      s = -1;
-    }
+    #ifdef NONBLOCKED_CONNECT
+
+      dontblock = 1;
+      ioctl( s, FIONBIO, (char*)&dontblock, sizeof( dontblock ));
+
+      if( connect( s, (struct sockaddr*)&server, sizeof( server )) != -1 ||
+          sock_errno() == SOCEINPROGRESS )
+      {
+        struct timeval timeout = {0};
+        fd_set waitlist;
+
+        timeout.tv_sec = xio_connect_timeout();
+
+        FD_ZERO( &waitlist    );
+        FD_SET ( s, &waitlist );
+
+        if( select( s + 1, NULL, &waitlist, NULL, &timeout ) <= 0 ) {
+          errno = sock_errno();
+          soclose( s );
+          s = -1;
+        } else {
+          dontblock = 0;
+          ioctl( s, FIONBIO, (char*)&dontblock, sizeof( dontblock ));
+        }
+      } else {
+        errno = sock_errno();
+        soclose( s );
+        s = -1;
+      }
+    #else
+      if( connect( s, (struct sockaddr*)&server, sizeof( server )) == -1 ) {
+        errno = sock_errno();
+        soclose( s );
+        s = -1;
+      }
+    #endif
   } else {
     errno = sock_errno();
   }

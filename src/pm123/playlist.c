@@ -52,6 +52,7 @@
 #include "pfreq.h"
 #include "assertions.h"
 #include "tags.h"
+#include "filedlg.h"
 
 #define PL_ADD_FILE         0
 #define PL_ADD_DIRECTORY    1
@@ -2009,12 +2010,9 @@ pl_dlg_add_files( HWND owner )
 
   memset( &filedialog, 0, sizeof( FILEDLG ));
   filedialog.cbSize     = sizeof( FILEDLG );
-  filedialog.fl         = FDS_CENTER | FDS_OPEN_DIALOG | FDS_CUSTOM | FDS_MULTIPLESEL;
+  filedialog.fl         = FDS_CENTER | FDS_OPEN_DIALOG | FDS_MULTIPLESEL;
   filedialog.ulUser     = FDU_DIR_ENABLE | FDU_RECURSEBTN;
   filedialog.pszTitle   = "Add file(s) to playlist";
-  filedialog.hMod       = hmodule;
-  filedialog.usDlgId    = DLG_FILE;
-  filedialog.pfnDlgProc = amp_file_dlg_proc;
 
   // WinFileDlg returns error if a length of the pszIType string is above
   // 255 characters. Therefore the small part from the full filter is used
@@ -2034,7 +2032,7 @@ pl_dlg_add_files( HWND owner )
   strcat( type_all, ")" );
 
   strcpy( filedialog.szFullFile, cfg.filedir );
-  WinFileDlg( HWND_DESKTOP, owner, &filedialog );
+  amp_file_dlg( HWND_DESKTOP, owner, &filedialog );
 
   if( filedialog.lReturn == DID_OK ) {
     if( filedialog.ulFQFCount > 1 ) {
@@ -2082,16 +2080,13 @@ pl_dlg_load_list( HWND owner )
   memset( &filedialog, 0, sizeof( FILEDLG ));
 
   filedialog.cbSize         = sizeof( FILEDLG );
-  filedialog.fl             = FDS_CENTER | FDS_OPEN_DIALOG | FDS_CUSTOM;
+  filedialog.fl             = FDS_CENTER | FDS_OPEN_DIALOG;
   filedialog.pszTitle       = "Open playlist";
-  filedialog.hMod           = hmodule;
-  filedialog.usDlgId        = DLG_FILE;
-  filedialog.pfnDlgProc     = amp_file_dlg_proc;
   filedialog.papszITypeList = types;
   filedialog.pszIType       = FDT_PLAYLIST;
 
   strcpy( filedialog.szFullFile, cfg.listdir );
-  WinFileDlg( HWND_DESKTOP, owner, &filedialog );
+  amp_file_dlg( HWND_DESKTOP, owner, &filedialog );
 
   if( filedialog.lReturn == DID_OK )
   {
@@ -2118,17 +2113,14 @@ pl_dlg_save_list( HWND owner )
   memset( &filedialog, 0, sizeof( FILEDLG ));
 
   filedialog.cbSize         = sizeof( FILEDLG );
-  filedialog.fl             = FDS_CENTER | FDS_SAVEAS_DIALOG | FDS_CUSTOM | FDS_ENABLEFILELB;
+  filedialog.fl             = FDS_CENTER | FDS_SAVEAS_DIALOG | FDS_ENABLEFILELB;
   filedialog.pszTitle       = "Save playlist";
-  filedialog.hMod           = hmodule;
-  filedialog.usDlgId        = DLG_FILE;
-  filedialog.pfnDlgProc     = amp_file_dlg_proc;
   filedialog.ulUser         = FDU_RELATIVBTN;
   filedialog.papszITypeList = types;
   filedialog.pszIType       = *types[ truncate( cfg.save_type, 0, 2 )];
 
   strcpy( filedialog.szFullFile, cfg.listdir );
-  WinFileDlg( HWND_DESKTOP, owner, &filedialog );
+  amp_file_dlg( HWND_DESKTOP, owner, &filedialog );
 
   if( filedialog.lReturn == DID_OK )
   {

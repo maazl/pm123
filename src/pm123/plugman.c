@@ -1747,26 +1747,31 @@ dec_fileinfo( const char* filename, DECODER_INFO* info, char* name )
                 if( i < num_checks ) {
                   checked[i] = TRUE;
                 }
-                if( dec_call_fileinfo( filename, info, decoders[i], name ) == PLUGIN_OK ) {
-                  rc = PLUGIN_OK;
-                  break;
-                }
+                rc = dec_call_fileinfo( filename, info, decoders[i], name );
                 break;
               }
             }
           }
         }
 
-        // Next check a rest of decoders.
-        for( i = 0; i < num_decoders && rc == PLUGIN_NO_PLAY; i++ )
-        {
-          if( decoders[i]->decoder_fileinfo &&
-              decoders[i]->pc.enabled       &&
-              i < num_checks && !checked[i] && ( decoders[i]->support & type ))
+        if( rc == PLUGIN_NO_READ && type == DECODER_URL ) {
+          DEBUGLOG(( "pm123: break file %s because %s return PLUGIN_NO_READ\n",
+                      filename, decoders[i]->pc.name ));
+        } else {
+          // Next check a rest of decoders (only if previous recorder don't play that).
+          for( i = 0; i < num_decoders && rc != PLUGIN_OK; i++ )
           {
-            if( dec_call_fileinfo( filename, info, decoders[i], name ) == 0 ) {
-              rc = PLUGIN_OK;
-              break;
+            if( decoders[i]->decoder_fileinfo &&
+                decoders[i]->pc.enabled       &&
+                i < num_checks && !checked[i] && ( decoders[i]->support & type ))
+            {
+              rc = dec_call_fileinfo( filename, info, decoders[i], name );
+
+              if( rc == PLUGIN_NO_READ && type == DECODER_URL ) {
+                DEBUGLOG(( "pm123: break file %s because %s return PLUGIN_NO_READ\n",
+                            filename, decoders[i]->pc.name ));
+                break;
+              }
             }
           }
         }
