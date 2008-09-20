@@ -37,7 +37,6 @@
 #include "playlist.h"
 #include "skin.h"
 #include "tags.h"
-#include "filedlg.h"
 
 /* Small digits. */
 BITMAP DIG_SMALL        bmp\small_digit0.bmp
@@ -1254,7 +1253,7 @@ END
 DLGTEMPLATE DLG_FILE
 BEGIN
     DIALOG "File Dialog", DLG_FILE, 0, 0, 275, 174,
-           FS_NOBYTEALIGN | FS_SIZEBORDER | WS_SAVEBITS | WS_VISIBLE,
+           FS_NOBYTEALIGN | FS_DLGBORDER | WS_SAVEBITS | WS_VISIBLE,
            FCF_TITLEBAR | FCF_SYSMENU | FCF_CLOSEBUTTON
            PRESPARAMS PP_FONTNAMESIZE "8.Helv"
     BEGIN
@@ -1267,7 +1266,7 @@ BEGIN
                  SS_TEXT | DT_LEFT | DT_TOP | DT_MNEMONIC | WS_VISIBLE
          CONTROL "", DID_FILTER_CB, 5,  76, 266, 61, WC_COMBOBOX,
                  CBS_DROPDOWNLIST | WS_VISIBLE | WS_GROUP | WS_TABSTOP
-         CONTROL "~Drive", DID_DRIVE_TXT, 5, 116, 125, 9, WC_STATIC,
+         CONTROL "~Drive", DID_DRIVE_TXT, 5, 116, 122, 9, WC_STATIC,
                  SS_TEXT | DT_LEFT | DT_TOP | DT_MNEMONIC | WS_VISIBLE
          CONTROL "", DID_DRIVE_CB, 5, 52, 125, 63, WC_COMBOBOX,
                  CBS_DROPDOWNLIST | WS_VISIBLE | WS_GROUP | WS_TABSTOP
@@ -1279,9 +1278,9 @@ BEGIN
                  SS_TEXT | DT_LEFT | DT_TOP | DT_MNEMONIC | WS_VISIBLE
          CONTROL "", DID_FILES_LB, 134, 22, 137, 93, WC_LISTBOX,
                  LS_NOADJUSTPOS | LS_HORZSCROLL | WS_VISIBLE | WS_GROUP | WS_TABSTOP
-         CONTROL "~Recurse into subdirectories", CB_RECURSE, 95, 7, 176, 9, WC_BUTTON,
+         CONTROL "~Recurse into subdirectories", CB_RECURSE, 95, 7, 241, 9, WC_BUTTON,
                  BS_AUTOCHECKBOX | WS_TABSTOP | WS_GROUP | WS_VISIBLE
-         CONTROL "~Use relative paths", CB_RELATIVE, 95, 7, 176, 9, WC_BUTTON,
+         CONTROL "~Use relative paths", CB_RELATIV, 95, 7, 241, 9, WC_BUTTON,
                  BS_AUTOCHECKBOX | WS_TABSTOP | WS_GROUP | WS_VISIBLE
          CONTROL "~OK", DID_OK, 5, 5, 38, 12, WC_BUTTON,
                  BS_PUSHBUTTON | BS_DEFAULT | WS_GROUP | WS_TABSTOP | WS_VISIBLE

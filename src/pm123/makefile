@@ -11,7 +11,7 @@ DLL      = yes
 OBJECTS  = button95$(CO) pm123$(CO) messages$(CO)
 OBJECTS  = $(OBJECTS) pfreq$(CO) specana$(CO) plugman$(CO) bookmark$(CO) iniman$(CO)
 OBJECTS  = $(OBJECTS) playlist$(CO) properties$(CO) skin$(CO) tags$(CO)
-OBJECTS  = $(OBJECTS) docking$(CO) filedlg$(CO)
+OBJECTS  = $(OBJECTS) docking$(CO)
 DEF      = pm123$(LDEF_SUFFX)
 RESOURCE = pm123$(RES)
 LIBS     = $(TOPDIR)\gbm123\gbm123$(LBI) $(TOPDIR)\xio123\xio123$(LBI)
@@ -35,15 +35,14 @@ button95.c:	button95.h ..\utils\utilfct.h
 docking.c:	pm123.h docking.h ..\utils\utilfct.h
 iniman.c:	..\utils\snprintf.h ..\utils\utilfct.h pm123.h iniman.h plugman.h
 messages.c:	..\utils\debuglog.h ..\utils\utilfct.h pm123.h plugman.h messages.h assertions.h
-pfreq.c:	..\utils\utilfct.h ..\utils\snprintf.h ..\utils\debuglog.h pm123.h pfreq.h docking.h playlist.h assertions.h iniman.h filedlg.h
-playlist.c:	..\utils\utilfct.h playlist.h pm123.h plugman.h docking.h iniman.h pfreq.h assertions.h tags.h filedlg.h
+pfreq.c:	..\utils\utilfct.h ..\utils\snprintf.h ..\utils\debuglog.h pm123.h pfreq.h docking.h playlist.h assertions.h iniman.h
+playlist.c:	..\utils\utilfct.h playlist.h pm123.h plugman.h docking.h iniman.h pfreq.h assertions.h tags.h
 plugman.c:	..\utils\utilfct.h ..\utils\debuglog.h ..\utils\snprintf.h pm123.h plugman.h
-pm123.c:	..\utils\utilfct.h ..\utils\snprintf.h ..\utils\debuglog.h pm123.h bookmark.h button95.h pfreq.h docking.h iniman.h messages.h assertions.h playlist.h tags.h filedlg.h
-properties.c:	..\utils\snprintf.h properties.h pm123.h plugman.h iniman.h filedlg.h
+pm123.c:	..\utils\utilfct.h ..\utils\snprintf.h ..\utils\debuglog.h pm123.h bookmark.h button95.h pfreq.h docking.h iniman.h messages.h assertions.h playlist.h tags.h
+properties.c:	..\utils\snprintf.h properties.h pm123.h plugman.h iniman.h
 skin.c:		..\gbm123\gbm.h ..\gbm123\gbmerr.h ..\gbm123\gbmht.h skin.h pm123.h plugman.h playlist.h pfreq.h bookmark.h button95.h
 specana.c:	..\utils\utilfct.h ..\fft123\api\fftw3.h plugman.h
 tags.c:		..\utils\snprintf.h ..\include\decoder_plug.h ..\utils\queue.h pm123.h plugman.h assertions.h genre.h playlist.h tags.h
 properties.h:	..\xio123\xio.h
 plugman.h:	..\include\format.h ..\include\decoder_plug.h ..\include\output_plug.h ..\include\filter_plug.h ..\include\visual_plug.h ..\include\plugin.h ..\utils\utilfct.h
 playlist.h:	..\include\format.h ..\include\decoder_plug.h
-filedlg.c:	filedlg.h pm123.h iniman.h

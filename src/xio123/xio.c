@@ -61,10 +61,9 @@ static char   http_proxy_user[XIO_MAX_USERNAME];
 static char   http_proxy_pass[XIO_MAX_PASSWORD];
 static u_long http_proxy_addr;
 
-static int  buffer_size    = 32768;
-static int  buffer_wait    = 0;
-static int  buffer_fill    = 30;
-static int  socket_timeout = 30;
+static int  buffer_size = 32768;
+static int  buffer_wait = 0;
+static int  buffer_fill = 30;
 
 /* Serializes access to the library's global data. */
 static HMTX mutex;
@@ -882,27 +881,6 @@ xio_http_proxy_addr( void )
   http_proxy_addr = address;
   DosReleaseMutexSem( mutex );
   return address;
-}
-
-/* Returns the TCP/IP connection timeout. */
-int DLLENTRY
-xio_connect_timeout( void )
-{
-  int seconds;
-
-  DosRequestMutexSem( mutex, SEM_INDEFINITE_WAIT );
-  seconds = socket_timeout;
-  DosReleaseMutexSem( mutex );
-  return seconds;
-}
-
-/* Sets the TCP/IP connection timeout. */
-void DLLENTRY
-xio_set_connect_timeout( int seconds )
-{
-  DosRequestMutexSem( mutex, SEM_INDEFINITE_WAIT );
-  socket_timeout = seconds;
-  DosReleaseMutexSem( mutex );
 }
 
 int INIT_ATTRIBUTE __dll_initialize( void )

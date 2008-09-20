@@ -100,6 +100,10 @@
 #define CB_DRIVE           2024
 #define PB_REFRESH         2025
 
+#define DLG_FILE           2100
+#define CB_RECURSE          500
+#define CB_RELATIV          501
+
 #define DLG_EQUALIZER      2015
 
 #define HLP_MAIN_TABLE      100
@@ -149,6 +153,24 @@
 #define UPD_WINDOW           0x0008
 #define UPD_FILENAME         0x0010
 #define UPD_DELAYED          0x8000
+
+/* file dialog additional flags */
+#define FDU_DIR_ENABLE       0x0001
+#define FDU_RECURSEBTN       0x0002
+#define FDU_RECURSE_ON       0x0004
+#define FDU_RELATIVBTN       0x0008
+#define FDU_RELATIV_ON       0x0010
+
+/* file dialog standard types */
+#define FDT_PLAYLIST         "Playlist files (*.LST;*.MPL;*.M3U;*.M3U8;*.PLS)"
+#define FDT_PLAYLIST_LST     "PM123 playlist files (*.LST)"
+#define FDT_PLAYLIST_M3U     "Internet playlist files (*.M3U)"
+#define FDT_PLAYLIST_M3U8    "Unicode playlist files (*.M3U8)"
+#define FDT_AUDIO            "All supported audio files ("
+#define FDT_AUDIO_ALL        "All supported types (*.LST;*.MPL;*.M3U;*.M3U8;*.PLS;"
+#define FDT_SKIN             "Skin files (*.SKN)"
+#define FDT_EQUALIZER        "Equalizer presets (*.EQ)"
+#define FDT_PLUGIN           "Plug-in (*.DLL)"
 
 #ifndef DC_PREPAREITEM
 #define DC_PREPAREITEM  0x0040
@@ -236,6 +258,9 @@ BOOL  amp_query( HWND owner, const char* format, ... );
 BOOL  amp_warn_if_overwrite( HWND owner, const char* filename );
 /* Tells the help manager to display a specific help window. */
 void  amp_show_help( SHORT resid );
+
+/* Default dialog procedure for the file dialog. */
+MRESULT EXPENTRY amp_file_dlg_proc( HWND, ULONG, MPARAM, MPARAM );
 
 int  DLLENTRY pm123_getstring    ( int type, int subtype, int size, char* buffer );
 void DLLENTRY pm123_control      ( int type, void* param );

@@ -82,9 +82,6 @@ vio_tell( void *x ) {
   return xio_ftell((XFILE*)x );
 }
 
-/* Opens a file. Returns 0 if it successfully opens the file.
-   A nonzero return value indicates an error. A -1 return value
-   indicates an unsupported format of the file. */
 static ULONG
 snd_open( DECODER_STRUCT* w, int mode )
 {
@@ -104,10 +101,10 @@ snd_open( DECODER_STRUCT* w, int mode )
   if(( w->sndfile = sf_open_virtual( &vio, mode, &w->sfinfo, w->file )) == NULL ) {
     xio_fclose( w->file );
     w->file = NULL;
-    return -1;
+    return PLUGIN_NO_PLAY;
   }
 
-  return 0;
+  return PLUGIN_OK;
 }
 
 static ULONG
@@ -147,7 +144,7 @@ decoder_thread( void* arg )
       strlcpy( errorbuf, "Unable open file:\n", sizeof( errorbuf ));
       strlcat( errorbuf, w->filename, sizeof( errorbuf ));
       strlcat( errorbuf, "\n", sizeof( errorbuf ));
-      if( rc != -1 ) {
+      if( rc != PLUGIN_NO_PLAY ) {
         strlcat( errorbuf, xio_strerror( xio_errno()), sizeof( errorbuf ));
       } else {
         strlcat( errorbuf, "Unsupported format of the file.", sizeof( errorbuf ));
@@ -465,13 +462,7 @@ decoder_fileinfo( char* filename, DECODER_INFO* info )
     snd_close( &w );
   }
 
-  if( rc == -1 ) {
-    return PLUGIN_NO_PLAY;
-  } else if( rc == 0 ) {
-    return PLUGIN_OK;
-  } else {
-    return PLUGIN_NO_READ;
-  }
+  return rc;
 }
 
 ULONG DLLENTRY

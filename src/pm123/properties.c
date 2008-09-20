@@ -41,7 +41,6 @@
 #include "pm123.h"
 #include "plugman.h"
 #include "iniman.h"
-#include "filedlg.h"
 
 #define  CFG_REFRESH_LIST ( WM_USER + 1000 )
 #define  CFG_REFRESH_INFO ( WM_USER + 1001 )
@@ -71,11 +70,12 @@ cfg_add_plugin( HWND hwnd, ULONG types )
   filedialog.pszTitle       = "Load a plug-in";
   filedialog.hMod           = hmodule;
   filedialog.usDlgId        = DLG_FILE;
+  filedialog.pfnDlgProc     = amp_file_dlg_proc;
   filedialog.papszITypeList = ftypes;
   filedialog.pszIType       = FDT_PLUGIN;
 
   strcpy( filedialog.szFullFile, cfg.plugdir );
-  amp_file_dlg( HWND_DESKTOP, hwnd, &filedialog );
+  WinFileDlg( HWND_DESKTOP, hwnd, &filedialog );
 
   if( filedialog.lReturn == DID_OK ) {
     sdrivedir( cfg.plugdir, filedialog.szFullFile, sizeof( cfg.plugdir ));
