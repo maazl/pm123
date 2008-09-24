@@ -115,10 +115,10 @@ static void
 output_boost_priority( OS2AUDIO* a )
 {
   if( a->drivethread && !a->boosted ) {
-    DEBUGLOG(( "os2audio: boosts priority of the driver thread %d to %d/%d.\n", a->drivethread, a->original_info.boostclass, a->original_info.boostdelta ));
-    DosSetPriority( PRTYS_THREAD, a->original_info.boostclass,
+    APIRET rc = DosSetPriority( PRTYS_THREAD, a->original_info.boostclass,
                                   a->original_info.boostdelta, a->drivethread );
     a->boosted = TRUE;
+    DEBUGLOG(( "os2audio: boosts priority of the driver thread %d to %d/%d: %u.\n", a->drivethread, a->original_info.boostclass, a->original_info.boostdelta, rc ));
   }
 }
 
@@ -127,10 +127,10 @@ static void
 output_normal_priority( OS2AUDIO* a )
 {
   if( a->drivethread && a->boosted ) {
-    DEBUGLOG(( "os2audio: normalizes priority of the driver thread %d to %d/%d.\n", a->drivethread, a->original_info.normalclass, a->original_info.normaldelta ));
-    DosSetPriority( PRTYS_THREAD, a->original_info.normalclass,
+    APIRET rc = DosSetPriority( PRTYS_THREAD, a->original_info.normalclass,
                                   a->original_info.normaldelta, a->drivethread );
     a->boosted = FALSE;
+    DEBUGLOG(( "os2audio: normalizes priority of the driver thread %d to %d/%d: %u.\n", a->drivethread, a->original_info.normalclass, a->original_info.normaldelta, rc ));
   }
 }
 
