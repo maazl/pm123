@@ -776,11 +776,11 @@ doTag!B:
 return 0;
 
 doTagSTRONG:
- call doSetEmphasis 'R';
+ call doSetEmphasis 'S';
 return 0;
 
 doTag!STRONG:
- call doResetEmphasis 'R';
+ call doResetEmphasis 'S';
 return 0;
 
 doTagU:
@@ -829,6 +829,7 @@ doTagBR:
  call NewLine;
  call PutToken '.br';
  call PutToken Global.EOL;
+ Global.Paragraph = 'Inc';
 return 0;
 
 doTagPRE:
@@ -1216,22 +1217,24 @@ return;
 /* Text emphasis */
 doSetEmphasis:
  procedure expose Global.;
- p = pos(Global.TextStyle, ARG(1));
+ p = pos(ARG(1), Global.TextStyle);
  if p = 0
   then do
    oldipfstyle = GetIPFStyle(Global.TextStyle);
    Global.TextStyle = Global.TextStyle||ARG(1);
+   /*SAY "doSetEmphasis("ARG(1)") "Global.TextStyle*/
    call ChangeIPFStyle oldipfstyle, GetIPFStyle(Global.TextStyle);
   end;
 return;
 
 doResetEmphasis:
  procedure expose Global.;
- p = pos(Global.TextStyle, ARG(1));
+ p = pos(ARG(1), Global.TextStyle);
  if p > 0
   then do
    oldipfstyle = GetIPFStyle(Global.TextStyle);
    Global.TextStyle = substr(Global.TextStyle, 1, p-1)||substr(Global.TextStyle, p+1);
+   /*SAY "doResetEmphasis("ARG(1)") "Global.TextStyle*/
    call ChangeIPFStyle oldipfstyle, GetIPFStyle(Global.TextStyle);
   end;
 return;
@@ -1240,6 +1243,7 @@ ChangeIPFStyle:
  procedure expose Global.;
  if ARG(1) <> ARG(2)
   then do
+   /*SAY "ChangeIPFStyle("ARG(1)","ARG(2)")"*/
    if ARG(1) <> 0 then
     call PutToken ':ehp'ARG(1)'.';
    if ARG(2) <> 0 then
@@ -1249,12 +1253,12 @@ return;
 
 GetIPFStyle:
  procedure;
- if pos(ARG(1), 'S') <> 0 then return 8;
- if pos(ARG(1), 'E') <> 0 then return 4;
+ if pos('S', ARG(1)) <> 0 then return 8;
+ if pos('E', ARG(1)) <> 0 then return 4;
  s = 0;
- if pos(ARG(1), 'I') <> 0 then s = s + 1;
- if pos(ARG(1), 'B') <> 0 then s = s + 2;
- if pos(ARG(1), 'U') <> 0 then s = s + 5;
+ if pos('I', ARG(1)) <> 0 then s = s + 1;
+ if pos('B', ARG(1)) <> 0 then s = s + 2;
+ if pos('U', ARG(1)) <> 0 then s = s + 5;
  if s = 8 then return 9;
 return s;
 

@@ -19,8 +19,8 @@ Decoder plug-ins must implement and export the functions defined in
 decoder_plug.h.
 <blockquote>
 <pre>
-int  DLLENTRYP <b>decoder_init</b>  ( void **<var>w</var> )
-BOOL DLLENTRYP <b>decoder_uninit</b>( void *<var>w</var>  )
+int  DLLENTRY <b>decoder_init</b>  ( void **<var>w</var> )
+BOOL DLLENTRY <b>decoder_uninit</b>( void *<var>w</var>  )
 </pre>
 </blockquote>
 <ul>
@@ -39,7 +39,7 @@ semaphores, other opened handles and free allocated memory for <i>w</i>.
 
 <h4><a name="control_interface"></a>Control interface</h4>
 <blockquote>
-<pre>ULONG DLLENTRYP <b>decoder_command</b>( void *w, ULONG msg, DECODER_PARAMS2 *params )</pre>
+<pre>ULONG DLLENTRY <b>decoder_command</b>( void *<var>w</var>, ULONG <var>msg</var>, DECODER_PARAMS2 *<var>params</var> )</pre>
 </blockquote>
 <ul>
 <li>msg: one of the following:
@@ -80,7 +80,7 @@ DECODER_SETUP, DECODER_PLAY, DECODER_STOP and DECODER_JUMPTO.
 <h4><a name="status_interface"></a>Status Interface</h4>
 <p>The status interface has to be thread safe.</p> 
 <blockquote>
-<pre>ULONG DLLENTRYP <b>decoder_status</b>( void *w )</pre>
+<pre>ULONG DLLENTRY <b>decoder_status</b>( void *<var>w</var> )</pre>
 </blockquote>
 <ul>
 <li>return value - One of the following:<br>
@@ -89,8 +89,9 @@ DECODER_PLAYING<br>
 DECODER_STARTING<br>
 DECODER_PAUSED<br>
 </ul>
+
 <blockquote>
-<pre>ULONG DLLENTRYP <b>decoder_length</b>( void *w )</pre>
+<pre>ULONG DLLENTRY <b>decoder_length</b>( void *w )</pre>
 </blockquote>
 <ul>
 <li>return value - number of milliseconds the stream lasts (you can
@@ -106,8 +107,9 @@ example).
 They should always be functionnaly and give consistent results in any conditions.
 The functions must be <em>thread safe</em>.
 </p>
+
 <blockquote>
-<pre>ULONG DLLENTRYP <b>decoder_fileinfo</b>( const char *url, int* what, DECODER_INFO2 *info )</pre>
+<pre>ULONG DLLENTRY <b>decoder_fileinfo</b>( const char *<var>url</var>, int* <var>what</var>, DECODER_INFO2 *<var>info</var> )</pre>
 </blockquote>
 <ul>
 <li><var>url</var> - URL to the desired stream. See <a href="#url_samples">URL samples</a>.
@@ -170,8 +172,28 @@ The functions must be <em>thread safe</em>.
   it should always set the corresponding bit in <tt>*<var>what</var></tt> and return the information if applicable.
   This avoids redundant calls to <tt>decoder_fileinfo</tt>.
 </blockquote>
+
 <blockquote>
-<pre>ULONG DLLENTRYP <b>decoder_cdinfo</b>( const char *drive, DECODER_CDINFO *info )</pre>
+<pre>ULONG DLLENTRY <b>decoder_saveinfo</b>( char* <var>url</var>, const META_INFO* <var>info</var>,
+                                 int <var>haveinfo</var> )</pre>
+</blockquote>
+<ul>
+  <li><var>url</var> - full path or URL to the desired stream.
+  <li><var>info</var> - new meta information to write.<br>
+    Only the fileds with the corresponding bits in haveinfo set must be modified.
+    The others should be left unchanged.
+  <li><var>haveinfo</var> - Components of info to modify.
+  <li>return value:<br>
+    PLUGIN_OK (0) = everything's perfect, meta info is saved to <var>url</var>.<br>
+    other values = errno.
+</ul>
+<p>It is called if it is necessary to change the meta information for 
+  the specified file and the decoder supports this feature.
+  Exporting this function is optional.
+  A decoder may override the meta editor by exporting decoder_editmeta.  
+
+<blockquote>
+<pre>ULONG DLLENTRY <b>decoder_cdinfo</b>( const char *<var>drive</var>, DECODER_CDINFO *<var>info</var> )</pre>
 </blockquote>
 <ul>
 <li>drive: ...
@@ -181,8 +203,9 @@ decoder.</lI>
 <p>
 This function is unused by PM123 since version 1.40 but it might still be invoked by visual plug-ins.
 You need not to export this function unless <code>decoder_support</code> returns the DECODER_TRACK flag. 
+
 <blockquote>
-<pre>ULONG DLLENTRYP <b>decoder_support</b>( const char** fileext, const char** filetype )</pre>
+<pre>ULONG DLLENTRY <b>decoder_support</b>( const char** <var>fileext</var>, const char** <var>filetype</var> )</pre>
 </blockquote>
 <ul>
 <li><var>fileext</var> [out] - Return a pointer to a list of file extensions that are likely to be supported
@@ -198,11 +221,12 @@ You need not to export this function unless <code>decoder_support</code> returns
   <tt>decoder_support</tt> or <tt>plugin_configure</tt>.
   If the decoder is not sensitive to EA types a return value of NULL is sufficient.
 <li><var>return value</var> - return what kind of stream can the decoder play:<br>
-DECODER_FILENAME - Anything that is represented by a physical file.<br>
-DECODER_URL - Anything that is a http or ftp URL.<br>
-DECODER_TRACK - CD tracks.<br>
-DECODER_OTHER - Anything else (like recording).<br>
-The values may be ored.
+  DECODER_FILENAME (1) - decoder can play files (including UNC names)<br>
+  DECODER_URL (2) - decoder can play URLs (http, ftp, etc.)<br>
+  DECODER_TRACK (4) - decoder can play CD tracks<br>
+  DECODER_OTHER (8) - decoder can play other URLs<br>
+  DECODER_METAINFO (0x8000) - decoder supports <code>decode_saveinfo</code>.<br>
+  The values may be ored.
 </ul>
 <p>
 This is used by PM123 to suggest to the user what he can play with the decoder.
@@ -215,8 +239,9 @@ This allows to modify the supported file types through the configuration.
 <h4><a name="GUI_interface"></a>GUI enhancement interface</h4>
 <p>The following functions are used to improove the GUI of PM123 with plug-in specific content.<br>
 <em>All functions in this section are optional.</em>
+
 <blockquote>
-<pre>ULONG DLLENTRYP <b>decoder_editmeta</b>( HWND owner, const char* url )</pre>
+<pre>ULONG DLLENTRY <b>decoder_editmeta</b>( HWND <var>owner</var>, const char* <var>url</var> )</pre>
 </blockquote>
 <ul>
 <li><var>owner</var> - Parent window handle.
@@ -231,8 +256,9 @@ This allows to modify the supported file types through the configuration.
 500 = error writing tag. (PM123 raises the error dialog)
 </ul>
 <p>If <code>decoder_editmeta</code> is not implemented, the edit tag entry is disabled.
+
 <blockquote>
-<pre>const DECODER_WIZZARD* DLLENTRYP <b>decoder_getwizzard</b>( )</pre>
+<pre>const DECODER_WIZZARD* DLLENTRY <b>decoder_getwizzard</b>( )</pre>
 </blockquote>
 <ul>
 <li><var>return value</var> - Zero or more <code>DECODER_WIZZARD</code> structures (linked list).<br>
@@ -253,9 +279,10 @@ This allows to modify the supported file types through the configuration.
   Be careful with the choice of the accelerator keys because there may be clashes.
   Using Alt and Shift-Alt as meta keys is recommended.
 <p>When the menu entry is selected the corresponding wizzard function is called by PM123.
+
 <blockquote>
-<pre>ULONG (DLLENTRYP <b>wizzard</b>)( HWND owner, const char* title,
-                           void (DLLENTRYP callback)( void* param, const char* url ), void* param );</pre>
+<pre>ULONG (DLLENTRYP <b>wizzard</b>)( HWND <var>owner</var>, const char* <var>title</var>,
+                           void (DLLENTRYP <var>callback</var>)( void* param, const char* url ), void* <var>param</var> );</pre>
 </blockquote>
 <ul>
 <li><var>owner</var> - Parent window handle.
@@ -282,7 +309,7 @@ This allows to modify the supported file types through the configuration.
   alternatingly to pass the samples to the next plug-in. Anything else is an error.</p>
 
 <blockquote>
-<pre>int (DLLENTRYPP <b>output_request_buffer</b>)( void* a, const FORMAT_INFO2* format, short** buf )</pre>
+<pre>int (DLLENTRYP <b>output_request_buffer</b>)( void* <var>a</var>, const FORMAT_INFO2* <var>format</var>, short** <var>buf</var> )</pre>
 </blockquote>
 <ul>
   <li><var>a</var> - pointer from <code>DECODER_PARAMS2</code>.
@@ -295,19 +322,21 @@ This allows to modify the supported file types through the configuration.
 </ul>
 <p>If you get a smaller buffer as you need to pass your data you should call <code>output_request_buffer</code> and <code>output_commit_buffer</code> again untill all your data is consumed.
   There is no guaranteed minimum size of the buffer. You should not expect this to get very small buffers quite often.</p>
+
 <blockquote>
-<pre>void (DLLENTRYPP <b>output_commit_buffer</b>)( void* a, int len, int posmarker )</pre>
+<pre>void (DLLENTRYP <b>output_commit_buffer</b>)( void* <var>a</var>, int <var>len</var>, double <var>posmarker</var> )</pre>
 </blockquote>
 <ul>
   <li><var>a</var> - pointer from <code>DECODER_PARAMS2</code>.
   <li><var>len</var> - used number of samples placed in the buffer.
-  <li><var>posmarker</var> - stream position in milliseconds of the first sample that will be stored in this buffer relative to the beginning of the stream.
+  <li><var>posmarker</var> - stream position in seconds of the first sample that will be stored in this buffer relative to the beginning of the stream.
 </ul>
 <p>The length must not be higher than the the return value from the previous <code>output_request_buffer</code> call.
   But it might be less than the requested length.
   This causes no significant performance impact as long as you do not always pass very few samples.</p>
+
 <blockquote>
-<pre>void (DLLENTRYPP <b>output_event</b>)( void* a, DECEVENTTYPE event, void* param )</pre>
+<pre>void (DLLENTRYP <b>output_event</b>)( void* <var>a</var>, DECEVENTTYPE <var>event</var>, void* <var>param</var> )</pre>
 </blockquote>
 <ul>
   <li><var>a</var> - pointer from <code>DECODER_PARAMS2</code>.
@@ -327,7 +356,7 @@ The decoder plug-in MUST call the above function on the following conditions:
 </ul>
 
 <blockquote>
-<pre>void DLLENTRYP <b>decoder_event</b>( void* w, OUTEVENTTYPE event );</pre>
+<pre>void DLLENTRY <b>decoder_event</b>( void* <var>w</var>, OUTEVENTTYPE <var>event</var> );</pre>
 </blockquote>
 <ul>
   <li><var>w</var> - pointer from <code>decoder_init</code>
@@ -352,30 +381,30 @@ The decoder plug-in MUST call the above function on the following conditions:
 
 <h4><a name="control_interface1"></a>Control interface</h4>
 <blockquote>
-<pre>ULONG DLLENTRYP decoder_command( void *w, ULONG msg, DECODER_PARAMS *params )</pre>
+<pre>ULONG DLLENTRY decoder_command( void *<var>w</var>, ULONG <var>msg</var>, DECODER_PARAMS *<var>params</var> )</pre>
 </blockquote>
 <ul>
 <li>msg: one of the following:
-<ul>
-<li>DECODER_PLAY start playing the given filename, URL or others.
-<li>DECODER_STOP stop playing.
-<li>DECODER_FFWD engage in ffwd mode (ie.: play faster or skip when playing).
-<li>DECODER_REW  engage rewind mode.
-<li>DECODER_JUMPTO jump and start decoding at the given time position.
-<li>DECODER_SETUP setup various parameters such as the output plugin
-functions, hwnd where to send messages and an optional play semaphore.
-<li>DECODER_EQ usually only useful for MPEG decoding where frequency
-equalization is cheap.
-<li>DECODER_BUFFER reports the reader buffer status.
-<li>DECODER_SAVEDATA tells the decoder to start saving the stream to HD.
-</ul>
-<li>params: structure that contains the parameters needed by the preceding
-commands.
-<li>return value:<br>
-PLUGIN_OK (0) -> ok.<br>
-PLUGIN_UNSUPPORTED (1) -> command unsupported.<br>
-DECODER_PLAY and DECODER_STOP can return also PLUGIN_GO_ALREADY (101) and
-PLUGIN_GO_FAILED (102).
+  <ul>
+    <li>DECODER_PLAY start playing the given filename, URL or others.
+    <li>DECODER_STOP stop playing.
+    <li>DECODER_FFWD engage in ffwd mode (ie.: play faster or skip when playing).
+    <li>DECODER_REW  engage rewind mode.
+    <li>DECODER_JUMPTO jump and start decoding at the given time position.
+    <li>DECODER_SETUP setup various parameters such as the output plugin
+    functions, hwnd where to send messages and an optional play semaphore.
+    <li>DECODER_EQ usually only useful for MPEG decoding where frequency
+    equalization is cheap.
+    <li>DECODER_BUFFER reports the reader buffer status.
+    <li>DECODER_SAVEDATA tells the decoder to start saving the stream to HD.
+  </ul>
+  <li>params: structure that contains the parameters needed by the preceding
+  commands.
+  <li>return value:<br>
+  PLUGIN_OK (0) -> ok.<br>
+  PLUGIN_UNSUPPORTED (1) -> command unsupported.<br>
+  DECODER_PLAY and DECODER_STOP can return also PLUGIN_GO_ALREADY (101) and
+  PLUGIN_GO_FAILED (102).
 </ul>
 <p>
 There is a lot of commands to implement for this function. Parameters
@@ -385,17 +414,17 @@ DECODER_SETUP, DECODER_PLAY, DECODER_STOP and DECODER_JUMPTO.
 <p>
 The decoder plug-in MUST <i>WinPostMsg()</i> the following messages to <i>hwnd</i>:
 <ul>
-<li>WM_PLAYSTOP when the stream has finished decoding.
-<li>WM_PLAYERROR when a playback error occured so that PM123 should know to
-stop immediately.
-<li>WM_SEEKSTOP when a JUMPTO operation is completed (ie.: when no buffers
-from before the seek is sent to the output plugin anymore).
-<li>WM_CHANGEBR is sent whenever you want PM123 to change the display
-of the current bitrate. mp1 = current bitrate in kbit/s.
-<li>WM_METADATA is sent whenever streaming metadata is updated and
-contains the pointer to the streaming metadata in mp1. This pointer
-should be the same one that is passed with DECODER_SETUP because it is
-garanteed to be available to PM123 without memory leaking.
+  <li>WM_PLAYSTOP when the stream has finished decoding.
+  <li>WM_PLAYERROR when a playback error occured so that PM123 should know to
+  stop immediately.
+  <li>WM_SEEKSTOP when a JUMPTO operation is completed (ie.: when no buffers
+  from before the seek is sent to the output plugin anymore).
+  <li>WM_CHANGEBR is sent whenever you want PM123 to change the display
+  of the current bitrate. mp1 = current bitrate in kbit/s.
+  <li>WM_METADATA is sent whenever streaming metadata is updated and
+  contains the pointer to the streaming metadata in mp1. This pointer
+  should be the same one that is passed with DECODER_SETUP because it is
+  garanteed to be available to PM123 without memory leaking.
 </ul>
 <p>
 Streaming metadata currently is for SHOUTcast (and icecast is using the same
@@ -414,64 +443,87 @@ Only StreamingTitle is used by PM123.
 They should always be functionnaly and give consistent results in any conditions.
 The functions must be <em>thread-safe</em>.
 </p>
+
 <blockquote>
-<pre>ULONG DLLENTRYP <b>decoder_fileinfo</b>( const char *url, DECODER_INFO *info )</pre>
+<pre>ULONG DLLENTRY <b>decoder_fileinfo</b>( const char *<var>url</var>, DECODER_INFO *<var>info</var> )</pre>
 </blockquote>
 <ul>
-<li><var>url</var> - full path or URL to the desired stream.
-<li><var>info</var> - this structure must be filled with the required information.
-<li><var>return value</var> -<br>
-  0 = everything's perfect, structure is set.<br>
-  100 = error reading file.
-    This error should only be set if there is no chance that any other plug-in
-    may read this URL. E.g. if the file does not exist
-    or if it is a http URL and the domain does not exist
-    or the server does not respond on the port.<br>
-  200 = this decoder can't play that.
-    PM123 will try other decoders if available.
+  <li><var>url</var> - full path or URL to the desired stream.
+  <li><var>info</var> - this structure must be filled with the required information.
+  <li><var>return value</var> -<br>
+    0 = everything's perfect, structure is set.<br>
+    100 = error reading file.
+      This error should only be set if there is no chance that any other plug-in
+      may read this URL. E.g. if the file does not exist
+      or if it is a http URL and the domain does not exist
+      or the server does not respond on the port.<br>
+    200 = this decoder can't play that.
+      PM123 will try other decoders if available.
 </ul>
+
 <blockquote>
-<pre>ULONG DLLENTRYP <b>decoder_trackinfo</b>( const char *drive, int track, DECODER_INFO *info )</pre>
+<pre>ULONG DLLENTRY <b>decoder_saveinfo</b>( char* <var>url</var>, const DECODER_INFO* <var>info</var> )</pre>
 </blockquote>
 <ul>
-<li><var>drive</var> - ie.: "X:"
-<li><var>track</var> - CD tracks start from 1.
-<li><var>info</var> - this structure must be filled with the required information.
-<li><var>return value</var> -<br>
-PLUGIN_OK (0) = everything's perfect, structure is set.<br>
-PLUGIN_NO_READ (100) = error reading file (too small?).<br>
-PLUGIN_NO_PLAY (200) = decoder can't play that.<br>
-other values = errno.
+  <li><var>url</var> - full path or URL to the desired stream.
+  <li><var>info</var> - new meta information to write.
+    Only the fileds <var>title, artist, album, year, comment, genre, track</var> and <var>copyright</var>
+    of the structure are significant.
+    And only the fileds with the corresponding bits in haveinfo set must be modified.
+    The others should be left unchanged.
+  <li>return value:<br>
+    PLUGIN_OK (0) = everything's perfect, meta info is saved to <var>url</var>.<br>
+    other values = errno.
 </ul>
+<p>It is called if it is necessary to change the meta information for 
+  the specified file and the decoder supports this feature.
+  Exporting this function is optional. See <code>decoder_support</code>.
+
 <blockquote>
-<pre>ULONG DLLENTRYP <b>decoder_cdinfo</b>( char *drive, DECODER_CDINFO *info )</pre>
+<pre>ULONG DLLENTRY <b>decoder_trackinfo</b>( const char *<var>drive</var>, int <var>track</var>, DECODER_INFO *<var>info</var> )</pre>
 </blockquote>
 <ul>
-<li>drive: ...
-<li><var>info</var> - required info on the number of tracks available from the decoder.</lI>
-<li>return value:<br>
-PLUGIN_OK (0) = everything's perfect, structure is set.<br>
-PLUGIN_NO_READ (100) = error reading required info.<br>
-other values = errno.
+  <li><var>drive</var> - ie.: "X:"
+  <li><var>track</var> - CD tracks start from 1.
+  <li><var>info</var> - this structure must be filled with the required information.
+  <li><var>return value</var> -<br>
+  PLUGIN_OK (0) = everything's perfect, structure is set.<br>
+  PLUGIN_NO_READ (100) = error reading file (too small?).<br>
+  PLUGIN_NO_PLAY (200) = decoder can't play that.<br>
+  other values = errno.
+</ul>
+
+<blockquote>
+<pre>ULONG DLLENTRY <b>decoder_cdinfo</b>( char *<var>drive</var>, DECODER_CDINFO *<var>info</var> )</pre>
+</blockquote>
+<ul>
+  <li>drive: ...
+  <li><var>info</var> - required info on the number of tracks available from the decoder.</lI>
+  <li>return value:<br>
+  PLUGIN_OK (0) = everything's perfect, structure is set.<br>
+  PLUGIN_NO_READ (100) = error reading required info.<br>
+  other values = errno.
 </ul>
 <p>
 This function is unused by PM123 since version 1.40 but it might still be invoked by visual plug-ins.
 You need not to export the CD related functions unless <code>decoder_support</code> returns the DECODER_TRACK flag. 
+
 <blockquote>
-<pre>ULONG DLLENTRYP decoder_support( char *fileext[], int *size )</pre>
+<pre>ULONG DLLENTRY decoder_support( char *<var>fileext</var>[], int *<var>size</var> )</pre>
 </blockquote>
 <ul>
-<li><var>fileext</var> - fill this array with all the wildcard expression matching
-filenames this decoder can play (each element is a 8 bytes char array).
-<li><var>size</var> - number of wildcard expressions returned (if this value is not
-big enough, ie.: 0, return the appropriate size without filling
-fileext).
-<li><var>return value</var> - return what kind of stream can the decoder play:<br>
-DECODER_FILENAME<br>
-DECODER_URL<br>
-DECODER_TRACK<br>
-DECODER_OTHER<br>
-The values may be ored.
+  <li><var>fileext</var> - fill this array with all the wildcard expression matching
+  filenames this decoder can play (each element is a 8 bytes char array).
+  <li><var>size</var> - number of wildcard expressions returned (if this value is not
+  big enough, ie.: 0, return the appropriate size without filling
+  fileext).
+  <li><var>return value</var> - return what kind of stream can the decoder play:<br>
+  DECODER_FILENAME (1) - decoder can play files (including UNC names)<br>
+  DECODER_URL (2) - decoder can play URLs (http, ftp, etc.)<br>
+  DECODER_TRACK (4) - decoder can play CD tracks<br>
+  DECODER_OTHER (8) - decoder can play other URLs<br>
+  DECODER_METAINFO (0x8000) - decoder supports <code>decode_saveinfo</code>.<br>
+  The values may be ored.
 </ul>
 <p>
 This is used by PM123 to suggest to the user what he can play with the
@@ -489,7 +541,8 @@ decoder and what features are supported. Extentions can be for example "*.MOD".
  The interface functions have to be called by the decoder in a separate thread.</p>
 
 <blockquote>
-<pre>int (DLLENTRYPP <b>output_play_samples</b>)( void* a, const FORMAT_INFO* format, const char* buf, int len, int posmarker )</pre>
+<pre>int (DLLENTRYPP <b>output_play_samples</b>)( void* <var>a</var>, const FORMAT_INFO* <var>format</var>,
+                                      const char* <var>buf</var>, int <var>len</var>, int <var>posmarker</var> )</pre>
 </blockquote>
 <ul>
   <li><var>a</var> - pointer from <code>DECODER_PARAMS</code>.

@@ -14,11 +14,13 @@
   In case of playlists it is an entire call stack.
   A call stack in genera consists of several parts separated by '<tt>;</tt>'
   or new-line (if the new-line character is allowed).
-  URLs in the parts may be enclosed with double quotes ('<tt>"</tt>') to
+  URLs in the parts may be enclosed with double quotes (<tt>"</tt>) to
   avoid confusion with special characters.
 </p><h3>Examples:</h3>
 <blockquote>
-<pre>my_nested_playlist.lst<br>my_favorite_song.mp3[2]<br>3:44</pre>
+<pre>my_nested_playlist.lst
+my_favorite_song.mp3[2]
+3:44</pre>
 </blockquote>
 or
 <blockquote>
@@ -32,7 +34,8 @@ relative URL contains neither a semicolon nor square brackets at the
 end.<br>
 The last part navigates to the offset 3:44 within <tt>my_favorite_song.mp3</tt>.
 </p><blockquote>
-<pre>my_playlist.lst<br> +- my_favorite_song.mp3 <a href="#note1"><sup>(1)</sup></a>
+<pre>my_playlist.lst
+ +- my_favorite_song.mp3 <a href="#note1"><sup>(1)</sup></a>
  +- another_song.mp3
  <font color="red">+- my_nested_playlist.lst</font>
      +- my_favorite_song.mp3 <a href="#note2"><sup>(2)</sup></a>
@@ -55,7 +58,9 @@ The last part navigates to the offset 3:44 within <tt>my_favorite_song.mp3</tt>.
 <p>All the following location strings also navigate to the same location as above.
 </p>
 <blockquote>
-  <pre>[3]<br>[4]<br>3:44</pre>
+<pre>[3]
+[4]
+3:44</pre>
 </blockquote>
 <p>The above utilizes the <strong>index navigation</strong>. If you
   omit the URL in a part all items within the particular playlist count. Note
@@ -63,7 +68,8 @@ The last part navigates to the offset 3:44 within <tt>my_favorite_song.mp3</tt>.
   as in <a href="#note3">note 3</a>. However, it is an error to address this
   item.</p>
 <blockquote>
-  <pre>*"my_favorite_song.mp3"[3]<br>3:44</pre>
+  <pre>*"my_favorite_song.mp3"[3]
+3:44</pre>
 </blockquote>
 <p>The <strong>flat navigation</strong> is identified by
     the leading asterisk. Flat navigation means that all all non-recursive songs
@@ -72,8 +78,11 @@ The last part navigates to the offset 3:44 within <tt>my_favorite_song.mp3</tt>.
 of <tt>my_favorite_song.mp3</tt>.
 Therefore the index <tt>[3]</tt>.</p>
 <blockquote>
-  <pre>my_nested_playlist.lst[-1]<br>my_favorite_song[2]<br>-1:34</pre>
-  <pre>*my_favorite_song[-2]<br>-1:34</pre>
+  <pre>my_nested_playlist.lst[-1]
+my_favorite_song[2]
+-1:34</pre>
+  <pre>*my_favorite_song[-2]
+-1:34</pre>
 </blockquote>
 <p>Using negative numbers you may do <strong>reverse navigation</strong> at
     some parts which may be applied to playlists as well as to songs. It is assumed
@@ -149,16 +158,16 @@ sublists.
 </p><h4>Time syntax</h4>
 If the current item is a song you may only specify a time offset from the beginning. Syntax:
 <ul>
-  <li><strong><tt><var>seconds</var></tt></strong><br>
-  </li><li><strong><tt><var>seconds</var>.<var>fractionals</var></tt></strong><br>
-  </li><li><strong><tt><var>minutes</var>:<var>seconds</var></tt></strong><br>
-  </li><li><strong><tt><var>minutes</var>:<var>seconds</var>.<var>fractionals</var></tt></strong><br>
-  </li><li><strong><tt><var>hours</var>:<var>minutes</var>:<var>seconds</var></tt></strong><br>
-  </li><li><strong><tt><var>hours</var>:<var>minutes</var>:<var>seconds</var>.<var>fractionals</var></tt></strong><br>
-  </li><li><strong><tt><var>days</var>:<var>hours</var>:<var>minutes</var>:<var>seconds</var></tt></strong><br>
-  </li><li><strong><tt><var>days</var>:<var>hours</var>:<var>minutes</var>:<var>seconds</var>.<var>fractionals</var></tt></strong><br>
-</li></ul>
+  <li><strong><tt><var>seconds</var></tt></strong></li>
+  <li><strong><tt><var>seconds</var>.<var>fractionals</var></tt></strong></li>
+  <li><strong><tt><var>minutes</var>:<var>seconds</var></tt></strong></li>
+  <li><strong><tt><var>minutes</var>:<var>seconds</var>.<var>fractionals</var></tt></strong></li>
+  <li><strong><tt><var>hours</var>:<var>minutes</var>:<var>seconds</var></tt></strong></li>
+  <li><strong><tt><var>hours</var>:<var>minutes</var>:<var>seconds</var>.<var>fractionals</var></tt></strong></li>
+  <li><strong><tt><var>days</var>:<var>hours</var>:<var>minutes</var>:<var>seconds</var></tt></strong></li>
+  <li><strong><tt><var>days</var>:<var>hours</var>:<var>minutes</var>:<var>seconds</var>.<var>fractionals</var></tt></strong></li>
+</ul>
 <p>It is valid to specify offsets larger the one minute as seconds and so on.<br>
   Using a sufficient number of fractional digits it is possible to address locations with an accuracy of one sample.
-  However, some decoder plug-ins may bend it.
-</p></body></html>
+  However, some decoder plug-ins may bend it.</p>
+</body></html>

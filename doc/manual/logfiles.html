@@ -1,0 +1,42 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html sublinks="*"><head>
+  <meta content="text/html;charset=ISO-8859-1" http-equiv="Content-Type">
+  <title>PM123 Logfiles</title>
+  <link rel="stylesheet" href="infstyle.css" type="text/css">
+</head>
+<body>
+
+<h2>PM123 Debug Log Files</h2>
+<p>The <strong>debug builds</strong> of PM123 since version 1.32 can write a detailed log file with almost
+any internal action taken in PM123. These logfiles are intended to help developers to find bugs.</p>
+<p><em>Release builds do not have the logging feature, since it eats quite a bit CPU resources.</em>
+  You will get an empty file in this case.</p>
+
+<h3>How to enable logging?</h3>
+<p>Start PM123 from the command line with:</p>
+<blockquote><pre>PM123 2&gt;log.txt</pre></blockquote>
+<p>This will start an instance of PM123 with logging enabled.
+  The log is written to the file <tt>log.txt</tt> in the current directory.
+  Of course, you can specify any other location, too.</p>
+<p><em>Note that the log files can grow very fast.</em>
+  You will get in the order of 1GiB per hour while PM123 is playing.</p>
+<p>The logging is always done to stderr, but it is redirected to <tt>nul</tt> unless you explicitly redirect it to somewhere else.</p>
+
+<h3>Log file format</h3>
+<pre>tttttttt pppp:tttt ssssssss mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm
+=============================================================================
+00000291 0050:0001 00216a30 PluginList(102704)::find(D:\TEMP\J\os2audio.dll)</pre>
+<dl>
+  <dt><tt>tttttttt</tt></dt>
+  <dd>Time index in units of <code>CLOCKS_PER_SEC</code>.<br> Usually milliseconds, but the resolution is not that fine.</dd>
+  <dt><tt>pppp</tt></dt>
+  <dd>Process ID.</dd>
+  <dt><tt>tttt</tt></dt>
+  <dd>Thread ID.</dd>
+  <dt><tt>ssssssss</tt></dt>
+  <dd>Stack pointer as hex number.</dd>
+  <dt><tt>mmmmmmmmmm</tt>...</dt>
+  <dd>Message text. This text usually starts with the method and optionally the class or module where the logging comes from.
+    The syntax convention is: <tt>class(this-pointer)::method(arguments)</tt> or <tt>module:method(arguments)</tt>.</dd>
+</dl>
+</body></html>

@@ -1,6 +1,7 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
-<html sublinks="*"><head><title>Playlist Item Context Menu</title>
-
+<html sublinks="*"><head>
+  <title>Playlist Item Context Menu</title>
+  <link rel="stylesheet" href="infstyle.css" type="text/css">
 </head>
 <body>
 <h2>PM123's Playlist Item Context menu</h2>
@@ -16,63 +17,32 @@ multiple items.
 <img src="images/pmlist.gif"> <img src="images/pmfile.gif"></p>
 </blockquote>
 <dl>
-<dt>
-<p><b>Load</b></p>
-</dt>
-<dd>
-<p>Load a playlist item into the player. This will stop any
-other playback if any.<br>
-</p>
-</dd>
-<dt>
-<p><b>Navigate to</b></p>
-</dt>
-<dd>
-<p>Navigates to the desired item of the currently playing
+<dt><p><b>Load</b></p></dt>
+<dd><p>Load a playlist item into the player. This will stop any
+other playback if any.</p></dd>
+<dt><p><b>Navigate to</b></p></dt>
+<dd><p>Navigates to the desired item of the currently playing
 playlist. This is disabled if the selected item is no unambiguous
-subitem of a currently loaded playlist.</p>
-</dd>
-<dt>
-<p><b>Edit Playlist</b> / <b>Detaild view</b></p>
-</dt>
-<dd>
-<p>Opens the selected playlist in the <a href="playlist.html">playlist editor</a>.</p>
-</dd>
-<dt>
-<p><b>Open in tree view</b> / <b>Tree view
-from here</b></p>
-</dt>
-<dd>
-<p>Opens the selected playlist in the <a href="manager.html">playlist manager view</a>. </p>
-</dd>
-<dt>
-<p><b>Show item info</b></p>
-</dt>
-<dd>
-<p>Show a dialog with informations to the selected item. </p>
-</dd>
+subitem of a currently loaded playlist.</p></dd>
+<dt><p><b>Edit Playlist</b> / <b>Detaild view</b></p></dt>
+<dd><p>Opens the selected playlist in the <a href="playlist.html">playlist editor</a>.</p></dd>
+<dt><p><b>Open in tree view</b> / </b>Tree view from here</b></p></dt>
+<dd><p>Opens the selected playlist in the <a href="manager.html">playlist manager view</a>.</p></dd>
+<dt><p><b>Show item info</b></p></dt>
+<dd><p>Show a dialog with informations to the selected item.</p></dd>
 <dt><p><b>Edit song info...</b></p></dt>
-<dd>
-<p>Edits the <a href="id3.html">song info</a>
+<dd><p>Edits the <a href="id3.html">song info</a>
 of the currently loaded file. This is disabled if the apropriate
-decoders do not support this for the selected files. </p>
-</dd>
+decoders do not support this for the selected files.</p></dd>
 <dt><p><b>Refresh status</b></p></dt>
-<dd>
-<p>Reloads the meta information of the selected song(s). </p>
-</dd>
+<dd><p>Reloads the meta information of the selected song(s).</p></dd>
 <dt><p><b>Append to...</b> <i>(Tree view only)</i></p></dt>
-<dd>
-<p><img src="images/listmenu_append.gif"><br>
-</p>
-<p> Appends one or multiple files, an URL from the Internet
-for streaming or CD tracks to the selected playlist. </p>
-</dd>
+<dd><p><img src="images/listmenu_append.gif"></p>
+<p>Appends one or multiple files, an URL from the Internet
+for streaming or CD tracks to the selected playlist.</p></dd>
 <dt><p><b>Sort</b> <i>(Tree view only)</i></p></dt>
-<dd>
-<p>This submenu has options to sort the selected playlist by
-size, playing time, filename or songname and so on. </p>
-</dd>
+<dd><p>This submenu has options to sort the selected playlist by
+size, playing time, filename or songname and so on.</p></dd>
 <dt><p><b>Remove item</b></p></dt>
 <dd>
 <p>Removes a song or nested playlaylist from it's parent.
@@ -80,9 +50,7 @@ This does not immediately modify or delete the file on disk. It also
 does not touch the removed file. </p>
 </dd>
 <dt><p><b>Flatten</b></p></dt>
-<dd>
-<p><img src="images/pmlist_flatten.gif"></p>
-<dl>
+<dd><p><img src="images/pmlist_flatten.gif"></p><dl>
 <dt><b>Expand 1 level</b> </dt>
 <dd>Copies all items of the selected playlist into the
 parent playlist at the location where the selected playlist has been. </dd>
@@ -92,8 +60,7 @@ nested lists at the location where the selected playlist has been. This
 is the recursive replacement of 'Expand 1 level'. </dd>
 </dl>
 <p>Flattening a playlist does not modify the songs played by
-PM123. It only changes the playlist structure.
-</p>
+PM123. It only changes the playlist structure.</p>
 </dd>
 </dl>
 </body></html>

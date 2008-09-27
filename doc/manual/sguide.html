@@ -1,29 +1,33 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
 <html resid="1017" level="3" sublinks="*"><head>
-   <title>Skins Guide</title></head>
+  <title>Skins Guide</title>
+  <link rel="stylesheet" href="infstyle.css" type="text/css">
+</head>
 <body>
-<b><font size="+2">The Hitchhiker's Guide to PM123 skins</font></b>
+<h2>The Hitchhiker's Guide to PM123 skins</h2>
 <p>This document isn't meant to be a step-by-step guide to creating
 PM123 skins. Rather it's meant to be a throughout reference. Basically skins are
 constructed from a <tt>.SKN</tt> file and one of more bitmap files (<tt>.BMP</tt>,
 <tt>.GIF</tt>, etc) or a <tt>.PAK</tt> file (which is a bundle file that wraps
-the skin's bitmaps into one file).
-</p><p><b>.SKN file structure</b>
-</p><p>The <tt>.SKN</tt> file is a skin definition file. It contains the filenames
+the skin's bitmaps into one file).</p>
+
+<h3>.SKN file structure</h3>
+<p>The <tt>.SKN</tt> file is a skin definition file. It contains the filenames
 of all bitmaps to be replaced, all new bitmap positions and other definitions.
 It's a simple text file. Lines beginning with <tt>;</tt> or <tt>#</tt> are
-considered as comments.
-</p><p>If you want to change <a href="#bitmaps">a bitmap</a>, it's defined like this:
-</p><pre>resource,bitmap<br></pre>
+considered as comments.</p>
+If you want to change <a href="#bitmaps">a bitmap</a>, it's defined like this:
+<pre>resource,bitmap</pre>
 For example, replacing the background:
-<pre>1900,mybmp/bg.bmp<br></pre>
+<pre>1900,mybmp/bg.bmp</pre>
 If you want to change <a href="#position">a bitmap position</a>, it's defined like this:
-<pre>position:x,y<br></pre>
+<pre>position:x,y</pre>
 For example, changing volume bar's location to (10, 10):
-<pre>25:10,10<br></pre>
+<pre>25:10,10</pre>
 <a href="#special">Special resources</a> can be toggled on like this:
-<pre>resource,1<br></pre>
-<p><a name="special"><b>Special resources that control PM123 interface</b></a>
+<pre>resource,1</pre>
+
+<h3><a name="special">Special resources that control PM123 interface</a></h3>
 <table border="1" cellpadding="4" cellspacing="0">
 <tbody><tr><td>Resource number</td><td>Resource explanation</td></tr>
 <tr><td>1</td><td>Bright 3D shade color, in format RRR/GGG/BBB.</td></tr>
@@ -59,9 +63,9 @@ For example, changing volume bar's location to (10, 10):
 <tr><td>33</td><td>Foreground color of selected text in format RRR/GGG/BBB.</td></tr>
 <tr><td>34</td><td>Background color of selected text in format RRR/GGG/BBB.</td></tr>
 </tbody></table>
-</p><p>
-<a name="bitmap"><b>Bitmap resources</b>
-</a><table border="1" cellpadding="4" cellspacing="0">
+
+<h3><a name="bitmap">Bitmap resources</a></h3>
+<table border="1" cellpadding="4" cellspacing="0">
 <tbody><tr><td>Resource number</td><td>Resource explanation</td></tr>
 <tr> <td>1200 to 1209</td> <td>Digits 0-9 for the main ("big") timer.</td> </tr>
 <tr> <td>1210</td> <td>Main timer separator '<tt>:</tt>' </td> </tr>
@@ -123,8 +127,8 @@ Not used if resource 28 is enabled.</td> </tr>
 <tr> <td>5519, 5509</td> <td>Repeat button up/down</td> </tr>
 <tr> <td>5521, 5520</td> <td>Playlist button up/down</td> </tr>
 </tbody></table>
-</p><p><a name="position"><b>Resource (bitmap) position settings</b>
-</a><table border="1" cellpadding="4" cellspacing="0">
+<h3><a name="position">Resource (bitmap) position settings</a></h3>
+<table border="1" cellpadding="4" cellspacing="0">
 <tbody><tr><td>Position number</td><td>Position explanation</td></tr>
 <tr> <td> 1</td> <td>Main timer</td> </tr>
 <tr> <td> 2</td> <td>Main window size (sx, sy)</td> </tr>
@@ -186,4 +190,4 @@ Not used if resource 28 is enabled.</td> </tr>
 <tr> <td>67</td> <td>Location for the slider shaft (bitmap 1906)</td> </tr>
 </tbody></table>
 
-</p></body></html>
+</body></html>
