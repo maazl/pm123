@@ -1,12 +1,9 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
 <html><head>
-<meta http-equiv="Content-Type" content="text/html;charset=ISO-8859-1"><title>PM123 Known Problems &amp; ToDo list</title>
+<meta content="text/html;charset=ISO-8859-1" http-equiv="Content-Type"><title>PM123 Known Problems &amp; ToDo list</title>
 
-<meta name="author" content="Marcel M&uuml;ller">
+<meta content="Marcel M&uuml;ller" name="author">
 <style type="text/css">
-strong
-{ color: red;
-}
 .open {
 background-color: #ffcccc;
 }
@@ -17,6 +14,7 @@ background-color: #ffffcc;
 background-color: #ccffcc;
 }
 </style>
+<link type="text/css" href="manual/infstyle.css" rel="stylesheet">
 </head>
 <body>
 <h2>PM123's Known Problems &amp; Todo list</h2>
@@ -128,6 +126,16 @@ playlist.</td>
 <td>If the currently playing item is part of the actually
 loaded playlist, playing should not be aborted. This is a configuration
 option.</td>
+</tr>
+<tr class="open">
+<td>15 minor todo, open</td>
+<td>playlist with alternative items for HTTP streams</td>
+<td>For live streams&nbsp;it is quite common to provide
+a playlist with a set of alternative streaming servers instead of a
+single server. While PM123 is able to handle this kind of files and
+play the first valid stream, it has unwanted effects when adding these
+playlists to another playlist, because all of the contained items are
+equivalent.</td>
 </tr>
 </tbody>
 </table>
