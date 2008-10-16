@@ -55,13 +55,14 @@ typedef struct         /* for playlists only */
 /* Logical information about the data source */
 typedef struct
 { unsigned int size;   /* size of this structure */
-  char title[128];
-  char artist[128];
-  char album[128];
-  char year[128];
-  char comment[128];
-  char genre[128];
-  int  track;          /* <0 = unknown */
+  char  title[128];
+  char  artist[128];
+  char  album[128];
+  char  year[32];
+  char  comment[128];
+  char  genre[128];
+  int   track;         /* <0 = unknown */
+  char  copyright[128];
   float track_gain;    /* Defines Replay Gain values as specified at */
   float track_peak;    /* http://www.replaygain.org/ */
   float album_gain;

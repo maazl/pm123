@@ -681,3 +681,30 @@ Playable::InfoFlags Song::LoadInfo(InfoFlags what)
   return Playable::LoadInfo(what);
 }
 
+ULONG Song::SaveMetaInfo(const META_INFO& info, int haveinfo)
+{ DEBUGLOG(("Song(%p{%s})::SaveMetaInfo(, %x)\n", this, GetURL().cdata(), haveinfo));
+  EnsureInfo(Playable::IF_Other);
+  ULONG rc = dec_saveinfo(GetURL(), &info, haveinfo, GetDecoder());
+  if (rc == 0)
+  { Lock lock(*this);
+    META_INFO new_info = *GetInfo().meta; // copy
+    if (haveinfo & DECODER_HAVE_TITLE)
+      strlcpy(new_info.title,    info.title,      sizeof new_info.title);
+    if (haveinfo & DECODER_HAVE_ARTIST)
+      strlcpy(new_info.artist,   info.artist,     sizeof new_info.artist);
+    if (haveinfo & DECODER_HAVE_ALBUM)
+      strlcpy(new_info.album,    info.album,      sizeof new_info.album);
+    if (haveinfo & DECODER_HAVE_TRACK)
+      new_info.track = info.track;
+    if (haveinfo & DECODER_HAVE_YEAR)
+      strlcpy(new_info.year,      info.year,      sizeof new_info.year);
+    if (haveinfo & DECODER_HAVE_GENRE)
+      strlcpy(new_info.genre,     info.genre,     sizeof new_info.genre);
+    if (haveinfo & DECODER_HAVE_COMMENT)
+      strlcpy(new_info.comment,   info.comment,   sizeof new_info.comment);
+    if (haveinfo & DECODER_HAVE_COPYRIGHT)
+      strlcpy(new_info.copyright, info.copyright, sizeof new_info.copyright);
+    UpdateInfo(&new_info);
+  }
+  return rc;
+}

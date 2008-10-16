@@ -110,7 +110,7 @@ void  amp_invalidate( unsigned options );
 
 /* Posts a command to the message queue associated with the player window. */
 //BOOL  amp_post_command( USHORT id );
-/* Returns the handle of the player window. */
+/* Returns the handle of the player frame window. */
 HWND  amp_player_window( void );
 /* Returns the anchor-block handle. */
 HAB   amp_player_hab( void );

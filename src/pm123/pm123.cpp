@@ -145,8 +145,7 @@ static PlaylistMenu* MenuWorker  = NULL; // Instance of PlaylistMenu to handle e
 
 
 /* Returns the handle of the player window. */
-HWND
-amp_player_window( void ) {
+HWND amp_player_window( void ) {
   return hframe;
 }
 
@@ -824,6 +823,9 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
           iep->Song->LoadInfoAsync(Playable::IF_Meta);
           // Refresh will come automatically
         case 300: // tag unchanged
+          break;
+        case 400: // decoder does not provide decoder_editmeta => use info dialog instead
+          InfoDialog::GetByKey(iep->Song)->ShowPage(InfoDialog::Page_MetaInfo);
           break;
         case 500:
           amp_error( iep->Owner, "Unable write tag to file:\n%s\n%s", iep->Song->GetURL().cdata(), clib_strerror(errno));

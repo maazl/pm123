@@ -38,6 +38,10 @@
 
 #include "playablecollection.h"
 
+/* Return help manager instance.
+ * Not valid until dlg_init(). */
+HWND amp_help_mgr();
+
 /* Get window text as xstring without length limitation. */
 xstring amp_get_window_text( HWND hwnd );
 
@@ -54,7 +58,7 @@ USHORT amp_query3( HWND owner, const char* format, ... );
 /* Requests the user about overwriting a file. */
 BOOL  amp_warn_if_overwrite( HWND owner, const char* filename );
 /* Tells the help manager to display a specific help window. */
-void  amp_show_help( SHORT resid );
+bool  amp_show_help( SHORT resid );
 
 /* Wizzard function for the default entry "File..." */
 ULONG DLLENTRY amp_file_wizzard( HWND owner, const char* title, DECODER_WIZZARD_CALLBACK callback, void* param );

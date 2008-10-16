@@ -284,6 +284,9 @@ static void
 ogg_set_string( vorbis_comment* comment, const char* source, char* type )
 {
   char string[128*4];
+  
+  if (!*source) // Do not create empty comment tags
+    return;
 
   ch_convert( CH_CP_NONE, source, 1208, string, sizeof( string ), 0 );
   vorbis_comment_add_tag( comment, type, string );
@@ -681,6 +684,8 @@ decoder_saveinfo( const char* filename, const DECODER_INFO* info )
   vcedit_state*   state = NULL;
   vorbis_comment* vc;
   DECODER_STRUCT* w;
+
+  DEBUGLOG(("oggplay:decoder_saveinfo(%s, )\n", filename));
 
   if( !*filename ) {
     return EINVAL;

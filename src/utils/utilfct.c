@@ -449,13 +449,13 @@ en_enable( HWND hwnd, SHORT id, BOOL enable )
 }
 
 /* Append a tabbed dialog page */
-BOOL
+ULONG
 nb_append_tab(HWND book, HWND page, const char* major, char* minor, MPARAM index)
 { USHORT style = BKA_AUTOPAGESIZE | (SHORT2FROMMP(index) > 1) * (BKA_MINOR|BKA_STATUSTEXTON) | (SHORT1FROMMP(index) <= 1) * BKA_MAJOR;
   BOOKPAGEINFO bi = { sizeof bi };
   ULONG id = LONGFROMMR(WinSendMsg(book, BKM_INSERTPAGE, 0, MPFROM2SHORT(style, BKA_LAST)));
   if (id == 0)
-    return FALSE;
+    return 0;
   bi.fl = BFA_PAGEFROMHWND;
   bi.hwndPage = page;
   // set major text if supplied
@@ -477,7 +477,9 @@ nb_append_tab(HWND book, HWND page, const char* major, char* minor, MPARAM index
     bi.cbStatusLine = sprintf(buf, "Page %u of %u", SHORT1FROMMP(index), SHORT2FROMMP(index));
     bi.pszStatusLine = buf;
   }
-  return LONGFROMMR(WinSendMsg(book, BKM_SETPAGEINFO, MPFROMLONG(id), MPFROMP(&bi)));
+  if (!WinSendMsg(book, BKM_SETPAGEINFO, MPFROMLONG(id), MPFROMP(&bi)))
+    return 0;
+  return id;
 }
 
 /* Adjusting the position and size of a notebook window. */

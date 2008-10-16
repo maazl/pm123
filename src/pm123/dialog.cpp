@@ -60,13 +60,12 @@
 #define  AMP_REFRESH_CONTROLS   ( WM_USER + 1000 ) /* 0,         0                            */
 
 
-/* Equalizer stuff. */
-/*float gains[20];
-BOOL  mutes[20];
-float preamp;*/
-
-
 static HWND  hhelp      = NULLHANDLE;
+
+
+HWND amp_help_mgr()
+{ return hhelp;
+}
 
 xstring amp_get_window_text( HWND hwnd )
 { xstring ret;
@@ -486,10 +485,9 @@ BOOL amp_warn_if_overwrite( HWND owner, const char* filename )
 }
 
 /* Tells the help manager to display a specific help window. */
-void amp_show_help( SHORT resid )
-{
-  WinSendMsg( hhelp, HM_DISPLAY_HELP, MPFROMLONG( MAKELONG( resid, NULL )),
-                                      MPFROMSHORT( HM_RESOURCEID ));
+bool amp_show_help( SHORT resid )
+{ return WinSendMsg( hhelp, HM_DISPLAY_HELP,
+    MPFROMLONG( MAKELONG( resid, NULL )), MPFROMSHORT( HM_RESOURCEID )) == 0;
 }
 
 
@@ -506,18 +504,22 @@ void dlg_init()
   HELPINIT hinit = { sizeof( hinit ) };
   hinit.phtHelpTable = (PHELPTABLE)MAKELONG( HLP_MAIN, 0xFFFF );
   hinit.pszHelpWindowTitle = "PM123 Help";
+  #ifdef DEBUG
   hinit.fShowPanelId = CMIC_SHOW_PANEL_ID;
+  #else
+  hinit.fShowPanelId = CMIC_HIDE_PANEL_ID;
+  #endif
   hinit.pszHelpLibraryName = (PSZ)infname.cdata();
 
   hhelp = WinCreateHelpInstance( amp_player_hab(), &hinit );
-  if( !hhelp )
+  if( hhelp == NULLHANDLE )
     amp_error( amp_player_window(), "Error create help instance: %s", infname.cdata() );
   else
-    WinAssociateHelpInstance( hhelp, amp_player_window() );
-
+    PMRASSERT(WinAssociateHelpInstance(hhelp, amp_player_window()));
 }
 
 void dlg_uninit()
-{
+{ if (hhelp != NULLHANDLE)
+    WinDestroyHelpInstance(hhelp);
 }
 

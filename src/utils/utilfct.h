@@ -149,8 +149,9 @@ SHORT lb_search( HWND hwnd, SHORT id, SHORT starti, char *item );
 void  en_enable( HWND hwnd, SHORT id, BOOL enable );
 
 /* append a tabbed dialog page. The index param gives
-   the index (low word) and the total (high word) number of subpages (if any). */
-BOOL  nb_append_tab( HWND book, HWND page, const char* major, char* minor, MPARAM index );
+   the index (low word) and the total (high word) number of subpages (if any).
+   Returns the new page ID or 0 on error. */
+ULONG nb_append_tab( HWND book, HWND page, const char* major, char* minor, MPARAM index );
 /* Adjusting the position and size of a notebook window. */
 void  nb_adjust( HWND hwnd );
 

@@ -203,7 +203,7 @@ void PlaylistBase::DeleteEntry(RecordBase* entry)
 
 
 void PlaylistBase::StartDialog()
-{ DialogBase::StartDialog(HWND_DESKTOP/*amp_player_window()*/);
+{ DialogBase::StartDialog(HWND_DESKTOP);
 }
 
 void PlaylistBase::InitDlg()
@@ -224,9 +224,11 @@ void PlaylistBase::InitDlg()
     color = CLR_BLACK;
     PMRASSERT(WinSetPresParam(HwndContainer, PP_BACKGROUNDCOLORINDEX, sizeof(color), &color));
   }
+  
+  // Help manager
+  SetHelpMgr(amp_help_mgr());
 
   rest_window_pos(GetHwnd(), 0);
-
   // TODO: do not open all playlistmanager windows at the same location
   dk_add_window(GetHwnd(), 0);
 
@@ -929,7 +931,7 @@ PlaylistBase::RecordType PlaylistBase::AnalyzeRecordTypes() const
   { Playable::Flags flg = ((*rpp)->Data->Content->GetPlayable()->GetFlags());
     if (flg == Playable::None)
       ret |= RT_Song;
-    else if (flg & Playable::Mutable)
+    else if ((flg & Playable::Mutable) == Playable::Mutable)
       ret |= RT_List;
     else if (flg & Playable::Enumerable)
       ret |= RT_Enum;

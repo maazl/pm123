@@ -154,7 +154,7 @@ class Playable
   // Each infotype in ca may be NULL, indicating that the desired information is not yet known.
   // For non NULL info blocks in ca the apropriate bits in InfoValid are set.
   Playable(const url123& url, const DECODER_INFO2* ca = NULL);
-  // Update the structure components and return the required InfoChange Flags or 0 if no change has been made.
+  // Update the structure components and set the required InfoChange Flags or 0 if no change has been made.
   // Calling this Functions with NULL resets the Information to its default value.
   // This does not reset the InfoValid bits.
   void                UpdateInfo(const FORMAT_INFO2* info);
@@ -349,6 +349,8 @@ class Song : public Playable
   Song(const url123& URL, const DECODER_INFO2* ca = NULL);
 
   virtual InfoFlags        LoadInfo(InfoFlags what);
+  // Save meta info, return result from dec_saveinfo
+  ULONG                    SaveMetaInfo(const META_INFO& info, int haveinfo);
 };
 
 

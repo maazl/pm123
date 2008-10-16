@@ -58,7 +58,9 @@ ULONG dec_fast( DECFASTMODE mode );
 ULONG dec_jump( double location );
 /* set savefilename to save the raw stream data */
 ULONG dec_save( const char* file );
-/* edit ID3-data of the given file, decoder_name is optional */
+/* save ID3-data to the given file */
+ULONG dec_saveinfo( const char* url, const META_INFO* info, int haveinfo, const char* decoder_name );
+/* call special decoder dialog to edit ID3-data of the given file */
 ULONG dec_editmeta( HWND owner, const char* url, const char* decoder_name );
 /* get the minimum sample position of a block from the decoder since the last dec_play */
 double dec_minpos();

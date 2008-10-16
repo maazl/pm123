@@ -104,8 +104,8 @@ struct DecoderProcs
   void   DLLENTRYP(decoder_event    )( void*  w, OUTEVENTTYPE event );
   ULONG  DLLENTRYP(decoder_status   )( void*  w );
   double DLLENTRYP(decoder_length   )( void*  w );
-  ULONG  DLLENTRYP(decoder_fileinfo )( const char* filename, INFOTYPE* what, DECODER_INFO2* info );
-  ULONG  DLLENTRYP(decoder_setmeta  )( const char* filename, const META_INFO* meta );
+  ULONG  DLLENTRYP(decoder_fileinfo )( const char* url, INFOTYPE* what, DECODER_INFO2* info );
+  ULONG  DLLENTRYP(decoder_saveinfo )( const char* url, const META_INFO* info, int haveinfo );
   ULONG  DLLENTRYP(decoder_cdinfo   )( const char* drive, DECODER_CDINFO* info );
   ULONG  DLLENTRYP(decoder_editmeta )( HWND owner, const char* url );
   const  DECODER_WIZZARD*

@@ -27,8 +27,6 @@
  */
 
 
-/* Code for the playlist manager */
-
 #define  INCL_WIN
 #define  INCL_DOS
 #include <utilfct.h>
@@ -60,10 +58,12 @@ DialogBase::DialogBase(ULONG rid, HMODULE module)
 }
 
 DialogBase::~DialogBase()
-{ DEBUGLOG(("DialogBase(%p)::~DialogBase()\n", this));
+{ DEBUGLOG(("DialogBase(%p{%u,%s})::~DialogBase()\n", this, DlgRID, Title.cdata()));
+  if (HwndFrame != NULLHANDLE)
+    WinDestroyWindow(GetHwnd());
 }
 
-void DialogBase::StartDialog(HWND parent, HWND owner)
+void DialogBase::StartDialog(HWND owner, HWND parent)
 { DEBUGLOG(("DialogBase(%p)::StartDialog(%p, %p)\n", this, owner, parent));
   // initialize dialog
   init_dlg_struct ids = { sizeof(init_dlg_struct), this };
@@ -110,12 +110,12 @@ MRESULT DialogBase::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
 
 void DialogBase::OnInit()
 { // Attach the class instance to the window.
-  DEBUGLOG(("DialogBase(%p)::OnInit()\n", this));
+  DEBUGLOG(("DialogBase(%p{%u,%s})::OnInit()\n", this, DlgRID, Title.cdata()));
   PMRASSERT(WinSetWindowPtr(HwndFrame, QWL_USER, this));
 }
 
 void DialogBase::OnDestroy()
-{ DEBUGLOG(("DialogBase(%p)::OnDestroy()\n", this));
+{ DEBUGLOG(("DialogBase(%p{%u,%s})::OnDestroy()\n", this, DlgRID, Title.cdata()));
   // Keep instance no longer alive
   PMRASSERT(WinSetWindowPtr(HwndFrame, QWL_USER, NULL));
   Initialized = 0;
@@ -123,7 +123,7 @@ void DialogBase::OnDestroy()
 }
 
 void DialogBase::SetVisible(bool show)
-{ DEBUGLOG(("DialogBase(%p)::SetVisible(%u)\n", this, show));
+{ DEBUGLOG(("DialogBase(%p{%s})::SetVisible(%u)\n", this, Title.cdata(), show));
 
   if (Initialized == 0) // double check
   { CritSect cs;
@@ -153,13 +153,20 @@ void DialogBase::SetTitle(const xstring& title)
   Title = title;
 }
 
+void DialogBase::SetHelpMgr(HWND hhelp)
+{ DEBUGLOG(("DialogBase(%p)::SetHelpMgr(%p)\n", this, hhelp));
+  PMRASSERT(WinAssociateHelpInstance(hhelp, GetHwnd()));
+}
+
 
 void ManagedDialogBase::OnInit()
-{ DialogBase::OnInit();
+{ DEBUGLOG(("ManagedDialogBase(%p)::OnInit()\n", this));
+  DialogBase::OnInit();
   Self = this;
 }
 
 void ManagedDialogBase::OnDestroy()
-{ DialogBase::OnDestroy();
+{ DEBUGLOG(("ManagedDialogBase(%p)::OnDestroy()\n", this));
+  DialogBase::OnDestroy();
   Self = NULL; // this may get invalid here
 }

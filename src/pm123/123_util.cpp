@@ -57,7 +57,6 @@ pm123_display_info( const char* info )
   if( message ) {
     WinPostMsg( amp_player_window(), AMP_DISPLAY_MESSAGE, MPFROMP( message ), MPFROMLONG( FALSE ));
   }
-  WinPostMsg( amp_player_window(), WM_PLAYERROR, 0, 0 );
 }
 
 void DLLENTRY

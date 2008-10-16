@@ -30,6 +30,7 @@
 #define PM123_INFODIALOG_H
 
 #define INCL_WIN
+#define INCL_BASE
 #include "windowbase.h"
 #include "playable.h"
 #include <cpp/container.h>
@@ -49,7 +50,14 @@ class InfoDialog
 : public ManagedDialogBase,
   public IComparableTo<const Playable*>,
   public inst_index<InfoDialog, Playable*>
-{private:
+{public:
+  enum PageNo
+  { Page_TechInfo,
+    Page_MetaInfo
+  };
+  
+ private:
+  // Functor for inst_index factory.
   class Factory;
   friend class Factory;
   class Factory : public inst_index<InfoDialog, Playable*>::IFactory
@@ -59,16 +67,22 @@ class InfoDialog
     static Factory  Instance;
     virtual InfoDialog* operator()(Playable*& key);
   };
+  // Base class for notebook pages
   class PageBase;
   friend class PageBase;
   class PageBase : public DialogBase
-  {protected:
+  {public:
+    enum
+    { UM_UPDATE = WM_USER+1
+    };
+   protected:
     InfoDialog&     Parent;
     PageBase(InfoDialog& parent, ULONG rid);
     virtual MRESULT DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2);
    public:
     void            StartDialog() { DialogBase::StartDialog(Parent.GetHwnd(), Parent.GetHwnd()); }
   };
+  // Notebook page 1
   class Page1Window;
   friend class Page1Window;
   class Page1Window : public PageBase
@@ -77,6 +91,7 @@ class InfoDialog
    public:
     Page1Window(InfoDialog& parent, ULONG rid) : PageBase(parent, rid) {}
   };
+  // Notebook page 2
   class Page2Window;
   friend class Page2Window;
   class Page2Window : public PageBase
@@ -85,11 +100,42 @@ class InfoDialog
    public:
     Page2Window(InfoDialog& parent, ULONG rid) : PageBase(parent, rid) {}
   };
+  // Progress window for meta data writes
+  class MetaWriteDlg : private DialogBase
+  {public: // Work order! Setup these fields after the constructor call and before DoDialog.
+           // These vars must not be modified once the dialog ist started
+    META_INFO       MetaData;  // Information to write
+    int             MetaFlags; // Parts of MetaData to write
+    vector_int<Playable> Dest; // Write to this songs
+   private:
+    enum
+    { UM_START = WM_USER+1,    // Start the worker thread
+      UM_STATUS                // Worker thread reports: at item #(ULONG)mp1, status (ULONG)mp2
+    };
+    bool            SkipErrors;
+   private: // Worker thread
+    TID             WorkerTID;
+    int             CurrentItem;
+    bool            Cancel;
+    Event           ResumeSignal;
+   private:
+    // Worker thread
+    void            Worker();
+    friend void TFNENTRY InfoDialogMetaWriteWorkerStub(void*);
+   protected:
+    // Dialog procedure
+    virtual MRESULT DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2);
+   public:
+    MetaWriteDlg();
+    ~MetaWriteDlg();
+    ULONG           DoDialog(HWND owner);
+  };
   
  private:
   const int_ptr<Playable> Content;
   Page1Window       Page1;
   Page2Window       Page2;
+  ULONG             PageIDs[2];
   class_delegate<InfoDialog, const Playable::change_args> ContentChangeDeleg;
 
  private:
@@ -99,8 +145,8 @@ class InfoDialog
   void              ContentChangeEvent(const Playable::change_args& args);
 
  public:
-  //virtual ~InfoDialog();
-  //virtual void      SetVisible(bool show);
+  //virtual           ~InfoDialog();
+  void              ShowPage(PageNo page);
   
  public:
   // Factory method. Returns always the same instance for the same Playable.

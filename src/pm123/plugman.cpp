@@ -267,7 +267,7 @@ void Plugin::DestroyProxyWindow(HWND hwnd)
 
 void Plugin::Init()
 { PMRASSERT(WinRegisterClass(amp_player_hab(), "CL_MODULE_SERVICE", &cl_plugin_winfn, 0, 0));
-  ServiceHwnd = WinCreateWindow(amp_player_window(), "CL_MODULE_SERVICE", "", 0, 0,0, 0,0, NULLHANDLE, HWND_BOTTOM, 42, NULL, NULL);
+  ServiceHwnd = WinCreateWindow(HWND_OBJECT, "CL_MODULE_SERVICE", "", 0, 0,0, 0,0, amp_player_window(), HWND_BOTTOM, 42, NULL, NULL);
   PMASSERT(ServiceHwnd != NULLHANDLE);
 }
 

@@ -208,6 +208,7 @@
 /* Helptable */
 #define HLP_MAIN_TABLE      100
 #define HLP_NULL_TABLE      101
+#define HLP_CONFIG_TABLE    102
 
 /* Help page IDs. DO NEVER CHANGE THAT */
 #define IDH_MAIN           1000
@@ -267,6 +268,7 @@
 #define PB_UNDO            1202
 #define PB_DEFAULT         1203
 #define PB_HELP            1204
+#define PB_APPLY           1205
 
 #define CFG_ABOUT          1210
 #define ST_TITLE1          1211
@@ -365,6 +367,7 @@
 
 /* Object Info */
 #define DLG_INFO           1800
+#define NB_INFO            FID_CLIENT
 
 #define CFG_TECHINFO       1810
 #define ST_FILESIZE        1811
@@ -388,32 +391,52 @@
 #define EF_DECODER         1829
 #define ST_INFOSTRINGS     1830
 #define EF_INFOSTRINGS     1831
+#define ST_METARPGAIN      1840
+#define EF_METARPGAINT     1841
+#define ST_METARPGAINT     1842
+#define EF_METARPGAINA     1843
+#define ST_METARPGAINA     1844
+#define ST_METARPPEAK      1845
+#define EF_METARPPEAKT     1846
+#define ST_METARPPEAKT     1847
+#define EF_METARPPEAKA     1848
+#define ST_METARPPEAKA     1849
 
-#define CFG_METAINFO       1840
-#define ST_METATITLE       1841
-#define EF_METATITLE       1842 
-#define ST_METAARTIST      1843
-#define EF_METAARTIST      1844
-#define ST_METAALBUM       1845
-#define EF_METAALBUM       1846
-#define ST_METATRACK       1847
-#define EF_METATRACK       1848
-#define ST_METADATE        1849
-#define EF_METADATE        1850
-#define ST_METAGENRE       1851
-#define EF_METAGENRE       1852
-#define ST_METACOMMENT     1853
-#define EF_METACOMMENT     1854
-#define ST_METARPGAIN      1855
-#define EF_METARPGAINT     1856
-#define ST_METARPGAINT     1857
-#define EF_METARPGAINA     1858
-#define ST_METARPGAINA     1859
-#define ST_METARPPEAK      1860
-#define EF_METARPPEAKT     1861
-#define ST_METARPPEAKT     1862
-#define EF_METARPPEAKA     1863
-#define ST_METARPPEAKA     1864
+#define CFG_METAINFO       1850
+#define ST_METATITLE       1851
+#define EF_METATITLE       1852 
+#define CB_METATITLE       1853 
+#define ST_METAARTIST      1854
+#define EF_METAARTIST      1855
+#define CB_METAARTIST      1856
+#define ST_METAALBUM       1857
+#define EF_METAALBUM       1858
+#define CB_METAALBUM       1859
+#define ST_METATRACK       1860
+#define EF_METATRACK       1861
+#define CB_METATRACK       1862
+#define ST_METADATE        1863
+#define EF_METADATE        1864
+#define CB_METADATE        1865
+#define ST_METAGENRE       1866
+#define EF_METAGENRE       1867
+#define CB_METAGENRE       1868
+#define ST_METACOMMENT     1869
+#define EF_METACOMMENT     1870
+#define CB_METACOMMENT     1871
+#define ST_METACOPYRIGHT   1872
+#define EF_METACOPYRIGHT   1873
+#define CB_METACOPYRIGHT   1874
+
+/* Write meta data */
+#define DLG_WRITEMETA      1900
+#define EF_WMURL           1901
+#define SB_WMBARFG         1902
+#define SB_WMBARBG         1903
+#define EF_WMSTATUS        1904
+#define PB_WMRETRY         1905
+#define PB_WMSKIP          1906
+#define PB_WMSKIPALL       1907
 
 
 /* SKINs ... */

@@ -147,6 +147,7 @@ bool Decoder::LoadPlugin()
     || !mod.LoadFunction(&decoder_event,    "decoder_event"   ) )
     return false;
 
+  mod.LoadOptionalFunction(&decoder_saveinfo, "decoder_saveinfo");
   mod.LoadOptionalFunction(&decoder_editmeta, "decoder_editmeta");
   mod.LoadOptionalFunction(&decoder_getwizzard, "decoder_getwizzard");
 
@@ -296,6 +297,7 @@ class DecoderProxy1 : public Decoder
   void*  a;
   ULONG  DLLENTRYP(vdecoder_fileinfo )( const char* filename, DECODER_INFO* info );
   ULONG  DLLENTRYP(vdecoder_trackinfo)( const char* drive, int track, DECODER_INFO* info );
+  ULONG  DLLENTRYP(vdecoder_saveinfo )( const char* filename, const DECODER_INFO* info );
   ULONG  DLLENTRYP(vdecoder_cdinfo   )( const char* drive, DECODER_CDINFO* info );
   ULONG  DLLENTRYP(vdecoder_length   )( void* w );
   void   DLLENTRYP(error_display)( char* );
@@ -307,12 +309,13 @@ class DecoderProxy1 : public Decoder
   DECFASTMODE lastfast;
   char   metadata_buffer[128]; // Loaded in curtun on decoder's demand WM_METADATA.
   Mutex  info_mtx; // Mutex to serialize access to the decoder_*info functions.
-  VDELEGATE vd_decoder_command, vd_decoder_event, vd_decoder_fileinfo, vd_decoder_cdinfo, vd_decoder_length;
+  VDELEGATE vd_decoder_command, vd_decoder_event, vd_decoder_fileinfo, vd_decoder_saveinfo, vd_decoder_cdinfo, vd_decoder_length;
 
  private:
   PROXYFUNCDEF ULONG  DLLENTRY proxy_1_decoder_command     ( DecoderProxy1* op, void* w, ULONG msg, DECODER_PARAMS2* params );
   PROXYFUNCDEF void   DLLENTRY proxy_1_decoder_event       ( DecoderProxy1* op, void* w, OUTEVENTTYPE event );
   PROXYFUNCDEF ULONG  DLLENTRY proxy_1_decoder_fileinfo    ( DecoderProxy1* op, const char* filename, INFOTYPE* what, DECODER_INFO2* info );
+  PROXYFUNCDEF ULONG  DLLENTRY proxy_1_decoder_saveinfo    ( DecoderProxy1* op, const char* filename, const META_INFO* info, int haveinfo );
   PROXYFUNCDEF ULONG  DLLENTRY proxy_1_decoder_cdinfo      ( DecoderProxy1* op, const char* drive, DECODER_CDINFO* info );
   PROXYFUNCDEF int    DLLENTRY proxy_1_decoder_play_samples( DecoderProxy1* op, const FORMAT_INFO* format, const char* buf, int len, int posmarker );
   PROXYFUNCDEF double DLLENTRY proxy_1_decoder_length      ( DecoderProxy1* op, void* w );
@@ -347,11 +350,14 @@ bool DecoderProxy1::LoadPlugin()
     || !mod.LoadFunction(&vdecoder_command,   "decoder_command") )
     return false;
 
-  mod.LoadOptionalFunction(&decoder_editmeta, "decoder_editmeta");
+  mod.LoadOptionalFunction(&vdecoder_saveinfo,  "decoder_saveinfo");
+  mod.LoadOptionalFunction(&decoder_editmeta,   "decoder_editmeta");
   mod.LoadOptionalFunction(&decoder_getwizzard, "decoder_getwizzard");
   decoder_command   = vdelegate(&vd_decoder_command,  &proxy_1_decoder_command,  this);
   decoder_event     = vdelegate(&vd_decoder_event,    &proxy_1_decoder_event,    this);
   decoder_fileinfo  = vdelegate(&vd_decoder_fileinfo, &proxy_1_decoder_fileinfo, this);
+  if (vdecoder_saveinfo)
+    decoder_saveinfo= vdelegate(&vd_decoder_saveinfo, &proxy_1_decoder_saveinfo, this);
   decoder_length    = vdelegate(&vd_decoder_length,   &proxy_1_decoder_length,   this);
   tid = (ULONG)-1;
 
@@ -713,20 +719,69 @@ proxy_1_decoder_fileinfo( DecoderProxy1* op, const char* filename, INFOTYPE* wha
 
     info->tech->songlength = old_info.songlength < 0 ? -1 : old_info.songlength/1000.;
     info->tech->bitrate    = old_info.bitrate;
-    strlcpy(info->tech->info, old_info.tech_info, sizeof info->tech->info);
+    strlcpy(info->tech->info,    old_info.tech_info,sizeof info->tech->info);
 
-    // this part of the structure is binary compatible
-    memcpy(&info->meta->title, old_info.title, offsetof(META_INFO, track) - offsetof(META_INFO, title));
+    memcpy(info->meta->title,    old_info.title,    sizeof info->meta->title);
+    memcpy(info->meta->artist,   old_info.artist,   sizeof info->meta->artist);
+    memcpy(info->meta->album,    old_info.album,    sizeof info->meta->album);
+    strlcpy(info->meta->year,    old_info.year,     sizeof info->meta->year);
+    memcpy(info->meta->comment,  old_info.comment,  sizeof info->meta->comment);
+    memcpy(info->meta->genre,    old_info.genre,    sizeof info->meta->genre);
     info->meta->track      = atoi(old_info.track);
+    memcpy(info->meta->copyright,old_info.copyright,sizeof info->meta->copyright);
     info->meta->track_gain = old_info.track_gain; 
     info->meta->track_peak = old_info.track_peak; 
     info->meta->album_gain = old_info.album_gain; 
     info->meta->album_peak = old_info.album_peak; 
-    info->meta_write       = op->decoder_editmeta && old_info.saveinfo;
+    info->meta_write       = old_info.saveinfo;
     // old decoders always load all kind of information
     *what = (INFOTYPE)(*what | INFO_ALL);
   }
   return rc;
+}
+
+PROXYFUNCIMP(ULONG DLLENTRY, DecoderProxy1)
+proxy_1_decoder_saveinfo( DecoderProxy1* op, const char* filename, const META_INFO* info, int haveinfo )
+{ DEBUGLOG(("proxy_1_decoder_saveinfo(%p, %s, {%u,%s,%s,%s,%s,%s,%s,%i,%s}, %x)\n", op, filename, 
+    info->size,info->title,info->artist,info->album,info->year,info->comment,info->genre,info->track,info->copyright,
+    haveinfo));
+  DECODER_INFO dinfo = { sizeof dinfo };
+  // this part of the structure is binary compatible
+  memcpy(dinfo.title,    info->title,    sizeof dinfo.title);
+  memcpy(dinfo.artist,   info->artist,   sizeof dinfo.artist);
+  memcpy(dinfo.album,    info->album,    sizeof dinfo.album);
+  memcpy(dinfo.year,     info->year,     sizeof dinfo.year);
+  memcpy(dinfo.comment,  info->comment,  sizeof dinfo.comment);
+  memcpy(dinfo.genre,    info->genre,    sizeof dinfo.genre);
+  if (info->track > 0)
+    sprintf(dinfo.track, "%i", info->track);
+  memcpy(dinfo.copyright,info->copyright,sizeof dinfo.copyright);
+  dinfo.track_gain = info->track_gain; 
+  dinfo.track_peak = info->track_peak; 
+  dinfo.album_gain = info->album_gain; 
+  dinfo.album_peak = info->album_peak;
+  //dinfo.codepage = 0; 
+  dinfo.haveinfo   = haveinfo;
+  // Decode file URLs
+  if (strnicmp(filename, "file:", 5) == 0)
+  { filename += 5;
+    char* fname = (char*)alloca(strlen(filename)+1);
+    strcpy(fname, filename);
+    { char* cp = strchr(fname, '/');
+      while (cp)
+      { *cp = '\\';
+        cp = strchr(cp+1, '/');
+      }
+    } 
+    if (strncmp(fname, "\\\\\\", 3) == 0)
+    { fname += 3;
+      if (fname[1] == '|')
+        fname[1] = ':';
+    }
+    filename = fname;
+  }
+  // Call decoder's function
+  return (*op->vdecoder_saveinfo)(filename, &dinfo);
 }
 
 PROXYFUNCIMP(ULONG DLLENTRY, DecoderProxy1)

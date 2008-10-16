@@ -700,6 +700,25 @@ void dec_merge_file_types(stringset& list)
   }
 }
 
+ULONG dec_saveinfo( const char* url, const META_INFO* info, int haveinfo, const char* decoder_name )
+{ DEBUGLOG(("dec_saveinfo(%s, %p, %x, %s)\n", url, info, haveinfo, decoder_name));
+  ULONG rc = PLUGIN_FAILED;
+  // find decoder
+  int i = Decoders.find(decoder_name);
+  if (i >= 0)
+  // get entry points
+  { Decoder* dec = (Decoder*)Decoders[i];
+    const DecoderProcs& procs = dec->GetProcs();
+    if (!procs.decoder_saveinfo)
+      rc = PLUGIN_NO_USABLE;
+    else
+      // detach configure
+      rc = (*procs.decoder_saveinfo)(url, info, haveinfo);
+  }
+  DEBUGLOG(("dec_saveinfo: %d\n", rc));
+  return rc;
+}
+
 ULONG
 dec_editmeta( HWND owner, const char* url, const char* decoder_name )
 { DEBUGLOG(("dec_editmeta(%x, %s, %s)\n", owner, url, decoder_name));

@@ -34,13 +34,13 @@
 #include "infodialog.h"
 #include "pm123.h"
 #include "pm123.rc.h"
+#include "dialog.h"
+#include "glue.h"
 #include <decoder_plug.h>
+#include <plugin.h>
 #include <utilfct.h>
 
 #include <stdio.h>
-
-
-#define UM_UPDATE (WM_USER+1)
 
 
 InfoDialog::PageBase::PageBase(InfoDialog& parent, ULONG rid)
@@ -49,7 +49,8 @@ InfoDialog::PageBase::PageBase(InfoDialog& parent, ULONG rid)
 {}
 
 MRESULT InfoDialog::PageBase::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
-{ switch (msg)
+{ DEBUGLOG2(("InfoDialog(%p)::PageBase::DlgProc(%x, %x, %x)\n", &Parent, msg, mp1, mp2));
+  switch (msg)
   {case WM_INITDLG:
     do_warpsans(GetHwnd());
     WinPostMsg(GetHwnd(), UM_UPDATE, 0, 0);
@@ -140,6 +141,23 @@ MRESULT InfoDialog::Page1Window::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
         PMRASSERT(WinSetWindowText(ctrl, dec ? dec : "n/a"));
         PMRASSERT(WinEnableWindow(ctrl, enabled));
       }
+      { const META_INFO& meta = *Parent.Content->GetInfo().meta;
+        const bool enabled = Parent.Content->CheckInfo(Playable::IF_Meta) == 0;
+        char buffer[32];
+        // Replay gain
+        ctrl = WinWindowFromID(GetHwnd(), EF_METARPGAINT);
+        PMRASSERT(WinSetWindowText(ctrl, meta.track_gain == 0 ? "" : (sprintf(buffer, "%.1f", meta.track_gain), buffer)));
+        PMRASSERT(WinEnableWindow(ctrl, enabled));
+        ctrl = WinWindowFromID(GetHwnd(), EF_METARPPEAKT);
+        PMRASSERT(WinSetWindowText(ctrl, meta.track_peak == 0 ? "" : (sprintf(buffer, "%.1f", meta.track_peak), buffer)));
+        PMRASSERT(WinEnableWindow(ctrl, enabled));
+        ctrl = WinWindowFromID(GetHwnd(), EF_METARPGAINA);
+        PMRASSERT(WinSetWindowText(ctrl, meta.album_gain == 0 ? "" : (sprintf(buffer, "%.1f", meta.album_gain), buffer)));
+        PMRASSERT(WinEnableWindow(ctrl, enabled));
+        ctrl = WinWindowFromID(GetHwnd(), EF_METARPPEAKA);
+        PMRASSERT(WinSetWindowText(ctrl, meta.album_peak == 0 ? "" : (sprintf(buffer, "%.1f", meta.album_peak), buffer)));
+        PMRASSERT(WinEnableWindow(ctrl, enabled));
+      }
       return 0;
     }
   }
@@ -148,51 +166,260 @@ MRESULT InfoDialog::Page1Window::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
 
 MRESULT InfoDialog::Page2Window::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
 { switch (msg)
-  {case UM_UPDATE:
+  {case WM_INITDLG:
+    SetHelpMgr(amp_help_mgr());
+    WinCheckButton(GetHwnd(), CB_METATITLE,    TRUE);
+    WinCheckButton(GetHwnd(), CB_METAARTIST,   TRUE);
+    WinCheckButton(GetHwnd(), CB_METAALBUM,    TRUE);
+    WinCheckButton(GetHwnd(), CB_METATRACK,    TRUE);
+    WinCheckButton(GetHwnd(), CB_METADATE,     TRUE);
+    WinCheckButton(GetHwnd(), CB_METAGENRE,    TRUE);
+    WinCheckButton(GetHwnd(), CB_METACOMMENT,  TRUE);
+    WinCheckButton(GetHwnd(), CB_METACOPYRIGHT,TRUE);
+    break;
+    
+   case UM_UPDATE:
     { // update info values
       DEBUGLOG(("InfoDialog(%p)::Page2Window::DlgProc: UM_UPDATE\n", &Parent));
       char buffer[32];
       HWND ctrl;
       const META_INFO& meta = *Parent.Content->GetInfo().meta;
       const bool enabled = Parent.Content->CheckInfo(Playable::IF_Meta) == 0;
+      const bool nowrite = !enabled || !Parent.Content->GetInfo().meta_write;
+        
       ctrl = WinWindowFromID(GetHwnd(), EF_METATITLE);
       PMRASSERT(WinSetWindowText(ctrl, meta.title));
       PMRASSERT(WinEnableWindow(ctrl, enabled));
+      WinSendMsg(ctrl, EM_SETREADONLY, MPFROMSHORT(nowrite), 0);
       ctrl = WinWindowFromID(GetHwnd(), EF_METAARTIST);
       PMRASSERT(WinSetWindowText(ctrl, meta.artist));
       PMRASSERT(WinEnableWindow(ctrl, enabled));
+      WinSendMsg(ctrl, EM_SETREADONLY, MPFROMSHORT(nowrite), 0);
       ctrl = WinWindowFromID(GetHwnd(), EF_METAALBUM);
       PMRASSERT(WinSetWindowText(ctrl, meta.album));
       PMRASSERT(WinEnableWindow(ctrl, enabled));
+      WinSendMsg(ctrl, EM_SETREADONLY, MPFROMSHORT(nowrite), 0);
       ctrl = WinWindowFromID(GetHwnd(), EF_METATRACK);
-      PMRASSERT(WinSetWindowText(ctrl, meta.track < 0 ? "" : (sprintf(buffer, "%i", meta.track), buffer)));
+      PMRASSERT(WinSetWindowText(ctrl, meta.track <= 0 ? "" : (sprintf(buffer, "%i", meta.track), buffer)));
       PMRASSERT(WinEnableWindow(ctrl, enabled));
+      WinSendMsg(ctrl, EM_SETREADONLY, MPFROMSHORT(nowrite), 0);
       ctrl = WinWindowFromID(GetHwnd(), EF_METADATE);
       PMRASSERT(WinSetWindowText(ctrl, meta.year));
       PMRASSERT(WinEnableWindow(ctrl, enabled));
+      WinSendMsg(ctrl, EM_SETREADONLY, MPFROMSHORT(nowrite), 0);
       ctrl = WinWindowFromID(GetHwnd(), EF_METAGENRE);
       PMRASSERT(WinSetWindowText(ctrl, meta.genre));
       PMRASSERT(WinEnableWindow(ctrl, enabled));
+      WinSendMsg(ctrl, EM_SETREADONLY, MPFROMSHORT(nowrite), 0);
       ctrl = WinWindowFromID(GetHwnd(), EF_METACOMMENT);
       PMRASSERT(WinSetWindowText(ctrl, meta.comment));
       PMRASSERT(WinEnableWindow(ctrl, enabled));
-      ctrl = WinWindowFromID(GetHwnd(), EF_METARPGAINT);
-      PMRASSERT(WinSetWindowText(ctrl, meta.track_gain == 0 ? "" : (sprintf(buffer, "%.1f", meta.track_gain), buffer)));
+      WinSendMsg(ctrl, EM_SETREADONLY, MPFROMSHORT(nowrite), 0);
+      ctrl = WinWindowFromID(GetHwnd(), EF_METACOPYRIGHT);
+      PMRASSERT(WinSetWindowText(ctrl, meta.copyright));
       PMRASSERT(WinEnableWindow(ctrl, enabled));
-      ctrl = WinWindowFromID(GetHwnd(), EF_METARPPEAKT);
-      PMRASSERT(WinSetWindowText(ctrl, meta.track_peak == 0 ? "" : (sprintf(buffer, "%.1f", meta.track_peak), buffer)));
-      PMRASSERT(WinEnableWindow(ctrl, enabled));
-      ctrl = WinWindowFromID(GetHwnd(), EF_METARPGAINA);
-      PMRASSERT(WinSetWindowText(ctrl, meta.album_gain == 0 ? "" : (sprintf(buffer, "%.1f", meta.album_gain), buffer)));
-      PMRASSERT(WinEnableWindow(ctrl, enabled));
-      ctrl = WinWindowFromID(GetHwnd(), EF_METARPPEAKA);
-      PMRASSERT(WinSetWindowText(ctrl, meta.album_peak == 0 ? "" : (sprintf(buffer, "%.1f", meta.album_peak), buffer)));
-      PMRASSERT(WinEnableWindow(ctrl, enabled));
+      WinSendMsg(ctrl, EM_SETREADONLY, MPFROMSHORT(nowrite), 0);
+ 
+      DEBUGLOG(("InfoDialog::Page2Window::DlgProc %u %u %u\n", enabled, nowrite));
+      PMRASSERT(WinEnableControl(GetHwnd(), PB_APPLY, !nowrite));
       return 0;
+    }
+
+   case WM_CONTROL:
+    switch (SHORT1FROMMP(mp1))
+    {case EF_METATITLE:
+     case EF_METAARTIST:
+     case EF_METAALBUM:
+     case EF_METATRACK:
+     case EF_METADATE:
+     case EF_METAGENRE:
+     case EF_METACOMMENT:
+     case EF_METACOPYRIGHT:
+      if (SHORT2FROMMP(mp1) == EN_CHANGE)
+      { DEBUGLOG(("InfoDialog(%p)::Page2Window::DlgProc: EN_CHANGE %u\n", &Parent, SHORT1FROMMP(mp1)));
+        PMRASSERT(WinEnableControl(GetHwnd(), PB_UNDO, TRUE));
+      }
+    }
+    break;
+
+   case WM_COMMAND:
+    DEBUGLOG(("InfoDialog(%p)::Page2Window::DlgProc: WM_COMMAND %u\n", &Parent, SHORT1FROMMP(mp1)));
+    switch (SHORT1FROMMP(mp1))
+    {case PB_UNDO:
+      WinPostMsg(GetHwnd(), UM_UPDATE, 0, 0);
+      return 0;
+     case PB_APPLY:
+      { MetaWriteDlg dlg;
+        char buffer[12];
+        // fetch meta data
+        WinQueryDlgItemText(GetHwnd(), EF_METATITLE,    sizeof dlg.MetaData.title,    dlg.MetaData.title    );
+        WinQueryDlgItemText(GetHwnd(), EF_METAARTIST,   sizeof dlg.MetaData.artist,   dlg.MetaData.artist   );
+        WinQueryDlgItemText(GetHwnd(), EF_METAALBUM,    sizeof dlg.MetaData.album,    dlg.MetaData.album    );
+        WinQueryDlgItemText(GetHwnd(), EF_METATRACK,    sizeof buffer, buffer);
+        dlg.MetaData.track = *buffer ? atoi(buffer) : -1;
+        WinQueryDlgItemText(GetHwnd(), EF_METADATE,     sizeof dlg.MetaData.year,     dlg.MetaData.year     );
+        WinQueryDlgItemText(GetHwnd(), EF_METAGENRE,    sizeof dlg.MetaData.genre,    dlg.MetaData.genre    );
+        WinQueryDlgItemText(GetHwnd(), EF_METACOMMENT,  sizeof dlg.MetaData.comment,  dlg.MetaData.comment  );
+        WinQueryDlgItemText(GetHwnd(), EF_METACOPYRIGHT,sizeof dlg.MetaData.copyright,dlg.MetaData.copyright);
+        // Setup flags
+        dlg.MetaFlags =
+          DECODER_HAVE_TITLE    * SHORT1FROMMR(WinQueryButtonCheckstate(GetHwnd(), CB_METATITLE    )) |
+          DECODER_HAVE_ARTIST   * SHORT1FROMMR(WinQueryButtonCheckstate(GetHwnd(), CB_METAARTIST   )) |
+          DECODER_HAVE_ALBUM    * SHORT1FROMMR(WinQueryButtonCheckstate(GetHwnd(), CB_METAALBUM    )) |
+          DECODER_HAVE_TRACK    * SHORT1FROMMR(WinQueryButtonCheckstate(GetHwnd(), CB_METATRACK    )) |
+          DECODER_HAVE_YEAR     * SHORT1FROMMR(WinQueryButtonCheckstate(GetHwnd(), CB_METADATE     )) |
+          DECODER_HAVE_GENRE    * SHORT1FROMMR(WinQueryButtonCheckstate(GetHwnd(), CB_METAGENRE    )) |
+          DECODER_HAVE_COMMENT  * SHORT1FROMMR(WinQueryButtonCheckstate(GetHwnd(), CB_METACOMMENT  )) |
+          DECODER_HAVE_COPYRIGHT* SHORT1FROMMR(WinQueryButtonCheckstate(GetHwnd(), CB_METACOPYRIGHT));
+        DEBUGLOG(("InfoDialog(%p)::Page2Window::DlgProc: PB_APPLY - %x\n", &Parent, dlg.MetaFlags));
+        // Destination
+        dlg.Dest.append() = Parent.Content;
+        // Invoke worker dialog
+        DEBUGLOG(("InfoDialog(%p)::Page2Window::DlgProc: PB_APPLY - before DoDialog\n", &Parent));
+        dlg.DoDialog(GetHwnd());
+        DEBUGLOG(("InfoDialog(%p)::Page2Window::DlgProc: PB_APPLY - after DoDialog\n", &Parent));
+        return 0;
+      }
     }
   }
   return PageBase::DlgProc(msg, mp1, mp2);
 }
+
+
+InfoDialog::MetaWriteDlg::MetaWriteDlg()
+: DialogBase(DLG_WRITEMETA, NULLHANDLE),
+  MetaFlags(0),
+  SkipErrors(false),
+  WorkerTID(0),
+  Cancel(false)
+{ DEBUGLOG(("InfoDialog::MetaWriteDlg(%p)::MetaWriteDlg()\n", this));
+  memset(&MetaData, 0, sizeof MetaData);
+  MetaData.size = sizeof MetaData;
+}
+
+InfoDialog::MetaWriteDlg::~MetaWriteDlg()
+{ DEBUGLOG(("InfoDialog::MetaWriteDlg(%p)::~MetaWriteDlg() - %u\n", this, WorkerTID));
+  // Wait for the worker thread to complete (does not hold the SIQ)
+  if (WorkerTID)
+  { Cancel = true;
+    ResumeSignal.Set();
+    wait_thread_pm(amp_player_hab(), WorkerTID, 5*60*1000);
+  }
+}
+
+MRESULT InfoDialog::MetaWriteDlg::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
+{ char buffer[60];
+  switch (msg)
+  {case WM_INITDLG:
+    // setup first destination   
+    PMRASSERT(WinSetDlgItemText(GetHwnd(), EF_WMURL, Dest[0]->GetURL().cdata()));
+    PMRASSERT(WinPostMsg(GetHwnd(), UM_START, 0, 0));
+    break; 
+     
+   case UM_START:
+    DEBUGLOG(("InfoDialog::MetaWriteDlg(%p)::DlgProc: UM_START\n", this));
+    CurrentItem = 0;
+    WorkerTID = _beginthread(&InfoDialogMetaWriteWorkerStub, NULL, 65536, this);
+    ASSERT(WorkerTID != -1);
+    return 0;
+    
+   case UM_STATUS:
+    { DEBUGLOG(("InfoDialog::MetaWriteDlg(%p)::DlgProc: UM_STATUS %i, %i\n", this, mp1, mp2));
+      int i = LONGFROMMP(mp1);
+      if (i < 0)
+      { // Terminate Signal
+        WinDismissDlg(GetHwnd(), DID_OK);
+        return 0;
+      }
+      // else
+      { // Update progress bar
+        SWP swp;
+        PMRASSERT(WinQueryWindowPos(WinWindowFromID(GetHwnd(), SB_WMBARBG), &swp));
+        swp.cx = swp.cx * (i+1) / Dest.size();
+        PMRASSERT(WinSetWindowPos(WinWindowFromID(GetHwnd(), SB_WMBARFG), NULLHANDLE, 0,0, swp.cx,swp.cy, SWP_SIZE));
+      }
+
+      if (mp2 == PLUGIN_OK)
+      { // Everything fine, next item
+        PMRASSERT(WinSetDlgItemText(GetHwnd(), EF_WMSTATUS, ""));
+        ++i; // next item (if any)
+        PMRASSERT(WinSetDlgItemText(GetHwnd(), EF_WMURL, i < Dest.size() ? Dest[i]->GetURL().cdata() : ""));
+        return 0;
+      }
+      // Error, worker halted
+      sprintf(buffer, "Failed to write meta info. %s reported error %u", Dest[i]->GetDecoder(), LONGFROMMP(mp2));
+      PMRASSERT(WinSetDlgItemText(GetHwnd(), EF_WMSTATUS, buffer));
+      // 'skip all' was pressed? => continue immediately
+      if (SkipErrors)
+      { ResumeSignal.Set();
+        return 0;
+      }
+      // Enable skip buttons
+      PMRASSERT(WinEnableControl(GetHwnd(), PB_WMRETRY,   TRUE));
+      PMRASSERT(WinEnableControl(GetHwnd(), PB_WMSKIP,    TRUE));
+      PMRASSERT(WinEnableControl(GetHwnd(), PB_WMSKIPALL, TRUE));
+      return 0;
+    }
+
+   case WM_COMMAND:
+    switch (SHORT1FROMMP(mp1))
+    {case DID_CANCEL:
+      Cancel = true;
+      ResumeSignal.Set();
+      PMRASSERT(WinSetDlgItemText(GetHwnd(), EF_WMSTATUS, "- cancelling -"));
+      PMRASSERT(WinEnableControl( GetHwnd(), DID_CANCEL,  FALSE));
+      break;
+
+     case PB_WMSKIPALL:
+      SkipErrors = true;
+     case PB_WMSKIP:
+      // next item
+      ++CurrentItem;
+     case PB_WMRETRY:
+      // Disable skip buttons
+      PMRASSERT(WinEnableControl(GetHwnd(), PB_WMRETRY,   FALSE));
+      PMRASSERT(WinEnableControl(GetHwnd(), PB_WMSKIP,    FALSE));
+      PMRASSERT(WinEnableControl(GetHwnd(), PB_WMSKIPALL, FALSE));
+      ResumeSignal.Set();
+    }
+    return 0;
+  }
+  return DialogBase::DlgProc(msg, mp1, mp2);
+}
+
+ULONG InfoDialog::MetaWriteDlg::DoDialog(HWND owner)
+{ DEBUGLOG(("InfoDialog::MetaWriteDlg(%p)::DoDialog() - %u %x\n", this, Dest.size(), MetaFlags));
+  if (Dest.size() == 0 || MetaFlags == 0)
+    return DID_OK;
+  StartDialog(owner);
+  return WinProcessDlg(GetHwnd()); 
+}
+
+void InfoDialog::MetaWriteDlg::Worker()
+{ while (!Cancel && CurrentItem < Dest.size())
+  { Song& song = (Song&)*Dest[CurrentItem];
+    DEBUGLOG(("InfoDialog::MetaWriteDlg(%p)::Worker - %u %s\n", this, CurrentItem, song.GetURL().cdata()));
+    // Write info
+    ULONG rc = song.SaveMetaInfo(MetaData, MetaFlags);
+    // Notify dialog
+    PMRASSERT(WinPostMsg(GetHwnd(), UM_STATUS, MPFROMLONG(CurrentItem), MPFROMLONG(rc)));
+    if (Cancel)
+      return;
+    // wait for acknowledge
+    if (rc != PLUGIN_OK)
+    { ResumeSignal.Wait();
+      ResumeSignal.Reset();
+    } else
+      ++CurrentItem;
+  }
+  WinPostMsg(GetHwnd(), UM_STATUS, MPFROMLONG(-1), MPFROMLONG(0));
+  DEBUGLOG(("InfoDialog::MetaWriteDlg(%p)::Worker completed\n", this));
+}
+
+void TFNENTRY InfoDialogMetaWriteWorkerStub(void* arg)
+{ ((InfoDialog::MetaWriteDlg*)arg)->Worker();
+}
+
 
 InfoDialog::InfoDialog(Playable* p)
 : ManagedDialogBase(DLG_INFO, NULLHANDLE),
@@ -205,6 +432,11 @@ InfoDialog::InfoDialog(Playable* p)
   StartDialog();
 }
 
+/*InfoDialog::~InfoDialog()
+{ DEBUGLOG(("InfoDialog(%p)::~InfoDialog()\n", this));
+  SynchronizeWorker();
+}*/
+
 
 InfoDialog::Factory InfoDialog::Factory::Instance;
 
@@ -214,13 +446,15 @@ InfoDialog* InfoDialog::Factory::operator()(Playable*& key)
 
 void InfoDialog::StartDialog()
 { DEBUGLOG(("InfoDialog(%p)::StartDialog()\n", this));
-  ManagedDialogBase::StartDialog(HWND_DESKTOP/*amp_player_window()*/);
+  ManagedDialogBase::StartDialog(HWND_DESKTOP);
   // setup notebook windows
   Page1.StartDialog();
   Page2.StartDialog();
-  HWND book = WinWindowFromID(GetHwnd(), FID_CLIENT);
-  PMRASSERT(nb_append_tab(book, Page1.GetHwnd(), "Tech. info", NULL, 0));
-  PMRASSERT(nb_append_tab(book, Page2.GetHwnd(), "Meta info", NULL, 0));
+  HWND book = WinWindowFromID(GetHwnd(), NB_INFO);
+  PageIDs[0] = nb_append_tab(book, Page1.GetHwnd(), "Tech. info", NULL, 0);
+  PMASSERT(PageIDs[0] != 0);
+  PageIDs[1] = nb_append_tab(book, Page2.GetHwnd(), "Meta info", NULL, 0);
+  PMASSERT(PageIDs[1] != 0);
 }
 
 MRESULT InfoDialog::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
@@ -253,9 +487,9 @@ MRESULT InfoDialog::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
 
 void InfoDialog::ContentChangeEvent(const Playable::change_args& args)
 { if (args.Flags & (Playable::IF_Format|Playable::IF_Tech|Playable::IF_Phys|Playable::IF_Rpl|Playable::IF_Other))
-    WinPostMsg(Page1.GetHwnd(), UM_UPDATE, MPFROMLONG(args.Flags), 0);
+    WinPostMsg(Page1.GetHwnd(), PageBase::UM_UPDATE, MPFROMLONG(args.Flags), 0);
   if (args.Flags & Playable::IF_Meta)
-    WinPostMsg(Page2.GetHwnd(), UM_UPDATE, MPFROMLONG(args.Flags), 0);
+    WinPostMsg(Page2.GetHwnd(), PageBase::UM_UPDATE, MPFROMLONG(args.Flags), 0);
 }
 
 /*void InfoDialog::SetVisible(bool show)
@@ -263,6 +497,11 @@ void InfoDialog::ContentChangeEvent(const Playable::change_args& args)
   if (show && !GetVisible())
 
 }*/
+
+void InfoDialog::ShowPage(PageNo page)
+{ WinSendDlgItemMsg(GetHwnd(), NB_INFO, BKM_TURNTOPAGE, MPFROMLONG(PageIDs[page]), 0);
+  SetVisible(true);
+}
 
 int_ptr<InfoDialog> InfoDialog::GetByKey(Playable* obj)
 { // provide factory

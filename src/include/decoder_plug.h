@@ -313,16 +313,32 @@ typedef struct _DECODER_INFO2
  * decoder_fileinfo must not change fields that correspond to reset bits in what.
  * It must not change the pointers in DECODER_INFO2 either.
  */
-ULONG DLLENTRY decoder_fileinfo   ( const char* url, int* what, DECODER_INFO2* info );
-#else
-ULONG DLLENTRY decoder_fileinfo   ( const char* filename, DECODER_INFO* info );
-ULONG DLLENTRY decoder_trackinfo  ( const char* drive, int track, DECODER_INFO* info );
-#endif
-
-/* returns
+ULONG DLLENTRY decoder_fileinfo ( const char* url, int* what, DECODER_INFO2* info );
+/* Update meta information of file
+   filename
+      File to modify
+   info
+      New meta information
+   haveinfo
+      Fields of info that should be overwritten
+   returns
       PLUGIN_OK      = everything's perfect, structure is saved to filename,
       other values   = errno, check xio_strerror() for string. */
-ULONG DLLENTRY decoder_saveinfo( const char* filename, const DECODER_INFO* info );
+ULONG DLLENTRY decoder_saveinfo ( const char* filename, const META_INFO* info, int haveinfo );
+#else
+ULONG DLLENTRY decoder_fileinfo ( const char* filename, DECODER_INFO* info );
+ULONG DLLENTRY decoder_trackinfo( const char* drive, int track, DECODER_INFO* info );
+/* Update meta information of file
+   filename
+      File to modify
+   info
+      New meta information
+   returns
+      PLUGIN_OK      = everything's perfect, structure is saved to filename,
+      other values   = errno, check xio_strerror() for string. */
+ULONG DLLENTRY decoder_saveinfo ( const char* filename, const DECODER_INFO* info );
+#endif
+
 
 typedef struct _DECODER_CDINFO
 {

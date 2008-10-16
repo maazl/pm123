@@ -65,12 +65,16 @@ class DialogBase
   // Static members must not use EXPENTRY linkage with IBM VACPP.
   friend MRESULT EXPENTRY wb_DlgProcStub(HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2);
 
+ private: // non-copyable
+  DialogBase(const DialogBase&);
+  void operator=(const DialogBase&);
+  
  protected:
   // Create a playlist manager window for an object, but don't open it.
   DialogBase(ULONG rid, HMODULE module);
 
   // load dialog ressources and create window
-  void              StartDialog(HWND parent, HWND owner = HWND_DESKTOP);
+  void              StartDialog(HWND owner, HWND parent = HWND_DESKTOP);
   // Dialog procedure, called by DlgProcStub
   virtual MRESULT   DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2);
   // Dialog initialization
@@ -82,7 +86,10 @@ class DialogBase
   xstring           GetTitle() const { return Title; };
   // Set the window title
   void              SetTitle(const xstring& title);
-
+  
+  // Set Help Manager
+  void              SetHelpMgr(HWND hhelp);
+  
  public: // public interface
   virtual           ~DialogBase();
   // Get the window handle
