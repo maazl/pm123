@@ -1,0 +1,59 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html resid="1007" level="3" sublinks="*"><head>
+   <title>Object info dialog and tag editor</title>
+   <style type="text/css"></style><link rel="stylesheet" href="infstyle.css" type="text/css"></head>
+<body>
+<h2>PM123's object info dialog and tag editor</h2>
+<h3><a name="metainfo"></a>Tag editor</h3>
+<blockquote>
+  <img alt="Meta Info Editor" src="images/tagedit.png" height="404" width="482">
+</blockquote>
+<p>PM123's file info editor is quite simpled. It can be invoked for the current
+file from the <a href="mainmenu.html">main menu</a> or by pressing <b>Ctrl+E</b>
+on the <a href="mainwin.html">player window</a>. You can also edit the info of the files in the playlist
+by selecting <i>Edit file info</i>
+from the <a href="playlist_cmi.html">playlists context menu</a> or by pressing <b>Ctrl+E</b> in the <a href="playlist.html">playlist</a> or <a href="manager.html">playlist manager</a>.</p>
+<p>The <em>checkboxes</em>
+right to each entry field select whether the specified field is
+overwritten. This can make a difference e.g. for MP3 files when the ID3
+V1.x tag and the ID3 V2 tag are different. In this case both are
+overwritten when the appropriate box is checked.</p>
+<p>If the selected object does not support writing of the tag, like internet streams, the buttons are disabled.</p>
+<p>If the plug-in for the current file supports an <em>alternative tag editor</em> (<a href="id3edit.html">like mpg123 does</a>), this editor is preferred over the built-in one.</p>
+<h4>Edit tags of multiple files</h4>
+<blockquote>
+  <img alt="Multiple Tag Editor" src="images/tagmultiedit.png" height="404" width="482">
+</blockquote>
+<p>You also can set the info for several files at once. Select more than one files in
+playlist, invoke File Info Editor, fill the necessary fields, select
+choices on the right and press the <i>Apply</i>. By default only the boxes of fields, that have identical values for all selected files, are checked.</p>
+<h3><a name="techinfo"></a>View technical info</h3>
+<blockquote>
+  <img alt="Technical information viewer" src="images/techinfo.png" height="404" width="482">
+</blockquote>
+<p>Also you can see some technical info about selected items(s). This also applies to playlists.</p>
+<dl>
+  <dt><b>File size</b></dt>
+  <dd>Physical file size of the currently selected item.</dd>
+  <dt><b>total</b>&nbsp;file size</dt>
+  <dd>Total file size of all included song items (without playlists).</dd>
+  <dt><b>Playing time</b></dt>
+  <dd>Total playing time of all selected items.</dd>
+  <dt><b>No. of items</b> (playlists only)</dt>
+  <dd>Number of items in the currently selected playlist. This does not include songs in nested playlists.</dd>
+  <dt>No. of <b>Songs</b> (playlist only)</dt>
+  <dd>Number of songs including the ones in nested playlists.</dd>
+  <dt><b>Bitrate</b></dt>
+  <dd>Average bit rate of all selected items.</dd>
+  <dt><b>Sampling rate</b> (songs only)</dt>
+  <dd>Sampling rate of the current song.</dd>
+  <dt><b>Channels</b> (song only)</dt>
+  <dd>Number of Channels of the current song. 1&nbsp;= mono, 2&nbsp;= stereo.</dd>
+  <dt><b>Decoder</b></dt>
+  <dd>Decoder plug-in of the currently selected items (if unique).</dd>
+  <dt><b>Info string</b></dt>
+  <dd>Technical information string of the currently selected items (if unique).</dd>
+  <dt><b>Replay gain</b> and <b>peak gain</b></dt>
+  <dd>Psychoacoustic values of <a href="http://www.replaygain.org/">Replay Gain</a> used for playback with homogeneous loudness.</dd>
+</dl>
+</body></html>

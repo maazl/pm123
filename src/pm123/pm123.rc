@@ -381,6 +381,7 @@ BEGIN
   "B",        IDM_M_ADDBOOK,        CHAR|CONTROL|SHIFT
   "b",        IDM_M_ADDPLBOOK,      CHAR|CONTROL
   "d",        IDM_M_DETAILED,       CHAR|CONTROL
+  "E",        IDM_M_TAG,            CHAR|CONTROL|SHIFT
   "e",        IDM_M_TAG,            CHAR|CONTROL
   "I",        IDM_M_INFO,           CHAR|CONTROL|SHIFT
   "i",        IDM_M_PLINFO,         CHAR|CONTROL
@@ -957,6 +958,7 @@ BEGIN
   "c",        IDM_PL_CLEAR,       CHAR|CONTROL
   "D",        IDM_PL_DETAILED,    CHAR|CONTROL|SHIFT
   "d",        IDM_PL_DETAILEDALL, CHAR|CONTROL
+  "E",        IDM_PL_EDIT,        CHAR|CONTROL|SHIFT
   "e",        IDM_PL_EDIT,        CHAR|CONTROL
   "I",        IDM_PL_INFO,        CHAR|CONTROL|SHIFT
   "i",        IDM_PL_INFOALL,     CHAR|CONTROL

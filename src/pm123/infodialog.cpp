@@ -555,7 +555,8 @@ MultipleInfoDialog::MultipleInfoDialog(const PlayableSetBase& key)
 MRESULT MultipleInfoDialog::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
 { switch (msg)
   {case WM_INITDLG:
-    SetTitle(xstring::sprintf("PM123 - %u objects: %s...", Key->size(), (*Key)[0]->GetURL().getDisplayName().cdata()));
+    // Since we are _Multiple_InfoDialog there are at least two items.
+    SetTitle(xstring::sprintf("PM123 - %u objects: %s, %s ...", Key->size(), (*Key)[0]->GetURL().getShortName().cdata(), (*Key)[1]->GetURL().getShortName().cdata()));
     break;
   }
   return InfoDialog::DlgProc(msg, mp1, mp2);
