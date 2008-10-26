@@ -290,9 +290,10 @@ class vector_int : public vector_base
 template <class T>
 void vector_int<T>::IncRefs()
 { int_ptr<T>* tpp = end();
+  int_ptr<T> worker;
   while (tpp != begin())
   { DEBUGLOG2(("vector_int(%p)::IncRefs - %p\n", this, tpp->get()));
-    (--tpp)->toCptr();
+    worker.fromCptr(*--tpp);
   }
 }
 
@@ -335,6 +336,15 @@ struct IComparableTo
 bool binary_search_base(const vector_base& data, int (*fcmp)(const void* elem, const void* key),
   const void* key, size_t& pos);
 
+template <class T, class K>
+struct sorted_vector_comparer
+{ static int         cmp(const void* elem, const void* key);
+};
+template <class T, class K>
+int sorted_vector_comparer<T,K>::cmp(const void* elem, const void* key)
+{ return ((T*)elem)->compareTo(*(const K*)key);
+}
+
 /* Sorted variant of vector using the key type K.
  * Object in this container must implement IComparableTo<K>
  */
@@ -350,7 +360,7 @@ class sorted_vector : public vector<T>
   // The index of the first element >= key is always returned in the output parameter pos.
   // Precondition: none, Performance: O(log(n))
   bool               binary_search(const K& key, size_t& pos) const
-                     { return binary_search_base(*this, &sorted_vector<T,K>::Comparer, &key, pos); }
+                     { return binary_search_base(*this, &sorted_vector_comparer<T,K>::cmp, &key, pos); }
   // Find an element by it's key.
   // The function will return NULL if no such element is in the container.
   // Precondition: none, Performance: O(log(n))
@@ -368,8 +378,6 @@ class sorted_vector : public vector<T>
   // IBM VAC++ can't parse using...
   T*                 erase(T*const*& where)         { return vector<T>::erase(where); }
   T*                 erase(size_t where)            { return vector<T>::erase(where); }
- private:
-  static int         Comparer(const void* elem, const void* key);
 };
 
 
@@ -390,11 +398,6 @@ template <class T, class K>
 T* sorted_vector<T,K>::erase(const K& key)
 { size_t pos;
   return binary_search(key, pos) ? vector<T>::erase(pos) : NULL;
-}
-
-template <class T, class K>
-int sorted_vector<T,K>::Comparer(const void* elem, const void* key)
-{ return ((T*)elem)->compareTo(*(const K*)key);
 }
 
 
@@ -437,6 +440,63 @@ sorted_vector_own<T, K>& sorted_vector_own<T, K>::operator=(const sorted_vector_
 }
 
 
+/* Sorted vector of objects with members with intrusive reference counter.
+ * Objects in this container must implement Iref_count and IComparableTo<K>
+ */
+template <class T, class K>
+class sorted_vector_int : public vector_int<T>
+{public:
+  // Create a new vector with a given initial capacity.
+  // If capacity is 0 the vector is initially created empty
+  // and allocated with the default capacity when the first item is inserted.
+  sorted_vector_int(size_t capacity = 0) : vector_int<T>(capacity) {}
+
+  // Search for a given key.
+  // The function returns whether you got an exact match or not.
+  // The index of the first element >= key is always returned in the output parameter pos.
+  // Precondition: none, Performance: O(log(n))
+  bool               binary_search(const K& key, size_t& pos) const
+                     { return binary_search_base(*this, &sorted_vector_comparer<T,K>::cmp, &key, pos); }
+  // Find an element by it's key.
+  // The function will return NULL if no such element is in the container.
+  // Precondition: none, Performance: O(log(n))
+  int_ptr<T>         find(const K& key) const;
+  // Ensure an element with a particular key.
+  // This will either return a reference to a pointer to an existing object which equals to key
+  // or a reference to a NULL pointer which is automatically created at the location in the container
+  // where a new object with key should be inserted. So you can store the Pointer to this object after the funtion returned.
+  // Precondition: none, Performance: O(log(n))
+  int_ptr<T>&        get(const K& key);
+  // Erase the element which equals key and return the removed pointer.
+  // If no such element exists the function returns NULL.
+  // Precondition: none, Performance: O(log(n))
+  int_ptr<T>         erase(const K& key);
+  // IBM VAC++ can't parse using...
+  int_ptr<T>         erase(const int_ptr<T>*& where){ return vector_int<T>::erase(where); }
+  int_ptr<T>         erase(size_t where)            { return vector_int<T>::erase(where); }
+};
+
+/* Template implementations */
+template <class T, class K>
+int_ptr<T> sorted_vector_int<T,K>::find(const K& key) const
+{ size_t pos;
+  return binary_search(key, pos) ? (*this)[pos] : NULL;
+}
+
+template <class T, class K>
+int_ptr<T>& sorted_vector_int<T,K>::get(const K& key)
+{ size_t pos;
+  return binary_search(key, pos) ? (*this)[pos] : insert(pos);
+}
+
+template <class T, class K>
+int_ptr<T> sorted_vector_int<T,K>::erase(const K& key)
+{ size_t pos;
+  return binary_search(key, pos) ? vector_int<T>::erase(pos) : int_ptr<T>(NULL);
+}
+
+
+
 /* Class to implement ICompareableTo for comparsion with myself and instance equality semantic.
  * The comparer provides an unspecified but stable order.
  */
@@ -455,7 +515,7 @@ int InstanceCompareable<T>::compareTo(const T& key) const
 
 /* Class to implement a repository of all objects instances of a certain type
  * identified by a key K.
- * The Instances of type T must implement Iref_Count and ICompareable<K*>
+ * The Instances of type T must implement Iref_Count and ICompareable<K>
  * and both must be /before/ inst_index in the base class list to avoid undefined bahavior.
  * Classes of type T must inherit from inst_index<T, K> to implement this feature.
  * You must redefine the static function GetByKey to provide a suitable factory
@@ -514,8 +574,8 @@ inst_index<T,K>::~inst_index()
   Mutex::Lock lock(Mtx);
   size_t pos;
   if (Index.binary_search(Key, pos))
-  { DEBUGLOG(("inst_index::~inst_index: found at %i - %u\n", pos, Index[pos] == this));
-    if (Index[pos] == this)
+  { DEBUGLOG(("inst_index::~inst_index: found at %i - %u\n", pos, Index[pos]->compareTo(Key)));
+    if (Index[pos]->compareTo(Key) == 0)
       Index.erase(pos);
     // else => another instance is already in the index.
   } else 
@@ -581,8 +641,5 @@ template <class T>
 inline void merge_sort(T** begin, T** end, int (*comp)(const T* l, const T* r))
 { merge_sort_base((void**)begin, (void**)end, (int (*)(const void* l, const void* r))comp);
 }
-
-//template <class T>
-//T& binary_search(
 
 #endif
