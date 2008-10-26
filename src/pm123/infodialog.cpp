@@ -46,7 +46,7 @@
 class SingleInfoDialog 
 : public InfoDialog
 {private:
-  Data_             DataCache;
+  struct Data       DataCache;
   bool              DataCacheValid;
   class_delegate<SingleInfoDialog, const Playable::change_args> ContentChangeDeleg;
 
@@ -54,7 +54,7 @@ class SingleInfoDialog
                     SingleInfoDialog(const PlayableSetBase& key);
  private:
   virtual MRESULT   DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2);
-  virtual Data_     GetData();
+  virtual struct Data GetData();
   void              ContentChangeEvent(const Playable::change_args& args);
 };
 
@@ -62,7 +62,7 @@ class SingleInfoDialog
 class MultipleInfoDialog
 : public InfoDialog
 {private:
-  Data_             DataCache;
+  struct Data       DataCache;
   bool              DataCacheValid;
   Playable::DecoderInfo MergedInfo;
 
@@ -71,7 +71,7 @@ class MultipleInfoDialog
  private: // Dialog functions
   virtual MRESULT   DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2);
  private: // Data source
-  virtual Data_     GetData();
+  virtual struct Data GetData();
   void              ApplyFlags(const Playable& item);
   void              JoinInfo(const Playable& item);
   void              CompareField(Fields fld, const char* l, const char* r);
@@ -118,7 +118,7 @@ MRESULT InfoDialog::PageTechInfo::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
       DEBUGLOG(("InfoDialog(%p)::PageTechInfo::DlgProc: UM_UPDATE\n", &Parent));
       char buffer[32];
       HWND ctrl;
-      const Data_& data = Parent.GetData();
+      const struct Data& data = Parent.GetData();
       Enabled = data.Enabled;
       Valid = data.Valid;
       { const PHYS_INFO& phys = *data.Info->phys;
@@ -185,7 +185,7 @@ MRESULT InfoDialog::PageMetaInfo::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
       DEBUGLOG(("InfoDialog(%p)::PageMetaInfo::DlgProc: UM_UPDATE\n", &Parent));
       char buffer[32];
       HWND ctrl;
-      const Data_& data = Parent.GetData();
+      const struct Data& data = Parent.GetData();
       Enabled = data.Enabled;
       Valid = data.Valid;
       const META_INFO& meta = *data.Info->meta;
@@ -513,7 +513,7 @@ MRESULT SingleInfoDialog::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
   return InfoDialog::DlgProc(msg, mp1, mp2);
 }
 
-InfoDialog::Data_ SingleInfoDialog::GetData()
+struct InfoDialog::Data SingleInfoDialog::GetData()
 { DEBUGLOG(("SingleInfoDialog(%p)::GetData() %u - %p\n", this, DataCacheValid, (*Key)[0]));
   if (!DataCacheValid)
   { DataCacheValid = true;
@@ -562,7 +562,7 @@ MRESULT MultipleInfoDialog::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
   return InfoDialog::DlgProc(msg, mp1, mp2);
 }
 
-InfoDialog::Data_ MultipleInfoDialog::GetData()
+struct InfoDialog::Data MultipleInfoDialog::GetData()
 { DEBUGLOG(("MultipleInfoDialog(%p)::GetData() %u - %u %s\n", this, DataCacheValid, Key->size(), Key->DebugDump().cdata()));
   if (!DataCacheValid)
   { DataCacheValid = true;

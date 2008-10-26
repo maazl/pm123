@@ -95,9 +95,9 @@ class InfoDialog
     F_RPL_INFO    = 0x30000000
   };
   CLASSFLAGSATTRIBUTE(Fields);
-  struct Data_; // ICC Work-Around
-  friend Data_;
-  struct Data_
+  struct Data; // ICC Work-Around
+  friend struct Data;
+  struct Data
   { const DECODER_INFO2* Info;
     const char*     Decoder;
     Fields          Enabled; // The following fields are shown enabled (= the content makes sense)
@@ -201,7 +201,7 @@ class InfoDialog
                     InfoDialog(const PlayableSetBase& key);
   void              StartDialog();
   virtual MRESULT   DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2);
-  virtual Data_     GetData() = 0;
+  virtual struct Data GetData() = 0;
 
  public:
   virtual           ~InfoDialog();
