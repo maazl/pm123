@@ -1,96 +1,107 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
-<html resid="1021" sublinks="*"><head>
-  <title>Migrating to PM123 1.40</title>
-  <link rel="stylesheet" href="infstyle.css" type="text/css">
+<html resid="1021" sublinks="*">
+<head><title>Migrating to PM123 1.40</title>
+
+<link rel="stylesheet" href="infstyle.css" type="text/css">
 </head>
 <body>
-
 <h2>Migrating to PM123 1.40</h2>
-<p>There are some major changes in the GUI that you should be aware of when moving
-  from an earlier version. The most important ones are listed below.
-  For further information see the <a href="../History.txt">change log</a>.</p>
-
+<p>There are some major changes in the GUI that you should be
+aware of when moving from an earlier version. The most important ones
+are listed below. For further information see the <a href="../History.txt">change log</a>. See also the <a href="compatibility.html">compatibility issues</a> if
+you want to continue using earlier PM123 versions.</p>
 <h3>Main window</h3>
 <h4>Visual plug-in</h4>
-<p>You must use a <strong>double click</strong> to change the visual plug-in style.
-  This prevents from switching the style accidentally.</p>
+<p>You must use a <strong>double click</strong> to
+change the visual plug-in style. This prevents from switching the style
+accidentally.</p>
 <h4>Alternate navigation</h4>
 <blockquote>
-<img src="images/altslider.png">
-</blockquote>
-<p>While playing a playlist you can navigate with the slider through the entire list
-  by pressing the <strong>Alt key</strong>.
-  The exact behavior is controlled by the <a href="settings2.html">navigation settings</a>
-  of the <a href="properties.html">properties dialog</a>.  
-</p><h4>Equalizer has vanished</h4>
-<p>Well, that's true.
-  The simple equalizer from the context menu has been removed because the only
-  plug-in that supported it was mpg123. Any other plug-in including WAV and Ogg-Vorbis
-  playback
-  silently ignored it. This caused the sound to depend on the encoding and to
-  change within playlists. A bad thing.</p>
-<p>I recommend to use the powerful <a href="realeq.html">RealEQ plug-in</a> as an alternative.
-  If you do not care about its precision use conservative setting like an FIR order of 4096.</p>
-<p>If you do not like this alternative or it eats too much CPU for your purposes,
-  you have to wait for a parametric EQ plug-in which uses very fast IIR filters.
-  This will require nearly no CPU cycles and work with any source although.
-  However, one must do the job.</p>
-
+<img src="images/altslider.png"></blockquote>
+<p>While playing a playlist you can navigate with the slider
+through the entire list by pressing the <strong>Alt key</strong>.
+The exact behavior is controlled by the <a href="settings2.html">navigation
+settings</a> of the <a href="properties.html">properties
+dialog</a>. </p>
+<h4>Equalizer has vanished</h4>
+<p>Well, that's true. The simple equalizer from the context menu
+has been removed because the only plug-in that supported it was mpg123.
+Any other plug-in including WAV and Ogg-Vorbis playback silently
+ignored it. This caused the sound to depend on the encoding and to
+change within playlists. A bad thing.</p>
+<p>I recommend to use the powerful <a href="realeq.html">RealEQ
+plug-in</a> as an alternative. If you do not care about its
+precision use conservative setting like an FIR order of 4096.</p>
+<p>If you do not like this alternative or it eats too much CPU
+for your purposes, you have to wait for a parametric EQ plug-in which
+uses very fast IIR filters. This will require nearly no CPU cycles and
+work with any source although. However, one must do the job.</p>
 <h3>Playlist windows</h3>
 <img src="images/playlist.png">
-<p>Playlists, the playlist manager and bookmarks are now basically the same thing.
-  Furthermore you can <strong>open multiple playlists</strong>. That means:</p>
+<p>Playlists, the playlist manager and bookmarks are now
+basically the same thing. Furthermore you can <strong>open
+multiple playlists</strong>. That means:</p>
 <ul>
-  <li>The <strong><a href="playlist.html">Playlist Window</a></strong> is now
-    nothing more than a <strong>detailed view</strong> of a playlist.</li>
-  <li>The <strong>playlist button</strong> will open the <strong>default playlist</strong>.</li>
-  <li>The default playlist is used if you drop more than one object
-        on the player.</li>
-  <li>The <strong><a href="manager.html">Playlist Manager</a></strong> is a <strong>tree
-      view</strong> of
-    another default playlist, which usually contains other playlists, of course.</li>
-  <li>The <strong><a herf="bookmark.html">bookmark editor</a></strong>
-    is now a detailed view of a special playlist that is visualized in the player's context menu.</li>
-  <li>You can use drag and drop and direct manipulation to modify all of the
-    above.</li>
-  <li>Different views of the same content are immediately synchronized as long
-    they are part of the same PM123 instance.</li>
+<li>The <strong><a href="playlist.html">Playlist
+Window</a></strong> is now nothing more than a <strong>detailed
+view</strong> of a playlist.</li>
+<li>The <strong>playlist button</strong> will open
+the <strong>default playlist</strong>.</li>
+<li>The default playlist is used if you drop more than one
+object on the player.</li>
+<li>The <strong><a href="manager.html">Playlist
+Manager</a></strong> is a <strong>tree view</strong>
+of another default playlist, which usually contains other playlists, of
+course.</li>
+<li>The <strong><a herf="bookmark.html">bookmark
+editor</a></strong> is now a detailed view of a special
+playlist that is visualized in the player's context menu.</li>
+<li>You can use drag and drop and direct manipulation to modify
+all of the above.</li>
+<li>Different views of the same content are immediately
+synchronized as long they are part of the same PM123 instance.</li>
 </ul>
-
 <h4>Nested playlists</h4>
-<p>Playlists may contain other playlists and they may contain further playlists
-  and so on. This has the following effects:</p>
+<p>Playlists may contain other playlists and they may contain
+further playlists and so on. This has the following effects:</p>
 <ul>
-  <li>All items of a child playlist are played when the playback
-    reaches the sublist and before PM123 continues in the parent list.</li>
-  <li>In shuffle mode items in different sublists are not interchanged.</li>
-  <li>The PM123 main window flattens the nested lists and shows always the index
-    and the time offsets within all Song items in the nested list structure.
-    To see what's going on open a tree view of the currently played list
-    ('<a href="mainmenu.html">Context menu</a>/Current Playlist/Show tree view'
-    or simply 'Ctrl+T').</li>
-  <li>Nested playlists in the bookmark list cause sub menus.</li>
-  <li>When the playlists are nested recursively the player will ignore sublists
-    that are already in the call stack. This avoids an infinite recursion.</li>
+<li>All items of a child playlist are played when the playback
+reaches the sublist and before PM123 continues in the parent list.</li>
+<li>In shuffle mode items in different sublists are not
+interchanged.</li>
+<li>The PM123 main window flattens the nested lists and shows
+always the index and the time offsets within all Song items in the
+nested list structure. To see what's going on open a tree view of the
+currently played list ('<a href="mainmenu.html">Context
+menu</a>/Current Playlist/Show tree view' or simply 'Ctrl+T').</li>
+<li>Nested playlists in the bookmark list cause sub menus.</li>
+<li>When the playlists are nested recursively the player will
+ignore sublists that are already in the call stack. This avoids an
+infinite recursion.</li>
 </ul>
 <h4>File system folders</h4>
-<p>PM123 is able to play the content of <a href="playfolder.html">file system folders</a> directly without the
-  need to load all files into a playlist. This works as follows:</p>
+<p>PM123 is able to play the content of <a href="playfolder.html">file system folders</a>
+directly without the need to load all files into a playlist. This works
+as follows:</p>
 <ul>
-  <li>The content of a folder is handled as a <strong>virtual playlist</strong>.</li>
-  <li>Optionally sub folders are virtualized as nested playlists too.</li>
-  <li>Unplayable files are skipped during playback but shown in the folder views.</li>
-  <li>Changes in the file system are reflected to PM123 when PM123 is restarted
-    or a folder is manually refreshed.</li>
-  <li>If a folder is selected in the open dialog or by drag and drop
-    the content is no longer copied into a real playlist.</li>
+<li>The content of a folder is handled as a <strong>virtual
+playlist</strong>.</li>
+<li>Optionally sub folders are virtualized as nested playlists
+too.</li>
+<li>Unplayable files are skipped during playback but shown in
+the folder views.</li>
+<li>Changes in the file system are reflected to PM123 when
+PM123 is restarted or a folder is manually refreshed.</li>
+<li>If a folder is selected in the open dialog or by drag and
+drop the content is no longer copied into a real playlist.</li>
 </ul>
-<p>This feature also changed the behavior when <b>dropping a folder</b> at PM123.
-  The objects in the folder are no longer expanded immediately.
-  Instead, they are read when the folder is actually played.
-  This allows to reflect changes to the folder to PM123.
-  See <a href="dragndrop.html">Drag &amp; Drop</a> for further details.<br>
-  To get the old behavior add the folder to a <a href="playlist.html">playlist</a>
-  and choose 'Flatten' from the <a href="playlist_cmi.html">context menu</a> of the folder.</p>
-
+<p>This feature also changed the behavior when <b>dropping
+a folder</b> at PM123. The objects in the folder are no longer
+expanded immediately. Instead, they are read when the folder is
+actually played. This allows to reflect changes to the folder to PM123.
+See <a href="dragndrop.html">Drag &amp; Drop</a>
+for further details.<br>
+To get the old behavior add the folder to a <a href="playlist.html">playlist</a>
+and choose 'Flatten' from the <a href="playlist_cmi.html">context
+menu</a> of the folder.</p>
 </body></html>
