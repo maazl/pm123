@@ -11,7 +11,8 @@ all: pm123.inf pm123_pdk.inf $(MDUMMY)
 
 MANLST = history.html manual\analyzer.html manual\analyzerformat.html manual\contact.html 
 MANLST = $(MANLST) manual\copyright.html manual\display.html manual\dragndrop.html 
-MANLST = $(MANLST) manual\gui.html manual\id3.html manual\index.html manual\integration.html 
+MANLST = $(MANLST) manual\gui.html manual\infodialog.html manual\id3edit.html
+MANLST = $(MANLST) manual\index.html manual\integration.html 
 MANLST = $(MANLST) manual\keyboard.html manual\location.html manual\mainmenu.html
 MANLST = $(MANLST) manual\mainwin.html manual\manager.html manual\migrating.html 
 MANLST = $(MANLST) manual\netscape.html manual\parameters.html manual\playlist.html 
