@@ -61,6 +61,22 @@ inline static T operator*(T l, bool r) \
 inline static T operator~(T a) \
 { return (T)~(unsigned)a; }
 
+#define CLASSFLAGSATTRIBUTE(T) \
+inline friend T operator|(T l, T r) \
+{ return (T)((unsigned)l|r); } \
+inline friend T operator&(T l, T r) \
+{ return (T)((unsigned)l&r); } \
+inline friend T& operator|=(T& l, T r) \
+{ return l = (T)((unsigned)l|r); } \
+inline friend T& operator&=(T& l, T r) \
+{ return l = (T)((unsigned)l&r); } \
+inline friend T operator*(bool l, T r) \
+{ return (T)(l*(unsigned)r); } \
+inline friend T operator*(T l, bool r) \
+{ return (T)((unsigned)l*r); } \
+inline friend T operator~(T a) \
+{ return (T)~(unsigned)a; }
+
 // Unspecified types for operator ! and == NULL
 struct unspecified_struct_type;
 typedef const volatile unspecified_struct_type* unspecified_bool_type;
