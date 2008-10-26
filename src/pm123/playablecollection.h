@@ -269,7 +269,7 @@ class PlayableCollection : public Playable
   : public PlayableSet
   { CollectionInfo            Info;
     InfoFlags                 Valid; // only IF_Tech and IF_Pl are significant here
-    CollectionInfoEntry(const PlayableSet& r) : PlayableSet(r), Valid(IF_None) { DEBUGLOG(("PlayableCollection::CollectionInfoEntry(%p)::CollectionInfoEntry({%u,...})\n", this, r.size())); }
+    CollectionInfoEntry(const PlayableSetBase& r) : PlayableSet(r), Valid(IF_None) { DEBUGLOG(("PlayableCollection::CollectionInfoEntry(%p)::CollectionInfoEntry({%u,...})\n", this, r.size())); }
     #ifdef DEBUG
     ~CollectionInfoEntry()    { DEBUGLOG(("PlayableCollection::CollectionInfoEntry(%p)::~CollectionInfoEntry()\n", this)); }
     #endif
@@ -284,7 +284,7 @@ class PlayableCollection : public Playable
  private:
   // Cache with subenumeration infos
   // This object is protected by a critical section.
-  sorted_vector<CollectionInfoEntry, PlayableSet> CollectionInfoCache;
+  sorted_vector<CollectionInfoEntry, PlayableSetBase> CollectionInfoCache;
   // One Mutex to protect CollectionInfoCache of all instances.
   // You must not aquire another Mutex while holding this one.
   static Mutex                CollectionInfoCacheMtx;
@@ -303,14 +303,14 @@ class PlayableCollection : public Playable
   // Invalidate CollectionInfoCache by single object.
   void                        InvalidateCIC(InfoFlags what, Playable& p);
   // Invalidate CollectionInfoCache by multiple objects.
-  void                        InvalidateCIC(InfoFlags what, const PlayableSet& set);
+  void                        InvalidateCIC(InfoFlags what, const PlayableSetBase& set);
   // This is called by the InfoChange events of the children.
   void                        ChildInfoChange(const Playable::change_args& args);
   // This is called by the StatusChange events of the children.
   void                        ChildInstChange(const PlayableInstance::change_args& args);
  protected:
   // Prefetch some information to avoid deadlocks in GetCollectionInfo.
-  void                        PrefetchSubInfo(const PlayableSet& excluding);
+  void                        PrefetchSubInfo(const PlayableSetBase& excluding);
   // Create new entry and make the path absolute if required.
   Entry*                      CreateEntry(const char* url, const DECODER_INFO2* ca = NULL);
   // Insert a new entry into the list.
@@ -372,7 +372,7 @@ class PlayableCollection : public Playable
   // This cache is automatically invalidated.
   // If you call this function while the requested flags of InfoValid are not yet set,
   // you will get incomplete information. This is not an error.
-  const CollectionInfo&       GetCollectionInfo(InfoFlags what, const PlayableSet& excluding = PlayableSet::Empty);
+  const CollectionInfo&       GetCollectionInfo(InfoFlags what, const PlayableSetBase& excluding = PlayableSetBase::Empty);
   // Load Information from URL
   // This implementation is only the framework. It reqires LoadInfoCore() for it's work.
   virtual InfoFlags           LoadInfo(InfoFlags what);

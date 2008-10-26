@@ -92,6 +92,7 @@ class Playable
     IF_Status   = 0x40,// applies to GetStatus() and IsModified()
     IF_All      = IF_Format|IF_Tech|IF_Meta|IF_Phys|IF_Rpl|IF_Other|IF_Status
   };
+  CLASSFLAGSATTRIBUTE(Playable::InfoFlags);
   // Parameters for InfoChange Event
   struct change_args
   { Playable&         Instance;
@@ -109,7 +110,7 @@ class Playable
                Lock(Playable& p) : P(p)      { p.Mtx.Request(); }
                ~Lock();
   };
- protected:
+ public:
   // C++ version of DECODER_INFO2
   class DecoderInfo : public DECODER_INFO2
   {private:
@@ -207,7 +208,7 @@ class Playable
 
   // Check wether the requested information is immediately available.
   // Return the bits in what that are /not/ available.
-  inline InfoFlags    CheckInfo(InfoFlags what) const; // can't define here because of missing FLAGSATTRIBUTE(InfoFlags).
+  inline InfoFlags    CheckInfo(InfoFlags what) const { return what & ~InfoValid; }
   // This function is called to populate the info fields.
   // The parameter what is the requested information. The function returns the retrieved information.
   // The retrieved information must not be less than the requested information. But it might be more.
@@ -314,33 +315,73 @@ class Playable
   // Used items may stay alive until their reference count goes to zero.
   static void              Clear();     
 };
-// Flags Attribute for StatusFlags
-FLAGSATTRIBUTE(Playable::InfoFlags);
 
 
-inline Playable::InfoFlags Playable::CheckInfo(InfoFlags what) const
-{ return what & ~InfoValid;
-}
+class PlayableSetBase
+: public IComparableTo<PlayableSetBase>
+{public:
+  static const PlayableSetBase& Empty; // empty instance
 
+ protected:
+  PlayableSetBase()        {}
+ public:
+  #ifdef DEBUG
+  xstring                  DebugDump() const;
+  #endif
+  virtual size_t           size() const = 0;
+  virtual Playable*        operator[](size_t where) const = 0;
+  virtual bool             contains(const Playable& key) const = 0;
+  
+  virtual int              compareTo(const PlayableSetBase& r) const;
+  // returns true if and only if all elements in this set are also in r.
+  bool                     isSubsetOf(const PlayableSetBase& r) const;
+};
 
 // Unique sorted set of Playable objects
 // This class does not take ownership of the Playable objects!
 // So you have to ensure that the Playable objects are held by another int_ptr instance
 // as long as they are in this collection.
-struct PlayableSet
+class PlayableSet
 : public sorted_vector<Playable, Playable>,
-  public IComparableTo<PlayableSet>
-{ static const PlayableSet Empty; // empty instance
+  public PlayableSetBase
+{public:
                            PlayableSet();
+                           PlayableSet(const PlayableSetBase& r);
+                           PlayableSet(const PlayableSet& r);
   #ifdef DEBUG
-                           ~PlayableSet() { DEBUGLOG(("PlayableSet(%p)::~PlayableSet()\n", this)); }
-  xstring                  DebugDump() const;
+                           ~PlayableSet()
+                           { DEBUGLOG(("PlayableSet(%p)::~PlayableSet()\n", this)); }
   #endif
-  virtual int              compareTo(const PlayableSet& r) const;
-  // returns true if and only if all elements in this set are also in r.
-  bool                     isSubsetOf(const PlayableSet& r) const;
+
+  virtual size_t           size() const
+                           { return sorted_vector<Playable, Playable>::size(); }
+  virtual Playable*        operator[](size_t where) const
+                           { return sorted_vector<Playable, Playable>::operator[](where); }
+  virtual bool             contains(const Playable& key) const
+                           { return sorted_vector<Playable, Playable>::find(key) != NULL; }
 };
 
+// Unique sorted set of Playable objects.
+// The ownership of the content is held by this class.
+class OwnedPlayableSet
+: public sorted_vector_int<Playable, Playable>,
+  public PlayableSetBase
+{public:
+                           OwnedPlayableSet();
+                           OwnedPlayableSet(const PlayableSetBase& r);
+                           OwnedPlayableSet(const OwnedPlayableSet& r);
+  #ifdef DEBUG
+                           ~OwnedPlayableSet()
+                           { DEBUGLOG(("OwnedPlayableSet(%p)::~OwnedPlayableSet()\n", this)); }
+  #endif
+
+  virtual size_t           size() const
+                           { return sorted_vector_int<Playable, Playable>::size(); }
+  virtual Playable*        operator[](size_t where) const
+                           { return sorted_vector_int<Playable, Playable>::operator[](where); }
+  virtual bool             contains(const Playable& key) const
+                           { return sorted_vector_int<Playable, Playable>::find(key) != NULL; }
+};
 
 /* Class representing exactly one song.
  */

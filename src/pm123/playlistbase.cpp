@@ -86,6 +86,20 @@ xstring PlaylistBase::DebugName() const
 #endif
 
 
+PlaylistBase::MakePlayableSet::MakePlayableSet(Playable* pp)
+{ DEBUGLOG(("PlaylistBase::MakePlayableSet::MakePlayableSet(%p{%s})\n", pp, pp->GetURL().cdata()));
+  get(*pp) = pp;
+}
+PlaylistBase::MakePlayableSet::MakePlayableSet(const vector<RecordBase>& recs)
+{ DEBUGLOG(("PlaylistBase::MakePlayableSet::MakePlayableSet({%u...})\n", recs.size()));
+  const RecordBase*const* rpp = recs.end();
+  while (rpp-- != recs.begin())
+  { Playable* pp = (*rpp)->Data->Content->GetPlayable();
+    get(*pp) = pp;
+  }
+}
+
+
 /****************************************************************************
 *
 *  class PlaylistBase
@@ -488,15 +502,14 @@ MRESULT PlaylistBase::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
         break;
 
        case IDM_PL_INFOALL:
-        UserOpenInfoView(Content);
+        UserOpenInfoView(MakePlayableSet(Content));
         break;
        case IDM_PL_INFO:
-        if (Source.size() == 1)
-          UserOpenInfoView(Source[0]->Data->Content->GetPlayable());
+        UserOpenInfoView(MakePlayableSet(Source));
         break;
 
        case IDM_PL_EDIT:
-        Apply2Source(&PlaylistBase::UserEditMeta);
+        UserEditMeta();
         break;
 
        case IDM_PL_REMOVE:
@@ -1192,8 +1205,8 @@ void PlaylistBase::UserOpenDetailedView(Playable* pp)
   }
 }
 
-void PlaylistBase::UserOpenInfoView(Playable* pp)
-{ InfoDialog::GetByKey(pp)->SetVisible(true);
+void PlaylistBase::UserOpenInfoView(const PlayableSet& set)
+{ InfoDialog::GetByKey(set)->ShowPage(InfoDialog::Page_TechInfo);
 }
 
 void PlaylistBase::UserClearPlaylist(Playable* pp)
@@ -1208,8 +1221,21 @@ void PlaylistBase::UserReload(Playable* pp)
     pp->LoadInfoAsync(Playable::IF_All);
 }
 
-void PlaylistBase::UserEditMeta(Playable* pp)
-{ amp_info_edit(GetHwnd(), pp);
+void PlaylistBase::UserEditMeta()
+{ { // Check meta_write
+    const RecordBase*const* rpp = Source.end();
+    while (rpp-- != Source.begin())
+      if (!(*rpp)->Data->Content->GetPlayable()->GetInfo().meta_write)
+        return; // Can't modify this item
+  }
+  switch (Source.size())
+  {default: // multiple items
+    InfoDialog::GetByKey(MakePlayableSet(Source))->ShowPage(InfoDialog::Page_MetaInfo);
+    break;
+   case 1:
+    amp_info_edit(GetHwnd(), Source[0]->Data->Content->GetPlayable());
+   case 0:;
+  }
 }
 
 void PlaylistBase::UserSort(Playable* pp)

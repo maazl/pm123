@@ -576,70 +576,121 @@ void Playable::Clear()
 *
 ****************************************************************************/
 
-const PlayableSet PlayableSet::Empty;
+class EmptyPlayableSet : public PlayableSetBase
+{ virtual size_t           size() const;
+  virtual Playable*        operator[](size_t where) const;
+  virtual bool             contains(const Playable& key) const;
+};
 
-PlayableSet::PlayableSet()
-: sorted_vector<Playable, Playable>(8)
-{ DEBUGLOG(("PlayableSet(%p)::PlayableSet()\n", this));
+size_t EmptyPlayableSet::size() const
+{ return 0;
 }
 
-int PlayableSet::compareTo(const PlayableSet& r) const
-{ DEBUGLOG(("PlayableSet(%p{%u,...})::compareTo(&%p{%u,...})\n", this, size(), &r, r.size()));
-  Playable*const* ppp1 = begin();
-  Playable*const* ppp2 = r.begin();
+Playable* EmptyPlayableSet::operator[](size_t) const
+{ // Must not call this function!
+  ASSERT(1==0);
+  return NULL;
+}
+
+bool EmptyPlayableSet::contains(const Playable&) const
+{ return false;
+}
+
+static const EmptyPlayableSet EmptySet;
+const PlayableSetBase& PlayableSetBase::Empty(EmptySet);
+
+int PlayableSetBase::compareTo(const PlayableSetBase& r) const
+{ DEBUGLOG(("PlayableSetBase(%p{%u,...})::compareTo(&%p{%u,...})\n", this, size(), &r, r.size()));
+  if (&r == this)
+    return 0; // Comparsion to itself
+  size_t p1 = 0;
+  size_t p2 = 0;
   for (;;)
   { // termination condition
-    if (ppp2 == r.end())
-      return ppp1 != end();
-    else if (ppp1 == end())
+    if (p2 == r.size())
+      return p1 != size();
+    else if (p1 == size())
       return -1;
     // compare content
-    int ret = (*ppp1)->compareTo(**ppp2);
-    DEBUGLOG2(("PlayableSet::compareTo %p <=> %p = %i\n", **ppp1, **ppp2, ret));
+    int ret = (*this)[p1]->compareTo(*r[p2]);
+    DEBUGLOG2(("PlayableSetBase::compareTo %p <=> %p = %i\n", (*this)[p1], r[p2], ret));
     if (ret)
       return ret;
-    ++ppp1;
-    ++ppp2;
+    ++p1;
+    ++p2;
   }
 }
 
-bool PlayableSet::isSubsetOf(const PlayableSet& r) const
-{ DEBUGLOG(("PlayableSet(%p{%u,...})::isSubsetOf(&%p{%u,...})\n", this, size(), &r, r.size()));
+bool PlayableSetBase::isSubsetOf(const PlayableSetBase& r) const
+{ DEBUGLOG(("PlayableSetBase(%p{%u,...})::isSubsetOf(&%p{%u,...})\n", this, size(), &r, r.size()));
+  if (&r == this)
+    return true;
   if (size() > r.size())
     return false; // since PlayableSet is a unique container this condition is sufficient
   if (size() == 0)
     return true; // an empty set is always included
-  Playable*const* ppp1 = begin();
-  Playable*const* ppp2 = r.begin();
+  size_t p1 = 0;
+  size_t p2 = 0;
   for (;;)
   { // compare content
-    int ret = (*ppp1)->compareTo(**ppp2);
-    DEBUGLOG2(("PlayableSet::isSubsetOf %p <=> %p = %i\n", **ppp1, **ppp2, ret));
+    int ret = (*this)[p1]->compareTo(*r[p2]);
+    DEBUGLOG2(("PlayableSetBase::isSubsetOf %p <=> %p = %i\n", (*this)[p1], r[p2], ret));
     if (ret > 0)
       return false; // no match for **ppp1
-    ++ppp2;
-    if (ppp2 == r.end())
+    ++p2;
+    if (p2 == r.size())
       return false; // no match for **ppp1 because no more elements in r
     if (ret < 0)
       continue; // only increment ppp2
-    ++ppp1;
-    if (ppp1 == end())
+    ++p1;
+    if (p1 == size())
       return true; // all elements found
   }
 }
 
 #ifdef DEBUG
-xstring PlayableSet::DebugDump() const
+xstring PlayableSetBase::DebugDump() const
 { xstring r = xstring::empty;
-  for (Playable*const* ppp = begin(); ppp != end(); ++ppp)
+  for (size_t i = 0; i != size(); ++i)
     if (r.length())
-      r = xstring::sprintf("%s, %p", r.cdata(), *ppp);
+      r = xstring::sprintf("%s, %p", r.cdata(), (*this)[i]);
     else
-      r = xstring::sprintf("%p", *ppp);
+      r = xstring::sprintf("%p", (*this)[i]);
   return r;
 }
 #endif
 
+
+PlayableSet::PlayableSet()
+: sorted_vector<Playable, Playable>(8)
+{ DEBUGLOG(("PlayableSet(%p)::PlayableSet()\n", this));
+}
+PlayableSet::PlayableSet(const PlayableSetBase& r)
+: sorted_vector<Playable, Playable>(r.size())
+{ DEBUGLOG(("PlayableSet(%p)::PlayableSet(const PlayableSetBase&{%u...})\n", this, r.size()));
+  for (int i = 0; i != r.size(); ++i)
+    append() = r[i];
+}
+PlayableSet::PlayableSet(const PlayableSet& r)
+: sorted_vector<Playable, Playable>(r)
+{ DEBUGLOG(("PlayableSet(%p)::PlayableSet(const PlayableSet&{%u...})\n", this, r.size()));
+}
+
+
+OwnedPlayableSet::OwnedPlayableSet()
+: sorted_vector_int<Playable, Playable>(8)
+{ DEBUGLOG(("OwnedPlayableSet(%p)::OwnedPlayableSet()\n", this));
+}
+OwnedPlayableSet::OwnedPlayableSet(const PlayableSetBase& r)
+: sorted_vector_int<Playable, Playable>(r.size())
+{ DEBUGLOG(("OwnedPlayableSet(%p)::OwnedPlayableSet(const PlayableSetBase&{%u...})\n", this, r.size()));
+  for (int i = 0; i != r.size(); ++i)
+    append() = r[i];
+}
+OwnedPlayableSet::OwnedPlayableSet(const OwnedPlayableSet& r)
+: sorted_vector_int<Playable, Playable>(r)
+{ DEBUGLOG(("OwnedPlayableSet(%p)::OwnedPlayableSet(const OwnedPlayableSet&{%u...})\n", this, r.size()));
+}
 
 /****************************************************************************
 *

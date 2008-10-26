@@ -146,7 +146,7 @@ static PlaylistMenu* MenuWorker  = NULL; // Instance of PlaylistMenu to handle e
 
 /* Returns the handle of the player window. */
 HWND amp_player_window( void ) {
-  return hframe;
+  return hplayer;
 }
 
 /* Returns the anchor-block handle. */
@@ -1147,12 +1147,15 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
 
         case IDM_M_INFO:
           if (CurrentSong)
-            InfoDialog::GetByKey(CurrentSong)->SetVisible(true);
+            InfoDialog::GetByKey(CurrentSong)->ShowPage(InfoDialog::Page_MetaInfo);
           break;
 
         case IDM_M_PLINFO:
           if (CurrentRoot)
-            InfoDialog::GetByKey(CurrentRoot)->SetVisible(true);
+            InfoDialog::GetByKey(CurrentSong)->ShowPage(
+              (CurrentRoot->GetFlags() & Playable::Enumerable) || CurrentRoot->CheckInfo(Playable::IF_Meta)
+              ? InfoDialog::Page_TechInfo
+              : InfoDialog::Page_MetaInfo);
           break;
 
         case IDM_M_TAG:
@@ -1239,7 +1242,7 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
         case IDM_M_SKINLOAD:
         {
           HPS hps = WinGetPS( hwnd );
-          amp_loadskin( hab, hwnd, hps );
+          amp_loadskin( hps );
           WinReleasePS( hps );
           amp_invalidate( UPD_WINDOW );
           break;
@@ -1343,11 +1346,11 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
      break;
 
     case WM_CREATE:
-    {
-      HPS hps;
-      hframe = hwnd; /* we have to assign the window handle early, because WinCreateStdWindow does not have returned now. */
+    { DEBUGLOG(("amp_dlg_proc: WM_CREATE %x\n", hwnd));
+      
+      hplayer = hwnd; /* we have to assign the window handle early, because WinCreateStdWindow does not have returned now. */
 
-      hps = WinGetPS( hwnd );
+      HPS hps = WinGetPS( hwnd );
       bmp_load_skin( cfg.defskin, hab, hwnd, hps );
       WinReleasePS( hps );
 
@@ -1355,8 +1358,8 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
         WinStartTimer( hab, hwnd, TID_ONTOP, 100 );
       }
 
-      WinStartTimer( hab, hwnd, TID_UPDATE_TIMERS,  80 );
-      WinStartTimer( hab, hwnd, TID_UPDATE_PLAYER,  50 );
+      WinStartTimer( hab, hwnd, TID_UPDATE_TIMERS,  90 );
+      WinStartTimer( hab, hwnd, TID_UPDATE_PLAYER,  60 );
       WinStartTimer( hab, hwnd, TID_CLEANUP, 1000*CLEANUP_INTERVALL );
 
       // fetch some initial states
@@ -1611,7 +1614,7 @@ main2( void* arg )
                                AMP_FULLNAME, 0, NULLHANDLE, WIN_MAIN, &hplayer );
   PMASSERT( hframe != NULLHANDLE );
 
-  DEBUGLOG(("main: window created\n"));
+  DEBUGLOG(("main: window created: frame = %x, player = %x\n", hframe, hplayer));
 
   do_warpsans( hplayer );
 

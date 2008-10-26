@@ -180,6 +180,11 @@ class PlaylistBase
     RT_List = 0x04
   };
  protected: // User actions
+  // cONVENIENT FACTORY CLASSConvenient factory class
+  struct MakePlayableSet : public PlayableSet
+  { MakePlayableSet(Playable* pp);
+    MakePlayableSet(const vector<RecordBase>& recs);
+  };
   struct InsertInfo
   { int_ptr<Playlist> Parent; // List where to insert the new item
     xstring      URL;         // URL to insert
@@ -375,13 +380,13 @@ class PlaylistBase
   // Open detailed view 
   void              UserOpenDetailedView(Playable* pp);
   // View Info
-  void              UserOpenInfoView(Playable* pp);
+  void              UserOpenInfoView(const PlayableSet& set);
   // Clear playlist
   void              UserClearPlaylist(Playable* pp);
   // Refresh records
   void              UserReload(Playable* pp);
   // Edit metadata
-  void              UserEditMeta(Playable* pp);
+  void              UserEditMeta();
   // Sort records
   void              UserSort(Playable* pp);
   // Place records in random order.

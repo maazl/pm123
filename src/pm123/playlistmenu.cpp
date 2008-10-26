@@ -116,7 +116,8 @@ PlaylistMenu::~PlaylistMenu()
 }
 
 MRESULT PlaylistMenu::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
-{ switch (msg)
+{ DEBUGLOG2(("PlaylistMenu(%p{%x})::DlgProc(%x, %x, %x)\n", this, HwndOwner, msg, mp1, mp2));
+  switch (msg)
   {case WM_DESTROY:
     { DEBUGLOG(("PlaylistMenu(%p)::DlgProc: WM_DESTROY\n", this));
       PFNWP old_DlgProc = Old_DlgProc; // copy value to the stack

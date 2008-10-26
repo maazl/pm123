@@ -148,6 +148,8 @@ class PlaylistView : public PlaylistRepository<PlaylistView>
   void              UpdateRecord(Record* rec, Playable::InfoFlags flags, PlayableInstance::StatusFlags iflags);
   // Navigate to
   virtual void      UserNavigate(const RecordBase* rec);
+  // Select all
+  void              UserSelectAll();
 };
 
 

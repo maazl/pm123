@@ -418,7 +418,7 @@ void PlayableCollection::InvalidateCIC(InfoFlags what, Playable& p)
     if ((*ciepp)->find(p) == NULL)
       (*ciepp)->Valid &= what;
 }
-void PlayableCollection::InvalidateCIC(InfoFlags what, const PlayableSet& set)    
+void PlayableCollection::InvalidateCIC(InfoFlags what, const PlayableSetBase& set)    
 { DEBUGLOG(("PlayableCollection::InvalidateCIC(%x, {%u,...})\n", what, set.size()));
   Mutex::Lock lock(CollectionInfoCacheMtx);
   what = ~what; // prepare flags for deletion
@@ -628,7 +628,7 @@ int_ptr<PlayableInstance> PlayableCollection::DeserializeItem(const xstring& str
   return NULL;
 }
 
-void PlayableCollection::PrefetchSubInfo(const PlayableSet& excluding)
+void PlayableCollection::PrefetchSubInfo(const PlayableSetBase& excluding)
 { DEBUGLOG(("PlayableCollection(%p{%s})::PrefetchSubInfo() - %x\n", this, GetURL().getShortName().cdata(), InfoValid));
   EnsureInfo(IF_Other);
   int_ptr<PlayableInstance> pi;
@@ -636,7 +636,7 @@ void PlayableCollection::PrefetchSubInfo(const PlayableSet& excluding)
   while ((pi = GetNext(pi)) != NULL)
   { Playable* pp = pi->GetPlayable();
     if (pp->GetFlags() & Playable::Enumerable)
-    { if (excluding.find(*pp) != NULL)
+    { if (excluding.contains(*pp))
         continue; // recursion
       // create new exclusions on demand
       if (xcl_sub == NULL)
@@ -649,9 +649,9 @@ void PlayableCollection::PrefetchSubInfo(const PlayableSet& excluding)
   }
 }
 
-const PlayableCollection::CollectionInfo& PlayableCollection::GetCollectionInfo(InfoFlags what, const PlayableSet& excluding)
+const PlayableCollection::CollectionInfo& PlayableCollection::GetCollectionInfo(InfoFlags what, const PlayableSetBase& excluding)
 { DEBUGLOG(("PlayableCollection(%p{%s})::GetCollectionInfo(%x, [%s])\n", this, GetURL().getShortName().cdata(), what, excluding.DebugDump().cdata()));
-  ASSERT(excluding.find(*this) == NULL);
+  ASSERT(!excluding.contains(*this));
   what &= IF_Tech|IF_Rpl; // only these two flags are handled here.
   ASSERT(what);
 
@@ -698,7 +698,7 @@ const PlayableCollection::CollectionInfo& PlayableCollection::GetCollectionInfo(
       PlayableCollection* pc = (PlayableCollection*)pi->GetPlayable();
       // TODO: support slicing!
       // check for recursion
-      if (excluding.find(*pc) != NULL)
+      if (excluding.contains(*pc))
       { // recursion
         DEBUGLOG(("PlayableCollection::GetCollectionInfo - recursive!\n"));
         cic->Info.Excluded.get(*pc) = pc;

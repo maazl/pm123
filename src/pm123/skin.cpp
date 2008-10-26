@@ -1905,6 +1905,7 @@ bmp_load_skin( const char *filename, HAB hab, HWND hplayer, HPS hps )
   char  path[_MAX_PATH];
   int   errors = 0;
   BOOL  empty  = TRUE;
+  DEBUGLOG(("bmp_load_skin(%s, %x, %x, %x)\n", filename, hab, hplayer, hps ));
 
   sdrivedir( path, filename, sizeof( path ));
 
@@ -1953,7 +1954,7 @@ bmp_load_skin( const char *filename, HAB hab, HWND hplayer, HPS hps )
     bmp_init_skins_bitmaps( hps );
     bmp_init_default_skin ( hps );
     bmp_init_colors();
-    bmp_reflow_and_resize ( WinQueryWindow( hplayer, QW_PARENT ));
+    bmp_reflow_and_resize ( hplayer );
 
     vis_init_all( TRUE );
 
@@ -2138,7 +2139,7 @@ bmp_load_skin( const char *filename, HAB hab, HWND hplayer, HPS hps )
 
   bmp_init_skins_bitmaps( hps );
   bmp_init_colors();
-  bmp_reflow_and_resize ( WinQueryWindow( hplayer, QW_PARENT ));
+  bmp_reflow_and_resize ( hplayer );
 
   if( errors > 0 ) {
     if( !amp_query( hplayer, "Some bitmaps of this skin was not found. "
@@ -2231,11 +2232,12 @@ bmp_init_button( HWND hwnd, BMPBUTTON* button )
 
 /* Adjusts current skin to the selected size of the player window. */
 void
-bmp_reflow_and_resize( HWND hframe )
+bmp_reflow_and_resize( HWND hplayer )
 {
-  DEBUGLOG(("bmp_reflow_and_resize(%p)\n", hframe));
+  DEBUGLOG(("bmp_reflow_and_resize(%p)\n", hplayer));
 
-  HWND hplayer = WinWindowFromID( hframe, FID_CLIENT );
+  HWND hframe = WinQueryWindow( hplayer, QW_PARENT );
+  PMASSERT(hframe != NULLHANDLE);
 
   switch( cfg.mode )
   {

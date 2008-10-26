@@ -352,6 +352,15 @@ MRESULT PlaylistView::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
       }
       break;
     }
+
+   case WM_COMMAND:
+    { switch (SHORT1FROMMP(mp1))
+      {case IDM_PL_SELECT_ALL:
+        UserSelectAll();
+        return 0;
+      }
+      break;
+    }
   }
   return PlaylistBase::DlgProc(msg, mp1, mp2);
 }
@@ -361,7 +370,8 @@ HWND PlaylistView::InitContextMenu()
   HWND hwndMenu;
   const bool ismutable = (Content->GetFlags() & Playable::Mutable) == Playable::Mutable;
   if (Source.size() == 0)
-  { bool new_menu;
+  { // no items selected => main context menu
+    bool new_menu;
     if ((new_menu = MainMenu == NULLHANDLE) != false)
     { MainMenu = WinLoadMenu(HWND_OBJECT, 0, MNU_PLAYLIST);
       PMASSERT(MainMenu != NULLHANDLE);
@@ -380,7 +390,8 @@ HWND PlaylistView::InitContextMenu()
       (MenuShowAccel(WinQueryAccelTable(WinQueryAnchorBlock(GetHwnd()), GetHwnd()))).ApplyTo(new_menu ? hwndMenu : item.hwndSubMenu);
     }
   } else
-  { if (RecMenu == NULLHANDLE)
+  { // at least one item selected
+    if (RecMenu == NULLHANDLE)
     { RecMenu = WinLoadMenu(HWND_OBJECT, 0, MNU_RECORD);
       PMASSERT(RecMenu != NULLHANDLE);
       PMRASSERT(mn_make_conditionalcascade(RecMenu, IDM_PL_FLATTEN, IDM_PL_FLATTEN_1));
@@ -390,9 +401,16 @@ HWND PlaylistView::InitContextMenu()
     RecordType rt = AnalyzeRecordTypes();
     if (rt == RT_None)
       return NULLHANDLE;
+    bool editmeta = false;
+    if (rt == RT_Song)
+    { editmeta = true;
+      RecordBase** rpp = Source.end();
+      do
+      { editmeta &= (*--rpp)->Data->Content->GetPlayable()->GetInfo().meta_write;
+      } while (rpp != Source.begin());
+    }
     mn_enable_item(hwndMenu, IDM_PL_NAVIGATE, Source.size() == 1 && Content->GetStatus() == STA_Used);
-    mn_enable_item(hwndMenu, IDM_PL_INFO,     Source.size() == 1);
-    mn_enable_item(hwndMenu, IDM_PL_EDIT,     Source.size() == 1 && Source[0]->Data->Content->GetPlayable()->GetInfo().meta_write);
+    mn_enable_item(hwndMenu, IDM_PL_EDIT,     editmeta);
     mn_enable_item(hwndMenu, IDM_PL_FLATTEN,  ismutable && (rt & RT_List) );
     mn_enable_item(hwndMenu, IDM_PL_REFRESH,  (rt & (RT_Enum|RT_List)) == 0);
     mn_enable_item(hwndMenu, IDM_PL_DETAILED, Source.size() == 1 && rt != RT_Song);
@@ -598,5 +616,16 @@ void PlaylistView::UserNavigate(const RecordBase* rec)
   xstring nav = "..;" + list->SerializeItem(rec->Data->Content, PlayableCollection::SerialRelativePath) + ";";
   DEBUGLOG(("PlaylistManager::UserNavigate - %s\n", nav.cdata()));
   Ctrl::PostCommand(Ctrl::MkNavigate(nav, 0, false, true));
+}
+
+void PlaylistView::UserSelectAll()
+{ Source.clear();
+  RecordBase* crp = (RecordBase*)WinSendMsg(HwndContainer, CM_QUERYRECORD, MPFROMP(NULL), MPFROM2SHORT(CMA_FIRST, CMA_ITEMORDER));
+  while (crp != NULL && crp != (RecordBase*)-1)
+  { DEBUGLOG(("PlaylistView::UserSelectAll CM_QUERYRECORD: %s\n", RecordBase::DebugName(crp).cdata()));
+    Source.append() = crp;
+    crp = (RecordBase*)WinSendMsg(HwndContainer, CM_QUERYRECORD, MPFROMP(crp), MPFROM2SHORT(CMA_NEXT, CMA_ITEMORDER));
+  }
+  SetEmphasis(CRA_SELECTED, true);
 }
 

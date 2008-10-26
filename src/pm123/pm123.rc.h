@@ -35,9 +35,9 @@
 /* ID ranges:
  *
  *     0- 1999   PM123 core
- **  500-  699   PM123 main menu
- **  800-  899   PM123 Plalist/Playlist Manager misc
- **  900-  999   PM123 Plalist/Playlist Manager menu
+ **  500-  599   PM123 main menu
+ **  700-  799   PM123 Plalist/Playlist Manager misc
+ **  800-  999   PM123 Plalist/Playlist Manager menu
  ** 1000- 1099   PM123 Help table
  ** 1100- 1199   PM123 File, URL etc.
  ** 1200- 1799   PM123 properties dialog
@@ -74,134 +74,135 @@
 #define IDM_M_TAG           523
 #define IDM_M_INFO          524
 #define IDM_M_PLINFO        525
-#define IDM_M_MANAGER       540
-#define IDM_M_SAVE          542
-#define IDM_M_BOOKMARKS     544
-#define IDM_M_ADDBOOK       545
-#define IDM_M_EDITBOOK      546
-#define IDM_M_PLAYBACK      547
-#define IDM_M_VOL_RAISE     548
-#define IDM_M_VOL_LOWER     549
-#define IDM_M_MENU          550
-#define IDM_M_CURRENT_SONG  551
-#define IDM_M_DETAILED      552
-#define IDM_M_TREEVIEW      553
-#define IDM_M_ADDPLBOOK     554
-#define IDM_M_ADDBOOK_TIME  555
-#define IDM_M_PLSAVE        556
-#define IDM_M_ADDPMBOOK     557
-#define IDM_M_CURRENT_PL    558
-#define IDM_M_ADDPLBOOK_TIME 559
-#define IDM_M_LOAD          560
-#define IDM_M_PLRELOAD      561
-#define IDM_M_RELOAD        562
-#define IDM_M_LOADFILE      600
-#define IDM_M_URL           601
-#define IDM_M_LOADOTHER     602 /* reserve some ID's for several plug-ins.  */
-#define IDM_M_PLUG          650 /* reserve some ID's for several plug-ins.  */
-#define IDM_M_PLUG_E        699
+#define IDM_M_MANAGER       530
+#define IDM_M_SAVE          532
+#define IDM_M_BOOKMARKS     534
+#define IDM_M_ADDBOOK       535
+#define IDM_M_EDITBOOK      536
+#define IDM_M_PLAYBACK      537
+#define IDM_M_VOL_RAISE     538
+#define IDM_M_VOL_LOWER     539
+#define IDM_M_MENU          540
+#define IDM_M_CURRENT_SONG  541
+#define IDM_M_DETAILED      542
+#define IDM_M_TREEVIEW      543
+#define IDM_M_ADDPLBOOK     544
+#define IDM_M_ADDBOOK_TIME  545
+#define IDM_M_PLSAVE        546
+#define IDM_M_ADDPMBOOK     547
+#define IDM_M_CURRENT_PL    548
+#define IDM_M_ADDPLBOOK_TIME 549
+#define IDM_M_LOAD          550
+#define IDM_M_PLRELOAD      551
+#define IDM_M_RELOAD        552
+#define IDM_M_LOADFILE      560
+#define IDM_M_URL           561
+#define IDM_M_LOADOTHER     562 /* reserve some ID's for several plug-ins.  */
+#define IDM_M_PLUG          580 /* reserve some ID's for several plug-ins.  */
+#define IDM_M_PLUG_E        599
 
 #define IDM_M_LAST        10000 /* A lot of IDs after this need to be free. */
 #define IDM_M_LAST_E      19999
 
 
 /* Playlist */
-#define DLG_PLAYLIST        800
+#define DLG_PLAYLIST        700
 /* Playlistmanager */
-#define DLG_PM              802
+#define DLG_PM              702
 
-#define MNU_PLAYLIST        810
-#define MNU_RECORD          811
-#define ACL_PLAYLIST        812
-#define PM_MAIN_MENU        820
-#define PM_REC_MENU         821
-//#define ACL_PLAYLISTMAN     822
+#define MNU_PLAYLIST        710
+#define MNU_RECORD          711
+#define ACL_PLAYLIST        712
+#define PM_MAIN_MENU        720
+#define PM_REC_MENU         721
+//#define ACL_PLAYLISTMAN     722
 
-#define ICO_WAIT            850
-#define ICO_SONG            855
-#define ICO_SONG_ACTIVE     856
-#define ICO_SONG_PLAY       857
-#define ICO_SONG_SHADOW     858
-#define ICO_SONG_INVALID    859
-#define ICO_PL_EMPTY        860
-#define ICO_PL_EMPTY_ACTIVE 861
-#define ICO_PL_EMPTY_PLAY   862
-#define ICO_PL_EMPTY_SHADOW 863
-#define ICO_PL_INVALID      864
-#define ICO_PL_CLOSE        865
-#define ICO_PL_CLOSE_ACTIVE 866
-#define ICO_PL_CLOSE_PLAY   867
-#define ICO_PL_CLOSE_SHADOW 868
-#define ICO_PL_OPEN         870
-#define ICO_PL_OPEN_ACTIVE  871
-#define ICO_PL_OPEN_PLAY    872
-#define ICO_PL_OPEN_SHADOW  873
-#define ICO_PL_RECSV        875
-#define ICO_PL_RECSV_ACTIVE 876
-#define ICO_PL_RECSV_PLAY   877
-//#define ICO_PL_RECSV_SHADOW 878
-#define ICO_FL_EMPTY        880
-#define ICO_FL_EMPTY_ACTIVE 881
-#define ICO_FL_EMPTY_PLAY   882
-#define ICO_FL_EMPTY_SHADOW 883
-#define ICO_FL_INVALID      884
-#define ICO_FL_CLOSE        885
-#define ICO_FL_CLOSE_ACTIVE 886
-#define ICO_FL_CLOSE_PLAY   887
-#define ICO_FL_CLOSE_SHADOW 888
-#define ICO_FL_OPEN         890
-#define ICO_FL_OPEN_ACTIVE  891
-#define ICO_FL_OPEN_PLAY    892
-#define ICO_FL_OPEN_SHADOW  893
+#define ICO_WAIT            750
+#define ICO_SONG            755
+#define ICO_SONG_ACTIVE     756
+#define ICO_SONG_PLAY       757
+#define ICO_SONG_SHADOW     758
+#define ICO_SONG_INVALID    759
+#define ICO_PL_EMPTY        760
+#define ICO_PL_EMPTY_ACTIVE 761
+#define ICO_PL_EMPTY_PLAY   762
+#define ICO_PL_EMPTY_SHADOW 763
+#define ICO_PL_INVALID      764
+#define ICO_PL_CLOSE        765
+#define ICO_PL_CLOSE_ACTIVE 766
+#define ICO_PL_CLOSE_PLAY   767
+#define ICO_PL_CLOSE_SHADOW 768
+#define ICO_PL_OPEN         770
+#define ICO_PL_OPEN_ACTIVE  771
+#define ICO_PL_OPEN_PLAY    772
+#define ICO_PL_OPEN_SHADOW  773
+#define ICO_PL_RECSV        775
+#define ICO_PL_RECSV_ACTIVE 776
+#define ICO_PL_RECSV_PLAY   777
+//#define ICO_PL_RECSV_SHADOW 778
+#define ICO_FL_EMPTY        780
+#define ICO_FL_EMPTY_ACTIVE 781
+#define ICO_FL_EMPTY_PLAY   782
+#define ICO_FL_EMPTY_SHADOW 783
+#define ICO_FL_INVALID      784
+#define ICO_FL_CLOSE        785
+#define ICO_FL_CLOSE_ACTIVE 786
+#define ICO_FL_CLOSE_PLAY   787
+#define ICO_FL_CLOSE_SHADOW 788
+#define ICO_FL_OPEN         790
+#define ICO_FL_OPEN_ACTIVE  791
+#define ICO_FL_OPEN_PLAY    792
+#define ICO_FL_OPEN_SHADOW  793
 
-#define IDM_PL_USE          900
-#define IDM_PL_USEALL       901
-#define IDM_PL_NAVIGATE     902
-#define IDM_PL_DETAILED     903
-#define IDM_PL_DETAILEDALL  904
-#define IDM_PL_TREEVIEW     905
-#define IDM_PL_TREEVIEWALL  906
-#define IDM_PL_REMOVE       907
-#define IDM_PL_CLEAR        908
-#define IDM_PL_CLEARALL     909
-#define IDM_PL_RELOAD       910
-#define IDM_PL_REFRESH      911
-#define IDM_PL_EDIT         912
-#define IDM_PL_SAVE         913
-#define IDM_PL_INFO         914
-#define IDM_PL_INFOALL      915
-#define IDM_PL_MENU         918 /* invoke main menu */
-#define IDM_PL_MENUCONT     919 /* invoke record menu */ 
-#define IDM_PL_FLATTEN      920
-#define IDM_PL_FLATTEN_1    921
-#define IDM_PL_FLATTEN_ALL  922
-#define IDM_PL_SORT         923
-#define IDM_PL_SORT_SIZE    924
-#define IDM_PL_SORT_TIME    925
-#define IDM_PL_SORT_URL     926
-#define IDM_PL_SORT_SONG    927
-#define IDM_PL_SORT_ALIAS   928
-#define IDM_PL_SORT_ART     929
-#define IDM_PL_SORT_ALBUM   930
-#define IDM_PL_SORT_RAND    931
-#define IDM_PL_SORT_SIZEALL 932
-#define IDM_PL_SORT_TIMEALL 933
-#define IDM_PL_SORT_URLALL  934
-#define IDM_PL_SORT_SONGALL 935
-#define IDM_PL_SORT_ALIASALL 936
-#define IDM_PL_SORT_ARTALL  937
-#define IDM_PL_SORT_ALBUMALL 938
-#define IDM_PL_SORT_RANDALL 939
-#define IDM_PL_APPEND       940
-#define IDM_PL_APPFILE      941
-#define IDM_PL_APPURL       942
-#define IDM_PL_APPOTHER     943 /* Need some IDs for plugin extensions.     */
-#define IDM_PL_APPENDALL    960
-#define IDM_PL_APPFILEALL   961
-#define IDM_PL_APPURLALL    962
-#define IDM_PL_APPOTHERALL  963 /* Need some IDs for plugin extensions.     */
-#define IDM_PL_OPEN         980
-#define IDM_PL_OPENLAST     981 /* A lot of IDs after this need to be free. */
+#define IDM_PL_USE          800
+#define IDM_PL_USEALL       801
+#define IDM_PL_NAVIGATE     802
+#define IDM_PL_DETAILED     803
+#define IDM_PL_DETAILEDALL  804
+#define IDM_PL_TREEVIEW     805
+#define IDM_PL_TREEVIEWALL  806
+#define IDM_PL_REMOVE       807
+#define IDM_PL_CLEAR        808
+#define IDM_PL_CLEARALL     809
+#define IDM_PL_RELOAD       810
+#define IDM_PL_REFRESH      811
+#define IDM_PL_EDIT         812
+#define IDM_PL_SAVE         813
+#define IDM_PL_INFO         814
+#define IDM_PL_INFOALL      815
+#define IDM_PL_MENU         818 /* invoke main menu */
+#define IDM_PL_MENUCONT     819 /* invoke record menu */ 
+#define IDM_PL_FLATTEN      820
+#define IDM_PL_FLATTEN_1    821
+#define IDM_PL_FLATTEN_ALL  822
+#define IDM_PL_SORT         823
+#define IDM_PL_SORT_SIZE    824
+#define IDM_PL_SORT_TIME    825
+#define IDM_PL_SORT_URL     826
+#define IDM_PL_SORT_SONG    827
+#define IDM_PL_SORT_ALIAS   828
+#define IDM_PL_SORT_ART     829
+#define IDM_PL_SORT_ALBUM   830
+#define IDM_PL_SORT_RAND    831
+#define IDM_PL_SORT_SIZEALL 832
+#define IDM_PL_SORT_TIMEALL 833
+#define IDM_PL_SORT_URLALL  834
+#define IDM_PL_SORT_SONGALL 835
+#define IDM_PL_SORT_ALIASALL 836
+#define IDM_PL_SORT_ARTALL  837
+#define IDM_PL_SORT_ALBUMALL 838
+#define IDM_PL_SORT_RANDALL 839
+#define IDM_PL_SELECT_ALL   840
+#define IDM_PL_APPEND       900
+#define IDM_PL_APPFILE      901
+#define IDM_PL_APPURL       902
+#define IDM_PL_APPOTHER     903 /* Need some IDs for plugin extensions.     */
+#define IDM_PL_APPENDALL    920
+#define IDM_PL_APPFILEALL   921
+#define IDM_PL_APPURLALL    922
+#define IDM_PL_APPOTHERALL  923 /* Need some IDs for plugin extensions.     */
+#define IDM_PL_OPEN         940
+#define IDM_PL_OPENLAST     941 /* A lot of IDs after this need to be free. */
 
 #define MNU_SUBFOLDER       999
 

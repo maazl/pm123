@@ -48,25 +48,73 @@
 ****************************************************************************/
 class InfoDialog 
 : public ManagedDialogBase,
-  public IComparableTo<const Playable*>,
-  public inst_index<InfoDialog, Playable*>
+  private OwnedPlayableSet, // aggregation is not sufficient because of the destruction sequence
+  public IComparableTo<const PlayableSetBase*>,
+  public inst_index<InfoDialog, const PlayableSetBase*const> // depends on base class OwnedPlayableSet
 {public:
   enum PageNo
-  { Page_TechInfo,
-    Page_MetaInfo
+  { Page_MetaInfo,
+    Page_TechInfo
   };
-  
+ protected:
+  enum Fields
+  { F_none        = 0x00000000,
+    // misc
+    F_decoder     = 0x00000001,
+    // FORMAT_INFO2
+    F_samplerate  = 0x00000004,
+    F_channels    = 0x00000008,
+    F_FORMAT_INFO2= 0x0000000c,
+    // TECH_INFO
+    F_songlength  = 0x00000010,
+    F_bitrate     = 0x00000020,
+    F_totalsize   = 0x00000040,
+    F_info        = 0x00000080,
+    F_TECH_INFO   = 0x000000f0,
+    // META_INFO
+    F_title       = 0x00000100,
+    F_artist      = 0x00000200,
+    F_album       = 0x00000400,
+    F_year        = 0x00000800,
+    F_comment     = 0x00001000,
+    F_genre       = 0x00002000,
+    F_track       = 0x00004000,
+    F_copyright   = 0x00008000,
+    F_track_gain  = 0x00010000,
+    F_track_peak  = 0x00020000,
+    F_album_gain  = 0x00040000,
+    F_album_peak  = 0x00080000,
+    F_META_INFO   = 0x000fff00,
+    // PHYS_INFO
+    F_filesize    = 0x01000000,
+    F_num_items   = 0x02000000,
+    F_PHYS_INFO   = 0x03000000,
+    // RPL_INFO
+    F_total_items = 0x10000000,
+    F_recursive   = 0x20000000,
+    F_RPL_INFO    = 0x30000000
+  };
+  CLASSFLAGSATTRIBUTE(Fields);
+  struct Data_; // ICC Work-Around
+  friend Data_;
+  struct Data_
+  { const DECODER_INFO2* Info;
+    const char*     Decoder;
+    Fields          Enabled; // The following fields are shown enabled (= the content makes sense)
+    Fields          Valid;   // The specified field content is valid an applies to all of the content
+  };
  private:
   // Functor for inst_index factory.
   class Factory;
   friend class Factory;
-  class Factory : public inst_index<InfoDialog, Playable*>::IFactory
+  class Factory : public inst_index<InfoDialog, const PlayableSetBase*const>::IFactory
   { // singleton
     Factory() {}
    public:
     static Factory  Instance;
-    virtual InfoDialog* operator()(Playable*& key);
+    virtual InfoDialog* operator()(const PlayableSetBase*const& key);
   };
+ protected:
   // Base class for notebook pages
   class PageBase;
   friend class PageBase;
@@ -77,42 +125,51 @@ class InfoDialog
     };
    protected:
     InfoDialog&     Parent;
+    Fields          Enabled; // Valid only while UM_UPDATE
+    Fields          Valid;   // Valid only while UM_UPDATE
+   protected:
     PageBase(InfoDialog& parent, ULONG rid);
+    HWND            SetCtrlText(USHORT id, Fields fld, const char* text); 
     virtual MRESULT DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2);
    public:
     void            StartDialog() { DialogBase::StartDialog(Parent.GetHwnd(), Parent.GetHwnd()); }
   };
   // Notebook page 1
-  class Page1Window;
-  friend class Page1Window;
-  class Page1Window : public PageBase
+  class PageTechInfo;
+  friend class PageTechInfo;
+  class PageTechInfo : public PageBase
   { // Dialog procedure
     virtual MRESULT DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2);
    public:
-    Page1Window(InfoDialog& parent, ULONG rid) : PageBase(parent, rid) {}
+    PageTechInfo(InfoDialog& parent, ULONG rid) : PageBase(parent, rid) {}
   };
   // Notebook page 2
-  class Page2Window;
-  friend class Page2Window;
-  class Page2Window : public PageBase
-  { // Dialog procedure
+  class PageMetaInfo;
+  friend class PageMetaInfo;
+  class PageMetaInfo : public PageBase
+  {private:
+    bool            MetaWrite; // Valid only while UM_UPDATE
+   private:
+    // Dialog procedure
+    HWND            SetEFText(USHORT id, Fields fld, const char* text); 
     virtual MRESULT DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2);
    public:
-    Page2Window(InfoDialog& parent, ULONG rid) : PageBase(parent, rid) {}
+    PageMetaInfo(InfoDialog& parent, ULONG rid) : PageBase(parent, rid) {}
   };
+ protected:
   // Progress window for meta data writes
   class MetaWriteDlg : private DialogBase
-  {public: // Work order! Setup these fields after the constructor call and before DoDialog.
-           // These vars must not be modified once the dialog ist started
-    META_INFO       MetaData;  // Information to write
-    int             MetaFlags; // Parts of MetaData to write
-    vector_int<Playable> Dest; // Write to this songs
+  {private: // Work order!
+    const META_INFO& MetaData; // Information to write
+    const int       MetaFlags; // Parts of MetaData to write
+    const PlayableSetBase& Dest;// Write to this songs
    private:
     enum
     { UM_START = WM_USER+1,    // Start the worker thread
       UM_STATUS                // Worker thread reports: at item #(ULONG)mp1, status (ULONG)mp2
     };
     bool            SkipErrors;
+   private:
    private: // Worker thread
     TID             WorkerTID;
     int             CurrentItem;
@@ -126,37 +183,37 @@ class InfoDialog
     // Dialog procedure
     virtual MRESULT DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2);
    public:
-    MetaWriteDlg();
+    MetaWriteDlg(const META_INFO& info, int flags, const PlayableSetBase& dest);
     ~MetaWriteDlg();
     ULONG           DoDialog(HWND owner);
   };
-  
- private:
-  const int_ptr<Playable> Content;
-  Page1Window       Page1;
-  Page2Window       Page2;
-  ULONG             PageIDs[2];
-  class_delegate<InfoDialog, const Playable::change_args> ContentChangeDeleg;
 
- private:
-  InfoDialog(Playable* p);
+ protected:
+  PageTechInfo      PageTech;
+  PageMetaInfo      PageMeta;
+  ULONG             PageIDs[2];
+
+ private: // non copyable
+                    InfoDialog(const InfoDialog&);
+  void              operator=(const InfoDialog&);
+ protected:
+  // Initialize InfoDialog
+                    InfoDialog(const PlayableSetBase& key);
   void              StartDialog();
   virtual MRESULT   DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2);
-  void              ContentChangeEvent(const Playable::change_args& args);
+  virtual Data_     GetData() = 0;
 
  public:
-  //virtual           ~InfoDialog();
+  virtual           ~InfoDialog();
   void              ShowPage(PageNo page);
-  
- public:
+
+  // Factory method. Returns always the same instance for the same set of objects.
+  static int_ptr<InfoDialog> GetByKey(const PlayableSetBase& obj);
   // Factory method. Returns always the same instance for the same Playable.
   static int_ptr<InfoDialog> GetByKey(Playable* obj);
   // IComparableTo<Playable>
-  virtual int       compareTo(const Playable*const& r) const;
- private: // getter for inst_index<InfoDialog, Playable>
-  //virtual void      GetKey(const Playable*& key) const; // getter for the key
+  virtual int       compareTo(const PlayableSetBase*const& r) const;
 };
 
 
 #endif
-
