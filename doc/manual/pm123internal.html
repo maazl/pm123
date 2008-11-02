@@ -1,0 +1,121 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html><head>
+  <title>PM123: Internal Components</title>
+	<link rel="stylesheet" href="infstyle.css" type="text/css"></head>
+<body>
+<h2>PM123's main internal components</h2>
+<p>PM123 consists of several logical <em>components</em> that <em>run asynchronously
+    in seperate threads</em>. This keeps the user interface responsive even in case of a job with
+  longer duration like a network timeout.</p>
+<p>The components are:</p>
+<ul>
+  <li>the <a href="#play_controller">Play Controller</a>,</li>
+  <li>the <a href="#decoder_engine">Decoder Engine</a>,</li>
+  <li>the <a href="#user_interface">User Interface</a>,</li>
+  <li>the <a href="#pipe_interface">Pipe Interface</a> and</li>
+  <li>the <a href="#object_repository">Object Repository</a>.</li>
+</ul>
+<p>The Play Controller and the Object Repository are new with PM123 1.40.</p>
+<blockquote><img src="images/internalcomponents.png" alt="PM123 component overview" width="700" height="530" border="0" usemap="#Map">
+  <map name="Map">
+    <area shape="rect" coords="96,0,293,122" href="#play_controller">
+    <area shape="rect" coords="413,0,610,122" href="#decoder_engine">
+    <area shape="rect" coords="96,204,293,326" href="#user_interface">
+    <area shape="rect" coords="413,204,610,326" href="#pipe_interface">
+      <area shape="rect" coords="254,408,451,529" href="#object_repository">
+  </map>
+</blockquote>
+
+<h3><a name="play_controller"></a>The Play Controller</h3>
+<p>The Play Controller starts at PM123 start-up and controls any play-back
+  relevant activities. These are:</p>
+<ul>
+  <li><em>Play</em>, <em>Stop</em>, <em>Pause</em> commands.</li>
+  <li><em>Load</em> new objects into the player.</li>
+  <li><em>Navigation</em> (jump, fast forward, rewind).</li>
+  <li>Saving of the input stream.</li>
+  <li>Invokation of decoders, filters and output plug-ins.</li>
+  <li>Advance to the next item in playlist mode.</li>
+  <li>Prefech items in playlist mode.</li>
+  <li>Keep the playing position.</li>
+</ul>
+<p>The Play Controller receives all instruction by a <em>command queue</em>.
+  The queue is always processed in order. Multiple commands may be linked togehter.
+  Linked commands are placed as unit of work in the queue and cannot be intercepted
+  by commands from another source.</p>
+<p>Changes in the play status are immediatle reflected to all observers by asynchronous
+  notifications, except for the playing position, which obviously changes continously.
+  The playing position has to be polled explicitely.</p>
+<p>When an item completed to decode in playlist mode, the Play Controller imediately
+  starts to decode the next playlist item even if the current item is not yet
+  played completely. This results in a <em>pipeline of prefetched items</em> which may
+  contain multiple items if they are short enough.</p>
+<h3><a name="decoder_engine" id="decoder_engine"></a>The Decoder Engine</h3>
+<p>Once a decoder plug-in begins to decode an item, it starts a <em>seperate
+  thread</em>  that sends the decoded data through the data interface to the
+  filter plug-ins and finally to the output plug-in. The plug-in chain is connected
+  by the <a href="#play_controller">Play Controller</a> when the playback starts.
+  It is not disconnected between playlist items to prevent gaps between songs.
+  But different decoders may be attached to the chain when the input format changes.</p>
+<p>The decoder engine alsways has exactly one active decoder. If playback is
+  stopped, the decoder engine terminates.</p>
+<p>PM123 allways works internally with 16 bits per sample raw PCM data, to keep
+  the complexity of the filter plug-ins low. If an older decoder returns data
+  in a different format it is converted on the fly.</p>
+<h3><a name="user_interface"></a>The User Interface</h3>
+<p>The User Interfaces controlls the <em>application woindows</em> like <a href="mainwin.html">Main
+  Window</a>, <a href="playlist.html">Playlist</a> and <a href="manager.html">Playlist
+  Manager</a>, <a href="bookmarks.html">Bookmarks</a> and <a href="infodialog.html#metainfo">Tag
+  Editor</a>. Almost any
+  actions are executed in the asyncronously <a href="#play_controller">Play Controller</a> or
+  the <a href="#object_repository">Object Repository</a>.
+  Only actions, that only affect the User Interface itself or that are edit operations
+  like modification of playlists or song tags, are performed directly.</p>
+<p>The User interface windows are synchronized by the <a href="#object_repository">Object
+    Repository</a>. Any changes to
+  the Object Repository are immediately reflected to the User Interface by notifications
+  (also called events). It makes no difference whether the change is a result
+    of user action, a pipe command or any other asynchronous update like a changing
+    stream title from an internet stream or a file system notification.</p>
+<h3><a name="pipe_interface"></a>The Pipe Interface</h3>
+<p>The Pipe interface provides similar functionality than the User Interface
+  to remote applications. It can handle a set of <a href="remoteref.html">pipe
+  commands</a> to <em>control PM123
+  remotely</em>. The pipe listener is started at PM123 start-up. It can handle only
+  one remote connection at the same time, since it makes little sense to control
+  PM123 from different applications simultaneously.</p>
+<h3><a name="object_repository"></a>The Object Repository</h3>
+<p>The Object Repository keeps track of the <em>physical information</em>, <em>technical
+  information</em> (including <em>playlist content</em>) and <em>meta information</em> of
+  all playable objects in PM123. The <em>primary key</em> of all repository objects
+  is their
+  <em>URL</em>. None of the above information on playable objects may exists
+  outside the Object Repository.</p>
+<p>The information in the Object Repository is usually updated by a couple of
+  <em>worker threads</em> which receive their commands by a <em>Request Queue</em>.
+  The Request Queue handles information requests on playable objects at <em>two
+  priorities</em>. High priority requests are used if the <a href="#play_controller">Play
+  Controller</a> or
+  a user action or a pipe command requires the desired information. Low priority
+  requests are used for prefetching information on items that are likely to be
+  used soon or if some information change requires dependent information in other
+  playable objects to be updated, e.g. when the total playing time of a playlist
+  changes if one of the nested playlists is modified. The number of worker threads
+  controls the throughput of the Request Queue, but it also can end up with
+  heavy I/O load on the system if too many workers are on the way.</p>
+<p>The Object Repository provides notifications to observers like the <a href="#user_interface">User
+    Interface</a>  when information in the repository is refreshed. <em>Edit
+    operations</em> are applied
+  directly
+  to the
+  items in the Object Repository and then the resulting change is again signalled
+  to the User Interface
+  by the notification mechanism.</p>
+<p>The <em>object lifetime</em> of repository objects is managed automatically.
+  If no other component (including other playable objects) holds a strong reference
+  to a repository object, the object is removed from memory after a while. The
+  latency effectively forms a <em>cache</em> of repository objects. PM123 uses
+  reference counting to keep track of the needed objects. In case of cyclic references
+  (recursive
+playlists) the objects are never removed from memory until PM123 terminates.</p>
+</body></html>
