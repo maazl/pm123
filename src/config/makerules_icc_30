@@ -14,9 +14,9 @@ RES        = .res
 CC         = icc
 CFLAGS     = -Ss -Q -Gm -Gd+ -W3 -DOS2 -DNOSYSTEMSTATICMEMBER -Wdcl -Wenu
 CFLAGS_DLL = -Ge- -DLL
-CFLAGS_DBG = -Ti -Tx -DDEBUG=$(DEBUG)
+CFLAGS_DBG = -Ti -Tx -DDEBUG=$(DEBUG) -Gf -Gi -Gl -G5 -O -Os- -Oc
 CFLAGS_MEM = -Tm -DDEBUG_ALLOC=1
-CFLAGS_OPT = -Gf -Gi -O -G5
+CFLAGS_OPT = -Gf -Gi -O -G5 -Gl
 
 CL         = ilink
 LFLAGS     = /NOL /NOE
@@ -90,10 +90,10 @@ LFLAGS = $(LFLAGS) $(LFLAGS_DLL)
 !endif
 
 .c.obj:
-	$(CC) $(CFLAGS) -c $<
+	$(CC) $(CFLAGS) -Fo$@ -c $<
 
 .cpp.obj:
-	$(CC) $(CFLAGS) -c $<
+	$(CC) $(CFLAGS) -Fo$@ -c $<
 
 .rc.res:
 	$(RC) $(RFLAGS) -r $<
@@ -103,5 +103,8 @@ LFLAGS = $(LFLAGS) $(LFLAGS_DLL)
 
 all:    $(TARGET) $(MDUMMY)
 
+!ifndef SRCFIL
+SRCFIL = *.cpp *.c
+!endif
 depend:
-	$(TOPDIR)\config\makedep.cmd *.cpp *.c -r -x -I$(INCDIR)
+	$(TOPDIR)\config\makedep.cmd $(SRCFIL) -r -x -I$(INCDIR)

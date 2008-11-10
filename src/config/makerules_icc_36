@@ -87,10 +87,10 @@ LFLAGS = $(LFLAGS) $(LFLAGS_DLL)
 !endif
 
 .c.obj:
-	$(CC) $(CFLAGS) -c $<
+	$(CC) $(CFLAGS) -Fo$@ -c $<
 
 .cpp.obj:
-	$(CC) $(CFLAGS) -c $<
+	$(CC) $(CFLAGS) -Fo$@ -c $<
 
 .rc.res:
 	$(RC) $(RFLAGS) -r $<
@@ -100,5 +100,8 @@ LFLAGS = $(LFLAGS) $(LFLAGS_DLL)
 
 all:    $(TARGET) $(MDUMMY)
 
+!ifndef SRCFIL
+SRCFIL = *.cpp *.c
+!endif
 depend:
-	$(TOPDIR)\config\makedep.cmd *.cpp *.c -r -x -I$(INCDIR)
+	$(TOPDIR)\config\makedep.cmd $(SRCFIL) -r -x -I$(INCDIR)
