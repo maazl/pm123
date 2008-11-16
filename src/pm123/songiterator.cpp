@@ -1062,12 +1062,12 @@ bool SongIterator::Deserialize(const char*& str)
 
       // make time
       if (dp-- != t)
-        dp[0] = 60*dp[0] + dp[1]; // Minutes
-      if (dp-- != t)
-        dp[0] = 3600*dp[0] + dp[1]; // Hours
-      if (dp-- != t)
-        dp[0] = 86400*dp[0] + dp[1]; // Days
-
+      { dp[0] = 60*dp[0] + dp[1]; // Minutes
+        if (dp-- != t)
+        { dp[0] = 3600*dp[0] + dp[1]; // Hours
+          if (dp-- != t)
+            dp[0] = 86400*dp[0] + dp[1]; // Days
+      } }
       // do the navigation
       T_TIME songlen = Current()->GetPlayable()->GetInfo().tech->songlength;
       if (sign)
