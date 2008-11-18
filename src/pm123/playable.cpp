@@ -60,7 +60,7 @@ Playable::Lock::~Lock()
 
 Playable::WaitInfo::WaitInfo(Playable& inst, InfoFlags filter)
 : Filter(filter),
-  Deleg(inst.InfoChange, *this, &InfoChangeEvent)
+  Deleg(inst.InfoChange, *this, &Playable::WaitInfo::InfoChangeEvent)
 { DEBUGLOG(("Playable::WaitInfo(%p)::WaitInfo(&%p)\n", this, &inst));
 }
 

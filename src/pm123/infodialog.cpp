@@ -332,7 +332,7 @@ MRESULT InfoDialog::MetaWriteDlg::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
         return 0;
       }
       // Error, worker halted
-      sprintf(buffer, "Failed to write meta info. %s reported error %u", Dest[i]->GetDecoder(), LONGFROMMP(mp2));
+      sprintf(buffer, "Failed to write meta info. %s reported error %lu", Dest[i]->GetDecoder(), LONGFROMMP(mp2));
       PMRASSERT(WinSetDlgItemText(GetHwnd(), EF_WMSTATUS, buffer));
       // 'skip all' was pressed? => continue immediately
       if (SkipErrors)
@@ -537,7 +537,7 @@ struct InfoDialog::Data SingleInfoDialog::GetData()
 
 void SingleInfoDialog::ContentChangeEvent(const Playable::change_args& args)
 { DEBUGLOG(("SingleInfoDialog(%p)::ContentChangeEvent({&%p, %x, %x})\n",
-    this, args.Instance, args.Changed, args.Loaded));
+    this, &args.Instance, args.Changed, args.Loaded));
   if (args.Changed & (Playable::IF_Format|Playable::IF_Tech|Playable::IF_Phys|Playable::IF_Meta|Playable::IF_Rpl|Playable::IF_Other))
   { DataCacheValid = false;
     WinPostMsg(PageTech.GetHwnd(), PageBase::UM_UPDATE, MPFROMLONG(args.Changed), 0);

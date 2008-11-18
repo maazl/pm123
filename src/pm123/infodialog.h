@@ -48,7 +48,9 @@
 ****************************************************************************/
 class InfoDialog 
 : public ManagedDialogBase,
-  private OwnedPlayableSet, // aggregation is not sufficient because of the destruction sequence
+  // aggregation is not sufficient because of the destruction sequence
+  // private OwnedPlayableSet,  -- gcc work around
+  protected OwnedPlayableSet,
   public IComparableTo<const PlayableSetBase*>,
   public inst_index<InfoDialog, const PlayableSetBase*const> // depends on base class OwnedPlayableSet
 {public:
@@ -187,6 +189,7 @@ class InfoDialog
     ~MetaWriteDlg();
     ULONG           DoDialog(HWND owner);
   };
+  friend void TFNENTRY InfoDialogMetaWriteWorkerStub(void*);
 
  protected:
   PageTechInfo      PageTech;
