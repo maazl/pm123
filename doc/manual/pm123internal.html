@@ -1,7 +1,7 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
 <html><head>
-  <title>PM123: Internal Structure</title>
-	<link rel="stylesheet" href="infstyle.css" type="text/css"></head>
+  
+	<title>PM123: Internal Structure</title><link rel="stylesheet" href="infstyle.css" type="text/css"></head>
 <body>
 <h2>PM123's main internal structure</h2>
 <p>PM123 consists of several logical <em>components</em> that <em>run asynchronously
@@ -16,14 +16,8 @@
   <li>the <a href="#object_repository">Object Repository</a>.</li>
 </ul>
 <p>The Play Controller and the Object Repository are new with PM123 1.40.</p>
-<blockquote><img src="images/internalcomponents.png" alt="PM123 component overview" width="700" height="530" border="0" usemap="#Map">
-  <map name="Map">
-    <area shape="rect" coords="96,0,293,122" href="#play_controller">
-    <area shape="rect" coords="413,0,610,122" href="#decoder_engine">
-    <area shape="rect" coords="96,204,293,326" href="#user_interface">
-    <area shape="rect" coords="413,204,610,326" href="#pipe_interface">
-      <area shape="rect" coords="254,408,451,529" href="#object_repository">
-  </map>
+<blockquote><img src="images/internalcomponents.png" alt="PM123 component overview" usemap="#Map" border="0" height="530" width="700">
+  <map name="Map"><area shape="rect" coords="96,0,293,122" href="#play_controller"><area shape="rect" coords="413,0,610,122" href="#decoder_engine"><area shape="rect" coords="96,204,293,326" href="#user_interface"><area shape="rect" coords="413,204,610,326" href="#pipe_interface"><area shape="rect" coords="254,408,451,529" href="#object_repository"></map>
 </blockquote>
 
 <h3><a name="play_controller"></a>The Play Controller</h3>
@@ -65,7 +59,7 @@
 <h3><a name="user_interface"></a>The User Interface</h3>
 <p>The User Interfaces controlls the <em>application woindows</em> like <a href="mainwin.html">Main
   Window</a>, <a href="playlist.html">Playlist</a> and <a href="manager.html">Playlist
-  Manager</a>, <a href="bookmarks.html">Bookmarks</a> and <a href="infodialog.html#metainfo">Tag
+  Manager</a>, <a href="bookmark.html">Bookmarks</a> and <a href="infodialog.html#metainfo">Tag
   Editor</a>. Almost any
   actions are executed in the asyncronously <a href="#play_controller">Play Controller</a> or
   the <a href="#object_repository">Object Repository</a>.
