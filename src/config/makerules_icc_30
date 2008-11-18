@@ -14,9 +14,9 @@ RES        = .res
 CC         = icc
 CFLAGS     = -Ss -Q -Gm -Gd+ -W3 -DOS2 -DNOSYSTEMSTATICMEMBER -Wdcl -Wenu
 CFLAGS_DLL = -Ge- -DLL
-CFLAGS_DBG = -Ti -Tx -DDEBUG=$(DEBUG) -Gf -Gi -Gl -G5 -O -Os- -Oc
+CFLAGS_DBG = -Ti -Tx -DDEBUG=$(DEBUG) -Gf -Gl -G5 -O -Oc -Os- -Oi- -Op- -Gx+
 CFLAGS_MEM = -Tm -DDEBUG_ALLOC=1
-CFLAGS_OPT = -Gf -Gi -O -G5 -Gl
+CFLAGS_OPT = -Gf -Gi -O -G5 -Gl -Gx+
 
 CL         = ilink
 LFLAGS     = /NOL /NOE
