@@ -692,15 +692,10 @@ void PlaylistBase::SetTitle()
 { DEBUGLOG(("PlaylistBase(%p)::SetTitle()\n", this));
   // Generate Window Title
   const char* append = "";
-  switch (Content->GetStatus())
-  {case STA_Invalid:
+  if (Content->GetStatus() == Playable::STA_Invalid)
     append = " [invalid]";
-    break;
-   case STA_Used:
+  else if (Content->IsInUse())
     append = " [used]";
-    break;
-   default:;
-  }
   DialogBase::SetTitle(xstring::sprintf("PM123: %s%s%s", GetDisplayName().cdata(),
     (Content->GetFlags() & Playable::Enumerable) && ((PlayableCollection&)*Content).IsModified() ? " (*)" : "", append));
 }
@@ -780,7 +775,7 @@ void PlaylistBase::RequestChildren(RecordBase* const rec)
   // But only the playlist content is requested at high priority;
   Playable::InfoFlags avail = pp->EnsureInfoAsync(Playable::IF_Other|Playable::IF_Rpl, false)
                             | pp->EnsureInfoAsync(Playable::IF_Tech, true);
-  InfoChangeEvent(Playable::change_args(*pp, avail), rec);
+  InfoChangeEvent(Playable::change_args(*pp, avail, avail), rec);
 }
 
 void PlaylistBase::UpdateChildren(RecordBase* const rp)
@@ -789,11 +784,11 @@ void PlaylistBase::UpdateChildren(RecordBase* const rp)
   Playable* const pp = PlayableFromRec(rp);
 
   DEBUGLOG(("PlaylistBase::UpdateChildren - %u\n", pp->GetStatus()));
-  if ((pp->GetFlags() & Playable::Enumerable) == 0 || pp->GetStatus() <= STA_Invalid)
+  if ((pp->GetFlags() & Playable::Enumerable) == 0 || pp->GetStatus() <= Playable::STA_Invalid)
   { // Nothing to enumerate, delete children if any
     DEBUGLOG(("PlaylistBase::UpdateChildren - no children possible.\n"));
     if (RemoveChildren(rp))
-      PostRecordCommand(rp, RC_UPDATESTATUS); // update icon
+      PostRecordCommand(rp, RC_UPDATEUSAGE); // update icon
     return;
   }
 
@@ -841,7 +836,7 @@ void PlaylistBase::UpdateChildren(RecordBase* const rp)
     while ((pi = ((PlayableCollection*)pp)->GetNext(pi)) != NULL)
     { // request state?
       if (reqstate)
-        pi->GetPlayable()->EnsureInfoAsync(Playable::IF_Status);
+        pi->GetPlayable()->EnsureInfoAsync(Playable::IF_Other);
       // Find entry in the current content
       RecordBase** orpp = old.begin();
       for (;;)
@@ -973,8 +968,8 @@ bool PlaylistBase::IsUnderCurrentRoot(RecordBase* rec) const
 }
 
 
-void PlaylistBase::UpdateStatus(RecordBase* rec)
-{ DEBUGLOG(("PlaylistBase(%p)::UpdateStatus(%p)\n", this, rec));
+void PlaylistBase::UpdateIcon(RecordBase* rec)
+{ DEBUGLOG(("PlaylistBase(%p)::UpdateIcon(%p)\n", this, rec));
   if (rec == NULL)
   { // Root node => update title
     SetTitle();
@@ -1016,28 +1011,30 @@ void PlaylistBase::UpdatePlayStatus()
 }
 void PlaylistBase::UpdatePlayStatus(RecordBase* rec)
 { DEBUGLOG(("PlaylistBase(%p)::UpdatePlayStatus(%p)\n", this, rec));
-  if (rec->Data->Content->GetPlayable()->GetStatus() == STA_Used)
-    PostRecordCommand(rec, RC_UPDATESTATUS);
+  if (rec->Data->Content->GetPlayable()->IsInUse())
+    PostRecordCommand(rec, RC_UPDATEUSAGE);
 }
 
 void PlaylistBase::InfoChangeEvent(const Playable::change_args& args, RecordBase* rec)
-{ DEBUGLOG(("PlaylistBase(%p{%s})::InfoChangeEvent({%p{%s}, %x}, %s)\n", this, DebugName().cdata(),
-    &args.Instance, args.Instance.GetURL().getShortName().cdata(), args.Flags, RecordBase::DebugName(rec).cdata()));
+{ DEBUGLOG(("PlaylistBase(%p{%s})::InfoChangeEvent({%p{%s}, %x, %x}, %s)\n", this, DebugName().cdata(),
+    &args.Instance, args.Instance.GetURL().getShortName().cdata(), args.Changed, args.Loaded, RecordBase::DebugName(rec).cdata()));
 
-  if (args.Flags & Playable::IF_Other)
+  if (args.Changed & Playable::IF_Other)
     PostRecordCommand(rec, RC_UPDATECHILDREN);
-  if (args.Flags & Playable::IF_Status)
-    PostRecordCommand(rec, RC_UPDATESTATUS);
-  if (args.Flags & Playable::IF_Format)
+  if (args.Changed & Playable::IF_Usage)
+    PostRecordCommand(rec, RC_UPDATEUSAGE);
+  if (args.Changed & Playable::IF_Format)
     PostRecordCommand(rec, RC_UPDATEFORMAT);
-  if (args.Flags & Playable::IF_Tech)
+  if (args.Changed & Playable::IF_Tech)
     PostRecordCommand(rec, RC_UPDATETECH);
-  if (args.Flags & Playable::IF_Meta)
+  if (args.Changed & Playable::IF_Meta)
     PostRecordCommand(rec, RC_UPDATEMETA);
-  if (args.Flags & Playable::IF_Phys)
+  if (args.Changed & Playable::IF_Phys)
     PostRecordCommand(rec, RC_UPDATEPHYS);
-  if (args.Flags & Playable::IF_Rpl)
+  if (args.Changed & Playable::IF_Rpl)
     PostRecordCommand(rec, RC_UPDATERPL);
+  if (args.Loaded & Playable::IF_Rpl)
+    PostRecordCommand(rec, RC_LOADRPL);
 }
 
 void PlaylistBase::StatChangeEvent(const PlayableInstance::change_args& args, RecordBase* rec)
@@ -1045,7 +1042,7 @@ void PlaylistBase::StatChangeEvent(const PlayableInstance::change_args& args, Re
     &args.Instance, args.Instance.GetPlayable()->GetURL().getShortName().cdata(), args.Flags, rec));
 
   if (args.Flags & PlayableInstance::SF_InUse)
-    PostRecordCommand(rec, RC_UPDATESTATUS);
+    PostRecordCommand(rec, RC_UPDATEUSAGE);
   if (args.Flags & PlayableInstance::SF_Alias)
     PostRecordCommand(rec, RC_UPDATEALIAS);
   if (args.Flags & PlayableInstance::SF_Slice)
@@ -1680,3 +1677,4 @@ void PlaylistBase::DropEnd(RecordBase* rec, bool ok)
     // Release the record locked in DragInit.
     FreeRecord(rec);
 }
+

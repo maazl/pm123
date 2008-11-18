@@ -41,7 +41,6 @@
 
 #include <utilfct.h>
 #include <cpp/xstring.h>
-#include <cpp/container.h>
 #include <cpp/stringmap.h>
 #include "properties.h"
 #include "controller.h"

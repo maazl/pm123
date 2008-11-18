@@ -235,7 +235,7 @@ class SpinLock
                SpinLock()        : Count(0) {}
   unsigned     Peek() const      { return Count; }             
   void         Inc()             { InterlockedInc(Count); }
-  bool         Dec()             { return InterlockedDec(Count); }
+  bool         Dec()             { ASSERT(Count); return InterlockedDec(Count); }
   unsigned     Reset()           { return InterlockedXch(Count, 0); } 
   void         Wait();
  public:
@@ -248,6 +248,25 @@ class SpinLock
                Use(SpinLock& sl) : SL(sl) { sl.Inc(); }
                ~Use()            { SL.Dec(); }
   };
+};
+
+
+/*****************************************************************************
+*
+*  recusive spin-lock class
+*
+*  This is the same as SpinLock except that it does not wait for the own thread.
+*
+*****************************************************************************/
+class RecSpinLock : public SpinLock
+{private:
+  volatile TID CurrentTID;
+ public:
+               RecSpinLock()     : CurrentTID(0) {}
+  void         Inc();
+  // return false if the SpinLock is freed
+  bool         Dec();
+  void         Wait();
 };
 
 

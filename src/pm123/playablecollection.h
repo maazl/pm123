@@ -33,12 +33,12 @@
 #include "playable.h"
 
 #include <cpp/event.h>
-//#include <utilfct.h>
 #include <xio.h>
 #include <cpp/smartptr.h>
 #include <cpp/xstring.h>
 #include <cpp/cpputil.h>
-#include <cpp/container.h>
+#include <cpp/container/sorted_vector.h>
+#include <cpp/container/list.h>
 #include <cpp/url123.h>
 
 #include <decoder_plug.h>
@@ -90,7 +90,7 @@ class PlayableSlice : public Iref_Count
   // Aliasname
   xstring                  GetAlias() const    { return Alias; }
   virtual void             SetAlias(const xstring& alias);
-  // Status
+  // Usage status
   virtual void             SetInUse(bool used);
   #ifdef DEBUG
   xstring                  DebugName() const;
@@ -149,8 +149,11 @@ class PlayableInstance : public PlayableSlice
  protected:
   PlayableCollection*      Parent; // Weak reference to the parent Collection
  private:
-  PlayableStatus           Stat;
+  bool                     InUse;
 
+ private:
+  PlayableInstance(const PlayableInstance& r);
+  void operator=(const PlayableInstance& r);
  private:
   // Compares two slice borders taking NULL iterators by default as
   // at the start, if type is SB_Start, or at the end if type is SB_Stop.
@@ -164,7 +167,16 @@ class PlayableInstance : public PlayableSlice
   // The return value true is not reliable unless the collection is locked.
   // Calling this method with NULL will check whether the instance does no longer belog to a collection.
   // In this case only the return value true is reliable.
+  #ifdef DEBUG
+  bool                     IsParent(const PlayableCollection* parent) const
+                           { if (Parent == parent)
+                               return true;
+                             DEBUGLOG(("PlayableInstnace(%p)::IsParent(%p) - %p\n", this, parent, Parent));
+                             return false;
+                           }
+  #else
   bool                     IsParent(const PlayableCollection* parent) const { return Parent == parent; }
+  #endif
   // Display name
   xstring                  GetDisplayName() const;
 
@@ -181,11 +193,9 @@ class PlayableInstance : public PlayableSlice
   // Aliasname
   virtual void             SetAlias(const xstring& alias);
 
-  // The Status-Interface of PlayableInstance is identical to that of Playable,
-  // but the only valid states for a PlayableInstance are Normal and Used.
-  // Status changes of a PlayableInstance are automatically reflected to the underlying Playable object,
-  // but /not/ the other way.
-  PlayableStatus           GetStatus() const   { return Stat; }
+  // In use status changes of a PlayableInstance are automatically reflected
+  // to the underlying Playable object, but /not/ the other way.
+  bool                     IsInUse() const     { return InUse; }
   // Change status of this instance.
   virtual void             SetInUse(bool used);
 
@@ -245,25 +255,25 @@ class PlayableCollection : public Playable
     void                      Add(T_TIME songlength, double filesize, int items);
     void                      Add(const CollectionInfo& ci);
     void                      Reset();
-    CollectionInfo()          { Reset(); }
+                              CollectionInfo()       { Reset(); }
   };
  protected:
   // internal representation of a PlayableInstance as linked list.
-  struct Entry : public PlayableInstance
+  struct Entry : public PlayableInstance, public list_int<Entry>::entry_base
   { typedef class_delegate<PlayableCollection, const Playable::change_args> TDType;
     typedef class_delegate<PlayableCollection, const PlayableInstance::change_args> IDType;
-    int_ptr<Entry> Prev;      // link to the pervious entry or NULL if this is the first
-    int_ptr<Entry> Next;      // link to the next entry or NULL if this is the last
     TDType TechDelegate;
     IDType InstDelegate;
     Entry(PlayableCollection& parent, Playable* playable, TDType::func_type tfn, IDType::func_type ifn);
-    ~Entry() { DEBUGLOG(("PlayableCollection::Entry(%p)::~Entry()", this)); }
+    virtual                   ~Entry() { DEBUGLOG(("PlayableCollection::Entry(%p)::~Entry()", this)); }
     // Activate the event handlers
-    void Attach();
+    void                      Attach();
     // Detach a PlayableInstance from the collection.
     // This function must be called only by the parent collection and only while it is locked.
-    void Detach();
+    void                      Detach();
   };
+  // The object list is implemented as a doubly linked list to keep the iterators valid on modifications.
+  typedef list_int<Entry>     EntryList;
   // CollectionInfo CacheEntry
   struct CollectionInfoEntry
   : public PlayableSet
@@ -275,44 +285,59 @@ class PlayableCollection : public Playable
     #endif
   };
 
- protected:
-  // The object list is implemented as a doubly linked list to keep the iterators valid on modifications.
-  int_ptr<Entry>              Head;
-  int_ptr<Entry>              Tail;
+ private:
+  EntryList                   List;
   bool                        Modified;
+ protected:
+  xstring                     ErrorMsg; // can store error from last DoLoadInfo call. Only valid if status is STA_Invalid.
 
  private:
   // Cache with subenumeration infos
-  // This object is protected by a critical section.
+  // This object is protected by the mutex below.
   sorted_vector<CollectionInfoEntry, PlayableSetBase> CollectionInfoCache;
   // One Mutex to protect CollectionInfoCache of all instances.
   // You must not aquire another Mutex while holding this one.
   static Mutex                CollectionInfoCacheMtx;
- private: // Entries used by BeginRefresh/EndRefresh ...
-  // Flag whether BeginRefresh has been called and EndRefresh not.
-  bool                        RefreshActive;
-  // New head pointer between BeginRefresh and EndRefresh
-  int_ptr<Entry>              OldTail;
+/* private: // Entries used by BeginRefresh/EndRefresh ...
   // List of Playable objects that are removed, added or their PlayableInstance is modified.
   // This list does not hold the ownership of the Playable objects inside.
   // So you must not dereference them anymore. However, comparing the pointers for instance
-  // equality is safe, since Playable objects are unique with respect to their primary key.
-  PlayableSet                 ModifiedSubitems;
+  // equality is mostly safe, since Playable objects are unique with respect to their primary key.
+  // In the worst case another object is invalidated accidentially. 
+  PlayableSet                 ModifiedSubitems;*/
 
  private:
   // Invalidate CollectionInfoCache by single object.
   void                        InvalidateCIC(InfoFlags what, Playable& p);
   // Invalidate CollectionInfoCache by multiple objects.
-  void                        InvalidateCIC(InfoFlags what, const PlayableSetBase& set);
+  /*void                        InvalidateCIC(InfoFlags what, const PlayableSetBase& set);*/
   // This is called by the InfoChange events of the children.
   void                        ChildInfoChange(const Playable::change_args& args);
   // This is called by the StatusChange events of the children.
   void                        ChildInstChange(const PlayableInstance::change_args& args);
+  // Internal subfunction to UpdateList.
+  bool                        UpdateListCore(Entry* cur_new, Entry*& first_new);
+  // Internal subfunction to UpdateList.
+  bool                        PurgeUntil(Entry* keep_from);
  protected:
   // Prefetch some information to avoid deadlocks in GetCollectionInfo.
-  void                        PrefetchSubInfo(const PlayableSetBase& excluding);
+  void                        PrefetchSubInfo(const PlayableSetBase& excluding, bool incl_songs);
   // Create new entry and make the path absolute if required.
-  Entry*                      CreateEntry(const char* url, const DECODER_INFO2* ca = NULL);
+  Entry*                      CreateEntry(const char* url, const DECODER_INFO2* ca = NULL) const;
+  // Update the modified flag
+  void                        UpdateModified(bool modified);
+  // Update the list of entries. The update is done smooth, keeping as much entries
+  // as possible. And throwing away the new ones in doubt.
+  // The functions return false if the operation was a no-op.
+  void                        UpdateList(EntryList& newlist);
+  void                        UpdateList(const vector<PlayableInstance>& newlist);
+  // Subfunction to LoadInfo which really populates the linked list.
+  // The return value indicates whether the object is valid.
+  virtual bool                LoadList(EntryList& list, PHYS_INFO& phys) = 0;
+  // Load Information from URL
+  // This implementation is only the framework. It reqires LoadList() for it's work.
+  virtual InfoFlags           DoLoadInfo(InfoFlags what);
+ protected: // modification functions
   // Insert a new entry into the list.
   // The list must be locked before calling this Function.
   void                        InsertEntry(Entry* entry, Entry* before);
@@ -326,15 +351,6 @@ class PlayableCollection : public Playable
   // Remove an entry from the list.
   // The list must be locked before calling this Function.
   void                        RemoveEntry(Entry* entry);
-  // This function logically removes all items from the list but keeps them alive until
-  // EndRefresh is called or they are reused by AppendEntry. This mechanismn avoids
-  // that the unmodified PlayableInstance objects are recreated.
-  void                        BeginRefresh();
-  // Refresh has been completed. This deletes all items that are not reused so far.  
-  void                        EndRefresh();
-  // Subfunction to LoadInfo which really populates the linked list.
-  // The return value indicates whether the object is valid.
-  virtual bool                LoadList() = 0;
   // Save to stream as PM123 playlist format
   bool                        SaveLST(XFILE* of, bool relative);
   // Save to stream as WinAmp playlist format
@@ -373,28 +389,30 @@ class PlayableCollection : public Playable
   // If you call this function while the requested flags of InfoValid are not yet set,
   // you will get incomplete information. This is not an error.
   const CollectionInfo&       GetCollectionInfo(InfoFlags what, const PlayableSetBase& excluding = PlayableSetBase::Empty);
-  // Load Information from URL
-  // This implementation is only the framework. It reqires LoadInfoCore() for it's work.
-  virtual InfoFlags           LoadInfo(InfoFlags what);
-
+ public: // Editor functions
   // Insert a new item before the item "before".
   // If the prameter before is NULL the item is appended.
-  // The funtion fails with returning false if and only if the PlayableInstance before is no longer valid.
+  // The funtion fails with returning false if the PlayableInstance before is no longer valid
+  // or the update flags cannot be locked.
   virtual bool                InsertItem(const PlayableSlice& item, PlayableInstance* before = NULL);
   // Move an item inside the list.
   // If the prameter before is NULL the item is moved to the end.
-  // The funtion fails with returning false if and only if one of the PlayableInstances is no longer valid.
+  // The funtion fails with returning false if one of the PlayableInstances is no longer valid
+  // or the update flags cannot be locked.
   virtual bool                MoveItem(PlayableInstance* item, PlayableInstance* before);
   // Remove an item from the playlist.
-  // Attension: passing NULL as argument will remove all items.
-  // The funtion fails with returning false if and only if the PlayableInstance is no longer valid.
+  // The funtion fails with returning false if the PlayableInstance is no longer valid
+  // or the update flags cannot be locked.
   virtual bool                RemoveItem(PlayableInstance* item);
   // Remove all items from the playlist.
-  void                        Clear() { RemoveItem(NULL); }
+  // The funtion returns false if the update flags cannot be locked.
+  virtual bool                Clear();
   // Sort all items with a comparer.
-  virtual void                Sort(ItemComparer comp);
+  // The funtion returns false if the update flags cannot be locked.
+  virtual bool                Sort(ItemComparer comp);
   // Randomize record sequence.
-  virtual void                Shuffle();
+  // The funtion returns false if the update flags cannot be locked.
+  virtual bool                Shuffle();
 
   // Save the current playlist as new file.
   // If the destination name is omitted, the data is saved under the current URL.
@@ -427,7 +445,8 @@ class Playlist : public PlayableCollection
   friend class LSTReader;
   class LSTReader
   {private:
-    Playlist&                 List;
+    const Playlist&           Parent;
+    EntryList&                Dest;
     FORMAT_INFO2              Format;
     TECH_INFO                 Tech;
     PHYS_INFO                 Phys;
@@ -441,31 +460,26 @@ class Playlist : public PlayableCollection
     void                      Reset();
     void                      Create();
    public:
-    LSTReader(Playlist& lst)  : List(lst) { Reset(); }
+    LSTReader(const Playlist& pl, EntryList& list)  : Parent(pl), Dest(list) { Reset(); }
     ~LSTReader()              { Create(); }
     void                      ParseLine(char* line);
   };
 
  private:
   // Loads the PM123 native playlist file.
-  bool                        LoadLST(XFILE* x);
+  bool                        LoadLST(EntryList& list, XFILE* x);
   // Loads the WarpAMP playlist file.
-  bool                        LoadMPL(XFILE* x);
+  bool                        LoadMPL(EntryList& list, XFILE* x);
   // Loads the WinAMP playlist file.
-  bool                        LoadPLS(XFILE* x);
+  bool                        LoadPLS(EntryList& list, XFILE* x);
  protected:
   // really load the playlist
-  virtual bool                LoadList();
+  virtual bool                LoadList(EntryList& list, PHYS_INFO& phys);
  public:
   Playlist(const url123& URL, const DECODER_INFO2* ca = NULL)
    : PlayableCollection(URL, ca) { DEBUGLOG(("Playlist(%p)::Playlist(%s, %p)\n", this, URL.cdata(), ca)); }
   // Get attributes
   virtual Flags               GetFlags() const;
-
-  // Save the current playlist as new file.
-  virtual bool                Save(const url123& URL, save_options opt = SaveDefault);
-  // There is no using... in IBM VAC++
-  bool                        Save(save_options opt = SaveDefault) { return PlayableCollection::Save(opt); }
 
  protected:
   // Notify that the data source is likely to have changed.
@@ -489,7 +503,7 @@ class PlayFolder : public PlayableCollection
   static int                  CompNameFoldersFirst(const PlayableInstance* l, const PlayableInstance* r);
  public:
   PlayFolder(const url123& URL, const DECODER_INFO2* ca = NULL);
-  virtual bool                LoadList();
+  virtual bool                LoadList(EntryList& list, PHYS_INFO& phys);
 };
 
 

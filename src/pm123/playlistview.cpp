@@ -252,15 +252,16 @@ MRESULT PlaylistView::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
         PlayableInstance::StatusFlags iflg = PlayableInstance::SF_None;
         if (flags & 1<<RC_UPDATEPHYS)
           flg |= Playable::IF_Phys;
-        if (flags & 1<<RC_UPDATERPL)
-        { flg |= Playable::IF_Rpl;
-          bool& wait = StateFromRec(rec).WaitUpdate;
+        if (flags & 1<<RC_LOADRPL)
+        { bool& wait = StateFromRec(rec).WaitUpdate;
           if (wait)
           { // Schedule UpdateChildren too
             wait = false;
             flags |= 1<<RC_UPDATECHILDREN;
           }
         }
+        if (flags & 1<<RC_UPDATERPL)
+          flg |= Playable::IF_Rpl;
         if (flags & 1<<RC_UPDATETECH)
           flg |= Playable::IF_Tech;
         if (flags & 1<<RC_UPDATEMETA)
@@ -272,8 +273,8 @@ MRESULT PlaylistView::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
 
         if ((int)flg | iflg)
           UpdateRecord(rec, flg, iflg);
-        if (flags & 1<<RC_UPDATESTATUS)
-          UpdateStatus(rec);
+        if (flags & 1<<RC_UPDATEUSAGE)
+          UpdateIcon(rec);
         if (flags & 1<<RC_UPDATECHILDREN && rec == NULL) // Only Root node has children
           UpdateChildren(NULL);
       }
@@ -409,7 +410,7 @@ HWND PlaylistView::InitContextMenu()
       { editmeta &= (*--rpp)->Data->Content->GetPlayable()->GetInfo().meta_write;
       } while (rpp != Source.begin());
     }
-    mn_enable_item(hwndMenu, IDM_PL_NAVIGATE, Source.size() == 1 && Content->GetStatus() == STA_Used);
+    mn_enable_item(hwndMenu, IDM_PL_NAVIGATE, Source.size() == 1 && Content->IsInUse());
     mn_enable_item(hwndMenu, IDM_PL_EDIT,     editmeta);
     mn_enable_item(hwndMenu, IDM_PL_FLATTEN,  ismutable && (rt & RT_List) );
     mn_enable_item(hwndMenu, IDM_PL_REFRESH,  (rt & (RT_Enum|RT_List)) == 0);
@@ -438,7 +439,7 @@ PlaylistBase::IC PlaylistView::GetRecordUsage(const RecordBase* rec) const
 { DEBUGLOG(("PlaylistView::GetRecordUsage(%s)\n", Record::DebugName(rec).cdata()));
   int_ptr<PlayableSlice> root = Ctrl::GetRoot();
   PlayableInstance* cur = rec->Data->Content;
-  if (cur->GetStatus() != STA_Used && (!root || root->GetPlayable() != cur->GetPlayable()))
+  if (!cur->IsInUse() && (!root || root->GetPlayable() != cur->GetPlayable()))
     return IC_Shadow;
   return Ctrl::IsPlaying() ? IC_Play : IC_Active;
 }

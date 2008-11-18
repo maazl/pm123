@@ -1040,8 +1040,8 @@ bool SongIterator::Deserialize(const char*& str)
       { sign = true;
         ++str;
       }
-      T_TIME t[4] = {0};
-      T_TIME* dp = t;
+      double t[4] = {0};
+      double* dp = t;
       while (*str)
       { size_t n = 0;
         sscanf(str, "%lf%n", dp, &n);

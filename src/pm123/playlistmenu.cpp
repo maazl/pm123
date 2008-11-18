@@ -72,20 +72,18 @@ int PlaylistMenu::MapEntry::compareTo(const USHORT& key) const
 }
 
 void PlaylistMenu::MapEntry::InfoChangeCallback(const Playable::change_args& args)
-{ DEBUGLOG(("PlaylistMenu::MapEntry(%p)::InfoChangeCallback({%p,%x}) {%p, %u, %p, %p, %p}\n", this, &args.Instance, args.Flags,
-    &Owner, IDMenu, HwndParent, HwndSub, Data.get()));
+{ DEBUGLOG(("PlaylistMenu::MapEntry(%p)::InfoChangeCallback({%p,%x,%x}) {%p, %u, %p, %p, %p}\n", this,
+    &args.Instance, args.Changed, args.Loaded, &Owner, IDMenu, HwndParent, HwndSub, Data.get()));
   // update list of children, but only for the current menu,
-  if (args.Flags & Playable::IF_Other)
+  if (args.Changed & Playable::IF_Other)
   { // event obsolete?
     if (Owner.UpdateEntry != NULL && &args.Instance == Owner.UpdateEntry->Data->GetPlayable())
     { QMSG msg;
       if (!WinPeekMsg(amp_player_hab(), &msg, Owner.HwndOwner, UM_LATEUPDATE, UM_LATEUPDATE, PM_NOREMOVE))
         PMRASSERT(WinPostMsg(Owner.HwndOwner, UM_LATEUPDATE, 0, 0));
     }
-  }
-  // Update enable status
-  if (args.Flags & Playable::IF_Status)
     PMRASSERT(WinPostMsg(Owner.HwndOwner, UM_UPDATESTAT, MPFROMSHORT(IDMenu), MPFROMP(this)));
+  }
 }
 
 
@@ -130,6 +128,7 @@ MRESULT PlaylistMenu::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
    case WM_INITMENU:
     { DEBUGLOG(("PlaylistMenu(%p)::DlgProc: WM_INITMENU(%u, %x)\n", this, SHORT1FROMMP(mp1), mp2));
       MapEntry* mapp = MenuMap.find(SHORT1FROMMP(mp1));
+      DEBUGLOG(("PlaylistMenu::DlgProc: WM_INITMENU: %p\n", mapp));
       if (mapp == NULL)
         break; // No registered map entry, continue default processing.
       mapp->HwndSub = HWNDFROMMP(mp2);
@@ -169,7 +168,7 @@ MRESULT PlaylistMenu::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
       DEBUGLOG(("PlaylistMenu(%p)::DlgProc: UM_UPDATESTAT(%u) - %p\n", this, SHORT1FROMMP(mp1), mp));
       if (mp && mp->HwndParent != NULLHANDLE) // ID known and not the root node?
       { DEBUGLOG2(("%p, %u, %p, ...\n", mp->HwndParent, mp->IDMenu, mp->Data.get()));
-        PMRASSERT(mn_enable_item(mp->HwndParent, mp->IDMenu, mp->Data->GetPlayable()->GetStatus() > STA_Invalid));
+        PMRASSERT(mn_enable_item(mp->HwndParent, mp->IDMenu, mp->Data->GetPlayable()->GetStatus() != Playable::STA_Invalid));
       }
     }
     break;
@@ -230,7 +229,7 @@ void PlaylistMenu::CreateSubItems(MapEntry* mapp)
       Playable* pp = pi->GetPlayable();
       DEBUGLOG(("PlaylistMenu::CreateSubItems: at %p{%s}\n", pp, pp->GetURL().getShortName().cdata()));
       // skip invalid?
-      if ((mapp->Flags & SkipInvalid) && pp->GetStatus() <= STA_Invalid)
+      if ((mapp->Flags & SkipInvalid) && pp->GetStatus() != Playable::STA_Valid)
         continue;
       ++count;
       // fetch ID
@@ -248,9 +247,14 @@ void PlaylistMenu::CreateSubItems(MapEntry* mapp)
       ASSERT(subp == NULL);
       subp = new MapEntry(*this, mi.id, *pi, *mapp, MIT_END);
       // Invalid?
-      if (pp->GetStatus() <= STA_Invalid)
-      { mi.afAttribute |= MIA_DISABLED;
-        pp->EnsureInfoAsync(Playable::IF_Status);
+      switch (pp->GetStatus())
+      {case Playable::STA_Invalid:
+        mi.afAttribute |= MIA_DISABLED;
+        pp->EnsureInfoAsync(Playable::IF_Other, false, true);
+        break;
+       case Playable::STA_Unknown:
+        pp->EnsureInfoAsync(Playable::IF_Other, false, false);
+        break;
       }
       // with submenu?
       if ((mapp->Flags & Recursive) && (pp->GetFlags() & Playable::Enumerable))

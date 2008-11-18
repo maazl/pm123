@@ -33,7 +33,7 @@
 #define INCL_BASE
 #include "windowbase.h"
 #include "playable.h"
-#include <cpp/container.h>
+#include <cpp/container/inst_index.h>
 #include <cpp/smartptr.h>
 #include <cpp/mutex.h>
 #include <cpp/event.h>

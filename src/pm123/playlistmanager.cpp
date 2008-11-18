@@ -134,13 +134,13 @@ MRESULT PlaylistManager::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
      case CN_EXPANDTREE:
       { Record* rec = (Record*)PVOIDFROMMP(mp2);
         DEBUGLOG(("PlaylistManager::DlgProc CN_EXPANDTREE %p\n", rec));
-        PostRecordCommand(rec, RC_UPDATESTATUS);
+        PostRecordCommand(rec, RC_UPDATEUSAGE);
         // iterate over children
         rec = (Record*)WinSendMsg(HwndContainer, CM_QUERYRECORD, MPFROMP(rec), MPFROM2SHORT(CMA_FIRSTCHILD, CMA_ITEMORDER));
         while (rec != NULL && rec != (Record*)-1)
         { DEBUGLOG(("CM_QUERYRECORD: %s\n", Record::DebugName(rec).cdata()));
           RequestChildren(rec);
-          rec->Data()->Content->GetPlayable()->EnsureInfoAsync(Playable::IF_Status);
+          rec->Data()->Content->GetPlayable()->EnsureInfoAsync(Playable::IF_Other);
           rec = (Record*)WinSendMsg(HwndContainer, CM_QUERYRECORD, MPFROMP(rec), MPFROM2SHORT(CMA_NEXT, CMA_ITEMORDER));
         }
         PMASSERT(rec != (Record*)-1);
@@ -148,7 +148,7 @@ MRESULT PlaylistManager::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
       return 0;
 
      case CN_COLLAPSETREE:
-      PostRecordCommand((Record*)PVOIDFROMMP(mp2), RC_UPDATESTATUS);
+      PostRecordCommand((Record*)PVOIDFROMMP(mp2), RC_UPDATEUSAGE);
       return 0;
 
      /* TODO: normally we have to lock some functions here...
@@ -193,7 +193,7 @@ MRESULT PlaylistManager::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
       do
       { // We do the processing here step by step because the processing may set some of the bits
         // that are handled later. This avoids double actions and reduces the number of posted messages.
-        if (il.bitrst(RC_UPDATERPL))
+        if (il.bitrst(RC_LOADRPL))
         { // Check if UpdateChildren is waiting
           bool& wait = StateFromRec(rec).WaitUpdate;
           if (wait)
@@ -201,18 +201,19 @@ MRESULT PlaylistManager::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
             wait = false;
             il.bitset(RC_UPDATECHILDREN);
           }
-          UpdateRpl(rec); // may set RC_UPDATESTATUS
         }
+        if (il.bitrst(RC_UPDATERPL))
+          UpdateRpl(rec); // may set RC_UPDATEUSAGE
         if (il.bitrst(RC_UPDATETECH))
           UpdateTech(rec);
         if (il.bitrst(RC_UPDATECHILDREN))
-          UpdateChildren(rec); // may set RC_UPDATESTATUS
-        if (il.bitrst(RC_UPDATESTATUS) | il.bitrst(RC_UPDATEPHYS)) // RC_UPDATEPHYS covers changes of num_items
-          UpdateStatus(rec);
+          UpdateChildren(rec); // may set RC_UPDATEUSAGE
+        if (il.bitrst(RC_UPDATEUSAGE) | il.bitrst(RC_UPDATEPHYS)) // RC_UPDATEPHYS covers changes of num_items
+          UpdateIcon(rec);
         if (il.bitrst(RC_UPDATEALIAS) | il.bitrst(RC_UPDATEMETA)) // Changing of meta data may reflect to the display name too.
           UpdateInstance(rec, PlayableInstance::SF_Alias);
         // It is essential that all messages are handled here. Otherwise: infinite loop.
-        ASSERT((il & ~(1<<RC_UPDATERPL|1<<RC_UPDATECHILDREN|1<<RC_UPDATETECH|1<<RC_UPDATESTATUS|1<<RC_UPDATEPHYS|1<<RC_UPDATEALIAS|1<<RC_UPDATEMETA)) == 0);
+        ASSERT((il & ~(1<<RC_UPDATERPL|1<<RC_UPDATECHILDREN|1<<RC_UPDATETECH|1<<RC_UPDATEUSAGE|1<<RC_UPDATEPHYS|1<<RC_UPDATEALIAS|1<<RC_UPDATEMETA)) == 0);
       } while (il);
       break; // continue in base class
     }
@@ -332,7 +333,7 @@ PlaylistBase::IC PlaylistManager::GetRecordUsage(const RecordBase* rec) const
       DEBUGLOG(("PlaylistManager::GetRecordUsage: current root\n"));
       break;
     }
-    if (rec->Data->Content->GetStatus() != STA_Used)
+    if (!rec->Data->Content->IsInUse())
     { // The PlayableInstance is not used, so the call stack is not equal.
       DEBUGLOG(("PlaylistManager::GetRecordUsage: instance unused\n"));
       return IC_Shadow;
@@ -446,7 +447,7 @@ void PlaylistManager::UpdateRpl(Record* rec)
     if (recursive != rec->Data()->Recursive)
     { rec->Data()->Recursive = recursive;
       // Update Icon also
-      PostRecordCommand(rec, RC_UPDATESTATUS);
+      PostRecordCommand(rec, RC_UPDATEUSAGE);
       // Remove children?
       if (recursive)
         RemoveChildren(rec);

@@ -271,7 +271,7 @@ void Ctrl::AdjustNext(SongIterator& si)
   { do
     { si.Next();
       ps = si.GetCurrent();
-    } while (ps != NULL && ps->GetPlayable()->GetStatus() == STA_Invalid);
+    } while (ps != NULL && ps->GetPlayable()->GetStatus() == Playable::STA_Invalid);
   }
 }
 
@@ -447,10 +447,11 @@ void Ctrl::OutEventHandler(void*, const OUTEVENTTYPE& event)
 }
 
 void Ctrl::CurrentSongEventHandler(void*, const Playable::change_args& args)
-{ DEBUGLOG(("Ctrl::CurrentSongEventHandler(, {%p{%s}, %x})\n", &args.Instance, args.Instance.GetURL().cdata(), args.Flags));
+{ DEBUGLOG(("Ctrl::CurrentSongEventHandler(, {%p{%s}, %x, %x})\n",
+    &args.Instance, args.Instance.GetURL().cdata(), args.Changed, args.Loaded));
   if (GetCurrentSong() != &args.Instance)
     return; // too late...
-  EventFlags events = (EventFlags)((unsigned)args.Flags / Playable::IF_Tech * (unsigned)EV_SongTech) & EV_SongAll & ~EV_Song; // Dirty hack to shift the bits to match EV_Song*
+  EventFlags events = (EventFlags)((unsigned)args.Changed / Playable::IF_Tech * (unsigned)EV_SongTech) & EV_SongAll & ~EV_Song; // Dirty hack to shift the bits to match EV_Song*
   if (events)
   { InterlockedOr(Pending, events);
     PostCommand(MkNop());
@@ -458,10 +459,11 @@ void Ctrl::CurrentSongEventHandler(void*, const Playable::change_args& args)
 }
 
 void Ctrl::CurrentRootEventHandler(void*, const Playable::change_args& args)
-{ DEBUGLOG(("Ctrl::CurrentRootEventHandler(, {%p{%s}, %x})\n", &args.Instance, args.Instance.GetURL().cdata(), args.Flags));
+{ DEBUGLOG(("Ctrl::CurrentRootEventHandler(, {%p{%s}, %x, %x})\n",
+    &args.Instance, args.Instance.GetURL().cdata(), args.Changed, args.Loaded));
   if (GetRoot()->GetPlayable() != &args.Instance)
     return; // too late...
-  EventFlags events = (EventFlags)((unsigned)args.Flags / Playable::IF_Tech * (unsigned)EV_RootTech) & EV_RootAll & ~EV_Root; // Dirty hack to shift the bits to match EV_Root*
+  EventFlags events = (EventFlags)((unsigned)args.Changed / Playable::IF_Tech * (unsigned)EV_RootTech) & EV_RootAll & ~EV_Root; // Dirty hack to shift the bits to match EV_Root*
   if (events)
   { InterlockedOr(Pending, events);
     PostCommand(MkNop());
@@ -709,10 +711,12 @@ Ctrl::RC Ctrl::MsgLoad(const xstring& url, int flags)
     // In case of enumerable items the content is required, in case of songs the decoder.
     // Both is related to IF_Other. The other informations are prefetched too.
     play->EnsureInfo(Playable::IF_Other);
-    if (play->GetStatus() <= STA_Invalid)
+    if (play->GetStatus() != Playable::STA_Valid)
       return RC_InvalidItem;
+    // Load the required information as fast as possible
     play->EnsureInfoAsync(Playable::IF_Phys|Playable::IF_Rpl);
-    play->EnsureInfoAsync(Playable::IF_All, true);
+    // Verify all information
+    play->EnsureInfoAsync(Playable::IF_All, true, true);
     { Mutex::Lock lock(PLMtx);
       PrefetchList.append() = new PrefetchEntry();
       Current()->Iter.SetRoot(new PlayableSlice(play));
@@ -812,7 +816,7 @@ Ctrl::RC Ctrl::MsgDecStop()
       ps = pep->Iter.GetCurrent();
       ps->GetPlayable()->EnsureInfo(Playable::IF_Other);
       // skip invalid
-    } while (ps->GetPlayable()->GetStatus() == STA_Invalid);
+    } while (ps->GetPlayable()->GetStatus() == Playable::STA_Invalid);
   } else
   { ps = pep->Iter.GetCurrent();
   }

@@ -40,7 +40,6 @@
 #include <eautils.h>
 #include <os2.h>
 
-#include <cpp/container.h>
 //#define DEBUG 1
 #include <debuglog.h>
 
@@ -499,7 +498,7 @@ dec_event_handler( void* a, DECEVENTTYPE event, void* param )
     break;
     
    case DECEVENT_CHANGEMETA:
-    // Well,the backend does not support time dependant metadata.
+    // TODO: Well, the backend does not support time dependant metadata.
     // From the playlist view, metadata changes should be immediately visible.
     // But during playback the change should be delayed until the apropriate buffer is really played.
     // The latter cannot be implemented with the current backend.
@@ -546,7 +545,7 @@ out_event_handler( void* w, OUTEVENTTYPE event )
    if not returns error 200 = nothing can play that. */
 ULONG DLLENTRY dec_fileinfo( const char* url, INFOTYPE* what, DECODER_INFO2* info, char* name, size_t name_size )
 {
-  DEBUGLOG(("dec_fileinfo(%s, %x, %p{%u,%p,%p,%p}, %s)\n", url, *what, info, info->size, info->format, info->tech, info->meta, name));
+  DEBUGLOG(("dec_fileinfo(%s, *%x, %p{%u,}, %s)\n", url, *what, info, info->size, name ? name : "<null>"));
   bool* checked = (bool*)alloca(sizeof(bool) * Decoders.size());
   const Decoder* dp;
   INFOTYPE what2;

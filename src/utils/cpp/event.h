@@ -52,7 +52,7 @@ class event_base
 { friend class delegate_base;
  private:
   delegate_base* Root;
-  SpinLock       Count; // Number of active eventhandlers
+  RecSpinLock    Count; // Number of active eventhandlers
  private:
   // non-copyable
        event_base(const event_base& r);
@@ -91,7 +91,7 @@ class delegate_base
  private:
   event_base*    Ev; // attached to this event
   delegate_base* Link;
-  SpinLock       Count; // Number of active eventhandlers
+  RecSpinLock    Count; // Number of active eventhandlers
  private: // non-copyable
                  delegate_base(const delegate_base& r);
   void           operator=(const delegate_base& r);

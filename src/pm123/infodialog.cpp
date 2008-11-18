@@ -536,12 +536,13 @@ struct InfoDialog::Data SingleInfoDialog::GetData()
 }
 
 void SingleInfoDialog::ContentChangeEvent(const Playable::change_args& args)
-{ DEBUGLOG(("SingleInfoDialog(%p)::ContentChangeEvent({&%p, %x})\n", this, args.Instance, args.Flags));
-  if (args.Flags & (Playable::IF_Format|Playable::IF_Tech|Playable::IF_Phys|Playable::IF_Meta|Playable::IF_Rpl|Playable::IF_Other))
+{ DEBUGLOG(("SingleInfoDialog(%p)::ContentChangeEvent({&%p, %x, %x})\n",
+    this, args.Instance, args.Changed, args.Loaded));
+  if (args.Changed & (Playable::IF_Format|Playable::IF_Tech|Playable::IF_Phys|Playable::IF_Meta|Playable::IF_Rpl|Playable::IF_Other))
   { DataCacheValid = false;
-    WinPostMsg(PageTech.GetHwnd(), PageBase::UM_UPDATE, MPFROMLONG(args.Flags), 0);
-    if (args.Flags & Playable::IF_Meta)
-      WinPostMsg(PageMeta.GetHwnd(), PageBase::UM_UPDATE, MPFROMLONG(args.Flags), 0);
+    WinPostMsg(PageTech.GetHwnd(), PageBase::UM_UPDATE, MPFROMLONG(args.Changed), 0);
+    if (args.Changed & Playable::IF_Meta)
+      WinPostMsg(PageMeta.GetHwnd(), PageBase::UM_UPDATE, MPFROMLONG(args.Changed), 0);
   }
 }
 

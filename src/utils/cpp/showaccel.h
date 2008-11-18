@@ -30,7 +30,7 @@
 #define  SHOWACCEL_H
 
 #define INCL_WIN
-#include <cpp/container.h>
+#include <cpp/container/sorted_vector.h>
 #include <os2.h>
 
 /* Automatically append strings with the accelerator keys to the menu items. */

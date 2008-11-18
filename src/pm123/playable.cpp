@@ -54,8 +54,29 @@
 
 Playable::Lock::~Lock()
 { if (P.Mtx.GetStatus() == 1)
-    P.RaiseInfoChange();
+    P.OnReleaseMutex();
   P.Mtx.Release();
+}
+
+Playable::WaitInfo::WaitInfo(Playable& inst, InfoFlags filter)
+: Filter(filter),
+  Deleg(inst.InfoChange, *this, &InfoChangeEvent)
+{ DEBUGLOG(("Playable::WaitInfo(%p)::WaitInfo(&%p)\n", this, &inst));
+}
+
+Playable::WaitInfo::~WaitInfo()
+{ DEBUGLOG(("Playable::WaitInfo(%p)::~WaitInfo()\n", this));
+}
+
+void Playable::WaitInfo::InfoChangeEvent(const change_args& args)
+{ DEBUGLOG(("Playable::WaitInfo(%p)::InfoChangeEvent({&%p, %x, %x}) - %x\n",
+    this, &args.Instance, args.Changed, args.Loaded, Filter));
+  ASSERT(args.Loaded != IF_None); // Owner died! - This must not happen.
+  Filter &= ~args.Loaded;
+  if (!Filter)
+  { Deleg.detach();
+    EventSem.Set();
+  }
 }
 
 const Playable::DecoderInfo Playable::DecoderInfo::InitialInfo;
@@ -132,11 +153,15 @@ void Playable::DecoderInfo::operator=(const DECODER_INFO2& r)
 Playable::Playable(const url123& url, const DECODER_INFO2* ca)
 : URL(url),
   Stat(STA_Unknown),
-  InfoValid(IF_None),
-  InfoChangeFlags(IF_None),
+  InUse(false),
+  InfoValid(IF_Usage),
+  InfoConfirmed(IF_Usage),
+  InfoChanged(IF_None),
+  InfoLoaded(IF_None),
+  InfoMask(IF_None),
   InfoRequest(IF_None),
   InfoRequestLow(IF_None),
-  InService(1),
+  InfoInService(IF_None),
   LastAccess(clock())
 { DEBUGLOG(("Playable(%p)::Playable(%s, %p)\n", this, url.cdata(), ca));
   Info.Reset();
@@ -168,6 +193,8 @@ Playable::Playable(const url123& url, const DECODER_INFO2* ca)
 
 Playable::~Playable()
 { DEBUGLOG(("Playable(%p{%s})::~Playable()\n", this, URL.cdata()));
+  // Notify about dieing
+  InfoChange(change_args(*this, IF_None, IF_None));
 }
 
 /* Returns true if the specified file is a playlist file. */
@@ -188,9 +215,7 @@ Playable::Flags Playable::GetFlags() const
 void Playable::SetInUse(bool used)
 { DEBUGLOG(("Playable(%p{%s})::SetInUse(%u)\n", this, URL.cdata(), used));
   Lock lock(*this);
-  if (Stat <= STA_Invalid)
-    return; // can't help
-  UpdateStatus(used ? STA_Used : STA_Normal);
+  UpdateInUse(used);
 }
 
 xstring Playable::GetDisplayName() const
@@ -202,125 +227,182 @@ xstring Playable::GetDisplayName() const
     return URL.getShortName();
 }
 
-void Playable::UpdateInfo(const FORMAT_INFO2* info)
-{ DEBUGLOG(("Playable::UpdateInfo(FORMAT_INFO2* %p)\n", info));
-  if (!info)
-    info = DecoderInfo::InitialInfo.format;
-  InfoValid |= IF_Format;
-  if (~memcmpcpy(Info.format, info, sizeof *Info.format))
-    InfoChangeFlags |= IF_Format;
-  DEBUGLOG(("Playable::UpdateInfo: %x %u {,%u,%u}\n", InfoValid, InfoChangeFlags, Info.format->samplerate, Info.format->channels));
-}
-void Playable::UpdateInfo(const TECH_INFO* info)
-{ DEBUGLOG(("Playable::UpdateInfo(TECH_INFO* %p) - %p\n", info, Info.tech));
-  if (!info)
-    info = DecoderInfo::InitialInfo.tech;
-  InfoValid |= IF_Tech;
-  if (~memcmpcpy(Info.tech, info, sizeof *Info.tech))
-    InfoChangeFlags |= IF_Tech;
-  DEBUGLOG(("Playable::UpdateInfo: %x %u\n", InfoValid, InfoChangeFlags));
-}
-void Playable::UpdateInfo(const META_INFO* info)
-{ DEBUGLOG(("Playable::UpdateInfo(META_INFO* %p)\n", info));
-  if (!info)
-    info = DecoderInfo::InitialInfo.meta;
-  InfoValid |= IF_Meta;
-  if (~memcmpcpy(Info.meta, info, sizeof *Info.meta))
-    InfoChangeFlags |= IF_Meta;
-  DEBUGLOG(("Playable::UpdateInfo: %x %u\n", InfoValid, InfoChangeFlags));
-}
-void Playable::UpdateInfo(const PHYS_INFO* info)
-{ DEBUGLOG(("Playable::UpdateInfo(PHYS_INFO* %p)\n", info));
-  if (!info)
-    info = DecoderInfo::InitialInfo.phys;
-  InfoValid |= IF_Phys;
-  if (~memcmpcpy(Info.phys, info, sizeof *Info.phys))
-    InfoChangeFlags |= IF_Phys;
-  DEBUGLOG(("Playable::UpdateInfo: %x %u\n", InfoValid, InfoChangeFlags));
-}
-void Playable::UpdateInfo(const RPL_INFO* info)
-{ DEBUGLOG(("Playable::UpdateInfo(RPL_INFO* %p)\n", info));
-  if (!info)
-    info = DecoderInfo::InitialInfo.rpl;
-  InfoValid |= IF_Rpl;
-  if (~memcmpcpy(Info.rpl, info, sizeof *Info.rpl))
-    InfoChangeFlags |= IF_Rpl;
-  DEBUGLOG(("Playable::UpdateInfo: %x %u\n", InfoValid, InfoChangeFlags));
-}
-void Playable::UpdateInfo(const DECODER_INFO2* info, InfoFlags what)
-{ DEBUGLOG(("Playable::UpdateInfo(DECODER_INFO2* %p, %x)\n", info, what));
-  if (!info)
-    info = &DecoderInfo::InitialInfo;
-  InfoValid |= IF_Other;
-  if (Info.meta_write != info->meta_write)
-  { Info.meta_write = info->meta_write;
-    InfoChangeFlags |= IF_Other;
-  }
-  DEBUGLOG(("Playable::UpdateInfo: %x %u\n", InfoValid, InfoChangeFlags));
-  if (what & IF_Format)
-    UpdateInfo(info->format);
-  if (what & IF_Tech)
-    UpdateInfo(info->tech);
-  if (what & IF_Meta)
-    UpdateInfo(info->meta);
-  if (what & IF_Phys)
-    UpdateInfo(info->phys);
-  if (what & IF_Rpl)
-    UpdateInfo(info->rpl);
-}
-
-void Playable::UpdateStatus(PlayableStatus stat)
-{ DEBUGLOG(("Playable::UpdateStatus(%u) - %u\n", stat, Stat));
-  InfoValid |= IF_Status;
-  if (Stat != stat)
-  { Stat = stat;
-    InfoChangeFlags |= IF_Status;
-  }
-}
-
-void Playable::RaiseInfoChange()
-{ DEBUGLOG(("Playable(%p)::RaiseInfoChange() - %x\n", this, InfoChangeFlags));
-  if (InfoChangeFlags)
-    InfoChange(change_args(*this, InfoChangeFlags));
-  InfoChangeFlags = IF_None;
-}
-
-void Playable::SetMetaInfo(const META_INFO* meta)
-{ Lock lock(*this);
-  UpdateInfo(meta);
-}
-
-void Playable::SetTechInfo(const TECH_INFO* tech)
-{ Lock lock(*this);
-  UpdateInfo(tech);
-}
-
-Playable::InfoFlags Playable::LoadInfo(InfoFlags what)
-{ DEBUGLOG(("Playable(%p)::LoadInfo(%x) - %x, %x\n", this, what, InfoRequest, InfoRequestLow));
-  InfoValid |= what;
-  // We always reset the flags of both priorities.
-  InterlockedAnd(InfoRequest, ~what);
-  InterlockedAnd(InfoRequestLow, ~what);
-  // Well, we might remove an outstanding request in the worker queue here,
-  // but it is simply faster to wait for the request to arrive and ignore it then.
+Playable::InfoFlags Playable::BeginUpdate(InfoFlags what)
+{ DEBUGLOG(("Playable::BeginUpdate(%x) - %x\n", what, InfoInService));
+  CritSect cs;
+  what &= ~(InfoFlags)InfoInService;
+  InfoInService |= what;
   return what;
 }
 
-void Playable::EnsureInfo(InfoFlags what)
-{ InfoFlags i = CheckInfo(what);
-  DEBUGLOG(("Playable(%p{%s})::EnsureInfo(%x) - %x, %x\n", this, GetURL().getShortName().cdata(), what, InfoValid, i));
-  if (i)
-  { { Lock lock(*this);
-      i = CheckInfo(what);
-      // We release the lock before we load the desired information
-      // to avoid deadlocks with recursive playlists.
-      // There is a small chance that the Information is requested by another thread
-      // immediately after doing that. But this price we have to pay. In this case
-      // the information is loaded twice. 
-    }
-    if (i) // double check
-      LoadInfo(i);
+void Playable::EndUpdate(InfoFlags what)
+{ DEBUGLOG(("Playable(%p)::EndUpdate(%x) - IS=%x L=%x V=%x R=%x Rl=%x\n", this,
+    what, InfoInService, InfoLoaded, InfoValid, InfoRequest, InfoRequestLow));
+  ASSERT((InfoInService & what) == what);
+  InfoFlags mask = ~what;
+  Lock lock(*this);
+  // We always reset the flags of both priorities.
+  InterlockedAnd(InfoRequestLow, mask);
+  InterlockedAnd(InfoRequest,    mask);
+  // Well, we might remove an outstanding request in the worker queue here,
+  // but it is simply faster to wait for the request to arrive and ignore it then.
+  InterlockedAnd(InfoInService,  mask);
+  // Prepare InfoChange event
+  InfoMask |= what;
+}
+
+void Playable::ValidateInfo(InfoFlags what, bool changed, bool confirmed)
+{ DEBUGLOG(("Playable::ValidateInfo(%x, %u, %u)\n", what, changed, confirmed));
+  InfoValid |= what;
+  if (confirmed)
+    InfoConfirmed |= what;
+  else
+    InfoConfirmed &= what;
+  InfoLoaded |= what;
+  InfoChanged |= what * changed;
+}
+
+void Playable::InvalidateInfo(InfoFlags what, bool reload)
+{ DEBUGLOG(("Playable::InvalidateInfo(%x, %u)\n", what, reload));
+  Lock lock(*this);
+  InfoConfirmed &= ~what;
+  if (reload && (InfoValid & what))
+    LoadInfoAsync(InfoValid & what);
+}
+
+void Playable::UpdateFormat(const FORMAT_INFO2* info, bool confirmed)
+{ DEBUGLOG(("Playable::UpdateFormat(%p, %u)\n", info, confirmed));
+  ASSERT(RefCountIsUnmanaged() || ((InfoInService & IF_Format) && Mtx.GetStatus() > 0));
+  if (!info)
+    info = DecoderInfo::InitialInfo.format;
+  ValidateInfo(IF_Format, ~memcmpcpy(Info.format, info, sizeof *Info.format) != 0, confirmed);
+}
+
+void Playable::UpdateTech(const TECH_INFO* info, bool confirmed)
+{ DEBUGLOG(("Playable::UpdateTech(%p, %u) - %p\n", info, confirmed, Info.tech));
+  ASSERT(RefCountIsUnmanaged() || ((InfoInService & IF_Tech) && Mtx.GetStatus() > 0));
+  if (!info)
+    info = DecoderInfo::InitialInfo.tech;
+  ValidateInfo(IF_Tech, ~memcmpcpy(Info.tech, info, sizeof *Info.tech) != 0, confirmed);
+}
+
+void Playable::UpdateMeta(const META_INFO* info, bool confirmed)
+{ DEBUGLOG(("Playable::UpdateMeta(%p, %u)\n", info, confirmed));
+  ASSERT(RefCountIsUnmanaged() || ((InfoInService & IF_Meta) && Mtx.GetStatus() > 0));
+  if (!info)
+    info = DecoderInfo::InitialInfo.meta;
+  ValidateInfo(IF_Meta, ~memcmpcpy(Info.meta, info, sizeof *Info.meta) != 0, confirmed);
+}
+
+void Playable::UpdatePhys(const PHYS_INFO* info, bool confirmed)
+{ DEBUGLOG(("Playable::UpdatePhys(%p, %u)\n", info, confirmed));
+  ASSERT(RefCountIsUnmanaged() || ((InfoInService & IF_Phys) && Mtx.GetStatus() > 0));
+  if (!info)
+    info = DecoderInfo::InitialInfo.phys;
+  DEBUGLOG(("Playable::UpdatePhys {%f,%i} -> {%f,%i}\n", Info.phys->filesize, Info.phys->num_items, info->filesize, info->num_items));
+  ValidateInfo(IF_Phys, ~memcmpcpy(Info.phys, info, sizeof *Info.phys) != 0, confirmed);
+}
+
+void Playable::UpdateRpl(const RPL_INFO* info, bool confirmed)
+{ DEBUGLOG(("Playable::UpdateRpl(%p, %u)\n", info, confirmed));
+  ASSERT(RefCountIsUnmanaged() || ((InfoInService & IF_Rpl) && Mtx.GetStatus() > 0));
+  if (!info)
+    info = DecoderInfo::InitialInfo.rpl;
+  ValidateInfo(IF_Rpl, ~memcmpcpy(Info.rpl, info, sizeof *Info.rpl) != 0, confirmed);
+}
+
+void Playable::UpdateOther(Status stat, bool meta_write, const char* decoder, bool confirmed)
+{ DEBUGLOG(("Playable::UpdateOther(%u, %u, %s, %u)\n", stat, meta_write, decoder, confirmed));
+  ASSERT(RefCountIsUnmanaged() || ((InfoInService & IF_Other) && Mtx.GetStatus() > 0));
+  bool changed = Stat != stat || Info.meta_write != meta_write || strcmp(decoder, Decoder) != 0;
+  if (changed)
+  { Stat = stat;
+    changed = true;
+    Info.meta_write = meta_write;
+    strlcpy(Decoder, decoder, sizeof Decoder);
   }
+  ValidateInfo(IF_Other, changed, confirmed);
+}
+
+void Playable::UpdateInfo(Status stat, const DECODER_INFO2* info, const char* decoder, InfoFlags what, bool confirmed)
+{ DEBUGLOG(("Playable::UpdateInfo(DECODER_INFO2* %p, %s, %x, %u)\n", info, decoder, what, confirmed));
+  if (!info)
+    info = &DecoderInfo::InitialInfo;
+  if (what & IF_Other)
+    UpdateOther(stat, info->meta_write, decoder, confirmed);
+  if (what & IF_Format)
+    UpdateFormat(info->format, confirmed);
+  if (what & IF_Tech)
+    UpdateTech(info->tech, confirmed);
+  if (what & IF_Meta)
+    UpdateMeta(info->meta, confirmed);
+  if (what & IF_Phys)
+    UpdatePhys(info->phys, confirmed);
+  if (what & IF_Rpl)
+    UpdateRpl(info->rpl, confirmed);
+}
+
+void Playable::UpdateInUse(bool inuse)
+{ DEBUGLOG(("Playable::UpdateInUse(%u) - %u\n", inuse, InUse));
+  ASSERT(Mtx.GetStatus() > 0);
+  bool changed = InUse != inuse;
+  InUse = inuse;
+  ValidateInfo(IF_Usage, changed, true);
+}
+
+void Playable::OnReleaseMutex()
+{ DEBUGLOG(("Playable(%p)::OnReleaseMutex() - %x/%x %x\n", this, InfoChanged, InfoLoaded, InfoMask));
+  // Raise InfoChange event
+  if (InfoLoaded & InfoMask)
+  { InfoChange(change_args(*this, InfoChanged & InfoMask, InfoLoaded & InfoMask));
+    InfoChanged &= ~InfoMask;
+    InfoLoaded  &= ~InfoMask;
+  }
+  InfoMask = IF_None;
+}
+
+void Playable::LoadInfo(InfoFlags what)
+{ InfoFlags now = BeginUpdate(what);
+  what &= ~now;
+  now = DoLoadInfo(now);
+  EndUpdate(now);
+  // Is there still some information on the way by another Thread?
+  if ((what &= (InfoFlags)InfoInService) != 0)
+  { sco_ptr<WaitInfo> waitinfo;
+    { Lock lock(*this);
+      if ((what &= (InfoFlags)InfoInService) != 0); // Filter again, because some information may just have completed.
+        waitinfo = new WaitInfo(*this, what);
+    }
+    // Wait for information currently in service.
+    if (waitinfo != NULL)
+      waitinfo->Wait();
+  }
+}
+
+void Playable::EnsureInfo(InfoFlags what, bool confirmed)
+{ DEBUGLOG(("Playable(%p{%s})::EnsureInfo(%x, %u) - %x, %x\n",
+    this, GetURL().getShortName().cdata(), what, confirmed, InfoValid, InfoConfirmed));
+  InfoFlags& curinfo = confirmed ? InfoConfirmed : InfoValid;
+  InfoFlags now = what & ~curinfo;
+  if (!now)
+    return;
+  InfoFlags what2 = what & ~curinfo;
+  now = BeginUpdate(what);
+  what2 &= ~now;
+  now = DoLoadInfo(now);
+  EndUpdate(now);
+  // Is there still some information on the way by another Thread?
+  if ((what2 &= (InfoFlags)InfoInService) != 0)
+  { sco_ptr<WaitInfo> waitinfo;
+    { Lock lock(*this);
+      if ((what2 &= (InfoFlags)InfoInService) != 0); // Filter again, because some information may just have completed.
+        waitinfo = new WaitInfo(*this, what2);
+    }
+    // Wait for information currently in service.
+    if (waitinfo != NULL)
+      waitinfo->Wait();
+  }
+  ASSERT((InfoValid & what) == what);
 }
 
 void Playable::LoadInfoAsync(InfoFlags what, bool lowpri)
@@ -336,12 +418,30 @@ void Playable::LoadInfoAsync(InfoFlags what, bool lowpri)
     WQueue.Write(this, lowpri);
 }
 
-Playable::InfoFlags Playable::EnsureInfoAsync(InfoFlags what, bool lowpri)
-{ InfoFlags avail = what & InfoValid;
+Playable::InfoFlags Playable::EnsureInfoAsync(InfoFlags what, bool lowpri, bool confirmed)
+{ InfoFlags avail = what & (confirmed ? InfoConfirmed : InfoValid);
   if ((what &= ~avail) != 0)
     // schedule request
     LoadInfoAsync(what, lowpri);
   return avail;
+}
+
+void Playable::SetMetaInfo(const META_INFO* meta)
+{ Lock lock(*this);
+  InfoFlags what = BeginUpdate(IF_Meta);
+  if (what & IF_Meta)
+    UpdateMeta(meta);
+  // TODO: We cannot simply ignore update requests in case of concurrency issues.
+  EndUpdate(what);
+}
+
+void Playable::SetTechInfo(const TECH_INFO* tech)
+{ Lock lock(*this);
+  InfoFlags what = BeginUpdate(IF_Tech);
+  if (what & IF_Tech)
+    UpdateTech(tech);
+  // TODO: We cannot simply ignore update requests in case of concurrency issues.
+  EndUpdate(what);
 }
 
 /* Worker Queue */
@@ -390,40 +490,38 @@ size_t  Playable::WNumWorkers = 0;
 bool    Playable::WTermRq     = false;
 clock_t Playable::LastCleanup = 0;
 
-static void PlayableWorker(void*)
+void Playable::PlayableWorker()
 { for (;;)
   { DEBUGLOG(("PlayableWorker() looking for work\n"));
     queue<Playable::QEntry>::qentry* qp = Playable::WQueue.RequestRead();
     DEBUGLOG(("PlayableWorker received message %p %p\n", qp, qp->Data.get()));
 
-    if (Playable::WTermRq || !qp->Data) // stop
+    if (!qp->Data) // stop
     { // leave the deadly pill for the next thread
-      Playable::WQueue.RollbackRead(qp);
+      WQueue.RollbackRead(qp);
       break;
     }
     
     // Do the work
-    DEBUGLOG(("PlayableWorker handle %x %x\n", qp->Data->InfoRequest, qp->Data->InfoRequestLow));
-    // Do not handle the same item by two threads.
-    if (!InterlockedDec(qp->Data->InService))
-    { // Handle low priority requests correctly if no other requests are on the way.
-      if (qp->Data->InfoRequest == 0)
-        InterlockedOr(qp->Data->InfoRequest, qp->Data->InfoRequestLow);
-      while (qp->Data->InfoRequest)
-        qp->Data->LoadInfo((Playable::InfoFlags)qp->Data->InfoRequest);
-      // Free instance
-      if (InterlockedXch(qp->Data->InService, 1))
-      { // If the value wasn't zero, at least one queue item was skipped.
-        // In this case we have to reschedule outstanding low priority requests.
-        // There is a small chance that such a request is already scheduled.
-        // But this will only be a no-op to the worker.
-        if (qp->Data->InfoRequestLow)
-          Playable::WQueue.Write(qp->Data, true);
-      }
-    }
+    Playable* pp = qp->Data;
+    DEBUGLOG(("PlayableWorker handle %x %x\n", pp->InfoRequest, pp->InfoRequestLow));
+    // Handle low priority requests correctly if no other requests are on the way.
+    if (pp->InfoRequest == 0)
+      InterlockedOr(pp->InfoRequest, pp->InfoRequestLow);
+
+    // Handle the Request !!!
+    while ((pp->InfoRequest & ~pp->InfoInService) && !WTermRq)
+      pp->EndUpdate(
+        pp->DoLoadInfo(
+          pp->BeginUpdate((InfoFlags)pp->InfoRequest)));
+
     // finished
-    Playable::WQueue.CommitRead(qp);
+    WQueue.CommitRead(qp);
   }
+}
+
+void TFNENTRY PlayableWorkerStub(void*)
+{ Playable::PlayableWorker();
 }
 
 void Playable::Init()
@@ -434,7 +532,7 @@ void Playable::Init()
   WNumWorkers = cfg.num_workers; // sample this atomically
   WTids = new int[WNumWorkers];
   for (int* tidp = WTids + WNumWorkers; tidp != WTids; )
-  { *--tidp = _beginthread(&PlayableWorker, NULL, 65536, NULL);
+  { *--tidp = _beginthread(&PlayableWorkerStub, NULL, 65536, NULL);
     ASSERT(*tidp != -1);
   }
 }
@@ -506,26 +604,30 @@ int_ptr<Playable> Playable::GetByURL(const url123& URL, const DECODER_INFO2* ca)
   }
   
   if (ca)
-  { DEBUGLOG(("Playable::GetByURL: merge {%p, %p, %p, %p, %p} %x\n",
-      ca->format, ca->tech, ca->meta, ca->phys, ca->rpl, pp->InfoValid));
+  { InfoFlags what = (bool)(ca->format != NULL) * IF_Format
+                   | (bool)(ca->tech   != NULL) * IF_Tech
+                   | (bool)(ca->meta   != NULL) * IF_Meta
+                   | (bool)(ca->phys   != NULL) * IF_Phys
+                   | (bool)(ca->rpl    != NULL) * IF_Rpl;
+    DEBUGLOG(("Playable::GetByURL: merge {%p, %p, %p, %p, %p} %x %x\n",
+      ca->format, ca->tech, ca->meta, ca->phys, ca->rpl, pp->InfoValid, what));
+    what &= ~pp->InfoValid;               
     // Double check to avoid unneccessary mutex delays.
-    if ( (ca->format && !(pp->InfoValid & IF_Format))
-      || (ca->tech   && !(pp->InfoValid & IF_Tech  ))
-      || (ca->meta   && !(pp->InfoValid & IF_Meta  ))
-      || (ca->phys   && !(pp->InfoValid & IF_Phys  ))
-      || (ca->rpl    && !(pp->InfoValid & IF_Rpl   )) )
+    if ( what )
     { // Merge meta info
       Lock lock(*pp);
-      if (ca->format && !(pp->InfoValid & IF_Format))
-        pp->UpdateInfo(ca->format);
-      if (ca->tech   && !(pp->InfoValid & IF_Tech  ))
-        pp->UpdateInfo(ca->tech);
-      if (ca->meta   && !(pp->InfoValid & IF_Meta  ))
-        pp->UpdateInfo(ca->meta);
-      if (ca->phys   && !(pp->InfoValid & IF_Phys  ))
-        pp->UpdateInfo(ca->phys);
-      if (ca->rpl    && !(pp->InfoValid & IF_Rpl   ))
-        pp->UpdateInfo(ca->rpl);
+      what = pp->BeginUpdate(what & ~pp->InfoValid);
+      if (what & IF_Format)
+        pp->UpdateFormat(ca->format, false);
+      if (what & IF_Tech)
+        pp->UpdateTech(ca->tech, false);
+      if (what & IF_Meta)
+        pp->UpdateMeta(ca->meta, false);
+      if (what & IF_Phys)
+        pp->UpdatePhys(ca->phys, false);
+      if (what & IF_Rpl)
+        pp->UpdateRpl(ca->rpl, false);
+      pp->EndUpdate(what);
     }
   }
   return pp;
@@ -703,33 +805,29 @@ Song::Song(const url123& URL, const DECODER_INFO2* ca)
 { DEBUGLOG(("Song(%p)::Song(%s, %p)\n", this, URL.cdata(), ca));
   // Always overwrite RplInfo
   static const RPL_INFO defrpl = { sizeof(RPL_INFO), 1, 0 };
-  *Info.rpl = defrpl;
-  InfoValid |= IF_Rpl;
+  UpdateRpl(&defrpl, true);
 }
 
-Playable::InfoFlags Song::LoadInfo(InfoFlags what)
-{ DEBUGLOG(("Song(%p)::LoadInfo(%x) - %s\n", this, what, Decoder));
-
+Playable::InfoFlags Song::DoLoadInfo(InfoFlags what)
+{ DEBUGLOG(("Song(%p)::DoLoadInfo(%x) - %s\n", this, what, GetDecoder()));
+  what |= BeginUpdate(IF_Other); // IF_Other always inclusive when we call dec_fileinfo
   // get information
   sco_ptr<DecoderInfo> info(new DecoderInfo()); // a bit much for the stack
   INFOTYPE what2 = (INFOTYPE)((int)what & INFO_ALL); // inclompatible types
-  Lock lock(*this);
-  int rc = dec_fileinfo(GetURL(), &what2, info.get(), Decoder, sizeof Decoder);
-  what = (InfoFlags)what2 | Playable::IF_Other|Playable::IF_Status; // That's always inclusive when we call dec_fileinfo
-  
-  PlayableStatus stat;
+  DecoderName decoder = "";
+  int rc = dec_fileinfo(GetURL(), &what2, info.get(), decoder, sizeof decoder);
+  InfoFlags done = (InfoFlags)what2 | IF_All;
+  what |= BeginUpdate(done);
   DEBUGLOG(("Song::LoadInfo - rc = %i\n", rc));
   // update information
-  if (rc != 0)
-  { stat = STA_Invalid;
-    if (*info->tech->info == 0)
+  Lock lock(*this);
+  bool valid = rc == 0;
+  if (!valid)
+  { if (*info->tech->info == 0)
       sprintf(info->tech->info, "Decoder error %i", rc);
-  } else
-    stat = Stat == STA_Used ? STA_Used : STA_Normal;
-  UpdateStatus(stat);
-  UpdateInfo(info.get(), what); // Reset fields
-  
-  return Playable::LoadInfo(what);
+  }
+  UpdateInfo(valid ? STA_Valid : STA_Invalid, info.get(), decoder, what, valid); // Reset fields
+  return what;
 }
 
 ULONG Song::SaveMetaInfo(const META_INFO& info, int haveinfo)
@@ -738,24 +836,27 @@ ULONG Song::SaveMetaInfo(const META_INFO& info, int haveinfo)
   ULONG rc = dec_saveinfo(GetURL(), &info, haveinfo, GetDecoder());
   if (rc == 0)
   { Lock lock(*this);
-    META_INFO new_info = *GetInfo().meta; // copy
-    if (haveinfo & DECODER_HAVE_TITLE)
-      strlcpy(new_info.title,    info.title,      sizeof new_info.title);
-    if (haveinfo & DECODER_HAVE_ARTIST)
-      strlcpy(new_info.artist,   info.artist,     sizeof new_info.artist);
-    if (haveinfo & DECODER_HAVE_ALBUM)
-      strlcpy(new_info.album,    info.album,      sizeof new_info.album);
-    if (haveinfo & DECODER_HAVE_TRACK)
-      new_info.track = info.track;
-    if (haveinfo & DECODER_HAVE_YEAR)
-      strlcpy(new_info.year,      info.year,      sizeof new_info.year);
-    if (haveinfo & DECODER_HAVE_GENRE)
-      strlcpy(new_info.genre,     info.genre,     sizeof new_info.genre);
-    if (haveinfo & DECODER_HAVE_COMMENT)
-      strlcpy(new_info.comment,   info.comment,   sizeof new_info.comment);
-    if (haveinfo & DECODER_HAVE_COPYRIGHT)
-      strlcpy(new_info.copyright, info.copyright, sizeof new_info.copyright);
-    UpdateInfo(&new_info);
+    if (BeginUpdate(IF_Meta))
+    { META_INFO new_info = *GetInfo().meta; // copy
+      if (haveinfo & DECODER_HAVE_TITLE)
+        strlcpy(new_info.title,    info.title,      sizeof new_info.title);
+      if (haveinfo & DECODER_HAVE_ARTIST)
+        strlcpy(new_info.artist,   info.artist,     sizeof new_info.artist);
+      if (haveinfo & DECODER_HAVE_ALBUM)
+        strlcpy(new_info.album,    info.album,      sizeof new_info.album);
+      if (haveinfo & DECODER_HAVE_TRACK)
+        new_info.track = info.track;
+      if (haveinfo & DECODER_HAVE_YEAR)
+        strlcpy(new_info.year,      info.year,      sizeof new_info.year);
+      if (haveinfo & DECODER_HAVE_GENRE)
+        strlcpy(new_info.genre,     info.genre,     sizeof new_info.genre);
+      if (haveinfo & DECODER_HAVE_COMMENT)
+        strlcpy(new_info.comment,   info.comment,   sizeof new_info.comment);
+      if (haveinfo & DECODER_HAVE_COPYRIGHT)
+        strlcpy(new_info.copyright, info.copyright, sizeof new_info.copyright);
+      UpdateMeta(&new_info);
+      EndUpdate(IF_Meta);
+    }
   }
   return rc;
 }

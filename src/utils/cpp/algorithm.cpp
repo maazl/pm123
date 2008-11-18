@@ -27,109 +27,12 @@
  */
 
 
-#include "container.h"
-#include "cpputil.h"
+#include "algorithm.h"
 
 #include <memory.h>
-#include <string.h>
 
 #include <debuglog.h>
 
-
-vector_base::vector_base(size_t capacity)
-: Data((void**)malloc(capacity * sizeof *Data)),
-  Size(0),
-  Capacity(capacity)
-{}
-
-vector_base::vector_base(const vector_base& r, size_t spare)
-: Data((void**)malloc((r.Size + spare) * sizeof *Data)),
-  Size(r.Size),
-  Capacity(r.Size + spare)
-{ DEBUGLOG(("vector_base(%p)::vector_base(&%p, %u)\n", this, &r, spare));
-  memcpy(Data, r.Data, Size * sizeof *Data);
-}
-
-vector_base::~vector_base()
-{ free(Data);
-}
-
-void vector_base::operator=(const vector_base& r)
-{ DEBUGLOG(("vector_base(%p)::operator=(&%p)\n", this, &r));
-  prepare_assign(r.Size);
-  memcpy(Data, r.Data, Size * sizeof *Data);
-}
-
-void vector_base::swap(vector_base& r)
-{ ::swap(Data, r.Data);
-  ::swap(Size, r.Size);
-  ::swap(Capacity, r.Capacity);
-}
-
-void*& vector_base::insert(size_t where)
-{ ASSERT(where <= Size);
-  if (Size >= Capacity)
-    reserve(Capacity > 8 ? Capacity << 1 : 16);
-  void** pp = Data + where;
-  memmove(pp+1, pp, (Size-where) * sizeof *Data);
-  ++Size;
-  //DEBUGLOG(("vector_base::insert - %p, %u, %u\n", pp, Size, Capacity));
-  return *pp = NULL;
-}
-
-void*& vector_base::append()
-{ if (Size >= Capacity)
-    reserve(Capacity > 8 ? Capacity << 1 : 16);
-  return Data[Size++] = NULL;
-}
-
-void* vector_base::erase(void**& where)
-{ DEBUGLOG(("vector_base(%p)::erase(&%p) - %p %u\n", this, where, Data, Size));
-  ASSERT(where >= Data && where < Data+Size);
-  --Size;
-  void* ret = *where;
-  memmove(where, where+1, (char*)(Data+Size) - (char*)where);
-  if (Size+16 < (Capacity>>2))
-  { Capacity >>= 2;
-    void** newdata = (void**)realloc(Data, Capacity * sizeof *Data);
-    ASSERT(newdata);
-    // relocate where
-    (char*&)where += (char*)newdata - (char*)Data;
-    Data = newdata;
-  }
-  return ret;
-}
-
-void vector_base::move(size_t from, size_t to)
-{ ASSERT(from < Size);
-  ASSERT(to < Size);
-  if (from == to)
-    return; // no-op
-  void* p = Data[from];
-  if (from < to)
-    memmove(Data + from, Data + from +1, (to - from) * sizeof *Data);
-  else
-    memmove(Data + to +1, Data + to, (from - to) * sizeof *Data);
-  Data[to] = p;
-}
-
-void vector_base::reserve(size_t size)
-{ ASSERT(size >= Size);
-  Capacity = size;
-  Data = (void**)realloc(Data, Capacity * sizeof *Data);
-  ASSERT(Data != NULL || Capacity == 0);
-}
-
-void vector_base::prepare_assign(size_t size)
-{ if (size > Capacity || size+16 < Capacity>>2)
-  { // Do not use reserve directly because the data is not needed here
-    free(Data);
-    Data = NULL;
-    Size = 0;
-    reserve(size);
-  }
-  Size = size;
-}
 
 bool binary_search_base(const vector_base& data, int (*fcmp)(const void* elem, const void* key),
   const void* key, size_t& pos)

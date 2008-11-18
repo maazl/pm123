@@ -36,7 +36,7 @@
 
 #include <vdelegate.h>
 #include <cpp/smartptr.h>
-#include <cpp/container.h>
+#include <cpp/container/sorted_vector.h>
 #include <cpp/xstring.h>
 #include <cpp/cpputil.h>
 

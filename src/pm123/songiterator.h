@@ -34,7 +34,7 @@
 #include "playable.h"
 #include "playablecollection.h"
 
-#include <cpp/container.h>
+#include <cpp/container/vector.h>
 #include <cpp/xstring.h>
 
 #include <stdlib.h>

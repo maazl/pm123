@@ -43,7 +43,8 @@
 #include <cpp/event.h>
 #include <cpp/smartptr.h>
 #include <cpp/mutex.h>
-#include <cpp/container.h>
+#include <cpp/container/vector.h>
+#include <cpp/container/sorted_vector.h>
 #include <cpp/xstring.h>
 #include <cpp/url123.h>
 
@@ -159,13 +160,16 @@ class PlaylistBase
     // Update the recursive playlist information of a record
     // If mp1 == NULL the root node is refreshed.
     RC_UPDATERPL,
-    // Update the status of a record
+    // Update the usage status of a record
     // If mp1 == NULL the root node is refreshed.
-    RC_UPDATESTATUS,
+    RC_UPDATEUSAGE,
     // Update the alias text of a record
     RC_UPDATEALIAS,
     // Update starting position
-    RC_UPDATEPOS    
+    RC_UPDATEPOS,    
+    // The recursive playlist information is now reloaded.
+    // If mp1 == NULL the root node is refreshed.
+    RC_LOADRPL
   };
  public:
   // return value of AnalyzeRecordTypes
@@ -211,10 +215,10 @@ class PlaylistBase
     ICP_Recursive
   };
   enum IC
-  { IC_Pending = STA_Unknown,
-    IC_Invalid = STA_Invalid,
-    IC_Normal  = STA_Normal,
-    IC_Active  = STA_Used,
+  { IC_Pending = Playable::STA_Unknown,
+    IC_Invalid = Playable::STA_Invalid,
+    IC_Normal  = Playable::STA_Valid,
+    IC_Active,
     IC_Play,
     IC_Shadow
   };
@@ -339,8 +343,8 @@ class PlaylistBase
  protected: // Update Functions.
             // They are logically virtual, but they are not called from this class.
             // They may be used in the window procedure of derived classes.
-  // Update the status of a record
-  void              UpdateStatus(RecordBase* rec);
+  // Update the icon of a record
+  void              UpdateIcon(RecordBase* rec);
   // Update the information from a playable instance
   void              UpdateInstance(RecordBase* rec, PlayableInstance::StatusFlags iflags);
   // Update status of all active PlayableInstances

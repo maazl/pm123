@@ -153,6 +153,34 @@ void SpinLock::Wait()
 }
 
 
+void RecSpinLock::Inc()
+{ SpinLock::Inc();
+  PTIB ptib;
+  DosGetInfoBlocks(&ptib, NULL);
+  ASSERT(CurrentTID == 0 || CurrentTID == ptib->tib_ptib2->tib2_ultid);
+  CurrentTID = ptib->tib_ptib2->tib2_ultid;
+}
+
+bool RecSpinLock::Dec()
+{ PTIB ptib;
+  DosGetInfoBlocks(&ptib, NULL);
+  ASSERT(CurrentTID == ptib->tib_ptib2->tib2_ultid);
+  if (Peek() == 1)
+    CurrentTID = 0;
+  return SpinLock::Dec();
+}
+
+void RecSpinLock::Wait()
+{ DEBUGLOG(("RecSpinLock(%p)::Wait() - %u\n", this));
+  PTIB ptib;
+  DosGetInfoBlocks(&ptib, NULL);
+  if (CurrentTID == ptib->tib_ptib2->tib2_ultid)
+    DEBUGLOG(("RecSpinLock::Wait recusrsion!\n"));
+  else
+    SpinLock::Wait();
+}
+
+
 /*****************************************************************************
 *
 *  Event class

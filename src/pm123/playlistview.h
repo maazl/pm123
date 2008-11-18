@@ -31,11 +31,7 @@
 
 #define INCL_WIN
 
-#include <cpp/queue.h>
-#include <cpp/event.h>
 #include <cpp/smartptr.h>
-#include <cpp/mutex.h>
-#include <cpp/container.h>
 #include <cpp/xstring.h>
 
 #define DECODER_PLUGIN_LEVEL 2

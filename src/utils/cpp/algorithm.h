@@ -1,5 +1,5 @@
 /*
- * Copyright 2008-2008 M.Mueller
+ * Copyright 2007-2007 M.Mueller
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -26,44 +26,34 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef STRMAP_H
-#define STRMAP_H
 
-#include <cpp/xstring.h>
-#include <cpp/container/sorted_vector.h>
+#ifndef CPP_ALGORITHM_H
+#define CPP_ALGORITHM_H
 
+#include <cpp/container/vector.h>
 
-/* Element class to provide a string repository with a sorted_vector<> as storage container.
- * This class should be extended to provide a mapping to a target type.
- */
-struct strkey : public IComparableTo<xstring>
-{ const xstring Key;
-  strkey(const xstring& key) : Key(key) {}
-  virtual int compareTo(const xstring& key) const;
-};
+#include <stdlib.h>
 
-typedef sorted_vector<strkey, xstring> stringset;
+/* Algorithmns */
 
-class stringset_own : public stringset
-{public:
-  stringset_own(size_t capacity) : stringset(capacity) {}
-  ~stringset_own();
-};
+// binary search
+bool binary_search_base(const vector_base& data, int (*fcmp)(const void* elem, const void* key),
+  const void* key, size_t& pos);
 
-template <class V>
-struct strmapentry : public strkey
-{ V Value;
-  strmapentry(const xstring& key, const V& value) : strkey(key), Value(value) {}
-};
+// rotate pointer array in place
+void rotate_array_base(void** begin, const size_t len, int shift);
 
-typedef strmapentry<xstring> stringmapentry;
-typedef sorted_vector<stringmapentry, xstring> stringmap;
+template <class T>
+inline void rotate_array(T** begin, const size_t len, int shift)
+{ rotate_array_base((void**)begin, len, shift);
+}
 
-class stringmap_own : public stringmap
-{public:
-  stringmap_own(size_t capacity) : stringmap(capacity) {}
-  ~stringmap_own();
-};
+// Sort an array of pointers
+void merge_sort_base(void** begin, void** end, int (*comp)(const void* l, const void* r));
+
+template <class T>
+inline void merge_sort(T** begin, T** end, int (*comp)(const T* l, const T* r))
+{ merge_sort_base((void**)begin, (void**)end, (int (*)(const void* l, const void* r))comp);
+}
 
 #endif
-

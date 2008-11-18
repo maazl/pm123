@@ -308,7 +308,7 @@ amp_display_filename( void )
     case CFG_DISP_FILENAME:
       text = CurrentSong->GetURL().getShortName();
       // In case of an invalid item display an error message.
-      if (CurrentSong->GetStatus() == STA_Invalid)
+      if (CurrentSong->GetStatus() == Playable::STA_Invalid)
         text = text + " - " + CurrentSong->GetInfo().tech->info;
       break;
 
@@ -742,7 +742,7 @@ struct info_edit
 };
 
 void amp_info_event(info_edit* iep, const Playable::change_args& args)
-{ if (args.Flags & Playable::IF_Other)
+{ if (args.Changed & Playable::IF_Other)
   { iep->InfoDelegate.detach();
     PMRASSERT(WinPostMsg(hframe, AMP_INFO_EDIT, iep, 0));
   }
@@ -1046,24 +1046,25 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
       break;
 
     case AMP_PAINT:
-    { int mask = LONGFROMMP( mp1 );
-      // is there anything to draw with HPS?
-      if (mask & upd_options & (UPD_FILENAME|UPD_TIMERS|UPD_FILEINFO|UPD_VOLUME))
-      { HPS hps  = WinGetPS( hwnd );
-        if ((mask & UPD_FILENAME) && InterlockedBtr(upd_options, 4))
-        { amp_display_filename();
-          bmp_draw_text(hps);
+      if (!Terminate)
+      { int mask = LONGFROMMP( mp1 );
+        // is there anything to draw with HPS?
+        if (mask & upd_options & (UPD_FILENAME|UPD_TIMERS|UPD_FILEINFO|UPD_VOLUME))
+        { HPS hps  = WinGetPS( hwnd );
+          if ((mask & UPD_FILENAME) && InterlockedBtr(upd_options, 4))
+          { amp_display_filename();
+            bmp_draw_text(hps);
+          }
+          if ((mask & UPD_TIMERS  ) && InterlockedBtr(upd_options, 0))
+            amp_paint_timers(hps);
+          if ((mask & UPD_FILEINFO) && InterlockedBtr(upd_options, 1))
+            amp_paint_fileinfo(hps);
+          if ((mask & UPD_VOLUME  ) && InterlockedBtr(upd_options, 2))
+            bmp_draw_volume(hps, Ctrl::GetVolume());
+          WinReleasePS( hps );
         }
-        if ((mask & UPD_TIMERS  ) && InterlockedBtr(upd_options, 0))
-          amp_paint_timers(hps);
-        if ((mask & UPD_FILEINFO) && InterlockedBtr(upd_options, 1))
-          amp_paint_fileinfo(hps);
-        if ((mask & UPD_VOLUME  ) && InterlockedBtr(upd_options, 2))
-          bmp_draw_volume(hps, Ctrl::GetVolume());
-        WinReleasePS( hps );
       }
       return 0;
-    }
 
     case WM_PAINT:
     {
@@ -1152,7 +1153,7 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
 
         case IDM_M_PLINFO:
           if (CurrentRoot)
-            InfoDialog::GetByKey(CurrentSong)->ShowPage(
+            InfoDialog::GetByKey(CurrentRoot)->ShowPage(
               (CurrentRoot->GetFlags() & Playable::Enumerable) || CurrentRoot->CheckInfo(Playable::IF_Meta)
               ? InfoDialog::Page_TechInfo
               : InfoDialog::Page_MetaInfo);
@@ -1476,7 +1477,7 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
           {case VK_ALT:
            case VK_ALTGRAF:
            //case VK_CTRL:
-            amp_set_alt_slider(!(fsflags & KC_KEYUP));
+            amp_set_alt_slider(!(fsflags & KC_KEYUP) && (CurrentRoot->GetFlags() & Playable::Enumerable));
             break;
           }
         }

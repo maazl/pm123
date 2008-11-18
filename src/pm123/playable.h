@@ -31,13 +31,13 @@
 #define PLAYABLE_H
 
 #include <cpp/event.h>
-//#include <utilfct.h>
 #include <cpp/mutex.h>
 #include <cpp/smartptr.h>
 #include <cpp/xstring.h>
 #include <cpp/queue.h>
 #include <cpp/cpputil.h>
-#include <cpp/container.h>
+#include <cpp/container/sorted_vector.h>
+#include <cpp/container/inst_index.h>
 #include <cpp/url123.h>
 
 #include <stdlib.h>
@@ -45,15 +45,6 @@
 
 #include <decoder_plug.h>
 
-
-/* Status of Playable Objects and PlayableInstance.
- */
-enum PlayableStatus
-{ STA_Unknown, // The Status of the object is not yet known
-  STA_Invalid, // the current object cannot be used
-  STA_Normal,  // no special status
-  STA_Used     // the current object is actively in use
-};
 
 /* Abstract class to support any playable object.
  *
@@ -88,17 +79,31 @@ class Playable
     IF_Meta     = 0x04,// applies to GetInfo().meta
     IF_Phys     = 0x08,// applies to GetInfo().phys
     IF_Rpl      = 0x10,// applies to GetInfo().rpl
-    IF_Other    = 0x20,// applies to GetDecoder() and PlayableCollection::GetNext()
-    IF_Status   = 0x40,// applies to GetStatus() and IsModified()
-    IF_All      = IF_Format|IF_Tech|IF_Meta|IF_Phys|IF_Rpl|IF_Other|IF_Status
+    IF_Other    = 0x20,// applies to GetStatus(), GetDecoder() and PlayableCollection::GetNext()
+    IF_Usage    = 0x40,// applies to IsInUse() and IsModified()
+                       // This flag is for events only. Usage information is always available. 
+    IF_All      = IF_Format|IF_Tech|IF_Meta|IF_Phys|IF_Rpl|IF_Other
   };
   CLASSFLAGSATTRIBUTE(Playable::InfoFlags);
-  // Parameters for InfoChange Event
-  struct change_args
-  { Playable&         Instance;
-    InfoFlags         Flags; // Bitvector of type InfoFlags
-    change_args(Playable& inst, InfoFlags flags) : Instance(inst), Flags(flags) {}
+  // Status of Playable Objects and PlayableInstance.
+  enum Status
+  { STA_Unknown, // The Status of the object is not yet known
+    STA_Invalid, // the current object cannot be used
+    STA_Valid    // The object is valid
   };
+
+  // Parameters for InfoChange Event
+  // An Event with Change and Load == IF_None is fired just when the playable instance dies.
+  // Eventhandlers should not access instance in this case.
+  struct change_args
+  { Playable&         Instance; // Related Playable object.
+    InfoFlags         Changed;  // Bitvector with changed information.
+    InfoFlags         Loaded;   // Bitvector with loaded information. This may not contain bits not in Change.
+    change_args(Playable& inst, InfoFlags changed, InfoFlags loaded) : Instance(inst), Changed(changed), Loaded(loaded) {}
+  };
+
+  // Class to lock Playable Object against modification.
+  // This Object must not be held for a longer time. The must not be done any I/O in between.
   class Lock;
   friend class Lock;
   class Lock
@@ -110,7 +115,28 @@ class Playable
                Lock(Playable& p) : P(p)      { p.Mtx.Request(); }
                ~Lock();
   };
- public:
+
+  // Class to wait for a desired information
+  class WaitInfo
+  {private:
+    InfoFlags  Filter;
+    Event      EventSem;
+    class_delegate<WaitInfo, const change_args> Deleg;
+   private:
+    void       InfoChangeEvent(const change_args& args);
+   public:
+    // Create a WaitInfo Semaphore that is posted once all information specified by Filter
+    // is loaded.
+    // To be safe the constructor of this class must be invoked while the mutex
+    // of the Playable object is held.
+               WaitInfo(Playable& inst, InfoFlags filter);
+               ~WaitInfo();
+    // Wait until all requested information is loaded or an error occurs.
+    // the function returns false if the given time elapsed or the Playable
+    // object died.
+    bool       Wait(long ms = -1)         { EventSem.Wait(ms); return Filter == 0; }
+  };
+  
   // C++ version of DECODER_INFO2
   class DecoderInfo : public DECODER_INFO2
   {private:
@@ -132,20 +158,57 @@ class Playable
     // assignment
     void              operator=(const DECODER_INFO2& r);
   };
+  
+  typedef char        DecoderName[13];    // 12345678.123\0 (OS/2 module names cannot exceed 8.3) 
 
  private:
   const url123        URL;
- protected: // The following vars are protected by the mutex
+  Mutex               Mtx;                // protect this instance
+ private: // The following vars are protected by the mutex
   DecoderInfo         Info;
-  PlayableStatus      Stat;
-  char                Decoder[13];     // 12345678.123\0 (OS/2 module names cannot exceed 8.3) 
-  InfoFlags           InfoValid;       // Bitvector of type InfoFlags
-  InfoFlags           InfoChangeFlags; // Bitvector with stored events
+  Status              Stat;
+  bool                InUse;
+  DecoderName         Decoder;
+  // The InfoValid InfoConfirmed bit voctors defines the reliability status of the
+  // certain information components. See InfoFlags for the kind of information.
+  // Valid | Confirmed | Meaning
+  // ======|===========|=================================================================
+  //   0   |     0     | The information is not available.
+  //   1   |     0     | The information is available but may be outdated.
+  //   0   |     1     | INVALID!
+  //   1   |     1     | The information is confirmed.
+  // Bits in InfoValid are never reset. So reading a set bit without locking the mutex is safe.
+  InfoFlags           InfoValid;
+  InfoFlags           InfoConfirmed;
+  // The fields InfoChange and InfoLoaded hold the flags for the next InfoChange event.
+  // They are collected until OnReleaseMutex is called which raises the event.
+  // Valid combinations of bits for each kind of information.
+  // Loaded | Changed | Meaning
+  // =======|=========|=================================================================
+  //    0   |    0    | Information is untouched since the last InfoChange event.
+  //    1   |    0    | Information has been updated but the value did not change.
+  //    0   |    1    | INVALID! - InfoLoaded never contains less bits than InfoChanged.
+  //    1   |    1    | Information has been updated and changed. 
+  InfoFlags           InfoChanged;     // Bitvector with stored events
+  InfoFlags           InfoLoaded;      // Bitvector with recently updated information
+  // The bits in InfoMask are enabled to be raised at OnReleaseMutex.
+  InfoFlags           InfoMask;
  private: // ... except for this ones
+  // The Fields InfoRequest, InfoRequestLow and InfoInService define the request status of the information.
+  // The following bit combinations are valid for each kind of information.
+  // Rq.Low | Request | InService | Meaning
+  // =======|=========|===========|===============================================================
+  //    0   |    0    |     0     | The Information is stable.
+  //    1   |    0    |     0     | The Information is requested asynchroneously at low priority.
+  //    x   |    1    |     0     | The Information is requested asynchroneously at high priority.
+  //    x   |    x    |     1     | The Information is currently retrieved.
   volatile unsigned   InfoRequest;     // Bitvector with requested information
   volatile unsigned   InfoRequestLow;  // Bitvector with requested low priority information
-  volatile unsigned   InService;       // 1 = unused, 0 = in service by a worker, <0 queue entries skipped
-  Mutex               Mtx;             // protect this instance
+  // The InfoInService Bits protect the specified information. While a bit is set
+  // the according information must not be modified by anything else but the thread
+  // that set the bit. This is the same than an array of mutextes, but does not eat
+  // that nuch resources.
+  volatile unsigned   InfoInService;   // Bitvector with currently retrieving information   
 
  private: // non-copyable
   Playable(const Playable&);
@@ -155,22 +218,56 @@ class Playable
   // Each infotype in ca may be NULL, indicating that the desired information is not yet known.
   // For non NULL info blocks in ca the apropriate bits in InfoValid are set.
   Playable(const url123& url, const DECODER_INFO2* ca = NULL);
+  // Request informations for update. This sets the apropriate bits in InfoInService.
+  // The function returns the bits /not/ previously set. The caller must not update
+  // other information than the returned bits.
+  // It is valid to extend an active update by another call to BeginUpdate with additional flags.
+  InfoFlags           BeginUpdate(InfoFlags what);
+  // Completes the update requested by BeginUpdate.
+  // The parameter what /must/ be the return value of BeginUpdate from the same thread.
+  // You also may split the EndUpdate for different kind of information.
+  // However, you must pass disjunctive flags at all calls.
+  void                EndUpdate(InfoFlags what);
+  // Notify about the update of some kind of information.
+  // If changed is true the InfoChanged bits are also set.
+  // If confirmed is true the InfoConfirmed bits are also set.
+  // The function must be called in synchronized context.
+  void                ValidateInfo(InfoFlags what, bool changed, bool confirmed);
+  // Invalidate some kind of information.
+  // This does not reset the InfoValid bits, but it resets the InfoConfirmed bits.
+  // The reload parameter forces the invalidated information to be reloaded at low priority.
+  void                InvalidateInfo(InfoFlags what, bool reload = false);
   // Update the structure components and set the required InfoChange Flags or 0 if no change has been made.
-  // Calling this Functions with NULL resets the Information to its default value.
+  // Calling this Functions with NULL resets the information to its default value.
   // This does not reset the InfoValid bits.
-  void                UpdateInfo(const FORMAT_INFO2* info);
-  void                UpdateInfo(const TECH_INFO* info);
-  void                UpdateInfo(const META_INFO* info);
-  void                UpdateInfo(const PHYS_INFO* info);
-  void                UpdateInfo(const RPL_INFO* info);
+  // Once a playable object is constructed this function must not be called
+  // unless the specified bits are successfully requested by BeginUpdate
+  // and the current object is synchronized by Mtx.
+  void                UpdateFormat(const FORMAT_INFO2* info, bool confirmed = true);
+  void                UpdateTech(const TECH_INFO* info, bool confirmed = true);
+  void                UpdateMeta(const META_INFO* info, bool confirmed = true);
+  void                UpdatePhys(const PHYS_INFO* info, bool confirmed = true);
+  void                UpdateRpl(const RPL_INFO* info, bool confirmed = true);
+  void                UpdateOther(Status stat, bool meta_write, const char* decoder, bool confirmed = true);
   // Update all kind of information.
-  void                UpdateInfo(const DECODER_INFO2* info, InfoFlags what);
-  void                UpdateStatus(PlayableStatus stat);
+  void                UpdateInfo(Status stat, const DECODER_INFO2* info, const char* decoder, InfoFlags what, bool confirmed = true);
+  void                UpdateInUse(bool inuse);
+  // This function is called to populate the info fields.
+  // The parameter what is the requested information. The function may retrieve more information
+  // than requested. In this case you must call BeginUpdate for the additional bits
+  // as soon as you know that you retrieve more information. And only if this call to
+  // BeginUpdate grants you to update the desired information you are allowed to Update the
+  // specified field by calling the appropriate UpdateInfo function.
+  // If a part of the information retrieval is time-consuming and another part is not,
+  // DoLoadInfo should call EndUpdate with the apropriate bits after the fast information
+  // has been retrieved. 
+  // The function must exactly return the updated information including additional bits,
+  // that are granted by BeginUpdate, and excluding the bits already passed to EndUpdate.
+  // In the easiest way no expicit calls to BeginUpdate and EndUpdate are required.
+  virtual InfoFlags   DoLoadInfo(InfoFlags what) = 0;
  private:
-  // Raise the InfoChange event if required.
-  // This function is automatically called before releasing the Mutex by the current thread.
-  // Normally 
-  void                RaiseInfoChange();
+  // This function is called by Playable::Lock::~Lock() when the Mutex Mtx is about to be released.
+  void                OnReleaseMutex();
  public:
   virtual             ~Playable();
   // Check whether a given URL is to be initialized as playlist.
@@ -180,11 +277,12 @@ class Playable
   // RTTI by the back door. (dynamic_cast<> would be much nicer, but this is not supported by icc 3.0.)
   virtual Flags       GetFlags() const;
   // Check whether the current instance is locked by the current thread.
-  bool                IsMine() const      { return Mtx.GetStatus() > 0; }
+  //bool                IsMine() const      { return Mtx.GetStatus() > 0; }
   // Return Status of the current object
-  PlayableStatus      GetStatus() const   { return Stat; }
+  Status              GetStatus() const   { return Stat; }
+  // Return true if the current object is marked as in use.
+  bool                IsInUse() const     { return InUse; }
   // Mark the object as used (or not)
-  // This Function should not be called if the object's state is STA_Unknown or STA_Invalid.
   void                SetInUse(bool used);
   // Display name
   // This returns either Info.meta.title or the object name of the current URL.
@@ -208,36 +306,38 @@ class Playable
 
   // Check wether the requested information is immediately available.
   // Return the bits in what that are /not/ available.
-  inline InfoFlags    CheckInfo(InfoFlags what) const { return what & ~InfoValid; }
-  // This function is called to populate the info fields.
-  // The parameter what is the requested information. The function returns the retrieved information.
-  // The retrieved information must not be less than the requested information. But it might be more.
-  // This is a mutable Function when the info-fields are not initialized yet (late initialization).
-  // Normally this function is called automatically. However, you may want to force a synchronuous refresh.
-  // When overiding this function you MUST call Playable::LoadInfo with the flags you want to return at last.
-  // This atomically resets the matching bits in the InfoRequest fields and sets them in InfoValid.
-  // Playable::LoadInfo is abstract but implemented. 
-  virtual InfoFlags   LoadInfo(InfoFlags what) = 0;
+  InfoFlags           CheckInfo(InfoFlags what) const { return what & ~InfoValid; }
+  // This function Load some information immediately.
+  // The parameter what is the requested information.
+  void                LoadInfo(InfoFlags what);
   // Ensure that the info fields are loaded from the ressource.
   // This function may block until the data is available.
   // To be reliable you shound be in synchronized context.
-  void                EnsureInfo(InfoFlags what);
+  // If confirmed is true, only information that is well known to be valid
+  // is returned. Information from some caching or that has been invalidated
+  // will be retrieved anew.
+  void                EnsureInfo(InfoFlags what, bool confirmed = false);
   // Call LoadInfo asynchronuously. This is a service of Playable.
   // When the requested information is availabe the InfoChange event is raised.
-  // But this is done only if the information really has changed.
+  // Note that requesting information not neccessarily causes a Changed flag to be set.
+  // Only the Loaded bits are guaranteed.
   // Of course yo have to register the eventhandler before the call to LoadInfoAsync.
   // The parameter lowpri shedules the rquest at low priority.
   // This is useful for prefetching.
   void                LoadInfoAsync(InfoFlags what, bool lowpri = false);
   // Call LoadInfo asynchronuously if the requested information is not yet available.
   // The function returns the flags of the requested information that is immediately available.
-  // For all the missing bits you should use the InfoChange event to get the requested information.
-  // If no information is yet available, the function retorns IF_None.
+  // If the parameter confirmed is true the information is also requested asynchroneously,
+  // if it is currently only available as unconfirmed.
+  // For all the missing bits you should wait for the matching InfoChange event
+  // to get the requested information. Note that requesting information not neccessarily
+  // causes a Changed flag to be set. Only the Loaded bits are guaranteed.
+  // If no information is yet available, the function returns IF_None.
   // Of course yo have to register the eventhandler before the call to EnsureInfoAsync.
-  // If EnsureInfoAsync returned true the InfoChange event is not raised.
-  // The parameter lowpri shedules the rquest at low priority.
+  // If EnsureInfoAsync returned all requested bits the InfoChange event is not raised
+  // as result of this call. The parameter lowpri shedules the rquest at low priority.
   // This is useful for prefetching.
-  InfoFlags           EnsureInfoAsync(InfoFlags what, bool lowpri = false);
+  InfoFlags           EnsureInfoAsync(InfoFlags what, bool lowpri = false, bool confirmed = false);
 
   // Set meta information.
   // Calling this function with meta == NULL deletes the meta information.
@@ -277,8 +377,9 @@ class Playable
   static bool              WTermRq;       // Termination Request to Worker
 
  private:
-  // Worker thread (free function because of IBM VAC restrictions)
-  friend void TFNENTRY PlayableWorker(void*);
+  // Worker thread
+  static void              PlayableWorker();
+  friend void TFNENTRY     PlayableWorkerStub(void*);
  public:
   // Initialize worker
   static void              Init();
@@ -323,7 +424,8 @@ class PlayableSetBase
   static const PlayableSetBase& Empty; // empty instance
 
  protected:
-  PlayableSetBase()        {}
+                           PlayableSetBase() {}
+                           ~PlayableSetBase() {}
  public:
   #ifdef DEBUG
   xstring                  DebugDump() const;
@@ -386,10 +488,10 @@ class OwnedPlayableSet
 /* Class representing exactly one song.
  */
 class Song : public Playable
-{public:
+{protected:
+  virtual InfoFlags        DoLoadInfo(InfoFlags what);
+ public:
   Song(const url123& URL, const DECODER_INFO2* ca = NULL);
-
-  virtual InfoFlags        LoadInfo(InfoFlags what);
   // Save meta info, return result from dec_saveinfo
   ULONG                    SaveMetaInfo(const META_INFO& info, int haveinfo);
 };
