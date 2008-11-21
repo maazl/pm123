@@ -48,9 +48,7 @@
 ****************************************************************************/
 class InfoDialog 
 : public ManagedDialogBase,
-  // aggregation is not sufficient because of the destruction sequence
-  // private OwnedPlayableSet,  -- gcc work around
-  protected OwnedPlayableSet,
+  private OwnedPlayableSet, // aggregation is not sufficient because of the destruction sequence
   public IComparableTo<const PlayableSetBase*>,
   public inst_index<InfoDialog, const PlayableSetBase*const> // depends on base class OwnedPlayableSet
 {public:

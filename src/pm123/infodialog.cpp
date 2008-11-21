@@ -51,7 +51,7 @@ class SingleInfoDialog
   class_delegate<SingleInfoDialog, const Playable::change_args> ContentChangeDeleg;
 
  public:
-                    SingleInfoDialog(const PlayableSetBase& key);
+                    SingleInfoDialog(const ::PlayableSetBase& key);
  private:
   virtual MRESULT   DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2);
   virtual struct Data GetData();
@@ -67,7 +67,7 @@ class MultipleInfoDialog
   Playable::DecoderInfo MergedInfo;
 
  public:
-                    MultipleInfoDialog(const PlayableSetBase& key);
+                    MultipleInfoDialog(const ::PlayableSetBase& key);
  private: // Dialog functions
   virtual MRESULT   DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2);
  private: // Data source
@@ -491,7 +491,7 @@ int InfoDialog::compareTo(const PlayableSetBase*const& r) const
 }
 
 
-SingleInfoDialog::SingleInfoDialog(const PlayableSetBase& key)
+SingleInfoDialog::SingleInfoDialog(const ::PlayableSetBase& key)
 : InfoDialog(key),
   DataCacheValid(false),
   ContentChangeDeleg(*this, &SingleInfoDialog::ContentChangeEvent)
@@ -547,7 +547,7 @@ void SingleInfoDialog::ContentChangeEvent(const Playable::change_args& args)
 }
 
 
-MultipleInfoDialog::MultipleInfoDialog(const PlayableSetBase& key)
+MultipleInfoDialog::MultipleInfoDialog(const ::PlayableSetBase& key)
 : InfoDialog(key),
   DataCacheValid(false)
 { DEBUGLOG(("MultipleInfoDialog(%p)::MultipleInfoDialog({%u %s})\n", this, key.size(), key.DebugDump().cdata()));
