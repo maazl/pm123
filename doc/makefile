@@ -24,7 +24,7 @@ MANLST = $(MANLST) manual\settings1.html manual\settings2.html manual\sguide.htm
 MANLST = $(MANLST) manual\skins.html manual\tech.html manual\troubleshooting.html 
 MANLST = $(MANLST) manual\playfolder.html manual\bookmark.html manual\playlist_cm.html 
 MANLST = $(MANLST) manual\playlist_cmi.html manual\os2rec.html manual\bugreport.html
-MANLST = $(MANLST) manual\logfiles.html
+MANLST = $(MANLST) manual\logfiles.html manual\opentodo.html
 
 
 PDKLST = pdk\index.html pdk\decode_plug.html pdk\filter_plug.html
@@ -47,6 +47,9 @@ pm123_pdk.ipf: $(PDKLST)
 	set path=$(PATH);tools
 	tools\html2ipf.cmd -co- -so- -p+ pdk\index.html $@
 	endlocal
+
+manual\opentodo.html: todo.html
+	tools\extracttodo.cmd <todo.html >$@
 
 clean: $(MDUMMY)
 	-@del *.inf 2> nul

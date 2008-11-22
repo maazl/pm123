@@ -59,8 +59,8 @@ non-existing show up. This messages should be suppressed.</td>
 prefetched the new decoder thread does not inherit the priority from
 the old thread. This may cause the playback to have drop outs.</td>
 </tr>
-<tr class="open">
-<td><em>6 medium bug, open</em></td>
+<tr class="test">
+<td><em>6 medium bug, untested</em></td>
 <td>Deadlocks with recursive playlists</td>
 <td>With recursive playlist structures PM123 sometimes
 deadlocks because the list semaphore are not requested top down. In
@@ -90,8 +90,8 @@ destroys any EA information.</td>
 tags are not turn around stable. This causes special characters to be
 destroyed when saving the tag.</td>
 </tr>
-<tr class="open">
-<td><em>10 medium todo, open</em></td>
+<tr class="fixed">
+<td><em>10 medium todo, fixed</em></td>
 <td>PM lock-up when slider is used while a worker thread
 gets information on a playlist.</td>
 <td>Thread 1 acquires playlist mutex when slider is used.
@@ -107,7 +107,7 @@ currently loaded root, navigate to starts at the loaded root rather
 than the window's root. This consequently fails.</td>
 </tr>
 <tr class="open">
-<td><em>12 medium bug, open</em></td>
+<td>12 minor bug, open</td>
 <td>Glitches of the slider when seeking or starting at a
 certain location.</td>
 <td>When playback starts at a non-zero starting point the
@@ -136,6 +136,11 @@ single server. While PM123 is able to handle this kind of files and
 play the first valid stream, it has unwanted effects when adding these
 playlists to another playlist, because all of the contained items are
 equivalent.</td>
+</tr>
+<tr class="open">
+<td><strong>16 major bug, open</strong></td>
+<td>Some meta information lost</td>
+<td>When saving tags of MP3 or Ogg files all tag that PM123 does not know are deleted silently.</td>
 </tr>
 </tbody>
 </table>
