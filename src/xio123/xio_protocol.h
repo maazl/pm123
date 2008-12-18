@@ -31,10 +31,6 @@
 
 #include "xio.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 #define XO_WRITE          0x0001
 #define XO_READ           0x0002
 #define XO_CREATE         0x0004
@@ -50,7 +46,7 @@ extern "C" {
 #define XS_USE_SPOS       0x0040
 #define XS_NOT_BUFFERIZE  0x0080
 
-typedef struct _XPROTOCOL {
+struct XPROTOCOL {
 
   int supports;
   int eof;
@@ -66,13 +62,13 @@ typedef struct _XPROTOCOL {
   /* Reads count bytes from the file into buffer. Returns the number
      of bytes placed in result. The return value 0 indicates an attempt
      to read at end-of-file. A return value -1 indicates an error.     */
-  int  (*read )( XFILE* x, char* result, unsigned int count );
+  int  (*read )( XFILE* x, void* result, unsigned int count );
 
   /* Writes count bytes from source into the file. Returns the number
      of bytes moved from the source to the file. The return value may
      be positive but less than count. A return value of -1 indicates an
      error */
-  int  (*write)( XFILE* x, const char* source, unsigned int count );
+  int  (*write)( XFILE* x, const void* source, unsigned int count );
 
   /* Closes the file. Returns 0 if it successfully closes the file. A
      return value of -1 shows an error. */
@@ -136,10 +132,7 @@ typedef struct _XPROTOCOL {
   int   s_serialized;
   #endif
 
-} XPROTOCOL;
+};
 
-#ifdef __cplusplus
-}
-#endif
 #endif /* XIO_FILE_H */
 

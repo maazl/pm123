@@ -36,10 +36,6 @@
 #define HTTPBASEERR 21000
 #endif
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 #define HTTP_OK               200 /* The request was successful.                 */
 #define HTTP_CREATED          201 /* The request was successful and a new        */
                                   /* resource was created.                       */
@@ -88,8 +84,5 @@ XPROTOCOL*  http_initialize( XFILE* x );
 /* Maps the error number in errnum to an error message string. */
 const char* http_strerror( int errnum );
 
-#ifdef __cplusplus
-}
-#endif
 #endif /* XIO_HTTP_H */
 

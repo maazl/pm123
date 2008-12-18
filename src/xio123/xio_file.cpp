@@ -194,7 +194,7 @@ file_open( XFILE* x, const char* filename, int oflags )
     DEBUGLOG(("xio:file_open %s\n", p));
     // Convert file://server/share/path URLs to UNC path
     if ( *p != '/' ) {
-      openname = malloc( strlen( p ) + 3 );
+      openname = (char*)malloc( strlen( p ) + 3 );
       openname[0] = openname[1] = '/';
       strcpy( openname + 2, p );
     } else {
@@ -235,7 +235,7 @@ file_open( XFILE* x, const char* filename, int oflags )
    of bytes placed in result. The return value 0 indicates an attempt
    to read at end-of-file. A return value -1 indicates an error.     */
 static int
-file_read( XFILE* x, char* result, unsigned int count )
+file_read( XFILE* x, void* result, unsigned int count )
 {
   APIRET rc;
   ULONG actual;
@@ -257,7 +257,7 @@ file_read( XFILE* x, char* result, unsigned int count )
    be positive but less than count. A return value of -1 indicates an
    error */
 static int
-file_write( XFILE* x, const char* source, unsigned int count )
+file_write( XFILE* x, const void* source, unsigned int count )
 {
   APIRET rc;
   ULONG actual;
@@ -407,7 +407,7 @@ file_terminate( XFILE* x )
 XPROTOCOL*
 file_initialize( XFILE* x )
 {
-  XPROTOCOL* protocol = calloc( 1, sizeof( XPROTOCOL ));
+  XPROTOCOL* protocol = (XPROTOCOL*)calloc( 1, sizeof( XPROTOCOL ));
 
   if( protocol ) {
     if( DosCreateMutexSem( NULL, &protocol->mtx_access, 0, FALSE ) != NO_ERROR ||

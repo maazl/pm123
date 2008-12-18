@@ -58,7 +58,7 @@
    number typed as an unsigned long value.  A -1 value
    indicates an error. */
 u_long
-so_get_address( char* hostname )
+so_get_address( const char* hostname )
 {
   u_long address;
   struct hostent* entry;
@@ -68,8 +68,8 @@ so_get_address( char* hostname )
     return -1;
   }
 
-  if(( address = inet_addr( hostname )) == -1 ) {
-    if(( entry = gethostbyname( hostname )) != NULL ) {
+  if(( address = inet_addr( (char*)hostname )) == -1 ) {
+    if(( entry = gethostbyname( (char*)hostname )) != NULL ) {
       memcpy( &address, entry->h_addr, sizeof( address ));
     } else {
       #ifdef NETDB_INTERNAL
@@ -103,7 +103,7 @@ so_base64_encode( const char* src )
   int    r;
 
   l = strlen( src );
-  if(( str = malloc((( l + 2 ) / 3 ) * 4 + 1 )) == NULL ) {
+  if(( str = (char*)malloc((( l + 2 ) / 3 ) * 4 + 1 )) == NULL ) {
     return NULL;
   }
   dst = str;
@@ -216,7 +216,7 @@ so_connect( u_long address, int port )
    The return value -1 indicates an error was detected on the
    sending side of the connection. */
 int
-so_write( int s, const char* buffer, int size )
+so_write( int s, const void* buffer, int size )
 {
   while( size )
   {
@@ -227,8 +227,8 @@ so_write( int s, const char* buffer, int size )
       return -1;
     }
 
-    buffer += done;
-    size   -= done;
+    (char*&)buffer += done;
+    size           -= done;
   }
 
   return 0;
@@ -239,14 +239,14 @@ so_write( int s, const char* buffer, int size )
    into the buffer is returned. The value 0 indicates that the
    connection is closed. The value -1 indicates an error. */
 int
-so_read( int s, char* buffer, int size )
+so_read( int s, void* buffer, int size )
 {
   int read = 0;
   int done;
 
   while( read < size )
   {
-    done = recv( s, buffer + read, size - read, 0 );
+    done = recv( s, (char*)buffer + read, size - read, 0 );
 
     if( done < 0 ) {
       errno = sock_errno();

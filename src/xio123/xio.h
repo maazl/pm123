@@ -61,8 +61,8 @@ typedef struct _XFILE {
   int scheme;
   int oflags;
 
-  struct _XPROTOCOL* protocol;
-  struct _XBUFFER*   buffer;
+  struct XPROTOCOL* protocol;
+  struct XBUFFER*   buffer;
 
   int serial;
 

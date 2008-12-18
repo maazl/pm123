@@ -31,11 +31,7 @@
 
 #include "xio.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-typedef struct _XBUFFER   {
+struct XBUFFER   {
 
   char* head;           /* Pointer to the first byte of the buffer.          */
   char* tail;           /* Pointer to beyond of the last byte of the buffer. */
@@ -59,7 +55,7 @@ typedef struct _XBUFFER   {
   int   eof;            /* Indicates whether the end of file is reached.     */
   int   error;          /* Last error code.                                  */
 
-} XBUFFER;
+};
 
 /* Allocates and initializes the buffer. */
 void buffer_initialize( XFILE* x );
@@ -69,13 +65,13 @@ void buffer_terminate ( XFILE* x );
 /* Reads count bytes from the file into buffer. Returns the number
    of bytes placed in result. The return value 0 indicates an attempt
    to read at end-of-file. A return value -1 indicates an error.     */
-int  buffer_read( XFILE* x, char* result, unsigned int count );
+int  buffer_read( XFILE* x, void* result, unsigned int count );
 
 /* Writes count bytes from source into the file. Returns the number
    of bytes moved from the source to the file. The return value may
    be positive but less than count. A return value of -1 indicates an
    error */
-int  buffer_write( XFILE* x, const char* source, unsigned int count );
+int  buffer_write( XFILE* x, const void* source, unsigned int count );
 
 /* Returns the current position of the file pointer. The position is
    the number of bytes from the beginning of the file. On devices
@@ -99,8 +95,5 @@ long buffer_filesize( XFILE* x );
    of the original file. */
 int  buffer_truncate( XFILE* x, long size );
 
-#ifdef __cplusplus
-}
-#endif
 #endif /* XIO_BUFFER_H */
 

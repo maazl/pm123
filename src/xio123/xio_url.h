@@ -31,10 +31,6 @@
 
 #include <stdlib.h>
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 typedef struct _XURL {
 
   char*    scheme;    /* Decoded. */
@@ -69,7 +65,4 @@ size_t url_encode_size( const char* string );
 /* Returns the specified parts of the URL string. */
 char*  url_string( XURL* url, int parts );
 
-#ifdef __cplusplus
-}
-#endif
 #endif /* XIO_URL_H */

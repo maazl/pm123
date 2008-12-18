@@ -146,7 +146,7 @@ XURL* url_allocate( const char* string )
   char* tail;
   char* location = NULL;
   char* pc;
-  XURL* url = calloc( 1, sizeof( XURL ));
+  XURL* url = (XURL*)calloc( 1, sizeof( XURL ));
 
   DEBUGLOG(("xio:url_allocate(%s) -> %p\n", string, url));
 
@@ -318,25 +318,30 @@ void url_free( XURL* url )
   }
 }
 
+// Proxy because of ICC calling convention
+static size_t url_cat(char* result, const char* source, size_t size)
+{ return strlcat(result, source, size);
+}
+
 /* Returns the specified part of the URL string. */
 char* url_string( XURL* url, int part )
 {
   int   size;
   char* string;
 
-  size_t (*urllen)( const char* string );
-  size_t (*urlcat)( char* result, const char* source, size_t size );
-
   if( !url ) {
     return NULL;
   }
+  
+  size_t (*urllen)( const char* string );
+  size_t (*urlcat)( char* result, const char* source, size_t size );
 
   if( part & XURL_STR_ENCODE ) {
     urllen = url_encode_size;
     urlcat = url_encode;
   } else {
     urllen = url_string_size;
-    urlcat = strlcat;
+    urlcat = url_cat;
   }
 
   part &= ~XURL_STR_ENCODE;

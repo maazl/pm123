@@ -32,15 +32,8 @@
 #include "xio.h"
 #include "xio_protocol.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 /* Initializes the file protocol. */
 XPROTOCOL* file_initialize( XFILE* x );
 
-#ifdef __cplusplus
-}
-#endif
 #endif /* XIO_FILE_H */
 

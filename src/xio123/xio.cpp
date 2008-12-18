@@ -98,7 +98,7 @@ xio_fopen( const char* filename, const char* mode )
     errno = ENOENT;
     return NULL;
   }
-  if( !( x = calloc( 1, sizeof( XFILE )))) {
+  if( !( x = (XFILE*)calloc( 1, sizeof( XFILE )))) {
     return NULL;
   }
 
@@ -181,7 +181,7 @@ xio_fopen( const char* filename, const char* mode )
    bytes placed in result. The return value 0 indicates an attempt
    to read at end-of-file. A return value -1 indicates an error. */
 static int
-xio_read_and_notify( XFILE* x, char* result, unsigned int count )
+xio_read_and_notify( XFILE* x, void* result, unsigned int count )
 {
   int read_size;
   int read_done;
@@ -213,7 +213,7 @@ xio_read_and_notify( XFILE* x, char* result, unsigned int count )
         if( metahead ) {
           metasize = metahead * 16;
 
-          if(( metabuff = malloc( metasize + 1 )) == NULL ) {
+          if(( metabuff = (char*)malloc( metasize + 1 )) == NULL ) {
             return -1;
           }
           if(( done = buffer_read( x, metabuff, metasize )) != metasize ) {
@@ -257,7 +257,7 @@ xio_read_and_notify( XFILE* x, char* result, unsigned int count )
     read_size = count - read_done;
     read_size = min( read_size, x->protocol->s_metapos );
 
-    done = buffer_read( x, result + read_done, read_size );
+    done = buffer_read( x, (char*)result + read_done, read_size );
 
     if( !done || done == -1 ) {
       break;

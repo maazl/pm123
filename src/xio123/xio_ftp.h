@@ -64,17 +64,10 @@
 #define FTP_FILE_NO_ACCESS          550
 #define FTP_PROTOCOL_ERROR          999
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 /* Initializes the ftp protocol. */
 XPROTOCOL*  ftp_initialize( XFILE* x );
 /* Maps the error number in errnum to an error message string. */
 const char* ftp_strerror( int errnum );
 
-#ifdef __cplusplus
-}
-#endif
 #endif /* XIO_FTP_H */
 

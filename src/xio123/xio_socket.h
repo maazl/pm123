@@ -35,16 +35,12 @@
 #define HBASEERR 20000
 #endif
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 /* Converts a string containing a valid internet address using
    dotted-decimal notation or host name into an internet address
    number typed as an unsigned long value.  A -1 value
    indicates an error. */
 u_long
-so_get_address( char* hostname );
+so_get_address( const char* hostname );
 
 /* Base64 encoding. */
 char*
@@ -61,14 +57,14 @@ so_connect( u_long address, int port );
    The return value -1 indicates an error was detected on the
    sending side of the connection. */
 int
-so_write( int s, const char* buffer, int size );
+so_write( int s, const void* buffer, int size );
 
 /* Receives data on a socket with descriptor s and stores it in
    the buffer. When successful, the number of bytes of data received
    into the buffer is returned. The value 0 indicates that the
    connection is closed. The value -1 indicates an error. */
 int
-so_read( int s, char* buffer, int size );
+so_read( int s, void* buffer, int size );
 
 /* Receives bytes on a socket up to the first new-line character (\n)
    or until the number of bytes received is equal to n-1, whichever
@@ -85,8 +81,5 @@ so_readline( int s, char* buffer, int size );
 int
 so_close( int s );
 
-#ifdef __cplusplus
-}
-#endif
 #endif /* XIO_SOCKET_H */
 

@@ -136,7 +136,7 @@ static int
 http_read_file( XFILE* x, const char* filename, unsigned long range )
 {
   int    reqsize = 16384;
-  char*  request = malloc( reqsize  );
+  char*  request = (char*)malloc( reqsize  );
   int    rc;
   int    handle;
   char*  get;
@@ -334,7 +334,7 @@ http_open( XFILE* x, const char* filename, int oflags ) {
    of bytes placed in result. The return value 0 indicates an attempt
    to read at end-of-file. A return value -1 indicates an error.     */
 static int
-http_read( XFILE* x, char* result, unsigned int count )
+http_read( XFILE* x, void* result, unsigned int count )
 {
   int done = so_read( x->protocol->s_handle, result, count );
 
@@ -352,7 +352,7 @@ http_read( XFILE* x, char* result, unsigned int count )
    be positive but less than count. A return value of -1 indicates an
    error */
 static int
-http_write( XFILE* x, const char* source, unsigned int count )
+http_write( XFILE* x, const void* source, unsigned int count )
 {
   errno = EBADF;
   return -1;
@@ -474,7 +474,7 @@ http_terminate( XFILE* x )
 XPROTOCOL*
 http_initialize( XFILE* x )
 {
-  XPROTOCOL* protocol = calloc( 1, sizeof( XPROTOCOL ));
+  XPROTOCOL* protocol = (XPROTOCOL*)calloc( 1, sizeof( XPROTOCOL ));
 
   if( protocol ) {
     if( DosCreateMutexSem( NULL, &protocol->mtx_access, 0, FALSE ) != NO_ERROR ||

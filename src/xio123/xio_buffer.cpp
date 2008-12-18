@@ -45,7 +45,7 @@
 #define  BUFFER_IS_SATED    50 // %
 
 /* Advances a buffer pointer. */
-INLINE char*
+inline char*
 advance( const XBUFFER* buffer, char* begin, int distance )
 {
   if( distance < buffer->tail - begin ) {
@@ -56,7 +56,7 @@ advance( const XBUFFER* buffer, char* begin, int distance )
 }
 
 /* Returns a distance between two buffer pointers. */
-INLINE int
+inline int
 distance( const XBUFFER* buffer, char* begin, char* end )
 {
   if( end >= begin ) {
@@ -184,7 +184,7 @@ buffer_initialize( XFILE* x )
     return;
   }
 
-  buffer = calloc( 1, sizeof( XBUFFER ));
+  buffer = (XBUFFER*)calloc( 1, sizeof( XBUFFER ));
   if( !buffer ) {
     x->buffer = NULL;
     return;
@@ -195,7 +195,7 @@ buffer_initialize( XFILE* x )
 
   for(;;)
   {
-    buffer->head = malloc( size );
+    buffer->head = (char*)malloc( size );
 
     DosCreateMutexSem( NULL, &buffer->mtx_file,      0, FALSE );
     DosCreateMutexSem( NULL, &buffer->mtx_access,    0, FALSE );
@@ -297,8 +297,7 @@ void buffer_terminate( XFILE* x )
 /* Reads count bytes from the file into buffer. Returns the number
    of bytes placed in result. The return value 0 indicates an attempt
    to read at end-of-file. A return value -1 indicates an error. */
-int
-buffer_read( XFILE* x, char* result, unsigned int count )
+int buffer_read( XFILE* x, void* result, unsigned int count )
 {
   int   obsolete;
   ULONG post_count;
@@ -324,7 +323,7 @@ buffer_read( XFILE* x, char* result, unsigned int count )
     if( read_size )
     {
       // Copy a next chunk of data in the result buffer.
-      memcpy( result + read_done, buffer->data_read, read_size );
+      memcpy( (char*)result + read_done, buffer->data_read, read_size );
 
       buffer->data_read  = advance( buffer, buffer->data_read, read_size );
       buffer->data_rest -= read_size;
@@ -386,7 +385,7 @@ buffer_read( XFILE* x, char* result, unsigned int count )
    be positive but less than count. A return value of -1 indicates an
    error */
 int
-buffer_write( XFILE* x, const char* source, unsigned int count )
+buffer_write( XFILE* x, const void* source, unsigned int count )
 {
   if( x->buffer ) {
     errno = EINVAL;

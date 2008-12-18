@@ -89,7 +89,7 @@ ftp_send_command( XFILE* x, const char* command,
                             const char* params )
 {
   int   size = strlen( command ) + strlen( params ) + 4;
-  char* send = malloc( size );
+  char* send = (char*)malloc( size );
 
   if( !send ) {
     return FTP_PROTOCOL_ERROR;
@@ -266,7 +266,7 @@ ftp_open( XFILE* x, const char* filename, int oflags )
    of bytes placed in result. The return value 0 indicates an attempt
    to read at end-of-file. A return value -1 indicates an error.     */
 static int
-ftp_read( XFILE* x, char* result, unsigned int count )
+ftp_read( XFILE* x, void* result, unsigned int count )
 {
   int done = so_read( x->protocol->s_datahandle, result, count );
 
@@ -284,7 +284,7 @@ ftp_read( XFILE* x, char* result, unsigned int count )
    be positive but less than count. A return value of -1 indicates an
    error */
 static int
-ftp_write( XFILE* x, const char* source, unsigned int count )
+ftp_write( XFILE* x, const void* source, unsigned int count )
 {
   errno = EBADF;
   return -1;
@@ -399,7 +399,7 @@ ftp_terminate( XFILE* x )
 XPROTOCOL*
 ftp_initialize( XFILE* x )
 {
-  XPROTOCOL* protocol = calloc( 1, sizeof( XPROTOCOL ));
+  XPROTOCOL* protocol = (XPROTOCOL*)calloc( 1, sizeof( XPROTOCOL ));
 
   if( protocol ) {
     if( DosCreateMutexSem( NULL, &protocol->mtx_access, 0, FALSE ) != NO_ERROR ||

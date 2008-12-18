@@ -58,10 +58,6 @@
 #define CDDBBASEERR 23000
 #endif
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 #define CDDB_OK             200 /* OK, read/write allowed.                       */
 #define CDDB_OK_READONLY    201 /* OK, read only.                                */
 #define CDDB_PROTO_OK       201 /* OK, protocol version now: cur_level.          */
@@ -86,8 +82,5 @@ XPROTOCOL*  cddb_initialize( XFILE* x );
 /* Maps the error number in errnum to an error message string. */
 const char* cddb_strerror( int errnum );
 
-#ifdef __cplusplus
-}
-#endif
 #endif /* XIO_CDDB_H */
 
