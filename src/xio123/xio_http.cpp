@@ -90,7 +90,7 @@ http_read_reply( int s )
 /* Appends basic authorization string of the specified type
    to the request. */
 static char*
-http_basic_auth_to( char* result, const char* typename,
+http_basic_auth_to( char* result, const char* typname,
                                   const char* username,
                                   const char* password, int size )
 {
@@ -110,7 +110,7 @@ http_basic_auth_to( char* result, const char* typename,
   auth_encode = so_base64_encode( auth_string );
 
   if( auth_encode ) {
-    strlcat( result, typename, size );
+    strlcat( result, typname, size );
     strlcat( result, ": Basic ", size );
     strlcat( result, auth_encode, size );
     strlcat( result, "\r\n", size );
