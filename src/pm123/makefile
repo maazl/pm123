@@ -4,7 +4,6 @@
 
 TOPDIR   = ..
 INCDIR   = $(TOPDIR)\include;$(TOPDIR)\utils;$(TOPDIR)\gbm123;$(TOPDIR)\xio123
-EXE_PM   = yes
 TARGET   = pm123.exe
 
 !include $(TOPDIR)\config\makerules
@@ -22,7 +21,7 @@ LIBS     = $(LIBS) $(TOPDIR)\utils\cpp\cpputil$(LBO) $(TOPDIR)\utils\utilfct$(LB
 STDLIBS  = $(LIBS_UNI)
 
 pm123.exe: $(OBJECTS) $(RESOURCE) $(DEF) $(LIBS)
-	$(CL) $(LFLAGS) $(LFLAGS_OUT)$@ $(LOBJ_PREFX)$(OBJECTS) $(LIBS) $(STDLIBS)$(LOBJ_SUFFX) $(LDEF_PREFX)$(DEF)
+	$(CL) $(LFLAGS) $(LFLAGS_PM) $(LFLAGS_OUT)$@ $(LOBJ_PREFX)$(OBJECTS) $(LIBS) $(STDLIBS)$(LOBJ_SUFFX) $(LDEF_PREFX)$(DEF)
 	$(RC) $(RFLAGS) $(RESOURCE) $@ > nul
 	execmode -sp pm123.exe
 	$(POSTLINKCMD)

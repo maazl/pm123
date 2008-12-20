@@ -12,15 +12,15 @@ LBO        = .lib
 RES        = .res
 
 CC         = icc
-CFLAGS     = -Ss -Q -Gm -Gd+ -W3 -DOS2 -DNOSYSTEMSTATICMEMBER -Wdcl -Wenu
-CFLAGS_DLL = -Ge- -DLL
-CFLAGS_DBG = -Ti -Tx -DDEBUG=$(DEBUG) -Gf -Gl -G5 -O -Oc -Os- -Oi- -Op- -Gx+
+CFLAGS     = $(CFLAGS_USR) -Ss -Q -Gm -Gd+ -W3 -DOS2 -DNOSYSTEMSTATICMEMBER -Wdcl -Wenu
+CFLAGS_CPP = -Gx+
+CFLAGS_DBG = -Ti -Tx -DDEBUG=$(DEBUG) -Gf -Gl -G5 -O -Oc -Os- -Oi- -Op-
 CFLAGS_MEM = -Tm -DDEBUG_ALLOC=1
-CFLAGS_OPT = -Gf -Gi -O -G5 -Gl -Gx+
+CFLAGS_OPT = -Gf -Gi -O -G5 -Gl
 
 CL         = ilink
 LFLAGS     = /NOL /NOE
-LFLAGS_DLL = /DLL
+LFLAGS_DLL = /DLL $(TOPDIR)\config\emptydll_icc.obj
 LFLAGS_PM  = /PM:PM
 LFLAGS_IO  = /PM:VIO
 LFLAGS_DBG = /DEB /MAP /LINENUMBERS
@@ -62,13 +62,6 @@ LIBS_MM  = mmpm2.lib
 LIBS_UNI = libconv.lib libuls.lib
 INCLUDE  = $(INCDIR);$(INCLUDE)
 
-!ifdef EXE_PM
-LFLAGS = $(LFLAGS) $(LFLAGS_PM)
-!endif
-!ifdef EXE_IO
-LFLAGS = $(LFLAGS) $(LFLAGS_IO)
-!endif
-
 !ifdef DEBUG
 CFLAGS = $(CFLAGS) $(CFLAGS_DBG)
 LFLAGS = $(LFLAGS) $(LFLAGS_DBG)
@@ -84,16 +77,11 @@ CFLAGS = $(CFLAGS) $(CFLAGS_MEM)
 MFLAGS = $(MFLAGS) DEBUG_ALLOC=1
 !endif
 
-!ifdef DLL
-CFLAGS = $(CFLAGS) $(CFLAGS_DLL)
-LFLAGS = $(LFLAGS) $(LFLAGS_DLL)
-!endif
-
 .c.obj:
 	$(CC) $(CFLAGS) -Fo$@ -c $<
 
 .cpp.obj:
-	$(CC) $(CFLAGS) -Fo$@ -c $<
+	$(CC) $(CFLAGS) $(CFLAGS_CPP) -Fo$@ -c $<
 
 .rc.res:
 	$(RC) $(RFLAGS) -r $<

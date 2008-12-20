@@ -2,7 +2,6 @@
 #  xio123.dll makefile
 #
 
-DLL     = yes
 TOPDIR  = ..
 INCDIR  = $(TOPDIR)\include;$(TOPDIR)\utils
 TARGET  = all2
@@ -18,7 +17,7 @@ DEF     = xio$(LDEF_SUFFX)
 all2: xio123.dll xio123$(LBI) $(MDUMMY)
 
 xio123.dll: $(OBJECTS) $(DEF) $(LIBS)
-	$(CL) $(LFLAGS) $(LFLAGS_OUT)$@ $(LOBJ_PREFX)$(OBJECTS)$(LOBJ_SUFFX) $(LLIB_PREFX)$(LIBS) $(SYSLIBS)$(LLIB_SUFFX) $(LDEF_PREFX)$(DEF)
+	$(CL) $(LFLAGS) $(LFLAGS_DLL) $(LFLAGS_OUT)$@ $(LOBJ_PREFX)$(OBJECTS)$(LOBJ_SUFFX) $(LLIB_PREFX)$(LIBS) $(SYSLIBS)$(LLIB_SUFFX) $(LDEF_PREFX)$(DEF)
 	$(POSTLINKCMD)
 
 xio123$(LBI): $(DEF)

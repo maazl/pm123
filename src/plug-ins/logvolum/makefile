@@ -2,7 +2,6 @@
 #  logvolum.dll makefile
 #
 
-DLL      = yes
 TOPDIR   = ..\..
 INCDIR   = $(TOPDIR)\utils;$(TOPDIR)\include
 TARGET   = logvolum.dll
@@ -17,7 +16,7 @@ RESOURCE = logvolum$(RES)
 !endif
 
 logvolum.dll: $(OBJECTS) $(LIBS) $(DEF) $(RESOURCE)
-	$(CL) $(LFLAGS) $(LFLAGS_OUT)$@ $(LOBJ_PREFX)$(OBJECTS)$(LOBJ_SUFFX) $(LLIB_PREFX)$(LIBS)$(LLIB_SUFFX) $(LDEF_PREFX)$(DEF)
+	$(CL) $(LFLAGS) $(LFLAGS_DLL) $(LFLAGS_OUT)$@ $(LOBJ_PREFX)$(OBJECTS)$(LOBJ_SUFFX) $(LLIB_PREFX)$(LIBS)$(LLIB_SUFFX) $(LDEF_PREFX)$(DEF)
 !ifdef WITH_SOFT_VOLUME
 	$(RC) $(RFLAGS) $(RESOURCE) $@ > nul
 !endif

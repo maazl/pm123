@@ -2,9 +2,6 @@
 #  analyzer.dll makefile
 #
 
-#DEBUG=yes
-#DEBUG_ALLOC=yes
-
 DLL      = yes
 TOPDIR   = ..\..
 INCDIR   = $(TOPDIR)\utils;$(TOPDIR)\include;$(TOPDIR)\fft123\api
@@ -21,7 +18,7 @@ RESOURCE = analyzer$(RES)
 all: analyzer.dll $(MDUMMY)
 
 analyzer.dll: $(OBJECTS) $(DEF) $(RESOURCE) $(LIBS)
-	$(CL) $(LFLAGS) $(LFLAGS_OUT)$@ $(LOBJ_PREFX)$(OBJECTS)$(LOBJ_SUFFX) $(LLIB_PREFX)$(LIBS) $(SYSLIBS)$(LLIB_SUFFX) $(LDEF_PREFX)$(DEF)
+	$(CL) $(LFLAGS) $(LFLAGS_DLL) $(LFLAGS_OUT)$@ $(LOBJ_PREFX)$(OBJECTS)$(LOBJ_SUFFX) $(LLIB_PREFX)$(LIBS) $(SYSLIBS)$(LLIB_SUFFX) $(LDEF_PREFX)$(DEF)
 	$(RC) $(RFLAGS) $(RESOURCE) $@ > nul
 	$(POSTLINKCMD)
 

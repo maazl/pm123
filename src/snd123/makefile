@@ -2,7 +2,6 @@
 #  snd123.dll makefile
 #
 
-DLL     = yes
 TOPDIR  = ..
 TARGET  = all2
 
@@ -18,7 +17,7 @@ OBJECTS = snd$(CO)
 all2: snd123.dll snd123$(LBI) $(MDUMMY)
 
 snd123.dll: $(OBJECTS) $(LIBS) $(DEF)
-	$(CL) $(LFLAGS) $(LFLAGS_OUT)$@ $(LOBJ_PREFX)$(OBJECTS)$(LOBJ_SUFFX) $(LLIB_PREFX)$(LIBS)$(LLIB_SUFFX) $(LDEF_PREFX)$(DEF)
+	$(CL) $(LFLAGS) $(LFLAGS_DLL) $(LFLAGS_OUT)$@ $(LOBJ_PREFX)$(OBJECTS)$(LOBJ_SUFFX) $(LLIB_PREFX)$(LIBS)$(LLIB_SUFFX) $(LDEF_PREFX)$(DEF)
 	$(POSTLINKCMD)
 
 snd123$(LBI): $(DEF)

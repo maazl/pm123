@@ -2,7 +2,6 @@
 #  wavplay.dll makefile
 #
 
-DLL      = yes
 TOPDIR   = ..\..
 INCDIR   = $(TOPDIR)\utils;$(TOPDIR)\include;$(TOPDIR)\snd123\src;$(TOPDIR)\xio123
 TARGET   = wavplay.dll
@@ -15,7 +14,7 @@ LIBS     = $(LIBS) $(TOPDIR)\xio123\xio123$(LBI)
 DEF      = wavplay$(LDEF_SUFFX)
 
 wavplay.dll: $(OBJECTS) $(DEF) $(LIBS)
-	$(CL) $(LFLAGS) $(LFLAGS_OUT)$@ $(LOBJ_PREFX)$(OBJECTS)$(LOBJ_SUFFX) $(LLIB_PREFX)$(LIBS)$(LLIB_SUFFX) $(LDEF_PREFX)$(DEF)
+	$(CL) $(LFLAGS) $(LFLAGS_DLL) $(LFLAGS_OUT)$@ $(LOBJ_PREFX)$(OBJECTS)$(LOBJ_SUFFX) $(LLIB_PREFX)$(LIBS)$(LLIB_SUFFX) $(LDEF_PREFX)$(DEF)
 	$(POSTLINKCMD)
 
 wavplay$(LBI): $(DEF)

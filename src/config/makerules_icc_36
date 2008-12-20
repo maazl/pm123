@@ -12,15 +12,14 @@ LBO        = .lib
 RES        = .res
 
 CC         = icc
-CFLAGS     = -Ss -Q -Gm -W3 -Wuse+ -DOS2 -Wdcl -Weff -Wenu
-CFLAGS_DLL = -Ge- -DLL
+CFLAGS     = $(CFLAGS_USR) -Ss -Q -Gm -W3 -Wuse+ -DOS2 -Wdcl -Weff -Wenu
 CFLAGS_DBG = -Ti -Tx -DDEBUG=$(DEBUG)
 CFLAGS_MEM = -Tm -DDEBUG_ALLOC=1
 CFLAGS_OPT = -Gf -Gi -O -G5 -Gl -qalias=ansi
 
 CL         = ilink
 LFLAGS     = /NOL /NOE
-LFLAGS_DLL = /DLL
+LFLAGS_DLL = /DLL $(TOPDIR)\config\emptydll_icc.obj
 LFLAGS_PM  = /PM:PM
 LFLAGS_IO  = /PM:VIO
 LFLAGS_DBG = /DEB
@@ -57,13 +56,6 @@ LIBS_MM  = mmpm2.lib
 LIBS_UNI = libconv.lib libuls.lib
 INCLUDE  = $(INCDIR);$(INCLUDE)
 
-!ifdef EXE_PM
-LFLAGS = $(LFLAGS) $(LFLAGS_PM)
-!endif
-!ifdef EXE_IO
-LFLAGS = $(LFLAGS) $(LFLAGS_IO)
-!endif
-
 !ifdef DEBUG
 CFLAGS = $(CFLAGS) $(CFLAGS_DBG)
 LFLAGS = $(LFLAGS) $(LFLAGS_DBG)
@@ -79,11 +71,6 @@ LFLAGS = $(LFLAGS) $(LFLAGS_OPT)
 !ifdef DEBUG_ALLOC
 CFLAGS = $(CFLAGS) $(CFLAGS_MEM)
 MFLAGS = $(MFLAGS) DEBUG_ALLOC=1
-!endif
-
-!ifdef DLL
-CFLAGS = $(CFLAGS) $(CFLAGS_DLL)
-LFLAGS = $(LFLAGS) $(LFLAGS_DLL)
 !endif
 
 .c.obj:

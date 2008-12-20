@@ -13,8 +13,7 @@ LBO        = .lib
 RES        = .res
 
 CC         = wcl386
-CFLAGS     = -zq -zro -zm -bm -ei -dOS2 -w3 -sg
-CFLAGS_DLL = -bd
+CFLAGS     = $(CFLAGS_USR) -zq -zro -zm -bm -ei -dOS2 -w3 -sg
 CFLAGS_DBG = -d2 -dDEBUG=$(DEBUG)
 CFLAGS_OPT = -otexan -5r -fp5
 
@@ -61,11 +60,6 @@ MFLAGS = $(MFLAGS) DEBUG=$(DEBUG)
 CFLAGS = $(CFLAGS) $(CFLAGS_OPT)
 LFLAGS = $(LFLAGS) $(LFLAGS_OPT)
 MFLAGS = $(MFLAGS) NDEBUG=1
-!endif
-
-!ifdef DLL
-CFLAGS = $(CFLAGS) $(CFLAGS_DLL)
-LFLAGS = $(LFLAGS) $(LFLAGS_DLL)
 !endif
 
 .default

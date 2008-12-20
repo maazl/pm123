@@ -2,7 +2,6 @@
 #  oggplay.dll makefile
 #
 
-DLL      = yes
 TOPDIR   = ..\..
 INCDIR   = $(TOPDIR)\utils;$(TOPDIR)\include;$(TOPDIR)\vrb123\include;$(TOPDIR)\xio123
 INCDIR   = $(INCDIR);$(TOPDIR)\ogg123\include
@@ -18,7 +17,7 @@ DEF      = oggplay$(LDEF_SUFFX)
 all: oggplay.dll $(MDUMMY)
 
 oggplay.dll: $(OBJECTS) $(DEF) $(LIBS)
-	$(CL) $(LFLAGS) $(LFLAGS_OUT)$@ $(LOBJ_PREFX)$(OBJECTS)$(LOBJ_SUFFX) $(LLIB_PREFX)$(LIBS) $(SYSLIBS)$(LLIB_SUFFX) $(LDEF_PREFX)$(DEF)
+	$(CL) $(LFLAGS) $(LFLAGS_DLL) $(LFLAGS_OUT)$@ $(LOBJ_PREFX)$(OBJECTS)$(LOBJ_SUFFX) $(LLIB_PREFX)$(LIBS) $(SYSLIBS)$(LLIB_SUFFX) $(LDEF_PREFX)$(DEF)
 	$(POSTLINKCMD)
 
 oggplay$(LBI): $(DEF)

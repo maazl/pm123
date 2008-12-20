@@ -2,9 +2,9 @@
 #  gbm123.dll makefile
 #
 
-DLL     = yes
 TOPDIR  = ..
 TARGET  = all2
+#CFLAGS_USR = -DENABLE_PNG
 
 !include $(TOPDIR)\config\makerules
 
@@ -12,20 +12,35 @@ OBJECTS = gbm$(CO) gbmpgm$(CO) gbmppm$(CO) gbmbmp$(CO) gbmtga$(CO) gbmkps$(CO)
 OBJECTS = $(OBJECTS) gbmiax$(CO) gbmpcx$(CO) gbmlbm$(CO) gbmvid$(CO) gbmgif$(CO)
 OBJECTS = $(OBJECTS) gbmxbm$(CO) gbmspr$(CO) gbmpsg$(CO) gbmgem$(CO) gbmcvp$(CO)
 OBJECTS = $(OBJECTS) gbmjpg$(CO) gbmhelp$(CO) gbmmap$(CO) gbmrect$(CO) gbmpbm$(CO)
-OBJECTS = $(OBJECTS) gbmpnm$(CO)  
+OBJECTS = $(OBJECTS) gbmpnm$(CO)
+# gbmpng$(CO)  
 DEF     = gbm$(LDEF_SUFFX)
 
-all2: gbm123.dll gbm123$(LBI) $(MDUMMY)
+all2: gbm123.dll gbm123$(LBI) gbmconv.exe $(MDUMMY)
 
 gbm123.dll: $(OBJECTS) $(DEF)
-	$(CL) $(LFLAGS) $(LFLAGS_OUT)$@ $(LOBJ_PREFX)$(OBJECTS)$(LOBJ_SUFFX) $(LDEF_PREFX)$(DEF)
+	$(CL) $(LFLAGS) $(LFLAGS_DLL) $(LFLAGS_OUT)$@ $(LOBJ_PREFX)$(OBJECTS)$(LOBJ_SUFFX) $(LDEF_PREFX)$(DEF)
 	$(POSTLINKCMD)
 
 gbm123$(LBI): $(DEF)
 	$(LI) $(IFLAGS_OUT)$@ gbm123.dll
 
+libgbm$(LBO): $(OBJECTS)
+	if exist $@ del $@
+	$(LB) $@ $(OBJECTS) $(LBENDL)
+
+OBJECTS_TOOL = gbmtool$(CO) gbmtos2$(CO)
+
+libgbmtool$(LBO): $(OBJECTS_TOOL)
+	if exist $@ del $@
+	$(LB) $@ $(OBJECTS_TOOL) $(LBENDL)
+
+gbmconv.exe: gbmconv$(CO) $(LIBS) libgbm$(LBO) libgbmtool$(LBO)
+	$(CL) $(LFLAGS) $(LFLAGS_IO) $(LFLAGS_OUT)$@ $(LOBJ_PREFX)gbmconv$(CO)$(LOBJ_SUFFX) $(LLIB_PREFX)libgbmtool$(LBO) libgbm$(LBO) $(LIBS)$(LLIB_SUFFX)
+	$(POSTLINKCMD)
+
 clean: $(MDUMMY)
-	-@del gbm123$(LBI) gbm123.dll $(OBJECTS) 2> nul
+	-@del gbm123$(LBI) gbm123.dll gbmconv.exe $(OBJECTS) 2> nul
 
 gbm.c:		gbm.h gbmhelp.h gbmpbm.h gbmpgm.h gbmpnm.h gbmppm.h gbmpng.h gbmbmp.h gbmtga.h gbmkps.h gbmiax.h gbmpcx.h gbmtif.h gbmlbm.h gbmvid.h gbmgif.h gbmxbm.h gbmspr.h gbmpsg.h gbmgem.h gbmcvp.h gbmjpg.h
 gbmbmp.c:	gbm.h gbmhelp.h gbmdesc.h
