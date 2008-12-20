@@ -327,6 +327,9 @@
 #define GB_REMOTE          1390
 #define ST_PIPE            1391
 #define EF_PIPE            1392
+#define ST_TIMEOUT         1393
+#define SB_TIMEOUT         1394
+#define ST_TIMEOUT2        1395
 
 #define CFG_DISPLAY1       1400
 #define GB_TITLE           1401

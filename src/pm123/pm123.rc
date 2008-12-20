@@ -612,47 +612,54 @@ BEGIN
   DIALOG "", CFG_SETTINGS2, 0, 0, 260, 154, NOT FS_DLGBORDER|FS_NOBYTEALIGN
     PRESPARAMS PP_FONTNAMESIZE "8.Helv"
   BEGIN
-    GROUPBOX     " Navigation ",                        GB_NAVIGATION,     4, 86, 248, 36, NOT WS_TABSTOP|WS_GROUP
+    GROUPBOX     " Navigation ",                        GB_NAVIGATION,     4,100, 248, 36, NOT WS_TABSTOP|WS_GROUP
       PRESPARAMS PP_FONTNAMESIZE "9.WarpSans Bold"
-    AUTOCHECKBOX "~Turn around with Prev./Next button", CB_TURNAROUND,    12,102, 112, 12
-    LTEXT        "Alternate s~lider",                   ST_ALTSLIDER,      8, 90,  48, 12, DT_VCENTER|DT_MNEMONIC
+    AUTOCHECKBOX "Turn ~around with Prev./Next button", CB_TURNAROUND,    12,116, 112, 12
+    LTEXT        "Alternate s~lider",                   ST_ALTSLIDER,      8,104,  48, 12, DT_VCENTER|DT_MNEMONIC
       PRESPARAMS PP_FOREGROUNDCOLORINDEX , SYSCLR_WINDOWTEXT
-    AUTORADIOBUTTON "Song only",                        RB_SONGONLY,      60, 90,  56, 12, WS_GROUP|WS_TABSTOP
-    AUTORADIOBUTTON "Song & time",                      RB_SONGTIME,     124, 90,  56, 12
-    AUTORADIOBUTTON "Time only",                        RB_TIMEONLY,     188, 90,  56, 12
+    AUTORADIOBUTTON "Song only",                        RB_SONGONLY,      60,104,  56, 12, WS_GROUP|WS_TABSTOP
+    AUTORADIOBUTTON "Song & time",                      RB_SONGTIME,     124,104,  56, 12
+    AUTORADIOBUTTON "Time only",                        RB_TIMEONLY,     188,104,  56, 12
 
-    GROUPBOX     " Remote control ",                    GB_REMOTE,         4, 60, 248, 24
+    GROUPBOX     " Remote control ",                    GB_REMOTE,         4, 74, 248, 24
       PRESPARAMS PP_FONTNAMESIZE "9.WarpSans Bold"
-    RTEXT        "~Pipe name",                          ST_PIPE,          12, 64 , 40, 12, DT_VCENTER|DT_MNEMONIC
+    RTEXT        "~Pipe name",                          ST_PIPE,          12, 78 , 40, 12, DT_VCENTER|DT_MNEMONIC
       PRESPARAMS PP_FOREGROUNDCOLORINDEX, SYSCLR_WINDOWTEXT
-    ENTRYFIELD   "",                                    EF_PIPE,          60, 66,  72,  8, ES_MARGIN
+    ENTRYFIELD   "",                                    EF_PIPE,          60, 80,  72,  8, ES_MARGIN
 
-    GROUPBOX     " Streaming audio ",                   GB_STREAMING,      4,  4, 248, 54, NOT WS_TABSTOP|WS_GROUP
+    GROUPBOX     " Streaming audio ",                   GB_STREAMING,      4,  4, 248, 68, NOT WS_TABSTOP|WS_GROUP
       PRESPARAMS PP_FONTNAMESIZE "9.WarpSans Bold"
-    RTEXT        "~HTTP Proxy",                         ST_PROXY_HOST,    12, 36,  40, 12, DT_VCENTER|DT_MNEMONIC
+    RTEXT        "~HTTP Proxy",                         ST_PROXY_HOST,    12, 50,  40, 12, DT_VCENTER|DT_MNEMONIC
       PRESPARAMS PP_FOREGROUNDCOLORINDEX, SYSCLR_WINDOWTEXT
-    ENTRYFIELD   "",                                    EF_PROXY_HOST,    60, 38, 130,  8, ES_MARGIN
+    ENTRYFIELD   "",                                    EF_PROXY_HOST,    60, 52, 130,  8, ES_MARGIN
       CTLDATA 8, 512, 0, 0
-    RTEXT        "P~ort",                               ST_PROXY_PORT,   196, 36,  20, 12, DT_VCENTER|DT_MNEMONIC
+    RTEXT        "P~ort",                               ST_PROXY_PORT,   196, 50,  20, 12, DT_VCENTER|DT_MNEMONIC
       PRESPARAMS PP_FOREGROUNDCOLORINDEX, SYSCLR_WINDOWTEXT
-    ENTRYFIELD   "",                                    EF_PROXY_PORT,   220, 38,  24,  8, ES_MARGIN
+    ENTRYFIELD   "",                                    EF_PROXY_PORT,   220, 52,  24,  8, ES_MARGIN
       CTLDATA 8,   5, 0, 0
-    RTEXT        "~User name",                          ST_PROXY_USER,    12, 22,  40, 12, DT_VCENTER|DT_MNEMONIC
+
+    RTEXT        "~User name",                          ST_PROXY_USER,    12, 36,  40, 12, DT_VCENTER|DT_MNEMONIC
       PRESPARAMS PP_FOREGROUNDCOLORINDEX, SYSCLR_WINDOWTEXT
-    ENTRYFIELD   "",                                    EF_PROXY_USER,    60, 24,  72,  8, ES_MARGIN
+    ENTRYFIELD   "",                                    EF_PROXY_USER,    60, 38,  72,  8, ES_MARGIN
       CTLDATA 8, 128, 0, 0
-    RTEXT "Pass~word",                                  ST_PROXY_PASS,   140, 22,  32, 12, DT_VCENTER|DT_MNEMONIC
+    RTEXT "Pass~word",                                  ST_PROXY_PASS,   140, 36,  32, 12, DT_VCENTER|DT_MNEMONIC
       PRESPARAMS PP_FOREGROUNDCOLORINDEX, SYSCLR_WINDOWTEXT
-    ENTRYFIELD   "",                                    EF_PROXY_PASS,   176, 24,  68,  8, ES_MARGIN|ES_UNREADABLE
+    ENTRYFIELD   "",                                    EF_PROXY_PASS,   176, 38,  68,  8, ES_MARGIN|ES_UNREADABLE
       CTLDATA 8, 128, 0, 0
+
+    RTEXT        "Conn. ~timeout",                      ST_TIMEOUT,       12, 22,  40, 12, DT_VCENTER|DT_MNEMONIC
+      PRESPARAMS PP_FOREGROUNDCOLORINDEX, SYSCLR_WINDOWTEXT
+    SPINBUTTON                                          SB_TIMEOUT,       58, 24,  36, 12, SPBS_NUMERICONLY|SPBS_MASTER|SPBS_JUSTRIGHT
+    LTEXT        "seconds",                             ST_TIMEOUT2,      96, 22,  36, 12, DT_VCENTER
+      PRESPARAMS PP_FOREGROUNDCOLORINDEX, SYSCLR_WINDOWTEXT
 
     RTEXT        "~Buffer size",                        ST_BUFFERSIZE,    12,  8,  40, 12, DT_VCENTER|DT_MNEMONIC
       PRESPARAMS PP_FOREGROUNDCOLORINDEX, SYSCLR_WINDOWTEXT
-    SPINBUTTON                                          SB_BUFFERSIZE,    58, 10,  36, 12, SPBS_NUMERICONLY
-    LTEXT        "kB",                                  ST_KB,           102,  8,  14, 12, DT_VCENTER
+    SPINBUTTON                                          SB_BUFFERSIZE,    58, 10,  36, 12, SPBS_NUMERICONLY|SPBS_MASTER|SPBS_JUSTRIGHT
+    LTEXT        "kB",                                  ST_KB,            96,  8,  20, 12, DT_VCENTER
       PRESPARAMS PP_FOREGROUNDCOLORINDEX, SYSCLR_WINDOWTEXT
-    AUTOCHECKBOX "Fi~ll ",                              CB_FILLBUFFER,   126,  8,  22, 12
-    SPINBUTTON                                          SB_FILLBUFFER,   146, 10,  28, 12, SPBS_NUMERICONLY
+    AUTOCHECKBOX "~Fill ",                              CB_FILLBUFFER,   124,  8,  22, 12
+    SPINBUTTON                                          SB_FILLBUFFER,   144, 10,  28, 12, SPBS_NUMERICONLY|SPBS_MASTER|SPBS_JUSTRIGHT
     LTEXT        "% of buffer before play",             ST_FILLBUFFER,   176 , 8,  68, 12, DT_VCENTER
       PRESPARAMS PP_FOREGROUNDCOLORINDEX, SYSCLR_WINDOWTEXT
   END

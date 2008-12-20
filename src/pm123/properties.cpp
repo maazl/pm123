@@ -91,6 +91,7 @@ const amp_cfg cfg_default =
   false,
   128,
   30,
+  15,
   "\\PIPE\\PM123",
   true, // dock
   10,
@@ -135,6 +136,7 @@ void cfg_init( void )
   xio_set_buffer_size( cfg.buff_size * 1024 );
   xio_set_buffer_wait( cfg.buff_wait );
   xio_set_buffer_fill( cfg.buff_fill );
+  xio_set_connect_timeout( cfg.conn_timeout );
 }
 
 
@@ -245,6 +247,8 @@ cfg_settings2_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
 
       WinCheckButton   ( hwnd, CB_FILLBUFFER, cfg.buff_wait );
 
+      WinSendDlgItemMsg( hwnd, SB_TIMEOUT,    SPBM_SETLIMITS, MPFROMLONG( 300  ), MPFROMLONG( 1 ));
+      WinSendDlgItemMsg( hwnd, SB_TIMEOUT,    SPBM_SETCURRENTVALUE, MPFROMLONG( cfg.conn_timeout ), 0 );
       WinSendDlgItemMsg( hwnd, SB_BUFFERSIZE, SPBM_SETLIMITS, MPFROMLONG( 2048 ), MPFROMLONG( 0 ));
       WinSendDlgItemMsg( hwnd, SB_BUFFERSIZE, SPBM_SETCURRENTVALUE, MPFROMLONG( cfg.buff_size ), 0 );
       WinSendDlgItemMsg( hwnd, SB_FILLBUFFER, SPBM_SETLIMITS, MPFROMLONG( 100  ), MPFROMLONG( 1 ));
@@ -297,6 +301,9 @@ cfg_settings2_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
       WinSendDlgItemMsg( hwnd, SB_FILLBUFFER, SPBM_QUERYVALUE, MPFROMP( &i ), MPFROM2SHORT( 0, SPBQ_DONOTUPDATE ));
       cfg.buff_fill = i;
 
+      WinSendDlgItemMsg( hwnd, SB_TIMEOUT, SPBM_QUERYVALUE, MPFROMP( &i ), MPFROM2SHORT( 0, SPBQ_DONOTUPDATE ));
+      cfg.conn_timeout = i;
+
       WinQueryDlgItemText( hwnd, EF_PROXY_HOST, sizeof cfg.proxy, cfg.proxy );
       xio_set_http_proxy_host( cfg.proxy );
       i = strlen( cfg.proxy );
@@ -324,6 +331,7 @@ cfg_settings2_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
       xio_set_buffer_size( cfg.buff_size * 1024 );
       xio_set_buffer_wait( cfg.buff_wait );
       xio_set_buffer_fill( cfg.buff_fill );
+      xio_set_connect_timeout( cfg.conn_timeout );
 
       return 0;
     }
