@@ -2,6 +2,8 @@
  * Copyright 1997-2003 Samuel Audet <guardia@step.polymtl.ca>
  *                     Taneli Lepp„ <rosmo@sektori.com>
  *
+ * Copyright 2007-2008 Dmitry A.Steklenev <glass@ptv.ru>
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
  *
@@ -48,7 +50,7 @@ BEGIN
                 PRESPARAMS PP_FONTNAMESIZE "9.WarpSans Bold"
         CONTROL "Buffers", SB_BUFFERS, 165, 133, 33, 13, WC_SPINBUTTON,
                 SPBS_MASTER | SPBS_NUMERICONLY | SPBS_JUSTRIGHT | WS_VISIBLE | WS_TABSTOP
-        CONTROL "Number of buffers (default 32)", ID_NULL, 200, 133, 93, 8, WC_STATIC,
+        CONTROL "Number of buffers", ID_NULL, 200, 133, 93, 8, WC_STATIC,
                 SS_TEXT | DT_LEFT | DT_TOP | DT_MNEMONIC | WS_VISIBLE
         PRESPARAMS PP_FOREGROUNDCOLORINDEX, SYSCLR_MENUTEXT
         CONTROL "Play ~48kHz as 44kHz", CB_48KLUDGE, 165, 111, 80, 10, WC_BUTTON,
@@ -78,7 +80,7 @@ BEGIN
         CONTROL "(C) 2000 Samuel Audet" ID_NULL, 10, 30, 109, 8, WC_STATIC, SS_TEXT | DT_VCENTER | DT_MNEMONIC | WS_VISIBLE
         PRESPARAMS PP_FOREGROUNDCOLORINDEX, SYSCLR_MENUTEXT
 
-        CONTROL "(C) 2006-2007 Dmitry A.Steklenev", ID_NULL, 10, 21, 109, 8, WC_STATIC, SS_TEXT | DT_VCENTER | DT_MNEMONIC | WS_VISIBLE
+        CONTROL "(C) 2006-2008 Dmitry A.Steklenev", ID_NULL, 10, 21, 109, 8, WC_STATIC, SS_TEXT | DT_VCENTER | DT_MNEMONIC | WS_VISIBLE
         PRESPARAMS PP_FOREGROUNDCOLORINDEX, SYSCLR_MENUTEXT
 
         DEFPUSHBUTTON "~OK", DID_OK, 5, 5, 25, 13, WS_GROUP | WS_TABSTOP

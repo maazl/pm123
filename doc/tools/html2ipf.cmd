@@ -28,16 +28,16 @@
  Global.DefaultFont = ':font facename=default size=0x0.';
 /*                    ':font facename=''WarpSans Bold'' size=9x6.';   */
 /* fonts for headings (1 through 6)                                   */
- Global.HeaderFont.1 = ':font facename=''Helv'' size=32x20.';
- Global.HeaderFont.2 = ':font facename=''Helv'' size=20x12.';
- Global.HeaderFont.3 = ':font facename=''Tms Rmn'' size=18x10.'
- Global.HeaderFont.4 = ':font facename=''Tms Rmn'' size=16x8.'
- Global.HeaderFont.5 = ':font facename=''Tms Rmn'' size=14x8.'
- Global.HeaderFont.6 = ':font facename=''Tms Rmn'' size=12x6.'
+ Global.HeaderFont.1 = ':font facename=''Helv'' size=24x12.';
+ Global.HeaderFont.2 = ':font facename=''Helv'' size=18x10.';
+ Global.HeaderFont.3 = ':font facename=''Helv'' size=14x8.'
+ Global.HeaderFont.4 = ':font facename=''Helv'' size=12x8.'
+ Global.HeaderFont.5 = ':font facename=''Helv'' size=10x6.'
+ Global.HeaderFont.6 = ':font facename=''Helv'' size=9x6.'
 /* font for url links (which launches WebExplorer)                    */
  Global.URLinkFont  = ':font facename=''WarpSans Bold'' size=9x6.'
 /* proportional font (for <tt>...</tt>                                */
- Global.ProportFont = ':font facename=''System VIO'' size=14x6.';
+ Global.ProportFont = ':font facename=''System VIO'' size=11x6.';
 
 /* end of user-customisable section                                   */
 /*--------------------------------------------------------------------*/
@@ -113,7 +113,7 @@
  call ParseFile _fName, 1;
  do until ResolveLinks(1) = 0;
   Global.Sublinks = 0;
-  Global.NoSublinks = 0;/* Include all unresolved sublinks */
+  Global.NoSublinks = 0; /* Include all unresolved sublinks */
  end;
  call ConvertPictures;
  call OutputURLs;
@@ -216,8 +216,11 @@ exit(1);
 ConvertPictures:
  procedure expose Global.;
  if (\Global.optP) | (Global.OptCH) then return;
+
  do i = 1 to Global.Picture.0
-  if stream(Global.Picture.i.dst, 'c', 'Query Exists') = '' then
+  /* get time stamp of destination file */
+  tstmp = stream(Global.Picture.i.dst, 'c', 'Query TimeStamp');
+  if (tstmp = '') | (tstmp < stream(Global.Picture.i.src, 'c', 'Query TimeStamp')) then
      call RunCmd Global.ImageConvert, Global.Picture.i.src, Global.Picture.i.dst;
  end;
 return;
@@ -237,11 +240,6 @@ OutputURLs:
 /* make a chapter with links to internet locations */
  if Global.URLinks = 0
   then return;
- call putline ':h1.External links';
- call putline Global.DefaultFont;
- call putline ':p.This chapter contains all external links referenced in this book -';
- call putline 'either link is an Unified Resource Locator (URL) or simply to a';
- call putline 'local file which is not a part of this book.';
 /* Sort URLs alphabetically */
  if Global.OptS
   then do i = 1 to Global.URLinks;
@@ -270,7 +268,7 @@ OutputURLs:
  Global.CurrentDir = '';
  do i = 1 to Global.URLinks
   j = Global.URLinks.i;
-  call putline ':h2 id='GetLinkID(Global.LinkID.j)'.'IPFstring(Global.LinkID.j.RealName);
+  call putline ':h2 hide id='GetLinkID(Global.LinkID.j)'.'IPFstring(Global.LinkID.j.RealName);
   call putline Global.DefaultFont;
   call putline ':p.:lines align=center.';
   call putline IPFstring('The link you selected points to an external resource. Click the',
@@ -587,6 +585,8 @@ ParseContents:
           when Tag = '!MENU'	then TagBreakPos = doTag!MENU();
           when Tag = 'CODE'	then TagBreakPos = doTagCODE();
           when Tag = '!CODE'	then TagBreakPos = doTag!CODE();
+          when Tag = 'VAR'	then TagBreakPos = doTagVAR();
+          when Tag = '!VAR'	then TagBreakPos = doTag!VAR();
           when Tag = 'STRONG'	then TagBreakPos = doTagSTRONG();
           when Tag = '!STRONG'	then TagBreakPos = doTag!STRONG();
           when Tag = 'ADDRESS'	then TagBreakPos = doTagADDRESS();
@@ -711,11 +711,15 @@ return 0;
 
 doTagCITE:
 doTagI:
+doTagEM:
+doTagVAR:
  call PutToken ':hp1.';
 return 0;
 
 doTag!CITE:
 doTag!I:
+doTag!EM:
+doTag!VAR:
  call PutToken ':ehp1.';
 return 0;
 
@@ -733,14 +737,6 @@ return 0;
 
 doTag!U:
  call PutToken ':ehp5.';
-return 0;
-
-doTagEM:
- call PutToken ':hp3.';
-return 0;
-
-doTag!EM:
- call PutToken ':ehp3.';
 return 0;
 
 doTagSTRONG:
@@ -763,7 +759,7 @@ return 0;
 
 doTagBLOCKQUOTE:
  call PutToken ':p.';
- call PutToken ':lm margin=8.';
+ call PutToken ':lm margin=6.';
 return 0;
 
 doTag!BLOCKQUOTE:
@@ -1288,11 +1284,7 @@ FindFile:
   if length(tmp) > 0 then return Shorten(tmp);
   tmp = stream(Global.CurrentDir||fName, 'c', 'query exists');
   if length(tmp) > 0 then return Shorten(tmp);
-  tmp1 = Pos('/', fName);
-  tmp2 = Pos('\', fName);
-  if (tmp2 < tmp1) & (tmp2 > 0)
-   then tmp = tmp2
-   else tmp = tmp1;
+  tmp = verify(fName, '/\', 'M')
   if tmp > 0
    then fName = substr(fName, tmp)
    else fName = '';

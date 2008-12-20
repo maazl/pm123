@@ -71,7 +71,6 @@ factory_settings( void )
   cfg.autouse       = TRUE;     // Auto use playlist on load.
   cfg.selectplayed  = FALSE;    // Don't select played file.
   cfg.font          = 1;        // Make the bolder font a default.
-  cfg.trash         = TRUE;     // Flush buffers by default.
   cfg.buff_size     = 128;
   cfg.buff_wait     = FALSE;
   cfg.buff_fill     = 30;
@@ -94,6 +93,7 @@ factory_settings( void )
   cfg.font_skinned  = TRUE;
   cfg.font_size     = 2;
   cfg.proxy_port    = 0;
+  cfg.conn_timeout  = 15;
   cfg.sbar_playlist = 180;
   cfg.sbar_bmarks   = 180;
   cfg.tags_choice   = 0;
@@ -140,7 +140,6 @@ load_ini( void )
     load_ini_value( INIhandle, cfg.autouse );
     load_ini_value( INIhandle, cfg.mode );
     load_ini_value( INIhandle, cfg.font );
-    load_ini_value( INIhandle, cfg.trash );
     load_ini_value( INIhandle, cfg.shf );
     load_ini_value( INIhandle, cfg.rpt );
     load_ini_value( INIhandle, cfg.floatontop );
@@ -150,6 +149,7 @@ load_ini( void )
     load_ini_value( INIhandle, cfg.buff_wait );
     load_ini_value( INIhandle, cfg.buff_size );
     load_ini_value( INIhandle, cfg.buff_fill );
+    load_ini_value( INIhandle, cfg.conn_timeout );
     load_ini_value( INIhandle, cfg.add_recursive );
     load_ini_value( INIhandle, cfg.save_relative );
     load_ini_value( INIhandle, cfg.save_type );
@@ -275,7 +275,6 @@ save_ini( void )
     save_ini_value( INIhandle, cfg.autouse );
     save_ini_value( INIhandle, cfg.mode );
     save_ini_value( INIhandle, cfg.font );
-    save_ini_value( INIhandle, cfg.trash );
     save_ini_value( INIhandle, cfg.shf );
     save_ini_value( INIhandle, cfg.rpt );
     save_ini_value( INIhandle, cfg.floatontop );
@@ -285,6 +284,7 @@ save_ini( void )
     save_ini_value( INIhandle, cfg.buff_wait );
     save_ini_value( INIhandle, cfg.buff_size );
     save_ini_value( INIhandle, cfg.buff_fill );
+    save_ini_value( INIhandle, cfg.conn_timeout );
     save_ini_value( INIhandle, cfg.add_recursive );
     save_ini_value( INIhandle, cfg.save_relative );
     save_ini_value( INIhandle, cfg.save_type );

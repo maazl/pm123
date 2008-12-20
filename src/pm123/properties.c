@@ -106,7 +106,6 @@ cfg_page1_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
       WinCheckButton( hwnd, CB_AUTOUSEPL,    cfg.autouse      );
       WinCheckButton( hwnd, CB_AUTOPLAYPL,   cfg.playonuse    );
       WinCheckButton( hwnd, CB_SELECTPLAYED, cfg.selectplayed );
-      WinCheckButton( hwnd, CB_TRASHONSEEK,  cfg.trash        );
       WinCheckButton( hwnd, CB_DOCK,         cfg.dock_windows );
 
       WinSetDlgItemText( hwnd, EF_DOCK, itoa( cfg.dock_margin, buffer, 10 ));
@@ -125,6 +124,10 @@ cfg_page1_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
                                MPFROMLONG( 100  ), MPFROMLONG( 1 ));
       WinSendDlgItemMsg( hwnd, SB_FILLBUFFER, SPBM_SETCURRENTVALUE,
                                MPFROMLONG( cfg.buff_fill ), 0 );
+      WinSendDlgItemMsg( hwnd, SB_TIMEOUT,    SPBM_SETLIMITS,
+                               MPFROMLONG( 300  ), MPFROMLONG( 1 ));
+      WinSendDlgItemMsg( hwnd, SB_TIMEOUT,   SPBM_SETCURRENTVALUE,
+                               MPFROMLONG( cfg.conn_timeout ), 0 );
       return 0;
     }
 
@@ -151,7 +154,6 @@ cfg_page1_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
       WinCheckButton( hwnd, CB_AUTOUSEPL,    TRUE  );
       WinCheckButton( hwnd, CB_AUTOPLAYPL,   TRUE  );
       WinCheckButton( hwnd, CB_SELECTPLAYED, FALSE );
-      WinCheckButton( hwnd, CB_TRASHONSEEK,  TRUE  );
       WinCheckButton( hwnd, CB_DOCK,         TRUE  );
       WinCheckButton( hwnd, CB_FILLBUFFER,   FALSE );
 
@@ -163,6 +165,7 @@ cfg_page1_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
       WinSendDlgItemMsg( hwnd, SB_BUFFERSIZE, SPBM_SETCURRENTVALUE, MPFROMLONG( 128 ), 0 );
       WinSendDlgItemMsg( hwnd, SB_FILLBUFFER, SPBM_SETCURRENTVALUE, MPFROMLONG(  30 ), 0 );
       WinEnableControl ( hwnd, SB_FILLBUFFER, FALSE );
+      WinSendDlgItemMsg( hwnd, SB_TIMEOUT,    SPBM_SETCURRENTVALUE, MPFROMLONG(  15 ), 0 );
       return 0;
     }
 
@@ -175,7 +178,6 @@ cfg_page1_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
       cfg.autouse      = WinQueryButtonCheckstate( hwnd, CB_AUTOUSEPL    );
       cfg.playonuse    = WinQueryButtonCheckstate( hwnd, CB_AUTOPLAYPL   );
       cfg.selectplayed = WinQueryButtonCheckstate( hwnd, CB_SELECTPLAYED );
-      cfg.trash        = WinQueryButtonCheckstate( hwnd, CB_TRASHONSEEK  );
       cfg.dock_windows = WinQueryButtonCheckstate( hwnd, CB_DOCK         );
 
       WinQueryDlgItemText( hwnd, EF_DOCK, 8, buffer );
@@ -188,6 +190,10 @@ cfg_page1_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
       WinSendDlgItemMsg( hwnd, SB_FILLBUFFER, SPBM_QUERYVALUE,
                          MPFROMP( &i ), MPFROM2SHORT( 0, SPBQ_DONOTUPDATE ));
       cfg.buff_fill = i;
+
+      WinSendDlgItemMsg( hwnd, SB_TIMEOUT, SPBM_QUERYVALUE,
+                         MPFROMP( &i ), MPFROM2SHORT( 0, SPBQ_DONOTUPDATE ));
+      cfg.conn_timeout = i;
 
       WinQueryDlgItemText( hwnd, EF_PROXY_HOST, sizeof( cfg.proxy_host ), cfg.proxy_host );
       WinQueryDlgItemText( hwnd, EF_PROXY_USER, sizeof( cfg.proxy_user ), cfg.proxy_user );
@@ -204,6 +210,7 @@ cfg_page1_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
       xio_set_buffer_size( cfg.buff_size * 1024 );
       xio_set_buffer_wait( cfg.buff_wait );
       xio_set_buffer_fill( cfg.buff_fill );
+      xio_set_connect_timeout( cfg.conn_timeout );
 
       return 0;
     }
@@ -968,7 +975,9 @@ cfg_properties( HWND owner )
   do_warpsans( WinWindowFromID( page01, ST_PROXY_PASS ));
   do_warpsans( WinWindowFromID( page01, ST_PIXELS     ));
   do_warpsans( WinWindowFromID( page01, ST_BUFFERSIZE ));
+  do_warpsans( WinWindowFromID( page01, ST_KB         ));
   do_warpsans( WinWindowFromID( page01, ST_FILLBUFFER ));
+  do_warpsans( WinWindowFromID( page01, ST_TIMEOUT    ));
 
   id = WinSendMsg( book, BKM_INSERTPAGE, 0,
                    MPFROM2SHORT( BKA_AUTOPAGESIZE | BKA_MAJOR | BKA_STATUSTEXTON, BKA_FIRST ));

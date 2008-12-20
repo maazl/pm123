@@ -3231,6 +3231,7 @@ dll_main( int argc, char *argv[] )
   xio_set_buffer_size( cfg.buff_size * 1024 );
   xio_set_buffer_wait( cfg.buff_wait );
   xio_set_buffer_fill( cfg.buff_fill );
+  xio_set_connect_timeout( cfg.conn_timeout );
 
   InitButton( hab );
   WinRegisterClass( hab, "PM123", amp_pb_dlg_proc, CS_SIZEREDRAW /* | CS_SYNCPAINT */, 0 );
@@ -3243,9 +3244,9 @@ dll_main( int argc, char *argv[] )
   dk_init();
   dk_add_window( hframe, DK_IS_MASTER );
 
-  mp3       = WinLoadPointer( HWND_DESKTOP, hmodule, ICO_MP3     );
-  mp3play   = WinLoadPointer( HWND_DESKTOP, hmodule, ICO_MP3PLAY );
-  mp3gray   = WinLoadPointer( HWND_DESKTOP, hmodule, ICO_MP3GRAY );
+  mp3     = WinLoadPointer( HWND_DESKTOP, hmodule, ICO_MP3     );
+  mp3play = WinLoadPointer( HWND_DESKTOP, hmodule, ICO_MP3PLAY );
+  mp3gray = WinLoadPointer( HWND_DESKTOP, hmodule, ICO_MP3GRAY );
 
   pm_create();
   bm_create();

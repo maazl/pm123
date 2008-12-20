@@ -44,7 +44,8 @@
 #include "messages.h"
 #include "assertions.h"
 
-static OUTPUT_PARAMS out_params;
+static OUTPUT_PARAMS  out_params = { sizeof( OUTPUT_PARAMS  )};
+static DECODER_PARAMS dec_params = { sizeof( DECODER_PARAMS )};
 
 static BOOL paused     = FALSE;
 static BOOL forwarding = FALSE;
@@ -93,10 +94,7 @@ msg_play( HWND hwnd, char* filename, char* decoder, const FORMAT_INFO* format, i
 {
   char  cd_drive[3] = "";
   char  errorbuf[1024];
-  int   samplesize;
   ULONG rc;
-
-  DECODER_PARAMS dec_params = { 0 };
 
   ASSERT_IS_MAIN_THREAD;
 
@@ -110,37 +108,7 @@ msg_play( HWND hwnd, char* filename, char* decoder, const FORMAT_INFO* format, i
   out_params.info_display  = pm123_display_info;
   out_params.formatinfo    = *format;
   out_params.info          = &current_info;
-
-  if( stricmp( decoder, "dpmikmod" ) == 0 ||
-      stricmp( decoder, "wvplay"   ) == 0 ) {
-    // Some too old plug-in ignores the suggested audio buffer size
-    // and always uses a 16K buffer.
-    out_params.buffersize = 16384;
-  } else {
-    // For fast reaction of the player we allocate the buffer in
-    // length approximately in 100 milliseconds.
-    samplesize = format->channels * ( format->bits / 8 );
-    if( samplesize ) {
-      out_params.buffersize = samplesize * format->samplerate / 10;
-    } else {
-      out_params.buffersize = 16384;
-    }
-
-    // Buffers are limited to 64K on Intel machines.
-    if( out_params.buffersize > 65535 ) {
-      out_params.buffersize = 65535;
-    }
-
-    // The buffer size must be an integer product of the number of
-    // channels and of the number of bits in the sample. Because of
-    // poor design of the mpg123 this size also must be an integer
-    // product of the 128.
-    if( samplesize ) {
-      out_params.buffersize = out_params.buffersize / samplesize / 128 * samplesize * 128;
-    } else {
-      out_params.buffersize = out_params.buffersize / 128 * 128;
-    }
-  }
+  out_params.buffersize    = 16384;
 
   if( out_command( OUTPUT_SETUP, &out_params ) != 0 ) {
     return FALSE;
@@ -236,7 +204,6 @@ BOOL
 msg_stop( void )
 {
   ULONG status = dec_status();
-  DECODER_PARAMS dec_params = { 0 };
   ULONG rc;
 
   ASSERT_IS_MAIN_THREAD;
@@ -308,7 +275,6 @@ msg_pause( void )
 BOOL
 msg_forward( void )
 {
-  DECODER_PARAMS dec_params = { 0 };
   ASSERT_IS_MAIN_THREAD;
 
   if( decoder_playing()) {
@@ -322,7 +288,7 @@ msg_forward( void )
 
     if( dec_command( DECODER_FFWD, &dec_params ) != PLUGIN_OK ) {
       forwarding = FALSE;
-    } else if( cfg.trash ) {
+    } else {
       // Going back in the stream to what is currently playing.
       dec_params.jumpto = out_playing_pos();
       dec_command( DECODER_JUMPTO, &dec_params );
@@ -338,7 +304,6 @@ msg_forward( void )
 BOOL
 msg_rewind( void )
 {
-  DECODER_PARAMS dec_params = { 0 };
   ASSERT_IS_MAIN_THREAD;
 
   if( decoder_playing()) {
@@ -352,7 +317,7 @@ msg_rewind( void )
 
     if( dec_command( DECODER_REW, &dec_params ) != PLUGIN_OK ) {
       rewinding = FALSE;
-    } else if( cfg.trash ) {
+    } else {
       // Going back in the stream to what is currently playing.
       dec_params.jumpto = out_playing_pos();
       dec_command( DECODER_JUMPTO, &dec_params );
@@ -368,17 +333,13 @@ msg_rewind( void )
 BOOL
 msg_seek( int pos )
 {
-  DECODER_PARAMS dec_params = { 0 };
   ASSERT_IS_MAIN_THREAD;
 
   if( decoder_playing()) {
     dec_params.jumpto = pos;
 
-    if( cfg.trash ) {
-      out_params.temp_playingpos = dec_params.jumpto;
-      out_command( OUTPUT_TRASH_BUFFERS, &out_params );
-    }
-
+    out_params.temp_playingpos = dec_params.jumpto;
+    out_command( OUTPUT_TRASH_BUFFERS, &out_params );
     dec_command( DECODER_JUMPTO, &dec_params );
   }
   return TRUE;
@@ -389,7 +350,6 @@ msg_seek( int pos )
 BOOL
 msg_savestream( const char* filename )
 {
-  DECODER_PARAMS dec_params = { 0 };
   ASSERT_IS_MAIN_THREAD;
 
   if( filename ) {
@@ -416,7 +376,6 @@ msg_equalize( float *gains, BOOL *mute, float preamp, BOOL enabled )
 {
   int i;
   float bandgain[20];
-  DECODER_PARAMS dec_params = { 0 };
 
   ASSERT_IS_MAIN_THREAD;
   memcpy( bandgain, gains, sizeof( bandgain ));

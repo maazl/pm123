@@ -2,6 +2,8 @@
  * Copyright 1997-2003 Samuel Audet <guardia@step.polymtl.ca>
  *                     Taneli Lepp„ <rosmo@sektori.com>
  *
+ * Copyright 2007-2008 Dmitry A.Steklenev <glass@ptv.ru>
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
  *
@@ -45,23 +47,28 @@ typedef struct BUFFERINFO
 {
   MCI_MIX_BUFFER*  next;
   ULONG            playingpos;
+  ULONG            offset;
   struct OS2AUDIO* a;
 
 } BUFFERINFO;
 
-#define DEVICE_OPENING  1
-#define DEVICE_OPENED   2
-#define DEVICE_CLOSING  3
-#define DEVICE_CLOSED   4
-#define DEVICE_FAILED   5
+#define DEVICE_OPENING    1
+#define DEVICE_OPENED     2
+#define DEVICE_CLOSING    3
+#define DEVICE_CLOSED     4
+#define DEVICE_FAILED     5
+
+#define OUTPUT_IS_HUNGRY 16 // buffers
+#define OUTPUT_IS_SATED  32 // buffers
+
 
 typedef struct OS2AUDIO
 {
   ULONG playingpos;
   int   device;
   int   lockdevice;
-  int   numbuffers;   /* Suggested total audio buffers, bare minimum = 4      */
-                      /* (see prio boost check).                              */
+  int   numbuffers;   /* Suggested total audio buffers.                       */
+  int   filled;       /* Number of buffers that are ready to play.            */
   int   kludge48as44;
   int   force8bit;
   int   buffersize;   /* Suggested size of the audio buffers.                 */

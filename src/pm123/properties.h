@@ -49,7 +49,6 @@
 #define CB_AUTOUSEPL       3020
 #define CB_AUTOPLAYPL      3030
 #define CB_SELECTPLAYED    3031
-#define CB_TRASHONSEEK     3040
 #define CB_DOCK            3150
 #define EF_DOCK            3151
 #define ST_PIXELS          3152
@@ -68,6 +67,8 @@
 #define CB_FILLBUFFER      3200
 #define SB_FILLBUFFER      3201
 #define ST_FILLBUFFER      3202
+#define ST_TIMEOUT         3203
+#define SB_TIMEOUT         3204
 
 #define CFG_PAGE2          3500
 #define GB_TITLE           3501
@@ -171,7 +172,6 @@ typedef struct _amp_cfg {
   BOOL   selectplayed;        /* Select played file.                    */
   int    mode;                /* See CFG_MODE_*                         */
   int    font;                /* Use font 1 or font 2.                  */
-  BOOL   trash;               /* Trash buffers on seek.                 */
   BOOL   shf;                 /* The state of the "Shuffle" button.     */
   BOOL   rpt;                 /* The state of the "Repeat" button.      */
   BOOL   floatontop;          /* Float on top.                          */
@@ -192,6 +192,7 @@ typedef struct _amp_cfg {
   int    buff_wait;           /* Wait before playing.                   */
   int    buff_size;           /* Read ahead buffer size (KB).           */
   int    buff_fill;           /* Percent of prefilling of the buffer.   */
+  int    conn_timeout;        /* Connection timeout.                    */
   BOOL   dock_windows;        /* Dock windows?                          */
   int    dock_margin;         /* The marging for docking window.        */
   BOOL   add_recursive;       /* Enable recursive addition.             */
