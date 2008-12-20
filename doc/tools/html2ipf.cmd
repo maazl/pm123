@@ -1266,8 +1266,8 @@ return s;
 doOpenTag:
  parse arg ot, ct;
  call PutToken ot;
- Global.OpenTag.0 = Global.OpenTag.0 + 1;
- i = Global.OpenTag.0;
+ i = Global.OpenTag.0 + 1;
+ Global.OpenTag.0 = i;
  Global.OpenTag.i = ct;
  Global.OpenTag.i.open = ot;
  Global.Paragraph = 'Inc';
@@ -1296,10 +1296,20 @@ doCloseTag:
  return 0;
 
 doCheckTag:
- parse arg SearchArg;
+ procedure expose Global.;
  do i = Global.OpenTag.0 to 1 by -1
-  if pos(SearchArg, Global.OpenTag.i) > 0
+  if pos(arg(1), Global.OpenTag.i) > 0
    then return 1;
+ end;
+return 0;
+
+doCheckParentTag:
+ procedure expose Global.;
+ i = Global.OpenTag.0
+ say "XXX" ARG(1) ARG(2) Global.OpenTag.i 
+ do j = 1 while arg(j, 'e')
+  if pos(arg(j), Global.OpenTag.i) > 0
+    then return 1;
  end;
 return 0;
 
@@ -1309,7 +1319,13 @@ doOpenP:
  if (Global.Paragraph = 'Req') | (ARG(1) & (Global.Paragraph \= 'Inc'))
   then do
    call NewLine;
-   call PutToken ':p.';
+   if (doCheckParentTag(':eul.', ':eol.', ':edl.')) then do
+    /* Exception for lists with paragraphs. IPFC otherwise renders two blank lines. */
+    call PutToken '.br';
+    call NewLine;
+    end;
+   else 
+    call PutToken ':p.';
    Global.HasText = 0;
    Global.Paragraph = 'Inc';
   end;
