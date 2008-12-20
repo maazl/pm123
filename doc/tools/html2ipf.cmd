@@ -17,9 +17,9 @@
 /* If someone knows of a free proggy which provides at least partial  */
 /* or equivalent functionality, please mail me                        */
 /* Global.ImageConvert = 'alchemy.exe -o -O -8 <input> <output> >nul';*/
-/* Global.ImageConvert = 'gbmbpp.exe <input> <output> >nul';          */
+ Global.ImageConvert = 'gbmbpp.exe "<input>" "<output>",1.1 >nul';
 /* Global.ImageConvert = 'gif2bmp.exe <input> <output>';*/
- Global.ImageConvert = 'nconvert -out bmp -wflag os2 -swap bgr -o "<output>" "<input>"'
+/* Global.ImageConvert = 'nconvert -out bmp -wflag os2 -swap bgr -o "<output>" "<input>"'*/
 /* Executable/description of an external WWW browser to launch when   */
 /* user selects an URL link. Normally, you shouldn`t change it (even  */
 /* if you have Netscape) since WebEx is found on almost every OS/2    */
@@ -1306,7 +1306,6 @@ return 0;
 doCheckParentTag:
  procedure expose Global.;
  i = Global.OpenTag.0
- say "XXX" ARG(1) ARG(2) Global.OpenTag.i 
  do j = 1 while arg(j, 'e')
   if pos(arg(j), Global.OpenTag.i) > 0
     then return 1;
