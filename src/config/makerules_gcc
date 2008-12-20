@@ -15,7 +15,8 @@ AS         = nasm
 AFLAGS     = -fobj -DUNDERSCORE
 
 CC         = g++
-CFLAGS     = $(CFLAGS_USR) -Zcrtdll -Wall -DOS2 -DOS2EMX_PLAIN_CHAR -funsigned-char -Wno-non-virtual-dtor
+CFLAGS     = $(CFLAGS_USR) -Zcrtdll -Wall -DOS2 -DOS2EMX_PLAIN_CHAR -funsigned-char
+CFLAGS_CPP = -Wno-non-virtual-dtor
 CFLAGS_DBG = -g -DDEBUG=$(DEBUG)
 CFLAGS_OPT = -O2
 
@@ -83,7 +84,7 @@ MFLAGS = $(MFLAGS) NDEBUG=1
    $(CC) $(CFLAGS) -x c -c $< -o $@
 
 .cpp.o:
-   $(CC) $(CFLAGS) -c $< -o $@
+   $(CC) $(CFLAGS) $(CFLAGS_CPP) -c $< -o $@
 
 .rc.res:
    $(RC) $(RFLAGS) -r $<
