@@ -2,6 +2,8 @@
  * Copyright 1997-2003 Samuel Audet <guardia@step.polymtl.ca>
  *                     Taneli Lepp„ <rosmo@sektori.com>
  *
+ * Copyright 2007-2008 Dmitry A.Steklenev <glass@ptv.ru>
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
  *
@@ -41,11 +43,12 @@
 #define SB_PREAMP     1100
 #define ST_PREAMP     1110
 
-#define DEVICE_OPENING  1
-#define DEVICE_OPENED   2
-#define DEVICE_CLOSING  3
-#define DEVICE_CLOSED   4
-#define DEVICE_FAILED   5
+#define DEVICE_OPENING    1
+#define DEVICE_OPENED     2
+#define DEVICE_CLOSING    3
+#define DEVICE_CLOSED     4
+#define DEVICE_FAILED     5
+
 
 typedef struct OS2AUDIO
 {

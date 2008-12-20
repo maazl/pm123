@@ -2,6 +2,9 @@
  * Copyright 1997-2003 Samuel Audet <guardia@step.polymtl.ca>
  *                     Taneli Lepp„ <rosmo@sektori.com>
  *
+ * Copyright 2007-2008 Dmitry A.Steklenev <glass@ptv.ru>
+ * Copyright 2007-2008 Marcel Mueller
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
  *
@@ -65,7 +68,7 @@
 #define RG_PREFER_TRACK_AND_NOT_CLIPPING  3
 
 static int   device       = 0;
-static int   numbuffers   = 32;
+static int   numbuffers   = 128;
 static int   lockdevice   = 0;
 static int   kludge48as44 = 0;
 static int   force8bit    = 0;
@@ -389,17 +392,17 @@ output_open( OS2AUDIO* a )
   rc = LOUSHORT(mciSendCommand( a->mci_device_id, MCI_MIXSETUP, MCI_WAIT | MCI_MIXSETUP_INIT, &a->mci_mix, 0 ));
   if( rc != MCIERR_SUCCESS ) {
     DEBUGLOG(( "os2audio:output_open: MCI_MIXSETUP failed: %u.\n", rc ));
-    DEBUGLOG(( "os2audio: unable to setup a mixer.\n" ));
     goto end;
   }
 
   // Set up the MCI_BUFFER_PARMS data structure and allocate
   // device buffers from the mixer.
-  a->numbuffers    = limit2( a->numbuffers, 5, 200 );
+  a->numbuffers    = limit2( a->numbuffers, 16, 200 );
   a->mci_buffers   = calloc( a->numbuffers, sizeof( *a->mci_buffers   ));
   a->buf_positions = calloc( a->numbuffers, sizeof( *a->buf_positions ));
 
   if( !a->mci_buffers || !a->buf_positions ) {
+    DEBUGLOG(( "os2audio: not enough memory.\n" ));
     rc = MCIERR_OUT_OF_MEMORY;
     goto end;
   }
@@ -409,7 +412,6 @@ output_open( OS2AUDIO* a )
   } else {
     a->buffersize = info->buffersize;
   }
-
   a->mci_buf_parms.ulNumBuffers = a->numbuffers;
   a->mci_buf_parms.ulBufferSize = a->buffersize;
   a->mci_buf_parms.pBufList     = a->mci_buffers;
@@ -575,7 +577,6 @@ int DLLENTRY
 output_play_samples( void* A, FORMAT_INFO* format, char* buf, int len, int posmarker )
 {
   OS2AUDIO* a = (OS2AUDIO*)A;
-  
   DEBUGLOG(("output_play_samples({%i,%i,%i,%i,%x}, %p, %i, %i)\n",
       format->size, format->samplerate, format->channels, format->bits, format->format, buf, len, posmarker));
 
@@ -666,7 +667,7 @@ output_play_samples( void* A, FORMAT_INFO* format, char* buf, int len, int posma
         return 0;
       }
 
-      for( i = 0; i < len / 2; i++ ) {
+      for( i = 0; i < len/2; i++ ) {
         out[i] = ( in[i] >> 8 ) + 128;
       }
       scale_08_replay_gain( a, out, len / 2 );
@@ -687,8 +688,8 @@ output_play_samples( void* A, FORMAT_INFO* format, char* buf, int len, int posma
 
     a->buf_positions[current] = posmarker;
 
-    a->nomoredata  = FALSE;
-    a->trashed     = FALSE;
+    a->nomoredata = FALSE;
+    a->trashed    = FALSE;
   }
 
   return len;
@@ -843,12 +844,12 @@ output_init( void** A )
  *A = calloc( sizeof( OS2AUDIO ), 1 );
   a = (OS2AUDIO*)*A;
 
-  a->numbuffers = 32;
-  a->volume     = 100;
-  a->amplifier  = 1.0;
-  a->status     = DEVICE_CLOSED;
-  a->nomoredata = TRUE;
-  a->scale      = 1.0;
+  a->numbuffers  = 128;
+  a->volume      = 100;
+  a->amplifier   = 1.0;
+  a->status      = DEVICE_CLOSED;
+  a->nomoredata  = TRUE;
+  a->scale       = 1.0;
 
   DosCreateEventSem( NULL, &a->dataplayed, 0, FALSE );
   DosCreateMutexSem( NULL, &a->mutex, 0, FALSE );
@@ -935,18 +936,18 @@ output_command( void* A, ULONG msg, OUTPUT_PARAMS* params )
       if( a->status != DEVICE_OPENED ) {
         // Otherwise, information on the current session are modified.
         a->original_info = *params;
-        a->configured = configured;
-
-        if( params->size >= OUTPUT_SIZE_2 && params->info->size >= INFO_SIZE_2 )
-        {
-          a->album_gain = params->info->album_gain;
-          a->album_peak = params->info->album_peak;
-          a->track_gain = params->info->track_gain;
-          a->track_peak = params->info->track_peak;
-
-          recalc_replay_gain( a );
-        }
       }
+
+      if( params->size >= OUTPUT_SIZE_2 && params->info->size >= INFO_SIZE_2 )
+      {
+        a->album_gain = params->info->album_gain;
+        a->album_peak = params->info->album_peak;
+        a->track_gain = params->info->track_gain;
+        a->track_peak = params->info->track_peak;
+
+        configured++;
+      }
+
       params->always_hungry = FALSE;
       return 0;
 
@@ -987,7 +988,7 @@ load_ini( void )
 
   device       = 0;
   lockdevice   = 0;
-  numbuffers   = 32;
+  numbuffers   = 128;
   force8bit    = 0;
   kludge48as44 = 0;
   enable_rg    = 0;
@@ -1144,7 +1145,7 @@ plugin_query( PLUGIN_QUERYPARAM* param )
 {
   param->type         = PLUGIN_OUTPUT;
   param->author       = "Samuel Audet, Dmitry A.Steklenev";
-  param->desc         = "DART Output 1.31";
+  param->desc         = "DART Output 1.32";
   param->configurable = TRUE;
 
   load_ini();
