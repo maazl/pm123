@@ -2,8 +2,9 @@
 #  makefile for the whole pm123 package
 #
 
-VERSION = 1.40a3
-PARTS   = src\utils\utilfct$(LBO) src\utils\cpp\cpputil$(LBO) src\gbm123\gbm123.dll src\fft123\fft123.dll
+VERSION = 1.40a4
+PARTS   = src\utils\utilfct$(LBO) src\utils\cpp\cpputil$(LBO) src\gbm123\libgbm$(LBO)
+PARTS   = $(PARTS) src\fft123\fft123.dll
 PARTS   = $(PARTS) src\xio123\xio123.dll
 PARTS   = $(PARTS) src\snd123\snd123.dll
 PARTS   = $(PARTS) src\zlb123\zlb123.dll
@@ -37,7 +38,7 @@ src\utils\cpp\cpputil$(LBO):
 	@$(MAKE) $(MFLAGS)
 	@cd ..\..\..
 
-src\gbm123\gbm123.dll:
+src\gbm123\libgbm$(LBO):
 	cd src\gbm123
 	@$(MAKE) $(MFLAGS)
 	@cd ..\..
@@ -270,7 +271,6 @@ distfiles: distclean $(MDUMMY)
 	if not exist dist\files\visplug mkdir dist\files\visplug
 	if not exist dist\files\icons   mkdir dist\files\icons
 	if not exist dist\files\pdk     mkdir dist\files\pdk
-	copy src\gbm123\gbm123.dll dist\files
 	copy src\fft123\fft123.dll dist\files
 	copy src\xio123\xio123.dll dist\files
 	copy src\snd123\snd123.dll dist\files

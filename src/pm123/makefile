@@ -16,7 +16,7 @@ OBJECTS  = $(OBJECTS) controller$(CO) 123_util$(CO) pipe$(CO) pm123$(CO)
 OBJECTS  = $(OBJECTS) playlistmenu$(CO) dialog$(CO) filedlg$(CO) infodialog$(CO)
 DEF      = pm123$(LDEF_SUFFX)
 RESOURCE = pm123$(RES)
-LIBS     = $(TOPDIR)\gbm123\gbm123$(LBI) $(TOPDIR)\xio123\xio123$(LBI)
+LIBS     = $(TOPDIR)\xio123\xio123$(LBI) $(TOPDIR)\gbm123\libgbm$(LBO)
 LIBS     = $(LIBS) $(TOPDIR)\utils\cpp\cpputil$(LBO) $(TOPDIR)\utils\utilfct$(LBO)
 STDLIBS  = $(LIBS_UNI)
 

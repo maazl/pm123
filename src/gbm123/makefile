@@ -16,7 +16,7 @@ OBJECTS = $(OBJECTS) gbmpnm$(CO)
 # gbmpng$(CO)  
 DEF     = gbm$(LDEF_SUFFX)
 
-all2: gbm123.dll gbm123$(LBI) gbmconv.exe $(MDUMMY)
+all2: libgbm$(LBO) $(MDUMMY)
 
 gbm123.dll: $(OBJECTS) $(DEF)
 	$(CL) $(LFLAGS) $(LFLAGS_DLL) $(LFLAGS_OUT)$@ $(LOBJ_PREFX)$(OBJECTS)$(LOBJ_SUFFX) $(LDEF_PREFX)$(DEF)
