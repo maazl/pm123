@@ -14,7 +14,7 @@ RES        = .res
 CC         = icc
 CFLAGS     = $(CFLAGS_USR) -Ss -Q -Gm -Gd+ -W3 -DOS2 -DNOSYSTEMSTATICMEMBER -Wdcl -Wenu
 CFLAGS_CPP = -Gx+
-CFLAGS_DBG = -Ti -Tx -DDEBUG=$(DEBUG) -Gf -Gl -G5 -O -Oc -Os- -Oi- -Op-
+CFLAGS_DBG = -Ti -Tx -DDEBUG=$(DEBUG) -Gf -Gl -G5 -Oc -Os- -Oi- -Op-
 CFLAGS_MEM = -Tm -DDEBUG_ALLOC=1
 CFLAGS_OPT = -Gf -Gi -O -G5 -Gl
 
