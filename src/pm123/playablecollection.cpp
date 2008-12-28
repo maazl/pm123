@@ -1455,7 +1455,7 @@ bool Playlist::LoadList(EntryList& list, PHYS_INFO& phys)
 }
 
 void Playlist::NotifySourceChange()
-{ DEBUGLOG(("Playlist(%p{%s})::NotifySourceChange()", this, GetURL().cdata()));
+{ DEBUGLOG(("Playlist(%p{%s})::NotifySourceChange()\n", this, GetURL().cdata()));
   Lock lock(*this);
   UpdateModified(true);
 }
