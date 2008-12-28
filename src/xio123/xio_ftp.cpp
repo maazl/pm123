@@ -288,8 +288,9 @@ int XIOftp::close()
     XASSERT( so_close( s_handle ), == 0 );
     s_handle = -1;
   }
-  s_pos    = -1;
-  s_size   = -1;
+  // Invalidate fields
+  s_pos    = (unsigned long)-1;
+  s_size   = (unsigned long)-1;
   return 0;
 }
 
@@ -380,8 +381,8 @@ XIOftp::~XIOftp()
 XIOftp::XIOftp()
 : support(XS_CAN_READ | XS_CAN_SEEK),
   s_handle(-1),
-  s_pos(-1),
-  s_size(-1),
+  s_pos((unsigned long)-1),
+  s_size((unsigned long)-1),
   s_location(NULL),
   s_datahandle(-1)
 {

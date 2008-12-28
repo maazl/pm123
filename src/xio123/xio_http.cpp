@@ -152,7 +152,7 @@ int XIOhttp::read_file( const char* filename, unsigned long range )
   xio_http_proxy_user( proxy_user, sizeof( proxy_user ));
   xio_http_proxy_pass( proxy_pass, sizeof( proxy_pass ));
 
-  if( !request || !url || proxy_addr == -1 ) {
+  if( !request || !url || proxy_addr == (u_long)-1 ) {
     free( request );
     url_free( url );
     errno = error = HTTP_PROTOCOL_ERROR;
@@ -281,7 +281,7 @@ int XIOhttp::read_file( const char* filename, unsigned long range )
     {
       if (r_metaint)
         r_supports &= XS_CAN_SEEK;
-    
+
       Mutex::Lock lock(mtx_access);
 
       free( s_location );
@@ -293,13 +293,13 @@ int XIOhttp::read_file( const char* filename, unsigned long range )
       s_handle  = handle;
       s_pos     = r_pos;
       s_size    = r_size;
-      s_metaint = r_metaint;               
+      s_metaint = r_metaint;
       s_metapos = r_metaint;
 
       strcpy( s_genre, r_genre);
       strcpy( s_name,  r_name );
       strcpy( s_title, r_title);
-      
+
     } else {
       s_handle = -1;
       so_close( handle );
@@ -340,15 +340,14 @@ int XIOhttp::open( const char* filename, XOFLAGS oflags ) {
 int XIOhttp::read_and_notify( void* result, unsigned int count )
 {
   int read_size;
-  int read_done;
+  unsigned int read_done;
   int done;
-  int i;
 
   unsigned char metahead;
   int           metasize;
   char*         metabuff;
   char*         titlepos;
-  
+
   DEBUGLOG2(("XIOhttp::read_and_notify(%p, %u) - %i, %i\n", result, count, s_metaint, s_metapos));
 
   if( !s_metaint ) {
@@ -373,7 +372,7 @@ int XIOhttp::read_and_notify( void* result, unsigned int count )
             return -1;
           }
           done = so_read( s_handle, metabuff, metasize );
-          if (done < 0) 
+          if (done < 0)
           { errno = error = HTTP_PROTOCOL_ERROR;
             free(metabuff);
             return -1;
@@ -388,7 +387,7 @@ int XIOhttp::read_and_notify( void* result, unsigned int count )
           Mutex::Lock lock(mtx_access);
 
           if(( titlepos = strstr( metabuff, "StreamTitle='" )) != NULL )
-          {
+          { size_t i;
             titlepos += 13;
             for( i = 0; i < sizeof( s_title ) - 1 && *titlepos
                         && ( titlepos[0] != '\'' || titlepos[1] != ';' ); i++ )
@@ -420,7 +419,7 @@ int XIOhttp::read_and_notify( void* result, unsigned int count )
 
     if (done == -1)
     { errno = error = HTTP_PROTOCOL_ERROR;
-      return -1; 
+      return -1;
     } else if( done == 0 ) {
       eof = true;
       break;
@@ -454,8 +453,8 @@ int XIOhttp::close()
   if( s_handle != -1 ) {
     if(( rc = so_close( s_handle )) != -1 ) {
       s_handle  = -1;
-      s_pos     = -1;
-      s_size    = -1;
+      s_pos     = (unsigned long)-1;
+      s_size    = (unsigned long)-1;
     }
   }
 
@@ -578,8 +577,8 @@ XIOhttp::~XIOhttp()
 XIOhttp::XIOhttp()
 : support(XS_CAN_READ | XS_CAN_SEEK),
   s_handle(-1),
-  s_pos(-1),
-  s_size(-1),
+  s_pos((unsigned long)-1),
+  s_size((unsigned long)-1),
   s_metaint(0),
   s_metapos(0),
   s_location(NULL),

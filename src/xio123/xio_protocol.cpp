@@ -94,7 +94,7 @@ XPROTOCOL::XPROTOCOL()
 char* XPROTOCOL::gets( char* string, unsigned int n )
 {
   char* string_bak = string;
-  
+
   while( n > 1 && !eof ) { // save space for \0
     int len;
     if(( len = read( string, 1 )) == 1 ) {
@@ -115,7 +115,7 @@ char* XPROTOCOL::gets( char* string, unsigned int n )
       error = errno;
       break;
     }
-  }     
+  }
   *string = 0;
   return string != string_bak ? string_bak : NULL;
 }
@@ -132,10 +132,10 @@ int XPROTOCOL::puts( const char* string )
     const char* cp = strchr(string, '\n');
     if (cp == NULL)
     { // write the remaining part of string.
-      size_t len = strlen(string); 
+      size_t len = strlen(string);
       if (write( string, len ) == len)
         rc = -1;
-      else 
+      else
         rc += len;
       break;
     }
@@ -164,7 +164,7 @@ void XPROTOCOL::set_observer( void DLLENTRYP(callback)(const char*, long, long, 
 
 int XIOreadonly::write( const void* source, unsigned int count )
 {
-  errno = EACCESS;
+  errno = EACCES;
   return -1;
 }
 

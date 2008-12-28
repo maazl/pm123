@@ -216,7 +216,7 @@ xio_fread( void* buffer, size_t size, size_t count, XFILE* x )
   #endif
 
   if (!( x->oflags & XO_READ ))
-  { errno = ENOTREAD;
+  { errno = EACCES;
     return 0;
   }
   errno = 0;
@@ -263,7 +263,7 @@ xio_fwrite( const void* buffer, size_t size, size_t count, XFILE* x )
   #endif
 
   if(!( x->oflags & XO_WRITE )) 
-  { errno = ENOTWRITE;
+  { errno = EACCES;
     return 0;
   }
   errno = 0;
@@ -413,7 +413,7 @@ xio_ftruncate( XFILE* x, long size )
   }
   #endif
   if(!( x->oflags & XO_WRITE )) 
-  { errno = ENOTWRITE;
+  { errno = EACCES;
     return -1;
   }
   if (!x->Request())
@@ -444,7 +444,7 @@ xio_fgets( char* string, int n, XFILE* x )
   }
   #endif
   if (!( x->oflags & XO_READ ))
-  { errno = ENOTREAD;
+  { errno = EACCES;
     return NULL;
   }
   if (!x->Request())
@@ -484,7 +484,7 @@ xio_fputs( const char* string, XFILE* x )
   }
   #endif
   if(!( x->oflags & XO_WRITE )) 
-  { errno = ENOTWRITE;
+  { errno = EACCES;
     return -1;
   }
   if (!x->Request())
@@ -778,7 +778,7 @@ xio_http_proxy_addr( void )
     address = http_proxy_addr;
   }
 
-  if( address != 0 && address != -1 ) {
+  if( address != 0 && address != (u_long)-1 ) {
     return address;
   }
   if( !*host ) {

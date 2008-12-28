@@ -274,7 +274,7 @@ XIOcddb::~XIOcddb()
 /* Initializes the cddb protocol. */
 XIOcddb::XIOcddb()
 : s_handle(-1),
-  s_pos(-1)
+  s_pos((unsigned long)-1)
 { blocksize = 4096; // Sufficient for most Records
 }
 
