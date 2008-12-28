@@ -41,13 +41,14 @@ while (<>)
 }
 
 # Print short summary first
+print "MutexID -> [requests owned owner]\n";
 while (my ($mtx, $r) = each %mux)
 { next unless $$r[0] || $$r[1];
   print "$mtx -> [@$r]\n";
 }
 
 # print all existing mutexes
-print "\n";
+print "\nAll existing ones\n";
 print join "\t", sort keys %mux;
 print "\n";
 
