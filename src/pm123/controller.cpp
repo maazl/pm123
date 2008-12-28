@@ -461,9 +461,10 @@ void Ctrl::CurrentSongEventHandler(void*, const Playable::change_args& args)
 void Ctrl::CurrentRootEventHandler(void*, const Playable::change_args& args)
 { DEBUGLOG(("Ctrl::CurrentRootEventHandler(, {%p{%s}, %x, %x})\n",
     &args.Instance, args.Instance.GetURL().cdata(), args.Changed, args.Loaded));
-  const int_ptr<PlayableSlice>& ps = GetRoot();
-  if (!ps || ps->GetPlayable() != &args.Instance)
-    return; // too late...
+  { const int_ptr<PlayableSlice>& ps = GetRoot();
+    if (!ps || ps->GetPlayable() != &args.Instance)
+      return; // too late...
+  }
   EventFlags events = (EventFlags)((unsigned)args.Changed / Playable::IF_Tech * (unsigned)EV_RootTech) & EV_RootAll & ~EV_Root; // Dirty hack to shift the bits to match EV_Root*
   if (events)
   { InterlockedOr(Pending, events);
