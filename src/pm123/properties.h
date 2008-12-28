@@ -105,6 +105,9 @@ typedef struct _amp_cfg {
   char   pipe_name[_MAX_PATH];// PM123 remote control pipe name
   bool   dock_windows;        // Dock windows?
   int    dock_margin;         // The marging for docking window.
+  
+  int    insp_autorefresh;    // Autorefresh rate of inspector dialog.
+  bool   insp_autorefresh_on; // Autorefresh rate of inspector dialog.
 
 // Player state
   char   filedir[_MAX_PATH];  /* The last directory used for addition of files.    */

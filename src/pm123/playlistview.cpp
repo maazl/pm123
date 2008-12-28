@@ -252,14 +252,6 @@ MRESULT PlaylistView::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
         PlayableInstance::StatusFlags iflg = PlayableInstance::SF_None;
         if (flags & 1<<RC_UPDATEPHYS)
           flg |= Playable::IF_Phys;
-        if (flags & 1<<RC_LOADRPL)
-        { bool& wait = StateFromRec(rec).WaitUpdate;
-          if (wait)
-          { // Schedule UpdateChildren too
-            wait = false;
-            flags |= 1<<RC_UPDATECHILDREN;
-          }
-        }
         if (flags & 1<<RC_UPDATERPL)
           flg |= Playable::IF_Rpl;
         if (flags & 1<<RC_UPDATETECH)
@@ -273,9 +265,9 @@ MRESULT PlaylistView::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
 
         if ((int)flg | iflg)
           UpdateRecord(rec, flg, iflg);
-        if (flags & 1<<RC_UPDATEUSAGE)
+        if ( (flags & 1<<RC_UPDATEUSAGE) || (rec != NULL && (flags & 1<<RC_UPDATEOTHER)) )
           UpdateIcon(rec);
-        if (flags & 1<<RC_UPDATECHILDREN && rec == NULL) // Only Root node has children
+        if (flags & 1<<RC_UPDATEOTHER && rec == NULL) // Only Root node has children
           UpdateChildren(NULL);
       }
       break; // continue in base class
@@ -432,7 +424,10 @@ void PlaylistView::UpdateAccelTable()
 
 PlaylistBase::ICP PlaylistView::GetPlaylistType(const RecordBase* rec) const
 { DEBUGLOG(("PlaylistView::GetPlaylistType(%s)\n", Record::DebugName(rec).cdata()));
-  return rec->Data->Content->GetPlayable()->GetInfo().phys->num_items ? ICP_Closed : ICP_Empty;
+  Playable* pp = rec->Data->Content->GetPlayable();
+  if (pp == Content)
+    return ICP_Recursive; 
+  return pp->GetInfo().phys->num_items ? ICP_Closed : ICP_Empty;
 }
 
 PlaylistBase::IC PlaylistView::GetRecordUsage(const RecordBase* rec) const

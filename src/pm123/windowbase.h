@@ -107,7 +107,7 @@ class ManagedDialogBase : public DialogBase, public Iref_Count
   int_ptr<ManagedDialogBase> Self;
  protected:
   virtual void      OnInit();
-  // If you overload OnDestroy you must mot access this after ManagedDialogBase::OnDestroy returned.
+  // If you overload OnDestroy you must mot access *this after ManagedDialogBase::OnDestroy returned.
   virtual void      OnDestroy();
  public:
   ManagedDialogBase(ULONG rid, HMODULE module) : DialogBase(rid, module) {}

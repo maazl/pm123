@@ -869,15 +869,15 @@ void Ctrl::Worker()
   for(;;)
   { DEBUGLOG(("Ctrl::Worker() looking for work\n"));
     queue<ControlCommand*>::qentry* qp = Queue.RequestRead();
-    ControlCommand* ccp = qp->Data;
-    if (ccp == NULL)
+    if (qp->Data == NULL)
     { Queue.CommitRead(qp);
       break; // deadly pill
     }
 
     bool fail = false;
     do
-    { DEBUGLOG(("Ctrl::Worker received message: %p{%i, %s, %08x%08x, %x, %p, %p} - %u\n",
+    { ControlCommand* ccp = qp->Data;
+      DEBUGLOG(("Ctrl::Worker received message: %p{%i, %s, %08x%08x, %x, %p, %p} - %u\n",
       ccp, ccp->Cmd, ccp->StrArg ? ccp->StrArg.cdata() : "<null>", ccp->PtrArg, (&ccp->PtrArg)[1], ccp->Flags, ccp->Callback, ccp->Link, fail));
       if (fail)
         ccp->Flags = RC_SubseqError;
@@ -950,25 +950,26 @@ void Ctrl::Worker()
       DEBUGLOG(("Ctrl::Worker message %i completed, rc = %i\n", ccp->Cmd, ccp->Flags));
       fail = ccp->Flags != RC_OK;
 
-      // link
-      ControlCommand* ccpl = ccp->Link;
+      // Link and store the link in the data element of the queue.
+      { // Must be done in synchronized context to avoid inconsistecies in QueueTraverse.
+        Mutex::Lock lock(Queue.Mtx);
+        qp->Data = ccp->Link;
+      }
       // cleanup
       if (ccp->Callback)
         (*ccp->Callback)(ccp);
       else
         delete ccp;
 
-      ccp = ccpl;
-    } while (ccp);
-      
+    } while (qp->Data);
+
+    // done
+    Queue.CommitRead(qp);
     // raise control event
     EventFlags events = (EventFlags)InterlockedXch(Pending, EV_None);
     DEBUGLOG(("Ctrl::Worker raising events %x\n", events));
     if (events)
       ChangeEvent(events);
-      
-    // done
-    Queue.CommitRead(qp);
   }
   WinDestroyMsgQueue(hmq);
   WinTerminate(hab);

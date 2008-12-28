@@ -575,8 +575,7 @@ ULONG DLLENTRY dec_fileinfo( const char* url, INFOTYPE* what, DECODER_INFO2* inf
   } else if (strnicmp("http:", url, 5) == 0 || strnicmp("https:", url, 6) == 0 || strnicmp("ftp:", url, 4) == 0)
     type_mask = DECODER_URL;
   else
-    // Always try URL too.
-    type_mask = DECODER_URL|DECODER_OTHER;
+    type_mask = DECODER_OTHER;
 
   // First checks decoders supporting the specified type of files.
   for (i = 0; i < Decoders.size(); i++)

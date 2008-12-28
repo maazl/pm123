@@ -793,8 +793,8 @@ const PlayableCollection::CollectionInfo& PlayableCollection::GetCollectionInfo(
 
     } else if (what & IF_Tech)
     { // Song, but only if IF_Tech is requested
-      DEBUGLOG(("PlayableCollection::GetCollectionInfo - Song\n"));
       Song* song = (Song*)pi->GetPlayable();
+      DEBUGLOG(("PlayableCollection::GetCollectionInfo - Song, status %u\n", song->GetStatus()));
       if (song->GetStatus() == STA_Invalid)
       { // only count invalid items
         cic->Info.Add(0, 0, 1);
@@ -1139,7 +1139,7 @@ bool PlayableCollection::Save(const url123& URL, save_options opt)
     return false;
 
   // create file
-  XFILE* of = xio_fopen(URL, "w");
+  XFILE* of = xio_fopen(URL, "wU");
   if (of == NULL)
     return false;
 
@@ -1429,7 +1429,7 @@ bool Playlist::LoadList(EntryList& list, PHYS_INFO& phys)
   xstring ext = GetURL().getExtension();
 
   // open file
-  XFILE* x = xio_fopen(GetURL(), "r");
+  XFILE* x = xio_fopen(GetURL(), "rU");
   if (x == NULL)
   { ErrorMsg = xstring::sprintf("Unable open file:\n%s\n%s", GetURL().cdata(), xio_strerror(xio_errno()));
   } else
@@ -1543,7 +1543,7 @@ bool PlayFolder::LoadList(EntryList& list, PHYS_INFO& phys)
   {default:
     { char buf[80];
       os2_strerror(rc, buf, sizeof buf);
-      ErrorMsg = xstring::sprintf("Error %ul: %s\n%s\n%s", rc, buf, GetURL().cdata());
+      ErrorMsg = xstring::sprintf("Error %ul: %s\n%s", rc, buf, GetURL().cdata());
       break;
     } 
    case NO_ERROR:

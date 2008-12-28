@@ -773,8 +773,8 @@ void PlaylistBase::RequestChildren(RecordBase* const rec)
     return;
   // Call event either immediately or later, asynchronuously.
   // But only the playlist content is requested at high priority;
-  Playable::InfoFlags avail = pp->EnsureInfoAsync(Playable::IF_Other|Playable::IF_Rpl, false)
-                            | pp->EnsureInfoAsync(Playable::IF_Tech, true);
+  Playable::InfoFlags avail = pp->EnsureInfoAsync(Playable::IF_Other, false)
+                            | pp->EnsureInfoAsync(Playable::IF_Tech|Playable::IF_Rpl, true);
   InfoChangeEvent(Playable::change_args(*pp, avail, avail), rec);
 }
 
@@ -792,12 +792,6 @@ void PlaylistBase::UpdateChildren(RecordBase* const rp)
     return;
   }
 
-  // Check if recursion info is available, otherwise wait
-  if (pp->EnsureInfoAsync(Playable::IF_Rpl) == 0)
-  { StateFromRec(rp).WaitUpdate = true;
-    return;
-  }
-  
   // Check whether to request state information immediately.
   bool reqstate;
   if (rp == NULL)
@@ -1020,7 +1014,7 @@ void PlaylistBase::InfoChangeEvent(const Playable::change_args& args, RecordBase
     &args.Instance, args.Instance.GetURL().getShortName().cdata(), args.Changed, args.Loaded, RecordBase::DebugName(rec).cdata()));
 
   if (args.Changed & Playable::IF_Other)
-    PostRecordCommand(rec, RC_UPDATECHILDREN);
+    PostRecordCommand(rec, RC_UPDATEOTHER);
   if (args.Changed & Playable::IF_Usage)
     PostRecordCommand(rec, RC_UPDATEUSAGE);
   if (args.Changed & Playable::IF_Format)
@@ -1033,8 +1027,6 @@ void PlaylistBase::InfoChangeEvent(const Playable::change_args& args, RecordBase
     PostRecordCommand(rec, RC_UPDATEPHYS);
   if (args.Changed & Playable::IF_Rpl)
     PostRecordCommand(rec, RC_UPDATERPL);
-  if (args.Loaded & Playable::IF_Rpl)
-    PostRecordCommand(rec, RC_LOADRPL);
 }
 
 void PlaylistBase::StatChangeEvent(const PlayableInstance::change_args& args, RecordBase* rec)

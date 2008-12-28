@@ -13,7 +13,7 @@ OBJECTS  = $(OBJECTS) windowbase$(CO) playlistbase$(CO) playlistview$(CO) playli
 OBJECTS  = $(OBJECTS) plugman_base$(CO) plugman$(CO) glue$(CO)
 OBJECTS  = $(OBJECTS) properties$(CO) iniman$(CO) docking$(CO) button95$(CO) skin$(CO)
 OBJECTS  = $(OBJECTS) controller$(CO) 123_util$(CO) pipe$(CO) pm123$(CO)
-OBJECTS  = $(OBJECTS) playlistmenu$(CO) dialog$(CO) filedlg$(CO) infodialog$(CO)
+OBJECTS  = $(OBJECTS) playlistmenu$(CO) dialog$(CO) filedlg$(CO) infodialog$(CO) inspector$(CO)
 DEF      = pm123$(LDEF_SUFFX)
 RESOURCE = pm123$(RES)
 LIBS     = $(TOPDIR)\xio123\xio123$(LBI) $(TOPDIR)\gbm123\libgbm$(LBO)
@@ -61,7 +61,7 @@ playlistview.cpp:	pm123.h dialog.h properties.h pm123.rc.h ..\utils\utilfct.h pl
 plugman.cpp:	plugman.h plugman_base.h 123_util.h pm123.h dialog.h properties.h pm123.rc.h ..\utils\utilfct.h ..\utils\fileutil.h ..\utils\cpp/mutex.h ..\utils\cpp/url123.h ..\utils\cpp/stringmap.h ..\utils\debuglog.h
 plugman_base.h:	plugman.h ..\utils\vdelegate.h ..\utils\cpp/smartptr.h
 plugman_base.cpp:	..\utils\utilfct.h plugman_base.h pm123.h dialog.h playable.h controller.h ..\utils\vdelegate.h ..\utils\cpp/url123.h ..\utils\debuglog.h
-pm123.cpp:	..\utils\utilfct.h ..\xio123\xio.h pm123.h dialog.h 123_util.h plugman.h button95.h playlistmanager.h playlistview.h infodialog.h copyright.h docking.h iniman.h properties.h controller.h playlistmenu.h skin.h pipe.h ..\include\visual_plug.h ..\utils\cpp/xstring.h ..\utils\cpp/url123.h ..\utils\cpp/showaccel.h pm123.rc.h ..\utils\debuglog.h
+pm123.cpp:	..\utils\utilfct.h ..\xio123\xio.h pm123.h dialog.h 123_util.h plugman.h button95.h playlistmanager.h playlistview.h infodialog.h inspector.h copyright.h docking.h iniman.h properties.h controller.h playlistmenu.h skin.h pipe.h ..\include\visual_plug.h ..\utils\cpp/xstring.h ..\utils\cpp/url123.h ..\utils\cpp/showaccel.h pm123.rc.h ..\utils\debuglog.h
 skin.h:	playable.h
 properties.cpp:	..\utils\utilfct.h ..\xio123\xio.h ..\utils\snprintf.h properties.h pm123.h dialog.h pm123.rc.h iniman.h plugman.h plugman_base.h controller.h copyright.h 123_util.h pipe.h filedlg.h ..\utils\cpp/url123.h ..\utils\cpp/stringmap.h
 skin.cpp:	..\gbm123\gbm.h ..\gbm123\gbmerr.h ..\gbm123\gbmht.h properties.h skin.h pm123.h dialog.h pm123.rc.h button95.h plugman.h ..\utils\strutils.h ..\utils\debuglog.h
@@ -85,3 +85,5 @@ iniman.h:	..\utils\cpp/xstring.h
 glue.cpp:	glue.h plugman_base.h 123_util.h properties.h pm123.h ..\utils\fileutil.h ..\utils\eautils.h ..\utils\debuglog.h
 properties.h:	..\include\config.h
 filedlg.cpp:	filedlg.h pm123.rc.h iniman.h properties.h dialog.h ..\utils\utilfct.h ..\utils\debuglog.h
+inspector.cpp:	inspector.h pm123.rc.h pm123.h songiterator.h properties.h ..\utils\utilfct.h ..\utils\snprintf.h ..\utils\cpp/Mutex.h ..\utils\debuglog.h
+inspector.h:	windowbase.h controller.h ..\utils\cpp/smartptr.h ..\utils\cpp/queue.h

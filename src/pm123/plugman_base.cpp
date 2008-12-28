@@ -451,8 +451,8 @@ bool DecoderProxy1::SetParam(const char* param, const xstring& value)
 /* proxy for the output callback of decoder interface level 0/1 */
 PROXYFUNCIMP(int DLLENTRY, DecoderProxy1)
 proxy_1_decoder_play_samples( DecoderProxy1* op, const FORMAT_INFO* format, const char* buf, int len, int posmarker )
-{ DEBUGLOG(("proxy_1_decoder_play_samples(%p{%s}, %p{%u,%u,%u}, %p, %i, %i)\n",
-    op, op->GetModuleName().cdata(), format, format->size, format->samplerate, format->channels, buf, len, posmarker));
+{ DEBUGLOG(("proxy_1_decoder_play_samples(%p{%s}, %p{%u,%u,%u}, %p, %i, %i) - %f\n",
+    op, op->GetModuleName().cdata(), format, format->size, format->samplerate, format->channels, buf, len, posmarker, op->temppos));
 
   if (format->format != WAVE_FORMAT_PCM || (format->bits != 16 && format->bits != 8))
   { (*op->error_display)("PM123 does only accept PCM data with 8 or 16 bits per sample when using old-style decoder plug-ins.");

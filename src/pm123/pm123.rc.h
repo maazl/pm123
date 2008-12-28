@@ -55,6 +55,12 @@
 #define ACL_MAIN              WIN_MAIN // neccessarily identical
 #define ICO_MAIN              WIN_MAIN // neccessarily identical
 
+#define TID_UPDATE_TIMERS    ( TID_USERMAX - 1 )
+#define TID_UPDATE_PLAYER    ( TID_USERMAX - 2 )
+#define TID_ONTOP            ( TID_USERMAX - 3 )
+#define TID_CLEANUP          ( TID_USERMAX - 4 )
+#define TID_INSP_AUTOREFR    ( TID_USERMAX - 5 )
+
 #define MNU_MAIN            500
 #define IDM_M_SHUFFLE       505
 #define IDM_M_ABOUT         506
@@ -95,6 +101,7 @@
 #define IDM_M_LOAD          550
 #define IDM_M_PLRELOAD      551
 #define IDM_M_RELOAD        552
+#define IDM_M_INSPECTOR     559
 #define IDM_M_LOADFILE      560
 #define IDM_M_URL           561
 #define IDM_M_LOADOTHER     562 /* reserve some ID's for several plug-ins.  */
@@ -441,6 +448,16 @@
 #define PB_WMRETRY         1905
 #define PB_WMSKIP          1906
 #define PB_WMSKIPALL       1907
+
+/* Inspector */
+#define DLG_INSPECTOR      1950
+#define ST_CONTROLLERQ     1951
+#define LB_CONTROLLERQ     1952
+#define ST_WORKERQ         1953
+#define LB_WORKERQ         1954
+#define PB_REFRESH         1960
+#define CB_AUTOREFRESH     1961
+#define SB_AUTOREFRESH     1962
 
 
 /* SKINs ... */

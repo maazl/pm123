@@ -103,8 +103,6 @@ Repeat                                             0x01  on            Set/reset
                                                    0x02  off
                                                    0x03  toggle
 ---------------------------------------------------------------------------------------------------------------
-Equalize                       EQ_Data*                                Save stream of current decoder.
----------------------------------------------------------------------------------------------------------------
 Save       Filename                                                    Save stream of current decoder.
 ---------------------------------------------------------------------------------------------------------------
 Location   out: Root URL       SongIterator*                           Set the iterator to the current location.
@@ -435,6 +433,10 @@ class Ctrl
   // Notify about any changes. See EventFlags for details.
   // The events are not synchonuous, i.e. they are not called before the things happen.
   static event<const EventFlags> ChangeEvent;
+  
+ public: // debug interface
+  static void QueueTraverse(void (*action)(const queue<ControlCommand*>::qentry& entry, void* arg), void* arg)
+  { Queue.ForEach(action, arg); }
 };
 
 FLAGSATTRIBUTE(Ctrl::EventFlags);

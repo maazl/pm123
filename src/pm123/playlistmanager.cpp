@@ -193,27 +193,22 @@ MRESULT PlaylistManager::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
       do
       { // We do the processing here step by step because the processing may set some of the bits
         // that are handled later. This avoids double actions and reduces the number of posted messages.
-        if (il.bitrst(RC_LOADRPL))
-        { // Check if UpdateChildren is waiting
-          bool& wait = StateFromRec(rec).WaitUpdate;
-          if (wait)
-          { // Try again
-            wait = false;
-            il.bitset(RC_UPDATECHILDREN);
-          }
-        }
         if (il.bitrst(RC_UPDATERPL))
           UpdateRpl(rec); // may set RC_UPDATEUSAGE
         if (il.bitrst(RC_UPDATETECH))
           UpdateTech(rec);
-        if (il.bitrst(RC_UPDATECHILDREN))
-          UpdateChildren(rec); // may set RC_UPDATEUSAGE
+        if (il.bitrst(RC_UPDATEOTHER))
+        { if (PlayableFromRec(rec)->GetFlags() & Playable::Enumerable)
+            UpdateChildren(rec); // may set RC_UPDATEUSAGE
+          if (rec != NULL)
+            il.bitset(RC_UPDATEUSAGE);
+        }
         if (il.bitrst(RC_UPDATEUSAGE) | il.bitrst(RC_UPDATEPHYS)) // RC_UPDATEPHYS covers changes of num_items
           UpdateIcon(rec);
         if (il.bitrst(RC_UPDATEALIAS) | il.bitrst(RC_UPDATEMETA)) // Changing of meta data may reflect to the display name too.
           UpdateInstance(rec, PlayableInstance::SF_Alias);
         // It is essential that all messages are handled here. Otherwise: infinite loop.
-        ASSERT((il & ~(1<<RC_UPDATERPL|1<<RC_UPDATECHILDREN|1<<RC_UPDATETECH|1<<RC_UPDATEUSAGE|1<<RC_UPDATEPHYS|1<<RC_UPDATEALIAS|1<<RC_UPDATEMETA)) == 0);
+        ASSERT((il & ~(1<<RC_UPDATERPL|1<<RC_UPDATEOTHER|1<<RC_UPDATETECH|1<<RC_UPDATEUSAGE|1<<RC_UPDATEPHYS|1<<RC_UPDATEALIAS|1<<RC_UPDATEMETA)) == 0);
       } while (il);
       break; // continue in base class
     }
@@ -397,7 +392,7 @@ PlaylistBase::RecordBase* PlaylistManager::CreateNewRecord(PlayableInstance* obj
   rec->Data()->Text    = obj->GetDisplayName();
   Playable* pp = obj->GetPlayable();
   rec->Data()->Recursive = (pp->GetFlags() & Playable::Enumerable)
-                        && (!pp->CheckInfo(Playable::IF_Rpl) || pp->GetInfo().rpl->recursive)
+                        && (pp->CheckInfo(Playable::IF_Rpl) || pp->GetInfo().rpl->recursive)
                         && RecursionCheck(pp, parent);
   rec->flRecordAttr    = 0;
   rec->pszIcon         = (PSZ)rec->Data()->Text.cdata();

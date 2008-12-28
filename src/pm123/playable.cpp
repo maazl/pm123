@@ -61,7 +61,7 @@ Playable::Lock::~Lock()
 Playable::WaitInfo::WaitInfo(Playable& inst, InfoFlags filter)
 : Filter(filter),
   Deleg(inst.InfoChange, *this, &Playable::WaitInfo::InfoChangeEvent)
-{ DEBUGLOG(("Playable::WaitInfo(%p)::WaitInfo(&%p)\n", this, &inst));
+{ DEBUGLOG(("Playable::WaitInfo(%p)::WaitInfo(&%p, %x)\n", this, &inst, filter));
 }
 
 Playable::WaitInfo::~WaitInfo()
@@ -228,7 +228,7 @@ xstring Playable::GetDisplayName() const
 }
 
 Playable::InfoFlags Playable::BeginUpdate(InfoFlags what)
-{ DEBUGLOG(("Playable::BeginUpdate(%x) - %x\n", what, InfoInService));
+{ DEBUGLOG(("Playable(%p)::BeginUpdate(%x) - %x\n", this, what, InfoInService));
   CritSect cs;
   what &= ~(InfoFlags)InfoInService;
   InfoInService |= what;

@@ -102,6 +102,8 @@ load_ini( void )
     load_ini_bool ( INIhandle, cfg.show_plman );
     load_ini_value( INIhandle, cfg.dock_margin );
     load_ini_bool ( INIhandle, cfg.dock_windows );
+    load_ini_value( INIhandle, cfg.insp_autorefresh );
+    load_ini_bool ( INIhandle, cfg.insp_autorefresh_on );
     load_ini_bool ( INIhandle, cfg.font_skinned );
     load_ini_value( INIhandle, cfg.font_attrs );
     load_ini_value( INIhandle, cfg.font_size );
@@ -173,6 +175,8 @@ save_ini( void )
     save_ini_bool ( INIhandle, cfg.show_plman );
     save_ini_bool ( INIhandle, cfg.dock_windows );
     save_ini_value( INIhandle, cfg.dock_margin );
+    save_ini_value( INIhandle, cfg.insp_autorefresh );
+    save_ini_bool ( INIhandle, cfg.insp_autorefresh_on );
     save_ini_bool ( INIhandle, cfg.font_skinned );
     save_ini_value( INIhandle, cfg.font_attrs );
     save_ini_value( INIhandle, cfg.font_size );

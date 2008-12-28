@@ -116,7 +116,8 @@ class Playable
                ~Lock();
   };
 
-  // Class to wait for a desired information
+  // Class to wait for a desired information.
+  // This is something like a conditional variable.
   class WaitInfo
   {private:
     InfoFlags  Filter;
@@ -339,6 +340,11 @@ class Playable
   // This is useful for prefetching.
   InfoFlags           EnsureInfoAsync(InfoFlags what, bool lowpri = false, bool confirmed = false);
 
+  // Query the current InfoRequest state. This is only reliable in a critical section.
+  // But it may be called outside for debugging or informational purposes.
+  void                QueryRequestState(InfoFlags& high, InfoFlags& low, InfoFlags& inservice)
+                      { high = (InfoFlags)InfoRequest; low = (InfoFlags)(InfoRequestLow & !high); inservice = (InfoFlags)InfoInService; }
+
   // Set meta information.
   // Calling this function with meta == NULL deletes the meta information.
   void                SetMetaInfo(const META_INFO* meta);
@@ -351,7 +357,7 @@ class Playable
   event<const change_args> InfoChange;
 
  // asynchronuous request service
- public: // VAC++ 3.0 requires base types to be public
+ public:
   typedef int_ptr<Playable> QEntry;
  private:
   // Priority enhanced Queue
@@ -385,6 +391,11 @@ class Playable
   static void              Init();
   // Destroy worker
   static void              Uninit();
+  // Inspect worker queue
+  // The callback function is called once for each queue item. But be careful,
+  // this is done from synchronized context.
+  static void QueueTraverse(void (*action)(const queue<QEntry>::qentry& entry, void* arg), void* arg)
+  { WQueue.ForEach(action, arg); }
 
  // Repository
  private:

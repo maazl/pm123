@@ -67,8 +67,7 @@ class PlaylistBase
 {public:
   struct CommonState
   { unsigned            PostMsg;   // Bitvector of outstanding record commands
-    bool                WaitUpdate;// UpdateTech is waiting for UpdateInfo event.
-    CommonState() : PostMsg(0), WaitUpdate(false) {}
+    CommonState() : PostMsg(0) {}
   };
   // C++ part of a record
   struct RecordBase;
@@ -144,7 +143,7 @@ class PlaylistBase
   enum RecordCommand
   { // Update the children of the Record
     // If mp1 == NULL the root node is refreshed.
-    RC_UPDATECHILDREN,
+    RC_UPDATEOTHER,
     // Update the format information of a record
     // If mp1 == NULL the root node is refreshed.
     RC_UPDATEFORMAT,
@@ -166,10 +165,7 @@ class PlaylistBase
     // Update the alias text of a record
     RC_UPDATEALIAS,
     // Update starting position
-    RC_UPDATEPOS,    
-    // The recursive playlist information is now reloaded.
-    // If mp1 == NULL the root node is refreshed.
-    RC_LOADRPL
+    RC_UPDATEPOS    
   };
  public:
   // return value of AnalyzeRecordTypes

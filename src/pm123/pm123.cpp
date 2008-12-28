@@ -49,6 +49,7 @@
 #include "playlistmanager.h"
 #include "playlistview.h"
 #include "infodialog.h"
+#include "inspector.h"
 #include "copyright.h"
 #include "docking.h"
 #include "iniman.h"
@@ -84,11 +85,6 @@
 // However, since the romoved objects may hold references to other objects,
 // only one generation is cleand up per time.
 #define  CLEANUP_INTERVALL 10
-
-#define  TID_UPDATE_TIMERS    ( TID_USERMAX - 1 )
-#define  TID_UPDATE_PLAYER    ( TID_USERMAX - 2 )
-#define  TID_ONTOP            ( TID_USERMAX - 3 )
-#define  TID_CLEANUP          ( TID_USERMAX - 4 )
 
 /* file dialog additional flags */
 #define  FDU_DIR_ENABLE   0x0001
@@ -1280,6 +1276,10 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
           amp_show_context_menu( hwnd );
           break;
 
+        case IDM_M_INSPECTOR:
+          InspectorDialog::GetInstance()->SetVisible(true);
+          break;
+
         case BMP_PL:
         { int_ptr<PlaylistView> pv = PlaylistView::Get(DefaultPL, "Default Playlist");
           pv->SetVisible(!pv->GetVisible());
@@ -1477,7 +1477,7 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
           {case VK_ALT:
            case VK_ALTGRAF:
            //case VK_CTRL:
-            amp_set_alt_slider(!(fsflags & KC_KEYUP) && (CurrentRoot->GetFlags() & Playable::Enumerable));
+            amp_set_alt_slider(!(fsflags & KC_KEYUP) && CurrentRoot && (CurrentRoot->GetFlags() & Playable::Enumerable));
             break;
           }
         }
