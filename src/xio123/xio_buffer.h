@@ -29,71 +29,78 @@
 #ifndef XIO_BUFFER_H
 #define XIO_BUFFER_H
 
-#include "xio.h"
+#include "xio_protocol.h"
+#include <string.h>
 
-struct XBUFFER   {
+class XIObuffer : public XIOreadonly
+{private:
+  // Observer class to handle metai info callbacks and delay them until the
+  // apropriate part of the buffer is read.
+  struct obs_entry
+  { char*       metabuff;
+    const long  pos;
+    const long  pos64;
+    obs_entry*  link;
+    obs_entry(const char* metabuff, long pos, long pos64);
+    ~obs_entry() { free(metabuff); }
+    char* detach() { char* ret = metabuff; metabuff = NULL; return ret; }
+  };
+ protected:
+  XPROTOCOL* chain;        // Pointer to virtualized protocol
 
-  char* head;           /* Pointer to the first byte of the buffer.          */
-  char* tail;           /* Pointer to beyond of the last byte of the buffer. */
-  int   size;           /* Current size of the buffer.                       */
-  int   free;           /* Current size of the free part of the buffer.      */
-  char* data_head;      /* Pointer to the first byte of the data.            */
-  char* data_tail;      /* Pointer to beyond of the last byte of the data.   */
-  char* data_read;      /* Current read position in the data pool.           */
-  int   data_size;      /* Current size of the data.                         */
-  int   data_rest;      /* Current size of the data available for read.      */
-  int   data_keep;      /* Maximum size of the obsolete data.                */
-  int   tid;            /* Read-ahead thread identifier.                     */
-  int   end;            /* Stops read-ahead thread and cleanups the buffer.  */
-  int   boosted;        /* The priority of the read-ahead thread is boosted. */
-  long  file_pos;       /* Position of the data pool in the associated file. */
+  char* head;              // Pointer to the first byte of the buffer.
+  const unsigned int size; // Current size of the buffer.
 
-  HMTX  mtx_access;     /* Serializes access to the buffer.                  */
-  HMTX  mtx_file;       /* Serializes access to the associated file.         */
-  HEV   evt_read_data;  /* Sends if it is possible to read into the buffer.  */
-  HEV   evt_have_data;  /* Sends if the buffer have more data.               */
-  int   eof;            /* Indicates whether the end of file is reached.     */
-  int   error;          /* Last error code.                                  */
+  long  read_pos;          // Position of the logical read pointer in the associated file.
 
+  // Entries for the observer
+  void  DLLENTRYP(s_callback)(const char* metabuff, long pos, long pos64, void* arg);
+  void* s_arg;
+  obs_entry* s_obs_head;
+  obs_entry* s_obs_tail;
+  char  s_title[128];
+
+ private:
+  // virtual observer to buffer the metadata events
+  friend void DLLENTRY buffer_observer_stub(const char* metabuff, long pos, long pos64, void* arg);
+ protected:
+  // Clear the observer metatdata buffer
+  void  obs_clear();
+  // Discard any observer entries up to file_pos
+  void  obs_discard();
+  // Execute the observer entries up to file_pos
+  void  obs_execute();
+  // Observer callback. Called from the function chain->read(). 
+  virtual void observer_cb(const char* metabuff, long pos, long pos64);
+  #ifdef DEBUG
+  void  obs_dump() const;
+  #endif
+
+  // Core logic of seek. Supports only SEEK_SET.
+  virtual long do_seek( long offset, long* offset64 ) = 0;
+  
+ public:
+  XIObuffer(XPROTOCOL* chain, unsigned int buf_size);
+  virtual bool init();
+  virtual ~XIObuffer();
+  virtual int open( const char* filename, XOFLAGS oflags );
+  virtual int close();
+  virtual long tell( long* offset64 = NULL );
+  virtual long seek( long offset, int origin, long* offset64 = NULL );
+  virtual long getsize( long* offset64 = NULL );
+  virtual int chsize( long size, long offset64 = 0 ) = 0;
+  virtual char* get_metainfo( int type, char* result, int size );
+  virtual void set_observer( void DLLENTRYP(callback)(const char*, long, long, void*), void* arg );
+  virtual XSFLAGS supports() const;
 };
 
-/* Allocates and initializes the buffer. */
-void buffer_initialize( XFILE* x );
-/* Cleanups the buffer. */
-void buffer_terminate ( XFILE* x );
 
-/* Reads count bytes from the file into buffer. Returns the number
-   of bytes placed in result. The return value 0 indicates an attempt
-   to read at end-of-file. A return value -1 indicates an error.     */
-int  buffer_read( XFILE* x, void* result, unsigned int count );
-
-/* Writes count bytes from source into the file. Returns the number
-   of bytes moved from the source to the file. The return value may
-   be positive but less than count. A return value of -1 indicates an
-   error */
-int  buffer_write( XFILE* x, const void* source, unsigned int count );
-
-/* Returns the current position of the file pointer. The position is
-   the number of bytes from the beginning of the file. On devices
-   incapable of seeking, the return value is -1L. */
-long buffer_tell( XFILE* x );
-
-/* Moves any file pointer to a new location that is offset bytes from
-   the origin. Returns the offset, in bytes, of the new position from
-   the beginning of the file. A return value of -1L indicates an
-   error. */
-long buffer_seek( XFILE* x, long offset, int origin );
-
-/* Returns the size of the file. A return value of -1L indicates an
-   error or an unknown size. */
-long buffer_filesize( XFILE* x );
-
-/* Lengthens or cuts off the file to the length specified by size.
-   You must open the file in a mode that permits writing. Adds null
-   characters when it lengthens the file. When cuts off the file, it
-   erases all data from the end of the shortened file to the end
-   of the original file. */
-int  buffer_truncate( XFILE* x, long size );
+inline XIObuffer::obs_entry::obs_entry(const char* metabuff, long pos, long pos64)
+: metabuff(strdup(metabuff)),
+  pos(pos),
+  pos64(pos64),
+  link(NULL)
+{}
 
 #endif /* XIO_BUFFER_H */
 

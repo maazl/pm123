@@ -26,33 +26,37 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef XIO_FILE_H
-#define XIO_FILE_H
+#ifndef XIO_SYNCBUFFER_H
+#define XIO_SYNCBUFFER_H
 
-#include "xio.h"
-#include "xio_protocol.h"
+#include "xio_buffer.h"
 
-class XIOfile : public XPROTOCOL
+class XIOsyncbuffer : public XIObuffer
 {private:
-  HFILE s_handle;
-  #ifdef XIO_SERIALIZE_DISK_IO
-  bool  s_serialized;
-  #endif
+  unsigned int data_size; // Current size of the data in the buffer.
+  unsigned int data_read; // Current read position in the data buffer.
+                          // Note that data_read can be larger that data_size
+                          // if the file was recently shrunken.
+ private:
+  virtual long do_seek( long offset, long* offset64 );
+  
+  // Load new data into the buffer. Return false on error.
+  // The function tries to load the entire buffer size, but it succeeds also
+  // with less data if the underlying stream runs into EOF.
+  // data_size will tell you what has happend. If it is less than size
+  // EOF is reached.
+  bool    fill_buffer();
 
  public:
-  /* Initializes the file protocol. */
-  XIOfile();
-  virtual ~XIOfile();
-  virtual int open( const char* filename, XOFLAGS oflags );
+  XIOsyncbuffer(XPROTOCOL* chain, unsigned int buf_size);
+  //virtual bool init();
+  //virtual ~XIOsyncbuffer();
   virtual int read( void* result, unsigned int count );
-  virtual int write( const void* source, unsigned int count );
+  // more efficient implementation
+  virtual char* gets( char* string, unsigned int n );
   virtual int close();
-  virtual long tell( long* offset64 = NULL );
-  virtual long seek( long offset, int origin, long* offset64 = NULL );
-  virtual long getsize( long* offset64 = NULL );
   virtual int chsize( long size, long offset64 = 0 );
-  virtual XSFLAGS supports() const;
 };
 
-#endif /* XIO_FILE_H */
+#endif /* XIO_SYNCBUFFER_H */
 

@@ -60,11 +60,11 @@ read_next_header( XFILE* file, unsigned long* header )
 {
   unsigned char byte;
 
-  if( !xio_fread( &byte, 1, 1, file )) {
+  if( xio_fread( &byte, 1, 1, file ) != 1 ) {
     return -1;
   }
 
-  *header = (( *header << 8 ) | byte ) & 0xFFFFFFFFUL;
+  *header = ( *header << 8 ) | byte ;
   return 0;
 }
 
@@ -828,9 +828,9 @@ seek_pos( MPG_FILE* mpg, int pos )
     pos  = max( mpg->started, pos );
   }
 
-  if( xio_fseek( mpg->file, pos, XIO_SEEK_SET ) == 0 ) {
+  if( xio_fseek( mpg->file, pos, XIO_SEEK_SET ) != -1 ) {
     if( read_synchronize( mpg, &header ) == 0 ) {
-      if( xio_fseek( mpg->file, -4, XIO_SEEK_CUR ) == 0 )
+      if( xio_fseek( mpg->file, -4, XIO_SEEK_CUR ) != -1 )
       {
         // Clears the frames buffer.
         mpg->bs.bsbuf[0].size = 0;

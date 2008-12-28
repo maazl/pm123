@@ -138,7 +138,7 @@ read_and_save_frame( DECODER_STRUCT* w )
 
   if( !w->save && *w->savename ) {
     // Opening a save stream.
-    if(!( w->save = xio_fopen( w->savename, "ab" )))
+    if(!( w->save = xio_fopen( w->savename, "abU" )))
     {
       strlcpy( errorbuf, "Could not open file to save data:\n", sizeof( errorbuf ));
       strlcat( errorbuf, w->savename, sizeof( errorbuf ));
@@ -207,7 +207,7 @@ decoder_thread( void* arg )
   char  errorbuf[1024];
   int   rc;
 
-  if(( rc = plg_open_file( w, w->filename, "rb" )) != 0 ) {
+  if(( rc = plg_open_file( w, w->filename, "rbXU" )) != 0 ) {
     if( w->error_display )
     {
       strlcpy( errorbuf, "Unable open file:\n", sizeof( errorbuf ));
@@ -640,7 +640,7 @@ decoder_fileinfo( const char* filename, DECODER_INFO* info )
     return PLUGIN_NO_PLAY;
   }
 
-  if(( rc = plg_open_file( w, filename, "rb" )) != 0 ) {
+  if(( rc = plg_open_file( w, filename, "rbU" )) != 0 ) {
     decoder_uninit( w );
     return rc == -1 ? PLUGIN_NO_PLAY : PLUGIN_NO_READ;
   }
@@ -783,7 +783,7 @@ decoder_saveinfo( const char* filename, const DECODER_INFO* info )
     return errno;
   }
 
-  if(( rc = plg_open_file( w, filename, "r+b" )) != 0 ) {
+  if(( rc = plg_open_file( w, filename, "r+bU" )) != 0 ) {
     DEBUGLOG(( "mpg123: unable open file for saving %s, rc=%d\n", filename, rc ));
     decoder_uninit( w );
     return rc;
@@ -833,7 +833,7 @@ decoder_saveinfo( const char* filename, const DECODER_INFO* info )
 
   if( rc == PLUGIN_OK ) {
     if( copy ) {
-      if(( save = xio_fopen( savename, "r+b" )) == NULL ) {
+      if(( save = xio_fopen( savename, "r+bU" )) == NULL ) {
         rc = xio_errno();
       }
     } else {
@@ -883,7 +883,7 @@ decoder_saveinfo( const char* filename, const DECODER_INFO* info )
     return rc;
   }
 
-  if(( rc = plg_open_file( w, savename, "rb" )) != 0 ) {
+  if(( rc = plg_open_file( w, savename, "rbU" )) != 0 ) {
     decoder_uninit( w );
     return rc;
   } else {
@@ -931,7 +931,7 @@ decoder_saveinfo( const char* filename, const DECODER_INFO* info )
     w = instances[i];
     if( w->resumepos != -1 ) {
       DEBUGLOG(( "mpg123: resumes currently used file: %s\n", w->filename ));
-      if(( w->mpeg.file = xio_fopen( w->mpeg.filename, "rb" )) != NULL ) {
+      if(( w->mpeg.file = xio_fopen( w->mpeg.filename, "rbXU" )) != NULL ) {
         xio_fseek( w->mpeg.file, w->resumepos + started, XIO_SEEK_SET  );
         w->mpeg.started = started;
       }

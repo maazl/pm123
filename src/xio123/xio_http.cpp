@@ -132,8 +132,7 @@ skip_space( char* p )
 
 /* Opens the file specified by filename for reading. Returns 0 if it
    successfully opens the file. A return value of -1 shows an error. */
-static int
-http_read_file( XFILE* x, const char* filename, unsigned long range )
+int XIOhttp::read_file( const char* filename, unsigned long range )
 {
   int    reqsize = 16384;
   char*  request = (char*)malloc( reqsize  );
@@ -156,6 +155,7 @@ http_read_file( XFILE* x, const char* filename, unsigned long range )
   if( !request || !url || proxy_addr == -1 ) {
     free( request );
     url_free( url );
+    errno = error = HTTP_PROTOCOL_ERROR;
     return -1;
   }
 
@@ -163,12 +163,12 @@ http_read_file( XFILE* x, const char* filename, unsigned long range )
   {
     unsigned long r_size     = 0;
     int           r_metaint  = 0;
-    int           r_supports = x->protocol->supports & ~XS_CAN_SEEK;
+    XSFLAGS       r_supports = support & ~XS_CAN_SEEK;
     unsigned long r_pos      = 0;
 
-    char  r_genre[ sizeof( x->protocol->s_genre )] = "";
-    char  r_name [ sizeof( x->protocol->s_name  )] = "";
-    char  r_title[ sizeof( x->protocol->s_title )] = "";
+    char  r_genre[ sizeof( s_genre )] = "";
+    char  r_name [ sizeof( s_name  )] = "";
+    char  r_title[ sizeof( s_title )] = "";
 
     if( !proxy_addr ) {
       get = url_string( url, XURL_STR_ENCODE | XURL_STR_REQUEST );
@@ -204,7 +204,7 @@ http_read_file( XFILE* x, const char* filename, unsigned long range )
       http_basic_auth_to( request, "Authorization", url->username, url->password, reqsize );
     }
 
-    if( x->protocol->supports & XS_CAN_SEEK ) {
+    if( support & XS_CAN_SEEK ) {
       strlcat( request, "Range: bytes=", reqsize );
       strlcat( request, ltoa( range, string, 10 ), reqsize );
       strlcat( request, "-\r\n", reqsize );
@@ -259,13 +259,13 @@ http_read_file( XFILE* x, const char* filename, unsigned long range )
       } else if( strnicmp( request, "icy-metaint:", 12 ) == 0 ) {
         r_metaint = atol( skip_space( request + 12 ));
       } else if( strnicmp( request, "x-audiocast-name:", 17 ) == 0 ) {
-        strlcpy( r_name, skip_space( request + 17 ), sizeof( x->protocol->s_name ));
+        strlcpy( r_name, skip_space( request + 17 ), sizeof( s_name ));
       } else if( strnicmp( request, "x-audiocast-genre:", 18 ) == 0 ) {
-        strlcpy( r_genre, skip_space( request + 18 ), sizeof( x->protocol->s_genre ));
+        strlcpy( r_genre, skip_space( request + 18 ), sizeof( s_genre ));
       } else if( strnicmp( request, "icy-name:", 9 ) == 0 ) {
-        strlcpy( r_name, skip_space( request + 9 ), sizeof( x->protocol->s_name ));
+        strlcpy( r_name, skip_space( request + 9 ), sizeof( s_name ));
       } else if( strnicmp( request, "icy-genre:", 10 ) == 0 ) {
-        strlcpy( r_genre, skip_space( request + 10 ), sizeof( x->protocol->s_genre ));
+        strlcpy( r_genre, skip_space( request + 10 ), sizeof( s_genre ));
       }
     }
 
@@ -279,27 +279,29 @@ http_read_file( XFILE* x, const char* filename, unsigned long range )
     if( rc == HTTP_OK     ||
         rc == HTTP_PARTIAL )
     {
-      DosRequestMutexSem( x->protocol->mtx_access, SEM_INDEFINITE_WAIT );
+      if (r_metaint)
+        r_supports &= XS_CAN_SEEK;
+    
+      Mutex::Lock lock(mtx_access);
 
-      free( x->protocol->s_location );
-      if(!( x->protocol->s_location = url_string( url, XURL_STR_FULLAUTH | XURL_STR_ENCODE ))) {
+      free( s_location );
+      if(!( s_location = url_string( url, XURL_STR_FULLAUTH | XURL_STR_ENCODE ))) {
         rc = HTTP_PROTOCOL_ERROR;
       }
 
-      x->protocol->supports  = r_supports;
-      x->protocol->s_handle  = handle;
-      x->protocol->s_pos     = r_pos;
-      x->protocol->s_size    = r_size;
-      x->protocol->s_metaint = r_metaint;
-      x->protocol->s_metapos = r_metaint;
+      support   = r_supports;
+      s_handle  = handle;
+      s_pos     = r_pos;
+      s_size    = r_size;
+      s_metaint = r_metaint;               
+      s_metapos = r_metaint;
 
-      strcpy( x->protocol->s_genre, r_genre );
-      strcpy( x->protocol->s_name,  r_name  );
-      strcpy( x->protocol->s_title, r_title );
-
-      DosReleaseMutexSem( x->protocol->mtx_access );
+      strcpy( s_genre, r_genre);
+      strcpy( s_name,  r_name );
+      strcpy( s_title, r_title);
+      
     } else {
-      x->protocol->s_handle = -1;
+      s_handle = -1;
       so_close( handle );
     }
     break;
@@ -311,13 +313,15 @@ http_read_file( XFILE* x, const char* filename, unsigned long range )
   if( rc == HTTP_OK     ||
       rc == HTTP_PARTIAL )
   {
+    error = 0;
+    eof = false;
     return 0;
   }
 
   if( redirect >= HTTP_MAX_REDIRECT ) {
-    errno = HTTPBASEERR + HTTP_TOO_MANY_REDIR;
+    errno = error = HTTPBASEERR + HTTP_TOO_MANY_REDIR;
   } else if( rc != HTTP_PROTOCOL_ERROR ) {
-    errno = HTTPBASEERR + rc;
+    errno = error = HTTPBASEERR + rc;
   }
 
   return -1;
@@ -325,49 +329,133 @@ http_read_file( XFILE* x, const char* filename, unsigned long range )
 
 /* Opens the file specified by filename. Returns 0 if it
    successfully opens the file. A return value of -1 shows an error. */
-static int
-http_open( XFILE* x, const char* filename, int oflags ) {
-  return http_read_file( x, filename, 0 );
+int XIOhttp::open( const char* filename, XOFLAGS oflags ) {
+  return read_file( filename, 0 );
+}
+
+/* Reads specified chunk of the data and notifies an attached
+   observer about streaming metadata. Returns the number of
+   bytes placed in result. The return value 0 indicates an attempt
+   to read at end-of-file. A return value -1 indicates an error. */
+int XIOhttp::read_and_notify( void* result, unsigned int count )
+{
+  int read_size;
+  int read_done;
+  int done;
+  int i;
+
+  unsigned char metahead;
+  int           metasize;
+  char*         metabuff;
+  char*         titlepos;
+  
+  DEBUGLOG2(("XIOhttp::read_and_notify(%p, %u) - %i, %i\n", result, count, s_metaint, s_metapos));
+
+  if( !s_metaint ) {
+    return so_read( s_handle, result, count );
+  }
+
+  read_done = 0;
+
+  while( read_done < count ) {
+    if( s_metapos == 0 )
+    {
+      // Time to read metadata from a input stream.
+      metahead = 0;
+      done = so_read( s_handle, &metahead, 1 );
+
+      if( done > 0 ) {
+        if( metahead ) {
+          metasize = metahead * 16;
+
+          if(( metabuff = (char*)malloc( metasize + 1 )) == NULL ) {
+            errno = error = ENOMEM;
+            return -1;
+          }
+          done = so_read( s_handle, metabuff, metasize );
+          if (done < 0) 
+          { errno = error = HTTP_PROTOCOL_ERROR;
+            free(metabuff);
+            return -1;
+          } else if(done == 0) {
+            eof = true;
+            free(metabuff);
+            return 0;
+          }
+
+          metabuff[done] = 0;
+          DEBUGLOG(("XIOhttp::read_and_notify: read meta data %s.\n", metabuff));
+          Mutex::Lock lock(mtx_access);
+
+          if(( titlepos = strstr( metabuff, "StreamTitle='" )) != NULL )
+          {
+            titlepos += 13;
+            for( i = 0; i < sizeof( s_title ) - 1 && *titlepos
+                        && ( titlepos[0] != '\'' || titlepos[1] != ';' ); i++ )
+            {
+              s_title[i] = *titlepos++;
+            }
+
+            s_title[i] = 0;
+          }
+
+          s_pos -= ( metasize + 1 );
+
+          DEBUGLOG(("XIOhttp::read_and_notify: Callback! %s, %li, 0, %p\n", metabuff, s_pos, s_arg));
+          if( s_callback )
+          {
+            s_callback( metabuff, s_pos, 0, s_arg );
+          }
+          free(metabuff);
+        }
+        s_metapos = s_metaint;
+      }
+    }
+
+    // Determines the maximum size of the data chunk for reading.
+    read_size = count - read_done;
+    read_size = min( read_size, s_metapos );
+
+    done = so_read( s_handle, (char*)result + read_done, read_size );
+
+    if (done == -1)
+    { errno = error = HTTP_PROTOCOL_ERROR;
+      return -1; 
+    } else if( done == 0 ) {
+      eof = true;
+      break;
+    }
+
+    read_done += done;
+    s_metapos -= done;
+  }
+  return read_done;
 }
 
 /* Reads count bytes from the file into buffer. Returns the number
    of bytes placed in result. The return value 0 indicates an attempt
    to read at end-of-file. A return value -1 indicates an error.     */
-static int
-http_read( XFILE* x, void* result, unsigned int count )
+int XIOhttp::read( void* result, unsigned int count )
 {
-  int done = so_read( x->protocol->s_handle, result, count );
+  int done = read_and_notify( result, count );
 
-  if( done > 0 ) {
-    DosRequestMutexSem( x->protocol->mtx_access, SEM_INDEFINITE_WAIT );
-    x->protocol->s_pos += done;
-    DosReleaseMutexSem( x->protocol->mtx_access );
-  }
+  if( done > 0 )
+    InterlockedAdd((unsigned&)s_pos, done);
 
   return done;
 }
 
-/* Writes count bytes from source into the file. Returns the number
-   of bytes moved from the source to the file. The return value may
-   be positive but less than count. A return value of -1 indicates an
-   error */
-static int
-http_write( XFILE* x, const void* source, unsigned int count )
-{
-  errno = EBADF;
-  return -1;
-}
-
 /* Closes the file. Returns 0 if it successfully closes the file. A
    return value of -1 shows an error. */
-static int
-http_close( XFILE* x )
+int XIOhttp::close()
 {
   int rc = 0;
 
-  if( x->protocol->s_handle != -1 ) {
-    if(( rc = so_close( x->protocol->s_handle )) != -1 ) {
-      x->protocol->s_handle  = -1;
+  if( s_handle != -1 ) {
+    if(( rc = so_close( s_handle )) != -1 ) {
+      s_handle  = -1;
+      s_pos     = -1;
+      s_size    = -1;
     }
   }
 
@@ -377,14 +465,17 @@ http_close( XFILE* x )
 /* Returns the current position of the file pointer. The position is
    the number of bytes from the beginning of the file. On devices
    incapable of seeking, the return value is -1L. */
-static long
-http_tell( XFILE* x )
+long XIOhttp::tell( long* offset64 )
 {
   long pos;
 
-  DosRequestMutexSem( x->protocol->mtx_access, SEM_INDEFINITE_WAIT );
-  pos = x->protocol->s_pos;
-  DosReleaseMutexSem( x->protocol->mtx_access );
+  // For now this is atomic
+  // DosRequestMutexSem( x->protocol->mtx_access, SEM_INDEFINITE_WAIT );
+  pos = s_pos;
+  // DosReleaseMutexSem( x->protocol->mtx_access );
+  // TODO: 64 bit
+  if (offset64)
+    *offset64 = 0;
   return pos;
 }
 
@@ -392,11 +483,10 @@ http_tell( XFILE* x )
    the origin. Returns the offset, in bytes, of the new position from
    the beginning of the file. A return value of -1L indicates an
    error. */
-static long
-http_seek( XFILE* x, long offset, int origin )
+long XIOhttp::seek( long offset, int origin, long* offset64 )
 {
-  if(!( x->protocol->supports & XS_CAN_SEEK )) {
-    errno = EINVAL;
+  if(!( support & XS_CAN_SEEK ) || s_metaint ) {
+    errno = error = EINVAL;
   } else {
     unsigned long range;
 
@@ -405,104 +495,104 @@ http_seek( XFILE* x, long offset, int origin )
         range = offset;
         break;
       case XIO_SEEK_CUR:
-        range = x->protocol->s_pos  + offset;
+        range = s_pos  + offset;
         break;
       case XIO_SEEK_END:
-        range = x->protocol->s_size + offset;
+        range = s_size + offset;
         break;
       default:
+        errno = EINVAL;
         return -1;
     }
 
-    if( range <= x->protocol->s_size &&
-        x->protocol->s_location      &&
-        http_close( x ) == 0 )
+    if( range <= s_size &&
+        s_location      &&
+        close() == 0 )
     {
-      if( range == x->protocol->s_size ) {
-        return x->protocol->s_pos = range;
-        return x->protocol->s_pos;
-      } else if( http_read_file( x, x->protocol->s_location, range ) == 0 ) {
-        return x->protocol->s_pos;
+      // TODO: 64 bit
+      if (offset64)
+        *offset64 = 0;
+      errno = error = 0;
+      eof   = false;
+
+      if( range == s_size ) {
+        s_pos = range;
+        error = 0;
+        eof = true;
+        return s_pos;
+      } else if( read_file( s_location, range ) == 0 ) {
+        return s_pos;
       }
     }
   }
+  error = errno;
   return -1;
 }
 
 /* Returns the size of the file. A return value of -1L indicates an
    error or an unknown size. */
-static long
-http_size( XFILE* x )
+long XIOhttp::getsize( long* offset64 )
 {
   long size;
 
-  DosRequestMutexSem( x->protocol->mtx_access, SEM_INDEFINITE_WAIT );
-  size = x->protocol->s_size;
-  DosReleaseMutexSem( x->protocol->mtx_access );
+  // For now this is atomic
+  // DosRequestMutexSem( x->protocol->mtx_access, SEM_INDEFINITE_WAIT );
+  size = s_size;
+  // DosReleaseMutexSem( x->protocol->mtx_access );
+  // TODO: 64 bit
+  if (offset64)
+    *offset64 = 0;
   return size;
 }
 
-/* Lengthens or cuts off the file to the length specified by size.
-   You must open the file in a mode that permits writing. Adds null
-   characters when it lengthens the file. When cuts off the file, it
-   erases all data from the end of the shortened file to the end
-   of the original file. */
-static int
-http_truncate( XFILE* x, long size )
+char* XIOhttp::get_metainfo( int type, char* result, int size )
 {
-  errno = EINVAL;
-  return -1;
+  Mutex::Lock lock(mtx_access);
+  switch( type ) {
+    case XIO_META_GENRE : strlcpy( result, s_genre, size ); break;
+    case XIO_META_NAME  : strlcpy( result, s_name , size ); break;
+    case XIO_META_TITLE : strlcpy( result, s_title, size ); break;
+    default:
+      *result = 0;
+  }
+  return result;
+}
+
+void XIOhttp::set_observer( void DLLENTRYP(callback)(const char* metabuff, long pos, long pos64, void* arg), void* arg )
+{ Mutex::Lock lock(mtx_access);
+  s_callback = callback;
+  s_arg = arg;
+}
+
+XSFLAGS XIOhttp::supports() const
+{ return support;
 }
 
 /* Cleanups the http protocol. */
-static void
-http_terminate( XFILE* x )
+XIOhttp::~XIOhttp()
 {
-  if( x->protocol ) {
-    if( x->protocol->mtx_access ) {
-      DosCloseMutexSem( x->protocol->mtx_access );
-    }
-    if( x->protocol->mtx_file ) {
-      DosCloseMutexSem( x->protocol->mtx_file );
-    }
-    free( x->protocol->s_location );
-    free( x->protocol );
-  }
+  free( s_location );
 }
 
 /* Initializes the http protocol. */
-XPROTOCOL*
-http_initialize( XFILE* x )
+XIOhttp::XIOhttp()
+: support(XS_CAN_READ | XS_CAN_SEEK),
+  s_handle(-1),
+  s_pos(-1),
+  s_size(-1),
+  s_metaint(0),
+  s_metapos(0),
+  s_location(NULL),
+  s_callback(NULL)
 {
-  XPROTOCOL* protocol = (XPROTOCOL*)calloc( 1, sizeof( XPROTOCOL ));
-
-  if( protocol ) {
-    if( DosCreateMutexSem( NULL, &protocol->mtx_access, 0, FALSE ) != NO_ERROR ||
-        DosCreateMutexSem( NULL, &protocol->mtx_file  , 0, FALSE ) != NO_ERROR )
-    {
-      http_terminate( x );
-      return NULL;
-    }
-
-    protocol->supports =
-      XS_CAN_READ | XS_CAN_SEEK | XS_USE_SPOS;
-
-    protocol->open   = http_open;
-    protocol->read   = http_read;
-    protocol->write  = http_write;
-    protocol->close  = http_close;
-    protocol->tell   = http_tell;
-    protocol->seek   = http_seek;
-    protocol->chsize = http_truncate;
-    protocol->size   = http_size;
-    protocol->clean  = http_terminate;
-  }
-
-  return protocol;
+  memset(s_genre, 0, sizeof s_genre);
+  memset(s_name , 0, sizeof s_name );
+  memset(s_title, 0, sizeof s_title);
+  blocksize = 4096;
 }
 
 /* Maps the error number in errnum to an error message string. */
-const char* http_strerror( int errnum )
+const char* XIOhttp::strerror( int errnum )
 {
   switch( errnum - HTTPBASEERR )
   {

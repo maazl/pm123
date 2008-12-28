@@ -392,13 +392,13 @@ id3v2_wipe_tag( XFILE* file, const char* savename )
     return -1;
   }
 
-  if(( save = xio_fopen( savename, "wb" )) == NULL ) {
+  if(( save = xio_fopen( savename, "wbU" )) == NULL ) {
     free( buffer );
     return -1;
   }
 
   // And now, copy all the data to the new file.
-  if( xio_fseek( file, old_totalsize, XIO_SEEK_SET ) == 0 ) {
+  if( xio_fseek( file, old_totalsize, XIO_SEEK_SET ) != -1 ) {
     while(( bytes = xio_fread( buffer, 1, ID3V2_FILE_BUFSIZE, file )) > 0 ) {
       if( xio_fwrite( buffer, 1, bytes, save ) != bytes ) {
         break;
@@ -547,7 +547,7 @@ id3v2_set_tag( XFILE* file, ID3V2_TAG* id3, const char* savename )
     save = file;
     new_totalsize = old_totalsize;
   } else {
-    if(( save = xio_fopen( savename, "wb" )) == NULL ) {
+    if(( save = xio_fopen( savename, "wbU" )) == NULL ) {
       free( buffer );
       return -1;
     }
@@ -574,8 +574,8 @@ id3v2_set_tag( XFILE* file, ID3V2_TAG* id3, const char* savename )
     int bytes;
 
     // And now, copy all the data to the new file.
-    if( xio_fseek( file, old_startdata, XIO_SEEK_SET ) == 0 ) {
-      if( xio_fseek( save, new_totalsize, XIO_SEEK_SET ) == 0 ) {
+    if( xio_fseek( file, old_startdata, XIO_SEEK_SET ) != -1 ) {
+      if( xio_fseek( save, new_totalsize, XIO_SEEK_SET ) != -1 ) {
         while(( bytes = xio_fread( buffer, 1, ID3V2_FILE_BUFSIZE, file )) > 0 ) {
           if( xio_fwrite( buffer, 1, bytes, save ) != bytes ) {
             break;

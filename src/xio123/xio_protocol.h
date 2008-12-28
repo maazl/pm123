@@ -29,110 +29,169 @@
 #ifndef XIO_PROTOCOL_H
 #define XIO_PROTOCOL_H
 
-#include "xio.h"
+#include <config.h>
 
-#define XO_WRITE          0x0001
-#define XO_READ           0x0002
-#define XO_CREATE         0x0004
-#define XO_APPEND         0x0008
-#define XO_TRUNCATE       0x0010
+#include <cpp/cpputil.h>
+#include <cpp/mutex.h>
 
-#define XS_CAN_READ       0x0001
-#define XS_CAN_WRITE      0x0002
-#define XS_CAN_READWRITE  0x0004
-#define XS_CAN_CREATE     0x0008
-#define XS_CAN_SEEK       0x0010
-#define XS_CAN_SEEK_FAST  0x0020
-#define XS_USE_SPOS       0x0040
-#define XS_NOT_BUFFERIZE  0x0080
+enum XOFLAGS
+{ XO_NONE          = 0x0000,
+  XO_WRITE         = 0x0001,
+  XO_READ          = 0x0002,
+  XO_CREATE        = 0x0004,
+  XO_APPEND        = 0x0008,
+  XO_TRUNCATE      = 0x0010,
+  XO_NOBUFFER      = 0x0100, // no buffering
+  XO_ASYNCBUFFER   = 0x1000, // Do asynchronuous buffering
+  XO_NOMUTEX       = 0x2000  // Do not synchronize access
+};
+FLAGSATTRIBUTE(XOFLAGS);
 
-struct XPROTOCOL {
+enum XSFLAGS
+{ XS_CAN_READ      = 0x0001,
+  XS_CAN_WRITE     = 0x0002,
+  XS_CAN_READWRITE = 0x0004,
+  XS_CAN_CREATE    = 0x0008,
+  XS_CAN_SEEK      = 0x0010,
+  XS_CAN_SEEK_FAST = 0x0020
+  //XS_NOT_BUFFERIZE = 0x0080
+};
+FLAGSATTRIBUTE(XSFLAGS);
 
-  int supports;
-  int eof;
-  int error;
+
+/* Base interface of all protocol implementations.
+   The buffer classes also derive from this protocol and act as a proxy
+   to the underlying protocol class instance. 
+
+   Class tree:
+
+   XPROTOCOL (abstract)
+    +- XIOfile
+    +- XIOreadonly (abstract)
+        +- XIOhttp
+        +- XIOftp
+        +- XIOcddb
+        +- XIObuffer (abstract)
+            +- XIOsyncbuffer
+            +- XIOasyncbuffer
+*/
+class XPROTOCOL {
+ public:
+  int  blocksize; // Recommended Blocking factor of the protocol. Filled by Protocol implementation.
+  bool eof;       // End of input stream flag.
+  int  error;     // Last error that appies to the stream state.
+
+  XPROTOCOL();
+  virtual ~XPROTOCOL() {}
 
   /* Note: All methods of the protocol are serialized by library
-     except for close, tell, seek and size. */
+     except for close, tell, getsize, get_metainfo and supports. */
 
   /* Opens the file specified by filename. Returns 0 if it
      successfully opens the file. A return value of -1 shows an error. */
-  int (*open )( XFILE* x, const char* filename, int oflags );
+  virtual int open( const char* filename, XOFLAGS oflags ) = 0;
 
   /* Reads count bytes from the file into buffer. Returns the number
      of bytes placed in result. The return value 0 indicates an attempt
-     to read at end-of-file. A return value -1 indicates an error.     */
-  int  (*read )( XFILE* x, void* result, unsigned int count );
+     to read at end-of-file. A return value -1 indicates an error.
+     Precondition: count > 0 && !error && !eof && XO_READ */
+  virtual int read( void* result, unsigned int count ) = 0;
+
+  /* Reads up to n-1 characters from the stream or stop at the first
+     new line. CR characters (\r) are discarded.
+     Precondition: n > 1 && !error && !eof && XO_READ */
+  virtual char* gets( char* string, unsigned int n );
 
   /* Writes count bytes from source into the file. Returns the number
      of bytes moved from the source to the file. The return value may
      be positive but less than count. A return value of -1 indicates an
-     error */
-  int  (*write)( XFILE* x, const void* source, unsigned int count );
+     error.
+     Precondition: count > 0 && !error && XO_WRITE */
+  virtual int write( const void* source, unsigned int count ) = 0;
+
+  /* Copies string to the output file at the current position.
+     It does not copy the null character (\0) at the end of the string.
+     Returns -1 if an error occurs; otherwise, it returns a non-negative
+     value.
+     Precondition: !error && XO_WRITE */
+  virtual int puts( const char* string );
 
   /* Closes the file. Returns 0 if it successfully closes the file. A
      return value of -1 shows an error. */
-  int  (*close)( XFILE* x );
+  virtual int close() = 0;
 
   /* Returns the current position of the file pointer. The position is
      the number of bytes from the beginning of the file. On devices
      incapable of seeking, the return value is -1L. */
-  long (*tell )( XFILE* x );
+  virtual long tell( long* offset64 = NULL ) = 0;
 
   /* Moves any file pointer to a new location that is offset bytes from
      the origin. Returns the offset, in bytes, of the new position from
      the beginning of the file. A return value of -1L indicates an
      error. */
-  long (*seek )( XFILE* x, long offset, int origin );
+  virtual long seek( long offset, int origin, long* offset64 = NULL ) = 0;
 
   /* Returns the size of the file. A return value of -1L indicates an
      error or an unknown size. */
-  long (*size )( XFILE* x );
+  virtual long getsize( long* offset64 = NULL ) = 0;
 
   /* Lengthens or cuts off the file to the length specified by size.
      You must open the file in a mode that permits writing. Adds null
      characters when it lengthens the file. When cuts off the file, it
      erases all data from the end of the shortened file to the end
      of the original file. Returns the value 0 if it successfully
-     changes the file size. A return value of -1 shows an error. */
-  int  (*chsize)( XFILE* x, long size );
+     changes the file size. A return value of -1 shows an error.
+     Precondition: XO_WRITE */
+  virtual int chsize( long size, long offset64 = 0 ) = 0;
 
-  /* Cleanups the protocol. */
-  void (*clean)( XFILE* x );
+  /* Returns a specified meta information if it is provided by associated stream.
+     The default implementation always return "".
+     Precondition: size > 0 */
+  virtual char* get_metainfo( int type, char* result, int size );
 
-  HMTX mtx_access; /* Serializes access to the protocol's data. */
-  HMTX mtx_file;   /* Serializes all i/o operations.            */
-  int  abort;      /* Abnormal termination of all operations.   */
+  /* Set an observer function that is called whenever a source updates the metadata.
+     You cannot set more than one observer.
+     The callback will only be executed while calling read(). */ 
+  virtual void set_observer( void DLLENTRYP(callback)(const char* metabuff, long pos, long pos64, void* arg), void* arg );
 
-  /* Can be used by protocol implementation. */
+  /* Return the supported properties of the current protocol */
+  virtual XSFLAGS supports() const = 0;
+};
 
-  int           s_handle;   /* Connection or file handle.                    */
-  unsigned long s_pos;      /* Current position of the stream pointer.       */
-  unsigned long s_size;     /* Size of the accociated file.                  */
-  int           s_metaint;  /* How often the metadata is sent in the stream. */
-  int           s_metapos;  /* Used by Shoutcast and Icecast protocols.      */
+/* Specialization of XPROTOCOL for ready only access */
+class XIOreadonly : public XPROTOCOL
+{
+  virtual int write( const void* source, unsigned int count );
+  virtual int chsize( long size, long offset64 = 0 );
+};
+
+/* public C-style class interface */
+typedef struct _XFILE {
+  //int scheme;  // is write only
+  XOFLAGS       oflags;
+
+  XPROTOCOL*    protocol;   /* Backend                                       */
+
+  int           serial;     /* Magic number to avoid accidential use bad handle. */
+  
+  Mutex*        mtx;        /* Serializes most i/o operations.               */
+  bool          in_use;     /* Flags instance as used in unsynchronized mode */
+
   unsigned long s_observer; /* Handle of a window that are to be notified    */
                             /* of changes in the state of the library.       */
   char*         s_metabuff; /* The library puts metadata in this buffer      */
   int           s_metasize; /* before notifying the observer.                */
-  char*         s_location; /* Saved resource location. */
 
-  /* Used by HTTP protocol implementation. */
+  /* Initializes the file structure.
+   * This does not open anything or assign a protocol. */
+  _XFILE();
+  /* Cleanups the file structure. */
+  ~_XFILE();
 
-  char  s_genre[128];
-  char  s_name [128];
-  char  s_title[128];
+  bool          Request();  /* Lock the current instance                     */
+  void          Release();  /* Release the current instance                  */
 
-  /* Used by FTP  protocol implementation. */
-
-  char  s_reply[512];
-  int   s_datahandle;
-
-  #ifdef XIO_SERIALIZE_DISK_IO
-  int   s_serialized;
-  #endif
-
-};
+} XFILE;
 
 #endif /* XIO_FILE_H */
 

@@ -97,7 +97,7 @@ id3v1_clean_tag( ID3V1_TAG* tag )
 int
 id3v1_get_tag( XFILE* x, ID3V1_TAG* tag )
 {
-  if( xio_fseek( x, -128, XIO_SEEK_END ) == 0 ) {
+  if( xio_fseek( x, -128, XIO_SEEK_END ) != -1 ) {
     if( xio_fread( tag, 1, 128, x ) == 128 ) {
       if( strncmp( tag->id, "TAG", 3 ) == 0 ) {
         return 0;
@@ -121,14 +121,14 @@ id3v1_set_tag( XFILE* x, ID3V1_TAG* tag )
   char id[3];
 
   if( tag ) {
-    if( xio_fseek( x, -128, XIO_SEEK_END ) == 0 ) {
+    if( xio_fseek( x, -128, XIO_SEEK_END ) != -1 ) {
       if( xio_fread( id, 1, 3, x ) == 3 ) {
         if( strncmp( id, "TAG", 3 ) == 0 ) {
           if( xio_fwrite((char*)tag + 3, 1, 125, x ) == 125 ) {
             return 0;
           }
         } else {
-          if( xio_fseek( x, 0, XIO_SEEK_END ) == 0 ) {
+          if( xio_fseek( x, 0, XIO_SEEK_END ) != -1 ) {
             if( xio_fwrite( tag, 1, 128, x ) == 128 ) {
               return 0;
             }
@@ -149,7 +149,7 @@ id3v1_wipe_tag( XFILE* x )
 {
   char id[3];
 
-  if( xio_fseek( x, -128, XIO_SEEK_END ) == 0 ) {
+  if( xio_fseek( x, -128, XIO_SEEK_END ) != -1 ) {
     if( xio_fread( id, 1, 3, x ) == 3 ) {
       if( strncmp( id, "TAG", 3 ) == 0 ) {
         if( xio_ftruncate( x, xio_fsize( x ) - 128 ) == 0 ) {

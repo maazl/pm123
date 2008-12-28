@@ -68,7 +68,7 @@
 #define CDDB_SITES_ERROR    401 /* No site information available.                */
 #define CDDB_SHOOK_ALREADY  402 /* Already shook hands.                          */
 #define CDDB_CORRUPT        403 /* Database entry is corrupt.                    */
-#define CDD_NO_HANDSHAKE    409 /* No handshake.                                 */
+#define CDDB_NO_HANDSHAKE   409 /* No handshake.                                 */
 #define CDDB_BAD_HANDSHAKE  431 /* Handshake not successful, closing connection. */
 #define CDDB_DENIED         432 /* No connections allowed: permission denied.    */
 #define CDDB_TOO_MANY_USERS 433 /* No connections allowed: too many users.       */
@@ -77,10 +77,30 @@
 #define CDDB_PROTO_ALREADY  502 /* Protocol level already cur_level.             */
 #define CDDB_PROTOCOL_ERROR 999
 
-/* Initializes the cddb protocol. */
-XPROTOCOL*  cddb_initialize( XFILE* x );
-/* Maps the error number in errnum to an error message string. */
-const char* cddb_strerror( int errnum );
+class XIOcddb : public XIOreadonly
+{private:
+  int           s_handle;   /* Connection handle.                            */
+  unsigned long s_pos;      /* Current position of the stream pointer.       */
+
+ private:
+  int read_reply();
+  int send_command( const char* format, ... );
+
+ public:
+  /* Initializes the cddb protocol. */
+  XIOcddb::XIOcddb();
+  virtual ~XIOcddb();
+  virtual int open( const char* filename, XOFLAGS oflags );
+  virtual int read( void* result, unsigned int count );
+  virtual int close();
+  virtual long tell( long* offset64 = NULL );
+  virtual long seek( long offset, int origin, long* offset64 = NULL );
+  virtual long getsize( long* offset64 = NULL );
+  virtual XSFLAGS supports() const;
+
+  /* Maps the error number in errnum to an error message string. */
+  static const char* strerror( int errnum );
+};
 
 #endif /* XIO_CDDB_H */
 

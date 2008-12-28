@@ -31,6 +31,8 @@
 
 #include <config.h>
 
+#include <stdlib.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -56,21 +58,17 @@ extern "C" {
 #define XIO_CAN_SEEK      1
 #define XIO_CAN_SEEK_FAST 2
 
-typedef struct _XFILE {
-
-  int scheme;
-  int oflags;
-
-  struct XPROTOCOL* protocol;
-  struct XBUFFER*   buffer;
-
-  int serial;
-
-} XFILE;
+typedef struct _XFILE XFILE;
 
 /* Open file. Returns a pointer to a file structure that can be used
    to access the open file. A NULL pointer return value indicates an
-   error. */
+   error.
+   In addition to the standard mode flags xio_open has the following
+   extensions:
+    R - random access (no buffering)
+    X - asynchronuous buffer thread
+    U - unsynchronized
+    */
 XFILE* DLLENTRY
 xio_fopen( const char* filename, const char* mode );
 
@@ -86,7 +84,7 @@ xio_fread( void* buffer, size_t size, size_t count, XFILE* x );
    to the output file. Returns the number of full items successfully
    written, which can be fewer than count if an error occurs. */
 size_t DLLENTRY
-xio_fwrite( void* buffer, size_t size, size_t count, XFILE* x );
+xio_fwrite( const void* buffer, size_t size, size_t count, XFILE* x );
 
 /* Closes a file pointed to by x. Returns 0 if it successfully closes
    the file, or -1 if any errors were detected. */
@@ -102,7 +100,7 @@ xio_ftell( XFILE* x );
    Returns 0 if it successfully moves the pointer. A nonzero return
    value indicates an error. On devices that cannot seek the return
    value is nonzero. */
-int DLLENTRY
+long DLLENTRY
 xio_fseek( XFILE* x, long int offset, int origin );
 
 /* Repositions the file pointer associated with stream to the beginning
@@ -123,7 +121,11 @@ xio_fsize( XFILE* x );
    characters when it lengthens the file. When cuts off the file, it
    erases all data from the end of the shortened file to the end
    of the original file. Returns the value 0 if it successfully
-   changes the file size. A return value of -1 shows an error. */
+   changes the file size. A return value of -1 shows an error.
+   Note that xio_ftell can end up to be beyond the end of the file.
+   That happens if you have read data and truncated the file to a
+   smaller EOF position later. 
+ */
 int DLLENTRY
 xio_ftruncate( XFILE* x, long size );
 
@@ -134,7 +136,8 @@ xio_ftruncate( XFILE* x, long size );
    end of the string. The string includes the new-line character, if
    read. If n is equal to 1, the string is empty. Returns a pointer
    to the string buffer if successful. A NULL return value indicates
-   an error or an end-of-file condition. */
+   an error or an end-of-file condition. In case of EOF string contains
+   the remaining content in the last unterminated line of the file. */
 char* DLLENTRY
 xio_fgets( char* string, int n, XFILE* x );
 

@@ -40,13 +40,14 @@
 #include "xio_url.h"
 #include "xio_socket.h"
 
+#include <debuglog.h>
+
 /* Gets and parses CDDB reply. */
-static int
-cddb_read_reply( XFILE* x )
+int XIOcddb::read_reply()
 {
   char buffer[1024];
 
-  if( !so_readline( x->protocol->s_handle, buffer, sizeof( buffer ))) {
+  if( !so_readline( s_handle, buffer, sizeof( buffer ))) {
     return CDDB_PROTOCOL_ERROR;
   }
 
@@ -60,8 +61,7 @@ cddb_read_reply( XFILE* x )
 }
 
 /* Sends a command to a CDDB server and checks response. */
-static int
-cddb_send_command( XFILE* x, const char* format, ... )
+int XIOcddb::send_command( const char* format, ... )
 {
   char buffer[1024];
   va_list args;
@@ -69,16 +69,16 @@ cddb_send_command( XFILE* x, const char* format, ... )
   va_start ( args, format );
   vsnprintf( buffer, sizeof( buffer ), format, args );
 
-  if( so_write( x->protocol->s_handle, buffer, strlen( buffer )) == -1 ) {
+  if( so_write( s_handle, buffer, strlen( buffer )) == -1 ) {
     return CDDB_PROTOCOL_ERROR;
   }
 
-  return cddb_read_reply( x );
+  return read_reply();
 }
 
 /* Returns the specified part of the CDDB request. */
 static char*
-cddb_part_of_request( const char* request,
+part_of_request( const char* request,
                       const char* part, char* result, int size )
 {
   const char* p;
@@ -113,8 +113,7 @@ cddb_part_of_request( const char* request,
 
 /* Opens the file specified by filename. Returns 0 if it
    successfully opens the file. A return value of -1 shows an error. */
-static int
-cddb_open( XFILE* x, const char* filename, int oflags )
+int XIOcddb::open( const char* filename, XOFLAGS oflags )
 {
   XURL* url = url_allocate( filename );
   int   rc  = CDDB_OK;
@@ -123,11 +122,11 @@ cddb_open( XFILE* x, const char* filename, int oflags )
 
   for(;;)
   {
-    x->protocol->s_handle = -1;
+    s_handle = -1;
 
     if( !url ) {
       rc = CDDB_PROTOCOL_ERROR;
-      return -1;
+      break;
     }
 
     if( !url->query ) {
@@ -135,31 +134,30 @@ cddb_open( XFILE* x, const char* filename, int oflags )
       break;
     }
 
-    x->protocol->s_handle =
-      so_connect( so_get_address( url->host ), url->port ? url->port : 8880 );
+    s_handle = so_connect( so_get_address( url->host ), url->port ? url->port : 8880 );
 
-    if( x->protocol->s_handle == -1 ) {
+    if( s_handle == -1 ) {
       rc = CDDB_PROTOCOL_ERROR;
       break;
     }
 
     // Receive server sign-on banner.
-    rc = cddb_read_reply( x );
+    rc = read_reply();
 
     if( rc != CDDB_OK && rc != CDDB_OK_READONLY ) {
       break;
     }
 
     // Initial client-server handshake.
-    rc = cddb_send_command( x, "cddb hello %s\n",
-                            cddb_part_of_request( url->query, "hello", buffer, sizeof( buffer )));
+    rc = send_command( "cddb hello %s\n",
+                       part_of_request( url->query, "hello", buffer, sizeof( buffer )));
     if( rc != CDDB_OK ) {
       break;
     }
 
     // Sets the server protocol level.
-    rc = cddb_send_command( x, "proto %s\n",
-                            cddb_part_of_request( url->query, "proto", buffer, sizeof( buffer )));
+    rc = send_command( "proto %s\n",
+                       part_of_request( url->query, "proto", buffer, sizeof( buffer )));
 
     if( rc != CDDB_OK           &&
         rc != CDDB_PROTO_OK     &&
@@ -170,10 +168,10 @@ cddb_open( XFILE* x, const char* filename, int oflags )
 
     // Query. It is not necessary to parse last CDDB reply because it
     // should be read by the client side.
-    cddb_part_of_request( url->query, "cmd", buffer, sizeof( buffer ));
+    part_of_request( url->query, "cmd", buffer, sizeof( buffer ));
 
-    if( so_write( x->protocol->s_handle, buffer, strlen( buffer )) == -1 ||
-        so_write( x->protocol->s_handle, "\n", 1 ) == -1 )
+    if( so_write( s_handle, buffer, strlen( buffer )) == -1 ||
+        so_write( s_handle, "\n", 1 ) == -1 )
     {
       rc = CDDB_PROTOCOL_ERROR;
     }
@@ -185,11 +183,12 @@ cddb_open( XFILE* x, const char* filename, int oflags )
   if( rc == CDDB_OK || rc == CDDB_OK_READONLY ) {
     return 0;
   } else {
-    if( x->protocol->s_handle != -1 ) {
-      so_close( x->protocol->s_handle );
+    if( s_handle != -1 ) {
+      so_close( s_handle );
+      s_handle = -1;
     }
     if( rc != CDDB_PROTOCOL_ERROR ) {
-      errno = CDDBBASEERR + rc;
+      errno = error = CDDBBASEERR + rc;
     }
     return -1;
   }
@@ -200,51 +199,45 @@ cddb_open( XFILE* x, const char* filename, int oflags )
 /* Reads count bytes from the file into buffer. Returns the number
    of bytes placed in result. The return value 0 indicates an attempt
    to read at end-of-file. A return value -1 indicates an error.     */
-static int
-cddb_read( XFILE* x, void* result, unsigned int count )
+int XIOcddb::read( void* result, unsigned int count )
 {
-  int done = so_read( x->protocol->s_handle, result, count );
+  int done = so_read( s_handle, result, count );
 
-  if( done > 0 ) {
-    DosRequestMutexSem( x->protocol->mtx_access, SEM_INDEFINITE_WAIT );
-    x->protocol->s_pos += done;
-    DosReleaseMutexSem( x->protocol->mtx_access );
+  if (done == -1)
+    error = errno;
+  else
+  { if (done == 0)
+      eof = true;
+    InterlockedAdd((unsigned&)s_pos, done);
   }
 
   return done;
 }
 
-/* Writes count bytes from source into the file. Returns the number
-   of bytes moved from the source to the file. The return value may
-   be positive but less than count. A return value of -1 indicates an
-   error */
-static int
-cddb_write( XFILE* x, const void* source, unsigned int count )
-{
-  errno = EBADF;
-  return -1;
-}
-
 /* Closes the file. Returns 0 if it successfully closes the file. A
    return value of -1 shows an error. */
-static int
-cddb_close( XFILE* x )
+int XIOcddb::close()
 {
-  so_close( x->protocol->s_handle );
-  return 0;
+  if ( s_handle != -1 )
+  { XASSERT(so_close( s_handle ), == 0);
+    s_handle = -1;
+    return 0;
+  } else
+    return -1;
 }
 
 /* Returns the current position of the file pointer. The position is
    the number of bytes from the beginning of the file. On devices
    incapable of seeking, the return value is -1L. */
-static long
-cddb_tell( XFILE* x )
+long XIOcddb::tell( long* offset64 )
 {
   long pos;
 
-  DosRequestMutexSem( x->protocol->mtx_access, SEM_INDEFINITE_WAIT );
-  pos = x->protocol->s_pos;
-  DosReleaseMutexSem( x->protocol->mtx_access );
+  // For now this is atomic
+  pos = s_pos;
+  // TODO: 64 bit
+  if (offset64)
+    *offset64 = 0;
   return pos;
 }
 
@@ -252,82 +245,41 @@ cddb_tell( XFILE* x )
    the origin. Returns the offset, in bytes, of the new position from
    the beginning of the file. A return value of -1L indicates an
    error. */
-static long
-cddb_seek( XFILE* x, long offset, int origin )
+long XIOcddb::seek( long offset, int origin, long* offset64 )
 {
   errno = EINVAL;
+  if (offset64)
+    *offset64 = -1;
   return -1;
 }
 
 /* Returns the size of the file. A return value of -1L indicates an
    error or an unknown size. */
-static long
-cddb_size( XFILE* x ) {
+long XIOcddb::getsize( long* offset64 ) {
+  if (offset64)
+    *offset64 = -1;
   return -1;
 }
 
-/* Lengthens or cuts off the file to the length specified by size.
-   You must open the file in a mode that permits writing. Adds null
-   characters when it lengthens the file. When cuts off the file, it
-   erases all data from the end of the shortened file to the end
-   of the original file. */
-static int
-cddb_truncate( XFILE* x, long size )
-{
-  errno = EINVAL;
-  return -1;
+XSFLAGS XIOcddb::supports() const
+{ return XS_CAN_READ;// | XS_NOT_BUFFERIZE;
 }
 
 /* Cleanups the cddb protocol. */
-static void
-cddb_terminate( XFILE* x )
+XIOcddb::~XIOcddb()
 {
-  if( x->protocol ) {
-    if( x->protocol->mtx_access ) {
-      DosCloseMutexSem( x->protocol->mtx_access );
-    }
-    if( x->protocol->mtx_file ) {
-      DosCloseMutexSem( x->protocol->mtx_file );
-    }
-    free( x->protocol->s_location );
-    free( x->protocol );
-  }
+  close();
 }
 
 /* Initializes the cddb protocol. */
-XPROTOCOL*
-cddb_initialize( XFILE* x )
-{
-  XPROTOCOL* protocol = (XPROTOCOL*)calloc( 1, sizeof( XPROTOCOL ));
-
-  if( protocol ) {
-    if( DosCreateMutexSem( NULL, &protocol->mtx_access, 0, FALSE ) != NO_ERROR ||
-        DosCreateMutexSem( NULL, &protocol->mtx_file  , 0, FALSE ) != NO_ERROR )
-    {
-      cddb_terminate( x );
-      return NULL;
-    }
-
-    protocol->supports =
-      XS_CAN_READ | XS_USE_SPOS | XS_NOT_BUFFERIZE;
-
-    protocol->open   = cddb_open;
-    protocol->read   = cddb_read;
-    protocol->write  = cddb_write;
-    protocol->close  = cddb_close;
-    protocol->tell   = cddb_tell;
-    protocol->seek   = cddb_seek;
-    protocol->chsize = cddb_truncate;
-    protocol->size   = cddb_size;
-    protocol->clean  = cddb_terminate;
-  }
-
-  return protocol;
+XIOcddb::XIOcddb()
+: s_handle(-1),
+  s_pos(-1)
+{ blocksize = 4096; // Sufficient for most Records
 }
 
 /* Maps the error number in errnum to an error message string. */
-const char*
-cddb_strerror( int errnum )
+const char* XIOcddb::strerror( int errnum )
 {
   switch( errnum - CDDBBASEERR )
   {
@@ -339,7 +291,7 @@ cddb_strerror( int errnum )
     case CDDB_SITES_ERROR    : return "No site information available.";
     case CDDB_SHOOK_ALREADY  : return "Already shook hands.";
     case CDDB_CORRUPT        : return "Database entry is corrupt.";
-    case CDD_NO_HANDSHAKE    : return "No handshake.";
+    case CDDB_NO_HANDSHAKE   : return "No handshake.";
     case CDDB_BAD_HANDSHAKE  : return "Handshake not successful, closing connection.";
     case CDDB_DENIED         : return "No connections allowed: permission denied.";
     case CDDB_TOO_MANY_USERS : return "No connections allowed: too many users.";

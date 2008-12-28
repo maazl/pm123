@@ -79,10 +79,50 @@
 /* Maximum number of redirects to follow. */
 #define HTTP_MAX_REDIRECT       5
 
-/* Initializes the http protocol. */
-XPROTOCOL*  http_initialize( XFILE* x );
-/* Maps the error number in errnum to an error message string. */
-const char* http_strerror( int errnum );
+class XIOhttp : public XIOreadonly
+{private:
+  XSFLAGS       support;
+  int           s_handle;   /* Connection handle.                            */
+  unsigned long s_pos;      /* Current position of the stream pointer.       */
+  unsigned long s_size;     /* Size of the accociated file.                  */
+  int           s_metaint;  /* How often the metadata is sent in the stream. */
+  int           s_metapos;  /* Used by Shoutcast and Icecast protocols.      */
+  char*         s_location; /* Saved resource location. */
+
+  char  s_genre[128];
+  char  s_name [128];
+  char  s_title[128];
+  
+  // Entries for the observer
+  void  DLLENTRYP(s_callback)(const char* metabuff, long pos, long pos64, void* arg);
+  void* s_arg;
+
+  // TODO: @@@@@ I think this is crap...
+  Mutex mtx_access; /* Serializes access to the protocol's data. */
+
+ private:
+  /* Opens the file specified by filename for reading. Returns 0 if it
+     successfully opens the file. A return value of -1 shows an error. */
+  int read_file( const char* filename, unsigned long range );
+  int read_and_notify( void* result, unsigned int count ); 
+
+ public:
+  /* Initializes the http protocol. */
+  XIOhttp();
+  virtual ~XIOhttp();
+  virtual int open( const char* filename, XOFLAGS oflags );
+  virtual int read( void* result, unsigned int count );
+  virtual int close();
+  virtual long tell( long* offset64 = NULL );
+  virtual long seek( long offset, int origin, long* offset64 = NULL );
+  virtual long getsize( long* offset64 = NULL );
+  virtual char* get_metainfo( int type, char* result, int size );
+  virtual void set_observer( void DLLENTRYP(callback)(const char*, long, long, void*), void* arg );
+  virtual XSFLAGS supports() const;
+
+  /* Maps the error number in errnum to an error message string. */
+  static const char* strerror( int errnum );
+};
 
 #endif /* XIO_HTTP_H */
 

@@ -39,6 +39,8 @@
 #include "xio_url.h"
 #include "xio_socket.h"
 
+#include <interlocked.h>
+
 static int
 is_ftp_reply( const char* string )
 {
@@ -57,36 +59,31 @@ is_ftp_info( const char* string )
 }
 
 /* Get and parse a FTP server response. */
-static int
-ftp_read_reply( XFILE* x )
+int XIOftp::read_reply()
 {
-  XPROTOCOL* p = x->protocol;
-
-  if( !so_readline( p->s_handle, p->s_reply, sizeof( p->s_reply ))) {
+  if( !so_readline( s_handle, s_reply, sizeof( s_reply ))) {
     return FTP_PROTOCOL_ERROR;
   }
 
-  if( is_ftp_info( p->s_reply )) {
-    while( !is_ftp_reply( p->s_reply )) {
-      if( !so_readline( p->s_handle, p->s_reply, sizeof( p->s_reply ))) {
+  if( is_ftp_info( s_reply )) {
+    while( !is_ftp_reply( s_reply )) {
+      if( !so_readline( s_handle, s_reply, sizeof( s_reply ))) {
         return FTP_PROTOCOL_ERROR;
       }
     }
   }
 
-  if( !is_ftp_reply( p->s_reply )) {
+  if( !is_ftp_reply( s_reply )) {
     return FTP_PROTOCOL_ERROR;
   }
 
-  return ( p->s_reply[0] - '0' ) * 100 +
-         ( p->s_reply[1] - '0' ) * 10  +
-         ( p->s_reply[2] - '0' );
+  return ( s_reply[0] - '0' ) * 100 +
+         ( s_reply[1] - '0' ) * 10  +
+         ( s_reply[2] - '0' );
 }
 
 /* Sends a command to a FTP server and checks response. */
-static int
-ftp_send_command( XFILE* x, const char* command,
-                            const char* params )
+int XIOftp::send_command( const char* command, const char* params )
 {
   int   size = strlen( command ) + strlen( params ) + 4;
   char* send = (char*)malloc( size );
@@ -101,17 +98,16 @@ ftp_send_command( XFILE* x, const char* command,
     sprintf( send, "%s\r\n", command );
   }
 
-  if( so_write( x->protocol->s_handle, send, strlen( send )) == -1 ) {
+  if( so_write( s_handle, send, strlen( send )) == -1 ) {
     return FTP_PROTOCOL_ERROR;
   }
 
   free( send );
-  return ftp_read_reply( x );
+  return read_reply();
 }
 
 /* Initiates the transfer of the file specified by filename. */
-static int
-ftp_transfer_file( XFILE* x, const char* filename, unsigned long range )
+int XIOftp::transfer_file( const char* filename, unsigned long range )
 {
   char  host[XIO_MAX_HOSTNAME];
   char* p;
@@ -122,12 +118,12 @@ ftp_transfer_file( XFILE* x, const char* filename, unsigned long range )
   unsigned char address[6];
 
   // Sends a PASV command.
-  if(( rc = ftp_send_command( x, "PASV", "" )) != FTP_PASSIVE_MODE ) {
+  if(( rc = send_command( "PASV", "" )) != FTP_PASSIVE_MODE ) {
     return rc;
   }
 
   // Finds an address and port number in a server reply.
-  for( p = x->protocol->s_reply + 3; *p && !isdigit(*p); p++ )
+  for( p = s_reply + 3; *p && !isdigit(*p); p++ )
   {}
 
   if( !*p ) {
@@ -142,17 +138,13 @@ ftp_transfer_file( XFILE* x, const char* filename, unsigned long range )
   }
 
   // Sends a REST command.
-  if( x->protocol->supports & XS_CAN_SEEK ) {
-    rc = ftp_send_command( x, "REST", ltoa( range, string, 10 ));
+  if( support & XS_CAN_SEEK ) {
+    rc = send_command( "REST", ltoa( range, string, 10 ));
     if( rc != FTP_FILE_OK && rc != FTP_OK ) {
-      DosRequestMutexSem( x->protocol->mtx_access, SEM_INDEFINITE_WAIT );
-      x->protocol->supports &= ~XS_CAN_SEEK;
-      x->protocol->s_pos = 0;
-      DosReleaseMutexSem( x->protocol->mtx_access );
+      support &= ~XS_CAN_SEEK;
+      s_pos = 0;
     } else {
-      DosRequestMutexSem( x->protocol->mtx_access, SEM_INDEFINITE_WAIT );
-      x->protocol->s_pos = range;
-      DosReleaseMutexSem( x->protocol->mtx_access );
+      s_pos = range;
     }
   }
 
@@ -161,21 +153,19 @@ ftp_transfer_file( XFILE* x, const char* filename, unsigned long range )
                                 address[1],
                                 address[2],
                                 address[3] );
-  x->protocol->s_datahandle =
-    so_connect( so_get_address( host ), address[4] * 256 + address[5] );
+  s_datahandle = so_connect( so_get_address( host ), address[4] * 256 + address[5] );
 
-  if( x->protocol->s_datahandle == -1 ) {
+  if( s_datahandle == -1 ) {
     return FTP_PROTOCOL_ERROR;
   }
 
   // Makes the server initiate the transfer.
-  return ftp_send_command( x, "RETR", filename );
+  return send_command( "RETR", filename );
 }
 
 /* Opens the file specified by filename. Returns 0 if it
    successfully opens the file. A return value of -1 shows an error. */
-static int
-ftp_open( XFILE* x, const char* filename, int oflags )
+int XIOftp::open( const char* filename, XOFLAGS oflags )
 {
   XURL* url = url_allocate( filename );
   char* get = url_string( url, XURL_STR_REQUEST );
@@ -183,24 +173,23 @@ ftp_open( XFILE* x, const char* filename, int oflags )
 
   for(;;)
   {
-    x->protocol->s_handle = -1;
-    x->protocol->s_datahandle = -1;
+    s_handle = -1;
+    s_datahandle = -1;
 
     if( !url || !get ) {
       rc = FTP_PROTOCOL_ERROR;
-      return -1;
+      break;
     }
 
-    x->protocol->s_handle =
-      so_connect( so_get_address( url->host ), url->port ? url->port : 21 );
+    s_handle = so_connect( so_get_address( url->host ), url->port ? url->port : 21 );
 
-    if( x->protocol->s_handle == -1 ) {
+    if( s_handle == -1 ) {
       rc = FTP_PROTOCOL_ERROR;
       break;
     }
 
     // Expects welcome message.
-    if(( rc = ftp_read_reply( x )) != FTP_SERVICE_READY ) {
+    if(( rc = read_reply()) != FTP_SERVICE_READY ) {
       break;
     }
 
@@ -213,10 +202,10 @@ ftp_open( XFILE* x, const char* filename, int oflags )
 
     if( url->username )
     {
-      rc = ftp_send_command( x, "USER", url->username );
+      rc = send_command( "USER", url->username );
 
       if( url->password && rc == FTP_NEED_PASSWORD ) {
-        rc = ftp_send_command( x, "PASS", url->password );
+        rc = send_command( "PASS", url->password );
       }
       if( rc != FTP_LOGGED_IN ) {
         break;
@@ -224,21 +213,21 @@ ftp_open( XFILE* x, const char* filename, int oflags )
     }
 
     // Sets a transfer mode to the binary mode.
-    if(( rc = ftp_send_command( x, "TYPE", "I" )) != FTP_OK ) {
+    if(( rc = send_command( "TYPE", "I" )) != FTP_OK ) {
       break;
     }
 
     // Finds a file size.
-    if(( rc = ftp_send_command( x, "SIZE", get )) == FTP_FILE_STATUS ) {
-      x->protocol->s_size = strtoul( x->protocol->s_reply + 3, NULL, 10 );
+    if(( rc = send_command( "SIZE", get )) == FTP_FILE_STATUS ) {
+      s_size = strtoul( s_reply + 3, NULL, 10 );
     }
 
     // Makes the server initiate the transfer.
-    if(( rc = ftp_transfer_file( x, get, 0 )) != FTP_OPEN_DATA_CONNECTION ) {
+    if(( rc = transfer_file( get, 0 )) != FTP_OPEN_DATA_CONNECTION ) {
       break;
     }
 
-    x->protocol->s_location = strdup( get );
+    s_location = strdup( get );
     rc = FTP_OK;
     break;
   }
@@ -249,14 +238,16 @@ ftp_open( XFILE* x, const char* filename, int oflags )
   if( rc == FTP_OK ) {
     return 0;
   } else {
-    if( x->protocol->s_datahandle != -1 ) {
-      so_close( x->protocol->s_datahandle );
+    if( s_datahandle != -1 ) {
+      so_close( s_datahandle );
+      s_datahandle = -1;
     }
-    if( x->protocol->s_handle != -1 ) {
-      so_close( x->protocol->s_handle );
+    if( s_handle != -1 ) {
+      so_close( s_handle );
+      s_handle = -1;
     }
     if( rc != FTP_PROTOCOL_ERROR ) {
-      errno = FTPBASEERR + rc;
+      errno = error = FTPBASEERR + rc;
     }
     return -1;
   }
@@ -265,54 +256,55 @@ ftp_open( XFILE* x, const char* filename, int oflags )
 /* Reads count bytes from the file into buffer. Returns the number
    of bytes placed in result. The return value 0 indicates an attempt
    to read at end-of-file. A return value -1 indicates an error.     */
-static int
-ftp_read( XFILE* x, void* result, unsigned int count )
+int XIOftp::read( void* result, unsigned int count )
 {
-  int done = so_read( x->protocol->s_datahandle, result, count );
-
-  if( done > 0 ) {
-    DosRequestMutexSem( x->protocol->mtx_access, SEM_INDEFINITE_WAIT );
-    x->protocol->s_pos += done;
-    DosReleaseMutexSem( x->protocol->mtx_access );
+  int done = so_read( s_datahandle, result, count );
+  
+  if (done == -1)
+    error = errno;
+  else
+  { if (done == 0)
+      eof = true;
+    InterlockedAdd((unsigned&)s_pos, done);
   }
 
   return done;
 }
 
-/* Writes count bytes from source into the file. Returns the number
-   of bytes moved from the source to the file. The return value may
-   be positive but less than count. A return value of -1 indicates an
-   error */
-static int
-ftp_write( XFILE* x, const void* source, unsigned int count )
-{
-  errno = EBADF;
-  return -1;
-}
-
 /* Closes the file. Returns 0 if it successfully closes the file. A
    return value of -1 shows an error. */
-static int
-ftp_close( XFILE* x )
+int XIOftp::close()
 {
-  so_close( x->protocol->s_datahandle );
-  ftp_read_reply( x );
-  ftp_send_command( x, "QUIT", "" );
-  so_close( x->protocol->s_handle );
+  if ( s_datahandle != -1 )
+  {
+    XASSERT( so_close( s_datahandle ), == 0 );
+    s_datahandle = -1;
+  }
+
+  if ( s_handle != -1 )
+  {
+    read_reply();
+    send_command( "QUIT", "" );
+    XASSERT( so_close( s_handle ), == 0 );
+    s_handle = -1;
+  }
+  s_pos    = -1;
+  s_size   = -1;
   return 0;
 }
 
 /* Returns the current position of the file pointer. The position is
    the number of bytes from the beginning of the file. On devices
    incapable of seeking, the return value is -1L. */
-static long
-ftp_tell( XFILE* x )
+long XIOftp::tell( long* offset64 )
 {
   long pos;
 
-  DosRequestMutexSem( x->protocol->mtx_access, SEM_INDEFINITE_WAIT );
-  pos = x->protocol->s_pos;
-  DosReleaseMutexSem( x->protocol->mtx_access );
+  // For now this is atomic
+  pos = s_pos;
+  // TODO: 64 bit
+  if (offset64)
+    *offset64 = 0;
   return pos;
 }
 
@@ -320,10 +312,9 @@ ftp_tell( XFILE* x )
    the origin. Returns the offset, in bytes, of the new position from
    the beginning of the file. A return value of -1L indicates an
    error. */
-static long
-ftp_seek( XFILE* x, long offset, int origin )
+long XIOftp::seek( long offset, int origin, long* offset64 )
 {
-  if(!( x->protocol->supports & XS_CAN_SEEK )) {
+  if(!( support & XS_CAN_SEEK )) {
     errno = EINVAL;
   } else {
     unsigned long range;
@@ -333,102 +324,73 @@ ftp_seek( XFILE* x, long offset, int origin )
         range = offset;
         break;
       case XIO_SEEK_CUR:
-        range = x->protocol->s_pos  + offset;
+        range = s_pos  + offset;
         break;
       case XIO_SEEK_END:
-        range = x->protocol->s_size + offset;
+        range = s_size + offset;
         break;
       default:
+        errno = EINVAL;
         return -1;
     }
 
-    so_close( x->protocol->s_datahandle );
-    ftp_read_reply( x );
+    so_close( s_datahandle );
+    read_reply();
 
-    if( x->protocol->s_location ) {
-      if( ftp_transfer_file( x, x->protocol->s_location, range ) == FTP_OPEN_DATA_CONNECTION ) {
+    if( s_location ) {
+      if( transfer_file( s_location, range ) == FTP_OPEN_DATA_CONNECTION ) {
+        // TODO: 64 bit
+        if (offset64)
+          *offset64 = 0;
+        errno = error = 0;
+        eof   = false;
         return range;
       }
     }
   }
+  error = errno;
   return -1;
 }
 
 /* Returns the size of the file. A return value of -1L indicates an
    error or an unknown size. */
-static long
-ftp_size( XFILE* x )
+long XIOftp::getsize( long* offset64 )
 {
   long size;
 
-  DosRequestMutexSem( x->protocol->mtx_access, SEM_INDEFINITE_WAIT );
-  size = x->protocol->s_size;
-  DosReleaseMutexSem( x->protocol->mtx_access );
+  // For now this is atomic
+  size = s_size;
+  // TODO: 64 bit
+  if (offset64)
+    *offset64 = 0;
   return size;
 }
 
-/* Lengthens or cuts off the file to the length specified by size.
-   You must open the file in a mode that permits writing. Adds null
-   characters when it lengthens the file. When cuts off the file, it
-   erases all data from the end of the shortened file to the end
-   of the original file. */
-static int
-ftp_truncate( XFILE* x, long size )
-{
-  errno = EINVAL;
-  return -1;
+XSFLAGS XIOftp::supports() const
+{ return support;
 }
 
 /* Cleanups the ftp protocol. */
-static void
-ftp_terminate( XFILE* x )
+XIOftp::~XIOftp()
 {
-  if( x->protocol ) {
-    if( x->protocol->mtx_access ) {
-      DosCloseMutexSem( x->protocol->mtx_access );
-    }
-    if( x->protocol->mtx_file ) {
-      DosCloseMutexSem( x->protocol->mtx_file );
-    }
-    free( x->protocol->s_location );
-    free( x->protocol );
-  }
+  free( s_location );
 }
 
 /* Initializes the ftp protocol. */
-XPROTOCOL*
-ftp_initialize( XFILE* x )
+XIOftp::XIOftp()
+: support(XS_CAN_READ | XS_CAN_SEEK),
+  s_handle(-1),
+  s_pos(-1),
+  s_size(-1),
+  s_location(NULL),
+  s_datahandle(-1)
 {
-  XPROTOCOL* protocol = (XPROTOCOL*)calloc( 1, sizeof( XPROTOCOL ));
-
-  if( protocol ) {
-    if( DosCreateMutexSem( NULL, &protocol->mtx_access, 0, FALSE ) != NO_ERROR ||
-        DosCreateMutexSem( NULL, &protocol->mtx_file  , 0, FALSE ) != NO_ERROR )
-    {
-      ftp_terminate( x );
-      return NULL;
-    }
-
-    protocol->supports =
-      XS_CAN_READ | XS_CAN_SEEK | XS_USE_SPOS;
-
-    protocol->open   = ftp_open;
-    protocol->read   = ftp_read;
-    protocol->write  = ftp_write;
-    protocol->close  = ftp_close;
-    protocol->tell   = ftp_tell;
-    protocol->seek   = ftp_seek;
-    protocol->chsize = ftp_truncate;
-    protocol->size   = ftp_size;
-    protocol->clean  = ftp_terminate;
-  }
-
-  return protocol;
+  memset(s_reply, 0, sizeof s_reply);
+  blocksize = 8192;
 }
 
 /* Maps the error number in errnum to an error message string. */
-const char*
-ftp_strerror( int errnum )
+const char* XIOftp::strerror( int errnum )
 {
   switch( errnum - FTPBASEERR )
   {

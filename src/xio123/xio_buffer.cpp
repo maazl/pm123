@@ -32,500 +32,224 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <memory.h>
-#include <process.h>
 #include <errno.h>
+#include <string.h>
 
 #include <utilfct.h>
 #include <debuglog.h>
 
 #include "xio_buffer.h"
 #include "xio_protocol.h"
+#include "xio.h"
 
-#define  BUFFER_IS_HUNGRY   30 // %
-#define  BUFFER_IS_SATED    50 // %
-
-/* Advances a buffer pointer. */
-inline char*
-advance( const XBUFFER* buffer, char* begin, int distance )
-{
-  if( distance < buffer->tail - begin ) {
-    return begin + distance;
-  } else {
-    return begin + distance - buffer->size;
-  }
-}
-
-/* Returns a distance between two buffer pointers. */
-inline int
-distance( const XBUFFER* buffer, char* begin, char* end )
-{
-  if( end >= begin ) {
-    return end - begin;
-  } else {
-    return end - begin + buffer->size;
-  }
-}
-
-/* Boosts a priority of the read-ahead thread. */
-static void
-buffer_boost_priority( XBUFFER* buffer )
-{
-  if( !buffer->boosted ) {
-    DEBUGLOG(( "xio123: boosts priority of the read-ahead thread %d (buffer is %d bytes).\n", buffer->tid, buffer->data_rest ));
-    DosSetPriority( PRTYS_THREAD, PRTYC_TIMECRITICAL, 0, buffer->tid );
-    buffer->boosted = 1;
-  }
-}
-
-/* Normalizes a priority of the read-ahead thread. */
-static void
-buffer_normal_priority( XBUFFER* buffer )
-{
-  if( buffer->boosted ) {
-    DEBUGLOG(( "xio123: normalizes priority of the read-ahead thread %d (buffer is %d bytes).\n", buffer->tid, buffer->data_rest ));
-    DosSetPriority( PRTYS_THREAD, PRTYC_REGULAR, 0, buffer->tid );
-    buffer->boosted = 0;
-  }
-}
-
-/* Read-ahead thread. */
-static void TFNENTRY
-buffer_read_ahead( void* arg )
-{
-  XFILE*   x      = (XFILE*)arg;
-  XBUFFER* buffer = x->buffer;
-  ULONG    post_count;
-  int      read_size;
-  int      read_done;
-
-  while( DosWaitEventSem( buffer->evt_read_data, SEM_INDEFINITE_WAIT ) == NO_ERROR && !buffer->end )
-  {
-    DosRequestMutexSem( buffer->mtx_file,   SEM_INDEFINITE_WAIT );
-    DosRequestMutexSem( buffer->mtx_access, SEM_INDEFINITE_WAIT );
-
-    if( buffer->free )
-    {
-      // Determines the maximum possible size of the continuous data chunk
-      // for reading. The maximum size of a chunk is 4 kilobytes.
-      read_size = distance( buffer, buffer->data_tail, buffer->tail );
-      read_size = min( read_size, buffer->free );
-      read_size = min( read_size, 16384 );
-
-      DosReleaseMutexSem( buffer->mtx_access );
-      // It is possible to use the data_tail pointer without request of
-      // the mutex because only this thread can change it.
-      read_done = x->protocol->read( x, buffer->data_tail, read_size );
-      DosRequestMutexSem( buffer->mtx_access, SEM_INDEFINITE_WAIT );
-
-      if( read_done >= 0 ) {
-        buffer->data_size += read_done;
-        buffer->free      -= read_done;
-        buffer->data_rest += read_done;
-        buffer->data_tail  = advance( buffer, buffer->data_tail, read_done );
-
-        if( read_done < read_size ) {
-          buffer->eof = 1;
-        }
-      } else {
-        buffer->error = errno;
-      }
-    }
-
-    DosPostEventSem( buffer->evt_have_data );
-
-    if(( !buffer->free || buffer->error || buffer->eof ) && !buffer->end ) {
-      // Buffer is filled up.
-      DosResetEventSem( buffer->evt_read_data, &post_count );
-    }
-
-
-    if( buffer->boosted && ( buffer->data_rest >= buffer->size * BUFFER_IS_SATED / 100 ||
-                             buffer->error || buffer->eof ))
-    {
-      // If buffer is sated, normalizes of the priority of the read-ahead thread.
-      buffer_normal_priority( buffer );
-    }
-
-    DosReleaseMutexSem( buffer->mtx_access );
-    DosReleaseMutexSem( buffer->mtx_file   );
-  }
-
-  _endthread();
-}
-
-/* Resets the buffer. */
-static void
-buffer_reset( XFILE* x )
-{
-  XBUFFER* buffer = x->buffer;
-
-  buffer->tail       = buffer->head + buffer->size;
-  buffer->free       = buffer->size;
-  buffer->data_head  = buffer->head;
-  buffer->data_read  = buffer->head;
-  buffer->data_tail  = buffer->head;
-  buffer->data_size  = 0;
-  buffer->data_rest  = 0;
-  buffer->data_keep  = buffer->size / 5;
-  buffer->file_pos   = x->protocol->tell( x );
-  buffer->eof        = 0;
-  buffer->error      = 0;
-}
 
 /* Allocates and initializes the buffer. */
-void
-buffer_initialize( XFILE* x )
+XIObuffer::XIObuffer(XPROTOCOL* chain, unsigned int buf_size)
+: chain(chain),
+  head(new char[buf_size]),
+  size(buf_size),
+  read_pos(0),
+  s_callback(NULL),
+  s_obs_head(NULL),
+  s_obs_tail(NULL)
+{ *s_title = 0;
+  blocksize = 4096; // Probably not needed by anyone
+}
+
+bool XIObuffer::init()
 {
-  XBUFFER* buffer;
-  int size = xio_buffer_size();
-
-  if( !size || ( x->oflags & XO_WRITE ) || ( x->protocol->supports & XS_NOT_BUFFERIZE )) {
-    x->buffer = NULL;
-    return;
-  }
-
-  buffer = (XBUFFER*)calloc( 1, sizeof( XBUFFER ));
-  if( !buffer ) {
-    x->buffer = NULL;
-    return;
-  }
-
-  x->buffer = buffer;
-  buffer->tid = -1;
-
-  for(;;)
-  {
-    buffer->head = (char*)malloc( size );
-
-    DosCreateMutexSem( NULL, &buffer->mtx_file,      0, FALSE );
-    DosCreateMutexSem( NULL, &buffer->mtx_access,    0, FALSE );
-    DosCreateEventSem( NULL, &buffer->evt_have_data, 0, FALSE );
-    DosCreateEventSem( NULL, &buffer->evt_read_data, 0, FALSE );
-
-    if( !buffer->head          ||
-        !buffer->mtx_access    ||
-        !buffer->mtx_file      ||
-        !buffer->evt_read_data ||
-        !buffer->evt_have_data )
-    {
-      break;
-    }
-
-    buffer->size = size;
-    buffer_reset( x );
-
-    if( xio_buffer_wait())
-    {
-      int prefill = buffer->size * xio_buffer_fill() / 100;
-
-      if( prefill > 0 ) {
-        buffer->data_size = x->protocol->read( x, buffer->head, prefill );
-
-        if( buffer->data_size < 0 ) {
-          break;
-        }
-        if( buffer->data_size < prefill ) {
-          buffer->eof = 1;
-        }
-
-        buffer->data_rest = buffer->data_size;
-        buffer->data_tail = advance( buffer, buffer->data_head, buffer->data_size );
-        buffer->free      = buffer->size - buffer->data_size;
-      }
-    }
-
-    if(( buffer->tid = _beginthread( buffer_read_ahead, NULL, 65535, x )) == -1 ) {
-      break;
-    }
-
-    if( buffer->free && !buffer->eof ) {
-      // If buffer is not filled up, posts a notify to the read-ahead thread.
-      DosPostEventSem( buffer->evt_read_data );
-    }
-    if( buffer->data_size == 0 ) {
-      // If buffer is empty, boosts of the priority of the read-ahead thread.
-      buffer_boost_priority( buffer );
-    }
-
-    return;
-  }
-
-  x->buffer = NULL;
-  buffer_terminate( x );
+  read_pos = chain->tell();
+  chain->set_observer(buffer_observer_stub, this);
+  return true;
 }
 
 /* Cleanups the buffer. */
-void buffer_terminate( XFILE* x )
+XIObuffer::~XIObuffer()
 {
-  XBUFFER* buffer = x->buffer;
+  delete chain;
+  chain = NULL;
 
-  if( buffer )
-  {
-    // If the thread is started, set request about its termination.
-    if( buffer->tid != -1 ) {
-      DosRequestMutexSem( buffer->mtx_access, SEM_INDEFINITE_WAIT );
-      buffer->end = 1;
-      DosPostEventSem( buffer->evt_read_data );
-      DosReleaseMutexSem( buffer->mtx_access );
-      DosWaitThread((PULONG)&buffer->tid, DCWW_WAIT );
-    }
-
-    // Cleanups.
-    if( buffer->mtx_access ) {
-      DosCloseMutexSem( buffer->mtx_access );
-    }
-    if( buffer->mtx_file ) {
-      DosCloseMutexSem( buffer->mtx_file );
-    }
-    if( buffer->evt_read_data ) {
-      DosCloseEventSem( buffer->evt_read_data );
-    }
-    if( buffer->evt_have_data ) {
-      DosCloseEventSem( buffer->evt_have_data );
-    }
-    if( buffer->head ) {
-      free( buffer->head );
-    }
-    if( x->protocol ) {
-      x->protocol->clean( x );
-    }
-    free( buffer );
-    free( x );
-  }
+  obs_clear();
+  
+  delete head;
+  head = NULL;
 }
 
-/* Reads count bytes from the file into buffer. Returns the number
-   of bytes placed in result. The return value 0 indicates an attempt
-   to read at end-of-file. A return value -1 indicates an error. */
-int buffer_read( XFILE* x, void* result, unsigned int count )
+/* open must be called BEFORE the buffer is set up, so any call to XIObuffer::open is an error! */
+int XIObuffer::open( const char* filename, XOFLAGS oflags )
 {
-  int   obsolete;
-  ULONG post_count;
-  int   read_done;
-  int   read_size;
-
-  XBUFFER* buffer = x->buffer;
-
-  if( !buffer ) {
-    return x->protocol->read( x, result, count );
-  }
-
-  for( read_done = 0; read_done < count; )
-  {
-    DosRequestMutexSem( buffer->mtx_access, SEM_INDEFINITE_WAIT );
-
-    // Determines the maximum possible size of the continuous data
-    // chunk for reading.
-    read_size = distance( buffer, buffer->data_read, buffer->tail );
-    read_size = min( read_size, buffer->data_rest );
-    read_size = min( read_size, count - read_done );
-
-    if( read_size )
-    {
-      // Copy a next chunk of data in the result buffer.
-      memcpy( (char*)result + read_done, buffer->data_read, read_size );
-
-      buffer->data_read  = advance( buffer, buffer->data_read, read_size );
-      buffer->data_rest -= read_size;
-      read_done += read_size;
-
-      obsolete = buffer->data_size - buffer->data_rest - buffer->data_keep;
-
-      if( obsolete > 128 ) {
-        // If there is too much obsolete data then move a head of
-        // the data pool.
-        buffer->data_head  = advance( buffer, buffer->data_head, obsolete );
-        buffer->file_pos  += obsolete;
-        buffer->data_size -= obsolete;
-        buffer->free      += obsolete;
-
-        DosPostEventSem( buffer->evt_read_data );
-      }
-
-      if( !buffer->boosted &&  buffer->data_rest < buffer->size * BUFFER_IS_HUNGRY / 100
-                           && !buffer->error && !buffer->eof )
-      {
-        // If buffer is hungry, boosts of the priority of the read-ahead thread.
-        buffer_boost_priority( buffer );
-      }
-
-      DosReleaseMutexSem( buffer->mtx_access );
-    }
-    else
-    {
-      if( buffer->eof   ) {
-        DosReleaseMutexSem( buffer->mtx_access );
-        return read_done;
-      }
-      if( buffer->error ) {
-        errno = buffer->error;
-        DosReleaseMutexSem( buffer->mtx_access );
-        return -1;
-      }
-
-      // There is no error and there is no end of a file.
-      // It is necessary to wait a next portion of data.
-      DosResetEventSem( buffer->evt_have_data, &post_count );
-      DosPostEventSem ( buffer->evt_read_data );
-
-      // Boosts of the priority of the read-ahead thread.
-      buffer_boost_priority( buffer );
-      DosReleaseMutexSem( buffer->mtx_access );
-
-      // Wait a next portion of data.
-      DosWaitEventSem( buffer->evt_have_data, SEM_INDEFINITE_WAIT );
-    }
-  }
-
-  return read_done;
+  DEBUGLOG(("xio:XIObuffer::open - invalid call!!!\n"));
+  errno = error = EINVAL;
+  return -1;
 }
 
-/* Writes count bytes from source into the file. Returns the number
-   of bytes moved from the source to the file. The return value may
-   be positive but less than count. A return value of -1 indicates an
-   error */
-int
-buffer_write( XFILE* x, const void* source, unsigned int count )
+/* Closes the file. Returns 0 if it successfully closes the file. A
+   return value of -1 shows an error. */
+int XIObuffer::close()
 {
-  if( x->buffer ) {
-    errno = EINVAL;
-    return -1;
-  } else {
-    return x->protocol->write( x, source, count );
+  // The buffer is read-only, so we can safely forward any call to close without flushing the buffer.
+  int ret = chain->close();
+  if (ret == 0) 
+  { obs_clear();
+    read_pos = -1;
   }
+  return ret;
 }
 
 /* Returns the current position of the file pointer. The position is
    the number of bytes from the beginning of the file. On devices
    incapable of seeking, the return value is -1L. */
-long
-buffer_tell( XFILE* x )
+long XIObuffer::tell( long* offset64 )
 {
-  if( x->buffer )
-  {
-    long pos;
-
-    DosRequestMutexSem( x->buffer->mtx_access, SEM_INDEFINITE_WAIT );
-    pos = x->buffer->file_pos + x->buffer->data_size
-                              - x->buffer->data_rest;
-    DosReleaseMutexSem( x->buffer->mtx_access );
-    return pos;
-  } else {
-    return x->protocol->tell( x );
-  }
+  // TODO: 64 bit
+  if (offset64)
+    *offset64 = 0;
+  return read_pos;
 }
 
 /* Returns the size of the file. A return value of -1L indicates an
    error or an unknown size. */
-long
-buffer_filesize( XFILE* x ) {
-  return x->protocol->size( x );
+long XIObuffer::getsize( long* offset64 ) {
+  return chain->getsize(offset64);
 }
 
 /* Moves any file pointer to a new location that is offset bytes from
    the origin. Returns the offset, in bytes, of the new position from
    the beginning of the file. A return value of -1L indicates an
    error. */
-long
-buffer_seek( XFILE* x, long offset, int origin )
+long XIObuffer::seek( long offset, int origin, long* offset64 )
 {
-  XBUFFER* buffer = x->buffer;
   long result;
 
-  if( !buffer ) {
-    return x->protocol->seek( x, offset, origin );
-  }
-
-  DosRequestMutexSem( buffer->mtx_access, SEM_INDEFINITE_WAIT );
-
+  // TODO: 64 bit!!!
   switch( origin ) {
     case XIO_SEEK_SET:
       result = offset;
       break;
     case XIO_SEEK_CUR:
-      result = buffer_tell( x ) + offset;
+      result = read_pos + offset;
       break;
     case XIO_SEEK_END:
-      result = buffer_filesize( x ) + offset;
-      break;
+      result = getsize();
+      if (result != -1L)
+      { result += offset;
+        break;
+      }
     default:
-      DosReleaseMutexSem( buffer->mtx_access );
+      errno = EINVAL;
       return -1;
   }
 
-  if( result >= buffer->file_pos &&
-      result <= buffer->file_pos + buffer->data_size )
-  {
-    int obsolete;
-    int moveto = result - buffer->file_pos;
-
-    buffer->data_read = advance( buffer, buffer->data_head, moveto );
-    buffer->data_rest = buffer->data_size - moveto;
-    obsolete = moveto - buffer->data_keep;
-
-    if( obsolete > 128 ) {
-      // If there is too much obsolete data then move a head of
-      // the data pool.
-      buffer->data_head  = advance( buffer, buffer->data_head, obsolete );
-      buffer->file_pos  += obsolete;
-      buffer->data_size -= obsolete;
-      buffer->free      += obsolete;
-
-      DosPostEventSem( buffer->evt_read_data );
-    }
-  } else {
-    DosReleaseMutexSem( buffer->mtx_access );
-    DosRequestMutexSem( buffer->mtx_file,   SEM_INDEFINITE_WAIT );
-    DosRequestMutexSem( buffer->mtx_access, SEM_INDEFINITE_WAIT );
-
-    result = x->protocol->seek( x, result, XIO_SEEK_SET );
-
-    if( result >= 0 ) {
-      buffer->file_pos  = result;
-      buffer->data_head = buffer->head;
-      buffer->data_tail = buffer->head;
-      buffer->data_read = buffer->head;
-      buffer->data_size = 0;
-      buffer->data_rest = 0;
-      buffer->free      = buffer->size;
-      buffer->eof       = 0;
-      buffer->error     = 0;
-
-      DosPostEventSem( buffer->evt_read_data );
-
-      // Boosts of the priority of the read-ahead thread.
-      buffer_boost_priority( buffer );
-    }
-    DosReleaseMutexSem( buffer->mtx_file   );
-  }
-
-  DosReleaseMutexSem( buffer->mtx_access );
-  return result;
+  return do_seek( result, offset64 );
 }
 
 /* Lengthens or cuts off the file to the length specified by size.
    You must open the file in a mode that permits writing. Adds null
    characters when it lengthens the file. When cuts off the file, it
    erases all data from the end of the shortened file to the end
-   of the original file. */
-int
-buffer_truncate( XFILE* x, long size )
+   of the original file. Returns the value 0 if it successfully
+   changes the file size. A return value of -1 shows an error.
+   Precondition: XO_WRITE */
+int XIObuffer::chsize( long size, long size64 )
 {
-  XBUFFER* buffer = x->buffer;
-  int rc;
+  return chain->chsize( size, size64 );
+}
 
-  if( !buffer ) {
-    return x->protocol->chsize( x, size );
+char* XIObuffer::get_metainfo( int type, char* result, int size )
+{ if ( type == XIO_META_TITLE && *s_title )
+  { CritSect cs;
+    if (s_title)
+      strlcpy( result, s_title, size );
+    else
+      *result = 0;
+    return result;
+  } else
+    return chain->get_metainfo( type, result, size );
+}
+
+void buffer_observer_stub(const char* metabuff, long pos, long pos64, void* arg)
+{ ((XIObuffer*)arg)->observer_cb(metabuff, pos, pos64);
+}
+
+void XIObuffer::obs_clear()
+{ DEBUGLOG(("XIObuffer::obs_clear()\n"));
+  while (s_obs_head)
+  { obs_entry* entry = s_obs_head;
+    s_obs_head = entry->link;
+    delete entry;
   }
+  s_obs_tail = NULL;
+}
 
-  DosRequestMutexSem( buffer->mtx_file,   SEM_INDEFINITE_WAIT );
-  DosRequestMutexSem( buffer->mtx_access, SEM_INDEFINITE_WAIT );
+void XIObuffer::obs_discard()
+{ DEBUGLOG2(("XIObuffer::obs_discard()\n"));
+  while (s_obs_head)
+  { obs_entry* entry = s_obs_head;
+    if (entry->pos >= read_pos)
+      return;
+    s_obs_head = entry->link;
+    delete entry;
+  }
+  s_obs_tail = NULL;
+}
 
-  rc = x->protocol->chsize( x, size );
-  buffer_reset( x );
+void XIObuffer::obs_execute()
+{ DEBUGLOG2(("XIObuffer::obs_execute() - %p, %p\n", s_callback, s_arg));
+  while (s_obs_head)
+  { obs_entry* entry = s_obs_head;
+    if (entry->pos >= read_pos)
+      return;
+    s_obs_head = entry->link;
+    if (s_callback)
+    { // set new title
+      if( entry->metabuff ) {
+        // TODO: Well, it should be up to xio_http to decode Streaming metadata.
+        const char* titlepos = strstr( entry->metabuff, "StreamTitle='" );
+        if ( titlepos )
+        { titlepos += 13;
+          unsigned i;
+          for( i = 0; i < sizeof( s_title ) - 1 && *titlepos
+                      && ( titlepos[0] != '\'' || titlepos[1] != ';' ); i++ )
+            s_title[i] = *titlepos++;
+          s_title[i] = 0;
+        }
+      }
+      // execute the observer
+      s_callback(entry->metabuff, entry->pos, entry->pos64, s_arg);
+    }
+    delete entry;
+  }
+  s_obs_tail = NULL;
+}
 
-  DosReleaseMutexSem( buffer->mtx_access );
-  DosReleaseMutexSem( buffer->mtx_file   );
-  return rc;
+void XIObuffer::observer_cb(const char* metabuff, long pos, long pos64)
+{ obs_entry* entry = new obs_entry(metabuff, pos, pos64);
+  if (s_obs_tail)
+    s_obs_tail->link = entry;
+  else
+    s_obs_head = entry;
+  s_obs_tail = entry;
+  #if defined(DEBUG) && DEBUG > 1
+  obs_dump();
+  #endif
+}
+
+#ifdef DEBUG
+void XIObuffer::obs_dump() const
+{ const obs_entry* op = s_obs_head;
+  while (op)
+  { DEBUGLOG(("XIObuffer(%p)::obs_dump %08lx %08lx %s\n", this, op->pos64, op->pos, op->metabuff));
+    op = op->link;
+  }
+}
+#endif
+
+void XIObuffer::set_observer( void DLLENTRYP(callback)(const char* metabuff, long pos, long pos64, void* arg), void* arg )
+{ s_callback = callback;
+  s_arg = arg;
+}
+
+XSFLAGS XIObuffer::supports() const
+{ return chain->supports();
 }
 

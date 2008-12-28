@@ -76,7 +76,7 @@ vio_seek( void* w, ogg_int64_t offset, int whence )
       return -1;
   }
 
-  if( xio_fseek( x, pos, XIO_SEEK_SET ) == 0 ) {
+  if( xio_fseek( x, pos, XIO_SEEK_SET ) >= 0 ) {
     return pos;
   } else {
     return -1;
@@ -114,9 +114,10 @@ vio_close( void* w )
 
 /* Opens Ogg Vorbis file. Returns 0 if it successfully opens the file.
    A nonzero return value indicates an error. A -1 return value
-   indicates an unsupported format of the file. */
+   indicates an unsupported format of the file.
+   The read_ahead flag starts an asynchronuous thread for reading data. */
 static ULONG
-ogg_open( DECODER_STRUCT* w )
+ogg_open( DECODER_STRUCT* w, int read_ahead )
 {
   ov_callbacks callbacks;
   DEBUGLOG(("oggplay:ogg_open(%p)\n", w));
@@ -125,7 +126,7 @@ ogg_open( DECODER_STRUCT* w )
   w->comment = NULL;
   w->vrbinfo = NULL;
 
-  if(( w->file = xio_fopen( w->filename, "rb" )) == NULL ) {
+  if(( w->file = xio_fopen( w->filename, read_ahead ? "rbXU" : "rbU" )) == NULL ) {
     DosReleaseMutexSem( w->mutex );
     return xio_errno();
   }
@@ -309,7 +310,7 @@ decoder_thread( void* arg )
   w->frew = FALSE;
   w->ffwd = FALSE;
 
-  if(( rc = ogg_open( w )) != 0 )
+  if(( rc = ogg_open( w, TRUE )) != 0 )
   {
     char errorbuf[1024];
 
@@ -579,7 +580,7 @@ decoder_fileinfo( const char* filename, DECODER_INFO* info )
   DosRequestMutexSem( w->mutex, SEM_INDEFINITE_WAIT );
   strlcpy( w->filename, filename, sizeof( w->filename ));
 
-  if(( rc = ogg_open( w )) != 0 ) {
+  if(( rc = ogg_open( w, FALSE )) != 0 ) {
     DosReleaseMutexSem( w->mutex );
     return rc == -1 ? PLUGIN_NO_PLAY : PLUGIN_NO_READ;
   }
@@ -696,11 +697,11 @@ decoder_saveinfo( const char* filename, const DECODER_INFO* info )
 
   for(;;)
   {
-    if(( file = xio_fopen( filename, "rb" )) == NULL ) {
+    if(( file = xio_fopen( filename, "rbU" )) == NULL ) {
       rc = xio_errno();
       break;
     }
-    if(( save = xio_fopen( savename, "wb" )) == NULL ) {
+    if(( save = xio_fopen( savename, "wbU" )) == NULL ) {
       rc = xio_errno();
       break;
     }
@@ -802,7 +803,7 @@ decoder_saveinfo( const char* filename, const DECODER_INFO* info )
     w = instances[i];
     if( w->resume_pcms != -1 ) {
       DEBUGLOG(( "oggplay: resumes currently used file: %s\n", w->filename ));
-      if( ogg_open( w ) == PLUGIN_OK ) {
+      if( ogg_open( w, TRUE ) == PLUGIN_OK ) {
         ov_pcm_seek( &w->vrbfile, w->resume_pcms );
       }
     }

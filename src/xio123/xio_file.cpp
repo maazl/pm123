@@ -46,14 +46,14 @@
 
 #ifdef XIO_SERIALIZE_DISK_IO
 
-  HMTX serialize;
+  Mutex serialize;
 
   // Serializes all read and write disk operations. This is
   // improve performance of poorly implemented filesystems (OS/2 version
   // of FAT32 for example).
 
-  #define FILE_REQUEST_DISK( x ) if( x->protocol->s_serialized ) { DosRequestMutexSem( serialize, SEM_INDEFINITE_WAIT );}
-  #define FILE_RELEASE_DISK( x ) if( x->protocol->s_serialized ) { DosReleaseMutexSem( serialize ); }
+  #define FILE_REQUEST_DISK( x ) if( x->s_serialized ) { serialize.Request(); }
+  #define FILE_RELEASE_DISK( x ) if( x->s_serialized ) { serialize.Release(); }
 #else
   #define FILE_REQUEST_DISK( x )
   #define FILE_RELEASE_DISK( x )
@@ -89,7 +89,7 @@ static int map_os2_errors(APIRET rc)
     case ERROR_DISK_FULL:
       return ENOSPC;
     default: // can't help
-      return -1;
+      return EINVAL;
   }
 }
 
@@ -140,15 +140,14 @@ is_singletasking_fs( const char* filename )
 
 /* Opens the file specified by filename. Returns 0 if it
    successfully opens the file. A return value of -1 shows an error. */
-static int
-file_open( XFILE* x, const char* filename, int oflags )
+int XIOfile::open( const char* filename, XOFLAGS oflags )
 {
   char* openname = NULL; // generated filename from URL, must be freed.
   ULONG flags = 0;
-  ULONG omode = OPEN_FLAGS_SEQUENTIAL | OPEN_FLAGS_NOINHERIT;
+  ULONG omode = OPEN_FLAGS_NOINHERIT;
   ULONG dummy;
   APIRET rc;
-  DEBUGLOG(("xio:file_open(%p, %s, %x)\n", x, filename, oflags));
+  DEBUGLOG(("xio:XIOfile(%p)::file_open(%s, %x)\n", this, filename, oflags));
 
   if(( oflags & XO_WRITE ) && ( oflags & XO_READ )) {
     omode |= OPEN_ACCESS_READWRITE | OPEN_SHARE_DENYWRITE;
@@ -166,7 +165,10 @@ file_open( XFILE* x, const char* filename, int oflags )
   } else {
     flags |= OPEN_ACTION_OPEN_IF_EXISTS;
   }
-
+  
+  if( !(oflags & XO_NOBUFFER) )
+    omode |= OPEN_FLAGS_SEQUENTIAL;
+  
   if( strnicmp( filename, "file:", 5 ) == 0 )
   {
     XURL* url = url_allocate( filename );
@@ -174,7 +176,7 @@ file_open( XFILE* x, const char* filename, int oflags )
 
     if( !url->path ) {
       url_free( url );
-      errno = ENOENT;
+      errno = error = ENOENT;
       return -1;
     }
 
@@ -213,18 +215,22 @@ file_open( XFILE* x, const char* filename, int oflags )
     url_free( url );
   }
 
-  FILE_REQUEST_DISK(x);
-  rc = DosOpen( openname ? openname : (PSZ)filename, (HFILE*)&x->protocol->s_handle,
+  #ifdef XIO_SERIALIZE_DISK_IO
+  s_serialized = is_singletasking_fs( p );
+  #endif
+
+  FILE_REQUEST_DISK(this);
+  rc = DosOpen( openname ? openname : (PSZ)filename, &s_handle,
                 &dummy, 0, FILE_NORMAL, flags, omode, NULL );
   if ( rc == NO_ERROR && oflags & XO_APPEND ) {
-    rc = DosSetFilePtr( (HFILE)x->protocol->s_handle, 0, FILE_END, &dummy );
+    rc = DosSetFilePtr( s_handle, 0, FILE_END, &dummy );
   }
-  FILE_RELEASE_DISK(x);
+  FILE_RELEASE_DISK(this);
 
   free( openname );
 
   if ( rc != NO_ERROR ) {
-    errno = map_os2_errors( rc );
+    errno = error = map_os2_errors( rc );
     return -1;
   } else {
     return 0;
@@ -234,61 +240,61 @@ file_open( XFILE* x, const char* filename, int oflags )
 /* Reads count bytes from the file into buffer. Returns the number
    of bytes placed in result. The return value 0 indicates an attempt
    to read at end-of-file. A return value -1 indicates an error.     */
-static int
-file_read( XFILE* x, void* result, unsigned int count )
+int XIOfile::read( void* result, unsigned int count )
 {
   APIRET rc;
   ULONG actual;
 
-  FILE_REQUEST_DISK(x);
-  rc = DosRead( (HFILE)x->protocol->s_handle, result, count, &actual );
-  FILE_RELEASE_DISK(x);
+  FILE_REQUEST_DISK(this);
+  rc = DosRead( s_handle, result, count, &actual );
+  FILE_RELEASE_DISK(this);
 
   if ( rc != NO_ERROR )
-  { errno = map_os2_errors( rc );
+  { errno = error = map_os2_errors( rc );
     return -1;
-  } else {
-    return actual;
+  } else if (actual == 0) {
+    eof = true;
   }
+  return actual;
 }
 
 /* Writes count bytes from source into the file. Returns the number
    of bytes moved from the source to the file. The return value may
    be positive but less than count. A return value of -1 indicates an
    error */
-static int
-file_write( XFILE* x, const void* source, unsigned int count )
+int XIOfile::write( const void* source, unsigned int count )
 {
   APIRET rc;
   ULONG actual;
 
-  FILE_REQUEST_DISK(x);
-  rc = DosWrite( (HFILE)x->protocol->s_handle, (PVOID)source, count, &actual );
-  FILE_RELEASE_DISK(x);
+  FILE_REQUEST_DISK(this);
+  rc = DosWrite( s_handle, (PVOID)source, count, &actual );
+  FILE_RELEASE_DISK(this);
 
   if ( rc != NO_ERROR )
-  { errno = map_os2_errors( rc );
+  { errno = error = map_os2_errors( rc );
     return -1;
   } else {
+    errno = error = 0;
     return actual;
   }
 }
 
 /* Closes the file. Returns 0 if it successfully closes the file. A
    return value of -1 shows an error. */
-static int
-file_close( XFILE* x )
+int XIOfile::close()
 {
   APIRET rc;
 
-  FILE_REQUEST_DISK(x);
-  rc = DosClose( (HFILE)x->protocol->s_handle );
-  FILE_RELEASE_DISK(x);
+  FILE_REQUEST_DISK(this);
+  rc = DosClose( s_handle );
+  FILE_RELEASE_DISK(this);
 
   if ( rc != NO_ERROR ) {
     errno = map_os2_errors( rc );
     return -1;
   } else {
+    s_handle = (HFILE)-1; // some invalid value
     return 0;
   }
 }
@@ -296,20 +302,22 @@ file_close( XFILE* x )
 /* Returns the current position of the file pointer. The position is
    the number of bytes from the beginning of the file. On devices
    incapable of seeking, the return value is -1L. */
-static long
-file_tell( XFILE* x )
+long XIOfile::tell( long* offset64 )
 {
   APIRET rc;
   ULONG actual;
 
-  FILE_REQUEST_DISK(x);
-  rc = DosSetFilePtr( (HFILE)x->protocol->s_handle, 0, FILE_CURRENT, &actual );
-  FILE_RELEASE_DISK(x);
+  FILE_REQUEST_DISK(this);
+  rc = DosSetFilePtr( s_handle, 0, FILE_CURRENT, &actual );
+  FILE_RELEASE_DISK(this);
 
   if ( rc != NO_ERROR )
   { errno = map_os2_errors( rc );
     return -1;
   } else {
+    // TODO: 64 bit support
+    if (offset64)
+      *offset64 = 0;
     return actual;
   }
 }
@@ -318,8 +326,7 @@ file_tell( XFILE* x )
    the origin. Returns the offset, in bytes, of the new position from
    the beginning of the file. A return value of -1L indicates an
    error. */
-static long
-file_seek( XFILE* x, long offset, int origin )
+long XIOfile::seek( long offset, int origin, long* offset64 )
 {
   ULONG  mode;
   APIRET rc;
@@ -334,34 +341,41 @@ file_seek( XFILE* x, long offset, int origin )
       return -1L;
   }
 
-  FILE_REQUEST_DISK(x);
-  rc = DosSetFilePtr( (HFILE)x->protocol->s_handle, offset, mode, &actual );
-  FILE_RELEASE_DISK(x);
+  FILE_REQUEST_DISK(this);
+  rc = DosSetFilePtr( s_handle, offset, mode, &actual );
+  FILE_RELEASE_DISK(this);
 
   if ( rc != NO_ERROR )
-  { errno = map_os2_errors( rc );
+  { errno = error = map_os2_errors( rc );
     return -1L;
   } else {
+    // TODO: 64 bit support
+    if (offset64)
+      *offset64 = 0;
+    errno = error = 0;
+    eof   = false;
     return actual;
   }
 }
 
 /* Returns the size of the file. A return value of -1L indicates an
    error or an unknown size. */
-static long
-file_size( XFILE* x )
+long XIOfile::getsize( long* offset64 )
 {
   APIRET rc;
   FILESTATUS3 fi;
 
-  FILE_REQUEST_DISK(x);
-  rc = DosQueryFileInfo( (HFILE)x->protocol->s_handle, FIL_STANDARD, &fi, sizeof fi );
-  FILE_RELEASE_DISK(x);
+  FILE_REQUEST_DISK(this);
+  rc = DosQueryFileInfo( s_handle, FIL_STANDARD, &fi, sizeof fi );
+  FILE_RELEASE_DISK(this);
 
   if ( rc != NO_ERROR )
   { errno = map_os2_errors( rc );
     return -1L;
   } else {
+    // TODO: 64 bit support
+    if (offset64)
+      *offset64 = 0;
     return fi.cbFile;
   }
 }
@@ -371,14 +385,14 @@ file_size( XFILE* x )
    characters when it lengthens the file. When cuts off the file, it
    erases all data from the end of the shortened file to the end
    of the original file. */
-static int
-file_truncate( XFILE* x, long size )
+int XIOfile::chsize( long size, long offset64 )
 {
   APIRET rc;
 
-  FILE_REQUEST_DISK(x);
-  rc = DosSetFileSize( (HFILE)x->protocol->s_handle, size );
-  FILE_RELEASE_DISK(x);
+  FILE_REQUEST_DISK(this);
+  // TODO: 64 bit
+  rc = DosSetFileSize( s_handle, size );
+  FILE_RELEASE_DISK(this);
 
   if ( rc != NO_ERROR )
   { errno = map_os2_errors( rc );
@@ -388,50 +402,21 @@ file_truncate( XFILE* x, long size )
   }
 }
 
+XSFLAGS XIOfile::supports() const
+{ return
+    XS_CAN_READ   | XS_CAN_WRITE | XS_CAN_READWRITE |
+    XS_CAN_CREATE | XS_CAN_SEEK  | XS_CAN_SEEK_FAST;
+}
+
 /* Cleanups the file protocol. */
-static void
-file_terminate( XFILE* x )
+XIOfile::~XIOfile()
 {
-  if( x->protocol ) {
-    if( x->protocol->mtx_access ) {
-      DosCloseMutexSem( x->protocol->mtx_access );
-    }
-    if( x->protocol->mtx_file ) {
-      DosCloseMutexSem( x->protocol->mtx_file );
-    }
-    free( x->protocol );
-  }
+  close();
 }
 
 /* Initializes the file protocol. */
-XPROTOCOL*
-file_initialize( XFILE* x )
-{
-  XPROTOCOL* protocol = (XPROTOCOL*)calloc( 1, sizeof( XPROTOCOL ));
-
-  if( protocol ) {
-    if( DosCreateMutexSem( NULL, &protocol->mtx_access, 0, FALSE ) != NO_ERROR ||
-        DosCreateMutexSem( NULL, &protocol->mtx_file  , 0, FALSE ) != NO_ERROR )
-    {
-      file_terminate( x );
-      return NULL;
-    }
-
-    protocol->supports =
-      XS_CAN_READ   | XS_CAN_WRITE | XS_CAN_READWRITE |
-      XS_CAN_CREATE | XS_CAN_SEEK  | XS_CAN_SEEK_FAST;
-
-    protocol->open   = file_open;
-    protocol->read   = file_read;
-    protocol->write  = file_write;
-    protocol->close  = file_close;
-    protocol->tell   = file_tell;
-    protocol->seek   = file_seek;
-    protocol->chsize = file_truncate;
-    protocol->size   = file_size;
-    protocol->clean  = file_terminate;
-  }
-
-  return protocol;
+XIOfile::XIOfile()
+: s_handle((HFILE)-1)
+{ blocksize = 32768;
 }
 

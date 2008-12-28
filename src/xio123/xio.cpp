@@ -42,16 +42,13 @@
 
 #include "xio.h"
 #include "xio_protocol.h"
-#include "xio_buffer.h"
 #include "xio_file.h"
 #include "xio_ftp.h"
 #include "xio_http.h"
 #include "xio_cddb.h"
+#include "xio_syncbuffer.h"
+#include "xio_asyncbuffer.h"
 #include "xio_socket.h"
-
-#ifdef  XIO_SERIALIZE_DISK_IO
-extern  HMTX serialize;
-#endif
 
 #define XIO_SERIAL 0x41290837
 
@@ -67,22 +64,16 @@ static int  buffer_fill    = 30;
 static int  socket_timeout = 30;
 
 /* Serializes access to the library's global data. */
-static HMTX mutex;
+static Mutex mutex;
 
-/* Cleanups the file structure. */
-static void
-xio_terminate( XFILE* x )
-{
-  x->serial = 0;
 
-  if( x->buffer ) {
-    // At end the buffer itself will clear all others.
-    buffer_terminate( x );
-  } else {
-    if( x->protocol ) {
-      x->protocol->clean( x );
-    }
-    free( x );
+static void DLLENTRY xio_observer( const char* metabuff, long pos, long pos64, void* arg )
+{ XFILE* x = (XFILE*)arg;
+  DEBUGLOG(("xio:xio_observer(%s, %lx,%lx, %p) - %p, %p\n", metabuff, pos, pos64, arg, x->s_observer, x->s_metabuff));
+  
+  if( x->s_observer && x->s_metabuff )
+  { strlcpy( x->s_metabuff, metabuff, x->s_metasize );
+    WinPostMsg( x->s_observer, WM_METADATA, MPFROMP( x->s_metabuff ), MPFROMLONG( pos ));
   }
 }
 
@@ -92,42 +83,41 @@ xio_terminate( XFILE* x )
 XFILE* DLLENTRY
 xio_fopen( const char* filename, const char* mode )
 {
+  DEBUGLOG(("xio_fopen(%s, %s)\n", filename, mode));
   XFILE* x;
 
   if( !filename || !*filename ) {
     errno = ENOENT;
     return NULL;
   }
-  if( !( x = (XFILE*)calloc( 1, sizeof( XFILE )))) {
-    return NULL;
-  }
+  x = new XFILE();
 
   if( strnicmp( filename, "http:", 5 ) == 0 )
   {
-    x->scheme   = XIO_HTTP;
-    x->protocol = http_initialize( x );
+    //x->scheme   = XIO_HTTP;
+    x->protocol = new XIOhttp();
   }
   else if( strnicmp( filename, "ftp:", 4 ) == 0 )
   {
     if( *http_proxy_host ) {
-      x->scheme   = XIO_HTTP;
-      x->protocol = http_initialize( x );
+      //x->scheme   = XIO_HTTP;
+      x->protocol = new XIOhttp();
     } else {
-      x->scheme   = XIO_FTP;
-      x->protocol = ftp_initialize( x );
+      //x->scheme   = XIO_FTP;
+      x->protocol = new XIOftp();
     }
   }
   else if( strnicmp( filename, "cddbp:", 6 ) == 0 )
   {
-    x->scheme   = XIO_CDDB;
-    x->protocol = cddb_initialize( x );
+    //x->scheme   = XIO_CDDB;
+    x->protocol = new XIOcddb();
   } else {
-    x->scheme   = XIO_FILE;
-    x->protocol = file_initialize( x );
+    //x->scheme   = XIO_FILE;
+    x->protocol = new XIOfile();
   }
 
   if( !x->protocol ) {
-    xio_terminate( x );
+    delete x;
     return NULL;
   }
 
@@ -150,123 +140,60 @@ xio_fopen( const char* filename, const char* mode )
       x->oflags = XO_WRITE | XO_CREATE | XO_APPEND;
     }
   } else {
-    xio_terminate( x );
+    delete x;
     errno = EINVAL;
     return NULL;
   }
+  
+  if (strchr(mode, 'R'))
+    x->oflags |= XO_NOBUFFER;
+  if (strchr(mode, 'X'))
+    x->oflags |= XO_ASYNCBUFFER;
+  if (strchr(mode, 'U'))
+    x->oflags |= XO_NOMUTEX;
 
+  XSFLAGS support = x->protocol->supports();
   if((( x->oflags & XO_READ   ) &&
-      ( x->oflags & XO_WRITE  ) && !( x->protocol->supports & XS_CAN_READWRITE )) ||
-     (( x->oflags & XO_READ   ) && !( x->protocol->supports & XS_CAN_READ      )) ||
-     (( x->oflags & XO_WRITE  ) && !( x->protocol->supports & XS_CAN_WRITE     )) ||
-     (( x->oflags & XO_CREATE ) && !( x->protocol->supports & XS_CAN_CREATE    ))  )
+      ( x->oflags & XO_WRITE  ) && !( support & XS_CAN_READWRITE )) ||
+     (( x->oflags & XO_READ   ) && !( support & XS_CAN_READ      )) ||
+     (( x->oflags & XO_WRITE  ) && !( support & XS_CAN_WRITE     )) ||
+     (( x->oflags & XO_CREATE ) && !( support & XS_CAN_CREATE    ))  )
   {
-    xio_terminate( x );
+    delete x;
     errno = EINVAL;
     return NULL;
   }
 
-  if( x->protocol->open( x, filename, x->oflags ) != 0 ) {
-    xio_terminate( x );
+  if( x->protocol->open( filename, x->oflags ) != 0 ) {
+    delete x;
     return NULL;
   }
 
-  buffer_initialize( x );
+  // Set up buffer
+  if ( !(x->oflags & XO_NOBUFFER) && !( x->oflags & XO_WRITE ) )
+//    && !( x->protocol->supports() & XS_NOT_BUFFERIZE ) )
+  { int size = xio_buffer_size();
+    XIObuffer* buffer;
+    if ((x->oflags & XO_ASYNCBUFFER) && size)
+      buffer = (XIObuffer*)new XIOasyncbuffer( x->protocol, xio_buffer_size(), x->protocol->blocksize );
+    else
+      buffer = new XIOsyncbuffer( x->protocol, x->protocol->blocksize );
+    //XIObuffer* buffer = new XIOsyncbuffer( x->protocol, x->protocol->blocksize );
+    if (buffer->init())
+      x->protocol = buffer;
+    else
+      delete buffer;
+  }
+ 
+  if (!(x->oflags & XO_NOMUTEX))
+    x->mtx = new Mutex();
+  
+  // We got it!  
   x->serial = XIO_SERIAL;
+
+  x->protocol->set_observer( xio_observer, x );
+  DEBUGLOG(("xio_open: %p\n", x));
   return x;
-}
-
-/* Reads specified chunk of the data and notifies an attached
-   observer about streaming metadata. Returns the number of
-   bytes placed in result. The return value 0 indicates an attempt
-   to read at end-of-file. A return value -1 indicates an error. */
-static int
-xio_read_and_notify( XFILE* x, void* result, unsigned int count )
-{
-  int read_size;
-  int read_done;
-  int done;
-  int i;
-
-  unsigned char metahead;
-  int           metasize;
-  char*         metabuff;
-  char*         titlepos;
-
-  // Note: x->protocol->s_metaint and x->protocol->s_metapos
-  // do not changed by a read-ahead thread.
-
-  if( !x->protocol->s_metaint ) {
-    return buffer_read( x, result, count );
-  }
-
-  read_done = 0;
-
-  while( read_done < count ) {
-    if( x->protocol->s_metapos == 0 )
-    {
-      // Time to read metadata from a input stream.
-      metahead = 0;
-      done = buffer_read( x, &metahead, 1 );
-
-      if( done ) {
-        if( metahead ) {
-          metasize = metahead * 16;
-
-          if(( metabuff = (char*)malloc( metasize + 1 )) == NULL ) {
-            return -1;
-          }
-          if(( done = buffer_read( x, metabuff, metasize )) != metasize ) {
-            return -1;
-          }
-
-          metabuff[done] = 0;
-          DosRequestMutexSem( x->protocol->mtx_access, SEM_INDEFINITE_WAIT );
-
-          if(( titlepos = strstr( metabuff, "StreamTitle='" )) != NULL )
-          {
-            titlepos += 13;
-            for( i = 0; i < sizeof( x->protocol->s_title ) - 1 && *titlepos
-                        && ( titlepos[0] != '\'' || titlepos[1] != ';' ); i++ )
-            {
-              x->protocol->s_title[i] = *titlepos++;
-            }
-
-            x->protocol->s_title[i] = 0;
-          }
-
-          if( x->protocol->s_observer &&
-              x->protocol->s_metabuff )
-          {
-            strlcpy( x->protocol->s_metabuff, metabuff, x->protocol->s_metasize );
-            WinPostMsg( x->protocol->s_observer, WM_METADATA,
-                        MPFROMP( x->protocol->s_metabuff ), 0 );
-          }
-
-          if( x->protocol->supports & XS_USE_SPOS ) {
-            x->protocol->s_pos -= ( metasize + 1 );
-          }
-
-          DosReleaseMutexSem( x->protocol->mtx_access );
-        }
-        x->protocol->s_metapos = x->protocol->s_metaint;
-      }
-    }
-
-    // Determines the maximum size of the data chunk for reading.
-    read_size = count - read_done;
-    read_size = min( read_size, x->protocol->s_metapos );
-
-    done = buffer_read( x, (char*)result + read_done, read_size );
-
-    if( !done || done == -1 ) {
-      break;
-    }
-
-    read_done += done;
-    x->protocol->s_metapos -= done;
-  }
-  return read_done;
 }
 
 /* Reads up to count items of size length from the input file and
@@ -277,36 +204,44 @@ xio_read_and_notify( XFILE* x, void* result, unsigned int count )
 size_t DLLENTRY
 xio_fread( void* buffer, size_t size, size_t count, XFILE* x )
 {
-  int done;
+  DEBUGLOG(("xio_fread(%p, %u, %u, %p)\n", buffer, size, count, x));
   int read = count * size;
-  int rc   = 0;
 
+  ASSERT(x && x->serial == XIO_SERIAL);
+  #ifdef NDEBUG
   if( !x || x->serial != XIO_SERIAL ) {
-    DEBUGLOG(( "xio123: [xio_fread] file handle %08X is not valid.\n", x ));
     errno = EBADF;
     return 0;
   }
+  #endif
 
-  DosRequestMutexSem( x->protocol->mtx_file, SEM_INDEFINITE_WAIT );
+  if (!( x->oflags & XO_READ ))
+  { errno = ENOTREAD;
+    return 0;
+  }
+  errno = 0;
+  if (read == 0)
+    return 0;  
+  if (!x->Request())
+    return 0;
 
-  if(!( x->oflags & XO_READ )) {
-    errno = EINVAL;
-    x->protocol->error = 1;
-  } else {
-    done = xio_read_and_notify( x, buffer, read );
-
+  size_t rc = 0;
+  if (x->protocol->error)
+    errno = x->protocol->error;
+  else if (!x->protocol->eof)
+  { int done = x->protocol->read( buffer, read );
     if( done == read ) {
       rc = count;
     } else if( done >= 0 ) {
-      buffer_seek( x, -( done % size ), XIO_SEEK_CUR );
+      x->protocol->seek( -( done % size ), XIO_SEEK_CUR );
       rc = done / size;
-      x->protocol->eof   = 1;
+      x->protocol->eof = true;
     } else {
-      x->protocol->error = 1;
+      x->protocol->error = errno;
     }
   }
-
-  DosReleaseMutexSem( x->protocol->mtx_file );
+  x->Release();
+  DEBUGLOG(("xio_fread: %u\n", rc));
   return rc;
 }
 
@@ -314,37 +249,45 @@ xio_fread( void* buffer, size_t size, size_t count, XFILE* x )
    to the output file. Returns the number of full items successfully
    written, which can be fewer than count if an error occurs. */
 size_t DLLENTRY
-xio_fwrite( void* buffer, size_t size, size_t count, XFILE* x )
+xio_fwrite( const void* buffer, size_t size, size_t count, XFILE* x )
 {
+  DEBUGLOG(("xio_fwrite(%p, %u, %u, %p)\n", buffer, size, count, x));
   int write = count * size;
-  int rc    = 0;
-  int done;
 
+  ASSERT(x && x->serial == XIO_SERIAL);
+  #ifdef NDEBUG
   if( !x || x->serial != XIO_SERIAL ) {
-    DEBUGLOG(( "xio123: [xio_fwrite] file handle %08X is not valid.\n", x ));
     errno = EBADF;
     return 0;
   }
+  #endif
 
-  DosRequestMutexSem( x->protocol->mtx_file, SEM_INDEFINITE_WAIT );
+  if(!( x->oflags & XO_WRITE )) 
+  { errno = ENOTWRITE;
+    return 0;
+  }
+  errno = 0;
+  if (count == 0)
+    return 0;
+  if (!x->Request())
+    return 0;
 
-  if(!( x->oflags & XO_WRITE )) {
-    errno = EBADF;
-    x->protocol->error = 1;
-  } else {
-    done = buffer_write( x, buffer, write );
-
+  size_t rc = 0;
+  if (x->protocol->error)
+    errno = x->protocol->error;
+  else
+  { int done = x->protocol->write( buffer, write );
     if( done == write ) {
       rc = count;
-    } else if( done >= 0 ) {
-      buffer_seek( x, -( done % size ), XIO_SEEK_CUR );
-      rc = done / size;
+    } else if( done == -1 ) {
+      x->protocol->error = errno;
     } else {
-      x->protocol->error = 1;
+      x->protocol->seek( -( done % size ), XIO_SEEK_CUR );
+      rc = done / size;
     }
   }
-
-  DosReleaseMutexSem( x->protocol->mtx_file );
+  x->Release();
+  DEBUGLOG(("xio_fwrite: %u\n", rc));
   return rc;
 }
 
@@ -353,23 +296,20 @@ xio_fwrite( void* buffer, size_t size, size_t count, XFILE* x )
 int DLLENTRY
 xio_fclose( XFILE* x )
 {
+  DEBUGLOG(("xio_fclose(%p)\n", x));
+  ASSERT(x && x->serial == XIO_SERIAL);
+  #ifdef NDEBUG
   if( !x || x->serial != XIO_SERIAL ) {
-    DEBUGLOG(( "xio123: [xio_fclose] file handle %08X is not valid.\n", x ));
     errno = EBADF;
     return -1;
   }
+  #endif
 
-  DosRequestMutexSem( x->protocol->mtx_file, SEM_INDEFINITE_WAIT );
-
-  if( x->protocol->abort || x->protocol->close( x ) == 0 ) {
-    DosReleaseMutexSem( x->protocol->mtx_file );
-    xio_terminate( x );
-    return 0;
-  }
-
-  DosReleaseMutexSem( x->protocol->mtx_file );
-  xio_terminate( x );
-  return -1;
+  int ret = x->protocol->close() == 0 ? 0 : -1;
+  // cleanup anyway
+  delete x;
+  DEBUGLOG(("xio_close: %i\n", ret));
+  return ret;
 }
 
 /* Causes an abnormal termination of all current read/write
@@ -378,15 +318,15 @@ xio_fclose( XFILE* x )
 void DLLENTRY
 xio_fabort( XFILE* x )
 {
+  DEBUGLOG(("xio_fabort(%p)\n", x));
+  ASSERT(x && x->serial == XIO_SERIAL);
+  #ifdef NDEBUG
   if( !x || x->serial != XIO_SERIAL ) {
-    DEBUGLOG(( "xio123: [xio_fabort] file handle %08X is not valid.\n", x ));
     errno = EBADF;
-  } else {
-    if( !x->protocol->abort ) {
-      x->protocol->close( x );
-      x->protocol->abort = 1;
-    }
+    return
   }
+  #endif
+  x->protocol->close();
 }
 
 /* Finds the current position of the file. Returns the current file
@@ -394,45 +334,38 @@ xio_fabort( XFILE* x )
 long DLLENTRY
 xio_ftell( XFILE* x )
 {
+  DEBUGLOG2(("xio_ftell(%p)\n", x));
+  ASSERT(x && x->serial == XIO_SERIAL);
+  #ifdef NDEBUG
   if( !x || x->serial != XIO_SERIAL ) {
-    DEBUGLOG(( "xio123: [xio_ftell] file handle %08X is not valid.\n", x ));
     errno = EBADF;
     return -1;
-  } else {
-    return buffer_tell( x );
   }
+  #endif
+  return x->protocol->tell();
 }
 
 /* Changes the current file position to a new location within the file.
    Returns 0 if it successfully moves the pointer. A nonzero return
    value indicates an error. On devices that cannot seek the return
    value is nonzero. */
-int DLLENTRY
+long DLLENTRY
 xio_fseek( XFILE* x, long int offset, int origin )
 {
-  int rc = -1;
-
+  DEBUGLOG(("xio_fseek(%p, %lu, %i)\n", x, offset, origin));
+  ASSERT(x && x->serial == XIO_SERIAL);
+  #ifdef NDEBUG
   if( !x || x->serial != XIO_SERIAL ) {
-    DEBUGLOG(( "xio123: [xio_fseek] file handle %08X is not valid.\n", x ));
     errno = EBADF;
     return -1;
   }
-
-  DosRequestMutexSem( x->protocol->mtx_file, SEM_INDEFINITE_WAIT );
-
-  if( x->protocol->s_metaint ) {
-    errno = EINVAL;
-    x->protocol->error = 1;
-  } else if( buffer_seek( x, offset, origin ) != -1 ) {
-    x->protocol->error = 0;
-    x->protocol->eof   = 0;
-    rc = 0;
-  } else {
-    x->protocol->error = 1;
-  }
-
-  DosReleaseMutexSem( x->protocol->mtx_file );
-  return rc;
+  #endif
+  if (!x->Request())
+    return -1;
+  long ret = x->protocol->seek( offset, origin );
+  x->Release();
+  DEBUGLOG(("xio_close: %li\n", ret));
+  return ret;
 }
 
 /* Repositions the file pointer associated with stream to the beginning
@@ -443,17 +376,7 @@ xio_fseek( XFILE* x, long int offset, int origin )
 void DLLENTRY
 xio_rewind( XFILE* x )
 {
-  if( !x || x->serial != XIO_SERIAL ) {
-    DEBUGLOG(( "xio123: [xio_rewind] file handle %08X is not valid.\n", x ));
-    errno = EBADF;
-  } else {
-    if( !x->protocol->s_metaint ) {
-      xio_fseek( x, 0, XIO_SEEK_SET );
-    }
-    x->protocol->error = 0;
-    x->protocol->eof   = 0;
-    errno = 0;
-  }
+  xio_fseek( x, 0, XIO_SEEK_SET );
 }
 
 /* Returns the size of the file. A return value of -1L indicates an
@@ -461,13 +384,15 @@ xio_rewind( XFILE* x )
 long DLLENTRY
 xio_fsize( XFILE* x )
 {
+  DEBUGLOG(("xio_fsize(%p)\n", x));
+  ASSERT(x && x->serial == XIO_SERIAL);
+  #ifdef NDEBUG
   if( !x || x->serial != XIO_SERIAL ) {
-    DEBUGLOG(( "xio123: [xio_fsize] file handle %08X is not valid.\n", x ));
     errno = EBADF;
     return -1;
-  } else {
-    return buffer_filesize( x );
   }
+  #endif
+  return x->protocol->getsize();
 }
 
 /* Lengthens or cuts off the file to the length specified by size.
@@ -479,13 +404,23 @@ xio_fsize( XFILE* x )
 int DLLENTRY
 xio_ftruncate( XFILE* x, long size )
 {
+  DEBUGLOG(("xio_fclose(%p, %lu)\n", x, size));
+  ASSERT(x && x->serial == XIO_SERIAL);
+  #ifdef NDEBUG
   if( !x || x->serial != XIO_SERIAL ) {
-    DEBUGLOG(( "xio123: [xio_ftruncate] file handle %08X is not valid.\n", x ));
     errno = EBADF;
     return -1;
-  } else {
-    return buffer_truncate( x, size );
   }
+  #endif
+  if(!( x->oflags & XO_WRITE )) 
+  { errno = ENOTWRITE;
+    return -1;
+  }
+  if (!x->Request())
+    return -1;
+  int ret = x->protocol->chsize( size );
+  x->Release();
+  return ret;
 }
 
 /* Reads bytes from the current file position up to and including the
@@ -499,42 +434,37 @@ xio_ftruncate( XFILE* x, long size )
 char* DLLENTRY
 xio_fgets( char* string, int n, XFILE* x )
 {
-  int done = 0;
-  int read;
+  DEBUGLOG(("xio_fgets(%p, %i, %p)\n", string, n, x));
 
+  ASSERT(x && x->serial == XIO_SERIAL);
+  #ifdef NDEBUG
   if( !x || x->serial != XIO_SERIAL ) {
-    DEBUGLOG(( "xio123: [xio_fgets] file handle %08X is not valid.\n", x ));
     errno = EBADF;
     return NULL;
   }
-
-  DosRequestMutexSem( x->protocol->mtx_file, SEM_INDEFINITE_WAIT );
-
-  while( done < n - 1 ) {
-    if(( read = xio_read_and_notify( x, string, 1 )) == 1 ) {
-      if( *string == '\r' ) {
-        continue;
-      } else if( *string == '\n' ) {
-        ++string;
-        ++done;
-        break;
-      } else {
-        ++string;
-        ++done;
-      }
-    } else if( read == 0 ) {
-      x->protocol->eof   = 1;
-      break;
-    } else {
-      x->protocol->error = 1;
-      break;
-    }
+  #endif
+  if (!( x->oflags & XO_READ ))
+  { errno = ENOTREAD;
+    return NULL;
   }
-
-  DosReleaseMutexSem( x->protocol->mtx_file );
-
-  *string = 0;
-  return done ? string : NULL;
+  if (!x->Request())
+    return NULL;
+  char* ret = NULL;
+  if (x->protocol->error)
+    errno = x->protocol->error;
+  else if (n <= 1) // Trivial cases
+  { if (n <= 0)
+    { errno = EINVAL;
+    } else
+    { *string = 0;
+      ret = string;
+    }
+  } else
+  { ret = x->protocol->eof ? NULL : x->protocol->gets(string, n);
+  }
+  x->Release();
+  DEBUGLOG(("xio_fgets: %s, %i\n", ret, x->protocol->error));
+  return ret;
 }
 
 /* Copies string to the output file at the current position.
@@ -544,33 +474,31 @@ xio_fgets( char* string, int n, XFILE* x )
 int DLLENTRY
 xio_fputs( const char* string, XFILE* x )
 {
-  char* cr = "\r";
-  int   rc = 0;
-
+  DEBUGLOG(("xio_fputs(%s, %p)\n", string, x));
+  
+  ASSERT(x && x->serial == XIO_SERIAL);
+  #ifdef NDEBUG
   if( !x || x->serial != XIO_SERIAL ) {
-    DEBUGLOG(( "xio123: [xio_fputs] file handle %08X is not valid.\n", x ));
     errno = EBADF;
     return -1;
   }
-
-  DosRequestMutexSem( x->protocol->mtx_file, SEM_INDEFINITE_WAIT );
-
-  while( *string ) {
-    if( *string == '\n' ) {
-      if( buffer_write( x, cr, 1 ) != 1 ) {
-        x->protocol->error = 1;
-        rc = -1;
-        break;
-      }
-    }
-    if( buffer_write( x, string++, 1 ) != 1 ) {
-      x->protocol->error = 1;
-      rc = -1;
-      break;
-    }
+  #endif
+  if(!( x->oflags & XO_WRITE )) 
+  { errno = ENOTWRITE;
+    return -1;
   }
+  if (!x->Request())
+    return -1;
 
-  DosReleaseMutexSem( x->protocol->mtx_file );
+  int rc;
+  if (x->protocol->error)
+  { errno = x->protocol->error;
+    rc = -1;
+  } else
+    rc = x->protocol->puts(string);
+
+  x->Release();
+  DEBUGLOG(("xio_close: %i\n", rc));
   return rc;
 }
 
@@ -581,13 +509,15 @@ xio_fputs( const char* string, XFILE* x )
 int DLLENTRY
 xio_feof( XFILE* x )
 {
+  DEBUGLOG2(("xio_feof(%p)\n", x));
+  ASSERT(x && x->serial == XIO_SERIAL);
+  #ifdef NDEBUG
   if( !x || x->serial != XIO_SERIAL ) {
-    DEBUGLOG(( "xio123: [xio_feof] file handle %08X is not valid.\n", x ));
     errno = EBADF;
     return 1;
-  } else {
-    return x->protocol->eof;
   }
+  #endif
+  return x->protocol->eof;
 }
 
 /* Tests for an error in reading from or writing to the given stream.
@@ -595,14 +525,16 @@ xio_feof( XFILE* x )
    until you close stream, call xio_rewind, or call xio_clearerr. */
 int DLLENTRY
 xio_ferror( XFILE* x )
-{
+{ 
+  DEBUGLOG2(("xio_ferror(%p)\n", x));
+  ASSERT(x && x->serial == XIO_SERIAL);
+  #ifdef NDEBUG
   if( !x || x->serial != XIO_SERIAL ) {
-    DEBUGLOG(( "xio123: [xio_ferror] file handle %08X is not valid.\n", x ));
     errno = EBADF;
     return 1;
-  } else {
-    return x->protocol->error;
   }
+  #endif
+  return x->protocol->error;
 }
 
 /* Resets the error indicator and end-of-file indicator for the
@@ -612,14 +544,19 @@ xio_ferror( XFILE* x )
 void DLLENTRY
 xio_clearerr( XFILE* x )
 {
+  DEBUGLOG(("xio_clearerr(%p)\n", x));
+  ASSERT(x && x->serial == XIO_SERIAL);
+  #ifdef NDEBUG
   if( !x || x->serial != XIO_SERIAL ) {
-    DEBUGLOG(( "xio123: [xio_clearerr] file handle %08X is not valid.\n", x ));
     errno = EBADF;
-  } else {
-    DosRequestMutexSem( x->protocol->mtx_file, SEM_INDEFINITE_WAIT );
-    x->protocol->error = 0;
+    return;
+  }
+  #endif
+  if (x->Request())
+  { x->protocol->error = 0;
     x->protocol->eof   = 0;
-    DosReleaseMutexSem( x->protocol->mtx_file );
+    x->Release();
+    errno = 0;
   }
 }
 
@@ -635,11 +572,11 @@ const char* DLLENTRY
 xio_strerror( int errnum )
 {
   if( errnum >= CDDBBASEERR ) {
-    return cddb_strerror( errnum );
+    return XIOcddb::strerror( errnum );
   } else if( errnum >= FTPBASEERR ) {
-    return ftp_strerror( errnum );
+    return XIOftp::strerror( errnum );
   } else if( errnum >= HTTPBASEERR ) {
-    return http_strerror( errnum );
+    return XIOhttp::strerror( errnum );
   } else if( errnum >= HBASEERR ) {
     return h_strerror( errnum - HBASEERR );
   #ifdef SOCBASEERR
@@ -657,15 +594,20 @@ void DLLENTRY
 xio_set_observer( XFILE* x, unsigned long window,
                             char* buffer, int buffer_size )
 {
+  DEBUGLOG(("xio_set_observer(%p, %lu, %p, %i)\n", x, window, buffer, buffer_size));
+  ASSERT(x && x->serial == XIO_SERIAL);
+  #ifdef NDEBUG
   if( !x || x->serial != XIO_SERIAL ) {
-    DEBUGLOG(( "xio123: [xio_set_observer] file handle %08X is not valid.\n", x ));
     errno = EBADF;
-  } else {
-    DosRequestMutexSem( x->protocol->mtx_access, SEM_INDEFINITE_WAIT );
-    x->protocol->s_observer = window;
-    x->protocol->s_metabuff = buffer;
-    x->protocol->s_metasize = buffer_size;
-    DosReleaseMutexSem( x->protocol->mtx_access );
+    return;
+  }
+  #endif
+  if (x->Request())
+  { x->s_observer = window;
+    x->s_metabuff = buffer;
+    x->s_metasize = buffer_size;
+    x->Release();
+    errno = 0;
   }
 }
 
@@ -674,23 +616,20 @@ xio_set_observer( XFILE* x, unsigned long window,
 char* DLLENTRY
 xio_get_metainfo( XFILE* x, int type, char* result, int size )
 {
+  DEBUGLOG(("xio_get_metainfo(%p, %i, %p, %i)\n", x, type, result, size));
+  ASSERT(x && x->serial == XIO_SERIAL);
+  #ifdef NDEBUG
   if( !x || x->serial != XIO_SERIAL ) {
-    DEBUGLOG(( "xio123: [xio_get_metainfo] file handle %08X is not valid.\n", x ));
     errno = EBADF;
-    *result = 0;
-  } else {
-    DosRequestMutexSem( x->protocol->mtx_access, SEM_INDEFINITE_WAIT );
-
-    switch( type ) {
-      case XIO_META_GENRE : strlcpy( result, x->protocol->s_genre, size ); break;
-      case XIO_META_NAME  : strlcpy( result, x->protocol->s_name , size ); break;
-      case XIO_META_TITLE : strlcpy( result, x->protocol->s_title, size ); break;
-      default:
-        *result = 0;
-    }
-    DosReleaseMutexSem( x->protocol->mtx_access );
+    return NULL;
   }
-  return result;
+  #endif
+  if (!size)
+  { errno = EINVAL;
+    return NULL;
+  } else
+  { return x->protocol->get_metainfo( type, result, size );
+  }
 }
 
 /* Returns XIO_NOT_SEEK (0) on streams incapable of seeking,
@@ -699,73 +638,58 @@ xio_get_metainfo( XFILE* x, int type, char* result, int size )
 int DLLENTRY
 xio_can_seek( XFILE* x )
 {
+  DEBUGLOG(("xio_can_seek(%p)\n", x));
+  ASSERT(x && x->serial == XIO_SERIAL);
+  #ifdef NDEBUG
   if( !x || x->serial != XIO_SERIAL ) {
-    DEBUGLOG(( "xio123: [xio_can_seek] file handle %08X is not valid.\n", x ));
     errno = EBADF;
-  } else {
-    if( !x->protocol->s_metaint ) {
-      if( x->protocol->supports & XS_CAN_SEEK_FAST ) {
-        return XIO_CAN_SEEK_FAST;
-      } else if( x->protocol->supports & XS_CAN_SEEK ) {
-        return XIO_CAN_SEEK;
-      }
-    }
+    return XIO_NOT_SEEK;
   }
-  return XIO_NOT_SEEK;
+  #endif
+  XSFLAGS support = x->protocol->supports();
+  DEBUGLOG(("xio_can_seek %x\n", support));
+  if( support & XS_CAN_SEEK_FAST )
+    return XIO_CAN_SEEK_FAST;
+  else if( support & XS_CAN_SEEK )
+    return XIO_CAN_SEEK;
+  else
+    return XIO_NOT_SEEK;
 }
+
 
 /* Returns the read-ahead buffer size. */
 int DLLENTRY
 xio_buffer_size( void )
 {
-  int size;
-
-  DosRequestMutexSem( mutex, SEM_INDEFINITE_WAIT );
-  size = buffer_size;
-  DosReleaseMutexSem( mutex );
-  return size;
+  return buffer_size;
 }
 
 /* Returns fills the buffer before reading state. */
 int DLLENTRY
 xio_buffer_wait( void )
 {
-  int wait;
-
-  DosRequestMutexSem( mutex, SEM_INDEFINITE_WAIT );
-  wait = buffer_wait;
-  DosReleaseMutexSem( mutex );
-  return wait;
+  return buffer_wait;
 }
 
 /* Returns value of prefilling of the buffer. */
 int DLLENTRY
 xio_buffer_fill( void )
 {
-  int fill;
-
-  DosRequestMutexSem( mutex, SEM_INDEFINITE_WAIT );
-  fill = buffer_fill;
-  DosReleaseMutexSem( mutex );
-  return fill;
+  return buffer_fill;
 }
 
 /* Sets the read-ahead buffer size. */
 void DLLENTRY
 xio_set_buffer_size( int size )
 {
-  DosRequestMutexSem( mutex, SEM_INDEFINITE_WAIT );
   buffer_size = size;
-  DosReleaseMutexSem( mutex );
 }
 
 /* Sets fills the buffer before reading state. */
 void DLLENTRY
 xio_set_buffer_wait( int wait )
 {
-  DosRequestMutexSem( mutex, SEM_INDEFINITE_WAIT );
   buffer_wait = wait;
-  DosReleaseMutexSem( mutex );
 }
 
 /* Sets value of prefilling of the buffer. */
@@ -773,9 +697,7 @@ void DLLENTRY
 xio_set_buffer_fill( int percent )
 {
   if( percent > 0 && percent <= 100 ) {
-    DosRequestMutexSem( mutex, SEM_INDEFINITE_WAIT );
     buffer_fill = percent;
-    DosReleaseMutexSem( mutex );
   }
 }
 
@@ -783,76 +705,63 @@ xio_set_buffer_fill( int percent )
 void DLLENTRY
 xio_http_proxy_host( char* hostname, int size )
 {
-  DosRequestMutexSem( mutex, SEM_INDEFINITE_WAIT );
+  Mutex::Lock lock(mutex);
   strlcpy( hostname, http_proxy_host, size );
-  DosReleaseMutexSem( mutex );
 }
 
 /* Returns the port number of the proxy server. */
 int DLLENTRY
 xio_http_proxy_port( void )
 {
-  int port;
-
-  DosRequestMutexSem( mutex, SEM_INDEFINITE_WAIT );
-  port = http_proxy_port;
-  DosReleaseMutexSem( mutex );
-  return port;
+  return http_proxy_port;
 }
 
 /* Returns the user name of the proxy server. */
 void DLLENTRY
 xio_http_proxy_user( char* username, int size )
 {
-  DosRequestMutexSem( mutex, SEM_INDEFINITE_WAIT );
+  Mutex::Lock lock(mutex);
   strlcpy( username, http_proxy_user, size );
-  DosReleaseMutexSem( mutex );
 }
 
 /* Returns the user password of the proxy server. */
 void DLLENTRY
 xio_http_proxy_pass( char* password, int size )
 {
-  DosRequestMutexSem( mutex, SEM_INDEFINITE_WAIT );
+  Mutex::Lock lock(mutex);
   strlcpy( password, http_proxy_pass, size );
-  DosReleaseMutexSem( mutex );
 }
 
 /* Sets the name of the proxy server. */
 void DLLENTRY
 xio_set_http_proxy_host( char* hostname )
 {
-  DosRequestMutexSem( mutex, SEM_INDEFINITE_WAIT );
+  Mutex::Lock lock(mutex);
   strlcpy( http_proxy_host, hostname, sizeof( http_proxy_host ));
   http_proxy_addr = 0;
-  DosReleaseMutexSem( mutex );
 }
 
 /* Sets the port number of the proxy server. */
 void DLLENTRY
 xio_set_http_proxy_port( int port )
 {
-  DosRequestMutexSem( mutex, SEM_INDEFINITE_WAIT );
   http_proxy_port = port;
-  DosReleaseMutexSem( mutex );
 }
 
 /* Sets the user name of the proxy server. */
 void DLLENTRY
 xio_set_http_proxy_user( char* username )
 {
-  DosRequestMutexSem( mutex, SEM_INDEFINITE_WAIT );
+  Mutex::Lock lock(mutex);
   strlcpy( http_proxy_user, username, sizeof( http_proxy_user ));
-  DosReleaseMutexSem( mutex );
 }
 
 /* Sets the user password of the proxy server. */
 void DLLENTRY
 xio_set_http_proxy_pass( char* password )
 {
-  DosRequestMutexSem( mutex, SEM_INDEFINITE_WAIT );
+  Mutex::Lock lock(mutex);
   strlcpy( http_proxy_pass, password, sizeof( http_proxy_pass ));
-  DosReleaseMutexSem( mutex );
 }
 
 /* Returns an internet address of the proxy server.
@@ -864,10 +773,10 @@ xio_http_proxy_addr( void )
   char host[XIO_MAX_HOSTNAME];
   u_long address;
 
-  DosRequestMutexSem( mutex, SEM_INDEFINITE_WAIT );
-  strlcpy( host, http_proxy_host, sizeof( host ));
-  address = http_proxy_addr;
-  DosReleaseMutexSem( mutex );
+  { Mutex::Lock lock(mutex);
+    strlcpy( host, http_proxy_host, sizeof( host ));
+    address = http_proxy_addr;
+  }
 
   if( address != 0 && address != -1 ) {
     return address;
@@ -878,9 +787,7 @@ xio_http_proxy_addr( void )
 
   address = so_get_address( host );
 
-  DosRequestMutexSem( mutex, SEM_INDEFINITE_WAIT );
   http_proxy_addr = address;
-  DosReleaseMutexSem( mutex );
   return address;
 }
 
@@ -888,63 +795,13 @@ xio_http_proxy_addr( void )
 int DLLENTRY
 xio_connect_timeout( void )
 {
-  int seconds;
-
-  DosRequestMutexSem( mutex, SEM_INDEFINITE_WAIT );
-  seconds = socket_timeout;
-  DosReleaseMutexSem( mutex );
-  return seconds;
+  return socket_timeout;
 }
 
 /* Sets the TCP/IP connection timeout. */
 void DLLENTRY
 xio_set_connect_timeout( int seconds )
 {
-  DosRequestMutexSem( mutex, SEM_INDEFINITE_WAIT );
   socket_timeout = seconds;
-  DosReleaseMutexSem( mutex );
 }
-
-int INIT_ATTRIBUTE __dll_initialize( void )
-{
-  if( DosCreateMutexSem( NULL, &mutex,     0, FALSE ) != NO_ERROR ) {
-    return 0;
-  }
-  #ifdef XIO_SERIALIZE_DISK_IO
-  if( DosCreateMutexSem( NULL, &serialize, 0, FALSE ) != NO_ERROR ) {
-    return 0;
-  }
-  #endif
-
-  return 1;
-}
-
-int TERM_ATTRIBUTE __dll_terminate( void )
-{
-  DosCloseMutexSem( mutex     );
-  #ifdef XIO_SERIALIZE_DISK_IO
-  DosCloseMutexSem( serialize );
-  #endif
-  return 1;
-}
-
-#if defined(__IBMC__)
-unsigned long _System _DLL_InitTerm( unsigned long modhandle,
-                                     unsigned long flag       )
-{
-  if( flag == 0 ) {
-    if( _CRT_init() == -1 ) {
-      return 0UL;
-    }
-    return __dll_initialize();
-  } else {
-    #ifdef __DEBUG_ALLOC__
-    _dump_allocated( 0 );
-    #endif
-    __dll_terminate();
-    _CRT_term();
-    return 1UL;
-  }
-}
-#endif
 

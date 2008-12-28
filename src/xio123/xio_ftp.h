@@ -64,10 +64,40 @@
 #define FTP_FILE_NO_ACCESS          550
 #define FTP_PROTOCOL_ERROR          999
 
-/* Initializes the ftp protocol. */
-XPROTOCOL*  ftp_initialize( XFILE* x );
-/* Maps the error number in errnum to an error message string. */
-const char* ftp_strerror( int errnum );
+class XIOftp : public XIOreadonly
+{private:
+  XSFLAGS       support;
+  int           s_handle;   /* Connection handle.                            */
+  unsigned long s_pos;      /* Current position of the stream pointer.       */
+  unsigned long s_size;     /* Size of the associated file.                  */
+  char*         s_location; /* Saved resource location. */
+
+  char  s_reply[512];
+  int   s_datahandle;
+
+ private:
+  /* Get and parse a FTP server response. */
+  int read_reply();
+  /* Sends a command to a FTP server and checks response. */
+  int send_command( const char* command, const char* params );
+  /* Initiates the transfer of the file specified by filename. */
+  int transfer_file( const char* filename, unsigned long range );
+
+ public:
+  /* Initializes the ftp protocol. */
+  XIOftp();
+  virtual ~XIOftp();
+  virtual int open( const char* filename, XOFLAGS oflags );
+  virtual int read( void* result, unsigned int count );
+  virtual int close();
+  virtual long tell( long* offset64 = NULL );
+  virtual long seek( long offset, int origin, long* offset64 = NULL );
+  virtual long getsize( long* offset64 = NULL );
+  virtual XSFLAGS supports() const;
+
+  /* Maps the error number in errnum to an error message string. */
+  static const char* strerror( int errnum );
+};
 
 #endif /* XIO_FTP_H */
 

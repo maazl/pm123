@@ -60,7 +60,7 @@ vio_seek( sf_count_t offset, int whence, void* x )
       return -1;
   }
 
-  if( xio_fseek((XFILE*)x, pos, XIO_SEEK_SET ) == 0 ) {
+  if( xio_fseek((XFILE*)x, pos, XIO_SEEK_SET ) != -1 ) {
     return pos;
   } else {
     return -1;
@@ -84,13 +84,16 @@ vio_tell( void *x ) {
 
 /* Opens a file. Returns 0 if it successfully opens the file.
    A nonzero return value indicates an error. A -1 return value
-   indicates an unsupported format of the file. */
+   indicates an unsupported format of the file.
+   The read_ahead flag starts an asynchronuous thread for reading data. */
 static ULONG
-snd_open( DECODER_STRUCT* w, int mode )
+snd_open( DECODER_STRUCT* w, int mode, int read_ahead )
 {
   SF_VIRTUAL_IO vio;
 
-  if(( w->file = xio_fopen( w->filename, mode == SFM_READ ? "rb" : "r+b" )) == NULL ) {
+  static const char omode[][6] =
+  { "rbU", "r+bU", "rbXU", "r+bXU" };
+  if(( w->file = xio_fopen( w->filename, omode[(mode == SFM_READ) + ((read_ahead != 0)<<1)] )) == NULL ) {
     w->sndfile = NULL;
     return xio_errno();
   }
@@ -139,7 +142,7 @@ decoder_thread( void* arg )
   w->ffwd = FALSE;
   w->stop = FALSE;
 
-  if(( rc = snd_open( w, SFM_READ )) != 0 ) {
+  if(( rc = snd_open( w, SFM_READ, TRUE )) != 0 ) {
     if( w->error_display )
     {
       char errorbuf[1024];
@@ -419,7 +422,7 @@ decoder_fileinfo( const char* filename, DECODER_INFO* info )
   ULONG rc;
 
   strlcpy( w.filename, filename, sizeof( w.filename ));
-  if(( rc = snd_open( &w, SFM_READ )) == 0 )
+  if(( rc = snd_open( &w, SFM_READ, FALSE )) == 0 )
   {
     info->format.size       = sizeof( info->format );
     info->format.format     = WAVE_FORMAT_PCM;
