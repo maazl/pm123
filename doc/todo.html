@@ -59,13 +59,19 @@ non-existing show up. This messages should be suppressed.</td>
 prefetched the new decoder thread does not inherit the priority from
 the old thread. This may cause the playback to have drop outs.</td>
 </tr>
-<tr class="test">
-<td><em>6 medium bug, untested</em></td>
+<tr class="open">
+<td><em>6 medium bug, open</em></td>
 <td>Deadlocks with recursive playlists</td>
 <td>With recursive playlist structures PM123 sometimes
 deadlocks because the list semaphore are not requested top down. In
-fact there is no top and no bottom in this case. Maybe implicitly
-fixed by #10.</td>
+fact there is no top and no bottom in this case.<br>
+The problem arises from PlayableCollection::GetCollectionInfo.
+The required information is prefetched, but that is not sufficient.
+If another worker thread is working on another information of the other
+item and is demanding information from the current item in the same way,
+everything stops.<br>
+I think a conditional var for each object in CollectionInfoCache
+is the only solution.</td>
 </tr>
 <tr class="fixed">
 <td><em>7 medium todo, fixed</em></td>
