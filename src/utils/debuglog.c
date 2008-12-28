@@ -124,8 +124,8 @@ void pmassert(const char* file, int line, const char* msg)
 /* Replace the abort function of the runtime and generate a trap instead.
  * OS/2 recovers better from traps than from an abort at bad places.
  */
-void abort(void)
+/*void abort(void)
 { volatile int i = 0;
   i /= i;
-}
+} */
 
