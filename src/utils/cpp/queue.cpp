@@ -149,3 +149,12 @@ queue_base::EntryBase* queue_base::Purge()
   return rhead;
 }
 
+void queue_base::ForEach(void (*action)(const EntryBase* entry, void* arg), void* arg)
+{ Mutex::Lock lock(Mtx);
+  const EntryBase* ep = Head;
+  while (ep)
+  { action(ep, arg);
+    ep = ep->Next;
+  }
+}
+

@@ -61,6 +61,7 @@ class queue_base
   void       Write(EntryBase* entry);
   void       Write(EntryBase* entry, EntryBase* after);
   EntryBase* Purge();
+  void       ForEach(void (*action)(const EntryBase* entry, void* arg), void* arg);
 };
 
 template <class T>
@@ -96,6 +97,10 @@ class queue : public queue_base
   // In case that the element is part of a current uncommited read the function
   // will block until the read is commited.
   int        ForceRemove(const T& data);
+  // Callback for each elements
+  // Note that the callback ist called from synchronized context.
+  void       ForEach(void (*action)(const queue<T>::qentry& entry, void* arg), void* arg)
+             { queue_base::ForEach((void (*)(const EntryBase*, void*))action, arg); }
 };
 
 template <class T>
