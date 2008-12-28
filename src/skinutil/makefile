@@ -10,7 +10,7 @@ TARGET   = skinutil.exe
 
 OBJECTS  = skinutil$(CO)
 DEF      = skinutil$(LDEF_SUFFX)
-LIBS     = $(TOPDIR)\gbm123\gbm123$(LBI) $(TOPDIR)\utils\utilfct$(LBO)
+LIBS     = $(TOPDIR)\gbm123\libgbm$(LBO) $(TOPDIR)\utils\utilfct$(LBO)
 
 skinutil.exe: $(OBJECTS) $(DEF) $(LIBS)
 	$(CL) $(LFLAGS) $(LFLAGS_IO) $(LFLAGS_OUT)$@ $(LOBJ_PREFX)$(OBJECTS)$(LOBJ_SUFFX) $(LLIB_PREFX)$(LIBS)$(LLIB_SUFFX) $(LDEF_PREFX)$(DEF)
