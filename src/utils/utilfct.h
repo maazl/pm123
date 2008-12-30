@@ -155,6 +155,9 @@ ULONG nb_append_tab( HWND book, HWND page, const char* major, char* minor, MPARA
 /* Adjusting the position and size of a notebook window. */
 void  nb_adjust( HWND hwnd );
 
+/* Sets the upper and lower limit of a numeric spin button and the maximum text length */
+BOOL  sb_setnumlimits( HWND hwnd, USHORT id, LONG low, LONG high, USHORT len); 
+
 /* This function sets the visibility state of a dialog item. */
 #define WinShowDlgItem( hwndDlg, idItem, fNewVisibility ) \
         WinShowWindow( WinWindowFromID( hwndDlg, idItem ), fNewVisibility )

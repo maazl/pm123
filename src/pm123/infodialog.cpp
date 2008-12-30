@@ -340,7 +340,7 @@ MRESULT InfoDialog::MetaWriteDlg::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
         return 0;
       }
       // Enable skip buttons
-      PMRASSERT(WinEnableControl(GetHwnd(), PB_WMRETRY,   TRUE));
+      PMRASSERT(WinEnableControl(GetHwnd(), PB_RETRY,     TRUE));
       PMRASSERT(WinEnableControl(GetHwnd(), PB_WMSKIP,    TRUE));
       PMRASSERT(WinEnableControl(GetHwnd(), PB_WMSKIPALL, TRUE));
       return 0;
@@ -360,9 +360,9 @@ MRESULT InfoDialog::MetaWriteDlg::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
      case PB_WMSKIP:
       // next item
       ++CurrentItem;
-     case PB_WMRETRY:
+     case PB_RETRY:
       // Disable skip buttons
-      PMRASSERT(WinEnableControl(GetHwnd(), PB_WMRETRY,   FALSE));
+      PMRASSERT(WinEnableControl(GetHwnd(), PB_RETRY,     FALSE));
       PMRASSERT(WinEnableControl(GetHwnd(), PB_WMSKIP,    FALSE));
       PMRASSERT(WinEnableControl(GetHwnd(), PB_WMSKIPALL, FALSE));
       ResumeSignal.Set();

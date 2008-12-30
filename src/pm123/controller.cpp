@@ -517,11 +517,11 @@ Ctrl::RC Ctrl::MsgScan(Op op)
 
   if (Playing)
   { // => Decoder
+    // TODO: discard prefetch buffer.
     if (dec_fast(newscan) != 0)
       return RC_DecPlugErr;
-    else if (cfg.trash)
+    else // if (cfg.trash)
       // Going back in the stream to what is currently playing.
-      // TODO: discard prefetch buffer.
       dec_jump(FetchCurrentSongTime());
 
   } else if (op & Op_Set)

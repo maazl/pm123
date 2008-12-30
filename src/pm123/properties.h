@@ -86,13 +86,13 @@ typedef struct _amp_cfg {
   bool   append_cmd;          // Commandline appends to default playlist
   bool   queue_mode;          // Delete played items from the default playlist
   int    num_workers;         // Number of worker threads for Playable objects
+  int    num_dlg_workers;     // Number of dialog (high priority) worker threads for Playable objects
                                 
   int    font;                // Use font 1 or font 2.
   bool   font_skinned;        // Use skinned font.
   FATTRS font_attrs;          // Font's attributes.
   LONG   font_size;           // Font's point size.
                                 
-  bool   trash;               // Trash buffers on fast forward
   bool   floatontop;          // Float on top.
   int    scroll;              // See CFG_SCROLL_*
   int    viewmode;            // See CFG_DISP_*

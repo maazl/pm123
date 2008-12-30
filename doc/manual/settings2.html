@@ -1,64 +1,32 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
-<html resid="1051" sublinks="*"><head>
-  <title>Configuration Settings 2/2</title>
-  <link rel="stylesheet" href="infstyle.css" type="text/css">
-</head>
+<html resid="1051" sublinks="*"><head><meta content="text/html;charset=ISO-8859-1" http-equiv="Content-Type">
+  
+  <title>Playlist Behavior Settings</title><link rel="stylesheet" href="infstyle.css" type="text/css"><meta content="Marcel M&uuml;ller" name="author"></head>
 <body>
-<h2>PM123's Configuration Settings 2/2</h2>
+<h2>PM123's Playlist Behavior Settings</h2>
 
 <blockquote>
 <img src="images/prop1a.png"><br>
-</blockquote>
-
-<h3>Navigation</h3>
-<dl>
-  <dt><b>Alternate slider</b> <img src="images/altslider.bmp" align="bottom">
-  </dt><dd>Alternate navigation is available in playlist mode to navigate directly through the entire playlist.
-    It is activated by pressing the Alt key while the main window has the focus.
-    You can choose between three types of behavior:
-    <ul>
-      <li><b>Song only</b><br>
-        This allows you to use the slider to jump to the <em>beginning</em>
-        of an arbitrary song within a playlist.
-      </li><li><b>Song &amp; time</b><br>
-        This option will map all songs in the playlist to equidistant slices of the slider.
-        Within this blocks you can navigate to an relative location within the song item
-        (if it has finite length).
-      </li><li><b>Time only</b><br>
-        This will navigate within the currently loaded playlist at a linear time scale
-        as if it were one very long song. If the total playing time of the playlist
-        is unknown (e.g. because a radio stream is part of the it)
-        alternate navigation will fall back to "Song &amp; time". 
-    </li></ul>
-</dd></dl>
-
-<h3>Remote control</h3>
-<dl>
-  <dt><b>Pipe name</b>
-  </dt><dd>Specify the name of the named pipe that is used to control PM123 remotely.
-    Only one instance of PM123 can listen at a certain pipe name.
-    The pipe name must start with <tt>\PIPE\</tt>.<br>
-    If you want to control different instances remotely at the same time,
-    they must use different pipe names and therefore different configuration files.
-    Otherwise the pipe interface of the second instance will be deactivated.
-</dd></dl>
-
-<h3>Streaming audio</h3>
-<dl>
-<dt><b>HTTP proxy</b>
-</dt><dd>Specify the name or numeric IP address of your HTTP proxy server here.
-</dd><dt><b>port</b>
-</dt><dd>Specify the port of your HTTP proxy server.
-</dd><dt><b>User name</b>
-</dt><dd>This is your HTTP authentication name.
-</dd><dt><b>password</b>
-</dt><dd>This is your HTTP authentication password.
-</dd><dt><b>Buffer size</b>
-</dt><dd>Specifies the read ahead buffer size (useful when playing across a network or from a streaming source).
-You can disable the buffer having chosen the zero size, but it will dramatically decrease
-player performance.
-</dd><dt><b>Fill <var>x</var>% of the buffer before playing</b>
-</dt><dd>Fills the buffer (see above) before playing.
-</dd></dl>
-
-</body></html>
+</blockquote><h3>Playlists</h3>
+<dl><dt><b>Auto 'play' on 'use playlist'</b>
+  </dt><dd>Automatically starts playing when a playlist is loaded ("Use playlist").
+  </dd><dt><b>Auto 'use playlist' on add</b>
+  </dt><dd>Automatically loads a playlist if items are appended to it.
+  </dd><dt><b>Recurse into subdirectories at drag &amp; drop by default</b>
+  </dt><dd>When you drop a folder to PM123 it will be added as a virtual playlist
+    that also contains the sub folders as virtual playlists.
+  </dd><dt><b>Sort folder content by name</b>
+  </dt><dd>When a file system folder is opened by PM123 the files are always sorted by their name.
+  </dd><dt><b>Sub folders first</b>
+  </dt><dd>Additionally the sub folders are placed before any file items.
+    Otherwise sub folders will show up between the files according to their name.
+  </dd><dt><b>Append to default playlist</b>
+  </dt><dd>When you drop items to PM123 or call PM123 with a filename in the command line
+    (most likely by a association of the PMSHELL) you may append these items to the default
+    playlist instead of immediately replacing the currently playing file with the new song.
+    This may be used to enqueue songs.
+  </dd><dt><b>Queue mode</b>
+  </dt><dd>In queue mode PM123 removes completely played items from the default playlist.
+    Together with "Append to default playlist" this offers an option to use the default
+    playlist as queue of items to play. This is similar to a printer queue.
+</dd></dl></body></html>

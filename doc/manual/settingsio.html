@@ -1,0 +1,74 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html resid="1051" sublinks="*"><head>
+<meta content="text/html;charset=ISO-8859-1" http-equiv="Content-Type"><title>System Settings</title>
+
+<link rel="stylesheet" href="infstyle.css" type="text/css">
+<meta content="Marcel M&uuml;ller" name="author">
+</head>
+<body>
+<h2>PM123's System Settings</h2>
+<blockquote>
+<img alt="Screenshot" src="images/prop2.png" height="511" width="568"><br>
+</blockquote>
+<h3>Remote control</h3>
+<dl>
+<dt><b>Pipe name</b> </dt>
+<dd>Specify the name of the named pipe that is used to control
+PM123 remotely. Only one instance of PM123 can listen at a certain pipe
+name. The pipe name must start with <tt>\PIPE\</tt>.<br>
+If you want to control different instances remotely at the same time,
+they must use different pipe names and therefore different
+configuration files. Otherwise the pipe interface of the second
+instance will be deactivated.
+</dd>
+</dl>
+<h3>Streaming audio</h3>
+<dl>
+<dt><b>HTTP proxy</b>
+</dt>
+<dd>Specify the name or numeric IP address of your HTTP proxy
+server here.
+</dd>
+<dt><b>port</b>
+</dt>
+<dd>Specify the port of your HTTP proxy server.
+</dd>
+<dt><b>User name</b>
+</dt>
+<dd>This is your HTTP authentication name.
+</dd>
+<dt><b>password</b>
+</dt>
+<dd>This is your HTTP authentication password.
+</dd>
+<dt><b>Buffer size</b>
+</dt>
+<dd>Specifies the read ahead buffer size (useful when playing
+across a network or from a streaming source).
+You can disable the buffer having chosen the zero size, but it will
+dramatically decrease
+player performance.
+</dd>
+<dt><b>Fill <var>x</var>% of the buffer
+before playing</b>
+</dt>
+<dd>Fills the buffer (see above) before playing.</dd>
+</dl>
+<h3>Performance</h3>
+<dl>
+<dt><b>Worker threads</b></dt>
+<dd>PM123 uses worker threads to decouple I/O operations from the user
+interface. More workers can do more tasks in parallel, but this is not
+necessarily faster, because of other limited system resources, first of
+all the disk I/O. It is recommended to have at least 2 workers and no
+more than 5 (in all).<br>There are two kinds of tasks to perform:<br>&nbsp; 1. <em>dialog tasks</em> and<br>&nbsp; 2. <em>batch tasks</em>.<br>Dialog tasks do I/O operations where the user is typically waiting for, e.g. loading a playlist that is just opened for editing.<br>Batch
+tasks do I/O operations that are not indispensable to user actions like
+fetching the total playing time of a large playlist.<br>The general
+purpose workers can do both kind of tasks, while the dialog workers are
+reserved for dialog tasks to keep the user interface always responsive.
+It is a good advise to have at least one dialog worker. More than one
+dialog worker makes only sense if you often have to deal with network
+timeouts or something like that. A second worker will keep PM123
+responsive while the first one is trying to perform some task to no
+avail.</dd></dl>
+</body></html>

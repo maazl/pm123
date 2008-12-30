@@ -1541,6 +1541,17 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
     }
     return 0;
     
+   case AMP_PIPERESTART:
+    // restart pipe worker
+    amp_pipe_destroy();
+    amp_pipe_create();
+    return 0;
+   
+   case AMP_WORKERADJUST:
+    // adjust number of worker threads
+    // TODO !!!
+    return 0;
+   
     /*case WM_SYSCOMMAND:
       DEBUGLOG(("amp_dlg_proc: WM_SYSCVOMMAND: %u, %u, %u\n", SHORT1FROMMP(mp1), SHORT1FROMMP(mp2), SHORT2FROMMP(mp2)));
       break;*/

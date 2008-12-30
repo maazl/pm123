@@ -565,3 +565,10 @@ nb_adjust( HWND hwnd )
   }
 }
 
+BOOL sb_setnumlimits( HWND hwnd, USHORT id, LONG low, LONG high, USHORT len)
+{ HWND sb = WinWindowFromID( hwnd, id );
+  return sb != NULLHANDLE
+    && WinSendMsg( sb, SPBM_SETLIMITS, MPFROMLONG( high ), MPFROMLONG( low ))
+    && WinSendMsg( sb, SPBM_SETTEXTLIMIT, MPFROMSHORT( len ), 0 );
+} 
+

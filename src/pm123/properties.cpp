@@ -75,14 +75,14 @@ const amp_cfg cfg_default =
   false,
   false,
   true,
-  2,
+  2, // num_workers
+  1,
   
   1, // font
   false,
   { sizeof(FATTRS), 0, 0, "WarpSans Bold", 0, 0, 16, 7, 0, 0 },
   9,
   
-  true,
   false, // float on top
   CFG_SCROLL_INFINITE,
   CFG_DISP_ID3TAG,
@@ -154,19 +154,15 @@ cfg_settings1_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
 
     case CFG_CHANGE:
     { const amp_cfg& cfg = *(const amp_cfg*)PVOIDFROMMP(mp1);
+
       WinCheckButton( hwnd, CB_PLAYONLOAD,    cfg.playonload   );
-      WinCheckButton( hwnd, CB_TRASHONSCAN,   cfg.trash        );
       WinCheckButton( hwnd, CB_RETAINONEXIT,  cfg.retainonexit );
       WinCheckButton( hwnd, CB_RETAINONSTOP,  cfg.retainonstop );
       WinCheckButton( hwnd, CB_RESTARTONSTART,cfg.restartonstart);
       
-      WinCheckButton( hwnd, CB_AUTOUSEPL,     cfg.autouse      );
-      WinCheckButton( hwnd, CB_RECURSEDND,    cfg.recurse_dnd  );
-      WinCheckButton( hwnd, CB_SORTFOLDERS,   cfg.sort_folders );
-      WinCheckButton( hwnd, CB_FOLDERSFIRST,  cfg.folders_first);
-      WinCheckButton( hwnd, CB_AUTOAPPENDDND, cfg.append_dnd   );
-      WinCheckButton( hwnd, CB_AUTOAPPENDCMD, cfg.append_cmd   );
-      WinCheckButton( hwnd, CB_QUEUEMODE,     cfg.queue_mode   );
+      WinCheckButton( hwnd, CB_TURNAROUND,    cfg.autoturnaround );
+      WinCheckButton( hwnd, RB_SONGONLY +     cfg.altnavig, TRUE );
+
       return 0;
     }
 
@@ -183,18 +179,18 @@ cfg_settings1_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
 
     case WM_DESTROY:
       cfg.playonload  = WinQueryButtonCheckstate( hwnd, CB_PLAYONLOAD   );
-      cfg.trash       = WinQueryButtonCheckstate( hwnd, CB_TRASHONSCAN  );
       cfg.retainonexit= WinQueryButtonCheckstate( hwnd, CB_RETAINONEXIT );
       cfg.retainonstop= WinQueryButtonCheckstate( hwnd, CB_RETAINONSTOP );
       cfg.restartonstart= WinQueryButtonCheckstate( hwnd, CB_RESTARTONSTART);
-      
-      cfg.autouse     = WinQueryButtonCheckstate( hwnd, CB_AUTOUSEPL    );
-      cfg.recurse_dnd = WinQueryButtonCheckstate( hwnd, CB_RECURSEDND   );
-      cfg.sort_folders= WinQueryButtonCheckstate( hwnd, CB_SORTFOLDERS  );
-      cfg.folders_first= WinQueryButtonCheckstate( hwnd, CB_FOLDERSFIRST);
-      cfg.append_dnd  = WinQueryButtonCheckstate( hwnd, CB_AUTOAPPENDDND);
-      cfg.append_cmd  = WinQueryButtonCheckstate( hwnd, CB_AUTOAPPENDCMD);
-      cfg.queue_mode  = WinQueryButtonCheckstate( hwnd, CB_QUEUEMODE    );
+
+      cfg.autoturnaround = WinQueryButtonCheckstate( hwnd, CB_TURNAROUND );
+      if (WinQueryButtonCheckstate( hwnd, RB_SONGONLY ))
+        cfg.altnavig = CFG_ANAV_SONG;
+      else if (WinQueryButtonCheckstate( hwnd, RB_SONGTIME ))
+        cfg.altnavig = CFG_ANAV_SONGTIME;
+      else if (WinQueryButtonCheckstate( hwnd, RB_TIMEONLY ))
+        cfg.altnavig = CFG_ANAV_TIME;
+
     case WM_COMMAND:
     case WM_CONTROL:
       return 0;
@@ -212,12 +208,67 @@ cfg_settings2_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
 
     case CFG_CHANGE:
     { const amp_cfg& cfg = *(const amp_cfg*)PVOIDFROMMP(mp1);
+      WinCheckButton( hwnd, CB_AUTOUSEPL,     cfg.autouse      );
+      WinCheckButton( hwnd, CB_RECURSEDND,    cfg.recurse_dnd  );
+      WinCheckButton( hwnd, CB_SORTFOLDERS,   cfg.sort_folders );
+      WinCheckButton( hwnd, CB_FOLDERSFIRST,  cfg.folders_first);
+      WinCheckButton( hwnd, CB_AUTOAPPENDDND, cfg.append_dnd   );
+      WinCheckButton( hwnd, CB_AUTOAPPENDCMD, cfg.append_cmd   );
+      WinCheckButton( hwnd, CB_QUEUEMODE,     cfg.queue_mode   );
+      return 0;
+    }
+
+    case CFG_GLOB_BUTTON:
+    { const amp_cfg* data = &cfg;
+      switch (SHORT1FROMMP(mp1))
+      {case PB_DEFAULT:
+        data = &cfg_default;
+       case PB_UNDO:
+        PMRASSERT(WinPostMsg(hwnd, CFG_CHANGE, MPFROMP(data), 0));
+      }
+      return 0;
+    }
+
+    case WM_CONTROL:
+    case WM_COMMAND:
+      return 0;
+
+    case WM_DESTROY:
+    {
+      cfg.autouse      = WinQueryButtonCheckstate( hwnd, CB_AUTOUSEPL    );
+      cfg.recurse_dnd  = WinQueryButtonCheckstate( hwnd, CB_RECURSEDND   );
+      cfg.sort_folders = WinQueryButtonCheckstate( hwnd, CB_SORTFOLDERS  );
+      cfg.folders_first= WinQueryButtonCheckstate( hwnd, CB_FOLDERSFIRST );
+      cfg.append_dnd   = WinQueryButtonCheckstate( hwnd, CB_AUTOAPPENDDND);
+      cfg.append_cmd   = WinQueryButtonCheckstate( hwnd, CB_AUTOAPPENDCMD);
+      cfg.queue_mode   = WinQueryButtonCheckstate( hwnd, CB_QUEUEMODE    );
+
+      return 0;
+    }
+  }
+  return WinDefDlgProc( hwnd, msg, mp1, mp2 );
+}
+
+static MRESULT EXPENTRY
+cfg_iosettings_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
+{ switch( msg ) {
+    case WM_INITDLG:
+      do_warpsans( hwnd );
+      PMRASSERT(sb_setnumlimits( hwnd, SB_TIMEOUT,    1,  300, 4 ));
+      PMRASSERT(sb_setnumlimits( hwnd, SB_BUFFERSIZE, 0, 2048, 4 ));
+      PMRASSERT(sb_setnumlimits( hwnd, SB_FILLBUFFER, 1,  100, 4 ));
+
+      PMRASSERT(sb_setnumlimits( hwnd, SB_NUMWORKERS, 1,    9, 1 ));
+      PMRASSERT(sb_setnumlimits( hwnd, SB_DLGWORKERS, 0,    9, 1 ));
+
+      WinPostMsg(hwnd, CFG_CHANGE, MPFROMP(&cfg), 0);
+      break;
+
+    case CFG_CHANGE:
+    { const amp_cfg& cfg = *(const amp_cfg*)PVOIDFROMMP(mp1);
       char buffer[1024];
       const char* cp;
       size_t l;
-
-      WinCheckButton( hwnd, CB_TURNAROUND,cfg.autoturnaround );
-      WinCheckButton( hwnd, RB_SONGONLY + cfg.altnavig, TRUE );
 
       WinSetDlgItemText( hwnd, EF_PIPE, cfg.pipe_name );
 
@@ -249,12 +300,12 @@ cfg_settings2_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
 
       WinCheckButton   ( hwnd, CB_FILLBUFFER, cfg.buff_wait );
 
-      WinSendDlgItemMsg( hwnd, SB_TIMEOUT,    SPBM_SETLIMITS, MPFROMLONG( 300  ), MPFROMLONG( 1 ));
       WinSendDlgItemMsg( hwnd, SB_TIMEOUT,    SPBM_SETCURRENTVALUE, MPFROMLONG( cfg.conn_timeout ), 0 );
-      WinSendDlgItemMsg( hwnd, SB_BUFFERSIZE, SPBM_SETLIMITS, MPFROMLONG( 2048 ), MPFROMLONG( 0 ));
       WinSendDlgItemMsg( hwnd, SB_BUFFERSIZE, SPBM_SETCURRENTVALUE, MPFROMLONG( cfg.buff_size ), 0 );
-      WinSendDlgItemMsg( hwnd, SB_FILLBUFFER, SPBM_SETLIMITS, MPFROMLONG( 100  ), MPFROMLONG( 1 ));
       WinSendDlgItemMsg( hwnd, SB_FILLBUFFER, SPBM_SETCURRENTVALUE, MPFROMLONG( cfg.buff_fill ), 0 );
+
+      WinSendDlgItemMsg( hwnd, SB_NUMWORKERS, SPBM_SETCURRENTVALUE, MPFROMLONG( cfg.num_workers ), 0 );
+      WinSendDlgItemMsg( hwnd, SB_DLGWORKERS, SPBM_SETCURRENTVALUE, MPFROMLONG( cfg.num_dlg_workers ), 0 );
       return 0;
     }
 
@@ -284,27 +335,17 @@ cfg_settings2_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
     {
       size_t i;
 
-      cfg.autoturnaround = WinQueryButtonCheckstate( hwnd, CB_TURNAROUND );
-      if (WinQueryButtonCheckstate( hwnd, RB_SONGONLY ))
-        cfg.altnavig = CFG_ANAV_SONG;
-      else if (WinQueryButtonCheckstate( hwnd, RB_SONGTIME ))
-        cfg.altnavig = CFG_ANAV_SONGTIME;
-      else if (WinQueryButtonCheckstate( hwnd, RB_TIMEONLY ))
-        cfg.altnavig = CFG_ANAV_TIME;
+      char buf[_MAX_PATH];
+      *buf = 0;
+      WinQueryDlgItemText( hwnd, EF_PIPE, sizeof buf, buf );
+      if (strnicmp(buf, cfg.pipe_name, _MAX_PATH))
+      { strlcpy(cfg.pipe_name, buf, sizeof cfg.pipe_name);
+        PMRASSERT(WinPostMsg(amp_player_window(), AMP_PIPERESTART, 0, 0));
+      }
 
-      WinQueryDlgItemText( hwnd, EF_PIPE, sizeof cfg.pipe_name, cfg.pipe_name );
-      // restatrt pipe worker
-      amp_pipe_destroy();
-      amp_pipe_create();
-
-      WinSendDlgItemMsg( hwnd, SB_BUFFERSIZE, SPBM_QUERYVALUE, MPFROMP( &i ), MPFROM2SHORT( 0, SPBQ_DONOTUPDATE ));
-      cfg.buff_size = i;
-
-      WinSendDlgItemMsg( hwnd, SB_FILLBUFFER, SPBM_QUERYVALUE, MPFROMP( &i ), MPFROM2SHORT( 0, SPBQ_DONOTUPDATE ));
-      cfg.buff_fill = i;
-
-      WinSendDlgItemMsg( hwnd, SB_TIMEOUT, SPBM_QUERYVALUE, MPFROMP( &i ), MPFROM2SHORT( 0, SPBQ_DONOTUPDATE ));
-      cfg.conn_timeout = i;
+      PMRASSERT(WinSendDlgItemMsg( hwnd, SB_BUFFERSIZE, SPBM_QUERYVALUE, MPFROMP( &cfg.buff_size ), MPFROM2SHORT( 0, SPBQ_DONOTUPDATE )));
+      PMRASSERT(WinSendDlgItemMsg( hwnd, SB_FILLBUFFER, SPBM_QUERYVALUE, MPFROMP( &cfg.buff_fill ), MPFROM2SHORT( 0, SPBQ_DONOTUPDATE )));
+      PMRASSERT(WinSendDlgItemMsg( hwnd, SB_TIMEOUT, SPBM_QUERYVALUE, MPFROMP( &cfg.conn_timeout ), MPFROM2SHORT( 0, SPBQ_DONOTUPDATE )));
 
       WinQueryDlgItemText( hwnd, EF_PROXY_HOST, sizeof cfg.proxy, cfg.proxy );
       xio_set_http_proxy_host( cfg.proxy );
@@ -334,7 +375,11 @@ cfg_settings2_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
       xio_set_buffer_wait( cfg.buff_wait );
       xio_set_buffer_fill( cfg.buff_fill );
       xio_set_connect_timeout( cfg.conn_timeout );
-
+      
+      PMRASSERT(WinSendDlgItemMsg( hwnd, SB_NUMWORKERS, SPBM_QUERYVALUE, MPFROMP( &cfg.num_workers ), MPFROM2SHORT( 0, SPBQ_DONOTUPDATE )));
+      PMRASSERT(WinSendDlgItemMsg( hwnd, SB_DLGWORKERS, SPBM_QUERYVALUE, MPFROMP( &cfg.num_dlg_workers ), MPFROM2SHORT( 0, SPBQ_DONOTUPDATE )));
+      PMRASSERT(WinPostMsg(amp_player_window(), AMP_WORKERADJUST, 0, 0));
+      
       return 0;
     }
   }
@@ -351,18 +396,19 @@ cfg_display1_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
   switch( msg ) {
     case WM_INITDLG:
       do_warpsans( hwnd );
+      PMRASSERT(sb_setnumlimits( hwnd, SB_DOCK, 0, 30, 2 ));
       WinPostMsg(hwnd, CFG_CHANGE, MPFROMP(&cfg), 0);
       break;
 
     case CFG_CHANGE:
     { 
       if (mp1)
-      { char buffer[20];
-        WinCheckButton( hwnd, CB_DOCK,         cfg.dock_windows );
-        WinSetDlgItemText( hwnd, EF_DOCK, itoa( cfg.dock_margin, buffer, 10 ));
+      { const amp_cfg& cfg = *(const amp_cfg*)PVOIDFROMMP(mp1);
+        WinCheckButton   ( hwnd, CB_DOCK, cfg.dock_windows );
+        WinEnableControl ( hwnd, SB_DOCK, cfg.dock_windows );
+        WinSendDlgItemMsg( hwnd, SB_DOCK, SPBM_SETCURRENTVALUE, MPFROMLONG( cfg.dock_margin ), 0 );
 
         // load GUI
-        const amp_cfg& cfg = *(const amp_cfg*)PVOIDFROMMP(mp1);
         WinCheckButton( hwnd, RB_DISP_FILENAME   + cfg.viewmode, TRUE );
         WinCheckButton( hwnd, RB_SCROLL_INFINITE + cfg.scroll,   TRUE );
         WinCheckButton( hwnd, CB_USE_SKIN_FONT,    cfg.font_skinned   );
@@ -417,22 +463,28 @@ cfg_display1_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
       return 0;
 
     case WM_CONTROL:
-      if( SHORT1FROMMP(mp1) == CB_USE_SKIN_FONT &&
-        ( SHORT2FROMMP(mp1) == BN_CLICKED || SHORT2FROMMP(mp1) == BN_DBLCLICKED ))
-      {
-        BOOL use = WinQueryButtonCheckstate( hwnd, CB_USE_SKIN_FONT );
-
-        WinEnableControl( hwnd, PB_FONT_SELECT, !use );
-        WinEnableControl( hwnd, ST_FONT_SAMPLE, !use );
-      }
+      switch (SHORT1FROMMP(mp1))
+      {case CB_USE_SKIN_FONT: 
+        if ( SHORT2FROMMP(mp1) == BN_CLICKED || SHORT2FROMMP(mp1) == BN_DBLCLICKED )
+        {
+          BOOL use = WinQueryButtonCheckstate( hwnd, CB_USE_SKIN_FONT );
+          WinEnableControl( hwnd, PB_FONT_SELECT, !use );
+          WinEnableControl( hwnd, ST_FONT_SAMPLE, !use );
+        }
+        break;
+        
+       case CB_DOCK:
+        if ( SHORT2FROMMP(mp1) == BN_CLICKED || SHORT2FROMMP(mp1) == BN_DBLCLICKED )
+        {
+          BOOL use = WinQueryButtonCheckstate( hwnd, CB_DOCK );
+          WinEnableControl ( hwnd, SB_DOCK, use );
+        }
+      }      
       return 0;
 
     case WM_DESTROY:
     {
-      char buffer[8];
-      cfg.dock_windows = WinQueryButtonCheckstate( hwnd, CB_DOCK         );
-      WinQueryDlgItemText( hwnd, EF_DOCK, sizeof buffer, buffer );
-      cfg.dock_margin = atoi( buffer );
+      PMRASSERT(WinSendDlgItemMsg( hwnd, SB_DOCK, SPBM_QUERYVALUE, MPFROMP( &cfg.dock_margin ), MPFROM2SHORT( 0, SPBQ_DONOTUPDATE )));
 
       cfg.scroll   = LONGFROMMR( WinSendDlgItemMsg( hwnd, RB_SCROLL_INFINITE, BM_QUERYCHECKINDEX, 0, 0 ));
       cfg.viewmode = LONGFROMMR( WinSendDlgItemMsg( hwnd, RB_DISP_FILENAME,   BM_QUERYCHECKINDEX, 0, 0 ));
@@ -446,6 +498,7 @@ cfg_display1_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
   }
   return WinDefDlgProc( hwnd, msg, mp1, mp2 );
 }
+
 
 struct PluginContext
 { // Head
@@ -935,10 +988,13 @@ cfg_properties( HWND owner )
                                            MPFROMSHORT( BKA_BACKGROUNDPAGECOLORINDEX ));
 
   PMRASSERT( nb_append_tab( book, WinLoadDlg( book, book, cfg_settings1_dlg_proc, NULLHANDLE, CFG_SETTINGS1, 0 ),
-                            "~Settings", NULL, MPFROM2SHORT( 1, 2 ) ));
+                            "~Behavior", "General behavior", MPFROM2SHORT( 1, 2 ) ));
 
   PMRASSERT( nb_append_tab( book, WinLoadDlg( book, book, cfg_settings2_dlg_proc, NULLHANDLE, CFG_SETTINGS2, 0 ),
-                            NULL, NULL, MPFROM2SHORT( 2, 2 ) ));
+                            NULL, "Playlist behavior", MPFROM2SHORT( 2, 2 ) ));
+
+  PMRASSERT( nb_append_tab( book, WinLoadDlg( book, book, cfg_iosettings_dlg_proc, NULLHANDLE, CFG_IOSETTINGS, 0 ),
+                            "~System settings", NULL, 0 ));
 
   PMRASSERT( nb_append_tab( book, WinLoadDlg( book, book, cfg_display1_dlg_proc, NULLHANDLE, CFG_DISPLAY1, 0 ),
                             "~Display", NULL, 0));
@@ -961,8 +1017,6 @@ cfg_properties( HWND owner )
 
   page = WinLoadDlg( book, book, &WinDefDlgProc, NULLHANDLE, CFG_ABOUT, 0 );
   do_warpsans( page );
-  do_warpsans( WinWindowFromID( page, ST_TITLE2 ));
-  do_warpsans( WinWindowFromID( page, ST_BUILT  ));
   #if defined(__IBMCPP__)
     #if __IBMCPP__ <= 300
     const char built[] = "(built " __DATE__ " using IBM VisualAge C++ 3.0x)";

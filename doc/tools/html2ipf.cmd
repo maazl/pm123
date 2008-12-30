@@ -17,9 +17,9 @@
 /* If someone knows of a free proggy which provides at least partial  */
 /* or equivalent functionality, please mail me                        */
 /* Global.ImageConvert = 'alchemy.exe -o -O -8 <input> <output> >nul';*/
- Global.ImageConvert = 'gbmbpp.exe "<input>" "<output>",1.1 >nul';
+/* Global.ImageConvert = 'gbmbpp.exe "<input>" "<output>",1.1 >nul';  */
 /* Global.ImageConvert = 'gif2bmp.exe <input> <output>';*/
-/* Global.ImageConvert = 'nconvert -out bmp -wflag os2 -swap bgr -o "<output>" "<input>"'*/
+ Global.ImageConvert = 'nconvert -out bmp -wflag os2 -swap bgr -o "<output>" "<input>"'
 /* Executable/description of an external WWW browser to launch when   */
 /* user selects an URL link. Normally, you shouldn`t change it (even  */
 /* if you have Netscape) since WebEx is found on almost every OS/2    */
@@ -221,7 +221,7 @@ ConvertPictures:
  do i = 1 to Global.Picture.0
   /* get time stamp of destination file */
   tstmp = translate('123456789abc', stream(Global.Picture.i.dst, 'c', 'Query Datetime'), '56 34 12 78 9a bc');
-  /*say Global.Picture.i.src'_'Global.Picture.i.dst'_'stream(Global.Picture.i.dst, 'c', 'Query Exists')*/
+  /*say Global.Picture.i.src'_'Global.Picture.i.dst'_'stream(Global.Picture.i.dst, 'c', 'Query Exists')'___'tstmp*/
   if (tstmp = '') | (tstmp < translate('123456789abc', stream(Global.Picture.i.src, 'c', 'Query Datetime'), '56 34 12 78 9a bc')) then
      call RunCmd Global.ImageConvert, Global.Picture.i.src, Global.Picture.i.dst;
  end;

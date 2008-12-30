@@ -35,18 +35,20 @@
 /* ID ranges:
  *
  *     0- 1999   PM123 core
- **  500-  599   PM123 main menu
- **  700-  799   PM123 Plalist/Playlist Manager misc
- **  800-  999   PM123 Plalist/Playlist Manager menu
- ** 1000- 1099   PM123 Help table
- ** 1100- 1199   PM123 File, URL etc.
- ** 1200- 1799   PM123 properties dialog
- ** 1800- 1899   PM123 info dialog
+ *     0-   10    PM123 main window
+ *   100-  199    PM123 common dialog controls
+ *   500-  599    PM123 main menu
+ *   700-  799    PM123 Plalist/Playlist Manager misc
+ *   800-  999    PM123 Plalist/Playlist Manager menu
+ *  1000- 1099    PM123 Help table
+ *  1100- 1199    PM123 File, URL etc.
+ *  1200- 1799    PM123 properties dialog
+ *  1800- 1899    PM123 info dialog
  *  2000- 2999   PM123 Skin IDs
- ** 2000- 2099   PM123 Skinned buttons
- ** 2100- 2199   PM123 Skin misc
- ** 2200- 2399   PM123 Skin digits
- ** 2400- 2799   PM123 Skin fonts
+ *  2000- 2099    PM123 Skinned buttons
+ *  2100- 2199    PM123 Skin misc
+ *  2200- 2399    PM123 Skin digits
+ *  2400- 2799    PM123 Skin fonts
  * 10000-19999   PM123 Bookmark browser
  */
 
@@ -55,12 +57,25 @@
 #define ACL_MAIN              WIN_MAIN // neccessarily identical
 #define ICO_MAIN              WIN_MAIN // neccessarily identical
 
+/* Timers */
 #define TID_UPDATE_TIMERS    ( TID_USERMAX - 1 )
 #define TID_UPDATE_PLAYER    ( TID_USERMAX - 2 )
 #define TID_ONTOP            ( TID_USERMAX - 3 )
 #define TID_CLEANUP          ( TID_USERMAX - 4 )
 #define TID_INSP_AUTOREFR    ( TID_USERMAX - 5 )
 
+/* Generic controls */
+#define ST_GENERIC          100 // Generic, non-unique static text
+#define GB_GENERIC          101 // Generic, non-unique group box
+
+#define PB_UNDO             110
+#define PB_DEFAULT          111
+#define PB_HELP             112
+#define PB_APPLY            113
+#define PB_RETRY            114
+#define PB_REFRESH          115
+
+/* Main menu */
 #define MNU_MAIN            500
 #define IDM_M_SHUFFLE       505
 #define IDM_M_ABOUT         506
@@ -248,6 +263,7 @@
 #define IDH_PLAYFOLDER     1026
 #define IDH_SETTINGS1      1050
 #define IDH_SETTINGS2      1051
+//#define IDH_SETTINGS3      1052
 #define IDH_DISPLAY        1055
 #define IDH_DEC_PLUGINS    1060
 #define IDH_FIL_PLUGINS    1061
@@ -267,97 +283,79 @@
 
 /* Bookmark */
 #define DLG_BM_ADD         1120
-#define ST_BM_DESC         1121
 #define EF_BM_DESC         1122
 
 /* Properties */
 #define DLG_CONFIG         1200
 #define NB_CONFIG          1201
-#define PB_UNDO            1202
-#define PB_DEFAULT         1203
-#define PB_HELP            1204
-#define PB_APPLY           1205
 
 #define CFG_ABOUT          1210
-#define ST_TITLE1          1211
-#define ST_TITLE2          1212
+
 #define ST_BUILT           1213
 #define GB_AUTHORS         1214
 #define ST_AUTHORS         1215
 #define GB_CREDITS         1216
 #define ST_CREDITS         1217
 
-#define CFG_SETTINGS1      1300
-#define GB_BEHAVIOUR       1301
-#define CB_PLAYONLOAD      1302
-#define CB_TRASHONSCAN     1303
-#define ST_RETAINPOS       1304
-#define CB_RETAINONEXIT    1305
-#define CB_RETAINONSTOP    1306
-#define CB_RESTARTONSTART  1307
-#define GB_PLAYLIST        1320
-#define CB_AUTOUSEPL       1321
-#define CB_RECURSEDND      1323
-#define CB_SORTFOLDERS     1324
-#define CB_FOLDERSFIRST    1325
-#define ST_AUTOAPPEND      1326
-#define CB_AUTOAPPENDDND   1327
-#define CB_AUTOAPPENDCMD   1328
-#define CB_QUEUEMODE       1329
+#define CFG_SETTINGS1      1250
 
-#define CFG_SETTINGS2      1350
-#define GB_NAVIGATION      1351
-#define ST_ALTSLIDER       1352
-#define RB_SONGONLY        1353
-#define RB_SONGTIME        1354
-#define RB_TIMEONLY        1355
-#define CB_TURNAROUND      1356
-#define GB_GUIFEATURES     1360
-#define CB_DOCK            1361
-#define EF_DOCK            1362
-#define ST_PIXELS          1363
-#define GB_STREAMING       1370
-#define ST_PROXY_HOST      1371
-#define EF_PROXY_HOST      1372
-#define ST_PROXY_PORT      1373
-#define EF_PROXY_PORT      1374
-#define ST_PROXY_USER      1375
-#define EF_PROXY_USER      1376
-#define ST_PROXY_PASS      1377
-#define EF_PROXY_PASS      1378
-#define ST_BUFFERSIZE      1379
-#define SB_BUFFERSIZE      1380
-#define ST_KB              1381
-#define CB_FILLBUFFER      1382
-#define SB_FILLBUFFER      1383
-#define ST_FILLBUFFER      1384
-#define GB_REMOTE          1390
-#define ST_PIPE            1391
-#define EF_PIPE            1392
-#define ST_TIMEOUT         1393
-#define SB_TIMEOUT         1394
-#define ST_TIMEOUT2        1395
+#define CB_PLAYONLOAD      1260
+#define CB_RETAINONEXIT    1261
+#define CB_RETAINONSTOP    1262
+#define CB_RESTARTONSTART  1263
+
+#define CB_TURNAROUND      1270
+#define RB_SONGONLY        1271
+#define RB_SONGTIME        1272
+#define RB_TIMEONLY        1273
+
+#define CFG_SETTINGS2      1300
+
+#define CB_AUTOUSEPL       1310
+#define CB_RECURSEDND      1311
+#define CB_SORTFOLDERS     1312
+#define CB_FOLDERSFIRST    1313
+#define CB_AUTOAPPENDDND   1314
+#define CB_AUTOAPPENDCMD   1315
+#define CB_QUEUEMODE       1316
+
+#define CFG_IOSETTINGS     1350
+
+#define EF_PIPE            1360
+
+#define EF_PROXY_HOST      1370
+#define EF_PROXY_PORT      1371
+#define EF_PROXY_USER      1372
+#define EF_PROXY_PASS      1373
+#define SB_TIMEOUT         1375
+#define SB_BUFFERSIZE      1376
+#define CB_FILLBUFFER      1377
+#define SB_FILLBUFFER      1378
+
+#define SB_NUMWORKERS      1380
+#define SB_DLGWORKERS      1381
 
 #define CFG_DISPLAY1       1400
-#define GB_TITLE           1401
-#define ST_SCROLL          1410
-#define RB_SCROLL_INFINITE 1411
-#define RB_SCROLL_ONCE     1412
-#define RB_SCROLL_DISABLE  1413
-#define ST_DISPLAY         1420
-#define RB_DISP_FILENAME   1421
-#define RB_DISP_ID3TAG     1422
-#define RB_DISP_FILEINFO   1423
-#define GB_FONT            1430
-#define CB_USE_SKIN_FONT   1431
-#define ST_FONT_SAMPLE     1432
-#define PB_FONT_SELECT     1433
+
+#define CB_DOCK            1410
+#define SB_DOCK            1411
+
+#define RB_SCROLL_INFINITE 1420
+#define RB_SCROLL_ONCE     1421
+#define RB_SCROLL_DISABLE  1422
+#define RB_DISP_FILENAME   1423
+#define RB_DISP_ID3TAG     1424
+#define RB_DISP_FILEINFO   1425
+#define GB_FONT            1426
+#define CB_USE_SKIN_FONT   1427
+#define ST_FONT_SAMPLE     1428
+#define PB_FONT_SELECT     1429
 
 #define CFG_DEC_CONFIG     1500
 #define CFG_FIL_CONFIG     1501
 #define CFG_OUT_CONFIG     1502
 #define CFG_VIS_CONFIG     1503
-#define GB_PLUGINS         1510
+
 #define LB_PLUGINS         1511
 #define PB_PLG_UNLOAD      1512
 #define PB_PLG_ADD         1513
@@ -369,7 +367,7 @@
 #define ST_PLG_AUTHOR      1519
 #define ST_PLG_DESC        1520
 #define ST_PLG_LEVEL       1521
-#define GB_SPECIFIC        1530
+
 #define ST_DEC_FILETYPES   1531
 #define ML_DEC_FILETYPES   1532
 #define CB_DEC_TRYOTHER    1533
@@ -381,61 +379,37 @@
 #define NB_INFO            FID_CLIENT
 
 #define CFG_TECHINFO       1810
-#define ST_FILESIZE        1811
 #define EF_FILESIZE        1812
-#define ST_TOTALSIZE       1813
 #define EF_TOTALSIZE       1814
-#define ST_TOTALTIME       1815
 #define EF_TOTALTIME       1816
-#define ST_NUMITEMS        1817
 #define EF_NUMITEMS        1818
-#define ST_SONGITEMS       1819
 #define EF_SONGITEMS       1820
 #define CB_ITEMSRECURSIVE  1821
-#define ST_BITRATE         1822
 #define EF_BITRATE         1823
-#define ST_SAMPLERATE      1824
 #define EF_SAMPLERATE      1825
-#define ST_NUMCHANNELS     1826
 #define EF_NUMCHANNELS     1827
-#define ST_DECODER         1828
 #define EF_DECODER         1829
-#define ST_INFOSTRINGS     1830
 #define EF_INFOSTRINGS     1831
-#define ST_METARPGAIN      1840
 #define EF_METARPGAINT     1841
-#define ST_METARPGAINT     1842
 #define EF_METARPGAINA     1843
-#define ST_METARPGAINA     1844
-#define ST_METARPPEAK      1845
 #define EF_METARPPEAKT     1846
-#define ST_METARPPEAKT     1847
 #define EF_METARPPEAKA     1848
-#define ST_METARPPEAKA     1849
 
 #define CFG_METAINFO       1850
-#define ST_METATITLE       1851
 #define EF_METATITLE       1852 
 #define CB_METATITLE       1853 
-#define ST_METAARTIST      1854
 #define EF_METAARTIST      1855
 #define CB_METAARTIST      1856
-#define ST_METAALBUM       1857
 #define EF_METAALBUM       1858
 #define CB_METAALBUM       1859
-#define ST_METATRACK       1860
 #define EF_METATRACK       1861
 #define CB_METATRACK       1862
-#define ST_METADATE        1863
 #define EF_METADATE        1864
 #define CB_METADATE        1865
-#define ST_METAGENRE       1866
 #define EF_METAGENRE       1867
 #define CB_METAGENRE       1868
-#define ST_METACOMMENT     1869
 #define EF_METACOMMENT     1870
 #define CB_METACOMMENT     1871
-#define ST_METACOPYRIGHT   1872
 #define EF_METACOPYRIGHT   1873
 #define CB_METACOPYRIGHT   1874
 
@@ -445,7 +419,6 @@
 #define SB_WMBARFG         1902
 #define SB_WMBARBG         1903
 #define EF_WMSTATUS        1904
-#define PB_WMRETRY         1905
 #define PB_WMSKIP          1906
 #define PB_WMSKIPALL       1907
 
@@ -455,7 +428,6 @@
 #define LB_CONTROLLERQ     1952
 #define ST_WORKERQ         1953
 #define LB_WORKERQ         1954
-#define PB_REFRESH         1960
 #define CB_AUTOREFRESH     1961
 #define SB_AUTOREFRESH     1962
 

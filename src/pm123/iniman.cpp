@@ -84,9 +84,9 @@ load_ini( void )
     load_ini_bool ( INIhandle, cfg.append_cmd );
     load_ini_bool ( INIhandle, cfg.queue_mode );
     load_ini_value( INIhandle, cfg.num_workers );
+    load_ini_value( INIhandle, cfg.num_dlg_workers );
     load_ini_value( INIhandle, cfg.mode );
     load_ini_value( INIhandle, cfg.font );
-    load_ini_bool ( INIhandle, cfg.trash );
     load_ini_bool ( INIhandle, cfg.floatontop );
     load_ini_value( INIhandle, cfg.scroll );
     load_ini_value( INIhandle, cfg.viewmode );
@@ -157,9 +157,9 @@ save_ini( void )
     save_ini_bool ( INIhandle, cfg.append_cmd );
     save_ini_bool ( INIhandle, cfg.queue_mode );
     save_ini_value( INIhandle, cfg.num_workers );
+    save_ini_value( INIhandle, cfg.num_dlg_workers );
     save_ini_value( INIhandle, cfg.mode );
     save_ini_value( INIhandle, cfg.font );
-    save_ini_bool ( INIhandle, cfg.trash );
     save_ini_bool ( INIhandle, cfg.floatontop );
     save_ini_value( INIhandle, cfg.scroll );
     save_ini_value( INIhandle, cfg.viewmode );

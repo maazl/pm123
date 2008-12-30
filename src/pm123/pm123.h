@@ -51,6 +51,8 @@
 #define  AMP_CTRL_EVENT_CB      ( WM_USER + 1021 )
 #define  AMP_REFRESH_ACCEL      ( WM_USER + 1022 )
 #define  AMP_SLIDERDRAG         ( WM_USER + 1023 ) // pos(x,y),  TRUE: navigate and complete
+#define  AMP_PIPERESTART        ( WM_USER + 1030 ) // 0,         0
+#define  AMP_WORKERADJUST       ( WM_USER + 1031 ) // 0,         0
 
 
 /* Constructs a information text for currently loaded file. */

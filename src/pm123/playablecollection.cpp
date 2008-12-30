@@ -706,7 +706,8 @@ int_ptr<PlayableInstance> PlayableCollection::DeserializeItem(const xstring& str
 }
 
 void PlayableCollection::PrefetchSubInfo(const PlayableSetBase& excluding, bool incl_songs)
-{ DEBUGLOG(("PlayableCollection(%p{%s})::PrefetchSubInfo() - %x\n", this, GetURL().getShortName().cdata(), CheckInfo(~IF_All)));
+{ DEBUGLOG(("PlayableCollection(%p{%s})::PrefetchSubInfo({%u,}, %u) - %x\n", this,
+    GetURL().getShortName().cdata(), excluding.size(), incl_songs, CheckInfo(~IF_All)));
   EnsureInfo(IF_Other);
   int_ptr<PlayableInstance> pi;
   sco_ptr<PlayableSet> xcl_sub;

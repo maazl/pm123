@@ -581,30 +581,24 @@ END
 
 DLGTEMPLATE CFG_SETTINGS1
 BEGIN
-  DIALOG "", CFG_SETTINGS1, 0, 0, 260, 148, NOT FS_DLGBORDER|FS_NOBYTEALIGN
+  DIALOG         "",                                    CFG_SETTINGS1,      0,  0, 260,148, NOT FS_DLGBORDER|FS_NOBYTEALIGN
     PRESPARAMS PP_FONTNAMESIZE "8.Helv"
   BEGIN
-    GROUPBOX     " Behaviour ",                                            GB_BEHAVIOUR,      4,  90, 248, 48, NOT WS_TABSTOP|WS_GROUP
-      PRESPARAMS PP_FONTNAMESIZE "9.WarpSans Bold"
-    AUTOCHECKBOX "~Trash buffers on fast forward/rewind",                  CB_TRASHONSCAN,   12, 118, 232, 12
-    AUTOCHECKBOX "~Start playing on file load",                            CB_PLAYONLOAD,    12, 106, 112, 12
-    AUTOCHECKBOX "Restart playing on start-up",                            CB_RESTARTONSTART,132,106, 112, 12
-    LTEXT        "Retain playing position:",                               ST_RETAINPOS,     12,  94, 112, 12, DT_VCENTER
+    GROUPBOX     " Behavior ",                          GB_GENERIC,         4, 42, 248, 36, NOT WS_TABSTOP|WS_GROUP
+    AUTOCHECKBOX "~Start playing on file load",         CB_PLAYONLOAD,     12, 58, 112, 12, WS_GROUP
+    AUTOCHECKBOX "~Continue playing at start-up",       CB_RESTARTONSTART,132, 58, 112, 12
+    LTEXT        "Retain playing ~position:",           ST_GENERIC,        12, 46, 112, 12, DT_VCENTER|DT_MNEMONIC
       PRESPARAMS PP_FOREGROUNDCOLORINDEX , SYSCLR_WINDOWTEXT
-    AUTOCHECKBOX "on e~xit",                                               CB_RETAINONEXIT, 132,  94,  52, 12
-    AUTOCHECKBOX "on st~op",                                               CB_RETAINONSTOP, 192,  94,  52, 12
+    AUTOCHECKBOX "on exit",                             CB_RETAINONEXIT,  132, 46,  52, 12, WS_GROUP
+    AUTOCHECKBOX "on stop",                             CB_RETAINONSTOP,  192, 46,  52, 12
 
-    GROUPBOX     " Playlists ",                                            GB_STREAMING,      4,   4, 248, 84, NOT WS_TABSTOP|WS_GROUP
-      PRESPARAMS PP_FONTNAMESIZE "9.WarpSans Bold"
-    AUTOCHECKBOX "Auto '~use playlist' on add",                            CB_AUTOUSEPL,    132,  68, 112, 12
-    AUTOCHECKBOX "~Recurse into subdirectories at drag & drop by default", CB_RECURSEDND,    12,  56, 232, 12
-    AUTOCHECKBOX "Sort folder content by ~name",                           CB_SORTFOLDERS,   12,  44, 112, 12
-    AUTOCHECKBOX "Sub~folders first",                                      CB_FOLDERSFIRST, 132,  44, 112, 12
-    LTEXT        "Append to the default playlist:",                        ST_AUTOAPPEND,    12,  34, 232, 12, DT_BOTTOM
+    GROUPBOX     " Navigation ",                        GB_GENERIC,         4,  4, 248, 36, NOT WS_TABSTOP|WS_GROUP
+    AUTOCHECKBOX "~Turn around with Prev./Next button", CB_TURNAROUND,     12, 20, 112, 12, WS_GROUP
+    LTEXT        "Alternate s~lider:",                   ST_GENERIC,        12,  8,  52, 12, DT_VCENTER|DT_MNEMONIC
       PRESPARAMS PP_FOREGROUNDCOLORINDEX , SYSCLR_WINDOWTEXT
-    AUTOCHECKBOX "at ~drag & drop to the main window",                     CB_AUTOAPPENDDND, 12,  20, 112, 12
-    AUTOCHECKBOX "at ~command line invokation",                            CB_AUTOAPPENDCMD,132,  20, 112, 12
-    AUTOCHECKBOX "~Queue mode (delete played objects in the default playlist)",CB_QUEUEMODE, 12,   8, 234, 12
+    AUTORADIOBUTTON "Song only",                        RB_SONGONLY,       72,  8,  52, 12, WS_TABSTOP|WS_GROUP
+    AUTORADIOBUTTON "Song & time",                      RB_SONGTIME,      132,  8,  52, 12
+    AUTORADIOBUTTON "Time only",                        RB_TIMEONLY,      192,  8,  52, 12
   END
 END
 
@@ -613,55 +607,71 @@ BEGIN
   DIALOG "", CFG_SETTINGS2, 0, 0, 260, 154, NOT FS_DLGBORDER|FS_NOBYTEALIGN
     PRESPARAMS PP_FONTNAMESIZE "8.Helv"
   BEGIN
-    GROUPBOX     " Navigation ",                        GB_NAVIGATION,     4,100, 248, 36, NOT WS_TABSTOP|WS_GROUP
-      PRESPARAMS PP_FONTNAMESIZE "9.WarpSans Bold"
-    AUTOCHECKBOX "Turn ~around with Prev./Next button", CB_TURNAROUND,    12,116, 112, 12
-    LTEXT        "Alternate s~lider",                   ST_ALTSLIDER,      8,104,  48, 12, DT_VCENTER|DT_MNEMONIC
-      PRESPARAMS PP_FOREGROUNDCOLORINDEX , SYSCLR_WINDOWTEXT
-    AUTORADIOBUTTON "Song only",                        RB_SONGONLY,      60,104,  56, 12, WS_GROUP|WS_TABSTOP
-    AUTORADIOBUTTON "Song & time",                      RB_SONGTIME,     124,104,  56, 12
-    AUTORADIOBUTTON "Time only",                        RB_TIMEONLY,     188,104,  56, 12
-
-    GROUPBOX     " Remote control ",                    GB_REMOTE,         4, 74, 248, 24
-      PRESPARAMS PP_FONTNAMESIZE "9.WarpSans Bold"
-    RTEXT        "~Pipe name",                          ST_PIPE,          12, 78 , 40, 12, DT_VCENTER|DT_MNEMONIC
+    GROUPBOX     " Playlists ",                         GB_GENERIC,         4,  4, 248, 84, NOT WS_TABSTOP|WS_GROUP
+    AUTOCHECKBOX "Auto '~use playlist' on add",         CB_AUTOUSEPL,      12, 68, 112, 12, WS_GROUP
+    AUTOCHECKBOX "~Recurse into subdirectories at drag & drop by default",
+                                                        CB_RECURSEDND,     12, 56, 232, 12, WS_GROUP
+    AUTOCHECKBOX "Sort folder content by ~name",        CB_SORTFOLDERS,    12, 44, 112, 12, WS_GROUP
+    AUTOCHECKBOX "Sub~folders first",                   CB_FOLDERSFIRST,  132, 44, 112, 12
+    LTEXT        "Append to the default playlist:",     ST_GENERIC,        12, 32, 232, 12, DT_BOTTOM
       PRESPARAMS PP_FOREGROUNDCOLORINDEX, SYSCLR_WINDOWTEXT
-    ENTRYFIELD   "",                                    EF_PIPE,          60, 80,  72,  8, ES_MARGIN
+    AUTOCHECKBOX "at ~drag & drop to the main window",  CB_AUTOAPPENDDND,  12, 20, 112, 12, WS_GROUP
+    AUTOCHECKBOX "at ~command line invokation",         CB_AUTOAPPENDCMD, 132, 20, 112, 12
+    AUTOCHECKBOX "~Queue mode (delete played objects in the default playlist)",
+                                                        CB_QUEUEMODE,      12,  8, 232, 12, WS_GROUP
+  END
+END
 
-    GROUPBOX     " Streaming audio ",                   GB_STREAMING,      4,  4, 248, 68, NOT WS_TABSTOP|WS_GROUP
-      PRESPARAMS PP_FONTNAMESIZE "9.WarpSans Bold"
-    RTEXT        "~HTTP Proxy",                         ST_PROXY_HOST,    12, 50,  40, 12, DT_VCENTER|DT_MNEMONIC
+DLGTEMPLATE CFG_IOSETTINGS
+BEGIN
+  DIALOG         "",                                    CFG_IOSETTINGS,     0,  0, 260,154, NOT FS_DLGBORDER|FS_NOBYTEALIGN
+    PRESPARAMS PP_FONTNAMESIZE "8.Helv"
+  BEGIN
+    GROUPBOX     " Remote control ",                    GB_GENERIC,         4,100, 248, 24, NOT WS_TABSTOP|WS_GROUP
+    RTEXT        "~Pipe name",                          ST_GENERIC,        16,104,  40, 12, DT_VCENTER|DT_MNEMONIC
       PRESPARAMS PP_FOREGROUNDCOLORINDEX, SYSCLR_WINDOWTEXT
-    ENTRYFIELD   "",                                    EF_PROXY_HOST,    60, 52, 130,  8, ES_MARGIN
+    ENTRYFIELD   "",                                    EF_PIPE,           62,106,  72,  8, ES_MARGIN
+
+    GROUPBOX     " Streaming audio ",                   GB_GENERIC,         4, 30, 248, 68, NOT WS_TABSTOP|WS_GROUP
+    RTEXT        "~HTTP Proxy",                         ST_GENERIC,        16, 76,  40, 12, DT_VCENTER|DT_MNEMONIC
+      PRESPARAMS PP_FOREGROUNDCOLORINDEX, SYSCLR_WINDOWTEXT
+    ENTRYFIELD   "",                                    EF_PROXY_HOST,     62, 78, 132,  8, ES_MARGIN
       CTLDATA 8, 512, 0, 0
-    RTEXT        "P~ort",                               ST_PROXY_PORT,   196, 50,  20, 12, DT_VCENTER|DT_MNEMONIC
+    RTEXT        "P~ort",                               ST_GENERIC,       196, 76,  20, 12, DT_VCENTER|DT_MNEMONIC|NOT WS_GROUP
       PRESPARAMS PP_FOREGROUNDCOLORINDEX, SYSCLR_WINDOWTEXT
-    ENTRYFIELD   "",                                    EF_PROXY_PORT,   220, 52,  24,  8, ES_MARGIN
-      CTLDATA 8,   5, 0, 0
-
-    RTEXT        "~User name",                          ST_PROXY_USER,    12, 36,  40, 12, DT_VCENTER|DT_MNEMONIC
+    ENTRYFIELD   "",                                    EF_PROXY_PORT,    220, 78,  24,  8, ES_MARGIN
+      CTLDATA 8, 5, 0, 0
+    RTEXT        "~User name",                          ST_GENERIC,        16, 62,  40, 12, DT_VCENTER|DT_MNEMONIC|NOT WS_GROUP
       PRESPARAMS PP_FOREGROUNDCOLORINDEX, SYSCLR_WINDOWTEXT
-    ENTRYFIELD   "",                                    EF_PROXY_USER,    60, 38,  72,  8, ES_MARGIN
+    ENTRYFIELD   "",                                    EF_PROXY_USER,     62, 64,  72,  8, ES_MARGIN
       CTLDATA 8, 128, 0, 0
-    RTEXT "Pass~word",                                  ST_PROXY_PASS,   140, 36,  32, 12, DT_VCENTER|DT_MNEMONIC
+    RTEXT        "Pass~word",                           ST_GENERIC,       140, 62,  32, 12, DT_VCENTER|DT_MNEMONIC|NOT WS_GROUP
       PRESPARAMS PP_FOREGROUNDCOLORINDEX, SYSCLR_WINDOWTEXT
-    ENTRYFIELD   "",                                    EF_PROXY_PASS,   176, 38,  68,  8, ES_MARGIN|ES_UNREADABLE
+    ENTRYFIELD   "",                                    EF_PROXY_PASS,    176, 64,  68,  8, ES_MARGIN|ES_UNREADABLE
       CTLDATA 8, 128, 0, 0
+    RTEXT        "Conn. ~timeout",                      ST_GENERIC,        16, 48,  40, 12, DT_VCENTER|DT_MNEMONIC
+      PRESPARAMS PP_FOREGROUNDCOLORINDEX, SYSCLR_WINDOWTEXT
+    SPINBUTTON                                          SB_TIMEOUT,        60, 50,  36,  8, SPBS_NUMERICONLY|SPBS_MASTER|SPBS_JUSTRIGHT
+    LTEXT        "seconds",                             ST_GENERIC,       100, 48,  36, 12, DT_VCENTER|NOT WS_GROUP
+      PRESPARAMS PP_FOREGROUNDCOLORINDEX, SYSCLR_WINDOWTEXT
+    RTEXT        "~Buffer size",                        ST_GENERIC,        16, 34,  40, 12, DT_VCENTER|DT_MNEMONIC
+      PRESPARAMS PP_FOREGROUNDCOLORINDEX, SYSCLR_WINDOWTEXT
+    SPINBUTTON                                          SB_BUFFERSIZE,     60, 36,  36,  8, SPBS_NUMERICONLY|SPBS_MASTER|SPBS_JUSTRIGHT
+    LTEXT        "kB",                                  ST_GENERIC,       100, 34,  20, 12, DT_VCENTER|NOT WS_GROUP
+      PRESPARAMS PP_FOREGROUNDCOLORINDEX, SYSCLR_WINDOWTEXT
+    AUTOCHECKBOX "~Fill ",                              CB_FILLBUFFER,    124, 34,  22, 12
+    LTEXT        "% of buffer before play",             ST_GENERIC,       176, 34,  68, 12, DT_VCENTER|NOT WS_GROUP
+      PRESPARAMS PP_FOREGROUNDCOLORINDEX, SYSCLR_WINDOWTEXT
+    SPINBUTTON                                          SB_FILLBUFFER,    144, 36,  28,  8, SPBS_NUMERICONLY|SPBS_MASTER|SPBS_JUSTRIGHT
 
-    RTEXT        "Conn. ~timeout",                      ST_TIMEOUT,       12, 22,  40, 12, DT_VCENTER|DT_MNEMONIC
+    GROUPBOX     " Performance ",                       GB_GENERIC,         4,  4, 248, 24, NOT WS_TABSTOP|WS_GROUP
+    RTEXT        "~Worker threads",                     ST_GENERIC,         8,  8,  48, 12, DT_VCENTER|DT_MNEMONIC
       PRESPARAMS PP_FOREGROUNDCOLORINDEX, SYSCLR_WINDOWTEXT
-    SPINBUTTON                                          SB_TIMEOUT,       58, 24,  36, 12, SPBS_NUMERICONLY|SPBS_MASTER|SPBS_JUSTRIGHT
-    LTEXT        "seconds",                             ST_TIMEOUT2,      96, 22,  36, 12, DT_VCENTER
+    SPINBUTTON                                          SB_NUMWORKERS,     60, 10,  28,  8, SPBS_MASTER|SPBS_NUMERICONLY|SPBS_JUSTRIGHT
+    LTEXT        "(general purpose)",                   ST_GENERIC,        92,  8,  56, 12, DT_VCENTER|NOT WS_GROUP
       PRESPARAMS PP_FOREGROUNDCOLORINDEX, SYSCLR_WINDOWTEXT
-
-    RTEXT        "~Buffer size",                        ST_BUFFERSIZE,    12,  8,  40, 12, DT_VCENTER|DT_MNEMONIC
-      PRESPARAMS PP_FOREGROUNDCOLORINDEX, SYSCLR_WINDOWTEXT
-    SPINBUTTON                                          SB_BUFFERSIZE,    58, 10,  36, 12, SPBS_NUMERICONLY|SPBS_MASTER|SPBS_JUSTRIGHT
-    LTEXT        "kB",                                  ST_KB,            96,  8,  20, 12, DT_VCENTER
-      PRESPARAMS PP_FOREGROUNDCOLORINDEX, SYSCLR_WINDOWTEXT
-    AUTOCHECKBOX "~Fill ",                              CB_FILLBUFFER,   124,  8,  22, 12
-    SPINBUTTON                                          SB_FILLBUFFER,   144, 10,  28, 12, SPBS_NUMERICONLY|SPBS_MASTER|SPBS_JUSTRIGHT
-    LTEXT        "% of buffer before play",             ST_FILLBUFFER,   176 , 8,  68, 12, DT_VCENTER
+    SPINBUTTON                                          SB_DLGWORKERS,    160, 10,  28,  8, SPBS_MASTER|SPBS_NUMERICONLY|SPBS_JUSTRIGHT
+    LTEXT        "(dialog)",                            ST_GENERIC,       192,  8,  52, 12, DT_VCENTER|NOT WS_GROUP
       PRESPARAMS PP_FOREGROUNDCOLORINDEX, SYSCLR_WINDOWTEXT
   END
 END
@@ -671,35 +681,29 @@ BEGIN
   DIALOG "", CFG_DISPLAY1, 0, 0, 260, 150, NOT FS_DLGBORDER|FS_NOBYTEALIGN
     PRESPARAMS PP_FONTNAMESIZE "8.Helv"
   BEGIN
-    GROUPBOX     " User interface ",                    GB_GUIFEATURES,    4, 100, 248, 24, NOT WS_TABSTOP|WS_GROUP
-      PRESPARAMS PP_FONTNAMESIZE "9.WarpSans Bold"
-    AUTOCHECKBOX "~Dock windows at",                    CB_DOCK,          12, 104,  60, 12
-    ENTRYFIELD   "",                                    EF_DOCK,          76, 106,  12,  8, ES_MARGIN
-      CTLDATA 8, 2, 0, 0
-    LTEXT "pixels",                                     ST_PIXELS,        92, 104,  30, 12, DT_VCENTER|NOT WS_GROUP
+    GROUPBOX     " User interface ",                    GB_GENERIC,         4, 86, 248, 24, NOT WS_TABSTOP|WS_GROUP
+    AUTOCHECKBOX "~Dock windows at",                    CB_DOCK,           12, 90,  60, 12, WS_GROUP
+    SPINBUTTON                                          SB_DOCK,           76, 92,  24,  8, SPBS_MASTER|SPBS_NUMERICONLY|SPBS_JUSTRIGHT
+    LTEXT        "pixels",                              ST_GENERIC,       104, 90,  30, 12, DT_VCENTER|NOT WS_GROUP
       PRESPARAMS PP_FOREGROUNDCOLORINDEX, SYSCLR_WINDOWTEXT
 
-    GROUPBOX " Title ", GB_TITLE, 4, 46, 248, 52, NOT WS_TABSTOP|WS_GROUP
-      PRESPARAMS PP_FONTNAMESIZE "9.WarpSans Bold"
-
-    LTEXT           "Scrolls title",     ST_SCROLL,          12, 80, 40, 10, DT_VCENTER
+    GROUPBOX     " Title ",                             GB_GENERIC,         4, 46, 248, 38, NOT WS_TABSTOP|WS_GROUP
+    LTEXT        "~Scrolls title:",                     ST_GENERIC,        12, 64,  40, 10, DT_VCENTER|DT_MNEMONIC
       PRESPARAMS PP_FOREGROUNDCOLORINDEX, SYSCLR_WINDOWTEXT
-    AUTORADIOBUTTON "~Infinite",         RB_SCROLL_INFINITE, 12, 70, 40, 10, WS_TABSTOP|WS_GROUP
-    AUTORADIOBUTTON "~Once",             RB_SCROLL_ONCE,     12, 60, 40, 10 
-    AUTORADIOBUTTON "Disa~ble",          RB_SCROLL_DISABLE,  12, 50, 40, 10
+    AUTORADIOBUTTON "Infinite",                         RB_SCROLL_INFINITE,76, 64,  52, 10, WS_GROUP
+    AUTORADIOBUTTON "Once",                             RB_SCROLL_ONCE,   132, 64,  52, 10
+    AUTORADIOBUTTON "Disable",                          RB_SCROLL_DISABLE,188, 64,  52, 10
+    LTEXT        "Default ~display:",                   ST_GENERIC,        12, 52,  48, 10, DT_VCENTER|DT_MNEMONIC
+      PRESPARAMS PP_FOREGROUNDCOLORINDEX , SYSCLR_WINDOWTEXT
+    AUTORADIOBUTTON "Filename",                         RB_DISP_FILENAME,  76, 52,  52, 10, WS_GROUP
+    AUTORADIOBUTTON "Song title",                       RB_DISP_ID3TAG,   132, 52,  52, 10
+    AUTORADIOBUTTON "Technical info",                   RB_DISP_FILEINFO, 188, 52,  52, 10
 
-    LTEXT           "Default display",   ST_DISPLAY,         76, 80, 68, 10, DT_VCENTER
-      PRESPARAMS PP_FOREGROUNDCOLORINDEX, SYSCLR_WINDOWTEXT
-    AUTORADIOBUTTON "~Filename",         RB_DISP_FILENAME,   76, 70, 68, 10, WS_TABSTOP|WS_GROUP
-    AUTORADIOBUTTON "~Song Information", RB_DISP_ID3TAG,     76, 60, 68, 10
-    AUTORADIOBUTTON "~Tech Information", RB_DISP_FILEINFO,   76, 50, 68, 10
-
-    GROUPBOX        " Font ",            GB_FONT,             4,  4,248, 40, NOT WS_TABSTOP|WS_GROUP
-      PRESPARAMS PP_FONTNAMESIZE "9.WarpSans Bold"
-    AUTOCHECKBOX    "~Use skinned font for display (possibly no international titles support)",
-                                         CB_USE_SKIN_FONT,   12, 24,232, 12
-    PUSHBUTTON      "~Choose font",      PB_FONT_SELECT,     12, 10, 56, 12
-    LTEXT           "9.WarpSans Bold",   ST_FONT_SAMPLE,     76, 10,168, 12, DT_VCENTER
+    GROUPBOX     " Font ",                              GB_GENERIC,         4,  4, 248, 40, NOT WS_TABSTOP|WS_GROUP
+    AUTOCHECKBOX "~Use skinned font for display (possibly no international characters support)",
+                                                        CB_USE_SKIN_FONT,  12, 24, 232, 12, WS_GROUP
+    PUSHBUTTON   "~Choose font",                        PB_FONT_SELECT,    12, 10,  56, 12
+    LTEXT        "#.Font",                              ST_FONT_SAMPLE,    76, 10, 168, 12, DT_VCENTER
       PRESPARAMS PP_FOREGROUNDCOLORINDEX, SYSCLR_WINDOWTEXT
   END
 END
@@ -709,7 +713,7 @@ BEGIN
   DIALOG       "Decoder Plug-ins",        CFG_DEC_CONFIG,    0,  0, 260,150, NOT FS_DLGBORDER|FS_NOBYTEALIGN
     PRESPARAMS PP_FONTNAMESIZE "8.Helv"
   BEGIN
-    GROUPBOX   " Decoders ",              GB_PLUGINS,        4, 62, 248, 82, NOT WS_TABSTOP|WS_GROUP
+    GROUPBOX   " Decoders ",              GB_GENERIC,        4, 62, 248, 82, NOT WS_TABSTOP|WS_GROUP
       PRESPARAMS PP_FONTNAMESIZE "9.WarpSans Bold"
     LISTBOX                               LB_PLUGINS,       12, 68,  80, 64, WS_GROUP
     PUSHBUTTON "U~nload",                 PB_PLG_UNLOAD,   100,122,  44, 12, WS_GROUP|WS_DISABLED
@@ -722,7 +726,7 @@ BEGIN
     PUSHBUTTON "~Enable",                 PB_PLG_ENABLE,   100, 68,  44, 12, WS_GROUP|WS_DISABLED
     PUSHBUTTON "~Configure",              PB_PLG_CONFIG,   148, 68,  44, 12, WS_DISABLED
     
-    GROUPBOX   " Plug-in specific ",      GB_SPECIFIC,       4,  4, 248, 56, NOT WS_TABSTOP|WS_GROUP
+    GROUPBOX   " Plug-in specific ",      GB_GENERIC,        4,  4, 248, 56, NOT WS_TABSTOP|WS_GROUP
       PRESPARAMS PP_FONTNAMESIZE "9.WarpSans Bold"
     LTEXT      "Supported file ~types:",  ST_DEC_FILETYPES, 12, 44,  80,  8, WS_GROUP|DT_BOTTOM|DT_MNEMONIC
       PRESPARAMS PP_FOREGROUNDCOLORINDEX, SYSCLR_WINDOWTEXT
@@ -740,7 +744,7 @@ BEGIN
   DIALOG       "Filter Plug-ins",         CFG_FIL_CONFIG,    0,  0, 260,150, NOT FS_DLGBORDER|FS_NOBYTEALIGN
     PRESPARAMS PP_FONTNAMESIZE "8.Helv"
   BEGIN
-    GROUPBOX   " Filter plug-ins ",       GB_PLUGINS,        4,  4, 248, 82, NOT WS_TABSTOP|WS_GROUP
+    GROUPBOX   " Filter plug-ins ",       GB_GENERIC,        4,  4, 248, 82, NOT WS_TABSTOP|WS_GROUP
       PRESPARAMS PP_FONTNAMESIZE "9.WarpSans Bold"
     LISTBOX                               LB_PLUGINS,       12, 10,  80, 66, WS_GROUP
     PUSHBUTTON "U~nload",                 PB_PLG_UNLOAD,   100, 64,  44, 12, WS_GROUP|WS_DISABLED
@@ -760,7 +764,7 @@ BEGIN
   DIALOG       "Output Plug-ins",         CFG_OUT_CONFIG,    0,  0, 260,150, NOT FS_DLGBORDER|FS_NOBYTEALIGN
     PRESPARAMS PP_FONTNAMESIZE "8.Helv"
   BEGIN
-    GROUPBOX   " Output plug-ins ",       GB_PLUGINS,        4,  4, 248, 68, NOT WS_TABSTOP|WS_GROUP
+    GROUPBOX   " Output plug-ins ",       GB_GENERIC,        4,  4, 248, 68, NOT WS_TABSTOP|WS_GROUP
       PRESPARAMS PP_FONTNAMESIZE "9.WarpSans Bold"
     LISTBOX                               LB_PLUGINS,       12, 10,  80, 52, WS_GROUP
     PUSHBUTTON "U~nload",                 PB_PLG_UNLOAD,   100, 50,  44, 12, WS_GROUP|WS_DISABLED
@@ -778,7 +782,7 @@ BEGIN
   DIALOG       "Visual Plug-ins",         CFG_VIS_CONFIG,    0,  0, 260,150, NOT FS_DLGBORDER|FS_NOBYTEALIGN
     PRESPARAMS PP_FONTNAMESIZE "8.Helv"
   BEGIN
-    GROUPBOX   " Visual plug-ins ",       GB_PLUGINS,        4,  4, 248, 68, NOT WS_TABSTOP|WS_GROUP
+    GROUPBOX   " Visual plug-ins ",       GB_GENERIC,        4,  4, 248, 68, NOT WS_TABSTOP|WS_GROUP
       PRESPARAMS PP_FONTNAMESIZE "9.WarpSans Bold"
     LISTBOX                               LB_PLUGINS,       12, 10,  80, 52, WS_GROUP
     PUSHBUTTON "U~nload",                 PB_PLG_UNLOAD,   100, 50,  44, 12, WS_GROUP|WS_DISABLED
@@ -796,15 +800,15 @@ BEGIN
   DIALOG "", CFG_ABOUT, 16, 25, 259, 138, NOT FS_DLGBORDER|FS_NOBYTEALIGN
     PRESPARAMS PP_FONTNAMESIZE "8.Helv"
   BEGIN
-    CTEXT    AMP_FULLNAME,                         ST_TITLE1,   4, 124, 248, 16, DT_VCENTER
+    CTEXT    AMP_FULLNAME,                         ST_GENERIC,  4, 124, 248, 16, DT_VCENTER
       PRESPARAMS PP_FONTNAMESIZE "18.Tms Rmn Bold Italic"
     CTEXT    "High Performance Audio Player for MPEG and other files.",
-                                                   ST_TITLE2,   4, 114, 248,  8, DT_VCENTER
+                                                   ST_GENERIC,  4, 114, 248,  8, DT_VCENTER
     CTEXT    "",                                   ST_BUILT,    4, 106, 248,  8, DT_VCENTER
-    GROUPBOX " Authors ",                          GB_AUTHORS, 10,  55, 238, 53, NOT WS_TABSTOP|WS_GROUP
+    GROUPBOX " Authors ",                          GB_GENERIC, 10,  55, 238, 53, NOT WS_TABSTOP|WS_GROUP
       PRESPARAMS PP_FONTNAMESIZE "9.WarpSans Bold"
     MLE      "",                                   ST_AUTHORS, 13,  57, 232, 43, MLS_READONLY|MLS_VSCROLL|MLS_HSCROLL
-    GROUPBOX " Copyright, Credits and Greetings ", GB_CREDITS, 10,   5, 238, 47, NOT WS_TABSTOP|WS_GROUP
+    GROUPBOX " Copyright, Credits and Greetings ", GB_GENERIC, 10,   5, 238, 47, NOT WS_TABSTOP|WS_GROUP
       PRESPARAMS PP_FONTNAMESIZE "9.WarpSans Bold"
     MLE      "",                                   ST_CREDITS, 13,   7, 232, 37, MLS_READONLY|MLS_WORDWRAP|MLS_VSCROLL
   END
@@ -813,7 +817,7 @@ END
 
 DLGTEMPLATE DLG_INFO 
 {
-  DIALOG "PM123 Object Info", DLG_INFO, 0, 0, 240, 152, WS_SAVEBITS|WS_CLIPCHILDREN|FS_BORDER,
+  DIALOG "PM123 Object Info", DLG_INFO, 0, 0, 240, 152, WS_CLIPCHILDREN|FS_BORDER,
          FCF_TITLEBAR|FCF_SYSMENU|FCF_TASKLIST|FCF_NOBYTEALIGN|FCF_CLOSEBUTTON
     PRESPARAMS PP_FONTNAMESIZE "8.Helv"
   {
@@ -826,38 +830,38 @@ DLGTEMPLATE CFG_TECHINFO
   DIALOG "", CFG_TECHINFO, 13, 27, 228, 124, NOT FS_DLGBORDER|FS_NOBYTEALIGN
     PRESPARAMS PP_FONTNAMESIZE "8.Helv"
   {
-    RTEXT "File size",       ST_FILESIZE,      4,112,  44, 8, DT_BOTTOM
+    RTEXT "File size",       ST_GENERIC,       4,112,  44, 8, DT_BOTTOM
     ENTRYFIELD "",           EF_FILESIZE,     56,112,  64, 8, ES_READONLY|ES_AUTOSCROLL
-    RTEXT "total",           ST_TOTALSIZE,   124,112,  28, 8, DT_BOTTOM
+    RTEXT "total",           ST_GENERIC,     124,112,  28, 8, DT_BOTTOM
     ENTRYFIELD "",           EF_TOTALSIZE,   156,112,  64, 8, ES_READONLY|ES_AUTOSCROLL
-    RTEXT "Playing time",    ST_TOTALTIME,     4,100,  44, 8, DT_BOTTOM
+    RTEXT "Playing time",    ST_GENERIC,       4,100,  44, 8, DT_BOTTOM
     ENTRYFIELD "",           EF_TOTALTIME,    56,100, 164, 8, ES_READONLY|ES_AUTOSCROLL
-    RTEXT "No. of Items",    ST_NUMITEMS,      4, 88,  44, 8, DT_BOTTOM
+    RTEXT "No. of Items",    ST_GENERIC,       4, 88,  44, 8, DT_BOTTOM
     ENTRYFIELD "",           EF_NUMITEMS,     56, 88,  64, 8, ES_READONLY|ES_AUTOSCROLL
-    RTEXT "Songs",           ST_SONGITEMS,   124, 88,  28, 8, DT_BOTTOM
+    RTEXT "Songs",           ST_GENERIC,     124, 88,  28, 8, DT_BOTTOM
     ENTRYFIELD "",           EF_SONGITEMS,   156, 88,  64, 8, ES_READONLY |ES_AUTOSCROLL
-    RTEXT "Bitrate",         ST_BITRATE,       4, 76,  44, 8, DT_BOTTOM
+    RTEXT "Bitrate",         ST_GENERIC,       4, 76,  44, 8, DT_BOTTOM
     ENTRYFIELD "",           EF_BITRATE,      56, 76,  64, 8, ES_READONLY |ES_AUTOSCROLL
     CHECKBOX "recursion",    CB_ITEMSRECURSIVE,156,76, 64, 8, BS_3STATE
-    RTEXT "Samplig rate",    ST_SAMPLERATE,    4, 64,  44, 8, DT_BOTTOM
+    RTEXT "Samplig rate",    ST_GENERIC,       4, 64,  44, 8, DT_BOTTOM
     ENTRYFIELD "",           EF_SAMPLERATE,   56, 64,  64, 8, ES_READONLY|ES_AUTOSCROLL
-    RTEXT "Cannels",         ST_NUMCHANNELS  , 4, 52,  44, 8, DT_BOTTOM
+    RTEXT "Cannels",         ST_GENERIC,       4, 52,  44, 8, DT_BOTTOM
     ENTRYFIELD "",           EF_NUMCHANNELS,  56, 52,  64, 8, ES_READONLY|ES_AUTOSCROLL
-    RTEXT "Decoder",         ST_DECODER,       4, 40,  44, 8, DT_BOTTOM
+    RTEXT "Decoder",         ST_GENERIC,       4, 40,  44, 8, DT_BOTTOM
     ENTRYFIELD "",           EF_DECODER,      56, 40, 164, 8, ES_READONLY|ES_AUTOSCROLL
-    RTEXT "Info string",     ST_INFOSTRINGS,   4, 28,  44, 8, DT_BOTTOM
+    RTEXT "Info string",     ST_GENERIC,       4, 28,  44, 8, DT_BOTTOM
     ENTRYFIELD "",           EF_INFOSTRINGS,  56, 28, 164, 8, ES_READONLY|ES_AUTOSCROLL
       CTLDATA 8, 128, 0,0
-    RTEXT "Replay gain",     ST_METARPGAIN,    4, 16,  44, 8, DT_BOTTOM
+    RTEXT "Replay gain",     ST_GENERIC,       4, 16,  44, 8, DT_BOTTOM
     ENTRYFIELD "",           EF_METARPGAINT,  56, 16,  48, 8, ES_READONLY|ES_AUTOSCROLL|ES_RIGHT
-    LTEXT "(track)",         ST_METARPGAINT, 108, 16,  24, 8, DT_BOTTOM
+    LTEXT "(track)",         ST_GENERIC,     108, 16,  24, 8, DT_BOTTOM
     ENTRYFIELD "",           EF_METARPGAINA, 144, 16,  48, 8, ES_READONLY|ES_AUTOSCROLL|ES_RIGHT
-    LTEXT "(album)",         ST_METARPGAINA, 196, 16,  24, 8, DT_BOTTOM
-    RTEXT "peak gain",       ST_METARPPEAK,    4,  4,  44, 8, DT_BOTTOM
+    LTEXT "(album)",         ST_GENERIC,     196, 16,  24, 8, DT_BOTTOM
+    RTEXT "peak gain",       ST_GENERIC,       4,  4,  44, 8, DT_BOTTOM
     ENTRYFIELD "",           EF_METARPPEAKT,  56,  4,  48, 8, ES_READONLY|ES_AUTOSCROLL|ES_RIGHT
-    LTEXT "(track)",         ST_METARPPEAKT, 108,  4,  24, 8, DT_BOTTOM
+    LTEXT "(track)",         ST_GENERIC,     108,  4,  24, 8, DT_BOTTOM
     ENTRYFIELD "",           EF_METARPPEAKA, 144,  4,  48, 8, ES_READONLY|ES_AUTOSCROLL|ES_RIGHT
-    LTEXT "(album)",         ST_METARPPEAKA, 196,  4,  24, 8, DT_BOTTOM
+    LTEXT "(album)",         ST_GENERIC,     196,  4,  24, 8, DT_BOTTOM
   }
 }
 
@@ -866,35 +870,35 @@ DLGTEMPLATE CFG_METAINFO
   DIALOG "", CFG_METAINFO, 13, 27, 228, 124, NOT FS_DLGBORDER|FS_NOBYTEALIGN
     PRESPARAMS PP_FONTNAMESIZE "8.Helv"
   {
-    RTEXT "~Song title", ST_METATITLE,      4,108,  44, 8, DT_BOTTOM|DT_MNEMONIC|WS_GROUP
+    RTEXT "~Song title", ST_GENERIC,        4,108,  44, 8, DT_BOTTOM|DT_MNEMONIC|WS_GROUP
     ENTRYFIELD "",       EF_METATITLE,     56,108, 152, 8, ES_MARGIN|ES_READONLY|ES_AUTOSCROLL
       CTLDATA 8, 128, 0,0
     AUTOCHECKBOX "",     CB_METATITLE,    216,108,   8, 8
-    RTEXT "~Artist",     ST_METAARTIST,     4, 94,  44, 8, DT_BOTTOM|DT_MNEMONIC|WS_GROUP
+    RTEXT "~Artist",     ST_GENERIC,        4, 94,  44, 8, DT_BOTTOM|DT_MNEMONIC|WS_GROUP
     ENTRYFIELD "",       EF_METAARTIST,    56, 94, 152, 8, ES_MARGIN|ES_READONLY|ES_AUTOSCROLL
       CTLDATA 8, 128, 0,0
     AUTOCHECKBOX "",     CB_METAARTIST,   216, 94,   8, 8
-    RTEXT "Album ~name", ST_METAALBUM,      4, 80,  44, 8, DT_BOTTOM|DT_MNEMONIC|WS_GROUP
+    RTEXT "Album ~name", ST_GENERIC,        4, 80,  44, 8, DT_BOTTOM|DT_MNEMONIC|WS_GROUP
     ENTRYFIELD "",       EF_METAALBUM,     56, 80, 152, 8, ES_MARGIN|ES_READONLY|ES_AUTOSCROLL
       CTLDATA 8, 128, 0,0
     AUTOCHECKBOX "",     CB_METAALBUM,    216, 80,   8, 8
-    RTEXT "~Track",      ST_METATRACK,      4, 66,  44, 8, DT_BOTTOM|DT_MNEMONIC|WS_GROUP
+    RTEXT "~Track",      ST_GENERIC,        4, 66,  44, 8, DT_BOTTOM|DT_MNEMONIC|WS_GROUP
     ENTRYFIELD "",       EF_METATRACK,     56, 66,  48, 8, ES_MARGIN|ES_READONLY|ES_AUTOSCROLL
       CTLDATA 8, 12, 0,0
     AUTOCHECKBOX "",     CB_METATRACK,    112, 66,   8, 8
-    RTEXT "~Date",       ST_METADATE,     128, 66,  24, 8, DT_BOTTOM|DT_MNEMONIC|WS_GROUP
+    RTEXT "~Date",       ST_GENERIC,      128, 66,  24, 8, DT_BOTTOM|DT_MNEMONIC|WS_GROUP
     ENTRYFIELD "",       EF_METADATE,     160, 66,  48, 8, ES_MARGIN|ES_READONLY|ES_AUTOSCROLL
       CTLDATA 8, 32, 0,0
     AUTOCHECKBOX "",     CB_METADATE,     216, 66,   8, 8
-    RTEXT "~Genre",      ST_METAGENRE,      4, 52,  44, 8, DT_BOTTOM|DT_MNEMONIC|WS_GROUP
+    RTEXT "~Genre",      ST_GENERIC,        4, 52,  44, 8, DT_BOTTOM|DT_MNEMONIC|WS_GROUP
     ENTRYFIELD "",       EF_METAGENRE,     56, 52, 152, 8, ES_MARGIN|ES_READONLY|ES_AUTOSCROLL
       CTLDATA 8, 128, 0,0
     AUTOCHECKBOX "",     CB_METAGENRE,    216, 52,   8, 8
-    RTEXT "~Comment",    ST_METACOMMENT,    4, 38,  44, 8, DT_BOTTOM|DT_MNEMONIC|WS_GROUP
+    RTEXT "~Comment",    ST_GENERIC,        4, 38,  44, 8, DT_BOTTOM|DT_MNEMONIC|WS_GROUP
     ENTRYFIELD "",       EF_METACOMMENT,   56, 38, 152, 8, ES_MARGIN|ES_READONLY|ES_AUTOSCROLL
       CTLDATA 8, 128, 0,0
     AUTOCHECKBOX "",     CB_METACOMMENT,  216, 38,   8, 8
-    RTEXT "Copy~right",  ST_METACOPYRIGHT,  4, 24,  44, 8, DT_BOTTOM|DT_MNEMONIC|WS_GROUP
+    RTEXT "Copy~right",  ST_GENERIC,        4, 24,  44, 8, DT_BOTTOM|DT_MNEMONIC|WS_GROUP
     ENTRYFIELD "",       EF_METACOPYRIGHT, 56, 24, 152, 8, ES_MARGIN|ES_READONLY|ES_AUTOSCROLL
       CTLDATA 8, 128, 0,0
     AUTOCHECKBOX "",     CB_METACOPYRIGHT,216, 24,   8, 8
@@ -907,7 +911,7 @@ DLGTEMPLATE CFG_METAINFO
 
 DLGTEMPLATE DLG_WRITEMETA 
 {
-  DIALOG "Write meta info", DLG_WRITEMETA,  6, 52, 292,60, WS_VISIBLE|WS_CLIPCHILDREN,
+  DIALOG "Write meta info", DLG_WRITEMETA,  6, 52, 292,60, WS_VISIBLE|WS_SAVEBITS|WS_CLIPCHILDREN,
     FCF_TITLEBAR|FCF_SYSMENU|FCF_NOBYTEALIGN
     PRESPARAMS PP_FONTNAMESIZE "8.Helv"
   { 
@@ -917,7 +921,7 @@ DLGTEMPLATE DLG_WRITEMETA
     CONTROL "",           SB_WMBARBG,       8, 36, 276, 8, WC_STATIC, SS_HALFTONERECT|WS_VISIBLE|WS_CLIPSIBLINGS
     ENTRYFIELD "",        EF_WMSTATUS,      8, 24, 276, 8, ES_LEFT|ES_AUTOSCROLL|ES_READONLY|WS_GROUP
       CTLDATA 8, 1023, 0,0
-    PUSHBUTTON "Retry",   PB_WMRETRY,       8,  4,  48,12, WS_GROUP|WS_DISABLED
+    PUSHBUTTON "Retry",   PB_RETRY,         8,  4,  48,12, WS_GROUP|WS_DISABLED
     PUSHBUTTON "Cancel",  DID_CANCEL,      60,  4,  48,12
     PUSHBUTTON "Skip",    PB_WMSKIP,      112,  4,  48,12, WS_DISABLED
     PUSHBUTTON "Skip All",PB_WMSKIPALL,   164,  4,  48,12, WS_DISABLED
@@ -926,7 +930,8 @@ DLGTEMPLATE DLG_WRITEMETA
 
 DLGTEMPLATE DLG_URL
 BEGIN
-  DIALOG "Load URL", DLG_URL, 20, -20, 283, 40, WS_VISIBLE, FCF_TITLEBAR|FCF_SYSMENU|FCF_CLOSEBUTTON|FCF_NOBYTEALIGN
+  DIALOG "Load URL", DLG_URL, 20, -20, 283, 40, WS_VISIBLE|WS_SAVEBITS,
+         FCF_TITLEBAR|FCF_SYSMENU|FCF_CLOSEBUTTON|FCF_NOBYTEALIGN
     PRESPARAMS PP_FONTNAMESIZE "8.Helv"
   BEGIN
     COMBOBOX   "",        ENT_URL,     8,  0, 268, 32, CBS_DROPDOWN
@@ -940,7 +945,7 @@ END
 
 DLGTEMPLATE DLG_PLAYLIST
 BEGIN
-  DIALOG "PM123 Playlist", DLG_PLAYLIST, 4, 4, 400, 200, WS_SAVEBITS|WS_CLIPCHILDREN,
+  DIALOG "PM123 Playlist", DLG_PLAYLIST, 4, 4, 400, 200, WS_CLIPCHILDREN,
          FCF_TITLEBAR|FCF_SYSMENU|FCF_HIDEMAX|FCF_TASKLIST|FCF_NOBYTEALIGN|FCF_SIZEBORDER|FCF_NOMOVEWITHOWNER
   BEGIN
     CONTAINER FID_CLIENT, 0, 0, 400, 200, CCS_EXTENDSEL|CCS_MINIICONS|CCS_MINIRECORDCORE
@@ -951,7 +956,7 @@ END
 
 DLGTEMPLATE DLG_PM
 BEGIN
-  DIALOG "PM123 Playlist Manager", DLG_PM, 6, 4, 200, 256, WS_SAVEBITS|WS_CLIPCHILDREN,
+  DIALOG "PM123 Playlist Manager", DLG_PM, 6, 4, 200, 256, WS_CLIPCHILDREN,
          FCF_TITLEBAR|FCF_SYSMENU|FCF_HIDEMAX|FCF_NOBYTEALIGN|FCF_TASKLIST|FCF_SIZEBORDER|FCF_NOMOVEWITHOWNER
   BEGIN
     CONTAINER FID_CLIENT, 0, 0, 200, 256, CCS_MINIICONS|CCS_MINIRECORDCORE
@@ -1107,7 +1112,7 @@ BEGIN
   DIALOG "Add bookmark", DLG_BM_ADD, 13, 27, 210, 35, FS_DLGBORDER|WS_CLIPSIBLINGS,
          FCF_TITLEBAR|FCF_SYSMENU|FCF_CLOSEBUTTON|FCF_NOBYTEALIGN
   BEGIN
-    RTEXT "Description",  ST_BM_DESC,  2, 20,  42 , 8, DT_VCENTER
+    RTEXT "Description",  ST_GENERIC,  2, 20,  42 , 8, DT_VCENTER
       PRESPARAMS PP_FOREGROUNDCOLORINDEX, SYSCLR_WINDOWTEXT
     ENTRYFIELD "",        EF_BM_DESC, 50, 20, 150,  8, ES_MARGIN
       CTLDATA 8, 1024, 0, 0
@@ -1122,28 +1127,28 @@ BEGIN
          FCF_TITLEBAR|FCF_SYSMENU|FCF_CLOSEBUTTON
   PRESPARAMS PP_FONTNAMESIZE "8.Helv"
   BEGIN
-    LTEXT "File~name",     DID_FILENAME_TXT , 5, 161, 265,  9, DT_VCENTER|DT_MNEMONIC
+    LTEXT        "File~name",                    DID_FILENAME_TXT , 5,161, 265,  9, DT_VCENTER|DT_MNEMONIC
       PRESPARAMS PP_FOREGROUNDCOLORINDEX, SYSCLR_WINDOWTEXT
-    ENTRYFIELD "",         DID_FILENAME_ED,   6, 151, 263,  8, ES_MARGIN|WS_GROUP
+    ENTRYFIELD   "",                             DID_FILENAME_ED,   6,151, 263,  8, ES_MARGIN|WS_GROUP
       CTLDATA 8, 256, 0, 0
-    LTEXT "~Type of file", DID_FILTER_TXT,    5, 138, 265,  9, DT_VCENTER|DT_MNEMONIC
+    LTEXT        "~Type of file",                DID_FILTER_TXT,    5,138, 265,  9, DT_VCENTER|DT_MNEMONIC
       PRESPARAMS PP_FOREGROUNDCOLORINDEX, SYSCLR_WINDOWTEXT
-    COMBOBOX "",           DID_FILTER_CB,     5,  76, 266, 61, CBS_DROPDOWNLIST
-    LTEXT "~Volume",       DID_DRIVE_TXT,     5, 116, 125,  9, DT_VCENTER|DT_MNEMONIC
+    COMBOBOX     "",                             DID_FILTER_CB,     5, 76, 266, 61, CBS_DROPDOWNLIST
+    LTEXT        "~Volume",                      DID_DRIVE_TXT,     5,116, 125,  9, DT_VCENTER|DT_MNEMONIC
       PRESPARAMS PP_FOREGROUNDCOLORINDEX, SYSCLR_WINDOWTEXT
-    COMBOBOX "",           DID_DRIVE_CB,      5,  52, 125, 63, CBS_DROPDOWNLIST
-    LTEXT "~Directory",    DID_DIRECTORY_TXT, 5,  93, 123,  9, DT_VCENTER|DT_MNEMONIC
+    COMBOBOX     "",                             DID_DRIVE_CB,      5, 52, 125, 63, CBS_DROPDOWNLIST
+    LTEXT        "~Directory",                   DID_DIRECTORY_TXT, 5, 93, 123,  9, DT_VCENTER|DT_MNEMONIC
       PRESPARAMS PP_FOREGROUNDCOLORINDEX, SYSCLR_WINDOWTEXT
-    LISTBOX                DID_DIRECTORY_LB,  5,  22, 125, 70, LS_NOADJUSTPOS|LS_HORZSCROLL|LS_OWNERDRAW|WS_GROUP
-    LTEXT "~Files",        DID_FILES_TXT,   135, 116, 136,  9, DT_VCENTER|DT_MNEMONIC
+    LISTBOX                                      DID_DIRECTORY_LB,  5, 22, 125, 70, LS_NOADJUSTPOS|LS_HORZSCROLL|LS_OWNERDRAW|WS_GROUP
+    LTEXT        "~Files",                       DID_FILES_TXT,   135,116, 136,  9, DT_VCENTER|DT_MNEMONIC
       PRESPARAMS PP_FOREGROUNDCOLORINDEX, SYSCLR_WINDOWTEXT
-    LISTBOX                DID_FILES_LB,    134,  22, 137, 93, LS_NOADJUSTPOS|LS_HORZSCROLL|WS_GROUP
-    AUTOCHECKBOX "~Recurse into subdirectories", CB_RECURSE, 95, 7, 176, 9, WS_GROUP
+    LISTBOX                                      DID_FILES_LB,    134, 22, 137, 93, LS_NOADJUSTPOS|LS_HORZSCROLL|WS_GROUP
+    AUTOCHECKBOX "~Recurse into subdirectories", CB_RECURSE,       95,  7, 176,  9, WS_GROUP
       PRESPARAMS PP_FOREGROUNDCOLORINDEX, SYSCLR_WINDOWTEXT
-    AUTOCHECKBOX "~Use relative paths",          CB_RELATIVE, 95, 7, 176, 9, WS_GROUP
+    AUTOCHECKBOX "~Use relative paths",          CB_RELATIVE,      95,  7, 176,  9, WS_GROUP
       PRESPARAMS PP_FOREGROUNDCOLORINDEX, SYSCLR_WINDOWTEXT
-    PUSHBUTTON "~OK",      DID_OK,      5, 5, 38, 12, BS_DEFAULT|WS_GROUP
-    PUSHBUTTON "~Cancel",  DID_CANCEL, 45, 5, 38, 12
+    DEFPUSHBUTTON "~OK",                         DID_OK,            5,  5,  38, 12, WS_GROUP
+    PUSHBUTTON   "~Cancel",                      DID_CANCEL,       45,  5,  38, 12
   END
 END
 
@@ -1153,12 +1158,12 @@ BEGIN
          FCF_SYSMENU|FCF_TITLEBAR|FCF_CLOSEBUTTON
     PRESPARAMS PP_FONTNAMESIZE "8.Helv"
   BEGIN
-    LTEXT "Controller Queue", ST_CONTROLLERQ, 8, 190, 196, 8, DT_BOTTOM|DT_MNEMONIC|WS_GROUP
+    LTEXT        "Controller Queue", ST_GENERIC, 8, 190, 196, 8, DT_BOTTOM|DT_MNEMONIC|WS_GROUP
     LISTBOX LB_CONTROLLERQ, 8, 150, 316, 40, LS_NOADJUSTPOS|LS_HORZSCROLL
-    LTEXT "Worker Queue", ST_WORKERQ, 8, 138, 196, 8, DT_BOTTOM|DT_MNEMONIC|WS_GROUP
+    LTEXT        "Worker Queue", ST_GENERIC, 8, 138, 196, 8, DT_BOTTOM|DT_MNEMONIC|WS_GROUP
     LISTBOX LB_WORKERQ, 8, 22, 316, 116, LS_NOADJUSTPOS|LS_HORZSCROLL
     DEFPUSHBUTTON "Close", DID_OK, 8, 4, 48, 12, WS_GROUP
-    PUSHBUTTON "~Refresh", PB_REFRESH, 64, 4, 48, 12
+    PUSHBUTTON   "~Refresh", PB_REFRESH, 64, 4, 48, 12
     AUTOCHECKBOX "~Auto refresh [ms]", CB_AUTOREFRESH, 120, 6, 60, 8, WS_GROUP
     SPINBUTTON SB_AUTOREFRESH, 184, 6, 32, 8, SPBS_MASTER|SPBS_NUMERICONLY|SPBS_JUSTRIGHT
       /*CTLDATA 20,0, 4,0, 20,0, 9999,0, SB_AUTOREFRESH,0*/
