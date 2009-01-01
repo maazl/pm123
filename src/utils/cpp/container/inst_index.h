@@ -84,13 +84,15 @@ class inst_index
   };
 
  public:
-  const K           Key;        
+  const  K          Key;
+ private:
+  bool              InIndex; // Object is already registered in the index.        
  private:
   static sorted_vector<T,K> Index;
   static Mutex      Mtx; // protect the index above
 
  protected: // It does not make sense to create objects of this type directly.
-  inst_index(const K& key) : Key(key) {}
+  inst_index(const K& key) : Key(key), InIndex(false) {}
   ~inst_index();
  public:
   // Get an existing instance of T or return NULL.
@@ -104,6 +106,9 @@ template <class T, class K>
 inst_index<T,K>::~inst_index()
 { DEBUGLOG(("inst_index<%p>(%p)::~inst_index()\n", &Index, this));
   // Deregister from the repository
+  // The object might not yet be in the repository.
+  if (!InIndex)
+    return;
   // The deregistration is a bit too late, because destructors from the derived
   // class may already be called. But the objects T must be reference counted.
   // And FindByKey/GetByKey checks for the reference counter before it takes
@@ -147,12 +152,14 @@ int_ptr<T> inst_index<T,K>::GetByKey(K& key, IFactory& factory)
   // type T. In this case we have to destroy the entry.
   T* pf = factory(key);
   if (pf == NULL)
-    // Factory failed => remove the slot immediately if not yet done.
+  { // Factory failed => remove the slot immediately if not yet done.
     // There is nothing to delete since we did not yet assign anything.
     Index.erase(key);
-  else
-    // Succseeded => assign the newly created instance.
+  } else
+  { // Succseeded => assign the newly created instance.
+    pf->InIndex = true;
     p = pf;
+  }
   return pf;
 }
 
