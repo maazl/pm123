@@ -636,8 +636,8 @@ output_play_samples( void* A, FORMAT_INFO* format, char* buf, int len, int posma
   
     // If we're too quick, let's wait.
     while( a->buf_to_fill == a->buf_is_play ) {
-      DEBUGLOG(("output_play_samples: wait for dataplayed (at %i)\n", buf_is_play));
       ULONG resetcount;
+      DEBUGLOG(("output_play_samples: wait for dataplayed (at %i)\n", a->buf_is_play));
       DosWaitEventSem ( a->dataplayed, SEM_INDEFINITE_WAIT );
       DosResetEventSem( a->dataplayed, &resetcount );
       DEBUGLOG(("output_play_samples: reset sem: %lu\n", resetcount));

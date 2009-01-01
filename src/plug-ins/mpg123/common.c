@@ -528,6 +528,8 @@ mpg_open_file( MPG_FILE* mpg, const char* filename, const char* mode )
   }
 
   if( !mpg->is_stream ) {
+    // TODO: the tag should not be read unless it is required.
+    // Currently also the decoder_thread reads the tag. This confuses the xio buffer.
     id3v1_get_tag( mpg->file, &mpg->tagv1 );
     xio_fseek( mpg->file, mpg->started, XIO_SEEK_SET );
   }
