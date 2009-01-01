@@ -34,21 +34,31 @@
 
 class XIOasyncbuffer : public XIObuffer
 {private:
-  char* tail;           /* Pointer to beyond of the last byte of the buffer. */
-  int   free_size;      /* Current size of the free part of the buffer.      */
-  char* data_head;      /* Pointer to the first byte of the data.            */
-  char* data_tail;      /* Pointer to beyond of the last byte of the data.   */
-  char* data_read;      /* Current read position in the data pool.           */
-  int   data_size;      /* Current size of the data.                         */
-  int   data_rest;      /* Current size of the data available for read.      */
-  int   data_keep;      /* Maximum size of the obsolete data.                */
-  int   tid;            /* Read-ahead thread identifier.                     */
-  bool  end;            /* Stops read-ahead thread and cleanups the buffer.  */
-  bool  boosted;        /* The priority of the read-ahead thread is boosted. */
+  // Working set.
+  // Member type: C  Constant during the operation of the buffer
+  //              R  Read-ahead thread only, unsynchronized
+  //              X  XIO interface only, unsynchronized
+  //              Rx Read-ahead thread writes, XIO interface reads
+  //              Xr XIO interface writes, read ahead thread reads
+  //              M  all write, only reliable while mtx_access is locked  
+  char* tail;           // C  Pointer to beyond of the last byte of the buffer.
+  int   prefill;        // C  Start sending data not before this buffer level.
+  int   free_size;      // M  Current size of the free part of the buffer.
+  char* data_head;      // M  Pointer to the first byte of the data.
+  char* data_tail;      // R  Pointer to beyond of the last byte of the data.
+  char* data_read;      // Xr Current read position in the data pool.
+  int   data_size;      // M  Current size of the data.
+  int   data_rest;      // M  Current size of the data available for read.
+  int   data_keep;      // C  Maximum size of the obsolete data.
+  int   tid;            // C  Read-ahead thread identifier.
+  long  seekto;         // M  Seek command for the read-ahead thread.
+  bool  data_end;       // Rx Read ahead thread reached the end of the data or a stream error.
+  bool  end;            // Xr Stops read-ahead thread and cleanups the buffer.
+  bool  boosted;        // M  The priority of the read-ahead thread is boosted.
 
-  Mutex mtx_access;     /* Serializes access to the buffer.                  */
-  Event evt_read_data;  /* Sends if it is possible to read into the buffer.  */
-  Event evt_have_data;  /* Sends if the buffer have more data.               */
+  Mutex mtx_access;     // Serializes access to the buffer.
+  Event evt_read_data;  // Sends if it is possible to read into the buffer.
+  Event evt_have_data;  // Sends if the buffer have more data.
 
  private:
   /* Advances a buffer pointer. */
@@ -57,8 +67,6 @@ class XIOasyncbuffer : public XIObuffer
   void  boost_priority();
   /* Normalizes a priority of the read-ahead thread. */
   void  normal_priority();
-  /* Resets the buffer. */
-  void  reset();
   /* Read-ahead thread. */
   void  read_ahead();
   friend void TFNENTRY buffer_read_ahead_stub( void* arg );
@@ -76,6 +84,7 @@ class XIOasyncbuffer : public XIObuffer
   virtual int read( void* result, unsigned int count );
   //virtual char* gets( char* string, unsigned int n );
   virtual int close();
+  virtual long getsize( long* offset64 = NULL );
   virtual int chsize( long size, long size64 = 0 );
 };
 

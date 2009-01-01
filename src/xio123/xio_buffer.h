@@ -46,12 +46,12 @@ class XIObuffer : public XIOreadonly
     char* detach() { char* ret = metabuff; metabuff = NULL; return ret; }
   };
  protected:
-  XPROTOCOL* chain;        // Pointer to virtualized protocol
+  XPROTOCOL* chain;        // C  Pointer to virtualized protocol
 
-  char* head;              // Pointer to the first byte of the buffer.
-  const unsigned int size; // Current size of the buffer.
+  char* head;              // C  Pointer to the first byte of the buffer.
+  const unsigned int size; // C  Current size of the buffer.
 
-  long  read_pos;          // Position of the logical read pointer in the associated file.
+  long  read_pos;          // M  Position of the logical read pointer in the associated file.
 
   // Entries for the observer
   void  DLLENTRYP(s_callback)(const char* metabuff, long pos, long pos64, void* arg);

@@ -58,7 +58,6 @@ XIObuffer::XIObuffer(XPROTOCOL* chain, unsigned int buf_size)
 
 bool XIObuffer::init()
 {
-  read_pos = chain->tell();
   chain->set_observer(buffer_observer_stub, this);
   return true;
 }
@@ -109,8 +108,14 @@ long XIObuffer::tell( long* offset64 )
 
 /* Returns the size of the file. A return value of -1L indicates an
    error or an unknown size. */
-long XIObuffer::getsize( long* offset64 ) {
-  return chain->getsize(offset64);
+long XIObuffer::getsize( long* offset64 )
+{
+  long ret = chain->getsize(offset64);
+  // TODO 64 bit
+  if (ret > read_pos && eof)
+  { eof = false;
+  }
+  return ret;
 }
 
 /* Moves any file pointer to a new location that is offset bytes from

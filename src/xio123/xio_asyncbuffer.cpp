@@ -81,51 +81,64 @@ void XIOasyncbuffer::normal_priority()
 /* Read-ahead thread. */
 void XIOasyncbuffer::read_ahead()
 {
-  int      read_size;
-  int      read_done;
-
   while( evt_read_data.Wait() && !end )
   {
-    //Mutex::Lock lock_file(mtx_file);
     Mutex::Lock lock(mtx_access);
 
-    if( free_size )
+    if (seekto != -1L)
+    { // Seek command (implies trashing the buffer)
+      data_tail = data_head = data_read;
+      data_size = 0;
+      data_rest = 0;
+      free_size = size;
+
+      lock.Release();
+      long rc = chain->seek( seekto, XIO_SEEK_SET );
+      DEBUGLOG(("XIOasyncbuffer::read_ahead: seek to %li -> %li\n", seekto, rc));
+      lock.Request();
+      
+      if (rc == -1L)
+        error = errno;
+      else
+        read_pos = seekto;
+      seekto = -1L;
+      
+    } else if (free_size)
     {
       // Determines the maximum possible size of the continuous data chunk
-      // for reading. The maximum size of a chunk is 4 kilobytes.
-      read_size = tail - data_tail;
-      read_size = min( read_size, free_size );
-      read_size = min( read_size, blocksize );
+      // for reading.
+      int read_size = tail - data_tail;
+      if (read_size > free_size)
+        read_size = free_size;
+      if (read_size > blocksize)
+        read_size = blocksize;
 
       lock.Release();
       // It is possible to use the data_tail pointer without request of
       // the mutex because only this thread can change it.
-      read_done = chain->read( data_tail, read_size );
+      int read_done = chain->read( data_tail, read_size );
+      DEBUGLOG(("XIOasyncbuffer::read_ahead: read %i -> %i, %u\n", read_size, read_done, chain->eof));
       lock.Request();
 
-      if( read_done >= 0 ) {
+      if( read_done > 0 ) {
         data_size += read_done;
         free_size -= read_done;
         data_rest += read_done;
         data_tail  = advance( data_tail, read_done );
-
-        if( read_done < read_size ) {
-          eof = 1;
-        }
-      } else {
-        error = errno;
       }
     }
 
-    evt_have_data.Set();
+    data_end = chain->error || chain->eof;
 
-    if(( !free_size || error || eof ) && !end ) {
-      // Buffer is filled up.
+    if (data_end || data_size >= prefill)
+      evt_have_data.Set();
+
+    if(( !free_size || data_end ) && !end ) {
+      // Buffer is filled up or eof.
       evt_read_data.Reset();
     }
 
-
-    if( boosted && ( data_rest >= size * BUFFER_IS_SATED / 100 || error || eof ))
+    if( boosted && ( data_end || data_rest >= size * BUFFER_IS_SATED / 100 ))
     {
       // If buffer is sated, normalizes of the priority of the read-ahead thread.
       normal_priority();
@@ -142,25 +155,11 @@ buffer_read_ahead_stub( void* arg )
   ((XIOasyncbuffer*)arg)->read_ahead();
 }
 
-/* Resets the buffer. */
-void XIOasyncbuffer::reset()
-{
-  free_size  = size;
-  data_head  = head;
-  data_read  = head;
-  data_tail  = head;
-  data_size  = 0;
-  data_rest  = 0;
-  data_keep  = size / 5;
-  read_pos   = chain->tell();
-  eof        = 0;
-  error      = 0;
-}
-
 /* Allocates and initializes the buffer. */
 XIOasyncbuffer::XIOasyncbuffer(XPROTOCOL* chain, unsigned int buf_size, unsigned int block_size)
 : XIObuffer(chain, buf_size), 
   tail(head + size),
+  prefill(0),
   free_size(size),
   data_head(head),
   data_tail(head),
@@ -169,6 +168,8 @@ XIOasyncbuffer::XIOasyncbuffer(XPROTOCOL* chain, unsigned int buf_size, unsigned
   data_rest(0),
   data_keep(size / 5),
   tid(-1),
+  seekto(-1),
+  data_end(false),
   end(false),
   boosted(false)
 { blocksize = block_size;
@@ -177,24 +178,24 @@ XIOasyncbuffer::XIOasyncbuffer(XPROTOCOL* chain, unsigned int buf_size, unsigned
 bool XIOasyncbuffer::init()
 {
   if( xio_buffer_wait())
+    prefill = size * xio_buffer_fill() / 100;
+/*  if( xio_buffer_wait())
   {
     int prefill = size * xio_buffer_fill() / 100;
 
     if( prefill > 0 ) {
       data_size = chain->read( head, prefill );
 
-      if( data_size < 0 ) {
+      if( data_size < 0 )
         return false;
-      }
-      if( data_size < prefill ) {
-        eof = 1;
-      }
+      else if (data_size == 0)
+        eof = true;
 
       data_rest = data_size;
       data_tail = advance( data_head, data_size );
       free_size = size - data_size;
     }
-  }
+  }*/
 
   if(( tid = _beginthread( buffer_read_ahead_stub, NULL, 65535, this )) == -1 ) {
     return false;
@@ -247,6 +248,7 @@ int XIOasyncbuffer::read( void* result, unsigned int count )
 
     if( read_size )
     {
+      DEBUGLOG(("XIOasyncbuffer::read: from buffer %i\n", read_size));
       // Copy a next chunk of data in the result buffer.
       memcpy( (char*)result + read_done, data_read, read_size );
 
@@ -276,16 +278,18 @@ int XIOasyncbuffer::read( void* result, unsigned int count )
     }
     else
     {
-      if( chain->eof   ) {
-        eof = true;
-        break;
+      DEBUGLOG(("XIOasyncbuffer::read: look for more data %u\n", data_end));
+      if (data_end) // Read ahead thread cannot read more
+      { if( chain->eof   ) {
+          eof = true;
+          break;
+        }
+        if( chain->error ) {
+          obs_clear();
+          errno = error = chain->error;
+          return -1;
+        }
       }
-      if( chain->error ) {
-        obs_clear();
-        errno = error = chain->error;
-        return -1;
-      }
-
       // There is no error and there is no end of a file.
       // It is necessary to wait a next portion of data.
       evt_have_data.Reset();
@@ -353,33 +357,35 @@ long XIOasyncbuffer::do_seek( long offset, long* offset64 )
     } else
       obs_discard();
   } else {
-    // TODO: synchronize the read-ahead thread!!!
-    //Mutex::Lock lock(mtx_file);
     obs_clear();
-
-    if( chain->seek( offset, XIO_SEEK_SET ) != -1L ) {
-      data_head = head;
-      data_tail = head;
-      data_read = head;
-      data_size = 0;
-      data_rest = 0;
-      free_size = size;
-      eof       = 0;
-      error     = 0;
-
-      evt_read_data.Set();
-
-      // Boosts of the priority of the read-ahead thread.
-      boost_priority();
-      error = false;
-      eof   = false;
-    } else
-    { error = chain->error;
-      return -1L;
-    }
+    eof    = false;
+    error  = 0;
+    seekto = offset;
+    evt_read_data.Set();
+    evt_have_data.Reset();
+    // Boosts of the priority of the read-ahead thread.
+    boost_priority();
+    // Wait for the acknowledge of the read-ahead thread.
+    lock.Release();
+    evt_have_data.Wait();
+    
+    if (error)
+      return -1L; 
   }           
 
   return read_pos = offset;
+}
+
+long XIOasyncbuffer::getsize( long* offset64 )
+{ long ret = chain->getsize(offset64);
+  // TODO 64 bit
+  if (eof && ret > read_pos)
+  { Mutex::Lock lock(mtx_access);
+    if (eof && ret > read_pos)
+    { eof = false;
+      evt_read_data.Set();
+  } }
+  return ret;
 }
 
 /* Lengthens or cuts off the file to the length specified by size.
@@ -389,12 +395,14 @@ long XIOasyncbuffer::do_seek( long offset, long* offset64 )
    of the original file. */
 int XIOasyncbuffer::chsize( long size, long offset64 )
 {
-  int rc;
-
   Mutex::Lock lock(mtx_access);
+  
+  int rc = XIObuffer::chsize( size, offset64 );
 
-  rc = XIObuffer::chsize( size, offset64 );
-  reset();
+  if (rc != -1L)
+    // TODO: we should operate smarter here.
+    // Trash buffer   
+    seekto = read_pos;
 
   return rc;
 }

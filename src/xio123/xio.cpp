@@ -233,9 +233,9 @@ xio_fread( void* buffer, size_t size, size_t count, XFILE* x )
     if( done == read ) {
       rc = count;
     } else if( done >= 0 ) {
-      x->protocol->seek( -( done % size ), XIO_SEEK_CUR );
+      if (done % size == 0 || x->protocol->seek( -( done % size ), XIO_SEEK_CUR ) == -1)
+        x->protocol->eof = true;
       rc = done / size;
-      x->protocol->eof = true;
     } else {
       x->protocol->error = errno;
     }
@@ -308,7 +308,7 @@ xio_fclose( XFILE* x )
   int ret = x->protocol->close() == 0 ? 0 : -1;
   // cleanup anyway
   delete x;
-  DEBUGLOG(("xio_close: %i\n", ret));
+  DEBUGLOG(("xio_fclose: %i\n", ret));
   return ret;
 }
 
@@ -352,7 +352,7 @@ xio_ftell( XFILE* x )
 long DLLENTRY
 xio_fseek( XFILE* x, long int offset, int origin )
 {
-  DEBUGLOG(("xio_fseek(%p, %lu, %i)\n", x, offset, origin));
+  DEBUGLOG(("xio_fseek(%p, %li, %i)\n", x, offset, origin));
   ASSERT(x && x->serial == XIO_SERIAL);
   #ifdef NDEBUG
   if( !x || x->serial != XIO_SERIAL ) {
@@ -364,7 +364,7 @@ xio_fseek( XFILE* x, long int offset, int origin )
     return -1;
   long ret = x->protocol->seek( offset, origin );
   x->Release();
-  DEBUGLOG(("xio_close: %li\n", ret));
+  DEBUGLOG(("xio_fseek: %li\n", ret));
   return ret;
 }
 
@@ -392,7 +392,9 @@ xio_fsize( XFILE* x )
     return -1;
   }
   #endif
-  return x->protocol->getsize();
+  long ret = x->protocol->getsize();
+  DEBUGLOG(("xio_fsize: %li\n", ret));
+  return ret;
 }
 
 /* Lengthens or cuts off the file to the length specified by size.
@@ -498,7 +500,7 @@ xio_fputs( const char* string, XFILE* x )
     rc = x->protocol->puts(string);
 
   x->Release();
-  DEBUGLOG(("xio_close: %i\n", rc));
+  DEBUGLOG(("xio_fputs: %i\n", rc));
   return rc;
 }
 
