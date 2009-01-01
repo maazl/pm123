@@ -50,6 +50,29 @@ queue_base::EntryBase* queue_base::RequestRead()
   }
 }
 
+queue_base::EntryBase* queue_base::RequestRead(Event& event, EntryBase*const& tail)
+{ DEBUGLOG(("queue_base(%p)::RequestRead(&%p, *%p)\n", this, &event, tail));
+  for(;;)
+  { event.Wait();
+    Mutex::Lock lock(Mtx);
+    EntryBase* qp = Head;
+    while (qp)
+    { if (!qp->ReadActive)
+      { qp->ReadActive = true;
+        DEBUGLOG(("queue_base::RequestRead() - %p\n", qp));
+        return qp;
+      }
+      if (qp == tail)
+        goto cont;
+      // Skip pending
+      qp = qp->Next;
+    }
+    EvEmpty.Reset();
+   cont:
+    event.Reset();
+  }
+}
+
 void queue_base::CommitRead(EntryBase* qp)
 { DEBUGLOG(("queue_base(%p)::CommitRead(%p) - %p %p\n", this, qp, Head, Tail));
   ASSERT(qp);

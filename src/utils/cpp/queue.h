@@ -55,6 +55,8 @@ class queue_base
  protected: // class should not be used directly!
              queue_base()         : Head(NULL), Tail(NULL) { EvRead.Set(); }
   EntryBase* RequestRead();
+  // For priority queues
+  EntryBase* RequestRead(Event& event, EntryBase*const& tail);
   void       CommitRead(EntryBase* entry);
   void       RollbackRead(EntryBase* entry);
  protected:
