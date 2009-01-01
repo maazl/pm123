@@ -1087,9 +1087,9 @@ proxy_1_output_request_buffer( OutputProxy1* op, void* a, const FORMAT_INFO2* fo
     op->voutput_trash_buffer = FALSE;
   }
 
-  if ( buf == 0
-    || ( op->voutput_buffer_level != 0 &&
-         (op->voutput_format.samplerate != format->samplerate || op->voutput_format.channels != format->channels) ))
+  if ( op->voutput_buffer_level != 0
+    && ( buf == 0
+      || (op->voutput_format.samplerate != format->samplerate || op->voutput_format.channels != format->channels) ))
   { // flush
     (*op->voutput_play_samples)(a, &op->voutput_format, (char*)op->voutput_buffer, op->voutput_buffer_level * op->voutput_format.channels * sizeof(short), tstmp_f2i(op->voutput_posmarker));
     op->voutput_buffer_level = 0;
