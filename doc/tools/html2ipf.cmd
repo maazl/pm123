@@ -581,6 +581,8 @@ ParseContents:
           when Tag = '!EM'	then TagBreakPos = doTag!EM();
           when Tag = 'TT'	then TagBreakPos = doTagTT();
           when Tag = '!TT'	then TagBreakPos = doTag!TT();
+          when Tag = 'KBD'	then TagBreakPos = doTagKBD();
+          when Tag = '!KBD'	then TagBreakPos = doTag!KBD();
           when Tag = 'P'	then TagBreakPos = doTagP();
           when Tag = '!P'	then TagBreakPos = doTag!P();
           when Tag = 'H1'	then TagBreakPos = doTagH1();
@@ -803,6 +805,15 @@ doTag!TT:
  call SetFont Global.DefaultFont;
 return 0;
 
+doTagKBD:
+ call SetFont Global.ProportFont;
+ call doSetEmphasis 'B';
+return 0;
+
+doTag!KBD:
+ call doResetEmphasis 'B';
+ call SetFont Global.DefaultFont;
+return 0;
 doTagBLOCKQUOTE:
  call PutToken ':lm margin=6.';
  Global.Paragraph = 'Req';
