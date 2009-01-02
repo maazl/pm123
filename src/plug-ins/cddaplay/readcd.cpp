@@ -621,7 +621,9 @@ CD_drive::Cache::~Cache()
 {  // destroy any cached objects
    CD_drive** p = cache + sizeof(cache)/sizeof(*cache);
    while (p != cache)
-      (*--p)->release();
+   {  if (*--p)
+         (*p)->release();
+   }
    // destroy mutex
    DosCloseMutexSem(cacheMtx);
 }
