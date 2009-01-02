@@ -261,9 +261,10 @@
 #define IDH_ANALYZERFORMAT 1024
 #define IDH_BOOKMARK       1025
 #define IDH_PLAYFOLDER     1026
+#define IDH_INSPECTOR      1027
 #define IDH_SETTINGS1      1050
 #define IDH_SETTINGS2      1051
-//#define IDH_SETTINGS3      1052
+#define IDH_SETTINGSIO     1052
 #define IDH_DISPLAY        1055
 #define IDH_DEC_PLUGINS    1060
 #define IDH_FIL_PLUGINS    1061

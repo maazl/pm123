@@ -103,12 +103,6 @@ static BOOL eqneedEQ;
 static HWND hdialog     = NULLHANDLE;
 static BOOL plugininit  = FALSE; // plug-in is initialized (only once)
 
-// note: I originally intended to use 8192 for the finalFIR arrays
-// but Pentium CPUs have a too small cache (16KB) and it totally shits
-// putting anything bigger.
-// Update 2006-07-10 MM: Solved. Now FIR order 12288 works.
-// Higher values are possible too, but will require compensation for the latency.
-
 static float bandgain[2][NUM_BANDS+1];  // gain in dB, first entry ist master gain
 static float groupdelay[2][NUM_BANDS+1];// gruop delay in 1ms, first entry ist master delay
 static BOOL  mute[2][NUM_BANDS+1];      // mute flags (TRUE = mute), first entry is master mute

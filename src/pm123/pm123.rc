@@ -383,7 +383,7 @@ BEGIN
   "d",        IDM_M_DETAILED,       CHAR|CONTROL
   "E",        IDM_M_TAG,            CHAR|CONTROL|SHIFT
   "e",        IDM_M_TAG,            CHAR|CONTROL
-  "i",        IDM_M_INSPECTOR,      CHAR|ALT
+  "i",        IDM_M_INSPECTOR,      CHAR|CONTROL|ALT
   "I",        IDM_M_INFO,           CHAR|CONTROL|SHIFT
   "i",        IDM_M_PLINFO,         CHAR|CONTROL
   "L",        IDM_M_ADDBOOK_TIME,   CHAR|CONTROL|SHIFT
@@ -628,12 +628,12 @@ BEGIN
     PRESPARAMS PP_FONTNAMESIZE "8.Helv"
   BEGIN
     GROUPBOX     " Remote control ",                    GB_GENERIC,         4,100, 248, 24, NOT WS_TABSTOP|WS_GROUP
-    RTEXT        "~Pipe name",                          ST_GENERIC,        16,104,  40, 12, DT_VCENTER|DT_MNEMONIC
+    RTEXT        "~Pipe name",                          ST_GENERIC,         8,104,  40, 12, DT_VCENTER|DT_MNEMONIC
       PRESPARAMS PP_FOREGROUNDCOLORINDEX, SYSCLR_WINDOWTEXT
     ENTRYFIELD   "",                                    EF_PIPE,           62,106,  72,  8, ES_MARGIN
 
     GROUPBOX     " Streaming audio ",                   GB_GENERIC,         4, 30, 248, 68, NOT WS_TABSTOP|WS_GROUP
-    RTEXT        "~HTTP Proxy",                         ST_GENERIC,        16, 76,  40, 12, DT_VCENTER|DT_MNEMONIC
+    RTEXT        "~HTTP Proxy",                         ST_GENERIC,         8, 76,  48, 12, DT_VCENTER|DT_MNEMONIC
       PRESPARAMS PP_FOREGROUNDCOLORINDEX, SYSCLR_WINDOWTEXT
     ENTRYFIELD   "",                                    EF_PROXY_HOST,     62, 78, 132,  8, ES_MARGIN
       CTLDATA 8, 512, 0, 0
@@ -641,7 +641,7 @@ BEGIN
       PRESPARAMS PP_FOREGROUNDCOLORINDEX, SYSCLR_WINDOWTEXT
     ENTRYFIELD   "",                                    EF_PROXY_PORT,    220, 78,  24,  8, ES_MARGIN
       CTLDATA 8, 5, 0, 0
-    RTEXT        "~User name",                          ST_GENERIC,        16, 62,  40, 12, DT_VCENTER|DT_MNEMONIC|NOT WS_GROUP
+    RTEXT        "~User name",                          ST_GENERIC,         8, 62,  48, 12, DT_VCENTER|DT_MNEMONIC|NOT WS_GROUP
       PRESPARAMS PP_FOREGROUNDCOLORINDEX, SYSCLR_WINDOWTEXT
     ENTRYFIELD   "",                                    EF_PROXY_USER,     62, 64,  72,  8, ES_MARGIN
       CTLDATA 8, 128, 0, 0
@@ -649,12 +649,12 @@ BEGIN
       PRESPARAMS PP_FOREGROUNDCOLORINDEX, SYSCLR_WINDOWTEXT
     ENTRYFIELD   "",                                    EF_PROXY_PASS,    176, 64,  68,  8, ES_MARGIN|ES_UNREADABLE
       CTLDATA 8, 128, 0, 0
-    RTEXT        "Conn. ~timeout",                      ST_GENERIC,        16, 48,  40, 12, DT_VCENTER|DT_MNEMONIC
+    RTEXT        "Conn. ~timeout",                      ST_GENERIC,         8, 48,  48, 12, DT_VCENTER|DT_MNEMONIC
       PRESPARAMS PP_FOREGROUNDCOLORINDEX, SYSCLR_WINDOWTEXT
     SPINBUTTON                                          SB_TIMEOUT,        60, 50,  36,  8, SPBS_NUMERICONLY|SPBS_MASTER|SPBS_JUSTRIGHT
     LTEXT        "seconds",                             ST_GENERIC,       100, 48,  36, 12, DT_VCENTER|NOT WS_GROUP
       PRESPARAMS PP_FOREGROUNDCOLORINDEX, SYSCLR_WINDOWTEXT
-    RTEXT        "~Buffer size",                        ST_GENERIC,        16, 34,  40, 12, DT_VCENTER|DT_MNEMONIC
+    RTEXT        "~Buffer size",                        ST_GENERIC,         8, 34,  48, 12, DT_VCENTER|DT_MNEMONIC
       PRESPARAMS PP_FOREGROUNDCOLORINDEX, SYSCLR_WINDOWTEXT
     SPINBUTTON                                          SB_BUFFERSIZE,     60, 36,  36,  8, SPBS_NUMERICONLY|SPBS_MASTER|SPBS_JUSTRIGHT
     LTEXT        "kB",                                  ST_GENERIC,       100, 34,  20, 12, DT_VCENTER|NOT WS_GROUP

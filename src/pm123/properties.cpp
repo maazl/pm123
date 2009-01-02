@@ -95,7 +95,7 @@ const amp_cfg cfg_default =
   "\\PIPE\\PM123",
   true, // dock
   10,
-  5,
+  500,
   true,
 // state
   "",

@@ -75,7 +75,7 @@ MRESULT InspectorDialog::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
       PMRASSERT(WinSetWindowPos(GetHwnd(), NULLHANDLE, swp.x,swp.y, 0,0, SWP_MOVE));
     
       do_warpsans(GetHwnd());
-      WinSendDlgItemMsg(GetHwnd(), SB_AUTOREFRESH, SPBM_SETLIMITS, MPFROMLONG(9999), MPFROMLONG(20));
+      sb_setnumlimits(GetHwnd(), SB_AUTOREFRESH, 30, 9999, 4);
       WinSendDlgItemMsg(GetHwnd(), SB_AUTOREFRESH, SPBM_SETCURRENTVALUE, MPFROMLONG(cfg.insp_autorefresh), 0);
       WinSendDlgItemMsg(GetHwnd(), CB_AUTOREFRESH, BM_SETCHECK, MPFROMSHORT(cfg.insp_autorefresh_on), 0);
       return MRFROMLONG(ret);
