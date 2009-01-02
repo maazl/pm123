@@ -562,8 +562,8 @@ void Playable::Init()
   WNumWorkers = cfg.num_workers;     // sample this atomically
   WNumDlgWorkers = cfg.num_dlg_workers; // sample this atomically
   WTids = new int[WNumWorkers+WNumDlgWorkers];
-  for (int* tidp = WTids + WNumWorkers+WNumDlgWorkers; tidp != WTids; )
-  { *--tidp = _beginthread(&PlayableWorkerStub, NULL, 65536, (void*)(tidp >= WTids + WNumDlgWorkers));
+  for (int* tidp = WTids + WNumWorkers+WNumDlgWorkers; tidp-- != WTids; )
+  { *tidp = _beginthread(&PlayableWorkerStub, NULL, 65536, (void*)(tidp >= WTids + WNumDlgWorkers));
     ASSERT(*tidp != -1);
   }
 }
