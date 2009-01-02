@@ -527,9 +527,11 @@ mpg_open_file( MPG_FILE* mpg, const char* filename, const char* mode )
     mpg->bitrate = mpg->xing_header.bytes / mpg->songlength * 1000.0 / 125;
   }
 
-  if( !mpg->is_stream ) {
-    // TODO: the tag should not be read unless it is required.
-    // Currently also the decoder_thread reads the tag. This confuses the xio buffer.
+  // Do not read the tag in extended buffering mode. This confuses the xio buffer
+  // and generates unneccesary load. Since the extended buffering is only used
+  // in case of playing audio and not in case of decoder_fileinfo, we can safely
+  // ignore the ID2V1 tag in this case.
+  if( !mpg->is_stream && !strchr(mode, 'X')) {
     id3v1_get_tag( mpg->file, &mpg->tagv1 );
     xio_fseek( mpg->file, mpg->started, XIO_SEEK_SET );
   }
