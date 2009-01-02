@@ -573,7 +573,7 @@ PlaylistBase::RecordBase* PlaylistView::CreateNewRecord(PlayableInstance* obj, R
   obj->StatusChange              += rec->Data()->StatChange;
 
   rec->URL             = obj->GetPlayable()->GetURL().cdata();
-  CalcCols(rec, obj->GetPlayable()->EnsureInfoAsync(Playable::IF_Tech|Playable::IF_Meta|Playable::IF_Phys), PlayableInstance::SF_All);
+  CalcCols(rec, obj->GetPlayable()->EnsureInfoAsync(Playable::IF_Tech|Playable::IF_Meta|Playable::IF_Phys, true), PlayableInstance::SF_All);
 
   rec->flRecordAttr    = 0;
   rec->hptrIcon        = CalcIcon(rec);

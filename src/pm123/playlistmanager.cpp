@@ -124,7 +124,7 @@ MRESULT PlaylistManager::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
           Record* rec = (Record*)emphasis->pRecord;
           if (rec != NULL && (rec->flRecordAttr & CRA_CURSORED))
           { EmFocus = rec->Data()->Content->GetPlayable();
-            if (EmFocus->EnsureInfoAsync(Playable::IF_Tech))
+            if (EmFocus->EnsureInfoAsync(Playable::IF_Tech, true))
               PMRASSERT(WinPostMsg(GetHwnd(), UM_UPDATEINFO, MPFROMP(EmFocus.get()), 0));
           }
         }

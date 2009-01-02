@@ -270,7 +270,7 @@ static void WorkerQCB(const queue<Playable::QEntry>::qentry& entry, void* arg)
   { Playable::InfoFlags low;
     Playable::InfoFlags high;
     Playable::InfoFlags insvc;
-    pp->QueryRequestState(low, high, insvc);
+    pp->QueryRequestState(high, low, insvc);
     char rqstr[7] = "------";
     PlayableFlagsMapper(rqstr, low, "ftmpro");
     PlayableFlagsMapper(rqstr, high, "FTMPRO");

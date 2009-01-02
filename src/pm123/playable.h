@@ -341,9 +341,9 @@ class Playable
   InfoFlags           EnsureInfoAsync(InfoFlags what, bool lowpri = false, bool confirmed = false);
 
   // Query the current InfoRequest state. This is only reliable in a critical section.
-  // But it may be called outside for debugging or informational purposes.
+  // But it may be called from outside for debugging or informational purposes.
   void                QueryRequestState(InfoFlags& high, InfoFlags& low, InfoFlags& inservice)
-                      { high = (InfoFlags)InfoRequest; low = (InfoFlags)(InfoRequestLow & !high); inservice = (InfoFlags)InfoInService; }
+                      { high = (InfoFlags)InfoRequest; low = (InfoFlags)(InfoRequestLow & ~high); inservice = (InfoFlags)InfoInService; }
 
   // Set meta information.
   // Calling this function with meta == NULL deletes the meta information.
@@ -362,17 +362,21 @@ class Playable
  private:
   // Priority enhanced Queue
   class worker_queue : public queue<QEntry>
-  { EntryBase* HPTail; // Tail of high priority items
+  { EntryBase* HPTail;    // Tail of high priority items
+    Event      HPEvEmpty; // Event for High priority items
    public:
     // Remove item from queue
+    qentry*    RequestRead(bool lowpri)
+               { return lowpri ? queue<QEntry>::RequestRead() : (qentry*)queue_base::RequestRead(HPEvEmpty, HPTail); }
     void       CommitRead(qentry* qp);
+    void       RollbackRead(qentry* entry)
+               { queue<QEntry>::RollbackRead(entry); HPEvEmpty.Set(); }
     // Write item with priority
     void       Write(const QEntry& data, bool lowpri);
     void       Purge()     { queue<QEntry>::Purge(); HPTail = NULL; }
     #ifdef DEBUG
     // Read the current head
     void       DumpQ() const;
-    qentry*    RequestRead() { DumpQ(); return queue<QEntry>::RequestRead(); }
     #endif
   };
 
@@ -380,12 +384,13 @@ class Playable
   static worker_queue      WQueue;
   static int*              WTids;         // Thread IDs of the workers (type int[])
   static size_t            WNumWorkers;   // number of workers in the above list
+  static size_t            WNumDlgWorkers;// number of workers in the above list
   static bool              WTermRq;       // Termination Request to Worker
 
  private:
-  // Worker thread
-  static void              PlayableWorker();
-  friend void TFNENTRY     PlayableWorkerStub(void*);
+  // Worker threads
+  static void              PlayableWorker(bool lowpri);
+  friend void TFNENTRY     PlayableWorkerStub(void* arg);
  public:
   // Initialize worker
   static void              Init();

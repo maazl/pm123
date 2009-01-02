@@ -267,7 +267,7 @@ void Playable::InvalidateInfo(InfoFlags what, bool reload)
   Lock lock(*this);
   InfoConfirmed &= ~what;
   if (reload && (InfoValid & what))
-    LoadInfoAsync(InfoValid & what);
+    LoadInfoAsync(InfoValid & what, true);
 }
 
 void Playable::UpdateFormat(const FORMAT_INFO2* info, bool confirmed)
@@ -444,7 +444,18 @@ void Playable::SetTechInfo(const TECH_INFO* tech)
   EndUpdate(what);
 }
 
+
 /* Worker Queue */
+/*qentry* Playable::worker_queue::RequestRead(bool lowpri)
+{ DEBUGLOG(("Playable::worker_queue::RequestRead(%u)\n", lowpri));
+  //#ifdef DEBUG
+  //DumpQ();
+  //#endif
+  return lowpri
+    ? queue<QEntry>::RequestRead()
+    : (qentry*)queue_base::RequestRead(HPEvEmpty, HPTail);
+}*/
+
 void Playable::worker_queue::CommitRead(qentry* qp)
 { DEBUGLOG(("Playable::worker_queue::CommitRead(%p) - %p %p %p\n", qp, Head, HPTail, Tail));
   Mutex::Lock lock(Mtx);
@@ -458,7 +469,7 @@ void Playable::worker_queue::CommitRead(qentry* qp)
 
 void Playable::worker_queue::Write(const QEntry& data, bool lowpri)
 { DEBUGLOG(("Playable::worker_queue::Write(%p, %u) - %p %p %p\n", data.get(), lowpri, Head, HPTail, Tail));
-  // if low priority or high priority with insert at the end
+  // if low priority
   if (lowpri)
     queue<QEntry>::Write(data);
   else
@@ -467,6 +478,7 @@ void Playable::worker_queue::Write(const QEntry& data, bool lowpri)
     EntryBase* newitem = new qentry(data);
     queue_base::Write(newitem, HPTail);
     HPTail = newitem;
+    HPEvEmpty.Set();
   }
   /*#ifdef DEBUG
   DumpQ();
@@ -485,15 +497,17 @@ void Playable::worker_queue::DumpQ() const
 #endif
 
 Playable::worker_queue Playable::WQueue;
-int*    Playable::WTids       = NULL;
-size_t  Playable::WNumWorkers = 0;
-bool    Playable::WTermRq     = false;
-clock_t Playable::LastCleanup = 0;
+int*    Playable::WTids          = NULL;
+size_t  Playable::WNumWorkers    = 0;
+size_t  Playable::WNumDlgWorkers = 0;
+bool    Playable::WTermRq        = false;
+clock_t Playable::LastCleanup    = 0;
 
-void Playable::PlayableWorker()
-{ for (;;)
-  { DEBUGLOG(("PlayableWorker() looking for work\n"));
-    queue<Playable::QEntry>::qentry* qp = Playable::WQueue.RequestRead();
+void Playable::PlayableWorker(bool lowpri)
+{ // Do the work! 
+  for (;;)
+  { DEBUGLOG(("PlayableWorker(%u) looking for work\n", lowpri));
+    queue<Playable::QEntry>::qentry* qp = Playable::WQueue.RequestRead(lowpri);
     DEBUGLOG(("PlayableWorker received message %p %p\n", qp, qp->Data.get()));
 
     if (!qp->Data) // stop
@@ -504,24 +518,41 @@ void Playable::PlayableWorker()
     
     // Do the work
     Playable* pp = qp->Data;
-    DEBUGLOG(("PlayableWorker handle %x %x\n", pp->InfoRequest, pp->InfoRequestLow));
-    // Handle low priority requests correctly if no other requests are on the way.
-    if (pp->InfoRequest == 0)
-      InterlockedOr(pp->InfoRequest, pp->InfoRequestLow);
+    DEBUGLOG(("PlayableWorker handle %x %x, %u\n", pp->InfoRequest, pp->InfoRequestLow, pp->RefCountIsUnique()));
+    // Skip items that are no longer needed.
+    // If their refcount is 1 we are the only users.
+    if (pp->RefCountIsUnique())
+    { CritSect cs;
+      if (pp->RefCountIsUnique()) // double check
+      { pp->InfoRequest    = 0;
+        pp->InfoRequestLow = 0;
+        goto skip;
+      }
+    }
 
-    // Handle the Request !!!
-    while ((pp->InfoRequest & ~pp->InfoInService) && !WTermRq)
-      pp->EndUpdate(
-        pp->DoLoadInfo(
-          pp->BeginUpdate((InfoFlags)pp->InfoRequest)));
+    { // Handle low priority requests correctly if no other requests are on the way.
+      volatile unsigned& request = 
+        lowpri && pp->InfoRequest == 0
+        ? (ORASSERT(DosSetPriority(PRTYS_THREAD, PRTYC_IDLETIME, 20, 0)), pp->InfoRequestLow)
+        : pp->InfoRequest;
 
+      // Handle the Request !!!
+      while ((request & ~pp->InfoInService) && !WTermRq)
+        pp->EndUpdate(
+          pp->DoLoadInfo(
+            pp->BeginUpdate((InfoFlags)request)));
+
+      if (lowpri)
+        ORASSERT(DosSetPriority(PRTYS_THREAD, PRTYC_REGULAR, 0, 0));
+    }
+   skip:
     // finished
     WQueue.CommitRead(qp);
   }
 }
 
-void TFNENTRY PlayableWorkerStub(void*)
-{ Playable::PlayableWorker();
+void TFNENTRY PlayableWorkerStub(void* arg)
+{ Playable::PlayableWorker(!!arg);
 }
 
 void Playable::Init()
@@ -529,10 +560,11 @@ void Playable::Init()
   // start the worker threads
   ASSERT(WTids == NULL);
   WTermRq = false;
-  WNumWorkers = cfg.num_workers; // sample this atomically
-  WTids = new int[WNumWorkers];
-  for (int* tidp = WTids + WNumWorkers; tidp != WTids; )
-  { *--tidp = _beginthread(&PlayableWorkerStub, NULL, 65536, NULL);
+  WNumWorkers = cfg.num_workers;     // sample this atomically
+  WNumDlgWorkers = cfg.num_dlg_workers; // sample this atomically
+  WTids = new int[WNumWorkers+WNumDlgWorkers];
+  for (int* tidp = WTids + WNumWorkers+WNumDlgWorkers; tidp != WTids; )
+  { *--tidp = _beginthread(&PlayableWorkerStub, NULL, 65536, (void*)(tidp >= WTids + WNumDlgWorkers));
     ASSERT(*tidp != -1);
   }
 }
