@@ -253,19 +253,18 @@ void Playable::EndUpdate(InfoFlags what)
 
 void Playable::ValidateInfo(InfoFlags what, bool changed, bool confirmed)
 { DEBUGLOG(("Playable::ValidateInfo(%x, %u, %u)\n", what, changed, confirmed));
-  InfoValid |= what;
+  InterlockedOr((volatile unsigned&)InfoValid, what);
   if (confirmed)
-    InfoConfirmed |= what;
+    InterlockedOr((volatile unsigned&)InfoConfirmed, what);
   else
-    InfoConfirmed &= what;
+    InterlockedAnd((volatile unsigned&)InfoConfirmed, ~what);
   InfoLoaded |= what;
   InfoChanged |= what * changed;
 }
 
 void Playable::InvalidateInfo(InfoFlags what, bool reload)
 { DEBUGLOG(("Playable::InvalidateInfo(%x, %u)\n", what, reload));
-  Lock lock(*this);
-  InfoConfirmed &= ~what;
+  InterlockedAnd((volatile unsigned&)InfoConfirmed, ~what);
   if (reload && (InfoValid & what))
     LoadInfoAsync(InfoValid & what, true);
 }
@@ -382,7 +381,7 @@ void Playable::LoadInfo(InfoFlags what)
 void Playable::EnsureInfo(InfoFlags what, bool confirmed)
 { DEBUGLOG(("Playable(%p{%s})::EnsureInfo(%x, %u) - %x, %x\n",
     this, GetURL().getShortName().cdata(), what, confirmed, InfoValid, InfoConfirmed));
-  InfoFlags& curinfo = confirmed ? InfoConfirmed : InfoValid;
+  InfoFlags curinfo = confirmed ? InfoConfirmed : InfoValid;
   InfoFlags now = what & ~curinfo;
   if (!now)
     return;

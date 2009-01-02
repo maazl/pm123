@@ -170,17 +170,6 @@ class Playable
   Status              Stat;
   bool                InUse;
   DecoderName         Decoder;
-  // The InfoValid InfoConfirmed bit voctors defines the reliability status of the
-  // certain information components. See InfoFlags for the kind of information.
-  // Valid | Confirmed | Meaning
-  // ======|===========|=================================================================
-  //   0   |     0     | The information is not available.
-  //   1   |     0     | The information is available but may be outdated.
-  //   0   |     1     | INVALID!
-  //   1   |     1     | The information is confirmed.
-  // Bits in InfoValid are never reset. So reading a set bit without locking the mutex is safe.
-  InfoFlags           InfoValid;
-  InfoFlags           InfoConfirmed;
   // The fields InfoChange and InfoLoaded hold the flags for the next InfoChange event.
   // They are collected until OnReleaseMutex is called which raises the event.
   // Valid combinations of bits for each kind of information.
@@ -195,6 +184,17 @@ class Playable
   // The bits in InfoMask are enabled to be raised at OnReleaseMutex.
   InfoFlags           InfoMask;
  private: // ... except for this ones
+  // The InfoValid InfoConfirmed bit voctors defines the reliability status of the
+  // certain information components. See InfoFlags for the kind of information.
+  // Valid | Confirmed | Meaning
+  // ======|===========|=================================================================
+  //   0   |     0     | The information is not available.
+  //   1   |     0     | The information is available but may be outdated.
+  //   0   |     1     | INVALID!
+  //   1   |     1     | The information is confirmed.
+  // Bits in InfoValid are never reset. So reading a set bit without locking the mutex is safe.
+  InfoFlags           InfoValid;
+  InfoFlags           InfoConfirmed;
   // The Fields InfoRequest, InfoRequestLow and InfoInService define the request status of the information.
   // The following bit combinations are valid for each kind of information.
   // Rq.Low | Request | InService | Meaning
@@ -307,7 +307,7 @@ class Playable
 
   // Check wether the requested information is immediately available.
   // Return the bits in what that are /not/ available.
-  InfoFlags           CheckInfo(InfoFlags what) const { return what & ~InfoValid; }
+  InfoFlags           CheckInfo(InfoFlags what) const { return what & (InfoFlags)~InfoValid; }
   // This function Load some information immediately.
   // The parameter what is the requested information.
   void                LoadInfo(InfoFlags what);
