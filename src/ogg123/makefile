@@ -10,7 +10,7 @@ DEF     = ogg$(LDEF_SUFFX)
 LIBS    = src\libogg$(LBO) 
 OBJECTS = ogg$(CO)
 
-all: src\ogg123$(LBO) $(MDUMMY)
+all: src\libogg$(LBO) $(MDUMMY)
 
 ogg123.dll: $(OBJECTS) $(LIBS) $(DEF)
 	$(CL) $(LFLAGS) $(LFLAGS_DLL) $(LFLAGS_OUT)$@ $(LOBJ_PREFX) $(OBJECTS) $(LIBS) $(LOBJ_SUFFX) $(LDEF_PREFX)$(DEF)

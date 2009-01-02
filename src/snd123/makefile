@@ -14,7 +14,7 @@ LIBS    = $(LIBS) src\GSM610\gsm610$(LBO)
 LIBS    = $(LIBS) $(TOPDIR)\utils\utilfct$(LBO)
 OBJECTS = snd$(CO)
 
-all2: snd123.dll snd123$(LBI) $(MDUMMY)
+all2: src\sndfile$(LBO) src\G72x\g72x$(LBO) src\GSM610\gsm610$(LBO) $(MDUMMY)
 
 snd123.dll: $(OBJECTS) $(LIBS) $(DEF)
 	$(CL) $(LFLAGS) $(LFLAGS_DLL) $(LFLAGS_OUT)$@ $(LOBJ_PREFX)$(OBJECTS)$(LOBJ_SUFFX) $(LLIB_PREFX)$(LIBS)$(LLIB_SUFFX) $(LDEF_PREFX)$(DEF)

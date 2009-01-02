@@ -9,7 +9,9 @@ TARGET   = wavplay.dll
 !include $(TOPDIR)\config\makerules
 
 OBJECTS  = wavplay$(CO)
-LIBS     = $(TOPDIR)\utils\utilfct$(LBO) $(TOPDIR)\snd123\snd123$(LBI)
+LIBS     = $(TOPDIR)\utils\utilfct$(LBO) $(TOPDIR)\snd123\src\sndfile$(LBO)
+LIBS     = $(LIBS) $(TOPDIR)\snd123\src\G72x\g72x$(LBO)
+LIBS     = $(LIBS) $(TOPDIR)\snd123\src\GSM610\gsm610$(LBO)
 LIBS     = $(LIBS) $(TOPDIR)\xio123\xio123$(LBI)
 DEF      = wavplay$(LDEF_SUFFX)
 

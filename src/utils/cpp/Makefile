@@ -13,7 +13,7 @@ all2: cpputil$(LBO) $(MDUMMY)
 
 OBJECTS = showaccel$(CO) event$(CO) mutex$(CO) queue$(CO) algorithm$(CO)
 OBJECTS = $(OBJECTS) xstring$(CO) url123$(CO) stringmap$(CO) smartptr$(CO)
-OBJECTS = $(OBJECTS) container/vector$(CO) container/list$(CO)
+OBJECTS = $(OBJECTS) container\vector$(CO) container\list$(CO)
 
 cpputil$(LBO): $(OBJECTS)
 	if exist $@ del $@

@@ -6,7 +6,6 @@ VERSION = 1.40a4
 PARTS   = src\utils\utilfct$(LBO) src\utils\cpp\cpputil$(LBO) src\gbm123\libgbm$(LBO)
 PARTS   = $(PARTS) src\fft123\fft123.dll
 PARTS   = $(PARTS) src\xio123\xio123.dll
-PARTS   = $(PARTS) src\snd123\snd123.dll
 PARTS   = $(PARTS) src\zlb123\zlb123.dll
 PARTS   = $(PARTS) src\plug-ins\analyzer\analyzer.dll
 PARTS   = $(PARTS) src\plug-ins\cddaplay\cddaplay.dll
@@ -53,17 +52,17 @@ src\xio123\xio123.dll:
 	@$(MAKE) $(MFLAGS)
 	@cd ..\..
 
-src\snd123\snd123.dll:
+src\snd123\src\sndfile$(LBO):
 	cd src\snd123
 	@$(MAKE) $(MFLAGS)
 	@cd ..\..
 
-src\ogg123\ogg123.dll:
+src\ogg123\src\libogg$(LBO):
 	cd src\ogg123
 	@$(MAKE) $(MFLAGS)
 	@cd ..\..
 
-src\vrb123\vrb123.dll:
+src\vrb123\lib\libvorbis$(LBO): src\ogg123\src\libogg$(LBO)
 	cd src\vrb123
 	@$(MAKE) $(MFLAGS)
 	@cd ..\..
@@ -93,12 +92,12 @@ src\plug-ins\os2audio\os2audio.dll:
 	@$(MAKE) $(MFLAGS)
 	@cd ..\..\..
 
-src\plug-ins\realeq\realeq.dll:
+src\plug-ins\realeq\realeq.dll: src\fft123\fft123.dll
 	cd src\plug-ins\realeq
 	@$(MAKE) $(MFLAGS)
 	@cd ..\..\..
 
-src\plug-ins\wavplay\wavplay.dll:
+src\plug-ins\wavplay\wavplay.dll: src\snd123\src\sndfile$(LBO)
 	cd src\plug-ins\wavplay
 	@$(MAKE) $(MFLAGS)
 	@cd ..\..\..
@@ -108,7 +107,7 @@ src\plug-ins\wavout\wavout.dll:
 	@$(MAKE) $(MFLAGS)
 	@cd ..\..\..
 
-src\plug-ins\oggplay\oggplay.dll: src\ogg123\ogg123.dll src\vrb123\vrb123.dll
+src\plug-ins\oggplay\oggplay.dll: src\ogg123\src\libogg$(LBO) src\vrb123\lib\libvorbis$(LBO)
 	cd src\plug-ins\oggplay
 	@$(MAKE) $(MFLAGS)
 	@cd ..\..\..
@@ -123,7 +122,7 @@ src\plug-ins\os2rec\os2rec.dll:
 	@$(MAKE) $(MFLAGS)
 	@cd ..\..\..
 
-src\pm123\pm123.exe:
+src\pm123\pm123.exe: src\utils\utilfct$(LBO) src\utils\cpp\cpputil$(LBO)
 	cd src\pm123
 	@$(MAKE) $(MFLAGS)
 	@cd ..\..
@@ -267,13 +266,12 @@ depend: $(MDUMMY)
 
 dist: distfiles distpackage distzip $(MDUMMY)
 
-distfiles: distclean $(MDUMMY)
+distfiles: distclean $(PARTS) $(MDUMMY)
 	if not exist dist\files\visplug mkdir dist\files\visplug
 	if not exist dist\files\icons   mkdir dist\files\icons
 	if not exist dist\files\pdk     mkdir dist\files\pdk
 	copy src\fft123\fft123.dll dist\files
 	copy src\xio123\xio123.dll dist\files
-	copy src\snd123\snd123.dll dist\files
 	copy src\zlb123\zlb123.dll dist\files
 	copy src\plug-ins\analyzer\analyzer.dll dist\files\visplug
 	copy src\plug-ins\cddaplay\cddaplay.dll dist\files
