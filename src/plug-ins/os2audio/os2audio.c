@@ -68,7 +68,7 @@
 #define RG_PREFER_TRACK_AND_NOT_CLIPPING  3
 
 static int   device       = 0;
-static int   numbuffers   = 128;
+static int   numbuffers   = 64;
 static int   lockdevice   = 0;
 static int   kludge48as44 = 0;
 static int   force8bit    = 0;
@@ -845,7 +845,7 @@ output_init( void** A )
  *A = calloc( sizeof( OS2AUDIO ), 1 );
   a = (OS2AUDIO*)*A;
 
-  a->numbuffers  = 128;
+  a->numbuffers  = 64;
   a->volume      = 100;
   a->amplifier   = 1.0;
   a->status      = DEVICE_CLOSED;
@@ -989,7 +989,7 @@ load_ini( void )
 
   device       = 0;
   lockdevice   = 0;
-  numbuffers   = 128;
+  numbuffers   = 64;
   force8bit    = 0;
   kludge48as44 = 0;
   enable_rg    = 0;
