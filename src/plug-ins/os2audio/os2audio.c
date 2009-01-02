@@ -248,6 +248,8 @@ output_close( void* A )
   }
 
   a->status = DEVICE_CLOSING;
+  // Release a waiting decoder thread if any.
+  DosPostEventSem( a->dataplayed );
   DosReleaseMutexSem( a->mutex );
 
   rc = mciSendCommand( a->mci_device_id, MCI_STOP,  MCI_WAIT, &mgp, 0 );
@@ -641,8 +643,11 @@ output_play_samples( void* A, FORMAT_INFO* format, char* buf, int len, int posma
       DosWaitEventSem ( a->dataplayed, SEM_INDEFINITE_WAIT );
       DosResetEventSem( a->dataplayed, &resetcount );
       DEBUGLOG(("output_play_samples: reset sem: %lu\n", resetcount));
+      // The device might have been stopped meanwhile.
+      if (a->status != DEVICE_OPENED)
+        return 0;
     }
-
+    
     if( a->trashed ) {
       // This portion of samples should be trashed.
       a->trashed = FALSE;
