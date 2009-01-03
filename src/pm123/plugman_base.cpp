@@ -299,6 +299,7 @@ class DecoderProxy1 : public Decoder
   ULONG  DLLENTRYP(vdecoder_trackinfo)( const char* drive, int track, DECODER_INFO* info );
   ULONG  DLLENTRYP(vdecoder_saveinfo )( const char* filename, const DECODER_INFO* info );
   ULONG  DLLENTRYP(vdecoder_cdinfo   )( const char* drive, DECODER_CDINFO* info );
+  ULONG  DLLENTRYP(vdecoder_editmeta )( HWND owner, const char* url );
   ULONG  DLLENTRYP(vdecoder_length   )( void* w );
   void   DLLENTRYP(error_display)( char* );
   HWND   hwnd; // Window handle for catching event messages
@@ -309,7 +310,7 @@ class DecoderProxy1 : public Decoder
   DECFASTMODE lastfast;
   char   metadata_buffer[128]; // Loaded in curtun on decoder's demand WM_METADATA.
   Mutex  info_mtx; // Mutex to serialize access to the decoder_*info functions.
-  VDELEGATE vd_decoder_command, vd_decoder_event, vd_decoder_fileinfo, vd_decoder_saveinfo, vd_decoder_cdinfo, vd_decoder_length;
+  VDELEGATE vd_decoder_command, vd_decoder_event, vd_decoder_fileinfo, vd_decoder_saveinfo, vd_decoder_cdinfo, vd_decoder_editmeta, vd_decoder_length;
 
  private:
   PROXYFUNCDEF ULONG  DLLENTRY proxy_1_decoder_command     ( DecoderProxy1* op, void* w, ULONG msg, DECODER_PARAMS2* params );
@@ -319,6 +320,7 @@ class DecoderProxy1 : public Decoder
   PROXYFUNCDEF ULONG  DLLENTRY proxy_1_decoder_cdinfo      ( DecoderProxy1* op, const char* drive, DECODER_CDINFO* info );
   PROXYFUNCDEF int    DLLENTRY proxy_1_decoder_play_samples( DecoderProxy1* op, const FORMAT_INFO* format, const char* buf, int len, int posmarker );
   PROXYFUNCDEF double DLLENTRY proxy_1_decoder_length      ( DecoderProxy1* op, void* w );
+  PROXYFUNCDEF ULONG  DLLENTRY proxy_1_decoder_editmeta    ( DecoderProxy1* op, HWND owner, const char* url );
   friend MRESULT EXPENTRY proxy_1_decoder_winfn(HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2);
  
  protected:
@@ -351,13 +353,15 @@ bool DecoderProxy1::LoadPlugin()
     return false;
 
   mod.LoadOptionalFunction(&vdecoder_saveinfo,  "decoder_saveinfo");
-  mod.LoadOptionalFunction(&decoder_editmeta,   "decoder_editmeta");
+  mod.LoadOptionalFunction(&vdecoder_editmeta,  "decoder_editmeta");
   mod.LoadOptionalFunction(&decoder_getwizzard, "decoder_getwizzard");
   decoder_command   = vdelegate(&vd_decoder_command,  &proxy_1_decoder_command,  this);
   decoder_event     = vdelegate(&vd_decoder_event,    &proxy_1_decoder_event,    this);
   decoder_fileinfo  = vdelegate(&vd_decoder_fileinfo, &proxy_1_decoder_fileinfo, this);
   if (vdecoder_saveinfo)
     decoder_saveinfo= vdelegate(&vd_decoder_saveinfo, &proxy_1_decoder_saveinfo, this);
+  if (vdecoder_editmeta)
+    decoder_editmeta= vdelegate(&vd_decoder_editmeta, &proxy_1_decoder_editmeta, this);
   decoder_length    = vdelegate(&vd_decoder_length,   &proxy_1_decoder_length,   this);
   tid = (ULONG)-1;
 
@@ -797,6 +801,30 @@ proxy_1_decoder_cdinfo( DecoderProxy1* op, const char* drive, DECODER_CDINFO* in
   // In theory the must be thread safe for older PM123 releases too. In practice they are not.
   sco_ptr<Mutex::Lock> lock(op->SerializeInfo ? new Mutex::Lock(op->info_mtx) : NULL);
   return (*op->vdecoder_cdinfo)(drive, info);
+}
+
+PROXYFUNCIMP(ULONG DLLENTRY, DecoderProxy1)
+proxy_1_decoder_editmeta( DecoderProxy1* op, HWND owner, const char* url )
+{ DEBUGLOG(("proxy_1_decoder_editmeta(%p, %p, %s)\n", op, owner, url));
+  // Decode file URLs
+  if (strnicmp(url, "file:", 5) == 0)
+  { url += 5;
+    char* fname = (char*)alloca(strlen(url)+1);
+    strcpy(fname, url);
+    { char* cp = strchr(fname, '/');
+      while (cp)
+      { *cp = '\\';
+        cp = strchr(cp+1, '/');
+      }
+    } 
+    if (strncmp(fname, "\\\\\\", 3) == 0)
+    { fname += 3;
+      if (fname[1] == '|')
+        fname[1] = ':';
+    }
+    url = fname;
+  }
+  return (*op->vdecoder_editmeta)(owner, url);  
 }
 
 PROXYFUNCIMP(double DLLENTRY, DecoderProxy1)

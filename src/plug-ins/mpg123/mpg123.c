@@ -1262,25 +1262,6 @@ ULONG DLLENTRY decoder_editmeta( HWND owner, const char* filename )
 
   DEBUGLOG(("mpg123:decoder_editmeta(%p, %s)\n", owner, filename));
 
-  // Decode file URLs
-  if (strnicmp(filename, "file:", 5) == 0)
-  { filename += 5;
-    char* fname = (char*)alloca(strlen(filename)+1);
-    strcpy(fname, filename);
-    { char* cp = strchr(fname, '/');
-      while (cp)
-      { *cp = '\\';
-        cp = strchr(cp+1, '/');
-      }
-    } 
-    if (strncmp(fname, "\\\\\\", 3) == 0)
-    { fname += 3;
-      if (fname[1] == '|')
-        fname[1] = ':';
-    }
-    filename = fname;
-  }
-
   memset(&old_tag, 0, sizeof old_tag);
   memset(&new_tag, 0, sizeof new_tag);
   // read tag
