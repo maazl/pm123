@@ -673,7 +673,6 @@ proxy_1_decoder_fileinfo( DecoderProxy1* op, const char* filename, INFOTYPE* wha
   DECODER_INFO old_info = { sizeof old_info };
   CDDA_REGION_INFO cd_info;
   ULONG rc;
-  char buf[300];
 
   info->phys->filesize   = -1;
 
@@ -686,14 +685,22 @@ proxy_1_decoder_fileinfo( DecoderProxy1* op, const char* filename, INFOTYPE* wha
     sco_ptr<Mutex::Lock> lock(op->SerializeInfo ? new Mutex::Lock(op->info_mtx) : NULL);
     rc = (*op->vdecoder_trackinfo)(cd_info.drive, cd_info.track, &old_info);
   } else
-  { if (strnicmp(filename, "file:///", 8) == 0)
-    { strlcpy(buf, filename+8, sizeof buf);
-      filename = buf;
-      char* cp = strchr(buf, '/');
-      while (cp)
-      { *cp = '\\';
-        cp = strchr(cp+1, '/');
+  { if (strnicmp(filename, "file:", 5) == 0)
+    { filename += 5;
+      char* fname = (char*)alloca(strlen(filename)+1);
+      strcpy(fname, filename);
+      { char* cp = strchr(fname, '/');
+        while (cp)
+        { *cp = '\\';
+          cp = strchr(cp+1, '/');
+        }
+      } 
+      if (strncmp(fname, "\\\\\\", 3) == 0)
+      { fname += 3;
+        if (fname[1] == '|')
+          fname[1] = ':';
       }
+      filename = fname;
     }
     // DEBUGLOG(("proxy_1_decoder_fileinfo - %s\n", filename));
     { // Serialize access to the info functions of old plug-ins.

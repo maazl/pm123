@@ -594,7 +594,7 @@ BEGIN
 
     GROUPBOX     " Navigation ",                        GB_GENERIC,         4,  4, 248, 36, NOT WS_TABSTOP|WS_GROUP
     AUTOCHECKBOX "~Turn around with Prev./Next button", CB_TURNAROUND,     12, 20, 112, 12, WS_GROUP
-    LTEXT        "Alternate s~lider:",                   ST_GENERIC,        12,  8,  52, 12, DT_VCENTER|DT_MNEMONIC
+    LTEXT        "Alternate s~lider:",                  ST_GENERIC,        12,  8,  52, 12, DT_VCENTER|DT_MNEMONIC
       PRESPARAMS PP_FOREGROUNDCOLORINDEX , SYSCLR_WINDOWTEXT
     AUTORADIOBUTTON "Song only",                        RB_SONGONLY,       72,  8,  52, 12, WS_TABSTOP|WS_GROUP
     AUTORADIOBUTTON "Song & time",                      RB_SONGTIME,      132,  8,  52, 12
