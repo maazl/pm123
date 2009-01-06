@@ -39,11 +39,17 @@ extern "C" {
 #endif
 
 /*
+ * Return the length of a string excluding \0 but at most siz.
+ * The function does not read any data from beyond src + siz -1
+ * even if the string is unterminated.
+ */
+size_t strnlen( const char* src, size_t siz );
+
+/*
  * Copy src to string dst of size siz.  At most siz-1 characters
  * will be copied.  Always NUL terminates (unless siz == 0).
  * Returns strlen(src); if retval >= siz, truncation occurred.
  */
-
 size_t strlcpy( char* dst, const char* src, size_t siz );
 
 /*
@@ -53,7 +59,6 @@ size_t strlcpy( char* dst, const char* src, size_t siz );
  * Returns strlen(src) + MIN(siz, strlen(initial dst)).
  * If retval >= siz, truncation occurred.
  */
-
 size_t strlcat( char* dst, const char* src, size_t siz );
 
 /* Search the first ocurrency of c in the first siz bytes of string str.
