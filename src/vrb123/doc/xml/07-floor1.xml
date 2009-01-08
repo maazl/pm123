@@ -7,7 +7,7 @@
 <section id="vorbis-spec-floor1">
 <sectioninfo>
 <releaseinfo>
- $Id: 07-floor1.xml,v 1.1 2007/03/21 12:44:11 glass Exp $
+ $Id: 07-floor1.xml 10466 2005-11-28 00:34:44Z giles $
 </releaseinfo>
 </sectioninfo>
 <title>Floor type 1 setup and decode</title>
@@ -161,7 +161,7 @@ context.</para>
   6) iterate [i] over the range 0 ... [maximum_class] {
 
         7) vector [floor1_class_dimensions] element [i] = read 3 bits as unsigned integer and add 1
-        8) vector [floor1_class_subclasses] element [i] = read 2 bits as unsigned integer
+	8) vector [floor1_class_subclasses] element [i] = read 2 bits as unsigned integer
         9) if ( vector [floor1_class_subclasses] element [i] is nonzero ) {
             
              10) vector [floor1_class_masterbooks] element [i] = read 8 bits as unsigned integer
@@ -245,14 +245,14 @@ Assuming <varname>[nonzero]</varname> is set, decode proceeds as follows:</para>
        
              14) [book] = array [floor1_subclass_books] element [class],([cval] bitwise AND [csub])
              15) [cval] = [cval] right shifted [cbits] bits
-             16) if ( [book] is not less than zero ) {
-             
-                   17) vector [floor1_Y] element ([j]+[offset]) = read from packet using codebook 
+	     16) if ( [book] is not less than zero ) {
+	     
+	           17) vector [floor1_Y] element ([j]+[offset]) = read from packet using codebook 
                        [book] in scalar context
 
                  } else [book] is less than zero {
 
-                   18) vector [floor1_Y] element ([j]+[offset]) = 0
+	           18) vector [floor1_Y] element ([j]+[offset]) = 0
 
                  }
           }
@@ -314,9 +314,9 @@ Unwrap the always-positive-or-zero values read from the packet into
        8) [high_neighbor_offset] = <link linkend="vorbis-spec-high_neighbor">high_neighbor</link>([floor1_X_list],[i])
 
        9) [predicted] = <link linkend="vorbis-spec-render_point">render_point</link>( vector [floor1_X_list] element [low_neighbor_offset],
-                                      vector [floor1_final_Y] element [low_neighbor_offset],
+				      vector [floor1_final_Y] element [low_neighbor_offset],
                                       vector [floor1_X_list] element [high_neighbor_offset],
-                                      vector [floor1_final_Y] element [high_neighbor_offset],
+				      vector [floor1_final_Y] element [high_neighbor_offset],
                                       vector [floor1_X_list] element [i] )
 
       10) [val] = vector [floor1_Y] element [i]
@@ -327,7 +327,7 @@ Unwrap the always-positive-or-zero values read from the packet into
             14) [room] = [highroom] * 2
          
           } else [highroom] is not less than [lowroom] {
-                      
+		      
             15) [room] = [lowroom] * 2
         
           }
@@ -342,16 +342,16 @@ Unwrap the always-positive-or-zero values read from the packet into
                   21) if ( [highroom] is greater than [lowroom] ) {
 
                         22) vector [floor1_final_Y] element [i] = [val] - [lowroom] + [predicted]
-                     
-                      } else [highroom] is not greater than [lowroom] {
+		     
+		      } else [highroom] is not greater than [lowroom] {
               
                         23) vector [floor1_final_Y] element [i] = [predicted] - [val] + [highroom] - 1
                    
                       }
                
                 } else [val] is less than [room] {
-                 
-                  24) if ([val] is odd) {
+		 
+		  24) if ([val] is odd) {
                  
                         25) vector [floor1_final_Y] element [i] = 
                             [predicted] - (([val] + 1) divided by  2 using integer division)
@@ -414,10 +414,10 @@ Then compute the final curve in one pass:</para>
        5) if ( [floor1_step2_flag]' element [i] is set ) {
 
              6) [hy] = [floor1_final_Y]' element [i] * [floor1_multiplier]
-             7) [hx] = [floor1_X_list]' element [i]
+ 	     7) [hx] = [floor1_X_list]' element [i]
              8) <link linkend="vorbis-spec-render_line">render_line</link>( [lx], [ly], [hx], [hy], [floor] )
              9) [lx] = [hx]
-            10) [ly] = [hy]
+	    10) [ly] = [hy]
           }
      }
  

@@ -8,38 +8,38 @@ detail.
 *** Return codes:
 
 OV_FALSE        The call returned a 'false' status (eg, ov_bitrate_instant 
-                can return OV_FALSE if playback is not in progress, and thus 
-                there is no instantaneous bitrate information to report.
+		can return OV_FALSE if playback is not in progress, and thus 
+		there is no instantaneous bitrate information to report.
 
-OV_HOLE         libvorbis/libvorbisfile is alerting the application that 
-                there was an interruption in the data (one of: garbage 
-                between pages, loss of sync followed by recapture, or a 
-                corrupt page)
+OV_HOLE		libvorbis/libvorbisfile is alerting the application that 
+		there was an interruption in the data (one of: garbage 
+		between pages, loss of sync followed by recapture, or a 
+		corrupt page)
 
 OV_EREAD        A read from media returned an error.
 
 OV_EFAULT       Internal logic fault; indicates a bug or heap/stack 
-                corruption.
+		corruption.
 
 OV_EIMPL        The bitstream makes use of a feature not implemented in this 
-                library version.
+		library version.
 
 OV_EINVAL       Invalid argument value.
 
-OV_ENOTVORBIS   Bitstream/page/packet is not Vorbis data.
+OV_ENOTVORBIS	Bitstream/page/packet is not Vorbis data.
 
 OV_EBADHEADER   Invalid Vorbis bitstream header.
 
-OV_EVERSION     Vorbis version mismatch.
+OV_EVERSION	Vorbis version mismatch.
 
-OV_ENOTAUDIO    Packet data submitted to vorbis_synthesis is not audio data.
+OV_ENOTAUDIO	Packet data submitted to vorbis_synthesis is not audio data.
 
-OV_EBADPACKET   Invalid packet submitted to vorbis_synthesis.
+OV_EBADPACKET	Invalid packet submitted to vorbis_synthesis.
 
-OV_EBADLINK     Invalid stream section supplied to libvorbis/libvorbisfile, 
-                or the requested link is corrupt. 
+OV_EBADLINK	Invalid stream section supplied to libvorbis/libvorbisfile, 
+		or the requested link is corrupt. 
 
-OV_ENOSEEK      Bitstream is not seekable.
+OV_ENOSEEK	Bitstream is not seekable.
 
 
 ****************************************************************

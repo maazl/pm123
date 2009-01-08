@@ -6,12 +6,12 @@
  * IN 'COPYING'. PLEASE READ THESE TERMS BEFORE DISTRIBUTING.       *
  *                                                                  *
  * THE OggVorbis SOURCE CODE IS (C) COPYRIGHT 1994-2001             *
- * by the XIPHOPHORUS Company http://www.xiph.org/                  *
+ * by the Xiph.Org Foundation http://www.xiph.org/                  *
  *                                                                  *
  ********************************************************************
 
  function: vorbis encode-engine setup
- last mod: $Id: vorbisenc.h,v 1.2 2007/03/21 13:03:39 glass Exp $
+ last mod: $Id: vorbisenc.h 13293 2007-07-24 00:09:47Z xiphmont $
 
  ********************************************************************/
 
@@ -23,41 +23,41 @@ extern "C"
 {
 #endif /* __cplusplus */
 
-#include "vorbis/codec.h"
+#include "codec.h"
 
-extern int DLLENTRY vorbis_encode_init(vorbis_info *vi,
-                                       long channels,
-                                       long rate,
+extern int vorbis_encode_init(vorbis_info *vi,
+			      long channels,
+			      long rate,
 
-                                       long max_bitrate,
-                                       long nominal_bitrate,
-                                       long min_bitrate);
+			      long max_bitrate,
+			      long nominal_bitrate,
+			      long min_bitrate);
 
-extern int DLLENTRY vorbis_encode_setup_managed(vorbis_info *vi,
-                                                long channels,
-                                                long rate,
+extern int vorbis_encode_setup_managed(vorbis_info *vi,
+				       long channels,
+				       long rate,
 
-                                                long max_bitrate,
-                                                long nominal_bitrate,
-                                                long min_bitrate);
+				       long max_bitrate,
+				       long nominal_bitrate,
+				       long min_bitrate);
 
-extern int DLLENTRY vorbis_encode_setup_vbr(vorbis_info *vi,
-                                            long channels,
-                                            long rate,
+extern int vorbis_encode_setup_vbr(vorbis_info *vi,
+				  long channels,
+				  long rate,
 
-                                            float quality /* quality level from 0. (lo) to 1. (hi) */
-                                           );
+				  float quality /* quality level from 0. (lo) to 1. (hi) */
+				  );
 
-extern int DLLENTRY vorbis_encode_init_vbr(vorbis_info *vi,
-                                           long channels,
-                                           long rate,
+extern int vorbis_encode_init_vbr(vorbis_info *vi,
+				  long channels,
+				  long rate,
 
-                                           float base_quality /* quality level from 0. (lo) to 1. (hi) */
-                                          );
+				  float base_quality /* quality level from 0. (lo) to 1. (hi) */
+				  );
 
-extern int DLLENTRY vorbis_encode_setup_init(vorbis_info *vi);
+extern int vorbis_encode_setup_init(vorbis_info *vi);
 
-extern int DLLENTRY vorbis_encode_ctl(vorbis_info *vi,int number,void *arg);
+extern int vorbis_encode_ctl(vorbis_info *vi,int number,void *arg);
 
   /* deprecated rate management supported only for compatability */
 #define OV_ECTL_RATEMANAGE_GET       0x10

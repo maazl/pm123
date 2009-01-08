@@ -7,7 +7,7 @@
 <appendix id="vorbis-over-rtp">
 <appendixinfo>
  <releaseinfo>
-  $Id: a2-encapsulation_rtp.xml,v 1.1 2007/03/21 12:44:11 glass Exp $
+  $Id: a2-encapsulation_rtp.xml 15230 2008-08-31 23:21:25Z ivo $
  </releaseinfo>
 </appendixinfo>
 <title>Vorbis encapsulation in RTP</title>
@@ -20,7 +20,7 @@ fileref="draft-rtp.xml"/></textobject> -->
 <xi:include xmlns:xi="http://www.w3.org/2001/XInclude"
       href="draft-rtp.xml" parse="text">
   <xi:fallback xmlns:xi="http://www.w3.org/2001/XInclude">
-    <para>Please consult the internet draft <citetitle>RTP Payload Format for Vorbis Encoded
+    <para>Please consult RFC 5215 <citetitle>RTP Payload Format for Vorbis Encoded
     Audio</citetitle> for description of how to embed Vorbis audio in an RTP stream.</para>
   </xi:fallback>
 </xi:include>

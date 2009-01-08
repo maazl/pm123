@@ -5,13 +5,13 @@
  * GOVERNED BY A BSD-STYLE SOURCE LICENSE INCLUDED WITH THIS SOURCE *
  * IN 'COPYING'. PLEASE READ THESE TERMS BEFORE DISTRIBUTING.       *
  *                                                                  *
- * THE OggVorbis SOURCE CODE IS (C) COPYRIGHT 1994-2002             *
- * by the XIPHOPHORUS Company http://www.xiph.org/                  *
+ * THE OggVorbis SOURCE CODE IS (C) COPYRIGHT 1994-2007             *
+ * by the Xiph.Org Foundation http://www.xiph.org/                  *
  *                                                                  *
  ********************************************************************
 
  function: linear scale -> dB, Bark and Mel scales
- last mod: $Id: scales.h,v 1.2 2007/03/21 13:03:39 glass Exp $
+ last mod: $Id: scales.h 13629 2007-08-26 00:24:57Z erikd $
 
  ********************************************************************/
 
@@ -21,11 +21,16 @@
 #include <math.h>
 #include "os.h"
 
+#ifdef _MSC_VER
+/* MS Visual Studio doesn't have C99 inline keyword. */
+#define inline __inline
+#endif
+
 /* 20log10(x) */
-#undef VORBIS_IEEE_FLOAT32
+#define VORBIS_IEEE_FLOAT32 1
 #ifdef VORBIS_IEEE_FLOAT32
 
-static float unitnorm(float x){
+static inline float unitnorm(float x){
   union {
     ogg_uint32_t i;
     float f;
@@ -36,7 +41,7 @@ static float unitnorm(float x){
 }
 
 /* Segher was off (too high) by ~ .3 decibel.  Center the conversion correctly. */
-static float todB(const float *x){
+static inline float todB(const float *x){
   union {
     ogg_uint32_t i;
     float f;
@@ -50,13 +55,17 @@ static float todB(const float *x){
 
 #else
 
-#define unitnorm(x) ((x) < 0 ? -1.f : 1.f )
-#define todB(x)     (*(x)==0?-400.f:log(*(x)**(x))*4.34294480f)
-#define todB_nn(x)  (*(x)==0.f?-400.f:log(*(x))*8.6858896f)
+static float unitnorm(float x){
+  if(x<0)return(-1.f);
+  return(1.f);
+}
 
-#endif
+#define todB(x)   (*(x)==0?-400.f:log(*(x)**(x))*4.34294480f)
+#define todB_nn(x)   (*(x)==0.f?-400.f:log(*(x))*8.6858896f)
 
-#define fromdB(x) (exp((x)*.11512925f))
+#endif 
+
+#define fromdB(x) (exp((x)*.11512925f))  
 
 /* The bark scale equations are approximations, since the original
    table was somewhat hand rolled.  The below are chosen to have the

@@ -82,3 +82,5 @@ EXPORT ov_test_open                 .90
 EXPORT ov_crosslap                  .91
 EXPORT ov_halfrate                  .92
 EXPORT ov_halfrate_p                .93
+EXPORT ov_fopen                     .94
+EXPORT ov_read_filter               .95

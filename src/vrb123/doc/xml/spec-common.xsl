@@ -4,7 +4,7 @@
       common to all docbook output formats
 
       this file is included by the format-specific stylesheets
-      $Id: spec-common.xsl,v 1.1 2007/03/21 12:44:11 glass Exp $
+      $Id: spec-common.xsl 7186 2004-07-20 07:19:25Z xiphmont $
 -->
 
   <xsl:param name="use.svg" select="'0'"/>

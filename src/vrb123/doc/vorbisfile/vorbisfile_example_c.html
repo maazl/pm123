@@ -9,7 +9,7 @@
 <table border=0 width=100%>
 <tr>
 <td><p class=tiny>Vorbisfile documentation</p></td>
-<td align=right><p class=tiny>vorbisfile version 1.68 - 20030307</p></td>
+<td align=right><p class=tiny>vorbisfile version 1.2.0 - 20070723</p></td>
 </tr>
 </table>
 
@@ -21,7 +21,7 @@ The example program source:
 <br><br>
 <table border=0 width=100% color=black cellspacing=0 cellpadding=7>
 <tr bgcolor=#cccccc>
-        <td>
+	<td>
 <pre><b>
 #include &lt;stdio.h&gt;
 #include &lt;stdlib.h&gt;
@@ -46,7 +46,7 @@ int main(int argc, char **argv){
   _setmode( _fileno( stdout ), _O_BINARY );
 #endif
 
-  if(ov_open(stdin, &vf, NULL, 0) < 0) {
+  if(ov_open_callbacks(stdin, &vf, NULL, 0, OV_CALLBACKS_NOCLOSE) < 0) {
       fprintf(stderr,"Input does not appear to be an Ogg bitstream.\n");
       exit(1);
   }
@@ -69,10 +69,10 @@ int main(int argc, char **argv){
       eof=1;
     } else if (ret < 0) {
       /* error in the stream.  Not a problem, just reporting it in
-         case we (the app) cares.  In this case, we don't. */
+	 case we (the app) cares.  In this case, we don't. */
     } else {
       /* we don't bother dealing with sample rate changes, etc, but
-         you'll have to */
+	 you'll have to */
       fwrite(pcmout,1,ret,stdout);
     }
   }
@@ -84,7 +84,7 @@ int main(int argc, char **argv){
 }
 
 </b></pre>
-        </td>
+	</td>
 </tr>
 </table>
 
@@ -93,11 +93,11 @@ int main(int argc, char **argv){
 <hr noshade>
 <table border=0 width=100%>
 <tr valign=top>
-<td><p class=tiny>copyright &copy; 2003 Xiph.org</p></td>
+<td><p class=tiny>copyright &copy; 2007 Xiph.org</p></td>
 <td align=right><p class=tiny><a href="http://www.xiph.org/ogg/vorbis/index.html">Ogg Vorbis</a><br><a href="mailto:team@vorbis.org">team@vorbis.org</a></p></td>
 </tr><tr>
 <td><p class=tiny>Vorbisfile documentation</p></td>
-<td align=right><p class=tiny>vorbisfile version 1.68 - 20030307</p></td>
+<td align=right><p class=tiny>vorbisfile version 1.2.0 - 20070723</p></td>
 </tr>
 </table>
 

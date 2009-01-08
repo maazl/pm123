@@ -5,19 +5,19 @@
  * GOVERNED BY A BSD-STYLE SOURCE LICENSE INCLUDED WITH THIS SOURCE *
  * IN 'COPYING'. PLEASE READ THESE TERMS BEFORE DISTRIBUTING.       *
  *                                                                  *
- * THE OggVorbis SOURCE CODE IS (C) COPYRIGHT 1994-2002             *
- * by the XIPHOPHORUS Company http://www.xiph.org/                  *
+ * THE OggVorbis SOURCE CODE IS (C) COPYRIGHT 1994-2007             *
+ * by the Xiph.Org Foundation http://www.xiph.org/                  *
  *                                                                  *
  ********************************************************************
 
  function: single-block PCM synthesis
- last mod: $Id: synthesis.c,v 1.1 2007/03/21 12:44:11 glass Exp $
+ last mod: $Id: synthesis.c 13293 2007-07-24 00:09:47Z xiphmont $
 
  ********************************************************************/
 
 #include <stdio.h>
 #include <ogg/ogg.h>
-#include "vorbis/codec.h"
+#include <vorbis/codec.h>
 #include "codec_internal.h"
 #include "registry.h"
 #include "misc.h"
@@ -74,7 +74,7 @@ int vorbis_synthesis(vorbis_block *vb,ogg_packet *op){
   type=ci->map_type[ci->mode_param[mode]->mapping];
 
   return(_mapping_P[type]->inverse(vb,ci->map_param[ci->mode_param[mode]->
-                                                   mapping]));
+						   mapping]));
 }
 
 /* used to track pcm position without actually performing decode.

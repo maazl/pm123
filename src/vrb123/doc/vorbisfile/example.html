@@ -9,7 +9,7 @@
 <table border=0 width=100%>
 <tr>
 <td><p class=tiny>Vorbisfile documentation</p></td>
-<td align=right><p class=tiny>vorbisfile version 1.68 - 20030307</p></td>
+<td align=right><p class=tiny>vorbisfile version 1.2.0 - 20070723</p></td>
 </tr>
 </table>
 
@@ -17,7 +17,7 @@
 
 <p>
 The following is a run-through of the decoding example program supplied
-with libvorbisfile, vorbisfile_example.c.  
+with libvorbisfile, <a href="vorbisfile_example_c.html">vorbisfile_example.c</a>.  
 This program takes a vorbis bitstream from stdin and writes raw pcm to stdout.
 
 <p>
@@ -26,7 +26,7 @@ First, relevant headers, including vorbis-specific "vorbis/codec.h" and "vorbisf
 <br><br>
 <table border=0 width=100% color=black cellspacing=0 cellpadding=7>
 <tr bgcolor=#cccccc>
-        <td>
+	<td>
 <pre><b>
 #include &lt;stdio.h&gt;
 #include &lt;stdlib.h&gt;
@@ -34,7 +34,7 @@ First, relevant headers, including vorbis-specific "vorbis/codec.h" and "vorbisf
 #include "vorbis/codec.h"
 #include "vorbisfile.h"
 </b></pre>
-        </td>
+	</td>
 </tr>
 </table>
 <p>
@@ -42,14 +42,14 @@ We also have to make a concession to Windows users here.  If we are using window
 <br><br>
 <table border=0 width=100% color=black cellspacing=0 cellpadding=7>
 <tr bgcolor=#cccccc>
-        <td>
+	<td>
 <pre><b>
 #ifdef _WIN32
 #include &lt;io.h&gt;
 #include &lt;fcntl.h&gt;
 #endif
 </b></pre>
-        </td>
+	</td>
 </tr>
 </table>
 <p>
@@ -87,16 +87,19 @@ int main(int argc, char **argv){
 </tr>
 </table>
 
-<p><a href="ov_open.html">ov_open()</a> must be
-called to initialize the <b>OggVorbis_File</b> structure with default values.  
-<a href="ov_open.html">ov_open()</a> also checks to ensure that we're reading Vorbis format and not something else.
+<p>We call <a href="ov_open_callbacks.html">ov_open_callbacks()</a> to
+initialize the <b>OggVorbis_File</b> structure with default values.
+<a href="ov_open_callbacks.html">ov_open_callbacks()</a> also checks
+to ensure that we're reading Vorbis format and not something else. The
+OV_CALLBACKS_NOCLOSE callbacks instruct libvorbisfile not to close
+stdin later during cleanup.
 
 <br><br>
 <table border=0 width=100% color=black cellspacing=0 cellpadding=7>
 <tr bgcolor=#cccccc>
         <td>
 <pre><b>
-  if(ov_open(stdin, &vf, NULL, 0) < 0) {
+  if(ov_open_callbacks(stdin, &vf, NULL, 0, OV_CALLBACKS_NOCLOSE) < 0) {
       fprintf(stderr,"Input does not appear to be an Ogg bitstream.\n");
       exit(1);
   }
@@ -149,10 +152,10 @@ Here's the read loop:
       eof=1;
     } else if (ret < 0) {
       /* error in the stream.  Not a problem, just reporting it in
-         case we (the app) cares.  In this case, we don't. */
+	 case we (the app) cares.  In this case, we don't. */
     } else {
       /* we don't bother dealing with sample rate changes, etc, but
-         you'll have to*/
+	 you'll have to*/
       fwrite(pcmout,1,ret,stdout);
     }
   }
@@ -192,11 +195,11 @@ Now that we've finished playing, we can pack up and go home.  It's important to 
 <hr noshade>
 <table border=0 width=100%>
 <tr valign=top>
-<td><p class=tiny>copyright &copy; 2003 Xiph.org</p></td>
+<td><p class=tiny>copyright &copy; 2007 Xiph.org</p></td>
 <td align=right><p class=tiny><a href="http://www.xiph.org/ogg/vorbis/">Ogg Vorbis</a></p></td>
 </tr><tr>
 <td><p class=tiny>Vorbisfile documentation</p></td>
-<td align=right><p class=tiny>vorbisfile version 1.68 - 20030307</p></td>
+<td align=right><p class=tiny>vorbisfile version 1.2.0 - 20070723</p></td>
 </tr>
 </table>
 

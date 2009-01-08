@@ -7,7 +7,7 @@
 <appendix id="vorbis-over-ogg">
 <appendixinfo>
  <releaseinfo>
-  $Id: a1-encapsulation_ogg.xml,v 1.1 2007/03/21 12:44:11 glass Exp $
+  $Id: a1-encapsulation_ogg.xml 15540 2008-11-27 00:25:49Z ivo $
  </releaseinfo>
 </appendixinfo>
 <title>Embedding Vorbis into an Ogg stream</title>
@@ -56,11 +56,11 @@ form only. That is:
 This is not to say that it is not currently possible to multiplex
 Vorbis with other media types into a multi-stream Ogg file.  At the
 time this document was written, Ogg was becoming a popular container
-for low-bitrate movies consisting of DiVX video and Vorbis audio.
+for low-bitrate movies consisting of DivX video and Vorbis audio.
 However, a 'Vorbis I audio file' is taken to imply Vorbis audio
 existing alone within a degenerate Ogg stream.  A compliant 'Vorbis
 audio player' is not required to implement Ogg support beyond the
-specific support of Vorbis within a degenrate ogg stream (naturally,
+specific support of Vorbis within a degenrate Ogg stream (naturally,
 application authors are encouraged to support full multiplexed Ogg
 handling).
 </para>
@@ -70,10 +70,13 @@ handling).
 <section><title>MIME type</title>
 
 <para>
-The correct MIME type of any Ogg file is <literal>application/ogg</literal>.
-However, if a file is a Vorbis I audio file (which implies a
-degenerate Ogg stream including only unmultiplexed Vorbis audio), the
-mime type <literal>audio/x-vorbis</literal> is also allowed.</para>
+The MIME type of Ogg files depend on the context.  Specifically, complex
+multimedia and applications should use <literal>application/ogg</literal>,
+while visual media should use <literal>video/ogg</literal>, and audio
+<literal>audio/ogg</literal>.  Vorbis data encapsulated in Ogg may appear
+in any of those types.  RTP encapsulated Vorbis should use
+<literal>audio/vorbis</literal> + <literal>audio/vorbis-config<literal>.
+</para>
 
 </section>
 
@@ -134,11 +137,23 @@ Ogg encapsulation of a Vorbis packet stream is straightforward.</para>
 
 <listitem><simpara>
   The granule position of a page represents the end PCM sample
-  position of the last packet <emphasis>completed</emphasis> on that page.
-  A page that is entirely spanned by a single packet (that completes on a
-  subsequent page) has no granule position, and the granule position is
-  set to '-1'.
-</simpara></listitem>
+  position of the last packet <emphasis>completed</emphasis> on that
+  page.  The 'last PCM sample' is the last complete sample returned by
+  decode, not an internal sample awaiting lapping with a
+  subsequent block.  A page that is entirely spanned by a single
+  packet (that completes on a subsequent page) has no granule
+  position, and the granule position is set to '-1'.  </simpara>
+
+<simpara>
+  Note that the last decoded (fully lapped) PCM sample from a packet
+  is not necessarily the middle sample from that block. If, eg, the
+  current Vorbis packet encodes a "long block" and the next Vorbis
+  packet encodes a "short block", the last decodable sample from the
+  current packet be at position (3*long_block_length/4) -
+  (short_block_length/4).
+</simpara>
+
+</listitem>
 
 <listitem>
   <simpara>

@@ -5,25 +5,25 @@
  * GOVERNED BY A BSD-STYLE SOURCE LICENSE INCLUDED WITH THIS SOURCE *
  * IN 'COPYING'. PLEASE READ THESE TERMS BEFORE DISTRIBUTING.       *
  *                                                                  *
- * THE OggVorbis SOURCE CODE IS (C) COPYRIGHT 1994-2002             *
- * by the XIPHOPHORUS Company http://www.xiph.org/                  *
+ * THE OggVorbis SOURCE CODE IS (C) COPYRIGHT 1994-2007             *
+ * by the Xiph.Org Foundation http://www.xiph.org/                  *
  *                                                                  *
  ********************************************************************
 
   function: LPC low level routines
-  last mod: $Id: lpc.h,v 1.1 2007/03/21 12:44:11 glass Exp $
+  last mod: $Id: lpc.h 13293 2007-07-24 00:09:47Z xiphmont $
 
  ********************************************************************/
 
 #ifndef _V_LPC_H_
 #define _V_LPC_H_
 
-#include "vorbis/codec.h"
+#include <vorbis/codec.h>
 
 /* simple linear scale LPC code */
 extern float vorbis_lpc_from_data(float *data,float *lpc,int n,int m);
 
 extern void vorbis_lpc_predict(float *coeff,float *prime,int m,
-                               float *data,long n);
+			       float *data,long n);
 
 #endif

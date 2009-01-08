@@ -5,31 +5,31 @@
  * GOVERNED BY A BSD-STYLE SOURCE LICENSE INCLUDED WITH THIS SOURCE *
  * IN 'COPYING'. PLEASE READ THESE TERMS BEFORE DISTRIBUTING.       *
  *                                                                  *
- * THE OggVorbis SOURCE CODE IS (C) COPYRIGHT 1994-2002             *
- * by the XIPHOPHORUS Company http://www.xiph.org/                  *
+ * THE OggVorbis SOURCE CODE IS (C) COPYRIGHT 1994-2007             *
+ * by the Xiph.Org Foundation http://www.xiph.org/                  *
  *                                                                  *
  ********************************************************************
 
  function: toplevel settings for 32kHz
- last mod: $Id: setup_32.h,v 1.1 2007/03/21 12:44:12 glass Exp $
+ last mod: $Id: setup_32.h 15531 2008-11-24 23:50:06Z xiphmont $
 
  ********************************************************************/
 
-static double rate_mapping_32[12]={
+static const double rate_mapping_32[12]={
   18000.,28000.,35000.,45000.,56000.,60000.,
   75000.,90000.,100000.,115000.,150000.,190000.,
 };
 
-static double rate_mapping_32_un[12]={
+static const double rate_mapping_32_un[12]={
   30000.,42000.,52000.,64000.,72000.,78000.,
   86000.,92000.,110000.,120000.,140000.,190000.,
 };
 
-static double _psy_lowpass_32[12]={
+static const double _psy_lowpass_32[12]={
   12.3,13.,13.,14.,15.,99.,99.,99.,99.,99.,99.,99.
 };
 
-ve_setup_data_template ve_setup_32_stereo={
+static const ve_setup_data_template ve_setup_32_stereo={
   11,
   rate_mapping_32,
   quality_mapping_44,
@@ -80,7 +80,7 @@ ve_setup_data_template ve_setup_32_stereo={
   _mapres_template_44_stereo
 };
 
-ve_setup_data_template ve_setup_32_uncoupled={
+static const ve_setup_data_template ve_setup_32_uncoupled={
   11,
   rate_mapping_32_un,
   quality_mapping_44,

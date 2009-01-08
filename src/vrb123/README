@@ -5,7 +5,7 @@
 * GOVERNED BY A BSD-STYLE SOURCE LICENSE INCLUDED WITH THIS SOURCE *
 * IN 'COPYING'. PLEASE READ THESE TERMS BEFORE DISTRIBUTING.       *
 *                                                                  *
-* THE OggVorbis SOURCE CODE IS (C) COPYRIGHT 1994-2004             *
+* THE OggVorbis SOURCE CODE IS (C) COPYRIGHT 1994-2007             *
 * by the Xiph.org Foundation, http://www.xiph.org/                 *
 *                                                                  *
 ********************************************************************
@@ -46,8 +46,8 @@ package.
 
 Directory:
 
-./lib           The source for the libraries, a BSD-license implementation
-                of the public domain Ogg Vorbis audio encoding format.
+./lib  		The source for the libraries, a BSD-license implementation
+		of the public domain Ogg Vorbis audio encoding format.
 
 ./include       Library API headers
 
@@ -55,17 +55,17 @@ Directory:
 
 ./doc           Vorbis documentation
 
-./examples      Example code illustrating programmatic use of libvorbis, 
-                libvorbisfile and libvorbisenc
+./examples	Example code illustrating programmatic use of libvorbis, 
+		libvorbisfile and libvorbisenc
 
-./mac           Codewarrior project files and build tweaks for MacOS.
+./mac 		Codewarrior project files and build tweaks for MacOS.
 
-./macosx        Project files for MacOS X.
+./macosx 	Project files for MacOS X.
 
-./win32         Win32 projects files and build automation
+./win32		Win32 projects files and build automation
 
-./vq            Internal utilities for training/building new LSP/residue 
-                and auxiliary codebooks.
+./vq 		Internal utilities for training/building new LSP/residue 
+		and auxiliary codebooks.
 
 CONTACT:
 
@@ -79,22 +79,24 @@ The user website for Ogg Vorbis software and audio is http://vorbis.com/
 BUILDING FROM TRUNK:
 
 Development source is under subversion revision control at 
-http://svn.xiph.org/trunk/vorbis/. You will also need the 
-newest versions of autoconf, automake, and libtool in order
-to compile vorbis from development source. A configure script
+https://svn.xiph.org/trunk/vorbis/. You will also need the 
+newest versions of autoconf, automake, libtool and pkg-config in
+order to compile Vorbis from development source. A configure script
 is provided for you in the source tarball distributions.
 
   [update or checkout latest source]
   ./autogen.sh
-  make 
+  make
 
 and as root if desired:
 
   make install
 
-This will install the vorbis libraries (static and shared) into
+This will install the Vorbis libraries (static and shared) into
 /usr/local/lib, includes into /usr/local/include and API manpages
 (once we write some) into /usr/local/man.
+
+Documentation building requires xsltproc and pdfxmltex.
 
 BUILDING FROM TARBALL DISTRIBUTIONS:
 

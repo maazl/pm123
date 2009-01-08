@@ -84,3 +84,5 @@ EXPORTS
   ov_crosslap                  @91
   ov_halfrate                  @92
   ov_halfrate_p                @93
+  ov_fopen                     @94
+  ov_read_filter               @95
