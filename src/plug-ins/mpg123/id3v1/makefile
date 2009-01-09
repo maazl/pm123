@@ -8,7 +8,7 @@ INCDIR   = $(TOPDIR)\xio123;$(TOPDIR)\utils;$(TOPDIR)\include
 
 !include $(TOPDIR)\config\makerules
 
-OBJECTS = id3v1$(CO)
+OBJECTS = id3v1$(CO) genre$(CO)
 
 all: id3v1$(LBO) $(MDUMMY)
 

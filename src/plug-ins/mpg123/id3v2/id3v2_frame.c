@@ -295,12 +295,12 @@ id3v2_frame_extra_headers( ID3V2_FRAME* frame )
   return retv;
 }
 
-static void*
+INLINE void*
 id3v2_get_frame_data_ptr( ID3V2_FRAME* frame ) {
   return (char*)frame->fr_raw_data + id3v2_frame_extra_headers( frame );
 }
 
-static int
+INLINE int
 id3v2_get_frame_size( ID3V2_FRAME* frame ) {
   return frame->fr_raw_size - id3v2_frame_extra_headers( frame );
 }
@@ -498,7 +498,7 @@ id3v2_read_frame( ID3V2_TAG* id3 )
    indicated type, the third argument tells which of the frames to
    return. */
 ID3V2_FRAME*
-id3v2_get_frame( ID3V2_TAG* id3, uint32_t type, int num )
+id3v2_get_frame( const ID3V2_TAG* id3, uint32_t type, int num )
 {
   int  i;
   for( i = 0; i < id3->id3_frames_count; i++ )
@@ -683,6 +683,54 @@ id3v2_add_frame( ID3V2_TAG* id3, uint32_t type )
   id3->id3_altered = 1;
 
   return frame;
+}
+
+/* Copy the given frame into another tag */
+ID3V2_FRAME* id3v2_copy_frame( ID3V2_TAG* id3, const ID3V2_FRAME* frame )
+{
+  if (frame == NULL)
+    return NULL;
+  ASSERT(frame->fr_owner != id3); 
+  ID3V2_FRAME* result = id3v2_add_frame( id3, frame->fr_desc->fd_id );
+  if (result == NULL)
+    return NULL;
+  // deep copy
+  result->fr_flags      = frame->fr_flags;
+  result->fr_encryption = frame->fr_encryption; 
+  result->fr_grouping   = frame->fr_grouping;
+  result->fr_altered    = 1;
+  
+  result->fr_raw_data   = NULL;
+  result->fr_data_z     = NULL;
+  result->fr_raw_size   = frame->fr_raw_size;
+  result->fr_size_z     = frame->fr_size_z;
+  
+  if (frame->fr_raw_data)
+  { result->fr_raw_data = malloc(frame->fr_raw_size + 2);
+    if (!result->fr_raw_data)
+    { id3v2_delete_frame(result);
+      return NULL;
+    }
+    memcpy(result->fr_raw_data, frame->fr_raw_data, frame->fr_raw_size + 2);
+  }
+  if (frame->fr_data_z)
+  { result->fr_data_z   = malloc(frame->fr_size_z + ( id3v2_is_text_frame( frame ) ? 2 : 0 ));
+    if (!result->fr_data_z)
+    { id3v2_delete_frame(result);
+      return NULL;
+    }
+    memcpy(result->fr_data_z, frame->fr_data_z, frame->fr_size_z + ( id3v2_is_text_frame( frame ) ? 2 : 0 ));
+    result->fr_data     = frame->fr_data
+                        ? (char*)frame->fr_data - (char*)frame->fr_data_z + (char*)result->fr_data_z
+                        : NULL;
+  } else
+  { result->fr_data     = frame->fr_data
+                        ? (char*)frame->fr_data - (char*)frame->fr_raw_data + (char*)result->fr_raw_data
+                        : NULL;
+  }
+  result->fr_size       = frame->fr_size;
+
+  return result;
 }
 
 /* Destroy all frames in an id3 tag, and free all data */

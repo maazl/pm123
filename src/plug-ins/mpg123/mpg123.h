@@ -59,50 +59,51 @@
 
 #endif /* RC_INVOKED */
 
-#define TAG_READ_ID3V2_AND_ID3V1  0
-#define TAG_READ_ID3V1_AND_ID3V2  1
-#define TAG_READ_ID3V2_ONLY       2
-#define TAG_READ_ID3V1_ONLY       3
+#define ID_NULL             10
+#define PB_UNDO             20
+#define PB_CLEAR            21
+#define PB_HELP             22
 
-#define TAG_SAVE_ID3V2_AND_ID3V1  0
-#define TAG_SAVE_ID3V2            1
-#define TAG_SAVE_ID3V2_ONLY       2
-#define TAG_SAVE_ID3V1            3
-#define TAG_SAVE_ID3V1_ONLY       4
+#define DLG_CONFIGURE      100
+#define CB_1R_READ         111
+#define RB_1R_PREFER       112
+#define CB_1R_AUTOENCODING 115
+#define CO_1_ENCODING      116
+#define RB_1W_UNCHANGED    120
+#define RB_1W_ALWAYS       121
+#define RB_1W_DELETE       122
+#define RB_1W_NOID3V2      123
+#define CB_2R_READ         131
+#define RB_2R_PREFER       132
+#define CB_2R_OVERRIDEENC  135
+#define CO_2R_ENCODING     136
+#define RB_2W_UNCHANGED    140
+#define RB_2W_ALWAYS       141
+#define RB_2W_DELETE       142
+#define RB_2W_ONDEMAND     143
+#define RB_2W_ONDEMANDSPC  144
+#define CO_2W_ENCODING     145
 
-#define DLG_CONFIGURE     1
-#define ID_NULL         900
-#define CB_READ         910
-#define CB_ID3V1_RDCH   920
-#define CB_ID3V2_RDCH   930
-#define CB_WRITE        940
-#define CB_ID3V1_WRCH   950
-#define CB_ID3V2_WRCH   960
-#define CB_USEMMX       970
-#define ST_CHARSET      990
-#define CB_CHARSET      991
-#define CB_AUTO_CHARSET 992
+#define DLG_ID3TAG         200
+#define NB_ID3TAG          210
 
-#define DLG_ID3TAG         2022
-#define NB_ID3TAG           100
+#define DLG_ID3ALL         300
+#define DLG_ID3V1          301
+#define DLG_ID3V2          302
+#define EN_TITLE           310
+#define EN_ARTIST          311
+#define EN_ALBUM           312
+#define EN_TRACK           313
+#define EN_DATE            314
+#define CO_GENRE           315
+#define EN_COMMENT         316
+#define EN_COPYRIGHT       317
+#define CO_ENCODING        320
+#define PB_COPY            322
+#define CB_WRITE           330
+#define CB_WRITEV1         331
+#define CB_WRITEV2         332
 
-#define DLG_ID3V10         2012
-#define ST_ID3_TITLE        106
-#define EN_ID3_TITLE        103
-#define ST_ID3_ARTIST       107
-#define EN_ID3_ARTIST       104
-#define ST_ID3_ALBUM        108
-#define EN_ID3_ALBUM        105
-#define ST_ID3_TRACK        115
-#define EN_ID3_TRACK        114
-#define ST_ID3_COMMENT      110
-#define EN_ID3_COMMENT      109
-#define ST_ID3_GENRE        111
-#define CB_ID3_GENRE        101
-#define ST_ID3_YEAR         113
-#define EN_ID3_YEAR         112
-#define PB_ID3_UNDO         200
-#define PB_ID3_CLEAR        201
 
 typedef struct _DECODER_STRUCT
 {

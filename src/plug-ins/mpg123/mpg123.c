@@ -29,12 +29,6 @@
 #define  INCL_PM
 #define  INCL_DOS
 #define  INCL_ERRORS
-#include <os2.h>
-
-#include <stdio.h>
-#include <malloc.h>
-#include <process.h>
-#include <errno.h>
 
 #include "mpg123.h"
 
@@ -43,8 +37,16 @@
 #include <debuglog.h>
 #include <snprintf.h>
 #include <eautils.h>
+#include <debuglog.h>
 #include <id3v1.h>
 #include <id3v2.h>
+#include <os2.h>
+
+#include <stdio.h>
+#include <malloc.h>
+#include <process.h>
+#include <errno.h>
+#include <ctype.h>
 
 #include "genre.h"
 
@@ -52,15 +54,51 @@
 static DECODER_STRUCT** instances = NULL;
 static int  instances_count = 0;
 static HMTX mutex;
-static int  mmx_enable = 0;
 
-static int   tag_read_type          = TAG_READ_ID3V2_AND_ID3V1;
-static ULONG tag_read_id3v2_charset = 819; // ISO8859-1
-static ULONG tag_read_id3v1_charset = CH_CP_NONE;
-static int   tag_save_type          = TAG_SAVE_ID3V2_AND_ID3V1;
-static ULONG tag_save_id3v2_charset = 1208; // UTF-8
-static BOOL  tag_save_id3v2_BOM     = FALSE;
-static ULONG tag_save_id3v1_charset = CH_CP_NONE;
+typedef enum
+{ TAG_READ_ID3V2_AND_ID3V1,
+  TAG_READ_ID3V1_AND_ID3V2,
+  TAG_READ_ID3V2_ONLY,
+  TAG_READ_ID3V1_ONLY,
+  TAG_READ_NONE
+} read_type;
+
+typedef enum
+{ TAG_SAVE_ID3V1_UNCHANGED,
+  TAG_SAVE_ID3V1_WRITE,
+  TAG_SAVE_ID3V1_DELETE,
+  TAG_SAVE_ID3V1_NOID3V2
+} save_id3v1_type;
+
+typedef enum
+{ TAG_SAVE_ID3V2_UNCHANGED,
+  TAG_SAVE_ID3V2_WRITE,
+  TAG_SAVE_ID3V2_DELETE,
+  TAG_SAVE_ID3V2_ONDEMAND,
+  TAG_SAVE_ID3V2_ONDEMANDSPC
+} save_id3v2_type;
+
+static read_type       tag_read_type          = TAG_READ_ID3V2_AND_ID3V1;
+static ULONG           tag_id3v1_charset      = 1004; // ISO8859-1
+static BOOL            tag_read_id3v1_autoch  = TRUE;
+static save_id3v1_type tag_save_id3v1_type    = TAG_SAVE_ID3V1_WRITE;
+static save_id3v2_type tag_save_id3v2_type    = TAG_SAVE_ID3V2_WRITE;
+static ULONG           tag_read_id3v2_charset = 1004; // ISO8859-1
+static uint8_t         tag_save_id3v2_encoding= ID3V2_ENCODING_UTF8;
+
+static CH_ENTRY id3v2_ch_list[4]; 
+
+/* Initialize the above list. Must be called once. */
+static void init_id3v2_ch_list()
+{ id3v2_ch_list[ID3V2_ENCODING_ISO_8859_1] = *ch_find(1004);
+  id3v2_ch_list[ID3V2_ENCODING_UTF16_BOM]  =
+  id3v2_ch_list[ID3V2_ENCODING_UTF16]      = *ch_find(1200);
+  id3v2_ch_list[ID3V2_ENCODING_UTF8]       = *ch_find(1208);
+  static char name4[100];
+  strlcpy(name4, id3v2_ch_list[ID3V2_ENCODING_UTF16_BOM].name, sizeof name4);
+  strlcat(name4, " with BOM", sizeof name4);
+  id3v2_ch_list[ID3V2_ENCODING_UTF16_BOM].name = name4;
+}
 
 
 #define modes(i) ( i == 0 ? "Stereo"         : \
@@ -387,7 +425,7 @@ decoder_command( void* arg, ULONG msg, DECODER_PARAMS* info )
       w->metadata_size       = info->metadata_size;
       w->savename[0]         = 0;
 
-      mpg_init( &w->mpeg, mmx_enable );
+      mpg_init( &w->mpeg, TRUE );
       break;
 
     case DECODER_PLAY:
@@ -509,7 +547,7 @@ copy_id3v2_string( ID3V2_TAG* tag, unsigned int id, char* result, int size )
 
   if( !*result ) {
     if(( frame = id3v2_get_frame( tag, id, 1 )) != NULL ) {
-      id3v2_get_string( frame, result, size );
+      id3v2_get_string_ex( frame, result, size, tag_read_id3v2_charset );
     }
   }
 }
@@ -522,11 +560,11 @@ copy_id3v2_tag( DECODER_INFO* info, ID3V2_TAG* tag )
   int  i;
 
   if( tag ) {
-    copy_id3v2_string( tag, ID3V2_TIT2, info->title,   sizeof( info->title   ));
-    copy_id3v2_string( tag, ID3V2_TPE1, info->artist,  sizeof( info->artist  ));
-    copy_id3v2_string( tag, ID3V2_TALB, info->album,   sizeof( info->album   ));
-    copy_id3v2_string( tag, ID3V2_TCON, info->genre,   sizeof( info->genre   ));
-    copy_id3v2_string( tag, ID3V2_TDRC, info->year,    sizeof( info->year    ));
+    copy_id3v2_string(tag, ID3V2_TIT2, info->title,  sizeof info->title );
+    copy_id3v2_string(tag, ID3V2_TPE1, info->artist, sizeof info->artist);
+    copy_id3v2_string(tag, ID3V2_TALB, info->album,  sizeof info->album );
+    copy_id3v2_string(tag, ID3V2_TCON, info->genre,  sizeof info->genre );
+    copy_id3v2_string(tag, ID3V2_TDRC, info->year,   sizeof info->year  );
 
     for( i = 1; ( frame = id3v2_get_frame( tag, ID3V2_COMM, i )) != NULL ; i++ )
     {
@@ -534,15 +572,15 @@ copy_id3v2_tag( DECODER_INFO* info, ID3V2_TAG* tag )
 
       // Skip iTunes specific comment tags.
       if( strnicmp( buffer, "iTun", 4 ) != 0 ) {
-        id3v2_get_string( frame, info->comment, sizeof( info->comment ) );
+        id3v2_get_string_ex( frame, info->comment, sizeof( info->comment ), tag_read_id3v2_charset );
         break;
       }
     }
 
     if( info->size >= INFO_SIZE_2 )
     {
-      copy_id3v2_string( tag, ID3V2_TCOP, info->copyright, sizeof( info->copyright ));
-      copy_id3v2_string( tag, ID3V2_TRCK, info->track, sizeof( info->track ));
+      copy_id3v2_string( tag, ID3V2_TCOP, info->copyright, sizeof info->copyright);
+      copy_id3v2_string( tag, ID3V2_TRCK, info->track, sizeof info->track);
 
       // Remove all unwanted track info.
       if(( i = atol( info->track )) != 0 ) {
@@ -558,8 +596,7 @@ copy_id3v2_tag( DECODER_INFO* info, ID3V2_TAG* tag )
 
         // Format of RVA2 frame:
         //
-        // Identification          <text string> $00
-        // Type of channel         $xx
+        // Identification          <text string> $00        // Type of channel         $xx
         // Volume adjustment       $xx xx
         // Bits representing peak  $xx
         // Peak volume             $xx (xx ...)
@@ -604,11 +641,33 @@ copy_id3v2_tag( DECODER_INFO* info, ID3V2_TAG* tag )
   }
 }
 
+static void strpad(char* str, size_t len, char pad)
+{ char* se = str + len;
+  str += strnlen(str, len);
+  while (str != se)
+    *str++ = pad;
+}
+
+static ULONG detect_id3v1_codepage( const ID3V1_TAG* tag, ULONG codepage )
+{
+  ID3V1_TAG buf = *tag;
+  strpad(buf.title,  sizeof buf.title,  ' ');
+  strpad(buf.artist, sizeof buf.artist, ' ');
+  strpad(buf.album,  sizeof buf.album,  ' ');
+  strpad(buf.year,   sizeof buf.year,   ' ');
+  strpad(buf.comment,30                ,' ');
+  buf.genre = 0;
+  if (tag->empty == 0 && tag->track) // ID3V1.1
+    buf.empty = 0;
+
+  return ch_detect(codepage, buf.title);
+}
+
 void static
 copy_id3v1_string( ID3V1_TAG* tag, int id, char* result, int size )
 {
   if( !*result ) {
-    id3v1_get_string( tag, id, result, size );
+    id3v1_get_string( tag, id, result, size, tag_id3v1_charset );
   }
 }
 
@@ -692,6 +751,7 @@ decoder_fileinfo( const char* filename, DECODER_INFO* info )
     case TAG_READ_ID3V1_ONLY:
       copy_id3v1_tag( info, &w->mpeg.tagv1 );
       break;
+    case TAG_READ_NONE:; // avoid warning
   }
 
   if( !w->mpeg.is_stream && info->size >= INFO_SIZE_2 )
@@ -756,7 +816,7 @@ replace_id3v2_string( ID3V2_TAG* tag, unsigned int id, const char* string )
     frame = id3v2_add_frame( tag, id );
   }
   if( frame != NULL ) {
-    id3v2_set_string( frame, string );
+    id3v2_set_string( frame, string, tag_save_id3v2_encoding );
   }
 }
 
@@ -791,6 +851,8 @@ decoder_saveinfo( const char* filename, const DECODER_INFO* info )
 
   DosRequestMutexSem( w->mutex, SEM_INDEFINITE_WAIT );
 
+  /* TODO @@@@@@@@@
+  
   if( !w->mpeg.tagv2 ) {
     w->mpeg.tagv2 = id3v2_new_tag();
   }
@@ -875,7 +937,7 @@ decoder_saveinfo( const char* filename, const DECODER_INFO* info )
     xio_fclose( save );
   }
 
-  plg_close_file( w );
+  plg_close_file( w );*/
   DosReleaseMutexSem( w->mutex );
 
   if( rc != PLUGIN_OK || !copy ) {
@@ -972,10 +1034,11 @@ decoder_support( char* ext[], int* size )
 static void
 init_tag( void )
 {
+  /* TODO @@@@@@@@@@
   id3v2_set_read_charset( tag_read_id3v2_charset );
   id3v2_set_save_charset( tag_save_id3v2_charset, tag_save_id3v2_BOM );
   id3v1_set_read_charset( tag_read_id3v1_charset );
-  id3v1_set_save_charset( tag_save_id3v1_charset );
+  id3v1_set_save_charset( tag_save_id3v1_charset );*/
 }
 
 static void
@@ -985,13 +1048,13 @@ save_ini( void )
 
   if(( hini = open_module_ini()) != NULLHANDLE )
   {
-    save_ini_value( hini, tag_read_type          );
-    save_ini_value( hini, tag_read_id3v1_charset );
-    save_ini_value( hini, tag_read_id3v2_charset );
-    save_ini_value( hini, tag_save_type          );
-    save_ini_value( hini, tag_save_id3v1_charset );
-    save_ini_value( hini, tag_save_id3v2_charset );
-    save_ini_value( hini, mmx_enable  );
+    save_ini_value( hini, tag_read_type           );
+    save_ini_value( hini, tag_id3v1_charset       );
+    save_ini_value( hini, tag_read_id3v1_autoch   );
+    save_ini_value( hini, tag_save_id3v1_type     );
+    save_ini_value( hini, tag_save_id3v2_type     );
+    save_ini_value( hini, tag_read_id3v2_charset  );
+    save_ini_value( hini, tag_save_id3v2_encoding );
     close_ini( hini );
   }
 }
@@ -1001,28 +1064,62 @@ load_ini( void )
 {
   HINI hini;
 
-  mmx_enable  = 0;
-
   tag_read_type          = TAG_READ_ID3V2_AND_ID3V1;
-  tag_read_id3v2_charset = CH_CP_NONE;
-  tag_read_id3v1_charset = CH_CP_NONE;
-  tag_save_type          = TAG_SAVE_ID3V2_AND_ID3V1;
-  tag_save_id3v2_charset = 1208; // UTF-8
-  tag_save_id3v1_charset = CH_CP_NONE;
+  tag_id3v1_charset      = 819;  // ISO8859-1
+  tag_read_id3v1_autoch  = TRUE;
+  tag_save_id3v1_type    = TAG_SAVE_ID3V1_WRITE;
+  tag_save_id3v2_type    = TAG_SAVE_ID3V2_WRITE;
+  tag_read_id3v2_charset = 819;  // ISO8859-1
+  tag_save_id3v2_encoding= ID3V2_ENCODING_UTF8;
 
   if(( hini = open_module_ini()) != NULLHANDLE )
   {
-    load_ini_value( hini, tag_read_type          );
-    load_ini_value( hini, tag_read_id3v1_charset );
-    load_ini_value( hini, tag_read_id3v2_charset );
-    load_ini_value( hini, tag_save_type          );
-    load_ini_value( hini, tag_save_id3v1_charset );
-    load_ini_value( hini, tag_save_id3v2_charset );
-    load_ini_value( hini, mmx_enable );
+    load_ini_value( hini, tag_read_type           );
+    load_ini_value( hini, tag_id3v1_charset       );
+    load_ini_value( hini, tag_read_id3v1_autoch   );
+    load_ini_value( hini, tag_save_id3v1_type     );
+    load_ini_value( hini, tag_save_id3v2_type     );
+    load_ini_value( hini, tag_read_id3v2_charset  );
+    load_ini_value( hini, tag_save_id3v2_encoding );
     close_ini( hini );
   }
 
   init_tag();
+}
+
+/* populate a listbox with character set items */
+static void dlg_populate_charset_listbox( HWND lb, const CH_ENTRY* list, size_t count, ULONG selected )
+{ while (count--)
+  { SHORT idx = SHORT1FROMMR( WinSendMsg( lb, LM_INSERTITEM, MPFROMSHORT( LIT_END ), MPFROMP( list->name )));
+    PMASSERT( idx != LIT_ERROR && idx != LIT_MEMERROR );
+    PMRASSERT( WinSendMsg( lb, LM_SETITEMHANDLE, MPFROMSHORT( idx ), MPFROMP( list )));   
+    if ( list->codepage == selected )
+    { PMRASSERT( WinSendMsg( lb, LM_SELECTITEM, MPFROMSHORT( idx ), MPFROMSHORT( TRUE )));
+      selected = (ULONG)-1L; // select only the first matching item 
+    }   
+    ++list;
+  }
+}
+
+static CH_ENTRY* dlg_query_charset_listbox( HWND lb )
+{ SHORT idx = SHORT1FROMMR( WinSendMsg( lb, LM_QUERYSELECTION, MPFROMSHORT( LIT_FIRST ), 0 ));
+  if (idx == LIT_NONE)
+    return NULL;
+  CH_ENTRY* ret = (CH_ENTRY*)PVOIDFROMMR( WinSendMsg( lb, LM_QUERYITEMHANDLE, MPFROMSHORT( idx ), 0 ));
+  PMASSERT(ret);
+  return ret;
+}
+
+static SHORT dlg_set_charset_listbox( HWND lb, ULONG encoding )
+{ SHORT idx = SHORT1FROMMR( WinSendMsg( lb, LM_QUERYITEMCOUNT, 0, 0 ));
+  while (idx--)
+  { CH_ENTRY* ch = (CH_ENTRY*)PVOIDFROMMR( WinSendMsg( lb, LM_QUERYITEMHANDLE, MPFROMSHORT( idx ), 0 ));
+    if ( ch->codepage == encoding )
+    { PMRASSERT( WinSendMsg( lb, LM_SELECTITEM, MPFROMSHORT( idx ), MPFROMSHORT( TRUE )));
+      return idx;
+    } 
+  }
+  return -1;
 }
 
 /* Processes messages of the configuration dialog. */
@@ -1033,103 +1130,110 @@ cfg_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
   {
     case WM_INITDLG:
     {
-      const CH_ENTRY* chp;
-      const CH_ENTRY* chpe;
-      
-      lb_add_item( hwnd, CB_READ, "ID3v2 + ID3v1"  );
-      lb_add_item( hwnd, CB_READ, "ID3v1 + ID3v2"  );
-      lb_add_item( hwnd, CB_READ, "ID3v2"          );
-      lb_add_item( hwnd, CB_READ, "ID3v1"          );
-      lb_select  ( hwnd, CB_READ, tag_read_type    );
-      // charset selection boxes
-      chp = ch_list;
-      chpe = chp + ch_list_size;
-      for( ; chp != chpe; ++chp ) {
-        uconv_attribute_t uco_attr;
-        int ix;
-        // get charset info
-        if (!ch_info( chp->codepage, &uco_attr ))
-          continue;
-
-        if (( uco_attr.esid & 0xF00 ) != 0x200 ) // no DBCS
-        { // => add to ID3V1 boxes
-          ix = lb_add_item  ( hwnd, CB_ID3V1_RDCH, chp->name );
-          PMASSERT(ix >= 0);
-          lb_set_handle( hwnd, CB_ID3V1_RDCH, ix, (PVOID)chp );
-          if( chp->codepage == tag_read_id3v1_charset ) {
-            lb_select( hwnd, CB_ID3V1_RDCH, ix );
-          }
-          ix = lb_add_item  ( hwnd, CB_ID3V1_WRCH, chp->name );
-          PMASSERT(ix >= 0);
-          lb_set_handle( hwnd, CB_ID3V1_WRCH, ix, (PVOID)chp );
-          if( chp->codepage == tag_save_id3v1_charset ) {
-            lb_select( hwnd, CB_ID3V1_WRCH, ix );
-          }
-        }
-        ix = lb_add_item  ( hwnd, CB_ID3V2_RDCH, chp->name );
-        PMASSERT(ix >= 0);
-        lb_set_handle( hwnd, CB_ID3V2_RDCH, ix, (PVOID)chp );
-        if( chp->codepage == tag_read_id3v2_charset ) {
-          lb_select( hwnd, CB_ID3V2_RDCH, ix );
-        }
-        switch (chp->codepage) // restrict to valid ID3V2 charsets
-        {case 819:
-         case 1200:
-         case 1208:
-          ix = lb_add_item  ( hwnd, CB_ID3V2_WRCH, chp->name );
-          PMASSERT(ix >= 0);
-          lb_set_handle( hwnd, CB_ID3V2_WRCH, ix, (PVOID)chp );
-          if( chp->codepage == tag_save_id3v2_charset ) {
-            lb_select( hwnd, CB_ID3V2_WRCH, ix );
-          }
-        }
+      switch (tag_read_type)
+      {case TAG_READ_ID3V2_AND_ID3V1:
+        WinCheckButton( hwnd, RB_2R_PREFER, TRUE );
+        goto both;
+       case TAG_READ_ID3V1_AND_ID3V2:
+        WinCheckButton( hwnd, RB_1R_PREFER, TRUE );
+       both:
+        WinEnableControl( hwnd, RB_1R_PREFER, TRUE ); 
+        WinEnableControl( hwnd, RB_2R_PREFER, TRUE ); 
+        WinCheckButton( hwnd, CB_1R_READ,   TRUE );
+        WinCheckButton( hwnd, CB_2R_READ,   TRUE );
+        break;
+       case TAG_READ_ID3V2_ONLY:
+        WinCheckButton( hwnd, CB_2R_READ,   TRUE );
+        goto one;
+       case TAG_READ_ID3V1_ONLY:
+        WinCheckButton( hwnd, CB_1R_READ,   TRUE );
+       case TAG_READ_NONE:
+       one:
+        WinCheckButton( hwnd, RB_2R_PREFER, TRUE );
+        break;
       }
 
-      lb_add_item( hwnd, CB_WRITE, "ID3v2 + ID3v1" );
-      lb_add_item( hwnd, CB_WRITE, "ID3v2"         );
-      lb_add_item( hwnd, CB_WRITE, "ID3v2 only"    );
-      lb_add_item( hwnd, CB_WRITE, "ID3v1"         );
-      lb_add_item( hwnd, CB_WRITE, "ID3v1 only"    );
-      lb_select  ( hwnd, CB_WRITE, tag_save_type   );
+      WinCheckButton( hwnd, CB_1R_AUTOENCODING, tag_read_id3v1_autoch );
+      WinCheckButton( hwnd, RB_1W_UNCHANGED + tag_save_id3v1_type, TRUE );
+      dlg_populate_charset_listbox( WinWindowFromID( hwnd, CO_1_ENCODING ), ch_list, ch_list_size - ch_list_dbcs, tag_id3v1_charset );
 
-      WinSendDlgItemMsg( hwnd, CB_USEMMX, BM_SETCHECK, MPFROMSHORT( mmx_enable ), 0 );
-
-      if( !detect_MMX()) {
-        WinEnableWindow( WinWindowFromID( hwnd, CB_USEMMX ), FALSE );
-      }
+      WinCheckButton( hwnd, RB_2W_UNCHANGED + tag_save_id3v2_type, TRUE );
+      dlg_populate_charset_listbox( WinWindowFromID( hwnd, CO_2R_ENCODING ), ch_list, ch_list_size - ch_list_dbcs, tag_read_id3v2_charset );
+      dlg_populate_charset_listbox( WinWindowFromID( hwnd, CO_2W_ENCODING ), id3v2_ch_list, sizeof id3v2_ch_list / sizeof *id3v2_ch_list, 0 );
+      PMRASSERT( lb_select( hwnd, CO_2W_ENCODING, tag_save_id3v2_encoding ));
 
       do_warpsans( hwnd );
       break;
     }
 
+    case WM_CONTROL:
+      switch (SHORT1FROMMP(mp1))
+      {case CB_1R_READ:
+       case CB_2R_READ:
+        switch (SHORT2FROMMP(mp1))
+        { BOOL both; 
+         case BN_CLICKED:
+          both = WinQueryButtonCheckstate( hwnd, CB_1R_READ ) && WinQueryButtonCheckstate( hwnd, CB_2R_READ );
+          PMRASSERT( WinEnableControl( hwnd, RB_1R_PREFER, both ));
+          PMRASSERT( WinEnableControl( hwnd, RB_2R_PREFER, both ));
+          return 0;
+        }
+        break;
+       case RB_1R_PREFER:
+        switch (SHORT2FROMMP(mp1))
+        {case BN_CLICKED:
+         case BN_DBLCLICKED:
+          WinCheckButton( hwnd, RB_2R_PREFER, FALSE );
+          WinCheckButton( hwnd, RB_1R_PREFER, TRUE );
+          return 0;
+        }
+       case RB_2R_PREFER:
+        switch (SHORT2FROMMP(mp1))
+        {case BN_CLICKED:
+         case BN_DBLCLICKED:
+          WinCheckButton( hwnd, RB_1R_PREFER, FALSE );
+          WinCheckButton( hwnd, RB_2R_PREFER, TRUE );
+          return 0;
+        }
+      }
+      break;
+
     case WM_COMMAND:
-      if( SHORT1FROMMP( mp1 ) == DID_OK )
-      {
-        int  i;
+      switch( SHORT1FROMMP( mp1 ))
+      { case DID_OK:
+        { CH_ENTRY* chp;
+          SHORT val;
+          switch( WinQueryButtonCheckstate( hwnd, CB_1R_READ ) + 2*WinQueryButtonCheckstate( hwnd, CB_2R_READ ))
+          {case 0:
+            tag_read_type = TAG_READ_NONE;
+            break;
+           case 1:
+            tag_read_type = TAG_READ_ID3V1_ONLY;
+            break;
+           case 2:
+            tag_read_type = TAG_READ_ID3V2_ONLY;
+            break;
+           default:
+            tag_read_type = WinQueryButtonCheckstate( hwnd, RB_1R_PREFER ) ? TAG_READ_ID3V1_AND_ID3V2 : TAG_READ_ID3V2_AND_ID3V1;
+            break;
+          }
+          chp = dlg_query_charset_listbox( WinWindowFromID( hwnd, CO_1_ENCODING ));
+          if (chp) // Retain old invalid values
+            tag_id3v1_charset       = chp->codepage;
+          tag_read_id3v1_autoch   = WinQueryButtonCheckstate( hwnd, CB_1R_AUTOENCODING );
+          tag_save_id3v1_type     = (save_id3v1_type)(rb_selected( hwnd, RB_1W_UNCHANGED ) - RB_1W_UNCHANGED);
+          tag_save_id3v2_type     = (save_id3v2_type)(rb_selected( hwnd, RB_2W_UNCHANGED ) - RB_2W_UNCHANGED);
+          chp = dlg_query_charset_listbox( WinWindowFromID( hwnd, CO_2R_ENCODING ));
+          if (chp) // Retain old invalid values
+            tag_read_id3v2_charset  = chp->codepage;
+          val = lb_selected( hwnd, CO_2W_ENCODING, LIT_FIRST );
+          if (val != LIT_NONE) // Retain old invalid values
+            tag_save_id3v2_encoding = val;
 
-        if(( i = lb_cursored( hwnd, CB_READ )) != LIT_NONE ) {
-          tag_read_type = i;
+          save_ini();
+          init_tag();
         }
-        if(( i = lb_cursored( hwnd, CB_ID3V1_RDCH )) != LIT_NONE ) {
-          tag_read_id3v1_charset = ((const CH_ENTRY*)lb_get_handle( hwnd, CB_ID3V1_RDCH, i ))->codepage;
-        }
-        if(( i = lb_cursored( hwnd, CB_ID3V2_RDCH )) != LIT_NONE ) {
-          tag_read_id3v2_charset = ((const CH_ENTRY*)lb_get_handle( hwnd, CB_ID3V2_RDCH, i ))->codepage;
-        }
-
-        if(( i = lb_cursored( hwnd, CB_WRITE )) != LIT_NONE ) {
-          tag_save_type = i;
-        }
-        if(( i = lb_cursored( hwnd, CB_ID3V1_WRCH )) != LIT_NONE ) {
-          tag_save_id3v1_charset = ((const CH_ENTRY*)lb_get_handle( hwnd, CB_ID3V1_WRCH, i ))->codepage;
-        }
-        if(( i = lb_cursored( hwnd, CB_ID3V2_WRCH )) != LIT_NONE ) {
-          tag_save_id3v2_charset = ((const CH_ENTRY*)lb_get_handle( hwnd, CB_ID3V2_WRCH, i ))->codepage;
-        }
-
-        mmx_enable  = (BOOL)WinSendDlgItemMsg( hwnd, CB_USEMMX, BM_QUERYCHECK, 0, 0 );
-        save_ini();
-        init_tag();
+        break;
       }
       break;
   }
@@ -1149,50 +1253,277 @@ plugin_configure( HWND hwnd, HMODULE module ) {
  *
  ***************************************************************************/
 
+/* Working structure of the window procedures below */
+typedef struct
+{ const ID3V1_TAG* tagv1_old; // NULL = not exists
+  const ID3V2_TAG* tagv2_old; // NULL = not exists
+  ULONG            encoding_tagv1_old;
+  ULONG            encoding_tagv2_old;
+  ID3V1_TAG        tagv1;
+  ID3V2_TAG*       tagv2;
+  ULONG            encoding_tagv1;
+  ULONG            encoding_tagv2;
+  BOOL             write_tagv1;
+  BOOL             write_tagv2;
+} ID3_EDIT_TAGINFO;
+
+enum
+{ // Load control content from id3_edit_taginfo structure
+  UM_LOAD = WM_USER +1, // mp1 = USHORT 0: current, 1: original, 2: clear
+  // Store control content to id3_edit_taginfo structure
+  UM_STORE,             // -> NULL: OK, != NULL: error message
+  // Copy tag info from another tag version.
+  UM_COPY,              // no params
+  // View error message
+  UM_ERROR              // mp1 = error, mp2 = caption 
+}; 
+
+/* Insert the predefined genre items into a listbox or combobox. */
+static void id3v1_populate_genres( HWND lb )
+{
+  int i;
+  WinSendMsg( lb, LM_INSERTITEM, MPFROMSHORT( LIT_END ), MPFROMP( "" )); // none
+  for( i = 0; i <= GENRE_LARGEST; i++)
+    WinSendMsg( lb, LM_INSERTITEM, MPFROMSHORT( LIT_END ), MPFROMP( genres[i] ));
+}
+
+static void dlg_set_text_if_empty( HWND hwnd, SHORT id, const char* text )
+{ HWND ctrl = WinWindowFromID(hwnd, id);
+  if ( text && *text && WinQueryWindowTextLength( ctrl ) == 0 )
+    PMRASSERT( WinSetWindowText( ctrl, text ));
+}
+
+/* Load the data from a V1.x tag into the dialog page. */
+static void id3v1_load( HWND hwnd, const ID3V1_TAG* data, ULONG codepage )
+{ 
+  if (data)
+  { char buf[32];
+    *buf = 0;
+    dlg_set_text_if_empty(hwnd, EN_TITLE,  id3v1_get_string(data, ID3V1_TITLE,   buf, sizeof buf, codepage));
+    *buf = 0;
+    dlg_set_text_if_empty(hwnd, EN_ARTIST, id3v1_get_string(data, ID3V1_ARTIST,  buf, sizeof buf, codepage));
+    *buf = 0;
+    dlg_set_text_if_empty(hwnd, EN_ALBUM,  id3v1_get_string(data, ID3V1_ALBUM,   buf, sizeof buf, codepage));
+    *buf = 0;
+    dlg_set_text_if_empty(hwnd, EN_TRACK,  id3v1_get_string(data, ID3V1_TRACK,   buf, sizeof buf, codepage));
+    *buf = 0;
+    dlg_set_text_if_empty(hwnd, EN_DATE,   id3v1_get_string(data, ID3V1_YEAR,    buf, sizeof buf, codepage));
+    *buf = 0;
+    dlg_set_text_if_empty(hwnd, CO_GENRE,  id3v1_get_string(data, ID3V1_GENRE,   buf, sizeof buf, codepage));
+    *buf = 0;
+    dlg_set_text_if_empty(hwnd, EN_COMMENT,id3v1_get_string(data, ID3V1_COMMENT, buf, sizeof buf, codepage));
+  }
+}
+
+/* Store the data into a V1.x tag. */
+static void id3v1_store( HWND hwnd, ID3V1_TAG* data, ULONG codepage )
+{ 
+  char buf[32];
+  WinQueryDlgItemText(hwnd, EN_TITLE,   sizeof buf, buf);
+  id3v1_set_string(data, ID3V1_TITLE,   buf, codepage);
+  WinQueryDlgItemText(hwnd, EN_ARTIST,  sizeof buf, buf);
+  id3v1_set_string(data, ID3V1_ARTIST,  buf, codepage);
+  WinQueryDlgItemText(hwnd, EN_ALBUM,   sizeof buf, buf);
+  id3v1_set_string(data, ID3V1_ALBUM,   buf, codepage);
+  WinQueryDlgItemText(hwnd, EN_TRACK,   sizeof buf, buf);
+  id3v1_set_string(data, ID3V1_TRACK,   buf, codepage);
+  WinQueryDlgItemText(hwnd, EN_DATE,    sizeof buf, buf);
+  id3v1_set_string(data, ID3V1_YEAR,    buf, codepage);
+  WinQueryDlgItemText(hwnd, CO_GENRE,   sizeof buf, buf);
+  id3v1_set_string(data, ID3V1_GENRE,   buf, codepage);
+  WinQueryDlgItemText(hwnd, EN_COMMENT, sizeof buf, buf);
+  id3v1_set_string(data, ID3V1_COMMENT, buf, codepage);
+}
+
+/*static void id3v2_load_string( ID3V2_TAG* tag, unsigned int id, char* result, ULONG codepage )
+{
+  ID3V2_FRAME* frame = NULL;
+
+  if(( frame = id3v2_get_frame( tag, id, 1 )) != NULL ) {
+    id3v2_get_string_ex( frame, result, size, codepage );
+  }
+}*/
+
+static void apply_id3v2_string( HWND hwnd, SHORT id, ID3V2_FRAME* frame, size_t applen, ULONG codepage)
+{ HWND ctrl;
+  ULONG len;
+  char buf[256];
+
+  if (!frame)
+    return;
+  ctrl = WinWindowFromID(hwnd, id);
+  len = WinQueryWindowTextLength(ctrl);
+  if (len != 0 && len != applen)
+    return;
+  id3v2_get_string_ex(frame, buf, sizeof buf, codepage);
+  if (len)
+  { char buf2[32];
+    PMRASSERT(WinQueryWindowText(ctrl, sizeof buf2, buf2));
+    if (strncmp(buf, buf2, applen))
+      return;
+  }
+  PMRASSERT(WinSetWindowText(ctrl, buf));
+}
+
+/* Load the data from a V2.x tag into the dialog page. */
+static void id3v2_load( HWND hwnd, const ID3V2_TAG* tag, ULONG codepage )
+{
+  ID3V2_FRAME* frame;
+  char buf[256];
+  int  i;
+
+  if (!tag)
+    return;
+
+  apply_id3v2_string(hwnd, EN_TITLE,  id3v2_get_frame(tag, ID3V2_TIT2, 1), 30, codepage);
+  apply_id3v2_string(hwnd, EN_ARTIST, id3v2_get_frame(tag, ID3V2_TPE1, 1), 30, codepage);
+  apply_id3v2_string(hwnd, EN_ALBUM,  id3v2_get_frame(tag, ID3V2_TALB, 1), 30, codepage);
+  // Comments
+  for( i = 1; (frame = id3v2_get_frame(tag, ID3V2_COMM, i)) != NULL ; i++)
+  { char buffer[32];
+    id3v2_get_description(frame, buf, sizeof buffer);
+    // Skip iTunes specific comment tags.
+    if( strnicmp( buffer, "iTun", 4 ) != 0 )
+    { apply_id3v2_string(hwnd, EN_COMMENT, frame, WinQueryDlgItemTextLength(hwnd, EN_TRACK) ? 28 : 30, codepage);
+      break;
+    }
+  }
+  apply_id3v2_string(hwnd, EN_TRACK,    id3v2_get_frame(tag, ID3V2_TRCK, 1), 0, codepage);
+  apply_id3v2_string(hwnd, EN_DATE,     id3v2_get_frame(tag, ID3V2_TDRC, 1), 4, codepage);
+  apply_id3v2_string(hwnd, CO_GENRE,    id3v2_get_frame(tag, ID3V2_TCON, 1), 0, codepage);
+  apply_id3v2_string(hwnd, EN_COPYRIGHT,id3v2_get_frame(tag, ID3V2_TCOP, 1), 0, codepage);
+
+  /* TODO Track format !!!!
+    copy_id3v2_string( tag, ID3V2_TRCK, info->track, sizeof( info->track ));
+
+    // Remove all unwanted track info.
+    if(( i = atol( info->track )) != 0 ) {
+      snprintf( info->track, sizeof( info->track ), "%02ld", atol( info->track ));
+    } else {
+      *info->track = 0;
+    } */
+}
+
+/* Store the data from a V2.x tag. */
+static void id3v2_store( HWND hwnd, const ID3V2_TAG* data, uint8_t encoding )
+{
+}
+
+/* Strip leadion and trailing spaces from the window text */
+static void dlg_strip_text( HWND ctrl )
+{ char   buf[256];
+  size_t len = WinQueryWindowText( ctrl, sizeof buf, buf );
+  if (len)
+  { char*  cp = buf+len;
+    while (cp != buf && isblank(*--cp))
+      *cp = 0;
+    cp = buf;
+    while (cp[0] && isblank(cp[0]))
+      ++cp;
+    if (buf[len-1] == 0 || cp != buf)
+      PMRASSERT(WinSetWindowText(ctrl, cp));
+  }
+}
+
+/* Strip leading and trailing spaces from all ID3 input fields */
+static void id3_strip_all( HWND hwnd )
+{ dlg_strip_text(WinWindowFromID(hwnd, EN_TITLE));
+  dlg_strip_text(WinWindowFromID(hwnd, EN_ARTIST));
+  dlg_strip_text(WinWindowFromID(hwnd, EN_ALBUM));
+  dlg_strip_text(WinWindowFromID(hwnd, EN_TRACK));
+  dlg_strip_text(WinWindowFromID(hwnd, EN_DATE));
+  dlg_strip_text(WinWindowFromID(hwnd, CO_GENRE));
+  dlg_strip_text(WinWindowFromID(hwnd, EN_COMMENT));
+}
+
+static const char* id3_validatetrack( HWND hwnd, unsigned* track, unsigned* total )
+{ HWND ctrl = WinWindowFromID( hwnd, EN_TRACK );
+  char   buf[8];
+  size_t len = WinQueryWindowText( ctrl, sizeof buf, buf );
+  if (len)
+  { size_t n;
+    if (total)
+    { *total = 0;
+      if (!sscanf(buf, "%u%n/%u%n", track, &n, total, &n) || n != len)
+        return "The track number is not numeric or not in the format '1/2'";
+    } else
+    { if (!sscanf(buf, "%u%n", track, &n) || n != len)
+        return "The track number is not numeric.";
+    }
+  }
+  return NULL;
+}
+
+/* Validate ID3 date input.
+ * Accepts "", "yyyy", "yyyy-[m]m", "yyyy-[m]m-[d]d", "[d]d.[m]m.yyyy".
+ */
+static const char* id3_validatedate( HWND hwnd, char* dest )
+{ static const char* formats[] = { "%04u", "%04u-%02u", "%04u-%02u-%02u" };
+  HWND ctrl = WinWindowFromID( hwnd, EN_DATE );
+  char   buf[16];
+  size_t len = WinQueryWindowText( ctrl, sizeof buf, buf );
+  unsigned y, m, d;
+  size_t n = (size_t)-1;
+  if (len == 0)
+  { if (dest)
+      *dest = 0;
+    return NULL;
+  }
+  // syntax
+  int cnt = sscanf(buf, "%u%n-%u%n-%u%n", &y, &n, &m, &n, &d, &n);
+  if (n != len)
+  { // second try with d.m.y
+    cnt = sscanf(buf, "%u.%u.%u%n", &d, &m, &y, &n);
+    if (n != len)
+      return MRFROMP("The date syntax is not valid.\n"
+                     "Accepted formats are yyyy, yyyy-mm, yyyy-mm-dd and dd.mm.yyyy.");
+  }
+  // date values
+  switch (cnt)
+  {case 3:
+    if ( d < 1 || d > 31
+      || ((((9*m) >> 3) ^ d) & 1)
+      || (m == 2 && (d & 3) > !(y & 3)) )
+      return MRFROMP("The date does not exist.\n"
+                     "Accepted formats are yyyy, yyyy-mm, yyyy-mm-dd and dd.mm.yyyy.");
+   case 2:
+    if (m < 1 || m > 12)
+      return MRFROMP("The month is out of range.\n"
+                     "Accepted formats are yyyy, yyyy-mm, yyyy-mm-dd and dd.mm.yyyy.");
+   case 1:
+    if (y < 100 || y > 9999)
+      return MRFROMP("The release year is invalid. Remeber to use four digits.\n"
+                     "Accepted formats are yyyy, yyyy-mm, yyyy-mm-dd and dd.mm.yyyy.");
+  }
+  // write date
+  if (dest)
+    sprintf(dest, formats[cnt-1], y, m, d);
+  //PMRASSERT(WinSetWindowText(ctrl, dest));
+  return NULL;
+}
+
 /* Processes messages of the dialog of edition of ID3 tag. */
 static MRESULT EXPENTRY
-id3_page_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
+id3all_page_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
 {
-  DEBUGLOG2(("mpg123:id3_page_dlg_proc(%p, %d, %p, %p)\n", hwnd, msg, mp1, mp2));
+  DEBUGLOG2(("mpg123:id3all_page_dlg_proc(%p, %d, %p, %p)\n", hwnd, msg, mp1, mp2));
   switch( msg )
   {
     case WM_INITDLG:
-    {
-      int i;
-
-      for( i = 0; i <= GENRE_LARGEST; i++) {
-        WinSendDlgItemMsg( hwnd, CB_ID3_GENRE, LM_INSERTITEM,
-                           MPFROMSHORT( LIT_END ), MPFROMP( genres[i] ));
-      }
-      WinSendDlgItemMsg( hwnd, CB_ID3_GENRE, LM_INSERTITEM,
-                         MPFROMSHORT( LIT_END ), MPFROMP( "" ));
+      id3v1_populate_genres( WinWindowFromID( hwnd, CO_GENRE ));
       break;
-    }
 
     case WM_COMMAND:
       switch ( COMMANDMSG(&msg)->cmd )
-      { case PB_ID3_UNDO:
-        { DECODER_INFO* data = (DECODER_INFO*)WinQueryWindowPtr( hwnd, 0 );
-          WinSetDlgItemText( hwnd, EN_ID3_TITLE,   data->title   );
-          WinSetDlgItemText( hwnd, EN_ID3_ARTIST,  data->artist  );
-          WinSetDlgItemText( hwnd, EN_ID3_ALBUM,   data->album   );
-          WinSetDlgItemText( hwnd, EN_ID3_TRACK,   data->track   );
-          WinSetDlgItemText( hwnd, EN_ID3_COMMENT, data->comment );
-          WinSetDlgItemText( hwnd, EN_ID3_YEAR,    data->year    );
-          WinSetDlgItemText( hwnd, CB_ID3_GENRE,   data->genre   );
-          return 0;
-        }
-        case PB_ID3_CLEAR:
-          WinSetDlgItemText( hwnd, EN_ID3_TITLE,   "" );
-          WinSetDlgItemText( hwnd, EN_ID3_ARTIST,  "" );
-          WinSetDlgItemText( hwnd, EN_ID3_ALBUM,   "" );
-          WinSetDlgItemText( hwnd, EN_ID3_TRACK,   "" );
-          WinSetDlgItemText( hwnd, EN_ID3_COMMENT, "" );
-          WinSetDlgItemText( hwnd, EN_ID3_YEAR,    "" );
-          WinSetDlgItemText( hwnd, CB_ID3_GENRE,   "" );
-          return 0;
+      { case PB_UNDO:
+          PMRASSERT( WinPostMsg( hwnd, UM_LOAD, MPFROMSHORT( 1 ), 0 ));
+          break;
+
+        case PB_CLEAR:
+          PMRASSERT( WinPostMsg( hwnd, UM_LOAD, MPFROMSHORT( 2 ), 0 ));
+          break;
       }
-      break;
+      return 0;
 
     /*case WM_CONTROL:
       if ( SHORT1FROMMP(mp1) == EN_ID3_TRACK && SHORT2FROMMP(mp1) == EN_CHANGE )
@@ -1216,7 +1547,265 @@ id3_page_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
           // OK, update last value
           strcpy( data->track, buf ); 
         }  
-      }*/
+    }*/
+      
+    case UM_LOAD:
+    { ID3_EDIT_TAGINFO* data = (ID3_EDIT_TAGINFO*)WinQueryWindowPtr( hwnd, QWL_USER );
+      const ID3V1_TAG* tagv1;
+      const ID3V2_TAG* tagv2;
+      ULONG encv1;
+      ULONG encv2;
+      // clear old values to have a clean start
+      PMRASSERT(WinSetDlgItemText(hwnd, EN_TITLE,   ""));
+      PMRASSERT(WinSetDlgItemText(hwnd, EN_ARTIST,  ""));
+      PMRASSERT(WinSetDlgItemText(hwnd, EN_ALBUM,   ""));
+      PMRASSERT(WinSetDlgItemText(hwnd, EN_TRACK,   ""));
+      PMRASSERT(WinSetDlgItemText(hwnd, EN_DATE,    ""));
+      PMRASSERT(WinSetDlgItemText(hwnd, CO_GENRE,   ""));
+      PMRASSERT(WinSetDlgItemText(hwnd, EN_COMMENT, ""));
+      PMRASSERT(WinSetDlgItemText(hwnd, EN_COPYRIGHT, ""));
+      switch (SHORT1FROMMP(mp1)) // mode
+      {case 0: // load current
+        tagv1 = &data->tagv1;
+        encv1 = data->encoding_tagv1;
+        tagv2 = data->tagv2;
+        encv2 = data->encoding_tagv2;
+        break;
+       case 1: // load original
+        tagv1 = data->tagv1_old;
+        encv1 = data->encoding_tagv1_old;
+        tagv2 = data->tagv2_old;
+        encv2 = data->encoding_tagv2_old;
+        break;
+       case 2: // reset
+        tagv1 = NULL;
+        encv1 = tag_id3v1_charset;
+        tagv2 = NULL;
+        encv2 = tag_read_id3v2_charset;
+      }
+      switch (tag_read_type)
+      {case TAG_READ_ID3V2_AND_ID3V1:
+        id3v2_load( hwnd, tagv2, encv2 );
+       case TAG_READ_ID3V1_ONLY:
+        id3v1_load( hwnd, tagv1, encv1 );
+        break;
+       case TAG_READ_ID3V1_AND_ID3V2:
+        id3v1_load( hwnd, tagv1, encv1 );
+       case TAG_READ_ID3V2_ONLY:
+        id3v2_load( hwnd, tagv2, encv2 );
+       case TAG_READ_NONE:
+        break;
+      }
+      return 0;
+    }
+    case UM_STORE:
+    { ID3_EDIT_TAGINFO* data = (ID3_EDIT_TAGINFO*)WinQueryWindowPtr( hwnd, QWL_USER );
+      const char* msg;
+      unsigned track, total;
+      id3_strip_all( hwnd );
+      // validate
+      msg = id3_validatetrack( hwnd, &track, &total );
+      if (msg)
+        return MRFROMP(msg);
+      msg = id3_validatedate( hwnd, NULL );
+      if (msg)
+        return MRFROMP(msg);
+      // store
+
+      return 0; // OK
+    }
+  }
+  return WinDefDlgProc( hwnd, msg, mp1, mp2 );
+}
+
+static MRESULT EXPENTRY
+id3v1_page_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
+{ DEBUGLOG2(("mpg123:id3v1_page_dlg_proc(%p, %d, %p, %p)\n", hwnd, msg, mp1, mp2));
+  switch( msg )
+  { case WM_INITDLG:
+      id3v1_populate_genres( WinWindowFromID( hwnd, CO_GENRE ));
+      dlg_populate_charset_listbox( WinWindowFromID( hwnd, CO_ENCODING ),  ch_list, ch_list_size - ch_list_dbcs, 0 );
+      break;
+
+    case WM_COMMAND:
+      switch ( COMMANDMSG(&msg)->cmd )
+      { case PB_UNDO:
+          PMRASSERT( WinPostMsg( hwnd, UM_LOAD, MPFROMSHORT( 1 ), 0 ));
+          break;
+
+        case PB_CLEAR:
+          PMRASSERT( WinPostMsg( hwnd, UM_LOAD, MPFROMSHORT( 2 ), 0 ));
+          break;
+
+        case PB_COPY:
+          PMRASSERT( WinPostMsg( hwnd, UM_COPY, 0, 0 ));
+          break;
+      }
+      return 0;
+
+    /*case WM_CONTROL:
+      if ( SHORT1FROMMP(mp1) == EN_ID3_TRACK && SHORT2FROMMP(mp1) == EN_CHANGE )
+      {
+        // read the track immediately to verify the syntax
+        int tmp_track;
+        char buf[4];
+        int len1, len2;
+        DECODER_INFO* data = (DECODER_INFO*)WinQueryWindowPtr( hwnd, 0 );
+
+        len1 = WinQueryWindowText( HWNDFROMMP(mp2), sizeof buf, buf );
+        if ( len1 != 0 &&                                       // empty is always OK
+             ( sscanf( buf, "%u%n", &tmp_track, &len2 ) != 1 || // can't read
+               len1      != len2                             || // more input
+               tmp_track >= 256 ) )                             // too large
+        {
+          // bad input, restore last value TODO!!!!!
+          WinSetDlgItemText( hwnd, EN_ID3_TRACK, data->track );
+        } else
+        {
+          // OK, update last value
+          strcpy( data->track, buf ); 
+        }  
+    }*/
+      
+    case UM_LOAD:
+    { ID3_EDIT_TAGINFO* data = (ID3_EDIT_TAGINFO*)WinQueryWindowPtr( hwnd, QWL_USER );
+      const ID3V1_TAG* tagv1;
+      ULONG encv1;
+      // clear old values to have a clean start
+      PMRASSERT(WinSetDlgItemText(hwnd, EN_TITLE,   ""));
+      PMRASSERT(WinSetDlgItemText(hwnd, EN_ARTIST,  ""));
+      PMRASSERT(WinSetDlgItemText(hwnd, EN_ALBUM,   ""));
+      PMRASSERT(WinSetDlgItemText(hwnd, EN_TRACK,   ""));
+      PMRASSERT(WinSetDlgItemText(hwnd, EN_DATE,    ""));
+      PMRASSERT(lb_select(hwnd, CO_GENRE, 0));
+      PMRASSERT(WinSetDlgItemText(hwnd, EN_COMMENT, ""));
+      switch (SHORT1FROMMP(mp1)) // mode
+      {case 0: // load current
+        tagv1 = &data->tagv1;
+        encv1 = data->encoding_tagv1;
+        break;
+       case 1: // load original
+        tagv1 = data->tagv1_old;
+        // Do NOT use the old value in this case.
+        encv1 = dlg_query_charset_listbox(WinWindowFromID(hwnd, CO_ENCODING))->codepage;
+        break;
+       case 2: // reset
+        tagv1 = NULL;
+        encv1 = tag_id3v1_charset;
+      }
+      id3v1_load( hwnd, tagv1, encv1 );
+      dlg_set_charset_listbox(WinWindowFromID(hwnd, CO_ENCODING), encv1);
+      WinCheckButton(hwnd, CB_WRITE, data->write_tagv1);
+      return 0;
+    }
+    case UM_STORE:
+    { ID3_EDIT_TAGINFO* data = (ID3_EDIT_TAGINFO*)WinQueryWindowPtr( hwnd, QWL_USER );
+      const char* msg;
+      unsigned track;
+      id3_strip_all( hwnd );
+      // validate
+      msg = id3_validatetrack( hwnd, &track, NULL );
+      if (msg)
+        return MRFROMP(msg);
+      msg = id3_validatedate( hwnd, NULL );
+      if (msg)
+        return MRFROMP(msg);
+      if (track && WinQueryDlgItemTextLength(hwnd, EN_COMMENT) > 28)
+        return "The Comment field of ID3V1.1 tags with a track number is restricted to 28 characters.";
+      // store
+      data->encoding_tagv1 = dlg_query_charset_listbox(WinWindowFromID(hwnd, CO_ENCODING))->codepage;
+      data->write_tagv1 = WinQueryButtonCheckstate(hwnd, CB_WRITE);
+      id3v1_store( hwnd, &data->tagv1, data->encoding_tagv1 );
+      return 0; // OK
+    }
+    case UM_COPY:
+    { ID3_EDIT_TAGINFO* data = (ID3_EDIT_TAGINFO*)WinQueryWindowPtr( hwnd, QWL_USER );
+      id3v2_load( hwnd, data->tagv2, data->encoding_tagv2 );
+      // Restrict to Version 1
+      return 0;
+    }
+  }
+  return WinDefDlgProc( hwnd, msg, mp1, mp2 );
+}
+
+static MRESULT EXPENTRY
+id3v2_page_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
+{ DEBUGLOG2(("mpg123:id3v1_page_dlg_proc(%p, %d, %p, %p)\n", hwnd, msg, mp1, mp2));
+  switch( msg )
+  { case WM_INITDLG:
+      dlg_populate_charset_listbox( WinWindowFromID( hwnd, CO_ENCODING ), ch_list, ch_list_size - ch_list_dbcs, tag_read_id3v2_charset );
+      break;
+
+    case WM_COMMAND:
+      switch ( COMMANDMSG(&msg)->cmd )
+      { case PB_UNDO:
+          PMRASSERT( WinPostMsg( hwnd, UM_LOAD, MPFROMSHORT( 1 ), 0 ));
+          break;
+
+        case PB_CLEAR:
+          PMRASSERT( WinPostMsg( hwnd, UM_LOAD, MPFROMSHORT( 2 ), 0 ));
+          break;
+
+        case PB_COPY:
+          PMRASSERT( WinPostMsg( hwnd, UM_COPY, 0, 0 ));
+          break;
+      }
+      return 0;
+
+    case UM_LOAD:
+    { ID3_EDIT_TAGINFO* data = (ID3_EDIT_TAGINFO*)WinQueryWindowPtr( hwnd, QWL_USER );
+      const ID3V2_TAG* tagv2;
+      ULONG encv2;
+      // clear old values to have a clean start
+      PMRASSERT(WinSetDlgItemText(hwnd, EN_TITLE,   ""));
+      PMRASSERT(WinSetDlgItemText(hwnd, EN_ARTIST,  ""));
+      PMRASSERT(WinSetDlgItemText(hwnd, EN_ALBUM,   ""));
+      PMRASSERT(WinSetDlgItemText(hwnd, EN_TRACK,   ""));
+      PMRASSERT(WinSetDlgItemText(hwnd, EN_DATE,    ""));
+      PMRASSERT(WinSetDlgItemText(hwnd, CO_GENRE,   ""));
+      PMRASSERT(WinSetDlgItemText(hwnd, EN_COMMENT, ""));
+      switch (SHORT1FROMMP(mp1)) // mode
+      {case 0: // load current
+        tagv2 = data->tagv2;
+        encv2 = data->encoding_tagv2;
+        break;
+       case 1: // load original
+        tagv2 = data->tagv2_old;
+        // Do NOT use the old value in this case.
+        encv2 = dlg_query_charset_listbox(WinWindowFromID(hwnd, CO_ENCODING))->codepage;
+        break;
+       case 2: // reset
+        tagv2 = NULL;
+        encv2 = tag_read_id3v2_charset;
+      }
+      id3v2_load( hwnd, tagv2, encv2 );
+      dlg_set_charset_listbox(WinWindowFromID(hwnd, CO_ENCODING), encv2);
+      WinCheckButton(hwnd, CB_WRITE, data->write_tagv2);
+      return 0;
+    }
+    case UM_STORE:
+    { ID3_EDIT_TAGINFO* data = (ID3_EDIT_TAGINFO*)WinQueryWindowPtr( hwnd, QWL_USER );
+      const char* msg;
+      unsigned track, total;
+      id3_strip_all( hwnd );
+      // validate
+      msg = id3_validatetrack( hwnd, &track, &total );
+      if (msg)
+        return MRFROMP(msg);
+      msg = id3_validatedate( hwnd, NULL );
+      if (msg)
+        return MRFROMP(msg);
+      // store
+      data->encoding_tagv2 = dlg_query_charset_listbox(WinWindowFromID(hwnd, CO_ENCODING))->codepage;
+      data->write_tagv2 = WinQueryButtonCheckstate(hwnd, CB_WRITE);
+      id3v2_store( hwnd, data->tagv2, tag_save_id3v2_encoding );
+      return 0; // OK
+    }
+    case UM_COPY:
+    { ID3_EDIT_TAGINFO* data = (ID3_EDIT_TAGINFO*)WinQueryWindowPtr( hwnd, QWL_USER );
+      id3v1_load( hwnd, &data->tagv1, data->encoding_tagv1 );
+      return 0;
+    }
   }
   return WinDefDlgProc( hwnd, msg, mp1, mp2 );
 }
@@ -1228,21 +1817,70 @@ id3_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
   DEBUGLOG2(("mpg123:id3_dlg_proc(%p, %d, %p, %p)\n", hwnd, msg, mp1, mp2));
   switch( msg )
   {
+    case WM_QUERYTRACKINFO:
+    { MRESULT mr = WinDefDlgProc( hwnd, msg, mp1, mp2 );
+      TRACKINFO* pti = (TRACKINFO*)mp2;
+      if (pti->ptlMinTrackSize.x < 400)
+        pti->ptlMinTrackSize.x = 400;
+      if (pti->ptlMinTrackSize.y < 400)
+        pti->ptlMinTrackSize.y = 400;
+      return mr;
+    }     
     case WM_WINDOWPOSCHANGED:
     {
-      PSWP pswp = (PSWP)mp1;
-      if ( (pswp[0].fl & SWP_SIZE) && pswp[1].cx ) {
-        // move/resize all controls
-        LONG dx = pswp[0].cx - pswp[1].cx;
-        LONG dy = pswp[0].cy - pswp[1].cy;
-        SWP swp_temp;
-        HWND hwnd_nb = WinWindowFromID( hwnd, NB_ID3TAG );
-        
-        WinQueryWindowPos( hwnd_nb, &swp_temp );
-        WinSetWindowPos( hwnd_nb, NULLHANDLE, 0, 0, swp_temp.cx + dx, swp_temp.cy + dy, SWP_SIZE );
-      }
+      SWP* pswp = (SWP*)mp1;
+      if ( (pswp[0].fl & SWP_SIZE) && pswp[1].cx )
+        nb_adjust( hwnd, pswp );
       break;
     }
+    case WM_CONTROL:
+      switch (SHORT1FROMMP(mp1))
+      { case NB_ID3TAG:
+          if (SHORT2FROMMP(mp1) == BKN_PAGESELECTEDPENDING)
+          { PAGESELECTNOTIFY* psn = (PAGESELECTNOTIFY*)PVOIDFROMMP(mp2);
+            if (psn->ulPageIdCur)
+            { HWND nb = (HWND)WinSendDlgItemMsg(hwnd, NB_ID3TAG, BKM_QUERYPAGEWINDOWHWND, MPFROMLONG(psn->ulPageIdCur), 0);
+              PMASSERT(nb != NULLHANDLE && nb != BOOKERR_INVALID_PARAMETERS);
+              const char* msg = (const char*)WinSendMsg(nb, UM_STORE, 0, 0);
+              if (msg)
+              { psn->ulPageIdNew = NULLHANDLE;
+                PMRASSERT(WinPostMsg(hwnd, UM_ERROR, MPFROMP(msg), MPFROMP(NULL)));
+                break;
+              }
+              if (psn->ulPageIdNew) 
+              { HWND nb = (HWND)WinSendDlgItemMsg(hwnd, NB_ID3TAG, BKM_QUERYPAGEWINDOWHWND, MPFROMLONG(psn->ulPageIdNew), 0);
+                PMASSERT(nb != NULLHANDLE && nb != BOOKERR_INVALID_PARAMETERS);
+                PMRASSERT(WinPostMsg(nb, UM_LOAD, MPFROMSHORT(0), 0));
+              }
+            }
+          }
+          break;
+      }
+      return 0;
+      
+    case WM_COMMAND:
+      switch (SHORT1FROMMP(mp1))
+      { case DID_OK:
+        { // save and validate current page
+          HWND nb = WinWindowFromID(hwnd, NB_ID3TAG);
+          ULONG id = LONGFROMMR(WinSendMsg(nb, BKM_QUERYPAGEID, 0, MPFROM2SHORT(BKA_TOP, 0)));
+          const char* msg;
+          PMASSERT(id != NULLHANDLE && id != BOOKERR_INVALID_PARAMETERS);
+          nb = (HWND)WinSendMsg(nb, BKM_QUERYPAGEWINDOWHWND, MPFROMLONG(id), 0);
+          PMASSERT(nb != NULLHANDLE && nb != BOOKERR_INVALID_PARAMETERS);
+          msg = (const char*)WinSendMsg(nb, UM_STORE, 0, 0);
+          if (msg)
+          { PMRASSERT(WinPostMsg(hwnd, UM_ERROR, MPFROMP(msg), MPFROMP(NULL)));
+            return 0; // Reject the command
+          }
+          break;
+        }
+      }
+      break;
+      
+    case UM_ERROR:
+      WinMessageBox( HWND_DESKTOP, hwnd, (PSZ)mp1, (PSZ)mp2, DLG_ID3TAG, MB_CANCEL|MB_ERROR|MB_MOVEABLE );
+      return 0;
   }
   return WinDefDlgProc( hwnd, msg, mp1, mp2 );
 }
@@ -1253,23 +1891,61 @@ ULONG DLLENTRY decoder_editmeta( HWND owner, const char* filename )
   char    caption[_MAX_FNAME] = "ID3 Tag Editor - ";
   HWND    hwnd;
   HWND    book;
-  HWND    page01;
+  HWND    page01, page02, page03;
   MRESULT id;
-  DECODER_INFO old_tag;
-  DECODER_INFO new_tag;
   HMODULE module;
   ULONG   rc;
+  DECODER_STRUCT* w;
+  ID3_EDIT_TAGINFO workarea;
+  ID3V2_FRAME* frame;
+  int     i; 
 
   DEBUGLOG(("mpg123:decoder_editmeta(%p, %s)\n", owner, filename));
 
-  memset(&old_tag, 0, sizeof old_tag);
-  memset(&new_tag, 0, sizeof new_tag);
   // read tag
-  rc = decoder_fileinfo(filename, &old_tag);
-  if (rc != PLUGIN_OK)
-  { DEBUGLOG(("mpg123:decoder_editmeta decoder_fileinfo failed with rc = %u\n", rc));
-    return rc;
+  if( decoder_init((void**)(void*)&w ) != PLUGIN_OK ) {
+    return PLUGIN_NO_PLAY;
   }
+
+  if(( rc = plg_open_file( w, filename, "rbU" )) != 0 ) {
+    decoder_uninit( w );
+    return rc == -1 ? PLUGIN_NO_PLAY : PLUGIN_NO_READ;
+  }
+
+  // Don't know what this mutex is good for
+  DosRequestMutexSem( w->mutex, SEM_INDEFINITE_WAIT );
+
+  workarea.tagv1_old = &w->mpeg.tagv1;
+  workarea.encoding_tagv1_old = tag_read_id3v1_autoch
+    ? detect_id3v1_codepage(&w->mpeg.tagv1, tag_id3v1_charset)
+    : tag_id3v1_charset;
+  workarea.tagv1 = *workarea.tagv1_old;
+  workarea.encoding_tagv1 = workarea.encoding_tagv1_old;
+  workarea.write_tagv1 = TRUE; // TODO:
+
+  { ID3V2_TAG* tag = id3v2_new_tag();
+    // ID3V2: the current tag gets the new one,
+    // some of the required information is put into the old_tag for backup purposes.
+    workarea.tagv2 = w->mpeg.tagv2;
+    workarea.encoding_tagv2_old = tag_read_id3v2_charset;
+    if (workarea.tagv2)
+    { id3v2_copy_frame(tag, id3v2_get_frame(workarea.tagv2, ID3V2_TIT2, 1)); 
+      id3v2_copy_frame(tag, id3v2_get_frame(workarea.tagv2, ID3V2_TPE1, 1)); 
+      id3v2_copy_frame(tag, id3v2_get_frame(workarea.tagv2, ID3V2_TALB, 1));
+      for ( i = 1; (frame = id3v2_get_frame(workarea.tagv2, ID3V2_COMM, i)) != NULL ; i++)
+        id3v2_copy_frame(tag, frame);
+      id3v2_copy_frame(tag, id3v2_get_frame(workarea.tagv2, ID3V2_TRCK, 1)); 
+      id3v2_copy_frame(tag, id3v2_get_frame(workarea.tagv2, ID3V2_TDRC, 1)); 
+      id3v2_copy_frame(tag, id3v2_get_frame(workarea.tagv2, ID3V2_TCON, 1)); 
+      id3v2_copy_frame(tag, id3v2_get_frame(workarea.tagv2, ID3V2_TCOP, 1));
+      workarea.write_tagv2 = TRUE;
+    } else
+      workarea.write_tagv2 = FALSE;
+    workarea.tagv2_old = tag;
+    workarea.encoding_tagv2 = workarea.encoding_tagv2_old;
+  }
+
+  DosReleaseMutexSem( w->mutex );
 
   DosQueryModFromEIP( &module, &rc, 0, NULL, &rc, (ULONG)&decoder_editmeta ); 
   hwnd = WinLoadDlg( HWND_DESKTOP, owner, id3_dlg_proc, module, DLG_ID3TAG, 0 );
@@ -1280,26 +1956,29 @@ ULONG DLLENTRY decoder_editmeta( HWND owner, const char* filename )
   book = WinWindowFromID( hwnd, NB_ID3TAG );
   do_warpsans( book );
 
-  WinSendMsg( book, BKM_SETNOTEBOOKCOLORS, MPFROMLONG(SYSCLR_FIELDBACKGROUND),
-              MPFROMSHORT(BKA_BACKGROUNDPAGECOLORINDEX));
+  //WinSendMsg( book, BKM_SETNOTEBOOKCOLORS, MPFROMLONG(SYSCLR_FIELDBACKGROUND),
+  //            MPFROMSHORT(BKA_BACKGROUNDPAGECOLORINDEX));
 
-  page01 = WinLoadDlg( book, book, id3_page_dlg_proc, module, DLG_ID3V10, 0 );
-  id     = WinSendMsg( book, BKM_INSERTPAGE, MPFROMLONG(0),
-                       MPFROM2SHORT( BKA_AUTOPAGESIZE | BKA_MAJOR, BKA_LAST ));
+  page01 = WinLoadDlg( book, book, id3all_page_dlg_proc, module, DLG_ID3ALL, 0 );
   do_warpsans( page01 );
+  WinSetWindowPtr( page01, QWL_USER, &workarea );
+  PMRASSERT( nb_append_tab( book, page01, "All Tags", NULL, 0 ));
 
-  WinSendMsg ( book, BKM_SETPAGEWINDOWHWND, MPFROMLONG(id), MPFROMLONG( page01 ));
-  WinSendMsg ( book, BKM_SETTABTEXT, MPFROMLONG( id ), MPFROMP( "ID3 Tag" ));
-  WinSetOwner( page01, book );
+  page02 = WinLoadDlg( book, book, id3v1_page_dlg_proc, module, DLG_ID3V1, 0 );
+  do_warpsans( page02 );
+  WinSetWindowPtr( page02, QWL_USER, &workarea );
+  PMRASSERT( nb_append_tab( book, page02, "ID3V1", NULL, 0 ));
 
-  WinSetWindowPtr( page01, 0, &old_tag );
-  WinPostMsg( page01, WM_COMMAND,
-              MPFROMSHORT( PB_ID3_UNDO ), MPFROM2SHORT( CMDSRC_OTHER, FALSE ));
+  page03 = WinLoadDlg( book, book, id3v2_page_dlg_proc, module, DLG_ID3V2, 0 );
+  do_warpsans( page03 );
+  WinSetWindowPtr( page03, QWL_USER, &workarea );
+  PMRASSERT( nb_append_tab( book, page03, "ID3V2", NULL, 0 ));
 
+  PMRASSERT(WinPostMsg(hwnd, UM_LOAD, MPFROMSHORT(1), 0));
   rc = WinProcessDlg( hwnd );
   DEBUGLOG(("mpg123:decoder_editmeta: dlg completed - %u, %p %p (%p)\n", rc, hwnd, page01, WinGetLastError(0)));
 
-  if ( rc == DID_OK )
+  /*if ( rc == DID_OK )
   { WinQueryDlgItemText( page01, EN_ID3_TITLE,   sizeof( new_tag.title   ), new_tag.title   );
     WinQueryDlgItemText( page01, EN_ID3_ARTIST,  sizeof( new_tag.artist  ), new_tag.artist  );
     WinQueryDlgItemText( page01, EN_ID3_ALBUM,   sizeof( new_tag.album   ), new_tag.album   );
@@ -1307,12 +1986,15 @@ ULONG DLLENTRY decoder_editmeta( HWND owner, const char* filename )
     WinQueryDlgItemText( page01, EN_ID3_YEAR,    sizeof( new_tag.year    ), new_tag.year    );
     WinQueryDlgItemText( page01, EN_ID3_TRACK,   sizeof( new_tag.track   ), new_tag.track   );
     WinQueryDlgItemText( page01, CB_ID3_GENRE,   sizeof( new_tag.genre   ), new_tag.genre   );
-  }
+  }*/
 
-  WinDestroyWindow( page01 );
   WinDestroyWindow( hwnd   );
 
-  if ( rc == DID_OK )
+  // TODO: cleanup in all cases
+  plg_close_file( w );
+  decoder_uninit( w );
+
+  /*if ( rc == DID_OK )
   { DEBUGLOG(("mpg123:decoder_editmeta: new\n\t%s\n\t%s\n\t%s\n\t%s\n\t%s\n\t%s, %s\n",
       new_tag.title, new_tag.artist, new_tag.album, new_tag.comment, new_tag.year, new_tag.genre, new_tag.track));
 
@@ -1324,9 +2006,9 @@ ULONG DLLENTRY decoder_editmeta( HWND owner, const char* filename )
         strcmp( old_tag.genre,   new_tag.genre   ) != 0 ||
         strcmp( old_tag.track,   new_tag.track   ) != 0 )
     { // save modified tag
-      return decoder_saveinfo( filename, &new_tag ) ? 0 : 500;
+      return decoder_saveinfo( filename, &new_tag ) ? 500 : 0;
     }
-  }
+  }*/
   // Cancel or not modified
   return 300;
 }
@@ -1340,6 +2022,7 @@ plugin_query( PLUGIN_QUERYPARAM* param )
   param->desc         = "MP3 Decoder 1.25";
   param->configurable = TRUE;
 
+  init_id3v2_ch_list();
   load_ini();
   return 0;
 }

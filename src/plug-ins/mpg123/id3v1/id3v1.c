@@ -44,21 +44,6 @@
 #include "genre.h"
 
 
-static int id3v1_read_charset = CH_CP_NONE;
-static int id3v1_save_charset = CH_CP_NONE;
-
-/* Sets the writing characters set. */
-void
-id3v1_set_save_charset( int charset ) {
-  id3v1_save_charset = charset;
-}
-
-/* Sets the reading characters set. */
-void
-id3v1_set_read_charset( int charset ) {
-  id3v1_read_charset = charset;
-}
-
 /* Fetch string from tag. */
 static void
 safecopy( char* target, const char* source, int size )
@@ -165,7 +150,7 @@ id3v1_wipe_tag( XFILE* x )
 
 /* Returns a specified field of the given tag. */
 char*
-id3v1_get_string( ID3V1_TAG* tag, int type, char* result, int size )
+id3v1_get_string( const ID3V1_TAG* tag, ID3V1_TAG_COMP type, char* result, int size, int charset )
 {
   *result = 0;
 
@@ -176,22 +161,22 @@ id3v1_get_string( ID3V1_TAG* tag, int type, char* result, int size )
     {
       case ID3V1_TITLE:
         safecopy( result, tag->title, min( size, sizeof( tag->title )));
-        ch_convert( id3v1_read_charset, result, CH_CP_NONE, result, size, 0 );
+        ch_convert( charset, result, CH_CP_NONE, result, size, 0 );
         break;
 
       case ID3V1_ARTIST:
         safecopy( result, tag->artist, min( size, sizeof( tag->artist )));
-        ch_convert( id3v1_read_charset, result, CH_CP_NONE, result, size, 0 );
+        ch_convert( charset, result, CH_CP_NONE, result, size, 0 );
         break;
 
       case ID3V1_ALBUM:
         safecopy( result, tag->album, min( size, sizeof( tag->album )));
-        ch_convert( id3v1_read_charset, result, CH_CP_NONE, result, size, 0 );
+        ch_convert( charset, result, CH_CP_NONE, result, size, 0 );
         break;
 
       case ID3V1_YEAR:
         safecopy( result, tag->year, min( size, sizeof( tag->year )));
-        ch_convert( id3v1_read_charset, result, CH_CP_NONE, result, size, 0 );
+        ch_convert( charset, result, CH_CP_NONE, result, size, 0 );
         break;
 
       // Since all non-filled fields must be padded with zeroed bytes
@@ -208,22 +193,25 @@ id3v1_get_string( ID3V1_TAG* tag, int type, char* result, int size )
       case ID3V1_COMMENT:
         if( tag->empty || !tag->track ) {
           safecopy( result, tag->comment, min( size, 30 ));
-          ch_convert( id3v1_read_charset, result, CH_CP_NONE, result, size, 0 );
+          ch_convert( charset, result, CH_CP_NONE, result, size, 0 );
         } else {
           safecopy( result, tag->comment, min( size, sizeof( tag->comment )));
-          ch_convert( id3v1_read_charset, result, CH_CP_NONE, result, size, 0 );
+          ch_convert( charset, result, CH_CP_NONE, result, size, 0 );
         }
         break;
 
       case ID3V1_TRACK:
         if( !tag->empty && tag->track ) {
           snprintf( result, size, "%02d", tag->track );
+          // Well, we don't have to convert numbers unless someone want's to store
+          // the tags ad EBCDIC or something even worse.
         }
         break;
 
       case ID3V1_GENRE:
         if( tag->genre <= GENRE_LARGEST ) {
           safecopy( result, genres[ tag->genre ], size );
+          // We don't need to convert these 7 bit ASCII texts.
         } else if ( tag->genre != 0xFF )
           snprintf( result, size, "#%u", tag->genre );
         break;
@@ -235,7 +223,7 @@ id3v1_get_string( ID3V1_TAG* tag, int type, char* result, int size )
 
 /* Sets a specified field of the given tag. */
 void
-id3v1_set_string( ID3V1_TAG* tag, int type, const char* source )
+id3v1_set_string( ID3V1_TAG* tag, ID3V1_TAG_COMP type, const char* source, int charset )
 {
   char encoded[31];
 
@@ -243,27 +231,27 @@ id3v1_set_string( ID3V1_TAG* tag, int type, const char* source )
     switch( type )
     {
       case ID3V1_TITLE:
-        ch_convert( CH_CP_NONE, source, id3v1_save_charset, encoded, sizeof( encoded ), 0);
+        ch_convert( CH_CP_NONE, source, charset, encoded, sizeof( encoded ), 0);
         spacecopy( tag->title, encoded, sizeof( tag->title ));
         break;
 
       case ID3V1_ARTIST:
-        ch_convert( CH_CP_NONE, source, id3v1_save_charset, encoded, sizeof( encoded ), 0);
+        ch_convert( CH_CP_NONE, source, charset, encoded, sizeof( encoded ), 0);
         spacecopy( tag->artist, encoded, sizeof( tag->artist ));
         break;
 
       case ID3V1_ALBUM:
-        ch_convert( CH_CP_NONE, source, id3v1_save_charset, encoded, sizeof( encoded ), 0);
+        ch_convert( CH_CP_NONE, source, charset, encoded, sizeof( encoded ), 0);
         spacecopy( tag->album, encoded, sizeof( tag->album ));
         break;
 
       case ID3V1_YEAR:
-        ch_convert( CH_CP_NONE, source, id3v1_save_charset, encoded, sizeof( encoded ), 0);
+        ch_convert( CH_CP_NONE, source, charset, encoded, sizeof( encoded ), 0);
         spacecopy( tag->year, encoded, sizeof( tag->year ));
         break;
 
       case ID3V1_COMMENT:
-        ch_convert( CH_CP_NONE, source, id3v1_save_charset, encoded, sizeof( encoded ), 0);
+        ch_convert( CH_CP_NONE, source, charset, encoded, sizeof( encoded ), 0);
         spacecopy( tag->comment, encoded, sizeof( tag->comment ));
         break;
 

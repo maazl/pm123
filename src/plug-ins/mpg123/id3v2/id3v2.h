@@ -312,11 +312,14 @@ int id3v2_set_tag( XFILE* file, ID3V2_TAG* id3, const char* savename );
    of the indicated type.  If tag contains several frames of the
    indicated type, the third argument tells which of the frames to
    return. */
-ID3V2_FRAME* id3v2_get_frame( ID3V2_TAG* id3, uint32_t type, int num );
+ID3V2_FRAME* id3v2_get_frame( const ID3V2_TAG* id3, uint32_t type, int num );
 
 /* Add a new frame to the ID3 tag. Return a pointer to the new
    frame, or NULL if an error occured. */
 ID3V2_FRAME* id3v2_add_frame( ID3V2_TAG* id3, uint32_t type );
+
+/* Copy the given frame into another tag */
+ID3V2_FRAME* id3v2_copy_frame( ID3V2_TAG* id3, const ID3V2_FRAME* frame );
 
 /* Read next frame from the indicated ID3 tag. Return 0 upon
    success, or -1 if an error occured. */
@@ -334,24 +337,14 @@ void id3v2_delete_all_frames( ID3V2_TAG* id3 );
 void id3v2_clean_frame( ID3V2_FRAME* frame );
 
 /* Is the specified frame a text based frame. */
-int id3v2_is_text_frame( ID3V2_FRAME* frame );
+int id3v2_is_text_frame( const ID3V2_FRAME* frame );
 /* Return string contents of frame. */
-char* id3v2_get_string( ID3V2_FRAME* frame, char* result, int size );
+char* id3v2_get_string_ex( ID3V2_FRAME* frame, char* result, int size, unsigned def_cp );
+#define id3v2_get_string( frame, result, size ) id3v2_get_string_ex( frame, result, size, 1004 )
 /* Get description part of a frame. */
 char* id3v2_get_description( ID3V2_FRAME* frame, char* result, int size );
 /* Set text for the indicated frame. */
-int id3v2_set_string( ID3V2_FRAME* frame, const char* source );
-
-/* Sets the reading characters set for plain text frames of the ID3 tag. */
-void id3v2_set_read_charset( int charset );
-/* Gets the reading characters set for plain text frames of the ID3 tag. */
-int  id3v2_get_read_charset( void );
-/* Gets the writing encoding of the ID3 tag. */
-int8_t id3v2_get_save_encoding( void );
-/* Sets the writing characters set for plain text frames of the ID3 tag. */
-void id3v2_set_save_charset( int charset, int bom );
-/* Gets the writing characters set for plain text frames of the ID3 tag. */
-int  id3v2_get_save_charset( void );
+int id3v2_set_string( ID3V2_FRAME* frame, const char* source, int8_t encoding );
 
 #endif /* ID3V2_H */
 

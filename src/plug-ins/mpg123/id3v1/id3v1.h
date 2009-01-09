@@ -38,13 +38,15 @@
 extern "C" {
 #endif
 
-#define ID3V1_TITLE   1
-#define ID3V1_ARTIST  2
-#define ID3V1_ALBUM   3
-#define ID3V1_YEAR    4
-#define ID3V1_COMMENT 5
-#define ID3V1_TRACK   6
-#define ID3V1_GENRE   7
+typedef enum
+{ ID3V1_TITLE = 1,
+  ID3V1_ARTIST,
+  ID3V1_ALBUM,
+  ID3V1_YEAR,
+  ID3V1_COMMENT,
+  ID3V1_TRACK,
+  ID3V1_GENRE
+} ID3V1_TAG_COMP;
 
 typedef struct _ID3V1_TAG
 {
@@ -80,14 +82,9 @@ int id3v1_wipe_tag( XFILE* x );
 void id3v1_clean_tag( ID3V1_TAG* tag );
 
 /* Returns a specified field of the given tag. */
-char* id3v1_get_string( ID3V1_TAG* tag, int type, char* result, int size );
+char* id3v1_get_string( const ID3V1_TAG* tag, ID3V1_TAG_COMP type, char* result, int size, int charset );
 /* Sets a specified field of the given tag. */
-void  id3v1_set_string( ID3V1_TAG* tag, int type, const char* source );
-
-/* Sets the writing characters set. */
-void  id3v1_set_save_charset( int charset );
-/* Sets the reading characters set. */
-void  id3v1_set_read_charset( int charset );
+void  id3v1_set_string( ID3V1_TAG* tag, ID3V1_TAG_COMP type, const char* source, int charset );
 
 #ifdef __cplusplus
 }

@@ -38,52 +38,6 @@
 #include "id3v2.h"
 #include "id3v2_header.h"
 
-static int8_t id3v2_save_encoding = ID3V2_ENCODING_UTF16;
-static int    id3v2_read_charset  = 819; // ISO8859-1
-static int    id3v2_save_charset  = 819; // ISO8859-1
-
-/* Sets the writing charcters set for plain text frames of the ID3 tag. */
-void
-id3v2_set_save_charset( int charset, int bom )
-{
-  id3v2_save_charset = charset;
-
-  switch( charset ) {
-    case 1208:
-      id3v2_save_encoding = ID3V2_ENCODING_UTF8;
-      break;
-    case 1200:
-      id3v2_save_encoding = bom ? ID3V2_ENCODING_UTF16_BOM : ID3V2_ENCODING_UTF16;
-      break;
-    default:
-      id3v2_save_encoding = ID3V2_ENCODING_ISO_8859_1;
-      break;
-  }
-}
-
-/* Gets the writing charcters set for plain text frames of the ID3 tag. */
-int
-id3v2_get_save_charset( void ) {
-  return id3v2_save_charset;
-}
-
-/* Gets the writing encoding of the ID3 tag. */
-int8_t
-id3v2_get_save_encoding( void ) {
-  return id3v2_save_encoding;
-}
-
-/* Sets the reading characters set for plain text frames of the ID3 tag. */
-void
-id3v2_set_read_charset( int charset ) {
-  id3v2_read_charset = charset;
-}
-
-/* Gets the reading characters set for plain text frames of the ID3 tag. */
-int
-id3v2_get_read_charset( void ) {
-  return id3v2_read_charset;
-}
 
 /* Seek `offset' bytes forward in the indicated ID3-tag. Return 0
    upon success, or -1 if an error occured. */
