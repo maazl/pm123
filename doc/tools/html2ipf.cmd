@@ -867,6 +867,7 @@ doTagH_begin:
   then do; call NewLine; call PutToken '.br'; end;*/
  call NewLine;
  call doOpenP 1;
+ call doSetEmphasis 'B';
 return;
 
 doTagH1:
@@ -899,6 +900,7 @@ doTag!H3:
 doTag!H4:
 doTag!H5:
 doTag!H6:
+ call doResetEmphasis 'B';
  call SetFont Global.DefaultFont;
 /* if \Global.IsTable
   then do;
