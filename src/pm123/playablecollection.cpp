@@ -840,7 +840,7 @@ bool PlayableCollection::InsertItem(const PlayableSlice& item, PlayableInstance*
   // Check whether the parameter before is still valid
   if (before && !before->IsParent(this))
     return false;
-  InfoFlags what = BeginUpdate(IF_Other|IF_Phys);
+  InfoFlags what = BeginUpdate(IF_Other|IF_Phys|IF_Usage);
   if ((what & (IF_Other|IF_Phys)) != (IF_Other|IF_Phys))
   { EndUpdate(what); // Object locked by pending loadinfo
     return false;
@@ -877,7 +877,7 @@ bool PlayableCollection::MoveItem(PlayableInstance* item, PlayableInstance* befo
   // Check whether the parameter before is still valid
   if (!item->IsParent(this) || (before && !before->IsParent(this)))
     return false;
-  InfoFlags what = BeginUpdate(IF_Other);
+  InfoFlags what = BeginUpdate(IF_Other|IF_Usage);
   if ((what & IF_Other) == 0)
   { EndUpdate(what); // Object locked by pending loadinfo
     return false;
@@ -899,7 +899,7 @@ bool PlayableCollection::RemoveItem(PlayableInstance* item)
   // Check whether the item is still valid
   if (item && !item->IsParent(this))
     return false;
-  InfoFlags what = BeginUpdate(IF_Other|IF_Phys);
+  InfoFlags what = BeginUpdate(IF_Other|IF_Phys|IF_Usage);
   if ((what & (IF_Other|IF_Phys)) != (IF_Other|IF_Phys))
   { EndUpdate(what); // Object locked by pending loadinfo
     return false;
@@ -923,7 +923,7 @@ bool PlayableCollection::RemoveItem(PlayableInstance* item)
 bool PlayableCollection::Clear()
 { DEBUGLOG(("PlayableCollection(%p{%s})::Clear()\n", this, GetURL().getShortName().cdata()));
   Lock lock(*this);
-  InfoFlags what = BeginUpdate(IF_Other|IF_Phys);
+  InfoFlags what = BeginUpdate(IF_Other|IF_Phys|IF_Usage);
   if ((what & (IF_Other|IF_Phys)) != (IF_Other|IF_Phys))
   { EndUpdate(what); // Object locked by pending loadinfo
     return false;
@@ -956,7 +956,7 @@ bool PlayableCollection::Sort(ItemComparer comp)
   Lock lock(*this);
   if (List.prev(NULL) == List.next(NULL))
     return true; // Empty or one element lists are always sorted.
-  InfoFlags what = BeginUpdate(IF_Other);
+  InfoFlags what = BeginUpdate(IF_Other|IF_Usage);
   if ((what & IF_Other) == 0)
   { EndUpdate(what); // Object locked by pending loadinfo
     return false;
@@ -981,7 +981,7 @@ bool PlayableCollection::Shuffle()
   Lock lock(*this);
   if (List.prev(NULL) == List.next(NULL))
     return true; // Empty or one element lists are always sorted.
-  InfoFlags what = BeginUpdate(IF_Other);
+  InfoFlags what = BeginUpdate(IF_Other|IF_Usage);
   if ((what & IF_Other) == 0)
   { EndUpdate(what); // Object locked by pending loadinfo
     return false;
@@ -1159,9 +1159,14 @@ bool PlayableCollection::Save(const url123& URL, save_options opt)
 
   // notifications
   int_ptr<Playable> pp = FindByURL(URL);
-  if (pp)
-  { ASSERT(pp->GetFlags() & Enumerable);
-    ((PlayableCollection&)*pp).NotifySourceChange();
+  if (pp && pp->GetFlags() & Enumerable)
+  { ((PlayableCollection&)*pp).NotifySourceChange();
+    if (pp == this)
+    { Lock lock(*this);
+      ASSERT(BeginUpdate(IF_Usage));
+      UpdateModified(false);
+      EndUpdate(IF_Usage);
+    }
   }
   return true;
 }
