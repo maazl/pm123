@@ -210,7 +210,7 @@ static void ControllerQCB(const queue<Ctrl::ControlCommand*>::qentry& entry, voi
      case Ctrl::Cmd_Repeat:
       cmdname = "Repeat";
      flagcmd:
-      { static const char* flags[4][8] = { "reset", "on", "off", "toggle" };
+      { static const char flags[4][8] = { "reset", "on", "off", "toggle" };
         snprintf(buf+1, sizeof buf -1, "%s %s%s", cmdname,
           cmd->Cmd == Ctrl::Cmd_Scan && cmd->Flags&4 ? "rewind " : "", flags[cmd->Flags&3]);
       }
