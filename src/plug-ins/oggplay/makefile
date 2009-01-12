@@ -29,7 +29,7 @@ vcedit$(CO):  vcedit.c  vcedit.h
 clean:  $(MDUMMY)
 	-@del oggplay$(LBI) oggplay.dll $(OBJECTS) 2> nul
 
-oggplay.c:	..\..\vrb123\include\vorbis/vorbisfile.h ..\..\include\decoder_plug.h ..\..\include\plugin.h ..\..\utils\utilfct.h ..\..\utils\snprintf.h ..\..\utils\debuglog.h oggplay.h vcedit.h
+oggplay.c:	..\..\vrb123\include\vorbis/vorbisfile.h ..\..\include\decoder_plug.h ..\..\include\plugin.h ..\..\utils\utilfct.h ..\..\utils\eautils.h ..\..\utils\snprintf.h ..\..\utils\debuglog.h oggplay.h vcedit.h
 oggplay.h:	..\..\include\format.h ..\..\xio123\xio.h ..\..\ogg123\include\ogg/ogg.h
 vcedit.h:	..\..\ogg123\include\ogg/ogg.h ..\..\vrb123\include\vorbis/codec.h
 vcedit.c:	..\..\ogg123\include\ogg/ogg.h ..\..\vrb123\include\vorbis/codec.h vcedit.h

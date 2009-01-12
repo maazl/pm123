@@ -383,7 +383,7 @@ BEGIN
   "d",        IDM_M_DETAILED,       CHAR|CONTROL
   "E",        IDM_M_TAG,            CHAR|CONTROL|SHIFT
   "e",        IDM_M_TAG,            CHAR|CONTROL
-  "i",        IDM_M_INSPECTOR,      CHAR|CONTROL|ALT
+  "i",        IDM_M_INSPECTOR,      CHAR|ALT
   "I",        IDM_M_INFO,           CHAR|CONTROL|SHIFT
   "i",        IDM_M_PLINFO,         CHAR|CONTROL
   "L",        IDM_M_ADDBOOK_TIME,   CHAR|CONTROL|SHIFT

@@ -963,7 +963,7 @@ cfg_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
 
     case WM_WINDOWPOSCHANGED:
       if(((SWP*)mp1)->fl & SWP_SIZE ) {
-        nb_adjust( hwnd );
+        nb_adjust( hwnd, (SWP*)mp1 );
       }
       break;
   }

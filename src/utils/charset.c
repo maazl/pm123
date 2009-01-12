@@ -43,7 +43,9 @@
 
 const CH_ENTRY ch_list[] =
 {
+  // General entries
   { "System default",                               CH_CP_NONE },
+  // SBCS entries
   { "United States",                                437        },
   { "Latin-1 Western Europe (DOS, OS/2)",           850        },
   { "Latin-1 Western Europe (ISO-8859-1, Windows)", 1004       },
@@ -77,10 +79,13 @@ const CH_ENTRY ch_list[] =
   { "Icelandic (DOS, OS/2)",                        861        },
   { "Thai (DOS, OS/2)",                             874        },
   { "UTF-8 (Unicode)",                              1208       },
+  // DBCS entries
   { "UCS-2 (UTF-16, Unicode)",                      1200       }
 };
 
-const int ch_list_size = sizeof( ch_list ) / sizeof( CH_ENTRY );
+const size_t ch_list_size = sizeof( ch_list ) / sizeof( CH_ENTRY );
+const size_t ch_list_sbcs = sizeof( ch_list ) / sizeof( CH_ENTRY ) - 2;
+const size_t ch_list_dbcs = 1;
 
 /*
  * ch_default: returns the current system character set.

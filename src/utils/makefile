@@ -13,8 +13,8 @@ all2: utilfct$(LBO) $(MDUMMY)
 OBJECTS = utilfct$(CO) bufstream$(CO) fileutil$(CO) filefind$(CO) fileheader$(CO)
 OBJECTS = $(OBJECTS) errorstr$(CO) rel2abs$(CO) abs2rel$(CO) inimacro$(CO)
 OBJECTS = $(OBJECTS) charset$(CO) wildcards$(CO) queue$(CO) strlcpy$(CO) strchomp$(CO)
-OBJECTS = $(OBJECTS) strlcat$(CO) snprintf$(CO) eautils$(CO) strnchr$(CO) memcmpcpy$(CO)
-OBJECTS = $(OBJECTS) vdelegate$(CO) interlocked$(CO) debuglog$(CO)
+OBJECTS = $(OBJECTS) strlcat$(CO) snprintf$(CO) eautils$(CO) strnchr$(CO) strnlen$(CO)
+OBJECTS = $(OBJECTS) memcmpcpy$(CO) vdelegate$(CO) interlocked$(CO) debuglog$(CO)
 STDLIBS = $(LIBS_UNI)
 
 utilfct$(LBO): $(OBJECTS)
@@ -33,7 +33,7 @@ charset.c:	charset.h strutils.h debuglog.h utilfct.h
 utilfct.h:	..\include\config.h .\rel2abs.h .\abs2rel.h .\bufstream.h .\charset.h .\wildcards.h .\filefind.h .\fileutil.h .\errorstr.h .\inimacro.h .\queue.h .\minmax.h .\strutils.h
 errorstr.c:	strutils.h snprintf.h
 fileutil.c:	fileutil.h strutils.h minmax.h
-inimacro.cpp:	utilfct.h
+inimacro.cpp:	inimacro.h utilfct.h
 memcmpcpy.c:	strutils.h
 queue.c:	queue.h
 rel2abs.c:	rel2abs.h
@@ -41,7 +41,7 @@ strnchr.c:	strutils.h
 utilfct.c:	utilfct.h debuglog.h
 vdelegate.c:	vdelegate.h
 vdelegate.h:	..\include\format.h
-wildcards.c:	wildcards.h
+wildcards.c:	wildcards.h .\debuglog.h
 debuglog.h:	.\errorstr.h
 fileutil.h:	..\include\config.h
 pcmfloat2int.c:	pcmconvert.h utilfct.h debuglog.h
@@ -52,3 +52,8 @@ pcmint2float_extract.c:	pcmconvert.h .\debuglog.h
 debuglog.c:	debuglog.h snprintf.h
 strchomp.c:	strutils.h
 eautils.c:	debuglog.h
+inimacro.h:	..\include\config.h
+interlocked.cpp:	interlocked.h
+interlocked.h:	..\include\config.h
+fileheader.c:	debuglog.h
+strnlen.c:	strutils.h

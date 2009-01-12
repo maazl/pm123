@@ -530,6 +530,8 @@ bool PlaylistView::CalcCols(Record* rec, Playable::InfoFlags flags, PlayableInst
       tmp = tmp + ", " + info.tech->info;
     if (*info.meta->comment)
       tmp = tmp + ", comment: " + info.meta->comment;
+    rec->MoreInfo = tmp;
+    rec->Data()->MoreInfo = tmp; // free old value
     ret = true;
   }
   // Colums that depend on PlayableInstance changes

@@ -835,7 +835,7 @@ proxy_1_decoder_length( DecoderProxy1* op, void* a )
 }
 
 MRESULT EXPENTRY proxy_1_decoder_winfn(HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2)
-{ DecoderProxy1* op = (DecoderProxy1*)WinQueryWindowPtr(hwnd, 0);
+{ DecoderProxy1* op = (DecoderProxy1*)WinQueryWindowPtr(hwnd, QWL_USER);
   DEBUGLOG(("proxy_1_decoder_winfn(%p, %u, %p, %p) - %p {%s}\n",
     hwnd, msg, mp1, mp2, op, op == NULL ? NULL : op->GetModuleName().cdata()));
   switch (msg)
@@ -1167,7 +1167,7 @@ proxy_1_output_playing_pos( OutputProxy1* op, void* a )
 }
 
 MRESULT EXPENTRY proxy_1_output_winfn(HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2)
-{ OutputProxy1* op = (OutputProxy1*)WinQueryWindowPtr(hwnd, 0);
+{ OutputProxy1* op = (OutputProxy1*)WinQueryWindowPtr(hwnd, QWL_USER);
   DEBUGLOG2(("proxy_1_output_winfn(%p, %u, %p, %p) - %p {%s}\n", hwnd, msg, mp1, mp2, op, op == NULL ? NULL : op->ModuleName.cdata()));
   switch (msg)
   {case WM_PLAYERROR:

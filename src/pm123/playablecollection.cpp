@@ -1160,13 +1160,13 @@ bool PlayableCollection::Save(const url123& URL, save_options opt)
   // notifications
   int_ptr<Playable> pp = FindByURL(URL);
   if (pp && pp->GetFlags() & Enumerable)
-  { ((PlayableCollection&)*pp).NotifySourceChange();
-    if (pp == this)
+  { if (pp == this)
     { Lock lock(*this);
       ASSERT(BeginUpdate(IF_Usage));
       UpdateModified(false);
       EndUpdate(IF_Usage);
-    }
+    } else
+      ((PlayableCollection&)*pp).NotifySourceChange();
   }
   return true;
 }
@@ -1463,7 +1463,9 @@ bool Playlist::LoadList(EntryList& list, PHYS_INFO& phys)
 void Playlist::NotifySourceChange()
 { DEBUGLOG(("Playlist(%p{%s})::NotifySourceChange()\n", this, GetURL().cdata()));
   Lock lock(*this);
+  ASSERT(BeginUpdate(IF_Usage));
   UpdateModified(true);
+  EndUpdate(IF_Usage);
 }
 
 

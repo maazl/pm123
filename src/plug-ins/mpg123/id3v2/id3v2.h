@@ -74,7 +74,7 @@ typedef struct _ID3V2_TAG
 
   /* List of ID3 frames. */
   struct _ID3V2_FRAME** id3_frames;
-  int id3_frames_count;
+  int    id3_frames_count;
 
 } ID3V2_TAG;
 

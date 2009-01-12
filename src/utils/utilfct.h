@@ -145,6 +145,9 @@ SHORT lb_size( HWND hwnd, SHORT id );
 /* Searches an item in a list box control. */
 SHORT lb_search( HWND hwnd, SHORT id, SHORT starti, char *item );
 
+/* Return the ID of the selected radiobutton in a group. */
+SHORT rb_selected( HWND hwnd, SHORT id );
+
 /* Sets the enable state of the entryfield in the dialog template to the enable flag. */
 void  en_enable( HWND hwnd, SHORT id, BOOL enable );
 
@@ -153,7 +156,7 @@ void  en_enable( HWND hwnd, SHORT id, BOOL enable );
    Returns the new page ID or 0 on error. */
 ULONG nb_append_tab( HWND book, HWND page, const char* major, char* minor, MPARAM index );
 /* Adjusting the position and size of a notebook window. */
-void  nb_adjust( HWND hwnd );
+BOOL  nb_adjust( HWND hwnd, SWP* pswp );
 
 /* Sets the upper and lower limit of a numeric spin button and the maximum text length */
 BOOL  sb_setnumlimits( HWND hwnd, USHORT id, LONG low, LONG high, USHORT len); 

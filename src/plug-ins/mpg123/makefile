@@ -11,7 +11,7 @@ TARGET   = mpg123.dll
 OBJECTS  = dct64_MMX$(OBJ)  decode_MMX$(OBJ) tabinit_MMX$(OBJ)
 OBJECTS  = $(OBJECTS) mpg123$(CO) common$(CO) decode_i386$(CO)
 OBJECTS  = $(OBJECTS) layer1$(CO) layer2$(CO) layer3$(CO)
-OBJECTS  = $(OBJECTS) dxhead$(CO) equalizer$(CO)
+OBJECTS  = $(OBJECTS) dxhead$(CO) equalizer$(CO) dialog$(CO)
 LIBS     = $(TOPDIR)\utils\utilfct$(LBO) $(TOPDIR)\xio123\xio123$(LBI)
 LIBS     = $(LIBS) id3v1\id3v1$(LBO) id3v2\id3v2$(LBO) $(TOPDIR)\zlb123\zlb123$(LBI)
 SYSLIBS  = $(LIBS_UNI)
@@ -34,6 +34,8 @@ id3v2\id3v2$(LBO):
 	cd id3v2
 	@$(MAKE) $(MFLAGS)
 	@cd ..
+
+mpg123$(RES): mpg123.rc mpg123.h
 
 clean: $(MDUMMY)
 	-@del mpg123$(LBI) mpg123.dll $(OBJECTS) $(RESOURCE) 2> nul

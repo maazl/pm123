@@ -379,8 +379,9 @@ id3v2_set_string( ID3V2_FRAME* frame, const char* source, int8_t encoding )
     encoded_size = id3v2_string_length( encoding, encoded );
     comment_size = id3v2_string_size  ( encoding, comment );
 
-    frame->fr_raw_size  = encoded_size + comment_size + 1;
-    frame->fr_raw_size += comment_size ? 3 : 0;
+    frame->fr_raw_size  = encoded_size + 1;
+    if (comment_size)
+      frame->fr_raw_size += comment_size + 3;
 
     // We allocate 2 extra bytes. This simplifies retrieval of
     // text strings.

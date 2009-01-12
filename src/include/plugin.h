@@ -9,6 +9,7 @@
 #define PLUGIN_UNSUPPORTED  1
 #define PLUGIN_NO_READ      100
 #define PLUGIN_NO_PLAY      200
+#define PLUGIN_NO_OP        300
 #define PLUGIN_GO_ALREADY   101
 #define PLUGIN_GO_FAILED    102
 #define PLUGIN_FAILED      -1

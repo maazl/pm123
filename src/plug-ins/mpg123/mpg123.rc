@@ -6,18 +6,18 @@ BEGIN
 	DIALOG            "MP3 Decoder",                         DLG_CONFIGURE,       0,  0, 272,196, FS_MOUSEALIGN, FCF_TITLEBAR|FCF_SYSMENU|FCF_CLOSEBUTTON
 		PRESPARAMS PP_FONTNAMESIZE "8.Helv"
 	BEGIN
-		GROUPBOX        " ID3V1.x Tags ",                      ID_NULL,             4,120, 264, 74, WS_GROUP|NOT WS_TABSTOP
-		LTEXT           "ID3V1 tag on read",                   ID_NULL,            12,176, 120,  8, DT_VCENTER|DT_MNEMONIC
-		AUTOCHECKBOX    "~Read ID3V1.x tag",                   CB_1R_READ,         12,166, 120,  8, WS_GROUP
+		GROUPBOX        " ID3v1.x Tags ",                      ID_NULL,             4,120, 264, 74, WS_GROUP|NOT WS_TABSTOP
+		LTEXT           "ID3v1 tag on read",                   ID_NULL,            12,176, 120,  8, DT_VCENTER|DT_MNEMONIC
+		AUTOCHECKBOX    "~Read ID3v1.x tag",                   CB_1R_READ,         12,166, 120,  8, WS_GROUP
 			PRESPARAMS PP_FOREGROUNDCOLORINDEX , SYSCLR_WINDOWTEXT
-		RADIOBUTTON     "~Prefer ID3V1.x tag",                 RB_1R_PREFER,       12,154, 120,  8, WS_GROUP|WS_DISABLED
+		RADIOBUTTON     "~Prefer ID3v1.x tag",                 RB_1R_PREFER,       12,154, 120,  8, WS_GROUP|WS_DISABLED
 			PRESPARAMS PP_FOREGROUNDCOLORINDEX , SYSCLR_WINDOWTEXT
-		LTEXT           "ID3V1 tag on ~write",                 ID_NULL,           140,176, 120,  8, DT_VCENTER|DT_MNEMONIC
+		LTEXT           "ID3v1 tag on ~write",                 ID_NULL,           140,176, 120,  8, DT_VCENTER|DT_MNEMONIC
 		AUTORADIOBUTTON "leave ~unchanged",                    RB_1W_UNCHANGED,   140,166, 120,  8, WS_GROUP
 			PRESPARAMS PP_FOREGROUNDCOLORINDEX , SYSCLR_WINDOWTEXT
 		AUTORADIOBUTTON "write ~always",                       RB_1W_ALWAYS,      140,158, 120,  8
 			PRESPARAMS PP_FOREGROUNDCOLORINDEX , SYSCLR_WINDOWTEXT
-		AUTORADIOBUTTON "~only when no ID3V2 tag written",     RB_1W_NOID3V2,     140,150, 120,  8
+		AUTORADIOBUTTON "~only when no ID3v2 tag written",     RB_1W_NOID3V2,     140,150, 120,  8
 			PRESPARAMS PP_FOREGROUNDCOLORINDEX , SYSCLR_WINDOWTEXT
 		AUTORADIOBUTTON "~delete always",                      RB_1W_DELETE,      140,142, 120,  8
 			PRESPARAMS PP_FOREGROUNDCOLORINDEX , SYSCLR_WINDOWTEXT
@@ -28,13 +28,13 @@ BEGIN
 			PRESPARAMS PP_FOREGROUNDCOLORINDEX , SYSCLR_WINDOWTEXT
 		COMBOBOX        "",                                    CO_1_ENCODING,     140, 76, 120, 60, CBS_DROPDOWNLIST
 
-		GROUPBOX        " ID3V2 Tags ",                        ID_NULL,             4, 30, 264, 88, WS_GROUP|NOT WS_TABSTOP
-		LTEXT           "ID3V2 tag on ~read",                  ID_NULL,            12,100, 120,  8, DT_VCENTER|DT_MNEMONIC
-		AUTOCHECKBOX    "~Read ID3V2.x tag",                   CB_2R_READ,         12, 90, 120,  8, WS_GROUP
+		GROUPBOX        " ID3v2 Tags ",                        ID_NULL,             4, 30, 264, 88, WS_GROUP|NOT WS_TABSTOP
+		LTEXT           "ID3v2 tag on ~read",                  ID_NULL,            12,100, 120,  8, DT_VCENTER|DT_MNEMONIC
+		AUTOCHECKBOX    "~Read ID3v2.x tag",                   CB_2R_READ,         12, 90, 120,  8, WS_GROUP
 			PRESPARAMS PP_FOREGROUNDCOLORINDEX , SYSCLR_WINDOWTEXT
-		RADIOBUTTON     "~Prefer ID3V2.x tag",                 RB_2R_PREFER,       12, 78, 120,  8, WS_GROUP|WS_DISABLED
+		RADIOBUTTON     "~Prefer ID3v2.x tag",                 RB_2R_PREFER,       12, 78, 120,  8, WS_GROUP|WS_DISABLED
 			PRESPARAMS PP_FOREGROUNDCOLORINDEX , SYSCLR_WINDOWTEXT
-		LTEXT           "ID3V2 tag on ~write",                 ID_NULL,           140,100, 120,  8, DT_VCENTER|DT_MNEMONIC
+		LTEXT           "ID3v2 tag on ~write",                 ID_NULL,           140,100, 120,  8, DT_VCENTER|DT_MNEMONIC
 		AUTORADIOBUTTON "leave ~unchanged",                    RB_2W_UNCHANGED,   140, 90, 120,  8, WS_GROUP
 			PRESPARAMS PP_FOREGROUNDCOLORINDEX , SYSCLR_WINDOWTEXT
 		AUTORADIOBUTTON "write ~always",                       RB_2W_ALWAYS,      140, 82, 120,  8
@@ -43,12 +43,12 @@ BEGIN
 			PRESPARAMS PP_FOREGROUNDCOLORINDEX , SYSCLR_WINDOWTEXT
 		AUTORADIOBUTTON "~on demand",                          RB_2W_ONDEMAND,    140, 66, 120,  8
 			PRESPARAMS PP_FOREGROUNDCOLORINDEX , SYSCLR_WINDOWTEXT
-		AUTORADIOBUTTON "~delete always",                      RB_2W_DELETE,      140, 58, 120,  8
+		AUTORADIOBUTTON "~delete always (!)",                  RB_2W_DELETE,      140, 58, 120,  8
 			PRESPARAMS PP_FOREGROUNDCOLORINDEX , SYSCLR_WINDOWTEXT
 		LTEXT           "~Default encoding on read (!)",       ID_NULL,            12, 48, 120,  8, DT_VCENTER|DT_MNEMONIC
 			PRESPARAMS PP_FOREGROUNDCOLORINDEX , SYSCLR_WINDOWTEXT
 		COMBOBOX        "",                                    CO_2R_ENCODING,     12,-14, 120, 60, CBS_DROPDOWNLIST
-		LTEXT           "~encoding on write",                  ID_NULL,           140, 48, 120,  8, DT_VCENTER|DT_MNEMONIC
+		LTEXT           "~Encoding on write",                  ID_NULL,           140, 48, 120,  8, DT_VCENTER|DT_MNEMONIC
 			PRESPARAMS PP_FOREGROUNDCOLORINDEX , SYSCLR_WINDOWTEXT
 		COMBOBOX        "",                                    CO_2W_ENCODING,    140,-14, 120, 60, CBS_DROPDOWNLIST
 
@@ -64,9 +64,9 @@ END
 
 DLGTEMPLATE DLG_ID3TAG 
 BEGIN
-	DIALOG            "ID3 Tag Editor",            DLG_ID3TAG,   36, 24, 272,208, 0, FCF_TITLEBAR|FCF_SYSMENU|FCF_CLOSEBUTTON|FCF_NOBYTEALIGN|FCF_SIZEBORDER
+	DIALOG            "ID3 Tag Editor",            DLG_ID3TAG,   36, 24, 268,206, 0, FCF_TITLEBAR|FCF_SYSMENU|FCF_CLOSEBUTTON|FCF_NOBYTEALIGN|FCF_SIZEBORDER
 	BEGIN
-		CONTROL         "",                          NB_ID3TAG,     0, 20, 272,188, WC_NOTEBOOK, BKS_BACKPAGESTR|BKS_MAJORTABTOP|BKS_TABBEDDIALOG|WS_GROUP|WS_TABSTOP|WS_VISIBLE
+		CONTROL         "",                          NB_ID3TAG,     0, 20, 268,186, WC_NOTEBOOK, BKS_BACKPAGESTR|BKS_MAJORTABTOP|BKS_TABBEDDIALOG|WS_GROUP|WS_TABSTOP|WS_VISIBLE
 			PRESPARAMS PP_FONTNAMESIZE "8.Helv"
 		PUSHBUTTON      "~OK",                       DID_OK,       48,  4,  52, 12, WS_GROUP
 		PUSHBUTTON      "~Cancel",                   DID_CANCEL,  108,  4,  52, 12
@@ -76,143 +76,179 @@ END
 
 DLGTEMPLATE DLG_ID3ALL 
 BEGIN
-	DIALOG            "",                          DLG_ID3ALL,    0,  0, 252,152, NOT FS_DLGBORDER|FS_NOBYTEALIGN
+	DIALOG            "",                          DLG_ID3ALL,    0,  0, 252,154, NOT FS_DLGBORDER|FS_NOBYTEALIGN
 		PRESPARAMS PP_FONTNAMESIZE "8.Helv"
 	BEGIN
-		RTEXT           "Song ~title",               ID_NULL,       4,136,  48,  8, DT_VCENTER|DT_MNEMONIC
+		RTEXT           "Song ~title",               ID_NULL,       4,138,  48,  8, DT_VCENTER|DT_MNEMONIC
 			PRESPARAMS PP_FOREGROUNDCOLORINDEX, SYSCLR_WINDOWTEXT
-		ENTRYFIELD      "",                          EN_TITLE,     61,137, 182,  6, ES_LEFT|ES_MARGIN|WS_GROUP
+		ENTRYFIELD      "",                          EN_TITLE,     61,139, 182,  6, ES_LEFT|ES_MARGIN|WS_GROUP
 			CTLDATA 8, 255, 0, 0
-		RTEXT           "~Artist's name",            ID_NULL,       4,120,  48,  8, DT_VCENTER|DT_MNEMONIC
+		RTEXT           "~Artist's name",            ID_NULL,       4,124,  48,  8, DT_VCENTER|DT_MNEMONIC
 			PRESPARAMS PP_FOREGROUNDCOLORINDEX, SYSCLR_WINDOWTEXT
-		ENTRYFIELD      "",                          EN_ARTIST,    61,121, 182,  6, ES_LEFT|ES_MARGIN|WS_GROUP
+		ENTRYFIELD      "",                          EN_ARTIST,    61,125, 182,  6, ES_LEFT|ES_MARGIN|WS_GROUP
 			CTLDATA 8, 255, 0, 0
-		RTEXT           "A~lbum name",               ID_NULL,       4,104,  48,  8, DT_VCENTER|DT_MNEMONIC
+		RTEXT           "A~lbum name",               ID_NULL,       4,110,  48,  8, DT_VCENTER|DT_MNEMONIC
 			PRESPARAMS PP_FOREGROUNDCOLORINDEX, SYSCLR_WINDOWTEXT
-		ENTRYFIELD      "",                          EN_ALBUM,     61,105, 182,  6, ES_LEFT|ES_MARGIN|WS_GROUP
+		ENTRYFIELD      "",                          EN_ALBUM,     61,111, 182,  6, ES_LEFT|ES_MARGIN|WS_GROUP
 			CTLDATA 8, 255, 0, 0
-		RTEXT           "Track ~no.",                ID_NULL,       4, 88,  48,  8, DT_VCENTER|DT_MNEMONIC
+		RTEXT           "Track ~no.",                ID_NULL,       4, 96,  48,  8, DT_VCENTER|DT_MNEMONIC
 			PRESPARAMS PP_FOREGROUNDCOLORINDEX, SYSCLR_WINDOWTEXT
-		ENTRYFIELD      "",                          EN_TRACK,     61, 89,  50,  6, ES_LEFT|ES_MARGIN|WS_GROUP
-			CTLDATA 8, 4, 0, 0
-		RTEXT           "Release ~date",             ID_NULL,     136, 88,  48,  8, DT_VCENTER|DT_MNEMONIC
+		ENTRYFIELD      "",                          EN_TRACK,     61, 97,  50,  6, ES_LEFT|ES_MARGIN|WS_GROUP
+			CTLDATA 8, 7, 0, 0
+		RTEXT           "Release ~date",             ID_NULL,     136, 96,  48,  8, DT_VCENTER|DT_MNEMONIC
 			PRESPARAMS PP_FOREGROUNDCOLORINDEX, SYSCLR_WINDOWTEXT
-		ENTRYFIELD      "",                          EN_DATE,     193, 89,  50,  6, ES_LEFT|ES_MARGIN|WS_GROUP
+		ENTRYFIELD      "",                          EN_DATE,     193, 97,  50,  6, ES_LEFT|ES_MARGIN|WS_GROUP
 			CTLDATA 8, 10, 0, 0
-		RTEXT           "~Comment",                  ID_NULL,       4, 72,  48,  8, DT_VCENTER|DT_MNEMONIC
+		RTEXT           "~Comment",                  ID_NULL,       4, 82,  48,  8, DT_VCENTER|DT_MNEMONIC
 			PRESPARAMS PP_FOREGROUNDCOLORINDEX, SYSCLR_WINDOWTEXT
-		ENTRYFIELD      "",                          EN_COMMENT,   61, 73, 182,  6, ES_LEFT|ES_MARGIN|WS_GROUP
+		ENTRYFIELD      "",                          EN_COMMENT,   61, 83, 182,  6, ES_LEFT|ES_MARGIN|WS_GROUP
 			CTLDATA 8, 255, 0, 0
-		RTEXT           "~Genre",                    ID_NULL,       4, 56,  48,  8, DT_VCENTER|DT_MNEMONIC
+		RTEXT           "~Genre",                    ID_NULL,       4, 68,  48,  8, DT_VCENTER|DT_MNEMONIC
 			PRESPARAMS PP_FOREGROUNDCOLORINDEX, SYSCLR_WINDOWTEXT
-		COMBOBOX        "",                          CO_GENRE,     60,  0, 184, 64, CBS_DROPDOWN|ES_LEFT
+		COMBOBOX        "",                          CO_GENRE,     60, 12, 184, 64, CBS_DROPDOWN|ES_LEFT
 			CTLDATA 8, 127, 0, 0
-		RTEXT           "Copy~right",                ID_NULL,       4, 40,  48,  8, DT_VCENTER|DT_MNEMONIC
+		RTEXT           "Copy~right",                ID_NULL,       4, 54,  48,  8, DT_VCENTER|DT_MNEMONIC
 			PRESPARAMS PP_FOREGROUNDCOLORINDEX, SYSCLR_WINDOWTEXT
-		ENTRYFIELD      "",                          EN_COPYRIGHT, 61, 41, 182,  6, ES_LEFT|ES_MARGIN|WS_GROUP
+		ENTRYFIELD      "",                          EN_COPYRIGHT, 61, 55, 182,  6, ES_LEFT|ES_MARGIN|WS_GROUP
 			CTLDATA 8, 255, 0, 0
-		RTEXT           "~Write",                    ID_NULL,       4, 24,  48,  8, DT_VCENTER|DT_MNEMONIC
-			PRESPARAMS PP_FOREGROUNDCOLORINDEX, SYSCLR_WINDOWTEXT
-		AUTOCHECKBOX    "ID3V~1.0",                  CB_WRITEV1,   60, 24,  52,  8, BS_AUTO3STATE|WS_GROUP
-			PRESPARAMS PP_FOREGROUNDCOLORINDEX, SYSCLR_WINDOWTEXT
-		AUTOCHECKBOX    "ID3V~2.4",                  CB_WRITEV2,  124, 24,  52,  8, BS_AUTO3STATE
-			PRESPARAMS PP_FOREGROUNDCOLORINDEX, SYSCLR_WINDOWTEXT
 
-		PUSHBUTTON      "~Undo",                     PB_UNDO,      60,  4,  52, 12, BS_NOPOINTERFOCUS|WS_GROUP
-		PUSHBUTTON      "~Clear",                    PB_CLEAR,    124,  4,  52, 12, BS_NOPOINTERFOCUS
+		PUSHBUTTON      "~Undo",                     PB_UNDO,      60, 34,  52, 12, BS_NOPOINTERFOCUS|WS_GROUP
+		PUSHBUTTON      "~Clear",                    PB_CLEAR,    124, 34,  52, 12, BS_NOPOINTERFOCUS
+		PUSHBUTTON      "~Synchronize tags",         PB_COPY,     188, 34,  56, 12, BS_NOPOINTERFOCUS
+
+		RTEXT           "Write ID3v~1",              ID_NULL,       4, 18,  48,  8, DT_VCENTER|DT_MNEMONIC
+			PRESPARAMS PP_FOREGROUNDCOLORINDEX , SYSCLR_WINDOWTEXT
+		AUTORADIOBUTTON "update",                    RB_UPDATE,    60, 18,  32,  8, WS_GROUP
+			PRESPARAMS PP_FOREGROUNDCOLORINDEX , SYSCLR_WINDOWTEXT
+		AUTORADIOBUTTON "leave",                     RB_UNCHANGED, 96, 18,  32,  8
+			PRESPARAMS PP_FOREGROUNDCOLORINDEX , SYSCLR_WINDOWTEXT
+		AUTORADIOBUTTON "delete",                    RB_DELETE,   132, 18,  32,  8
+			PRESPARAMS PP_FOREGROUNDCOLORINDEX , SYSCLR_WINDOWTEXT
+		AUTOCHECKBOX    "automatic",                 CB_AUTOWRITE,204, 18,  40,  8
+			PRESPARAMS PP_FOREGROUNDCOLORINDEX , SYSCLR_WINDOWTEXT
+		RTEXT           "Write ID3v~2",              ID_NULL,       4,  6,  48,  8, DT_VCENTER|DT_MNEMONIC
+			PRESPARAMS PP_FOREGROUNDCOLORINDEX , SYSCLR_WINDOWTEXT
+		AUTORADIOBUTTON "update",                    RB_UPDATE2,   60,  6,  32,  8, WS_GROUP
+			PRESPARAMS PP_FOREGROUNDCOLORINDEX , SYSCLR_WINDOWTEXT
+		AUTORADIOBUTTON "leave",                     RB_UNCHANGED2,96,  6,  32,  8
+			PRESPARAMS PP_FOREGROUNDCOLORINDEX , SYSCLR_WINDOWTEXT
+		AUTORADIOBUTTON "clean",                     RB_CLEAN2,   132,  6,  32,  8
+			PRESPARAMS PP_FOREGROUNDCOLORINDEX , SYSCLR_WINDOWTEXT
+		AUTORADIOBUTTON "delete !",                  RB_DELETE2,  168,  6,  32,  8
+			PRESPARAMS PP_FOREGROUNDCOLORINDEX , SYSCLR_WINDOWTEXT
+		AUTOCHECKBOX    "automatic",                 CB_AUTOWRITE2,204, 6,  40,  8
+			PRESPARAMS PP_FOREGROUNDCOLORINDEX , SYSCLR_WINDOWTEXT
 	END
 END
 
 DLGTEMPLATE DLG_ID3V1 
 BEGIN
-	DIALOG            "",                          DLG_ID3V1,     0,  0, 252,152, NOT FS_DLGBORDER|FS_NOBYTEALIGN
+	DIALOG            "",                          DLG_ID3V1,     0,  0, 252,154, NOT FS_DLGBORDER|FS_NOBYTEALIGN
 		PRESPARAMS PP_FONTNAMESIZE "8.Helv"
 	BEGIN
-		RTEXT           "Song ~title",               ID_NULL,       4,136,  48,  8, DT_VCENTER|DT_MNEMONIC
+		RTEXT           "Song ~title",               ID_NULL,       4,138,  48,  8, DT_VCENTER|DT_MNEMONIC
 			PRESPARAMS PP_FOREGROUNDCOLORINDEX, SYSCLR_WINDOWTEXT
-		ENTRYFIELD      "",                          EN_TITLE,     61,137, 182,  6, ES_LEFT|ES_MARGIN|WS_GROUP
+		ENTRYFIELD      "",                          EN_TITLE,     61,139, 182,  6, ES_LEFT|ES_MARGIN|WS_GROUP
 			CTLDATA 8, 30, 0, 0
-		RTEXT           "~Artist's name",            ID_NULL,       4,120,  48,  8, DT_VCENTER|DT_MNEMONIC
+		RTEXT           "~Artist's name",            ID_NULL,       4,124,  48,  8, DT_VCENTER|DT_MNEMONIC
 			PRESPARAMS PP_FOREGROUNDCOLORINDEX, SYSCLR_WINDOWTEXT
-		ENTRYFIELD      "",                          EN_ARTIST,    61,121, 182,  6, ES_LEFT|ES_MARGIN|WS_GROUP
+		ENTRYFIELD      "",                          EN_ARTIST,    61,125, 182,  6, ES_LEFT|ES_MARGIN|WS_GROUP
 			CTLDATA 8, 30, 0, 0
-		RTEXT           "A~lbum name",               ID_NULL,       4,104,  48,  8, DT_VCENTER|DT_MNEMONIC
+		RTEXT           "A~lbum name",               ID_NULL,       4,110,  48,  8, DT_VCENTER|DT_MNEMONIC
 			PRESPARAMS PP_FOREGROUNDCOLORINDEX, SYSCLR_WINDOWTEXT
-		ENTRYFIELD      "",                          EN_ALBUM,     61,105, 182,  6, ES_LEFT|ES_MARGIN|WS_GROUP
+		ENTRYFIELD      "",                          EN_ALBUM,     61,111, 182,  6, ES_LEFT|ES_MARGIN|WS_GROUP
 			CTLDATA 8, 30, 0, 0
-		RTEXT           "Track ~no.",                ID_NULL,       4, 88,  48,  8, DT_VCENTER|DT_MNEMONIC
+		RTEXT           "Track ~no.",                ID_NULL,       4, 96,  48,  8, DT_VCENTER|DT_MNEMONIC
 			PRESPARAMS PP_FOREGROUNDCOLORINDEX, SYSCLR_WINDOWTEXT
-		ENTRYFIELD      "",                          EN_TRACK,     61, 89,  50,  6, ES_LEFT|ES_MARGIN|WS_GROUP
+		ENTRYFIELD      "",                          EN_TRACK,     61, 97,  50,  6, ES_LEFT|ES_MARGIN|WS_GROUP
 			CTLDATA 8, 4, 0, 0
-		RTEXT           "Release ~year",             ID_NULL,     136, 88,  48,  8, DT_VCENTER|DT_MNEMONIC
+		RTEXT           "Release ~year",             ID_NULL,     136, 96,  48,  8, DT_VCENTER|DT_MNEMONIC
 			PRESPARAMS PP_FOREGROUNDCOLORINDEX, SYSCLR_WINDOWTEXT
-		ENTRYFIELD      "",                          EN_DATE,     193, 89,  50,  6, ES_LEFT|ES_MARGIN|WS_GROUP
+		ENTRYFIELD      "",                          EN_DATE,     193, 97,  50,  6, ES_LEFT|ES_MARGIN|WS_GROUP
 			CTLDATA 8, 4, 0, 0
-		RTEXT           "~Comment",                  ID_NULL,       4, 72,  48,  8, DT_VCENTER|DT_MNEMONIC
+		RTEXT           "~Comment",                  ID_NULL,       4, 82,  48,  8, DT_VCENTER|DT_MNEMONIC
 			PRESPARAMS PP_FOREGROUNDCOLORINDEX, SYSCLR_WINDOWTEXT
-		ENTRYFIELD      "",                          EN_COMMENT,   61, 73, 182,  6, ES_LEFT|ES_MARGIN|WS_GROUP
+		ENTRYFIELD      "",                          EN_COMMENT,   61, 83, 182,  6, ES_LEFT|ES_MARGIN|WS_GROUP
 			CTLDATA 8, 30, 0, 0
-		RTEXT           "~Genre",                    ID_NULL,       4, 56,  48,  8, DT_VCENTER|DT_MNEMONIC
+		RTEXT           "~Genre",                    ID_NULL,       4, 68,  48,  8, DT_VCENTER|DT_MNEMONIC
 			PRESPARAMS PP_FOREGROUNDCOLORINDEX, SYSCLR_WINDOWTEXT
-		COMBOBOX        "",                          CO_GENRE,     60,  0, 184, 64, CBS_DROPDOWNLIST
-		RTEXT           "~Encoding",                 ID_NULL,       4, 24,  48,  8, DT_VCENTER|DT_MNEMONIC
+		COMBOBOX        "",                          CO_GENRE,     60, 12, 184, 64, CBS_DROPDOWNLIST
+		RTEXT           "~Encoding",                 ID_NULL,       4, 38,  48,  8, DT_VCENTER|DT_MNEMONIC
 			PRESPARAMS PP_FOREGROUNDCOLORINDEX, SYSCLR_WINDOWTEXT
-		COMBOBOX        "",                          CO_ENCODING,  60,-32, 184, 64, CBS_DROPDOWNLIST
+		COMBOBOX        "",                          CO_ENCODING,  60,-18, 184, 64, CBS_DROPDOWNLIST
 
-		AUTOCHECKBOX    "~Write ID3V1",              CB_WRITE,      8,  6,  44,  8, BS_AUTO3STATE|WS_GROUP
 			PRESPARAMS PP_FOREGROUNDCOLORINDEX, SYSCLR_WINDOWTEXT
-		PUSHBUTTON      "~Undo",                     PB_UNDO,      60,  4,  52, 12, BS_NOPOINTERFOCUS
-		PUSHBUTTON      "~Clear",                    PB_CLEAR,    124,  4,  52, 12, BS_NOPOINTERFOCUS
-		PUSHBUTTON      "Copy from ID3V~2",          PB_COPY,     188,  4,  56, 12, BS_NOPOINTERFOCUS
+		PUSHBUTTON      "~Undo",                     PB_UNDO,      60, 18,  52, 12, BS_NOPOINTERFOCUS
+		PUSHBUTTON      "~Clear",                    PB_CLEAR,    124, 18,  52, 12, BS_NOPOINTERFOCUS
+		PUSHBUTTON      "Copy from ID3v~2",          PB_COPY,     188, 18,  56, 12, BS_NOPOINTERFOCUS
+
+		RTEXT           "~Write mode",               ID_NULL,       4,  6,  48,  8, DT_VCENTER|DT_MNEMONIC
+			PRESPARAMS PP_FOREGROUNDCOLORINDEX , SYSCLR_WINDOWTEXT
+		AUTORADIOBUTTON "update",                    RB_UPDATE,    60,  6,  32,  8, WS_GROUP
+			PRESPARAMS PP_FOREGROUNDCOLORINDEX , SYSCLR_WINDOWTEXT
+		AUTORADIOBUTTON "leave",                     RB_UNCHANGED, 96,  6,  32,  8
+			PRESPARAMS PP_FOREGROUNDCOLORINDEX , SYSCLR_WINDOWTEXT
+		AUTORADIOBUTTON "delete",                    RB_DELETE,   132,  6,  32,  8
+			PRESPARAMS PP_FOREGROUNDCOLORINDEX , SYSCLR_WINDOWTEXT
 	END
 END
 
 DLGTEMPLATE DLG_ID3V2 
 BEGIN
-	DIALOG            "",                          DLG_ID3V2,     0,  0, 252,152, NOT FS_DLGBORDER|FS_NOBYTEALIGN
+	DIALOG            "",                          DLG_ID3V2,     0,  0, 252,154, NOT FS_DLGBORDER|FS_NOBYTEALIGN
 		PRESPARAMS PP_FONTNAMESIZE "8.Helv"
 	BEGIN
-		RTEXT           "Song ~title",               ID_NULL,       4,136,  48,  8, DT_VCENTER|DT_MNEMONIC
+		RTEXT           "Song ~title",               ID_NULL,       4,138,  48,  8, DT_VCENTER|DT_MNEMONIC
 			PRESPARAMS PP_FOREGROUNDCOLORINDEX , SYSCLR_WINDOWTEXT
-		ENTRYFIELD      "",                          EN_TITLE,     61,137, 182,  6, ES_LEFT|ES_MARGIN|WS_GROUP
+		ENTRYFIELD      "",                          EN_TITLE,     61,139, 182,  6, ES_LEFT|ES_MARGIN|WS_GROUP
 			CTLDATA 8, 255, 0, 0
-		RTEXT           "~Artist's name",            ID_NULL,       4,120,  48,  8, DT_VCENTER|DT_MNEMONIC
+		RTEXT           "~Artist's name",            ID_NULL,       4,124,  48,  8, DT_VCENTER|DT_MNEMONIC
 			PRESPARAMS PP_FOREGROUNDCOLORINDEX , SYSCLR_WINDOWTEXT
-		ENTRYFIELD      "",                          EN_ARTIST,    61,121, 182,  6, ES_LEFT|ES_MARGIN|WS_GROUP
+		ENTRYFIELD      "",                          EN_ARTIST,    61,125, 182,  6, ES_LEFT|ES_MARGIN|WS_GROUP
 			CTLDATA 8, 255, 0, 0
-		RTEXT           "A~lbum name",               ID_NULL,       4,104,  48,  8, DT_VCENTER|DT_MNEMONIC
+		RTEXT           "A~lbum name",               ID_NULL,       4,110,  48,  8, DT_VCENTER|DT_MNEMONIC
 			PRESPARAMS PP_FOREGROUNDCOLORINDEX , SYSCLR_WINDOWTEXT
-		ENTRYFIELD      "",                          EN_ALBUM,     61,105, 182,  6, ES_LEFT|ES_MARGIN|WS_GROUP
+		ENTRYFIELD      "",                          EN_ALBUM,     61,111, 182,  6, ES_LEFT|ES_MARGIN|WS_GROUP
 			CTLDATA 8, 255, 0, 0
-		RTEXT           "Track ~no.",                ID_NULL,       4, 88,  48,  8, DT_VCENTER|DT_MNEMONIC
+		RTEXT           "Track ~no.",                ID_NULL,       4, 96,  48,  8, DT_VCENTER|DT_MNEMONIC
 			PRESPARAMS PP_FOREGROUNDCOLORINDEX , SYSCLR_WINDOWTEXT
-		ENTRYFIELD      "",                          EN_TRACK,     61, 89,  50,  6, ES_LEFT|ES_MARGIN|WS_GROUP
-			CTLDATA 8, 4, 0, 0
-		RTEXT           "Release ~date",             ID_NULL,     136, 88,  48,  8, DT_VCENTER|DT_MNEMONIC
+		ENTRYFIELD      "",                          EN_TRACK,     61, 97,  50,  6, ES_LEFT|ES_MARGIN|WS_GROUP
+			CTLDATA 8, 7, 0, 0
+		RTEXT           "Release ~date",             ID_NULL,     136, 96,  48,  8, DT_VCENTER|DT_MNEMONIC
 			PRESPARAMS PP_FOREGROUNDCOLORINDEX , SYSCLR_WINDOWTEXT
-		ENTRYFIELD      "",                          EN_DATE,     193, 89,  50,  6, ES_LEFT|ES_MARGIN|WS_GROUP
+		ENTRYFIELD      "",                          EN_DATE,     193, 97,  50,  6, ES_LEFT|ES_MARGIN|WS_GROUP
 			CTLDATA 8, 10, 0, 0
-		RTEXT           "~Comment",                  ID_NULL,       4, 72,  48,  8, DT_VCENTER|DT_MNEMONIC
+		RTEXT           "~Comment",                  ID_NULL,       4, 82,  48,  8, DT_VCENTER|DT_MNEMONIC
 			PRESPARAMS PP_FOREGROUNDCOLORINDEX , SYSCLR_WINDOWTEXT
-		ENTRYFIELD      "",                          EN_COMMENT,   61, 73, 182,  6, ES_LEFT|ES_MARGIN|WS_GROUP
+		ENTRYFIELD      "",                          EN_COMMENT,   61, 83, 182,  6, ES_LEFT|ES_MARGIN|WS_GROUP
 			CTLDATA 8, 255, 0, 0
-		RTEXT           "~Genre",                    ID_NULL,       4, 56,  48,  8, DT_VCENTER|DT_MNEMONIC
+		RTEXT           "~Genre",                    ID_NULL,       4, 68,  48,  8, DT_VCENTER|DT_MNEMONIC
 			PRESPARAMS PP_FOREGROUNDCOLORINDEX , SYSCLR_WINDOWTEXT
-		ENTRYFIELD      "",                          CO_GENRE,     61, 57, 182,  6, ES_LEFT|ES_MARGIN|WS_GROUP
+		ENTRYFIELD      "",                          CO_GENRE,     61, 69, 182,  6, ES_LEFT|ES_MARGIN|WS_GROUP
 			CTLDATA 8, 127, 0, 0
-		RTEXT           "Copy~right",                ID_NULL,       4, 40,  48,  8, DT_VCENTER|DT_MNEMONIC
+		RTEXT           "Copy~right",                ID_NULL,       4, 54,  48,  8, DT_VCENTER|DT_MNEMONIC
 			PRESPARAMS PP_FOREGROUNDCOLORINDEX , SYSCLR_WINDOWTEXT
-		ENTRYFIELD      "",                          EN_COPYRIGHT, 61, 41, 182,  6, ES_LEFT|ES_MARGIN|WS_GROUP
+		ENTRYFIELD      "",                          EN_COPYRIGHT, 61, 55, 182,  6, ES_LEFT|ES_MARGIN|WS_GROUP
 			CTLDATA 8, 255, 0, 0
-		RTEXT           "Read ~Encoding",            ID_NULL,       4, 24,  48,  8, DT_VCENTER|DT_MNEMONIC
+		RTEXT           "Read ~encoding",            ID_NULL,       4, 38,  48,  8, DT_VCENTER|DT_MNEMONIC
 			PRESPARAMS PP_FOREGROUNDCOLORINDEX , SYSCLR_WINDOWTEXT
-		COMBOBOX        "",                          CO_ENCODING,  60,-32, 184, 64, CBS_DROPDOWNLIST
+		COMBOBOX        "",                          CO_ENCODING,  60,-18, 184, 64, CBS_DROPDOWNLIST
 
-		AUTOCHECKBOX    "~Write ID3V2",              CB_WRITE,      8,  6,  44,  8, BS_AUTO3STATE|WS_GROUP
 			PRESPARAMS PP_FOREGROUNDCOLORINDEX , SYSCLR_WINDOWTEXT
-		PUSHBUTTON      "~Undo",                     PB_UNDO,      60,  4,  52, 12, BS_NOPOINTERFOCUS
-		PUSHBUTTON      "~Clear",                    PB_CLEAR,    124,  4,  52, 12, BS_NOPOINTERFOCUS
-		PUSHBUTTON      "Copy from ID3V~1",          PB_COPY,     188,  4,  56, 12, BS_NOPOINTERFOCUS
+		PUSHBUTTON      "~Undo",                     PB_UNDO,      60, 18,  52, 12, BS_NOPOINTERFOCUS
+		PUSHBUTTON      "~Clear",                    PB_CLEAR,    124, 18,  52, 12, BS_NOPOINTERFOCUS
+		PUSHBUTTON      "Copy from ID3v~1",          PB_COPY,     188, 18,  56, 12, BS_NOPOINTERFOCUS
+
+		RTEXT           "~Write mode",               ID_NULL,       4,  6,  48,  8, DT_VCENTER|DT_MNEMONIC
+			PRESPARAMS PP_FOREGROUNDCOLORINDEX , SYSCLR_WINDOWTEXT
+		AUTORADIOBUTTON "update",                    RB_UPDATE2,   60,  6,  32,  8, WS_GROUP
+			PRESPARAMS PP_FOREGROUNDCOLORINDEX , SYSCLR_WINDOWTEXT
+		AUTORADIOBUTTON "leave",                     RB_UNCHANGED2,96,  6,  32,  8
+			PRESPARAMS PP_FOREGROUNDCOLORINDEX , SYSCLR_WINDOWTEXT
+		AUTORADIOBUTTON "clean",                     RB_CLEAN2,   132,  6,  32,  8
+			PRESPARAMS PP_FOREGROUNDCOLORINDEX , SYSCLR_WINDOWTEXT
+		AUTORADIOBUTTON "delete !",                  RB_DELETE2,  168,  6,  32,  8
+			PRESPARAMS PP_FOREGROUNDCOLORINDEX , SYSCLR_WINDOWTEXT
 	END
 END
 

@@ -146,7 +146,14 @@ equivalent.</td>
 <tr class="open">
 <td><strong>16 major bug, open</strong></td>
 <td>Some meta information lost</td>
-<td>When saving tags of MP3 or Ogg files all tag that PM123 does not know are deleted silently.</td>
+<td>When saving Ogg vorbis comments all tags that PM123 does not know are deleted silently.</td>
+</tr>
+<tr class="open">
+<td><strong>17 minor todo, open</strong></td>
+<td>Write ID3 tags and vorbis comments always in place to preserve additional file properties.</td>
+<td>Currently PM123 creates a copy of the file and then replaces the original file by this copy.
+This is reliable but it discards any information that OS/2 cannot see like access rights on a remote host
+or hard links to the file. There should be an in-place option to work around this.</td>
 </tr>
 </tbody>
 </table>

@@ -270,6 +270,7 @@
 #define IDH_FIL_PLUGINS    1061
 #define IDH_OUT_PLUGINS    1062
 #define IDH_VIS_PLUGINS    1063
+#define IDH_MPG123         1070
 
 /* Dialogs */
 

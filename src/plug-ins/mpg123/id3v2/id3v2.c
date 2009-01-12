@@ -332,6 +332,7 @@ id3v2_wipe_tag( XFILE* file, const char* savename )
   int        rc = 0;
 
   // Figure out how large the current tag is.
+  xio_rewind( file );
   old_id3 = id3v2_get_tag( file, 0 );
 
   if( old_id3 ) {
@@ -458,6 +459,7 @@ id3v2_set_tag( XFILE* file, ID3V2_TAG* id3, const char* savename )
   }
 
   // Figure out how large the current tag is.
+  xio_rewind( file );
   old_id3 = id3v2_get_tag( file, 0 );
 
   if( old_id3 ) {

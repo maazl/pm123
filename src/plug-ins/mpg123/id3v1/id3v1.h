@@ -62,6 +62,10 @@ typedef struct _ID3V1_TAG
 
 } ID3V1_TAG;
 
+/* Identify the ID3v1 genre number by it's name.
+   Returns -1 on failure. */
+int id3v1_get_genre( const char* str );
+
 /* Reads a ID3v1 tag from the input file and stores them in
    the given structure. Returns 0 if it successfully reads the
    tag or if the input file don't have a ID3v1 tag. A nonzero
@@ -78,8 +82,15 @@ int id3v1_set_tag( XFILE* x, ID3V1_TAG* tag );
    error occured. */
 int id3v1_wipe_tag( XFILE* x );
 
-/* Cleanups of a ID3v1 tag structure. */
+/* Cleanups of a ID3v1 tag structure. Results in an invalid tag. */
 void id3v1_clean_tag( ID3V1_TAG* tag );
+/* Check whether TAG is clean */
+int  id3v1_is_clean_tag( const ID3V1_TAG* tag );
+
+/* Ensure that the tag has a valid signature */
+void id3v1_make_tag_valid( ID3V1_TAG* tag );
+/* Check whether the tag has a valid signature */
+int  id3v1_is_tag_valid( const ID3V1_TAG* tag );
 
 /* Returns a specified field of the given tag. */
 char* id3v1_get_string( const ID3V1_TAG* tag, ID3V1_TAG_COMP type, char* result, int size, int charset );

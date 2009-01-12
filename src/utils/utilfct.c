@@ -434,6 +434,20 @@ lb_search( HWND hwnd, SHORT id, SHORT starti, char *item )
                        MPFROM2SHORT( 0, starti ), MPFROMP( item )));
 }
 
+/* Return the ID of the selected radiobutton in a group. */
+SHORT rb_selected( HWND hwnd, SHORT id )
+{
+  HWND cur = WinWindowFromID( hwnd, id );
+  PMASSERT(cur);
+  cur = WinEnumDlgItem( hwnd, cur, EDI_FIRSTGROUPITEM );
+  while ( cur != NULLHANDLE )
+  { if ( WinSendMsg( cur, BM_QUERYCHECK, 0, 0 ))
+      return WinQueryWindowUShort( cur, QWS_ID );
+    cur = WinEnumDlgItem( hwnd, cur, EDI_NEXTGROUPITEM );
+  }
+  return -1; 
+}
+
 /* Sets the enable state of the entryfield in the dialog template to
    the enable flag. */
 void
@@ -483,86 +497,45 @@ nb_append_tab(HWND book, HWND page, const char* major, char* minor, MPARAM index
 }
 
 /* Adjusting the position and size of a notebook window. */
-void
-nb_adjust( HWND hwnd )
+BOOL
+nb_adjust( HWND hwnd, SWP* pswp )
 {
-  int    buttons_count = 0;
-  HWND   notebook = NULLHANDLE;
-  HENUM  henum;
-  HWND   hnext;
-  char   classname[128];
-  RECTL  rect;
-  POINTL pos[2];
+  LONG dx = pswp[0].cx - pswp[1].cx;
+  LONG dy = pswp[0].cy - pswp[1].cy;
+  HWND hnext;
+  char classname[64];
+  SWP swp;
+  BOOL rc = TRUE;
+  LONG dx2 = (dx + (pswp[0].cx&1)) >> 1; // stable formula for rounding at the division by 2
 
-  struct BUTTON {
-    HWND hwnd;
-    SWP  swp;
+  if ((dx | dy) == 0)
+    return TRUE;
 
-  } buttons[32];
-
-  henum = WinBeginEnumWindows( hwnd );
-
+  HENUM henum = WinBeginEnumWindows( hwnd );
   while(( hnext = WinGetNextWindow( henum )) != NULLHANDLE ) {
     if( WinQueryClassName( hnext, sizeof( classname ), classname ) > 0 ) {
-      if( strcmp( classname, "#40" ) == 0 ) {
-        notebook = hnext;
-      } else if( strcmp( classname, "#3" ) == 0 ) {
-        if( buttons_count < sizeof( buttons ) / sizeof( struct BUTTON )) {
-          if( WinQueryWindowPos( hnext, &buttons[buttons_count].swp )) {
-            if(!( buttons[buttons_count].swp.fl & SWP_HIDE )) {
-              buttons[buttons_count].hwnd = hnext;
-              buttons_count++;
-            }
-          }
+      if( strcmp( classname, "#40" ) == 0 )
+      { // Notebook => apply dx and dy to cx, cy
+        PMRASSERT( WinQueryWindowPos( hnext, &swp ));
+        swp.cx += dx;
+        swp.cy += dy;
+        if (swp.cx < 1 || swp.cy < 1)
+        { rc = FALSE;
+          // TODO: undo
+          break;
         }
+        PMRASSERT( WinSetWindowPos( hnext, 0, 0, 0, swp.cx, swp.cy, SWP_SIZE ));
+      } else if( dx2 && strcmp( classname, "#3" ) == 0 )
+      { // Button => apply dx/2 to x only
+        // TODO: if above notebook: swp.y + dy;
+        PMRASSERT( WinQueryWindowPos( hnext, &swp ));
+        PMRASSERT( WinSetWindowPos( hnext, 0, swp.x + dx2, swp.y, 0, 0, SWP_MOVE ));
+        PMRASSERT( WinInvalidateRect( hnext, NULL, FALSE ));
       }
     }
   }
   WinEndEnumWindows( henum );
-
-  if( !WinQueryWindowRect( hwnd, &rect ) ||
-      !WinCalcFrameRect  ( hwnd, &rect, TRUE ))
-  {
-    return;
-  }
-
-  // Resizes notebook window.
-  if( notebook != NULLHANDLE )
-  {
-    pos[0].x = rect.xLeft;
-    pos[0].y = rect.yBottom;
-    pos[1].x = rect.xRight;
-    pos[1].y = rect.yTop;
-
-    if( buttons_count ) {
-      WinMapDlgPoints( hwnd, pos, 2, FALSE );
-      pos[0].y += 14;
-      WinMapDlgPoints( hwnd, pos, 2, TRUE  );
-    }
-
-    WinSetWindowPos( notebook, 0, pos[0].x,  pos[0].y,
-                                  pos[1].x - pos[0].x, pos[1].y - pos[0].y, SWP_MOVE | SWP_SIZE );
-  }
-
-  // Adjust buttons.
-  if( buttons_count )
-  {
-    int total_width = buttons_count * 2;
-    int start;
-    int i;
-
-    for( i = 0; i < buttons_count; i++ ) {
-      total_width += buttons[i].swp.cx;
-    }
-
-    start = ( rect.xRight - rect.xLeft + 1 - total_width ) / 2;
-
-    for( i = 0; i < buttons_count; i++ ) {
-      WinSetWindowPos( buttons[i].hwnd, 0, start, buttons[i].swp.y, 0, 0, SWP_MOVE );
-      WinInvalidateRect( buttons[i].hwnd, NULL, FALSE );
-      start += buttons[i].swp.cx + 2;
-    }
-  }
+  return rc;
 }
 
 BOOL sb_setnumlimits( HWND hwnd, USHORT id, LONG low, LONG high, USHORT len)

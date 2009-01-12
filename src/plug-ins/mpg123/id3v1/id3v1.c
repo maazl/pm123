@@ -66,13 +66,41 @@ spacecopy( char* target, const char* source, int size )
   strncpy( target, source, size );
 }
 
+/* identify the genre number */
+int
+id3v1_get_genre( const char* str )
+{ int g;
+  for( g = 0; g <= GENRE_LARGEST; g++ )
+    if( stricmp( str, genres[ g ] ) == 0 )
+      return g;
+  return -1;
+}
+
+static const ID3V1_TAG clean_tag = { "", "", "", "", "", "", 0, 0, 0xFF };
+
 /* Cleanups of a ID3v1 tag structure. */
 void
 id3v1_clean_tag( ID3V1_TAG* tag )
 {
-  memset( tag, 0, sizeof( *tag ));
-  strcpy( tag->id, "TAG" );
-  tag->genre = 0xFF;
+  memcpy( tag, &clean_tag, sizeof( *tag ));
+}
+
+/* Check whether TAG is clean */
+int id3v1_is_clean_tag( const ID3V1_TAG* tag )
+{
+  return memcmp( tag->title, clean_tag.title, sizeof *tag - offsetof(ID3V1_TAG, title)) == 0;
+}
+
+/* Ensure that the tag has a valid signature */
+void id3v1_make_tag_valid( ID3V1_TAG* tag )
+{
+  memcpy( tag->id, "TAG", 3 );
+}
+
+/* Check wether the tag has a valid signature */
+int id3v1_is_tag_valid( const ID3V1_TAG* tag )
+{
+  return memcmp( tag->id, "TAG", 3 ) == 0;
 }
 
 /* Reads a ID3v1 tag from the input file and stores them in
@@ -267,11 +295,7 @@ id3v1_set_string( ID3V1_TAG* tag, ID3V1_TAG_COMP type, const char* source, int c
         else if (sscanf(source, "#%i%n", &i, &l) == 1 && l == strlen(source))
           tag->genre = i;
         else
-          for( tag->genre = 0; tag->genre <= GENRE_LARGEST; tag->genre++ ) {
-            if( stricmp( source, genres[ tag->genre ] ) == 0 ) {
-              break;
-            }
-          }
+          tag->genre = (unsigned char)id3v1_get_genre(source);
         break;
       }
     }

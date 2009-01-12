@@ -31,6 +31,7 @@
 
 #define INCL_PM
 #include <string.h>
+#include <stdlib.h>
 #include <os2.h>
 #include <uconv.h>
 
@@ -49,8 +50,18 @@ typedef struct _CH_ENTRY {
   ULONG        codepage;
 } CH_ENTRY;
 
+/* List of character sets
+ * Layout:                       size
+ * 1  default entry              -+-  sbcs
+ * [] non unicode sbcs codepages  |   =+=       unicode
+ * [] unicode sbcs codepages      |        dbcs -+-
+ + [] unicode dbcs codepages     -+-       =+=  -+-
+ */
 extern const CH_ENTRY ch_list[];
-extern const int      ch_list_size;
+extern const size_t   ch_list_size;
+extern const size_t   ch_list_sbcs;
+extern const size_t   ch_list_dbcs;
+extern const size_t   ch_list_unicode;
 
 /*
  * ch_default: returns the current system character set.

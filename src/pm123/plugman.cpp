@@ -244,7 +244,7 @@ MRESULT EXPENTRY cl_plugin_winfn(HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2)
   {case Plugin::UM_CREATEPROXYWINDOW:
     { HWND proxyhwnd = WinCreateWindow(hwnd, (PSZ)PVOIDFROMMP(mp1), "", 0, 0,0, 0,0, NULLHANDLE, HWND_BOTTOM, 42, NULL, NULL);
       PMASSERT(proxyhwnd != NULLHANDLE);
-      PMRASSERT(WinSetWindowPtr(proxyhwnd, 0, PVOIDFROMMP(mp2)));
+      PMRASSERT(WinSetWindowPtr(proxyhwnd, QWL_USER, PVOIDFROMMP(mp2)));
       return (MRESULT)proxyhwnd;
     }
    case Plugin::UM_DESTROYPROXYWINDOW:

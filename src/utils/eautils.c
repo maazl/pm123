@@ -66,7 +66,7 @@ eacopy( const char* source, const char* target )
 
   if(!( fs.attrFile & FILE_DIRECTORY )) {
     rc = DosOpen((PSZ)source, &hsource, &action, 0, 0, OPEN_ACTION_OPEN_IF_EXISTS,
-                  OPEN_ACCESS_READONLY | OPEN_SHARE_DENYWRITE | OPEN_FLAGS_FAIL_ON_ERROR, NULL );
+                  OPEN_ACCESS_READONLY | OPEN_SHARE_DENYNONE | OPEN_FLAGS_FAIL_ON_ERROR, NULL );
 
     if( rc != NO_ERROR ) {
       DEBUGLOG(( "eacopy: Fail at DosOpen of file %s, rc= %08X\n", source, rc ));
