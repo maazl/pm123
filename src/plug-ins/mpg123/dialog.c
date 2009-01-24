@@ -1014,21 +1014,21 @@ id3v2_page_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
         dlg_set_charset_listbox(WinWindowFromID(hwnd, CO_ENCODING), encv2);
         break;
        case 1: // load original
-        WinCheckButton(hwnd, data->tagv2_old ? RB_UPDATE : RB_DELETE, TRUE);
+        WinCheckButton(hwnd, data->tagv2_old ? RB_UPDATE2 : RB_DELETE2, TRUE);
         data->autowrite_tagv2 = FALSE;
         tagv2 = data->tagv2_old;
         // Do NOT use the old value in this case.
         encv2 = dlg_query_charset_listbox(WinWindowFromID(hwnd, CO_ENCODING))->codepage;
         break;
        case 2: // reset
-        WinCheckButton(hwnd, RB_DELETE, TRUE);
+        WinCheckButton(hwnd, RB_DELETE2, TRUE);
         data->autowrite_tagv2 = FALSE;
         tagv2 = NULL;
         encv2 = tag_read_id3v2_charset;
         dlg_set_charset_listbox(WinWindowFromID(hwnd, CO_ENCODING), encv2);
         break;
        case 3: // copy
-        WinCheckButton(hwnd, RB_UPDATE, TRUE);
+        WinCheckButton(hwnd, RB_UPDATE2, TRUE);
         data->autowrite_tagv2 = FALSE;
         id3v1_load( hwnd, &data->tagv1, data->encoding_tagv1 );
         return 0;
