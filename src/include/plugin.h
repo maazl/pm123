@@ -12,8 +12,8 @@
 #define PLUGIN_NO_OP        300
 #define PLUGIN_GO_ALREADY   101
 #define PLUGIN_GO_FAILED    102
-#define PLUGIN_FAILED      -1
-#define PLUGIN_NO_USABLE   -2
+#define PLUGIN_FAILED       ((unsigned long)-1)
+#define PLUGIN_NO_USABLE    ((unsigned long)-2)
 
 #ifdef __cplusplus
 extern "C" {

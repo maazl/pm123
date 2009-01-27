@@ -96,7 +96,7 @@ amp_file_dlg_resize( HWND hwnd, SHORT cx, SHORT cy )
   swp[ 4].x    = init_text_drive.x;
   swp[ 4].y    = cy - init_file_dlg.cy + init_text_drive.y;
   swp[ 4].cy   = init_text_drive.cy;
-  swp[ 4].cx   = init_text_drive.cx * ((float)cx / init_file_dlg.cx );
+  swp[ 4].cx   = (LONG)(init_text_drive.cx * ((float)cx / init_file_dlg.cx ));
   swp[ 4].fl   = SWP_MOVE | SWP_SIZE;
 
   swp[ 5].hwnd = WinWindowFromID( hwnd, DID_FILES_TXT );
@@ -110,21 +110,21 @@ amp_file_dlg_resize( HWND hwnd, SHORT cx, SHORT cy )
   swp[ 6].x    = init_cbox_drive.x;
   swp[ 6].y    = cy - init_file_dlg.cy + init_cbox_drive.y;
   swp[ 6].cy   = init_cbox_drive.cy;
-  swp[ 6].cx   = init_cbox_drive.cx * ((float)cx / init_file_dlg.cx );
+  swp[ 6].cx   = (LONG)(init_cbox_drive.cx * ((float)cx / init_file_dlg.cx ));
   swp[ 6].fl   = SWP_MOVE | SWP_SIZE;
 
   swp[ 7].hwnd = WinWindowFromID( hwnd, DID_DIRECTORY_TXT );
   swp[ 7].x    = init_text_directory.x;
   swp[ 7].y    = cy - init_file_dlg.cy + init_text_directory.y;
   swp[ 7].cy   = init_text_directory.cy;
-  swp[ 7].cx   = init_text_directory.cx * ((float)cx / init_file_dlg.cx );
+  swp[ 7].cx   = (LONG)(init_text_directory.cx * ((float)cx / init_file_dlg.cx ));
   swp[ 7].fl   = SWP_MOVE | SWP_SIZE;
 
   swp[ 8].hwnd = WinWindowFromID( hwnd, DID_DIRECTORY_LB );
   swp[ 8].x    = init_lbox_directory.x;
   swp[ 8].y    = init_lbox_directory.y;
   swp[ 8].cy   = cy - swp[8].y - init_file_dlg.cy + init_lbox_directory.cy + init_lbox_directory.y;
-  swp[ 8].cx   = init_lbox_directory.cx * ((float)cx / init_file_dlg.cx );
+  swp[ 8].cx   = (LONG)(init_lbox_directory.cx * ((float)cx / init_file_dlg.cx ));
   swp[ 8].fl   = SWP_MOVE | SWP_SIZE;
 
   swp[ 9].hwnd = WinWindowFromID( hwnd, DID_FILES_LB );
