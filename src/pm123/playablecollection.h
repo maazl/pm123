@@ -466,8 +466,10 @@ class Playlist : public PlayableCollection
   };
 
  private:
-  // Loads the PM123 native playlist file.
+  // Loads the PM123 native or M3U playlist file.
   bool                        LoadLST(EntryList& list, XFILE* x);
+  // Loads the Unicode version of M3U playlist file.
+  bool                        LoadM3U8(EntryList& list, XFILE* x);
   // Loads the WarpAMP playlist file.
   bool                        LoadMPL(EntryList& list, XFILE* x);
   // Loads the WinAMP playlist file.

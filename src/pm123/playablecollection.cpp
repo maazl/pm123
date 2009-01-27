@@ -40,6 +40,7 @@
 #include <stdio.h>
 #include <stddef.h>
 #include <string.h>
+#include <charset.h>
 
 #include <debuglog.h>
 
@@ -1347,6 +1348,33 @@ bool Playlist::LoadLST(EntryList& list, XFILE* x)
   return true;
 }
 
+bool Playlist::LoadM3U8(EntryList& list, XFILE* x)
+{ DEBUGLOG(("Playlist(%p{%s})::LoadM38U(%p)\n", this, GetURL().getShortName().cdata(), x));
+
+  // TODO: fixed buffers...
+  char line_raw[4096];
+  char line[4096];
+  static const char bom[3] = { 0xEF, 0xBB, 0xBF };
+  LSTReader rdr(*this, list);
+
+  while (xio_fgets(line_raw, sizeof(line_raw), x))
+  { char* cp = line_raw;
+    // Skip BOM?
+    if (memcmp(cp, bom, 3) == 0)
+      cp += 3;
+    // convert to system codepage
+    if (ch_convert(1208, cp, 0, line, sizeof line, 0) == NULL)
+      return false;
+    // and now businness as usual
+    cp = line + strspn(line, " \t");
+    strchomp(cp);
+    if (*cp == 0)
+      continue;
+    rdr.ParseLine(cp);
+  }
+  return true;
+}
+
 bool Playlist::LoadMPL(EntryList& list, XFILE* x)
 { DEBUGLOG(("Playlist(%p{%s})::LoadMPL(%p)\n", this, GetURL().getShortName().cdata(), x));
 
@@ -1441,6 +1469,8 @@ bool Playlist::LoadList(EntryList& list, PHYS_INFO& phys)
   } else
   { if ( stricmp( ext, ".lst" ) == 0 || stricmp( ext, ".m3u" ) == 0 )
       rc = LoadLST(list, x);
+    else if ( stricmp( ext, ".m3u8" ) == 0 )
+      rc = LoadM3U8(list, x);
     else if ( stricmp( ext, ".mpl" ) == 0 )
       rc = LoadMPL(list, x);
     else if ( stricmp( ext, ".pls" ) == 0 )
