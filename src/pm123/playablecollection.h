@@ -265,7 +265,7 @@ class PlayableCollection : public Playable
     TDType TechDelegate;
     IDType InstDelegate;
     Entry(PlayableCollection& parent, Playable* playable, TDType::func_type tfn, IDType::func_type ifn);
-    virtual                   ~Entry() { DEBUGLOG(("PlayableCollection::Entry(%p)::~Entry()", this)); }
+    virtual                   ~Entry() { DEBUGLOG(("PlayableCollection::Entry(%p)::~Entry()\n", this)); }
     // Activate the event handlers
     void                      Attach();
     // Detach a PlayableInstance from the collection.

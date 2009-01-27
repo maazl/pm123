@@ -332,7 +332,7 @@ MRESULT InfoDialog::MetaWriteDlg::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
         return 0;
       }
       // Error, worker halted
-      sprintf(buffer, "Failed to write meta info. %s reported error %lu", Dest[i]->GetDecoder(), LONGFROMMP(mp2));
+      sprintf(buffer, "%s failed to write meta info. Error %lu - %s", Dest[i]->GetDecoder(), LONGFROMMP(mp2), xio_strerror(LONGFROMMP(mp2)));
       PMRASSERT(WinSetDlgItemText(GetHwnd(), EF_WMSTATUS, buffer));
       // 'skip all' was pressed? => continue immediately
       if (SkipErrors)

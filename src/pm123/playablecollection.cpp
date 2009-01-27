@@ -342,7 +342,7 @@ PlayableCollection::Entry::Entry(PlayableCollection& parent, Playable* playable,
 : PlayableInstance(parent, playable),
   TechDelegate(parent, tfn),
   InstDelegate(parent, ifn)
-{ DEBUGLOG(("PlayableCollection::Entry(%p)::Entry(&%p, %p, )", this, &parent, playable));
+{ DEBUGLOG(("PlayableCollection::Entry(%p)::Entry(&%p, %p, )\n", this, &parent, playable));
 }
 
 void PlayableCollection::Entry::Attach()
