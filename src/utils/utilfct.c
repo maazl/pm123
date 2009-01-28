@@ -507,11 +507,12 @@ nb_adjust( HWND hwnd, SWP* pswp )
   SWP swp;
   BOOL rc = TRUE;
   LONG dx2 = (dx + (pswp[0].cx&1)) >> 1; // stable formula for rounding at the division by 2
+  HENUM henum;
 
   if ((dx | dy) == 0)
     return TRUE;
 
-  HENUM henum = WinBeginEnumWindows( hwnd );
+  henum = WinBeginEnumWindows( hwnd );
   while(( hnext = WinGetNextWindow( henum )) != NULLHANDLE ) {
     if( WinQueryClassName( hnext, sizeof( classname ), classname ) > 0 ) {
       if( strcmp( classname, "#40" ) == 0 )

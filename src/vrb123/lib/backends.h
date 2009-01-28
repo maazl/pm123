@@ -33,8 +33,8 @@ typedef struct{
   vorbis_look_floor     *(*look)  (vorbis_dsp_state *,vorbis_info_floor *);
   void (*free_info) (vorbis_info_floor *);
   void (*free_look) (vorbis_look_floor *);
-  void *(*inverse1)  (struct vorbis_block *,vorbis_look_floor *);
-  int   (*inverse2)  (struct vorbis_block *,vorbis_look_floor *,
+  void *(*inverse1)  (vorbis_block *,vorbis_look_floor *);
+  int   (*inverse2)  (vorbis_block *,vorbis_look_floor *,
 		     void *buffer,float *);
 } vorbis_func_floor;
 
@@ -92,12 +92,12 @@ typedef struct{
 				 vorbis_info_residue *);
   void (*free_info)    (vorbis_info_residue *);
   void (*free_look)    (vorbis_look_residue *);
-  long **(*class)      (struct vorbis_block *,vorbis_look_residue *,
+  long **(*class)      (vorbis_block *,vorbis_look_residue *,
 			float **,int *,int);
-  int  (*forward)      (oggpack_buffer *,struct vorbis_block *,
+  int  (*forward)      (oggpack_buffer *,vorbis_block *,
 			vorbis_look_residue *,
 			float **,float **,int *,int,long **);
-  int  (*inverse)      (struct vorbis_block *,vorbis_look_residue *,
+  int  (*inverse)      (vorbis_block *,vorbis_look_residue *,
 			float **,int *,int);
 } vorbis_func_residue;
 
@@ -123,8 +123,8 @@ typedef struct{
 				 oggpack_buffer *);
   vorbis_info_mapping *(*unpack)(vorbis_info *,oggpack_buffer *);
   void (*free_info)    (vorbis_info_mapping *);
-  int  (*forward)      (struct vorbis_block *vb);
-  int  (*inverse)      (struct vorbis_block *vb,vorbis_info_mapping *);
+  int  (*forward)      (vorbis_block *vb);
+  int  (*inverse)      (vorbis_block *vb,vorbis_info_mapping *);
 } vorbis_func_mapping;
 
 typedef struct vorbis_info_mapping0{

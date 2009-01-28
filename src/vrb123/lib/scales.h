@@ -30,7 +30,7 @@
 #define VORBIS_IEEE_FLOAT32 1
 #ifdef VORBIS_IEEE_FLOAT32
 
-static inline float unitnorm(float x){
+INLINE float unitnorm(float x){
   union {
     ogg_uint32_t i;
     float f;
@@ -41,7 +41,7 @@ static inline float unitnorm(float x){
 }
 
 /* Segher was off (too high) by ~ .3 decibel.  Center the conversion correctly. */
-static inline float todB(const float *x){
+INLINE float todB(const float *x){
   union {
     ogg_uint32_t i;
     float f;

@@ -41,6 +41,10 @@
 #  define rint(x)   (floor((x)+0.5f))
 #endif
 
+#if (defined(__IBMC__)) || (defined(__IBMCPP__))
+#  define rint(x)   (floor((x)+0.5f))
+#endif
+
 #ifndef M_PI
 #  define M_PI (3.1415926536f)
 #endif

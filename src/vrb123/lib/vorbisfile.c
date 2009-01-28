@@ -793,11 +793,23 @@ static int _fetch_and_process_packet(OggVorbis_File *vf,
   }
 }
 
+static size_t DLLENTRY fread_wrap(void *buffer,size_t size,size_t count,void *stream) {
+  return fread(buffer,size,count,(FILE*)stream);
+}
+
+static long DLLENTRY ftell_wrap(void *stream) {
+  return ftell((FILE*)stream);
+}
+
+static int DLLENTRY fclose_wrap(void *stream) {
+  return fclose((FILE*)stream);
+}
+
 /* if, eg, 64 bit stdio is configured by default, this will build with
    fseek64 */
-static int _fseek64_wrap(FILE *f,ogg_int64_t off,int whence){
+static int DLLENTRY _fseek64_wrap(void *f,ogg_int64_t off,int whence){
   if(f==NULL)return(-1);
-  return fseek(f,off,whence);
+  return fseek((FILE*)f,off,whence);
 }
 
 static int _ov_open1(void *f,OggVorbis_File *vf,char *initial,
@@ -906,10 +918,10 @@ int ov_open_callbacks(void *f,OggVorbis_File *vf,char *initial,long ibytes,
 
 int ov_open(FILE *f,OggVorbis_File *vf,char *initial,long ibytes){
   ov_callbacks callbacks = {
-    (size_t (*)(void *, size_t, size_t, void *))  fread,
-    (int (*)(void *, ogg_int64_t, int))              _fseek64_wrap,
-    (int (*)(void *))                             fclose,
-    (long (*)(void *))                            ftell
+    fread_wrap,
+    _fseek64_wrap,
+    fclose_wrap,
+    ftell_wrap
   };
 
   return ov_open_callbacks((void *)f, vf, initial, ibytes, callbacks);
@@ -967,10 +979,10 @@ int ov_test_callbacks(void *f,OggVorbis_File *vf,char *initial,long ibytes,
 
 int ov_test(FILE *f,OggVorbis_File *vf,char *initial,long ibytes){
   ov_callbacks callbacks = {
-    (size_t (*)(void *, size_t, size_t, void *))  fread,
-    (int (*)(void *, ogg_int64_t, int))              _fseek64_wrap,
-    (int (*)(void *))                             fclose,
-    (long (*)(void *))                            ftell
+    fread_wrap,
+    _fseek64_wrap,
+    fclose_wrap,
+    ftell_wrap
   };
 
   return ov_test_callbacks((void *)f, vf, initial, ibytes, callbacks);
@@ -1699,7 +1711,7 @@ vorbis_comment *ov_comment(OggVorbis_File *vf,int link){
   }
 }
 
-static int host_is_big_endian() {
+static int host_is_big_endian(void) {
   ogg_int32_t pattern = 0xfeedface; /* deadbeef */
   unsigned char *bytewise = (unsigned char *)&pattern;
   if (bytewise[0] == 0xfe) return 1;

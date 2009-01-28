@@ -2,7 +2,7 @@
 #  makefile for the whole pm123 package
 #
 
-VERSION = 1.40a4
+VERSION = 1.40a4-nodebug
 PARTS   = src\utils\utilfct$(LBO) src\utils\cpp\cpputil$(LBO) src\gbm123\libgbm$(LBO)
 PARTS   = $(PARTS) src\fft123\fft123.dll
 PARTS   = $(PARTS) src\xio123\xio123.dll

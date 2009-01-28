@@ -55,11 +55,11 @@ static CH_ENTRY id3v2_ch_list[4];
 
 /* Initialize the above list. Must be called once. */
 void dialog_init()
-{ id3v2_ch_list[ID3V2_ENCODING_ISO_8859_1] = *ch_find(1004);
+{ static char name4[100];
+  id3v2_ch_list[ID3V2_ENCODING_ISO_8859_1] = *ch_find(1004);
   id3v2_ch_list[ID3V2_ENCODING_UTF16_BOM]  =
   id3v2_ch_list[ID3V2_ENCODING_UTF16]      = *ch_find(1200);
   id3v2_ch_list[ID3V2_ENCODING_UTF8]       = *ch_find(1208);
-  static char name4[100];
   strlcpy(name4, id3v2_ch_list[ID3V2_ENCODING_UTF16_BOM].name, sizeof name4);
   strlcat(name4, " with BOM", sizeof name4);
   id3v2_ch_list[ID3V2_ENCODING_UTF16_BOM].name = name4;
@@ -88,9 +88,10 @@ static void dlg_populate_charset_listbox( HWND lb, const CH_ENTRY* list, size_t 
 
 static CH_ENTRY* dlg_query_charset_listbox( HWND lb )
 { SHORT idx = SHORT1FROMMR( WinSendMsg( lb, LM_QUERYSELECTION, MPFROMSHORT( LIT_FIRST ), 0 ));
+  CH_ENTRY* ret;
   if (idx == LIT_NONE)
     return NULL;
-  CH_ENTRY* ret = (CH_ENTRY*)PVOIDFROMMR( WinSendMsg( lb, LM_QUERYITEMHANDLE, MPFROMSHORT( idx ), 0 ));
+  ret = (CH_ENTRY*)PVOIDFROMMR( WinSendMsg( lb, LM_QUERYITEMHANDLE, MPFROMSHORT( idx ), 0 ));
   PMASSERT(ret);
   return ret;
 }
@@ -285,7 +286,7 @@ static void id3v1_populate_genres( HWND lb )
 static void dlg_set_text_if_empty( HWND hwnd, SHORT id, const char* text )
 { HWND ctrl = WinWindowFromID(hwnd, id);
   if ( text && *text && WinQueryWindowTextLength( ctrl ) == 0 )
-    PMRASSERT( WinSetWindowText( ctrl, text ));
+    PMRASSERT( WinSetWindowText( ctrl, (PSZ)text ));
 }
 
 /* Load the data from a V1.x tag into the dialog page. */
@@ -572,13 +573,14 @@ static const char* id3_validatedate( HWND hwnd, char* dest )
   size_t len = WinQueryWindowText( ctrl, sizeof buf, buf );
   unsigned y, m, d;
   size_t n = (size_t)-1;
+  int cnt;
   if (len == 0)
   { if (dest)
       *dest = 0;
     return NULL;
   }
   // syntax
-  int cnt = sscanf(buf, "%u%n-%u%n-%u%n", &y, &n, &m, &n, &d, &n);
+  cnt = sscanf(buf, "%u%n-%u%n-%u%n", &y, &n, &m, &n, &d, &n);
   if (n != len)
   { // second try with d.m.y
     cnt = sscanf(buf, "%u.%u.%u%n", &d, &m, &y, &n);
@@ -1093,8 +1095,9 @@ id3_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
           { PAGESELECTNOTIFY* psn = (PAGESELECTNOTIFY*)PVOIDFROMMP(mp2);
             if (psn->ulPageIdCur)
             { HWND nb = (HWND)WinSendDlgItemMsg(hwnd, NB_ID3TAG, BKM_QUERYPAGEWINDOWHWND, MPFROMLONG(psn->ulPageIdCur), 0);
+              const char* msg;
               PMASSERT(nb != NULLHANDLE && nb != BOOKERR_INVALID_PARAMETERS);
-              const char* msg = (const char*)WinSendMsg(nb, UM_STORE, 0, 0);
+              msg = (const char*)WinSendMsg(nb, UM_STORE, 0, 0);
               if (msg)
               { psn->ulPageIdNew = NULLHANDLE;
                 PMRASSERT(WinPostMsg(hwnd, UM_ERROR, MPFROMP(msg), MPFROMP(NULL)));

@@ -687,11 +687,11 @@ id3v2_add_frame( ID3V2_TAG* id3, uint32_t type )
 
 /* Copy the given frame into another tag */
 ID3V2_FRAME* id3v2_copy_frame( ID3V2_TAG* id3, const ID3V2_FRAME* frame )
-{
+{ ID3V2_FRAME* result;
   if (frame == NULL)
     return NULL;
   ASSERT(frame->fr_owner != id3); 
-  ID3V2_FRAME* result = id3v2_add_frame( id3, frame->fr_desc->fd_id );
+  result = id3v2_add_frame( id3, frame->fr_desc->fd_id );
   if (result == NULL)
     return NULL;
   // deep copy
