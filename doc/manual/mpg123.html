@@ -1,0 +1,139 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html resid="1070" level="3" sublinks="id3edit.html"><head>
+<meta content="text/html;charset=ISO-8859-1" http-equiv="Content-Type">
+<title>MPEG Audio Decoder</title>
+<link rel="stylesheet" href="infstyle.css" type="text/css">
+<meta content="Marcel M&uuml;ller" name="author"></head>
+<body>
+<h2>PM123's MPEG Audio Decoder</h2>
+<p>The MPEG Audio Decoder can handle <em>MPEG 1, MPEG 2
+and MPEG 2.5</em> files with <em>Layer&nbsp;I,
+Layer&nbsp;II and Layer&nbsp;III</em> audio data. It uses
+the free <a href="http://www.mpg123.org/">mpg123 decoder
+engine</a>.<br>
+It can <em>read and write ID3v1.x and ID3v2.x tags</em>
+and has an <a href="id3edit.html">advanced ID3 editor</a>
+that replaces the <a href="infodialog.html#metainfo">standard
+tag dialog of PM123</a> for MPEG audio files.</p>
+<h3><a name="configuration"></a>Configuration</h3>
+<blockquote><img alt="Configuration Dialog" src="images/mpg123_cfg.png" height="520" width="552"></blockquote>
+<h4>ID3v1.x Tags</h4>
+<dl>
+<dt><b>Read ID3v1.x tag</b></dt>
+<dd>
+<p>Disable this option if you want PM123 to always ignore the ID3v1.x tags.</p>
+</dd>
+<dt><b>Prefer ID3v1.x tag</b></dt>
+<dd>
+<p>If you enabled both, ID3v1 and ID3v2 tags, Set this option
+if you want to prefer the Information from the ID3v1 tag if both is
+available in a file.<br>
+It is recommended to prefer the ID3v2 tag.</p>
+</dd>
+<dt><b>Automatic encoding detection</b></dt>
+<dd>
+<p>With this option enabled PM123 tries different encodings
+when reading the tag. A heuristic then chooses the most likely one.
+PM123 always tries the encoding selected below and the system prepared
+codepages (at most two with OS/2).<br>
+Since ID3v1 tags do not have a well defined encoding, this can help to
+avoid garbled international characters. However it is only a heuristic
+which might not always hit the mark. It is recommend to use ID3v2 tags
+in case of ambiguities.</p>
+</dd>
+<dt><b>Encoding for reading and writing</b></dt>
+<dd>
+<p>This is the default encoding used for dealing with ID3v1
+tags. If you edit tags they are always written using this encoding.
+When tags are read, also the system codepages may be used if the option <i>Automatic encoding detection</i> is turned on.<br>
+The most popular encoding for ID3v1 tags is ISO-8859-1, most likely
+because it is very similar to the Windows default codepage. So it is
+recommended to let this setting at it's default unless you are in a
+country where this is very uncommon.</p>
+</dd>
+<dt><b>ID3v1 tag on write</b></dt>
+<dd>
+<dl>
+<dt><b>leave unchanged</b></dt>
+<dd>ID3v1 tags are not touched.</dd>
+<dt><b>write always</b></dt>
+<dd>Meta information will always be written as ID3v1 tag.
+Because of the limitations of ID3v1 some information might be silently
+truncated. When all meta fields are empty, the tag is deleted.<br>
+This is the default setting.</dd>
+<dt><b>only when no ID3v2 tag is written</b></dt>
+<dd>Same as 'write always' but if you write a ID3v2 tag
+anyway, the ID3v1 tag is deleted.</dd>
+<dt><b>delete always</b></dt>
+<dd>This will remove any ID3v1 tag once the meta
+information is written to the file.</dd>
+</dl>
+</dd>
+<dd>
+<p>The selected behavior applies unless you select something else in
+the <a href="id3edit.html">ID3 tag editor</a>.</p>
+</dd>
+</dl>
+<h4>ID3v2 tags</h4>
+<dl>
+<dt><b>Read ID3v2.x tag</b></dt>
+<dd>
+<p>Disable this option if you want PM123 to always ignore the ID3v2.x tags. This is not recommended.</p>
+</dd>
+<dt><b>Prefer ID3v2.x tag</b></dt>
+<dd>
+<p>If you enabled both, ID3v1 and ID3v2 tags, Set this option
+if you want to prefer the Information from the ID3v2 tag if both is
+available in a file.<br>
+This is recommended.</p>
+</dd>
+<dt><b>Default encoding on read</b></dt>
+<dd>
+<p>Overwrite the default encoding of ID3v2 tags (ISO-8859-1).
+This will only apply to information that is non Unicode.<br>
+Since ID3v2 tags must not contain anything else but ISO-8859-1 and
+Unicode, it is strongly recommended to leave this option at it's
+default value.</p>
+</dd>
+<dt><b>ID3v2 tag on write</b></dt>
+<dd>
+<dl>
+<dt><b>leave unchanged</b></dt>
+<dd>ID3v2 tags are not touched.</dd>
+<dt><b>write always</b></dt>
+<dd>Meta
+information will always be written as ID3v2 tag. When
+all meta fields are empty and the tag does not contain any frames that
+are not shown in the tag editor, the tag is deleted.<br>
+This is the default setting.</dd>
+<dt></dt><dt><b>on demand (including special
+characters)</b></dt>
+
+<dd>The ID3v2 tag is only written if the meta information
+contains parts that do not fit into the ID3v1 tag or it contains non
+ASCII characters which might be ambiguous with respect to the encoding.<br>
+</dd>
+<dt><b>on demand</b></dt>
+<dd>The ID3v2 tag is only written if the meta information
+contains parts that do not fit into the ID3v1 tag.<br>
+</dd>
+<dt><b>delete always</b></dt>
+<dd>This will remove any ID3v2 tag once the meta
+information is written to the file.<br>
+<em>Attention!</em> This will also destroy any
+other information stored in the ID3v2 tag, like Replay Gain, covers or
+lyrics.</dd>
+</dl>
+</dd>
+<dd>
+<p>The selected behavior applies unless you select something else in
+the <a href="id3edit.html">ID3 tag editor</a>.</p>
+</dd>
+<dt><b>Encoding on write</b></dt>
+<dd>
+<p>When writing ID3v2 tags the selected encoding is used. ID3l2 only supports ISO-8859-1, UTF-8 and UTF-16 aka UCS-2 with or
+without Byte Order Mark. It is recommended to use UTF-8 to have full
+Unicode support without growing the tags significantly.</p>
+</dd>
+</dl>
+</body></html>
