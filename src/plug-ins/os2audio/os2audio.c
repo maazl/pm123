@@ -670,7 +670,8 @@ output_play_samples( void* A, FORMAT_INFO* format, char* buf, int len, int posma
       }
 
       for( i = 0; i < bytes; i++ ) {
-        out[i] = ( in[i] >> 8 ) + 128;
+        // >> 8 is correctly only for positive numbers.
+        out[i] = ( in[i] / 256 ) + 128;
       }
 
       scale_08_replay_gain( a, (unsigned char*)a->mci_to_fill->pBuffer + offset, bytes );
