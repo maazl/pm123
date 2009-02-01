@@ -1162,11 +1162,11 @@ load_ini( void )
   HINI hini;
 
   tag_read_type          = TAG_READ_ID3V2_AND_ID3V1;
-  tag_id3v1_charset      = 819;  // ISO8859-1
+  tag_id3v1_charset      = 1004;  // ISO8859-1
   tag_read_id3v1_autoch  = TRUE;
   tag_save_id3v1_type    = TAG_SAVE_ID3V1_WRITE;
   tag_save_id3v2_type    = TAG_SAVE_ID3V2_WRITE;
-  tag_read_id3v2_charset = 819;  // ISO8859-1
+  tag_read_id3v2_charset = 1004;  // ISO8859-1
   tag_save_id3v2_encoding= ID3V2_ENCODING_UTF8;
 
   if(( hini = open_module_ini()) != NULLHANDLE )
