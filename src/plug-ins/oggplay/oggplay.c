@@ -286,6 +286,8 @@ ogg_set_string( vorbis_comment* comment, const char* source, char* type )
 {
   char string[128*4];
   
+  vorbis_comment_clear_tag(comment, type);
+  
   if (!*source) // Do not create empty comment tags
     return;
 
@@ -717,33 +719,38 @@ decoder_saveinfo( const char* filename, const DECODER_INFO* info )
     }
 
     vc = vcedit_comments( state );
-    vorbis_comment_clear( vc );
-    vorbis_comment_init ( vc );
 
-    ogg_set_string( vc, info->artist,    "ARTIST"      );
-    ogg_set_string( vc, info->album,     "ALBUM"       );
-    ogg_set_string( vc, info->title,     "TITLE"       );
-    ogg_set_string( vc, info->genre,     "GENRE"       );
-    ogg_set_string( vc, info->year,      "YEAR"        );
-    ogg_set_string( vc, info->year,      "DATE"        );
-    ogg_set_string( vc, info->track,     "TRACKNUMBER" );
-    ogg_set_string( vc, info->copyright, "COPYRIGHT"   );
-    ogg_set_string( vc, info->comment,   "COMMENT"     );
+    if (info->haveinfo & DECODER_HAVE_ARTIST)
+      ogg_set_string( vc, info->artist,    "ARTIST"      );
+    if (info->haveinfo & DECODER_HAVE_ALBUM)
+      ogg_set_string( vc, info->album,     "ALBUM"       );
+    if (info->haveinfo & DECODER_HAVE_TITLE)
+      ogg_set_string( vc, info->title,     "TITLE"       );
+    if (info->haveinfo & DECODER_HAVE_GENRE)
+      ogg_set_string( vc, info->genre,     "GENRE"       );
+    if (info->haveinfo & DECODER_HAVE_YEAR)
+      ogg_set_string( vc, info->year,      "DATE"        );
+    if (info->haveinfo & DECODER_HAVE_TRACK)
+      ogg_set_string( vc, info->track,     "TRACKNUMBER" );
+    if (info->haveinfo & DECODER_HAVE_COPYRIGHT)
+      ogg_set_string( vc, info->copyright, "COPYRIGHT"   );
+    if (info->haveinfo & DECODER_HAVE_COMMENT)
+      ogg_set_string( vc, info->comment,   "COMMENT"     );
 
-    if( info->album_gain ) {
-      sprintf( buffer, "%.2f dB", info->album_gain );
+    if (info->haveinfo & DECODER_HAVE_ALBUM_GAIN)
+    { sprintf( buffer, "%.2f dB", info->album_gain );
       ogg_set_string( vc, buffer, "replaygain_album_gain" );
     }
-    if( info->album_peak ) {
-      sprintf( buffer, "%.6f", info->album_peak );
+    if (info->haveinfo & DECODER_HAVE_ALBUM_PEAK)
+    { sprintf( buffer, "%.6f", info->album_peak );
       ogg_set_string( vc, buffer, "replaygain_album_peak" );
     }
-    if( info->track_gain ) {
-      sprintf( buffer, "%.2f dB", info->track_gain );
+    if (info->haveinfo & DECODER_HAVE_TRACK_GAIN)
+    { sprintf( buffer, "%.2f dB", info->track_gain );
       ogg_set_string( vc, buffer, "replaygain_track_gain" );
     }
-    if( info->track_peak ) {
-      sprintf( buffer, "%.6f", info->track_peak );
+    if (info->haveinfo & DECODER_HAVE_TRACK_PEAK)
+    { sprintf( buffer, "%.6f", info->track_peak );
       ogg_set_string( vc, buffer, "replaygain_track_peak" );
     }
 
