@@ -373,7 +373,7 @@ Ctrl::ControlCommand* LoadHelper::ToCommand()
   if (ps->GetStop() != NULL)
     tail = tail->Link = Ctrl::MkStopAt(ps->GetStop()->Serialize(), 0, false);
   if (ps->GetStart() != NULL)
-    tail = tail->Link = Ctrl::MkNavigate(ps->GetStart()->Serialize(), 0, false, false);
+    tail = tail->Link = Ctrl::MkNavigate(ps->GetStart()->Serialize(), 0, false, true);
   if (Opt & LoadPlay)
     // start playback immediately after loading has completed
     tail = tail->Link = Ctrl::MkPlayStop(Ctrl::Op_Set);

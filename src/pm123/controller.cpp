@@ -609,7 +609,7 @@ Ctrl::RC Ctrl::MsgPlayStop(Op op)
 }
 
 Ctrl::RC Ctrl::MsgNavigate(const xstring& iter, T_TIME loc, int flags)
-{ DEBUGLOG(("Ctrl::MsgNavigate(%s, %g, %x)\n", iter.cdata(), loc, flags));
+{ DEBUGLOG(("Ctrl::MsgNavigate(%s, %g, %x)\n", iter ? iter.cdata() : "<null>", loc, flags));
   if (!GetCurrentSong())
     return RC_NoSong;
   sco_ptr<SongIterator> sip;
@@ -624,7 +624,7 @@ Ctrl::RC Ctrl::MsgNavigate(const xstring& iter, T_TIME loc, int flags)
     sip = new SongIterator(Current()->Iter);
     sip->SetLocation(time);
   }
-  if (iter)
+  if (iter && iter.length())
   { if (!IsEnumerable())
       return RC_NoList;
     const char* cp = iter.cdata();
@@ -632,8 +632,8 @@ Ctrl::RC Ctrl::MsgNavigate(const xstring& iter, T_TIME loc, int flags)
     // TODO: Error
     // Move forward to the next Song, if the current item is a playlist.
     AdjustNext(*sip);
-  }
-  sip->SetLocation(flags & 0x01 ? sip->GetLocation() + loc : loc);
+  } else
+    sip->SetLocation(flags & 0x01 ? sip->GetLocation() + loc : loc);
   // TODO: extend total playing time when leaving bounds of parent iterator?
   
   // commit
