@@ -41,6 +41,8 @@
 #include <stdio.h>
 #include <process.h>
 
+#include <debuglog.h>
+
 static sf_count_t DLLENTRY
 vio_fsize( void* x ) {
   return xio_fsize((XFILE*)x );
@@ -93,7 +95,7 @@ snd_open( DECODER_STRUCT* w, int mode, int read_ahead )
 
   static const char omode[][6] =
   { "rbU", "r+bU", "rbXU", "r+bXU" };
-  if(( w->file = xio_fopen( w->filename, omode[(mode == SFM_READ) + ((read_ahead != 0)<<1)] )) == NULL ) {
+  if(( w->file = xio_fopen( w->filename, omode[(mode != SFM_READ) + ((read_ahead != 0)<<1)] )) == NULL ) {
     w->sndfile = NULL;
     return xio_errno();
   }
@@ -421,6 +423,7 @@ decoder_fileinfo( const char* filename, DECODER_INFO* info )
   SF_FORMAT_INFO format_more;
   ULONG rc;
 
+  DEBUGLOG(("wavplay:decoder_fileinfo(%s, %p)\n", filename, info));
   strlcpy( w.filename, filename, sizeof( w.filename ));
   if(( rc = snd_open( &w, SFM_READ, FALSE )) == 0 )
   {
