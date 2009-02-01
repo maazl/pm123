@@ -674,7 +674,7 @@ output_play_samples( void* A, FORMAT_INFO* format, char* buf, int len, int posma
       }
 
       for( i = 0; i < len/2; i++ ) {
-        out[i] = ( in[i] >> 8 ) + 128;
+        out[i] = ((signed char*)(in+i))[1] + 128;
       }
       scale_08_replay_gain( a, out, len / 2 );
     } else {
