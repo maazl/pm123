@@ -63,10 +63,8 @@ void vorbis_comment_init(vorbis_comment *vc){
 }
 
 void vorbis_comment_add(vorbis_comment *vc,const char *comment){
-  vc->user_comments=_ogg_realloc(vc->user_comments,
-			    (vc->comments+2)*sizeof(*vc->user_comments));
-  vc->comment_lengths=_ogg_realloc(vc->comment_lengths,
-      			    (vc->comments+2)*sizeof(*vc->comment_lengths));
+  vc->user_comments=_ogg_realloc(vc->user_comments, (vc->comments+2)*sizeof(*vc->user_comments));
+  vc->comment_lengths=_ogg_realloc(vc->comment_lengths, (vc->comments+2)*sizeof(*vc->comment_lengths));
   vc->comment_lengths[vc->comments]=strlen(comment);
   vc->user_comments[vc->comments]=_ogg_malloc(vc->comment_lengths[vc->comments]+1);
   strcpy(vc->user_comments[vc->comments], comment);
@@ -130,12 +128,38 @@ int vorbis_comment_query_count(vorbis_comment *vc, const char *tag){
   return count;
 }
 
+int vorbis_comment_clear_tag(vorbis_comment *vc, const char *tag)
+{ int i,count=0;
+  int taglen = strlen(tag)+1; /* +1 for the = we append */
+  char *fulltag = alloca(taglen+1);
+  strcpy(fulltag,tag);
+  strcat(fulltag, "=");
+
+  for(i=vc->comments;i-->0;)
+  { char** current = vc->user_comments+i;
+    if(!tagcompare(*current, fulltag, taglen))
+    { _ogg_free(*current);
+      memmove(current, current+1, (vc->comments-i)*sizeof(*vc->user_comments));
+      memmove(vc->comment_lengths+i, vc->comment_lengths+i+1, (vc->comments-i)*sizeof(*vc->comment_lengths));
+      --vc->comments;
+      count++;
+    }
+  }
+  
+  if (count)
+  { vc->user_comments=_ogg_realloc(vc->user_comments, (vc->comments+1)*sizeof(*vc->user_comments));
+    vc->comment_lengths=_ogg_realloc(vc->comment_lengths, (vc->comments+1)*sizeof(*vc->comment_lengths));
+  }
+
+  return count;
+}
+
 void vorbis_comment_clear(vorbis_comment *vc){
   if(vc){
     long i;
     if(vc->user_comments){
       for(i=0;i<vc->comments;i++)
-	if(vc->user_comments[i])_ogg_free(vc->user_comments[i]);
+        if(vc->user_comments[i])_ogg_free(vc->user_comments[i]);
       _ogg_free(vc->user_comments);
     }
     if(vc->comment_lengths)_ogg_free(vc->comment_lengths);

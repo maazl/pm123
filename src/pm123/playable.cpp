@@ -863,6 +863,8 @@ Playable::InfoFlags Song::DoLoadInfo(InfoFlags what)
 
 ULONG Song::SaveMetaInfo(const META_INFO& info, int haveinfo)
 { DEBUGLOG(("Song(%p{%s})::SaveMetaInfo(, %x)\n", this, GetURL().cdata(), haveinfo));
+  haveinfo &= DECODER_HAVE_TITLE|DECODER_HAVE_ARTIST|DECODER_HAVE_ALBUM  |DECODER_HAVE_TRACK
+             |DECODER_HAVE_YEAR |DECODER_HAVE_GENRE |DECODER_HAVE_COMMENT|DECODER_HAVE_COPYRIGHT; 
   EnsureInfo(Playable::IF_Other);
   ULONG rc = dec_saveinfo(GetURL(), &info, haveinfo, GetDecoder());
   if (rc == 0)

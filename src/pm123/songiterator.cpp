@@ -973,12 +973,12 @@ xstring SongIterator::Serialize(bool withlocation) const
 }
 
 bool SongIterator::Deserialize(const char*& str)
-{ DEBUGLOG(("SongIterator(%p)::Deserialize(%s)\n", this, str));
+{ DEBUGLOG(("SongIterator(%p)::Deserialize(%s) - %s\n", this, str, Serialize(true).cdata()));
   ASSERT(GetRoot());
   MakeCallstackUnique();
   InvalidateCurrentCache();
   for (; *str; str += strspn(str, ";\r\n"))
-  { PlayableSlice* pi = (*Callstack)[Callstack->size()-1]->Item;
+  { PlayableSlice* pi = Current();
     if (pi == NULL || (pi->GetPlayable()->GetFlags() & Playable::Enumerable))
     { // Playlist navigation
       // parse part into url, index

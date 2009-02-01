@@ -171,6 +171,7 @@ extern void     DLLENTRY vorbis_comment_add_tag(vorbis_comment *vc,
 				       const char *tag, const char *contents);
 extern char    *DLLENTRY vorbis_comment_query(vorbis_comment *vc, const char *tag, int count);
 extern int      DLLENTRY vorbis_comment_query_count(vorbis_comment *vc, const char *tag);
+extern int      DLLENTRY vorbis_comment_clear_tag(vorbis_comment *vc, const char *tag);
 extern void     DLLENTRY vorbis_comment_clear(vorbis_comment *vc);
 
 extern int      DLLENTRY vorbis_block_init(vorbis_dsp_state *v, vorbis_block *vb);

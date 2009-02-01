@@ -1023,12 +1023,12 @@ bool PlayableCollection::SaveLST(XFILE* of, bool relative)
     }
     // slice
     if (pi->GetStart())
-    { xio_fputs("#START", of);
+    { xio_fputs("#START ", of);
       xio_fputs(pi->GetStart()->Serialize(), of);
       xio_fputs("\n", of);
     }
     if (pi->GetStop())
-    { xio_fputs("#STOP", of);
+    { xio_fputs("#STOP ", of);
       xio_fputs(pi->GetStop()->Serialize(), of);
       xio_fputs("\n", of);
     }
@@ -1193,13 +1193,16 @@ void Playlist::LSTReader::Reset()
 }
 
 void Playlist::LSTReader::Create()
-{ DEBUGLOG(("Playlist::LSTReader::Create() - %p, {%p, %p, %p, %p, %p}\n",
-    URL.cdata(), Info.format, Info.tech, Info.tech, Info.phys, Info.rpl));
+{ DEBUGLOG(("Playlist::LSTReader::Create() - %s, {%p, %p, %p, %p, %p}, %s, %s, %s\n",
+    URL ? URL.cdata() : "<null>", Info.format, Info.tech, Info.tech, Info.phys, Info.rpl,
+    Alias ? Alias.cdata() : "<null>", Start ? Start.cdata() : "<null>", Stop ? Stop.cdata() : "<null>"));
   if (URL)
   { Entry* ep = Parent.CreateEntry(URL, &Info);
     ep->SetAlias(Alias);
     if (Start || Stop)
-    { PlayableSlice* ps = new PlayableSlice(ep->GetPlayable());
+    { // Uh, dirty indirection. Deserialize does not work unless the list ist valid.
+      ep->GetPlayable()->EnsureInfo(IF_Other);
+      PlayableSlice* ps = new PlayableSlice(ep->GetPlayable());
       if (Start)
       { SongIterator* psi = new SongIterator;
         psi->SetRoot(ps);
@@ -1235,7 +1238,7 @@ void Playlist::LSTReader::ParseLine(char* line)
     { Alias = line+7;
     } else if (memcmp(line+1, "START ", 6) == 0) // slice
     { Start = line+7;
-    } else if (memcmp(line+1, "STOP ", 6) == 0) // slice
+    } else if (memcmp(line+1, "STOP ", 5) == 0) // slice
     { Stop = line+6;
     } else if (line[1] == ' ')
     { const char* cp = strstr(line+2, ", ");
@@ -1250,9 +1253,10 @@ void Playlist::LSTReader::ParseLine(char* line)
 
    default:
     // close last URL
-    Create();
     if (URL)
+    { Create();
       Reset();
+    }
     URL = Parent.GetURL().makeAbsolute(line);
     break;
 
