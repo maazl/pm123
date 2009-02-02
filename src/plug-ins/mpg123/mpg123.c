@@ -178,11 +178,6 @@ int plg_update_tags( DECODER_STRUCT* w, ID3V1_TAG* tagv1, ID3V2_TAG* tagv2,
     xio_fclose( save );
   }
 
-  if ( rc == PLUGIN_OK && copy )
-  { // Preserve EAs.
-    eacopy( w->filename, *savename );
-  }
-  
   return rc;
 }
 
@@ -225,7 +220,7 @@ int plg_replace_file( const char* srcfile, const char* dstfile, const char** err
     DosRequestMutexSem( w->mutex, SEM_INDEFINITE_WAIT );
 
     if( w->mpeg.file && stricmp( w->filename, dstfile ) == 0 ) {
-      DEBUGLOG(( "mpg123: suspend currently used file: %s\n", w->filename ));
+      DEBUGLOG(( "mpg123:plg_replace_file: suspend currently used file: %s\n", w->filename ));
       resumepoints[i] = xio_ftell( w->mpeg.file ) - w->mpeg.started;
       xio_fclose( w->mpeg.file );
     } else {
@@ -235,7 +230,7 @@ int plg_replace_file( const char* srcfile, const char* dstfile, const char** err
 
   // Replace file.
   if( remove( dstfile ) == 0 ) {
-    DEBUGLOG(("mpg123:decoder_saveinfo: deleted %s, replacing by %s\n", dstfile, srcfile));
+    DEBUGLOG(("mpg123:plg_replace_file: deleted %s, replacing by %s\n", dstfile, srcfile));
     if( rename( srcfile, dstfile ) != 0 ) {
       if (errmsg)
         *errmsg = "Critical error! Failed to rename temporary file.";
@@ -245,7 +240,7 @@ int plg_replace_file( const char* srcfile, const char* dstfile, const char** err
     rc = errno;
     if (errmsg)
       *errmsg = "Failed to delete old file.";
-    DEBUGLOG(("mpg123:decoder_saveinfo: failed to delete %s (rc = %i), rollback %s\n", dstfile, errno, srcfile));
+    DEBUGLOG(("mpg123:plg_replace_file: failed to delete %s (rc = %i), rollback %s\n", dstfile, errno, srcfile));
     remove( srcfile );
   }
 
@@ -253,7 +248,7 @@ int plg_replace_file( const char* srcfile, const char* dstfile, const char** err
   for( i = 0; i < instances_count; i++ )
   { if (resumepoints[i] != -1)
     { w = instances[i];
-      DEBUGLOG(( "mpg123: resumes currently used file: %s\n", w->filename ));
+      DEBUGLOG(( "mpg123:plg_replace_file: resumes currently used file: %s\n", w->filename ));
       if(( w->mpeg.file = xio_fopen( w->mpeg.filename, "rbXU" )) != NULL ) {
         xio_fseek( w->mpeg.file, resumepoints[i] + newstart, XIO_SEEK_SET  );
         w->mpeg.started = newstart;
@@ -1109,6 +1104,7 @@ decoder_saveinfo( const char* filename, const DECODER_INFO* info )
     return rc;
   }
   // Must replace the file.
+  eacopy( filename, savename );
   return plg_replace_file( savename, filename, NULL );
 }
 
