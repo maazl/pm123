@@ -1142,6 +1142,10 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
           PlaylistView::Get(DefaultBM, "Bookmarks")->SetVisible(true);
           break;
 
+        case IDM_M_EDITBOOKTREE:
+          PlaylistManager::Get(DefaultBM, "Bookmark Tree")->SetVisible(true);
+          break;
+
         case IDM_M_INFO:
           if (CurrentSong)
             InfoDialog::GetByKey(CurrentSong)->ShowPage(InfoDialog::Page_MetaInfo);
@@ -1344,6 +1348,13 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
 
     case WM_HELP:
      DEBUGLOG(("amp_dlg_proc: WM_HELP(%u, %u, %u)\n", SHORT1FROMMP(mp1), SHORT1FROMMP(mp2), SHORT2FROMMP(mp2)));
+     switch (SHORT1FROMMP(mp2))
+     {case CMDSRC_MENU:
+       // The default menu processing seems to call the help hook with unreasonable values for SubTopic.
+       // So let's introduce a very short way.
+       amp_show_help(SHORT1FROMMP(mp1));
+       return 0;
+     }
      break;
 
     case WM_CREATE:

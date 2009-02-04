@@ -176,9 +176,8 @@ HWND InfoDialog::PageMetaInfo::SetEFText(USHORT id, Fields fld, const char* text
 
 MRESULT InfoDialog::PageMetaInfo::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
 { switch (msg)
-  {case WM_INITDLG:
-    SetHelpMgr(amp_help_mgr());
-    break;
+  {//case WM_INITDLG:
+   // break;
     
    case UM_UPDATE:
     { // update info values
@@ -442,6 +441,7 @@ MRESULT InfoDialog::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
       PMRASSERT(WinSetWindowPos(GetHwnd(), NULLHANDLE, swp.x,swp.y, 0,0, SWP_MOVE));
     }
     do_warpsans(GetHwnd());
+    SetHelpMgr(amp_help_mgr());
     break;
 
    case WM_SYSCOMMAND:

@@ -485,10 +485,16 @@ BOOL amp_warn_if_overwrite( HWND owner, const char* filename )
 
 /* Tells the help manager to display a specific help window. */
 bool amp_show_help( SHORT resid )
-{ return WinSendMsg( hhelp, HM_DISPLAY_HELP,
-    MPFROMLONG( MAKELONG( resid, NULL )), MPFROMSHORT( HM_RESOURCEID )) == 0;
+{ DEBUGLOG(("amp_show_help(%u)\n", resid));
+  return WinSendMsg( hhelp, HM_DISPLAY_HELP,
+    MPFROMSHORT( resid ), MPFROMSHORT( HM_RESOURCEID )) == 0;
 }
 
+static BOOL EXPENTRY HelpHook(HAB hab, ULONG usMode, ULONG idTopic, ULONG idSubTopic, PRECTL prcPosition)
+{ DEBUGLOG(("HelpHook(%p, %x, %x, %x, {%li,%li, %li,%li})\n", hab,
+    usMode, idTopic, idSubTopic, prcPosition->xLeft, prcPosition->yBottom, prcPosition->xRight, prcPosition->yTop));
+  return FALSE;
+} 
 
 /* global init */
 void dlg_init()
@@ -515,6 +521,8 @@ void dlg_init()
     amp_error( amp_player_window(), "Error create help instance: %s", infname.cdata() );
   else
     PMRASSERT(WinAssociateHelpInstance(hhelp, amp_player_window()));
+    
+  WinSetHook( amp_player_hab(), HMQ_CURRENT, HK_HELP, (PFN)&HelpHook, 0 );
 }
 
 void dlg_uninit()
