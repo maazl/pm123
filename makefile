@@ -310,6 +310,10 @@ distzip: distclean distfiles $(MDUMMY)
 	if exist dist\pm123-$(VERSION).zip del dist\pm123-$(VERSION).zip
 	cmd /c "cd dist\files & zip -rX ..\pm123-$(VERSION).zip * -x CVS\* .cvsignore "
 
+distsrc: distclean $(MDUMMY)
+	-@del pm123-$(VERSION)-src.zip  2>log
+	zip -9 -r pm123-$(VERSION)-src.zip * -x .svn pm123*.zip makerules
+
 distclean: $(MDUMMY)
 	-@echo Cleanups...
 	-@del dist\files\icons\* /n     2> nul
