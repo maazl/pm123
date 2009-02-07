@@ -423,11 +423,11 @@ amp_load_accel()
 static void
 amp_show_context_menu( HWND parent )
 {
-  static HWND menu = NULLHANDLE;
+  static HWND context_menu = NULLHANDLE;
   bool new_menu = false;
-  if( menu == NULLHANDLE )
-  { menu = WinLoadMenu( HWND_OBJECT, 0, MNU_MAIN );
-    mn_make_conditionalcascade( menu, IDM_M_LOAD, IDM_M_LOADFILE );
+  if( context_menu == NULLHANDLE )
+  { context_menu = WinLoadMenu( HWND_OBJECT, 0, MNU_MAIN );
+    mn_make_conditionalcascade( context_menu, IDM_M_LOAD, IDM_M_LOADFILE );
 
     MenuWorker = new PlaylistMenu(parent, IDM_M_LAST, IDM_M_LAST_E);
     MenuWorker->AttachMenu(IDM_M_BOOKMARKS, DefaultBM, PlaylistMenu::DummyIfEmpty|PlaylistMenu::Recursive|PlaylistMenu::Enumerate, 0);
@@ -450,42 +450,42 @@ amp_show_context_menu( HWND parent )
   if (is_plugin_changed || new_menu)
   { // Update plug-ins.
     MENUITEM mi;
-    PMRASSERT(WinSendMsg( menu, MM_QUERYITEM, MPFROM2SHORT( IDM_M_PLUG, TRUE ), MPFROMP( &mi )));
+    PMRASSERT(WinSendMsg( context_menu, MM_QUERYITEM, MPFROM2SHORT( IDM_M_PLUG, TRUE ), MPFROMP( &mi )));
     is_plugin_changed = false;
     load_plugin_menu( mi.hwndSubMenu );
   }
 
   if (is_accel_changed || new_menu)
   { MENUITEM mi;
-    PMRASSERT(WinSendMsg( menu, MM_QUERYITEM, MPFROM2SHORT( IDM_M_LOAD, TRUE ), MPFROMP( &mi )));
+    PMRASSERT(WinSendMsg( context_menu, MM_QUERYITEM, MPFROM2SHORT( IDM_M_LOAD, TRUE ), MPFROMP( &mi )));
     // Append asisstents from decoder plug-ins
     memset( load_wizzards+2, 0, sizeof load_wizzards - 2*sizeof *load_wizzards ); // You never know...
     is_accel_changed = false;
     dec_append_load_menu( mi.hwndSubMenu, IDM_M_LOADOTHER, 2, load_wizzards+2, sizeof load_wizzards / sizeof *load_wizzards -2);
-    ( MenuShowAccel( WinQueryAccelTable( hab, hframe ))).ApplyTo( new_menu ? menu : mi.hwndSubMenu );
+    ( MenuShowAccel( WinQueryAccelTable( hab, hframe ))).ApplyTo( new_menu ? context_menu : mi.hwndSubMenu );
   }
 
   // Update status
-  mn_enable_item( menu, IDM_M_TAG,     CurrentSong != NULL && CurrentSong->GetInfo().meta_write );
-  mn_enable_item( menu, IDM_M_CURRENT_SONG, CurrentSong != NULL );
-  mn_enable_item( menu, IDM_M_CURRENT_PL, CurrentRoot != NULL && CurrentRoot->GetFlags() & Playable::Enumerable );
-  mn_enable_item( menu, IDM_M_SMALL,   bmp_is_mode_supported( CFG_MODE_SMALL   ));
-  mn_enable_item( menu, IDM_M_NORMAL,  bmp_is_mode_supported( CFG_MODE_REGULAR ));
-  mn_enable_item( menu, IDM_M_TINY,    bmp_is_mode_supported( CFG_MODE_TINY    ));
-  mn_enable_item( menu, IDM_M_FONT,    cfg.font_skinned );
-  mn_enable_item( menu, IDM_M_FONT1,   bmp_is_font_supported( 0 ));
-  mn_enable_item( menu, IDM_M_FONT2,   bmp_is_font_supported( 1 ));
-  mn_enable_item( menu, IDM_M_ADDBOOK, CurrentSong != NULL );
+  mn_enable_item( context_menu, IDM_M_TAG,     CurrentSong != NULL && CurrentSong->GetInfo().meta_write );
+  mn_enable_item( context_menu, IDM_M_CURRENT_SONG, CurrentSong != NULL );
+  mn_enable_item( context_menu, IDM_M_CURRENT_PL, CurrentRoot != NULL && CurrentRoot->GetFlags() & Playable::Enumerable );
+  mn_enable_item( context_menu, IDM_M_SMALL,   bmp_is_mode_supported( CFG_MODE_SMALL   ));
+  mn_enable_item( context_menu, IDM_M_NORMAL,  bmp_is_mode_supported( CFG_MODE_REGULAR ));
+  mn_enable_item( context_menu, IDM_M_TINY,    bmp_is_mode_supported( CFG_MODE_TINY    ));
+  mn_enable_item( context_menu, IDM_M_FONT,    cfg.font_skinned );
+  mn_enable_item( context_menu, IDM_M_FONT1,   bmp_is_font_supported( 0 ));
+  mn_enable_item( context_menu, IDM_M_FONT2,   bmp_is_font_supported( 1 ));
+  mn_enable_item( context_menu, IDM_M_ADDBOOK, CurrentSong != NULL );
 
-  mn_check_item ( menu, IDM_M_FLOAT,   cfg.floatontop  );
-  mn_check_item ( menu, IDM_M_SAVE,    !!Ctrl::GetSavename() );
-  mn_check_item ( menu, IDM_M_FONT1,   cfg.font == 0   );
-  mn_check_item ( menu, IDM_M_FONT2,   cfg.font == 1   );
-  mn_check_item ( menu, IDM_M_SMALL,   cfg.mode == CFG_MODE_SMALL   );
-  mn_check_item ( menu, IDM_M_NORMAL,  cfg.mode == CFG_MODE_REGULAR );
-  mn_check_item ( menu, IDM_M_TINY,    cfg.mode == CFG_MODE_TINY    );
+  mn_check_item ( context_menu, IDM_M_FLOAT,   cfg.floatontop  );
+  mn_check_item ( context_menu, IDM_M_SAVE,    !!Ctrl::GetSavename() );
+  mn_check_item ( context_menu, IDM_M_FONT1,   cfg.font == 0   );
+  mn_check_item ( context_menu, IDM_M_FONT2,   cfg.font == 1   );
+  mn_check_item ( context_menu, IDM_M_SMALL,   cfg.mode == CFG_MODE_SMALL   );
+  mn_check_item ( context_menu, IDM_M_NORMAL,  cfg.mode == CFG_MODE_REGULAR );
+  mn_check_item ( context_menu, IDM_M_TINY,    cfg.mode == CFG_MODE_TINY    );
 
-  WinPopupMenu( parent, parent, menu, pos.x, pos.y, 0,
+  WinPopupMenu( parent, parent, context_menu, pos.x, pos.y, 0,
                 PU_HCONSTRAIN   | PU_VCONSTRAIN |
                 PU_MOUSEBUTTON1 | PU_MOUSEBUTTON2 | PU_KEYBOARD );
 }
@@ -1579,6 +1579,7 @@ static void amp_plugin_eventhandler(void*, const Plugin::EventArgs& args)
   switch (args.Operation)
   {case Plugin::EventArgs::Enable:
    case Plugin::EventArgs::Disable:
+   case Plugin::EventArgs::Load:
    case Plugin::EventArgs::Unload:
     if (args.Plug.GetType() == PLUGIN_DECODER)
       WinPostMsg(hframe, AMP_REFRESH_ACCEL, 0, 0);
