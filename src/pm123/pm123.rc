@@ -391,6 +391,8 @@ BEGIN
   "L",        IDM_M_ADDBOOK_TIME,   CHAR|CONTROL|SHIFT
   "l",        IDM_M_ADDPLBOOK_TIME, CHAR|CONTROL
   "m",        IDM_M_MANAGER,        CHAR|CONTROL
+  "o",        IDM_M_PLOPENDETAIL,   CHAR|ALT
+  "O",        IDM_M_PLOPENTREE,     CHAR|ALT|SHIFT
   "o",        IDM_M_LOADFILE,       CHAR|CONTROL
   "p",        IDM_M_PLAYLIST,       CHAR|CONTROL
   "s",        IDM_M_SAVE,           CHAR|CONTROL
@@ -448,6 +450,10 @@ MENU MNU_MAIN
   MENUITEM SEPARATOR
   MENUITEM "Show default ~playlist",       IDM_M_PLAYLIST
   MENUITEM "Show playlist ~manager",       IDM_M_MANAGER
+  SUBMENU  "Open playlist",                IDM_M_PLOPEN
+  { MENUITEM "~Detail view",               IDM_M_PLOPENDETAIL
+    MENUITEM "~Tree view",                 IDM_M_PLOPENTREE
+  }
   MENUITEM SEPARATOR
   MENUITEM "P~roperties...",               IDM_M_CFG
   SUBMENU  "Pl~ayback",                    IDM_M_PLAYBACK

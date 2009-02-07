@@ -124,7 +124,7 @@ static bool  is_accel_changed = false;
 static bool  is_plugin_changed = true;
 
 /* Current load wizzards */
-static DECODER_WIZZARD_FUNC load_wizzards[20];
+static DECODER_WIZZARD_FUNC load_wizzards[16];
 
 static volatile unsigned upd_options = 0;
 
@@ -428,6 +428,7 @@ amp_show_context_menu( HWND parent )
   if( context_menu == NULLHANDLE )
   { context_menu = WinLoadMenu( HWND_OBJECT, 0, MNU_MAIN );
     mn_make_conditionalcascade( context_menu, IDM_M_LOAD, IDM_M_LOADFILE );
+    mn_make_conditionalcascade( context_menu, IDM_M_PLOPEN, IDM_M_PLOPENDETAIL);
 
     MenuWorker = new PlaylistMenu(parent, IDM_M_LAST, IDM_M_LAST_E);
     MenuWorker->AttachMenu(IDM_M_BOOKMARKS, DefaultBM, PlaylistMenu::DummyIfEmpty|PlaylistMenu::Recursive|PlaylistMenu::Enumerate, 0);
@@ -1103,10 +1104,6 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
 
       switch( cmd )
       {
-        case IDM_M_MANAGER:
-          PlaylistManager::Get(DefaultPM, "Playlist Manager")->SetVisible(true);
-          break;
-
         case IDM_M_ADDBOOK:
           if (CurrentSong)
             amp_add_bookmark(hwnd, PlayableSlice(CurrentSong));
@@ -1200,6 +1197,31 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
           amp_save_stream(hwnd, !Ctrl::GetSavename());
           break;
 
+        case IDM_M_PLAYLIST:
+          PlaylistView::Get(DefaultPL, "Default Playlist")->SetVisible(true);
+          break;
+
+        case IDM_M_MANAGER:
+          PlaylistManager::Get(DefaultPM, "Playlist Manager")->SetVisible(true);
+          break;
+
+        case IDM_M_PLOPENDETAIL:
+        { url123 URL = amp_playlist_select(hwnd, "Open Playlist");
+          if (URL)
+          { PlaylistBase* pp = PlaylistView::Get(Playable::GetByURL(URL));
+            pp->SetVisible(true);
+          }
+          break;
+        }
+        case IDM_M_PLOPENTREE:
+        { url123 URL = amp_playlist_select(hwnd, "Open Playlist Tree");
+          if (URL)
+          { PlaylistBase* pp = PlaylistManager::Get(Playable::GetByURL(URL));
+            pp->SetVisible(true);
+          }
+          break;
+        }
+
         case IDM_M_FLOAT:
           cfg.floatontop = !cfg.floatontop;
 
@@ -1258,10 +1280,6 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
           } else {
             dk_cleanup( hframe );
           }
-          break;
-
-        case IDM_M_PLAYLIST:
-          PlaylistView::Get(DefaultPL, "Default Playlist")->SetVisible(true);
           break;
 
         case IDM_M_VOL_RAISE:

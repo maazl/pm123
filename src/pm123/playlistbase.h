@@ -237,7 +237,7 @@ class PlaylistBase
   #endif
  protected: // working set
   HWND              HwndContainer; // content window handle
-  DECODER_WIZZARD_FUNC LoadWizzards[20]; // Current load wizzards
+  DECODER_WIZZARD_FUNC LoadWizzards[16]; // Current load wizzards
   bool              NoRefresh;     // Avoid update events to ourself
   xstring           DirectEdit;    // String that holds result of direct manipulation between CN_REALLOCPSZ and CN_ENDEDIT
   CommonState       EvntState;     // Event State
@@ -359,8 +359,6 @@ class PlaylistBase
   void              PluginEvent(const Plugin::EventArgs& args);
 
  protected: // User actions
-  // Select a list with a file dialog.
-  static url123     PlaylistSelect(HWND owner, const char* title);
   // Add Item
   void              UserAdd(DECODER_WIZZARD_FUNC wizzard, RecordBase* parent = NULL, RecordBase* before = NULL);
   // Insert a new item

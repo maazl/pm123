@@ -605,7 +605,7 @@ MRESULT PlaylistBase::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
         break;
 
        case IDM_PL_OPEN:
-        { url123 URL = PlaylistSelect(GetHwnd(), "Open Playlist");
+        { url123 URL = amp_playlist_select(GetHwnd(), "Open Playlist");
           if (URL)
           { PlaylistBase* pp = GetSame(Playable::GetByURL(URL));
             pp->SetVisible(true);
@@ -1264,26 +1264,6 @@ int PlaylistBase::CompSize(const PlayableInstance* l, const PlayableInstance* r)
 
 int PlaylistBase::CompTime(const PlayableInstance* l, const PlayableInstance* r)
 { return l->GetPlayable()->GetInfo().tech->songlength > r->GetPlayable()->GetInfo().tech->songlength;
-}
-
-url123 PlaylistBase::PlaylistSelect(HWND owner, const char* title)
-{
-  APSZ types[] = {{ FDT_PLAYLIST }, { 0 }};
-  FILEDLG filedialog = { sizeof(FILEDLG) };
-  filedialog.fl             = FDS_CENTER | FDS_OPEN_DIALOG;
-  filedialog.pszTitle       = (PSZ)title;
-  filedialog.papszITypeList = types;
-  filedialog.pszIType       = FDT_PLAYLIST;
-
-  strncpy( filedialog.szFullFile, cfg.listdir, sizeof filedialog.szFullFile );
-  PMXASSERT(amp_file_dlg(HWND_DESKTOP, owner, &filedialog), != NULLHANDLE);
-
-  if( filedialog.lReturn == DID_OK )
-  { sdrivedir( cfg.listdir, filedialog.szFullFile, sizeof cfg.listdir );
-    return url123::normalizeURL(filedialog.szFullFile);
-  } else
-  { return url123();
-  }
 }
 
 /****************************************************************************

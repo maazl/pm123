@@ -64,7 +64,8 @@ bool  amp_show_help( SHORT resid );
 ULONG DLLENTRY amp_file_wizzard( HWND owner, const char* title, DECODER_WIZZARD_CALLBACK callback, void* param );
 /* Wizzard function for the default entry "URL..." */
 ULONG DLLENTRY amp_url_wizzard( HWND owner, const char* title, DECODER_WIZZARD_CALLBACK callback, void* param );
-
+/* Open playlist file dialog */
+url123 amp_playlist_select(HWND owner, const char* title);
 
 /* Loads a skin selected by the user. */
 void amp_loadskin( HPS hps );

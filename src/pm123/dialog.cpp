@@ -115,8 +115,8 @@ ULONG DLLENTRY amp_file_wizzard( HWND owner, const char* title, DECODER_WIZZARD_
 
     xstring wintitle = xstring::sprintf(title, " file(s)");
 
-    filedialog.fl             = FDS_CENTER | FDS_OPEN_DIALOG | FDS_MULTIPLESEL;
-    filedialog.ulUser         = FDU_DIR_ENABLE | FDU_RECURSEBTN;
+    filedialog.fl             = FDS_CENTER|FDS_OPEN_DIALOG|FDS_MULTIPLESEL;
+    filedialog.ulUser         = FDU_DIR_ENABLE|FDU_RECURSEBTN;
     filedialog.pszTitle       = (PSZ)wintitle.cdata(); // OS/2 and const...
     filedialog.papszITypeList = types;
     filedialog.pszIType       = (PSZ)type_all.cdata(); // OS/2 and const...
@@ -134,9 +134,6 @@ ULONG DLLENTRY amp_file_wizzard( HWND owner, const char* title, DECODER_WIZZARD_
       ? **filedialog.papszFQFilename
       : filedialog.szFullFile;
 
-    if (*file)
-      sdrivedir( cfg.filedir, file, sizeof( cfg.filedir ));
-
     ULONG count = 0;
     while (*file)
     { DEBUGLOG(("amp_file_wizzard: %s\n", file));
@@ -151,9 +148,11 @@ ULONG DLLENTRY amp_file_wizzard( HWND owner, const char* title, DECODER_WIZZARD_
         if (filedialog.ulUser & FDU_RECURSE_ON)
         { strcpy(dp, "?recursive");
           dp += 10;
-        } else
-          *dp = 0;
+        }
+        *dp = 0;
       }
+      if (count == 0)
+        sdrivedir( cfg.filedir, fileurl+8, sizeof( cfg.filedir ));
       // convert slashes
       dp = strchr(fileurl+7, '\\');
       while (dp)
@@ -252,6 +251,41 @@ ULONG DLLENTRY amp_url_wizzard( HWND owner, const char* title, DECODER_WIZZARD_C
   }
   WinDestroyWindow(hwnd);
   return ret;
+}
+
+url123 amp_playlist_select(HWND owner, const char* title)
+{
+  DEBUGLOG(("amp_playlist_select(%p, %s)\n", owner, title));
+  APSZ types[] = {{ FDT_PLAYLIST }, { 0 }};
+  FILEDLG filedialog = { sizeof(FILEDLG) };
+  filedialog.fl             = FDS_CENTER|FDS_OPEN_DIALOG;
+  filedialog.pszTitle       = (PSZ)title;
+  filedialog.papszITypeList = types;
+  filedialog.pszIType       = FDT_PLAYLIST;
+  filedialog.ulUser         = FDU_RECURSEBTN|FDU_DIR_ENABLE;
+
+  strncpy( filedialog.szFullFile, cfg.listdir, sizeof filedialog.szFullFile );
+  PMXASSERT(amp_file_dlg(HWND_DESKTOP, owner, &filedialog), != NULLHANDLE);
+
+  if( filedialog.lReturn == DID_OK )
+  { 
+    char* dp = filedialog.szFullFile + strlen(filedialog.szFullFile);
+    if (is_dir(filedialog.szFullFile))
+    { // Folder => add trailing slash
+      if (!url123::isPathDelimiter(dp[-1]))
+        *dp++ = '/';
+      if (filedialog.ulUser & FDU_RECURSE_ON)
+      { strcpy(dp, "?recursive");
+        dp += 10;
+      }
+      *dp = 0;
+    }
+
+    sdrivedir( cfg.listdir, filedialog.szFullFile, sizeof cfg.listdir );
+    return url123::normalizeURL(filedialog.szFullFile);
+  } else
+  { return url123();
+  }
 }
 
 /* Adds a user selected bookmark. */

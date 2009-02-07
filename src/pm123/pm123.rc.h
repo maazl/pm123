@@ -96,6 +96,9 @@
 #define IDM_M_TAG           523
 #define IDM_M_INFO          524
 #define IDM_M_PLINFO        525
+#define IDM_M_PLOPEN        526
+#define IDM_M_PLOPENDETAIL  527
+#define IDM_M_PLOPENTREE    528
 #define IDM_M_MANAGER       530
 #define IDM_M_SAVE          532
 #define IDM_M_BOOKMARKS     533

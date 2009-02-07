@@ -255,6 +255,7 @@ void PlaylistMenu::CreateSubItems(MapEntry* mapp)
        case Playable::STA_Unknown:
         pp->EnsureInfoAsync(Playable::IF_Other, false, false);
         break;
+       default:;
       }
       // with submenu?
       if ((mapp->Flags & Recursive) && (pp->GetFlags() & Playable::Enumerable))

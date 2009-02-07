@@ -330,7 +330,7 @@ amp_file_dlg( HWND hparent, HWND howner, PFILEDLG filedialog )
   filedialog->hMod       = NULLHANDLE;
   filedialog->usDlgId    = DLG_FILE;
   filedialog->pfnDlgProc = amp_file_dlg_proc;
-  filedialog->fl        |= FDS_CUSTOM;
+  filedialog->fl        |= FDS_CUSTOM|FDS_ENABLEFILELB;
 
   return WinFileDlg( hparent, howner, filedialog );
 }
