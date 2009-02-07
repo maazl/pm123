@@ -195,9 +195,6 @@ clean:  $(MDUMMY)
 	cd src\plug-ins\oggplay
 	@$(MAKE) $(MFLAGS) clean
 	@cd ..\..\..
-	cd src\plug-ins\logvolum
-	@$(MAKE) $(MFLAGS) clean
-	@cd ..\..\..
 	cd src\plug-ins\os2rec
 	@$(MAKE) $(MFLAGS) clean
 	@cd ..\..\..
@@ -205,6 +202,56 @@ clean:  $(MDUMMY)
 	@$(MAKE) $(MFLAGS) clean
 	@cd ..\..
 	cd src\skinutil
+	@$(MAKE) $(MFLAGS) clean
+	@cd ..\..
+	cd doc
+	@$(MAKE) $(MFLAGS) clean
+	@cd ..
+
+clean123: $(MDUMMY)
+	cd src\utils
+	@$(MAKE) $(MFLAGS) clean
+	@cd ..\..
+	cd src\utils\cpp
+	@$(MAKE) $(MFLAGS) clean
+	@cd ..\..\..
+	cd src\xio123
+	@$(MAKE) $(MFLAGS) clean
+	@cd ..\..
+	cd src\plug-ins\analyzer
+	@$(MAKE) $(MFLAGS) clean
+	@cd ..\..\..
+	cd src\plug-ins\cddaplay
+	@$(MAKE) $(MFLAGS) clean
+	@cd ..\..\..
+	cd src\plug-ins\logvolum
+	@$(MAKE) $(MFLAGS) clean
+	@cd ..\..\..
+	cd src\plug-ins\mpg123
+	@$(MAKE) $(MFLAGS) clean
+	@cd ..\..\..
+	cd src\plug-ins\os2audio
+	@$(MAKE) $(MFLAGS) clean
+	@cd ..\..\..
+	cd src\plug-ins\os2rec
+	@$(MAKE) $(MFLAGS) clean
+	@cd ..\..\..
+	cd src\plug-ins\realeq
+	@$(MAKE) $(MFLAGS) clean
+	@cd ..\..\..
+	cd src\plug-ins\wavplay
+	@$(MAKE) $(MFLAGS) clean
+	@cd ..\..\..
+	cd src\plug-ins\wavout
+	@$(MAKE) $(MFLAGS) clean
+	@cd ..\..\..
+	cd src\plug-ins\oggplay
+	@$(MAKE) $(MFLAGS) clean
+	@cd ..\..\..
+	cd src\plug-ins\os2rec
+	@$(MAKE) $(MFLAGS) clean
+	@cd ..\..\..
+	cd src\pm123
 	@$(MAKE) $(MFLAGS) clean
 	@cd ..\..
 	cd doc
