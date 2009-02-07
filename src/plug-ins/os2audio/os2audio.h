@@ -29,7 +29,7 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#define DLG_CONFIGURE 1
+#define DLG_CONFIGURE 100
 #define ID_NULL       1000
 #define CB_DEVICE     1010
 #define CB_SHARED     1020

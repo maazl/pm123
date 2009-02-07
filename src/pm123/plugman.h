@@ -98,7 +98,8 @@ class Module
   // Returns TRUE on success, otherwise return FALSE and call amp_player_error.
   bool    Load();
   // Launch the configure dialog.
-  void    Config(HWND hwnd) const            { if (plugin_configure) (*plugin_configure)(hwnd, HModule); }
+  void    Config(HWND hwnd) const            { DEBUGLOG(("Module(%p{%s})::Config(%p) - %p\n", this, GetModuleName().cdata(), hwnd, plugin_configure));
+                                               if (plugin_configure) (*plugin_configure)(hwnd, HModule); }
   // Comperator for repository
   virtual int compareTo(const xstring& key) const;
   // Ensure access to a Module.

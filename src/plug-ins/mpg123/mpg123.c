@@ -49,8 +49,6 @@
 #include <errno.h>
 #include <ctype.h>
 
-#include "genre.h"
-
 
 static DECODER_STRUCT** instances = NULL;
 static int  instances_count = 0;

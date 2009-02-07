@@ -49,7 +49,7 @@
 #include <errno.h>
 #include <ctype.h>
 
-#include "genre.h"
+#include <genre.h>
 
 
 static CH_ENTRY id3v2_ch_list[4]; 

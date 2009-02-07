@@ -30,7 +30,7 @@
 #ifndef _REALEQ_H
 #define _REALEQ_H
 
-#define ID_EQ       10
+#define ID_EQ     1006 /* = IDH_EQUALIZER */
 
 #define EQ_ENABLED  20
 #define ID_LOCKLR   21

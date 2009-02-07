@@ -32,7 +32,7 @@
 #ifndef _ANALYZER_H
 #define _ANALYZER_H
 
-#define DLG_CONFIGURE    100
+#define DLG_CONFIGURE   1002 /* = IDH_ANALYZER */
 #define GB_SETTINGS      101
 #define SB_FREQUENCY     102
 #define ST_FREQUENCY     103

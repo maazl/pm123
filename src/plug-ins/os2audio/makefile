@@ -25,3 +25,4 @@ clean:  $(MDUMMY)
 	-@del os2audio$(LBI) os2audio.dll $(OBJECTS) $(RESOURCE) 2> nul
 
 os2audio.c:	..\..\utils\utilfct.h ..\..\include\format.h ..\..\include\output_plug.h ..\..\include\decoder_plug.h ..\..\include\plugin.h ..\..\utils\debuglog.h os2audio.h
+os2audio.rc:	os2audio.h
