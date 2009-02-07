@@ -427,8 +427,9 @@ amp_show_context_menu( HWND parent )
   bool new_menu = false;
   if( context_menu == NULLHANDLE )
   { context_menu = WinLoadMenu( HWND_OBJECT, 0, MNU_MAIN );
-    mn_make_conditionalcascade( context_menu, IDM_M_LOAD, IDM_M_LOADFILE );
+    mn_make_conditionalcascade( context_menu, IDM_M_LOAD,   IDM_M_LOADFILE );
     mn_make_conditionalcascade( context_menu, IDM_M_PLOPEN, IDM_M_PLOPENDETAIL);
+    mn_make_conditionalcascade( context_menu, IDM_M_HELP,   IDH_MAIN);
 
     MenuWorker = new PlaylistMenu(parent, IDM_M_LAST, IDM_M_LAST_E);
     MenuWorker->AttachMenu(IDM_M_BOOKMARKS, DefaultBM, PlaylistMenu::DummyIfEmpty|PlaylistMenu::Recursive|PlaylistMenu::Enumerate, 0);
