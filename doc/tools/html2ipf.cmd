@@ -1156,6 +1156,7 @@ doTag!TABLE:
 return 0;
 
 doTagTR:
+ call NewLine;
  call PutToken ':row.';
  call PutToken Global.EOL;
  Global.IsOutputEnabled = 0;
@@ -1171,6 +1172,7 @@ return 0;
 doTagTH:
  Global.IsOutputEnabled = 1;
  Global.Table.Width = Global.Table.Width + 1;
+ call NewLine;
  call PutToken ':c.'; call doTagU;
 return 0;
 
@@ -1182,6 +1184,7 @@ return 0;
 doTagTD:
  Global.IsOutputEnabled = 1;
  Global.Table.Width = Global.Table.Width + 1;
+ call NewLine;
  call PutToken ':c.';
 return 0;
 
