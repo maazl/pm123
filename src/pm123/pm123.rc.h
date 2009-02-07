@@ -77,8 +77,9 @@
 
 /* Main menu */
 #define MNU_MAIN            500
+#define IDM_M_HELP          501
+#define IDM_M_ABOUT         503
 #define IDM_M_SHUFFLE       505
-#define IDM_M_ABOUT         506
 #define IDM_M_CFG           507
 #define IDM_M_PLAYLIST      509
 #define IDM_M_MINIMIZE      510
@@ -97,9 +98,10 @@
 #define IDM_M_PLINFO        525
 #define IDM_M_MANAGER       530
 #define IDM_M_SAVE          532
-#define IDM_M_BOOKMARKS     534
-#define IDM_M_ADDBOOK       535
-#define IDM_M_EDITBOOK      536
+#define IDM_M_BOOKMARKS     533
+#define IDM_M_ADDBOOK       534
+#define IDM_M_EDITBOOK      535
+#define IDM_M_EDITBOOKTREE  536
 #define IDM_M_PLAYBACK      537
 #define IDM_M_VOL_RAISE     538
 #define IDM_M_VOL_LOWER     539
@@ -231,7 +233,8 @@
 /* Helptable */
 #define HLP_MAIN_TABLE      100
 #define HLP_NULL_TABLE      101
-#define HLP_CONFIG_TABLE    102
+//#define HLP_CONFIG_TABLE    102
+#define HLP_MENU_TABLE      103
 
 /* Help page IDs. DO NEVER CHANGE THAT */
 #define IDH_MAIN           1000
@@ -241,7 +244,7 @@
 #define IDH_COPYRIGHT      1004
 #define IDH_DRAG_AND_DROP  1005
 #define IDH_EQUALIZER      1006
-#define IDH_ID3_EDITOR     1007
+#define IDH_INFODIALOG     1007
 #define IDH_INTERFACE      1008
 #define IDH_MAIN_MENU      1009
 #define IDH_MAIN_WINDOW    1010
@@ -262,6 +265,7 @@
 #define IDH_BOOKMARK       1025
 #define IDH_PLAYFOLDER     1026
 #define IDH_INSPECTOR      1027
+#define IDH_ID3_EDITOR     1028
 #define IDH_SETTINGS1      1050
 #define IDH_SETTINGS2      1051
 #define IDH_SETTINGSIO     1052

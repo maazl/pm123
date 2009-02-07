@@ -22,3 +22,4 @@ clean: $(MDUMMY)
 	-@del realeq$(LBI) realeq.dll $(OBJECTS) $(RESOURCE) 2> nul
 
 realeq.c:	..\..\utils\utilfct.h ..\..\fft123\api\fftw3.h ..\..\include\format.h ..\..\include\filter_plug.h ..\..\include\plugin.h realeq.h ..\..\utils\debuglog.h
+realeq.rc:	realeq.h

@@ -38,6 +38,7 @@
 #include <decoder_plug.h>
 #include <debuglog.h>
 #include <snprintf.h>
+#include <eautils.h>
 #include <debuglog.h>
 #include <id3v1.h>
 #include <id3v2.h>
@@ -48,7 +49,7 @@
 #include <errno.h>
 #include <ctype.h>
 
-#include "genre.h"
+#include <genre.h>
 
 
 static CH_ENTRY id3v2_ch_list[4]; 
@@ -1311,12 +1312,13 @@ cont_edit:
     // Now start the transaction.
   retry:
     rc = plg_update_tags( w, tagv1, tagv2, &savename, &errmsg );
-
     plg_close_file( w );
     DosReleaseMutexSem( w->mutex );
     
     if (rc == 0 && *savename)
     { // Must replace the file.
+      // Preserve EAs.
+      eacopy( filename, savename );
       rc = plg_replace_file( savename, filename, &errmsg );
     }
     

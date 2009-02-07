@@ -63,5 +63,6 @@ equalizer.c:	common.h
 layer1.c:	common.h
 layer2.c:	common.h
 layer3.c:	..\..\utils\debuglog.h common.h huffman.h
-mpg123.c:	mpg123.h ..\..\utils\utilfct.h ..\..\include\output_plug.h ..\..\include\decoder_plug.h ..\..\utils\debuglog.h ..\..\utils\snprintf.h id3v1\id3v1.h id3v2\id3v2.h
-mpg123.h:	..\..\include\plugin.h common.h
+mpg123.c:	mpg123.h dialog.h ..\..\utils\utilfct.h ..\..\include\decoder_plug.h ..\..\utils\debuglog.h ..\..\utils\snprintf.h ..\..\utils\eautils.h id3v1\id3v1.h id3v2\id3v2.h
+mpg123.h:	..\..\utils\utilfct.h ..\..\include\decoder_plug.h ..\..\xio123\xio.h ..\..\include\plugin.h common.h
+dialog.c:	dialog.h mpg123.h ..\..\utils\utilfct.h ..\..\include\decoder_plug.h ..\..\utils\debuglog.h ..\..\utils\snprintf.h ..\..\utils\eautils.h id3v1\id3v1.h id3v2\id3v2.h id3v1\genre.h

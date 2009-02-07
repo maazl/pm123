@@ -29,7 +29,9 @@
 #ifndef EAUTILS_H
 #define EAUTILS_H
 
+//#define INCL_BASE
 #include <stdlib.h>
+//#include <os2.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -39,6 +41,11 @@ extern "C" {
  * Attributes are added to a target file or replaced.
  */
 APIRET eacopy( const char* source, const char* target );
+/* Copies extended attributes from one file or directory to another.
+ * Attributes are added to a target file or replaced.
+ * The source file must be opened with read access and deny write access.
+ */
+//APIRET eacopy2( HFILE source, const char* target );
 
 /* Reads the value of the extended attribute eaname from file and returns it in eadata.
  * You must free eadata when you don't need it anymore.

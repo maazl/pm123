@@ -64,7 +64,7 @@
 #define PB_CLEAR            21
 #define PB_HELP             22
 
-#define DLG_CONFIGURE      100
+#define DLG_CONFIGURE     1070 /* Do not change -> Help */
 #define CB_1R_READ         111
 #define RB_1R_PREFER       112
 #define CB_1R_AUTOENCODING 115
@@ -84,7 +84,7 @@
 #define RB_2W_ONDEMANDSPC  144
 #define CO_2W_ENCODING     145
 
-#define DLG_ID3TAG         200
+#define DLG_ID3TAG        1028 /* Do not change -> Help */
 #define NB_ID3TAG          210
 
 #define DLG_ID3ALL         300

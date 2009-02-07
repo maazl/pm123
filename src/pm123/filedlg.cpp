@@ -208,10 +208,6 @@ amp_file_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
       amp_file_dlg_resize( hwnd, ((PSWP)mp1)[0].cx, ((PSWP)mp1)[0].cy );
       break;
 
-    case WM_HELP:
-      amp_show_help( IDH_MAIN );
-      return 0;
-
     case WM_CONTROL:
       if( SHORT1FROMMP(mp1) == DID_FILENAME_ED && SHORT2FROMMP(mp1) == EN_CHANGE )
       {

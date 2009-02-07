@@ -1240,8 +1240,8 @@ ConfigureDlgProc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
 
     case WM_CLOSE:
       save_ini();
-      WinDestroyWindow( hwnd );
       hdialog = NULLHANDLE;
+      WinDestroyWindow( hwnd );
       break;
 
     case WM_COMMAND:
@@ -1513,7 +1513,7 @@ plugin_configure( HWND hwnd, HMODULE module )
   init_request();
 
   if( !hdialog ) {
-    hdialog = WinLoadDlg( HWND_DESKTOP, HWND_DESKTOP, ConfigureDlgProc, module, ID_EQ, NULL );
+    hdialog = WinLoadDlg( HWND_DESKTOP, hwnd, ConfigureDlgProc, module, ID_EQ, NULL );
     do_warpsans( hdialog );
   }
 

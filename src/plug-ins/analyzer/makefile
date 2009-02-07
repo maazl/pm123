@@ -29,3 +29,4 @@ analyzer.c:	..\..\utils\utilfct.h ..\..\include\format.h ..\..\include\visual_pl
 specana.h:	..\..\include\format.h
 colormap.c:	analyzer.h colormap.h
 specana.c:	..\..\include\format.h ..\..\fft123\api\fftw3.h specana.h
+analyzer.rc:	analyzer.h
