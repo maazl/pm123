@@ -78,8 +78,6 @@
 /* Main menu */
 #define MNU_MAIN            500
 #define IDM_M_HELP          501
-#define IDM_M_ABOUT         503
-#define IDM_M_SHUFFLE       505
 #define IDM_M_CFG           507
 #define IDM_M_PLAYLIST      509
 #define IDM_M_MINIMIZE      510

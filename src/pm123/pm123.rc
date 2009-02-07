@@ -407,7 +407,7 @@ BEGIN
   VK_NEWLINE, BMP_PLAY,             VIRTUALKEY
   VK_ENTER,   BMP_PLAY,             VIRTUALKEY
   VK_PAUSE,   BMP_PAUSE,            VIRTUALKEY
-  76,         BMP_PAUSE,            SCANCODE
+  76,         BMP_PAUSE,            SCANCODE /* Num pad 5 */
   VK_RIGHT,   BMP_FWD,              VIRTUALKEY
   VK_LEFT,    BMP_REW,              VIRTUALKEY
   VK_DOWN,    BMP_NEXT,             VIRTUALKEY
@@ -416,7 +416,7 @@ BEGIN
 END
 
 MENU MNU_MAIN
-{ SUBMENU "~Load",                         IDM_M_LOAD
+{ SUBMENU "~Load...",                      IDM_M_LOAD
   { MENUITEM "~File...",                   IDM_M_LOADFILE
     MENUITEM "~URL...",                    IDM_M_URL
   }
@@ -450,9 +450,9 @@ MENU MNU_MAIN
   MENUITEM SEPARATOR
   MENUITEM "Show default ~playlist",       IDM_M_PLAYLIST
   MENUITEM "Show playlist ~manager",       IDM_M_MANAGER
-  SUBMENU  "Open playlist",                IDM_M_PLOPEN
-  { MENUITEM "~Detail view",               IDM_M_PLOPENDETAIL
-    MENUITEM "~Tree view",                 IDM_M_PLOPENTREE
+  SUBMENU  "Open playlist...",             IDM_M_PLOPEN
+  { MENUITEM "~Detail view...",            IDM_M_PLOPENDETAIL
+    MENUITEM "~Tree view...",              IDM_M_PLOPENTREE
   }
   MENUITEM SEPARATOR
   MENUITEM "P~roperties...",               IDM_M_CFG
@@ -461,11 +461,14 @@ MENU MNU_MAIN
     MENUITEM "~Pause\tPad 5",              BMP_PAUSE
     MENUITEM "Fast ~forward",              BMP_FWD
     MENUITEM "Fast ~backward",             BMP_REW
-    MENUITEM "~Next\tDown",                BMP_NEXT
-    MENUITEM "Pre~vious\tUp",              BMP_PREV
+    MENUITEM "~Next",                      BMP_NEXT
+    MENUITEM "Pre~vious",                  BMP_PREV
     MENUITEM SEPARATOR
     MENUITEM "~Raise volume",              IDM_M_VOL_RAISE
     MENUITEM "~Lower volume",              IDM_M_VOL_LOWER
+    MENUITEM SEPARATOR
+    MENUITEM "R~epeat",                    BMP_REPEAT
+    MENUITEM "~Shuffle",                   BMP_SHUFFLE
   }
   SUBMENU "Plu~g-ins",                     IDM_M_PLUG
   { MENUITEM "No plug-ins",                (IDM_M_PLUG + 1), MIS_STATIC
@@ -530,6 +533,9 @@ HELPSUBTABLE HLP_MAIN_TABLE
   HELPSUBITEM IDM_M_TAG,          IDH_MAIN_MENU
   HELPSUBITEM IDM_M_INFO,         IDH_MAIN_MENU
   HELPSUBITEM IDM_M_PLINFO,       IDH_MAIN_MENU
+  HELPSUBITEM IDM_M_PLOPEN,       IDH_MAIN_MENU
+  HELPSUBITEM IDM_M_PLOPENDETAIL, IDH_MAIN_MENU
+  HELPSUBITEM IDM_M_PLOPENTREE,   IDH_MAIN_MENU
   HELPSUBITEM IDM_M_ADDBOOK,      IDH_MAIN_MENU
   HELPSUBITEM IDM_M_ADDBOOK_TIME, IDH_MAIN_MENU
   HELPSUBITEM IDM_M_CURRENT_PL,   IDH_MAIN_MENU
@@ -549,6 +555,8 @@ HELPSUBTABLE HLP_MAIN_TABLE
   HELPSUBITEM BMP_REW,            IDH_MAIN_MENU
   HELPSUBITEM BMP_NEXT,           IDH_MAIN_MENU
   HELPSUBITEM BMP_PREV,           IDH_MAIN_MENU
+  HELPSUBITEM BMP_SHUFFLE,        IDH_MAIN_MENU
+  HELPSUBITEM BMP_REPEAT,         IDH_MAIN_MENU
   HELPSUBITEM IDM_M_VOL_RAISE,    IDH_MAIN_MENU
   HELPSUBITEM IDM_M_VOL_LOWER,    IDH_MAIN_MENU
   HELPSUBITEM IDM_M_PLUG,         IDH_MAIN_MENU

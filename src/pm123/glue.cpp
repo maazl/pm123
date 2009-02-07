@@ -384,6 +384,7 @@ ULONG out_close()
 { if (!Glue::initialized)
     return (ULONG)-1;
   Glue::params.temp_playingpos = (*Glue::procs.output_playing_pos)( Glue::procs.A );
+  Glue::initialized = FALSE; // Disconnect decoder
   Glue::out_command( OUTPUT_TRASH_BUFFERS );
   ULONG rc = Glue::out_command( OUTPUT_CLOSE );
   Glue::uninit(); // Hmm, is it a good advise to do this in case of an error?
@@ -443,7 +444,9 @@ BOOL DLLENTRY out_playing_data( void )
 
 PROXYFUNCIMP(int DLLENTRY, Glue)
 glue_request_buffer( void* a, const FORMAT_INFO2* format, short** buf )
-{ // do not pass flush, signal DECEVENT_PLAYSTOP instead.
+{ if (!Glue::initialized)
+    return 0;
+  // do not pass flush, signal DECEVENT_PLAYSTOP instead.
   if (buf == NULL)
   { if (InterlockedXch(Glue::playstopsent, TRUE) == FALSE)
       dec_event(Glue::ev_playstop);
@@ -456,7 +459,9 @@ glue_request_buffer( void* a, const FORMAT_INFO2* format, short** buf )
 
 PROXYFUNCIMP(void DLLENTRY, Glue)
 glue_commit_buffer( void* a, int len, T_TIME posmarker )
-{ bool send_playstop = false;
+{ if (!Glue::initialized)
+    return;
+  bool send_playstop = false;
   T_TIME pos_e = posmarker + (T_TIME)len / Glue::last_format.samplerate;
   
   // check stop offset

@@ -988,6 +988,18 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
     case WM_CONTEXTMENU:
       amp_show_context_menu( hwnd );
       return 0;
+      
+    case WM_INITMENU:
+      if (SHORT1FROMMP(mp1) == IDM_M_PLAYBACK)
+      { HWND menu = HWNDFROMMP(mp2);
+        mn_check_item ( menu, BMP_PLAY,    Ctrl::IsPlaying() );
+        mn_check_item ( menu, BMP_PAUSE,   Ctrl::IsPaused()  );
+        mn_check_item ( menu, BMP_REW,     Ctrl::GetScan() == DECFAST_REWIND  );
+        mn_check_item ( menu, BMP_FWD,     Ctrl::GetScan() == DECFAST_FORWARD );
+        mn_check_item ( menu, BMP_SHUFFLE, Ctrl::IsShuffle() );
+        mn_check_item ( menu, BMP_REPEAT,  Ctrl::IsRepeat()  );
+      }
+      break;
 
     case DM_DRAGOVER:
       return amp_drag_over( hwnd, (PDRAGINFO)mp1 );

@@ -184,7 +184,7 @@ void Ctrl::DecoderStop()
   // stop decoder
   dec_stop();
 
-  // TODO: CRAP? => we should disconnect decoder instead 
+  // TODO: CRAP? => we disconnect decoder instead 
   /*int cnt = 0;
   while (dec_status() != DECODER_STOPPED && dec_status() != DECODER_ERROR)
   { DEBUGLOG(("Ctrl::DecoderStop - waiting for Spinlock\n"));
@@ -592,10 +592,11 @@ Ctrl::RC Ctrl::MsgPlayStop(Op op)
   
   } else
   { // stop playback
-    DecoderStop();
     OutputStop();
+    DecoderStop();
 
-    MsgPause(Op_Clear);
+    if (SetFlag(Paused, Op_Clear))
+      InterlockedOr(Pending, EV_Pause);
     MsgScan(Op_Reset);
 
     while (out_playing_data())
