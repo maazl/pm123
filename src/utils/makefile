@@ -10,7 +10,9 @@ TARGET   = all2
 
 all2: utilfct$(LBO) $(MDUMMY)
 
-OBJECTS = utilfct$(CO) bufstream$(CO) fileutil$(CO) filefind$(CO) fileheader$(CO)
+OBJECTS = utilfct$(CO) utilfct_listbox$(CO) utilfct_menu$(CO) utilfct_notebook$(CO)
+OBJECTS = $(OBJECTS) utilfct_pm_misc$(CO) utilfct_thread$(CO)
+OBJECTS = $(OBJECTS) bufstream$(CO) fileutil$(CO) filefind$(CO) fileheader$(CO)
 OBJECTS = $(OBJECTS) errorstr$(CO) rel2abs$(CO) abs2rel$(CO) inimacro$(CO)
 OBJECTS = $(OBJECTS) charset$(CO) wildcards$(CO) queue$(CO) strlcpy$(CO) strchomp$(CO)
 OBJECTS = $(OBJECTS) strlcat$(CO) snprintf$(CO) eautils$(CO) strnchr$(CO) strnlen$(CO)
@@ -57,3 +59,8 @@ interlocked.cpp:	interlocked.h
 interlocked.h:	..\include\config.h
 fileheader.c:	debuglog.h
 strnlen.c:	strutils.h
+utilfct_listbox.c:	utilfct.h debuglog.h
+utilfct_menu.c:	utilfct.h debuglog.h
+utilfct_notebook.c:	utilfct.h debuglog.h
+utilfct_pm_misc.c:	utilfct.h debuglog.h
+utilfct_thread.c:	utilfct.h debuglog.h
