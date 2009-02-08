@@ -241,7 +241,7 @@ xio_fread( void* buffer, size_t size, size_t count, XFILE* x )
     }
   }
   x->Release();
-  DEBUGLOG(("xio_fread: %u\n", rc));
+  DEBUGLOG(("xio_fread: %u - now at %u\n", rc, x->protocol->tell()));
   return rc;
 }
 

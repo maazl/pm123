@@ -49,7 +49,7 @@ class XIOasyncbuffer : public XIObuffer
   char* data_read;      // Xr Current read position in the data pool.
   int   data_size;      // M  Current size of the data.
   int   data_rest;      // M  Current size of the data available for read.
-  int   data_keep;      // C  Maximum size of the obsolete data.
+  int   data_keep;      // C  Keep old data for fast reverse seek.
   int   tid;            // C  Read-ahead thread identifier.
   long  seekto;         // M  Seek command for the read-ahead thread.
   bool  data_end;       // Rx Read ahead thread reached the end of the data or a stream error.
