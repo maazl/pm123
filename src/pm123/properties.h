@@ -95,6 +95,7 @@ typedef struct _amp_cfg {
                                 
   bool   floatontop;          // Float on top.
   int    scroll;              // See CFG_SCROLL_*
+  bool   scroll_around;       // Scroller turns around the text instead of scrolling backwards.       
   int    viewmode;            // See CFG_DISP_*
   char   proxy[1024];         // Proxy URL.
   char   auth [1024];         // HTTP authorization.

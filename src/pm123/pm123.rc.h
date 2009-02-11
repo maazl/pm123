@@ -346,17 +346,17 @@
 
 #define CB_DOCK            1410
 #define SB_DOCK            1411
-
 #define RB_SCROLL_INFINITE 1420
 #define RB_SCROLL_ONCE     1421
 #define RB_SCROLL_DISABLE  1422
-#define RB_DISP_FILENAME   1423
-#define RB_DISP_ID3TAG     1424
-#define RB_DISP_FILEINFO   1425
-#define GB_FONT            1426
-#define CB_USE_SKIN_FONT   1427
-#define ST_FONT_SAMPLE     1428
-#define PB_FONT_SELECT     1429
+#define CB_SCROLL_AROUND   1423
+#define RB_DISP_FILENAME   1425
+#define RB_DISP_ID3TAG     1426
+#define RB_DISP_FILEINFO   1427
+#define GB_FONT            1430
+#define CB_USE_SKIN_FONT   1431
+#define ST_FONT_SAMPLE     1432
+#define PB_FONT_SELECT     1433
 
 #define CFG_DEC_CONFIG     1500
 #define CFG_FIL_CONFIG     1501
