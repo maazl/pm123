@@ -94,6 +94,9 @@ class Iref_Count
 { friend class int_ptr_base;
  private:
   volatile unsigned Count;
+ private: // non-copyable
+  Iref_Count(const Iref_Count&);
+  void operator=(const Iref_Count&);
  protected:
   Iref_Count() : Count(0) {}
   ~Iref_Count() {} // You must not call the non-virtual destructor directly.
