@@ -35,6 +35,7 @@
 #include <config.h>
 #include <stdlib.h>
 #include <cpp/xstring.h>
+#include "pm123.h"
 #include "playablecollection.h"
 
 
@@ -52,15 +53,37 @@ bool amp_pipe_open_and_write( const char* pipename, const char* data, size_t siz
 /* Class to execute pipe commands with a local context. */
 class CommandProcessor
 {private:
-  static const struct CmdEntry
-  { char Prefix[12];
-    void (CommandProcessor::*ExecFn)(xstring& ret, char* args);
-  } CmdList[];
+  typedef strmap<12, void (CommandProcessor::*)(xstring& ret, char* args)> CmdEntry;
+  static const CmdEntry       CmdList[];
+  
+  class ExtLoadHelper : public LoadHelper
+  {private:
+    Ctrl::ControlCommand* Ext;
+   protected:
+    // Create a sequence of controller commands from the current list.
+    virtual Ctrl::ControlCommand* ToCommand();
+   public:
+    ExtLoadHelper(Options opt, Ctrl::ControlCommand* ext) : LoadHelper(opt), Ext(ext) {}
+  };
+  
+  class URLTokenizer
+  { char* Args;
+   public:
+    URLTokenizer(char* args) : Args(args) {}
+    bool                      Next(url123& url);
+    char*                     Current() { return Args; }
+  };
 
  private:
+  static const xstring        RetBadArg;   // Return value for Ctrl::RC_BadArg
   int_ptr<PlayableCollection> CurPlaylist; // playlist where we currently operate
   int_ptr<PlayableInstance>   CurItem;     // current item of the above playlist
  private:
+  // PLAYBACK
+  // Excecute a controller command and return the reply as string.
+  xstring SendCtrlCommand(Ctrl::ControlCommand* cmd);
+  // Add a set of URLs to a loadhelper object.
+  bool FillLoadHelper(LoadHelper& lh, char* args);
   void CmdLoad(xstring& ret, char* args);
   void CmdPlay(xstring& ret, char* args);
   void CmdStop(xstring& ret, char* args);
@@ -70,22 +93,36 @@ class CommandProcessor
   void CmdRewind(xstring& ret, char* args);
   void CmdForward(xstring& ret, char* args);
   void CmdJump(xstring& ret, char* args);
+  void CmdSavestream(xstring& ret, char* args);
   void CmdVolume(xstring& ret, char* args);
   void CmdShuffle(xstring& ret, char* args);
   void CmdRepeat(xstring& ret, char* args);
+  void CmdQuery(xstring& ret, char* args);
+  void CmdCurrent(xstring& ret, char* args);
   void CmdStatus(xstring& ret, char* args);
-  void CmdHide(xstring& ret, char* args);
+  void CmdLocation(xstring& ret, char* args);
   // PLAYLIST
+  // Move forward/backward in the current playlist
+  void PlSkip(int count);
   void CmdPlaylist(xstring& ret, char* args);
   void CmdPlNext(xstring& ret, char* args);
   void CmdPlPrev(xstring& ret, char* args);
   void CmdPlReset(xstring& ret, char* args);
+  void CmdPlCurrent(xstring& ret, char* args);
+  void CmdPlItem(xstring& ret, char* args);
+  void CmdPlIndex(xstring& ret, char* args);
   void CmdUse(xstring& ret, char* args);
   void CmdClear(xstring& ret, char* args);
   void CmdRemove(xstring& ret, char* args);
   void CmdAdd(xstring& ret, char* args);
   void CmdDir(xstring& ret, char* args);
   void CmdRdir(xstring& ret, char* args);
+  void CmdSave(xstring& ret, char* args);
+  // GUI
+  void CmdHide(xstring& ret, char* args);
+  void CmdQuit(xstring& ret, char* args);
+  void CmdOpen(xstring& ret, char* args);
+  void CmdSkin(xstring& ret, char* args);
   // CONFIGURATION
   void CmdSize(xstring& ret, char* args);
   void CmdFont(xstring& ret, char* args);

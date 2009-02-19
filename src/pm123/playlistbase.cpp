@@ -1222,7 +1222,7 @@ void PlaylistBase::UserEditMeta()
     InfoDialog::GetByKey(MakePlayableSet(Source))->ShowPage(InfoDialog::Page_MetaInfo);
     break;
    case 1:
-    amp_info_edit(GetHwnd(), Source[0]->Data->Content->GetPlayable());
+    amp_show_dialog(GetHwnd(), Source[0]->Data->Content->GetPlayable(), DLT_INFOEDIT);
    case 0:;
   }
 }

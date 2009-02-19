@@ -43,10 +43,11 @@
 #define  AMP_REFRESH_CONTROLS   ( WM_USER + 1000 ) // 0,         0
 #define  AMP_PAINT              ( WM_USER + 1001 ) // maske,     0
 #define  AMP_LOAD               ( WM_USER + 1002 ) // LoadHelper* 
+#define  AMP_RELOADSKIN         ( WM_USER + 1003 ) // 0,         0
 #define  AMP_DISPLAY_MESSAGE    ( WM_USER + 1013 ) // message,   TRUE (info) or FALSE (error)
 #define  AMP_DISPLAY_MODE       ( WM_USER + 1014 ) // 0,         0
 #define  AMP_QUERY_STRING       ( WM_USER + 1015 ) // buffer,    size and type
-#define  AMP_INFO_EDIT          ( WM_USER + 1016 )
+#define  AMP_SHOW_DIALOG        ( WM_USER + 1016 ) // iep,       0
 #define  AMP_CTRL_EVENT         ( WM_USER + 1020 )
 #define  AMP_CTRL_EVENT_CB      ( WM_USER + 1021 )
 #define  AMP_REFRESH_ACCEL      ( WM_USER + 1022 )
@@ -74,14 +75,14 @@ class LoadHelper : public Iref_Count
     AutoPost         = 0x20, // Auto post command if the class instance is destroyed.
     PostDelayed      = 0x40  // Do the job by the main message queue.
   };
- private:
-  Options               Opt;
+ protected:
+  const Options         Opt;
   vector_int<PlayableSlice> Items;
- private:
+ protected:
   // Returns /one/ PlayableSlices that represents all the objects in the list.
-  PlayableSlice*        ToPlayableSlice();
+  virtual PlayableSlice*        ToPlayableSlice();
   // Create a sequence of controller commands from the current list.
-  Ctrl::ControlCommand* ToCommand();
+  virtual Ctrl::ControlCommand* ToCommand();
  public:
   // Initialize LoadHelper
                         LoadHelper(Options opt)    : Opt(opt), Items(20) {}
@@ -89,7 +90,9 @@ class LoadHelper : public Iref_Count
   // Add a item to play to the list of items.
   void                  AddItem(PlayableSlice* ps) { Items.append() = ps; }
   // Post the command above (if any)
-  void                  PostCommand();
+  virtual void          PostCommand();
+  // Send the command above (if any) and wait for the reply.
+  Ctrl::RC              SendCommand();
 };
 FLAGSATTRIBUTE(LoadHelper::Options);
 
@@ -113,17 +116,24 @@ void  amp_invalidate( unsigned options );
 /* Posts a command to the message queue associated with the player window. */
 //BOOL  amp_post_command( USHORT id );
 /* Returns the handle of the player frame window. */
-HWND  amp_player_window( void );
+HWND amp_player_window( void );
 /* Returns the anchor-block handle. */
-HAB   amp_player_hab( void );
+HAB  amp_player_hab( void );
 
-/* Edits a information for the specified file. */
-void  amp_info_edit( HWND owner, Playable* song );
+/* Opens dialog for the specified object. */
+enum dialog_type
+{ DLT_INFOEDIT,
+  DLT_METAINFO,
+  DLT_TECHINFO,
+  DLT_PLAYLIST,
+  DLT_PLAYLISTTREE
+};
+void amp_show_dialog( HWND owner, Playable* item, dialog_type dlg );
 
-void  amp_control_event_callback(Ctrl::ControlCommand* cmd);
+void amp_control_event_callback(Ctrl::ControlCommand* cmd);
 
 // Update an MRU list with item ps and maximum size max
-void  amp_AddMRU(Playlist* list, size_t max, const PlayableSlice& ps);
+void amp_AddMRU(Playlist* list, size_t max, const PlayableSlice& ps);
 
 
 /* Global variables */

@@ -205,7 +205,8 @@ bool Playable::IsPlaylist(const url123& URL)
   return ext.compareToI(".lst", 4) == 0 ||
          ext.compareToI(".mpl", 4) == 0 ||
          ext.compareToI(".pls", 4) == 0 ||
-         ext.compareToI(".m3u", 4) == 0;
+         ext.compareToI(".m3u", 4) == 0 ||
+         ext.compareToI(".m3u8", 5) == 0;
 }
 
 Playable::Flags Playable::GetFlags() const

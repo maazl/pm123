@@ -1,0 +1,59 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html sublinks='*'><head>
+<meta content="text/html;charset=ISO-8859-1" http-equiv="Content-Type">
+<title>User interface control commands</title>
+<link rel="stylesheet" href="infstyle.css" type="text/css"></head>
+<body>
+<h2>PM123's Remote command reference - User interface control</h2>
+<table border="1" cellpadding="5" cellspacing="0">
+<tbody>
+<tr>
+<th>Command</th>
+<th>Description</th>
+<th>Reply</th>
+</tr>
+<tr valign="baseline">
+<td><tt><a name="hide"></a>hide</tt></td>
+<td>Hides the player window.</td>
+<td>&nbsp;</td>
+</tr>
+<tr>
+<td><tt><a name="quit"></a>quit</tt></td>
+<td>Terminates PM123.</td>
+<td>&nbsp;</td>
+</tr>
+<tr>
+<td><tt><a name="size"></a>size </tt>[<tt>0</tt>|<tt>normal</tt>|<tt>regular</tt>
+| <tt>1</tt>|<tt>small</tt> | <tt>2</tt>|<tt>tiny</tt>]</td>
+<td>Selects the player size.<br>
+Without an argument only the current setting is returned.</td>
+<td>Previous setting [<tt>0</tt>|<tt>1</tt>|<tt>2</tt>]
+or empty string on error.</td>
+</tr>
+<tr><td><tt><a name="font"></a>font </tt>[<tt>1</tt>|<tt>2</tt>|<var><tt>&lt;font&gt;</tt></var>]</td>
+<td>Selects font 1 or font 2 or a non-skinned OS/2 font. <var><tt>&lt;font&gt;</tt></var>
+is in the PM syntax like '<tt>8.Helvetica</tt>'.<br>
+Without an argument only the current setting is returned.</td>
+<td>Previous setting or empty string on error.</td></tr>
+<tr><td><tt><a name="skin"></a>skin </tt>[<tt><var>&lt;file&gt;</var></tt>]</td>
+<td>Load a new <a href="sguide.html">skin</a>.<br>
+Without an argument only the current setting is returned.</td>
+<td>Previous skin file or empty string on error.</td></tr>
+<tr>
+<td><tt><a name="open"></a>open&nbsp;playlist</tt>|<tt>detailed</tt>
+| <tt>tree</tt> | <tt>techinfo</tt> | <tt>metainfo</tt> | <tt>tagedit <var>&lt;url&gt;</var></tt></td>
+<td>Opens the specified item in the <a href="playlist.html">playlist editor</a>, the
+<a href="manager.html">tree view</a>, the <a href="infodialog.html#techinfo">technical
+info dialog</a>, the <a href="infodialog.html#metainfo">meta info dialog</a> or the
+<a href="id3edit.html">tag editor</a> if provided by the plug-in. If the plug-in
+does not provide a own tag editor <tt>open tagedit</tt> behaves as <tt>open metainfo</tt>.</td>
+<td>&nbsp;</td>
+</tr>
+<tr><td><tt>open properties </tt>[<tt><var>&lt;plug-in&gt;</var></tt>]</td>
+<td>Opens the <a href="properties.html">properties dialog</a> of PM123 or, if specified, a certain plug-in. E.g.<br>
+<tt>&nbsp; open properties mpg123</tt><br>
+will open the configuration dialog of the <a href="mpg123.html">mpg123 plug-in</a>.</td>
+<td>&nbsp;</td></tr>
+</tbody>
+</table>
+</body></html>

@@ -381,7 +381,7 @@ void amp_save_playlist(HWND owner, PlayableCollection& playlist)
 }
 
 /* Loads a skin selected by the user. */
-void amp_loadskin( HPS hps )
+bool amp_loadskin()
 {
   FILEDLG filedialog;
   APSZ types[] = {{ FDT_SKIN }, { 0 }};
@@ -398,9 +398,10 @@ void amp_loadskin( HPS hps )
   amp_file_dlg( HWND_DESKTOP, HWND_DESKTOP, &filedialog );
 
   if( filedialog.lReturn == DID_OK ) {
-    bmp_load_skin( filedialog.szFullFile, amp_player_hab(), amp_player_window(), hps );
     strcpy( cfg.defskin, filedialog.szFullFile );
+    return true;
   }
+  return false;
 }
 
 

@@ -41,6 +41,7 @@
 #include "properties.h"
 #include "pm123.h"
 #include "dialog.h"
+#include "docking.h"
 #include "pm123.rc.h"
 #include "iniman.h"
 #include "plugman.h"
@@ -496,6 +497,12 @@ cfg_display1_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
       cfg.font_size     = font_size;
       cfg.font_attrs    = font_attrs;
 
+      amp_invalidate(UPD_FILENAME);
+      if( cfg.dock_windows ) {
+        dk_arrange( amp_player_window() ); // TODO: frame window???
+      } else {
+        dk_cleanup( amp_player_window() );
+      }
       return 0;
     }
   }

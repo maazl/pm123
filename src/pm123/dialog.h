@@ -68,7 +68,7 @@ ULONG DLLENTRY amp_url_wizzard( HWND owner, const char* title, DECODER_WIZZARD_C
 url123 amp_playlist_select(HWND owner, const char* title);
 
 /* Loads a skin selected by the user. */
-void amp_loadskin( HPS hps );
+bool  amp_loadskin();
 
 
 /* Adds a user selected bookmark. */

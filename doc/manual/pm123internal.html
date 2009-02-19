@@ -1,5 +1,5 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
-<html><head>
+<html level=3><head>
   
 	<title>PM123: Internal Structure</title><link rel="stylesheet" href="infstyle.css" type="text/css"></head>
 <body>
@@ -33,9 +33,9 @@
   <li>Prefech items in playlist mode.</li>
   <li>Keep the playing position.</li>
 </ul>
-<p>The Play Controller receives all instruction by a <em>command queue</em>.
+<p>The Play Controller receives all instructions by a <em>command queue</em>.
   The queue is always processed in order. Multiple commands may be linked togehter.
-  Linked commands are placed as unit of work in the queue and cannot be intercepted
+  Linked commands are placed as unit in the queue and cannot be intercepted
   by commands from another source.</p>
 <p>Changes in the play status are immediatle reflected to all observers by asynchronous
   notifications, except for the playing position, which obviously changes continously.
@@ -57,7 +57,7 @@
   the complexity of the filter plug-ins low. If an older decoder returns data
   in a different format it is converted on the fly.</p>
 <h3><a name="user_interface"></a>The User Interface</h3>
-<p>The User Interfaces controlls the <em>application woindows</em> like <a href="mainwin.html">Main
+<p>The User Interfaces controlls the <em>application windows</em> like <a href="mainwin.html">Main
   Window</a>, <a href="playlist.html">Playlist</a> and <a href="manager.html">Playlist
   Manager</a>, <a href="bookmark.html">Bookmarks</a> and <a href="infodialog.html#metainfo">Tag
   Editor</a>. Almost any

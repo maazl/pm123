@@ -1,0 +1,33 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html><head>
+<meta content="text/html;charset=ISO-8859-1" http-equiv="Content-Type">
+
+<title>Remote control error codes</title><link rel="stylesheet" href="infstyle.css" type="text/css">
+<meta content="Marcel M&uuml;ller" name="author"></head>
+<body>
+<h2>PM123's Remote command reference - Error codes</h2><table border="1" cellpadding="5" cellspacing="0">
+<tbody>
+<tr>
+<th>Return code</th>
+<th>Description</th>
+
+</tr>
+<tr valign="baseline">
+<td><tt>0</tt></td>
+<td>No error, everything is fine.</td>
+
+</tr>
+<tr valign="baseline">
+<td><tt>1</tt></td>
+<td>The command is not processed because an earlier command in the current set of linked commands has failed.</td>
+
+</tr>
+<tr valign="baseline">
+<td><tt>2</tt></td>
+<td>One of the commands arguments is bad.</td>
+
+</tr><tr><td><tt>3</tt></td><td>The command requires a current song.</td></tr><tr><td><tt>4</tt></td><td>The command is only valid for enumerable objects like playlists.</td></tr><tr><td><tt>5</tt></td><td>The navigation tried to move beyond the limits of the current playlist.</td></tr><tr><td><tt>6</tt></td><td>The command is only allowed while playing.</td></tr><tr><td><tt>7</tt></td><td>The output plug-in returned an error.</td></tr><tr><td><tt>8</tt></td><td>The decoder plug-in returned an error.</td></tr><tr><td><tt>9</tt></td><td>Cannot load or play invalid object.</td></tr><tr><td><tt>10</tt></td><td>Invalid PM123 <a href="location.html">location string</a></td></tr><tr><td><tt>-1</tt></td><td>General error.</td></tr>
+
+
+</tbody>
+</table></body></html>

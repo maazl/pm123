@@ -69,6 +69,8 @@ Navigate   Serialized iterator Location in         0x01  relative      Jump to l
            optional            seconds                   location      This will change the Song and/or the
                                                    0x02  playlist      playing position.
                                                          scope
+                                                   0x04  ignore
+                                                         syntax error
 ---------------------------------------------------------------------------------------------------------------
 Jump                           in/out:                                 Jump to location
                                SongIterator*                           This will change the Song and/or the
@@ -105,7 +107,7 @@ Repeat                                             0x01  on            Set/reset
 ---------------------------------------------------------------------------------------------------------------
 Save       Filename                                                    Save stream of current decoder.
 ---------------------------------------------------------------------------------------------------------------
-Location   out: Root URL       SongIterator*                           Set the iterator to the current location.
+Location   out: Root URL       SongIterator*       0x01  stopat        Set the iterator to the current location.
 ---------------------------------------------------------------------------------------------------------------
 DecStop                                                                The current decoder finished it's work.
 ---------------------------------------------------------------------------------------------------------------
@@ -165,8 +167,9 @@ class Ctrl
     RC_EndOfList,           // The navigation tried to move beyond the limits of the current playlist.
     RC_NotPlaying,          // The command is only allowed while playing.
     RC_OutPlugErr,          // The output plug-in returned an error.
-    RC_DecPlugErr,          // The decoder plug-in returnd an error.
-    RC_InvalidItem          // Cannot load or play invalid object.
+    RC_DecPlugErr,          // The decoder plug-in returned an error.
+    RC_InvalidItem,         // Cannot load or play invalid object.
+    RC_BadIterator          // Bad location string.
   };
 
   struct ControlCommand;
@@ -181,13 +184,14 @@ class Ctrl
       void*         PtrArg; // Pointer argument (command dependant)
     };
     int             Flags;  // Flags argument (command dependant)
-    CbComplete      Callback;// Notification on completion
+    CbComplete      Callback;// Notification on completion, this function must ensure that the control command is deleted.
     void*           User;   // Unused, for user purposes only 
     ControlCommand* Link;   // Linked commands. They are executed atomically.
-    ControlCommand(Command cmd, const xstring& str, double num, int flags, CbComplete cb = NULL)
-                    : Cmd(cmd), StrArg(str), NumArg(num), Flags(flags), Callback(cb), Link(NULL) {}
-    ControlCommand(Command cmd, const xstring& str, void* ptr, int flags, CbComplete cb = NULL)
-                    : Cmd(cmd), StrArg(str), PtrArg(ptr), Flags(flags), Callback(cb), Link(NULL) {}
+    ControlCommand(Command cmd, const xstring& str, double num, int flags, CbComplete cb = NULL, void* user = NULL)
+                    : Cmd(cmd), StrArg(str), NumArg(num), Flags(flags), Callback(cb), User(user), Link(NULL) {}
+    ControlCommand(Command cmd, const xstring& str, void* ptr, int flags, CbComplete cb = NULL, void* user = NULL)
+                    : Cmd(cmd), StrArg(str), PtrArg(ptr), Flags(flags), Callback(cb), User(user), Link(NULL) {}
+    void            Destroy();// Deletes the entire command queue including this.
   };
 
   enum EventFlags
@@ -340,7 +344,7 @@ class Ctrl
   static RC    MsgSave(const xstring& filename);
   static RC    MsgShuffle(Op op);
   static RC    MsgRepeat(Op op);
-  static RC    MsgLocation(SongIterator* sip);
+  static RC    MsgLocation(SongIterator* sip, int flags);
   static RC    MsgDecStop();
   static RC    MsgOutStop();
  
@@ -389,9 +393,12 @@ class Ctrl
     PostCommand(cmd, callback);
   }
   // Post a command to the controller queue and wait for completion.
-  // The function returns the control command which usually must be deleted.
+  // The function returns the control command queue which usually must be deleted.
+  // Calling cmd->Destroy() will do the job.
   // The function must not be called from a thread which receives PM messages.
   static ControlCommand* SendCommand(ControlCommand* cmd);
+  // Empty control callback, may be used to avoid the deletion of a ControlCommand.
+  static void            CbNop(ControlCommand* cmd);
 
   // Short cuts for message creation, side-effect free.
   // This is recommended over calling the ControllCommand constructor directly.
@@ -421,8 +428,8 @@ class Ctrl
   { return new ControlCommand(Cmd_Repeat, xstring(), 0., op); }
   static ControlCommand* MkSave(const xstring& filename)
   { return new ControlCommand(Cmd_Save, filename, 0., 0); }
-  static ControlCommand* MkLocation(SongIterator* sip)
-  { return new ControlCommand(Cmd_Location, xstring(), sip, 0); }
+  static ControlCommand* MkLocation(SongIterator* sip, char what)
+  { return new ControlCommand(Cmd_Location, xstring(), sip, what); }
  private: // internal messages
   static ControlCommand* MkDecStop()
   { return new ControlCommand(Cmd_DecStop, xstring(), (void*)NULL, 0); }

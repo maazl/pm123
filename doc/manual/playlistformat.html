@@ -1,8 +1,8 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
-<html resid="1020" level="3" sublinks="*">
-<head>
-<title>Playlist File Format</title>
-<link rel="stylesheet" href="infstyle.css" type="text/css"></head>
+<html resid="1020" level="3" sublinks="*"><head>
+
+<title>Playlist File Format</title><link rel="stylesheet" href="infstyle.css" type="text/css"></head>
+
 <body>
 <h2>Format of the PM123 playlist files</h2>
 This format is used for
@@ -14,7 +14,11 @@ denominator.
 <blockquote>
 <p>The head of a playlist file is a comment. This is not an
 essential part on input.</p>
-<pre>#<br># Playlist created with PM123 1.40 alpha 4<br># Do not modify!<br># Lines starting with '&gt;' are used by Playlist Manager.<br>#</pre>
+<pre>#
+# Playlist created with PM123 1.40 alpha 4
+# Do not modify!
+# Lines starting with '&gt;' are used by Playlist Manager.
+#</pre>
 </blockquote>
 <h4>For each song entry</h4>
 <ul>
@@ -43,8 +47,8 @@ string</p>
 <p>Filename or URL</p>
 <pre>SL060319_2204.ogg</pre>
 <p>On output PM123 writes Filenames with relative or absolute
-paths, and URLs. On input file:/// URLs are accepted too. In fact any
-URL which is accepted by the Load URL dialog is accepted. This may
+paths, and URLs. On input <tt>file:///</tt> URLs are accepted too. In fact <a href="urlformat.html">any
+URL</a> which is accepted by PM123 is accepted. This may
 depend on the loaded plug-ins.</p>
 </li>
 <li>
