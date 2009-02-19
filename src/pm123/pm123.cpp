@@ -302,7 +302,13 @@ amp_display_filename( void )
         break;
       // if tag is empty - use filename instead of it.
     case CFG_DISP_FILENAME:
-      text = CurrentSong->GetURL().getShortName();
+      // Give Priority to an alias name if any
+      if (CurrentIter)
+      { PlayableSlice* ps = CurrentIter->GetCurrent();
+        text = ps->GetAlias();
+      }
+      if (!text)
+        text = CurrentSong->GetURL().getShortName();
       // In case of an invalid item display an error message.
       if (CurrentSong->GetStatus() == Playable::STA_Invalid)
         text = text + " - " + CurrentSong->GetInfo().tech->info;
@@ -1348,7 +1354,9 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
           break;
 
         case BMP_PL:
-        { int_ptr<PlaylistView> pv = PlaylistView::Get(DefaultPL, "Default Playlist");
+        { int_ptr<PlaylistView> pv( CurrentRoot && CurrentRoot != DefaultPL && (CurrentRoot->GetFlags() & Playable::Enumerable)
+                                    ? PlaylistView::Get(CurrentRoot)
+                                    : PlaylistView::Get(DefaultPL, "Default Playlist") );
           pv->SetVisible(!pv->GetVisible());
           break;
         }
