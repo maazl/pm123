@@ -183,6 +183,9 @@ ch_get_weight(UniChar uc)
   //0   /* In standard ASCII set           */
   };
 
+  if (uc == 0xFFFD) // unconvertable cahr
+    return -10;
+
   int itype = UniQueryCharType(uc)->itype;
   const int* wp = weights;
   int result = 0;
@@ -192,7 +195,8 @@ ch_get_weight(UniChar uc)
     itype >>= 1;
   }
   
-  DEBUGLOG2(("ch_get_weight: %04x -> %04x = %i\n", uc, UniQueryCharType(uc)->itype, result ));
+  DEBUGLOG2(("ch_get_weight: %04x(%c) -> %04x = %i\n",
+    uc, uc < 127 && uc >= 32 ? uc : '', UniQueryCharType(uc)->itype, result ));
   return result; 
 }
 
