@@ -1461,7 +1461,7 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
 
       if( bmp_pt_in_volume( pos ))
         Ctrl::PostCommand(Ctrl::MkVolume(bmp_calc_volume(pos), false));
-      else if( CurrentRoot && bmp_pt_in_text( pos )) {
+      else if( CurrentRoot && bmp_pt_in_text( pos ) && msg == WM_BUTTON1DBLCLK ) {
         WinPostMsg( hwnd, AMP_DISPLAY_MODE, 0, 0 );
       }
 
