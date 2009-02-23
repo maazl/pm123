@@ -216,7 +216,9 @@ Playable::Flags Playable::GetFlags() const
 void Playable::SetInUse(bool used)
 { DEBUGLOG(("Playable(%p{%s})::SetInUse(%u)\n", this, URL.cdata(), used));
   Lock lock(*this);
+  InfoFlags what = BeginUpdate(IF_Usage);
   UpdateInUse(used);
+  EndUpdate(what);
 }
 
 xstring Playable::GetDisplayName() const

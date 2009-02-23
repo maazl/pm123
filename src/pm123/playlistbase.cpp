@@ -343,8 +343,13 @@ MRESULT PlaylistBase::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
       break;
 
      case CN_ENTER:
-      { NOTIFYRECORDENTER* nre = (NOTIFYRECORDENTER*)mp2; 
-        UserOpenDetailedView(PlayableFromRec((RecordBase*)nre->pRecord));
+      { NOTIFYRECORDENTER* nre = (NOTIFYRECORDENTER*)mp2;
+        Playable* pp = PlayableFromRec((RecordBase*)nre->pRecord);
+        // Bei Song -> Navigate to
+        if (pp->GetFlags() & Playable::Enumerable)
+          UserOpenDetailedView(pp);
+        else
+          UserNavigate((RecordBase*)nre->pRecord);
       }
       break;       
 
@@ -680,7 +685,7 @@ HPOINTER PlaylistBase::CalcIcon(RecordBase* rec)
   DEBUGLOG(("PlaylistBase::CalcIcon(%s) - %u\n", RecordBase::DebugName(rec).cdata(), pp->GetStatus()));
   Playable::Flags flags = pp->GetFlags();
   IC state = (IC)pp->GetStatus(); // Dirty hack! The enumerations are compatible
-  if (state == IC_Active)
+  if (pp->IsInUse())
     state = GetRecordUsage(rec);
   if (flags & Playable::Enumerable)
     return IcoPlaylist[(flags & Playable::Mutable) == Playable::Enumerable][state][GetPlaylistType(rec)];
