@@ -362,7 +362,7 @@ distzip: distclean distfiles $(MDUMMY)
 !endif
 
 distsrc: distclean $(MDUMMY)
-	-@del pm123-$(VERSION)-src.zip  2>log
+	-@del pm123-$(VERSION)-src.zip  2> nul
 	zip -9 -r pm123-$(VERSION)-src.zip * -x .svn pm123*.zip makerules
 
 distclean: $(MDUMMY)
