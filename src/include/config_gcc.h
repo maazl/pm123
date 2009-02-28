@@ -4,7 +4,7 @@
 #define CCNAME "GNU C++"
 
 #define TFNENTRY
-#define INLINE    __inline__
+#define INLINE    __inline__ static 
 #define DLLENTRY  _System
 #define DLLENTRYP(sym) DLLENTRY (*sym)
 #define DLLENTRYPF() DLLENTRY (*)
