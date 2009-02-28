@@ -234,12 +234,12 @@ void XIObuffer::observer_cb(const char* metabuff, long pos, long pos64)
   else
     s_obs_head = entry;
   s_obs_tail = entry;
-  #if defined(DEBUG) && DEBUG > 1
+  #if defined(DEBUG_LOG) && DEBUG_LOG > 1
   obs_dump();
   #endif
 }
 
-#ifdef DEBUG
+#ifdef DEBUG_LOG
 void XIObuffer::obs_dump() const
 { const obs_entry* op = s_obs_head;
   while (op)

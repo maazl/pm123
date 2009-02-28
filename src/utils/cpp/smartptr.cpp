@@ -30,7 +30,6 @@
 #include "mutex.h"
 #include "smartptr.h"
 
-#undef DEBUG
 #include <debuglog.h>
 
 

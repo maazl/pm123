@@ -355,7 +355,7 @@ distpackage: distfiles $(MDUMMY)
 
 distzip: distclean distfiles $(MDUMMY)
 	if exist dist\pm123-$(VERSION).zip del dist\pm123-$(VERSION).zip
-!ifdef DEBUG
+!ifdef DEBUG_LOG
 	cmd /c "cd dist\files & zip -rX ..\pm123-$(VERSION)-debug.zip * -x CVS\* .cvsignore "
 !else
 	cmd /c "cd dist\files & zip -rX ..\pm123-$(VERSION).zip * -x CVS\* .cvsignore "

@@ -92,7 +92,7 @@ class PlayableSlice : public Iref_Count
   virtual void             SetAlias(const xstring& alias);
   // Usage status
   virtual void             SetInUse(bool used);
-  #ifdef DEBUG
+  #ifdef DEBUG_LOG
   xstring                  DebugName() const;
   #endif
 };
@@ -167,7 +167,7 @@ class PlayableInstance : public PlayableSlice
   // The return value true is not reliable unless the collection is locked.
   // Calling this method with NULL will check whether the instance does no longer belog to a collection.
   // In this case only the return value true is reliable.
-  #ifdef DEBUG
+  #ifdef DEBUG_LOG
   bool                     IsParent(const PlayableCollection* parent) const
                            { if (Parent == parent)
                                return true;
@@ -280,9 +280,7 @@ class PlayableCollection : public Playable
   { CollectionInfo            Info;
     InfoFlags                 Valid; // only IF_Tech and IF_Pl are significant here
     CollectionInfoEntry(const PlayableSetBase& r) : PlayableSet(r), Valid(IF_None) { DEBUGLOG(("PlayableCollection::CollectionInfoEntry(%p)::CollectionInfoEntry({%u,...})\n", this, r.size())); }
-    #ifdef DEBUG
     ~CollectionInfoEntry()    { DEBUGLOG(("PlayableCollection::CollectionInfoEntry(%p)::~CollectionInfoEntry()\n", this)); }
-    #endif
   };
 
  private:

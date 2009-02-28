@@ -72,7 +72,7 @@ class XIObuffer : public XIOreadonly
   void  obs_execute();
   // Observer callback. Called from the function chain->read(). 
   virtual void observer_cb(const char* metabuff, long pos, long pos64);
-  #ifdef DEBUG
+  #ifdef DEBUG_LOG
   void  obs_dump() const;
   #endif
 

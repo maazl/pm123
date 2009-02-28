@@ -371,10 +371,9 @@ id3v2_read_frame_v22( ID3V2_TAG* id3 )
   id3->id3_frames = realloc( id3->id3_frames, ++id3->id3_frames_count * sizeof( ID3V2_FRAME* ));
   id3->id3_frames[ id3->id3_frames_count - 1 ] = frame;
 
-  DEBUGLOG(( "id3v2: read frame %c%c%c%c [%c%c%c], fl=%04X, size=%08d (%s)\n",
+  DEBUGLOG(( "id3v2: read frame %c%c%c%c [%c%c%c], fl=%04X, size=%08d\n",
              idv24 >> 24, idv24 >> 16, idv24 >> 8, idv24, buf[0], buf[1], buf[2],
-             frame->fr_flags, frame->fr_raw_size,
-             id3v2_get_description( frame, desc, sizeof( desc ))));
+             frame->fr_flags, frame->fr_raw_size));
   return 0;
 }
 
@@ -486,10 +485,9 @@ id3v2_read_frame( ID3V2_TAG* id3 )
   id3->id3_frames = realloc( id3->id3_frames, ++id3->id3_frames_count * sizeof( ID3V2_FRAME* ));
   id3->id3_frames[ id3->id3_frames_count - 1 ] = frame;
 
-  DEBUGLOG(( "id3v2: read frame %c%c%c%c [%c%c%c%c], fl=%04X, size=%08d (%s)\n",
+  DEBUGLOG(( "id3v2: read frame %c%c%c%c [%c%c%c%c], fl=%04X, size=%08d\n",
              id >> 24, id >> 16, id >> 8, id, buf[0], buf[1], buf[2], buf[3],
-             frame->fr_flags, frame->fr_raw_size,
-             id3v2_get_description( frame, desc, sizeof( desc ))));
+             frame->fr_flags, frame->fr_raw_size));
   return 0;
 }
 

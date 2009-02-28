@@ -1533,7 +1533,7 @@ bmp_load_default( HPS hps, int id, int defid )
     if( hbitmap != GPI_ERROR ) {
       bmp_cache[ id ] = hbitmap;
     }
-    #ifdef DEBUG
+    #ifdef DEBUG_LOG
      else
     { char buf[1024];
       os2pm_strerror(buf, sizeof(buf));

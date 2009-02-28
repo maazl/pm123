@@ -162,7 +162,7 @@ void PlayableSlice::SetInUse(bool used)
   RefTo->SetInUse(used);
 }
 
-#ifdef DEBUG
+#ifdef DEBUG_LOG
 xstring PlayableSlice::DebugName() const
 { return xstring::sprintf("{%s, %s,%s, %s}",
     RefTo->GetURL().cdata(),

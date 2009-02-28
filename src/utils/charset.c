@@ -183,12 +183,16 @@ ch_get_weight(UniChar uc)
   //0   /* In standard ASCII set           */
   };
 
+  int itype;
+  const int* wp;
+  int result;
+  
   if (uc == 0xFFFD) // unconvertable cahr
     return -10;
 
-  int itype = UniQueryCharType(uc)->itype;
-  const int* wp = weights;
-  int result = 0;
+  itype = UniQueryCharType(uc)->itype;
+  wp = weights;
+  result = 0;
   
   while ( wp != weights + sizeof weights / sizeof *weights ) {
     result += (itype & 1) * *wp++;

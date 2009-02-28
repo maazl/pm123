@@ -66,7 +66,7 @@
 #define MAX_DRAG_IMAGES 6
 
 
-#ifdef DEBUG
+#ifdef DEBUG_LOG
 xstring PlaylistBase::RecordBase::DebugName() const
 { return xstring::sprintf("%p{%p{%s}}", this, Data->Content.get(), Data->Content->GetPlayable()->GetURL().getShortName().cdata());
 }

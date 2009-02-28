@@ -47,7 +47,7 @@ extern "C" {
 #endif
 
 /* Logging */
-#ifdef DEBUG
+#ifdef DEBUG_LOG
   void debuglog( const char* fmt, ... );
 
   #define DEBUGLOG(x) debuglog x
@@ -57,7 +57,7 @@ extern "C" {
 #endif
 
 // level 2 log
-#if defined(DEBUG) && DEBUG >= 2
+#if defined(DEBUG_LOG) && DEBUG_LOG >= 2
   #define DEBUGLOG2(x) debuglog x
 #else
   #define DEBUGLOG2(x)
@@ -130,7 +130,7 @@ extern "C" {
 
 */
  
-#ifdef DEBUG
+#if defined(DEBUG) || defined(DEBUG_LOG)
   void dassert(const char* file, int line, const char* msg);
   #define ASSERT(expr) ((expr) ? (void)0 : dassert(__FILE__, __LINE__, #expr))
   #define RASSERT(expr) (!!(expr) ? (void)0 : dassert(__FILE__, __LINE__, #expr))

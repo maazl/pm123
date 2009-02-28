@@ -42,8 +42,8 @@
 #include <malloc.h>
 #include <sys/stat.h>
 
-//#undef DEBUG
-//#define DEBUG 2
+//#undef DEBUG_LOG
+//#define DEBUG_LOG 2
 
 #include <utilfct.h>
 #include "plugman_base.h"
@@ -1109,7 +1109,7 @@ proxy_1_output_command( OutputProxy1* op, void* a, ULONG msg, OUTPUT_PARAMS2* in
 PROXYFUNCIMP(int DLLENTRY, OutputProxy1)
 proxy_1_output_request_buffer( OutputProxy1* op, void* a, const FORMAT_INFO2* format, short** buf )
 {
-  #ifdef DEBUG
+  #ifdef DEBUG_LOG
   if (format != NULL)
     DEBUGLOG(("proxy_1_output_request_buffer(%p, %p, {%i,%i,%i}, %p) - %d\n",
       op, a, format->size, format->samplerate, format->channels, buf, op->voutput_buffer_level));
@@ -1523,7 +1523,7 @@ bool Visual::Initialize(HWND hwnd, PLUGIN_PROCS* procs, int id)
 
 void Visual::SetProperties(const VISUAL_PROPERTIES* data)
 {
-  #ifdef DEBUG
+  #ifdef DEBUG_LOG
   if (data)
     DEBUGLOG(("Visual(%p{%s})::set_properties(%p{%d %d, %d %d, %s})\n",
       this, GetModuleName().cdata(), data, data->x, data->y, data->cx, data->cy, data->param));

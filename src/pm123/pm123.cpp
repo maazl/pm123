@@ -36,8 +36,8 @@
 #define  INCL_WINSTDDRAG
 #include <os2.h>
 
-//#undef DEBUG
-//#define DEBUG 2
+//#undef DEBUG_LOG
+//#define DEBUG_LOG 2
 
 #include <utilfct.h>
 #include <xio.h>

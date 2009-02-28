@@ -39,7 +39,7 @@
 
 class dummy
 { int dummy;
-  #ifdef DEBUG
+  #ifdef DEBUG_LOG
   friend class event_base;
   #endif
 };

@@ -88,7 +88,7 @@ class PlaylistBase
   struct RecordBase : public MINIRECORDCORE
   { volatile unsigned   UseCount;  // Reference counter to keep Records alive while Posted messages are on the way.
     CPDataBase*         Data;      // C++ part of the object in the private memory arena.
-    #ifdef DEBUG
+    #ifdef DEBUG_LOG
     xstring             DebugName() const;
     static xstring      DebugName(const RecordBase* rec);
     #endif
@@ -232,7 +232,7 @@ class PlaylistBase
   int_ptr<Playable> Content;
   xstring           Alias;         // Alias name for the window title
   HACCEL            AccelTable;    // Accelerator table - TODO: use shared accelerator table
-  #if DEBUG
+  #if DEBUG_LOG
   xstring           DebugName() const;
   #endif
  protected: // working set
@@ -518,10 +518,10 @@ int_ptr<T> PlaylistRepository<T>::Get(Playable* obj, const xstring& alias)
 template <class T>
 PlaylistRepository<T>::~PlaylistRepository()
 { Mutex::Lock lock(RPMutex);
-  #if NDEBUG
-  RPInst.erase(*Content);
+  #ifdef DEBUG_LOG
+  ASSERT(RPInst.erase(*Content) != NULL);
   #else
-  assert(RPInst.erase(*Content) != NULL);
+  RPInst.erase(*Content);
   #endif
 }
 

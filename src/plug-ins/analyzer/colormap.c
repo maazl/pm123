@@ -38,7 +38,8 @@
 #endif
 
 
-//#define DEBUG
+//#define DEBUG_LOG
+#include <debuglog.h>
 
 
 /********** read pallette data **********************************************/
@@ -66,9 +67,7 @@ static void interpolate_color(YDCyl_color* result, double position,
       return;
     }
   } while (current != table);
-  #ifdef DEBUG
-  fprintf(stderr, "IP: %f -> %p, %p\n", position, lower_bound, upper_bound);
-  #endif
+  DEBUGLOG(("IP: %f -> %p, %p\n", position, lower_bound, upper_bound));
   // check boundaries
   if (lower_bound == NULL)
   { // position lower than lowest table entry
@@ -91,11 +90,9 @@ static void interpolate_color(YDCyl_color* result, double position,
       result->DP = low_P + position * (tmp - 2*M_PI);
      else
       result->DP = low_P + position * (tmp + 2*M_PI);
-    #ifdef DEBUG
-    fprintf(stderr, "IP: {%f->%f,%f,%f} {%f->%f,%f,%f}\n",
+    DEBUGLOG(("IP: {%f->%f,%f,%f} {%f->%f,%f,%f}\n",
       lower_bound->Pos, lower_bound->Color.Y, lower_bound->Color.DR, lower_bound->Color.DP,    
-      upper_bound->Pos, upper_bound->Color.Y, upper_bound->Color.DR, upper_bound->Color.DP);
-    #endif    
+      upper_bound->Pos, upper_bound->Color.Y, upper_bound->Color.DR, upper_bound->Color.DP));
   } 
 }
 
@@ -135,9 +132,7 @@ void interpolate(RGB2* dst, size_t dstlen, const color_entry* src, size_t srclen
   for (i = 0; i < dstlen; ++i)
   { interpolate_color(&col, (double)i / (dstlen-1), src, srclen);
     YDCyl2RGB(dst, &col);
-    #ifdef DEBUG
-    fprintf(stderr, "PAL[%d] = RGB{%d,%d,%d} YDCyl{%f,%f,%f}\n", i, dst->bRed, dst->bGreen, dst->bBlue, col.Y, col.DR, col.DP);
-    #endif
+    DEBUGLOG(("PAL[%d] = RGB{%d,%d,%d} YDCyl{%f,%f,%f}\n", i, dst->bRed, dst->bGreen, dst->bBlue, col.Y, col.DR, col.DP));
     ++dst;
   }
 }

@@ -50,7 +50,7 @@
 #include <string.h>
 #include <malloc.h>
 
-//#define DEBUG 1
+//#define DEBUG_LOG 1
 #include <debuglog.h>
 
 /* thread priorities for decoder thread */
@@ -327,7 +327,7 @@ void Plugin::SetParams(const char* params)
   stringmap_own sm(20);
   url123::parseParameter(sm, params);
   SetParams(sm);
-  #ifdef DEBUG
+  #ifdef DEBUG_LOG
   for (stringmapentry** p = sm.begin(); p != sm.end(); ++p)
     DEBUGLOG(("Plugin::SetParams: invalid parameter %s -> %s\n", (*p)->Key.cdata(), (*p)->Value ? (*p)->Value.cdata() : "<null>"));
   #endif

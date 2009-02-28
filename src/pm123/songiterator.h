@@ -141,10 +141,8 @@ class SongIterator
     // Create Callstackentry for the next deeper level
     // Precondition: Item is not NULL && Item->GetPlayable() is enumerable.
     CallstackSubEntry(CallstackType& owner, const CallstackEntry& parent);
-    #ifdef DEBUG
     virtual                   ~CallstackSubEntry()
     { DEBUGLOG(("SongIterator::CallstackSubEntry(%p)::~CallstackSubEntry()\n", this)); }
-    #endif
   };
   // Thhis type is only to have a static constructor.
   struct InitialCallstackType : public CallstackType
@@ -200,7 +198,7 @@ class SongIterator
   SongIterator&               operator=(const SongIterator& r);                              
   // swap two instances (fast)
   void                        Swap(SongIterator& r);
-  #ifdef DEBUG
+  #ifdef DEBUG_LOG
   static xstring              DebugName(const SongIterator* sip);
   #endif
   
