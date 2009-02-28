@@ -26,8 +26,8 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef STRMAP_H
-#define STRMAP_H
+#ifndef STRINGMAP_H
+#define STRINGMAP_H
 
 #include <cpp/xstring.h>
 #include <cpp/container/sorted_vector.h>
@@ -64,6 +64,35 @@ class stringmap_own : public stringmap
   stringmap_own(size_t capacity) : stringmap(capacity) {}
   ~stringmap_own();
 };
+
+
+/* Lightweight structure for string based dispatching.
+ * The structure has a POD layout and starts with a null terminated C string.
+ * This allows a conversion of strmap* to char*. In fact you can search
+ * in a sorted array of strmap with bsearch and strcmp.
+ * Once you got a match you have an object of an arbitrary type V.
+ * This could e.g. be a function pointer. 
+ */
+template <int LEN, class V>
+struct strmap
+{ char Str[LEN];
+  V    Val;
+};
+
+template <class T>
+inline T* mapsearch2(T* map, size_t count, const char* cmd)
+{ return (T*)bsearch(cmd, map, count, sizeof(T), (int(TFNENTRY*)(const void*, const void*))&stricmp);
+}
+#ifdef __IBMCPP__
+// IBM C work around
+// IBM C cannot deduce the array size from the template argument.
+#define mapsearch(map, arg) mapsearch2((map), sizeof(map) / sizeof *(map), arg)
+#else
+template <size_t I, class T>
+inline T* mapsearch(T (&map)[I], const char* cmd)
+{ return (T*)bsearch(cmd, map, I, sizeof(T), (int(TFNENTRY*)(const void*, const void*))&stricmp);
+}
+#endif
 
 #endif
 

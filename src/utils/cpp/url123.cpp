@@ -33,7 +33,7 @@
 
 #include <string.h>
 
-#undef DEBUG
+#undef DEBUG_LOG
 #include <debuglog.h>
 
 

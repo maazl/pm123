@@ -1,0 +1,98 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html resid="1026" level="3" sublinks="playlist_cmi.html"><head>
+<meta content="text/html;charset=ISO-8859-1" http-equiv="Content-Type"><title>Supported URL types</title>
+
+<link rel="stylesheet" href="infstyle.css" type="text/css"></head>
+<body>
+<h2>PM123s supported URL types<br>
+</h2>
+<p>PM123 generally uses URL syntax to identify any object that
+you can play or enumerate. With the standard plug-ins the following URL
+types are supported:</p>
+<h3><a name="file"></a>File URLs</h3>
+<blockquote>
+<pre>file:///E:/AUDIO/4CD/sascha m&uuml;ller/01.mp3
+file://server/share/AUDIO/4CD/sascha m&uuml;ller/01.mp3
+
+E:/AUDIO/4CD/sascha m&uuml;ller/01.mp3
+//server/share/AUDIO/4CD/sascha m&uuml;ller/01.mp3</pre>
+</blockquote>
+<p>On input PM123 accepts ordinary file names without the <tt>file:///</tt>&nbsp;prefix too. This ensures compatibility with applications that are not
+aware of URLs in most cases.</p>
+<h3>Playlists</h3>
+Files with the extensions <tt>.lst</tt>,&nbsp;<tt>.mpl</tt>,
+<tt>.pls</tt>, <tt>.m3u</tt> and&nbsp;<tt>.m3u8</tt>
+are considered to be playlists. There content is considered to be in
+the appropriate format depending on the extension. <tt>.lst</tt>
+is <a href="playlistformat.html">PM123s native playlist
+format</a>. It is similar to the <tt>.m3u</tt>
+format.
+<h3><a name="file_folder"></a>File system
+folder URLs</h3>
+<p>PM123 can play the whole content of a file system folder
+without the need to create a playlist. This is done by creating a
+virtual playlist in memory with all items in the folder.
+</p>
+File system folders use a special URL syntax. The object name always
+ends with a trailing slash. Example:
+<blockquote>
+<pre>file:///E:/AUDIO/4CD/sascha m&uuml;ller/</pre>
+</blockquote>
+<p>The URL may use parameters for options. They start with a '<tt>?</tt>'
+and are separated by '<tt>&amp;</tt>' as HTTP
+parameters too. Example:
+</p>
+<blockquote>
+<pre>file:///E:/AUDIO/4CD/sascha m&uuml;ller/?recursive&amp;pattern=*.mp3</pre>
+</blockquote>
+<table border="1" cellpadding="3" cellspacing="0">
+<tbody>
+<tr align="left">
+<th>Parameter</th>
+<th>Description</th>
+<th>Example</th>
+</tr>
+<tr valign="baseline">
+<td><tt>recursive</tt></td>
+<td>This option includes all nested folders as virtual
+nested playlists. All parameters are inherited.</td>
+<td>...<tt>/?recursive</tt></td>
+</tr>
+<tr valign="baseline">
+<td><tt>pattern=<var>wildcard</var></tt></td>
+<td>This restricts the files to that ones that match the <tt><var>wildcard</var></tt>
+name.</td>
+<td>...<tt>/?pattern=*.mp3</tt></td>
+</tr>
+<tr valign="baseline">
+<td><tt>sort=</tt>{<tt>1</tt>|<tt>-1</tt>}</td>
+<td>Override the <a href="settings2.html">configuration
+setting</a> whether to sort the content of folders by name.<br>
+'<tt>-1</tt>' will force the option off for this folder.</td>
+<td>...<tt>/?sort=1</tt></td>
+</tr>
+<tr valign="baseline">
+<td><tt>foldersfirst=</tt>{<tt>1</tt>|<tt>-1</tt>}</td>
+<td>Override the <a href="settings2.html">configuration
+setting</a> whether to place sub folders before any other content.<br>
+'<tt>-1</tt>' will force the option off for this folder.</td>
+<td>...<tt>/?foldersfirst=-1</tt></td>
+</tr>
+</tbody>
+</table>
+<h3><a name="http"></a>http URLs</h3>
+<p>There is few to say about these kind of URLs. PM123 can read
+anything that is supported as file from an http server too.<br>
+Additionally ShoutCast and IceCast streaming is supported for MPEG and
+Ogg streams.</p>
+<h3><a name="ftp"></a>ftp URLs</h3>
+<p>PM123 can read anything that is supported as file from an ftp
+server too.</p>
+<h3><a name="cd"></a>Compact disc URLs</h3>
+<p>To identify tracks on a CD-ROM drive PM123 uses the following
+syntax:</p>
+<blockquote>
+<pre>cdda:///J:/Track 01<br>cd:///J:/Track 01</pre>
+</blockquote>
+<h3><a name="other"></a>Other, plug-in specific URLs</h3><p>Depending on the plug-ins installed almost any other URL type <i>might</i> be supported. For example the <a href="os2rec.html">recording plug-in</a> supports URLs starting with <tt>record://</tt>.</p>
+</body></html>

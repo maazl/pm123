@@ -374,7 +374,7 @@ class Playable
     // Write item with priority
     void       Write(const QEntry& data, bool lowpri);
     void       Purge()     { queue<QEntry>::Purge(); HPTail = NULL; }
-    #ifdef DEBUG
+    #ifdef DEBUG_LOG
     // Read the current head
     void       DumpQ() const;
     #endif
@@ -409,7 +409,7 @@ class Playable
   static clock_t           LastCleanup;   // Time index of last cleanup run
   clock_t                  LastAccess;    // Time index of last access to this instance (used by Cleanup)
  private:
-  #ifdef DEBUG
+  #ifdef DEBUG_LOG
   static void              RPDebugDump();
   #endif
   static void              DetachObjects(const vector<Playable>& list);
@@ -443,7 +443,7 @@ class PlayableSetBase
                            PlayableSetBase() {}
                            ~PlayableSetBase() {}
  public:
-  #ifdef DEBUG
+  #ifdef DEBUG_LOG
   xstring                  DebugDump() const;
   #endif
   virtual size_t           size() const = 0;
@@ -466,7 +466,7 @@ class PlayableSet
                            PlayableSet();
                            PlayableSet(const PlayableSetBase& r);
                            PlayableSet(const PlayableSet& r);
-  #ifdef DEBUG
+  #ifdef DEBUG_LOG
                            ~PlayableSet()
                            { DEBUGLOG(("PlayableSet(%p)::~PlayableSet()\n", this)); }
   #endif
@@ -488,7 +488,7 @@ class OwnedPlayableSet
                            OwnedPlayableSet();
                            OwnedPlayableSet(const PlayableSetBase& r);
                            OwnedPlayableSet(const OwnedPlayableSet& r);
-  #ifdef DEBUG
+  #ifdef DEBUG_LOG
                            ~OwnedPlayableSet()
                            { DEBUGLOG(("OwnedPlayableSet(%p)::~OwnedPlayableSet()\n", this)); }
   #endif

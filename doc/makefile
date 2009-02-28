@@ -20,9 +20,11 @@ MANLST = $(MANLST) manual\playlistformat.html manual\plug-ins.html manual\logvol
 MANLST = $(MANLST) manual\plug-ins_dec-cfg.html manual\plug-ins_fil-cfg.html 
 MANLST = $(MANLST) manual\plug-ins_out-cfg.html manual\plug-ins_vis-cfg.html 
 MANLST = $(MANLST) manual\properties.html manual\realeq.html manual\remote.html 
+MANLST = $(MANLST) manual\remoterefconfig.html manual\remotereferror.html manual\remoterefgui.html
+MANLST = $(MANLST) manual\remoterefplayback.html manual\remoterefplaylist.html
 MANLST = $(MANLST) manual\settings1.html manual\settings2.html manual\sguide.html 
 MANLST = $(MANLST) manual\skins.html manual\tech.html manual\troubleshooting.html 
-MANLST = $(MANLST) manual\playfolder.html manual\bookmark.html manual\playlist_cm.html 
+MANLST = $(MANLST) manual\urlformat.html manual\bookmark.html manual\playlist_cm.html 
 MANLST = $(MANLST) manual\playlist_cmi.html manual\os2rec.html manual\bugreport.html
 MANLST = $(MANLST) manual\logfiles.html manual\opentodo.html manual\mpg123.html
 

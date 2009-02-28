@@ -69,6 +69,12 @@ void prf_query_xstring( HINI hini, const char* app, const char* key, xstring& va
 *
 ****************************************************************************/
 
+void Ctrl::ControlCommand::Destroy()
+{ if (Link)
+    Link->Destroy();
+  delete this;
+}
+
 vector<Ctrl::PrefetchEntry> Ctrl::PrefetchList(10);
 Mutex                Ctrl::PLMtx;
 bool                 Ctrl::Playing   = false;
@@ -184,7 +190,7 @@ void Ctrl::DecoderStop()
   // stop decoder
   dec_stop();
 
-  // TODO: CRAP? => we should disconnect decoder instead 
+  // TODO: CRAP? => we disconnect decoder instead 
   /*int cnt = 0;
   while (dec_status() != DECODER_STOPPED && dec_status() != DECODER_ERROR)
   { DEBUGLOG(("Ctrl::DecoderStop - waiting for Spinlock\n"));
@@ -592,10 +598,11 @@ Ctrl::RC Ctrl::MsgPlayStop(Op op)
   
   } else
   { // stop playback
-    DecoderStop();
     OutputStop();
+    DecoderStop();
 
-    MsgPause(Op_Clear);
+    if (SetFlag(Paused, Op_Clear))
+      InterlockedOr(Pending, EV_Pause);
     MsgScan(Op_Reset);
 
     while (out_playing_data())
@@ -625,11 +632,9 @@ Ctrl::RC Ctrl::MsgNavigate(const xstring& iter, T_TIME loc, int flags)
     sip->SetLocation(time);
   }
   if (iter && iter.length())
-  { if (!IsEnumerable())
-      return RC_NoList;
-    const char* cp = iter.cdata();
-    sip->Deserialize(cp);
-    // TODO: Error
+  { const char* cp = iter.cdata();
+    if (!sip->Deserialize(cp) && !(flags & 0x04))
+      return RC_BadIterator;
     // Move forward to the next Song, if the current item is a playlist.
     AdjustNext(*sip);
   } else
@@ -743,6 +748,11 @@ Ctrl::RC Ctrl::MsgLoad(const xstring& url, int flags)
   return RC_OK;
 }
 
+Ctrl::RC Ctrl::MsgStopAt(const xstring& iter, T_TIME loc, int flags)
+{ // TODO: !!!
+  return RC_OK;
+}
+
 /* saving the currently played stream. */
 Ctrl::RC Ctrl::MsgSave(const xstring& filename)
 { DEBUGLOG(("Ctrl::MsgSave(%s)\n", filename.cdata()));
@@ -774,14 +784,19 @@ Ctrl::RC Ctrl::MsgRepeat(Op op)
   return RC_OK;
 }
 
-Ctrl::RC Ctrl::MsgLocation(SongIterator* sip)
-{ DEBUGLOG(("Ctrl::MsgLocation(%p)\n", sip));
+Ctrl::RC Ctrl::MsgLocation(SongIterator* sip, int flags)
+{ DEBUGLOG(("Ctrl::MsgLocation(%p, %x)\n", sip, flags));
   if (!PrefetchList.size())
     return RC_NoSong; // no root
-  // Fetch time first because that may change Current().
-  T_TIME pos = FetchCurrentSongTime();
-  *sip = Current()->Iter; // copy
-  sip->SetLocation(pos);
+  if (flags & 1)
+  { // stopat location
+    // TODO: not yet implemented
+  } else
+  { // Fetch time first because that may change Current().
+    T_TIME pos = FetchCurrentSongTime();
+    *sip = Current()->Iter; // copy
+    sip->SetLocation(pos);
+  }
   return RC_OK;
 }
 
@@ -906,6 +921,10 @@ void Ctrl::Worker()
           ccp->Flags = MsgJump(*(SongIterator*)ccp->PtrArg);
           break;
          
+         case Cmd_StopAt:
+          ccp->Flags = MsgStopAt(ccp->StrArg, ccp->NumArg, ccp->Flags);
+          break;
+
          case Cmd_PlayStop:
           ccp->Flags = MsgPlayStop((Op)ccp->Flags);
           break;
@@ -935,7 +954,7 @@ void Ctrl::Worker()
           break;
           
          case Cmd_Location:
-          ccp->Flags = MsgLocation((SongIterator*)ccp->PtrArg);
+          ccp->Flags = MsgLocation((SongIterator*)ccp->PtrArg, ccp->Flags);
           break;
          
          case Cmd_DecStop:
@@ -1003,10 +1022,10 @@ void Ctrl::Init()
   if (state.current_root)
   { ControlCommand* head = MkLoad(state.current_root, false);
     ControlCommand* tail = head;
-    if (cfg.restartonstart && state.was_playing)
-      tail = tail->Link = MkPlayStop(Op_Set);
     if (state.current_iter)
       tail = tail->Link = MkNavigate(state.current_iter, 0, true, true);
+    if (cfg.restartonstart && state.was_playing)
+      tail = tail->Link = MkPlayStop(Op_Set);
     PostCommand(head);
   }
 }
@@ -1019,7 +1038,7 @@ void Ctrl::Uninit()
   SongIterator last; // last playing location
   { Mutex::Lock l(Queue.Mtx);
     Queue.Purge();
-    PostCommand(MkLocation(&last));
+    PostCommand(MkLocation(&last, 0));
     PostCommand(MkLoad(xstring(), 0));
     PostCommand(NULL);
     DecEventDelegate.detach();
@@ -1061,11 +1080,16 @@ Ctrl::ControlCommand* Ctrl::SendCommand(ControlCommand* cmd)
   // find last command
   ControlCommand* cmde = cmd;
   while (cmde->Link)
+  { cmde->Callback = &CbNop;
     cmde = cmde->Link;
+  }
   cmde->User = &callback;
   cmde->Callback = &SendCallbackFunc;
   PostCommand(cmd);
   callback.Wait();
   return cmd;
 }
+
+void Ctrl::CbNop(ControlCommand* cmd)
+{}
 

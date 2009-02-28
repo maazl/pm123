@@ -87,7 +87,21 @@ spectroscope mode.)</td>
 <p>Since <strong>version 2.10</strong> of&nbsp;<tt>ANALYZER.DLL</tt>
 the coloring file may also have the following, new format:</p>
 <blockquote>
-<pre>// ANALYZER 21 (this comment line is required at the top!)<br>// This file represents the default values<br>// general colors ...<br>BACKGROUND=0,0,0<br>DOTS=0,90,0<br>PEAK=0,255,0<br>// oscilloscope colors [0..4] ...<br>OSCILLOSCOPE-0=0,180,0<br>OSCILLOSCOPE-3=0,255,0<br>// spectrum analyzer colors [0..30] ...<br>ANALYZER-0=255,0,0<br>ANALYZER-100%=0,255,0<br>// spectroscope colors [0..63] ...<br>SPECTROSCOPE-0=0,0,0<br>SPECTROSCOPE-8=0,0,32<br>SPECTROSCOPE-16=128,0,0<br>SPECTROSCOPE-24=255,0,0<br>SPECTROSCOPE-40=255,255,0<br>SPECTROSCOPE-55=128,255,255<br>SPECTROSCOPE-63=255,255,255</pre>
+<pre>// ANALYZER 21 (this comment line is required at the top!)
+// This file represents the default values
+// general colors ...
+BACKGROUND=0,0,0<br>DOTS=0,90,0
+PEAK=0,255,0
+// oscilloscope colors [0..4] ...
+OSCILLOSCOPE-0=0,180,0
+OSCILLOSCOPE-3=0,255,0
+// spectrum analyzer colors [0..30] ...
+ANALYZER-0=255,0,0<br>ANALYZER-100%=0,255,0
+// spectroscope colors [0..63] ...
+SPECTROSCOPE-0=0,0,0<br>SPECTROSCOPE-8=0,0,32
+SPECTROSCOPE-16=128,0,0<br>SPECTROSCOPE-24=255,0,0
+SPECTROSCOPE-40=255,255,0<br>SPECTROSCOPE-55=128,255,255
+SPECTROSCOPE-63=255,255,255</pre>
 </blockquote>
 <p>The color ranges <tt>OSCILLOSCOPE</tt> and <tt>SPECTRUM</tt> need not
 to be fully defined. The missing values are interpolated

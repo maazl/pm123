@@ -333,8 +333,12 @@ int XIOasyncbuffer::close()
 long XIOasyncbuffer::do_seek( long offset, long* offset64 )
 {
   Mutex::Lock lock(mtx_access);
+  // reset errors
+  eof    = false;
+  error  = 0;
 
   long file_pos = read_pos - (data_size - data_rest);
+  DEBUGLOG(("XIOasyncbuffer::do_seek: %li, [%li, %li), %i\n", offset, file_pos, file_pos + data_size, data_rest));
   if( offset >= file_pos &&
       offset <= file_pos + data_size )
   {
@@ -344,6 +348,7 @@ long XIOasyncbuffer::do_seek( long offset, long* offset64 )
     data_read = advance( data_head, moveto );
     data_rest = data_size - moveto;
     obsolete = moveto - data_keep;
+    DEBUGLOG2(("XIOasyncbuffer::do_seek: obs = %i\n", obsolete));
 
     if( obsolete > 128 ) {
       // If there is too much obsolete data then move a head of
@@ -356,10 +361,10 @@ long XIOasyncbuffer::do_seek( long offset, long* offset64 )
       evt_read_data.Set();
     } else
       obs_discard();
+
   } else {
+    DEBUGLOG2(("XIOasyncbuffer::do_seek: -> RA-thread\n"));
     obs_clear();
-    eof    = false;
-    error  = 0;
     seekto = offset;
     evt_read_data.Set();
     evt_have_data.Reset();
@@ -368,6 +373,7 @@ long XIOasyncbuffer::do_seek( long offset, long* offset64 )
     // Wait for the acknowledge of the read-ahead thread.
     lock.Release();
     evt_have_data.Wait();
+    DEBUGLOG(("XIOasyncbuffer::do_seek: ack\n"));
     
     if (error)
       return -1L; 

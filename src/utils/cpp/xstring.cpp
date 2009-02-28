@@ -31,7 +31,6 @@
 #include <string.h>
 #include <snprintf.h>
 
-#undef DEBUG
 #include <debuglog.h>
 
 
@@ -39,10 +38,10 @@ const xstring xstring::empty("");
 
 
 int xstring::compareI(const char* l, const char* r, size_t len)
-{ //DEBUGLOG(("xstring::compareI(%s, %s, %u)\n", l, r, len));
+{ DEBUGLOG2(("xstring::compareI(%s, %s, %u)\n", l, r, len));
   while (len--)
   { register int i = (int)(unsigned char)tolower(*l++) - (unsigned char)tolower(*r++);
-    //DEBUGLOG(("xstring::compareI - %i\n", i));
+    DEBUGLOG2(("xstring::compareI - %i\n", i));
     if (i != 0)
       return i;
   }

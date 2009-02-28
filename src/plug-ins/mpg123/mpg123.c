@@ -784,7 +784,7 @@ void static
 copy_id3v1_string( const ID3V1_TAG* tag, int id, char* result, int size, ULONG codepage )
 {
   if( !*result ) {
-    id3v1_get_string( tag, id, result, size, tag_id3v1_charset );
+    id3v1_get_string( tag, id, result, size, codepage );
   }
 }
 

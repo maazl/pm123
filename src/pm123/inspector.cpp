@@ -163,7 +163,6 @@ static void ControllerQCB(const queue<Ctrl::ControlCommand*>::qentry& entry, voi
   }
   do
   { const char* cmdname;
-    int len;
     switch(cmd->Cmd)
     {case Ctrl::Cmd_Nop:
       strcpy(buf+1, "NoOp");

@@ -68,7 +68,7 @@ uLong ZEXPORT zlibCompileFlags()
       flags += 3 << 6;
     #endif
 
-#ifdef DEBUG
+#ifdef DEBUG_LOG
     flags += 1 << 8;
 #endif
 #if defined(ASMV) || defined(ASMINF)
@@ -122,7 +122,7 @@ uLong ZEXPORT zlibCompileFlags()
     return flags;
 }
 
-#ifdef DEBUG
+#ifdef DEBUG_LOG
 
 #  ifndef verbose
 #    define verbose 0

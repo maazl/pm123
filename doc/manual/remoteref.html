@@ -1,272 +1,97 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
 <html level="3"><head>
-  <title>Remote Command Reference</title>
-  <link rel="stylesheet" href="infstyle.css" type="text/css">
-</head>
+
+<title>Remote Command Reference</title><link rel="stylesheet" href="infstyle.css" type="text/css"></head>
 <body>
 <h2>PM123's Remote Command Reference</h2>
 <p>PM123 currently understands the following
-commands (optional parameters are enclosed in square brackets).</p>
-<h3>Category playback control</h3>
-<table border="1" cellpadding="5" cellspacing="0">
-<tbody>
-<tr>
-<th>Command</th>
-<th>Description</th>
-<th>Reply</th>
-</tr>
-<tr valign="baseline">
-<td><tt>load </tt>[<tt><var>&lt;file&gt;</var></tt>|<tt><var>&lt;url&gt;</var></tt>]</td>
-<td>Loads a <var><tt>&lt;file&gt;</tt></var>
-or <tt><var>&lt;url&gt;</var></tt>
-into the player. Plays it too, if '<i>auto play on load</i>'
-is set.</td>
-<td>Result code, non-zero = error.</td>
-</tr>
-<tr valign="baseline">
-<td><tt>play </tt>[<tt><var>&lt;file&gt;</var></tt>|<tt><var>&lt;url&gt;</var></tt>]</td>
-<td>Starts playing.<br>
-If <tt><var>&lt;file&gt;</var></tt> or
-<tt><var>&lt;url&gt;</var></tt>
-was specified, it will be first loaded and playback will be started.
-Any currently playing item will be aborted.</td>
-<td>Result code, non-zero = error.</td>
-</tr>
-<tr valign="baseline">
-<td><tt>stop</tt></td>
-<td>Stops playback.</td>
-<td>Result code, non-zero = error.</td>
-</tr>
-<tr valign="baseline">
-<td><tt>pause </tt>[<tt>on</tt>|<tt>off</tt>]<sup><a href="#note1">(1)</a></sup></td>
-<td>Pauses or resumes the playback.</td>
-<td>Result code, non-zero = error.</td>
-</tr>
-<tr valign="baseline">
-<td><tt>next </tt>[<var><tt>&lt;count&gt;</tt></var>]</td>
-<td>Selects the next song in playlist. If <var><tt>&lt;count&gt;</tt></var>
-is specified, you can skip more than one song at once.</td>
-<td>Result code, non-zero = error.</td>
-</tr>
-<tr valign="baseline">
-<td><tt>previous </tt>[<var><tt>&lt;count&gt;</tt></var>]</td>
-<td>Selects the previous song in playlist. If <var><tt>&lt;count&gt;</tt></var>
-is specified, you can skip more than one song at once.</td>
-<td>Result code, non-zero = error.</td>
-</tr>
-<tr valign="baseline">
-<td><tt>rewind </tt>[<tt>on</tt>|<tt>off</tt>]<sup><a href="#note1">(1)</a></sup></td>
-<td>Toggles or (re)sets rewind of the currently playing
-file. If rewind is activated fast forward is implicitly deactivated.</td>
-<td>Result code, non-zero = error.</td>
-</tr>
-<tr valign="baseline">
-<td><tt>forward </tt>[<tt>on</tt>|<tt>off</tt>]<sup><a href="#note1">(1)</a></sup></td>
-<td>Toggles or (re)sets fast forward of the currently
-playing file. If fast forward is activated rewind is implicitly
-deactivated.</td>
-<td>Result code, non-zero = error.</td>
-</tr>
-<tr valign="baseline">
-<td><tt>navigate<br>
-</tt><tt>song <var>&lt;url&gt;</var></tt><br>
-[<tt>time </tt><var><tt>&lt;time&gt;</tt></var>[<tt>%</tt>]]</td>
-<td>Navigate within the currently loaded playlist. Examples:<br>
-'<tt>navigate path ;D:\songs\song1.mp3</tt>' navigates to
-the start of the song within the currently loaded playlist. If the file
-is referenced twice, the first instance s taken.<br>
-'<tt>navigate song D:\songs\song1.mp3 time 1:02.7</tt>'
-navigates to location 62.7 seconds within the next occurrence of .</td>
-<td>Result code, non-zero = error.</td>
-</tr>
-<tr valign="baseline">
-<td><tt>navigate<br>
-</tt><tt>path </tt>[<tt>;</tt>]<tt><var>&lt;item&gt;</var></tt>[<tt>;<var>&lt;sub item&gt;</var></tt>[<tt>;</tt>...]]<br>
-[<tt>time </tt><var><tt>&lt;time&gt;</tt></var>[<tt>%</tt>]]</td>
-<td>Navigate within the currently loaded playlist. Examples:<br>
-'<tt>navigate path ;D:\songs\song1.mp3</tt>' navigates to
-the start of the song within the currently loaded playlist. If the file
-is referenced twice, the first instance s taken.<br>
-'<tt>navigate song D:\songs\song1.mp3 time 1:02.7</tt>'
-navigates to location 62.7 seconds within the next occurrence of .</td>
-<td>Result code, non-zero = error.</td>
-</tr>
-<tr valign="baseline">
-<td><tt>jump <var>&lt;n&gt;</var></tt></td>
-<td>Jump to <tt><var>&lt;n&gt;</var></tt>
-seconds in the currently playing file. <tt><var>&lt;n&gt;</var></tt>
-may be a fractional number.</td>
-<td>Result code, non-zero = error.</td>
-</tr>
-<tr valign="baseline">
-<td><tt>volume </tt>[[<tt>+</tt>|<tt>-</tt>]<tt><var>&lt;n&gt;</var></tt>]</td>
-<td>Sets volume to <tt><var>&lt;n&gt;</var></tt>%
-(scale 0-100, of course). If a sign is included, <tt><var>&lt;n&gt;</var></tt>
-is added to the current volume level. If <tt><var>&lt;n&gt;</var></tt>
-is omitted the volume is unchanged.</td>
-<td>Previous volume setting or empty string on error.</td>
-</tr>
-<tr valign="baseline">
-<td><tt>shuffle </tt>[<tt>on</tt>|<tt>off</tt>]<sup><a href="#note1">(1)</a></sup></td>
-<td>Toggles or (re)sets shuffling.</td>
-<td>Previous setting or empty string on error.</td>
-</tr>
-<tr valign="baseline">
-<td><tt>repeat </tt>[<tt>on</tt>|<tt>off</tt>]<sup><a href="#note1">(1)</a></sup></td>
-<td>Toggles or (re)sets repeat.</td>
-<td>Previous setting or empty string on error.</td>
-</tr>
-<tr valign="baseline">
-<td><tt>hide</tt></td>
-<td>Hides the player window.</td>
-<td>&nbsp;</td>
-</tr>
-<tr valign="baseline">
-<td><tt>status tag</tt>|<tt>file</tt>|<tt>info</tt></td>
-<td>Returns the information currently displayed in the
-scroller or returns nothing if "no file loaded".</td>
-<td>Info string.</td>
-</tr>
-</tbody>
-</table>
-<h3>Category Playlists</h3>
-<table border="1" cellpadding="5" cellspacing="0">
-<tbody>
-<tr>
-<th>Command</th>
-<th>Description</th>
-<th>Reply</th>
-</tr>
-<tr valign="baseline">
-<td><tt>playlist <var>&lt;file&gt;|&lt;folder&gt;</var></tt></td>
-<td>Select a playlist or a folder. This setting only affects the pipe
-interface.</td>
-<td>Full qualified URL or empty string on error.</td>
-</tr>
-<tr valign="baseline">
-<td><tt>pl_next</tt><a href="#note3"><sup>(3)</sup></a></td>
-<td>Navigate to the next item in the current playlist.</td>
-<td>URL of the item or an empty string at the end of the
-list.</td>
-</tr>
-<tr valign="baseline">
-<td><tt>pl_previous</tt><a href="#note3"><sup>(3)</sup></a></td>
-<td>Navigate to the previous item in the current playlist.</td>
-<td>URL of the item or an empty string at the end of the
-list.</td>
-</tr>
-<tr valign="baseline">
-<td><tt>pl_reset</tt><a href="#note3"><sup>(3)</sup></a></td>
-<td>Reset the current item of the playlist. The current location is now before
-  the start or past the end respectively.</td>
-<td>&nbsp;</td>
-</tr>
-<tr valign="baseline">
-<td><tt>use</tt></td>
-<td>Use the current playlist. This is equivalent to '<tt>load
-<var>&lt;filepath to current playlist&gt;</var></tt>'.</td>
-<td>&nbsp;</td>
-</tr>
-<tr valign="baseline">
-<td><tt>clear</tt></td>
-<td>Clears the current playlist.</td>
-<td>&nbsp;</td>
-</tr>
-<tr valign="baseline">
-<td><tt>add <var>&lt;file&gt;</var></tt>|<var><tt>&lt;url&gt;</tt></var>[<tt>;</tt>...]</td>
-<td>Adds item(s) to the current playlist. The items are added before the current
-  item. If the current item is past the end the new items are appended.<br>
-  Multiple items
-must be separated with '<tt>;</tt>' characters. The names
-or URLs can be enclosed with double quotes. The operation is atomic.</td>
-<td>&nbsp;</td>
-</tr>
-<tr valign="baseline">
-<td><tt>dir <var>&lt;directory&gt;</var></tt><sup><a href="#note1">(2)</a></sup></td>
-<td>Add <tt><var>&lt;directory&gt;</var></tt>
-to the playlist (non-recursive).</td>
-<td>&nbsp;</td>
-</tr>
-<tr valign="baseline">
-<td><tt>rdir <var>&lt;directory&gt;</var></tt><sup><a href="#note1">(2)</a></sup></td>
-<td>Add <tt><var>&lt;directory&gt;</var></tt>
-to the playlist (recursive).</td>
-<td>&nbsp;</td>
-</tr>
-<tr valign="baseline">
-<td><tt>remove</tt></td>
-<td>Removes currently loaded file from the current playlist.</td>
-<td>Full qualified URL of the removed item or empty string on error.</td>
-</tr>
-<tr valign="baseline">
-  <td><tt>save </tt>[<var><tt>&lt;file&gt;</tt></var>]</td>
-  <td>Save the current playlist as <var><tt>&lt;file&gt;</tt></var>. If <var><tt>&lt;file&gt;</tt></var> is
-    omitted the playlist is saved in place. This only works on mutable lists.</td>
-  <td>&nbsp;</td>
-</tr>
-</tbody>
-</table>
-<h3>Category Configuration</h3>
-<table border="1" cellpadding="5" cellspacing="0">
-<tbody>
-<tr>
-<th>Command</th>
-<th>Description</th>
-<th>Reply</th>
-</tr>
-<tr valign="baseline">
-<td><tt>autouse </tt>[<tt>on</tt>|<tt>off</tt>|<tt>toggle</tt>]<sup><a href="#note1">(1)</a></sup></td>
-<td>Toggles or (re)sets '<i>auto use playlist on add</i>'.<br>
-  Without an argument only the current setting is returned.</td>
-<td>Previous setting or empty string on error.</td>
-</tr>
-<tr valign="baseline">
-<td><tt>playonload </tt>[<tt>on</tt>|<tt>off</tt>|<tt>toggle</tt>]<sup><a href="#note1">(1)</a></sup></td>
-<td>Toggles or (re)sets '<i>auto play on load</i>'.<br>
-  Without an argument only the current setting is returned.</td>
-<td>Previous setting or empty string on error.</td>
-</tr>
-<tr valign="baseline">
-<td><tt>float </tt>[<tt>on</tt>|<tt>off</tt>|<tt>toggle</tt>]<sup><a href="#note1">(1)</a></sup></td>
-<td>Toggles or (re)sets '<i>float on top</i>'.<br>
-  Without an argument only the current setting is returned.</td>
-<td>Previous setting or empty string on error.</td>
-</tr>
-<tr valign="baseline">
-<td><tt>font </tt>[<tt>1</tt>|<tt>2</tt>|<var><tt>&lt;font&gt;</tt></var>]</td>
-<td>Selects font 1 or font 2 or a non-skinned OS/2 font. <var><tt>&lt;font&gt;</tt></var>
-is in the PM syntax like '<tt>8.Helvetica</tt>'.<br>
-Without an argument only the current setting is returned.</td>
-<td>Previous setting or empty string on error.</td>
-</tr>
-<tr valign="baseline">
-<td><tt>size </tt>[<tt>0</tt>|<tt>normal</tt>|<tt>regular</tt>
-| <tt>1</tt>|<tt>small</tt> | <tt>2</tt>|<tt>tiny</tt>]</td>
-<td>Selects the player size.<br>
-  Without an argument only the current setting is returned.</td>
-<td>Previous setting [<tt>0</tt>|<tt>1</tt>|<tt>2</tt>] or empty string on error.</td>
-</tr>
-</tbody>
-</table>
-<h3>Notes</h3>
-<ol>
-<li>
-<p>All boolean parameters may use '<tt>on</tt>', '<tt>1</tt>',
-'<tt>true</tt>' or '<tt>yes</tt>' for the
-logical value <em>true</em> and '<tt>off</tt>', '<tt>0</tt>',
-'<tt>false</tt>' or '<tt>no</tt>' for <em>false</em>.</p>
-</li>
-<li>
-<p>The behavior of the directory commands has significantly
-changed with PM123 1.40. The content of the directories is no longer
-expanded inline into the playlist. A reference to the directory is added
-to the playlist instead. This has several side effects. Unplayable
-items appear in the navigation. The directory is rescanned every time
-the playlist is loaded.</p>
-</li>
-<li>In PM123 before version 1.40 the playlist manipulation
-commands always operate on the currently playing item. Now the new
-commands <tt>pl_prev</tt>, <tt>pl_next</tt>
-and <tt>pl_reset</tt> are dedicated to playlist operations.</li>
-</ol>
+commands through the <a href="remote.html">remote interface</a>.
+The commands are grouped into four categories: <a href="remoterefplayback.html">playback control</a>, <a href="remoterefplaylist.html">playlists</a>, <a href="remoterefgui.html">user interface</a> and <a href="remoterefconfig.html">configuration</a>.</p>
+<h3>Alphabetical list of commands</h3>
+<ul>
+<li><a href="remoterefplaylist.html#add"><tt>add</tt></a>
+- add item to playlist</li>
+<li><a href="remoterefconfig.html#autouse"><tt>autouse</tt></a>
+- auto use playlist on add</li>
+<li><a href="remoterefplaylist.html#clear"><tt>clear</tt></a>
+- clear playlist</li>
+<li><a href="remoterefplayback.html#current"><tt>current</tt></a>
+- query current song or playlist</li>
+<li><a href="remoterefplaylist.html#dir"><tt>dir</tt></a>
+- add directory to playlist (<i>deprecated</i>, use <a href="remoterefplaylist.html#add"><tt>add</tt></a>)</li>
+<li><a href="remoterefconfig.html#float"><tt>float</tt></a>
+- float window on top</li>
+<li><a href="remoterefgui.html#font"><tt>font</tt></a>
+- select font</li>
+<li><a href="remoterefplayback.html#forward"><tt>forward</tt></a>
+- forward scan</li>
+<li><a href="remoterefgui.html#hide"><tt>hide</tt></a>
+- hide player window</li>
+<li><a href="remoterefplayback.html#jump"><tt>jump</tt></a>
+- jump to location</li>
+<li><a href="remoterefplayback.html#load"><tt>load</tt></a>
+- load file/URL&nbsp;</li>
+<li><a href="remoterefplayback.html#location"><tt>location</tt></a>
+- query current location</li>
+<li><a href="remoterefplayback.html#navigate"><tt>navigate</tt></a>
+- navigate to item</li>
+<li><a href="remoterefplayback.html#next"><tt>next</tt></a>
+- skip next</li>
+<li><a href="remoterefgui.html#open"><tt>open</tt></a>
+- open dialog window</li>
+<li><a href="remoterefplayback.html#pause"><tt>pause</tt></a>
+- pause</li>
+<li><a href="remoterefplaylist.html#pl_current"><tt>pl_current</tt></a>
+- query current playlist item</li>
+<li><a href="remoterefplaylist.html#pl_index"><tt>pl_index</tt></a>
+-&nbsp;query current playlist item index</li>
+<li><a href="remoterefplaylist.html#pl_next"><tt>pl_next</tt></a>
+- next playlist item</li>
+<li><a href="remoterefplaylist.html#pl_prev"><tt>pl_prev</tt></a>
+- previous playlist item</li>
+<li><a href="remoterefplaylist.html#pl_reset"><tt>pl_reset</tt></a>
+- reset playlist iterator</li>
+<li><a href="remoterefplayback.html#play"><tt>play</tt></a>
+- play item</li>
+<li><a href="remoterefplaylist.html#playlist"><tt>playlist</tt></a>
+- select playlist</li>
+<li><a href="remoterefconfig.html#playonload"><tt>playonload</tt></a>
+- start playing on load</li>
+<li><a href="remoterefplayback.html#prev"><tt>prev</tt>,
+<tt>previous</tt></a> - skip previous</li>
+<li><a href="remoterefplayback.html#query"><tt>query</tt></a> - query playback mode (like playing, auto repeat and so on)</li>
+<li><a href="remoterefgui.html#quit"><tt>quit</tt></a>
+- quit player</li>
+<li><a href="remoterefplaylist.html#rdir"><tt>rdir</tt></a>
+- recursive add directory to playlist (<i>deprecated</i>,
+use <a href="remoterefplaylist.html#add"><tt>add</tt></a>)</li>
+<li><a href="remoterefplaylist.html#remove"><tt>remove</tt></a>
+- remove item from playlist</li>
+<li><a href="remoterefplayback.html#repeat"><tt>repeat</tt></a>
+- autorepeat mode</li>
+<li><a href="remoterefplayback.html#rewind"><tt>rewind</tt></a>
+- reverse scan</li>
+<li><a href="remoterefplaylist.html#save"><tt>save</tt></a>
+- save playlist</li>
+<li><a href="remoterefplayback.html#savestream"><tt>savestream</tt></a>
+- save stream as file</li>
+<li><a href="remoterefconfig.html#set"><tt>set</tt></a>
+- set/query configuration options</li>
+<li><a href="remoterefgui.html#size"><tt>size</tt></a>
+- set player size</li>
+<li><a href="remoterefplayback.html#shuffle"><tt>shuffle</tt></a>
+- enable shuffle</li>
+<li><a href="remoterefgui.html#skin"><tt>skin</tt></a>
+- load skin</li>
+<li><a href="remoterefplayback.html#status"><tt>status</tt></a>
+- get info string</li>
+<li><a href="remoterefplayback.html#stop"><tt>stop</tt></a>
+- stop playback</li>
+<li><a href="remoterefplayback.html#stopat"><tt>stopat</tt></a>
+- stop playback at a certain location</li>
+<li><a href="remoterefplaylist.html#use"><tt>use</tt></a>
+- use playlist</li>
+<li><a href="remoterefplayback.html#volume"><tt>volume</tt></a>
+- volume control</li>
+</ul><a href="remotereferror.html">Some common error codes</a>.
 </body></html>

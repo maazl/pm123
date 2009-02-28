@@ -8,7 +8,7 @@ TARGET   = mpg123.dll
 
 !include $(TOPDIR)\config\makerules
 
-OBJECTS  = dct64_MMX$(OBJ)  decode_MMX$(OBJ) tabinit_MMX$(OBJ)
+OBJECTS  = dct64_MMX$(OBJ) decode_MMX$(OBJ) tabinit_MMX$(OBJ)
 OBJECTS  = $(OBJECTS) mpg123$(CO) common$(CO) decode_i386$(CO)
 OBJECTS  = $(OBJECTS) layer1$(CO) layer2$(CO) layer3$(CO)
 OBJECTS  = $(OBJECTS) dxhead$(CO) equalizer$(CO) dialog$(CO)

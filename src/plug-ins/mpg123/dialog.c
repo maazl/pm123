@@ -275,13 +275,17 @@ enum
   UM_AUTOMODE
 }; 
 
-/* Insert the predefined genre items into a listbox or combobox. */
-static void id3v1_populate_genres( HWND lb )
-{
+/* Insert the predefined genre items into the genre listbox or combobox. */
+static void id3v1_populate_genres( HWND hwnd )
+{ SHORT lb = WinWindowFromID( hwnd, CO_GENRE );
   int i;
-  WinSendMsg( lb, LM_INSERTITEM, MPFROMSHORT( LIT_END ), MPFROMP( "" )); // none
+  SHORT idx = SHORT1FROMMR(WinSendMsg( lb, LM_INSERTITEM, MPFROMSHORT( LIT_END ), MPFROMP( "" ))); // none
+  PMASSERT( idx != LIT_ERROR && idx != LIT_MEMERROR );
   for( i = 0; i <= GENRE_LARGEST; i++)
-    WinSendMsg( lb, LM_INSERTITEM, MPFROMSHORT( LIT_END ), MPFROMP( genres[i] ));
+  { idx = SHORT1FROMMR(WinSendMsg( lb, LM_INSERTITEM, MPFROMSHORT( LIT_SORTASCENDING ), MPFROMP( genres[i] )));
+    PMASSERT( idx != LIT_ERROR && idx != LIT_MEMERROR );
+    PMRASSERT(WinSendMsg( lb, LM_SETITEMHANDLE, MPFROMSHORT( idx ), MPFROMLONG( i )));
+  }
 }
 
 static void dlg_set_text_if_empty( HWND hwnd, SHORT id, const char* text )
@@ -567,19 +571,17 @@ static const char* id3_validatetrack( HWND hwnd, unsigned* track, unsigned* tota
 /* Validate ID3 date input.
  * Accepts "", "yyyy", "yyyy-[m]m", "yyyy-[m]m-[d]d", "[d]d.[m]m.yyyy".
  */
-static const char* id3_validatedate( HWND hwnd, char* dest )
+static const char* id3_validatedate( HWND hwnd )
 { static const char* formats[] = { "%04u", "%04u-%02u", "%04u-%02u-%02u" };
-  HWND ctrl = WinWindowFromID( hwnd, EN_DATE );
+  HWND   ctrl = WinWindowFromID( hwnd, EN_DATE );
   char   buf[16];
   size_t len = WinQueryWindowText( ctrl, sizeof buf, buf );
   unsigned y, m, d;
   size_t n = (size_t)-1;
   int cnt;
   if (len == 0)
-  { if (dest)
-      *dest = 0;
     return NULL;
-  }
+
   // syntax
   cnt = sscanf(buf, "%u%n-%u%n-%u%n", &y, &n, &m, &n, &d, &n);
   if (n != len)
@@ -607,9 +609,9 @@ static const char* id3_validatedate( HWND hwnd, char* dest )
                      "Accepted formats are yyyy, yyyy-mm, yyyy-mm-dd and dd.mm.yyyy.");
   }
   // write date
-  if (dest)
-    sprintf(dest, formats[cnt-1], y, m, d);
-  //PMRASSERT(WinSetWindowText(ctrl, dest));
+  sprintf(buf, formats[cnt-1], y, m, d);
+  PMRASSERT(WinSetWindowText(ctrl, buf));
+
   return NULL;
 }
 
@@ -644,7 +646,7 @@ id3all_page_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
   switch( msg )
   {
     case WM_INITDLG:
-      id3v1_populate_genres( WinWindowFromID( hwnd, CO_GENRE ));
+      id3v1_populate_genres( hwnd );
       break;
 
     case WM_CONTROL:
@@ -803,7 +805,7 @@ id3all_page_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
       msg = id3_validatetrack( hwnd, &track, &total );
       if (msg)
         return MRFROMP(msg);
-      msg = id3_validatedate( hwnd, NULL );
+      msg = id3_validatedate( hwnd );
       if (msg)
         return MRFROMP(msg);
       // store
@@ -835,7 +837,7 @@ id3v1_page_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
 { DEBUGLOG2(("mpg123:id3v1_page_dlg_proc(%p, %d, %p, %p)\n", hwnd, msg, mp1, mp2));
   switch( msg )
   { case WM_INITDLG:
-      id3v1_populate_genres( WinWindowFromID( hwnd, CO_GENRE ));
+      id3v1_populate_genres( hwnd );
       dlg_populate_charset_listbox( WinWindowFromID( hwnd, CO_ENCODING ),  ch_list, ch_list_size - ch_list_dbcs, 0 );
       break;
 
@@ -937,7 +939,7 @@ id3v1_page_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
       msg = id3_validatetrack( hwnd, &track, NULL );
       if (msg)
         return MRFROMP(msg);
-      msg = id3_validatedate( hwnd, NULL );
+      msg = id3_validatedate( hwnd );
       if (msg)
         return MRFROMP(msg);
       if (track && WinQueryDlgItemTextLength(hwnd, EN_COMMENT) > 28)
@@ -1051,7 +1053,7 @@ id3v2_page_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
       msg = id3_validatetrack( hwnd, &track, &total );
       if (msg)
         return MRFROMP(msg);
-      msg = id3_validatedate( hwnd, NULL );
+      msg = id3_validatedate( hwnd );
       if (msg)
         return MRFROMP(msg);
       // store

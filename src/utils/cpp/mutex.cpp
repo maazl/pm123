@@ -79,7 +79,7 @@ Mutex::~Mutex()
 
 bool Mutex::Request(long ms)
 {  DEBUGLOG(("Mutex(%p{%p})::Request(%li)\n", this, Handle, ms));
-   #ifdef DEBUG
+   #ifdef DEBUG_LOG
    // rough deadlock check
    APIRET rc = DosRequestMutexSem(Handle, ms < 0 ? 60000 : ms); // The mapping from ms == -1 to SEM_INDEFINITE_WAIT is implicitely OK.
    PID pid;
@@ -100,7 +100,7 @@ bool Mutex::Request(long ms)
 
 bool Mutex::Release()
 {  
-   #ifdef DEBUG
+   #ifdef DEBUG_LOG
    PID pid;
    TID tid;
    ULONG count;
@@ -219,7 +219,7 @@ bool Event::Wait(long ms)
    APIRET rc = DosWaitEventSem(Handle, ms); // The mapping from ms == -1 to INFINITE is implicitely OK.
    if (rc == 0)
      return true;
-   #ifdef DEBUG
+   #ifdef DEBUG_LOG
    if (rc != ERROR_TIMEOUT)
      OASSERT(rc);
    #endif

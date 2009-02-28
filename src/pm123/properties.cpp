@@ -41,6 +41,7 @@
 #include "properties.h"
 #include "pm123.h"
 #include "dialog.h"
+#include "docking.h"
 #include "pm123.rc.h"
 #include "iniman.h"
 #include "plugman.h"
@@ -85,6 +86,7 @@ const amp_cfg cfg_default =
   
   false, // float on top
   CFG_SCROLL_INFINITE,
+  true,
   CFG_DISP_ID3TAG,
   "", // Proxy
   "",
@@ -411,6 +413,7 @@ cfg_display1_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
         // load GUI
         WinCheckButton( hwnd, RB_DISP_FILENAME   + cfg.viewmode, TRUE );
         WinCheckButton( hwnd, RB_SCROLL_INFINITE + cfg.scroll,   TRUE );
+        WinCheckButton( hwnd, CB_SCROLL_AROUND,    cfg.scroll_around  );
         WinCheckButton( hwnd, CB_USE_SKIN_FONT,    cfg.font_skinned   );
         WinEnableControl( hwnd, PB_FONT_SELECT, !cfg.font_skinned );
         WinEnableControl( hwnd, ST_FONT_SAMPLE, !cfg.font_skinned );
@@ -486,13 +489,20 @@ cfg_display1_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
     {
       PMRASSERT(WinSendDlgItemMsg( hwnd, SB_DOCK, SPBM_QUERYVALUE, MPFROMP( &cfg.dock_margin ), MPFROM2SHORT( 0, SPBQ_DONOTUPDATE )));
 
-      cfg.scroll   = LONGFROMMR( WinSendDlgItemMsg( hwnd, RB_SCROLL_INFINITE, BM_QUERYCHECKINDEX, 0, 0 ));
-      cfg.viewmode = LONGFROMMR( WinSendDlgItemMsg( hwnd, RB_DISP_FILENAME,   BM_QUERYCHECKINDEX, 0, 0 ));
+      cfg.scroll        = rb_selected( hwnd, RB_SCROLL_INFINITE ) - RB_SCROLL_INFINITE;
+      cfg.scroll_around = WinQueryButtonCheckstate( hwnd, CB_SCROLL_AROUND );
+      cfg.viewmode      = rb_selected( hwnd, RB_DISP_FILENAME ) - RB_DISP_FILENAME;
 
       cfg.font_skinned  = WinQueryButtonCheckstate( hwnd, CB_USE_SKIN_FONT );
       cfg.font_size     = font_size;
       cfg.font_attrs    = font_attrs;
 
+      amp_invalidate(UPD_FILENAME);
+      if( cfg.dock_windows ) {
+        dk_arrange( amp_player_window() ); // TODO: frame window???
+      } else {
+        dk_cleanup( amp_player_window() );
+      }
       return 0;
     }
   }

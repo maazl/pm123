@@ -39,7 +39,7 @@
 
 #include <debuglog.h>
 
-#ifdef DEBUG
+#ifdef DEBUG_LOG
 #define RP_INITIAL_SIZE 5 // Errors come sooner...
 #else
 #define RP_INITIAL_SIZE 100
@@ -205,7 +205,8 @@ bool Playable::IsPlaylist(const url123& URL)
   return ext.compareToI(".lst", 4) == 0 ||
          ext.compareToI(".mpl", 4) == 0 ||
          ext.compareToI(".pls", 4) == 0 ||
-         ext.compareToI(".m3u", 4) == 0;
+         ext.compareToI(".m3u", 4) == 0 ||
+         ext.compareToI(".m3u8", 5) == 0;
 }
 
 Playable::Flags Playable::GetFlags() const
@@ -215,7 +216,9 @@ Playable::Flags Playable::GetFlags() const
 void Playable::SetInUse(bool used)
 { DEBUGLOG(("Playable(%p{%s})::SetInUse(%u)\n", this, URL.cdata(), used));
   Lock lock(*this);
+  InfoFlags what = BeginUpdate(IF_Usage);
   UpdateInUse(used);
+  EndUpdate(what);
 }
 
 xstring Playable::GetDisplayName() const
@@ -447,7 +450,7 @@ void Playable::SetTechInfo(const TECH_INFO* tech)
 /* Worker Queue */
 /*qentry* Playable::worker_queue::RequestRead(bool lowpri)
 { DEBUGLOG(("Playable::worker_queue::RequestRead(%u)\n", lowpri));
-  //#ifdef DEBUG
+  //#ifdef DEBUG_LOG
   //DumpQ();
   //#endif
   return lowpri
@@ -461,7 +464,7 @@ void Playable::worker_queue::CommitRead(qentry* qp)
   if (HPTail == qp)
     HPTail = qp->Next;
   queue<QEntry>::CommitRead(qp);
-  /*#ifdef DEBUG
+  /*#ifdef DEBUG_LOG
   DumpQ();
   #endif*/
 }
@@ -479,12 +482,12 @@ void Playable::worker_queue::Write(const QEntry& data, bool lowpri)
     HPTail = newitem;
     HPEvEmpty.Set();
   }
-  /*#ifdef DEBUG
+  /*#ifdef DEBUG_LOG
   DumpQ();
   #endif*/
 }
 
-#ifdef DEBUG
+#ifdef DEBUG_LOG
 void Playable::worker_queue::DumpQ() const
 { DEBUGLOG(("Playable::worker_queue::DumpQ - %p, %p, %p\n", Head, HPTail, Tail));
   qentry* cur = (qentry*)Head;
@@ -593,7 +596,7 @@ int Playable::compareTo(const char*const& str) const
   return stricmp(URL, str);
 }
 
-#ifdef DEBUG
+#ifdef DEBUG_LOG
 void Playable::RPDebugDump()
 { for (Playable*const* ppp = RPInst.begin(); ppp != RPInst.end(); ++ppp)
     DEBUGLOG(("Playable::RPDump: %p{%s}\n", *ppp, (*ppp)->GetURL().cdata()));
@@ -611,9 +614,6 @@ int_ptr<Playable> Playable::GetByURL(const url123& URL, const DECODER_INFO2* ca)
   Playable* pp;
   // Repository lookup
   { Mutex::Lock lock(RPMutex);
-    #ifdef DEBUG
-    //RPDebugDump();
-    #endif
     Playable*& ppn = RPInst.get(URL);
     if (ppn == NULL)
     { // no match => factory
@@ -781,7 +781,7 @@ bool PlayableSetBase::isSubsetOf(const PlayableSetBase& r) const
   }
 }
 
-#ifdef DEBUG
+#ifdef DEBUG_LOG
 xstring PlayableSetBase::DebugDump() const
 { xstring r = xstring::empty;
   for (size_t i = 0; i != size(); ++i)

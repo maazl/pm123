@@ -76,12 +76,13 @@ static const char AMP_CHARSET[] = "abcdefghijklmnopqrstuvwxyz-_&.0123456789 ()„”
 static const int  LEN_CHARSET   = sizeof( AMP_CHARSET ) - 1;
 
 /* The set of variables used during a text scroll. */
-static char    s_display[512];
-static size_t  s_len;
-static size_t  s_offset;
-static int     s_inc;
-static int     s_pause;
-static BOOL    s_done;
+static char    s_display[1024]; // scroller text
+static size_t  s_len;    // Length of the text in the scroller
+static size_t  s_len2;   // Length of the text in the scroller with spacer
+static size_t  s_offset; // Offset of the text in the scroller (<= 0)
+static int     s_inc;    // current direction: -1 = forward, 1 = backward, 0 = stop 
+static int     s_pause;  // Scroller pause at the endpoint
+static bool    s_done;   // Scroller completed once
 static HDC     s_dc     = NULLHANDLE;
 static HPS     s_buffer = NULLHANDLE;
 static HBITMAP s_bitmap = NULLHANDLE;
@@ -883,10 +884,10 @@ bmp_set_text( const char* string )
     strlcpy( s_display, string, sizeof( s_display ));
   }
 
-  s_offset =  0;
-  s_inc    = -1;
-  s_pause  = 20;
-  s_done   = FALSE;
+  s_offset = 0;
+  s_inc    = 0;
+  s_pause  = 0;
+  s_done   = false;
 
   if( cfg.mode != CFG_MODE_TINY ) {
     if( !s_buffer ) {
@@ -923,8 +924,22 @@ bmp_set_text( const char* string )
       }
     }
     s_len = bmp_text_length( s_display );
+    
+    // Scroll required?
+    RECTL  s_rec = bmp_text_rect();
+    if (s_len > s_rec.xRight - s_rec.xLeft + 1) 
+    { s_inc    = -1;
+      s_pause  = 20;
+      
+      // Duplicate text to make the scroller turn around easy.
+      strlcat( s_display, "     ", sizeof s_display ); 
+      s_len2 = bmp_text_length( s_display );
+      strlcat( s_display, string, sizeof s_display ); 
+    }
+
   } else {
-    s_len = 0;
+    // Tiny mode => no text
+    s_len    = 0;
   }
 
   vis_broadcast( WM_PLUGIN_CONTROL, MPFROMLONG( PN_TEXTCHANGED ), 0 );
@@ -941,11 +956,8 @@ bmp_query_text( void )
 BOOL
 bmp_scroll_text( void )
 {
-  RECTL  s_rec = bmp_text_rect();
-  size_t s_max = s_rec.xRight - s_rec.xLeft + 1;
-
   if( cfg.scroll == CFG_SCROLL_NONE ||
-      cfg.mode   == CFG_MODE_TINY   || s_len < s_max || s_done )
+      cfg.mode   == CFG_MODE_TINY   || s_inc == 0 )
   {
     return FALSE;
   }
@@ -954,25 +966,36 @@ bmp_scroll_text( void )
     --s_pause;
     return FALSE;
   }
-
-  if( s_inc < 0 && s_len + s_offset <= s_max ) {
-    s_inc   = 1;
-    s_pause = 16;
+  
+  if (s_done && cfg.scroll == CFG_SCROLL_ONCE)
     return FALSE;
-  }
 
-  if( s_inc > 0 && s_offset == 0 ) {
-    if( cfg.scroll == CFG_SCROLL_ONCE ) {
-      s_inc   = 0;
-      s_done  = TRUE;
-    } else {
+  s_offset += s_inc;
+
+  if( s_inc < 0 )
+  { // Currently forward
+    if (cfg.scroll_around)
+    { if ( s_len2 + s_offset <= 1 )
+      { s_offset = 0;
+        s_done  = true;
+      }
+    } else
+    { RECTL  s_rec = bmp_text_rect();
+      size_t s_max = s_rec.xRight - s_rec.xLeft + 1;
+      if ( s_len + s_offset <= s_max )
+      { s_inc   = 1;
+        s_pause = 16;
+      }
+    }
+  } else if( s_inc > 0 )
+  { // Currently backward
+    if ( s_offset == 0 )
+    { s_done  = true;
       s_inc   = -1;
       s_pause = 16;
     }
-    return FALSE;
   }
 
-  s_offset += s_inc;
   return TRUE;
 }
 
@@ -1510,7 +1533,7 @@ bmp_load_default( HPS hps, int id, int defid )
     if( hbitmap != GPI_ERROR ) {
       bmp_cache[ id ] = hbitmap;
     }
-    #ifdef DEBUG
+    #ifdef DEBUG_LOG
      else
     { char buf[1024];
       os2pm_strerror(buf, sizeof(buf));

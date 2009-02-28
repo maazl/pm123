@@ -44,11 +44,13 @@
 
 #include "specana.h"
 
+#include <debuglog.h>
+
 #ifndef  M_PI
 #define  M_PI 3.14159265358979323846
 #endif
 
-//#define DEBUG
+//#define DEBUG_LOG
 
 #define  WINDOW_HAMMING( n, N )  ( 0.54 - 0.46 * cos( 2 * M_PI * (n) / (N) ))
 #define  WINDOW_HANN( n, N )     ( 0.50 - 0.50 * cos( 2 * M_PI * (n) / (N) ))
@@ -101,9 +103,7 @@ static BOOL init_fft(void)
   if (in == NULL || out == NULL)
     return FALSE;
 
-  #ifdef DEBUG
-  fprintf(stderr, "SA: init_fft %d\n", last_numsamples);
-  #endif
+  DEBUGLOG(("SA: init_fft %d\n", last_numsamples));
   fftwf_destroy_plan(plan);
   plan = fftwf_plan_dft_r2c_1d(last_numsamples, in, out, FFTW_ESTIMATE);
 
@@ -119,9 +119,7 @@ static BOOL init_window(void)
   wnd = dp = malloc((last_numsamples >> 1) * sizeof *wnd);
   if (dp == NULL)
     return FALSE;
-  #ifdef DEBUG
-  fprintf(stderr, "SA: init_window %d\n", last_numsamples);
-  #endif
+  DEBUGLOG(("SA: init_window %d\n", last_numsamples));
 
   switch (last_winfn)
   {default:
@@ -138,22 +136,20 @@ static BOOL init_window(void)
       dp += 4;
     }
   }
-  #ifdef DEBUG
-  fprintf(stderr, "SA: window:");
+  /*#ifdef DEBUG_LOG
+  DEBUGLOG(("SA: window:"));
   for (i = 0; i <= last_numsamples >> 1; ++i)
-  { fprintf(stderr, " %.3f", wnd[i]);
+  { DEBUGLOG((" %.3f", wnd[i]));
   }
-  fprintf(stderr, "\n");
-  #endif
+  DEBUGLOG(("\n"));
+  #endif*/
   return TRUE;
 }
 
 static void fetch_byte(unsigned char* sp, int ch)
 { int i,e;
   float* dp = in;
-  #ifdef DEBUG
-  fprintf(stderr, "SA fetch_byte(%p, %d) %d\n", sp, ch, last_numsamples); 
-  #endif
+  DEBUGLOG(("SA fetch_byte(%p, %d) %d\n", sp, ch, last_numsamples)); 
   switch (ch)
   {case 1:
     for (i = last_numsamples >> 2; i; --i )
@@ -182,9 +178,7 @@ static void fetch_byte(unsigned char* sp, int ch)
 static void fetch_short(short* sp, int ch)
 { int i,e;
   float* dp = in;
-  #ifdef DEBUG
-  fprintf(stderr, "SA fetch_short(%p, %d) %d\n", sp, ch, last_numsamples); 
-  #endif
+  DEBUGLOG(("SA fetch_short(%p, %d) %d\n", sp, ch, last_numsamples));
   switch (ch)
   {case 1:
     for ( i = last_numsamples >> 2; i; --i )
@@ -213,9 +207,7 @@ static void fetch_short(short* sp, int ch)
 static void fetch_long(long* sp, int ch)
 { int i,e;
   float* dp = in;
-  #ifdef DEBUG
-  fprintf(stderr, "SA fetch_long(%p, %d) %d\n", sp, ch, last_numsamples); 
-  #endif
+  DEBUGLOG(("SA fetch_long(%p, %d) %d\n", sp, ch, last_numsamples));
   switch (ch)
   {case 1:
     for ( i = last_numsamples >> 2; i; --i )
@@ -249,18 +241,14 @@ SPECANA_RET specana_do(int numsamples, WIN_FN winfn, float* bands, FORMAT_INFO* 
   float scale;
   char* sample;
 
-  #ifdef DEBUG
-  fprintf(stderr, "SA: specana_do(%d, %d, %p, {%d,%d,%d,%d}) %d\n", numsamples, winfn, bands, info->size, info->samplerate, info->channels, info->bits, last_bps);
-  #endif
+  DEBUGLOG(("SA: specana_do(%d, %d, %p, {%d,%d,%d,%d}) %d\n", numsamples, winfn, bands, info->size, info->samplerate, info->channels, info->bits, last_bps));
   if (numsamples & 7)
     return SPECANA_ERROR;
 
   // check whether we have to examine the format first
   if (info->samplerate == 0)
   {
-    #ifdef DEBUG
-    fprintf(stderr, "SA: FORMAT_INIT - %d\n", (*decoderPlayingSamples)(&bufferinfo, NULL, 0));
-    #endif
+    DEBUGLOG(("SA: FORMAT_INIT - %d\n", (*decoderPlayingSamples)(&bufferinfo, NULL, 0)));
     if ((*decoderPlayingSamples)(&bufferinfo, NULL, 0) != 0)
       return SPECANA_ERROR;
     last_bps = clac_bps(&bufferinfo);
@@ -279,9 +267,7 @@ SPECANA_RET specana_do(int numsamples, WIN_FN winfn, float* bands, FORMAT_INFO* 
   // allocate required buffer length
   len = numsamples * last_bps;
   sample = alloca(len);
-  #ifdef DEBUG
-  fprintf(stderr, "SA: len = %d, bps = %d\n", len, last_bps);
-  #endif
+  DEBUGLOG(("SA: len = %d, bps = %d\n", len, last_bps));
   
   // fetch data
   if ((*decoderPlayingSamples)(&bufferinfo, sample, len) != 0)
@@ -310,9 +296,7 @@ SPECANA_RET specana_do(int numsamples, WIN_FN winfn, float* bands, FORMAT_INFO* 
     last_buf = malloc(len);
     if (last_buf == NULL)
       return SPECANA_ERROR;
-    #ifdef DEBUG
-    fprintf(stderr, "SA: new last_buf\n");
-    #endif
+    DEBUGLOG(("SA: new last_buf\n"));
   } else if (memcmp(last_buf, sample, len) == 0)
     return SPECANA_UNCHANGED;
   memcpy(last_buf, sample, len);
@@ -351,9 +335,7 @@ SPECANA_RET specana_do(int numsamples, WIN_FN winfn, float* bands, FORMAT_INFO* 
     // I am unsure how the 0dB level of >16Bit data is usually defined.
     scale = 1./0x80000000U; // normalize
   }
-  #ifdef DEBUG
-  fprintf(stderr, "SA: demux done %g\n", scale);
-  #endif
+  DEBUGLOG(("SA: demux done %g\n", scale));
 
   // To reduce spectral leakage, the samples are multipled with a window.
   { float* wp = wnd;
@@ -366,15 +348,11 @@ SPECANA_RET specana_do(int numsamples, WIN_FN winfn, float* bands, FORMAT_INFO* 
       wp += 4;
     }
   }
-  #ifdef DEBUG
-  fprintf(stderr, "SA: win done\n");
-  #endif
+  DEBUGLOG(("SA: win done\n"));
 
   // transform into the time domain (in -> out)
   fftwf_execute(plan);
-  #ifdef DEBUG
-  fprintf(stderr, "SA: FFT done\n");
-  #endif
+  DEBUGLOG(("SA: FFT done\n"));
   // fetch the norm of the coefficients
   // Additionaly compensate for the channel addition and the unnormalized FFT above.
   { fftwf_complex* sp = out;
@@ -386,9 +364,7 @@ SPECANA_RET specana_do(int numsamples, WIN_FN winfn, float* bands, FORMAT_INFO* 
     }
     bands[0] = sp[0][0] * scale; // nyquist frequency
   }
-  #ifdef DEBUG
-  fprintf(stderr, "SA: bands stored\n");
-  #endif
+  DEBUGLOG(("SA: bands stored\n"));
   
   return SPECANA_OK;
 }

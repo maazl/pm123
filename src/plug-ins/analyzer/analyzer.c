@@ -60,7 +60,7 @@
 #include "colormap.h"
 #include "specana.h"
 
-//#define DEBUG
+//#define DEBUG_LOG
 #include <debuglog.h>
 
 #define  TID_UPDATE ( TID_USERMAX - 1 )
@@ -480,7 +480,7 @@ static BOOL init_bands(int samplerate)
       ++sp;
     }
   }
-  #ifdef DEBUG
+  #ifdef DEBUG_LOG
   DEBUGLOG(("INITSCALE: st = %f,\n", step));
   for (i = 0; i <= bars_count; ++i)
     DEBUGLOG2((" %d", scale[i]));

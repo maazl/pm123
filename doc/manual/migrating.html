@@ -1,9 +1,7 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
-<html resid="1021" sublinks="*">
-<head><title>Migrating to PM123 1.40</title>
-
-<link rel="stylesheet" href="infstyle.css" type="text/css">
-</head>
+<html resid="1021" sublinks="*"><head>
+  <title>Migrating to PM123 1.40</title>
+  <link rel="stylesheet" href="infstyle.css" type="text/css"></head>
 <body>
 <h2>Migrating to PM123 1.40</h2>
 <p>There are some major changes in the GUI that you should be
@@ -11,6 +9,10 @@ aware of when moving from an earlier version. The most important ones
 are listed below. For further information see the <a href="../History.txt">change log</a>. See also the <a href="compatibility.html">compatibility issues</a> if
 you want to continue using earlier PM123 versions.</p>
 <h3>Main window</h3>
+<h4>Song title</h4>
+<p>You must use a <strong>double click</strong> to
+change the title display. This prevents from switching the style
+accidentally.</p>
 <h4>Visual plug-in</h4>
 <p>You must use a <strong>double click</strong> to
 change the visual plug-in style. This prevents from switching the style
@@ -19,7 +21,7 @@ accidentally.</p>
 <blockquote>
 <img src="images/altslider.png"></blockquote>
 <p>While playing a playlist you can navigate with the slider
-through the entire list by pressing the <strong>Alt key</strong>.
+through the entire list by pressing the <em>Alt key</em>.
 The exact behavior is controlled by the <a href="settings1.html">navigation
 settings</a> of the <a href="properties.html">properties
 dialog</a>. </p>
@@ -39,24 +41,25 @@ work with any source although. However, one must do the job.</p>
 <h3>Playlist windows</h3>
 <img src="images/playlist.png">
 <p>Playlists, the playlist manager and bookmarks are now
-basically the same thing. Furthermore you can <strong>open
-multiple playlists</strong>. That means:</p>
+basically the same thing. Furthermore you can <em>open
+multiple playlists</em>. That means:</p>
 <ul>
-<li>The <strong><a href="playlist.html">Playlist
-Window</a></strong> is now nothing more than a <strong>detailed
-view</strong> of a playlist.</li>
-<li>The <strong>playlist button</strong> will open
-the <strong>default playlist</strong>.</li>
+<li>The <a href="playlist.html">Playlist
+Window</a> is now nothing more than a <em>detailed
+view</em> of a playlist.</li>
+<li>The <em>playlist button</em> will open
+the <em>default playlist</em>.</li>
 <li>The default playlist is used if you drop more than one
-object on the player.</li>
-<li>The <strong><a href="manager.html">Playlist
-Manager</a></strong> is a <strong>tree view</strong>
+object on the player.<br>
+So, <strong>do not use the default playlist for anything that you want to keep</strong>.</li>
+<li>The <a href="manager.html">Playlist
+Manager</a> is a <em>tree view</em>
 of another default playlist, which usually contains other playlists, of
 course.</li>
-<li>The <strong><a herf="bookmark.html">bookmark
-editor</a></strong> is now a detailed view of a special
+<li>The <a href="bookmark.html" herf="bookmark.html">bookmark
+editor</a> is now a detailed view of a special
 playlist that is visualized in the player's context menu.</li>
-<li>You can use drag and drop and direct manipulation to modify
+<li>You can use drag &amp; drop and direct manipulation to modify
 all of the above.</li>
 <li>Different views of the same content are immediately
 synchronized as long they are part of the same PM123 instance.</li>
@@ -80,12 +83,12 @@ ignore sublists that are already in the call stack. This avoids an
 infinite recursion.</li>
 </ul>
 <h4>File system folders</h4>
-<p>PM123 is able to play the content of <a href="playfolder.html">file system folders</a>
+<p>PM123 is able to play the content of <a href="urlformat.html#file_folder">file system folders</a>
 directly without the need to load all files into a playlist. This works
 as follows:</p>
 <ul>
-<li>The content of a folder is handled as a <strong>virtual
-playlist</strong>.</li>
+<li>The content of a folder is handled as a <em>virtual
+playlist</em>.</li>
 <li>Optionally sub folders are virtualized as nested playlists
 too.</li>
 <li>Unplayable files are skipped during playback but shown in
@@ -95,8 +98,8 @@ PM123 is restarted or a folder is manually refreshed.</li>
 <li>If a folder is selected in the open dialog or by drag and
 drop the content is no longer copied into a real playlist.</li>
 </ul>
-<p>This feature also changed the behavior when <b>dropping
-a folder</b> at PM123. The objects in the folder are no longer
+<p>This feature also changed the behavior when <em>dropping
+a folder</em> at PM123. The objects in the folder are no longer
 expanded immediately. Instead, they are read when the folder is
 actually played. This allows to reflect changes to the folder to PM123.
 See <a href="dragndrop.html">Drag &amp; Drop</a>

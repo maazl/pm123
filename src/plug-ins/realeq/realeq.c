@@ -514,7 +514,7 @@ fil_setup( REALEQ_STRUCT* f )
 
     // transform into the time domain
     fftwf_execute(FFT.backward_plan);
-    #if defined(DEBUG) && DEBUG > 1
+    #if defined(DEBUG_LOG) && DEBUG_LOG > 1
     for (i = 0; i <= FFT.plansize/2; ++i)
       DEBUGLOG2(("TK: %i, %g\n", i, FFT.time_domain[i]));
     #endif
@@ -538,7 +538,7 @@ fil_setup( REALEQ_STRUCT* f )
     // prepare for FFT convolution
     // transform back into the frequency domain, now with window function
     fftwf_execute_dft_r2c(FFT.forward_plan, FFT.time_domain, FFT.kernel[channel]);
-    #if defined(DEBUG) && DEBUG > 1
+    #if defined(DEBUG_LOG) && DEBUG_LOG > 1
     for (i = 0; i <= FFT.plansize/2; ++i)
       DEBUGLOG2(("FK: %i, %g, %g\n", i, FFT.kernel[channel][i][0], FFT.kernel[channel][i][1]));
     DEBUGLOG2(("E: kernel completed.\n"));
@@ -878,7 +878,7 @@ local_flush( REALEQ_STRUCT* f )
 static int DLLENTRY
 filter_request_buffer( REALEQ_STRUCT* f, const FORMAT_INFO2* format, short** buf )
 { BOOL enabled;
-  #ifdef DEBUG
+  #ifdef DEBUG_LOG
   if (format != NULL)
     DEBUGLOG(("realeq:filter_request_buffer(%p, {%u, %u, %u}, %p) - %d %d\n",
      f, format->size, format->samplerate, format->channels, buf, f->inboxlevel, f->latency));

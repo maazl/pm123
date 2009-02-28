@@ -88,7 +88,7 @@ class PlaylistBase
   struct RecordBase : public MINIRECORDCORE
   { volatile unsigned   UseCount;  // Reference counter to keep Records alive while Posted messages are on the way.
     CPDataBase*         Data;      // C++ part of the object in the private memory arena.
-    #ifdef DEBUG
+    #ifdef DEBUG_LOG
     xstring             DebugName() const;
     static xstring      DebugName(const RecordBase* rec);
     #endif
@@ -232,12 +232,12 @@ class PlaylistBase
   int_ptr<Playable> Content;
   xstring           Alias;         // Alias name for the window title
   HACCEL            AccelTable;    // Accelerator table - TODO: use shared accelerator table
-  #if DEBUG
+  #if DEBUG_LOG
   xstring           DebugName() const;
   #endif
  protected: // working set
   HWND              HwndContainer; // content window handle
-  DECODER_WIZZARD_FUNC LoadWizzards[20]; // Current load wizzards
+  DECODER_WIZZARD_FUNC LoadWizzards[16]; // Current load wizzards
   bool              NoRefresh;     // Avoid update events to ourself
   xstring           DirectEdit;    // String that holds result of direct manipulation between CN_REALLOCPSZ and CN_ENDEDIT
   CommonState       EvntState;     // Event State
@@ -359,8 +359,6 @@ class PlaylistBase
   void              PluginEvent(const Plugin::EventArgs& args);
 
  protected: // User actions
-  // Select a list with a file dialog.
-  static url123     PlaylistSelect(HWND owner, const char* title);
   // Add Item
   void              UserAdd(DECODER_WIZZARD_FUNC wizzard, RecordBase* parent = NULL, RecordBase* before = NULL);
   // Insert a new item
@@ -520,10 +518,10 @@ int_ptr<T> PlaylistRepository<T>::Get(Playable* obj, const xstring& alias)
 template <class T>
 PlaylistRepository<T>::~PlaylistRepository()
 { Mutex::Lock lock(RPMutex);
-  #if NDEBUG
-  RPInst.erase(*Content);
+  #ifdef DEBUG_LOG
+  ASSERT(RPInst.erase(*Content) != NULL);
   #else
-  assert(RPInst.erase(*Content) != NULL);
+  RPInst.erase(*Content);
   #endif
 }
 

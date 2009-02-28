@@ -36,8 +36,8 @@
 #define  INCL_WINSTDDRAG
 #include <os2.h>
 
-//#undef DEBUG
-//#define DEBUG 2
+//#undef DEBUG_LOG
+//#define DEBUG_LOG 2
 
 #include <utilfct.h>
 #include <xio.h>
@@ -124,7 +124,7 @@ static bool  is_accel_changed = false;
 static bool  is_plugin_changed = true;
 
 /* Current load wizzards */
-static DECODER_WIZZARD_FUNC load_wizzards[20];
+static DECODER_WIZZARD_FUNC load_wizzards[16];
 
 static volatile unsigned upd_options = 0;
 
@@ -302,7 +302,13 @@ amp_display_filename( void )
         break;
       // if tag is empty - use filename instead of it.
     case CFG_DISP_FILENAME:
-      text = CurrentSong->GetURL().getShortName();
+      // Give Priority to an alias name if any
+      if (CurrentIter)
+      { PlayableSlice* ps = CurrentIter->GetCurrent();
+        text = ps->GetAlias();
+      }
+      if (!text)
+        text = CurrentSong->GetURL().getShortName();
       // In case of an invalid item display an error message.
       if (CurrentSong->GetStatus() == Playable::STA_Invalid)
         text = text + " - " + CurrentSong->GetInfo().tech->info;
@@ -321,7 +327,8 @@ static void amp_force_locmsg()
   { IsLocMsg = true;
     // Hack: the Location messages always writes to an iterator that is currently not in use by CurrentIter
     // to avoid threading problems.
-    Ctrl::PostCommand(Ctrl::MkLocation(LocationIter + (CurrentIter == LocationIter)), &amp_control_event_callback);
+    Ctrl::PostCommand( Ctrl::MkLocation(LocationIter + (CurrentIter == LocationIter), 0),
+                       &amp_control_event_callback );
   }
 }
 
@@ -389,10 +396,27 @@ void LoadHelper::PostCommand()
   } else
   { Ctrl::ControlCommand* cmd = ToCommand();
     if (cmd)
-    { Ctrl::PostCommand(cmd);
-      Items.clear();
+    { Items.clear();
+      Ctrl::PostCommand(cmd);
     }
   }
+}
+
+Ctrl::RC LoadHelper::SendCommand()
+{ Ctrl::ControlCommand* cmd = ToCommand();
+  if (!cmd)
+    return Ctrl::RC_OK;
+  Items.clear();
+  // Send command
+  Ctrl::ControlCommand* cmde = Ctrl::SendCommand(cmd);
+  // Calculate result
+  Ctrl::RC rc;
+  do
+    rc = (Ctrl::RC)cmde->Flags;
+  while (rc == Ctrl::RC_OK && (cmde = cmde->Link) != NULL);
+  // cleanup
+  cmd->Destroy();
+  return rc;
 }
 
 LoadHelper::~LoadHelper()
@@ -427,7 +451,9 @@ amp_show_context_menu( HWND parent )
   bool new_menu = false;
   if( context_menu == NULLHANDLE )
   { context_menu = WinLoadMenu( HWND_OBJECT, 0, MNU_MAIN );
-    mn_make_conditionalcascade( context_menu, IDM_M_LOAD, IDM_M_LOADFILE );
+    mn_make_conditionalcascade( context_menu, IDM_M_LOAD,   IDM_M_LOADFILE );
+    mn_make_conditionalcascade( context_menu, IDM_M_PLOPEN, IDM_M_PLOPENDETAIL);
+    mn_make_conditionalcascade( context_menu, IDM_M_HELP,   IDH_MAIN);
 
     MenuWorker = new PlaylistMenu(parent, IDM_M_LAST, IDM_M_LAST_E);
     MenuWorker->AttachMenu(IDM_M_BOOKMARKS, DefaultBM, PlaylistMenu::DummyIfEmpty|PlaylistMenu::Recursive|PlaylistMenu::Enumerate, 0);
@@ -723,38 +749,42 @@ amp_load_file_callback( void* param, const char* url )
   ((LoadHelper*)param)->AddItem(new PlayableSlice(url));
 }
 
-struct info_edit;
-static void amp_info_event(info_edit* iep, const Playable::change_args& args);
 
-struct info_edit
+struct dialog_show;
+static void amp_dlg_event(dialog_show* iep, const Playable::change_args& args);
+
+struct dialog_show
 { HWND              Owner;
-  int_ptr<Playable> Song;
-  delegate<info_edit, const Playable::change_args> InfoDelegate;
-  info_edit(HWND owner, Playable* song)
+  int_ptr<Playable> Item;
+  dialog_type       Type;
+  delegate<dialog_show, const Playable::change_args> InfoDelegate;
+  dialog_show(HWND owner, Playable* item, dialog_type type)
   : Owner(owner),
-    Song(song),
-    InfoDelegate(song->InfoChange, &amp_info_event, this)
+    Item(item),
+    Type(type),
+    InfoDelegate(item->InfoChange, &amp_dlg_event, this)
   {}
 };
 
-void amp_info_event(info_edit* iep, const Playable::change_args& args)
+static void amp_dlg_event(dialog_show* iep, const Playable::change_args& args)
 { if (args.Changed & Playable::IF_Other)
   { iep->InfoDelegate.detach();
-    PMRASSERT(WinPostMsg(hframe, AMP_INFO_EDIT, iep, 0));
+    PMRASSERT(WinPostMsg(hframe, AMP_SHOW_DIALOG, iep, 0));
   }
 }
 
-/* Edits a ID3 tag for the specified file. */
-void amp_info_edit( HWND owner, Playable* song )
-{ DEBUGLOG(("amp_info_edit(%x, %p)\n", owner, song));
-  info_edit* iep = new info_edit(owner, song);
+/* Opens dialog for the specified object. */
+void amp_show_dialog( HWND owner, Playable* item, dialog_type dlg )
+{ DEBUGLOG(("amp_show_dialog(%x, %p, %u)\n", owner, item, dlg));
+  dialog_show* iep = new dialog_show(owner, item, dlg);
   // At least we need the decoder to process this request.
-  if (song->EnsureInfoAsync(Playable::IF_Other))
+  if (item->EnsureInfoAsync(Playable::IF_Other, false))
   { // Information immediately available => post message
     iep->InfoDelegate.detach(); // do no longer wait for the event
-    PMRASSERT(WinPostMsg(hframe, AMP_INFO_EDIT, iep, 0));
+    PMRASSERT(WinPostMsg(hframe, AMP_SHOW_DIALOG, iep, 0));
   }
 }
+
 
 /* set alternate navigation status to 'alt'. */
 static void amp_set_alt_slider(bool alt)
@@ -805,26 +835,42 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
       return 0;
     }
 
-    case AMP_INFO_EDIT:
-    { info_edit* iep = (info_edit*)PVOIDFROMMP(mp1);
-      DEBUGLOG(("amp_dlg_proc: AMP_INFO_EDIT %p{%x, %p,}\n", iep, iep->Owner, iep->Song.get()));
-      // TODO: THREAD?
-      ULONG rc = dec_editmeta( iep->Owner, iep->Song->GetURL(), iep->Song->GetDecoder());
-      DEBUGLOG(("amp_dlg_proc: AMP_INFO_EDIT rc = %u\n", rc));
-      switch (rc)
-      { default:
-          amp_error( iep->Owner, "Cannot edit tag of file:\n%s", iep->Song->GetURL().cdata());
+    case AMP_SHOW_DIALOG:
+    { dialog_show* iep = (dialog_show*)PVOIDFROMMP(mp1);
+      DEBUGLOG(("amp_dlg_proc: AMP_SHOW_DIALOG %p{%x, %p, %u,}\n", iep, iep->Owner, iep->Item.get(), iep->Type));
+      switch (iep->Type)
+      { case DLT_INFOEDIT: 
+        { ULONG rc = dec_editmeta( iep->Owner, iep->Item->GetURL(), iep->Item->GetDecoder());
+          DEBUGLOG(("amp_dlg_proc: AMP_SHOW_DIALOG rc = %u\n", rc));
+          switch (rc)
+          { default:
+              amp_error( iep->Owner, "Cannot edit tag of file:\n%s", iep->Item->GetURL().cdata());
+              break;
+            case 0:   // tag changed
+              iep->Item->LoadInfoAsync(Playable::IF_Meta);
+              // Refresh will come automatically
+            case 300: // tag unchanged
+              break;
+            case 400: // decoder does not provide decoder_editmeta => use info dialog instead
+              InfoDialog::GetByKey(iep->Item)->ShowPage(InfoDialog::Page_MetaInfo);
+              break;
+            case 500:
+              amp_error( iep->Owner, "Unable write tag to file:\n%s\n%s", iep->Item->GetURL().cdata(), clib_strerror(errno));
+              break;
+          }
           break;
-        case 0:   // tag changed
-          iep->Song->LoadInfoAsync(Playable::IF_Meta);
-          // Refresh will come automatically
-        case 300: // tag unchanged
+        }
+        case DLT_METAINFO:
+          InfoDialog::GetByKey(iep->Item)->ShowPage(InfoDialog::Page_MetaInfo);
           break;
-        case 400: // decoder does not provide decoder_editmeta => use info dialog instead
-          InfoDialog::GetByKey(iep->Song)->ShowPage(InfoDialog::Page_MetaInfo);
+        case DLT_TECHINFO:
+          InfoDialog::GetByKey(iep->Item)->ShowPage(InfoDialog::Page_TechInfo);
           break;
-        case 500:
-          amp_error( iep->Owner, "Unable write tag to file:\n%s\n%s", iep->Song->GetURL().cdata(), clib_strerror(errno));
+        case DLT_PLAYLIST:
+          PlaylistView::Get(iep->Item)->SetVisible(true);
+          break;
+        case DLT_PLAYLISTTREE:
+          PlaylistManager::Get(iep->Item)->SetVisible(true);
           break;
       }
       delete iep;
@@ -849,6 +895,14 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
 
       amp_invalidate(UPD_FILENAME);
       return 0;
+
+    case AMP_RELOADSKIN:
+    { HPS hps = WinGetPS( hwnd );
+      bmp_load_skin( cfg.defskin, hab, hwnd, hps );
+      WinReleasePS( hps );
+      amp_invalidate( UPD_WINDOW );
+      return 0;
+    }      
 
     case AMP_CTRL_EVENT:
       { // Event from the controller
@@ -987,6 +1041,18 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
     case WM_CONTEXTMENU:
       amp_show_context_menu( hwnd );
       return 0;
+      
+    case WM_INITMENU:
+      if (SHORT1FROMMP(mp1) == IDM_M_PLAYBACK)
+      { HWND menu = HWNDFROMMP(mp2);
+        mn_check_item ( menu, BMP_PLAY,    Ctrl::IsPlaying() );
+        mn_check_item ( menu, BMP_PAUSE,   Ctrl::IsPaused()  );
+        mn_check_item ( menu, BMP_REW,     Ctrl::GetScan() == DECFAST_REWIND  );
+        mn_check_item ( menu, BMP_FWD,     Ctrl::GetScan() == DECFAST_FORWARD );
+        mn_check_item ( menu, BMP_SHUFFLE, Ctrl::IsShuffle() );
+        mn_check_item ( menu, BMP_REPEAT,  Ctrl::IsRepeat()  );
+      }
+      break;
 
     case DM_DRAGOVER:
       return amp_drag_over( hwnd, (PDRAGINFO)mp1 );
@@ -1103,10 +1169,6 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
 
       switch( cmd )
       {
-        case IDM_M_MANAGER:
-          PlaylistManager::Get(DefaultPM, "Playlist Manager")->SetVisible(true);
-          break;
-
         case IDM_M_ADDBOOK:
           if (CurrentSong)
             amp_add_bookmark(hwnd, PlayableSlice(CurrentSong));
@@ -1148,20 +1210,19 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
 
         case IDM_M_INFO:
           if (CurrentSong)
-            InfoDialog::GetByKey(CurrentSong)->ShowPage(InfoDialog::Page_MetaInfo);
+            amp_show_dialog(hwnd, CurrentSong, DLT_METAINFO);
           break;
 
         case IDM_M_PLINFO:
           if (CurrentRoot)
-            InfoDialog::GetByKey(CurrentRoot)->ShowPage(
+            amp_show_dialog(hwnd, CurrentRoot,
               (CurrentRoot->GetFlags() & Playable::Enumerable) || CurrentRoot->CheckInfo(Playable::IF_Meta)
-              ? InfoDialog::Page_TechInfo
-              : InfoDialog::Page_MetaInfo);
+              ? DLT_TECHINFO : DLT_METAINFO);
           break;
 
         case IDM_M_TAG:
           if (CurrentSong)
-            amp_info_edit(hwnd, CurrentSong);
+            amp_show_dialog(hwnd, CurrentSong, DLT_INFOEDIT);
           break;
 
         case IDM_M_RELOAD:
@@ -1171,12 +1232,12 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
 
         case IDM_M_DETAILED:
           if (CurrentRoot && (CurrentRoot->GetFlags() & Playable::Enumerable))
-            PlaylistView::Get(CurrentRoot)->SetVisible(true);
+            amp_show_dialog(hwnd, CurrentRoot, DLT_PLAYLIST);
           break;
 
         case IDM_M_TREEVIEW:
           if (CurrentRoot && (CurrentRoot->GetFlags() & Playable::Enumerable))
-            PlaylistManager::Get(CurrentRoot)->SetVisible(true);
+            amp_show_dialog(hwnd, CurrentRoot, DLT_PLAYLISTTREE);
           break;
 
         case IDM_M_ADDPMBOOK:
@@ -1200,6 +1261,27 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
           amp_save_stream(hwnd, !Ctrl::GetSavename());
           break;
 
+        case IDM_M_PLAYLIST:
+          PlaylistView::Get(DefaultPL, "Default Playlist")->SetVisible(true);
+          break;
+
+        case IDM_M_MANAGER:
+          PlaylistManager::Get(DefaultPM, "Playlist Manager")->SetVisible(true);
+          break;
+
+        case IDM_M_PLOPENDETAIL:
+        { url123 URL = amp_playlist_select(hwnd, "Open Playlist");
+          if (URL)
+            amp_show_dialog(hwnd, Playable::GetByURL(URL), DLT_PLAYLIST);
+          break;
+        }
+        case IDM_M_PLOPENTREE:
+        { url123 URL = amp_playlist_select(hwnd, "Open Playlist Tree");
+          if (URL)
+            amp_show_dialog(hwnd, Playable::GetByURL(URL), DLT_PLAYLISTTREE);
+          break;
+        }
+
         case IDM_M_FLOAT:
           cfg.floatontop = !cfg.floatontop;
 
@@ -1212,11 +1294,13 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
 
         case IDM_M_FONT1:
           cfg.font = 0;
+          cfg.font_skinned = true;
           amp_invalidate(UPD_FILENAME);
           break;
 
         case IDM_M_FONT2:
           cfg.font = 1;
+          cfg.font_skinned = true;
           amp_invalidate(UPD_FILENAME);
           break;
 
@@ -1241,27 +1325,12 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
           break;
 
         case IDM_M_SKINLOAD:
-        {
-          HPS hps = WinGetPS( hwnd );
-          amp_loadskin( hps );
-          WinReleasePS( hps );
-          amp_invalidate( UPD_WINDOW );
+          if (amp_loadskin());
+            WinPostMsg(hwnd, AMP_RELOADSKIN, 0, 0);
           break;
-        }
 
         case IDM_M_CFG:
           cfg_properties( hwnd );
-          amp_invalidate( UPD_FILENAME|UPD_DELAYED );
-
-          if( cfg.dock_windows ) {
-            dk_arrange( hframe );
-          } else {
-            dk_cleanup( hframe );
-          }
-          break;
-
-        case IDM_M_PLAYLIST:
-          PlaylistView::Get(DefaultPL, "Default Playlist")->SetVisible(true);
           break;
 
         case IDM_M_VOL_RAISE:
@@ -1285,7 +1354,9 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
           break;
 
         case BMP_PL:
-        { int_ptr<PlaylistView> pv = PlaylistView::Get(DefaultPL, "Default Playlist");
+        { int_ptr<PlaylistView> pv( CurrentRoot && CurrentRoot != DefaultPL && (CurrentRoot->GetFlags() & Playable::Enumerable)
+                                    ? PlaylistView::Get(CurrentRoot)
+                                    : PlaylistView::Get(DefaultPL, "Default Playlist") );
           pv->SetVisible(!pv->GetVisible());
           break;
         }
@@ -1390,7 +1461,7 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
 
       if( bmp_pt_in_volume( pos ))
         Ctrl::PostCommand(Ctrl::MkVolume(bmp_calc_volume(pos), false));
-      else if( CurrentRoot && bmp_pt_in_text( pos )) {
+      else if( CurrentRoot && bmp_pt_in_text( pos ) && msg == WM_BUTTON1DBLCLK ) {
         WinPostMsg( hwnd, AMP_DISPLAY_MODE, 0, 0 );
       }
 

@@ -30,7 +30,7 @@
  * To post a log message write
  *   DEBUGLOG(("Format string with printf parameters like %s\n", "parameter"));
  * Note the double braces!
- * If the application is compiled in debug mode (defining DEBUG) the message
+ * If the application is compiled in debug mode (defining DEBUG_LOG) the message
  * is written to stderr which can be easily captured by " 2>logfile".
  * Otherwise the line will not be compiled at all. Even the arguments are not
  * evaluated for their side effects. So be sure not to use expressions with

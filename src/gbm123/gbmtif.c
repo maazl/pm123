@@ -283,13 +283,11 @@ static toff_t tif_gbm_size(thandle_t fd)
 /* Skip libtiff warning messages. */
 static void tif_gbm_warning_handler(const char* module, const char* fmt, va_list ap)
 {
-#ifdef DEBUG
+#ifdef DEBUG_LOG
    if (module != NULL)
    {
-      fprintf(stderr, "%s: ", module);
-      fprintf(stderr, "Warning, ");
-      vfprintf(stderr, fmt, ap);
-      fprintf(stderr, ".\n");
+      DEBUGLOG(("%s: Warning, ", module));
+      DEBUGLOG((fmt, ap));
    }
 #else
    /* suppress compiler warnings */
@@ -305,10 +303,8 @@ static void tif_gbm_error_handler(const char* module, const char* fmt, va_list a
 #ifdef DEBUG
    if (module != NULL)
    {
-      fprintf(stderr, "%s: ", module);
-      fprintf(stderr, "Error, ");
-      vfprintf(stderr, fmt, ap);
-      fprintf(stderr, ".\n");
+      DEBUGLOG(("%s: Error, ", module));
+      DEBUGLOG((fmt, ap));
    }
 #else
    /* suppress compiler warnings */
