@@ -961,12 +961,22 @@ xstring SongIterator::Serialize(bool withlocation) const
     else
       sprintf(cp, "%ld", secs / 60);
     cp += strlen(cp);
+    // Seconds with fractional part if any.
     loc -= secs;
     ASSERT(loc >= 0 && loc < 1);
     if (loc)
       sprintf(cp+2, "%f", loc); // Dirty hack to remove the leading 0.
     sprintf(cp, ":%02ld", secs % 60);
-    cp[3] = '.';
+    if (loc)
+    { cp += 3;
+      *cp = '.';
+      // discard trailing 0's
+      cp += strlen(cp);
+      while (*--cp == '0')
+        *cp = 0;
+    }
+    else
+      cp[3] = 0;
     ret = ret + buf;
   }
   return ret;
