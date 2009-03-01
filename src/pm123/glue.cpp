@@ -452,6 +452,9 @@ glue_request_buffer( void* a, const FORMAT_INFO2* format, short** buf )
       dec_event(Glue::ev_playstop);
     return 0; 
   }
+  // We are beyond the end?
+  if (playstopsent)
+    return 0;
   // pass request to output
   Glue::last_format = *format;
   return (*Glue::procs.output_request_buffer)(a, format, buf);
@@ -486,7 +489,7 @@ glue_commit_buffer( void* a, int len, T_TIME posmarker )
 
   // Signal DECEVENT_PLAYSTOP ?
   if (send_playstop)
-    dec_event(Glue::ev_playstop); 
+    dec_event(Glue::ev_playstop);
 }
 
 PROXYFUNCIMP(void DLLENTRY, Glue)

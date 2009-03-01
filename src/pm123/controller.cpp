@@ -809,6 +809,7 @@ Ctrl::RC Ctrl::MsgDecStop()
   if (!IsEnumerable() && !Repeat)
   { // Song, no repeat => stop
    eol:
+    DEBUGLOG(("Ctrl::MsgDecStop: flush\n"));
     out_flush();
     // Continue at OUTEVENT_END_OF_DATA
     return RC_OK;
