@@ -153,7 +153,7 @@ ULONG Ctrl::DecoderStart(PlayableSlice* ps, T_TIME offset)
   dec_save(Savename);
 
   T_TIME start = ps->GetStart() ? ps->GetStart()->GetLocation() : 0;
-  T_TIME stop = ps->GetStop()  ? ps->GetStop() ->GetLocation() : -1;
+  T_TIME stop  = ps->GetStop()  ? ps->GetStop() ->GetLocation() : -1;
   if (Scan == DECFAST_REWIND)
   { if (stop > 0)
     { start = stop - 1.; // do not seek to the end, because this will cause problems.
@@ -571,7 +571,9 @@ Ctrl::RC Ctrl::MsgPlayStop(Op op)
     { T_TIME time = FetchCurrentSongTime();
       Current()->Iter.SetLocation(time); 
     } else
-      Current()->Iter.SetLocation(0);
+    { const SongIterator* start = Current()->Iter.GetCurrent()->GetStart();
+      Current()->Iter.SetLocation(start ? start->GetLocation() : 0);
+    }
   } 
 
   if (!SetFlag(Playing, op))
@@ -810,6 +812,7 @@ Ctrl::RC Ctrl::MsgDecStop()
   { // Song, no repeat => stop
    eol:
     DEBUGLOG(("Ctrl::MsgDecStop: flush\n"));
+    DecoderStop();
     out_flush();
     // Continue at OUTEVENT_END_OF_DATA
     return RC_OK;

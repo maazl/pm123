@@ -267,7 +267,7 @@ class Ctrl
 
  private: // internal functions, not thread safe
   // Returns the current PrefetchEntry. I.e. the currently playing (or not playing) iterator.
-  // Precondition: a enumerable object must have been loaded.
+  // Precondition: an object must have been loaded.
   static PrefetchEntry* Current() { return PrefetchList[0]; }
   // Returns true if the current root is set and enumerable (of type PlayableCollection).
   static bool  IsEnumerable();
