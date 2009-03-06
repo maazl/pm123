@@ -71,7 +71,6 @@ static int   device       = 0;
 static int   numbuffers   = 64;
 static int   lockdevice   = 0;
 static int   kludge48as44 = 0;
-static int   force8bit    = 0;
 static int   enable_rg    = 0;
 static int   rg_type      = RG_PREFER_ALBUM;
 static float preamp_rg    = 3;
@@ -319,7 +318,6 @@ output_open( OS2AUDIO* a )
   a->lockdevice      = lockdevice;
   a->numbuffers      = numbuffers;
   a->kludge48as44    = kludge48as44;
-  a->force8bit       = force8bit;
   a->low_water_mark  = 4; /* Hard coded so far... */
   a->high_water_mark = 7; /* Hard coded so far... */ 
   a->mci_device_id   = 0;
@@ -334,7 +332,7 @@ output_open( OS2AUDIO* a )
   if( info->formatinfo.bits       <= 0 ) { info->formatinfo.bits       = 16;    }
 */
 
-  if( info->formatinfo.bits != 8 && !a->force8bit ) {
+  if( info->formatinfo.bits != 8 ) {
     a->zero = 0;
   } else {
     a->zero = 128;
@@ -371,11 +369,7 @@ output_open( OS2AUDIO* a )
   a->mci_device_id = mci_aop.usDeviceID;
 
   // Set the MCI_MIXSETUP_PARMS data structure to match the audio stream.
-  if( a->force8bit ) {
-    a->mci_mix.ulBitsPerSample = 8;
-  } else {
-    a->mci_mix.ulBitsPerSample = info->formatinfo.bits;
-  }
+  a->mci_mix.ulBitsPerSample = info->formatinfo.bits;
 
   if( a->kludge48as44 && info->formatinfo.samplerate == 48000 ) {
     a->mci_mix.ulSamplesPerSec = 44100;
@@ -409,11 +403,8 @@ output_open( OS2AUDIO* a )
     goto end;
   }
 
-  if( a->force8bit ) {
-    a->buffersize = info->buffersize / ( info->formatinfo.bits / 8 );
-  } else {
-    a->buffersize = info->buffersize;
-  }
+  a->buffersize = info->buffersize;
+
   a->mci_buf_parms.ulNumBuffers = a->numbuffers;
   a->mci_buf_parms.ulBufferSize = a->buffersize;
   a->mci_buf_parms.pBufList     = a->mci_buffers;
@@ -663,33 +654,17 @@ output_play_samples( void* A, FORMAT_INFO* format, char* buf, int len, int posma
     }*/
 
     out = a->mci_buffers[current].pBuffer;
-    if( a->force8bit && a->original_info.formatinfo.bits == 16 )
-    {
-      signed short*  in  = (signed short*)buf;
-      int i;
+    if( len > a->mci_buf_parms.ulBufferSize ) {
+      DEBUGLOG(( "os2audio: too many samples.\n" ));
+      return 0;
+    }
 
-      if( len / 2 > a->mci_buf_parms.ulBufferSize ) {
-        DEBUGLOG(( "os2audio: too many samples.\n" ));
-        return 0;
-      }
+    memcpy( out, buf, len );
 
-      for( i = 0; i < len/2; i++ ) {
-        out[i] = ((signed char*)(in+i))[1] + 128;
-      }
-      scale_08_replay_gain( a, out, len / 2 );
-    } else {
-      if( len > a->mci_buf_parms.ulBufferSize ) {
-        DEBUGLOG(( "os2audio: too many samples.\n" ));
-        return 0;
-      }
-
-      memcpy( out, buf, len );
-
-      if( a->original_info.formatinfo.bits == 8 ) {
-        scale_08_replay_gain( a, out, len );
-      } else if( a->original_info.formatinfo.bits == 16 ) {
-        scale_16_replay_gain( a, (short*)out, len / 2 );
-      }
+    if( a->original_info.formatinfo.bits == 8 ) {
+      scale_08_replay_gain( a, out, len );
+    } else if( a->original_info.formatinfo.bits == 16 ) {
+      scale_16_replay_gain( a, (short*)out, len / 2 );
     }
 
     a->buf_positions[current] = posmarker;
@@ -976,7 +951,6 @@ save_ini( void )
     save_ini_value( hini, device );
     save_ini_value( hini, lockdevice );
     save_ini_value( hini, numbuffers );
-    save_ini_value( hini, force8bit );
     save_ini_value( hini, kludge48as44 );
     save_ini_value( hini, enable_rg );
     save_ini_value( hini, rg_type );
@@ -995,7 +969,6 @@ load_ini( void )
   device       = 0;
   lockdevice   = 0;
   numbuffers   = 64;
-  force8bit    = 0;
   kludge48as44 = 0;
   enable_rg    = 0;
   rg_type      = RG_PREFER_ALBUM;
@@ -1007,7 +980,6 @@ load_ini( void )
     load_ini_value( hini, device );
     load_ini_value( hini, lockdevice );
     load_ini_value( hini, numbuffers );
-    load_ini_value( hini, force8bit );
     load_ini_value( hini, kludge48as44 );
     load_ini_value( hini, enable_rg );
     load_ini_value( hini, rg_type );
@@ -1040,7 +1012,6 @@ cfg_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
       lb_select( hwnd, CB_DEVICE, device );
 
       WinCheckButton( hwnd, CB_SHARED,   !lockdevice   );
-      WinCheckButton( hwnd, CB_8BIT,      force8bit    );
       WinCheckButton( hwnd, CB_48KLUDGE,  kludge48as44 );
       WinCheckButton( hwnd, CB_RG_ENABLE, enable_rg    );
 
@@ -1070,7 +1041,6 @@ cfg_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
         rg_type= lb_selected( hwnd, CB_RG_TYPE, LIT_FIRST );
 
         lockdevice   = !WinQueryButtonCheckstate( hwnd, CB_SHARED    );
-        force8bit    =  WinQueryButtonCheckstate( hwnd, CB_8BIT      );
         kludge48as44 =  WinQueryButtonCheckstate( hwnd, CB_48KLUDGE  );
         enable_rg    =  WinQueryButtonCheckstate( hwnd, CB_RG_ENABLE );
 
