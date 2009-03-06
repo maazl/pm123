@@ -1,46 +1,49 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
-<html resid="1002" level="3" sublinks="*"><head>
-  <title>Sound Visualization Plug-in</title>
-  <link rel="stylesheet" href="infstyle.css" type="text/css">
+<html resid="1002" level="3" sublinks="*">
+<head><title>Sound Visualization Plug-in</title>
+<link rel="stylesheet" href="infstyle.css" type="text/css">
 </head>
 <body>
 <h2>PM123's Sound Visualization Plug-in</h2>
 <p>PM123 comes with a sound visualization plug-in, <tt>ANALYZER.DLL</tt>
-which is located in the <tt>visplug</tt> directory. The plug-in is visible right
+which is located in the <tt>visplug</tt> directory. The
+plug-in is visible right
 next to the volume bar. By default it shows the spectrum analyzer.
 Click
 it to switch between the different visualization styles.
 </p>
-<blockquote><img src="images/analyze1.gif">
-  <img src="images/analyze2.gif" height="54" width="124">
-  <img src="images/analyze3.gif">
-  <img src="images/analyze4.gif">
-  <img src="images/analyze5.gif"></blockquote>
+<blockquote><img src="images/analyze1.gif"> <img src="images/analyze2.gif" height="54" width="124">
+<img src="images/analyze3.gif"> <img src="images/analyze4.gif"> <img src="images/analyze5.gif"></blockquote>
 <p>Note that because the spectrum analyzer is <i>visual
-plugin</i> and it is <i>skin specific</i> and will not display on older
-PM123 skins. But you can add them easily to any skin by editing the skin's <tt>.SKN</tt>
+plugin</i> and it is <i>skin specific</i> and will
+not display on older
+PM123 skins. But you can add them easily to any skin by editing the
+skin's <tt>.SKN</tt>
 file and adding this to it:
 </p>
 <blockquote>
-  <pre>1=visplug/analyzer.dll,x,y,size-x,size-y</pre>
+<pre>1=visplug/analyzer.dll,<var>x</var>,<var>y</var>,<var>size-x</var>,<var>size-y</var></pre>
 </blockquote>
-<p>Note that because the spectrum analyzer is <i>visual plug-in</i> and it
-is <i>skin specific</i> and will not display on older PM123 skins. But
-you can add them easily to any skin by editing the skin's <tt>.SKN</tt>
-file and adding this to it:
-</p><blockquote>
-  <pre>1=visplug/analyzer.dll,x,y,size-x,size-y</pre>
+<p>Replace <var><tt>x</tt></var>, <var><tt>y</tt></var>, <var><tt>size-x</tt></var> and <var><tt>size-y</tt></var>
+with suitable coordinates
+(a easy way to find out the coordinates for a certain area is to load
+up
+<a href="http://www.pmview.com">PMView</a>, take a
+Window capture of the skin and
+use the 'Track info' feature). The coordinates for the default skin are:</p>
+<blockquote>
+<pre>1=visplug/analyzer.dll,32,49,95,30</pre>
 </blockquote>
-<p>Replace <tt>x, y, size-x</tt> and <tt>size-y</tt> with suitable coordinates
-(a easy way to find out the coordinates for a certain area is to load up
-<a href="http://www.pmview.com">PMView</a>, take a Window capture of the skin and
-use the 'Track info' feature). You can also use
-<a href="http://www.winamp.com">WinAmp</a>-compatible <tt>viscolor.txt</tt>
+<p>You can also use
+<a href="http://www.winamp.com">WinAmp</a>-compatible
+<tt>viscolor.txt</tt>
 files like this:
 </p>
 <blockquote>
-  <pre>1=visplug/analyzer.dll,x,y,size-x,size-y,viscolor.txt</pre>
+<pre>1=visplug/analyzer.dll,<var>x</var>,<var>y</var>,<var>size-x</var>,<var>size-y</var>,viscolor.txt</pre>
 </blockquote>
-<p>The plug-in will then read <tt>viscolor.txt</tt> and adapt to colors specified in it!
-See <a href="analyzerformat.html">Analyzer color configuration file</a> for details about this file.</p>
+<p>The plug-in will then read <tt>viscolor.txt</tt>
+and adapt to colors specified in it!
+See <a href="analyzerformat.html">Analyzer color
+configuration file</a> for details about this file.</p>
 </body></html>
