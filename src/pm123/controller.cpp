@@ -567,7 +567,7 @@ Ctrl::RC Ctrl::MsgPlayStop(Op op)
   if (Playing)
   { // Set new playing position
     if ( cfg.retainonstop && op != Op_Reset
-      && Current()->Iter.GetCurrent()->GetPlayable()->GetInfo().tech->songlength > 0 )
+      && Current()->Iter.GetCurrentItem()->GetInfo().tech->songlength > 0 )
     { T_TIME time = FetchCurrentSongTime();
       Current()->Iter.SetLocation(time); 
     } else
@@ -1056,7 +1056,9 @@ void Ctrl::Uninit()
   state.rpt = IsRepeat();
   if (last.GetRoot())
   { state.current_root = last.GetRoot()->GetPlayable()->GetURL();
-    state.current_iter = last.Serialize(!!cfg.retainonexit);
+    // save location only if the current item has definite length.
+    Playable* pci = last.GetCurrentItem();
+    state.current_iter = last.Serialize(cfg.retainonexit && pci && pci->GetInfo().tech->songlength >= 0);
     DEBUGLOG(("last_loc: %s %s\n", state.current_root.cdata(), state.current_iter.cdata()));
   }
   HINI hini = open_module_ini();

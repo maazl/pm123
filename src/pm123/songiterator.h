@@ -208,7 +208,7 @@ class SongIterator
   // Gets the current root.
   PlayableSlice*              GetRoot() const          { return (*Callstack)[0]->Item; }
   // Get the current song. This may be NULL.
-  Playable*                   GetCurrentItem() const   { return Current()->GetPlayable(); }
+  Playable*                   GetCurrentItem() const   { PlayableSlice* ps = Current(); return ps ? ps->GetPlayable() : NULL; }
   // Get the current song slice. This may be NULL.  
   PlayableSlice*              GetCurrent() const;
   // Returns the depth of the current Instance. This is zero if no root is assigned,

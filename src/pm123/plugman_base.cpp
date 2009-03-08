@@ -290,6 +290,7 @@ class DecoderProxy1 : public Decoder
   bool         SerializeInfo;
 
  private:
+  int    Magic;
   ULONG  DLLENTRYP(vdecoder_command      )( void* w, ULONG msg, DECODER_PARAMS* params );
   int    DLLENTRYP(voutput_request_buffer)( void* a, const FORMAT_INFO2* format, short** buf );
   void   DLLENTRYP(voutput_commit_buffer )( void* a, int len, double posmarker );
@@ -322,11 +323,14 @@ class DecoderProxy1 : public Decoder
   PROXYFUNCDEF double DLLENTRY proxy_1_decoder_length      ( DecoderProxy1* op, void* w );
   PROXYFUNCDEF ULONG  DLLENTRY proxy_1_decoder_editmeta    ( DecoderProxy1* op, HWND owner, const char* url );
   friend MRESULT EXPENTRY proxy_1_decoder_winfn(HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2);
+  // Callback for proxy induced commands
+  static  void CommandCallback(Ctrl::ControlCommand* cmd);
  
  protected:
   virtual bool AfterLoad();
+          bool IsValid()     { return Magic == 0x714afb12; }
  public:
-  DecoderProxy1(Module* mod) : Decoder(mod), SerializeInfo(false), hwnd(NULLHANDLE), juststarted(0) {}
+  DecoderProxy1(Module* mod) : Decoder(mod), SerializeInfo(false), Magic(0x714afb12), hwnd(NULLHANDLE), juststarted(0) {}
   virtual ~DecoderProxy1();
   virtual bool LoadPlugin();
   virtual void GetParams(stringmap& map) const;
@@ -336,6 +340,7 @@ class DecoderProxy1 : public Decoder
 DecoderProxy1::~DecoderProxy1()
 { if (hwnd != NULLHANDLE)
     WinDestroyWindow(hwnd);
+  Magic = 0;
 }
 
 /* Assigns the addresses of the decoder plug-in procedures. */
@@ -476,8 +481,9 @@ proxy_1_decoder_play_samples( DecoderProxy1* op, const FORMAT_INFO* format, cons
       if (posmarker/1000. + (double)rem/format->samplerate <= op->temppos)
       { DEBUGLOG(("proxy_1_decoder_play_samples juststarted = %i -> eating all samples.\n", op->juststarted));
         if (op->juststarted == 2)
-        { Ctrl::PostCommand(Ctrl::MkNavigate(xstring(), op->temppos, false, false));
+        { // Set the status before the navigate command, because the callback may immediately reset the stats to 0.
           op->juststarted = 1;
+          Ctrl::PostCommand(Ctrl::MkNavigate(xstring(), op->temppos, false, false), &CommandCallback, op);
         }
         return len * bps;
       } else
@@ -638,7 +644,6 @@ proxy_1_decoder_command( DecoderProxy1* op, void* w, ULONG msg, DECODER_PARAMS2*
     DEBUGLOG(("proxy_1_decoder_command:DECODER_JUMPTO: %g\n", params->jumpto));
     par1.jumpto              = (int)floor(params->jumpto*1000 +.5);
     op->temppos = params->jumpto;
-    op->juststarted = 0;
     break;
 
    case DECODER_EQ:
@@ -651,7 +656,14 @@ proxy_1_decoder_command( DecoderProxy1* op, void* w, ULONG msg, DECODER_PARAMS2*
     break;
   }
 
-  return (*op->vdecoder_command)(w, msg, &par1);
+  ULONG rc = (*op->vdecoder_command)(w, msg, &par1);
+
+  switch (msg)
+  {case DECODER_JUMPTO:
+    op->juststarted = 0;
+  }
+  
+  return rc;
 }
 
 /* Proxy for loading interface level 0/1 */
@@ -891,6 +903,24 @@ MRESULT EXPENTRY proxy_1_decoder_winfn(HWND hwnd, ULONG msg, MPARAM mp1, MPARAM 
     return 0;
   }
   return WinDefWindowProc(hwnd, msg, mp1, mp2);
+}
+
+void DecoderProxy1::CommandCallback(Ctrl::ControlCommand* cmd)
+{ DEBUGLOG(("DecoderProxy1::CommandCallback(%p{%u,...%i,%p})\n", cmd, cmd->Cmd, cmd->Flags, cmd->User));
+  DecoderProxy1* op = (DecoderProxy1*)cmd->User;
+  // Be careful, multithreaded access!
+  { CritSect cs;
+    if (op->IsValid())
+    { switch (cmd->Cmd)
+      {case Ctrl::Cmd_Navigate:
+        // Whatever happens, after a seek command juststarted should be cleared,
+        // because even if the decoder did not execute the seek we should start playback.
+        op->juststarted = 0;
+       default:; // avoid warnings
+      }
+    }
+  }
+  delete cmd;
 }
 
 Plugin* Decoder::Factory(Module* mod)
