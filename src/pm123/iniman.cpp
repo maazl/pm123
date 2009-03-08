@@ -45,7 +45,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
-
+#include <debuglog.h>
 
 // support xstring
 xstring ini_query_xstring(HINI hini, const char* app, const char* key)
@@ -59,6 +59,35 @@ xstring ini_query_xstring(HINI hini, const char* app, const char* key)
   return ret;
 }
 
+struct ext_pos
+{ POINTL pos[2];
+  time_t tstmp; // Time stamp when the information has been saved.
+};
+
+// Purge outdated ini locations in the profile
+static void clean_ini_positions(HINI hini)
+{ ULONG size;
+  if (!PrfQueryProfileSize(hini, "Positions", NULL, &size))
+    return;
+  char* names = new char[size+2];
+  names[size] = names[size+1] = 0; // ensure termination
+  PrfQueryProfileData(hini, "Positions", NULL, names, &size);
+  const time_t limit = time(NULL) - cfg.win_pos_max_age * 86400;
+  for (char* cp = names; *cp; cp += strlen(cp)+1)
+  { if (!memcmp(cp, "POS_", 4))
+      continue;
+    ext_pos pos;
+    pos.tstmp = 0;
+    size = sizeof(pos);
+    if (PrfQueryProfileData(hini, "Positions", cp, &pos, &size) && pos.tstmp < limit)
+    { // Purge this entry
+      PrfWriteProfileData(hini, "Positions", cp, NULL, 0);
+      memcpy(cp, "WIN", 3);
+      PrfWriteProfileData(hini, "Positions", cp, NULL, 0);
+    } 
+  }
+  delete names;
+}
 
 void
 load_ini( void )
@@ -194,6 +223,8 @@ save_ini( void )
     ini_write_xstring(INIhandle, INI_SECTION, "filters_list",  Filters.Serialize());
     ini_write_xstring(INIhandle, INI_SECTION, "visuals_list",  Visuals.Serialize());
 
+    clean_ini_positions(INIhandle);
+
     close_ini(INIhandle);
   }
 }
@@ -222,58 +253,63 @@ copy_ini_data( HINI ini_from, char* app_from, char* key_from,
   return rc;
 }
 
-/* Moves the specified data from one profile to another. */
-static BOOL
-move_ini_data( HINI ini_from, char* app_from, char* key_from,
-               HINI ini_to,   char* app_to,   char* key_to )
-{
-  if( copy_ini_data( ini_from, app_from, key_from, ini_to, app_to, key_to )) {
-    return PrfWriteProfileData( ini_from, app_from, key_from, NULL, 0 );
-  } else {
-    return FALSE;
-  }
-}
-
 /* Saves the current size and position of the window specified by hwnd.
    This function will also save the presentation parameters. */
 BOOL
-save_window_pos( HWND hwnd, int options )
+save_window_pos( HWND hwnd, const char* extkey )
 {
   char   key1st[32];
-  char   key2st[32];
-  char   key3st[32];
+  char   key2[16];
+  char   key3[300];
   PPIB   ppib;
+  PTIB   ptib;
   SHORT  id   = WinQueryWindowUShort( hwnd, QWS_ID );
   HINI   hini = open_module_ini();
   BOOL   rc   = FALSE;
   SWP    swp;
-  POINTL pos[2];
+  ext_pos pos;
 
-  DosGetInfoBlocks( NULL, &ppib );
+  DEBUGLOG(("save_window_pos(%p{%u}, %s)\n", hwnd, id, extkey ? extkey : "<null>" ));
 
-  if( hini != NULLHANDLE ) {
-    sprintf( key1st, "WIN_%08X_%08lX", id, ppib->pib_ulpid );
-    sprintf( key2st, "WIN_%08X", id );
-    sprintf( key3st, "POS_%08X", id );
+  DosGetInfoBlocks( &ptib, &ppib );
 
-    if( WinStoreWindowPos( "PM123", key1st, hwnd )) {
-      if( move_ini_data( HINI_PROFILE, "PM123", key1st, hini, "Positions", key2st )) {
-        rc = TRUE;
-      }
-    }
-    if( rc && options & WIN_MAP_POINTS ) {
-      if( WinQueryWindowPos( hwnd, &swp )) {
-        pos[0].x = swp.x;
-        pos[0].y = swp.y;
-        pos[1].x = swp.x + swp.cx;
-        pos[1].y = swp.y + swp.cy;
+  if( hini == NULLHANDLE )
+    return FALSE;
 
-        WinMapDlgPoints( hwnd, pos, 2, FALSE );
-        rc = PrfWriteProfileData( hini, "Positions", key3st, &pos, sizeof( pos ));
-      }
-    }
-    close_ini( hini );
+  sprintf( key1st, "WIN_%08lX_%08lX", ppib->pib_ulpid, ptib->tib_ptib2->tib2_ultid );
+  sprintf( key2, "WIN_%08X", id );
+  if (extkey && cfg.win_pos_by_obj)
+  { strcpy( key3, key2 );
+    key3[12] = '_';
+    strlcpy( key3+13, extkey, sizeof key3 -13 );
+  } else
+    *key3 = 0;
+
+  if( !WinStoreWindowPos( "PM123", key1st, hwnd ))
+  { close_ini( hini );
+    return false;
   }
+  
+  rc = copy_ini_data( HINI_PROFILE, "PM123", key1st, hini, "Positions", key2 );
+  if (*key3) 
+    rc &= copy_ini_data( HINI_PROFILE, "PM123", key1st, hini, "Positions", key3 );
+  PrfWriteProfileData( HINI_PROFILE, "PM123", key1st, NULL, 0 );
+
+  if( rc && WinQueryWindowPos( hwnd, &swp )) {
+    pos.pos[0].x = swp.x;
+    pos.pos[0].y = swp.y;
+    pos.pos[1].x = swp.x + swp.cx;
+    pos.pos[1].y = swp.y + swp.cy;
+    WinMapDlgPoints( hwnd, pos.pos, 2, FALSE );
+    time(&pos.tstmp);
+    memcpy(key2, "POS", 3);
+    rc = PrfWriteProfileData( hini, "Positions", key2, &pos, sizeof( pos ));
+    if (*key3) 
+    { memcpy(key3, "POS", 3);
+      rc &= PrfWriteProfileData( hini, "Positions", key3, &pos, sizeof( pos ));
+    }
+  }
+  close_ini( hini );
   return rc;
 }
 
@@ -281,12 +317,13 @@ save_window_pos( HWND hwnd, int options )
    the state it was in when save_window_pos was last called.
    This function will also restore presentation parameters. */
 BOOL
-rest_window_pos( HWND hwnd, int options )
+rest_window_pos( HWND hwnd, const char* extkey )
 {
   char   key1st[32];
-  char   key2st[32];
-  char   key3st[32];
+  char   key2[16];
+  char   key3[300];
   PPIB   ppib;
+  PTIB   ptib;
   SHORT  id   = WinQueryWindowUShort( hwnd, QWS_ID );
   HINI   hini = open_module_ini();
   BOOL   rc   = FALSE;
@@ -295,41 +332,76 @@ rest_window_pos( HWND hwnd, int options )
   SWP    desktop;
   ULONG  len  = sizeof(pos);
 
-  DosGetInfoBlocks( NULL, &ppib );
+  DEBUGLOG(("rest_window_pos(%p{%u}, %s)\n", hwnd, id, extkey ? extkey : "<null>" ));
 
-  if( hini != NULLHANDLE ) {
-    sprintf( key1st, "WIN_%08X_%08lX", id, ppib->pib_ulpid );
-    sprintf( key2st, "WIN_%08X", id );
-    sprintf( key3st, "POS_%08X", id );
+  DosGetInfoBlocks( &ptib, &ppib );
 
-    if( copy_ini_data( hini, "Positions", key2st, HINI_PROFILE, "PM123", key1st )) {
-      rc = WinRestoreWindowPos( "PM123", key1st, hwnd );
-      PrfWriteProfileData( HINI_PROFILE, "PM123", key1st, NULL, 0 );
-    }
-
-    if( rc && options & WIN_MAP_POINTS ) {
-      if( PrfQueryProfileData( hini, "Positions", key3st, &pos, &len ))
-      {
-        WinMapDlgPoints( hwnd, pos, 2, TRUE );
-        WinSetWindowPos( hwnd, 0, pos[0].x, pos[0].y,
-                         pos[1].x-pos[0].x, pos[1].y-pos[0].y, SWP_MOVE | SWP_SIZE );
-      } else {
-        rc = FALSE;
-      }
-    }
-
-    if( rc && WinQueryWindowPos( hwnd, &swp )
-           && WinQueryWindowPos( HWND_DESKTOP, &desktop ))
-    {
-      if( swp.y + swp.cy > desktop.cy )
-      {
-        swp.y = desktop.cy - swp.cy;
-        WinSetWindowPos( hwnd, 0, swp.x, swp.y, 0, 0, SWP_MOVE );
-      }
-    }
-
-    close_ini( hini );
+  if( hini == NULLHANDLE)
+    return FALSE;
+  
+  if (!WinQueryWindowPos( hwnd, &swp ))
+  { close_ini( hini );
+    return FALSE;
   }
+
+  sprintf( key1st, "WIN_%08lX_%08lX", ppib->pib_ulpid, ptib->tib_ptib2->tib2_ultid );
+  sprintf( key2, "WIN_%08X", id );
+  if (extkey && cfg.win_pos_by_obj)
+  { strcpy( key3, key2 );
+    key3[12] = '_';
+    strlcpy( key3+13, extkey, sizeof key3 -13 );
+  } else
+    *key3 = 0;
+
+  if( (*key3 && copy_ini_data( hini, "Positions", key3, HINI_PROFILE, "PM123", key1st ))
+    || copy_ini_data( hini, "Positions", key2, HINI_PROFILE, "PM123", key1st ) ) {
+    rc = WinRestoreWindowPos( "PM123", key1st, hwnd );
+    PrfWriteProfileData( HINI_PROFILE, "PM123", key1st, NULL, 0 );
+  }
+  if (!rc)
+  { close_ini( hini );
+    return FALSE;
+  }
+
+  // rc = TRUE
+  if (*key3)
+  { memcpy(key3, "POS", 3);
+    if (!PrfQueryProfileData( hini, "Positions", key3, &pos, &len ) || len < sizeof pos)
+      *key3 = 0; // not found
+  }
+  if (!*key3)
+  { memcpy(key2, "POS", 3);
+    rc = PrfQueryProfileData( hini, "Positions", key2, &pos, &len ) && len >= sizeof pos;
+  }
+  if (rc)
+  { WinMapDlgPoints( hwnd, pos, 2, TRUE );
+    if (!extkey || *key3)
+    { swp.x = pos[0].x;
+      swp.y = pos[0].y;
+    }
+    swp.cx = pos[1].x - pos[0].x;
+    swp.cy = pos[1].y - pos[0].y;
+  } else {
+    rc = FALSE;
+  }
+
+  if( WinQueryWindowPos( HWND_DESKTOP, &desktop ))
+  { // clip right
+    if( swp.x > desktop.cx - 8 )
+      swp.x = desktop.cx - 8;
+    // clip left
+    else if( swp.x + swp.cx < 8 )
+      swp.x = 8 - swp.cx;
+    // clip top
+    if( swp.y + swp.cy > desktop.cy )
+      swp.y = desktop.cy - swp.cy;
+    // clip bottom
+    else if( swp.y + swp.cy < 8 )
+      swp.y = 8 - swp.cy;
+  }
+
+  WinSetWindowPos( hwnd, 0, swp.x, swp.y, swp.cx, swp.cy, SWP_MOVE|SWP_SIZE );
+  close_ini( hini );
   return rc;
 }
 

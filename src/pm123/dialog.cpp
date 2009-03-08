@@ -191,7 +191,8 @@ static MRESULT EXPENTRY amp_url_dlg_proc(HWND hwnd, ULONG msg, MPARAM mp1, MPARA
     break;
 
    case WM_INITDLG:
-    { // populate drop down list
+    { rest_window_pos(hwnd);
+      // populate drop down list
       Playlist* mru = amp_get_url_mru();
       HWND ctrl = WinWindowFromID(hwnd, ENT_URL);
       int_ptr<PlayableInstance> pi;
@@ -204,6 +205,10 @@ static MRESULT EXPENTRY amp_url_dlg_proc(HWND hwnd, ULONG msg, MPARAM mp1, MPARA
       }
       break;
     }
+   
+   case WM_DESTROY:
+    save_window_pos(hwnd);
+    break;
 
    case WM_COMMAND:
     DEBUGLOG(("amp_url_dlg_proc: WM_COMMAND: %i\n", SHORT1FROMMP(mp1)));
@@ -288,6 +293,21 @@ url123 amp_playlist_select(HWND owner, const char* title)
   }
 }
 
+/* Default dialog procedure for the bookmark dialog. */
+static MRESULT EXPENTRY amp_bookmark_dlg_proc(HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2)
+{ switch (msg)
+  {case WM_INITDLG:
+    do_warpsans(hwnd);
+    rest_window_pos(hwnd);
+    break;
+  
+   case WM_DESTROY:
+    save_window_pos(hwnd);
+    break;
+  }
+  return WinDefDlgProc(hwnd, msg, mp1, mp2);
+}
+
 /* Adds a user selected bookmark. */
 void amp_add_bookmark(HWND owner, const PlayableSlice& item)
 { DEBUGLOG(("amp_add_bookmark(%x, {%s})\n", owner, item.GetPlayable()->GetURL().cdata()));
@@ -301,8 +321,7 @@ void amp_add_bookmark(HWND owner, const PlayableSlice& item)
    else
     desc = desc + item.GetPlayable()->GetURL().getShortName();
 
-  HWND hdlg = WinLoadDlg(HWND_DESKTOP, owner, &WinDefDlgProc, NULLHANDLE, DLG_BM_ADD, NULL);
-  do_warpsans(hdlg);
+  HWND hdlg = WinLoadDlg(HWND_DESKTOP, owner, &amp_bookmark_dlg_proc, NULLHANDLE, DLG_BM_ADD, NULL);
   WinSetDlgItemText(hdlg, EF_BM_DESC, desc);
 
   if (WinProcessDlg(hdlg) == DID_OK)

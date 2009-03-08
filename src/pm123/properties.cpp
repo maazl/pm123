@@ -97,6 +97,8 @@ const amp_cfg cfg_default =
   "\\PIPE\\PM123",
   true, // dock
   10,
+  false,
+  30,
   500,
   true,
 // state
@@ -409,6 +411,7 @@ cfg_display1_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
         WinCheckButton   ( hwnd, CB_DOCK, cfg.dock_windows );
         WinEnableControl ( hwnd, SB_DOCK, cfg.dock_windows );
         WinSendDlgItemMsg( hwnd, SB_DOCK, SPBM_SETCURRENTVALUE, MPFROMLONG( cfg.dock_margin ), 0 );
+        WinCheckButton   ( hwnd, CB_SAVEWNDPOSBYOBJ, cfg.win_pos_by_obj );
 
         // load GUI
         WinCheckButton( hwnd, RB_DISP_FILENAME   + cfg.viewmode, TRUE );
@@ -487,7 +490,9 @@ cfg_display1_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
 
     case WM_DESTROY:
     {
+      cfg.dock_windows  = WinQueryButtonCheckstate( hwnd, CB_DOCK );
       PMRASSERT(WinSendDlgItemMsg( hwnd, SB_DOCK, SPBM_QUERYVALUE, MPFROMP( &cfg.dock_margin ), MPFROM2SHORT( 0, SPBQ_DONOTUPDATE )));
+      cfg.win_pos_by_obj= WinQueryButtonCheckstate( hwnd, CB_SAVEWNDPOSBYOBJ );
 
       cfg.scroll        = rb_selected( hwnd, RB_SCROLL_INFINITE ) - RB_SCROLL_INFINITE;
       cfg.scroll_around = WinQueryButtonCheckstate( hwnd, CB_SCROLL_AROUND );
@@ -968,7 +973,7 @@ cfg_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
 
     case WM_DESTROY:
       save_ini();
-      save_window_pos( hwnd, WIN_MAP_POINTS );
+      save_window_pos( hwnd );
       return 0;
 
     case WM_WINDOWPOSCHANGED:
@@ -1055,7 +1060,7 @@ cfg_properties( HWND owner )
   WinSetDlgItemText( page, ST_CREDITS, SDG_MSG );
   PMRASSERT( nb_append_tab( book, page, "~About", NULL, 0));
 
-  rest_window_pos( hwnd, WIN_MAP_POINTS );
+  rest_window_pos( hwnd );
   WinSetFocus( HWND_DESKTOP, book );
 
   WinProcessDlg   ( hwnd );

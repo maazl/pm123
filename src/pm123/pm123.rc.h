@@ -346,6 +346,7 @@
 
 #define CB_DOCK            1410
 #define SB_DOCK            1411
+#define CB_SAVEWNDPOSBYOBJ 1412
 #define RB_SCROLL_INFINITE 1420
 #define RB_SCROLL_ONCE     1421
 #define RB_SCROLL_DISABLE  1422

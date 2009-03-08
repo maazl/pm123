@@ -197,11 +197,11 @@ amp_file_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
         WinEnableControl( hwnd, DID_OK, TRUE  );
       }
       do_warpsans( hwnd );
-      rest_window_pos( hwnd, WIN_MAP_POINTS );
+      rest_window_pos( hwnd );
       break;
 
     case WM_DESTROY:
-      save_window_pos( hwnd, WIN_MAP_POINTS );
+      save_window_pos( hwnd );
       break;
 
     case WM_WINDOWPOSCHANGED:

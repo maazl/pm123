@@ -33,10 +33,8 @@
 #define PM123_INIMAN_H
 
 #include <cpp/xstring.h>
+#include <cpp/cpputil.h>
 
-
-/* save_window_pos and rest_window_pos options */
-#define WIN_MAP_POINTS  1
 
 // read xstring
 xstring ini_query_xstring(HINI hini, const char* app, const char* key);
@@ -56,8 +54,8 @@ void load_ini( void );
 void save_ini( void );
 
 /* Saves the current size and position of the window. */
-BOOL save_window_pos( HWND, int options );
+BOOL save_window_pos( HWND, const char* extkey = NULL );
 /* Restores the current size and position of the window. */
-BOOL rest_window_pos( HWND, int options );
+BOOL rest_window_pos( HWND, const char* extkey = NULL );
 
 #endif /* PM123_INIMAN_H */

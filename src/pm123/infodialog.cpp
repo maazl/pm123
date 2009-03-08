@@ -36,6 +36,7 @@
 #include "pm123.rc.h"
 #include "dialog.h"
 #include "glue.h"
+#include "iniman.h"
 #include <decoder_plug.h>
 #include <plugin.h>
 #include <utilfct.h>
@@ -442,6 +443,13 @@ MRESULT InfoDialog::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
     }
     do_warpsans(GetHwnd());
     SetHelpMgr(amp_help_mgr());
+    // restore position
+    rest_window_pos(GetHwnd(), Key->size() > 1 ? NULL : (*Key)[0]->GetURL());
+    break;
+    
+   case WM_DESTROY:
+    // save position
+    save_window_pos(GetHwnd(), Key->size() > 1 ? NULL : (*Key)[0]->GetURL());
     break;
 
    case WM_SYSCOMMAND:

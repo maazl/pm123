@@ -695,11 +695,13 @@ BEGIN
   DIALOG "", CFG_DISPLAY1, 0, 0, 260, 150, NOT FS_DLGBORDER|FS_NOBYTEALIGN
     PRESPARAMS PP_FONTNAMESIZE "8.Helv"
   BEGIN
-    GROUPBOX     " User interface ",                    GB_GENERIC,         4, 96, 248, 24, NOT WS_TABSTOP|WS_GROUP
-    AUTOCHECKBOX "~Dock windows at",                    CB_DOCK,           12,100,  60, 12, WS_GROUP
+    GROUPBOX     " User interface ",                    GB_GENERIC,         4, 96, 248, 36, NOT WS_TABSTOP|WS_GROUP
+    AUTOCHECKBOX "~Dock windows at",                    CB_DOCK,           12,112,  60, 12, WS_GROUP
       PRESPARAMS PP_FOREGROUNDCOLORINDEX, SYSCLR_WINDOWTEXT
-    SPINBUTTON                                          SB_DOCK,           76,102,  24,  8, SPBS_MASTER|SPBS_NUMERICONLY|SPBS_JUSTRIGHT
-    LTEXT        "pixels",                              ST_GENERIC,       104,100,  30, 12, DT_VCENTER|NOT WS_GROUP
+    SPINBUTTON                                          SB_DOCK,           76,114,  24,  8, SPBS_MASTER|SPBS_NUMERICONLY|SPBS_JUSTRIGHT
+    LTEXT        "pixels",                              ST_GENERIC,       104,112,  30, 12, DT_VCENTER|NOT WS_GROUP
+      PRESPARAMS PP_FOREGROUNDCOLORINDEX, SYSCLR_WINDOWTEXT
+    AUTOCHECKBOX "Save window ~positions per object",   CB_SAVEWNDPOSBYOBJ,12,100, 232, 12, WS_GROUP
       PRESPARAMS PP_FOREGROUNDCOLORINDEX, SYSCLR_WINDOWTEXT
 
     GROUPBOX     " Title ",                             GB_GENERIC,         4, 46, 248, 48, NOT WS_TABSTOP|WS_GROUP

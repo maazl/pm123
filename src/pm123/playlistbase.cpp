@@ -242,8 +242,13 @@ void PlaylistBase::InitDlg()
   // Help manager
   SetHelpMgr(amp_help_mgr());
 
-  rest_window_pos(GetHwnd(), 0);
-  // TODO: do not open all playlistmanager windows at the same location
+  { // initial position
+    SWP swp;
+    PMXASSERT(WinQueryTaskSizePos(amp_player_hab(), 0, &swp), == 0);
+    PMRASSERT(WinSetWindowPos(GetHwnd(), NULLHANDLE, swp.x,swp.y, 0,0, SWP_MOVE));
+  }
+  rest_window_pos(GetHwnd(), Content->GetURL());
+
   dk_add_window(GetHwnd(), 0);
 
   // register events
@@ -272,6 +277,9 @@ MRESULT PlaylistBase::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
       RootPlayStatusDelegate.detach();
       // delete all records
       RemoveChildren(NULL);
+      // save position
+      save_window_pos(GetHwnd(), Content->GetURL());
+      
       // process outstanding UM_DELETERECORD messages before we quit to ensure that all records are back to the PM before we die.
       QMSG qmsg;
       while (WinPeekMsg(amp_player_hab(), &qmsg, GetHwnd(), UM_DELETERECORD, UM_DELETERECORD, PM_REMOVE))
