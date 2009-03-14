@@ -31,8 +31,8 @@ background-color: #ccffcc;
 respect to nested playlists and the previous/next buttons when the
 playlist is modified.</td>
 </tr>
-<tr class="test">
-<td><em>2 medium&nbsp;bug, testing</em></td>
+<tr class="fixed">
+<td><em>2 medium&nbsp;bug, gone</em></td>
 <td>PM123 sometimes crashes when starting playback</td>
 <td>Sometimes the decoder thread runs into a access
 violation at start of playback.<br>
@@ -159,14 +159,17 @@ or hard links to the file. There should be an in-place option to work around thi
 <td>The command line interface and the remote interface needs to be reworked and tested.</td>
 <td>The many changes to PM123 are not fully reflected to the remote interface so far.</td>
 </tr>
-<tr class="open">
-<td>19 minor todo, open</td>
+<tr class="fixed">
+<td>19 minor todo, done</td>
 <td>Save the size of the info dialog window</td>
 <td>Depending
 on the system settings a different size of the info dialog window is
 required. In fact the user has to choose the appropriate size, but it
 is annoying to do this again and again.</td>
-</tr><tr><td bgcolor="#ffcccc">20 minor todo, open</td><td bgcolor="#ffcccc">ogg123: support padding of vorbis comments</td><td bgcolor="#ffcccc">Newer
+</tr><tr class="open">
+<td>20 minor todo, open</td>
+<td>ogg123: support padding of vorbis comments</td>
+<td>Newer
 libvorbis can change vorbis comments in place. ogg123 should use this
 to avoid unnecessary file replacements. This may supersede #17.</td></tr>
 </tbody>
