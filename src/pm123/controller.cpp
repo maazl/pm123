@@ -52,17 +52,7 @@ struct ctrl_state
   ctrl_state() : volume(-1), shf(FALSE), rpt(FALSE) {}
 };
 
-void prf_query_xstring( HINI hini, const char* app, const char* key, xstring& var )
-{ ULONG len;
-  if (PrfQueryProfileSize( hini, app, key, &len ))
-  { char* dst = var.raw_init(++len);
-    PrfQueryProfileString( hini, app, key, NULL, dst, len );
-  }
-}
-
-#define load_ini_xstring( hini, var ) \
-  prf_query_xstring( hini, INI_SECTION, #var, var )
-                                             
+                          
 /****************************************************************************
 *
 *  class Ctrl
@@ -1011,14 +1001,12 @@ void Ctrl::Init()
   ASSERT((int)WorkerTID != -1);
   // load the state
   ctrl_state state;
-  HINI hini = open_module_ini();
-  load_ini_value(hini, state.volume);
-  load_ini_value(hini, state.shf);
-  load_ini_value(hini, state.rpt);
-  load_ini_xstring(hini, state.current_root);
-  load_ini_xstring(hini, state.current_iter);
-  load_ini_value(hini, state.was_playing);
-  close_ini(hini);
+  load_ini_value(amp_hini, state.volume);
+  load_ini_value(amp_hini, state.shf);
+  load_ini_value(amp_hini, state.rpt);
+  load_ini_xstring(amp_hini, state.current_root);
+  load_ini_xstring(amp_hini, state.current_iter);
+  load_ini_value(amp_hini, state.was_playing);
   PostCommand(MkShuffle(state.shf ? Op_Set : Op_Clear));
   PostCommand(MkRepeat(state.rpt ? Op_Set : Op_Clear));
   if (state.volume >= 0)
@@ -1061,14 +1049,12 @@ void Ctrl::Uninit()
     state.current_iter = last.Serialize(cfg.retainonexit && pci && pci->GetInfo().tech->songlength >= 0);
     DEBUGLOG(("last_loc: %s %s\n", state.current_root.cdata(), state.current_iter.cdata()));
   }
-  HINI hini = open_module_ini();
-  save_ini_value(hini, state.volume);
-  save_ini_value(hini, state.shf);
-  save_ini_value(hini, state.rpt);
-  save_ini_string(hini, state.current_root);
-  save_ini_string(hini, state.current_iter);
-  save_ini_value(hini, state.was_playing);
-  close_ini(hini);
+  save_ini_value(amp_hini, state.volume);
+  save_ini_value(amp_hini, state.shf);
+  save_ini_value(amp_hini, state.rpt);
+  save_ini_string(amp_hini, state.current_root);
+  save_ini_string(amp_hini, state.current_iter);
+  save_ini_value(amp_hini, state.was_playing);
 
   // Now delete everything
   PrefetchClear(false);

@@ -39,6 +39,7 @@
 #include <errno.h>
 
 #include <utilfct.h>
+#include <fileutil.h>
 #include <format.h>
 #include <output_plug.h>
 #include <decoder_plug.h>
@@ -46,7 +47,11 @@
 #include <wavout.h>
 #include <debuglog.h>
 
+
+static const PLUGIN_CONTEXT* context;
+
 static char outpath[CCHMAXPATH];
+
 
 /* Default dialog procedure for the directorys browse dialog. */
 MRESULT EXPENTRY
@@ -132,17 +137,13 @@ MRESULT EXPENTRY cfg_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
 
         case DID_OK:
         {
-          HINI hini;
           WinQueryDlgItemText( hwnd, EF_FILENAME, sizeof( outpath ), outpath );
 
           if( *outpath && outpath[ strlen( outpath ) - 1 ] == '\\' && !is_root( outpath )) {
             outpath[ strlen( outpath ) - 1 ] = 0;
           }
 
-          if(( hini = open_module_ini()) != NULLHANDLE ) {
-            save_ini_string( hini, outpath );
-            close_ini( hini );
-          }
+          context->write_profile( "outpath", outpath, strlen(outpath) );
           break;
         }
       }
@@ -423,8 +424,10 @@ output_playing_data( void* A )
 
 /* Returns information about plug-in. */
 int DLLENTRY
-plugin_query( PLUGIN_QUERYPARAM* query )
+plugin_query( PLUGIN_QUERYPARAM* query, const PLUGIN_CONTEXT* ctx )
 {
+  context = ctx;
+
   query->type         = PLUGIN_OUTPUT;
   query->author       = "Samuel Audet, Dmitry A.Steklenev ";
   query->desc         = "WAVE Output 1.20";
@@ -437,16 +440,11 @@ ULONG DLLENTRY
 output_init( void** A )
 {
   WAVOUT* a = (WAVOUT*)malloc( sizeof(*a));
-  HINI hini;
   DEBUGLOG(("wavout:output_init(%p)\n", A));
 
   *A = a;
-  *outpath = 0;
-
-  if(( hini = open_module_ini()) != NULLHANDLE ) {
-    load_ini_string( hini, outpath, sizeof( outpath ));
-    close_ini( hini );
-  }
+  memset(outpath, 0, sizeof outpath);
+  context->query_profile( "outpath", outpath, sizeof outpath );
 
   memset( a, 0, sizeof(*a));
   DosCreateEventSem( NULL, &a->pause, 0, TRUE );

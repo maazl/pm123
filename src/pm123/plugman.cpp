@@ -171,6 +171,31 @@ bool Module::UnloadModule()
   return true;
 }
 
+PROXYFUNCIMP(const char* DLLENTRY, Module)
+proxy_exec_command( Module* mp, const char* cmd )
+{ // Initialize command processor oon demand.
+  if (mp->CommandInstance == NULL)
+    mp->CommandInstance = new CommandProcessor();
+  mp->CommandInstance->Execute(mp->CommandReply, cmd);
+  return mp->CommandReply.cdata();
+}
+
+PROXYFUNCIMP(int DLLENTRY, Module)
+proxy_query_profile( Module* mp, const char* key, void* data, int maxlength )
+{ ULONG len = maxlength;
+  const char* const app = sfnameext2(mp->GetModuleName());
+  return PrfQueryProfileData(amp_hini, app, key, data, &len)
+      && PrfQueryProfileSize(amp_hini, app, key, &len)
+    ? (int)len : -1;
+}
+
+PROXYFUNCIMP(int DLLENTRY, Module)
+proxy_write_profile( Module* mp, const char* key, const void* data, int length )
+{ const char* const app = sfnameext2(mp->GetModuleName());
+  return PrfWriteProfileData(amp_hini, app, key, data, length);
+}
+
+
 /* Fills the basic properties of any plug-in.
          module:      input
          ModuleName: input
@@ -180,12 +205,17 @@ bool Module::UnloadModule()
 bool Module::Load()
 { DEBUGLOG(("Module(%p{%s})::Load()\n", this, GetModuleName().cdata()));
 
-  void DLLENTRYP(plugin_query)(PLUGIN_QUERYPARAM *param);
+  void DLLENTRYP(plugin_query)(PLUGIN_QUERYPARAM *param, const PLUGIN_CONTEXT* ctx);
   if (!LoadModule() || !LoadFunction(&plugin_query, "plugin_query"))
     return false;
 
   QueryParam.interface = 0; // unchanged by old plug-ins
-  (*plugin_query)(&QueryParam);
+  Context.error_display = &pm123_display_error;
+  Context.info_display  = &pm123_display_info;
+  Context.exec_command  = vdelegate(&vd_exec_command,  &proxy_exec_command,  this);
+  Context.query_profile = vdelegate(&vd_query_profile, &proxy_query_profile, this);
+  Context.write_profile = vdelegate(&vd_write_profile, &proxy_write_profile, this);
+  (*plugin_query)(&QueryParam, &Context);
 
   if (QueryParam.interface > MAX_PLUGIN_LEVEL)
   {

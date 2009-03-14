@@ -27,6 +27,6 @@ clean:  $(MDUMMY)
 
 analyzer.c:	..\..\utils\utilfct.h ..\..\include\format.h ..\..\include\visual_plug.h ..\..\include\plugin.h analyzer.h colormap.h specana.h ..\..\utils\debuglog.h
 specana.h:	..\..\include\format.h
-colormap.c:	analyzer.h colormap.h
-specana.c:	..\..\include\format.h ..\..\fft123\api\fftw3.h specana.h
+colormap.c:	analyzer.h colormap.h ..\..\utils\debuglog.h
+specana.c:	..\..\include\format.h ..\..\fft123\api\fftw3.h specana.h ..\..\utils\debuglog.h
 analyzer.rc:	analyzer.h

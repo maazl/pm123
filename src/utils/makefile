@@ -32,10 +32,10 @@ clean: $(MDUMMY)
 abs2rel.c:	abs2rel.h
 bufstream.c:	bufstream.h
 charset.c:	charset.h strutils.h debuglog.h utilfct.h
-utilfct.h:	..\include\config.h .\rel2abs.h .\abs2rel.h .\bufstream.h .\charset.h .\wildcards.h .\filefind.h .\fileutil.h .\errorstr.h .\inimacro.h .\queue.h .\minmax.h .\strutils.h
+utilfct.h:	..\include\config.h .\rel2abs.h .\abs2rel.h .\errorstr.h .\minmax.h .\strutils.h
 errorstr.c:	strutils.h snprintf.h
 fileutil.c:	fileutil.h strutils.h minmax.h
-inimacro.cpp:	inimacro.h utilfct.h
+inimacro.cpp:	inimacro.h fileutil.h utilfct.h
 memcmpcpy.c:	strutils.h
 queue.c:	queue.h
 rel2abs.c:	rel2abs.h

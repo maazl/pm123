@@ -30,6 +30,7 @@
  */
 
 #include "inimacro.h"
+#include "fileutil.h"
 #include "utilfct.h"
 
 /* Opens the specified profile file. */

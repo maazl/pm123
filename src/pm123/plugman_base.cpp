@@ -45,12 +45,14 @@
 //#undef DEBUG_LOG
 //#define DEBUG_LOG 2
 
-#include <utilfct.h>
 #include "plugman_base.h"
 #include "pm123.h" // for hab
 #include "dialog.h"
 #include "playable.h"
 #include "controller.h" // for starting position work around
+#include <fileutil.h>
+#include <wildcards.h>
+#include <charset.h>
 #include <vdelegate.h>
 #include <cpp/url123.h>
 

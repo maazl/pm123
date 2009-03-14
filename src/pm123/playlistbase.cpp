@@ -52,7 +52,6 @@
 #include "123_util.h"
 #include "pm123.rc.h"
 #include "docking.h"
-#include "iniman.h"
 #include "filedlg.h"
 
 #include <stdarg.h>

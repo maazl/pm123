@@ -39,6 +39,27 @@ typedef struct _PLUGIN_QUERYPARAM
 
 } PLUGIN_QUERYPARAM, *PPLUGIN_QUERYPARAM;
 
+typedef struct _PLUGIN_CONTEXT
+{
+  /* error message function */
+  void DLLENTRYP(error_display)( const char* msg );
+
+  /* info message function */
+  /* this information is always displayed to the user right away */
+  void DLLENTRYP(info_display)( const char* msg );
+
+  /* execute remote command */
+  /* See the documentation of remote commands for a description. */
+  const char* DLLENTRYP(exec_command)( const char* cmd );
+  
+  /* retrieve configuration setting */
+  int DLLENTRYP(query_profile)( const char* key, void* data, int maxlength );
+  
+  /* store configuration setting */
+  int DLLENTRYP(write_profile)( const char* key, const void* data, int length );
+
+} PLUGIN_CONTEXT;
+
 #if (!defined(VISUAL_PLUGIN_LEVEL) || VISUAL_PLUGIN_LEVEL < 1) \
  && !defined(PM123_FILTER_PLUG_H) && !defined(PM123_DECODER_PLUG_H) && !defined(PM123_OUTPUT_PLUG_H)
 #error The old plug-in interface is no longer supported. \
@@ -46,7 +67,11 @@ typedef struct _PLUGIN_QUERYPARAM
   and donït forget to fill param->interface at plugin_query.
 #endif
 /* returns 0 -> ok */
+#if (defined(VISUAL_PLUGIN_LEVEL) || defined(PM123_FILTER_PLUG_H) || defined(PM123_DECODER_PLUG_H) || defined(PM123_OUTPUT_PLUG_H))
+int DLLENTRY plugin_query( PLUGIN_QUERYPARAM* param, const PLUGIN_CONTEXT* ctx );
+#else // Keep compile compatibility for old plug-ins.
 int DLLENTRY plugin_query( PLUGIN_QUERYPARAM* param );
+#endif
 int DLLENTRY plugin_configure( HWND hwnd, HMODULE module );
 int DLLENTRY plugin_deinit( int unload );
 

@@ -39,8 +39,6 @@
 //#undef DEBUG_LOG
 //#define DEBUG_LOG 2
 
-#include <utilfct.h>
-#include <xio.h>
 #include "pm123.h"
 #include "dialog.h"
 #include "123_util.h"
@@ -52,7 +50,6 @@
 #include "inspector.h"
 #include "copyright.h"
 #include "docking.h"
-#include "iniman.h"
 #include "properties.h"
 #include "controller.h"
 #include "playlistmenu.h"
@@ -60,6 +57,9 @@
 #include "pipe.h"
 #include <visual_plug.h>
 
+#include <utilfct.h>
+#include <fileutil.h>
+#include <xio.h>
 #include <cpp/xstring.h>
 #include <cpp/url123.h>
 #include <cpp/showaccel.h>
@@ -1693,12 +1693,10 @@ main2( void* arg )
   hab = WinInitialize( 0 );
   PMXASSERT(hmq = WinCreateMsgQueue( hab, 0 ), != NULLHANDLE);
 
-  load_ini();
-  //amp_volume_to_normal(); // Superfluous!
-  InitButton( hab );
-
   // initialize properties
   cfg_init();
+  //amp_volume_to_normal(); // Superfluous!
+  InitButton( hab );
 
   // these two are always constant
   load_wizzards[0] = amp_file_wizzard;
@@ -1849,6 +1847,7 @@ main2( void* arg )
   Playable::Uninit();
   Playable::Clear();
   plugman_uninit();
+  cfg_uninit();
 
   WinDestroyWindow(hframe);
   bmp_clean_skin();

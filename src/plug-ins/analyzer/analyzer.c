@@ -82,6 +82,14 @@
 
 /* environment data */
 static  VISPLUGININIT plug;
+static  const PLUGIN_CONTEXT* context;
+
+#define load_prf_value(var) \
+  context->query_profile(#var, &var, sizeof var)
+
+#define save_prf_value(var) \
+  context->write_profile(#var, &var, sizeof var)
+
 
 /* configuration data */
 static struct analyzer_cfg
@@ -723,8 +731,10 @@ static void update_analyzer(void)
 
 /* Returns information about plug-in. */
 int DLLENTRY
-plugin_query( PPLUGIN_QUERYPARAM query )
+plugin_query( PPLUGIN_QUERYPARAM query, const PLUGIN_CONTEXT* ctx )
 {
+  context = ctx;
+
   query->type         = PLUGIN_VISUAL;
   query->author       = "Samuel Audet, Dmitry A.Steklenev, Marcel Mueller";
   query->desc         = "Spectrum Analyzer 2.10";
@@ -835,7 +845,7 @@ plg_win_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
       SWP     swp;
       POINTL  pos;
 
-      DEBUGLOG(("analyzer:plg_win_proc: WM_VRNENABLED: %p\n", hrgn));
+      DEBUGLOG(("analyzer:plg_win_proc: WM_VRNENABLED: %p - %u\n", hrgn, cfg.update_delay));
       if( hrgn )
       {
         WinQueryVisibleRegion( hwnd, hrgn );
@@ -883,6 +893,7 @@ plg_win_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
     }
 
     case WM_VRNDISABLED:
+      DEBUGLOG(("analyzer:plg_win_proc: WM_VRNDISABLED: %p\n"));
       WinStopTimer( hab, hanalyzer, TID_UPDATE );
       DiveSetupBlitter( hdive, 0 );
       break;
@@ -898,6 +909,7 @@ plg_win_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
       break;
 
     case WM_TIMER:
+      DEBUGLOG(("analyzer:plg_win_proc: WM_TIMER %u\n", SHORT1FROMMP(mp1)));
       update_analyzer();
       if (needclear)
       { clear_analyzer();
@@ -934,7 +946,6 @@ HWND DLLENTRY
 vis_init( PVISPLUGININIT init )
 {
   FILE* dat;
-  HINI  hini;
   int   i;
   int   display_percent;
 
@@ -957,24 +968,14 @@ vis_init( PVISPLUGININIT init )
   cfg.display_lowfreq = 50;
   cfg.highprec_mode   = FALSE;
 
-  if(( hini = open_module_ini()) != NULLHANDLE )
-  {
-    load_ini_value( hini, cfg.update_delay );
-    load_ini_value( hini, cfg.default_mode );
-    load_ini_value( hini, cfg.falloff );
-    load_ini_value( hini, cfg.falloff_speed );
-    load_ini_value( hini, cfg.display_freq );
-    { // hack to keep ini macros happy
-      struct
-      { int display_percent;
-      } cfg = { display_percent };
-      load_ini_value( hini, cfg.display_percent );
-      display_percent = cfg.display_percent;
-    }
-    load_ini_value( hini, cfg.highprec_mode );
+  load_prf_value( cfg.update_delay );
+  load_prf_value( cfg.default_mode );
+  load_prf_value( cfg.falloff );
+  load_prf_value( cfg.falloff_speed );
+  load_prf_value( cfg.display_freq );
+  context->query_profile( "cfg.display_percent", &display_percent, sizeof display_percent);
+  load_prf_value( cfg.highprec_mode );
 
-    close_ini( hini );
-  }
   DEBUGLOG(("vis_init: %d, %d\n", cfg.display_freq, display_percent));
   if (cfg.display_freq <= 0)
   { if (display_percent <= 0)
@@ -1062,20 +1063,13 @@ vis_init( PVISPLUGININIT init )
 int DLLENTRY
 plugin_deinit( int unload )
 {
-  HINI hini;
-
   DEBUGLOG(("plugin_deinit\n"));
-  if(( hini = open_module_ini()) != NULLHANDLE )
-  {
-    save_ini_value( hini, cfg.update_delay );
-    save_ini_value( hini, cfg.default_mode );
-    save_ini_value( hini, cfg.falloff );
-    save_ini_value( hini, cfg.falloff_speed );
-    save_ini_value( hini, cfg.display_freq );
-    save_ini_value( hini, cfg.highprec_mode );
-
-    close_ini( hini );
-  }
+  save_prf_value( cfg.update_delay );
+  save_prf_value( cfg.default_mode );
+  save_prf_value( cfg.falloff );
+  save_prf_value( cfg.falloff_speed );
+  save_prf_value( cfg.display_freq );
+  save_prf_value( cfg.highprec_mode );
 
   destroy_pending = TRUE;
   WinStopTimer( hab, hanalyzer, TID_UPDATE );

@@ -41,6 +41,8 @@
 #include <decoder_plug.h>
 #include <plugin.h>
 #include <utilfct.h>
+#include <fileutil.h>
+#include <charset.h>
 #include <eautils.h>
 #include <snprintf.h>
 #include <debuglog.h>
@@ -849,7 +851,7 @@ decoder_support( char* ext[], int* size )
 
 /* Returns information about plug-in. */
 int DLLENTRY
-plugin_query( PLUGIN_QUERYPARAM* param )
+plugin_query( PLUGIN_QUERYPARAM* param, const PLUGIN_CONTEXT* ctx )
 {
   param->type         = PLUGIN_DECODER;
   param->author       = "Dmitry A.Steklenev";

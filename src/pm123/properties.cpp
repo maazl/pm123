@@ -35,15 +35,11 @@
 #include <stdio.h>
 #include <memory.h>
 
-#include <utilfct.h>
-#include <xio.h>
-#include <snprintf.h>
 #include "properties.h"
 #include "pm123.h"
 #include "dialog.h"
 #include "docking.h"
 #include "pm123.rc.h"
-#include "iniman.h"
 #include "plugman.h"
 #include "plugman_base.h"
 #include "controller.h"
@@ -51,9 +47,27 @@
 #include "123_util.h"
 #include "pipe.h"
 #include "filedlg.h"
+#include <utilfct.h>
+#include <inimacro.h>
+#include <xio.h>
+#include <snprintf.h>
 #include <cpp/url123.h>
 #include <cpp/stringmap.h>
 #include <os2.h>
+
+
+// support xstring
+xstring ini_query_xstring(HINI hini, const char* app, const char* key)
+{ xstring ret; 
+  ULONG len;
+  if (PrfQueryProfileSize(hini, app, key, &len))
+  { char* data = ret.raw_init(len);
+    if (!PrfQueryProfileData(hini, app, key, data, &len))
+      ret = NULL;
+  }
+  return ret;
+}
+
 
 #define  CFG_REFRESH_LIST (WM_USER+1)
 #define  CFG_REFRESH_INFO (WM_USER+2)
@@ -115,11 +129,371 @@ const amp_cfg cfg_default =
 };
 
 amp_cfg cfg = cfg_default;
+static HINI INIhandle;
+const HINI& amp_hini = INIhandle;
 
+struct ext_pos
+{ POINTL pos[2];
+  time_t tstmp; // Time stamp when the information has been saved.
+};
+
+// Purge outdated ini locations in the profile
+static void clean_ini_positions(HINI hini)
+{ ULONG size;
+  if (!PrfQueryProfileSize(hini, "Positions", NULL, &size))
+    return;
+  char* names = new char[size+2];
+  names[size] = names[size+1] = 0; // ensure termination
+  PrfQueryProfileData(hini, "Positions", NULL, names, &size);
+  const time_t limit = time(NULL) - cfg.win_pos_max_age * 86400;
+  for (char* cp = names; *cp; cp += strlen(cp)+1)
+  { if (!memcmp(cp, "POS_", 4))
+      continue;
+    ext_pos pos;
+    pos.tstmp = 0;
+    size = sizeof(pos);
+    if (PrfQueryProfileData(hini, "Positions", cp, &pos, &size) && pos.tstmp < limit)
+    { // Purge this entry
+      PrfWriteProfileData(hini, "Positions", cp, NULL, 0);
+      memcpy(cp, "WIN", 3);
+      PrfWriteProfileData(hini, "Positions", cp, NULL, 0);
+    } 
+  }
+  delete names;
+}
+
+void
+load_ini( void )
+{
+  xstring tmp;
+
+  cfg = cfg_default;
+
+  load_ini_bool ( INIhandle, cfg.playonload );
+  load_ini_bool ( INIhandle, cfg.autouse );
+  load_ini_bool ( INIhandle, cfg.retainonexit );
+  load_ini_bool ( INIhandle, cfg.retainonstop );
+  load_ini_bool ( INIhandle, cfg.restartonstart );
+  load_ini_value( INIhandle, cfg.altnavig );
+  load_ini_bool ( INIhandle, cfg.autoturnaround );
+  load_ini_bool ( INIhandle, cfg.recurse_dnd );
+  load_ini_bool ( INIhandle, cfg.sort_folders );
+  load_ini_bool ( INIhandle, cfg.folders_first );
+  load_ini_bool ( INIhandle, cfg.append_dnd );
+  load_ini_bool ( INIhandle, cfg.append_cmd );
+  load_ini_bool ( INIhandle, cfg.queue_mode );
+  load_ini_value( INIhandle, cfg.num_workers );
+  load_ini_value( INIhandle, cfg.num_dlg_workers );
+  load_ini_value( INIhandle, cfg.mode );
+  load_ini_value( INIhandle, cfg.font );
+  load_ini_bool ( INIhandle, cfg.floatontop );
+  load_ini_value( INIhandle, cfg.scroll );
+  load_ini_value( INIhandle, cfg.viewmode );
+  load_ini_value( INIhandle, cfg.buff_wait );
+  load_ini_value( INIhandle, cfg.buff_size );
+  load_ini_value( INIhandle, cfg.buff_fill );
+  load_ini_value( INIhandle, cfg.conn_timeout );
+  load_ini_string( INIhandle, cfg.pipe_name, sizeof cfg.pipe_name );
+  load_ini_bool ( INIhandle, cfg.add_recursive );
+  load_ini_bool ( INIhandle, cfg.save_relative );
+  load_ini_bool ( INIhandle, cfg.show_playlist );
+  load_ini_bool ( INIhandle, cfg.show_bmarks );
+  load_ini_bool ( INIhandle, cfg.show_plman );
+  load_ini_value( INIhandle, cfg.dock_margin );
+  load_ini_bool ( INIhandle, cfg.dock_windows );
+  load_ini_bool ( INIhandle, cfg.win_pos_by_obj );
+  load_ini_value( INIhandle, cfg.win_pos_max_age );
+  load_ini_value( INIhandle, cfg.insp_autorefresh );
+  load_ini_bool ( INIhandle, cfg.insp_autorefresh_on );
+  load_ini_bool ( INIhandle, cfg.font_skinned );
+  load_ini_value( INIhandle, cfg.font_attrs );
+  load_ini_value( INIhandle, cfg.font_size );
+  load_ini_value( INIhandle, cfg.main );
+
+  load_ini_string( INIhandle, cfg.filedir,  sizeof( cfg.filedir ));
+  load_ini_string( INIhandle, cfg.listdir,  sizeof( cfg.listdir ));
+  load_ini_string( INIhandle, cfg.savedir,  sizeof( cfg.savedir ));
+  load_ini_string( INIhandle, cfg.proxy,    sizeof( cfg.proxy ));
+  load_ini_string( INIhandle, cfg.auth,     sizeof( cfg.auth ));
+  load_ini_string( INIhandle, cfg.defskin,  sizeof( cfg.defskin ));
+
+  tmp = ini_query_xstring(INIhandle, INI_SECTION, "decoders_list");
+  if (!tmp || Decoders.Deserialize(tmp) == PluginList::RC_Error)
+    Decoders.LoadDefaults();
+
+  tmp = ini_query_xstring(INIhandle, INI_SECTION, "outputs_list");
+  if (!tmp || Outputs.Deserialize(tmp) == PluginList::RC_Error)
+    Outputs.LoadDefaults();
+
+  tmp = ini_query_xstring(INIhandle, INI_SECTION, "filters_list");
+  if (!tmp || Filters.Deserialize(tmp) == PluginList::RC_Error)
+    Filters.LoadDefaults();
+
+  tmp = ini_query_xstring(INIhandle, INI_SECTION, "visuals_list");
+  if (!tmp || Visuals.Deserialize(tmp) == PluginList::RC_Error)
+    Visuals.LoadDefaults();
+}
+
+void
+save_ini( void )
+{
+  save_ini_bool ( INIhandle, cfg.playonload );
+  save_ini_bool ( INIhandle, cfg.autouse );
+  save_ini_bool ( INIhandle, cfg.retainonexit );
+  save_ini_bool ( INIhandle, cfg.retainonstop );
+  save_ini_bool ( INIhandle, cfg.restartonstart );
+  save_ini_value( INIhandle, cfg.altnavig );
+  save_ini_bool ( INIhandle, cfg.autoturnaround );
+  save_ini_bool ( INIhandle, cfg.recurse_dnd );
+  save_ini_bool ( INIhandle, cfg.sort_folders );
+  save_ini_bool ( INIhandle, cfg.folders_first );
+  save_ini_bool ( INIhandle, cfg.append_dnd );
+  save_ini_bool ( INIhandle, cfg.append_cmd );
+  save_ini_bool ( INIhandle, cfg.queue_mode );
+  save_ini_value( INIhandle, cfg.num_workers );
+  save_ini_value( INIhandle, cfg.num_dlg_workers );
+  save_ini_value( INIhandle, cfg.mode );
+  save_ini_value( INIhandle, cfg.font );
+  save_ini_bool ( INIhandle, cfg.floatontop );
+  save_ini_value( INIhandle, cfg.scroll );
+  save_ini_value( INIhandle, cfg.viewmode );
+  save_ini_value( INIhandle, cfg.buff_wait );
+  save_ini_value( INIhandle, cfg.buff_size );
+  save_ini_value( INIhandle, cfg.buff_fill );
+  save_ini_value( INIhandle, cfg.conn_timeout );
+  save_ini_string( INIhandle, cfg.pipe_name );
+  save_ini_bool ( INIhandle, cfg.add_recursive );
+  save_ini_bool ( INIhandle, cfg.save_relative );
+  save_ini_bool ( INIhandle, cfg.show_playlist );
+  save_ini_bool ( INIhandle, cfg.show_bmarks );
+  save_ini_bool ( INIhandle, cfg.show_plman );
+  save_ini_bool ( INIhandle, cfg.dock_windows );
+  save_ini_value( INIhandle, cfg.dock_margin );
+  save_ini_bool ( INIhandle, cfg.win_pos_by_obj );
+  save_ini_value( INIhandle, cfg.win_pos_max_age );
+  save_ini_value( INIhandle, cfg.insp_autorefresh );
+  save_ini_bool ( INIhandle, cfg.insp_autorefresh_on );
+  save_ini_bool ( INIhandle, cfg.font_skinned );
+  save_ini_value( INIhandle, cfg.font_attrs );
+  save_ini_value( INIhandle, cfg.font_size );
+  save_ini_value( INIhandle, cfg.main );
+
+  save_ini_string( INIhandle, cfg.filedir );
+  save_ini_string( INIhandle, cfg.listdir );
+  save_ini_string( INIhandle, cfg.savedir );
+  save_ini_string( INIhandle, cfg.proxy );
+  save_ini_string( INIhandle, cfg.auth );
+  save_ini_string( INIhandle, cfg.defskin );
+
+  ini_write_xstring(INIhandle, INI_SECTION, "decoders_list", Decoders.Serialize());
+  ini_write_xstring(INIhandle, INI_SECTION, "outputs_list",  Outputs.Serialize());
+  ini_write_xstring(INIhandle, INI_SECTION, "filters_list",  Filters.Serialize());
+  ini_write_xstring(INIhandle, INI_SECTION, "visuals_list",  Visuals.Serialize());
+
+  clean_ini_positions(INIhandle);
+}
+
+/* Copies the specified data from one profile to another. */
+static BOOL
+copy_ini_data( HINI ini_from, char* app_from, char* key_from,
+               HINI ini_to,   char* app_to,   char* key_to )
+{
+  ULONG size;
+  PVOID data;
+  BOOL  rc = FALSE;
+
+  if( PrfQueryProfileSize( ini_from, app_from, key_from, &size )) {
+    data = malloc( size );
+    if( data ) {
+      if( PrfQueryProfileData( ini_from, app_from, key_from, data, &size )) {
+        if( PrfWriteProfileData( ini_to, app_to, key_to, data, size )) {
+          rc = TRUE;
+        }
+      }
+      free( data );
+    }
+  }
+
+  return rc;
+}
+
+/* Saves the current size and position of the window specified by hwnd.
+   This function will also save the presentation parameters. */
+BOOL
+save_window_pos( HWND hwnd, const char* extkey )
+{
+  char   key1st[32];
+  char   key2[16];
+  char   key3[300];
+  PPIB   ppib;
+  PTIB   ptib;
+  SHORT  id   = WinQueryWindowUShort( hwnd, QWS_ID );
+  BOOL   rc   = FALSE;
+  SWP    swp;
+  ext_pos pos;
+
+  DEBUGLOG(("save_window_pos(%p{%u}, %s)\n", hwnd, id, extkey ? extkey : "<null>" ));
+
+  DosGetInfoBlocks( &ptib, &ppib );
+
+  sprintf( key1st, "WIN_%08lX_%08lX", ppib->pib_ulpid, ptib->tib_ptib2->tib2_ultid );
+  sprintf( key2, "WIN_%08X", id );
+  if (extkey && cfg.win_pos_by_obj)
+  { strcpy( key3, key2 );
+    key3[12] = '_';
+    strlcpy( key3+13, extkey, sizeof key3 -13 );
+  } else
+    *key3 = 0;
+
+  if( !WinStoreWindowPos( "PM123", key1st, hwnd ))
+    return false;
+  
+  rc = copy_ini_data( HINI_PROFILE, "PM123", key1st, INIhandle, "Positions", key2 );
+  if (*key3) 
+    rc &= copy_ini_data( HINI_PROFILE, "PM123", key1st, INIhandle, "Positions", key3 );
+  PrfWriteProfileData( HINI_PROFILE, "PM123", key1st, NULL, 0 );
+
+  if( rc && WinQueryWindowPos( hwnd, &swp )) {
+    pos.pos[0].x = swp.x;
+    pos.pos[0].y = swp.y;
+    pos.pos[1].x = swp.x + swp.cx;
+    pos.pos[1].y = swp.y + swp.cy;
+    WinMapDlgPoints( hwnd, pos.pos, 2, FALSE );
+    time(&pos.tstmp);
+    memcpy(key2, "POS", 3);
+    rc = PrfWriteProfileData( INIhandle, "Positions", key2, &pos, sizeof( pos ));
+    if (*key3) 
+    { memcpy(key3, "POS", 3);
+      rc &= PrfWriteProfileData( INIhandle, "Positions", key3, &pos, sizeof( pos ));
+    }
+  }
+  return rc;
+}
+
+/* Restores the size and position of the window specified by hwnd to
+   the state it was in when save_window_pos was last called.
+   This function will also restore presentation parameters. */
+BOOL
+rest_window_pos( HWND hwnd, const char* extkey )
+{
+  char   key1st[32];
+  char   key2[16];
+  char   key3[300];
+  PPIB   ppib;
+  PTIB   ptib;
+  SHORT  id   = WinQueryWindowUShort( hwnd, QWS_ID );
+  BOOL   rc   = FALSE;
+  POINTL pos[2];
+  SWP    swp;
+  SWP    desktop;
+  ULONG  len  = sizeof(pos);
+
+  DEBUGLOG(("rest_window_pos(%p{%u}, %s)\n", hwnd, id, extkey ? extkey : "<null>" ));
+
+  DosGetInfoBlocks( &ptib, &ppib );
+
+  if (!WinQueryWindowPos( hwnd, &swp ))
+    return FALSE;
+
+  sprintf( key1st, "WIN_%08lX_%08lX", ppib->pib_ulpid, ptib->tib_ptib2->tib2_ultid );
+  sprintf( key2, "WIN_%08X", id );
+  if (extkey && cfg.win_pos_by_obj)
+  { strcpy( key3, key2 );
+    key3[12] = '_';
+    strlcpy( key3+13, extkey, sizeof key3 -13 );
+  } else
+    *key3 = 0;
+
+  if( (*key3 && copy_ini_data( INIhandle, "Positions", key3, HINI_PROFILE, "PM123", key1st ))
+    || copy_ini_data( INIhandle, "Positions", key2, HINI_PROFILE, "PM123", key1st ) ) {
+    rc = WinRestoreWindowPos( "PM123", key1st, hwnd );
+    PrfWriteProfileData( HINI_PROFILE, "PM123", key1st, NULL, 0 );
+  }
+  if (!rc)
+    return FALSE;
+
+  // rc = TRUE
+  if (*key3)
+  { memcpy(key3, "POS", 3);
+    if (!PrfQueryProfileData( INIhandle, "Positions", key3, &pos, &len ) || len < sizeof pos)
+      *key3 = 0; // not found
+  }
+  if (!*key3)
+  { memcpy(key2, "POS", 3);
+    rc = PrfQueryProfileData( INIhandle, "Positions", key2, &pos, &len ) && len >= sizeof pos;
+  }
+  if (rc)
+  { WinMapDlgPoints( hwnd, pos, 2, TRUE );
+    if (!extkey || *key3)
+    { swp.x = pos[0].x;
+      swp.y = pos[0].y;
+    }
+    swp.cx = pos[1].x - pos[0].x;
+    swp.cy = pos[1].y - pos[0].y;
+  } else {
+    rc = FALSE;
+  }
+
+  if( WinQueryWindowPos( HWND_DESKTOP, &desktop ))
+  { // clip right
+    if( swp.x > desktop.cx - 8 )
+      swp.x = desktop.cx - 8;
+    // clip left
+    else if( swp.x + swp.cx < 8 )
+      swp.x = 8 - swp.cx;
+    // clip top
+    if( swp.y + swp.cy > desktop.cy )
+      swp.y = desktop.cy - swp.cy;
+    // clip bottom
+    else if( swp.y + swp.cy < 8 )
+      swp.y = 8 - swp.cy;
+  }
+
+  WinSetWindowPos( hwnd, 0, swp.x, swp.y, swp.cx, swp.cy, SWP_MOVE|SWP_SIZE );
+  return rc;
+}
+
+
+// migrate plug-in configuration
+static void migrate_ini(const char* inipath, const char* app)
+{
+  ULONG len;
+  char module[16];
+  snprintf(module, sizeof module, "%s.dll", app);
+  if (PrfQueryProfileSize(INIhandle, module, NULL, &len) && len)
+    return; // Data already there
+
+  xstring inifile = xstring::sprintf("%s\\%s.ini", inipath, app);
+  HINI hini = PrfOpenProfile(amp_player_hab(), inifile);
+  if (hini == NULLHANDLE)
+    return;
+    
+  if (PrfQueryProfileSize(hini, "Settings", NULL, &len))
+  { char* names = (char*)alloca(len);
+    if (PrfQueryProfileData(hini, "Settings", NULL, names, &len))
+    { while (*names)
+      { char buf[1024];
+        len = sizeof buf;
+        if (PrfQueryProfileData(hini, "Settings", names, buf, &len))
+          PrfWriteProfileData(INIhandle, module, names, buf, len);
+        names += strlen(names)+1;
+      }
+    }
+  } 
+    
+  close_ini(hini);
+}
 
 /* Initialize properties, called from main. */
-void cfg_init( void )
-{ // set proxy and buffer settings statically in the xio library, not that nice, but working.
+void cfg_init()
+{ 
+  // Open profile
+  xstring inipath = startpath + "\\PM123.INI"; // TODO: command line option
+  INIhandle = PrfOpenProfile(amp_player_hab(), inipath);
+  PMASSERT(INIhandle);
+  
+  load_ini();
+  // set proxy and buffer settings statically in the xio library, not that nice, but working.
   char buffer[1024];
   char* cp = strchr(cfg.proxy, ':');
   if (cp == NULL)
@@ -143,8 +517,16 @@ void cfg_init( void )
   xio_set_buffer_wait( cfg.buff_wait );
   xio_set_buffer_fill( cfg.buff_fill );
   xio_set_connect_timeout( cfg.conn_timeout );
+  
+  migrate_ini(startpath, "analyzer");
+  migrate_ini(startpath, "mpg123");
+  migrate_ini(startpath, "os2audio");
+  migrate_ini(startpath, "realeq");
 }
 
+void cfg_uninit()
+{ PMRASSERT(PrfCloseProfile(INIhandle));
+}
 
 /* Processes messages of the setings page of the setup notebook. */
 static MRESULT EXPENTRY

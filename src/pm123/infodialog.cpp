@@ -36,7 +36,7 @@
 #include "pm123.rc.h"
 #include "dialog.h"
 #include "glue.h"
-#include "iniman.h"
+#include "properties.h"
 #include <decoder_plug.h>
 #include <plugin.h>
 #include <utilfct.h>

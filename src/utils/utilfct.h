@@ -33,18 +33,13 @@
 #define PM123_UTILS_H
 
 #include <config.h>
+#define INCL_PM
 #include <rel2abs.h>
 #include <abs2rel.h>
-#include <bufstream.h>
-#include <charset.h>
-#include <wildcards.h>
-#include <filefind.h>
-#include <fileutil.h>
 #include <errorstr.h>
-#include <inimacro.h>
-#include <queue.h>
 #include <minmax.h>
 #include <strutils.h>
+#include <os2.h>
 
 #ifndef BKS_TABBEDDIALOG
   /* Tabbed dialog. */

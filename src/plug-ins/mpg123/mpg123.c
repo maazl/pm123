@@ -33,7 +33,7 @@
 #include "mpg123.h"
 #include "dialog.h"
 
-#include <utilfct.h>
+#include <charset.h>
 #include <decoder_plug.h>
 #include <debuglog.h>
 #include <snprintf.h>
@@ -49,6 +49,14 @@
 #include <errno.h>
 #include <ctype.h>
 
+
+static const PLUGIN_CONTEXT* context;
+
+#define load_prf_value(var) \
+  context->query_profile(#var, &var, sizeof var)
+
+#define save_prf_value(var) \
+  context->write_profile(#var, &var, sizeof var)
 
 static DECODER_STRUCT** instances = NULL;
 static int  instances_count = 0;
@@ -1135,26 +1143,18 @@ decoder_support( char* ext[], int* size )
 void
 save_ini( void )
 {
-  HINI hini;
-
-  if(( hini = open_module_ini()) != NULLHANDLE )
-  {
-    save_ini_value( hini, tag_read_type           );
-    save_ini_value( hini, tag_id3v1_charset       );
-    save_ini_value( hini, tag_read_id3v1_autoch   );
-    save_ini_value( hini, tag_save_id3v1_type     );
-    save_ini_value( hini, tag_save_id3v2_type     );
-    save_ini_value( hini, tag_read_id3v2_charset  );
-    save_ini_value( hini, tag_save_id3v2_encoding );
-    close_ini( hini );
-  }
+  save_prf_value( tag_read_type           );
+  save_prf_value( tag_id3v1_charset       );
+  save_prf_value( tag_read_id3v1_autoch   );
+  save_prf_value( tag_save_id3v1_type     );
+  save_prf_value( tag_save_id3v2_type     );
+  save_prf_value( tag_read_id3v2_charset  );
+  save_prf_value( tag_save_id3v2_encoding );
 }
 
 static void
 load_ini( void )
 {
-  HINI hini;
-
   tag_read_type          = TAG_READ_ID3V2_AND_ID3V1;
   tag_id3v1_charset      = 1004;  // ISO8859-1
   tag_read_id3v1_autoch  = TRUE;
@@ -1163,23 +1163,21 @@ load_ini( void )
   tag_read_id3v2_charset = 1004;  // ISO8859-1
   tag_save_id3v2_encoding= ID3V2_ENCODING_UTF8;
 
-  if(( hini = open_module_ini()) != NULLHANDLE )
-  {
-    load_ini_value( hini, tag_read_type           );
-    load_ini_value( hini, tag_id3v1_charset       );
-    load_ini_value( hini, tag_read_id3v1_autoch   );
-    load_ini_value( hini, tag_save_id3v1_type     );
-    load_ini_value( hini, tag_save_id3v2_type     );
-    load_ini_value( hini, tag_read_id3v2_charset  );
-    load_ini_value( hini, tag_save_id3v2_encoding );
-    close_ini( hini );
-  }
+  load_prf_value( tag_read_type           );
+  load_prf_value( tag_id3v1_charset       );
+  load_prf_value( tag_read_id3v1_autoch   );
+  load_prf_value( tag_save_id3v1_type     );
+  load_prf_value( tag_save_id3v2_type     );
+  load_prf_value( tag_read_id3v2_charset  );
+  load_prf_value( tag_save_id3v2_encoding );
 }
 
 /* Returns information about plug-in. */
 int DLLENTRY
-plugin_query( PLUGIN_QUERYPARAM* param )
+plugin_query( PLUGIN_QUERYPARAM* param, const PLUGIN_CONTEXT* ctx )
 {
+  context = ctx;
+
   param->type         = PLUGIN_DECODER;
   param->author       = "Samuel Audet, Dmitry A.Steklenev";
   param->desc         = "MP3 Decoder 1.25";

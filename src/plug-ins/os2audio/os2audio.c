@@ -67,6 +67,16 @@
 #define RG_PREFER_TRACK                   2
 #define RG_PREFER_TRACK_AND_NOT_CLIPPING  3
 
+
+static  const PLUGIN_CONTEXT* context;
+
+#define load_prf_value(var) \
+  context->query_profile(#var, &var, sizeof var)
+
+#define save_prf_value(var) \
+  context->write_profile(#var, &var, sizeof var)
+
+
 static int   device       = 0;
 static int   numbuffers   = 64;
 static int   lockdevice   = 0;
@@ -944,28 +954,19 @@ output_command( void* A, ULONG msg, OUTPUT_PARAMS* params )
 static void
 save_ini( void )
 {
-  HINI hini;
-
-  if(( hini = open_module_ini()) != NULLHANDLE )
-  {
-    save_ini_value( hini, device );
-    save_ini_value( hini, lockdevice );
-    save_ini_value( hini, numbuffers );
-    save_ini_value( hini, kludge48as44 );
-    save_ini_value( hini, enable_rg );
-    save_ini_value( hini, rg_type );
-    save_ini_value( hini, preamp_rg );
-    save_ini_value( hini, preamp );
-
-    close_ini( hini );
-  }
+  save_prf_value( device );
+  save_prf_value( lockdevice );
+  save_prf_value( numbuffers );
+  save_prf_value( kludge48as44 );
+  save_prf_value( enable_rg );
+  save_prf_value( rg_type );
+  save_prf_value( preamp_rg );
+  save_prf_value( preamp );
 }
 
 static void
 load_ini( void )
 {
-  HINI hini;
-
   device       = 0;
   lockdevice   = 0;
   numbuffers   = 64;
@@ -975,19 +976,14 @@ load_ini( void )
   preamp_rg    = 3;
   preamp       = 0;
 
-  if(( hini = open_module_ini()) != NULLHANDLE )
-  {
-    load_ini_value( hini, device );
-    load_ini_value( hini, lockdevice );
-    load_ini_value( hini, numbuffers );
-    load_ini_value( hini, kludge48as44 );
-    load_ini_value( hini, enable_rg );
-    load_ini_value( hini, rg_type );
-    load_ini_value( hini, preamp_rg );
-    load_ini_value( hini, preamp );
-
-    close_ini( hini );
-  }
+  load_prf_value( device );
+  load_prf_value( lockdevice );
+  load_prf_value( numbuffers );
+  load_prf_value( kludge48as44 );
+  load_prf_value( enable_rg );
+  load_prf_value( rg_type );
+  load_prf_value( preamp_rg );
+  load_prf_value( preamp );
 }
 
 /* Processes messages of the configuration dialog. */
@@ -1117,8 +1113,10 @@ plugin_configure( HWND howner, HMODULE module )
 }
 
 int DLLENTRY
-plugin_query( PLUGIN_QUERYPARAM* param )
+plugin_query( PLUGIN_QUERYPARAM* param, const PLUGIN_CONTEXT* ctx )
 {
+  context = ctx;
+
   param->type         = PLUGIN_OUTPUT;
   param->author       = "Samuel Audet, Dmitry A.Steklenev";
   param->desc         = "DART Output 1.32";

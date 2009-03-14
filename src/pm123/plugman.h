@@ -40,6 +40,7 @@
 #define OUTPUT_PLUGIN_LEVEL  2
 
 #include "playable.h"
+#include "pipe.h"
 #include <plugin.h>
 #include <format.h>
 #include <output_plug.h>
@@ -47,6 +48,7 @@
 #include <decoder_plug.h>
 #include <visual_plug.h>
 #include <utilfct.h>
+#include <vdelegate.h>
 #include <cpp/event.h>
 #include <cpp/xstring.h>
 
@@ -73,8 +75,12 @@ class Module
   HMODULE           HModule;
   PLUGIN_QUERYPARAM QueryParam;
  private:
+  PLUGIN_CONTEXT    Context;     // Static storage for plugin_query.
   // Entry point of the configure dialog (if any).
   void DLLENTRYP(plugin_configure)(HWND hwnd, HMODULE module);
+  sco_ptr<CommandProcessor> CommandInstance;
+  xstring           CommandReply;
+  VDELEGATE         vd_exec_command, vd_query_profile, vd_write_profile;
  private:
   Module(const Module&);         // avoid copy construction
   void operator=(const Module&); // ... and assignment
@@ -82,6 +88,10 @@ class Module
   bool LoadModule();
   // Unload the DLL
   bool UnloadModule();
+  // Proxy functions for PLUGIN_CONTEXT
+  PROXYFUNCDEF const char* DLLENTRY proxy_exec_command ( Module* mp, const char* cmd );
+  PROXYFUNCDEF int         DLLENTRY proxy_query_profile( Module* mp, const char* key, void* data, int maxlength );
+  PROXYFUNCDEF int         DLLENTRY proxy_write_profile( Module* mp, const char* key, const void* data, int length );
  public:
   // Create a Module object from the modules file name.
   Module(const xstring& name);

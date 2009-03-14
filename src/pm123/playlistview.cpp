@@ -47,7 +47,6 @@
 #include <utilfct.h>
 #include "playlistview.h"
 #include "docking.h"
-#include "iniman.h"
 #include "playable.h"
 #include <cpp/showaccel.h>
 

@@ -36,6 +36,7 @@
 #include "utilfct.h"
 #include <os2.h>
 #include <ctype.h>
+#include <string.h>
 
 #include "debuglog.h"
 

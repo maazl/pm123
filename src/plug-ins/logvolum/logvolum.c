@@ -241,7 +241,7 @@ plugin_configure( HWND howner, HMODULE module )
 
 
 int DLLENTRY
-plugin_query( PLUGIN_QUERYPARAM *param )
+plugin_query( PLUGIN_QUERYPARAM *param, const PLUGIN_CONTEXT* ctx )
 {
   param->type         = PLUGIN_FILTER;
   param->author       = "Marcel MÅller";

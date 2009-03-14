@@ -34,7 +34,9 @@
 #include "dialog.h"
 #include "mpg123.h"
 
+#include <charset.h>
 #include <utilfct.h>
+#include <fileutil.h>
 #include <decoder_plug.h>
 #include <debuglog.h>
 #include <snprintf.h>

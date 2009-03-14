@@ -32,10 +32,11 @@
 
 #include "filedlg.h"
 #include "pm123.rc.h"
-#include "iniman.h" // for WIN_MAP_POINTS
 #include "properties.h"
 #include "dialog.h"
 #include <utilfct.h>
+#include <fileutil.h>
+#include <wildcards.h>
 
 #include <os2.h>
 

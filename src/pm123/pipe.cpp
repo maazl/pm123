@@ -39,7 +39,7 @@
 #include "controller.h"
 #include "123_util.h"
 #include "plugman.h"
-#include <utilfct.h>
+#include <fileutil.h>
 #include <cpp/xstring.h>
 #include <cpp/stringmap.h>
 #include <debuglog.h>

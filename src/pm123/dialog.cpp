@@ -39,17 +39,17 @@
 #include <sys/stat.h>
 #include <math.h>
 
-#include <utilfct.h>
-#include <cpp/xstring.h>
-#include <cpp/stringmap.h>
 #include "properties.h"
 #include "controller.h"
 #include "copyright.h"
 #include "skin.h"
-#include "iniman.h"
 #include "pm123.h"
 #include "123_util.h"
 #include "filedlg.h"
+#include <utilfct.h>
+#include <fileutil.h>
+#include <cpp/xstring.h>
+#include <cpp/stringmap.h>
 #include <os2.h>
 #include "pm123.rc.h"
 

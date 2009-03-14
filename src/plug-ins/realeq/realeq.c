@@ -97,6 +97,14 @@ static const float Frequencies[NUM_BANDS] =
   19952.62315
 };
 
+static const PLUGIN_CONTEXT* context;
+
+#define load_prf_value(var) \
+  context->query_profile(#var, &var, sizeof var)
+
+#define save_prf_value(var) \
+  context->write_profile(#var, &var, sizeof var)
+
 static BOOL eqneedinit;
 static BOOL eqneedFIR;
 static BOOL eqneedEQ;
@@ -190,30 +198,24 @@ typedef struct {
 static void
 save_ini( void )
 {
-  HINI INIhandle;
   DEBUGLOG(("realeq:save_ini\n"));
 
-  if(( INIhandle = open_module_ini()) != NULLHANDLE )
-  {
-    save_ini_value ( INIhandle, newFIRorder );
-    save_ini_value ( INIhandle, newPlansize );
-    save_ini_value ( INIhandle, eqenabled );
-    save_ini_value ( INIhandle, locklr );
-    save_ini_value ( INIhandle, eqstate );
-    save_ini_string( INIhandle, lasteq );
-    save_ini_value ( INIhandle, bandgain );
-    save_ini_value ( INIhandle, groupdelay );
-    save_ini_value ( INIhandle, mute );
+  save_prf_value ( newFIRorder );
+  save_prf_value ( newPlansize );
+  save_prf_value ( eqenabled );
+  save_prf_value ( locklr );
+  save_prf_value ( eqstate );
+  context->write_profile( "lasteq", lasteq, strlen(lasteq) );
+  save_prf_value ( bandgain );
+  save_prf_value ( groupdelay );
+  save_prf_value ( mute );
 
-    close_ini( INIhandle );
-  }
-  DEBUGLOG(("realeq:save_ini - completed - %p\n", INIhandle));
+  DEBUGLOG(("realeq:save_ini - completed\n"));
 }
 
 static void
 load_ini( void )
 {
-  HINI INIhandle;
   DEBUGLOG(("realeq:load_ini\n"));
 
   memset(bandgain,   0, sizeof bandgain  );
@@ -221,36 +223,32 @@ load_ini( void )
   memset(mute,       0, sizeof mute      );
 
   eqenabled   = FALSE;
-  lasteq[0]   = 0;
+  memset(lasteq, 0, sizeof lasteq);
   newPlansize = 8192;
   newFIRorder = 4096;
   locklr      = FALSE;
   eqstate     = EQ_private;
 
-  if(( INIhandle = open_module_ini()) != NULLHANDLE )
-  {
-    load_ini_value ( INIhandle, newFIRorder );
-    load_ini_value ( INIhandle, newPlansize );
-    load_ini_value ( INIhandle, eqenabled );
-    load_ini_value ( INIhandle, locklr );
-    load_ini_value ( INIhandle, eqstate );
-    load_ini_string( INIhandle, lasteq, sizeof( lasteq ));
-    load_ini_value ( INIhandle, bandgain );
-    load_ini_value ( INIhandle, groupdelay );
-    load_ini_value ( INIhandle, mute );
+  load_prf_value( newFIRorder );
+  load_prf_value( newPlansize );
+  load_prf_value( eqenabled );
+  load_prf_value( locklr );
+  load_prf_value( eqstate );
+  load_prf_value( lasteq );
+  load_prf_value( bandgain );
+  load_prf_value( groupdelay );
+  load_prf_value( mute );
 
-    close_ini( INIhandle );
+  // avoid crash when INI-Content is bad
+  if (newPlansize < 16)
+    newPlansize = 16;
+   else if (newPlansize > MAX_COEF)
+    newPlansize = MAX_COEF;
+  if (newPlansize <= newFIRorder)
+    newFIRorder = newPlansize >> 1;
+  if (newFIRorder > MAX_FIR)
+    newFIRorder = MAX_FIR;
 
-    // avoid crash when INI-Content is bad
-    if (newPlansize < 16)
-      newPlansize = 16;
-     else if (newPlansize > MAX_COEF)
-      newPlansize = MAX_COEF;
-    if (newPlansize <= newFIRorder)
-      newFIRorder = newPlansize >> 1;
-    if (newFIRorder > MAX_FIR)
-      newFIRorder = MAX_FIR;
-  }
   eqneedinit  = TRUE;
   DEBUGLOG(("realeq:load_ini - completed\n"));
 }
@@ -1125,8 +1123,9 @@ load_eq( HWND hwnd )
 }
 
 int DLLENTRY
-plugin_query( PLUGIN_QUERYPARAM *param )
-{ param->type         = PLUGIN_FILTER;
+plugin_query( PLUGIN_QUERYPARAM *param, const PLUGIN_CONTEXT* ctx )
+{ context = ctx;
+  param->type         = PLUGIN_FILTER;
   param->author       = "Samuel Audet, Marcel Mller";
   param->desc         = PLUGIN;
   param->configurable = TRUE;

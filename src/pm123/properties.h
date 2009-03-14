@@ -34,11 +34,27 @@
 
 #define INCL_WIN
 #include <config.h>
+#include <cpp/xstring.h>
+#include <cpp/cpputil.h>
 #include <stdlib.h>
 #include <os2.h>
 
 // Number of items in the recall lists.
 #define MAX_RECALL            9
+
+// read xstring
+xstring ini_query_xstring(HINI hini, const char* app, const char* key);
+// write xstring
+inline BOOL ini_write_xstring(HINI hini, const char* app, const char* key, const xstring& str)
+{ return PrfWriteProfileData(hini, app, key, (PVOID)str.cdata(), str ? str.length() : 0);
+}
+
+#define load_ini_xstring(hini, var) \
+  var = ini_query_xstring((hini), INI_SECTION, #var)
+
+#define save_ini_xstring(hini, var) \
+  ini_write_xstring((hini), INI_SECTION, #var, var)
+
 
 /* Possible sizes of the player window. */
 enum cfg_mode
@@ -131,18 +147,23 @@ typedef struct _amp_cfg {
 extern amp_cfg cfg;
 extern const amp_cfg cfg_default;
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+extern const HINI& amp_hini;
+
+void load_ini();
+void save_ini();
+
+/* Saves the current size and position of the window. */
+BOOL save_window_pos( HWND, const char* extkey = NULL );
+/* Restores the current size and position of the window. */
+BOOL rest_window_pos( HWND, const char* extkey = NULL );
 
 /* Initialize properties, called from main. */
-void cfg_init( void );
+void cfg_init();
+/* Deinitialize properties, called from main. */
+void cfg_uninit();
 
 /* Creates the properties dialog. */
 void cfg_properties( HWND owner );
 
-#ifdef __cplusplus
-}
-#endif
 #endif /* PM123_PROPERTIES_H */
 

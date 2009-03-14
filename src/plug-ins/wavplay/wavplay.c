@@ -520,7 +520,7 @@ decoder_support( char* ext[], int* size )
 
 /* Returns information about plug-in. */
 int DLLENTRY
-plugin_query( PLUGIN_QUERYPARAM* param )
+plugin_query( PLUGIN_QUERYPARAM* param, const PLUGIN_CONTEXT* ctx )
 {
   param->type         = PLUGIN_DECODER;
   param->author       = "Dmitry A.Steklenev";

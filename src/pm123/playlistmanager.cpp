@@ -47,7 +47,6 @@
 #include <utilfct.h>
 #include "playlistmanager.h"
 #include "docking.h"
-#include "iniman.h"
 #include "playable.h"
 
 #include <cpp/smartptr.h>

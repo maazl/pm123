@@ -39,7 +39,7 @@
 #include <stdio.h>
 #include <ctype.h>
 
-#include <utilfct.h>
+#include <inimacro.h>
 #include <snprintf.h>
 #include "readcd.h"
 #include "cdda.h"

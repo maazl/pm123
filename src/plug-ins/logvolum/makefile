@@ -24,3 +24,4 @@ logvolum.dll: $(OBJECTS) $(LIBS) $(DEF) $(RESOURCE)
 
 clean: $(MDUMMY)
 	-@del logvolum.dll $(OBJECTS) $(RESOURCE) 2> nul
+logvolum.c:	..\..\include\filter_plug.h ..\..\include\output_plug.h ..\..\include\plugin.h logvolum.h ..\..\utils\utilfct.h ..\..\utils\debuglog.h

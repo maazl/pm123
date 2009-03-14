@@ -35,6 +35,20 @@
 //#define  INCL_DEV
 #define  INCL_BITMAPFILEFORMAT
 
+#include "properties.h"
+#include "skin.h"
+#include "pm123.h"
+#include "dialog.h"
+#include "pm123.rc.h"
+#include "button95.h"
+#include "plugman.h"
+#include <gbm.h>
+#include <gbmerr.h>
+#include <gbmht.h>
+#include <strutils.h>
+#include <fileutil.h>
+#include <os2.h>
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -45,19 +59,6 @@
 #include <ctype.h>
 #include <sys/types.h>
 #include <sys/stat.h>
-
-#include <gbm.h>
-#include <gbmerr.h>
-#include <gbmht.h>
-#include "properties.h"
-#include "skin.h"
-#include "pm123.h"
-#include "dialog.h"
-#include "pm123.rc.h"
-#include "button95.h"
-#include "plugman.h"
-#include <strutils.h>
-#include <os2.h>
 
 #include <debuglog.h>
 

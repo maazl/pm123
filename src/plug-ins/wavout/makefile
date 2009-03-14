@@ -24,4 +24,4 @@ wavout.dll: $(OBJECTS) $(DEF) $(RESOURCE) $(LIBS)
 clean:  $(MDUMMY)
 	-@del wavout$(LBI) wavout.dll $(OBJECTS) $(RESOURCE) 2> nul
 
-wavout.c:	wavout.h
+wavout.c:	..\..\utils\utilfct.h ..\..\include\format.h ..\..\include\output_plug.h ..\..\include\decoder_plug.h ..\..\include\plugin.h ..\..\utils\debuglog.h

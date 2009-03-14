@@ -42,22 +42,6 @@
 #include <cpp/smartptr.h>
 
 
-/* Define the macro NOSYSTEMSTATICMEMBER to work around for the IBMVAC++ restriction
- * that static class functions may not have a defined calling convention.
- * However, this workaround relies on friend functions with static linkage. This is
- * invalid acording to the C++ standard, but IBMVAC++ does not care about that fact.
- */
-#ifdef NOSYSTEMSTATICMEMBER
-#define PROXYFUNCDEF friend static
-#define PROXYFUNCIMP(ret, cls) static ret
-#define PROXYFUNCREF(cls)
-#else
-#define PROXYFUNCDEF static
-#define PROXYFUNCIMP(ret, cls) ret cls::
-#define PROXYFUNCREF(cls) cls::
-#endif
-
-
 /****************************************************************************
 *
 * Class tree:
