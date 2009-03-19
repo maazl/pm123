@@ -12,5 +12,6 @@ EXPORTS
    output_playing_data      @7
 
    plugin_query     @10
-   plugin_configure @11
+   plugin_init      @11
+   plugin_configure @12
 

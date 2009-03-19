@@ -81,6 +81,7 @@ static int   device       = 0;
 static int   numbuffers   = 64;
 static int   lockdevice   = 0;
 static int   kludge48as44 = 0;
+static int   noprecpos    = 0;
 static int   enable_rg    = 0;
 static int   rg_type      = RG_PREFER_ALBUM;
 static float preamp_rg    = 3;
@@ -328,6 +329,7 @@ output_open( OS2AUDIO* a )
   a->lockdevice      = lockdevice;
   a->numbuffers      = numbuffers;
   a->kludge48as44    = kludge48as44;
+  a->noprecpos       = noprecpos;
   a->low_water_mark  = 4; /* Hard coded so far... */
   a->high_water_mark = 7; /* Hard coded so far... */ 
   a->mci_device_id   = 0;
@@ -700,7 +702,7 @@ output_playing_pos( void* A ) {
     return 0; // Since the timer may wrap around it makes no sense to return an error anyway.
   }
 
-  if( a->trashed || a->nomoredata
+  if( a->noprecpos || a->trashed || a->nomoredata
     || LOUSHORT( output_position( a, &position )) != MCIERR_SUCCESS ) {
     // we simply do not calculate more exact information in this case
     playingpos = a->buf_positions[a->buf_is_play];
@@ -727,7 +729,7 @@ output_playing_samples( void* A, FORMAT_INFO* info, char* buf, int len )
 
   DosRequestMutexSem( a->mutex, SEM_INDEFINITE_WAIT );
 
-  if( a->status == DEVICE_CLOSED ) {
+  if( a->status != DEVICE_OPENED || a->nomoredata ) {
     DosReleaseMutexSem( a->mutex );
     return PLUGIN_FAILED;
   }
@@ -741,21 +743,28 @@ output_playing_samples( void* A, FORMAT_INFO* info, char* buf, int len )
   {
     int   current, next;
     ULONG position = 0;
-    LONG  offset   = 0;
+    LONG  offset;
 
-    if( LOUSHORT( output_position( a, &position )) != MCIERR_SUCCESS ) {
-      DosReleaseMutexSem( a->mutex );
-      return PLUGIN_FAILED;
+    if( !a->noprecpos )
+    { // calculate offset in the currently playling buffer.
+      if( LOUSHORT( output_position( a, &position )) != MCIERR_SUCCESS ) {
+        DosReleaseMutexSem( a->mutex );
+        return PLUGIN_FAILED;
+      }
+
+      DosEnterCritSec(); // Capture these two atomically
+      current = a->buf_is_play;
+      offset  = a->mci_time;
+      DosExitCritSec();
+      
+      offset = ( position - offset ) * a->mci_mix.ulSamplesPerSec / 1000 *
+                                       a->mci_mix.ulChannels *
+                                       a->mci_mix.ulBitsPerSample / 8;
+    } else
+    { // Simply start with the current buffer
+      current = a->buf_is_play;
+      offset = 0;
     }
-
-    DosEnterCritSec(); // Capture these two atomically
-    current = a->buf_is_play;
-    offset  = a->mci_time;
-    DosExitCritSec();
-    
-    offset = ( position - offset ) * a->mci_mix.ulSamplesPerSec / 1000 *
-                                     a->mci_mix.ulChannels *
-                                     a->mci_mix.ulBitsPerSample / 8;
 
     for(;;) {
       next = ( current + 1 ) % a->mci_buf_parms.ulNumBuffers;
@@ -958,6 +967,7 @@ save_ini( void )
   save_prf_value( lockdevice );
   save_prf_value( numbuffers );
   save_prf_value( kludge48as44 );
+  save_prf_value( noprecpos );
   save_prf_value( enable_rg );
   save_prf_value( rg_type );
   save_prf_value( preamp_rg );
@@ -971,6 +981,7 @@ load_ini( void )
   lockdevice   = 0;
   numbuffers   = 64;
   kludge48as44 = 0;
+  noprecpos    = 0;
   enable_rg    = 0;
   rg_type      = RG_PREFER_ALBUM;
   preamp_rg    = 3;
@@ -980,6 +991,7 @@ load_ini( void )
   load_prf_value( lockdevice );
   load_prf_value( numbuffers );
   load_prf_value( kludge48as44 );
+  load_prf_value( noprecpos );
   load_prf_value( enable_rg );
   load_prf_value( rg_type );
   load_prf_value( preamp_rg );
@@ -1009,6 +1021,7 @@ cfg_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
 
       WinCheckButton( hwnd, CB_SHARED,   !lockdevice   );
       WinCheckButton( hwnd, CB_48KLUDGE,  kludge48as44 );
+      WinCheckButton( hwnd, CB_NOPRECPOS, noprecpos    );
       WinCheckButton( hwnd, CB_RG_ENABLE, enable_rg    );
 
       lb_add_item( hwnd, CB_RG_TYPE, "Prefer album gain" );
@@ -1038,6 +1051,7 @@ cfg_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
 
         lockdevice   = !WinQueryButtonCheckstate( hwnd, CB_SHARED    );
         kludge48as44 =  WinQueryButtonCheckstate( hwnd, CB_48KLUDGE  );
+        noprecpos    =  WinQueryButtonCheckstate( hwnd, CB_NOPRECPOS );
         enable_rg    =  WinQueryButtonCheckstate( hwnd, CB_RG_ENABLE );
 
         WinSendDlgItemMsg( hwnd, SB_BUFFERS, SPBM_QUERYVALUE,
@@ -1113,15 +1127,21 @@ plugin_configure( HWND howner, HMODULE module )
 }
 
 int DLLENTRY
-plugin_query( PLUGIN_QUERYPARAM* param, const PLUGIN_CONTEXT* ctx )
+plugin_query( PLUGIN_QUERYPARAM* param )
 {
-  context = ctx;
-
   param->type         = PLUGIN_OUTPUT;
   param->author       = "Samuel Audet, Dmitry A.Steklenev";
   param->desc         = "DART Output 1.32";
   param->configurable = TRUE;
+  param->interface    = 1;
+  return 0;
+}
 
+/* init plug-in */
+int DLLENTRY
+plugin_init( const PLUGIN_CONTEXT* ctx )
+{
+  context = ctx;
   load_ini();
   return 0;
 }

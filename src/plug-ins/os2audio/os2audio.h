@@ -35,6 +35,7 @@
 #define CB_SHARED     1020
 #define SB_BUFFERS    1030
 #define CB_48KLUDGE   1050
+#define CB_NOPRECPOS  1055
 #define CB_RG_ENABLE  1060
 #define CB_RG_TYPE    1070
 #define SB_RG_PREAMP  1080
@@ -56,6 +57,7 @@ typedef struct OS2AUDIO
   int   numbuffers;   /* Suggested total audio buffers, bare minimum = 4      C  */
                       /* (see prio boost check).                                 */
   int   kludge48as44; /*                                                      C  */
+  int   noprecpos;    /*                                                      C  */
   int   low_water_mark;/* When the number of filled buffers reaches this      Cm
                           the decoder thread is boosted.                         */
   int   high_water_mark;/* When the number of buffers reaches this level      Cm
