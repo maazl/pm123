@@ -6,3 +6,4 @@ EXPORT vis_init          .1
 EXPORT plugin_query      .2
 EXPORT plugin_configure  .3
 EXPORT plugin_deinit     .4
+EXPORT plugin_init       .5

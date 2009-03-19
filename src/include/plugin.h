@@ -67,11 +67,8 @@ typedef struct _PLUGIN_CONTEXT
   and donït forget to fill param->interface at plugin_query.
 #endif
 /* returns 0 -> ok */
-#if (defined(VISUAL_PLUGIN_LEVEL) || defined(PM123_FILTER_PLUG_H) || defined(PM123_DECODER_PLUG_H) || defined(PM123_OUTPUT_PLUG_H))
-int DLLENTRY plugin_query( PLUGIN_QUERYPARAM* param, const PLUGIN_CONTEXT* ctx );
-#else // Keep compile compatibility for old plug-ins.
 int DLLENTRY plugin_query( PLUGIN_QUERYPARAM* param );
-#endif
+int DLLENTRY plugin_init( const PLUGIN_CONTEXT* ctx ); // Optional
 int DLLENTRY plugin_configure( HWND hwnd, HMODULE module );
 int DLLENTRY plugin_deinit( int unload );
 

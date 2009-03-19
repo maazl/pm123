@@ -33,7 +33,7 @@ All exported and callback functions must use the calling convention <code>_cdecl
 <p>A plug-in must have a function that identifies it as a plug-in:
 </p>
 <blockquote>
-<pre>int DLLENTRY <b>plugin_query</b>( PPLUGIN_QUERYPARAM <var>param</var>, const PLUGIN_CONTEXT* <var>ctx</var> );<br></pre>
+<pre>int DLLENTRY <b>plugin_query</b>( PPLUGIN_QUERYPARAM <var>param</var> );<br></pre>
 </blockquote>
 <tt>plugin_query</tt> is called before any other function
 and exactly once by PM123. The plug-in will then have to fill the
@@ -41,9 +41,8 @@ variables in the <i>param</i> structure, for example:
 <blockquote>
 <pre>param-&gt;type = PLUGIN_VISUAL;<br>/* Identify the plug-in as visual plug-in. Types can be ORred to<br>include multiple plug-in types in the same DLL. */<br><br>param-&gt;author = "Matti Meik&auml;l&auml;inen";<br>/* Author of the plug-in */<br><br>param-&gt;desc = "Example plug-in";<br>/* A short description of the plug-in */<br><br>param-&gt;configurable = TRUE;<br>/* Toggles plug-in configurability via PM123 Properties dialog */<br><br>param-&gt;interface = 2;<br>/* This is the required <a href="#interface_level">interface revision level</a>.<br> * This parameter defaults to 0 which is the same as before this field existed.<br> * Plug-ins with Level 0 <em>must not</em> fill this field to be compatible with older<br> * versions of PM123.<br> */<br><br>return 0;</pre>
 </blockquote>
-<p>The second parameter <tt><var>ctx</var></tt>
-is optional. It provides some global entry points of PM123. They might
-be used to handle asynchronous events or requests. The structue and the functions must
+<p>A second initialization function, <tt>plugin_init</tt>, is called by the plug-in manager once per plug-in after <tt>plugin_query</tt>.</p><blockquote><pre>int DLLENTRY plugin_init(const PLUGIN_CONTEXT* <var>ctx</var>);</pre></blockquote><p>The export of this function is optional. It provides some global entry points of PM123. They might
+be used to handle asynchronous events or requests. The structure and the functions must
 not be used after <tt>plugin_deninit</tt> returned.</p>
 <blockquote>
 <pre>/* Error message function. */<br>void DLLENTRY (*<b>error_display</b>)( const char* <var>msg</var> );<br><br>/* Info message function */<br>/* This information is always displayed to the user right away. */<br>void DLLENTRY (*<b>info_display</b>)( const char* <var>msg</var> );<br><br>/* Execute remote command */<br>/* See the documentation of remote commands for a description. */<br>const char* DLLENTRY (*<b>exec_command</b>)( const char* <var>cmd</var> );<br><br>/* retrieve configuration setting */<br>int DLLENTRY (*<b>query_profile</b>)( const char* <var>key</var>, void* <var>buffer</var>, int <var>maxlength</var> );<br><br>/* store configuration setting */<br>int DLLENTRY (*<b>write_profile</b>)( const char* <var>key</var>, const void* <var>buffer</var>, int <var>length</var> );</pre>
@@ -59,7 +58,7 @@ But they read and write to a section dedicated to your plug-in the
 current PM123.INI file which may not be the one in the application
 folder. Using this functions is recommended over creating an individual profile.<br> <tt>query_profile</tt> returns the length of the requested Parameter or -1 on error. Independent of the returned length at most <var><tt>maxlen</tt></var> characters are stored in <var><tt>buffer</tt></var>. If you pass <tt>NULL</tt> as <var><tt>key</tt></var>, a list of <tt>'\0'</tt> delimited keys is returned.&nbsp;<tt>write_profile</tt> returns <tt>TRUE</tt> on success and <tt>FALSE</tt> on error.</p>
 <h4>Configuration</h4>
-<p>If you set <tt>param-&gt;configurable = TRUE</tt>,
+<p>If you set <tt>param-&gt;configurable = TRUE</tt> in <tt>plugin_query</tt>,
 a configuration dialog
 should appear when PM123 calls
 </p>

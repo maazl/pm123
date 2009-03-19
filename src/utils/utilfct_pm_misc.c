@@ -30,9 +30,9 @@
  */
 
 #define  INCL_PM
-
 #include "utilfct.h"
 #include <os2.h>
+#include <string.h>
 
 #include "debuglog.h"
 
@@ -67,6 +67,18 @@ do_warpsans( HWND hwnd )
   char *font = check_warpsans() ? "9.WarpSans" : "8.Helv";
   WinSetPresParam( hwnd, PP_FONTNAMESIZE, strlen( font ) + 1, font );
 }
+
+HWND dlg_addcontrol( HWND hwnd, PSZ cls, PSZ text, ULONG style,
+                     LONG x, LONG y, LONG cx, LONG cy, SHORT after,
+                     USHORT id, PVOID ctldata, PVOID presparams )
+{ POINTL pos[2] = {{ x, y }, { x + cx, y + cy }};
+  if (!WinMapDlgPoints( hwnd, pos, 2, TRUE ))
+    return NULLHANDLE;
+  HWND behind = after == NULLHANDLE ? HWND_BOTTOM : WinWindowFromID( hwnd, after );
+  return WinCreateWindow( hwnd, cls, text, style, pos[0].x, pos[0].y, pos[1].x-pos[0].x, pos[1].y-pos[0].y,
+                          hwnd, behind, id, ctldata, presparams);
+}
+
 
 /* Return the ID of the selected radiobutton in a group. */
 SHORT rb_selected( HWND hwnd, SHORT id )

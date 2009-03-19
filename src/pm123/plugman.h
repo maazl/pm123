@@ -75,7 +75,7 @@ class Module
   HMODULE           HModule;
   PLUGIN_QUERYPARAM QueryParam;
  private:
-  PLUGIN_CONTEXT    Context;     // Static storage for plugin_query.
+  PLUGIN_CONTEXT    Context;     // Static storage for plugin_init.
   // Entry point of the configure dialog (if any).
   void DLLENTRYP(plugin_configure)(HWND hwnd, HMODULE module);
   sco_ptr<CommandProcessor> CommandInstance;

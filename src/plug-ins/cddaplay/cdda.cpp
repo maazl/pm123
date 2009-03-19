@@ -59,8 +59,6 @@
 #define  WM_UPDATE_DONE  (WM_USER+2)
 
 
-static  const PLUGIN_CONTEXT* context;
-
 // used for the PM123 decoder functions
 typedef struct _CDDAPLAY
 {
@@ -1501,10 +1499,8 @@ int DLLENTRY plugin_configure(HWND hwnd, HMODULE module)
    return 0;
 }
 
-int DLLENTRY plugin_query(PLUGIN_QUERYPARAM *param, const PLUGIN_CONTEXT* ctx)
+int DLLENTRY plugin_query(PLUGIN_QUERYPARAM *param)
 {
-   context = ctx;
-
    param->type = PLUGIN_DECODER;
    param->author = "Samuel Audet";
    param->desc = "CDDA Play 1.11";

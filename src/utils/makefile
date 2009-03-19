@@ -11,7 +11,7 @@ TARGET   = all2
 all2: utilfct$(LBO) $(MDUMMY)
 
 OBJECTS = utilfct$(CO) utilfct_listbox$(CO) utilfct_menu$(CO) utilfct_notebook$(CO)
-OBJECTS = $(OBJECTS) utilfct_pm_misc$(CO) utilfct_thread$(CO)
+OBJECTS = $(OBJECTS) utilfct_pm_misc$(CO) utilfct_thread$(CO) utilfct_slider$(CO)
 OBJECTS = $(OBJECTS) bufstream$(CO) fileutil$(CO) filefind$(CO) fileheader$(CO)
 OBJECTS = $(OBJECTS) errorstr$(CO) rel2abs$(CO) abs2rel$(CO) inimacro$(CO)
 OBJECTS = $(OBJECTS) charset$(CO) wildcards$(CO) queue$(CO) strlcpy$(CO) strchomp$(CO)

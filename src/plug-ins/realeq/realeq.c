@@ -1123,13 +1123,19 @@ load_eq( HWND hwnd )
 }
 
 int DLLENTRY
-plugin_query( PLUGIN_QUERYPARAM *param, const PLUGIN_CONTEXT* ctx )
-{ context = ctx;
-  param->type         = PLUGIN_FILTER;
+plugin_query( PLUGIN_QUERYPARAM *param )
+{ param->type         = PLUGIN_FILTER;
   param->author       = "Samuel Audet, Marcel Mller";
   param->desc         = PLUGIN;
   param->configurable = TRUE;
   param->interface    = FILTER_PLUGIN_LEVEL;
+  return 0;
+}
+
+/* init plug-in */
+int DLLENTRY
+plugin_init( const PLUGIN_CONTEXT* ctx )
+{ context = ctx;
   return 0;
 }
 

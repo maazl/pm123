@@ -29,6 +29,9 @@ LOBJ_PREFX = file {
 LOBJ_SUFFX = }
 LLIB_PREFX = library {
 LLIB_SUFFX = }
+!ifndef DEBUG
+POSTLINKCMD = lxlite $@ /nbl /t /zs
+!endif
 
 AS         = nasm
 AFLAGS     = -fobj -DUNDERSCORE

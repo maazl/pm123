@@ -96,6 +96,12 @@ BOOL  wait_thread( TID tid, ULONG msec );
 /* Same as wait_thread, but keep the PM message queue alive. */
 BOOL  wait_thread_pm( HAB hab, TID tid, ULONG msec );
 
+/* Add dialog control at runtime
+ * Helpful for controls that fail in ressource files like WC_CIRCULARSLIDER */
+HWND  dlg_addcontrol( HWND hwnd, PSZ cls, PSZ text, ULONG style,
+                      LONG x, LONG y, LONG cx, LONG cy, SHORT after,
+                      USHORT id, PVOID ctldata, PVOID presparams );
+
 /* Adds an item into a menu control. */
 SHORT mn_add_item( HWND menu, SHORT id, const char* item, BOOL enable, BOOL check, PVOID handle );
 /* Returns the identity of a menu item of a specified index. */
@@ -154,7 +160,10 @@ ULONG nb_append_tab( HWND book, HWND page, const char* major, char* minor, MPARA
 BOOL  nb_adjust( HWND hwnd, SWP* pswp );
 
 /* Sets the upper and lower limit of a numeric spin button and the maximum text length */
-BOOL  sb_setnumlimits( HWND hwnd, USHORT id, LONG low, LONG high, USHORT len); 
+BOOL  sb_setnumlimits( HWND hwnd, USHORT id, LONG low, LONG high, USHORT len ); 
+
+/* Initialize circular slider control */
+BOOL  cs_init( HWND hwnd, USHORT id, LONG low, LONG high, LONG inc, LONG tick, LONG value );
 
 /* This function sets the visibility state of a dialog item. */
 #define WinShowDlgItem( hwndDlg, idItem, fNewVisibility ) \

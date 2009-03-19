@@ -731,15 +731,21 @@ static void update_analyzer(void)
 
 /* Returns information about plug-in. */
 int DLLENTRY
-plugin_query( PPLUGIN_QUERYPARAM query, const PLUGIN_CONTEXT* ctx )
+plugin_query( PPLUGIN_QUERYPARAM query )
 {
-  context = ctx;
-
   query->type         = PLUGIN_VISUAL;
   query->author       = "Samuel Audet, Dmitry A.Steklenev, Marcel Mueller";
   query->desc         = "Spectrum Analyzer 2.10";
   query->configurable = 1;
   query->interface    = VISUAL_PLUGIN_LEVEL;
+  return 0;
+}
+
+/* init plug-in */
+int DLLENTRY
+plugin_init( const PLUGIN_CONTEXT* ctx )
+{
+  context = ctx;
   return 0;
 }
 

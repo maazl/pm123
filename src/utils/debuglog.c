@@ -92,13 +92,13 @@ void debuglog( const char* fmt, ... )
 }
 
 void dassert(const char* file, int line, const char* msg)
-{ DEBUGLOG(("Assertion at %s line %i failed: %s\n", file, line, msg));
+{ fprintf(stderr, "Assertion at %s line %i failed: %s\n", file, line, msg);
   DosClose(2);
   abort();
 }
 
 void cassert(const char* file, int line, const char* msg)
-{ DEBUGLOG(("Assertion at %s line %i failed: %s\n%s (%i)\n", file, line, msg, clib_strerror(errno), errno));
+{ fprintf(stderr, "Assertion at %s line %i failed: %s\n%s (%i)\n", file, line, msg, clib_strerror(errno), errno);
   DosClose(2);
   abort();
 }
@@ -107,7 +107,7 @@ void oassert(unsigned long apiret, const char* file, int line, const char* msg)
 { if (apiret)
   { char buf[1024];
     os2_strerror(apiret, buf, sizeof(buf));
-    DEBUGLOG(("Assertion at %s line %i failed: %s\n%s\n", file, line, msg, buf));
+    fprintf(stderr, "Assertion at %s line %i failed: %s\n%s\n", file, line, msg, buf);
     DosClose(2);
     abort();    
 } }
@@ -116,7 +116,7 @@ void pmassert(const char* file, int line, const char* msg)
 { char buf[1024];
   os2pm_strerror(buf, sizeof(buf));
   if (*buf)
-  { DEBUGLOG(("Assertion at %s line %i failed: %s\n%s\n", file, line, msg, buf));
+  { fprintf(stderr, "Assertion at %s line %i failed: %s\n%s\n", file, line, msg, buf);
     DosClose(2);
     abort();    
 } }

@@ -30,10 +30,10 @@
  */
 
 #define  INCL_PM
-
 #include "utilfct.h"
 #include <os2.h>
 #include <stdio.h>
+#include <string.h>
 
 #include "debuglog.h"
 

@@ -424,14 +424,20 @@ output_playing_data( void* A )
 
 /* Returns information about plug-in. */
 int DLLENTRY
-plugin_query( PLUGIN_QUERYPARAM* query, const PLUGIN_CONTEXT* ctx )
+plugin_query( PLUGIN_QUERYPARAM* query )
 {
-  context = ctx;
-
   query->type         = PLUGIN_OUTPUT;
   query->author       = "Samuel Audet, Dmitry A.Steklenev ";
   query->desc         = "WAVE Output 1.20";
   query->configurable = TRUE;
+  return 0;
+}
+
+/* init plug-in */
+int DLLENTRY
+plugin_init( const PLUGIN_CONTEXT* ctx )
+{
+  context = ctx;
   return 0;
 }
 

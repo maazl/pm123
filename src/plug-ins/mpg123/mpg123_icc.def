@@ -12,8 +12,9 @@ EXPORTS
    decoder_support   @7
    decoder_trackinfo @8
    decoder_cdinfo    @9
-   decoder_saveinfo  @12
-   decoder_editmeta  @13
+   decoder_saveinfo  @10
+   decoder_editmeta  @11
 
-   plugin_query     @10
-   plugin_configure @11
+   plugin_query      @20
+   plugin_init       @21
+   plugin_configure  @22

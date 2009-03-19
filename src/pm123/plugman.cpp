@@ -141,7 +141,7 @@ bool Module::LoadModule()
 { char load_error[_MAX_PATH];
   *load_error = 0;
   DEBUGLOG(("Module(%p{%s})::LoadModule()\n", this, GetModuleName().cdata()));
-  APIRET rc = DosLoadModule(load_error, sizeof load_error, GetModuleName().cdata(), &HModule);
+  APIRET rc = DosLoadModule(load_error, sizeof load_error, GetModuleName(), &HModule);
   DEBUGLOG(("Module::LoadModule: %p - %u\n", HModule, rc));
   // For some reason the API sometimes returns ERROR_INVALID_PARAMETER when loading oggplay.dll.
   // However, the module is loaded successfully.
@@ -205,17 +205,15 @@ proxy_write_profile( Module* mp, const char* key, const void* data, int length )
 bool Module::Load()
 { DEBUGLOG(("Module(%p{%s})::Load()\n", this, GetModuleName().cdata()));
 
-  void DLLENTRYP(plugin_query)(PLUGIN_QUERYPARAM *param, const PLUGIN_CONTEXT* ctx);
-  if (!LoadModule() || !LoadFunction(&plugin_query, "plugin_query"))
+  int DLLENTRYP(pquery)(PLUGIN_QUERYPARAM *param);
+  if (!LoadModule() || !LoadFunction(&pquery, "plugin_query"))
     return false;
-
+  int DLLENTRYP(pinit)(const PLUGIN_CONTEXT* ctx);
+  if (!LoadOptionalFunction(&pinit, "plugin_init"))
+    pinit = NULL;
+  
   QueryParam.interface = 0; // unchanged by old plug-ins
-  Context.error_display = &pm123_display_error;
-  Context.info_display  = &pm123_display_info;
-  Context.exec_command  = vdelegate(&vd_exec_command,  &proxy_exec_command,  this);
-  Context.query_profile = vdelegate(&vd_query_profile, &proxy_query_profile, this);
-  Context.write_profile = vdelegate(&vd_write_profile, &proxy_write_profile, this);
-  (*plugin_query)(&QueryParam, &Context);
+  (*pquery)(&QueryParam);
 
   if (QueryParam.interface > MAX_PLUGIN_LEVEL)
   {
@@ -224,7 +222,21 @@ bool Module::Load()
                       "Requested interface revision: %d, max. supported: " toconststring(MAX_PLUGIN_LEVEL),
                       GetModuleName().cdata(), QueryParam.interface);
     #undef toconststring
-    return FALSE;
+    return false;
+  }
+
+  if (pinit)
+  { Context.error_display = &pm123_display_error;
+    Context.info_display  = &pm123_display_info;
+    Context.exec_command  = vdelegate(&vd_exec_command,  &proxy_exec_command,  this);
+    Context.query_profile = vdelegate(&vd_query_profile, &proxy_query_profile, this);
+    Context.write_profile = vdelegate(&vd_write_profile, &proxy_write_profile, this);
+    int rc = (*pinit)(&Context);
+    if (rc)
+    { amp_player_error( "Plugin %s returned an error at initialization. Code %d.",
+                        GetModuleName().cdata(), rc);
+      return false;
+    }
   }
 
   return !QueryParam.configurable || LoadFunction(&plugin_configure, "plugin_configure");

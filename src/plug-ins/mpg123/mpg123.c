@@ -1174,15 +1174,20 @@ load_ini( void )
 
 /* Returns information about plug-in. */
 int DLLENTRY
-plugin_query( PLUGIN_QUERYPARAM* param, const PLUGIN_CONTEXT* ctx )
+plugin_query( PLUGIN_QUERYPARAM* param )
 {
-  context = ctx;
-
   param->type         = PLUGIN_DECODER;
   param->author       = "Samuel Audet, Dmitry A.Steklenev";
   param->desc         = "MP3 Decoder 1.25";
   param->configurable = TRUE;
+  return 0;
+}
 
+/* init plug-in */
+int DLLENTRY
+plugin_init( const PLUGIN_CONTEXT* ctx )
+{
+  context = ctx;
   dialog_init();
   load_ini();
   return 0;

@@ -31,6 +31,9 @@ LOBJ_PREFX =
 LOBJ_SUFFX =
 LLIB_PREFX =
 LLIB_SUFFX =
+!ifndef DEBUG
+POSTLINKCMD = lxlite $@ /nbl /t /zs
+!endif
 
 AS         = nasm
 AFLAGS     = -fobj

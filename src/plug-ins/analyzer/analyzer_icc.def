@@ -7,3 +7,4 @@ EXPORTS
   plugin_query      @2
   plugin_configure  @3
   plugin_deinit     @4
+  plugin_init       @5
