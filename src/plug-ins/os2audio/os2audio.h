@@ -65,7 +65,6 @@ typedef struct OS2AUDIO
   int   buffersize;   /* Suggested size of the audio buffers.                 C  */
   int   volume;       /*                                                      C  */
   float amplifier;    /*                                                      C  */
-  int   zero;         /* This is 128 for 8 bit unsigned.                      C* */
   int   configured;
 
   float track_gain;   /* Defines Replay Gain values as specified at           Cd */

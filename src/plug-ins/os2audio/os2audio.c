@@ -188,7 +188,7 @@ dart_event( ULONG status, MCI_MIX_BUFFER* buffer, ULONG flags )
 
     // Clear the played buffer and to place it to the end of the queue.
     // By the moment of playing of this buffer, it already must contain a new data.
-    memset( buffer->pBuffer, a->zero, a->mci_buf_parms.ulBufferSize );
+    memset( buffer->pBuffer, 0, a->mci_buf_parms.ulBufferSize );
     // We set the playing position of the new buffer to value of the last buffer.
     // If the decoder falls behind this position is used.
     a->buf_positions[current] = a->buf_positions[(current-1)%a->mci_buf_parms.ulNumBuffers];
@@ -344,19 +344,13 @@ output_open( OS2AUDIO* a )
   if( info->formatinfo.bits       <= 0 ) { info->formatinfo.bits       = 16;    }
 */
 
-  if( info->formatinfo.bits != 8 ) {
-    a->zero = 0;
-  } else {
-    a->zero = 128;
-  }
-
   DEBUGLOG(("os2audio:output_open - {%i, %i, %i, %i}\n",
     info->formatinfo.samplerate, info->formatinfo.channels, info->formatinfo.bits, info->formatinfo.format ));
   // There can be the audio device supports other formats, but
   // whether can interpret other plug-ins them correctly?
   if( info->formatinfo.format != WAVE_FORMAT_PCM ||
       info->formatinfo.samplerate <= 0 ||
-      ( info->formatinfo.bits != 16 && info->formatinfo.bits != 8 ) ||
+      info->formatinfo.bits != 16 ||
       info->formatinfo.channels <= 0 || info->formatinfo.channels > 2 )
   { rc = MCIERR_UNSUPP_FORMAT_MODE;
     goto end;
@@ -439,7 +433,7 @@ output_open( OS2AUDIO* a )
     a->mci_buffers[i].ulBufferLength = a->mci_buf_parms.ulBufferSize;
     a->mci_buffers[i].ulUserParm     = (ULONG)a;
 
-    memset( a->mci_buffers[i].pBuffer, a->zero, a->mci_buf_parms.ulBufferSize );
+    memset( a->mci_buffers[i].pBuffer, 0, a->mci_buf_parms.ulBufferSize );
   }
 
   a->buf_is_play = 0;
@@ -555,27 +549,6 @@ scale_16_replay_gain( OS2AUDIO* a, short* buf, int count )
   }
 }
 
-/* Scales unsigned 8-bit samples according to current replay gain values. */
-static void
-scale_08_replay_gain( OS2AUDIO* a, unsigned char* buf, int count )
-{
-  int i, sample;
-
-  if( enable_rg && a->scale != 1 ) {
-    for( i = 0; i < count; i++ ) {
-      sample = ( buf[i] - 128 ) * a->scale + 128;
-
-      if( sample > 255 ) {
-        buf[i] = 255;
-      } else if( sample < 0 ) {
-        buf[i] = 0;
-      } else {
-        buf[i] = sample;
-      }
-    }
-  }
-}
-
 /* This function is called by the decoder or last in chain filter plug-in
    to play samples. */
 int DLLENTRY
@@ -673,9 +646,7 @@ output_play_samples( void* A, FORMAT_INFO* format, char* buf, int len, int posma
 
     memcpy( out, buf, len );
 
-    if( a->original_info.formatinfo.bits == 8 ) {
-      scale_08_replay_gain( a, out, len );
-    } else if( a->original_info.formatinfo.bits == 16 ) {
+    if( a->original_info.formatinfo.bits == 16 ) {
       scale_16_replay_gain( a, (short*)out, len / 2 );
     }
 
@@ -795,7 +766,7 @@ output_playing_samples( void* A, FORMAT_INFO* info, char* buf, int len )
     }
 
     if( len ) {
-      memset( buf, a->zero, len );
+      memset( buf, 0, len );
     }
   }
 
@@ -819,7 +790,7 @@ output_trash_buffers( void* A, ULONG temp_playingpos )
   }
 
   for( i = 0; i < a->mci_buf_parms.ulNumBuffers; i++ ) {
-    memset( a->mci_buffers[i].pBuffer, a->zero, a->mci_buf_parms.ulBufferSize );
+    memset( a->mci_buffers[i].pBuffer, 0, a->mci_buf_parms.ulBufferSize );
     a->buf_positions[i] = temp_playingpos;
   }
 
