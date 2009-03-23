@@ -1,0 +1,287 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head>
+<title>PM123 Playable object handling</title>
+<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+</head>
+<body>
+
+<h2>PM123 Playable object handling</h2>
+<h3>Class Tree</h3>
+<p><img src="images/playableclasses.png" width="945" height="747"></p>
+<h3>Use cases</h3>
+<p>The following table shows the properties accessed per use case and the interface used for this purpuse in the coding. In the second section the table shows the supported properties and interfaces by class/interface.</p>
+<p>R - read access<br>
+  W - write access<br>
+F - followers allowed (change notifications)<br>
+X - access<br>
+Lowercase letters indicate protected access.</p>
+<table border="1" cellspacing="0" cellpadding="3">
+  <tr>
+  <th>Task / Property</th>
+  <th>Decoder</th>
+  <th>DisplayName</th>
+  <th>Alias</th>
+  <th>Status</th>
+  <th>Info</th>
+  <th>Start/Stop</th>
+  <th>Children</th>
+  <th>RefCount</th>
+  <th>Used interface</th>
+  </tr><tr>
+  <td>Loaded root object</td>
+  <td>&nbsp;</td>
+  <td>&nbsp;</td>
+  <td>&nbsp;</td>
+  <td>R</td>
+  <td>RF</td>
+  <td>R</td>
+  <td>R?</td>
+  <td>X</td>
+  <td>IPlay, PlayableCollection?</td>
+  </tr><tr>
+  <td>currently playing</td>
+  <td>&nbsp;</td>
+  <td>R</td>
+  <td>&nbsp;</td>
+  <td>&nbsp;</td>
+  <td>RF</td>
+  <td>&nbsp;</td>
+  <td>&nbsp;</td>
+  <td>X</td>
+  <td>IPlay</td>
+  </tr><tr>
+  <td>Decode an object</td>
+  <td>R</td>
+  <td>&nbsp;</td>
+  <td>&nbsp;</td>
+  <td>&nbsp;</td>
+  <td>&nbsp;</td>
+  <td>R</td>
+  <td>&nbsp;</td>
+  <td>&nbsp;</td>
+  <td>IPlay</td>
+  </tr><tr>
+  <td>Enumerate Songs, call stack entry</td>
+  <td>&nbsp;</td>
+  <td>&nbsp;</td>
+  <td>&nbsp;</td>
+  <td>R</td>
+  <td>&nbsp;</td>
+  <td>R</td>
+  <td>RF?</td>
+  <td>X</td>
+  <td>PlayableSlice, PlayableCollection?</td>
+  </tr><tr>
+  <td>Show/edit a playlist</td>
+  <td>&nbsp;</td>
+  <td>&nbsp;</td>
+  <td>&nbsp;</td>
+  <td>RF</td>
+  <td>&nbsp;</td>
+  <td>&nbsp;</td>
+  <td>RWF</td>
+  <td>X</td>
+  <td>PlayableCollection</td>
+  </tr><tr>
+  <td>Show/edit a playlist (items)</td>
+  <td>RF</td>
+  <td>RF</td>
+  <td>RWF</td>
+  <td>RF</td>
+  <td>RF</td>
+  <td>RWF</td>
+  <td>&nbsp;</td>
+  <td>X</td>
+  <td>PlayableInstance, Playable</td>
+  </tr><tr>
+  <td>Save a playlist</td>
+  <td>&nbsp;</td>
+  <td>&nbsp;</td>
+  <td>&nbsp;</td>
+  <td>&nbsp;</td>
+  <td>&nbsp;</td>
+  <td>&nbsp;</td>
+  <td>R</td>
+  <td>&nbsp;</td>
+  <td>PlayableCollection</td>
+  </tr><tr>
+  <td>Save a playlist (items)</td>
+  <td>&nbsp;</td>
+  <td>&nbsp;</td>
+  <td>R</td>
+  <td>&nbsp;</td>
+  <td>R</td>
+  <td>R</td>
+  <td>&nbsp;</td>
+  <td>&nbsp;</td>
+  <td>PlayableInstance</td>
+  </tr><tr>
+  <td>Remote playlist manipulation</td>
+  <td>&nbsp;</td>
+  <td>&nbsp;</td>
+  <td>&nbsp;</td>
+  <td>&nbsp;</td>
+  <td>&nbsp;</td>
+  <td>&nbsp;</td>
+  <td>RW</td>
+  <td>X</td>
+  <td>PlayableCollection</td>
+  </tr><tr>
+  <td>Remote playlist manipulation (items)</td>
+  <td>&nbsp;</td>
+  <td>&nbsp;</td>
+  <td>RW</td>
+  <td>&nbsp;</td>
+  <td>RW</td>
+  <td>RW</td>
+  <td>&nbsp;</td>
+  <td>X</td>
+  <td>PlayableInstance</td>
+  </tr><tr>
+  <td>Playlist item properties</td>
+  <td>&nbsp;</td>
+  <td>&nbsp;</td>
+  <td>RW</td>
+  <td>&nbsp;</td>
+  <td>RW</td>
+  <td>RW</td>
+  <td>&nbsp;</td>
+  <td>X</td>
+  <td>PlayableInstance</td>
+  </tr><tr>
+  <td>Infodialog</td>
+  <td>RF</td>
+  <td>&nbsp;</td>
+  <td>&nbsp;</td>
+  <td>RF</td>
+  <td>RF</td>
+  <td>&nbsp;</td>
+  <td>&nbsp;</td>
+  <td>X</td>
+  <td>Playable</td>
+  </tr><tr>
+  <td>Add a bookmark</td>
+  <td>&nbsp;</td>
+  <td>&nbsp;</td>
+  <td>R</td>
+  <td>&nbsp;</td>
+  <td>&nbsp;</td>
+  <td>R</td>
+  <td>&nbsp;</td>
+  <td>&nbsp;</td>
+  <td>PlayableRef</td>
+  </tr><tr>
+  <td>Bookmark/MRU menu display</td>
+  <td>&nbsp;</td>
+  <td>R</td>
+  <td>&nbsp;</td>
+  <td>RF</td>
+  <td>&nbsp;</td>
+  <td>&nbsp;</td>
+  <td>R</td>
+  <td>X</td>
+  <td>PlayableCollection</td>
+  </tr><tr>
+  <td>Add MRU</td>
+  <td>&nbsp;</td>
+  <td>&nbsp;</td>
+  <td>R</td>
+  <td>&nbsp;</td>
+  <td>&nbsp;</td>
+  <td>R</td>
+  <td>&nbsp;</td>
+  <td>&nbsp;</td>
+  <td>PlayableRef</td>
+  </tr><tr>
+  <td>Loading multiple items into PM123</td>
+  <td>&nbsp;</td>
+  <td>&nbsp;</td>
+  <td>R</td>
+  <td>&nbsp;</td>
+  <td>&nbsp;</td>
+  <td>R</td>
+  <td>&nbsp;</td>
+  <td>&nbsp;</td>
+  <td>PlayableRef</td>
+  </tr><tr>
+  <th>Class / Property</th>
+  <th>Decoder</th>
+  <th>DisplayName</th>
+  <th>Alias</th>
+  <th>Status</th>
+  <th>Info</th>
+  <th>Start/Stop</th>
+  <th>Children</th>
+  <th>RefCount</th>
+  <th>Implemented interface</th>
+  </tr><tr>
+  <td>Playable</td>
+  <td>RwF</td>
+  <td>RF</td>
+  <td>&nbsp;</td>
+  <td>RwF</td>
+  <td>RwF</td>
+  <td>&nbsp;</td>
+  <td>&nbsp;</td>
+  <td>X</td>
+  <td>&nbsp;</td>
+  </tr><tr>
+  <td>PlayableCollection</td>
+  <td>RwF</td>
+  <td>RF</td>
+  <td>&nbsp;</td>
+  <td>RwF</td>
+  <td>RwF</td>
+  <td>&nbsp;</td>
+  <td>RWF</td>
+  <td>X</td>
+  <td>Playable</td>
+  </tr><tr>
+  <td>IPlay</td>
+  <td>RF</td>
+  <td>RF</td>
+  <td>&nbsp;</td>
+  <td>&nbsp;</td>
+  <td>RF</td>
+  <td>RF</td>
+  <td>&nbsp;</td>
+  <td>X</td>
+  <td>&nbsp;</td>
+  </tr><tr>
+  <td>PlayableSlice</td>
+  <td>&nbsp;</td>
+  <td>&nbsp;</td>
+  <td>&nbsp;</td>
+  <td>&nbsp;</td>
+  <td>&nbsp;</td>
+  <td>RW</td>
+  <td>&nbsp;</td>
+  <td>X</td>
+  <td>&nbsp;</td>
+  </tr><tr>
+  <td>PlayableRef</td>
+  <td>&nbsp;</td>
+  <td>RF</td>
+  <td>RWF</td>
+  <td>&nbsp;</td>
+  <td>RwF</td>
+  <td>RWF</td>
+  <td>&nbsp;</td>
+  <td>X</td>
+  <td>PlayableSlice, IPlay</td>
+  </tr><tr>
+  <td>PlayableInstance</td>
+  <td>RF</td>
+  <td>RF</td>
+  <td>RWF</td>
+  <td>RwF</td>
+  <td>RWF</td>
+  <td>RWF</td>
+  <td>&nbsp;</td>
+  <td>X</td>
+  <td>PlayableRef, PlayableSlice, IPlay</td>
+  </tr>
+</table>
+</body>
+</html>
