@@ -8,7 +8,7 @@
 
 <h2>PM123 Playable object handling</h2>
 <h3>Class Tree</h3>
-<p><img src="images/playableclasses.png" width="990" height="673"></p>
+<p><img src="images/playableclasses.png" width="756" height="796"></p>
 <h3>Use cases</h3>
 <p>The following table shows the properties accessed per use case and the interface used for this purpuse in the coding. In the second section the table shows the supported properties and interfaces by class/interface.</p>
 <p>R - read access<br>
@@ -34,9 +34,9 @@ Lowercase letters indicate protected access.</p>
   <td>R</td>
   <td>RO</td>
   <td>R</td>
-  <td>R?</td>
+  <td>R</td>
   <td>X</td>
-  <td>IPlay, PlayableCollection?</td>
+  <td>AbstractPlayable</td>
   </tr><tr>
   <td>currently playing</td>
   <td>R</td>
@@ -46,7 +46,7 @@ Lowercase letters indicate protected access.</p>
   <td>&nbsp;</td>
   <td>&nbsp;</td>
   <td>X</td>
-  <td>IPlay</td>
+  <td>AbstractPlayable</td>
   </tr><tr>
   <td>Decode an object</td>
   <td>&nbsp;</td>
@@ -56,7 +56,7 @@ Lowercase letters indicate protected access.</p>
   <td>R</td>
   <td>&nbsp;</td>
   <td>&nbsp;</td>
-  <td>IPlay</td>
+  <td>AbstractPlayable</td>
   </tr><tr>
   <td>Enumerate Songs, call stack entry</td>
   <td>&nbsp;</td>
@@ -64,9 +64,9 @@ Lowercase letters indicate protected access.</p>
   <td>R</td>
   <td>&nbsp;</td>
   <td>R</td>
-  <td>RO?</td>
+  <td>RO</td>
   <td>X</td>
-  <td>IPlay, PlayableCollection?</td>
+  <td>AbstractPlayable</td>
   </tr><tr>
   <td>Show/edit a playlist</td>
   <td>&nbsp;</td>
@@ -76,7 +76,7 @@ Lowercase letters indicate protected access.</p>
   <td>&nbsp;</td>
   <td>RWO</td>
   <td>X</td>
-  <td>PlayableCollection</td>
+  <td>Playable</td>
   </tr><tr>
   <td>Show/edit a playlist (items)</td>
   <td>RO</td>
@@ -86,7 +86,7 @@ Lowercase letters indicate protected access.</p>
   <td>RWO</td>
   <td>&nbsp;</td>
   <td>X</td>
-  <td>PlayableInstance, Playable</td>
+  <td>PlayableInstance</td>
   </tr><tr>
   <td>Save a playlist</td>
   <td>&nbsp;</td>
@@ -96,7 +96,7 @@ Lowercase letters indicate protected access.</p>
   <td>&nbsp;</td>
   <td>R</td>
   <td>&nbsp;</td>
-  <td>PlayableCollection</td>
+  <td>Playable</td>
   </tr><tr>
   <td>Save a playlist (items)</td>
   <td>&nbsp;</td>
@@ -116,7 +116,7 @@ Lowercase letters indicate protected access.</p>
   <td>&nbsp;</td>
   <td>RW</td>
   <td>X</td>
-  <td>PlayableCollection</td>
+  <td>Playable</td>
   </tr><tr>
   <td>Remote playlist manipulation (items)</td>
   <td>&nbsp;</td>
@@ -162,7 +162,7 @@ Lowercase letters indicate protected access.</p>
   <td>&nbsp;</td>
   <td>&nbsp;</td>
   <td>RO</td>
-  <td>RO</td>
+  <td>RWO</td>
   <td>&nbsp;</td>
   <td>&nbsp;</td>
   <td>X</td>
@@ -186,7 +186,7 @@ Lowercase letters indicate protected access.</p>
   <td>&nbsp;</td>
   <td>R</td>
   <td>X</td>
-  <td>PlayableCollection</td>
+  <td>Playable</td>
   </tr><tr>
   <td>Add MRU</td>
   <td>&nbsp;</td>
@@ -216,19 +216,29 @@ Lowercase letters indicate protected access.</p>
   <th>Start/Stop</th>
   <th>Children</th>
   <th>RefCount</th>
-  <th>Implemented interface</th>
+  <th>Base class</th>
   </tr><tr>
-  <td>Playable</td>
+  <td>AbstractPlayable</td>
   <td>RO</td>
   <td>&nbsp;</td>
-  <td>RwO</td>
-  <td>RwO</td>
-  <td>&nbsp;</td>
+  <td>RO</td>
+  <td>RO</td>
+  <td>RO</td>
   <td>&nbsp;</td>
   <td>X</td>
   <td>&nbsp;</td>
   </tr><tr>
-  <td>PlayableCollection</td>
+  <td>PlayableBase</td>
+  <td>RO</td>
+  <td>&nbsp;</td>
+  <td>RwO</td>
+  <td>RwO</td>
+  <td>RO</td>
+  <td>&nbsp;</td>
+  <td>X</td>
+  <td>AbstractPlayable</td>
+  </tr><tr>
+  <td>Playable</td>
   <td>RO</td>
   <td>&nbsp;</td>
   <td>RwO</td>
@@ -236,27 +246,18 @@ Lowercase letters indicate protected access.</p>
   <td>&nbsp;</td>
   <td>RWO</td>
   <td>X</td>
-  <td>Playable</td>
-  </tr><tr>
-  <td>IPlay</td>
-  <td>RO</td>
-  <td>&nbsp;</td>
-  <td>&nbsp;</td>
-  <td>RO</td>
-  <td>RO</td>
-  <td>&nbsp;</td>
-  <td>X</td>
-  <td>&nbsp;</td>
+  <td>PlayableBase</td>
   </tr><tr>
   <td>PlayableSlice</td>
   <td>RO</td>
   <td>RWO</td>
-  <td>&nbsp;</td>
+  <td>RO</td>
   <td>RwO</td>
   <td>RWO</td>
   <td>&nbsp;</td>
   <td>X</td>
-  <td>IPlay</td>
+  <td><p>PlayableBase</p>
+  </td>
   </tr><tr>
   <td>PlayableInstance</td>
   <td>RO</td>
@@ -266,7 +267,7 @@ Lowercase letters indicate protected access.</p>
   <td>RWO</td>
   <td>&nbsp;</td>
   <td>X</td>
-  <td>PlayableSlice, IPlay</td>
+  <td>PlayableSlice</td>
   </tr>
 </table>
 </body>
