@@ -164,10 +164,24 @@ so_connect( u_long address, int port )
     #ifdef NONBLOCKED_CONNECT
     int dontblock;
     #endif
+    #ifndef  TCPV40HDRS
+    struct timeval tv;
+    #endif // TCPV40HDRS
 
     server.sin_family = AF_INET;
     server.sin_addr.s_addr = address;
     server.sin_port = htons( port );
+
+    setsockopt( s, IPPROTO_TCP, SO_KEEPALIVE, NULL, TRUE );
+    #ifndef  TCPV40HDRS
+    // TODO: seperate timeout for active connection?
+    tv.tv_sec = xio_connect_timeout();
+    if (tv.tv_sec) {
+      tv.tv_usec = 0;
+      setsockopt( s, IPPROTO_TCP, SO_RCVTIMEO, &tv, sizeof tv );
+      setsockopt( s, IPPROTO_TCP, SO_SNDTIMEO, &tv, sizeof tv );
+    }
+    #endif // TCPV40HDRS
 
     #ifdef NONBLOCKED_CONNECT
 
@@ -204,7 +218,7 @@ so_connect( u_long address, int port )
         soclose( s );
         s = -1;
       }
-    #endif
+    #endif // NONBLOCKED_CONNECT
   } else {
     errno = sock_errno();
   }
