@@ -61,13 +61,13 @@ is_ftp_info( const char* string )
 /* Get and parse a FTP server response. */
 int XIOftp::read_reply()
 {
-  if( !so_readline( s_handle, s_reply, sizeof( s_reply ))) {
+  if( !s_socket.gets( s_reply, sizeof( s_reply ))) {
     return FTP_PROTOCOL_ERROR;
   }
 
   if( is_ftp_info( s_reply )) {
     while( !is_ftp_reply( s_reply )) {
-      if( !so_readline( s_handle, s_reply, sizeof( s_reply ))) {
+      if( !s_socket.gets( s_reply, sizeof( s_reply ))) {
         return FTP_PROTOCOL_ERROR;
       }
     }
@@ -98,7 +98,7 @@ int XIOftp::send_command( const char* command, const char* params )
     sprintf( send, "%s\r\n", command );
   }
 
-  if( so_write( s_handle, send, strlen( send )) == -1 ) {
+  if( s_socket.write( send, strlen( send )) == -1 ) {
     return FTP_PROTOCOL_ERROR;
   }
 
@@ -153,9 +153,9 @@ int XIOftp::transfer_file( const char* filename, unsigned long range )
                                 address[1],
                                 address[2],
                                 address[3] );
-  s_datahandle = so_connect( so_get_address( host ), address[4] * 256 + address[5] );
+  rc = s_datasocket.open( XIOsocket::get_address( host ), address[4] * 256 + address[5] );
 
-  if( s_datahandle == -1 ) {
+  if( rc == -1 ) {
     return FTP_PROTOCOL_ERROR;
   }
 
@@ -173,17 +173,17 @@ int XIOftp::open( const char* filename, XOFLAGS oflags )
 
   for(;;)
   {
-    s_handle = -1;
-    s_datahandle = -1;
+    s_socket.close();
+    s_datasocket.close();
 
     if( !url || !get ) {
       rc = FTP_PROTOCOL_ERROR;
       break;
     }
 
-    s_handle = so_connect( so_get_address( url->host ), url->port ? url->port : 21 );
+    int rc2 = s_socket.open( XIOsocket::get_address( url->host ), url->port ? url->port : 21 );
 
-    if( s_handle == -1 ) {
+    if( rc2 == -1 ) {
       rc = FTP_PROTOCOL_ERROR;
       break;
     }
@@ -238,14 +238,8 @@ int XIOftp::open( const char* filename, XOFLAGS oflags )
   if( rc == FTP_OK ) {
     return 0;
   } else {
-    if( s_datahandle != -1 ) {
-      so_close( s_datahandle );
-      s_datahandle = -1;
-    }
-    if( s_handle != -1 ) {
-      so_close( s_handle );
-      s_handle = -1;
-    }
+    s_datasocket.close();
+    s_socket.close();
     if( rc != FTP_PROTOCOL_ERROR ) {
       errno = error = FTPBASEERR + rc;
     }
@@ -258,7 +252,7 @@ int XIOftp::open( const char* filename, XOFLAGS oflags )
    to read at end-of-file. A return value -1 indicates an error.     */
 int XIOftp::read( void* result, unsigned int count )
 {
-  int done = so_read( s_datahandle, result, count );
+  int done = s_datasocket.read( result, count );
   
   if (done == -1)
     error = errno;
@@ -275,19 +269,10 @@ int XIOftp::read( void* result, unsigned int count )
    return value of -1 shows an error. */
 int XIOftp::close()
 {
-  if ( s_datahandle != -1 )
-  {
-    XASSERT( so_close( s_datahandle ), == 0 );
-    s_datahandle = -1;
-  }
-
-  if ( s_handle != -1 )
-  {
-    read_reply();
-    send_command( "QUIT", "" );
-    XASSERT( so_close( s_handle ), == 0 );
-    s_handle = -1;
-  }
+  s_datasocket.close();
+  read_reply();
+  send_command( "QUIT", "" );
+  s_socket.close();
   // Invalidate fields
   s_pos    = (unsigned long)-1;
   s_size   = (unsigned long)-1;
@@ -335,7 +320,7 @@ long XIOftp::seek( long offset, int origin, long* offset64 )
         return -1;
     }
 
-    so_close( s_datahandle );
+    s_datasocket.close();
     read_reply();
 
     if( s_location ) {
@@ -380,11 +365,9 @@ XIOftp::~XIOftp()
 /* Initializes the ftp protocol. */
 XIOftp::XIOftp()
 : support(XS_CAN_READ | XS_CAN_SEEK),
-  s_handle(-1),
   s_pos((unsigned long)-1),
   s_size((unsigned long)-1),
-  s_location(NULL),
-  s_datahandle(-1)
+  s_location(NULL)
 {
   memset(s_reply, 0, sizeof s_reply);
   blocksize = 8192;

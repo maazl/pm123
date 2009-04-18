@@ -31,6 +31,7 @@
 
 #include "xio.h"
 #include "xio_protocol.h"
+#include "xio_socket.h"
 
 #ifndef HTTPBASEERR
 #define HTTPBASEERR 21000
@@ -82,7 +83,7 @@
 class XIOhttp : public XIOreadonly
 {private:
   XSFLAGS       support;
-  int           s_handle;   /* Connection handle.                            */
+  XIOsocket     s_socket;   /* Connection class.                             */
   unsigned long s_pos;      /* Current position of the stream pointer.       */
   unsigned long s_size;     /* Size of the accociated file.                  */
   int           s_metaint;  /* How often the metadata is sent in the stream. */
@@ -101,6 +102,13 @@ class XIOhttp : public XIOreadonly
   Mutex mtx_access; /* Serializes access to the protocol's data. */
 
  private:
+  /* Get and parse HTTP reply. */
+  int http_read_reply( );
+  /* Appends basic authorization string of the specified type
+     to the request. */
+  static char* http_basic_auth_to( char* result, const char* typname,
+                                   const char* username,
+                                   const char* password, int size );
   /* Opens the file specified by filename for reading. Returns 0 if it
      successfully opens the file. A return value of -1 shows an error. */
   int read_file( const char* filename, unsigned long range );
@@ -122,6 +130,9 @@ class XIOhttp : public XIOreadonly
 
   /* Maps the error number in errnum to an error message string. */
   static const char* strerror( int errnum );
+
+  // Base64 encoding.
+  static char* base64_encode(const char* src);
 };
 
 #endif /* XIO_HTTP_H */

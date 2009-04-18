@@ -45,13 +45,12 @@
 #include <utilfct.h>
 
 /* Get and parse HTTP reply. */
-static int
-http_read_reply( int s )
+int XIOhttp::http_read_reply( )
 {
   char* p;
   char  buffer[64];
 
-  if( !so_readline( s, buffer, sizeof( buffer ))) {
+  if( !s_socket.gets( buffer, sizeof( buffer ))) {
     return HTTP_PROTOCOL_ERROR;
   }
 
@@ -89,10 +88,9 @@ http_read_reply( int s )
 
 /* Appends basic authorization string of the specified type
    to the request. */
-static char*
-http_basic_auth_to( char* result, const char* typname,
-                                  const char* username,
-                                  const char* password, int size )
+char* XIOhttp::http_basic_auth_to( char* result, const char* typname,
+                                   const char* username,
+                                   const char* password, int size )
 {
   char  auth_string[ XIO_MAX_USERNAME + XIO_MAX_PASSWORD ];
   char* auth_encode;
@@ -107,7 +105,7 @@ http_basic_auth_to( char* result, const char* typname,
     strlcat( auth_string, password, sizeof( auth_string ));
   }
 
-  auth_encode = so_base64_encode( auth_string );
+  auth_encode = base64_encode( auth_string );
 
   if( auth_encode ) {
     strlcat( result, typname, size );
@@ -137,7 +135,6 @@ int XIOhttp::read_file( const char* filename, unsigned long range )
   int    reqsize = 16384;
   char*  request = (char*)malloc( reqsize  );
   int    rc;
-  int    handle;
   char*  get;
   int    redirect;
   char   string[64];
@@ -214,24 +211,24 @@ int XIOhttp::read_file( const char* filename, unsigned long range )
     strlcat( request, "\r\n", reqsize );
 
     if( proxy_addr ) {
-      handle = so_connect( proxy_addr, proxy_port );
+      rc = s_socket.open( proxy_addr, proxy_port );
     } else {
-      handle = so_connect( so_get_address( url->host ), url->port ? url->port : 80 );
+      rc = s_socket.open( XIOsocket::get_address( url->host ), url->port ? url->port : 80 );
     }
 
-    if( handle == -1 ) {
+    if( rc == -1 ) {
       rc = HTTP_PROTOCOL_ERROR;
       break;
     }
 
-    if( so_write( handle, request, strlen( request )) == -1 ) {
+    if( s_socket.write( request, strlen( request )) == -1 ) {
       rc = HTTP_PROTOCOL_ERROR;
       break;
     }
 
-    rc = http_read_reply( handle );
+    rc = http_read_reply( );
 
-    while( so_readline( handle, request, reqsize ) && *request ) {
+    while( s_socket.gets( request, reqsize ) && *request ) {
       if( strnicmp( request, "Location:", 9 ) == 0 ) {
         // Have new resource location.
         if( rc == HTTP_MOVED_PERM ||
@@ -290,7 +287,6 @@ int XIOhttp::read_file( const char* filename, unsigned long range )
       }
 
       support   = r_supports;
-      s_handle  = handle;
       s_pos     = r_pos;
       s_size    = r_size;
       s_metaint = r_metaint;
@@ -301,8 +297,7 @@ int XIOhttp::read_file( const char* filename, unsigned long range )
       strcpy( s_title, r_title);
 
     } else {
-      s_handle = -1;
-      so_close( handle );
+      s_socket.close();
     }
     break;
   }
@@ -351,7 +346,7 @@ int XIOhttp::read_and_notify( void* result, unsigned int count )
   DEBUGLOG2(("XIOhttp::read_and_notify(%p, %u) - %i, %i\n", result, count, s_metaint, s_metapos));
 
   if( !s_metaint ) {
-    return so_read( s_handle, result, count );
+    return s_socket.read( result, count );
   }
 
   read_done = 0;
@@ -361,7 +356,7 @@ int XIOhttp::read_and_notify( void* result, unsigned int count )
     {
       // Time to read metadata from a input stream.
       metahead = 0;
-      done = so_read( s_handle, &metahead, 1 );
+      done = s_socket.read( &metahead, 1 );
 
       if( done > 0 ) {
         if( metahead ) {
@@ -371,7 +366,7 @@ int XIOhttp::read_and_notify( void* result, unsigned int count )
             errno = error = ENOMEM;
             return -1;
           }
-          done = so_read( s_handle, metabuff, metasize );
+          done = s_socket.read( metabuff, metasize );
           if (done < 0)
           { errno = error = HTTP_PROTOCOL_ERROR;
             free(metabuff);
@@ -415,7 +410,7 @@ int XIOhttp::read_and_notify( void* result, unsigned int count )
     read_size = count - read_done;
     read_size = min( read_size, s_metapos );
 
-    done = so_read( s_handle, (char*)result + read_done, read_size );
+    done = s_socket.read( (char*)result + read_done, read_size );
 
     if (done == -1)
     { errno = error = HTTP_PROTOCOL_ERROR;
@@ -448,17 +443,10 @@ int XIOhttp::read( void* result, unsigned int count )
    return value of -1 shows an error. */
 int XIOhttp::close()
 {
-  int rc = 0;
+  s_pos     = (unsigned long)-1;
+  s_size    = (unsigned long)-1;
 
-  if( s_handle != -1 ) {
-    if(( rc = so_close( s_handle )) != -1 ) {
-      s_handle  = -1;
-      s_pos     = (unsigned long)-1;
-      s_size    = (unsigned long)-1;
-    }
-  }
-
-  return rc;
+  return s_socket.close();
 }
 
 /* Returns the current position of the file pointer. The position is
@@ -576,7 +564,6 @@ XIOhttp::~XIOhttp()
 /* Initializes the http protocol. */
 XIOhttp::XIOhttp()
 : support(XS_CAN_READ | XS_CAN_SEEK),
-  s_handle(-1),
   s_pos((unsigned long)-1),
   s_size((unsigned long)-1),
   s_metaint(0),
@@ -620,5 +607,62 @@ const char* XIOhttp::strerror( int errnum )
     default:
       return "Unexpected HTTP protocol error.";
   }
+}
+
+/* Base64 encoding. */
+char* XIOhttp::base64_encode( const char* src )
+{
+  static const char base64[] =
+      "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+      "abcdefghijklmnopqrstuvwxyz"
+      "0123456789+/";
+
+  char*  str;
+  char*  dst;
+  size_t l;
+  int    t;
+  int    r;
+
+  l = strlen( src );
+  if(( str = (char*)malloc((( l + 2 ) / 3 ) * 4 + 1 )) == NULL ) {
+    return NULL;
+  }
+  dst = str;
+  r = 0;
+
+  while( l >= 3 ) {
+    t = ( src[0] << 16 ) | ( src[1] << 8 ) | src[2];
+    dst[0] = base64[(t >> 18) & 0x3f];
+    dst[1] = base64[(t >> 12) & 0x3f];
+    dst[2] = base64[(t >>  6) & 0x3f];
+    dst[3] = base64[(t >>  0) & 0x3f];
+    src += 3; l -= 3;
+    dst += 4; r += 4;
+  }
+
+  switch( l ) {
+    case 2:
+      t = ( src[0] << 16 ) | ( src[1] << 8 );
+      dst[0] = base64[(t >> 18) & 0x3f];
+      dst[1] = base64[(t >> 12) & 0x3f];
+      dst[2] = base64[(t >>  6) & 0x3f];
+      dst[3] = '=';
+      dst += 4;
+      r += 4;
+      break;
+    case 1:
+      t = src[0] << 16;
+      dst[0] = base64[(t >> 18) & 0x3f];
+      dst[1] = base64[(t >> 12) & 0x3f];
+      dst[2] = dst[3] = '=';
+      dst += 4;
+      r += 4;
+      break;
+    case 0:
+      break;
+  }
+
+  *dst = 0;
+  return str;
 }
 

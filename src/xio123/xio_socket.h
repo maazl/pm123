@@ -29,57 +29,78 @@
 #ifndef XIO_SOCKET_H
 #define XIO_SOCKET_H
 
+#include "xio_protocol.h"
+
 #include <types.h>
 
 #ifndef HBASEERR
 #define HBASEERR 20000
 #endif
 
-/* Converts a string containing a valid internet address using
-   dotted-decimal notation or host name into an internet address
-   number typed as an unsigned long value.  A -1 value
-   indicates an error. */
-u_long
-so_get_address( const char* hostname );
 
-/* Base64 encoding. */
-char*
-so_base64_encode( const char* src );
+/* Class to deal with a TCP/IP socket transparent as stream.
+ * The URI Syntax is: tcpip://host:port
+ */
+class XIOsocket : public XPROTOCOL
+{private:
+  int             s_handle;
 
-/* Creates an endpoint for communication and requests a
-   connection to a remote host. A non-negative socket descriptor
-   return value indicates success. The return value -1 indicates
-   an error. */
-int
-so_connect( u_long address, int port );
+ private:
+  void            seterror(int err);
+  void            seterror();
 
-/* Sends data on a connected socket. When successful, returns 0.
-   The return value -1 indicates an error was detected on the
-   sending side of the connection. */
-int
-so_write( int s, const void* buffer, int size );
+ public:
+                  XIOsocket() : s_handle(-1) {};
+  virtual         ~XIOsocket();
 
-/* Receives data on a socket with descriptor s and stores it in
-   the buffer. When successful, the number of bytes of data received
-   into the buffer is returned. The value 0 indicates that the
-   connection is closed. The value -1 indicates an error. */
-int
-so_read( int s, void* buffer, int size );
+  // Opens a client connection. URI syntax tcpip://host:port
+  // Returns 0 if it successfully connected the socket.
+  // A return value of -1 shows an error.
+  virtual int     open( const char* uri, XOFLAGS oflags );
+  // Creates an endpoint for communication and requests a
+  // connection to a remote host. A non-zero return value indicates
+  // an error.
+  int             open( u_long address, int port );
+  // Receives data on a socket with descriptor s and stores it in
+  // the buffer. When successful, the number of bytes of data received
+  // into the buffer is returned. The value 0 indicates that the
+  // connection is closed. The value -1 indicates an error.
+  virtual int     read( void* result, unsigned int count );
+  // Receives bytes on a socket up to the first new-line character (\n)
+  // or until the number of bytes received is equal to n-1, whichever
+  // comes first. Stores the result in string and adds a null
+  // character (\0) to the end of the string. If n is equal to 1, the
+  // string is empty. Returns a pointer to the string buffer if successful.
+  // A NULL return value indicates an error or that the connection is
+  // closed.
+  virtual char*   gets( char* string, unsigned int n ); // ???
+  // Sends data on a connected socket. When successful, returns 0.
+  // The return value -1 indicates an error was detected on the
+  // sending side of the connection.
+  virtual int     write( const void* source, unsigned int count );
+  // Shuts down a socket and frees resources allocated to the socket.
+  // Retuns value 0 indicates success; the value -1 indicates an error.
+  virtual int     close();
+  // Unsupported. Always returns an error (-1L).
+  virtual long    tell( long* offset64 = NULL );
+  // Unsupported. Always returns an error (-1L).
+  virtual long    seek( long offset, int origin, long* offset64 = NULL );
+  // Unsupported. Always returns an error (-1L).
+  virtual long    getsize( long* offset64 = NULL );
+  // Unsupported. Always returns an error (-1).
+  virtual int     chsize( long size, long offset64 = 0 );
+  // Return the supported properties of the current protocol
+  virtual XSFLAGS supports() const;
 
-/* Receives bytes on a socket up to the first new-line character (\n)
-   or until the number of bytes received is equal to n-1, whichever
-   comes first. Stores the result in string and adds a null
-   character (\0) to the end of the string. If n is equal to 1, the
-   string is empty. Returns a pointer to the string buffer if successful.
-   A NULL return value indicates an error or that the connection is
-   closed.*/
-char*
-so_readline( int s, char* buffer, int size );
-
-/* Shuts down a socket and frees resources allocated to the socket.
-   Retuns value 0 indicates success; the value -1 indicates an error. */
-int
-so_close( int s );
+  // Converts a string containing a valid internet address using
+  // dotted-decimal notation or host name into an internet address
+  // number typed as an unsigned long value.  A -1 value
+  // indicates an error.
+  static u_long   get_address(const char* hostname);
+  // Converts a string containing a valid service or port
+  // into a port number. A -1 value indicates an error.
+  static int      get_service(const char* service);
+};
 
 #endif /* XIO_SOCKET_H */
 

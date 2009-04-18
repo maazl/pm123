@@ -31,6 +31,7 @@
 
 #include "xio.h"
 #include "xio_protocol.h"
+#include "xio_socket.h"
 
 /* The server command must be sent as part of the "Request-URL":
  *
@@ -79,7 +80,7 @@
 
 class XIOcddb : public XIOreadonly
 {private:
-  int           s_handle;   /* Connection handle.                            */
+  XIOsocket     s_socket;   /* Connection.                                   */
   unsigned long s_pos;      /* Current position of the stream pointer.       */
 
  private:

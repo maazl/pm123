@@ -31,6 +31,7 @@
 
 #include "xio.h"
 #include "xio_protocol.h"
+#include "xio_socket.h"
 
 #ifndef FTPBASEERR
 #define FTPBASEERR 22000
@@ -67,13 +68,13 @@
 class XIOftp : public XIOreadonly
 {private:
   XSFLAGS       support;
-  int           s_handle;   /* Connection handle.                            */
-  unsigned long s_pos;      /* Current position of the stream pointer.       */
-  unsigned long s_size;     /* Size of the associated file.                  */
-  char*         s_location; /* Saved resource location. */
+  XIOsocket     s_socket;   // Connection.
+  unsigned long s_pos;      // Current position of the stream pointer.
+  unsigned long s_size;     // Size of the associated file.
+  char*         s_location; // Saved resource location.
 
-  char  s_reply[512];
-  int   s_datahandle;
+  XIOsocket     s_datasocket;
+  char          s_reply[512];
 
  private:
   /* Get and parse a FTP server response. */

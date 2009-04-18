@@ -94,28 +94,20 @@ xio_fopen( const char* filename, const char* mode )
   x = new XFILE();
 
   if( strnicmp( filename, "http:", 5 ) == 0 )
-  {
-    //x->scheme   = XIO_HTTP;
     x->protocol = new XIOhttp();
-  }
   else if( strnicmp( filename, "ftp:", 4 ) == 0 )
   {
-    if( *http_proxy_host ) {
-      //x->scheme   = XIO_HTTP;
+    if( *http_proxy_host )
       x->protocol = new XIOhttp();
-    } else {
-      //x->scheme   = XIO_FTP;
+    else
       x->protocol = new XIOftp();
-    }
   }
   else if( strnicmp( filename, "cddbp:", 6 ) == 0 )
-  {
-    //x->scheme   = XIO_CDDB;
     x->protocol = new XIOcddb();
-  } else {
-    //x->scheme   = XIO_FILE;
+  else if( strnicmp( filename, "tcpip:", 6 ) == 0 )
+    x->protocol = new XIOsocket();
+  else
     x->protocol = new XIOfile();
-  }
 
   if( !x->protocol ) {
     delete x;
@@ -788,7 +780,7 @@ xio_http_proxy_addr( void )
     return 0;
   }
 
-  address = so_get_address( host );
+  address = XIOsocket::get_address( host );
 
   http_proxy_addr = address;
   return address;

@@ -47,7 +47,7 @@ int XIOcddb::read_reply()
 {
   char buffer[1024];
 
-  if( !so_readline( s_handle, buffer, sizeof( buffer ))) {
+  if( !s_socket.gets( buffer, sizeof( buffer ))) {
     return CDDB_PROTOCOL_ERROR;
   }
 
@@ -69,7 +69,7 @@ int XIOcddb::send_command( const char* format, ... )
   va_start ( args, format );
   vsnprintf( buffer, sizeof( buffer ), format, args );
 
-  if( so_write( s_handle, buffer, strlen( buffer )) == -1 ) {
+  if( s_socket.write( buffer, strlen( buffer )) == -1 ) {
     return CDDB_PROTOCOL_ERROR;
   }
 
@@ -122,7 +122,7 @@ int XIOcddb::open( const char* filename, XOFLAGS oflags )
 
   for(;;)
   {
-    s_handle = -1;
+    s_socket.close();
 
     if( !url ) {
       rc = CDDB_PROTOCOL_ERROR;
@@ -134,9 +134,7 @@ int XIOcddb::open( const char* filename, XOFLAGS oflags )
       break;
     }
 
-    s_handle = so_connect( so_get_address( url->host ), url->port ? url->port : 8880 );
-
-    if( s_handle == -1 ) {
+    if( s_socket.open( XIOsocket::get_address( url->host ), url->port ? url->port : 8880 ) == -1 ) {
       rc = CDDB_PROTOCOL_ERROR;
       break;
     }
@@ -170,8 +168,8 @@ int XIOcddb::open( const char* filename, XOFLAGS oflags )
     // should be read by the client side.
     part_of_request( url->query, "cmd", buffer, sizeof( buffer ));
 
-    if( so_write( s_handle, buffer, strlen( buffer )) == -1 ||
-        so_write( s_handle, "\n", 1 ) == -1 )
+    if( s_socket.puts( buffer ) == -1 ||
+        s_socket.puts( "\n" ) == -1 )
     {
       rc = CDDB_PROTOCOL_ERROR;
     }
@@ -183,10 +181,7 @@ int XIOcddb::open( const char* filename, XOFLAGS oflags )
   if( rc == CDDB_OK || rc == CDDB_OK_READONLY ) {
     return 0;
   } else {
-    if( s_handle != -1 ) {
-      so_close( s_handle );
-      s_handle = -1;
-    }
+    s_socket.close();
     if( rc != CDDB_PROTOCOL_ERROR ) {
       errno = error = CDDBBASEERR + rc;
     }
@@ -201,7 +196,7 @@ int XIOcddb::open( const char* filename, XOFLAGS oflags )
    to read at end-of-file. A return value -1 indicates an error.     */
 int XIOcddb::read( void* result, unsigned int count )
 {
-  int done = so_read( s_handle, result, count );
+  int done = s_socket.read( result, count );
 
   if (done == -1)
     error = errno;
@@ -218,12 +213,7 @@ int XIOcddb::read( void* result, unsigned int count )
    return value of -1 shows an error. */
 int XIOcddb::close()
 {
-  if ( s_handle != -1 )
-  { XASSERT(so_close( s_handle ), == 0);
-    s_handle = -1;
-    return 0;
-  } else
-    return -1;
+  return s_socket.close();
 }
 
 /* Returns the current position of the file pointer. The position is
@@ -273,8 +263,7 @@ XIOcddb::~XIOcddb()
 
 /* Initializes the cddb protocol. */
 XIOcddb::XIOcddb()
-: s_handle(-1),
-  s_pos((unsigned long)-1)
+: s_pos((unsigned long)-1)
 { blocksize = 4096; // Sufficient for most Records
 }
 
