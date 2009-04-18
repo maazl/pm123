@@ -255,10 +255,16 @@ xio_set_http_proxy_pass( char* password );
 /* Returns the TCP/IP connection timeout. */
 int DLLENTRY
 xio_connect_timeout( void );
-
 /* Sets the TCP/IP connection timeout. */
 void DLLENTRY
 xio_set_connect_timeout( int seconds );
+
+/* Returns the TCP/IP send/receive timeout. */
+int DLLENTRY
+xio_socket_timeout( void );
+/* Sets the TCP/IP socket send/receive timeout. */
+void DLLENTRY
+xio_set_socket_timeout( int seconds );
 
 #ifdef __cplusplus
 }

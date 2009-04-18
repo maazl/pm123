@@ -58,10 +58,11 @@ static char   http_proxy_user[XIO_MAX_USERNAME];
 static char   http_proxy_pass[XIO_MAX_PASSWORD];
 static u_long http_proxy_addr;
 
-static int  buffer_size    = 32768;
-static int  buffer_wait    = 0;
-static int  buffer_fill    = 30;
-static int  socket_timeout = 30;
+static int  buffer_size     = 32768;
+static int  buffer_wait     = 0;
+static int  buffer_fill     = 30;
+static int  connect_timeout = 30;
+static int  socket_timeout  = 30;
 
 /* Serializes access to the library's global data. */
 static Mutex mutex;
@@ -797,12 +798,26 @@ xio_http_proxy_addr( void )
 int DLLENTRY
 xio_connect_timeout( void )
 {
-  return socket_timeout;
+  return connect_timeout;
 }
 
 /* Sets the TCP/IP connection timeout. */
 void DLLENTRY
 xio_set_connect_timeout( int seconds )
+{
+  connect_timeout = seconds;
+}
+
+/* Returns the TCP/IP connection timeout. */
+int DLLENTRY
+xio_socket_timeout( void )
+{
+  return socket_timeout;
+}
+
+/* Sets the TCP/IP connection timeout. */
+void DLLENTRY
+xio_set_socket_timeout( int seconds )
 {
   socket_timeout = seconds;
 }

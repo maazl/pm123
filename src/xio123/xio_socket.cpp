@@ -53,6 +53,8 @@
 #include "xio_socket.h"
 #include "xio.h"
 
+#include <debuglog.h>
+
 /* Converts a string containing a valid internet address using
    dotted-decimal notation or host name into an internet address
    number typed as an unsigned long value.  A -1 value
@@ -154,6 +156,7 @@ so_connect( u_long address, int port )
 {
   int s;
   struct sockaddr_in server = {0};
+  DEBUGLOG(("xio:so_connect(%x, %d)\n", address, port));
 
   if( address == -1 ) {
     return -1;
@@ -165,7 +168,7 @@ so_connect( u_long address, int port )
     int dontblock;
     #endif
     #ifndef  TCPV40HDRS
-    struct timeval tv;
+    struct timeval tv = {0};
     #endif // TCPV40HDRS
 
     server.sin_family = AF_INET;
@@ -174,10 +177,8 @@ so_connect( u_long address, int port )
 
     setsockopt( s, IPPROTO_TCP, SO_KEEPALIVE, NULL, TRUE );
     #ifndef  TCPV40HDRS
-    // TODO: seperate timeout for active connection?
-    tv.tv_sec = xio_connect_timeout();
+    tv.tv_sec = xio_socket_timeout();
     if (tv.tv_sec) {
-      tv.tv_usec = 0;
       setsockopt( s, IPPROTO_TCP, SO_RCVTIMEO, &tv, sizeof tv );
       setsockopt( s, IPPROTO_TCP, SO_SNDTIMEO, &tv, sizeof tv );
     }
@@ -223,6 +224,7 @@ so_connect( u_long address, int port )
     errno = sock_errno();
   }
 
+  DEBUGLOG(("xio:so_connect: %d\n", s));
   return s;
 }
 
@@ -232,10 +234,32 @@ so_connect( u_long address, int port )
 int
 so_write( int s, const void* buffer, int size )
 {
+  int done;
+  DEBUGLOG(("xio:so_write(%d, %p, %d)\n", s, buffer, size));
+
   while( size )
   {
-    int done = send( s, (char*)buffer, size, 0 );
+    #ifdef TCPV40HDRS
+    // Work around for missing SO_SNDTIMEO in 16 bit IP stack.
+    struct timeval timeout = {0};
+    
+    timeout.tv_sec = xio_connect_timeout();
+    if ( timeout.tv_sec ) {
+      fd_set waitlist;
 
+      FD_ZERO( &waitlist    );
+      FD_SET ( s, &waitlist );
+    
+      switch ( select( 0, NULL, &waitlist, NULL, &timeout )) {
+        case 0: // Timeout
+          errno = SOCETIMEDOUT;
+        case -1: // Error
+          return -1;
+      }
+    }
+    #endif
+    done = send( s, (char*)buffer, size, 0 );
+    
     if( done <= 0 ) {
       errno = sock_errno();
       return -1;
@@ -257,9 +281,29 @@ so_read( int s, void* buffer, int size )
 {
   int read = 0;
   int done;
+  DEBUGLOG(("xio:so_read(%d, %p, %d)\n", s, buffer, size));
 
   while( read < size )
   {
+    #ifdef TCPV40HDRS
+    // Work around for missing SO_RCVTIMEO in 16 bit IP stack.
+    struct timeval timeout = {0};
+    
+    timeout.tv_sec = xio_connect_timeout();
+    if ( timeout.tv_sec ) {
+      fd_set waitlist;
+
+      FD_ZERO( &waitlist    );
+      FD_SET ( s, &waitlist );
+    
+      switch ( select( 0, &waitlist, NULL, NULL, &timeout )) {
+        case 0: // Timeout
+          errno = SOCETIMEDOUT;
+        case -1: // Error
+          return -1;
+      }
+    }
+    #endif
     done = recv( s, (char*)buffer + read, size - read, 0 );
 
     if( done < 0 ) {
@@ -287,8 +331,28 @@ so_readline( int s, char* buffer, int size )
 {
   int done = 0;
   char* p  = buffer;
+  DEBUGLOG(("xio:so_readline(%d, %p, %d)\n", s, buffer, size));
 
   while( done < size - 1 ) {
+    #ifdef TCPV40HDRS
+    // Work around for missing SO_RCVTIMEO in 16 bit IP stack.
+    struct timeval timeout = {0};
+    
+    timeout.tv_sec = xio_connect_timeout();
+    if ( timeout.tv_sec ) {
+      fd_set waitlist;
+
+      FD_ZERO( &waitlist    );
+      FD_SET ( s, &waitlist );
+    
+      switch ( select( 0, &waitlist, NULL, NULL, &timeout )) {
+        case 0: // Timeout
+          errno = SOCETIMEDOUT;
+        case -1: // Error
+          return NULL;
+      }
+    }
+    #endif
     if( recv( s, p, 1, 0 ) == 1 ) {
       if( *p == '\r' ) {
         continue;
@@ -315,6 +379,7 @@ so_readline( int s, char* buffer, int size )
    Retuns value 0 indicates success; the value -1 indicates an error. */
 int
 so_close( int s ) {
+  DEBUGLOG(("xio:so_close(%d)\n", s));
   return soclose( s );
 }
 

@@ -38,11 +38,11 @@ xio_cddb.cpp:	..\utils\snprintf.h xio_cddb.h xio_url.h xio_socket.h ..\utils\deb
 xio_file.cpp:	xio_file.h xio_url.h ..\utils\debuglog.h
 xio_ftp.cpp:	xio_ftp.h xio_url.h xio_socket.h ..\utils\interlocked.h
 xio_http.cpp:	xio_http.h xio_url.h xio_socket.h xio.h ..\utils\utilfct.h
-xio_socket.cpp:	xio_socket.h xio.h
+xio_socket.cpp:	xio_socket.h xio.h ..\utils\debuglog.h
 xio_url.cpp:	xio_url.h ..\utils\utilfct.h ..\utils\debuglog.h
 xio.h:		..\include\config.h
 xio_syncbuffer.h:	xio_buffer.h
-xio_asyncbuffer.h:	xio_buffer.h
-xio_asyncbuffer.cpp:	..\utils\utilfct.h ..\utils\debuglog.h xio_asyncbuffer.h xio.h
+xio_asyncbuffer.h:	xio_buffer.h ..\utils\cpp/mutex.h
+xio_asyncbuffer.cpp:	..\utils\utilfct.h ..\utils\debuglog.h xio_protocol.h xio_asyncbuffer.h xio.h
 xio_protocol.cpp:	xio_protocol.h xio_buffer.h ..\utils\utilfct.h
 xio_syncbuffer.cpp:	..\utils\utilfct.h ..\utils\debuglog.h xio_syncbuffer.h xio_protocol.h xio.h

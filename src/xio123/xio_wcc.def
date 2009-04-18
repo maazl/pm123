@@ -11,6 +11,7 @@ EXPORT xio_http_proxy_pass      .6
 EXPORT xio_http_proxy_addr      .7
 EXPORT xio_buffer_fill          .8
 EXPORT xio_connect_timeout      .9
+EXPORT xio_socket_timeout       .10
 
 EXPORT xio_set_buffer_size      .21
 EXPORT xio_set_buffer_wait      .22
@@ -23,6 +24,7 @@ EXPORT xio_get_metainfo         .28
 EXPORT xio_can_seek             .29
 EXPORT xio_set_buffer_fill      .30
 EXPORT xio_set_connect_timeout  .31
+EXPORT xio_set_socket_timeout   .32
 
 EXPORT xio_fopen                .40
 EXPORT xio_fread                .41
