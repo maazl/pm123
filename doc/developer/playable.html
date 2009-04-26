@@ -8,7 +8,7 @@
 
 <h2>PM123 Playable object handling</h2>
 <h3>Class Tree</h3>
-<p><img src="images/playableclasses.png" width="756" height="796"></p>
+<p><img src="images/playableclasses.png" width="768" height="672"></p>
 <h3>Use cases</h3>
 <p>The following table shows the properties accessed per use case and the interface used for this purpuse in the coding. In the second section the table shows the supported properties and interfaces by class/interface.</p>
 <p>R - read access<br>
@@ -228,25 +228,15 @@ Lowercase letters indicate protected access.</p>
   <td>X</td>
   <td>&nbsp;</td>
   </tr><tr>
-  <td>PlayableBase</td>
-  <td>RO</td>
-  <td>&nbsp;</td>
-  <td>RwO</td>
-  <td>RwO</td>
-  <td>RO</td>
-  <td>&nbsp;</td>
-  <td>X</td>
-  <td>AbstractPlayable</td>
-  </tr><tr>
   <td>Playable</td>
   <td>RO</td>
   <td>&nbsp;</td>
   <td>RwO</td>
   <td>RwO</td>
-  <td>&nbsp;</td>
+  <td>ro</td>
   <td>RWO</td>
   <td>X</td>
-  <td>PlayableBase</td>
+  <td>AbstractPlayable</td>
   </tr><tr>
   <td>PlayableSlice</td>
   <td>RO</td>
@@ -256,7 +246,7 @@ Lowercase letters indicate protected access.</p>
   <td>RWO</td>
   <td>&nbsp;</td>
   <td>X</td>
-  <td><p>PlayableBase</p>
+  <td><p>AbstractPlayable</p>
   </td>
   </tr><tr>
   <td>PlayableInstance</td>
