@@ -114,7 +114,7 @@
 typedef struct _DECODER_STRUCT
 {
    MPG_FILE mpeg;
-   char     filename[_MAX_PATH];
+   char     filename[4096]; // URLs !!!
    XFILE*   save;
    char     savename[_MAX_PATH];
 
