@@ -29,6 +29,7 @@
 #define  BSD_SELECT
 
 #include <stdlib.h>
+#include <stdio.h>
 #include <string.h>
 #include <types.h>
 #include <sys/time.h>
@@ -307,11 +308,13 @@ int XIOsocket::read( void* buffer, unsigned int size )
     }
     #endif
     int done = recv( s_handle, (char*)buffer + read, size - read, 0 );
+    DEBUGLOG2(("XIOsocket::read: %d, %d\n", done, sock_errno()));
 
     if( done < 0 ) {
       seterror();
       break;
     } else if( done == 0 ) {
+      eof = true;
       break;
     } else {
       read += done;
@@ -356,7 +359,8 @@ char* XIOsocket::gets( char* buffer, unsigned int size )
       }
     }
     #endif
-    if( recv( s_handle, p, 1, 0 ) == 1 ) {
+    int rc = recv( s_handle, p, 1, 0 );
+    if( rc == 1 ) {
       if( *p == '\r' ) {
         continue;
       } else if( *p == '\n' ) {
@@ -366,7 +370,12 @@ char* XIOsocket::gets( char* buffer, unsigned int size )
         ++done;
       }
     } else {
+      DEBUGLOG(("XIOsocket::gets: error %d\n", sock_errno()));
       if( !done ) {
+        if (rc == 0)
+          eof = true;
+        else
+          seterror();
         return NULL;
       } else {
         break;
@@ -375,6 +384,7 @@ char* XIOsocket::gets( char* buffer, unsigned int size )
   }
 
   *p = 0;
+  DEBUGLOG(("XIOsocket::gets: %s\n", buffer));
   return buffer;
 }
 

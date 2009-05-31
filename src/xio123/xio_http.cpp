@@ -81,6 +81,8 @@ int XIOhttp::http_read_reply( )
     return HTTP_PROTOCOL_ERROR;
   }
 
+  DEBUGLOG(("XIOhttp::http_read_reply: RC = %.4s\n", p));
+
   return ( p[1] - '0' ) * 100 +
          ( p[2] - '0' ) * 10  +
          ( p[3] - '0' );
@@ -176,6 +178,8 @@ int XIOhttp::read_file( const char* filename, unsigned long range )
         get = url_string( url, XURL_STR_ENCODE | XURL_STR_FULL );
       }
     }
+    
+    DEBUGLOG2(("XIOhttp::read_file: GET %s\n", get));
 
     if( !get ) {
       rc = HTTP_PROTOCOL_ERROR;
@@ -207,7 +211,7 @@ int XIOhttp::read_file( const char* filename, unsigned long range )
       strlcat( request, "-\r\n", reqsize );
     }
 
-    strlcat( request, "icy-metadata:1\r\n", reqsize );
+    strlcat( request, "Icy-MetaData: 1\r\n", reqsize );
     strlcat( request, "\r\n", reqsize );
 
     if( proxy_addr ) {
@@ -221,6 +225,7 @@ int XIOhttp::read_file( const char* filename, unsigned long range )
       break;
     }
 
+    DEBUGLOG(("XIOhttp::read_file: request %s\n", request));
     if( s_socket.write( request, strlen( request )) == -1 ) {
       rc = HTTP_PROTOCOL_ERROR;
       break;
@@ -346,7 +351,12 @@ int XIOhttp::read_and_notify( void* result, unsigned int count )
   DEBUGLOG2(("XIOhttp::read_and_notify(%p, %u) - %i, %i\n", result, count, s_metaint, s_metapos));
 
   if( !s_metaint ) {
-    return s_socket.read( result, count );
+    done = s_socket.read( result, count );
+    if (done == -1)
+      errno = error = s_socket.error;
+    else if( done == 0 )
+      eof = true;
+    return done;
   }
 
   read_done = 0;
@@ -368,7 +378,7 @@ int XIOhttp::read_and_notify( void* result, unsigned int count )
           }
           done = s_socket.read( metabuff, metasize );
           if (done < 0)
-          { errno = error = HTTP_PROTOCOL_ERROR;
+          { errno = error = s_socket.error;
             free(metabuff);
             return -1;
           } else if(done == 0) {
@@ -411,9 +421,8 @@ int XIOhttp::read_and_notify( void* result, unsigned int count )
     read_size = min( read_size, s_metapos );
 
     done = s_socket.read( (char*)result + read_done, read_size );
-
     if (done == -1)
-    { errno = error = HTTP_PROTOCOL_ERROR;
+    { errno = error = s_socket.error;
       return -1;
     } else if( done == 0 ) {
       eof = true;

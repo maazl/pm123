@@ -117,7 +117,7 @@ void XIOasyncbuffer::read_ahead()
       // It is possible to use the data_tail pointer without request of
       // the mutex because only this thread can change it.
       int read_done = chain->read( data_tail, read_size );
-      DEBUGLOG(("XIOasyncbuffer::read_ahead: read %i -> %i, %u\n", read_size, read_done, chain->eof));
+      DEBUGLOG(("XIOasyncbuffer::read_ahead: read %i -> %i, %u,%d\n", read_size, read_done, chain->eof, chain->error));
       lock.Request();
 
       if( read_done > 0 ) {

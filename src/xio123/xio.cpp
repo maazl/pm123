@@ -37,7 +37,7 @@
 #include <sys/socket.h>
 
 #include <utilfct.h>
-#include <decoder_plug.h>
+#include <decoder_plug.h> // For WM_METADATA
 #include <debuglog.h>
 
 #include "xio.h"
