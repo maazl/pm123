@@ -203,7 +203,7 @@ int XIOcddb::read( void* result, unsigned int count )
   else
   { if (done == 0)
       eof = true;
-    InterlockedAdd((unsigned&)s_pos, done);
+    InterlockedAdd(&(volatile unsigned&)s_pos, done);
   }
 
   return done;

@@ -62,7 +62,7 @@ void XIOsocket::seterror(int err)
 void XIOsocket::seterror()
 { errno = error = sock_errno();
 }
- 
+
 /* Converts a string containing a valid internet address using
    dotted-decimal notation or host name into an internet address
    number typed as an unsigned long value.  A -1 value
@@ -103,7 +103,7 @@ int XIOsocket::get_service( const char* service )
   int port;
   size_t len;
   if (sscanf(service, "%i%n", &port, &len) != 1 || strlen(service) != len)
-  { struct servent* servent = getservbyname( service, "TCP" );
+  { struct servent* servent = getservbyname( (char*)service, "TCP" );
     if (servent == NULL)
     {
       #ifdef NETDB_INTERNAL
@@ -147,8 +147,8 @@ int XIOsocket::open( const char* uri, XOFLAGS oflags )
   { error = errno;
     return -1;
   }
- 
-  error = 0; 
+
+  error = 0;
   return open(address, port);
 }
 /* Creates an endpoint for communication and requests a
@@ -243,14 +243,14 @@ int XIOsocket::write( const void* buffer, unsigned int size )
     #ifdef TCPV40HDRS
     // Work around for missing SO_SNDTIMEO in 16 bit IP stack.
     struct timeval timeout = {0};
-    
+
     timeout.tv_sec = xio_socket_timeout();
     if ( timeout.tv_sec ) {
       fd_set waitlist;
 
       FD_ZERO( &waitlist    );
       FD_SET ( s_handle, &waitlist );
-    
+
       switch ( select( s_handle+1, NULL, &waitlist, NULL, &timeout )) {
         case 0: // Timeout
           seterror(SOCETIMEDOUT);
@@ -262,7 +262,7 @@ int XIOsocket::write( const void* buffer, unsigned int size )
     }
     #endif
     done = send( s_handle, (char*)buffer, size, 0 );
-    
+
     if( done <= 0 ) {
       seterror();
       return -1;
@@ -289,14 +289,14 @@ int XIOsocket::read( void* buffer, unsigned int size )
     #ifdef TCPV40HDRS
     // Work around for missing SO_RCVTIMEO in 16 bit IP stack.
     struct timeval timeout = {0};
-    
+
     timeout.tv_sec = xio_socket_timeout();
     if ( timeout.tv_sec ) {
       fd_set waitlist;
 
       FD_ZERO( &waitlist    );
       FD_SET ( s_handle, &waitlist );
-    
+
       switch ( select( s_handle+1, &waitlist, NULL, NULL, &timeout )) {
         case 0: // Timeout
           seterror(SOCETIMEDOUT);
@@ -341,14 +341,14 @@ char* XIOsocket::gets( char* buffer, unsigned int size )
     #ifdef TCPV40HDRS
     // Work around for missing SO_RCVTIMEO in 16 bit IP stack.
     struct timeval timeout = {0};
-    
+
     timeout.tv_sec = xio_socket_timeout();
     if ( timeout.tv_sec ) {
       fd_set waitlist;
 
       FD_ZERO( &waitlist    );
       FD_SET ( s_handle, &waitlist );
-    
+
       switch ( select( s_handle+1, &waitlist, NULL, NULL, &timeout )) {
         case 0: // Timeout
           seterror(SOCETIMEDOUT);
@@ -431,3 +431,4 @@ XIOsocket::~XIOsocket()
     close();
 }
 
+

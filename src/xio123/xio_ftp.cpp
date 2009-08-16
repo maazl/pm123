@@ -253,13 +253,13 @@ int XIOftp::open( const char* filename, XOFLAGS oflags )
 int XIOftp::read( void* result, unsigned int count )
 {
   int done = s_datasocket.read( result, count );
-  
+
   if (done == -1)
     error = errno;
   else
   { if (done == 0)
       eof = true;
-    InterlockedAdd((unsigned&)s_pos, done);
+    InterlockedAdd(&(volatile unsigned&)s_pos, done);
   }
 
   return done;
@@ -406,3 +406,4 @@ const char* XIOftp::strerror( int errnum )
   }
 }
 
+

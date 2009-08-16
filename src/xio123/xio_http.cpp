@@ -178,7 +178,7 @@ int XIOhttp::read_file( const char* filename, unsigned long range )
         get = url_string( url, XURL_STR_ENCODE | XURL_STR_FULL );
       }
     }
-    
+
     DEBUGLOG2(("XIOhttp::read_file: GET %s\n", get));
 
     if( !get ) {
@@ -443,7 +443,7 @@ int XIOhttp::read( void* result, unsigned int count )
   int done = read_and_notify( result, count );
 
   if( done > 0 )
-    InterlockedAdd((unsigned&)s_pos, done);
+    InterlockedAdd(&(volatile unsigned&)s_pos, done);
 
   return done;
 }
