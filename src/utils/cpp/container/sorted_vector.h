@@ -206,7 +206,7 @@ int_ptr<T>& sorted_vector_int<T,K>::get(const K& key)
 template <class T, class K>
 int_ptr<T> sorted_vector_int<T,K>::erase(const K& key)
 { size_t pos;
-  return binary_search(key, pos) ? vector_int<T>::erase(pos) : int_ptr<T>(NULL);
+  return binary_search(key, pos) ? vector_int<T>::erase(pos) : int_ptr<T>((T*)NULL);
 }
 
 #endif
