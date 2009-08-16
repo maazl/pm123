@@ -63,7 +63,7 @@ void  amp_display_next_mode( void );
 
 /* Helper class to load one or more objects into PM123.
  */
-class LoadHelper : public Iref_Count
+class LoadHelper : public Iref_count
 {public:
   enum Options
   { OptDefault       = 0,

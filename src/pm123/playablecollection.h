@@ -55,7 +55,7 @@ class PlayableInstance;
  * Objects of this class may either be reference counted, managed by a int_ptr
  * or used as temporaries.
  */
-class PlayableSlice : public Iref_Count
+class PlayableSlice : public Iref_count
 {protected:
   const int_ptr<Playable>  RefTo;
  private:

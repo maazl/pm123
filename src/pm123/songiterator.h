@@ -109,7 +109,7 @@ class SongIterator
   friend class CallstackType;
   class CallstackSubEntry;
   friend class CallstackSubEntry;
-  class CallstackType : public Iref_Count, public vector_own<CallstackEntry>
+  class CallstackType : public Iref_count, public vector_own<CallstackEntry>
   { friend class CallstackSubEntry;
    private:
     // Event when a open callstackentry changes

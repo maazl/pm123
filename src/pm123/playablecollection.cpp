@@ -84,7 +84,7 @@ PlayableSlice::PlayableSlice(const PlayableSlice& r)
     Stop = NULL;
 }
 PlayableSlice::PlayableSlice(const url123& url, const xstring& alias)
-: RefTo(Playable::GetByURL(url)),
+: RefTo((const int_ptr<Playable>)Playable::GetByURL(url)),
   Alias(alias),
   Start(NULL),
   Stop(NULL)
@@ -95,7 +95,7 @@ PlayableSlice::PlayableSlice(const url123& url, const xstring& alias)
     Alias = NULL;
 }
 PlayableSlice::PlayableSlice(const url123& url, const xstring& alias, const char* start, const char* stop)
-: RefTo(Playable::GetByURL(url)),
+: RefTo((const int_ptr<Playable>)Playable::GetByURL(url)),
   Alias(alias),
   Start(NULL),
   Stop(NULL)
@@ -394,7 +394,7 @@ void PlayableCollection::InvalidateCIC(InfoFlags what, Playable& p)
     ModifiedSubitems.get(p) = &p;
     return;
   }*/
-                         
+
   Mutex::Lock lock(CollectionInfoCacheMtx);
   what = ~what; // prepare flags for deletion
   for (CollectionInfoEntry** ciepp = CollectionInfoCache.begin(); ciepp != CollectionInfoCache.end(); ++ciepp)
@@ -402,7 +402,7 @@ void PlayableCollection::InvalidateCIC(InfoFlags what, Playable& p)
     if ((*ciepp)->find(p) == NULL)
       (*ciepp)->Valid &= what;
 }/*
-void PlayableCollection::InvalidateCIC(InfoFlags what, const PlayableSetBase& set)    
+void PlayableCollection::InvalidateCIC(InfoFlags what, const PlayableSetBase& set)
 { DEBUGLOG(("PlayableCollection::InvalidateCIC(%x, {%u,...})\n", what, set.size()));
   Mutex::Lock lock(CollectionInfoCacheMtx);
   what = ~what; // prepare flags for deletion
@@ -500,7 +500,7 @@ void PlayableCollection::UpdateList(EntryList& newlist)
   int_ptr<Entry> cur_new;
   // Place new entries, try to recycle existing ones.
   while ((cur_new = newlist.pop_front()) != NULL)
-    ret |= UpdateListCore(cur_new, first_new); 
+    ret |= UpdateListCore(cur_new, first_new);
   // Remove remaining old entries not recycled so far.
   // We loop here until we reach first_new. This /must/ be reached sooner or later.
   // first_new may be null if there are no new entries.
@@ -742,12 +742,12 @@ const PlayableCollection::CollectionInfo& PlayableCollection::GetCollectionInfo(
   { Mutex::Lock lock(CollectionInfoCacheMtx);
     cic = CollectionInfoCache.find(excluding);
   }
-  
+
   // We ensure some information on sub items before we request access to the mutex
   // to avoid deadlocks.
   if (cic == NULL)
     PrefetchSubInfo(excluding, (what & IF_Tech) != 0);
-  
+
   // Lock the collection
   Lock lock(*this);
   if (cic == NULL) // double check below
@@ -760,14 +760,14 @@ const PlayableCollection::CollectionInfo& PlayableCollection::GetCollectionInfo(
       cicr = new CollectionInfoEntry(excluding);
     cic = cicr;
   }
-  what &= ~cic->Valid;  
+  what &= ~cic->Valid;
   if (!what)
   { DEBUGLOG(("PlayableCollection::GetCollectionInfo HIT: %x\n", cic->Valid));
     return cic->Info;
   }
   DEBUGLOG(("PlayableCollection::GetCollectionInfo LOAD: %x %x\n", cic->Valid, what));
   cic->Info.Reset();
-    
+
   // (re)create information
   sco_ptr<PlayableSet> xcl_sub;
   PlayableInstance* pi = NULL;
@@ -1096,7 +1096,7 @@ bool PlayableCollection::SaveLST(XFILE* of, bool relative)
       { strcpy(buf, ",");
         if (infovalid & IF_Rpl)
           sprintf(buf + 1, ",%i", info.rpl->total_items);
-        if (infovalid & IF_Tech)  
+        if (infovalid & IF_Tech)
           sprintf(buf + strlen(buf), ",%.0f", info.tech->totalsize);
         else
           strcat(buf + 1, ",");
@@ -1273,11 +1273,11 @@ void Playlist::LSTReader::ParseLine(char* line)
           break;
       }
       // 0: bitrate, 1: samplingrate, 2: channels, 3: file size, 4: total length,
-      // 5: no. of song items, 6: total file size, 7: no. of items, 8: recursive. 
+      // 5: no. of song items, 6: total file size, 7: no. of items, 8: recursive.
       DEBUGLOG(("Playlist::LSTReader::ParseLine: tokens %s, %s, %s, %s, %s, %s, %s, %s, %s\n",
         tokens[0], tokens[1], tokens[2], tokens[3], tokens[4], tokens[5], tokens[6], tokens[7], tokens[8]));
       // Data type conversion
-      
+
       // make tech info
       if (tokens[0] && tokens[4])
       { Info.tech = &Tech;
@@ -1484,7 +1484,7 @@ bool Playlist::LoadList(EntryList& list, PHYS_INFO& phys)
 
     phys.filesize = xio_fsize(x);
     xio_fclose( x );
-    
+
     // Count Items
     phys.num_items = 0;
     Entry* cur = NULL;
@@ -1587,7 +1587,7 @@ bool PlayFolder::LoadList(EntryList& list, PHYS_INFO& phys)
       os2_strerror(rc, buf, sizeof buf);
       ErrorMsg = xstring::sprintf("Error %ul: %s\n%s", rc, buf, GetURL().cdata());
       break;
-    } 
+    }
    case NO_ERROR:
     phys.filesize = -1;
     phys.num_items = 0;

@@ -63,7 +63,7 @@
  */
 static void TFNENTRY PlayableWorker(void*);
 class Playable
-: public Iref_Count,
+: public Iref_count,
   public InstanceCompareable<Playable>,
   public IComparableTo<const char*>
 {public:

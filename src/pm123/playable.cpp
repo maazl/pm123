@@ -187,7 +187,7 @@ Playable::Playable(const url123& url, const DECODER_INFO2* ca)
     { *Info.rpl   = *ca->rpl;
       InfoValid |= IF_Rpl;
     }
-  } 
+  }
   Decoder[0] = 0;
 }
 
@@ -245,29 +245,29 @@ void Playable::EndUpdate(InfoFlags what)
   InfoFlags mask = ~what;
   Lock lock(*this);
   // We always reset the flags of both priorities.
-  InterlockedAnd(InfoRequestLow, mask);
-  InterlockedAnd(InfoRequest,    mask);
+  InterlockedAnd(&InfoRequestLow, mask);
+  InterlockedAnd(&InfoRequest,    mask);
   // Well, we might remove an outstanding request in the worker queue here,
   // but it is simply faster to wait for the request to arrive and ignore it then.
-  InterlockedAnd(InfoInService,  mask);
+  InterlockedAnd(&InfoInService,  mask);
   // Prepare InfoChange event
   InfoMask |= what;
 }
 
 void Playable::ValidateInfo(InfoFlags what, bool changed, bool confirmed)
 { DEBUGLOG(("Playable::ValidateInfo(%x, %u, %u)\n", what, changed, confirmed));
-  InterlockedOr((volatile unsigned&)InfoValid, what);
+  InterlockedOr(&(volatile unsigned&)InfoValid, what);
   if (confirmed)
-    InterlockedOr((volatile unsigned&)InfoConfirmed, what);
+    InterlockedOr(&(volatile unsigned&)InfoConfirmed, what);
   else
-    InterlockedAnd((volatile unsigned&)InfoConfirmed, ~what);
+    InterlockedAnd(&(volatile unsigned&)InfoConfirmed, ~what);
   InfoLoaded |= what;
   InfoChanged |= what * changed;
 }
 
 void Playable::InvalidateInfo(InfoFlags what, bool reload)
 { DEBUGLOG(("Playable::InvalidateInfo(%x, %u)\n", what, reload));
-  InterlockedAnd((volatile unsigned&)InfoConfirmed, ~what);
+  InterlockedAnd(&(volatile unsigned&)InfoConfirmed, ~what);
   if (reload && (InfoValid & what))
     LoadInfoAsync(InfoValid & what, true);
 }
@@ -414,7 +414,7 @@ void Playable::LoadInfoAsync(InfoFlags what, bool lowpri)
   // schedule request
   volatile unsigned& rq = lowpri ? InfoRequestLow : InfoRequest;
   InfoFlags oldrq = (InfoFlags)rq; // This read is non-atomic. But at the worst case an empty request is scheduled to the worker thread.
-  InterlockedOr(rq, what);
+  InterlockedOr(&rq, what);
   // Only write the Queue if there was no request before.
   if (!oldrq && !WTermRq)
     WQueue.Write(this, lowpri);
@@ -506,7 +506,7 @@ bool    Playable::WTermRq        = false;
 clock_t Playable::LastCleanup    = 0;
 
 void Playable::PlayableWorker(bool lowpri)
-{ // Do the work! 
+{ // Do the work!
   for (;;)
   { DEBUGLOG(("PlayableWorker(%u) looking for work\n", lowpri));
     queue<Playable::QEntry>::qentry* qp = Playable::WQueue.RequestRead(lowpri);
@@ -517,7 +517,7 @@ void Playable::PlayableWorker(bool lowpri)
       WQueue.RollbackRead(qp);
       break;
     }
-    
+
     // Do the work
     Playable* pp = qp->Data;
     DEBUGLOG(("PlayableWorker handle %x %x, %u\n", pp->InfoRequest, pp->InfoRequestLow, pp->RefCountIsUnique()));
@@ -533,7 +533,7 @@ void Playable::PlayableWorker(bool lowpri)
     }
 
     { // Handle low priority requests correctly if no other requests are on the way.
-      volatile unsigned& request = 
+      volatile unsigned& request =
         lowpri && pp->InfoRequest == 0
         ? (ORASSERT(DosSetPriority(PRTYS_THREAD, PRTYC_IDLETIME, 20, 0)), pp->InfoRequestLow)
         : pp->InfoRequest;
@@ -575,7 +575,7 @@ void Playable::Uninit()
 { DEBUGLOG(("Playable::Uninit()\n"));
   WTermRq = true;
   WQueue.Purge();
-  WQueue.Write(NULL, false); // deadly pill
+  WQueue.Write((Playable*)NULL, false); // deadly pill
   // syncronize worker threads
   for (int* tidp = WTids + WNumWorkers; tidp != WTids; )
     wait_thread_pm(amp_player_hab(), *--tidp, 60000);
@@ -633,7 +633,7 @@ int_ptr<Playable> Playable::GetByURL(const url123& URL, const DECODER_INFO2* ca)
     pp = ppn;
     pp->LastAccess = clock();
   }
-  
+
   if (ca)
   { InfoFlags what = (bool)(ca->format != NULL) * IF_Format
                    | (bool)(ca->tech   != NULL) * IF_Tech
@@ -642,7 +642,7 @@ int_ptr<Playable> Playable::GetByURL(const url123& URL, const DECODER_INFO2* ca)
                    | (bool)(ca->rpl    != NULL) * IF_Rpl;
     DEBUGLOG(("Playable::GetByURL: merge {%p, %p, %p, %p, %p} %x %x\n",
       ca->format, ca->tech, ca->meta, ca->phys, ca->rpl, pp->InfoValid, what));
-    what &= ~pp->InfoValid;               
+    what &= ~pp->InfoValid;
     // Double check to avoid unneccessary mutex delays.
     if ( what )
     { // Merge meta info
@@ -864,7 +864,7 @@ Playable::InfoFlags Song::DoLoadInfo(InfoFlags what)
 ULONG Song::SaveMetaInfo(const META_INFO& info, int haveinfo)
 { DEBUGLOG(("Song(%p{%s})::SaveMetaInfo(, %x)\n", this, GetURL().cdata(), haveinfo));
   haveinfo &= DECODER_HAVE_TITLE|DECODER_HAVE_ARTIST|DECODER_HAVE_ALBUM  |DECODER_HAVE_TRACK
-             |DECODER_HAVE_YEAR |DECODER_HAVE_GENRE |DECODER_HAVE_COMMENT|DECODER_HAVE_COPYRIGHT; 
+             |DECODER_HAVE_YEAR |DECODER_HAVE_GENRE |DECODER_HAVE_COMMENT|DECODER_HAVE_COPYRIGHT;
   EnsureInfo(Playable::IF_Other);
   ULONG rc = dec_saveinfo(GetURL(), &info, haveinfo, GetDecoder());
   if (rc == 0)
