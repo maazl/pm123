@@ -72,9 +72,10 @@ HWND dlg_addcontrol( HWND hwnd, PSZ cls, PSZ text, ULONG style,
                      LONG x, LONG y, LONG cx, LONG cy, SHORT after,
                      USHORT id, PVOID ctldata, PVOID presparams )
 { POINTL pos[2] = {{ x, y }, { x + cx, y + cy }};
+  HWND behind;
   if (!WinMapDlgPoints( hwnd, pos, 2, TRUE ))
     return NULLHANDLE;
-  HWND behind = after == NULLHANDLE ? HWND_BOTTOM : WinWindowFromID( hwnd, after );
+  behind = after == NULLHANDLE ? HWND_BOTTOM : WinWindowFromID( hwnd, after );
   return WinCreateWindow( hwnd, cls, text, style, pos[0].x, pos[0].y, pos[1].x-pos[0].x, pos[1].y-pos[0].y,
                           hwnd, behind, id, ctldata, presparams);
 }
@@ -91,7 +92,7 @@ SHORT rb_selected( HWND hwnd, SHORT id )
       return WinQueryWindowUShort( cur, QWS_ID );
     cur = WinEnumDlgItem( hwnd, cur, EDI_NEXTGROUPITEM );
   }
-  return -1; 
+  return -1;
 }
 
 /* Sets the enable state of the entryfield in the dialog template to
@@ -113,4 +114,4 @@ BOOL sb_setnumlimits( HWND hwnd, USHORT id, LONG low, LONG high, USHORT len)
   return sb != NULLHANDLE
     && WinSendMsg( sb, SPBM_SETLIMITS, MPFROMLONG( high ), MPFROMLONG( low ))
     && WinSendMsg( sb, SPBM_SETTEXTLIMIT, MPFROMSHORT( len ), 0 );
-} 
+}
