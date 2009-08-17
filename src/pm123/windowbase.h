@@ -68,7 +68,7 @@ class DialogBase
  private: // non-copyable
   DialogBase(const DialogBase&);
   void operator=(const DialogBase&);
-  
+
  protected:
   // Create a playlist manager window for an object, but don't open it.
   DialogBase(ULONG rid, HMODULE module);
@@ -86,10 +86,10 @@ class DialogBase
   xstring           GetTitle() const { return Title; };
   // Set the window title
   void              SetTitle(const xstring& title);
-  
+
   // Set Help Manager
   void              SetHelpMgr(HWND hhelp);
-  
+
  public: // public interface
   virtual           ~DialogBase();
   // Get the window handle
@@ -102,7 +102,7 @@ class DialogBase
 };
 
 
-class ManagedDialogBase : public DialogBase, public Iref_Count
+class ManagedDialogBase : public DialogBase, public Iref_count
 {private:
   int_ptr<ManagedDialogBase> Self;
  protected:
@@ -139,3 +139,4 @@ MRESULT DialogSubWindow<W>::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
 }*/
 
 #endif
+

@@ -88,12 +88,12 @@ class PlayableSlice : public Iref_count
   virtual void             SetStart(SongIterator* iter);
   virtual void             SetStop (SongIterator* iter);
   // Aliasname
-  xstring                  GetAlias() const    { return Alias; }
+  const xstring            GetAlias() const    { return Alias; }
   virtual void             SetAlias(const xstring& alias);
   // Usage status
   virtual void             SetInUse(bool used);
   #ifdef DEBUG_LOG
-  xstring                  DebugName() const;
+  const xstring            DebugName() const;
   #endif
 };
 
@@ -178,7 +178,7 @@ class PlayableInstance : public PlayableSlice
   bool                     IsParent(const PlayableCollection* parent) const { return Parent == parent; }
   #endif
   // Display name
-  xstring                  GetDisplayName() const;
+  const xstring            GetDisplayName() const;
 
   // Swap instance properties (fast)
   // You must not swap instances that belong to different PlayableCollection objects.
@@ -301,7 +301,7 @@ class PlayableCollection : public Playable
   // This list does not hold the ownership of the Playable objects inside.
   // So you must not dereference them anymore. However, comparing the pointers for instance
   // equality is mostly safe, since Playable objects are unique with respect to their primary key.
-  // In the worst case another object is invalidated accidentially. 
+  // In the worst case another object is invalidated accidentially.
   PlayableSet                 ModifiedSubitems;*/
 
  private:
@@ -368,16 +368,16 @@ class PlayableCollection : public Playable
   // Calling these function is not valid until the information IF_Other is loaded.
   // Get previous item of this collection. Passing NULL will return the last item.
   // The function returns NULL if ther are no more items.
-  virtual int_ptr<PlayableInstance> GetPrev(const PlayableInstance* cur) const;
+  virtual const int_ptr<PlayableInstance> GetPrev(const PlayableInstance* cur) const;
   // Get next item of this collection. Passing NULL will return the first item.
   // The function returns NULL if ther are no more items.
-  virtual int_ptr<PlayableInstance> GetNext(const PlayableInstance* cur) const;
+  virtual const int_ptr<PlayableInstance> GetNext(const PlayableInstance* cur) const;
   // Returns a string that represents a serialized version of a subitem.
   // If index_only is true the string will be of the form "[index]". This is not recommended.
-  xstring                     SerializeItem(const PlayableInstance* cur, serialization_options opt) const;
+  const xstring               SerializeItem(const PlayableInstance* cur, serialization_options opt) const;
   // Returns the item that is adressed by the string str.
   // If the string is not valid or the collection is empty the function returns NULL.
-  int_ptr<PlayableInstance>   DeserializeItem(const xstring& str) const;
+  const int_ptr<PlayableInstance> DeserializeItem(const xstring& str) const;
 
   // Calculate the CollectionInfo structure.
   // This returns context dependant information on the current collection.
@@ -495,7 +495,7 @@ class PlayFolder : public PlayableCollection
   xstring                     Pattern;
   bool                        Recursive;
   signed char                 SortMode;     // 1 = yes, -1 = no, 0 = default
-  signed char                 FoldersFirst; // 1 = yes, -1 = no, 0 = default 
+  signed char                 FoldersFirst; // 1 = yes, -1 = no, 0 = default
 
  private:
   void                        ParseQueryParams();
@@ -509,3 +509,4 @@ class PlayFolder : public PlayableCollection
 
 #endif
 
+

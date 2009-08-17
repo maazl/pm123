@@ -106,12 +106,12 @@ class PlaylistView : public PlaylistRepository<PlaylistView>
  private:
   // Create a playlist manager window for an URL, but don't open it.
   PlaylistView(Playable* obj, const xstring& alias);
- 
+
  private:
   // Post record message, filtered
   virtual void      PostRecordCommand(RecordBase* rec, RecordCommand cmd);
   // initialization on the first call
-  FIELDINFO*        CreateFieldinfo(const Column* cols, size_t count); 
+  FIELDINFO*        CreateFieldinfo(const Column* cols, size_t count);
   // create container window
   virtual void      InitDlg();
   // Dialog procedure, called by DlgProcStub
@@ -128,9 +128,9 @@ class PlaylistView : public PlaylistRepository<PlaylistView>
   // Subfunction to CalcIcon.
   virtual IC        GetRecordUsage(const RecordBase* rec) const;
   // Convert size [bytes] to a human readable format
-  static xstring    FormatSize(double size);
+  static const xstring FormatSize(double size);
   // Convert time [s] to a human readable format
-  static xstring    FormatTime(double time);
+  static const xstring FormatTime(double time);
   // Parse time string for start and stop column.
   static T_TIME     ParseTime(const xstring& str);
   // (re-)calculate colum content, return true if changes are made

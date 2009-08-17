@@ -95,7 +95,7 @@ int DLLENTRY pm123_getstring( int index, int subindex, size_t bufsize, char* buf
         strlcpy(buf, song->GetURL(), bufsize);
       break;
     }
-   
+
    case STR_DISPLAY_TAG:
     { int_ptr<Song> song = Ctrl::GetCurrentSong();
       if (song)
@@ -104,7 +104,7 @@ int DLLENTRY pm123_getstring( int index, int subindex, size_t bufsize, char* buf
       }
       break;
     }
-    
+
    case STR_DISPLAY_INFO:
     { int_ptr<Song> song = Ctrl::GetCurrentSong();
       if (song)
@@ -118,7 +118,7 @@ int DLLENTRY pm123_getstring( int index, int subindex, size_t bufsize, char* buf
 }
 
 /* Constructs a string of the displayable text from the file information. */
-xstring
+const xstring
 amp_construct_tag_string( const DECODER_INFO2* info )
 {
   // TODO: a string builder would be nice...
@@ -147,20 +147,20 @@ amp_construct_tag_string( const DECODER_INFO2* info )
 }
 
 /* Get current working directory */
-url123 amp_get_cwd()
+const url123 amp_get_cwd()
 { char cdir[_MAX_PATH+1];
   RASSERT(_getcwd(cdir, sizeof cdir -1));
   size_t len = strlen(cdir);
   // Append trailing slash?
   if (cdir[len-1] != '\\')
   { cdir[len] = '\\';
-    cdir[len+1] = 0; 
+    cdir[len+1] = 0;
   }
   return url123::normalizeURL(cdir);
 }
 
 /* Reads url from specified file. */
-xstring
+const xstring
 amp_url_from_file(const char* filename)
 {
   FILE* file = fopen(filename, "r");
@@ -183,14 +183,14 @@ amp_url_from_file(const char* filename)
   return ret;
 }
 
-xstring amp_string_from_drghstr(HSTR hstr)
+const xstring amp_string_from_drghstr(HSTR hstr)
 { size_t len = DrgQueryStrNameLen(hstr);
   xstring ret;
   DrgQueryStrName(hstr, len+1, ret.raw_init(len));
   return ret;
 }
 
-xstring amp_font_attrs_to_string(const FATTRS& attrs, unsigned size)
+const xstring amp_font_attrs_to_string(const FATTRS& attrs, unsigned size)
 { xstring ret = xstring::sprintf("%u.%s", size, attrs.szFacename);
   if (attrs.fsSelection & FATTR_SEL_BOLD      )
     ret = ret + ".Bold";

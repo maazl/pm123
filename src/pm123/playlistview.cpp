@@ -244,7 +244,7 @@ MRESULT PlaylistView::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
       DEBUGLOG(("PlaylistView::DlgProc: UM_RECORDCOMMAND: %s, %x\n", Record::DebugName(rec).cdata(), StateFromRec(rec).PostMsg));
       for(;;)
       { // reset pending message flag
-        unsigned flags = InterlockedXch(StateFromRec(rec).PostMsg, 0);
+        unsigned flags = InterlockedXch(&StateFromRec(rec).PostMsg, 0);
         if (flags == 0)
           break;
         Playable::InfoFlags flg = Playable::IF_None;
@@ -292,7 +292,7 @@ MRESULT PlaylistView::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
         ASSERT(rec != NULL);
         switch ((ColumnID)(ULONG)ed->pFieldInfo->pUserData)
         {case CID_Alias:
-          rec->Data()->Content->SetAlias(DirectEdit.length() ? DirectEdit : xstring());
+          rec->Data()->Content->SetAlias(DirectEdit.length() ? DirectEdit : (const xstring&)xstring());
           break;
          case CID_Start:
           { rec->Pos = rec->Data()->Pos.cdata(); // restore what PM changed (for now)
@@ -425,7 +425,7 @@ PlaylistBase::ICP PlaylistView::GetPlaylistType(const RecordBase* rec) const
 { DEBUGLOG(("PlaylistView::GetPlaylistType(%s)\n", Record::DebugName(rec).cdata()));
   Playable* pp = rec->Data->Content->GetPlayable();
   if (pp == Content)
-    return ICP_Recursive; 
+    return ICP_Recursive;
   return pp->GetInfo().phys->num_items ? ICP_Closed : ICP_Empty;
 }
 
@@ -438,7 +438,7 @@ PlaylistBase::IC PlaylistView::GetRecordUsage(const RecordBase* rec) const
   return Ctrl::IsPlaying() ? IC_Play : IC_Active;
 }
 
-xstring PlaylistView::FormatSize(double size)
+const xstring PlaylistView::FormatSize(double size)
 { if (size <= 0)
     return xstring::empty;
   char unit = 'k';
@@ -454,7 +454,7 @@ xstring PlaylistView::FormatSize(double size)
   return xstring::sprintf("%lu %cB", s, unit);
 }
 
-xstring PlaylistView::FormatTime(double time)
+const xstring PlaylistView::FormatTime(double time)
 { if (time <= 0)
     return xstring::empty;
   unsigned long s = (unsigned long)time;
@@ -544,12 +544,12 @@ bool PlaylistView::CalcCols(Record* rec, Playable::InfoFlags flags, PlayableInst
   if (iflags & PlayableInstance::SF_Slice)
   { // Starting position
     const SongIterator* si = rec->Data()->Content->GetStart();
-    tmp = si ? si->Serialize() : xstring::empty;
+    tmp = si ? (const xstring&)si->Serialize() : xstring::empty;
     rec->Pos = tmp;
     rec->Data()->Pos = tmp;
     // Ending position
     si = rec->Data()->Content->GetStop();
-    tmp = si ? si->Serialize() : xstring::empty;
+    tmp = si ? (const xstring&)si->Serialize() : xstring::empty;
     rec->End = tmp;
     rec->Data()->End = tmp;
     ret = true;
@@ -626,3 +626,4 @@ void PlaylistView::UserSelectAll()
   SetEmphasis(CRA_SELECTED, true);
 }
 
+

@@ -63,7 +63,7 @@ typedef struct
 // Object representing a plugin-DLL
 // This class ist thred-safe on per instance basis.
 class Module
-: public Iref_Count,
+: public Iref_count,
   public IComparableTo<xstring>,
   public inst_index<Module, const xstring>
 {private:
@@ -98,7 +98,7 @@ class Module
   ~Module();
   // Return full qualified module name.
   const xstring& GetModuleName() const       { return Key; }
-  // Return reply of plugin_query. 
+  // Return reply of plugin_query.
   const PLUGIN_QUERYPARAM& GetParams() const { return QueryParam; }
   // Load the address of a dll entry point. Return TRUE on success.
   bool    LoadOptionalFunction(void* function, const char* function_name) const;
@@ -138,7 +138,7 @@ class Plugin
       Enable,   // The plug-in is enabled by the user
       Disable,  // The plug-in is disabled by the user
       Init,     // The plug-in is instanciated by the plug-in manager
-      Uninit,   // The plug-in instance is destroyed by the plug-in manager 
+      Uninit,   // The plug-in instance is destroyed by the plug-in manager
       Active,   // The plug-in is activated (outputs and decoders only)
       Inactive  // The plug-in is deactivated (outputs and decoders only)
     }           Operation;
@@ -224,7 +224,7 @@ class Plugin
  protected:
   static HWND CreateProxyWindow(const char* cls, void* ptr);
   static void DestroyProxyWindow(HWND hwnd);
- public: 
+ public:
   static void Init();
   static void Uninit();
 };
@@ -260,7 +260,7 @@ class PluginList : public vector_own<Plugin>
   int             find(const Module* module) const;
   int             find(const char* module) const;
   // Serialize plug-in list to a string
-  virtual xstring Serialize() const;
+  virtual const xstring Serialize() const;
   // Deserialzie plug-in list from a string.
   // Return false on error.
   virtual RC      Deserialize(const xstring& str);
@@ -287,7 +287,7 @@ class PluginList1 : public PluginList
   // Returnthe currently active plug-in or NULL if none.
   Plugin*         Current() const     { return Active; }
   // Serialize plug-in list to a string
-  virtual xstring Serialize() const;
+  virtual const xstring Serialize() const;
   // Deserialzie plug-in list from a string.
   // Return false on error.
   virtual RC      Deserialize(const xstring& str);
@@ -333,3 +333,4 @@ void  plugman_uninit();
 
 #endif /* PM123_PLUGMAN_H */
 
+

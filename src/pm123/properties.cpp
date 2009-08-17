@@ -57,8 +57,8 @@
 
 
 // support xstring
-xstring ini_query_xstring(HINI hini, const char* app, const char* key)
-{ xstring ret; 
+const xstring ini_query_xstring(HINI hini, const char* app, const char* key)
+{ xstring ret;
   ULONG len;
   if (PrfQueryProfileSize(hini, app, key, &len))
   { char* data = ret.raw_init(len);
@@ -92,12 +92,12 @@ const amp_cfg cfg_default =
   true,
   2, // num_workers
   1,
-  
+
   1, // font
   false,
   { sizeof(FATTRS), 0, 0, "WarpSans Bold", 0, 0, 16, 7, 0, 0 },
   9,
-  
+
   false, // float on top
   CFG_SCROLL_INFINITE,
   true,
@@ -157,7 +157,7 @@ static void clean_ini_positions(HINI hini)
       PrfWriteProfileData(hini, "Positions", cp, NULL, 0);
       memcpy(cp, "WIN", 3);
       PrfWriteProfileData(hini, "Positions", cp, NULL, 0);
-    } 
+    }
   }
   delete names;
 }
@@ -347,9 +347,9 @@ save_window_pos( HWND hwnd, const char* extkey )
 
   if( !WinStoreWindowPos( "PM123", key1st, hwnd ))
     return false;
-  
+
   rc = copy_ini_data( HINI_PROFILE, "PM123", key1st, INIhandle, "Positions", key2 );
-  if (*key3) 
+  if (*key3)
     rc &= copy_ini_data( HINI_PROFILE, "PM123", key1st, INIhandle, "Positions", key3 );
   PrfWriteProfileData( HINI_PROFILE, "PM123", key1st, NULL, 0 );
 
@@ -362,7 +362,7 @@ save_window_pos( HWND hwnd, const char* extkey )
     time(&pos.tstmp);
     memcpy(key2, "POS", 3);
     rc = PrfWriteProfileData( INIhandle, "Positions", key2, &pos, sizeof( pos ));
-    if (*key3) 
+    if (*key3)
     { memcpy(key3, "POS", 3);
       rc &= PrfWriteProfileData( INIhandle, "Positions", key3, &pos, sizeof( pos ));
     }
@@ -467,7 +467,7 @@ static void migrate_ini(const char* inipath, const char* app)
   HINI hini = PrfOpenProfile(amp_player_hab(), inifile);
   if (hini == NULLHANDLE)
     return;
-    
+
   if (PrfQueryProfileSize(hini, "Settings", NULL, &len))
   { char* names = (char*)alloca(len);
     if (PrfQueryProfileData(hini, "Settings", NULL, names, &len))
@@ -479,19 +479,19 @@ static void migrate_ini(const char* inipath, const char* app)
         names += strlen(names)+1;
       }
     }
-  } 
-    
+  }
+
   close_ini(hini);
 }
 
 /* Initialize properties, called from main. */
 void cfg_init()
-{ 
+{
   // Open profile
   xstring inipath = startpath + "\\PM123.INI"; // TODO: command line option
   INIhandle = PrfOpenProfile(amp_player_hab(), inipath);
   PMASSERT(INIhandle);
-  
+
   load_ini();
   // set proxy and buffer settings statically in the xio library, not that nice, but working.
   char buffer[1024];
@@ -517,7 +517,7 @@ void cfg_init()
   xio_set_buffer_wait( cfg.buff_wait );
   xio_set_buffer_fill( cfg.buff_fill );
   xio_set_connect_timeout( cfg.conn_timeout );
-  
+
   migrate_ini(startpath, "analyzer");
   migrate_ini(startpath, "mpg123");
   migrate_ini(startpath, "os2audio");
@@ -545,7 +545,7 @@ cfg_settings1_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
       WinCheckButton( hwnd, CB_RETAINONEXIT,  cfg.retainonexit );
       WinCheckButton( hwnd, CB_RETAINONSTOP,  cfg.retainonstop );
       WinCheckButton( hwnd, CB_RESTARTONSTART,cfg.restartonstart);
-      
+
       WinCheckButton( hwnd, CB_TURNAROUND,    cfg.autoturnaround );
       WinCheckButton( hwnd, RB_SONGONLY +     cfg.altnavig, TRUE );
 
@@ -761,11 +761,11 @@ cfg_iosettings_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
       xio_set_buffer_wait( cfg.buff_wait );
       xio_set_buffer_fill( cfg.buff_fill );
       xio_set_connect_timeout( cfg.conn_timeout );
-      
+
       PMRASSERT(WinSendDlgItemMsg( hwnd, SB_NUMWORKERS, SPBM_QUERYVALUE, MPFROMP( &cfg.num_workers ), MPFROM2SHORT( 0, SPBQ_DONOTUPDATE )));
       PMRASSERT(WinSendDlgItemMsg( hwnd, SB_DLGWORKERS, SPBM_QUERYVALUE, MPFROMP( &cfg.num_dlg_workers ), MPFROM2SHORT( 0, SPBQ_DONOTUPDATE )));
       PMRASSERT(WinPostMsg(amp_player_window(), AMP_WORKERADJUST, 0, 0));
-      
+
       return 0;
     }
   }
@@ -787,7 +787,7 @@ cfg_display1_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
       break;
 
     case CFG_CHANGE:
-    { 
+    {
       if (mp1)
       { const amp_cfg& cfg = *(const amp_cfg*)PVOIDFROMMP(mp1);
         WinCheckButton   ( hwnd, CB_DOCK, cfg.dock_windows );
@@ -852,7 +852,7 @@ cfg_display1_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
 
     case WM_CONTROL:
       switch (SHORT1FROMMP(mp1))
-      {case CB_USE_SKIN_FONT: 
+      {case CB_USE_SKIN_FONT:
         if ( SHORT2FROMMP(mp1) == BN_CLICKED || SHORT2FROMMP(mp1) == BN_DBLCLICKED )
         {
           BOOL use = WinQueryButtonCheckstate( hwnd, CB_USE_SKIN_FONT );
@@ -860,14 +860,14 @@ cfg_display1_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
           WinEnableControl( hwnd, ST_FONT_SAMPLE, !use );
         }
         break;
-        
+
        case CB_DOCK:
         if ( SHORT2FROMMP(mp1) == BN_CLICKED || SHORT2FROMMP(mp1) == BN_DBLCLICKED )
         {
           BOOL use = WinQueryButtonCheckstate( hwnd, CB_DOCK );
           WinEnableControl ( hwnd, SB_DOCK, use );
         }
-      }      
+      }
       return 0;
 
     case WM_DESTROY:
@@ -913,9 +913,9 @@ struct PluginContext
 
   // Working set
   HWND         Hwnd;
-    
+
   PluginContext(PluginList* list1, PluginList* list2, int level, CtrlFlags flags);
-  
+
   void         RefreshList();
   Plugin*      RefreshInfo(const size_t i);
   ULONG        AddPlugin();
@@ -1182,7 +1182,7 @@ cfg_config_dlg_proc(HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2)
       context->RefreshList();
       lb_select(hwnd, LB_PLUGINS, SHORT1FROMMP(mp2));
       return 0;
-      
+
     case CFG_REFRESH_INFO:
       context->RefreshInfo(SHORT1FROMMP(mp2));
       return 0;
@@ -1302,7 +1302,7 @@ cfg_config_dlg_proc(HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2)
           && ((PluginList1*)context->List)->SetActive(i) )
         { WinPostMsg(hwnd, CFG_REFRESH_INFO, 0, MPFROMSHORT(i));
           PMRASSERT(WinEnableControl(hwnd, PB_PLG_ACTIVATE, FALSE));
-        }  
+        }
         break;
 
        case PB_PLG_CONFIG:
@@ -1448,3 +1448,4 @@ cfg_properties( HWND owner )
   WinProcessDlg   ( hwnd );
   WinDestroyWindow( hwnd );
 }
+

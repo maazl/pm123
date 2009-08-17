@@ -138,7 +138,7 @@ PLUGIN_TYPE Decoder::GetType() const
 bool Decoder::LoadPlugin()
 { DEBUGLOG(("Decoder(%p{%s})::LoadPlugin()\n", this, GetModuleName().cdata()));
   const Module& mod = GetModule();
-  
+
   if ( !(mod.GetParams().type & PLUGIN_DECODER)
     || !mod.LoadFunction(&decoder_init,     "decoder_init"    )
     || !mod.LoadFunction(&decoder_uninit,   "decoder_uninit"  )
@@ -155,7 +155,7 @@ bool Decoder::LoadPlugin()
 
   if (!AfterLoad())
     return false;
-  
+
   W = NULL;
 
   if (Type & DECODER_TRACK)
@@ -210,7 +210,7 @@ bool Decoder::IsFileSupported(const char* file, const char* eatype) const
     return DoFileTypeMatch(filetypes, *data++, data);
   }
 
-  // no match 
+  // no match
   return false;
 }
 
@@ -274,7 +274,7 @@ bool Decoder::SetParam(const char* param, const xstring& value)
     return false;
   } else if (stricmp(param, "filetypes") == 0)
   { AddFileTypes = value;
-    return true; 
+    return true;
   }
   return Plugin::SetParam(param, value);
 }
@@ -327,7 +327,7 @@ class DecoderProxy1 : public Decoder
   friend MRESULT EXPENTRY proxy_1_decoder_winfn(HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2);
   // Callback for proxy induced commands
   static  void CommandCallback(Ctrl::ControlCommand* cmd);
- 
+
  protected:
   virtual bool AfterLoad();
           bool IsValid()     { return Magic == 0x714afb12; }
@@ -430,14 +430,14 @@ bool DecoderProxy1::AfterLoad()
       *dst++ = ';';
     }
     *dst = 0;
-    
+
     free(my_support);
   } else
   { // no types supported
     Extensions = NULL;
   }
   return true;
-} 
+}
 
 void DecoderProxy1::GetParams(stringmap& params) const
 { Decoder::GetParams(params);
@@ -485,7 +485,7 @@ proxy_1_decoder_play_samples( DecoderProxy1* op, const FORMAT_INFO* format, cons
         if (op->juststarted == 2)
         { // Set the status before the navigate command, because the callback may immediately reset the stats to 0.
           op->juststarted = 1;
-          Ctrl::PostCommand(Ctrl::MkNavigate(xstring(), op->temppos, false, false), &CommandCallback, op);
+          Ctrl::PostCommand(Ctrl::MkNavigate(xstring(), op->temppos, false, false), &DecoderProxy1::CommandCallback, op);
         }
         return len * bps;
       } else
@@ -664,7 +664,7 @@ proxy_1_decoder_command( DecoderProxy1* op, void* w, ULONG msg, DECODER_PARAMS2*
   {case DECODER_JUMPTO:
     op->juststarted = 0;
   }
-  
+
   return rc;
 }
 
@@ -712,7 +712,7 @@ proxy_1_decoder_fileinfo( DecoderProxy1* op, const char* filename, INFOTYPE* wha
         { *cp = '\\';
           cp = strchr(cp+1, '/');
         }
-      } 
+      }
       if (strncmp(fname, "\\\\\\", 3) == 0)
       { fname += 3;
         if (fname[1] == '|')
@@ -754,10 +754,10 @@ proxy_1_decoder_fileinfo( DecoderProxy1* op, const char* filename, INFOTYPE* wha
     memcpy(info->meta->genre,    old_info.genre,    sizeof info->meta->genre);
     info->meta->track      = atoi(old_info.track);
     memcpy(info->meta->copyright,old_info.copyright,sizeof info->meta->copyright);
-    info->meta->track_gain = old_info.track_gain; 
-    info->meta->track_peak = old_info.track_peak; 
-    info->meta->album_gain = old_info.album_gain; 
-    info->meta->album_peak = old_info.album_peak; 
+    info->meta->track_gain = old_info.track_gain;
+    info->meta->track_peak = old_info.track_peak;
+    info->meta->album_gain = old_info.album_gain;
+    info->meta->album_peak = old_info.album_peak;
     info->meta_write       = old_info.saveinfo;
     // old decoders always load all kind of information
     *what = (INFOTYPE)(*what | INFO_ALL);
@@ -767,7 +767,7 @@ proxy_1_decoder_fileinfo( DecoderProxy1* op, const char* filename, INFOTYPE* wha
 
 PROXYFUNCIMP(ULONG DLLENTRY, DecoderProxy1)
 proxy_1_decoder_saveinfo( DecoderProxy1* op, const char* filename, const META_INFO* info, int haveinfo )
-{ DEBUGLOG(("proxy_1_decoder_saveinfo(%p, %s, {%u,%s,%s,%s,%s,%s,%s,%i,%s}, %x)\n", op, filename, 
+{ DEBUGLOG(("proxy_1_decoder_saveinfo(%p, %s, {%u,%s,%s,%s,%s,%s,%s,%i,%s}, %x)\n", op, filename,
     info->size,info->title,info->artist,info->album,info->year,info->comment,info->genre,info->track,info->copyright,
     haveinfo));
   DECODER_INFO dinfo = { sizeof dinfo };
@@ -781,11 +781,11 @@ proxy_1_decoder_saveinfo( DecoderProxy1* op, const char* filename, const META_IN
   if (info->track > 0)
     sprintf(dinfo.track, "%i", info->track);
   memcpy(dinfo.copyright,info->copyright,sizeof dinfo.copyright);
-  dinfo.track_gain = info->track_gain; 
-  dinfo.track_peak = info->track_peak; 
-  dinfo.album_gain = info->album_gain; 
+  dinfo.track_gain = info->track_gain;
+  dinfo.track_peak = info->track_peak;
+  dinfo.album_gain = info->album_gain;
   dinfo.album_peak = info->album_peak;
-  //dinfo.codepage = 0; 
+  //dinfo.codepage = 0;
   dinfo.haveinfo   = haveinfo;
   // Decode file URLs
   if (strnicmp(filename, "file:", 5) == 0)
@@ -797,7 +797,7 @@ proxy_1_decoder_saveinfo( DecoderProxy1* op, const char* filename, const META_IN
       { *cp = '\\';
         cp = strchr(cp+1, '/');
       }
-    } 
+    }
     if (strncmp(fname, "\\\\\\", 3) == 0)
     { fname += 3;
       if (fname[1] == '|')
@@ -830,7 +830,7 @@ proxy_1_decoder_editmeta( DecoderProxy1* op, HWND owner, const char* url )
       { *cp = '\\';
         cp = strchr(cp+1, '/');
       }
-    } 
+    }
     if (strncmp(fname, "\\\\\\", 3) == 0)
     { fname += 3;
       if (fname[1] == '|')
@@ -838,7 +838,7 @@ proxy_1_decoder_editmeta( DecoderProxy1* op, HWND owner, const char* url )
     }
     url = fname;
   }
-  return (*op->vdecoder_editmeta)(owner, url);  
+  return (*op->vdecoder_editmeta)(owner, url);
 }
 
 PROXYFUNCIMP(double DLLENTRY, DecoderProxy1)

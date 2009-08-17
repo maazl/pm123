@@ -339,7 +339,7 @@ PlayableSlice* SongIterator::GetCurrent() const
             CurrentCache->SetStart(si2);
           }
         } else
-        { if (!si2) 
+        { if (!si2)
           { si2 = new SongIterator();
             si2->SetRoot(new PlayableSlice(CurrentCache->GetPlayable()));
             CurrentCache->SetStart(si2);
@@ -527,7 +527,7 @@ void SongIterator::NextCore()
 
   pce->OverrideStop = NULL;
   if (pce->Item != NULL)
-  { // Override stop if the stop iterator of the parent callstack entry 
+  { // Override stop if the stop iterator of the parent callstack entry
     // is less than the end of the current item. Signal the end of the list
     // if it is less than the start of the current item.
 
@@ -899,7 +899,7 @@ bool SongIterator::NavigateFlat(const xstring& url, int index)
     size_t level = Callstack->size() -1;
     if (index > 0)
     { // forward lookup
-      do 
+      do
       { if (!PrevNextCore(&SongIterator::NextCore, level))
           return false; // Error: not found
       } while (stricmp(Current()->GetPlayable()->GetURL(), absurl) != 0 || --index != 0);
@@ -916,7 +916,7 @@ bool SongIterator::NavigateFlat(const xstring& url, int index)
   }
 }
 
-xstring SongIterator::Serialize(bool withlocation) const
+const xstring SongIterator::Serialize(bool withlocation) const
 { DEBUGLOG(("SongIterator(%p)::Serialize()\n", this));
   if (GetRoot() == NULL)
     return xstring(); // NULL

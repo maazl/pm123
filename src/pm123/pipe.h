@@ -55,7 +55,7 @@ class CommandProcessor
 {private:
   typedef strmap<12, void (CommandProcessor::*)(xstring& ret, char* args)> CmdEntry;
   static const CmdEntry       CmdList[];
-  
+
   class ExtLoadHelper : public LoadHelper
   {private:
     Ctrl::ControlCommand* Ext;
@@ -65,7 +65,7 @@ class CommandProcessor
    public:
     ExtLoadHelper(Options opt, Ctrl::ControlCommand* ext) : LoadHelper(opt), Ext(ext) {}
   };
-  
+
   class URLTokenizer
   { char* Args;
    public:
@@ -81,7 +81,7 @@ class CommandProcessor
  private:
   // PLAYBACK
   // Excecute a controller command and return the reply as string.
-  xstring SendCtrlCommand(Ctrl::ControlCommand* cmd);
+  const xstring SendCtrlCommand(Ctrl::ControlCommand* cmd);
   // Add a set of URLs to a loadhelper object.
   bool FillLoadHelper(LoadHelper& lh, char* args);
   void CmdLoad(xstring& ret, char* args);

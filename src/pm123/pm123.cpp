@@ -270,7 +270,7 @@ amp_invalidate( unsigned options )
     WinInvalidateRect( hplayer, NULL, 1 );
     options &= ~UPD_WINDOW;
   }
-  InterlockedOr(upd_options, options & ~UPD_DELAYED);
+  InterlockedOr(&upd_options, options & ~UPD_DELAYED);
   if(!(options & UPD_DELAYED))
     WinPostMsg(hplayer, AMP_PAINT, MPFROMLONG(options), 0);
 }
@@ -577,10 +577,10 @@ amp_drag_drop( HWND hwnd, PDRAGINFO pdinfo )
     pdinfo->cbDragitem, pdinfo->usOperation, pdinfo->hwndSource, pdinfo->xDrop, pdinfo->yDrop, pdinfo->cditem));
 
   int_ptr<LoadHelper> lhp = new LoadHelper(
-    cfg.playonload*LoadHelper::LoadPlay | 
-    cfg.append_dnd*LoadHelper::LoadAppend | 
+    cfg.playonload*LoadHelper::LoadPlay |
+    cfg.append_dnd*LoadHelper::LoadAppend |
     LoadHelper::ShowErrors |
-    LoadHelper::PostDelayed | 
+    LoadHelper::PostDelayed |
     LoadHelper::AutoPost);
 
   for( int i = 0; i < pdinfo->cditem; i++ )
@@ -839,7 +839,7 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
     { dialog_show* iep = (dialog_show*)PVOIDFROMMP(mp1);
       DEBUGLOG(("amp_dlg_proc: AMP_SHOW_DIALOG %p{%x, %p, %u,}\n", iep, iep->Owner, iep->Item.get(), iep->Type));
       switch (iep->Type)
-      { case DLT_INFOEDIT: 
+      { case DLT_INFOEDIT:
         { ULONG rc = dec_editmeta( iep->Owner, iep->Item->GetURL(), iep->Item->GetDecoder());
           DEBUGLOG(("amp_dlg_proc: AMP_SHOW_DIALOG rc = %u\n", rc));
           switch (rc)
@@ -902,7 +902,7 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
       WinReleasePS( hps );
       amp_invalidate( UPD_WINDOW );
       return 0;
-    }      
+    }
 
     case AMP_CTRL_EVENT:
       { // Event from the controller
@@ -1041,7 +1041,7 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
     case WM_CONTEXTMENU:
       amp_show_context_menu( hwnd );
       return 0;
-      
+
     case WM_INITMENU:
       if (SHORT1FROMMP(mp1) == IDM_M_PLAYBACK)
       { HWND menu = HWNDFROMMP(mp2);
@@ -1093,7 +1093,7 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
            amp_force_locmsg();
         DEBUGLOG2(("amp_dlg_proc: WM_TIMER done\n"));
         return 0;
-       
+
        case TID_CLEANUP:
         Playable::Cleanup();
         return 0;
@@ -1113,15 +1113,15 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
         // is there anything to draw with HPS?
         if (mask & upd_options & (UPD_FILENAME|UPD_TIMERS|UPD_FILEINFO|UPD_VOLUME))
         { HPS hps  = WinGetPS( hwnd );
-          if ((mask & UPD_FILENAME) && InterlockedBtr(upd_options, 4))
+          if ((mask & UPD_FILENAME) && InterlockedBtr(&upd_options, 4))
           { amp_display_filename();
             bmp_draw_text(hps);
           }
-          if ((mask & UPD_TIMERS  ) && InterlockedBtr(upd_options, 0))
+          if ((mask & UPD_TIMERS  ) && InterlockedBtr(&upd_options, 0))
             amp_paint_timers(hps);
-          if ((mask & UPD_FILEINFO) && InterlockedBtr(upd_options, 1))
+          if ((mask & UPD_FILEINFO) && InterlockedBtr(&upd_options, 1))
             amp_paint_fileinfo(hps);
-          if ((mask & UPD_VOLUME  ) && InterlockedBtr(upd_options, 2))
+          if ((mask & UPD_VOLUME  ) && InterlockedBtr(&upd_options, 2))
             bmp_draw_volume(hps, Ctrl::GetVolume());
           WinReleasePS( hps );
         }
@@ -1138,7 +1138,7 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
         bmp_draw_volume    ( hps, Ctrl::GetVolume() );
       }
       bmp_draw_led       ( hps, is_have_focus  );
-      
+
       WinEndPaint( hps );
       return 0;
     }
@@ -1355,8 +1355,8 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
 
         case BMP_PL:
         { int_ptr<PlaylistView> pv( CurrentRoot && CurrentRoot != DefaultPL && (CurrentRoot->GetFlags() & Playable::Enumerable)
-                                    ? PlaylistView::Get(CurrentRoot)
-                                    : PlaylistView::Get(DefaultPL, "Default Playlist") );
+                                    ? (const int_ptr<PlaylistView>&)PlaylistView::Get(CurrentRoot)
+                                    : (const int_ptr<PlaylistView>&)PlaylistView::Get(DefaultPL, "Default Playlist") );
           pv->SetVisible(!pv->GetVisible());
           break;
         }
@@ -1430,7 +1430,7 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
 
     case WM_CREATE:
     { DEBUGLOG(("amp_dlg_proc: WM_CREATE %x\n", hwnd));
-      
+
       hplayer = hwnd; /* we have to assign the window handle early, because WinCreateStdWindow does not have returned now. */
 
       HPS hps = WinGetPS( hwnd );
@@ -1547,7 +1547,7 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
       #endif
       break;
     }
-    
+
     case WM_TRANSLATEACCEL:
     { /* WM_CHAR with VK_ALT and KC_KEYUP does not survive this message, so we catch it before. */
       QMSG* pqmsg = (QMSG*)mp1;
@@ -1589,7 +1589,7 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
           DEBUGLOG(("amp_dlg_proc: AMP_SLIDERDRAG: CFG_ANAV_TIME: %u\n", r));
           break;
         }
-        // else if no total time is availabe use song time navigation 
+        // else if no total time is availabe use song time navigation
        case CFG_ANAV_SONG:
        case CFG_ANAV_SONGTIME:
         // navigate at song and optional time scale
@@ -1622,18 +1622,18 @@ amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
         amp_invalidate(UPD_TIMERS|(UPD_FILEINFO|UPD_FILENAME)*is_pl_slider);
     }
     return 0;
-    
+
    case AMP_PIPERESTART:
     // restart pipe worker
     amp_pipe_destroy();
     amp_pipe_create();
     return 0;
-   
+
    case AMP_WORKERADJUST:
     // adjust number of worker threads
     // TODO !!!
     return 0;
-   
+
     /*case WM_SYSCOMMAND:
       DEBUGLOG(("amp_dlg_proc: WM_SYSCVOMMAND: %u, %u, %u\n", SHORT1FROMMP(mp1), SHORT1FROMMP(mp2), SHORT2FROMMP(mp2)));
       break;*/
@@ -1718,7 +1718,7 @@ main2( void* arg )
   PMRASSERT( WinPostMsg( hframe, AMP_REFRESH_ACCEL, 0, 0 )); // load accelerators
 
   Playable::Init();
-  
+
   // register control event handler
   delegate<void, const Ctrl::EventFlags> ctrl_delegate(Ctrl::ChangeEvent, &amp_control_event_handler);
   // start controller
@@ -1939,3 +1939,4 @@ MyTerm::~MyTerm()
 }
 #endif
 
+

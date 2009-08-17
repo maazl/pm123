@@ -188,7 +188,7 @@ PlaylistBase::~PlaylistBase()
 
 void PlaylistBase::PostRecordCommand(RecordBase* rec, RecordCommand cmd)
 { DEBUGLOG(("PlaylistBase(%p)::PostRecordCommand(%p, %u) - %x\n", this, rec, cmd, StateFromRec(rec).PostMsg));
-  Interlocked il(StateFromRec(rec).PostMsg);
+  AtomicUnsigned il(StateFromRec(rec).PostMsg);
   // Check whether the requested bit is already set or there are other events pending.
   if (il.bitset(cmd) || il != (1U<<cmd))
   { DEBUGLOG(("PlaylistBase::PostRecordCommand - nope! %x\n", (unsigned)il));
@@ -202,7 +202,7 @@ void PlaylistBase::PostRecordCommand(RecordBase* rec, RecordCommand cmd)
 
 void PlaylistBase::FreeRecord(RecordBase* rec)
 { DEBUGLOG(("PlaylistBase(%p)::FreeRecord(%p)\n", this, rec));
-  if (rec && InterlockedDec(rec->UseCount) == 0)
+  if (rec && InterlockedDec(&rec->UseCount) == 0)
     // we can safely post this message because the record is now no longer used anyway.
     PMRASSERT(WinPostMsg(GetHwnd(), UM_DELETERECORD, MPFROMP(rec), 0));
 }
@@ -237,7 +237,7 @@ void PlaylistBase::InitDlg()
     color = CLR_BLACK;
     PMRASSERT(WinSetPresParam(HwndContainer, PP_BACKGROUNDCOLORINDEX, sizeof(color), &color));
   }
-  
+
   // Help manager
   SetHelpMgr(amp_help_mgr());
 
@@ -278,7 +278,7 @@ MRESULT PlaylistBase::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
       RemoveChildren(NULL);
       // save position
       save_window_pos(GetHwnd(), Content->GetURL());
-      
+
       // process outstanding UM_DELETERECORD messages before we quit to ensure that all records are back to the PM before we die.
       QMSG qmsg;
       while (WinPeekMsg(amp_player_hab(), &qmsg, GetHwnd(), UM_DELETERECORD, UM_DELETERECORD, PM_REMOVE))
@@ -358,7 +358,7 @@ MRESULT PlaylistBase::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
         else
           UserNavigate((RecordBase*)nre->pRecord);
       }
-      break;       
+      break;
 
      // Direct editing
      case CN_BEGINEDIT:
@@ -527,7 +527,7 @@ MRESULT PlaylistBase::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
        case IDM_PL_REMOVE:
         Apply2Source(&PlaylistBase::UserRemove);
         break;
-        
+
        case IDM_PL_FLATTEN_1:
         Apply2Source(&PlaylistBase::UserFlatten);
         break;
@@ -813,7 +813,7 @@ void PlaylistBase::UpdateChildren(RecordBase* const rp)
   { // If not the root check if the parent is expanded
     PMRASSERT(WinSendMsg(HwndContainer, CM_QUERYRECORDINFO, MPFROMP(&(MINIRECORDCORE*&)rp), MPFROMSHORT(1)));
     reqstate = (rp->flRecordAttr & CRA_EXPANDED) != 0;
-  }  
+  }
 
   // Check wether we should supend the redraw.
   bool pauseredraw = false;
@@ -1136,7 +1136,7 @@ void PlaylistBase::UserFlatten(RecordBase* rec)
       return; // somebody else has been faster
 
     // insert subitems before the old one
-    int_ptr<PlayableInstance> pi = NULL;
+    int_ptr<PlayableInstance> pi = (PlayableInstance*)NULL;
     for(;;)
     { pi = ((PlayableCollection&)*subitem).GetNext(pi);
       if (pi == NULL)
@@ -1445,7 +1445,7 @@ void PlaylistBase::DragDrop(DRAGINFO* pdinfo, RecordBase* target)
         // prepare insert item
         InsertInfo* pii = new InsertInfo();
         pii->Parent = parent;
-        pii->URL    = url123::normalizeURL(fullname);
+        pii->URL    = (const xstring&)url123::normalizeURL(fullname);
         pii->Alias  = alias;
         if (target)
           pii->Before = target->Data->Content;

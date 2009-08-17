@@ -155,7 +155,7 @@ const xstring CommandProcessor::RetBadArg(xstring::sprintf("%i", Ctrl::RC_BadArg
 
 ///// PLAY CONTROL
 
-xstring CommandProcessor::SendCtrlCommand(Ctrl::ControlCommand* cmd)
+const xstring CommandProcessor::SendCtrlCommand(Ctrl::ControlCommand* cmd)
 { cmd = Ctrl::SendCommand(cmd);
   xstring ret = xstring::sprintf("%i", cmd->Flags);
   cmd->Destroy();
@@ -171,7 +171,7 @@ bool CommandProcessor::FillLoadHelper(LoadHelper& lh, char* args)
       return false; // Bad URL
     lh.AddItem(new PlayableSlice(Playable::GetByURL(url)));
   }
-  return true; 
+  return true;
 }
 
 void CommandProcessor::CmdLoad(xstring& ret, char* args)
@@ -200,42 +200,42 @@ void CommandProcessor::CmdStop(xstring& ret, char* args)
 void CommandProcessor::CmdPause(xstring& ret, char* args)
 { const strmap<8, Ctrl::Op>* op = parse_op1(args);
   ret = op
-    ? SendCtrlCommand(Ctrl::MkPause(op->Val))
+    ? (const xstring&)SendCtrlCommand(Ctrl::MkPause(op->Val))
     : RetBadArg;
 }
 
 void CommandProcessor::CmdNext(xstring& ret, char* args)
 { int count = 1;
   ret = *args == 0 || parse_int(args, count)
-    ? SendCtrlCommand(Ctrl::MkSkip(count, true))
+    ? (const xstring&)SendCtrlCommand(Ctrl::MkSkip(count, true))
     : RetBadArg;
 }
 
 void CommandProcessor::CmdPrev(xstring& ret, char* args)
 { int count = 1;
   ret = *args == 0 || parse_int(args, count)
-    ? SendCtrlCommand(Ctrl::MkSkip(-count, true))
+    ? (const xstring&)SendCtrlCommand(Ctrl::MkSkip(-count, true))
     : RetBadArg;
 }
 
 void CommandProcessor::CmdRewind(xstring& ret, char* args)
 { const strmap<8, Ctrl::Op>* op = parse_op1(args);
   ret = op
-    ? SendCtrlCommand(Ctrl::MkScan(op->Val|Ctrl::Op_Rewind))
+    ? (const xstring&)SendCtrlCommand(Ctrl::MkScan(op->Val|Ctrl::Op_Rewind))
     : RetBadArg;
 }
 
 void CommandProcessor::CmdForward(xstring& ret, char* args)
 { const strmap<8, Ctrl::Op>* op = parse_op1(args);
   ret = op
-    ? SendCtrlCommand(Ctrl::MkScan(op->Val))
+    ? (const xstring&)SendCtrlCommand(Ctrl::MkScan(op->Val))
     : RetBadArg;
 }
 
 void CommandProcessor::CmdJump(xstring& ret, char* args)
 { double pos;
   ret = parse_double(args, pos)
-    ? SendCtrlCommand(Ctrl::MkNavigate(xstring(), pos, false, false))
+    ? (const xstring&)SendCtrlCommand(Ctrl::MkNavigate(xstring(), pos, false, false))
     : RetBadArg;
 }
 
@@ -261,14 +261,14 @@ void CommandProcessor::CmdVolume(xstring& ret, char* args)
 void CommandProcessor::CmdShuffle(xstring& ret, char* args)
 { const strmap<8, Ctrl::Op>* op = parse_op1(args);
   ret = op
-    ? SendCtrlCommand(Ctrl::MkShuffle(op->Val))
+    ? (const xstring&)SendCtrlCommand(Ctrl::MkShuffle(op->Val))
     : RetBadArg;
 }
 
 void CommandProcessor::CmdRepeat(xstring& ret, char* args)
 { const strmap<8, Ctrl::Op>* op = parse_op1(args);
   ret = op
-    ? SendCtrlCommand(Ctrl::MkRepeat(op->Val))
+    ? (const xstring&)SendCtrlCommand(Ctrl::MkRepeat(op->Val))
     : RetBadArg;
 }
 
@@ -302,10 +302,10 @@ void CommandProcessor::CmdCurrent(xstring& ret, char* args)
   if (op)
   { switch (op->Val)
     {case 0: // current song
-      ret = Ctrl::GetCurrentSong()->GetURL();
+      ret = (const xstring&)Ctrl::GetCurrentSong()->GetURL();
       break;
      case 1:
-      ret = Ctrl::GetRoot()->GetPlayable()->GetURL();
+      ret = (const xstring&)Ctrl::GetRoot()->GetPlayable()->GetURL();
       break;
     }
   }
@@ -362,13 +362,13 @@ void CommandProcessor::CmdPlaylist(xstring& ret, char* args)
   if (pp->GetFlags() & Playable::Enumerable)
   { CurPlaylist = (PlayableCollection*)&*pp;
     CurItem = NULL;
-    ret = CurPlaylist->GetURL();
+    ret = (const xstring&)CurPlaylist->GetURL();
   }
 };
 
 void CommandProcessor::PlSkip(int count)
 { CurPlaylist->EnsureInfo(Playable::IF_Other);
-  int_ptr<PlayableInstance> (PlayableCollection::*dir)(const PlayableInstance*) const
+  const int_ptr<PlayableInstance> (PlayableCollection::*dir)(const PlayableInstance*) const
     = &PlayableCollection::GetNext;
   if (count < 0)
   { count = - count;
@@ -378,7 +378,7 @@ void CommandProcessor::PlSkip(int count)
   { CurItem = (CurPlaylist->*dir)(CurItem);
     if (!CurItem)
       break;
-  }   
+  }
 }
 
 void CommandProcessor::CmdPlNext(xstring& ret, char* args)
@@ -403,12 +403,12 @@ void CommandProcessor::CmdPlReset(xstring& ret, char* args)
 
 void CommandProcessor::CmdPlCurrent(xstring& ret, char* args)
 { if (CurPlaylist)
-    ret = CurPlaylist->GetURL();
+    ret = (const xstring&)CurPlaylist->GetURL();
 }
 
 void CommandProcessor::CmdPlItem(xstring& ret, char* args)
 { if (CurItem)
-    ret = CurItem->GetPlayable()->GetURL();
+    ret = (const xstring&)CurItem->GetPlayable()->GetURL();
 }
 
 void CommandProcessor::CmdPlIndex(xstring& ret, char* args)
@@ -438,7 +438,7 @@ void CommandProcessor::CmdClear(xstring& ret, char* args)
 void CommandProcessor::CmdRemove(xstring& ret, char* args)
 { if (CurItem && (CurPlaylist->GetFlags() & Playable::Enumerable))
   { CurPlaylist->RemoveItem(CurItem);
-    ret = CurItem->GetPlayable()->GetURL();
+    ret = (const xstring&)CurItem->GetPlayable()->GetURL();
   }
 }
 
@@ -541,7 +541,7 @@ void CommandProcessor::CmdOpen(xstring& ret, char* args)
     { if (*arg2 == 0)
         return; // Error
       int_ptr<Playable> pp = Playable::GetByURL(url123::normalizeURL(arg2));
-      amp_show_dialog(amp_player_window(), pp, (dialog_type)op->Val); 
+      amp_show_dialog(amp_player_window(), pp, (dialog_type)op->Val);
     } else
     { // properties
       if (*arg2)
@@ -549,7 +549,7 @@ void CommandProcessor::CmdOpen(xstring& ret, char* args)
         if (mod)
           mod->Config(amp_player_window());
       } else
-      { WinPostMsg(amp_player_window(), WM_COMMAND, MPFROMSHORT(IDM_M_CFG), 0);  
+      { WinPostMsg(amp_player_window(), WM_COMMAND, MPFROMSHORT(IDM_M_CFG), 0);
       }
     }
   }
@@ -558,7 +558,7 @@ void CommandProcessor::CmdOpen(xstring& ret, char* args)
 void CommandProcessor::CmdSkin(xstring& ret, char* args)
 { ret = cfg.defskin;
   if (*args)
-  { strlcpy(cfg.defskin, args, sizeof cfg.defskin); 
+  { strlcpy(cfg.defskin, args, sizeof cfg.defskin);
     WinPostMsg(amp_player_window(), AMP_RELOADSKIN, 0, 0);
   }
 }
@@ -612,7 +612,7 @@ void CommandProcessor::CmdFont(xstring& ret, char* args)
       cfg.font_size    = font;
       // TODO: we should validate the font here.
       amp_invalidate(UPD_FILENAME);
-    } else     
+    } else
     { switch (font)
       {case 1:
        case 2:
@@ -755,7 +755,7 @@ static void TFNENTRY pipe_thread( void* )
   APIRET rc;
   HAB hab = WinInitialize( 0 );
   HMQ hmq = WinCreateMsgQueue( hab, 0 );
-  
+
   CommandProcessor cmdproc;
 
   for(;; DosDisConnectNPipe( HPipe ))
@@ -883,3 +883,4 @@ bool amp_pipe_open_and_write( const char* pipename, const char* data, size_t siz
     return false;
   }
 }
+

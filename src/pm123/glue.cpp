@@ -70,7 +70,7 @@ event<const OUTEVENTTYPE>     out_event;
 class Glue
 {private:
   static const dec_event_args ev_playstop;
-      
+
   static BOOL              initialized;       // whether the following vars are true
   static OutputProcs       procs;             // entry points of the filter chain
   static OUTPUT_PARAMS2    params;            // parameters for output_command
@@ -308,7 +308,7 @@ ULONG dec_play( const Song* song, T_TIME offset, T_TIME start, T_TIME stop )
   rc = Glue::dec_command( DECODER_SETUP );
   if ( rc != 0 )
     return rc;
-  Glue::url = song->GetURL();
+  Glue::url = (const xstring&)song->GetURL();
 
   Glue::dec_command( DECODER_SAVEDATA );
 
@@ -448,12 +448,12 @@ glue_request_buffer( void* a, const FORMAT_INFO2* format, short** buf )
     return 0;
   // do not pass flush, signal DECEVENT_PLAYSTOP instead.
   if (buf == NULL)
-  { if (InterlockedXch(Glue::playstopsent, TRUE) == FALSE)
+  { if (InterlockedXch(&Glue::playstopsent, TRUE) == FALSE)
       dec_event(Glue::ev_playstop);
-    return 0; 
+    return 0;
   }
   // We are beyond the end?
-  if (playstopsent)
+  if (Glue::playstopsent)
     return 0;
   // pass request to output
   Glue::last_format = *format;
@@ -466,7 +466,7 @@ glue_commit_buffer( void* a, int len, T_TIME posmarker )
     return;
   bool send_playstop = false;
   T_TIME pos_e = posmarker + (T_TIME)len / Glue::last_format.samplerate;
-  
+
   // check stop offset
   if (pos_e >= Glue::stoptime)
   { pos_e = Glue::stoptime;
@@ -475,7 +475,7 @@ glue_commit_buffer( void* a, int len, T_TIME posmarker )
       ? 0 // begin is already beyond the limit => cancel request
       : (int)((Glue::stoptime - posmarker) * Glue::last_format.samplerate +.5);
     // Signal DECEVENT_PLAYSTOP if not yet sent.
-    send_playstop = InterlockedXch(Glue::playstopsent, TRUE) == FALSE;
+    send_playstop = InterlockedXch(&Glue::playstopsent, TRUE) == FALSE;
   }
 
   // update min/max
@@ -504,7 +504,7 @@ dec_event_handler( void* a, DECEVENTTYPE event, void* param )
         pp->SetTechInfo((TECH_INFO*)param);
     }
     break;
-    
+
    case DECEVENT_CHANGEMETA:
     // TODO: Well, the backend does not support time dependant metadata.
     // From the playlist view, metadata changes should be immediately visible.
@@ -520,20 +520,20 @@ dec_event_handler( void* a, DECEVENTTYPE event, void* param )
    case DECEVENT_PLAYSTOP:
     Glue::stoptime = 0;
     // discard if already sent
-    if (InterlockedXch(Glue::playstopsent, TRUE))
+    if (InterlockedXch(&Glue::playstopsent, TRUE))
       return;
    default: // avoid warnings
     break;
-  }   
+  }
   const dec_event_args args = { event, param };
-  dec_event(args); 
+  dec_event(args);
 }
 
 /* proxy, because the decoder is not interested in OUTEVENT_END_OF_DATA */
 PROXYFUNCIMP(void DLLENTRY, Glue)
 out_event_handler( void* w, OUTEVENTTYPE event )
 { DEBUGLOG(("plugman:out_event_handler(%p, %d)\n", w, event));
-  out_event(event); 
+  out_event(event);
   // route high/low water events to the decoder (if any)
   switch (event)
   {case OUTEVENT_LOW_WATER:
@@ -814,3 +814,4 @@ void vis_broadcast(ULONG msg, MPARAM mp1, MPARAM mp2)
   }
 }
 
+

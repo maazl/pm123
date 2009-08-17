@@ -199,7 +199,7 @@ class SongIterator
   // swap two instances (fast)
   void                        Swap(SongIterator& r);
   #ifdef DEBUG_LOG
-  static xstring              DebugName(const SongIterator* sip);
+  static const xstring        DebugName(const SongIterator* sip);
   #endif
   
   // Replace the attached root object. This resets the iterator.
@@ -267,7 +267,7 @@ class SongIterator
   bool                        NavigateFlat(const xstring& url, int index);
 
   // Serialize the iterator into a string.
-  xstring                     Serialize(bool withlocation = true) const;
+  const xstring               Serialize(bool withlocation = true) const;
   // Deserialize the current instance from a string.
   // The current root must have been set before and it must be consistent with the iterator string
   // otherwise the function returns false. In case of an error a partial navigation may take place.

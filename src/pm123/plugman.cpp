@@ -192,7 +192,7 @@ proxy_query_profile( Module* mp, const char* key, void* data, int maxlength )
 PROXYFUNCIMP(int DLLENTRY, Module)
 proxy_write_profile( Module* mp, const char* key, const void* data, int length )
 { const char* const app = sfnameext2(mp->GetModuleName());
-  return PrfWriteProfileData(amp_hini, app, key, data, length);
+  return PrfWriteProfileData(amp_hini, app, key, (PVOID)data, length);
 }
 
 
@@ -211,7 +211,7 @@ bool Module::Load()
   int DLLENTRYP(pinit)(const PLUGIN_CONTEXT* ctx);
   if (!LoadOptionalFunction(&pinit, "plugin_init"))
     pinit = NULL;
-  
+
   QueryParam.interface = 0; // unchanged by old plug-ins
   (*pquery)(&QueryParam);
 
@@ -495,7 +495,7 @@ int PluginList::find(const char* module) const
   return -1;
 }
 
-xstring PluginList::Serialize() const
+const xstring PluginList::Serialize() const
 { DEBUGLOG(("PluginList::Serialize() - %u\n", size()));
   xstring result = xstring::empty;
   for (Plugin*const* pp = begin(); pp < end(); ++pp)
@@ -589,7 +589,7 @@ int PluginList1::SetActive(int i)
     { ppold->RaisePluginChange(Plugin::EventArgs::Inactive);
       ppold->UninitPlugin();
     }
-  }  
+  }
 
   if (pp != NULL)
   { if (!pp->GetEnabled())
@@ -602,7 +602,7 @@ int PluginList1::SetActive(int i)
   return 0;
 }
 
-xstring PluginList1::Serialize() const
+const xstring PluginList1::Serialize() const
 { DEBUGLOG(("PluginList1::Serialize() - %p\n", Active));
   const xstring& ret = PluginList::Serialize();
   return Active ? ret + Active->GetModuleName() : ret;
@@ -781,7 +781,7 @@ void dec_append_accel_table( HACCEL& haccel, ULONG id_base, LONG offset, DECODER
   // Fetch content
   ULONG accelsize = WinCopyAccelTable(haccel, NULL, 0);
   PMASSERT(accelsize);
-  accelsize += (size << (offset != 0)) * sizeof(ACCEL); // space for plug-in entries 
+  accelsize += (size << (offset != 0)) * sizeof(ACCEL); // space for plug-in entries
   ACCELTABLE* paccel = (ACCELTABLE*)alloca(accelsize);
   PMRASSERT(WinCopyAccelTable(haccel, paccel, accelsize));
   DEBUGLOG(("dec_append_accel_table: %i\n", paccel->cAccel));
@@ -846,8 +846,9 @@ void plugman_uninit()
   Decoders.clear();
   Filters.clear();
   Outputs.clear();
-  // deinitialize framework 
+  // deinitialize framework
   Output::Uninit();
   Decoder::Uninit();
   Plugin::Uninit();
 }
+

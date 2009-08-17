@@ -160,7 +160,7 @@ MRESULT PlaylistManager::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
       { CNREDITDATA* ed = (CNREDITDATA*)PVOIDFROMMP(mp2);
         Record* rec = (Record*)ed->pRecord;
         DEBUGLOG(("PlaylistManager::DlgProc CN_ENDEDIT %p{,%p->%p{%s},%u,} %p %s\n", ed, ed->ppszText, *ed->ppszText, *ed->ppszText, ed->cbText, rec, DirectEdit.cdata()));
-        rec->Data()->Content->SetAlias(DirectEdit.length() ? DirectEdit : xstring());
+        rec->Data()->Content->SetAlias(DirectEdit.length() ? DirectEdit : xstring::empty);
       }
       break;
     } // switch (SHORT2FROMMP(mp1))
@@ -188,7 +188,7 @@ MRESULT PlaylistManager::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
    case UM_RECORDCOMMAND:
     { Record* rec = (Record*)PVOIDFROMMP(mp1);
       DEBUGLOG(("PlaylistManager::DlgProc: UM_RECORDCOMMAND: %s %x\n", Record::DebugName(rec).cdata(), StateFromRec(rec).PostMsg));
-      Interlocked il(StateFromRec(rec).PostMsg);
+      AtomicUnsigned il(StateFromRec(rec).PostMsg);
       do
       { // We do the processing here step by step because the processing may set some of the bits
         // that are handled later. This avoids double actions and reduces the number of posted messages.
@@ -447,7 +447,7 @@ void PlaylistManager::UpdateRpl(Record* rec)
         RemoveChildren(rec);
     }
   }
-}  
+}
 
 void PlaylistManager::UpdatePlayStatus(RecordBase* rec)
 { DEBUGLOG(("PlaylistManager(%p)::UpdatePlayStatus(%p)\n", this, rec));

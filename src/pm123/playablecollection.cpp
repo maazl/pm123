@@ -196,7 +196,7 @@ PlayableInstance::PlayableInstance(PlayableCollection& parent, Playable* playabl
     &parent, parent.GetURL().getShortName().cdata(), playable, playable->GetURL().getShortName().cdata()));
 }
 
-xstring PlayableInstance::GetDisplayName() const
+const xstring PlayableInstance::GetDisplayName() const
 { DEBUGLOG2(("PlayableInstance(%p)::GetDisplayName()\n", this));
   return GetAlias() ? GetAlias() : RefTo->GetDisplayName();
 }
@@ -277,7 +277,9 @@ int PlayableInstance::CompareTo(const PlayableInstance& r) const
 { if (this == &r)
     return 0;
   int_ptr<PlayableCollection> lp;
-  lp.assign_weak(Parent);
+  // TODO: race condition
+  if (Parent && !Parent->RefCountIsUnmanaged())
+    lp = Parent;
   // Removed items or different collection.
   if (lp == NULL || r.Parent == NULL || lp != r.Parent)
     return 4;
@@ -659,7 +661,7 @@ void PlayableCollection::RemoveEntry(Entry* entry)
   List.remove(entry);
 }
 
-int_ptr<PlayableInstance> PlayableCollection::GetPrev(const PlayableInstance* cur) const
+const int_ptr<PlayableInstance> PlayableCollection::GetPrev(const PlayableInstance* cur) const
 { DEBUGLOG(("PlayableCollection(%p)::GetPrev(%p{%s})\n", this, cur, cur ? cur->GetPlayable()->GetURL().cdata() : ""));
   ASSERT(!CheckInfo(IF_Other));
   // The PlayableInstance (if any) may either belong the the current list or be removed earlier.
@@ -667,7 +669,7 @@ int_ptr<PlayableInstance> PlayableCollection::GetPrev(const PlayableInstance* cu
   return List.prev((Entry*)cur);
 }
 
-int_ptr<PlayableInstance> PlayableCollection::GetNext(const PlayableInstance* cur) const
+const int_ptr<PlayableInstance> PlayableCollection::GetNext(const PlayableInstance* cur) const
 { DEBUGLOG(("PlayableCollection(%p)::GetNext(%p{%s})\n", this, cur, cur ? cur->GetPlayable()->GetURL().cdata() : ""));
   ASSERT(!CheckInfo(IF_Other));
   // The PlayableInstance (if any) may either belong the the current list or be removed earlier.
@@ -675,7 +677,7 @@ int_ptr<PlayableInstance> PlayableCollection::GetNext(const PlayableInstance* cu
   return List.next((Entry*)cur);
 }
 
-xstring PlayableCollection::SerializeItem(const PlayableInstance* cur, serialization_options opt) const
+const xstring PlayableCollection::SerializeItem(const PlayableInstance* cur, serialization_options opt) const
 { DEBUGLOG(("PlayableCollection(%p{%s})::SerializeItem(%p, %u)\n",
     this, GetURL().getShortName().cdata(), cur, opt));
   // check whether we are unique
@@ -692,18 +694,18 @@ xstring PlayableCollection::SerializeItem(const PlayableInstance* cur, serializa
   xstring ret;
   // fetch relative or absolute URL
   if (opt & SerialRelativePath)
-    ret = cur->GetPlayable()->GetURL().makeRelative(GetURL(), !!(opt & SerialUseUpdir));
+    ret = (const xstring&)cur->GetPlayable()->GetURL().makeRelative(GetURL(), !!(opt & SerialUseUpdir));
   else
-    ret = cur->GetPlayable()->GetURL();
+    ret = (const xstring&)cur->GetPlayable()->GetURL();
   // append count?
   return xstring::sprintf(count > 1 ? "\"%s\"[%u]" : "\"%s\"", ret.cdata(), count);
 }
 
-int_ptr<PlayableInstance> PlayableCollection::DeserializeItem(const xstring& str) const
+const int_ptr<PlayableInstance> PlayableCollection::DeserializeItem(const xstring& str) const
 { DEBUGLOG(("PlayableCollection(%p{%s})::DeserializeItem(%s)\n",
     this, GetURL().getShortName().cdata(), str.cdata()));
   // TODO:
-  return NULL;
+  return (PlayableInstance*)NULL;
 }
 
 void PlayableCollection::PrefetchSubInfo(const PlayableSetBase& excluding, bool incl_songs)

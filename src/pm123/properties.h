@@ -43,14 +43,14 @@
 #define MAX_RECALL            9
 
 // read xstring
-xstring ini_query_xstring(HINI hini, const char* app, const char* key);
+const xstring ini_query_xstring(HINI hini, const char* app, const char* key);
 // write xstring
 inline BOOL ini_write_xstring(HINI hini, const char* app, const char* key, const xstring& str)
 { return PrfWriteProfileData(hini, app, key, (PVOID)str.cdata(), str ? str.length() : 0);
 }
 
 #define load_ini_xstring(hini, var) \
-  var = ini_query_xstring((hini), INI_SECTION, #var)
+  var = (const xstring&)ini_query_xstring((hini), INI_SECTION, #var)
 
 #define save_ini_xstring(hini, var) \
   ini_write_xstring((hini), INI_SECTION, #var, var)
@@ -87,7 +87,7 @@ enum
 typedef struct _amp_cfg {
   // TODO: buffers too small for URLs!!!
   char   defskin[_MAX_PATH];  // Default skin.
-                                
+
   bool   playonload;          // Start playing on file load.
   bool   autouse;             // Auto use playlist on add.
   bool   retainonexit;        // Retain playing position on exit.
@@ -103,15 +103,15 @@ typedef struct _amp_cfg {
   bool   queue_mode;          // Delete played items from the default playlist
   int    num_workers;         // Number of worker threads for Playable objects
   int    num_dlg_workers;     // Number of dialog (high priority) worker threads for Playable objects
-                                
+
   int    font;                // Use font 1 or font 2.
   bool   font_skinned;        // Use skinned font.
   FATTRS font_attrs;          // Font's attributes.
   LONG   font_size;           // Font's point size.
-                                
+
   bool   floatontop;          // Float on top.
   int    scroll;              // See CFG_SCROLL_*
-  bool   scroll_around;       // Scroller turns around the text instead of scrolling backwards.       
+  bool   scroll_around;       // Scroller turns around the text instead of scrolling backwards.
   int    viewmode;            // See CFG_DISP_*
   char   proxy[1024];         // Proxy URL.
   char   auth [1024];         // HTTP authorization.
@@ -124,7 +124,7 @@ typedef struct _amp_cfg {
   int    dock_margin;         // The marging for docking window.
   bool   win_pos_by_obj;      // Store object specific window position.
   int    win_pos_max_age;     // Maximum age of window positions in days.
-  
+
   int    insp_autorefresh;    // Autorefresh rate of inspector dialog.
   bool   insp_autorefresh_on; // Autorefresh rate of inspector dialog.
 

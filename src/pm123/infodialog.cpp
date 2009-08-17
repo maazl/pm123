@@ -44,7 +44,7 @@
 #include <stdio.h>
 
 
-class SingleInfoDialog 
+class SingleInfoDialog
 : public InfoDialog
 {private:
   struct Data       DataCache;
@@ -173,13 +173,13 @@ HWND InfoDialog::PageMetaInfo::SetEFText(USHORT id, Fields fld, const char* text
 { HWND ctrl = PageBase::SetCtrlText(id, fld, text);
   WinSendMsg(ctrl, EM_SETREADONLY, MPFROMSHORT(!MetaWrite), 0);
   return ctrl;
-} 
+}
 
 MRESULT InfoDialog::PageMetaInfo::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
 { switch (msg)
   {//case WM_INITDLG:
    // break;
-    
+
    case UM_UPDATE:
     { // update info values
       DEBUGLOG(("InfoDialog(%p)::PageMetaInfo::DlgProc: UM_UPDATE\n", &Parent));
@@ -189,7 +189,7 @@ MRESULT InfoDialog::PageMetaInfo::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
       Enabled = data.Enabled;
       Valid = data.Valid;
       const META_INFO& meta = *data.Info->meta;
-      MetaWrite = (~Enabled & (F_title|F_artist|F_album|F_year|F_comment|F_genre|F_track|F_copyright)) == 0 
+      MetaWrite = (~Enabled & (F_title|F_artist|F_album|F_year|F_comment|F_genre|F_track|F_copyright)) == 0
         && data.Info->meta_write;
 
       WinCheckButton(GetHwnd(), CB_METATITLE,    !!(Valid & F_title));
@@ -200,7 +200,7 @@ MRESULT InfoDialog::PageMetaInfo::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
       WinCheckButton(GetHwnd(), CB_METAGENRE,    !!(Valid & F_genre));
       WinCheckButton(GetHwnd(), CB_METACOMMENT,  !!(Valid & F_comment));
       WinCheckButton(GetHwnd(), CB_METACOPYRIGHT,!!(Valid & F_copyright));
-        
+
       SetEFText(EF_METATITLE, F_title, meta.title);
       SetEFText(EF_METAARTIST, F_artist, meta.artist);
       SetEFText(EF_METAALBUM, F_album, meta.album);
@@ -209,7 +209,7 @@ MRESULT InfoDialog::PageMetaInfo::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
       SetEFText(EF_METAGENRE, F_genre, meta.genre);
       SetEFText(EF_METACOMMENT, F_comment, meta.comment);
       SetEFText(EF_METACOPYRIGHT, F_copyright, meta.copyright);
-      
+
       PMRASSERT(WinEnableControl(GetHwnd(), PB_APPLY, MetaWrite));
       return 0;
     }
@@ -296,18 +296,18 @@ MRESULT InfoDialog::MetaWriteDlg::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
 { char buffer[60];
   switch (msg)
   {case WM_INITDLG:
-    // setup first destination   
+    // setup first destination
     PMRASSERT(WinSetDlgItemText(GetHwnd(), EF_WMURL, Dest[0]->GetURL().cdata()));
     PMRASSERT(WinPostMsg(GetHwnd(), UM_START, 0, 0));
-    break; 
-     
+    break;
+
    case UM_START:
     DEBUGLOG(("InfoDialog::MetaWriteDlg(%p)::DlgProc: UM_START\n", this));
     CurrentItem = 0;
     WorkerTID = _beginthread(&InfoDialogMetaWriteWorkerStub, NULL, 65536, this);
     ASSERT(WorkerTID != -1);
     return 0;
-    
+
    case UM_STATUS:
     { DEBUGLOG(("InfoDialog::MetaWriteDlg(%p)::DlgProc: UM_STATUS %i, %i\n", this, mp1, mp2));
       int i = LONGFROMMP(mp1);
@@ -377,7 +377,7 @@ ULONG InfoDialog::MetaWriteDlg::DoDialog(HWND owner)
   if (Dest.size() == 0 || MetaFlags == 0)
     return DID_OK;
   StartDialog(owner);
-  return WinProcessDlg(GetHwnd()); 
+  return WinProcessDlg(GetHwnd());
 }
 
 void InfoDialog::MetaWriteDlg::Worker()
@@ -444,12 +444,12 @@ MRESULT InfoDialog::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
     do_warpsans(GetHwnd());
     SetHelpMgr(amp_help_mgr());
     // restore position
-    rest_window_pos(GetHwnd(), Key->size() > 1 ? NULL : (*Key)[0]->GetURL());
+    rest_window_pos(GetHwnd(), Key->size() > 1 ? NULL : (*Key)[0]->GetURL().cdata());
     break;
-    
+
    case WM_DESTROY:
     // save position
-    save_window_pos(GetHwnd(), Key->size() > 1 ? NULL : (*Key)[0]->GetURL());
+    save_window_pos(GetHwnd(), Key->size() > 1 ? NULL : (*Key)[0]->GetURL().cdata());
     break;
 
    case WM_SYSCOMMAND:
@@ -483,7 +483,7 @@ InfoDialog* InfoDialog::Factory::operator()(const PlayableSetBase*const& key)
 int_ptr<InfoDialog> InfoDialog::GetByKey(const PlayableSetBase& obj)
 { DEBUGLOG(("InfoDialog::GetByKey({%u, %s})\n", obj.size(), obj.DebugDump().cdata()));
   if (((const sorted_vector<Playable, Playable>&)obj).size() == 0)
-    return NULL;
+    return (InfoDialog*)NULL;
   // provide factory
   int_ptr<InfoDialog> ret = inst_index<InfoDialog, const PlayableSetBase*const>::GetByKey(&obj, Factory::Instance);
   return ret;
@@ -531,7 +531,7 @@ struct InfoDialog::Data SingleInfoDialog::GetData()
     DataCache.Enabled = (*Key)[0]->GetFlags() & Playable::Enumerable
       ? F_decoder|F_TECH_INFO|F_PHYS_INFO|F_RPL_INFO
       : F_decoder|F_FORMAT_INFO2|F_TECH_INFO|F_META_INFO|F_filesize;
-    DataCache.Valid = 
+    DataCache.Valid =
       (bool)((*Key)[0]->CheckInfo(Playable::IF_Phys  ) == 0) * F_PHYS_INFO |
       (bool)((*Key)[0]->CheckInfo(Playable::IF_Tech  ) == 0) * F_TECH_INFO |
       (bool)((*Key)[0]->CheckInfo(Playable::IF_Rpl   ) == 0 && ((*Key)[0]->GetFlags() & Playable::Enumerable)) * F_RPL_INFO |
@@ -601,7 +601,7 @@ void MultipleInfoDialog::ApplyFlags(const Playable& item)
   DataCache.Enabled &= item.GetFlags() & Playable::Enumerable
     ? F_decoder|F_TECH_INFO|F_PHYS_INFO|F_RPL_INFO
     : F_decoder|F_FORMAT_INFO2|F_TECH_INFO|F_META_INFO|F_filesize;
-  DataCache.Valid &= 
+  DataCache.Valid &=
     (bool)(item.CheckInfo(Playable::IF_Phys  ) == 0) * F_PHYS_INFO |
     (bool)(item.CheckInfo(Playable::IF_Tech  ) == 0) * F_TECH_INFO |
     (bool)(item.CheckInfo(Playable::IF_Rpl   ) == 0 && (item.GetFlags() & Playable::Enumerable)) * F_RPL_INFO |
@@ -613,7 +613,7 @@ void MultipleInfoDialog::ApplyFlags(const Playable& item)
 void MultipleInfoDialog::JoinInfo(const Playable& song)
 { // Decoder
   CompareField(F_decoder, DataCache.Decoder, song.GetDecoder());
-  
+
   const DECODER_INFO2& info = song.GetInfo();
   // Format info
   CompareField(F_samplerate, MergedInfo.format->samplerate,info.format->samplerate);

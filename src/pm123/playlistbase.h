@@ -165,7 +165,7 @@ class PlaylistBase
     // Update the alias text of a record
     RC_UPDATEALIAS,
     // Update starting position
-    RC_UPDATEPOS    
+    RC_UPDATEPOS
   };
  public:
   // return value of AnalyzeRecordTypes
@@ -174,7 +174,7 @@ class PlaylistBase
     RT_None = 0x00,
     // record list contains at least one song
     RT_Song = 0x01,
-    // record list contains at least one enumeratable item 
+    // record list contains at least one enumeratable item
     RT_Enum = 0x02,
     // record list contains at least one playlist
     RT_List = 0x04
@@ -261,7 +261,7 @@ class PlaylistBase
   Playable*         PlayableFromRec(const RecordBase* rec) const { return rec ? rec->Data->Content->GetPlayable() : &*Content; }
   // Prevent a Record from deletion until FreeRecord is called
   void              BlockRecord(RecordBase* rec)
-                    { if (rec) InterlockedInc(rec->UseCount); }
+                    { if (rec) InterlockedInc(&rec->UseCount); }
   // Free a record after it is no longer used e.g. because a record message sent with PostRecordCommand completed.
   // This function does not free the record immediately. It posts a message which does the job.
   // So you can safely access the record data until the next PM call.
@@ -320,7 +320,7 @@ class PlaylistBase
   // Update the list of children
   // rec == NULL => root node
   virtual void      UpdateChildren(RecordBase* const rec);
-  
+
   // Populate Source array with records with a given emphasis or an empty list if none.
   void              GetRecords(USHORT emphasis);
   // Populate Source array for context menu or drag and drop with anchor rec.
@@ -373,9 +373,9 @@ class PlaylistBase
   void              UserSave();
   // Navigate to
   virtual void      UserNavigate(const RecordBase* rec) = 0;
-  // Open tree view 
+  // Open tree view
   void              UserOpenTreeView(Playable* pp);
-  // Open detailed view 
+  // Open detailed view
   void              UserOpenDetailedView(Playable* pp);
   // View Info
   void              UserOpenInfoView(const PlayableSet& set);
@@ -397,7 +397,7 @@ class PlaylistBase
   static int        CompAlias(const PlayableInstance* l, const PlayableInstance* r);
   static int        CompSize(const PlayableInstance* l, const PlayableInstance* r);
   static int        CompTime(const PlayableInstance* l, const PlayableInstance* r);
-  
+
  protected: // D'n'd target
   // Handle CN_DRAGOVER/CN_DRAGAFTER
   MRESULT           DragOver(DRAGINFO* pdinfo, RecordBase* target);
@@ -422,7 +422,7 @@ class PlaylistBase
   // Get the display name of this instance. This is either the alias (if any) or the display name of the underlying URL.
   xstring           GetDisplayName() const { return Alias ? Alias : Content->GetURL().getDisplayName(); }
   // Get an instance of the same type as the current instance for URL.
-  virtual int_ptr<PlaylistBase> GetSame(Playable* obj) = 0;
+  virtual const int_ptr<PlaylistBase> GetSame(Playable* obj) = 0;
 
   // IComparableTo<Playable>
   virtual int       compareTo(const Playable& r) const;
@@ -462,13 +462,13 @@ class PlaylistRepository : public PlaylistBase
   // currently a no-op
   static void       Init() {}
   static void       UnInit();
-  // Lookup wether an object is already in the repository. 
-  static int_ptr<T> Find(Playable* obj);
+  // Lookup wether an object is already in the repository.
+  static const int_ptr<T> Find(Playable* obj);
   // Factory method. Returns always the same instance for the same Playable.
   // If the specified instance already exists the parameter alias is ignored.
-  static int_ptr<T> Get(Playable* obj, const xstring& alias = xstring());
+  static const int_ptr<T> Get(Playable* obj, const xstring& alias = xstring());
   // Get an instance of the same type as the current instance for URL.
-  virtual int_ptr<PlaylistBase> GetSame(Playable* obj) { return &*Get(obj); }
+  virtual const int_ptr<PlaylistBase> GetSame(Playable* obj) { return &*Get(obj); }
  protected:
   // Forward Constructor
   PlaylistRepository(Playable* content, const xstring& alias, ULONG rid) : PlaylistBase(content, alias, rid) {}
@@ -494,7 +494,7 @@ void PlaylistRepository<T>::UnInit()
 }
 
 template <class T>
-int_ptr<T> PlaylistRepository<T>::Find(Playable* obj)
+const int_ptr<T> PlaylistRepository<T>::Find(Playable* obj)
 { DEBUGLOG(("PlaylistRepository<T>::Find(%p)\n", obj));
   Mutex::Lock lock(RPMutex);
   T* pp = RPInst.find(*obj);
@@ -503,7 +503,7 @@ int_ptr<T> PlaylistRepository<T>::Find(Playable* obj)
 }
 
 template <class T>
-int_ptr<T> PlaylistRepository<T>::Get(Playable* obj, const xstring& alias)
+const int_ptr<T> PlaylistRepository<T>::Get(Playable* obj, const xstring& alias)
 { DEBUGLOG(("PlaylistRepository<T>::Get(%p, %s)\n", obj, alias ? alias.cdata() : "<NULL>"));
   Mutex::Lock lock(RPMutex);
   T*& pp = RPInst.get(*obj);
@@ -527,3 +527,4 @@ PlaylistRepository<T>::~PlaylistRepository()
 
 
 #endif
+
