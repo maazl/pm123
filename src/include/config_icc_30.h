@@ -9,6 +9,8 @@
   #define true  1
   #define false 0
 #endif
+#define typename
+#define explicit
 extern "C" {
 #endif
 
