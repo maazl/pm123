@@ -1709,8 +1709,6 @@ main2( void* arg )
 
   DEBUGLOG(("main: window created: frame = %x, player = %x\n", hframe, hplayer));
 
-  do_warpsans( hplayer );
-
   // prepare pluginmanager
   plugman_init();
   // Keep track of plugin changes.
@@ -1806,6 +1804,7 @@ main2( void* arg )
 
   amp_pipe_destroy();
 
+  do_warpsans( hplayer );
   ///////////////////////////////////////////////////////////////////////////
   // Stop and save configuration
   ///////////////////////////////////////////////////////////////////////////
