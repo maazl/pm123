@@ -915,7 +915,7 @@ plg_win_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
       break;
 
     case WM_TIMER:
-      DEBUGLOG(("analyzer:plg_win_proc: WM_TIMER %u\n", SHORT1FROMMP(mp1)));
+      DEBUGLOG2(("analyzer:plg_win_proc: WM_TIMER %u\n", SHORT1FROMMP(mp1)));
       update_analyzer();
       if (needclear)
       { clear_analyzer();
