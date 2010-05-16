@@ -1123,6 +1123,7 @@ unsigned long _System _DLL_InitTerm( unsigned long modhandle,
 {
   if( flag == 0 ) {
     if( _CRT_init() == -1 ) {
+      DEBUGLOG(("os2audio: failed to initialize C runtime"));
       return 0UL;
     }
     return 1UL;
