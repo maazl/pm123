@@ -163,7 +163,7 @@ void PlayableSlice::SetInUse(bool used)
 }
 
 #ifdef DEBUG_LOG
-xstring PlayableSlice::DebugName() const
+const xstring PlayableSlice::DebugName() const
 { return xstring::sprintf("{%s, %s,%s, %s}",
     RefTo->GetURL().cdata(),
     SongIterator::DebugName(Start).cdata(),

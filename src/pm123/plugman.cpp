@@ -142,12 +142,14 @@ bool Module::LoadModule()
   *load_error = 0;
   DEBUGLOG(("Module(%p{%s})::LoadModule()\n", this, GetModuleName().cdata()));
   APIRET rc = DosLoadModule(load_error, sizeof load_error, GetModuleName(), &HModule);
-  DEBUGLOG(("Module::LoadModule: %p - %u\n", HModule, rc));
+  DEBUGLOG(("Module::LoadModule: %p - %u - %s\n", HModule, rc, load_error));
   // For some reason the API sometimes returns ERROR_INVALID_PARAMETER when loading oggplay.dll.
   // However, the module is loaded successfully.
-  if (rc != NO_ERROR && rc != ERROR_INVALID_PARAMETER)
+  // Furthermore, once Firefox 3.5 has beed started at least once on the system loading os2audio.dll
+  // or other MMOS2 related plug-ins fails with ERROR_INIT_ROUTINE_FAILED.
+  if (rc != NO_ERROR && !(HModule != NULLHANDLE && (rc == ERROR_INVALID_PARAMETER || rc == ERROR_INIT_ROUTINE_FAILED)))
   { char error[1024];
-    amp_player_error("Could not load %s, %s. Error %d\n%s",
+    amp_player_error("Could not load %s, %s. Error %d at %s",
                      GetModuleName().cdata(), load_error, rc, os2_strerror(rc, error, sizeof error));
     return false;
   }

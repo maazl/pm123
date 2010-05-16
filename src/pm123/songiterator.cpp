@@ -275,7 +275,7 @@ void SongIterator::Swap(SongIterator& r)
 }
 
 #ifdef DEBUG_LOG
-xstring SongIterator::DebugName(const SongIterator* sip)
+const xstring SongIterator::DebugName(const SongIterator* sip)
 { return sip ? sip->Serialize() : xstring::empty;
 }
 

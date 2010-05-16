@@ -66,7 +66,7 @@ class PlaylistBase
   public IComparableTo<Playable>
 {public:
   struct CommonState
-  { unsigned            PostMsg;   // Bitvector of outstanding record commands
+  { volatile unsigned   PostMsg;   // Bitvector of outstanding record commands
     CommonState() : PostMsg(0) {}
   };
   // C++ part of a record

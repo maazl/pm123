@@ -241,10 +241,10 @@ MRESULT PlaylistView::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
 
    case UM_RECORDCOMMAND:
     { Record* rec = (Record*)PVOIDFROMMP(mp1);
-      DEBUGLOG(("PlaylistView::DlgProc: UM_RECORDCOMMAND: %s, %x\n", Record::DebugName(rec).cdata(), StateFromRec(rec).PostMsg));
       for(;;)
       { // reset pending message flag
         unsigned flags = InterlockedXch(&StateFromRec(rec).PostMsg, 0);
+        DEBUGLOG(("PlaylistView::DlgProc: UM_RECORDCOMMAND: %s, %x\n", Record::DebugName(rec).cdata(), flags));
         if (flags == 0)
           break;
         Playable::InfoFlags flg = Playable::IF_None;
