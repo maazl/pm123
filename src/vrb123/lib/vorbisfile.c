@@ -27,6 +27,8 @@
 #include "os.h"
 #include "misc.h"
 
+#include <debuglog.h>
+
 /* A 'chained bitstream' is a Vorbis bitstream that contains more than
    one logical bitstream arranged end to end (the only form of Ogg
    multiplexing allowed in a Vorbis bitstream; grouping [parallel
@@ -82,6 +84,7 @@ static int _seek_helper(OggVorbis_File *vf,ogg_int64_t offset){
     vf->offset=offset;
     ogg_sync_reset(&vf->oy);
   }else{
+    ASSERT(0);
     /* shouldn't happen unless someone writes a broken callback */
     return OV_EFAULT;
   }
@@ -170,9 +173,10 @@ static ogg_int64_t _get_prev_page(OggVorbis_File *vf,ogg_page *og){
 
   ret=_get_next_page(vf,og,CHUNKSIZE);
   if(ret<0)
-    /* this shouldn't be possible */
+  { /* this shouldn't be possible */
+    ASSERT(0);
     return(OV_EFAULT);
-
+  }
   return(offset);
 }
 
