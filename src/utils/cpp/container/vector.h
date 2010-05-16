@@ -97,6 +97,9 @@ class vector_base
   // Return the number of elements in the container.
   // This is not equal to the storage capacity.
   size_t             size() const                   { return Size; }
+  // Adjust the size to a given value
+  // If the array is increased NULL values are appended.
+  void               set_size(size_t size);
   // Remove all elements
   void               clear()                        { Size = 0; }
   // Move the i-th element in the list to the location where j is now.
@@ -123,6 +126,8 @@ class vector : public vector_base
                      vector(size_t capacity = 0)    : vector_base(capacity) {}
   // Initialize a vector with size copies of elem.
                      vector(size_t size, T* elem, size_t spare = 0) : vector_base(size, elem, spare) {}
+  // copy constructor
+                     vector(const vector<T>& r, size_t spare = 0) : vector_base(r, spare) {}
   // swap content of two instances
   void               swap(vector<T>& r)             { vector_base::swap(r); }
   // Append a new element to the end of the vector.
@@ -172,12 +177,24 @@ class vector : public vector_base
  */
 template <class T>
 void vector_own_base_destroy(vector<T>& v)
-{ T*const* tpp = v.end();
-  while (tpp != v.begin())
+{ T*const* end = v.end();
+  T*const* tpp = v.begin();
+  while (tpp != end)
   { DEBUGLOG2(("vector_own_base_destroy &%p, %u\n", &v, v.size()));
-    delete *--tpp;
+    delete *tpp++;
   }
   v.clear();
+}
+template <class T>
+void vector_own_base_destroy(vector<T>& v, size_t nsize)
+{ ASSERT(nsize <= v.size());
+  T*const* end = v.end();
+  T*const* tpp = v.begin() + nsize;
+  while (tpp != end)
+  { DEBUGLOG2(("vector_own_base_destroy &%p, %u\n", &v, v.size()));
+    delete *tpp++;
+  }
+  v.set_size(nsize);
 }
 
 template <class T>
@@ -204,76 +221,76 @@ class vector_own : public vector<T>
   // You may use vector_own_base_copy to do the job.
   vector_own(const vector_own<T>& r, size_t spare = 0) : vector<T>(r.size() + spare) {}
   // assignment: same problem as above
-  vector_own<T>&     operator=(const vector_own<T>& r);
+  void               operator=(const vector_own<T>& r) { clear(); prepare_assign(r.size()); }
+
  public:
   // create a new vector with a given initial capacity.
   // If capacity is 0 the vector is initially created empty
   // and allocated with the default capacity when the first item is inserted.
   vector_own(size_t capacity = 0) : vector<T>(capacity) {}
+  // Adjust the size to a given value
+  // If the array is increased NULL values are appended.
+  void               set_size(size_t size)          { if (this->size() > size) vector_own_base_destroy(*this, size); vector<T>::set_size(size); }
   // Remove all elements
   void               clear()                        { vector_own_base_destroy(*this); }
   // destructor
                      ~vector_own()                  { clear(); }
 };
 
-template <class T>
-vector_own<T>& vector_own<T>::operator=(const vector_own<T>& r)
-{ clear();
-  prepare_assign(r.size());
-  //vector_own_base_copy(*this, r.begin());
-  return *this;
-}
 
-
-/* Vector with members with intrusive reference counter. */ 
+/* Vector with members with intrusive reference counter. */
 template <class T>
-class vector_int : public vector_base
+class vector_int : public vector<T>
 {protected:
   // Increment reference counters of all elements.
   void               IncRefs();
  public:
   // Default constructor
-                     vector_int(size_t capacity = 0): vector_base(capacity) {}
+                     vector_int(size_t capacity = 0): vector<T>(capacity) {}
   // Initialize a vector with size copies of elem.
-                     vector_int(size_t size, T* elem) : vector_base(size, elem) { IncRefs(); }
+                     vector_int(size_t size, T* elem, size_t spare = 0)
+                                                    : vector<T>(size, elem, spare) { IncRefs(); }
   // Copy constructor
-  // The binary copy of vector_base::vector_base(const vector_base& r, size_t spare) is fine.
+  // The binary copy of vector<T>::vector(const vector_base& r, size_t spare) is fine.
   // But we have to increment the reference counters.
                      vector_int(const vector_int<T>& r, size_t spare = 0)
-                                                    : vector_base(r, spare) { IncRefs(); }
+                                                    : vector<T>(r, spare) { IncRefs(); }
   // destructor
                      ~vector_int()                  { clear(); }
+  // Adjust the size to a given value
+  // If the array is increased NULL values are appended.
+  void               set_size(size_t size);
   // Remove all elements
   void               clear();
   // assignment
   vector_int<T>&     operator=(const vector_int<T>& r);
   // swap content of two instances
-  void               swap(vector_int<T>& r)         { vector_base::swap(r); }
+  void               swap(vector_int<T>& r)         { vector<T>::swap(r); }
   // Append a new element to the end of the vector.
   // The function does not take the value of the new element.
   // Instead it returns a reference to the new location that should be assigned later.
   // The reference is valid until the next non-const member function call.
   // The initial value of the new element is NULL.
-  int_ptr<T>&        append()                       { return (int_ptr<T>&)vector_base::append(); }
+  int_ptr<T>&        append()                       { return (int_ptr<T>&)vector<T>::append(); }
   // Insert a new element in the vector at location where
   // Precondition: where in [0,size()], Performance: O(n)
   // The function does not take the value of the new element.
   // Instead it returns a reference to the new location that should be assigned later.
   // The reference is valid until the next non-const member function call.
   // The initial value of the new element is NULL.
-  int_ptr<T>&        insert(size_t where)           { return (int_ptr<T>&)vector_base::insert(where); }
+  int_ptr<T>&        insert(size_t where)           { return (int_ptr<T>&)vector<T>::insert(where); }
   // Removes an element from the vector and return it's value.
   // The where pointer is set to the next item after the removed one.
   // Precondition: where in [begin(),end()), Performance: O(n)
-  int_ptr<T>         erase(const int_ptr<T>*& where){ return int_ptr<T>((const int_ptr<T>&)vector_base::erase((void**&)where)); }
+  const int_ptr<T>   erase(const int_ptr<T>*& where){ return int_ptr<T>((const int_ptr<T>&)vector<T>::erase((T*const*&)where)); }
   // Removes an element from the vector and return it's value.
   // Precondition: where in [0,size()-1], Performance: O(n)
-  int_ptr<T>         erase(size_t where)            { return int_ptr<T>((const int_ptr<T>&)vector_base::erase(where)); }
+  const int_ptr<T>   erase(size_t where)            { return int_ptr<T>((const int_ptr<T>&)vector<T>::erase(where)); }
   // Access an element by it's index.
   // Precondition: where in [0,size()-1], Performance: O(1)
   // This is the constant version of the [] operator. Since we deal only with references
   // it returns a value copy rather than a const reference to the element.
-  T*                 operator[](size_t where) const { return &*(const int_ptr<T>&)at(where); }
+  T*                 operator[](size_t where) const { return vector<T>::operator[](where); } // = return ((const int_ptr<T>&)at(where)).get();
   // Access an element by it's index.
   // Precondition: where in [0,size()-1], Performance: O(1)
   int_ptr<T>&        operator[](size_t where)       { return (int_ptr<T>&)at(where); }
@@ -282,33 +299,49 @@ class vector_int : public vector_base
   const int_ptr<T>*  begin() const                  { return &(const int_ptr<T>&)at(0); }
   // Get a iterator that points to the firs element or past the end if the vector is empty.
   // Precondition: none, Performance: O(1)
-  int_ptr<T>*        begin()                        { return &(*this)[0]; }
+  int_ptr<T>*        begin()                        { return &(int_ptr<T>&)at(0); }
   // Get a constant iterator that points past the end.
   // Precondition: none, Performance: O(1)
   const int_ptr<T>*  end() const                    { return &(const int_ptr<T>&)at(size()); }
   // Get a iterator that points past the end.
   // Precondition: none, Performance: O(1)
-  int_ptr<T>*        end()                          { return &(*this)[size()]; }
+  int_ptr<T>*        end()                          { return &(int_ptr<T>&)at(size()); }
 };
 
 template <class T>
 void vector_int<T>::IncRefs()
-{ int_ptr<T>* tpp = end();
+{ const int_ptr<T>* epp = end();
+  const int_ptr<T>* tpp = begin();
   int_ptr<T> worker;
-  while (tpp != begin())
+  while (tpp != epp)
   { DEBUGLOG2(("vector_int(%p)::IncRefs - %p\n", this, tpp->get()));
-    worker.fromCptr(*--tpp);
+    worker = *tpp++;
+    worker.toCptr();
   }
 }
 
 template <class T>
-void vector_int<T>::clear()
-{ const int_ptr<T>* tpp = end();
-  while (tpp != begin())
-  { DEBUGLOG2(("vector_int(%p)::clear - %p\n", this, tpp->get()));
-    (--tpp)->~int_ptr();
+void vector_int<T>::set_size(size_t size)
+{ if (size < this->size())
+  { const int_ptr<T>* epp = end();
+    const int_ptr<T>* tpp = begin() + size;
+    while (tpp != epp)
+    { DEBUGLOG2(("vector_int(%p)::clear - %p\n", this, tpp->get()));
+      tpp++->~int_ptr();
+    }
   }
-  vector_base::clear();
+  vector<T>::set_size(size);
+}
+
+template <class T>
+void vector_int<T>::clear()
+{ const int_ptr<T>* epp = end();
+  const int_ptr<T>* tpp = begin();
+  while (tpp != epp)
+  { DEBUGLOG2(("vector_int(%p)::clear - %p\n", this, tpp->get()));
+    tpp++->~int_ptr();
+  }
+  vector<T>::clear();
 }
 
 template <class T>
@@ -316,9 +349,9 @@ vector_int<T>& vector_int<T>::operator=(const vector_int<T>& r)
 { clear();
   // The binary copy of vector_base::operator=(const vector_base& r) is fine.
   // But we have to increment the reference counters.
-  vector_base::operator=(r);
+  vector<T>::operator=(r);
   IncRefs();
-  return *this; 
+  return *this;
 }
 
 #endif

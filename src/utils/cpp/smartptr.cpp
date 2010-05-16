@@ -33,63 +33,60 @@
 #include <debuglog.h>
 
 
-int_ptr_base::int_ptr_base(const Iref_Count* ptr)
+/*int_ptr_base::int_ptr_base(const Iref_Count* ptr)
 : Ptr((Iref_Count*)ptr) // constness is handled in the derived class
 { DEBUGLOG2(("int_ptr_base(%p)::int_ptr_base(%p{%i})\n", this, ptr, ptr ? ptr->Count : 0));
   if (Ptr)
-    InterlockedInc(Ptr->Count);
+    InterlockedInc(&Ptr->Count);
 }
 int_ptr_base::int_ptr_base(const int_ptr_base& r)
 : Ptr(r.Ptr)
 { DEBUGLOG2(("int_ptr_base(%p)::int_ptr_base(&%p{%p{%i}})\n", this, &r, r.Ptr, r.Ptr ? r.Ptr->Count : 0));
   if (Ptr)
-    InterlockedInc(Ptr->Count);
+    InterlockedInc(&Ptr->Count);
+}
+int_ptr_base::int_ptr_base(volatile const int_ptr_base& r)
+: Ptr(r.Ptr)
+{ DEBUGLOG2(("int_ptr_base(%p)::int_ptr_base(volatile&%p{%p{%i}})\n", this, &r, r.Ptr, r.Ptr ? r.Ptr->Count : 0));
+  if (Ptr)
+  { CritSect cs;
+    Ptr = r.Ptr;
+    if (Ptr)
+      ++Ptr->Count;
+  }
 }
 
 Iref_Count* int_ptr_base::reassign(const Iref_Count* ptr)
 { DEBUGLOG2(("int_ptr_base(%p)::reassign(%p{%i}): %p{%i}\n", this, ptr, ptr ? ptr->Count : 0, Ptr, Ptr ? Ptr->Count : 0));
   // Hack to avoid problems with (rarely used) p = p statements: increment new counter first.
   if (ptr)
-    InterlockedInc(((Iref_Count*)ptr)->Count);
-  Iref_Count* ret = NULL;
-  if (Ptr && InterlockedDec(Ptr->Count) == 0)
-    ret = Ptr;
-  Ptr = (Iref_Count*)ptr; // constness is handled in the derived class
+    InterlockedInc(&((Iref_Count*)ptr)->Count); // constness is handled in the derived class
+  Iref_Count* ret = (Iref_Count*)InterlockedXch(&(unsigned&)Ptr, (unsigned)ptr);
+  if (ret && InterlockedDec(&ret->Count) != 0)
+    ret = NULL;
   return ret;
 }
 
-Iref_Count* int_ptr_base::reassign_weak(const Iref_Count* ptr)
-{ DEBUGLOG2(("int_ptr_base(%p)::reassign_weak(%p{%i}): %p{%i}\n", this, ptr, ptr ? ptr->Count : 0, Ptr, Ptr ? Ptr->Count : 0));
-  // Hack to avoid problems with (rarely used) p = p statements: increment new counter first.
-  if (ptr)
+Iref_Count* int_ptr_base::reassign_safe(Iref_Count*volatile const& ptr)
+{ DEBUGLOG2(("int_ptr_base(%p)::reassign_safe(&%p{%i}): %p{%i}\n", this, ptr, ptr ? ptr->Count : 0, Ptr, Ptr ? Ptr->Count : 0));
+  const Iref_Count* lptr = ptr;
+  if (lptr)
   { CritSect cs;
-    if (ptr->Count == 0)
-      // The referencounter is 0, so noone else is owning the object.
-      // This is the case when the object is just created or about to be deleted.
-      // We simply assign NULL in this case.
-      ptr = NULL;
-     else
-      // This is done in the above critical section.
-      // This avoids that the counter reaches zero between the above check an the increment here.
-      ++((Iref_Count*)ptr)->Count;
+    lptr = ptr;
+    if (lptr)
+      ++((Iref_Count*)lptr)->Count; // Constness is handled outside
   }
-  Iref_Count* ret = NULL;
-  if (Ptr && InterlockedDec(Ptr->Count) == 0)
-    ret = Ptr;
-  Ptr = (Iref_Count*)ptr; // constness is handled in the derived class
+  Iref_Count* ret = (Iref_Count*)InterlockedXch(&(unsigned&)Ptr, (unsigned)lptr);
+  if (ret && InterlockedDec(&ret->Count) != 0)
+    ret = NULL;
   return ret;
 }
 
-Iref_Count* int_ptr_base::unassign()
-{ DEBUGLOG2(("int_ptr_base(%p)::unassign(): %p{%i}\n", this, Ptr, Ptr ? Ptr->Count : 0));
-  return Ptr && InterlockedDec(Ptr->Count) == 0 ? Ptr : NULL;
+void int_ptr_base::swap(int_ptr_base& r)
+{ DEBUGLOG2(("int_ptr_base(%p)::swap(&{%p}): %p\n", this, r.Ptr, Ptr));
+  CritSect cs;
+  Iref_Count* tmp = Ptr;
+  Ptr = r.Ptr;
+  r.Ptr = tmp;
 }
-
-Iref_Count* int_ptr_base::detach()
-{ DEBUGLOG2(("int_ptr_base(%p)::detach(): %p{%i}\n", this, Ptr, Ptr ? Ptr->Count : 0));
-  Iref_Count* ret = Ptr;
-  Ptr = NULL;
-  return ret;
-}
-
-
+*/

@@ -86,7 +86,7 @@ class inst_index
  public:
   const  K          Key;
  private:
-  bool              InIndex; // Object is already registered in the index.        
+  bool              InIndex; // Object is already registered in the index.
  private:
   static sorted_vector<T,K> Index;
   static Mutex      Mtx; // protect the index above
@@ -121,12 +121,12 @@ inst_index<T,K>::~inst_index()
     if (Index[pos]->compareTo(Key) == 0)
       Index.erase(pos);
     // else => another instance is already in the index.
-  } else 
+  } else
     DEBUGLOG(("inst_index::~inst_index: not found at %i\n", pos));
     // else => there is no matching instance
     // This may happen if the reference count on a T instance goes to zero and
     // while the instance is not yet deregistered a new instance is created
-    // in the index and it's inst_index destructor is already called. 
+    // in the index and it's inst_index destructor is already called.
 }
 
 template <class T, class K>
@@ -135,7 +135,7 @@ int_ptr<T> inst_index<T,K>::FindByKey(const K& key)
   Mutex::Lock lock(Mtx);
   T* p = Index.find(key);
   CritSect cs;
-  return p && !p->RefCountIsUnmanaged() ? p : NULL; 
+  return p && !p->RefCountIsUnmanaged() ? p : NULL;
 }
 
 template <class T, class K>
@@ -167,6 +167,6 @@ template <class T, class K>
 sorted_vector<T,K> inst_index<T,K>::Index;
 template <class T, class K>
 Mutex inst_index<T,K>::Mtx;
-  
+
 
 #endif

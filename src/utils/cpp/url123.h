@@ -72,41 +72,41 @@ class url123 : public xstring
   static bool   hasScheme(const char* str);
   static bool   isAbsolute(const char* str);
   static void   parseParameter(stringmap& dest, const char* params);
-  static xstring makeParameter(const stringmap& params); 
+  static const xstring makeParameter(const stringmap& params); 
   static bool*  parseBoolean(const char* val);
-  static url123 normalizeURL(const char* str);
+  static const url123 normalizeURL(const char* str);
 
   url123() {}
   url123(const xstring& r) : xstring(r) {}
   url123(const char* r)    : xstring(r) {}
 
   // Returns the path component of the url including a trailing slash.
-  xstring getBasePath() const;
+  const xstring getBasePath() const;
   // Returns only the object name with extension
   // This is the part after the basepath and before any query parameters (if any)
-  xstring getObjectName() const;
+  const xstring getObjectName() const;
   // This retuns that part of the object name that is likely to be a file extension.
   // If no extension is found it returns an empty string.
-  xstring getExtension() const;
+  const xstring getExtension() const;
   // Return query parameter if any or an empty string otherwise.
-  xstring getParameter() const;
+  const xstring getParameter() const;
 
   // Returns a simplified version of the url containing only the important part
   // E.g. filenames are reported without file:///.
-  xstring getDisplayName() const;
+  const xstring getDisplayName() const;
   // Returns only the object name without extension
   // This is the part after the basepath and before any query parameters (if any)
-  xstring getShortName() const;
+  const xstring getShortName() const;
 
   // test whether the url belongs to a given scheme
-  bool    isScheme(const char* scheme) const { return startsWithI(scheme); }
+  bool          isScheme(const char* scheme) const { return startsWithI(scheme); }
   // Make the given URL absolute (if required) using the current object as starting point.
   // If the URL is already absolute it will simply create a normalized URL.
-  url123  makeAbsolute(const char* rel) const;
+  const url123  makeAbsolute(const char* rel) const;
   // Make URL relative (if possible) using root as starting point.
   // This function makes use of ../ if required and useupdir is true.
   // If this is not possible, the current URL is returned.
-  xstring makeRelative(const char* root, bool useupdir = true) const;
+  const xstring makeRelative(const char* root, bool useupdir = true) const;
 };
 
 

@@ -104,10 +104,10 @@ void url123::parseParameter(stringmap& dest, const char* params)
   xstring key;
   xstring val;
 
-  while (*params)   
+  while (*params)
   { // find next '&'
     const char* ap = strchr(params, '&');
-    const char* np; 
+    const char* np;
     if (ap == NULL)
       np = ap = params + strlen(params);
     else
@@ -139,12 +139,12 @@ void url123::parseParameter(stringmap& dest, const char* params)
     else
       // new
       sep = new stringmapentry(key, val);
-    // next      
+    // next
     params = np;
-  } 
+  }
 }
 
-xstring url123::makeParameter(const stringmap& params)
+const xstring url123::makeParameter(const stringmap& params)
 { xstring ret;
   stringmapentry*const* p;
   // calculate string length
@@ -169,7 +169,7 @@ xstring url123::makeParameter(const stringmap& params)
       }
       if (++p == params.end())
         break;
-      *cp++ = '&'; // delimiter 
+      *cp++ = '&'; // delimiter
     }
   }
   return ret;
@@ -195,7 +195,7 @@ bool* url123::parseBoolean(const char* val)
   return mep ? &mep->Val : NULL;
 }
 
-url123 url123::normalizeURL(const char* str)
+const url123 url123::normalizeURL(const char* str)
 { DEBUGLOG(("url123::normalzieURL(%s)\n", str));
   url123 ret;
   if (str == NULL)
@@ -281,13 +281,13 @@ url123 url123::normalizeURL(const char* str)
   return ret;
 }
 
-xstring url123::getBasePath() const
+const xstring url123::getBasePath() const
 { const char* cp = strrchr(*this, '/');
   ASSERT(cp);
   return xstring(*this, 0, cp-cdata()+1);
 }
 
-xstring url123::getObjectName() const
+const xstring url123::getObjectName() const
 { const char* cp = strrchr(*this, '/');
   ASSERT(cp);
   ++cp;
@@ -295,7 +295,7 @@ xstring url123::getObjectName() const
   return cp2 ? xstring(cp, cp2-cp) : xstring(cp);
 }
 
-xstring url123::getExtension() const
+const xstring url123::getExtension() const
 { const char* cp = strrchr(*this, '/');
   ASSERT(cp);
   ++cp;
@@ -306,12 +306,14 @@ xstring url123::getExtension() const
   return cp3;
 }
 
-xstring url123::getParameter() const
+const xstring url123::getParameter() const
 { const char* cp = strchr(*this, '?');
-  return cp ? xstring(cp) : xstring::empty;
+  if (!cp)
+    return xstring::empty;
+  return cp;
 }
 
-xstring url123::getDisplayName() const
+const xstring url123::getDisplayName() const
 { const char* cp = *this;
   if (strnicmp(cp, "file:", 5) == 0)
   { cp += 5;
@@ -321,7 +323,7 @@ xstring url123::getDisplayName() const
   return cp;
 }
 
-xstring url123::getShortName() const
+const xstring url123::getShortName() const
 { const char* cp = strrchr(*this, '/');
   if (cp)
     ++cp;
@@ -338,7 +340,7 @@ xstring url123::getShortName() const
       ++cp2;
       break;
      default:
-      if (cp2 != cdata()) 
+      if (cp2 != cdata())
         goto next;
     }
     return xstring(cp2, cp-cp2);
@@ -351,7 +353,7 @@ xstring url123::getShortName() const
   }
 }
 
-url123 url123::makeAbsolute(const char* rel) const
+const url123 url123::makeAbsolute(const char* rel) const
 { DEBUGLOG(("url123(%p{%s})::makeAbsolute(%s)\n", this, cdata(), rel));
   // Already absolute?
   if (isAbsolute(rel))
@@ -371,7 +373,7 @@ url123 url123::makeAbsolute(const char* rel) const
   return normalizeURL(dp.get());
 }
 
-xstring url123::makeRelative(const char* root, bool useupdir) const
+const xstring url123::makeRelative(const char* root, bool useupdir) const
 { DEBUGLOG(("url123(%p{%s})::makeRelative(%s, %u)\n", this, cdata(), root, useupdir));
   // find common part
   const char* sp1 = *this;
@@ -384,7 +386,7 @@ xstring url123::makeRelative(const char* root, bool useupdir) const
   { const char* cp = strchr(sp2, '/');
     if (cp)
     { if (!useupdir) // no subpath => impossible without ../
-        return *this;
+        return (const xstring&)*this;
       do
       { ++updirs;
         cp = strchr(cp+1, '/');
@@ -393,7 +395,7 @@ xstring url123::makeRelative(const char* root, bool useupdir) const
   // go back to the previous slash of the absolute URL.
   for (;;)
   { if (sp1 == cdata()) // start of URL => relative impossible
-      return *this;
+      return (const xstring&)*this;
     if (sp1[-1] == '/')
       break;
     --sp1;
@@ -401,7 +403,7 @@ xstring url123::makeRelative(const char* root, bool useupdir) const
   // relative path contains colon => impossible
   // and do not replace the server name with ../
   if (strchr(sp1, ':') != NULL || sp1[-2] == '/')
-    return *this;
+    return (const xstring&)*this;
   // Possible! => concatenate relative URL
   size_t len = strlen(sp1);
   xstring ret;

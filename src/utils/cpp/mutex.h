@@ -45,31 +45,38 @@
 *
 *****************************************************************************/
 
-class Interlocked
+class AtomicUnsigned
 {private:
-  unsigned& data;
+  volatile unsigned data;
  public:
-  Interlocked(unsigned& i)        : data(i) {}
-  unsigned swap(unsigned n)       { return InterlockedXch(data, n); }
-  void     operator++()           { InterlockedInc(data); }
-  char     operator--()           { return InterlockedDec(data); }
-  void     operator+=(unsigned n) { InterlockedAdd(data, n); }
-  char     operator-=(unsigned n) { return InterlockedSub(data, n); }
-  char     operator&=(unsigned n) { return InterlockedAnd(data, n); }
-  void     operator|=(unsigned n) { InterlockedOr(data, n); }
-  char     operator^=(unsigned n) { return InterlockedXor(data, n); }
-  char     bitset(unsigned n)     { return InterlockedBts(data, n); } 
-  char     bitrst(unsigned n)     { return InterlockedBtr(data, n); } 
-  char     bitnot(unsigned n)     { return InterlockedBtc(data, n); }
-  // non synchronized operators
-  operator unsigned()             { return data; }
-  bool     operator!()            { return !data; }
-  bool     operator==(unsigned r) { return data == r; }
-  bool     operator!=(unsigned r) { return data != r; }
-  bool     operator<(unsigned r)  { return data < r; }
-  bool     operator<=(unsigned r) { return data <= r; }
-  bool     operator>(unsigned r)  { return data > r; }
-  bool     operator>=(unsigned r) { return data >= r; }
+           AtomicUnsigned(unsigned i)   : data(i) {}
+  // atomic operations
+  unsigned swap(unsigned n)             { return InterlockedXch(&data, n); }
+  bool     replace(unsigned o, unsigned n) { return (bool)InterlockedCxc(&data, o, n); }
+  void     operator++()                 { InterlockedInc(&data); }
+  bool     operator--()                 { return (bool)InterlockedDec(&data); }
+  void     operator+=(unsigned n)       { InterlockedAdd(&data, n); }
+  bool     operator-=(unsigned n)       { return (bool)InterlockedSub(&data, n); }
+  bool     operator&=(unsigned n)       { return (bool)InterlockedAnd(&data, n); }
+  void     operator|=(unsigned n)       { InterlockedOr(&data, n); }
+  bool     operator^=(unsigned n)       { return (bool)InterlockedXor(&data, n); }
+  bool     bitset(unsigned n)           { return (bool)InterlockedBts(&data, n); } 
+  bool     bitrst(unsigned n)           { return (bool)InterlockedBtr(&data, n); } 
+  bool     bitnot(unsigned n)           { return (bool)InterlockedBtc(&data, n); }
+  unsigned maskset  (unsigned n)        { return InterlockedSet(&data, n); }
+  unsigned maskreset(unsigned n)        { return InterlockedRst(&data, n); }
+  // non atomic methods
+  AtomicUnsigned& operator=(unsigned r) { data = r; return *this; }
+  void     set       (unsigned r)       { data = r; }
+  operator unsigned  () const           { return data; }
+  unsigned get       () const           { return data; }
+  bool     operator! () const           { return !data; }
+  bool     operator==(unsigned r) const { return data == r; }
+  bool     operator!=(unsigned r) const { return data != r; }
+  bool     operator< (unsigned r) const { return data <  r; }
+  bool     operator<=(unsigned r) const { return data <= r; }
+  bool     operator> (unsigned r) const { return data >  r; }
+  bool     operator>=(unsigned r) const { return data >= r; }
 };
 
 
@@ -214,7 +221,7 @@ class CritSect
        CritSect (const CritSect&);
   void operator=(const CritSect&);
  public:
-       CritSect  () { DEBUGLOG2(("CritSect::CritSect()\n")); DosEnterCritSec(); }
+       CritSect  () { DEBUGLOG2(("CritSect::CritSect()\n")); ORASSERT(DosEnterCritSec()); }
        ~CritSect () { DosExitCritSec(); DEBUGLOG2(("CritSect::~CritSect()\n")); }
 };
 
@@ -231,12 +238,15 @@ class CritSect
 class SpinLock
 {private:
   volatile unsigned Count;
+ private:      // non-copyable
+               SpinLock(const SpinLock&);
+  void         operator=(const SpinLock&);
  public:
                SpinLock()        : Count(0) {}
   unsigned     Peek() const      { return Count; }             
-  void         Inc()             { InterlockedInc(Count); }
-  bool         Dec()             { ASSERT(Count); return InterlockedDec(Count); }
-  unsigned     Reset()           { return InterlockedXch(Count, 0); } 
+  void         Inc()             { InterlockedInc(&Count); }
+  bool         Dec()             { ASSERT(Count); return InterlockedDec(&Count); }
+  unsigned     Reset()           { return InterlockedXch(&Count, 0); } 
   void         Wait();
  public:
   class Use
@@ -287,6 +297,9 @@ class RecSpinLock : public SpinLock
 class Event
 {protected:
   HEV    Handle;
+ private:// non-copyable
+         Event(const Event&);
+  void   operator=(const Event&);
  public:
          Event(bool share = false);
          Event(const char* name);

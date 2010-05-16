@@ -54,7 +54,7 @@ class list_base
  private:
   entry_base* Head;
   entry_base* Tail;
-  
+
  private: // non-copyable
               list_base(const list_base&);
   void        operator=(const list_base&);
@@ -160,10 +160,10 @@ class list_int : public list<T>
   void        push_back(T* elem);
   // Return the first element and remove it from the list.
   // Return NULL if the list is empty.
-  int_ptr<T>  pop_front();
+  const int_ptr<T> pop_front();
   // Return the last element and remove it from the list.
   // Return NULL if the list is empty.
-  int_ptr<T>  pop_back();
+  const int_ptr<T> pop_back();
   // Insert a new element before the element 'before'.
   // If before is NULL the element is appended. (Same as push_back.)
   void        insert(T* elem, T* before);
@@ -179,19 +179,19 @@ template <class T>
 void list_int<T>::push_front(T* elem)
 { list<T>::push_front(int_ptr<T>(elem).toCptr());
 }
-               
+
 template <class T>
 void list_int<T>::push_back(T* elem)
 { list<T>::push_back(int_ptr<T>(elem).toCptr());
 }
 
 template <class T>
-int_ptr<T> list_int<T>::pop_front()
+const int_ptr<T> list_int<T>::pop_front()
 { return int_ptr<T>().fromCptr((T*)list_base::pop_front());
 }
 
 template <class T>
-int_ptr<T> list_int<T>::pop_back()
+const int_ptr<T> list_int<T>::pop_back()
 { return int_ptr<T>().fromCptr((T*)list_base::pop_back());
 }
 

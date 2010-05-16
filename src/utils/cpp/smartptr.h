@@ -32,6 +32,7 @@
 #include <config.h>
 #include <stdlib.h>
 #include <cpp/cpputil.h>
+#include <cpp/mutex.h>
 
 #include <debuglog.h>
 
@@ -88,139 +89,286 @@ inline void sco_ptr<T>::swap(sco_ptr<T>& r)
   r.Ptr = tmp;
 }
 
+#define INT_PTR_STOLEN_BITS 2U
+#define INT_PTR_ALIGNMENT (1U << INT_PTR_STOLEN_BITS)
+#define INT_PTR_POINTER_MASK (~INT_PTR_ALIGNMENT+1U)
+#define INT_PTR_COUNTER_MASK (INT_PTR_ALIGNMENT-1U)
+#define CLIB_ALIGNMENT 4U // Intrinsic alignment of C runtime
 
+template <class T> class int_ptr;
 /* Interface to make a class reference countable */
-class Iref_Count
-{ friend class int_ptr_base;
+class Iref_count
+{ template <class T> friend class int_ptr;
  private:
   volatile unsigned Count;
+  // This function is the interface to int_ptr<T>
+  volatile unsigned& access_counter()        { return Count; }
  private: // non-copyable
-  Iref_Count(const Iref_Count&);
-  void operator=(const Iref_Count&);
+  Iref_count(const Iref_count&);
+  void operator=(const Iref_count&);
  protected:
-  Iref_Count() : Count(0) {}
-  ~Iref_Count() {} // You must not call the non-virtual destructor directly.
+  Iref_count() : Count(0) {}
+  ~Iref_count() {} // You must not call the non-virtual destructor directly.
  public:
   // Checks whether the object is currently unique. If you currently hold an int_ptr with the object
   // you can safely assume that it is your's, unless you pass the reference explicitely or implicitly
   // to another thread or int_ptr instance.
-  bool RefCountIsUnique() const { return Count == 1; } 
+  bool RefCountIsUnique() const              { return (Count & ~INT_PTR_ALIGNMENT) == 0; }
   // Checks whether the object is not under control of a int_ptr.
   // This is the case when the object is just constructed and not yet assigned to an int_ptr instance or
   // if the object is about to be deleted. You should be able to distinguish thes two cases
   // from the context of the call. Be very careful in multi-threaded environments.
-  bool RefCountIsUnmanaged() const { return Count == 0; } 
+  bool RefCountIsUnmanaged() const           { return Count == 0; }
+
+#if INT_PTR_ALIGNMENT > CLIB_ALIGNMENT
+ private:
+  typedef unsigned char offset; // must be able to hold ALIGNMENT
+ public:
+  // alignment
+  #if defined(__IBMCPP__) && defined(DEBUG_ALLOC)
+  static void* operator new(size_t len, const char*, size_t)
+  #else
+  static void* operator new(size_t len)
+  #endif
+  { char* p = (char*)::operator new(len + sizeof(offset) + INT_PTR_ALIGNMENT - CLIB_ALIGNMENT);
+    offset off = ((-(int)p-sizeof(offset)) & INT_PTR_COUNTER_MASK) + sizeof(offset);
+    p += off;
+    ((offset*)p)[-1] = off;
+    return p;
+  }
+  static void operator delete( void* ptr )
+  { char* p = (char*)ptr;
+    offset off = ((offset*)p)[-1];
+    ::operator delete(p - off);
+  }
+#endif
 };
 
-/* Abstract non-template base class of int_ptr */
-class int_ptr_base
-{protected:
-  Iref_Count* Ptr;
-  
- protected:
-  // Store a new object under reference count control or initialize a NULL pointer.
-  int_ptr_base(const Iref_Count* ptr);
-  // Copy constructor
-  int_ptr_base(const int_ptr_base& r);
-  // Protect destructor because it is not polymorphic
-  ~int_ptr_base() {}
-  // Core of the assignment operator
-  Iref_Count* reassign(const Iref_Count* ptr);
-  // Core of the assignment operator
-  Iref_Count* reassign_weak(const Iref_Count* ptr);
-  // Destructor core
-  Iref_Count* unassign();
-  // core of toCptr
-  Iref_Count* detach();
-  // Swap two pointers
-  void swap(int_ptr_base& r);
- //public:
-  // convert to untyped raw pointer
-  //Iref_Count* toCrawptr()             { return detach(); }
-};
-
-inline void int_ptr_base::swap(int_ptr_base& r)
-{ Iref_Count* tmp = Ptr;
-  Ptr = r.Ptr;
-  r.Ptr = tmp;
-}
-
-/* This is a very simple and highly efficient reference counted smart pointer
+/* This is a simple and highly efficient reference counted smart pointer
  * implementation for objects of type T.
- * This class adds the type specific part to int_ptr_base.
- * The class is similar to boost::intrusive_ptr but works on very old C++ compilers. 
- * It relies on the fact that all managed objects must derive from Iref_Count.
- * The implementation is thread-safe and lock-free.
+ * The class is similar to boost::intrusive_ptr but works on very old C++ compilers.
+ * The implementation is strongly thread-safe on volatile instances and wait-free.
+ * All objects of type T must implement a function called access_counter() that
+ * provides access to the reference counter. The easiest way to do so is to derive
+ * from Iref_count.
+ * Note that all objects of type T MUST be aligned to INT_PTR_ALIGNMENT in memory!
  */
 template <class T>
-class int_ptr : protected int_ptr_base
-{public:
-  // Store a new object under reference count control or initialize a NULL pointer.
-  int_ptr(T* ptr = NULL);
-  // Generated copy constructor should be sufficient.
+class int_ptr
+{private:
+  unsigned    Data;
+ private:
+  // Strongly thread safe read
+  unsigned    acquire() volatile const;
+  // Destructor core
+  static void release(unsigned data);
+  // Transfer hold count to the main counter and return the data with hold count 0.
+  static unsigned transfer(unsigned data);
+
+  // Raw initialization
+  explicit    int_ptr(unsigned data)         : Data(data) {}
+ public:
+  // Initialize a NULL pointer.
+              int_ptr()                      : Data(0) {}
+  // Store a new object under reference count control.
+              int_ptr(T* ptr);
+  // Helper to disambiguate calls.
+              int_ptr(int_ptr<T>& r);
+  // Copy constructor
+              int_ptr(const int_ptr<T>& r);
+  // Copy constructor, strongly thread-safe.
+              int_ptr(volatile const int_ptr<T>& r);
   // Destructor, frees the stored object if this is the last reference.
-  ~int_ptr();
+              ~int_ptr();
+  // swap instances (not thread safe)
+  void        swap(int_ptr<T>& r)            { unsigned temp = r.Data; r.Data = Data; Data = temp; }
+  // Strongly thread safe swap
+  void        swap(volatile int_ptr<T>& r);
+  // Strongly thread safe swap
+  void        swap(int_ptr<T>& r) volatile;
+  // reset the current instance to NULL
+  void        reset();
+  void        reset() volatile;
   // Basic operators
-  T* get()        const                      { return (T*)Ptr; } 
-  operator T*()   const                      { return (T*)Ptr; }
-  T& operator*()  const                      { ASSERT(Ptr); return *(T*)Ptr; }
-  T* operator->() const                      { ASSERT(Ptr); return (T*)Ptr; }
+  T*          get()         const            { return (T*)Data; }
+              operator T*() const            { return (T*)Data; }
+  T&          operator*()   const            { ASSERT(Data); return *(T*)Data; }
+  T*          operator->()  const            { ASSERT(Data); return (T*)Data; }
+  // assignment
   int_ptr<T>& operator=(T* ptr);
+  int_ptr<T>& operator=(int_ptr<T>& r);      // Helper to disambiguate calls.
   int_ptr<T>& operator=(const int_ptr<T>& r);
-  // Special function to assing only valid objects.
-  // This function rejects the assignment if the assigned object is not owned by another instance
-  // of int_ptr_base. This is particulary useful to avoid the assignment of objects that are about
-  // to die. ptr is like treated as weak pointer to the object. But in contrast to real weak pointers
-  // the destructor of the referenced object must ensure that ptr is invalidated before the object dies completely.
-  // Of course, this has to been done synchronized with the call to assign_weak.
-  // The time window between the reference count reaching zero and the invalidation of ptr by the destructor
-  // is handled by this function the way that the current instance will be set to NULL in this case.
-  // This function must not be used to assing a newly constructed object because this will never be deleted.
-  int_ptr<T>& assign_weak(T* ptr);
-  void        swap(int_ptr<T>& r)            { int_ptr_base::swap(r); }
-  // manual resource management
-  T*          toCptr()                       { return (T*)detach(); }
+  int_ptr<T>& operator=(volatile const int_ptr<T>& r);
+  void        operator=(T* ptr) volatile;
+  void        operator=(int_ptr<T>& r) volatile; // Helper to disambiguate calls.
+  void        operator=(const int_ptr<T>& r) volatile;
+  void        operator=(volatile const int_ptr<T>& r) volatile;
+  // manual resource management for adaption of C libraries.
+  T*          toCptr()                       { T* ret = (T*)Data; Data = 0; return ret; }
+  T*          toCptr() volatile;
   int_ptr<T>& fromCptr(T* ptr);
-  // convert from untyped raw pointer
-  //int_ptr<T>& fromCrawptr(Iref_count* ptr)   { delete (T*)unassign(); Ptr = ptr; return *this; }
+  void        fromCptr(T* ptr) volatile;
+  //T*          swapCptr(T* ptr);
+  #ifdef DEBUG
+  volatile T* debug() volatile const         { return (T*)(Data & INT_PTR_POINTER_MASK); }
+  #endif
 };
+
+#ifdef DEBUG
+static volatile unsigned max_outer_count = 0;
+#endif
+
+template <class T>
+unsigned int_ptr<T>::acquire() volatile const
+{ if (!Data)
+    return 0; // fast path
+  const unsigned old_outer = InterlockedXad(&(unsigned&)Data, 1) + 1;
+  const unsigned outer_count = old_outer & INT_PTR_COUNTER_MASK;
+  ASSERT((old_outer & INT_PTR_COUNTER_MASK) != 0); // overflow condition
+  const unsigned new_outer = old_outer & INT_PTR_POINTER_MASK;
+  if (new_outer)
+    // Transfer counter to obj->count.
+    InterlockedAdd(&((T*)new_outer)->access_counter(), INT_PTR_ALIGNMENT - outer_count + 1);
+  // And reset it in *this.
+  if (InterlockedCxc(&(unsigned&)Data, old_outer, new_outer) != old_outer && new_outer)
+    // Someone else does the job already => undo.
+    InterlockedAdd(&((T*)new_outer)->access_counter(), outer_count);
+    // The global count cannot return to zero here, because we have an active reference.
+  #ifdef DEBUG
+  // Diagnostics
+  unsigned max_outer = max_outer_count;
+  if (max_outer < outer_count)
+  { do max_outer = InterlockedCxc(&max_outer_count, outer_count, max_outer);
+    while (max_outer < outer_count);
+    DEBUGLOG(("int_ptr<T>::acquire() : max_outer_count now at %lu\n", max_outer));
+  } 
+  #endif
+  return new_outer;
+}
+
+template <class T>
+void int_ptr<T>::release(unsigned data)
+{ T* obj = (T*)(data & INT_PTR_POINTER_MASK);
+  if (obj)
+  { unsigned adjust = -((data & INT_PTR_COUNTER_MASK) + INT_PTR_ALIGNMENT);
+    adjust += InterlockedXad(&obj->access_counter(), adjust);
+    if (adjust == 0)
+      delete obj;
+  }
+}
+
+template <class T>
+unsigned int_ptr<T>::transfer(unsigned data)
+{ const unsigned outer = data & INT_PTR_COUNTER_MASK;
+  if (outer)
+  { data &= INT_PTR_POINTER_MASK;
+    if (data)
+      InterlockedSub(&((T*)data)->access_counter(), outer);
+  }
+  return data;
+}
 
 // IBM C++ work around:
 // These functions must not be declared in the class to avoid type dependency problems.
 template <class T>
 inline int_ptr<T>::int_ptr(T* ptr)
-: int_ptr_base(ptr)
+: Data((unsigned)ptr)
+{ if (Data)
+    InterlockedAdd(&((T*)Data)->access_counter(), INT_PTR_ALIGNMENT);
+}
+template <class T>
+inline int_ptr<T>::int_ptr(int_ptr<T>& r)
+: Data(r.Data)
+{ if (Data)
+    InterlockedAdd(&((T*)Data)->access_counter(), INT_PTR_ALIGNMENT);
+}
+template <class T>
+inline int_ptr<T>::int_ptr(const int_ptr<T>& r)
+: Data(r.Data)
+{ if (Data)
+    InterlockedAdd(&((T*)Data)->access_counter(), INT_PTR_ALIGNMENT);
+}
+template <class T>
+inline int_ptr<T>::int_ptr(volatile const int_ptr<T>& r)
+: Data(r.acquire())
 {}
 
 template <class T>
 inline int_ptr<T>::~int_ptr()
-{ delete (T*)unassign();
+{ release(Data);
+}
+
+template <class T>
+void int_ptr<T>::swap(volatile int_ptr<T>& r)
+{ Data = transfer(InterlockedXch(&r.Data, Data));
+}
+template <class T>
+inline void int_ptr<T>::swap(int_ptr<T>& r) volatile
+{ r.swap(*this);
+}
+
+template <class T>
+inline void int_ptr<T>::reset()
+{ release(Data);
+  Data = 0;
+}
+template <class T>
+inline void int_ptr<T>::reset() volatile
+{ release(InterlockedXch(&Data, 0));
 }
 
 template <class T>
 inline int_ptr<T>& int_ptr<T>::operator=(T* ptr)
-{ delete (T*)reassign(ptr);
+{ int_ptr<T>(ptr).swap(*this);
   return *this;
 }
-
+template <class T>
+inline int_ptr<T>& int_ptr<T>::operator=(int_ptr<T>& r)
+{ int_ptr<T>(r).swap(*this);
+  return *this;
+}
 template <class T>
 inline int_ptr<T>& int_ptr<T>::operator=(const int_ptr<T>& r)
-{ delete (T*)reassign(r.Ptr);
+{ int_ptr<T>(r).swap(*this);
   return *this;
+}
+template <class T>
+inline int_ptr<T>& int_ptr<T>::operator=(volatile const int_ptr<T>& r)
+{ int_ptr<T>(r).swap(*this);
+  return *this;
+}
+template <class T>
+inline void int_ptr<T>::operator=(T* ptr) volatile
+{ int_ptr<T>(ptr).swap(*this);
+}
+template <class T>
+inline void int_ptr<T>::operator=(int_ptr<T>& r) volatile
+{ int_ptr<T>(r).swap(*this);
+}
+template <class T>
+inline void int_ptr<T>::operator=(const int_ptr<T>& r) volatile
+{ int_ptr<T>(r).swap(*this);
+}
+template <class T>
+inline void int_ptr<T>::operator=(volatile const int_ptr<T>& r) volatile
+{ int_ptr<T>(r).swap(*this);
 }
 
 template <class T>
-inline int_ptr<T>& int_ptr<T>::assign_weak(T* ptr)
-{ delete (T*)reassign_weak(ptr);
-  return *this;
+inline T* int_ptr<T>::toCptr() volatile
+{ return (T*)transfer(InterlockedXch(&Data, 0));
 }
 
 template <class T>
 inline int_ptr<T>& int_ptr<T>::fromCptr(T* ptr)
-{ delete (T*)unassign();
-  Ptr = ptr;
+{ int_ptr<T>((unsigned)ptr).swap(*this);
   return *this;
-};
+}
+template <class T>
+inline void int_ptr<T>::fromCptr(T* ptr) volatile
+{ int_ptr<T>((unsigned)ptr).swap(*this);
+}
+
 
 /* Scoped array class, non-copyable */
 template <class T>

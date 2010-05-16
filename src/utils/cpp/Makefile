@@ -43,7 +43,7 @@ queue.h:	..\..\include\config.h ..\cpp/mutex.h ..\cpp/smartptr.h ..\debuglog.h
 simplestr.cpp:	simplestr.h
 simplestr.h:	..\cpp/smartptr.h
 smartptr.cpp:	mutex.h smartptr.h ..\debuglog.h
-smartptr.h:	..\..\include\config.h ..\cpp/cpputil.h ..\debuglog.h
+smartptr.h:	..\..\include\config.h ..\cpp/cpputil.h ..\cpp/mutex.h ..\debuglog.h
 stringmap.cpp:	stringmap.h
 stringmap.h:	..\cpp/xstring.h ..\cpp/container/sorted_vector.h
 unittest.cpp:	..\..\include\config.h event.h

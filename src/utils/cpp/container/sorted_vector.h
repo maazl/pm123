@@ -124,34 +124,31 @@ T* sorted_vector<T,K>::erase(const K& key)
  */
 template <class T, class K>
 class sorted_vector_own : public sorted_vector<T, K>
-{public:
+{protected:
+  // Copy constructor
+  // Note that since sorted_vector_own own its object exclusively this copy constructor must do
+  // a deep copy of the vector. This is up to the derived class!
+  // You may use vector_own_base_copy to do the job.
+  sorted_vector_own(const sorted_vector_own<T,K>& r, size_t spare = 0) : sorted_vector<T,K>(r.size() + spare) {}
+  // assignment: same problem as above
+  void               operator=(const sorted_vector_own<T,K>& r) { clear(); prepare_assign(r.size()); }
+ public:
   // create a new vector with a given initial capacity.
   // If capacity is 0 the vector is initially created empty
   // and allocated with the default capacity when the first item is inserted.
   sorted_vector_own(size_t capacity = 0) : sorted_vector<T, K>(capacity) {}
   // copy constructor
-  sorted_vector_own(const sorted_vector_own<T, K>& r, size_t spare = 0);
+  //sorted_vector_own(const sorted_vector_own<T, K>& r, size_t spare = 0);
+  // Adjust the size to a given value
+  // If the array is increased NULL values are appended.
+  void               set_size(size_t size)          { if (this->size() > size) vector_own_base_destroy(*this, size); vector<T>::set_size(size); }
   // Remove all elements
   void               clear()                        { vector_own_base_destroy(*this); }
   // destructor
                      ~sorted_vector_own()           { clear(); }
   // assignment
-  sorted_vector_own<T, K>& operator=(const sorted_vector_own<T, K>& r);
+  //sorted_vector_own<T, K>& operator=(const sorted_vector_own<T, K>& r);
 };
-
-template <class T, class K>
-inline sorted_vector_own<T, K>::sorted_vector_own(const sorted_vector_own<T, K>& r, size_t spare)
-: sorted_vector<T, K>(r.size() + spare)
-{ vector_own_base_copy(*(vector<T>*)this, r.begin());
-}
-
-template <class T, class K>
-sorted_vector_own<T, K>& sorted_vector_own<T, K>::operator=(const sorted_vector_own<T, K>& r)
-{ clear();
-  prepare_assign(r.size());
-  vector_own_base_copy(*this, r.begin());
-  return *this;
-}
 
 
 /* Sorted vector of objects with members with intrusive reference counter.
@@ -206,8 +203,12 @@ int_ptr<T>& sorted_vector_int<T,K>::get(const K& key)
 template <class T, class K>
 int_ptr<T> sorted_vector_int<T,K>::erase(const K& key)
 { size_t pos;
-  return binary_search(key, pos) ? vector_int<T>::erase(pos) : int_ptr<T>((T*)NULL);
+  int_ptr<T> ret;
+  if (binary_search(key, pos))
+    ret = vector_int<T>::erase(pos);
+  return ret;
 }
 
 #endif
 
+

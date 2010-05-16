@@ -74,6 +74,15 @@ void vector_base::swap(vector_base& r)
   ::swap(Capacity, r.Capacity);
 }
 
+void vector_base::set_size(size_t size)
+{ if (size > Size)
+  { if (size >= Capacity)
+      reserve(size);
+    memset(Data + Size, 0, (size-Size) * sizeof *Data);
+  }
+  Size = size;
+}
+
 void*& vector_base::insert(size_t where)
 { ASSERT(where <= Size);
   if (Size >= Capacity)
