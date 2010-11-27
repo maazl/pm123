@@ -58,6 +58,7 @@ IF ARG(1) = '' THEN DO
    SAY "         the includes are not found."
    SAY " -R      extended recursive mode"
    SAY "         Same as -r but also deal with include files in -I path"
+   SAY " -s      Strip .. from include file paths if possible"
    SAY " -v      verbose mode"
    SAY " -x      Unix like file expansion, e.g. *.cpp"
    SAY " -q      Do not print warnings"
@@ -66,14 +67,16 @@ IF ARG(1) = '' THEN DO
    END
 
 files          = 0
-opt.makefile   = "makefile"
+opt.makefile   = "Makefile"
 opt.append     = 0
 opt.quiet      = 0
 includes       = 0
 opt.recursive  = 0
 opt.Irecursive = 0
+opt.strippar   = 0
 opt.verbose    = 0
 opt.wildcard   = 0
+opt.cwd        = DIRECTORY()
 
 params = STRIP(ARG(1))
 nomoreopt = 0
@@ -111,6 +114,8 @@ DO WHILE params \= ''
          opt.recursive = 1
          opt.Irecursive = 1
          END
+       WHEN SUBSTR(param, 2) = 's' THEN
+         opt.strippar = 1
        WHEN SUBSTR(param, 2) = 'v' THEN
          opt.verbose = 1
        WHEN SUBSTR(param, 2) = 'x' THEN
@@ -283,6 +288,9 @@ DoFile: PROCEDURE EXPOSE opt. rule.
          filepath = opt.include.i||file
          /* include found? */
          IF STREAM(filepath, "C", "QUERY EXISTS") \= '' THEN DO
+            /* remove ../ */
+            IF opt.strippar THEN
+               filepath = NormPath(filepath)
             /* found => add dependency */
             CALL DoInclude symname, filepath
             /* recursive? */
@@ -298,6 +306,51 @@ DoFile: PROCEDURE EXPOSE opt. rule.
    /* close file */
    CALL STREAM ARG(1), "C", "CLOSE"
    RETURN ''
+
+/* Normalize path
+ * ARG(1)  include file path
+ * RETURN  reduced include path
+ */
+NormPath: PROCEDURE EXPOSE opt.
+   filename = ARG(1)
+   /* First we have to normalize slashes to make things easy. */
+   DO FOREVER
+      p = POS('/', filename)
+      IF p = 0 THEN
+         LEAVE
+      filename = OVERLAY('\', filename, p)
+      END
+   /* absolute path? */
+   IF ABBREV(filename, '\') | ABBREV(SUBSTR(filename, 2), ':\') THEN
+      RETURN ARG(1)
+   /* reduce /xxx/../ */
+   path = opt.cwd'\'filename
+   /*SAY 'S:' path*/
+   DO FOREVER
+      p = POS('\..\', path)
+      IF p <= 1 THEN
+         LEAVE
+      q = LASTPOS('\', SUBSTR(path, 1, p-1))
+      IF q = 0 THEN
+         RETURN ARG(1) /* invalid path */
+      path = SUBSTR(path, 1, q)||SUBSTR(path, p+4)
+      /*SAY 'SR:' SUBSTR(path, 1, p-1) path*/
+      END
+   /* Chkeck how many leading .. to keep */
+   p = COMPARE(TRANSLATE(opt.cwd), TRANSLATE(path))
+   /*SAY 'SC:' SUBSTR(opt.cwd, 1, p) p LENGTH(opt.cwd) path*/
+   IF p < LENGTH(opt.cwd) THEN DO
+      p = LASTPOS('\', opt.cwd, p) +1
+      /* count \ in different part of opt.cwd */
+      q = WORDS(TRANSLATE(SUBSTR(opt.cwd, p), ' \', '\ '))
+      /*SAY 'S\:' TRANSLATE(SUBSTR(opt.cwd, p), ' \', '\ ') q*/
+      filename = COPIES('..\', q)||SUBSTR(path, p)
+      END
+   ELSE
+      filename = SUBSTR(path, p+1)
+   /* done */
+   /*SAY 'SX:' opt.cwd ARG(1) filename*/
+   RETURN filename
 
 /* Handle include file
  * ARG(1)  parent file's symbol name
@@ -332,4 +385,4 @@ Warn: PROCEDURE EXPOSE opt.
       CALL LINEOUT STDERR, ARG(1)
    RETURN ARG(1)
 
-
+

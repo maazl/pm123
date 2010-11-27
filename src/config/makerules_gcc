@@ -15,10 +15,13 @@ AS         = nasm
 AFLAGS     = -fobj -DUNDERSCORE
 
 CC         = g++
-CFLAGS     = $(CFLAGS_USR) -Zcrtdll -Wall -DOS2 -DOS2EMX_PLAIN_CHAR -funsigned-char
+CFLAGS     = $(CFLAGS_USR) -Zcrtdll -Wall -fmessage-length=132 -DOS2 -DOS2EMX_PLAIN_CHAR
+CFLAGS     = $(CFLAGS) -funsigned-char -march=pentium -mcpu=pentiumpro
 CFLAGS_CPP = -Wno-non-virtual-dtor
 CFLAGS_DBG = -g -DDEBUG=$(DEBUG)
 CFLAGS_OPT = -O2
+# regparm is buggy with gcc/2
+#CFLAGS_OPT = -O2 -mregparm=3
 
 CL         = gcc
 LFLAGS     = -Zcrtdll -Zomf -lstdc++
@@ -106,4 +109,4 @@ all:    $(TARGET) $(MDUMMY)
 SRCFIL = *.cpp *.c
 !endif
 depend:
-	$(TOPDIR)\config\makedep.cmd $(SRCFIL) -r -x -I$(INCDIR)
+	$(TOPDIR)\config\makedep.cmd $(SRCFIL) -r -x -I$(INCDIR) -s
