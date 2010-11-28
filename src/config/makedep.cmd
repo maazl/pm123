@@ -1,5 +1,5 @@
 /*
- * Copyright 2007-2007 Marcel Mueller
+ * Copyright 2007-2010 Marcel Mueller
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -338,12 +338,12 @@ NormPath: PROCEDURE EXPOSE opt.
       END
    /* Chkeck how many leading .. to keep */
    p = COMPARE(TRANSLATE(opt.cwd), TRANSLATE(path))
-   /*SAY 'SC:' SUBSTR(opt.cwd, 1, p) p LENGTH(opt.cwd) path*/
-   IF p < LENGTH(opt.cwd) THEN DO
+   /* 'SC:' SUBSTR(opt.cwd, 1, p) p LENGTH(opt.cwd) path*/
+   IF p < LENGTH(opt.cwd) || SUBSTR(path, p, 1) \= '\' THEN DO
       p = LASTPOS('\', opt.cwd, p) +1
       /* count \ in different part of opt.cwd */
-      q = WORDS(TRANSLATE(SUBSTR(opt.cwd, p), ' \', '\ '))
-      /*SAY 'S\:' TRANSLATE(SUBSTR(opt.cwd, p), ' \', '\ ') q*/
+      q = WORDS(TRANSLATE(SUBSTR(opt.cwd, p,, '\'), ' \', '\ '))
+      /*SAY 'S\:' TRANSLATE(SUBSTR(opt.cwd, p,, '\'), ' \', '\ ') q*/
       filename = COPIES('..\', q)||SUBSTR(path, p)
       END
    ELSE
