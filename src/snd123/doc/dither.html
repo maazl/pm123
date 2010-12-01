@@ -2,14 +2,15 @@
 <HTML>
 
 <HEAD>
-    <TITLE>
-    libsndfile : the sf_command function.
-    </TITLE>
-    <META NAME="Author"      CONTENT="Erik de Castro Lopo (erikd AT mega-nerd DOT com)">
-    <!-- Another version at the bottom of the page.  -->
-    <META NAME="Description" CONTENT="The libsndfile API.">
-    <META NAME="Keywords"    CONTENT="WAV AIFF AU libsndfile sound audio dsp Linux">
-    <LINK REL=StyleSheet HREF="libsndfile.css" TYPE="text/css" MEDIA="all">
+	<TITLE>
+	libsndfile : the sf_command function.
+	</TITLE>
+	<META NAME="Author"      CONTENT="Erik de Castro Lopo (erikd AT mega-nerd DOT com)">
+	<!-- Another version at the bottom of the page.  -->
+	<META NAME="Description" CONTENT="The libsndfile API.">
+	<META NAME="Keywords"    CONTENT="WAV AIFF AU libsndfile sound audio dsp Linux">
+	<LINK REL="stylesheet" HREF="libsndfile.css" TYPE="text/css" MEDIA="all">
+	<LINK REL="stylesheet" HREF="print.css" TYPE="text/css" MEDIA="print">
 </HEAD>
 
 <BODY>
@@ -20,133 +21,133 @@
         int    sf_command (SNDFILE *sndfile, int cmd, void *data, int datasize) ;
 </PRE>
 <P>
-    This function allows the caller to retrieve information from or change aspects of the 
-    library behaviour. 
-    Examples include retrieving a string containing the library version or changing the 
-    scaling applied to floating point sample data during read and write.
-    Most of these operations are performed on a per-file basis.
+	This function allows the caller to retrieve information from or change aspects of the 
+	library behaviour. 
+	Examples include retrieving a string containing the library version or changing the 
+	scaling applied to floating point sample data during read and write.
+	Most of these operations are performed on a per-file basis.
 </P>
 <P>
-    The cmd parameter is a integer identifier which is defined in &lt;sndfile.h&gt;.
-    All of the valid command identifiers have names begining with "SFC_".
-    Data is passed to and returned from the library by use of a void pointer. 
-    The library will not read or write more than datasize bytes from the void pointer. 
-    For some calls no data is required in which case data should be NULL and datasize 
-    may be used for some other purpose.
+	The cmd parameter is a integer identifier which is defined in &lt;sndfile.h&gt;.
+	All of the valid command identifiers have names begining with "SFC_".
+	Data is passed to and returned from the library by use of a void pointer. 
+	The library will not read or write more than datasize bytes from the void pointer. 
+	For some calls no data is required in which case data should be NULL and datasize 
+	may be used for some other purpose.
 </P>
 <P>
-    The available commands are as follows:
+	The available commands are as follows:
 </P>
 
 <CENTER>
 <TABLE BORDER="0" WIDTH="90%" CELLPADDING="4">
 <TR>
-    <TD><A HREF="#SFC_GET_LIB_VERSION">SFC_GET_LIB_VERSION</A></TD>
-    <TD>Retrieve the version of the library.</TD>
+	<TD><A HREF="#SFC_GET_LIB_VERSION">SFC_GET_LIB_VERSION</A></TD>
+	<TD>Retrieve the version of the library.</TD>
 </TR>
 <TR>
-    <TD><A HREF="#SFC_GET_LOG_INFO">SFC_GET_LOG_INFO</A></TD>
-    <TD>Retrieve the internal per-file operation log.</TD>
+	<TD><A HREF="#SFC_GET_LOG_INFO">SFC_GET_LOG_INFO</A></TD>
+	<TD>Retrieve the internal per-file operation log.</TD>
 </TR>
 <TR>
-    <TD><A HREF="#SFC_CALC_SIGNAL_MAX">SFC_CALC_SIGNAL_MAX</A></TD>
-    <TD>Retrieve the measured maximum signal value.</TD>
+	<TD><A HREF="#SFC_CALC_SIGNAL_MAX">SFC_CALC_SIGNAL_MAX</A></TD>
+	<TD>Retrieve the measured maximum signal value.</TD>
 </TR>
 <TR>
-    <TD><A HREF="#SFC_CALC_NORM_SIGNAL_MAX">SFC_CALC_NORM_SIGNAL_MAX</A></TD>
-    <TD>Retrieve the measured normalised maximum signal value.</TD>
+	<TD><A HREF="#SFC_CALC_NORM_SIGNAL_MAX">SFC_CALC_NORM_SIGNAL_MAX</A></TD>
+	<TD>Retrieve the measured normalised maximum signal value.</TD>
 </TR>
 <TR>
-    <TD><A HREF="#SFC_CALC_MAX_ALL_CHANNELS">SFC_CALC_MAX_ALL_CHANNELS</A></TD>
-    <TD>Calculate peaks for all channels.</TD>
+	<TD><A HREF="#SFC_CALC_MAX_ALL_CHANNELS">SFC_CALC_MAX_ALL_CHANNELS</A></TD>
+	<TD>Calculate peaks for all channels.</TD>
 </TR>
 <TR>
-    <TD><A HREF="#SFC_CALC_NORM_MAX_ALL_CHANNELS">SFC_CALC_NORM_MAX_ALL_CHANNELS</A></TD>
-    <TD>Calculate normalised peaks for all channels.</TD>
+	<TD><A HREF="#SFC_CALC_NORM_MAX_ALL_CHANNELS">SFC_CALC_NORM_MAX_ALL_CHANNELS</A></TD>
+	<TD>Calculate normalised peaks for all channels.</TD>
 </TR>
 
 <TR>
-    <TD><A HREF="#SFC_SET_NORM_FLOAT">SFC_SET_NORM_FLOAT</A></TD>
-    <TD>Modify the normalisation behaviour of the floating point reading and writing functions.</TD>
+	<TD><A HREF="#SFC_SET_NORM_FLOAT">SFC_SET_NORM_FLOAT</A></TD>
+	<TD>Modify the normalisation behaviour of the floating point reading and writing functions.</TD>
 </TR>
-<TR>    
-    <TD><A HREF="#SFC_SET_NORM_DOUBLE">SFC_SET_NORM_DOUBLE</A></TD>
-    <TD>Modify the normalisation behaviour of the double precision floating point reading and writing functions.</TD>
-</TR>
-<TR>
-    <TD><A HREF="#SFC_GET_NORM_FLOAT">SFC_GET_NORM_FLOAT</A></TD>
-    <TD>Retrieve the current normalisation behaviour of the floating point reading and writing functions.</TD>
-</TR>
-<TR>    
-    <TD><A HREF="#SFC_GET_NORM_DOUBLE">SFC_GET_NORM_DOUBLE</A></TD>
-    <TD>Retrieve the current normalisation behaviour of the double precision floating point reading and writing functions.</TD>
+<TR>	
+	<TD><A HREF="#SFC_SET_NORM_DOUBLE">SFC_SET_NORM_DOUBLE</A></TD>
+	<TD>Modify the normalisation behaviour of the double precision floating point reading and writing functions.</TD>
 </TR>
 <TR>
-    <TD><A HREF="#SFC_GET_SIMPLE_FORMAT_COUNT">SFC_GET_SIMPLE_FORMAT_COUNT</A></TD>
-    <TD>Retrieve the number of simple formats supported by libsndfile.</TD>
+	<TD><A HREF="#SFC_GET_NORM_FLOAT">SFC_GET_NORM_FLOAT</A></TD>
+	<TD>Retrieve the current normalisation behaviour of the floating point reading and writing functions.</TD>
+</TR>
+<TR>	
+	<TD><A HREF="#SFC_GET_NORM_DOUBLE">SFC_GET_NORM_DOUBLE</A></TD>
+	<TD>Retrieve the current normalisation behaviour of the double precision floating point reading and writing functions.</TD>
 </TR>
 <TR>
-    <TD><A HREF="#SFC_GET_SIMPLE_FORMAT">SFC_GET_SIMPLE_FORMAT</A></TD>
-    <TD>Retrieve information about a simple format.</TD>
+	<TD><A HREF="#SFC_GET_SIMPLE_FORMAT_COUNT">SFC_GET_SIMPLE_FORMAT_COUNT</A></TD>
+	<TD>Retrieve the number of simple formats supported by libsndfile.</TD>
+</TR>
+<TR>
+	<TD><A HREF="#SFC_GET_SIMPLE_FORMAT">SFC_GET_SIMPLE_FORMAT</A></TD>
+	<TD>Retrieve information about a simple format.</TD>
 </TR>
 
 <TR>
-    <TD><A HREF="#SFC_GET_FORMAT_INFO">SFC_GET_FORMAT_INFO</A></TD>
-    <TD>Retrieve information about a major or subtype format.</TD>
+	<TD><A HREF="#SFC_GET_FORMAT_INFO">SFC_GET_FORMAT_INFO</A></TD>
+	<TD>Retrieve information about a major or subtype format.</TD>
 </TR>
 
 <TR>
-    <TD><A HREF="#SFC_GET_FORMAT_MAJOR_COUNT">SFC_GET_FORMAT_MAJOR_COUNT</A></TD>
-    <TD>Retrieve the number of major formats.</TD>
+	<TD><A HREF="#SFC_GET_FORMAT_MAJOR_COUNT">SFC_GET_FORMAT_MAJOR_COUNT</A></TD>
+	<TD>Retrieve the number of major formats.</TD>
 </TR>
 <TR>
-    <TD><A HREF="#SFC_GET_FORMAT_MAJOR">SFC_GET_FORMAT_MAJOR</A></TD>
-    <TD>Retrieve information about a major format type.</TD>
+	<TD><A HREF="#SFC_GET_FORMAT_MAJOR">SFC_GET_FORMAT_MAJOR</A></TD>
+	<TD>Retrieve information about a major format type.</TD>
 </TR>
 <TR>
-    <TD><A HREF="#SFC_GET_FORMAT_SUBTYPE_COUNT">SFC_GET_FORMAT_SUBTYPE_COUNT</A></TD>
-    <TD>Retrieve the number of subformats.</TD>
+	<TD><A HREF="#SFC_GET_FORMAT_SUBTYPE_COUNT">SFC_GET_FORMAT_SUBTYPE_COUNT</A></TD>
+	<TD>Retrieve the number of subformats.</TD>
 </TR>
 <TR>
-    <TD><A HREF="#SFC_GET_FORMAT_SUBTYPE">SFC_GET_FORMAT_SUBTYPE</A></TD>
-    <TD>Retrieve information about a subformat.</TD>
-</TR>
-
-<TR>
-    <TD><A HREF="#SFC_SET_ADD_PEAK_CHUNK">SFC_SET_ADD_PEAK_CHUNK</A></TD>
-    <TD>Switch the code for adding the PEAK chunk to WAV and AIFF files on or off.</TD>
+	<TD><A HREF="#SFC_GET_FORMAT_SUBTYPE">SFC_GET_FORMAT_SUBTYPE</A></TD>
+	<TD>Retrieve information about a subformat.</TD>
 </TR>
 
 <TR>
-    <TD><A HREF="#SFC_UPDATE_HEADER_NOW">SFC_UPDATE_HEADER_NOW</A></TD>
-    <TD>Used when a file is open for write, this command will update the file
-        header to reflect the data written so far.</TD>
-</TR>
-<TR>
-    <TD><A HREF="#SFC_SET_UPDATE_HEADER_AUTO">SFC_SET_UPDATE_HEADER_AUTO</A></TD>
-    <TD>Used when a file is open for write, this command will cause the file header
-        to be updated after each write to the file.</TD>
+	<TD><A HREF="#SFC_SET_ADD_PEAK_CHUNK">SFC_SET_ADD_PEAK_CHUNK</A></TD>
+	<TD>Switch the code for adding the PEAK chunk to WAV and AIFF files on or off.</TD>
 </TR>
 
 <TR>
-    <TD><A HREF="#SFC_FILE_TRUNCATE">SFC_FILE_TRUNCATE</A></TD>
-    <TD>Truncate a file open for write or for read/write.</TD>
+	<TD><A HREF="#SFC_UPDATE_HEADER_NOW">SFC_UPDATE_HEADER_NOW</A></TD>
+	<TD>Used when a file is open for write, this command will update the file
+		header to reflect the data written so far.</TD>
+</TR>
+<TR>
+	<TD><A HREF="#SFC_SET_UPDATE_HEADER_AUTO">SFC_SET_UPDATE_HEADER_AUTO</A></TD>
+	<TD>Used when a file is open for write, this command will cause the file header
+		to be updated after each write to the file.</TD>
 </TR>
 
 <TR>
-    <TD><A HREF="#SFC_SET_RAW_START_OFFSET">SFC_SET_RAW_START_OFFSET</A></TD>
-    <TD>Change the data start offset for files opened up as SF_FORMAT_RAW.</TD>
+	<TD><A HREF="#SFC_FILE_TRUNCATE">SFC_FILE_TRUNCATE</A></TD>
+	<TD>Truncate a file open for write or for read/write.</TD>
+</TR>
+
+<TR>
+	<TD><A HREF="#SFC_SET_RAW_START_OFFSET">SFC_SET_RAW_START_OFFSET</A></TD>
+	<TD>Change the data start offset for files opened up as SF_FORMAT_RAW.</TD>
 </TR>
 
 
 
 <!--
 <TR>
-    <TD><A HREF="#add-dither">add dither</A></TD>
-    <TD>Add dither to output on write.</TD>
+	<TD><A HREF="#add-dither">add dither</A></TD>
+	<TD>Add dither to output on write.</TD>
 </TR>
 -->
-</TABLE>    
+</TABLE>	
 </CENTER>
 
 <BR><BR>
@@ -177,7 +178,7 @@ Example:
 
 <DL>
 <DT>Return value:</DT>
-    <DD><DD>This call will return the length of the retrieved version string.
+	<DD><DD>This call will return the length of the retrieved version string.
 </DL>
 <DL>
 <DT>Notes:</DT>
@@ -212,7 +213,7 @@ Example:
 
 <DL>
 <DT>Return value:</DT>
-    <DD><DD>This call will return the length of the retrieved version string.
+	<DD><DD>This call will return the length of the retrieved version string.
 </DL>
 <DL>
 <DT>Notes:</DT>
@@ -246,7 +247,7 @@ Example:
 
 <DL>
 <DT>Return value:</DT>
-    <DD><DD>Zero on success, non-zero otherwise.
+	<DD><DD>Zero on success, non-zero otherwise.
 </DL>
 
 <!-- ========================================================================= -->
@@ -274,7 +275,7 @@ Example:
 
 <DL>
 <DT>Return value:</DT>
-    <DD><DD>Zero on success, non-zero otherwise.
+	<DD><DD>Zero on success, non-zero otherwise.
 </DL>
 
 <!-- ========================================================================= -->
@@ -301,7 +302,7 @@ Example:
 </PRE>
 <DL>
 <DT>Return value:</DT>
-    <DD>Zero if peaks have been calculated successfully and non-zero otherwise.
+	<DD>Zero if peaks have been calculated successfully and non-zero otherwise.
 </DL>
 
 
@@ -329,7 +330,7 @@ Example:
 </PRE>
 <DL>
 <DT>Return value:</DT>
-    <DD>Zero if peaks have been calculated successfully and non-zero otherwise.
+	<DD>Zero if peaks have been calculated successfully and non-zero otherwise.
 </DL>
 
 
@@ -363,18 +364,18 @@ Parameters:
 Example:
 </P>
 <PRE>
-    char  buffer [128] ;
+	char  buffer [128] ;
         sf_command (sndfile, "read text", buffer, sizeof (buffer)) ;
 </PRE>
 <DL>
 <DT>Return value:</DT>
 <DD>If a text string is found, this call will return the length of the retrieved text 
-    string.
-    <DD>If no text string is found, zero will be returned and the first element in the 
-    buffer will be set to the null character.
+	string.
+	<DD>If no text string is found, zero will be returned and the first element in the 
+	buffer will be set to the null character.
 <DT>Notes:</DT>
 <DD>The string returned in the buffer passed to this function will not overflow
-    the buffer and will be correctly null terminated .
+	the buffer and will be correctly null terminated .
 </DL>
 
 <A NAME="write-text"></A>
@@ -396,15 +397,15 @@ Parameters:
 Example:
 </P>
 <PRE>
-    char  text = "The sound of one hand clapping." ;
+	char  text = "The sound of one hand clapping." ;
         sf_command (sndfile, "write text", text, strlen (text)) ;
 </PRE>
 <DL>
 <DT>Return value: </DT>
-    <DD>If the current file format allows the addition of text strings, the string will 
-        be added and the length of the string will be returned. 
-    <DD>If the file format does not allow the addition of text strings zero will be returned.
-    <DD>If this function is called after the file is openned but before 
+	<DD>If the current file format allows the addition of text strings, the string will 
+		be added and the length of the string will be returned. 
+	<DD>If the file format does not allow the addition of text strings zero will be returned.
+	<DD>If this function is called after the file is openned but before 
 </DL>
 -->
 
@@ -416,11 +417,11 @@ Example:
 This command only affects data read from or written to using the floating point functions:
 </P>
 <PRE>
-    size_t    <A HREF="api.html#read">sf_read_float</A>    (SNDFILE *sndfile, float *ptr, size_t items) ;
-    size_t    <A HREF="api.html#readf">sf_readf_float</A>   (SNDFILE *sndfile, float *ptr, size_t frames) ;
+	size_t    <A HREF="api.html#read">sf_read_float</A>    (SNDFILE *sndfile, float *ptr, size_t items) ;
+	size_t    <A HREF="api.html#readf">sf_readf_float</A>   (SNDFILE *sndfile, float *ptr, size_t frames) ;
 
-    size_t    <A HREF="api.html#write">sf_write_float</A>   (SNDFILE *sndfile, float *ptr, size_t items) ;
-    size_t    <A HREF="api.html#writef">sf_writef_float</A>  (SNDFILE *sndfile, float *ptr, size_t frames) ;
+	size_t    <A HREF="api.html#write">sf_write_float</A>   (SNDFILE *sndfile, float *ptr, size_t items) ;
+	size_t    <A HREF="api.html#writef">sf_writef_float</A>  (SNDFILE *sndfile, float *ptr, size_t frames) ;
 </PRE>
 <P>
 Parameters:
@@ -453,7 +454,7 @@ Example:
 </PRE>
 <DL>
 <DT>Return value: </DT>
-    <DD>Returns 1 on success or 0 for failure.
+	<DD>Returns 1 on success or 0 for failure.
 </DL>
 
 <!-- ========================================================================= -->
@@ -464,11 +465,11 @@ This command only affects data read from or written to using the double precisio
 floating point functions:
 </P>
 <PRE>
-    size_t    <A HREF="api.html#read">sf_read_double</A>    (SNDFILE *sndfile, double *ptr, size_t items) ;
-    size_t    <A HREF="api.html#readf">sf_readf_double</A>   (SNDFILE *sndfile, double *ptr, size_t frames) ;
+	size_t    <A HREF="api.html#read">sf_read_double</A>    (SNDFILE *sndfile, double *ptr, size_t items) ;
+	size_t    <A HREF="api.html#readf">sf_readf_double</A>   (SNDFILE *sndfile, double *ptr, size_t frames) ;
 
-    size_t    <A HREF="api.html#write">sf_write_double</A>   (SNDFILE *sndfile, double *ptr, size_t items) ;
-    size_t    <A HREF="api.html#writef">sf_writef_double</A>  (SNDFILE *sndfile, double *ptr, size_t frames) ;
+	size_t    <A HREF="api.html#write">sf_write_double</A>   (SNDFILE *sndfile, double *ptr, size_t items) ;
+	size_t    <A HREF="api.html#writef">sf_writef_double</A>  (SNDFILE *sndfile, double *ptr, size_t frames) ;
 </PRE>
 <P>
 Parameters:
@@ -501,7 +502,7 @@ Example:
 </PRE>
 <DL>
 <DT>Return value: </DT>
-    <DD>Returns 1 on success or 0 for failure.
+	<DD>Returns 1 on success or 0 for failure.
 </DL>
 
 <!-- ========================================================================= -->
@@ -527,7 +528,7 @@ Example:
 </PRE>
 <DL>
 <DT>Return value: </DT>
-    <DD>Returns TRUE if normaisation is on and FALSE otherwise.
+	<DD>Returns TRUE if normaisation is on and FALSE otherwise.
 </DL>
 
 <!-- ========================================================================= -->
@@ -553,7 +554,7 @@ Example:
 </PRE>
 <DL>
 <DT>Return value: </DT>
-    <DD>Returns TRUE if normalisation is on and FALSE otherwise.
+	<DD>Returns TRUE if normalisation is on and FALSE otherwise.
 </DL>
 
 <!-- ========================================================================= -->
@@ -580,7 +581,7 @@ Example:
 </PRE>
 <DL>
 <DT>Return value: </DT>
-    <DD>0
+	<DD>0
 </DL>
 
 <!-- ========================================================================= -->
@@ -617,7 +618,7 @@ SF_GET_SIMPLE_FORMAT_COUNT).
 Example:
 </P>
 <PRE>
-        SF_FORMAT_INFO  format_info ;
+        SF_FORMAT_INFO	format_info ;
         int             k, count ;
 
         sf_command (sndfile, SFC_GET_SIMPLE_FORMAT_COUNT, &amp;count, sizeof (int)) ;
@@ -630,12 +631,12 @@ Example:
 </PRE>
 <DL>
 <DT>Return value: </DT>
-    <DD>0 on success and non-zero otherwise.
-    <DD>The value of the format field of the SF_FORMAT_INFO struct will be an value which 
-        can be placed in the format field of an SF_INFO struct when a file is to be opened 
-        for write.
-    <DD>The name field will contain a char* pointer to the name of the string ie "WAV (Microsoft 16 bit PCM)".
-    <DD>The extention field will contain the most commonly used file extension for that file type.
+	<DD>0 on success and non-zero otherwise.
+	<DD>The value of the format field of the SF_FORMAT_INFO struct will be an value which 
+		can be placed in the format field of an SF_INFO struct when a file is to be opened 
+		for write.
+	<DD>The name field will contain a char* pointer to the name of the string ie "WAV (Microsoft 16 bit PCM)".
+	<DD>The extention field will contain the most commonly used file extension for that file type.
 </DL>
 
 <!-- ========================================================================= -->
@@ -675,7 +676,7 @@ subtype.
 Example:
 </P>
 <PRE>
-        SF_FORMAT_INFO  format_info ;
+        SF_FORMAT_INFO	format_info ;
 
         format_info.format = SF_FORMAT_WAV ;
         sf_command (sndfile, SFC_GET_FORMAT_INFO, &amp;format_info, sizeof (format_info)) ;
@@ -687,7 +688,7 @@ Example:
 </PRE>
 <DL>
 <DT>Return value: </DT>
-    <DD>0 on success and non-zero otherwise.
+	<DD>0 on success and non-zero otherwise.
 </DL>
 <!-- ========================================================================= -->
 <A NAME="SFC_GET_FORMAT_MAJOR_COUNT"></A>
@@ -713,7 +714,7 @@ Example:
 </PRE>
 <DL>
 <DT>Return value: </DT>
-    <DD>0
+	<DD>0
 </DL>
 
 <!-- ========================================================================= -->
@@ -735,7 +736,7 @@ Parameters:
 Example:
 </P>
 <PRE>
-        SF_FORMAT_INFO  format_info ;
+        SF_FORMAT_INFO	format_info ;
         int             k, count ;
 
         sf_command (sndfile, SFC_GET_FORMAT_MAJOR_COUNT, &amp;count, sizeof (int)) ;
@@ -752,11 +753,11 @@ directory of the libsndfile source code distribution.
 </P>
 <DL>
 <DT>Return value: </DT>
-    <DD>0 on success and non-zero otherwise.
-    <DD>The value of the format field will one of the major format identifiers suc as SF_FORMAT_WAV
-        SF_FORMAT_AIFF.
-    <DD>The name field will contain a char* pointer to the name of the string ie "WAV (Microsoft)".
-    <DD>The extention field will contain the most commonly used file extension for that file type.
+	<DD>0 on success and non-zero otherwise.
+	<DD>The value of the format field will one of the major format identifiers suc as SF_FORMAT_WAV
+		SF_FORMAT_AIFF.
+	<DD>The name field will contain a char* pointer to the name of the string ie "WAV (Microsoft)".
+	<DD>The extention field will contain the most commonly used file extension for that file type.
 </DL>
 
 <!-- ========================================================================= -->
@@ -783,7 +784,7 @@ Example:
 </PRE>
 <DL>
 <DT>Return value: </DT>
-    <DD>0
+	<DD>0
 </DL>
 
 <!-- ========================================================================= -->
@@ -805,7 +806,7 @@ Parameters:
 Example:
 </P>
 <PRE>
-        SF_FORMAT_INFO  format_info ;
+        SF_FORMAT_INFO	format_info ;
         int             k, count ;
 
         sf_command (sndfile, SFC_GET_FORMAT_SUBTYPE_COUNT, &amp;count, sizeof (int)) ;
@@ -825,12 +826,12 @@ directory of the libsndfile source code distribution.
 </P>
 <DL>
 <DT>Return value: </DT>
-    <DD>0 on success and non-zero otherwise.
-    <DD>The value of the format field will one of the major format identifiers such as SF_FORMAT_WAV
-        SF_FORMAT_AIFF.
-    <DD>The name field will contain a char* pointer to the name of the string; for instance 
-        "WAV (Microsoft)" or "AIFF (Apple/SGI)".
-    <DD>The extention field will be a NULL pointer.
+	<DD>0 on success and non-zero otherwise.
+	<DD>The value of the format field will one of the major format identifiers such as SF_FORMAT_WAV
+		SF_FORMAT_AIFF.
+	<DD>The name field will contain a char* pointer to the name of the string; for instance 
+		"WAV (Microsoft)" or "AIFF (Apple/SGI)".
+	<DD>The extention field will be a NULL pointer.
 </DL>
 
 <!-- ========================================================================= -->
@@ -966,7 +967,7 @@ Example:
 </PRE>
 <DL>
 <DT>Return value:</DT>
-    <DD>Zero on sucess, non-zero otherwise.
+	<DD>Zero on sucess, non-zero otherwise.
 </DL>
 
 <!-- ========================================================================= -->
@@ -998,27 +999,19 @@ Example:
 </PRE>
 <DL>
 <DT>Return value:</DT>
-    <DD>Zero on sucess, non-zero otherwise.
+	<DD>Zero on sucess, non-zero otherwise.
 </DL>
 
 <!-- ========================================================================= -->
 
 <HR>
 <P>
-    The libsndfile home page is here : 
-        <A HREF="http://www.mega-nerd.com/libsndfile/">
-            http://www.mega-nerd.com/libsndfile/</A>.
+	The libsndfile home page is here : 
+		<A HREF="http://www.mega-nerd.com/libsndfile/">
+			http://www.mega-nerd.com/libsndfile/</A>.
 <BR>
-Version : 1.0.17
+Version : 1.0.23
 </P>
 
 </BODY>
 </HTML>
-
-<!--
-  Do not edit or modify anything in this comment block.
-  The arch-tag line is a file identity tag for the GNU Arch 
-  revision control system.
- 
-  arch-tag: e610e74b-9ac0-4255-aff8-97ed229a6a3d
--->

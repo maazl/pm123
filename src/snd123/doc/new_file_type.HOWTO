@@ -12,12 +12,12 @@ for an existing file type.
 This HOWTO will take the form of a step by step guide. It will assume that you 
 have all required tools including :
 
-    - gcc
-    - make (should really be the GNU version)
-    - autoconf
-    - automake 
-    - libtool
-    
+	- gcc
+	- make (should really be the GNU version)
+	- autoconf
+	- automake 
+	- libtool
+	
 These should all be available on the GNU ftp site: ftp://ftp.gnu.org/pub/gnu/.
 
 To help make these steps clearer let's suppose we are adding support for the
@@ -31,7 +31,7 @@ Create a new .c file in the src/ directory of the libsndfile source tree. The
 file name should be reasonable descriptive so that is is obvious that files of 
 the new type are handled by this file. In this particular case the file might
 be named 'whacky.c'.
-    
+	
 Step 2
 ------
 Add your new source code file to the build process.
@@ -40,8 +40,8 @@ Edit the file src/Makefile.am and add the name of your file handler to the
 FILESPECIFIC list of handlers. This list looks something like this:  
 
 FILESPECIFIC = aiff.c au.c au_g72x.c nist.c paf.c raw.c samplitude.c \
-                svx.c wav.c wav_float.c wav_gsm610.c wav_ima_adpcm.c \
-                wav_ms_adpcm.c
+				svx.c wav.c wav_float.c wav_gsm610.c wav_ima_adpcm.c \
+				wav_ms_adpcm.c
 
 Then, run the script named 'reconf' in the libsndfile top level directory,
 which will run autoconf and other associated tools. Finally run "./configure"
@@ -68,34 +68,34 @@ reads the first 3 ints of the file and from that makes a guess at the file
 type. In our case we would add:
 
 
-    if (buffer [0] == MAKE_MARKER ('W','A','C','K'))
-        return SF_FORMAT_WACK ;
-        
+	if (buffer [0] == MAKE_MARKER ('W','A','C','K'))
+		return SF_FORMAT_WACK ;
+		
 The use of the MAKE_MARKER macro should be pretty obvious and it is defined at the 
 top of file should you need to have a look at it.
 
 Step 5
 ------
-Add a call to your open read function from sf_open_read ().
+Add a call to your open function from psf_open_file ().
 
-Edit src/sndfile.c and find the switch statement in sf_open_read (). It starts
+Edit src/sndfile.c and find the switch statement in psf_open_file (). It starts
 like this:
 
-    switch (filetype)
-    {   case    SF_FORMAT_WAV :
-                sf_errno = wav_open_read (psf) ;
-                break ;
+	switch (filetype)
+	{	case	SF_FORMAT_WAV :
+				error = wav_open (psf) ;
+				break ;
 
-        case    SF_FORMAT_AIFF :
-                sf_errno = aiff_open_read (psf) ;
-                break ;
+		case	SF_FORMAT_AIFF :
+				error = aiff_open (psf) ;
+				break ;
 
 Towards the bottom of this switch statement your should add one for the new file
 type. Something like:
 
-        case    SF_FORMAT_WACK :
-                sf_errno = whacky_open_read (psf) ;
-                break ;
+		case	SF_FORMAT_WACK :
+				sf_errno = whacky_open (psf) ;
+				break ;
 
 Setp 6
 ------
@@ -103,7 +103,7 @@ Add prototypes for new open read and open write functions.
 
 Edit src/common.h, go to the bottom of the file and add something like
 
-    int     whacky_open   (SF_PRIVATE *psf) ;
+	int		whacky_open	  (SF_PRIVATE *psf) ;
 
 Step 7
 ------
@@ -112,9 +112,9 @@ Implement your open read function. The best way to do this is by coding
 something much like one of the other file formats. The file src/au.c might be 
 a good place to start.
 
-In src/whacky.c you should now implement the function whacky_open_read() which 
+In src/whacky.c you should now implement the function whacky_open() which 
 was prototyped in src/common.h. This function should return 0 on success and 
-a negative number on error. 
+a non-zero number on error. 
 
 Error values are defined in src/common.h in a enum which starts at SFE_NO_ERROR.
 When adding a new error value, you also need to add an error string to the 

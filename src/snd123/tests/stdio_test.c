@@ -1,5 +1,5 @@
 /*
-** Copyright (C) 2001-2004 Erik de Castro Lopo <erikd@mega-nerd.com>
+** Copyright (C) 2001-2009 Erik de Castro Lopo <erikd@mega-nerd.com>
 **
 ** This program is free software; you can redistribute it and/or modify
 ** it under the terms of the GNU General Public License as published by
@@ -40,13 +40,14 @@
 
 #include "utils.h"
 
-#if (OS_IS_WIN32)
+/* EMX is OS/2. */
+#if (OS_IS_WIN32) || defined (__EMX__)
 
 int
 main (void)
 {
-    puts ("    stdio_test : this test doesn't work on win32.") ;
-    return 0 ;
+	puts ("    stdio_test : this test doesn't work on win32.") ;
+	return 0 ;
 } /* main */
 
 #else
@@ -59,68 +60,68 @@ main (void)
 #endif
 
 
-static size_t   file_length (const char *filename) ;
-static int      file_exists (const char *filename) ;
-static void     stdio_test (const char *filetype) ;
+static size_t	file_length (const char *filename) ;
+static int		file_exists (const char *filename) ;
+static void		stdio_test (const char *filetype) ;
 
 static const char *filetypes [] =
-{   "raw", "wav", "aiff", "au", "paf", "svx", "nist", "ircam",
-    "voc", "w64", "mat4", "mat5", "pvf",
-    NULL
+{	"raw", "wav", "aiff", "au", "paf", "svx", "nist", "ircam",
+	"voc", "w64", "mat4", "mat5", "pvf",
+	NULL
 } ;
 
 int
 main (void)
-{   int k ;
+{	int k ;
 
-    if (file_exists ("libsndfile.spec.in"))
-        chdir ("tests") ;
+	if (file_exists ("libsndfile.spec.in"))
+		exit_if_true (chdir ("tests") != 0, "\n    Error : chdir ('tests') failed.\n") ;
 
-    for (k = 0 ; filetypes [k] ; k++)
-        stdio_test (filetypes [k]) ;
+	for (k = 0 ; filetypes [k] ; k++)
+		stdio_test (filetypes [k]) ;
 
-    return 0 ;
+	return 0 ;
 } /* main */
 
 
 static void
 stdio_test (const char *filetype)
-{   static char buffer [256] ;
+{	static char buffer [256] ;
 
-    int file_size, retval ;
+	int file_size, retval ;
 
-    print_test_name ("stdio_test", filetype) ;
+	print_test_name ("stdio_test", filetype) ;
 
-    snprintf (buffer, sizeof (buffer), "./stdout_test %s > stdio.%s", filetype, filetype) ;
-    if ((retval = system (buffer)))
-    {   retval = WIFEXITED (retval) ? WEXITSTATUS (retval) : 1 ;
-        printf ("%s : %s", buffer, (strerror (retval))) ;
-        exit (1) ;
-        } ;
+	snprintf (buffer, sizeof (buffer), "./stdout_test %s > stdio.%s", filetype, filetype) ;
+	if ((retval = system (buffer)))
+	{	retval = WIFEXITED (retval) ? WEXITSTATUS (retval) : 1 ;
+		printf ("%s : %s", buffer, (strerror (retval))) ;
+		exit (1) ;
+		} ;
 
-    snprintf (buffer, sizeof (buffer), "stdio.%s", filetype) ;
-    if ((file_size = file_length (buffer)) < PIPE_TEST_LEN)
-    {   printf ("\n    Error : test file '%s' too small (%d).\n\n", buffer, file_size) ;
-        exit (1) ;
-        } ;
+	snprintf (buffer, sizeof (buffer), "stdio.%s", filetype) ;
+	if ((file_size = file_length (buffer)) < PIPE_TEST_LEN)
+	{	printf ("\n    Error : test file '%s' too small (%d).\n\n", buffer, file_size) ;
+		exit (1) ;
+		} ;
 
-    snprintf (buffer, sizeof (buffer), "./stdin_test %s < stdio.%s", filetype, filetype) ;
-    if ((retval = system (buffer)))
-    {   retval = WIFEXITED (retval) ? WEXITSTATUS (retval) : 1 ;
-        printf ("%s : %s", buffer, (strerror (retval))) ;
-        exit (1) ;
-        } ;
+	snprintf (buffer, sizeof (buffer), "./stdin_test %s < stdio.%s", filetype, filetype) ;
+	if ((retval = system (buffer)))
+	{	retval = WIFEXITED (retval) ? WEXITSTATUS (retval) : 1 ;
+		printf ("%s : %s", buffer, (strerror (retval))) ;
+		exit (1) ;
+		} ;
 
-    snprintf (buffer, sizeof (buffer), "rm stdio.%s", filetype) ;
-    if ((retval = system (buffer)))
-    {   retval = WIFEXITED (retval) ? WEXITSTATUS (retval) : 1 ;
-        printf ("%s : %s", buffer, (strerror (retval))) ;
-        exit (1) ;
-        } ;
+	snprintf (buffer, sizeof (buffer), "rm stdio.%s", filetype) ;
+	if ((retval = system (buffer)))
+	{	retval = WIFEXITED (retval) ? WEXITSTATUS (retval) : 1 ;
+		printf ("%s : %s", buffer, (strerror (retval))) ;
+		exit (1) ;
+		} ;
 
-    puts ("ok") ;
+	puts ("ok") ;
 
-    return ;
+	return ;
 } /* stdio_test */
 
 
@@ -128,32 +129,25 @@ stdio_test (const char *filetype)
 
 static size_t
 file_length (const char *filename)
-{   struct stat buf ;
+{	struct stat buf ;
 
-    if (stat (filename, &buf))
-    {   perror (filename) ;
-        exit (1) ;
-        } ;
+	if (stat (filename, &buf))
+	{	perror (filename) ;
+		exit (1) ;
+		} ;
 
-    return buf.st_size ;
+	return buf.st_size ;
 } /* file_length */
 
 static int
 file_exists (const char *filename)
-{   struct stat buf ;
+{	struct stat buf ;
 
-    if (stat (filename, &buf))
-        return 0 ;
+	if (stat (filename, &buf))
+		return 0 ;
 
-    return 1 ;
+	return 1 ;
 } /* file_exists */
 
 #endif
 
-/*
-** Do not edit or modify anything in this comment block.
-** The arch-tag line is a file identity tag for the GNU Arch 
-** revision control system.
-**
-** arch-tag: f46d84fd-d37b-4d08-b1ba-80f2f1e0cfb9
-*/

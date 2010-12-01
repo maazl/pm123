@@ -1,5 +1,5 @@
 /*
-** Copyright (C) 2006 Erik de Castro Lopo <erikd@mega-nerd.com>
+** Copyright (C) 2006-2009 Erik de Castro Lopo <erikd@mega-nerd.com>
 **
 ** This program is free software; you can redistribute it and/or modify
 ** it under the terms of the GNU General Public License as published by
@@ -30,61 +30,54 @@
 
 #include "utils.h"
 
-#define BUFFER_LEN      (1024 * 1024)
-#define BUFFER_COUNT    (768)
+#define	BUFFER_LEN		(1024 * 1024)
+#define	BUFFER_COUNT	(768)
 
 static void largefile_test (int filetype, const char * filename) ;
 
 int
 main (void)
 {
-    largefile_test (SF_FORMAT_WAV, "largefile.wav") ;
-    largefile_test (SF_FORMAT_AIFF, "largefile.aiff") ;
+	largefile_test (SF_FORMAT_WAV, "largefile.wav") ;
+	largefile_test (SF_FORMAT_AIFF, "largefile.aiff") ;
 
-    return 0 ;
+	return 0 ;
 } /* main */
 
 static void
 largefile_test (int filetype, const char * filename)
-{   static float data [BUFFER_LEN] ;
-    SNDFILE     *file ;
-    SF_INFO     sfinfo ;
-    int k ;
+{	static float data [BUFFER_LEN] ;
+	SNDFILE		*file ;
+	SF_INFO		sfinfo ;
+	int k ;
 
-    print_test_name ("largefile_test", filename) ;
+	print_test_name ("largefile_test", filename) ;
 
-    sfinfo.samplerate   = 44100 ;
-    sfinfo.channels     = 2 ;
-    sfinfo.frames       = 0 ;
-    sfinfo.format = (filetype | SF_FORMAT_PCM_32) ;
+	sfinfo.samplerate	= 44100 ;
+	sfinfo.channels		= 2 ;
+	sfinfo.frames		= 0 ;
+	sfinfo.format = (filetype | SF_FORMAT_PCM_32) ;
 
-    file = test_open_file_or_die (filename, SFM_WRITE, &sfinfo, SF_TRUE, __LINE__) ;
+	file = test_open_file_or_die (filename, SFM_WRITE, &sfinfo, SF_TRUE, __LINE__) ;
 
-    for (k = 0 ; k < BUFFER_COUNT ; k++)
-        test_write_float_or_die (file, k, data, BUFFER_LEN, __LINE__) ;
+	for (k = 0 ; k < BUFFER_COUNT ; k++)
+		test_write_float_or_die (file, k, data, BUFFER_LEN, __LINE__) ;
 
-    sf_close (file) ;
+	sf_close (file) ;
 
-    file = test_open_file_or_die (filename, SFM_READ, &sfinfo, SF_TRUE, __LINE__) ;
+	file = test_open_file_or_die (filename, SFM_READ, &sfinfo, SF_TRUE, __LINE__) ;
 
-    if ((sfinfo.frames * sfinfo.channels) / BUFFER_LEN != BUFFER_COUNT)
-    {   printf ("\n\nLine %d : bad frame count.\n", __LINE__) ;
-        exit (1) ;
-        } ;
+	if ((sfinfo.frames * sfinfo.channels) / BUFFER_LEN != BUFFER_COUNT)
+	{	printf ("\n\nLine %d : bad frame count.\n", __LINE__) ;
+		exit (1) ;
+		} ;
 
-    sf_close (file) ;
+	sf_close (file) ;
 
-    unlink (filename) ;
-    puts ("ok") ;
+	unlink (filename) ;
+	puts ("ok") ;
 
 
-    return ;
+	return ;
 } /* largefile_test */
 
-/*
-** Do not edit or modify anything in this comment block.
-** The arch-tag line is a file identity tag for the GNU Arch
-** revision control system.
-**
-** arch-tag: 4ef10b9a-3356-4b92-8b7b-c60c0c4123fe
-*/

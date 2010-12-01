@@ -91,8 +91,8 @@ g723_16_encoder(
        short           dqsez;                  /* ADDC */
        short           dq, i;
 
-        /* linearize input sample to 14-bit PCM */
-        sl >>= 2;               /* sl of 14-bit dynamic range */
+		/* linearize input sample to 14-bit PCM */
+		sl >>= 2;               /* sl of 14-bit dynamic range */
 
        sezi = predictor_zero(state_ptr);
        sez = sezi >> 1;
@@ -156,14 +156,7 @@ g723_16_decoder(
 
        update(2, y, _witab[i], _fitab[i], dq, sr, dqsez, state_ptr);
 
-        /* sr was of 14-bit dynamic range */
-        return (sr << 2);       
+		/* sr was of 14-bit dynamic range */
+		return (sr << 2);       
 }
-/*
-** Do not edit or modify anything in this comment block.
-** The arch-tag line is a file identity tag for the GNU Arch 
-** revision control system.
-**
-** arch-tag: ae265466-c3fc-4f83-bb32-edae488a5ca5
-*/
 

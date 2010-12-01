@@ -42,77 +42,68 @@
 */
 
 struct g72x_state
-{   long  yl;   /* Locked or steady state step size multiplier. */
-    short yu;   /* Unlocked or non-steady state step size multiplier. */
-    short dms;  /* Short term energy estimate. */
-    short dml;  /* Long term energy estimate. */
-    short ap;   /* Linear weighting coefficient of 'yl' and 'yu'. */
+{	long  yl;	/* Locked or steady state step size multiplier. */
+	short yu;	/* Unlocked or non-steady state step size multiplier. */
+	short dms;	/* Short term energy estimate. */
+	short dml;	/* Long term energy estimate. */
+	short ap;	/* Linear weighting coefficient of 'yl' and 'yu'. */
 
-    short a[2]; /* Coefficients of pole portion of prediction filter. */
-    short b[6]; /* Coefficients of zero portion of prediction filter. */
-    short pk[2];    /*
-                    ** Signs of previous two samples of a partially
-                    ** reconstructed signal.
-                    **/
-    short dq[6];    /*
-                    ** Previous 6 samples of the quantized difference
-                    ** signal represented in an internal floating point
-                    ** format.
-                    **/
-    short sr[2];    /*
-                    ** Previous 2 samples of the quantized difference
-                    ** signal represented in an internal floating point
-                    ** format.
-                    */
-    char td;    /* delayed tone detect, new in 1988 version */
+	short a[2];	/* Coefficients of pole portion of prediction filter. */
+	short b[6];	/* Coefficients of zero portion of prediction filter. */
+	short pk[2];	/*
+					** Signs of previous two samples of a partially
+					** reconstructed signal.
+					**/
+	short dq[6];	/*
+					** Previous 6 samples of the quantized difference
+					** signal represented in an internal floating point
+					** format.
+					**/
+	short sr[2];	/*
+			 		** Previous 2 samples of the quantized difference
+					** signal represented in an internal floating point
+					** format.
+					*/
+	char td;	/* delayed tone detect, new in 1988 version */
 
-    /*  The following struct members were added for libsndfile. The original
-    **  code worked by calling a set of functions on a sample by sample basis
-    **  which is slow on architectures like Intel x86. For libsndfile, this
-    **  was changed so that the encoding and decoding routines could work on
-    **  a block of samples at a time to reduce the function call overhead.
-    */
-    int     (*encoder) (int, struct g72x_state* state) ;
-    int     (*decoder) (int, struct g72x_state* state) ;
+	/*	The following struct members were added for libsndfile. The original
+	**	code worked by calling a set of functions on a sample by sample basis
+	**	which is slow on architectures like Intel x86. For libsndfile, this
+	**	was changed so that the encoding and decoding routines could work on
+	**	a block of samples at a time to reduce the function call overhead.
+	*/
+	int		(*encoder) (int, struct g72x_state* state) ;
+	int		(*decoder) (int, struct g72x_state* state) ;
 
-    int     codec_bits, blocksize, samplesperblock ;
+	int		codec_bits, blocksize, samplesperblock ;
 } ;
 
 typedef struct g72x_state G72x_STATE ;
 
-int predictor_zero (G72x_STATE *state_ptr);
+int	predictor_zero (G72x_STATE *state_ptr);
 
-int predictor_pole (G72x_STATE *state_ptr);
+int	predictor_pole (G72x_STATE *state_ptr);
 
-int step_size (G72x_STATE *state_ptr);
+int	step_size (G72x_STATE *state_ptr);
 
-int quantize (int d, int    y, short *table, int size);
+int	quantize (int d, int	y, short *table, int size);
 
-int reconstruct (int sign, int dqln,    int y);
+int	reconstruct (int sign, int dqln,	int y);
 
 void update (int code_size, int y, int wi, int fi, int dq, int sr, int dqsez, G72x_STATE *state_ptr);
 
-int g721_encoder    (int sample, G72x_STATE *state_ptr);
-int g721_decoder    (int code, G72x_STATE *state_ptr);
+int g721_encoder	(int sample, G72x_STATE *state_ptr);
+int g721_decoder	(int code, G72x_STATE *state_ptr);
 
-int g723_16_encoder (int sample, G72x_STATE *state_ptr);
-int g723_16_decoder (int code, G72x_STATE *state_ptr);
+int g723_16_encoder	(int sample, G72x_STATE *state_ptr);
+int g723_16_decoder	(int code, G72x_STATE *state_ptr);
 
-int g723_24_encoder (int sample, G72x_STATE *state_ptr);
-int g723_24_decoder (int code, G72x_STATE *state_ptr);
+int g723_24_encoder	(int sample, G72x_STATE *state_ptr);
+int g723_24_decoder	(int code, G72x_STATE *state_ptr);
 
-int g723_40_encoder (int sample, G72x_STATE *state_ptr);
-int g723_40_decoder (int code, G72x_STATE *state_ptr);
+int g723_40_encoder	(int sample, G72x_STATE *state_ptr);
+int g723_40_decoder	(int code, G72x_STATE *state_ptr);
 
 void private_init_state (G72x_STATE *state_ptr) ;
 
 #endif /* G72X_PRIVATE_H */
-
-/*
-** Do not edit or modify anything in this comment block.
-** The arch-tag line is a file identity tag for the GNU Arch
-** revision control system.
-**
-** arch-tag: d9ad4da7-0fa3-471d-8020-720b5cfb5e5b
-*/
-

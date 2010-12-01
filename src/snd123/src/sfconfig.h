@@ -1,5 +1,5 @@
 /*
-** Copyright (C) 2005 Erik de Castro Lopo <erikd@mega-nerd.com>
+** Copyright (C) 2005-2009 Erik de Castro Lopo <erikd@mega-nerd.com>
 **
 ** This program is free software; you can redistribute it and/or modify
 ** it under the terms of the GNU Lesser General Public License as published by
@@ -17,23 +17,23 @@
 */
 
 /*
-**  Autoconf leaves many config parameters undefined.
-**  Here we change then from being undefined to defining them to 0.
-**  This allows things like:
+**	Autoconf leaves many config parameters undefined.
+**	Here we change then from being undefined to defining them to 0.
+**	This allows things like:
 **
-**      #if HAVE_CONFIG_PARAM
+**		#if HAVE_CONFIG_PARAM
 **
-**  and
+**	and
 **
-**      if (HAVE_CONFIG_PARAM)
-**          do_something () ;
+**		if (HAVE_CONFIG_PARAM)
+**			do_something () ;
 */
 
 #ifndef SFCONFIG_H
 #define SFCONFIG_H
 
 /* Include the Autoconf generated file. */
-#include "config.h"
+#include <config.h>
 
 /* Now fiddle the values. */
 
@@ -46,7 +46,7 @@
 #endif
 
 #ifndef HAVE_DECL_S_IRGRP
-#define HAVE_DECL_S_IRGRP 0
+#define	HAVE_DECL_S_IRGRP 0
 #endif
 
 #ifndef HAVE_ENDIAN_H
@@ -97,12 +97,13 @@
 #define HAVE_UNISTD_H 0
 #endif
 
+#ifndef HAVE_PIPE
+#define HAVE_PIPE 0
 #endif
 
-/*
-** Do not edit or modify anything in this comment block.
-** The arch-tag line is a file identity tag for the GNU Arch
-** revision control system.
-**
-** arch-tag: 2df2316e-8f9d-4860-bba7-f3c16c63eed3
-*/
+#ifndef HAVE_WAITPID
+#define	HAVE_WAITPID 0
+#endif
+
+#endif
+

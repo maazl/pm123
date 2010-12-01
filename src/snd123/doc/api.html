@@ -2,13 +2,14 @@
 <HTML>
 
 <HEAD>
-    <TITLE>
-    The libsndfile API.
-    </TITLE>
-    <META NAME="Author"      CONTENT="Erik de Castro Lopo (erikd AT mega-nerd DOT com)">
-    <META NAME="Description" CONTENT="The libsndfile API.">
-    <META NAME="Keywords"    CONTENT="WAV AIFF AU libsndfile sound audio dsp Linux">
-    <LINK REL=StyleSheet HREF="libsndfile.css" TYPE="text/css" MEDIA="all">
+	<TITLE>
+	The libsndfile API
+	</TITLE>
+	<META NAME="Author"      CONTENT="Erik de Castro Lopo (erikd AT mega-nerd DOT com)">
+	<META NAME="Description" CONTENT="The libsndfile API.">
+	<META NAME="Keywords"    CONTENT="WAV AIFF AU libsndfile sound audio dsp Linux">
+	<LINK REL="stylesheet" HREF="libsndfile.css" TYPE="text/css" MEDIA="all">
+	<LINK REL="stylesheet" HREF="print.css" TYPE="text/css" MEDIA="print">
 </HEAD>
 
 <BODY>
@@ -16,37 +17,43 @@
 <BR>
 <H1><B>libsndfile</B></H1>
 <P>
-    Libsndfile is a library designed to allow the reading and writing of many
-    different sampled sound file formats (such as MS Windows WAV and the Apple/SGI
-    AIFF format) through one standard library interface.
+	Libsndfile is a library designed to allow the reading and writing of many
+	different sampled sound file formats (such as MS Windows WAV and the Apple/SGI
+	AIFF format) through one standard library interface.
 </P>
 <!-- pepper -->
 <P>
-    During read and write operations, formats are seamlessly converted between the
-    format the application program has requested or supplied and the file's data
-    format. The application programmer can remain blissfully unaware of issues
-    such as file endian-ness and data format. See <A HREF="#note1">Note 1</A> and
-    <A HREF="#note2">Note 2</A>.
+	During read and write operations, formats are seamlessly converted between the
+	format the application program has requested or supplied and the file's data
+	format. The application programmer can remain blissfully unaware of issues
+	such as file endian-ness and data format. See <A HREF="#note1">Note 1</A> and
+	<A HREF="#note2">Note 2</A>.
 </P>
 <!-- pepper -->
 <P>
-    Every effort is made to keep these documents up-to-date, error free and
-    unambiguous.
-    However, since maintaining the documentation is the least fun part of working
-    on libsndfile, these docs can and do fall behind the behaviour of library.
-    If any errors omissions or ambiguities are found, please notify
-        <A HREF="m&#97;ilt&#111;:&#101;rikd&#64;z&#105;p.&#99;om.au">
-    Erik de Castro Lopo</a>.
+	Every effort is made to keep these documents up-to-date, error free and
+	unambiguous.
+	However, since maintaining the documentation is the least fun part of working
+	on libsndfile, these docs can and do fall behind the behaviour of library.
+	If any errors, omissions or ambiguities are found, please notify me (erikd)
+	at mega-nerd dot com.
 </P>
 <!-- pepper -->
 <P>
-    <B> Finally, if you think there is some feature missing from libsndfile, check that
-    it isn't already implemented (and documented)
-        <A HREF="command.html">here</A>.
-    </B>
+	To supplement this reference documentation, there are simple example programs
+	included in the source code tarball.
+	The test suite which is also part of the source code tarball is also a good
+	place to look for the correct usage of the library functions.
+</P>
+<!-- pepper -->
+<P>
+	<B> Finally, if you think there is some feature missing from libsndfile, check that
+	it isn't already implemented (and documented)
+		<A HREF="command.html">here</A>.
+	</B>
 </P>
 
-<H2><B>SYNOPSIS</B></H2>
+<H2><B>Synopsis</B></H2>
 <P>
 The functions of libsndfile are defined as follows:
 </P>
@@ -62,7 +69,7 @@ The functions of libsndfile are defined as follows:
 
       sf_count_t  <A HREF="#seek">sf_seek</A>          (SNDFILE *sndfile, sf_count_t frames, int whence) ;
 
-      int         <A HREF="#command">sf_command</A>       (SNDFILE *sndfile, int cmd, void *data, int datasize) ;
+      int         <A HREF="command.html">sf_command</A>       (SNDFILE *sndfile, int cmd, void *data, int datasize) ;
 
       int         <A HREF="#error">sf_error</A>         (SNDFILE *sndfile) ;
       const char* <A HREF="#error">sf_strerror</A>      (SNDFILE *sndfile) ;
@@ -186,6 +193,10 @@ Not all combinations of endian-ness and major and minor file types are valid.
           SF_FORMAT_SD2          = 0x160000,     /* Sound Designer 2 */
           SF_FORMAT_FLAC         = 0x170000,     /* FLAC lossless file format */
           SF_FORMAT_CAF          = 0x180000,     /* Core Audio File format */
+          SF_FORMAT_WVE          = 0x190000,     /* Psion WVE format */
+          SF_FORMAT_OGG          = 0x200000,     /* Xiph OGG container */
+          SF_FORMAT_MPC2K        = 0x210000,     /* Akai MPC 2000 sampler */
+          SF_FORMAT_RF64         = 0x220000,     /* RF64 WAV file */
 
           /* Subtypes from here on. */
 
@@ -219,6 +230,8 @@ Not all combinations of endian-ness and major and minor file types are valid.
           SF_FORMAT_DPCM_8       = 0x0050,       /* 8 bit differential PCM (XI only) */
           SF_FORMAT_DPCM_16      = 0x0051,       /* 16 bit differential PCM (XI only) */
 
+          SF_FORMAT_VORBIS       = 0x0060,       /* Xiph Vorbis encoding. */
+
           /* Endian-ness options. */
 
           SF_ENDIAN_FILE         = 0x00000000,   /* Default file endian-ness. */
@@ -238,7 +251,7 @@ memory allocated during the call to sf_open().
 </P>
 <!-- pepper -->
 <P>
-On success, the sf_open function returns a non NULL pointer which should be
+On success, the sf_open function returns a non-NULL pointer which should be
 passed as the first parameter to all subsequent libsndfile calls dealing with
 that audio file.
 On fail, the sf_open function returns a NULL pointer.
@@ -252,6 +265,11 @@ On fail, the sf_open function returns a NULL pointer.
 </PRE>
 
 <P>
+<b>Note:</b> On Microsoft Windows, this function does not work if the
+application and the libsndfile DLL are linked to different versions of the
+Microsoft C runtime DLL.
+</P>
+<P>
 The second open function takes a file descriptor of a file that has already been
 opened.
 Care should be taken to ensure that the mode of the file represented by the
@@ -260,13 +278,13 @@ This function is useful in the following circumstances:
 </P>
 
 <UL>
-    <LI>Opening temporary files securely (ie use the tmpfile() to return a
-        FILE* pointer and then using fileno() to retrieve the file descriptor
-        which is then passed to libsndfile).
-    <LI>Opening files with file names using OS specific character encodings
-        and then passing the file descriptor to sf_open_fd().
-    <LI>Opening sound files embedded within larger files.
-            <A HREF="embedded_files.html">More info</A>.
+	<LI>Opening temporary files securely (ie use the tmpfile() to return a
+		FILE* pointer and then using fileno() to retrieve the file descriptor
+		which is then passed to libsndfile).
+	<LI>Opening files with file names using OS specific character encodings
+		and then passing the file descriptor to sf_open_fd().
+	<LI>Opening sound files embedded within larger files.
+			<A HREF="embedded_files.html">More info</A>.
 </UL>
 
 <P>
@@ -280,7 +298,7 @@ parameter was TRUE when the sf_open_fd() function was called.
 </P>
 
 <P>
-On success, the sf_open_fd function returns a non NULL pointer which should be
+On success, the sf_open_fd function returns a non-NULL pointer which should be
 passed as the first parameter to all subsequent libsndfile calls dealing with
 that audio file.
 On fail, the sf_open_fd function returns a NULL pointer.
@@ -344,34 +362,6 @@ whence parameter.
 <P>
 sf_seek will return the offset in (multichannel) frames from the start of the audio data
 or -1 if an error occured (ie an attempt is made to seek beyond the start or end of the file).
-</P>
-
-<A NAME="command"></A>
-<H2><BR><B>Command Interface</B></H2>
-
-<PRE>
-      int  sf_command  (SNDFILE *sndfile, int cmd, void *data, int datasize) ;
-</PRE>
-
-<P>
-This function allows the caller to retrieve information from or change aspects of the
-library behaviour on a per file basis. Examples include reading or writing text descriptions
-to a file or changing the scaling applied to sample data during read and write.
-</P>
-<!-- pepper -->
-<P>
-The cmd parameter is a short null terminated string which specifies which command
-to execute. Data is passed to and returned from the library by use of a void
-pointer. The library will not read or write more than datasize bytes from the void
-pointer. For some calls no data is required in which case data should be NULL and
-datasize may be used for some other purpose.
-</P>
-<P>
-The return value of sf_command () depends on the value of the cmd parameter, but it is
-usually non-zero for success and zero on error.
-</P>
-<P>
-This function is explained more fully <A HREF="command.html">here</A>.
 </P>
 
 <A NAME="error"></A>
@@ -570,6 +560,12 @@ same as the frames parameter).
 </PRE>
 
 <P>
+<b>Note:</b> Unless you are writing an external decoder/encode that uses
+libsndfile to handle the file headers, you should not be using these
+functions.
+</P>
+
+<P>
 The raw read and write functions read raw audio data from the audio file (not to be
 confused with reading RAW header-less PCM files). The number of bytes read or written
 must always be an integer multiple of the number of channels multiplied by the number
@@ -587,6 +583,10 @@ Note : The result of using of both regular reads/writes and raw reads/writes on
 compressed file formats other than SF_FORMAT_ALAW and SF_FORMAT_ULAW is undefined.
 </B>
 </P>
+
+<p>
+See also : <a href="command.html#SFC_RAW_NEEDS_ENDSWAP">SFC_RAW_NEEDS_ENDSWAP</a>
+</p>
 
 <A NAME="string"></A>
 <H2><BR><B>Functions for Reading and Writing String Data</B></H2>
@@ -615,7 +615,7 @@ The <B>str_type</B> parameter can be any one of the following string types:
 </PRE>
 
 <P>
-The sf_get_string() function returns the specificed string if it exists and a
+The sf_get_string() function returns the specified string if it exists and a
 NULL pointer otherwise.
 In addition to the string ids above, SF_STR_FIRST (== SF_STR_TITLE) and
 SF_STR_LAST (always the same as the highest numbers string id) are also
@@ -672,7 +672,7 @@ would mean that all sample values read from the file will be zero.
 In order to read these files correctly using integer read methods, it is recommended
 that you use the
      <A HREF="command.html">sf_command</A>
-interface a command of
+interface, a command of
      <A HREF="command.html#SFC_SET_SCALE_FLOAT_INT_READ">SFC_SET_SCALE_FLOAT_INT_READ</A>
 and a parameter of SF_TRUE to force correct scaling.
 </P>
@@ -680,11 +680,11 @@ and a parameter of SF_TRUE to force correct scaling.
 <HR>
 <!-- pepper -->
 <P>
-    The libsndfile home page is
-        <A HREF="http://www.mega-nerd.com/libsndfile/">here</A>.
+	The libsndfile home page is
+		<A HREF="http://www.mega-nerd.com/libsndfile/">here</A>.
 </P>
 <P>
-Version : 1.0.17
+Version : 1.0.23
 </P>
 <!-- pepper -->
 <!-- pepper -->
@@ -693,11 +693,3 @@ Version : 1.0.17
 
 </BODY>
 </HTML>
-
-<!--
-  Do not edit or modify anything in this comment block.
-  The arch-tag line is a file identity tag for the GNU Arch
-  revision control system.
-
-  arch-tag: f6d3aa8f-983a-4ad3-9681-346e122d815e
--->
