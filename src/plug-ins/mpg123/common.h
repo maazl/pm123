@@ -58,7 +58,7 @@
 // mpeg 2.x, layer 3  160    8000 = 1441
 
 #define MAXFRAMESIZE  2881
-#define HDRCMPMASK    0xFFFF0D00UL
+#define HDRCMPMASK    0xFFFE0C00UL
 #define MAXRESYNC     65535
 
 // Special mask for tests with variable sample rates.
