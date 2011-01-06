@@ -55,9 +55,9 @@ inline static T& operator|=(T& l, T r) \
 inline static T& operator&=(T& l, T r) \
 { return l = (T)((unsigned)l&r); } \
 inline static T operator*(bool l, T r) \
-{ return (T)(l*(unsigned)r); } \
+{ return (T)(-l&(unsigned)r); } \
 inline static T operator*(T l, bool r) \
-{ return (T)((unsigned)l*r); } \
+{ return (T)((unsigned)l&-r); } \
 inline static T operator~(T a) \
 { return (T)~(unsigned)a; }
 
@@ -71,9 +71,9 @@ inline friend T& operator|=(T& l, T r) \
 inline friend T& operator&=(T& l, T r) \
 { return l = (T)((unsigned)l&r); } \
 inline friend T operator*(bool l, T r) \
-{ return (T)(l*(unsigned)r); } \
+{ return (T)(-l&(unsigned)r); } \
 inline friend T operator*(T l, bool r) \
-{ return (T)((unsigned)l*r); } \
+{ return (T)((unsigned)l&-r); } \
 inline friend T operator~(T a) \
 { return (T)~(unsigned)a; }
 

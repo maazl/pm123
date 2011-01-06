@@ -52,7 +52,7 @@ struct IComparableTo
 
 template <class T, class K>
 struct sorted_vector_comparer
-{ static int         cmp(const void* elem, const void* key);
+{ static int cmp(const void* elem, const void* key);
 };
 template <class T, class K>
 int sorted_vector_comparer<T,K>::cmp(const void* elem, const void* key)
@@ -97,19 +97,19 @@ class sorted_vector : public vector<T>
 
 /* Template implementations */
 template <class T, class K>
-T* sorted_vector<T,K>::find(const K& key) const
+inline T* sorted_vector<T,K>::find(const K& key) const
 { size_t pos;
   return binary_search(key, pos) ? (*this)[pos] : NULL;
 }
 
 template <class T, class K>
-T*& sorted_vector<T,K>::get(const K& key)
+inline T*& sorted_vector<T,K>::get(const K& key)
 { size_t pos;
   return binary_search(key, pos) ? (*this)[pos] : (insert(pos) = NULL);
 }
 
 template <class T, class K>
-T* sorted_vector<T,K>::erase(const K& key)
+inline T* sorted_vector<T,K>::erase(const K& key)
 { size_t pos;
   return binary_search(key, pos) ? vector<T>::erase(pos) : NULL;
 }
@@ -189,13 +189,13 @@ class sorted_vector_int : public vector_int<T>
 
 /* Template implementations */
 template <class T, class K>
-int_ptr<T> sorted_vector_int<T,K>::find(const K& key) const
+inline int_ptr<T> sorted_vector_int<T,K>::find(const K& key) const
 { size_t pos;
   return binary_search(key, pos) ? (*this)[pos] : NULL;
 }
 
 template <class T, class K>
-int_ptr<T>& sorted_vector_int<T,K>::get(const K& key)
+inline int_ptr<T>& sorted_vector_int<T,K>::get(const K& key)
 { size_t pos;
   return binary_search(key, pos) ? (*this)[pos] : insert(pos);
 }
@@ -210,5 +210,3 @@ int_ptr<T> sorted_vector_int<T,K>::erase(const K& key)
 }
 
 #endif
-
-

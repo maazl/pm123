@@ -1,6 +1,6 @@
 /*
  * Copyright 1997-2003 Samuel Audet <guardia@step.polymtl.ca>
- *                     Taneli Lepp„ <rosmo@sektori.com>
+ *                     Taneli Leppï¿½ <rosmo@sektori.com>
  * Copyright 2004-2006 Dmitry A.Steklenev <glass@ptv.ru>
  * Copyright 2007-2008 M.Mueller
  *
@@ -38,12 +38,12 @@
  *     0-   10    PM123 main window
  *   100-  199    PM123 common dialog controls
  *   500-  599    PM123 main menu
- *   700-  799    PM123 Plalist/Playlist Manager misc
- *   800-  999    PM123 Plalist/Playlist Manager menu
+ *   700-  799    PM123 Playlist/Playlist Manager misc
+ *   800-  999    PM123 Playlist/Playlist Manager menu
  *  1000- 1099    PM123 Help table
  *  1100- 1199    PM123 File, URL etc.
- *  1200- 1799    PM123 properties dialog
- *  1800- 1899    PM123 info dialog
+ *  1200- 1699    PM123 properties dialog
+ *  1700- 1899    PM123 info dialog
  *  2000- 2999   PM123 Skin IDs
  *  2000- 2099    PM123 Skinned buttons
  *  2100- 2199    PM123 Skin misc
@@ -113,12 +113,13 @@
 #define IDM_M_ADDPLBOOK     544
 #define IDM_M_ADDBOOK_TIME  545
 #define IDM_M_PLSAVE        546
-#define IDM_M_ADDPMBOOK     547
-#define IDM_M_CURRENT_PL    548
-#define IDM_M_ADDPLBOOK_TIME 549
-#define IDM_M_LOAD          550
-#define IDM_M_PLRELOAD      551
-#define IDM_M_RELOAD        552
+#define IDM_M_PLSAVEAS      547
+#define IDM_M_ADDPMBOOK     548
+#define IDM_M_CURRENT_PL    549
+#define IDM_M_ADDPLBOOK_TIME 550
+#define IDM_M_LOAD          551
+#define IDM_M_PLRELOAD      552
+#define IDM_M_RELOAD        553
 #define IDM_M_INSPECTOR     559
 #define IDM_M_LOADFILE      560
 #define IDM_M_URL           561
@@ -193,8 +194,10 @@
 #define IDM_PL_REFRESH      811
 #define IDM_PL_EDIT         812
 #define IDM_PL_SAVE         813
-#define IDM_PL_INFO         814
-#define IDM_PL_INFOALL      815
+#define IDM_PL_SAVE_AS      814
+#define IDM_PL_PROPERTIES   815
+#define IDM_PL_INFO         816
+#define IDM_PL_INFOALL      817
 #define IDM_PL_MENU         818 /* invoke main menu */
 #define IDM_PL_MENUCONT     819 /* invoke record menu */ 
 #define IDM_PL_FLATTEN      820
@@ -383,43 +386,65 @@
 #define PB_PLG_SET         1539
 
 /* Object Info */
-#define DLG_INFO           1800
+#define DLG_INFO           1700
 #define NB_INFO            FID_CLIENT
 
-#define CFG_TECHINFO       1810
-#define EF_FILESIZE        1812
-#define EF_TOTALSIZE       1814
-#define EF_TOTALTIME       1816
-#define EF_NUMITEMS        1818
-#define EF_SONGITEMS       1820
-#define CB_ITEMSRECURSIVE  1821
-#define EF_BITRATE         1823
-#define EF_SAMPLERATE      1825
-#define EF_NUMCHANNELS     1827
-#define EF_DECODER         1829
-#define EF_INFOSTRINGS     1831
-#define EF_METARPGAINT     1841
-#define EF_METARPGAINA     1843
-#define EF_METARPPEAKT     1846
-#define EF_METARPPEAKA     1848
+#define DLG_TECHINFO       1710
+#define EF_URL             1711
+#define EF_TIMESTAMP       1712
+#define EF_FATTR           1713
+#define EF_FILESIZE        1714
+#define EF_TOTALSIZE       1715
+#define EF_OBJTYPE         1716
+#define CB_SAVEABLE        1717
+#define CB_SAVESTREAM      1718
+#define EF_TOTALTIME       1719
+#define EF_NUMITEMS        1720
+#define EF_SONGITEMS       1721
+#define EF_LISTITEMS       1722
+#define CB_ITEMSRECURSIVE  1723
+#define EF_BITRATE         1724
+#define EF_SAMPLERATE      1725
+#define EF_NUMCHANNELS     1727
+#define EF_DECODER         1729
+#define EF_FORMAT          1730
+#define EF_INFOSTRINGS     1731
+#define EF_METARPGAINT     1741
+#define EF_METARPGAINA     1743
+#define EF_METARPPEAKT     1746
+#define EF_METARPPEAKA     1748
 
-#define CFG_METAINFO       1850
-#define EF_METATITLE       1852 
-#define CB_METATITLE       1853 
-#define EF_METAARTIST      1855
-#define CB_METAARTIST      1856
-#define EF_METAALBUM       1858
-#define CB_METAALBUM       1859
-#define EF_METATRACK       1861
-#define CB_METATRACK       1862
-#define EF_METADATE        1864
-#define CB_METADATE        1865
-#define EF_METAGENRE       1867
-#define CB_METAGENRE       1868
-#define EF_METACOMMENT     1870
-#define CB_METACOMMENT     1871
-#define EF_METACOPYRIGHT   1873
-#define CB_METACOPYRIGHT   1874
+#define DLG_METAINFO       1750
+#define EF_METATITLE       1752
+#define CB_METATITLE       1753
+#define EF_METAARTIST      1755
+#define CB_METAARTIST      1756
+#define EF_METAALBUM       1758
+#define CB_METAALBUM       1759
+#define EF_METATRACK       1761
+#define CB_METATRACK       1762
+#define EF_METADATE        1764
+#define CB_METADATE        1765
+#define EF_METAGENRE       1767
+#define CB_METAGENRE       1768
+#define EF_METACOMMENT     1770
+#define CB_METACOMMENT     1771
+#define EF_METACOPYRIGHT   1773
+#define CB_METACOPYRIGHT   1774
+
+#define DLG_ITEMINFO       1800
+#define EF_INFOURL         1801
+#define EF_INFOALIAS       1805
+#define EF_INFOSTART       1806
+#define EF_INFOSTOP        1807
+#define EF_INFOAT          1808
+#define EF_INFOPREGAP      1810
+#define EF_INFOPOSTGAP     1811
+#define EF_INFOGAIN        1812
+#define CB_INFOALTERNATION 1820
+#define RB_INFOPLSHINHERIT 1821
+#define RB_INFOPLSHFORCE   1822
+#define RB_INFOPLSHCLEAR   1823
 
 /* Write meta data */
 #define DLG_WRITEMETA      1900

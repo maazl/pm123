@@ -430,5 +430,3 @@ XIOsocket::~XIOsocket()
 { if (s_handle != -1)
     close();
 }
-
-

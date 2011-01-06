@@ -30,7 +30,7 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "abs2rel.h"
+#include "fileutil.h"
 
 #define C_DIR_SEPARATOR '\\'
 #define C_DEV_SEPARATOR ':'

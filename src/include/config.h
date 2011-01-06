@@ -1,6 +1,21 @@
 #ifndef PM123_CONFIG_H
 #define PM123_CONFIG_H
 
+/* Sooner or later we need this anyway */
+#define INCL_DOS
+
+#if defined(__GNUC__)
+  #include <config_gcc.h>
+#elif defined(__WATCOMC__)
+  #include <config_wcc.h>
+#elif (defined(__IBMC__) && __IBMC__ >  300) || (defined(__IBMCPP__) && __IBMCPP__ >  300)
+  #include <config_icc_36.h>
+#elif (defined(__IBMC__) && __IBMC__ <= 300) || (defined(__IBMCPP__) && __IBMCPP__ <= 300)
+  #include <config_icc_30.h>
+#else
+  #error Unsupported compiler.
+#endif
+
 /* Name of package */
 #define PACKAGE_NAME "PM123"
 #define PACKAGE PACKAGE_NAME
@@ -9,23 +24,19 @@
 #define PACKAGE_BUGREPORT "pm123@maazl.de"
 
 /* Version number of package */
-#define PACKAGE_VERSION "1.40"
+#define PACKAGE_VERSION "1.41"
 #define VERSION PACKAGE_VERSION
 
 /* Define to the full name and version of this package. */
 #define PACKAGE_STRING PACKAGE" "VERSION
 
-#if defined(__GNUC__)
-  #include "config_gcc.h"
-#elif defined(__WATCOMC__)
-  #include "config_wcc.h"
-#elif (defined(__IBMC__) && __IBMC__ >  300) || (defined(__IBMCPP__) && __IBMCPP__ >  300)
-  #include "config_icc_36.h"
-#elif (defined(__IBMC__) && __IBMC__ <= 300) || (defined(__IBMCPP__) && __IBMCPP__ <= 300)
-  #include "config_icc_30.h"
-#else
-  #error Unsupported compiler.
+/* booleans for C */
+#ifndef __cplusplus
+  typedef unsigned char bool;
+  #define true  1
+  #define false 0
 #endif
+
 
 /* Set to 1 if compiling for OS/2 */
 #define OS_IS_OS2 1
@@ -56,14 +67,6 @@
 /* Defines the calling convention used by the library. */
 #define FFTEXP DLLENTRY
 
-/* libsndfile specific configuration */
-
-/* Set to long if unknown. */
-#define TYPEOF_SF_COUNT_T long
-/* Set to maximum allowed value of sf_count_t type. */
-#define SF_COUNT_MAX 0x7FFFFFFFL
-/* Set to sizeof (long) if unknown. */
-#define SIZEOF_SF_COUNT_T 4
 
 #ifdef __cplusplus
 /* Define the macro NOSYSTEMSTATICMEMBER to work around for the IBMVAC++ restriction
@@ -81,5 +84,10 @@
 #define PROXYFUNCREF(cls) cls::
 #endif
 #endif
+
+
+/* Keep pulseaudio happy */
+#define GETTEXT_PACKAGE
+
 
 #endif /* PM123_CONFIG_H */

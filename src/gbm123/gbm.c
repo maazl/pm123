@@ -21,7 +21,7 @@ History:
 #if defined(AIX) || defined(LINUX) || defined(SUN) || defined(MAC)
 #include <unistd.h>
 #else
-#include <io.h>
+#include <sys/io.h>
 #endif
 #include <fcntl.h>
 #ifdef MAC

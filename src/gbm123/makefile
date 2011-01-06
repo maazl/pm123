@@ -4,6 +4,7 @@
 
 TOPDIR  = ..
 TARGET  = all2
+INCDIR   = $(TOPDIR)\include
 #CFLAGS_USR = -DENABLE_PNG
 
 !include $(TOPDIR)\config\makerules

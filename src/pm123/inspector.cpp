@@ -1,5 +1,5 @@
 /*
- * Copyright 2008-2008 Marcel Mueller
+ * Copyright 2008-2010 Marcel Mueller
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -30,14 +30,14 @@
 #include "inspector.h"
 #include "pm123.rc.h"
 #include "pm123.h"
-#include "songiterator.h"
 #include "properties.h"
+#include "controller.h"
 #include <os2.h>
 
 #include <math.h>
 #include <utilfct.h>
 #include <snprintf.h>
-#include <cpp/Mutex.h>
+#include <cpp/mutex.h>
 
 #include <debuglog.h>
 
@@ -149,12 +149,12 @@ void InspectorDialog::OnDestroy()
   ManagedDialogBase::OnDestroy();
 }
 
-static void ControllerQCB(const queue<Ctrl::ControlCommand*>::qentry& entry, void* arg)
-{ DEBUGLOG(("InspectorDialog:ControllerQCB(&%p, %p)\n", &entry, arg));
-  char buf[1024];
-  buf[0] = entry.ReadActive ? '*' : '-';
-  const Ctrl::ControlCommand* cmd = entry.Data;
+static void ControllerQCB(const Ctrl::ControlCommand& cmd1, void* arg)
+{ DEBUGLOG(("InspectorDialog:ControllerQCB(&%p{%u,...}, %p)\n", &cmd1, cmd1.Cmd, arg));
+  const Ctrl::ControlCommand* cmd = &cmd1;
   vector<char>& result = *(vector<char>*)arg;
+  char buf[1024];
+  buf[0] = result.size() ? '-' : '*'; // First item is the one in service.
   if (!cmd)
   { // Deadly pill or completely consumed item
     strcpy(buf+1, "NULL");
@@ -189,8 +189,8 @@ static void ControllerQCB(const queue<Ctrl::ControlCommand*>::qentry& entry, voi
       break;
 
      case Ctrl::Cmd_Jump:
-      { SongIterator* si = (SongIterator*)cmd->PtrArg;
-        snprintf(buf+1, sizeof buf -1, "Jump %s", si->Serialize().cdata());
+      { Location* loc = (Location*)cmd->PtrArg;
+        snprintf(buf+1, sizeof buf -1, "Jump %s", loc->Serialize().cdata());
       }
       break;
 
@@ -243,42 +243,43 @@ static void ControllerQCB(const queue<Ctrl::ControlCommand*>::qentry& entry, voi
   } while (cmd);
 }
 
-static void PlayableFlagsMapper(char* str, Playable::InfoFlags flags, const char* tpl)
-{ if (flags & Playable::IF_Format)
-    str[0] = tpl[0];
-  if (flags & Playable::IF_Tech)
-    str[1] = tpl[1];
-  if (flags & Playable::IF_Meta)
-    str[2] = tpl[2];
-  if (flags & Playable::IF_Phys)
-    str[3] = tpl[3];
-  if (flags & Playable::IF_Rpl)
-    str[4] = tpl[4];
-  if (flags & Playable::IF_Other)
-    str[5] = tpl[5];
+static void PlayableFlagsMapper(char* str, InfoFlags flags, const char* tpl)
+{ static const InfoFlags flaglist[] =
+  { IF_Phys, IF_Tech, IF_Obj, IF_Meta, IF_Attr, IF_Child,
+    IF_Rpl, IF_Drpl, IF_Item, IF_Slice };
+  for (size_t i = 0; i < sizeof(flaglist)/sizeof(*flaglist); ++i)
+    if (flags & flaglist[i])
+      str[i] = tpl[i];
 }
 
-static void WorkerQCB(const queue<Playable::QEntry>::qentry& entry, void* arg)
-{ DEBUGLOG(("InspectorDialog:WorkerQCB(&%p, %p)\n", &entry, arg));
-  char buf[1024];
-  buf[0] = entry.ReadActive ? '*' : '-';
-  Playable* pp = entry.Data;
-  if (pp == NULL)
-  { strcpy(buf+1, "NULL");
-  } else
-  { Playable::InfoFlags low;
-    Playable::InfoFlags high;
-    Playable::InfoFlags insvc;
-    pp->QueryRequestState(high, low, insvc);
-    char rqstr[7] = "------";
-    PlayableFlagsMapper(rqstr, low, "ftmpro");
-    PlayableFlagsMapper(rqstr, high, "FTMPRO");
-    char isstr[7] = "------";
-    PlayableFlagsMapper(isstr, insvc, "FTMPRO");
-    snprintf(buf+1, sizeof buf -1, "[%s -> %s] %s", rqstr, isstr, pp->GetURL().cdata());
-  }
+static void WorkerQCB(APlayable* entry, Priority pri, bool svc, void* arg)
+{ DEBUGLOG(("InspectorDialog:WorkerQCB(%p, %u, %u, %p)\n", entry, pri, svc, arg));
   vector<char>& result = *(vector<char>*)arg;
-  result.append() = strdup(buf);
+  if (entry == NULL)
+  { result.append() = strdup(" NULL");
+  } else
+  { char buf[1024];
+    InfoFlags low, high, insvc;
+    entry->GetInfoState().PeekRequest(low, high, insvc);
+    Playable& p = entry->GetPlayable();
+    if (&p != entry)
+    { InfoFlags low2, high2, insvc2;
+      p.GetInfoState().PeekRequest(low2, high2, insvc2);
+      low |= low2;
+      high |= high2;
+      insvc |= insvc2;
+    }
+    DEBUGLOG(("InspectorDialog:WorkerQCB %x,%x, %x\n", low, high, insvc));
+    static const char prefixchar[2][2] = { { '-', '=' }, { '+', '#' } };
+    buf[0] = prefixchar[svc][pri == PRI_Normal];
+    char rqstr[11] = "----------";
+    PlayableFlagsMapper(rqstr, low, "ptomacrdis");
+    PlayableFlagsMapper(rqstr, high, "PTOMACRDIS");
+    char isstr[11] = "----------";
+    PlayableFlagsMapper(isstr, insvc, "PTOMACRDIS");
+    snprintf(buf+1, sizeof buf -1, "[%s -> %s] %s", rqstr, isstr, p.URL.cdata());
+    result.append() = strdup(buf);
+  }
 }
 
 void InspectorDialog::Refresh()

@@ -406,4 +406,3 @@ const char* XIOftp::strerror( int errnum )
   }
 }
 
-

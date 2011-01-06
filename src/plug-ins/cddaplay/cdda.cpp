@@ -1,6 +1,6 @@
 /*
  * Copyright 1997-2003 Samuel Audet <guardia@step.polymtl.ca>
- *                     Taneli Lepp„ <rosmo@sektori.com>
+ *                     Taneli Leppï¿½ <rosmo@sektori.com>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -31,14 +31,7 @@
 
 #define  INCL_BASE
 #define  INCL_WIN
-#include <os2.h>
 #define  DECODER_PLUGIN_LEVEL 1
-
-#include <malloc.h>
-#include <string.h>
-#include <stdlib.h>
-#include <stdarg.h>
-#include <stdio.h>
 
 #include <config.h>
 #include <format.h>
@@ -52,6 +45,13 @@
 #include <charset.h>
 #include "cdda.h"
 #include "cddarc.h"
+
+#include <malloc.h>
+#include <string.h>
+#include <stdlib.h>
+#include <stdarg.h>
+#include <stdio.h>
+#include <os2.h>
 
 #include <debuglog.h>
 
@@ -1024,7 +1024,7 @@ add_tracks_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
 
 /* Adds CD tracks to the playlist or load one to the player. */
 static ULONG DLLENTRY
-load_wizzard( HWND owner, const char* title, DECODER_WIZZARD_CALLBACK callback, void* param )
+load_wizard( HWND owner, const char* title, DECODER_INFO_ENUMERATION_CB callback, void* param )
 {
   HFILE   hcdrom;
   ULONG   action;
@@ -1034,7 +1034,7 @@ load_wizzard( HWND owner, const char* title, DECODER_WIZZARD_CALLBACK callback, 
 
   getModule( &mod, NULL, 0 );
   hwnd = WinLoadDlg( HWND_DESKTOP, owner, add_tracks_dlg_proc, mod, DLG_TRACK, 0 );
-  DEBUGLOG(("cddaplay:load_wizzard: hwnd=%p\n", hwnd));
+  DEBUGLOG(("cddaplay:load_wizard: hwnd=%p\n", hwnd));
 
   if( hwnd == NULLHANDLE ) {
     return 500;
@@ -1089,12 +1089,12 @@ load_wizzard( HWND owner, const char* title, DECODER_WIZZARD_CALLBACK callback, 
     WinQueryDlgItemText( hwnd, CB_DRIVE, sizeof( settings.cddrive ), settings.cddrive );
 
     while( selected != LIT_NONE ) {
-      DEBUGLOG(("cddaplay:load_wizzard: selected = %d\n", selected));
+      DEBUGLOG(("cddaplay:load_wizard: selected = %d\n", selected));
       char url[30];
       // TODO: cdda:
-      sprintf( url, "cd:///%s\\Track %02d", settings.cddrive, selected+1 );
+      sprintf( url, "cd:///%s/Track %02d", settings.cddrive, selected+1 );
       // Callback
-      (*callback)( param, url );
+      (*callback)( param, url, NULL, 0, 0 );
       // next
       selected = SHORT1FROMMR( WinSendDlgItemMsg( hwnd, LB_TRACKS, LM_QUERYSELECTION,
                                MPFROMSHORT( selected ), 0 ));
@@ -1102,24 +1102,24 @@ load_wizzard( HWND owner, const char* title, DECODER_WIZZARD_CALLBACK callback, 
   }
   WinDestroyWindow( hwnd );
 
-  DEBUGLOG(("cddaplay:load_wizzard: %d\n", action));
+  DEBUGLOG(("cddaplay:load_wizard: %d\n", action));
   return action;
 }
 
 /* plug-in entry point */
-const DECODER_WIZZARD* DLLENTRY decoder_getwizzard( )
+const DECODER_WIZARD* DLLENTRY decoder_getwizard( )
 {
-  DEBUGLOG(("cddaplay:decoder_getwizzard()\n"));
+  DEBUGLOG(("cddaplay:decoder_getwizard()\n"));
 
-  static const DECODER_WIZZARD wizzard =
+  static const DECODER_WIZARD wizard =
   { NULL,
     "~Track(s)...",
-    &load_wizzard,
+    &load_wizard,
     't', AF_ALT|AF_CHAR,
     'T', AF_SHIFT|AF_ALT|AF_CHAR
   };
 
-  return &wizzard;
+  return &wizard;
 }
 
 

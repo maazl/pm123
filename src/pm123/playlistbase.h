@@ -1,5 +1,5 @@
 /*
- * Copyright 2007-2008 Marcel Mueller
+ * Copyright 2007-2009 Marcel Mueller
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -34,10 +34,10 @@
 #define DECODER_PLUGIN_LEVEL 2
 #include "windowbase.h"
 #include "playable.h"
+#include "infodialog.h"
 #include "plugman.h"
 #include "controller.h"
 #include <decoder_plug.h>
-#include <os2.h>
 
 #include <cpp/queue.h>
 #include <cpp/event.h>
@@ -47,6 +47,8 @@
 #include <cpp/container/sorted_vector.h>
 #include <cpp/xstring.h>
 #include <cpp/url123.h>
+
+#include <os2.h>
 
 #ifndef DC_PREPAREITEM
 #define DC_PREPAREITEM   0x0040
@@ -66,8 +68,8 @@ class PlaylistBase
   public IComparableTo<Playable>
 {public:
   struct CommonState
-  { volatile unsigned   PostMsg;   // Bitvector of outstanding record commands
-    CommonState() : PostMsg(0) {}
+  { AtomicUnsigned      Update;   // Bitvector of outstanding update commands
+    CommonState() : Update(0) {}
   };
   // C++ part of a record
   struct RecordBase;
@@ -75,11 +77,9 @@ class PlaylistBase
   { int_ptr<PlayableInstance> const Content; // The pointer to the backend content.
     xstring             Text;      // Storage for alias name <-> pszIcon
     CommonState         EvntState;
-    class_delegate2<PlaylistBase, const Playable::change_args        , RecordBase> InfoChange;
-    class_delegate2<PlaylistBase, const PlayableInstance::change_args, RecordBase> StatChange;
-    CPDataBase(PlayableInstance* content, PlaylistBase& pm,
-               void (PlaylistBase::*infochangefn)(const Playable::change_args&,         RecordBase*),
-               void (PlaylistBase::*statchangefn)(const PlayableInstance::change_args&, RecordBase*),
+    class_delegate2<PlaylistBase, const PlayableChangeArgs, RecordBase> InfoChange;
+    CPDataBase(PlayableInstance& content, PlaylistBase& pm,
+               void (PlaylistBase::*infochangefn)(const PlayableChangeArgs&, RecordBase*),
                RecordBase* rec);
     virtual             ~CPDataBase() {} // free the right objects
     virtual void        DeregisterEvents();
@@ -99,7 +99,8 @@ class PlaylistBase
   { PlaylistBase* GUI;
     PlaylistBase::RecordBase* Parent;
     PlaylistBase::RecordBase* Before;
-    sco_ptr<Playable::Lock> Lock;
+    vector_int<PlayableRef> Content;
+    //sco_ptr<Mutex::Lock> Lock;
     UserAddCallbackParams(PlaylistBase* gui, PlaylistBase::RecordBase* parent, PlaylistBase::RecordBase* before)
     : GUI(gui),
       Parent(parent),
@@ -116,88 +117,61 @@ class PlaylistBase
  protected: // Message Processing
   enum
   { UM_UPDATEINFO = WM_USER+0x101,
-    // Execute a command for a record, see below.
+    // Execute a update command for a record.
     // mp1 = Record* or NULL
     // The reference counter of the Record is decremented after the message is processed.
-    // The Commands to be executed are atomically taken from the PostMsg bitvector
+    // The Commands to be executed are atomically taken from the Update bitvector
     // in the referenced record or the container.
-    UM_RECORDCOMMAND,
+    UM_RECORDUPDATE,
     // Delete a record structure and put it back to PM
     // mp1 = Record
     UM_DELETERECORD,
     // Playstatus-Event hit.
     // mp1 = status
     UM_PLAYSTATUS,
-    // Asynchronouos insert operation
+    // Asynchronous insert operation
     // mp1 = InsertInfo*
     // The InsertInfo structure is deleted after the message is processed.
     UM_INSERTITEM,
-    // Remove item adressed by a record asynchronuously
+    // Remove item addressed by a record asynchronuously
     // mp1 = Record*
     // The reference counter of the Record is decremented after the message is processed.
     UM_REMOVERECORD,
     // Update decoder tables.
     UM_UPDATEDEC
   };
-  // Valid flags in PostMsg fields
-  enum RecordCommand
-  { // Update the children of the Record
-    // If mp1 == NULL the root node is refreshed.
-    RC_UPDATEOTHER,
-    // Update the format information of a record
-    // If mp1 == NULL the root node is refreshed.
-    RC_UPDATEFORMAT,
-    // Update the technical information of a record
-    // If mp1 == NULL the root node is refreshed.
-    RC_UPDATETECH,
-    // Update the meta information of a record
-    // If mp1 == NULL the root node is refreshed.
-    RC_UPDATEMETA,
-    // Update the physical file information of a record
-    // If mp1 == NULL the root node is refreshed.
-    RC_UPDATEPHYS,
-    // Update the recursive playlist information of a record
-    // If mp1 == NULL the root node is refreshed.
-    RC_UPDATERPL,
-    // Update the usage status of a record
-    // If mp1 == NULL the root node is refreshed.
-    RC_UPDATEUSAGE,
-    // Update the alias text of a record
-    RC_UPDATEALIAS,
-    // Update starting position
-    RC_UPDATEPOS
-  };
  public:
   // return value of AnalyzeRecordTypes
   enum RecordType
   { // record list is empty
     RT_None = 0x00,
-    // record list contains at least one song
+    // record list contains at least one song without writable meta attributes
     RT_Song = 0x01,
-    // record list contains at least one enumeratable item
-    RT_Enum = 0x02,
-    // record list contains at least one playlist
-    RT_List = 0x04
+    // record list contains at least one song with writable meta attributes
+    RT_Meta = 0x02,
+    // record list contains at least one non-mutable list
+    RT_Enum = 0x04,
+    // record list contains at least one mutable playlist
+    RT_List = 0x08,
+    // record list contains at least one invalid item
+    RT_Invld = 0x10
   };
  protected: // User actions
-  // cONVENIENT FACTORY CLASSConvenient factory class
+  // Convenient factory class
   struct MakePlayableSet : public PlayableSet
   { MakePlayableSet(Playable* pp);
     MakePlayableSet(const vector<RecordBase>& recs);
   };
   struct InsertInfo
-  { int_ptr<Playlist> Parent; // List where to insert the new item
-    xstring      URL;         // URL to insert
-    xstring      Alias;       // Alias name (if desired)
-    xstring      Start;       // Start of slice (if any)
-    xstring      Stop;        // Stop of slice (if any)
+  { int_ptr<Playable> Parent; // List where to insert the new item
     int_ptr<PlayableInstance> Before; // Item where to do the insert
+    int_ptr<PlayableRef> Item;// What to insert
   };
  protected: // D'n'd
   struct DropInfo
   { HWND         Hwnd;    // Window handle of the source of the drag operation.
     ULONG        ItemID;  // Information used by the source to identify the object being dragged.
-    int_ptr<Playlist> Parent; // List where to insert the new item
+    int_ptr<Playable> Parent; // List where to insert the new item
     xstring      Alias;   // Alias name at the target
     RecordBase*  Before;  // Record where to insert the item
                           // Keeping the Record here requires an allocation with BlockRecord.
@@ -211,9 +185,9 @@ class PlaylistBase
     ICP_Recursive
   };
   enum IC
-  { IC_Pending = Playable::STA_Unknown,
-    IC_Invalid = Playable::STA_Invalid,
-    IC_Normal  = Playable::STA_Valid,
+  { IC_Pending,
+    IC_Invalid,
+    IC_Normal,
     IC_Active,
     IC_Play,
     IC_Shadow
@@ -237,28 +211,28 @@ class PlaylistBase
   #endif
  protected: // working set
   HWND              HwndContainer; // content window handle
-  DECODER_WIZZARD_FUNC LoadWizzards[16]; // Current load wizzards
+  DECODER_WIZARD_FUNC LoadWizards[16];// Current load wizards
   bool              NoRefresh;     // Avoid update events to ourself
   xstring           DirectEdit;    // String that holds result of direct manipulation between CN_REALLOCPSZ and CN_ENDEDIT
   CommonState       EvntState;     // Event State
   vector<RecordBase> Source;       // Array of records used for source emphasis
   HWND              HwndMenu;      // Window handle of last context menu
   bool              DragAfter;     // Recent drag operation was ORDERED
-  PlayableCollection::ItemComparer SortComparer; // Current comparer for next sort operation
+  Playable::ItemComparer SortComparer; // Current comparer for next sort operation
   bool              DecChanged;    // Flag whether the decoder table has changed since the last invokation of the context menu.
  private:
-  int_ptr<PlaylistBase> Self;      // we hold a reference to ourself as long as the current window is open
-  class_delegate2<PlaylistBase, const Playable::change_args, RecordBase> RootInfoDelegate;
+  int_ptr<PlaylistBase> Self;      // We hold a reference to ourself as long as the current window is open.
+  class_delegate2<PlaylistBase, const PlayableChangeArgs, RecordBase> RootInfoDelegate;
   class_delegate<PlaylistBase, const Ctrl::EventFlags> RootPlayStatusDelegate;
   class_delegate<PlaylistBase, const Plugin::EventArgs> PluginDelegate;
 
  protected:
   // Create a playlist manager window for an object, but don't open it.
-  PlaylistBase(Playable* content, const xstring& alias, ULONG rid);
+  PlaylistBase(Playable& content, const xstring& alias, ULONG rid);
 
   CommonState&      StateFromRec(const RecordBase* rec) { return rec ? rec->Data->EvntState : EvntState; }
   // Fetch the Playable object associated with rec. If rec is NULL the root object is returned.
-  Playable*         PlayableFromRec(const RecordBase* rec) const { return rec ? rec->Data->Content->GetPlayable() : &*Content; }
+  APlayable&        APlayableFromRec(const RecordBase* rec) const { return rec ? (APlayable&)*rec->Data->Content : *Content; }
   // Prevent a Record from deletion until FreeRecord is called
   void              BlockRecord(RecordBase* rec)
                     { if (rec) InterlockedInc(&rec->UseCount); }
@@ -267,9 +241,9 @@ class PlaylistBase
   // So you can safely access the record data until the next PM call.
   void              FreeRecord(RecordBase* rec);
   // Post record message
-  virtual void      PostRecordCommand(RecordBase* rec, RecordCommand cmd);
+  virtual void      PostRecordUpdate(RecordBase* rec, InfoFlags flags);
 
-  // Gives the Record back to the PM and destoys the C++ part of it.
+  // Gives the Record back to the PM and destroys the C++ part of it.
   // The Record object is no longer valid after calling this function.
   void              DeleteEntry(RecordBase* entry);
 
@@ -299,9 +273,9 @@ class PlaylistBase
   virtual void      UpdateAccelTable() = 0;
 
   // Subfunction to the factory below.
-  virtual RecordBase* CreateNewRecord(PlayableInstance* obj, RecordBase* parent) = 0;
+  virtual RecordBase* CreateNewRecord(PlayableInstance& obj, RecordBase* parent) = 0;
   // Factory: create a new entry in the container.
-  RecordBase*       AddEntry(PlayableInstance* obj, RecordBase* parent, RecordBase* after);
+  RecordBase*       AddEntry(PlayableInstance& obj, RecordBase* parent, RecordBase* after);
   // Moves the record "entry" including its subitems as child to "parent" after the record "after".
   // If parent is NULL the record is moved to the top level.
   // If after is NULL the record is moved to the first place of parent.
@@ -326,7 +300,7 @@ class PlaylistBase
   // Populate Source array for context menu or drag and drop with anchor rec.
   bool              GetSource(RecordBase* rec);
   // Apply a function to all objects in the Source array.
-  void              Apply2Source(void (PlaylistBase::*op)(Playable*));
+  void              Apply2Source(void (PlaylistBase::*op)(Playable&));
   void              Apply2Source(void (PlaylistBase::*op)(RecordBase*));
   // Set or clear the emphasis of the records in the Source array.
   void              SetEmphasis(USHORT emphasis, bool set) const;
@@ -342,7 +316,7 @@ class PlaylistBase
   // Update the icon of a record
   void              UpdateIcon(RecordBase* rec);
   // Update the information from a playable instance
-  void              UpdateInstance(RecordBase* rec, PlayableInstance::StatusFlags iflags);
+  virtual void      UpdateRecord(RecordBase* rec) = 0;
   // Update status of all active PlayableInstances
   void              UpdatePlayStatus();
   // Update play status of one record
@@ -350,9 +324,7 @@ class PlaylistBase
 
  protected: // Notifications by the underlying Playable objects.
   // This function is called when meta, status or technical information of a node changes.
-  void              InfoChangeEvent(const Playable::change_args& args, RecordBase* rec);
-  // This function is called when status information of a PlayableInstance changes.
-  void              StatChangeEvent(const PlayableInstance::change_args& inst, RecordBase* rec);
+  void              InfoChangeEvent(const PlayableChangeArgs& args, RecordBase* rec);
   // This function is called when playing starts or stops.
   void              PlayStatEvent(const Ctrl::EventFlags& flags);
   // This function is called when the list of enabled plug-ins changed.
@@ -360,7 +332,7 @@ class PlaylistBase
 
  protected: // User actions
   // Add Item
-  void              UserAdd(DECODER_WIZZARD_FUNC wizzard, RecordBase* parent = NULL, RecordBase* before = NULL);
+  void              UserAdd(DECODER_WIZARD_FUNC wizard, RecordBase* parent = NULL, RecordBase* before = NULL);
   // Insert a new item
   void              UserInsert(const InsertInfo* pii);
   // Remove item by Record pointer
@@ -370,25 +342,27 @@ class PlaylistBase
   // Flatten item by Record pointer, recursive
   void              UserFlattenAll(RecordBase* rec);
   // Save list
-  void              UserSave();
+  void              UserSave(bool saveas);
   // Navigate to
   virtual void      UserNavigate(const RecordBase* rec) = 0;
   // Open tree view
-  void              UserOpenTreeView(Playable* pp);
+  void              UserOpenTreeView(Playable& p);
   // Open detailed view
-  void              UserOpenDetailedView(Playable* pp);
+  void              UserOpenDetailedView(Playable& p);
+  // Edit Properties
+  void              UserOpenInfoView(RecordBase* rec, AInfoDialog::PageNo page);
   // View Info
-  void              UserOpenInfoView(const PlayableSet& set);
+  void              UserOpenInfoView(const PlayableSet& set, AInfoDialog::PageNo page);
   // Clear playlist
-  void              UserClearPlaylist(Playable* pp);
+  void              UserClearPlaylist(Playable& p);
   // Refresh records
-  void              UserReload(Playable* pp);
+  void              UserReload(Playable& p);
   // Edit metadata
   void              UserEditMeta();
   // Sort records
-  void              UserSort(Playable* pp);
+  void              UserSort(Playable& p);
   // Place records in random order.
-  void              UserShuffle(Playable* pp);
+  void              UserShuffle(Playable& p);
   // comparers
   static int        CompURL(const PlayableInstance* l, const PlayableInstance* r);
   static int        CompTitle(const PlayableInstance* l, const PlayableInstance* r);
@@ -420,9 +394,9 @@ class PlaylistBase
   // Gets the content
   Playable*         GetContent() { return Content; }
   // Get the display name of this instance. This is either the alias (if any) or the display name of the underlying URL.
-  xstring           GetDisplayName() const { return Alias ? Alias : Content->GetURL().getDisplayName(); }
+  xstring           GetDisplayName() const { return Alias ? Alias : Content->URL.getDisplayName(); }
   // Get an instance of the same type as the current instance for URL.
-  virtual const int_ptr<PlaylistBase> GetSame(Playable* obj) = 0;
+  virtual const int_ptr<PlaylistBase> GetSame(Playable& obj) = 0;
 
   // IComparableTo<Playable>
   virtual int       compareTo(const Playable& r) const;
@@ -431,19 +405,16 @@ class PlaylistBase
 FLAGSATTRIBUTE(PlaylistBase::RecordType);
 
 inline PlaylistBase::CPDataBase::CPDataBase(
-  PlayableInstance* content,
+  PlayableInstance& content,
   PlaylistBase& pm,
-  void (PlaylistBase::*infochangefn)(const Playable::change_args&,         RecordBase*),
-  void (PlaylistBase::*statchangefn)(const PlayableInstance::change_args&, RecordBase*),
+  void (PlaylistBase::*infochangefn)(const PlayableChangeArgs&, RecordBase*),
   RecordBase* rec)
-: Content(content),
-  InfoChange(pm, infochangefn, rec),
-  StatChange(pm, statchangefn, rec)
+: Content(&content),
+  InfoChange(pm, infochangefn, rec)
 {}
 
 inline void PlaylistBase::CPDataBase::DeregisterEvents()
 { InfoChange.detach();
-  StatChange.detach();
 }
 
 
@@ -462,16 +433,16 @@ class PlaylistRepository : public PlaylistBase
   // currently a no-op
   static void       Init() {}
   static void       UnInit();
-  // Lookup wether an object is already in the repository.
-  static const int_ptr<T> Find(Playable* obj);
+  // Lookup wether an object is already in the repository. 
+  static const int_ptr<T> Find(Playable& obj);
   // Factory method. Returns always the same instance for the same Playable.
   // If the specified instance already exists the parameter alias is ignored.
-  static const int_ptr<T> Get(Playable* obj, const xstring& alias = xstring());
+  static const int_ptr<T> Get(Playable& obj, const xstring& alias = xstring());
   // Get an instance of the same type as the current instance for URL.
-  virtual const int_ptr<PlaylistBase> GetSame(Playable* obj) { return &*Get(obj); }
+  virtual const int_ptr<PlaylistBase> GetSame(Playable& obj) { return &*Get(obj); }
  protected:
   // Forward Constructor
-  PlaylistRepository(Playable* content, const xstring& alias, ULONG rid) : PlaylistBase(content, alias, rid) {}
+  PlaylistRepository(Playable& content, const xstring& alias, ULONG rid) : PlaylistBase(content, alias, rid) {}
   // Unregister from the repository automatically
   ~PlaylistRepository();
 };
@@ -494,19 +465,19 @@ void PlaylistRepository<T>::UnInit()
 }
 
 template <class T>
-const int_ptr<T> PlaylistRepository<T>::Find(Playable* obj)
-{ DEBUGLOG(("PlaylistRepository<T>::Find(%p)\n", obj));
+const int_ptr<T> PlaylistRepository<T>::Find(Playable& obj)
+{ DEBUGLOG(("PlaylistRepository<T>::Find(&%p)\n", &obj));
   Mutex::Lock lock(RPMutex);
-  T* pp = RPInst.find(*obj);
+  T* pp = RPInst.find(obj);
   CritSect cs;
   return pp && !pp->RefCountIsUnmanaged() ? pp : NULL;
 }
 
 template <class T>
-const int_ptr<T> PlaylistRepository<T>::Get(Playable* obj, const xstring& alias)
-{ DEBUGLOG(("PlaylistRepository<T>::Get(%p, %s)\n", obj, alias ? alias.cdata() : "<NULL>"));
+const int_ptr<T> PlaylistRepository<T>::Get(Playable& obj, const xstring& alias)
+{ DEBUGLOG(("PlaylistRepository<T>::Get(&%p, %s)\n", &obj, alias ? alias.cdata() : "<NULL>"));
   Mutex::Lock lock(RPMutex);
-  T*& pp = RPInst.get(*obj);
+  T*& pp = RPInst.get(obj);
   { CritSect cs;
     if (pp && !pp->RefCountIsUnmanaged())
       return pp;
@@ -527,4 +498,3 @@ PlaylistRepository<T>::~PlaylistRepository()
 
 
 #endif
-

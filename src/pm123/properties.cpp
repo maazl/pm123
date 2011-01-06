@@ -1,8 +1,8 @@
 /*
  * Copyright 1997-2003 Samuel Audet  <guardia@step.polymtl.ca>
- *                     Taneli Lepp„  <rosmo@sektori.com>
+ *                     Taneli Leppï¿½  <rosmo@sektori.com>
  * Copyright 2004      Dmitry A.Steklenev <glass@ptv.ru>
- * Copyright 2007-2008 Marcel Mueller
+ * Copyright 2007-2010 Marcel Mueller
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -37,6 +37,7 @@
 
 #include "properties.h"
 #include "pm123.h"
+#include "gui.h"
 #include "dialog.h"
 #include "docking.h"
 #include "pm123.rc.h"
@@ -48,24 +49,25 @@
 #include "pipe.h"
 #include "filedlg.h"
 #include <utilfct.h>
+#include <errorstr.h>
 #include <inimacro.h>
 #include <xio.h>
 #include <snprintf.h>
 #include <cpp/url123.h>
-#include <cpp/stringmap.h>
+#include <cpp/container/stringmap.h>
 #include <os2.h>
 
 
 // support xstring
-const xstring ini_query_xstring(HINI hini, const char* app, const char* key)
-{ xstring ret;
-  ULONG len;
+const bool ini_query_xstring(HINI hini, const char* app, const char* key, xstring& dst)
+{ ULONG len;
   if (PrfQueryProfileSize(hini, app, key, &len))
-  { char* data = ret.raw_init(len);
-    if (!PrfQueryProfileData(hini, app, key, data, &len))
-      ret = NULL;
+  { char* data = dst.allocate(len);
+    if (PrfQueryProfileData(hini, app, key, data, &len))
+      return true;
+    dst = NULL;
   }
-  return ret;
+  return false;
 }
 
 
@@ -102,6 +104,7 @@ const amp_cfg cfg_default =
   CFG_SCROLL_INFINITE,
   true,
   CFG_DISP_ID3TAG,
+  9,
   "", // Proxy
   "",
   false,
@@ -189,11 +192,12 @@ load_ini( void )
   load_ini_bool ( INIhandle, cfg.floatontop );
   load_ini_value( INIhandle, cfg.scroll );
   load_ini_value( INIhandle, cfg.viewmode );
+  load_ini_value( INIhandle, cfg.max_recall );
   load_ini_value( INIhandle, cfg.buff_wait );
   load_ini_value( INIhandle, cfg.buff_size );
   load_ini_value( INIhandle, cfg.buff_fill );
   load_ini_value( INIhandle, cfg.conn_timeout );
-  load_ini_string( INIhandle, cfg.pipe_name, sizeof cfg.pipe_name );
+  load_ini_xstring( INIhandle, cfg.pipe_name );
   load_ini_bool ( INIhandle, cfg.add_recursive );
   load_ini_bool ( INIhandle, cfg.save_relative );
   load_ini_bool ( INIhandle, cfg.show_playlist );
@@ -210,27 +214,20 @@ load_ini( void )
   load_ini_value( INIhandle, cfg.font_size );
   load_ini_value( INIhandle, cfg.main );
 
-  load_ini_string( INIhandle, cfg.filedir,  sizeof( cfg.filedir ));
-  load_ini_string( INIhandle, cfg.listdir,  sizeof( cfg.listdir ));
-  load_ini_string( INIhandle, cfg.savedir,  sizeof( cfg.savedir ));
+  load_ini_xstring( INIhandle, cfg.filedir);
+  load_ini_xstring( INIhandle, cfg.listdir);
+  load_ini_xstring( INIhandle, cfg.savedir);
   load_ini_string( INIhandle, cfg.proxy,    sizeof( cfg.proxy ));
   load_ini_string( INIhandle, cfg.auth,     sizeof( cfg.auth ));
   load_ini_string( INIhandle, cfg.defskin,  sizeof( cfg.defskin ));
 
-  tmp = ini_query_xstring(INIhandle, INI_SECTION, "decoders_list");
-  if (!tmp || Decoders.Deserialize(tmp) == PluginList::RC_Error)
+  if (!ini_query_xstring(INIhandle, INI_SECTION, "decoders_list", tmp) || Decoders.Deserialize(tmp) == PluginList::RC_Error)
     Decoders.LoadDefaults();
-
-  tmp = ini_query_xstring(INIhandle, INI_SECTION, "outputs_list");
-  if (!tmp || Outputs.Deserialize(tmp) == PluginList::RC_Error)
+  if (!ini_query_xstring(INIhandle, INI_SECTION, "outputs_list", tmp) || Outputs.Deserialize(tmp) == PluginList::RC_Error)
     Outputs.LoadDefaults();
-
-  tmp = ini_query_xstring(INIhandle, INI_SECTION, "filters_list");
-  if (!tmp || Filters.Deserialize(tmp) == PluginList::RC_Error)
+  if (!ini_query_xstring(INIhandle, INI_SECTION, "filters_list", tmp) || Filters.Deserialize(tmp) == PluginList::RC_Error)
     Filters.LoadDefaults();
-
-  tmp = ini_query_xstring(INIhandle, INI_SECTION, "visuals_list");
-  if (!tmp || Visuals.Deserialize(tmp) == PluginList::RC_Error)
+  if (!ini_query_xstring(INIhandle, INI_SECTION, "visuals_list", tmp) || Visuals.Deserialize(tmp) == PluginList::RC_Error)
     Visuals.LoadDefaults();
 }
 
@@ -257,11 +254,12 @@ save_ini( void )
   save_ini_bool ( INIhandle, cfg.floatontop );
   save_ini_value( INIhandle, cfg.scroll );
   save_ini_value( INIhandle, cfg.viewmode );
+  save_ini_value( INIhandle, cfg.max_recall );
   save_ini_value( INIhandle, cfg.buff_wait );
   save_ini_value( INIhandle, cfg.buff_size );
   save_ini_value( INIhandle, cfg.buff_fill );
   save_ini_value( INIhandle, cfg.conn_timeout );
-  save_ini_string( INIhandle, cfg.pipe_name );
+  save_ini_xstring( INIhandle, cfg.pipe_name );
   save_ini_bool ( INIhandle, cfg.add_recursive );
   save_ini_bool ( INIhandle, cfg.save_relative );
   save_ini_bool ( INIhandle, cfg.show_playlist );
@@ -278,9 +276,9 @@ save_ini( void )
   save_ini_value( INIhandle, cfg.font_size );
   save_ini_value( INIhandle, cfg.main );
 
-  save_ini_string( INIhandle, cfg.filedir );
-  save_ini_string( INIhandle, cfg.listdir );
-  save_ini_string( INIhandle, cfg.savedir );
+  save_ini_xstring( INIhandle, cfg.filedir );
+  save_ini_xstring( INIhandle, cfg.listdir );
+  save_ini_xstring( INIhandle, cfg.savedir );
   save_ini_string( INIhandle, cfg.proxy );
   save_ini_string( INIhandle, cfg.auth );
   save_ini_string( INIhandle, cfg.defskin );
@@ -488,7 +486,7 @@ static void migrate_ini(const char* inipath, const char* app)
 void cfg_init()
 {
   // Open profile
-  xstring inipath = startpath + "\\PM123.INI"; // TODO: command line option
+  xstring inipath = amp_startpath + "\\PM123.INI"; // TODO: command line option
   INIhandle = PrfOpenProfile(amp_player_hab(), inipath);
   PMASSERT(INIhandle);
 
@@ -518,14 +516,18 @@ void cfg_init()
   xio_set_buffer_fill( cfg.buff_fill );
   xio_set_connect_timeout( cfg.conn_timeout );
 
-  migrate_ini(startpath, "analyzer");
-  migrate_ini(startpath, "mpg123");
-  migrate_ini(startpath, "os2audio");
-  migrate_ini(startpath, "realeq");
+  migrate_ini(amp_startpath, "analyzer");
+  migrate_ini(amp_startpath, "mpg123");
+  migrate_ini(amp_startpath, "os2audio");
+  migrate_ini(amp_startpath, "realeq");
 }
 
 void cfg_uninit()
-{ PMRASSERT(PrfCloseProfile(INIhandle));
+{ if (!PrfCloseProfile(INIhandle))
+  { char buf[1024];
+    os2pm_strerror(buf, sizeof(buf));
+    amp_error(HWND_DESKTOP, "PM123 failed to write its profile: %s", buf);
+  }
 }
 
 /* Processes messages of the setings page of the setup notebook. */
@@ -724,9 +726,8 @@ cfg_iosettings_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
       char buf[_MAX_PATH];
       *buf = 0;
       WinQueryDlgItemText( hwnd, EF_PIPE, sizeof buf, buf );
-      if (strnicmp(buf, cfg.pipe_name, _MAX_PATH))
-      { strlcpy(cfg.pipe_name, buf, sizeof cfg.pipe_name);
-        PMRASSERT(WinPostMsg(amp_player_window(), AMP_PIPERESTART, 0, 0));
+      if (cfg.pipe_name.compareToI(buf) != 0)
+      { cfg.pipe_name = buf;
       }
 
       PMRASSERT(WinSendDlgItemMsg( hwnd, SB_BUFFERSIZE, SPBM_QUERYVALUE, MPFROMP( &cfg.buff_size ), MPFROM2SHORT( 0, SPBQ_DONOTUPDATE )));
@@ -764,7 +765,6 @@ cfg_iosettings_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
 
       PMRASSERT(WinSendDlgItemMsg( hwnd, SB_NUMWORKERS, SPBM_QUERYVALUE, MPFROMP( &cfg.num_workers ), MPFROM2SHORT( 0, SPBQ_DONOTUPDATE )));
       PMRASSERT(WinSendDlgItemMsg( hwnd, SB_DLGWORKERS, SPBM_QUERYVALUE, MPFROMP( &cfg.num_dlg_workers ), MPFROM2SHORT( 0, SPBQ_DONOTUPDATE )));
-      PMRASSERT(WinPostMsg(amp_player_window(), AMP_WORKERADJUST, 0, 0));
 
       return 0;
     }
@@ -884,12 +884,8 @@ cfg_display1_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
       cfg.font_size     = font_size;
       cfg.font_attrs    = font_attrs;
 
-      amp_invalidate(UPD_FILENAME);
-      if( cfg.dock_windows ) {
-        dk_arrange( amp_player_window() ); // TODO: frame window???
-      } else {
-        dk_cleanup( amp_player_window() );
-      }
+      GUI::RefreshDisplay();
+      GUI::RearrangeDocking();
       return 0;
     }
   }
@@ -989,7 +985,7 @@ Plugin* PluginContext::RefreshInfo(const size_t i)
     WinEnableControl (Hwnd, PB_PLG_DOWN,   FALSE);
     WinEnableControl (Hwnd, PB_PLG_ENABLE, FALSE);
     WinEnableControl (Hwnd, PB_PLG_ACTIVATE, FALSE);
-    // decode specific stuff
+    // decoder specific stuff
     if (List->Type == PLUGIN_DECODER)
     { HWND ctrl = WinWindowFromID(Hwnd, ML_DEC_FILETYPES);
       WinSetWindowText(ctrl, "");
@@ -1010,29 +1006,37 @@ Plugin* PluginContext::RefreshInfo(const size_t i)
     WinEnableControl (Hwnd, PB_PLG_DOWN,   i < List->size()-1);
     WinEnableControl (Hwnd, PB_PLG_ENABLE, TRUE);
     if (Flags & CF_List1)
-      WinEnableControl (Hwnd, PB_PLG_ACTIVATE, !((PluginList1*)List)->GetActive() == i);
+      WinEnableControl (Hwnd, PB_PLG_ACTIVATE, ((PluginList1*)List)->GetActive() != i);
     // decode specific stuff
     if (List->Type == PLUGIN_DECODER)
     { stringmap_own sm(20);
       pp->GetParams(sm);
       // TODO: Decoder supported file types vs. user file types.
+      { const vector<const DECODER_FILETYPE>& filetypes = ((Decoder*)pp)->GetFileTypes();
+        size_t len = 0;
+        for (const DECODER_FILETYPE*const* ftp = filetypes.begin(); ftp != filetypes.end(); ++ftp)
+          if ((*ftp)->eatype)
+            len += strlen((*ftp)->eatype) +1;
+        char* cp = (char*)alloca(len);
+        char* cp2 = cp;
+        for (const DECODER_FILETYPE*const* ftp = filetypes.begin(); ftp != filetypes.end(); ++ftp)
+          if ((*ftp)->eatype)
+          { strcpy(cp2, (*ftp)->eatype);
+            cp2 += strlen((*ftp)->eatype);
+            *cp2++ = '\n';
+          }
+        if (cp2 != cp)
+          cp2[-1] = 0;
+        else
+          cp = "";
+        HWND ctrl = WinWindowFromID(Hwnd, ML_DEC_FILETYPES);
+        WinSetWindowText(ctrl, cp);
+        WinEnableWindow (ctrl, TRUE);
+      }
       stringmapentry* smp; // = sm.find("filetypes");
-      const xstring& filetypes = ((Decoder*)pp)->GetFileTypes();
-      char* cp;
-      if (filetypes)
-      { cp = (char*)alloca(filetypes.length()+1);
-        memcpy(cp, filetypes.cdata(), filetypes.length()+1);
-        for (char* cp2 = cp; *cp2; ++cp2)
-          if (*cp2 == ';')
-            *cp2 = '\n';
-      } else
-        cp = "";
-      HWND ctrl = WinWindowFromID(Hwnd, ML_DEC_FILETYPES);
-      WinSetWindowText(ctrl, cp);
-      WinEnableWindow (ctrl, TRUE);
       smp = sm.find("tryothers");
       bool* b = smp && smp->Value ? url123::parseBoolean(smp->Value) : NULL;
-      ctrl = WinWindowFromID(Hwnd, CB_DEC_TRYOTHER);
+      HWND ctrl = WinWindowFromID(Hwnd, CB_DEC_TRYOTHER);
       WinSendMsg      (ctrl, BM_SETCHECK, MPFROMSHORT(b && *b), 0);
       WinEnableWindow (ctrl, !!b);
       smp = sm.find("serializeinfo");
@@ -1067,7 +1071,7 @@ ULONG PluginContext::AddPlugin()
 {
   FILEDLG filedialog;
   ULONG   rc = 0;
-  APSZ    ftypes[] = {{ FDT_PLUGIN }, { 0 }};
+  APSZ    ftypes[] = {{ "PM123 Plug-in (*.DLL)" }, { 0 }};
 
   memset(&filedialog, 0, sizeof(FILEDLG));
 
@@ -1075,15 +1079,17 @@ ULONG PluginContext::AddPlugin()
   filedialog.fl             = FDS_CENTER|FDS_OPEN_DIALOG;
   filedialog.pszTitle       = "Load a plug-in";
   filedialog.papszITypeList = ftypes;
-  filedialog.pszIType       = FDT_PLUGIN;
+  char type[_MAX_PATH]      = "PM123 Plug-in";
+  filedialog.pszIType       = type;
 
-  strcpy(filedialog.szFullFile, startpath);
+  strlcpy(filedialog.szFullFile, amp_startpath, sizeof filedialog.szFullFile);
   amp_file_dlg(HWND_DESKTOP, Hwnd, &filedialog);
 
   if (filedialog.lReturn == DID_OK)
   { rc = Plugin::Deserialize(filedialog.szFullFile, List->Type);
+    /* TODO: still required?
     if (rc & PLUGIN_VISUAL)
-      vis_init(List->size()-1);
+      vis_init(List->size()-1);*/
     if (rc & PLUGIN_FILTER && Ctrl::IsPlaying())
       amp_info(Hwnd, "This filter will only be enabled after playback stops.");
     if (rc)
@@ -1136,10 +1142,11 @@ bool PluginContext::SetParams(size_t i)
 }
 
 bool PluginContext::visual_enable_hook(size_t i, bool enable)
-{ if (enable)
+{ /* TODO: required?
+  if (enable)
     vis_init(i);
   else
-    vis_deinit(i);
+    vis_deinit(i);*/
   return true;
 }
 
@@ -1348,7 +1355,7 @@ cfg_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
         }
 
         case PB_HELP:
-          amp_show_help( IDH_PROPERTIES );
+          GUI::ShowHelp(IDH_PROPERTIES);
           return 0;
       }
       return 0;
@@ -1447,5 +1454,10 @@ cfg_properties( HWND owner )
 
   WinProcessDlg   ( hwnd );
   WinDestroyWindow( hwnd );
+
+  // TODO: only in case of a change!  
+  amp_pipe_destroy();
+  amp_pipe_create();
+  
+  // TODO: adjust the number of worker threads
 }
-

@@ -105,6 +105,14 @@ template <class R, class P, class P1, class P2, class P3, class P4>
 R DLLENTRYP2(vdelegate(VDELEGATE* dg, R DLLENTRYP(func)(P*,P1,P2,P3,P4), P* ptr))(P1,P2,P3,P4)
 { return (R DLLENTRYPF()(P1,P2,P3,P4))mkvdelegate(dg, (V_FUNC)func, PARSIZE(P1)+PARSIZE(P2)+PARSIZE(P3)+PARSIZE(P4), ptr);
 }
+template <class R, class P, class P1, class P2, class P3, class P4, class P5>
+R DLLENTRYP2(vdelegate(VDELEGATE* dg, R DLLENTRYP(func)(P*,P1,P2,P3,P4,P5), P* ptr))(P1,P2,P3,P4,P5)
+{ return (R DLLENTRYPF()(P1,P2,P3,P4,P5))mkvdelegate(dg, (V_FUNC)func, PARSIZE(P1)+PARSIZE(P2)+PARSIZE(P3)+PARSIZE(P4)+PARSIZE(P5), ptr);
+}
+template <class R, class P, class P1, class P2, class P3, class P4, class P5, class P6>
+R DLLENTRYP2(vdelegate(VDELEGATE* dg, R DLLENTRYP(func)(P*,P1,P2,P3,P4,P5,P6), P* ptr))(P1,P2,P3,P4,P5,P6)
+{ return (R DLLENTRYPF()(P1,P2,P3,P4,P5,P6))mkvdelegate(dg, (V_FUNC)func, PARSIZE(P1)+PARSIZE(P2)+PARSIZE(P3)+PARSIZE(P4)+PARSIZE(P5)+PARSIZE(P6), ptr);
+}
 #undef PARSIZE
 
 template <class R, class P>
@@ -122,6 +130,14 @@ R DLLENTRYP2(vreplace1(VREPLACE1* rp, R DLLENTRYP(func)(P*,P2,P3), P* ptr))(P*,P
 template <class R, class P, class P2, class P3, class P4>
 R DLLENTRYP2(vreplace1(VREPLACE1* rp, R DLLENTRYP(func)(P*,P2,P3,P4), P* ptr))(P*,P2,P3,P4)
 { return (R DLLENTRYPF()(P*,P2,P3,P4))mkvreplace1(rp, (V_FUNC)func, ptr);
+}
+template <class R, class P, class P2, class P3, class P4, class P5>
+R DLLENTRYP2(vreplace1(VREPLACE1* rp, R DLLENTRYP(func)(P*,P2,P3,P4,P5), P* ptr))(P*,P2,P3,P4,P5)
+{ return (R DLLENTRYPF()(P*,P2,P3,P4,P5))mkvreplace1(rp, (V_FUNC)func, ptr);
+}
+template <class R, class P, class P2, class P3, class P4, class P5, class P6>
+R DLLENTRYP2(vreplace1(VREPLACE1* rp, R DLLENTRYP(func)(P*,P2,P3,P4,P5,P6), P* ptr))(P*,P2,P3,P4,P5,P6)
+{ return (R DLLENTRYPF()(P*,P2,P3,P4,P5,P6))mkvreplace1(rp, (V_FUNC)func, ptr);
 }
 #endif
 #endif

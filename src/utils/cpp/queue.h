@@ -1,5 +1,5 @@
 /*
- * Copyright 2007-2008 M.Mueller
+ * Copyright 2007-2009 M.Mueller
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -33,148 +33,182 @@
 #include <config.h>
 #include <cpp/mutex.h>
 #include <cpp/smartptr.h>
+#include <stdlib.h>
 
 #include <debuglog.h>
 
+/** This type MUST be base of all queued items. */
+struct qentry
+{ qentry*    Next;
+};
 
+/** Non template base class of queue */
 class queue_base
-{public:
-  struct EntryBase
-  { EntryBase* Next;
-    bool     ReadActive;
-  };
-
- protected:
-  EntryBase* Head;
-  EntryBase* Tail;
-  Event      EvEmpty; // set when the queue is not empty
-  Event      EvRead;  // set when a reader completes
+{protected:
+  /// Head of queue items
+  qentry*    Head;
+  /// Tail of queue items
+  qentry*    Tail;
+  /// set when a message is written
+  Event      EvEmpty;
  public:
   Mutex      Mtx;
 
- protected: // class should not be used directly!
-             queue_base()         : Head(NULL), Tail(NULL) { EvRead.Set(); }
-  EntryBase* RequestRead();
-  // For priority queues
-  EntryBase* RequestRead(Event& event, EntryBase*const& tail);
-  void       CommitRead(EntryBase* entry);
-  void       RollbackRead(EntryBase* entry);
- protected:
-  void       Write(EntryBase* entry);
-  void       Write(EntryBase* entry, EntryBase* after);
-  EntryBase* Purge();
-  void       ForEach(void (*action)(const EntryBase* entry, void* arg), void* arg);
+ public:
+             queue_base()         : Head(NULL), Tail(NULL) {}
+  qentry*    Read();
+  void       Write(qentry* entry);
+  void       Write(qentry* entry, qentry* after);
+  void       WriteFront(qentry* entry);
+  qentry*    Purge();
+  void       ForEach(void (*action)(const qentry* entry, void* arg), void* arg);
 };
 
+/** Queue class.
+ * @tparam T must derive from qentry.
+ */ 
 template <class T>
 class queue : public queue_base
-{public:
-  struct qentry : public queue_base::EntryBase
-  { T        Data;
-    qentry(const T& data) : Data(data) {}
+{private:
+  struct ActionProxyParam
+  { void     (*Action)(const T& entry, void* arg);
+    void*    Arg;
   };
-
+  static void ActionProxy(const qentry* entry, void* arg)
+             { (*((ActionProxyParam*)arg)->Action)(*(const T*)entry, ((ActionProxyParam*)arg)->Arg); } 
  public:
              ~queue()             { Purge(); }
-  // Read the next item
-  qentry*    RequestRead()        { return (qentry*)queue_base::RequestRead(); }
-  // Read complete => remove item from the queue
-  void       CommitRead(qentry* e){ queue_base::CommitRead(e); delete e; }
-  // Read aborted => reactivate the item in the queue
-  void       RollbackRead(qentry* e){ queue_base::RollbackRead(e); }
-  // Post an element to the Queue
-  void       Write(const T& data) { queue_base::Write(new qentry(data)); }
-  // Remove all elements from the queue
+  /// Read and return the next item.
+  T*         Read()               { return (T*)queue_base::Read(); }
+  /// Post an element to the queue.
+  void       Write(T* entry)      { queue_base::Write(entry); }
+  /// Post an element to the queue at a certain location.
+  void       Write(T* entry, T* after) { queue_base::Write(entry, after); }
+  /// Puts back an element to the front queue.
+  void       WriteFront(T* entry) { queue_base::WriteFront(entry); }
+  /// Remove all elements from the queue
   void       Purge();
-  // Search for the first Element matching templ in the queue.
-  // This function is not reliable unless it is called
-  // while the current objects Mutex is locked.
-  // So be careful
-  qentry*    Find(const T& templ, bool& inuse);
-  // Remove all elements which equals data from the queue and
-  // return the number of removed Elements.
-  // Elements in current uncommited reads are not affected.
-  int        Remove(const T& data);
-  // Same as Remove but do not return until the element is really removed.
-  // In case that the element is part of a current uncommited read the function
-  // will block until the read is commited.
-  int        ForceRemove(const T& data);
-  // Callback for each elements
-  // Note that the callback ist called from synchronized context.
-  void       ForEach(void (*action)(const queue<T>::qentry& entry, void* arg), void* arg)
-             { queue_base::ForEach((void (*)(const EntryBase*, void*))action, arg); }
+  /// @brief Enumerate queue content.
+  /// @details Note that action is called from synchronized context.
+  void       ForEach(void (*action)(const T& entry, void* arg), void* arg)
+             { ActionProxyParam args_proxy = { action, arg };
+               queue_base::ForEach(&ActionProxy, &args_proxy); 
+             }
 };
 
 template <class T>
 void queue<T>::Purge()
-{ qentry* rhead = (qentry*)queue_base::Purge();
+{ qentry* rhead = queue_base::Purge();
   while (rhead)
   { qentry* ep = rhead;
     rhead = (qentry*)ep->Next;
-    delete ep;
+    delete (T*)ep;
   }
 }
 
-template <class T>
-queue<T>::qentry* queue<T>::Find(const T& templ, bool& inuse)
-{ Mutex::Lock lock(Mtx);
-  qentry* ep = (qentry*)Head;
-  while (ep)
-  { if (ep->Data == templ)
-    { inuse = ep->ReadActive;
-      return ep;
-    }
-    ep = (qentry*)ep->Next;
-  }
-  return NULL;
-}
+
+/** @brief Non template base class of \c priority_queue.
+ *
+ * The queue is internally organizes a a single queue where the items are ordered
+ * with descending priority. An index, \c PriEntries, is used to keep all operations O(1).
+ *
+ * Examples
+ * -- Number of Items ---|- Queue pointers (-> item no) -| Content (priority vs. item no)
+ * Pri.0 | Pri.1 | Pri.2 | Head  |Tail[0]|Tail[1]|Tail[2]| 0 1 2 3 4 5 6
+ * ======|=======|=======|=======|=======|=======|=======|===============================
+ *   0   |   0   |   0   | NULL  | NULL  | NULL  | NULL  |
+ *   1   |   0   |   0   | -> 0  | -> 0  | -> 0  | -> 0  | 0
+ *   0   |   1   |   0   | -> 0  | NULL  | -> 0  | -> 0  | 1
+ *   0   |   0   |   1   | -> 0  | NULL  | NULL  | -> 0  | 2
+ *   2   |   2   |   1   | -> 0  | -> 1  | -> 3  | -> 4  | 0 0 1 1 2
+ *   2   |   0   |   2   | -> 0  | -> 1  | -> 1  | -> 3  | 0 0 2 2
+ *
+ * @note The class is optimized for only a limited number of priority levels.
+ */
+class priority_queue_base
+{protected:
+  struct PriEntry
+  { qentry*    Tail;    // Tail of high priority queue items
+    Event      EvEmpty; // Set when a message is written
+    PriEntry() : Tail(NULL) {}
+  };
+  
+ protected:
+  /// Head of queue items
+  qentry*      Head;
+  /// Tail pointers and Events for each priority level.
+  PriEntry* const PriEntries;
+  const size_t Priorities;
+ public:
+  Mutex        Mtx;
+
+ protected:
+  #ifdef DEBUG
+  void         Check() const;
+  void         Dump() const;
+  void         Fail(const char* file, int line, const char* msg) const;
+  #else
+  void         Check() {}
+  #endif
+  
+ public:
+               priority_queue_base(size_t priorities);
+               ~priority_queue_base();
+  /// Read the next item with at least \a *priority (numerically less or same).
+  /// @param priority Input: priority level to read.
+  ///                 Output: priority level of the returned message (less or same than on input).
+  qentry*      Read(size_t* priority);
+  /// Read the next item with at least \a priority (numerically less or same).
+  /// The function blocks until an item is available.
+  qentry*      Read(size_t priority)  { return Read(&priority); }
+  /// Append a queue item at priority level \a priority.
+  void         Write(qentry* entry, size_t priority);
+  /// Prepend a queue item at priority level \a priority.
+  void         WriteFront(qentry* entry, size_t priority);
+  /// Clear the queue and return the original head of the queue.
+  qentry*      Purge();
+  /// Enumerate all queue items. \a *action is called for each item.
+  /// @note \a *action is called from synchronized context. So be careful to avoid deadlocks.
+  void         ForEach(void (*action)(const qentry* entry, size_t priority, void* arg), void* arg);
+};
 
 template <class T>
-int queue<T>::Remove(const T& data)
-{ int r = 0;
-  Mutex::Lock lock(Mtx);
-  EntryBase** epp = &Head;
-  for (;;)
-  { qentry* ep = (qentry*)*epp;
-    if (ep == NULL)
-      break;
-    if (ep->Data == data && !ep->ReadActive)
-    { *epp = ep->Next;
-      epp = &ep->Next;
-      delete ep;
-      ++r;
-    } else
-      epp = &ep->Next;
-  }
-  return r;
-}
+class priority_queue : public priority_queue_base
+{private:
+  struct ActionProxyParam
+  { void       (*Action)(const T& entry, size_t priority, void* arg);
+    void*      Arg;
+  };
+  static void ActionProxy(const qentry* entry, size_t priority, void* arg)
+               { (*((ActionProxyParam*)arg)->Action)(*(const T*)entry, priority, ((ActionProxyParam*)arg)->Arg); }
+ public:
+               priority_queue(size_t priorities) : priority_queue_base(priorities) {}
+               ~priority_queue()      { Purge(); }
+  // Read the next item.
+  T*           Read(size_t priority)  { return (T*)priority_queue_base::Read(priority); }
+  // Read the next item and return the priority of the read item.
+  T*           Read(size_t* priority) { return (T*)priority_queue_base::Read(priority); }
+  // Post an element to the Queue
+  void         Write(T* entry, size_t priority) { priority_queue_base::Write(entry, priority); }
+  // Puts back an element into the queue.
+  void         WriteFront(T* entry, size_t priority) { priority_queue_base::WriteFront(entry, priority); }
+  // Remove all elements from the queue.
+  void         Purge();
+  // Callback for each elements
+  // Note that the callback is called from synchronized context.
+  void         ForEach(void (*action)(const T& entry, size_t priority, void* arg), void* arg)
+               { ActionProxyParam args_proxy = { action, arg };
+                 priority_queue_base::ForEach(&ActionProxy, &args_proxy);
+               }
+};
 
 template <class T>
-int queue<T>::ForceRemove(const T& data)
-{ int r = 0;
-  for(;;)
-  { { Mutex::Lock lock(Mtx);
-      bool syncreader = false;
-      EntryBase** epp = &Head;
-      for (;;)
-      { qentry* ep = (qentry*)*epp;
-        if (ep == NULL)
-          break;
-        if (!(ep->Data == data))
-          epp = &ep->Next;
-         else if (ep->ReadActive)
-        { syncreader = true;
-          epp = &ep->Next;
-        } else
-        { *epp = ep->Next;
-          epp = &ep->Next;
-          delete ep;
-          ++r;
-      } }
-      if (!syncreader)
-        return r;
-    }
-    EvRead.Wait();
+void priority_queue<T>::Purge()
+{ qentry* rhead = (qentry*)priority_queue_base::Purge();
+  while (rhead)
+  { qentry* ep = rhead;
+    rhead = (qentry*)ep->Next;
+    delete (T*)ep;
   }
 }
 

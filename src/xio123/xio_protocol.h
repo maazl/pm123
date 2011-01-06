@@ -78,10 +78,21 @@ FLAGSATTRIBUTE(XSFLAGS);
 */
 class XPROTOCOL {
  public:
-  int  blocksize; // Recommended Blocking factor of the protocol. Filled by Protocol implementation.
+  // Interface for observing meta data changes
+  struct Iobserver
+  { virtual ~Iobserver() {}
+    virtual void metacallback(int type, const char* metabuff, long pos, long pos64) = 0;
+  };
+ 
+ public: 
   bool eof;       // End of input stream flag.
   int  error;     // Last error that appies to the stream state.
+  int  blocksize; // Recommended Blocking factor of the protocol. Filled by Protocol implementation.
 
+ protected:
+  Iobserver*      observer;
+ 
+ public:
                   XPROTOCOL();
   virtual         ~XPROTOCOL() {}
 
@@ -150,10 +161,11 @@ class XPROTOCOL {
      Precondition: size > 0 */
   virtual char*   get_metainfo( int type, char* result, int size );
 
-  /* Set an observer function that is called whenever a source updates the metadata.
+  /* Set an observer that is called whenever a source updates the metadata.
+     The function returns the previously set observer.
      You cannot set more than one observer.
      The callback will only be executed while calling read(). */ 
-  virtual void    set_observer( void DLLENTRYP(callback)(const char* metabuff, long pos, long pos64, void* arg), void* arg );
+  virtual Iobserver* set_observer( Iobserver* observer );
 
   /* Return the supported properties of the current protocol */
   virtual XSFLAGS supports() const = 0;
@@ -177,11 +189,6 @@ typedef struct _XFILE {
   
   Mutex*        mtx;        /* Serializes most i/o operations.               */
   bool          in_use;     /* Flags instance as used in unsynchronized mode */
-
-  unsigned long s_observer; /* Handle of a window that are to be notified    */
-                            /* of changes in the state of the library.       */
-  char*         s_metabuff; /* The library puts metadata in this buffer      */
-  int           s_metasize; /* before notifying the observer.                */
 
   /* Initializes the file structure.
    * This does not open anything or assign a protocol. */

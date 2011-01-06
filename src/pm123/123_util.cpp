@@ -1,8 +1,8 @@
 /*
  * Copyright 1997-2003 Samuel Audet <guardia@step.polymtl.ca>
- *                     Taneli Lepp„ <rosmo@sektori.com>
+ *                     Taneli Leppï¿½ <rosmo@sektori.com>
  * Copyright 2004-2005 Dmitry A.Steklenev <glass@ptv.ru>
- * Copyright 2007-2008 M.Mueller
+ * Copyright 2007-2010 M.Mueller
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -36,45 +36,38 @@
 #include <snprintf.h>
 
 #include "123_util.h"
-#include "pm123.h"
-#include "playable.h"
+#include "gui.h"
 #include "copyright.h"
 #include "skin.h" // bmp_query_text
 #include "controller.h"
 #include <visual_plug.h>
 
+#include <interlocked.h>
+
 #include <os2.h>
 #include <string.h>
 #include <stdio.h>
-#include <direct.h>
+//#include <direct.h>
 
 
-void DLLENTRY
-pm123_display_info( const char* info )
-{
-  char* message = strdup( info );
-  if( message ) {
-    WinPostMsg( amp_player_window(), AMP_DISPLAY_MESSAGE, MPFROMP( message ), MPFROMLONG( FALSE ));
-  }
+void DLLENTRY pm123_display_info( const char* info )
+{ GUI::ViewMessage(xstring(info), false);
 }
 
-void DLLENTRY
-pm123_display_error( const char *info )
-{
-  char* message = strdup( info );
-  if( message ) {
-    WinPostMsg( amp_player_window(), AMP_DISPLAY_MESSAGE, MPFROMP( message ), MPFROMLONG( TRUE ));
-  }
+void DLLENTRY pm123_display_error( const char *info )
+{ GUI::ViewMessage(xstring(info), true);
 }
 
 void DLLENTRY pm123_control( int index, void* param )
 {
+  /* TODO: pm123_control
   switch (index)
   {
     case CONTROL_NEXTMODE:
       WinSendMsg( amp_player_window(), AMP_DISPLAY_MODE, 0, 0 );
       break;
   }
+  */
 }
 
 int DLLENTRY pm123_getstring( int index, int subindex, size_t bufsize, char* buf )
@@ -90,14 +83,14 @@ int DLLENTRY pm123_getstring( int index, int subindex, size_t bufsize, char* buf
     break;
 
    case STR_FILENAME:
-    { int_ptr<Song> song = Ctrl::GetCurrentSong();
+    { int_ptr<APlayable> song = Ctrl::GetCurrentSong();
       if (song)
-        strlcpy(buf, song->GetURL(), bufsize);
+        strlcpy(buf, song->GetPlayable().URL, bufsize);
       break;
     }
 
    case STR_DISPLAY_TAG:
-    { int_ptr<Song> song = Ctrl::GetCurrentSong();
+    { int_ptr<APlayable> song = Ctrl::GetCurrentSong();
       if (song)
       { const xstring& text = amp_construct_tag_string( &song->GetInfo() );
         strlcpy(buf, text, bufsize);
@@ -106,9 +99,9 @@ int DLLENTRY pm123_getstring( int index, int subindex, size_t bufsize, char* buf
     }
 
    case STR_DISPLAY_INFO:
-    { int_ptr<Song> song = Ctrl::GetCurrentSong();
+    { int_ptr<APlayable> song = Ctrl::GetCurrentSong();
       if (song)
-        strlcpy(buf, song->GetInfo().tech->info, bufsize);
+        strlcpy(buf, xstring(song->GetInfo().tech->info), bufsize);
       break;
     }
 
@@ -119,29 +112,33 @@ int DLLENTRY pm123_getstring( int index, int subindex, size_t bufsize, char* buf
 
 /* Constructs a string of the displayable text from the file information. */
 const xstring
-amp_construct_tag_string( const DECODER_INFO2* info )
+amp_construct_tag_string( const INFO_BUNDLE_CV* info )
 {
   // TODO: a string builder would be nice...
   xstring result = xstring::empty;
 
-  if( *info->meta->artist ) {
-    result = info->meta->artist;
-    if( *info->meta->title )
+  xstring tmp1(info->meta->artist);
+  xstring tmp2(info->meta->title);
+  if (tmp1)
+  { result = tmp1;
+    if (tmp2)
       result = result + ": ";
   }
+  if (tmp2)
+    result = result + tmp2;
 
-  if( *info->meta->title )
-    result = result + info->meta->title;
+  tmp1 = info->meta->album;
+  tmp2 = info->meta->year; 
+  if (tmp1 && tmp2)
+    result = xstring::sprintf("%s (%s, %s)", result.cdata(), tmp1.cdata(), tmp2.cdata());
+  else if (tmp1)
+    result = xstring::sprintf("%s (%s)", result.cdata(), tmp1.cdata());
+  else if (tmp2)
+    result = xstring::sprintf("%s (%s)", result.cdata(), tmp2.cdata());
 
-  if( *info->meta->album && *info->meta->year )
-    result = xstring::sprintf("%s (%s, %s)", result.cdata(), info->meta->album, info->meta->year);
-  else if( *info->meta->album )
-    result = xstring::sprintf("%s (%s)", result.cdata(), info->meta->album);
-  else if( *info->meta->year )
-    result = xstring::sprintf("%s (%s)", result.cdata(), info->meta->year);
-
-  if( *info->meta->comment )
-    result = xstring::sprintf("%s -- %s", result.cdata(), info->meta->comment);
+  tmp1 = info->meta->comment;
+  if (tmp1)
+    result = xstring::sprintf("%s -- %s", result.cdata(), tmp1.cdata());
 
   return result;
 }
@@ -173,7 +170,7 @@ amp_url_from_file(const char* filename)
   fseek(file, 0, SEEK_SET);
   xstring ret;
   if (len > 0)
-  { char* dp = ret.raw_init(len);
+  { char* dp = ret.allocate(len);
     if (fgets(dp, len, file))
       blank_strip(dp);
     else
@@ -186,7 +183,7 @@ amp_url_from_file(const char* filename)
 const xstring amp_string_from_drghstr(HSTR hstr)
 { size_t len = DrgQueryStrNameLen(hstr);
   xstring ret;
-  DrgQueryStrName(hstr, len+1, ret.raw_init(len));
+  DrgQueryStrName(hstr, len+1, ret.allocate(len));
   return ret;
 }
 

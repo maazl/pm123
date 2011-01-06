@@ -33,13 +33,12 @@ ULONG DLLENTRY output_uninit( void*  a );
 typedef struct _OUTPUT_PARAMS
 {
   /* --- see OUTPUT_SIZE definitions */
-  int size;
+  unsigned int size;
 
   /* --- OUTPUT_SETUP */
+  FORMAT_INFO  formatinfo;
 
-  FORMAT_INFO formatinfo;
-
-  int buffersize;
+  int          buffersize;
 
   unsigned short boostclass, normalclass;
   signed   short boostdelta, normaldelta;
@@ -53,34 +52,27 @@ typedef struct _OUTPUT_PARAMS
   HWND hwnd; /* commodity for PM interface, sends a few messages to this handle. */
 
   /* --- OUTPUT_VOLUME */
-
   unsigned char volume;
   float amplifier;
 
   /* --- OUTPUT_PAUSE */
-
   BOOL  pause;
 
   /* --- OUTPUT_NOBUFFERMODE */
-
   BOOL  nobuffermode;
 
   /* --- OUTPUT_TRASH_BUFFERS */
-
   ULONG temp_playingpos;  /* used until new buffers come in. */
 
   /* --- OUTPUT_OPEN */
-
   const char* filename;   /* filename, URL or track now being played, 
                              useful for disk output */
 
   /* --- OUTPUT_SETUP ***OUTPUT*** */
-
   BOOL  always_hungry;    /* the output plug-in imposes no time restraint
                              it is always WM_OUTPUT_OUTOFDATA */
 
   /* --- OUTPUT_SETUP */
-
   const struct _DECODER_INFO* info;     /* added since PM123 1.32 */
 
 } OUTPUT_PARAMS;
@@ -94,40 +86,27 @@ typedef enum
 
 typedef struct _OUTPUT_PARAMS2
 {
-  int size;
-
-  /* --- OUTPUT_SETUP */
-
-  FORMAT_INFO2 formatinfo;
-  /* Error handler, a call will immediately stop the current playback. */
-  void DLLENTRYP(error_display)( const char* );
-  /* info message function the output plug-in should use */
-  /* this information is always displayed to the user right away */
-  void DLLENTRYP(info_display)( const char* );
+  unsigned int size;
 
   /* callback event */
   void DLLENTRYP(output_event)(void* w, OUTEVENTTYPE event); 
   void* w;  /* only to be used with the precedent function */
 
   /* --- OUTPUT_VOLUME */
-
   float volume;           // [0...1]
   float amplifier;
 
   /* --- OUTPUT_PAUSE */
-
   BOOL  pause;
 
-  /* --- OUTPUT_TRASH_BUFFERS */
+  /* --- OUTPUT_TRASH_BUFFERS and OUTPUT_OPEN and OUTPUT_CLOSE */
+  PM123_TIME  playingpos; // related playing position
 
-  T_TIME temp_playingpos;  // used until new buffers come in
-
-  /* --- OUTPUT_OPEN */
-
+  /* --- OUTPUT_SETUP and OUTPUT_OPEN */
   const char* URI;        // filename, URL or track now being played,
                           // useful for disk output
-
-  const struct _DECODER_INFO2* info;
+                          
+  const INFO_BUNDLE_CV* info;// Information on the object to play.
 
 } OUTPUT_PARAMS2;
 
@@ -137,9 +116,9 @@ int    DLLENTRY output_play_samples( void* a, FORMAT_INFO* format, char* buf, in
 ULONG  DLLENTRY output_playing_pos( void* a );
 #else
 ULONG  DLLENTRY output_command( void* a, ULONG msg, OUTPUT_PARAMS2* info );
-int    DLLENTRY output_request_buffer( void* a, const FORMAT_INFO2* format, short** buf );
-void   DLLENTRY output_commit_buffer( void* a, int len, T_TIME posmarker );
-T_TIME DLLENTRY output_playing_pos( void* a );
+int    DLLENTRY output_request_buffer( void* a, const TECH_INFO* format, short** buf );
+void   DLLENTRY output_commit_buffer( void* a, int len, PM123_TIME posmarker );
+PM123_TIME DLLENTRY output_playing_pos( void* a );
 #endif
 ULONG  DLLENTRY output_playing_samples( void* a, FORMAT_INFO* info, char* buf, int len );
 BOOL   DLLENTRY output_playing_data( void* a );

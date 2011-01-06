@@ -1,6 +1,6 @@
 /*
  * Copyright 1997-2003 Samuel Audet  <guardia@step.polymtl.ca>
- *                     Taneli Lepp„  <rosmo@sektori.com>
+ *                     Taneli Leppï¿½  <rosmo@sektori.com>
  * Copyright 2004 Dmitry A.Steklenev <glass@ptv.ru>
  * Copyright 2007-2008 Marcel Mueller
  *
@@ -39,18 +39,16 @@
 #include <stdlib.h>
 #include <os2.h>
 
-// Number of items in the recall lists.
-#define MAX_RECALL            9
 
 // read xstring
-const xstring ini_query_xstring(HINI hini, const char* app, const char* key);
+const bool ini_query_xstring(HINI hini, const char* app, const char* key, xstring& dst);
 // write xstring
 inline BOOL ini_write_xstring(HINI hini, const char* app, const char* key, const xstring& str)
 { return PrfWriteProfileData(hini, app, key, (PVOID)str.cdata(), str ? str.length() : 0);
 }
 
 #define load_ini_xstring(hini, var) \
-  var = (const xstring&)ini_query_xstring((hini), INI_SECTION, #var)
+  ini_query_xstring((hini), INI_SECTION, #var, var)
 
 #define save_ini_xstring(hini, var) \
   ini_write_xstring((hini), INI_SECTION, #var, var)
@@ -113,25 +111,26 @@ typedef struct _amp_cfg {
   int    scroll;              // See CFG_SCROLL_*
   bool   scroll_around;       // Scroller turns around the text instead of scrolling backwards.
   int    viewmode;            // See CFG_DISP_*
-  char   proxy[1024];         // Proxy URL.
-  char   auth [1024];         // HTTP authorization.
-  int    buff_wait;           // Wait before playing.
-  int    buff_size;           // Read ahead buffer size (KB).
-  int    buff_fill;           // Percent of prefilling of the buffer.
-  int    conn_timeout;        // Connection timeout.
-  char   pipe_name[_MAX_PATH];// PM123 remote control pipe name
+  int    max_recall;          // Number of items in the recall lists
+  char   proxy[1024];         // Proxy URL
+  char   auth [1024];         // HTTP authorization
+  int    buff_wait;           // Wait before playing
+  int    buff_size;           // Read ahead buffer size (KB)
+  int    buff_fill;           // Percent of prefilling of the buffer
+  int    conn_timeout;        // Connection timeout
+  xstring pipe_name;          // PM123 remote control pipe name
   bool   dock_windows;        // Dock windows?
-  int    dock_margin;         // The marging for docking window.
+  int    dock_margin;         // The marging for docking window
   bool   win_pos_by_obj;      // Store object specific window position.
-  int    win_pos_max_age;     // Maximum age of window positions in days.
+  int    win_pos_max_age;     // Maximum age of window positions in days
 
-  int    insp_autorefresh;    // Autorefresh rate of inspector dialog.
-  bool   insp_autorefresh_on; // Autorefresh rate of inspector dialog.
+  int    insp_autorefresh;    // Autorefresh rate of inspector dialog
+  bool   insp_autorefresh_on; // Autorefresh rate of inspector dialog
 
 // Player state
-  char   filedir[_MAX_PATH];  /* The last directory used for addition of files.    */
-  char   listdir[_MAX_PATH];  /* The last directory used for access to a playlist. */
-  char   savedir[_MAX_PATH];  /* The last directory used for saving a stream.      */
+  xstring filedir;            // The last directory used for addition of files.
+  xstring listdir;            // The last directory used for access to a playlist.
+  xstring savedir;            // The last directory used for saving a stream.
 
   int    mode;                /* See CFG_MODE_*                         */
 

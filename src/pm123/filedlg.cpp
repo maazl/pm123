@@ -1,5 +1,6 @@
 /*
  * Copyright 2004-2008 Dmitry A.Steklenev <glass@ptv.ru>
+ *           2009-2010 Marcel Mueller
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -34,13 +35,143 @@
 #include "pm123.rc.h"
 #include "properties.h"
 #include "dialog.h"
+#include "glue.h"
 #include <utilfct.h>
+#include <snprintf.h>
 #include <fileutil.h>
 #include <wildcards.h>
+#include <cpp/container/sorted_vector.h>
+#include <cpp/xstring.h>
+#include <cpp/container/stringmap.h>
 
 #include <os2.h>
 
 #include <debuglog.h>
+
+
+APSZ_list::~APSZ_list()
+{ for(char*const* cpp = end(); cpp-- != begin();)
+    delete[] *cpp;
+}
+
+APSZ_list::operator APSZ*() const
+{ return (APSZ*)begin(); // The types char*const* and char*(*)[1] are basically the same except for constness (blame to OS/2).
+}
+
+
+typedef strmapentry<stringset_own> AggregateEntry;
+
+static void do_aggregate(sorted_vector<AggregateEntry,xstring>& dest, const char* key, const char* types)
+{ if (types == NULL || *types == 0)
+    return;
+  AggregateEntry*& agg = dest.get(key);
+  if (agg == NULL)
+    agg = new AggregateEntry(key);
+  for (;;)
+  { const char* cp = strchr(types, ';');
+    xstring val(types, cp ? cp-types: strlen(types));
+    DEBUGLOG(("filedlg:do_aggregate: %s\n", val.cdata()));
+    strkey*& elem = agg->Value.get(val);
+    if (elem == NULL)
+      elem = new strkey(val); // new entry
+    if (cp == NULL)
+      return;
+    types = cp+1;
+  }
+}
+
+APSZ_list* amp_file_types(DECODER_TYPE flagsreq)
+{ // Create aggregate[EA type][extension]
+  sorted_vector_own<AggregateEntry,xstring> aggregate;
+  
+  sco_ptr<IFileTypesEnumerator> en(dec_filetypes(flagsreq));
+  while (en->Next())
+  { const DECODER_FILETYPE* filetype = en->GetCurrent();
+    do_aggregate(aggregate, filetype->eatype ? filetype->eatype : "", filetype->extension);
+    // Aggregate
+    if (filetype->category)
+      do_aggregate(aggregate, filetype->category, filetype->extension);
+    do_aggregate(aggregate, FDT_ALL, filetype->extension);
+  }
+
+  // Create result
+  APSZ_list* result = new APSZ_list(40);
+  for (AggregateEntry*const* app = aggregate.begin(); app != aggregate.end(); ++app)
+  { // Join extensions
+    stringset& set = (*app)->Value;
+    // Calculate length
+    // The calculated length may be a few byte more than required, if either eatype or extensions are missing. 
+    size_t len = (*app)->Key.length() + 3 + set.size()-1 +1; // EAtype + " ()" + delimiters + '\0'
+    for (strkey*const* xpp = set.end(); xpp-- != set.begin();)
+      len += (*xpp)->Key.length();
+    char* dp = new char[len];
+    result->append() = dp;
+    // Store EA type
+    if ((*app)->Key.length())
+    { memcpy(dp, (*app)->Key.cdata(), (*app)->Key.length());
+      dp += (*app)->Key.length();
+      if (set.size())
+      { *dp++ = ' ';
+        goto both; // bypass if below
+    } }
+    // Store extensions
+    if (set.size())
+    {both:
+      *dp++ = '(';
+      strkey*const* xpp = set.begin();
+      goto start; // 1st item
+      while (++xpp != set.end())
+      { *dp++ = ';';
+       start:
+        memcpy(dp, (*xpp)->Key.cdata(), (*xpp)->Key.length());
+        dp += (*xpp)->Key.length();
+      }
+      *dp++ = ')';
+    }
+    *dp = 0; // Terminator
+  }
+  // NULL terminate the list to be APSZ compatible.
+  result->append();
+  return result; 
+}
+
+int amp_decoder_by_type(DECODER_TYPE flagsreq, const char* filter, xstring& format)
+{ DEBUGLOG(("amp_decoder_by_type(%x, %s, )\n", flagsreq, filter));
+  int decoder = -1;
+  if (filter && *filter)
+  { // Parse filter string
+    size_t typelen = strlen(filter);
+    { const char* cp = strchr(filter, '(');
+      if (cp)
+      { typelen = cp - filter;
+        while (typelen && isblank(filter[typelen-1]))
+          --typelen;
+      }
+    }
+    DEBUGLOG(("amp_decoder_by_type %i (->%x)\n", typelen, filter[typelen-1]));
+
+    //int matchlevel = 0; // 0 => no match, 1 => Category match, 2 => Exact match
+    sco_ptr<IFileTypesEnumerator> en(dec_filetypes(flagsreq));
+    while (en->Next())
+    { const DECODER_FILETYPE* ft = en->GetCurrent();
+      DEBUGLOG(("amp_decoder_by_type %s %s %s\n", ft->eatype, ft->category, ft->extension));
+      // Exact match?
+      if (strnicmp(ft->eatype, filter, typelen) == 0)
+      { decoder = en->GetDecoder();
+        format = ft->eatype;
+        goto end;
+      }
+      // Category match?
+      if (strnicmp(ft->category, filter, typelen) == 0)
+      { decoder = en->GetDecoder();
+        format = ft->eatype;
+      }
+    }
+  }
+ end:
+  DEBUGLOG(("amp_decoder_by_type: %i %s\n", decoder, format.cdata()));
+  return decoder;
+}
 
 
 static BOOL init_done = FALSE;
@@ -235,6 +366,9 @@ amp_file_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
     case WM_COMMAND:
       if( SHORT1FROMMP(mp1) == DID_OK )
       {
+        // Retrieve selected file type
+        WinQueryDlgItemText( hwnd, DID_FILTER_CB, _MAX_PATH, filedialog->pszIType );
+
         if( filedialog->ulUser & FDU_RELATIVBTN ) {
           if( !WinQueryButtonCheckstate( hwnd, CB_RELATIVE )) {
             filedialog->ulUser &= ~FDU_RELATIV_ON;

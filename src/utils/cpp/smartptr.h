@@ -1,5 +1,5 @@
 /*
- * Copyright 2007-2008 M.Mueller
+ * Copyright 2007-2010 Marcel Müller
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -192,6 +192,7 @@ class int_ptr
   // Basic operators
   T*          get()         const            { return (T*)Data; }
               operator T*() const            { return (T*)Data; }
+  bool        operator!()   const volatile   { return !Data; }
   T&          operator*()   const            { ASSERT(Data); return *(T*)Data; }
   T*          operator->()  const            { ASSERT(Data); return (T*)Data; }
   // assignment
@@ -238,7 +239,7 @@ unsigned int_ptr<T>::acquire() volatile const
   // Diagnostics
   unsigned max_outer = max_outer_count;
   if (max_outer < outer_count)
-  { do max_outer = InterlockedCxc(&max_outer_count, outer_count, max_outer);
+  { do max_outer = InterlockedCxc(&max_outer_count, max_outer, outer_count);
     while (max_outer < outer_count);
     DEBUGLOG(("int_ptr<T>::acquire() : max_outer_count now at %lu\n", max_outer));
   } 
@@ -251,6 +252,8 @@ void int_ptr<T>::release(unsigned data)
 { T* obj = (T*)(data & INT_PTR_POINTER_MASK);
   if (obj)
   { unsigned adjust = -((data & INT_PTR_COUNTER_MASK) + INT_PTR_ALIGNMENT);
+    // If you get an error about access_counter undeclared,
+    // this is most likely because T is an incomplete type.
     adjust += InterlockedXad(&obj->access_counter(), adjust);
     if (adjust == 0)
       delete obj;
@@ -299,7 +302,7 @@ inline int_ptr<T>::~int_ptr()
 }
 
 template <class T>
-void int_ptr<T>::swap(volatile int_ptr<T>& r)
+inline void int_ptr<T>::swap(volatile int_ptr<T>& r)
 { Data = transfer(InterlockedXch(&r.Data, Data));
 }
 template <class T>

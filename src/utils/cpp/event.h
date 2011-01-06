@@ -126,7 +126,7 @@ class delegate_base
  * It relies on the fact that passing a reference is binary compatible to passing a pointer including a pointer to void.
  */
 template <class P>
-class event;
+class event_pub;
 
 template <class P>
 class delegate_part : public delegate_base
@@ -135,14 +135,15 @@ class delegate_part : public delegate_base
  protected:
   delegate_part(func_type fn, const void* rcv)
   : delegate_base((delegate_base::func_type)fn, rcv) {}
-  delegate_part(event<P>& ev, func_type fn, const void* rcv)
+  delegate_part(event_pub<P>& ev, func_type fn, const void* rcv)
   : delegate_base(ev, (delegate_base::func_type)fn, rcv) {}
  public:
   // Return currently attached event
-  event<P>*      get_event() const             { return (event<P>*)delegate_base::get_event(); }
+  event_pub<P>*      get_event() const         { return (event_pub<P>*)delegate_base::get_event(); }
 };
 
-/* Application even class.
+/* Public part of the application even class.
+ * Use this class to expose your event and use event<P> internally.
  * Delegate instances may be registered to the event. They are called when the event is raised.
  * This class is thread safe.
  * It is allowed to destroy instances of this class while delegates are registered.
@@ -155,12 +156,31 @@ class delegate_part : public delegate_base
  *   ...
  *   Ev(7);     // raise event
  */
+/* Public part of the application event class.
+ * Use this class to expose your event and use event<P> internally.
+ */
 template <class P>
-class event : public event_base
-{public:
-  void operator()(P& param)            { DEBUGLOG2(("event(%p)::operator()(%p)\n", this, &param)); event_base::operator()(*(dummy*)&param); }
+class event_pub : public event_base
+{protected:
+  // Fire the event
+  void operator()(P& param)            { DEBUGLOG2(("event_pub(%p)::operator()(%p)\n", this, &param)); event_base::operator()(*(dummy*)&param); }
+  // It makes no sense to instantiate event_pub, since the event cannot be fired.
+  event_pub()                          {}
+ public:
+  // Register delegate (observer).
   void operator+=(delegate_part<P>& d) { event_base::operator+=(d); }
+  // Deregister delegate.
   void operator-=(delegate_part<P>& d) { event_base::operator-=(d); }
+};
+/* Owner part of the event class.
+ * It is recommended that the event owner uses this class internally and
+ * exposes only the base class event_pub to the observers.
+ */
+template <class P>
+class event : public event_pub<P>
+{public:
+  // Fire the event, now public
+  void operator()(P& param)            { event_pub<P>::operator()(param); }
 };
 
 /* Fully typed delegate.
@@ -191,10 +211,10 @@ class delegate : public delegate_part<P>
   typedef void (*func_type)(R* receiver, P& param);
  public:
   delegate(func_type fn, R* rcv = NULL)
-  : delegate_part<P>((delegate_part<P>::func_type)fn, rcv)
+  : delegate_part<P>((typename delegate_part<P>::func_type)fn, rcv)
   { DEBUGLOG2(("delegate<>(%p)::delegate(%p, %p)\n", this, fn, rcv)); }
-  delegate(event<P>& ev, func_type fn, R* rcv = NULL)
-  : delegate_part<P>(ev, (delegate_part<P>::func_type)fn, rcv)
+  delegate(event_pub<P>& ev, func_type fn, R* rcv = NULL)
+  : delegate_part<P>(ev, (typename delegate_part<P>::func_type)fn, rcv)
   { DEBUGLOG2(("delegate<>(%p)::delegate(%p, %p, %p)\n", this, &ev, fn, rcv)); }
   ~delegate()
   { DEBUGLOG2(("delegate<>(%p)::~delegate()\n", this)); }
@@ -220,22 +240,22 @@ class delegate : public delegate_part<P>
  *   };
  */
 template <class C, class P>
-class class_delegate : public delegate<class_delegate<C, P>, P>
+class class_delegate : public delegate<class_delegate<C,P>, P>
 {public:
   typedef void (C::*func_type)(P& param);
  public: // You might change the target parameters, but be careful to do this synchronized.
   C*              Inst;
   func_type       Func;
  private:
-  static void CallFunc(class_delegate<C, P>* rcv, P& param);
+  static void CallFunc(class_delegate<C,P>* rcv, P& param);
  public:
   class_delegate(C& inst, func_type fn)
-  : delegate<class_delegate<C, P> ,P>(&CallFunc, this)
+  : delegate<class_delegate<C,P> ,P>(&CallFunc, this)
   , Inst(&inst)
   , Func(fn)
   {}
-  class_delegate(event<P>& ev, C& inst, func_type fn)
-  : delegate<class_delegate<C, P> ,P>(ev, &CallFunc, this)
+  class_delegate(event_pub<P>& ev, C& inst, func_type fn)
+  : delegate<class_delegate<C,P> ,P>(ev, &CallFunc, this)
   , Inst(&inst)
   , Func(fn)
   {}
@@ -245,7 +265,7 @@ class class_delegate : public delegate<class_delegate<C, P>, P>
 };
 
 template <class C, class P>
-void class_delegate<C, P>::CallFunc(class_delegate<C, P>* rcv, P& param)
+void class_delegate<C,P>::CallFunc(class_delegate<C,P>* rcv, P& param)
 { (rcv->Inst->*rcv->Func)(param);
 }
 
@@ -272,7 +292,7 @@ class class_delegate2 : public delegate<class_delegate2<C, P, P2>, P>
   , Func(fn)
   , Param(param2)
   { DEBUGLOG2(("class_delegate2<>(%p)::class_delegate2(&%p, %p, &%p)\n", this, &inst, fn, param2)); }
-  class_delegate2(event<P>& ev, C& inst, func_type fn, P2* param2)
+  class_delegate2(event_pub<P>& ev, C& inst, func_type fn, P2* param2)
   : delegate<class_delegate2<C, P, P2> ,P>(ev, &CallFunc, this)
   , Inst(&inst)
   , Func(fn)

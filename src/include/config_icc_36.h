@@ -83,4 +83,9 @@ void _CRT_term( void );
 #define HAVE_UNSIGNED_ENUMS       1 /* Define to 1 if you have unsigned enums. */
 #define HAVE_FLEXIBLE_ARRAY       1 /* Define to 1 if the compile supports the struct hack. */
 
+/* for libsndfile */
+typedef long sf_count_t;
+#define SF_COUNT_MAX 0x7fffffff
+#define SIZEOF_SF_COUNT_T 4
+
 #endif /* PM123_CONFIG_ICC_36_H */

@@ -43,15 +43,13 @@ INLINE BOOL isslash(char c)
 }
 
 /* Returns TRUE if the specified location is a CD URL. */
-BOOL
-is_cdda( const char* location ) {
+unsigned char is_cdda( const char* location ) {
   return strnicmp(location, "cd://"  , 5) == 0
       || strnicmp(location, "cdda://", 7) == 0;
 }
 
 /* Returns TRUE if the specified location is a CD track. */
-BOOL
-is_track( const char* location ) {
+unsigned char is_track( const char* location ) {
   const char* cp;
   if (!is_cdda(location))
     return FALSE;
@@ -62,8 +60,7 @@ is_track( const char* location ) {
 }
 
 /* Returns TRUE if the specified location is a URL. */
-BOOL
-is_url( const char* location )
+unsigned char is_url( const char* location )
 {
   if( !is_track( location ) && !( isalpha( location[0] ) && location[1] == ':' ))
   {
@@ -88,8 +85,7 @@ is_url( const char* location )
 }
 
 /* Returns TRUE if the specified location is a regular file. */
-BOOL
-is_file( const char* location )
+unsigned char is_file( const char* location )
 {
   return *location && 
     ( strnicmp(location, "file://", 7) == 0 
@@ -523,8 +519,8 @@ CDDA_REGION_INFO* scdparams( CDDA_REGION_INFO* result, const char* location )
   result->sectors[0] = 0;
   result->sectors[1] = 0;
   cp = strchr(location, ':') +3;
-  if ( ( sscanf(cp, "/%c:%*1[/\\]%*1[Tt]rack%d%n", &result->drive[0], &result->track, &len) != 2 // track
-    && sscanf(cp, "/%c:%*1[/\\]%*1[Ff]rame%d-%d%n", &result->drive[0], &result->sectors[0], &result->sectors[1], &len) != 3 ) // sectors
+  if ( ( sscanf(cp, "/%c:%*1[/\\]%n%*1[Tt]%*1[Rr]%*1[Aa]%*1[Cc]%*1[Kk]%d%n", &result->drive[0], &len, &result->track, &len) < 1 // track or TOC
+    && sscanf(cp, "/%c:%*1[/\\]%*1[Ff]%*1[Rr]%*1[Aa]%*1[Mm]%*1[Ee]%d-%d%n", &result->drive[0], &result->sectors[0], &result->sectors[1], &len) != 3 ) // sectors
       || len != strlen(cp) )
   /*{ fprintf(stderr, "scdparams: error %d-%d: %c, %d, %d, %d\n",
       len, strlen(cp), result->drive[0], result->track, result->sectors[0], result->sectors[1]);*/
@@ -546,8 +542,7 @@ const char* sfnameext2( const char* file )
 }
 
 /* Returns TRUE if the specified location is a root directory. */
-BOOL
-is_root( const char* location )
+unsigned char is_root( const char* location )
 {
   if (strnicmp(location, "file:///", 8) == 0)
     location += 8;
@@ -557,8 +552,7 @@ is_root( const char* location )
 }
 
 /* Returns TRUE if the specified location is a directory. */
-BOOL
-is_dir( const char* location )
+unsigned char is_dir( const char* location )
 {
   struct stat fi;
   if (strnicmp(location, "file:", 5) == 0)

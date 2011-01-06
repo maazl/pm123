@@ -1,8 +1,14 @@
 #ifndef PM123_VISUAL_PLUG_H
 #define PM123_VISUAL_PLUG_H
 
-#include <format.h>
 #include <decoder_plug.h>
+
+#if (!defined(VISUAL_PLUGIN_LEVEL) || VISUAL_PLUGIN_LEVEL < 1) \
+ && !defined(PM123_FILTER_PLUG_H) && !defined(PM123_DECODER_PLUG_H) && !defined(PM123_OUTPUT_PLUG_H)
+#error "The old plug-in interface is no longer supported. \
+  Define the macro VISUAL_PLUGIN_LEVEL to a value of at least one \
+  and don't forget to fill param->interface at plugin_query".
+#endif
 
 #ifdef __cplusplus
 extern "C" {
@@ -18,14 +24,10 @@ typedef struct _PLUGIN_PROCS
   BOOL   DLLENTRYP(decoder_playing)( void );
   double DLLENTRYP(output_playing_pos)( void );
   ULONG  DLLENTRYP(decoder_status)( void );
-  /* name is the DLL filename of the decoder that can play that file */
-  ULONG  DLLENTRYP(decoder_fileinfo)( const char* URL, INFOTYPE* what, DECODER_INFO2* info, char* name, size_t name_len );
 
   int    DLLENTRYP(pm123_getstring)( int index, int subindex, size_t bufsize, char* buf );
   void   DLLENTRYP(pm123_control)( int index, void* param );
 
-  /* name is the DLL filename of the decoder that can play that track */
-  ULONG  DLLENTRYP(decoder_cdinfo)( const char* drive, DECODER_CDINFO* info );
   double DLLENTRYP(decoder_length)( void );
 
 } PLUGIN_PROCS, *PPLUGIN_PROCS;

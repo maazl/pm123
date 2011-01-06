@@ -133,13 +133,14 @@ int XIOsyncbuffer::read( void* result, unsigned int count )
 /* Reads up to n-1 characters from the stream or stop at the first
    new line. CR characters (\r) are discarded.
    Precondition: n > 1 && !eof && XO_READ */
-char* XIOsyncbuffer::gets( char* string, unsigned int n )
+char* XIOsyncbuffer::gets(char* string, unsigned int n)
 { char* ret = string;
   --n; // space for \n
   for(;;)
   { // Transfer characters and stop after \n
     while (data_read < data_size)
     { char c = head[data_read++];
+      ++read_pos;
       switch (c)
       {case '\r':
         continue;
@@ -156,15 +157,15 @@ char* XIOsyncbuffer::gets( char* string, unsigned int n )
     data_size = 0;
     data_read = 0;
     if (!fill_buffer())
-    { ret = NULL;
-      break;
+    { break;
     }
     if (data_size == 0)
     { eof = true;
-      ret = NULL;
       break;
     }
   }
+  if (ret == string)
+    return NULL;
  done: 
   *string = 0;
   return ret;

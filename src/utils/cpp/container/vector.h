@@ -32,10 +32,11 @@
 
 #include <cpp/mutex.h>
 #include <cpp/smartptr.h>
+#include <cpp/xstring.h>
 
 
-/* Internal logically abstract base class of vector<T> with all non-template core implementations.
- * This class can only store reference type objects (pointers).
+/** @brief Internal logically abstract base class of vector<T> with all non-template core implementations.
+ * @details This class can only store reference type objects (pointers).
  * It does not handle the ownership of the referenced objects.
  * The class methods are not synchronized.
  */
@@ -46,102 +47,115 @@ class vector_base
   size_t Capacity;
 
  protected:
-  // Create a new vector with a given initial capacity.
-  // If capacity is 0 the vector is initially created empty
-  // and allocated with the default capacity when the first item is inserted.
+  /// Create a new vector with a given initial capacity.
+  /// @param capacity If \a capacity is \c 0 the vector is initially created empty
+  /// and allocated with the default capacity when the first item is inserted.
                      vector_base(size_t capacity = 0);
-  // Initialize a vector with size copies of elem.
+  /// Initialize a vector with size copies of elem.
                      vector_base(size_t size, void* elem, size_t spare = 0);
-  // copy constructor
+  /// @brief Copy constructor
+  /// @details This does \e no deep copy.
                      vector_base(const vector_base& r, size_t spare = 0);
-  // Destroy the vector and delete all stored references.
-  // This will not affect the referenced objects.
+  /// @brief Destroy the vector.
+  /// @details This will not affect the referenced objects.
                      ~vector_base();
-  // assignment
+  /// @brief Assignment
+  /// @details This does \e no deep copy.
   void               operator=(const vector_base& r);
-  // swap content of two instances
+  /// @brief Swap content of two instances.
+  /// @details This is O(1).
   void               swap(vector_base& r);
-  // Append a new element to the end of the vector.
-  // The function does not take the value of the new element.
-  // Instead it returns a reference to the new location that should be assigned later.
-  // The reference is valid until the next non-const member function call.
-  // The initial value is NULL.
-  // The function is not type safe and should not be exposed public.
+  /// @brief Append a new element to the end of the vector.
+  /// @return The function does not take the value of the new element.
+  /// Instead it returns a reference to the new location that should be assigned later.
+  /// @details The reference is valid until the next non-const member function call.
+  /// The initial value is NULL.
+  /// The function is not type safe and should not be exposed public.
   void*&             append();
-  // Insert a new element in the vector at location where
-  // Precondition: where in [0,size()], Performance: O(n)
-  // The function does not take the value of the new element.
-  // Instead it returns a reference to the new location that should be assigned later.
-  // The reference is valid until the next non-const member function call.
-  // The initial value is NULL.
-  // The function is not type safe and should not be exposed public.
+  /// @brief Insert a new element in the vector at location where
+  /// @param where Precondition: where in [0,size()], Performance: O(n)
+  /// @return The function does not take the value of the new element.
+  /// Instead it returns a reference to the new location that should be assigned later.
+  /// @details The reference is valid until the next non-const member function call.
+  /// The initial value is NULL.
+  /// The function is not type safe and should not be exposed public.
   void*&             insert(size_t where);
-  // Removes an element from the vector and return it's value.
-  // The where pointer is set to the next item after the removed one.
-  // Precondition: where in [begin(),end()), Performance: O(n)
-  // The function is not type safe and should not be exposed public.
+  /// @brief Removes an element from the vector and return it's value.
+  /// @param where The \a where pointer is set to the next item after the removed one.
+  /// Precondition: \a where in [begin(),end()), Performance: O(n)
+  /// @details The function is not type safe and should not be exposed public.
   void*              erase(void**& where);
-  // Removes an element from the vector and return it's value.
-  // Precondition: where in [0,size()-1], Performance: O(n)
-  // The function is not type safe and should not be exposed public.
+  /// @brief Removes an element from the vector and return it's value.
+  /// @param where Precondition: \a where in [0,size()-1], Performance: O(n)
+  /// @details The function is not type safe and should not be exposed public.
   void*              erase(size_t where)            { void** p = Data + where; return erase(p); }
-  // Access an element by number.
-  // Precondition: where in [0,size()-1], Performance: O(1)
-  // This is in fact like operator[], but since this method is not type safe
-  // it should not be exposed public.
-  void*&             at(size_t where) const         { return Data[where]; }
-  // Initialize storage for new assignment.
-  // Postcondition: Size = size && Capacity >= size.
+  /// @brief Get storage root.
+  /// @return This must not be dereferenced beyond size().
+  /// It may be NULL if size() is 0.
+  void**             begin() const                  { return Data; };
+  /// @brief Access an element by number.
+  /// @param where Precondition: \a where in [0,size()-1], Performance: O(1)
+  /// @details This is in fact like operator[], but since this method is not type safe
+  /// it should not be exposed public.
+  void*&             at(size_t where) const         { ASSERT(where < Size); return Data[where]; }
+  /// @brief Initialize storage for new assignment.
+  /// @details Postcondition: Size = size && Capacity >= size.
   void               prepare_assign(size_t size);
  public:
-  // Return the number of elements in the container.
-  // This is not equal to the storage capacity.
+  /// @brief Return the number of elements in the container.
+  /// @details This is not equal to the storage capacity.
   size_t             size() const                   { return Size; }
-  // Adjust the size to a given value
-  // If the array is increased NULL values are appended.
+  /// @brief Adjust the size to a given value.
+  /// @details If the array is increased NULL values are appended.
   void               set_size(size_t size);
-  // Remove all elements
+  /// Remove all elements
   void               clear()                        { Size = 0; }
-  // Move the i-th element in the list to the location where j is now.
-  // Precondition: from and to in [0,size()-1], Performance: O(n)
+  /// Move the element at \a from in the list to the location \a to.
+  /// Precondition: from and to in [0,size()-1], Performance: O(n)
   void               move(size_t from, size_t to);
-  // Ensure that the container can store size elements without reallocation.
-  // Reserve will also shrink the storage. It is an error if size is less than the actual size.
+  /// Ensure that the container can store size elements without reallocation.
+  /// Reserve will also shrink the storage. It is an error if size is less than the actual size.
   void               reserve(size_t size);
+
+  #ifdef DEBUG_LOG
+  xstring            debug_dump() const;
+  #endif
 
   friend bool        binary_search_base(const vector_base& data, int (*fcmp)(const void* elem, const void* key),
                                         const void* key, size_t& pos);
 };
 
-/* Type safe vector of reference type objects (pointers).
- * The class does not handle the ownership of the referenced objects.
+/** @brief Type safe vector of reference type objects (pointers).
+ * @details The class does not handle the ownership of the referenced objects.
  * The class methods are not synchronized.
  */
 template <class T>
 class vector : public vector_base
 {public:
-  // Create a new vector with a given initial capacity.
-  // If capacity is 0 the vector is initially created empty
-  // and allocated with the default capacity when the first item is inserted.
+  /// @brief Create a new vector with a given initial capacity.
+  /// @param capacity If \a capacity is 0 the vector is initially created empty
+  /// and allocated with the default capacity when the first item is inserted.
                      vector(size_t capacity = 0)    : vector_base(capacity) {}
-  // Initialize a vector with size copies of elem.
+  /// Initialize a vector with \a size copies of \a elem.
                      vector(size_t size, T* elem, size_t spare = 0) : vector_base(size, elem, spare) {}
-  // copy constructor
+  /// @brief Copy constructor
+  /// @details This does \e no deep copy.
                      vector(const vector<T>& r, size_t spare = 0) : vector_base(r, spare) {}
-  // swap content of two instances
+  /// @brief Swap content of two instances.
+  /// @details This is O(1).
   void               swap(vector<T>& r)             { vector_base::swap(r); }
-  // Append a new element to the end of the vector.
-  // The function does not take the value of the new element.
-  // Instead it returns a reference to the new location that should be assigned later.
-  // The reference is valid until the next non-const member function call.
-  // The initial value of the new element is NULL.
+  /// @brief Append a new element to the end of the vector.
+  /// @return The function does not take the value of the new element.
+  /// Instead it returns a reference to the new location that should be assigned later.
+  /// @details The reference is valid until the next non-const member function call.
+  /// The initial value of the new element is NULL.
   T*&                append()                       { return (T*&)vector_base::append(); }
-  // Insert a new element in the vector at location where
-  // Precondition: where in [0,size()], Performance: O(n)
-  // The function does not take the value of the new element.
-  // Instead it returns a reference to the new location that should be assigned later.
-  // The reference is valid until the next non-const member function call.
-  // The initial value of the new element is NULL.
+  /// @brief Insert a new element in the vector at location where
+  /// @param where Precondition: where in [0,size()], Performance: O(n)
+  /// @return The function does not take the value of the new element.
+  /// Instead it returns a reference to the new location that should be assigned later.
+  /// @details The reference is valid until the next non-const member function call.
+  /// The initial value of the new element is NULL.
   T*&                insert(size_t where)           { return (T*&)vector_base::insert(where); }
   // Removes an element from the vector and return it's value.
   // The where pointer is set to the next item after the removed one.
@@ -160,20 +174,20 @@ class vector : public vector_base
   T*&                operator[](size_t where)       { return (T*&)at(where); }
   // Get a constant iterator that points to the firs element or past the end if the vector is empty.
   // Precondition: none, Performance: O(1)
-  T*const*           begin() const                  { return &(T*const&)at(0); }
+  T*const*           begin() const                  { return (T*const*)vector_base::begin(); }
   // Get a iterator that points to the firs element or past the end if the vector is empty.
   // Precondition: none, Performance: O(1)
-  T**                begin()                        { return &(*this)[0]; }
+  T**                begin()                        { return (T**)vector_base::begin(); }
   // Get a constant iterator that points past the end.
   // Precondition: none, Performance: O(1)
-  T*const*           end() const                    { return &(T*const&)at(size()); }
+  T*const*           end() const                    { return begin() + size(); }
   // Get a iterator that points past the end.
   // Precondition: none, Performance: O(1)
-  T**                end()                          { return &(*this)[size()]; }
+  T**                end()                          { return begin() + size(); }
 };
 
 /* Helper functions to implement some strongly typed functionality only once per type T.
- * Intrnal use only
+ * Intrnal use only.
  */
 template <class T>
 void vector_own_base_destroy(vector<T>& v)
@@ -296,16 +310,16 @@ class vector_int : public vector<T>
   int_ptr<T>&        operator[](size_t where)       { return (int_ptr<T>&)at(where); }
   // Get a constant iterator that points to the firs element or past the end if the vector is empty.
   // Precondition: none, Performance: O(1)
-  const int_ptr<T>*  begin() const                  { return &(const int_ptr<T>&)at(0); }
+  const int_ptr<T>*  begin() const                  { return (const int_ptr<T>*)vector_base::begin(); }
   // Get a iterator that points to the firs element or past the end if the vector is empty.
   // Precondition: none, Performance: O(1)
-  int_ptr<T>*        begin()                        { return &(int_ptr<T>&)at(0); }
+  int_ptr<T>*        begin()                        { return (int_ptr<T>*)vector_base::begin(); }
   // Get a constant iterator that points past the end.
   // Precondition: none, Performance: O(1)
-  const int_ptr<T>*  end() const                    { return &(const int_ptr<T>&)at(size()); }
+  const int_ptr<T>*  end() const                    { return begin() + size(); }
   // Get a iterator that points past the end.
   // Precondition: none, Performance: O(1)
-  int_ptr<T>*        end()                          { return &(int_ptr<T>&)at(size()); }
+  int_ptr<T>*        end()                          { return begin() + size(); }
 };
 
 template <class T>

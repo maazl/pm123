@@ -26,7 +26,7 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-/* Configuration dependant log functions.
+/* Configuration dependent log functions.
  * To post a log message write
  *   DEBUGLOG(("Format string with printf parameters like %s\n", "parameter"));
  * Note the double braces!

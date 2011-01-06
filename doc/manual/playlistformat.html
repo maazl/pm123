@@ -1,9 +1,11 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
-<html resid="1020" level="3" sublinks="*"><head>
+<html resid="1020" level="3" sublinks="*"><head><title>Playlist File Format</title>
 
-<title>Playlist File Format</title><link rel="stylesheet" href="infstyle.css" type="text/css"></head>
 
-<body>
+
+
+
+<link rel="stylesheet" href="../common/infstyle.css" type="text/css"></head><body>
 <h2>Format of the PM123 playlist files</h2>
 This format is used for
 PM123 playlists as well as for bookmarks, playlist manager and most
@@ -12,13 +14,8 @@ the files of older PM123 releases, concerning the least common
 denominator.
 <h4>Header</h4>
 <blockquote>
-<p>The head of a playlist file is a comment. This is not an
-essential part on input.</p>
-<pre>#
-# Playlist created with PM123 1.40 alpha 4
-# Do not modify!
-# Lines starting with '&gt;' are used by Playlist Manager.
-#</pre>
+<p>The head of a playlist file is a comment.</p>
+<pre>#<br># Playlist created with PM123 1.40 alpha 4<br># Do not modify!<br># Lines starting with '&gt;' are used by Playlist Manager.<br>#</pre>
 </blockquote>
 <h4>For each song entry</h4>
 <ul>
@@ -36,12 +33,18 @@ seconds with fractionals.</p>
 <p>Information on stop position. <em>optional</em><br>
 The unit is <tt><var>dd</var> <var>hh</var>:<var>mm</var>:<var>ss</var></tt>,
 seconds with fractionals.</p>
-<pre>#STOP 3:04.122</pre>
-</li>
+<pre>#STOP 3:04.122</pre></li>
+  <li>
+<p>Information on last playing position, e.g. in the bookmark list. <em>optional</em><br>
+The unit is <tt><var>dd</var> <var>hh</var>:<var>mm</var>:<var>ss</var></tt>,
+seconds with fractionals.</p>
+<pre>#AT 3:02.135</pre>
+  </li>
+
 <li>
 <p>Human readable comment with size, duration and an info
 string</p>
-<pre># 22385 kB, 21:18, 143.4kbps, 44.1kHz, Stereo</pre>
+<pre># 22385.124 kB, 21:18, 143.4kbps, 44.1kHz, Stereo</pre>
 </li>
 <li>
 <p>Filename or URL</p>
@@ -52,11 +55,11 @@ URL</a> which is accepted by PM123 is accepted. This may
 depend on the loaded plug-ins.</p>
 </li>
 <li>
-<p>Technical information about the above entry</p>
-<pre>&gt;143,44100,0,22923026,1278.7</pre>
+<p>Cached information about the above entry.</p>
+<pre>&gt;143,44100,2.0,22923026,1278.7</pre>
 <p>This is the bit rate [kbps] or -1 if unknown,<br>
 the sampling rate [Hz],<br>
-the number of channels as mode (0=stereo, 3=mono),<br>
+the number of channels as mode (<tt>0</tt>=stereo, <tt>3</tt>=mono) or as <var><tt>channels.lfe-channels</tt></var>, e.g <tt>2.0</tt>=stereo,<br>
 the file size [bytes] or <tt>-1</tt> if unknown and<br>
 the song length [s] or <tt>-1</tt> if unknown.</p>
 <!--pre>&gt;143,44100,0,22923026,1278.7,0.0,-1</pre--> </li>
@@ -77,11 +80,16 @@ The format is a <a href="location.html">PM123 location string</a>.</p>
 The format is a <a href="location.html">PM123 location string</a>.</p>
 <pre>#STOP "SL060319_2354.ogg";2:21.122000</pre>
 </li>
-<li>
-<p>Human readable comment with file size, total duration and
-an info string</p>
-<pre># 1kiB, 1:15:18, </pre>
+<li><br>
+
 </li>
+  <li>
+    <p>Human readable comment with file size, total duration and
+an info string</p>
+
+<pre># 1kiB, 1:15:18, </pre>
+  </li>
+
 <li>
 <p>Filename or URL</p>
 <pre>Taucher - Adult Music\Chill.lst</pre>
@@ -89,21 +97,43 @@ an info string</p>
 paths, and URLs. On input file:/// URLs are accepted too. Folder
 entries must end with a trailing <tt>/</tt> or <tt>\</tt>.</p>
 </li>
-<li>
+  <li>
 <p>Technical information about the last entry</p>
 <pre>&gt;136,-1,-1,896,1278.7,145,19775.4,15,0</pre>
-<p>This is the average bit rate [kbps] or -1 if unknown,<br>
-two constants (<tt>-1,-1</tt>) indicating unknown sampling
-rate and channels,<br>
-the file size [bytes] or <tt>-1</tt> if unknown,<br>
-the total length [s] or <tt>-1</tt> if unknown,<br>
-the number of song items (including sub items) in the referenced
-playlist,<br>
-the total file size of all song items (including sub items),<br>
-the number of items in the referenced playlist and<br>
-a flag whether the content is known to contain itself recursively is
-added.</p>
-</li>
+  </li>
+  <ul>
+    <li>
+      <p><tt>136</tt> - This is the average bit rate [kbps] or -1 if unknown,</p>
+    </li>
+    <li>
+      <p><tt>-1,-1</tt> - two constants indicating unknown sampling
+rate and channels,</p>
+    </li>
+    <li>
+      <p><tt>896</tt> - the file size [bytes] or <tt>-1</tt> if unknown,</p>
+    </li>
+    <li>
+      <p><tt>1278.7</tt> - the total length [s] or <tt>-1</tt> if unknown,</p>
+    </li>
+    <li>
+      <p><tt>145</tt> - the number of song items (including sub items) in the referenced
+playlist,</p>
+    </li>
+    <li>
+      <p><tt>19775.4</tt> - the total file size of all song items (including sub items),</p>
+    </li>
+    <li>
+      <p><tt>15</tt> - the number of items in the referenced playlist,<br>
+      </p>
+    </li>
+    <li>
+      <p><tt>0</tt> - a flag whether the content is known to contain itself recursively is
+added,</p>
+    </li>
+    <li><br>
+    </li>
+  </ul>
+
 </ul>
 <h4>Footer</h4>
 <blockquote>

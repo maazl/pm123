@@ -1,5 +1,5 @@
 /*
- * Copyright 2007-2008 Marcel Mueller
+ * Copyright 2007-2010 Marcel Mueller
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -50,9 +50,8 @@ class PlaylistManager : public PlaylistRepository<PlaylistManager>
   struct CPData : public PlaylistBase::CPDataBase
   { Record*           Parent;    // Pointer to parent Record or NULL if we are at the root level.
     bool              Recursive; // Flag whether this node is in the current callstack.
-    CPData(PlayableInstance* content, PlaylistManager& pm,
-           void (PlaylistBase::*infochangefn)(const Playable::change_args&, RecordBase*),
-           void (PlaylistBase::*statchangefn)(const PlayableInstance::change_args&, RecordBase*),
+    CPData(PlayableInstance& content, PlaylistManager& pm,
+           void (PlaylistBase::*infochangefn)(const PlayableChangeArgs&, RecordBase*),
            RecordBase* rec,
            Record* parent);
   };
@@ -72,9 +71,9 @@ class PlaylistManager : public PlaylistRepository<PlaylistManager>
 
  private:
   // Create a playlist manager window for an URL, but don't open it.
-  PlaylistManager(Playable* obj, const xstring& alias);
+  PlaylistManager(Playable& obj, const xstring& alias);
   // Post record message, filtered
-  virtual void      PostRecordCommand(RecordBase* rec, RecordCommand cmd);
+  virtual void      PostRecordUpdate(RecordBase* rec, InfoFlags flags);
   // create container window
   virtual void      InitDlg();
   // Dialog procedure, called by DlgProcStub
@@ -96,11 +95,11 @@ class PlaylistManager : public PlaylistRepository<PlaylistManager>
   // check whether the current record is recursive
   bool              RecursionCheck(const RecordBase* rec) const;
   // same with explicit parent for new items not yet added
-  bool              RecursionCheck(const Playable* pp, const RecordBase* parent) const;
+  bool              RecursionCheck(const Playable& pp, const RecordBase* parent) const;
 
  private: // Modifiying function and notifications
   // Subfunction to the factory below.
-  virtual RecordBase* CreateNewRecord(PlayableInstance* obj, RecordBase* parent);
+  virtual RecordBase* CreateNewRecord(PlayableInstance& obj, RecordBase* parent);
   // Find parent record. Returns NULL if rec is at the top level.
   virtual RecordBase* GetParent(const RecordBase* const rec) const;
 
@@ -109,10 +108,8 @@ class PlaylistManager : public PlaylistRepository<PlaylistManager>
   // Update the list of children
   // rec == NULL => root node
   virtual void      UpdateChildren(RecordBase* const rec);
-  // Update the tech info of a record
-  void              UpdateTech(Record* rec);
-  // Update the tech info of a record
-  void              UpdateRpl(Record* rec);
+  // Update a record
+  virtual void      UpdateRecord(RecordBase* rec);
   // Update play status of one record
   virtual void      UpdatePlayStatus(RecordBase* rec);
   // Navigate to
@@ -121,13 +118,12 @@ class PlaylistManager : public PlaylistRepository<PlaylistManager>
 
 
 inline PlaylistManager::CPData::CPData(
-  PlayableInstance* content,
+  PlayableInstance& content,
   PlaylistManager& pm,
-  void (PlaylistBase::*infochangefn)(const Playable::change_args&, RecordBase*),
-  void (PlaylistBase::*statchangefn)(const PlayableInstance::change_args&, RecordBase*),
+  void (PlaylistBase::*infochangefn)(const PlayableChangeArgs&, RecordBase*),
   RecordBase* rec,
   Record* parent)
-: PlaylistBase::CPDataBase(content, pm, infochangefn, statchangefn, rec),
+: PlaylistBase::CPDataBase(content, pm, infochangefn, rec),
   Parent(parent),
   Recursive(false)
 {}

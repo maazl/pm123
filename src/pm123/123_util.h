@@ -1,6 +1,6 @@
 /*
  * Copyright 1997-2003 Samuel Audet <guardia@step.polymtl.ca>
- *                     Taneli Lepp„ <rosmo@sektori.com>
+ *                     Taneli Leppï¿½ <rosmo@sektori.com>
  * Copyright 2004-2005 Dmitry A.Steklenev <glass@ptv.ru>
  * Copyright 2007-2008 M.Mueller
  *
@@ -32,11 +32,10 @@
 #ifndef  PM123_UTIL_H
 #define  PM123_UTIL_H
 
-#define INCL_WIN
 #include <decoder_plug.h>
 #include <cpp/xstring.h>
 #include <cpp/url123.h>
-#include <os2.h>
+
 
 /* visualize errors from anywhere */
 void DLLENTRY pm123_display_info ( const char* );
@@ -47,7 +46,7 @@ void DLLENTRY pm123_control( int index, void* param );
 int  DLLENTRY pm123_getstring( int index, int subindex, size_t bufsize, char* buf );
 
 /* Constructs a string of the displayable text from the file information. [123_utils] */
-const xstring amp_construct_tag_string( const DECODER_INFO2* info );
+const xstring amp_construct_tag_string( const INFO_BUNDLE_CV* info );
 
 /* Get current working directory */
 const url123 amp_get_cwd();
@@ -62,6 +61,7 @@ const xstring amp_string_from_drghstr(HSTR hstr);
 const xstring amp_font_attrs_to_string(const FATTRS& attrs, unsigned size);
 /* Make font attributes from string. Return false on error */ 
 bool amp_string_to_font_attrs(FATTRS& attrs, unsigned& size, const char* name);
+
 
 #endif
 

@@ -1,6 +1,6 @@
 /*
  * Copyright 1997-2003 Samuel Audet <guardia@step.polymtl.ca>
- *                     Taneli Lepp„ <rosmo@sektori.com> *
+ *                     Taneli Leppï¿½ <rosmo@sektori.com> *
  * Copyright 2004-2006 Dmitry A.Steklenev <glass@ptv.ru>
  * Copyright 2006-2009 Marcel Mueller
  *
@@ -82,16 +82,19 @@ HWND dlg_addcontrol( HWND hwnd, PSZ cls, PSZ text, ULONG style,
 
 
 /* Return the ID of the selected radiobutton in a group. */
-SHORT rb_selected( HWND hwnd, SHORT id )
+SHORT rb_selected(HWND hwnd, SHORT id)
 {
-  HWND cur = WinWindowFromID( hwnd, id );
+  HWND cur = WinWindowFromID(hwnd, id);
   PMASSERT(cur);
-  cur = WinEnumDlgItem( hwnd, cur, EDI_FIRSTGROUPITEM );
-  while ( cur != NULLHANDLE )
-  { if ( WinSendMsg( cur, BM_QUERYCHECK, 0, 0 ))
-      return WinQueryWindowUShort( cur, QWS_ID );
-    cur = WinEnumDlgItem( hwnd, cur, EDI_NEXTGROUPITEM );
-  }
+  HWND first = cur;
+  HWND prev = cur; // Work around for PM bug
+  cur = WinEnumDlgItem(hwnd, cur, EDI_FIRSTGROUPITEM);
+  do
+  { if (WinSendMsg(cur, BM_QUERYCHECK, 0, 0))
+      return WinQueryWindowUShort(cur, QWS_ID);
+    prev = cur;
+    cur = WinEnumDlgItem(hwnd, cur, EDI_NEXTGROUPITEM);
+  } while (cur != first && cur != prev);
   return -1;
 }
 

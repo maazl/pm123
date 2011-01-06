@@ -1,5 +1,5 @@
 /*
- * Copyright 2006-2008 M.Mueller
+ * Copyright 2006-2010 M.Mueller
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -42,12 +42,12 @@
 #include <malloc.h>
 #include <sys/stat.h>
 
-//#undef DEBUG_LOG
-//#define DEBUG_LOG 2
-
 #include "plugman_base.h"
 #include "pm123.h" // for hab
+#include "dstring.h"
 #include "dialog.h"
+#include "properties.h"
+#include "123_util.h"
 #include "playable.h"
 #include "controller.h" // for starting position work around
 #include <fileutil.h>
@@ -93,13 +93,37 @@ static int tstmp_f2i(double pos)
 
 // Convert possibly truncated time stamp in milliseconds to seconds.
 // The missing bits are taken from a context time stamp which has to be sufficiently close
-// to the original time stamp. Sufficient is about ñ24 days.
+// to the original time stamp. Sufficient is about ï¿½24 days.
 static double tstmp_i2f(int pos, double context)
 { DEBUGLOG(("tstmp_i2f(%i, %g)\n", pos, context));
   if (pos < 0)
     return -1;
   double r = pos / 1000.;
   return r + (UINT_MAX+1.) * floor((context - r + UINT_MAX/2) / (UINT_MAX+1.));
+}
+
+// Convert file URL
+// - discard file: prefix,
+// - replace '/' by '\'
+// - replace "X|" by "X:"
+// The string url is modified in place
+static const char* convert_file_url(char* url)
+{
+  if (strnicmp(url, "file:", 5) == 0)
+  { url += 5;
+    { char* cp = strchr(url, '/');
+      while (cp)
+      { *cp = '\\';
+        cp = strchr(cp+1, '/');
+      }
+    } 
+    if (strncmp(url, "\\\\\\", 3) == 0)
+    { url += 3;
+      if (url[1] == '|')
+        url[1] = ':';
+    }
+  }
+  return url;
 }
 
 
@@ -109,6 +133,12 @@ static double tstmp_i2f(int pos, double context)
 *
 ****************************************************************************/
 
+Decoder::Decoder(Module* mod)
+: Plugin(mod, PLUGIN_DECODER),
+  TryOthers(false)
+{ memset(&DFT_Add, 0, sizeof DFT_Add);
+}
+
 /*Decoder::~Decoder()
 { DEBUGLOG(("Decoder(%p{%s})::~Decoder%p\n", this, ModuleName, Support));
 }*/
@@ -116,22 +146,48 @@ static double tstmp_i2f(int pos, double context)
 bool Decoder::AfterLoad()
 { DEBUGLOG(("Decoder(%p{%s})::AfterLoad()\n", this, GetModuleName().cdata()));
 
-  ULONG DLLENTRYP(decoder_support)( const char** fileext, const char** filetype );
+  ULONG DLLENTRYP(decoder_support)( const DECODER_FILETYPE** types, int* count );
   if (!GetModule().LoadFunction(&decoder_support,  "decoder_support" ))
     return false;
 
-  const char* fileext;
-  const char* filetype;
+  Type = decoder_support( &FileTypes, &FileTypesCount );
+  if ( Type & DECODER_SONG
+    && ( !decoder_init || !decoder_uninit || !decoder_command
+      || !decoder_status || !decoder_length || !decoder_event ))
+    amp_player_error("Could not load decoder %s\nThe plug-in does not export the playback interface completly.",
+        GetModuleName().cdata());
 
-  Type = decoder_support( &fileext, &filetype );
-  Extensions = fileext;
-  FileTypes = filetype;
-
+  FillFileTypeCache();
   return true;
 }
+  
+void Decoder::FillFileTypeCache()  
+{
+  FileTypeCache = AddFileTypes;
+  FileExtensionCache = NULL;
+  FileTypeList.clear();
 
-PLUGIN_TYPE Decoder::GetType() const
-{ return PLUGIN_DECODER;
+  const DECODER_FILETYPE* ft = FileTypes + FileTypesCount;
+  while (ft-- != FileTypes)
+  { FileTypeList.append() = ft;
+    if (ft->eatype && *ft->eatype)
+    { if (FileTypeCache)
+        FileTypeCache = FileTypeCache+";"+ft->eatype;
+      else
+        FileTypeCache = ft->eatype;
+    }
+    if (ft->extension && *ft->extension)
+    { if (FileExtensionCache)
+        FileExtensionCache = FileExtensionCache+";"+ft->extension;
+      else
+        FileExtensionCache = ft->extension;
+    }
+  }
+
+  if (AddFileTypes)
+  { DFT_Add.eatype = AddFileTypes;
+    FileTypeList.append() = &DFT_Add;
+  }
 }
 
 /* Assigns the addresses of the decoder plug-in procedures. */
@@ -139,31 +195,27 @@ bool Decoder::LoadPlugin()
 { DEBUGLOG(("Decoder(%p{%s})::LoadPlugin()\n", this, GetModuleName().cdata()));
   const Module& mod = GetModule();
 
-  if ( !(mod.GetParams().type & PLUGIN_DECODER)
-    || !mod.LoadFunction(&decoder_init,     "decoder_init"    )
-    || !mod.LoadFunction(&decoder_uninit,   "decoder_uninit"  )
-    || !mod.LoadFunction(&decoder_command,  "decoder_command" )
-    || !mod.LoadFunction(&decoder_status,   "decoder_status"  )
-    || !mod.LoadFunction(&decoder_length,   "decoder_length"  )
-    || !mod.LoadFunction(&decoder_fileinfo, "decoder_fileinfo")
-    || !mod.LoadFunction(&decoder_event,    "decoder_event"   ) )
-    return false;
+  if (mod.GetParams().type & PLUGIN_DECODER)
+  { if (!mod.LoadFunction(&decoder_fileinfo, "decoder_fileinfo"))
+      return false;
+    mod.LoadOptionalFunction(&decoder_init,     "decoder_init"    );
+    mod.LoadOptionalFunction(&decoder_uninit,   "decoder_uninit"  );
+    mod.LoadOptionalFunction(&decoder_command,  "decoder_command" );
+    mod.LoadOptionalFunction(&decoder_status,   "decoder_status"  );
+    mod.LoadOptionalFunction(&decoder_length,   "decoder_length"  );
+    mod.LoadOptionalFunction(&decoder_event,    "decoder_event"   );
+  }
 
   mod.LoadOptionalFunction(&decoder_saveinfo, "decoder_saveinfo");
   mod.LoadOptionalFunction(&decoder_editmeta, "decoder_editmeta");
-  mod.LoadOptionalFunction(&decoder_getwizzard, "decoder_getwizzard");
+  mod.LoadOptionalFunction(&decoder_getwizard,"decoder_getwizard");
+  mod.LoadOptionalFunction(&decoder_savefile, "decoder_savefile");
 
   if (!AfterLoad())
     return false;
 
   W = NULL;
 
-  if (Type & DECODER_TRACK)
-  { if (!mod.LoadFunction(&decoder_cdinfo,   "decoder_cdinfo"))
-      return false;
-  } else
-  { decoder_cdinfo = &stub_decoder_cdinfo;
-  }
   return true;
 }
 
@@ -189,25 +241,23 @@ bool Decoder::UninitPlugin()
 }
 
 bool Decoder::IsFileSupported(const char* file, const char* eatype) const
-{ DEBUGLOG(("Decoder(%p{%s})::IsFileSupported(%s, %p) - %s, %s, %s\n", this, GetModuleName().cdata(),
-    file, eatype, Extensions ? Extensions.cdata() : "<null>", FileTypes ? FileTypes.cdata() : "<null>",
-    AddFileTypes ? AddFileTypes.cdata() : "<null>"));
+{ DEBUGLOG(("Decoder(%p{%s})::IsFileSupported(%s, %p) - %s, %s\n", this, GetModuleName().cdata(),
+    file, eatype, FileTypeCache.cdata(), FileExtensionCache.cdata()));
 
   // Try file name match
-  if (Extensions)
+  if (FileExtensionCache)
   { // extract filename
     char fname[_MAX_PATH];
     sfnameext(fname, file, sizeof fname);
-    if (wildcardfit(Extensions, fname))
-    { DEBUGLOG(("Decoder::IsFileSupported: wildcard match of %s with %s\n", fname, Extensions.cdata()));
+    if (wildcardfit(FileExtensionCache, fname))
+    { DEBUGLOG(("Decoder::IsFileSupported: wildcard match of %s with %s\n", fname, FileExtensionCache.cdata()));
       return true;
   } }
 
   // Try file type match
-  const xstring& filetypes = GetFileTypes();
-  if (filetypes && eatype)
+  if (FileTypeCache && eatype)
   { const USHORT* data = (USHORT*)eatype;
-    return DoFileTypeMatch(filetypes, *data++, data);
+    return DoFileTypeMatch(FileTypeCache, *data++, data);
   }
 
   // no match
@@ -247,14 +297,6 @@ bool Decoder::DoFileTypeMatch(const char* filetypes, USHORT type, const USHORT*&
   return false;
 }
 
-xstring Decoder::GetFileTypes() const
-{ if (FileTypes && AddFileTypes)
-    return xstring::sprintf("%s;%s", FileTypes.cdata(), AddFileTypes.cdata());
-  if (AddFileTypes)
-    return AddFileTypes;
-  return FileTypes;
-}
-
 void Decoder::GetParams(stringmap& params) const
 { Plugin::GetParams(params);
   static const xstring troparam = "tryothers";
@@ -274,15 +316,10 @@ bool Decoder::SetParam(const char* param, const xstring& value)
     return false;
   } else if (stricmp(param, "filetypes") == 0)
   { AddFileTypes = value;
+    FillFileTypeCache();
     return true;
   }
   return Plugin::SetParam(param, value);
-}
-
-
-PROXYFUNCIMP(ULONG DLLENTRY, Decoder)
-stub_decoder_cdinfo(const char* drive, DECODER_CDINFO* info)
-{ return 100; // can't play CD
 }
 
 
@@ -294,7 +331,7 @@ class DecoderProxy1 : public Decoder
  private:
   int    Magic;
   ULONG  DLLENTRYP(vdecoder_command      )( void* w, ULONG msg, DECODER_PARAMS* params );
-  int    DLLENTRYP(voutput_request_buffer)( void* a, const FORMAT_INFO2* format, short** buf );
+  int    DLLENTRYP(voutput_request_buffer)( void* a, const TECH_INFO* format, short** buf );
   void   DLLENTRYP(voutput_commit_buffer )( void* a, int len, double posmarker );
   void   DLLENTRYP(voutput_event         )( void* a, DECEVENTTYPE event, void* param );
   void*  a;
@@ -311,38 +348,58 @@ class DecoderProxy1 : public Decoder
   double temppos;
   int    juststarted; // Status whether the first samples after DECODER_PLAY did not yet arrive. 2 = no data arrived, 1 = no valid data arrived, 0 = OK
   DECFASTMODE lastfast;
+  DECODER_FILETYPE* filetypebuffer;
+  char*  filetypestringbuffer;
   char   metadata_buffer[128]; // Loaded in curtun on decoder's demand WM_METADATA.
   Mutex  info_mtx; // Mutex to serialize access to the decoder_*info functions.
-  VDELEGATE vd_decoder_command, vd_decoder_event, vd_decoder_fileinfo, vd_decoder_saveinfo, vd_decoder_cdinfo, vd_decoder_editmeta, vd_decoder_length;
+  VDELEGATE vd_decoder_command, vd_decoder_event, vd_decoder_fileinfo, vd_decoder_saveinfo, vd_decoder_editmeta, vd_decoder_length;
 
  private:
   PROXYFUNCDEF ULONG  DLLENTRY proxy_1_decoder_command     ( DecoderProxy1* op, void* w, ULONG msg, DECODER_PARAMS2* params );
   PROXYFUNCDEF void   DLLENTRY proxy_1_decoder_event       ( DecoderProxy1* op, void* w, OUTEVENTTYPE event );
-  PROXYFUNCDEF ULONG  DLLENTRY proxy_1_decoder_fileinfo    ( DecoderProxy1* op, const char* filename, INFOTYPE* what, DECODER_INFO2* info );
-  PROXYFUNCDEF ULONG  DLLENTRY proxy_1_decoder_saveinfo    ( DecoderProxy1* op, const char* filename, const META_INFO* info, int haveinfo );
-  PROXYFUNCDEF ULONG  DLLENTRY proxy_1_decoder_cdinfo      ( DecoderProxy1* op, const char* drive, DECODER_CDINFO* info );
+  PROXYFUNCDEF ULONG  DLLENTRY proxy_1_decoder_fileinfo    ( DecoderProxy1* op, const char* url, int* what, const INFO_BUNDLE* info,
+                                                                                DECODER_INFO_ENUMERATION_CB cb, void* param );
+  PROXYFUNCDEF ULONG  DLLENTRY proxy_1_decoder_saveinfo    ( DecoderProxy1* op, const char* url, const META_INFO* info, int haveinfo );
   PROXYFUNCDEF int    DLLENTRY proxy_1_decoder_play_samples( DecoderProxy1* op, const FORMAT_INFO* format, const char* buf, int len, int posmarker );
   PROXYFUNCDEF double DLLENTRY proxy_1_decoder_length      ( DecoderProxy1* op, void* w );
   PROXYFUNCDEF ULONG  DLLENTRY proxy_1_decoder_editmeta    ( DecoderProxy1* op, HWND owner, const char* url );
   friend MRESULT EXPENTRY proxy_1_decoder_winfn(HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2);
   // Callback for proxy induced commands
   static  void CommandCallback(Ctrl::ControlCommand* cmd);
-
+  // convert META_INFO into DECODER_INFO
+  static  void ConvertMETA_INFO(DECODER_INFO* dinfo, const volatile META_INFO* meta);
+ 
  protected:
   virtual bool AfterLoad();
           bool IsValid()     { return Magic == 0x714afb12; }
  public:
-  DecoderProxy1(Module* mod) : Decoder(mod), SerializeInfo(false), Magic(0x714afb12), hwnd(NULLHANDLE), juststarted(0) {}
+  DecoderProxy1(Module* mod);
   virtual ~DecoderProxy1();
   virtual bool LoadPlugin();
   virtual void GetParams(stringmap& map) const;
   virtual bool SetParam(const char* param, const xstring& value);
+
+  // convert DECODER_INFO2 to DECODER_INFO
+  static  void ConvertINFO_BUNDLE(DECODER_INFO* dinfo, const INFO_BUNDLE_CV* info);
+  static  void ConvertDECODER_INFO(const INFO_BUNDLE* info, const DECODER_INFO* dinfo);
 };
+
+DecoderProxy1::DecoderProxy1(Module* mod)
+: Decoder(mod),
+  SerializeInfo(false),
+  Magic(0x714afb12),
+  hwnd(NULLHANDLE),
+  juststarted(0),
+  filetypebuffer(NULL),
+  filetypestringbuffer(NULL)
+{}
 
 DecoderProxy1::~DecoderProxy1()
 { if (hwnd != NULLHANDLE)
     WinDestroyWindow(hwnd);
   Magic = 0;
+  delete[] filetypebuffer;
+  delete[] filetypestringbuffer;
 }
 
 /* Assigns the addresses of the decoder plug-in procedures. */
@@ -359,9 +416,9 @@ bool DecoderProxy1::LoadPlugin()
     || !mod.LoadFunction(&vdecoder_command,   "decoder_command") )
     return false;
 
-  mod.LoadOptionalFunction(&vdecoder_saveinfo,  "decoder_saveinfo");
-  mod.LoadOptionalFunction(&vdecoder_editmeta,  "decoder_editmeta");
-  mod.LoadOptionalFunction(&decoder_getwizzard, "decoder_getwizzard");
+  mod.LoadOptionalFunction(&vdecoder_saveinfo, "decoder_saveinfo");
+  mod.LoadOptionalFunction(&vdecoder_editmeta, "decoder_editmeta");
+  mod.LoadOptionalFunction(&decoder_getwizard, "decoder_getwizard");
   decoder_command   = vdelegate(&vd_decoder_command,  &proxy_1_decoder_command,  this);
   decoder_event     = vdelegate(&vd_decoder_event,    &proxy_1_decoder_event,    this);
   decoder_fileinfo  = vdelegate(&vd_decoder_fileinfo, &proxy_1_decoder_fileinfo, this);
@@ -381,10 +438,6 @@ bool DecoderProxy1::LoadPlugin()
   { if ( !mod.LoadFunction(&vdecoder_cdinfo,    "decoder_cdinfo")
       || !mod.LoadFunction(&vdecoder_trackinfo, "decoder_trackinfo") )
       return false;
-    decoder_cdinfo  = vdelegate(&vd_decoder_cdinfo,   &proxy_1_decoder_cdinfo,   this);
-  } else
-  { decoder_cdinfo  = &stub_decoder_cdinfo;
-    vdecoder_trackinfo = NULL;
   }
   return true;
 }
@@ -396,46 +449,38 @@ bool DecoderProxy1::AfterLoad()
   if (!GetModule().LoadFunction(&decoder_support,  "decoder_support" ))
     return false;
 
+  FileTypesCount     = 0;
+  FileTypes          = NULL;
+  delete[] filetypebuffer;
+  delete[] filetypestringbuffer;
+
   char**  my_support = NULL;
-  int     size = 0;
   int     i;
 
-  // determine size
-  Type = decoder_support( my_support, &size );
+  // determine size (What a crappy interface!)
+  Type = decoder_support( my_support, &FileTypesCount );
 
-  FileTypes = NULL;
-  if (size)
-  { my_support = (char**)malloc((_MAX_EXT + sizeof *my_support) * size);
+  if (FileTypesCount)
+  { my_support = (char**)alloca(sizeof *my_support * FileTypesCount);
+    filetypestringbuffer = new char[_MAX_EXT * FileTypesCount];
     // initialize array
-    my_support[0] = (char*)(my_support + size);
-    for( i = 1; i < size; i++ ) {
+    my_support[0] = filetypestringbuffer;
+    for( i = 1; i < FileTypesCount; i++ )
       my_support[i] = my_support[i-1] + _MAX_EXT;
+
+    Type = decoder_support( my_support, &FileTypesCount );
+
+    // Destination array
+    FileTypes = filetypebuffer = new DECODER_FILETYPE[FileTypesCount];
+    memset(filetypebuffer, 0, sizeof *filetypebuffer * FileTypesCount);
+    // Copy content
+    for(i = 0; i < FileTypesCount; ++i)
+    { filetypebuffer[i].category  = "Digital Audio";        
+      filetypebuffer[i].extension = strlwr(my_support[i]);
     }
-
-    Type = decoder_support( my_support, &size );
-
-    // calculate total result string size
-    size_t len = size-1; // delimiters
-    for( i = 0; i < size; i++ )
-      len += strlen(my_support[i]);
-
-    // copy content
-    char* dst = Extensions.raw_init(len);
-    i = 0;
-    for(;;)
-    { strcpy(dst, strlwr(my_support[i]));
-      dst += strlen(dst);
-      if (++i >= size)
-        break;
-      *dst++ = ';';
-    }
-    *dst = 0;
-
-    free(my_support);
-  } else
-  { // no types supported
-    Extensions = NULL;
   }
+  
+  FillFileTypeCache();
   return true;
 }
 
@@ -508,7 +553,10 @@ proxy_1_decoder_play_samples( DecoderProxy1* op, const FORMAT_INFO* format, cons
 
   while (rem)
   { short* dest;
-    int l = (*op->voutput_request_buffer)(op->a, (FORMAT_INFO2*)format, &dest);
+    TechInfo ti;
+    ti.samplerate = format->samplerate;
+    ti.channels   = format->channels;
+    int l = (*op->voutput_request_buffer)(op->a, &ti, &dest);
     DEBUGLOG(("proxy_1_decoder_play_samples: now at %p %i %i %g\n", buf, l, rem, op->temppos));
     if (op->temppos != -1)
     { (*op->voutput_commit_buffer)(op->a, 0, op->temppos); // no-op
@@ -554,24 +602,16 @@ proxy_1_decoder_command( DecoderProxy1* op, void* w, ULONG msg, DECODER_PARAMS2*
   static DECODER_PARAMS par1;
   memset(&par1, 0, sizeof par1);
   par1.size = sizeof par1;
-  char filename[300];
   // preprocessing
   switch (msg)
   {case DECODER_PLAY:
     // decompose URL for old interface
-    { char* cp = strchr(params->URL, ':') +2; // for URLs
-      CDDA_REGION_INFO cd_info;
-      if (is_file(params->URL))
-      { if (strnicmp(params->URL, "file:///", 8) == 0)
-        { strlcpy(filename, params->URL+8, sizeof filename);
-          par1.filename = filename;
-          cp = strchr(filename, '/');
-          while (cp)
-          { *cp = '\\';
-            cp = strchr(cp+1, '/');
-          }
-        } else
-          par1.filename = params->URL; // bare filename - normally this should not happen
+    { CDDA_REGION_INFO cd_info;
+      if (strnicmp(params->URL, "file:///", 8) == 0)
+      { size_t len = strlen(params->URL) + 1;
+        char* cp = (char*)alloca(len);
+        memcpy(cp, params->URL, len);
+        par1.filename = convert_file_url(cp);
         DEBUGLOG2(("proxy_1_decoder_command: filename=%s\n", par1.filename));
       } else if (scdparams(&cd_info, params->URL))
       { par1.drive = cd_info.drive;
@@ -596,16 +636,16 @@ proxy_1_decoder_command( DecoderProxy1* op, void* w, ULONG msg, DECODER_PARAMS2*
 
     par1.output_play_samples = (int DLLENTRYPF()(void*, const FORMAT_INFO*, const char*, int, int))&PROXYFUNCREF(DecoderProxy1)proxy_1_decoder_play_samples;
     par1.a                   = op;
-    par1.proxyurl            = params->proxyurl;
-    par1.httpauth            = params->httpauth;
+    par1.proxyurl            = cfg.proxy;
+    par1.httpauth            = cfg.auth;
     par1.hwnd                = op->hwnd;
-    par1.buffersize          = params->buffersize;
-    par1.bufferwait          = params->bufferwait;
+    par1.buffersize          = cfg.buff_size;
+    par1.bufferwait          = cfg.buff_wait;
     par1.metadata_buffer     = op->metadata_buffer;
     par1.metadata_size       = sizeof(op->metadata_buffer);
     par1.audio_buffersize    = BUFSIZE;
-    par1.error_display       = params->error_display;
-    par1.info_display        = params->info_display;
+    par1.error_display       = &pm123_display_error;
+    par1.info_display        = &pm123_display_info;
 
     op->voutput_request_buffer = params->output_request_buffer;
     op->voutput_commit_buffer  = params->output_commit_buffer;
@@ -648,11 +688,6 @@ proxy_1_decoder_command( DecoderProxy1* op, void* w, ULONG msg, DECODER_PARAMS2*
     op->temppos = params->jumpto;
     break;
 
-   case DECODER_EQ:
-    par1.equalizer           = params->equalizer;
-    par1.bandgain            = params->bandgain;
-    break;
-
    case DECODER_SAVEDATA:
     par1.save_filename       = params->save_filename;
     break;
@@ -685,136 +720,125 @@ proxy_1_decoder_event( DecoderProxy1* op, void* w, OUTEVENTTYPE event )
 }
 
 PROXYFUNCIMP(ULONG DLLENTRY, DecoderProxy1)
-proxy_1_decoder_fileinfo( DecoderProxy1* op, const char* filename, INFOTYPE* what, DECODER_INFO2 *info )
-{ DEBUGLOG(("proxy_1_decoder_fileinfo(%p, %s, %x, %p{%u,%p,%p,%p})\n", op, filename, what, info, info->size, info->format, info->tech, info->meta));
+proxy_1_decoder_fileinfo( DecoderProxy1* op, const char* filename, int* what, const INFO_BUNDLE *info,
+                          DECODER_INFO_ENUMERATION_CB cb, void* param )
+{ DEBUGLOG(("proxy_1_decoder_fileinfo(%p, %s, *%x, %p{...}, %p, %p)\n", op,
+    filename, *what, info, cb, param));
 
   DECODER_INFO old_info = { sizeof old_info };
+  // Work around for missing undef value of the replay gain fields in level 1 plug-ins.
+  old_info.album_peak = old_info.album_gain = old_info.track_peak = old_info.track_gain = -1000;
   CDDA_REGION_INFO cd_info;
   ULONG rc;
 
-  info->phys->filesize   = -1;
-
   if (scdparams(&cd_info, filename))
-  { if ( cd_info.track == 0 ||            // can't handle sectors
-         op->vdecoder_trackinfo == NULL ) // plug-in does not support trackinfo
-      return 200;
-    // Serialize access to the info functions of old plug-ins.
-    // In theory the must be thread safe for older PM123 releases too. In practice they are not.
-    sco_ptr<Mutex::Lock> lock(op->SerializeInfo ? new Mutex::Lock(op->info_mtx) : NULL);
-    rc = (*op->vdecoder_trackinfo)(cd_info.drive, cd_info.track, &old_info);
+  { // CD URL
+    if ( cd_info.sectors[1] != 0           // can't handle sectors
+      || (op->Type & DECODER_TRACK) == 0 ) // plug-in does not support CD
+      return PLUGIN_NO_PLAY;
+
+    if (cd_info.track != 0)
+    { // Get track info
+      // Serialize access to the info functions of old plug-ins.
+      // In theory the must be thread safe for older PM123 releases too. In practice they are not always.
+      sco_ptr<Mutex::Lock> lock(op->SerializeInfo ? new Mutex::Lock(op->info_mtx) : NULL);
+      rc = (*op->vdecoder_trackinfo)(cd_info.drive, cd_info.track, &old_info);
+    } else
+    { // Get TOC info
+      DECODER_CDINFO dec_cdinfo;
+      { // Serialize access to the info functions of old plug-ins.
+        // In theory the must be thread safe for older PM123 releases too. In practice they are not always.
+        sco_ptr<Mutex::Lock> lock(op->SerializeInfo ? new Mutex::Lock(op->info_mtx) : NULL);
+        rc = (*op->vdecoder_cdinfo)(cd_info.drive, &dec_cdinfo);
+      }
+      if (rc == PLUGIN_OK)
+      { // emulate TOC playlist
+        //                   0123456789012345678
+        char trackurl[18] = "cdda:///x:/Track";
+        trackurl[8] = cd_info.drive[0];
+        //static const PHYS_INFO pi = { sizeof(PHYS_INFO), -1, (unsigned)-1, PATTR_NONE };
+        static const TECH_INFO ti = { 44100, 2, TATTR_SONG, dstring_NULL, "CDXA" };
+        static const ATTR_INFO ai = { PLO_NONE };
+        static const INFO_BUNDLE trackinfo = { NULL, &(TECH_INFO&)ti, NULL, NULL, &(ATTR_INFO&)ai, NULL, NULL };
+        for (int track = dec_cdinfo.firsttrack; track <= dec_cdinfo.lasttrack; ++track)
+        { sprintf(trackurl+16, "%02i", track);
+          (*cb)( param, trackurl, &trackinfo, INFO_TECH|INFO_ATTR|INFO_CHILD, INFO_NONE );
+        }
+        // Info of the whole CD
+        info->phys->filesize   = dec_cdinfo.sectors * 2352.;
+        info->tech->attributes = TATTR_PLAYLIST;
+        info->tech->format     = "CD-TOC";
+        info->obj->songlength  = dec_cdinfo.sectors / 75.;
+        info->obj->bitrate     = 1411200;
+        info->rpl->totalsongs  = dec_cdinfo.lasttrack - dec_cdinfo.firsttrack +1;
+        info->rpl->totallists  = 0;
+        info->rpl->recursive   = false;
+        info->drpl->totallength= dec_cdinfo.sectors / 75.;
+        info->drpl->totalsize  = (dec_cdinfo.sectors+150) * 2352.;
+        // old decoders always load all kind of information
+        *what |= IF_Decoder|IF_Aggreg;
+      }
+      return rc;
+    }  
   } else
-  { if (strnicmp(filename, "file:", 5) == 0)
-    { filename += 5;
-      char* fname = (char*)alloca(strlen(filename)+1);
+  { rc = 0;
+    if (strnicmp(filename, "file:", 5) == 0)
+    { char* fname = (char*)alloca(strlen(filename)+1);
       strcpy(fname, filename);
-      { char* cp = strchr(fname, '/');
-        while (cp)
-        { *cp = '\\';
-          cp = strchr(cp+1, '/');
+      filename = convert_file_url(fname);
+      if (*what & IF_Phys)
+      { // get file size
+        // TODO: large file support
+        struct stat fi;
+        rc = PLUGIN_NO_READ;
+        if ( stat( filename, &fi ) == 0 && (fi.st_mode & S_IFDIR) == 0 )
+        { // All level 1 plug-ins only support songs
+          info->phys->filesize = fi.st_size;
+          info->phys->tstmp    = fi.st_mtime;
+          info->phys->attributes = PATTR_WRITABLE * ((fi.st_mode & S_IRUSR) != 0);
+          rc = 0;
         }
       }
-      if (strncmp(fname, "\\\\\\", 3) == 0)
-      { fname += 3;
-        if (fname[1] == '|')
-          fname[1] = ':';
-      }
-      filename = fname;
     }
     // DEBUGLOG(("proxy_1_decoder_fileinfo - %s\n", filename));
+    if (*what & (IF_Tech|IF_Obj|IF_Meta))
     { // Serialize access to the info functions of old plug-ins.
       // In theory the must be thread safe for older PM123 releases too. In practice they are not.
       sco_ptr<Mutex::Lock> lock(op->SerializeInfo ? new Mutex::Lock(op->info_mtx) : NULL);
       rc = (*op->vdecoder_fileinfo)(filename, &old_info);
+      *what |= IF_Tech|IF_Obj|IF_Meta;
     }
-    // get file size
-    // TODO: large file support
-    struct stat fi;
-    if ( rc == 0 && is_file(filename) && stat( filename, &fi ) == 0 )
-      info->phys->filesize = fi.st_size;
   }
-  info->phys->num_items = 1;
-  info->tech->totalsize = info->phys->filesize;
   DEBUGLOG(("proxy_1_decoder_fileinfo: %lu\n", rc));
 
   // convert information to new format
   if (rc == 0)
-  { // Slicing: the structure FORMAT_INFO2 is a subset of FORMAT_INFO.
-    info->format->samplerate = old_info.format.samplerate;
-    info->format->channels = old_info.format.channels;
-
-    info->tech->songlength = old_info.songlength < 0 ? -1 : old_info.songlength/1000.;
-    info->tech->bitrate    = old_info.bitrate;
-    strlcpy(info->tech->info,    old_info.tech_info,sizeof info->tech->info);
-
-    memcpy(info->meta->title,    old_info.title,    sizeof info->meta->title);
-    memcpy(info->meta->artist,   old_info.artist,   sizeof info->meta->artist);
-    memcpy(info->meta->album,    old_info.album,    sizeof info->meta->album);
-    strlcpy(info->meta->year,    old_info.year,     sizeof info->meta->year);
-    memcpy(info->meta->comment,  old_info.comment,  sizeof info->meta->comment);
-    memcpy(info->meta->genre,    old_info.genre,    sizeof info->meta->genre);
-    info->meta->track      = atoi(old_info.track);
-    memcpy(info->meta->copyright,old_info.copyright,sizeof info->meta->copyright);
-    info->meta->track_gain = old_info.track_gain;
-    info->meta->track_peak = old_info.track_peak;
-    info->meta->album_gain = old_info.album_gain;
-    info->meta->album_peak = old_info.album_peak;
-    info->meta_write       = old_info.saveinfo;
-    // old decoders always load all kind of information
-    *what = (INFOTYPE)(*what | INFO_ALL);
+  { ConvertDECODER_INFO(info, &old_info);
+    // Always supply AttrInfo and RPL/DRPL
+    *what |= IF_Attr|IF_Rpl|IF_Drpl;
   }
   return rc;
 }
 
 PROXYFUNCIMP(ULONG DLLENTRY, DecoderProxy1)
-proxy_1_decoder_saveinfo( DecoderProxy1* op, const char* filename, const META_INFO* info, int haveinfo )
-{ DEBUGLOG(("proxy_1_decoder_saveinfo(%p, %s, {%u,%s,%s,%s,%s,%s,%s,%i,%s}, %x)\n", op, filename,
-    info->size,info->title,info->artist,info->album,info->year,info->comment,info->genre,info->track,info->copyright,
+proxy_1_decoder_saveinfo( DecoderProxy1* op, const char* url, const META_INFO* info, int haveinfo )
+{ DEBUGLOG(("proxy_1_decoder_saveinfo(%p, %s, {%s,%s,%s,%s,%s,%s,%i,%s}, %x)\n", op, url, 
+    info->title.cdata(),info->artist.cdata(),info->album.cdata(),info->year.cdata(),info->comment.cdata(),info->genre.cdata(),info->track.cdata(),info->copyright.cdata(),
     haveinfo));
+
   DECODER_INFO dinfo = { sizeof dinfo };
-  // this part of the structure is binary compatible
-  memcpy(dinfo.title,    info->title,    sizeof dinfo.title);
-  memcpy(dinfo.artist,   info->artist,   sizeof dinfo.artist);
-  memcpy(dinfo.album,    info->album,    sizeof dinfo.album);
-  memcpy(dinfo.year,     info->year,     sizeof dinfo.year);
-  memcpy(dinfo.comment,  info->comment,  sizeof dinfo.comment);
-  memcpy(dinfo.genre,    info->genre,    sizeof dinfo.genre);
-  if (info->track > 0)
-    sprintf(dinfo.track, "%i", info->track);
-  memcpy(dinfo.copyright,info->copyright,sizeof dinfo.copyright);
-  dinfo.track_gain = info->track_gain;
-  dinfo.track_peak = info->track_peak;
-  dinfo.album_gain = info->album_gain;
-  dinfo.album_peak = info->album_peak;
-  //dinfo.codepage = 0;
+  ConvertMETA_INFO(&dinfo, info);
+
   dinfo.haveinfo   = haveinfo;
+
   // Decode file URLs
-  if (strnicmp(filename, "file:", 5) == 0)
-  { filename += 5;
-    char* fname = (char*)alloca(strlen(filename)+1);
-    strcpy(fname, filename);
-    { char* cp = strchr(fname, '/');
-      while (cp)
-      { *cp = '\\';
-        cp = strchr(cp+1, '/');
-      }
-    }
-    if (strncmp(fname, "\\\\\\", 3) == 0)
-    { fname += 3;
-      if (fname[1] == '|')
-        fname[1] = ':';
-    }
-    filename = fname;
+  if (strnicmp(url, "file:", 5) == 0)
+  { char* fname = (char*)alloca(strlen(url)+1);
+    strcpy(fname, url);
+    url = convert_file_url(fname);
   }
   // Call decoder's function
-  return (*op->vdecoder_saveinfo)(filename, &dinfo);
-}
-
-PROXYFUNCIMP(ULONG DLLENTRY, DecoderProxy1)
-proxy_1_decoder_cdinfo( DecoderProxy1* op, const char* drive, DECODER_CDINFO* info )
-{ // Serialize access to the info functions of old plug-ins.
-  // In theory the must be thread safe for older PM123 releases too. In practice they are not.
-  sco_ptr<Mutex::Lock> lock(op->SerializeInfo ? new Mutex::Lock(op->info_mtx) : NULL);
-  return (*op->vdecoder_cdinfo)(drive, info);
+  return (*op->vdecoder_saveinfo)(url, &dinfo);
 }
 
 PROXYFUNCIMP(ULONG DLLENTRY, DecoderProxy1)
@@ -822,21 +846,9 @@ proxy_1_decoder_editmeta( DecoderProxy1* op, HWND owner, const char* url )
 { DEBUGLOG(("proxy_1_decoder_editmeta(%p, %p, %s)\n", op, owner, url));
   // Decode file URLs
   if (strnicmp(url, "file:", 5) == 0)
-  { url += 5;
-    char* fname = (char*)alloca(strlen(url)+1);
+  { char* fname = (char*)alloca(strlen(url)+1);
     strcpy(fname, url);
-    { char* cp = strchr(fname, '/');
-      while (cp)
-      { *cp = '\\';
-        cp = strchr(cp+1, '/');
-      }
-    }
-    if (strncmp(fname, "\\\\\\", 3) == 0)
-    { fname += 3;
-      if (fname[1] == '|')
-        fname[1] = ':';
-    }
-    url = fname;
+    url = convert_file_url(fname);
   }
   return (*op->vdecoder_editmeta)(owner, url);
 }
@@ -882,23 +894,24 @@ MRESULT EXPENTRY proxy_1_decoder_winfn(HWND hwnd, ULONG msg, MPARAM mp1, MPARAM 
       // Keep anything but the title field at the old values.
       int_ptr<Playable> pp = Playable::FindByURL(op->url);
       if (pp)
-      { // Make this operation atomic
-        Playable::Lock lck(*pp);
-        META_INFO meta = *pp->GetInfo().meta;
-        const char* metadata = (const char*)PVOIDFROMMP(mp1);
-        const char* titlepos;
+      { const char* metadata = (const char*)PVOIDFROMMP(mp1);
         // extract stream title
         if( metadata ) {
-          titlepos = strstr( metadata, "StreamTitle='" );
+          /* @@@ TODO should be applied to the current playing reference.
+          // Make this operation atomic
+          Mutex::Lock lck(*pp);
+          MetaInfo meta = *pp->GetInfo().meta;
+          const char* titlepos = strstr( metadata, "StreamTitle='" );
           if ( titlepos )
           { titlepos += 13;
-            unsigned i;
-            for( i = 0; i < sizeof( meta.title ) - 1 && *titlepos
-                        && ( titlepos[0] != '\'' || titlepos[1] != ';' ); i++ )
-              meta.title[i] = *titlepos++;
-            meta.title[i] = 0;
+            const char* titleend = strstr( titlepos, "';" );
+            if (titleend)
+              memcpy( dstring_alloc(&meta.title, titleend-titlepos), titlepos, titleend-titlepos);
+            else
+              dstring_assign(&meta.title, titlepos);
+            // Raise DECEVENT_CHANGEMETA
             (*op->voutput_event)(op->a, DECEVENT_CHANGEMETA, &meta);
-          }
+          }*/
         }
       }
     }
@@ -925,10 +938,86 @@ void DecoderProxy1::CommandCallback(Ctrl::ControlCommand* cmd)
   delete cmd;
 }
 
+void DecoderProxy1::ConvertMETA_INFO(DECODER_INFO* dinfo, const volatile META_INFO* meta)
+{
+  if (!!meta->title)
+    strlcpy(dinfo->title,    xstring(meta->title),    sizeof dinfo->title);
+  if (!!meta->artist)
+    strlcpy(dinfo->artist,   xstring(meta->artist),   sizeof dinfo->artist);
+  if (!!meta->album)
+    strlcpy(dinfo->album,    xstring(meta->album),    sizeof dinfo->album);
+  if (!!meta->year)
+    strlcpy(dinfo->year,     xstring(meta->year),     sizeof dinfo->year);
+  if (!!meta->comment)
+    strlcpy(dinfo->comment,  xstring(meta->comment),  sizeof dinfo->comment);
+  if (!!meta->genre)
+    strlcpy(dinfo->genre,    xstring(meta->genre),    sizeof dinfo->genre);
+  if (!!meta->track)
+    strlcpy(dinfo->track,    xstring(meta->track),    sizeof dinfo->track);
+  if (!!meta->copyright)
+    strlcpy(dinfo->copyright,xstring(meta->copyright),sizeof dinfo->copyright);
+
+  dinfo->codepage = ch_default();
+
+  if (meta->track_gain > -1000)
+    dinfo->track_gain = meta->track_gain; 
+  if (meta->track_peak > -1000)
+    dinfo->track_peak = meta->track_peak; 
+  if (meta->album_gain > -1000)
+    dinfo->album_gain = meta->album_gain; 
+  if (meta->album_peak > -1000)
+    dinfo->album_peak = meta->album_peak;
+}
+
+void DecoderProxy1::ConvertINFO_BUNDLE(DECODER_INFO* dinfo, const INFO_BUNDLE_CV* info)
+{
+  dinfo->format.samplerate = info->tech->samplerate;
+  dinfo->format.channels   = info->tech->channels;
+  dinfo->format.bits       = 16;
+  dinfo->format.format     = WAVE_FORMAT_PCM;
+
+  dinfo->songlength = info->obj->songlength < 0 ? -1 : (int)(info->obj->songlength * 1000.);
+  dinfo->junklength = -1;
+  dinfo->bitrate    = info->obj->bitrate    < 0 ? -1 : info->obj->bitrate / 1000;
+  if (!!info->tech->info)
+    strlcpy(dinfo->tech_info, xstring(info->tech->info), sizeof dinfo->tech_info);
+
+  ConvertMETA_INFO(dinfo, info->meta);
+
+  dinfo->saveinfo   = (info->tech->attributes & TATTR_WRITABLE) != 0;
+  dinfo->filesize   = (int)info->phys->filesize;
+}
+
+void DecoderProxy1::ConvertDECODER_INFO(const INFO_BUNDLE* info, const DECODER_INFO* dinfo)
+{ info->tech->samplerate = dinfo->format.samplerate;
+  info->tech->channels   = dinfo->format.channels;
+  info->tech->attributes = TATTR_SONG | TATTR_SAVEABLE | TATTR_WRITABLE * (dinfo->saveinfo != 0);
+  info->tech->info       = dinfo->tech_info;
+  info->obj->songlength  = dinfo->songlength < 0 ? -1 : dinfo->songlength / 1000.;
+  info->obj->bitrate     = dinfo->bitrate    < 0 ? -1 : dinfo->bitrate * 1000;
+  info->meta->title      = dinfo->title;
+  info->meta->artist     = dinfo->artist;
+  info->meta->album      = dinfo->album;
+  info->meta->year       = dinfo->year;
+  info->meta->comment    = dinfo->comment;
+  info->meta->genre      = dinfo->genre;
+  info->meta->track      = dinfo->track;
+  info->meta->copyright  = dinfo->copyright;
+  // Mask out zero values because they mean most likely 'undefined'. 
+  if (dinfo->track_gain != 0.)
+    info->meta->track_gain = dinfo->track_gain; 
+  if (dinfo->track_peak != 0.)
+    info->meta->track_peak = dinfo->track_peak; 
+  if (dinfo->album_gain != 0.)
+    info->meta->album_gain = dinfo->album_gain; 
+  if (dinfo->album_peak != 0.)
+    info->meta->album_peak = dinfo->album_peak; 
+}
+
+
 Plugin* Decoder::Factory(Module* mod)
 { return mod->GetParams().interface <= 1 ? new DecoderProxy1(mod) : new Decoder(mod);
 }
-
 
 void Decoder::Init()
 { PMRASSERT(WinRegisterClass(amp_player_hab(), "DecoderProxy1", &proxy_1_decoder_winfn, 0, sizeof(DecoderProxy1*)));
@@ -940,10 +1029,6 @@ void Decoder::Init()
 * output interface
 *
 ****************************************************************************/
-
-PLUGIN_TYPE Output::GetType() const
-{ return PLUGIN_OUTPUT;
-}
 
 /* Assigns the addresses of the out7put plug-in procedures. */
 bool Output::LoadPlugin()
@@ -1010,7 +1095,7 @@ class OutputProxy1 : public Output
 
  private:
   PROXYFUNCDEF ULONG  DLLENTRY proxy_1_output_command       ( OutputProxy1* op, void* a, ULONG msg, OUTPUT_PARAMS2* info );
-  PROXYFUNCDEF int    DLLENTRY proxy_1_output_request_buffer( OutputProxy1* op, void* a, const FORMAT_INFO2* format, short** buf );
+  PROXYFUNCDEF int    DLLENTRY proxy_1_output_request_buffer( OutputProxy1* op, void* a, const TECH_INFO* format, short** buf );
   PROXYFUNCDEF void   DLLENTRY proxy_1_output_commit_buffer ( OutputProxy1* op, void* a, int len, double posmarker );
   PROXYFUNCDEF double DLLENTRY proxy_1_output_playing_pos   ( OutputProxy1* op, void* a );
   friend MRESULT EXPENTRY proxy_1_output_winfn(HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2);
@@ -1058,6 +1143,7 @@ proxy_1_output_command( OutputProxy1* op, void* a, ULONG msg, OUTPUT_PARAMS2* in
     return (*op->voutput_command)(a, msg, NULL);
 
   OUTPUT_PARAMS params = { sizeof params };
+  DECODER_INFO  dinfo  = { sizeof dinfo };
 
   // preprocessing
   switch (msg)
@@ -1066,33 +1152,13 @@ proxy_1_output_command( OutputProxy1* op, void* a, ULONG msg, OUTPUT_PARAMS2* in
     break;
 
    case OUTPUT_SETUP:
-    { op->voutput_hwnd = OutputProxy1::CreateProxyWindow("OutputProxy1", op);
-      // convert format info
-      params.formatinfo.size       = sizeof params.formatinfo;
-      params.formatinfo.samplerate = info->formatinfo.samplerate;
-      params.formatinfo.channels   = info->formatinfo.channels;
-      params.formatinfo.bits       = 16;
-      params.formatinfo.format     = WAVE_FORMAT_PCM;
-      // convert DECODER_INFO2 to DECODER_INFO
-      DECODER_INFO dinfo = { sizeof dinfo };
-      const DECODER_INFO2& dinfo2 = *info->info;
-      dinfo.format     = params.formatinfo;
-      dinfo.songlength = (int)(dinfo2.tech->songlength*1000.);
-      dinfo.junklength = -1;
-      dinfo.bitrate    = dinfo2.tech->bitrate;
-      strlcpy(dinfo.tech_info, dinfo2.tech->info, sizeof dinfo.tech_info);
-      // this part of the structure is binary compatible
-      memcpy(dinfo.title, dinfo2.meta->title, offsetof(META_INFO, track) - offsetof(META_INFO, title));
-      if (dinfo2.meta->track)
-        sprintf(dinfo.track, "%i", dinfo2.meta->track);
-      dinfo.codepage   = ch_default();
-      dinfo.filesize   = (int)dinfo2.phys->filesize;
-      dinfo.track_gain = dinfo2.meta->track_gain;
-      dinfo.track_peak = dinfo2.meta->track_peak;
-      dinfo.album_gain = dinfo2.meta->album_gain;
-      dinfo.album_peak = dinfo2.meta->album_peak;
-      params.info = &dinfo;
-      params.hwnd                  = op->voutput_hwnd;
+    op->voutput_hwnd = OutputProxy1::CreateProxyWindow("OutputProxy1", op);
+   case OUTPUT_OPEN:
+    { // convert DECODER_INFO2 to DECODER_INFO
+      DecoderProxy1::ConvertINFO_BUNDLE(&dinfo, info->info);
+      params.formatinfo        = dinfo.format;
+      params.info              = &dinfo;
+      params.hwnd              = op->voutput_hwnd;
       break;
     }
   }
@@ -1102,15 +1168,18 @@ proxy_1_output_command( OutputProxy1* op, void* a, ULONG msg, OUTPUT_PARAMS2* in
   params.boostdelta            = DECODER_HIGH_PRIORITY_DELTA;
   params.normaldelta           = DECODER_LOW_PRIORITY_DELTA;
   params.nobuffermode          = FALSE;
-  params.error_display         = info->error_display;
-  params.info_display          = info->info_display;
+  params.error_display         = &pm123_display_error;
+  params.info_display          = &pm123_display_info;
   params.volume                = (char)(info->volume*100+.5);
   params.amplifier             = info->amplifier;
   params.pause                 = info->pause;
-  params.temp_playingpos       = tstmp_f2i(info->temp_playingpos);
-  if (info->URI != NULL && strnicmp(info->URI, "file://", 7) == 0)
-    params.filename            = info->URI + 7;
-   else
+  params.temp_playingpos       = tstmp_f2i(info->playingpos);
+
+  if (info->URI != NULL && strnicmp(info->URI, "file:", 5) == 0)
+  { char* fname = (char*)alloca(strlen(info->URI)+1);
+    strcpy(fname, info->URI);
+    params.filename            = convert_file_url(fname);
+  } else
     params.filename            = info->URI;
 
   // call plug-in
@@ -1125,7 +1194,6 @@ proxy_1_output_command( OutputProxy1* op, void* a, ULONG msg, OUTPUT_PARAMS2* in
     op->voutput_always_hungry  = params.always_hungry;
     op->voutput_event          = info->output_event;
     op->voutput_w              = info->w;
-    op->voutput_format.size    = sizeof op->voutput_format;
     op->voutput_format.bits    = 16;
     op->voutput_format.format  = WAVE_FORMAT_PCM;
     break;
@@ -1139,12 +1207,12 @@ proxy_1_output_command( OutputProxy1* op, void* a, ULONG msg, OUTPUT_PARAMS2* in
 }
 
 PROXYFUNCIMP(int DLLENTRY, OutputProxy1)
-proxy_1_output_request_buffer( OutputProxy1* op, void* a, const FORMAT_INFO2* format, short** buf )
+proxy_1_output_request_buffer( OutputProxy1* op, void* a, const TECH_INFO* format, short** buf )
 {
   #ifdef DEBUG_LOG
   if (format != NULL)
-    DEBUGLOG(("proxy_1_output_request_buffer(%p, %p, {%i,%i,%i}, %p) - %d\n",
-      op, a, format->size, format->samplerate, format->channels, buf, op->voutput_buffer_level));
+    DEBUGLOG(("proxy_1_output_request_buffer(%p, %p, {%i,%i,%x...}, %p) - %d\n",
+      op, a, format->samplerate, format->channels, format->attributes, buf, op->voutput_buffer_level));
    else
     DEBUGLOG(("proxy_1_output_request_buffer(%p, %p, %p, %p) - %d\n", op, a, format, buf, op->voutput_buffer_level));
   #endif
@@ -1232,10 +1300,6 @@ void Output::Init()
 *
 ****************************************************************************/
 
-PLUGIN_TYPE Filter::GetType() const
-{ return PLUGIN_FILTER;
-}
-
 /* Assigns the addresses of the filter plug-in procedures. */
 bool Filter::LoadPlugin()
 { DEBUGLOG(("Filter(%p{%s})::LoadPlugin\n", this, GetModuleName().cdata()));
@@ -1305,11 +1369,11 @@ class FilterProxy1 : public Filter
   BOOL  DLLENTRYP(vfilter_uninit       )( void*  f );
   int   DLLENTRYP(vfilter_play_samples )( void*  f, const FORMAT_INFO* format, const char *buf, int len, int posmarker );
   void* vf;
-  int   DLLENTRYP(output_request_buffer)( void*  a, const FORMAT_INFO2* format, short** buf );
+  int   DLLENTRYP(output_request_buffer)( void*  a, const TECH_INFO* format, short** buf );
   void  DLLENTRYP(output_commit_buffer )( void*  a, int len, double posmarker );
   void* a;
-  void  DLLENTRYP(error_display        )( const char* );
-  FORMAT_INFO vformat;                      // format of the samples
+  FORMAT_INFO vformat;                      // format of the samples (old style)
+  TechInfo    vtech;                        // format of the samples (new style)
   short       vbuffer[BUFSIZE/2];           // buffer to store incoming samples
   int         vbufsamples;                  // size of vbuffer in samples
   int         vbuflevel;                    // current filled to vbuflevel
@@ -1323,7 +1387,7 @@ class FilterProxy1 : public Filter
   PROXYFUNCDEF ULONG DLLENTRY proxy_1_filter_init          ( FilterProxy1* pp, void** f, FILTER_PARAMS2* params );
   PROXYFUNCDEF void  DLLENTRY proxy_1_filter_update        ( FilterProxy1* pp, const FILTER_PARAMS2* params );
   PROXYFUNCDEF BOOL  DLLENTRY proxy_1_filter_uninit        ( void* f ); // empty stub
-  PROXYFUNCDEF int   DLLENTRY proxy_1_filter_request_buffer( FilterProxy1* f, const FORMAT_INFO2* format, short** buf );
+  PROXYFUNCDEF int   DLLENTRY proxy_1_filter_request_buffer( FilterProxy1* f, const TECH_INFO* format, short** buf );
   PROXYFUNCDEF void  DLLENTRY proxy_1_filter_commit_buffer ( FilterProxy1* f, int len, double posmarker );
   PROXYFUNCDEF int   DLLENTRY proxy_1_filter_play_samples  ( FilterProxy1* f, const FORMAT_INFO* format, const char *buf, int len, int posmarker );
  public:
@@ -1363,10 +1427,10 @@ proxy_1_filter_init( FilterProxy1* pp, void** f, FILTER_PARAMS2* params )
                             &PROXYFUNCREF(FilterProxy1)proxy_1_filter_play_samples;
   par.a                   = pp;
   par.audio_buffersize    = BUFSIZE;
-  par.error_display       = params->error_display;
-  par.info_display        = params->info_display;
-  par.pm123_getstring     = params->pm123_getstring;
-  par.pm123_control       = params->pm123_control;
+  par.error_display       = &pm123_display_error;
+  par.info_display        = &pm123_display_info;
+  par.pm123_getstring     = &pm123_getstring;
+  par.pm123_control       = &pm123_control;
   int r = (*pp->vfilter_init)(&pp->vf, &par);
   if (r != 0)
     return r;
@@ -1374,18 +1438,16 @@ proxy_1_filter_init( FilterProxy1* pp, void** f, FILTER_PARAMS2* params )
   pp->output_request_buffer = params->output_request_buffer;
   pp->output_commit_buffer  = params->output_commit_buffer;
   pp->a                     = params->a;
-  pp->error_display         = params->error_display;
   // setup internals
   pp->vbuflevel             = 0;
   pp->trash_buffer          = FALSE;
-  pp->vformat.size          = sizeof pp->vformat.size;
   pp->vformat.bits          = 16;
   pp->vformat.format        = WAVE_FORMAT_PCM;
   // replace the unload function
   vreplace1(&pp->vr_filter_uninit, pp->vfilter_uninit, pp->vf);
   // now return some values
   *f = pp;
-  params->output_request_buffer = (int  DLLENTRYPF()(void*, const FORMAT_INFO2*, short**))
+  params->output_request_buffer = (int  DLLENTRYPF()(void*, const TECH_INFO*, short**))
                                   &PROXYFUNCREF(FilterProxy1)proxy_1_filter_request_buffer;
   params->output_commit_buffer  = (void DLLENTRYPF()(void*, int, double))
                                   &PROXYFUNCREF(FilterProxy1)proxy_1_filter_commit_buffer;
@@ -1409,7 +1471,7 @@ proxy_1_filter_uninit( void* )
 }
 
 PROXYFUNCIMP(int DLLENTRY, FilterProxy1)
-proxy_1_filter_request_buffer( FilterProxy1* pp, const FORMAT_INFO2* format, short** buf )
+proxy_1_filter_request_buffer( FilterProxy1* pp, const TECH_INFO* format, short** buf )
 { DEBUGLOG(("proxy_1_filter_request_buffer(%p, %p, %p)\n", pp, format, buf));
 
   if ( pp->trash_buffer )
@@ -1431,7 +1493,13 @@ proxy_1_filter_request_buffer( FilterProxy1* pp, const FORMAT_INFO2* format, sho
   }
   pp->vformat.samplerate = format->samplerate;
   pp->vformat.channels   = format->channels;
-  pp->vbufsamples        = sizeof pp->vbuffer / sizeof *pp->vbuffer / format->channels;
+  pp->vtech.attributes   = format->attributes;
+  // We use cmpcpy because it is faster, since the content of *format does most likely not change
+  // between calls to proxy_1_filter_request_buffer.
+  pp->vtech.info   .cmpassign(format->info);
+  pp->vtech.format .cmpassign(format->format);
+  pp->vtech.decoder.cmpassign(format->decoder);
+  pp->vbufsamples   = sizeof pp->vbuffer / sizeof *pp->vbuffer / format->channels;
 
   DEBUGLOG(("proxy_1_filter_request_buffer: %d\n", pp->vbufsamples - pp->vbuflevel));
   *buf = pp->vbuffer + pp->vbuflevel * format->channels;
@@ -1463,7 +1531,7 @@ proxy_1_filter_play_samples(FilterProxy1* pp, const FORMAT_INFO* format, const c
     pp, format, format->samplerate, format->channels, format->bits, format->format, buf, len, posmarker_i));
 
   if (format->format != WAVE_FORMAT_PCM || format->bits != 16)
-  { (*pp->error_display)("The proxy for old style filter plug-ins can only handle 16 bit raw PCM data.");
+  { pm123_display_error("The proxy for old style filter plug-ins can only handle 16 bit raw PCM data.");
     return 0;
   }
   double posmarker = tstmp_i2f(posmarker_i, pp->vposmarker);
@@ -1472,7 +1540,9 @@ proxy_1_filter_play_samples(FilterProxy1* pp, const FORMAT_INFO* format, const c
   while (rem != 0)
   { // request new buffer
     short* dest;
-    int dlen = (*pp->output_request_buffer)( pp->a, (FORMAT_INFO2*)format, &dest );
+    pp->vtech.samplerate = format->samplerate;
+    pp->vtech.channels   = format->channels;
+    int dlen = (*pp->output_request_buffer)( pp->a, &pp->vtech, &dest );
     DEBUGLOG(("proxy_1_filter_play_samples: now at %p %d, %p, %d\n", buf, rem, dest, dlen));
     if (dlen <= 0)
       return 0; // error
@@ -1499,10 +1569,6 @@ Plugin* Filter::Factory(Module* mod)
 * visualization interface
 *
 ****************************************************************************/
-
-PLUGIN_TYPE Visual::GetType() const
-{ return PLUGIN_VISUAL;
-}
 
 /* Assigns the addresses of the visual plug-in procedures. */
 bool Visual::LoadPlugin()
@@ -1569,9 +1635,10 @@ void Visual::SetProperties(const VISUAL_PROPERTIES* data)
 
 Plugin* Visual::Factory(Module* mod)
 { if (mod->GetParams().interface == 0)
-  { amp_player_error( "Could not load visual plug-in %s because it is designed for PM123 before vesion 1.32\n"
-                      "Please get a newer version of this plug-in which supports at least interface revision 1.",
-      mod->GetModuleName().cdata());
+  { pm123_display_error(xstring::sprintf(
+      "Could not load visual plug-in %s because it is designed for PM123 before vesion 1.32\n"
+      "Please get a newer version of this plug-in which supports at least interface revision 1.",
+      mod->GetModuleName().cdata()));
     return NULL;
   }
   return new Visual(mod);

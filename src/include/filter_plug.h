@@ -46,9 +46,9 @@ typedef struct _FILTER_PARAMS2
    * To virtualize one of these functions replace the pointer at the filter_init call. */
   ULONG  DLLENTRYP(output_command)( void* a, ULONG msg, OUTPUT_PARAMS2* info );
   ULONG  DLLENTRYP(output_playing_samples)( void* a, FORMAT_INFO* info, char* buf, int len );
-  int    DLLENTRYP(output_request_buffer)( void* a, const FORMAT_INFO2* format, short** buf );
-  void   DLLENTRYP(output_commit_buffer)( void* a, int len, T_TIME posmarker );
-  T_TIME DLLENTRYP(output_playing_pos)( void* a );
+  int    DLLENTRYP(output_request_buffer)( void* a, const TECH_INFO* format, short** buf );
+  void   DLLENTRYP(output_commit_buffer)( void* a, int len, PM123_TIME posmarker );
+  PM123_TIME DLLENTRYP(output_playing_pos)( void* a );
   BOOL   DLLENTRYP(output_playing_data)( void* a );
   void*  a;  /* only to be used with the precedent functions */
   
@@ -56,16 +56,6 @@ typedef struct _FILTER_PARAMS2
    * To virtualize these function replace the pointer at the filter_init call. */
   void  DLLENTRYP(output_event)( void* w, OUTEVENTTYPE event ); 
   void* w;  /* only to be used with the precedent function */
-
-  /* error message function the filter plug-in should use */
-  void  DLLENTRYP(error_display)( const char* );
-  /* info message function the filter plug-in should use */
-  /* this information is always displayed to the user right away */
-  void  DLLENTRYP(info_display )( const char* );
-
-  /* added since PM123 1.32 */
-  int   DLLENTRYP(pm123_getstring)( int index, int subindex, size_t bufsize, char* buf );
-  void  DLLENTRYP(pm123_control)( int index, void* param );
 
 } FILTER_PARAMS2;
 

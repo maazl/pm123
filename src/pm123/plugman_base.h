@@ -37,6 +37,10 @@
 #define _PM123_PLUGMAN_BASE_H
 
 #include "plugman.h"
+#include <output_plug.h>
+#include <filter_plug.h>
+#include <decoder_plug.h>
+#include <visual_plug.h>
 #include <vdelegate.h>
 
 #include <cpp/smartptr.h>
@@ -88,12 +92,14 @@ struct DecoderProcs
   void   DLLENTRYP(decoder_event    )( void*  w, OUTEVENTTYPE event );
   ULONG  DLLENTRYP(decoder_status   )( void*  w );
   double DLLENTRYP(decoder_length   )( void*  w );
-  ULONG  DLLENTRYP(decoder_fileinfo )( const char* url, INFOTYPE* what, DECODER_INFO2* info );
+  ULONG  DLLENTRYP(decoder_fileinfo )( const char* url, int* what, const INFO_BUNDLE* info,
+                                       DECODER_INFO_ENUMERATION_CB cb, void* param );
   ULONG  DLLENTRYP(decoder_saveinfo )( const char* url, const META_INFO* info, int haveinfo );
-  ULONG  DLLENTRYP(decoder_cdinfo   )( const char* drive, DECODER_CDINFO* info );
+  ULONG  DLLENTRYP(decoder_savefile )( const char* url, const char* format, int* what, const INFO_BUNDLE* info,
+                                       DECODER_SAVE_ENUMERATION_CB cb, void* param );
   ULONG  DLLENTRYP(decoder_editmeta )( HWND owner, const char* url );
-  const  DECODER_WIZZARD*
-         DLLENTRYP(decoder_getwizzard)( );
+  const  DECODER_WIZARD*
+         DLLENTRYP(decoder_getwizard)( );
   // Init structure
          DecoderProcs()              { memset(this, 0, sizeof *this); } // Uh, well, allowed for PODs
 };
@@ -105,26 +111,29 @@ class Decoder
 {protected:
   // Result from the decoder_support call. Supported data sources.
   int          Type;
-  // Result from the decoder_support call. Supported file extensions.
-  xstring      Extensions;
   // Result from the decoder_support call. Supported file types.
-  xstring      FileTypes;
-  // Additional supported file types.
+  const DECODER_FILETYPE* FileTypes;
+  // Size of the array above.
+  int          FileTypesCount;
+  // Additional supported file types (user setting).
   xstring      AddFileTypes;
+ private:
+  vector<const DECODER_FILETYPE> FileTypeList;
+  DECODER_FILETYPE DFT_Add; 
+  xstring      FileTypeCache;
+  xstring      FileExtensionCache;
  public:
   // Try unsupported file extensions and types too.
   bool         TryOthers;
- private:
-  PROXYFUNCDEF ULONG DLLENTRY stub_decoder_cdinfo( const char* drive, DECODER_CDINFO* info );
  protected:
   // instances of this class are only created by the factory function below.
-               Decoder(Module* mod)  : Plugin(mod), TryOthers(false) {}
+               Decoder(Module* mod);
   // Get some information about the decoder. (decoder_support)
   virtual bool AfterLoad();
+  // Fill file type and extension cache
+  void         FillFileTypeCache();
  public:
   //virtual      ~Decoder();
-  // Return kind of Plugin handled by the class instance. (RTTI by the backdoor.)
-  virtual PLUGIN_TYPE GetType() const;
   // Load the plug-in that is identified as a decoder. Return TRUE on success.
   virtual bool LoadPlugin();
   // Initialize the decoder. Return TRUE on success.
@@ -137,18 +146,15 @@ class Decoder
   int          GetObjectTypes() const  { return Type; }
   // Getter to the decoder entry points.
   const DecoderProcs& GetProcs() const { return *this; }
-  // Get supported extensions or NULL
-  const xstring& GetExtensions() const { return Extensions; }
-  // Get Supported EA types or NULL
-  xstring      GetFileTypes() const;
   // Checks wether a decoder claims to support a certain URL.
   bool         IsFileSupported(const char* file, const char* eatype) const;
+  // Get Supported EA types or NULL
+  const vector<const DECODER_FILETYPE>& GetFileTypes() const { return FileTypeList; }
   // Overloaded for parameter recognition
   virtual void GetParams(stringmap& map) const;
   virtual bool SetParam(const char* param, const xstring& value);
  private:
   static bool  DoFileTypeMatch(const char* filetypes, USHORT type, const USHORT*& eadata);
-
  public:  
   // Factory function to create a new decoder instance from a module object.
   // This function will perform all necessary tasks to load a decoder.
@@ -176,7 +182,7 @@ struct OutputProcs
   ULONG  DLLENTRYP(output_init           )( void** a );
   ULONG  DLLENTRYP(output_uninit         )( void*  a );
   ULONG  DLLENTRYP(output_command        )( void*  a, ULONG msg, OUTPUT_PARAMS2* info );
-  int    DLLENTRYP(output_request_buffer )( void*  a, const FORMAT_INFO2* format, short** buf );
+  int    DLLENTRYP(output_request_buffer )( void*  a, const TECH_INFO* format, short** buf );
   void   DLLENTRYP(output_commit_buffer  )( void*  a, int len, double posmarker );
   ULONG  DLLENTRYP(output_playing_samples)( void*  a, FORMAT_INFO* info, char* buf, int len );
   double DLLENTRYP(output_playing_pos    )( void*  a );
@@ -190,10 +196,8 @@ class Output
   protected OutputProcs
 {protected:
   // instances of this class are only created by the factory function below.
-               Output(Module* mod)        : Plugin(mod) { Enabled = true; }
+               Output(Module* mod)        : Plugin(mod, PLUGIN_OUTPUT) {}
  public:
-  // Return kind of Plugin handled by the class instance. (RTTI by the backdoor.)
-  virtual PLUGIN_TYPE GetType() const;
   // Load the output plug-in. Return TRUE on success.
   virtual bool LoadPlugin();
   // Initialize the output plug-in. Return TRUE on success.
@@ -240,10 +244,8 @@ class Filter : public Plugin, protected FilterProcs
   VREPLACE1    VRStubs[6];
  protected:
   // instances of this class are only created by the factory function below.
-               Filter(Module* mod)     : Plugin(mod) {}
+               Filter(Module* mod)     : Plugin(mod, PLUGIN_FILTER) {}
  public:
-  // Return kind of Plugin handled by the class instance. (RTTI by the backdoor.)
-  virtual PLUGIN_TYPE GetType() const;
   // Load the filter plug-in. Return TRUE on success.
   virtual bool LoadPlugin();
   // No-op. Filters are initialized explicitely by calling initialize. Return TRUE.
@@ -294,10 +296,8 @@ class Visual : public Plugin, protected VisualProcs
 
  protected:
   // instances of this class are only created by the factory function below.
-               Visual(Module* mod)    : Plugin(mod), Hwnd(NULLHANDLE) {}
+               Visual(Module* mod)    : Plugin(mod, PLUGIN_VISUAL), Hwnd(NULLHANDLE) {}
  public:
-  // Return kind of Plugin handled by the class instance. (RTTI by the backdoor.)
-  virtual PLUGIN_TYPE GetType() const;
   // Load the visual plug-in. Return TRUE on success.
   virtual bool LoadPlugin();
   // No-op. Filters are initialized explicitely by calling initialize. Return TRUE.

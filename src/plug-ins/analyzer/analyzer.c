@@ -1,6 +1,6 @@
 /*
  * Copyright 1997-2003 Samuel Audet <guardia@step.polymtl.ca>
- *                     Taneli Lepp„ <rosmo@sektori.com>
+ *                     Taneli Leppï¿½ <rosmo@sektori.com>
  *           2005 Dmitry A.Steklenev <glass@ptv.ru>
  *           2006 Marcel Mueller
  *
@@ -85,10 +85,10 @@ static  VISPLUGININIT plug;
 static  const PLUGIN_CONTEXT* context;
 
 #define load_prf_value(var) \
-  context->query_profile(#var, &var, sizeof var)
+  context->plugin_api->profile_query(#var, &var, sizeof var)
 
 #define save_prf_value(var) \
-  context->write_profile(#var, &var, sizeof var)
+  context->plugin_api->profile_write(#var, &var, sizeof var)
 
 
 /* configuration data */
@@ -127,7 +127,7 @@ static  FORMAT_INFO lastformat;
 static  BOOL   destroy_pending = FALSE;
 
 
-/********** read pallette data **********************************************/
+/********** read palette data **********************************************/
 
 typedef struct
 { int osc_entr;
@@ -842,66 +842,69 @@ plg_win_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
       return WinSendMsg( plug.hwnd, msg, mp1, mp2 );
 
     case WM_VRNENABLED:
-    {
-      HPS     hps  = WinGetPS( hwnd );
-      HRGN    hrgn = GpiCreateRegion( hps, 0, NULL );
+      DEBUGLOG(("analyzer:plg_win_proc: WM_VRNENABLED: %p - %u\n", hdive, cfg.update_delay));
+      if (hdive)
+      { HPS     hps  = WinGetPS( hwnd );
+        HRGN    hrgn = GpiCreateRegion( hps, 0, NULL );
 
-      RGNRECT rgn_control;
-      RECTL   rgn_rectangles[64];
-      SWP     swp;
-      POINTL  pos;
+        RGNRECT rgn_control;
+        RECTL   rgn_rectangles[64];
+        SWP     swp;
+        POINTL  pos;
 
-      DEBUGLOG(("analyzer:plg_win_proc: WM_VRNENABLED: %p - %u\n", hrgn, cfg.update_delay));
-      if( hrgn )
-      {
-        WinQueryVisibleRegion( hwnd, hrgn );
-
-        rgn_control.ircStart    = 0;
-        rgn_control.crc         = sizeof( rgn_rectangles ) / sizeof( RECTL );
-        rgn_control.ulDirection = RECTDIR_LFRT_TOPBOT;
-
-        if( GpiQueryRegionRects( hps, hrgn, NULL, &rgn_control, rgn_rectangles ))
+        DEBUGLOG(("analyzer:plg_win_proc: WM_VRNENABLED: %p\n", hrgn));
+        if (hrgn)
         {
-          SETUP_BLITTER setup;
+          WinQueryVisibleRegion( hwnd, hrgn );
 
-          WinQueryWindowPos( plug.hwnd, &swp );
-          pos.x = swp.x + plug.x;
-          pos.y = swp.y + plug.y;
-          WinMapWindowPoints( plug.hwnd, HWND_DESKTOP, &pos, 1 );
+          rgn_control.ircStart    = 0;
+          rgn_control.crc         = sizeof( rgn_rectangles ) / sizeof( RECTL );
+          rgn_control.ulDirection = RECTDIR_LFRT_TOPBOT;
 
-          setup.ulStructLen       = sizeof(SETUP_BLITTER);
-          setup.fInvert           = FALSE;
-          setup.fccSrcColorFormat = FOURCC_LUT8;
-          setup.ulSrcWidth        = plug.cx;
-          setup.ulSrcHeight       = plug.cy;
-          setup.ulSrcPosX         = 0;
-          setup.ulSrcPosY         = 0;
-          setup.ulDitherType      = 0;
-          setup.fccDstColorFormat = FOURCC_SCRN;
-          setup.ulDstWidth        = plug.cx;
-          setup.ulDstHeight       = plug.cy;
-          setup.lDstPosX          = 0;
-          setup.lDstPosY          = 0;
-          setup.lScreenPosX       = pos.x;
-          setup.lScreenPosY       = pos.y;
-          setup.ulNumDstRects     = rgn_control.crcReturned;
-          setup.pVisDstRects      = rgn_rectangles;
+          if( GpiQueryRegionRects( hps, hrgn, NULL, &rgn_control, rgn_rectangles ))
+          {
+            SETUP_BLITTER setup;
 
-          ORASSERT(DiveSetupBlitter( hdive, &setup ));
+            WinQueryWindowPos( plug.hwnd, &swp );
+            pos.x = swp.x + plug.x;
+            pos.y = swp.y + plug.y;
+            WinMapWindowPoints( plug.hwnd, HWND_DESKTOP, &pos, 1 );
+
+            setup.ulStructLen       = sizeof(SETUP_BLITTER);
+            setup.fInvert           = FALSE;
+            setup.fccSrcColorFormat = FOURCC_LUT8;
+            setup.ulSrcWidth        = plug.cx;
+            setup.ulSrcHeight       = plug.cy;
+            setup.ulSrcPosX         = 0;
+            setup.ulSrcPosY         = 0;
+            setup.ulDitherType      = 0;
+            setup.fccDstColorFormat = FOURCC_SCRN;
+            setup.ulDstWidth        = plug.cx;
+            setup.ulDstHeight       = plug.cy;
+            setup.lDstPosX          = 0;
+            setup.lDstPosY          = 0;
+            setup.lScreenPosX       = pos.x;
+            setup.lScreenPosY       = pos.y;
+            setup.ulNumDstRects     = rgn_control.crcReturned;
+            setup.pVisDstRects      = rgn_rectangles;
+
+            ORASSERT(DiveSetupBlitter( hdive, &setup ));
+          }
+
+          GpiDestroyRegion( hps, hrgn );
         }
 
-        GpiDestroyRegion( hps, hrgn );
+        WinReleasePS ( hps );
+        WinStartTimer( hab, hanalyzer, TID_UPDATE, cfg.update_delay );
       }
-
-      WinReleasePS ( hps );
-      WinStartTimer( hab, hanalyzer, TID_UPDATE, cfg.update_delay );
       break;
-    }
 
     case WM_VRNDISABLED:
-      DEBUGLOG(("analyzer:plg_win_proc: WM_VRNDISABLED: %p\n"));
-      WinStopTimer( hab, hanalyzer, TID_UPDATE );
-      DiveSetupBlitter( hdive, 0 );
+      DEBUGLOG(("analyzer:plg_win_proc: WM_VRNDISABLED: %p\n", hdive));
+      if (hdive)
+      { WinStopTimer( hab, hanalyzer, TID_UPDATE );
+        DiveSetupBlitter( hdive, 0 );
+      }
       break;
 
     case WM_BUTTON1DBLCLK:
@@ -924,20 +927,19 @@ plg_win_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
       break;
 
     case WM_DESTROY: // we deinitialize here to avoid access to memory objects that are already freed.
-      DEBUGLOG(("analyzer:plg_win_proc: WM_DESTROY\n"));
-      ORASSERT(DiveFreeImageBuffer( hdive, image_id ));
-      ORASSERT(DiveClose( hdive ));
+      DEBUGLOG(("analyzer:plg_win_proc: WM_DESTROY: %p\n", hdive));
+      if (hdive)
+      { ORASSERT(DiveFreeImageBuffer( hdive, image_id ));
+        ORASSERT(DiveClose( hdive ));
+        hdive = 0;
+      }
 
       free_bands();
       specana_uninit();
 
       memset(&active_cfg, 0, sizeof active_cfg);
 
-      hdive = 0;
       hanalyzer = 0;
-
-      if (hconfigure)
-        WinDismissDlg( hconfigure, 0 );
 
       destroy_pending = FALSE;
       break;
@@ -979,7 +981,7 @@ vis_init( PVISPLUGININIT init )
   load_prf_value( cfg.falloff );
   load_prf_value( cfg.falloff_speed );
   load_prf_value( cfg.display_freq );
-  context->query_profile( "cfg.display_percent", &display_percent, sizeof display_percent);
+  context->plugin_api->profile_query( "cfg.display_percent", &display_percent, sizeof display_percent);
   load_prf_value( cfg.highprec_mode );
 
   DEBUGLOG(("vis_init: %d, %d\n", cfg.display_freq, display_percent));
@@ -1030,6 +1032,7 @@ vis_init( PVISPLUGININIT init )
 
     return 0;
   }
+  DEBUGLOG(("analyzer: DIVE initialized hdive = %p, image_id = %p\n", hdive, image_id));
 
   // Initialize PM
   hab = WinQueryAnchorBlock( plug.hwnd );
@@ -1069,7 +1072,7 @@ vis_init( PVISPLUGININIT init )
 int DLLENTRY
 plugin_deinit( int unload )
 {
-  DEBUGLOG(("plugin_deinit\n"));
+  DEBUGLOG(("analyzer:plugin_deinit(%u)\n", unload));
   save_prf_value( cfg.update_delay );
   save_prf_value( cfg.default_mode );
   save_prf_value( cfg.falloff );
@@ -1079,6 +1082,10 @@ plugin_deinit( int unload )
 
   destroy_pending = TRUE;
   WinStopTimer( hab, hanalyzer, TID_UPDATE );
+
+  if (hconfigure)
+    WinDismissDlg( hconfigure, 0 );
+
   WinDestroyWindow( hanalyzer );
   // continue in window procedure
 

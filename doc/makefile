@@ -9,7 +9,7 @@ TARGET = pm123.inf pm123_pdk.inf
 
 all: pm123.inf pm123_pdk.inf $(MDUMMY)
 
-MANLST = history.html manual\analyzer.html manual\analyzerformat.html manual\contact.html 
+MANLST = common\history.html manual\analyzer.html manual\analyzerformat.html manual\contact.html 
 MANLST = $(MANLST) manual\copyright.html manual\display.html manual\dragndrop.html 
 MANLST = $(MANLST) manual\gui.html manual\infodialog.html manual\id3edit.html
 MANLST = $(MANLST) manual\index.html manual\integration.html 
@@ -29,8 +29,10 @@ MANLST = $(MANLST) manual\playlist_cmi.html manual\os2rec.html manual\bugreport.
 MANLST = $(MANLST) manual\logfiles.html manual\opentodo.html manual\mpg123.html
 
 
-PDKLST = pdk\index.html pdk\decode_plug.html pdk\filter_plug.html
+PDKLST = pdk\index.html pdk\decode_plug.html pdk\decode_plug_1.html pdk\filter_plug.html
 PDKLST = $(PDKLST) pdk\output_plug.html pdk\visual_plug.html
+PDKLST = $(PDKLST) pdk\datatype.html pdk\dstring.html
+
 
 pm123.inf: pm123.ipf
 	ipfc pm123.ipf /d:1 /c:850 $@
@@ -50,8 +52,8 @@ pm123_pdk.ipf: $(PDKLST)
 	tools\html2ipf.cmd -co- -so- -p+ pdk\index.html $@
 	endlocal
 
-manual\opentodo.html: todo.html
-	tools\extracttodo.cmd <todo.html >$@
+manual\opentodo.html: common\todo.html
+	tools\extracttodo.cmd <common\todo.html >$@
 
 clean: $(MDUMMY)
 	-@del *.inf 2> nul

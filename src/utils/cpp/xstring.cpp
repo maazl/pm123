@@ -79,7 +79,8 @@ bool xstring::equals(const xstring& r) const
   return len == r.length() && memcmp(Data->ptr(), r.Data->ptr(), len) == 0;
 }
 bool xstring::equals(const char* str) const
-{ if (Data->ptr() == str)
+{ // Note the hack with .get()-> is required because this is a fastpath that can deal with Data == NULL.
+  if (Data.get()->ptr() == str)
     return true;
   if (!Data || !str)
     return false;
@@ -87,7 +88,8 @@ bool xstring::equals(const char* str) const
   return length() == len && memcmp(Data->ptr(), str, len) == 0;
 }
 bool xstring::equals(const char* str, size_t len) const
-{ if (Data->ptr() == str)
+{ // Note the hack with .get()-> is required because this is a fastpath that can deal with Data == NULL.
+  if (Data.get()->ptr() == str)
     return true;
   if (!Data || !str)
     return false;

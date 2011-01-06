@@ -30,9 +30,13 @@
 #define PM123_FILEDLG_H
 
 #define  INCL_WIN
+#include <decoder_plug.h>
+#include <cpp/container/vector.h>
 #include <os2.h>
 
 #ifdef __cplusplus
+FLAGSATTRIBUTE(DECODER_TYPE);
+
 extern "C" {
 #endif
 
@@ -43,21 +47,37 @@ extern "C" {
 #define FDU_RELATIVBTN       0x0008
 #define FDU_RELATIV_ON       0x0010
 
-/* file dialog standard types */
-#define FDT_PLAYLIST         "Playlist files (*.LST;*.MPL;*.M3U;*.M3U8;*.PLS)"
-#define FDT_PLAYLIST_LST     "PM123 playlist files (*.LST)"
-#define FDT_PLAYLIST_M3U     "Internet playlist files (*.M3U)"
-#define FDT_PLAYLIST_M3U8    "Unicode playlist files (*.M3U8)"
-#define FDT_AUDIO            "All supported audio files ("
-#define FDT_AUDIO_ALL        "All supported types (*.LST;*.MPL;*.M3U;*.M3U8;*.PLS;"
-#define FDT_SKIN             "Skin files (*.SKN)"
-//#define FDT_EQUALIZER        "Equalizer presets (*.EQ)"
-#define FDT_PLUGIN           "Plug-in (*.DLL)"
+#define FDT_ALL "<All supported files>"
 
-/* This function creates and displays the file dialog
- * and returns the user's selection or selections.
+/* Helper class for amp_file_types(). */
+class APSZ_list : public vector<char>
+{public:
+  APSZ_list() {}
+  APSZ_list(size_t size) : vector<char>(size) {}
+  ~APSZ_list();
+  operator APSZ*() const;
+};
+
+/** This function returns a list of file types with a storage compatible to APSZ.
+ * The result contains only entries that have the corresponding flagsreq set.
+ * flagsreq is a bit vector of DECODER_FLAGS_PLAYLIST.
+ * You MUST delete the list with delete when you no longer need it.
  */
+APSZ_list* amp_file_types(DECODER_TYPE flagsreq);
 
+/** Search for a decoder that supports the specified file type.
+ * @param flags Only search for decoders that have this flags.
+ * @param filter File type to search for. Syntax: "EA Type (File mask)".
+ * @return Number of the matching decoder or -1 of none is found.
+ */
+int amp_decoder_by_type(DECODER_TYPE flagsreq, const char* filter, xstring& format);
+
+/** This function creates and displays the file dialog
+ * and returns the user's selection or selections.
+ * Important note: \c filedialog->pszIType must point
+ * to a \e writable string of at least \c _MAX_PATH bytes.
+ * It contains the selected type on return.
+ */
 HWND amp_file_dlg( HWND hparent, HWND howner, PFILEDLG filedialog );
 
 #ifdef __cplusplus

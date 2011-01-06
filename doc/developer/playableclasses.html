@@ -1,0 +1,151 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html><head><title>Playable object classes</title>
+
+
+  
+  <link type="text/css" href="../common/infstyle.css" rel="stylesheet">
+  <meta content="text/html; charset=ISO-8859-1" http-equiv="Content-Type"></head><body>
+<h2>PM123 Playable object handling - Classes</h2>
+<h3>Class Tree</h3>
+<p><img alt="class tree" src="images/playableclasses.png" usemap="#playableclasses" height="672" width="768">&nbsp;<map name="playableclasses">
+</map>
+</p>
+<h3>Class Overview</h3>
+<h4><tt><b><b><a name="APlayable"></a>class APlayable</b></b></tt></h4>
+<p>This abstract base class is used as least common denominator
+of all objects that can be played with PM123 in any way.</p>
+<p>The <em>concept</em> behind all of these objects is
+that they provide different kinds of information (see <tt>InfoFlags</tt>)
+and all of these <em>information is to be <a href="playableasync.html">requested</a>
+before it is
+used</em>.
+Failing to do so will cause undefined results like initial structures
+or outdated content, but it will <i>not</i> cause
+undefined behavior like an
+application crash.</p>
+<h5>Services</h5>
+<ul>
+  <li>The only service that is directly provided by this class is
+the <a href="playableasync.html"><em>asynchronous request service</em></a>.</li>
+  <li>For efficiency reasons the <tt>InfoChange</tt>
+event is included as class member. It is required by any deriving class
+anyway.</li>
+</ul>
+<h5>Properties</h5>
+<ul>
+  <li>The objects are <em>reference countable</em>,
+i.e. they implement <tt>Iref_count</tt>. This belongs to
+all derived classes. You must not use any of this classes without
+holding a strong reference to it with an <tt>int_ptr&lt;&gt;</tt>
+instance. However, this does not imply that all access have been done
+through <tt>int_ptr&lt;&gt;</tt>.
+E.g. in case of a function argument it is guaranteed that the callee
+has a strong reference too, as long as you do not keep a reference
+after the function returns.</li>
+  <li>The objects are <em>non-copyable</em>. This
+may be overridden in derived classes by taking the appropriate actions.</li>
+</ul>
+<h4><tt><b><b><tt><b><b><a name="Playable"></a>class
+</b></b></tt></b></b>Playable</tt></h4>
+<p>A Playable object is the <em>1:1 representation of a URL</em>
+in PM123. At most one Playable instance may exist for each URL. This is
+ensured by a private constructor and an instance repository.</p>
+<p>If a playable object is enumerable (e.g. a playlist) it has an
+additional extension object called <tt>PlayableCollection</tt>.
+This can be accessed by <tt>GetCollection()</tt>.</p>
+<h5>Services<b></b></h5>
+<ul>
+  <li>The <a href="pm123internal.html#object_repository"><em>object
+repository</em></a>,</li>
+  <li>the <em>interface to the plug-ins</em>,</li>
+  <li>the <em>object state</em> and</li>
+  <li>the <em>tracking of</em> property <em>changes</em>.</li>
+</ul>
+<h5>Properties</h5>
+<ul>
+  <li><tt>Playable</tt> objects are <em>unique</em>
+in the way that for each (equivalent) URL only one object exists. This
+causes all related information to be consistent in the whole
+application.</li>
+</ul>
+<h4><tt><b><b><tt><b><b><a name="PlayableSlice"></a>class
+</b></b></tt></b></b>PlayableSlice</tt></h4>
+<p>A <tt>PlayableSlice</tt> is a <em>reference
+to an <tt>APlayable</tt></em> object which
+only addresses a slice of the referenced object. It overrides the
+optional <em>start and a stop location</em> and the
+aggregate properties that depend on this values.</p>
+<p>The locations are originally stored as <a href="../manual/location.html">PM123 location strings</a>.
+This causes a delayed verification of their values and allows to set
+them while the content of the referenced is not yet available.</p>
+<p><tt>PlayableSlice</tt> objects may be <em>nested</em>.
+In this case the outer <tt>PlayableSlice</tt> represents
+the intersection of the two slices. </p>
+<h5>Services</h5>
+<ul>
+  <li>Methods to <em>read and write the start and stop
+location</em>.</li>
+  <li><em>Validation</em> of the start and stop
+position and</li>
+  <li>calculation of the recursive playlist information based on
+the slice.</li>
+</ul>
+<h5>Properties</h5>
+<ul>
+  <li>In contrast to <tt>Playable</tt> a <tt>PlayableSlice</tt>
+is <em>non-unique</em> and</li>
+  <li>it is <em>copyable</em>. But note that
+copying does not affect the <tt>InfoChange</tt> event
+consumers.</li>
+</ul>
+<h4><tt><b><b><tt><b><b><a name="PlayableRef"></a>class
+</b></b></tt></b></b>PlayableRef</tt></h4>
+<p>This is a generic <em>reference to a <tt>APlayable</tt></em>
+object that may <em>override properties</em> of the
+referenced object. In fact you may override anything but aggregate type
+information.</p>
+<h5>Services</h5>
+<ul>
+  <li>Methods to override properties.</li>
+  <li>Notification logic that takes care of the overridden
+information.</li>
+</ul>
+<h4><tt><b><b><tt><b><b><a name="PlayableInstance"></a>class
+</b></b></tt></b></b>PlayableInstance</tt></h4>
+<p>A <tt>PlayableInstance</tt> is playlist item, no
+more, no less. It is mainly the same than <tt>PlayableRef</tt>.</p>
+<h5>Services</h5>
+<ul>
+  <li>The <tt>PlayableInstance</tt> has a private <em>in-use
+flag</em> that implies that the underlying playable is in use but
+not the other way around.</li>
+  <li>Keep track of the <em>index</em> within the
+surrounding collection.</li>
+</ul>
+<h5>Properties</h5>
+<ul>
+  <li>It is <em>non-copyable</em>.</li>
+  <li>It weakly <em>depends on a <tt>PlayableCollection</tt></em>
+(playlist). You cannot get a strong reference to the enclosing
+collection from that.</li>
+  <li>A <tt>PlayableInstance</tt> may only be
+created by a <tt>PlayableCollection</tt>,
+but it may be removed from the collection and stay alive as long as
+there are active referenced to it. This causes defined behavior when
+removing a currently playing object from a playlist. Note that a
+detached <tt>PlayableInstance</tt> can never be attached
+to a collection. It is only waiting to die.</li>
+</ul>
+<h4><tt>class CallstackEntry</tt></h4>
+<p>This is only used by <a href="songiterator.html"><tt>SongIterator</tt></a>
+instances to keep track of the current call stack.</p>
+<h5>Services</h5>
+<ul>
+  <li>Provide <em>offset information</em> within the
+current item.</li>
+</ul>
+<h5>Properties</h5>
+<ul>
+  <li>It is <em>non-copyable</em>.</li>
+</ul>
+</body></html>

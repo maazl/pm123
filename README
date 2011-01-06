@@ -1,15 +1,17 @@
-PM123 1.40 Source File Distribution
+PM123 1.41 Source File Distribution
 
 Copyright 1997-2003 Samuel Audet
                     Taneli LeppÑ
 Copyright 2004-2007 Dmitry A.Steklenev <glass@ptv.ru>
-Copyright 2005-2008 Marcel MÅller <pm123@maazl.de>
+Copyright 2005-2011 Marcel MÅller <pm123@maazl.de>
+
 
 Introduction
 ============
 
 In this small README file, you will learn how to use this source file
 distribution to successfully compile PM123 from the sources.
+
 
 Tools Needed to Compile
 =======================
@@ -38,128 +40,6 @@ Open Watcom C++ is currently untested and likely to fail at some C++ codes.
 Also, I have been using cmd.exe at all times, so disable 4os2 or other cmd.exe
 replacement when using this distribution's makefiles.
 
-Directory Structure
-===================
-
-The directories are split as shown in the diagram below. "dist" contains the
-files needed to build the install packages, and the packages themselves once
-they are built. "doc" contains text files and the user manual in HTML format.
-"extra" contains files that are not part of pm123 per se. "pdk" (plug-in
-developer's kit) documentation to build new plug-ins. "src" contains all
-the source code of PM123.
-
-|
-+dist
-|   |
-|   +files
-+doc
-|   |
-|   +manual
-|   |   |
-|   |   +images
-|   +pdk
-|   +tools
-+extra
-|   |
-|   +irc
-|   +slider
-+pdk
-+src
-|   |
-|   +config
-|   +fft123
-|   +gbm123
-|   +include
-|   +main
-|   +logformater
-|   +ogg123
-|   +plug-ins
-|   |   |
-|   |   +analyzer
-|   |   +cddaplay
-|   |   +mpg123
-|   |   |   |
-|   |   |   +id3v1
-|   |   |   +id3v2
-|   |   +logvolum
-|   |   +oggplay
-|   |   +os2audio
-|   |   +os2rec
-|   |   +realeq
-|   |   +wavout
-|   |   +wavplay
-|   |
-|   +pm123
-|   |   |
-|   |   +bmp
-|   |   |   |
-|   |   |   +font1
-|   |   |   +font2
-|   |   +ico
-|   +skinutil
-|   +snd123
-|   +utils
-|   +vrb123
-|   +WPS
-|   +xio123
-|   +zlb123
-
-In the "extra" directory, there "irc" has some scripts for BitchX and ircii
-to display the playing songs in the IRC client window. "slider" is a small
-tool that uses PM123's pipe to control the volume of two instances of PM123.
-The volume of the first PM123 executed will follow the slider, and the
-second will go reverse, allowing to cross the sounds of two songs for DJs.
-
-In the "src" directory, all the source code of one module (one EXE or DLL)
-is found in a subdirectory of the same name as the module.  So pm123.dll's
-source code is found in "pm123" and realeq.dll's source code is found under
-"plug-ins\realeq".  Each directory has its own makefile, fully functional.
-Two exceptions.  First, "utils" is the home of an internal utility library
-named utilfct.lib. Finally, the "include" directory only contains ".h" files.
-
-Description of modules
-----------------------
-
-fft123
-   The FFT algorithm used by analyzer.dll (through pm123.exe) and realeq.dll.
-gbm123
-   The Generalized Bitmap Module used by PM123 and skinutil.exe for loading
-   and creating bitmaps for skins.
-ogg123
-   The Ogg bitstream format library used by oggplay.dll.
-vrb123
-   The Vorbis library used by oggplay.dll.
-snd123
-   The library of C routines for reading and writing files containing sampled
-   audio data. Used by wavplay.dll.
-xio123
-   Input/output engine. Used by PM123 and plug-ins.
-zlb123
-   The general purpose data compression library.
-analyzer
-   The spectrum analyzer visual plug-in.
-cddaplay
-   The CD Player with CDDB support.
-mpg123
-   The MP3 decoder with streaming support.
-oggplay
-   The Ogg Vorbis decoder with streaming support.
-os2audio
-   The output plug-in that uses DART to access the sound card.
-os2rec
-   The recording plug-in.
-realeq
-   The Real Equalizer plug-in, with MMX support and all.
-wavout
-   The output plug-in that dumps everything in a WAV file.
-wavplay
-   The WAV file player.
-main
-   The main pm123.exe.
-pm123
-   The main pm123.dll which includes all the GUI stuff and skin support.
-skinutil
-   skinutil.exe to convert WinAmp 1.x skins and manage skins.
 
 How to Compile
 ==============
@@ -189,6 +69,90 @@ TCP/IP v4.0 (16bit) support. Example:
 
    [c:\devel\pm123-1_2-src] nmake all TCP40=1
 
+
+Directory Structure
+===================
+
+The directories are split as shown in the diagram below. "dist" contains the
+files needed to build the install packages, and the packages themselves once
+they are built. "doc" contains text files and the user manual in HTML format.
+"extra" contains files that are not part of pm123 per se. "pdk" (plug-in
+developer's kit) documentation to build new plug-ins. "src" contains all
+the source code of PM123.
+
+|
++- dist                 make dist places the distribution packages here
+|  +- files             make dist places the distribution files here
++- doc                  Documentation files
+|  +- common            Common documentation files like the change log
+|  +- developer         Documentation for PM123 developers
+|  |  +- images         Images for the above
+|  +- manual            The PM123 manual/help files
+|  |  +- images         Images for the above
+|  +- pdk               Documentation for plug-in developers
+|  +- src               Source files of documentation images
+|  +- tools             Tools for documentation build
++- extra                Some add-ons for external applications
+|  +- irc
+|  +- slider
++- src                  All PM123 source codes
+|  +- config            Common configuration data for the build process
+|  +- fft123            Port of libfftw, used by analyzer and realeq
+|  |  +- ...
+|  +- gbm123            Port of libgbm, used by PM123 and skinutil
+|  +- include           Common includes (only the most important ones)
+|  +- logformater       Perl scripts to analyze PM123 debug logs
+|  +- ogg123            Port of libogg, used by oggplay
+|  |  +- ...
+|  +- plug-ins          Source code of PM123 plug-ins
+|  |  +- analyzer	Visual spectrum analyzer
+|  |  +- cddaplay       CD playback with CDDB support
+|  |  +- logvolum       Make linear volume control logarithmic
+|  |  +- mpg123         MPEG audio decoder
+|  |  |  +- ...
+|  |  +- oggplay        Ogg Vorbis decoder
+|  |  +- os2audio       OS/2 DART sound output
+|  |  +- os2rec         OS/2 DART recording plug-in
+|  |  +- plist123       Playlist file reader/writer
+|  |  +- pulse123       PulseAudio client for PM123
+|  |  +- realeq         32 band equalizer
+|  |  +- wavout         WAV writer plug-in
+|  |  +- wavplay        Decoder for losless audio files (WAV and many more)
+|  +- pm123             Source of the PM123 core engine
+|  |  +- bmp            Bitmap ressources
+|  |  |  +- font1
+|  |  |  +- font2
+|  |  +- ico            Icon ressources
+|  +- pulseaudio        Port of PulseAudio
+|  |  +- libspeex       libspeex, required to build PulseAudio
+|  |  +- pulse          PulseAudio API
+|  |  +- pulsecore      PulseAudio core
+|  |  +- speex          Include files for libspeex
+|  +- skinutil          Utility to convert WinAmp 1.x skins and manage skins
+|  +- snd123            Port of libsndfile, used by wavplay
+|  +- utils             General utility functions
+|  |  +- cpp            General utility functions for C++ only
+|  |     +- container   Container classes for C++
+|  +- vrb123            Port of libvorbis, used by oggplay
+|  +- WPS               Installer for PMShell folder
+|  |  +- icons          Neat icons for PMShell
+|  +- xio123            Generic I/O module of PM123 and plug-ins
+|  +- zlb123            Port of zlib
++- test                 Test suite for PM123
+
+In the "extra" directory, there "irc" has some scripts for BitchX and ircii
+to display the playing songs in the IRC client window. "slider" is a small
+tool that uses PM123's pipe to control the volume of two instances of PM123.
+The volume of the first PM123 executed will follow the slider, and the
+second will go reverse, allowing to cross the sounds of two songs for DJs.
+
+In the "src" directory, all the source code of one module (one EXE or DLL)
+is found in a subdirectory of the same name as the module.  So pm123.exe's
+source code is found in "pm123" and realeq.dll's source code is found under
+"plug-ins\realeq".  Each directory has its own makefile, fully functional.
+
+
+
 Have fun!
 
 Samuel Audet and Taneli LeppÑ
@@ -196,4 +160,4 @@ September 2003
 Dmitry A.Steklenev
 November 2007
 Marcel MÅller
-July 2008
+January 2011

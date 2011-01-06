@@ -26,17 +26,6 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-/* Configuration dependant log functions.
- * To post a log message write
- *   DEBUGLOG(("Format string with printf parameters like %s\n", "parameter"));
- * Note the double braces!
- * If the application is compiled in debug mode (defining DEBUG_LOG) the message
- * is written to stderr which can be easily captured by " 2>logfile".
- * Otherwise the line will not be compiled at all. Even the arguments are not
- * evaluated for their side effects. So be sure not to use expressions with
- * side effects.
- */
-
 #include "debuglog.h"
 #include "snprintf.h"
 
@@ -46,7 +35,6 @@
 #include <string.h>
 #include <time.h>
 #include <os2.h>
-#include <assert.h>
 #include <malloc.h>
 
 
@@ -77,29 +65,35 @@ void debuglog( const char* fmt, ... )
     break;
   }
 
-  DosGetInfoBlocks( &ptib, &ppib );
+  DosGetInfoBlocks(&ptib, &ppib);
 
-  va_start( va, fmt );
+  va_start(va, fmt);
   //                 8+  1+4+  1+4+  1+8+  1 = 28
-  sprintf( buffer, "%08ld %04lx:%04ld %08lx ", clock(), ppib->pib_ulpid, ptib->tib_ptib2->tib2_ultid, (ULONG)&fmt + n * sizeof(int) );
+  sprintf(buffer, "%08ld %04lx:%04ld %08lx ", clock(), ppib->pib_ulpid, ptib->tib_ptib2->tib2_ultid, (ULONG)&fmt + n * sizeof(int) );
   //sprintf( buffer, "%08ld %03hx%hx%c%04ld %08lx ", clock(), (unsigned short)ptib->tib_ptib2->tib2_ulpri, ptib->tib_ptib2->tib2_usMCCount, ptib->tib_ptib2->tib2_fMCForceFlag ? '!' : ':', ptib->tib_ptib2->tib2_ultid, (ULONG)&fmt + n * sizeof(int) );
-  vsnprintf( buffer+28, 1024, fmt, va );
-  DosWrite( 2, buffer, 28 + strlen(buffer+28), &dummy);
-  va_end( va );
-  assert(_heapchk() == _HEAPOK);
+  vsnprintf(buffer+28, 1024, fmt, va );
+  DosWrite(2, buffer, 28 + strlen(buffer+28), &dummy);
+  va_end(va);
+  #ifdef DEBUG_MEM
+  ASSERT(_heapchk() == _HEAPOK);
+  #endif
   // Dirty hack to enforce threading issues to occur.
   //DosSleep(0);
 }
 
 void dassert(const char* file, int line, const char* msg)
-{ fprintf(stderr, "Assertion at %s line %i failed: %s\n", file, line, msg);
-  DosClose(2);
+{ PTIB ptib;
+  DosGetInfoBlocks(&ptib, NULL);
+  fprintf(stderr, "Assertion at %s line %i thread %04ld failed: %s\n", file, line, ptib->tib_ptib2->tib2_ultid, msg);
+  DosResetBuffer(2);
   abort();
 }
 
 void cassert(const char* file, int line, const char* msg)
-{ fprintf(stderr, "Assertion at %s line %i failed: %s\n%s (%i)\n", file, line, msg, clib_strerror(errno), errno);
-  DosClose(2);
+{ PTIB ptib;
+  DosGetInfoBlocks(&ptib, NULL);
+  fprintf(stderr, "Assertion at %s line %i thread %04ld failed: %s\n%s (%i)\n", file, line, ptib->tib_ptib2->tib2_ultid, msg, clib_strerror(errno), errno);
+  DosResetBuffer(2);
   abort();
 }
 
@@ -107,8 +101,10 @@ void oassert(unsigned long apiret, const char* file, int line, const char* msg)
 { if (apiret)
   { char buf[1024];
     os2_strerror(apiret, buf, sizeof(buf));
-    fprintf(stderr, "Assertion at %s line %i failed: %s\n%s\n", file, line, msg, buf);
-    DosClose(2);
+    PTIB ptib;
+    DosGetInfoBlocks(&ptib, NULL);
+    fprintf(stderr, "Assertion at %s line %i thread %04ld failed: %s\n%s\n", file, line, ptib->tib_ptib2->tib2_ultid, msg, buf);
+    DosResetBuffer(2);
     abort();    
 } }
 
@@ -116,8 +112,10 @@ void pmassert(const char* file, int line, const char* msg)
 { char buf[1024];
   os2pm_strerror(buf, sizeof(buf));
   if (*buf)
-  { fprintf(stderr, "Assertion at %s line %i failed: %s\n%s\n", file, line, msg, buf);
-    DosClose(2);
+  { PTIB ptib;
+    DosGetInfoBlocks(&ptib, NULL);
+    fprintf(stderr, "Assertion at %s line %i thread %04ld failed: %s\n%s\n", file, line, ptib->tib_ptib2->tib2_ultid, msg, buf);
+    DosResetBuffer(2);
     abort();    
 } }
 

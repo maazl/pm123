@@ -37,8 +37,22 @@
 /* Algorithmns */
 
 // binary search
-bool binary_search_base(const vector_base& data, int (*fcmp)(const void* elem, const void* key),
+bool binary_search_base(const void*const* data, size_t size, int (*fcmp)(const void* elem, const void* key),
   const void* key, size_t& pos);
+inline bool binary_search_base(const vector_base& data, int (*fcmp)(const void* elem, const void* key),
+  const void* key, size_t& pos)
+{ return binary_search_base(data.begin(), data.size(), fcmp, key, pos); }
+
+template <class T>
+inline bool binary_search(T*const* data, size_t size, int (*fcmp)(T* elem, T* key),
+  T* key, size_t& pos)
+{ return binary_search_base((const void**)data, size, (int (*)(const void* elem, const void* key))fcmp, key, pos);
+}
+template <class T>
+inline bool binary_search(const vector<T>& data, int (*fcmp)(T* elem, T* key),
+  T* key, size_t& pos)
+{ return binary_search_base(data, data.size(), (int (*)(const void* elem, const void* key))fcmp, key, pos);
+}
 
 // rotate pointer array in place
 void rotate_array_base(void** begin, const size_t len, int shift);

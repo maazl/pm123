@@ -1,6 +1,6 @@
 /*
  * Copyright 1997-2003 Samuel Audet <guardia@step.polymtl.ca>
- *                     Taneli Lepp„ <rosmo@sektori.com> *
+ *                     Taneli Leppï¿½ <rosmo@sektori.com> *
  * Copyright 2004-2006 Dmitry A.Steklenev <glass@ptv.ru>
  * Copyright 2006-2009 Marcel Mueller
  *
@@ -35,10 +35,9 @@
 #include <stdio.h>
 #include "utilfct.h"
 #include <os2.h>
-#include <ctype.h>
-#include <string.h>
 
 #include "debuglog.h"
+
 
 APIRET APIENTRY DosQueryModFromEIP( HMODULE *phMod, ULONG *pObjNum, ULONG BuffLen,
                                     PCHAR pBuff, ULONG *pOffset, ULONG Address );
@@ -68,104 +67,3 @@ getExeName( char* name, int name_size )
   }
 }
 
-/* Removes leading and trailing spaces. */
-char*
-blank_strip( char* string )
-{
-  int   i;
-  char* pos = string;
-
-  while( *pos == ' ' || *pos == '\t' || *pos == '\n' || *pos == '\r') {
-    pos++;
-  }
-
-  i = strlen(pos)+1;
-
-  if( pos != string ) {
-    memmove( string, pos, i );
-  }
-
-  i -= 2;
-
-  while( string[i] == ' ' || string[i] == '\t' || string[i] == '\n' || string[i] == '\r' ) {
-    string[i] = 0;
-    i--;
-  }
-
-  return string;
-}
-
-/* Replaces series of control characters by one space. */
-char*
-control_strip( char* string )
-{
-  char* s = string;
-  char* t = string;
-
-  while( *s ) {
-    if( iscntrl( *s )) {
-      while( *s && iscntrl( *s )) {
-        ++s;
-      }
-      if( *s ) {
-        *t++ = ' ';
-      }
-    } else {
-      *t++ = *s++;
-    }
-  }
-  *t = 0;
-  return string;
-}
-
-/* Removes leading and trailing spaces and quotes. */
-char*
-quote_strip( char* string )
-{
-  int   i, e;
-  char* pos = string;
-
-  while( *pos == ' ' || *pos == '\t' || *pos == '\n' ) {
-    pos++;
-  }
-
-  i = strlen( pos ) - 1;
-
-  for( i = strlen( pos ) - 1; i > 0; i-- ) {
-    if( pos[i] != ' ' && pos[i] != '\t' && pos[i] != '\n' ) {
-      break;
-    }
-  }
-
-  if( *pos == '\"' && pos[i] == '\"' )
-  {
-    pos++;
-    i -= 2;
-  }
-
-  for( e = 0; e < i + 1; e++ ) {
-    string[e] = pos[e];
-  }
-
-  string[e] = 0;
-  return string;
-}
-
-/* Removes comments starting with "#". */
-char*
-uncomment( char *string )
-{
-  int  source   = 0;
-  BOOL inquotes = FALSE;
-
-  while( string[source] ) {
-     if( string[source] == '\"' ) {
-       inquotes = !inquotes;
-     } else if( string[source] == '#' && !inquotes ) {
-       string[source] = 0;
-       break;
-     }
-     source++;
-  }
-  return string;
-}

@@ -1,5 +1,5 @@
 /*
- * Copyright 2007-2008 Marcel Mueller
+ * Copyright 2007-2009 Marcel Mueller
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -48,42 +48,42 @@
 *  This is in fact nothing else but a detailed view of a playlist.
 *
 ****************************************************************************/
-static MRESULT EXPENTRY DlgProcStub(HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2);
+//static MRESULT EXPENTRY DlgProcStub(HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2);
 
 class PlaylistView : public PlaylistRepository<PlaylistView>
 { friend class PlaylistRepository<PlaylistView>;
  public:
-  struct Record;
-  struct CPData : public CPDataBase
-  { // Field attributes
-    xstring             Pos;
-    xstring             End;
-    xstring             Song;
-    xstring             Size;
-    xstring             Time;
-    xstring             MoreInfo;
-    // Constructor
+  //struct Record;
+  typedef CPDataBase CPData;
+  /*struct CPData : public CPDataBase
+  { // Constructor
     CPData(PlayableInstance* content, PlaylistView& pm,
-           void (PlaylistBase::*infochangefn)(const Playable::change_args&, RecordBase*),
-           void (PlaylistBase::*statchangefn)(const PlayableInstance::change_args&, RecordBase*),
-           Record* rec) : CPDataBase(content, pm, infochangefn, statchangefn, rec) {}
-  };
+           void (PlaylistBase::*infochangefn)(const PlayableChangeArgs&, RecordBase*),
+           Record* rec) : CPDataBase(content, pm, infochangefn, rec) {}
+  };*/
+  /** Record specific structure for PM.
+   * The structure uses the implicit binary compatibility
+   * of xstring to const char*.
+   */
   struct Record : public RecordBase
   { // Attribute references for PM
-    const char*         Pos;
-    const char*         End;
-    const char*         Song;
-    const char*         Size;
-    const char*         Time;
-    const char*         MoreInfo;
-    const char*         URL;
+    xstring         Start;
+    xstring         Stop;
+    xstring         At;
+    xstring         Song;
+    xstring         Size;
+    xstring         Time;
+    xstring         MoreInfo;
+    const char*     URL;
     // For convenience
     CPData*&        Data() { return (CPData*&)RecordBase::Data; }
   };
+  // Column IDs for direct manipulation.
   enum ColumnID
   { CID_Alias = 1,
     CID_Start,
     CID_Stop,
+    CID_At,
     CID_URL
   };
  private:
@@ -96,55 +96,59 @@ class PlaylistView : public PlaylistRepository<PlaylistView>
   };
  private:
   static const Column MutableColumns[];
-  static const Column ConstColumns[];
+  //static const Column ConstColumns[];
   static FIELDINFO* MutableFieldinfo;
-  static FIELDINFO* ConstFieldinfo;
+  //static FIELDINFO* ConstFieldinfo;
  private: // working set
   HWND              MainMenu;
   HWND              RecMenu;
 
  private:
-  // Create a playlist manager window for an URL, but don't open it.
-  PlaylistView(Playable* obj, const xstring& alias);
+  /// Create a playlist manager window for an URL, but don't open it.
+  PlaylistView(Playable& obj, const xstring& alias);
 
  private:
-  // Post record message, filtered
-  virtual void      PostRecordCommand(RecordBase* rec, RecordCommand cmd);
-  // initialization on the first call
+  /// Post record update message, filtered.
+  virtual void      PostRecordUpdate(RecordBase* rec, InfoFlags flags);
+  /// Initialization on the first call.
   FIELDINFO*        CreateFieldinfo(const Column* cols, size_t count);
-  // create container window
+  /// Create container window.
   virtual void      InitDlg();
-  // Dialog procedure, called by DlgProcStub
+  /// Dialog procedure, called by \c DlgProcStub.
   virtual MRESULT   DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2);
-  // Load context menu for a record
+  /// Load context menu for a record.
   virtual HWND      InitContextMenu();
-  // Update plug-in specific accelerator table.
+  /// Update plug-in specific accelerator table.
   virtual void      UpdateAccelTable();
 
-  // Determine type of Playable object
-  // Subfunction to CalcIcon.
+  /// Determine type of Playable object
+  /// Sub function to \c CalcIcon.
   virtual ICP       GetPlaylistType(const RecordBase* rec) const;
-  // Gets the Usage type of a record.
-  // Subfunction to CalcIcon.
+  /// Gets the Usage type of a record.
+  /// Sub function to \c CalcIcon.
   virtual IC        GetRecordUsage(const RecordBase* rec) const;
-  // Convert size [bytes] to a human readable format
+  /// Convert \a size [bytes] to a human readable format
   static const xstring FormatSize(double size);
-  // Convert time [s] to a human readable format
+  /// Convert \a time [s] to a human readable format
   static const xstring FormatTime(double time);
-  // Parse time string for start and stop column.
-  static T_TIME     ParseTime(const xstring& str);
-  // (re-)calculate colum content, return true if changes are made
-  bool              CalcCols(Record* rec, Playable::InfoFlags flags, PlayableInstance::StatusFlags iflags);
+  /// Parse time string for start and stop column.
+  static PM123_TIME ParseTime(const xstring& str);
+  /// Append separator and \a app to \a dst if \a app has at least length 1.
+  static void       AppendNonEmpty(xstring& dst, const char* sep, const volatile xstring& app);
+  /// Assign value to \a dst and \a ref and return \c true if they were different.
+  static bool       UpdateColumnText(xstring& dst, const xstring& value);
+  /// (re-)calculate column content, return \c true if changes are made.
+  bool              CalcCols(Record* rec, InfoFlags flags);
 
-  // Subfunction to the factory below.
-  virtual RecordBase* CreateNewRecord(PlayableInstance* obj, RecordBase* parent);
-  // Find parent record. Returns NULL if rec is at the top level.
+  /// Sub function to the factory below.
+  virtual RecordBase* CreateNewRecord(PlayableInstance& obj, RecordBase* parent);
+  /// Find parent record. Returns \c NULL if \a rec is at the top level.
   virtual RecordBase* GetParent(const RecordBase* const rec) const;
-  // Update a record
-  void              UpdateRecord(Record* rec, Playable::InfoFlags flags, PlayableInstance::StatusFlags iflags);
-  // Navigate to
+  /// Update a record
+  virtual void      UpdateRecord(RecordBase* rec);
+  /// Navigate to
   virtual void      UserNavigate(const RecordBase* rec);
-  // Select all
+  /// Select all
   void              UserSelectAll();
 };
 

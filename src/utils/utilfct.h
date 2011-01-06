@@ -1,6 +1,6 @@
 /*
  * Copyright 1997-2003 Samuel Audet <guardia@step.polymtl.ca>
- *                     Taneli Lepp„ <rosmo@sektori.com>
+ *                     Taneli Leppï¿½ <rosmo@sektori.com>
  *
  * Copyright 2004-2006 Dmitry A.Steklenev <glass@ptv.ru>
  *
@@ -34,8 +34,6 @@
 
 #include <config.h>
 #define INCL_PM
-#include <rel2abs.h>
-#include <abs2rel.h>
 #include <errorstr.h>
 #include <minmax.h>
 #include <strutils.h>
@@ -69,25 +67,16 @@
 extern "C" {
 #endif
 
-/* Returns TRUE if WarpSans is supported by operating system. */
-BOOL check_warpsans( void );
-/* Assigns the 9.WarpSans as default font for a specified window if it is supported by
-   operating system. Otherwise assigns the 8.Helv as default font. */
-void do_warpsans( HWND hwnd );
-
 /* Queries a module handle and name. */
 void getModule ( HMODULE* hmodule, char* name, int name_size );
 /* Queries a program name. */
 void getExeName( char* name, int name_size );
 
-/* Removes leading and trailing spaces. */
-char* blank_strip( char* string );
-/* Replaces series of control characters by one space. */
-char* control_strip( char* string );
-/* Removes leading and trailing spaces and quotes. */
-char* quote_strip( char* string );
-/* Removes comments starting with "#". */
-char* uncomment  ( char* string );
+/* Returns TRUE if WarpSans is supported by operating system. */
+BOOL check_warpsans( void );
+/* Assigns the 9.WarpSans as default font for a specified window if it is supported by
+   operating system. Otherwise assigns the 8.Helv as default font. */
+void do_warpsans( HWND hwnd );
 
 /* Places the current thread into a wait state until another thread
    in the current process has ended. Kills another thread if the

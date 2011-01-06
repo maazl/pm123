@@ -1,6 +1,6 @@
 /*
  * Copyright 1997-2003 Samuel Audet  <guardia@step.polymtl.ca>
- *                     Taneli Lepp„  <rosmo@sektori.com>
+ *                     Taneli LeppÃ¤  <rosmo@sektori.com>
  * Copyright 2004-2005 Dmitry A.Steklenev <glass@ptv.ru>
  * Copyright 2007-2008 Marcel Mueller
  *
@@ -35,7 +35,6 @@
 #ifdef __cplusplus
 // Functions no longer supported in C mode
 #define INCL_WIN
-#include "playable.h"
 #include <os2.h>
 #endif
 
@@ -185,12 +184,12 @@ void bmp_draw_tiny_timer( HPS hps, int pos_id, double time );
 void bmp_draw_channels( HPS hps, int channels );
 /* Draws the volume bar and volume slider. */
 void bmp_draw_volume( HPS hps, double volume );
-/* Draws the file bitrate. */
+/* Draws the file bit rate. */
 void bmp_draw_rate( HPS hps, int rate );
 /* Draws the current playlist index. */
 void bmp_draw_plind( HPS hps, int index, int total );
 /* Draws the current playlist mode and time left labels. */
-void bmp_draw_plmode( HPS hps, BOOL valid, Playable::Flags flags );
+void bmp_draw_plmode( HPS hps, bool valid, bool enumerable );
 /* Draws the current position slider. Location [0,1]. <0 => no slider, alt = alternate slider */
 void bmp_draw_slider( HPS hps, double location, bool alt );
 /* Draws a current displayed text using the current selected font. */
@@ -218,7 +217,7 @@ double bmp_calc_time( POINTL pos );
 /* Deallocates all resources used by current loaded skin. */
 void bmp_clean_skin( void );
 /* Loads specified skin. */
-BOOL bmp_load_skin( const char *filename, HAB hab, HWND hplayer, HPS hps );
+BOOL bmp_load_skin( const char *filename, HWND hplayer, HPS hps );
 /* Adjusts current skin to the selected size of the player window. */
 void bmp_reflow_and_resize( HWND hframe );
 

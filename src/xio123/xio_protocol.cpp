@@ -39,10 +39,7 @@ _XFILE::_XFILE()
   protocol(NULL),
   serial(0),
   mtx(NULL),
-  in_use(false),
-  s_observer(0),
-  s_metabuff(NULL),
-  s_metasize(0)
+  in_use(false)
 { DEBUGLOG(("xio:XFILE(%p)::XFILE()\n", this));
 }
 
@@ -52,8 +49,11 @@ _XFILE::~_XFILE()
   serial = 0;
   delete mtx;
   mtx = NULL;
-  delete protocol;
-  protocol = NULL;
+  if (protocol)
+  { delete protocol->set_observer(NULL);
+    delete protocol;
+    protocol = NULL;
+  }
 }
 
 bool _XFILE::Request()
@@ -82,11 +82,11 @@ void _XFILE::Release()
 
 
 XPROTOCOL::XPROTOCOL()
-: blocksize(0),
-  eof(false),
-  error(0)
-{
-}
+: eof(false)
+, error(0)
+, blocksize(0)
+, observer(NULL)
+{}
 
 /* Reads up to n-1 characters from the stream or stop at the first
    new line. CR characters (\r) are discarded.
@@ -158,8 +158,10 @@ char* XPROTOCOL::get_metainfo( int type, char* result, int size )
   return result;
 }
 
-void XPROTOCOL::set_observer( void DLLENTRYP(callback)(const char*, long, long, void*), void* arg )
-{
+XPROTOCOL::Iobserver* XPROTOCOL::set_observer( Iobserver* obs )
+{ Iobserver* ret = observer;
+  observer = obs;
+  return ret;
 }
 
 int XIOreadonly::write( const void* source, unsigned int count )

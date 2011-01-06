@@ -314,19 +314,6 @@ decoder_fileinfo( const char* filename, DECODER_INFO* info )
   return 0;
 }
 
-/* Strictly speaking the folowing functions are not required to be implemented.
- * But, older PM123 versions before 1.40 import them anyway. So let's keep compatible.
- */
-ULONG DLLENTRY
-decoder_trackinfo( const char* drive, int track, DECODER_INFO* info ) {
-  return 200;
-}
-
-ULONG DLLENTRY
-decoder_cdinfo( const char* drive, DECODER_CDINFO* info ) {
-  return 100;
-}
-
 
 /********** MMOS2 stuff ****************************************************/
 
@@ -737,16 +724,16 @@ static ULONG get_devices(MCI_SYSINFO_LOGDEVICE* info, int deviceid)
 
 /********** GUI stuff ******************************************************/
 
-struct WizzardDlgData
+struct WizardDlgData
 { const char* title;
-  DECODER_WIZZARD_CALLBACK callback;
+  DECODER_INFO_ENUMERATION_CB callback;
   void* param;
 };
 
-static MRESULT EXPENTRY WizzardDlgProc(HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2)
+static MRESULT EXPENTRY WizardDlgProc(HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2)
 {
   const int samprates[] = {8000, 11025, 12000, 16000, 22050, 24000, 32000, 44100, 48000, 96000};
-  DEBUGLOG2(("os2rec:WizzardDlgProc(%p, %p, %p, %p)\n", hwnd, msg, mp1, mp2));
+  DEBUGLOG2(("os2rec:WizardDlgProc(%p, %p, %p, %p)\n", hwnd, msg, mp1, mp2));
 
   switch (msg)
   {case WM_INITDLG:
@@ -756,7 +743,7 @@ static MRESULT EXPENTRY WizzardDlgProc(HWND hwnd, ULONG msg, MPARAM mp1, MPARAM 
 
     // Window Title
     { char wintitle[300]; // hopefully large enough
-      sprintf(wintitle, ((WizzardDlgData*)mp2)->title, " recording");
+      sprintf(wintitle, ((WizardDlgData*)mp2)->title, " recording");
       WinSetWindowText( hwnd, wintitle );
     }
 
@@ -768,7 +755,7 @@ static MRESULT EXPENTRY WizzardDlgProc(HWND hwnd, ULONG msg, MPARAM mp1, MPARAM 
       { MCI_SYSINFO_LOGDEVICE info;
         char temp[256];
         get_devices(&info, i);
-        //DEBUGLOG(("os2rec:WizzardDlgProc:WM_INITDLG: %s %s - %s\n", info.szInstallName, info.szResourceName, defaults.device));
+        //DEBUGLOG(("os2rec:WizardDlgProc:WM_INITDLG: %s %s - %s\n", info.szInstallName, info.szResourceName, defaults.device));
         sprintf(temp, "%s (%s)", info.szProductInfo, info.szVersionNumber);
         WinSendMsg(hwndctrl, LM_INSERTITEM, MPFROMSHORT(LIT_END), MPFROMP(temp));
         // select by resource name ?
@@ -803,7 +790,7 @@ static MRESULT EXPENTRY WizzardDlgProc(HWND hwnd, ULONG msg, MPARAM mp1, MPARAM 
     break;
 
    case WM_COMMAND:
-    DEBUGLOG(("os2rec:WizzardDlgProc(%p, WM_COMMAND, %p, %p)\n", hwnd, mp1, mp2));
+    DEBUGLOG(("os2rec:WizardDlgProc(%p, WM_COMMAND, %p, %p)\n", hwnd, mp1, mp2));
     switch (SHORT1FROMMP(mp1))
     {case DID_OK:
       // Construct URL
@@ -818,17 +805,18 @@ static MRESULT EXPENTRY WizzardDlgProc(HWND hwnd, ULONG msg, MPARAM mp1, MPARAM 
           WinQueryButtonCheckstate(hwnd, RB_MIC)  ? "mic"  : WinQueryButtonCheckstate(hwnd, RB_DIGITAL) ? "digital" : "line",
           WinQueryButtonCheckstate(hwnd, RB_EXCL) ? "no"   : "yes");
         // store result
-        WizzardDlgData* dp = (WizzardDlgData*)WinQueryWindowULong(hwnd, QWL_USER);
-        DEBUGLOG(("os2rec:WizzardDlgProc: dp=%p\n", dp));
+        WizardDlgData* dp = (WizardDlgData*)WinQueryWindowULong(hwnd, QWL_USER);
+        DEBUGLOG(("os2rec:WizardDlgProc: dp=%p\n", dp));
         // do callback
-        (*dp->callback)(dp->param, url);
+        // TODO: additional parameters of DECODER_INFO_ENUMERATION_CB should be handled properly
+        (*dp->callback)(dp->param, url, NULL, 0, 0);
       }
       break;
     }
     break;
 
    case WM_CONTROL:
-    DEBUGLOG(("os2rec:WizzardDlgProc(%p, WM_CONTROL, %p, %p)\n", hwnd, mp1, mp2));
+    DEBUGLOG(("os2rec:WizardDlgProc(%p, WM_CONTROL, %p, %p)\n", hwnd, mp1, mp2));
     switch (SHORT1FROMMP(mp1))
     {case SB_SAMPRATE:
       switch (SHORT2FROMMP(mp1))
@@ -840,7 +828,7 @@ static MRESULT EXPENTRY WizzardDlgProc(HWND hwnd, ULONG msg, MPARAM mp1, MPARAM 
         for (i = sizeof samprates/sizeof *samprates; i-- > 0; )
           if (samprates[i] < val)
             break;
-        //DEBUGLOG(("os2rec:WizzardDlgProc: SPBN_UPARROW - %i %i %i\n", val, i, samprates[(i+sizeof samprates/sizeof *samprates) % (sizeof samprates/sizeof *samprates)]));
+        //DEBUGLOG(("os2rec:WizardDlgProc: SPBN_UPARROW - %i %i %i\n", val, i, samprates[(i+sizeof samprates/sizeof *samprates) % (sizeof samprates/sizeof *samprates)]));
         WinSendDlgItemMsg(hwnd, SB_SAMPRATE, SPBM_SETCURRENTVALUE, MPFROMLONG(samprates[(i+sizeof samprates/sizeof *samprates) % (sizeof samprates/sizeof *samprates)]), 0);
         return 0;
 
@@ -849,7 +837,7 @@ static MRESULT EXPENTRY WizzardDlgProc(HWND hwnd, ULONG msg, MPARAM mp1, MPARAM 
         for (i = 0; i < sizeof samprates/sizeof *samprates; ++i )
           if (samprates[i] > val)
             break;
-        //DEBUGLOG(("os2rec:WizzardDlgProc: SPBN_DOWNARROW - %i %i %i\n", val, i, samprates[i % (sizeof samprates/sizeof *samprates)]));
+        //DEBUGLOG(("os2rec:WizardDlgProc: SPBN_DOWNARROW - %i %i %i\n", val, i, samprates[i % (sizeof samprates/sizeof *samprates)]));
         WinSendDlgItemMsg(hwnd, SB_SAMPRATE, SPBM_SETCURRENTVALUE, MPFROMLONG(samprates[i % (sizeof samprates/sizeof *samprates)]), 0);
         return 0;
       }
@@ -860,13 +848,13 @@ static MRESULT EXPENTRY WizzardDlgProc(HWND hwnd, ULONG msg, MPARAM mp1, MPARAM 
   return WinDefDlgProc(hwnd, msg, mp1, mp2);
 }
 
-static ULONG DLLENTRY WizzardDlg(HWND owner, const char* title, DECODER_WIZZARD_CALLBACK callback, void* param )
-{ DEBUGLOG(("os2rec:WizzardDlg(%p, %s, %p, %p)\n", owner, title, callback, param));
+static ULONG DLLENTRY WizardDlg(HWND owner, const char* title, DECODER_INFO_ENUMERATION_CB callback, void* param )
+{ DEBUGLOG(("os2rec:WizardDlg(%p, %s, %p, %p)\n", owner, title, callback, param));
   HMODULE mod;
   getModule( &mod, NULL, 0 );
 
-  WizzardDlgData res = { title, callback, param };
-  switch (WinDlgBox(HWND_DESKTOP, owner, WizzardDlgProc, mod, DLG_RECWIZZARD, &res))
+  WizardDlgData res = { title, callback, param };
+  switch (WinDlgBox(HWND_DESKTOP, owner, WizardDlgProc, mod, DLG_RECWIZZARD, &res))
   {case DID_OK:
     return 0;
 
@@ -879,17 +867,17 @@ static ULONG DLLENTRY WizzardDlg(HWND owner, const char* title, DECODER_WIZZARD_
 }
 
 /* DLL entry point */
-const DECODER_WIZZARD* DLLENTRY decoder_getwizzard( )
+const DECODER_WIZARD* DLLENTRY decoder_getwizard( )
 {
-  static const DECODER_WIZZARD wizzardentry =
+  static const DECODER_WIZARD wizardentry =
   { NULL,
     "Record...",
-    &WizzardDlg,
+    &WizardDlg,
     0, 0,
     0, 0
   };
 
-  return &wizzardentry;
+  return &wizardentry;
 }
 
 /*HWND dlghwnd = 0;

@@ -1,7 +1,7 @@
 /*
- * Copyright 2007-2008 Marcel MÅeller
+ * Copyright 2007-2010 Marcel MÔøΩeller
  *           1997-2003 Samuel Audet <guardia@step.polymtl.ca>
- *                     Taneli LeppÑ <rosmo@sektori.com>
+ *                     Taneli LeppÔøΩ <rosmo@sektori.com>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -34,12 +34,7 @@
 #define  INCL_WIN
 #define  INCL_GPI
 #define  INCL_DOS
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <process.h>
 
-#include <os2.h>
 #include <utilfct.h>
 #include "playlistbase.h"
 #include "playlistmanager.h"
@@ -47,6 +42,7 @@
 #include "infodialog.h"
 #include "playable.h"
 #include "pm123.h"
+#include "gui.h"
 #include "dialog.h"
 #include "properties.h"
 #include "123_util.h"
@@ -54,10 +50,15 @@
 #include "docking.h"
 #include "filedlg.h"
 
-#include <stdarg.h>
-#include <snprintf.h>
 #include <cpp/smartptr.h>
 #include <cpp/url123.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <process.h>
+#include <stdarg.h>
+#include <snprintf.h>
+#include <os2.h>
 
 #include <debuglog.h>
 
@@ -67,7 +68,7 @@
 
 #ifdef DEBUG_LOG
 xstring PlaylistBase::RecordBase::DebugName() const
-{ return xstring::sprintf("%p{%p{%s}}", this, Data->Content.get(), Data->Content->GetPlayable()->GetURL().getShortName().cdata());
+{ return xstring::sprintf("%p{%p{%s}}", this, Data->Content.get(), Data->Content->GetPlayable().URL.getShortName().cdata());
 }
 xstring PlaylistBase::RecordBase::DebugName(const RecordBase* rec)
 { static const xstring nullstring = "<NULL>";
@@ -80,21 +81,21 @@ xstring PlaylistBase::RecordBase::DebugName(const RecordBase* rec)
 }
 
 xstring PlaylistBase::DebugName() const
-{ return Content->GetURL().getShortName();
+{ return Content->URL.getShortName();
 }
 #endif
 
 
 PlaylistBase::MakePlayableSet::MakePlayableSet(Playable* pp)
-{ DEBUGLOG(("PlaylistBase::MakePlayableSet::MakePlayableSet(%p{%s})\n", pp, pp->GetURL().cdata()));
+{ DEBUGLOG(("PlaylistBase::MakePlayableSet::MakePlayableSet(%p{%s})\n", pp, pp->URL.cdata()));
   get(*pp) = pp;
 }
 PlaylistBase::MakePlayableSet::MakePlayableSet(const vector<RecordBase>& recs)
 { DEBUGLOG(("PlaylistBase::MakePlayableSet::MakePlayableSet({%u...})\n", recs.size()));
   const RecordBase*const* rpp = recs.end();
   while (rpp-- != recs.begin())
-  { Playable* pp = (*rpp)->Data->Content->GetPlayable();
-    get(*pp) = pp;
+  { Playable& pp = (*rpp)->Data->Content->GetPlayable();
+    get(pp) = &pp;
   }
 }
 
@@ -159,9 +160,9 @@ void PlaylistBase::InitIcons()
   IcoPlaylist[1][IC_Shadow ][ICP_Recursive] = IcoPlaylist[0][IC_Normal ][ICP_Recursive];
 }
 
-PlaylistBase::PlaylistBase(Playable* content, const xstring& alias, ULONG rid)
+PlaylistBase::PlaylistBase(Playable& content, const xstring& alias, ULONG rid)
 : ManagedDialogBase(rid, NULLHANDLE),
-  Content(content),
+  Content(&content),
   Alias(alias),
   HwndContainer(NULLHANDLE),
   NoRefresh(false),
@@ -170,15 +171,15 @@ PlaylistBase::PlaylistBase(Playable* content, const xstring& alias, ULONG rid)
   RootInfoDelegate(*this, &PlaylistBase::InfoChangeEvent, NULL),
   RootPlayStatusDelegate(*this, &PlaylistBase::PlayStatEvent),
   PluginDelegate(Plugin::ChangeEvent, *this, &PlaylistBase::PluginEvent)
-{ DEBUGLOG(("PlaylistBase(%p)::PlaylistBase(%p{%s}, %s, %u)\n", this, content, content->GetURL().cdata(), alias ? alias.cdata() : "<NULL>", rid));
+{ DEBUGLOG(("PlaylistBase(%p)::PlaylistBase(&%p{%s}, %s, %u)\n", this, &content, content.URL.cdata(), alias.cdata(), rid));
   static bool first = true;
   if (first)
   { InitIcons();
     first = false;
   }
   // These two ones are constant
-  LoadWizzards[0] = &amp_file_wizzard;
-  LoadWizzards[1] = &amp_url_wizzard;
+  LoadWizards[0] = &amp_file_wizard;
+  LoadWizards[1] = &amp_url_wizard;
 }
 
 PlaylistBase::~PlaylistBase()
@@ -186,18 +187,20 @@ PlaylistBase::~PlaylistBase()
   WinDestroyAccelTable(AccelTable);
 }
 
-void PlaylistBase::PostRecordCommand(RecordBase* rec, RecordCommand cmd)
-{ DEBUGLOG(("PlaylistBase(%p)::PostRecordCommand(%p, %u) - %x\n", this, rec, cmd, StateFromRec(rec).PostMsg));
-  AtomicUnsigned il(StateFromRec(rec).PostMsg);
+void PlaylistBase::PostRecordUpdate(RecordBase* rec, InfoFlags flags)
+{ AtomicUnsigned& il = StateFromRec(rec).Update;
+  DEBUGLOG(("PlaylistBase(%p)::PostRecordUpdate(%p, %u) - %x\n", this, rec, flags, il.get()));
   // Check whether the requested bit is already set or there are other events pending.
-  if (il.bitset(cmd) || il != (1U<<cmd))
-  { DEBUGLOG(("PlaylistBase::PostRecordCommand - nope! %x\n", (unsigned)il));
+  unsigned last = il;
+  il |= flags;
+  if (last || il != (unsigned)flags)
+  { DEBUGLOG(("PlaylistBase::PostRecordCommand - nope! %x\n", il.get()));
     return; // requested command is already on the way or another unexecuted message is outstanding
   }
   // There is a little chance that we generate two messages for the same record.
   // The second one will be a no-op in the window procedure.
   BlockRecord(rec);
-  PMRASSERT(WinPostMsg(GetHwnd(), UM_RECORDCOMMAND, MPFROMP(rec), MPFROMSHORT(TRUE)));
+  PMRASSERT(WinPostMsg(GetHwnd(), UM_RECORDUPDATE, MPFROMP(rec), MPFROMSHORT(TRUE)));
 }
 
 void PlaylistBase::FreeRecord(RecordBase* rec)
@@ -239,23 +242,23 @@ void PlaylistBase::InitDlg()
   }
 
   // Help manager
-  SetHelpMgr(amp_help_mgr());
+  SetHelpMgr(GUI::GetHelpMgr());
 
   { // initial position
     SWP swp;
     PMXASSERT(WinQueryTaskSizePos(amp_player_hab(), 0, &swp), == 0);
     PMRASSERT(WinSetWindowPos(GetHwnd(), NULLHANDLE, swp.x,swp.y, 0,0, SWP_MOVE));
   }
-  rest_window_pos(GetHwnd(), Content->GetURL());
+  rest_window_pos(GetHwnd(), Content->URL);
 
   dk_add_window(GetHwnd(), 0);
 
   // register events
-  Content->InfoChange += RootInfoDelegate;
-  Ctrl::ChangeEvent += RootPlayStatusDelegate;
+  Content->GetInfoChange() += RootInfoDelegate;
+  Ctrl::GetChangeEvent() += RootPlayStatusDelegate;
 
   SetTitle();
-  // initialize decoder dependant information once.
+  // initialize decoder dependent information once.
   PMRASSERT(WinPostMsg(GetHwnd(), UM_UPDATEDEC, 0, 0));
 }
 
@@ -277,7 +280,7 @@ MRESULT PlaylistBase::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
       // delete all records
       RemoveChildren(NULL);
       // save position
-      save_window_pos(GetHwnd(), Content->GetURL());
+      save_window_pos(GetHwnd(), Content->URL);
 
       // process outstanding UM_DELETERECORD messages before we quit to ensure that all records are back to the PM before we die.
       QMSG qmsg;
@@ -289,14 +292,14 @@ MRESULT PlaylistBase::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
     }
 
    case WM_SYSCOMMAND:
-    if( SHORT1FROMMP(mp1) == SC_CLOSE )
-    { if ( (Content->GetFlags() & Playable::Enumerable)
-        && ((PlayableCollection&)*Content).IsModified() )
+    if (SHORT1FROMMP(mp1) == SC_CLOSE)
+    { if ( (Content->GetInfo().tech->attributes & TATTR_PLAYLIST)
+        && Content->IsModified() )
       { switch (amp_query3(GetHwnd(), "The current list is modified. Save changes?"))
         {default: // cancel
           return 0;
          case MBID_YES:
-          UserSave();
+          UserSave(false);
          case MBID_NO:;
         }
       }
@@ -351,10 +354,10 @@ MRESULT PlaylistBase::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
 
      case CN_ENTER:
       { NOTIFYRECORDENTER* nre = (NOTIFYRECORDENTER*)mp2;
-        Playable* pp = PlayableFromRec((RecordBase*)nre->pRecord);
+        APlayable& pp = APlayableFromRec((RecordBase*)nre->pRecord);
         // Bei Song -> Navigate to
-        if (pp->GetFlags() & Playable::Enumerable)
-          UserOpenDetailedView(pp);
+        if (pp.GetInfo().tech->attributes & TATTR_PLAYLIST)
+          UserOpenDetailedView(pp.GetPlayable());
         else
           UserNavigate((RecordBase*)nre->pRecord);
       }
@@ -370,12 +373,13 @@ MRESULT PlaylistBase::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
      case CN_REALLOCPSZ:
       { CNREDITDATA* ed = (CNREDITDATA*)PVOIDFROMMP(mp2);
         DEBUGLOG(("PlaylistBase::DlgProc CN_REALLOCPSZ %p{,%p->%p{%s},%u,}\n", ed, ed->ppszText, *ed->ppszText, *ed->ppszText, ed->cbText));
-        *ed->ppszText = DirectEdit.raw_init(ed->cbText-1); // because of the string sharing we always have to initialize the instance
+        *ed->ppszText = DirectEdit.allocate(ed->cbText-1); // because of the string sharing we always have to initialize the instance
+        return MRFROMLONG(TRUE);
       }
-      return MRFROMLONG(TRUE);
 
      case CN_ENDEDIT:
-      DirectEdit = NULL; // Free string
+      DEBUGLOG(("PlaylistBase::DlgProc CN_ENDEDIT\n"));
+      DirectEdit.reset(); // Free string
       PMRASSERT(WinSetAccelTable(WinQueryAnchorBlock(GetHwnd()), AccelTable, GetHwnd()));
       return 0;
 
@@ -414,7 +418,7 @@ MRESULT PlaylistBase::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
         return 0;
       }
      case CN_DROPHELP:
-      amp_show_help( IDH_DRAG_AND_DROP );
+      GUI::ShowHelp(IDH_DRAG_AND_DROP);
       return 0;
     }
     break;
@@ -448,14 +452,14 @@ MRESULT PlaylistBase::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
       if (SHORT1FROMMP(mp2) == CMDSRC_ACCELERATOR)
         GetRecords(CRA_SELECTED);
 
-      if (SHORT1FROMMP(mp1) >= IDM_PL_APPFILEALL && SHORT1FROMMP(mp1) < IDM_PL_APPFILEALL + sizeof LoadWizzards / sizeof *LoadWizzards)
-      { DECODER_WIZZARD_FUNC func = LoadWizzards[SHORT1FROMMP(mp1)-IDM_PL_APPFILEALL];
+      if (SHORT1FROMMP(mp1) >= IDM_PL_APPFILEALL && SHORT1FROMMP(mp1) < IDM_PL_APPFILEALL + sizeof LoadWizards / sizeof *LoadWizards)
+      { DECODER_WIZARD_FUNC func = LoadWizards[SHORT1FROMMP(mp1)-IDM_PL_APPFILEALL];
         if (func != NULL)
           UserAdd(func, NULL);
         return 0;
       }
-      if (SHORT1FROMMP(mp1) >= IDM_PL_APPFILE && SHORT1FROMMP(mp1) < IDM_PL_APPFILE + sizeof LoadWizzards / sizeof *LoadWizzards)
-      { DECODER_WIZZARD_FUNC func = LoadWizzards[SHORT1FROMMP(mp1)-IDM_PL_APPFILE];
+      if (SHORT1FROMMP(mp1) >= IDM_PL_APPFILE && SHORT1FROMMP(mp1) < IDM_PL_APPFILE + sizeof LoadWizards / sizeof *LoadWizards)
+      { DECODER_WIZARD_FUNC func = LoadWizards[SHORT1FROMMP(mp1)-IDM_PL_APPFILE];
         if (func != NULL && Source.size() == 1)
           UserAdd(func, Source[0]);
         return 0;
@@ -480,14 +484,16 @@ MRESULT PlaylistBase::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
         }
 
        case IDM_PL_USEALL:
-        { LoadHelper lh(cfg.playonload*LoadHelper::LoadPlay | LoadHelper::LoadRecall|LoadHelper::ShowErrors|LoadHelper::AutoPost|LoadHelper::PostDelayed);
-          lh.AddItem(new PlayableSlice(Content));
+        { LoadHelper* lhp = new LoadHelper(cfg.playonload*LoadHelper::LoadPlay | LoadHelper::LoadRecall);
+          lhp->AddItem(Content);
+          GUI::Load(lhp);
           break;
         }
        case IDM_PL_USE:
-        { LoadHelper lh(cfg.playonload*LoadHelper::LoadPlay | LoadHelper::LoadRecall|LoadHelper::ShowErrors|LoadHelper::AutoPost|LoadHelper::PostDelayed);
+        { LoadHelper* lhp = new LoadHelper(cfg.playonload*LoadHelper::LoadPlay | LoadHelper::LoadRecall);
           for (RecordBase** rpp = Source.begin(); rpp != Source.end(); ++rpp)
-            lh.AddItem(&*(*rpp)->Data->Content);
+            lhp->AddItem((*rpp)->Data->Content);
+          GUI::Load(lhp);
           break;
         }
        case IDM_PL_NAVIGATE:
@@ -496,14 +502,14 @@ MRESULT PlaylistBase::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
         break;
 
        case IDM_PL_TREEVIEWALL:
-        UserOpenTreeView(Content);
+        UserOpenTreeView(*Content);
         break;
        case IDM_PL_TREEVIEW:
         Apply2Source(&PlaylistBase::UserOpenTreeView);
         break;
 
        case IDM_PL_DETAILEDALL:
-        UserOpenDetailedView(Content);
+        UserOpenDetailedView(*Content);
         break;
        case IDM_PL_DETAILED:
         Apply2Source(&PlaylistBase::UserOpenDetailedView);
@@ -513,11 +519,18 @@ MRESULT PlaylistBase::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
         Apply2Source(&PlaylistBase::UserReload);
         break;
 
+       case IDM_PL_PROPERTIES:
+        if (Source.size() == 1)
+          UserOpenInfoView(Source[0], AInfoDialog::Page_ItemInfo);
+        break;
        case IDM_PL_INFOALL:
-        UserOpenInfoView(MakePlayableSet(Content));
+        UserOpenInfoView(MakePlayableSet(Content), AInfoDialog::Page_TechInfo);
         break;
        case IDM_PL_INFO:
-        UserOpenInfoView(MakePlayableSet(Source));
+        if (Source.size() == 1)
+          UserOpenInfoView(Source[0], AInfoDialog::Page_MetaInfo);
+        else
+          UserOpenInfoView(MakePlayableSet(Source), AInfoDialog::Page_MetaInfo);
         break;
 
        case IDM_PL_EDIT:
@@ -537,7 +550,7 @@ MRESULT PlaylistBase::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
 
        case IDM_PL_SORT_URLALL:
         SortComparer = &PlaylistBase::CompURL;
-        UserSort(Content);
+        UserSort(*Content);
         break;
        case IDM_PL_SORT_URL:
         SortComparer = &PlaylistBase::CompURL;
@@ -545,7 +558,7 @@ MRESULT PlaylistBase::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
         break;
        case IDM_PL_SORT_SONGALL:
         SortComparer = &PlaylistBase::CompTitle;
-        UserSort(Content);
+        UserSort(*Content);
         break;
        case IDM_PL_SORT_SONG:
         SortComparer = &PlaylistBase::CompTitle;
@@ -553,7 +566,7 @@ MRESULT PlaylistBase::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
         break;
        case IDM_PL_SORT_ARTALL:
         SortComparer = &PlaylistBase::CompArtist;
-        UserSort(Content);
+        UserSort(*Content);
         break;
        case IDM_PL_SORT_ART:
         SortComparer = &PlaylistBase::CompArtist;
@@ -561,7 +574,7 @@ MRESULT PlaylistBase::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
         break;
        case IDM_PL_SORT_ALBUMALL:
         SortComparer = &PlaylistBase::CompAlbum;
-        UserSort(Content);
+        UserSort(*Content);
         break;
        case IDM_PL_SORT_ALBUM:
         SortComparer = &PlaylistBase::CompAlbum;
@@ -569,7 +582,7 @@ MRESULT PlaylistBase::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
         break;
        case IDM_PL_SORT_ALIASALL:
         SortComparer = &PlaylistBase::CompAlias;
-        UserSort(Content);
+        UserSort(*Content);
         break;
        case IDM_PL_SORT_ALIAS:
         SortComparer = &PlaylistBase::CompAlias;
@@ -577,7 +590,7 @@ MRESULT PlaylistBase::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
         break;
        case IDM_PL_SORT_TIMEALL:
         SortComparer = &PlaylistBase::CompTime;
-        UserSort(Content);
+        UserSort(*Content);
         break;
        case IDM_PL_SORT_TIME:
         SortComparer = &PlaylistBase::CompTime;
@@ -585,7 +598,7 @@ MRESULT PlaylistBase::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
         break;
        case IDM_PL_SORT_SIZEALL:
         SortComparer = &PlaylistBase::CompSize;
-        UserSort(Content);
+        UserSort(*Content);
         break;
        case IDM_PL_SORT_SIZE:
         SortComparer = &PlaylistBase::CompSize;
@@ -593,14 +606,14 @@ MRESULT PlaylistBase::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
         break;
 
        case IDM_PL_SORT_RANDALL:
-        UserShuffle(Content);
+        UserShuffle(*Content);
         break;
        case IDM_PL_SORT_RAND:
         Apply2Source(&PlaylistBase::UserShuffle);
         break;
 
        case IDM_PL_CLEARALL:
-        UserClearPlaylist(Content);
+        UserClearPlaylist(*Content);
         break;
 
        /*case IDM_PL_CLEAR:
@@ -613,29 +626,34 @@ MRESULT PlaylistBase::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
           return 0;
         }*/
        case IDM_PL_RELOAD:
-        UserReload(Content);
+        UserReload(*Content);
         break;
 
        case IDM_PL_OPEN:
         { url123 URL = amp_playlist_select(GetHwnd(), "Open Playlist");
           if (URL)
-          { PlaylistBase* pp = GetSame(Playable::GetByURL(URL));
+          { PlaylistBase* pp = GetSame(*Playable::GetByURL(URL));
             pp->SetVisible(true);
           }
           break;
         }
        case IDM_PL_SAVE:
-        UserSave();
+        UserSave(false);
+        break;
+       case IDM_PL_SAVE_AS:
+        UserSave(true);
         break;
 
       } // switch (cmd)
       return 0;
     }
 
-   case UM_RECORDCOMMAND:
+   case UM_RECORDUPDATE:
     { RecordBase* rec = (RecordBase*)PVOIDFROMMP(mp1);
-      // Do nothing but free the record in case this is requested.
-      DEBUGLOG(("PlaylistBase::DlgProc: UM_RECORDCOMMAND: %s - %i\n", RecordBase::DebugName(rec).cdata(), SHORT1FROMMP(mp2)));
+      DEBUGLOG(("PlaylistBase::DlgProc: UM_RECORDCOMMAND: %s, %i, %x\n",
+        RecordBase::DebugName(rec).cdata(), SHORT1FROMMP(mp2), StateFromRec(rec).Update.get()));
+      UpdateRecord(rec);
+      // Free the record in case this is requested.
       if (SHORT1FROMMP(mp2))
         FreeRecord(rec);
       return MRFROMLONG(TRUE);
@@ -688,14 +706,18 @@ int PlaylistBase::compareTo(const Playable& r) const
 
 HPOINTER PlaylistBase::CalcIcon(RecordBase* rec)
 { ASSERT(rec->Data->Content != NULL);
-  Playable* pp = rec->Data->Content->GetPlayable();
-  DEBUGLOG(("PlaylistBase::CalcIcon(%s) - %u\n", RecordBase::DebugName(rec).cdata(), pp->GetStatus()));
-  Playable::Flags flags = pp->GetFlags();
-  IC state = (IC)pp->GetStatus(); // Dirty hack! The enumerations are compatible
-  if (pp->IsInUse())
+  Playable& pp = rec->Data->Content->GetPlayable();
+  unsigned tattr = pp.GetInfo().tech->attributes;
+  DEBUGLOG(("PlaylistBase::CalcIcon(%s) - %u\n", RecordBase::DebugName(rec).cdata(), tattr));
+  IC state = IC_Pending;
+  if ((pp.GetInfo().phys->attributes & PATTR_INVALID) || (tattr & TATTR_INVALID))
+    state = IC_Invalid;
+  else if (tattr & (TATTR_SONG|TATTR_PLAYLIST))
+    state = IC_Normal;
+  if (pp.IsInUse())
     state = GetRecordUsage(rec);
-  if (flags & Playable::Enumerable)
-    return IcoPlaylist[(flags & Playable::Mutable) == Playable::Enumerable][state][GetPlaylistType(rec)];
+  if (tattr & TATTR_PLAYLIST)
+    return IcoPlaylist[(tattr & TATTR_WRITABLE) != 0][state][GetPlaylistType(rec)];
   else
     return IcoSong[state];
 }
@@ -704,17 +726,18 @@ void PlaylistBase::SetTitle()
 { DEBUGLOG(("PlaylistBase(%p)::SetTitle()\n", this));
   // Generate Window Title
   const char* append = "";
-  if (Content->GetStatus() == Playable::STA_Invalid)
+  unsigned tattr = Content->GetInfo().tech->attributes;
+  if ((Content->GetInfo().phys->attributes & PATTR_INVALID) || (tattr & TATTR_INVALID))
     append = " [invalid]";
   else if (Content->IsInUse())
     append = " [used]";
   DialogBase::SetTitle(xstring::sprintf("PM123: %s%s%s", GetDisplayName().cdata(),
-    (Content->GetFlags() & Playable::Enumerable) && ((PlayableCollection&)*Content).IsModified() ? " (*)" : "", append));
+    (tattr & TATTR_PLAYLIST) && Content->IsModified() ? " (*)" : "", append));
 }
 
 
-PlaylistBase::RecordBase* PlaylistBase::AddEntry(PlayableInstance* obj, RecordBase* parent, RecordBase* after)
-{ DEBUGLOG(("PlaylistBase(%p{%s})::AddEntry(%p{%s}, %p, %p)\n", this, DebugName().cdata(), obj, obj->GetPlayable()->GetURL().getShortName().cdata(), parent, after));
+PlaylistBase::RecordBase* PlaylistBase::AddEntry(PlayableInstance& obj, RecordBase* parent, RecordBase* after)
+{ DEBUGLOG(("PlaylistBase(%p{%s})::AddEntry(&%p{%s}, %p, %p)\n", this, DebugName().cdata(), &obj, obj.GetPlayable().URL.getShortName().cdata(), parent, after));
   /* Allocate a record in the HwndContainer */
   RecordBase* rec = CreateNewRecord(obj, parent);
   if (rec)
@@ -780,27 +803,22 @@ int PlaylistBase::RemoveChildren(RecordBase* const rp)
 
 void PlaylistBase::RequestChildren(RecordBase* const rec)
 { DEBUGLOG(("PlaylistBase(%p)::RequestChildren(%s)\n", this, RecordBase::DebugName(rec).cdata()));
-  Playable* const pp = PlayableFromRec(rec);
-  if ((pp->GetFlags() & Playable::Enumerable) == 0)
-    return;
+  APlayable& pp = APlayableFromRec(rec);
   // Call event either immediately or later, asynchronuously.
-  // But only the playlist content is requested at high priority;
-  Playable::InfoFlags avail = pp->EnsureInfoAsync(Playable::IF_Other, false)
-                            | pp->EnsureInfoAsync(Playable::IF_Tech|Playable::IF_Rpl, true);
-  InfoChangeEvent(Playable::change_args(*pp, avail, avail), rec);
+  PostRecordUpdate(rec, IF_Child & ~pp.RequestInfo(IF_Child, PRI_Normal));
 }
 
 void PlaylistBase::UpdateChildren(RecordBase* const rp)
 { DEBUGLOG(("PlaylistBase(%p)::UpdateChildren(%s)\n", this, RecordBase::DebugName(rp).cdata()));
   // get content
-  Playable* const pp = PlayableFromRec(rp);
-
-  DEBUGLOG(("PlaylistBase::UpdateChildren - %u\n", pp->GetStatus()));
-  if ((pp->GetFlags() & Playable::Enumerable) == 0 || pp->GetStatus() <= Playable::STA_Invalid)
+  APlayable& pp = APlayableFromRec(rp);
+  TECH_ATTRIBUTES tattr = (TECH_ATTRIBUTES)pp.GetInfo().tech->attributes;
+  DEBUGLOG(("PlaylistBase::UpdateChildren - %x\n", tattr));
+  if ((tattr & (TATTR_PLAYLIST|TATTR_INVALID)) != TATTR_PLAYLIST)
   { // Nothing to enumerate, delete children if any
     DEBUGLOG(("PlaylistBase::UpdateChildren - no children possible.\n"));
     if (RemoveChildren(rp))
-      PostRecordCommand(rp, RC_UPDATEUSAGE); // update icon
+      PostRecordUpdate(rp, IF_Usage); // update icon
     return;
   }
 
@@ -836,27 +854,28 @@ void PlaylistBase::UpdateChildren(RecordBase* const rp)
 
   { // Now check what should be in the container
     DEBUGLOG(("PlaylistBase::UpdateChildren - check container.\n"));
-    Playable::Lock lock(*pp); // Lock the collection
+    Playable& list = pp.GetPlayable();
+    Mutex::Lock lock(list.Mtx); // Lock the collection
     int_ptr<PlayableInstance> pi;
     crp = NULL; // Last entry, insert new items after that.
-    while ((pi = ((PlayableCollection*)pp)->GetNext(pi)) != NULL)
+    while ((pi = list.GetNext(pi)) != NULL)
     { // request state?
       if (reqstate)
-        pi->GetPlayable()->EnsureInfoAsync(Playable::IF_Other);
+        pi->GetPlayable().RequestInfo(IF_Tech, PRI_Normal);
       // Find entry in the current content
       RecordBase** orpp = old.begin();
       for (;;)
       { if (orpp == old.end())
         { // not found! => add
-          DEBUGLOG(("PlaylistBase::UpdateChildren - not found: %p{%s}\n", pi.get(), pi->GetPlayable()->GetURL().getShortName().cdata()));
-          crp = AddEntry(pi, rp, crp);
+          DEBUGLOG(("PlaylistBase::UpdateChildren - not found: %p{%s}\n", pi.get(), pi->GetPlayable().URL.getShortName().cdata()));
+          crp = AddEntry(*pi, rp, crp);
           if (crp && (rp == NULL || (rp->flRecordAttr & CRA_EXPANDED)))
             RequestChildren(crp);
           break;
         }
         if ((*orpp)->Data->Content == pi)
         { // found!
-          DEBUGLOG(("PlaylistBase::UpdateChildren - found: %p{%s} at %u\n", pi.get(), pi->GetPlayable()->GetURL().getShortName().cdata(), orpp - old.begin()));
+          DEBUGLOG(("PlaylistBase::UpdateChildren - found: %p{%s} at %u\n", pi.get(), pi->GetPlayable().URL.getShortName().cdata(), orpp - old.begin()));
           if (orpp == old.begin())
             // already in right order
             crp = *orpp;
@@ -913,7 +932,7 @@ bool PlaylistBase::GetSource(RecordBase* rec)
   for (RecordBase*const* rpp = Source.begin(); rpp != Source.end(); ++rpp)
     (*op)((*rpp)->Data->Content->GetPlayable());
 }*/
-void PlaylistBase::Apply2Source(void (PlaylistBase::*op)(Playable*))
+void PlaylistBase::Apply2Source(void (PlaylistBase::*op)(Playable&))
 { DEBUGLOG(("PlaylistBase(%p)::Apply2Source(Playable::%p) - %u\n", this, op, Source.size()));
   for (RecordBase*const* rpp = Source.begin(); rpp != Source.end(); ++rpp)
     (this->*op)((*rpp)->Data->Content->GetPlayable());
@@ -942,13 +961,17 @@ void PlaylistBase::SetEmphasis(USHORT emphasis, bool set) const
 PlaylistBase::RecordType PlaylistBase::AnalyzeRecordTypes() const
 { RecordType ret = RT_None;
   for (RecordBase*const* rpp = Source.end(); rpp-- != Source.begin(); )
-  { Playable::Flags flg = ((*rpp)->Data->Content->GetPlayable()->GetFlags());
-    if (flg == Playable::None)
-      ret |= RT_Song;
-    else if ((flg & Playable::Mutable) == Playable::Mutable)
-      ret |= RT_List;
-    else if (flg & Playable::Enumerable)
-      ret |= RT_Enum;
+  { const INFO_BUNDLE_CV& info = (*rpp)->Data->Content->GetInfo();
+    unsigned tattr = info.tech->attributes;
+    if (tattr & TATTR_INVALID)
+    { ret |= RT_Invld;
+      continue;
+    }
+    bool writable = (tattr & TATTR_WRITABLE) && (info.phys->attributes & PATTR_WRITABLE);
+    if (tattr & TATTR_SONG)
+      ret |= writable ? RT_Meta : RT_Song;
+    if (tattr & TATTR_PLAYLIST)
+      ret |= writable ? RT_List : RT_Enum;
   }
   DEBUGLOG(("PlaylistBase::AnalyzeRecordTypes(): %u, %x\n", Source.size(), ret));
   return ret;
@@ -959,15 +982,15 @@ bool PlaylistBase::IsUnderCurrentRoot(RecordBase* rec) const
   ASSERT(rec != NULL);
   const Playable* pp;
   // Fetch current root
-  { int_ptr<PlayableSlice> ps = Ctrl::GetRoot();
+  { const int_ptr<APlayable>& ps = Ctrl::GetRoot();
     if (ps == NULL)
       return false;
-    pp = ps->GetPlayable();
+    pp = &ps->GetPlayable();
   }
   // check stack
   do
   { rec = GetParent(rec);
-    if (PlayableFromRec(rec) == pp)
+    if (APlayableFromRec(rec).GetPlayable() == *pp)
       return true;
   } while (rec);
   return false;
@@ -990,21 +1013,21 @@ void PlaylistBase::UpdateIcon(RecordBase* rec)
   }
 }
 
-void PlaylistBase::UpdateInstance(RecordBase* rec, PlayableInstance::StatusFlags iflags)
-{ DEBUGLOG(("PlaylistBase(%p)::UpdateInstance(%p, %x)\n", this, rec, iflags));
+/*void PlaylistBase::UpdateRecord(RecordBase* rec, InfoFlags iflags)
+{ DEBUGLOG(("PlaylistBase(%p)::UpdateRecord(%p, %x)\n", this, rec, iflags));
   if (rec == NULL)
   { // Root node => update title
     SetTitle();
   } else
   { // Record node
-    if (iflags & PlayableInstance::SF_Alias)
+    if (iflags & IF_Alias)
     { xstring text = rec->Data->Content->GetDisplayName();
       rec->pszIcon = (PSZ)text.cdata();
       PMRASSERT(WinSendMsg(HwndContainer, CM_INVALIDATERECORD, MPFROMP(&rec), MPFROM2SHORT(1, CMA_TEXTCHANGED)));
       rec->Data->Text = text; // now free the old text
     }
   }
-}
+}*/
 
 void PlaylistBase::UpdatePlayStatus()
 { DEBUGLOG(("PlaylistBase(%p)::UpdatePlayStatus()\n", this));
@@ -1017,40 +1040,14 @@ void PlaylistBase::UpdatePlayStatus()
 }
 void PlaylistBase::UpdatePlayStatus(RecordBase* rec)
 { DEBUGLOG(("PlaylistBase(%p)::UpdatePlayStatus(%p)\n", this, rec));
-  if (rec->Data->Content->GetPlayable()->IsInUse())
-    PostRecordCommand(rec, RC_UPDATEUSAGE);
+  if (rec->Data->Content->GetPlayable().IsInUse())
+    PostRecordUpdate(rec, IF_Usage);
 }
 
-void PlaylistBase::InfoChangeEvent(const Playable::change_args& args, RecordBase* rec)
-{ DEBUGLOG(("PlaylistBase(%p{%s})::InfoChangeEvent({%p{%s}, %x, %x}, %s)\n", this, DebugName().cdata(),
-    &args.Instance, args.Instance.GetURL().getShortName().cdata(), args.Changed, args.Loaded, RecordBase::DebugName(rec).cdata()));
-
-  if (args.Changed & Playable::IF_Other)
-    PostRecordCommand(rec, RC_UPDATEOTHER);
-  if (args.Changed & Playable::IF_Usage)
-    PostRecordCommand(rec, RC_UPDATEUSAGE);
-  if (args.Changed & Playable::IF_Format)
-    PostRecordCommand(rec, RC_UPDATEFORMAT);
-  if (args.Changed & Playable::IF_Tech)
-    PostRecordCommand(rec, RC_UPDATETECH);
-  if (args.Changed & Playable::IF_Meta)
-    PostRecordCommand(rec, RC_UPDATEMETA);
-  if (args.Changed & Playable::IF_Phys)
-    PostRecordCommand(rec, RC_UPDATEPHYS);
-  if (args.Changed & Playable::IF_Rpl)
-    PostRecordCommand(rec, RC_UPDATERPL);
-}
-
-void PlaylistBase::StatChangeEvent(const PlayableInstance::change_args& args, RecordBase* rec)
-{ DEBUGLOG(("PlaylistBase(%p{%s})::StatChangeEvent({%p{%s}, %x}, %p)\n", this, DebugName().cdata(),
-    &args.Instance, args.Instance.GetPlayable()->GetURL().getShortName().cdata(), args.Flags, rec));
-
-  if (args.Flags & PlayableInstance::SF_InUse)
-    PostRecordCommand(rec, RC_UPDATEUSAGE);
-  if (args.Flags & PlayableInstance::SF_Alias)
-    PostRecordCommand(rec, RC_UPDATEALIAS);
-  if (args.Flags & PlayableInstance::SF_Slice)
-    PostRecordCommand(rec, RC_UPDATEPOS);
+void PlaylistBase::InfoChangeEvent(const PlayableChangeArgs& args, RecordBase* rec)
+{ DEBUGLOG(("PlaylistBase(%p{%s})::InfoChangeEvent({%p{%s},, %x, %x,}, %s)\n", this, DebugName().cdata(),
+    &args.Instance, args.Instance.GetPlayable().URL.getShortName().cdata(), args.Changed, args.Loaded, RecordBase::DebugName(rec).cdata()));
+  PostRecordUpdate(rec, args.Changed);
 }
 
 void PlaylistBase::PlayStatEvent(const Ctrl::EventFlags& flags)
@@ -1077,47 +1074,56 @@ void PlaylistBase::PluginEvent(const Plugin::EventArgs& args)
   }
 }
 
-static void DLLENTRY UserAddCallback(void* param, const char* url)
-{ DEBUGLOG(("UserAddCallback(%p, %s)\n", param, url));
+static void DLLENTRY UserAddCallback(void* param,
+  const char* url, const INFO_BUNDLE* info, int cached, int override)
+{ DEBUGLOG(("UserAddCallback(%p, %s,, %x, %x)\n", param, url));
   PlaylistBase::UserAddCallbackParams& ucp = *(PlaylistBase::UserAddCallbackParams*)param;
-  Playable* const pp = ucp.Parent ? ucp.Parent->Data->Content->GetPlayable() : ucp.GUI->GetContent();
-  if ((pp->GetFlags() & Playable::Mutable) != Playable::Mutable)
-    return; // Can't add something to a non-playlist.
-  // On the first call lock the Playlist until the wizzard returns.
-  if (ucp.Lock == NULL)
-    ucp.Lock = new Playable::Lock(*pp);
-  ((Playlist*)pp)->InsertItem(PlayableSlice(Playable::GetByURL(url)), ucp.Before ? ucp.Before->Data->Content.get() : NULL);
+
+  int_ptr<Playable> ip = Playable::GetByURL(url123(url));
+  ip->SetCachedInfo(*info, (InfoFlags)cached);
+  
+  PlayableRef* pr = ucp.Content.append() = new PlayableRef(*ip);
+  pr->OverrideInfo(*info, (InfoFlags)override);
 }
 
-void PlaylistBase::UserAdd(DECODER_WIZZARD_FUNC wizzard, RecordBase* parent, RecordBase* before)
-{ DEBUGLOG(("PlaylistBase(%p)::UserAdd(%p, %p, %p)\n", this, wizzard, parent, before));
-  Playable* const pp = PlayableFromRec(parent);
-  if ((pp->GetFlags() & Playable::Mutable) != Playable::Mutable)
-    return; // Can't add something to a non-playlist.
-  // Dialog title
-  UserAddCallbackParams ucp(this, parent, before);
+void PlaylistBase::UserAdd(DECODER_WIZARD_FUNC wizard, RecordBase* parent, RecordBase* before)
+{ DEBUGLOG(("PlaylistBase(%p)::UserAdd(%p, %p, %p)\n", this, wizard, parent, before));
+  // Check
+  APlayable& p = APlayableFromRec(parent);
+  if (p.GetInfo().tech->attributes & TATTR_SONG)
+    return; // Can't add something to a song.
+
+  // Dialog
+  UserAddCallbackParams ucp(this, parent, before); // Implicitly locks the records
   const xstring& title = "Append%s to " + (parent ? parent->Data->Content->GetDisplayName() : GetDisplayName());
-  ULONG ul = (*wizzard)(GetHwnd(), title, &UserAddCallback, &ucp);
+  ULONG ul = (*wizard)(GetHwnd(), title, &UserAddCallback, &ucp);
   DEBUGLOG(("PlaylistBase::UserAdd - %u\n", ul));
+
+  if (ul == PLUGIN_OK && ucp.Content.size())
+  { Playable& list = p.GetPlayable();
+    Mutex::Lock lock(list.Mtx);
+    for (const int_ptr<PlayableRef>* pps = ucp.Content.begin(); pps != ucp.Content.end(); ++pps)
+      list.InsertItem(**pps, before ? before->Data->Content.get() : NULL); 
+  }
   // TODO: cfg.listdir obsolete?
   //sdrivedir( cfg.listdir, filedialog.szFullFile, sizeof( cfg.listdir ));
 }
 
 void PlaylistBase::UserInsert(const InsertInfo* pii)
-{ DEBUGLOG(("PlaylistBase(%p)::UserInsert(%p{{%s}, %s, %s, {%s,%s}, %p{%s}})\n", this,
-    pii, pii->Parent->GetURL().getShortName().cdata(), pii->URL.cdata(), pii->Alias.cdata(),
-    pii->Start.cdata(), pii->Stop.cdata(), pii->Before.get(), pii->Before ? pii->Before->GetPlayable()->GetURL().cdata() : ""));
-  int_ptr<PlayableSlice> ps = new PlayableSlice(pii->URL, pii->Alias, pii->Start, pii->Stop);
-  pii->Parent->InsertItem(*ps, pii->Before);
+{ DEBUGLOG(("PlaylistBase(%p)::UserInsert(%p{{%s}, %p{%s}, %p{%s}})\n", this,
+    pii, pii->Parent->URL.getShortName().cdata(),
+    pii->Before.get(), pii->Before ? pii->Before->GetPlayable().URL.cdata() : "",
+    pii->Item.get(), pii->Item->GetPlayable().URL.cdata()));
+  pii->Parent->InsertItem(*pii->Item, pii->Before);
 }
 
 void PlaylistBase::UserRemove(RecordBase* rec)
 { DEBUGLOG(("PlaylistBase(%p)::UserRemove(%s)\n", this, rec->DebugName().cdata()));
   // find parent playlist
-  Playable* playlist = PlayableFromRec(GetParent(rec));
+  APlayable& p = APlayableFromRec(GetParent(rec));
   //DEBUGLOG(("PlaylistBase::UserRemove %s %p %p\n", RecordBase::DebugName(parent).cdata(), parent, playlist));
-  if (playlist->GetFlags() & Playable::Enumerable) // don't modify songs
-    ((PlayableCollection&)*playlist).RemoveItem(rec->Data->Content);
+  if (p.GetInfo().tech->attributes & TATTR_PLAYLIST) // don't modify songs
+    p.GetPlayable().RemoveItem(rec->Data->Content);
     // the update of the container is implicitely done by the notification mechanism
 }
 
@@ -1125,27 +1131,28 @@ void PlaylistBase::UserFlatten(RecordBase* rec)
 { DEBUGLOG(("PlaylistBase(%p)::UserFlatten(%s)\n", this, rec->DebugName().cdata()));
   ASSERT(rec);
   // find parent playlist
-  Playable* parent = PlayableFromRec(GetParent(rec));
-  Playable* subitem = rec->Data->Content->GetPlayable();
-  if ( (parent->GetFlags() & Playable::Mutable) == Playable::Mutable // don't modify constant object
-    && (subitem->GetFlags() & Playable::Enumerable) // and only playlists
-    && subitem != parent ) // and not recursive
-  { PlayableCollection& pc = (PlayableCollection&)*parent;
-    Playable::Lock lock(pc); // lock collection and avoid unneccessary events
-    if (!rec->Data->Content->IsParent(&pc))
+  APlayable& parent = APlayableFromRec(GetParent(rec));
+  APlayable& subitem = *rec->Data->Content;
+  if ( (parent.GetInfo().tech->attributes & TATTR_PLAYLIST) // don't modify songs
+    && (subitem.GetInfo().tech->attributes & TATTR_PLAYLIST) // and only flatten playlists
+    && subitem.GetPlayable() != parent.GetPlayable() ) // and not recursive
+  { Playable& par_list = parent.GetPlayable();
+    Mutex::Lock lock(par_list.Mtx); // lock collection and avoid unneccessary events
+    if (!rec->Data->Content->HasParent(&par_list))
       return; // somebody else has been faster
 
     // insert subitems before the old one
-    int_ptr<PlayableInstance> pi = (PlayableInstance*)NULL;
+    Playable& sub_list = subitem.GetPlayable();
+    int_ptr<PlayableInstance> pi = NULL;
     for(;;)
-    { pi = ((PlayableCollection&)*subitem).GetNext(pi);
+    { pi = sub_list.GetNext(pi);
       if (pi == NULL)
         break;
-      pc.InsertItem(*pi, rec->Data->Content);
+      par_list.InsertItem(*pi, rec->Data->Content);
     }
 
     // then delete the old one
-    pc.RemoveItem(rec->Data->Content);
+    par_list.RemoveItem(rec->Data->Content);
   } // the update of the container is implicitely done by the notification mechanism
 }
 
@@ -1153,117 +1160,130 @@ void PlaylistBase::UserFlattenAll(RecordBase* rec)
 { DEBUGLOG(("PlaylistBase(%p)::UserFlattenAll(%s)\n", this, rec->DebugName().cdata()));
   ASSERT(rec);
   // find parent playlist
-  Playable* parent = PlayableFromRec(GetParent(rec));
-  Playable* subitem = rec->Data->Content->GetPlayable();
-  if ( (parent->GetFlags() & Playable::Mutable) == Playable::Mutable // don't modify constant object
-    && (subitem->GetFlags() & Playable::Enumerable) // and only playlists
-    && subitem != parent ) // and not recursive
+  APlayable& parent = APlayableFromRec(GetParent(rec));
+  APlayable& subitem = *rec->Data->Content;
+  if ( (parent.GetInfo().tech->attributes & TATTR_PLAYLIST) // don't modify songs
+    && (subitem.GetInfo().tech->attributes & TATTR_PLAYLIST) // and only flatten playlists
+    && subitem.GetPlayable() != parent.GetPlayable() ) // and not recursive
   { // fetch desired content before we lock the collection to avoid deadlocks
-    vector_int<PlayableSlice> new_items;
-    { SongIterator si;
-      si.SetRoot(rec->Data->Content, parent);
-      while (si.Next())
-      { new_items.append() = si.GetCurrent();
+    Playable& par_list = parent.GetPlayable();
+    vector_int<PlayableRef> new_items;
+    { Location si(&par_list);
+      if (si.NavigateTo(*rec->Data->Content))
+        // Error sub-item is no longer part of the playlist.
+        return;
+      for (;;)
+      { Location::NavigationResult rc = si.NavigateCount(1, TATTR_SONG, PRI_Normal, 1);
+        if (rc)
+        { if (rc.length() == 0)
+            // TODO: dependency ???
+            return;
+          else
+            break;
+        }
+        new_items.append() = &(PlayableRef&)si.GetCurrent();
         DEBUGLOG(("PlaylistBase::UserFlattenAll found %p\n", &*new_items[new_items.size()-1]));
       }
     }
     DEBUGLOG(("PlaylistBase::UserFlattenAll replacing by %u items\n", new_items.size()));
 
-    PlayableCollection& pc = (PlayableCollection&)*parent;
-    Playable::Lock lock(pc); // lock collection and avoid unneccessary events
-    if (!rec->Data->Content->IsParent(&pc))
+    Mutex::Lock lock(par_list.Mtx); // lock collection and avoid unnecessary events
+    if (!rec->Data->Content->HasParent(&par_list))
       return; // somebody else has been faster
-    // insert new subitems before the old one
-    for (const int_ptr<PlayableSlice>* pps = new_items.begin(); pps != new_items.end(); ++pps)
-      pc.InsertItem(**pps, rec->Data->Content);
+    // insert new sub-items before the old one
+    for (const int_ptr<PlayableRef>* pps = new_items.begin(); pps != new_items.end(); ++pps)
+      par_list.InsertItem(**pps, rec->Data->Content);
     // then delete the old one
-    pc.RemoveItem(rec->Data->Content);
+    par_list.RemoveItem(rec->Data->Content);
 
-  } // the update of the container is implicitely done by the notification mechanism
+  } // the update of the container is implicitly done by the notification mechanism
 }
 
-void PlaylistBase::UserSave()
-{ DEBUGLOG(("PlaylistBase(%p)::UserSave()\n", this));
-  ASSERT(Content->GetFlags() & Playable::Enumerable);
-  amp_save_playlist(GetHwnd(), (PlayableCollection&)*Content);
+void PlaylistBase::UserSave(bool saveas)
+{ DEBUGLOG(("PlaylistBase(%p)::UserSave(%u)\n", this, saveas));
+  amp_save_playlist(GetHwnd(), *Content, saveas);
 }
 
-void PlaylistBase::UserOpenTreeView(Playable* pp)
-{ if (pp->GetFlags() & Playable::Enumerable)
+void PlaylistBase::UserOpenTreeView(Playable& p)
+{ if (p.GetInfo().tech->attributes & TATTR_PLAYLIST)
   { xstring alias;
-    if (pp == Content)
+    if (p == *Content)
       alias = Alias;
-    PlaylistManager::Get(pp, alias)->SetVisible(true);
+    PlaylistManager::Get(p, alias)->SetVisible(true);
   }
 }
 
-void PlaylistBase::UserOpenDetailedView(Playable* pp)
-{ if (pp->GetFlags() & Playable::Enumerable)
+void PlaylistBase::UserOpenDetailedView(Playable& p)
+{ if (p.GetInfo().tech->attributes & TATTR_PLAYLIST)
   { xstring alias;
-    if (pp == Content)
+    if (p == *Content)
       alias = Alias;
-    PlaylistView::Get(pp, alias)->SetVisible(true);
+    PlaylistView::Get(p, alias)->SetVisible(true);
   }
 }
 
-void PlaylistBase::UserOpenInfoView(const PlayableSet& set)
-{ InfoDialog::GetByKey(set)->ShowPage(InfoDialog::Page_TechInfo);
+void PlaylistBase::UserOpenInfoView(RecordBase* rec, AInfoDialog::PageNo page)
+{ AInfoDialog::GetByKey(*Content, *rec->Data->Content)->ShowPage(page);
 }
 
-void PlaylistBase::UserClearPlaylist(Playable* pp)
-{ if ((pp->GetFlags() & Playable::Mutable) == Playable::Mutable) // don't modify constant object
-    ((Playlist*)pp)->Clear();
+void PlaylistBase::UserOpenInfoView(const PlayableSet& set, AInfoDialog::PageNo page)
+{ AInfoDialog::GetByKey(set)->ShowPage(page);
 }
 
-void PlaylistBase::UserReload(Playable* pp)
-{ if ( !(pp->GetFlags() & Playable::Enumerable)
-    || !((PlayableCollection&)*pp).IsModified()
+void PlaylistBase::UserClearPlaylist(Playable& p)
+{ if (p.GetInfo().tech->attributes & TATTR_PLAYLIST)
+    p.Clear();
+}
+
+void PlaylistBase::UserReload(Playable& p)
+{ if ( !(p.GetInfo().tech->attributes & TATTR_PLAYLIST)
+    || !p.IsModified()
     || amp_query(GetHwnd(), "The current list is modified. Discard changes?") )
-    pp->LoadInfoAsync(Playable::IF_All);
+    p.RequestInfo(IF_Decoder, PRI_Normal, REL_Reload);
 }
 
 void PlaylistBase::UserEditMeta()
 { { // Check meta_write
     const RecordBase*const* rpp = Source.end();
     while (rpp-- != Source.begin())
-      if (!(*rpp)->Data->Content->GetPlayable()->GetInfo().meta_write)
+      if (!(*rpp)->Data->Content->GetInfo().tech->attributes & TATTR_WRITABLE)
         return; // Can't modify this item
   }
   switch (Source.size())
   {default: // multiple items
-    InfoDialog::GetByKey(MakePlayableSet(Source))->ShowPage(InfoDialog::Page_MetaInfo);
+    AInfoDialog::GetByKey(MakePlayableSet(Source))->ShowPage(AInfoDialog::Page_MetaInfo);
     break;
    case 1:
-    amp_show_dialog(GetHwnd(), Source[0]->Data->Content->GetPlayable(), DLT_INFOEDIT);
+    GUI::ShowDialog(Source[0]->Data->Content->GetPlayable(), GUI::DLT_INFOEDIT);
    case 0:;
   }
 }
 
-void PlaylistBase::UserSort(Playable* pp)
-{ DEBUGLOG(("PlaylistBase(%p)::UserSort(%p{%s})\n", this, pp, pp->GetURL().cdata()));
-  if ((pp->GetFlags() & Playable::Mutable) == Playable::Mutable) // don't modify constant object
-    ((Playlist*)pp)->Sort(SortComparer);
+void PlaylistBase::UserSort(Playable& p)
+{ DEBUGLOG(("PlaylistBase(%p)::UserSort(&%p{%s})\n", this, &p, p.URL.cdata()));
+  if (p.GetInfo().tech->attributes & TATTR_PLAYLIST)
+    p.Sort(SortComparer);
 }
 
-void PlaylistBase::UserShuffle(Playable* pp)
-{ if ((pp->GetFlags() & Playable::Mutable) == Playable::Mutable) // don't modify constant object
-    ((Playlist*)pp)->Shuffle();
+void PlaylistBase::UserShuffle(Playable& p)
+{ if (p.GetInfo().tech->attributes & TATTR_PLAYLIST)
+    p.Shuffle();
 }
 
 int PlaylistBase::CompURL(const PlayableInstance* l, const PlayableInstance* r)
-{ return l->GetPlayable()->GetURL() > r->GetPlayable()->GetURL();
+{ return l->GetPlayable().URL > r->GetPlayable().URL;
 }
 
 int PlaylistBase::CompTitle(const PlayableInstance* l, const PlayableInstance* r)
-{ return strnicmp(l->GetPlayable()->GetInfo().meta->title, r->GetPlayable()->GetInfo().meta->title, sizeof l->GetPlayable()->GetInfo().meta->title);
+{ return xstring(l->GetInfo().meta->title).compareToI(xstring(r->GetInfo().meta->title)) > 0;
 }
 
 int PlaylistBase::CompArtist(const PlayableInstance* l, const PlayableInstance* r)
-{ return strnicmp(l->GetPlayable()->GetInfo().meta->artist, r->GetPlayable()->GetInfo().meta->artist, sizeof l->GetPlayable()->GetInfo().meta->artist);
+{ return xstring(l->GetInfo().meta->artist).compareToI(xstring(r->GetInfo().meta->artist)) > 0;
 }
 
 int PlaylistBase::CompAlbum(const PlayableInstance* l, const PlayableInstance* r)
-{ return strnicmp(l->GetPlayable()->GetInfo().meta->album, r->GetPlayable()->GetInfo().meta->album, sizeof l->GetPlayable()->GetInfo().meta->album);
+{ return xstring(l->GetInfo().meta->album).compareToI(xstring(r->GetInfo().meta->album)) > 0;
 }
 
 int PlaylistBase::CompAlias(const PlayableInstance* l, const PlayableInstance* r)
@@ -1271,11 +1291,11 @@ int PlaylistBase::CompAlias(const PlayableInstance* l, const PlayableInstance* r
 }
 
 int PlaylistBase::CompSize(const PlayableInstance* l, const PlayableInstance* r)
-{ return l->GetPlayable()->GetInfo().phys->filesize > r->GetPlayable()->GetInfo().phys->filesize;
+{ return l->GetInfo().phys->filesize > r->GetInfo().phys->filesize;
 }
 
 int PlaylistBase::CompTime(const PlayableInstance* l, const PlayableInstance* r)
-{ return l->GetPlayable()->GetInfo().tech->songlength > r->GetPlayable()->GetInfo().tech->songlength;
+{ return l->GetInfo().obj->songlength > r->GetInfo().obj->songlength;
 }
 
 /****************************************************************************
@@ -1300,7 +1320,7 @@ MRESULT PlaylistBase::DragOver(DRAGINFO* pdinfo, RecordBase* target)
     // native PM123 object
     if (DrgVerifyRMF(pditem, "DRM_123FILE", NULL))
     { // Check for recursive operation
-      if (!DragAfter && target && amp_string_from_drghstr(pditem->hstrSourceName) == target->Data->Content->GetPlayable()->GetURL())
+      if (!DragAfter && target && amp_string_from_drghstr(pditem->hstrSourceName) == target->Data->Content->GetPlayable().URL)
       { drag = DOR_NODROP;
         break;
       }
@@ -1325,7 +1345,7 @@ MRESULT PlaylistBase::DragOver(DRAGINFO* pdinfo, RecordBase* target)
     return MRFROM2SHORT(DOR_NEVERDROP, 0);
   }
   // Check target
-  if ( ((DragAfter ? Content.get() : PlayableFromRec(target))->GetFlags() & Playable::Mutable) != Playable::Mutable )
+  if ( ((DragAfter ? *Content : APlayableFromRec(target)).GetInfo().tech->attributes & TATTR_PLAYLIST) == 0 )
     drag = DOR_NODROP;
   // finished
   return MRFROM2SHORT(drag, drag_op);
@@ -1338,7 +1358,7 @@ void PlaylistBase::DragDrop(DRAGINFO* pdinfo, RecordBase* target)
     RecordBase::DebugName(target).cdata(), DragAfter));
 
   // Locate parent
-  int_ptr<Playlist> parent = (Playlist*)(DragAfter ? (Playable*)Content : PlayableFromRec(target));
+  int_ptr<APlayable> parent = DragAfter ? (APlayable*)Content.get() : &APlayableFromRec(target);
   // Locate insertion point
   if (!DragAfter)
     target = NULL;
@@ -1373,7 +1393,7 @@ void PlaylistBase::DragDrop(DRAGINFO* pdinfo, RecordBase* target)
       size_t lenP = DrgQueryStrNameLen(pditem->hstrContainerName);
       size_t lenN = DrgQueryStrNameLen(pditem->hstrSourceName);
       xstring fullname;
-      char* cp = fullname.raw_init(lenP + lenN);
+      char* cp = fullname.allocate(lenP + lenN);
       DrgQueryStrName(pditem->hstrContainerName, lenP+1, cp);
       DrgQueryStrName(pditem->hstrSourceName,    lenN+1, cp+lenP);
       // do not set identical alias
@@ -1390,7 +1410,7 @@ void PlaylistBase::DragDrop(DRAGINFO* pdinfo, RecordBase* target)
           DropInfo* pdsource = new DropInfo();
           pdsource->Hwnd   = pditem->hwndItem;
           pdsource->ItemID = pditem->ulItemID;
-          pdsource->Parent = parent;
+          pdsource->Parent = &parent->GetPlayable();
           pdsource->Alias  = alias;
           pdsource->Before = target;
 
@@ -1444,9 +1464,9 @@ void PlaylistBase::DragDrop(DRAGINFO* pdinfo, RecordBase* target)
 
         // prepare insert item
         InsertInfo* pii = new InsertInfo();
-        pii->Parent = parent;
-        pii->URL    = (const xstring&)url123::normalizeURL(fullname);
-        pii->Alias  = alias;
+        pii->Parent = &parent->GetPlayable();
+        pii->Item   = new PlayableRef(*Playable::GetByURL(url123::normalizeURL(fullname)));
+        // TODO: //pii->Alias  = alias;
         if (target)
           pii->Before = target->Data->Content;
         WinPostMsg(GetHwnd(), UM_INSERTITEM, MPFROMP(pii), 0);
@@ -1454,7 +1474,7 @@ void PlaylistBase::DragDrop(DRAGINFO* pdinfo, RecordBase* target)
       }
 
     } else if (DrgVerifyRMF(pditem, "DRM_123FILE", NULL))
-    { // In the DRM_123FILE transfer mechanism the target is responsable for doing the target related stuff
+    { // In the DRM_123FILE transfer mechanism the target is responsible for doing the target related stuff
       // while the source does the source related stuff. So a DO_MOVE operation causes
       // - a create in the target window and
       // - a remove in the source window.
@@ -1476,9 +1496,10 @@ void PlaylistBase::DragDrop(DRAGINFO* pdinfo, RecordBase* target)
         // insert item
         if (pdtrans->fsReply & DMFL_NATIVERENDER)
         { InsertInfo* pii = new InsertInfo();
-          pii->Parent = parent;
-          pii->URL    = amp_string_from_drghstr(pditem->hstrSourceName);
-          pii->Alias  = alias;
+          pii->Parent = &parent->GetPlayable();
+          pii->Item   = new PlayableRef(*Playable::GetByURL(amp_string_from_drghstr(pditem->hstrSourceName)));
+          // TODO:
+          //pii->Alias  = alias;
           // TODO: The slice information is currently lost during D'n'd
           if (target)
             pii->Before = target->Data->Content;
@@ -1516,8 +1537,10 @@ void PlaylistBase::DropRenderComplete(DRAGTRANSFER* pdtrans, USHORT flags)
     // arrive not in the same order as the dragitems in the DRAGINFO structure.
     // Since this is very unlikely, we ignore that here.
     // Since DM_RENDERCOMPLETE should be posted we do not need to post UM_INSERTITEM
-
-    pdsource->Parent->InsertItem(PlayableSlice(url123::normalizeURL(fullname), pdsource->Alias), pdsource->Before ? pdsource->Before->Data->Content.get() : NULL);
+    PlayableRef pr(*Playable::GetByURL(url123::normalizeURL(fullname)));
+    // TODO:
+    // pr.SetAlias(pdsource->Alias);
+    pdsource->Parent->InsertItem(pr, pdsource->Before ? pdsource->Before->Data->Content.get() : NULL);
     reply = DMFL_TARGETSUCCESSFUL;
   }
 
@@ -1569,10 +1592,11 @@ void PlaylistBase::DragInit()
     pditem->ulItemID          = (ULONG)rec;
     pditem->hstrType          = DrgAddStrHandle(DRT_BINDATA);
     pditem->hstrRMF           = DrgAddStrHandle("(DRM_123FILE,DRM_DISCARD)x(DRF_UNKNOWN)");
-    pditem->hstrContainerName = DrgAddStrHandle(Content->GetURL());
-    pditem->hstrSourceName    = DrgAddStrHandle(rec->Data->Content->GetPlayable()->GetURL());
-    if (rec->Data->Content->GetAlias())
-      pditem->hstrTargetName  = DrgAddStrHandle(rec->Data->Content->GetAlias());
+    pditem->hstrContainerName = DrgAddStrHandle(Content->URL);
+    pditem->hstrSourceName    = DrgAddStrHandle(rec->Data->Content->GetPlayable().URL);
+    // TODO:
+    /*if (rec->Data->Content->GetAlias())
+      pditem->hstrTargetName  = DrgAddStrHandle(rec->Data->Content->GetAlias());*/
     pditem->fsSupportedOps    = DO_MOVEABLE | DO_COPYABLE;
     DEBUGLOG(("PlaylistBase::DragInit: item {%p, %p, %s, %s, %s, %s, %s, %i,%i, %x, %x}\n",
       pditem->hwndItem, pditem->ulItemID, amp_string_from_drghstr(pditem->hstrType).cdata(), amp_string_from_drghstr(pditem->hstrRMF).cdata(),

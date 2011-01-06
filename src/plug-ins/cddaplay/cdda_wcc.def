@@ -11,7 +11,7 @@ EXPORT decoder_support   .6
 EXPORT decoder_fileinfo  .7
 EXPORT decoder_trackinfo .8
 EXPORT decoder_cdinfo    .9
-EXPORT decoder_getwizzard .10
+EXPORT decoder_getwizard .10
 
 EXPORT plugin_query      .20
 EXPORT plugin_configure  .21

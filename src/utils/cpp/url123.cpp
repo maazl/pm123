@@ -33,11 +33,11 @@
 
 #include <string.h>
 
-#undef DEBUG_LOG
+#undef DEBUG
 #include <debuglog.h>
 
 
-const url123 url123::EmptyURL = "";
+const url123 url123::EmptyURL("");
 
 size_t url123::decode(char* dst, const char* src, size_t len)
 { const char*const ep = src + len;
@@ -120,14 +120,14 @@ void url123::parseParameter(stringmap& dest, const char* params)
       val = NULL;
     } else
     { const size_t len = ap-ep-1;
-      char* vp = val.raw_init(len);
+      char* vp = val.allocate(len);
       size_t nlen = decode(vp, ep+1, len);
       if (nlen != len)
         val.assign(val, 0, nlen); // shorten
     }
     // key
     const size_t len = ep-params;
-    char* kp = key.raw_init(len);
+    char* kp = key.allocate(len);
     size_t nlen = decode(kp, params, len);
     if (nlen != len)
       key.assign(key, 0, nlen); // shorten
@@ -157,7 +157,7 @@ const xstring url123::makeParameter(const stringmap& params)
   if (len != 0)
   { --len;
     // make parameter string
-    char* cp = ret.raw_init(len);
+    char* cp = ret.allocate(len);
     p = params.begin();
     for (;;)
     { memcpy(cp, (*p)->Key.cdata(), (*p)->Key.length()+1);
@@ -198,21 +198,21 @@ bool* url123::parseBoolean(const char* val)
 const url123 url123::normalizeURL(const char* str)
 { DEBUGLOG(("url123::normalzieURL(%s)\n", str));
   url123 ret;
-  if (str == NULL)
+  if (str == NULL || *str == 0)
     return ret;
   char* cp; // store part of string to check here
   size_t len;
   if (isalpha(str[0]) && str[1] == ':')
   { // File name => prepend with file:///
     len = strlen(str);
-    cp = ret.raw_init(len+8);
+    cp = ret.allocate(len+8);
     memcpy(cp, "file:///", 8);
     cp += 8;
     memcpy(cp, str, len);
   } else if (isPathDelimiter(str[0]) && isPathDelimiter(str[1]))
   { // UNC path => prepend with file:
     len = strlen(str);
-    cp = ret.raw_init(len+5);
+    cp = ret.allocate(len+5);
     memcpy(cp, "file:///", 5); // make string common with above
     cp += 5;
     memcpy(cp, str, len);
@@ -223,14 +223,14 @@ const url123 url123::normalizeURL(const char* str)
   } else if (strnicmp(str, "cd:", 3) == 0)
   { // turn into cdda:
     len = strlen(str);
-    cp = ret.raw_init(len+2);
+    cp = ret.allocate(len+2);
     memcpy(cp, "cdda:", 5);
     cp += 5;
     len -= 3;
     memcpy(cp, str+3, len);
   } else
   { len = strlen(str);
-    cp = ret.raw_init(len, str);
+    cp = ret.allocate(len, str);
   }
   // convert \ to /
   char* cp2;
@@ -407,7 +407,7 @@ const xstring url123::makeRelative(const char* root, bool useupdir) const
   // Possible! => concatenate relative URL
   size_t len = strlen(sp1);
   xstring ret;
-  char* dp = ret.raw_init(3*updirs + len);
+  char* dp = ret.allocate(3*updirs + len);
   while (updirs--)
   { memcpy(dp, "../", 3);
     dp += 3;

@@ -1,0 +1,16 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html sublinks="*"><head><meta content="text/html;charset=ISO-8859-1" http-equiv="Content-Type">
+  
+  <title>Recursive Playlists</title><link rel="stylesheet" href="../common/infstyle.css" type="text/css"></head>
+<body>
+<h2>Recursive Playlists</h2><p>When PM123 deals with nested playlists
+it may occasionally happen that there is an recursion in the list
+content. This happens if one of the direct or deeper sublists of a
+playlist contain a reference to that playlist.PM123 deals with that kind of recursion in the following way: </p><blockquote><p><strong>Any nested playlist that is part of the current call stack will be ignored.</strong></p></blockquote><h4>Example
+</h4><blockquote>
+<pre>List A<br>&nbsp;+- Song 1<br>&nbsp;+- List B<br>&nbsp;+- List A *** <em>always skipped, because recursive</em></pre>
+<pre>List B<br>&nbsp;+- Song 2<br>&nbsp;+- List A<br>&nbsp;+- Song 3<br> +- List A</pre>
+<p>This causes List A to behave as</p>
+<pre>List A<br>&nbsp;+- Song 1<br>&nbsp;+- List B<br> |   +- Song 2<br> |   +- List A *** <em>skipped, because recursive</em><br> |   +- Song 3<br> |   +- List A *** <em>skipped, because recursive</em><br>&nbsp;+- List A *** <em>skipped, because recursive</em></pre>
+<p>while List B would perform as</p>
+<pre>List B<br>&nbsp;+- Song 2<br>&nbsp;+- List A<br> |   +- Song 1<br> |   +- List B *** <em>skipped, because recursive</em><br> |   +- List A *** <em>skipped, because recursive</em><br>&nbsp;+- Song 3<br> +- List A<br>     +- Song 1<br>     +- List B *** <em>skipped, because recursive</em><br>     +- List A *** <em>skipped, because recursive<br></em><em></em></pre></blockquote><p>This means in fact the the way List A behaves depends on the context where List A is referenced.</p></body></html>

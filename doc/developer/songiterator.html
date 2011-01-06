@@ -1,0 +1,198 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html><head><title>PM123 recursive playlist iteration and locations</title>
+
+<link type="text/css" href="../common/infstyle.css" rel="stylesheet">
+<meta content="text/html; charset=ISO-8859-1" http-equiv="Content-Type">
+</head>
+<body>
+<h2>PM123 recursive playlist iteration and locations</h2>
+<h3>Class Tree</h3>
+<p><br>
+</p>
+<h3>Use cases</h3>
+<p>The following table shows the properties accessed per use case
+and the interface used for this purpuse in the coding. In the second
+section the table shows the supported properties and interfaces by
+class/interface.</p>
+<p>R - read access<br>
+W - write access<br>
+O&nbsp;- observer<br>
+X - access<br>
+Italic indicates indirect usage through delegation.<br>
+</p>
+<table border="1" cellpadding="3" cellspacing="0">
+<tbody>
+<tr style="vertical-align: bottom;">
+<th>
+<div style="float: right;">Property&nbsp;&rarr;</div>
+&darr;&nbsp;Task&nbsp;&darr;</th>
+<th>Root</th>
+<th>Current</th>
+<th>Navigate</th><th>Callstack</th><th>Time</th>
+
+
+<th>Thread</th>
+<th>Used class</th>
+</tr>
+<tr>
+<td>Currently playing</td>
+<td></td>
+<td>R</td>
+<td></td><td></td><td>R</td>
+
+
+<td>controller</td>
+<td>Location</td>
+</tr>
+<tr>
+<td>View timers in Player</td>
+<td></td>
+<td>R</td>
+<td></td><td></td><td>R</td>
+
+
+<td>controller</td>
+<td>Location</td>
+</tr>
+<tr>
+<td>Advance to another song or navigate</td>
+<td>RW</td>
+<td>R</td>
+<td>X</td><td>R</td><td>W</td>
+
+
+<td>controller</td>
+<td>ListIterator</td>
+</tr>
+<tr>
+<td>Iterate over a playlist for RPL calculation</td>
+<td>RW</td>
+<td>R</td>
+<td>X</td><td></td><td></td>
+
+
+<td>worker</td>
+<td>ListIterator</td>
+</tr>
+<tr>
+<td>Show/edit a playlist item (start/stop)</td>
+<td>W</td>
+<td>RW</td>
+<td></td><td></td><td>RW</td>
+
+
+<td>GUI</td>
+<td></td>
+</tr>
+<tr>
+<td>Playlist item properties (start/stop)</td>
+<td>W</td>
+<td>RW</td>
+<td></td><td></td><td>RW</td>
+
+
+<td>GUI</td>
+<td></td>
+</tr>
+<tr>
+<td>Remote playlist manipulation (items)</td>
+<td>W</td>
+<td>RW</td>
+<td></td><td></td><td>RW</td>
+
+
+<td>pipe</td>
+<td></td>
+</tr>
+<tr>
+<td>Save a playlist (items)</td>
+<td></td>
+<td>R</td>
+<td></td><td></td><td>R</td>
+
+
+<td>GUI</td>
+<td></td>
+</tr>
+<tr>
+<td>Drag &amp; drop source</td>
+<td></td>
+<td>R</td>
+<td></td><td></td><td>R</td>
+
+
+<td>GUI</td>
+<td></td>
+</tr>
+<tr>
+<td>Add a playlist item</td>
+<td>W</td>
+<td>RW</td>
+<td></td><td></td><td>RW</td>
+
+
+<td>GUI</td>
+<td></td>
+</tr>
+<tr>
+<td>Populating Playlist from decoder plug-in</td>
+<td>w</td>
+<td>rw</td>
+<td></td><td></td><td>rw</td>
+
+
+<td>worker</td>
+<td></td>
+</tr>
+<tr>
+<td>Compare Locations</td>
+<td>R</td>
+<td>R</td>
+<td></td><td></td><td>R</td>
+
+
+<td>*</td>
+<td></td>
+</tr>
+<tr style="vertical-align: bottom;">
+<th>
+<div style="float: right;">Property&nbsp;&rarr;</div>
+&darr;&nbsp;Class&nbsp;&darr;</th>
+<th>Root</th>
+<th>Current</th>
+<th>Navigate</th><th>Callstack</th><th>Time</th>
+
+
+<th>thread-safe</th>
+<th>Base class</th>
+</tr>
+<tr>
+<td>Location<br>
+</td>
+<td>RW</td>
+<td>RW</td>
+<td></td><td>R</td><td>RW</td>
+
+
+<td align="center">read</td>
+<td>&nbsp;</td>
+</tr>
+<tr>
+<td>ListIterator</td>
+<td>RW</td>
+<td>RW</td>
+<td>X</td><td>Rw</td><td>RW</td>
+
+
+<td align="center">-</td>
+<td>Location</td>
+</tr>
+
+
+
+
+</tbody>
+</table>
+<p>Lowercase letters indicate protected access.<br>
+Bold indicates implementation/redefinition.</p>
+</body></html>

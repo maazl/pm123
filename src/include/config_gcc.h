@@ -1,6 +1,8 @@
 #ifndef PM123_CONFIG_GCC_H
 #define PM123_CONFIG_GCC_H
 
+#include <stddef.h>
+
 #define CCNAME "GNU C++"
 
 #define TFNENTRY
@@ -9,6 +11,12 @@
 #define DLLENTRYP(sym) DLLENTRY (*sym)
 #define DLLENTRYPF() DLLENTRY (*)
 #define DLLENTRYP2(sym) DLLENTRY (*sym)
+
+/* Fix warnings with offsetof */
+#undef offsetof
+#define offsetof(TYPE, MEMBER) ((unsigned long)&((TYPE*)4)->MEMBER -4)
+
+#define socklen_t __socklen_t
 
 #define INIT_ATTRIBUTE __attribute__((constructor))
 #define TERM_ATTRIBUTE __attribute__((destructor))
@@ -38,12 +46,24 @@
 #define HAVE_LRINT        1 /* Define to 1 if you have C99's `lrint' function. */
 #define HAVE_LRINTF       1 /* Define to 1 if you have C99's `lrintf' function. */
 #define HAVE_SSIZE_T      1 /* Define to 1 if the system has the type `ssize_t'. */
+#undef  HAVE_CLOCK_GETTIME  /* Define to 1 if you have the `clock_gettime' function. */
+#ifndef TCPV40HDRS
+#define HAVE_INET_NTOP    1 /* Define to 1 if the system has the type `inet_ntop'. */
+#define HAVE_INET_PTON    1 /* Define to 1 if the system has the type `inet_pton'. */
+#endif
 
 #define HAVE_STDLIB_H     1 /* Define to 1 if you have the <stdlib.h> header file. */
 #define HAVE_STRING_H     1 /* Define to 1 if you have the <string.h> header file. */
 #define HAVE_SYS_STAT_H   1 /* Define to 1 if you have the <sys/stat.h> header file. */
 #define HAVE_SYS_TIME_H   1 /* Define to 1 if you have the <sys/time.h> header file. */
 #define HAVE_SYS_TYPES_H  1 /* Define to 1 if you have the <sys/types.h> header file. */
+#define HAVE_SYS_SOCKET_H 1 /* Define to 1 if you have the <sys/socket.h> header file. */
+#define HAVE_NETDB_H      1 /* Define to 1 if you have the <netdb.h> header file. */
+#define HAVE_NETINET_IN_H 1 /* Define to 1 if you have the <netinet/in.h> header file. */
+/*#define HAVE_NETINET_IP_H 1 * Define to 1 if you have the <netinet/ip.h> header file. */
+#define HAVE_NETINET_TCP_H 1/* Define to 1 if you have the <netinet/tcp.h> header file. */
+#define HAVE_ARPA_INET_H  1 /* Define to 1 if you have the <arpa/inet.h> header file. */
+#define HAVE_PWD_H        1 /* Define to 1 if you have the <pwd.h> header file. */
 #define HAVE_LIMITS_H     1 /* Define to 1 if you have the <limits.h> header file. */
 #define HAVE_MEMORY_H     1 /* Define to 1 if you have the <memory.h> header file. */
 #define HAVE_LOCALE_H     1 /* Define to 1 if you have the <locale.h> header file. */
@@ -71,5 +91,14 @@
 
 #undef  HAVE_UNSIGNED_ENUMS         /* Define to 1 if you have unsigned enums. */
 #define HAVE_FLEXIBLE_ARRAY       1 /* Define to 1 if the compile supports the struct hack. */
+
+#define SELECT_TYPE_ARG1          int
+#define SELECT_TYPE_ARG234        
+#define SELECT_TYPE_ARG5          
+
+/* for libsndfile */
+typedef long long sf_count_t;
+#define SF_COUNT_MAX 0x7fffffffffffffffll
+#define SIZEOF_SF_COUNT_T 8
 
 #endif /* PM123_CONFIG_GCC_H */

@@ -24,7 +24,7 @@
 #ifndef FFTW3_H
 #define FFTW3_H
 
-#include "config.h"
+#include <config.h>
 #include <stdio.h>
 
 #ifdef __cplusplus

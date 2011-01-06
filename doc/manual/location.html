@@ -1,7 +1,7 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
 <html resid="1022" level="3" sublinks="*"><head>
-  <title>PM123 playlist location strings</title></head>
-  <link rel="stylesheet" href="infstyle.css" type="text/css">
+  <title>PM123 playlist location strings</title><link rel="stylesheet" href="../common/infstyle.css" type="text/css"></head>
+
 <body>
 <h2>PM123 playlist location strings</h2>
 <p>PM123 uses a special notation to store playing positions. These strings are used at
@@ -13,15 +13,13 @@
 </li></ul>
 <p>A location string defines an exact point inside a playlist or song.
   In case of playlists it is an entire call stack.
-  A call stack in genera consists of several parts separated by '<tt>;</tt>'
+  A call stack in general consists of several parts separated by '<tt>;</tt>'
   or new-line (if the new-line character is allowed).
   URLs in the parts may be enclosed with double quotes (<tt>"</tt>) to
   avoid confusion with special characters.
 </p><h3>Examples:</h3>
 <blockquote>
-<pre>my_nested_playlist.lst
-my_favorite_song.mp3[2]
-3:44</pre>
+<pre>my_nested_playlist.lst<br>my_favorite_song.mp3[2]<br>3:44</pre>
 </blockquote>
 or
 <blockquote>
@@ -35,8 +33,7 @@ relative URL contains neither a semicolon nor square brackets at the
 end.<br>
 The last part navigates to the offset 3:44 within <tt>my_favorite_song.mp3</tt>.
 </p><blockquote>
-<pre>my_playlist.lst
- +- my_favorite_song.mp3 <a href="#note1"><sup>(1)</sup></a>
+<pre>my_playlist.lst<br> +- my_favorite_song.mp3 <a href="#note1"><sup>(1)</sup></a>
  +- another_song.mp3
  <font color="red">+- my_nested_playlist.lst</font>
      +- my_favorite_song.mp3 <a href="#note2"><sup>(2)</sup></a>
@@ -59,9 +56,7 @@ The last part navigates to the offset 3:44 within <tt>my_favorite_song.mp3</tt>.
 <p>All the following location strings also navigate to the same location as above.
 </p>
 <blockquote>
-<pre>[3]
-[4]
-3:44</pre>
+<pre>[3]<br>[4]<br>3:44</pre>
 </blockquote>
 <p>The above utilizes the <strong>index navigation</strong>. If you
   omit the URL in a part all items within the particular playlist count. Note
@@ -69,8 +64,7 @@ The last part navigates to the offset 3:44 within <tt>my_favorite_song.mp3</tt>.
   as in <a href="#note3">note 3</a>. However, it is an error to address this
   item.</p>
 <blockquote>
-  <pre>*"my_favorite_song.mp3"[3]
-3:44</pre>
+  <pre>*"my_favorite_song.mp3"[3]<br>3:44</pre>
 </blockquote>
 <p>The <strong>flat navigation</strong> is identified by
     the leading asterisk. Flat navigation means that all all non-recursive songs
@@ -79,11 +73,8 @@ The last part navigates to the offset 3:44 within <tt>my_favorite_song.mp3</tt>.
 of <tt>my_favorite_song.mp3</tt>.
 Therefore the index <tt>[3]</tt>.</p>
 <blockquote>
-  <pre>my_nested_playlist.lst[-1]
-my_favorite_song[2]
--1:34</pre>
-  <pre>*my_favorite_song[-2]
--1:34</pre>
+  <pre>my_nested_playlist.lst[-1]<br>my_favorite_song[2]<br>-1:34</pre>
+  <pre>*my_favorite_song[-2]<br>-1:34</pre>
 </blockquote>
 <p>Using negative numbers you may do <strong>reverse navigation</strong> at
     some parts which may be applied to playlists as well as to songs. It is assumed
@@ -136,10 +127,10 @@ a length of 3:23 the total time index of our playing location is 21:06.</p>
   Navigates to the <tt>index</tt>th song from the back with the above URL in
   the current playlist or any of the nested playlists.
   </li><li><strong><tt>*[<var>index</var>]</tt></strong><br>
-  Navigates to the <tt>index</tt>th Song within the current playlist and it's
+  Navigates to the <tt>index</tt>th song within the current playlist and it's
   sublists.  
   </li><li><strong><tt>*[-<var>index</var>]</tt></strong><br>
-Navigates to the <tt>index</tt>th Song from the back within the current playlist
+Navigates to the <tt>index</tt>th song from the back within the current playlist
 and
 it's
 sublists.  

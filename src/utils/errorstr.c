@@ -1,6 +1,6 @@
 /*
  * Copyright 1997-2003 Samuel Audet  <guardia@step.polymtl.ca>
- *                     Taneli Lepp„  <rosmo@sektori.com>
+ *                     Taneli Leppï¿½  <rosmo@sektori.com>
  *
  * Copyright 2004 Dmitry A.Steklenev <glass@ptv.ru>
  *
@@ -195,23 +195,18 @@ clib_strerror( int clib_errno )
   #endif
 }
 
-char*
-os2_strerror( unsigned long os2_errno, char* result, size_t size )
-{
-  ULONG  ulMessageLength;
-  APIRET rc;
-
-  rc = DosGetMessage( 0, 0, result, size,
-                      os2_errno, (PSZ)"OSO001.MSG", &ulMessageLength );
-
-  if( rc == NO_ERROR ) {
-    result[ulMessageLength] = 0;
-  } else {
-    char message[64];
-    sprintf( message, "No error text is available. Error code is %06lu.", os2_errno );
-    strlcpy( result , message, size - 1 );
-  }
-
+char* os2_strerror( unsigned long os2_errno, char* result, size_t size )
+{ ULONG  ulMessageLength;
+  APIRET rc = DosGetMessage(0, 0, result, size, os2_errno, (PSZ)"OSO001.MSG", &ulMessageLength);
+  if (rc == NO_ERROR)
+  { result[ulMessageLength] = 0;
+    if (result[ulMessageLength-1] == '\n')
+    { result[ulMessageLength-1] = 0;
+      if (result[ulMessageLength-2] == '\r')
+        result[ulMessageLength-2] = 0;
+    }
+  } else
+    snprintf(result, size, "No error text is available. Error code is %06lu.", os2_errno);
   return result;
 }
 

@@ -2,7 +2,7 @@
  * Code that uses fft123.dll to make some interesting data to display
  *
  * Copyright 1997-2003 Samuel Audet <guardia@step.polymtl.ca>
- *                     Taneli Lepp„ <rosmo@sektori.com>
+ *                     Taneli Leppï¿½ <rosmo@sektori.com>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -233,7 +233,7 @@ static void fetch_long(long* sp, int ch)
   }
 }
 
-SPECANA_RET specana_do(int numsamples, WIN_FN winfn, float* bands, FORMAT_INFO* info)
+SPECANA_RET specana_do(int numsamples, WIN_FN winfn, float* bands, FORMAT_INFO* const info)
 {
   FORMAT_INFO bufferinfo;
   int len;

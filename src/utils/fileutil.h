@@ -64,6 +64,26 @@ char* snormal  ( char* result, const char* location, size_t size );
 // Fast in place version of sfname aliasing, cannot deal with ? parameters.
 const char* sfnameext2( const char* file );
 
+/** rel2abs: convert a relative path name into absolute.
+ * @param path    relative path
+ * @param base    base directory (must be absolute path)
+ * @param result  result buffer
+ * @param size    size of result buffer
+ * @return != NULL: absolute path
+ *         == NULL: error
+ */
+char* rel2abs( const char* base, const char* path, char* result, size_t size );
+
+/** abs2rel: convert an absolute path name into relative.
+ * @param base    base directory (must be absolute path)
+ * @param path    absolute path
+ * @param result  result buffer
+ * @param size    size of result buffer
+ * @return != NULL: relative path
+ *         == NULL: error
+ */
+char* abs2rel( const char* base, const char* path, char* result, size_t size );
+
 typedef struct
 { char drive[4]; // we need only 3 but we don't want to run into alignment trouble
   int  track;
@@ -72,12 +92,13 @@ typedef struct
 
 CDDA_REGION_INFO* scdparams( CDDA_REGION_INFO* result, const char* location );
 
-BOOL is_cdda ( const char* location );
-BOOL is_track( const char* location );
-BOOL is_file ( const char* location );
-BOOL is_url  ( const char* location );
-BOOL is_root ( const char* location );
-BOOL is_dir  ( const char* location );
+unsigned char is_cdda ( const char* location );
+unsigned char is_track( const char* location );
+unsigned char is_file ( const char* location );
+unsigned char is_url  ( const char* location );
+unsigned char is_root ( const char* location );
+unsigned char is_dir  ( const char* location );
+
 
 
 #ifdef __cplusplus

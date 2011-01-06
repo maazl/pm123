@@ -49,7 +49,6 @@ XIObuffer::XIObuffer(XPROTOCOL* chain, unsigned int buf_size)
   head(new char[buf_size]),
   size(buf_size),
   read_pos(0),
-  s_callback(NULL),
   s_obs_head(NULL),
   s_obs_tail(NULL)
 { *s_title = 0;
@@ -58,7 +57,7 @@ XIObuffer::XIObuffer(XPROTOCOL* chain, unsigned int buf_size)
 
 bool XIObuffer::init()
 {
-  chain->set_observer(buffer_observer_stub, this);
+  chain->set_observer(this);
   return true;
 }
 
@@ -172,10 +171,6 @@ char* XIObuffer::get_metainfo( int type, char* result, int size )
     return chain->get_metainfo( type, result, size );
 }
 
-void buffer_observer_stub(const char* metabuff, long pos, long pos64, void* arg)
-{ ((XIObuffer*)arg)->observer_cb(metabuff, pos, pos64);
-}
-
 void XIObuffer::obs_clear()
 { DEBUGLOG(("XIObuffer::obs_clear()\n"));
   while (s_obs_head)
@@ -205,7 +200,7 @@ void XIObuffer::obs_execute()
     if (entry->pos >= read_pos)
       return;
     s_obs_head = entry->link;
-    if (s_callback)
+    if (observer)
     { // set new title
       if( entry->metabuff ) {
         // TODO: Well, it should be up to xio_http to decode Streaming metadata.
@@ -220,15 +215,15 @@ void XIObuffer::obs_execute()
         }
       }
       // execute the observer
-      s_callback(entry->metabuff, entry->pos, entry->pos64, s_arg);
+      observer->metacallback(entry->type, entry->metabuff, entry->pos, entry->pos64);
     }
     delete entry;
   }
   s_obs_tail = NULL;
 }
 
-void XIObuffer::observer_cb(const char* metabuff, long pos, long pos64)
-{ obs_entry* entry = new obs_entry(metabuff, pos, pos64);
+void XIObuffer::metacallback(int type, const char* metabuff, long pos, long pos64)
+{ obs_entry* entry = new obs_entry(type, metabuff, pos, pos64);
   if (s_obs_tail)
     s_obs_tail->link = entry;
   else
@@ -248,11 +243,6 @@ void XIObuffer::obs_dump() const
   }
 }
 #endif
-
-void XIObuffer::set_observer( void DLLENTRYP(callback)(const char* metabuff, long pos, long pos64, void* arg), void* arg )
-{ s_callback = callback;
-  s_arg = arg;
-}
 
 XSFLAGS XIObuffer::supports() const
 { return chain->supports();

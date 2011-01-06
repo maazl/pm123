@@ -1,0 +1,620 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html><head>
+  
+  <meta content="text/html;charset=ISO-8859-1" http-equiv="Content-Type">
+  <title>Dealing with dynamic strings in PM123 Plug-ins</title>
+
+  
+  
+  <link rel="stylesheet" href="../common/infstyle.css" type="text/css">
+
+</head><body>
+<h2>Dealing with dynamic strings (<tt>DSTRING</tt>)
+in PM123 Plug-ins</h2>
+
+<h3>Overview</h3>
+
+<p>A <tt>DSTRING</tt> is a dynamically allocated
+string of unlimited length. Different instances of <tt>DSTRING</tt>s
+may share the same storage for the string data. <tt>DSTRING</tt>s
+can be <tt>NULL</tt>.</p>
+
+<p>The <tt>DSTRING</tt> API reference is accessible
+through the&nbsp;<tt>PLUGIN_CONTEXT</tt> parameter of
+the <a href="../pdk/plugin.html#plugin_init"><tt>plugin_init</tt></a>
+call. In case you have C++ there is a <a href="#cpp">more convenient
+implementation</a> available.
+</p>
+
+<table border="1" cellpadding="3" cellspacing="0">
+
+  <tbody>
+    <tr>
+      <th>Function</th>
+      <th>Description</th>
+    </tr>
+    <tr>
+      <td><tt><a href="#dstring_create">dstring_create</a></tt></td>
+      <td>Create a new instance of a <tt>DSTRING</tt> from a C string.</td>
+    </tr>
+    <tr>
+      <td><tt><a href="#dstring_free">dstring_free</a></tt></td>
+      <td>Release a <tt>DSTRING</tt> and set it to <tt>NULL</tt>.</td>
+    </tr>
+    <tr>
+      <td><tt><a href="#dstring_length">dstring_length</a></tt></td>
+      <td>Return the length of a <tt>DSTRING</tt>.</td>
+    </tr>
+    <tr>
+      <td><tt><a href="#dstring_equal">dstring_equal</a></tt></td>
+      <td>Test two strings for equality.</td>
+    </tr>
+    <tr>
+      <td><a href="#dstring_compare"><tt>dstring_compare</tt></a></td>
+      <td>Compare two <tt>DSTRING</tt>s.</td>
+    </tr>
+    <tr>
+      <td><tt><a href="#dstring_copy">dstring_copy</a></tt></td>
+      <td>Assign a <tt>DSTRING</tt> with another instance.</td>
+    </tr>
+    <tr>
+      <td><tt><a href="#dstring_copy_safe">dstring_copy_safe</a></tt></td>
+      <td>Same as <tt>dstring_copy</tt> but access to the source
+string is atomic.</td>
+    </tr>
+    <tr>
+      <td><tt><a href="#dstring_assign">dstring_assign</a></tt></td>
+      <td>Assign a <tt>DSTRING</tt> with the value of a C string.</td>
+    </tr>
+    <tr>
+      <td><a href="#dstring_cmpassign"><tt>dstring_cmpassign</tt></a></td>
+      <td>Assign a <tt>DSTRING</tt> with a new string only if they are
+different.</td>
+    </tr>
+    <tr>
+      <td><tt><a href="#dstring_append">dstring_append</a></tt></td>
+      <td>Append the value of a C string to a <tt>DSTRING</tt>.</td>
+    </tr>
+    <tr>
+      <td><tt><a href="#dstring_allocate">dstring_allocate</a></tt></td>
+      <td>Allocate new storage for a <tt>DSTRING</tt> instance.</td>
+    </tr>
+    <tr>
+      <td><tt><a href="#dstring_sprintf">dstring_sprintf</a><br>
+      <a href="#dstring_vsprintf">dstring_vsprintf</a></tt></td>
+      <td>Like <tt>sprintf</tt>/<tt>vsprintf</tt> into a <tt>DSTRING</tt>.</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3>Guidelines</h3>
+
+<p>There are some <b>guidelines</b> you should follow when dealing
+with <tt>DSTRING</tt>s:</p>
+
+<ul>
+
+  <li>
+    <p><strong>All new <tt>DSTRING</tt>
+structures MUST be initialized to <tt>NULL</tt> or <tt>dstring_NULL</tt>
+or with <tt>dstring_create</tt>.</strong></p>
+  </li>
+  <li>
+    <p><strong>Free all <tt>DSTRING</tt>
+instances when they go out of scope</strong> with <a href="#dstring_free"><tt>dstring_free</tt></a>.</p>
+  </li>
+  <li>
+    <p><em>Do not manipulate <tt>DSTRING</tt>s
+other than by the <a href="#DSTRING_API">DSTRING API
+functions</a>.</em><br>
+You must neither modify the string (therefore it is <tt>const</tt>)
+nor you should modify the <tt>DSTRING</tt> structure
+directly.</p>
+  </li>
+  <li>
+    <p><em>You should not copy <tt>DSTRING</tt>s
+binary.</em> Use <a href="#dstring_copy"><tt>dstring_copy</tt></a>
+instead.<br>
+The difference is, when you use <tt>dstring_copy</tt>
+both instances must be freed while when you make a binary copy only one
+of them must be freed. But who keeps track of that which one to free?
+Furthermore all
+DSTRING API functions will implicitly free the old content when
+assigning a new value to a <tt>DSTRING</tt>. This will not
+take care of whether you made a binary copy before.</p>
+  </li>
+  <li>
+    <p>You cannot modify the content existing <tt>DSTRING</tt>s
+without allocating new storage.</p>
+  </li>
+  <li>
+    <p><em>You must not access volatile <tt>DSTRING</tt> instances
+directly.</em></p>
+  </li>
+  <li>
+    <p>To achieve <i>strong thread safety</i> always assign local
+instances of <tt>DSTRING</tt> with <a href="#dstring_copy_safe"><tt>dstring_copy_safe</tt></a>
+to
+access the content of volatile strings.</p>
+  </li>
+  <li>
+    <p>Only exchanging the binary content of two non-volatile <tt>DSTRING</tt>
+structures is safe without calling a DSTRING API function.</p>
+  </li>
+</ul>
+
+<p>Furthermore there are <b>guarantees</b>:</p>
+
+<ul>
+
+  <li>
+    <p><em>Reading the embedded C style string pointer</em>
+of the <tt>DSTRING</tt> structure and the content which it
+points to <em>is always safe</em> as long as the instance is not
+modify meanwhile. &nbsp;This implies that you cannot do this with
+volatile instances.</p>
+  </li>
+  <li>
+    <p>The string content where a <tt>DSTRING</tt>
+points to is <em>always <tt>\0</tt> terminated</em>.</p>
+  </li>
+  <li>
+    <p>If two <tt>DSTRING</tt> instances are binary the same
+then the C strings are equal too, but not the other way around, because
+    <tt>DSTRING</tt>s may contain binary zeros.</p>
+  </li>
+  <li>
+    <p>All DSTRING API functions except for&nbsp;<a href="#dstring_allocate"><tt>dstring_allocate</tt></a>, <a href="#dstring_equal"><tt>dstring_equal</tt></a>, <a href="#dstring_cmpassign"><tt>dstring_cmpassign</tt></a> and <a href="#dstring_append"><tt>dstring_append</tt></a> are <em>thread-safe</em>.
+The <tt>volatile</tt> qualifier will show you atomic access.</p>
+  </li>
+  <li>
+    <p>The DSTRING API is <em>lock-free</em> and wait-free.</p>
+  </li>
+  <li>
+    <p>If the DSTRING API fails to allocate sufficient memory,
+the application will terminate.</p>
+  </li>
+  <li>
+    <p>The API is optimized in a way that empty strings (<tt>""</tt>)
+do not use dynamic storage.</p>
+  </li>
+</ul>
+
+<h3><a name="DSTRING_API"></a>DSTRING API
+reference</h3>
+
+<h4>DSTRING</h4>
+
+<blockquote>
+  <pre>typedef struct<br>{ const char* cstr; /* pointer to C style null terminated string */<br>} DSTRING;</pre>
+</blockquote>
+
+<p>The <tt>DSTRING</tt> structure is binary
+compatible to a C style pointer to a constant string. The structure is
+only used to provide type safety.<br>
+You may read the <tt>cstr</tt> member safely as long as the <tt>DSTRING</tt>
+instance does not changed asynchronously.</p>
+
+<h4><a name="dstring_init"></a>dstring_init<tt><var></var></tt></h4>
+
+<p>There is no such function for performance reasons. Simply <em>initialize
+all <tt>DSTRING</tt>s with the constant <tt>dstring_NULL</tt>
+or use <tt>memset(</tt>...<tt>,&nbsp;0,&nbsp;</tt>...<tt>)</tt></em>.
+But don't forget to do so and do not assign <tt>dstring_NULL</tt> to
+used <tt>DSTRING</tt>s.</p>
+
+<h4><a name="dstring_create"></a>dstring_create</h4>
+
+<blockquote>
+  <pre>DSTRING DLLENTRY <b>dstring_create</b>( const char* <var>cstr</var> );</pre>
+</blockquote>
+
+<ul>
+
+  <li><tt><var>cstr</var></tt>&nbsp;-&nbsp;C string to assign, might be
+    <tt>NULL</tt>.</li>
+  <li><var>return value</var> - new <tt>DSTRING</tt>.</li>
+</ul>
+
+<p>Initialize a new <tt>DSTRING</tt> from a C style string. The return
+value can be directly assigned to a new <tt>DSTRING</tt> and might be
+used for constant <tt>DSTRING</tt>s. <strong>You must not use this
+function to assign existing, used <tt>DSTRING</tt>s.</strong> Use <a href="#dstring_assign"><tt>dstring_assign</tt></a> instead.</p>
+
+<h4><a name="dstring_free"></a>dstring_free
+</h4>
+
+<blockquote>
+  <pre>void DLLENTRY <b>dstring_free</b>( volatile DSTRING* <var>dst</var> );</pre>
+</blockquote>
+
+<ul>
+
+  <li><tt><var>dst</var></tt>&nbsp;(in/out)
+- <tt>DSTRING</tt> to free.</li>
+</ul>
+
+<p>Set the <tt>DSTRING</tt> to <tt>NULL</tt> and release the storage
+where <tt><var>dst</var></tt>
+points to if it is not used by another <tt>DSTRING</tt>
+instance. If <tt>*</tt><tt><var>dst</var></tt>
+is <tt>NULL</tt> this is a no-op.</p>
+
+<p>Calling <tt>dstring_free</tt> twice for the same object
+will not be an error and it is allowed to use the <tt>DSTRING</tt>
+instance afterwards normally. In fact <tt>dstring_free</tt> is
+equivalent to call <tt>dstring_assign</tt> with <tt>NULL</tt>.</p>
+
+<h4><a name="dstring_length"></a>dstring_length</h4>
+
+<blockquote>
+  <pre>unsigned DLLENTRY <b>dstring_length</b>( const DSTRING* <var>src</var> );</pre>
+</blockquote>
+
+<ul>
+
+  <li><tt><var>src</var></tt>
+- <tt>DSTRING</tt> to query,<tt><var></var></tt> <em>must not be <tt>NULL</tt></em>.</li>
+  <li><var>return value</var> - Length in Characters not including a
+terminating <tt>\0</tt>.</li>
+</ul>
+
+Note that this <em>not equivalent to <tt>strlen(src-&gt;cstr)</tt></em>.
+<tt>DSTRING</tt>s have an intrinsic length and they may contain <tt>\0</tt>
+bytes.&nbsp;<tt>dstring_length</tt> is O(1) (unlike <tt>strlen</tt>).<br>
+
+<h4><a name="dstring_equal"></a>dstring_equal</h4>
+
+<blockquote>
+  <pre>char&nbsp;DLLENTRY <b>dstring_equal</b>( const&nbsp;DSTRING* <var>src1</var>, const DSTRING* <var>src2</var> );</pre>
+</blockquote>
+
+<ul>
+
+  <li><tt><var>src1</var></tt>
+- First string to compare.</li>
+  <li><tt><var>src2</var></tt>
+- First string to compare.</li>
+  <li><var>return value</var><br>
+    <tt>0</tt> - the strings are not equal<br>
+    <tt>1</tt> - the strings are equal</li>
+</ul>
+
+<p>Compares two instances of <tt>DSTRING</tt> binary. <tt>NULL</tt>
+strings are only equal to them self. Both strings must not change
+asynchronously.</p>
+
+<p>Note that the result may be not the same than comparing the two
+strings with <tt>strcmp</tt> since <tt>DSTRING</tt>s may contain null
+bytes and be different afterwards.</p>
+
+<p>The comparison only takes O(n) if both strings have the same length
+and do not share the same storage as copies made with <tt>dstring_copy</tt>
+do.</p>
+
+<h4><a name="dstring_compare"></a>dstring_compare</h4>
+
+<blockquote>
+  <pre>int&nbsp;DLLENTRY <b>dstring_compare</b>( const&nbsp;DSTRING* <var>src1</var>, const DSTRING* <var>src2</var> );</pre>
+</blockquote>
+
+<ul>
+
+  <li><tt><var>src1</var></tt>
+- First string to compare.</li>
+  <li><tt><var>src2</var></tt>
+- First string to compare.</li>
+  <li><var>return value</var><br>
+    <tt>&lt;0</tt> - <tt>*<var>src1</var></tt> is less than <tt>*<var>src2</var></tt><br>
+    <tt>=0</tt> - the strings are equal<br>
+    <tt>&gt;0</tt> - <tt>*<var>src1</var></tt> is greater than <tt>*<var>src2</var></tt>
+  </li>
+</ul>
+
+<p>Compares two instances of <tt>DSTRING</tt> binary. <tt>NULL</tt>
+strings are less than anything else including <tt>""</tt>. Both
+strings must not change asynchronously.</p>
+
+<p>Note that the result may be not the same than comparing the two
+strings with <tt>strcmp</tt> since <tt>DSTRING</tt>s may contain null
+bytes and be different afterwards.</p>
+
+<h4><a name="dstring_copy"></a>dstring_copy</h4>
+
+<blockquote>
+  <pre>void DLLENTRY <b>dstring_copy</b>( volatile DSTRING* <var>dst</var>, const DSTRING* <var>src</var> );</pre>
+</blockquote>
+
+<ul>
+
+  <li><tt><var>dst</var></tt>&nbsp;(in/out)-
+Destination string.</li>
+  <li><tt><var>src</var></tt> - New value.</li>
+</ul>
+
+<p>Release the old value of <tt>*</tt><tt><var>dst</var></tt>
+and place a new reference to <tt>*</tt><var><tt>src</tt></var>
+into <tt>*</tt><var><tt>dst</tt></var>.</p>
+
+<p>Note that <em><tt>dstring_copy</tt> will
+never copy the content of <tt>*</tt><var><tt>src</tt></var></em>.
+It will only increment the reference count.</p>
+
+<h4><a name="dstring_copy_safe"></a>dstring_copy_safe</h4>
+
+<blockquote>
+  <pre>void DLLENTRY <b>dstring_copy_safe</b>( volatile DSTRING* <var>dst</var>, volatile const DSTRING* <var>src</var> );</pre>
+</blockquote>
+
+<ul>
+
+  <li><tt><var>dst</var></tt>&nbsp;(in/out)-
+Destination string.</li>
+  <li><tt><var>src</var></tt> - New value.</li>
+</ul>
+
+<p><tt>dstring_copy_safe</tt> is <em>strongly thread-safe</em> version
+of <tt>dstring_copy</tt>. Fetching the value of <tt>*</tt><var><tt>src</tt></var>
+and placing a strong reference to it in <tt>*</tt><var><tt>dst</tt></var>
+is atomic.</p>
+
+<p>Note that <em><tt>dstring_copy_safe</tt> will
+never copy the content of <tt>*</tt><var><tt>src</tt></var></em>.
+It will only increment the reference count.</p>
+
+<h4><a name="dstring_assign"></a>dstring_assign</h4>
+
+<blockquote>
+  <pre>void DLLENTRY <b>dstring_assign</b>( volatile DSTRING* <var>dst</var>, const char* <var>cstr</var> );</pre>
+</blockquote>
+
+<ul>
+
+  <li><tt><var>dst</var></tt>&nbsp;(in/out)
+- Destination string.</li>
+  <li><tt><var>cstr</var></tt>&nbsp;-
+New C string to assign.</li>
+</ul>
+
+<p>Release the old value of <tt>*</tt><tt><var>dst</var></tt>,&nbsp;allocate
+a new <tt>DSTRING</tt>, initialize it with the content of <var><tt>cstr</tt></var>
+and assign it to <tt>*</tt><tt><var>dst</var></tt>.
+If <var><tt>cstr</tt></var> is <tt>NULL
+<var></var></tt><tt>*</tt><tt><var>dst</var></tt>
+is cleared.</p>
+
+<h4><a name="dstring_cmpassign"></a>dstring_cmpassign</h4>
+
+<blockquote>
+  <pre>char DLLENTRY <b>dstring_cmpassign</b>( DSTRING* <var>dst</var>, const char* <var>cstr</var> );</pre>
+</blockquote>
+
+<ul>
+
+  <li><tt><var>dst</var></tt>&nbsp;(in/out)-
+Destination string.</li>
+  <li><tt><var>cstr</var></tt> - New C string to assign.</li>
+  <li>return value<br>
+    <tt>0</tt> - the strings are equal, <tt>*<var>dst</var></tt> is
+unchanged<br>
+    <tt>1</tt> - the strings were not equal, <tt>*<var>dst</var></tt>
+has been assigned.</li>
+</ul>
+
+<p>Copies the value of <var><tt>cstr</tt></var> into <tt>*<var>dst</var></tt>
+if and only if the strings are different. This is useful to keep track
+of changes. Furthermore if the storage of <tt>*<var>dst</var></tt> is
+shared with other <tt>DSTRING</tt> instances, an assignment of an
+identical string will not destroy the storage sharing.</p>
+
+<h4><a name="dstring_append"></a>dstring_append</h4>
+
+<blockquote>
+  <pre>void DLLENTRY <b>dstring_append</b>( DSTRING* <var>dst</var>, const char* <var>cstr</var> );</pre>
+</blockquote>
+
+<ul>
+
+  <li><tt><var>dst</var></tt>&nbsp;(in/out)
+- Destination string to append to.</li>
+  <li><tt><var>cstr</var></tt>&nbsp;-&nbsp;C string to append.</li>
+</ul>
+
+<p>Appends the string <tt>*<var>src</var></tt> to <tt>*<var>dst</var></tt>.
+Both must not be <tt>NULL</tt>. The operation is not atomic.</p>
+
+<p>You should avoid repeated calls to <tt>dstring_append</tt> to
+concatenate multiple strings for performance reasons. This will in
+total perform O(n<small><sup>2</sup></small>). It is better to allocate
+the required storage at once with <tt>dstring_alloc</tt> and fill the
+content afterwards.</p>
+
+<h4><a name="dstring_allocate"></a>dstring_allocate</h4>
+
+<blockquote>
+  <pre>char* DLLENTRY <b>dstring_allocate</b>( DSTRING* <var>dst</var>, unsigned int <var>len</var> );</pre>
+</blockquote>
+
+<ul>
+
+  <li><tt><var>dst</var></tt> (in/out) -
+Destination string. <strong>The string must be initialized</strong>,
+at least to <tt>NULL</tt>.</li>
+  <li><tt><var>len</var></tt>&nbsp;-
+Length of the new string.</li>
+  <li><var>return value</var> - Allocated storage where <var><tt>dst</tt></var>
+now points to. The return value will never be <tt>NULL</tt>.</li>
+</ul>
+
+<p>Allocate a new <tt>DSTRING</tt> with
+uninitialized storage of&nbsp;<tt><var>len</var></tt>
+characters and assign it to <tt>*</tt><tt><var>dst</var></tt>.
+The old value of <tt>*</tt><tt><var>dst</var></tt>
+is freed. The returned value is always the same as the new value of <tt><var>dst</var>-&gt;cstr</tt>
+except for constness.</p>
+
+<p>You may then write up to <tt><var>len</var></tt>
+characters to the memory where the return value points to. It is
+allowed to write one additional <tt>\0</tt> byte behind
+the&nbsp;<tt><var>len</var></tt>
+characters, but no other value must be placed there. The null byte is
+initialized by <tt>dstring_alloc</tt> anyway.</p>
+
+<p>You may
+modify the returned memory until the next DSTRING API function call for
+<tt>*<var>dst</var></tt>.</p>
+
+<h4><a name="dstring_sprintf"></a>dstring_sprintf, <tt><var></var></tt><a name="dstring_vsprintf"></a>dstring_vsprintf</h4>
+
+<blockquote>
+  <pre>void DLLENTRY <b>dstring_sprintf</b>( volatile DSTRING* <var>dst</var>, const char* <var>fmt</var>, ... );<br>void DLLENTRY <b>dstring_vsprintf</b>( volatile DSTRING* <var>dst</var>, const char* <var>fmt</var>, va_list <var>va</var> );</pre>
+</blockquote>
+
+<ul>
+
+  <li><tt><var>dst</var></tt>&nbsp;(in/out)
+- Destination string.&nbsp;<strong>The string must be initialized</strong>,
+at least to <tt>NULL</tt>.</li>
+  <li><tt><var>fmt</var></tt> - Format
+string (like <tt>printf</tt>).</li>
+  <li><tt>...</tt> - Variable argument list (like <tt>printf</tt>).</li>
+  <li><tt><var>va</var></tt> -&nbsp;Variable
+argument list (like <tt>vprintf</tt>).</li>
+</ul>
+
+<p>Release the old value of <tt>*</tt><tt><var>dst</var></tt>
+and place a formatted output into <tt>*</tt><tt><var>dst</var></tt>.
+The behavior of this functions is similar to <tt>sprintf</tt>/<tt>vsprintf</tt>
+but unlike the C library functions these functions are safe with
+respect to the length of the returned string. They will always allocate
+enough memory automatically.</p>
+
+<h3><a name="cpp"></a>Using C++</h3>
+
+<p>If you are compiling with a C++ compiler <tt>DSTRING</tt> is
+defined as a class rather than a structure. The <tt>DSTRING</tt> class
+ensures all of the above guidelines automatically. For this to work a
+global variable <tt>PLUGIN_CONTEXT Ctx;</tt> must exist and
+initialized by the argument <tt>ctx</tt> of <tt><a href="plugin.html#plugin_init">plugin_init</a></tt>.</p>
+<p>There is one restriction with the C++ API of <tt>DSTRING</tt>: <strong>You must not assign anything to a <tt>DSTRING</tt> instance in a static initializer</strong>, more precisely before the <tt>plugin_init</tt> call. Only calling the default constructor is valid.</p>
+<p>The <tt>DSTRING</tt> objects are binary compatible in C and C++. So <tt>DSTRING</tt> instances may be shared between C and C++ code.</p>
+
+<table border="1" cellpadding="3" cellspacing="0">
+
+  <tbody>
+    <tr>
+      <th>Task</th>
+      <th valign="top">Code example</th>
+      <th valign="top">Remarks</th>
+    </tr>
+    <tr>
+      <td valign="top">Create a <tt>DSTRING</tt> with initial value <tt>NULL</tt>.<br>
+      </td>
+      <td valign="top">
+      <pre>DSTRING str;</pre>
+      </td>
+      <td><br>
+      </td>
+    </tr>
+    <tr>
+      <td>Create a new instance of a <tt>DSTRING</tt> from a C string.</td>
+      <td valign="top">
+      <pre>DSTRING str("bla");</pre>
+      </td>
+      <td><br>
+      </td>
+    </tr>
+    <tr>
+      <td>Release a <tt>DSTRING</tt> and set it to <tt>NULL</tt>.</td>
+      <td valign="top">
+      <pre>str.reset();</pre>
+      </td>
+      <td valign="top">This is implicitely done by the destructor.<br>
+      </td>
+    </tr>
+    <tr>
+      <td>Return the length of a <tt>DSTRING</tt>.</td>
+      <td valign="top">
+      <pre>str.size();</pre>
+      </td>
+      <td><br>
+      </td>
+    </tr>
+    <tr>
+      <td>Test two strings for equality.</td>
+      <td valign="top">
+      <pre>str1 == str2</pre>
+      </td>
+      <td><br>
+      </td>
+    </tr>
+    <tr>
+      <td>Compare two <tt>DSTRING</tt>s.</td>
+      <td valign="top">
+      <pre>str1.compareTo(str2)</pre>
+      </td>
+      <td><br>
+      </td>
+    </tr>
+    <tr>
+      <td>Assign a <tt>DSTRING</tt> with another instance.</td>
+      <td valign="top">
+      <pre>str1 = str2;</pre>
+      </td>
+      <td><br>
+      </td>
+    </tr>
+    <tr>
+      <td>Assign a <tt>DSTRING</tt> from a shared instance.</td>
+      <td valign="top">
+      <pre>volatile DSTRING shared;<br>str1 = shared;</pre>
+      </td>
+      <td valign="top">This assignment provides strong thread safety.<br>
+      </td>
+    </tr>
+    <tr>
+      <td>Assign a <tt>DSTRING</tt> with the value of a C string.</td>
+      <td valign="top">
+      <pre>str1 = "text";</pre>
+      </td>
+      <td><br>
+      </td>
+    </tr>
+    <tr>
+      <td>Assign a <tt>DSTRING</tt> with a new string only if they are
+different.</td>
+      <td valign="top">
+      <pre>bool changed = <br>  str1.cmpassign(str2); </pre>
+      </td>
+      <td><br>
+      </td>
+    </tr>
+    <tr>
+      <td>Append the value of a C string to a <tt>DSTRING</tt>.</td>
+      <td valign="top">
+      <pre>str1 += "append this";</pre>
+      </td>
+      <td><br>
+      </td>
+    </tr>
+    <tr>
+      <td>Allocate new storage for a <tt>DSTRING</tt> instance.</td>
+      <td valign="top">
+      <pre>char* cp = str1.allocate(7);</pre>
+      </td>
+      <td valign="top">See <tt><a href="#dstring_allocate">dstring_allocate</a></tt>.<br>
+      </td>
+    </tr>
+    <tr>
+      <td>Like <tt>sprintf</tt>/<tt>vsprintf</tt> into a <tt>DSTRING</tt>.</td>
+      <td valign="top">
+      <pre>str1.sprintf("%i", 5);<br>DSTRING().sprintf("%i", 5)      </pre>
+      </td>
+      <td valign="top">The latter form creates a temporary, e.g. as
+function argument.<br>
+      </td>
+    </tr>
+  </tbody>
+</table>
+
+</body></html>

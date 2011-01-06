@@ -100,18 +100,17 @@ BOOL ch_info( ULONG codepage, uconv_attribute_t* attr );
  */
 ULONG ch_detect( ULONG codepage, const char* source );
 
-/*
+/**
  * ch_convert: convert a characters string from one character set to another.
  *
- *    cp_source source codepage or CH_CP_NONE (0) to use the application's default
- *    source    source string
- *    cp_target target codepage or CH_CP_NONE (0) to use the application's default
- *    target    result buffer
- *    size      size of result buffer
- *    flags     see CH_FLAGS_...
- *
- *    return    != NULL: converted string
- *              == NULL: error
+ * @param cp_source Source codepage or CH_CP_NONE (0) to use the application's default.
+ * @param source    Source string.
+ * @param cp_target Target codepage or CH_CP_NONE (0) to use the application's default.
+ * @param target    Result buffer.
+ * @param size      Size of result buffer.
+ * @param flags     See CH_FLAGS_...
+ * @return          != NULL: converted string
+ *                  == NULL: error
  */
 char* ch_convert( ULONG cp_source, const char* source, 
                   ULONG cp_target, char* target,

@@ -37,7 +37,7 @@
 #include <sys/socket.h>
 
 #include <utilfct.h>
-#include <decoder_plug.h> // For WM_METADATA
+#include <plugin.h> // For WM_METADATA
 #include <debuglog.h>
 
 #include "xio.h"
@@ -67,16 +67,6 @@ static int  socket_timeout  = 30;
 /* Serializes access to the library's global data. */
 static Mutex mutex;
 
-
-static void DLLENTRY xio_observer( const char* metabuff, long pos, long pos64, void* arg )
-{ XFILE* x = (XFILE*)arg;
-  DEBUGLOG(("xio:xio_observer(%s, %lx,%lx, %p) - %p, %p\n", metabuff, pos, pos64, arg, x->s_observer, x->s_metabuff));
-  
-  if( x->s_observer && x->s_metabuff )
-  { strlcpy( x->s_metabuff, metabuff, x->s_metasize );
-    WinPostMsg( x->s_observer, WM_METADATA, MPFROMP( x->s_metabuff ), MPFROMLONG( pos ));
-  }
-}
 
 /* Open file. Returns a pointer to a file structure that can be used
    to access the open file. A NULL pointer return value indicates an
@@ -184,7 +174,6 @@ xio_fopen( const char* filename, const char* mode )
   // We got it!  
   x->serial = XIO_SERIAL;
 
-  x->protocol->set_observer( xio_observer, x );
   DEBUGLOG(("xio_open: %p\n", x));
   return x;
 }
@@ -327,7 +316,7 @@ xio_fabort( XFILE* x )
 long DLLENTRY
 xio_ftell( XFILE* x )
 {
-  DEBUGLOG2(("xio_ftell(%p)\n", x));
+  DEBUGLOG(("xio_ftell(%p)\n", x));
   ASSERT(x && x->serial == XIO_SERIAL);
   #ifdef NDEBUG
   if( !x || x->serial != XIO_SERIAL ) {
@@ -369,6 +358,7 @@ xio_fseek( XFILE* x, long int offset, int origin )
 void DLLENTRY
 xio_rewind( XFILE* x )
 {
+  xio_clearerr( x );
   xio_fseek( x, 0, XIO_SEEK_SET );
 }
 
@@ -540,7 +530,11 @@ void DLLENTRY
 xio_clearerr( XFILE* x )
 {
   DEBUGLOG(("xio_clearerr(%p)\n", x));
-  ASSERT(x && x->serial == XIO_SERIAL);
+  if (!x)
+  { errno = 0;
+    return;
+  }
+  ASSERT(x->serial == XIO_SERIAL);
   #ifdef NDEBUG
   if( !x || x->serial != XIO_SERIAL ) {
     errno = EBADF;
@@ -583,13 +577,29 @@ xio_strerror( int errnum )
   }
 }
 
-/* Sets a handle of a window that are to be notified of changes
-   in the state of the library. */
+// C-API for 32 bit callbacks.
+class XIOmetacallback32 : public XPROTOCOL::Iobserver
+{private:
+  void DLLENTRYP(const Callback)(int type, const char* metabuff, long pos, void* arg);
+  void* const Arg;
+ public:
+  XIOmetacallback32(void DLLENTRYP(callback)(int type, const char* metabuff, long pos, void* arg), void* arg)
+  : Callback(callback), Arg(arg)
+  { DEBUGLOG(("xio:XIOmetacallback32(%p)::XIOmetacallback32(%p, %p)\n", this, callback, arg)); }
+  virtual void metacallback(int type, const char* metabuff, long pos, long pos64);
+};
+
+void XIOmetacallback32::metacallback(int type, const char* metabuff, long pos, long pos64)
+{ DEBUGLOG(("xio:XIOmetacallback32(%p)::metacallback(%i, %s, %lx,%lx, %p)\n",
+    this, type, metabuff, pos, pos64));
+  (*Callback)(type, metabuff, pos, Arg);
+}
+
+/* Sets a callback function that is notified when meta information
+   changes in the stream. */
 void DLLENTRY
-xio_set_observer( XFILE* x, unsigned long window,
-                            char* buffer, int buffer_size )
-{
-  DEBUGLOG(("xio_set_observer(%p, %lu, %p, %i)\n", x, window, buffer, buffer_size));
+xio_set_metacallback( XFILE* x, void DLLENTRYP(callback)(int type, const char* metabuff, long pos, void* arg), void* arg )
+{ DEBUGLOG(("xio_set_metacallback(%p, %p, %p)\n", x, callback, arg));
   ASSERT(x && x->serial == XIO_SERIAL);
   #ifdef NDEBUG
   if( !x || x->serial != XIO_SERIAL ) {
@@ -598,9 +608,7 @@ xio_set_observer( XFILE* x, unsigned long window,
   }
   #endif
   if (x->Request())
-  { x->s_observer = window;
-    x->s_metabuff = buffer;
-    x->s_metasize = buffer_size;
+  { delete x->protocol->set_observer(callback ? new XIOmetacallback32(callback, arg) : NULL);
     x->Release();
     errno = 0;
   }
@@ -624,6 +632,52 @@ xio_get_metainfo( XFILE* x, int type, char* result, int size )
     return NULL;
   } else
   { return x->protocol->get_metainfo( type, result, size );
+  }
+}
+
+// emulation for deprecated observers
+class XIOobserveremulation : public XPROTOCOL::Iobserver
+{private:
+  const HWND  s_observer; /* Handle of a window that are to be notified    */
+                          /* of changes in the state of the library.       */
+  char* const s_metabuff; /* The library puts metadata in this buffer      */
+  const int   s_metasize; /* before notifying the observer.                */
+ public:
+  XIOobserveremulation(unsigned long window, char* buffer, int buffer_size)
+  : s_observer(window), s_metabuff(buffer), s_metasize(buffer_size)
+  { DEBUGLOG(("xio:XIOobserveremulation(%p)::XIOobserveremulation(%lu, %p, %i)\n",
+      this, window, buffer, buffer_size));
+  }
+  virtual void metacallback(int type, const char* metabuff, long pos, long pos64);
+};
+
+void XIOobserveremulation::metacallback(int type, const char* metabuff, long pos, long pos64)
+{ DEBUGLOG(("xio:XIOobserveremulation(%p)::metacallback(%i, %s, %lx,%lx, %p)\n",
+    this, type, metabuff, pos, pos64));
+  if (type == XIO_META_TITLE)
+  { strlcpy( s_metabuff, metabuff, s_metasize );
+    WinPostMsg( s_observer, WM_METADATA, MPFROMP( s_metabuff ), MPFROMLONG( pos ));
+  }
+}
+
+/* Sets a handle of a window that are to be notified of changes
+   in the state of the library. */
+void DLLENTRY
+xio_set_observer( XFILE* x, unsigned long window,
+                            char* buffer, int buffer_size )
+{
+  DEBUGLOG(("xio_set_observer(%p, %lu, %p, %i)\n", x, window, buffer, buffer_size));
+  ASSERT(x && x->serial == XIO_SERIAL);
+  #ifdef NDEBUG
+  if( !x || x->serial != XIO_SERIAL ) {
+    errno = EBADF;
+    return;
+  }
+  #endif
+  if (x->Request())
+  { delete x->protocol->set_observer(window && buffer ? new XIOobserveremulation(window, buffer, buffer_size) : NULL);
+    x->Release();
+    errno = 0;
   }
 }
 

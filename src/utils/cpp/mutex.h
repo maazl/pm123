@@ -30,54 +30,13 @@
 #ifndef CPP_MUTEX_H
 #define CPP_MUTEX_H
 
-#define INCL_BASE
+#define INCL_DOS
 #include <config.h>
 #include <assert.h>
 #include <interlocked.h>
 #include <os2.h>
 
 #include <debuglog.h>
-
-
-/*****************************************************************************
-*
-*  Wrapper class around primitive functions to do atomic operations.
-*
-*****************************************************************************/
-
-class AtomicUnsigned
-{private:
-  volatile unsigned data;
- public:
-           AtomicUnsigned(unsigned i)   : data(i) {}
-  // atomic operations
-  unsigned swap(unsigned n)             { return InterlockedXch(&data, n); }
-  bool     replace(unsigned o, unsigned n) { return (bool)InterlockedCxc(&data, o, n); }
-  void     operator++()                 { InterlockedInc(&data); }
-  bool     operator--()                 { return (bool)InterlockedDec(&data); }
-  void     operator+=(unsigned n)       { InterlockedAdd(&data, n); }
-  bool     operator-=(unsigned n)       { return (bool)InterlockedSub(&data, n); }
-  bool     operator&=(unsigned n)       { return (bool)InterlockedAnd(&data, n); }
-  void     operator|=(unsigned n)       { InterlockedOr(&data, n); }
-  bool     operator^=(unsigned n)       { return (bool)InterlockedXor(&data, n); }
-  bool     bitset(unsigned n)           { return (bool)InterlockedBts(&data, n); } 
-  bool     bitrst(unsigned n)           { return (bool)InterlockedBtr(&data, n); } 
-  bool     bitnot(unsigned n)           { return (bool)InterlockedBtc(&data, n); }
-  unsigned maskset  (unsigned n)        { return InterlockedSet(&data, n); }
-  unsigned maskreset(unsigned n)        { return InterlockedRst(&data, n); }
-  // non atomic methods
-  AtomicUnsigned& operator=(unsigned r) { data = r; return *this; }
-  void     set       (unsigned r)       { data = r; }
-  operator unsigned  () const           { return data; }
-  unsigned get       () const           { return data; }
-  bool     operator! () const           { return !data; }
-  bool     operator==(unsigned r) const { return data == r; }
-  bool     operator!=(unsigned r) const { return data != r; }
-  bool     operator< (unsigned r) const { return data <  r; }
-  bool     operator<=(unsigned r) const { return data <= r; }
-  bool     operator> (unsigned r) const { return data >  r; }
-  bool     operator>=(unsigned r) const { return data >= r; }
-};
 
 
 /*****************************************************************************

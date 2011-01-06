@@ -93,10 +93,6 @@ class XIOhttp : public XIOreadonly
   char  s_genre[128];
   char  s_name [128];
   char  s_title[128];
-  
-  // Entries for the observer
-  void  DLLENTRYP(s_callback)(const char* metabuff, long pos, long pos64, void* arg);
-  void* s_arg;
 
   // TODO: @@@@@ I think this is crap...
   Mutex mtx_access; /* Serializes access to the protocol's data. */
@@ -112,7 +108,7 @@ class XIOhttp : public XIOreadonly
   /* Opens the file specified by filename for reading. Returns 0 if it
      successfully opens the file. A return value of -1 shows an error. */
   int read_file( const char* filename, unsigned long range );
-  int read_and_notify( void* result, unsigned int count ); 
+  int read_and_notify( void* result, unsigned int count );
 
  public:
   /* Initializes the http protocol. */
@@ -125,7 +121,7 @@ class XIOhttp : public XIOreadonly
   virtual long seek( long offset, int origin, long* offset64 = NULL );
   virtual long getsize( long* offset64 = NULL );
   virtual char* get_metainfo( int type, char* result, int size );
-  virtual void set_observer( void DLLENTRYP(callback)(const char*, long, long, void*), void* arg );
+  virtual Iobserver* set_observer( Iobserver* observer );
   virtual XSFLAGS supports() const;
 
   /* Maps the error number in errnum to an error message string. */

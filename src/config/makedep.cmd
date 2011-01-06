@@ -59,6 +59,7 @@ IF ARG(1) = '' THEN DO
    SAY " -R      extended recursive mode"
    SAY "         Same as -r but also deal with include files in -I path"
    SAY " -s      Strip .. from include file paths if possible"
+   SAY " -c      Check for recursions"
    SAY " -v      verbose mode"
    SAY " -x      Unix like file expansion, e.g. *.cpp"
    SAY " -q      Do not print warnings"
@@ -74,9 +75,13 @@ includes       = 0
 opt.recursive  = 0
 opt.Irecursive = 0
 opt.strippar   = 0
+opt.checkrec   = 0
 opt.verbose    = 0
 opt.wildcard   = 0
 opt.cwd        = DIRECTORY()
+
+IF SUBSTR(opt.cwd, LENGTH(opt.cwd), 1) \= '\' THEN
+  opt.cwd = opt.cwd'\'
 
 params = STRIP(ARG(1))
 nomoreopt = 0
@@ -116,6 +121,8 @@ DO WHILE params \= ''
          END
        WHEN SUBSTR(param, 2) = 's' THEN
          opt.strippar = 1
+       WHEN SUBSTR(param, 2) = 'c' THEN
+         opt.checkrec = 1
        WHEN SUBSTR(param, 2) = 'v' THEN
          opt.verbose = 1
        WHEN SUBSTR(param, 2) = 'x' THEN
@@ -154,6 +161,12 @@ DO i = 1 TO file.0
    /* single file mode */
    CALL DoFile file.i
    END
+
+IF opt.checkrec THEN
+   DO i = 1 TO rule.0
+      stack.0 = 0
+      CALL CheckRec rule.i
+      END
 
 /* write result */
 CALL WriteRules opt.makefile
@@ -324,7 +337,7 @@ NormPath: PROCEDURE EXPOSE opt.
    IF ABBREV(filename, '\') | ABBREV(SUBSTR(filename, 2), ':\') THEN
       RETURN ARG(1)
    /* reduce /xxx/../ */
-   path = opt.cwd'\'filename
+   path = opt.cwd||filename
    /*SAY 'S:' path*/
    DO FOREVER
       p = POS('\..\', path)
@@ -338,18 +351,19 @@ NormPath: PROCEDURE EXPOSE opt.
       END
    /* Chkeck how many leading .. to keep */
    p = COMPARE(TRANSLATE(opt.cwd), TRANSLATE(path))
-   /* 'SC:' SUBSTR(opt.cwd, 1, p) p LENGTH(opt.cwd) path*/
-   IF p < LENGTH(opt.cwd) || SUBSTR(path, p, 1) \= '\' THEN DO
-      p = LASTPOS('\', opt.cwd, p) +1
+   /*SAY 'SC:' SUBSTR(opt.cwd, 1, p) p LENGTH(opt.cwd) path*/
+   IF p <= LENGTH(opt.cwd) THEN DO
+      p = LASTPOS('\', opt.cwd, p-1) +1
       /* count \ in different part of opt.cwd */
-      q = WORDS(TRANSLATE(SUBSTR(opt.cwd, p,, '\'), ' \', '\ '))
-      /*SAY 'S\:' TRANSLATE(SUBSTR(opt.cwd, p,, '\'), ' \', '\ ') q*/
+      q = WORDS(TRANSLATE(SUBSTR(opt.cwd, p), ' \', '\ '))
+      /*SAY 'S\:' TRANSLATE(SUBSTR(opt.cwd, p), ' \', '\ ') q*/
       filename = COPIES('..\', q)||SUBSTR(path, p)
       END
    ELSE
-      filename = SUBSTR(path, p+1)
+      filename = SUBSTR(path, p)
    /* done */
-   /*SAY 'SX:' opt.cwd ARG(1) filename*/
+   /*SAY 'SX:' opt.cwd ARG(1) filename
+   SAY*/
    RETURN filename
 
 /* Handle include file
@@ -364,6 +378,39 @@ DoInclude: PROCEDURE EXPOSE opt. rule.
    IF POS(ARG(2), dep) = 0 THEN
       /* add dependency */
       CALL VALUE ARG(1), dep' 'ARG(2)
+   RETURN
+
+/* Check for recursive entries
+ * ARG(1)  file name
+ */
+CheckRec: PROCEDURE EXPOSE opt. rule. stack.
+   dep = VALUE(SymName(ARG(1)))
+   /* push */
+   depth = stack.0 +1
+   /*SAY 'D:' depth ARG(1) dep*/
+   stack.0 = depth
+   stack.depth = ARG(1)
+   /* search for loops */
+   DO i = 1 TO WORDS(dep)
+      sub = WORD(dep, i)
+      DO j = 1 TO depth
+         IF sub = stack.j THEN DO
+            /* recursion */
+            IF j = 1 THEN DO
+               msg = 'Recursion: '
+               DO k = 1 TO depth
+                  msg = msg||stack.k||' -> '
+                  END
+               msg = msg||sub
+               CALL Warn msg
+               END
+            ITERATE i
+            END
+         END
+      CALL CheckRec sub
+      END
+   /* pop */
+   stack.0 = depth -1
    RETURN
 
 /* Create a unique symbol that represents the filename

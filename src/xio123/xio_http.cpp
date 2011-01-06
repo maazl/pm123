@@ -405,10 +405,10 @@ int XIOhttp::read_and_notify( void* result, unsigned int count )
 
           s_pos -= ( metasize + 1 );
 
-          DEBUGLOG(("XIOhttp::read_and_notify: Callback! %s, %li, 0, %p\n", metabuff, s_pos, s_arg));
-          if( s_callback )
+          DEBUGLOG(("XIOhttp::read_and_notify: Callback! 2, %s, %li, 0, %p\n", metabuff, s_pos, observer));
+          if( observer )
           {
-            s_callback( metabuff, s_pos, 0, s_arg );
+            observer->metacallback( XIO_META_TITLE, metabuff, s_pos, 0 );
           }
           free(metabuff);
         }
@@ -554,10 +554,9 @@ char* XIOhttp::get_metainfo( int type, char* result, int size )
   return result;
 }
 
-void XIOhttp::set_observer( void DLLENTRYP(callback)(const char* metabuff, long pos, long pos64, void* arg), void* arg )
+XPROTOCOL::Iobserver* XIOhttp::set_observer( Iobserver* observer )
 { Mutex::Lock lock(mtx_access);
-  s_callback = callback;
-  s_arg = arg;
+  return XIOreadonly::set_observer(observer);
 }
 
 XSFLAGS XIOhttp::supports() const
@@ -577,8 +576,7 @@ XIOhttp::XIOhttp()
   s_size((unsigned long)-1),
   s_metaint(0),
   s_metapos(0),
-  s_location(NULL),
-  s_callback(NULL)
+  s_location(NULL)
 {
   memset(s_genre, 0, sizeof s_genre);
   memset(s_name , 0, sizeof s_name );

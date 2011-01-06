@@ -143,7 +143,7 @@ MRESULT EXPENTRY cfg_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
             outpath[ strlen( outpath ) - 1 ] = 0;
           }
 
-          context->write_profile( "outpath", outpath, strlen(outpath) );
+          context->plugin_api->profile_write( "outpath", outpath, strlen(outpath) );
           break;
         }
       }
@@ -450,7 +450,7 @@ output_init( void** A )
 
   *A = a;
   memset(outpath, 0, sizeof outpath);
-  context->query_profile( "outpath", outpath, sizeof outpath );
+  context->plugin_api->profile_query( "outpath", outpath, sizeof outpath );
 
   memset( a, 0, sizeof(*a));
   DosCreateEventSem( NULL, &a->pause, 0, TRUE );

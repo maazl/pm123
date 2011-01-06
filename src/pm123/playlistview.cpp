@@ -1,7 +1,7 @@
 /*
  * Copyright 1997-2003 Samuel Audet <guardia@step.polymtl.ca>
- *                     Taneli Lepp„ <rosmo@sektori.com>
- * Copyright 2007-2008 Marcel Mueller
+ *                     Taneli Leppï¿½ <rosmo@sektori.com>
+ * Copyright 2007-2010 Marcel Mueller
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -29,7 +29,7 @@
  */
 
 
-/* Code for the playlist manager */
+/* Code for the playlist detailed view */
 
 #define  INCL_WIN
 #define  INCL_GPI
@@ -39,41 +39,38 @@
 #include <string.h>
 #include <process.h>
 
-#include <os2.h>
-#include "pm123.h"
+#include "playlistview.h"
+#include "gui.h"
 #include "dialog.h"
 #include "properties.h"
 #include "pm123.rc.h"
-#include <utilfct.h>
-#include "playlistview.h"
 #include "docking.h"
 #include "playable.h"
 #include <cpp/showaccel.h>
+#include <utilfct.h>
 
+#include <os2.h>
 #include <stddef.h>
 
 #include <debuglog.h>
 
 
-PlaylistView::PlaylistView(Playable* obj, const xstring& alias)
+PlaylistView::PlaylistView(Playable& obj, const xstring& alias)
 : PlaylistRepository<PlaylistView>(obj, alias, DLG_PLAYLIST),
   MainMenu(NULLHANDLE),
   RecMenu(NULLHANDLE)
-{ DEBUGLOG(("PlaylistView::PlaylistView(%p, %s)\n", obj, alias.cdata()));
+{ DEBUGLOG(("PlaylistView::PlaylistView(&%p, %s)\n", &obj, alias.cdata()));
   StartDialog();
 }
 
-void PlaylistView::PostRecordCommand(RecordBase* rec, RecordCommand cmd)
-{ // Ignore some messages
-  switch (cmd)
-  {case RC_UPDATEFORMAT:
-    break;
-   case RC_UPDATEMETA:
-    if (rec == NULL)
-      break;
-   default:
-    PlaylistBase::PostRecordCommand(rec, cmd);
-  }
+void PlaylistView::PostRecordUpdate(RecordBase* rec, InfoFlags flags)
+{ DEBUGLOG(("PlaylistView(%p)::PostRecordCommand(%p, %x)\n", this, rec, flags));
+  // Ignore some messages
+  if (rec)
+    flags &= IF_Decoder|IF_Item|IF_Display|IF_Usage|IF_Slice|IF_Drpl;
+  else
+    flags &= IF_Tech|IF_Display|IF_Usage|IF_Child;
+  PlaylistBase::PostRecordUpdate(rec, flags);
 }
 
 const PlaylistView::Column PlaylistView::MutableColumns[] =
@@ -91,14 +88,20 @@ const PlaylistView::Column PlaylistView::MutableColumns[] =
   { CFA_STRING | CFA_SEPARATOR | CFA_HORZSEPARATOR,
     CFA_FITITLEREADONLY,
     "Start",
-    offsetof(PlaylistView::Record, Pos),
+    offsetof(PlaylistView::Record, Start),
     CID_Start,
+  },
+  { CFA_STRING | CFA_SEPARATOR | CFA_HORZSEPARATOR,
+    CFA_FITITLEREADONLY,
+    "Stop",
+    offsetof(PlaylistView::Record, Stop),
+    CID_Stop,
   },
   { CFA_STRING | CFA_HORZSEPARATOR,
     CFA_FITITLEREADONLY,
-    "Stop",
-    offsetof(PlaylistView::Record, End),
-    CID_Stop,
+    "Location",
+    offsetof(PlaylistView::Record, At),
+    CID_At,
   },
   { CFA_FIREADONLY | CFA_SEPARATOR | CFA_HORZSEPARATOR | CFA_STRING,
     CFA_FITITLEREADONLY,
@@ -128,7 +131,7 @@ const PlaylistView::Column PlaylistView::MutableColumns[] =
   }
 };
 
-const PlaylistView::Column PlaylistView::ConstColumns[] =
+/*const PlaylistView::Column PlaylistView::ConstColumns[] =
 { { CFA_FIREADONLY | CFA_SEPARATOR | CFA_HORZSEPARATOR | CFA_BITMAPORICON | CFA_CENTER,
     CFA_FITITLEREADONLY,
     "",
@@ -164,10 +167,10 @@ const PlaylistView::Column PlaylistView::ConstColumns[] =
     "Source",
     offsetof(PlaylistView::Record, URL)
   }
-};
+};*/
 
 FIELDINFO* PlaylistView::MutableFieldinfo;
-FIELDINFO* PlaylistView::ConstFieldinfo;
+//FIELDINFO* PlaylistView::ConstFieldinfo;
 
 FIELDINFO* PlaylistView::CreateFieldinfo(const Column* cols, size_t count)
 { FIELDINFO* first = (FIELDINFO*)WinSendMsg(HwndContainer, CM_ALLOCDETAILFIELDINFO, MPFROMSHORT(count), 0);
@@ -193,13 +196,13 @@ void PlaylistView::InitDlg()
   // Initializes the container of the playlist.
   HwndContainer = WinWindowFromID(GetHwnd(), FID_CLIENT);
   PMASSERT(HwndContainer != NULLHANDLE);
-  // Attension!!! Intended side effect: CCS_VERIFYPOINTERS is only set in degug builds
+  // Attention!!! Intended side effect: CCS_VERIFYPOINTERS is only set in debug builds
   PMASSERT(WinSetWindowBits(HwndContainer, QWL_STYLE, CCS_VERIFYPOINTERS, CCS_VERIFYPOINTERS));
 
   static bool initialized = false;
   if (!initialized)
   { MutableFieldinfo = CreateFieldinfo(MutableColumns, sizeof MutableColumns / sizeof *MutableColumns);
-    ConstFieldinfo   = CreateFieldinfo(ConstColumns,   sizeof ConstColumns   / sizeof *ConstColumns  );
+    //ConstFieldinfo   = CreateFieldinfo(ConstColumns,   sizeof ConstColumns   / sizeof *ConstColumns  );
   }
 
   FIELDINFO* first;
@@ -209,80 +212,45 @@ void PlaylistView::InitDlg()
   insert.fInvalidateFieldInfo = TRUE;
   cnrinfo.flWindowAttr    = CV_DETAIL|CV_MINI|CA_DRAWICON|CA_DETAILSVIEWTITLES|CA_ORDEREDTARGETEMPH;
   cnrinfo.xVertSplitbar   = 180;
-  if ((Content->GetFlags() & Playable::Mutable) == Playable::Mutable)
+  //if ((Content->GetFlags() & Playable::Mutable) == Playable::Mutable)
   { insert.cFieldInfoInsert = sizeof MutableColumns / sizeof *MutableColumns;
     first = MutableFieldinfo;
-    cnrinfo.pFieldInfoLast  = first->pNextFieldInfo->pNextFieldInfo->pNextFieldInfo; // The first 3 colums are left to the bar.
-  } else
+    cnrinfo.pFieldInfoLast  = first->pNextFieldInfo->pNextFieldInfo->pNextFieldInfo->pNextFieldInfo; // The first 4 columns are left to the bar.
+  }/* else
   { insert.cFieldInfoInsert = sizeof ConstColumns / sizeof *ConstColumns;
     first = ConstFieldinfo;
-    cnrinfo.pFieldInfoLast  = first->pNextFieldInfo; // The first 2 colums are left to the bar.
-  }
+    cnrinfo.pFieldInfoLast  = first->pNextFieldInfo; // The first 2 columns are left to the bar.
+  }*/
   PMXASSERT(SHORT1FROMMR(WinSendMsg(HwndContainer, CM_INSERTDETAILFIELDINFO, MPFROMP(first), MPFROMP(&insert))), != 0);
   PMRASSERT(WinSendMsg(HwndContainer, CM_SETCNRINFO, MPFROMP(&cnrinfo), MPFROMLONG( CMA_PFIELDINFOLAST|CMA_XVERTSPLITBAR|CMA_FLWINDOWATTR)));
 
-  /* Initializes the playlist presentation window. */
+  // Initializes the playlist presentation window.
   PlaylistBase::InitDlg();
+
+  // Request initial information for root level.
+  PostRecordUpdate(NULL, ~Content->RequestInfo(IF_Phys|IF_Tech|IF_Display|IF_Child, PRI_Normal));
 }
 
 MRESULT PlaylistView::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
 { DEBUGLOG2(("PlaylistView(%p{%s})::DlgProc(%x, %x, %x)\n", this, DebugName().cdata(), msg, mp1, mp2));
 
   switch (msg)
-  {case WM_WINDOWPOSCHANGED:
-    // TODO: Bl”dsinn
+  {/*case WM_WINDOWPOSCHANGED:
+    // TODO: Blï¿½dsinn
     { SWP* pswp = (SWP*)PVOIDFROMMP(mp1);
       if( pswp[0].fl & SWP_SHOW )
         cfg.show_playlist = TRUE;
       if( pswp[0].fl & SWP_HIDE )
         cfg.show_playlist = FALSE;
       break;
-    }
-
-   case UM_RECORDCOMMAND:
-    { Record* rec = (Record*)PVOIDFROMMP(mp1);
-      for(;;)
-      { // reset pending message flag
-        unsigned flags = InterlockedXch(&StateFromRec(rec).PostMsg, 0);
-        DEBUGLOG(("PlaylistView::DlgProc: UM_RECORDCOMMAND: %s, %x\n", Record::DebugName(rec).cdata(), flags));
-        if (flags == 0)
-          break;
-        Playable::InfoFlags flg = Playable::IF_None;
-        PlayableInstance::StatusFlags iflg = PlayableInstance::SF_None;
-        if (flags & 1<<RC_UPDATEPHYS)
-          flg |= Playable::IF_Phys;
-        if (flags & 1<<RC_UPDATERPL)
-          flg |= Playable::IF_Rpl;
-        if (flags & 1<<RC_UPDATETECH)
-          flg |= Playable::IF_Tech;
-        if (flags & 1<<RC_UPDATEMETA)
-          flg |= Playable::IF_Meta;
-        if (flags & 1<<RC_UPDATEALIAS)
-          iflg |= PlayableInstance::SF_Alias;
-        if (flags & 1<<RC_UPDATEPOS)
-          iflg |= PlayableInstance::SF_Slice;
-
-        if ((int)flg | iflg)
-          UpdateRecord(rec, flg, iflg);
-        if ( (flags & 1<<RC_UPDATEUSAGE) || (rec != NULL && (flags & 1<<RC_UPDATEOTHER)) )
-          UpdateIcon(rec);
-        if (flags & 1<<RC_UPDATEOTHER && rec == NULL) // Only Root node has children
-          UpdateChildren(NULL);
-      }
-      break; // continue in base class
-    }
+    }*/
 
    case WM_CONTROL:
     switch (SHORT2FROMMP(mp1))
     {
      case CN_HELP:
-      amp_show_help( IDH_PL );
+      GUI::ShowHelp(IDH_PL);
       return 0;
-
-     /* TODO: normally we have to lock some functions here...
-      case CN_BEGINEDIT:
-      break; // Continue in base class;
-     */
 
      case CN_ENDEDIT:
       if (DirectEdit) // ignore undo's
@@ -292,49 +260,64 @@ MRESULT PlaylistView::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
         ASSERT(rec != NULL);
         switch ((ColumnID)(ULONG)ed->pFieldInfo->pUserData)
         {case CID_Alias:
-          rec->Data()->Content->SetAlias(DirectEdit.length() ? DirectEdit : (const xstring&)xstring());
+          { PlayableInstance& pi = *rec->Data()->Content;
+            Mutex::Lock lock(pi.GetPlayable().Mtx);
+            ItemInfo info = *pi.GetInfo().item;
+            if (DirectEdit.length())
+              info.alias = DirectEdit;
+            else
+              info.alias.reset();
+            pi.OverrideItem(info.IsInitial() ? NULL : &info);
+          }
           break;
          case CID_Start:
-          { rec->Pos = rec->Data()->Pos.cdata(); // restore what PM changed (for now)
-            SongIterator* si = NULL;
+          { PlayableInstance& pi = *rec->Data()->Content;
+            Mutex::Lock lock(pi.GetPlayable().Mtx);
+            ItemInfo info = *pi.GetInfo().item;
             if (DirectEdit.length())
-            { si = new SongIterator();
-              si->SetRoot(new PlayableSlice(PlayableFromRec(rec)));
-              const char* cp = DirectEdit;
-              if (!si->Deserialize(cp))
-              { // TODO: Error message
-              }
-            }
-            rec->Data()->Content->SetStart(si);
+              info.start = DirectEdit;
+            else
+              info.start.reset();
+            pi.OverrideItem(info.IsInitial() ? NULL : &info);
+            // TODO: Error message
           }
           break;
          case CID_Stop:
-          { rec->End = rec->Data()->End.cdata(); // restore what PM changed (for now)
-            SongIterator* si = NULL;
+          { PlayableInstance& pi = *rec->Data()->Content;
+            Mutex::Lock lock(pi.GetPlayable().Mtx);
+            ItemInfo info = *pi.GetInfo().item;
             if (DirectEdit.length())
-            { si = new SongIterator();
-              si->SetRoot(rec ? rec->Data()->Content.get() : new PlayableSlice(Content));
-              const char* cp = DirectEdit;
-              if (!si->Deserialize(cp))
-              { // TODO: Error message
-              }
-            }
-            rec->Data()->Content->SetStop(si);
+              info.stop = DirectEdit;
+            else
+              info.stop.reset();
+            pi.OverrideItem(info.IsInitial() ? NULL : &info);
+            // TODO: Error message
+          }
+          break;
+         case CID_At:
+          { PlayableInstance& pi = *rec->Data()->Content;
+            Mutex::Lock lock(pi.GetPlayable().Mtx);
+            AttrInfo info = *pi.GetInfo().attr;
+            if (DirectEdit.length())
+              info.at = DirectEdit;
+            else
+              info.at.reset();
+            pi.OverrideAttr(info.IsInitial() ? NULL : &info);
+            // TODO: Error message
           }
           break;
          case CID_URL:
           { rec->URL    = xstring::empty; // intermediate string that is not invalidated
             // Convert to insert/delete pair.
             InsertInfo* pii = new InsertInfo();
-            pii->Parent = (Playlist*)PlayableFromRec(GetParent(rec));
-            pii->URL    = DirectEdit;
-            PlayableInstance* pi = rec->Data()->Content;
-            pii->Alias  = pi->GetAlias();
-            if (pi->GetStart())
-              pii->Start = pi->GetStart()->Serialize();
-            if (pi->GetStop())
-              pii->Stop = pi->GetStop()->Serialize();
-            pii->Before = rec->Data()->Content;
+            pii->Parent = &APlayableFromRec(GetParent(rec)).GetPlayable();
+            PlayableInstance& pi = *rec->Data()->Content;
+            pii->Before = &pi;
+            pii->Item   = new PlayableRef(*Playable::GetByURL(Content->URL.makeAbsolute(DirectEdit)));
+            if (pi.IsItemOverridden())
+            { ItemInfo info = *pi.GetInfo().item;
+              pii->Item->OverrideItem(&info);
+            }
             // Send GUI commands
             BlockRecord(rec);
             WinPostMsg(GetHwnd(), UM_INSERTITEM, MPFROMP(pii), 0);
@@ -360,7 +343,6 @@ MRESULT PlaylistView::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
 HWND PlaylistView::InitContextMenu()
 { DEBUGLOG(("PlaylistView(%p)::InitContextMenu() - %p{%u}\n", this, &Source, Source.size()));
   HWND hwndMenu;
-  const bool ismutable = (Content->GetFlags() & Playable::Mutable) == Playable::Mutable;
   if (Source.size() == 0)
   { // no items selected => main context menu
     bool new_menu;
@@ -370,15 +352,14 @@ HWND PlaylistView::InitContextMenu()
       PMRASSERT(mn_make_conditionalcascade(MainMenu, IDM_PL_APPENDALL, IDM_PL_APPFILEALL));
     }
     hwndMenu = MainMenu;
-    mn_enable_item(hwndMenu, IDM_PL_APPEND, ismutable);
     // Update accelerators?
     if (DecChanged || new_menu)
     { DecChanged = false;
       // Populate context menu with plug-in specific stuff.
       MENUITEM item;
       PMRASSERT(WinSendMsg(hwndMenu, MM_QUERYITEM, MPFROM2SHORT(IDM_PL_APPENDALL, TRUE), MPFROMP(&item)));
-      memset(LoadWizzards+2, 0, sizeof LoadWizzards - 2*sizeof *LoadWizzards ); // You never know...
-      dec_append_load_menu(item.hwndSubMenu, IDM_PL_APPOTHERALL, 2, LoadWizzards+2, sizeof LoadWizzards/sizeof *LoadWizzards - 2);
+      memset(LoadWizards+2, 0, sizeof LoadWizards - 2*sizeof *LoadWizards ); // You never know...
+      dec_append_load_menu(item.hwndSubMenu, IDM_PL_APPOTHERALL, 2, LoadWizards+2, sizeof LoadWizards/sizeof *LoadWizards - 2);
       (MenuShowAccel(WinQueryAccelTable(WinQueryAnchorBlock(GetHwnd()), GetHwnd()))).ApplyTo(new_menu ? hwndMenu : item.hwndSubMenu);
     }
   } else
@@ -393,20 +374,12 @@ HWND PlaylistView::InitContextMenu()
     RecordType rt = AnalyzeRecordTypes();
     if (rt == RT_None)
       return NULLHANDLE;
-    bool editmeta = false;
-    if (rt == RT_Song)
-    { editmeta = true;
-      RecordBase** rpp = Source.end();
-      do
-      { editmeta &= (*--rpp)->Data->Content->GetPlayable()->GetInfo().meta_write;
-      } while (rpp != Source.begin());
-    }
     mn_enable_item(hwndMenu, IDM_PL_NAVIGATE, Source.size() == 1 && Content->IsInUse());
-    mn_enable_item(hwndMenu, IDM_PL_EDIT,     editmeta);
-    mn_enable_item(hwndMenu, IDM_PL_FLATTEN,  ismutable && (rt & RT_List) );
+    mn_enable_item(hwndMenu, IDM_PL_EDIT,     rt == RT_Meta);
+    mn_enable_item(hwndMenu, IDM_PL_FLATTEN,  (rt & ~(RT_Enum|RT_List)) == 0);
     mn_enable_item(hwndMenu, IDM_PL_REFRESH,  (rt & (RT_Enum|RT_List)) == 0);
-    mn_enable_item(hwndMenu, IDM_PL_DETAILED, Source.size() == 1 && rt != RT_Song);
-    mn_enable_item(hwndMenu, IDM_PL_TREEVIEW, Source.size() == 1 && rt != RT_Song);
+    mn_enable_item(hwndMenu, IDM_PL_DETAILED, Source.size() == 1 && (rt & (RT_Enum|RT_List)));
+    mn_enable_item(hwndMenu, IDM_PL_TREEVIEW, Source.size() == 1 && (rt & (RT_Enum|RT_List)));
   }
   // emphasize record
   DEBUGLOG2(("PlaylistView::InitContextMenu: Menu: %p %p\n", MainMenu, RecMenu));
@@ -417,21 +390,21 @@ void PlaylistView::UpdateAccelTable()
 { DEBUGLOG(("PlaylistView::UpdateAccelTable()\n"));
   AccelTable = WinLoadAccelTable( WinQueryAnchorBlock( GetHwnd() ), NULLHANDLE, ACL_PLAYLIST );
   PMASSERT(AccelTable != NULLHANDLE);
-  memset( LoadWizzards+2, 0, sizeof LoadWizzards - 2*sizeof *LoadWizzards); // You never know...
-  dec_append_accel_table( AccelTable, IDM_PL_APPOTHERALL, 0, LoadWizzards+2, sizeof LoadWizzards/sizeof *LoadWizzards - 2);
+  memset( LoadWizards+2, 0, sizeof LoadWizards - 2*sizeof *LoadWizards); // You never know...
+  dec_append_accel_table( AccelTable, IDM_PL_APPOTHERALL, 0, LoadWizards+2, sizeof LoadWizards/sizeof *LoadWizards - 2);
 }
 
 PlaylistBase::ICP PlaylistView::GetPlaylistType(const RecordBase* rec) const
 { DEBUGLOG(("PlaylistView::GetPlaylistType(%s)\n", Record::DebugName(rec).cdata()));
-  Playable* pp = rec->Data->Content->GetPlayable();
-  if (pp == Content)
+  Playable& pp = rec->Data->Content->GetPlayable();
+  if (pp == *Content)
     return ICP_Recursive;
-  return pp->GetInfo().phys->num_items ? ICP_Closed : ICP_Empty;
+  return pp.RequestInfo(IF_Child, PRI_None, REL_Invalid) || pp.GetPlayable().GetNext(NULL) == NULL ? ICP_Empty : ICP_Closed;
 }
 
 PlaylistBase::IC PlaylistView::GetRecordUsage(const RecordBase* rec) const
 { DEBUGLOG(("PlaylistView::GetRecordUsage(%s)\n", Record::DebugName(rec).cdata()));
-  int_ptr<PlayableSlice> root = Ctrl::GetRoot();
+  int_ptr<APlayable> root = Ctrl::GetRoot();
   PlayableInstance* cur = rec->Data->Content;
   if (!cur->IsInUse() && (!root || root->GetPlayable() != cur->GetPlayable()))
     return IC_Shadow;
@@ -484,100 +457,118 @@ double PlaylistView::ParseTime(const xstring& str)
   }
 }
 
-bool PlaylistView::CalcCols(Record* rec, Playable::InfoFlags flags, PlayableInstance::StatusFlags iflags)
+void PlaylistView::AppendNonEmpty(xstring& dst, const char* sep, const volatile xstring& app)
+{ xstring tmp(app);
+  if (tmp && tmp.length())
+    dst = dst + sep + tmp;
+}
+
+bool PlaylistView::UpdateColumnText(xstring& dst, const xstring& value)
+{ const xstring& val2 = value ? value : xstring::empty;
+  if (dst == val2)
+    return false;
+  (volatile xstring&)dst = val2; // atomic assign
+  return true;
+}
+
+bool PlaylistView::CalcCols(Record* rec, InfoFlags flags)
 { DEBUGLOG(("PlaylistView::CalcCols(%s, %x)\n", Record::DebugName(rec).cdata(), flags));
-  const DECODER_INFO2& info = rec->Data()->Content->GetPlayable()->GetInfo();
+  const INFO_BUNDLE_CV& info = rec->Data()->Content->GetPlayable().GetInfo();
   bool ret = false;
-  xstring tmp;
   // Columns that only depend on metadata changes
-  if (flags & Playable::IF_Meta)
+  if (flags & IF_Meta)
   { // song
-    if (*info.meta->artist)
-      tmp = xstring(info.meta->artist) + " / " + info.meta->title;
-     else if (*info.meta->title)
-      tmp = info.meta->title;
+    xstring artist = info.meta->artist;
+    if (!artist)
+      artist = xstring::empty;
+    xstring title  = info.meta->title;
+    if (!title)
+      title  = xstring::empty;
+    xstring tmp;
+    if (artist.length())
+      tmp = artist + " / " + title;
+     else if (title.length())
+      tmp = title;
      else
       tmp = NULL;
-    rec->Song = tmp;
-    rec->Data()->Song = tmp; // free old value
+    ret |= UpdateColumnText(rec->Song, tmp);
   }
   // Columns that only depend on phys changes
-  if (flags & Playable::IF_Phys)
-  { // size
-    tmp = FormatSize(info.phys->filesize);
-    rec->Size = tmp;
-    rec->Data()->Size = tmp; // free old value
+  if (flags & IF_Phys)
+    // size
+    ret |= UpdateColumnText(rec->Size, FormatSize(info.phys->filesize));
+  // time (object info in case of song, drpl info in case of playlist)
+  switch (info.tech->attributes & (TATTR_SONG|TATTR_PLAYLIST))
+  {case TATTR_NONE:
+    ret |= UpdateColumnText(rec->Time, xstring::empty);
+    break;
+   case TATTR_PLAYLIST:
+    if (flags & IF_Drpl)
+      ret |= UpdateColumnText(rec->Time, FormatSize(info.drpl->totallength));
+    break;
+   default:
+    if (flags & IF_Obj)
+      ret |= UpdateColumnText(rec->Time, FormatSize(info.obj->songlength));
   }
-  // Columns that only depend on tech changes
-  if (flags & Playable::IF_Tech)
-  { // time
-    tmp = FormatTime(info.tech->songlength);
-    rec->Time = tmp;
-    rec->Data()->Time = tmp; // free old value
-  }
+  // Columns that only depend on attribute info changes
+  if (flags & IF_Attr)
+    // location
+    ret |= UpdateColumnText(rec->At, xstring(info.attr->at));
   // Columns that depend on metadata or tech changes
-  if (flags & (Playable::IF_Meta|Playable::IF_Tech))
+  if (flags & (IF_Meta|IF_Tech))
   { // moreinfo
-    tmp = info.meta->album;
-    if (info.meta->track > 0)
-      tmp = xstring::sprintf("%s #%u", tmp.cdata(), info.meta->track);
-    if (*info.meta->year)
-      tmp = tmp + " " + info.meta->year;
-    if (*info.meta->genre)
-      tmp = tmp + ", " + info.meta->genre;
-    if (*info.tech->info)
-      tmp = tmp + ", " + info.tech->info;
-    if (*info.meta->comment)
-      tmp = tmp + ", comment: " + info.meta->comment;
-    rec->MoreInfo = tmp;
-    rec->Data()->MoreInfo = tmp; // free old value
-    ret = true;
+    xstring tmp = info.meta->album;
+    if (!tmp)
+      tmp = xstring::empty;
+    AppendNonEmpty(tmp, " #", info.meta->track);
+    AppendNonEmpty(tmp, " ", info.meta->year);
+    AppendNonEmpty(tmp, ", ", info.meta->genre);
+    AppendNonEmpty(tmp, ", ", info.tech->info);
+    ret |= UpdateColumnText(rec->MoreInfo, tmp);
   }
-  // Colums that depend on PlayableInstance changes
-  if (iflags & PlayableInstance::SF_Alias)
+  // Columns that depend on name changes
+  if (flags & IF_Display)
   { // Alias
-    tmp = rec->Data()->Content->GetDisplayName();
+    xstring tmp = rec->Data()->Content->GetDisplayName();
     rec->pszIcon = (PSZ)tmp.cdata();
     rec->Data()->Text = tmp; // free old value
     ret = true;
   }
-  if (iflags & PlayableInstance::SF_Slice)
+  if (flags & IF_Item)
   { // Starting position
-    const SongIterator* si = rec->Data()->Content->GetStart();
-    tmp = si ? (const xstring&)si->Serialize() : xstring::empty;
-    rec->Pos = tmp;
-    rec->Data()->Pos = tmp;
+    const volatile ITEM_INFO& ii = *rec->Data()->Content->GetInfo().item;
+    ret |= UpdateColumnText(rec->Start, xstring(ii.start));
     // Ending position
-    si = rec->Data()->Content->GetStop();
-    tmp = si ? (const xstring&)si->Serialize() : xstring::empty;
-    rec->End = tmp;
-    rec->Data()->End = tmp;
-    ret = true;
+    ret |= UpdateColumnText(rec->Stop, xstring(ii.stop));
   }
   return ret;
 }
 
-PlaylistBase::RecordBase* PlaylistView::CreateNewRecord(PlayableInstance* obj, RecordBase* parent)
-{ DEBUGLOG(("PlaylistView(%p{%s})::CreateNewRecord(%p{%s}, %p)\n", this, DebugName().cdata(), obj, obj->GetPlayable()->GetURL().getShortName().cdata(), parent));
+PlaylistBase::RecordBase* PlaylistView::CreateNewRecord(PlayableInstance& obj, RecordBase* parent)
+{ DEBUGLOG(("PlaylistView(%p{%s})::CreateNewRecord(&%p{%s}, %p)\n", this, DebugName().cdata(),
+    &obj, obj.GetPlayable().URL.getShortName().cdata(), parent));
   // No nested records in this view
   ASSERT(parent == NULL);
   // Allocate a record in the HwndContainer
   Record* rec = (Record*)WinSendMsg(HwndContainer, CM_ALLOCRECORD, MPFROMLONG(sizeof(Record) - sizeof(MINIRECORDCORE)), MPFROMLONG(1));
   PMASSERT(rec != NULL);
 
-  rec->UseCount        = 1;
-  rec->Data()          = new CPData(obj, *this, &PlaylistView::InfoChangeEvent, &PlaylistView::StatChangeEvent, rec);
+  rec->UseCount     = 1;
+  rec->Data()       = new CPData(obj, *this, &PlaylistView::InfoChangeEvent, rec);
   // before we catch any information setup the update events
-  // The record is not yet corretly initialized, but this don't metter since all that the event handlers can do
+  // The record is not yet correctly initialized, but this don't matter since all that the event handlers can do
   // is to post a UM_RECORDCOMMAND which is not handled unless this message is completed.
-  obj->GetPlayable()->InfoChange += rec->Data()->InfoChange;
-  obj->StatusChange              += rec->Data()->StatChange;
+  obj.GetInfoChange() += rec->Data()->InfoChange;
 
-  rec->URL             = obj->GetPlayable()->GetURL().cdata();
-  CalcCols(rec, obj->GetPlayable()->EnsureInfoAsync(Playable::IF_Tech|Playable::IF_Meta|Playable::IF_Phys, true), PlayableInstance::SF_All);
+  rec->URL          = obj.GetPlayable().URL;
+  // Request some infos
+  InfoFlags avail = (IF_Decoder|IF_Item|IF_Slice|IF_Drpl) &
+                    ~( obj.RequestInfo(IF_Decoder|IF_Item, PRI_Normal)
+                     | obj.RequestInfo(IF_Slice|IF_Drpl, PRI_Low) );
+  CalcCols(rec, avail);
 
-  rec->flRecordAttr    = 0;
-  rec->hptrIcon        = CalcIcon(rec);
+  rec->flRecordAttr = 0;
+  rec->hptrIcon     = CalcIcon(rec);
   return rec;
 }
 
@@ -585,21 +576,33 @@ PlaylistView::RecordBase* PlaylistView::GetParent(const RecordBase* const rec) c
 { return NULL;
 }
 
-void PlaylistView::UpdateRecord(Record* rec, Playable::InfoFlags flags, PlayableInstance::StatusFlags iflags)
-{ DEBUGLOG(("PlaylistView(%p)::UpdateRecord(%p, %x, %x)\n", this, rec, flags, iflags));
+void PlaylistView::UpdateRecord(RecordBase* rec)
+{ DEBUGLOG(("PlaylistView(%p)::UpdateRecord(%p)\n", this, rec));
   bool update = false;
-  // update icon?
-  if (rec && ((flags & Playable::IF_Phys) != 0 || (iflags & PlayableInstance::SF_InUse) != 0))
-  { HPOINTER icon = CalcIcon(rec);
+  for(;;)
+  { // reset pending message flag
+    InfoFlags flags = (InfoFlags)StateFromRec(rec).Update.swap(IF_None);
+    DEBUGLOG(("PlaylistView::UpdateRecord - %x\n", flags));
+    if (flags == IF_None)
+      break;
+    // update window title
+    if (!rec && (flags & (IF_Tech|IF_Display|IF_Usage)))
+      SetTitle();
     // update icon?
-    if (rec->hptrIcon != icon)
-    { rec->hptrIcon = icon;
-      update = true;
+    if (rec && (flags & (IF_Tech|IF_Child|IF_Usage)))
+    { HPOINTER icon = CalcIcon(rec);
+      // update icon?
+      if (rec->hptrIcon != icon)
+      { rec->hptrIcon = icon;
+        update = true;
+      }
     }
+    // Update columns of items
+    if (rec && CalcCols((Record*)rec, flags))
+      update = true;
+    if (!rec && (flags & IF_Child)) // Only Root node has children
+      UpdateChildren(NULL);
   }
-  // Update columns of items
-  if (rec && CalcCols(rec, flags, iflags))
-    update = true;
   // update screen
   if (update)
     PMRASSERT(WinSendMsg(HwndContainer, CM_INVALIDATERECORD, MPFROMP(&rec), MPFROM2SHORT(1, CMA_TEXTCHANGED)));
@@ -608,9 +611,8 @@ void PlaylistView::UpdateRecord(Record* rec, Playable::InfoFlags flags, Playable
 void PlaylistView::UserNavigate(const RecordBase* rec)
 { DEBUGLOG(("PlaylistView(%p)::UserNavigate(%p)\n", this, rec));
   // make navigation string
-  PlayableCollection* list = (PlayableCollection*)Content.get();
   // TODO: Configuration options
-  xstring nav = "..;" + list->SerializeItem(rec->Data->Content, PlayableCollection::SerialRelativePath) + ";";
+  xstring nav = "..;" + Content->SerializeItem(rec->Data->Content, Playable::SO_RelativePath);
   DEBUGLOG(("PlaylistManager::UserNavigate - %s\n", nav.cdata()));
   Ctrl::PostCommand(Ctrl::MkNavigate(nav, 0, false, true));
 }
@@ -626,4 +628,3 @@ void PlaylistView::UserSelectAll()
   SetEmphasis(CRA_SELECTED, true);
 }
 
-

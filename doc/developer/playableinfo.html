@@ -1,0 +1,203 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html><head><title>Playable object properties</title>
+
+
+
+  
+  <link type="text/css" href="../common/infstyle.css" rel="stylesheet">
+  <meta content="text/html; charset=ISO-8859-1" http-equiv="Content-Type"></head><body>
+<h2>PM123 Playable object handling - Object properties</h2>
+<h3>Information categories</h3>
+<p>The
+properties of a playable object are grouped into different <a href="../pdk/datatype.html#INFOTYPE">information
+types</a>. Each group of information can be requested and
+observed
+individually. The groups fit into the following categories:</p>
+<ol>
+  <li>
+    <p><b>Object information<br>
+    </b>The object information lies on the entity <a href="playableclasses.html#Playable">URL</a>. It
+consists of<br>
+- <a href="../pdk/datatype.html#PHYS_INFO">Physical
+information</a>,<br>
+- <a href="../pdk/datatype.html#TECH_INFO">Technical
+information</a> and<br>
+- <a href="../pdk/datatype.html#OBJ_INFO">Detailed object
+information</a>.</p>
+  </li>
+  <li>
+    <p><b>Logical object information</b><br>
+The logical object information also lies on the entity <a href="playableclasses.html#Playable">URL</a> but it
+may be overridden by <tt><a href="playableclasses.html#PlayableRef">PlayableRef</a></tt>.
+It consists of<br>
+- <a href="../pdk/datatype.html#META_INFO">Meta
+information</a>
+and<br>
+- <a href="../pdk/datatype.html#ATTR_INFO">Object
+attributes</a>.</p>
+  </li>
+  <li>
+    <p><b>Aggregate information</b><br>
+The aggregate information lies on the entity <em><a href="playableclasses.html#Playable">URL</a> with all
+parent URLs in the call stack</em>. This is because all items in
+the call stack are excluded from enumeration to avoid recursions. It
+makes the aggregate information dependent on the point of view.<br>
+It consists of<br>
+- <a href="../pdk/datatype.html#RPL_INFO">Recursive
+playlist information</a> and<br>
+- <a href="../pdk/datatype.html#DRPL_INFO">Detailed
+recursive
+playlist information</a>.<br>
+The aggregate information also applies to song items that cannot
+contain sub items in the way that it takes care of <em>slices</em>
+- unlike the Detailed song information.
+    </p>
+    <p>Unlike all other kind of information the aggregate
+information should be requested by <em><tt>RequestAggregateInfo</tt></em>.<br>
+Furthermore it does not have its own events for each call stack. The
+event fires if <i>any</i>
+of the aggregate informations change. So if you want to track changes
+of individual entries you have to compare the revision number of the
+returned information. It is incremented on each update.</p>
+  </li>
+  <li>
+    <p><b>Object reference information</b><br>
+This kind of info lies on the entity <tt><a href="playableclasses.html#PlayableRef">PlayableRef</a></tt>.
+Native objects do not have this properties. Currently this is only<br>
+-&nbsp;<a href="../pdk/datatype.html#ITEM_INFO">Playlist
+item information</a>.</p>
+  </li>
+  <li>
+    <p><b>Runtime information</b><br>
+This kind of information is not an object property. It is calculated at
+runtime from one or more of the other informations above.</p>
+  </li>
+</ol>
+<h3>Information state</h3>
+<p>Each group of <em>information</em> has
+the following <em>states</em>:</p>
+<ul>
+  <li><tt><b>REL_Virgin</b></tt> - not
+yet available,</li>
+  <li><tt><b>REL_Invalid</b></tt> -
+information was available but has been invalidated,</li>
+  <li><tt><b>REL_Cached</b></tt> - maybe
+from a previous run of the application and</li>
+  <li><tt><b>REL_Confirmed</b></tt> -
+information is verified by the current application instance.</li>
+</ul>
+<p>Once a type of information is provided it will never return to
+the state virgin. In doubt outdated information is returned.</p>
+<p>When you request some kind of information you have the choice
+to do this with different <em>reliability requirements</em>:</p>
+<ul>
+  <li><b><tt>REL_Cached</tt></b> - a
+cached information is sufficient but load the information if it is not
+yet available.</li>
+  <li><b><tt>REL_Confirmed</tt></b> -
+reload the information if it is only cached.</li>
+  <li><b><tt>REL_Reload</tt></b> - reload
+the information unconditional (user request).</li>
+</ul>
+<p>Furthermore you may chose a <em>priority level</em>:</p>
+<ul>
+  <li><b><tt>PRI_None</tt></b> - do not
+request anything. This pseudo priority is used to obtain the current
+state of information only.</li>
+  <li><b><tt>PRI_Low</tt></b> - the
+request is scheduled at low priority, used for prefetching.</li>
+  <li><b><tt>PRI_Normal</tt></b> - the
+request is scheduled at normal priority.</li>
+  <li><b><tt>PRI_Sync</tt></b>
+- the request is executed synchronously. In this case the current
+thread temporarily joins the pool of worker threads and executes the
+given request exclusively. If this is not possible because another
+(temporary) worker already retrieves some of the requested information,
+the current thread will wait for that.</li>
+</ul>
+<h4>State graph</h4>
+<p>The following graph illustrates all valid state transitions. All changes are transactional.<br>
+</p>
+<blockquote><img alt="Information state graph" src="images/stategraph.png" height="499" width="583"><br>
+</blockquote>
+<p>The <em>flash symbols</em> indicate that a state <em>change
+event</em> informs the observers.<br>
+The <em>clock symbols</em> indicate that the state
+transition occurs in <em>synchronized</em> context. Any
+other transitions are <em>lock-free</em>. Note that the state
+transitions are
+synchronized, not the retrieval of the information. This is done while
+in service. And the synchronized part is like a commit work.<br>
+</p>
+<h4>Processes</h4>
+<p>The processes that cause state transitions are:</p>
+<ul>
+  <li>
+    <p><font color="#6000c0"><b>Info request</b></font>
+- An Information might be requested either at low or at high priority.
+The information is then obtained asynchronously by a worker thread. Use
+the <tt>InfoChange</tt> event to wait for the desired
+information to become available.</p>
+  </li>
+  <li>
+    <p><font color="#ff6000"><b>Begin update</b></font>
+- Once a worker thread picks up a request it marks the information as <i>in
+service</i>. Only one thread can mark an information as in
+service at a time. The begin update process is seperately synchronized for each
+playable
+object but <em>the object must not be locked while the
+information is retrieved</em>.</p>
+  </li>
+  <li>
+    <p><font color="green"><b>End update</b></font>
+- When the information has been retrieved it is applied <em>synchronized</em>
+and it's state is set to <i>confirmed</i>.
+Exception: if the information has been invalidated while it was in
+service PM123 assumes that too old infos might have been used and the state
+remains invalid.<br>
+End update <em>raises the <tt>InfoChanged</tt>
+event with <tt>Loaded</tt> and maybe&nbsp;<tt>Changed</tt></em>.
+Note that the information might have been invalidated meanwhile and
+therefore may not have the desired reliability at the point of this
+event. You need to reschedule the requst if this is not suitable. But beware of infinite loops.<br>
+</p>
+  </li>
+  <li>
+    <p><font color="red"><b>Invalidate</b></font>
+- Sometimes an information is invalidated. If the information was at
+least in cached state before <em>the <tt>InfoChage</tt>
+event is raised with <tt>Invalidated</tt></em>
+immediately. Invalidation also changes the state from virgin to invalid
+to avoid that (invalid) cached information is applied later.<br>
+Invalidation
+happens for instance when an item is added to a playlist. In this case
+the total playing time of this playlist and all lists that refer to it
+is invalidated.<br>
+Invalidating
+an information does not automatically
+cause the information to be reloaded unless the invalidation occurs
+while the information is in service. In this case the previous request
+state is restored. Otherwise it has to be requested again. If you need
+to be always up
+to date place a request in the <tt>InfoChange</tt> event
+handler if an <tt>Invalidated</tt> event arrives.</p>
+  </li>
+  <li>
+    <p><font color="#606060"><b>Cache available</b></font>
+- When PM123 loads a playlist the playlist may contain cached
+information about its content. This will speed up PM123 because not all
+objects have to be requested for information. On the other hand
+outdated information may show up. Cached information is applied <em>synchronized</em>
+and only if this kind of information is not yet available or invalidated (virgin). In
+case the information changes <em><tt>InfoChange</tt>
+with <tt>Change</tt> is raised</em>. Note that the <span style="font-family: monospace;">Loaded</span> flag is <i>not</i> included in
+this case since nothing has been recently loaded.<br>
+    </p>
+  </li>
+  <li>
+    <p><font color="#006060"><b>Outdate</b></font>
+- PM123 may mark an information that has been retrieved a long time ago
+as outdated. The state is set to cached. This does not raise any event.</p>
+  </li>
+</ul>
+</body></html>

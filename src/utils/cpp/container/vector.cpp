@@ -148,3 +148,16 @@ void vector_base::prepare_assign(size_t size)
   Size = size;
 }
 
+#ifdef DEBUG_LOG
+xstring vector_base::debug_dump() const
+{ xstring r = xstring::empty;
+  for (size_t i = 0; i != size(); ++i)
+    if (r.length())
+      r = xstring::sprintf("%s, %p", r.cdata(), at(i));
+    else
+      r = xstring::sprintf("%p", at(i));
+  return r;
+}
+#endif
+
+

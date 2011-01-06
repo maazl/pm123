@@ -80,6 +80,17 @@ void strchomp( char* str );
  */
 size_t memcmpcpy( void* dst, const void* src, size_t len );
 
+
+/* Removes leading and trailing spaces. */
+char* blank_strip( char* string );
+/* Replaces series of control characters by one space. */
+char* control_strip( char* string );
+/* Removes leading and trailing spaces and quotes. */
+char* quote_strip( char* string );
+/* Removes comments starting with "#". */
+char* uncomment  ( char* string );
+
+
 #ifdef __cplusplus
 }
 #endif

@@ -1,8 +1,8 @@
 /*
  * Copyright 1997-2003 Samuel Audet <guardia@step.polymtl.ca>
- *                     Taneli Lepp„ <rosmo@sektori.com>
+ *                     Taneli LeppÃ¤ <rosmo@sektori.com>
  * Copyright 2004-2006 Dmitry A.Steklenev <glass@ptv.ru>
- * Copyright 2007-2008 M.Mueller
+ * Copyright 2007-2010 M.Mueller
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -43,13 +43,14 @@
 #include "controller.h"
 #include "copyright.h"
 #include "skin.h"
-#include "pm123.h"
+#include "gui.h"
 #include "123_util.h"
 #include "filedlg.h"
 #include <utilfct.h>
 #include <fileutil.h>
+#include <xio.h>
 #include <cpp/xstring.h>
-#include <cpp/stringmap.h>
+#include <cpp/container/stringmap.h>
 #include <os2.h>
 #include "pm123.rc.h"
 
@@ -59,21 +60,21 @@
 #define  AMP_REFRESH_CONTROLS   ( WM_USER + 1000 ) /* 0,         0                            */
 
 
-static HWND  hhelp      = NULLHANDLE;
+// static HWND  hhelp      = NULLHANDLE;
 
 
-HWND amp_help_mgr()
+/*HWND amp_help_mgr()
 { return hhelp;
-}
+}*/
 
 xstring amp_get_window_text( HWND hwnd )
 { xstring ret;
-  char* dst = ret.raw_init(WinQueryWindowTextLength(hwnd));
+  char* dst = ret.allocate(WinQueryWindowTextLength(hwnd));
   PMXASSERT(WinQueryWindowText(hwnd, ret.length()+1, dst), == ret.length());
   return ret;
 }
 
-static xstring joinstringset(const stringset& set, char delim)
+/*static xstring joinstringset(const stringset& set, char delim)
 { size_t len = 0;
   strkey*const* sp;
   // determine required size
@@ -93,37 +94,30 @@ static xstring joinstringset(const stringset& set, char delim)
     *dp++ = delim;
   }
   return ret; 
-}
+}*/
 
-/* Wizzard function for the default entry "File..." */
-ULONG DLLENTRY amp_file_wizzard( HWND owner, const char* title, DECODER_WIZZARD_CALLBACK callback, void* param )
-{ DEBUGLOG(("amp_file_wizzard(%p, %s, %p, %p)\n", owner, title, callback, param));
+/* Wizard function for the default entry "File..." */
+ULONG DLLENTRY amp_file_wizard( HWND owner, const char* title, DECODER_INFO_ENUMERATION_CB callback, void* param )
+{ DEBUGLOG(("amp_file_wizard(%p, %s, %p, %p)\n", owner, title, callback, param));
 
   FILEDLG filedialog = { sizeof( FILEDLG ) };
-  { stringset_own ext(32);
-    dec_merge_extensions(ext);
-    const xstring& se = joinstringset(ext, ';') + ")"; 
+  sco_ptr<APSZ_list> types(amp_file_types(DECODER_FILENAME));
 
-    xstring type_audio = FDT_AUDIO + se;
-    xstring type_all = FDT_AUDIO_ALL + se;
+  xstring wintitle = xstring::sprintf(title, " file(s)");
 
-    APSZ types[] = {
-      { (PSZ)&*type_audio }, // OS/2 and const...
-      { FDT_PLAYLIST },
-      { (PSZ)&*type_all }, // OS/2 and const...
-      { NULL } };
+  filedialog.fl             = FDS_CENTER|FDS_OPEN_DIALOG|FDS_MULTIPLESEL;
+  filedialog.ulUser         = FDU_DIR_ENABLE|FDU_RECURSEBTN;
+  filedialog.pszTitle       = (PSZ)wintitle.cdata(); // OS/2 and const...
+  filedialog.papszITypeList = *types;
+  char type[_MAX_PATH] = FDT_ALL;
+  filedialog.pszIType       = type;
 
-    xstring wintitle = xstring::sprintf(title, " file(s)");
-
-    filedialog.fl             = FDS_CENTER|FDS_OPEN_DIALOG|FDS_MULTIPLESEL;
-    filedialog.ulUser         = FDU_DIR_ENABLE|FDU_RECURSEBTN;
-    filedialog.pszTitle       = (PSZ)wintitle.cdata(); // OS/2 and const...
-    filedialog.papszITypeList = types;
-    filedialog.pszIType       = (PSZ)type_all.cdata(); // OS/2 and const...
-
-    strlcpy( filedialog.szFullFile, cfg.filedir, sizeof filedialog.szFullFile );
-    PMRASSERT(amp_file_dlg( HWND_DESKTOP, owner, &filedialog ));
-  }
+  if (cfg.filedir.length() > 8)
+    // strip file:///
+    strlcpy(filedialog.szFullFile, cfg.filedir+8, sizeof filedialog.szFullFile);
+  else
+    filedialog.szFullFile[0] = 0;
+  PMRASSERT(amp_file_dlg( HWND_DESKTOP, owner, &filedialog ));
 
   ULONG ret = 300; // Cancel unless DID_OK
 
@@ -136,7 +130,7 @@ ULONG DLLENTRY amp_file_wizzard( HWND owner, const char* title, DECODER_WIZZARD_
 
     ULONG count = 0;
     while (*file)
-    { DEBUGLOG(("amp_file_wizzard: %s\n", file));
+    { DEBUGLOG(("amp_file_wizard: %s\n", file));
       char fileurl[_MAX_FNAME+25]; // should be sufficient in all cases
       strcpy(fileurl, "file:///");
       strcpy(fileurl + (url123::isPathDelimiter(file[0]) && url123::isPathDelimiter(file[1]) ? 5 : 8), file);
@@ -151,16 +145,21 @@ ULONG DLLENTRY amp_file_wizzard( HWND owner, const char* title, DECODER_WIZZARD_
         }
         *dp = 0;
       }
-      if (count == 0)
-        sdrivedir( cfg.filedir, fileurl+8, sizeof( cfg.filedir ));
       // convert slashes
       dp = strchr(fileurl+7, '\\');
       while (dp)
       { *dp = '/';
         dp = strchr(dp+1, '\\');
       }
+      // Save directory
+      if (count == 0)
+      { size_t p = strlen(fileurl);
+        while (p && fileurl[p] != '/')
+          --p;
+        cfg.filedir.assign(fileurl, p);
+      }
       // Callback
-      (*callback)(param, fileurl);
+      (*callback)(param, fileurl, NULL, IF_None, IF_None);
       // next file
       if (++count >= filedialog.ulFQFCount)
         break;
@@ -193,15 +192,15 @@ static MRESULT EXPENTRY amp_url_dlg_proc(HWND hwnd, ULONG msg, MPARAM mp1, MPARA
    case WM_INITDLG:
     { rest_window_pos(hwnd);
       // populate drop down list
-      Playlist* mru = amp_get_url_mru();
+      Playable& mru = *GUI::GetUrlMRU();
       HWND ctrl = WinWindowFromID(hwnd, ENT_URL);
       int_ptr<PlayableInstance> pi;
       for(;;)
-      { pi = mru->GetNext(pi);
+      { pi = mru.GetNext(pi);
         DEBUGLOG(("amp_url_dlg_proc: WM_INITDLG %p %p\n", pi.get(), ctrl));
         if (pi == NULL)
           break;
-        PMXASSERT(WinSendMsg(ctrl, LM_INSERTITEM, MPFROMSHORT(LIT_END), MPFROMP(pi->GetPlayable()->GetURL().cdata())), >= 0);
+        PMXASSERT(WinSendMsg(ctrl, LM_INSERTITEM, MPFROMSHORT(LIT_END), MPFROMP(pi->GetPlayable().URL.cdata())), >= 0);
       }
       break;
     }
@@ -230,10 +229,11 @@ static MRESULT EXPENTRY amp_url_dlg_proc(HWND hwnd, ULONG msg, MPARAM mp1, MPARA
 }
 
 /* Adds HTTP file to the playlist or load it to the player. */
-ULONG DLLENTRY amp_url_wizzard( HWND owner, const char* title, DECODER_WIZZARD_CALLBACK callback, void* param )
-{ DEBUGLOG(("amp_url_wizzard(%x, %s, %p, %p)\n", owner, title, callback, param));
+ULONG DLLENTRY amp_url_wizard( HWND owner, const char* title, DECODER_INFO_ENUMERATION_CB callback, void* param )
+{ DEBUGLOG(("amp_url_wizard(%x, %s, %p, %p)\n", owner, title, callback, param));
 
-  amp_get_url_mru()->EnsureInfo(Playable::IF_Other);
+  // TODO: das geht gar nicht!
+  GUI::GetUrlMRU()->RequestInfo(IF_Child, PRI_Sync);
 
   HWND hwnd = WinLoadDlg( HWND_DESKTOP, owner, amp_url_dlg_proc, NULLHANDLE, DLG_URL, 0 );
   if (hwnd == NULLHANDLE)
@@ -249,9 +249,9 @@ ULONG DLLENTRY amp_url_wizzard( HWND owner, const char* title, DECODER_WIZZARD_C
   ULONG ret = 300;
   if (WinProcessDlg(hwnd) == DID_OK)
   { const xstring& url = amp_get_window_text(WinWindowFromID(hwnd, ENT_URL));
-    DEBUGLOG(("amp_url_wizzard: %s\n", url.cdata()));
-    (*callback)(param, url);
-    amp_AddMRU(amp_get_url_mru(), MAX_RECALL, PlayableSlice(url));
+    DEBUGLOG(("amp_url_wizard: %s\n", url.cdata()));
+    (*callback)(param, url, NULL, IF_None, IF_None);
+    GUI::Add2MRU(*GUI::GetUrlMRU(), cfg.max_recall, *Playable::GetByURL(url));
     ret = 0;
   }
   WinDestroyWindow(hwnd);
@@ -261,15 +261,21 @@ ULONG DLLENTRY amp_url_wizzard( HWND owner, const char* title, DECODER_WIZZARD_C
 url123 amp_playlist_select(HWND owner, const char* title)
 {
   DEBUGLOG(("amp_playlist_select(%p, %s)\n", owner, title));
-  APSZ types[] = {{ FDT_PLAYLIST }, { 0 }};
+  sco_ptr<APSZ_list> types(amp_file_types(DECODER_FILENAME|DECODER_PLAYLIST));
+
   FILEDLG filedialog = { sizeof(FILEDLG) };
   filedialog.fl             = FDS_CENTER|FDS_OPEN_DIALOG;
   filedialog.pszTitle       = (PSZ)title;
-  filedialog.papszITypeList = types;
-  filedialog.pszIType       = FDT_PLAYLIST;
+  filedialog.papszITypeList = *types;
+  char type[_MAX_PATH] = "Playlist File";
+  filedialog.pszIType       = type;
   filedialog.ulUser         = FDU_RECURSEBTN|FDU_DIR_ENABLE;
 
-  strncpy( filedialog.szFullFile, cfg.listdir, sizeof filedialog.szFullFile );
+  if (cfg.listdir.length() > 8)
+    // strip file:///
+    strlcpy(filedialog.szFullFile, cfg.listdir+8, sizeof filedialog.szFullFile);
+  else
+    filedialog.szFullFile[0] = 0;
   PMXASSERT(amp_file_dlg(HWND_DESKTOP, owner, &filedialog), != NULLHANDLE);
 
   if( filedialog.lReturn == DID_OK )
@@ -286,8 +292,14 @@ url123 amp_playlist_select(HWND owner, const char* title)
       *dp = 0;
     }
 
-    sdrivedir( cfg.listdir, filedialog.szFullFile, sizeof cfg.listdir );
-    return url123::normalizeURL(filedialog.szFullFile);
+    url123 url = url123::normalizeURL(filedialog.szFullFile);
+    // Save directory
+    { size_t p = url.length();
+      while (p && url[p] != '/')
+        --p;
+      cfg.filedir.assign(url.cdata(), p);
+    }
+    return url;
   } else
   { return url123();
   }
@@ -309,101 +321,112 @@ static MRESULT EXPENTRY amp_bookmark_dlg_proc(HWND hwnd, ULONG msg, MPARAM mp1, 
 }
 
 /* Adds a user selected bookmark. */
-void amp_add_bookmark(HWND owner, const PlayableSlice& item)
-{ DEBUGLOG(("amp_add_bookmark(%x, {%s})\n", owner, item.GetPlayable()->GetURL().cdata()));
-  // TODO: !!!!!! request information before
-  const META_INFO& meta = *item.GetPlayable()->GetInfo().meta;
-  xstring desc = "";
-  if (*meta.artist)
-    desc = xstring(meta.artist) + "-";
-  if (*meta.title)
-    desc = desc + meta.title;
-   else
-    desc = desc + item.GetPlayable()->GetURL().getShortName();
+void amp_add_bookmark(HWND owner, APlayable& item)
+{ DEBUGLOG(("amp_add_bookmark(%x, {%s})\n", owner, item.GetPlayable().URL.cdata()));
 
   HWND hdlg = WinLoadDlg(HWND_DESKTOP, owner, &amp_bookmark_dlg_proc, NULLHANDLE, DLG_BM_ADD, NULL);
+  // TODO: !!!!!! request information before
+  xstring desc = item.GetDisplayName();
   WinSetDlgItemText(hdlg, EF_BM_DESC, desc);
 
   if (WinProcessDlg(hdlg) == DID_OK)
   { const xstring& alias = amp_get_window_text(WinWindowFromID(hdlg, EF_BM_DESC));
+    // TODO: kein synchrones Wait!!!
+    Playable& p = *GUI::GetDefaultBM();
+    /* TODO: SetAlias gibt es nicht mehr
     if (alias != desc) // Don't set alias if not required.
-    { // We have to copy the PlayableSlice to modify it.
-      PlayableSlice ps(item);
+    { // We have to copy the PlayableRef to modify it.
+      PlayableRef ps(item);
       ps.SetAlias(alias);
-      amp_get_default_bm()->InsertItem(ps);
-    } else
-      amp_get_default_bm()->InsertItem(item);
-    amp_get_default_bm()->Save(PlayableCollection::SaveRelativePath);
+      p.InsertItem(ps);
+    } else */
+      p.InsertItem(item, NULL);
+    // TODO: Save
+    //p.Save(PlayableCollection::SaveRelativePath);
   }
 
   WinDestroyWindow(hdlg);
 }
 
-/* Saves a playlist */
-void amp_save_playlist(HWND owner, PlayableCollection& playlist)
+url123 amp_save_playlist(HWND owner, Playable& playlist, bool saveas)
 {
-  APSZ  types[] = {{ FDT_PLAYLIST_LST }, { FDT_PLAYLIST_M3U }, { 0 }};
+  ASSERT(playlist.GetInfo().tech->attributes & TATTR_PLAYLIST);
+  // If the item is not saveable revert to save as.
+  if (!(playlist.GetInfo().phys->attributes & PATTR_WRITABLE))
+    saveas = true;
 
-  FILEDLG filedialog = {sizeof(FILEDLG)};
-  filedialog.fl             = FDS_CENTER | FDS_SAVEAS_DIALOG | FDS_ENABLEFILELB;
-  filedialog.pszTitle       = "Save playlist";
-  filedialog.ulUser         = FDU_RELATIVBTN;
-  filedialog.papszITypeList = types;
-  filedialog.pszIType       = FDT_PLAYLIST_LST;
+  url123 dest = playlist.URL;
+  xstring decoder = playlist.GetInfo().tech->format;
+  xstring format = playlist.GetInfo().tech->format;
+  bool relative = true;
 
-  if ((playlist.GetFlags() & Playable::Mutable) == Playable::Mutable && playlist.GetURL().isScheme("file://"))
-  { // Playlist => save in place allowed => preselect our own file name
-    const char* cp = playlist.GetURL().cdata() + 5;
-    if (cp[2] == '/')
-      cp += 3;
-    strlcpy(filedialog.szFullFile, cp, sizeof filedialog.szFullFile);
-    // preselect file type
-    if (playlist.GetURL().getExtension().compareToI(".M3U") == 0)
-      filedialog.pszIType = FDT_PLAYLIST_M3U;
-    // TODO: other playlist types
-  } else
-  { // not mutable => only save as allowed
-    // TODO: preselect directory
-  }
+  if (saveas)
+  { sco_ptr<APSZ_list> types(amp_file_types(DECODER_PLAYLIST|DECODER_WRITABLE));
 
-  PMXASSERT(amp_file_dlg(HWND_DESKTOP, owner, &filedialog), != NULLHANDLE);
+    FILEDLG filedialog = {sizeof(FILEDLG)};
+    filedialog.fl             = FDS_CENTER | FDS_SAVEAS_DIALOG | FDS_ENABLEFILELB;
+    filedialog.pszTitle       = "Save playlist as";
+    filedialog.ulUser         = FDU_RELATIVBTN;
+    filedialog.papszITypeList = *types;
+    char type[_MAX_PATH] = "Playlist File";
+    filedialog.pszIType       = type;
 
-  if(filedialog.lReturn == DID_OK)
-  { url123 file = url123::normalizeURL(filedialog.szFullFile);
-    if (!(Playable::IsPlaylist(file)))
-    { if (file.getExtension().length() == 0)
-      { // no extension => choose automatically
-        if (strcmp(filedialog.pszIType, FDT_PLAYLIST_M3U) == 0)
-          file = file + ".m3u";
-        else // if (strcmp(filedialog.pszIType, FDT_PLAYLIST_LST) == 0)
-          file = file + ".lst";
-        // TODO: other playlist types
+    xstring path; // Keep persistence of path
+
+    if (playlist.URL.isScheme("file://"))
+    {
+      if ( (playlist.GetInfo().phys->attributes & PATTR_WRITABLE)
+        && (playlist.GetInfo().tech->attributes & TATTR_WRITABLE) )
+      { // Playlist => save in place allowed => preselect our own file name
+        path = playlist.URL;
+        // preselect file type
+        filedialog.pszIType = (PSZ)xstring(playlist.GetInfo().tech->format).cdata();
       } else
-      { amp_error(owner, "PM123 cannot write playlist files with the unsupported extension %s.", file.getExtension().cdata());
-        return;
+      { // not mutable => only save as allowed
+        path = playlist.URL.getBasePath();
       }
+      const char* cp = path.cdata() + 5;
+      if (cp[2] == '/')
+        cp += 3;
+      strlcpy(filedialog.szFullFile, cp, sizeof filedialog.szFullFile);
     }
-    const char* cp = file.cdata() + 5;
+   retry:
+    PMXASSERT(amp_file_dlg(HWND_DESKTOP, owner, &filedialog), != NULLHANDLE);
+
+    if (filedialog.lReturn != DID_OK)
+      return xstring();
+    dest = url123::normalizeURL(filedialog.szFullFile);
+    const char* cp = dest.cdata() + 5;
     if (cp[2] == '/')
       cp += 3;
-    if (amp_warn_if_overwrite(owner, cp))
-    { PlayableCollection::save_options so = PlayableCollection::SaveDefault;
-      if (file.getExtension().compareToI(".m3u") == 0)
-        so |= PlayableCollection::SaveAsM3U;
-      if (filedialog.ulUser & FDU_RELATIV_ON)
-        so |= PlayableCollection::SaveRelativePath;
-      // now save
-      if (!playlist.Save(file, so))
-        amp_error(owner, "Failed to create playlist \"%s\". Error %s.", file.cdata(), xio_strerror(xio_errno()));
+    if (!amp_warn_if_overwrite(owner, cp))
+      goto retry;
+
+    // Deduce decoder and format from file dialog format.
+    int dec = amp_decoder_by_type(DECODER_PLAYLIST|DECODER_WRITABLE, filedialog.pszIType, format);
+    if (dec == -1)
+    { amp_info(owner, "The format to save cannot be guessed."
+                      " Please select an appropriate format to save in the file dialog.");
+      goto retry;
     }
+    decoder = Decoders[dec]->GetModuleName();
+
+    relative = (filedialog.ulUser & FDU_RELATIV_ON) != 0;
   }
+
+  if (dec_saveplaylist(dest, playlist, decoder, format, relative) != PLUGIN_OK)
+  { amp_error(owner, "Failed to create playlist \"%s\". Error %s.", dest.cdata(), xio_strerror(xio_errno()));
+    return xstring();
+  }
+  return dest;
 }
+
 
 /* Loads a skin selected by the user. */
 bool amp_loadskin()
 {
   FILEDLG filedialog;
-  APSZ types[] = {{ FDT_SKIN }, { 0 }};
+  APSZ types[] = {{ "PM123 Skin File (*.SKN)" }, { 0 }};
 
   memset( &filedialog, 0, sizeof( FILEDLG ));
 
@@ -411,7 +434,8 @@ bool amp_loadskin()
   filedialog.fl             = FDS_CENTER | FDS_OPEN_DIALOG;
   filedialog.pszTitle       = "Load PM123 skin";
   filedialog.papszITypeList = types;
-  filedialog.pszIType       = FDT_SKIN;
+  char type[_MAX_PATH] = "PM123 Skin File";
+  filedialog.pszIType       = type;
 
   sdrivedir( filedialog.szFullFile, cfg.defskin, sizeof( filedialog.szFullFile ));
   amp_file_dlg( HWND_DESKTOP, HWND_DESKTOP, &filedialog );
@@ -423,33 +447,6 @@ bool amp_loadskin()
   return false;
 }
 
-
-/* Returns TRUE if the save stream feature has been enabled. */
-void amp_save_stream( HWND hwnd, BOOL enable )
-{
-  if( enable )
-  {
-    FILEDLG filedialog;
-
-    memset( &filedialog, 0, sizeof( FILEDLG ));
-    filedialog.cbSize     = sizeof( FILEDLG );
-    filedialog.fl         = FDS_CENTER | FDS_SAVEAS_DIALOG | FDS_ENABLEFILELB;
-    filedialog.pszTitle   = "Save stream as";
-
-    strcpy( filedialog.szFullFile, cfg.savedir );
-    amp_file_dlg( HWND_DESKTOP, hwnd, &filedialog );
-
-    if( filedialog.lReturn == DID_OK ) {
-      if( amp_warn_if_overwrite( hwnd, filedialog.szFullFile ))
-      {
-        Ctrl::PostCommand(Ctrl::MkSave(filedialog.szFullFile), &amp_control_event_callback);
-        sdrivedir( cfg.savedir, filedialog.szFullFile, sizeof( cfg.savedir ));
-      }
-    }
-  } else {
-    Ctrl::PostCommand(Ctrl::MkSave(xstring()));
-  }
-}
 
 static USHORT amp_message_box( HWND owner, const char* title,
                              const char* message, ULONG style  )
@@ -464,8 +461,7 @@ static USHORT amp_message_box( HWND owner, const char* title,
     style |=  MB_APPLMODAL;
   }
 
-  return WinMessageBox( HWND_DESKTOP, owner, (PSZ)message,
-                                      padded_title, 0, style );
+  return WinMessageBox(HWND_DESKTOP, owner, (PSZ)message, padded_title, 0, style);
 }
 
 /* Creates and displays a error message window.
@@ -477,19 +473,23 @@ void amp_player_error( const char* format, ... )
   va_end(args);
 
   DEBUGLOG(("ERROR: %s\n", message.cdata()));
-  amp_message_box( amp_player_window(), "PM123 Error", message, MB_ERROR | MB_OK | MB_MOVEABLE );
+  // TODO: central logger
+  amp_message_box( GUI::GetFrameWindow(), "PM123 Error", message, MB_ERROR | MB_OK | MB_MOVEABLE );
 }
 
 /* Creates and displays a error message window.
    The specified owner window is disabled. */
-void amp_error( HWND owner, const char* format, ... )
-{ va_list args;
-  va_start(args, format);
-  xstring message = xstring::vsprintf(format, args);
-  va_end(args);
+void amp_verror( HWND owner, const char* format, va_list va )
+{ xstring message = xstring::vsprintf(format, va);
 
   DEBUGLOG(("ERROR: %x, %s\n", owner, message.cdata()));
   amp_message_box( owner, "PM123 Error", message, MB_ERROR | MB_OK | MB_MOVEABLE );
+}
+void amp_error( HWND owner, const char* format, ... )
+{ va_list args;
+  va_start(args, format);
+  amp_verror( owner, format, args );
+  va_end(args);
 }
 
 /* Creates and displays a message window. */
@@ -538,20 +538,14 @@ BOOL amp_warn_if_overwrite( HWND owner, const char* filename )
 }
 
 /* Tells the help manager to display a specific help window. */
-bool amp_show_help( SHORT resid )
+/*bool amp_show_help( SHORT resid )
 { DEBUGLOG(("amp_show_help(%u)\n", resid));
   return WinSendMsg( hhelp, HM_DISPLAY_HELP,
     MPFROMSHORT( resid ), MPFROMSHORT( HM_RESOURCEID )) == 0;
-}
-
-static BOOL EXPENTRY HelpHook(HAB hab, ULONG usMode, ULONG idTopic, ULONG idSubTopic, PRECTL prcPosition)
-{ DEBUGLOG(("HelpHook(%p, %x, %x, %x, {%li,%li, %li,%li})\n", hab,
-    usMode, idTopic, idSubTopic, prcPosition->xLeft, prcPosition->yBottom, prcPosition->xRight, prcPosition->yTop));
-  return FALSE;
-} 
+}*/
 
 /* global init */
-void dlg_init()
+/*void dlg_init()
 {
   xstring infname(startpath + "pm123.inf");
   struct stat fi;
@@ -576,11 +570,11 @@ void dlg_init()
   else
     PMRASSERT(WinAssociateHelpInstance(hhelp, amp_player_window()));
     
-  WinSetHook( amp_player_hab(), HMQ_CURRENT, HK_HELP, (PFN)&HelpHook, 0 );
+  WinSetHook( amp_player_hab(), HMQ_CURRENT, HK_HELP, (PFN)&HelpHook, 0 );  
 }
 
 void dlg_uninit()
 { if (hhelp != NULLHANDLE)
     WinDestroyHelpInstance(hhelp);
-}
+}*/
 

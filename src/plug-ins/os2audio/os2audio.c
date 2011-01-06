@@ -71,10 +71,10 @@
 static  const PLUGIN_CONTEXT* context;
 
 #define load_prf_value(var) \
-  context->query_profile(#var, &var, sizeof var)
+  context->plugin_api->profile_query(#var, &var, sizeof var)
 
 #define save_prf_value(var) \
-  context->write_profile(#var, &var, sizeof var)
+  context->plugin_api->profile_write(#var, &var, sizeof var)
 
 
 static int   device       = 0;

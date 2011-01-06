@@ -1,5 +1,5 @@
 /*
- * Copyright 2007-2008 M.Mueller
+ * Copyright 2007-2010 M.Mueller
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -31,9 +31,9 @@
 #define URL_H
 
 #include <cpp/xstring.h>
-#include <cpp/stringmap.h>
+#include <cpp/container/stringmap.h>
 
-/* class to handle PM123 URLs.
+/** class to handle PM123 URLs.
  *
  * The supported schemes are:
  *
@@ -74,38 +74,43 @@ class url123 : public xstring
   static void   parseParameter(stringmap& dest, const char* params);
   static const xstring makeParameter(const stringmap& params); 
   static bool*  parseBoolean(const char* val);
+  /// Normalize the given URL.
+  /// @param str URL to normalize. This may be either a file name or any URI scheme.
+  /// @return Normalized URL or \c NULL in case of an error.
+  /// @details This functions takes care of backslashes in file names and converts them to forward slash.
+  /// Furthermore /xxx/../ is reduced. (Not Unix compliant.)
   static const url123 normalizeURL(const char* str);
 
-  url123() {}
-  url123(const xstring& r) : xstring(r) {}
-  url123(const char* r)    : xstring(r) {}
+                url123() {}
+                url123(const xstring& r) : xstring(r) {}
+  explicit      url123(const char* r)    : xstring(r) {}
 
-  // Returns the path component of the url including a trailing slash.
+  /// Returns the path component of the url including a trailing slash. (Including protocol)
   const xstring getBasePath() const;
-  // Returns only the object name with extension
-  // This is the part after the basepath and before any query parameters (if any)
+  /// Returns only the object name with extension
+  /// This is the part after the basepath and before any query parameters (if any)
   const xstring getObjectName() const;
-  // This retuns that part of the object name that is likely to be a file extension.
-  // If no extension is found it returns an empty string.
+  /// This returns that part of the object name that is likely to be a file extension.
+  /// If no extension is found it returns an empty string.
   const xstring getExtension() const;
-  // Return query parameter if any or an empty string otherwise.
+  /// Return query parameter if any or an empty string otherwise.
   const xstring getParameter() const;
 
-  // Returns a simplified version of the url containing only the important part
-  // E.g. filenames are reported without file:///.
+  /// Returns a simplified version of the url containing only the important part
+  /// E.g. filenames are reported without file:///.
   const xstring getDisplayName() const;
-  // Returns only the object name without extension
-  // This is the part after the basepath and before any query parameters (if any)
+  /// Returns only the object name without extension
+  /// This is the part after the basepath and before any query parameters (if any)
   const xstring getShortName() const;
 
-  // test whether the url belongs to a given scheme
+  /// test whether the url belongs to a given scheme
   bool          isScheme(const char* scheme) const { return startsWithI(scheme); }
-  // Make the given URL absolute (if required) using the current object as starting point.
-  // If the URL is already absolute it will simply create a normalized URL.
+  /// Make the given URL absolute (if required) using the current object as starting point.
+  /// If the URL is already absolute it will simply create a normalized URL.
   const url123  makeAbsolute(const char* rel) const;
-  // Make URL relative (if possible) using root as starting point.
-  // This function makes use of ../ if required and useupdir is true.
-  // If this is not possible, the current URL is returned.
+  /// Make URL relative (if possible) using root as starting point.
+  /// This function makes use of ../ if required and \a useupdir is true.
+  /// If this is not possible, the current URL is returned.
   const xstring makeRelative(const char* root, bool useupdir = true) const;
 };
 

@@ -1,0 +1,373 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html><head><title>Playable object handling - Usage</title>
+
+
+  
+  <link type="text/css" href="../common/infstyle.css" rel="stylesheet">
+  <meta content="text/html; charset=ISO-8859-1" http-equiv="Content-Type"></head><body>
+<h2>PM123 Playable object handling - Usage</h2>
+<p>The following table shows the properties accessed per use case
+and the interface used for this purpose in the coding. In the second
+section the table shows the supported properties and interfaces by
+class/interface.</p>
+<p>R - read access<br>
+W - write access<br>
+O&nbsp;- observer<br>
+<i>Italic</i> indicates indirect usage through delegation.<br>
+lowercase letters indicate local access.<br>
+</p>
+<table border="1" cellpadding="3" cellspacing="0">
+  <tbody>
+    <tr style="vertical-align: bottom;">
+      <th>
+      <div style="float: right;">Property&nbsp;&#8594;</div>
+&#8595;&nbsp;Task&nbsp;&#8595;</th>
+      <th>Display<br>
+Name</th>
+      <th>Status</th>
+      <th>Info</th>
+      <th>Slice</th>
+      <th>Children</th>
+      
+      <th>Thread</th>
+      <th>Uses class</th>
+    </tr>
+    <tr>
+      <td>Loaded root object</td>
+      <td>&nbsp;</td>
+      <td>RW</td>
+      <td>RO</td>
+      <td>R</td>
+      <td><i>R</i></td>
+      
+      <td>controller</td>
+      <td><tt>APlayable</tt></td>
+    </tr>
+    <tr>
+      <td>Currently playing</td>
+      <td>R</td>
+      <td>RW</td>
+      <td>RO</td>
+      <td>&nbsp;</td>
+      <td>&nbsp;</td>
+      
+      <td>controller</td>
+      <td><tt>APlayable</tt></td>
+    </tr>
+    <tr>
+      <td>Decode an object</td>
+      <td>&nbsp;</td>
+      <td>&nbsp;</td>
+      <td>&nbsp;</td>
+      <td>R</td>
+      <td>&nbsp;</td>
+      
+      <td>decoder</td>
+      <td><tt>APlayable</tt></td>
+    </tr>
+    <tr>
+      <td>Calculate time offset</td>
+      <td>&nbsp;</td>
+      <td>&nbsp;</td>
+      <td>&nbsp;</td>
+      <td>R</td>
+      <td>&nbsp;</td>
+      
+      <td>controller</td>
+      <td><tt>APlayable</tt></td>
+    </tr>
+    <tr>
+      <td colspan="1" rowspan="1">Display timers and info</td>
+      <td>R</td>
+      <td>&nbsp;</td>
+      <td>R</td>
+      <td>&nbsp;</td>
+      <td>&nbsp;</td>
+      
+      <td>GUI</td>
+      <td><tt>APlayable</tt></td>
+    </tr>
+    <tr>
+      <td>Enumerate Songs, call stack entry</td>
+      <td>&nbsp;</td>
+      <td>R</td>
+      <td>&nbsp;</td>
+      <td>R</td>
+      <td><i>RO</i></td>
+      
+      <td>*</td>
+      <td><tt>CallstackEntry</tt></td>
+    </tr>
+    <tr>
+      <td>Show/edit a playlist</td>
+      <td>&nbsp;</td>
+      <td>RO</td>
+      <td>&nbsp;</td>
+      <td>&nbsp;</td>
+      <td>RWO</td>
+      
+      <td>GUI</td>
+      <td><tt>Playable</tt></td>
+    </tr>
+    <tr>
+      <td>Show/edit a playlist (items)</td>
+      <td>RO</td>
+      <td>RO</td>
+      <td>RWO</td>
+      <td>RO</td>
+      <td>&nbsp;</td>
+      
+      <td>GUI</td>
+      <td><tt>PlayableInstance</tt></td>
+    </tr>
+    <tr>
+      <td>Playlist item properties</td>
+      <td>&nbsp;</td>
+      <td>&nbsp;</td>
+      <td>RW</td>
+      <td>RO</td>
+      <td>&nbsp;</td>
+      
+      <td>GUI</td>
+      <td><tt>PlayableInstance</tt></td>
+    </tr>
+    <tr>
+      <td>Save a playlist</td>
+      <td>&nbsp;</td>
+      <td>&nbsp;</td>
+      <td>R</td>
+      <td>&nbsp;</td>
+      <td>R</td>
+      
+      <td>GUI</td>
+      <td><tt>Playable</tt></td>
+    </tr>
+    <tr>
+      <td>Save a playlist (items)</td>
+      <td>&nbsp;</td>
+      <td>&nbsp;</td>
+      <td>R</td>
+      <td>&nbsp;</td>
+      <td>&nbsp;</td>
+      
+      <td>GUI</td>
+      <td><tt>PlayableInstance</tt></td>
+    </tr>
+    <tr>
+      <td>Remote playlist manipulation</td>
+      <td>&nbsp;</td>
+      <td>&nbsp;</td>
+      <td>&nbsp;</td>
+      <td>&nbsp;</td>
+      <td>RW</td>
+      
+      <td>pipe</td>
+      <td><tt>Playable</tt></td>
+    </tr>
+    <tr>
+      <td>Remote playlist manipulation (items)</td>
+      <td>&nbsp;</td>
+      <td>&nbsp;</td>
+      <td>RW</td>
+      <td>R</td>
+      <td>&nbsp;</td>
+      
+      <td>pipe</td>
+      <td><tt>PlayableInstance</tt></td>
+    </tr>
+    <tr>
+      <td>Drag &amp; drop source</td>
+      <td>&nbsp;</td>
+      <td>&nbsp;</td>
+      <td>R</td>
+      <td>&nbsp;</td>
+      <td>&nbsp;</td>
+      
+      <td>GUI</td>
+      <td><tt>PlayableSlice</tt></td>
+    </tr>
+    <tr>
+      <td>Add a playlist item</td>
+      <td>&nbsp;</td>
+      <td>&nbsp;</td>
+      <td>R</td>
+      <td>&nbsp;</td>
+      <td>&nbsp;</td>
+      
+      <td>GUI</td>
+      <td><tt>PlayableRef</tt></td>
+    </tr>
+    <tr>
+      <td>Info dialog</td>
+      <td>&nbsp;</td>
+      <td>RO</td>
+      <td>RWO</td>
+      <td>&nbsp;</td>
+      <td>&nbsp;</td>
+      
+      <td>GUI</td>
+      <td><tt>Playable</tt></td>
+    </tr>
+    <tr>
+      <td>Add a bookmark</td>
+      <td>&nbsp;</td>
+      <td>&nbsp;</td>
+      <td>R<br>
+      </td>
+      <td>&nbsp;</td>
+      <td>&nbsp;</td>
+      
+      <td>GUI</td>
+      <td><tt>PlayableRef</tt></td>
+    </tr>
+    <tr>
+      <td>Display bookmark/MRU menu<br>
+      </td>
+      <td>RO</td>
+      <td>RO</td>
+      <td>&nbsp;</td>
+      <td>&nbsp;</td>
+      <td>RO</td>
+      
+      <td>GUI</td>
+      <td><tt>APlayable, Playable<br>
+      </tt></td>
+    </tr>
+    <tr>
+      <td>Add MRU</td>
+      <td>&nbsp;</td>
+      <td>&nbsp;</td>
+      <td>R<br>
+      </td>
+      <td>&nbsp;</td>
+      <td>&nbsp;</td>
+      
+      <td>GUI, pipe</td>
+      <td><tt>PlayableSlice</tt></td>
+    </tr>
+    <tr>
+      <td>Loading multiple items into PM123</td>
+      <td>&nbsp;</td>
+      <td>&nbsp;</td>
+      <td>R<br>
+      </td>
+      <td>&nbsp;</td>
+      <td>&nbsp;</td>
+      
+      <td>GUI, pipe</td>
+      <td><tt>PlayableRef</tt></td>
+    </tr>
+    <tr>
+      <td>Asynchronous request service</td>
+      <td>&nbsp;</td>
+      <td>&nbsp;</td>
+      <td>W</td>
+      <td>&nbsp;</td>
+      <td>&nbsp;</td>
+      
+      <td>worker</td>
+      <td><tt>APlayable</tt></td>
+    </tr>
+    <tr>
+      <td>Populating Playlist from decoder plug-in</td>
+      <td>&nbsp;</td>
+      <td>&nbsp;</td>
+      <td>w</td>
+      <td>&nbsp;</td>
+      <td>&nbsp;</td>
+      
+      <td>worker</td>
+      <td><tt>PlayableRef</tt></td>
+    </tr>
+    <tr style="vertical-align: bottom;">
+      <th>
+      <div style="float: right;">Property&nbsp;&#8594;</div>
+&#8595;&nbsp;Class&nbsp;&#8595;</th>
+      <th>Display<br>
+Name</th>
+      <th>Status</th>
+      <th>Info</th>
+      <th>Slice</th>
+      <th>Children</th>
+      
+      <th>thread-safe</th>
+      <th>Base class</th>
+    </tr>
+    <tr>
+      <td><tt>APlayable</tt></td>
+      <td>RO</td>
+      <td>RWO</td>
+      <td>RO</td>
+      <td>RO</td>
+      <td><span style="font-style: italic;">O</span><i><br>
+      </i></td>
+      
+      <td align="center">RW<br>
+      </td>
+      <td><tt>&nbsp;</tt></td>
+    </tr>
+    <tr>
+      <td><tt>Playable</tt></td>
+      <td><b>RO</b></td>
+      <td><b>RWO</b></td>
+      <td><b>RWO</b></td>
+      <td><b>ro</b></td>
+      <td><b>RWO</b></td>
+      
+      <td align="center">RW<br>
+      </td>
+      <td><tt>APlayable</tt></td>
+    </tr>
+    <tr>
+      <td><tt>PlayableSlice</tt></td>
+      <td><i><b>RO</b></i></td>
+      <td><i><b>RWO</b></i></td>
+      <td><b>RO</b></td>
+      <td><b>RO</b></td>
+      <td style="font-style: italic;">O&nbsp; </td>
+      
+      <td align="center">-</td>
+      <td>
+      <p><tt>APlayable</tt></p>
+      </td>
+    </tr>
+    <tr>
+      <td><tt>PlayableRef</tt></td>
+      <td><b>RO</b></td>
+      <td><i>RWO</i><b><br>
+      </b></td>
+      <td><b>RWO</b></td>
+      <td>RO</td>
+      <td style="font-style: italic;">O</td>
+      
+      <td align="center">R</td>
+      <td><tt>PlayableSlice</tt></td>
+    </tr>
+    <tr>
+      <td><tt>PlayableInstance</tt></td>
+      <td>RO</td>
+      <td><b>RWO</b></td>
+      <td>RWO</td>
+      <td>RO</td>
+      <td style="font-style: italic;">O</td>
+      
+      <td align="center">R</td>
+      <td><tt>PlayableRef</tt></td>
+    </tr>
+    <tr>
+      <td><tt>CallstackEntry</tt></td>
+      <td><b>RO</b></td>
+      <td><i>RWO</i></td>
+      <td>RO</td>
+      <td>RO</td>
+      <td style="font-style: italic;">O</td>
+      
+      <td align="center">-</td>
+      <td><tt>PlayableSlice</tt></td>
+    </tr>
+  </tbody>
+</table>
+<p>lowercase letters indicate protected access.<br>
+<b>Bold</b> indicates implementation/redefinition.<br>
+<i>Italic</i> indicates indirect support through a referenced object.</p>
+</body></html>

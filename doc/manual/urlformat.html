@@ -1,8 +1,10 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
 <html resid="1026" level="3" sublinks="playlist_cmi.html"><head>
-<meta content="text/html;charset=ISO-8859-1" http-equiv="Content-Type"><title>Supported URL types</title>
+<meta content="text/html;charset=ISO-8859-1" http-equiv="Content-Type">
 
-<link rel="stylesheet" href="infstyle.css" type="text/css"></head>
+<title>Supported URL types</title>
+<link rel="stylesheet" href="../common/infstyle.css" type="text/css"></head>
+
 <body>
 <h2>PM123s supported URL types<br>
 </h2>
@@ -11,11 +13,7 @@ you can play or enumerate. With the standard plug-ins the following URL
 types are supported:</p>
 <h3><a name="file"></a>File URLs</h3>
 <blockquote>
-<pre>file:///E:/AUDIO/4CD/sascha m&uuml;ller/01.mp3
-file://server/share/AUDIO/4CD/sascha m&uuml;ller/01.mp3
-
-E:/AUDIO/4CD/sascha m&uuml;ller/01.mp3
-//server/share/AUDIO/4CD/sascha m&uuml;ller/01.mp3</pre>
+<pre>file:///E:/AUDIO/4CD/sascha m&uuml;ller/01.mp3<br>file://server/share/AUDIO/4CD/sascha m&uuml;ller/01.mp3<br><br>E:/AUDIO/4CD/sascha m&uuml;ller/01.mp3<br>//server/share/AUDIO/4CD/sascha m&uuml;ller/01.mp3</pre>
 </blockquote>
 <p>On input PM123 accepts ordinary file names without the <tt>file:///</tt>&nbsp;prefix too. This ensures compatibility with applications that are not
 aware of URLs in most cases.</p>
@@ -92,7 +90,7 @@ server too.</p>
 <p>To identify tracks on a CD-ROM drive PM123 uses the following
 syntax:</p>
 <blockquote>
-<pre>cdda:///J:/Track 01<br>cd:///J:/Track 01</pre>
+<pre>cdda:///J:/Track 01<br>cd:///J:/Track 01<br><br>cdda:///J:/</pre>
 </blockquote>
-<h3><a name="other"></a>Other, plug-in specific URLs</h3><p>Depending on the plug-ins installed almost any other URL type <i>might</i> be supported. For example the <a href="os2rec.html">recording plug-in</a> supports URLs starting with <tt>record://</tt>.</p>
+<p>The latter one identifies an entire disc. This a playlist like object.</p><h3><a name="other"></a>Other, plug-in specific URLs</h3><p>Depending on the plug-ins installed almost any other URL type <i>might</i> be supported. For example the <a href="os2rec.html">recording plug-in</a> supports URLs starting with <tt>record://</tt>.</p>
 </body></html>

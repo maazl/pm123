@@ -1,8 +1,8 @@
 /*
  * Copyright 1997-2003 Samuel Audet  <guardia@step.polymtl.ca>
- *                     Taneli Lepp„  <rosmo@sektori.com>
+ *                     Taneli Leppï¿½  <rosmo@sektori.com>
  * Copyright 2004-2006 Dmitry A.Steklenev <glass@ptv.ru>
- * Copyright 2006-2008 Marcel Mueller
+ * Copyright 2006-2009 Marcel Mueller
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -38,7 +38,7 @@
 #include <output_plug.h>
 #include <decoder_plug.h>
 #include "playable.h"
-#include <cpp/stringmap.h>
+//#include <cpp/constainer/stringmap.h>
 #include <os2.h>
 
 
@@ -48,32 +48,44 @@
 *  Not thread safe
 *
 ****************************************************************************/
-/* invoke decoder to play an URL */
-ULONG dec_play( const Song* song, double offset, double start, double stop );
-/* stop the current decoder immediately */
-ULONG dec_stop( void );
-/* set fast forward/rewind mode */
-ULONG dec_fast( DECFASTMODE mode );
-/* jump to absolute position */
-ULONG dec_jump( double location );
-/* set savefilename to save the raw stream data */
-ULONG dec_save( const char* file );
-/* save ID3-data to the given file */
-ULONG dec_saveinfo( const char* url, const META_INFO* info, int haveinfo, const char* decoder_name );
-/* call special decoder dialog to edit ID3-data of the given file */
+/// Invoke decoder to play an URL
+ULONG dec_play(const APlayable& song, PM123_TIME offset, PM123_TIME start, PM123_TIME stop);
+/// Stop the current decoder immediately
+ULONG dec_stop();
+/// Set fast forward/rewind mode
+ULONG dec_fast(DECFASTMODE mode);
+/// Jump to absolute position
+ULONG dec_jump(PM123_TIME location);
+/// Set savefilename to save the raw stream data
+ULONG dec_save(const char* file);
+/// Save ID3-data to the given file
+ULONG dec_saveinfo(const char* url, const META_INFO* info, int haveinfo, const char* decoder);
+/// Save Playlist to file
+ULONG dec_saveplaylist(const char* url, Playable& playlist, const char* decoder, const char* format, bool relative);
+/// call special decoder dialog to edit ID3-data of the given file
 ULONG dec_editmeta( HWND owner, const char* url, const char* decoder_name );
-/* get the minimum sample position of a block from the decoder since the last dec_play */
+/// get the minimum sample position of a block from the decoder since the last dec_play
 double dec_minpos();
-/* get the maximum sample position of a block from the decoder since the last dec_play */
+/// get the maximum sample position of a block from the decoder since the last dec_play
 double dec_maxpos();
-// Decoder events
+/// Decoder events
 typedef struct
 { DECEVENTTYPE type;
   void*        param;
 } dec_event_args;
 extern event<const dec_event_args> dec_event;
-// Output events
+
+/// Output events
 extern event<const OUTEVENTTYPE> out_event;
+
+class IFileTypesEnumerator
+{public:
+  virtual ~IFileTypesEnumerator() {}
+  virtual const DECODER_FILETYPE* GetCurrent() const = 0;
+  virtual int GetDecoder() const = 0;
+  virtual bool Next() = 0;
+};
+IFileTypesEnumerator* dec_filetypes(DECODER_TYPE flagsreq);  
 
 /****************************************************************************
 *
@@ -84,16 +96,16 @@ extern event<const OUTEVENTTYPE> out_event;
 /* check whether the specified decoder is currently in use */
 BOOL  dec_is_active( int number );
 
-ULONG DLLENTRY dec_fileinfo( const char* filename, INFOTYPE* what, DECODER_INFO2* info, char* name, size_t name_size );
-ULONG DLLENTRY dec_cdinfo( const char* drive, DECODER_CDINFO* info );
+ULONG DLLENTRY dec_fileinfo( const char* filename, int* what, INFO_BUNDLE* info,
+                             DECODER_INFO_ENUMERATION_CB cb, void* param );
 
 ULONG DLLENTRY dec_status( void );
 double DLLENTRY dec_length( void );
 
 /* gets a merged list of the file extensions supported by the enabled decoders */
-void dec_merge_extensions(stringset& list);
+//void dec_merge_extensions(stringset& list);
 /* gets a merged list of the file types supported by the enabled decoders */
-void dec_merge_file_types(stringset& list);
+//void dec_merge_file_types(stringset& list);
 
 /****************************************************************************
 *
@@ -101,7 +113,7 @@ void dec_merge_file_types(stringset& list);
 *  Not thread safe
 *
 ****************************************************************************/
-ULONG out_setup( const Song* song );
+ULONG out_setup( const APlayable& song );
 ULONG out_close( void );
 void  out_set_volume( double volume ); // volume: [0,1]
 ULONG out_pause( BOOL pause );
@@ -125,9 +137,9 @@ BOOL  DLLENTRY out_playing_data( void );
 *
 ****************************************************************************/
 /* initialize non-skinned visual plug-in */
-bool  vis_init(size_t i);
+bool  vis_init(HWND owner, size_t i);
 /* initialize all skinned/non-skinned visual plug-ins */
-void  vis_init_all(bool skin);
+void  vis_init_all(HWND owner, bool skin);
 void  vis_broadcast( ULONG msg, MPARAM mp1, MPARAM mp2 );
 /* deinitialize visual plug-in */
 bool  vis_deinit(size_t i);

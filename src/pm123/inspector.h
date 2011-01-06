@@ -32,9 +32,9 @@
 #define INCL_WIN
 #define INCL_BASE
 #include "windowbase.h"
-#include "controller.h"
 #include <cpp/smartptr.h>
 #include <cpp/queue.h>
+#include <cpp/container/vector.h>
 #include <os2.h>
 
 
@@ -52,8 +52,8 @@ class InspectorDialog
   };
 
  private:
-   vector<char>     ControllerData;
-   vector<char>     WorkerData;
+  vector<char>      ControllerData;
+  vector<char>      WorkerData;
 
  private: // non copyable
                     InspectorDialog(const InspectorDialog&);

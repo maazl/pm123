@@ -100,10 +100,10 @@ static const float Frequencies[NUM_BANDS] =
 static const PLUGIN_CONTEXT* context;
 
 #define load_prf_value(var) \
-  context->query_profile(#var, &var, sizeof var)
+  context->plugin_api->profile_query(#var, &var, sizeof var)
 
 #define save_prf_value(var) \
-  context->write_profile(#var, &var, sizeof var)
+  context->plugin_api->profile_write(#var, &var, sizeof var)
 
 static BOOL eqneedinit;
 static BOOL eqneedFIR;
@@ -176,19 +176,18 @@ static enum
 typedef struct {
 
    ULONG  DLLENTRYP(output_command)       ( void* a, ULONG msg, OUTPUT_PARAMS2* info );
-   int    DLLENTRYP(output_request_buffer)( void* a, const FORMAT_INFO2* format, short** buf );
-   void   DLLENTRYP(output_commit_buffer) ( void* a, int len, double posmarker );
+   int    DLLENTRYP(output_request_buffer)( void* a, const TECH_INFO* format, short** buf );
+   void   DLLENTRYP(output_commit_buffer) ( void* a, int len, PM123_TIME posmarker );
    void*  a;
-   void   DLLENTRYP(error_display)        ( const char* );
 
-   FORMAT_INFO2 format;
+   TECH_INFO format;
 
-   double posmarker;  // starting point of the inbox buffer
-   int    inboxlevel; // number of samples in inbox buffer
-   int    latency;    // samples to discard before passing them to the output stage
-   BOOL   enabled;    // flag whether the EQ was enabled at the last call to request_buffer
-   BOOL   discard;    // TRUE: discard buffer content before next request_buffer
-   double temppos;    // Position returned during discard
+   PM123_TIME posmarker; // starting point of the inbox buffer
+   int    inboxlevel;    // number of samples in inbox buffer
+   int    latency;       // samples to discard before passing them to the output stage
+   BOOL   enabled;       // flag whether the EQ was enabled at the last call to request_buffer
+   BOOL   discard;       // TRUE: discard buffer content before next request_buffer
+   PM123_TIME temppos;   // Position returned during discard
 
 } REALEQ_STRUCT;
 
@@ -205,7 +204,7 @@ save_ini( void )
   save_prf_value ( eqenabled );
   save_prf_value ( locklr );
   save_prf_value ( eqstate );
-  context->write_profile( "lasteq", lasteq, strlen(lasteq) );
+  context->plugin_api->profile_write( "lasteq", lasteq, strlen(lasteq) );
   save_prf_value ( bandgain );
   save_prf_value ( groupdelay );
   save_prf_value ( mute );
@@ -426,7 +425,7 @@ fil_setup( REALEQ_STRUCT* f )
   FFT.FIRorder >>= 4-min(4,i); // / 2**(4-i)
 
   if( FFT.FIRorder < 2 || FFT.FIRorder >= FFT.plansize)
-  { (*f->error_display)("very bad! The FIR order and/or the FFT plansize is invalid or the FIRorder is higer or equal to the plansize.");
+  { (*context->plugin_api->error_display)("very bad! The FIR order and/or the FFT plansize is invalid or the FIRorder is higer or equal to the plansize.");
     eqenabled = FALSE; // avoid crash
     return FALSE;
   }
@@ -764,14 +763,14 @@ do_request_buffer( REALEQ_STRUCT* f, short** buf )
     *buf = NULL; // discard
     return f->latency;
   } else
-  { FORMAT_INFO2 fi = f->format;
+  { TECH_INFO fi = f->format;
     fi.channels = 2; // result is always stereo
     return (*f->output_request_buffer)( f->a, &fi, buf );
   }
 }
 
 static void
-do_commit_buffer( REALEQ_STRUCT* f, int len, double posmarker )
+do_commit_buffer( REALEQ_STRUCT* f, int len, PM123_TIME posmarker )
 { DEBUGLOG(("realeq:do_commit_buffer(%p, %d, %f) - %d\n", f, len, posmarker, f->latency));
   if (f->latency != 0)
   { f->latency -= len;
@@ -874,12 +873,12 @@ local_flush( REALEQ_STRUCT* f )
 
 /* Entry point: do filtering */
 static int DLLENTRY
-filter_request_buffer( REALEQ_STRUCT* f, const FORMAT_INFO2* format, short** buf )
+filter_request_buffer( REALEQ_STRUCT* f, const TECH_INFO* format, short** buf )
 { BOOL enabled;
   #ifdef DEBUG_LOG
   if (format != NULL)
-    DEBUGLOG(("realeq:filter_request_buffer(%p, {%u, %u, %u}, %p) - %d %d\n",
-     f, format->size, format->samplerate, format->channels, buf, f->inboxlevel, f->latency));
+    DEBUGLOG(("realeq:filter_request_buffer(%p, {%u, %u}, %p) - %d %d\n",
+     f, format->samplerate, format->channels, buf, f->inboxlevel, f->latency));
    else
     DEBUGLOG(("realeq:filter_request_buffer(%p, %p, %p) - %d %d\n", f, format, buf, f->inboxlevel, f->latency));
   #endif
@@ -928,7 +927,7 @@ filter_request_buffer( REALEQ_STRUCT* f, const FORMAT_INFO2* format, short** buf
 }
 
 static void DLLENTRY
-filter_commit_buffer( REALEQ_STRUCT* f, int len, double posmarker )
+filter_commit_buffer( REALEQ_STRUCT* f, int len, PM123_TIME posmarker )
 {
   DEBUGLOG(("realeq:filter_commit_buffer(%p, %u, %f) - %d %d\n", f, len, posmarker, f->inboxlevel, f->latency));
 
@@ -954,11 +953,16 @@ filter_command( REALEQ_STRUCT* f, ULONG msg, OUTPUT_PARAMS2* info )
 { DEBUGLOG(("realeq:filter_command(%p, %u, %p)\n", f, msg, info));
   switch (msg)
   {case OUTPUT_SETUP:
-    if (info->formatinfo.channels == 1 && eqenabled)
-      info->formatinfo.channels = 2;
+    if (info->info->tech->channels == 1 && eqenabled)
+    { INFO_BUNDLE_CV ib = *info->info;
+      TECH_INFO ti = *ib.tech;
+      ti.channels = 2;
+      ib.tech = &ti;
+      info->info = &ib;
+    }
     break;
    case OUTPUT_TRASH_BUFFERS:
-    f->temppos = info->temp_playingpos;
+    f->temppos = info->playingpos;
     f->discard = TRUE;
     break;
    case OUTPUT_CLOSE:
@@ -986,18 +990,16 @@ filter_init( void** F, FILTER_PARAMS2* params )
   f->output_request_buffer = params->output_request_buffer;
   f->output_commit_buffer  = params->output_commit_buffer;
   f->a                     = params->a;
-  f->error_display         = params->error_display;
   f->inboxlevel            = 0;
   f->enabled               = FALSE; // flag is set later
   f->discard               = TRUE;
 
-  f->format.size           = sizeof f->format;
   f->format.samplerate     = 0;
   f->format.channels       = 0;
 
-  params->output_command        = (ULONG DLLENTRYP()(void*, ULONG, OUTPUT_PARAMS2*))      &filter_command;
-  params->output_request_buffer = (int   DLLENTRYP()(void*, const FORMAT_INFO2*, short**))&filter_request_buffer;
-  params->output_commit_buffer  = (void  DLLENTRYP()(void*, int, double))                 &filter_commit_buffer;
+  params->output_command        = (ULONG DLLENTRYP()(void*, ULONG, OUTPUT_PARAMS2*))   &filter_command;
+  params->output_request_buffer = (int   DLLENTRYP()(void*, const TECH_INFO*, short**))&filter_request_buffer;
+  params->output_commit_buffer  = (void  DLLENTRYP()(void*, int, PM123_TIME))          &filter_commit_buffer;
   return 0;
 }
 
@@ -1009,7 +1011,6 @@ filter_update( void *F, const FILTER_PARAMS2 *params )
   f->output_request_buffer = params->output_request_buffer;
   f->output_commit_buffer  = params->output_commit_buffer;
   f->a                     = params->a;
-  f->error_display         = params->error_display;
   DosExitCritSec();
 }
 

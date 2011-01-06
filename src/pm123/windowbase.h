@@ -139,4 +139,3 @@ MRESULT DialogSubWindow<W>::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
 }*/
 
 #endif
-

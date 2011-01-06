@@ -1,5 +1,5 @@
 /*
- * Copyright 2007-2007 M.Mueller
+ * Copyright 2007-2010 M.Mueller
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -35,8 +35,8 @@
 #include <cpp/container/sorted_vector.h>
 
 
-/* Class to implement ICompareableTo for comparsion with myself and instance equality semantic.
- * The comparer provides an unspecified but stable order.
+/** @brief Class to implement \c ICompareableTo for comparison with myself and instance equality semantic.
+ * @details The comparer provides an unspecified but stable order.
  */
 template <class T>
 class InstanceCompareable : public IComparableTo<T>
@@ -51,14 +51,14 @@ int InstanceCompareable<T>::compareTo(const T& key) const
 }
 
 
-/* Class to implement a repository of all objects instances of a certain type
- * identified by a key K.
- * The Instances of type T must implement Iref_Count and ICompareable<K>
- * and both must be /before/ inst_index in the base class list to avoid undefined bahavior.
- * Classes of type T must inherit from inst_index<T, K> to implement this feature.
+/** @brief Class to implement a repository of all objects instances of a certain type
+ * identified by a key \c K.
+ * @details The Instances of type T must implement \c Iref_Count and \c ICompareable<K>
+ * and both must be \e before \c inst_index in the base class list to avoid undefined behavior.
+ * Classes of type \c T must inherit from \c inst_index<T,K> to implement this feature.
  * You must redefine the static function GetByKey to provide a suitable factory
- * for new T instances. In the easiest case this is simply a call to new T(key).
- * The repository below does not handle the ownership of to the T instances.
+ * for new \c T instances. In the easiest case this is simply a call to new \c T(key).
+ * The repository below does not handle the ownership of to the \c T instances.
  * The class instances also do not hold the ownership of the keys.
  * The lifetime management must be done somewhere else.
  * The class is thread-safe.
@@ -66,11 +66,11 @@ int InstanceCompareable<T>::compareTo(const T& key) const
 template <class T, class K>
 class inst_index
 {public:
-  // abstract factory interface used for object instantiation
+  /// Abstract factory interface used for object instantiation.
   struct IFactory
   { virtual T* operator()(K& key) = 0;
   };
-  // Reques an exclusive read-only access to the index repository.
+  /// Requests an exclusive read-only access to the index repository.
   class IXAccess;
   friend class IXAccess;
   class IXAccess : public Mutex::Lock
@@ -84,6 +84,7 @@ class inst_index
   };
 
  public:
+  /// The primary key of this object.
   const  K          Key;
  private:
   bool              InIndex; // Object is already registered in the index.
@@ -94,12 +95,13 @@ class inst_index
  protected: // It does not make sense to create objects of this type directly.
   inst_index(const K& key) : Key(key), InIndex(false) {}
   ~inst_index();
- public:
-  // Get an existing instance of T or return NULL.
-  static int_ptr<T> FindByKey(const K& key);
- protected:
-  // Get an existing instance of T or create a new one.
+  /// @brief Get an existing instance of \c T or create a new one.
+  /// @details Subclasses usually should provide a method that provides
+  /// an appropriate factory. Therefore tie method is protected.
   static int_ptr<T> GetByKey(K& key, IFactory& factory);
+ public:
+  /// Get an existing instance of \c T or return \c NULL.
+  static int_ptr<T> FindByKey(const K& key);
 };
 
 template <class T, class K>
@@ -156,7 +158,7 @@ int_ptr<T> inst_index<T,K>::GetByKey(K& key, IFactory& factory)
     // There is nothing to delete since we did not yet assign anything.
     Index.erase(key);
   } else
-  { // Succseeded => assign the newly created instance.
+  { // Succeeded => assign the newly created instance.
     pf->InIndex = true;
     p = pf;
   }
@@ -167,6 +169,16 @@ template <class T, class K>
 sorted_vector<T,K> inst_index<T,K>::Index;
 template <class T, class K>
 Mutex inst_index<T,K>::Mtx;
-
+// Due to the nature of the repository comparing instances is equivalent
+// to comparing the pointers, because the key of different instances
+// MUST be different and there are no two instances with the same key.
+template <class T, class K>
+inline bool operator==(const inst_index<T,K>& l, const inst_index<T,K>& r)
+{ return &l == &r;
+}
+template <class T, class K>
+inline bool operator!=(const inst_index<T,K>& l, const inst_index<T,K>& r)
+{ return &l != &r;
+}
 
 #endif

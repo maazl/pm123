@@ -26,12 +26,12 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include "fileutil.h"
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 #include <ctype.h>
-
-#include "rel2abs.h"
 
 #define  C_DIR_SEPARATOR '\\'
 #define  C_URL_SEPARATOR '/'

@@ -2,7 +2,7 @@
 #  makefile for the whole pm123 package
 #
 
-VERSION = 1.40a4
+VERSION = 1.41a1
 PARTS   = src\utils\utilfct$(LBO) src\utils\cpp\cpputil$(LBO) src\gbm123\libgbm$(LBO)
 PARTS   = $(PARTS) src\fft123\fft123.dll
 PARTS   = $(PARTS) src\xio123\xio123.dll
@@ -333,7 +333,7 @@ distfiles: distclean $(PARTS) $(MDUMMY)
 	copy src\pm123\pm123.exe dist\files
 	copy src\pm123\default.skn dist\files
 	copy src\skinutil\skinutil.exe dist\files
-	copy doc\history.html dist\files
+	copy doc\common\history.html dist\files
 	copy doc\pm123.inf dist\files
 	copy doc\pm123_pdk.inf dist\files\pdk
 	copy src\WPS\icons\*.ico dist\files\icons

@@ -47,9 +47,9 @@
 *
 *  Class to view the content of a PlayableCollection as menu structure.
 *
-*  All instances of this class MUST be created with new PlaylistMenu(...).
+*  All instances of this class \e must be created with \c new \c PlaylistMenu(...).
 *  The class has automatic lifetime management. That is it is automatically
-*  deleted when the owner Window receives a WM_DESTROY message.
+*  deleted when the owner Window receives a \c WM_DESTROY message.
 *  However, you might delete it earlier. But be careful if the owner window
 *  handle is subclassed after the creation of this class.
 *
@@ -66,43 +66,42 @@ class PlaylistMenu
     Enumerate       = 0x02, // Enumerate items
     Separator       = 0x04, // Place separator before and after the generated entries unless it's the beginning/end
     Recursive       = 0x10, // create submenus for playlist or folder items
-    SkipInvalid     = 0x20  // exclude invalid entries.
+    SkipInvalid     = 0x20, // exclude invalid entries.
+    Prefetch        = 0x40  // Prefetch list content of next menu level.
   };
   enum // The ID's here must be distinct from the user messages of any other window.
   { // This message is internally used by this class to notify changes of the selected items.
+    // mp2 MapEntry* for the ID. This is used for validation.
     UM_LATEUPDATE = WM_USER+0x201,
     // Status of the underlying Playable object of a menu item arrived.
     // mp1 id of the subitem
     // mp2 MapEntry* for the ID. This is used for validation.
     UM_UPDATESTAT,
     // This message is send to the owner of the menu when a generated subitem of the menu is selected.
-    // mp1 is set to a pointer to a select_data structure. The pointer is only valid while the message is sent.
+    // mp1 is set to a pointer to APlayable. The pointer is only valid while the message is sent.
     // mp2 is the user parameter passed to AttachMenu.
-    UM_SELECTED
+    UM_SELECTED,
+    // This message is posted to ourself to delay the destruction of the menu items
+    // until WM_COMMAND arrives.
+    // mp1 id of the subitem
+    // mp2 MapEntry* for the ID.
+    UM_MENUEND
   };
 
  private:
-  class MapEntry;
-  friend class MapEntry;
-  class MapEntry : public IComparableTo<USHORT>
-  {public:
-    PlaylistMenu&   Owner;       // Owning PlaylistMenu instance.
-    const USHORT    IDMenu;      // Menu item ID, primary key
-    const HWND      HwndParent;  // Menu window handle.
-    HWND            HwndSub;     // Sub menu window handle. Not Valid until WM_INITMENU of the submenu if any.
-    int_ptr<PlayableSlice> Data; // Backend data
+  struct MapEntry : public IComparableTo<USHORT>
+  { const USHORT    IDMenu;      // Menu item ID, primary key
+    MapEntry*       Parent;      // Parent Menu item or NULL in case of root.
+    HWND            HwndSub;     // Sub menu window handle. Not valid until WM_INITMENU of the submenu if any.
+    int_ptr<APlayable> Data;     // Backend data
     EntryFlags      Flags;
     const MPARAM    User;        // User param from AttachMenu. Inherited to submenus.
     USHORT          ID1;         // First generated item ID or MID_NONE (if none)
     USHORT          Pos;         // ID of the first object after the last generated entry or MIT_END if this is the end of the menu.
-    xstring         Text;        // Strong reference to the text.
-    class_delegate<MapEntry, const Playable::change_args> InfoDelegate;
-   public:
-    MapEntry(PlaylistMenu& owner, USHORT id, PlayableInstance& data, MapEntry& parent, SHORT pos);
-    MapEntry(PlaylistMenu& owner, USHORT id, Playable* data, EntryFlags flags, MPARAM user, SHORT pos);
+    class_delegate2<PlaylistMenu, const PlayableChangeArgs, MapEntry> InfoDelegate;
+
+    MapEntry(USHORT id, MapEntry* parent, APlayable& data, EntryFlags flags, MPARAM user, SHORT pos, PlaylistMenu& owner, void (PlaylistMenu::*infochg)(const PlayableChangeArgs&, MapEntry*));
     virtual int     compareTo(const USHORT& key) const;
-   private:
-    void            InfoChangeCallback(const Playable::change_args& args);
   };
 
  private:
@@ -117,36 +116,48 @@ class PlaylistMenu
   MapEntry*         UpdateEntry;
 
  private:
-  // Dialog procedure, called by DlgProcStub
+  /// Dialog procedure, called by DlgProcStub
   MRESULT           DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2);
   friend MRESULT EXPENTRY pm_DlgProcStub(PlaylistMenu* that, ULONG msg, MPARAM mp1, MPARAM mp2);
 
-  // Fetch and reserve free menu ID
-  // Start Searching after "start". This is an optimization.
+  /// @brief Fetch and reserve free menu ID
   USHORT            AllocateID();
+  /// Create a sub menu for \a mi.
+  void              CreateSubMenu(MENUITEM& mi, HWND parent);
+  /// Insert a menu separator at position \a where.
   USHORT            InsertSeparator(HWND menu, SHORT where);
-  // Create Subitems according to the content of the playable object
+  /// Create a dummy entry at position \a where into a \a menu.
+  USHORT            InsertDummy(HWND menu, SHORT where, const char* text);
+  /// Create sub items according to the content of the playable object
   void              CreateSubItems(MapEntry* mapp);
-  // Removes all matching items from the menu
+  /// Removes all matching items from the menu
   void              RemoveSubItems(MapEntry* mapp);
-  // Removes map entry including sub items.
+  /// Removes map entry including sub items.
   void              RemoveMapEntry(MapEntry* mapp);
-  // Removes map entry including sub items.
+  /// Removes map entry including sub items.
   void              RemoveMapEntry(USHORT mid);
+  /// Update menu item
+  void              UpdateItem(MapEntry* mapp);
 
- private:
-  void              ResetDelegate();
-  void              ResetDelegate(MapEntry* mapp);
+  /// Called from \c APlayable->InfoChange when a menu item changes.
+  void              InfoChangeHandler(const PlayableChangeArgs& args, MapEntry* mapp);
+
+ private: // non-copyable
+                    PlaylistMenu(const PlaylistMenu&);
+  void              operator=(const PlaylistMenu&);
+ public:
+                    PlaylistMenu(HWND owner, USHORT mid1st, USHORT midlast);
+                    ~PlaylistMenu();
+  /// @brief Attach a submenu to a playlist.
+  /// @details This replaces all items in the menu with IDs in the range [mid1st,midlast)
+  /// by the content of the playlist. Nested playlists will show as submenus.
+  /// If the IDs are not sufficient the content is truncated. But the IDs to nested items
+  /// are only assigned if a submenu is opened.
+  bool              AttachMenu(USHORT menuid, APlayable& data, EntryFlags flags, MPARAM user, USHORT pos = (USHORT)MID_NONE);
 
  public:
-  PlaylistMenu(HWND owner, USHORT mid1st, USHORT midlast);
-                    ~PlaylistMenu();
-  // Attach a submenu to a PlayableCollection.
-  // This replaces all items in the menu with IDs in the range [mid1st,midlast)
-  // by the content of the PlayableCollection. Nested playlists will show as submenus.
-  // If the IDs are not sufficient the content is truncated. But the IDs to nested items
-  // are only assigned if the submenu is opened.
-  bool              AttachMenu(USHORT menuid, Playable* data, EntryFlags flags, MPARAM user, USHORT pos = (USHORT)MID_NONE);
+  /// Maximum number of menu items in one sub menu. Larger playlists are truncated.
+  size_t            MaxMenu;
 };
 
 FLAGSATTRIBUTE(PlaylistMenu::EntryFlags);

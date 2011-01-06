@@ -1,6 +1,6 @@
 /*
  * Copyright 1997-2003 Samuel Audet  <guardia@step.polymtl.ca>
- *                     Taneli Lepp„  <rosmo@sektori.com>
+ *                     Taneli LeppÃ¤  <rosmo@sektori.com>
  * Copyright 2004-2005 Dmitry A.Steklenev <glass@ptv.ru>
  * Copyright 2007-2008 Marcel Mueller
  *
@@ -35,18 +35,22 @@
 //#define  INCL_DEV
 #define  INCL_BITMAPFILEFORMAT
 
-#include "properties.h"
 #include "skin.h"
+#include "properties.h"
+#include "glue.h"
 #include "pm123.h"
 #include "dialog.h"
 #include "pm123.rc.h"
 #include "button95.h"
 #include "plugman.h"
+#include <visual_plug.h>
 #include <gbm.h>
 #include <gbmerr.h>
 #include <gbmht.h>
+#include <minmax.h>
 #include <strutils.h>
 #include <fileutil.h>
+#include <strutils.h>
 #include <os2.h>
 
 #include <stdio.h>
@@ -54,7 +58,7 @@
 #include <string.h>
 #include <malloc.h>
 #include <memory.h>
-#include <io.h>
+#include <sys/io.h>
 #include <fcntl.h>
 #include <ctype.h>
 #include <sys/types.h>
@@ -73,7 +77,7 @@ static char    visual_param[256];
 #define HAVE_BITBLT_BUG
 
 /* New characters needed: "[],%" 128 - 255 */
-static const char AMP_CHARSET[] = "abcdefghijklmnopqrstuvwxyz-_&.0123456789 ()„”:,+%[]";
+static const char AMP_CHARSET[] = "abcdefghijklmnopqrstuvwxyz-_&.0123456789 ()??:,+%[]";
 static const int  LEN_CHARSET   = sizeof( AMP_CHARSET ) - 1;
 
 /* The set of variables used during a text scroll. */
@@ -425,7 +429,7 @@ bmp_load_bitmap( const char* filename )
 /* Draws a bitmap using the current image colors and mixes. */
 static void
 bmp_draw_bitmap( HPS hps, int x, int y, int res )
-{ DEBUGLOG2(("bmp_draw_bitmap(%p, %i,%i, %i) - %p\n", hps, x, y, res, bmp_cache[res]));
+{ DEBUGLOG(("bmp_draw_bitmap(%p, %i,%i, %i) - %p\n", hps, x, y, res, bmp_cache[res]));
   POINTL pos[3];
 
   pos[0].x = x;
@@ -553,7 +557,6 @@ static void
 bmp_draw_part_bg_to( HPS hps, int x1_1, int y1_1, int x1_2, int y1_2,
                               int x2_1, int y2_1 )
 {
-
   #if defined( HAVE_BITBLT_BUG )
 
     POINTL aptlPoints[3];
@@ -1290,18 +1293,14 @@ bmp_calc_volume( POINTL pos )
 void
 bmp_draw_rate( HPS hps, int rate )
 {
-  static const int  rate_index[] = { 0, 32, 48, 56, 64, 80, 96, 112, 128, 144, 160, 176, 192, 224, 256, 320 };
+  static const int rate_index[] = { 0, 32, 48, 56, 64, 80, 96, 112, 128, 144, 160, 176, 192, 224, 256, 320 };
   size_t index = 0;
-  char buf[32];
-  int  x = bmp_pos[ POS_BPS ].x;
-  int  y = bmp_pos[ POS_BPS ].y;
-
   DEBUGLOG(("bmp_draw_rate(%p, %d)\n", hps, rate));
 
-  if( cfg.mode != CFG_MODE_REGULAR ) {
+  if( cfg.mode != CFG_MODE_REGULAR )
     return;
-  }
 
+  rate /= 1000; // kbps
   { for( size_t i = 0; i < sizeof( rate_index ) / sizeof( int ); i++ ) {
       if( rate_index[i] == rate ) {
         index = i;
@@ -1309,6 +1308,9 @@ bmp_draw_rate( HPS hps, int rate )
       }
     }
   }
+
+  int  x = bmp_pos[ POS_BPS ].x;
+  int  y = bmp_pos[ POS_BPS ].y;
 
   if( !bmp_ulong[ UL_BPS_DIGITS ]) {
     bmp_draw_bitmap ( hps, x, y, BMP_BPS + index );
@@ -1328,6 +1330,7 @@ bmp_draw_rate( HPS hps, int rate )
 
     if( rate > 0 && rate <= 9999 )
     {
+      char buf[32];
       x += bmp_cx( DIG_BPS ) * 2;
 
       if( rate > 999 && bmp_cache[ DIG_BPS + 10 ] ) {
@@ -1351,36 +1354,35 @@ bmp_draw_rate( HPS hps, int rate )
 
 /* Draws the current playlist mode and time left labels. */
 void
-bmp_draw_plmode( HPS hps, BOOL valid, Playable::Flags flags )
+bmp_draw_plmode( HPS hps, bool valid, bool enumerable )
 {
-  DEBUGLOG(("bmp_draw_plmode(%p, %u, %x)\n", hps, valid, flags));
+  DEBUGLOG(("bmp_draw_plmode(%p, %d, %d)\n", hps, valid, enumerable));
 
   if( cfg.mode != CFG_MODE_REGULAR )
     return;
 
   if( bmp_pos[ POS_PL_MODE ].x != POS_UNDEF && bmp_pos[ POS_PL_MODE ].y != POS_UNDEF )
-  {
-    if (!valid)
+  { if (!valid)
       bmp_draw_bitmap( hps, bmp_pos[ POS_PL_MODE ].x, bmp_pos[ POS_PL_MODE ].y, BMP_NOFILE );
-    else if (flags & Playable::Enumerable)
+    else if (enumerable)
       bmp_draw_bitmap( hps, bmp_pos[ POS_PL_MODE ].x, bmp_pos[ POS_PL_MODE ].y, BMP_LISTPLAY );
     else
       bmp_draw_bitmap( hps, bmp_pos[ POS_PL_MODE ].x, bmp_pos[ POS_PL_MODE ].y, BMP_SINGLEPLAY );
   }
 
-  if( !valid ) {
-    if( bmp_pos[ POS_NOTL ].x != POS_UNDEF && bmp_pos[ POS_NOTL ].y != POS_UNDEF )
+  if (!valid)
+  { if( bmp_pos[ POS_NOTL ].x != POS_UNDEF && bmp_pos[ POS_NOTL ].y != POS_UNDEF )
       bmp_draw_bitmap( hps, bmp_pos[ POS_NOTL ].x, bmp_pos[ POS_NOTL ].y, BMP_NOTL );
-  } else {
-    if( bmp_pos[ POS_TL ].x != POS_UNDEF && bmp_pos[ POS_TL ].y != POS_UNDEF )
+  } else
+  { if( bmp_pos[ POS_TL ].x != POS_UNDEF && bmp_pos[ POS_TL ].y != POS_UNDEF )
       bmp_draw_bitmap( hps, bmp_pos[ POS_TL   ].x, bmp_pos[ POS_TL   ].y, BMP_TL );
   }
 
-  if( valid && (flags & Playable::Enumerable) ) {
-    if( bmp_pos[ POS_PLIST   ].x != POS_UNDEF && bmp_pos[ POS_PLIST   ].y != POS_UNDEF )
+  if (enumerable)
+  { if( bmp_pos[ POS_PLIST   ].x != POS_UNDEF && bmp_pos[ POS_PLIST   ].y != POS_UNDEF )
       bmp_draw_bitmap( hps, bmp_pos[ POS_PLIST   ].x, bmp_pos[ POS_PLIST   ].y, BMP_PLIST );
-  } else {
-    if( bmp_pos[ POS_NOPLIST ].x != POS_UNDEF && bmp_pos[ POS_NOPLIST ].y != POS_UNDEF )
+  } else
+  { if( bmp_pos[ POS_NOPLIST ].x != POS_UNDEF && bmp_pos[ POS_NOPLIST ].y != POS_UNDEF )
       bmp_draw_bitmap( hps, bmp_pos[ POS_NOPLIST ].x, bmp_pos[ POS_NOPLIST ].y, BMP_NOPLIST );
   }
 }
@@ -1744,7 +1746,7 @@ bmp_init_default_skin( HPS hps )
   strlcpy( visual.param, visual_param, sizeof visual.param );
   
   Plugin::VisualProps = visual;
-  Plugin::Deserialize(startpath + "visplug\\analyzer.dll", PLUGIN_VISUAL, true);
+  Plugin::Deserialize(amp_startpath + "visplug\\analyzer.dll", PLUGIN_VISUAL, true);
 }
 
 static void
@@ -1865,7 +1867,7 @@ bmp_load_packfile( char *filename )
         if ( hdr.resource == 0 )
           continue;
 
-        sprintf( tempname, "%spm123%s", startpath.cdata(),
+        sprintf( tempname, "%spm123%s", amp_startpath.cdata(),
                            sfext( tempexts, hdr.filename, sizeof( tempexts )));
 
         if(( temp = fopen( tempname, "wb" )) != NULL )
@@ -1902,10 +1904,9 @@ bmp_load_packfile( char *filename )
 /* Deallocates all resources used by current loaded skin. */
 void
 bmp_clean_skin( void )
-{
-  unsigned int i;
+{ DEBUGLOG(("bmp_clean_skin()\n"));
 
-  for( i = 0; i < sizeof( bmp_cache ) / sizeof( HBITMAP ); i++ ) {
+  for( unsigned i = 0; i < sizeof( bmp_cache ) / sizeof( HBITMAP ); i++ ) {
     if( bmp_cache[i] != NULLHANDLE )
     {
       GpiDeleteBitmap( bmp_cache[i] );
@@ -1921,7 +1922,7 @@ bmp_clean_skin( void )
 
 /* Loads specified skin. */
 BOOL
-bmp_load_skin( const char *filename, HAB hab, HWND hplayer, HPS hps )
+bmp_load_skin( const char *filename, HWND hplayer, HPS hps )
 {
   unsigned int   i;
   FILE* file;
@@ -1929,7 +1930,7 @@ bmp_load_skin( const char *filename, HAB hab, HWND hplayer, HPS hps )
   char  path[_MAX_PATH];
   int   errors = 0;
   BOOL  empty  = TRUE;
-  DEBUGLOG(("bmp_load_skin(%s, %x, %x, %x)\n", filename, hab, hplayer, hps ));
+  DEBUGLOG(("bmp_load_skin(%s, %x, %x)\n", filename, hplayer, hps ));
 
   sdrivedir( path, filename, sizeof( path ));
 
@@ -1980,7 +1981,7 @@ bmp_load_skin( const char *filename, HAB hab, HWND hplayer, HPS hps )
     bmp_init_colors();
     bmp_reflow_and_resize ( hplayer );
 
-    vis_init_all( TRUE );
+    vis_init_all( hplayer, TRUE );
 
     return FALSE;
   }
@@ -2012,7 +2013,7 @@ bmp_load_skin( const char *filename, HAB hab, HWND hplayer, HPS hps )
           break;
         }
 
-        rel2abs( startpath, p,
+        rel2abs( amp_startpath, p,
                  module_name, sizeof( module_name ));
 
         if(( p = strtok( NULL, "," )) != NULL ) {
@@ -2171,7 +2172,7 @@ bmp_load_skin( const char *filename, HAB hab, HWND hplayer, HPS hps )
                              "(if you select No, default skin will be used)" ))
     {
       strcpy( cfg.defskin, "" );
-      return bmp_load_skin( "", hab, hplayer, hps );
+      return bmp_load_skin( "", hplayer, hps );
     }
   }
 
@@ -2288,7 +2289,7 @@ bmp_reflow_and_resize( HWND hplayer )
       WinSetWindowPos( hframe, HWND_TOP, 0, 0,
                        bmp_pos[POS_R_SIZE].x, bmp_pos[POS_R_SIZE].y, SWP_SIZE );
 
-      vis_init_all(TRUE);
+      vis_init_all(hplayer, TRUE);
 
       break;
     }
@@ -2308,5 +2309,6 @@ bmp_reflow_and_resize( HWND hplayer )
   bmp_init_button( hplayer, &btn_fload   );
 
   bmp_delete_text_buffer();
-  amp_invalidate( UPD_WINDOW | UPD_FILENAME );
+  // TODO: Callback not nice!!
+  // GUI::RefreshDisplay();
 }

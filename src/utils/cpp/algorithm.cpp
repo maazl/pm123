@@ -33,8 +33,36 @@
 
 #include <debuglog.h>
 
+bool binary_search_base(const void*const* data, size_t size, int (*fcmp)(const void* elem, const void* key),
+  const void* key, size_t& pos)
+{ DEBUGLOG(("binary_search_base(&%p, %u, *%p, %p, &%p)\n", data, size, fcmp, key, &pos));
+  size_t l = 0;
+  size_t r = size;
+  while (l < r)
+  { size_t m = (l+r) >> 1;
+    DEBUGLOG2(("binary_search_base %u-%u %u->%p\n", l, r, m, data[m]));
+    // Dirty hack: NULL references do always match exactly
+    // This removes problems with the initialization sequence of inst_index.
+    if (!data[m])
+    { pos = m;
+      return true;
+    }
+    int cmp = (*fcmp)(data[m], key);
+    DEBUGLOG2(("binary_search_base cmp = %i\n", cmp));
+    if (cmp == 0)
+    { pos = m;
+      return true;
+    }
+    if (cmp < 0)
+      l = m+1;
+    else
+      r = m;
+  }
+  pos = l;
+  return false;
+}
 
-bool binary_search_base(const vector_base& data, int (*fcmp)(const void* elem, const void* key),
+/*bool binary_search_base(const vector_base& data, int (*fcmp)(const void* elem, const void* key),
   const void* key, size_t& pos)
 { DEBUGLOG(("binary_search_base(&%p{%u}, *%p, %p, &%p)\n", &data, data.size(), fcmp, key, &pos));
   size_t l = 0;
@@ -61,7 +89,7 @@ bool binary_search_base(const vector_base& data, int (*fcmp)(const void* elem, c
   }
   pos = l;
   return false;
-}
+}*/
 
 void rotate_array_base(void** begin, const size_t len, int shift)
 { DEBUGLOG(("rotate_array_base(%p, %u, %i)\n", begin, len, shift));

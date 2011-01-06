@@ -81,7 +81,7 @@ bool Mutex::Request(long ms)
 {  DEBUGLOG(("Mutex(%p{%p})::Request(%li)\n", this, Handle, ms));
    #ifdef DEBUG_LOG
    // rough deadlock check
-   APIRET rc = DosRequestMutexSem(Handle, ms < 0 ? 60000 : ms); // The mapping from ms == -1 to SEM_INDEFINITE_WAIT is implicitely OK.
+   APIRET rc = DosRequestMutexSem(Handle, ms < 0 ? 60000 : ms); // The mapping from ms == -1 to SEM_INDEFINITE_WAIT is implicitly OK.
    PID pid;
    TID tid;
    ULONG count;
@@ -94,7 +94,7 @@ bool Mutex::Request(long ms)
    ASSERT(rc == 0 || rc == ERROR_TIMEOUT);
    return rc == 0;
    #else
-   return DosRequestMutexSem(Handle, ms) == 0; // The mapping from ms == -1 to SEM_INDEFINITE_WAIT is implicitely OK.
+   return DosRequestMutexSem(Handle, ms) == 0; // The mapping from ms == -1 to SEM_INDEFINITE_WAIT is implicitly OK.
    #endif
 }
 
@@ -243,6 +243,6 @@ void Event::Reset()
 bool Event::IsSet() const
 {  ULONG cnt;
    DosQueryEventSem(Handle, &cnt);
-   DEBUGLOG(("Event(%p)::IsSet() - %lu\n", this, cnt));
+   //DEBUGLOG(("Event(%p)::IsSet() - %lu\n", this, cnt));
    return cnt != 0; 
 }

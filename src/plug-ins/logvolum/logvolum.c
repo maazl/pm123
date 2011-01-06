@@ -55,7 +55,7 @@
 static ULONG DLLENTRYP(f_output_command)( void* a, ULONG msg, OUTPUT_PARAMS2* info );
 #ifdef WITH_SOFT_VOLUME
 static int   DLLENTRYP(f_request_buffer)( void* a, const FORMAT_INFO2* format, short** buf );
-static void  DLLENTRYP(f_commit_buffer) ( void* a, int len, T_TIME posmarker );
+static void  DLLENTRYP(f_commit_buffer) ( void* a, int len, PM123_TIME posmarker );
 #endif
 static void* f_a;
 
@@ -110,7 +110,7 @@ request_buffer( void* f, const FORMAT_INFO2* format, short** buf )
 }
 
 static void DLLENTRY
-commit_buffer( void* f, int len, T_TIME posmarker )
+commit_buffer( void* f, int len, PM123_TIME posmarker )
 { DEBUGLOG(("logvolume:commit_buffer(%p, %i, %f)\n", f, len, posmarker));
   if (cur_cfg.use_software && last_volume != 1 && len)
   { // Translate samples
@@ -259,4 +259,3 @@ plugin_query( PLUGIN_QUERYPARAM *param )
 
   return 0;
 }
-
