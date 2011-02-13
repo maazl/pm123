@@ -79,9 +79,16 @@ opt.checkrec   = 0
 opt.verbose    = 0
 opt.wildcard   = 0
 opt.cwd        = DIRECTORY()
+opt.orexx      = 0
+opt.opencmd    = 'OPEN'
 
 IF SUBSTR(opt.cwd, LENGTH(opt.cwd), 1) \= '\' THEN
   opt.cwd = opt.cwd'\'
+PARSE VERSION rexx dummy
+IF rexx = 'OBJREXX' THEN DO
+   opt.orexx = 1
+   opt.opencmd = 'OPEN READ'
+   END
 
 params = STRIP(ARG(1))
 nomoreopt = 0
@@ -178,7 +185,7 @@ EXIT 0
  */
 WriteRules: PROCEDURE EXPOSE opt. rule.
    /* open makefile */
-   IF \ABBREV(STREAM(ARG(1), "C", "OPEN"), "READY") THEN
+   IF \ABBREV(STREAM(ARG(1), "C", opt.opencmd), "READY") THEN
       CALL Error 21, "Can't open makefile "ARG(1)
    /* read old file result and remove redundancies */
    IF \opt.append THEN DO
@@ -254,7 +261,7 @@ DoFile: PROCEDURE EXPOSE opt. rule.
    /* check source file */
    IF STREAM(ARG(1), "C", "QUERY EXISTS") = '' THEN
       RETURN Warn(ARG(1)" does not exist")
-   IF \ABBREV(STREAM(ARG(1), "C", "OPEN"), "READY") THEN
+   IF \ABBREV(STREAM(ARG(1), "C", opt.opencmd), "READY") THEN
       RETURN Warn("Cannot open "ARG(1))
    /* Parse file */
    line = 0
