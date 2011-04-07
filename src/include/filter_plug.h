@@ -60,7 +60,7 @@ typedef struct _FILTER_PARAMS2
 } FILTER_PARAMS2;
 
 /* returns 0 -> ok */
-#if !defined(FILTER_PLUGIN_LEVEL) || FILTER_PLUGIN_LEVEL == 1
+#if !defined(PLUGIN_INTERFACE_LEVEL) || PLUGIN_INTERFACE_LEVEL == 1
 ULONG DLLENTRY filter_init  ( void** f, FILTER_PARAMS* params );
 
 /* Notice it is the same parameters as output_play_samples()  */

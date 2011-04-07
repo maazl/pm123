@@ -44,6 +44,7 @@
 #include "playlistview.h"
 #include "playlistmanager.h"
 #include "inspector.h"
+#include "waitinfo.h"
 #include "button95.h"
 #include "copyright.h"
 
@@ -93,6 +94,37 @@ delegate<const void, const Plugin::EventArgs>  GUI::PluginDeleg    (&GUI::Plugin
 delegate<const void, const Ctrl::EventFlags>   GUI::ControllerDeleg(&GUI::ControllerNotification, NULL);
 delegate<const void, const PlayableChangeArgs> GUI::RootDeleg      (&GUI::PlayableNotification,   NULL);
 delegate<const void, const PlayableChangeArgs> GUI::CurrentDeleg   (&GUI::PlayableNotification,   NULL);
+
+
+class PostMsgWorker : public DependencyInfoWorker
+{private:
+  HWND            Target;
+  ULONG           Msg;
+  MPARAM          MP1;
+  MPARAM          MP2;
+ public:
+  void            Start(DependencyInfoSet& data, HWND target, ULONG msg, MPARAM mp1, MPARAM mp2);
+ private:
+  virtual void    OnCompleted();
+};
+
+void PostMsgWorker::Start(DependencyInfoSet& data, HWND target, ULONG msg, MPARAM mp1, MPARAM mp2)
+{ Cancel();
+  Data.Swap(data);
+  Target = target;
+  Msg = msg;
+  MP1 = mp1;
+  MP2 = mp2;
+  DependencyInfoWorker::Start();
+}
+
+void PostMsgWorker::OnCompleted()
+{ WinPostMsg(Target, Msg, MP1, MP2);
+}
+
+
+PostMsgWorker DelayedAltSliderDragWorker;
+
 
 MRESULT EXPENTRY GUI_DlgProcStub(HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2)
 { // Adjust calling convention
@@ -418,7 +450,7 @@ MRESULT GUI::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
           RefreshTimers(hps);
         if (mask & UPD_TOTALS|UPD_PLINDEX)
         { int index = 0; // TODO: is_playlist ? index+1 : 0;
-          bmp_draw_plind(hps, index, root ? root->GetInfo().rpl->totalsongs: 0);
+          bmp_draw_plind(hps, index, root ? root->GetInfo().rpl->songs: 0);
         }
         if (mask & UPD_PLMODE)
           bmp_draw_plmode(hps, root != NULL, root && root->IsPlaylist());
@@ -501,7 +533,7 @@ MRESULT GUI::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
         Playable* root = CurrentRoot();
         RefreshTimers(hps);
         int index = 0; // TODO: is_playlist ? index+1 : 0;
-        bmp_draw_plind(hps, index, root ? root->GetInfo().rpl->totalsongs: 0);
+        bmp_draw_plind(hps, index, root ? root->GetInfo().rpl->songs: 0);
         bmp_draw_plmode(hps, root != NULL, root && root->IsPlaylist());
         bmp_draw_rate(hps, root ? CurrentIter->GetCurrent().GetInfo().obj->bitrate : -1);
         bmp_draw_channels(hps, root ? CurrentIter->GetCurrent().GetInfo().tech->channels : -1);
@@ -587,8 +619,8 @@ MRESULT GUI::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
 
         case IDM_M_PLINFO:
           if (CurrentRoot())
-            ShowDialog(CurrentSong().GetPlayable(),
-              CurrentSong().GetInfo().tech->attributes & TATTR_SONG ? DLT_METAINFO : DLT_TECHINFO);
+            ShowDialog(*CurrentRoot(),
+              CurrentRoot()->GetInfo().tech->attributes & TATTR_SONG ? DLT_METAINFO : DLT_TECHINFO);
           break;
 
         case IDM_M_TAG:
@@ -843,7 +875,7 @@ MRESULT GUI::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
         WinSetCapture(HWND_DESKTOP, HPlayer);
       } else if (bmp_pt_in_slider(pos))
       { if (CurrentRoot() && (IsAltSlider
-          ? CurrentRoot()->GetInfo().rpl->totalsongs > 0
+          ? CurrentRoot()->GetInfo().rpl->songs > 0
           : CurrentSong().GetInfo().obj->songlength > 0 ))
         { IsSliderDrag = true;
           IsSeeking    = true;
@@ -916,11 +948,14 @@ MRESULT GUI::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
 
    case WMP_SLIDERDRAG:
     if (IsSliderDrag)
-    { // get position
+    { // Cancel delayed slider drag if any
+      DelayedAltSliderDragWorker.Cancel();
+      // get position
       POINTL pos;
       pos.x = SHORT1FROMMP(mp1);
       pos.y = SHORT2FROMMP(mp1);
       double relpos = bmp_calc_time(pos);
+      JobSet job(PRI_Normal);
       Playable* root = CurrentRoot();
       if (!root)
         return 0;
@@ -929,13 +964,13 @@ MRESULT GUI::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
       { // navigation within the current song
         if (CurrentSong().GetInfo().obj->songlength <= 0)
           return 0;
-        CurrentIter->Navigate(relpos * CurrentSong().GetInfo().obj->songlength, PRI_Normal);
+        CurrentIter->Navigate(relpos * CurrentSong().GetInfo().obj->songlength, job);
       } else switch (cfg.altnavig)
       {case CFG_ANAV_TIME:
         // Navigate only at the time scale
         if (root->GetInfo().drpl->totallength > 0)
         { CurrentIter->Reset();
-          bool r = CurrentIter->Navigate(relpos * root->GetInfo().drpl->totallength, PRI_Normal);
+          bool r = CurrentIter->Navigate(relpos * root->GetInfo().drpl->totallength, job);
           DEBUGLOG(("GUI::DlgProc: AMP_SLIDERDRAG: CFG_ANAV_TIME: %u\n", r));
           break;
         }
@@ -943,7 +978,7 @@ MRESULT GUI::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
        case CFG_ANAV_SONG:
        case CFG_ANAV_SONGTIME:
         // navigate at song and optional time scale
-        { const int num_items = root->GetInfo().rpl->totalsongs;
+        { const int num_items = root->GetInfo().rpl->songs;
           if (num_items <= 0)
             return 0;
           relpos *= num_items;
@@ -951,20 +986,26 @@ MRESULT GUI::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
           if (relpos > num_items)
             relpos = num_items;
           CurrentIter->Reset();
-          bool r = CurrentIter->NavigateCount((int)floor(relpos), TATTR_SONG, PRI_Normal);
+          bool r = CurrentIter->NavigateCount((int)floor(relpos), TATTR_SONG, job);
           DEBUGLOG(("GUI::DlgProc: AMP_SLIDERDRAG: CFG_ANAV_SONG: %f, %u\n", relpos, r));
           // navigate within the song
           if (cfg.altnavig != CFG_ANAV_SONG && CurrentSong().GetInfo().obj->songlength > 0)
           { relpos -= floor(relpos);
-            CurrentIter->Navigate(relpos * CurrentSong().GetInfo().obj->songlength, PRI_Normal);
+            CurrentIter->Navigate(relpos * CurrentSong().GetInfo().obj->songlength, job);
           }
         }
       }
-      // new position set
-      if (SHORT1FROMMP(mp2))
-      { Ctrl::PostCommand(Ctrl::MkJump(new SongIterator(*CurrentIter)), &GUI::ControllerEventCB);
+      // Did we have unfulfilled dependencies?
+      job.Commit();
+      if (job.AllDepends.Size())
+      { // yes => reschedule the request later.
+        DelayedAltSliderDragWorker.Start(job.AllDepends, HPlayer, WMP_SLIDERDRAG, mp1, mp2);
+      } else if (SHORT1FROMMP(mp2))
+      { // Set new position
+        Ctrl::PostCommand(Ctrl::MkJump(new SongIterator(*CurrentIter)), &GUI::ControllerEventCB);
         IsSliderDrag = false;
       } else
+        // Show new position
         Invalidate(UPD_TIMERS|(UPD_TEXT|UPD_RATE|UPD_CHANNELS|UPD_PLINDEX)*IsAltSlider, true);
     }
     return 0;
@@ -1221,8 +1262,8 @@ void GUI::RefreshTimers(HPS hps)
   PM123_TIME total_song = CurrentIter->GetCurrent().GetInfo().obj->songlength;
   PM123_TIME total_time = is_playlist ? root->GetInfo().obj->songlength : -1;
   // TODO: calculate offset from call stack.
-  PM123_TIME offset = 0;
-  int index = 0;
+  PM123_TIME offset = -1;
+  int index = -1;
   //const SongIterator::Offsets& off = CurrentIter->GetOffset(false);
 
   PM123_TIME list_left = -1;
@@ -1239,7 +1280,7 @@ void GUI::RefreshTimers(HPS hps)
   } else switch (cfg.altnavig)
   {case CFG_ANAV_SONG:
     if (is_playlist)
-    { int total_items = root->GetInfo().rpl->totalsongs;
+    { int total_items = root->GetInfo().rpl->songs;
       if (total_items == 1)
         pos = 0;
       else if (total_items > 1)
@@ -1253,7 +1294,7 @@ void GUI::RefreshTimers(HPS hps)
     } // else CFG_ANAV_SONGTIME
    case CFG_ANAV_SONGTIME:
     if (is_playlist)
-    { int total_items = root->GetInfo().rpl->totalsongs;
+    { int total_items = root->GetInfo().rpl->songs;
       if (total_items == 1)
         pos = 0;
       else if (total_items > 1)
@@ -1715,6 +1756,7 @@ void GUI::Uninit()
  
   PlaylistManager::UnInit();
   PlaylistView::UnInit();
+  InspectorDialog::UnInit();
 
   // deinitialize all visual plug-ins
   vis_deinit_all( TRUE );

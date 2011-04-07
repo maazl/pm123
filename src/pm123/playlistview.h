@@ -34,7 +34,6 @@
 #include <cpp/smartptr.h>
 #include <cpp/xstring.h>
 
-#define DECODER_PLUGIN_LEVEL 2
 #include "playable.h"
 #include "playlistbase.h"
 #include <decoder_plug.h>

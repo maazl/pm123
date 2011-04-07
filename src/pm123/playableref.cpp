@@ -31,6 +31,7 @@
 #include "playableref.h"
 #include "playable.h"
 #include "location.h"
+#include "waitinfo.h"
 #include <utilfct.h>
 #include <string.h>
 
@@ -42,9 +43,6 @@
 *  class PlayableSlice
 *
 ****************************************************************************/
-
-Mutex PlayableSlice::CollectionInfoMutex;
-
 
 PlayableSlice::PlayableSlice(APlayable& pp)
 : RefTo(&pp),
@@ -135,37 +133,6 @@ xstring PlayableSlice::GetDisplayName() const
   return localcache;
 }*/
 
-PlayableSlice::CalcResult PlayableSlice::CalcLoc(const volatile xstring& strloc, volatile int_ptr<Location>& cache, SliceBorder type, Priority pri)
-{ xstring localstr = strloc;
-  DEBUGLOG(("PlayableSlice(%p)::CalcLoc(&%s, &%p, %d, %u)\n", this, localstr.cdata(), cache.debug(), type, pri));
-  if (localstr)
-  { ASSERT(!RefTo->RequestInfo(IF_Slice, PRI_None, REL_Invalid));
-    Location* si = new Location(&RefTo->GetPlayable());
-    const char* cp = localstr;
-    const xstring& err = si->Deserialize(cp, pri);
-    if (err)
-    { if (err.length() == 0) // delayed
-        return CR_Delayed;
-      // TODO: Errors
-      DEBUGLOG(("PlayableSlice::CalcLoc: %s at %.20s\n", err.cdata(), cp));
-    }
-    // Intersection with RefTo->GetStartLoc()
-    int_ptr<Location> newval = RefTo->GetStartLoc();
-    if (CompareSliceBorder(si, newval, type) < 0)
-      delete si;
-    else
-      newval = si;
-    // commit
-    int_ptr<Location> localcache = newval;
-    localcache.swap(cache);
-    return localcache && *localcache == *newval ? CR_Nop : CR_Changed; 
-  } else
-  { int_ptr<Location> localcache;
-    localcache.swap(cache);
-    return localcache ? CR_Changed : CR_Nop;
-  }
-}
-
 int_ptr<Location> PlayableSlice::GetStartLoc() const
 { if (IsItemOverridden())
     return StartCache;
@@ -178,20 +145,6 @@ int_ptr<Location> PlayableSlice::GetStopLoc() const
     return StopCache;
   else
     return RefTo->GetStopLoc();
-}
-
-InfoFlags PlayableSlice::InvalidateCIC(InfoFlags what, const Playable* pp) 
-{ DEBUGLOG(("PlayableSlice::InvalidateCIC(%p)\n", pp));
-  InfoFlags ret = IF_None;
-  Mutex::Lock lock(CollectionInfoMutex);
-  CollectionInfoEntry** cipp = CollectionInfoCache.begin();
-  CollectionInfoEntry** eipp = CollectionInfoCache.end();
-  while (cipp != eipp)
-  { CollectionInfoEntry* cip = *cipp++;
-    if (!pp || !cip->Exclude.contains(*pp));
-      ret |= cip->InfoStat.Invalidate(what);
-  }
-  return ret;
 }
 
 InfoFlags PlayableSlice::GetOverridden() const
@@ -236,14 +189,16 @@ void PlayableSlice::OverrideItem(const ITEM_INFO* item)
       StopCache.reset();
     if (startchanged|stopchanged)
     { args.Invalidated |= IF_Rpl|IF_Drpl;
-      InvalidateCIC(IF_Rpl|IF_Drpl, NULL);
+      if (CIC)
+        CIC->Invalidate(IF_Rpl|IF_Drpl, NULL);
     }
   } else
   { Info.item = (ITEM_INFO*)RefTo->GetInfo().item;
     StartCache.reset();
     StopCache.reset();
     args.Invalidated |= IF_Rpl|IF_Drpl;
-    InvalidateCIC(IF_Rpl|IF_Drpl, NULL);
+    if (CIC)
+      CIC->Invalidate(IF_Rpl|IF_Drpl, NULL);
   }
   InfoChange(args);
 }
@@ -254,7 +209,9 @@ void PlayableSlice::InfoChangeHandler(const PlayableChangeArgs& args)
     &args.Instance, args.Origin, args.Changed, args.Loaded, args.Invalidated));
   PlayableChangeArgs args2(args);
   if (args.Changed & (IF_Rpl|IF_Drpl))
-    args2.Invalidated |= InvalidateCIC(args.Changed & (IF_Rpl|IF_Drpl), args.Origin ? &args.Origin->GetPlayable() : NULL);
+  { if (CIC)
+      args2.Invalidated |= CIC->Invalidate(args.Changed & (IF_Rpl|IF_Drpl), args.Origin ? &args.Origin->GetPlayable() : NULL);
+  }
   if (IsItemOverridden())
   { args2.Changed     &= ~IF_Item;
     args2.Invalidated &= ~IF_Item;
@@ -276,8 +233,9 @@ InfoFlags PlayableSlice::DoRequestInfo(InfoFlags& what, Priority pri, Reliabilit
   else if (what & IF_Rpl)
     what |= IF_Tech|IF_Child|IF_Slice; // required for RPL_INFO aggregate
 
-  // Forward all remaining requets to *RefTo.
-  InfoFlags what2 = what & IF_Slice;
+  // Forward all remaining requests to *RefTo.
+  InfoFlags what2 = what & IF_Slice|IF_Aggreg;
+  // TODO Forward aggregate only if no slice?
   InfoFlags async = CallDoRequestInfo(*RefTo, what, pri, rel);
 
   what2 &= InfoStat.Check(what2, rel);
@@ -303,97 +261,91 @@ InfoFlags PlayableSlice::DoRequestInfo(InfoFlags& what, Priority pri, Reliabilit
   // Place request for slice
   async |= InfoStat.Request(what2, pri);
   what |= what2;
-    
+
   return async;
 }
 
-InfoFlags PlayableSlice::GetNextCIWorkItem(CollectionInfoEntry*& item, Priority pri)
-{ DEBUGLOG(("PlayableSlice(%p)::GetNextCIWorkItem(%p, %u)\n", this, item, pri));
-  Mutex::Lock lck(CollectionInfoMutex);
-  CollectionInfoEntry** cipp = CollectionInfoCache.begin();
-  if (item)
-  { size_t pos;
-    RASSERT(CollectionInfoCache.binary_search(item->Exclude, pos));
-    cipp += pos +1;
-  }
-  CollectionInfoEntry** eipp = CollectionInfoCache.end();
-  while (cipp != eipp)
-  { InfoFlags req = (*cipp)->InfoStat.GetRequest(pri);
-    if (req)
-    { item = *cipp;
-      return req;
+AggregateInfo& PlayableSlice::DoAILookup(const PlayableSetBase& exclude)
+{ DEBUGLOG(("PlayableSlice(%p)::DoAILookup({%u,})\n", this, exclude.size()));
+
+  if (!IsSlice())
+    return CallDoAILookup(*RefTo, exclude);
+
+  EnsureCIC();
+  AggregateInfo* pai = CIC->Lookup(exclude);
+  return pai ? *pai : CIC->DefaultInfo;
+}
+
+InfoFlags PlayableSlice::DoRequestAI(AggregateInfo& ai, InfoFlags& what, Priority pri, Reliability rel)
+{ DEBUGLOG(("PlayableSlice(%p)::DoRequestAI(&%p, %x, %d, %d)\n", this, &ai, what, pri, rel));
+
+  // We have to check whether the supplied AggregateInfo is mine or from *RefTo.
+  if (!CIC || !CIC->IsMine(ai))
+    // from *RefTo
+    return CallDoRequestAI(*RefTo, ai, what, pri, rel);
+
+  return ((CollectionInfo&)ai).RequestAI(what, pri, rel);
+}
+
+
+PlayableSlice::CalcResult PlayableSlice::CalcLoc(const volatile xstring& strloc, volatile int_ptr<Location>& cache, SliceBorder type, JobSet& job)
+{ xstring localstr = strloc;
+  DEBUGLOG(("PlayableSlice(%p)::CalcLoc(&%s, &%p, %d, {%u,})\n", this, localstr.cdata(), cache.debug(), type, job.Pri));
+  if (localstr)
+  { ASSERT(!RefTo->RequestInfo(IF_Slice, PRI_None, REL_Invalid));
+    Location* si = new Location(&RefTo->GetPlayable());
+    const char* cp = localstr;
+    const xstring& err = si->Deserialize(cp, job);
+    if (err)
+    { if (err.length() == 0) // delayed
+        return CR_Delayed;
+      // TODO: Errors
+      DEBUGLOG(("PlayableSlice::CalcLoc: %s at %.20s\n", err.cdata(), cp));
     }
+    // Intersection with RefTo->GetStartLoc()
+    int_ptr<Location> newval = RefTo->GetStartLoc();
+    if (CompareSliceBorder(si, newval, type) < 0)
+      delete si;
+    else
+      newval = si;
+    // commit
+    int_ptr<Location> localcache = newval;
+    localcache.swap(cache);
+    return localcache && *localcache == *newval ? CR_Nop : CR_Changed;
+  } else
+  { // Default location => NULL
+    int_ptr<Location> localcache;
+    localcache.swap(cache);
+    return localcache ? CR_Changed : CR_Nop;
   }
-  item = NULL;
-  return IF_None;
 }
 
-bool PlayableSlice::AddSong(AggregateInfo& ai, APlayable& song, InfoFlags what, Priority pri, PM123_TIME start, PM123_TIME stop)
-{ DEBUGLOG(("PlayableSlice::AddSong(, &%p, %x, %u, %f, %f)\n", &song, what, pri, start, stop));
-  ai.Rpl.totalsongs += 1;
-  if (!(what & IF_Drpl))
-    return false;
-  if (song.RequestInfo(IF_Phys|IF_Obj, pri))
-    return true;
-  // calculate playing time
-  PM123_TIME len;
-  if (stop >= 0)
-    len = stop;
-  else
-  { len = song.GetInfo().obj->songlength;
-    if (len < 0)
-    { ai.Drpl.unk_length += 1;
-      goto nolen;
-  } }
-  if (start >= 0)
-  { if (start >= len)
-      len = 0;
-    else
-      len -= start;
-  }     
-  ai.Drpl.totallength += len;
- nolen:
-  // approximate size
-  if (len < 0 && start >= 0)
-    ai.Drpl.unk_size += 1;
-  else
-  { PM123_SIZE size = song.GetInfo().phys->filesize;
-    if (size >= 0)
-      size *= len / song.GetInfo().obj->songlength; // may get negative...
-    if (size < 0)
-      ai.Drpl.unk_size += 1;
-    else
-      ai.Drpl.totalsize += size;
-  }
-  return false;
-}
-
-bool PlayableSlice::CalcRplCore(AggregateInfo& ai, APlayable& cur, OwnedPlayableSet& exclude, InfoFlags what, Priority pri, const Location* start, const Location* stop, size_t level)
-{ DEBUGLOG(("PlayableSlice::ClacRplCore(, &%p, {%u,}, %x, %u, %p, %p, %i)\n",
-    &cur, exclude.size(), what, pri, start, stop, level));
-  bool ret = false;
+InfoFlags PlayableSlice::CalcRplCore(AggregateInfo& ai, APlayable& cur, OwnedPlayableSet& exclude, InfoFlags what, JobSet& job, const Location* start, const Location* stop, size_t level)
+{ DEBUGLOG(("PlayableSlice::ClacRplCore(, &%p, {%u,}, %x, {%u,}, %p, %p, %i)\n",
+    &cur, exclude.size(), what, job.Pri, start, stop, level));
+  InfoFlags whatok = what;
 
  recurse:
-  int_ptr<PlayableInstance> psp;
-  PM123_TIME ss = -1;
+  int_ptr<PlayableInstance> psp; // start element
+  PM123_TIME ss = -1; // start position
   if (start)
   { if (start->GetLevel() > level)
       psp = start->GetCallstack()[level];
     else if (start->GetLevel() == level)
-    { if (cur.RequestInfo(IF_Tech|IF_Obj, pri))
-        ret = true;
+    { if (job.RequestInfo(cur, IF_Tech))
+        whatok = IF_None;
       else if (cur.GetInfo().tech->attributes & TATTR_SONG)
         ss = start->GetPosition();
     }
   }
-  int_ptr<PlayableInstance> pep;
-  PM123_TIME es = -1;
+  int_ptr<PlayableInstance> pep; // stop element
+  PM123_TIME es = -1; // stop position
   if (stop)
   { if (stop->GetLevel() > level)
       pep = stop->GetCallstack()[level];
     else if (stop->GetLevel() == level)
-    { if (cur.RequestInfo(IF_Tech|IF_Obj, pri))
-        ret = true;
+    { if (job.RequestInfo(cur, IF_Tech))
+        whatok = IF_None;
       else if (cur.GetInfo().tech->attributes & TATTR_SONG)
         es = stop->GetPosition();
     }
@@ -405,159 +357,137 @@ bool PlayableSlice::CalcRplCore(AggregateInfo& ai, APlayable& cur, OwnedPlayable
       { ++level;
         goto recurse;
       } else
-        return ret;
+        return whatok;
     } else
     { // both are NULL
       // Either because start and stop is NULL
-      // or because both locations point to the same song
+      // or because both locations point to the same object
       // or because one location points to a song while the other one is NULL.
-      ret |= AddSong(ai, cur, what, pri, ss, es);
-      return ret;
+
+      InfoFlags what2 = what;
+      volatile const AggregateInfo& sai = job.RequestAggregateInfo(cur, exclude, what2);
+      whatok &= ~what2;
+
+      if (what2 & IF_Rpl)
+        ai.Rpl += sai.Rpl;
+      if (what2 & IF_Drpl)
+      { if (ss > 0 || es >= 0)
+        { PM123_TIME len = sai.Drpl.totallength;
+          // time slice
+          if (ss < 0)
+            ss = 0;
+          if (es < 0)
+            es = len;
+          ai.Drpl.totallength += es - ss;
+          // approximate size
+          ai.Drpl.totalsize += (es - ss) / len * sai.Drpl.totalsize;
+          ai.Drpl.unk_length += sai.Drpl.unk_length;
+          ai.Drpl.unk_size += sai.Drpl.unk_size;
+        } else
+          ai.Drpl += sai.Drpl;
+      }
     }
   }
     
   if (psp)
   { if (exclude.add(psp->GetPlayable()))
-    { ret |= CalcRplCore(ai, *psp, exclude, what, pri, start, NULL, level+1);
+    { whatok &= CalcRplCore(ai, *psp, exclude, what, job, start, NULL, level+1);
       // Restore previous state.
       exclude.erase(psp->GetPlayable());
     } // else: item in the call stack => ignore entire sub tree. 
   }
   if (pep)
   { if (exclude.add(pep->GetPlayable()))
-    { ret |= CalcRplCore(ai, *pep, exclude, what, pri, NULL, stop, level+1);
+    { whatok &= CalcRplCore(ai, *pep, exclude, what, job, NULL, stop, level+1);
       // Restore previous state.
       exclude.erase(pep->GetPlayable());
     } // else: item in the call stack => ignore entire sub tree. 
   }
 
   // Add the range (psp, pep). Exclusive interval!
-  if (cur.RequestInfo(IF_Child, pri))
-    return true;
+  if (job.RequestInfo(cur, IF_Child))
+    return IF_None;
   Playable& pc = cur.GetPlayable();
-  for (;;)
-  { psp = pc.GetNext(psp);
-    if (!psp)
-      break;
-    const volatile AggregateInfo& lai = psp->RequestAggregateInfo(exclude, what, pri);
-    if (what)
-      ret = true;
-    else
-    { ai.Rpl += lai.Rpl;
+  while (psp = pc.GetNext(psp))
+  { InfoFlags what2 = what;
+    const volatile AggregateInfo& lai = job.RequestAggregateInfo(*psp, exclude, what2);
+    whatok &= ~what2;
+    if (what2 & IF_Rpl)
+      ai.Rpl += lai.Rpl;
+    if (what2 & IF_Drpl)
       ai.Drpl += lai.Drpl;
-    }
   }
-  return ret;
+  return whatok;
 }
 
-bool PlayableSlice::CalcRplInfo(CollectionInfoEntry& cie, InfoFlags what, Priority pri, PlayableChangeArgs& event)
-{ DEBUGLOG(("PlayableSlice(%p)::CalcRplInfo(&%p, %x, %u,)\n", this, &cie, what, pri));
-  InfoState::Update upd(cie.InfoStat, what);
-  if (upd == IF_None)
-    return false; // Somebody else was faster 
-  if (RefTo->RequestInfo(IF_Tech|IF_Child|IF_Slice, pri))
-  { DEBUGLOG(("PlayableSlice::CalcRplInfo: missing info???\n"));
-    return true;
-  }
-
-  AggregateInfo ai(cie.Exclude);
-  // We can be pretty sure that ITEM_INFO is overridden.
-  int_ptr<Location> start = StartCache;
-  int_ptr<Location> stop  = StopCache;
-  OwnedPlayableSet exclude(cie.Exclude); // copy exclusion list
-  if (CalcRplCore(ai, *RefTo, exclude, upd, pri, start, stop, 0))
-    return true;
-
-  Mutex::Lock lck(RefTo->GetPlayable().Mtx);
-  if ((upd & IF_Rpl) && cie.Rpl.CmpAssign(ai.Rpl))
-    event.Changed |= IF_Rpl;
-  if ((upd & IF_Drpl) && cie.Drpl.CmpAssign(ai.Drpl))
-    event.Changed |= IF_Drpl;
-  event.Loaded |= upd.Commit();
-  return false;
-}
-
-bool PlayableSlice::DoLoadInfo(Priority pri)
-{ DEBUGLOG(("PlayableSlice(%p)::DoLoadInfo(%d)\n", this, pri));
+void PlayableSlice::DoLoadInfo(JobSet& job)
+{ DEBUGLOG(("PlayableSlice(%p)::DoLoadInfo({%u,})\n", this, job.Pri));
   // Load base info first.
-  bool ret = CallDoLoadInfo(*RefTo, pri);
+  CallDoLoadInfo(*RefTo, job);
 
   PlayableChangeArgs args(*this);
-
-  InfoState::Update upd(InfoStat, InfoStat.GetRequest(pri));
+  InfoState::Update upd(InfoStat, job.Pri);
+  DEBUGLOG(("PlayableSlice::DoLoadInfo: update %x\n", upd.GetWhat()));
   // Prepare slice info.
   if (upd & IF_Slice)
-  { int cr = CalcLoc(Item.start, StartCache, SB_Start, pri)
-           | CalcLoc(Item.stop,  StopCache,  SB_Stop,  pri);
+  { int cr = CalcLoc(Item.start, StartCache, SB_Start, job);
+    job.Commit();
+    cr |= CalcLoc(Item.stop, StopCache, SB_Stop, job);
+    job.Commit();
     if (cr & CR_Changed)
       args.Changed |= IF_Slice;
-    if (cr & CR_Delayed)
-      ret = true;
-    else
+    if (!(cr & CR_Delayed))
       args.Loaded |= IF_Slice;
 
-    args.Loaded &= upd.Commit(IF_Slice) | ~IF_Slice;
     if (!args.IsInitial())
-    { InfoChange(args);
-      args.Reset();
+    { Mutex::Lock lock(RefTo->GetPlayable().Mtx);
+      args.Loaded &= upd.Commit(IF_Slice) | ~IF_Slice;
+      if (!args.IsInitial())
+      { InfoChange(args);
+        args.Reset();
+      }
     }
-  } 
+    if (cr & CR_Delayed)
+      return;
+  }
+
+  if (CIC == NULL) // Nothing to do?
+  { upd.Commit();
+    return;
+  }
 
   // Load aggregate info if any.
-  CollectionInfoEntry* iep = NULL;
-  for(;;)
-  { // find next item to handle
-    InfoFlags req = GetNextCIWorkItem(iep, pri);
-    if (iep == NULL)
-      break;
-    // retrieve information
-    InfoFlags chg = req;
-    ret |= CalcRplInfo(*iep, chg, pri, args);
-    
-    if (iep->Exclude.size() == 0)
-    { // Store RPL info pointers
-      Info.rpl  = &iep->Rpl;
-      Info.drpl = &iep->Drpl;
+  for (CollectionInfo* iep = NULL; CIC->GetNextWorkItem(iep, job.Pri, upd);)
+  { // retrieve information
+    DEBUGLOG(("PlayableSlice::DoLoadInfo: update aggregate info {%u}\n", iep->Exclude.size()));
+    AggregateInfo ai(iep->Exclude);
+    // We can be pretty sure that ITEM_INFO is overridden.
+    int_ptr<Location> start = StartCache;
+    int_ptr<Location> stop  = StopCache;
+    OwnedPlayableSet exclude(iep->Exclude); // copy exclusion list
+    InfoFlags whatok = CalcRplCore(ai, *RefTo, exclude, upd, job, start, stop, 0);
+    job.Commit();
+
+    if (whatok)
+    { // At least one info completed
+      Mutex::Lock lock(RefTo->GetPlayable().Mtx);
+      if ((whatok & IF_Rpl) && iep->Rpl.CmpAssign(ai.Rpl))
+        args.Changed |= IF_Rpl;
+      if ((whatok & IF_Drpl) && iep->Drpl.CmpAssign(ai.Drpl))
+        args.Changed |= IF_Drpl;
+      args.Loaded |= upd.Commit(whatok);
+      upd.Rollback();
+
+      if (iep->Exclude.size() == 0)
+      { // Store RPL info pointers
+        Info.rpl  = &iep->Rpl;
+        Info.drpl = &iep->Drpl;
+      }
     }
   }
-  args.Loaded &= upd.Commit() | ~IF_Aggreg;
   if (!args.IsInitial())
     InfoChange(args);
-  return ret;  
 }
-
-AggregateInfo& PlayableSlice::DoAILookup(const PlayableSetBase& exclude)
-{ DEBUGLOG(("PlayableSlice(%p)::DoAILookup({%u,})\n", this, exclude.size()));
-
-  if (!IsSlice())
-    return CallDoAILookup(*RefTo, exclude);
-
-  Mutex::Lock lock(CollectionInfoMutex);
-  CollectionInfoEntry*& cic = CollectionInfoCache.get(exclude);
-  if (cic == NULL)
-    cic = new CollectionInfoEntry(exclude);
-  return *cic;
-}
-
-InfoFlags PlayableSlice::DoRequestAI(AggregateInfo& ai, InfoFlags& what, Priority pri, Reliability rel)
-{ DEBUGLOG(("PlayableSlice(%p)::DoRequestAI(&%p, %x, %d, %d)\n", this, &ai, what, pri, rel));
-
-  // We have to check wether the supplied AggregateInfo is mine or from *RefTo.
-  CollectionInfoEntry* cic;
-  { Mutex::Lock lock(CollectionInfoMutex);
-    cic = CollectionInfoCache.find(ai.Exclude);
-  }
-  if (cic != &ai)
-    // from *RefTo
-    return CallDoRequestAI(*RefTo, ai, what, pri, rel);
-  
-  CollectionInfoEntry& ci = (CollectionInfoEntry&)ai;
-  what = ci.InfoStat.Check(what, rel);
-  if (pri == PRI_None || (what & IF_Aggreg) == IF_None)
-    return IF_None;
-  return ci.InfoStat.Request(what & IF_Aggreg, pri);
-}
-
 
 const Playable& PlayableSlice::DoGetPlayable() const
 { return RefTo->GetPlayable();

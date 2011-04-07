@@ -40,6 +40,8 @@
 template <class T>
 class sco_ptr
 {private:
+  struct unspecified;
+ private:
   T* Ptr;
  private:
   sco_ptr(const sco_ptr<T>&); // non-copyable
@@ -50,6 +52,7 @@ class sco_ptr
   ~sco_ptr();
   // Basic operators
   T* get() const                             { return Ptr; }
+  operator unspecified*() const              { return (unspecified*)Ptr; }
   T& operator*()  const                      { ASSERT(Ptr); return *Ptr; }
   T* operator->() const                      { ASSERT(Ptr); return Ptr; }
   sco_ptr<T>& operator=(T* ptr);

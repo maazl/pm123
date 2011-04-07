@@ -110,7 +110,7 @@ typedef struct _OUTPUT_PARAMS2
 
 } OUTPUT_PARAMS2;
 
-#if !defined(OUTPUT_PLUGIN_LEVEL) || OUTPUT_PLUGIN_LEVEL <= 1 
+#if !defined(PLUGIN_INTERFACE_LEVEL) || PLUGIN_INTERFACE_LEVEL <= 1
 ULONG  DLLENTRY output_command( void* a, ULONG msg, OUTPUT_PARAMS* info );
 int    DLLENTRY output_play_samples( void* a, FORMAT_INFO* format, char* buf, int len, int posmarker );
 ULONG  DLLENTRY output_playing_pos( void* a );

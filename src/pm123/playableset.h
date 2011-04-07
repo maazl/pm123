@@ -61,8 +61,7 @@ class PlayableSet
 : public sorted_vector<Playable, Playable>,
   public PlayableSetBase
 {public:
-                           PlayableSet();
-                           PlayableSet(size_t size);
+                           PlayableSet(size_t size = 0);
                            PlayableSet(const PlayableSetBase& r);
                            PlayableSet(const PlayableSet& r);
                            ~PlayableSet();

@@ -2,7 +2,7 @@
  * Copyright 1997-2003 Samuel Audet  <guardia@step.polymtl.ca>
  *                     Taneli Lepp�  <rosmo@sektori.com>
  * Copyright 2004 Dmitry A.Steklenev <glass@ptv.ru>
- * Copyright 2007-2010 Marcel Mueller
+ * Copyright 2007-2011 Marcel Mueller
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -33,6 +33,7 @@
 #define INCL_BASE
 #define INCL_PM
 #include "infodialog.h"
+#include "waitinfo.h"
 #include "pm123.h"
 #include "gui.h"
 #include "pm123.rc.h"
@@ -505,9 +506,8 @@ MRESULT InfoDialog::PageTechInfo::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
         SetCtrlText(EF_NUMITEMS, F_num_items, FormatInt(buffer, obj.num_items));
       }
       { const RPL_INFO& rpl = data.Info.Rpl;
-        SetCtrlText(EF_SONGITEMS, F_total_songs, FormatInt(buffer, rpl.totalsongs));
-        SetCtrlText(EF_LISTITEMS, F_total_lists, FormatInt(buffer, rpl.totallists));
-        SetCtrlCB(CB_ITEMSRECURSIVE, F_recursive, rpl.recursive > 0);
+        SetCtrlText(EF_SONGITEMS, F_total_songs, FormatInt(buffer, rpl.songs));
+        SetCtrlText(EF_LISTITEMS, F_total_lists, FormatInt(buffer, rpl.lists));
       }
       { const DRPL_INFO& drpl = data.Info.Drpl;
         if (type == 2)
@@ -1107,29 +1107,34 @@ void PlayableInstanceInfoDialog::PageItemInfo::Save()
   int_ptr<Playable> pp;
   if (valid)
   { pp = Playable::GetByURL(url);
+    JobSet job(PRI_Normal);
     Location loc(pp);
     const char* cp;
     Location::NavigationResult nr;
     if (item.start)
     { cp = item.start;
-      nr = loc.Deserialize(cp, PRI_None);
+      nr = loc.Deserialize(cp, job);
+      job.Commit();
       // TODO error message?
       SetCtrlEFValid(EF_INFOSTART, nr == NULL || nr.length() == 0); // in dubio pro rheo
     }
     if (item.stop)
     { loc.Reset();
       cp = item.stop;
-      nr = loc.Deserialize(cp, PRI_None);
+      nr = loc.Deserialize(cp, job);
+      job.Commit();
       // TODO error message?
       SetCtrlEFValid(EF_INFOSTOP, nr == NULL || nr.length() == 0); // in dubio pro rheo
     }
     if (attr.at)
     { loc.Reset();
       cp = attr.at;
-      nr = loc.Deserialize(cp, PRI_None);
+      nr = loc.Deserialize(cp, job);
+      job.Commit();
       // TODO error message?
       SetCtrlEFValid(EF_INFOAT, nr == NULL || nr.length() == 0); // in dubio pro rheo
     }
+    // TODO refresh on job completion?
   }
   valid &= SetCtrlEFValid(EF_INFOPREGAP,
     WinQueryDlgItemText(GetHwnd(), EF_INFOPREGAP, sizeof buffer, buffer) == 0

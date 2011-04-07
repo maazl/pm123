@@ -31,7 +31,7 @@
 #define  INCL_BASE
 #define  INCL_WIN
 
-#define  FILTER_PLUGIN_LEVEL 2
+#define  PLUGIN_INTERFACE_LEVEL 2
 
 #include <filter_plug.h>
 #include <output_plug.h>
@@ -251,7 +251,7 @@ plugin_query( PLUGIN_QUERYPARAM *param )
   #else
   param->configurable = FALSE;
   #endif
-  param->interface    = FILTER_PLUGIN_LEVEL;
+  param->interface    = PLUGIN_INTERFACE_LEVEL;
 
   #ifdef WITH_SOFT_VOLUME
   load_ini();

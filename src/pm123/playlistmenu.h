@@ -62,19 +62,20 @@ class PlaylistMenu
 {public:
   enum EntryFlags
   { None            = 0x00,
-    DummyIfEmpty    = 0x01, // Create dummy entry if content is empty.
-    Enumerate       = 0x02, // Enumerate items
-    Separator       = 0x04, // Place separator before and after the generated entries unless it's the beginning/end
-    Recursive       = 0x10, // create submenus for playlist or folder items
-    SkipInvalid     = 0x20, // exclude invalid entries.
-    Prefetch        = 0x40  // Prefetch list content of next menu level.
+    DummyIfEmpty    = 0x01,      // Create dummy entry if content is empty.
+    Enumerate       = 0x02,      // Enumerate items
+    Separator       = 0x04,      // Place separator before and after the generated entries unless it's the beginning/end
+    Recursive       = 0x10,      // create sub menus for playlist or folder items
+    SkipInvalid     = 0x20,      // exclude invalid entries.
+    Prefetch        = 0x40       // Prefetch list content of next menu level.
   };
   enum // The ID's here must be distinct from the user messages of any other window.
   { // This message is internally used by this class to notify changes of the selected items.
+    // mp1 id of the sub item
     // mp2 MapEntry* for the ID. This is used for validation.
-    UM_LATEUPDATE = WM_USER+0x201,
+    UM_UPDATELIST = WM_USER+0x201,
     // Status of the underlying Playable object of a menu item arrived.
-    // mp1 id of the subitem
+    // mp1 id of the sub item
     // mp2 MapEntry* for the ID. This is used for validation.
     UM_UPDATESTAT,
     // This message is send to the owner of the menu when a generated subitem of the menu is selected.
@@ -83,18 +84,27 @@ class PlaylistMenu
     UM_SELECTED,
     // This message is posted to ourself to delay the destruction of the menu items
     // until WM_COMMAND arrives.
-    // mp1 id of the subitem
-    // mp2 MapEntry* for the ID.
+    // mp1 id of the sub item
+    // mp2 MapEntry* for the ID. This is used for validation.
     UM_MENUEND
   };
 
  private:
+  enum EntryStatus
+  { StatusRequest   = 0x01,      // A status update has been placed for this item.
+    UpdateRequest   = 0x02,      // An update has been requested for this item.
+    InUse           = 0x10,      // Entry is currently instantiated (WM_INITMENU).
+    InUpdate        = 0x20,      // Entry is currently updated (UM_LATEUPDATE).
+    InDestroy       = 0x40       // Entry is currently destroyed (UM_MENUEND).
+  };
+  CLASSFLAGSATTRIBUTE(PlaylistMenu::EntryStatus);
   struct MapEntry : public IComparableTo<USHORT>
   { const USHORT    IDMenu;      // Menu item ID, primary key
+    EntryFlags      Flags;
     MapEntry*       Parent;      // Parent Menu item or NULL in case of root.
     HWND            HwndSub;     // Sub menu window handle. Not valid until WM_INITMENU of the submenu if any.
     int_ptr<APlayable> Data;     // Backend data
-    EntryFlags      Flags;
+    AtomicUnsigned  Status;      // See EntryStatus
     const MPARAM    User;        // User param from AttachMenu. Inherited to submenus.
     USHORT          ID1;         // First generated item ID or MID_NONE (if none)
     USHORT          Pos;         // ID of the first object after the last generated entry or MIT_END if this is the end of the menu.
@@ -113,7 +123,6 @@ class PlaylistMenu
   PFNWP             Old_DlgProc;
   sorted_vector<MapEntry, USHORT> MenuMap;
   USHORT            ID1stfree;
-  MapEntry*         UpdateEntry;
 
  private:
   /// Dialog procedure, called by DlgProcStub
@@ -128,17 +137,20 @@ class PlaylistMenu
   USHORT            InsertSeparator(HWND menu, SHORT where);
   /// Create a dummy entry at position \a where into a \a menu.
   USHORT            InsertDummy(HWND menu, SHORT where, const char* text);
-  /// Create sub items according to the content of the playable object
-  void              CreateSubItems(MapEntry* mapp);
+  /// Create/refresh the content of a sub menu from the playlist data.
+  void              UpdateSubItems(MapEntry* mapp);
   /// Removes all matching items from the menu
   void              RemoveSubItems(MapEntry* mapp);
   /// Removes map entry including sub items.
+  /// The MapEntry should be removed from MenuMap already.
   void              RemoveMapEntry(MapEntry* mapp);
   /// Removes map entry including sub items.
+  /// This also removes the entry from MenuMap.
   void              RemoveMapEntry(USHORT mid);
   /// Update menu item
   void              UpdateItem(MapEntry* mapp);
-
+  /// Generate the item text for a menu item.
+  xstring           MakeMenuItemText(MapEntry* mapp, size_t index);
   /// Called from \c APlayable->InfoChange when a menu item changes.
   void              InfoChangeHandler(const PlayableChangeArgs& args, MapEntry* mapp);
 
@@ -161,5 +173,6 @@ class PlaylistMenu
 };
 
 FLAGSATTRIBUTE(PlaylistMenu::EntryFlags);
+//FLAGSATTRIBUTE(PlaylistMenu::EntryStatus);
 
 #endif

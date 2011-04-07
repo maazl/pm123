@@ -54,7 +54,7 @@ typedef struct
   unsigned   attributes; /* Bit vector of TECH_ATTRIBUTES */
   DSTRING    info;       /* general technical information string */
   DSTRING    format;     /* File format (if any) */
-  DSTRING    decoder;    /* Decoder name */
+  DSTRING    decoder;    /* Decoder name, filled by PM123 core */
 } TECH_INFO;
 #define TECH_INFO_INIT { -1, -1, TATTR_NONE, {NULL}, {NULL}, {NULL} }
 
@@ -106,15 +106,12 @@ typedef struct
  * @details This information is not an aggregate of information of the immediate subitems,
  * but an aggregate of all nested sub items. */
 typedef struct
-{ int        totalsongs; /* Number of song items (for playlists), 1 for songs, 0 otherwise */
-  int        unk_songs;  /* Number of items with unknown song count. */
-  int        totallists; /* Number of playlist items (for playlists), otherwise 0 */
-  int        unk_lists;  /* Number of items with unknown list count. */
-  int        recursive;  /* Number of recursive sub objects. */
-  int        unk_recurs; /* Number of items with unknown recursive flag. */
-  int        num_invalid;/* Number of invalid items */
+{ int        songs;      /* Number of song items (for playlists), 1 for songs, 0 otherwise */
+  int        lists;      /* Number of playlist items (for playlists), otherwise 0 */
+  int        invalid;    /* Number of invalid items */
+  int        unknown;    /* Number of items with unknown counters. */
 } RPL_INFO;
-#define RPL_INFO_INIT { -1, -1, -1, -1, -1, -1, -1 }
+#define RPL_INFO_INIT { 0, 0, 0, 1 }
 
 /** @brief Detailed aggregate information on recursive playlist items
  * @details This information is not an aggregate of information of the immediate subitems,
@@ -124,8 +121,8 @@ typedef struct
   int        unk_length; /* Number of items with unknown length. */
   PM123_SIZE totalsize;  /* Physical size of all included files, 0 -> unknown */
   int        unk_size;   /* Number of items with unknown size. */
-} DRPL_INFO;  
-#define DRPL_INFO_INIT { -1, -1, -1, -1 }
+} DRPL_INFO;
+#define DRPL_INFO_INIT { 0, 1, 0, 1 }
 
 /** @brief Info about a referenced item in a playlist.
  * @details This kind of information is only used in conjunction with DECODER_INFO_ENUMERATION_CB / DECODER_SAVE_ENUMERATION_CB. */

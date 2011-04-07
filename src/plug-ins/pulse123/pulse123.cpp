@@ -29,7 +29,7 @@
 #define  INCL_DOS
 #define  INCL_WIN
 
-#define OUTPUT_PLUGIN_LEVEL 2
+#define PLUGIN_INTERFACE_LEVEL 2
 
 #include "pulse123.h"
 #include "playbackworker.h"
@@ -47,7 +47,7 @@ int DLLENTRY plugin_query(PLUGIN_QUERYPARAM* query)
   query->author       = "Marcel Mueller";
   query->desc         = "Pulseaudio for PM123 V0.9";
   query->configurable = FALSE;
-  query->interface    = 2;
+  query->interface    = PLUGIN_INTERFACE_LEVEL;
   return 0;
 }
 

@@ -399,7 +399,7 @@ PlaylistBase::ICP PlaylistView::GetPlaylistType(const RecordBase* rec) const
   Playable& pp = rec->Data->Content->GetPlayable();
   if (pp == *Content)
     return ICP_Recursive;
-  return pp.RequestInfo(IF_Child, PRI_None, REL_Invalid) || pp.GetPlayable().GetNext(NULL) == NULL ? ICP_Empty : ICP_Closed;
+  return pp.RequestInfo(IF_Child, PRI_None, REL_Invalid) || pp.GetNext(NULL) == NULL ? ICP_Empty : ICP_Closed;
 }
 
 PlaylistBase::IC PlaylistView::GetRecordUsage(const RecordBase* rec) const

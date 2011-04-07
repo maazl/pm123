@@ -1,5 +1,5 @@
 /*  
- * Copyright 2009-2009 Marcel Mueller
+ * Copyright 2009-2011 Marcel Mueller
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -68,7 +68,7 @@ struct PhysInfo : public PHYS_INFO
   PhysInfo& operator=(const PhysInfo& r)          { Assign(r); return *this; } // = delete would be nice
   PhysInfo& operator=(const PHYS_INFO& r)         { Assign(r); return *this; }
   PhysInfo& operator=(const volatile PHYS_INFO& r){ Assign(r); return *this; }
-  void Reset();
+  void Reset()                                    { static const PHYS_INFO init = PHYS_INFO_INIT; (PHYS_INFO&)*this = init; }
   void Assign(const PHYS_INFO& r)                 { (PHYS_INFO&)*this = r; }
   void Assign(const volatile PHYS_INFO& r);
   // Assign and return true on change.
@@ -98,7 +98,7 @@ struct ObjInfo : public OBJ_INFO
   ObjInfo& operator=(const ObjInfo& r)            { Assign(r); return *this; } // = delete would be nice
   ObjInfo& operator=(const OBJ_INFO& r)           { Assign(r); return *this; }
   ObjInfo& operator=(const volatile OBJ_INFO& r)  { Assign(r); return *this; }
-  void Reset();
+  void Reset()                                    { static const OBJ_INFO init = OBJ_INFO_INIT; (OBJ_INFO&)*this = init; }
   void Assign(const OBJ_INFO& r)                  { (OBJ_INFO&)*this = r; }
   void Assign(const volatile OBJ_INFO& r);
   // Assign and return true on change.
@@ -134,7 +134,7 @@ struct AttrInfo : public ATTR_INFO
   AttrInfo& operator=(const volatile ATTR_INFO& r){ Assign(r); return *this; }
   bool IsInitial() const                          { return !ploptions && !at; }
   bool Equals(const ATTR_INFO& r) const           { return ploptions == r.ploptions && at == r.at; }
-  void Reset()                                    { memset(this, 0, sizeof*this); }
+  void Reset();
   void Assign(const ATTR_INFO& r)                 { (ATTR_INFO&)*this = r; }
   void Assign(const volatile ATTR_INFO& r);
   // Assign and return true on change.
@@ -151,14 +151,14 @@ struct RplInfo : public RPL_INFO
   RplInfo& operator=(const RplInfo& r)            { Assign(r); return *this; } // = delete would be nice
   RplInfo& operator=(const RPL_INFO& r)           { Assign(r); return *this; }
   RplInfo& operator=(const volatile RPL_INFO& r)  { Assign(r); return *this; }
-  void Reset()                                    { memset(this, -1, sizeof *this); }
-  void Assign(const RPL_INFO& r)                  { memcpy(this, &r, sizeof *this); }
+  void Reset()                                    { static const RPL_INFO init = RPL_INFO_INIT; (RPL_INFO&)*this = init; }
+  void Assign(const RPL_INFO& r)                  { (RPL_INFO&)*this = r; }
   void Assign(const volatile RPL_INFO& r);
   // Assign and return true on change.
   bool CmpAssign(const RPL_INFO& r)               { return memcmpcpy(this, &r, sizeof *this) != ~0U; }
-  int  GetTotalSongs() const                      { return unk_songs ? -1 : (int)totalsongs; }
-  int  GetTotalLists() const                      { return unk_lists ? -1 : (int)totallists; }
-  int  GetRecursive() const                       { return unk_recurs ? -1 : (int)recursive; }
+  int  GetSongs() const                           { return unknown ? -1 : songs; }
+  int  GetLists() const                           { return unknown ? -1 : lists; }
+  int  GetInvalid() const                         { return unknown ? -1 : invalid; }
   void Clear()                                    { memset(this, 0, sizeof *this); }
   RplInfo& operator+=(const volatile RPL_INFO& r);
   RplInfo& operator-=(const volatile RPL_INFO& r);
@@ -172,14 +172,14 @@ struct DrplInfo : public DRPL_INFO
   DrplInfo& operator=(const DrplInfo& r)          { Assign(r); return *this; } // = delete would be nice
   DrplInfo& operator=(const DRPL_INFO& r)         { Assign(r); return *this; }
   DrplInfo& operator=(const volatile DRPL_INFO& r){ Assign(r); return *this; }
-  void Reset();
-  void Assign(const DRPL_INFO& r)                 { memcpy(this, &r, sizeof *this); }
-  void Assign(const volatile DRPL_INFO& r);
+  void      Reset()                               { static const DRPL_INFO init = DRPL_INFO_INIT; (DRPL_INFO&)*this = init; }
+  void      Assign(const DRPL_INFO& r)            { (DRPL_INFO&)*this = r; }
+  void      Assign(const volatile DRPL_INFO& r);
   // Assign and return true on change.
-  bool CmpAssign(const DRPL_INFO& r)              { return memcmpcpy(this, &r, sizeof *this) != ~0U; }
-  PM123_TIME GetTotalLength() const               { return unk_length ? -1 : (int)totallength; }
-  PM123_SIZE GetTotalSize() const                 { return unk_size   ? -1 : (int)totalsize; }
-  void Clear()                                    { memset(this, 0, sizeof *this); }
+  bool      CmpAssign(const DRPL_INFO& r)         { return memcmpcpy(this, &r, sizeof *this) != ~0U; }
+  PM123_TIME GetTotalLength() const               { return unk_length ? -1. : totallength; }
+  PM123_SIZE GetTotalSize() const                 { return unk_size   ? -1. : totalsize; }
+  void      Clear()                               { memset(this, 0, sizeof *this); }
   DrplInfo& operator+=(const volatile DRPL_INFO& r);
   DrplInfo& operator-=(const volatile DRPL_INFO& r);
 };
@@ -192,12 +192,12 @@ struct ItemInfo : public ITEM_INFO
   ItemInfo& operator=(const ItemInfo& r)          { Assign(r); return *this; } // = delete would be nice
   ItemInfo& operator=(const ITEM_INFO& r)         { Assign(r); return *this; }
   ItemInfo& operator=(const volatile ITEM_INFO& r){ Assign(r); return *this; }
-  bool IsInitial() const;
-  void Reset();
-  void Assign(const ITEM_INFO& r);
-  void Assign(const volatile ITEM_INFO& r);
+  bool      IsInitial() const;
+  void      Reset();
+  void      Assign(const ITEM_INFO& r);
+  void      Assign(const volatile ITEM_INFO& r);
   // Assign and return true on change.
-  bool CmpAssign(const ITEM_INFO& r);
+  bool      CmpAssign(const ITEM_INFO& r);
 };
 bool operator==(const ITEM_INFO& l, const ITEM_INFO& r);
 inline bool operator!=(const ITEM_INFO& l, const ITEM_INFO& r) { return !(l == r); }
@@ -219,11 +219,18 @@ struct AggregateInfo
  protected:
   unsigned               Revision;
  public:
+                         //AggregateInfo() : Revision(0) {}
                          AggregateInfo(const PlayableSetBase& exclude) : Exclude(exclude), Revision(0) {}
                          //AggregateInfo(const AggregateInfo& r);
-  AggregateInfo&         operator=(const AggregateInfo& r);
-  // reset all fields to their initial state
   void                   Reset()                  { Rpl.Reset(); Drpl.Reset(); }
+  AggregateInfo&         operator=(const AggregateInfo& r);
+  AggregateInfo&         operator=(const volatile AggregateInfo& r);
+  // reset all fields to their initial state
+  void                   Clear()                  { Rpl.Clear(); Drpl.Clear(); }
+  AggregateInfo&         operator+=(const AggregateInfo& r) { Rpl += r.Rpl; Drpl += r.Drpl; return *this; }
+  AggregateInfo&         operator+=(const volatile AggregateInfo& r) { Rpl += r.Rpl; Drpl += r.Drpl; return *this; }
+  AggregateInfo&         operator-=(const AggregateInfo& r) { Rpl -= r.Rpl; Drpl -= r.Drpl; return *this; }
+  AggregateInfo&         operator-=(const volatile AggregateInfo& r) { Rpl -= r.Rpl; Drpl -= r.Drpl; return *this; }
   unsigned               GetRevision() const      { return Revision; }
   unsigned               NextRevision()           { return Revision++; }
 };
@@ -252,22 +259,22 @@ class InfoBundle
 : public INFO_BUNDLE
 , public AllInfo
 {private:
-  void                        Init();
+  void                   Init();
  public:
   // reset all fields to their initial state
-  void                        Reset();
-                              InfoBundle();
+  void                   Reset();
+                         InfoBundle();
   // Copy
-                              InfoBundle(const InfoBundle& r);
+                         InfoBundle(const InfoBundle& r);
   // Reference
-  //                            InfoBundle(const INFO_BUNDLE& r) { *this = r; }
+  //                       InfoBundle(const INFO_BUNDLE& r) { *this = r; }
   // Assignment
-  //void                        operator=(const INFO_BUNDLE& r);
+  //void                   operator=(const INFO_BUNDLE& r);
   operator const INFO_BUNDLE_CV&() const { return *(INFO_BUNDLE_CV*)(INFO_BUNDLE*)this; }
  
   // Returns a bit vector with all valid pointers in info.
   // This will never return IF_Child or any of IF_Basic. 
-  //static InfoFlags            ContainsInfo(const INFO_BUNDLE& info);
+  //static InfoFlags       ContainsInfo(const INFO_BUNDLE& info);
 };
 
 /* Facade that sets all info types not in mask to NULL. */

@@ -1,5 +1,5 @@
 /*
- * Copyright 2006-2010 M.Mueller
+ * Copyright 2006-2011 M.Mueller
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -766,17 +766,16 @@ proxy_1_decoder_fileinfo( DecoderProxy1* op, const char* filename, int* what, co
         }
         // Info of the whole CD
         info->phys->filesize   = dec_cdinfo.sectors * 2352.;
+        info->tech->samplerate = 44100;
+        info->tech->channels   = 2;
         info->tech->attributes = TATTR_PLAYLIST;
         info->tech->format     = "CD-TOC";
         info->obj->songlength  = dec_cdinfo.sectors / 75.;
         info->obj->bitrate     = 1411200;
-        info->rpl->totalsongs  = dec_cdinfo.lasttrack - dec_cdinfo.firsttrack +1;
-        info->rpl->totallists  = 0;
-        info->rpl->recursive   = false;
-        info->drpl->totallength= dec_cdinfo.sectors / 75.;
-        info->drpl->totalsize  = (dec_cdinfo.sectors+150) * 2352.;
+        info->obj->num_items   = dec_cdinfo.lasttrack - dec_cdinfo.firsttrack +1;
+        info->attr->ploptions  = PLO_NO_SHUFFLE;
         // old decoders always load all kind of information
-        *what |= IF_Decoder|IF_Aggreg;
+        *what |= IF_Decoder;
       }
       return rc;
     }  

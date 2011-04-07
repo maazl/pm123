@@ -142,13 +142,10 @@ void PlaylistReader::Reset()
   Obj.num_items = -1;
   Attr.ploptions = PLO_NONE;
   Attr.at.reset();
-  Rpl.totalsongs = -1;
-  Rpl.unk_songs = -1;
-  Rpl.totallists = -1;
-  Rpl.unk_lists = -1;
-  Rpl.recursive = -1;
-  Rpl.unk_recurs = -1;
-  Rpl.num_invalid = -1;
+  Rpl.songs = -1;
+  Rpl.lists = -1;
+  Rpl.invalid = -1;
+  Rpl.unknown = -1;
   Drpl.totallength = -1;
   Drpl.unk_length = -1;
   Drpl.totalsize = -1;
@@ -279,10 +276,8 @@ bool LSTReader::ParseLine(char* line)
       ParseInt(Obj.bitrate, tokens[0]);
       ParseFloat(Obj.songlength, tokens[4]);
 
-      ParseInt(Rpl.totalsongs, tokens[5]);
+      ParseInt(Rpl.songs, tokens[5]);
       ParseFloat(Drpl.totalsize, tokens[6]);
-      if (tokens[8])
-        Rpl.recursive = tokens[8][0] == '1';
 
       /* No phys info so far because we do not have the writable flag 
       if (tokens[3])

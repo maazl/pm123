@@ -33,6 +33,8 @@
 #include "properties.h"
 #include "dstring.h"
 #include "glue.h"
+#include "waitinfo.h"
+#include "location.h"
 #include <strutils.h>
 #include <utilfct.h>
 #include <vdelegate.h>
@@ -87,7 +89,7 @@ PlayableInstance::PlayableInstance(const Playable& parent, APlayable& refto)
 //      && (const Slice&)l == (const Slice&)r;
 }*/
 
-int PlayableInstance::CompareTo(const PlayableInstance& r) const
+/*int PlayableInstance::CompareTo(const PlayableInstance& r) const
 { if (this == &r)
     return 0;
   int li = Index;
@@ -98,7 +100,7 @@ int PlayableInstance::CompareTo(const PlayableInstance& r) const
   // Attension: nothing is locked here except for the life-time of the parent playlists.
   // So the item l or r may still be removed from the collection by another thread.
   return li - ri;
-}
+}*/
 
 
 /****************************************************************************
@@ -112,7 +114,7 @@ Playable::Entry::Entry(Playable& parent, APlayable& refto, IDType::func_type ifn
 // But the overrideable properties are copied.
 : PlayableInstance(parent, refto.GetPlayable()),
   InstDelegate(parent, ifn)
-{ DEBUGLOG(("Playable::Entry(%p)::Entry(&&p, &%p, &%p)\n", this, &parent, &refto, &ifn));
+{ DEBUGLOG(("Playable::Entry(%p)::Entry(&%p, &%p, &%p)\n", this, &parent, &refto, &ifn));
   InfoFlags valid = ~refto.RequestInfo(IF_Meta|IF_Attr|IF_Item, PRI_None, REL_Cached);
   const INFO_BUNDLE_CV& ref_info = refto.GetInfo();
   const INFO_BUNDLE_CV& base_info = GetInfo();
@@ -156,8 +158,6 @@ Playable::MyInfo::MyInfo()
   P.Mtx.Release();
 }*/
 
-Mutex Playable::CollectionInfoMutex;
-
 
 Playable::Playable(const url123& url)
 : URL(url),
@@ -169,7 +169,7 @@ Playable::Playable(const url123& url)
 
 Playable::~Playable()
 { DEBUGLOG(("Playable(%p{%s})::~Playable()\n", this, URL.cdata()));
-  // Notify about dieing
+  // Notify about dyeing
   InfoChange(PlayableChangeArgs(*this));
   // No more events.
   InfoChange.reset();
@@ -218,14 +218,18 @@ int_ptr<PlayableInstance> Playable::GetPrev(const PlayableInstance* cur) const
 { DEBUGLOG(("Playable(%p)::GetPrev(%p)\n", this, cur));
   ASSERT(!((Playable*)this)->RequestInfo(IF_Child, PRI_None, REL_Invalid));
   ASSERT(cur == NULL || cur->HasParent(NULL) || cur->HasParent(this));
-  return List.prev((Entry*)cur);
+  if (!Playlist || (Info.Tech.attributes & TATTR_PLAYLIST) == 0)
+    return NULL;
+  return Playlist->Items.prev((Entry*)cur);
 }
 
 int_ptr<PlayableInstance> Playable::GetNext(const PlayableInstance* cur) const
 { DEBUGLOG(("Playable(%p)::GetNext(%p)\n", this, cur));
   ASSERT(!((Playable*)this)->RequestInfo(IF_Child, PRI_None, REL_Invalid));
   ASSERT(cur == NULL || cur->HasParent(NULL) || cur->HasParent(this));
-  return List.next((Entry*)cur);
+  if (!Playlist || (Info.Tech.attributes & TATTR_PLAYLIST) == 0)
+    return NULL;
+  return Playlist->Items.next((Entry*)cur);
 }
 
 xstring Playable::SerializeItem(const PlayableInstance* item, SerializationOptions opt) const
@@ -269,7 +273,7 @@ InfoFlags Playable::InvalidateInfoSync(InfoFlags what)
 }*/
 
 InfoFlags Playable::UpdateInfo(const INFO_BUNDLE& info, InfoFlags what)
-{ DEBUGLOG(("Playable::UpdateInfo(%p&, %x)\n", &info, what));
+{ DEBUGLOG(("Playable(%p)::UpdateInfo(%p&, %x)\n", this, &info, what));
   ASSERT(Mtx.GetStatus() > 0);
   InfoFlags ret = IF_None;
   if (what & IF_Phys)
@@ -296,104 +300,83 @@ void Playable::RaiseInfoChange(InfoFlags loaded, InfoFlags changed)
 
 InfoFlags Playable::DoRequestInfo(InfoFlags& what, Priority pri, Reliability rel)
 { DEBUGLOG(("Playable(%p)::DoRequestInfo(%x&, %u, %u)\n", this, what, pri, rel));
+  // Mask info's that are always available
+  what &= IF_Decoder|IF_Aggreg;
+
   if (what & IF_Drpl)
     what |= IF_Phys|IF_Tech|IF_Obj|IF_Child; // required for DRPL_INFO aggregate
-  else if (what & IF_Rpl)
+  else if (what & (IF_Rpl|IF_Child))
     what |= IF_Tech|IF_Child; // required for RPL_INFO aggregate
 
   what &= InfoStat.Check(what, rel);
-  if (pri == PRI_None || what == IF_None)
-    return IF_None;
-
-  InfoFlags rq = what;
-  InfoFlags what2 = what & IF_Aggreg;
-  if (what2)
-  { // In case of a Playlist place the Request in the CIC cache too.
-    rq &= DoRequestAI(Info, what2, pri, rel) | ~IF_Aggreg;
-    what &= what2 | ~IF_Aggreg;
-  }
-
-  return InfoStat.Request(rq, pri);
-}
-
-Playable::CollectionInfo& Playable::CICLookup(const PlayableSetBase& exclude)
-{ DEBUGLOG(("Playable::CICLookup({%u,})\n", exclude.size()));
-  // Fastpath: no cache entry for the default object.
-  size_t size = exclude.size();
-  if (size == 0 || (size == 1 && exclude[0] == this))
-    return Info;
-
-  // Remove current Playable from the exclude list.
-  sco_ptr<PlayableSet> more;
-  const PlayableSetBase* current = &exclude;
-  if (exclude.contains(*this))
-  { more = new PlayableSet(size - 1);
-    for (size_t i = 0; i < size; ++i)
-    { Playable* pp = exclude[i];
-      if (pp != this)
-        more->append() = pp;
-    }
-    current = more.get();
-  }
-
-  Mutex::Lock lock(CollectionInfoMutex);
-  CollectionInfoEntry*& cic = CollectionInfoCache.get(*current);
-  if (cic == NULL)
-    cic = more != NULL ? new CollectionInfoEntry(*more) : new CollectionInfoEntry(exclude);
-  return *cic;
+  InfoFlags op = pri == PRI_None || what == IF_None
+    ? IF_None : InfoStat.Request(what, pri);
+  DEBUGLOG(("Playable::DoRequestInfo(%x): %x\n", what, op));
+  return op;
 }
 
 AggregateInfo& Playable::DoAILookup(const PlayableSetBase& exclude)
 { 
   if (Info.Tech.attributes & (TATTR_PLAYLIST|TATTR_SONG|TATTR_INVALID) == TATTR_PLAYLIST)
-  { // Playlist => Delegate to PlayableCollection
-    return CICLookup(exclude);
-  } else
-  { // Invalid or unknown item
-    return Info;
+  { // Playlist
+    if (!Playlist) // Fastpath
+    { Mutex::Lock lock(Mtx);
+      EnsurePlaylist();
+    }
+    CollectionInfo* ci = Playlist->Lookup(exclude);
+    if (ci)
+      return *ci;
   }
+  // noexclusion, invalid or unknown item
+  return Info;
 }
 
 InfoFlags Playable::DoRequestAI(AggregateInfo& ai, InfoFlags& what, Priority pri, Reliability rel)
-{ DEBUGLOG(("Playable(%p)::RequestCollectionInfo(&%p, %x, %d, %d)\n", this, &ai, what, pri, rel));
+{ DEBUGLOG(("Playable(%p)::DoRequestAI(&%p, %x, %d, %d)\n", this, &ai, what, pri, rel));
   ASSERT((what & ~IF_Aggreg) == 0);
-  CollectionInfo& ci = (CollectionInfo&)ai;
-  what = ci.InfoStat.Check(what, rel);
-  if (pri == PRI_None || (what & IF_Aggreg) == IF_None)
-    return IF_None;
-  InfoFlags rq = ci.InfoStat.Request(what & IF_Aggreg, pri);
-  // But we have to place an ordinary request too.
-  return DoRequestInfo(rq, pri, rel);
+
+  return ((CollectionInfo&)ai).RequestAI(what, pri, rel);
 }
 
-InfoFlags Playable::GetNextCIWorkItem(CollectionInfo*& item, Priority pri)
-{ DEBUGLOG(("Playable(%p)::GetNextCIWorkItem(%p, %u)\n", this, item, pri));
-  if (!item)
-  { InfoFlags req = Info.InfoStat.GetRequest(pri);
-    if (req)
-    { item = &Info;
-      return req;
+void Playable::CalcRplInfo(CollectionInfo& cie, InfoState::Update& upd, PlayableChangeArgs& events, JobSet& job)
+{ DEBUGLOG(("Playable(%p)::CalcRplInfo(, {%x}, , {%u,})\n", this, upd.GetWhat(), job.Pri));
+  // The entire implementation of this function is basically lock-free.
+  // This means that the result may not be valid after the function finished.
+  // This is addressed by invalidating the rpl bits of cie.InfoStat by other threads.
+  // When this happens the commit after the function completes will not set the state to valid
+  // and the function will be called again when the rpl information is requested again.
+  // The calculation must not be done in place to avoid visibility of intermediate results.
+  InfoFlags whatok = upd & IF_Aggreg;
+  if (whatok == IF_None)
+    return; // Nothing to do
+  RplInfo rpl;
+  DrplInfo drpl;
+  // Iterate over children
+  int_ptr<PlayableInstance> pi;
+  while ((pi = GetNext(pi)) != NULL)
+  { // Skip exclusion list entries to avoid recursion.
+    if (&pi->GetPlayable() == this || cie.Exclude.contains(pi->GetPlayable()))
+    { DEBUGLOG(("CollectionInfoCache::CalcRplInfo - recursive: %p->%p!\n", pi.get(), &pi->GetPlayable()));
+      continue;
     }
+    InfoFlags what2 = upd & IF_Aggreg;
+    const volatile AggregateInfo& ai = job.RequestAggregateInfo(*pi, cie.Exclude, what2);
+    whatok &= ~what2;
+    // TODO: Increment unk_* counters instead of ignoring incomplete subitems?
+    if (whatok & IF_Rpl)
+      rpl += ai.Rpl;
+    if (whatok & IF_Drpl)
+      drpl += ai.Drpl;
   }
-  if (CollectionInfoCache.size()) // Fastpath without mutex
-  { Mutex::Lock lck(CollectionInfoMutex);
-    CollectionInfoEntry** cipp = CollectionInfoCache.begin();
-    if (item && item != &Info)
-    { size_t pos;
-      RASSERT(CollectionInfoCache.binary_search(item->Exclude, pos));
-      cipp += pos +1;
-    }
-    CollectionInfoEntry** cepp = CollectionInfoCache.end();
-    for (; cipp != cepp; ++ cipp)
-    { InfoFlags req = (*cipp)->InfoStat.GetRequest(pri);
-      if (req)
-      { item = *cipp;
-        return req;
-      }
-    }
-  }
-  item = NULL;
-  return IF_None;
+  job.Commit();
+  // Update results
+  upd.Rollback(~whatok & IF_Aggreg);
+  Mutex::Lock lock(Mtx);
+  if (whatok & IF_Rpl)
+    events.Changed |= IF_Rpl * cie.Rpl.CmpAssign(rpl);
+  if (whatok & IF_Drpl)
+    events.Changed |= IF_Drpl * cie.Drpl.CmpAssign(drpl);
+  events.Loaded |= upd.Commit(whatok);
 }
 
 struct deccbdata
@@ -403,14 +386,16 @@ struct deccbdata
   ~deccbdata() {}
 };
 
-bool Playable::DoLoadInfo(Priority pri)
-{ DEBUGLOG(("Playable(%p{%s})::DoLoadInfo(%u)\n", this, URL.getShortName().cdata(), pri));
-  InfoState::Update upd(InfoStat, InfoStat.GetRequest(pri));
+void Playable::DoLoadInfo(JobSet& job)
+{ DEBUGLOG(("Playable(%p{%s})::DoLoadInfo({%u,})\n", this, URL.getShortName().cdata(), job.Pri));
+  InfoState::Update upd(InfoStat, job.Pri);
   DEBUGLOG(("Playable::DoLoadInfo: update %x\n", upd.GetWhat()));
-  if (!upd)
-    return false;
-  InfoBundle info;
+  // There must not be outstanding requests on informations that cause a no-op.
+  // DoRequestInfo should ensure this.
+  ASSERT((upd & ~(IF_Decoder|IF_Aggreg|IF_Async)) == IF_None);
+
   // get information
+  InfoBundle info;
   int what2 = upd & IF_Decoder; // incompatible types and do not request RPL info from the decoder.
   if (what2)
   { deccbdata children(*this);
@@ -422,43 +407,41 @@ bool Playable::DoLoadInfo(Priority pri)
     Mutex::Lock lock(Mtx);
     InfoFlags changed = UpdateInfo(info, upd);
     // update children
-    if (upd & IF_Child)
+    if ((upd & IF_Child) && (Info.Tech.attributes & TATTR_PLAYLIST))
+    { EnsurePlaylist();
       changed |= IF_Child * UpdateCollection(children.Children);
+    }
     // Raise the first bunch of change events.
-    if (upd & IF_Aggreg)
-      Info.InfoStat.EndUpdate(upd & ~IF_Aggreg);
     RaiseInfoChange(upd.Commit((InfoFlags)what2 | ~IF_Aggreg), changed);
-    // Everything already done?
-    if (!upd)
-      return false;
   }
+
   // Calculate RPL_INFO if not already done by dec_fileinfo.
   if ((Info.Tech.attributes & (TATTR_SONG|TATTR_PLAYLIST|TATTR_INVALID)) == TATTR_PLAYLIST)
-  { // For the event below
+  { ASSERT(Playlist != NULL);
+    // For the event below
     PlayableChangeArgs args(*this);
-    InfoFlags reschedule = IF_None;
-    CollectionInfo* iep = NULL;
-    for(;;)
-    { InfoFlags req = GetNextCIWorkItem(iep, pri);
-      if (!req)
-        break;
-      // retrieve information
-      InfoFlags done = CalcRplInfo(*iep, req, pri, args.Changed);
-      reschedule |= req & ~done;
-      args.Loaded |= done;
+    if (upd)
+    { // Request for default recursive playlist information (without exclusions)
+      // is to be completed.
+      ASSERT((upd & IF_Aggreg) == IF_None);
+      CalcRplInfo(Info, upd, args, job);
     }
-    upd.Rollback(reschedule);
-    Mutex::Lock lock(Mtx);
-    upd.Commit();
+    // Request Infos with exclusion lists
+    for (CollectionInfo* iep = NULL; Playlist->GetNextWorkItem(iep, job.Pri, upd);)
+      // retrieve information
+      CalcRplInfo(*iep, upd, args, job);
+
     // Raise event if any    
     if (!args.IsInitial())
+    { Mutex::Lock lock(Mtx);
       InfoChange(args);
-    return !!reschedule;
-  } else
+    }
+
+  } else if (upd & IF_Aggreg)
   { if (Info.Tech.attributes & TATTR_INVALID)
-    { info.Rpl.num_invalid  = 1;
+    { info.Rpl.invalid = 1;
     } else if (Info.Tech.attributes & TATTR_SONG)
-    { info.Rpl.totalsongs   = 1;
+    { info.Rpl.songs   = 1;
       info.Drpl.totallength = Info.Obj.songlength;
       if (info.Drpl.totallength < 0)
       { info.Drpl.totallength = 0;
@@ -475,12 +458,11 @@ bool Playable::DoLoadInfo(Priority pri)
     InfoFlags changed = UpdateInfo(info, upd);
     // Raise event if any
     RaiseInfoChange(upd.Commit(), changed);
-    return false;
   }
 }
 
 PROXYFUNCIMP(void DLLENTRY, Playable)
-Playable_DecoderEnumCb( void* param, const char* url, const INFO_BUNDLE* info, int cached, int override )
+Playable_DecoderEnumCb(void* param, const char* url, const INFO_BUNDLE* info, int cached, int override )
 { DEBUGLOG(("Playable::DecoderEnumCb(%p, %s, %p, %x, %x)\n", param, url, info, cached, override));
   ASSERT((cached & override) == 0);
   deccbdata* cbdata = (deccbdata*)param;
@@ -508,44 +490,8 @@ Playable_DecoderEnumCb( void* param, const char* url, const INFO_BUNDLE* info, i
   cbdata->Children.append() = ps;
 }
 
-InfoFlags Playable::CalcRplInfo(CollectionInfo& cie, InfoFlags what, Priority pri, InfoFlags& changed)
-{ DEBUGLOG(("Playable(%p)::CalcRplInfo({}, %x, %u, %x)\n", this, what, pri, changed));
-  // The entire implementation of this function is basically lock-free.
-  // This means that the result may not be valid after the function finished.
-  // This is addressed by invalidating the rpl bits of cie.InfoStat by other threads.
-  // When this happens the commit after the function completes will not set the state to valid
-  // and the function will be called again when the rpl information is requested again.
-  // The calculation must not be done in place to avoid visibility of intermediate results.
-  InfoFlags whatok = what;
-  RplInfo rpl;
-  DrplInfo drpl;
-  // Iterate over children
-  int_ptr<PlayableInstance> pi;
-  while ((pi = GetNext(pi)) != NULL)
-  { // Skip exclusion list entries to avoid recursion.
-    if (&pi->GetPlayable() == this || cie.Exclude.contains(pi->GetPlayable()))
-    { DEBUGLOG(("PlayableCollection::GetCollectionInfo - recursive: %p->%p!\n", pi.get(), &pi->GetPlayable()));
-      continue;
-    }
-    InfoFlags what2 = what;
-    const volatile AggregateInfo& ai = pi->RequestAggregateInfo(cie.Exclude, what2, pri, REL_Cached);
-    whatok &= what2;
-    if (whatok & IF_Rpl)
-      rpl += ai.Rpl;
-    if (whatok & IF_Drpl)
-      drpl += ai.Drpl;
-  }
-  // Update results
-  Mutex::Lock lock(Mtx);
-  if (whatok & IF_Rpl)
-    changed |= IF_Rpl * cie.Rpl.CmpAssign(rpl);
-  if (whatok & IF_Drpl)
-    changed |= IF_Drpl * cie.Drpl.CmpAssign(drpl);
-  return whatok;
-}
-
 void Playable::ChildChangeNotification(const PlayableChangeArgs& args)
-{ DEBUGLOG(("Playable(%p{%s})::ChildChangeNotification({%p{%s}, %p, %x,%x, %x})", this, URL.getShortName().cdata(),
+{ DEBUGLOG(("Playable(%p{%s})::ChildChangeNotification({%p{%s}, %p, %x,%x, %x})\n", this, URL.getShortName().cdata(),
     &args.Instance, args.Instance.GetPlayable().URL.getShortName().cdata(), args.Origin, args.Loaded, args.Changed, args.Invalidated));
   /*  InfoFlags f = args.Changed & (IF_Tech|IF_Rpl);
     if (f)
@@ -563,18 +509,23 @@ void Playable::ChildChangeNotification(const PlayableChangeArgs& args)
   }*/
 }
 
+void Playable::EnsurePlaylist()
+{ ASSERT(!(Info.Tech.attributes & TATTR_SONG));
+  if (!Playlist)
+    Playlist = new PlaylistData(*this);
+}
+
 Playable::Entry* Playable::CreateEntry(APlayable& refto)
 { DEBUGLOG(("Playable(%p)::CreateEntry(&%p)\n", this, &refto));
   return new Entry(*this, refto, &Playable::ChildChangeNotification);
 }
 
 void Playable::InsertEntry(Entry* entry, Entry* before)
-{ DEBUGLOG(("Playable(%p{%s})::InsertEntry(%p{%s,%p,%p}, %p{%s})\n", this, URL.getShortName().cdata(),
-    entry, entry->GetPlayable().URL.getShortName().cdata(), List.prev(entry), List.next(entry),
-    before, before ? before->GetPlayable().URL.cdata() : ""));
+{ DEBUGLOG(("Playable(%p{%s})::InsertEntry(%p{%s}, %p{%s})\n", this, URL.getShortName().cdata(),
+    entry, entry->GetPlayable().URL.getShortName().cdata(), before, before ? before->GetPlayable().URL.cdata() : ""));
   // insert new item at the desired location
   entry->Attach();
-  List.insert(entry, before);
+  Playlist->Items.insert(entry, before);
   DEBUGLOG(("Playable::InsertEntry - before event\n"));
   //InvalidateCIC(IF_Aggreg, entry->GetPlayable());
   //CollectionChange(CollectionChangeArgs(*this, *entry, PCT_Insert));
@@ -582,10 +533,9 @@ void Playable::InsertEntry(Entry* entry, Entry* before)
 }
 
 bool Playable::MoveEntry(Entry* entry, Entry* before)
-{ DEBUGLOG(("Playable(%p{%s})::MoveEntry(%p{%s,%p,%p}, %p{%s})\n", this, URL.getShortName().cdata(),
-    entry, entry->GetPlayable().URL.getShortName().cdata(), List.prev(entry), List.next(entry),
-    before, (before ? before->GetPlayable().URL : url123::EmptyURL).getShortName().cdata()));
-  if (!List.move(entry, before))
+{ DEBUGLOG(("Playable(%p{%s})::MoveEntry(%p{%s}, %p{%s})\n", this, URL.getShortName().cdata(),
+    entry, entry->GetPlayable().URL.getShortName().cdata(), before, (before ? before->GetPlayable().URL : url123::EmptyURL).getShortName().cdata()));
+  if (!Playlist->Items.move(entry, before))
     return false;
   // raise event
   DEBUGLOG(("Playable::MoveEntry - before event\n"));
@@ -595,20 +545,29 @@ bool Playable::MoveEntry(Entry* entry, Entry* before)
 }
 
 void Playable::RemoveEntry(Entry* entry)
-{ DEBUGLOG(("Playable(%p{%s})::RemoveEntry(%p{%s,%p,%p})\n", this, URL.getShortName().cdata(),
-    entry, entry->GetPlayable().URL.getShortName().cdata(), List.prev(entry), List.next(entry)));
+{ DEBUGLOG(("Playable(%p{%s})::RemoveEntry(%p{%s})\n", this, URL.getShortName().cdata(),
+    entry, entry->GetPlayable().URL.getShortName().cdata()));
   //InvalidateCIC(IF_Aggreg, entry->GetPlayable());
   //CollectionChange(CollectionChangeArgs(*this, *entry, PCT_Delete));
   DEBUGLOG(("Playable::RemoveEntry - after event\n"));
   ASSERT(entry->HasParent(this));
   entry->Detach();
-  List.remove(entry);
+  Playlist->Items.remove(entry);
+}
+
+void Playable::RenumberEntries(Entry* from, const Entry* to, int index)
+{ while (from != to)
+  { ASSERT(from); // passed NULL or [from,to[ is no valid range
+    from->SetIndex(index++);
+    from = Playlist->Items.next(from);
+  }
 }
 
 bool Playable::UpdateCollection(const vector<PlayableRef>& newcontent)
 { DEBUGLOG(("Playable(%p)::UpdateCollection({%u,...})\n", this, newcontent.size()));
   bool ret = false;
   PlayableRef* first_new = NULL;
+  int index = 0;
   // TODO: RefreshActive = true;
   // Place new entries, try to recycle existing ones.
   for (PlayableRef*const* npp = newcontent.begin(); npp != newcontent.end(); ++npp)
@@ -619,7 +578,7 @@ bool Playable::UpdateCollection(const vector<PlayableRef>& newcontent)
     Entry* match = NULL;
     Entry* cur_search = NULL;
     for(;;)
-    { cur_search = List.next(cur_search);
+    { cur_search = Playlist->Items.next(cur_search);
       // End of list of old items?
       if (cur_search == NULL || cur_search == first_new)
         // No matching entry found, however, we may already have an inexact match.
@@ -662,6 +621,8 @@ bool Playable::UpdateCollection(const vector<PlayableRef>& newcontent)
       InsertEntry(match, NULL);
       ret = true;
     }
+    // Update index
+    match->SetIndex(++index);
     // Keep the first element for stop conditions below
     if (first_new == NULL)
       first_new = match;
@@ -669,11 +630,11 @@ bool Playable::UpdateCollection(const vector<PlayableRef>& newcontent)
   // Remove remaining old entries not recycled so far.
   // We loop here until we reach first_new. This /must/ be reached sooner or later.
   // first_new may be null if there are no new entries.
-  Entry* cur = List.next(NULL);
+  Entry* cur = Playlist->Items.next(NULL);
   if (cur != first_new)
   { do
     { RemoveEntry(cur);
-      cur = List.next(NULL);
+      cur = Playlist->Items.next(NULL);
     } while (cur != first_new);
     ret = true;
   }
@@ -696,20 +657,15 @@ int_ptr<PlayableInstance> Playable::InsertItem(APlayable& item, PlayableInstance
   // Check whether the parameter before is still valid
   if (before && !before->HasParent(this))
     return NULL;
-  InfoState::Update upd(InfoStat, IF_Child|IF_Obj|(IF_Tech * !(Info.Tech.attributes & TATTR_PLAYLIST)));
+  InfoState::Update upd(InfoStat);
+  upd.Extend(IF_Child|IF_Obj|(IF_Tech * !(Info.Tech.attributes & TATTR_PLAYLIST)));
   if (!(upd & IF_Child))
     // TODO: Warning: Object locked by pending loadinfo
     return NULL;
 
   // point of no return...
+  EnsurePlaylist();
   Entry* ep = CreateEntry(item);
-
-  /*ep->SetAlias(item.GetAlias());
-  if (item.GetStart())
-    ep->SetStart(new SongIterator(*item.GetStart()));
-  if (item.GetStop())
-    ep->SetStop(new SongIterator(*item.GetStop()));*/
-
   InsertEntry(ep, (Entry*)before);
 
   if (upd & IF_Tech)
@@ -721,6 +677,7 @@ int_ptr<PlayableInstance> Playable::InsertItem(APlayable& item, PlayableInstance
     Info.Obj.num_items = 1;
   } else
     ++Info.Obj.num_items;
+  RenumberEntries(ep, NULL, before ? before->GetIndex() : Info.Obj.num_items);
 
   InfoFlags what = upd;
   upd.Commit();
@@ -748,8 +705,13 @@ bool Playable::MoveItem(PlayableInstance* item, PlayableInstance* before)
     return false;
 
   // Now move the entry.
+  Entry* const next = Playlist->Items.next((Entry*)item);
   if (MoveEntry((Entry*)item, (Entry*)before))
-  { if (!Modified)
+  { if (before == NULL || item->GetIndex() < before->GetIndex())
+      RenumberEntries(next, (Entry*)before, item->GetIndex());
+    else
+      RenumberEntries((Entry*)item, next, before->GetIndex());
+    if (!Modified)
     { what |= IF_Usage;
       Modified = true;
     }
@@ -769,11 +731,13 @@ bool Playable::RemoveItem(PlayableInstance* item)
   // Check whether the item is still valid
   if (item && !item->HasParent(this))
     return false;
-  InfoState::Update upd(InfoStat, IF_Child|IF_Obj);
+  InfoState::Update upd(InfoStat);
+  upd.Extend(IF_Child|IF_Obj);
   if (!(upd & IF_Child))
     return false;
 
   // now detach the item from the container
+  RenumberEntries(Playlist->Items.next((const Entry*)item), NULL, item->GetIndex());
   RemoveEntry((Entry*)item);
   --Info.Obj.num_items;
 
@@ -792,14 +756,15 @@ bool Playable::RemoveItem(PlayableInstance* item)
 bool Playable::Clear()
 { DEBUGLOG(("Playable(%p{%s})::Clear()\n", this, URL.getShortName().cdata()));
   Mutex::Lock lock(Mtx);
-  InfoState::Update upd(InfoStat, IF_Child|IF_Obj|IF_Rpl|IF_Drpl);
+  InfoState::Update upd(InfoStat);
+  upd.Extend(IF_Child|IF_Obj|IF_Rpl|IF_Drpl);
   if (!(upd & IF_Child))
     return false;
   InfoFlags what = upd;
   // now detach all items from the container
-  if (!List.is_empty())
+  if (Playlist != NULL && !Playlist->Items.is_empty())
   { for (;;)
-    { Entry* ep = List.next(NULL);
+    { Entry* ep = Playlist->Items.next(NULL);
       DEBUGLOG(("PlayableCollection::Clear - %p\n", ep));
       if (ep == NULL)
         break;
@@ -826,7 +791,7 @@ bool Playable::Clear()
 bool Playable::Sort(ItemComparer comp)
 { DEBUGLOG(("Playable(%p)::Sort(%p)\n", this, comp));
   Mutex::Lock lock(Mtx);
-  if (List.prev(NULL) == List.next(NULL))
+  if (!Playlist || Playlist->Items.prev(NULL) == Playlist->Items.next(NULL))
     return true; // Empty or one element lists are always sorted.
   InfoFlags what = InfoStat.BeginUpdate(IF_Child);
   if (what == IF_None)
@@ -835,7 +800,7 @@ bool Playable::Sort(ItemComparer comp)
   // Create index array
   vector<PlayableInstance> index(Info.Obj.num_items);
   Entry* ep = NULL;
-  while ((ep = List.next(ep)) != NULL)
+  while ((ep = Playlist->Items.next(ep)) != NULL)
     index.append() = ep;
   // Sort index array
   merge_sort(index.begin(), index.end(), comp);
@@ -854,7 +819,7 @@ bool Playable::Sort(ItemComparer comp)
 bool Playable::Shuffle()
 { DEBUGLOG(("Playable(%p)::Shuffle\n", this));
   Mutex::Lock lock(Mtx);
-  if (List.prev(NULL) == List.next(NULL))
+  if (!Playlist || Playlist->Items.prev(NULL) == Playlist->Items.next(NULL))
     return true; // Empty or one element lists are always sorted.
   InfoFlags what = InfoStat.BeginUpdate(IF_Child);
   if (what == IF_None)
@@ -863,7 +828,7 @@ bool Playable::Shuffle()
   // Create index array
   vector<PlayableRef> newcontent(Info.Obj.num_items);
   Entry* ep = NULL;
-  while ((ep = List.next(ep)) != NULL)
+  while ((ep = Playlist->Items.next(ep)) != NULL)
     newcontent.insert(rand()%(newcontent.size()+1)) = ep;
   bool changed = UpdateCollection(newcontent);
   ASSERT(newcontent.size() == 0); // All items should have been reused
@@ -972,34 +937,6 @@ int_ptr<Playable> Playable::GetByURL(const url123& URL)
   // else match
   ppn->LastAccess = clock();
   return ppn;
-  
-  /*if (ca)
-  { InfoFlags what = (bool)(ca->format != NULL) * IF_Format
-                   | (bool)(ca->tech   != NULL) * IF_Tech
-                   | (bool)(ca->meta   != NULL) * IF_Meta
-                   | (bool)(ca->phys   != NULL) * IF_Phys
-                   | (bool)(ca->rpl    != NULL) * IF_Rpl;
-    DEBUGLOG(("Playable::GetByURL: merge {%p, %p, %p, %p, %p} %x %x\n",
-      ca->format, ca->tech, ca->meta, ca->phys, ca->rpl, pp->InfoValid, what));
-    what &= ~pp->InfoValid;
-    // Double check to avoid unneccessary mutex delays.
-    if ( what )
-    { // Merge meta info
-      Lock lock(*pp);
-      what = pp->BeginUpdate(what & ~pp->InfoValid);
-      if (what & IF_Format)
-        pp->UpdateFormat(ca->format, false);
-      if (what & IF_Tech)
-        pp->UpdateTech(ca->tech, false);
-      if (what & IF_Meta)
-        pp->UpdateMeta(ca->meta, false);
-      if (what & IF_Phys)
-        pp->UpdatePhys(ca->phys, false);
-      if (what & IF_Rpl)
-        pp->UpdateRpl(ca->rpl, false);
-      pp->EndUpdate(what);
-    }
-  }*/
 }
 
 void Playable::DetachObjects(const vector<Playable>& list)

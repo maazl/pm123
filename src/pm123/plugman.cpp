@@ -236,11 +236,11 @@ bool Module::Load()
   QueryParam.interface = 0; // unchanged by old plug-ins
   (*pquery)(&QueryParam);
 
-  if (QueryParam.interface > MAX_PLUGIN_LEVEL)
+  if (QueryParam.interface > PLUGIN_INTERFACE_LEVEL)
   {
     #define toconststring(x) #x
     amp_player_error( "Could not load plug-in %s because it requires a newer version of the PM123 core\n"
-                      "Requested interface revision: %d, max. supported: " toconststring(MAX_PLUGIN_LEVEL),
+                      "Requested interface revision: %d, max. supported: " toconststring(PLUGIN_INTERFACE_LEVEL),
                       GetModuleName().cdata(), QueryParam.interface);
     #undef toconststring
     return false;

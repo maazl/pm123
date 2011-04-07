@@ -1,5 +1,5 @@
 /*
- * Copyright 2009-2010 M.Mueller
+ * Copyright 2009-2011 M.Mueller
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -79,12 +79,6 @@ char* PM123Time::toString(char* buf, PM123_TIME time)
 *
 ****************************************************************************/
 
-void PhysInfo::Reset()
-{ filesize   = -1;
-  tstmp      = -1;
-  attributes = PATTR_NONE;
-}
-
 void PhysInfo::Assign(const volatile PHYS_INFO& r)
 { filesize   = r.filesize;
   tstmp      = r.tstmp;
@@ -131,12 +125,6 @@ bool TechInfo::CmpAssign(const TECH_INFO& r)
 *  class ObjInfo
 *
 ****************************************************************************/
-
-void ObjInfo::Reset()
-{ songlength = -1;
-  bitrate    = -1;
-  num_items  = -1;
-}
 
 void ObjInfo::Assign(const volatile OBJ_INFO& r)
 { songlength = r.songlength;
@@ -229,6 +217,11 @@ bool operator==(const META_INFO& l, const META_INFO& r)
 *
 ****************************************************************************/
 
+void AttrInfo::Reset()
+{ ploptions = PLO_NONE;
+  at.reset();
+}
+
 void AttrInfo::Assign(const volatile ATTR_INFO& r)
 { ploptions = r.ploptions;
   at        = r.at;
@@ -249,32 +242,26 @@ bool AttrInfo::CmpAssign(const ATTR_INFO& r)
 ****************************************************************************/
 
 RplInfo& RplInfo::operator+=(const volatile RPL_INFO& r)
-{ totalsongs += r.totalsongs;
-  unk_songs  += r.unk_songs;
-  totallists += r.totallists;
-  unk_lists  += r.unk_lists;
-  recursive  += r.recursive;
-  unk_recurs += r.unk_recurs;
+{ songs   += r.songs;
+  lists   += r.lists;
+  invalid += r.invalid;
+  unknown += r.unknown;
   return *this;
 }
 
 RplInfo& RplInfo::operator-=(const volatile RPL_INFO& r)
-{ totalsongs -= r.totalsongs;
-  unk_songs  -= r.unk_songs;
-  totallists -= r.totallists;
-  unk_lists  -= r.unk_lists;
-  recursive  -= r.recursive;
-  unk_recurs -= r.unk_recurs;
+{ songs   -= r.songs;
+  lists   -= r.lists;
+  invalid -= r.invalid;
+  unknown -= r.unknown;
   return *this;
 }
 
 void RplInfo::Assign(const volatile RPL_INFO& r)
-{ totalsongs = r.totalsongs;
-  unk_songs  = r.unk_songs;
-  totallists = r.totallists;
-  unk_lists  = r.unk_lists;
-  recursive  = r.recursive;
-  unk_recurs = r.unk_recurs;
+{ songs   = r.songs;
+  lists   = r.lists;
+  invalid = r.invalid;
+  unknown = r.unknown;
 }
 
 
@@ -298,13 +285,6 @@ DrplInfo& DrplInfo::operator-=(const volatile DRPL_INFO& r)
   totalsize   -= r.totalsize;
   unk_size    -= r.unk_size;
   return *this;
-}
-
-void DrplInfo::Reset()
-{ totallength = -1;
-  unk_length  = -1;
-  totalsize   = -1;
-  unk_size    = -1;
 }
 
 void DrplInfo::Assign(const volatile DRPL_INFO& r)
@@ -404,6 +384,13 @@ AggregateInfo& AggregateInfo::operator=(const AggregateInfo& r)
   return *this;
 }
 
+AggregateInfo& AggregateInfo::operator=(const volatile AggregateInfo& r)
+{ Rpl  = r.Rpl;
+  Drpl = r.Drpl;
+  Revision = r.Revision;
+  return *this;
+}
+
 
 /****************************************************************************
 *
@@ -412,14 +399,14 @@ AggregateInfo& AggregateInfo::operator=(const AggregateInfo& r)
 ****************************************************************************/
 
 AllInfo::AllInfo()
-: AggregateInfo(PlayableSetBase::Empty)
+: AggregateInfo(PlayableSetBase::Empty) // This bundle contains always the root aggregate without exclusions
 {}
 AllInfo::AllInfo(const INFO_BUNDLE& r)
-: AggregateInfo(PlayableSetBase::Empty)
+: AggregateInfo(PlayableSetBase::Empty) // This bundle contains always the root aggregate without exclusions
 { Assign(r);
 }
 AllInfo::AllInfo(const INFO_BUNDLE_CV& r)
-: AggregateInfo(PlayableSetBase::Empty)
+: AggregateInfo(PlayableSetBase::Empty) // This bundle contains always the root aggregate without exclusions
 { Assign(r);
 }
 

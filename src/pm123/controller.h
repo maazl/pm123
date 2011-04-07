@@ -1,5 +1,5 @@
 /*
- * Copyright 2007-2010 M.Mueller
+ * Copyright 2007-2011 M.Mueller
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -255,7 +255,7 @@ class Ctrl
   static delegate<void, const PlayableChangeArgs>    CurrentRootDelegate;
   //static delegate<void, const CallstackEntry>        SongIteratorDelegate;
 
-  // Occasionally used constant.
+  // Occasionally used constants.
   static const vector_int<PlayableInstance> EmptyStack;
 
  private: // internal functions, not thread safe
@@ -269,22 +269,22 @@ class Ctrl
   // Initializes the decoder engine and starts playback of the song pp with a time offset for the output.
   // The function returns the result of dec_play.
   // Precondition: The output must have been initialized.
-  // The function does not return unless the decoder is decoding or an error occured.
+  // The function does not return unless the decoder is decoding or an error occurred.
   static ULONG DecoderStart(APlayable& ps, PM123_TIME offset);
   // Stops decoding and deinitializes the decoder plug-in.
   static void  DecoderStop();
   // Initializes the output for playing pp.
   // The playable object is needed for naming purposes.
   static ULONG OutputStart(APlayable& pp);
-  // Stops playback and clears the prefetchlist.
+  // Stops playback and clears the prefetch list.
   static void  OutputStop();
   // Updates the in-use status of PlayableInstance objects in the callstack by moving from oldstack to newstack.
   // The status of common parts of the two stacks is not touched. 
   // To set the in-use status initially pass EmptyStack as oldstack.
   // To reset all in-use status pass EmptyStack as newstack.
-  static void  UpdateStackUsage(const vector_int<PlayableInstance>& oldstack, const vector_int<PlayableInstance>& newstack);
+  static void  UpdateStackUsage(const vector<PlayableInstance>& oldstack, const vector<PlayableInstance>& newstack);
   // Internal sub function to UpdateStackUsage
-  static void  SetStackUsage(const int_ptr<PlayableInstance>* rbegin, const int_ptr<PlayableInstance>* rend, bool set);
+  static void  SetStackUsage(PlayableInstance*const* rbegin, PlayableInstance*const* rend, bool set);
   // Core logic of MsgSkip.
   // Move the current song pointer by count items if relative is true or to item number 'count' if relative is false.
   // If we try to move the current song pointer out of the range of the that that si relies on,

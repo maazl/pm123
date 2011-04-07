@@ -3,7 +3,7 @@
  *                     Taneli Lepp�  <rosmo@sektori.com>
  *
  * Copyright 2004-2006 Dmitry A.Steklenev <glass@ptv.ru>
- * Copyright 2006-2009 Marcel Mueller
+ * Copyright 2006-2011 Marcel Mueller
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -631,14 +631,13 @@ ULONG DLLENTRY dec_fileinfo( const char* url, int* what, INFO_BUNDLE* info,
     if (info->tech->info == 0)
       info->tech->info = xstring::sprintf("Decoder error %i", rc);
   }
-  DEBUGLOG(("dec_fileinfo: {PHYS{%.0f, %i, %x}, TECH{%i,%i, %x, %s, %s, %s}, OBJ{%.3f, %i, %i}, META{...} ATTR{%x, %s}, RPL{%d,%d, %d,%d, %d,%d, %d}, DRPL{%f, %d, %.0f, %d}, ITEM{...}} -> %x\n",
+  DEBUGLOG(("dec_fileinfo: {PHYS{%.0f, %i, %x}, TECH{%i,%i, %x, %s, %s, %s}, OBJ{%.3f, %i, %i}, META{...} ATTR{%x, %s}, RPL{%d, %d, %d, %d}, DRPL{%f, %d, %.0f, %d}, ITEM{...}} -> %x\n",
     info->phys->filesize, info->phys->tstmp, info->phys->attributes,
     info->tech->samplerate, info->tech->channels, info->tech->attributes,
       info->tech->info.cdata(), info->tech->format.cdata(), info->tech->decoder.cdata(),
     info->obj->songlength, info->obj->bitrate, info->obj->num_items,
     info->attr->ploptions, info->attr->at.cdata(),
-    info->rpl->totalsongs, info->rpl->unk_songs, info->rpl->totallists, info->rpl->unk_lists,
-      info->rpl->recursive, info->rpl->unk_recurs, info->rpl->num_invalid,
+    info->rpl->songs, info->rpl->lists, info->rpl->lists, info->rpl->unknown,
     info->drpl->totallength, info->drpl->unk_length, info->drpl->totalsize, info->drpl->unk_size,
     what2));
   ASSERT((*what & ~what2) == 0); // The decoder must not reset bits.

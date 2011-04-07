@@ -311,7 +311,7 @@ PlaylistBase::ICP PlaylistManager::GetPlaylistType(const RecordBase* rec) const
 { DEBUGLOG(("PlaylistManager::GetPlaylistType(%s)\n", Record::DebugName(rec).cdata()));
   PlaylistBase::ICP ret;
   Playable& pp = rec->Data->Content->GetPlayable();
-  if (pp.RequestInfo(IF_Child, PRI_None, REL_Invalid) || pp.GetPlayable().GetNext(NULL) == NULL)
+  if (pp.RequestInfo(IF_Child, PRI_None, REL_Invalid) || pp.GetNext(NULL) == NULL)
     ret = ICP_Empty;
   else if (((const Record*)rec)->Data()->Recursive)
     ret = ICP_Recursive;
@@ -397,7 +397,6 @@ PlaylistBase::RecordBase* PlaylistManager::CreateNewRecord(PlayableInstance& obj
   // now get initial info's
   rec->Data()->Text = obj.GetDisplayName();
   rec->Data()->Recursive = obj.GetInfo().tech->attributes & TATTR_PLAYLIST
-                        && (obj.RequestInfo(IF_Rpl, PRI_None) || obj.GetInfo().rpl->recursive || obj.GetInfo().rpl->unk_recurs)
                         && RecursionCheck(obj.GetPlayable(), parent);
   rec->flRecordAttr = 0;
   rec->pszIcon      = (PSZ)rec->Data()->Text.cdata();
@@ -445,7 +444,6 @@ void PlaylistManager::UpdateRecord(RecordBase* rec)
     if (rec && (flags & IF_Rpl)) // not for root level
     { APlayable& p = *rec->Data->Content;
       bool recursive = p.GetInfo().tech->attributes & TATTR_PLAYLIST
-                    && (p.RequestInfo(IF_Rpl, PRI_None) || p.GetInfo().rpl->recursive || p.GetInfo().rpl->unk_recurs)
                     && RecursionCheck(rec);
       if (recursive != ((Record*)rec)->Data()->Recursive)
       { ((Record*)rec)->Data()->Recursive = recursive;
@@ -509,12 +507,12 @@ void PlaylistManager::UserNavigate(const RecordBase* rec)
 { DEBUGLOG(("PlaylistManager(%p)::UserNavigate(%p)\n", this, rec));
   if (((Record*)rec)->Data()->Recursive) // do not navigate to recursive items
     return;
-  const Playable* pp;
+  const Playable* root;
   // Fetch current root
   { int_ptr<APlayable> ps = Ctrl::GetRoot();
     if (ps == NULL)
       return;
-    pp = &ps->GetPlayable();
+    root = &ps->GetPlayable();
   }
   // make navigation string starting from rec
   xstring nav = xstring::empty;
@@ -526,7 +524,7 @@ void PlaylistManager::UserNavigate(const RecordBase* rec)
     // TODO: Configuration options
     nav = list.SerializeItem(pi, Playable::SO_RelativePath) + ";" + nav;
     DEBUGLOG(("PlaylistManager::UserNavigate - %s\n", nav.cdata()));
-    if (list.GetPlayable() == *pp)
+    if (&list == root)
     { // now we are at the root => send navigation command
       Ctrl::PostCommand(Ctrl::MkNavigate(nav, 0, false, true));
       return;

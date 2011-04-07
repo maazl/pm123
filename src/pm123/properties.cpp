@@ -1403,19 +1403,19 @@ cfg_properties( HWND owner )
   PMRASSERT( nb_append_tab( book, WinLoadDlg( book, book, cfg_display1_dlg_proc, NULLHANDLE, CFG_DISPLAY1, 0 ),
                             "~Display", NULL, 0));
 
-  PluginContext decoder_context(&Decoders, NULL, DECODER_PLUGIN_LEVEL, PluginContext::CF_None);
+  PluginContext decoder_context(&Decoders, NULL, PLUGIN_INTERFACE_LEVEL, PluginContext::CF_None);
   PMRASSERT( nb_append_tab( book, WinLoadDlg( book, book, cfg_config_dlg_proc, NULLHANDLE, CFG_DEC_CONFIG, &decoder_context ),
                             "~Plug-ins", "Decoder Plug-ins", MPFROM2SHORT( 1, 4 )));
 
-  PluginContext filter_context(&Filters, NULL, FILTER_PLUGIN_LEVEL, PluginContext::CF_None);
+  PluginContext filter_context(&Filters, NULL, PLUGIN_INTERFACE_LEVEL, PluginContext::CF_None);
   PMRASSERT( nb_append_tab( book, WinLoadDlg( book, book, cfg_config_dlg_proc, NULLHANDLE, CFG_FIL_CONFIG, &filter_context ),
                             NULL, "Filter Plug-ins", MPFROM2SHORT( 2, 4 )));
 
-  PluginContext output_context(&Outputs, NULL, OUTPUT_PLUGIN_LEVEL, PluginContext::CF_List1);
+  PluginContext output_context(&Outputs, NULL, PLUGIN_INTERFACE_LEVEL, PluginContext::CF_List1);
   PMRASSERT( nb_append_tab( book, WinLoadDlg( book, book, cfg_config_dlg_proc, NULLHANDLE, CFG_OUT_CONFIG, &output_context ),
                             NULL, "Output Plug-ins", MPFROM2SHORT( 3, 4 )));
 
-  PluginContext visual_context(&Visuals, &VisualsSkinned, VISUAL_PLUGIN_LEVEL, PluginContext::CF_None);
+  PluginContext visual_context(&Visuals, &VisualsSkinned, PLUGIN_INTERFACE_LEVEL, PluginContext::CF_None);
   PMRASSERT( nb_append_tab( book, WinLoadDlg( book, book, cfg_config_dlg_proc, NULLHANDLE, CFG_VIS_CONFIG, &visual_context ),
                             NULL, "Visual Plug-ins", MPFROM2SHORT( 4, 4 )));
 

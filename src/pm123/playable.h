@@ -1,5 +1,5 @@
 /*  
- * Copyright 2007-2010 Marcel Müller
+ * Copyright 2007-2011 Marcel Müller
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -33,6 +33,7 @@
 #include <config.h>
 #include "aplayable.h"
 #include "playableref.h"
+#include "collectioninfocache.h"
 
 #include <cpp/mutex.h>
 #include <cpp/smartptr.h>
@@ -93,10 +94,9 @@ class PlayableInstance : public PlayableRef
   #endif
 
   /// Returns the index within the current collection counting from 1.
-  /// A return value of 0 indicates the the instance currently does not belong to a collection.
+  /// A return value of 0 indicates the the instance does no longer belong to a collection.
   /// The return value is only reliable while the collection is locked.
-  /// But comparing indices from the same collection is always reliable while taking the difference is not.
-  virtual int              GetIndex() const    { return Index; }
+  int                      GetIndex() const    { return Index; }
 
   /*// Swap instance properties (fast)
   // You must not swap instances that belong to different PlayableCollection objects or
@@ -116,7 +116,7 @@ class PlayableInstance : public PlayableRef
   // >0      = l after r
   // INT_MIN = unordered (The PlayableInstances do not belong to the same collection.)
   // Note that the result is not reliable unless you hold the mutex of the parent.
-  int                      CompareTo(const PlayableInstance& r) const;
+  //int                      CompareTo(const PlayableInstance& r) const;
 };
 
 
@@ -176,20 +176,17 @@ class Playable
     void                    Attach()         { DEBUGLOG(("Playable::Entry(%p)::Attach()\n", this)); ASSERT(Parent); GetInfoChange() += InstDelegate; }
     // Detach a PlayableInstance from the collection.
     // This function must be called only by the parent collection and only while it is locked.
-    void                    Detach()         { DEBUGLOG(("Playable::Entry(%p)::Detach()\n", this)); InstDelegate.detach(); Parent = NULL; }
+    void                    Detach()         { DEBUGLOG(("Playable::Entry(%p)::Detach()\n", this)); InstDelegate.detach(); Parent = NULL; Index = 0; }
+    // Update Index in Collection
+    void                    SetIndex(int index) { Index = index; }
   };
-  /// @brief List of children (playlists).
-  /// @details The object list is implemented as a doubly linked list to keep the iterators valid on modifications.
-  typedef list_int<Entry>   EntryList;
 
-  /// Structure to hold a CollectionInfoCache entry.
-  struct CollectionInfoEntry
-  : public PlayableSet,
-    public CollectionInfo
-  { explicit CollectionInfoEntry(const PlayableSetBase& key) : PlayableSet(key), CollectionInfo((PlayableSet&)*this) {};
-    explicit CollectionInfoEntry(PlayableSet& key) : PlayableSet(), CollectionInfo((PlayableSet&)*this) { swap(key); };
+  class PlaylistData : public CollectionInfoCache
+  {public:
+    list_int<Entry>         Items;
+   public:
+    PlaylistData(Playable& parent) : CollectionInfoCache(parent) {}
   };
-  typedef sorted_vector<CollectionInfoEntry, PlayableSetBase> CollectionInfoList;
 
  public:
   /// The unique URL of this playable object.
@@ -197,18 +194,11 @@ class Playable
   Mutex                     Mtx;             // protect this instance
  private: // The following vars are protected by the mutex
   MyInfo                    Info;
-  EntryList                 List;            // Children (if any)
   bool                      Modified;        // Current object has unsaved changes.
+  sco_ptr<PlaylistData>     Playlist;        // Playlist informations, optional.
  private: // ... except for this ones. They are accessed atomically.
   // Internal state
   bool                      InUse;           // Current object is in use.
- private:
-  /// @brief Cache with sub enumeration infos.
-  /// @details This object is protected by the mutex below.
-  CollectionInfoList        CollectionInfoCache;
-  /// @brief One Mutex to protect CollectionInfoCache of all instances.
-  /// @details You must not acquire any other Mutex while holding this one.
-  static  Mutex             CollectionInfoMutex;
 
  private: // Services to update the Info* variables.
   /// @brief Update the structure components and set the required InfoLoaded flags.
@@ -220,19 +210,35 @@ class Playable
   /// Raise InfoChange event
   void                      RaiseInfoChange(InfoFlags loaded, InfoFlags changed);
  private: // Services for playlist functions
+  void                      EnsurePlaylist();
   /// Create an new Playlist item.
-          Entry*            CreateEntry(APlayable& refto);
+  Entry*                    CreateEntry(APlayable& refto);
   /// @brief Insert a new entry into the list.
-  /// @details The list must be locked when calling this Function.
-          void              InsertEntry(Entry* entry, Entry* before);
+  /// @remarks The list must be locked when calling this Function.
+  void                      InsertEntry(Entry* entry, Entry* before);
   /// @brief Move a entry inside the list.
-  /// @details The list must be locked when calling this Function.
   /// @return The function returns false if the move is a no-op.
-          bool              MoveEntry(Entry* entry, Entry* before);
+  /// @remarks The list must be locked when calling this Function.
+  bool                      MoveEntry(Entry* entry, Entry* before);
   /// @brief Remove an entry from the list.
-  /// @details The list must be locked before calling this Function.
-          void              RemoveEntry(Entry* entry);
+  /// @remarks The list must be locked before calling this Function.
+  void                      RemoveEntry(Entry* entry);
+  /// @brief Renumber the entries in the range [from,to[ starting with \a index.
+  /// @details If \a to is NULL all remaining entries are renumbered.
+  /// @remarks The list must be locked before calling this Function.
+  void                      RenumberEntries(Entry* from, const Entry* to, int index);
 
+  /// Calculate the recursive playlist information.
+  /// @param cie Information to calculate.
+  /// @param upd Information to obtain. Only \c IF_Aggreg flags are handled by this method.
+  /// After completion the retrieved information in \a upd is comitted.
+  /// @param events If an information is successfully retrieved the appropriate bits in \c events.Loaded should be set.
+  /// If this caused a change the \c events.Changed bits should be set too.
+  /// @param job Schedule requests to other objects that are required to complete this request at priority \c job.Pri.
+  /// If a information from another object is required to complete the request these objects should be added
+  /// to the dependency list by calling \c job.Depends.Add. This causes a reschedule of the request,
+  /// once the dependencies are completed.
+  void                      CalcRplInfo(CollectionInfo& cie, InfoState::Update& upd, PlayableChangeArgs& events, JobSet& job);
   /// @brief Replace list of children
   /// @details This function does a smart update of the current collection and return \c true
   /// if this actually caused a change in the list of children.
@@ -241,31 +247,15 @@ class Playable
   /// small, it looks for identical or similar objects in the current collection content first.
   /// The content of the vector is destroyed in general.
   /// The function must be called from synchronized context.
-          bool              UpdateCollection(const vector<PlayableRef>& newcontent);
-  /// @brief Get collection info cache element for exclusion list exclude.
-  /// The implementation takes care of the fact that *this is always excluded regardless whether
-  /// it is part of \a exclude or not.
-  /// @return The returned storage is valid until \c *this dies.
-          CollectionInfo&   CICLookup(const PlayableSetBase& exclude);
-  /// Advances item to the next CollectionInfoCache entry that needs some work to be done
-  /// at the given priority level.
-  /// @return The function returns the requested work flags.
-  /// @param item If item is \c NULL \c GetNextCIWorkItem moves to the first item.
-  /// If there is no more work, item is set to \c NULL and the return value is \c IF_None.
-  /// (Either of them is sufficient.)
-          InfoFlags         GetNextCIWorkItem(CollectionInfo*& item, Priority pri);
-  /// Calculate the RPL information what for cie and return the successfully calculated infos.
-  /// If this is less than \a what a reschedule is required. But \c RequestInfo must have been called
-  /// for the missing information.
-          InfoFlags         CalcRplInfo(CollectionInfo& cie, InfoFlags what, Priority pri, InfoFlags& changed);
+  bool                      UpdateCollection(const vector<PlayableRef>& newcontent);
   /// InfoChange Events from the children
-          void              ChildChangeNotification(const PlayableChangeArgs& args);
+  void                      ChildChangeNotification(const PlayableChangeArgs& args);
 
  private:
   virtual InfoFlags         DoRequestInfo(InfoFlags& what, Priority pri, Reliability rel);
   virtual AggregateInfo&    DoAILookup(const PlayableSetBase& exclude);
   virtual InfoFlags         DoRequestAI(AggregateInfo& ai, InfoFlags& what, Priority pri, Reliability rel);
-  virtual bool              DoLoadInfo(Priority pri);
+  virtual void              DoLoadInfo(JobSet& job);
   // Callback function of dec_fileinfo
   PROXYFUNCDEF void DLLENTRY Playable_DecoderEnumCb(void* param, const char* url,
                             const INFO_BUNDLE* info, int cached, int override );
@@ -341,6 +331,9 @@ class Playable
 
  private: // Internal dispatcher functions
   virtual const Playable&   DoGetPlayable() const;
+  // Revoke visibility of GetPlayable, since calling GetPlayable on type Playable
+  // is always a no-op. So the compiler will tell us.
+  void                      GetPlayable() const;
  private: // Explicit interface implementations
   virtual int_ptr<Location> GetStartLoc() const;
   virtual int_ptr<Location> GetStopLoc() const;
@@ -364,14 +357,14 @@ class Playable
   static  int_ptr<Playable> FindByURL(const char* url);
   // FACTORY! Get a new or an existing instance of this URL.
   // The optional parameters ca_* are preloaded informations.
-  // This is returned by the apropriate Get* functions without the need to access the underlying data source.
+  // This is returned by the appropriate Get* functions without the need to access the underlying data source.
   // This is used to speed up large playlists.
   static  int_ptr<Playable> GetByURL(const url123& URL);
   // Cleanup unused items from the repository
   // One call to Cleanup deletes all unused items that are not requested since the /last/ call to Cleanup.
   // So the distance between the calls to Cleanup defines the minimum cache lifetime.
   static  void              Cleanup();
-  // Destroy worker   
+  // Destroy worker
   static  void              Uninit();
 };
 

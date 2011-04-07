@@ -35,10 +35,10 @@
 #include <cpp/container/vector.h>
 
 
-/* Interface for compareable objects.
- * A class that implements this interface with the template parameter K is comparable to const K&.
- * The type K may be the same as the class that implements this interface or not.
- * Note: you may implement IComparableTo<const char*> to be comparable to ordinary C strings.
+/** @brief Interface for comparable objects.
+ * @details A class that implements this interface with the template parameter \a K is comparable to \c const&nbsp;K&.
+ * The type \a K may be the same as the class that implements this interface or not.
+ * @remarks Note: you may implement \c IComparableTo<const\ char*> to be comparable to ordinary C strings.
  */
 template <class K>
 struct IComparableTo
@@ -69,6 +69,8 @@ class sorted_vector : public vector<T>
   // If capacity is 0 the vector is initially created empty
   // and allocated with the default capacity when the first item is inserted.
   sorted_vector(size_t capacity = 0) : vector<T>(capacity) {}
+  // Copy constructor.
+  sorted_vector(const sorted_vector<T,K>& r, size_t spare = 0) : vector<T>(r, spare) {}
   // Search for a given key.
   // The function returns whether you got an exact match or not.
   // The index of the first element >= key is always returned in the output parameter pos.

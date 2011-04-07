@@ -1,5 +1,5 @@
 /*
- * Copyright 2007-2010 M.Mueller
+ * Copyright 2007-2011 M.Mueller
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -29,6 +29,7 @@
 #define INCL_WIN
 #define INCL_BASE
 #include "plugman.h"
+#include "waitinfo.h"
 #include "controller.h"
 #include "properties.h"
 #include "gui.h"
@@ -219,21 +220,21 @@ void Ctrl::OutputStop()
     Current()->Offset = 0;
 }
 
-void Ctrl::SetStackUsage(const int_ptr<PlayableInstance>* rbegin, const int_ptr<PlayableInstance>* rend, bool set)
+void Ctrl::SetStackUsage(PlayableInstance*const* rbegin, PlayableInstance*const* rend, bool set)
 { while (rend != rbegin)
     // Depending on the object type this updates the status of a PlayableInstance
     // or only the status of the underlying Playable.
     (*--rend)->SetInUse(set);
 }
 
-void Ctrl::UpdateStackUsage(const vector_int<PlayableInstance>& oldstack, const vector_int<PlayableInstance>& newstack)
+void Ctrl::UpdateStackUsage(const vector<PlayableInstance>& oldstack, const vector<PlayableInstance>& newstack)
 { DEBUGLOG(("Ctrl::UpdateStackUsage({%u }, {%u })\n", oldstack.size(), newstack.size()));
-  const int_ptr<PlayableInstance>* oldppi = oldstack.begin();
-  const int_ptr<PlayableInstance>* newppi = newstack.begin();
+  PlayableInstance*const* oldppi = oldstack.begin();
+  PlayableInstance*const* newppi = newstack.begin();
   // skip identical part
   // TODO? a more optimized approach may work on the sorted exclude lists.
   while (oldppi != oldstack.end() && newppi != newstack.end() && *oldppi == *newppi)
-  { DEBUGLOG(("Ctrl::UpdateStackUsage identical - %p == %p\n", oldppi->get(), newppi->get()));
+  { DEBUGLOG(("Ctrl::UpdateStackUsage identical - %p == %p\n", *oldppi, *newppi));
     ++oldppi;
     ++newppi;
   }
@@ -245,33 +246,11 @@ void Ctrl::UpdateStackUsage(const vector_int<PlayableInstance>& oldstack, const 
 
 bool Ctrl::SkipCore(Location& si, int count, bool relative)
 { DEBUGLOG(("Ctrl::SkipCore({%s}, %i, %u)\n", si.Serialize().cdata(), count, relative));
-  if (relative)
+  if (!relative)
     si.Reset();
-  const Location::NavigationResult& rc = si.NavigateCount(count, TATTR_SONG, PRI_Sync);
+  const Location::NavigationResult& rc = si.NavigateCount(count, TATTR_SONG, JobSet::SyncJob);
   DEBUGLOG(("Ctrl::SkipCore: %s\n", rc.cdata()));
   return !rc;
-/* Unknown previous code
-  { if (count < 0)
-    { // previous
-      do
-      { if (!si.Prev())
-          return false;
-      } while (++count);
-    } else
-    { // next
-      do
-      { if (!si.Next())
-          return false;
-      } while (--count);
-    }
-  } else
-  { si.Reset();
-    do
-    { if (!si.Next())
-        return false;
-    } while (--count);
-  }
-  return true;*/
 }
 
 bool Ctrl::AdjustNext(Location& si)
@@ -280,7 +259,7 @@ bool Ctrl::AdjustNext(Location& si)
   ps.RequestInfo(IF_Tech, PRI_Sync);
   if (ps.GetInfo().tech->attributes & TATTR_SONG)
     return true;
-  const Location::NavigationResult& rc = si.NavigateCount(1, TATTR_SONG, PRI_Sync);
+  const Location::NavigationResult& rc = si.NavigateCount(1, TATTR_SONG, JobSet::SyncJob);
   DEBUGLOG(("Ctrl::AdjustNext: %s\n", rc.cdata()));
   return !rc;  
 }
@@ -395,7 +374,7 @@ void Ctrl::CheckPrefetch(double pos)
       { PrefetchEntry& pe = *ped[--n]; 
         if (plp && pe.Loc.GetLevel() >= 1)
         { PlayableInstance* pip = pe.Loc.GetCallstack()[0];
-          if (pe.Loc.NavigateCount(1, TATTR_SONG, PRI_Sync, 1))// we played the last item of a top level entry
+          if (pe.Loc.NavigateCount(1, TATTR_SONG, JobSet::SyncJob, 1))// we played the last item of a top level entry
             plp->RemoveItem(pip);
         }
         delete &pe;
@@ -568,10 +547,10 @@ Ctrl::RC Ctrl::MsgPlayStop(Op op)
     if ( cfg.retainonstop && op != Op_Reset
       && Current()->Loc.GetCurrent().GetInfo().obj->songlength > 0 )
     { PM123_TIME time = FetchCurrentSongTime();
-      Current()->Loc.Navigate(time, PRI_Sync); 
+      Current()->Loc.Navigate(time, JobSet::SyncJob);
     } else
     { int_ptr<Location> start = Current()->Loc.GetCurrent().GetStartLoc();
-      Current()->Loc.Navigate(start ? start->GetPosition() : 0, PRI_Sync);
+      Current()->Loc.Navigate(start ? start->GetPosition() : 0, JobSet::SyncJob);
     }
   }
 
@@ -636,16 +615,16 @@ Ctrl::RC Ctrl::MsgNavigate(const xstring& iter, PM123_TIME loc, int flags)
     // We must fetch the current playing time first, because this may change Current().
     PM123_TIME time = FetchCurrentSongTime();
     sip = new Location(Current()->Loc);
-    sip->Navigate(time, PRI_Sync);
+    sip->Navigate(time, JobSet::SyncJob);
   }
   if (iter && iter.length())
   { const char* cp = iter.cdata();
-    if (sip->Deserialize(cp, PRI_Sync) && !(flags & 0x04))
+    if (sip->Deserialize(cp, JobSet::SyncJob) && !(flags & 0x04))
       return RC_BadIterator;
     // Move forward to the next Song, if the current item is a playlist.
     AdjustNext(*sip);
   } else
-    sip->Navigate(flags & 0x01 ? sip->GetPosition() + loc : loc, PRI_Sync);
+    sip->Navigate(flags & 0x01 ? sip->GetPosition() + loc : loc, JobSet::SyncJob);
   // TODO: extend total playing time when leaving bounds of parent iterator?
 
   // commit
@@ -690,7 +669,7 @@ Ctrl::RC Ctrl::MsgSkip(int count, bool relative)
       switch (count)
       {case 1:
        case -1:
-        if (si.NavigateCount(count, TATTR_SONG, PRI_Sync))
+        if (!si.NavigateCount(count, TATTR_SONG, JobSet::SyncJob))
           goto ok;
       }
     }
@@ -713,7 +692,7 @@ Ctrl::RC Ctrl::MsgLoad(const xstring& url, int flags)
   CurrentRootDelegate.detach();
   if (PrefetchList.size())
   { UpdateStackUsage(Current()->Loc.GetCallstack(), EmptyStack);
-    Current()->Loc.GetRoot()->GetPlayable().SetInUse(false);
+    Current()->Loc.GetRoot()->SetInUse(false);
     PrefetchClear(false);
   }
 
@@ -797,7 +776,7 @@ Ctrl::RC Ctrl::MsgLocation(SongIterator* sip, int flags)
   { // Fetch time first because that may change Current().
     PM123_TIME pos = FetchCurrentSongTime();
     *sip = Current()->Loc; // copy
-    sip->Navigate(pos, PRI_Sync);
+    sip->Navigate(pos, JobSet::SyncJob);
   }
   return RC_OK;
 }
@@ -1046,7 +1025,7 @@ void Ctrl::Uninit()
   state.shf = IsShuffle();
   state.rpt = IsRepeat();
   if (!!last)
-  { state.current_root = last.GetRoot()->GetPlayable().URL;
+  { state.current_root = last.GetRoot()->URL;
     // save location only if the current item has definite length.
     state.current_iter = last.Serialize(cfg.retainonexit && last.GetCurrent().GetInfo().obj->songlength >= 0);
     DEBUGLOG(("last_loc: %s %s\n", state.current_root.cdata(), state.current_iter.cdata()));

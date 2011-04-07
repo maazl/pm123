@@ -218,7 +218,8 @@ bool LSTWriter::AppendItem(const Item& item)
   if (item.Valid & (INFO_PHYS|INFO_TECH|INFO_OBJ))
   { char buf[128];
     // 0: bitrate, 1: samplingrate, 2: channels, 3: file size, 4: total length,
-    // 5: no. of song items, 6: total file size, 7: no. of items, 8: recursive, 9: no. of list items.
+    // 5: no. of song items, 6: total file size, 7: no. of items,
+    // 8: no. of unknown items, 9: no. of list items, 10: no. of invalid items.
     strcpy(buf, ">,");
     if (item.Valid & INFO_OBJ)
       sprintf(buf + 1, "%i,", info.obj->bitrate);
@@ -240,9 +241,7 @@ bool LSTWriter::AppendItem(const Item& item)
     if ((item.Valid & INFO_TECH) && (info.tech->attributes & TATTR_PLAYLIST))
     { strcpy(buf, ",");
       if (item.Valid && INFO_RPL)
-      { sprintf(buf + 1, ",%i", info.rpl->totalsongs);
-        if (info.rpl->unk_songs > 0)
-          sprintf(buf + strlen(buf), "-%i", info.rpl->unk_songs);
+      { sprintf(buf + 1, ",%i", info.rpl->songs);
       } else
         strcpy(buf + 1, ",");
       if (item.Valid && INFO_DRPL)
@@ -256,14 +255,9 @@ bool LSTWriter::AppendItem(const Item& item)
       else
         strcat(buf + 3, ",");
       if (item.Valid & INFO_RPL)
-      { sprintf(buf + strlen(buf), ",%i", info.rpl->recursive);
-        if (info.rpl->unk_recurs > 0)
-          sprintf(buf + strlen(buf), "-%i", info.rpl->unk_recurs);
-        sprintf(buf + strlen(buf), ",%i", info.rpl->totallists);
-        if (info.rpl->unk_lists > 0)
-          sprintf(buf + strlen(buf), "-%i", info.rpl->unk_lists);
-      } else
-        strcat(buf + 4, ",,");
+        sprintf(buf + strlen(buf), ",%i,%i,%i", info.rpl->unknown, info.rpl->lists, info.rpl->invalid);
+      else
+        strcat(buf + 4, ",,,");
       Write(buf);
     }
     Write("\n");

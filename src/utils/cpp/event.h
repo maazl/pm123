@@ -37,6 +37,9 @@
 #include <debuglog.h>
 
 
+template <class P>
+class event_pub;
+
 class dummy
 { int dummy;
   #ifdef DEBUG_LOG
@@ -44,9 +47,9 @@ class dummy
   #endif
 };
 
-/* Application event.
- * This class is thread safe.
- * This class is not intended to be used directly.
+/** @brief Application event.
+ * @details This class is thread safe.
+ * This class is not intended to be used directly. Use the strongly typed event<T> instead.
  */
 class event_base
 { friend class delegate_base;
@@ -58,28 +61,29 @@ class event_base
        event_base(const event_base& r);
   void operator=(const event_base& r);
  protected:
-  // Create an event.
+  /// Create an event.
   event_base()
   : Root(NULL)
   { DEBUGLOG(("event_base(%p)::event_base()\n", this)); }
   ~event_base()
   { DEBUGLOG(("event_base(%p)::~event_base() - %p\n", this, Root)); reset(); }
-  // Add a delegate to the current event
+  /// Add a delegate to the current event
   void           operator+=(delegate_base& d);
-  // Remove a delegate from the current event and return true if succeeded.
-  // Note that removing a delegate from an event does not ensure that the event is no
-  // longer called, because it may been raised already.
+  /// Remove a delegate from the current event and return \c true if succeeded.
+  /// @remarks Note that removing a delegate from an event does not ensure that the event is no
+  /// longer called, because it may been raised already. You might call \c sync
+  /// to ensure that the eventhandlers have completed.
   bool           operator-=(delegate_base& d);
-  // Fire the event.
+  /// Fire the event.
   void           operator()(dummy& param);
  public:
-  // remove all registered delegates and wait for eventhandlers to complete (uses spin-lock!)
+  /// remove all registered delegates and wait for event to complete (uses spin-lock!)
   void           reset();
-  // Wait for eventhandler to complete (uses spin lock)
+  /// Wait for even to complete (uses spin lock)
   void           sync()                        { Count.Wait(); }
 };
 
-/* non-template base class for delegate
+/** non-template base class for delegate
  */
 class delegate_base
 { friend class event_base;
@@ -96,38 +100,35 @@ class delegate_base
                  delegate_base(const delegate_base& r);
   void           operator=(const delegate_base& r);
  protected:
-  // Construct unattached delegate
+  /// Construct unattached delegate
   delegate_base(func_type fn, const void* rcv) : Fn(fn), Rcv(rcv), Ev(NULL) { DEBUGLOG(("delegate_base(%p)::delegate_base(%p, %p)\n", this, fn, rcv)); }
-  // Construct delegate and attach it to an event immediately
+  /// Construct delegate and attach it to an event immediately
   delegate_base(event_base& ev, func_type fn, const void* rcv);
   ~delegate_base()                             { DEBUGLOG(("delegate_base(%p)::~delegate_base() - %p\n", this, Ev)); detach(); }
-  // Return currently attached event
+  /// Return currently attached event
   event_base*    get_event() const             { return Ev; }
-  // Atomically rebind the delegate to another target.
+  /// Atomically rebind the delegate to another target.
   void           rebind(func_type fn, const void* rcv);
-  // Swap receiver part, i.e. the function pointer and the Rcv param.
-  // Note: you cannot swap the event registration.
+  /// Swap receiver part, i.e. the function pointer and the Rcv param.
+  /// Note: you cannot swap the event registration.
   void           swap_rcv(delegate_base& r);
  public:
-  // Detach the delegate from the event, if any, and wait for outstanding eventhandlers to complete.
-  void           detach();
-  // Wait for eventhandler to complete (uses spin lock)
+  /// Detach the delegate from the event, if any, and wait for an outstanding event to complete.
+  /// @return return \c true if and only if the deregistration really took place by this thread.
+  bool           detach();
+  /// Wait for events to complete (uses spin lock)
   void           sync()                        { Count.Wait(); }
 };
 
-/* Partial typed delegate class.
- * This is the type check level for adding delegate instances to an event.
+/** @brief Partially typed delegate class.
+ * @details This is the type check level for adding delegate instances to an event.
  * This class is not intended to be used directly.
- *
- * The dirty part of this class is the cast from
+ * @remarks The dirty part of this class is the cast from
  *   void (*)(const void* receiver, P& param)
  * to
  *   void (*)(const void* receiver, const void* param)
  * It relies on the fact that passing a reference is binary compatible to passing a pointer including a pointer to void.
  */
-template <class P>
-class event_pub;
-
 template <class P>
 class delegate_part : public delegate_base
 {protected:
@@ -138,12 +139,12 @@ class delegate_part : public delegate_base
   delegate_part(event_pub<P>& ev, func_type fn, const void* rcv)
   : delegate_base(ev, (delegate_base::func_type)fn, rcv) {}
  public:
-  // Return currently attached event
+  /// Return currently attached event
   event_pub<P>*      get_event() const         { return (event_pub<P>*)delegate_base::get_event(); }
 };
 
-/* Public part of the application even class.
- * Use this class to expose your event and use event<P> internally.
+/** @brief Public part of the application even class.
+ * @details Use this class to expose your event and use event<P> internally.
  * Delegate instances may be registered to the event. They are called when the event is raised.
  * This class is thread safe.
  * It is allowed to destroy instances of this class while delegates are registered.
@@ -156,35 +157,32 @@ class delegate_part : public delegate_base
  *   ...
  *   Ev(7);     // raise event
  */
-/* Public part of the application event class.
- * Use this class to expose your event and use event<P> internally.
- */
 template <class P>
 class event_pub : public event_base
 {protected:
-  // Fire the event
+  /// Fire the event
   void operator()(P& param)            { DEBUGLOG2(("event_pub(%p)::operator()(%p)\n", this, &param)); event_base::operator()(*(dummy*)&param); }
-  // It makes no sense to instantiate event_pub, since the event cannot be fired.
+  /// It makes no sense to instantiate event_pub, since the event cannot be fired.
   event_pub()                          {}
  public:
-  // Register delegate (observer).
+  /// Register delegate (observer).
   void operator+=(delegate_part<P>& d) { event_base::operator+=(d); }
-  // Deregister delegate.
-  void operator-=(delegate_part<P>& d) { event_base::operator-=(d); }
+  /// Deregister delegate and return \c true if it succeeded.
+  bool operator-=(delegate_part<P>& d) { return event_base::operator-=(d); }
 };
-/* Owner part of the event class.
- * It is recommended that the event owner uses this class internally and
- * exposes only the base class event_pub to the observers.
+/** @brief Owner part of the event class.
+ * @details It is recommended that the event owner uses this class internally and
+ * exposes only the base class \c event_pub to the observers.
  */
 template <class P>
 class event : public event_pub<P>
 {public:
-  // Fire the event, now public
+  /// Fire the event, now public
   void operator()(P& param)            { event_pub<P>::operator()(param); }
 };
 
-/* Fully typed delegate.
- * Use this delegate to call free function or static class member functions.
+/** @brief Fully typed delegate.
+ * @details Use this delegate to call free function or static class member functions.
  *
  * An istance of delegate must not be bound to more than one event at a time.
  * When the delegete is destroyed it is automatically deregistered from the event.
@@ -210,23 +208,27 @@ class delegate : public delegate_part<P>
 {public:
   typedef void (*func_type)(R* receiver, P& param);
  public:
+  /// Construct unattached delegate
   delegate(func_type fn, R* rcv = NULL)
   : delegate_part<P>((typename delegate_part<P>::func_type)fn, rcv)
   { DEBUGLOG2(("delegate<>(%p)::delegate(%p, %p)\n", this, fn, rcv)); }
+  /// Construct delegate and attach it to an event immediately
   delegate(event_pub<P>& ev, func_type fn, R* rcv = NULL)
   : delegate_part<P>(ev, (typename delegate_part<P>::func_type)fn, rcv)
   { DEBUGLOG2(("delegate<>(%p)::delegate(%p, %p, %p)\n", this, &ev, fn, rcv)); }
+  /// Destroy the delegate, this implies deregistration but be sure
+  /// that the observer does not die before, e.g. because it is the enclosing class..
   ~delegate()
   { DEBUGLOG2(("delegate<>(%p)::~delegate()\n", this)); }
-  // Atomically rebind the delegate to another target.
+  /// Atomically rebind the delegate to another target.
   void           rebind(func_type fn, R* rcv) { delegate_base::rebind((delegate_base::func_type)fn, rcv); }
-  // Swap receiver part, i.e. the function pointer and the Rcv param.
-  // Note: you cannot swap the event registration.
+  /// Swap receiver part, i.e. the function pointer and the Rcv param.
+  /// Note: you cannot swap the event registration.
   void           swap_rcv(delegate<R,P>& r) { delegate_part<P>::swap_rcv(r); }
 };
 
-/* Use this delegate to call a non-static member function of your class.
- * Example:
+/** @brief Use this delegate to call a non-static member function of your class.
+ * @details Example:
  *
  *   event<int> Ev;
  *
@@ -270,7 +272,7 @@ void class_delegate<C,P>::CallFunc(class_delegate<C,P>* rcv, P& param)
 }
 
 
-/* Use this delegate to call a non-static member function of your class
+/** Use this delegate to call a non-static member function of your class
  * and pass an arbitrary parameter. Note that Parameter is stored by reference.
  * so ensure that the storage stays valid until the delegate is no longer used.
  * This variant is useful for container classes.

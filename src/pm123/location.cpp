@@ -1,5 +1,5 @@
 /*
- * Copyright 2009-2010 M.Mueller
+ * Copyright 2009-2011 M.Mueller
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -28,6 +28,7 @@
 
 #include "location.h"
 #include "playable.h"
+#include "waitinfo.h"
 
 #include <limits.h>
 #include <stdio.h>
@@ -103,7 +104,7 @@ bool Location::IsInCallstack(const Playable* pp) const
   if (GetRoot() == pp)
     return true;
   const int_ptr<PlayableInstance>* pipp = Callstack.begin();
-  const int_ptr<PlayableInstance>* pepp = Callstack.begin();
+  const int_ptr<PlayableInstance>* pepp = Callstack.end();
   while (pipp != pepp)
     if (&(*pipp++)->GetPlayable() == pp)
       return true;
@@ -111,15 +112,15 @@ bool Location::IsInCallstack(const Playable* pp) const
 }
 
 
-Location::NavigationResult Location::PrevNextCore(DirFunc dirfunc, TECH_ATTRIBUTES stopat, Priority pri, unsigned slice)
-{ DEBUGLOG(("Location(%p)::PrevNextCore(, %x, %u, %u) - %u\n", this, stopat, pri, slice, Callstack.size()));
+Location::NavigationResult Location::PrevNextCore(DirFunc dirfunc, TECH_ATTRIBUTES stopat, JobSet& job, unsigned slice)
+{ DEBUGLOG(("Location(%p)::PrevNextCore(, %x, {%u,}, %u) - %u\n", this, stopat, job.Pri, slice, Callstack.size()));
   ASSERT(stopat);
   ASSERT(Callstack.size() >= slice);
 
   APlayable* cur = &GetCurrent();
   int_ptr<PlayableInstance> pi;
   do
-  { if (cur->RequestInfo(IF_Tech|IF_Slice, pri))
+  { if (job.RequestInfo(*cur, IF_Tech|IF_Slice))
       return xstring::empty; // Delayed!!!
 
     Position = 0;
@@ -144,7 +145,7 @@ Location::NavigationResult Location::PrevNextCore(DirFunc dirfunc, TECH_ATTRIBUT
   return xstring(); // NULL
 }
 
-Location::NavigationResult Location::NavigateCount(int count, TECH_ATTRIBUTES stopat, Priority pri, unsigned slice)
+Location::NavigationResult Location::NavigateCount(int count, TECH_ATTRIBUTES stopat, JobSet& job, unsigned slice)
 { if (count)
   { DirFunc dir = &Playable::GetNext;
     if (count < 0)
@@ -153,7 +154,7 @@ Location::NavigationResult Location::NavigateCount(int count, TECH_ATTRIBUTES st
     }
     // TODO: we could skip entire playlists here if < count.
     do
-    { Location::NavigationResult ret = PrevNextCore(dir, stopat, pri, slice);
+    { Location::NavigationResult ret = PrevNextCore(dir, stopat, job, slice);
       if (ret)
         return ret;
     } while (--count);
@@ -183,9 +184,9 @@ Location::NavigationResult Location::NavigateTo(PlayableInstance& pi)
   return xstring(); // NULL
 }
 
-Location::NavigationResult Location::Navigate(const xstring& url, int index, bool flat, Priority pri)
-{ DEBUGLOG(("Location(%p)::Navigate(%s, %i, %u, %u)\n", this,
-    url ? url.cdata() : "<null>", index, flat, pri));
+Location::NavigationResult Location::Navigate(const xstring& url, int index, bool flat, JobSet& job)
+{ DEBUGLOG(("Location(%p)::Navigate(%s, %i, %u, {%u,})\n", this,
+    url ? url.cdata() : "<null>", index, flat, job.Pri));
 
   if (url == "..")
   { if (flat)
@@ -198,7 +199,7 @@ Location::NavigationResult Location::Navigate(const xstring& url, int index, boo
 
   APlayable* cur = &GetCurrent();
   // Request required information
-  if (cur->RequestInfo(IF_Tech|IF_Child|IF_Slice, pri))
+  if (job.RequestInfo(*cur, IF_Tech|IF_Child|IF_Slice))
     return xstring::empty; // Delayed
 
   // For flat navigation...
@@ -207,7 +208,7 @@ Location::NavigationResult Location::Navigate(const xstring& url, int index, boo
   InfoFlags what;
   if (flat)
   { // Request RPL info
-    ai = &cur->RequestAggregateInfo(exclude, what = IF_Rpl, pri);
+    ai = &job.RequestAggregateInfo(*cur, exclude, what = IF_Rpl);
     if (what)
       return xstring::empty; // Delayed
     // Prepare exclude list
@@ -236,33 +237,33 @@ Location::NavigationResult Location::Navigate(const xstring& url, int index, boo
   { // Navigation by index only
     if (flat)
     { // Flat index navigation
-      int totalsongs = ai->Rpl.totalsongs;
+      int songs = ai->Rpl.songs;
       if (index < 0)
-        index += totalsongs;
-      if (index < 1 || index > totalsongs)
+        index += songs;
+      if (index < 1 || index > songs)
         return xstring::sprintf("Index %i is out of bounds. %s has %i song items",
-          index, pc.URL.cdata(), totalsongs);
+          index, pc.URL.cdata(), songs);
       // loop until we cross the number of items
       for (;;)
       { pi = pc.GetNext(pi);
         if (pi == NULL)
-          return xstring::sprintf("Unexpected end of list %i/%i.", index, totalsongs);
+          return xstring::sprintf("Unexpected end of list %i/%i.", index, songs);
         // Terminate loop if the number of subitems is unknown or if it is larger than the required index.
         ai = &pi->RequestAggregateInfo(exclude, what = IF_Rpl, PRI_None);
         if (what)
         { DEBUGLOG(("Location::NavigateFlat: Rpl info of %s not available.\n", pi->GetPlayable().URL.cdata()));
           return xstring::empty; // Should not happen
         }
-        if ((int)ai->Rpl.totalsongs >= index)
+        if ((int)ai->Rpl.songs >= index)
           break;
-        index -= ai->Rpl.totalsongs;
+        index -= ai->Rpl.songs;
       }
       // We found a matching location.
       ASSERT(index > 0);
       Position = 0;
       Callstack.append() = pi;
       // Apply the residual offset to the subitem if any.
-      if (pi->RequestInfo(IF_Tech|IF_Child|IF_Slice, pri))
+      if (job.RequestInfo(*pi, IF_Tech|IF_Child|IF_Slice))
       { DEBUGLOG(("Location::NavigateFlat: Tech info of %s not available.\n", cur->GetPlayable().URL.cdata()));
         return xstring::empty; // Should not happen
       }
@@ -322,7 +323,7 @@ Location::NavigationResult Location::Navigate(const xstring& url, int index, boo
       // If the url is in the playlist it MUST exist in the repository, otherwise => error.
       return xstring::sprintf("The item %s is not part of %s.",
         url.cdata(), cur->GetPlayable().URL.cdata());
-    if (IsInCallstack(&pp->GetPlayable()))
+    if (IsInCallstack(pp))
       return xstring::sprintf("Cannot navigate into the recursive item %s.",
         pi->GetPlayable().URL.cdata());
     
@@ -340,7 +341,7 @@ Location::NavigationResult Location::Navigate(const xstring& url, int index, boo
     { // flat URL navigation
       size_t level = Callstack.size();
       do
-      { const xstring& ret = PrevNextCore(dirfunc, TATTR_SONG, pri, level);
+      { const xstring& ret = PrevNextCore(dirfunc, TATTR_SONG, job, level);
         if (ret)
         { if (ret == xstring::empty)
             return ret;
@@ -363,12 +364,12 @@ Location::NavigationResult Location::Navigate(const xstring& url, int index, boo
   }
 }
 
-Location::NavigationResult Location::Navigate(PM123_TIME offset, Priority pri)
-{ DEBUGLOG(("Location(%p)::Navigate(%f, %u) - %u\n", offset, pri, Callstack.size()));
+Location::NavigationResult Location::Navigate(PM123_TIME offset, JobSet& job)
+{ DEBUGLOG(("Location(%p)::Navigate(%f, {%u,}) - %u\n", offset, job.Pri, Callstack.size()));
   
   APlayable* cur = Root;
   // Request Tech info
-  if (cur->RequestInfo(IF_Tech|IF_Obj, pri))
+  if (job.RequestInfo(*cur, IF_Tech|IF_Obj))
     return xstring::empty; // Delayed
 
   // Prepare exclude list
@@ -412,7 +413,7 @@ Location::NavigationResult Location::Navigate(PM123_TIME offset, Priority pri)
           offset*sign, pc.URL.cdata());
       // Request aggregate info
       InfoFlags what;
-      ai = &pi->RequestAggregateInfo(exclude, what = IF_Drpl, pri); 
+      ai = &job.RequestAggregateInfo(*pi, exclude, what = IF_Drpl);
       if (what)
         return xstring::empty; // Delayed
       // Check offset
@@ -472,7 +473,7 @@ xstring Location::Serialize(bool withpos) const
     }
     // next
     ret = ret + ";";
-    list = &p.GetPlayable();
+    list = &p;
   }
   if (withpos && Position)
   { char buf[32];
@@ -481,14 +482,15 @@ xstring Location::Serialize(bool withpos) const
   return ret;
 }
 
-Location::NavigationResult Location::Deserialize(const char*& str, Priority pri)
-{ DEBUGLOG(("Location(%p)::Deserialize(%s, %u) - %s\n", this, str, pri, Serialize(true).cdata()));
+Location::NavigationResult Location::Deserialize(const char*& str, JobSet& job)
+{ DEBUGLOG(("Location(%p)::Deserialize(%s, {%u, }) - %s\n", this, str, job.Pri, Serialize(true).cdata()));
   // Skip leading white space.
   str += strspn(str, " \t");
   
   for (;; str += strspn(str, ";\r\n"))
   { bool flat = false;
    restart:
+    DEBUGLOG(("Location::Deserialize now at %s\n", str));
     // Determine type of part
     switch (*str)
     {case 0: // end
@@ -516,10 +518,9 @@ Location::NavigationResult Location::Deserialize(const char*& str, Priority pri)
         } else
         { url.assign(str+1, ep-str-1);
           ++ep; // move behind the '"'
-          size_t len = strcspn(ep, ";\r\n");
-          // look for index
-          size_t len2 = len;
+          size_t len2 = len = strcspn(ep, ";\r\n");
           len += ep - str;
+          // look for index
           while (len2 && (ep[len2-1] == ' ' || ep[len2-1] == '\t'))
             --len2;
           if (len2)
@@ -532,7 +533,7 @@ Location::NavigationResult Location::Deserialize(const char*& str, Priority pri)
         }
 
         // do the navigation
-        const xstring& ret = Navigate(url, index, flat, pri);
+        const xstring& ret = Navigate(url, index, flat, job);
         if (ret)
           return ret;
 
@@ -589,7 +590,7 @@ Location::NavigationResult Location::Deserialize(const char*& str, Priority pri)
           if (sign)
             t[0] = -t[0];
           // do the navigation
-          const xstring& ret = Navigate(t[0], pri);
+          const xstring& ret = Navigate(t[0], job);
           if (ret)
             return ret;
 
@@ -611,7 +612,7 @@ Location::NavigationResult Location::Deserialize(const char*& str, Priority pri)
             url.assign(str, len2);
 
           // do the navigation
-          const xstring& ret = Navigate(url, index, flat, pri);
+          const xstring& ret = Navigate(url, index, flat, job);
           if (ret)
             return ret;
         }
@@ -624,11 +625,11 @@ int Location::CompareTo(const Location& r, unsigned level, bool withpos) const
 { DEBUGLOG(("Location(%p)::CompareTo(%p) - %s - %s\n", this, &r, Serialize().cdata(), r.Serialize().cdata()));
   ASSERT(Root && r.Root);
   ASSERT(level <= Callstack.size());
-  const APlayable* lroot = level ? &Callstack[level-1]->GetPlayable() : Root;
+  const Playable* lroot = level ? &Callstack[level-1]->GetPlayable() : Root;
   /*if (lroot == NULL && r.Root == NULL)
     return 0; // Both iterators are unassigned
   if ( lroot == NULL || r.Root == NULL*/
-  if (lroot != &r.GetRoot()->GetPlayable() ) // instance comparsion
+  if (lroot != r.GetRoot()) // instance comparison
     return INT_MIN; // different root
   
   const int_ptr<PlayableInstance>* lcpp = Callstack.begin() + level;
@@ -647,14 +648,73 @@ int Location::CompareTo(const Location& r, unsigned level, bool withpos) const
     }
     if (rcpp == r.Callstack.end())
       return level; // current Location is deeper
-    // Not the same Item => check their order
-    int cmp = (*lcpp)->CompareTo(**rcpp);
-    // TODO: unordered because one item has been removed?
-    if (cmp != 0)
-      return cmp > 0 ? level : -level;
+
+    // Check their order
+    if (*lcpp != *rcpp) // Instance equality is equivalent to equality.
+    { // Lock the parent collection to make the comparison below reliable.
+      Mutex::Lock lock((Mutex&)lroot->Mtx); // Mutex is mutable
+      // TODO: unordered because one item has been removed?
+      // Currently the remaining one is always considered to be greater.
+      return (*lcpp)->GetIndex() > (*rcpp)->GetIndex() ? level : -level;
+    }
+    // Next level
+    lroot = &(*lcpp)->GetPlayable();
     ++lcpp;
     ++rcpp;
   }
+}
+
+const volatile AggregateInfo& Location::AggregateHelper::FetchAI(APlayable& p)
+{ DEBUGLOG(("Location::AggregateHelper({%x, %u, %x, {%u,}})::FetchAI(&%p)", What, Pri, Complete, Exclude.size(), &p));
+  InfoFlags what2 = What;
+  const volatile AggregateInfo& ai = p.RequestAggregateInfo(Exclude, what2, Pri);
+  Complete &= what2;
+  return ai;
+}
+
+InfoFlags Location::AddFrontAggregate(AggregateInfo& dest, InfoFlags what, Priority pri, size_t level)
+{ DEBUGLOG(("Location(%p)::AddFrontAggregate(&%p{%s,}, %x, %u, %u)\n", this, &dest, dest.Exclude.size(), what, pri, level));
+  ASSERT(level <= GetLevel());
+  ASSERT((what & ~IF_Aggreg) == 0);
+  // Position
+  if ((what & IF_Drpl) && Position)
+  { dest.Drpl.totallength += Position;
+    APlayable& cur = GetCurrent();
+    if ( cur.RequestInfo(IF_Phys|IF_Tech, pri) == IF_None
+      && cur.GetInfo().phys->filesize >= 0 && cur.GetInfo().obj->songlength >= 0 )
+      dest.Drpl.totalsize += cur.GetInfo().phys->filesize * Position / cur.GetInfo().obj->songlength;
+  }
+  if (GetLevel() == 0)
+    return IF_None;
+  // Playlist offsets
+  AggregateHelper agg(what, pri);
+  agg.Exclude.reserve(dest.Exclude.size() + Callstack.size()-1);
+  agg.Exclude = dest.Exclude;
+  Playable* list = Root;
+  for(size_t l = 0;;)
+  { PlayableInstance& item = *Callstack[l];
+    if (l >= level)
+    { // Take the faster way
+      if (item.GetIndex() <= list->GetInfo().obj->num_items >> 1)
+      { // Calculate from front
+        int_ptr<PlayableInstance> pi = &item;
+        while ((pi = list->GetPrev(pi)) != NULL)
+          dest += agg.FetchAI(item);
+      } else
+      { // Calculate from back
+        dest += agg.FetchAI(*list);
+        int_ptr<PlayableInstance> pi = &item;
+        do dest -= agg.FetchAI(*pi);
+        while ((pi = list->GetNext(pi)) != NULL);
+      }
+    }
+    // next level
+    if (++l >= GetLevel())
+      break;
+    list = &item.GetPlayable();
+    agg.Exclude.add(*list);
+  }
+  return agg.GetIncomplete();
 }
 
 
@@ -664,19 +724,44 @@ int Location::CompareTo(const Location& r, unsigned level, bool withpos) const
 *
 ****************************************************************************/
 
+SongIterator::OffsetInfo& SongIterator::OffsetInfo::operator+=(const OffsetInfo& r)
+{ if (Index >= 0)
+  { if (r.Index >= 0)
+      Index += r.Index;
+    else
+      Index = -1;
+  }
+  if (Time >= 0)
+  { if (r.Time >= 0)
+      Time += r.Time;
+    else
+      Time = -1;
+  }
+  return *this;
+}
+
 void SongIterator::SetRoot(Playable* root)
-{ int_ptr<Playable> ptr;
+{ int_ptr<Playable> ptr(root);
+  ptr.toCptr();
   ptr.fromCptr(GetRoot());
   Location::SetRoot(root);
-  ptr = GetRoot();
-  ptr.toCptr();
 }
 
 SongIterator& SongIterator::operator=(const SongIterator& r)
-{ int_ptr<Playable> ptr;
+{ DEBUGLOG(("SongIterator(%p)::operator=(&%p)\n", this, &r));
+  int_ptr<Playable> ptr(r.GetRoot());
+  ptr.toCptr();
   ptr.fromCptr(GetRoot());
   Location::operator=(r);
-  ptr = GetRoot();
-  ptr.toCptr();
   return *this;
+}
+
+SongIterator::OffsetInfo SongIterator::CalcOffsetInfo(size_t level)
+{ DEBUGLOG(("SongIterator(%p)::GetOffsetInfo(%u)\n", this, level));
+  ASSERT(level <= GetLevel());
+  if (level == GetLevel())
+    return OffsetInfo(0, GetPosition());
+  OffsetInfo off = CalcOffsetInfo(level+1);
+
+  return off;
 }

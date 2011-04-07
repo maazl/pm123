@@ -1,5 +1,5 @@
 /*
- * Copyright 2007-2010 Marcel M�eller
+ * Copyright 2007-2011 Marcel M�eller
  *           1997-2003 Samuel Audet <guardia@step.polymtl.ca>
  *                     Taneli Lepp� <rosmo@sektori.com>
  *
@@ -41,6 +41,7 @@
 #include "playlistview.h"
 #include "infodialog.h"
 #include "playable.h"
+#include "waitinfo.h"
 #include "pm123.h"
 #include "gui.h"
 #include "dialog.h"
@@ -833,7 +834,7 @@ void PlaylistBase::UpdateChildren(RecordBase* const rp)
     reqstate = (rp->flRecordAttr & CRA_EXPANDED) != 0;
   }
 
-  // Check wether we should supend the redraw.
+  // Check whether we should suspend the redraw.
   bool pauseredraw = false;
   if (rp == NULL || rp->flRecordAttr & CRA_EXPANDED)
   { pauseredraw = true;
@@ -1172,8 +1173,9 @@ void PlaylistBase::UserFlattenAll(RecordBase* rec)
       if (si.NavigateTo(*rec->Data->Content))
         // Error sub-item is no longer part of the playlist.
         return;
+      JobSet job(PRI_Normal);
       for (;;)
-      { Location::NavigationResult rc = si.NavigateCount(1, TATTR_SONG, PRI_Normal, 1);
+      { Location::NavigationResult rc = si.NavigateCount(1, TATTR_SONG, job, 1);
         if (rc)
         { if (rc.length() == 0)
             // TODO: dependency ???

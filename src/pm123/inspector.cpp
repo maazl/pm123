@@ -43,7 +43,7 @@
 
 
 InspectorDialog::InspectorDialog()
-: ManagedDialogBase(DLG_INSPECTOR, NULLHANDLE)
+: DialogBase(DLG_INSPECTOR, NULLHANDLE)
 { DEBUGLOG(("InspectorDialog(%p)::InspectorDialog()\n", this));
   StartDialog(HWND_DESKTOP);
 }
@@ -60,15 +60,17 @@ InspectorDialog::~InspectorDialog()
 }*/
 
 void InspectorDialog::SetVisible(bool show)
-{ ManagedDialogBase::SetVisible(show);
+{ DialogBase::SetVisible(show);
   if (show)
     PMRASSERT(WinPostMsg(GetHwnd(), UM_REFRESH, 0, 0));
+  else
+    WinDestroyWindow(GetHwnd());
 }
 
 MRESULT InspectorDialog::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
 { switch (msg)
   {case WM_INITDLG:
-    { BOOL ret = LONGFROMMR(ManagedDialogBase::DlgProc(msg, mp1, mp2));
+    { BOOL ret = LONGFROMMR(DialogBase::DlgProc(msg, mp1, mp2));
       // initial position
       SWP swp;
       PMXASSERT(WinQueryTaskSizePos(amp_player_hab(), 0, &swp), == 0);
@@ -139,14 +141,12 @@ MRESULT InspectorDialog::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
     Refresh();
     return 0;
   }
-  return ManagedDialogBase::DlgProc(msg, mp1, mp2);
+  return DialogBase::DlgProc(msg, mp1, mp2);
 }
 
 void InspectorDialog::OnDestroy()
-{ { CritSect cs;
-    Instance = NULL;
-  }
-  ManagedDialogBase::OnDestroy();
+{ Instance = NULL;
+  DialogBase::OnDestroy();
 }
 
 static void ControllerQCB(const Ctrl::ControlCommand& cmd1, void* arg)
@@ -324,13 +324,23 @@ void InspectorDialog::DiscardData(vector<char>& data)
 } 
 
 
-int_ptr<InspectorDialog> InspectorDialog::Instance;
+volatile int_ptr<InspectorDialog> InspectorDialog::Instance;
 
 int_ptr<InspectorDialog> InspectorDialog::GetInstance()
 { DEBUGLOG(("InspectorDialog::GetInstance()\n"));
-  CritSect cs;
-  if (Instance == NULL)
-    Instance = new InspectorDialog();
-  return Instance;
+  int_ptr<InspectorDialog> inst = Instance;
+  if (inst == NULL)
+  { CritSect cs;
+    inst = Instance; // double check
+    if (inst == NULL)
+      Instance = inst = new InspectorDialog();
+  }
+  return inst;
 }
 
+void InspectorDialog::UnInit()
+// close inspector
+{ int_ptr<InspectorDialog> inst = Instance;
+  if (inst)
+    inst->SetVisible(false);
+}

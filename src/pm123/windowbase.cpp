@@ -1,5 +1,5 @@
 /*
- * Copyright 2007-2008 Marcel MÅeller
+ * Copyright 2007-2008 Marcel MÔøΩeller
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -132,7 +132,6 @@ void DialogBase::SetVisible(bool show)
       return;
   } }
   
-  //PMRASSERT(WinShowWindow(HwndFrame, show));
   PMRASSERT(WinSetWindowPos(HwndFrame, HWND_TOP, 0, 0, 0, 0, show ? SWP_SHOW|SWP_ZORDER|SWP_ACTIVATE : SWP_HIDE));
 }
 

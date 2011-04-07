@@ -2,7 +2,7 @@
  * Copyright 1997-2003 Samuel Audet <guardia@step.polymtl.ca>
  *                     Taneli Lepp� <rosmo@sektori.com>
  * Copyright 2004-2006 Dmitry A.Steklenev <glass@ptv.ru>
- * Copyright 2007-2008 M.Mueller
+ * Copyright 2007-2011 M.Mueller
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -402,7 +402,6 @@
 #define EF_NUMITEMS        1720
 #define EF_SONGITEMS       1721
 #define EF_LISTITEMS       1722
-#define CB_ITEMSRECURSIVE  1723
 #define EF_BITRATE         1724
 #define EF_SAMPLERATE      1725
 #define EF_NUMCHANNELS     1727

@@ -31,7 +31,7 @@
 
 #define  INCL_BASE
 #define  INCL_WIN
-#define  DECODER_PLUGIN_LEVEL 1
+#define  PLUGIN_INTERFACE_LEVEL 1
 
 #include <config.h>
 #include <format.h>

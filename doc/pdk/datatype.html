@@ -11,14 +11,10 @@
 </head><body>
 <h1>PM123 common plug-in data types</h1>
 
-<p> </p>
-
-<p> </p>
-
-<p><a href="#ATTR_INFO">ATTR_INFO</a> <a href="#DRPL_INFO">DRPL_INFO</a>
+<p><tt><a href="#ATTR_INFO">ATTR_INFO</a> <a href="#DRPL_INFO">DRPL_INFO</a>
 <a href="dstring.html">DSTRING</a> <a href="#INFO_BUNDLE">INFO_BUNDLE</a>
-<a href="#INFOTYPE">INFOTYPE</a> <a href="#ITEM_INFO">ITEM_INFO</a> <a href="#META_INFO">META_INFO</a> <a href="#OBJ_INFO">OBJ_INFO</a> <a href="#PHYS_INFO">PHYS_INFO</a> <a href="#PL_OPTIONS">PL_OPTIONS</a> <a href="#PM123_SIZE">PM123_SIZE</a> <a href="#PM123_TIME">PM123_TIME</a>
-<a href="#RPL_INFO">RPL_INFO</a> <a href="#TECH_INFO">TECH_INFO</a> <a href="#TECH_ATTRIBUTES">TECH_ATTRIBUTES</a></p>
+<a href="#INFOTYPE">INFOTYPE</a> <a href="#ITEM_INFO">ITEM_INFO</a> <a href="#META_INFO">META_INFO</a> <a href="#OBJ_INFO">OBJ_INFO</a> <a href="#PHYS_INFO">PHYS_INFO</a><a href="#PL_OPTIONS">PL_OPTIONS</a> <a href="#PM123_SIZE">PM123_SIZE</a> <a href="#PM123_TIME">PM123_TIME</a>
+<a href="#RPL_INFO">RPL_INFO</a> <a href="#TECH_INFO">TECH_INFO</a> <a href="#TECH_ATTRIBUTES">TECH_ATTRIBUTES</a></tt> </p>
 
 <h3><a name="DSTRING"></a>DSTRING</h3>
 
@@ -129,7 +125,7 @@ about an
 object.</h3>
 
 <blockquote>
-  <pre>typedef struct<br>{ int        samplerate;<br>  int        channels;<br>  unsigned   attributes;<br>  <a href="dstring.html">DSTRING</a>    info;<br>  <a href="dstring.html">DSTRING</a>    format;<br>  <a href="dstring.html">DSTRING</a>    decoder;<br>} <b>TECH_INFO</b>;<br></pre>
+  <pre>typedef struct<br>{ int        samplerate;<br>  int        channels;<br>  unsigned   attributes;<br>  <a href="dstring.html">DSTRING</a>    info;<br>  <a href="dstring.html">DSTRING</a>    format;<br>  <a href="dstring.html">DSTRING</a>    decoder;<br>} <b>TECH_INFO</b>;</pre>
 </blockquote>
 
 <p>Note that objects of type <tt>TECH_INFO</tt> should not be copied
@@ -171,8 +167,7 @@ decoder.</td>
       <td><tt>NULL</tt></td>
     </tr>
     <tr>
-      <td><tt>format<br>
-      </tt></td>
+      <td><tt>format </tt></td>
       <td>This is an arbitrary format string that can be used by
 a decoder that supports different file formats. It is reflected to the
 decoder at <a href="decode_plug.html#decoder_savefile"><tt>decoder_savefile</tt></a>
@@ -228,7 +223,7 @@ the index tracks unless the user explicitly requests to do so.
 - Detailed Song Information</h3>
 
 <blockquote>
-  <pre>typedef struct<br>{ <a href="datatype.html#PM123_TIME">PM123_TIME</a> songlength;<br>  int        bitrate;<br>  int        num_items;<br>} <b>OBJ_INFO</b>;<br></pre>
+  <pre>typedef struct<br>{ <a href="datatype.html#PM123_TIME">PM123_TIME</a> songlength;<br>  int        bitrate;<br>  int        num_items;<br>} <b>OBJ_INFO</b>;</pre>
 </blockquote>
 
 <table border="1" cellpadding="3" cellspacing="0">
@@ -267,7 +262,7 @@ for an 128kbps MP3.</td>
 information</h3>
 
 <blockquote>
-  <pre>typedef struct<br>{ <a href="dstring.html">DSTRING</a>    title;<br>  <a href="dstring.html">DSTRING</a>    artist;<br>  <a href="dstring.html">DSTRING</a>    album;<br>  <a href="dstring.html">DSTRING</a>    year;<br>  <a href="dstring.html">DSTRING</a>    comment;<br>  <a href="dstring.html">DSTRING</a>    genre;<br>  <a href="dstring.html">DSTRING</a>    track;<br>  <a href="dstring.html">DSTRING</a>    copyright;<br>  float      track_gain;<br>  float      track_peak;<br>  float      album_gain;<br>  float      album_peak;<br>} <b>META_INFO</b>;<br></pre>
+  <pre>typedef struct<br>{ <a href="dstring.html">DSTRING</a>    title;<br>  <a href="dstring.html">DSTRING</a>    artist;<br>  <a href="dstring.html">DSTRING</a>    album;<br>  <a href="dstring.html">DSTRING</a>    year;<br>  <a href="dstring.html">DSTRING</a>    comment;<br>  <a href="dstring.html">DSTRING</a>    genre;<br>  <a href="dstring.html">DSTRING</a>    track;<br>  <a href="dstring.html">DSTRING</a>    copyright;<br>  float      track_gain;<br>  float      track_peak;<br>  float      album_gain;<br>  float      album_peak;<br>} <b>META_INFO</b>;</pre>
 </blockquote>
 
 <p>Note that objects of type META_INFO should not be copied
@@ -293,8 +288,7 @@ title.</td>
       <td><tt>NULL</tt></td>
     </tr>
     <tr>
-      <td><tt>album<br>
-      </tt></td>
+      <td><tt>album </tt></td>
       <td>Title of the album or title of the parent object in
 general.</td>
       <td><tt>NULL</tt></td>
@@ -343,7 +337,7 @@ indicates that the information is not available.</td>
 <p>Note that <tt>NULL</tt> strings will display the
 same as <tt>""</tt>,
 but they indicate that the information is not available rather than
-explicitly set to blank. In fact this will rarely make a difference.<br>
+explicitly set to blank. In fact this will rarely make a difference.
 </p>
 
 <h3><a name="ATTR_INFO"></a>ATTR_INFO
@@ -420,7 +414,7 @@ are mutually exclusive.
 playlist information.</h3>
 
 <blockquote>
-  <pre>typedef struct<br>{ int        totalsongs;<br>  int        unk_songs;<br>  int        totallists;<br>  int        unk_lists;<br>  int        recursive;<br>  int        unk_recurs;<br>  int        num_invalid;<br>} <b>RPL_INFO</b>;</pre>
+  <pre>typedef struct<br>{ int        totalsongs;<br>  int        totallists;<br>  int        invalid;<br>  int        unknown;<br>} <b>RPL_INFO</b>;</pre>
 </blockquote>
 
 <table border="1" cellpadding="3" cellspacing="0">
@@ -429,7 +423,7 @@ playlist information.</h3>
     <tr>
       <th>Field</th>
       <th>Meaning</th>
-      <th>Undef. value</th>
+      
     </tr>
     <tr>
       <td><tt>totalsongs</tt></td>
@@ -437,56 +431,57 @@ playlist information.</h3>
 songs in nested playlists but not the playlists itself since they are
 not directly playable. For song items this is 1.<br>
       </td>
-      <td><tt>-1</tt></td>
+      
     </tr>
+    
     <tr>
-      <td valign="top">unk_songs<br>
-      </td>
-      <td valign="top">Total number of indirect list objects in the list with an unknown number of songs.<br>
-      </td>
-      <td valign="top"><tt>-1</tt></td>
-    </tr>
-<tr>
       <td><tt>totallists</tt></td>
       <td>The total number of enumerable objects including the
 top level list and nested objects. For song items this is 0.</td>
-      <td><tt>-1</tt></td>
+      
     </tr>
     <tr>
-      <td valign="top">unk_lists<br>
-      </td>
-      <td valign="top"><br>
-      </td>
-      <td valign="top"><br>
-      </td>
-    </tr>
+<td valign="top"><tt>invalid</tt></td><td valign="top">The total number of invalid objects (i.e neither
+song nor playlist) in the nested tree.<br>
+      </td></tr>
 <tr>
-      <td><tt>recursive</tt></td>
-      <td>Flag whether this object has some recursion in it's
-sub-objects detected. This is used for optimization.</td>
-      <td><tt>-1</tt></td>
+      <td valign="top"><tt>unknown</tt> </td>
+      <td valign="top">Total number of objects with an unknown number of nested objects. If this is non-zero the <tt>totalsongs</tt>, <tt>totallists</tt>
+and <tt>invalid</tt> counters are incomplete. </td>
+      
     </tr>
+    
+    
+    
   </tbody>
 </table>
 
 <p>The recursive playlist information takes care of <em>slices</em>
 that only select a part of a nested object.&nbsp;Ranges outside the
-slice are not part of the aggregation. </p>
+slice are not part of the aggregation.</p>
 
-<p>If one of the informations is not available for at least one
-of the children, the result is undefined (<tt>-1</tt>).</p>
-
-<p>Furthermore <em>recursive links</em> in
+<p>
+Furthermore <em>recursive links</em> in
 enumerable objects are treated in the way that any recursive object is
 ignored. See <a href="../manual/recursive.html">recursive
-playlists</a>.</p>
+playlists</a></p>
 
+<p>The <tt>unknown</tt> counter is used to
+support incremental updates. E.g. if a playlist currently contains
+exactly one nested playlist with an unknown number of sub objects the <tt>unknown</tt>
+counter is set to 1 and the <tt>totalsongs</tt> counter collects the
+songs in all other items. If this nested playlist is removed, the <tt>unknown</tt>
+counter is decremented and the <tt>totalsongs</tt> counter becomes
+valid without recalculating it's value.<br>
+</p>
+<p>This also implies that the structure has no undefined value. Instead unknown is initially <tt>1</tt> and all other fields <tt>0</tt>.<br>
+</p>
 <h3><a name="DRPL_INFO"></a>DRPL_INFO
 - Detailed recursive
 playlist information.</h3>
 
 <blockquote>
-  <pre>typedef struct<br>{ <a href="datatype.html#PM123_TIME">PM123_TIME</a> totallength;<br>  <a href="#PM123_SIZE">PM123_SIZE</a> totalsize;<br>} <b>DRPL_INFO</b>;</pre>
+  <pre>typedef struct<br>{ <a href="datatype.html#PM123_TIME">PM123_TIME</a> totallength;<br>  int        unk_length;<br>  <a href="#PM123_SIZE">PM123_SIZE</a> totalsize;<br>  int        unk_size;<br>} <b>DRPL_INFO</b>;</pre>
 </blockquote>
 
 <table border="1" cellpadding="3" cellspacing="0">
@@ -495,42 +490,49 @@ playlist information.</h3>
     <tr>
       <th>Field</th>
       <th>Meaning</th>
-      <th>Undef. value</th>
+      
     </tr>
     <tr>
       <td><tt>totallength</tt></td>
       <td>Sum of the playing times (<tt>TECH_INFO.songlength</tt>)
 of all songs in a playlist including nested lists.</td>
-      <td><tt>-1</tt></td>
+      
+    </tr>
+    <tr>
+      <td valign="top"><tt>unk_length
+      </tt> </td>
+      <td valign="top">Total number of objects with unknown or
+indefinite length. If this is non-zero the <tt>totallength</tt> is
+incomplete.<br>
+      </td>
+      
     </tr>
     <tr>
       <td><tt>totalsize</tt></td>
-      <td>Sum of the file sizes of all nested objects (<tt>PHYS_INFO.filesize</tt>).
+      <td>Sum of the physical object size of all nested objects (<tt>PHYS_INFO.filesize</tt>).
 This is always an approximate number, since slices cannot be projected
 to exact byte numbers in general.</td>
-      <td><tt>-1</tt></td>
+      
+    </tr>
+    <tr>
+      <td valign="top"><tt>unk_size
+      </tt> </td>
+      <td valign="top">Total number of objects with unknown object
+size. If this is non-zero the <tt>totalsize</tt> is incomplete.<br>
+      </td>
+      
     </tr>
   </tbody>
 </table>
 
-<p>The recursive playlist information takes care of <em>slices</em>
-that only select a part of a nested object.&nbsp;Ranges outside the
-slice are not part of the aggregation. </p>
-
-<p>If one of the informations is not available for at least one
-of the children, the result is undefined (<tt>-1</tt>).</p>
-
-<p>Furthermore <em>recursive links</em> in
-enumerable objects are treated in the way that any recursive object is
-ignored. See <a href="../manual/recursive.html">recursive
-playlists</a>.</p>
+<p>See also notes of <tt><a href="datatype.html#RPL_INFO">RPL_INFO</a></tt>.</p>
 
 <h3><a name="ITEM_INFO"></a>ITEM_INFO
 -&nbsp;Playlist
 item information.</h3>
 
 <blockquote>
-  <pre>typedef struct<br>{ <a href="dstring.html">DSTRING</a>      alias;<br>  <a href="dstring.html">DSTRING</a>      start;<br>  <a href="dstring.html">DSTRING</a>      stop;<br>  float        pregap;<br>  float        postgap;<br>  float        gain;<br>} <b>ITEM_INFO</b>;<br></pre>
+  <pre>typedef struct<br>{ <a href="dstring.html">DSTRING</a>      alias;<br>  <a href="dstring.html">DSTRING</a>      start;<br>  <a href="dstring.html">DSTRING</a>      stop;<br>  float        pregap;<br>  float        postgap;<br>  float        gain;<br>} <b>ITEM_INFO</b>;</pre>
 </blockquote>
 
 <p>Note that objects of type ITEM_INFO should not be copied
@@ -568,14 +570,14 @@ of an object is shown, like bookmark entries.<br>
 postgap</tt></td>
       <td>Gap in seconds before and after the current item.</td>
       <td><i>none</i></td>
-    </tr><tr>
+    </tr>
+    <tr>
       <td valign="top"><tt>gain</tt><br>
       </td>
       <td valign="top">Additional playback gain in dB.<br>
       </td>
       <td valign="top"><i>none</i></td>
     </tr>
-
   </tbody>
 </table>
 

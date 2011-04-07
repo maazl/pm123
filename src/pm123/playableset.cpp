@@ -112,10 +112,6 @@ bool PlayableSetBase::isSubsetOf(const PlayableSetBase& r) const
 }
 
 
-PlayableSet::PlayableSet()
-: sorted_vector<Playable, Playable>(8)
-{ DEBUGLOG(("PlayableSet(%p)::PlayableSet()\n", this));
-}
 PlayableSet::PlayableSet(size_t size)
 : sorted_vector<Playable, Playable>(size)
 { DEBUGLOG(("PlayableSet(%p)::PlayableSet(%u)\n", this, size));

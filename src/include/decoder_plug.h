@@ -143,7 +143,7 @@ typedef struct _DECODER_PARAMS2
 /* returns 0 -> ok
            1 -> command unsupported
            1xx -> msg specific */
-#if !defined(DECODER_PLUGIN_LEVEL) || DECODER_PLUGIN_LEVEL <= 1
+#if !defined(PLUGIN_INTERFACE_LEVEL) || PLUGIN_INTERFACE_LEVEL <= 1
 ULONG DLLENTRY decoder_command( void* w, ULONG msg, DECODER_PARAMS* params );
 /* WARNING!! this _can_ change in time!!! returns stream length in ms */
 /* the decoder should keep in memory a last valid length so the call  */
@@ -274,7 +274,7 @@ typedef struct _DECODER_CDINFO
       PLUGIN_NO_READ = error reading file (too small?),
       PLUGIN_NO_PLAY = decoder can't play that,
       other values   = errno, check xio_strerror() for string. */
-#if defined(DECODER_PLUGIN_LEVEL) && DECODER_PLUGIN_LEVEL > 1
+#if defined(PLUGIN_INTERFACE_LEVEL) && PLUGIN_INTERFACE_LEVEL > 1
 /* Request the information 'what' about 'url' from the decoder
  * 'what' is an input/output parameter. On input it is the requested information,
  * on output the returned information which must not be less than the requested bits.
@@ -332,7 +332,7 @@ typedef struct
   unsigned    flags;     /* Bit vector of DECODER_TYPE */
 } DECODER_FILETYPE;
 
-#if defined(DECODER_PLUGIN_LEVEL) && DECODER_PLUGIN_LEVEL > 1
+#if defined(PLUGIN_INTERFACE_LEVEL) && PLUGIN_INTERFACE_LEVEL > 1
 ULONG DLLENTRY decoder_support(const DECODER_FILETYPE** types, int* count);
 #else
 /* size is i/o and is the size of the array.
@@ -340,7 +340,7 @@ ULONG DLLENTRY decoder_support(const DECODER_FILETYPE** types, int* count);
 ULONG DLLENTRY decoder_support(char* fileext[], int* size);
 #endif
 
-#if defined(DECODER_PLUGIN_LEVEL) && DECODER_PLUGIN_LEVEL > 0
+#if defined(PLUGIN_INTERFACE_LEVEL) && PLUGIN_INTERFACE_LEVEL > 0
 ULONG DLLENTRY decoder_editmeta(HWND owner, const char* url);
 #endif
 

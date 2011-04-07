@@ -32,13 +32,6 @@
 #ifndef PM123_PLUGMAN_H
 #define PM123_PLUGMAN_H
 
-/* maximum supported and most recent plugin-levels */
-#define MAX_PLUGIN_LEVEL     2
-#define VISUAL_PLUGIN_LEVEL  1
-#define FILTER_PLUGIN_LEVEL  2
-#define DECODER_PLUGIN_LEVEL 2
-#define OUTPUT_PLUGIN_LEVEL  2
-
 #include "pipe.h"
 #include <plugin.h>
 #include <decoder_plug.h>

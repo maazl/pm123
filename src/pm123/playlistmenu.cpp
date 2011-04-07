@@ -44,10 +44,11 @@
 
 inline PlaylistMenu::MapEntry::MapEntry(USHORT id, MapEntry* parent, APlayable& data, EntryFlags flags, MPARAM user, SHORT pos, PlaylistMenu& owner, void (PlaylistMenu::*infochg)(const PlayableChangeArgs&, MapEntry*))
 : IDMenu(id),
+  Flags(flags),
   Parent(parent),
   HwndSub(NULLHANDLE),
   Data(&data),
-  Flags(flags),
+  Status(0),
   User(user),
   ID1((USHORT)MID_NONE),
   Pos(pos),
@@ -68,7 +69,6 @@ PlaylistMenu::PlaylistMenu(HWND owner, USHORT mid1st, USHORT midlast)
   IDlast(midlast),
   MenuMap(50),
   ID1stfree(mid1st),
-  UpdateEntry(NULL),
   MaxMenu(DEF_MAX_MENU)
 { DEBUGLOG(("PlaylistMenu(%p)::PlaylistMenu(%x, %u,%u)\n", this, owner, mid1st, midlast));
   // Generate dialog procedure and replace the current one
@@ -97,6 +97,38 @@ static void menutest(HWND menu)
     menu, owner, parent, pos.fl, pos.x, pos.y, pos.cx, pos.cy, pos.hwndInsertBehind, count));
 }*/
 
+/* Sub menu state engine (u = in use, D = in destroy, U = in update)
+ *
+ * Event           | State | Condition          | Action                  | State
+ * ================|=======|====================|=========================|=======
+ * create item     | n/a   | playlist item      | create empty sub-menu   | . . .
+ * ----------------+-------+--------------------+-------------------------+-------
+ * UM_UPDATESTAT   | . ? ? |                    | no-op                   | . ? ?
+ * ----------------+-------+--------------------+-------------------------+-------
+ * UM_UPDATESTAT   | u ? ? | no playlist item   | destroy sub menu if any | u ? ?
+ * ----------------+-------+--------------------+-------------------------+-------
+ * UM_UPDATESTAT   | u ? ? | playlist item      | ensure sub menu         | u ? ?
+ * ----------------+-------+--------------------+-------------------------+-------
+ * WM_INITMENU     | . . . | children not       | ensure sub menu         | u . .
+ *                 |       |  available         |  create dummy entry     |
+ * ----------------+-------+--------------------+-------------------------+-------
+ * WM_INITMENU     | . . . | children available | ensure sub menu         | u . .
+ *                 |       |                    |  update sub items       |
+ * ----------------+-------+--------------------+-------------------------+-------
+ * UM_UPDATE       | . ? ? |                    | no-op                   | . ? ?
+ * ----------------+-------+--------------------+-------------------------+-------
+ * UM_UPDATE       | u . . |                    | no-op                   | . ? ?
+ * ----------------+-------+--------------------+-------------------------+-------
+ * WM_MENUEND      | u . . |                    | post UM_MENUEND         | . . .
+ * ----------------+-------+--------------------+-------------------------+-------
+ * UM_MENUEND      | u ? ? |                    | no-op                   | u ? ?
+ * ----------------+-------+--------------------+-------------------------+-------
+ * UM_MENUEND      | . . . |                    | begin destroy sub items | . D .
+ *                 | u D . |                    | cancel operation        | u . .
+ *                 |       | children available |  post UM_UPDATE         |
+ * ----------------+-------+--------------------+-------------------------+-------
+ */
+
 MRESULT PlaylistMenu::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
 { DEBUGLOG2(("PlaylistMenu(%p{%x})::DlgProc(%x, %x, %x)\n", this, HwndOwner, msg, mp1, mp2));
   switch (msg)
@@ -116,32 +148,25 @@ MRESULT PlaylistMenu::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
         break; // No registered map entry, continue default processing.
       DEBUGLOG(("PlaylistMenu::DlgProc: WM_INITMENU: %p{%u, %x,...}\n", mapp, mapp->IDMenu, mapp->HwndSub));
       mapp->HwndSub = HWNDFROMMP(mp2);
-      // delete old stuff
-      //RemoveSubItems(mapp);
-      // And add new
-      CreateSubItems(mapp);
+      mapp->Status |= InUse;
+      if (mapp->Status & (InUpdate|InDestroy))
+        UpdateSubItems(mapp);
+      else if (!mapp->Status.bitset(1))
+        PMRASSERT(WinPostMsg(HwndOwner, UM_UPDATELIST, mp1, MPFROMP(mapp)));
       //menutest(HWNDFROMMP(mp2));
       break;
     }
 
    case WM_MENUEND:
     { DEBUGLOG(("PlaylistMenu(%p)::DlgProc: WM_MENUEND(%u, %x)\n", this, SHORT1FROMMP(mp1), mp2));
-      UpdateEntry = NULL; // Discard updates
       MapEntry* mapp = MenuMap.find(SHORT1FROMMP(mp1));
-      if (mapp == NULL)
-        break; // No registered map entry, continue default processing.
-      //menutest(HWNDFROMMP(mp2));
-      // delete old stuff later
-      PMRASSERT(WinPostMsg(HwndOwner, UM_MENUEND, mp1, MPFROMP(mapp)));
-    }
-
-   case UM_MENUEND:
-    { MapEntry* mapp = MenuMap.find(SHORT1FROMMP(mp1));
-      DEBUGLOG(("PlaylistMenu(%p)::DlgProc: UM_MENUEND(%u, %p) - %p\n", this, SHORT1FROMMP(mp1), mp2, mapp));
-      // delete old stuff, but only if still valid.
-      if (mapp == (MapEntry*)mp2)
-        RemoveSubItems(mapp);
-      return 0;
+      if (mapp) // registered map entry?
+      { mapp->Status &= ~InUse;
+        //menutest(HWNDFROMMP(mp2));
+        // delete old stuff later
+        PMRASSERT(WinPostMsg(HwndOwner, UM_MENUEND, mp1, MPFROMP(mapp)));
+      }
+      break;
     }
 
    #if 0
@@ -152,32 +177,51 @@ MRESULT PlaylistMenu::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
 
    case WM_COMMAND:
     if (SHORT1FROMMP(mp2) == CMDSRC_MENU)
-    { MapEntry* mp = MenuMap.find(SHORT1FROMMP(mp1));
-      DEBUGLOG(("PlaylistMenu(%p)::DlgProc: WM_COMMAND(%u) - %p\n", this, SHORT1FROMMP(mp1), mp));
-      if (mp) // ID unknown?
-      { WinSendMsg(HwndOwner, UM_SELECTED, MPFROMP(mp->Data.get()), mp->User);
+    { MapEntry* mapp = MenuMap.find(SHORT1FROMMP(mp1));
+      DEBUGLOG(("PlaylistMenu(%p)::DlgProc: WM_COMMAND(%u) - %p\n", this, SHORT1FROMMP(mp1), mapp));
+      if (mapp) // ID unknown?
+      { WinSendMsg(HwndOwner, UM_SELECTED, MPFROMP(mapp->Data.get()), mapp->User);
         return 0; // no further processing
     } }
     break;
 
-   case UM_LATEUPDATE:
-    DEBUGLOG(("PlaylistMenu(%p)::DlgProc: UM_LATEUPDATE(%p) - %p\n", this, PVOIDFROMMP(mp2), UpdateEntry));
-    if (UpdateEntry == PVOIDFROMMP(mp2))
-    { RemoveSubItems(UpdateEntry); // maybe we have to remove a dummy entry
-      CreateSubItems(UpdateEntry);
-      UpdateEntry = NULL;
+   case UM_MENUEND:
+    { MapEntry* mapp = MenuMap.find(SHORT1FROMMP(mp1));
+      DEBUGLOG(("PlaylistMenu(%p)::DlgProc: UM_MENUEND(%u, %x) - %p\n",
+        this, SHORT1FROMMP(mp1), PVOIDFROMMP(mp2), mapp));
+      // delete old stuff, but only if still valid.
+      if (mapp == PVOIDFROMMP(mp2) && !(mapp->Status & InUse))
+      { mapp->Status |= InDestroy;
+        RemoveSubItems(mapp);
+        mapp->Status &= ~InDestroy;
+      }
     }
-    break;
-    
+    return 0;
+
    case UM_UPDATESTAT:
-    { MapEntry* mp = MenuMap.find(SHORT1FROMMP(mp1));
+    { MapEntry* mapp = MenuMap.find(SHORT1FROMMP(mp1));
       DEBUGLOG(("PlaylistMenu(%p)::DlgProc: UM_UPDATESTAT(%u, %p) - %p\n",
-        this, SHORT1FROMMP(mp1), PVOIDFROMMP(mp2), mp));
+        this, SHORT1FROMMP(mp1), PVOIDFROMMP(mp2), mapp));
       // ID known and valid and not root?
-      if (mp && mp == PVOIDFROMMP(mp2) && mp->Parent)
-        UpdateItem(mp);
-    }
+      if (mapp == PVOIDFROMMP(mp2) && mapp->Parent && mapp->Status.bitrst(0))
+      { mapp->Status |= InUpdate;
+        UpdateItem(mapp);
+        mapp->Status &= ~InUpdate;
+    } }
     break;
+
+   case UM_UPDATELIST:
+    { MapEntry* mapp = MenuMap.find(SHORT1FROMMP(mp1));
+      DEBUGLOG(("PlaylistMenu(%p)::DlgProc: UM_UPDATE(%u, %p) - %p\n",
+        this, SHORT1FROMMP(mp1), PVOIDFROMMP(mp2), mapp));
+      // Update content, but only for visible items.
+      if (mapp == PVOIDFROMMP(mp2) && (mapp->Status & InUse) && mapp->Status.bitrst(1))
+      { mapp->Status |= InUpdate;
+        UpdateSubItems(mapp);
+        mapp->Status &= ~InUpdate;
+    } }
+    break;
+
   }
   // Call chained dialog procedure
   return (*Old_DlgProc)(HwndOwner, msg, mp1, mp2);
@@ -215,7 +259,8 @@ void PlaylistMenu::CreateSubMenu(MENUITEM& mi, HWND parent)
 }
 
 USHORT PlaylistMenu::InsertSeparator(HWND menu, SHORT where)
-{ MENUITEM mi = {0};
+{ DEBUGLOG(("PlaylistMenu::InsertSeparator(%x, %i)\n", menu, where));
+MENUITEM mi = {0};
   mi.iPosition = where;
   mi.afStyle = MIS_SEPARATOR;
   mi.id = AllocateID();
@@ -228,8 +273,8 @@ USHORT PlaylistMenu::InsertDummy(HWND menu, SHORT where, const char* text)
 { DEBUGLOG(("PlaylistMenu::InsertDummy(%x, %i, %s)\n", menu, where, text));
   MENUITEM mi = {0};
   mi.iPosition = where;
-  mi.afStyle     = MIS_TEXT|MIS_STATIC;
-  mi.id          = AllocateID();
+  mi.afStyle = MIS_TEXT|MIS_STATIC;
+  mi.id = AllocateID();
   if (mi.id != (USHORT)MID_NONE)
     PMXASSERT(SHORT1FROMMR(WinSendMsg(menu, MM_INSERTITEM, MPFROMP(&mi), MPFROMP(text))), != (USHORT)MIT_ERROR);
   return mi.id;
@@ -277,47 +322,195 @@ void PlaylistMenu::UpdateItem(MapEntry* mapp)
     PMRASSERT(WinDestroyWindow(oldmenu));
 }
 
-void PlaylistMenu::CreateSubItems(MapEntry* mapp)
-{ DEBUGLOG(("PlaylistMenu(%p)::CreateSubItems(%p{%u})\n", this, mapp, mapp->IDMenu));
+void PlaylistMenu::UpdateSubItems(MapEntry* const mapp)
+{ DEBUGLOG(("PlaylistMenu(%p)::UpdateSubItems(%p{%u,%x,%p{%s},%x, %i,%i})\n", this,
+    mapp, mapp->IDMenu, mapp->Flags, &mapp->Data->GetPlayable(), mapp->Data->GetPlayable().URL.cdata(),
+    mapp->Status.get(), (SHORT)mapp->ID1, (SHORT)mapp->Pos));
   // is enumerable?
   if (!(mapp->Data->GetInfo().tech->attributes & TATTR_PLAYLIST))
     return;
 
-  MENUITEM mi = {0};
-  mi.iPosition   = MIT_END;
-  //mi.hItem       = 0;
-  // Find insert position
-  if (mapp->Pos != (USHORT)MID_NONE)
-    mi.iPosition = SHORT1FROMMR(WinSendMsg(mapp->HwndSub, MM_ITEMPOSITIONFROMID, MPFROM2SHORT(mapp->Pos, FALSE), 0));
-  size_t count = 0;
+  const char* dummy = NULL; // Dummy Entry (if any)
+  vector_int<PlayableInstance> children; // New menu content
+
   if (mapp->Data->RequestInfo(IF_Child, PRI_Normal))
-  { // not immediately available => do it later
-    UpdateEntry = mapp;
-    mapp->ID1 = InsertDummy(mi.hwndSubMenu, mi.iPosition, "- loading -");
-    // separator after
-    if ((mapp->Flags & Separator) && mi.iPosition != MIT_END)
-      InsertSeparator(mapp->HwndSub, mi.iPosition);
-  } else
-  { // lock collection
-    Playable& list = mapp->Data->GetPlayable();
-    Mutex::Lock lock(list.Mtx);
-    int_ptr<PlayableInstance> pi;
-    while (count < MaxMenu && (pi = list.GetNext(pi)))
-    { // Get content
-      Playable& p = pi->GetPlayable();
+    // not immediately available => do it later
+    dummy = "- loading -";
+  else
+  { // copy collection synchronized into vector
+    { Playable& list = mapp->Data->GetPlayable();
+      int_ptr<PlayableInstance> pi;
+      Mutex::Lock lock(list.Mtx);
+      size_t count = list.GetInfo().obj->num_items;
+      if (count > MaxMenu)
+        count = MaxMenu;
+      children.reserve(count);
+      while (count-- && (pi = list.GetNext(pi)))
+        children.append() = pi;
+    }
+    // now unsynchronized loop
+    for (size_t i = children.size(); i-- != 0;)
+    { PlayableInstance* pi = children[i];
+      // Prefetch nested playlist content?
       if (mapp->Flags & Prefetch)
-        // Prefetch nested playlist content.
-        p.RequestInfo(IF_Child, PRI_Low);
-      p.RequestInfo(IF_Tech, PRI_Normal);
-      const unsigned tattr = p.GetInfo().tech->attributes;
-      const bool invalid = (p.GetInfo().phys->attributes & PATTR_INVALID) || (tattr & TATTR_INVALID);
-      DEBUGLOG(("PlaylistMenu::CreateSubItems: at %p{%s}\n", &p, p.URL.getShortName().cdata()));
-      // skip invalid?
-      if (invalid && (mapp->Flags & SkipInvalid))
-        continue;
-      ++count;
-      // fetch ID
+        pi->RequestInfo(IF_Child, PRI_Low);
+      pi->RequestInfo(IF_Tech, PRI_Normal);
+      // remove invalid items?
+      if ( (mapp->Flags & SkipInvalid) &&
+        ((pi->GetInfo().phys->attributes & PATTR_INVALID) || (pi->GetInfo().tech->attributes & TATTR_INVALID)) )
+        children.erase(i);
+    }
+    DEBUGLOG(("PlaylistMenu::UpdateSubItems: Found %u children\n", children.size()));
+    // Empty Menu?
+    if (children.size() == 0)
+    { if (!(mapp->Flags & DummyIfEmpty))
+      { RemoveSubItems(mapp);
+        return;
+      }
+      dummy = "- none -";
+    }
+  }
+  // At this point we are sure that we need at least a dummy menu entry.
+
+  // Find position and id of first item, MIT_END/MID_NONE if none.
+  int position1 = MIT_END;
+  USHORT id = mapp->ID1;
+  if (id == (USHORT)MID_NONE)
+    id = mapp->Pos;
+  if (id != (USHORT)MID_NONE)
+    position1 = SHORT1FROMMR(WinSendMsg(mapp->HwndSub, MM_ITEMPOSITIONFROMID, MPFROM2SHORT(id, FALSE), 0));
+  DEBUGLOG(("PlaylistMenu::UpdateSubItems: Start at %i/%i, dummy = %s\n", (SHORT)position1, (SHORT)id, dummy));
+
+  // Create list of menu entries in the current sub menu that belong to PlaylistMenu,
+  // create separators and dummy (if any). The List does not include any separators,
+  // but it will include empty slots for removed items. This ensures that the index
+  // in the list stays valid.
+  vector<MapEntry> menuentries;
+  // Stop if either
+  // - Error
+  // - End of menu
+  // - End of user range handled by this class
+  // Loop over current menu entries
+  int position = position1;
+  while (id != (USHORT)MIT_NONE && id != (USHORT)MIT_ERROR && id != mapp->Pos)
+  { if (mapp->ID1 == (USHORT)MID_NONE)
+      mapp->ID1 = id;
+    MapEntry* mapp2 = MenuMap.find(id);
+    DEBUGLOG(("PlaylistMenu::UpdateSubItems: Scan menu item %i/%i -> %p\n", (SHORT)position, (SHORT)id, mapp2));
+    if (mapp2 == NULL)
+    { // separator or dummy
+      MENUITEM mi;
+      PMRASSERT(WinSendMsg(mapp->HwndSub, MM_QUERYITEM, MPFROM2SHORT(id, FALSE), MPFROMP(&mi)));
+      DEBUGLOG(("PlaylistMenu::UpdateSubItems: Scan menu item style %x\n", mi.afStyle));
+      if (mi.afStyle & MIS_SEPARATOR)
+      { // Separator
+        if (position != MIT_END)
+          ++position;
+        goto next;
+      } else if (dummy)
+      { // Dummy and dummy still required
+        PMRASSERT(WinSendMsg(mapp->HwndSub, MM_SETITEMTEXT, MPFROMSHORT(id), MPFROMP(dummy)));
+        return; // This is necessarily the last action, because dummy entries and normal entries are mutually exclusive.
+      } else
+        // Dummy and no dummy required
+        goto del;
+    }
+    // is MapEntry!
+    // Check if needed any longer
+    for (size_t i = 0; i < children.size(); ++i)
+      if (children[i] == mapp2->Data)
+      { // needed
+        DEBUGLOG(("PlaylistMenu::UpdateSubItems: Menu item %u used at %u\n", menuentries.size(), i));
+        menuentries.append() = mapp2;
+        if (position != MIT_END)
+          ++position;
+        goto next;
+      }
+    // no longer needed => delete
+    DEBUGLOG(("PlaylistMenu::UpdateSubItems: Menu item %u orphaned\n", menuentries.size()));
+    RemoveMapEntry(id);
+    menuentries.append(); // Append dummy for removed entry
+   del:
+    WinSendMsg(mapp->HwndSub, MM_DELETEITEM, MPFROM2SHORT(id, FALSE), 0);
+    mapp->ID1 = (USHORT)MID_NONE; // The ID is assigned later if there are more entries.
+   next:
+    id = SHORT1FROMMR(WinSendMsg(mapp->HwndSub, MM_ITEMIDFROMPOSITION, MPFROMSHORT(position), 0));
+    DEBUGLOG(("PlaylistMenu::UpdateSubItems: Scan at %i/%i\n", (SHORT)position, (SHORT)id));
+  }
+
+  // Create separators if required
+  if (mapp->ID1 == (USHORT)MID_NONE && (mapp->Flags & Separator))
+  { if (position > 0)
+    { mapp->ID1 = InsertSeparator(mapp->HwndSub, position);
+      if (position != MIT_END)
+        ++position;
+    }
+    if (mapp->Pos != (USHORT)MIT_END)
+    { id = InsertSeparator(mapp->HwndSub, position);
+      if (mapp->ID1 == (USHORT)MID_NONE)
+        mapp->ID1 = id;
+    }
+  }
+
+  // If a dummy is already in place, we won't get here.
+  if (dummy)
+  { id = InsertDummy(mapp->HwndSub, position, dummy);
+    if (mapp->ID1 == (USHORT)MID_NONE)
+      mapp->ID1 = id;
+    return;
+  }
+
+  // Now loop over new menu entries and adjust the menu content.
+  // Because of the loop above we can be sure that no menu entry has to be deleted anymore.
+  // But we might need new entries.
+  position = position1;
+  size_t jnext = 0;
+  for (size_t i = 0; i < children.size(); ++i)
+  { PlayableInstance& pi = *children[i];
+    DEBUGLOG(("PlaylistMenu::UpdateSubItems: Update at %i->%p, %u\n", i, &pi, jnext));
+    // Seek for existing menu entry.
+    for (size_t j = jnext; j < menuentries.size(); ++j)
+    { MapEntry* mapp2 = menuentries[j];
+      // Adjust jmin to the next existing and not moved entry in
+      if (mapp2 == NULL)
+      { if (j == jnext)
+        { DEBUGLOG(("PlaylistMenu::UpdateSubItems: Update jnext\n"));
+          ++jnext;
+        }
+      } else if (mapp2->Data == &pi)
+      { // Match!
+        DEBUGLOG(("PlaylistMenu::UpdateSubItems: Update match at %u, %u\n", j, jnext));
+        if (j != jnext)
+        { // Move required
+          MENUITEM mi = {0};
+          PMRASSERT(WinSendMsg(mapp->HwndSub, MM_QUERYITEM, MPFROM2SHORT(mapp2->IDMenu, FALSE), MPFROMP(&mi)));
+          ASSERT(mi.id == mapp2->IDMenu);
+          WinSendMsg(mapp->HwndSub, MM_REMOVEITEM, MPFROM2SHORT(mapp2->IDMenu, FALSE), 0);
+          mi.iPosition = position;
+          const xstring& text = MakeMenuItemText(mapp2, i);
+          SHORT rs = SHORT1FROMMR(WinSendMsg(mapp->HwndSub, MM_INSERTITEM, MPFROMP(&mi), MPFROMP(text.cdata())));
+          PMASSERT(rs >= 0);
+          if (position == 0 || (i == 0 && !(mapp->Flags & Separator)))
+            mapp->ID1 = mapp2->IDMenu;
+        } else
+        { if (i != j && (mapp->Flags & Enumerate))
+          { // Rename required
+            const xstring& text = MakeMenuItemText(mapp2, i);
+            PMRASSERT(WinSendMsg(mapp->HwndSub, MM_SETITEMTEXT, MPFROMSHORT(mapp2->IDMenu), MPFROMP(text.cdata())));
+          } // else: Match with matching position
+          ++jnext;
+        }
+        menuentries[j] = NULL;
+        if (position != MIT_END)
+          ++position;
+        goto nextmenu;
+      }
+    }
+    DEBUGLOG(("PlaylistMenu::UpdateSubItems: Update no match\n"));
+    // No-match => insert
+    { MENUITEM mi = {0};
       mi.id          = AllocateID();
+      mi.iPosition   = position;
       if (mi.id == (USHORT)MID_NONE)
         break; // can't help
       if (mapp->ID1 == (USHORT)MID_NONE)
@@ -328,7 +521,11 @@ void PlaylistMenu::CreateSubItems(MapEntry* mapp)
       // Add map entry.
       MapEntry*& subp = MenuMap.get(mi.id);
       ASSERT(subp == NULL);
-      subp = new MapEntry(mi.id, mapp, *pi, mapp->Flags, mapp->User, MIT_END, *this, &PlaylistMenu::InfoChangeHandler);
+      subp = new MapEntry(mi.id, mapp, pi, mapp->Flags, mapp->User, MIT_END, *this, &PlaylistMenu::InfoChangeHandler);
+
+      const unsigned tattr = pi.GetInfo().tech->attributes;
+      const bool invalid = (pi.GetInfo().phys->attributes & PATTR_INVALID) || (tattr & TATTR_INVALID);
+      DEBUGLOG(("PlaylistMenu::UpdateSubItems: Update insert %p{%s}, %i\n", &pi, pi.GetPlayable().URL.getShortName().cdata(), (SHORT)mapp->ID1));
       // Invalid?
       if (invalid)
         mi.afAttribute |= MIA_DISABLED;
@@ -336,41 +533,21 @@ void PlaylistMenu::CreateSubItems(MapEntry* mapp)
       else if ((mapp->Flags & Recursive) && (tattr & TATTR_PLAYLIST))
         CreateSubMenu(mi, mapp->HwndSub);
       // Add menu item
-      xstring text = pi->GetDisplayName();
-      if (text.length() > 30) // limit length?
-        text = xstring(text, 0, 30) + "...";
-      if (mapp->Flags & Enumerate) // prepend enumeration?
-        text = xstring::sprintf("%s%u %s", count<10 ? "~" : "", count, text.cdata());
+      const xstring& text = MakeMenuItemText(subp, i);
       SHORT rs = SHORT1FROMMR(WinSendMsg(mapp->HwndSub, MM_INSERTITEM, MPFROMP(&mi), MPFROMP(text.cdata())));
-      if (mi.iPosition != MIT_END)
-        ++mi.iPosition;
-      DEBUGLOG(("PlaylistMenu::CreateSubItems: new item %u->%s - %i\n", mi.id, text.cdata(), rs));
-      // Separator before?
-      if ((mapp->Flags & Separator) && rs != 0 && count == 1)
-      { USHORT id = InsertSeparator(mapp->HwndSub, rs);
-        if (id != (USHORT)MID_NONE)
-        { mapp->ID1 = id;
-          if (mi.iPosition != MIT_END)
-            ++mi.iPosition;
-      } }
+      if (position != MIT_END)
+        ++position;
+      DEBUGLOG(("PlaylistMenu::UpdateSubItems: Update new item %u->%s - %i\n", mi.id, text.cdata(), rs));
     }
-    if (count != 0)
-    { // separator after
-      if ((mapp->Flags & Separator) && mi.iPosition != MIT_END)
-        InsertSeparator(mapp->HwndSub, mi.iPosition);
-    } else if (mapp->Flags & DummyIfEmpty)
-    { // create dummy
-      mi.id = InsertDummy(mapp->HwndSub, mi.iPosition, "- none -");
-      if (mapp->ID1 == (USHORT)MID_NONE)
-        mapp->ID1 = mi.id;
-    }
+   nextmenu:;
   }
 }
 
 void PlaylistMenu::RemoveSubItems(MapEntry* mapp)
-{ DEBUGLOG(("PlaylistMenu(%p)::RemoveSubItems(%p{%u,%x,%u,%u})\n", this, mapp, mapp->IDMenu, mapp->HwndSub, mapp->ID1, mapp->Pos));
+{ DEBUGLOG(("PlaylistMenu(%p)::RemoveSubItems(%p{%u,%x,%x,%u,%u})\n", this,
+    mapp, mapp->Flags, mapp->IDMenu, mapp->HwndSub, mapp->ID1, mapp->Pos));
   if (mapp->ID1 == (USHORT)MID_NONE || mapp->HwndSub == NULLHANDLE)
-    return; // no subitems or not yet initialized
+    return; // no sub items or not yet initialized
 
   SHORT i = SHORT1FROMMR(WinSendMsg(mapp->HwndSub, MM_ITEMPOSITIONFROMID, MPFROM2SHORT(mapp->ID1, FALSE), 0));
   PMASSERT(i != MIT_NONE);
@@ -379,7 +556,13 @@ void PlaylistMenu::RemoveSubItems(MapEntry* mapp)
   for(;;)
   { SHORT id = SHORT1FROMMR(WinSendMsg(mapp->HwndSub, MM_ITEMIDFROMPOSITION, MPFROMSHORT(i), 0));
     DEBUGLOG(("PlaylistMenu::RemoveSubItems - %i %d\n", i, id));
-    if (id == MIT_ERROR || id == 0 || id == mapp->Pos)
+    // Stop if either
+    // - Error
+    // - End of menu
+    // - End of user range handled by this class
+    // - WM_INITMENU called for the item while we clean up
+    //   In this case an UM_UPDATE later will restor the content
+    if (id == MIT_ERROR || id == 0 || id == mapp->Pos || (mapp->Status & InUse))
       return; // end of menu or range
     RemoveMapEntry(id);
     WinSendMsg(mapp->HwndSub, MM_DELETEITEM, MPFROM2SHORT(id, FALSE), 0);
@@ -390,9 +573,6 @@ void PlaylistMenu::RemoveMapEntry(MapEntry* mapp)
 { DEBUGLOG(("PlaylistMenu(%p)::RemoveMapEntry(%p{%u,%x})\n", this, mapp, mapp->IDMenu, mapp->HwndSub));
   // Always disable the status events
   mapp->InfoDelegate.detach();
-  // deregister event if it's mine
-  if (UpdateEntry == mapp)
-    UpdateEntry = NULL;
   // delete children recursively
   RemoveSubItems(mapp);
   // now destroy the submenu if any
@@ -419,18 +599,22 @@ void PlaylistMenu::RemoveMapEntry(USHORT mid)
     RemoveMapEntry(mapp);
 }
 
+xstring PlaylistMenu::MakeMenuItemText(MapEntry* mapp, size_t index)
+{ xstring text = mapp->Data->GetDisplayName();
+  if (text.length() > 30) // limit length?
+    text = xstring(text, 0, 30) + "...";
+  if (mapp->Flags & Enumerate) // prepend enumeration?
+    text = xstring::sprintf("%s%u %s", index<10 ? "~" : "", index, text.cdata());
+  return text;
+}
+
 void PlaylistMenu::InfoChangeHandler(const PlayableChangeArgs& args, MapEntry* mapp)
-{ DEBUGLOG(("PlaylistMenu(%p)::InfoChangeHandler({%p,%x,%x}, %p) {%u, %x, %p} - %p, %p\n", this,
-    &args.Instance, args.Changed, args.Loaded, mapp,
-    mapp->IDMenu, mapp->HwndSub, mapp->Data.get(), UpdateEntry));
-  if (args.Changed & (IF_Phys|IF_Tech))
+{ DEBUGLOG(("PlaylistMenu(%p)::InfoChangeHandler({%p,%x,%x}, %p) {%u, %x, %p}\n", this,
+    &args.Instance, args.Changed, args.Loaded, mapp, mapp->IDMenu, mapp->HwndSub, mapp->Data.get()));
+  if ((args.Changed & (IF_Phys|IF_Tech)) && !mapp->Status.bitset(0))
     PMASSERT(WinPostMsg(HwndOwner, UM_UPDATESTAT, MPFROMSHORT(mapp->IDMenu), MPFROMP(mapp)));
-  // update list of children, but only for the current menu.
-  if (args.Changed & IF_Child)
-  { // event obsolete?
-    if (UpdateEntry != NULL && &args.Instance == UpdateEntry->Data)
-      PMRASSERT(WinPostMsg(HwndOwner, UM_LATEUPDATE, 0, MPFROMP(mapp)));
-  }
+  if ((args.Changed & IF_Child) && !mapp->Status.bitset(1))
+    PMRASSERT(WinPostMsg(HwndOwner, UM_UPDATELIST, MPFROMSHORT(mapp->IDMenu), MPFROMP(mapp)));
 }
 
 bool PlaylistMenu::AttachMenu(USHORT menuid, APlayable& data, EntryFlags flags, MPARAM user, USHORT pos)
@@ -446,5 +630,4 @@ bool PlaylistMenu::AttachMenu(USHORT menuid, APlayable& data, EntryFlags flags, 
 
   return true;
 }
-
 

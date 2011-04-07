@@ -135,13 +135,15 @@ void delegate_base::swap_rcv(delegate_base& r)
   swap(Rcv, r.Rcv);
 }
 
-void delegate_base::detach()
+bool delegate_base::detach()
 { DEBUGLOG(("delegate_base(%p)::detach() - %p\n", this, Ev));
+  bool ret = false;
   if (Ev)
-  { (*Ev) -= *this;
+  { ret = (*Ev) -= *this;
     ASSERT(Ev == NULL);
-  }   
+  }
   sync();
+  return ret;
 } 
 
 /*void PostMsgDelegateBase::callback(PostMsgDelegateBase* receiver, const void* param)

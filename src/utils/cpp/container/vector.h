@@ -150,39 +150,39 @@ class vector : public vector_base
   /// @details The reference is valid until the next non-const member function call.
   /// The initial value of the new element is NULL.
   T*&                append()                       { return (T*&)vector_base::append(); }
-  /// @brief Insert a new element in the vector at location where
+  /// @brief Insert a new element in the vector at location \a where.
   /// @param where Precondition: where in [0,size()], Performance: O(n)
   /// @return The function does not take the value of the new element.
   /// Instead it returns a reference to the new location that should be assigned later.
   /// @details The reference is valid until the next non-const member function call.
   /// The initial value of the new element is NULL.
   T*&                insert(size_t where)           { return (T*&)vector_base::insert(where); }
-  // Removes an element from the vector and return it's value.
-  // The where pointer is set to the next item after the removed one.
-  // Precondition: where in [begin(),end()), Performance: O(n)
+  /// @brief Removes an element from the vector and return it's value.
+  /// @param where The \a where pointer is set to the next item after the removed one.
+  /// @details Precondition: where in [begin(),end()), Performance: O(n)
   T*                 erase(T*const*& where)         { return (T*)vector_base::erase((void**&)where); }
-  // Removes an element from the vector and return it's value.
-  // Precondition: where in [0,size()-1], Performance: O(n)
+  /// @brief Removes an element from the vector and return it's value.
+  /// @details Precondition: \a where in [0,size()), Performance: O(n)
   T*                 erase(size_t where)            { return (T*)vector_base::erase(where); }
-  // Access an element by it's index.
-  // Precondition: where in [0,size()-1], Performance: O(1)
-  // This is the constant version of the [] operator. Since we deal only with references
-  // it returns a value copy rather than a const reference to the element.
+  /// @brief Access an element by it's index.
+  /// @details Precondition: \a where in [0,size()), Performance: O(1)
+  /// @return This is the constant version of the operator[]. Since we deal only with references
+  /// it returns a value copy rather than a const reference to the element.
   T*                 operator[](size_t where) const { return (T*)at(where); }
-  // Access an element by it's index.
-  // Precondition: where in [0,size()-1], Performance: O(1)
+  /// @brief Access an element by it's index.
+  /// @details Precondition: \a where in [0,size()), Performance: O(1)
   T*&                operator[](size_t where)       { return (T*&)at(where); }
-  // Get a constant iterator that points to the firs element or past the end if the vector is empty.
-  // Precondition: none, Performance: O(1)
+  /// @brief Get a constant iterator that points to the first element or past the end if the vector is empty.
+  /// @details Precondition: none, Performance: O(1)
   T*const*           begin() const                  { return (T*const*)vector_base::begin(); }
-  // Get a iterator that points to the firs element or past the end if the vector is empty.
-  // Precondition: none, Performance: O(1)
+  /// @brief Get a iterator that points to the first element or past the end if the vector is empty.
+  /// @details Precondition: none, Performance: O(1)
   T**                begin()                        { return (T**)vector_base::begin(); }
-  // Get a constant iterator that points past the end.
-  // Precondition: none, Performance: O(1)
+  /// @brief Get a constant iterator that points past the end.
+  /// @details Precondition: none, Performance: O(1)
   T*const*           end() const                    { return begin() + size(); }
-  // Get a iterator that points past the end.
-  // Precondition: none, Performance: O(1)
+  /// @brief Get a iterator that points past the end.
+  /// @details Precondition: none, Performance: O(1)
   T**                end()                          { return begin() + size(); }
 };
 
@@ -220,105 +220,114 @@ void vector_own_base_copy(vector<T>& d, const T*const* spp)
 }
 
 
-/* Type safe vector of reference type objects (pointers).
- * The class owns the referenced objects.
+/** @brief Type safe vector of reference type objects (pointers).
+ * @details The class owns the referenced objects.
  * But only the function that delete or copy the entire container are different.
- * To erase an elemet you must use "delete erase(...)".
+ * To erase an element you must use "delete erase(...)".
  * The class methods are not synchronized.
  */
 template <class T>
 class vector_own : public vector<T>
 {protected:
-  // Copy constructor
-  // Note that since vector_own own its object exclusively this copy constructor must do
-  // a deep copy of the vector. This is up to the derived class!
-  // You may use vector_own_base_copy to do the job.
+  /// @brief Copy constructor
+  /// @details Note that since vector_own own its object exclusively this copy constructor must do
+  /// a deep copy of the vector. This is up to the derived class!
+  /// You may use vector_own_base_copy to do the job.
   vector_own(const vector_own<T>& r, size_t spare = 0) : vector<T>(r.size() + spare) {}
-  // assignment: same problem as above
+  /// @brief Assignment
+  /// @details Note that since vector_own own its object exclusively the assignment must do
+  /// a deep copy of the vector. This is up to the derived class!
+  /// You may use vector_own_base_copy to do the job.
   void               operator=(const vector_own<T>& r) { clear(); prepare_assign(r.size()); }
 
  public:
-  // create a new vector with a given initial capacity.
-  // If capacity is 0 the vector is initially created empty
-  // and allocated with the default capacity when the first item is inserted.
+  /// @brief Create a new vector, optionally with a given initial capacity.
+  /// @param capacity If \a capacity is 0 the vector is initially created empty
+  /// and allocated with the default capacity when the first item is inserted.
   vector_own(size_t capacity = 0) : vector<T>(capacity) {}
-  // Adjust the size to a given value
-  // If the array is increased NULL values are appended.
+  /// @brief Adjust the size to a given value.
+  /// @details If the array is increased NULL values are appended.
+  /// If not NULL items are removed, they are deleted.
   void               set_size(size_t size)          { if (this->size() > size) vector_own_base_destroy(*this, size); vector<T>::set_size(size); }
-  // Remove all elements
+  /// Delete all elements
   void               clear()                        { vector_own_base_destroy(*this); }
-  // destructor
+  /// Destructor
                      ~vector_own()                  { clear(); }
 };
 
 
-/* Vector with members with intrusive reference counter. */
+/** Vector with members with intrusive reference counter. */
 template <class T>
 class vector_int : public vector<T>
 {protected:
-  // Increment reference counters of all elements.
+  /// Increment reference counters of all elements.
   void               IncRefs();
  public:
-  // Default constructor
+  /// Default constructor
+  /// @param capacity Initial capacity (not size). If \a capacity is 0
+  /// the vector is initially created empty and allocated with the default capacity
+  /// when the first item is inserted.
                      vector_int(size_t capacity = 0): vector<T>(capacity) {}
-  // Initialize a vector with size copies of elem.
+  /// Initialize a vector with \a size copies of \a elem.
+  /// @param spare Reserve space for another \a spare elements.
                      vector_int(size_t size, T* elem, size_t spare = 0)
                                                     : vector<T>(size, elem, spare) { IncRefs(); }
-  // Copy constructor
-  // The binary copy of vector<T>::vector(const vector_base& r, size_t spare) is fine.
-  // But we have to increment the reference counters.
+  /// @brief Copy constructor
+  /// @remarks The binary copy of vector<T>::vector(const vector_base& r, size_t spare) is fine.
+  /// But we have to increment the reference counters.
                      vector_int(const vector_int<T>& r, size_t spare = 0)
                                                     : vector<T>(r, spare) { IncRefs(); }
-  // destructor
+  /// Destructor
                      ~vector_int()                  { clear(); }
-  // Adjust the size to a given value
-  // If the array is increased NULL values are appended.
+  /// @brief Adjust the size to a given value.
+  /// @details If the array is increased NULL values are appended.
+  /// If not NULL items are removed, their reference counter is decremented.
   void               set_size(size_t size);
-  // Remove all elements
+  /// Remove all elements and decrement their reference counter.
   void               clear();
-  // assignment
+  /// Assignment
   vector_int<T>&     operator=(const vector_int<T>& r);
-  // swap content of two instances
+  /// Swap the content of two instances.
   void               swap(vector_int<T>& r)         { vector<T>::swap(r); }
-  // Append a new element to the end of the vector.
-  // The function does not take the value of the new element.
-  // Instead it returns a reference to the new location that should be assigned later.
-  // The reference is valid until the next non-const member function call.
-  // The initial value of the new element is NULL.
+  /// @brief Append a new element to the end of the vector.
+  /// @details The function does not take the value of the new element.
+  /// Instead it returns a reference to the new location that should be assigned later.
+  /// The reference is valid until the next non-const member function call.
+  /// The initial value of the new element is NULL.
   int_ptr<T>&        append()                       { return (int_ptr<T>&)vector<T>::append(); }
-  // Insert a new element in the vector at location where
-  // Precondition: where in [0,size()], Performance: O(n)
-  // The function does not take the value of the new element.
-  // Instead it returns a reference to the new location that should be assigned later.
-  // The reference is valid until the next non-const member function call.
-  // The initial value of the new element is NULL.
+  /// @brief Insert a new element in the vector at location where
+  /// @details Precondition: \a where in [0,size()], Performance: O(n)
+  /// The function does not take the value of the new element.
+  /// Instead it returns a reference to the new location that should be assigned later.
+  /// The reference is valid until the next non-const member function call.
+  /// The initial value of the new element is NULL.
   int_ptr<T>&        insert(size_t where)           { return (int_ptr<T>&)vector<T>::insert(where); }
-  // Removes an element from the vector and return it's value.
-  // The where pointer is set to the next item after the removed one.
-  // Precondition: where in [begin(),end()), Performance: O(n)
+  /// @brief Removes an element from the vector and return it's value.
+  /// @details The \a where pointer is set to the next item after the removed one.
+  /// Precondition: \a where in [begin(),end()), Performance: O(n)
   const int_ptr<T>   erase(const int_ptr<T>*& where){ return int_ptr<T>((const int_ptr<T>&)vector<T>::erase((T*const*&)where)); }
-  // Removes an element from the vector and return it's value.
-  // Precondition: where in [0,size()-1], Performance: O(n)
+  /// @brief Removes an element from the vector and return it's value.
+  /// @details Precondition: \a where in [0,size()), Performance: O(n)
   const int_ptr<T>   erase(size_t where)            { return int_ptr<T>((const int_ptr<T>&)vector<T>::erase(where)); }
-  // Access an element by it's index.
-  // Precondition: where in [0,size()-1], Performance: O(1)
-  // This is the constant version of the [] operator. Since we deal only with references
-  // it returns a value copy rather than a const reference to the element.
+  /// @brief Access an element by it's index.
+  /// @details Precondition: \a where in [0,size()), Performance: O(1)
+  /// This is the constant version of the operator[]. Since we deal only with references
+  /// it returns a value copy rather than a const reference to the element.
   T*                 operator[](size_t where) const { return vector<T>::operator[](where); } // = return ((const int_ptr<T>&)at(where)).get();
-  // Access an element by it's index.
-  // Precondition: where in [0,size()-1], Performance: O(1)
+  /// @brief Access an element by it's index.
+  /// @details Precondition: \a where in [0,size()), Performance: O(1)
   int_ptr<T>&        operator[](size_t where)       { return (int_ptr<T>&)at(where); }
-  // Get a constant iterator that points to the firs element or past the end if the vector is empty.
-  // Precondition: none, Performance: O(1)
+  /// @brief Get a constant iterator that points to the first element or past the end if the vector is empty.
+  /// @details Precondition: none, Performance: O(1)
   const int_ptr<T>*  begin() const                  { return (const int_ptr<T>*)vector_base::begin(); }
-  // Get a iterator that points to the firs element or past the end if the vector is empty.
-  // Precondition: none, Performance: O(1)
+  /// @brief Get a iterator that points to the first element or past the end if the vector is empty.
+  /// @details Precondition: none, Performance: O(1)
   int_ptr<T>*        begin()                        { return (int_ptr<T>*)vector_base::begin(); }
-  // Get a constant iterator that points past the end.
-  // Precondition: none, Performance: O(1)
+  /// @brief Get a constant iterator that points past the end.
+  /// @details Precondition: none, Performance: O(1)
   const int_ptr<T>*  end() const                    { return begin() + size(); }
-  // Get a iterator that points past the end.
-  // Precondition: none, Performance: O(1)
+  /// @brief Get a iterator that points past the end.
+  /// @details Precondition: none, Performance: O(1)
   int_ptr<T>*        end()                          { return begin() + size(); }
 };
 

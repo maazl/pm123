@@ -31,7 +31,7 @@
  * URL syntax:  record://device?[samplerate=44100][&channels=1|2][&shared=1]
  */
 
-#define DECODER_PLUGIN_LEVEL 1
+#define PLUGIN_INTERFACE_LEVEL 1
 #define INCL_OS2MM
 #define INCL_PM
 #define INCL_DOS

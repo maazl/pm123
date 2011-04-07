@@ -8,6 +8,11 @@
 #include <memory.h>
 #include <os2.h>
 
+#ifdef PM123_CORE
+/* maximum supported and most recent plugin-level */
+#define PLUGIN_INTERFACE_LEVEL 2
+#endif
+
 #define PLUGIN_OK           0
 #define PLUGIN_UNSUPPORTED  1
 #define PLUGIN_NO_READ      100
@@ -51,7 +56,7 @@ static const DSTRING dstring_NULL = { NULL };
 #elif defined(PM123_CORE)
 #include <cpp/xstring.h>
 /* Hack: when compiling the PM123 core we map DSTRING to the binary compatible
- * C++ object xstring. You should not use this hack for plug-in development
+ * C++ class xstring. You should not use this hack for plug-in development
  * because it may give undefined behavior when the memory is freed in another
  * C runtime instance than where it is allocated. */
 typedef xstring DSTRING;
@@ -220,4 +225,5 @@ inline DSTRING& DSTRING::sprintf(const char* fmt, ...) { va_list va; va_start(va
 inline DSTRING& DSTRING::vsprintf(const char* fmt, va_list va) { Ctx.dstring_api->vsprintf(this, fmt, va); return *this; }
 #endif
 #endif
+
 #endif /* PM123_PLUGIN_H */

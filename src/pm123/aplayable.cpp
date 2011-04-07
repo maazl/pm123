@@ -31,6 +31,7 @@
 #include "aplayable.h"
 #include "playable.h"
 #include "playableset.h"
+#include "waitinfo.h"
 #include "pm123.h"
 #include <utilfct.h>
 
@@ -41,81 +42,6 @@
 #else
 #define RP_INITIAL_SIZE 100
 #endif
-
-
-/****************************************************************************
-*
-*  class InfoState
-*
-****************************************************************************/
-
-void InfoState::Assign(const InfoState& r, InfoFlags mask)
-{ Available = r.Available & mask;
-  Valid     = r.Valid     & mask;
-  Confirmed = r.Confirmed & mask;
-  ReqLow    = r.ReqLow    & mask;
-  ReqHigh   = r.ReqHigh   & mask;
-  InService = r.InService & mask;
-}
-
-InfoFlags InfoState::Check(InfoFlags what, Reliability rel) const
-{ switch (rel)
-  {case REL_Virgin:
-    return IF_None;
-   case REL_Invalid:
-    return (InfoFlags)(what & ~(Confirmed|Valid|Available));
-   case REL_Cached:
-    return (InfoFlags)(what & ~(Confirmed|Valid));
-   case REL_Confirmed:
-    return (InfoFlags)(what & ~Confirmed);
-   default:
-    return what;
-  }
-}
-
-InfoFlags InfoState::Invalidate(InfoFlags what)
-{ InService &= ~what;
-  Available |= what;
-  return (InfoFlags)(Valid.maskreset(what) | Confirmed.maskreset(what));
-}
-
-InfoFlags InfoState::InvalidateSync(InfoFlags what)
-{ what &= (InfoFlags)~InService;
-  Available |= what;
-  return (InfoFlags)(Valid.maskreset(what) | Confirmed.maskreset(what));
-}
-
-void InfoState::Outdate(InfoFlags what)
-{ what &= (InfoFlags)+Confirmed;
-  Valid |= what;
-  Confirmed &= ~what;
-}
-
-InfoFlags InfoState::Cache(InfoFlags what)
-{ return (InfoFlags)Valid.maskset(what & ~(Confirmed|Available));
-}
-
-InfoFlags InfoState::Request(InfoFlags what, Priority pri)
-{ ASSERT(pri != PRI_None);
-  if (pri == PRI_Low)
-    // This is not fully atomic because a high priority request may be placed
-    // after the mask is applied to what. But this has the only consequence that
-    // an unnecessary request is placed in the worker queue. This request causes a no-op.
-    return (InfoFlags)ReqLow.maskset(what & ~ReqHigh);
-  else
-    return (InfoFlags)ReqHigh.maskset(what);
-}
-
-InfoFlags InfoState::EndUpdate(InfoFlags what)
-{ InfoFlags ret = (InfoFlags)InService.maskreset(what);
-  if (ret)
-  { Confirmed |= ret;
-    ReqLow    &= ~ret;
-    ReqHigh   &= ~ret;
-  }
-  DEBUGLOG(("InfoState(%p)::EndUpdate(%x) -> %x\n", this, what, ret));
-  return ret;
-}
 
 
 /****************************************************************************
@@ -142,30 +68,6 @@ void worker_queue::DumpQ() const
 #endif*/
 
 
-APlayable::WaitInfo::WaitInfo(APlayable& inst, InfoFlags filter)
-: Filter(filter),
-  Deleg(inst.InfoChange, *this, &APlayable::WaitInfo::InfoChangeEvent)
-{ DEBUGLOG(("APlayable::WaitInfo(%p)::WaitInfo(&%p, %x)\n", this, &inst, filter));
-  CommitInfo(IF_None);
-}
-
-void APlayable::WaitInfo::InfoChangeEvent(const PlayableChangeArgs& args)
-{ DEBUGLOG(("APlayable::WaitInfo(%p)::InfoChangeEvent({&%p, %x, %x}) - %x\n",
-    this, &args.Instance, args.Changed, args.Loaded, Filter));
-  ASSERT(!args.IsInitial()); // Owner died! - This must not happen.
-  CommitInfo(args.Loaded);
-}
-
-void APlayable::WaitInfo::CommitInfo(InfoFlags what)
-{ DEBUGLOG(("APlayable::WaitInfo(%p)::CommitInfo(%x) - %x\n", this, what, Filter));
-  Filter &= ~what;
-  if (!Filter)
-  { Deleg.detach();
-    EventSem.Set();
-  }
-}
-
-
 InfoFlags APlayable::RequestInfo(InfoFlags what, Priority pri, Reliability rel)
 { DEBUGLOG(("APlayable(%p{%s})::RequestInfo(%x, %d, %d)\n", this, GetPlayable().URL.getShortName().cdata(), what, pri, rel));
   InfoFlags rq = what;
@@ -175,7 +77,7 @@ InfoFlags APlayable::RequestInfo(InfoFlags what, Priority pri, Reliability rel)
   // what  - requested information
   // rq    - missing information, subset of what
   // async - asynchronously requested information, subset of rq
-  //         because the information may be on the way by another thread or PRI_None was specified.
+  //         because the information may be on the way by another thread.
   
   // Restrict rel to avoid to load an information twice.
   if (rel == REL_Reload)
@@ -183,37 +85,28 @@ InfoFlags APlayable::RequestInfo(InfoFlags what, Priority pri, Reliability rel)
 
   if (async != IF_None)
   { // Something to do
-    if (pri == PRI_Sync)
-    { // Synchronous request => use the current thread
-      // Case 1: DoLoadInfo returned true, other objects required.
-      //      => Schedule request and wait.
-      // Case 2: DoLoadInfo returned false, but still some info's missing.
-      //      => Wait.
-      // Case 3: DoLoadInfo returned false and all information is complete.
-      //      => Done.
-      if (DoLoadInfo(PRI_Sync))
-      { WQueue.Write(new QEntry(this), 0);
-      } else
-      { DoRequestInfo(rq, PRI_None, rel);
-        if (rq == IF_None)
-          return IF_None;
-      }
-      // Synchronous processing failed because of dependencies or concurrency
-      // => execute asynchronously
-      WaitInfo waitinfo(*this, async);
-      // Double check because some information can be valid now.
-      DoRequestInfo(rq, PRI_None, rel);
-      waitinfo.CommitInfo(rq);
-      // Wait for information currently in service (if any).
-      waitinfo.Wait();
-      return IF_None;
-    }  
-    // Asynchronous request => Schedule request
-    if (InfoStat.RequestAsync(pri))
-      WQueue.Write(new QEntry(this), pri == PRI_Low);
+    if (pri != PRI_Sync)
+    { // Asynchronous request => Schedule request
+      ScheduleRequest(pri);
+      return rq;
+    } else
+      // Synchronous request => use the current thread
+      HandleRequest(PRI_Sync);
+
+  } else if (pri != PRI_Sync)
+    return rq;
+  // PRI_Sync
+  if (rq != IF_None)
+  { // Synchronous processing failed because of dependencies or concurrency
+    // => execute asynchronously
+    WaitLoadInfo waitinfo(*this, rq);
+    // Double check because some information can be valid now.
+    DoRequestInfo(rq, PRI_None, rel);
+    waitinfo.CommitInfo(~rq);
+    // Wait for information currently in service (if any).
+    waitinfo.Wait();
   }
-  
-  return rq;
+  return IF_None;
 }
 
 volatile const AggregateInfo& APlayable::RequestAggregateInfo(
@@ -233,37 +126,31 @@ volatile const AggregateInfo& APlayable::RequestAggregateInfo(
 
   if (async != IF_None)
   { // Something to do
-    if (pri == PRI_Sync)
-    { // Synchronous request => use the current thread
-      // Case 1: DoLoadInfo returned true, other objects required.
-      //      => Schedule request and wait.
-      // Case 2: DoLoadInfo returned false, but still some info's missing.
-      //      => Wait.
-      // Case 3: DoLoadInfo returned false and all information is complete.
-      //      => Done.
-      if (DoLoadInfo(PRI_Sync))
-      { WQueue.Write(new QEntry(this), 0);
-      } else
-      { DoRequestAI(ai, rq, PRI_None, rel);
-        if (rq == IF_None)
-          goto done;
-      }
-      // Synchronous processing failed because of dependencies or concurrency
-      // => execute asynchronously
-      WaitInfo waitinfo(*this, what);
-      // Double check because some information can be valid now.
-      DoRequestAI(ai, rq, PRI_None, rel);
-      waitinfo.CommitInfo(rq);
-      // Wait for information currently in service (if any).
-      waitinfo.Wait();
+    if (pri != PRI_Sync)
+    { // Asynchronous request => Schedule request
+      ScheduleRequest(pri);
       goto done;
-    }  
-    // Asynchronous request => Schedule request
-    if (InfoStat.RequestAsync(pri))
-      WQueue.Write(new QEntry(this), pri == PRI_Low);
+    }
+    // Synchronous request => use the current thread
+    HandleRequest(PRI_Sync);
+
+  } else if (pri != PRI_Sync)
+    goto done;
+  // PRI_Sync
+  if (rq != IF_None)
+  { // Synchronous processing failed because of dependencies or concurrency
+    // => execute asynchronously
+    WaitLoadInfo waitinfo(*this, rq);
+    // Double check because some information can be valid now.
+    DoRequestAI(ai, rq, PRI_None, rel);
+    waitinfo.CommitInfo(~rq);
+    // Wait for information currently in service (if any).
+    waitinfo.Wait();
+    rq = IF_None;
   }
-  what = rq;
+
  done:
+  what = rq;
   return ai;
 }
 
@@ -272,10 +159,49 @@ volatile const AggregateInfo& APlayable::RequestAggregateInfo(
     InfoChange(PlayableChangeArgs(*this, loaded, changed, IF_None));
 }*/
 
+class RescheduleWorker : DependencyInfoWorker
+{public:
+  const int_ptr<APlayable>  Inst;
+  const Priority            Pri;
+ public:
+  RescheduleWorker(DependencyInfoSet& data, APlayable& inst, Priority pri)
+  : DependencyInfoWorker()
+  , Inst(&inst)
+  , Pri(pri)
+  { Data.Swap(data);
+    Start();
+  }
+ private:
+  virtual void              OnCompleted();
+};
+
+void RescheduleWorker::OnCompleted()
+{ DEBUGLOG(("RescheduleWorker(%p)::OnCompleted()\n", this));
+  Inst->ScheduleRequest(Pri);
+  // Hack: destroy ourself. It is guaranteed that DependencyInfo does exactly nothing after this callback.
+  delete this;
+}
+
+void APlayable::ScheduleRequest(Priority pri)
+{ DEBUGLOG(("APlayable(%p)::ScheduleRequest(%u)\n", this, pri));
+  if (InfoStat.RequestAsync(pri))
+    WQueue.Write(new QEntry(this), pri == PRI_Low);
+}
+
+void APlayable::HandleRequest(Priority pri)
+{ DEBUGLOG(("APlayable(%p)::HandleRequest(%u)\n", this, pri));
+  JobSet job(pri);
+  InfoStat.ResetAsync(pri);
+  DoLoadInfo(job);
+  // reschedule required later?
+  if (job.AllDepends.Size())
+    // The worker deletes itself!
+    new RescheduleWorker(job.AllDepends, *this, pri);
+}
 
 void APlayable::PlayableWorker(WInit& init)
-{ // Do the work! 
-  const size_t pri = init.Pri <= PRI_Low;
+{ const size_t pri = init.Pri <= PRI_Low;
+  // Do the work!
   for (;;)
   { DEBUGLOG(("PlayableWorker(%u) looking for work\n", init.Pri));
     QEntry* qp = WQueue.Read(pri);
@@ -288,13 +214,8 @@ void APlayable::PlayableWorker(WInit& init)
     }
 
     init.Current = qp->Data;
-    qp->Data->InfoStat.ResetAsync(init.Pri);
-    if (!qp->Data->DoLoadInfo(pri ? PRI_Low : PRI_Normal))
-      delete qp;
-    else
-      // reschedule required
-      if (qp->Data->InfoStat.RequestAsync(init.Pri))
-        WQueue.Write(qp, pri);
+    qp->Data->HandleRequest(init.Pri);
+    delete qp;
     init.Current.reset();
   }
 }

@@ -42,7 +42,7 @@
 #include <string.h>
 #include <stdio.h>
 
-#define FILTER_PLUGIN_LEVEL 2
+#define PLUGIN_INTERFACE_LEVEL 2
 
 #include <utilfct.h>
 #include <fftw3.h>
@@ -1129,7 +1129,7 @@ plugin_query( PLUGIN_QUERYPARAM *param )
   param->author       = "Samuel Audet, Marcel Mller";
   param->desc         = PLUGIN;
   param->configurable = TRUE;
-  param->interface    = FILTER_PLUGIN_LEVEL;
+  param->interface    = PLUGIN_INTERFACE_LEVEL;
   return 0;
 }
 

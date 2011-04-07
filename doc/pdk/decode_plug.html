@@ -5,6 +5,7 @@
 
 
 
+
   
   <link rel="stylesheet" href="../common/infstyle.css" type="text/css"></head><body>
 <h1>PM123 Decoder Plug-ins</h1>
@@ -13,20 +14,17 @@ defined in <tt>decode_plug.h</tt>.</p>
 <p>There are two interface revision levels. For developing new
 plug-ins the <a href="#level_2">level 2</a>
 interface is recommended. But the <a href="decode_plug_1.html">level
-0/1 interface</a> is still supported. Before including any
-PM123 include file the macro <code>DECODER_PLUGIN_LEVEL</code>
-must be defined if you want to use anything higher than level 0.
-Example:</p>
-<blockquote>
-  <pre>#define DECODE_PLUGIN_LEVEL 2</pre>
-</blockquote>
-<p>Decoder plug-ins are used to <em>decode audio data</em>
+0/1 interface</a> is still supported.</p><p>Decoder plug-ins are used to <em>decode audio data</em>
 as well as to <em>examine playlists</em>. Each item is
 identified by an URI.<br>
-You should not take term 'playlist' too literally. It only means that
+You should not take the term 'playlist' too literally. It only means that
 an URI has logically a sequence of sub URIs, i.e. the URI has to be
 enumerable. This applies to a playlist as well as to a file system
-folder or&nbsp;a compact disc containing tracks.</p>
+folder or&nbsp;a compact disc containing tracks.<br>
+In theory an item could be enumerable as well as directly playable.
+E.g. index tracks of a CD or a CUE sheet. But this has not been well
+testet in the PM123 core so far.<br>
+</p>
 <h2><a name="level_2"></a>Interface revision
 level 2 (recommended)</h2>
 <p>The level 2 interface has the following components:</p>

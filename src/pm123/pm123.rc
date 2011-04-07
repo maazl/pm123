@@ -2,7 +2,7 @@
  * Copyright 1997-2003 Samuel Audet <guardia@step.polymtl.ca>
  *                     Taneli Lepp� <rosmo@sektori.com>
  * Copyright 2004-2006 Dmitry A.Steklenev <glass@ptv.ru>
- * Copyright 2007-2008 M.Mueller
+ * Copyright 2007-2011 M.Mueller
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -878,7 +878,6 @@ DLGTEMPLATE DLG_TECHINFO
 
     RTEXT "Playing time",ST_GENERIC,        4, 72,  44, 8, DT_BOTTOM
     ENTRYFIELD "",       EF_TOTALTIME,     52, 72,  64, 8, ES_READONLY|ES_AUTOSCROLL
-    CHECKBOX "recursion",CB_ITEMSRECURSIVE,172,72,  52, 8, BS_3STATE
 
     RTEXT "No. of Items",ST_GENERIC,        4, 60,  44, 8, DT_BOTTOM
     ENTRYFIELD "",       EF_NUMITEMS,      52, 60,  32, 8, ES_READONLY|ES_AUTOSCROLL

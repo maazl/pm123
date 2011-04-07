@@ -1,5 +1,5 @@
 /*  
- * Copyright 2009-2010 Marcel Mueller
+ * Copyright 2009-2011 Marcel Mueller
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -30,7 +30,7 @@
 #ifndef APLAYABLE_H
 #define APLAYABLE_H
 
-#include "infobundle.h"
+#include "infostate.h"
 
 #include <cpp/event.h>
 #include <cpp/atomic.h>
@@ -39,33 +39,6 @@
 #include <cpp/queue.h>
 #include <cpp/cpputil.h>
 #include <cpp/url123.h>
-
-
-enum InfoFlags // must be aligned to INFOTYPE in format.h
-{ IF_None    = 0x0000,
-  // Decoder information
-  IF_Phys    = 0x0001, // applies to GetInfo().phys
-  IF_Tech    = 0x0002, // applies to GetInfo().tech
-  IF_Obj     = 0x0004, // applies to GetInfo().obj
-  IF_Meta    = 0x0008, // applies to GetInfo().meta
-  IF_Attr    = 0x0010, // applies to GetInfo().attr and GetAtLoc()
-  IF_Child   = 0x0080, // applies to GetCollection()
-  IF_Decoder = IF_Phys|IF_Tech|IF_Obj|IF_Meta|IF_Attr|IF_Child,
-  // Aggregate information
-  IF_Rpl     = 0x0100, // applies to GetInfo().rpl and GetCollectionInfo(...)
-  IF_Drpl    = 0x0200, // applies to GetInfo().drpl and GetCollectionInfo(...)
-  IF_Aggreg  = IF_Rpl|IF_Drpl,
-  // Playable Item information
-  IF_Item    = 0x0400, // applies to GetInfo().item
-  // The following flags are calculated content.
-  IF_Slice   = 0x1000, // applies to GetStartLoc() and GetStopLoc()
-  IF_Display = 0x2000, // applies to GetDisplayName()
-  // The following flags are for events only.
-  IF_Usage   = 0x4000, // applies to IsInUse() and IsModified()
-  // INTERNAL USE ONLY
-  IF_Async   = 0x80000000 // Queued request on the way
-};
-FLAGSATTRIBUTE(InfoFlags);
 
 
 class APlayable;
@@ -80,9 +53,9 @@ class PlayableInstance;
  * have changed. So if you are waiting for the completion of an asynchronous request
  * use the Loaded bits, and if you want to track changes use the Changed bits.
  * Loaded | Changed | Meaning
- * =======|=========|=================================================================
+ * =======+=========+=======================================================================
  *    0   |    0    | Information is untouched since the last InfoChange event.
- *    1   |    0    | Information has been updated but the value did not change.
+ *    1   |    0    | Information has been refreshed but the value did not change.
  *    0   |    1    | Cached information has been loaded.
  *    1   |    1    | Information has been updated and changed.
  * If the bit IF_Child is set in the Changed vector the event is in fact of the derived type
@@ -116,236 +89,19 @@ struct CollectionChangeArgs : public PlayableChangeArgs
   : Collection(coll), Item(item), Type(type) {}*/
 };
 
-/// Asynchronous request priority
-enum Priority
-{ PRI_None      = 0,        // Do not execute anything, only check for existance. 
-  PRI_Low       = 1,        // Execute request at idle time.
-  PRI_Normal    = 2,        // Execute request.
-  PRI_Sync      = 3,        // Execute request synchronously, i.e. wait for the response.
-};
-
-/// @brief Information reliability level
-/// @details When used for requests only level 1 and up make sense.
-/// When used for information state only up to level 3 makes sense.
-enum Reliability
-{ REL_Virgin    = 0,        // The information is not available
-  REL_Invalid   = 1,        // The information is loaded, but is likely to be outdated.
-  REL_Cached    = 2,        // The information could be from a cache that is not well known to be synchronized.
-  REL_Confirmed = 3,        // The information should be known to reflect the most recent state.
-  REL_Reload    = 4,        // The information should be reloaded by user request regardless of it's reliability.
-};
-
-
-/** @brief Info state machine.
- *
- * This state machine is thread-safe and lock-free. */
-class InfoState
-{private:
-  // The Available, Valid and Confirmed bit voctors defines the reliability status
-  // of the certain information components. See InfoFlags for the kind of information.
-  //  avail.| valid |confirm.| reliab. | meaning
-  // =======|=======|========|=========|==================================================
-  //    0   |   0   |    0   | Virgin  | The information is not available.
-  //    1   |   0   |    0   | Invalid | The information was available and is invalidated.
-  //    x   |   1   |    0   | Cached  | The information is available but may be outdated.
-  //    x   |   x   |    1   | Confirm.| The information is confirmed.
-  AtomicUnsigned              Available;
-  AtomicUnsigned              Valid;
-  AtomicUnsigned              Confirmed;
-  // The Fields InfoRequest, InfoRequestLow and InfoInService define the request status of the information.
-  // The following bit combinations are valid for each kind of information.
-  //  low | high |in svc.| meaning
-  // =====|======|=======|============================================================================
-  //   0  |   0  |   0   | The Information is stable.
-  //   1  |   0  |   0   | The Information is requested asynchronously at low priority.
-  //   x  |   1  |   0   | The Information is requested asynchronously at high priority.
-  //   0  |   0  |   1   | The Information is in service without a request (e.g. because it is cheap).
-  //   1  |   0  |   1   | The Information is in service because of a low priority request.
-  //   x  |   1  |   1   | The Information is in service because of a high priority request.
-  AtomicUnsigned              ReqLow;
-  AtomicUnsigned              ReqHigh;
-  AtomicUnsigned              InService;
- private: // non-copyable
-  InfoState(const InfoState&);
-  void operator=(const InfoState&);
- public:
-  InfoState(InfoFlags preset = IF_None)
-                              : Available(IF_None), Valid(IF_None), Confirmed(preset),
-                                ReqLow(IF_None), ReqHigh(IF_None), InService(IF_None) {}
-  void                        Assign(const InfoState& r, InfoFlags mask);
-  
- public: // [ Diagnostic interface ]
-  /// Query the current reliability.
-  /// @note This is only reliable in a critical section.
-  /// But it may be called from outside for debugging or informational purposes.
-  void                        PeekReliability(InfoFlags& available, InfoFlags& valid, InfoFlags& confirmed) const
-                              { available = (InfoFlags)(Confirmed|Valid|Available);
-                                valid     = (InfoFlags)(Confirmed|Valid);
-                                confirmed = (InfoFlags)+Confirmed;
-                              }
-  /// Query the current request state.
-  /// @note This is only reliable in a critical section.
-  /// But it may be called from outside for debugging or informational purposes.
-  void                        PeekRequest(InfoFlags& low, InfoFlags& high, InfoFlags& inservice) const
-                              { low       = (InfoFlags)+ReqLow;
-                                high      = (InfoFlags)+ReqHigh;
-                                inservice = (InfoFlags)+InService;
-                              }
-
- public: // [ Request interface ]
-  /// Check which kind of information is NOT at a given reliability level.
-  InfoFlags                   Check(InfoFlags what, Reliability rel) const;
-  /// Place a request and return the bits that were not a no-op (atomic).
-  InfoFlags                   Request(InfoFlags what, Priority pri);
-
-  bool                        RequestAsync(Priority pri)
-                              { DEBUGLOG(("InfoStat(%p)::RequestAsync(%u) - %x, %x\n", this, pri, ReqHigh.get(), ReqLow.get()));
-                                if (pri == PRI_Normal)
-                                  return !ReqHigh.bitset(31);
-                                else
-                                  // This is not fully atomic because a high priority request may be placed
-                                  // after the mask is applied to what. But this has the only consequence that
-                                  // an unnecessary request is placed in the worker queue. This request causes a no-op.
-                                  return ReqHigh >= 0 && !ReqLow.bitset(31);
-                              }
-
- public: // [ Worker Interface ]
-  /// Return request state for a priority.
-  InfoFlags                   GetRequest(Priority pri) const
-                              { DEBUGLOG(("InfoState(%p)::GetRequest(%u) - %x,%x\n", this, pri, +ReqLow, +ReqHigh));
-                                return (InfoFlags)(pri == PRI_Low ? ReqLow|ReqHigh : +ReqHigh);
-                              }
-
-  void                        ResetAsync(Priority pri)
-                              { ReqLow.bitrst(31);
-                                if (pri == PRI_Normal)
-                                  ReqHigh.bitrst(31);
-                              }
-  /// Check what kind of information is currently in service.
-  InfoFlags                   InfoInService() const
-                              { return (InfoFlags)+InService; }
-  /// Request informations for update. This sets the appropriate bits in InfoInService.
-  /// @return The function returns the bits \e not previously set. The caller must not update
-  /// other information than the returned bits.
-  /// It is valid to extend an active update by another call to BeginUpdate with additional flags.
-  InfoFlags                   BeginUpdate(InfoFlags what)
-                              { InfoFlags ret = (InfoFlags)InService.maskset(what);
-                                DEBUGLOG(("InfoState(%p)::BeginUpdate(%x) -> %x\n", this, what, ret));
-                                return ret;
-                              }
-  /// @brief Completes the update requested by BeginUpdate.
-  /// @details This implies a state transition for all bits in \a what to \c confirmed.
-  /// @param what The parameter what \e must be the return value of \c BeginUpdate from the same thread.
-  /// You also may split the \c EndUpdate for different kind of information.
-  /// However, you must pass disjunctive flags at all calls.
-  /// @return The return value contains the information types that are updated successfully.
-  /// If less than what bits are returned some information has been invalidated
-  /// during the update process.
-  InfoFlags                   EndUpdate(InfoFlags what);
-  /// Revoke update request but do not revoke an outstanding request.
-  InfoFlags                   CancelUpdate(InfoFlags what)
-                              { return (InfoFlags)InService.maskreset(what); }
-  
-  /// Invalidate some kind of information and return the bits that caused
-  /// the information to degrade.
-  InfoFlags                   Invalidate(InfoFlags what);
-  /// Invalidate some kind of information and return the invalidated infos,
-  /// but only if the specified info is not currently in service.
-  /// This function should be called in synchronized context.
-  InfoFlags                   InvalidateSync(InfoFlags what);
-  /// Mark information as outdated.
-  void                        Outdate(InfoFlags what);
-  /// Mark information as cached if virgin and return the Cache flags set.
-  InfoFlags                   Cache(InfoFlags what);
-  
- public:
-  /// Helper class to address the worker interface.
-  class Update
-  {private:
-    InfoState&                InfoStat;
-    InfoFlags                 What;
-   public:
-    /// Create worker on the state manager \p stat for the information type what.
-    /// Note that you have to check which kind of information you really could lock for update.
-    /// If the class is destroyed each update type that is not yet committed is canceled.
-    Update(InfoState& stat, InfoFlags what)
-                              : InfoStat(stat), What(InfoStat.BeginUpdate(what)) {}
-    /// Cancel all remaining updates automatically.
-    ~Update()                 { if (What) InfoStat.CancelUpdate(What); }
-    /// Get the information types currently held for update by this instance.
-    InfoFlags                 GetWhat() const { return What; }
-    operator InfoFlags() const { return What; }
-    /// Try to add an additional information type to update.
-    InfoFlags                 Extend(InfoFlags what)
-                              { what = InfoStat.BeginUpdate(what); What |= what; return what; }
-    /// Commit and release all currently held information types.
-    /// @return Returns the info types that are not invalidated meanwhile.
-    InfoFlags                 Commit()
-                              { InfoFlags ret = InfoStat.EndUpdate(What); What = IF_None; return ret; }
-    /// Commit and release some of the currently held information types.
-    /// @return Returns the info types that are previously held and not invalidated meanwhile.
-    InfoFlags                 Commit(InfoFlags what)
-                              { InfoFlags ret = InfoStat.EndUpdate(what & What); What &= ~what; return ret; }
-    /// Cancel all remaining updates.
-    void                      Rollback()
-                              { if (What) InfoStat.CancelUpdate(What); What = IF_None; }
-    /// Cancel some remaining updates.
-    void                      Rollback(InfoFlags what)
-                              { InfoStat.CancelUpdate(what & What); What &= ~what; }
-  };
-};
-
 
 class Playable;
 class Location;
 class PlayableSetBase;
+class JobSet;
+//class DependencyInfoWorker;
 /** @brief Common interface of \c Playable objects as well as references to \c Playable objects.
  *
  * Objects of this class may either be reference counted, managed by a \c int_ptr
  * or used as temporaries.
  */
 class APlayable : public Iref_count
-{public:
-  /// Class to wait for a desired information.
-  /// This is something like a conditional variable.
-  class WaitInfo
-  {private:
-    InfoFlags                 Filter;
-    Event                     EventSem;
-    class_delegate<WaitInfo, const PlayableChangeArgs> Deleg;
-   private:
-    void                      InfoChangeEvent(const PlayableChangeArgs& args);
-   public:
-    /// @brief Create a \c WaitInfo Semaphore that is posted once all information specified by Filter
-    /// is loaded.
-    /// @details To be safe the constructor of this class must be invoked either while the mutex
-    /// of the object is held or before the asynchronous request. And after the request
-    /// the available information should be removed from the request by calling \c CommitInfo.
-                              WaitInfo(APlayable& inst, InfoFlags filter);
-                              ~WaitInfo()         { DEBUGLOG(("APlayable::WaitInfo(%p)::~WaitInfo()\n", this)); }
-    /// Notify the class instance about informations that is now available.
-    /// This kind of information is removed from the wait condition.
-    void                      CommitInfo(InfoFlags what);
-    /// Wait until all requested information is loaded or an error occurs.
-    /// the function returns false if the given time elapsed or the Playable
-    /// object died.
-    bool                      Wait(long ms = -1)  { EventSem.Wait(ms); return Filter == 0; }
-  };
- protected:
-  /// Internal base class for collection info cache entries.
-  struct CollectionInfo
-  : public AggregateInfo
-  { InfoState                 InfoStat;
-    CollectionInfo(const PlayableSetBase& exclude) : AggregateInfo(exclude) {}
-  };
-  // Return value of DoRequestInfo
-  enum ReqInfoResult
-  { RIR_NoRequest,            // The request did not place any asynchronous requests.
-    RIR_AsyncRequest,         // The request placed asynchronous requests, but there are already other async. requests outstanding at the requested priority level.
-    RIR_FirstRequest          // The request placed asynchronous requests, and this is the first request at the priority level.
-  };
-
- protected:
+{protected:
   /// Information request state
   InfoState                   InfoStat;
   /// Event on info change
@@ -363,7 +119,7 @@ class APlayable : public Iref_count
   virtual void                SetInUse(bool used) = 0;
   /// Display name
   /// @return This returns either \c Info.meta.title or the object name of the current URL.
-  /// Keep in mind that this may not return the expected value unless \c RequestInfo(IF_Meta,...) has been called.
+  /// Keep in mind that this may not return the expected value unless \c RequestInfo(IF_Display,...) has been called.
   virtual xstring             GetDisplayName() const = 0;
   /// Get start position
   virtual int_ptr<Location>   GetStartLoc() const = 0;
@@ -372,20 +128,6 @@ class APlayable : public Iref_count
 
   /// Current object is identified as playlist.
           bool                IsPlaylist() const  { return GetInfo().tech->attributes & TATTR_PLAYLIST; }
-
-  /*// Check if this instance (still) belongs to a certain collection.
-  // The return value true is not reliable unless the collection is locked.
-  // Calling this method with NULL will check whether the instance does no longer belog to a collection.
-  // In this case only the return value true is reliable.
-  // The default implementation will always return false.
-  virtual bool                HasParent(const APlayable* parent) const;
-  // Returns the index within the current collection counting from 1.
-  // A return value of 0 indicates the the instance currently does not belong to a collection.
-  // A return value of -1 indicates that this is no Item of a collection.
-  // The return value is only reliable while the collection is locked.
-  // But comparing indices from the same collection is always reliable while taking the difference is not.
-  // The default implementation always returns -1.
-  virtual int                 GetIndex() const;*/
 
   /// @brief Request Information
   /// @details Calls DoLoadInfo asynchronously if the requested information is not yet available.
@@ -431,7 +173,8 @@ class APlayable : public Iref_count
   /// @param what Depending on \a what, only partial information is requested.
   /// If the information is not immediately available and pri is not PRI_None,
   /// the missing infos are requested asynchronously.
-  /// On output \a what contain only the bits of information that is requested asynchronously.
+  /// On output \a what contain only the bits of information that is \e not immediately available.
+  /// In case all infos are at the required reliability level what is set to \c IF_None.
   /// @return The method always returns a reference to a AggregateInfo structure.
   /// But the information is only reliable if the corresponding bits in what are set on return.
   /// The returned storage is valid until the current Playable object dies,
@@ -472,14 +215,15 @@ class APlayable : public Iref_count
   virtual InfoFlags           DoRequestInfo(InfoFlags& what, Priority pri, Reliability rel) = 0;
   /// This function is called by a worker thread to retrieve the requested kind of information.
   /// The function must either:
-  /// - Retrieve the requested infos (intrinsic property of *this) and return false.
-  /// - If all required information is retrieved or on the way by another thread return false.
+  /// - Retrieve the requested infos (intrinsic property of *this).
+  /// - Ensure that all required information is retrieved or on the way by another thread.
   /// - If further information on other objects is required to complete, schedule requests
-  ///   to other playable objects at the same priority and return true.
-  ///   In this case the framework reschedules the request later until DoLoadInfo returns false.
+  ///   to other playable objects at the same priority and populate the dependency queue
+  ///   with the placed requests. In this case the framework reschedules the request
+  ///   as soon as the dependent information is available.
   /// DoLoadInfo must also retrieve context dependent aggregate information that is requested by
-  /// DoRequestAI.
-  virtual bool                DoLoadInfo(Priority pri) = 0;
+  /// DoRequestAI. The same dependency rules apply.
+  virtual void                DoLoadInfo(JobSet& job) = 0;
   /// Request a reference to a context dependent aggregate information. The returned reference should
   /// not be dereferenced unless It is passed to DoRequestAI. The returned reference must be valid
   /// until *this dies. However, the content may get outdated.
@@ -491,8 +235,8 @@ class APlayable : public Iref_count
  protected: // Proxy functions to call the above methods also for other objects that derive from APlayable.
   static  InfoFlags           CallDoRequestInfo(APlayable& that, InfoFlags& what, Priority pri, Reliability rel)
                               { return that.DoRequestInfo(what, pri, rel); }  
-  static  bool                CallDoLoadInfo(APlayable& that, Priority pri)
-                              { return that.DoLoadInfo(pri); }  
+  static  void                CallDoLoadInfo(APlayable& that, JobSet& job)
+                              { that.DoLoadInfo(job); }
   static  AggregateInfo&      CallDoAILookup(APlayable& that, const PlayableSetBase& exclude)
                               { return that.DoAILookup(exclude); }  
   static  InfoFlags           CallDoRequestAI(APlayable& that, AggregateInfo& ai, InfoFlags what, Priority pri, Reliability rel)
@@ -506,24 +250,28 @@ class APlayable : public Iref_count
   { int_ptr<APlayable> Data;
     QEntry(APlayable* pp) : Data(pp) {}
   };
+  friend class RescheduleWorker;
   struct WInit
   { Priority Pri;
     volatile int_ptr<APlayable> Current;
     int      TID;
   };
+  struct QueueTraverseProxyData
+  { void  (*Action)(APlayable* entry, Priority pri, bool insvc, void* arg);
+    void* Arg;
+  };
+ private:
   static  priority_queue<APlayable::QEntry> WQueue;
   static  size_t              WNumWorkers;  // number of workers in the above list
   static  size_t              WNumDlgWorkers;// number of workers in the above list
   static  WInit*              WItems;       // List of workers
   static  bool                WTermRq;      // Termination Request to Worker
-  struct QueueTraverseProxyData
-  { void  (*Action)(APlayable* entry, Priority pri, bool insvc, void* arg);
-    void* Arg;
-  };
-  static  void                QueueTraverseProxy(const QEntry& entry, size_t priority, void* arg);
  private:
+          void                ScheduleRequest(Priority pri);
+          void                HandleRequest(Priority pri);
   static  void                PlayableWorker(WInit& init);
   friend  void TFNENTRY       PlayableWorkerStub(void* arg);
+  static  void                QueueTraverseProxy(const QEntry& entry, size_t priority, void* arg);
 
  public:
   /// Initialize worker

@@ -44,7 +44,7 @@ class AtomicUnsigned
 {private:
   volatile unsigned data;
  public:
-           AtomicUnsigned(unsigned i)   : data(i) {}
+           AtomicUnsigned(unsigned i = 0) : data(i) {}
   // atomic operations
   unsigned swap(unsigned n)             { return InterlockedXch(&data, n); }
   bool     replace(unsigned o, unsigned n) { return (bool)InterlockedCxc(&data, o, n); }

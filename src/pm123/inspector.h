@@ -45,7 +45,8 @@
 *
 ****************************************************************************/
 class InspectorDialog 
-: public ManagedDialogBase
+: public DialogBase
+, public Iref_count
 {private:
   enum
   { UM_REFRESH = WM_USER+1
@@ -75,10 +76,11 @@ class InspectorDialog
   virtual void      SetVisible(bool show);
 
  private:
-  static int_ptr<InspectorDialog> Instance;
+  static volatile int_ptr<InspectorDialog> Instance;
  public:
   // Fatory method
   static int_ptr<InspectorDialog> GetInstance();
+  static void       UnInit();
 };
 
 #endif

@@ -90,8 +90,8 @@ class GUI
 
   // Cache lifetime of unused playable objects in seconds
   // Objects are removed after [CLEANUP_INTERVALL, 2*CLEANUP_INTERVALL].
-  // However, since the romoved objects may hold references to other objects,
-  // only one generation is cleand up per time.
+  // However, since the removed objects may hold references to other objects,
+  // only one generation is cleaned up per time.
   static const int CLEANUP_INTERVAL = 10;
 
  private: // Internal playlist objects
@@ -194,7 +194,7 @@ class GUI
   static void      RearrangeDocking()     { PMRASSERT(WinPostMsg(HPlayer, WMP_ARRANGEDOCKING, 0, 0)); }
 
   // Load objects into the player.
-  // Attension!!! Load takes the exclusive ownership of lhp and deletes it afterwards. 
+  // Attention!!! Load takes the exclusive ownership of lhp and deletes it afterwards.
   static void      Load(LoadHelper* lhp)  { WinPostMsg(HFrame, WMP_LOAD, MPFROMP(lhp), 0); }
 
  public: // Initialization interface

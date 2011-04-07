@@ -1,5 +1,6 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
 <html><head><title>PM123 Plug-in Developer's Guide</title>
+
 <link rel="stylesheet" href="../common/infstyle.css" type="text/css"></head><body>
 <h2>Developing PM123 Plug-ins</h2>
 <p>PM123 supports four kinds of plug-ins: visual, decoder,
@@ -22,24 +23,29 @@ samples, control PM123 and so on. Plug-ins are Dynamic Linked
 Libraries,
 DLLs, which PM123 loads on use.</p>
 <p>Note that visual plug-ins cannot be
-loaded via PM123's Properties dialog because they are skin specific.
+loaded via PM123's properties dialog because they are skin specific.
 They can of course be loaded when loading a new skin.</p>
 <h3>Common interface</h3>
-<tt>plugin.h</tt> contains the necessary structures
+<p><tt>plugin.h</tt> contains the necessary structures
 for all PM123 plug-ins.
-All exported and callback functions must use the calling convention <code>_cdecl</code>.
+All exported and callback functions must use the calling convention <code>_cdecl</code>.</p>
+<p>Before you include any file from the PDK you should define the macro <tt>PLUGIN_INTERFACE_LEVEL</tt> to the apropriate value matching the <a href="#interface_level">interface compatibility</a> of your plugin. Example:</p>
+<blockquote>
+  <pre>#define PLUGIN_INTERFACE_LEVEL 2<br>#include &lt;plugin.h&gt;<br>#include &lt;decoder_plug.h&gt;<br></pre>
+</blockquote>
+
 <h4>Initialization</h4>
 <p><a name="plugin_query"></a>A plug-in must have a function that identifies it as a
 plug-in:
 </p>
 <blockquote>
-<pre>int DLLENTRY <b>plugin_query</b>(PPLUGIN_QUERYPARAM <var>param</var>);<br></pre>
+<pre>int DLLENTRY <b>plugin_query</b>(PPLUGIN_QUERYPARAM <var>param</var>);</pre>
 </blockquote>
 <tt>plugin_query</tt> is called before any other function
 and exactly once by PM123. The plug-in will then have to fill the
 variables in the <i>param</i> structure, for example:
 <blockquote>
-<pre>param-&gt;type = PLUGIN_VISUAL;<br>/* Identify the plug-in as visual plug-in. Types can be ORred to<br>include multiple plug-in types in the same DLL. */<br>param-&gt;author = "Matti Meikäläinen";<br>/* Author of the plug-in */<br>param-&gt;desc = "Example plug-in";<br>/* A short description of the plug-in */<br>param-&gt;configurable = TRUE;<br>/* Toggles plug-in configurability via PM123 Properties dialog */<br>param-&gt;interface = 2;<br>/* This is the required <a href="#interface_level">interface revision level</a>.<br> * This parameter defaults to 0 which is the same as before this field existed.<br> * Plug-ins with Level 0 <em>must not</em> access this field to be compatible with older<br> * versions of PM123. */<br>return 0;</pre>
+<pre>param-&gt;type = PLUGIN_VISUAL;<br>/* Identify the plug-in as visual plug-in. Types can be ORred to<br>include multiple plug-in types in the same DLL. */<br>param-&gt;author = "Matti Meikäläinen";<br>/* Author of the plug-in */<br>param-&gt;desc = "Example plug-in";<br>/* A short description of the plug-in */<br>param-&gt;configurable = TRUE;<br>/* Toggles plug-in configurability via PM123 Properties dialog */<br>param-&gt;interface = PLUGIN_INTERFACE_LEVEL;<br>/* This is the required <a href="#interface_level">interface revision level</a>.<br> * This parameter defaults to 0 which is the same as before this field existed.<br> * Plug-ins with Level 0 <em>must not</em> access this field to be compatible with older<br> * versions of PM123. */<br>return 0;</pre>
 </blockquote>
 <p><a name="plugin_init"></a>A second initialization function, <tt>plugin_init</tt>,
 is called by the plug-in manager once per plug-in after <tt>plugin_query</tt>.</p>
@@ -52,7 +58,7 @@ be used to handle asynchronous events or requests. The structure and
 the functions must
 not be used after <a href="#plugin_deinit"><tt>plugin_deninit</tt></a> returned.</p>
 <blockquote>
-<pre>/* Error message function. */<br>void DLLENTRY (*<b>error_display</b>)( const char* <var>msg</var> );<br>/* Info message function */<br>/* This information is always displayed to the user right away. */<br>void DLLENTRY (*<b>info_display</b>)( const char* <var>msg</var> );<br><br>/* Execute remote command */<br>/* See the documentation of remote commands for a description. */<br>const char* DLLENTRY (*<b>exec_command</b>)( const char* <var>cmd</var> );<br><br>/* retrieve configuration setting */<br>int DLLENTRY (*<b>query_profile</b>)( const char* <var>key</var>, void* <var>buffer</var>, int <var>maxlength</var> );<br>/* store configuration setting */<br>int DLLENTRY (*<b>write_profile</b>)( const char* <var>key</var>, const void* <var>buffer</var>, int <var>length</var> );<br><br>/* Allocate dynamic string. Any previous content is discarded first.<br> * The returned memory can be written up to len bytes until the next<br> * dstring_* function call on dst. The return value is the same than<br> * dst-&gt;cstr except for constness. */<br>char* DLLENTRY (*<b>dstring_alloc</b>)( DSTRING* dst, unsigned int len );<br>/* Deallocate dynamic string. This will change the pointer to NULL. */<br>void DLLENTRY (*<b>dstring_free</b>)( volatile DSTRING* dst );<br>/* Return the length of a dynamic string */<br>unsigned DLLENTRY (*<b>dstring_length</b>)( const DSTRING* src );<br>/* Compare two DSTRINGs for (binary!) equality. NULL allowed. */<br>int DLLENTRY (*<b>dstring_equal</b>)( const DSTRING* src1, const DSTRING* src2 );<br>/* Reassing dynamic string from C string. Any previous content is discarded first. */<br>void DLLENTRY (*<b>dstring_assign</b>)( volatile DSTRING* dst, const char* cstr );<br>/* Copy dynamic string to another one. Any previous content is discarded first.<br> * This function will not copy the string itself. It only creates an additional reference to the content. */<br>void DLLENTRY (*<b>dstring_copy</b>)( volatile DSTRING* dst, const DSTRING* src );<br>/* Strongly thread safe version of dstring_copy. */<br>void DLLENTRY (*<b>dstring_copy_safe</b>)( volatile DSTRING* dst, volatile const DSTRING* src );<br>/* Append to DSTRING. The source may also be from a DSTRING.<br> * If dst is NULL a new string is created */ <br>void DLLENTRY (*<b>dstring_append</b>)( DSTRING* dst, const char* cstr ); <br>/* printf into a DSTRING. Any previous content is discarded first. */<br>void DLLENTRY (*<b>dstring_sprintf</b>)( volatile DSTRING* dst, const char* fmt, ... );<br>void DLLENTRY (*<b>dstring_vsprintf</b>)( volatile DSTRING* dst, const char* fmt, va_list va );<br></pre>
+<pre>/* Error message function. */<br>void DLLENTRY (*<b>error_display</b>)( const char* <var>msg</var> );<br>/* Info message function */<br>/* This information is always displayed to the user right away. */<br>void DLLENTRY (*<b>info_display</b>)( const char* <var>msg</var> );<br><br>/* Execute remote command */<br>/* See the documentation of remote commands for a description. */<br>const char* DLLENTRY (*<b>exec_command</b>)( const char* <var>cmd</var> );<br><br>/* retrieve configuration setting */<br>int DLLENTRY (*<b>query_profile</b>)( const char* <var>key</var>, void* <var>buffer</var>, int <var>maxlength</var> );<br>/* store configuration setting */<br>int DLLENTRY (*<b>write_profile</b>)( const char* <var>key</var>, const void* <var>buffer</var>, int <var>length</var> );<br><br>/* Allocate dynamic string. Any previous content is discarded first.<br> * The returned memory can be written up to len bytes until the next<br> * dstring_* function call on dst. The return value is the same than<br> * dst-&gt;cstr except for constness. */<br>char* DLLENTRY (*<b>dstring_alloc</b>)( DSTRING* dst, unsigned int len );<br>/* Deallocate dynamic string. This will change the pointer to NULL. */<br>void DLLENTRY (*<b>dstring_free</b>)( volatile DSTRING* dst );<br>/* Return the length of a dynamic string */<br>unsigned DLLENTRY (*<b>dstring_length</b>)( const DSTRING* src );<br>/* Compare two DSTRINGs for (binary!) equality. NULL allowed. */<br>int DLLENTRY (*<b>dstring_equal</b>)( const DSTRING* src1, const DSTRING* src2 );<br>/* Reassing dynamic string from C string. Any previous content is discarded first. */<br>void DLLENTRY (*<b>dstring_assign</b>)( volatile DSTRING* dst, const char* cstr );<br>/* Copy dynamic string to another one. Any previous content is discarded first.<br> * This function will not copy the string itself. It only creates an additional reference to the content. */<br>void DLLENTRY (*<b>dstring_copy</b>)( volatile DSTRING* dst, const DSTRING* src );<br>/* Strongly thread safe version of dstring_copy. */<br>void DLLENTRY (*<b>dstring_copy_safe</b>)( volatile DSTRING* dst, volatile const DSTRING* src );<br>/* Append to DSTRING. The source may also be from a DSTRING.<br> * If dst is NULL a new string is created */ <br>void DLLENTRY (*<b>dstring_append</b>)( DSTRING* dst, const char* cstr ); <br>/* printf into a DSTRING. Any previous content is discarded first. */<br>void DLLENTRY (*<b>dstring_sprintf</b>)( volatile DSTRING* dst, const char* fmt, ... );<br>void DLLENTRY (*<b>dstring_vsprintf</b>)( volatile DSTRING* dst, const char* fmt, va_list va );</pre>
 </blockquote>
 <p>The <b><tt>exec_command</tt></b>
 function causes
@@ -166,7 +172,7 @@ same as level 0</td><td>suppoerted,<br>same as level 0</td>
 same as level 1</td>
 
 <td>recent redesign</td>
-<td>recent redesign</td><td>recent redesign</td>
+<td>recent redesign</td><td>recent, completely new interface</td>
 </tr>
 </tbody>
 </table>

@@ -1,5 +1,5 @@
 /*
- * Copyright 2007-2008 Marcel Mueller
+ * Copyright 2007-2010 Marcel Mueller
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -107,7 +107,7 @@ class ManagedDialogBase : public DialogBase, public Iref_count
   int_ptr<ManagedDialogBase> Self;
  protected:
   virtual void      OnInit();
-  // If you overload OnDestroy you must mot access *this after ManagedDialogBase::OnDestroy returned.
+  // If you overload OnDestroy you must not access *this after ManagedDialogBase::OnDestroy returned.
   virtual void      OnDestroy();
  public:
   ManagedDialogBase(ULONG rid, HMODULE module) : DialogBase(rid, module) {}

@@ -26,7 +26,7 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#define DECODER_PLUGIN_LEVEL 2
+#define PLUGIN_INTERFACE_LEVEL 2
 #define INCL_PM
 #define INCL_BASE
 #include <os2.h>
@@ -164,7 +164,7 @@ int DLLENTRY plugin_query(PLUGIN_QUERYPARAM *param)
    param->author = AUTHOR_STRING;
    param->desc = DESCRIPTION_STRING;
    param->configurable = FALSE;
-   param->interface = DECODER_PLUGIN_LEVEL;
+   param->interface = PLUGIN_INTERFACE_LEVEL;
 
    //load_ini();
    return 0;

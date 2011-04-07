@@ -31,7 +31,6 @@
 
 #define INCL_WIN
 
-#define DECODER_PLUGIN_LEVEL 2
 #include "windowbase.h"
 #include "playable.h"
 #include "infodialog.h"
