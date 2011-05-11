@@ -1,6 +1,6 @@
 /*
  * Copyright 1997-2003 Samuel Audet <guardia@step.polymtl.ca>
- *                     Taneli Lepp„ <rosmo@sektori.com>
+ *                     Taneli Leppï¿½ <rosmo@sektori.com>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -951,12 +951,13 @@ filter_commit_buffer( REALEQ_STRUCT* f, int len, PM123_TIME posmarker )
 static ULONG DLLENTRY
 filter_command( REALEQ_STRUCT* f, ULONG msg, OUTPUT_PARAMS2* info )
 { DEBUGLOG(("realeq:filter_command(%p, %u, %p)\n", f, msg, info));
+  // keep this vars alive until output_command completes.
+  INFO_BUNDLE_CV ib = *info->info;
+  TECH_INFO ti = *ib.tech;
   switch (msg)
   {case OUTPUT_SETUP:
     if (info->info->tech->channels == 1 && eqenabled)
-    { INFO_BUNDLE_CV ib = *info->info;
-      TECH_INFO ti = *ib.tech;
-      ti.channels = 2;
+    { ti.channels = 2;
       ib.tech = &ti;
       info->info = &ib;
     }
@@ -1126,7 +1127,7 @@ load_eq( HWND hwnd )
 int DLLENTRY
 plugin_query( PLUGIN_QUERYPARAM *param )
 { param->type         = PLUGIN_FILTER;
-  param->author       = "Samuel Audet, Marcel Mller";
+  param->author       = "Samuel Audet, Marcel Mueller";
   param->desc         = PLUGIN;
   param->configurable = TRUE;
   param->interface    = PLUGIN_INTERFACE_LEVEL;
