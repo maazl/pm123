@@ -949,20 +949,21 @@ filter_commit_buffer( REALEQ_STRUCT* f, int len, PM123_TIME posmarker )
 }
 
 static ULONG DLLENTRY
-filter_command( REALEQ_STRUCT* f, ULONG msg, OUTPUT_PARAMS2* info )
-{ DEBUGLOG(("realeq:filter_command(%p, %u, %p)\n", f, msg, info));
-  // keep this vars alive until output_command completes.
-  INFO_BUNDLE_CV ib = *info->info;
-  TECH_INFO ti = *ib.tech;
+filter_command(REALEQ_STRUCT* f, ULONG msg, OUTPUT_PARAMS2* info)
+{ ULONG rc;
+  INFO_BUNDLE_CV ib;
+  TECH_INFO ti;
+  INFO_BUNDLE_CV* old_info = info->info;
+  DEBUGLOG(("realeq:filter_command(%p, %u, %p)\n", f, msg, info));
+  if (old_info && old_info->tech->channels == 1 && eqenabled)
+  { ib = *old_info;
+    ti = *ib.tech;
+    ti.channels = 2;
+    ib.tech = &ti;
+    info->info = &ib;
+  }
   switch (msg)
-  {case OUTPUT_SETUP:
-    if (info->info->tech->channels == 1 && eqenabled)
-    { ti.channels = 2;
-      ib.tech = &ti;
-      info->info = &ib;
-    }
-    break;
-   case OUTPUT_TRASH_BUFFERS:
+  {case OUTPUT_TRASH_BUFFERS:
     f->temppos = info->playingpos;
     f->discard = TRUE;
     break;
@@ -971,7 +972,9 @@ filter_command( REALEQ_STRUCT* f, ULONG msg, OUTPUT_PARAMS2* info )
     f->discard = TRUE;
     break;
   }
-  return (*f->output_command)( f->a, msg, info );
+  rc = (*f->output_command)(f->a, msg, info);
+  // restore info to keep upstream filters consistent.
+  info->info = old_info;
 }
 
 /********** Entry point: Initialize
