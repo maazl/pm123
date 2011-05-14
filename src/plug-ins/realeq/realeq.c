@@ -975,6 +975,7 @@ filter_command(REALEQ_STRUCT* f, ULONG msg, OUTPUT_PARAMS2* info)
   rc = (*f->output_command)(f->a, msg, info);
   // restore info to keep upstream filters consistent.
   info->info = old_info;
+  return rc;
 }
 
 /********** Entry point: Initialize
