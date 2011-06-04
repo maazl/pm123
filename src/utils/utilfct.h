@@ -32,6 +32,60 @@
 #ifndef PM123_UTILS_H
 #define PM123_UTILS_H
 
+/** @brief Presentation parameter type for resizing dialog window controls.
+ * The value must be of type PPResizeInfo.
+ *
+ * @details Resource file syntax:
+ * @code PRESPARAMS PPU_RESIZEINFO, pos_resize, size_resize @endcode
+ *
+ * Each resize value represents two rational numbers, each of it two bytes in size.
+ * The numerator is in the high byte, the denominator is in the low byte.
+ * The high word is the x component while the low word is the y component.
+ *
+ * @example
+ * @code PRESPARAMS PPU_RESIZEINFO, 0x00010001, 0x01010101 @endcode
+ *   Scales the control 1:1 with the parent window. I.e. the left and bottom
+ *   coordinates are left unchanged (factor 0/1), whereas the width and height
+ *   scale linear with the window size (factor 1/1).
+ * @code PRESPARAMS PPU_RESIZEINFO, 0x01010102, 0x00010102 @endcode
+ *   Shifts the control with the right border of the parent window and the upper
+ *   border with upper window border and resizes the control with 1/2 of the parent
+ *   window change.
+ * @code PRESPARAMS PPU_RESIZEINFO, 0x01030203, 0x01030103 @endcode
+ *   Manages the resizing of a child window that represents the center top rectangle
+ *   in a 3x3 grid.
+ *
+ */
+#define PPU_RESIZEINFO      0x8100 // PP_USER + 0x100
+/** @brief Convenient way to create \c PPU_RESIZEINFO.
+ * @details The Macro takes 8 parameters:
+ * - x-numerator, x-denominator,
+ * - y-numerator, y-denominator,
+ * - cx-numerator, cx-denominator,
+ * - cy-numerator, cy-denominator
+ * @example @code PRESPARAMS MAKE_PPU_RESIZE_INFO(1,1, 1,2, 0,1, 1,2) @endcode
+ *   Shifts the control with the right border of the parent window and the upper
+ *   border with upper window border and resizes the control with 1/2 of the parent
+ *   window change.
+ */
+#define MAKE_PPU_RESIZE_INFO(xn,xd,yn,yd,wn,wd,hn,hd) PPU_RESIZEINFO, ((xn)*16777216+(xd)*65536+(yn)*256+(yd)), ((wn)*16777216+(wd)*65536+(hn)*256+(hd))
+
+/** @brief Presentation parameter type for resizing dialog window controls.
+ * The value must be of type PPResizeConstr.
+ *
+ * @details Resource file syntax:
+ * @code PRESPARAMS PPU_RESIZEINFO, min_size @endcode
+ *
+ * min_size are two words with the minimum size of the control. The x limit is
+ * in the high word and the y limit in the low word. Any attempt to resize the frame window
+ * that causes at least one child window to break this constraint will be adjusted
+ * to meet the constraint.
+ */
+#define PPU_RESIZECONSTR    0x8101 // PP_USER + 0x101
+#define MAKE_PPU_SIZE_CONSTR(xmin,ymin,xmax,ymax) PPU_RESIZECONSTR, ((xmin)*65536+(ymin)), ((xmax)*65536+(ymax))
+
+#ifndef RC_INVOKED
+
 #include <config.h>
 #define INCL_PM
 #include <errorstr.h>
@@ -85,8 +139,49 @@ BOOL  wait_thread( TID tid, ULONG msec );
 /* Same as wait_thread, but keep the PM message queue alive. */
 BOOL  wait_thread_pm( HAB hab, TID tid, ULONG msec );
 
+/** Small rational number */
+typedef struct
+{ /** Denominator of rational number. */
+  UCHAR Denominator;
+  /** Numerator of rational number. */
+  UCHAR Numerator;
+} PPResizeFactor;
+/** @brief Presentation parameters for resizing dialog window controls.
+ * This Parameter must be of type PPU_RESIZEINFO.
+ */
+typedef struct
+{ /** Resize factor for the bottom border. */
+  PPResizeFactor y_resize;
+  /** Resize factor for the left border. */
+  PPResizeFactor x_resize;
+  /** Resize factor for the control height. */
+  PPResizeFactor cy_resize;
+  /** Resize factor for control width. */
+  PPResizeFactor cx_resize;
+} PPResizeInfo;
+
+typedef struct
+{ /** The minimum height of the control. Any attempt to resize the frame window
+   * that causes at least one child window to break this constraint will be adjusted to meet
+   * the constraint. */
+  USHORT cy_min;
+  /** The minimum width of the control. Any attempt to resize the frame window
+   * that causes at least one child window to break this constraint will be adjusted to meet
+   * the constraint. */
+  USHORT cx_min;
+} PPResizeConstr;
+
+/** Adjust the result of a resize operation according to PPU_RESIZEINFO of the children.
+ * This function is intended to be used at WM_ADJUSTWINDOWPOS processing.
+ * If you do not have size constraints or you have the size costraints
+ * at the dialog level, then this call is not necessary. */
+void  dlg_adjust_resize(HWND hwnd, SWP* pswp);
+/** Resize the children according to PPU_RESIZEINFO.
+ * This function is intended to be used at WM_WINDOWPOSCHANGED processing. */
+void  dlg_do_resize(HWND hwnd, SWP* pswpnew, SWP* pswpold);
+
 /* Add dialog control at runtime
- * Helpful for controls that fail in ressource files like WC_CIRCULARSLIDER */
+ * Helpful for controls that fail in resource files like WC_CIRCULARSLIDER */
 HWND  dlg_addcontrol( HWND hwnd, PSZ cls, PSZ text, ULONG style,
                       LONG x, LONG y, LONG cx, LONG cy, SHORT after,
                       USHORT id, PVOID ctldata, PVOID presparams );
@@ -144,7 +239,7 @@ void  en_enable( HWND hwnd, SHORT id, BOOL enable );
 /* append a tabbed dialog page. The index param gives
    the index (low word) and the total (high word) number of subpages (if any).
    Returns the new page ID or 0 on error. */
-ULONG nb_append_tab( HWND book, HWND page, const char* major, char* minor, MPARAM index );
+ULONG nb_append_tab( HWND book, HWND page, const char* major, const char* minor, MPARAM index );
 /* Adjusting the position and size of a notebook window. */
 BOOL  nb_adjust( HWND hwnd, SWP* pswp );
 
@@ -160,5 +255,7 @@ BOOL  cs_init( HWND hwnd, USHORT id, LONG low, LONG high, LONG inc, LONG tick, L
 
 #ifdef __cplusplus
 }
+#endif
+
 #endif
 #endif /* PM123_UTILS_H */

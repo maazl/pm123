@@ -43,8 +43,7 @@ APIRET APIENTRY DosQueryModFromEIP( HMODULE *phMod, ULONG *pObjNum, ULONG BuffLe
                                     PCHAR pBuff, ULONG *pOffset, ULONG Address );
 
 /* Queries a module handle and name. */
-void
-getModule( HMODULE* hmodule, char* name, int name_size )
+void getModule( HMODULE* hmodule, char* name, int name_size )
 {
   ULONG ObjNum, Offset;
 
@@ -55,8 +54,7 @@ getModule( HMODULE* hmodule, char* name, int name_size )
 }
 
 /* Queries a program name. */
-void
-getExeName( char* name, int name_size )
+void getExeName( char* name, int name_size )
 {
   if( name && name_size > 0 )
   {

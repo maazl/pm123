@@ -38,56 +38,53 @@
 extern "C" {
 #endif
 
-/*
- * Return the length of a string excluding \0 but at most siz.
- * The function does not read any data from beyond src + siz -1
+/** Return the length of a string excluding \0 but at most siz.
+ * The function does not read any data from beyond src + size -1
  * even if the string is unterminated.
  */
-size_t strnlen( const char* src, size_t siz );
+size_t strnlen( const char* src, size_t size );
 
-/*
- * Copy src to string dst of size siz.  At most siz-1 characters
- * will be copied.  Always NUL terminates (unless siz == 0).
- * Returns strlen(src); if retval >= siz, truncation occurred.
+/** Copy src to string dst of size size.  At most size-1 characters
+ * will be copied.  Always NUL terminates (unless size == 0).
+ * Returns strlen(src); if retval >= size, truncation occurred.
  */
-size_t strlcpy( char* dst, const char* src, size_t siz );
+size_t strlcpy( char* dst, const char* src, size_t size );
 
-/*
- * Appends src to string dst of size siz (unlike strncat, siz is the
- * full size of dst, not space left).  At most siz-1 characters
- * will be copied.  Always NUL terminates (unless siz <= strlen(dst)).
+/** Appends src to string dst of size siz (unlike strncat, size is the
+ * full size of dst, not space left).  At most size-1 characters
+ * will be copied.  Always NUL terminates (unless size <= strlen(dst)).
  * Returns strlen(src) + MIN(siz, strlen(initial dst)).
- * If retval >= siz, truncation occurred.
+ * If retval >= size, truncation occurred.
  */
-size_t strlcat( char* dst, const char* src, size_t siz );
+size_t strlcat( char* dst, const char* src, size_t size );
 
-/* Search the first ocurrency of c in the first siz bytes of string str.
+/** Search the first occurrence of c in the first \a size bytes of string str.
  */ 
-char* strnchr( const char* str, char c, size_t siz );
+char* strnchr( const char* str, char c, size_t size );
 
-/* Search the last ocurrency of c in the first siz bytes of string str.
+/** Search the last occurrence of c in the first \a size bytes of string str.
  */ 
-char* strnrchr( const char* str, char c, size_t siz );
+char* strnrchr( const char* str, char c, size_t size );
 
-/* remove line terminator from the end of the string.
+/** Remove line terminator from the end of the string.
  * Works with \r, \n and \r\n.
  */
 void strchomp( char* str );
 
-/* compare and copy memory
+/** Compare and copy memory
  * Moves len bytes from src to dst returning the index of the first byte that changed.
  * If there are no changes the function returns ~0 (i.e. all bits set).
  */
 size_t memcmpcpy( void* dst, const void* src, size_t len );
 
 
-/* Removes leading and trailing spaces. */
+/** Removes leading and trailing spaces. */
 char* blank_strip( char* string );
-/* Replaces series of control characters by one space. */
+/** Replaces series of control characters by one space. */
 char* control_strip( char* string );
-/* Removes leading and trailing spaces and quotes. */
+/** Removes leading and trailing spaces and quotes. */
 char* quote_strip( char* string );
-/* Removes comments starting with "#". */
+/** Removes comments starting with "#". */
 char* uncomment  ( char* string );
 
 

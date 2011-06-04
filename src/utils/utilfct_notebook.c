@@ -1,6 +1,6 @@
 /*
  * Copyright 1997-2003 Samuel Audet <guardia@step.polymtl.ca>
- *                     Taneli Lepp„ <rosmo@sektori.com> *
+ *                     Taneli Leppï¿½ <rosmo@sektori.com> *
  * Copyright 2004-2006 Dmitry A.Steklenev <glass@ptv.ru>
  * Copyright 2006-2009 Marcel Mueller
  *
@@ -40,9 +40,10 @@
 
 /* Append a tabbed dialog page */
 ULONG
-nb_append_tab(HWND book, HWND page, const char* major, char* minor, MPARAM index)
+nb_append_tab(HWND book, HWND page, const char* major, const char* minor, MPARAM index)
 { USHORT style = BKA_AUTOPAGESIZE | (SHORT2FROMMP(index) > 1) * (BKA_MINOR|BKA_STATUSTEXTON) | (SHORT1FROMMP(index) <= 1) * BKA_MAJOR;
   BOOKPAGEINFO bi = { sizeof bi };
+  char buf[32];
   ULONG id = LONGFROMMR(WinSendMsg(book, BKM_INSERTPAGE, 0, MPFROM2SHORT(style, BKA_LAST)));
   if (id == 0)
     return 0;
@@ -62,8 +63,7 @@ nb_append_tab(HWND book, HWND page, const char* major, char* minor, MPARAM index
   }
   // set status text if multiple pages
   if (style & BKA_STATUSTEXTON)
-  { char buf[32];
-    bi.fl |= BFA_STATUSLINE;
+  { bi.fl |= BFA_STATUSLINE;
     bi.cbStatusLine = sprintf(buf, "Page %u of %u", SHORT1FROMMP(index), SHORT2FROMMP(index));
     bi.pszStatusLine = buf;
   }
