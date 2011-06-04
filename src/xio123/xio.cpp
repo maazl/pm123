@@ -512,9 +512,11 @@ int DLLENTRY
 xio_ferror( XFILE* x )
 { 
   DEBUGLOG2(("xio_ferror(%p)\n", x));
-  ASSERT(x && x->serial == XIO_SERIAL);
+  if (!x)
+    return errno;
+  ASSERT(x->serial == XIO_SERIAL);
   #ifdef NDEBUG
-  if( !x || x->serial != XIO_SERIAL ) {
+  if( x->serial != XIO_SERIAL ) {
     errno = EBADF;
     return 1;
   }
