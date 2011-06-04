@@ -147,6 +147,16 @@ class Iref_count
 #endif
 };
 
+/** Exactly the same than Iref_Count but with a public virtual destructor.
+ * In contrast to Iref_count you might use this as type argument to int_ptr directly.
+ */
+class IVref_count : public Iref_count
+{protected:
+  IVref_count() {}
+ public:
+  virtual ~IVref_count() {}
+};
+
 /* This is a simple and highly efficient reference counted smart pointer
  * implementation for objects of type T.
  * The class is similar to boost::intrusive_ptr but works on very old C++ compilers.
@@ -213,7 +223,7 @@ class int_ptr
   int_ptr<T>& fromCptr(T* ptr);
   void        fromCptr(T* ptr) volatile;
   //T*          swapCptr(T* ptr);
-  #ifdef DEBUG
+  #ifdef DEBUG_LOG
   volatile T* debug() volatile const         { return (T*)(Data & INT_PTR_POINTER_MASK); }
   #endif
 };

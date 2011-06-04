@@ -1,5 +1,5 @@
 /*
- * Copyright 2007-2010 M.Mueller
+ * Copyright 2007-2011 M.Mueller
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -221,16 +221,16 @@ class xstring
   void        reset() volatile              { Data.reset(); }
   /// @brief Assign new value.
   /// @details The function creates a reference copy. Complexity O(1).
-  void        assign(xstring& r)                { Data = r.Data; } // Helper to disambiguate calls.
+  void        assign(xstring& r)            { Data = r.Data; } // Helper to disambiguate calls.
   /// @brief Assign new value.
   /// @details The function creates a reference copy. Complexity O(1).
-  void        assign(const xstring& r)          { Data = r.Data; }
+  void        assign(const xstring& r)      { Data = r.Data; }
   /// @brief Assign new value.
   /// @details The function creates a reference copy. Complexity O(1).
   void        assign(const xstring& r) volatile { Data = r.Data; }
   /// @brief Assign new value. Strongly thread-safe with respect to rhs.
   /// @details The function creates a reference copy. Complexity O(1).
-  void        assign(volatile const xstring& r)          { Data = r.Data; }
+  void        assign(volatile const xstring& r) { Data = r.Data; }
   /// @brief Assign new value. Strongly thread-safe with respect to both strings.
   /// @details The function creates a reference copy. Complexity O(1).
   void        assign(volatile const xstring& r) volatile { Data = r.Data; }
@@ -245,36 +245,36 @@ class xstring
   /// Assign new string from C-style string.
   void        assign(const char* str);
   /// Assign new string from C-style string. Thread-safe with respect to lhs.
-  void        assign(const char* str) volatile             { xstring(str).swap(*this); }
+  void        assign(const char* str) volatile { xstring(str).swap(*this); }
   /// Assign new string from C-style string.
-  void        assign(const char* str, size_t len)          { xstring(str, len).swap(*this); }
+  void        assign(const char* str, size_t len) { xstring(str, len).swap(*this); }
   /// Assign new string from C-style string. Thread-safe with respect to lhs.
   void        assign(const char* str, size_t len) volatile { xstring(str, len).swap(*this); }
   /// @brief Assign and return \c true if changed.
   /// @details \c *this is not assigned if the value is equal.
-  bool        cmpassign(const xstring& r)                  { return !equals(r) && (Data = r.Data, true); }
+  bool        cmpassign(const xstring& r)   { return !equals(r) && (Data = r.Data, true); }
   /// Initialize to new string with defined length and undefined content.
   /// @return The return value points to the newly allocated content.
   /// The storage in the range [0,len) must not be modified after the current instance is either modified
   /// or passed to a copy constructor or an assignment operator.
-  char*       allocate(size_t len)                         { Data = new(len) StringData; return Data->ptr(); }
+  char*       allocate(size_t len)          { Data = new(len) StringData; return Data->ptr(); }
   /// initialize to new string with defined length and defined content that might be modified before the string is used elsewhere.
   /// @return The return value points to the newly allocated content.
   /// The storage in the range [0,len) must not be modified after the current instance is either modified
   /// or passed to a copy constructor or an assignment operator.
-  char*       allocate(size_t len, const char* src)        { assign(src, len); return Data->ptr(); }
+  char*       allocate(size_t len, const char* src) { assign(src, len); return Data->ptr(); }
   /// Assign new value by operator.
-  xstring&    operator=(xstring& r)                         { assign(r); return *this; } // Helper to disambiguate calls.
+  xstring&    operator=(xstring& r)         { assign(r); return *this; } // Helper to disambiguate calls.
   /// Assign new value by operator.
-  xstring&    operator=(const xstring& r)                   { assign(r); return *this; }
+  xstring&    operator=(const xstring& r)   { assign(r); return *this; }
   /// Assign new value by operator. Thread-safe with respect to lhs.
-  void        operator=(const xstring& r) volatile          { assign(r); }
+  void        operator=(const xstring& r) volatile { assign(r); }
   /// Assign new value by operator. Strongly thread-safe with respect to rhs.
-  xstring&    operator=(volatile const xstring& r)          { assign(r); return *this; }
+  xstring&    operator=(volatile const xstring& r) { assign(r); return *this; }
   /// Assign new value by operator. Strongly thread-safe with respect to both xstrings.
   void        operator=(volatile const xstring& r) volatile { assign(r); }
   /// Assign new value by operator from C-style string.
-  xstring&    operator=(const char* str)          { assign(str); return *this; }
+  xstring&    operator=(const char* str)    { assign(str); return *this; }
   /// Assign new value by operator from C-style string.
   void        operator=(const char* str) volatile { assign(str); }
   /// @brief Concatenate strings.
@@ -286,6 +286,8 @@ class xstring
   /// @brief Concatenate strings.
   /// @details The strings must not be NULL.
   friend const xstring operator+(const char* l,    const xstring& r);
+  /// Compare two strings.
+  static int  compare(const xstring& l, const xstring& r) { return l.compareTo(r); }
   /// sprintf, well...
   static const xstring sprintf(const char* fmt, ...);
   /// vsprintf, well...
@@ -362,6 +364,258 @@ inline bool operator>=(const xstring& l, const char* r)
 }
 inline bool operator>=(const char* l,    const xstring& r)
 { return r.compareTo(l) <= 0;
+}
+
+
+class xstringbuilder
+{private:
+  static char* const Empty;
+  char*       Data;
+  size_t      Cap;
+  size_t      Len;
+
+ private: // non copyable
+  xstringbuilder(const xstringbuilder& r);
+  void        operator=(const xstringbuilder& r);
+ private:
+  /// Ensure space for \a cap characters, \a cap must be larger than Cap.
+  /// After the function returns the storage is no longer null terminated.
+  void        auto_alloc(size_t cap);
+  /// Ensure space for \a cap characters, do not copy the current content.
+  /// @return Returns the newly allocated storage. \c Data still points to the old storage.
+  char*       auto_alloc_raw(size_t& cap);
+  char*       replace_core(size_t at, size_t len1, size_t len2);
+ public:
+  /// Create empty string builder
+  xstringbuilder()                          : Data(Empty), Cap(0), Len(0) {}
+  /// Create string builder with initial capacity. (The length is still 0.)
+  xstringbuilder(size_t cap);
+  /// Destroy xstringbuilder and it's data.
+  ~xstringbuilder()                         { if (Cap) free(Data); }
+
+  /// Current length of the string.
+  size_t      length() const                { return Len; }
+  /// @brief Explicit conversion to C-style string, always null terminated, never NULL.
+  const char* cdata() const                 { return Data; }
+  /// @brief Implicit conversion to C-style string, always null terminated, never NULL.
+  operator    const char*() const           { return Data; }
+  /// @brief Explicit conversion to \c xstring, never NULL.
+  xstring     get() const                   { return xstring(Data, Len); }
+  /// @brief Implicit conversion to \c xstring, never NULL.
+  operator    xstring() const               { return xstring(Data, Len); }
+
+  /// Read the \a at's character.
+  char        operator[](size_t at) const   { ASSERT(at <= Len); return Data[at]; }
+  /// Access the \a at's character.
+  char&       operator[](size_t at)         { ASSERT(at < Len); return Data[at]; }
+
+  /// Clears the content but do not free the storage.
+  void        clear()                       { if (Len) { Len = 0; *Data = 0; } }
+  /// Adjust the string length to \a len, pad with \0 if required.
+  /// @remarks This will not free any storage.
+  void        resize(size_t len);
+  /// Adjust the string length to \a len and pad with \a filler if required.
+  /// @remarks This will not free any storage.
+  void        resize(size_t len, char filler);
+
+  /// Current length of the string.
+  size_t      capacity() const              { return Cap; }
+  /// Adjust capacity. This never modifies the logical content.
+  void        reserve(size_t cap);
+
+  /// Reset the \c xstringbuilder to its initial state. The frees the buffer.
+  void        reset();
+  /// Clear the \c xstringbuilder and adjust it's capacity to cap.
+  void        reset(size_t cap)             { Len = 0; reserve(cap); }
+
+  /// Append a sequence of characters.
+  void        append(const char* str, size_t len);
+  /// Append a C string.
+  void        append(const char* str)       { append(str, strlen(str)); }
+  /// Append an \c xstring.
+  void        append(const xstring& str)    { append(str, str.length()); }
+  /// Append a single character.
+  void        append(char c);
+  /// Append \a count copies of \a c.
+  void        append(size_t count, char c);
+  /// Append an integer.
+  void        append(int c);
+  /// Append a formatted string.
+  void        appendf(const char* fmt, ...);
+  /// Append a formatted string.
+  void        vappendf(const char* fmt, va_list va);
+
+  /// Append a single character.
+  xstringbuilder& operator+=(char c)        { append(c); return *this; }
+  /// Append a C string.
+  xstringbuilder& operator+=(const char* str) { append(str); return *this; }
+
+  /// Insert a sequence of characters at position \a at.
+  /// This function cannot operate in place.
+  void        insert(size_t at, const char* str, size_t len);
+  /// Insert a C string at position \a at.
+  /// This function cannot operate in place.
+  void        insert(size_t at, const char* str);
+  /// Insert an \c xstring at position \a at.
+  void        insert(size_t at, const xstring& str);
+  /// Insert a single character at position \a at.
+  void        insert(size_t at, char c);
+  /// Insert \a count copies of \a c at position \a at.
+  void        insert(size_t at, size_t count, char c);
+  /// Insert a formatted string at position \a at.
+  void        insertf(size_t at, const char* fmt, ...);
+  /// Insert a formatted string at position \a at.
+  void        vinsertf(size_t at, const char* fmt, va_list va);
+
+  /// Erase all characters starting at \a from.
+  /// @remarks This will not free any storage.
+  void        erase(size_t from);
+  /// Erase \a len characters starting from \a at.
+  /// @remarks This will not free any storage.
+  void        erase(size_t at, size_t len);
+
+  /// Replace a section by a sequence of characters.
+  /// This function cannot operate in place.
+  void        replace(size_t from, size_t len1, const char* str, size_t len2);
+  /// Replace a section by a C string.
+  /// This function cannot operate in place.
+  void        replace(size_t from, size_t len, const char* str);
+  /// Replace a section by an \c xstring.
+  void        replace(size_t from, size_t len, const xstring& str);
+  /// Replace a section by a single character.
+  void        replace(size_t from, size_t len, char c);
+  /// Replace a section by \a count copies of \a c.
+  void        replace(size_t from, size_t len, size_t count, char c);
+  /// Replace a section by a formatted string.
+  void        replacef(size_t from, size_t len, const char* fmt, ...);
+  /// Replace a section by a formatted string.
+  void        vreplacef(size_t from, size_t len, const char* fmt, va_list va);
+
+  /// Search for the first occurrence of \a c in the current content, starting at \a pos.
+  /// @return return the position of the found character or \c length() in case of no match.
+  size_t      find(char c, size_t pos = 0);
+  /// Search for the first occurrence of \a str[0..len] in the current content, starting at \a pos.
+  /// @return return the start position of the found substring or \c length() in case of no match.
+  /// @remarks An empty string will always match: len == 0 => return pos
+  size_t      find(const char* str, size_t len, size_t pos);
+  /// Search for the first occurrence of \a str in the current content, starting at \a pos.
+  /// @return return the start position of the found substring or \c length() in case of no match.
+  /// @remarks An empty string will always match at \a pos.
+  size_t      find(const char* str, size_t pos) { return find(str, strlen(str), pos); }
+  /// Search for the first occurrence of \a str in the current content, starting at \a pos.
+  /// @return return the start position of the found substring or \c length() in case of no match.
+  /// @remarks An empty string will always match: str.length() == 0 => return pos
+  size_t      find(const xstring& str, size_t pos = 0) { return find(str, str.length(), pos); }
+
+  /// Search for the last occurrence of \a c in the current content, starting at \a pos-1.
+  /// @return return the position after the found character or \c 0 in case of no match.
+  size_t      rfind(char c, size_t pos);
+  /// Search for the last occurrence of \a c in the current content.
+  /// @return return the position after the found character or \c 0 in case of no match.
+  size_t      rfind(char c)                 { return rfind(c, length()); }
+  /// Search for the last occurrence of \a str[0..len] in the current content, starting at \a pos-1.
+  /// @return return one after the start position of the found substring or \c 0 in case of no match.
+  /// @remarks An empty string will always match: len == 0 => return pos
+  size_t      rfind(const char* str, size_t len, size_t pos);
+  /// Search for the last occurrence of \a str in the current content, starting at \a pos-1.
+  /// @return return one after the start position of the found substring or \c 0 in case of no match.
+  /// @remarks An empty string will always match: len == 0 => return pos
+  size_t      rfind(const char* str, size_t pos) { return rfind(str, strlen(str), pos); }
+  /// Search for the last occurrence of \a str in the current content, starting at \a pos-1.
+  /// @return return one after the start position of the found substring or \c 0 in case of no match.
+  /// @remarks An empty string will always match: str.length() == 0 => return pos
+  size_t      rfind(const xstring& str, size_t pos) { return rfind(str, str.length(), pos); }
+  /// Search for the last occurrence of \a str in the current content, starting at \a pos-1.
+  /// @return return one after the start position of the found substring or \c 0 in case of no match.
+  /// @remarks An empty string will always match: str.length() == 0 => return pos
+  size_t      rfind(const xstring& str)     { return rfind(str, str.length(), length()); }
+
+  /// Search for the first occurrence of any character in \a str[0..len] in the current content,
+  /// starting at \a pos.
+  /// @return return the position of the found character or \c length() in case of no match.
+  size_t      find_any(const char* str, size_t len, size_t pos);
+  /// Search for the first occurrence of any character in \a str in the current content,
+  /// starting at \a pos.
+  /// @return return the position of the found character or \c length() in case of no match.
+  size_t      find_any(const char* str, size_t pos) { return find_any(str, strlen(str), pos); }
+  /// Search for the first occurrence of any character in \a str in the current content,
+  /// starting at \a pos.
+  /// @return return the position of the found character or \c length() in case of no match.
+  size_t      find_any(const xstring& str, size_t pos = 0) { return find_any(str, str.length(), pos); }
+
+  /// Search for the first occurrence of any character not in \a str[0..len] in the current content,
+  /// starting at \a pos.
+  /// @return return the position of the found character or \c length() in case of no match.
+  size_t      find_not_any(const char* str, size_t len, size_t pos);
+  /// Search for the first occurrence of any character not in \a str in the current content,
+  /// starting at \a pos.
+  /// @return return the position of the found character or \c length() in case of no match.
+  size_t      find_not_any(const char* str, size_t pos) { return find_not_any(str, strlen(str), pos); }
+  /// Search for the first occurrence of any character not in \a str in the current content,
+  /// starting at \a pos.
+  /// @return return the position of the found character or \c length() in case of no match.
+  size_t      find_not_any(const xstring& str, size_t pos = 0) { return find_not_any(str, str.length(), pos); }
+};
+
+inline void xstringbuilder::reset()
+{ Len = 0;
+  if (Cap)
+    free(Data);
+  Cap = 0;
+  Data = Empty;
+}
+
+inline void xstringbuilder::append(char c)
+{ if (Len == Cap)
+    auto_alloc(Len+1);
+  Data[Len++] = c;
+  Data[Len] = 0;
+}
+inline void xstringbuilder::append(int i)
+{ appendf("%i", i);
+}
+
+inline void xstringbuilder::insert(size_t at, const char* str, size_t len)
+{ ASSERT(!len || str+len <= Data || str >= Data+Len); // In place operation not supported.
+  memcpy(replace_core(at, 0, len), str, len);
+}
+inline void xstringbuilder::insert(size_t at, const char* str)
+{ insert(at, str, strlen(str));
+}
+inline void xstringbuilder::insert(size_t at, const xstring& str)
+{ memcpy(replace_core(at, 0, str.length()), str, str.length());
+}
+inline void xstringbuilder::insert(size_t at, size_t count, char c)
+{ memset(replace_core(at, 0, count), c, count);
+}
+
+inline void xstringbuilder::erase(size_t from)
+{ ASSERT(from <= Len);
+  Len = from;
+  Data[Len] = 0;
+}
+inline void xstringbuilder::erase(size_t at, size_t len)
+{ size_t end = len + at;
+  ASSERT(end <= Len);
+  memmove(Data+at, Data+end, Len-end+1);
+  Len -= len;
+}
+
+inline void xstringbuilder::replace(size_t from, size_t len1, const char* str, size_t len2)
+{ ASSERT(!len2 || str+len2 <= Data || str >= Data+Len); // In place operation not supported.
+  memcpy(replace_core(from, len1, len2), str, len2);
+}
+inline void xstringbuilder::replace(size_t from, size_t len, const char* str)
+{ replace(from, len, str, strlen(str));
+}
+inline void xstringbuilder::replace(size_t from, size_t len, const xstring& str)
+{ memcpy(replace_core(from, len, str.length()), str, str.length());
+}
+inline void xstringbuilder::replace(size_t from, size_t len, char c)
+{ *replace_core(from, len, 1) = c;
+}
+inline void xstringbuilder::replace(size_t from, size_t len, size_t count, char c)
+{ memset(replace_core(from, len, count), c, count);
 }
 
 #endif

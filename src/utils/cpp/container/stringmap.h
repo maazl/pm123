@@ -1,5 +1,5 @@
 /*
- * Copyright 2008-2008 M.Mueller
+ * Copyright 2008-2011 M.Mueller
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -36,13 +36,13 @@
 /* Element class to provide a string repository with a sorted_vector<> as storage container.
  * This class should be extended to provide a mapping to a target type.
  */
-struct strkey : public IComparableTo<xstring>
+/*struct strkey : public IComparableTo<xstring>
 { const xstring Key;
   strkey(const xstring& key) : Key(key) {}
   virtual int compareTo(const xstring& key) const;
-};
+};*/
 
-typedef sorted_vector<strkey, xstring> stringset;
+typedef sorted_vector<xstring, xstring, &xstring::compare> stringset;
 
 class stringset_own : public stringset
 {protected:
@@ -59,15 +59,23 @@ class stringset_own : public stringset
   ~stringset_own();
 };
 
+
 template <class V>
-struct strmapentry : public strkey
-{ V Value;
-  strmapentry(const xstring& key) : strkey(key) {}
-  strmapentry(const xstring& key, const V& value) : strkey(key), Value(value) {}
+struct strmapentry
+{ const xstring Key;
+  V             Value;
+  strmapentry(const xstring& key) : Key(key) {}
+  strmapentry(const xstring& key, const V& value) : Key(key), Value(value) {}
+  static int    compare(const strmapentry& e, const xstring& k);
 };
 
+template <class V>
+int strmapentry<V>::compare(const strmapentry& elem, const xstring& key)
+{ return elem.Key.compareTo(key);
+}
+
 typedef strmapentry<xstring> stringmapentry;
-typedef sorted_vector<stringmapentry, xstring> stringmap;
+typedef sorted_vector<stringmapentry, xstring, &strmapentry<xstring>::compare> stringmap;
 
 class stringmap_own : public stringmap
 {public:
@@ -89,18 +97,29 @@ struct strmap
   V    Val;
 };
 
+int TFNENTRY strabbrevicmp(const char* str, const char* abbrev);
+
 template <class T>
 inline T* mapsearch2(T* map, size_t count, const char* cmd)
 { return (T*)bsearch(cmd, map, count, sizeof(T), (int(TFNENTRY*)(const void*, const void*))&stricmp);
+}
+template <class T>
+inline T* mapsearcha2(T* map, size_t count, const char* cmd)
+{ return (T*)bsearch(cmd, map, count, sizeof(T), (int(TFNENTRY*)(const void*, const void*))&strabbrevicmp);
 }
 #ifdef __IBMCPP__
 // IBM C work around
 // IBM C cannot deduce the array size from the template argument.
 #define mapsearch(map, arg) mapsearch2((map), sizeof(map) / sizeof *(map), arg)
+#define mapsearcha(map, arg) mapsearcha2((map), sizeof(map) / sizeof *(map), arg)
 #else
 template <size_t I, class T>
 inline T* mapsearch(T (&map)[I], const char* cmd)
 { return (T*)bsearch(cmd, map, I, sizeof(T), (int(TFNENTRY*)(const void*, const void*))&stricmp);
+}
+template <size_t I, class T>
+inline T* mapsearcha(T (&map)[I], const char* cmd)
+{ return (T*)bsearch(cmd, map, I, sizeof(T), (int(TFNENTRY*)(const void*, const void*))&strabbrevicmp);
 }
 #endif
 

@@ -1,5 +1,5 @@
 /*
- * Copyright 2008-2008 M.Mueller
+ * Copyright 2008-2011 M.Mueller
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -36,9 +36,9 @@
 #include <ctype.h>
 
 
-int MenuShowAccel::AccEntry::compareTo(const ACCEL& r) const
-{ int ret = (int)cmd - r.cmd; // sign function not required becaues USHORT may not overflow in int.
-  return ret != 0 ? ret : (fs & (AF_HELP|AF_SYSCOMMAND)) - (r.fs & (AF_HELP|AF_SYSCOMMAND));
+int MenuShowAccel::CompareAccel(const ACCEL& l, const ACCEL& r)
+{ int ret = (int)l.cmd - r.cmd; // sign function not required becaues USHORT may not overflow in int.
+  return ret != 0 ? ret : (l.fs & (AF_HELP|AF_SYSCOMMAND)) - (r.fs & (AF_HELP|AF_SYSCOMMAND));
 }
 
 MenuShowAccel::MenuShowAccel(HACCEL accel)
@@ -53,9 +53,9 @@ MenuShowAccel::MenuShowAccel(HACCEL accel)
   AccData.reserve(acctab->cAccel); 
   ACCEL* ap = acctab->aaccel + acctab->cAccel;
   while (ap-- != acctab->aaccel)
-  { AccEntry*& aep = AccData.get(*ap);
+  { ACCEL*& aep = AccData.get(*ap);
     if (!aep)
-      aep = new AccEntry;
+      aep = new ACCEL;
     (ACCEL&)*aep = *ap; // slicing
   }
 }

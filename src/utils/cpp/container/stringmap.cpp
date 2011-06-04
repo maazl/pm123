@@ -1,5 +1,5 @@
 /*
- * Copyright 2008-2008 M.Mueller
+ * Copyright 2008-2011 M.Mueller
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -30,17 +30,12 @@
 #include "container/stringmap.h"
 
 
-int strkey::compareTo(const xstring& key) const
-{ DEBUGLOG2(("strkey(%p{%s})::compareTo(%s)\n", this, Key.cdata(), key.cdata()));
-  return Key.compareTo(key);
-}
-
-stringmap_own::~stringmap_own()
+stringset_own::~stringset_own()
 { while (size())
     delete erase(size()-1);
 }
 
-stringset_own::~stringset_own()
+stringmap_own::~stringmap_own()
 { while (size())
     delete erase(size()-1);
 }
@@ -50,4 +45,9 @@ stringset_own& stringset_own::operator=(const stringset_own& r)
   prepare_assign(r.size());
   //vector_own_base_copy(*this, r.begin());
   return *this;
+}
+
+
+int strabbrevicmp(const char* str, const char* abbrev)
+{ return strnicmp(str, abbrev, strlen(abbrev));
 }

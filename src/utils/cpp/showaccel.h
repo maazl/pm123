@@ -36,10 +36,11 @@
 /* Automatically append strings with the accelerator keys to the menu items. */
 class MenuShowAccel
 {private:
-  struct AccEntry : public IComparableTo<ACCEL>, public ACCEL
+  /*struct AccEntry : public IComparableTo<ACCEL>, public ACCEL
   { virtual int compareTo(const ACCEL& r) const;
-  };
-  typedef sorted_vector_own<AccEntry, ACCEL> AccList;
+  };*/
+  static int    CompareAccel(const ACCEL& l, const ACCEL& r);
+  typedef sorted_vector_own<ACCEL, ACCEL, &MenuShowAccel::CompareAccel> AccList;
 
  private:
   AccList       AccData;
