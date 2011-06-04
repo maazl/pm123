@@ -400,7 +400,7 @@ decoder_length( void* arg )
   DECODER_STRUCT* w = arg;
 
   if( w->sfinfo.samplerate ) {
-    return 1000.0 * w->sfinfo.frames / w->sfinfo.samplerate;
+    return 1000.0 * w->sfinfo.frames / w->sfinfo.samplerate + .5;
   }
   return 0;
 }
