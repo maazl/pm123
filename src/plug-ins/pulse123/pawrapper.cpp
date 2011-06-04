@@ -260,7 +260,7 @@ throw(PAContextException)
 
   Stream = pa_stream_new_with_proplist(context.GetContext(), name, ss, map, props);
   if (!Stream)
-    throw PAContextException(context.GetContext(), DSTRING().sprintf("Failed to initialize stream %s for context: %s", name, pa_strerror(pa_context_errno(pa_stream_get_context(Stream)))));
+    throw PAContextException(context.GetContext(), DSTRING().sprintf("Failed to initialize stream %s for context: %s", name, pa_strerror(pa_context_errno(context.GetContext()))));
   pa_stream_set_state_callback(Stream, &PAStream::StateCB, this);
 }
 
