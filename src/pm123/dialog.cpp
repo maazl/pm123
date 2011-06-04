@@ -1,8 +1,8 @@
 /*
+ * Copyright 2007-2011 M.Mueller
+ * Copyright 2004-2006 Dmitry A.Steklenev <glass@ptv.ru>
  * Copyright 1997-2003 Samuel Audet <guardia@step.polymtl.ca>
  *                     Taneli Leppä <rosmo@sektori.com>
- * Copyright 2004-2006 Dmitry A.Steklenev <glass@ptv.ru>
- * Copyright 2007-2010 M.Mueller
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -192,7 +192,7 @@ static MRESULT EXPENTRY amp_url_dlg_proc(HWND hwnd, ULONG msg, MPARAM mp1, MPARA
    case WM_INITDLG:
     { rest_window_pos(hwnd);
       // populate drop down list
-      Playable& mru = *GUI::GetUrlMRU();
+      Playable& mru = GUI::GetUrlMRU();
       HWND ctrl = WinWindowFromID(hwnd, ENT_URL);
       int_ptr<PlayableInstance> pi;
       for(;;)
@@ -233,7 +233,7 @@ ULONG DLLENTRY amp_url_wizard( HWND owner, const char* title, DECODER_INFO_ENUME
 { DEBUGLOG(("amp_url_wizard(%x, %s, %p, %p)\n", owner, title, callback, param));
 
   // TODO: das geht gar nicht!
-  GUI::GetUrlMRU()->RequestInfo(IF_Child, PRI_Sync);
+  GUI::GetUrlMRU().RequestInfo(IF_Child, PRI_Sync);
 
   HWND hwnd = WinLoadDlg( HWND_DESKTOP, owner, amp_url_dlg_proc, NULLHANDLE, DLG_URL, 0 );
   if (hwnd == NULLHANDLE)
@@ -251,7 +251,7 @@ ULONG DLLENTRY amp_url_wizard( HWND owner, const char* title, DECODER_INFO_ENUME
   { const xstring& url = amp_get_window_text(WinWindowFromID(hwnd, ENT_URL));
     DEBUGLOG(("amp_url_wizard: %s\n", url.cdata()));
     (*callback)(param, url, NULL, IF_None, IF_None);
-    GUI::Add2MRU(*GUI::GetUrlMRU(), cfg.max_recall, *Playable::GetByURL(url));
+    GUI::Add2MRU(GUI::GetUrlMRU(), cfg.max_recall, *Playable::GetByURL(url));
     ret = 0;
   }
   WinDestroyWindow(hwnd);
@@ -332,7 +332,7 @@ void amp_add_bookmark(HWND owner, APlayable& item)
   if (WinProcessDlg(hdlg) == DID_OK)
   { const xstring& alias = amp_get_window_text(WinWindowFromID(hdlg, EF_BM_DESC));
     // TODO: kein synchrones Wait!!!
-    Playable& p = *GUI::GetDefaultBM();
+    Playable& p = GUI::GetDefaultBM();
     /* TODO: SetAlias gibt es nicht mehr
     if (alias != desc) // Don't set alias if not required.
     { // We have to copy the PlayableRef to modify it.
@@ -351,12 +351,13 @@ void amp_add_bookmark(HWND owner, APlayable& item)
 url123 amp_save_playlist(HWND owner, Playable& playlist, bool saveas)
 {
   ASSERT(playlist.GetInfo().tech->attributes & TATTR_PLAYLIST);
-  // If the item is not saveable revert to save as.
-  if (!(playlist.GetInfo().phys->attributes & PATTR_WRITABLE))
+  // If the item is not saveable or initial revert to save as.
+  if ( !(playlist.GetInfo().phys->attributes & PATTR_WRITABLE)
+      || !playlist.GetInfo().tech->decoder )
     saveas = true;
 
   url123 dest = playlist.URL;
-  xstring decoder = playlist.GetInfo().tech->format;
+  xstring decoder = playlist.GetInfo().tech->decoder;
   xstring format = playlist.GetInfo().tech->format;
   bool relative = true;
 
@@ -405,16 +406,16 @@ url123 amp_save_playlist(HWND owner, Playable& playlist, bool saveas)
     // Deduce decoder and format from file dialog format.
     int dec = amp_decoder_by_type(DECODER_PLAYLIST|DECODER_WRITABLE, filedialog.pszIType, format);
     if (dec == -1)
-    { amp_info(owner, "The format to save cannot be guessed."
-                      " Please select an appropriate format to save in the file dialog.");
+    { amp_info(owner, "The format to save cannot be guessed. "
+                      "Please select an appropriate format to save in the file dialog.");
       goto retry;
     }
-    decoder = Decoders[dec]->GetModuleName();
+    decoder = Decoders[dec]->GetModule().Key;
 
     relative = (filedialog.ulUser & FDU_RELATIV_ON) != 0;
   }
 
-  if (dec_saveplaylist(dest, playlist, decoder, format, relative) != PLUGIN_OK)
+  if (!playlist.Save(dest, decoder, format, relative))
   { amp_error(owner, "Failed to create playlist \"%s\". Error %s.", dest.cdata(), xio_strerror(xio_errno()));
     return xstring();
   }

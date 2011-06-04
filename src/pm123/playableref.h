@@ -31,13 +31,15 @@
 #define PLAYABLEREF_H
 
 #include "aplayable.h"
-#include "playableset.h"
 #include "collectioninfocache.h"
 #include <cpp/event.h>
 #include <cpp/smartptr.h>
 #include <cpp/xstring.h>
 #include <cpp/cpputil.h>
 
+
+class PlayableSetBase;
+class OwnedPlayableSet;
 
 struct CollectionChangeArgs;
 /** PlayableSlice := Playable object together with a start and stop position.
@@ -53,11 +55,9 @@ class PlayableSlice : public APlayable
   };
 
   /// Aggregate info cache of \c PlayableSlice in case Start or Stop is not initial.
-  class CICache : public CollectionInfoCache
-  {public:
-    /// Aggregate info without exclusions
-    AggregateInfo           DefaultInfo;
-   public:
+  struct CICache : public CollectionInfoCache
+  { /// Aggregate info without exclusions
+    CollectionInfo          DefaultInfo;
     /// Create aggregate info cache for a playable object
     CICache(Playable& p)    : CollectionInfoCache(p), DefaultInfo(PlayableSetBase::Empty) {};
     /// Check whether an Aggregate info structure is owned by this instance.
@@ -81,7 +81,7 @@ class PlayableSlice : public APlayable
   // StartCache and StopCache MUST have RefTo->GetPlayable() as root.
   volatile mutable int_ptr<Location> StartCache;
   volatile mutable int_ptr<Location> StopCache;
-          sco_ptr<CICache>   CIC;
+          sco_ptr<CICache>  CIC;
   class_delegate<PlayableSlice, const PlayableChangeArgs> InfoDeleg;
   //class_delegate<PlayableSlice, const CollectionChangeArgs> CollectionDeleg;
 
@@ -139,6 +139,9 @@ class PlayableSlice : public APlayable
   // This functions are only valid if IF_Slice has already been requested.
   virtual int_ptr<Location> GetStartLoc() const;
   virtual int_ptr<Location> GetStopLoc() const;
+
+  /// Access to request state for diagnostic purposes (may be slow).
+  virtual void              PeekRequest(RequestState& req) const;
 
   #ifdef DEBUG_LOG
           xstring           DebugName() const;

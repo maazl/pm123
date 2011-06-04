@@ -1,9 +1,9 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
-<html resid="1027" level="3" sublinks="id3edit.html"><head>
-  <title>Inspector Window</title>
+<html resid="1027" level="3" sublinks="id3edit.html"><head><title>Inspector Window</title>
+
+  
   <link rel="stylesheet" href="../common/infstyle.css" type="text/css">
-<meta content="Marcel M&uuml;ller" name="author"></head>
-<body>
+<meta content="Marcel Müller" name="author"></head><body>
 <h2>PM123's Inspector Window</h2>
 <p>The Inspector Window tells you what is currently going on in
 the PM123 engine. Normally you should not need it. It is activated by
@@ -32,33 +32,48 @@ Seek), <kbd>Load</kbd> or <kbd>LocationQuery</kbd>
 <p>The controller queue is always executed strictly in order.</p>
 <h3>Worker Queue</h3>
 <p>The Worker Queue is used to obtain certain informations about
-any kind of playable objects. The Syntax is: <kbd><var>F</var>[<var>QQQQQQ</var>
--&gt; <var>WWWWWW</var>] <var>URL</var></kbd>.</p>
+any kind of playable objects. The Syntax is: <kbd><var>F</var>[<var>QQQQQQQQQQ</var>
+-&gt; <var>WWWWWWWWWW</var>] <var>URL</var></kbd>.</p>
 <dl>
 <dt><kbd><var>F</var></kbd>&nbsp;-
 flag</dt>
 <dd><kbd>*</kbd>&nbsp;- currently in work by a
-worker thread<br>
-<kbd>-</kbd>&nbsp;- to do later</dd>
-<dt><kbd><var>QQQQQQ</var></kbd>&nbsp;-
+worker thread</dd><dd><kbd>+</kbd> - The item depends on other items and is rescheduled later.<br>
+<kbd>-</kbd>&nbsp;- No worker is currently available. To do later.<br>
+  </dd>
+
+<dt><kbd><var>QQQQQQQQQQ</var></kbd>&nbsp;-
 request flags</dt>
-<dd>Kind of information that is requested: <kbd>ftmpro</kbd><br>
-<kbd>f</kbd>&nbsp;- format (sampling rate, channels)<br>
-<kbd>t</kbd>&nbsp;- technical information like bit
-rate and playing time<br>
-<kbd>m</kbd>&nbsp;- meta information like artist
-and title<br>
-<kbd>p</kbd>&nbsp;- physical
+<dd>Kind of information that is requested: <kbd>ptomacrdis</kbd><br>
+
+    <kbd>p</kbd>&nbsp;- physical
 information&nbsp;like file size<br>
-<kbd>r</kbd>&nbsp;- recursive playlist information<br>
-<kbd>o</kbd>&nbsp;- others like playlist content<br>
+    <kbd>t</kbd>&nbsp;- technical information like bit
+rate and number of channels<br>
+
+
+    <kbd>o</kbd> - object information like playing time<br>
+
+
+
+    <kbd></kbd><kbd>m</kbd>&nbsp;- meta information like artist
+and title</dd><dd><kbd></kbd><kbd>a</kbd> - attribute information like last playing position</dd>
+  <dd>
+
+
+    <kbd></kbd><kbd>c</kbd> - children (playlist content)<br><kbd>r</kbd>&nbsp;- recursive playlist information like total number of songs<br>
+  </dd>
+  <dd><kbd>d</kbd> - detailed recursive playlist information like total playing time<br>
+<kbd>i</kbd> - playlist item information like start position and alias name</dd>
+  <dd><kbd>s</kbd> - slice information (effective start and stop position)<br>
 <em>Uppercase</em> letters are <em>high priority
 requests</em> where a user is likely to be waiting for. E.g. when
 an item is loaded into the player.</dd>
-<dt><kbd><var>WWWWWW</var></kbd>&nbsp;-
+
+<dt><kbd><var>WWWWWWWWWW</var></kbd>&nbsp;-
 in work flags</dt>
 <dd>The second block identifies the kind of information that is
-currently in work. It uses the same format <kbd>FTMPRO</kbd>
+currently in work. It uses the same format <kbd>PTOMACRDIS</kbd>
 as the request flags. Sometimes the information in work is more than
 requested. E.g. it might be cheap to return format information if only
 the total playing time is requested.</dd>

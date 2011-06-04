@@ -30,6 +30,7 @@
 									<listOptionValue builtIn="false" value="INCL_PM=1"/>
 									<listOptionValue builtIn="false" value="INCL_WIN=1"/>
 									<listOptionValue builtIn="false" value="_System"/>
+									<listOptionValue builtIn="false" value="INCL_ERRORS=1"/>
 								</option>
 								<inputType id="cdt.managedbuild.tool.gnu.cpp.compiler.input.1064498119" superClass="cdt.managedbuild.tool.gnu.cpp.compiler.input"/>
 							</tool>
@@ -298,6 +299,7 @@
 					</profile>
 				</scannerConfigBuildInfo>
 			</storageModule>
+			<storageModule moduleId="org.eclipse.cdt.internal.ui.text.commentOwnerProjectMappings"/>
 		</cconfiguration>
 	</storageModule>
 	<storageModule moduleId="cdtBuildSystem" version="4.0.0">

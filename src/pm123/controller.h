@@ -32,19 +32,16 @@
 
 
 #include "aplayable.h"
-#include "location.h"
-#include "glue.h"
-
-#include <decoder_plug.h>
 
 #include <cpp/queue.h>
 #include <cpp/xstring.h>
 #include <cpp/event.h>
-#include <cpp/mutex.h>
 #include <cpp/cpputil.h>
 
 #include <debuglog.h>
 
+
+class SongIterator;
 
 /* PM123 controller class.
  * All playback activities are controlled by this class.
@@ -207,29 +204,13 @@ class Ctrl
     EV_Song     = 0x00100000, // The current song has changed.
   };
   
- private:
+ protected:
   struct QEntry : qentry
   { ControlCommand*           Cmd;
     QEntry(ControlCommand* cmd) : Cmd(cmd) {}
   };
-  struct PrefetchEntry
-  { PM123_TIME                Offset;        // Starting time index from the output's point of view.
-    SongIterator              Loc;           // Location that points to the song that starts at this position.
-    //PrefetchEntry() : Offset(0) {}
-    PrefetchEntry(PM123_TIME offset, const SongIterator& loc) : Offset(offset), Loc(loc) {}
-  };
-
-  /*struct ControlEventArgs
-  { ControlEventFlags Flags;
-  };*/
 
  private: // working set
-  // List of prefetched iterators.
-  // The first entry is always the current iterator if a enumerable object is loaded.
-  // Write access to this list is only done by the controller thread.
-  static vector<PrefetchEntry> PrefetchList;
-  static Mutex                PLMtx;                 // Mutex to protect the above list.
-
   static bool                 Playing;               // True if a song is currently playing (not decoding)
   static bool                 Paused;                // True if the current song is paused
   static DECFASTMODE          Scan;                  // Current scan mode
@@ -239,106 +220,9 @@ class Ctrl
   static bool                 Repeat;                // Repeat flag
 
   static queue<QEntry>        Queue;                 // Command queue of the controller (all messages pass this queue)
-  static TID                  WorkerTID;             // Thread ID of the worker
-  static ControlCommand*      CurCmd;                // Currently processed ControlCommand, protected by Queue.Mtx
-
-  static AtomicUnsigned       Pending;               // Pending events
-  // These events are set atomically from any thread.
-  // After each last message of a queued set of messages the events are raised and Pending is atomically reset.
 
   static event<const EventFlags> ChangeEvent;
 
-  // Delegates for the tracked events of the decoder, the output and the current song.  
-  static delegate<void, const dec_event_args>        DecEventDelegate;
-  static delegate<void, const OUTEVENTTYPE>          OutEventDelegate;
-  //static delegate<void, const PlayableChangeArgs>    CurrentSongDelegate;
-  static delegate<void, const PlayableChangeArgs>    CurrentRootDelegate;
-  //static delegate<void, const CallstackEntry>        SongIteratorDelegate;
-
-  // Occasionally used constants.
-  static const vector_int<PlayableInstance> EmptyStack;
-
- private: // internal functions, not thread safe
-  // Returns the current PrefetchEntry. I.e. the currently playing (or not playing) iterator.
-  // Precondition: an object must have been loaded.
-  static PrefetchEntry* Current() { return PrefetchList[0]; }
-  // Applies the operator op to flag and returns true if the flag has been changed.
-  static bool  SetFlag(bool& flag, Op op);
-  // Sets the volume according to this->Volume and the scan mode.
-  static void  SetVolume();
-  // Initializes the decoder engine and starts playback of the song pp with a time offset for the output.
-  // The function returns the result of dec_play.
-  // Precondition: The output must have been initialized.
-  // The function does not return unless the decoder is decoding or an error occurred.
-  static ULONG DecoderStart(APlayable& ps, PM123_TIME offset);
-  // Stops decoding and deinitializes the decoder plug-in.
-  static void  DecoderStop();
-  // Initializes the output for playing pp.
-  // The playable object is needed for naming purposes.
-  static ULONG OutputStart(APlayable& pp);
-  // Stops playback and clears the prefetch list.
-  static void  OutputStop();
-  // Updates the in-use status of PlayableInstance objects in the callstack by moving from oldstack to newstack.
-  // The status of common parts of the two stacks is not touched. 
-  // To set the in-use status initially pass EmptyStack as oldstack.
-  // To reset all in-use status pass EmptyStack as newstack.
-  static void  UpdateStackUsage(const vector<PlayableInstance>& oldstack, const vector<PlayableInstance>& newstack);
-  // Internal sub function to UpdateStackUsage
-  static void  SetStackUsage(PlayableInstance*const* rbegin, PlayableInstance*const* rend, bool set);
-  // Core logic of MsgSkip.
-  // Move the current song pointer by count items if relative is true or to item number 'count' if relative is false.
-  // If we try to move the current song pointer out of the range of the that that si relies on,
-  // the function returns false and si is in reset state.
-  // The function is side effect free and only operates on si.
-  static bool  SkipCore(Location& si, int count, bool relative);
-  // Ensure that a SongIterator really points to a valid song by moving the iterator forward as required.
-  static bool  AdjustNext(Location& si);
-  // Jump to the location si. The function will destroy the content of si.
-  static RC    NavigateCore(Location& si);
-  // Register events to a new current song and request some information if not yet known.
-  //static void  AttachCurrentSong(APlayable& ps);
-  // Clears the prefetch list and keep the first element if keep is true.
-  // The operation is atomic.
-  static void  PrefetchClear(bool keep);
-  // Check whether a prefetched item is completed.
-  // This is the case when the offset of the next item in PrefetchList is less than or equal to pos.
-  // In case a prefetch entry is removed from PrefetchList the in-use status is refreshed and the song
-  // change event is set.
-  static void  CheckPrefetch(PM123_TIME pos);
-  // Get the time in the current Song. This may cleanup the prefetch list by calling CheckPrefetch.
-  static PM123_TIME FetchCurrentSongTime();
-  // Internal stub to provide the TFNENTRY calling convention for _beginthread.
-  friend void TFNENTRY ControllerWorkerStub(void*);
-  // Worker thread that processes the message queue.
-  static void  Worker();
-  // Event handler for decoder events.
-  static void  DecEventHandler(void*, const dec_event_args& args);
-  // Event handler for output events.
-  static void  OutEventHandler(void*, const OUTEVENTTYPE& event);
-  // Event handler for tracking modifications of the currently playing song.
-  static void  CurrentSongEventHandler(void*, const PlayableChangeArgs& args);
-  // Event handler for tracking modifications of the currently loaded object.
-  static void  CurrentRootEventHandler(void*, const PlayableChangeArgs& args);
-  // Event handler for asynchronuous changes to the songiterator (not any prefetched one).
-  //static void  SongIteratorEventHandler(void*, const CallstackEntry& ce);
- private: // messages handlers, not thread safe
-  // The messages are descibed above before the class header.
-  static RC    MsgPause(Op op);
-  static RC    MsgScan(Op op);
-  static RC    MsgVolume(double volume, bool relative);
-  static RC    MsgNavigate(const xstring& iter, PM123_TIME loc, int flags);
-  static RC    MsgJump(Location& iter);
-  static RC    MsgStopAt(const xstring& iter, PM123_TIME loc, int flags);
-  static RC    MsgPlayStop(Op op);
-  static RC    MsgSkip(int count, bool relative);
-  static RC    MsgLoad(const xstring& url, int flags);
-  static RC    MsgSave(const xstring& filename);
-  static RC    MsgShuffle(Op op);
-  static RC    MsgRepeat(Op op);
-  static RC    MsgLocation(SongIterator* sip, int flags);
-  static RC    MsgDecStop();
-  static RC    MsgOutStop();
- 
  public: // management interface, not thread safe
   // initialize controller
   static void  Init();
@@ -421,7 +305,7 @@ class Ctrl
   { return new ControlCommand(Cmd_Save, filename, 0., 0); }
   static ControlCommand* MkLocation(SongIterator* sip, char what)
   { return new ControlCommand(Cmd_Location, xstring(), sip, what); }
- private: // internal messages
+ protected: // internal messages
   static ControlCommand* MkDecStop()
   { return new ControlCommand(Cmd_DecStop, xstring(), (void*)NULL, 0); }
   static ControlCommand* MkOutStop()
@@ -435,12 +319,6 @@ class Ctrl
  public: // debug interface
   static void QueueTraverse(void (*action)(const ControlCommand& cmd, void* arg), void* arg);
   //{ Queue.ForEach(action, arg); }
- private:
-  struct QueueTraverseProxyData
-  { void  (*Action)(const Ctrl::ControlCommand& cmd, void* arg);
-    void* Arg;
-  };
-  static void QueueTraverseProxy(const Ctrl::QEntry& entry, void* arg);
 };
 FLAGSATTRIBUTE(Ctrl::EventFlags);
 

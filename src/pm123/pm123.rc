@@ -34,348 +34,19 @@
 
 #include "pm123.rc.h"
 #include "copyright.h"
+#include <utilfct.h>
 
-/* Small digits. */
-BITMAP DIG_SMALL        bmp\small_digit0.bmp
-BITMAP (DIG_SMALL+1)    bmp\small_digit1.bmp
-BITMAP (DIG_SMALL+2)    bmp\small_digit2.bmp
-BITMAP (DIG_SMALL+3)    bmp\small_digit3.bmp
-BITMAP (DIG_SMALL+4)    bmp\small_digit4.bmp
-BITMAP (DIG_SMALL+5)    bmp\small_digit5.bmp
-BITMAP (DIG_SMALL+6)    bmp\small_digit6.bmp
-BITMAP (DIG_SMALL+7)    bmp\small_digit7.bmp
-BITMAP (DIG_SMALL+8)    bmp\small_digit8.bmp
-BITMAP (DIG_SMALL+9)    bmp\small_digit9.bmp
+#ifndef RC_INVOKED
+// Keep Eclipse CDT happy
+#define CONTROL AF_CONTROL
+#define SHIFT AF_SHIFT
+#define ALT AF_ALT
+#define VIRTUALKEY AF_VIRTUALKEY
+#define SCANCODE AF_SCANCODE
+#define BEGIN {
+#define END }
+#endif
 
-/* Big digits. */
-BITMAP DIG_BIG          bmp\digit0.bmp
-BITMAP (DIG_BIG+1)      bmp\digit1.bmp
-BITMAP (DIG_BIG+2)      bmp\digit2.bmp
-BITMAP (DIG_BIG+3)      bmp\digit3.bmp
-BITMAP (DIG_BIG+4)      bmp\digit4.bmp
-BITMAP (DIG_BIG+5)      bmp\digit5.bmp
-BITMAP (DIG_BIG+6)      bmp\digit6.bmp
-BITMAP (DIG_BIG+7)      bmp\digit7.bmp
-BITMAP (DIG_BIG+8)      bmp\digit8.bmp
-BITMAP (DIG_BIG+9)      bmp\digit9.bmp
-BITMAP (DIG_BIG+10)     bmp\dotdot.bmp
-BITMAP (DIG_BIG+11)     bmp\nodotdot.bmp
-
-/* Digits for playlist total/index displays. */
-BITMAP DIG_PL_INDEX     bmp\small_digit0.bmp
-BITMAP (DIG_PL_INDEX+1) bmp\small_digit1.bmp
-BITMAP (DIG_PL_INDEX+2) bmp\small_digit2.bmp
-BITMAP (DIG_PL_INDEX+3) bmp\small_digit3.bmp
-BITMAP (DIG_PL_INDEX+4) bmp\small_digit4.bmp
-BITMAP (DIG_PL_INDEX+5) bmp\small_digit5.bmp
-BITMAP (DIG_PL_INDEX+6) bmp\small_digit6.bmp
-BITMAP (DIG_PL_INDEX+7) bmp\small_digit7.bmp
-BITMAP (DIG_PL_INDEX+8) bmp\small_digit8.bmp
-BITMAP (DIG_PL_INDEX+9) bmp\small_digit9.bmp
-BITMAP (DIG_PL_INDEX+10) bmp\small_digit0dark.bmp
-
-/* Digits for time and playlist left timers. */
-BITMAP DIG_TINY         bmp\small_digit0.bmp
-BITMAP (DIG_TINY+1)     bmp\small_digit1.bmp
-BITMAP (DIG_TINY+2)     bmp\small_digit2.bmp
-BITMAP (DIG_TINY+3)     bmp\small_digit3.bmp
-BITMAP (DIG_TINY+4)     bmp\small_digit4.bmp
-BITMAP (DIG_TINY+5)     bmp\small_digit5.bmp
-BITMAP (DIG_TINY+6)     bmp\small_digit6.bmp
-BITMAP (DIG_TINY+7)     bmp\small_digit7.bmp
-BITMAP (DIG_TINY+8)     bmp\small_digit8.bmp
-BITMAP (DIG_TINY+9)     bmp\small_digit9.bmp
-BITMAP (DIG_TINY+10)    bmp\small_digitd.bmp
-BITMAP (DIG_TINY+11)    bmp\small_digit0dark.bmp
-BITMAP (DIG_TINY+12)    bmp\small_digitddark.bmp
-
-/* Buttons. */
-BITMAP BMP_PLAY         bmp\play_down.bmp
-BITMAP BMP_PAUSE        bmp\pause_down.bmp
-BITMAP BMP_REW          bmp\rew_down.bmp
-BITMAP BMP_FWD          bmp\fwd_down.bmp
-BITMAP BMP_POWER        bmp\power_down.bmp
-BITMAP BMP_PREV         bmp\prev_down.bmp
-BITMAP BMP_NEXT         bmp\next_down.bmp
-BITMAP BMP_SHUFFLE      bmp\shuffle_down.bmp
-BITMAP BMP_REPEAT       bmp\repeat_down.bmp
-BITMAP BMP_PL           bmp\list_down.bmp
-BITMAP BMP_FLOAD        bmp\fload_down.bmp
-
-BITMAP BMP_N_PLAY       bmp\play_up.bmp
-BITMAP BMP_N_PAUSE      bmp\pause_up.bmp
-BITMAP BMP_N_REW        bmp\rew_up.bmp
-BITMAP BMP_N_FWD        bmp\fwd_up.bmp
-BITMAP BMP_N_POWER      bmp\power_up.bmp
-BITMAP BMP_N_PREV       bmp\prev_up.bmp
-BITMAP BMP_N_NEXT       bmp\next_up.bmp
-BITMAP BMP_N_SHUFFLE    bmp\shuffle_up.bmp
-BITMAP BMP_N_REPEAT     bmp\repeat_up.bmp
-BITMAP BMP_N_PL         bmp\list_up.bmp
-BITMAP BMP_N_FLOAD      bmp\fload_up.bmp
-
-/* Font 1 */
-BITMAP BMP_FONT1        bmp\font1\a.bmp
-BITMAP (BMP_FONT1+1)    bmp\font1\b.bmp
-BITMAP (BMP_FONT1+2)    bmp\font1\c.bmp
-BITMAP (BMP_FONT1+3)    bmp\font1\d.bmp
-BITMAP (BMP_FONT1+4)    bmp\font1\e.bmp
-BITMAP (BMP_FONT1+5)    bmp\font1\f.bmp
-BITMAP (BMP_FONT1+6)    bmp\font1\g.bmp
-BITMAP (BMP_FONT1+7)    bmp\font1\h.bmp
-BITMAP (BMP_FONT1+8)    bmp\font1\i.bmp
-BITMAP (BMP_FONT1+9)    bmp\font1\j.bmp
-BITMAP (BMP_FONT1+10)   bmp\font1\k.bmp
-BITMAP (BMP_FONT1+11)   bmp\font1\l.bmp
-BITMAP (BMP_FONT1+12)   bmp\font1\m.bmp
-BITMAP (BMP_FONT1+13)   bmp\font1\n.bmp
-BITMAP (BMP_FONT1+14)   bmp\font1\o.bmp
-BITMAP (BMP_FONT1+15)   bmp\font1\p.bmp
-BITMAP (BMP_FONT1+16)   bmp\font1\q.bmp
-BITMAP (BMP_FONT1+17)   bmp\font1\r.bmp
-BITMAP (BMP_FONT1+18)   bmp\font1\s.bmp
-BITMAP (BMP_FONT1+19)   bmp\font1\t.bmp
-BITMAP (BMP_FONT1+20)   bmp\font1\u.bmp
-BITMAP (BMP_FONT1+21)   bmp\font1\v.bmp
-BITMAP (BMP_FONT1+22)   bmp\font1\w.bmp
-BITMAP (BMP_FONT1+23)   bmp\font1\x.bmp
-BITMAP (BMP_FONT1+24)   bmp\font1\y.bmp
-BITMAP (BMP_FONT1+25)   bmp\font1\z.bmp
-BITMAP (BMP_FONT1+26)   bmp\font1\line.bmp
-BITMAP (BMP_FONT1+27)   bmp\font1\_.bmp
-BITMAP (BMP_FONT1+28)   bmp\font1\et.bmp
-BITMAP (BMP_FONT1+29)   bmp\font1\dot.bmp
-BITMAP (BMP_FONT1+30)   bmp\font1\sdigit0.bmp
-BITMAP (BMP_FONT1+31)   bmp\font1\sdigit1.bmp
-BITMAP (BMP_FONT1+32)   bmp\font1\sdigit2.bmp
-BITMAP (BMP_FONT1+33)   bmp\font1\sdigit3.bmp
-BITMAP (BMP_FONT1+34)   bmp\font1\sdigit4.bmp
-BITMAP (BMP_FONT1+35)   bmp\font1\sdigit5.bmp
-BITMAP (BMP_FONT1+36)   bmp\font1\sdigit6.bmp
-BITMAP (BMP_FONT1+37)   bmp\font1\sdigit7.bmp
-BITMAP (BMP_FONT1+38)   bmp\font1\sdigit8.bmp
-BITMAP (BMP_FONT1+39)   bmp\font1\sdigit9.bmp
-BITMAP (BMP_FONT1+40)   bmp\font1\space.bmp
-BITMAP (BMP_FONT1+41)   bmp\font1\parenl.bmp
-BITMAP (BMP_FONT1+42)   bmp\font1\parenr.bmp
-BITMAP (BMP_FONT1+43)   bmp\font1\ae.bmp
-BITMAP (BMP_FONT1+44)   bmp\font1\oe.bmp
-BITMAP (BMP_FONT1+45)   bmp\font1\fl.bmp
-BITMAP (BMP_FONT1+46)   bmp\font1\plat.bmp
-BITMAP (BMP_FONT1+47)   bmp\font1\plus.bmp
-BITMAP (BMP_FONT1+48)   bmp\font1\percent.bmp
-BITMAP (BMP_FONT1+49)   bmp\font1\2parenl.bmp
-BITMAP (BMP_FONT1+50)   bmp\font1\2parenr.bmp
-
-/* Cyrillic letters */
-BITMAP (BMP_FONT1+54)   bmp\font1\a.bmp
-BITMAP (BMP_FONT1+55)   bmp\font1\cyr_b.bmp
-BITMAP (BMP_FONT1+56)   bmp\font1\cyr_v.bmp
-BITMAP (BMP_FONT1+57)   bmp\font1\cyr_g.bmp
-BITMAP (BMP_FONT1+58)   bmp\font1\cyr_d.bmp
-BITMAP (BMP_FONT1+59)   bmp\font1\e.bmp
-BITMAP (BMP_FONT1+60)   bmp\font1\cyr_zh.bmp
-BITMAP (BMP_FONT1+61)   bmp\font1\sdigit3.bmp
-BITMAP (BMP_FONT1+62)   bmp\font1\cyr_i.bmp
-BITMAP (BMP_FONT1+63)   bmp\font1\cyr_j.bmp
-BITMAP (BMP_FONT1+64)   bmp\font1\k.bmp
-BITMAP (BMP_FONT1+65)   bmp\font1\cyr_l.bmp
-BITMAP (BMP_FONT1+66)   bmp\font1\cyr_m.bmp
-BITMAP (BMP_FONT1+67)   bmp\font1\cyr_n.bmp
-BITMAP (BMP_FONT1+68)   bmp\font1\o.bmp
-BITMAP (BMP_FONT1+69)   bmp\font1\cyr_p.bmp
-BITMAP (BMP_FONT1+70)   bmp\font1\p.bmp
-BITMAP (BMP_FONT1+71)   bmp\font1\c.bmp
-BITMAP (BMP_FONT1+72)   bmp\font1\t.bmp
-BITMAP (BMP_FONT1+73)   bmp\font1\y.bmp
-BITMAP (BMP_FONT1+74)   bmp\font1\cyr_f.bmp
-BITMAP (BMP_FONT1+75)   bmp\font1\x.bmp
-BITMAP (BMP_FONT1+76)   bmp\font1\cyr_ts.bmp
-BITMAP (BMP_FONT1+77)   bmp\font1\sdigit4.bmp
-BITMAP (BMP_FONT1+78)   bmp\font1\cyr_sh.bmp
-BITMAP (BMP_FONT1+79)   bmp\font1\cyr_tsh.bmp
-BITMAP (BMP_FONT1+80)   bmp\font1\cyr_tb.bmp
-BITMAP (BMP_FONT1+81)   bmp\font1\cyr_y.bmp
-BITMAP (BMP_FONT1+82)   bmp\font1\cyr_b.bmp
-BITMAP (BMP_FONT1+83)   bmp\font1\cyr_e.bmp
-BITMAP (BMP_FONT1+84)   bmp\font1\cyr_u.bmp
-BITMAP (BMP_FONT1+85)   bmp\font1\cyr_ya.bmp
-BITMAP (BMP_FONT1+86)   bmp\font1\a.bmp
-BITMAP (BMP_FONT1+87)   bmp\font1\cyr_b.bmp
-BITMAP (BMP_FONT1+88)   bmp\font1\cyr_v.bmp
-BITMAP (BMP_FONT1+89)   bmp\font1\cyr_g.bmp
-BITMAP (BMP_FONT1+90)   bmp\font1\cyr_d.bmp
-BITMAP (BMP_FONT1+91)   bmp\font1\e.bmp
-BITMAP (BMP_FONT1+92)   bmp\font1\cyr_zh.bmp
-BITMAP (BMP_FONT1+93)   bmp\font1\sdigit3.bmp
-BITMAP (BMP_FONT1+94)   bmp\font1\cyr_i.bmp
-BITMAP (BMP_FONT1+95)   bmp\font1\cyr_j.bmp
-BITMAP (BMP_FONT1+96)   bmp\font1\k.bmp
-BITMAP (BMP_FONT1+97)   bmp\font1\cyr_l.bmp
-BITMAP (BMP_FONT1+98)   bmp\font1\cyr_m.bmp
-BITMAP (BMP_FONT1+99)   bmp\font1\cyr_n.bmp
-BITMAP (BMP_FONT1+100)  bmp\font1\o.bmp
-BITMAP (BMP_FONT1+101)  bmp\font1\cyr_p.bmp
-BITMAP (BMP_FONT1+150)  bmp\font1\p.bmp
-BITMAP (BMP_FONT1+151)  bmp\font1\c.bmp
-BITMAP (BMP_FONT1+152)  bmp\font1\t.bmp
-BITMAP (BMP_FONT1+153)  bmp\font1\y.bmp
-BITMAP (BMP_FONT1+154)  bmp\font1\cyr_f.bmp
-BITMAP (BMP_FONT1+155)  bmp\font1\x.bmp
-BITMAP (BMP_FONT1+156)  bmp\font1\cyr_ts.bmp
-BITMAP (BMP_FONT1+157)  bmp\font1\sdigit4.bmp
-BITMAP (BMP_FONT1+158)  bmp\font1\cyr_sh.bmp
-BITMAP (BMP_FONT1+159)  bmp\font1\cyr_tsh.bmp
-BITMAP (BMP_FONT1+160)  bmp\font1\cyr_tb.bmp
-BITMAP (BMP_FONT1+161)  bmp\font1\cyr_y.bmp
-BITMAP (BMP_FONT1+162)  bmp\font1\cyr_mb.bmp
-BITMAP (BMP_FONT1+163)  bmp\font1\cyr_e.bmp
-BITMAP (BMP_FONT1+164)  bmp\font1\cyr_u.bmp
-BITMAP (BMP_FONT1+165)  bmp\font1\cyr_ya.bmp
-BITMAP (BMP_FONT1+166)  bmp\font1\cyr_ye.bmp
-BITMAP (BMP_FONT1+167)  bmp\font1\cyr_ye.bmp
-
-/* Font 2 */
-BITMAP BMP_FONT2        bmp\font2\a.bmp
-BITMAP (BMP_FONT2+1)    bmp\font2\b.bmp
-BITMAP (BMP_FONT2+2)    bmp\font2\c.bmp
-BITMAP (BMP_FONT2+3)    bmp\font2\d.bmp
-BITMAP (BMP_FONT2+4)    bmp\font2\e.bmp
-BITMAP (BMP_FONT2+5)    bmp\font2\f.bmp
-BITMAP (BMP_FONT2+6)    bmp\font2\g.bmp
-BITMAP (BMP_FONT2+7)    bmp\font2\h.bmp
-BITMAP (BMP_FONT2+8)    bmp\font2\i.bmp
-BITMAP (BMP_FONT2+9)    bmp\font2\j.bmp
-BITMAP (BMP_FONT2+10)   bmp\font2\k.bmp
-BITMAP (BMP_FONT2+11)   bmp\font2\l.bmp
-BITMAP (BMP_FONT2+12)   bmp\font2\m.bmp
-BITMAP (BMP_FONT2+13)   bmp\font2\n.bmp
-BITMAP (BMP_FONT2+14)   bmp\font2\o.bmp
-BITMAP (BMP_FONT2+15)   bmp\font2\p.bmp
-BITMAP (BMP_FONT2+16)   bmp\font2\q.bmp
-BITMAP (BMP_FONT2+17)   bmp\font2\r.bmp
-BITMAP (BMP_FONT2+18)   bmp\font2\s.bmp
-BITMAP (BMP_FONT2+19)   bmp\font2\t.bmp
-BITMAP (BMP_FONT2+20)   bmp\font2\u.bmp
-BITMAP (BMP_FONT2+21)   bmp\font2\v.bmp
-BITMAP (BMP_FONT2+22)   bmp\font2\w.bmp
-BITMAP (BMP_FONT2+23)   bmp\font2\x.bmp
-BITMAP (BMP_FONT2+24)   bmp\font2\y.bmp
-BITMAP (BMP_FONT2+25)   bmp\font2\z.bmp
-BITMAP (BMP_FONT2+26)   bmp\font2\line.bmp
-BITMAP (BMP_FONT2+27)   bmp\font2\_.bmp
-BITMAP (BMP_FONT2+28)   bmp\font2\et.bmp
-BITMAP (BMP_FONT2+29)   bmp\font2\dot.bmp
-BITMAP (BMP_FONT2+30)   bmp\font2\sdigit0.bmp
-BITMAP (BMP_FONT2+31)   bmp\font2\sdigit1.bmp
-BITMAP (BMP_FONT2+32)   bmp\font2\sdigit2.bmp
-BITMAP (BMP_FONT2+33)   bmp\font2\sdigit3.bmp
-BITMAP (BMP_FONT2+34)   bmp\font2\sdigit4.bmp
-BITMAP (BMP_FONT2+35)   bmp\font2\sdigit5.bmp
-BITMAP (BMP_FONT2+36)   bmp\font2\sdigit6.bmp
-BITMAP (BMP_FONT2+37)   bmp\font2\sdigit7.bmp
-BITMAP (BMP_FONT2+38)   bmp\font2\sdigit8.bmp
-BITMAP (BMP_FONT2+39)   bmp\font2\sdigit9.bmp
-BITMAP (BMP_FONT2+40)   bmp\font2\space.bmp
-BITMAP (BMP_FONT2+41)   bmp\font2\parenl.bmp
-BITMAP (BMP_FONT2+42)   bmp\font2\parenr.bmp
-BITMAP (BMP_FONT2+43)   bmp\font2\ae.bmp
-BITMAP (BMP_FONT2+44)   bmp\font2\oe.bmp
-BITMAP (BMP_FONT2+45)   bmp\font2\fl.bmp
-BITMAP (BMP_FONT2+46)   bmp\font2\plat.bmp
-BITMAP (BMP_FONT2+47)   bmp\font2\plus.bmp
-BITMAP (BMP_FONT2+48)   bmp\font2\percent.bmp
-BITMAP (BMP_FONT2+49)   bmp\font2\2parenl.bmp
-BITMAP (BMP_FONT2+50)   bmp\font2\2parenr.bmp
-
-/* Misc. */
-BITMAP BMP_LED          bmp\led.bmp
-BITMAP BMP_N_LED        bmp\noled.bmp
-BITMAP BMP_STEREO       bmp\stereo.bmp
-BITMAP BMP_MONO         bmp\mono.bmp
-BITMAP BMP_NO_CHANNELS  bmp\nochannels.bmp
-BITMAP BMP_ALTSLIDER    bmp\altslider.bmp
-BITMAP BMP_SLIDER       bmp\slider.bmp
-BITMAP BMP_S_BGROUND    bmp\smallbg.bmp
-BITMAP BMP_VOLBAR       bmp\volbar.bmp
-BITMAP BMP_SINGLEPLAY   bmp\singleplay.bmp
-BITMAP BMP_LISTPLAY     bmp\listplay.bmp
-BITMAP BMP_NOFILE       bmp\nofile.bmp
-
-BITMAP BMP_BPS          bmp\norate.bmp
-BITMAP (BMP_BPS+1)      bmp\bps032.bmp
-BITMAP (BMP_BPS+2)      bmp\bps048.bmp
-BITMAP (BMP_BPS+3)      bmp\bps056.bmp
-BITMAP (BMP_BPS+4)      bmp\bps064.bmp
-BITMAP (BMP_BPS+5)      bmp\bps080.bmp
-BITMAP (BMP_BPS+6)      bmp\bps096.bmp
-BITMAP (BMP_BPS+7)      bmp\bps112.bmp
-BITMAP (BMP_BPS+8)      bmp\bps128.bmp
-BITMAP (BMP_BPS+9)      bmp\bps144.bmp
-BITMAP (BMP_BPS+10)     bmp\bps160.bmp
-BITMAP (BMP_BPS+11)     bmp\bps176.bmp
-BITMAP (BMP_BPS+12)     bmp\bps192.bmp
-BITMAP (BMP_BPS+13)     bmp\bps224.bmp
-BITMAP (BMP_BPS+14)     bmp\bps256.bmp
-BITMAP (BMP_BPS+15)     bmp\bps320.bmp
-
-BITMAP DIG_BPS          bmp\bps0.bmp
-BITMAP (DIG_BPS+1)      bmp\bps1.bmp
-BITMAP (DIG_BPS+2)      bmp\bps2.bmp
-BITMAP (DIG_BPS+3)      bmp\bps3.bmp
-BITMAP (DIG_BPS+4)      bmp\bps4.bmp
-BITMAP (DIG_BPS+5)      bmp\bps5.bmp
-BITMAP (DIG_BPS+6)      bmp\bps6.bmp
-BITMAP (DIG_BPS+7)      bmp\bps7.bmp
-BITMAP (DIG_BPS+8)      bmp\bps8.bmp
-BITMAP (DIG_BPS+9)      bmp\bps9.bmp
-
-BITMAP BMP_R_BGROUND    bmp\background.bmp
-BITMAP BMP_NOTL         bmp\timeleft_dark.bmp
-BITMAP BMP_TL           bmp\timeleft.bmp
-BITMAP BMP_NOPLIST      bmp\timeleft_pl_dark.bmp
-BITMAP BMP_PLIST        bmp\timeleft_pl.bmp
-
-/* Icons. */
-ICON   ICO_MAIN            "ico\\pm123.ico"
-
-ICON   ICO_WAIT            "ico\\wait.ico"
-ICON   ICO_SONG            "ico\\song.ico"
-ICON   ICO_SONG_ACTIVE     "ico\\song_l.ico"
-ICON   ICO_SONG_PLAY       "ico\\song_p.ico"
-ICON   ICO_SONG_SHADOW     "ico\\song_s.ico"
-ICON   ICO_SONG_INVALID    "ico\\song_invld.ico"
-ICON   ICO_PL_EMPTY        "ico\\list.ico"
-ICON   ICO_PL_EMPTY_ACTIVE "ico\\list_l.ico"
-ICON   ICO_PL_EMPTY_PLAY   "ico\\list_p.ico"
-ICON   ICO_PL_EMPTY_SHADOW "ico\\list_s.ico"
-ICON   ICO_PL_INVALID      "ico\\list_invld.ico"
-ICON   ICO_PL_CLOSE        "ico\\list+.ico"
-ICON   ICO_PL_CLOSE_ACTIVE "ico\\list+_l.ico"
-ICON   ICO_PL_CLOSE_PLAY   "ico\\list+_p.ico"
-ICON   ICO_PL_CLOSE_SHADOW "ico\\list+_s.ico"
-ICON   ICO_PL_OPEN         "ico\\list-.ico"
-ICON   ICO_PL_OPEN_ACTIVE  "ico\\list-_l.ico"
-ICON   ICO_PL_OPEN_PLAY    "ico\\list-_p.ico"
-ICON   ICO_PL_OPEN_SHADOW  "ico\\list-_s.ico"
-ICON   ICO_PL_RECSV        "ico\\recu.ico"
-ICON   ICO_PL_RECSV_ACTIVE "ico\\recu_l.ico"
-ICON   ICO_PL_RECSV_PLAY   "ico\\recu_p.ico"
-ICON   ICO_FL_EMPTY        "ico\\fold.ico"
-ICON   ICO_FL_EMPTY_ACTIVE "ico\\fold_l.ico"
-ICON   ICO_FL_EMPTY_PLAY   "ico\\fold_p.ico"
-ICON   ICO_FL_EMPTY_SHADOW "ico\\fold_s.ico"
-ICON   ICO_FL_INVALID      "ico\\fold_invld.ico"
-ICON   ICO_FL_CLOSE        "ico\\fold+.ico"
-ICON   ICO_FL_CLOSE_ACTIVE "ico\\fold+_l.ico"
-ICON   ICO_FL_CLOSE_PLAY   "ico\\fold+_p.ico"
-ICON   ICO_FL_CLOSE_SHADOW "ico\\fold+_s.ico"
-ICON   ICO_FL_OPEN         "ico\\fold-.ico"
-ICON   ICO_FL_OPEN_ACTIVE  "ico\\fold-_l.ico"
-ICON   ICO_FL_OPEN_PLAY    "ico\\fold-_p.ico"
-ICON   ICO_FL_OPEN_SHADOW  "ico\\fold-_s.ico"
-       
-       
 ACCELTABLE ACL_MAIN
 BEGIN
   "B",        IDM_M_ADDBOOK,        CHAR|CONTROL|SHIFT
@@ -519,6 +190,7 @@ HELPTABLE HLP_MAIN
   HELPITEM DLG_TECHINFO,  HLP_NULL_TABLE, IDH_INFODIALOG
   HELPITEM DLG_METAINFO,  HLP_NULL_TABLE, IDH_INFODIALOG
   HELPITEM DLG_ITEMINFO,  HLP_NULL_TABLE, IDH_INFODIALOG
+  HELPITEM DLG_INSPECTOR, HLP_NULL_TABLE, IDH_INSPECTOR
   /* Hack for plug-ins */
   HELPITEM IDH_MPG123,    HLP_NULL_TABLE, IDH_MPG123
   HELPITEM IDH_ID3_EDITOR,HLP_NULL_TABLE, IDH_ID3_EDITOR
@@ -857,48 +529,73 @@ DLGTEMPLATE DLG_INFO
 
 DLGTEMPLATE DLG_TECHINFO
 {
-  DIALOG "", DLG_TECHINFO, 13, 27, 228, 136, NOT FS_DLGBORDER|FS_NOBYTEALIGN
+  DIALOG "Tech. Info", DLG_TECHINFO, 13, 27, 228, 136, NOT FS_DLGBORDER|FS_NOBYTEALIGN
     PRESPARAMS PP_FONTNAMESIZE "8.Helv"
   {
     RTEXT "URL",         ST_GENERIC,        4,120,  44, 8, DT_BOTTOM|WS_GROUP
     ENTRYFIELD "",       EF_URL,           52,120, 168, 8, ES_READONLY|ES_AUTOSCROLL
       CTLDATA 8, 128, 0,0
+      PRESPARAMS MAKE_PPU_RESIZE_INFO(0,1,0,1, 1,1,0,1)
     RTEXT "Time stamp",  ST_GENERIC,        4,108,  44, 8, DT_BOTTOM
     ENTRYFIELD "",       EF_TIMESTAMP,     52,108,  64, 8, ES_READONLY|ES_AUTOSCROLL
+      PRESPARAMS MAKE_PPU_RESIZE_INFO(0,1,0,1, 1,2,0,1)
     RTEXT "Attributes"   ST_GENERIC,      120,108,  32, 8, DT_BOTTOM
+      PRESPARAMS MAKE_PPU_RESIZE_INFO(1,2,0,1, 0,1,0,1)
     ENTRYFIELD "",       EF_FATTR,        156,108,  64, 8, ES_READONLY|ES_AUTOSCROLL
+      PRESPARAMS MAKE_PPU_RESIZE_INFO(1,2,0,1, 1,2,0,1)
     RTEXT "File size",   ST_GENERIC,        4, 96,  44, 8, DT_BOTTOM
     ENTRYFIELD "",       EF_FILESIZE,      52, 96,  64, 8, ES_READONLY|ES_AUTOSCROLL
+      PRESPARAMS MAKE_PPU_RESIZE_INFO(0,1,0,1, 1,2,0,1)
     RTEXT "total",       ST_GENERIC,      120, 96,  32, 8, DT_BOTTOM
+      PRESPARAMS MAKE_PPU_RESIZE_INFO(1,2,0,1, 0,1,0,1)
     ENTRYFIELD "",       EF_TOTALSIZE,    156, 96,  64, 8, ES_READONLY|ES_AUTOSCROLL
+      PRESPARAMS MAKE_PPU_RESIZE_INFO(1,2,0,1, 1,2,0,1)
     RTEXT "Object type", ST_GENERIC,        4, 84,  44, 8, DT_BOTTOM
     ENTRYFIELD "",       EF_OBJTYPE,       52, 84,  64, 8, ES_READONLY|ES_AUTOSCROLL
+      PRESPARAMS MAKE_PPU_RESIZE_INFO(0,1,0,1, 1,2,0,1)
     CHECKBOX "editable", CB_SAVEABLE,     120, 84,  52, 8, BS_3STATE
+      PRESPARAMS MAKE_PPU_RESIZE_INFO(1,2,0,1, 0,1,0,1)
     CHECKBOX "dump stream",CB_SAVESTREAM, 172, 84,  52, 8, BS_3STATE
+      PRESPARAMS MAKE_PPU_RESIZE_INFO(1,2,0,1, 0,1,0,1)
 
     RTEXT "Playing time",ST_GENERIC,        4, 72,  44, 8, DT_BOTTOM
     ENTRYFIELD "",       EF_TOTALTIME,     52, 72,  64, 8, ES_READONLY|ES_AUTOSCROLL
+      PRESPARAMS MAKE_PPU_RESIZE_INFO(0,1,0,1, 1,2,0,1)
 
     RTEXT "No. of Items",ST_GENERIC,        4, 60,  44, 8, DT_BOTTOM
     ENTRYFIELD "",       EF_NUMITEMS,      52, 60,  32, 8, ES_READONLY|ES_AUTOSCROLL
+      PRESPARAMS MAKE_PPU_RESIZE_INFO(0,1,0,1, 1,3,0,1)
     RTEXT "Songs",       ST_GENERIC,       88, 60,  28, 8, DT_BOTTOM
+      PRESPARAMS MAKE_PPU_RESIZE_INFO(1,3,0,1, 0,1,0,1)
     ENTRYFIELD "",       EF_SONGITEMS,    120, 60,  32, 8, ES_READONLY|ES_AUTOSCROLL
+      PRESPARAMS MAKE_PPU_RESIZE_INFO(1,3,0,1, 1,3,0,1)
     RTEXT "Lists",       ST_GENERIC,      156, 60,  28, 8, DT_BOTTOM
+      PRESPARAMS MAKE_PPU_RESIZE_INFO(2,3,0,1, 0,1,0,1)
     ENTRYFIELD "",       EF_LISTITEMS,    188, 60,  32, 8, ES_READONLY|ES_AUTOSCROLL
+      PRESPARAMS MAKE_PPU_RESIZE_INFO(2,3,0,1, 1,3,0,1)
     RTEXT "Sample rate", ST_GENERIC,        4, 48,  44, 8, DT_BOTTOM
     ENTRYFIELD "",       EF_SAMPLERATE,    52, 48,  32, 8, ES_READONLY|ES_AUTOSCROLL
+      PRESPARAMS MAKE_PPU_RESIZE_INFO(0,1,0,1, 1,3,0,1)
     RTEXT "Channels",    ST_GENERIC,       88, 48,  28, 8, DT_BOTTOM
+      PRESPARAMS MAKE_PPU_RESIZE_INFO(1,3,0,1, 0,1,0,1)
     ENTRYFIELD "",       EF_NUMCHANNELS,  120, 48,  32, 8, ES_READONLY|ES_AUTOSCROLL
+      PRESPARAMS MAKE_PPU_RESIZE_INFO(1,3,0,1, 1,3,0,1)
     RTEXT "Bit rate",    ST_GENERIC,      156, 48,  28, 8, DT_BOTTOM
+      PRESPARAMS MAKE_PPU_RESIZE_INFO(2,3,0,1, 0,1,0,1)
     ENTRYFIELD "",       EF_BITRATE,      188, 48,  32, 8, ES_READONLY|ES_AUTOSCROLL
+      PRESPARAMS MAKE_PPU_RESIZE_INFO(2,3,0,1, 1,3,0,1)
 
     RTEXT "Decoder",     ST_GENERIC,        4, 36,  44, 8, DT_BOTTOM
     ENTRYFIELD "",       EF_DECODER,       52, 36,  64, 8, ES_READONLY|ES_AUTOSCROLL
+      PRESPARAMS MAKE_PPU_RESIZE_INFO(0,1,0,1, 1,2,0,1)
     RTEXT "Format",      ST_GENERIC,      120, 36,  32, 8, DT_BOTTOM
+      PRESPARAMS MAKE_PPU_RESIZE_INFO(1,2,0,1, 0,1,0,1)
     ENTRYFIELD "",       EF_FORMAT,       156, 36,  64, 8, ES_READONLY|ES_AUTOSCROLL
+      PRESPARAMS MAKE_PPU_RESIZE_INFO(1,2,0,1, 1,2,0,1)
     RTEXT "Info string", ST_GENERIC,        4, 24,  44, 8, DT_BOTTOM
     ENTRYFIELD "",       EF_INFOSTRINGS,   52, 24, 168, 8, ES_READONLY|ES_AUTOSCROLL
       CTLDATA 8, 255, 0,0
+      PRESPARAMS MAKE_PPU_RESIZE_INFO(0,1,0,1, 1,1,0,1)
 
     PUSHBUTTON "~Reload",PB_REFRESH,       52,  6,  44,12, BS_NOPOINTERFOCUS|WS_GROUP
     PUSHBUTTON "~Help",  PB_HELP,         164,  6,  44,12, BS_NOPOINTERFOCUS|BS_HELP
@@ -907,41 +604,56 @@ DLGTEMPLATE DLG_TECHINFO
 
 DLGTEMPLATE DLG_METAINFO
 {
-  DIALOG "", DLG_METAINFO, 13, 27, 228, 136, NOT FS_DLGBORDER|FS_NOBYTEALIGN
+  DIALOG "Meta Info", DLG_METAINFO, 13, 27, 228, 136, NOT FS_DLGBORDER|FS_NOBYTEALIGN
     PRESPARAMS PP_FONTNAMESIZE "8.Helv"
   {
     RTEXT "~Song title", ST_GENERIC,        4,120,  44, 8, DT_BOTTOM|DT_MNEMONIC|WS_GROUP
     ENTRYFIELD "",       EF_METATITLE,     52,120, 156, 8, ES_MARGIN|ES_READONLY|ES_AUTOSCROLL
       CTLDATA 8, 255, 0,0
+      PRESPARAMS MAKE_PPU_RESIZE_INFO(0,1,0,1, 1,1,0,1)
     AUTOCHECKBOX "",     CB_METATITLE,    212,120,   8, 8
+      PRESPARAMS MAKE_PPU_RESIZE_INFO(1,1,0,1, 0,1,0,1)
     RTEXT "~Artist",     ST_GENERIC,        4,108,  44, 8, DT_BOTTOM|DT_MNEMONIC|WS_GROUP
     ENTRYFIELD "",       EF_METAARTIST,    52,108, 156, 8, ES_MARGIN|ES_READONLY|ES_AUTOSCROLL
       CTLDATA 8, 255, 0,0
+      PRESPARAMS MAKE_PPU_RESIZE_INFO(0,1,0,1, 1,1,0,1)
     AUTOCHECKBOX "",     CB_METAARTIST,   212,108,   8, 8
+      PRESPARAMS MAKE_PPU_RESIZE_INFO(1,1,0,1, 0,1,0,1)
     RTEXT "Album ~name", ST_GENERIC,        4, 96,  44, 8, DT_BOTTOM|DT_MNEMONIC|WS_GROUP
     ENTRYFIELD "",       EF_METAALBUM,     52, 96, 156, 8, ES_MARGIN|ES_READONLY|ES_AUTOSCROLL
       CTLDATA 8, 255, 0,0
+      PRESPARAMS MAKE_PPU_RESIZE_INFO(0,1,0,1, 1,1,0,1)
     AUTOCHECKBOX "",     CB_METAALBUM,    212, 96,   8, 8
+      PRESPARAMS MAKE_PPU_RESIZE_INFO(1,1,0,1, 0,1,0,1)
     RTEXT "~Track",      ST_GENERIC,        4, 84,  44, 8, DT_BOTTOM|DT_MNEMONIC|WS_GROUP
     ENTRYFIELD "",       EF_METATRACK,     52, 84,  52, 8, ES_MARGIN|ES_READONLY|ES_AUTOSCROLL
       CTLDATA 8, 12, 0,0
     AUTOCHECKBOX "",     CB_METATRACK,    108, 84,   8, 8
     RTEXT "~Date",       ST_GENERIC,      124, 84,  28, 8, DT_BOTTOM|DT_MNEMONIC|WS_GROUP
+      PRESPARAMS MAKE_PPU_RESIZE_INFO(1,1,0,1, 0,1,0,1)
     ENTRYFIELD "",       EF_METADATE,     156, 84,  52, 8, ES_MARGIN|ES_READONLY|ES_AUTOSCROLL
       CTLDATA 8, 32, 0,0
+      PRESPARAMS MAKE_PPU_RESIZE_INFO(1,1,0,1, 0,1,0,1)
     AUTOCHECKBOX "",     CB_METADATE,     212, 84,   8, 8
+      PRESPARAMS MAKE_PPU_RESIZE_INFO(1,1,0,1, 0,1,0,1)
     RTEXT "~Genre",      ST_GENERIC,        4, 72,  44, 8, DT_BOTTOM|DT_MNEMONIC|WS_GROUP
     ENTRYFIELD "",       EF_METAGENRE,     52, 72, 156, 8, ES_MARGIN|ES_READONLY|ES_AUTOSCROLL
       CTLDATA 8, 255, 0,0
+      PRESPARAMS MAKE_PPU_RESIZE_INFO(0,1,0,1, 1,1,0,1)
     AUTOCHECKBOX "",     CB_METAGENRE,    212, 72,   8, 8
+      PRESPARAMS MAKE_PPU_RESIZE_INFO(1,1,0,1, 0,1,0,1)
     RTEXT "~Comment",    ST_GENERIC,        4, 60,  44, 8, DT_BOTTOM|DT_MNEMONIC|WS_GROUP
     ENTRYFIELD "",       EF_METACOMMENT,   52, 60, 156, 8, ES_MARGIN|ES_READONLY|ES_AUTOSCROLL
       CTLDATA 8, 255, 0,0
+      PRESPARAMS MAKE_PPU_RESIZE_INFO(0,1,0,1, 1,1,0,1)
     AUTOCHECKBOX "",     CB_METACOMMENT,  212, 60,   8, 8
+      PRESPARAMS MAKE_PPU_RESIZE_INFO(1,1,0,1, 0,1,0,1)
     RTEXT "Copy~right",  ST_GENERIC,        4, 48,  44, 8, DT_BOTTOM|DT_MNEMONIC|WS_GROUP
     ENTRYFIELD "",       EF_METACOPYRIGHT, 52, 48, 156, 8, ES_MARGIN|ES_READONLY|ES_AUTOSCROLL
       CTLDATA 8, 255, 0,0
+      PRESPARAMS MAKE_PPU_RESIZE_INFO(0,1,0,1, 1,1,0,1)
     AUTOCHECKBOX "",     CB_METACOPYRIGHT,212, 48,   8, 8
+      PRESPARAMS MAKE_PPU_RESIZE_INFO(1,1,0,1, 0,1,0,1)
     RTEXT "Replay gain", ST_GENERIC,        4, 36,  44, 8, DT_BOTTOM|WS_GROUP
     ENTRYFIELD "",       EF_METARPGAINT,   52, 36,  52, 8, ES_READONLY|ES_AUTOSCROLL|ES_RIGHT
     LTEXT "(track)",     ST_GENERIC,      108, 36,  28, 8, DT_BOTTOM
@@ -961,39 +673,53 @@ DLGTEMPLATE DLG_METAINFO
 
 DLGTEMPLATE DLG_ITEMINFO
 {
-  DIALOG "", DLG_ITEMINFO, 13, 27, 228, 136, NOT FS_DLGBORDER|FS_NOBYTEALIGN
+  DIALOG "Playlist item", DLG_ITEMINFO, 13, 27, 228, 136, NOT FS_DLGBORDER|FS_NOBYTEALIGN
   PRESPARAMS PP_FONTNAMESIZE "8.Helv"
   {
     RTEXT "~URL",             ST_GENERIC,        4,120,  44, 8, DT_BOTTOM|DT_MNEMONIC|WS_GROUP
     ENTRYFIELD "",            EF_INFOURL,       52,120, 164, 8, ES_AUTOSCROLL|ES_MARGIN
       CTLDATA 8, 4096, 0,0
+      PRESPARAMS MAKE_PPU_RESIZE_INFO(0,1,0,1, 1,1,0,1)
     RTEXT "Alias ~name",      ST_GENERIC,        4,108,  44, 8, DT_BOTTOM|DT_MNEMONIC|WS_GROUP
     ENTRYFIELD "",            EF_INFOALIAS,     52,108, 164, 8, ES_AUTOSCROLL|ES_MARGIN
       CTLDATA 8, 1024, 0,0
+      PRESPARAMS MAKE_PPU_RESIZE_INFO(0,1,0,1, 1,1,0,1)
     RTEXT "~Start",           ST_GENERIC,        4, 96,  44, 8, DT_BOTTOM|DT_MNEMONIC|WS_GROUP
     ENTRYFIELD "",            EF_INFOSTART,     52, 96, 164, 8, ES_AUTOSCROLL|ES_MARGIN
       CTLDATA 8, 1024, 0,0
+      PRESPARAMS MAKE_PPU_RESIZE_INFO(0,1,0,1, 1,1,0,1)
     RTEXT "S~top",            ST_GENERIC,        4, 84,  44, 8, DT_BOTTOM|DT_MNEMONIC|WS_GROUP
     ENTRYFIELD "",            EF_INFOSTOP,      52, 84, 164, 8, ES_AUTOSCROLL|ES_MARGIN
       CTLDATA 8, 1024, 0,0
+      PRESPARAMS MAKE_PPU_RESIZE_INFO(0,1,0,1, 1,1,0,1)
     RTEXT "Last ~position",   ST_GENERIC,        4, 72,  44, 8, DT_BOTTOM|DT_MNEMONIC|WS_GROUP
     ENTRYFIELD "",            EF_INFOAT,        52, 72, 164, 8, ES_AUTOSCROLL|ES_MARGIN
       CTLDATA 8, 1024, 0,0
+      PRESPARAMS MAKE_PPU_RESIZE_INFO(0,1,0,1, 1,1,0,1)
     RTEXT "Pr~egap",          ST_GENERIC,        4, 60,  44, 8, DT_BOTTOM|DT_MNEMONIC|WS_GROUP
     ENTRYFIELD "",            EF_INFOPREGAP,    52, 60,  52, 8, ES_AUTOSCROLL|ES_MARGIN
       CTLDATA 8, 12, 0,0
+      PRESPARAMS MAKE_PPU_RESIZE_INFO(0,1,0,1, 1,2,0,1)
     LTEXT "s",                ST_GENERIC,      108, 60,  12, 8, DT_BOTTOM|NOT WS_GROUP
+      PRESPARAMS MAKE_PPU_RESIZE_INFO(1,2,0,1, 0,1,0,1)
     RTEXT "P~ostgap",         ST_GENERIC,      124, 60,  28, 8, DT_BOTTOM|DT_MNEMONIC|WS_GROUP
+      PRESPARAMS MAKE_PPU_RESIZE_INFO(1,2,0,1, 0,1,0,1)
     ENTRYFIELD "",            EF_INFOPOSTGAP,  156, 60,  52, 8, ES_AUTOSCROLL|ES_MARGIN
       CTLDATA 8, 12, 0,0
+      PRESPARAMS MAKE_PPU_RESIZE_INFO(1,2,0,1, 1,2,0,1)
     LTEXT "s",                ST_GENERIC       212, 60,  12, 8, DT_BOTTOM|NOT WS_GROUP
+      PRESPARAMS MAKE_PPU_RESIZE_INFO(1,1,0,1, 0,1,0,1)
     RTEXT "~Gain adjust",     ST_GENERIC,        4, 48,  44, 8, DT_BOTTOM|DT_MNEMONIC|WS_GROUP
     ENTRYFIELD "",            EF_INFOGAIN,      52, 48,  52, 8, ES_AUTOSCROLL|ES_MARGIN
       CTLDATA 8, 12, 0,0
+      PRESPARAMS MAKE_PPU_RESIZE_INFO(0,1,0,1, 1,2,0,1)
     LTEXT "dB",               ST_GENERIC,      108, 48,  28, 8, DT_BOTTOM|NOT WS_GROUP
+      PRESPARAMS MAKE_PPU_RESIZE_INFO(1,2,0,1, 0,1,0,1)
     RTEXT "Playlist opt.",    ST_GENERIC,        4, 36,  44, 8, DT_BOTTOM|NOT WS_GROUP
+      PRESPARAMS MAKE_PPU_RESIZE_INFO(1,2,0,1, 0,1,0,1)
     AUTOCHECKBOX "~Alternation list",
                               CB_INFOALTERNATION,52,36,  52, 8, WS_GROUP
+      PRESPARAMS MAKE_PPU_RESIZE_INFO(1,2,0,1, 1,2,0,1)
     RTEXT "S~huffle",         ST_GENERIC,        4, 24,  44, 8, DT_BOTTOM|DT_MNEMONIC|WS_GROUP
     AUTORADIOBUTTON "inherit",RB_INFOPLSHINHERIT,52,24,  36, 8, WS_TABSTOP|WS_GROUP
     AUTORADIOBUTTON "force",  RB_INFOPLSHFORCE, 92, 24,  36, 8
@@ -1026,10 +752,11 @@ DLGTEMPLATE DLG_WRITEMETA
 DLGTEMPLATE DLG_URL
 BEGIN
   DIALOG "Load URL", DLG_URL, 20, -20, 283, 40, WS_VISIBLE|WS_SAVEBITS,
-         FCF_TITLEBAR|FCF_SYSMENU|FCF_CLOSEBUTTON|FCF_NOBYTEALIGN
+         FCF_TITLEBAR|FCF_SYSMENU|FCF_CLOSEBUTTON|FCF_SIZEBORDER|FCF_NOBYTEALIGN
     PRESPARAMS PP_FONTNAMESIZE "8.Helv"
   BEGIN
     COMBOBOX   "",        ENT_URL,     8,  0, 268, 32, CBS_DROPDOWN
+      PRESPARAMS MAKE_PPU_RESIZE_INFO(0,1,0,1, 1,1,0,1)
     PUSHBUTTON "~Ok",     DID_OK,      8,  4,  36, 12, BS_DEFAULT|WS_GROUP|WS_DISABLED
     PUSHBUTTON "~Cancel", DID_CANCEL, 52,  4,  36, 12
   END
@@ -1068,6 +795,7 @@ BEGIN
   "d",        IDM_PL_DETAILEDALL, CHAR|CONTROL
   "E",        IDM_PL_EDIT,        CHAR|CONTROL|SHIFT
   "e",        IDM_PL_EDIT,        CHAR|CONTROL
+  "I",        IDM_M_INSPECTOR,    CHAR|ALT|SHIFT
   "I",        IDM_PL_INFO,        CHAR|CONTROL|SHIFT
   "i",        IDM_PL_INFOALL,     CHAR|CONTROL
   "o",        IDM_PL_OPEN,        CHAR|CONTROL
@@ -1228,20 +956,30 @@ BEGIN
   BEGIN
     LTEXT        "File~name",                    DID_FILENAME_TXT , 5,161, 265,  9, DT_VCENTER|DT_MNEMONIC
       PRESPARAMS PP_FOREGROUNDCOLORINDEX, SYSCLR_WINDOWTEXT
+      PRESPARAMS MAKE_PPU_RESIZE_INFO(0,1,1,1, 1,1,0,1)
     ENTRYFIELD   "",                             DID_FILENAME_ED,   6,151, 263,  8, ES_MARGIN|WS_GROUP
+      PRESPARAMS MAKE_PPU_RESIZE_INFO(0,1,1,1, 1,1,0,1)
       CTLDATA 8, 256, 0, 0
     LTEXT        "~Type of file",                DID_FILTER_TXT,    5,138, 265,  9, DT_VCENTER|DT_MNEMONIC
       PRESPARAMS PP_FOREGROUNDCOLORINDEX, SYSCLR_WINDOWTEXT
+      PRESPARAMS MAKE_PPU_RESIZE_INFO(0,1,1,1, 1,1,0,1)
     COMBOBOX     "",                             DID_FILTER_CB,     5, 76, 266, 61, CBS_DROPDOWNLIST
+      PRESPARAMS MAKE_PPU_RESIZE_INFO(0,1,1,1, 1,1,0,1)
     LTEXT        "~Volume",                      DID_DRIVE_TXT,     5,116, 125,  9, DT_VCENTER|DT_MNEMONIC
       PRESPARAMS PP_FOREGROUNDCOLORINDEX, SYSCLR_WINDOWTEXT
+      PRESPARAMS MAKE_PPU_RESIZE_INFO(0,1,1,1, 1,2,0,1)
     COMBOBOX     "",                             DID_DRIVE_CB,      5, 52, 125, 63, CBS_DROPDOWNLIST
+      PRESPARAMS MAKE_PPU_RESIZE_INFO(0,1,1,1, 1,2,0,1)
     LTEXT        "~Directory",                   DID_DIRECTORY_TXT, 5, 93, 123,  9, DT_VCENTER|DT_MNEMONIC
       PRESPARAMS PP_FOREGROUNDCOLORINDEX, SYSCLR_WINDOWTEXT
+      PRESPARAMS MAKE_PPU_RESIZE_INFO(0,1,1,1, 1,2,0,1)
     LISTBOX                                      DID_DIRECTORY_LB,  5, 22, 125, 70, LS_NOADJUSTPOS|LS_HORZSCROLL|LS_OWNERDRAW|WS_GROUP
+      PRESPARAMS MAKE_PPU_RESIZE_INFO(0,1,0,1, 1,2,1,1)
     LTEXT        "~Files",                       DID_FILES_TXT,   135,116, 136,  9, DT_VCENTER|DT_MNEMONIC
       PRESPARAMS PP_FOREGROUNDCOLORINDEX, SYSCLR_WINDOWTEXT
+      PRESPARAMS MAKE_PPU_RESIZE_INFO(1,2,1,1, 1,2,0,1)
     LISTBOX                                      DID_FILES_LB,    134, 22, 137, 93, LS_NOADJUSTPOS|LS_HORZSCROLL|WS_GROUP
+      PRESPARAMS MAKE_PPU_RESIZE_INFO(1,2,0,1, 1,2,1,1)
     AUTOCHECKBOX "~Recurse into subdirectories", CB_RECURSE,       95,  7, 176,  9, WS_GROUP
       PRESPARAMS PP_FOREGROUNDCOLORINDEX, SYSCLR_WINDOWTEXT
     AUTOCHECKBOX "~Use relative paths",          CB_RELATIVE,      95,  7, 176,  9, WS_GROUP
@@ -1251,21 +989,371 @@ BEGIN
   END
 END
 
+#define X(x,y) (7+(x)*(y))
+
 DLGTEMPLATE DLG_INSPECTOR 
 BEGIN
-  DIALOG "PM123 Inspector", 100, 6, 52, 332, 204, WS_VISIBLE|FS_NOBYTEALIGN|FS_SIZEBORDER,
+  DIALOG "PM123 Inspector", 100, 6, 52, 280, 202, WS_VISIBLE|FS_NOBYTEALIGN|FS_SIZEBORDER,
          FCF_SYSMENU|FCF_TITLEBAR|FCF_CLOSEBUTTON
     PRESPARAMS PP_FONTNAMESIZE "8.Helv"
   BEGIN
-    LTEXT        "Controller Queue", ST_GENERIC, 8, 190, 196, 8, DT_BOTTOM|DT_MNEMONIC|WS_GROUP
-    LISTBOX LB_CONTROLLERQ, 8, 150, 316, 40, LS_NOADJUSTPOS|LS_HORZSCROLL
-    LTEXT        "Worker Queue", ST_GENERIC, 8, 138, 196, 8, DT_BOTTOM|DT_MNEMONIC|WS_GROUP
-    LISTBOX LB_WORKERQ, 8, 22, 316, 116, LS_NOADJUSTPOS|LS_HORZSCROLL
-    DEFPUSHBUTTON "Close", DID_OK, 8, 4, 48, 12, WS_GROUP
-    PUSHBUTTON   "~Refresh", PB_REFRESH, 64, 4, 48, 12
-    AUTOCHECKBOX "~Auto refresh [ms]", CB_AUTOREFRESH, 120, 6, 60, 8, WS_GROUP
-    SPINBUTTON SB_AUTOREFRESH, 184, 6, 32, 8, SPBS_MASTER|SPBS_NUMERICONLY|SPBS_JUSTRIGHT
+    LTEXT        "Controller Queue",  ST_GENERIC,       8,190, 196,  8, DT_BOTTOM|DT_MNEMONIC|WS_GROUP
+      PRESPARAMS MAKE_PPU_RESIZE_INFO(0,1,1,1, 0,1,0,1)
+    LISTBOX                           LB_CONTROLLERQ,   8,150, 264, 40, LS_NOADJUSTPOS|LS_HORZSCROLL
+      PRESPARAMS MAKE_PPU_RESIZE_INFO(0,1,3,4, 1,1,1,4)
+    LTEXT        "Worker Queue",      ST_GENERIC,       8,138, 196,  8, DT_BOTTOM|DT_MNEMONIC|WS_GROUP
+      PRESPARAMS MAKE_PPU_RESIZE_INFO(0,1,3,4, 0,1,0,1)
+    LISTBOX                           LB_WORKERQ,       8, 22, 264,116, LS_NOADJUSTPOS|LS_HORZSCROLL
+      PRESPARAMS MAKE_PPU_RESIZE_INFO(0,1,0,1, 1,1,3,4), MAKE_PPU_SIZE_CONSTR(264,0, 80,0)
+    DEFPUSHBUTTON "Close",            DID_OK,           8,  4,  48, 12, WS_GROUP
+    PUSHBUTTON   "~Refresh",          PB_REFRESH,      64,  4,  48, 12
+    AUTOCHECKBOX "~Auto refresh [ms]",CB_AUTOREFRESH, 120,  6,  60,  8, WS_GROUP
+    SPINBUTTON                        SB_AUTOREFRESH, 184,  6,  32,  8, SPBS_MASTER|SPBS_NUMERICONLY|SPBS_JUSTRIGHT
       /*CTLDATA 20,0, 4,0, 20,0, 9999,0, SB_AUTOREFRESH,0*/
+    PUSHBUTTON   "~Help",             PB_HELP,        224,  4,  48, 12, BS_NOPOINTERFOCUS|BS_HELP
+      PRESPARAMS MAKE_PPU_RESIZE_INFO(1,1,0,1, 0,1,0,1)
   END
 END
+
+
+/* Icons. */
+ICON   ICO_MAIN            "ico\\pm123.ico"
+
+ICON   ICO_WAIT            "ico\\wait.ico"
+ICON   ICO_SONG            "ico\\song.ico"
+ICON   ICO_SONG_ACTIVE     "ico\\song_l.ico"
+ICON   ICO_SONG_PLAY       "ico\\song_p.ico"
+ICON   ICO_SONG_SHADOW     "ico\\song_s.ico"
+ICON   ICO_SONG_INVALID    "ico\\song_invld.ico"
+ICON   ICO_PL_EMPTY        "ico\\list.ico"
+ICON   ICO_PL_EMPTY_ACTIVE "ico\\list_l.ico"
+ICON   ICO_PL_EMPTY_PLAY   "ico\\list_p.ico"
+ICON   ICO_PL_EMPTY_SHADOW "ico\\list_s.ico"
+ICON   ICO_PL_INVALID      "ico\\list_invld.ico"
+ICON   ICO_PL_CLOSE        "ico\\list+.ico"
+ICON   ICO_PL_CLOSE_ACTIVE "ico\\list+_l.ico"
+ICON   ICO_PL_CLOSE_PLAY   "ico\\list+_p.ico"
+ICON   ICO_PL_CLOSE_SHADOW "ico\\list+_s.ico"
+ICON   ICO_PL_OPEN         "ico\\list-.ico"
+ICON   ICO_PL_OPEN_ACTIVE  "ico\\list-_l.ico"
+ICON   ICO_PL_OPEN_PLAY    "ico\\list-_p.ico"
+ICON   ICO_PL_OPEN_SHADOW  "ico\\list-_s.ico"
+ICON   ICO_PL_RECSV        "ico\\recu.ico"
+ICON   ICO_PL_RECSV_ACTIVE "ico\\recu_l.ico"
+ICON   ICO_PL_RECSV_PLAY   "ico\\recu_p.ico"
+ICON   ICO_FL_EMPTY        "ico\\fold.ico"
+ICON   ICO_FL_EMPTY_ACTIVE "ico\\fold_l.ico"
+ICON   ICO_FL_EMPTY_PLAY   "ico\\fold_p.ico"
+ICON   ICO_FL_EMPTY_SHADOW "ico\\fold_s.ico"
+ICON   ICO_FL_INVALID      "ico\\fold_invld.ico"
+ICON   ICO_FL_CLOSE        "ico\\fold+.ico"
+ICON   ICO_FL_CLOSE_ACTIVE "ico\\fold+_l.ico"
+ICON   ICO_FL_CLOSE_PLAY   "ico\\fold+_p.ico"
+ICON   ICO_FL_CLOSE_SHADOW "ico\\fold+_s.ico"
+ICON   ICO_FL_OPEN         "ico\\fold-.ico"
+ICON   ICO_FL_OPEN_ACTIVE  "ico\\fold-_l.ico"
+ICON   ICO_FL_OPEN_PLAY    "ico\\fold-_p.ico"
+ICON   ICO_FL_OPEN_SHADOW  "ico\\fold-_s.ico"
+
+
+/* Small digits. */
+BITMAP DIG_SMALL        bmp\small_digit0.bmp
+BITMAP (DIG_SMALL+1)    bmp\small_digit1.bmp
+BITMAP (DIG_SMALL+2)    bmp\small_digit2.bmp
+BITMAP (DIG_SMALL+3)    bmp\small_digit3.bmp
+BITMAP (DIG_SMALL+4)    bmp\small_digit4.bmp
+BITMAP (DIG_SMALL+5)    bmp\small_digit5.bmp
+BITMAP (DIG_SMALL+6)    bmp\small_digit6.bmp
+BITMAP (DIG_SMALL+7)    bmp\small_digit7.bmp
+BITMAP (DIG_SMALL+8)    bmp\small_digit8.bmp
+BITMAP (DIG_SMALL+9)    bmp\small_digit9.bmp
+
+/* Big digits. */
+BITMAP DIG_BIG          bmp\digit0.bmp
+BITMAP (DIG_BIG+1)      bmp\digit1.bmp
+BITMAP (DIG_BIG+2)      bmp\digit2.bmp
+BITMAP (DIG_BIG+3)      bmp\digit3.bmp
+BITMAP (DIG_BIG+4)      bmp\digit4.bmp
+BITMAP (DIG_BIG+5)      bmp\digit5.bmp
+BITMAP (DIG_BIG+6)      bmp\digit6.bmp
+BITMAP (DIG_BIG+7)      bmp\digit7.bmp
+BITMAP (DIG_BIG+8)      bmp\digit8.bmp
+BITMAP (DIG_BIG+9)      bmp\digit9.bmp
+BITMAP (DIG_BIG+10)     bmp\dotdot.bmp
+BITMAP (DIG_BIG+11)     bmp\nodotdot.bmp
+
+/* Digits for playlist total/index displays. */
+BITMAP DIG_PL_INDEX     bmp\small_digit0.bmp
+BITMAP (DIG_PL_INDEX+1) bmp\small_digit1.bmp
+BITMAP (DIG_PL_INDEX+2) bmp\small_digit2.bmp
+BITMAP (DIG_PL_INDEX+3) bmp\small_digit3.bmp
+BITMAP (DIG_PL_INDEX+4) bmp\small_digit4.bmp
+BITMAP (DIG_PL_INDEX+5) bmp\small_digit5.bmp
+BITMAP (DIG_PL_INDEX+6) bmp\small_digit6.bmp
+BITMAP (DIG_PL_INDEX+7) bmp\small_digit7.bmp
+BITMAP (DIG_PL_INDEX+8) bmp\small_digit8.bmp
+BITMAP (DIG_PL_INDEX+9) bmp\small_digit9.bmp
+BITMAP (DIG_PL_INDEX+10) bmp\small_digit0dark.bmp
+
+/* Digits for time and playlist left timers. */
+BITMAP DIG_TINY         bmp\small_digit0.bmp
+BITMAP (DIG_TINY+1)     bmp\small_digit1.bmp
+BITMAP (DIG_TINY+2)     bmp\small_digit2.bmp
+BITMAP (DIG_TINY+3)     bmp\small_digit3.bmp
+BITMAP (DIG_TINY+4)     bmp\small_digit4.bmp
+BITMAP (DIG_TINY+5)     bmp\small_digit5.bmp
+BITMAP (DIG_TINY+6)     bmp\small_digit6.bmp
+BITMAP (DIG_TINY+7)     bmp\small_digit7.bmp
+BITMAP (DIG_TINY+8)     bmp\small_digit8.bmp
+BITMAP (DIG_TINY+9)     bmp\small_digit9.bmp
+BITMAP (DIG_TINY+10)    bmp\small_digitd.bmp
+BITMAP (DIG_TINY+11)    bmp\small_digit0dark.bmp
+BITMAP (DIG_TINY+12)    bmp\small_digitddark.bmp
+
+/* Buttons. */
+BITMAP BMP_PLAY         bmp\play_down.bmp
+BITMAP BMP_PAUSE        bmp\pause_down.bmp
+BITMAP BMP_REW          bmp\rew_down.bmp
+BITMAP BMP_FWD          bmp\fwd_down.bmp
+BITMAP BMP_POWER        bmp\power_down.bmp
+BITMAP BMP_PREV         bmp\prev_down.bmp
+BITMAP BMP_NEXT         bmp\next_down.bmp
+BITMAP BMP_SHUFFLE      bmp\shuffle_down.bmp
+BITMAP BMP_REPEAT       bmp\repeat_down.bmp
+BITMAP BMP_PL           bmp\list_down.bmp
+BITMAP BMP_FLOAD        bmp\fload_down.bmp
+
+BITMAP BMP_N_PLAY       bmp\play_up.bmp
+BITMAP BMP_N_PAUSE      bmp\pause_up.bmp
+BITMAP BMP_N_REW        bmp\rew_up.bmp
+BITMAP BMP_N_FWD        bmp\fwd_up.bmp
+BITMAP BMP_N_POWER      bmp\power_up.bmp
+BITMAP BMP_N_PREV       bmp\prev_up.bmp
+BITMAP BMP_N_NEXT       bmp\next_up.bmp
+BITMAP BMP_N_SHUFFLE    bmp\shuffle_up.bmp
+BITMAP BMP_N_REPEAT     bmp\repeat_up.bmp
+BITMAP BMP_N_PL         bmp\list_up.bmp
+BITMAP BMP_N_FLOAD      bmp\fload_up.bmp
+
+/* Font 1 */
+BITMAP BMP_FONT1        bmp\font1\a.bmp
+BITMAP (BMP_FONT1+1)    bmp\font1\b.bmp
+BITMAP (BMP_FONT1+2)    bmp\font1\c.bmp
+BITMAP (BMP_FONT1+3)    bmp\font1\d.bmp
+BITMAP (BMP_FONT1+4)    bmp\font1\e.bmp
+BITMAP (BMP_FONT1+5)    bmp\font1\f.bmp
+BITMAP (BMP_FONT1+6)    bmp\font1\g.bmp
+BITMAP (BMP_FONT1+7)    bmp\font1\h.bmp
+BITMAP (BMP_FONT1+8)    bmp\font1\i.bmp
+BITMAP (BMP_FONT1+9)    bmp\font1\j.bmp
+BITMAP (BMP_FONT1+10)   bmp\font1\k.bmp
+BITMAP (BMP_FONT1+11)   bmp\font1\l.bmp
+BITMAP (BMP_FONT1+12)   bmp\font1\m.bmp
+BITMAP (BMP_FONT1+13)   bmp\font1\n.bmp
+BITMAP (BMP_FONT1+14)   bmp\font1\o.bmp
+BITMAP (BMP_FONT1+15)   bmp\font1\p.bmp
+BITMAP (BMP_FONT1+16)   bmp\font1\q.bmp
+BITMAP (BMP_FONT1+17)   bmp\font1\r.bmp
+BITMAP (BMP_FONT1+18)   bmp\font1\s.bmp
+BITMAP (BMP_FONT1+19)   bmp\font1\t.bmp
+BITMAP (BMP_FONT1+20)   bmp\font1\u.bmp
+BITMAP (BMP_FONT1+21)   bmp\font1\v.bmp
+BITMAP (BMP_FONT1+22)   bmp\font1\w.bmp
+BITMAP (BMP_FONT1+23)   bmp\font1\x.bmp
+BITMAP (BMP_FONT1+24)   bmp\font1\y.bmp
+BITMAP (BMP_FONT1+25)   bmp\font1\z.bmp
+BITMAP (BMP_FONT1+26)   bmp\font1\line.bmp
+BITMAP (BMP_FONT1+27)   bmp\font1\_.bmp
+BITMAP (BMP_FONT1+28)   bmp\font1\et.bmp
+BITMAP (BMP_FONT1+29)   bmp\font1\dot.bmp
+BITMAP (BMP_FONT1+30)   bmp\font1\sdigit0.bmp
+BITMAP (BMP_FONT1+31)   bmp\font1\sdigit1.bmp
+BITMAP (BMP_FONT1+32)   bmp\font1\sdigit2.bmp
+BITMAP (BMP_FONT1+33)   bmp\font1\sdigit3.bmp
+BITMAP (BMP_FONT1+34)   bmp\font1\sdigit4.bmp
+BITMAP (BMP_FONT1+35)   bmp\font1\sdigit5.bmp
+BITMAP (BMP_FONT1+36)   bmp\font1\sdigit6.bmp
+BITMAP (BMP_FONT1+37)   bmp\font1\sdigit7.bmp
+BITMAP (BMP_FONT1+38)   bmp\font1\sdigit8.bmp
+BITMAP (BMP_FONT1+39)   bmp\font1\sdigit9.bmp
+BITMAP (BMP_FONT1+40)   bmp\font1\space.bmp
+BITMAP (BMP_FONT1+41)   bmp\font1\parenl.bmp
+BITMAP (BMP_FONT1+42)   bmp\font1\parenr.bmp
+BITMAP (BMP_FONT1+43)   bmp\font1\ae.bmp
+BITMAP (BMP_FONT1+44)   bmp\font1\oe.bmp
+BITMAP (BMP_FONT1+45)   bmp\font1\fl.bmp
+BITMAP (BMP_FONT1+46)   bmp\font1\plat.bmp
+BITMAP (BMP_FONT1+47)   bmp\font1\plus.bmp
+BITMAP (BMP_FONT1+48)   bmp\font1\percent.bmp
+BITMAP (BMP_FONT1+49)   bmp\font1\2parenl.bmp
+BITMAP (BMP_FONT1+50)   bmp\font1\2parenr.bmp
+
+/* Cyrillic letters */
+BITMAP (BMP_FONT1+54)   bmp\font1\a.bmp
+BITMAP (BMP_FONT1+55)   bmp\font1\cyr_b.bmp
+BITMAP (BMP_FONT1+56)   bmp\font1\cyr_v.bmp
+BITMAP (BMP_FONT1+57)   bmp\font1\cyr_g.bmp
+BITMAP (BMP_FONT1+58)   bmp\font1\cyr_d.bmp
+BITMAP (BMP_FONT1+59)   bmp\font1\e.bmp
+BITMAP (BMP_FONT1+60)   bmp\font1\cyr_zh.bmp
+BITMAP (BMP_FONT1+61)   bmp\font1\sdigit3.bmp
+BITMAP (BMP_FONT1+62)   bmp\font1\cyr_i.bmp
+BITMAP (BMP_FONT1+63)   bmp\font1\cyr_j.bmp
+BITMAP (BMP_FONT1+64)   bmp\font1\k.bmp
+BITMAP (BMP_FONT1+65)   bmp\font1\cyr_l.bmp
+BITMAP (BMP_FONT1+66)   bmp\font1\cyr_m.bmp
+BITMAP (BMP_FONT1+67)   bmp\font1\cyr_n.bmp
+BITMAP (BMP_FONT1+68)   bmp\font1\o.bmp
+BITMAP (BMP_FONT1+69)   bmp\font1\cyr_p.bmp
+BITMAP (BMP_FONT1+70)   bmp\font1\p.bmp
+BITMAP (BMP_FONT1+71)   bmp\font1\c.bmp
+BITMAP (BMP_FONT1+72)   bmp\font1\t.bmp
+BITMAP (BMP_FONT1+73)   bmp\font1\y.bmp
+BITMAP (BMP_FONT1+74)   bmp\font1\cyr_f.bmp
+BITMAP (BMP_FONT1+75)   bmp\font1\x.bmp
+BITMAP (BMP_FONT1+76)   bmp\font1\cyr_ts.bmp
+BITMAP (BMP_FONT1+77)   bmp\font1\sdigit4.bmp
+BITMAP (BMP_FONT1+78)   bmp\font1\cyr_sh.bmp
+BITMAP (BMP_FONT1+79)   bmp\font1\cyr_tsh.bmp
+BITMAP (BMP_FONT1+80)   bmp\font1\cyr_tb.bmp
+BITMAP (BMP_FONT1+81)   bmp\font1\cyr_y.bmp
+BITMAP (BMP_FONT1+82)   bmp\font1\cyr_b.bmp
+BITMAP (BMP_FONT1+83)   bmp\font1\cyr_e.bmp
+BITMAP (BMP_FONT1+84)   bmp\font1\cyr_u.bmp
+BITMAP (BMP_FONT1+85)   bmp\font1\cyr_ya.bmp
+BITMAP (BMP_FONT1+86)   bmp\font1\a.bmp
+BITMAP (BMP_FONT1+87)   bmp\font1\cyr_b.bmp
+BITMAP (BMP_FONT1+88)   bmp\font1\cyr_v.bmp
+BITMAP (BMP_FONT1+89)   bmp\font1\cyr_g.bmp
+BITMAP (BMP_FONT1+90)   bmp\font1\cyr_d.bmp
+BITMAP (BMP_FONT1+91)   bmp\font1\e.bmp
+BITMAP (BMP_FONT1+92)   bmp\font1\cyr_zh.bmp
+BITMAP (BMP_FONT1+93)   bmp\font1\sdigit3.bmp
+BITMAP (BMP_FONT1+94)   bmp\font1\cyr_i.bmp
+BITMAP (BMP_FONT1+95)   bmp\font1\cyr_j.bmp
+BITMAP (BMP_FONT1+96)   bmp\font1\k.bmp
+BITMAP (BMP_FONT1+97)   bmp\font1\cyr_l.bmp
+BITMAP (BMP_FONT1+98)   bmp\font1\cyr_m.bmp
+BITMAP (BMP_FONT1+99)   bmp\font1\cyr_n.bmp
+BITMAP (BMP_FONT1+100)  bmp\font1\o.bmp
+BITMAP (BMP_FONT1+101)  bmp\font1\cyr_p.bmp
+BITMAP (BMP_FONT1+150)  bmp\font1\p.bmp
+BITMAP (BMP_FONT1+151)  bmp\font1\c.bmp
+BITMAP (BMP_FONT1+152)  bmp\font1\t.bmp
+BITMAP (BMP_FONT1+153)  bmp\font1\y.bmp
+BITMAP (BMP_FONT1+154)  bmp\font1\cyr_f.bmp
+BITMAP (BMP_FONT1+155)  bmp\font1\x.bmp
+BITMAP (BMP_FONT1+156)  bmp\font1\cyr_ts.bmp
+BITMAP (BMP_FONT1+157)  bmp\font1\sdigit4.bmp
+BITMAP (BMP_FONT1+158)  bmp\font1\cyr_sh.bmp
+BITMAP (BMP_FONT1+159)  bmp\font1\cyr_tsh.bmp
+BITMAP (BMP_FONT1+160)  bmp\font1\cyr_tb.bmp
+BITMAP (BMP_FONT1+161)  bmp\font1\cyr_y.bmp
+BITMAP (BMP_FONT1+162)  bmp\font1\cyr_mb.bmp
+BITMAP (BMP_FONT1+163)  bmp\font1\cyr_e.bmp
+BITMAP (BMP_FONT1+164)  bmp\font1\cyr_u.bmp
+BITMAP (BMP_FONT1+165)  bmp\font1\cyr_ya.bmp
+BITMAP (BMP_FONT1+166)  bmp\font1\cyr_ye.bmp
+BITMAP (BMP_FONT1+167)  bmp\font1\cyr_ye.bmp
+
+/* Font 2 */
+BITMAP BMP_FONT2        bmp\font2\a.bmp
+BITMAP (BMP_FONT2+1)    bmp\font2\b.bmp
+BITMAP (BMP_FONT2+2)    bmp\font2\c.bmp
+BITMAP (BMP_FONT2+3)    bmp\font2\d.bmp
+BITMAP (BMP_FONT2+4)    bmp\font2\e.bmp
+BITMAP (BMP_FONT2+5)    bmp\font2\f.bmp
+BITMAP (BMP_FONT2+6)    bmp\font2\g.bmp
+BITMAP (BMP_FONT2+7)    bmp\font2\h.bmp
+BITMAP (BMP_FONT2+8)    bmp\font2\i.bmp
+BITMAP (BMP_FONT2+9)    bmp\font2\j.bmp
+BITMAP (BMP_FONT2+10)   bmp\font2\k.bmp
+BITMAP (BMP_FONT2+11)   bmp\font2\l.bmp
+BITMAP (BMP_FONT2+12)   bmp\font2\m.bmp
+BITMAP (BMP_FONT2+13)   bmp\font2\n.bmp
+BITMAP (BMP_FONT2+14)   bmp\font2\o.bmp
+BITMAP (BMP_FONT2+15)   bmp\font2\p.bmp
+BITMAP (BMP_FONT2+16)   bmp\font2\q.bmp
+BITMAP (BMP_FONT2+17)   bmp\font2\r.bmp
+BITMAP (BMP_FONT2+18)   bmp\font2\s.bmp
+BITMAP (BMP_FONT2+19)   bmp\font2\t.bmp
+BITMAP (BMP_FONT2+20)   bmp\font2\u.bmp
+BITMAP (BMP_FONT2+21)   bmp\font2\v.bmp
+BITMAP (BMP_FONT2+22)   bmp\font2\w.bmp
+BITMAP (BMP_FONT2+23)   bmp\font2\x.bmp
+BITMAP (BMP_FONT2+24)   bmp\font2\y.bmp
+BITMAP (BMP_FONT2+25)   bmp\font2\z.bmp
+BITMAP (BMP_FONT2+26)   bmp\font2\line.bmp
+BITMAP (BMP_FONT2+27)   bmp\font2\_.bmp
+BITMAP (BMP_FONT2+28)   bmp\font2\et.bmp
+BITMAP (BMP_FONT2+29)   bmp\font2\dot.bmp
+BITMAP (BMP_FONT2+30)   bmp\font2\sdigit0.bmp
+BITMAP (BMP_FONT2+31)   bmp\font2\sdigit1.bmp
+BITMAP (BMP_FONT2+32)   bmp\font2\sdigit2.bmp
+BITMAP (BMP_FONT2+33)   bmp\font2\sdigit3.bmp
+BITMAP (BMP_FONT2+34)   bmp\font2\sdigit4.bmp
+BITMAP (BMP_FONT2+35)   bmp\font2\sdigit5.bmp
+BITMAP (BMP_FONT2+36)   bmp\font2\sdigit6.bmp
+BITMAP (BMP_FONT2+37)   bmp\font2\sdigit7.bmp
+BITMAP (BMP_FONT2+38)   bmp\font2\sdigit8.bmp
+BITMAP (BMP_FONT2+39)   bmp\font2\sdigit9.bmp
+BITMAP (BMP_FONT2+40)   bmp\font2\space.bmp
+BITMAP (BMP_FONT2+41)   bmp\font2\parenl.bmp
+BITMAP (BMP_FONT2+42)   bmp\font2\parenr.bmp
+BITMAP (BMP_FONT2+43)   bmp\font2\ae.bmp
+BITMAP (BMP_FONT2+44)   bmp\font2\oe.bmp
+BITMAP (BMP_FONT2+45)   bmp\font2\fl.bmp
+BITMAP (BMP_FONT2+46)   bmp\font2\plat.bmp
+BITMAP (BMP_FONT2+47)   bmp\font2\plus.bmp
+BITMAP (BMP_FONT2+48)   bmp\font2\percent.bmp
+BITMAP (BMP_FONT2+49)   bmp\font2\2parenl.bmp
+BITMAP (BMP_FONT2+50)   bmp\font2\2parenr.bmp
+
+/* Misc. */
+BITMAP BMP_LED          bmp\led.bmp
+BITMAP BMP_N_LED        bmp\noled.bmp
+BITMAP BMP_STEREO       bmp\stereo.bmp
+BITMAP BMP_MONO         bmp\mono.bmp
+BITMAP BMP_NO_CHANNELS  bmp\nochannels.bmp
+BITMAP BMP_ALTSLIDER    bmp\altslider.bmp
+BITMAP BMP_SLIDER       bmp\slider.bmp
+BITMAP BMP_S_BGROUND    bmp\smallbg.bmp
+BITMAP BMP_VOLBAR       bmp\volbar.bmp
+BITMAP BMP_SINGLEPLAY   bmp\singleplay.bmp
+BITMAP BMP_LISTPLAY     bmp\listplay.bmp
+BITMAP BMP_NOFILE       bmp\nofile.bmp
+
+BITMAP BMP_BPS          bmp\norate.bmp
+BITMAP (BMP_BPS+1)      bmp\bps032.bmp
+BITMAP (BMP_BPS+2)      bmp\bps048.bmp
+BITMAP (BMP_BPS+3)      bmp\bps056.bmp
+BITMAP (BMP_BPS+4)      bmp\bps064.bmp
+BITMAP (BMP_BPS+5)      bmp\bps080.bmp
+BITMAP (BMP_BPS+6)      bmp\bps096.bmp
+BITMAP (BMP_BPS+7)      bmp\bps112.bmp
+BITMAP (BMP_BPS+8)      bmp\bps128.bmp
+BITMAP (BMP_BPS+9)      bmp\bps144.bmp
+BITMAP (BMP_BPS+10)     bmp\bps160.bmp
+BITMAP (BMP_BPS+11)     bmp\bps176.bmp
+BITMAP (BMP_BPS+12)     bmp\bps192.bmp
+BITMAP (BMP_BPS+13)     bmp\bps224.bmp
+BITMAP (BMP_BPS+14)     bmp\bps256.bmp
+BITMAP (BMP_BPS+15)     bmp\bps320.bmp
+
+BITMAP DIG_BPS          bmp\bps0.bmp
+BITMAP (DIG_BPS+1)      bmp\bps1.bmp
+BITMAP (DIG_BPS+2)      bmp\bps2.bmp
+BITMAP (DIG_BPS+3)      bmp\bps3.bmp
+BITMAP (DIG_BPS+4)      bmp\bps4.bmp
+BITMAP (DIG_BPS+5)      bmp\bps5.bmp
+BITMAP (DIG_BPS+6)      bmp\bps6.bmp
+BITMAP (DIG_BPS+7)      bmp\bps7.bmp
+BITMAP (DIG_BPS+8)      bmp\bps8.bmp
+BITMAP (DIG_BPS+9)      bmp\bps9.bmp
+
+BITMAP BMP_R_BGROUND    bmp\background.bmp
+BITMAP BMP_NOTL         bmp\timeleft_dark.bmp
+BITMAP BMP_TL           bmp\timeleft.bmp
+BITMAP BMP_NOPLIST      bmp\timeleft_pl_dark.bmp
+BITMAP BMP_PLIST        bmp\timeleft_pl.bmp
 

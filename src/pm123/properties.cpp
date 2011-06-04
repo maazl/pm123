@@ -2,7 +2,7 @@
  * Copyright 1997-2003 Samuel Audet  <guardia@step.polymtl.ca>
  *                     Taneli Lepp�  <rosmo@sektori.com>
  * Copyright 2004      Dmitry A.Steklenev <glass@ptv.ru>
- * Copyright 2007-2010 Marcel Mueller
+ * Copyright 2007-2011 Marcel Mueller
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -39,6 +39,7 @@
 #include "pm123.h"
 #include "gui.h"
 #include "dialog.h"
+#include "windowbase.h"
 #include "docking.h"
 #include "pm123.rc.h"
 #include "plugman.h"
@@ -49,6 +50,7 @@
 #include "pipe.h"
 #include "filedlg.h"
 #include <utilfct.h>
+#include <minmax.h>
 #include <errorstr.h>
 #include <inimacro.h>
 #include <xio.h>
@@ -462,7 +464,7 @@ static void migrate_ini(const char* inipath, const char* app)
     return; // Data already there
 
   xstring inifile = xstring::sprintf("%s\\%s.ini", inipath, app);
-  HINI hini = PrfOpenProfile(amp_player_hab(), inifile);
+  HINI hini = PrfOpenProfile(amp_player_hab, inifile);
   if (hini == NULLHANDLE)
     return;
 
@@ -486,9 +488,10 @@ static void migrate_ini(const char* inipath, const char* app)
 void cfg_init()
 {
   // Open profile
-  xstring inipath = amp_startpath + "\\PM123.INI"; // TODO: command line option
-  INIhandle = PrfOpenProfile(amp_player_hab(), inipath);
-  PMASSERT(INIhandle);
+  xstring inipath = amp_basepath + "\\PM123.INI"; // TODO: command line option
+  INIhandle = PrfOpenProfile(amp_player_hab, inipath);
+  if (INIhandle == NULLHANDLE)
+    amp_fail("Failed to access PM123 configuration file %s.", inipath.cdata());
 
   load_ini();
   // set proxy and buffer settings statically in the xio library, not that nice, but working.
@@ -516,10 +519,10 @@ void cfg_init()
   xio_set_buffer_fill( cfg.buff_fill );
   xio_set_connect_timeout( cfg.conn_timeout );
 
-  migrate_ini(amp_startpath, "analyzer");
-  migrate_ini(amp_startpath, "mpg123");
-  migrate_ini(amp_startpath, "os2audio");
-  migrate_ini(amp_startpath, "realeq");
+  migrate_ini(amp_basepath, "analyzer");
+  migrate_ini(amp_basepath, "mpg123");
+  migrate_ini(amp_basepath, "os2audio");
+  migrate_ini(amp_basepath, "realeq");
 }
 
 void cfg_uninit()
@@ -530,26 +533,132 @@ void cfg_uninit()
   }
 }
 
+
+class PropertyDialog : public NotebookDialogBase
+{private:
+  class Settings1Page : public PageBase
+  {public:
+    Settings1Page(PropertyDialog& parent)
+    : PageBase(parent, CFG_SETTINGS1, NULLHANDLE)//, DF_AutoResize)
+    { MajorTitle = "~Behavior"; MinorTitle = "General behavior"; }
+   protected:
+    virtual MRESULT DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2);
+  };
+  class Settings2Page : public PageBase
+  {public:
+    Settings2Page(PropertyDialog& parent)
+    : PageBase(parent, CFG_SETTINGS2, NULLHANDLE)//, DF_AutoResize)
+    { MinorTitle = "Playlist behavior"; }
+   protected:
+    virtual MRESULT DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2);
+  };
+  class SystemSettingsPage : public PageBase
+  {public:
+    SystemSettingsPage(PropertyDialog& parent)
+    : PageBase(parent, CFG_IOSETTINGS, NULLHANDLE)//, DF_AutoResize)
+    { MajorTitle = "~System settings"; }
+   protected:
+    virtual MRESULT DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2);
+  };
+  class DisplaySettingsPage : public PageBase
+  {public:
+    DisplaySettingsPage(PropertyDialog& parent)
+    : PageBase(parent, CFG_DISPLAY1, NULLHANDLE)//, DF_AutoResize)
+    { MajorTitle = "~Display"; }
+   protected:
+    virtual MRESULT DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2);
+  };
+  class PluginPageBase : public PageBase
+  {protected: // Configuration
+    PluginList*const List;    // List to visualize
+    PluginList*const List2;   // Secondary List for visual Plug-Ins
+    const int    RecentLevel; // Most recent interface level
+    enum CtrlFlags            // Cotrol flags
+    { CF_None    = 0,
+      CF_List1   = 1  // List is of type PluginList1
+    } const      Flags;
+   private:
+    xstring      UndoCfg;
+
+   public:
+    PluginPageBase(PropertyDialog& parent, ULONG resid, PluginList* list1, PluginList* list2, int level, CtrlFlags flags);
+   protected:
+    virtual MRESULT DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2);
+   private:
+    void         RefreshList();
+    Plugin*      RefreshInfo(const size_t i);
+    ULONG        AddPlugin();
+    bool         Configure(size_t i);
+    bool         SetParams(size_t i);
+    virtual bool OnPluginEnable(size_t i, bool enable) = 0;
+  };
+  class DecoderPage : public PluginPageBase
+  {public:
+    DecoderPage(PropertyDialog& parent)
+    : PluginPageBase(parent, CFG_DEC_CONFIG, &Decoders, NULL, PLUGIN_INTERFACE_LEVEL, CF_None)
+    { MajorTitle = "~Plug-ins"; MinorTitle = "Decoder Plug-ins"; }
+   protected:
+    virtual bool OnPluginEnable(size_t i, bool enable);
+  };
+  class FilterPage : public PluginPageBase
+  {public:
+    FilterPage(PropertyDialog& parent)
+    : PluginPageBase(parent, CFG_FIL_CONFIG, &Filters, NULL, PLUGIN_INTERFACE_LEVEL, CF_None)
+    { MinorTitle = "Filter Plug-ins"; }
+   protected:
+    virtual bool OnPluginEnable(size_t i, bool enable);
+  };
+  class OutputPage : public PluginPageBase
+  {public:
+    OutputPage(PropertyDialog& parent)
+    : PluginPageBase(parent, CFG_OUT_CONFIG, &Outputs, NULL, PLUGIN_INTERFACE_LEVEL, CF_List1)
+    { MinorTitle = "Output Plug-ins"; }
+   protected:
+    virtual bool OnPluginEnable(size_t i, bool enable);
+  };
+  class VisualPage : public PluginPageBase
+  {public:
+    VisualPage(PropertyDialog& parent)
+    : PluginPageBase(parent, CFG_VIS_CONFIG, &Visuals, &VisualsSkinned, PLUGIN_INTERFACE_LEVEL, CF_None)
+    { MinorTitle = "Visual Plug-ins"; }
+   protected:
+    virtual bool OnPluginEnable(size_t i, bool enable);
+  };
+  class AboutPage : public PageBase
+  {public:
+    AboutPage(PropertyDialog& parent)
+    : PageBase(parent, CFG_ABOUT, NULLHANDLE)//, DF_AutoResize)
+    { MajorTitle = "~About"; }
+   protected:
+    virtual void    OnInit();
+  };
+
+ public:
+  PropertyDialog(HWND owner);
+ protected:
+  virtual MRESULT   DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2);
+};
+
+
 /* Processes messages of the setings page of the setup notebook. */
-static MRESULT EXPENTRY
-cfg_settings1_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
+MRESULT PropertyDialog::Settings1Page::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
 {
   switch( msg ) {
     case WM_INITDLG:
-      do_warpsans( hwnd );
-      WinPostMsg(hwnd, CFG_CHANGE, MPFROMP(&cfg), 0);
+      do_warpsans(GetHwnd());
+      PostMsg(CFG_CHANGE, MPFROMP(&cfg), 0);
       break;
 
     case CFG_CHANGE:
     { const amp_cfg& cfg = *(const amp_cfg*)PVOIDFROMMP(mp1);
 
-      WinCheckButton( hwnd, CB_PLAYONLOAD,    cfg.playonload   );
-      WinCheckButton( hwnd, CB_RETAINONEXIT,  cfg.retainonexit );
-      WinCheckButton( hwnd, CB_RETAINONSTOP,  cfg.retainonstop );
-      WinCheckButton( hwnd, CB_RESTARTONSTART,cfg.restartonstart);
+      CheckButton(CB_PLAYONLOAD,    cfg.playonload   );
+      CheckButton(CB_RETAINONEXIT,  cfg.retainonexit );
+      CheckButton(CB_RETAINONSTOP,  cfg.retainonstop );
+      CheckButton(CB_RESTARTONSTART,cfg.restartonstart);
 
-      WinCheckButton( hwnd, CB_TURNAROUND,    cfg.autoturnaround );
-      WinCheckButton( hwnd, RB_SONGONLY +     cfg.altnavig, TRUE );
+      CheckButton(CB_TURNAROUND,    cfg.autoturnaround);
+      CheckButton(RB_SONGONLY +     cfg.altnavig, TRUE);
 
       return 0;
     }
@@ -560,49 +669,48 @@ cfg_settings1_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
       {case PB_DEFAULT:
         data = &cfg_default;
        case PB_UNDO:
-        WinPostMsg(hwnd, CFG_CHANGE, MPFROMP(data), 0);
+        PostMsg(CFG_CHANGE, MPFROMP(data), 0);
       }
       return 0;
     }
 
     case WM_DESTROY:
-      cfg.playonload  = WinQueryButtonCheckstate( hwnd, CB_PLAYONLOAD   );
-      cfg.retainonexit= WinQueryButtonCheckstate( hwnd, CB_RETAINONEXIT );
-      cfg.retainonstop= WinQueryButtonCheckstate( hwnd, CB_RETAINONSTOP );
-      cfg.restartonstart= WinQueryButtonCheckstate( hwnd, CB_RESTARTONSTART);
+      cfg.playonload  = QueryButtonCheckstate(CB_PLAYONLOAD   );
+      cfg.retainonexit= QueryButtonCheckstate(CB_RETAINONEXIT );
+      cfg.retainonstop= QueryButtonCheckstate(CB_RETAINONSTOP );
+      cfg.restartonstart= QueryButtonCheckstate(CB_RESTARTONSTART);
 
-      cfg.autoturnaround = WinQueryButtonCheckstate( hwnd, CB_TURNAROUND );
-      if (WinQueryButtonCheckstate( hwnd, RB_SONGONLY ))
+      cfg.autoturnaround = QueryButtonCheckstate(CB_TURNAROUND );
+      if (QueryButtonCheckstate(RB_SONGONLY ))
         cfg.altnavig = CFG_ANAV_SONG;
-      else if (WinQueryButtonCheckstate( hwnd, RB_SONGTIME ))
+      else if (QueryButtonCheckstate(RB_SONGTIME ))
         cfg.altnavig = CFG_ANAV_SONGTIME;
-      else if (WinQueryButtonCheckstate( hwnd, RB_TIMEONLY ))
+      else if (QueryButtonCheckstate(RB_TIMEONLY ))
         cfg.altnavig = CFG_ANAV_TIME;
 
     case WM_COMMAND:
     case WM_CONTROL:
       return 0;
   }
-  return WinDefDlgProc( hwnd, msg, mp1, mp2 );
+  return PageBase::DlgProc(msg, mp1, mp2);
 }
 
-static MRESULT EXPENTRY
-cfg_settings2_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
+MRESULT PropertyDialog::Settings2Page::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
 { switch( msg ) {
     case WM_INITDLG:
-      do_warpsans( hwnd );
-      WinPostMsg(hwnd, CFG_CHANGE, MPFROMP(&cfg), 0);
+      do_warpsans( GetHwnd() );
+      PostMsg(CFG_CHANGE, MPFROMP(&cfg), 0);
       break;
 
     case CFG_CHANGE:
     { const amp_cfg& cfg = *(const amp_cfg*)PVOIDFROMMP(mp1);
-      WinCheckButton( hwnd, CB_AUTOUSEPL,     cfg.autouse      );
-      WinCheckButton( hwnd, CB_RECURSEDND,    cfg.recurse_dnd  );
-      WinCheckButton( hwnd, CB_SORTFOLDERS,   cfg.sort_folders );
-      WinCheckButton( hwnd, CB_FOLDERSFIRST,  cfg.folders_first);
-      WinCheckButton( hwnd, CB_AUTOAPPENDDND, cfg.append_dnd   );
-      WinCheckButton( hwnd, CB_AUTOAPPENDCMD, cfg.append_cmd   );
-      WinCheckButton( hwnd, CB_QUEUEMODE,     cfg.queue_mode   );
+      CheckButton(CB_AUTOUSEPL,     cfg.autouse      );
+      CheckButton(CB_RECURSEDND,    cfg.recurse_dnd  );
+      CheckButton(CB_SORTFOLDERS,   cfg.sort_folders );
+      CheckButton(CB_FOLDERSFIRST,  cfg.folders_first);
+      CheckButton(CB_AUTOAPPENDDND, cfg.append_dnd   );
+      CheckButton(CB_AUTOAPPENDCMD, cfg.append_cmd   );
+      CheckButton(CB_QUEUEMODE,     cfg.queue_mode   );
       return 0;
     }
 
@@ -612,7 +720,7 @@ cfg_settings2_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
       {case PB_DEFAULT:
         data = &cfg_default;
        case PB_UNDO:
-        PMRASSERT(WinPostMsg(hwnd, CFG_CHANGE, MPFROMP(data), 0));
+        PostMsg(CFG_CHANGE, MPFROMP(data), 0);
       }
       return 0;
     }
@@ -623,33 +731,32 @@ cfg_settings2_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
 
     case WM_DESTROY:
     {
-      cfg.autouse      = WinQueryButtonCheckstate( hwnd, CB_AUTOUSEPL    );
-      cfg.recurse_dnd  = WinQueryButtonCheckstate( hwnd, CB_RECURSEDND   );
-      cfg.sort_folders = WinQueryButtonCheckstate( hwnd, CB_SORTFOLDERS  );
-      cfg.folders_first= WinQueryButtonCheckstate( hwnd, CB_FOLDERSFIRST );
-      cfg.append_dnd   = WinQueryButtonCheckstate( hwnd, CB_AUTOAPPENDDND);
-      cfg.append_cmd   = WinQueryButtonCheckstate( hwnd, CB_AUTOAPPENDCMD);
-      cfg.queue_mode   = WinQueryButtonCheckstate( hwnd, CB_QUEUEMODE    );
+      cfg.autouse      = QueryButtonCheckstate(CB_AUTOUSEPL    );
+      cfg.recurse_dnd  = QueryButtonCheckstate(CB_RECURSEDND   );
+      cfg.sort_folders = QueryButtonCheckstate(CB_SORTFOLDERS  );
+      cfg.folders_first= QueryButtonCheckstate(CB_FOLDERSFIRST );
+      cfg.append_dnd   = QueryButtonCheckstate(CB_AUTOAPPENDDND);
+      cfg.append_cmd   = QueryButtonCheckstate(CB_AUTOAPPENDCMD);
+      cfg.queue_mode   = QueryButtonCheckstate(CB_QUEUEMODE    );
 
       return 0;
     }
   }
-  return WinDefDlgProc( hwnd, msg, mp1, mp2 );
+  return PageBase::DlgProc(msg, mp1, mp2);
 }
 
-static MRESULT EXPENTRY
-cfg_iosettings_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
+MRESULT PropertyDialog::SystemSettingsPage::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
 { switch( msg ) {
     case WM_INITDLG:
-      do_warpsans( hwnd );
-      PMRASSERT(sb_setnumlimits( hwnd, SB_TIMEOUT,    1,  300, 4 ));
-      PMRASSERT(sb_setnumlimits( hwnd, SB_BUFFERSIZE, 0, 2048, 4 ));
-      PMRASSERT(sb_setnumlimits( hwnd, SB_FILLBUFFER, 1,  100, 4 ));
+      do_warpsans( GetHwnd() );
+      SetSpinbuttonLimits(SB_TIMEOUT,    1,  300, 4 );
+      SetSpinbuttonLimits(SB_BUFFERSIZE, 0, 2048, 4 );
+      SetSpinbuttonLimits(SB_FILLBUFFER, 1,  100, 4 );
 
-      PMRASSERT(sb_setnumlimits( hwnd, SB_NUMWORKERS, 1,    9, 1 ));
-      PMRASSERT(sb_setnumlimits( hwnd, SB_DLGWORKERS, 0,    9, 1 ));
+      SetSpinbuttonLimits(SB_NUMWORKERS, 1,    9, 1 );
+      SetSpinbuttonLimits(SB_DLGWORKERS, 0,    9, 1 );
 
-      WinPostMsg(hwnd, CFG_CHANGE, MPFROMP(&cfg), 0);
+      PostMsg(CFG_CHANGE, MPFROMP(&cfg), 0);
       break;
 
     case CFG_CHANGE:
@@ -658,7 +765,7 @@ cfg_iosettings_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
       const char* cp;
       size_t l;
 
-      WinSetDlgItemText( hwnd, EF_PIPE, cfg.pipe_name );
+      SetItemText(EF_PIPE, cfg.pipe_name );
 
       // proxy
       cp = strchr(cfg.proxy, ':');
@@ -671,8 +778,8 @@ cfg_iosettings_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
         l = cp - cfg.proxy;
       }
       strlcpy( buffer, cfg.proxy, min( l, sizeof buffer ));
-      WinSetDlgItemText( hwnd, EF_PROXY_HOST, buffer );
-      WinSetDlgItemText( hwnd, EF_PROXY_PORT, cp );
+      SetItemText(EF_PROXY_HOST, buffer );
+      SetItemText(EF_PROXY_PORT, cp );
       cp = strchr(cfg.auth, ':');
       if (cp == NULL)
       { l = strlen(cfg.auth);
@@ -683,17 +790,17 @@ cfg_iosettings_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
         l = cp - cfg.auth;
       }
       strlcpy( buffer, cfg.auth, min( l, sizeof buffer ));
-      WinSetDlgItemText( hwnd, EF_PROXY_USER, buffer );
-      WinSetDlgItemText( hwnd, EF_PROXY_PASS, cp );
+      SetItemText(EF_PROXY_USER, buffer );
+      SetItemText(EF_PROXY_PASS, cp );
 
-      WinCheckButton   ( hwnd, CB_FILLBUFFER, cfg.buff_wait );
+      CheckButton(CB_FILLBUFFER, cfg.buff_wait );
 
-      WinSendDlgItemMsg( hwnd, SB_TIMEOUT,    SPBM_SETCURRENTVALUE, MPFROMLONG( cfg.conn_timeout ), 0 );
-      WinSendDlgItemMsg( hwnd, SB_BUFFERSIZE, SPBM_SETCURRENTVALUE, MPFROMLONG( cfg.buff_size ), 0 );
-      WinSendDlgItemMsg( hwnd, SB_FILLBUFFER, SPBM_SETCURRENTVALUE, MPFROMLONG( cfg.buff_fill ), 0 );
+      SetSpinbuttomValue(SB_TIMEOUT, cfg.conn_timeout);
+      SetSpinbuttomValue(SB_BUFFERSIZE, cfg.buff_size);
+      SetSpinbuttomValue(SB_FILLBUFFER, cfg.buff_fill);
 
-      WinSendDlgItemMsg( hwnd, SB_NUMWORKERS, SPBM_SETCURRENTVALUE, MPFROMLONG( cfg.num_workers ), 0 );
-      WinSendDlgItemMsg( hwnd, SB_DLGWORKERS, SPBM_SETCURRENTVALUE, MPFROMLONG( cfg.num_dlg_workers ), 0 );
+      SetSpinbuttomValue(SB_NUMWORKERS, cfg.num_workers);
+      SetSpinbuttomValue(SB_DLGWORKERS, cfg.num_dlg_workers);
       return 0;
     }
 
@@ -703,7 +810,7 @@ cfg_iosettings_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
       {case PB_DEFAULT:
         data = &cfg_default;
        case PB_UNDO:
-        WinPostMsg(hwnd, CFG_CHANGE, MPFROMP(data), 0);
+        PostMsg(CFG_CHANGE, MPFROMP(data), 0);
       }
       return 0;
     }
@@ -712,9 +819,9 @@ cfg_iosettings_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
       if( SHORT1FROMMP(mp1) == CB_FILLBUFFER &&
         ( SHORT2FROMMP(mp1) == BN_CLICKED || SHORT2FROMMP(mp1) == BN_DBLCLICKED ))
       {
-        BOOL fill = WinQueryButtonCheckstate( hwnd, CB_FILLBUFFER );
+        BOOL fill = QueryButtonCheckstate(CB_FILLBUFFER );
 
-        WinEnableControl( hwnd, SB_FILLBUFFER, fill );
+        EnableControl(SB_FILLBUFFER, fill );
       }
     case WM_COMMAND:
       return 0;
@@ -725,91 +832,90 @@ cfg_iosettings_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
 
       char buf[_MAX_PATH];
       *buf = 0;
-      WinQueryDlgItemText( hwnd, EF_PIPE, sizeof buf, buf );
+      WinQueryDlgItemText( GetHwnd(), EF_PIPE, sizeof buf, buf );
       if (cfg.pipe_name.compareToI(buf) != 0)
       { cfg.pipe_name = buf;
       }
 
-      PMRASSERT(WinSendDlgItemMsg( hwnd, SB_BUFFERSIZE, SPBM_QUERYVALUE, MPFROMP( &cfg.buff_size ), MPFROM2SHORT( 0, SPBQ_DONOTUPDATE )));
-      PMRASSERT(WinSendDlgItemMsg( hwnd, SB_FILLBUFFER, SPBM_QUERYVALUE, MPFROMP( &cfg.buff_fill ), MPFROM2SHORT( 0, SPBQ_DONOTUPDATE )));
-      PMRASSERT(WinSendDlgItemMsg( hwnd, SB_TIMEOUT, SPBM_QUERYVALUE, MPFROMP( &cfg.conn_timeout ), MPFROM2SHORT( 0, SPBQ_DONOTUPDATE )));
+      cfg.buff_size = QuerySpinbuttonValue(SB_BUFFERSIZE);
+      cfg.buff_fill = QuerySpinbuttonValue(SB_FILLBUFFER);
+      cfg.conn_timeout = QuerySpinbuttonValue(SB_TIMEOUT);
 
-      WinQueryDlgItemText( hwnd, EF_PROXY_HOST, sizeof cfg.proxy, cfg.proxy );
+      WinQueryDlgItemText( GetHwnd(), EF_PROXY_HOST, sizeof cfg.proxy, cfg.proxy );
       xio_set_http_proxy_host( cfg.proxy );
       i = strlen( cfg.proxy );
       if ( i < sizeof cfg.proxy - 1 ) {
         cfg.proxy[i++] = ':'; // delimiter
-        WinQueryDlgItemText( hwnd, EF_PROXY_PORT, sizeof cfg.proxy - i, cfg.proxy + i );
+        WinQueryDlgItemText( GetHwnd(), EF_PROXY_PORT, sizeof cfg.proxy - i, cfg.proxy + i );
         xio_set_http_proxy_port( atoi( cfg.proxy + i ));
         if ( cfg.proxy[i] == 0 )
           cfg.proxy[i-1] = 0; // remove delimiter
       }
 
-      WinQueryDlgItemText( hwnd, EF_PROXY_USER, sizeof cfg.auth, cfg.auth );
+      WinQueryDlgItemText( GetHwnd(), EF_PROXY_USER, sizeof cfg.auth, cfg.auth );
       xio_set_http_proxy_user( cfg.auth );
       i = strlen( cfg.auth );
       if ( i < sizeof cfg.auth - 1 ) {
         cfg.auth[i++] = ':'; // delimiter
-        WinQueryDlgItemText( hwnd, EF_PROXY_PASS, sizeof cfg.auth - i, cfg.auth + i );
+        WinQueryDlgItemText( GetHwnd(), EF_PROXY_PASS, sizeof cfg.auth - i, cfg.auth + i );
         xio_set_http_proxy_pass( cfg.auth + i );
         if ( cfg.auth[i] == 0 )
           cfg.auth[i-1] = 0; // remove delimiter
       }
 
-      cfg.buff_wait = WinQueryButtonCheckstate( hwnd, CB_FILLBUFFER );
+      cfg.buff_wait = QueryButtonCheckstate(CB_FILLBUFFER );
 
       xio_set_buffer_size( cfg.buff_size * 1024 );
       xio_set_buffer_wait( cfg.buff_wait );
       xio_set_buffer_fill( cfg.buff_fill );
       xio_set_connect_timeout( cfg.conn_timeout );
 
-      PMRASSERT(WinSendDlgItemMsg( hwnd, SB_NUMWORKERS, SPBM_QUERYVALUE, MPFROMP( &cfg.num_workers ), MPFROM2SHORT( 0, SPBQ_DONOTUPDATE )));
-      PMRASSERT(WinSendDlgItemMsg( hwnd, SB_DLGWORKERS, SPBM_QUERYVALUE, MPFROMP( &cfg.num_dlg_workers ), MPFROM2SHORT( 0, SPBQ_DONOTUPDATE )));
+      cfg.num_workers = QuerySpinbuttonValue(SB_NUMWORKERS);
+      cfg.num_dlg_workers = QuerySpinbuttonValue(SB_DLGWORKERS);
 
       return 0;
     }
   }
-  return WinDefDlgProc( hwnd, msg, mp1, mp2 );
+  return PageBase::DlgProc(msg, mp1, mp2);
 }
 
 /* Processes messages of the display page of the setup notebook. */
-static MRESULT EXPENTRY
-cfg_display1_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
+MRESULT PropertyDialog::DisplaySettingsPage::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
 {
   static FATTRS  font_attrs;
   static LONG    font_size;
 
   switch( msg ) {
     case WM_INITDLG:
-      do_warpsans( hwnd );
-      PMRASSERT(sb_setnumlimits( hwnd, SB_DOCK, 0, 30, 2 ));
-      WinPostMsg(hwnd, CFG_CHANGE, MPFROMP(&cfg), 0);
+      do_warpsans( GetHwnd() );
+      SetSpinbuttonLimits(SB_DOCK, 0, 30, 2);
+      PostMsg(CFG_CHANGE, MPFROMP(&cfg), 0);
       break;
 
     case CFG_CHANGE:
     {
       if (mp1)
       { const amp_cfg& cfg = *(const amp_cfg*)PVOIDFROMMP(mp1);
-        WinCheckButton   ( hwnd, CB_DOCK, cfg.dock_windows );
-        WinEnableControl ( hwnd, SB_DOCK, cfg.dock_windows );
-        WinSendDlgItemMsg( hwnd, SB_DOCK, SPBM_SETCURRENTVALUE, MPFROMLONG( cfg.dock_margin ), 0 );
-        WinCheckButton   ( hwnd, CB_SAVEWNDPOSBYOBJ, cfg.win_pos_by_obj );
+        CheckButton   (CB_DOCK, cfg.dock_windows );
+        EnableControl (SB_DOCK, cfg.dock_windows );
+        SetSpinbuttomValue(SB_DOCK, cfg.dock_margin);
+        CheckButton   (CB_SAVEWNDPOSBYOBJ, cfg.win_pos_by_obj );
 
         // load GUI
-        WinCheckButton( hwnd, RB_DISP_FILENAME   + cfg.viewmode, TRUE );
-        WinCheckButton( hwnd, RB_SCROLL_INFINITE + cfg.scroll,   TRUE );
-        WinCheckButton( hwnd, CB_SCROLL_AROUND,    cfg.scroll_around  );
-        WinCheckButton( hwnd, CB_USE_SKIN_FONT,    cfg.font_skinned   );
-        WinEnableControl( hwnd, PB_FONT_SELECT, !cfg.font_skinned );
-        WinEnableControl( hwnd, ST_FONT_SAMPLE, !cfg.font_skinned );
+        CheckButton(RB_DISP_FILENAME   + cfg.viewmode, TRUE );
+        CheckButton(RB_SCROLL_INFINITE + cfg.scroll,   TRUE );
+        CheckButton(CB_SCROLL_AROUND,    cfg.scroll_around  );
+        CheckButton(CB_USE_SKIN_FONT,    cfg.font_skinned   );
+        EnableControl(PB_FONT_SELECT, !cfg.font_skinned );
+        EnableControl(ST_FONT_SAMPLE, !cfg.font_skinned );
 
         font_attrs = cfg.font_attrs;
         font_size  = cfg.font_size;
       }
       // change sample font
       xstring font_name  = amp_font_attrs_to_string( font_attrs, font_size );
-      WinSetDlgItemText( hwnd, ST_FONT_SAMPLE, font_name );
-      WinSetPresParam  ( WinWindowFromID( hwnd, ST_FONT_SAMPLE ), PP_FONTNAMESIZE, font_name.length() +1, (PVOID)font_name.cdata() );
+      SetItemText(ST_FONT_SAMPLE, font_name );
+      WinSetPresParam(WinWindowFromID( GetHwnd(), ST_FONT_SAMPLE ), PP_FONTNAMESIZE, font_name.length() +1, (PVOID)font_name.cdata() );
       return 0;
     }
 
@@ -819,7 +925,7 @@ cfg_display1_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
       {case PB_DEFAULT:
         data = &cfg_default;
        case PB_UNDO:
-        WinPostMsg(hwnd, CFG_CHANGE, MPFROMP(data), 0);
+        PostMsg(CFG_CHANGE, MPFROMP(data), 0);
       }
       return 0;
     }
@@ -839,13 +945,13 @@ cfg_display1_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
         fontdialog.fAttrs         = font_attrs;
         fontdialog.fxPointSize    = MAKEFIXED( font_size, 0 );
 
-        WinFontDlg( HWND_DESKTOP, hwnd, &fontdialog );
+        WinFontDlg( HWND_DESKTOP, GetHwnd(), &fontdialog );
 
         if( fontdialog.lReturn == DID_OK )
         {
           font_attrs = fontdialog.fAttrs;
           font_size  = fontdialog.fxPointSize >> 16;
-          WinPostMsg( hwnd, CFG_CHANGE, 0, 0 );
+          PostMsg(CFG_CHANGE, 0, 0);
         }
       }
       return 0;
@@ -855,32 +961,32 @@ cfg_display1_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
       {case CB_USE_SKIN_FONT:
         if ( SHORT2FROMMP(mp1) == BN_CLICKED || SHORT2FROMMP(mp1) == BN_DBLCLICKED )
         {
-          BOOL use = WinQueryButtonCheckstate( hwnd, CB_USE_SKIN_FONT );
-          WinEnableControl( hwnd, PB_FONT_SELECT, !use );
-          WinEnableControl( hwnd, ST_FONT_SAMPLE, !use );
+          BOOL use = QueryButtonCheckstate(CB_USE_SKIN_FONT );
+          EnableControl(PB_FONT_SELECT, !use );
+          EnableControl(ST_FONT_SAMPLE, !use );
         }
         break;
 
        case CB_DOCK:
         if ( SHORT2FROMMP(mp1) == BN_CLICKED || SHORT2FROMMP(mp1) == BN_DBLCLICKED )
         {
-          BOOL use = WinQueryButtonCheckstate( hwnd, CB_DOCK );
-          WinEnableControl ( hwnd, SB_DOCK, use );
+          BOOL use = QueryButtonCheckstate(CB_DOCK );
+          EnableControl(SB_DOCK, use );
         }
       }
       return 0;
 
     case WM_DESTROY:
     {
-      cfg.dock_windows  = WinQueryButtonCheckstate( hwnd, CB_DOCK );
-      PMRASSERT(WinSendDlgItemMsg( hwnd, SB_DOCK, SPBM_QUERYVALUE, MPFROMP( &cfg.dock_margin ), MPFROM2SHORT( 0, SPBQ_DONOTUPDATE )));
-      cfg.win_pos_by_obj= WinQueryButtonCheckstate( hwnd, CB_SAVEWNDPOSBYOBJ );
+      cfg.dock_windows  = QueryButtonCheckstate(CB_DOCK);
+      cfg.dock_margin   = QuerySpinbuttonValue(SB_DOCK);
+      cfg.win_pos_by_obj= QueryButtonCheckstate(CB_SAVEWNDPOSBYOBJ);
 
-      cfg.scroll        = rb_selected( hwnd, RB_SCROLL_INFINITE ) - RB_SCROLL_INFINITE;
-      cfg.scroll_around = WinQueryButtonCheckstate( hwnd, CB_SCROLL_AROUND );
-      cfg.viewmode      = rb_selected( hwnd, RB_DISP_FILENAME ) - RB_DISP_FILENAME;
+      cfg.scroll        = QuerySelectedRadiobutton(RB_SCROLL_INFINITE) - RB_SCROLL_INFINITE;
+      cfg.scroll_around = QueryButtonCheckstate(CB_SCROLL_AROUND);
+      cfg.viewmode      = QuerySelectedRadiobutton(RB_DISP_FILENAME) - RB_DISP_FILENAME;
 
-      cfg.font_skinned  = WinQueryButtonCheckstate( hwnd, CB_USE_SKIN_FONT );
+      cfg.font_skinned  = QueryButtonCheckstate(CB_USE_SKIN_FONT);
       cfg.font_size     = font_size;
       cfg.font_attrs    = font_attrs;
 
@@ -889,124 +995,67 @@ cfg_display1_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
       return 0;
     }
   }
-  return WinDefDlgProc( hwnd, msg, mp1, mp2 );
+  return PageBase::DlgProc(msg, mp1, mp2);
 }
 
-
-struct PluginContext
-{ // Head
-  const size_t Size;        // structure size
-  // Configuration
-  PluginList*const List;    // List to visualize
-  PluginList*const List2;   // Secondary List for visual Plug-Ins
-  const int    RecentLevel; // Most recent interface level
-  enum CtrlFlags            // Cotrol flags
-  { CF_None    = 0,
-    CF_List1   = 1  // List is of type PluginList1
-  } const      Flags;
-  bool (PluginContext::*enable_hook)(size_t i, bool enable); // Hook for Enable/Disable button
-  xstring      UndoCfg;
-
-  // Working set
-  HWND         Hwnd;
-
-  PluginContext(PluginList* list1, PluginList* list2, int level, CtrlFlags flags);
-
-  void         RefreshList();
-  Plugin*      RefreshInfo(const size_t i);
-  ULONG        AddPlugin();
-  bool         Configure(size_t i);
-  bool         SetParams(size_t i);
-
-  bool         decoder_enable_hook(size_t i, bool enable);
-  bool         filter_enable_hook(size_t i, bool enable);
-  bool         output_enable_hook(size_t i, bool enable);
-  bool         visual_enable_hook(size_t i, bool enable);
-};
-FLAGSATTRIBUTE(PluginContext::CtrlFlags);
-
-PluginContext::PluginContext(PluginList* list1, PluginList* list2, int level, CtrlFlags flags)
-: Size(sizeof(PluginContext)),
+PropertyDialog::PluginPageBase::PluginPageBase(PropertyDialog& parent, ULONG resid,
+           PluginList* list1, PluginList* list2, int level, CtrlFlags flags)
+: PageBase(parent, resid, NULLHANDLE, DF_AutoResize),
   List(list1),
   List2(list2),
   RecentLevel(level),
   Flags(flags),
-  enable_hook(NULL),
   UndoCfg(list1->Serialize())
-{ switch (List->Type)
-  {case PLUGIN_DECODER:
-    enable_hook = &PluginContext::decoder_enable_hook;
-    break;
-   case PLUGIN_FILTER:
-    enable_hook = &PluginContext::filter_enable_hook;
-    break;
-   case PLUGIN_OUTPUT:
-    enable_hook = &PluginContext::output_enable_hook;
-    break;
-   case PLUGIN_VISUAL:
-    enable_hook = &PluginContext::visual_enable_hook;
-    break;
-   default:
-    ASSERT(1==2);
-  }
-}
+{}
 
-void PluginContext::RefreshList()
-{ DEBUGLOG(("PluginContext::RefreshList()\n"));
-  HWND lb = WinWindowFromID(Hwnd, LB_PLUGINS);
+void PropertyDialog::PluginPageBase::RefreshList()
+{ DEBUGLOG(("PropertyDialog::PluginPageBase::RefreshList()\n"));
+  HWND lb = WinWindowFromID(GetHwnd(), LB_PLUGINS);
   PMASSERT(lb != NULLHANDLE);
   WinSendMsg(lb, LM_DELETEALL, 0, 0);
 
   Plugin*const* ppp;
   for (ppp = List->begin(); ppp != List->end(); ++ppp)
-  { const char* cp = (*ppp)->GetModuleName().cdata() + (*ppp)->GetModuleName().length();
-    while (cp != (*ppp)->GetModuleName().cdata() && cp[-1] != '\\' && cp[-1] != ':' && cp[-1] != '/')
-      --cp;
-    WinSendMsg(lb, LM_INSERTITEM, MPFROMSHORT(LIT_END), MPFROMP(cp));
-  }
+    WinSendMsg(lb, LM_INSERTITEM, MPFROMSHORT(LIT_END), MPFROMP((*ppp)->GetModule().Key.cdata()));
   if (List2 == NULL)
     return;
   for (ppp = List2->begin(); ppp != List2->end(); ++ppp)
-  { const char* cp = (*ppp)->GetModuleName().cdata() + (*ppp)->GetModuleName().length();
-    while (cp != (*ppp)->GetModuleName().cdata() && cp[-1] != '\\' && cp[-1] != ':' && cp[-1] != '/')
-      --cp;
-    WinSendMsg(lb, LM_INSERTITEM, MPFROMSHORT(LIT_END), MPFROMP((xstring(cp)+" (Skin)").cdata()));
-  }
+    WinSendMsg(lb, LM_INSERTITEM, MPFROMSHORT(LIT_END), MPFROMP(((*ppp)->GetModule().Key+" (Skin)").cdata()));
 }
 
-Plugin* PluginContext::RefreshInfo(const size_t i)
-{ DEBUGLOG(("PluginContext::RefreshInfo(%i)\n", i));
+Plugin* PropertyDialog::PluginPageBase::RefreshInfo(const size_t i)
+{ DEBUGLOG(("PropertyDialog::PluginPageBase::RefreshInfo(%i)\n", i));
   Plugin* pp = NULL;
   if (i >= List->size())
   { // The following functions give an error if no such buttons. This is ignored.
-    WinSetDlgItemText(Hwnd, PB_PLG_ENABLE, "~Enable");
-    WinEnableControl (Hwnd, PB_PLG_UNLOAD, FALSE);
-    WinEnableControl (Hwnd, PB_PLG_UP,     FALSE);
-    WinEnableControl (Hwnd, PB_PLG_DOWN,   FALSE);
-    WinEnableControl (Hwnd, PB_PLG_ENABLE, FALSE);
-    WinEnableControl (Hwnd, PB_PLG_ACTIVATE, FALSE);
+    SetItemText(PB_PLG_ENABLE, "~Enable");
+    EnableControl (PB_PLG_UNLOAD, FALSE);
+    EnableControl (PB_PLG_UP,     FALSE);
+    EnableControl (PB_PLG_DOWN,   FALSE);
+    EnableControl (PB_PLG_ENABLE, FALSE);
+    EnableControl (PB_PLG_ACTIVATE, FALSE);
     // decoder specific stuff
     if (List->Type == PLUGIN_DECODER)
-    { HWND ctrl = WinWindowFromID(Hwnd, ML_DEC_FILETYPES);
+    { HWND ctrl = WinWindowFromID(GetHwnd(), ML_DEC_FILETYPES);
       WinSetWindowText(ctrl, "");
       WinEnableWindow (ctrl, FALSE);
-      ctrl = WinWindowFromID(Hwnd, CB_DEC_TRYOTHER);
+      ctrl = WinWindowFromID(GetHwnd(), CB_DEC_TRYOTHER);
       WinSendMsg      (ctrl, BM_SETCHECK, MPFROMSHORT(FALSE), 0);
       WinEnableWindow (ctrl, FALSE);
-      ctrl = WinWindowFromID(Hwnd, CB_DEC_SERIALIZE);
+      ctrl = WinWindowFromID(GetHwnd(), CB_DEC_SERIALIZE);
       WinSendMsg      (ctrl, BM_SETCHECK, MPFROMSHORT(FALSE), 0);
       WinEnableWindow (ctrl, FALSE);
-      WinEnableControl(Hwnd, PB_PLG_SET, FALSE);
+      EnableControl(PB_PLG_SET, FALSE);
     }
   } else
   { pp = (*List)[i];
-    WinSetDlgItemText(Hwnd, PB_PLG_ENABLE, pp->GetEnabled() ? "Disabl~e" : "~Enable");
-    WinEnableControl (Hwnd, PB_PLG_UNLOAD, TRUE);
-    WinEnableControl (Hwnd, PB_PLG_UP,     i > 0);
-    WinEnableControl (Hwnd, PB_PLG_DOWN,   i < List->size()-1);
-    WinEnableControl (Hwnd, PB_PLG_ENABLE, TRUE);
+    SetItemText(PB_PLG_ENABLE, pp->GetEnabled() ? "Disabl~e" : "~Enable");
+    EnableControl(PB_PLG_UNLOAD, TRUE);
+    EnableControl(PB_PLG_UP,     i > 0);
+    EnableControl(PB_PLG_DOWN,   i < List->size()-1);
+    EnableControl(PB_PLG_ENABLE, TRUE);
     if (Flags & CF_List1)
-      WinEnableControl (Hwnd, PB_PLG_ACTIVATE, ((PluginList1*)List)->GetActive() != i);
+      EnableControl (PB_PLG_ACTIVATE, ((PluginList1*)List)->GetActive() != i);
     // decode specific stuff
     if (List->Type == PLUGIN_DECODER)
     { stringmap_own sm(20);
@@ -1029,45 +1078,45 @@ Plugin* PluginContext::RefreshInfo(const size_t i)
           cp2[-1] = 0;
         else
           cp = "";
-        HWND ctrl = WinWindowFromID(Hwnd, ML_DEC_FILETYPES);
+        HWND ctrl = WinWindowFromID(GetHwnd(), ML_DEC_FILETYPES);
         WinSetWindowText(ctrl, cp);
         WinEnableWindow (ctrl, TRUE);
       }
       stringmapentry* smp; // = sm.find("filetypes");
       smp = sm.find("tryothers");
       bool* b = smp && smp->Value ? url123::parseBoolean(smp->Value) : NULL;
-      HWND ctrl = WinWindowFromID(Hwnd, CB_DEC_TRYOTHER);
+      HWND ctrl = WinWindowFromID(GetHwnd(), CB_DEC_TRYOTHER);
       WinSendMsg      (ctrl, BM_SETCHECK, MPFROMSHORT(b && *b), 0);
       WinEnableWindow (ctrl, !!b);
       smp = sm.find("serializeinfo");
       b = smp && smp->Value ? url123::parseBoolean(smp->Value) : NULL;
-      ctrl = WinWindowFromID(Hwnd, CB_DEC_SERIALIZE);
+      ctrl = WinWindowFromID(GetHwnd(), CB_DEC_SERIALIZE);
       WinSendMsg      (ctrl, BM_SETCHECK, MPFROMSHORT(b && *b), 0);
       WinEnableWindow (ctrl, !!b);
-      WinEnableControl(Hwnd, PB_PLG_SET, FALSE);
+      EnableControl(PB_PLG_SET, FALSE);
     }
   }
   if (pp == NULL && i >= 0 && List2 && i < List->size() + List2->size())
     pp = (*List2)[i - List->size()];
   if (pp == NULL)
-  { WinSetDlgItemText(Hwnd, ST_PLG_AUTHOR, "");
-    WinSetDlgItemText(Hwnd, ST_PLG_DESC,   "");
-    WinSetDlgItemText(Hwnd, ST_PLG_LEVEL,  "");
-    WinEnableControl (Hwnd, PB_PLG_CONFIG, FALSE);
+  { SetItemText(ST_PLG_AUTHOR, "");
+    SetItemText(ST_PLG_DESC,   "");
+    SetItemText(ST_PLG_LEVEL,  "");
+    EnableControl (PB_PLG_CONFIG, FALSE);
   } else
   { char buffer[64];
     const PLUGIN_QUERYPARAM& params = pp->GetModule().GetParams();
-    WinSetDlgItemText(Hwnd, ST_PLG_AUTHOR, params.author);
-    WinSetDlgItemText(Hwnd, ST_PLG_DESC,   params.desc);
+    SetItemText(ST_PLG_AUTHOR, params.author);
+    SetItemText(ST_PLG_DESC,   params.desc);
     snprintf(buffer, sizeof buffer,        "Interface level %i%s",
       params.interface, params.interface >= RecentLevel ? "" : " (virtualized)");
-    WinSetDlgItemText(Hwnd, ST_PLG_LEVEL,  buffer);
-    WinEnableControl (Hwnd, PB_PLG_CONFIG, params.configurable && pp->GetEnabled());
+    SetItemText(ST_PLG_LEVEL,  buffer);
+    EnableControl (PB_PLG_CONFIG, params.configurable && pp->GetEnabled());
   }
   return pp;
 }
 
-ULONG PluginContext::AddPlugin()
+ULONG PropertyDialog::PluginPageBase::AddPlugin()
 {
   FILEDLG filedialog;
   ULONG   rc = 0;
@@ -1083,7 +1132,7 @@ ULONG PluginContext::AddPlugin()
   filedialog.pszIType       = type;
 
   strlcpy(filedialog.szFullFile, amp_startpath, sizeof filedialog.szFullFile);
-  amp_file_dlg(HWND_DESKTOP, Hwnd, &filedialog);
+  amp_file_dlg(HWND_DESKTOP, GetHwnd(), &filedialog);
 
   if (filedialog.lReturn == DID_OK)
   { rc = Plugin::Deserialize(filedialog.szFullFile, List->Type);
@@ -1091,14 +1140,14 @@ ULONG PluginContext::AddPlugin()
     if (rc & PLUGIN_VISUAL)
       vis_init(List->size()-1);*/
     if (rc & PLUGIN_FILTER && Ctrl::IsPlaying())
-      amp_info(Hwnd, "This filter will only be enabled after playback stops.");
+      amp_info(GetHwnd(), "This filter will only be enabled after playback stops.");
     if (rc)
-      WinSendMsg(Hwnd, CFG_REFRESH_LIST, 0, MPFROMSHORT(List->size()-1));
+      WinSendMsg(GetHwnd(), CFG_REFRESH_LIST, 0, MPFROMSHORT(List->size()-1));
   }
   return rc;
 }
 
-bool PluginContext::Configure(size_t i)
+bool PropertyDialog::PluginPageBase::Configure(size_t i)
 { Plugin* pp = NULL;
   if (i < List->size())
     pp = (*List)[i];
@@ -1106,19 +1155,19 @@ bool PluginContext::Configure(size_t i)
     pp = (*List2)[i - List->size()];
 
   if (pp)
-  { pp->GetModule().Config(Hwnd);
+  { pp->GetModule().Config(GetHwnd());
     return true;
   } else
     return false;
 }
 
-bool PluginContext::SetParams(size_t i)
+bool PropertyDialog::PluginPageBase::SetParams(size_t i)
 { if (i >= List->size())
     return false;
   Plugin* pp = (*List)[i];
 
   if (List->Type == PLUGIN_DECODER)
-  { HWND ctrl = WinWindowFromID(Hwnd, ML_DEC_FILETYPES);
+  { HWND ctrl = WinWindowFromID(GetHwnd(), ML_DEC_FILETYPES);
     ULONG len = WinQueryWindowTextLength(ctrl) +1;
     char* filetypes = (char*)alloca(len);
     WinQueryWindowText(ctrl, len, filetypes);
@@ -1134,14 +1183,14 @@ bool PluginContext::SetParams(size_t i)
       ++cp2;
     }
     pp->SetParam("filetypes", filetypes);
-    pp->SetParam("tryothers", WinQueryButtonCheckstate(Hwnd, CB_DEC_TRYOTHER) ? "1" : "0");
-    pp->SetParam("serializeinfo", WinQueryButtonCheckstate(Hwnd, CB_DEC_SERIALIZE) ? "1" : "0");
+    pp->SetParam("tryothers", QueryButtonCheckstate(CB_DEC_TRYOTHER) ? "1" : "0");
+    pp->SetParam("serializeinfo", QueryButtonCheckstate(CB_DEC_SERIALIZE) ? "1" : "0");
   }
-  WinEnableControl(Hwnd, PB_PLG_SET, FALSE);
+  EnableControl(PB_PLG_SET, FALSE);
   return true;
 }
 
-bool PluginContext::visual_enable_hook(size_t i, bool enable)
+bool PropertyDialog::VisualPage::OnPluginEnable(size_t i, bool enable)
 { /* TODO: required?
   if (enable)
     vis_init(i);
@@ -1150,74 +1199,69 @@ bool PluginContext::visual_enable_hook(size_t i, bool enable)
   return true;
 }
 
-bool PluginContext::decoder_enable_hook(size_t i, bool enable)
+bool PropertyDialog::DecoderPage::OnPluginEnable(size_t i, bool enable)
 { // This query is non-atomic, but nothing strange will happen anyway.
   if (i > Decoders.size())
     return false;
   if (!enable && Decoders[i]->IsInitialized())
-  { amp_error(Hwnd, "Cannot disable currently in use decoder.");
+  { amp_error(GetHwnd(), "Cannot disable currently in use decoder.");
     return false;
   }
   return true;
 }
 
-bool PluginContext::output_enable_hook(size_t i, bool enable)
+bool PropertyDialog::OutputPage::OnPluginEnable(size_t i, bool enable)
 { if (Ctrl::IsPlaying())
-  { amp_error(Hwnd, "Cannot change active output while playing.");
+  { amp_error(GetHwnd(), "Cannot change active output while playing.");
     return false;
   }
   return true;
 }
 
-bool PluginContext::filter_enable_hook(size_t i, bool enable)
+bool PropertyDialog::FilterPage::OnPluginEnable(size_t i, bool enable)
 { if (Ctrl::IsPlaying() && i < List->size() && (*List)[i]->IsInitialized())
-    amp_info(Hwnd, enable
+    amp_info(GetHwnd(), enable
       ? "This filter will only be enabled after playback stops."
       : "This filter will only be disabled after playback stops.");
   return true;
 }
 
 /* Processes messages of the plug-ins pages of the setup notebook. */
-static MRESULT EXPENTRY
-cfg_config_dlg_proc(HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2)
-{ DEBUGLOG2(("cfg_config_dlg_proc(%p, %x, %x, %x)\n", hwnd, msg, mp1, mp2));
-  PluginContext* context = (PluginContext*)WinQueryWindowULong(hwnd, QWL_USER);
+MRESULT PropertyDialog::PluginPageBase::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
+{ DEBUGLOG2(("PropertyDialog::PluginPageBase::DlgProc(%p, %x, %x, %x)\n", hwnd, msg, mp1, mp2));
   SHORT i;
 
   switch( msg )
   { case CFG_REFRESH_LIST:
-      context->RefreshList();
-      lb_select(hwnd, LB_PLUGINS, SHORT1FROMMP(mp2));
+      RefreshList();
+      lb_select(GetHwnd(), LB_PLUGINS, SHORT1FROMMP(mp2));
       return 0;
 
     case CFG_REFRESH_INFO:
-      context->RefreshInfo(SHORT1FROMMP(mp2));
+      RefreshInfo(SHORT1FROMMP(mp2));
       return 0;
 
     case CFG_GLOB_BUTTON:
     { switch (SHORT1FROMMP(mp1))
       {case PB_DEFAULT:
         if (Ctrl::IsPlaying())
-          amp_error(hwnd, "Cannot load defaults while playing.");
+          amp_error(GetHwnd(), "Cannot load defaults while playing.");
         else
-          context->List->LoadDefaults();
-        WinPostMsg(hwnd, CFG_REFRESH_LIST, 0, MPFROMSHORT(LIT_NONE));
+          List->LoadDefaults();
+        PostMsg(CFG_REFRESH_LIST, 0, MPFROMSHORT(LIT_NONE));
         break;
        case PB_UNDO:
         // TODO: The used plug-ins may have changed meanwhile causing Deserialize to fail.
-        if (context->List->Deserialize(context->UndoCfg) == PluginList::RC_OK)
-          WinPostMsg(hwnd, CFG_REFRESH_LIST, 0, MPFROMSHORT(LIT_NONE));
+        if (List->Deserialize(UndoCfg) == PluginList::RC_OK)
+          PostMsg(CFG_REFRESH_LIST, 0, MPFROMSHORT(LIT_NONE));
         break;
       }
       return 0;
     }
 
     case WM_INITDLG:
-      context = (PluginContext*)mp2;
-      context->Hwnd = hwnd;
-      WinSetWindowULong(hwnd, QWL_USER, (ULONG)context);
-      do_warpsans(hwnd);
-      WinPostMsg(hwnd, CFG_REFRESH_LIST, 0, MPFROMSHORT(LIT_NONE));
+      do_warpsans(GetHwnd());
+      PostMsg(CFG_REFRESH_LIST, 0, MPFROMSHORT(LIT_NONE));
       return 0;
 
     // TODO: undo/default
@@ -1228,11 +1272,11 @@ cfg_config_dlg_proc(HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2)
         switch (SHORT2FROMMP(mp1))
         {case LN_SELECT:
           i = WinQueryLboxSelectedItem(HWNDFROMMP(mp2));
-          WinPostMsg(hwnd, CFG_REFRESH_INFO, 0, MPFROMSHORT(i));
+          PostMsg(CFG_REFRESH_INFO, 0, MPFROMSHORT(i));
           break;
          case LN_ENTER:
           i = WinQueryLboxSelectedItem(HWNDFROMMP(mp2));
-          context->Configure(i);
+          Configure(i);
           break;
         }
         break;
@@ -1240,7 +1284,7 @@ cfg_config_dlg_proc(HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2)
        case ML_DEC_FILETYPES:
         switch (SHORT2FROMMP(mp1))
         {case MLN_CHANGE:
-          WinEnableControl(hwnd, PB_PLG_SET, TRUE);
+          EnableControl(PB_PLG_SET, TRUE);
         }
         break;
 
@@ -1248,7 +1292,7 @@ cfg_config_dlg_proc(HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2)
        case CB_DEC_SERIALIZE:
         switch (SHORT2FROMMP(mp1))
         {case BN_CLICKED:
-          WinEnableControl(hwnd, PB_PLG_SET, TRUE);
+          EnableControl(PB_PLG_SET, TRUE);
         }
         break;
 
@@ -1256,171 +1300,79 @@ cfg_config_dlg_proc(HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2)
       return 0;
 
     case WM_COMMAND:
-      i = lb_cursored(hwnd, LB_PLUGINS);
+      i = lb_cursored(GetHwnd(), LB_PLUGINS);
       switch (SHORT1FROMMP(mp1))
       {case PB_PLG_UNLOAD:
-        if (i >= 0 && i < context->List->size())
-        { if ((*context->List)[i]->IsInitialized())
-            amp_error(hwnd, "Cannot unload currently used plug-in.");
-          else if (lb_remove_item(hwnd, LB_PLUGINS, i) == 0)
+        if (i >= 0 && i < List->size())
+        { if ((*List)[i]->IsInitialized())
+            amp_error(GetHwnd(), "Cannot unload currently used plug-in.");
+          else if (lb_remove_item(GetHwnd(), LB_PLUGINS, i) == 0)
           { // something wrong => reload list
-            WinPostMsg(hwnd, CFG_REFRESH_LIST, 0, MPFROMSHORT(i));
+            PostMsg(CFG_REFRESH_LIST, 0, MPFROMSHORT(i));
           } else
-          { context->List->remove(i);
-            if (i >= lb_size(hwnd, LB_PLUGINS))
-              WinPostMsg(hwnd, CFG_REFRESH_INFO, 0, MPFROMSHORT(LIT_NONE));
+          { List->remove(i);
+            if (i >= lb_size(GetHwnd(), LB_PLUGINS))
+              PostMsg(CFG_REFRESH_INFO, 0, MPFROMSHORT(LIT_NONE));
             else
-              lb_select(hwnd, LB_PLUGINS, i);
+              lb_select(GetHwnd(), LB_PLUGINS, i);
           }
         }
         break;
 
        case PB_PLG_ADD:
-        context->AddPlugin();
+        AddPlugin();
         break;
 
        case PB_PLG_UP:
-        if (i != LIT_NONE && i > 0 && i < context->List->size())
-        { context->List->move(i, i-1);
-          WinPostMsg(hwnd, CFG_REFRESH_LIST, 0, MPFROMSHORT(i-1));
+        if (i != LIT_NONE && i > 0 && i < List->size())
+        { List->move(i, i-1);
+          PostMsg(CFG_REFRESH_LIST, 0, MPFROMSHORT(i-1));
         }
         break;
 
        case PB_PLG_DOWN:
-        if (i != LIT_NONE && i < context->List->size()-1)
-        { context->List->move(i, i+1);
-          WinPostMsg(hwnd, CFG_REFRESH_LIST, 0, MPFROMSHORT(i+1));
+        if (i != LIT_NONE && i < List->size()-1)
+        { List->move(i, i+1);
+          PostMsg(CFG_REFRESH_LIST, 0, MPFROMSHORT(i+1));
         }
         break;
 
        case PB_PLG_ENABLE:
-        if (i >= 0 && i < context->List->size())
-        { Plugin* pp = (*context->List)[i];
+        if (i >= 0 && i < List->size())
+        { Plugin* pp = (*List)[i];
           bool enable = !pp->GetEnabled();
-          if ((context->*context->enable_hook)(i, enable))
+          if (OnPluginEnable(i, enable))
           { pp->SetEnabled(enable);
-            WinPostMsg(hwnd, CFG_REFRESH_INFO, 0, MPFROMSHORT(i));
+            PostMsg(CFG_REFRESH_INFO, 0, MPFROMSHORT(i));
           }
         }
         break;
 
        case PB_PLG_ACTIVATE:
-        if ( i != LIT_NONE && (context->Flags & PluginContext::CF_List1) && (context->*context->enable_hook)(i, true)
-          && ((PluginList1*)context->List)->SetActive(i) )
-        { WinPostMsg(hwnd, CFG_REFRESH_INFO, 0, MPFROMSHORT(i));
-          PMRASSERT(WinEnableControl(hwnd, PB_PLG_ACTIVATE, FALSE));
+        if ( i != LIT_NONE && (Flags & CF_List1) && OnPluginEnable(i, true)
+          && ((PluginList1*)List)->SetActive(i) )
+        { PostMsg(CFG_REFRESH_INFO, 0, MPFROMSHORT(i));
+          EnableControl(PB_PLG_ACTIVATE, FALSE);
         }
         break;
 
        case PB_PLG_CONFIG:
-        context->Configure(i);
+        Configure(i);
         break;
 
        case PB_PLG_SET:
-        context->SetParams(i);
+        SetParams(i);
         break;
       }
       return 0;
   }
-  return WinDefDlgProc(hwnd, msg, mp1, mp2);
+  return PageBase::DlgProc(msg, mp1, mp2);
 }
 
-/* Processes messages of the setup dialog. */
-static MRESULT EXPENTRY
-cfg_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
-{
-  switch( msg )
-  {
-    case WM_COMMAND:
-      switch (SHORT1FROMMP(mp1))
-      {
-        case PB_UNDO:
-        case PB_DEFAULT:
-        {
-          LONG id;
-          HWND page = NULLHANDLE;
 
-          id = (LONG)WinSendDlgItemMsg( hwnd, NB_CONFIG, BKM_QUERYPAGEID, 0,
-                                              MPFROM2SHORT(BKA_TOP,BKA_MAJOR));
-
-          if( id && id != BOOKERR_INVALID_PARAMETERS ) {
-              page = (HWND)WinSendDlgItemMsg( hwnd, NB_CONFIG,
-                                              BKM_QUERYPAGEWINDOWHWND, MPFROMLONG(id), 0 );
-          }
-
-          if( page && page != (HWND)BOOKERR_INVALID_PARAMETERS ) {
-            WinPostMsg( page, CFG_GLOB_BUTTON, mp1, mp2 );
-          }
-          return MRFROMLONG(1L);
-        }
-
-        case PB_HELP:
-          GUI::ShowHelp(IDH_PROPERTIES);
-          return 0;
-      }
-      return 0;
-
-    case WM_DESTROY:
-      save_ini();
-      save_window_pos( hwnd );
-      return 0;
-
-    case WM_WINDOWPOSCHANGED:
-      if(((SWP*)mp1)->fl & SWP_SIZE ) {
-        nb_adjust( hwnd, (SWP*)mp1 );
-      }
-      break;
-  }
-  return WinDefDlgProc( hwnd, msg, mp1, mp2 );
-}
-
-/* Creates the properties dialog. */
-void
-cfg_properties( HWND owner )
-{
-  HWND hwnd;
-  HWND book;
-  HWND page;
-
-  hwnd = WinLoadDlg( HWND_DESKTOP, owner, cfg_dlg_proc, NULLHANDLE, DLG_CONFIG, 0 );
-  book = WinWindowFromID( hwnd, NB_CONFIG );
-  do_warpsans( book );
-
-  WinSendMsg( book, BKM_SETDIMENSIONS, MPFROM2SHORT( 100,25 ), MPFROMSHORT( BKA_MAJORTAB ));
-  WinSendMsg( book, BKM_SETDIMENSIONS, MPFROMLONG( 0 ), MPFROMSHORT( BKA_MINORTAB ));
-  WinSendMsg( book, BKM_SETNOTEBOOKCOLORS, MPFROMLONG ( SYSCLR_FIELDBACKGROUND ),
-                                           MPFROMSHORT( BKA_BACKGROUNDPAGECOLORINDEX ));
-
-  PMRASSERT( nb_append_tab( book, WinLoadDlg( book, book, cfg_settings1_dlg_proc, NULLHANDLE, CFG_SETTINGS1, 0 ),
-                            "~Behavior", "General behavior", MPFROM2SHORT( 1, 2 ) ));
-
-  PMRASSERT( nb_append_tab( book, WinLoadDlg( book, book, cfg_settings2_dlg_proc, NULLHANDLE, CFG_SETTINGS2, 0 ),
-                            NULL, "Playlist behavior", MPFROM2SHORT( 2, 2 ) ));
-
-  PMRASSERT( nb_append_tab( book, WinLoadDlg( book, book, cfg_iosettings_dlg_proc, NULLHANDLE, CFG_IOSETTINGS, 0 ),
-                            "~System settings", NULL, 0 ));
-
-  PMRASSERT( nb_append_tab( book, WinLoadDlg( book, book, cfg_display1_dlg_proc, NULLHANDLE, CFG_DISPLAY1, 0 ),
-                            "~Display", NULL, 0));
-
-  PluginContext decoder_context(&Decoders, NULL, PLUGIN_INTERFACE_LEVEL, PluginContext::CF_None);
-  PMRASSERT( nb_append_tab( book, WinLoadDlg( book, book, cfg_config_dlg_proc, NULLHANDLE, CFG_DEC_CONFIG, &decoder_context ),
-                            "~Plug-ins", "Decoder Plug-ins", MPFROM2SHORT( 1, 4 )));
-
-  PluginContext filter_context(&Filters, NULL, PLUGIN_INTERFACE_LEVEL, PluginContext::CF_None);
-  PMRASSERT( nb_append_tab( book, WinLoadDlg( book, book, cfg_config_dlg_proc, NULLHANDLE, CFG_FIL_CONFIG, &filter_context ),
-                            NULL, "Filter Plug-ins", MPFROM2SHORT( 2, 4 )));
-
-  PluginContext output_context(&Outputs, NULL, PLUGIN_INTERFACE_LEVEL, PluginContext::CF_List1);
-  PMRASSERT( nb_append_tab( book, WinLoadDlg( book, book, cfg_config_dlg_proc, NULLHANDLE, CFG_OUT_CONFIG, &output_context ),
-                            NULL, "Output Plug-ins", MPFROM2SHORT( 3, 4 )));
-
-  PluginContext visual_context(&Visuals, &VisualsSkinned, PLUGIN_INTERFACE_LEVEL, PluginContext::CF_None);
-  PMRASSERT( nb_append_tab( book, WinLoadDlg( book, book, cfg_config_dlg_proc, NULLHANDLE, CFG_VIS_CONFIG, &visual_context ),
-                            NULL, "Visual Plug-ins", MPFROM2SHORT( 4, 4 )));
-
-  page = WinLoadDlg( book, book, &WinDefDlgProc, NULLHANDLE, CFG_ABOUT, 0 );
-  do_warpsans( page );
+void PropertyDialog::AboutPage::OnInit()
+{ PageBase::OnInit();
+  do_warpsans( GetHwnd() );
   #if defined(__IBMCPP__)
     #if __IBMCPP__ <= 300
     const char built[] = "(built " __DATE__ " using IBM VisualAge C++ 3.0x)";
@@ -1444,18 +1396,81 @@ cfg_properties( HWND owner )
   #else
     const char* built = 0;
   #endif
-  WinSetDlgItemText( page, ST_BUILT, built );
-  WinSetDlgItemText( page, ST_AUTHORS, SDG_AUT );
-  WinSetDlgItemText( page, ST_CREDITS, SDG_MSG );
-  PMRASSERT( nb_append_tab( book, page, "~About", NULL, 0));
+  SetItemText(ST_BUILT, built );
+  SetItemText(ST_AUTHORS, SDG_AUT );
+  SetItemText(ST_CREDITS, SDG_MSG );
+}
 
-  rest_window_pos( hwnd );
-  WinSetFocus( HWND_DESKTOP, book );
 
-  WinProcessDlg   ( hwnd );
-  WinDestroyWindow( hwnd );
+PropertyDialog::PropertyDialog(HWND owner)
+: NotebookDialogBase(DLG_CONFIG, NULLHANDLE)
+{ Pages.append() = new Settings1Page(*this);
+  Pages.append() = new Settings2Page(*this);
+  Pages.append() = new SystemSettingsPage(*this);
+  Pages.append() = new DisplaySettingsPage(*this);
+  Pages.append() = new DecoderPage(*this);
+  Pages.append() = new FilterPage(*this);
+  Pages.append() = new OutputPage(*this);
+  Pages.append() = new VisualPage(*this);
+  Pages.append() = new AboutPage(*this);
+  StartDialog(owner, NB_CONFIG);
+}
 
-  // TODO: only in case of a change!  
+/* Processes messages of the setup dialog. */
+MRESULT PropertyDialog::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
+{
+  switch( msg )
+  {
+    case WM_COMMAND:
+      switch (SHORT1FROMMP(mp1))
+      {
+        case PB_UNDO:
+        case PB_DEFAULT:
+        { HWND page = NULLHANDLE;
+          LONG id = (LONG)SendItemMsg(NB_CONFIG, BKM_QUERYPAGEID, 0, MPFROM2SHORT(BKA_TOP,BKA_MAJOR));
+          if( id && id != BOOKERR_INVALID_PARAMETERS )
+            page = (HWND)SendItemMsg(NB_CONFIG, BKM_QUERYPAGEWINDOWHWND, MPFROMLONG(id), 0 );
+          if( page && page != (HWND)BOOKERR_INVALID_PARAMETERS )
+            WinPostMsg(page, CFG_GLOB_BUTTON, mp1, mp2);
+          return MRFROMLONG(1L);
+        }
+
+        case PB_HELP:
+          GUI::ShowHelp(IDH_PROPERTIES);
+          return 0;
+      }
+      return 0;
+
+    case WM_INITDLG:
+      rest_window_pos( GetHwnd() );
+      break;
+
+    case WM_DESTROY:
+      save_ini();
+      save_window_pos( GetHwnd() );
+      break;
+
+    case WM_WINDOWPOSCHANGED:
+      if(((SWP*)mp1)->fl & SWP_SIZE ) {
+        nb_adjust( GetHwnd(), (SWP*)mp1 );
+      }
+      break;
+  }
+  return NotebookDialogBase::DlgProc(msg, mp1, mp2);
+}
+
+/* Creates the properties dialog. */
+void
+cfg_properties( HWND owner )
+{
+  PropertyDialog dialog(owner);
+
+  // TODO? WinSetFocus( HWND_DESKTOP, book );
+
+  dialog.Process();
+
+  // TODO: only in case of a change!
+  // TODO: move to system settings page
   amp_pipe_destroy();
   amp_pipe_create();
   

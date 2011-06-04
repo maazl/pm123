@@ -1,8 +1,8 @@
 /*
  * Copyright 1997-2003 Samuel Audet <guardia@step.polymtl.ca>
- *                     Taneli Lepp„ <rosmo@sektori.com>
+ *                     Taneli Leppï¿½ <rosmo@sektori.com>
  * Copyright 2004-2006 Dmitry A.Steklenev <glass@ptv.ru>
- * Copyright 2007-2008 M.Mueller
+ * Copyright 2007-2011 M.Mueller
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -39,6 +39,14 @@
 #include <os2.h>
 
 
+/* Timers */
+#define TID_UPDATE_TIMERS    ( TID_USERMAX - 1 )
+#define TID_UPDATE_PLAYER    ( TID_USERMAX - 2 )
+#define TID_ONTOP            ( TID_USERMAX - 3 )
+#define TID_CLEANUP          ( TID_USERMAX - 4 )
+#define TID_INSP_AUTOREFR    ( TID_USERMAX - 5 )
+
+
 /*#define  AMP_REFRESH_CONTROLS   ( WM_USER + 1000 ) // 0,         0
 #define  AMP_PAINT              ( WM_USER + 1001 ) // maske,     0
 #define  AMP_LOAD               ( WM_USER + 1002 ) // LoadHelper* 
@@ -55,58 +63,18 @@
 #define  AMP_WORKERADJUST       ( WM_USER + 1031 ) // 0,         0
 */
 
-/* Constructs a information text for currently loaded file. */
-//void  amp_display_filename( void );
-/* Switches to the next text displaying mode. */
-//void  amp_display_next_mode( void );
 
+/// Abort PM123 with an error message.
+void amp_fail(const char* fmt, ...);
 
-/* amp_load_playable options */
-/*#define AMP_LOAD_NOT_PLAY      0x0001 // Load a playable object, but do not start playback automatically
-#define AMP_LOAD_NOT_RECALL    0x0002 // Load a playable object, but do not add an entry into the list of recent files
-#define AMP_LOAD_KEEP_PLAYLIST 0x0004 // Play a playable object. If A playlist containing this item is loaded, the item is activated only.
-#define AMP_LOAD_APPEND        0x0008 // Take a playable object as part of multiple playable objects to load. 
-*/
-/* Marks the player window as needed of redrawing. */
-//void  amp_invalidate( unsigned options );
-/* amp_invalidate options - DO NOT CHANGE THESE CONSTANTS (dependencies) */
-/*#define UPD_TIMERS           0x0001
-#define UPD_FILEINFO         0x0002
-#define UPD_VOLUME           0x0004
-#define UPD_WINDOW           0x0008
-#define UPD_FILENAME         0x0010
-#define UPD_DELAYED          0x8000
-*/
+/// Returns the anchor-block handle.
+extern const HAB& amp_player_hab;
 
-/* Posts a command to the message queue associated with the player window. */
-//BOOL  amp_post_command( USHORT id );
-/* Returns the handle of the player frame window. */
-//HWND amp_player_window( void );
-/* Returns the anchor-block handle. */
-HAB  amp_player_hab( void );
-
-/* Opens dialog for the specified object. */
-/*enum dialog_type
-{ DLT_INFOEDIT,
-  DLT_METAINFO,
-  DLT_TECHINFO,
-  DLT_PLAYLIST,
-  DLT_PLAYLISTTREE
-};
-void amp_show_dialog( HWND owner, Playable* item, dialog_type dlg ); */
-
-//void amp_control_event_callback(Ctrl::ControlCommand* cmd);
-
-
-/* Global variables */
-
-/* Contains startup path of the program without its name. */
+/// Contains the path of the PM123 executable.
 extern const xstring& amp_startpath;
+/// Contains the path of the configuration data. By default the executable's path.
+extern const xstring& amp_basepath;
 
-/*Playable& amp_get_default_pl();
-Playable& amp_get_default_bm();
-Playable& amp_get_load_mru();
-Playable& amp_get_url_mru();*/
 
 #endif /* PM123_H */
 

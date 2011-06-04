@@ -98,7 +98,7 @@ class PlaylistMenu
     InDestroy       = 0x40       // Entry is currently destroyed (UM_MENUEND).
   };
   CLASSFLAGSATTRIBUTE(PlaylistMenu::EntryStatus);
-  struct MapEntry : public IComparableTo<USHORT>
+  struct MapEntry
   { const USHORT    IDMenu;      // Menu item ID, primary key
     EntryFlags      Flags;
     MapEntry*       Parent;      // Parent Menu item or NULL in case of root.
@@ -111,8 +111,9 @@ class PlaylistMenu
     class_delegate2<PlaylistMenu, const PlayableChangeArgs, MapEntry> InfoDelegate;
 
     MapEntry(USHORT id, MapEntry* parent, APlayable& data, EntryFlags flags, MPARAM user, SHORT pos, PlaylistMenu& owner, void (PlaylistMenu::*infochg)(const PlayableChangeArgs&, MapEntry*));
-    virtual int     compareTo(const USHORT& key) const;
+    static int      compare(const MapEntry& entry, const USHORT& key);
   };
+  typedef sorted_vector<MapEntry, USHORT, &MapEntry::compare> MapType;
 
  private:
   const HWND        HwndOwner;
@@ -121,7 +122,7 @@ class PlaylistMenu
  private:
   VREPLACE1         VR_DlgProc;
   PFNWP             Old_DlgProc;
-  sorted_vector<MapEntry, USHORT> MenuMap;
+  MapType           MenuMap;
   USHORT            ID1stfree;
 
  private:

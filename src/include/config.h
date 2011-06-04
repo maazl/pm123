@@ -72,7 +72,7 @@
 /* Define the macro NOSYSTEMSTATICMEMBER to work around for the IBMVAC++ restriction
  * that static class functions may not have a defined calling convention.
  * However, this workaround relies on friend functions with static linkage. This is
- * invalid acording to the C++ standard, but IBMVAC++ does not care about that fact.
+ * invalid according to the C++ standard, but IBMVAC++ does not care about that fact.
  */
 #ifdef NOSYSTEMSTATICMEMBER
 #define PROXYFUNCDEF friend static

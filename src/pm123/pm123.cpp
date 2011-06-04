@@ -2,7 +2,7 @@
  * Copyright 1997-2003 Samuel Audet <guardia@step.polymtl.ca>
  *                     Taneli Leppä <rosmo@sektori.com>
  * Copyright 2004-2006 Dmitry A.Steklenev <glass@ptv.ru>
- * Copyright 2007-2010 Marcel Müller
+ * Copyright 2007-2011 Marcel Müller
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -46,6 +46,7 @@
 #include "gui.h"
 #include "properties.h"
 #include "controller.h"
+#include "loadhelper.h"
 #include "pipe.h"
 
 #include <fileutil.h>
@@ -70,1462 +71,135 @@
 #define  FDU_RELATIV_ON   0x0010
 
 
-/* Contains startup path of the program without its name.  */
-static xstring startpath_local;
-const xstring& amp_startpath = startpath_local;
+static xstring StartPath;
+const xstring& amp_startpath = StartPath;
 
-/*// Default playlist, representing PM123.LST in the program folder.
-static int_ptr<Playable> DefaultPL;
-// PlaylistManager window, representing PFREQ.LST in the program folder.
-static int_ptr<Playable> DefaultPM;
-// Default instance of bookmark window, representing BOOKMARK.LST in the program folder.
-static int_ptr<Playable> DefaultBM;
-// Most recent used entries in the load menu, representing LOADMRU.LST in the program folder.
-static int_ptr<Playable> LoadMRU;
-// Most recent used entries in the load URL dialog, representing URLMRU.LST in the program folder.
-static int_ptr<Playable> UrlMRU;*/
+static xstring BasePath;
+const xstring& amp_basepath = BasePath;
+
+static HAB Hab = NULLHANDLE;
+const HAB& amp_player_hab = Hab;
 
 
-static HAB   hab        = NULLHANDLE;
-static BOOL  is_arg_shuffle   = FALSE;
-
-
-HAB amp_player_hab()
-{ return hab;
+void amp_fail(const char* fmt, ...)
+{ // TODO: Write error to PM if initialized.
+  va_list va;
+  va_start(va, fmt);
+  vfprintf(stderr, fmt, va);
+  va_end(va);
+  exit(1);
 }
 
-/* location cache */
-//static Location*     CurrentIter = NULL; // current SongIterator
-//static APlayable*    CurrentSong = NULL; // Song from the current SongIterator
-//static APlayable*    CurrentRoot = NULL; // Root from the current SongIterator, may be == CurrentSong
-//static bool          IsLocMsg    = false;// true if a MsgLocation to the controller is on the way
-//static unsigned      UpdAtLocMsg = 0;    // do these redraws (with amp_invalidate) when the next Location info arrives
-//static Location*     LocationIter;       // Two SongIterators. CurrentIter points to one of them. (Initialized lately)
-
-//static bool          Terminate   = false;// True when WM_QUIT arrived
-//static PlaylistMenu* MenuWorker  = NULL; // Instance of PlaylistMenu to handle events of the context menu.
-
-
-/*static void amp_control_event_handler(void* rcv, const Ctrl::EventFlags& flags)
-{ DEBUGLOG(("amp_control_event_handler(%p, %x)\n", rcv, flags));
-  QMSG msg;
-  if (WinPeekMsg(hab, &msg, hframe, AMP_CTRL_EVENT, AMP_CTRL_EVENT, PM_REMOVE))
-  { DEBUGLOG(("amp_control_event_handler - hit: %x\n", msg.mp1));
-    // join messages
-    (Ctrl::EventFlags&)msg.mp1 |= flags;
-    WinPostMsg(hframe, AMP_CTRL_EVENT, msg.mp1, 0);
-  } else
-    WinPostMsg(hframe, AMP_CTRL_EVENT, MPFROMLONG(flags), 0);
+static char* fetcharg(char**& argv, const char* opt)
+{ if (!*++argv)
+    amp_fail("The option -%s requires an argument.", opt);
+  return *argv;
 }
 
-void amp_control_event_callback(Ctrl::ControlCommand* cmd)
-{ DEBUGLOG(("amp_control_event_callback(%p{%i, ...)\n", cmd, cmd->Cmd));
-  WinPostMsg(hframe, AMP_CTRL_EVENT_CB, MPFROMP(cmd), 0);
-}
-
-// Draws all player timers and the position slider.
-static void
-amp_paint_timers( HPS hps )
+int main(int argc, char** argv)
 {
-  DEBUGLOG(("amp_paint_timers(%p) - %i %i\n", hps, cfg.mode, is_seeking));
-
-  if (CurrentIter == NULL)
-    return;
-
-  APlayable* CurrentRoot = CurrentIter->GetRoot(); 
-  const bool is_playlist = CurrentRoot && (CurrentRoot->GetFlags() & Playable::Enumerable);
-  PM123_TIME total_song = CurrentSong ? CurrentSong->GetInfo().tech->songlength : -1;
-  PM123_TIME total_time = is_playlist ? CurrentRoot->GetInfo().tech->songlength : -1;
-  const SongIterator::Offsets& off = CurrentIter->GetOffset(false);
-
-  PM123_TIME list_left = -1;
-  PM123_TIME play_left = total_song;
-  if (play_left > 0)
-    play_left -= CurrentIter->GetLocation();
-  if (total_time > 0)
-    list_left = total_time - off.Offset - CurrentIter->GetLocation();
-
-  double pos = -1.;
-  if (!is_pl_slider)
-  { if (total_song > 0)
-      pos = CurrentIter->GetLocation()/total_song;
-  } else switch (cfg.altnavig)
-  {case CFG_ANAV_SONG:
-    if (is_playlist)
-    { int total_items = CurrentRoot->GetInfo().rpl->total_items;
-      if (total_items == 1)
-        pos = 0;
-      else if (total_items > 1)
-        pos = off.Index / (double)(total_items-1);
-    }
-    break;
-   case CFG_ANAV_TIME:
-    if (CurrentRoot->GetInfo().tech->songlength > 0)
-    { pos = (off.Offset + CurrentIter->GetLocation()) / CurrentRoot->GetInfo().tech->songlength;
-      break;
-    } // else CFG_ANAV_SONGTIME
-   case CFG_ANAV_SONGTIME:
-    if (is_playlist)
-    { int total_items = CurrentRoot->GetInfo().rpl->total_items;
-      if (total_items == 1)
-        pos = 0;
-      else if (total_items > 1)
-        pos = off.Index;
-      else break;
-      // Add current song time
-      if (total_song > 0)
-        pos += CurrentIter->GetLocation()/total_song;
-      pos /= total_items;
-    }
-  }
-  bmp_draw_slider( hps, pos, is_pl_slider );
-  bmp_draw_timer ( hps, CurrentIter->GetLocation());
-
-  bmp_draw_tiny_timer( hps, POS_TIME_LEFT, play_left );
-  bmp_draw_tiny_timer( hps, POS_PL_LEFT,   list_left );
-
-  int index = is_playlist ? off.Index+1 : 0;
-  bmp_draw_plind( hps, index, index > 0 ? CurrentRoot->GetInfo().rpl->total_items : 0);
-}
-
-// Draws all attributes of the currently loaded file.
-static void
-amp_paint_fileinfo( HPS hps )
-{
-  DEBUGLOG(("amp_paint_fileinfo(%p)\n", hps));
-
-  bmp_draw_plmode( hps, CurrentRoot != NULL, CurrentRoot ? CurrentRoot->GetFlags() : Playable::None );
-
-  if (CurrentSong != NULL)
-  { bmp_draw_rate    ( hps, CurrentSong->GetInfo().tech->bitrate );
-    bmp_draw_channels( hps, CurrentSong->GetInfo().format->channels );
-  } else
-  { bmp_draw_rate    ( hps, -1 );
-    bmp_draw_channels( hps, -1 );
-  }
-  bmp_draw_text( hps );
-}
-
-// Marks the player window as needed of redrawing.
-void
-amp_invalidate( unsigned options )
-{ DEBUGLOG(("amp_invalidate(%x)\n", options));
-  if( options & UPD_WINDOW ) {
-    WinInvalidateRect( hplayer, NULL, 1 );
-    options &= ~UPD_WINDOW;
-  }
-  InterlockedOr(&upd_options, options & ~UPD_DELAYED);
-  if(!(options & UPD_DELAYED))
-    WinPostMsg(hplayer, AMP_PAINT, MPFROMLONG(options), 0);
-}
-
-// Sets bubble text for specified button.
-static void
-amp_set_bubbletext( USHORT id, const char *text )
-{
-  WinSendDlgItemMsg( hplayer, id, WM_SETHELP, MPFROMP(text), 0 );
-}
-
-// Constructs a information text for currently loaded file
-   and selects it for displaying.
-void
-amp_display_filename( void )
-{
-  DEBUGLOG(("amp_display_filename() %p %u\n", CurrentSong, cfg.viewmode));
-  if (!CurrentSong) {
-    bmp_set_text( "No file loaded" );
-    return;
+  // used for debug printf()s
+  setvbuf(stderr, NULL, _IONBF, 0);
+  { // init startpath
+    char exename[_MAX_PATH];
+    getExeName(exename, sizeof exename);
+    char* cp = strrchr(exename, '\\');
+    ASSERT(cp);
+    StartPath.assign(exename, cp-exename+1);
   }
 
-  xstring text;
-  switch( cfg.viewmode )
-  {
-    case CFG_DISP_ID3TAG:
-      text = amp_construct_tag_string(&CurrentSong->GetInfo());
-      if (text.length())
+  // parse command line
+  vector<const char> files;
+  const char* configdir = NULL;
+  const char* pipename  = NULL;
+  bool        shuffle   = false;
+  bool        start     = false;
+  bool        nogui     = false;
+  bool        command   = false; // files are remote command
+  bool        nomoreopt = false;
+  while (*++argv) // The first item is always the executable itself
+  { char* arg = *argv;
+
+    if ((arg[0] == '-' || arg[0] == '/') && !nomoreopt)
+    { // option
+      ++arg;
+      if (strcmp(arg, "-") == 0)
+        nomoreopt = true;
+      else if (stricmp(arg, "configdir") == 9)
+        configdir = fetcharg(argv, "configdir");
+      else if (stricmp(arg, "pipe") == 0)
+        pipename = fetcharg(argv, "pipe");
+      else if (stricmp(arg, "start") == 0)
+        start = true;
+      else if (stricmp(arg, "nugui") == 0)
+        nogui = true;
+      else if (stricmp(arg, "shuffle") == 0)
+        shuffle = true;
+      else if (stricmp(arg, "cmd") == 0)
+      { if (files.size())
+          amp_fail("The -cmd option could not be used after an URL: %s", files[0]);
+        files.append() = fetcharg(argv, "cmd");
+        while(*argv)
+          files.append() = arg;
+        command = true;
         break;
-      // if tag is empty - use filename instead of it.
-    case CFG_DISP_FILENAME:
-      // Give Priority to an alias name if any
-      if (CurrentIter)
-      { PlayableRef* ps = CurrentIter->GetCurrent();
-        text = ps->GetAlias();
-      }
-      if (!text)
-        text = CurrentSong->GetURL().getShortName();
-      // In case of an invalid item display an error message.
-      if (CurrentSong->GetStatus() == Playable::STA_Invalid)
-        text = text + " - " + CurrentSong->GetInfo().tech->info;
-      break;
+      } else if (stricmp(arg, "smooth") == 0)
+        ;// Not supported since 1.32
+      else
+        amp_fail("invalid option: %s", arg-1);
 
-    case CFG_DISP_FILEINFO:
-      text = CurrentSong->GetInfo().tech->info;
-      break;
+    } else
+      files.append() = arg;
   }
-  bmp_set_text( text );
-}
-
-// Ensure that a MsgLocation message is on processed by the controller
-static void amp_force_locmsg()
-{ if (!IsLocMsg)
-  { IsLocMsg = true;
-    // Hack: the Location messages always writes to an iterator that is currently not in use by CurrentIter
-    // to avoid threading problems.
-    Ctrl::PostCommand( Ctrl::MkLocation(LocationIter + (CurrentIter == LocationIter), 0),
-                       &amp_control_event_callback );
-  }
-}
-
-// loads the accelerater table and modifies it by the plugins
-static void
-amp_load_accel()
-{ DEBUGLOG(("amp_load_accel()\n"));
-  // Generate new accelerator table.
-  HACCEL haccel = WinLoadAccelTable(hab, NULLHANDLE, ACL_MAIN);
-  PMASSERT(haccel != NULLHANDLE);
-  memset( load_wizards+2, 0, sizeof load_wizards - 2*sizeof *load_wizards ); // You never know...
-  dec_append_accel_table( haccel, IDM_M_LOADOTHER, 0, load_wizards+2, sizeof load_wizards / sizeof *load_wizards -2);
-  // Replace table of current window.
-  HACCEL haccel_old = WinQueryAccelTable(hab, hframe);
-  PMRASSERT(WinSetAccelTable(hab, haccel, hframe));
-  if (haccel_old != NULLHANDLE)
-    PMRASSERT(WinDestroyAccelTable(haccel_old));
-  // done
-  is_accel_changed = true;
-}
-
-// Shows the context menu of the playlist.
-static void
-amp_show_context_menu( HWND parent )
-{
-  static HWND context_menu = NULLHANDLE;
-  bool new_menu = false;
-  if( context_menu == NULLHANDLE )
-  { context_menu = WinLoadMenu( HWND_OBJECT, 0, MNU_MAIN );
-    mn_make_conditionalcascade( context_menu, IDM_M_LOAD,   IDM_M_LOADFILE );
-    mn_make_conditionalcascade( context_menu, IDM_M_PLOPEN, IDM_M_PLOPENDETAIL);
-    mn_make_conditionalcascade( context_menu, IDM_M_HELP,   IDH_MAIN);
-
-    MenuWorker = new PlaylistMenu(parent, IDM_M_LAST, IDM_M_LAST_E);
-    MenuWorker->AttachMenu(IDM_M_BOOKMARKS, DefaultBM, PlaylistMenu::DummyIfEmpty|PlaylistMenu::Recursive|PlaylistMenu::Enumerate, 0);
-    MenuWorker->AttachMenu(IDM_M_LOAD, LoadMRU, PlaylistMenu::Enumerate|PlaylistMenu::Separator, 0);
-    new_menu = true;
-  }
-  POINTL   pos;
-  WinQueryPointerPos( HWND_DESKTOP, &pos );
-  WinMapWindowPoints( HWND_DESKTOP, parent, &pos, 1 );
-
-  if( WinWindowFromPoint( parent, &pos, TRUE ) == NULLHANDLE )
-  {
-    SWP swp;
-    // The context menu is probably activated from the keyboard.
-    WinQueryWindowPos( parent, &swp );
-    pos.x = swp.cx/2;
-    pos.y = swp.cy/2;
-  }
-
-  if (is_plugin_changed || new_menu)
-  { // Update plug-ins.
-    MENUITEM mi;
-    PMRASSERT(WinSendMsg( context_menu, MM_QUERYITEM, MPFROM2SHORT( IDM_M_PLUG, TRUE ), MPFROMP( &mi )));
-    is_plugin_changed = false;
-    load_plugin_menu( mi.hwndSubMenu );
-  }
-
-  if (is_accel_changed || new_menu)
-  { MENUITEM mi;
-    PMRASSERT(WinSendMsg( context_menu, MM_QUERYITEM, MPFROM2SHORT( IDM_M_LOAD, TRUE ), MPFROMP( &mi )));
-    // Append asisstents from decoder plug-ins
-    memset( load_wizards+2, 0, sizeof load_wizards - 2*sizeof *load_wizards ); // You never know...
-    is_accel_changed = false;
-    dec_append_load_menu( mi.hwndSubMenu, IDM_M_LOADOTHER, 2, load_wizards+2, sizeof load_wizards / sizeof *load_wizards -2);
-    ( MenuShowAccel( WinQueryAccelTable( hab, hframe ))).ApplyTo( new_menu ? context_menu : mi.hwndSubMenu );
-  }
-
-  // Update status
-  mn_enable_item( context_menu, IDM_M_TAG,     CurrentSong != NULL && CurrentSong->GetInfo().meta_write );
-  mn_enable_item( context_menu, IDM_M_CURRENT_SONG, CurrentSong != NULL );
-  mn_enable_item( context_menu, IDM_M_CURRENT_PL, CurrentRoot != NULL && CurrentRoot->GetFlags() & Playable::Enumerable );
-  mn_enable_item( context_menu, IDM_M_SMALL,   bmp_is_mode_supported( CFG_MODE_SMALL   ));
-  mn_enable_item( context_menu, IDM_M_NORMAL,  bmp_is_mode_supported( CFG_MODE_REGULAR ));
-  mn_enable_item( context_menu, IDM_M_TINY,    bmp_is_mode_supported( CFG_MODE_TINY    ));
-  mn_enable_item( context_menu, IDM_M_FONT,    cfg.font_skinned );
-  mn_enable_item( context_menu, IDM_M_FONT1,   bmp_is_font_supported( 0 ));
-  mn_enable_item( context_menu, IDM_M_FONT2,   bmp_is_font_supported( 1 ));
-  mn_enable_item( context_menu, IDM_M_ADDBOOK, CurrentSong != NULL );
-
-  mn_check_item ( context_menu, IDM_M_FLOAT,   cfg.floatontop  );
-  mn_check_item ( context_menu, IDM_M_SAVE,    !!Ctrl::GetSavename() );
-  mn_check_item ( context_menu, IDM_M_FONT1,   cfg.font == 0   );
-  mn_check_item ( context_menu, IDM_M_FONT2,   cfg.font == 1   );
-  mn_check_item ( context_menu, IDM_M_SMALL,   cfg.mode == CFG_MODE_SMALL   );
-  mn_check_item ( context_menu, IDM_M_NORMAL,  cfg.mode == CFG_MODE_REGULAR );
-  mn_check_item ( context_menu, IDM_M_TINY,    cfg.mode == CFG_MODE_TINY    );
-
-  WinPopupMenu( parent, parent, context_menu, pos.x, pos.y, 0,
-                PU_HCONSTRAIN   | PU_VCONSTRAIN |
-                PU_MOUSEBUTTON1 | PU_MOUSEBUTTON2 | PU_KEYBOARD );
-}
-
-// Prepares the player to the drop operation.
-static MRESULT
-amp_drag_over( HWND hwnd, DRAGINFO* pdinfo )
-{ DEBUGLOG(("amp_drag_over(%p, %p)\n", hwnd, pdinfo));
-
-  PDRAGITEM pditem;
-  int       i;
-  USHORT    drag_op = 0;
-  USHORT    drag    = DOR_NEVERDROP;
-
-  if( !DrgAccessDraginfo( pdinfo )) {
-    return MRFROM2SHORT( DOR_NEVERDROP, 0 );
-  }
-
-  DEBUGLOG(("amp_drag_over(%p, %p{,,%x, %p, %i,%i, %u,})\n", hwnd,
-    pdinfo, pdinfo->usOperation, pdinfo->hwndSource, pdinfo->xDrop, pdinfo->yDrop, pdinfo->cditem));
-
-  for( i = 0; i < pdinfo->cditem; i++ )
-  {
-    pditem = DrgQueryDragitemPtr( pdinfo, i );
-
-    if (DrgVerifyRMF(pditem, "DRM_OS2FILE", NULL) || DrgVerifyRMF(pditem, "DRM_123FILE", NULL))
-    { drag    = DOR_DROP;
-      drag_op = DO_COPY;
-    } else {
-      drag    = DOR_NEVERDROP;
-      drag_op = 0;
-      break;
-    }
-  }
-
-  DrgFreeDraginfo( pdinfo );
-  return MPFROM2SHORT( drag, drag_op );
-}
-
-struct DropInfo
-{ //USHORT count;    // Count of dragged objects.
-  //USHORT index;    // Index of current item [0..Count)
-  xstring URL;      // Object to drop
-  xstring Start;    // Start Iterator
-  xstring Stop;     // Stop iterator
-  int_ptr<LoadHelper> LH;
-  int     options;  // Options for amp_load_playable
-  HWND    hwndItem; // Window handle of the source of the drag operation.
-  ULONG   ulItemID; // Information used by the source to identify the
-                    // object being dragged.
-};
-
-// Receives dropped files or playlist records.
-static MRESULT
-amp_drag_drop( HWND hwnd, PDRAGINFO pdinfo )
-{ DEBUGLOG(("amp_drag_drop(%p, %p)\n", hwnd, pdinfo));
-
-  if( !DrgAccessDraginfo( pdinfo )) {
-    return 0;
-  }
-
-  DEBUGLOG(("amp_drag_drop: {,%u,%x,%p, %u,%u, %u,}\n",
-    pdinfo->cbDragitem, pdinfo->usOperation, pdinfo->hwndSource, pdinfo->xDrop, pdinfo->yDrop, pdinfo->cditem));
-
-  int_ptr<LoadHelper> lhp = new LoadHelper(
-    cfg.playonload*LoadHelper::LoadPlay |
-    cfg.append_dnd*LoadHelper::LoadAppend |
-    LoadHelper::ShowErrors |
-    LoadHelper::PostDelayed |
-    LoadHelper::AutoPost);
-
-  for( int i = 0; i < pdinfo->cditem; i++ )
-  {
-    DRAGITEM* pditem = DrgQueryDragitemPtr( pdinfo, i );
-    DEBUGLOG(("amp_drag_drop: item {%p, %p, %s, %s, %s, %s, %s, %i,%i, %x, %x}\n",
-      pditem->hwndItem, pditem->ulItemID, amp_string_from_drghstr(pditem->hstrType).cdata(), amp_string_from_drghstr(pditem->hstrRMF).cdata(),
-      amp_string_from_drghstr(pditem->hstrContainerName).cdata(), amp_string_from_drghstr(pditem->hstrSourceName).cdata(), amp_string_from_drghstr(pditem->hstrTargetName).cdata(),
-      pditem->cxOffset, pditem->cyOffset, pditem->fsControl, pditem->fsSupportedOps));
-
-    ULONG reply = DMFL_TARGETFAIL;
-
-    if( DrgVerifyRMF( pditem, "DRM_OS2FILE", NULL ))
-    {
-      // fetch full qualified path
-      size_t lenP = DrgQueryStrNameLen(pditem->hstrContainerName);
-      size_t lenN = DrgQueryStrNameLen(pditem->hstrSourceName);
-      xstring fullname;
-      char* cp = fullname.raw_init(lenP + lenN);
-      DrgQueryStrName(pditem->hstrContainerName, lenP+1, cp);
-      DrgQueryStrName(pditem->hstrSourceName,    lenN+1, cp+lenP);
-
-      if (pditem->hwndItem && DrgVerifyType(pditem, "UniformResourceLocator"))
-      { // URL => The droped item must be rendered.
-        DRAGTRANSFER* pdtrans = DrgAllocDragtransfer(1);
-        if (pdtrans)
-        { DropInfo* pdsource = new DropInfo();
-          pdsource->LH       = lhp;
-          pdsource->hwndItem = pditem->hwndItem;
-          pdsource->ulItemID = pditem->ulItemID;
-
-          pdtrans->cb               = sizeof( DRAGTRANSFER );
-          pdtrans->hwndClient       = hwnd;
-          pdtrans->pditem           = pditem;
-          pdtrans->hstrSelectedRMF  = DrgAddStrHandle("<DRM_OS2FILE,DRF_TEXT>");
-          pdtrans->hstrRenderToName = 0;
-          pdtrans->ulTargetInfo     = (ULONG)pdsource;
-          pdtrans->fsReply          = 0;
-          pdtrans->usOperation      = pdinfo->usOperation;
-
-          // Send the message before setting a render-to name.
-          if ( pditem->fsControl & DC_PREPAREITEM
-            && !DrgSendTransferMsg(pditem->hwndItem, DM_RENDERPREPARE, (MPARAM)pdtrans, 0) )
-          { // Failure => do not send DM_ENDCONVERSATION
-            DrgFreeDragtransfer(pdtrans);
-            delete pdsource;
-            continue;
-          }
-          pdtrans->hstrRenderToName = DrgAddStrHandle(tmpnam(NULL));
-          // Send the message after setting a render-to name.
-          if ( (pditem->fsControl & (DC_PREPARE | DC_PREPAREITEM)) == DC_PREPARE
-            && !DrgSendTransferMsg(pditem->hwndItem, DM_RENDERPREPARE, (MPARAM)pdtrans, 0) )
-          { // Failure => do not send DM_ENDCONVERSATION
-            DrgFreeDragtransfer(pdtrans);
-            delete pdsource;
-            continue;
-          }
-          // Ask the source to render the selected item.
-          BOOL ok = LONGFROMMR(DrgSendTransferMsg(pditem->hwndItem, DM_RENDER, (MPARAM)pdtrans, 0));
-
-          if (ok) // OK => DM_ENDCONVERSATION is send at DM_RENDERCOMPLETE
-            continue;
-          // something failed => we have to cleanup ressources immediately and cancel the conversation
-          DrgFreeDragtransfer(pdtrans);
-          delete pdsource;
-          // ... send DM_ENDCONVERSATION below
-        }
-      } else if (pditem->hstrContainerName && pditem->hstrSourceName)
-      { // Have full qualified file name.
-        // Hopefully this criterion is sufficient to identify folders.
-        if (pditem->fsControl & DC_CONTAINER)
-        { // TODO: should be alterable
-          if (cfg.recurse_dnd)
-            fullname = fullname + "/?Recursive";
-          else
-            fullname = fullname + "/";
-        }
-
-        const url123& url = url123::normalizeURL(fullname);
-        DEBUGLOG(("amp_drag_drop: url=%s\n", url ? url.cdata() : "<null>"));
-        if (url)
-        { lhp->AddItem(new PlayableRef(url));
-          reply = DMFL_TARGETSUCCESSFUL;
-        }
-      }
-
-    } else if (DrgVerifyRMF(pditem, "DRM_123FILE", NULL))
-    { // In the DRM_123FILE transfer mechanism the target is responsable for doing the target related stuff
-      // while the source does the source related stuff. So a DO_MOVE operation causes
-      // - a create in the target window and
-      // - a remove in the source window.
-      // The latter is done when DM_ENDCONVERSATION arrives with DMFL_TARGETSUCCESSFUL.
-
-      DRAGTRANSFER* pdtrans = DrgAllocDragtransfer(1);
-      if (pdtrans)
-      { pdtrans->cb               = sizeof(DRAGTRANSFER);
-        pdtrans->hwndClient       = hwnd;
-        pdtrans->pditem           = pditem;
-        pdtrans->hstrSelectedRMF  = DrgAddStrHandle("<DRM_123FILE,DRF_UNKNOWN>");
-        pdtrans->hstrRenderToName = 0;
-        pdtrans->fsReply          = 0;
-        pdtrans->usOperation      = pdinfo->usOperation;
-
-        // Ask the source to render the selected item.
-        DrgSendTransferMsg(pditem->hwndItem, DM_RENDER, (MPARAM)pdtrans, 0);
-
-        // insert item
-        if ((pdtrans->fsReply & DMFL_NATIVERENDER))
-        { // TODO: slice!
-          lhp->AddItem(new PlayableRef(amp_string_from_drghstr(pditem->hstrSourceName)));
-          reply = DMFL_TARGETSUCCESSFUL;
-        }
-        // cleanup
-        DrgFreeDragtransfer(pdtrans);
-      }
-    }
-    // Tell the source you're done.
-    DrgSendTransferMsg(pditem->hwndItem, DM_ENDCONVERSATION, MPFROMLONG(pditem->ulItemID), MPFROMLONG(reply));
-
-  } // foreach pditem
-
-  DrgDeleteDraginfoStrHandles( pdinfo );
-  DrgFreeDraginfo( pdinfo );
-  return 0;
-}
-
-// Receives dropped and rendered files and urls.
-static MRESULT
-amp_drag_render_done( HWND hwnd, PDRAGTRANSFER pdtrans, USHORT rc )
-{
-  DropInfo* pdsource = (DropInfo*)pdtrans->ulTargetInfo;
-
-  ULONG reply = DMFL_TARGETFAIL;
-  // If the rendering was successful, use the file, then delete it.
-  if ((rc & DMFL_RENDEROK) && pdsource)
-  { // fetch render to name
-    const xstring& rendered = amp_string_from_drghstr(pdtrans->hstrRenderToName);
-    // fetch file content
-    const xstring& fullname = amp_url_from_file(rendered);
-    DosDelete(rendered);
-
-    if (fullname)
-    { const url123& url = url123::normalizeURL(fullname);
-      DEBUGLOG(("amp_drag_render_done: url=%s\n", url ? url.cdata() : "<null>"));
-      if (url)
-      { pdsource->LH->AddItem(new PlayableRef(url));
-        reply = DMFL_TARGETSUCCESSFUL;
-      }
-    }
-  }
-
-  // Tell the source you're done.
-  DrgSendTransferMsg( pdsource->hwndItem, DM_ENDCONVERSATION,
-                     (MPARAM)pdsource->ulItemID, (MPARAM)reply);
-
-  delete pdsource;
-  DrgDeleteStrHandle ( pdtrans->hstrSelectedRMF );
-  DrgDeleteStrHandle ( pdtrans->hstrRenderToName );
-  DrgFreeDragtransfer( pdtrans );
-  return 0;
-}
-
-static void DLLENTRY
-amp_load_file_callback( void* param, const char* url )
-{ DEBUGLOG(("amp_load_file_callback(%p, %s)\n", param, url));
-  ((LoadHelper*)param)->AddItem(new PlayableRef(url));
-}
-
-
-
-// set alternate navigation status to 'alt'.
-static void amp_set_alt_slider(bool alt)
-{ if (is_pl_slider != alt);
-  { is_pl_slider = alt;
-    amp_invalidate(UPD_TIMERS);
-  }
-}
-
-// Processes messages of the player client window.
-static MRESULT EXPENTRY
-amp_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
-{
-  DEBUGLOG2(("amp_dlg_proc(%p, %p, %p, %p)\n", hwnd, msg, mp1, mp2));
-  switch( msg )
-  { case WM_FOCUSCHANGE:
-    {
-      HPS hps = WinGetPS( hwnd );
-      is_have_focus = SHORT1FROMMP( mp2 );
-      bmp_draw_led( hps, is_have_focus  );
-      WinReleasePS( hps );
-      // Return to basic slider behaviour when focus is lost.
-      // Set the slider behaviour according to the Alt key when the focus is set.
-      amp_set_alt_slider(is_have_focus && ((WinGetKeyState(HWND_DESKTOP, VK_ALT)|WinGetKeyState(HWND_DESKTOP, VK_ALTGRAF)) & 0x8000));
-      break;
-    }
-
-    case 0x041e:
-      if( !is_have_focus ) {
-        HPS hps = WinGetPS( hwnd );
-        bmp_draw_led( hps, TRUE);
-        WinReleasePS( hps );
-      }
-      return 0;
-
-    case 0x041f:
-      if( !is_have_focus ) {
-        HPS hps = WinGetPS( hwnd );
-        bmp_draw_led( hps, FALSE );
-        WinReleasePS( hps );
-      }
-      return 0;
-
-    case AMP_LOAD:
-    { DEBUGLOG(("amp_dlg_proc: AMP_LOAD %p\n", mp1));
-      LoadHelper* lhp = (LoadHelper*)mp1;
-      Ctrl::ControlCommand* cmd = lhp->ToCommand();
-      if (cmd)
-      { cmd->Callback = &GUI::ControllerEventCB;
-        Ctrl::PostCommand(cmd);
-      }
-      delete lhp;
-      return 0;
-    }
-
-    case AMP_SHOW_DIALOG:
-    { //dialog_show* iep = (dialog_show*)PVOIDFROMMP(mp1);
-      int_ptr<Playable> pp;
-      pp.fromCptr((Playable*)mp1);
-      DialogType type = (DialogType)SHORT1FROMMP(mp2);
-      DEBUGLOG(("amp_dlg_proc: AMP_SHOW_DIALOG %p, %u\n", pp.get(), type));
-      switch (type)
-      { case DLT_INFOEDIT:
-        { ULONG rc = dec_editmeta( HFrame, pp->GetURL(), pp->GetDecoder());
-          DEBUGLOG(("amp_dlg_proc: AMP_SHOW_DIALOG rc = %u\n", rc));
-          switch (rc)
-          { default:
-              amp_error( HFrame, "Cannot edit tag of file:\n%s", pp->GetURL().cdata());
-              break;
-            case 0:   // tag changed
-              pp->LoadInfoAsync(IF_Meta);
-              // Refresh will come automatically
-            case 300: // tag unchanged
-              break;
-            case 400: // decoder does not provide decoder_editmeta => use info dialog instead
-              InfoDialog::GetByKey(pp)->ShowPage(InfoDialog::Page_MetaInfo);
-              break;
-            case 500:
-              amp_error( HFrame, "Unable write tag to file:\n%s\n%s", pp->GetURL().cdata(), clib_strerror(errno));
-              break;
-          }
-          break;
-        }
-        case DLT_METAINFO:
-          InfoDialog::GetByKey(pp)->ShowPage(InfoDialog::Page_MetaInfo);
-          break;
-        case DLT_TECHINFO:
-          InfoDialog::GetByKey(pp)->ShowPage(InfoDialog::Page_TechInfo);
-          break;
-        case DLT_PLAYLIST:
-          PlaylistView::Get(pp)->SetVisible(true);
-          break;
-        case DLT_PLAYLISTTREE:
-          PlaylistManager::Get(pp)->SetVisible(true);
-          break;
-      }
-      return 0;
-    }
-
-    case AMP_DISPLAY_MESSAGE:
-    { xstring text;
-      text.fromCstr(mp1); 
-      if( mp2 ) {
-        amp_error( hwnd, "%s", text.cdata() );
-      } else {
-        amp_info ( hwnd, "%s", text.cdata() );
-      }
-      return 0;
-    }
-    case AMP_DISPLAY_MODE:
-      if( cfg.viewmode == CFG_DISP_FILEINFO ) {
-        cfg.viewmode = CFG_DISP_FILENAME;
-      } else {
-        cfg.viewmode++;
-      }
-
-      amp_invalidate(UPD_FILENAME);
-      return 0;
-
-    case AMP_RELOADSKIN:
-    { HPS hps = WinGetPS( hwnd );
-      bmp_load_skin( cfg.defskin, hab, hwnd, hps );
-      WinReleasePS( hps );
-      amp_invalidate( UPD_WINDOW );
-      return 0;
-    }
-
-    case AMP_CTRL_EVENT:
-      { // Event from the controller
-        Ctrl::EventFlags flags = (Ctrl::EventFlags)LONGFROMMP(mp1);
-        DEBUGLOG(("amp_dlg_proc: AMP_CTRL_EVENT %x\n", flags));
-        unsigned inval = 0;
-        if (flags & Ctrl::EV_PlayStop)
-        { if (Ctrl::IsPlaying())
-          { WinSendDlgItemMsg(hplayer, BMP_PLAY,  WM_PRESS, 0, 0);
-            amp_set_bubbletext(BMP_PLAY, "Stops playback");
-          } else
-          { WinSendDlgItemMsg(hplayer, BMP_PLAY,  WM_DEPRESS, 0, 0);
-            amp_set_bubbletext(BMP_PLAY, "Starts playback");
-            WinSetWindowText (hframe,  AMP_FULLNAME);
-            amp_force_locmsg();
-            amp_invalidate( UPD_WINDOW );
-          }
-        }
-        if (flags & Ctrl::EV_Pause)
-          WinSendDlgItemMsg(hplayer, BMP_PAUSE,   Ctrl::IsPaused() ? WM_PRESS : WM_DEPRESS, 0, 0);
-        if (flags & Ctrl::EV_Forward)
-          WinSendDlgItemMsg(hplayer, BMP_FWD,     Ctrl::GetScan() & DECFAST_FORWARD ? WM_PRESS : WM_DEPRESS, 0, 0);
-        if (flags & Ctrl::EV_Rewind)
-          WinSendDlgItemMsg(hplayer, BMP_REW,     Ctrl::GetScan() & DECFAST_REWIND  ? WM_PRESS : WM_DEPRESS, 0, 0);
-        if (flags & Ctrl::EV_Shuffle)
-          WinSendDlgItemMsg(hplayer, BMP_SHUFFLE, Ctrl::IsShuffle() ? WM_PRESS : WM_DEPRESS, 0, 0);
-        if (flags & Ctrl::EV_Repeat)
-        { WinSendDlgItemMsg(hplayer, BMP_REPEAT,  Ctrl::IsRepeat() ? WM_PRESS : WM_DEPRESS, 0, 0);
-          inval |= UPD_TIMERS;
-        }
-        if (flags & (Ctrl::EV_Song|Ctrl::EV_SongPhys|Ctrl::EV_RootTech|Ctrl::EV_RootRpl))
-          amp_force_locmsg();
-
-        if (flags & Ctrl::EV_Volume)
-          inval |= UPD_VOLUME;
-
-        if (flags & Ctrl::EV_SongTech)
-        { UpdAtLocMsg |= UPD_FILEINFO; // update later
-          amp_force_locmsg();
-        }
-        if (flags & (Ctrl::EV_SongMeta|Ctrl::EV_SongStat))
-        { int_ptr<Song> song = Ctrl::GetCurrentSong();
-          if (song)
-            WinSetWindowText(hframe, (song->GetURL().getDisplayName() + " - " AMP_FULLNAME).cdata());
-          else
-            WinSetWindowText (hframe,  AMP_FULLNAME);
-          UpdAtLocMsg |= UPD_FILENAME|UPD_FILEINFO; // update screen later
-          amp_force_locmsg();
-        }
-
-        if (inval)
-          amp_invalidate(inval);
-      }
-      return 0;
-
-    case AMP_CTRL_EVENT_CB:
-      { Ctrl::ControlCommand* cmd = (Ctrl::ControlCommand*)PVOIDFROMMP(mp1);
-        DEBUGLOG(("amp_dlg_proc: AMP_CTRL_EVENT_CB %p{%i, %x}\n", cmd, cmd->Cmd, cmd->Flags));
-        switch (cmd->Cmd)
-        {case Ctrl::Cmd_Load:
-          // Successful? if not display error.
-          if (cmd->Flags != Ctrl::RC_OK)
-            pm123_display_error(xstring::sprintf("Error loading %s\n%s", cmd->StrArg.cdata(), Playable::GetByURL(cmd->StrArg)->GetInfo().tech->info));
-          break;
-         case Ctrl::Cmd_Skip:
-          WinSendDlgItemMsg(hplayer, BMP_PREV, WM_DEPRESS, 0, 0);
-          WinSendDlgItemMsg(hplayer, BMP_NEXT, WM_DEPRESS, 0, 0);
-          break;
-         case Ctrl::Cmd_PlayStop:
-          if (cmd->Flags != Ctrl::RC_OK)
-            // release button immediately
-            WinSendDlgItemMsg(hplayer, BMP_PLAY, WM_DEPRESS, 0, 0);
-          break;
-         case Ctrl::Cmd_Pause:
-          if (cmd->Flags != Ctrl::RC_OK)
-            // release button immediately
-            WinSendDlgItemMsg(hplayer, BMP_PAUSE, WM_DEPRESS, 0, 0);
-          break;
-         case Ctrl::Cmd_Scan:
-          if (cmd->Flags != Ctrl::RC_OK)
-          { // release buttons immediately
-            WinSendDlgItemMsg(hplayer, BMP_FWD, WM_DEPRESS, 0, 0);
-            WinSendDlgItemMsg(hplayer, BMP_REW, WM_DEPRESS, 0, 0);
-          }
-          break;
-         case Ctrl::Cmd_Volume:
-          amp_invalidate(UPD_VOLUME);
-          break;
-         case Ctrl::Cmd_Jump:
-          is_seeking = FALSE;
-          delete (SongIterator*)cmd->PtrArg;
-          amp_force_locmsg();
-          break;
-         case Ctrl::Cmd_Save:
-          if (cmd->Flags != Ctrl::RC_OK)
-            amp_player_error( "The current active decoder don't support saving of a stream.\n" );
-          break;
-         case Ctrl::Cmd_Location:
-          IsLocMsg = false;
-          if (is_seeking) // do not overwrite location while seeking
-            break;
-          // Fetch commonly used properties
-          if (cmd->Flags == Ctrl::RC_OK)
-          { CurrentIter = (SongIterator*)cmd->PtrArg;
-            PlayableRef* psi = CurrentIter->GetCurrent();
-            CurrentSong = psi && psi->GetPlayable()->GetFlags() == Playable::None
-              ? (Song*)psi->GetPlayable() : NULL;
-            CurrentRoot = CurrentIter->GetRoot() ? CurrentIter->GetRoot()->GetPlayable() : NULL;
-          } else
-          { CurrentIter = NULL;
-            CurrentSong = NULL;
-            CurrentRoot = NULL;
-          }
-          // Redraws
-          if (cfg.mode == CFG_MODE_REGULAR)
-            UpdAtLocMsg |= UPD_TIMERS;
-          amp_invalidate(UpdAtLocMsg);
-          UpdAtLocMsg = 0;
-          break;
-         default:; // supress warnings
-        }
-        // TODO: reasonable error messages in case of failed commands.
-        // now the command can die
-        delete cmd;
-      }
-      return 0;
-
-    case AMP_REFRESH_ACCEL:
-      { // eat other identical messages
-        QMSG qmsg;
-        while (WinPeekMsg(hab, &qmsg, hwnd, AMP_REFRESH_ACCEL, AMP_REFRESH_ACCEL, PM_REMOVE));
-      }
-      amp_load_accel();
-      return 0;
-
-    case WM_CONTEXTMENU:
-      amp_show_context_menu( hwnd );
-      return 0;
-
-    case WM_INITMENU:
-      if (SHORT1FROMMP(mp1) == IDM_M_PLAYBACK)
-      { HWND menu = HWNDFROMMP(mp2);
-        mn_check_item ( menu, BMP_PLAY,    Ctrl::IsPlaying() );
-        mn_check_item ( menu, BMP_PAUSE,   Ctrl::IsPaused()  );
-        mn_check_item ( menu, BMP_REW,     Ctrl::GetScan() == DECFAST_REWIND  );
-        mn_check_item ( menu, BMP_FWD,     Ctrl::GetScan() == DECFAST_FORWARD );
-        mn_check_item ( menu, BMP_SHUFFLE, Ctrl::IsShuffle() );
-        mn_check_item ( menu, BMP_REPEAT,  Ctrl::IsRepeat()  );
-      }
-      break;
-
-    case DM_DRAGOVER:
-      return amp_drag_over( hwnd, (PDRAGINFO)mp1 );
-    case DM_DROP:
-      return amp_drag_drop( hwnd, (PDRAGINFO)mp1 );
-    case DM_RENDERCOMPLETE:
-      return amp_drag_render_done( hwnd, (PDRAGTRANSFER)mp1, SHORT1FROMMP( mp2 ));
-    case DM_DROPHELP:
-      amp_show_help( IDH_DRAG_AND_DROP );
-      // Continue in default procedure to free ressources.
-      break;
-
-    case WM_TIMER:
-      DEBUGLOG2(("amp_dlg_proc: WM_TIMER - %x\n", LONGFROMMP(mp1)));
-      switch (LONGFROMMP(mp1))
-      {case TID_ONTOP:
-        WinSetWindowPos( hframe, HWND_TOP, 0, 0, 0, 0, SWP_ZORDER );
-        DEBUGLOG2(("amp_dlg_proc: WM_TIMER done\n"));
-        return 0;
-
-       case TID_UPDATE_PLAYER:
-        { if( bmp_scroll_text()) {
-            HPS hps = WinGetPS( hwnd );
-            bmp_draw_text( hps );
-            WinReleasePS( hps );
-          }
-          // initiate delayed paint
-          if( upd_options )
-            WinPostMsg( hwnd, AMP_PAINT, MPFROMLONG(-1), 0 );
-        }
-        DEBUGLOG2(("amp_dlg_proc: WM_TIMER done\n"));
-        return 0;
-
-       case TID_UPDATE_TIMERS:
-        if (Ctrl::IsPlaying())
-        // We must not mask this message request further, because the controller relies on that polling
-        // to update it's internal status.
-           amp_force_locmsg();
-        DEBUGLOG2(("amp_dlg_proc: WM_TIMER done\n"));
-        return 0;
-
-       case TID_CLEANUP:
-        Playable::Cleanup();
-        return 0;
-      }
-      break;
-
-    case WM_ERASEBACKGROUND:
-      return 0;
-
-    case WM_REALIZEPALETTE:
-      vis_broadcast( msg, mp1, mp2 );
-      break;
-
-    case AMP_PAINT:
-      if (!Terminate)
-      { int mask = LONGFROMMP( mp1 );
-        // is there anything to draw with HPS?
-        if (mask & upd_options & (UPD_FILENAME|UPD_TIMERS|UPD_FILEINFO|UPD_VOLUME))
-        { HPS hps  = WinGetPS( hwnd );
-          if ((mask & UPD_FILENAME) && InterlockedBtr(&upd_options, 4))
-          { amp_display_filename();
-            bmp_draw_text(hps);
-          }
-          if ((mask & UPD_TIMERS  ) && InterlockedBtr(&upd_options, 0))
-            amp_paint_timers(hps);
-          if ((mask & UPD_FILEINFO) && InterlockedBtr(&upd_options, 1))
-            amp_paint_fileinfo(hps);
-          if ((mask & UPD_VOLUME  ) && InterlockedBtr(&upd_options, 2))
-            bmp_draw_volume(hps, Ctrl::GetVolume());
-          WinReleasePS( hps );
-        }
-      }
-      return 0;
-
-    case WM_PAINT:
-    {
-      HPS hps = WinBeginPaint( hwnd, NULLHANDLE, NULL );
-      bmp_draw_background( hps, hwnd );
-      if (!Terminate)
-      { amp_paint_fileinfo ( hps );
-        amp_paint_timers   ( hps );
-        bmp_draw_volume    ( hps, Ctrl::GetVolume() );
-      }
-      bmp_draw_led       ( hps, is_have_focus  );
-
-      WinEndPaint( hps );
-      return 0;
-    }
-
-    case WM_COMMAND:
-    { USHORT cmd = SHORT1FROMMP(mp1);
-      DEBUGLOG(("amp_dlg_proc: WM_COMMAND(%u, %u, %u)\n", cmd, SHORT1FROMMP(mp2), SHORT2FROMMP(mp2)));
-      if( cmd > IDM_M_PLUG && cmd <= IDM_M_PLUG_E ) {
-        cmd -= IDM_M_PLUG+1;
-        // atomic plug-in request
-        Module* plug;
-        { const Module::IXAccess ix;
-          if (cmd >= ix->size())
-            return 0;
-          plug = (*ix)[cmd];
-        }
-        plug->Config(hwnd);
-        return 0;
-      }
-      if( cmd >= IDM_M_LOADFILE && cmd < IDM_M_LOADFILE + sizeof load_wizards / sizeof *load_wizards
-        && load_wizards[cmd-IDM_M_LOADFILE] )
-      { // TODO: create temporary playlist
-        LoadHelper lh(cfg.playonload*LoadHelper::LoadPlay | LoadHelper::LoadRecall | LoadHelper::ShowErrors | LoadHelper::PostDelayed);
-        if ((*load_wizards[cmd-IDM_M_LOADFILE])(hwnd, "Load%s", &amp_load_file_callback, &lh) == 0)
-          lh.PostCommand();
-        return 0;
-      }
-
-      switch( cmd )
-      {
-        case IDM_M_ADDBOOK:
-          if (CurrentSong)
-            amp_add_bookmark(hwnd, PlayableRef(CurrentSong));
-          break;
-
-        case IDM_M_ADDBOOK_TIME:
-          if (CurrentSong)
-          { PlayableRef ps(CurrentSong);
-            // Use the time index from last_status here.
-            if (CurrentIter->GetLocation() > 0)
-            { SongIterator* iter = new SongIterator();
-              iter->SetLocation(CurrentIter->GetLocation());
-              ps.SetStart(iter);
-            }
-            amp_add_bookmark(hwnd, ps);
-          }
-          break;
-
-        case IDM_M_ADDPLBOOK:
-          if (CurrentRoot)
-            amp_add_bookmark(hwnd, *CurrentIter->GetRoot());
-          break;
-
-        case IDM_M_ADDPLBOOK_TIME:
-          if (CurrentRoot)
-          { PlayableRef ps(*CurrentIter->GetRoot());
-            ps.SetStart(new SongIterator(*CurrentIter));
-            amp_add_bookmark(hwnd, ps);
-          }
-          break;
-
-        case IDM_M_EDITBOOK:
-          PlaylistView::Get(DefaultBM, "Bookmarks")->SetVisible(true);
-          break;
-
-        case IDM_M_EDITBOOKTREE:
-          PlaylistManager::Get(DefaultBM, "Bookmark Tree")->SetVisible(true);
-          break;
-
-        case IDM_M_INFO:
-          if (CurrentSong)
-            amp_show_dialog(hwnd, CurrentSong, DLT_METAINFO);
-          break;
-
-        case IDM_M_PLINFO:
-          if (CurrentRoot)
-            amp_show_dialog(hwnd, CurrentRoot,
-              (CurrentRoot->GetFlags() & Playable::Enumerable) || CurrentRoot->CheckInfo(Playable::IF_Meta)
-              ? DLT_TECHINFO : DLT_METAINFO);
-          break;
-
-        case IDM_M_TAG:
-          if (CurrentSong)
-            amp_show_dialog(hwnd, CurrentSong, DLT_INFOEDIT);
-          break;
-
-        case IDM_M_RELOAD:
-          if (CurrentSong)
-            CurrentSong->LoadInfoAsync(Playable::IF_All);
-          break;
-
-        case IDM_M_DETAILED:
-          if (CurrentRoot && (CurrentRoot->GetFlags() & Playable::Enumerable))
-            amp_show_dialog(hwnd, CurrentRoot, DLT_PLAYLIST);
-          break;
-
-        case IDM_M_TREEVIEW:
-          if (CurrentRoot && (CurrentRoot->GetFlags() & Playable::Enumerable))
-            amp_show_dialog(hwnd, CurrentRoot, DLT_PLAYLISTTREE);
-          break;
-
-        case IDM_M_ADDPMBOOK:
-          if (CurrentRoot)
-            DefaultPM->InsertItem(*CurrentIter->GetRoot());
-          break;
-
-        case IDM_M_PLRELOAD:
-          if ( CurrentRoot && (CurrentRoot->GetFlags() & Playable::Enumerable)
-            && ( !((PlayableCollection&)*CurrentRoot).IsModified()
-              || amp_query(hwnd, "The current list is modified. Discard changes?") ))
-            CurrentRoot->LoadInfoAsync(Playable::IF_All);
-          break;
-
-        case IDM_M_PLSAVE:
-          if (CurrentRoot && (CurrentRoot->GetFlags() & Playable::Enumerable))
-            amp_save_playlist(hwnd, (PlayableCollection&)*CurrentRoot);
-          break;
-
-        case IDM_M_SAVE:
-          amp_save_stream(hwnd, !Ctrl::GetSavename());
-          break;
-
-        case IDM_M_PLAYLIST:
-          PlaylistView::Get(DefaultPL, "Default Playlist")->SetVisible(true);
-          break;
-
-        case IDM_M_MANAGER:
-          PlaylistManager::Get(DefaultPM, "Playlist Manager")->SetVisible(true);
-          break;
-
-        case IDM_M_PLOPENDETAIL:
-        { url123 URL = amp_playlist_select(hwnd, "Open Playlist");
-          if (URL)
-            amp_show_dialog(hwnd, Playable::GetByURL(URL), DLT_PLAYLIST);
-          break;
-        }
-        case IDM_M_PLOPENTREE:
-        { url123 URL = amp_playlist_select(hwnd, "Open Playlist Tree");
-          if (URL)
-            amp_show_dialog(hwnd, Playable::GetByURL(URL), DLT_PLAYLISTTREE);
-          break;
-        }
-
-        case IDM_M_FLOAT:
-          cfg.floatontop = !cfg.floatontop;
-
-          if( !cfg.floatontop ) {
-            WinStopTimer ( hab, hwnd, TID_ONTOP );
-          } else {
-            WinStartTimer( hab, hwnd, TID_ONTOP, 100 );
-          }
-          break;
-
-        case IDM_M_FONT1:
-          cfg.font = 0;
-          cfg.font_skinned = true;
-          amp_invalidate(UPD_FILENAME);
-          break;
-
-        case IDM_M_FONT2:
-          cfg.font = 1;
-          cfg.font_skinned = true;
-          amp_invalidate(UPD_FILENAME);
-          break;
-
-        case IDM_M_TINY:
-          cfg.mode = CFG_MODE_TINY;
-          bmp_reflow_and_resize( hframe );
-          break;
-
-        case IDM_M_NORMAL:
-          cfg.mode = CFG_MODE_REGULAR;
-          bmp_reflow_and_resize( hframe );
-          break;
-
-        case IDM_M_SMALL:
-          cfg.mode = CFG_MODE_SMALL;
-          bmp_reflow_and_resize( hframe );
-          break;
-
-        case IDM_M_MINIMIZE:
-          WinSetWindowPos( hframe, HWND_DESKTOP, 0, 0, 0, 0, SWP_HIDE );
-          WinSetActiveWindow( HWND_DESKTOP, WinQueryWindow( hwnd, QW_NEXTTOP ));
-          break;
-
-        case IDM_M_SKINLOAD:
-          if (amp_loadskin());
-            WinPostMsg(hwnd, AMP_RELOADSKIN, 0, 0);
-          break;
-
-        case IDM_M_CFG:
-          cfg_properties( hwnd );
-          break;
-
-        case IDM_M_VOL_RAISE:
-        { // raise volume by 5%
-          Ctrl::PostCommand(Ctrl::MkVolume(.05, true));
-          break;
-        }
-
-        case IDM_M_VOL_LOWER:
-        { // lower volume by 5%
-          Ctrl::PostCommand(Ctrl::MkVolume(-.05, true));
-          break;
-        }
-
-        case IDM_M_MENU:
-          amp_show_context_menu( hwnd );
-          break;
-
-        case IDM_M_INSPECTOR:
-          InspectorDialog::GetInstance()->SetVisible(true);
-          break;
-
-        case BMP_PL:
-        { int_ptr<PlaylistView> pv( CurrentRoot && CurrentRoot != DefaultPL && (CurrentRoot->GetFlags() & Playable::Enumerable)
-                                    ? (const int_ptr<PlaylistView>&)PlaylistView::Get(CurrentRoot)
-                                    : (const int_ptr<PlaylistView>&)PlaylistView::Get(DefaultPL, "Default Playlist") );
-          pv->SetVisible(!pv->GetVisible());
-          break;
-        }
-
-        case BMP_REPEAT:
-          Ctrl::PostCommand(Ctrl::MkRepeat(Ctrl::Op_Toggle));
-          WinSendDlgItemMsg( hwnd, BMP_REPEAT, Ctrl::IsRepeat() ? WM_PRESS : WM_DEPRESS, 0, 0 );
-          break;
-
-        case BMP_SHUFFLE:
-          Ctrl::PostCommand(Ctrl::MkShuffle(Ctrl::Op_Toggle));
-          WinSendDlgItemMsg( hwnd, BMP_SHUFFLE, Ctrl::IsShuffle() ? WM_PRESS : WM_DEPRESS, 0, 0 );
-          break;
-
-        case BMP_POWER:
-          Terminate = true;
-          WinPostMsg( hwnd, WM_QUIT, 0, 0 );
-          break;
-
-        case BMP_PLAY:
-          Ctrl::PostCommand(Ctrl::MkPlayStop(Ctrl::Op_Toggle), &amp_control_event_callback);
-          break;
-
-        case BMP_PAUSE:
-          Ctrl::PostCommand(Ctrl::MkPause(Ctrl::Op_Toggle), &amp_control_event_callback);
-          break;
-
-        case BMP_FLOAD:
-          return WinSendMsg(hwnd, WM_COMMAND, MPFROMSHORT(IDM_M_LOADFILE), mp2);
-
-        case BMP_STOP:
-          Ctrl::PostCommand(Ctrl::MkPlayStop(Ctrl::Op_Clear));
-          // TODO: probably inclusive when the iterator is destroyed
-          //pl_clean_shuffle();
-          break;
-
-        case BMP_NEXT:
-          Ctrl::PostCommand(Ctrl::MkSkip(1, true), &amp_control_event_callback);
-          break;
-
-        case BMP_PREV:
-          Ctrl::PostCommand(Ctrl::MkSkip(-1, true), &amp_control_event_callback);
-          break;
-
-        case BMP_FWD:
-          Ctrl::PostCommand(Ctrl::MkScan(Ctrl::Op_Toggle), &amp_control_event_callback);
-          break;
-
-        case BMP_REW:
-          Ctrl::PostCommand(Ctrl::MkScan(Ctrl::Op_Toggle|Ctrl::Op_Rewind), &amp_control_event_callback);
-          break;
-      }
-      return 0;
-    }
-
-    case PlaylistMenu::UM_SELECTED:
-    { // bookmark is selected
-      LoadHelper lh(cfg.playonload*LoadHelper::LoadPlay | LoadHelper::ShowErrors | LoadHelper::AutoPost | LoadHelper::PostDelayed );
-      lh.AddItem((PlayableRef*)PVOIDFROMMP(mp1));
-    }
-
-    case WM_HELP:
-     DEBUGLOG(("amp_dlg_proc: WM_HELP(%u, %u, %u)\n", SHORT1FROMMP(mp1), SHORT1FROMMP(mp2), SHORT2FROMMP(mp2)));
-     switch (SHORT1FROMMP(mp2))
-     {case CMDSRC_MENU:
-       // The default menu processing seems to call the help hook with unreasonable values for SubTopic.
-       // So let's introduce a very short way.
-       amp_show_help(SHORT1FROMMP(mp1));
-       return 0;
-     }
-     break;
-
-    case WM_CREATE:
-    { DEBUGLOG(("amp_dlg_proc: WM_CREATE %x\n", hwnd));
-
-      hplayer = hwnd; // we have to assign the window handle early, because WinCreateStdWindow does not have returned now.
-
-      HPS hps = WinGetPS( hwnd );
-      bmp_load_skin( cfg.defskin, hab, hwnd, hps );
-      WinReleasePS( hps );
-
-      if( cfg.floatontop ) {
-        WinStartTimer( hab, hwnd, TID_ONTOP, 100 );
-      }
-
-      WinStartTimer( hab, hwnd, TID_UPDATE_TIMERS,  90 );
-      WinStartTimer( hab, hwnd, TID_UPDATE_PLAYER,  60 );
-      WinStartTimer( hab, hwnd, TID_CLEANUP, 1000*CLEANUP_INTERVALL );
-
-      // fetch some initial states
-      WinPostMsg( hwnd, AMP_CTRL_EVENT, MPFROMLONG(Ctrl::EV_Repeat|Ctrl::EV_Shuffle), 0 );
-      break;
-    }
-
-    case WM_BUTTON1DBLCLK:
-    case WM_BUTTON1CLICK:
-    {
-      HPS    hps = WinGetPS( hwnd );
-      POINTL pos;
-
-      pos.x = SHORT1FROMMP(mp1);
-      pos.y = SHORT2FROMMP(mp1);
-
-      if( bmp_pt_in_volume( pos ))
-        Ctrl::PostCommand(Ctrl::MkVolume(bmp_calc_volume(pos), false));
-      else if( CurrentRoot && bmp_pt_in_text( pos ) && msg == WM_BUTTON1DBLCLK ) {
-        WinPostMsg( hwnd, AMP_DISPLAY_MODE, 0, 0 );
-      }
-
-      WinReleasePS( hps );
-      return 0;
-    }
-
-    case WM_MOUSEMOVE:
-      if( is_volume_drag )
-      {
-        POINTL pos;
-        pos.x = SHORT1FROMMP(mp1);
-        pos.y = SHORT2FROMMP(mp1);
-        Ctrl::PostCommand(Ctrl::MkVolume(bmp_calc_volume(pos), false), &amp_control_event_callback);
-      }
-      if( is_slider_drag )
-        WinPostMsg(hwnd, AMP_SLIDERDRAG, mp1, MPFROMSHORT(FALSE));
-
-      WinSetPointer( HWND_DESKTOP, WinQuerySysPointer( HWND_DESKTOP, SPTR_ARROW, FALSE ));
-      return 0;
-
-    case WM_BUTTON1MOTIONSTART:
-    {
-      POINTL pos;
-
-      pos.x = SHORT1FROMMP(mp1);
-      pos.y = SHORT2FROMMP(mp1);
-
-      if( bmp_pt_in_volume( pos ))
-      { is_volume_drag = TRUE;
-        WinSetCapture( HWND_DESKTOP, hwnd );
-      } else if( bmp_pt_in_slider( pos ) )
-      { if (CurrentSong && ( is_pl_slider
-          ? CurrentRoot->GetInfo().rpl->total_items > 0
-          : CurrentSong->GetInfo().tech->songlength > 0 ))
-        { is_slider_drag = TRUE;
-          is_seeking     = TRUE;
-          WinSetCapture( HWND_DESKTOP, hwnd );
-        }
-      }
-      return 0;
-    }
-
-    case WM_BUTTON1MOTIONEND:
-      if( is_volume_drag ) {
-        is_volume_drag = FALSE;
-        WinSetCapture( HWND_DESKTOP, NULLHANDLE );
-      }
-      if( is_slider_drag )
-      {
-        WinPostMsg(hwnd, AMP_SLIDERDRAG, mp1, MPFROMSHORT(TRUE));
-        WinSetCapture( HWND_DESKTOP, NULLHANDLE );
-      }
-      return 0;
-
-    case WM_BUTTON2MOTIONSTART:
-      WinSendMsg( hframe, WM_TRACKFRAME, MPFROMSHORT( TF_MOVE | TF_STANDARD ), 0 );
-      WinQueryWindowPos( hframe, &cfg.main );
-      return 0;
-
-    case WM_CHAR:
-    { // Force heap dumps by the D key
-      USHORT fsflags = SHORT1FROMMP(mp1);
-      DEBUGLOG(("amp_dlg_proc: WM_CHAR: %x, %u, %u, %x, %x\n", fsflags,
-        SHORT2FROMMP(mp1)&0xff, SHORT2FROMMP(mp1)>>8, SHORT1FROMMP(mp2), SHORT2FROMMP(mp2)));
-      if (fsflags & KC_VIRTUALKEY)
-      { switch (SHORT2FROMMP(mp2))
-        {case VK_ESC:
-          if(!(fsflags & KC_KEYUP))
-          { is_slider_drag = FALSE;
-            is_seeking     = FALSE;
-          }
-          break;
-        }
-      }
-      #ifdef __DEBUG_ALLOC__
-      if ((fsflags & (KC_CHAR|KC_ALT|KC_CTRL)) == (KC_CHAR) && toupper(SHORT1FROMMP(mp2)) == 'D')
-      { if (fsflags & KC_SHIFT)
-          _dump_allocated_delta(0);
-        else
-          _dump_allocated(0);
-      }
-      #endif
-      break;
-    }
-
-    case WM_TRANSLATEACCEL:
-    { // WM_CHAR with VK_ALT and KC_KEYUP does not survive this message, so we catch it before.
-      QMSG* pqmsg = (QMSG*)mp1;
-      DEBUGLOG(("amp_dlg_proc: WM_TRANSLATEACCEL: %x, %x, %x\n", pqmsg->msg, pqmsg->mp1, pqmsg->mp2));
-      if (pqmsg->msg == WM_CHAR)
-      { USHORT fsflags = SHORT1FROMMP(pqmsg->mp1);
-        if (fsflags & KC_VIRTUALKEY)
-        { switch (SHORT2FROMMP(pqmsg->mp2))
-          {case VK_ALT:
-           case VK_ALTGRAF:
-           //case VK_CTRL:
-            amp_set_alt_slider(!(fsflags & KC_KEYUP) && CurrentRoot && (CurrentRoot->GetFlags() & Playable::Enumerable));
-            break;
-          }
-        }
-      }
-      break;
-    }
-
-    case AMP_SLIDERDRAG:
-    if (is_slider_drag)
-    { // get position
-      POINTL pos;
-      pos.x = SHORT1FROMMP(mp1);
-      pos.y = SHORT2FROMMP(mp1);
-      double relpos = bmp_calc_time(pos);
-      // adjust CurrentIter from pos
-      if (!is_pl_slider)
-      { // navigation within the current song
-        if (CurrentSong->GetInfo().tech->songlength <= 0)
-          return 0;
-        CurrentIter->SetLocation(relpos * CurrentSong->GetInfo().tech->songlength);
-      } else switch (cfg.altnavig)
-      {case CFG_ANAV_TIME:
-        // Navigate only at the time scale
-        if (CurrentRoot->GetInfo().tech->songlength > 0)
-        { CurrentIter->Reset();
-          bool r = CurrentIter->SetTimeOffset(relpos * CurrentRoot->GetInfo().tech->songlength);
-          DEBUGLOG(("amp_dlg_proc: AMP_SLIDERDRAG: CFG_ANAV_TIME: %u\n", r));
-          break;
-        }
-        // else if no total time is availabe use song time navigation
-       case CFG_ANAV_SONG:
-       case CFG_ANAV_SONGTIME:
-        // navigate at song and optional time scale
-        { const int num_items = CurrentRoot->GetInfo().rpl->total_items;
-          if (num_items <= 0)
-            return 0;
-          relpos *= num_items;
-          relpos += 1.;
-          if (relpos > num_items)
-            relpos = num_items;
-          CurrentIter->Reset();
-          bool r = CurrentIter->NavigateFlat(xstring(), (int)floor(relpos));
-          DEBUGLOG(("amp_dlg_proc: AMP_SLIDERDRAG: CFG_ANAV_SONG: %f, %u\n", relpos, r));
-          // update CurrentSong
-          PlayableRef* psi = CurrentIter->GetCurrent();
-          CurrentSong = psi && psi->GetPlayable()->GetFlags() == Playable::None
-            ? (Song*)psi->GetPlayable() : NULL;
-          // navigate within the song
-          if (cfg.altnavig != CFG_ANAV_SONG && CurrentSong && CurrentSong->GetInfo().tech->songlength > 0)
-          { relpos -= floor(relpos);
-            CurrentIter->SetLocation(relpos * CurrentSong->GetInfo().tech->songlength);
-          }
-        }
-      }
-      // new position set
-      if (SHORT1FROMMP(mp2))
-      { Ctrl::PostCommand(Ctrl::MkJump(new SongIterator(*CurrentIter)), &amp_control_event_callback);
-        is_slider_drag = FALSE;
-      } else
-        amp_invalidate(UPD_TIMERS|(UPD_FILEINFO|UPD_FILENAME)*is_pl_slider);
-    }
-    return 0;
-
-   case AMP_PIPERESTART:
-    // restart pipe worker
-    amp_pipe_destroy();
-    amp_pipe_create();
-    return 0;
-
-   case AMP_WORKERADJUST:
-    // adjust number of worker threads
-    // TODO !!!
-    return 0;
-    
-   case WMP_ARRANGEDOCKING:
-    if( cfg.dock_windows ) {
-      dk_arrange( amp_player_window() ); // TODO: frame window???
-    } else {
-      dk_cleanup( amp_player_window() );
-    }
-
-    //case WM_SYSCOMMAND:
-      DEBUGLOG(("amp_dlg_proc: WM_SYSCVOMMAND: %u, %u, %u\n", SHORT1FROMMP(mp1), SHORT1FROMMP(mp2), SHORT2FROMMP(mp2)));
-      break;
-  }
-
-  DEBUGLOG2(("amp_dlg_proc: before WinDefWindowProc\n"));
-  return WinDefWindowProc( hwnd, msg, mp1, mp2 );
-}
-
-
-static void amp_plugin_eventhandler(void*, const Plugin::EventArgs& args)
-{ DEBUGLOG(("amp_plugin_eventhandler(, {&%p{%s}, %i})\n",
-    &args.Plug, args.Plug.GetModuleName().cdata(), args.Operation));
-  switch (args.Operation)
-  {case Plugin::EventArgs::Enable:
-   case Plugin::EventArgs::Disable:
-   case Plugin::EventArgs::Load:
-   case Plugin::EventArgs::Unload:
-    if (args.Plug.GetType() == PLUGIN_DECODER)
-      WinPostMsg(hframe, AMP_REFRESH_ACCEL, 0, 0);
-    is_plugin_changed = true;
-    break;
-   case Plugin::EventArgs::Active:
-   case Plugin::EventArgs::Inactive:
-    if (args.Plug.GetType() == PLUGIN_OUTPUT)
-      is_plugin_changed = true;
-   default:; // avoid warnings
-  }
-}
-
-static void amp_save_list(Playlist& pl)
-{ if (!pl.CheckInfo(Playable::IF_Other))
-    pl.Save(PlayableCollection::SaveRelativePath);
-}*/
-
-
-struct args
-{ int argc;
-  char** argv;
-  int files;
-};
-
-static void main2( void* arg )
-{
-  int    argc = ((args*)arg)->argc;
-  char** argv = ((args*)arg)->argv;
-  int    files = ((args*)arg)->files;
-  HMQ    hmq;
-  QMSG   qmsg;
 
   ///////////////////////////////////////////////////////////////////////////
   // Initialization of infrastructure
   ///////////////////////////////////////////////////////////////////////////
-  hab = WinInitialize( 0 );
-  PMXASSERT(hmq = WinCreateMsgQueue( hab, 0 ), != NULLHANDLE);
+  srand((unsigned long)time( NULL ));
+
+  if (configdir)
+  { // TODO: make path absolute
+    size_t len = strlen(configdir);
+    if (configdir[len-1] != '\\')
+    { // append '\'
+      char* cp = BasePath.allocate(len+1, configdir);
+      cp[len] = '\\';
+    } else
+      BasePath = configdir;
+  } else
+    BasePath = StartPath;
+
+  // now init PM
+  Hab = WinInitialize(0);
+  HMQ hmq = WinCreateMsgQueue(Hab, 0);
+  PMASSERT(hmq != NULLHANDLE);
 
   // initialize properties
   cfg_init();
-  InitButton( hab );
-  
+  if (pipename)
+    cfg.pipe_name = pipename;
+
+  // Command line args?
+  if (files.size())
+  { xstringbuilder cmd;
+    if (command)
+      cmd.append('*');
+    const char*const*const epp = files.end();
+    const char*const* spp = files.begin();
+    cmd.append(*spp);
+    while (++spp != epp)
+    { cmd.append(' ');
+      cmd.append(*spp);
+    }
+    // Pipe command
+    if (amp_pipe_open_and_write(cfg.pipe_name, cmd.cdata(), cmd.length()))
+      return 0;
+    if (command && !start)
+      amp_fail("Cannot write command to pipe %s.", cfg.pipe_name.cdata());
+  }
+  else if (start && amp_pipe_check())
+    return 0;
+
   // prepare plug-in manager
   plugman_init();
 
@@ -1533,38 +207,45 @@ static void main2( void* arg )
 
   // start controller
   Ctrl::Init();
-  if ( is_arg_shuffle )
+  if (shuffle)
     Ctrl::PostCommand(Ctrl::MkShuffle(Ctrl::Op_Set));
 
+  // start GUI
+  InitButton(Hab);
   GUI::Init();
 
-  amp_pipe_create();
+  if (!amp_pipe_create() && start)
+    WinPostMsg(GUI::GetFrameWindow(), WM_QUIT, 0, 0);
+  // Now it is time to show the window
+  else if (!nogui)
+    GUI::Show();
 
   DEBUGLOG(("main: init complete\n"));
 
-  if (files)
+  if (files.size())
   { // Files passed at command line => load them initially.
     // TODO: do not load last used file in this case!
     const url123& cwd = amp_get_cwd();
     LoadHelper* lhp = new LoadHelper(cfg.playonload*LoadHelper::LoadPlay | LoadHelper::LoadRecall);
-    for (int i = 1; i < argc; i++)
-    { if (argv[i][0] != '/' && argv[i][0] != '-')
-      { const url123& url = cwd.makeAbsolute(argv[i]);
-        if (!url)
-          GUI::ViewMessage(xstring::sprintf("Invalid file or URL: '%s'", argv[i]), true);
-        else
-          lhp->AddItem(Playable::GetByURL(url));
-      }
-    }
+    const char*const*const epp = files.end();
+    const char*const* spp = files.begin();
+    do
+    { const url123& url = cwd.makeAbsolute(*spp);
+      if (!url)
+        GUI::ViewMessage(xstring::sprintf("Invalid file or URL: '%s'", *spp), true);
+      else
+        lhp->AddItem(Playable::GetByURL(url));
+    } while (++spp != epp);
     GUI::Load(lhp);
   }
 
   ///////////////////////////////////////////////////////////////////////////
   // Main loop
   ///////////////////////////////////////////////////////////////////////////
-  while( WinGetMsg( hab, &qmsg, (HWND)0, 0, 0 ))
+  QMSG   qmsg;
+  while (WinGetMsg(Hab, &qmsg, (HWND)0, 0, 0))
   { DEBUGLOG2(("main: after WinGetMsg - %p, %p\n", qmsg.hwnd, qmsg.msg));
-    WinDispatchMsg( hab, &qmsg );
+    WinDispatchMsg(Hab, &qmsg);
     DEBUGLOG2(("main: after WinDispatchMsg - %p, %p\n", qmsg.hwnd, qmsg.msg));
   }
   DEBUGLOG(("main: dispatcher ended\n"));
@@ -1589,80 +270,8 @@ static void main2( void* arg )
   cfg_uninit();
 
   WinDestroyMsgQueue(hmq);
-  WinTerminate(hab);
-}
+  WinTerminate(Hab);
 
-int
-main( int argc, char *argv[] )
-{
-  int    i, o, files = 0;
-  char   exename[_MAX_PATH];
-  char   buffer[1024];
-
-  // used for debug printf()s
-  setvbuf( stderr, NULL, _IONBF, 0 );
-
-  for( i = 1; i < argc; i++ ) {
-    if( argv[i][0] != '/' && argv[i][0] != '-' ) {
-      files++;
-    }
-  }
-
-  getExeName( exename, sizeof( exename ));
-  sdrivedir ( buffer, exename, sizeof buffer);
-  startpath_local = buffer;
-
-  for( o = 1; o < argc; o++ )
-  {
-    if( stricmp( argv[o], "-shuffle" ) == 0 ||
-        stricmp( argv[o], "/shuffle" ) == 0  )
-    {
-      is_arg_shuffle = TRUE;
-    }
-    else if( stricmp( argv[o], "-smooth" ) == 0 ||
-             stricmp( argv[o], "/smooth" ) == 0  )
-    {
-      // Not supported since 1.32
-      // is_arg_smooth  = TRUE;
-    }
-    else if( stricmp( argv[o], "-cmd" ) == 0 ||
-             stricmp( argv[o], "/cmd" ) == 0  )
-    {
-      char pipename[_MAX_PATH] = "\\PIPE\\PM123";
-      o++;
-      if( strncmp( argv[o], "\\\\", 2 ) == 0 )
-      { // TODO: static buffer, pipe name
-        strcpy( pipename, argv[o] );  // machine name
-        strcat( pipename, "\\PIPE\\PM123" );
-        o++;
-      }
-      strcpy( buffer, "*" );
-      for( i = o; i < argc; i++ )
-      {
-        strcat( buffer, argv[i] );
-        strcat( buffer, " " );
-      }
-
-      amp_pipe_open_and_write( pipename, buffer, strlen( buffer ) + 1 );
-      exit(0);
-    }
-  }
-
-  // If we have files in argument, try to open \\pipe\pm123 and write to it.
-  if (files > 0)
-  { // TODO: this only takes the last argument we hope is the filename
-    // this should be changed.
-    // TODO: pipename
-    if( amp_pipe_open_and_write( "\\PIPE\\PM123", argv[argc-1], strlen( argv[argc-1]) + 1 )) {
-      exit(0);
-    }
-  }
-
-  srand((unsigned long)time( NULL ));
-
-  // now init PM
-  args args = { argc, argv, files };
-  main2(&args);
   return 0;
 }
 

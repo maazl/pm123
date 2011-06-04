@@ -32,7 +32,6 @@
 #define  INCL_DOS
 #define  INCL_WIN
 #define  INCL_GPI
-//#define  INCL_DEV
 #define  INCL_BITMAPFILEFORMAT
 
 #include "skin.h"
@@ -43,21 +42,21 @@
 #include "pm123.rc.h"
 #include "button95.h"
 #include "plugman.h"
-#include <visual_plug.h>
+
 #include <gbm.h>
 #include <gbmerr.h>
 #include <gbmht.h>
+
+#include <visual_plug.h>
 #include <minmax.h>
 #include <strutils.h>
 #include <fileutil.h>
-#include <strutils.h>
 #include <os2.h>
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <malloc.h>
-#include <memory.h>
 #include <sys/io.h>
 #include <fcntl.h>
 #include <ctype.h>
@@ -429,7 +428,7 @@ bmp_load_bitmap( const char* filename )
 /* Draws a bitmap using the current image colors and mixes. */
 static void
 bmp_draw_bitmap( HPS hps, int x, int y, int res )
-{ DEBUGLOG(("bmp_draw_bitmap(%p, %i,%i, %i) - %p\n", hps, x, y, res, bmp_cache[res]));
+{ DEBUGLOG2(("bmp_draw_bitmap(%p, %i,%i, %i) - %p\n", hps, x, y, res, bmp_cache[res]));
   POINTL pos[3];
 
   pos[0].x = x;
@@ -861,8 +860,8 @@ bmp_create_text_buffer( void )
   size.cx = rect.xRight - rect.xLeft + 1;
   size.cy = rect.yTop - rect.yBottom + 1;
 
-  s_dc = DevOpenDC( amp_player_hab(), OD_MEMORY, "*", 0, NULL, NULLHANDLE );
-  s_buffer = GpiCreatePS( amp_player_hab(), s_dc, &size,
+  s_dc = DevOpenDC( amp_player_hab, OD_MEMORY, "*", 0, NULL, NULLHANDLE );
+  s_buffer = GpiCreatePS( amp_player_hab, s_dc, &size,
                           PU_PELS | GPIT_MICRO | GPIA_ASSOC );
 
   memset( &bmp_header, 0, sizeof( bmp_header ));
@@ -1746,7 +1745,7 @@ bmp_init_default_skin( HPS hps )
   strlcpy( visual.param, visual_param, sizeof visual.param );
   
   Plugin::VisualProps = visual;
-  Plugin::Deserialize(amp_startpath + "visplug\\analyzer.dll", PLUGIN_VISUAL, true);
+  Plugin::Deserialize(amp_basepath + "visplug\\analyzer.dll", PLUGIN_VISUAL, true);
 }
 
 static void
@@ -1867,7 +1866,7 @@ bmp_load_packfile( char *filename )
         if ( hdr.resource == 0 )
           continue;
 
-        sprintf( tempname, "%spm123%s", amp_startpath.cdata(),
+        sprintf( tempname, "%spm123%s", amp_basepath.cdata(),
                            sfext( tempexts, hdr.filename, sizeof( tempexts )));
 
         if(( temp = fopen( tempname, "wb" )) != NULL )
@@ -2013,7 +2012,7 @@ bmp_load_skin( const char *filename, HWND hplayer, HPS hps )
           break;
         }
 
-        rel2abs( amp_startpath, p,
+        rel2abs( amp_basepath, p,
                  module_name, sizeof( module_name ));
 
         if(( p = strtok( NULL, "," )) != NULL ) {

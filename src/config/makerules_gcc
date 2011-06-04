@@ -1,6 +1,6 @@
 # GCC with EMX
 
-.SUFFIXES: .c .cpp .asm .o .obj .rc .res
+.SUFFIXES: .c .cpp .e .asm .o .obj .rc .res
 
 MFLAGS     = -nologo
 MDUMMY     =
@@ -54,6 +54,8 @@ LIBS_UNI   =
 
 C_INCLUDE_PATH     = $(INCDIR);$(C_INCLUDE_PATH)
 CPLUS_INCLUDE_PATH = $(INCDIR);$(CPLUS_INCLUDE_PATH)
+# for RC
+INCLUDE            = $(INCDIR);$(INCLUDE)
 
 #!ifdef TCP40
 MFLAGS = $(MFLAGS) TCP40=Yes
@@ -94,8 +96,14 @@ MFLAGS = $(MFLAGS) DEBUG_LOG=$(DEBUG_LOG)
 .asm.obj:
    $(AS) $(AFLAGS) $<
 
+.c.e:
+   $(CC) $(CFLAGS) -E -x c -c $< -o $@
+
 .c.o:
    $(CC) $(CFLAGS) -x c -c $< -o $@
+
+.cpp.e:
+   $(CC) $(CFLAGS) -E $(CFLAGS_CPP) -c $< -o $@
 
 .cpp.o:
    $(CC) $(CFLAGS) $(CFLAGS_CPP) -c $< -o $@
@@ -109,4 +117,4 @@ all:    $(TARGET) $(MDUMMY)
 SRCFIL = *.cpp *.c
 !endif
 depend:
-	$(TOPDIR)\config\makedep.cmd $(SRCFIL) -r -x -I$(INCDIR) -s
+	$(TOPDIR)\config\makedep.cmd $(SRCFIL) -R -x -I$(INCDIR) -s -c

@@ -32,7 +32,6 @@
 #include "playable.h"
 #include "location.h"
 #include "waitinfo.h"
-#include <utilfct.h>
 #include <string.h>
 
 #include <debuglog.h>
@@ -203,6 +202,15 @@ void PlayableSlice::OverrideItem(const ITEM_INFO* item)
   InfoChange(args);
 }
 
+void PlayableSlice::PeekRequest(RequestState& req) const
+{ DEBUGLOG(("PlayableSlice(%p)::PeekRequest({%x,%x, %x})\n", this, req.ReqLow, req.ReqHigh, req.InService));
+  if (CIC)
+  { CIC->DefaultInfo.InfoStat.PeekRequest(req);
+    CIC->PeekRequest(req);
+  }
+  RefTo->PeekRequest(req);
+  DEBUGLOG(("PlayableSlice::PeekRequest: {%x,%x, %x}\n", req.ReqLow, req.ReqHigh, req.InService));
+}
 
 void PlayableSlice::InfoChangeHandler(const PlayableChangeArgs& args)
 { DEBUGLOG(("PlayableSlice(%p)::InfoChangeHandler(&{&%p, %p, %x, %x, %x})\n", this,
@@ -226,28 +234,38 @@ InfoFlags PlayableSlice::DoRequestInfo(InfoFlags& what, Priority pri, Reliabilit
   if (!IsItemOverridden())
     return CallDoRequestInfo(*RefTo, what, pri, rel);
 
-  what &= ~IF_Item; // Nothing to do for ItemInfo if it is overridden.
-
   if (what & IF_Drpl)
     what |= IF_Phys|IF_Tech|IF_Obj|IF_Child|IF_Slice; // required for DRPL_INFO aggregate
   else if (what & IF_Rpl)
     what |= IF_Tech|IF_Child|IF_Slice; // required for RPL_INFO aggregate
 
   // Forward all remaining requests to *RefTo.
-  InfoFlags what2 = what & IF_Slice|IF_Aggreg;
+  InfoFlags what2 = what & ~IF_Item;
   // TODO Forward aggregate only if no slice?
   InfoFlags async = CallDoRequestInfo(*RefTo, what, pri, rel);
 
-  what2 &= InfoStat.Check(what2, rel);
+  EnsureCIC();
+  InfoState& infostat = CIC->DefaultInfo.InfoStat;
+
+  what2 |= what & IF_Item;
+  what2 &= infostat.Check(what2, rel);
+  // IF_Item is always available if we got beyond IsItemOverridden.
+  if (what2 & IF_Item)
+  { infostat.EndUpdate(infostat.BeginUpdate(IF_Item));
+    what2 &= ~IF_Item;
+    what &= ~IF_Item;
+  }
+
   if (pri == PRI_None || what2 == IF_None)
     return async;
 
-  // Try fastpath for slice info.
-  /*if ((what & IF_Slice) == 0)
-  { 
-  
-    int cr = CalcLoc(Item.start, StartCache, SB_Start, PRI_None)
-           | CalcLoc(Item.stop,  StopCache,  SB_Stop,  PRI_None);
+  /*// Fastpath for IF_Item and possibly IF_Slice.
+  InfoFlags upd = InfoStat.BeginUpdate(what2 & (IF_Item|IF_Slice));
+  if (what2 & IF_Slice)
+  { JobSet dummy(PRI_None);
+    int cr = CalcLoc(Item.start, StartCache, SB_Start, dummy)
+           | CalcLoc(Item.stop,  StopCache,  SB_Stop,  dummy);
+
     switch (cr)
     {case CR_Changed:
       InfoChange(PlayableChangeArgs(*this, this, IF_Slice * (cr == CR_Changed), IF_Slice, IF_None));
@@ -259,7 +277,7 @@ InfoFlags PlayableSlice::DoRequestInfo(InfoFlags& what, Priority pri, Reliabilit
   }*/
     
   // Place request for slice
-  async |= InfoStat.Request(what2, pri);
+  async |= infostat.Request(what2, pri);
   what |= what2;
 
   return async;
@@ -425,8 +443,11 @@ void PlayableSlice::DoLoadInfo(JobSet& job)
   // Load base info first.
   CallDoLoadInfo(*RefTo, job);
 
+  if (CIC == NULL) // Nothing to do?
+    return;
+
   PlayableChangeArgs args(*this);
-  InfoState::Update upd(InfoStat, job.Pri);
+  InfoState::Update upd(CIC->DefaultInfo.InfoStat, job.Pri);
   DEBUGLOG(("PlayableSlice::DoLoadInfo: update %x\n", upd.GetWhat()));
   // Prepare slice info.
   if (upd & IF_Slice)
@@ -449,11 +470,6 @@ void PlayableSlice::DoLoadInfo(JobSet& job)
     }
     if (cr & CR_Delayed)
       return;
-  }
-
-  if (CIC == NULL) // Nothing to do?
-  { upd.Commit();
-    return;
   }
 
   // Load aggregate info if any.

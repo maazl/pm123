@@ -175,7 +175,7 @@ void Glue::virtualize(int i)
   par.output_event           = params.output_event;
   par.w                      = params.w;
   if (!fil->Initialize(&par))
-  { pm123_display_info(xstring::sprintf("The filter plug-in %s failed to initialize.", fil->GetModuleName().cdata()));
+  { pm123_display_info(xstring::sprintf("The filter plug-in %s failed to initialize.", fil->GetModule().Key.cdata()));
     virtualize(i-1);
     return;
   }
@@ -237,6 +237,8 @@ ULONG Glue::init()
   ULONG rc = out_command( OUTPUT_SETUP );
   if (rc == 0)
     initialized = TRUE;
+  else
+    uninit(); // deinit filters
   return rc;
 }
 
@@ -592,7 +594,7 @@ ULONG DLLENTRY dec_fileinfo( const char* url, int* what, INFO_BUNDLE* info,
   // First checks decoders supporting the specified type of files.
   for (i = 0; i < Decoders.size(); i++)
   { dp = (Decoder*)Decoders[i];
-    DEBUGLOG(("dec_fileinfo: %s -> %u %x/%x\n", sfnameext2(dp->GetModuleName().cdata()),
+    DEBUGLOG(("dec_fileinfo: %s -> %u %x/%x\n", dp->GetModule().Key.cdata(),
       dp->GetEnabled(), dp->GetObjectTypes(), type_mask));
     if (dp->GetEnabled() && (dp->GetObjectTypes() & type_mask))
     { if (file && !dp->IsFileSupported(file, eadata))
@@ -625,7 +627,7 @@ ULONG DLLENTRY dec_fileinfo( const char* url, int* what, INFO_BUNDLE* info,
   info->tech->attributes = TATTR_INVALID;
   return PLUGIN_NO_PLAY;
  ok:
-  info->tech->decoder = dp->GetModuleName();
+  info->tech->decoder = dp->GetModule().Key;
   if (rc != 0)
   { info->phys->attributes |= PATTR_INVALID;
     if (info->tech->info == 0)
@@ -818,6 +820,8 @@ struct save_cb_data
 static int DLLENTRY save_callback(void* param, DSTRING* url,
   const INFO_BUNDLE** info, int* valid, int* override)
 { save_cb_data& cbd = *(save_cb_data*)param;
+  // TODO: This is a race condition, because the exact content that is saved is not
+  // well defined if the list is currently manipulation. Normally a snapshot should be taken.
   cbd.Current = cbd.Parent.GetNext(cbd.Current);
   if (cbd.Current == NULL)
     return PLUGIN_FAILED;

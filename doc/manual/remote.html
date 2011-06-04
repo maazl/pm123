@@ -1,38 +1,44 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
-<html resid="1016" level="3"><head>
+<html resid="1016" level="3">
+<head>
   <title>Remote Control</title>
   <link rel="stylesheet" href="../common/infstyle.css" type="text/css">
 </head>
 <body>
 <h2>PM123's Remote Control</h2>
 <p>PM123 can be remotely controlled via a <i>named pipe</i>,
-<tt>\PIPE\PM123</tt> by default. You can alter this default by the
-  <a href="settingsio.html">remote control settings</a>
-  of the <a href="properties.html">properties dialog</a>.</p>  
-<p>Named pipes were chosen because of their excellent features. Quoting from
-  the <i>Control Program Programming Guide and Reference</i>:
-  "Any process that knows the name of a pipe can open and use a named pipe.
-  In addition, named pipe data can be transparently redirected across a network,
-  such as a local area network (LAN)".</p>
+<tt>\PIPE\PM123</tt> by default. You can alter this default by the <a
+ href="settingsio.html">remote control settings</a> of the <a
+ href="properties.html">properties dialog</a>.</p>
+<p>Named pipes were chosen because of their excellent features. Quoting
+from the <i>Control Program Programming Guide and Reference</i>: "Any
+process that knows the name of a pipe can open and use a named pipe. In
+addition, named pipe data can be transparently redirected across a
+network, such as a local area network (LAN)".</p>
 <p>To remote control PM123 on the same computer, you can use either the
-  built-in "<tt>echo</tt>" command, or the PM123 executable itself. PM123
-  understands a set of commands that are written to the pipe. For example:</p>
+built-in "<tt>echo</tt>" command, or the PM123 executable itself. PM123
+understands a set of commands that are written to the pipe. For example:</p>
 <blockquote>
-<pre>[c:\usr\pm123] pm123 -cmd volume 80<br>[c:\usr\pm123] echo *volume 80 &gt; \pipe\pm123</pre>
+  <pre>[c:\usr\pm123] pm123 -cmd volume 80<br>[c:\usr\pm123] echo *volume 80 &gt; \pipe\pm123</pre>
 </blockquote>
 <p>These commands will set the volume to 80%.</p>
 <blockquote>
-<pre>[c:\usr\pm123] pm123 -cmd add d:\music\test.mp3<br>[c:\usr\pm123] echo *add d:\music\test.mp3 &gt; \pipe\pm123</pre>
+  <pre>[c:\usr\pm123] pm123 -cmd add d:\music\test.mp3<br>[c:\usr\pm123] echo *add d:\music\test.mp3 &gt; \pipe\pm123</pre>
 </blockquote>
-<p>These commands will add the file <tt>d:\music\test.mp3</tt> to the default playlist.</p>
-<p>If you use <tt>echo</tt>, remember to prepend any commands sent to it
-  with a <tt>*</tt> character.</p>
-<p>Now for the cool part. You can control PM123 over your OS/2
-  Local Area Network. Just use <tt>\\<var>SERVER</var>\PIPE\PM123</tt>.
-<tt>\\<var>SERVER</var></tt> is the name of the computer PM123 runs on. For example,</p>
+<p>These commands will add the file <tt>d:\music\test.mp3</tt> to the
+default playlist.</p>
+<p><em>If you use <tt>echo</tt>, remember to prepend any commands sent
+to it with a <tt>*</tt> character.</em></p>
+<p>Now for the cool part. You can control PM123 over your OS/2 Local
+Area Network. Just use <tt>\\<var>SERVER</var>\PIPE\PM123</tt>.
+<tt>\\<var>SERVER</var></tt> is the name of the computer PM123 runs on.
+For example,</p>
 <blockquote>
-<pre>[c:\usr\pm123] pm123 -cmd \\mycomputer volume 80<br>[c:\usr\pm123] echo *volume 80 &gt; \\mycomputer\pipe\pm123<br>[c:\usr\pm123] pm123 -cmd \\mycomputer add d:\music\test.mp3<br>[c:\usr\pm123] echo *add d:\music\test.mp3 &gt; \\mycomputer\pipe\pm123</pre>
+  <pre>[c:\usr\pm123] pm123 -cmd \\mycomputer volume 80<br>[c:\usr\pm123] echo *volume 80 &gt; \\mycomputer\pipe\pm123<br>[c:\usr\pm123] pm123 -cmd \\mycomputer add d:\music\test.mp3<br>[c:\usr\pm123] echo *add d:\music\test.mp3 &gt; \\mycomputer\pipe\pm123</pre>
 </blockquote>
-<p>Will do the same as examples above, but from a different computer. Easy, isn't it?</p>
-<p>See the <a href="remoteref.html">command reference</a> for more details.</p>
-</body></html>
+<p>Will do the same as examples above, but from a different computer.
+Easy, isn't it?</p>
+<p>See the <a href="remoteref.html">command reference</a> for more
+details.</p>
+</body>
+</html>

@@ -1,9 +1,8 @@
 /*
+ * Copyright 2008-2010 M.Mueller
+ * Copyright 2004-2006 Dmitry A.Steklenev <glass@ptv.ru>
  * Copyright 1997-2003 Samuel Audet <guardia@step.polymtl.ca>
  *                     Taneli Lepp� <rosmo@sektori.com>
- *
- * Copyright 2004-2006 Dmitry A.Steklenev <glass@ptv.ru>
- * Copyright 2008-2010 M.Mueller
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -44,6 +43,8 @@
 bool amp_pipe_create();
 /** Shutdown the player pipe. */
 void amp_pipe_destroy();
+/** Checks wether the pipe already exists */
+bool amp_pipe_check();
 
 /** Opens specified pipe and writes data to it. */
 bool amp_pipe_open_and_write(const char* pipename, const char* data, size_t size);
@@ -51,18 +52,25 @@ bool amp_pipe_open_and_write(const char* pipename, const char* data, size_t size
 
 /** Class to execute pipe commands with a local context. */
 class ACommandProcessor
-{protected:
-          ACommandProcessor() {}
+{protected: // working set
+  char*          Request;
+  xstringbuilder Reply;
+
+ protected:
+  ACommandProcessor() {}
+  /// Executes the Command \c Request and return a value in \c Reply.
+  /// Note that \c Request is mutable. The referenced buffer content will be destroyed.
+  virtual void Exec() = 0;
  public:
   virtual ~ACommandProcessor() {}
   /// Executes the Command \a cmd and return a value in \a ret.
   /// Note that \a cmd is mutable. The buffer content will be destroyed.
-  virtual void Execute(xstring& ret, char* cmd) = 0;
+  const char* Execute(char* cmd) { Request = cmd; Reply.clear(); Exec(); return Reply.cdata(); }
   /// Same as above, but copies the command buffer first.
-          void Execute(xstring& ret, const char* cmd);
+  const char* Execute(const char* cmd);
 
   /// Use this factory method to create instances.
-  static  ACommandProcessor* Create();
+  static ACommandProcessor* Create();
 };
 
 #endif

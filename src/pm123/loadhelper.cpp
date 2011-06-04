@@ -44,16 +44,17 @@ APlayable* LoadHelper::ToAPlayable()
     return NULL;
    case 1:
     if (Opt & LoadRecall)
-      GUI::Add2MRU(*GUI::GetLoadMRU(), cfg.max_recall, *Items[0]);
+      GUI::Add2MRU(GUI::GetLoadMRU(), cfg.max_recall, *Items[0]);
     if (!(Opt & LoadAppend))
       return Items[0];
    default:
     // Load multiple items => Use default playlist
+    Playable& pl = GUI::GetDefaultPL();
     if (!(Opt & LoadAppend))
-      GUI::GetDefaultPL()->Clear();
+      pl.Clear();
     for (const int_ptr<APlayable>* ppps = Items.begin(); ppps != Items.end(); ++ppps)
-      GUI::GetDefaultPL()->InsertItem(**ppps);
-    return GUI::GetDefaultPL();
+      pl.InsertItem(**ppps);
+    return &pl;
   }
 }
 

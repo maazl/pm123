@@ -42,12 +42,13 @@
 *  This is in fact nothing else but a tree view of a playlist.
 *
 ****************************************************************************/
-class PlaylistManager : public PlaylistRepository<PlaylistManager>
-{ friend class PlaylistRepository<PlaylistManager>;
- public:
+class PlaylistManager
+: public PlaylistBase
+, public inst_index<PlaylistManager, Playable*const, &ComparePtr<Playable> >
+{public:
   // C++ part of a record
   struct Record;
-  struct CPData : public PlaylistBase::CPDataBase
+  struct CPData : public CPDataBase
   { Record*           Parent;    // Pointer to parent Record or NULL if we are at the root level.
     bool              Recursive; // Flag whether this node is in the current callstack.
     CPData(PlayableInstance& content, PlaylistManager& pm,
@@ -71,7 +72,15 @@ class PlaylistManager : public PlaylistRepository<PlaylistManager>
 
  private:
   // Create a playlist manager window for an URL, but don't open it.
-  PlaylistManager(Playable& obj, const xstring& alias);
+  PlaylistManager(Playable& obj);
+  static PlaylistManager* Factory(Playable*const& key);
+ public:
+  static int_ptr<PlaylistManager> GetByKey(Playable& key) { return inst_index<PlaylistManager, Playable*const, &ComparePtr<Playable> >::GetByKey(&key, &PlaylistManager::Factory); }
+  // Get an instance of the same type as the current instance for URL.
+  virtual const int_ptr<PlaylistBase> GetSame(Playable& obj);
+  static void       DestroyAll();
+
+ private:
   // Post record message, filtered
   virtual void      PostRecordUpdate(RecordBase* rec, InfoFlags flags);
   // create container window

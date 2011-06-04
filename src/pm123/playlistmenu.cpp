@@ -1,7 +1,7 @@
 /*
  * Copyright 1997-2003 Samuel Audet <guardia@step.polymtl.ca>
  *                     Taneli Lepp� <rosmo@sektori.com>
- * Copyright 2007-2008 Marcel Mueller
+ * Copyright 2007-2011 Marcel Mueller
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -55,8 +55,8 @@ inline PlaylistMenu::MapEntry::MapEntry(USHORT id, MapEntry* parent, APlayable& 
   InfoDelegate(data.GetInfoChange(), owner, infochg, this)
 {}
 
-int PlaylistMenu::MapEntry::compareTo(const USHORT& key) const
-{ return (int)IDMenu - key;
+int PlaylistMenu::MapEntry::compare(const MapEntry& entry, const USHORT& key)
+{ return (int)entry.IDMenu - key;
 }
 
 MRESULT EXPENTRY pm_DlgProcStub(PlaylistMenu* that, ULONG msg, MPARAM mp1, MPARAM mp2)
@@ -149,7 +149,7 @@ MRESULT PlaylistMenu::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
       DEBUGLOG(("PlaylistMenu::DlgProc: WM_INITMENU: %p{%u, %x,...}\n", mapp, mapp->IDMenu, mapp->HwndSub));
       mapp->HwndSub = HWNDFROMMP(mp2);
       mapp->Status |= InUse;
-      if (mapp->Status & (InUpdate|InDestroy))
+      if ((mapp->Status & (InUpdate|InDestroy)) == 0)
         UpdateSubItems(mapp);
       else if (!mapp->Status.bitset(1))
         PMRASSERT(WinPostMsg(HwndOwner, UM_UPDATELIST, mp1, MPFROMP(mapp)));
@@ -333,7 +333,7 @@ void PlaylistMenu::UpdateSubItems(MapEntry* const mapp)
   const char* dummy = NULL; // Dummy Entry (if any)
   vector_int<PlayableInstance> children; // New menu content
 
-  if (mapp->Data->RequestInfo(IF_Child, PRI_Normal))
+  if (mapp->Data->RequestInfo(IF_Child|IF_Obj, PRI_Normal))
     // not immediately available => do it later
     dummy = "- loading -";
   else

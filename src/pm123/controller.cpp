@@ -33,6 +33,7 @@
 #include "controller.h"
 #include "properties.h"
 #include "gui.h"
+#include "glue.h"
 #include "pm123.h"
 
 #include <inimacro.h>
@@ -63,14 +64,139 @@ struct ctrl_state
 *
 ****************************************************************************/
 
+/// Private implementation of class \c Ctrl.
+class CtrlImp : public Ctrl
+{ friend class Ctrl;
+ private:
+  struct PrefetchEntry
+  { PM123_TIME                Offset;        // Starting time index from the output's point of view.
+    SongIterator              Loc;           // Location that points to the song that starts at this position.
+    //PrefetchEntry() : Offset(0) {}
+    PrefetchEntry(PM123_TIME offset, const SongIterator& loc) : Offset(offset), Loc(loc) {}
+  };
+
+ private: // extended working set
+  // List of prefetched iterators.
+  // The first entry is always the current iterator if a enumerable object is loaded.
+  // Write access to this list is only done by the controller thread.
+  static vector<PrefetchEntry> PrefetchList;
+  static Mutex                PLMtx;                 // Mutex to protect the above list.
+
+  static TID                  WorkerTID;             // Thread ID of the worker
+  static ControlCommand*      CurCmd;                // Currently processed ControlCommand, protected by Queue.Mtx
+
+  // These events are set atomically from any thread.
+  // After each last message of a queued set of messages the events are raised and Pending is atomically reset.
+  static AtomicUnsigned       Pending;               // Pending events
+
+  // Delegates for the tracked events of the decoder, the output and the current song.
+  static delegate<void, const dec_event_args>        DecEventDelegate;
+  static delegate<void, const OUTEVENTTYPE>          OutEventDelegate;
+  //static delegate<void, const PlayableChangeArgs>    CurrentSongDelegate;
+  static delegate<void, const PlayableChangeArgs>    CurrentRootDelegate;
+  //static delegate<void, const CallstackEntry>        SongIteratorDelegate;
+
+  // Occasionally used constants.
+  static const vector_int<PlayableInstance> EmptyStack;
+
+ private: // internal functions, not thread safe
+  // Returns the current PrefetchEntry. I.e. the currently playing (or not playing) iterator.
+  // Precondition: an object must have been loaded.
+  static PrefetchEntry* Current() { return PrefetchList[0]; }
+  // Applies the operator op to flag and returns true if the flag has been changed.
+  static bool  SetFlag(bool& flag, Op op);
+  // Sets the volume according to this->Volume and the scan mode.
+  static void  SetVolume();
+  // Initializes the decoder engine and starts playback of the song pp with a time offset for the output.
+  // The function returns the result of dec_play.
+  // Precondition: The output must have been initialized.
+  // The function does not return unless the decoder is decoding or an error occurred.
+  static ULONG DecoderStart(APlayable& ps, PM123_TIME offset);
+  // Stops decoding and deinitializes the decoder plug-in.
+  static void  DecoderStop();
+  // Initializes the output for playing pp.
+  // The playable object is needed for naming purposes.
+  static ULONG OutputStart(APlayable& pp);
+  // Stops playback and clears the prefetch list.
+  static void  OutputStop();
+  // Updates the in-use status of PlayableInstance objects in the callstack by moving from oldstack to newstack.
+  // The status of common parts of the two stacks is not touched.
+  // To set the in-use status initially pass EmptyStack as oldstack.
+  // To reset all in-use status pass EmptyStack as newstack.
+  static void  UpdateStackUsage(const vector<PlayableInstance>& oldstack, const vector<PlayableInstance>& newstack);
+  // Internal sub function to UpdateStackUsage
+  static void  SetStackUsage(PlayableInstance*const* rbegin, PlayableInstance*const* rend, bool set);
+  // Core logic of MsgSkip.
+  // Move the current song pointer by count items if relative is true or to item number 'count' if relative is false.
+  // If we try to move the current song pointer out of the range of the that that si relies on,
+  // the function returns false and si is in reset state.
+  // The function is side effect free and only operates on si.
+  static bool  SkipCore(Location& si, int count, bool relative);
+  // Ensure that a SongIterator really points to a valid song by moving the iterator forward as required.
+  static bool  AdjustNext(Location& si);
+  // Jump to the location si. The function will destroy the content of si.
+  static RC    NavigateCore(Location& si);
+  // Register events to a new current song and request some information if not yet known.
+  //static void  AttachCurrentSong(APlayable& ps);
+  // Clears the prefetch list and keep the first element if keep is true.
+  // The operation is atomic.
+  static void  PrefetchClear(bool keep);
+  // Check whether a prefetched item is completed.
+  // This is the case when the offset of the next item in PrefetchList is less than or equal to pos.
+  // In case a prefetch entry is removed from PrefetchList the in-use status is refreshed and the song
+  // change event is set.
+  static void  CheckPrefetch(PM123_TIME pos);
+  // Get the time in the current Song. This may cleanup the prefetch list by calling CheckPrefetch.
+  static PM123_TIME FetchCurrentSongTime();
+  // Internal stub to provide the TFNENTRY calling convention for _beginthread.
+  friend void TFNENTRY ControllerWorkerStub(void*);
+  // Worker thread that processes the message queue.
+  static void  Worker();
+  // Event handler for decoder events.
+  static void  DecEventHandler(void*, const dec_event_args& args);
+  // Event handler for output events.
+  static void  OutEventHandler(void*, const OUTEVENTTYPE& event);
+  // Event handler for tracking modifications of the currently playing song.
+  static void  CurrentSongEventHandler(void*, const PlayableChangeArgs& args);
+  // Event handler for tracking modifications of the currently loaded object.
+  static void  CurrentRootEventHandler(void*, const PlayableChangeArgs& args);
+  // Event handler for asynchronuous changes to the songiterator (not any prefetched one).
+  //static void  SongIteratorEventHandler(void*, const CallstackEntry& ce);
+ private: // messages handlers, not thread safe
+  // The messages are descibed above before the class header.
+  static RC    MsgPause(Op op);
+  static RC    MsgScan(Op op);
+  static RC    MsgVolume(double volume, bool relative);
+  static RC    MsgNavigate(const xstring& iter, PM123_TIME loc, int flags);
+  static RC    MsgJump(Location& iter);
+  static RC    MsgStopAt(const xstring& iter, PM123_TIME loc, int flags);
+  static RC    MsgPlayStop(Op op);
+  static RC    MsgSkip(int count, bool relative);
+  static RC    MsgLoad(const xstring& url, int flags);
+  static RC    MsgSave(const xstring& filename);
+  static RC    MsgShuffle(Op op);
+  static RC    MsgRepeat(Op op);
+  static RC    MsgLocation(SongIterator* sip, int flags);
+  static RC    MsgDecStop();
+  static RC    MsgOutStop();
+
+ private:
+  struct QueueTraverseProxyData
+  { void  (*Action)(const Ctrl::ControlCommand& cmd, void* arg);
+    void* Arg;
+  };
+  static void QueueTraverseProxy(const Ctrl::QEntry& entry, void* arg);
+};
+
+
 void Ctrl::ControlCommand::Destroy()
 { if (Link)
     Link->Destroy();
   delete this;
 }
 
-vector<Ctrl::PrefetchEntry> Ctrl::PrefetchList(10);
-Mutex                 Ctrl::PLMtx;
+vector<CtrlImp::PrefetchEntry> CtrlImp::PrefetchList(10);
+Mutex                 CtrlImp::PLMtx;
 bool                  Ctrl::Playing   = false;
 bool                  Ctrl::Paused    = false;
 DECFASTMODE           Ctrl::Scan      = DECFAST_NORMAL_PLAY;
@@ -80,43 +206,41 @@ bool                  Ctrl::Shuffle   = false;
 bool                  Ctrl::Repeat    = false;
 
 queue<Ctrl::QEntry>   Ctrl::Queue;
-TID                   Ctrl::WorkerTID = 0;
-Ctrl::ControlCommand* Ctrl::CurCmd    = NULL;
+TID                   CtrlImp::WorkerTID = 0;
+Ctrl::ControlCommand* CtrlImp::CurCmd    = NULL;
 
-AtomicUnsigned        Ctrl::Pending   = Ctrl::EV_None;
+AtomicUnsigned        CtrlImp::Pending   = Ctrl::EV_None;
 event<const Ctrl::EventFlags> Ctrl::ChangeEvent;
 
-delegate<void, const dec_event_args>        Ctrl::DecEventDelegate(&Ctrl::DecEventHandler);
-delegate<void, const OUTEVENTTYPE>          Ctrl::OutEventDelegate(&Ctrl::OutEventHandler);
-//delegate<void, const PlayableChangeArgs>    Ctrl::CurrentSongDelegate(&Ctrl::CurrentSongEventHandler);
-delegate<void, const PlayableChangeArgs>    Ctrl::CurrentRootDelegate(&Ctrl::CurrentRootEventHandler);
-//delegate<void, const SongIterator::CallstackEntry> Ctrl::SongIteratorDelegate(&Ctrl::SongIteratorEventHandler);
+delegate<void, const dec_event_args>        CtrlImp::DecEventDelegate(&CtrlImp::DecEventHandler);
+delegate<void, const OUTEVENTTYPE>          CtrlImp::OutEventDelegate(&CtrlImp::OutEventHandler);
+delegate<void, const PlayableChangeArgs>    CtrlImp::CurrentRootDelegate(&CtrlImp::CurrentRootEventHandler);
 
-const vector_int<PlayableInstance> Ctrl::EmptyStack;
+const vector_int<PlayableInstance> CtrlImp::EmptyStack;
 
 
 int_ptr<APlayable> Ctrl::GetCurrentSong()
-{ DEBUGLOG(("Ctrl::GetCurrentSong() - %u\n", PrefetchList.size()));
+{ DEBUGLOG(("Ctrl::GetCurrentSong() - %u\n", CtrlImp::PrefetchList.size()));
   int_ptr<APlayable> pp;
-  { Mutex::Lock lock(PLMtx);
-    if (PrefetchList.size())
-      pp = &Current()->Loc.GetCurrent();
+  { Mutex::Lock lock(CtrlImp::PLMtx);
+    if (CtrlImp::PrefetchList.size())
+      pp = &CtrlImp::Current()->Loc.GetCurrent();
   }
   return pp;
 }
 
 int_ptr<APlayable> Ctrl::GetRoot()
-{ Mutex::Lock lock(PLMtx);
-  if (!PrefetchList.size())
+{ Mutex::Lock lock(CtrlImp::PLMtx);
+  if (!CtrlImp::PrefetchList.size())
     return int_ptr<APlayable>();
-  return Current()->Loc.GetRoot();
+  return CtrlImp::Current()->Loc.GetRoot();
 }
 
 /*bool Ctrl::IsEnumerable()
 { return PrefetchList.size() && (Current()->Iter.GetRoot()->GetPlayable()->GetFlags() & Playable::Enumerable);
 }*/
 
-bool Ctrl::SetFlag(bool& flag, Op op)
+bool CtrlImp::SetFlag(bool& flag, Op op)
 { switch (op)
   {default:
     return false;
@@ -135,14 +259,14 @@ bool Ctrl::SetFlag(bool& flag, Op op)
   return true;
 }
 
-void Ctrl::SetVolume()
+void CtrlImp::SetVolume()
 { double volume = Volume;
   if (Scan)
     volume *= 3./5.;
   out_set_volume(volume);
 }
 
-ULONG Ctrl::DecoderStart(APlayable& ps, PM123_TIME offset)
+ULONG CtrlImp::DecoderStart(APlayable& ps, PM123_TIME offset)
 { DEBUGLOG(("Ctrl::DecoderStart(&%p{%p})\n", &ps, &ps.GetPlayable()));
   SetVolume();
   dec_save(Savename);
@@ -188,7 +312,7 @@ ULONG Ctrl::DecoderStart(APlayable& ps, PM123_TIME offset)
   return 0;
 }
 
-void Ctrl::DecoderStop()
+void CtrlImp::DecoderStop()
 { DEBUGLOG(("Ctrl::DecoderStop()\n"));
   // stop decoder
   dec_stop();
@@ -202,14 +326,14 @@ void Ctrl::DecoderStop()
   DEBUGLOG(("Ctrl::DecoderStop - completed\n"));
 }
 
-ULONG Ctrl::OutputStart(APlayable& pp)
+ULONG CtrlImp::OutputStart(APlayable& pp)
 { DEBUGLOG(("Ctrl::OutputStart(&%p)\n", &pp));
   ULONG rc = out_setup( pp );
   DEBUGLOG(("Ctrl::OutputStart: after setup - %d\n", rc));
   return rc;
 }
 
-void Ctrl::OutputStop()
+void CtrlImp::OutputStop()
 { DEBUGLOG(("Ctrl::OutputStop()\n"));
   // Clear prefetch list
   PrefetchClear(true);
@@ -220,14 +344,14 @@ void Ctrl::OutputStop()
     Current()->Offset = 0;
 }
 
-void Ctrl::SetStackUsage(PlayableInstance*const* rbegin, PlayableInstance*const* rend, bool set)
+void CtrlImp::SetStackUsage(PlayableInstance*const* rbegin, PlayableInstance*const* rend, bool set)
 { while (rend != rbegin)
     // Depending on the object type this updates the status of a PlayableInstance
     // or only the status of the underlying Playable.
     (*--rend)->SetInUse(set);
 }
 
-void Ctrl::UpdateStackUsage(const vector<PlayableInstance>& oldstack, const vector<PlayableInstance>& newstack)
+void CtrlImp::UpdateStackUsage(const vector<PlayableInstance>& oldstack, const vector<PlayableInstance>& newstack)
 { DEBUGLOG(("Ctrl::UpdateStackUsage({%u }, {%u })\n", oldstack.size(), newstack.size()));
   PlayableInstance*const* oldppi = oldstack.begin();
   PlayableInstance*const* newppi = newstack.begin();
@@ -244,7 +368,7 @@ void Ctrl::UpdateStackUsage(const vector<PlayableInstance>& oldstack, const vect
   SetStackUsage(newppi, newstack.end(), true);
 }
 
-bool Ctrl::SkipCore(Location& si, int count, bool relative)
+bool CtrlImp::SkipCore(Location& si, int count, bool relative)
 { DEBUGLOG(("Ctrl::SkipCore({%s}, %i, %u)\n", si.Serialize().cdata(), count, relative));
   if (!relative)
     si.Reset();
@@ -253,7 +377,7 @@ bool Ctrl::SkipCore(Location& si, int count, bool relative)
   return !rc;
 }
 
-bool Ctrl::AdjustNext(Location& si)
+bool CtrlImp::AdjustNext(Location& si)
 { DEBUGLOG(("Ctrl::AdjustNext({%s})\n", si.Serialize().cdata()));
   APlayable& ps = si.GetCurrent();
   ps.RequestInfo(IF_Tech, PRI_Sync);
@@ -264,7 +388,7 @@ bool Ctrl::AdjustNext(Location& si)
   return !rc;  
 }
 
-Ctrl::RC Ctrl::NavigateCore(Location& si)
+Ctrl::RC CtrlImp::NavigateCore(Location& si)
 { DEBUGLOG(("Ctrl::NavigateCore({%s}) - %s\n", si.Serialize().cdata(), Current()->Loc.Serialize().cdata()));
   // Check whether the current song has changed?
   int level = si.CompareTo(Current()->Loc);
@@ -323,15 +447,15 @@ Ctrl::RC Ctrl::NavigateCore(Location& si)
   ps.GetInfoChange() += CurrentSongDelegate;
 }*/
 
-void Ctrl::PrefetchClear(bool keep)
+void CtrlImp::PrefetchClear(bool keep)
 { DEBUGLOG(("Ctrl::PrefetchClear(%u)\n", keep));
   Mutex::Lock lock(PLMtx);
-  Ctrl::PrefetchEntry*const* where = PrefetchList.end();
+  PrefetchEntry*const* where = PrefetchList.end();
   while (PrefetchList.size() > keep) // Hack: keep = false deletes all items while keep = true kepp the first item.
     delete PrefetchList.erase(--where);
 }
 
-void Ctrl::CheckPrefetch(double pos)
+void CtrlImp::CheckPrefetch(double pos)
 { DEBUGLOG(("Ctrl::CheckPrefetch(%g)\n", pos));
   if (PrefetchList.size())
   { size_t n = 1;
@@ -364,7 +488,7 @@ void Ctrl::CheckPrefetch(double pos)
       Playable* plp = NULL;
       if (cfg.queue_mode)
       { plp = Current()->Loc.GetRoot();
-        if (plp != GUI::GetDefaultPL())
+        if (plp != &GUI::GetDefaultPL())
           plp = NULL;
       }
       DEBUGLOG(("Ctrl::CheckPrefetch: queue mode %p\n", plp));
@@ -383,7 +507,7 @@ void Ctrl::CheckPrefetch(double pos)
   }
 }
 
-PM123_TIME Ctrl::FetchCurrentSongTime()
+PM123_TIME CtrlImp::FetchCurrentSongTime()
 { DEBUGLOG(("Ctrl::FetchCurrentSongTime() - %u\n", Playing));
   if (Playing)
   { PM123_TIME time = out_playing_pos();
@@ -394,7 +518,7 @@ PM123_TIME Ctrl::FetchCurrentSongTime()
     return Current()->Loc.GetPosition();
 }
 
-void Ctrl::DecEventHandler(void*, const dec_event_args& args)
+void CtrlImp::DecEventHandler(void*, const dec_event_args& args)
 { DEBUGLOG(("Ctrl::DecEventHandler(, {%i, %p})\n", args.type, args.param));
   switch (args.type)
   {case DECEVENT_PLAYSTOP:
@@ -415,7 +539,7 @@ void Ctrl::DecEventHandler(void*, const dec_event_args& args)
   }
 }
 
-void Ctrl::OutEventHandler(void*, const OUTEVENTTYPE& event)
+void CtrlImp::OutEventHandler(void*, const OUTEVENTTYPE& event)
 { DEBUGLOG(("Ctrl::OutEventHandler(, %i)\n", event));
   switch (event)
   {case OUTEVENT_END_OF_DATA:
@@ -442,7 +566,7 @@ void Ctrl::OutEventHandler(void*, const OUTEVENTTYPE& event)
   }
 }*/
 
-void Ctrl::CurrentRootEventHandler(void*, const PlayableChangeArgs& args)
+void CtrlImp::CurrentRootEventHandler(void*, const PlayableChangeArgs& args)
 { DEBUGLOG(("Ctrl::CurrentRootEventHandler(, {%p{%s}, %x, %x})\n",
     &args.Instance, args.Instance.GetPlayable().URL.cdata(), args.Changed, args.Loaded));
   { const int_ptr<APlayable>& ps = GetRoot();
@@ -466,7 +590,7 @@ void Ctrl::CurrentRootEventHandler(void*, const PlayableChangeArgs& args)
 }*/
 
 /* Suspends or resumes playback of the currently played file. */
-Ctrl::RC Ctrl::MsgPause(Op op)
+Ctrl::RC CtrlImp::MsgPause(Op op)
 { DEBUGLOG(("Ctrl::MsgPause(%x) - %u\n", op, Scan));
   if (!Playing)
     return op & Op_Set ? RC_NotPlaying : RC_OK;
@@ -479,7 +603,7 @@ Ctrl::RC Ctrl::MsgPause(Op op)
 }
 
 /* change scan mode logically */
-Ctrl::RC Ctrl::MsgScan(Op op)
+Ctrl::RC CtrlImp::MsgScan(Op op)
 { DEBUGLOG(("Ctrl::MsgScan(%x) - %u\n", op, Scan));
   if (op & ~7)
     return RC_BadArg;
@@ -521,7 +645,7 @@ Ctrl::RC Ctrl::MsgScan(Op op)
   return RC_OK;
 }
 
-Ctrl::RC Ctrl::MsgVolume(double volume, bool relative)
+Ctrl::RC CtrlImp::MsgVolume(double volume, bool relative)
 { DEBUGLOG(("Ctrl::MsgVolume(%g, %u) - %g\n", volume, relative, Volume));
   volume += Volume * relative;
   // Limits
@@ -539,7 +663,7 @@ Ctrl::RC Ctrl::MsgVolume(double volume, bool relative)
 }
 
 /* change play/stop status */
-Ctrl::RC Ctrl::MsgPlayStop(Op op)
+Ctrl::RC CtrlImp::MsgPlayStop(Op op)
 { DEBUGLOG(("Ctrl::MsgPlayStop(%x) - %u\n", op, Playing));
 
   if (Playing)
@@ -602,7 +726,7 @@ Ctrl::RC Ctrl::MsgPlayStop(Op op)
   return RC_OK;
 }
 
-Ctrl::RC Ctrl::MsgNavigate(const xstring& iter, PM123_TIME loc, int flags)
+Ctrl::RC CtrlImp::MsgNavigate(const xstring& iter, PM123_TIME loc, int flags)
 { DEBUGLOG(("Ctrl::MsgNavigate(%s, %g, %x)\n", iter ? iter.cdata() : "<null>", loc, flags));
   if (!GetCurrentSong())
     return RC_NoSong;
@@ -631,7 +755,7 @@ Ctrl::RC Ctrl::MsgNavigate(const xstring& iter, PM123_TIME loc, int flags)
   return NavigateCore(*sip);
 }
 
-Ctrl::RC Ctrl::MsgJump(Location& iter)
+Ctrl::RC CtrlImp::MsgJump(Location& iter)
 { DEBUGLOG(("Ctrl::MsgJump(...)\n"));
   APlayable* ps = GetRoot();
   if (!ps)
@@ -642,7 +766,7 @@ Ctrl::RC Ctrl::MsgJump(Location& iter)
   return NavigateCore(iter);
 }
 
-Ctrl::RC Ctrl::MsgSkip(int count, bool relative)
+Ctrl::RC CtrlImp::MsgSkip(int count, bool relative)
 { DEBUGLOG(("Ctrl::MsgSkip(%i, %u) - %u\n", count, relative, IsPlaying));
   APlayable* pp = GetRoot();
   pp->RequestInfo(IF_Tech, PRI_Sync);
@@ -681,7 +805,7 @@ Ctrl::RC Ctrl::MsgSkip(int count, bool relative)
 }
 
 /* Loads Playable object to player. */
-Ctrl::RC Ctrl::MsgLoad(const xstring& url, int flags)
+Ctrl::RC CtrlImp::MsgLoad(const xstring& url, int flags)
 { DEBUGLOG(("Ctrl::MsgLoad(%s, %x)\n", url.cdata(), flags));
 
   // always stop
@@ -729,13 +853,13 @@ Ctrl::RC Ctrl::MsgLoad(const xstring& url, int flags)
   return RC_OK;
 }
 
-Ctrl::RC Ctrl::MsgStopAt(const xstring& iter, PM123_TIME loc, int flags)
+Ctrl::RC CtrlImp::MsgStopAt(const xstring& iter, PM123_TIME loc, int flags)
 { // TODO: !!!
   return RC_OK;
 }
 
 /* saving the currently played stream. */
-Ctrl::RC Ctrl::MsgSave(const xstring& filename)
+Ctrl::RC CtrlImp::MsgSave(const xstring& filename)
 { DEBUGLOG(("Ctrl::MsgSave(%s)\n", filename.cdata()));
 
   if (Savename == filename)
@@ -750,7 +874,7 @@ Ctrl::RC Ctrl::MsgSave(const xstring& filename)
 }
 
 /* Adjusts shuffle flag. */
-Ctrl::RC Ctrl::MsgShuffle(Op op)
+Ctrl::RC CtrlImp::MsgShuffle(Op op)
 { DEBUGLOG(("Ctrl::MsgShuffle(%x) - %u\n", op, Scan));
   if (SetFlag(Shuffle, op))
     Pending |= EV_Shuffle;
@@ -758,14 +882,14 @@ Ctrl::RC Ctrl::MsgShuffle(Op op)
 }
 
 /* Adjusts repeat flag. */
-Ctrl::RC Ctrl::MsgRepeat(Op op)
+Ctrl::RC CtrlImp::MsgRepeat(Op op)
 { DEBUGLOG(("Ctrl::MsgRepeat(%x) - %u\n", op, Scan));
   if (SetFlag(Repeat, op))
     Pending |= EV_Repeat;
   return RC_OK;
 }
 
-Ctrl::RC Ctrl::MsgLocation(SongIterator* sip, int flags)
+Ctrl::RC CtrlImp::MsgLocation(SongIterator* sip, int flags)
 { DEBUGLOG(("Ctrl::MsgLocation(%p, %x)\n", sip, flags));
   if (!PrefetchList.size())
     return RC_NoSong; // no root
@@ -782,7 +906,7 @@ Ctrl::RC Ctrl::MsgLocation(SongIterator* sip, int flags)
 }
 
 // The decoder completed decoding...
-Ctrl::RC Ctrl::MsgDecStop()
+Ctrl::RC CtrlImp::MsgDecStop()
 { DEBUGLOG(("Ctrl::MsgDecStop()\n"));
   if (!Playing)
     return RC_NotPlaying;
@@ -836,21 +960,21 @@ Ctrl::RC Ctrl::MsgDecStop()
 }
 
 // The output completed playing
-Ctrl::RC Ctrl::MsgOutStop()
+Ctrl::RC CtrlImp::MsgOutStop()
 { DEBUGLOG(("Ctrl::MsgOutStop()\n"));
   // Check whether we have to remove items in queue mode
   Playable& plp = *Current()->Loc.GetRoot();
-  if (cfg.queue_mode && PrefetchList.size() && &plp == GUI::GetDefaultPL())
+  if (cfg.queue_mode && PrefetchList.size() && &plp == &GUI::GetDefaultPL())
     plp.RemoveItem(Current()->Loc.GetCallstack()[0]);
   // In any case stop the engine
   return MsgPlayStop(Op_Reset);
 }
 
 void TFNENTRY ControllerWorkerStub(void*)
-{ Ctrl::Worker();
+{ CtrlImp::Worker();
 }
 
-void Ctrl::Worker()
+void CtrlImp::Worker()
 { HAB hab = WinInitialize(0);
   HMQ hmq = WinCreateMsgQueue(hab, 0);
   for(;;)
@@ -962,15 +1086,15 @@ void Ctrl::Worker()
   WinTerminate(hab);
 }
 
-void Ctrl::QueueTraverseProxy(const QEntry& entry, void* arg) 
+void CtrlImp::QueueTraverseProxy(const QEntry& entry, void* arg)
 { (*((QueueTraverseProxyData*)arg)->Action)(*entry.Cmd, ((QueueTraverseProxyData*)arg)->Arg);
 }
 
 void Ctrl::QueueTraverse(void (*action)(const ControlCommand& cmd, void* arg), void* arg)
-{ if (CurCmd)
-    action(*CurCmd, arg);
-  QueueTraverseProxyData args_proxy = { action, arg };
-  Queue.ForEach(&Ctrl::QueueTraverseProxy, &args_proxy);
+{ if (CtrlImp::CurCmd)
+    action(*CtrlImp::CurCmd, arg);
+  CtrlImp::QueueTraverseProxyData args_proxy = { action, arg };
+  Queue.ForEach(&CtrlImp::QueueTraverseProxy, &args_proxy);
 }
 
 
@@ -978,10 +1102,10 @@ void Ctrl::QueueTraverse(void (*action)(const ControlCommand& cmd, void* arg), v
 
 void Ctrl::Init()
 { DEBUGLOG(("Ctrl::Init()\n"));
-  dec_event += DecEventDelegate;
-  out_event += OutEventDelegate;
-  WorkerTID = _beginthread(&ControllerWorkerStub, NULL, 262144, NULL);
-  ASSERT((int)WorkerTID != -1);
+  dec_event += CtrlImp::DecEventDelegate;
+  out_event += CtrlImp::OutEventDelegate;
+  CtrlImp::WorkerTID = _beginthread(&ControllerWorkerStub, NULL, 262144, NULL);
+  ASSERT((int)CtrlImp::WorkerTID != -1);
   // load the state
   ctrl_state state;
   load_ini_value(amp_hini, state.volume);
@@ -1015,11 +1139,11 @@ void Ctrl::Uninit()
     PostCommand(MkLocation(&last, 0));
     PostCommand(MkLoad(xstring(), 0));
     PostCommand(NULL);
-    DecEventDelegate.detach();
-    OutEventDelegate.detach();
+    CtrlImp::DecEventDelegate.detach();
+    CtrlImp::OutEventDelegate.detach();
   }
-  if (WorkerTID != 0)
-    wait_thread_pm(amp_player_hab(), WorkerTID, 30000);
+  if (CtrlImp::WorkerTID != 0)
+    wait_thread_pm(amp_player_hab, CtrlImp::WorkerTID, 30000);
 
   // save the state
   state.shf = IsShuffle();
@@ -1038,7 +1162,7 @@ void Ctrl::Uninit()
   save_ini_value(amp_hini, state.was_playing);
 
   // Now delete everything
-  PrefetchClear(false);
+  CtrlImp::PrefetchClear(false);
 
   DEBUGLOG(("CtrlUninit complete\n"));
 }

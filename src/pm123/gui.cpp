@@ -1,8 +1,8 @@
 /*
+ * Copyright 2007-2011 M.Mueller
+ * Copyright 2004-2006 Dmitry A.Steklenev <glass@ptv.ru>
  * Copyright 1997-2003 Samuel Audet <guardia@step.polymtl.ca>
  *                     Taneli Lepp� <rosmo@sektori.com>
- * Copyright 2004-2006 Dmitry A.Steklenev <glass@ptv.ru>
- * Copyright 2007-2010 M.Mueller
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -45,6 +45,8 @@
 #include "playlistmanager.h"
 #include "inspector.h"
 #include "waitinfo.h"
+#include "loadhelper.h"
+#include "playlistmenu.h"
 #include "button95.h"
 #include "copyright.h"
 
@@ -141,7 +143,7 @@ MRESULT GUI::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
 
       WinPostMsg(HPlayer, WMP_RELOADSKIN, 0, 0);
 
-      HAB hab = amp_player_hab();
+      HAB hab = amp_player_hab;
       if (cfg.floatontop)
         WinStartTimer(hab, HPlayer, TID_ONTOP, 100 );
 
@@ -220,10 +222,10 @@ MRESULT GUI::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
           AInfoDialog::GetByKey(*pp)->ShowPage(AInfoDialog::Page_TechInfo);
           break;
         case DLT_PLAYLIST:
-          PlaylistView::Get(*pp)->SetVisible(true);
+          PlaylistView::GetByKey(*pp)->SetVisible(true);
           break;
         case DLT_PLAYLISTTREE:
-          PlaylistManager::Get(*pp)->SetVisible(true);
+          PlaylistManager::GetByKey(*pp)->SetVisible(true);
           break;
       }
       return 0;
@@ -432,7 +434,7 @@ MRESULT GUI::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
    case WMP_REFRESH_ACCEL:
     { // eat other identical messages
       QMSG qmsg;
-      while (WinPeekMsg(amp_player_hab(), &qmsg, HFrame, WMP_REFRESH_ACCEL, WMP_REFRESH_ACCEL, PM_REMOVE));
+      while (WinPeekMsg(amp_player_hab, &qmsg, HFrame, WMP_REFRESH_ACCEL, WMP_REFRESH_ACCEL, PM_REMOVE));
     }
     LoadAccel();
     return 0;
@@ -605,11 +607,11 @@ MRESULT GUI::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
           break;
 
         case IDM_M_EDITBOOK:
-          PlaylistView::Get(*DefaultBM, "Bookmarks")->SetVisible(true);
+          PlaylistView::GetByKey(*DefaultBM)->SetVisible(true);
           break;
 
         case IDM_M_EDITBOOKTREE:
-          PlaylistManager::Get(*DefaultBM, "Bookmark Tree")->SetVisible(true);
+          PlaylistManager::GetByKey(*DefaultBM)->SetVisible(true);
           break;
 
         case IDM_M_INFO:
@@ -670,11 +672,11 @@ MRESULT GUI::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
           break;
 
         case IDM_M_PLAYLIST:
-          PlaylistView::Get(*DefaultPL, "Default Playlist")->SetVisible(true);
+          PlaylistView::GetByKey(*DefaultPL)->SetVisible(true);
           break;
 
         case IDM_M_MANAGER:
-          PlaylistManager::Get(*DefaultPM, "Playlist Manager")->SetVisible(true);
+          PlaylistManager::GetByKey(*DefaultPM)->SetVisible(true);
           break;
 
         case IDM_M_PLOPENDETAIL:
@@ -693,9 +695,9 @@ MRESULT GUI::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
         case IDM_M_FLOAT:
           cfg.floatontop = !cfg.floatontop;
           if (!cfg.floatontop)
-            WinStopTimer(amp_player_hab(), HPlayer, TID_ONTOP );
+            WinStopTimer(amp_player_hab, HPlayer, TID_ONTOP );
           else
-            WinStartTimer(amp_player_hab(), HPlayer, TID_ONTOP, 100);
+            WinStartTimer(amp_player_hab, HPlayer, TID_ONTOP, 100);
           break;
 
         case IDM_M_FONT1:
@@ -761,9 +763,7 @@ MRESULT GUI::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
 
         case BMP_PL:
         { Playable* root = CurrentRoot();
-          int_ptr<PlaylistView> pv(root && root != DefaultPL && root->IsPlaylist()
-                                   ? PlaylistView::Get(*root)
-                                   : PlaylistView::Get(*DefaultPL, "Default Playlist") );
+          int_ptr<PlaylistView> pv(PlaylistView::GetByKey(root && root->IsPlaylist() ? *root : *DefaultPL));
           pv->SetVisible(!pv->GetVisible());
           break;
         }
@@ -1077,7 +1077,7 @@ void GUI::ControllerNotification(const void* rcv, const Ctrl::EventFlags& flags)
 { DEBUGLOG(("GUI::ControllerNotification(, %x)\n", flags));
   Ctrl::EventFlags flg = flags;
   QMSG msg;
-  if (WinPeekMsg(amp_player_hab(), &msg, HFrame, WMP_CTRL_EVENT, WMP_CTRL_EVENT, PM_REMOVE))
+  if (WinPeekMsg(amp_player_hab, &msg, HFrame, WMP_CTRL_EVENT, WMP_CTRL_EVENT, PM_REMOVE))
   { DEBUGLOG(("GUI::ControllerNotification - hit: %x\n", msg.mp1));
     // join messages
     flg |= (Ctrl::EventFlags)LONGFROMMP(msg.mp1);
@@ -1093,7 +1093,7 @@ void GUI::PlayableNotification(const void* rcv, const PlayableChangeArgs& args)
 }
 
 void GUI::PluginNotification(const void*, const Plugin::EventArgs& args)
-{ DEBUGLOG(("GUI::PluginNotification(, {&%p{%s}, %i})\n", &args.Plug, args.Plug.GetModuleName().cdata(), args.Operation));
+{ DEBUGLOG(("GUI::PluginNotification(, {&%p{%s}, %i})\n", &args.Plug, args.Plug.GetModule().Key.cdata(), args.Operation));
   switch (args.Operation)
   {case Plugin::EventArgs::Enable:
    case Plugin::EventArgs::Disable:
@@ -1111,8 +1111,15 @@ void GUI::PluginNotification(const void*, const Plugin::EventArgs& args)
   }
 }
 
+/*Playable& GUI::EnsurePlaylist(Playable& list)
+{
+  list.RequestInfo(IF_Child, PRI_Sync);
+
+}*/
+
 void GUI::Add2MRU(Playable& list, size_t max, APlayable& ps)
 { DEBUGLOG(("GUI::Add2MRU(&%p{%s}, %u, %s)\n", &list, list.URL.cdata(), max, ps.GetPlayable().URL.cdata()));
+  list.RequestInfo(IF_Child, PRI_Sync);
   Mutex::Lock lock(list.Mtx);
   int_ptr<PlayableInstance> pi;
   // remove the desired item from the list and limit the list size
@@ -1160,7 +1167,7 @@ void GUI::SaveStream(HWND hwnd, BOOL enable)
 
 void GUI::LoadAccel()
 { DEBUGLOG(("GUI::LoadAccel()\n"));
-  const HAB hab = amp_player_hab();
+  const HAB hab = amp_player_hab;
   // Generate new accelerator table.
   HACCEL haccel = WinLoadAccelTable(hab, NULLHANDLE, ACL_MAIN);
   PMASSERT(haccel != NULLHANDLE);
@@ -1218,12 +1225,12 @@ void GUI::ShowContextMenu()
     memset(LoadWizards+2, 0, sizeof LoadWizards - 2*sizeof *LoadWizards); // You never know...
     IsAccelChanged = false;
     dec_append_load_menu(mi.hwndSubMenu, IDM_M_LOADOTHER, 2, LoadWizards + 2, sizeof LoadWizards / sizeof *LoadWizards - 2);
-    (MenuShowAccel(WinQueryAccelTable(amp_player_hab(), HFrame))).ApplyTo(new_menu ? context_menu : mi.hwndSubMenu);
+    (MenuShowAccel(WinQueryAccelTable(amp_player_hab, HFrame))).ApplyTo(new_menu ? context_menu : mi.hwndSubMenu);
   }
 
   // Update status
   mn_enable_item(context_menu, IDM_M_TAG,     CurrentIter && CurrentIter->GetRoot() && (CurrentIter->GetRoot()->GetInfo().tech->attributes & TATTR_WRITABLE));
-  mn_enable_item(context_menu, IDM_M_SAVE,    CurrentIter && CurrentIter->GetRoot() && (CurrentIter->GetRoot()->GetInfo().tech->attributes & TATTR_SAVEABLE));
+  mn_enable_item(context_menu, IDM_M_SAVE,    CurrentIter && CurrentIter->GetRoot() && (CurrentIter->GetRoot()->GetInfo().tech->attributes & TATTR_STORABLE));
   mn_enable_item(context_menu, IDM_M_CURRENT_SONG, CurrentIter && CurrentIter->GetRoot());
   mn_enable_item(context_menu, IDM_M_CURRENT_PL, CurrentIter && CurrentIter->GetRoot() && (CurrentIter->GetRoot()->GetInfo().tech->attributes & TATTR_PLAYLIST));
   mn_enable_item(context_menu, IDM_M_SMALL,   bmp_is_mode_supported(CFG_MODE_SMALL));
@@ -1352,7 +1359,7 @@ void GUI::PrepareText()
 
 void GUI::AutoSave(Playable& list)
 { if (list.IsModified())
-    dec_saveplaylist(list.URL, list, "plist123.dll", NULL, false);
+    list.Save(list.URL, "plist123.dll", NULL, false);
 }
 
 /*void GUI::RefreshTotals(HPS hps)
@@ -1673,7 +1680,7 @@ void GUI::Init()
   LoadWizards[0] = amp_file_wizard;
   LoadWizards[1] = amp_url_wizard;
 
-  PMRASSERT(WinRegisterClass(amp_player_hab(), "PM123", &GUI_DlgProcStub, CS_SIZEREDRAW, 0));
+  PMRASSERT(WinRegisterClass(amp_player_hab, "PM123", &GUI_DlgProcStub, CS_SIZEREDRAW, 0));
   ULONG flCtlData = FCF_TASKLIST|FCF_NOBYTEALIGN|FCF_ICON;
   HFrame = WinCreateStdWindow(HWND_DESKTOP, 0, &flCtlData, "PM123",
                               AMP_FULLNAME, 0, NULLHANDLE, WIN_MAIN, &HPlayer);
@@ -1686,10 +1693,13 @@ void GUI::Init()
   }
 
   // Init default lists
-  { const url123& path = url123::normalizeURL(amp_startpath);
+  { const url123& path = url123::normalizeURL(amp_basepath);
     DefaultPL = Playable::GetByURL(path + "PM123.LST");
+    DefaultPL->SetAlias("Default Playlist");
     DefaultPM = Playable::GetByURL(path + "PFREQ.LST");
+    DefaultPM->SetAlias("Playlist Manager");
     DefaultBM = Playable::GetByURL(path + "BOOKMARK.LST");
+    DefaultBM->SetAlias("Bookmarks");
     LoadMRU   = Playable::GetByURL(path + "LOADMRU.LST");
     UrlMRU    = Playable::GetByURL(path + "URLMRU.LST");
     // The default playlist the bookmarks and the MRU list must be ready to use
@@ -1724,13 +1734,13 @@ void GUI::Init()
   #endif
   hinit.pszHelpLibraryName = (PSZ)infname.cdata();
 
-  HHelp = WinCreateHelpInstance( amp_player_hab(), &hinit );
+  HHelp = WinCreateHelpInstance(amp_player_hab, &hinit);
   if( HHelp == NULLHANDLE )
-    amp_error( HFrame, "Error create help instance: %s", infname.cdata() );
+    amp_error(HFrame, "Error create help instance: %s", infname.cdata());
   else
     PMRASSERT(WinAssociateHelpInstance(HHelp, HPlayer));
     
-  WinSetHook( amp_player_hab(), HMQ_CURRENT, HK_HELP, (PFN)&GUI_HelpHook, 0 );
+  WinSetHook(amp_player_hab, HMQ_CURRENT, HK_HELP, (PFN)&GUI_HelpHook, 0);
 
   // Docking...
   dk_init();
@@ -1742,20 +1752,13 @@ void GUI::Init()
   vis_init_all( HPlayer, FALSE );
 
   DEBUGLOG(("GUI::Init: complete\n"));
-
-  // Init some other stuff
-  PlaylistView::Init();
-  PlaylistManager::Init();
-
-  // Now it is time to show the window
-  PMRASSERT(WinSetWindowPos(HFrame, HWND_TOP, cfg.main.x,cfg.main.y, 0,0, SWP_ACTIVATE|SWP_MOVE|SWP_SHOW));
 }
 
 void GUI::Uninit()
 { DEBUGLOG(("GUI::Uninit()\n"));
  
-  PlaylistManager::UnInit();
-  PlaylistView::UnInit();
+  PlaylistManager::DestroyAll();
+  PlaylistView::DestroyAll();
   InspectorDialog::UnInit();
 
   // deinitialize all visual plug-ins
@@ -1772,7 +1775,7 @@ void GUI::Uninit()
   // Eat user messages from the queue
   // TODO: causes memory leaks, but who cares on termination.
   QMSG   qmsg;
-  while (WinPeekMsg(amp_player_hab(), &qmsg, HFrame, WM_USER, 0xbfff, PM_REMOVE));
+  while (WinPeekMsg(amp_player_hab, &qmsg, HFrame, WM_USER, 0xbfff, PM_REMOVE));
 
   // Clear iterators to avoid dead references.
   IterBuffer[0].SetRoot(NULL);

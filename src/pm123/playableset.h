@@ -36,7 +36,6 @@
 class Playable;
 
 class PlayableSetBase
-: public IComparableTo<PlayableSetBase>
 {public:
   static const PlayableSetBase& Empty; // empty instance
 
@@ -48,7 +47,7 @@ class PlayableSetBase
   virtual Playable*        operator[](size_t where) const = 0;
   virtual bool             contains(const Playable& key) const = 0;
   
-  virtual int              compareTo(const PlayableSetBase& r) const;
+  static  int              compare(const PlayableSetBase& l, const PlayableSetBase& r);
   // returns true if and only if all elements in this set are also in r.
   bool                     isSubsetOf(const PlayableSetBase& r) const;
 };
@@ -58,7 +57,7 @@ class PlayableSetBase
 // So you have to ensure that the Playable objects are held by another int_ptr instance
 // as long as they are in this collection.
 class PlayableSet
-: public sorted_vector<Playable, Playable>,
+: public sorted_vector<Playable, Playable, &CompareInstance<Playable> >,
   public PlayableSetBase
 {public:
                            PlayableSet(size_t size = 0);
@@ -67,9 +66,9 @@ class PlayableSet
                            ~PlayableSet();
 
   virtual size_t           size() const
-                           { return sorted_vector<Playable, Playable>::size(); }
+                           { return sorted_vector<Playable, Playable, &CompareInstance<Playable> >::size(); }
   virtual Playable*        operator[](size_t where) const
-                           { return sorted_vector<Playable, Playable>::operator[](where); }
+                           { return sorted_vector<Playable, Playable, &CompareInstance<Playable> >::operator[](where); }
   virtual bool             contains(const Playable& key) const;
           bool             add(Playable& p);
 };
@@ -77,7 +76,7 @@ class PlayableSet
 // Unique sorted set of Playable objects.
 // The ownership of the content is held by this class.
 class OwnedPlayableSet
-: public sorted_vector_int<Playable, Playable>,
+: public sorted_vector_int<Playable, Playable, &CompareInstance<Playable> >,
   public PlayableSetBase
 {public:
                            OwnedPlayableSet();
@@ -86,9 +85,9 @@ class OwnedPlayableSet
                            ~OwnedPlayableSet();
 
   virtual size_t           size() const
-                           { return sorted_vector_int<Playable, Playable>::size(); }
+                           { return sorted_vector_int<Playable, Playable, &CompareInstance<Playable> >::size(); }
   virtual Playable*        operator[](size_t where) const
-                           { return sorted_vector_int<Playable, Playable>::operator[](where); }
+                           { return sorted_vector_int<Playable, Playable, &CompareInstance<Playable> >::operator[](where); }
   virtual bool             contains(const Playable& key) const;
           bool             add(Playable& p);
 };

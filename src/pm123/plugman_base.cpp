@@ -50,6 +50,7 @@
 #include "123_util.h"
 #include "playable.h"
 #include "controller.h" // for starting position work around
+#include "glue.h"
 #include <fileutil.h>
 #include <wildcards.h>
 #include <charset.h>
@@ -144,7 +145,7 @@ Decoder::Decoder(Module* mod)
 }*/
 
 bool Decoder::AfterLoad()
-{ DEBUGLOG(("Decoder(%p{%s})::AfterLoad()\n", this, GetModuleName().cdata()));
+{ DEBUGLOG(("Decoder(%p{%s})::AfterLoad()\n", this, GetModule().Key.cdata()));
 
   ULONG DLLENTRYP(decoder_support)( const DECODER_FILETYPE** types, int* count );
   if (!GetModule().LoadFunction(&decoder_support,  "decoder_support" ))
@@ -155,7 +156,7 @@ bool Decoder::AfterLoad()
     && ( !decoder_init || !decoder_uninit || !decoder_command
       || !decoder_status || !decoder_length || !decoder_event ))
     amp_player_error("Could not load decoder %s\nThe plug-in does not export the playback interface completly.",
-        GetModuleName().cdata());
+      GetModule().GetModuleName().cdata());
 
   FillFileTypeCache();
   return true;
@@ -192,7 +193,7 @@ void Decoder::FillFileTypeCache()
 
 /* Assigns the addresses of the decoder plug-in procedures. */
 bool Decoder::LoadPlugin()
-{ DEBUGLOG(("Decoder(%p{%s})::LoadPlugin()\n", this, GetModuleName().cdata()));
+{ DEBUGLOG(("Decoder(%p{%s})::LoadPlugin()\n", this, GetModule().Key.cdata()));
   const Module& mod = GetModule();
 
   if (mod.GetParams().type & PLUGIN_DECODER)
@@ -220,7 +221,7 @@ bool Decoder::LoadPlugin()
 }
 
 bool Decoder::InitPlugin()
-{ DEBUGLOG(("Decoder(%p{%s})::InitPlugin()\n", this, GetModuleName().cdata()));
+{ DEBUGLOG(("Decoder(%p{%s})::InitPlugin()\n", this, GetModule().Key.cdata()));
 
   if ((*decoder_init)(&W) == -1)
   { W = NULL;
@@ -231,7 +232,7 @@ bool Decoder::InitPlugin()
 }
 
 bool Decoder::UninitPlugin()
-{ DEBUGLOG(("Decoder(%p{%s})::UninitPlugin()\n", this, GetModuleName().cdata()));
+{ DEBUGLOG(("Decoder(%p{%s})::UninitPlugin()\n", this, GetModule().Key.cdata()));
 
   if (IsInitialized())
   { (*decoder_uninit)( xchg(W, (void*)NULL));
@@ -241,7 +242,7 @@ bool Decoder::UninitPlugin()
 }
 
 bool Decoder::IsFileSupported(const char* file, const char* eatype) const
-{ DEBUGLOG(("Decoder(%p{%s})::IsFileSupported(%s, %p) - %s, %s\n", this, GetModuleName().cdata(),
+{ DEBUGLOG(("Decoder(%p{%s})::IsFileSupported(%s, %p) - %s, %s\n", this, GetModule().Key.cdata(),
     file, eatype, FileTypeCache.cdata(), FileExtensionCache.cdata()));
 
   // Try file name match
@@ -404,7 +405,7 @@ DecoderProxy1::~DecoderProxy1()
 
 /* Assigns the addresses of the decoder plug-in procedures. */
 bool DecoderProxy1::LoadPlugin()
-{ DEBUGLOG(("DecoderProxy1(%p{%s})::load()\n", this, GetModuleName().cdata()));
+{ DEBUGLOG(("DecoderProxy1(%p{%s})::load()\n", this, GetModule().Key.cdata()));
   const Module& mod = GetModule();
 
   if ( !(mod.GetParams().type & PLUGIN_DECODER)
@@ -443,7 +444,7 @@ bool DecoderProxy1::LoadPlugin()
 }
 
 bool DecoderProxy1::AfterLoad()
-{ DEBUGLOG(("DecoderProxy1(%p{%s})::AfterLoad()\n", this, GetModuleName().cdata()));
+{ DEBUGLOG(("DecoderProxy1(%p{%s})::AfterLoad()\n", this, GetModule().Key.cdata()));
 
   ULONG DLLENTRYP(decoder_support)( char* fileext[], int* size );
   if (!GetModule().LoadFunction(&decoder_support,  "decoder_support" ))
@@ -508,7 +509,7 @@ bool DecoderProxy1::SetParam(const char* param, const xstring& value)
 PROXYFUNCIMP(int DLLENTRY, DecoderProxy1)
 proxy_1_decoder_play_samples( DecoderProxy1* op, const FORMAT_INFO* format, const char* buf, int len, int posmarker )
 { DEBUGLOG(("proxy_1_decoder_play_samples(%p{%s}, %p{%u,%u,%u}, %p, %i, %i) - %f\n",
-    op, op->GetModuleName().cdata(), format, format->size, format->samplerate, format->channels, buf, len, posmarker, op->temppos));
+    op, op->GetModule().Key.cdata(), format, format->size, format->samplerate, format->channels, buf, len, posmarker, op->temppos));
 
   if (format->format != WAVE_FORMAT_PCM || (format->bits != 16 && format->bits != 8))
   { (*op->error_display)("PM123 does only accept PCM data with 8 or 16 bits per sample when using old-style decoder plug-ins.");
@@ -594,7 +595,7 @@ proxy_1_decoder_play_samples( DecoderProxy1* op, const FORMAT_INFO* format, cons
 PROXYFUNCIMP(ULONG DLLENTRY, DecoderProxy1)
 proxy_1_decoder_command( DecoderProxy1* op, void* w, ULONG msg, DECODER_PARAMS2* params )
 { DEBUGLOG(("proxy_1_decoder_command(%p {%s}, %p, %d, %p)\n",
-    op, op->GetModuleName().cdata(), w, msg, params));
+    op, op->GetModule().Key.cdata(), w, msg, params));
 
   if (params == NULL) // well, sometimes wired things may happen
     return (*op->vdecoder_command)(w, msg, NULL);
@@ -706,7 +707,7 @@ proxy_1_decoder_command( DecoderProxy1* op, void* w, ULONG msg, DECODER_PARAMS2*
 /* Proxy for loading interface level 0/1 */
 PROXYFUNCIMP(void DLLENTRY, DecoderProxy1)
 proxy_1_decoder_event( DecoderProxy1* op, void* w, OUTEVENTTYPE event )
-{ DEBUGLOG(("proxy_1_decoder_event(%p {%s}, %p, %d)\n", op, op->GetModuleName().cdata(), w, event));
+{ DEBUGLOG(("proxy_1_decoder_event(%p {%s}, %p, %d)\n", op, op->GetModule().Key.cdata(), w, event));
 
   switch (event)
   {case OUTEVENT_LOW_WATER:
@@ -862,7 +863,7 @@ proxy_1_decoder_length( DecoderProxy1* op, void* a )
 MRESULT EXPENTRY proxy_1_decoder_winfn(HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2)
 { DecoderProxy1* op = (DecoderProxy1*)WinQueryWindowPtr(hwnd, QWL_USER);
   DEBUGLOG(("proxy_1_decoder_winfn(%p, %u, %p, %p) - %p {%s}\n",
-    hwnd, msg, mp1, mp2, op, op == NULL ? NULL : op->GetModuleName().cdata()));
+    hwnd, msg, mp1, mp2, op, op == NULL ? NULL : op->GetModule().Key.cdata()));
   switch (msg)
   {case WM_PLAYSTOP:
     (*op->voutput_event)(op->a, DECEVENT_PLAYSTOP, NULL);
@@ -990,7 +991,7 @@ void DecoderProxy1::ConvertINFO_BUNDLE(DECODER_INFO* dinfo, const INFO_BUNDLE_CV
 void DecoderProxy1::ConvertDECODER_INFO(const INFO_BUNDLE* info, const DECODER_INFO* dinfo)
 { info->tech->samplerate = dinfo->format.samplerate;
   info->tech->channels   = dinfo->format.channels;
-  info->tech->attributes = TATTR_SONG | TATTR_SAVEABLE | TATTR_WRITABLE * (dinfo->saveinfo != 0);
+  info->tech->attributes = TATTR_SONG | TATTR_STORABLE | TATTR_WRITABLE * (dinfo->saveinfo != 0);
   info->tech->info       = dinfo->tech_info;
   info->obj->songlength  = dinfo->songlength < 0 ? -1 : dinfo->songlength / 1000.;
   info->obj->bitrate     = dinfo->bitrate    < 0 ? -1 : dinfo->bitrate * 1000;
@@ -1019,7 +1020,7 @@ Plugin* Decoder::Factory(Module* mod)
 }
 
 void Decoder::Init()
-{ PMRASSERT(WinRegisterClass(amp_player_hab(), "DecoderProxy1", &proxy_1_decoder_winfn, 0, sizeof(DecoderProxy1*)));
+{ PMRASSERT(WinRegisterClass(amp_player_hab, "DecoderProxy1", &proxy_1_decoder_winfn, 0, sizeof(DecoderProxy1*)));
 }
 
 
@@ -1031,7 +1032,7 @@ void Decoder::Init()
 
 /* Assigns the addresses of the out7put plug-in procedures. */
 bool Output::LoadPlugin()
-{ DEBUGLOG(("Output(%p{%s})::LoadPlugin()\n", this, GetModuleName().cdata()));
+{ DEBUGLOG(("Output(%p{%s})::LoadPlugin()\n", this, GetModule().Key.cdata()));
   const Module& mod = GetModule();
 
   if ( !(mod.GetParams().type & PLUGIN_OUTPUT)
@@ -1050,7 +1051,7 @@ bool Output::LoadPlugin()
 }
 
 bool Output::InitPlugin()
-{ DEBUGLOG(("Output(%p{%s})::InitPlugin()\n", this, GetModuleName().cdata()));
+{ DEBUGLOG(("Output(%p{%s})::InitPlugin()\n", this, GetModule().Key.cdata()));
 
   if ((*output_init)(&A) != 0)
   { A = NULL;
@@ -1061,7 +1062,7 @@ bool Output::InitPlugin()
 }
 
 bool Output::UninitPlugin()
-{ DEBUGLOG(("Output(%p{%s})::UninitPlugin()\n", this, GetModuleName().cdata()));
+{ DEBUGLOG(("Output(%p{%s})::UninitPlugin()\n", this, GetModule().Key.cdata()));
 
   if (IsInitialized())
   { (*output_command)(A, OUTPUT_CLOSE, NULL);
@@ -1111,7 +1112,7 @@ OutputProxy1::~OutputProxy1()
 
 /* Assigns the addresses of the out7put plug-in procedures. */
 bool OutputProxy1::LoadPlugin()
-{ DEBUGLOG(("OutputProxy1(%p{%s})::LoadPlugin()\n", this, GetModuleName().cdata()));
+{ DEBUGLOG(("OutputProxy1(%p{%s})::LoadPlugin()\n", this, GetModule().Key.cdata()));
   const Module& mod = GetModule();
 
   if ( !(mod.GetParams().type & PLUGIN_OUTPUT)
@@ -1136,7 +1137,7 @@ bool OutputProxy1::LoadPlugin()
 /* virtualization of level 1 output plug-ins */
 PROXYFUNCIMP(ULONG DLLENTRY, OutputProxy1)
 proxy_1_output_command( OutputProxy1* op, void* a, ULONG msg, OUTPUT_PARAMS2* info )
-{ DEBUGLOG(("proxy_1_output_command(%p {%s}, %p, %d, %p)\n", op, op->GetModuleName().cdata(), a, msg, info));
+{ DEBUGLOG(("proxy_1_output_command(%p {%s}, %p, %d, %p)\n", op, op->GetModule().Key.cdata(), a, msg, info));
 
   if (info == NULL) // sometimes info is NULL
     return (*op->voutput_command)(a, msg, NULL);
@@ -1247,7 +1248,7 @@ proxy_1_output_request_buffer( OutputProxy1* op, void* a, const TECH_INFO* forma
 PROXYFUNCIMP(void DLLENTRY, OutputProxy1)
 proxy_1_output_commit_buffer( OutputProxy1* op, void* a, int len, double posmarker )
 { DEBUGLOG(("proxy_1_output_commit_buffer(%p {%s}, %p, %i, %g) - %d\n",
-    op, op->GetModuleName().cdata(), a, len, posmarker, op->voutput_buffer_level));
+    op, op->GetModule().Key.cdata(), a, len, posmarker, op->voutput_buffer_level));
 
   if (op->voutput_buffer_level == 0)
     op->voutput_posmarker = posmarker;
@@ -1261,7 +1262,7 @@ proxy_1_output_commit_buffer( OutputProxy1* op, void* a, int len, double posmark
 
 PROXYFUNCIMP(double DLLENTRY, OutputProxy1)
 proxy_1_output_playing_pos( OutputProxy1* op, void* a )
-{ DEBUGLOG(("proxy_1_output_playing_pos(%p {%s}, %p)\n", op, op->GetModuleName().cdata(), a));
+{ DEBUGLOG(("proxy_1_output_playing_pos(%p {%s}, %p)\n", op, op->GetModule().Key.cdata(), a));
   return tstmp_i2f((*op->voutput_playing_pos)(a), op->voutput_posmarker);
 }
 
@@ -1289,7 +1290,7 @@ Plugin* Output::Factory(Module* mod)
 
 
 void Output::Init()
-{ PMRASSERT(WinRegisterClass(amp_player_hab(), "OutputProxy1", &proxy_1_output_winfn, 0, sizeof(OutputProxy1*)));
+{ PMRASSERT(WinRegisterClass(amp_player_hab, "OutputProxy1", &proxy_1_output_winfn, 0, sizeof(OutputProxy1*)));
 }
 
 
@@ -1301,7 +1302,7 @@ void Output::Init()
 
 /* Assigns the addresses of the filter plug-in procedures. */
 bool Filter::LoadPlugin()
-{ DEBUGLOG(("Filter(%p{%s})::LoadPlugin\n", this, GetModuleName().cdata()));
+{ DEBUGLOG(("Filter(%p{%s})::LoadPlugin\n", this, GetModule().Key.cdata()));
   const Module& mod = GetModule();
 
   if ( !(mod.GetParams().type & PLUGIN_FILTER)
@@ -1320,7 +1321,7 @@ bool Filter::InitPlugin()
 }
 
 bool Filter::UninitPlugin()
-{ DEBUGLOG(("Filter(%p{%s})::UninitPlugin\n", this, GetModuleName().cdata()));
+{ DEBUGLOG(("Filter(%p{%s})::UninitPlugin\n", this, GetModule().Key.cdata()));
 
   if (IsInitialized())
   { (*filter_uninit)(F);
@@ -1331,7 +1332,7 @@ bool Filter::UninitPlugin()
 }
 
 bool Filter::Initialize(FILTER_PARAMS2* params)
-{ DEBUGLOG(("Filter(%p{%s})::Initialize(%p)\n", this, GetModuleName().cdata(), params));
+{ DEBUGLOG(("Filter(%p{%s})::Initialize(%p)\n", this, GetModule().Key.cdata(), params));
 
   FILTER_PARAMS2 par = *params;
   if (IsInitialized() || (*filter_init)(&F, params) != 0)
@@ -1395,7 +1396,7 @@ class FilterProxy1 : public Filter
 };
 
 bool FilterProxy1::LoadPlugin()
-{ DEBUGLOG(("FilterProxy1(%p{%s})::LoadPlugin()\n", this, GetModuleName().cdata()));
+{ DEBUGLOG(("FilterProxy1(%p{%s})::LoadPlugin()\n", this, GetModule().Key.cdata()));
   const Module& mod = GetModule();
 
   if ( !(mod.GetParams().type & PLUGIN_FILTER)
@@ -1418,7 +1419,7 @@ bool FilterProxy1::LoadPlugin()
 
 PROXYFUNCIMP(ULONG DLLENTRY, FilterProxy1)
 proxy_1_filter_init( FilterProxy1* pp, void** f, FILTER_PARAMS2* params )
-{ DEBUGLOG(("proxy_1_filter_init(%p{%s}, %p, %p{a=%p})\n", pp, pp->GetModuleName().cdata(), f, params, params->a));
+{ DEBUGLOG(("proxy_1_filter_init(%p{%s}, %p, %p{a=%p})\n", pp, pp->GetModule().Key.cdata(), f, params, params->a));
 
   FILTER_PARAMS par;
   par.size                = sizeof par;
@@ -1455,7 +1456,7 @@ proxy_1_filter_init( FilterProxy1* pp, void** f, FILTER_PARAMS2* params )
 
 PROXYFUNCIMP(void DLLENTRY, FilterProxy1)
 proxy_1_filter_update( FilterProxy1* pp, const FILTER_PARAMS2* params )
-{ DEBUGLOG(("proxy_1_filter_update(%p{%s}, %p)\n", pp, pp->GetModuleName().cdata(), params));
+{ DEBUGLOG(("proxy_1_filter_update(%p{%s}, %p)\n", pp, pp->GetModule().Key.cdata(), params));
 
   CritSect cs;
   // replace function pointers
@@ -1571,7 +1572,7 @@ Plugin* Filter::Factory(Module* mod)
 
 /* Assigns the addresses of the visual plug-in procedures. */
 bool Visual::LoadPlugin()
-{ DEBUGLOG(("Visual(%p{%s})::LoadPlugin()\n", this, GetModuleName().cdata()));
+{ DEBUGLOG(("Visual(%p{%s})::LoadPlugin()\n", this, GetModule().Key.cdata()));
   const Module& mod = GetModule();
 
   if ( !(mod.GetParams().type & PLUGIN_VISUAL)
@@ -1599,7 +1600,7 @@ bool Visual::UninitPlugin()
 
 bool Visual::Initialize(HWND hwnd, PLUGIN_PROCS* procs, int id)
 { DEBUGLOG(("Visual(%p{%s})::initialize(%x, %p, %d) - %d %d, %d %d, %s\n",
-    this, GetModuleName().cdata(), hwnd, procs, id, Props.x, Props.y, Props.cx, Props.cy, Props.param));
+    this, GetModule().Key.cdata(), hwnd, procs, id, Props.x, Props.y, Props.cx, Props.cy, Props.param));
 
   VISPLUGININIT visinit;
   visinit.x       = Props.x;
@@ -1623,9 +1624,9 @@ void Visual::SetProperties(const VISUAL_PROPERTIES* data)
   #ifdef DEBUG_LOG
   if (data)
     DEBUGLOG(("Visual(%p{%s})::set_properties(%p{%d %d, %d %d, %s})\n",
-      this, GetModuleName().cdata(), data, data->x, data->y, data->cx, data->cy, data->param));
+      this, GetModule().Key.cdata(), data, data->x, data->y, data->cx, data->cy, data->param));
   else
-    DEBUGLOG(("Visual(%p{%s})::set_properties(%p)\n", this, GetModuleName().cdata(), data));
+    DEBUGLOG(("Visual(%p{%s})::set_properties(%p)\n", this, GetModule().Key.cdata(), data));
   #endif
   static const VISUAL_PROPERTIES def_visuals = {0,0,0,0, FALSE, ""};
   Props = data == NULL ? def_visuals : *data;

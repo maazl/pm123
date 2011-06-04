@@ -83,7 +83,7 @@ void amp_add_bookmark(HWND owner, APlayable& item);
 /// @param hwnd Parent window.
 /// @param playlist Playlist to save.
 /// @param format IN/OUT format to save. Preselected Format on input, selected format on output.
-/// @return Path where to save. \c NULL in case the user did not press OK.
+/// @return Path where the file has been saved. \c NULL in case the user did not press OK.
 //url123 amp_save_playlist(HWND owner, Playable& playlist, xstring& format);
 url123 amp_save_playlist(HWND owner, Playable& playlist, bool saveas);
 /* Returns TRUE if the save stream feature has been enabled. */

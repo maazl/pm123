@@ -39,7 +39,7 @@ extern "C" {
 #define DK_IS_DOCKED  0x0004  /* Is the docked window.                      */
 #define DK_IS_PULLED  0x0008  /* Is the window already pulled by his owner. */
 
-#define WM_DOCKWINDOW (WM_USER+737)
+#define UM_DOCKWINDOW (WM_USER+737)
 
 typedef struct _DK_DATA {
 

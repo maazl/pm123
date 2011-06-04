@@ -44,7 +44,7 @@ typedef enum
   TATTR_SONG     = 0x01, /* The item is playable by this decoder. */
   TATTR_PLAYLIST = 0x02, /* The item can have sub entries. */
   TATTR_WRITABLE = 0x10, /* This file is writable (decoder_saveinfo). */
-  TATTR_SAVEABLE = 0x20, /* This stream is saveable (DECODER_SAVEDATA). */
+  TATTR_STORABLE = 0x20, /* This stream is saveable (DECODER_SAVEDATA). */
   TATTR_INVALID  = 0x80  /* The item is logically invalid. (Should not be set by a decoder.) */
 } TECH_ATTRIBUTES;
 /** Technical format structure for level 2 plug-in interfaces */
@@ -68,7 +68,7 @@ typedef struct
 
 /** Logical information about the data source */
 typedef struct
-{ DSTRING    title;      /* Use the dstring_* functions to manipulyte these objects. */
+{ DSTRING    title;      /* Use the dstring_* functions to manipulate these objects. */
   DSTRING    artist;
   DSTRING    album;
   DSTRING    year;

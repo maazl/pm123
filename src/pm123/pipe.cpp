@@ -1,8 +1,8 @@
 /*
+ * Copyright 2008-2011 M.Mueller
+ * Copyright 2004-2006 Dmitry A.Steklenev <glass@ptv.ru>
  * Copyright 1997-2003 Samuel Audet <guardia@step.polymtl.ca>
  *                     Taneli Lepp� <rosmo@sektori.com>
- * Copyright 2004-2006 Dmitry A.Steklenev <glass@ptv.ru>
- * Copyright 2008-2010 M.Mueller
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -48,89 +48,7 @@
 #include <stdio.h>
 
 
-/****************************************************************************
-*
-*  Private implementation of ACommandProcessor
-*
-****************************************************************************/
-class CommandProcessor : public ACommandProcessor
-{private:
-  typedef strmap<12, void (CommandProcessor::*)(xstring& ret, char* args)> CmdEntry;
-  static const CmdEntry       CmdList[];
-
- private:
-  static const xstring        RetBadArg;   // Return value for Ctrl::RC_BadArg
-  int_ptr<Playable>           CurPlaylist; // playlist where we currently operate
-  int_ptr<PlayableInstance>   CurItem;     // current item of the above playlist
- private:
-  // PLAYBACK
-  // Excecute a controller command and return the reply as string.
-  const xstring SendCtrlCommand(Ctrl::ControlCommand* cmd);
-  // Add a set of URLs to a loadhelper object.
-  bool FillLoadHelper(LoadHelper& lh, char* args);
-  void CmdLoad(xstring& ret, char* args);
-  void CmdPlay(xstring& ret, char* args);
-  void CmdStop(xstring& ret, char* args);
-  void CmdPause(xstring& ret, char* args);
-  void CmdNext(xstring& ret, char* args);
-  void CmdPrev(xstring& ret, char* args);
-  void CmdRewind(xstring& ret, char* args);
-  void CmdForward(xstring& ret, char* args);
-  void CmdJump(xstring& ret, char* args);
-  void CmdSavestream(xstring& ret, char* args);
-  void CmdVolume(xstring& ret, char* args);
-  void CmdShuffle(xstring& ret, char* args);
-  void CmdRepeat(xstring& ret, char* args);
-  void CmdQuery(xstring& ret, char* args);
-  void CmdCurrent(xstring& ret, char* args);
-  void CmdStatus(xstring& ret, char* args);
-  void CmdLocation(xstring& ret, char* args);
-  // PLAYLIST
-  // Move forward/backward in the current playlist
-  void PlSkip(int count);
-  void CmdPlaylist(xstring& ret, char* args);
-  void CmdPlNext(xstring& ret, char* args);
-  void CmdPlPrev(xstring& ret, char* args);
-  void CmdPlReset(xstring& ret, char* args);
-  void CmdPlCurrent(xstring& ret, char* args);
-  void CmdPlItem(xstring& ret, char* args);
-  void CmdPlIndex(xstring& ret, char* args);
-  void CmdUse(xstring& ret, char* args);
-  void CmdClear(xstring& ret, char* args);
-  void CmdRemove(xstring& ret, char* args);
-  void CmdAdd(xstring& ret, char* args);
-  void CmdDir(xstring& ret, char* args);
-  void CmdRdir(xstring& ret, char* args);
-  void CmdSave(xstring& ret, char* args);
-  // GUI
-  void CmdShow(xstring& ret, char* args);
-  void CmdHide(xstring& ret, char* args);
-  void CmdQuit(xstring& ret, char* args);
-  void CmdOpen(xstring& ret, char* args);
-  void CmdSkin(xstring& ret, char* args);
-  // CONFIGURATION
-  void CmdSize(xstring& ret, char* args);
-  void CmdFont(xstring& ret, char* args);
-  void CmdFloat(xstring& ret, char* args);
-  void CmdAutouse(xstring& ret, char* args);
-  void CmdPlayonload(xstring& ret, char* args);
- public:
-  CommandProcessor();
-  // Executes the Command cmd and return a value in ret.
-  // Note that cmd is mutable. The buffer content will be destroyed.
-  virtual void Execute(xstring& ret, char* cmd);
-};
-
-
-void ACommandProcessor::Execute(xstring& ret, const char* cmd)
-{ char* buffer = strdup(cmd);
-  Execute(ret, buffer);
-  free(buffer);
-}
-
-ACommandProcessor* ACommandProcessor::Create()
-{ return new CommandProcessor();
-}
+#define PIPE_BUFFER_SIZE 65536
 
 
 /****************************************************************************
@@ -172,11 +90,11 @@ class URLTokenizer
 { char* Args;
  public:
   URLTokenizer(char* args) : Args(args) {}
-  bool                      Next(url123& url);
+  bool                      Next(const char*& url);
   char*                     Current() { return Args; }
 };
 
-bool URLTokenizer::Next(url123& url)
+bool URLTokenizer::Next(const char*& url)
 { if (!Args || !*Args)
     return false;
   char* narg;
@@ -191,13 +109,238 @@ bool URLTokenizer::Next(url123& url)
       *narg++ = 0;
   }
   // get url
-  url = url123::normalizeURL(Args);
+  url = Args;
   // next argument
   if (narg && *narg)
     Args = narg + strspn(Args, " \t");
-  // return normalized URL
-  if (url && url[url.length()-1] != '/' && is_dir(url))
-    url = url + "/";
+  return true;
+}
+
+
+/****************************************************************************
+*
+*  Private implementation of ACommandProcessor
+*
+****************************************************************************/
+class CommandProcessor : public ACommandProcessor
+{private:
+  typedef strmap<14, void (CommandProcessor::*)()> CmdEntry;
+  /// Command dispatch table, sorted
+  static const CmdEntry       CmdList[];
+
+ private: // state
+  /// playlist where we currently operate
+  int_ptr<Playable>           CurPlaylist;
+  /// current item of the above playlist
+  int_ptr<PlayableInstance>   CurItem;
+  /// current base URL
+  url123                      CurDir;
+
+ private: // Helper functions
+  /// Parse and normalize one URL according to CurDir.
+  url123 ParseURL(const char* url);
+  /// Execute a controller command and return the reply as string.
+  void SendCtrlCommand(Ctrl::ControlCommand* cmd);
+  /// Add a set of URLs to a LoadHelper object.
+  bool FillLoadHelper(LoadHelper& lh, char* args);
+ private:
+  // PLAYBACK
+
+  void CmdCd();
+  void CmdLoad();
+  void CmdPlay();
+  void CmdStop();
+  void CmdPause();
+  void CmdNext();
+  void CmdPrev();
+  void CmdRewind();
+  void CmdForward();
+  void CmdJump();
+  void CmdSavestream();
+  void CmdVolume();
+  void CmdShuffle();
+  void CmdRepeat();
+  void CmdQuery();
+  void CmdCurrent();
+  void CmdStatus();
+  void CmdLocation();
+
+  // PLAYLIST
+  /// Move forward/backward in the current playlist
+  void PlSkip(int count);
+
+  void CmdPlaylist();
+  void CmdPlNext();
+  void CmdPlPrev();
+  void CmdPlReset();
+  void CmdPlCurrent();
+  void CmdPlItem();
+  void CmdPlIndex();
+  void CmdUse();
+  void CmdClear();
+  void CmdRemove();
+  void CmdAdd();
+  void CmdDir();
+  void CmdRdir();
+  void CmdSave();
+
+  // METADATA
+  void AppendIntAttribute(const char* fmt, int value);
+  void AppendFloatAttribute(const char* fmt, double value);
+  void AppendStringAttribute(const char* name, xstring value);
+  typedef strmap<10, unsigned> FlagsEntry;
+  void AppendFlagsAttribute(const char* name, unsigned flags, const FlagsEntry* map, size_t map_size);
+  static const FlagsEntry PhysFlagsMap[];
+  static const FlagsEntry TechFlagsMap[];
+  static const FlagsEntry PlOptionsMap[];
+  void AppendReplayGain(float tg, float tp, float ag, float ap);
+
+  void CmdInfoFormat();
+  void CmdInfoMeta();
+  void CmdInfoPlaylist();
+  void CmdInfoPlItem();
+
+  // GUI
+  void CmdShow();
+  void CmdHide();
+  void CmdQuit();
+  void CmdOpen();
+  void CmdSkin();
+
+  // CONFIGURATION
+  void CmdOption();
+  void CmdSize();
+  void CmdFont();
+  void CmdFloat();
+  void CmdAutouse();
+  void CmdPlayonload();
+
+ protected:
+  /// Executes the Command \c Request and return a value in \c Reply.
+  virtual void Exec();
+
+ public:
+  CommandProcessor();
+};
+
+
+const CommandProcessor::CmdEntry CommandProcessor::CmdList[] = // list must be sorted!!!
+{ { "add",          &CommandProcessor::CmdAdd         },
+  { "autouse",      &CommandProcessor::CmdAutouse     },
+  { "cd",           &CommandProcessor::CmdCd          },
+  { "clear",        &CommandProcessor::CmdClear       },
+  { "current",      &CommandProcessor::CmdCurrent     },
+  { "dir",          &CommandProcessor::CmdDir         },
+  { "float",        &CommandProcessor::CmdFloat       },
+  { "font",         &CommandProcessor::CmdFont        },
+  { "forward",      &CommandProcessor::CmdForward     },
+  { "hide",         &CommandProcessor::CmdHide        },
+  { "info format",  &CommandProcessor::CmdInfoFormat  },
+  { "info meta",    &CommandProcessor::CmdInfoMeta    },
+  { "info pl_item", &CommandProcessor::CmdInfoPlItem  },
+  { "info playlist",&CommandProcessor::CmdInfoPlaylist},
+  { "jump",         &CommandProcessor::CmdJump        },
+  { "load",         &CommandProcessor::CmdLoad        },
+  { "location",     &CommandProcessor::CmdLocation    },
+  { "next",         &CommandProcessor::CmdNext        },
+  { "open",         &CommandProcessor::CmdOpen        },
+  { "option",       &CommandProcessor::CmdOption      },
+  { "pause",        &CommandProcessor::CmdPause       },
+  { "pl_current",   &CommandProcessor::CmdPlCurrent   },
+  { "pl_item",      &CommandProcessor::CmdPlItem      },
+  { "pl_next",      &CommandProcessor::CmdPlNext      },
+  { "pl_prev",      &CommandProcessor::CmdPlPrev      },
+  { "pl_reset",     &CommandProcessor::CmdPlReset     },
+  { "play",         &CommandProcessor::CmdPlay        },
+  { "playlist",     &CommandProcessor::CmdPlaylist    },
+  { "playonload",   &CommandProcessor::CmdPlayonload  },
+  { "prev",         &CommandProcessor::CmdPrev        },
+  { "previous",     &CommandProcessor::CmdPrev        },
+  { "query",        &CommandProcessor::CmdQuery       },
+  { "rdir",         &CommandProcessor::CmdRdir        },
+  { "remove",       &CommandProcessor::CmdRemove      },
+  { "repeat",       &CommandProcessor::CmdRepeat      },
+  { "rewind",       &CommandProcessor::CmdRewind      },
+  { "save",         &CommandProcessor::CmdSave        },
+  { "savestream",   &CommandProcessor::CmdSavestream  },
+  { "show",         &CommandProcessor::CmdShow        },
+  { "shuffle",      &CommandProcessor::CmdShuffle     },
+  { "size",         &CommandProcessor::CmdSize        },
+  { "skin",         &CommandProcessor::CmdSkin        },
+  { "status",       &CommandProcessor::CmdStatus      },
+  { "stop",         &CommandProcessor::CmdStop        },
+  { "use",          &CommandProcessor::CmdUse         },
+  { "volume",       &CommandProcessor::CmdVolume      }
+};
+
+const char* ACommandProcessor::Execute(const char* cmd)
+{ char* buffer = Request = strdup(cmd);
+  Reply.clear();
+  Exec();
+  free(buffer);
+  return Reply.cdata();
+}
+
+ACommandProcessor* ACommandProcessor::Create()
+{ return new CommandProcessor();
+}
+
+CommandProcessor::CommandProcessor()
+: CurPlaylist(&GUI::GetDefaultPL())
+{}
+
+void CommandProcessor::Exec()
+{ DEBUGLOG(("CommandProcessor::Exec() %s\n", Request));
+  Request += strspn(Request, " \t"); // skip leading blanks
+  // remove trailing blanks
+  { char* ape = Request + strlen(Request);
+    while (ape != Request && (ape[-1] == ' ' || ape[-1] == '\t'))
+      --ape;
+    *ape = 0;
+  }
+  if (Request[0] != '*')
+    CmdLoad();
+  else
+  { ++Request;
+    Request += strspn(Request, " \t"); // skip leading blanks
+    // Search command handler ...
+    const CmdEntry* cep = mapsearcha(CmdList, Request);
+    DEBUGLOG(("execute_command: %s -> %p(%s)\n", Request, cep, cep));
+    if (cep)
+    { size_t len = strlen(cep->Str);
+      len += strspn(Request + len, " \t");
+      Request += len;
+      DEBUGLOG(("execute_command: %u %s\n", len, Request));
+      if (len || *Request == 0)
+        // ... and execute
+        (this->*cep->Val)();
+    }
+  }
+}
+
+url123 CommandProcessor::ParseURL(const char* url)
+{ url123 ret = CurDir ? CurDir.makeAbsolute(url) : url123::normalizeURL(url);
+  // Directory?
+  if (ret && ret[ret.length()-1] != '/' && is_dir(ret))
+    ret = ret + "/";
+  return ret;
+}
+
+void CommandProcessor::SendCtrlCommand(Ctrl::ControlCommand* cmd)
+{ cmd = Ctrl::SendCommand(cmd);
+  Reply.append(cmd->Flags);
+  cmd->Destroy();
+}
+
+bool CommandProcessor::FillLoadHelper(LoadHelper& lh, char* args)
+{ URLTokenizer tok(args);
+  const char* url;
+  // Tokenize args
+  while (tok.Next(url))
+  { if (!url)
+      return false; // Bad URL
+    lh.AddItem(Playable::GetByURL(ParseURL(url)));
+  }
   return true;
 }
 
@@ -244,8 +387,8 @@ inline static const strmap<8, Ctrl::Op>* parse_op2(const char* arg)
 { return mapsearch2(opmap+1, (sizeof opmap / sizeof *opmap)-1, arg);
 }
 
-static void cmd_op_bool(xstring& ret, const char* arg, bool& val)
-{ ret = val ? "on" : "off";
+static const char* cmd_op_bool(const char* arg, bool& val)
+{ const char* ret = val ? "on" : "off";
   if (*arg)
   { const strmap<8, Ctrl::Op>* op = parse_op2(arg);
     if (op)
@@ -261,131 +404,125 @@ static void cmd_op_bool(xstring& ret, const char* arg, bool& val)
         break;
       }
     } else
-      ret = xstring::empty; // error
+      return ""; // error
   }
-}
-
-
-const xstring CommandProcessor::RetBadArg(xstring::sprintf("%i", Ctrl::RC_BadArg));
-
-
-///// PLAY CONTROL
-
-const xstring CommandProcessor::SendCtrlCommand(Ctrl::ControlCommand* cmd)
-{ cmd = Ctrl::SendCommand(cmd);
-  xstring ret = xstring::sprintf("%i", cmd->Flags);
-  cmd->Destroy();
   return ret;
 }
 
-bool CommandProcessor::FillLoadHelper(LoadHelper& lh, char* args)
-{ URLTokenizer tok(args);
-  url123 url;
-  // Tokenize args
-  while (tok.Next(url))
-  { if (!url)
-      return false; // Bad URL
-    lh.AddItem(Playable::GetByURL(url));
-  }
-  return true;
+
+/****************************************************************************
+*
+*  remote command handlers
+*
+****************************************************************************/
+// PLAY CONTROL
+
+void CommandProcessor::CmdCd()
+{ // return current value
+  if (CurDir)
+    Reply.append(CurDir);
+  // set new dir
+  if (*Request)
+    CurDir = ParseURL(Request);
 }
 
-void CommandProcessor::CmdLoad(xstring& ret, char* args)
+
+void CommandProcessor::CmdLoad()
 { LoadHelper lh(cfg.playonload*LoadHelper::LoadPlay | cfg.append_cmd*LoadHelper::LoadAppend);
-  if (!FillLoadHelper(lh, args))
-  { ret = RetBadArg;
-    return;
-  }
-  ret = xstring::sprintf("%i", lh.SendCommand());
+  Reply.append(!FillLoadHelper(lh, Request) ? Ctrl::RC_BadArg : lh.SendCommand());
 }
 
-void CommandProcessor::CmdPlay(xstring& ret, char* args)
+void CommandProcessor::CmdPlay()
 { ExtLoadHelper lh( cfg.playonload*LoadHelper::LoadPlay | cfg.append_cmd*LoadHelper::LoadAppend,
                     Ctrl::MkPlayStop(Ctrl::Op_Set) );
-  if (!FillLoadHelper(lh, args))
-  { ret = RetBadArg;
-    return;
-  }
-  ret = xstring::sprintf("%i", lh.SendCommand());
+  Reply.append(!FillLoadHelper(lh, Request) ? Ctrl::RC_BadArg : lh.SendCommand());
 }
 
-void CommandProcessor::CmdStop(xstring& ret, char* args)
-{ ret = SendCtrlCommand(Ctrl::MkPlayStop(Ctrl::Op_Clear));
+void CommandProcessor::CmdStop()
+{ SendCtrlCommand(Ctrl::MkPlayStop(Ctrl::Op_Clear));
 }
 
-void CommandProcessor::CmdPause(xstring& ret, char* args)
-{ const strmap<8, Ctrl::Op>* op = parse_op1(args);
-  ret = op
-    ? (const xstring&)SendCtrlCommand(Ctrl::MkPause(op->Val))
-    : RetBadArg;
+void CommandProcessor::CmdPause()
+{ const strmap<8, Ctrl::Op>* op = parse_op1(Request);
+  if (!op)
+    Reply.append(Ctrl::RC_BadArg);
+  else
+    SendCtrlCommand(Ctrl::MkPause(op->Val));
 }
 
-void CommandProcessor::CmdNext(xstring& ret, char* args)
+void CommandProcessor::CmdNext()
 { int count = 1;
-  ret = *args == 0 || parse_int(args, count)
-    ? (const xstring&)SendCtrlCommand(Ctrl::MkSkip(count, true))
-    : RetBadArg;
+  if (*Request && !parse_int(Request, count))
+    Reply.append(Ctrl::RC_BadArg);
+  else
+    SendCtrlCommand(Ctrl::MkSkip(count, true));
 }
 
-void CommandProcessor::CmdPrev(xstring& ret, char* args)
+void CommandProcessor::CmdPrev()
 { int count = 1;
-  ret = *args == 0 || parse_int(args, count)
-    ? (const xstring&)SendCtrlCommand(Ctrl::MkSkip(-count, true))
-    : RetBadArg;
+  if (*Request && !parse_int(Request, count))
+    Reply.append(Ctrl::RC_BadArg);
+  else
+    SendCtrlCommand(Ctrl::MkSkip(-count, true));
 }
 
-void CommandProcessor::CmdRewind(xstring& ret, char* args)
-{ const strmap<8, Ctrl::Op>* op = parse_op1(args);
-  ret = op
-    ? (const xstring&)SendCtrlCommand(Ctrl::MkScan(op->Val|Ctrl::Op_Rewind))
-    : RetBadArg;
+void CommandProcessor::CmdRewind()
+{ const strmap<8, Ctrl::Op>* op = parse_op1(Request);
+  if (!op)
+    Reply.append(Ctrl::RC_BadArg);
+  else
+    SendCtrlCommand(Ctrl::MkScan(op->Val|Ctrl::Op_Rewind));
 }
 
-void CommandProcessor::CmdForward(xstring& ret, char* args)
-{ const strmap<8, Ctrl::Op>* op = parse_op1(args);
-  ret = op
-    ? (const xstring&)SendCtrlCommand(Ctrl::MkScan(op->Val))
-    : RetBadArg;
+void CommandProcessor::CmdForward()
+{ const strmap<8, Ctrl::Op>* op = parse_op1(Request);
+  if (!op)
+    Reply.append(Ctrl::RC_BadArg);
+  else
+    SendCtrlCommand(Ctrl::MkScan(op->Val));
 }
 
-void CommandProcessor::CmdJump(xstring& ret, char* args)
+void CommandProcessor::CmdJump()
 { double pos;
-  ret = parse_double(args, pos)
-    ? (const xstring&)SendCtrlCommand(Ctrl::MkNavigate(xstring(), pos, false, false))
-    : RetBadArg;
+  if (!parse_double(Request, pos))
+    Reply.append(Ctrl::RC_BadArg);
+  else
+    SendCtrlCommand(Ctrl::MkNavigate(xstring(), pos, false, false));
 }
 
-void CommandProcessor::CmdSavestream(xstring& ret, char* args)
-{ ret = SendCtrlCommand(Ctrl::MkSave(args));
+void CommandProcessor::CmdSavestream()
+{ SendCtrlCommand(Ctrl::MkSave(Request));
 }
 
-void CommandProcessor::CmdVolume(xstring& ret, char* args)
-{ ret = xstring::sprintf("%f", Ctrl::GetVolume());
-  if (*args)
+void CommandProcessor::CmdVolume()
+{ Reply.appendf("%f", Ctrl::GetVolume());
+  if (*Request)
   { double vol;
-    bool sign = *args == '+' || *args == '-';
-    if (parse_double(args, vol))
+    bool sign = *Request == '+' || *Request == '-';
+    if (parse_double(Request, vol))
     { Ctrl::ControlCommand* cmd = Ctrl::SendCommand(Ctrl::MkVolume(vol, sign));
       if (cmd->Flags != 0)
-        ret = xstring::empty; //error
+        Reply.clear(); //error
       cmd->Destroy();
     } else
-      ret = xstring::empty; //error
+      Reply.clear(); //error
   }
 }
 
-void CommandProcessor::CmdShuffle(xstring& ret, char* args)
-{ const strmap<8, Ctrl::Op>* op = parse_op1(args);
-  ret = op
-    ? (const xstring&)SendCtrlCommand(Ctrl::MkShuffle(op->Val))
-    : RetBadArg;
+void CommandProcessor::CmdShuffle()
+{ const strmap<8, Ctrl::Op>* op = parse_op1(Request);
+  if (!op)
+    Reply.append(Ctrl::RC_BadArg);
+  else
+    SendCtrlCommand(Ctrl::MkShuffle(op->Val));
 }
 
-void CommandProcessor::CmdRepeat(xstring& ret, char* args)
-{ const strmap<8, Ctrl::Op>* op = parse_op1(args);
-  ret = op
-    ? (const xstring&)SendCtrlCommand(Ctrl::MkRepeat(op->Val))
-    : RetBadArg;
+void CommandProcessor::CmdRepeat()
+{ const strmap<8, Ctrl::Op>* op = parse_op1(Request);
+  if (!op)
+    Reply.append(Ctrl::RC_BadArg);
+  else
+    SendCtrlCommand(Ctrl::MkRepeat(op->Val));
 }
 
 static bool IsRewind()
@@ -394,7 +531,7 @@ static bool IsRewind()
 static bool IsForward()
 { return Ctrl::GetScan() == DECFAST_FORWARD;
 }
-void CommandProcessor::CmdQuery(xstring& ret, char* args)
+void CommandProcessor::CmdQuery()
 { static const strmap<8, bool (*)()> map[] =
   { { "forward", &IsForward       },
     { "pause",   &Ctrl::IsPaused  },
@@ -403,82 +540,85 @@ void CommandProcessor::CmdQuery(xstring& ret, char* args)
     { "rewind",  &IsRewind        },
     { "shuffle", &Ctrl::IsShuffle }
   };
-  const strmap<8, bool (*)()>* op = mapsearch(map, args);
+  const strmap<8, bool (*)()>* op = mapsearch(map, Request);
   if (op)
-    ret = xstring::sprintf("%u", (*op->Val)());
+    Reply.append((*op->Val)());
 }
 
-void CommandProcessor::CmdCurrent(xstring& ret, char* args)
+void CommandProcessor::CmdCurrent()
 { static const strmap<5, char> map[] =
   { { "",     0 },
     { "root", 1 },
     { "song", 0 }
   };
-  const strmap<5, char>* op = mapsearch(map, args);
+  const strmap<5, char>* op = mapsearch(map, Request);
   if (op)
-  { switch (op->Val)
+  { int_ptr<APlayable> cur;
+    switch (op->Val)
     {case 0: // current song
-      ret = (const xstring&)Ctrl::GetCurrentSong()->GetPlayable().URL;
+      cur = Ctrl::GetCurrentSong();
       break;
      case 1:
-      ret = (const xstring&)Ctrl::GetRoot()->GetPlayable().URL;
+      cur = Ctrl::GetRoot();
       break;
     }
+    if (cur)
+      Reply.append(cur->GetPlayable().URL);
   }
 }
 
-void CommandProcessor::CmdStatus(xstring& ret, char* args)
+void CommandProcessor::CmdStatus()
 { static const strmap<6, cfg_disp> map[] =
   { { "file", CFG_DISP_FILENAME },
     { "info", CFG_DISP_FILEINFO },
     { "tag",  CFG_DISP_ID3TAG }
   };
-  const strmap<6, cfg_disp>* op = mapsearch(map, args);
+  const strmap<6, cfg_disp>* op = mapsearch(map, Request);
   if (op)
   { int_ptr<APlayable> song = Ctrl::GetCurrentSong();
     if (song)
     { switch (op->Val)
       {case CFG_DISP_ID3TAG:
-        ret = amp_construct_tag_string(&song->GetInfo());
-        if (ret.length())
+        Reply.append(amp_construct_tag_string(&song->GetInfo()));
+        if (Reply.length())
           break;
         // if tag is empty - use filename instead of it.
        case CFG_DISP_FILENAME:
-        ret = song->GetPlayable().URL.getShortName();
+        Reply.append(song->GetPlayable().URL.getShortName());
         break;
 
        case CFG_DISP_FILEINFO:
-        ret = song->GetInfo().tech->info;
+        Reply.append(xstring(song->GetInfo().tech->info));
         break;
       }
     }
   }
 }
 
-void CommandProcessor::CmdLocation(xstring& ret, char* args)
+void CommandProcessor::CmdLocation()
 { static const strmap<7, char> map[] =
   { { "",       0 },
     { "play",   0 },
     { "stopat", 1 }
   };
-  const strmap<7, char>* op = mapsearch(map, args);
+  const strmap<7, char>* op = mapsearch(map, Request);
   if (op)
   { SongIterator loc;
     Ctrl::ControlCommand* cmd = Ctrl::SendCommand(Ctrl::MkLocation(&loc, op->Val));
     if (cmd->Flags == Ctrl::RC_OK)
-      ret = loc.Serialize();
+      Reply.append(loc.Serialize());
     cmd->Destroy();
   }
 }
 
-///// PLAYLIST
+// PLAYLIST
 
-void CommandProcessor::CmdPlaylist(xstring& ret, char* args)
-{ int_ptr<Playable> pp = Playable::GetByURL(url123::normalizeURL(args));
+void CommandProcessor::CmdPlaylist()
+{ int_ptr<Playable> pp = Playable::GetByURL(ParseURL(Request));
   //if (pp->GetFlags() & Playable::Enumerable)
   { CurPlaylist = pp;
     CurItem = NULL;
-    ret = CurPlaylist->URL;
+    Reply.append(CurPlaylist->URL);
   }
 };
 
@@ -497,89 +637,91 @@ void CommandProcessor::PlSkip(int count)
   }
 }
 
-void CommandProcessor::CmdPlNext(xstring& ret, char* args)
+void CommandProcessor::CmdPlNext()
 { int count = 1;
-  if (CurPlaylist && (*args == 0 || parse_int(args, count)))
+  if (CurPlaylist && (*Request == 0 || parse_int(Request, count)))
   { PlSkip(count);
-    CmdPlItem(ret, args);
+    CmdPlItem();
   }
 }
 
-void CommandProcessor::CmdPlPrev(xstring& ret, char* args)
+void CommandProcessor::CmdPlPrev()
 { int count = 1;
-  if (CurPlaylist && (*args == 0 || parse_int(args, count)))
+  if (CurPlaylist && (*Request == 0 || parse_int(Request, count)))
   { PlSkip(-count);
-    CmdPlItem(ret, args);
+    CmdPlItem();
   }
 }
 
-void CommandProcessor::CmdPlReset(xstring& ret, char* args)
+void CommandProcessor::CmdPlReset()
 { CurItem = NULL;
 }
 
-void CommandProcessor::CmdPlCurrent(xstring& ret, char* args)
+void CommandProcessor::CmdPlCurrent()
 { if (CurPlaylist)
-    ret = CurPlaylist->URL;
+    Reply.append(CurPlaylist->URL);
 }
 
-void CommandProcessor::CmdPlItem(xstring& ret, char* args)
+void CommandProcessor::CmdPlItem()
 { if (CurItem)
-    ret = CurItem->GetPlayable().URL;
+    Reply.append(CurItem->GetPlayable().URL);
 }
 
-void CommandProcessor::CmdPlIndex(xstring& ret, char* args)
+void CommandProcessor::CmdPlIndex()
 { int ix = 0;
   int_ptr<PlayableInstance> cur = CurItem;
   while (cur)
   { ++ix;
     cur = CurPlaylist->GetPrev(CurItem);
   }
-  ret = xstring::sprintf("%i", ix);
+  Reply.append(ix);
 }
 
-void CommandProcessor::CmdUse(xstring& ret, char* args)
+void CommandProcessor::CmdUse()
 { if (CurPlaylist)
   { LoadHelper lh(cfg.playonload*LoadHelper::LoadPlay | cfg.append_cmd*LoadHelper::LoadAppend);
     lh.AddItem(CurPlaylist);
-    ret = xstring::sprintf("%i", lh.SendCommand());
+    Reply.append(lh.SendCommand());
   } else
-    ret = xstring::sprintf("%i", Ctrl::RC_NoList);
+    Reply.append(Ctrl::RC_NoList);
 };
 
-void CommandProcessor::CmdClear(xstring& ret, char* args)
-{ CurPlaylist->Clear();
+void CommandProcessor::CmdClear()
+{ if (CurPlaylist)
+    CurPlaylist->Clear();
 }
 
-void CommandProcessor::CmdRemove(xstring& ret, char* args)
+void CommandProcessor::CmdRemove()
 { if (CurItem)
   { CurPlaylist->RemoveItem(CurItem);
-    ret = (const xstring&)CurItem->GetPlayable().URL;
+    Reply.append(CurItem->GetPlayable().URL);
   }
 }
 
-void CommandProcessor::CmdAdd(xstring& ret, char* args)
+void CommandProcessor::CmdAdd()
 { if (CurPlaylist)
-  { URLTokenizer tok(args);
-    url123 url;
+  { URLTokenizer tok(Request);
+    const char* url;
     Mutex::Lock lck(CurPlaylist->Mtx); // Atomic
     while (tok.Next(url))
     { if (!url)
-      { ret = tok.Current();
+      { Reply.append(tok.Current());
         break; // Bad URL
       }
-      CurPlaylist->InsertItem(*Playable::GetByURL(url), CurItem);
+      CurPlaylist->InsertItem(*Playable::GetByURL(ParseURL(url)), CurItem);
     }
   }
 }
 
-void CommandProcessor::CmdDir(xstring& ret, char* args)
+void CommandProcessor::CmdDir()
 { if (CurPlaylist)
-  { URLTokenizer tok(args);
-    url123 url;
+  { URLTokenizer tok(Request);
+    const char* curl;
     Mutex::Lock lck(CurPlaylist->Mtx); // Atomic
-    while (tok.Next(url))
-    { if (!url || strchr(url, '?'))
-      { ret = tok.Current();
+    while (tok.Next(curl))
+    { url123 url = ParseURL(curl);
+      if (!url || strchr(url, '?'))
+      { Reply.append(tok.Current());
         break; // Bad URL
       }
       if (url[url.length()-1] != '/')
@@ -589,14 +731,15 @@ void CommandProcessor::CmdDir(xstring& ret, char* args)
   }
 }
 
-void CommandProcessor::CmdRdir(xstring& ret, char* args)
+void CommandProcessor::CmdRdir()
 { if (CurPlaylist)
-  { URLTokenizer tok(args);
-    url123 url;
+  { URLTokenizer tok(Request);
+    const char* curl;
     Mutex::Lock lck(CurPlaylist->Mtx); // Atomic
-    while (tok.Next(url))
-    { if (!url || strchr(url, '?'))
-      { ret = tok.Current();
+    while (tok.Next(curl))
+    { url123 url = ParseURL(curl);
+      if (!url || strchr(url, '?'))
+      { Reply.append(tok.Current());
         break; // Bad URL
       }
       if (url[url.length()-1] != '/')
@@ -606,10 +749,10 @@ void CommandProcessor::CmdRdir(xstring& ret, char* args)
   }
 }
 
-void CommandProcessor::CmdSave(xstring& ret, char* args)
+void CommandProcessor::CmdSave()
 { int rc = Ctrl::RC_NoList;
   if (CurPlaylist)
-  { const char* savename = args;
+  { const char* savename = Request;
     if (!*savename)
     { /*if ((CurPlaylist->GetFlags() & Playable::Mutable) != Playable::Mutable)
       { rc = Ctrl::RC_InvalidItem;
@@ -622,26 +765,231 @@ void CommandProcessor::CmdSave(xstring& ret, char* args)
       ? Ctrl::RC_OK : -1;*/
   }
  end:
-  ret = xstring::sprintf("%i", rc);
+  Reply.append(rc);
+}
+
+// METADATA
+
+inline void CommandProcessor::AppendIntAttribute(const char* fmt, int value)
+{ if (value >= 0)
+    Reply.appendf(fmt, value);
+}
+
+inline void CommandProcessor::AppendFloatAttribute(const char* fmt, double value)
+{ if (value >= 0)
+    Reply.appendf(fmt, value);
+}
+
+void CommandProcessor::AppendStringAttribute(const char* name, xstring value)
+{ if (value)
+  { Reply.append(name);
+    Reply.append('=');
+    if (value.length() != 0)
+    { size_t pos = Reply.length();
+      Reply.append(value);
+      // escape some special characters
+      while (true)
+      { pos = Reply.find("\r\n\x1b", pos);
+        if (pos >= Reply.length())
+          break;
+        switch(Reply[pos])
+        {case '\r':
+          Reply[pos] = 'r';
+          break;
+         case '\n':
+           Reply[pos] = 'n';
+        }
+        Reply.insert(pos, '\x1b');
+        pos += 2;
+    } }
+    Reply.append('\n');
+  }
+}
+
+void CommandProcessor::AppendFlagsAttribute(const char* name, unsigned flags, const FlagsEntry* map, size_t map_size)
+{ size_t prevlen = Reply.length();
+  Reply.append(name);
+  Reply.append('=');
+  size_t startlen = Reply.length();
+  for (const FlagsEntry* ep = map + map_size; map != ep; ++map)
+    if (flags & map->Val)
+    { Reply.append(map->Str);
+      Reply.append(' ');
+    }
+  if (Reply.length() == startlen)
+    Reply.erase(prevlen); // Not even one flag set => revert
+  else
+    Reply[Reply.length()-1] = '\n'; // replace last blank by newline
+}
+#define AppendFlagsAttribute2(name, flags, map) AppendFlagsAttribute(name, flags, map, sizeof(map)/sizeof(*map))
+
+const CommandProcessor::FlagsEntry CommandProcessor::PhysFlagsMap[] =
+{ {"invalid",  PATTR_INVALID }
+, {"writable", PATTR_WRITABLE}
+};
+const CommandProcessor::FlagsEntry CommandProcessor::TechFlagsMap[] =
+{ {"invalid",  TATTR_INVALID }
+, {"playlist", TATTR_PLAYLIST}
+, {"song",     TATTR_SONG    }
+, {"storable", TATTR_STORABLE}
+, {"writable", TATTR_WRITABLE}
+};
+const CommandProcessor::FlagsEntry CommandProcessor::PlOptionsMap[] =
+{ {"alt",      PLO_ALTERNATION}
+, {"noshuffle",PLO_NO_SHUFFLE }
+, {"shuffle",  PLO_SHUFFLE    }
+};
+
+void CommandProcessor::AppendReplayGain(float tg, float tp, float ag, float ap)
+{ if (tg > -1000 || tp > -1000 || ag > -1000 || ap > -1000)
+  { Reply.append("REPLAYGAIN=");
+    if (tg > -1000)
+      Reply.appendf("%.1f", tg);
+    Reply.append(',');
+    if (tp > -1000)
+      Reply.appendf("%.1f", tp);
+    Reply.append(',');
+    if (ag > -1000)
+      Reply.appendf("%.1f", ag);
+    Reply.append(',');
+    if (ap > -1000)
+      Reply.appendf("%.1f", ap);
+    Reply.append('\n');
+  }
+}
+
+void CommandProcessor::CmdInfoFormat()
+{ // get song object
+  int_ptr<APlayable> song;
+  if (*Request == 0)
+    song = Ctrl::GetCurrentSong();
+  else
+  { const url123& url = ParseURL(Request);
+    if (url)
+      song = Playable::GetByURL(url);
+  }
+  if (song == NULL)
+    return;
+  // get info
+  song->RequestInfo(IF_Phys|IF_Tech|IF_Obj, PRI_Sync);
+  const INFO_BUNDLE_CV& info = song->GetInfo();
+  // return info
+  xstring tmpstr;
+  { // Physical info
+    const volatile PHYS_INFO& phys = *info.phys;
+    AppendFloatAttribute("FILESIZE=%.0f\n", phys.filesize);
+    time_t time = phys.tstmp;
+    if (time != -1)
+    { struct tm* tm = localtime(&time);
+      char buffer[32];
+      strftime(buffer, 32, "%Y-%m-%d %H:%M:%S", tm);
+      Reply.appendf("FILETIME=%s\n", buffer);
+    }
+    AppendFlagsAttribute2("FILEATTR", phys.attributes, PhysFlagsMap);
+  }
+  { // Technical info
+    const volatile TECH_INFO& tech = *info.tech;
+    AppendIntAttribute("SAMPLERATE=%i\n", tech.samplerate);
+    AppendIntAttribute("CHANNELS=%i\n", tech.channels);
+    AppendFlagsAttribute2("FLAGS", tech.attributes, TechFlagsMap);
+    AppendStringAttribute("TECHINFO", tech.info);
+    AppendStringAttribute("DECODER", tech.decoder);
+    AppendStringAttribute("FORMAT", tech.format);
+  }
+  { // Object info
+    const volatile OBJ_INFO& obj = *info.obj;
+    AppendFloatAttribute("SONGLENGTH=%.6f\n", obj.songlength);
+    AppendIntAttribute("BITRATE=%i\n", obj.bitrate);
+    AppendIntAttribute("SUBITEMS=%i\n", obj.num_items);
+  }
+}
+
+void CommandProcessor::CmdInfoMeta()
+{ // get the song object
+  int_ptr<APlayable> song;
+  if (*Request == 0)
+    song = Ctrl::GetCurrentSong();
+  else
+  { const url123& url = ParseURL(Request);
+    if (url)
+      song = Playable::GetByURL(url);
+  }
+  if (song == NULL)
+    return;
+  // get info
+  song->RequestInfo(IF_Meta, PRI_Sync);
+  const volatile META_INFO& meta = *song->GetInfo().meta;
+  AppendStringAttribute("TITLE", meta.title);
+  AppendStringAttribute("ARTIST", meta.artist);
+  AppendStringAttribute("ALBUM", meta.album);
+  AppendStringAttribute("YEAR", meta.year);
+  AppendStringAttribute("COMMENT", meta.comment);
+  AppendStringAttribute("GENRE", meta.genre);
+  AppendStringAttribute("TRACK", meta.track);
+  AppendStringAttribute("COPYRIGHT", meta.copyright);
+  AppendReplayGain(meta.track_gain, meta.track_peak, meta.album_gain, meta.album_peak);
+}
+
+void CommandProcessor::CmdInfoPlaylist()
+{
+  int_ptr<Playable> list;
+  if (*Request == 0)
+    list = CurPlaylist;
+  else
+  { const url123& url = ParseURL(Request);
+    if (url)
+      list = Playable::GetByURL(url);
+  }
+  if (list == NULL)
+    return;
+  // get info
+  list->RequestInfo(IF_Rpl|IF_Drpl, PRI_Sync);
+  { const volatile RPL_INFO& rpl = *list->GetInfo().rpl;
+    AppendIntAttribute("SONGS=%u\n", rpl.songs);
+    AppendIntAttribute("LISTS=%u\n", rpl.lists);
+    AppendIntAttribute("INVALID=%u\n", rpl.invalid);
+  }
+  { const volatile DRPL_INFO& drpl = *list->GetInfo().drpl;
+    AppendFloatAttribute("TOTALLENGTH=%.6f\n", drpl.totallength);
+    AppendFloatAttribute("TOTALSIZE=%.0f\n", drpl.totalsize);
+  }
+}
+
+void CommandProcessor::CmdInfoPlItem()
+{ if (CurItem == NULL)
+    return;
+  CurItem->RequestInfo(IF_Item|IF_Attr, PRI_Sync);
+  { const volatile ITEM_INFO& item = *CurItem->GetInfo().item;
+    AppendStringAttribute("ALIAS", item.alias);
+    AppendStringAttribute("START", item.start);
+    AppendStringAttribute("STOP", item.stop);
+    AppendFloatAttribute("PREGAP=%.6f\n", item.pregap);
+    AppendFloatAttribute("POSTGAP=%.6f\n", item.postgap);
+    AppendFloatAttribute("GAIN=%.1f\n", item.gain);
+  }
+  { const volatile ATTR_INFO& attr = *CurItem->GetInfo().attr;
+    AppendFlagsAttribute2("OPTIONS", attr.ploptions, PlOptionsMap);
+    AppendStringAttribute("AT", attr.at);
+  }
 }
 
 
-///// GUI
+// GUI
 
-void CommandProcessor::CmdShow(xstring& ret, char* args)
+void CommandProcessor::CmdShow()
 { GUI::Show(true);
 }
 
-void CommandProcessor::CmdHide(xstring& ret, char* args)
+void CommandProcessor::CmdHide()
 { GUI::Show(false);
 }
 
-void CommandProcessor::CmdQuit(xstring& ret, char* args)
+void CommandProcessor::CmdQuit()
 { GUI::Quit();
 }
 
-void CommandProcessor::CmdOpen(xstring& ret, char* args)
-{ char* arg2 = args + strcspn(args, " \t");
+void CommandProcessor::CmdOpen()
+{ char* arg2 = Request + strcspn(Request, " \t");
   if (*arg2)
   { *arg2++ = 0;
     arg2 += strspn(arg2, " \t");
@@ -655,12 +1003,12 @@ void CommandProcessor::CmdOpen(xstring& ret, char* args)
     { "tagedit",    GUI::DLT_INFOEDIT },
     { "tree",       GUI::DLT_PLAYLISTTREE }
   };
-  const strmap<12, int>* op = mapsearch(map, args);
+  const strmap<12, int>* op = mapsearch(map, Request);
   if (op)
   { if (op->Val >= 0)
     { if (*arg2 == 0)
         return; // Error
-      int_ptr<Playable> pp = Playable::GetByURL(url123::normalizeURL(arg2));
+      int_ptr<Playable> pp = Playable::GetByURL(ParseURL(arg2));
       GUI::ShowDialog(*pp, (GUI::DialogType)op->Val);
     } else
     { // properties
@@ -675,19 +1023,24 @@ void CommandProcessor::CmdOpen(xstring& ret, char* args)
   }
 }
 
-void CommandProcessor::CmdSkin(xstring& ret, char* args)
-{ ret = cfg.defskin;
-  if (*args)
-  { strlcpy(cfg.defskin, args, sizeof cfg.defskin);
+void CommandProcessor::CmdSkin()
+{ Reply.append(cfg.defskin);
+  if (*Request)
+  { strlcpy(cfg.defskin, Request, sizeof cfg.defskin);
     GUI::ReloadSkin();
   }
 }
 
-///// CONFIGURATION
+// CONFIGURATION
 
-void CommandProcessor::CmdSize(xstring& ret, char* args)
+void CommandProcessor::CmdOption()
+{
+  // TODO:
+}
+
+void CommandProcessor::CmdSize()
 { // old value
-  ret = xstring::sprintf("%i", cfg.mode);
+  Reply.append(cfg.mode);
   static const strmap<8, cfg_mode> map[] =
   { { "0",       CFG_MODE_REGULAR },
     { "1",       CFG_MODE_SMALL },
@@ -697,30 +1050,30 @@ void CommandProcessor::CmdSize(xstring& ret, char* args)
     { "small",   CFG_MODE_SMALL },
     { "tiny",    CFG_MODE_TINY }
   };
-  if (*args)
-  { const strmap<8, cfg_mode>* mp = mapsearch(map, args);
+  if (*Request)
+  { const strmap<8, cfg_mode>* mp = mapsearch(map, Request);
     if (mp)
       GUI::SetWindowMode(mp->Val);
     else
-      ret = xstring::empty; // error
+      Reply.clear(); // error
   }
 };
 
-void CommandProcessor::CmdFont(xstring& ret, char* args)
+void CommandProcessor::CmdFont()
 { // old value
   if (cfg.font_skinned)
-    ret = xstring::sprintf("%i", cfg.font+1);
+    Reply.append(cfg.font+1);
   else
-    ret = xstring::sprintf("%i.%s", cfg.font_size, cfg.font_attrs.szFacename);
+    Reply.appendf("%i.%s", cfg.font_size, cfg.font_attrs.szFacename);
 
-  if (*args)
+  if (*Request)
   { // set new value
     int font = 0;
-    char* cp = strchr(args, '.');
+    char* cp = strchr(Request, '.');
     if (cp)
       *cp++ = 0;
-    if (!parse_int(args, font))
-    { ret = xstring::empty; // error
+    if (!parse_int(Request, font))
+    { Reply.clear(); // error
       return;
     }
     if (cp)
@@ -741,17 +1094,17 @@ void CommandProcessor::CmdFont(xstring& ret, char* args)
         //amp_invalidate(UPD_FILENAME);
         break;
        default:
-        ret = xstring::empty; // error
+        Reply.clear(); // error
       }
     }
   }
 }
 
-void CommandProcessor::CmdFloat(xstring& ret, char* args)
+void CommandProcessor::CmdFloat()
 { // old value
-  ret = cfg.floatontop ? "on" : "off";
-  if (*args)
-  { const strmap<8, Ctrl::Op>* op = parse_op2(args);
+  Reply.append(cfg.floatontop ? "on" : "off");
+  if (*Request)
+  { const strmap<8, Ctrl::Op>* op = parse_op2(Request);
     if (op)
     { switch (op->Val)
       {case Ctrl::Op_Clear:
@@ -765,94 +1118,18 @@ void CommandProcessor::CmdFloat(xstring& ret, char* args)
       }
       GUI::SetWindowFloat(!cfg.floatontop);
     } else
-      ret = xstring::empty;
+      Reply.clear();
   }
 }
 
-void CommandProcessor::CmdAutouse(xstring& ret, char* args)
-{ cmd_op_bool(ret, args, cfg.autouse);
+void CommandProcessor::CmdAutouse()
+{ Reply.append(cmd_op_bool(Request, cfg.autouse));
 }
 
-void CommandProcessor::CmdPlayonload(xstring& ret, char* args)
-{ cmd_op_bool(ret, args, cfg.playonload);
+void CommandProcessor::CmdPlayonload()
+{ Reply.append(cmd_op_bool(Request, cfg.playonload));
 }
 
-const CommandProcessor::CmdEntry CommandProcessor::CmdList[] = // list must be sorted!!!
-{ { "add",        &CommandProcessor::CmdAdd        },
-  { "autouse",    &CommandProcessor::CmdAutouse    },
-  { "clear",      &CommandProcessor::CmdClear      },
-  { "current",    &CommandProcessor::CmdCurrent    },
-  { "dir",        &CommandProcessor::CmdDir        },
-  { "float",      &CommandProcessor::CmdFloat      },
-  { "font",       &CommandProcessor::CmdFont       },
-  { "forward",    &CommandProcessor::CmdForward    },
-  { "hide",       &CommandProcessor::CmdHide       },
-  { "jump",       &CommandProcessor::CmdJump       },
-  { "load",       &CommandProcessor::CmdLoad       },
-  { "location",   &CommandProcessor::CmdLocation   },
-  { "next",       &CommandProcessor::CmdNext       },
-  { "open",       &CommandProcessor::CmdOpen       },
-  { "pause",      &CommandProcessor::CmdPause      },
-  { "pl_current", &CommandProcessor::CmdPlCurrent  },
-  { "pl_item",    &CommandProcessor::CmdPlItem     },
-  { "pl_next",    &CommandProcessor::CmdPlNext     },
-  { "pl_prev",    &CommandProcessor::CmdPlPrev     },
-  { "pl_reset",   &CommandProcessor::CmdPlReset    },
-  { "play",       &CommandProcessor::CmdPlay       },
-  { "playlist",   &CommandProcessor::CmdPlaylist   },
-  { "playonload", &CommandProcessor::CmdPlayonload },
-  { "prev",       &CommandProcessor::CmdPrev       },
-  { "previous",   &CommandProcessor::CmdPrev       },
-  { "query",      &CommandProcessor::CmdQuery      },
-  { "rdir",       &CommandProcessor::CmdRdir       },
-  { "remove",     &CommandProcessor::CmdRemove     },
-  { "repeat",     &CommandProcessor::CmdRepeat     },
-  { "rewind",     &CommandProcessor::CmdRewind     },
-  { "save",       &CommandProcessor::CmdSave       },
-  { "savestream", &CommandProcessor::CmdSavestream },
-  { "show",       &CommandProcessor::CmdShow       },
-  { "shuffle",    &CommandProcessor::CmdShuffle    },
-  { "size",       &CommandProcessor::CmdSize       },
-  { "skin",       &CommandProcessor::CmdSkin       },
-  { "status",     &CommandProcessor::CmdStatus     },
-  { "stop",       &CommandProcessor::CmdStop       },
-  { "use",        &CommandProcessor::CmdUse        },
-  { "volume",     &CommandProcessor::CmdVolume     }
-};
-
-CommandProcessor::CommandProcessor()
-: CurPlaylist(GUI::GetDefaultPL())
-{}
-
-void CommandProcessor::Execute(xstring& ret, char* buffer)
-{ DEBUGLOG(("CommandProcessor::Execute(, %s)\n", buffer));
-  if( buffer[0] != '*' )
-    CmdLoad(ret, buffer);
-  else
-  { ++buffer;
-    buffer += strspn(buffer, " \t"); // skip leading blanks
-    // extract command
-    size_t len = strcspn(buffer, " \t");
-    char* ap = buffer + len;
-    ap += strspn(ap, " \t"); // skip leading blanks
-    buffer[len] = 0;
-    DEBUGLOG(("execute_command: %s %u %s\n", buffer, len, ap));
-    { // remove trailing blanks
-      char* ape = ap + strlen(ap);
-      while (ape != ap && (ape[-1] == ' ' || ape[-1] == '\t'))
-        --ape;
-      *ape = 0;
-    }
-    // Now buffer points to the command, ap to the arguments. Both are stripped.
-
-    // Seach command handler ...
-    const CmdEntry* cep = mapsearch(CmdList, buffer);
-    DEBUGLOG(("execute_command: %s(%s) -> %p\n", buffer, ap, cep));
-    if (cep)
-      // ... and execute
-      (this->*cep->Val)(ret, ap);
-  }
-}
 
 /****************************************************************************
 * Pipe interface
@@ -863,28 +1140,27 @@ static TID   TIDWorker    = (TID)-1;
 
 
 /* Dispatches requests received from the pipe. */
-static void TFNENTRY pipe_thread( void* )
+static void TFNENTRY pipe_thread(void*)
 { DEBUGLOG(("pipe_thread()\n"));
 
-  APIRET rc;
-  HAB hab = WinInitialize( 0 );
-  HMQ hmq = WinCreateMsgQueue( hab, 0 );
+  HAB hab = WinInitialize(0);
+  HMQ hmq = WinCreateMsgQueue(hab, 0);
 
   CommandProcessor cmdproc;
+  sco_arr<char> buffer(new char[PIPE_BUFFER_SIZE]);
 
   for(;; DosDisConnectNPipe( HPipe ))
   { // Connect the pipe
-    rc = DosConnectNPipe( HPipe );
+    APIRET rc = DosConnectNPipe( HPipe );
     if (rc != NO_ERROR)
     { DEBUGLOG(("pipe_thread: DosConnectNPipe failed with rc = %u\n", rc));
       break;
     }
 
     // read a command
-    static char buffer[65536];
     ULONG bytesread;
    nextcommand:
-    rc = DosRead(HPipe, buffer, sizeof buffer -1, &bytesread);
+    rc = DosRead(HPipe, buffer.get(), PIPE_BUFFER_SIZE-1, &bytesread);
     if (rc != NO_ERROR)
     { DEBUGLOG(("pipe_thread: DosRead failed with rc = %u\n", rc));
       continue;
@@ -894,22 +1170,22 @@ static void TFNENTRY pipe_thread( void* )
     buffer[bytesread] = 0; // ensure terminating zero
 
     // execute commands
-    char* cp = buffer;
+    char* cp = buffer.get();
     for (;;)
     { size_t len = strcspn(cp, "\r\n");
-      DEBUGLOG(("pipe_thread: at %s, %u, %i, %u\n", cp, bytesread, cp-buffer, len));
-      if (cp + len == buffer + bytesread)
+      DEBUGLOG(("pipe_thread: at %s, %u, %i, %u\n", cp, bytesread, cp-buffer.get(), len));
+      if (cp + len == buffer.get() + bytesread)
       { // Command string goes to the end of the buffer.
         // This implies that there was no terminating newline in the buffer.
         // => Try to read the remaining part of the command.
         // But firstly move the command to the beginning of the buffer if required.
-        if (cp != buffer)
-        { memmove(buffer, cp, len+1);
-          bytesread -= cp - buffer;
-          cp = buffer;
+        if (cp != buffer.get())
+        { memmove(buffer.get(), cp, len+1);
+          bytesread -= cp - buffer.get();
+          cp = buffer.get();
         }
         ULONG bytesread2;
-        rc = DosRead(HPipe, buffer + bytesread, sizeof buffer - bytesread -1, &bytesread2);
+        rc = DosRead(HPipe, buffer.get() + bytesread, PIPE_BUFFER_SIZE - bytesread -1, &bytesread2);
         if (rc == NO_ERROR)
         { bytesread += bytesread2;
           buffer[bytesread] = 0; // ensure terminating zero
@@ -924,24 +1200,23 @@ static void TFNENTRY pipe_thread( void* )
       char* cp2 = cp + strspn(cp, " \t");
       // and execute (if non-blank)
       if (*cp2)
-      { xstring ret = xstring::empty;
-        cmdproc.Execute(ret, cp2);
-        DEBUGLOG(("pipe_thread: command done: %s\n", ret.cdata()));
+      { const char* ret = cmdproc.Execute(cp2);
+        DEBUGLOG(("pipe_thread: command done: %s\n", ret));
         // send reply
-        ULONG actual;
-        DosWrite(HPipe, (PVOID)ret.cdata(), ret.length(), &actual);
-        DosWrite(HPipe, "\r\n", 2, &actual);
+        ULONG actual = strlen(ret);
+        DosWrite(HPipe, (PVOID)ret, actual, &actual);
+        DosWrite(HPipe, "\n\n", ret[actual-1] != '\n' ? 2 : 1, &actual);
         DosResetBuffer(HPipe);
       }
       // next line
       cp += len +1; // and skip delimiter
-      if (cp >= buffer + bytesread)
+      if (cp >= buffer.get() + bytesread)
         goto nextcommand;
     }
   }
 
-  WinDestroyMsgQueue( hmq );
-  WinTerminate( hab );
+  WinDestroyMsgQueue(hmq);
+  WinTerminate(hab);
 }
 
 
@@ -973,6 +1248,12 @@ void amp_pipe_destroy()
 { DEBUGLOG(("amp_pipe_destroy() - %p\n", HPipe));
   ORASSERT(DosClose(HPipe));
   HPipe = NULLHANDLE;
+}
+
+bool amp_pipe_check()
+{ APIRET rc = DosWaitNPipe(cfg.pipe_name, 50);
+  DEBUGLOG(("amp_pipe_check() : %lu\n", rc));
+  return rc == NO_ERROR || rc == ERROR_PIPE_BUSY;
 }
 
 /* Opens specified pipe and writes data to it. */

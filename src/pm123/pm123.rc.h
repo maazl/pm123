@@ -57,13 +57,6 @@
 #define ACL_MAIN              WIN_MAIN // neccessarily identical
 #define ICO_MAIN              WIN_MAIN // neccessarily identical
 
-/* Timers */
-#define TID_UPDATE_TIMERS    ( TID_USERMAX - 1 )
-#define TID_UPDATE_PLAYER    ( TID_USERMAX - 2 )
-#define TID_ONTOP            ( TID_USERMAX - 3 )
-#define TID_CLEANUP          ( TID_USERMAX - 4 )
-#define TID_INSP_AUTOREFR    ( TID_USERMAX - 5 )
-
 /* Generic controls */
 #define ST_GENERIC          100 // Generic, non-unique static text
 #define GB_GENERIC          101 // Generic, non-unique group box

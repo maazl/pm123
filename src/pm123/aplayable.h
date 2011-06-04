@@ -63,12 +63,12 @@ class PlayableInstance;
 struct PlayableChangeArgs
 { APlayable&                  Instance;   // Related Playable object.
   APlayable*                  Origin;     // Points to an object that caused that initiated the events, optional.
-  InfoFlags                   Changed;    // Bit vector with changed information.
   InfoFlags                   Loaded;     // Bit vector with loaded information.
+  InfoFlags                   Changed;    // Bit vector with changed information.
   InfoFlags                   Invalidated;// Bit vector with invalidated information.
-  PlayableChangeArgs(APlayable& inst, APlayable* orig, InfoFlags changed, InfoFlags loaded, InfoFlags invalidated)
-                                                  : Instance(inst), Origin(orig), Changed(changed), Loaded(loaded),  Invalidated(invalidated) {}
-  PlayableChangeArgs(APlayable& inst)             : Instance(inst), Origin(&inst), Changed(IF_None), Loaded(IF_None), Invalidated(IF_None) {}
+  PlayableChangeArgs(APlayable& inst, APlayable* orig, InfoFlags loaded, InfoFlags changed, InfoFlags invalidated)
+                                                  : Instance(inst), Origin(orig), Loaded(loaded), Changed(changed), Invalidated(invalidated) {}
+  PlayableChangeArgs(APlayable& inst)             : Instance(inst), Origin(&inst), Loaded(IF_None), Changed(IF_None), Invalidated(IF_None) {}
   bool                        IsInitial() const   { return (Changed|Loaded|Invalidated) == IF_None; }
   void                        Reset()             { Changed = IF_None; Loaded = IF_None; Invalidated = IF_None; }
 };
@@ -100,15 +100,19 @@ class JobSet;
  * Objects of this class may either be reference counted, managed by a \c int_ptr
  * or used as temporaries.
  */
-class APlayable : public Iref_count
-{protected:
+class APlayable
+: public Iref_count
+{private:
+  /// Keep track of scheduled asynchronous requests.
+  AtomicUnsigned              AsyncRequest;
+ protected:
   /// Information request state
-  InfoState                   InfoStat;
+  //InfoState                   InfoStat;
   /// Event on info change
   event<const PlayableChangeArgs> InfoChange;
 
  public:
-                              APlayable()         : InfoStat(IF_Usage|IF_Display) {}
+  //                            APlayable(InfoFlags preset = IF_Usage|IF_Display) : InfoStat(preset) {}
   virtual                     ~APlayable() {}
   /// Get't the referenced content.
           Playable&           GetPlayable()       { return (Playable&)DoGetPlayable(); }
@@ -153,7 +157,7 @@ class APlayable : public Iref_count
   /// By default cached information is sufficient and will not cause any further action.
   /// But you may specify \c REL_Confirmed to explicitly ignore cached infos und \c REL_Reload
   /// to explicitly reload some kind of information.
-  virtual InfoFlags           RequestInfo(InfoFlags what, Priority pri, Reliability rel = REL_Cached);
+          InfoFlags           RequestInfo(InfoFlags what, Priority pri, Reliability rel = REL_Cached);
 
   /// @brief Get current Object info.
   /// @details If the required information is not yet loaded, you will get an empty structure.
@@ -180,18 +184,19 @@ class APlayable : public Iref_count
   /// The returned storage is valid until the current Playable object dies,
   /// but subsequent calls with the same parameters may return a different storage.
   /// @note Calling RequestAggregateInfo with an empty set is equivalent to retrieving GetInfo().rpl/.drpl;
-  virtual volatile const AggregateInfo& RequestAggregateInfo(const PlayableSetBase& excluding,
+  volatile const AggregateInfo& RequestAggregateInfo(const PlayableSetBase& excluding,
                               InfoFlags& what, Priority pri, Reliability rel = REL_Cached);
 
   /// Return the currently valid types of information.
-          InfoFlags         GetValid(Reliability rel = REL_Cached) { return ~RequestInfo(~IF_None, PRI_None, rel); }
+          InfoFlags           GetValid(Reliability rel = REL_Cached) { return ~RequestInfo(~IF_None, PRI_None, rel); }
   /// Return the overridden information.
-  virtual InfoFlags         GetOverridden() const = 0;
+  virtual InfoFlags           GetOverridden() const = 0;
 
   /// Access the InfoChange event, but only the public part.
   event_pub<const PlayableChangeArgs>& GetInfoChange() { return InfoChange; }
-  /// Access to InfoState for diagnostic purposes
-  const InfoState&          GetInfoState() const  { return InfoStat; }
+
+  /// Access to request state for diagnostic purposes (may be slow).
+  virtual void                PeekRequest(RequestState& req) const = 0;
 
  private:
   /// @brief Place a request for the kind informations identified by the bit vector \a what
@@ -232,6 +237,8 @@ class APlayable : public Iref_count
   /// The AggregateInfo reference MUST have been returned by DoAILookup of the same object.
   virtual InfoFlags           DoRequestAI(AggregateInfo& ai, InfoFlags& what, Priority pri, Reliability rel) = 0;
 
+  //virtual InfoFlags           DoGetOutstanding(Priority pri) = 0;
+
  protected: // Proxy functions to call the above methods also for other objects that derive from APlayable.
   static  InfoFlags           CallDoRequestInfo(APlayable& that, InfoFlags& what, Priority pri, Reliability rel)
                               { return that.DoRequestInfo(what, pri, rel); }  
@@ -239,7 +246,7 @@ class APlayable : public Iref_count
                               { that.DoLoadInfo(job); }
   static  AggregateInfo&      CallDoAILookup(APlayable& that, const PlayableSetBase& exclude)
                               { return that.DoAILookup(exclude); }  
-  static  InfoFlags           CallDoRequestAI(APlayable& that, AggregateInfo& ai, InfoFlags what, Priority pri, Reliability rel)
+  static  InfoFlags           CallDoRequestAI(APlayable& that, AggregateInfo& ai, InfoFlags& what, Priority pri, Reliability rel)
                               { return that.DoRequestAI(ai, what, pri, rel); }  
 
  private: // Internal dispatcher functions

@@ -1,7 +1,7 @@
 /*
  * Copyright 1997-2003 Samuel Audet <guardia@step.polymtl.ca>
  *                     Taneli Lepp� <rosmo@sektori.com>
- * Copyright 2007-2010 Marcel Mueller
+ * Copyright 2007-2011 Marcel Mueller
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -55,12 +55,30 @@
 #include <debuglog.h>
 
 
-PlaylistView::PlaylistView(Playable& obj, const xstring& alias)
-: PlaylistRepository<PlaylistView>(obj, alias, DLG_PLAYLIST),
-  MainMenu(NULLHANDLE),
-  RecMenu(NULLHANDLE)
-{ DEBUGLOG(("PlaylistView::PlaylistView(&%p, %s)\n", &obj, alias.cdata()));
+PlaylistView* PlaylistView::Factory(Playable*const& key)
+{ return new PlaylistView(*key);
+}
+
+PlaylistView::PlaylistView(Playable& obj)
+: PlaylistBase(obj, DLG_PLAYLIST)
+, inst_index<PlaylistView, Playable*const, &ComparePtr<Playable> >(&obj)
+, MainMenu(NULLHANDLE)
+, RecMenu(NULLHANDLE)
+{ DEBUGLOG(("PlaylistView::PlaylistView(&%p)\n", &obj));
   StartDialog();
+}
+
+const int_ptr<PlaylistBase> PlaylistView::GetSame(Playable& obj)
+{ return &*GetByKey(obj);
+}
+
+void PlaylistView::DestroyAll()
+{ IXAccess index;
+  DEBUGLOG(("PlaylistView::DestroyAll() - %d\n", index->size()));
+  // The instances deregister itself from the repository.
+  // Starting at the end avoids the memcpy calls for shrinking the vector.
+  while (index->size())
+    (*index)[index->size()-1]->Destroy();
 }
 
 void PlaylistView::PostRecordUpdate(RecordBase* rec, InfoFlags flags)
@@ -377,7 +395,7 @@ HWND PlaylistView::InitContextMenu()
     mn_enable_item(hwndMenu, IDM_PL_NAVIGATE, Source.size() == 1 && Content->IsInUse());
     mn_enable_item(hwndMenu, IDM_PL_EDIT,     rt == RT_Meta);
     mn_enable_item(hwndMenu, IDM_PL_FLATTEN,  (rt & ~(RT_Enum|RT_List)) == 0);
-    mn_enable_item(hwndMenu, IDM_PL_REFRESH,  (rt & (RT_Enum|RT_List)) == 0);
+    //mn_enable_item(hwndMenu, IDM_PL_REFRESH,  (rt & (RT_Enum|RT_List)) == 0);
     mn_enable_item(hwndMenu, IDM_PL_DETAILED, Source.size() == 1 && (rt & (RT_Enum|RT_List)));
     mn_enable_item(hwndMenu, IDM_PL_TREEVIEW, Source.size() == 1 && (rt & (RT_Enum|RT_List)));
   }
@@ -581,7 +599,7 @@ void PlaylistView::UpdateRecord(RecordBase* rec)
   bool update = false;
   for(;;)
   { // reset pending message flag
-    InfoFlags flags = (InfoFlags)StateFromRec(rec).Update.swap(IF_None);
+    InfoFlags flags = (InfoFlags)StateFromRec(rec).UpdateFlags.swap(IF_None);
     DEBUGLOG(("PlaylistView::UpdateRecord - %x\n", flags));
     if (flags == IF_None)
       break;

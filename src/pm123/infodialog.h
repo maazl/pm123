@@ -30,9 +30,8 @@
 #define PM123_INFODIALOG_H
 
 #include "windowbase.h"
+#include "playable.h"
 
-class Playable;
-class PlayableInstance;
 class PlayableSetBase;
 /****************************************************************************
 *
@@ -41,28 +40,37 @@ class PlayableSetBase;
 *
 ****************************************************************************/
 class AInfoDialog
-: public ManagedDialogBase
-/*  private OwnedPlayableSet, // aggregation is not sufficient because of the destruction sequence
-  public IComparableTo<const PlayableSetBase*>,
-  public inst_index<InfoDialog, const PlayableSetBase*const> // depends on base class OwnedPlayableSet*/
+: public ManagedDialog<NotebookDialogBase>
 {public:
   enum PageNo
   { Page_MetaInfo,
     Page_TechInfo,
     Page_ItemInfo
   };
+  struct KeyType : public sorted_vector_int<APlayable, APlayable, &CompareInstance<APlayable> >
+  { KeyType() {}
+    KeyType(size_t initial_capacity) : sorted_vector_int<APlayable, APlayable, &CompareInstance<APlayable> >(initial_capacity) {}
+    int_ptr<Playable> Parent;
+    static int      compare(const KeyType& l, const KeyType& r);
+  };
  protected:
-                    AInfoDialog(ULONG rid, HMODULE module) : ManagedDialogBase(rid, module) {}
+                    AInfoDialog(ULONG rid, HMODULE module) : ManagedDialog<NotebookDialogBase>(rid, module) {}
  public:
   virtual           ~AInfoDialog() {}
   virtual void      ShowPage(PageNo page) = 0;
 
-  // Factory method. Returns always the same instance for the same set of objects.
-  static int_ptr<AInfoDialog> GetByKey(const PlayableSetBase& obj);
-  // Factory method. Returns always the same instance for the same Playable.
+  /// Generic Factory method for Info dialogs.
+  /// @param set List of objects to edit. This can be either:
+  /// - a single Playable object,
+  /// - a set of Playable objects to be edited simultaneously,
+  /// - a PlayableInstance and the parent playlist to edit the item information too or
+  /// - a set of PlayableInstances of the same playlist and their parent Playable object.
+  /// @return Returns always the same instance for the same set of objects.
+  static int_ptr<AInfoDialog> GetByKey(const KeyType& set);
+  /// Factory method for single Playable objects.
+  /// @param obj Object to edit.
+  /// @return Returns always the same instance for the same object.
   static int_ptr<AInfoDialog> GetByKey(Playable& obj);
-  // Factory method. Returns always the same instance for the same PlayableInstance.
-  static int_ptr<AInfoDialog> GetByKey(Playable& list, PlayableInstance& item);
 };
 
 

@@ -7,10 +7,11 @@
 
 #define TFNENTRY
 #define INLINE    __inline__ static 
-#define DLLENTRY  _System
-#define DLLENTRYP(sym) DLLENTRY (*sym)
-#define DLLENTRYPF() DLLENTRY (*)
-#define DLLENTRYP2(sym) DLLENTRY (*sym)
+#define DLLENTRY  __attribute__((system))
+#define DLLENTRYP(sym) (DLLENTRY *sym)
+#define DLLENTRYPF() (DLLENTRY *)
+#define DLLENTRYP2(sym) DLLENTRY(*sym)
+#define DLLENTRYPF2() DLLENTRY(*)
 
 /* Fix warnings with offsetof */
 #undef offsetof

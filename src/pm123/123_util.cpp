@@ -114,31 +114,30 @@ int DLLENTRY pm123_getstring( int index, int subindex, size_t bufsize, char* buf
 const xstring
 amp_construct_tag_string( const INFO_BUNDLE_CV* info )
 {
-  // TODO: a string builder would be nice...
-  xstring result = xstring::empty;
+  xstringbuilder result;
 
   xstring tmp1(info->meta->artist);
   xstring tmp2(info->meta->title);
   if (tmp1)
-  { result = tmp1;
+  { result += tmp1;
     if (tmp2)
-      result = result + ": ";
+      result += ": ";
   }
   if (tmp2)
-    result = result + tmp2;
+    result += tmp2;
 
   tmp1 = info->meta->album;
   tmp2 = info->meta->year; 
   if (tmp1 && tmp2)
-    result = xstring::sprintf("%s (%s, %s)", result.cdata(), tmp1.cdata(), tmp2.cdata());
+    result.appendf(" (%s, %s)", tmp1.cdata(), tmp2.cdata());
   else if (tmp1)
-    result = xstring::sprintf("%s (%s)", result.cdata(), tmp1.cdata());
+    result.appendf(" (%s)", tmp1.cdata());
   else if (tmp2)
-    result = xstring::sprintf("%s (%s)", result.cdata(), tmp2.cdata());
+    result.appendf(" (%s)", tmp2.cdata());
 
   tmp1 = info->meta->comment;
   if (tmp1)
-    result = xstring::sprintf("%s -- %s", result.cdata(), tmp1.cdata());
+    result.appendf(" -- %s", tmp1.cdata());
 
   return result;
 }

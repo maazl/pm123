@@ -94,4 +94,4 @@ all:    $(TARGET) $(MDUMMY)
 SRCFIL = *.cpp *.c
 !endif
 depend:
-	$(TOPDIR)\config\makedep.cmd $(SRCFIL) -r -x -I$(INCDIR) -s
+	$(TOPDIR)\config\makedep.cmd $(SRCFIL) -r -x -I$(INCDIR) -s -c

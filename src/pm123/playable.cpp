@@ -1,5 +1,5 @@
 /*
- * Copyright 2007-2010 M.Mueller
+ * Copyright 2007-2011 M.Mueller
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -53,58 +53,6 @@
 
 /****************************************************************************
 *
-*  class PlayableInstance
-*
-****************************************************************************/
-
-PlayableInstance::PlayableInstance(const Playable& parent, APlayable& refto)
-: PlayableRef(refto),
-  Parent(&parent),
-  Index(0)
-{ DEBUGLOG(("PlayableInstance(%p)::PlayableInstance(&%p{%s}, &%p{%s})\n", this,
-    &parent, parent.URL.cdata(), &refto, refto.GetPlayable().URL.cdata()));
-}
-
-/*void PlayableInstance::Swap(PlayableRef& r)
-{ DEBUGLOG(("PlayableInstance(%p)::Swap(&%p)\n", this, &r));
-  ASSERT(Parent == ((PlayableInstance&)r).Parent);
-  // Analyze changes
-  StatusFlags events = SF_None;
-  if (GetAlias() != r.GetAlias())
-    events |= SF_Alias;
-  if ( CompareSliceBorder(GetStart(), r.GetStart(), SB_Start)
-    || CompareSliceBorder(GetStop(),  r.GetStop(),  SB_Stop) )
-    events |= SF_Slice;
-  // Execute changes
-  if (events)
-  { PlayableRef::Swap(r);
-    StatusChange(change_args(*this, events));
-  }
-}*/
-
-/*bool operator==(const PlayableInstance& l, const PlayableInstance& r)
-{ return l.Parent == r.Parent
-      && l.RefTo  == r.RefTo  // Instance equality is sufficient in case of the Playable class.
-      && l.GetAlias()    == r.GetAlias();
-//      && (const Slice&)l == (const Slice&)r;
-}*/
-
-/*int PlayableInstance::CompareTo(const PlayableInstance& r) const
-{ if (this == &r)
-    return 0;
-  int li = Index;
-  int ri = r.Index;
-  // Removed items or different collection.
-  if (li == 0 || ri == 0 || Parent != r.Parent)
-    return INT_MIN;
-  // Attension: nothing is locked here except for the life-time of the parent playlists.
-  // So the item l or r may still be removed from the collection by another thread.
-  return li - ri;
-}*/
-
-
-/****************************************************************************
-*
 *  class Playable
 *
 ****************************************************************************/
@@ -141,7 +89,7 @@ Playable::Entry::Entry(Playable& parent, APlayable& refto, IDType::func_type ifn
 const ItemInfo Playable::MyInfo::Item;
 
 Playable::MyInfo::MyInfo()
-: CollectionInfo(PlayableSet::Empty)
+: CollectionInfo(PlayableSet::Empty, IF_Item|IF_Slice|IF_Display|IF_Usage)
 { phys = &Phys;
   tech = &Tech;
   obj  = &Obj;
@@ -175,6 +123,12 @@ Playable::~Playable()
   InfoChange.reset();
 }
 
+void Playable::SetAlias(const xstring& alias)
+{ ItemInfo* ip = new ItemInfo();
+  ip->alias = alias;
+  Info.SetItem(ip);
+}
+
 bool Playable::IsInUse() const
 { return InUse;
 }
@@ -192,24 +146,45 @@ void Playable::SetInUse(bool used)
   InfoChange(PlayableChangeArgs(*this, this, IF_Usage, changed * IF_Usage, IF_None));
 }
 
+void Playable::SetModified(bool modified)
+{ DEBUGLOG(("Playable(%p{%s})::SetModified(%u)\n", this, URL.cdata(), modified));
+  Mutex::Lock lock(Mtx);
+  bool changed = Modified != modified;
+  Modified = modified;
+  InfoChange(PlayableChangeArgs(*this, this, IF_Usage, changed * IF_Usage, IF_None));
+}
+
 xstring Playable::GetDisplayName() const
-{ xstring ret(Playable::GetInfo().meta->title);
-  return ret && ret[0U] ? ret : URL.getShortName();
+{ xstring ret(Info.item->alias);
+  if (!ret || !ret[0U])
+    ret = Info.meta->title;
+  if (!ret || !ret[0U])
+    ret = URL.getDisplayName();
+  return ret;
 }
 
 InfoFlags Playable::GetOverridden() const
 { return IF_None;
 }
 
+void Playable::PeekRequest(RequestState& req) const
+{ DEBUGLOG(("Playable(%p)::PeekRequest({%x,%x, %x})\n", this, req.ReqLow, req.ReqHigh, req.InService));
+  Info.InfoStat.PeekRequest(req);
+  const CollectionInfoCache* cic = Playlist.get();
+  if (cic)
+    cic->PeekRequest(req);
+  DEBUGLOG(("Playable::PeekRequest: {%x,%x, %x}\n", req.ReqLow, req.ReqHigh, req.InService));
+}
+
 void Playable::SetCachedInfo(const INFO_BUNDLE& info, InfoFlags what)
 { DEBUGLOG(("Playable(%p)::SetCachedInfo(&%p, %x)\n", this, &info, what));
   // double check
-  what &= InfoStat.Check(what, REL_Invalid);
+  what &= Info.InfoStat.Check(what, REL_Invalid);
   if (what)
   { Mutex::Lock lock(Mtx);
-    what &= InfoStat.Check(what, REL_Invalid);
+    what &= Info.InfoStat.Check(what, REL_Invalid);
     InfoFlags changed = UpdateInfo(info, what);
-    changed &= InfoStat.Cache(what);
+    changed &= Info.InfoStat.Cache(what);
     RaiseInfoChange(IF_None, changed);
   }
 }
@@ -308,15 +283,15 @@ InfoFlags Playable::DoRequestInfo(InfoFlags& what, Priority pri, Reliability rel
   else if (what & (IF_Rpl|IF_Child))
     what |= IF_Tech|IF_Child; // required for RPL_INFO aggregate
 
-  what &= InfoStat.Check(what, rel);
+  what &= Info.InfoStat.Check(what, rel);
   InfoFlags op = pri == PRI_None || what == IF_None
-    ? IF_None : InfoStat.Request(what, pri);
+    ? IF_None : Info.InfoStat.Request(what, pri);
   DEBUGLOG(("Playable::DoRequestInfo(%x): %x\n", what, op));
   return op;
 }
 
 AggregateInfo& Playable::DoAILookup(const PlayableSetBase& exclude)
-{ 
+{ DEBUGLOG(("Playable(%p{%s})::DoAILookup({%u,})\n", this, URL.getDisplayName().cdata(), exclude.size()));
   if (Info.Tech.attributes & (TATTR_PLAYLIST|TATTR_SONG|TATTR_INVALID) == TATTR_PLAYLIST)
   { // Playlist
     if (!Playlist) // Fastpath
@@ -388,11 +363,11 @@ struct deccbdata
 
 void Playable::DoLoadInfo(JobSet& job)
 { DEBUGLOG(("Playable(%p{%s})::DoLoadInfo({%u,})\n", this, URL.getShortName().cdata(), job.Pri));
-  InfoState::Update upd(InfoStat, job.Pri);
+  InfoState::Update upd(Info.InfoStat, job.Pri);
   DEBUGLOG(("Playable::DoLoadInfo: update %x\n", upd.GetWhat()));
   // There must not be outstanding requests on informations that cause a no-op.
   // DoRequestInfo should ensure this.
-  ASSERT((upd & ~(IF_Decoder|IF_Aggreg|IF_Async)) == IF_None);
+  ASSERT((upd & ~(IF_Decoder|IF_Aggreg)) == IF_None);
 
   // get information
   InfoBundle info;
@@ -423,7 +398,7 @@ void Playable::DoLoadInfo(JobSet& job)
     if (upd)
     { // Request for default recursive playlist information (without exclusions)
       // is to be completed.
-      ASSERT((upd & IF_Aggreg) == IF_None);
+      ASSERT((upd & ~IF_Aggreg) == IF_None);
       CalcRplInfo(Info, upd, args, job);
     }
     // Request Infos with exclusion lists
@@ -474,12 +449,12 @@ Playable_DecoderEnumCb(void* param, const char* url, const INFO_BUNDLE* info, in
   }
   int_ptr<Playable> pp = Playable::GetByURL(abs_url);
   // Apply cached information to *pp.
-  cached &= ~pp->InfoStat.Check((InfoFlags)cached, REL_Invalid);
+  cached &= ~pp->Info.InfoStat.Check((InfoFlags)cached, REL_Invalid);
   // double check
   if (cached)
   { Mutex::Lock lock(pp->Mtx);
-    cached &= ~pp->InfoStat.Check((InfoFlags)cached, REL_Invalid);
-    pp->RaiseInfoChange(IF_None, pp->InfoStat.Cache(pp->UpdateInfo(*info, (InfoFlags)cached)));
+    cached &= ~pp->Info.InfoStat.Check((InfoFlags)cached, REL_Invalid);
+    pp->RaiseInfoChange(IF_None, pp->Info.InfoStat.Cache(pp->UpdateInfo(*info, (InfoFlags)cached)));
   }
   PlayableRef* ps = new PlayableRef(*pp);
   if (override & IF_Meta)
@@ -495,7 +470,7 @@ void Playable::ChildChangeNotification(const PlayableChangeArgs& args)
     &args.Instance, args.Instance.GetPlayable().URL.getShortName().cdata(), args.Origin, args.Loaded, args.Changed, args.Invalidated));
   /*  InfoFlags f = args.Changed & (IF_Tech|IF_Rpl);
     if (f)
-    { // Invalidate dependant info and reaload if already known
+    { // Invalidate dependent info and reload if already known
       InvalidateInfo(f, true);
       // Invalidate CollectionInfoCache entries.
       InvalidateCIC(f, args.Instance);
@@ -503,7 +478,7 @@ void Playable::ChildChangeNotification(const PlayableChangeArgs& args)
   }
 
     if (args.Flags & PlayableInstance::SF_Slice)
-      // Update dependant tech info, but only if already available
+      // Update dependent tech info, but only if already available
       // Same as TechInfoChange => emulate another event
       ChildInfoChange(Playable::change_args(*args.Instance.GetPlayable(), IF_Tech, IF_Tech));
   }*/
@@ -657,7 +632,7 @@ int_ptr<PlayableInstance> Playable::InsertItem(APlayable& item, PlayableInstance
   // Check whether the parameter before is still valid
   if (before && !before->HasParent(this))
     return NULL;
-  InfoState::Update upd(InfoStat);
+  InfoState::Update upd(Info.InfoStat);
   upd.Extend(IF_Child|IF_Obj|(IF_Tech * !(Info.Tech.attributes & TATTR_PLAYLIST)));
   if (!(upd & IF_Child))
     // TODO: Warning: Object locked by pending loadinfo
@@ -699,7 +674,7 @@ bool Playable::MoveItem(PlayableInstance* item, PlayableInstance* before)
   // Check whether the parameter before is still valid
   if (!item->HasParent(this) || (before && !before->HasParent(this)))
     return false;
-  InfoFlags what = InfoStat.BeginUpdate(IF_Child);
+  InfoFlags what = Info.InfoStat.BeginUpdate(IF_Child);
   if (what == IF_None)
     // TODO: Warning: Object locked by pending loadinfo
     return false;
@@ -719,7 +694,7 @@ bool Playable::MoveItem(PlayableInstance* item, PlayableInstance* before)
     // No change
     what &= ~IF_Child;
   // done!
-  InfoStat.EndUpdate(IF_Child);
+  Info.InfoStat.EndUpdate(IF_Child);
   RaiseInfoChange(what|IF_Child, what);
   return true;
 }
@@ -731,7 +706,7 @@ bool Playable::RemoveItem(PlayableInstance* item)
   // Check whether the item is still valid
   if (item && !item->HasParent(this))
     return false;
-  InfoState::Update upd(InfoStat);
+  InfoState::Update upd(Info.InfoStat);
   upd.Extend(IF_Child|IF_Obj);
   if (!(upd & IF_Child))
     return false;
@@ -756,7 +731,7 @@ bool Playable::RemoveItem(PlayableInstance* item)
 bool Playable::Clear()
 { DEBUGLOG(("Playable(%p{%s})::Clear()\n", this, URL.getShortName().cdata()));
   Mutex::Lock lock(Mtx);
-  InfoState::Update upd(InfoStat);
+  InfoState::Update upd(Info.InfoStat);
   upd.Extend(IF_Child|IF_Obj|IF_Rpl|IF_Drpl);
   if (!(upd & IF_Child))
     return false;
@@ -793,7 +768,7 @@ bool Playable::Sort(ItemComparer comp)
   Mutex::Lock lock(Mtx);
   if (!Playlist || Playlist->Items.prev(NULL) == Playlist->Items.next(NULL))
     return true; // Empty or one element lists are always sorted.
-  InfoFlags what = InfoStat.BeginUpdate(IF_Child);
+  InfoFlags what = Info.InfoStat.BeginUpdate(IF_Child);
   if (what == IF_None)
     return false;
 
@@ -811,7 +786,7 @@ bool Playable::Sort(ItemComparer comp)
   bool changed = UpdateCollection(newcontent);
   ASSERT(index.size() == 0); // All items should have been reused
   // done
-  InfoStat.EndUpdate(IF_Child);
+  Info.InfoStat.EndUpdate(IF_Child);
   RaiseInfoChange(IF_Child, IF_Child*changed);
   return true;
 }
@@ -821,7 +796,7 @@ bool Playable::Shuffle()
   Mutex::Lock lock(Mtx);
   if (!Playlist || Playlist->Items.prev(NULL) == Playlist->Items.next(NULL))
     return true; // Empty or one element lists are always sorted.
-  InfoFlags what = InfoStat.BeginUpdate(IF_Child);
+  InfoFlags what = Info.InfoStat.BeginUpdate(IF_Child);
   if (what == IF_None)
     return false;
 
@@ -833,11 +808,27 @@ bool Playable::Shuffle()
   bool changed = UpdateCollection(newcontent);
   ASSERT(newcontent.size() == 0); // All items should have been reused
   // done
-  InfoStat.EndUpdate(IF_Child);
+  Info.InfoStat.EndUpdate(IF_Child);
   RaiseInfoChange(IF_Child, IF_Child*changed);
   return true;
 }
 
+bool Playable::Save(const url123& dest, const char* decoder, const char* format, bool relative)
+{ DEBUGLOG(("Playable::Save(%s, %s, %s, %u)\n", dest.cdata(), decoder, format, relative));
+  if (dec_saveplaylist(dest, *this, decoder, format, relative) != PLUGIN_OK)
+    return false;
+  if (dest == URL)
+  { // Save in place
+    SetModified(false);
+  } else
+  { // Save copy as => Mark the copy as modified since it's content has changed
+    // in the file system.
+    int_ptr<Playable> pp = FindByURL(dest);
+    if (pp)
+      pp->SetModified(true);
+  }
+  return dest;
+}
 
 void Playable::SetMetaInfo(const META_INFO* meta)
 { DEBUGLOG(("Playable(%p)::SetMetaInfo({...})\n", this));
@@ -892,21 +883,19 @@ int_ptr<Location> Playable::GetStartLoc() const
 int_ptr<Location> Playable::GetStopLoc() const
 { return int_ptr<Location>(); }
 
-
 /****************************************************************************
 *
 *  class Playable - URL repository
 *
 ****************************************************************************/
 
-sorted_vector<Playable, const char*> Playable::RPInst(RP_INITIAL_SIZE);
+int Playable::compare(const Playable& l, const xstring& r)
+{ return l.URL.compareToI(r);
+}
+
+sorted_vector<Playable, xstring, &Playable::compare> Playable::RPInst(RP_INITIAL_SIZE);
 Mutex   Playable::RPMutex;
 clock_t Playable::LastCleanup = 0;
-
-int Playable::compareTo(const char*const& str) const
-{ DEBUGLOG2(("Playable(%p{%s})::compareTo(%s)\n", this, URL.cdata(), str));
-  return stricmp(URL, str);
-}
 
 #ifdef DEBUG_LOG
 void Playable::RPDebugDump()
@@ -915,8 +904,8 @@ void Playable::RPDebugDump()
 }
 #endif
 
-int_ptr<Playable> Playable::FindByURL(const char* url)
-{ DEBUGLOG(("Playable::FindByURL(%s)\n", url));
+int_ptr<Playable> Playable::FindByURL(const xstring& url)
+{ DEBUGLOG(("Playable::FindByURL(%s)\n", url.cdata()));
   Mutex::Lock lock(RPMutex);
   return RPInst.find(url);
 }
@@ -970,7 +959,7 @@ void Playable::Uninit()
   APlayable::Uninit();
   LastCleanup = clock();
   // Keep destructor calls out of the mutex
-  static sorted_vector<Playable, const char*> rp;
+  static sorted_vector<Playable, xstring, &Playable::compare> rp;
   { // detach all items
     Mutex::Lock lock(RPMutex);
     rp.swap(RPInst);

@@ -1,20 +1,67 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
-<html resid="1013" level="3" sublinks="*"><head>
+<html resid="1013" level="3" sublinks="*">
+<head>
   <title>Commandline Parameters</title>
   <link rel="stylesheet" href="../common/infstyle.css" type="text/css">
 </head>
 <body>
 <h2>PM123's Command line Parameters</h2>
 <p>PM123 accepts a couple command line parameters:</p>
+<blockquote>
+  <p><tt>pm123 </tt>[<tt>-configdir <var>dir</var></tt>] [<tt>-pipe <var>pipename</var></tt>]
+[<tt>-start</tt>] [<tt>-nogui</tt>] [<tt>-shuffle</tt>] [<tt><var>URL</var>
+  </tt>[<tt><var>URL</var> </tt>...]|<tt>-cmd <var>command</var></tt>]</p>
+</blockquote>
 <dl>
-  <dt><tt>-cmd [host] command</tt></dt>
-  <dd>If `host' is omitted, send commands to local PM123, otherwise
-    send commands to PM123 running on `host'. For a command listing,
-    see <a href="remote.html">PM123 Remote control</a>.</dd>
-  <dt><tt>-shuffle</tt></dt>
+  <dt><tt>-configdir <var>dir</var></tt></dt>
+  <dd>Search in <tt><var>dir</var></tt>
+for the configuration files instead of the programs executable
+directory.<sup><a href="#note1">(1)</a></sup></dd>
+  <dt><tt>-pipe <var>pipename</var></tt></dt>
+  <dd>Use <tt><var>pipename</var></tt>
+instead of the name in the configuration file as remote pipe name. This
+applies to <tt>-cmd</tt> as well
+as to GUI starts. Note that OS/2 pipe names must start with <tt>\\PIPE\</tt>.
+Example: <samp>-pipe \\PIPE\MYPIPENAME</samp></dd>
+  <dt><tt>-start</tt></dt>
+  <dd>Start PM123 if not yet running. This implicitely checks whether
+the pipe name is already used and if not PM123 keeps running. Otherwise
+the just started instance terminates immediately.<br>
+  </dd>
+  <dt><tt>-nogui</tt></dt>
+  <dd>Do not show the PM123 window by default. User interface windows
+might still be shown by the remote interface. </dd>
+  <dt><tt>-shuffle</tt><i>
+(deprecated)</i><tt> </tt></dt>
   <dd>Shuffles files added from command line.</dd>
+  <dt><tt>-cmd </tt>[<tt><var>host</var></tt>]<tt> <var>command...</var></tt></dt>
+  <dd>If <tt><var>host</var></tt>
+is omitted, send commands to local PM123, otherwise send commands to
+PM123 running on <tt><var>host</var></tt>.
+For a command listing, see <a href="remote.html">PM123 Remote control</a>.
+No further options must follow <tt>-cmd</tt>. </dd>
+  <dt><tt>-smooth</tt> <i>(not supported)</i> </dt>
+  <dd>Ignored for compatibility with older PM123 versions.</dd>
 </dl>
-<p>PM123 also accepts MP3 files, URLs, playlists, directories and CD tracks as command line
-  parameters. The CD track can be specified as <tt>cd:///<var>J</var>:/Track </var>XX</var></tt>,
-  where <tt><var>J</var></tt> is a CD drive letter and <tt><var>XX</var></tt> is a CD track number.</p>
-</body></html>
+<p>PM123 also accepts MP3 files, <a href="urlformat.html">URLs</a>,
+playlists, directories, CD tracks and whatever a <a
+ href="plug-ins.html">plug-in</a> understands as command line
+parameters. The CD track can be specified as <tt>cd:///<var>J</var>:/Track
+<var>XX</var></tt>, where <tt><var>J</var></tt> is a CD drive letter
+and <tt><var>XX</var></tt> is a CD track number. The effect is similar
+to dropping multiple files on PM123.</p>
+<p><strong>You must not start PM123 from a batch file with an explicit
+path.</strong> The current working directory must be the executables
+path.
+</p>
+<h3>Notes</h3>
+<ol>
+  <li>
+    <p><a name="note1"></a><strong></strong>OS/2 cannot load PM123's
+DLL modules if the current working directory is not the executable
+directory of PM123. So <tt>-configdir</tt> is the only chance to use a
+different configuration directory.</p>
+  </li>
+</ol>
+</body>
+</html>

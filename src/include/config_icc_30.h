@@ -28,6 +28,7 @@ void _CRT_term( void );
 #define DLLENTRYP(sym) (*DLLENTRY sym)
 #define DLLENTRYPF() (*DLLENTRY)
 #define DLLENTRYP2(sym) (DLLENTRY *sym)
+#define DLLENTRYPF2() (DLLENTRY*)
 
 #define INIT_ATTRIBUTE
 #define TERM_ATTRIBUTE

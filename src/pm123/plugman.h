@@ -2,7 +2,7 @@
  * Copyright 1997-2003 Samuel Audet  <guardia@step.polymtl.ca>
  *                     Taneli Lepp�  <rosmo@sektori.com>
  * Copyright 2004-2006 Dmitry A.Steklenev <glass@ptv.ru>
- * Copyright 2006-2010 Marcel Mueller
+ * Copyright 2006-2011 Marcel Mueller
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -32,20 +32,13 @@
 #ifndef PM123_PLUGMAN_H
 #define PM123_PLUGMAN_H
 
-#include "pipe.h"
 #include <plugin.h>
 #include <decoder_plug.h>
-#include <vdelegate.h>
-#include <cpp/container/sorted_vector.h>
 #include <cpp/container/inst_index.h>
 #include <cpp/event.h>
 #include <cpp/xstring.h>
 #include <cpp/container/stringmap.h>
 
-
-/*
- * Plug-in base classes
- */
 
 typedef struct
 { int     x, y, cx, cy;
@@ -62,16 +55,11 @@ typedef struct
  *
  ***************************************************************************/
 class Module
-: public Iref_count,
-  public IComparableTo<xstring>,
-  public inst_index<Module, const xstring>
-{private:
-  /// New modules are always created by this factory
-  class ModuleFactory : public inst_index<Module, const xstring>::IFactory
-  { virtual Module* operator()(const xstring& key);
-  };
- protected:
+: public Iref_count
+, public inst_index<Module, const xstring, &xstring::compare>
+{protected:
   HMODULE                  HModule;
+  xstring                  ModuleName;
   PLUGIN_QUERYPARAM        QueryParam;
  private: // Static storage for plugin_init.
   PLUGIN_API               PluginApi;
@@ -80,9 +68,6 @@ class Module
  private:
   /// Entry point of the configure dialog (if any).
   void DLLENTRYP(plugin_configure)(HWND hwnd, HMODULE module);
-  sco_ptr<ACommandProcessor> CommandInstance;
-  xstring                  CommandReply;
-  VDELEGATE                vd_exec_command, vd_query_profile, vd_write_profile;
  private: // non-copyable
   Module(const Module&);
   void operator=(const Module&);
@@ -91,16 +76,15 @@ class Module
   bool LoadModule();
   /// Unload the DLL.
   bool UnloadModule();
-  // Proxy functions for PLUGIN_CONTEXT
-  PROXYFUNCDEF const char* DLLENTRY proxy_exec_command ( Module* mp, const char* cmd );
-  PROXYFUNCDEF int         DLLENTRY proxy_query_profile( Module* mp, const char* key, void* data, int maxlength );
-  PROXYFUNCDEF int         DLLENTRY proxy_write_profile( Module* mp, const char* key, const void* data, int length );
- public:
+ protected:
   /// Create a Module object from the module file name.
   Module(const xstring& name);
+ private:
+  static Module* Factory(const xstring& key);
+ public:
   ~Module();
   /// Return full qualified module name.
-  const xstring& GetModuleName() const       { return Key; }
+  const xstring& GetModuleName() const       { return ModuleName; }
   /// Return reply of \c plugin_query.
   const PLUGIN_QUERYPARAM& GetParams() const { return QueryParam; }
   /// Load the address of a DLL entry point.
@@ -114,14 +98,12 @@ class Module
   bool    Load();
   /// Launch the configure dialog.
   /// @param hwnd Parent window.
-  void    Config(HWND hwnd) const            { DEBUGLOG(("Module(%p{%s})::Config(%p) - %p\n", this, GetModuleName().cdata(), hwnd, plugin_configure));
-                                               if (plugin_configure) (*plugin_configure)(hwnd, HModule); }
-  /// @brief Comparator for repository.
-  /// @details Implementation of \c IComparableTo<xstring>.
-  virtual int compareTo(const xstring& key) const;
+  void    Config(HWND hwnd) const            { DEBUGLOG(("Module(%p{%s})::Config(%p) - %p\n", this, Key.cdata(), hwnd, plugin_configure));
+                                               if (plugin_configure != NULL) (*plugin_configure)(hwnd, HModule); }
+
   /// Ensure access to a Module.
   /// @return The function returns \c NULL if the module cannot be instantiated.
-  static int_ptr<Module> GetByKey(const xstring& name) { ModuleFactory mf; return inst_index<Module, const xstring>::GetByKey(name, (ModuleFactory&)mf); }
+  static int_ptr<Module> GetByKey(const xstring& name) { return inst_index<Module, const xstring, &xstring::compare>::GetByKey(name, &Module::Factory); }
 };
 
 
@@ -186,11 +168,9 @@ class Plugin
   virtual      ~Plugin();
   /// Getter to the underlying module.
   Module&      GetModule() const  { return *ModRef; }
-  /// Return full qualified module name. Same as GetModule().GetModuleName() for convenience.
-  const xstring& GetModuleName() const { return GetModule().GetModuleName(); }
   /// Return kind of plug-in handled by the class instance.
   PLUGIN_TYPE  GetType() const    { return PluginType; }
-  // Raise plugin_event
+  /// Raise plugin_event
   void         RaisePluginChange(EventArgs::event ev);
 
   /// @brief Load the current plug-in.

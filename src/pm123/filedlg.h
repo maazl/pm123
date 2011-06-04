@@ -34,11 +34,8 @@
 #include <cpp/container/vector.h>
 #include <os2.h>
 
-#ifdef __cplusplus
-FLAGSATTRIBUTE(DECODER_TYPE);
 
-extern "C" {
-#endif
+FLAGSATTRIBUTE(DECODER_TYPE);
 
 /* file dialog additional flags */
 #define FDU_DIR_ENABLE       0x0001
@@ -80,7 +77,4 @@ int amp_decoder_by_type(DECODER_TYPE flagsreq, const char* filter, xstring& form
  */
 HWND amp_file_dlg( HWND hparent, HWND howner, PFILEDLG filedialog );
 
-#ifdef __cplusplus
-}
-#endif
 #endif /* PM123_FILEDLG_H */

@@ -235,6 +235,7 @@ struct AggregateInfo
   unsigned               NextRevision()           { return Revision++; }
 };
 
+// TODO: remove this class
 class AllInfo
 : public DecoderInfo
 , public AggregateInfo

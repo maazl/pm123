@@ -33,91 +33,19 @@
 #include <config.h>
 #include "aplayable.h"
 #include "playableref.h"
+#include "playableinstance.h"
 #include "collectioninfocache.h"
 
 #include <cpp/mutex.h>
 #include <cpp/smartptr.h>
 #include <cpp/cpputil.h>
-#include <cpp/container/inst_index.h>
+//#include <cpp/container/inst_index.h>
 #include <cpp/container/sorted_vector.h>
 #include <cpp/container/list.h>
 #include <cpp/url123.h>
 
 #include <time.h>
 
-
-/** @brief Instance of a PlayableRef within a laylist.
- *
- * Calling non-constant methods unsynchronized will not cause the application
- * to have undefined behavior. It will only cause the PlayableInstance to have a
- * non-deterministic but valid state.
- * The relationship of a PlayableInstance to it's parent container is weak.
- * That means that the PlayableInstance may be detached from the container before it dies.
- * A detached PlayableInstance will die as soon as it is no longer used. It may not be
- * reattached to a container.
- * That also means that there is no way to get a reference to the actual parent,
- * because once you got the reference it might immediately get invalid.
- * And to avoid this, the parent must be locked, which is impossible to ensure, of course.
- * All you can do is to verify whether the current PlayableInstance belongs to a given parent.
- */
-class PlayableInstance : public PlayableRef
-{public:
-  typedef int (*Comparer)(const PlayableInstance& l, const PlayableInstance& r);
-
- protected:
-  /// Weak reference to the parent Collection.
-  const Playable* volatile Parent;
-  /// Index within the collection.
-  int                      Index;
-
- private: // non-copyable
-  PlayableInstance(const PlayableInstance& r);
-  void operator=(const PlayableInstance& r);
- protected:
-  PlayableInstance(const Playable& parent, APlayable& refto);
- public:
-  //virtual                  ~PlayableInstance() {}
-  /// Check if this instance (still) belongs to a collection.
-  /// The return value true is not reliable unless the collection is locked.
-  /// Calling this method with NULL will check whether the instance does no longer belong to a collection.
-  /// In this case only the return value true is reliable.
-  #ifdef DEBUG_LOG
-  virtual bool             HasParent(const Playable* parent) const
-                           { if (Parent == parent)
-                               return true;
-                             DEBUGLOG(("PlayableInstnace(%p)::HasParent(%p) - %p\n", this, parent, Parent));
-                             return false;
-                           }
-  #else
-  virtual bool             HasParent(const Playable* parent) const
-                           { return Parent == parent; }
-  #endif
-
-  /// Returns the index within the current collection counting from 1.
-  /// A return value of 0 indicates the the instance does no longer belong to a collection.
-  /// The return value is only reliable while the collection is locked.
-  int                      GetIndex() const    { return Index; }
-
-  /*// Swap instance properties (fast)
-  // You must not swap instances that belong to different PlayableCollection objects or
-  // refer to different objects.
-  // The collection must be locked when calling Swap.
-  // Swap does not swap the current status.
-          void             Swap(PlayableRef& r);*/
-
-  // Compare two PlayableInstance objects by value.
-  // Two instances are equal if on only if they belong to the same PlayableCollection,
-  // share the same Playable object (=URL) and have the same properties values for alias and slice.
-  //friend bool              operator==(const PlayableInstance& l, const PlayableInstance& r);
-
-  // Return the logical ordering of two Playableinstances.
-  // 0       = equal
-  // <0      = l before r
-  // >0      = l after r
-  // INT_MIN = unordered (The PlayableInstances do not belong to the same collection.)
-  // Note that the result is not reliable unless you hold the mutex of the parent.
-  //int                      CompareTo(const PlayableInstance& r) const;
-};
 
 
 /** @brief Class to support any playable object.
@@ -137,9 +65,8 @@ class PlayableInstance : public PlayableRef
  * it must create a \c int_ptr<Playable> object. This will work as expected.
  */
 class Playable
-: public APlayable,
-  public InstanceCompareable<Playable>,
-  public IComparableTo<const char*>
+: public APlayable
+//,  public inst_index<Playable,xstring,&xstring::compare>
 {public:
   /// Options for \c SerializeItem
   enum SerializationOptions
@@ -159,6 +86,13 @@ class Playable
     static const ItemInfo   Item;           // always empty!
    public:
     MyInfo();
+    ~MyInfo()                                { if (item != &Item) delete item; }
+    /// @brief Override the item information of this instance.
+    /// @param newitem This item information replaces the current.
+    /// @ The structure takes the ownership of \c *newitem.
+    /// @remarks This function does not raise any changed events.
+    /// Furthermore it is not intended to be used twice on the same object.
+    void                    SetItem(ItemInfo* newitem) { ASSERT(item == &Item); item = newitem; }
   };
 
   /// Internal representation of a PlayableInstance as linked list item.
@@ -266,8 +200,14 @@ class Playable
   Playable(const url123& url);
   /// Implement \c GetOverridden private, because it makes no sense for \c Playable.
   virtual InfoFlags         GetOverridden() const;
+  /// Mark the object as modified (or not)
+          void              SetModified(bool modified);
+
  public:
   virtual                   ~Playable();
+
+  /// Assign an alias name (like 'Bookmarks') for this entity.
+  void                      SetAlias(const xstring& alias);
 
   /// Display name
   /// @return This returns either Info.meta.title or the object name of the current URL.
@@ -283,6 +223,9 @@ class Playable
   virtual void              SetInUse(bool used);
   /// Check whether the current Collection is a modified shadow of an unmodified backend.
   bool                      IsModified() const { return Modified; }
+
+  /// Access to request state for diagnostic purposes (may be slow).
+  virtual void              PeekRequest(RequestState& req) const;
 
   /// @brief Provides cached information about the current object.
   /// @details The information is taken over if and only if the specified information is currently in virgin state.
@@ -328,6 +271,13 @@ class Playable
   /// Randomize record sequence.
   /// @return The function returns \c false if the update flags cannot be locked.
   bool                      Shuffle();
+  /// Save content of the current playlist under \a dest.
+  /// @param dest URL of the destination where to save the content. This might be the same than the current URL or not.
+  /// @param decoder Name of the decoder to use for saving. Must be valid.
+  /// @param format Format to save. Depending on the decoder this might be \c NULL.
+  /// @param relative Use relative paths in the playlist.
+  /// @return true: succeeded.
+  bool                      Save(const url123& dest, const char* decoder, const char* format, bool relative);
 
  private: // Internal dispatcher functions
   virtual const Playable&   DoGetPlayable() const;
@@ -339,8 +289,10 @@ class Playable
   virtual int_ptr<Location> GetStopLoc() const;
 
  // Repository
+ public:
+  static  int               compare(const Playable& l, const xstring& r);
  private:
-  static  sorted_vector<Playable, const char*> RPInst;
+  static  sorted_vector<Playable, xstring, &Playable::compare> RPInst;
   static  Mutex             RPMutex;
   static  clock_t           LastCleanup;   // Time index of last cleanup run
           clock_t           LastAccess;    // Time index of last access to this instance (used by Cleanup)
@@ -350,11 +302,11 @@ class Playable
   #endif
   static  void              DetachObjects(const vector<Playable>& list);
  public:
-  virtual int               compareTo(const char*const& str) const;
+  /*virtual int               compareTo(const char*const& str) const;
   // ICC don't know using
-  int                       compareTo(const Playable& r) const { return InstanceCompareable<Playable>::compareTo(r); }
+  int                       compareTo(const Playable& r) const { return InstanceCompareable<Playable>::compareTo(r); }*/
   // Seek whether an URL is already loaded.
-  static  int_ptr<Playable> FindByURL(const char* url);
+  static  int_ptr<Playable> FindByURL(const xstring& url);
   // FACTORY! Get a new or an existing instance of this URL.
   // The optional parameters ca_* are preloaded informations.
   // This is returned by the appropriate Get* functions without the need to access the underlying data source.

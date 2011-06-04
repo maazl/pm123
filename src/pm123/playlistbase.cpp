@@ -1,5 +1,5 @@
 /*
- * Copyright 2007-2011 Marcel M�eller
+ * Copyright 2007-2011 Marcel Mueeller
  *           1997-2003 Samuel Audet <guardia@step.polymtl.ca>
  *                     Taneli Lepp� <rosmo@sektori.com>
  *
@@ -40,8 +40,10 @@
 #include "playlistmanager.h"
 #include "playlistview.h"
 #include "infodialog.h"
+#include "inspector.h"
 #include "playable.h"
 #include "waitinfo.h"
+#include "loadhelper.h"
 #include "pm123.h"
 #include "gui.h"
 #include "dialog.h"
@@ -85,20 +87,6 @@ xstring PlaylistBase::DebugName() const
 { return Content->URL.getShortName();
 }
 #endif
-
-
-PlaylistBase::MakePlayableSet::MakePlayableSet(Playable* pp)
-{ DEBUGLOG(("PlaylistBase::MakePlayableSet::MakePlayableSet(%p{%s})\n", pp, pp->URL.cdata()));
-  get(*pp) = pp;
-}
-PlaylistBase::MakePlayableSet::MakePlayableSet(const vector<RecordBase>& recs)
-{ DEBUGLOG(("PlaylistBase::MakePlayableSet::MakePlayableSet({%u...})\n", recs.size()));
-  const RecordBase*const* rpp = recs.end();
-  while (rpp-- != recs.begin())
-  { Playable& pp = (*rpp)->Data->Content->GetPlayable();
-    get(pp) = &pp;
-  }
-}
 
 
 /****************************************************************************
@@ -161,10 +149,9 @@ void PlaylistBase::InitIcons()
   IcoPlaylist[1][IC_Shadow ][ICP_Recursive] = IcoPlaylist[0][IC_Normal ][ICP_Recursive];
 }
 
-PlaylistBase::PlaylistBase(Playable& content, const xstring& alias, ULONG rid)
-: ManagedDialogBase(rid, NULLHANDLE),
+PlaylistBase::PlaylistBase(Playable& content, ULONG rid)
+: ManagedDialog<DialogBase>(rid, NULLHANDLE),
   Content(&content),
-  Alias(alias),
   HwndContainer(NULLHANDLE),
   NoRefresh(false),
   Source(8),
@@ -172,7 +159,7 @@ PlaylistBase::PlaylistBase(Playable& content, const xstring& alias, ULONG rid)
   RootInfoDelegate(*this, &PlaylistBase::InfoChangeEvent, NULL),
   RootPlayStatusDelegate(*this, &PlaylistBase::PlayStatEvent),
   PluginDelegate(Plugin::ChangeEvent, *this, &PlaylistBase::PluginEvent)
-{ DEBUGLOG(("PlaylistBase(%p)::PlaylistBase(&%p{%s}, %s, %u)\n", this, &content, content.URL.cdata(), alias.cdata(), rid));
+{ DEBUGLOG(("PlaylistBase(%p)::PlaylistBase(&%p{%s}, %u)\n", this, &content, content.URL.cdata(), rid));
   static bool first = true;
   if (first)
   { InitIcons();
@@ -189,7 +176,7 @@ PlaylistBase::~PlaylistBase()
 }
 
 void PlaylistBase::PostRecordUpdate(RecordBase* rec, InfoFlags flags)
-{ AtomicUnsigned& il = StateFromRec(rec).Update;
+{ AtomicUnsigned& il = StateFromRec(rec).UpdateFlags;
   DEBUGLOG(("PlaylistBase(%p)::PostRecordUpdate(%p, %u) - %x\n", this, rec, flags, il.get()));
   // Check whether the requested bit is already set or there are other events pending.
   unsigned last = il;
@@ -206,7 +193,7 @@ void PlaylistBase::PostRecordUpdate(RecordBase* rec, InfoFlags flags)
 
 void PlaylistBase::FreeRecord(RecordBase* rec)
 { DEBUGLOG(("PlaylistBase(%p)::FreeRecord(%p)\n", this, rec));
-  if (rec && InterlockedDec(&rec->UseCount) == 0)
+  if (rec && !--rec->UseCount)
     // we can safely post this message because the record is now no longer used anyway.
     PMRASSERT(WinPostMsg(GetHwnd(), UM_DELETERECORD, MPFROMP(rec), 0));
 }
@@ -230,7 +217,7 @@ void PlaylistBase::InitDlg()
   PMRASSERT(WinSendMsg(GetHwnd(), WM_SETICON, (MPARAM)hicon, 0));
   { // initial position
     SWP swp;
-    PMXASSERT(WinQueryTaskSizePos(amp_player_hab(), 0, &swp), == 0);
+    PMXASSERT(WinQueryTaskSizePos(amp_player_hab, 0, &swp), == 0);
     PMRASSERT(WinSetWindowPos(GetHwnd(), NULLHANDLE, swp.x,swp.y, 0,0, SWP_MOVE));
   }
   do_warpsans(GetHwnd());
@@ -247,7 +234,7 @@ void PlaylistBase::InitDlg()
 
   { // initial position
     SWP swp;
-    PMXASSERT(WinQueryTaskSizePos(amp_player_hab(), 0, &swp), == 0);
+    PMXASSERT(WinQueryTaskSizePos(amp_player_hab, 0, &swp), == 0);
     PMRASSERT(WinSetWindowPos(GetHwnd(), NULLHANDLE, swp.x,swp.y, 0,0, SWP_MOVE));
   }
   rest_window_pos(GetHwnd(), Content->URL);
@@ -285,7 +272,7 @@ MRESULT PlaylistBase::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
 
       // process outstanding UM_DELETERECORD messages before we quit to ensure that all records are back to the PM before we die.
       QMSG qmsg;
-      while (WinPeekMsg(amp_player_hab(), &qmsg, GetHwnd(), UM_DELETERECORD, UM_DELETERECORD, PM_REMOVE))
+      while (WinPeekMsg(amp_player_hab, &qmsg, GetHwnd(), UM_DELETERECORD, UM_DELETERECORD, PM_REMOVE))
       { DEBUGLOG2(("PlaylistBase::DlgProc: WM_DESTROY: %x %x %x %x\n", qmsg.hwnd, qmsg.msg, qmsg.mp1, qmsg.mp2));
         DlgProc(qmsg.msg, qmsg.mp1, qmsg.mp2); // We take the short way here.
       }
@@ -522,16 +509,22 @@ MRESULT PlaylistBase::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
 
        case IDM_PL_PROPERTIES:
         if (Source.size() == 1)
-          UserOpenInfoView(Source[0], AInfoDialog::Page_ItemInfo);
+        { AInfoDialog::KeyType set;
+          PopulateSetFromSource(set);
+          UserOpenInfoView(set, AInfoDialog::Page_ItemInfo);
+        }
         break;
        case IDM_PL_INFOALL:
-        UserOpenInfoView(MakePlayableSet(Content), AInfoDialog::Page_TechInfo);
+        { AInfoDialog::KeyType set;
+          set.get(*Content) = Content;
+          UserOpenInfoView(set, AInfoDialog::Page_TechInfo);
+        }
         break;
        case IDM_PL_INFO:
-        if (Source.size() == 1)
-          UserOpenInfoView(Source[0], AInfoDialog::Page_MetaInfo);
-        else
-          UserOpenInfoView(MakePlayableSet(Source), AInfoDialog::Page_MetaInfo);
+        { AInfoDialog::KeyType set;
+          PopulateSetFromSource(set);
+          UserOpenInfoView(set, AInfoDialog::Page_MetaInfo);
+        }
         break;
 
        case IDM_PL_EDIT:
@@ -645,6 +638,10 @@ MRESULT PlaylistBase::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
         UserSave(true);
         break;
 
+       case IDM_M_INSPECTOR:
+         InspectorDialog::GetInstance()->SetVisible(true);
+         break;
+
       } // switch (cmd)
       return 0;
     }
@@ -652,7 +649,7 @@ MRESULT PlaylistBase::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
    case UM_RECORDUPDATE:
     { RecordBase* rec = (RecordBase*)PVOIDFROMMP(mp1);
       DEBUGLOG(("PlaylistBase::DlgProc: UM_RECORDCOMMAND: %s, %i, %x\n",
-        RecordBase::DebugName(rec).cdata(), SHORT1FROMMP(mp2), StateFromRec(rec).Update.get()));
+        RecordBase::DebugName(rec).cdata(), SHORT1FROMMP(mp2), StateFromRec(rec).UpdateFlags.get()));
       UpdateRecord(rec);
       // Free the record in case this is requested.
       if (SHORT1FROMMP(mp2))
@@ -698,11 +695,7 @@ MRESULT PlaylistBase::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
       return 0;
     }
   }
-  return ManagedDialogBase::DlgProc(msg, mp1, mp2);
-}
-
-int PlaylistBase::compareTo(const Playable& r) const
-{ return Content->compareTo(r);
+  return ManagedDialog<DialogBase>::DlgProc(msg, mp1, mp2);
 }
 
 HPOINTER PlaylistBase::CalcIcon(RecordBase* rec)
@@ -732,7 +725,7 @@ void PlaylistBase::SetTitle()
     append = " [invalid]";
   else if (Content->IsInUse())
     append = " [used]";
-  DialogBase::SetTitle(xstring::sprintf("PM123: %s%s%s", GetDisplayName().cdata(),
+  DialogBase::SetTitle(xstring::sprintf("PM123: %s%s%s", Content->GetDisplayName().cdata(),
     (tattr & TATTR_PLAYLIST) && Content->IsModified() ? " (*)" : "", append));
 }
 
@@ -775,7 +768,7 @@ PlaylistBase::RecordBase* PlaylistBase::MoveEntry(RecordBase* entry, RecordBase*
 void PlaylistBase::RemoveEntry(RecordBase* const entry)
 { DEBUGLOG(("PlaylistBase(%p{%s})::RemoveEntry(%p)\n", this, DebugName().cdata(), entry));
   // deregister events
-  entry->Data->DeregisterEvents();
+  entry->Data->InfoChange.detach();
   // Delete the children
   RemoveChildren(entry);
   // Remove record from container
@@ -944,6 +937,24 @@ void PlaylistBase::Apply2Source(void (PlaylistBase::*op)(RecordBase*))
     (this->*op)(*rpp);
 }
 
+void PlaylistBase::PopulateSetFromSource(AInfoDialog::KeyType& dest)
+{ const RecordBase* parent = NULL;
+  int state = 0; // 0 = virgin, 1 = assigned, 2 = non-unique
+  for (const RecordBase*const* rpp = Source.begin(); rpp != Source.end(); ++rpp)
+  { Playable& p = (*rpp)->Data->Content->GetPlayable();
+    dest.get(p) = &p;
+    const RecordBase* prec = GetParent(*rpp);
+    if (!state)
+    { parent = prec;
+      state = 1;
+    } else if (parent != prec)
+      state = 2;
+  }
+  // unique parent?
+  if (state == 1)
+    dest.Parent = &PlayableFromRec(parent);
+}
+
 void PlaylistBase::SetEmphasis(USHORT emphasis, bool set) const
 { DEBUGLOG(("PlaylistBase(%p)::SetEmphasis(%x, %u) - %u\n", this, emphasis, set, Source.size()));
   if (Source.size() == 0)
@@ -963,16 +974,19 @@ PlaylistBase::RecordType PlaylistBase::AnalyzeRecordTypes() const
 { RecordType ret = RT_None;
   for (RecordBase*const* rpp = Source.end(); rpp-- != Source.begin(); )
   { const INFO_BUNDLE_CV& info = (*rpp)->Data->Content->GetInfo();
+    unsigned pattr = info.phys->attributes;
     unsigned tattr = info.tech->attributes;
-    if (tattr & TATTR_INVALID)
+    if ((pattr & PATTR_INVALID) || (tattr & TATTR_INVALID))
     { ret |= RT_Invld;
       continue;
     }
-    bool writable = (tattr & TATTR_WRITABLE) && (info.phys->attributes & PATTR_WRITABLE);
+    bool writable = (tattr & TATTR_WRITABLE) && (pattr & PATTR_WRITABLE);
     if (tattr & TATTR_SONG)
       ret |= writable ? RT_Meta : RT_Song;
     if (tattr & TATTR_PLAYLIST)
       ret |= writable ? RT_List : RT_Enum;
+    if ((tattr & (TATTR_SONG|TATTR_PLAYLIST|TATTR_INVALID)) == TATTR_NONE)
+      ret |= RT_Unknwn;
   }
   DEBUGLOG(("PlaylistBase::AnalyzeRecordTypes(): %u, %x\n", Source.size(), ret));
   return ret;
@@ -1055,7 +1069,7 @@ void PlaylistBase::PlayStatEvent(const Ctrl::EventFlags& flags)
 { if (flags & Ctrl::EV_PlayStop)
   { // Cancel any outstanding UM_PLAYSTATUS ...
     QMSG qmsg;
-    WinPeekMsg(amp_player_hab(), &qmsg, GetHwnd(), UM_PLAYSTATUS, UM_PLAYSTATUS, PM_REMOVE);
+    WinPeekMsg(amp_player_hab, &qmsg, GetHwnd(), UM_PLAYSTATUS, UM_PLAYSTATUS, PM_REMOVE);
     // ... and send a new one.
     PMRASSERT(WinPostMsg(GetHwnd(), UM_PLAYSTATUS, MPFROMLONG(Ctrl::IsPlaying()), 0));
   }
@@ -1063,7 +1077,7 @@ void PlaylistBase::PlayStatEvent(const Ctrl::EventFlags& flags)
 
 void PlaylistBase::PluginEvent(const Plugin::EventArgs& args)
 { DEBUGLOG(("PlaylistBase(%p)::PluginEvent({&%p{%s}, %i})\n", this,
-    &args.Plug, args.Plug.GetModuleName().cdata(), args.Operation));
+    &args.Plug, args.Plug.GetModule().Key.cdata(), args.Operation));
   if (args.Plug.GetType() == PLUGIN_DECODER)
   { switch (args.Operation)
     {case Plugin::EventArgs::Enable:
@@ -1096,7 +1110,7 @@ void PlaylistBase::UserAdd(DECODER_WIZARD_FUNC wizard, RecordBase* parent, Recor
 
   // Dialog
   UserAddCallbackParams ucp(this, parent, before); // Implicitly locks the records
-  const xstring& title = "Append%s to " + (parent ? parent->Data->Content->GetDisplayName() : GetDisplayName());
+  const xstring& title = "Append%s to " + APlayableFromRec(parent).GetDisplayName();
   ULONG ul = (*wizard)(GetHwnd(), title, &UserAddCallback, &ucp);
   DEBUGLOG(("PlaylistBase::UserAdd - %u\n", ul));
 
@@ -1204,31 +1218,20 @@ void PlaylistBase::UserFlattenAll(RecordBase* rec)
 void PlaylistBase::UserSave(bool saveas)
 { DEBUGLOG(("PlaylistBase(%p)::UserSave(%u)\n", this, saveas));
   amp_save_playlist(GetHwnd(), *Content, saveas);
+  // TODO change window root in case of success.
 }
 
 void PlaylistBase::UserOpenTreeView(Playable& p)
 { if (p.GetInfo().tech->attributes & TATTR_PLAYLIST)
-  { xstring alias;
-    if (p == *Content)
-      alias = Alias;
-    PlaylistManager::Get(p, alias)->SetVisible(true);
-  }
+    PlaylistManager::GetByKey(p)->SetVisible(true);
 }
 
 void PlaylistBase::UserOpenDetailedView(Playable& p)
 { if (p.GetInfo().tech->attributes & TATTR_PLAYLIST)
-  { xstring alias;
-    if (p == *Content)
-      alias = Alias;
-    PlaylistView::Get(p, alias)->SetVisible(true);
-  }
+    PlaylistView::GetByKey(p)->SetVisible(true);
 }
 
-void PlaylistBase::UserOpenInfoView(RecordBase* rec, AInfoDialog::PageNo page)
-{ AInfoDialog::GetByKey(*Content, *rec->Data->Content)->ShowPage(page);
-}
-
-void PlaylistBase::UserOpenInfoView(const PlayableSet& set, AInfoDialog::PageNo page)
+void PlaylistBase::UserOpenInfoView(const AInfoDialog::KeyType& set, AInfoDialog::PageNo page)
 { AInfoDialog::GetByKey(set)->ShowPage(page);
 }
 
@@ -1253,7 +1256,10 @@ void PlaylistBase::UserEditMeta()
   }
   switch (Source.size())
   {default: // multiple items
-    AInfoDialog::GetByKey(MakePlayableSet(Source))->ShowPage(AInfoDialog::Page_MetaInfo);
+    { AInfoDialog::KeyType set;
+      PopulateSetFromSource(set);
+      AInfoDialog::GetByKey(set)->ShowPage(AInfoDialog::Page_MetaInfo);
+    }
     break;
    case 1:
     GUI::ShowDialog(Source[0]->Data->Content->GetPlayable(), GUI::DLT_INFOEDIT);

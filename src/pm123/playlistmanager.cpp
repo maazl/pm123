@@ -61,14 +61,32 @@
 *
 ****************************************************************************/
 
+PlaylistManager* PlaylistManager::Factory(Playable*const& key)
+{ return new PlaylistManager(*key);
+}
 
-PlaylistManager::PlaylistManager(Playable& content, const xstring& alias)
-: PlaylistRepository<PlaylistManager>(content, alias, DLG_PM),
-  MainMenu(NULLHANDLE),
-  RecMenu(NULLHANDLE)
-{ DEBUGLOG(("PlaylistManager(%p)::PlaylistManager(&%p, %s)\n", this, &content, alias.cdata()));
+PlaylistManager::PlaylistManager(Playable& content)
+: PlaylistBase(content, DLG_PM)
+, inst_index<PlaylistManager, Playable*const, &ComparePtr<Playable> >(&content)
+, MainMenu(NULLHANDLE)
+, RecMenu(NULLHANDLE)
+{ DEBUGLOG(("PlaylistManager(%p)::PlaylistManager(&%p)\n", this, &content));
   StartDialog();
 }
+
+const int_ptr<PlaylistBase> PlaylistManager::GetSame(Playable& obj)
+{ return &*GetByKey(obj);
+}
+
+void PlaylistManager::DestroyAll()
+{ IXAccess index;
+  DEBUGLOG(("PlaylistManager::DestroyAll() - %d\n", index->size()));
+  // The instances deregister itself from the repository.
+  // Starting at the end avoids the memcpy calls for shrinking the vector.
+  while (index->size())
+    (*index)[index->size()-1]->Destroy();
+}
+
 
 void PlaylistManager::PostRecordUpdate(RecordBase* rec, InfoFlags flags)
 { DEBUGLOG(("PlaylistManager(%p)::PostRecordCommand(%p, %x)\n", this, rec, flags));
@@ -268,7 +286,7 @@ HWND PlaylistManager::InitContextMenu()
     mn_enable_item(hwndMenu, IDM_PL_TREEVIEW, rt & (RT_Enum|RT_List));
     mn_enable_item(hwndMenu, IDM_PL_EDIT,     rt == RT_Meta);
     mn_enable_item(hwndMenu, IDM_PL_FLATTEN,  rt & (RT_Enum|RT_List));
-    mn_enable_item(hwndMenu, IDM_PL_REFRESH,  rt & (RT_Song|RT_Meta));
+    //mn_enable_item(hwndMenu, IDM_PL_REFRESH,  rt & (RT_Song|RT_Meta));
     mn_enable_item(hwndMenu, IDM_PL_APPEND,   rt & (RT_Enum|RT_List));
     mn_enable_item(hwndMenu, IDM_PL_SORT,     rt & (RT_Enum|RT_List));
 
@@ -436,7 +454,7 @@ void PlaylistManager::UpdateRecord(RecordBase* rec)
   bool update = false;
   for(;;)
   { // reset pending message flag
-    InfoFlags flags = (InfoFlags)StateFromRec(rec).Update.swap(IF_None);
+    InfoFlags flags = (InfoFlags)StateFromRec(rec).UpdateFlags.swap(IF_None);
     DEBUGLOG(("PlaylistManager::UpdateRecord - %x\n", flags));
     if (flags == IF_None)
       break;

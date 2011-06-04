@@ -26,3 +26,69 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+pipe = '\pipe\pm123test'
+CALL VALUE 'PIPE',pipe,'OS2ENVIRONMENT'
+
+IF RxFuncAdd('SysLoadFuncs', 'RexxUtil', 'SysLoadFuncs') = 0 THEN
+  CALL SysLoadFuncs
+
+/* init */
+CALL DoInit
+
+/* execute test cases */
+CALL SysFileTree 'test_*.cmd', files, 'FO'
+DO i = 1 TO files.0
+  file = FILESPEC('N', files.i)
+  file = SUBSTR(file, 1, LENGTH(file)-4)
+  CALL DoTest file
+  END
+
+/* print summary */
+CALL DoFinish
+
+EXIT summary.failed
+
+
+DoInit: PROCEDURE EXPOSE summary.
+  summary.passed = 0
+  summary.failed = 0
+
+  CALL 'init'
+  IF SYMBOL('RESULT') = 'VAR' & result \= '' THEN
+    CALL Error 29, "Failed to initialize: "result
+
+  RETURN
+
+DoTest: PROCEDURE EXPOSE summary.
+  testcase = SUBSTR(FILESPEC('N', ARG(1)), 6)
+  CALL CHAROUT , 'Testing' testcase '... '
+  /* setup */
+  CALL 'setup'
+  IF SYMBOL('RESULT') = 'VAR' & result \= '' THEN
+    CALL Error 29, "Failed to setup test case: "result
+
+  INTERPRET("CALL '"ARG(1)"'")
+  IF SYMBOL('RESULT') = 'VAR' & result \= '' THEN DO
+    SAY "failed: "result
+    summary.failed = summary.failed + 1
+    END
+  ELSE DO
+    SAY "passed"
+    summary.passed = summary.passed + 1
+    END
+
+  /* teardown */
+  CALL 'teardown'
+  RETURN
+
+DoFinish: PROCEDURE EXPOSE summary.
+  SAY
+  sum = summary.passed + summary.failed
+  SAY "Failed: "summary.failed", passed: "summary.passed", total: "sum
+  RETURN
+
+Error: PROCEDURE
+  CALL LINEOUT STDERR, ARG(2)
+  EXIT ARG(1)
+
+

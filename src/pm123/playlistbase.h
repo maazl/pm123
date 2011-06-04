@@ -1,5 +1,5 @@
 /*
- * Copyright 2007-2009 Marcel Mueller
+ * Copyright 2007-2011 Marcel Mueller
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -59,39 +59,56 @@
 /****************************************************************************
 *
 *  This abstract class represents an instance of a playlist window.
-*  Whether it is a tree view or a detailed view detremines the derived class.
+*  Whether it is a tree view or a detailed view determines the derived class.
 *
 ****************************************************************************/
 class PlaylistBase
-: public ManagedDialogBase,
-  public IComparableTo<Playable>
-{public:
+: public ManagedDialog<DialogBase>
+{protected:
+  /// Strongly typed, thread-safe bit vector of update flags for an item or the entire playlist.
   struct CommonState
-  { AtomicUnsigned      Update;   // Bitvector of outstanding update commands
-    CommonState() : Update(0) {}
+  { /// Bitvector of outstanding update commands.
+    AtomicUnsigned      UpdateFlags;
+    /// Create empty update vector.
+    CommonState() : UpdateFlags(0) {}
   };
-  // C++ part of a record
   struct RecordBase;
+  /// @brief C++ part of a container record.
+  /// @details This is referenced by the extended \c MINIRECORDCORE structure.
   struct CPDataBase
-  { int_ptr<PlayableInstance> const Content; // The pointer to the backend content.
-    xstring             Text;      // Storage for alias name <-> pszIcon
+  { /// The pointer to the backend content.
+    int_ptr<PlayableInstance> const Content;
+    /// Storage for alias name <-> pszIcon
+    xstring             Text;
+    /// Update flags
     CommonState         EvntState;
+    /// Delegate for change events of the backend content.
     class_delegate2<PlaylistBase, const PlayableChangeArgs, RecordBase> InfoChange;
+    /// Create C++ part of the record data.
+    /// @param content Backend content of this record.
+    /// @param pm parent PlaylistBase
+    /// @param infochangefn Function to be called when the change event of the backend content fires.
     CPDataBase(PlayableInstance& content, PlaylistBase& pm,
                void (PlaylistBase::*infochangefn)(const PlayableChangeArgs&, RecordBase*),
                RecordBase* rec);
+    /// Polymorphic destructor.
     virtual             ~CPDataBase() {} // free the right objects
-    virtual void        DeregisterEvents();
   };
-  // POD part of a record
+  /// @brief POD part of a record
+  /// @remarks This is a POD struct that derives from MINIRECORDCORE.
+  /// It can be directly passed to PM as long as PM is instructed to
+  /// reserve additional sizeof(RecordBase) - sizeof(MINIRECORDCORE) bytes for each record structure.
   struct RecordBase : public MINIRECORDCORE
-  { volatile unsigned   UseCount;  // Reference counter to keep Records alive while Posted messages are on the way.
-    CPDataBase*         Data;      // C++ part of the object in the private memory arena.
+  { /// Reference counter to keep Records alive while Posted messages are on the way.
+    AtomicUnsigned      UseCount;
+    /// C++ part of the object in the private memory arena.
+    CPDataBase*         Data;
     #ifdef DEBUG_LOG
     xstring             DebugName() const;
     static xstring      DebugName(const RecordBase* rec);
     #endif
   };
+ public:
   struct UserAddCallbackParams;
   friend struct UserAddCallbackParams;
   struct UserAddCallbackParams
@@ -114,6 +131,7 @@ class PlaylistBase
     }
   };
  protected: // Message Processing
+  /// User messages related to playlist container views.
   enum
   { UM_UPDATEINFO = WM_USER+0x101,
     // Execute a update command for a record.
@@ -140,27 +158,24 @@ class PlaylistBase
     UM_UPDATEDEC
   };
  public:
-  // return value of AnalyzeRecordTypes
+  /// return value of AnalyzeRecordTypes
   enum RecordType
-  { // record list is empty
+  { /// record list is empty
     RT_None = 0x00,
-    // record list contains at least one song without writable meta attributes
+    /// record list contains at least one song without writable meta attributes
     RT_Song = 0x01,
-    // record list contains at least one song with writable meta attributes
+    /// record list contains at least one song with writable meta attributes
     RT_Meta = 0x02,
-    // record list contains at least one non-mutable list
+    /// record list contains at least one non-mutable list
     RT_Enum = 0x04,
-    // record list contains at least one mutable playlist
+    /// record list contains at least one mutable playlist
     RT_List = 0x08,
-    // record list contains at least one invalid item
-    RT_Invld = 0x10
+    /// record list contains at least one invalid item
+    RT_Invld = 0x10,
+    /// record list contains at least one unknown item (RequestInfo on the way)
+    RT_Unknwn = 0x20
   };
  protected: // User actions
-  // Convenient factory class
-  struct MakePlayableSet : public PlayableSet
-  { MakePlayableSet(Playable* pp);
-    MakePlayableSet(const vector<RecordBase>& recs);
-  };
   struct InsertInfo
   { int_ptr<Playable> Parent; // List where to insert the new item
     int_ptr<PlayableInstance> Before; // Item where to do the insert
@@ -203,7 +218,6 @@ class PlaylistBase
 
  protected: // content
   int_ptr<Playable> Content;
-  xstring           Alias;         // Alias name for the window title
   HACCEL            AccelTable;    // Accelerator table - TODO: use shared accelerator table
   #if DEBUG_LOG
   xstring           DebugName() const;
@@ -227,14 +241,16 @@ class PlaylistBase
 
  protected:
   // Create a playlist manager window for an object, but don't open it.
-  PlaylistBase(Playable& content, const xstring& alias, ULONG rid);
+  PlaylistBase(Playable& content, ULONG rid);
 
   CommonState&      StateFromRec(const RecordBase* rec) { return rec ? rec->Data->EvntState : EvntState; }
   // Fetch the Playable object associated with rec. If rec is NULL the root object is returned.
   APlayable&        APlayableFromRec(const RecordBase* rec) const { return rec ? (APlayable&)*rec->Data->Content : *Content; }
+  // Fetch the Playable object associated with rec. If rec is NULL the root object is returned.
+  Playable&         PlayableFromRec(const RecordBase* rec) const { return rec ? rec->Data->Content->GetPlayable() : *Content; }
   // Prevent a Record from deletion until FreeRecord is called
   void              BlockRecord(RecordBase* rec)
-                    { if (rec) InterlockedInc(&rec->UseCount); }
+                    { if (rec) ++rec->UseCount; }
   // Free a record after it is no longer used e.g. because a record message sent with PostRecordCommand completed.
   // This function does not free the record immediately. It posts a message which does the job.
   // So you can safely access the record data until the next PM call.
@@ -301,6 +317,8 @@ class PlaylistBase
   // Apply a function to all objects in the Source array.
   void              Apply2Source(void (PlaylistBase::*op)(Playable&));
   void              Apply2Source(void (PlaylistBase::*op)(RecordBase*));
+
+  void              PopulateSetFromSource(AInfoDialog::KeyType& dest);
   // Set or clear the emphasis of the records in the Source array.
   void              SetEmphasis(USHORT emphasis, bool set) const;
   // Analyze the records in the Source array for it's types.
@@ -348,10 +366,8 @@ class PlaylistBase
   void              UserOpenTreeView(Playable& p);
   // Open detailed view
   void              UserOpenDetailedView(Playable& p);
-  // Edit Properties
-  void              UserOpenInfoView(RecordBase* rec, AInfoDialog::PageNo page);
   // View Info
-  void              UserOpenInfoView(const PlayableSet& set, AInfoDialog::PageNo page);
+  void              UserOpenInfoView(const AInfoDialog::KeyType& set, AInfoDialog::PageNo page);
   // Clear playlist
   void              UserClearPlaylist(Playable& p);
   // Refresh records
@@ -392,13 +408,8 @@ class PlaylistBase
   virtual           ~PlaylistBase();
   // Gets the content
   Playable*         GetContent() { return Content; }
-  // Get the display name of this instance. This is either the alias (if any) or the display name of the underlying URL.
-  xstring           GetDisplayName() const { return Alias ? Alias : Content->URL.getDisplayName(); }
   // Get an instance of the same type as the current instance for URL.
   virtual const int_ptr<PlaylistBase> GetSame(Playable& obj) = 0;
-
-  // IComparableTo<Playable>
-  virtual int       compareTo(const Playable& r) const;
 
 };
 FLAGSATTRIBUTE(PlaylistBase::RecordType);
@@ -412,17 +423,13 @@ inline PlaylistBase::CPDataBase::CPDataBase(
   InfoChange(pm, infochangefn, rec)
 {}
 
-inline void PlaylistBase::CPDataBase::DeregisterEvents()
-{ InfoChange.detach();
-}
-
 
 /****************************************************************************
 *
 *  Template class to assist the implementation of an instance repository
 *  of type T. T must derive from PlaylistBase.
 *
-****************************************************************************/
+****************************************************************************
 template <class T>
 class PlaylistRepository : public PlaylistBase
 {private:
@@ -493,7 +500,7 @@ PlaylistRepository<T>::~PlaylistRepository()
   #else
   RPInst.erase(*Content);
   #endif
-}
+}*/
 
 
 #endif

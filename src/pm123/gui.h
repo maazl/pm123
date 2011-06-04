@@ -26,24 +26,26 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef  GUI_H
-#define  GUI_H
+#ifndef GUI_H
+#define GUI_H
 
 #define INCL_WIN
-#include <config.h>
-#include <cpp/smartptr.h>
-#include <cpp/event.h>
-
 #include "controller.h"
+#include "songiterator.h"
 #include "properties.h"
 #include "plugman.h"
-#include "loadhelper.h"
-#include "playlistmenu.h"
+#include "playable.h"
 #include "pm123.rc.h"
 #include <os2.h>
 
+#include <cpp/smartptr.h>
+#include <cpp/event.h>
+#include <cpp/cpputil.h>
+
 
 class Module;
+class LoadHelper;
+class PlaylistMenu;
 
 class GUI
 {public:
@@ -146,6 +148,8 @@ class GUI
   static Playable* CurrentRoot()             { return CurrentIter->GetRoot(); }
   static APlayable& CurrentSong()            { return CurrentIter->GetCurrent(); }
 
+  //static Playable& EnsurePlaylist(Playable& list);
+
   static void      SaveStream(HWND hwnd, BOOL enable);
   friend BOOL EXPENTRY GUI_HelpHook(HAB hab, ULONG usMode, ULONG idTopic, ULONG idSubTopic, PRECTL prcPosition);
 
@@ -166,11 +170,11 @@ class GUI
  public: // Utility functions
   static HWND      GetFrameWindow()       { return HFrame; }
   static HWND      GetHelpMgr()           { return HHelp; }
-  static Playable* GetDefaultPL()         { return DefaultPL; }
-  static Playable* GetDefaultPM()         { return DefaultPM; }
-  static Playable* GetDefaultBM()         { return DefaultBM; }
-  static Playable* GetLoadMRU()           { return LoadMRU; }
-  static Playable* GetUrlMRU()            { return UrlMRU; }
+  static Playable& GetDefaultPL()         { return *DefaultPL; }
+  static Playable& GetDefaultPM()         { return *DefaultPM; }
+  static Playable& GetDefaultBM()         { return *DefaultBM; }
+  static Playable& GetLoadMRU()           { return *LoadMRU; }
+  static Playable& GetUrlMRU()            { return *UrlMRU; }
 
   // Update an MRU list with item ps and maximum size max
   static void      Add2MRU(Playable& list, size_t max, APlayable& ps);

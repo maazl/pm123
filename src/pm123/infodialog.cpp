@@ -44,7 +44,39 @@
 #include <plugin.h>
 #include <utilfct.h>
 
+#include <cpp/container/inst_index.h>
+
 #include <stdio.h>
+#include <time.h>
+#include <math.h>
+
+
+int AInfoDialog::KeyType::compare(const KeyType& l, const KeyType& r)
+{ if (&l == &r)
+    return 0; // Comparison to itself
+  size_t p1 = 0;
+  size_t p2 = 0;
+  for (;;)
+  { // termination condition
+    if (p2 == r.size())
+    { if (p1 == l.size())
+        break;
+      return 1;
+    } else if (p1 == l.size())
+      return -1;
+    // compare content
+    if (l[p1] > r[p2])
+      return 1;
+    if (l[p1] < r[p2])
+      return -1;
+    ++p1;
+    ++p2;
+  }
+  // compare parent (if any)
+  if (l.Parent.get() < r.Parent.get())
+    return -1;
+  return l.Parent.get() > r.Parent.get();
+}
 
 
 /****************************************************************************
@@ -54,12 +86,9 @@
 *
 ****************************************************************************/
 class InfoDialog
-: public AInfoDialog,
-  public IComparableTo<const sorted_vector_int<APlayable, APlayable> >,
-  public inst_index<InfoDialog, const sorted_vector_int<APlayable, APlayable> > // depends on base class OwnedPlayableSet
-{public:
-  typedef sorted_vector_int<APlayable, APlayable> KeyType;
- protected:
+: public AInfoDialog
+, public inst_index<InfoDialog, const AInfoDialog::KeyType, &AInfoDialog::KeyType::compare>
+{protected:
   enum Fields
   { F_none        = 0x00000000,
     F_URL         = 0x00000001,
@@ -119,21 +148,18 @@ class InfoDialog
   };
  protected:
   // Base class for notebook pages
-  class PageBase;
-  friend class PageBase;
-  class PageBase : public DialogBase
+  class PageBase : public NotebookDialogBase::PageBase
   {public:
     enum
     { UM_UPDATE = WM_USER+1
     };
    protected:
-    InfoDialog&     Parent;
+    //InfoDialog&     Parent;
     Fields          Enabled; // Valid only while UM_UPDATE
     Fields          Valid;   // Valid only while UM_UPDATE
-   public:
-    ULONG           PageID;  // PM Notebook page ID from.
    protected:
-                    PageBase(InfoDialog& parent, ULONG rid);
+                    PageBase(InfoDialog& parent, ULONG rid, const xstring& title);
+    InfoDialog&     GetParent() { return (InfoDialog&)Parent; }
     HWND            SetCtrlText(USHORT id, Fields fld, const char* text);
     HWND            SetCtrlCB(USHORT id, Fields fld, bool flag);
     void            SetCtrlRB(USHORT id1, Fields fld, int btn);
@@ -143,7 +169,6 @@ class InfoDialog
     static const char* FormatDuration(char* buffer, PM123_TIME time);
     virtual MRESULT DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2);
    public:
-    void            StartDialog() { DialogBase::StartDialog(Parent.GetHwnd(), Parent.GetHwnd()); }
     /// Return the InfoFlags to be requested
     virtual InfoFlags GetRequestFlags() = 0;
   };
@@ -154,7 +179,7 @@ class InfoDialog
   { // Dialog procedure
     virtual MRESULT DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2);
    public:
-    PageTechInfo(InfoDialog& parent) : PageBase(parent, DLG_TECHINFO) {}
+    PageTechInfo(InfoDialog& parent) : PageBase(parent, DLG_TECHINFO, "Tech. info") {}
     virtual InfoFlags GetRequestFlags();
   };
   // Notebook page 2
@@ -168,7 +193,7 @@ class InfoDialog
     HWND            SetEFText(USHORT id, Fields fld, const char* text);
     virtual MRESULT DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2);
    public:
-                    PageMetaInfo(InfoDialog& parent) : PageBase(parent, DLG_METAINFO) {}
+    PageMetaInfo(InfoDialog& parent) : PageBase(parent, DLG_METAINFO, "Meta info") {}
     virtual InfoFlags GetRequestFlags();
   };
  protected:
@@ -205,20 +230,7 @@ class InfoDialog
   friend void TFNENTRY InfoDialogMetaWriteWorkerStub(void*);
 
  private:
-  // Functor for inst_index factory.
-  class Factory : public inst_index<InfoDialog, const KeyType>::IFactory
-  { // singleton
-    Factory() {}
-   public:
-    static Factory  Instance;
-    virtual InfoDialog* operator()(const KeyType& key);
-  };
-
- private:
-  PageTechInfo      PageTech;
-  PageMetaInfo      PageMeta;
- protected:
-  vector<PageBase>  Pages;
+  static InfoDialog* Factory(const KeyType& key);
 
  private: // non copyable
                     InfoDialog(const InfoDialog&);
@@ -226,21 +238,19 @@ class InfoDialog
  protected:
   // Initialize InfoDialog
                     InfoDialog(const KeyType& key);
-          PageBase* PageFromID(ULONG pageid);
+          PageBase* PageFromID(ULONG pageid) { return (PageBase*)AInfoDialog::PageFromID(pageid); }
   virtual void      RequestPage(PageBase* page);
   virtual MRESULT   DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2);
 
  public:
   virtual           ~InfoDialog();
-  virtual void      StartDialog();
+  virtual void      StartDialog() { ManagedDialog<NotebookDialogBase>::StartDialog(HWND_DESKTOP, NB_INFO); }
   virtual void      ShowPage(PageNo page);
   virtual const struct Data& GetData() = 0;
 
   // Factory method. Returns always the same instance for the same set of objects.
   static int_ptr<InfoDialog> GetByKey(const KeyType& obj)
-                    { return inst_index<InfoDialog, const KeyType>::GetByKey(obj, Factory::Instance); }
-  // IComparableTo<Playable>
-  virtual int       compareTo(const KeyType& r) const;
+                    { return inst_index<InfoDialog, const AInfoDialog::KeyType, &AInfoDialog::KeyType::compare>::GetByKey(obj, &InfoDialog::Factory); }
 };
 
 /****************************************************************************
@@ -313,65 +323,64 @@ class PlayableInstanceInfoDialog
     void            Save();
     virtual MRESULT DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2);
    public:
-    PageItemInfo(InfoDialog& parent) : PageBase(parent, DLG_ITEMINFO), InUpdate(false), Modified(false) {}
+    PageItemInfo(InfoDialog& parent) : PageBase(parent, DLG_ITEMINFO, "Playlist item"), InUpdate(false), Modified(false) {}
     virtual InfoFlags GetRequestFlags();
   };
 
- private:
-  PageItemInfo      PageItem;
-
  public:
   PlayableInstanceInfoDialog(const KeyType& key);
-  /*PlayableInstance& GetItem() const { return (PlayableInstance&)*Key[0]; }
-  Playable&         GetList() const { return (Playable&)*Key[1]; }*/
-  virtual void      StartDialog();
 };
 
 
 // Implementations
 
-// Factory ...
-InfoDialog::Factory InfoDialog::Factory::Instance;
-
-InfoDialog* InfoDialog::Factory::operator()(const KeyType& key)
-{ DEBUGLOG(("InfoDialogFactory::operator()({%u, %s})\n", key.size(), key.debug_dump().cdata()));
+InfoDialog* InfoDialog::Factory(const KeyType& key)
+{ DEBUGLOG(("InfoDialog::Factory({%u, %s})\n", key.size(), key.debug_dump().cdata()));
   InfoDialog* ret;
-  if (&key[0]->GetPlayable() != key[0])
-    ret = new PlayableInstanceInfoDialog(key);
-  else if (key.size() > 1)
+  #ifdef DEBUG // Check content
+  if (key.Parent)
+  { for (const int_ptr<APlayable>* app = key.begin(); app != key.end(); ++app)
+    { APlayable* ap = *app;
+      ASSERT(&ap->GetPlayable() != ap);
+      ASSERT(((PlayableInstance*)ap)->HasParent(key.Parent) || ((PlayableInstance*)ap)->HasParent(NULL));
+    }
+  }
+  #endif
+  if (key.size() > 1)
     ret = new MultipleInfoDialog(key);
+  if (key.Parent)
+    ret = new PlayableInstanceInfoDialog(key);
   else
     ret = new SingleInfoDialog(key);
+  // Go!
   ret->StartDialog();
   return ret;
 }
 
-int_ptr<AInfoDialog> AInfoDialog::GetByKey(const PlayableSetBase& obj)
-{ DEBUGLOG(("AInfoDialog::GetByKey({%u,...})\n", obj.size()));
-  if (((const sorted_vector<Playable, Playable>&)obj).size() == 0)
+int_ptr<AInfoDialog> AInfoDialog::GetByKey(const KeyType& set)
+{ DEBUGLOG(("AInfoDialog::GetByKey({%u,...})\n", set.size()));
+  if (set.size() == 0)
     return (AInfoDialog*)NULL;
-  InfoDialog::KeyType key(obj.size());
-  for (size_t i = 0; i < obj.size(); ++i)
-    key.append() = obj[i];
-  return InfoDialog::GetByKey(key).get();
+  return InfoDialog::GetByKey(set).get();
 }
 int_ptr<AInfoDialog> AInfoDialog::GetByKey(Playable& obj)
 { InfoDialog::KeyType key(1);
   key.append() = &obj;
   return InfoDialog::GetByKey(key).get();
 }
-int_ptr<AInfoDialog> AInfoDialog::GetByKey(Playable& list, PlayableInstance& item)
+/*int_ptr<AInfoDialog> AInfoDialog::GetByKey(Playable& list, PlayableInstance& item)
 { InfoDialog::KeyType key(2);
+  // TODO!!! breaks sort order!
   key.append() = &item;
   key.append() = &list;
   return InfoDialog::GetByKey(key).get();
+}*/
+
+
+InfoDialog::PageBase::PageBase(InfoDialog& parent, ULONG rid, const xstring& title)
+: NotebookDialogBase::PageBase(parent, rid, NULLHANDLE, DF_AutoResize)
+{ MajorTitle = title;
 }
-
-
-InfoDialog::PageBase::PageBase(InfoDialog& parent, ULONG rid)
-: DialogBase(rid, NULLHANDLE),
-  Parent(parent)
-{}
 
 HWND InfoDialog::PageBase::SetCtrlText(USHORT id, Fields fld, const char* text)
 { HWND ctrl = WinWindowFromID(GetHwnd(), id);
@@ -439,15 +448,16 @@ const char* InfoDialog::PageBase::FormatTstmp(char* buffer, time_t time)
 const char* InfoDialog::PageBase::FormatDuration(char* buffer, PM123_TIME length)
 { if (length < 0)
     return NULL;
-  unsigned long s = (unsigned long)(length + .5);
-  if (s < 60)
-    sprintf(buffer, "%lu s", s);
-  else if (s < 3600)
-    sprintf(buffer, "%lu:%02lu", s/60, s%60);
-  else if (s < 86400)
-    sprintf(buffer, "%lu:%02lu:%02lu", s/3600, s/60%60, s%60);
+  unsigned long mins = (unsigned long)(length/60);
+  PM123_TIME secs = length - 60*mins;
+  if (mins == 0)
+    sprintf(buffer, "%5.3f s", secs);
+  else if (mins < 60)
+    sprintf(buffer, "%lu:%06.3f", mins, secs);
+  else if (mins < 1440)
+    sprintf(buffer, "%lu:%02lu:%06.3f", mins/60, mins%60, secs);
   else
-    sprintf(buffer, "%lud %lu:%02lu:%02lu", s/86400, s/3600%24, s/60%60, s%60);
+    sprintf(buffer, "%lud %lu:%02lu:%06.3f", mins/1440, mins/60%24, mins%60, secs);
   return buffer;
 }
 
@@ -458,12 +468,6 @@ MRESULT InfoDialog::PageBase::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
     do_warpsans(GetHwnd());
     WinPostMsg(GetHwnd(), UM_UPDATE, 0, 0);
     break;
-
-   // does funny things
-   //case WM_WINDOWPOSCHANGED:
-   // if(((SWP*)mp1)[0].fl & SWP_SIZE)
-   //   nb_adjust(GetHwnd());
-   // break;
   }
   return DialogBase::DlgProc(msg, mp1, mp2);
 }
@@ -474,7 +478,7 @@ MRESULT InfoDialog::PageTechInfo::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
     { // update info values
       DEBUGLOG(("InfoDialog(%p)::PageTechInfo::DlgProc: UM_UPDATE\n", &Parent));
       char buffer[32];
-      const struct Data& data = Parent.GetData();
+      const struct Data& data = GetParent().GetData();
       Enabled = data.Enabled;
       Valid = data.Valid;
       int type;
@@ -491,7 +495,7 @@ MRESULT InfoDialog::PageTechInfo::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
         type = (tech.attributes & (TATTR_SONG|TATTR_PLAYLIST)) / TATTR_SONG;
         SetCtrlText(EF_OBJTYPE, F_objtype, tech.attributes & TATTR_INVALID ? "invalid" : objtypes[type]);
         SetCtrlCB(CB_SAVEABLE, F_objtype, !!(tech.attributes & TATTR_WRITABLE));
-        SetCtrlCB(CB_SAVESTREAM, F_objtype, !!(tech.attributes & TATTR_SAVEABLE));
+        SetCtrlCB(CB_SAVESTREAM, F_objtype, !!(tech.attributes & TATTR_STORABLE));
         SetCtrlText(EF_INFOSTRINGS, F_info, tech.info);
         xstring decoder = tech.decoder;
         if (decoder && decoder.startsWithI(amp_startpath))
@@ -520,8 +524,8 @@ MRESULT InfoDialog::PageTechInfo::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
     DEBUGLOG(("InfoDialog(%p)::PageTechInfo::DlgProc: WM_COMMAND %u\n", &Parent, SHORT1FROMMP(mp1)));
     switch (SHORT1FROMMP(mp1))
     {case PB_REFRESH:
-      for (size_t i = 0; i != Parent.Key.size(); ++i)
-        Parent.Key[i]->RequestInfo(IF_Decoder|IF_Aggreg, PRI_Normal, REL_Reload);
+      for (size_t i = 0; i != GetParent().Key.size(); ++i)
+        GetParent().Key[i]->RequestInfo(IF_Decoder|IF_Aggreg, PRI_Normal, REL_Reload);
       return 0;
     }
   }
@@ -548,21 +552,21 @@ MRESULT InfoDialog::PageMetaInfo::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
     { // update info values
       DEBUGLOG(("InfoDialog(%p)::PageMetaInfo::DlgProc: UM_UPDATE\n", &Parent));
       char buffer[32];
-      const struct Data& data = Parent.GetData();
+      const struct Data& data = GetParent().GetData();
       Enabled = data.Enabled;
       Valid = data.Valid;
       const META_INFO& meta = data.Info.Meta;
       MetaWrite = (~Enabled & (F_title|F_artist|F_album|F_year|F_comment|F_genre|F_track|F_copyright)) == 0;
       // TODO:  && data.Info->meta_write;
 
-      WinCheckButton(GetHwnd(), CB_METATITLE,    !!(Valid & F_title));
-      WinCheckButton(GetHwnd(), CB_METAARTIST,   !!(Valid & F_artist));
-      WinCheckButton(GetHwnd(), CB_METAALBUM,    !!(Valid & F_album));
-      WinCheckButton(GetHwnd(), CB_METATRACK,    !!(Valid & F_track));
-      WinCheckButton(GetHwnd(), CB_METADATE,     !!(Valid & F_year));
-      WinCheckButton(GetHwnd(), CB_METAGENRE,    !!(Valid & F_genre));
-      WinCheckButton(GetHwnd(), CB_METACOMMENT,  !!(Valid & F_comment));
-      WinCheckButton(GetHwnd(), CB_METACOPYRIGHT,!!(Valid & F_copyright));
+      CheckButton(CB_METATITLE,    !!(Valid & F_title));
+      CheckButton(CB_METAARTIST,   !!(Valid & F_artist));
+      CheckButton(CB_METAALBUM,    !!(Valid & F_album));
+      CheckButton(CB_METATRACK,    !!(Valid & F_track));
+      CheckButton(CB_METADATE,     !!(Valid & F_year));
+      CheckButton(CB_METAGENRE,    !!(Valid & F_genre));
+      CheckButton(CB_METACOMMENT,  !!(Valid & F_comment));
+      CheckButton(CB_METACOPYRIGHT,!!(Valid & F_copyright));
 
       SetEFText(EF_METATITLE, F_title, meta.title);
       SetEFText(EF_METAARTIST, F_artist, meta.artist);
@@ -603,7 +607,7 @@ MRESULT InfoDialog::PageMetaInfo::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
     DEBUGLOG(("InfoDialog(%p)::PageMetaInfo::DlgProc: WM_COMMAND %u\n", &Parent, SHORT1FROMMP(mp1)));
     switch (SHORT1FROMMP(mp1))
     {case PB_UNDO:
-      WinPostMsg(GetHwnd(), UM_UPDATE, 0, 0);
+      PostMsg(UM_UPDATE, 0, 0);
       return 0;
      case PB_APPLY:
       { // fetch meta data
@@ -660,7 +664,7 @@ InfoDialog::MetaWriteDlg::~MetaWriteDlg()
   if (WorkerTID)
   { Cancel = true;
     ResumeSignal.Set();
-    wait_thread_pm(amp_player_hab(), WorkerTID, 5*60*1000);
+    wait_thread_pm(amp_player_hab, WorkerTID, 5*60*1000);
   }
 }
 
@@ -668,8 +672,8 @@ MRESULT InfoDialog::MetaWriteDlg::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
 { switch (msg)
   {case WM_INITDLG:
     // setup first destination
-    PMRASSERT(WinSetDlgItemText(GetHwnd(), EF_WMURL, Dest[0]->URL.cdata()));
-    PMRASSERT(WinPostMsg(GetHwnd(), UM_START, 0, 0));
+    SetItemText(EF_WMURL, Dest[0]->URL.cdata());
+    PostMsg(UM_START, 0, 0);
     break;
 
    case UM_START:
@@ -697,9 +701,9 @@ MRESULT InfoDialog::MetaWriteDlg::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
 
       if (mp2 == PLUGIN_OK)
       { // Everything fine, next item
-        PMRASSERT(WinSetDlgItemText(GetHwnd(), EF_WMSTATUS, ""));
+        SetItemText(EF_WMSTATUS, "");
         ++i; // next item (if any)
-        PMRASSERT(WinSetDlgItemText(GetHwnd(), EF_WMURL, (size_t)i < Dest.size() ? Dest[i]->URL.cdata() : ""));
+        SetItemText(EF_WMURL, (size_t)i < Dest.size() ? Dest[i]->URL.cdata() : "");
         return 0;
       }
       // Error, worker halted
@@ -711,9 +715,9 @@ MRESULT InfoDialog::MetaWriteDlg::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
         return 0;
       }
       // Enable skip buttons
-      PMRASSERT(WinEnableControl(GetHwnd(), PB_RETRY,     TRUE));
-      PMRASSERT(WinEnableControl(GetHwnd(), PB_WMSKIP,    TRUE));
-      PMRASSERT(WinEnableControl(GetHwnd(), PB_WMSKIPALL, TRUE));
+      EnableControl(PB_RETRY,     true);
+      EnableControl(PB_WMSKIP,    true);
+      EnableControl(PB_WMSKIPALL, true);
       return 0;
     }
 
@@ -722,8 +726,8 @@ MRESULT InfoDialog::MetaWriteDlg::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
     {case DID_CANCEL:
       Cancel = true;
       ResumeSignal.Set();
-      PMRASSERT(WinSetDlgItemText(GetHwnd(), EF_WMSTATUS, "- cancelling -"));
-      PMRASSERT(WinEnableControl( GetHwnd(), DID_CANCEL,  FALSE));
+      SetItemText(EF_WMSTATUS, "- cancelling -");
+      EnableControl(DID_CANCEL,  false);
       break;
 
      case PB_WMSKIPALL:
@@ -733,9 +737,9 @@ MRESULT InfoDialog::MetaWriteDlg::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
       ++CurrentItem;
      case PB_RETRY:
       // Disable skip buttons
-      PMRASSERT(WinEnableControl(GetHwnd(), PB_RETRY,     FALSE));
-      PMRASSERT(WinEnableControl(GetHwnd(), PB_WMSKIP,    FALSE));
-      PMRASSERT(WinEnableControl(GetHwnd(), PB_WMSKIPALL, FALSE));
+      EnableControl(PB_RETRY,     false);
+      EnableControl(PB_WMSKIP,    false);
+      EnableControl(PB_WMSKIPALL, false);
       ResumeSignal.Set();
     }
     return 0;
@@ -758,7 +762,7 @@ void InfoDialog::MetaWriteDlg::Worker()
     // Write info
     ULONG rc = 0; // TODO:   song.SaveMetaInfo(MetaData, MetaFlags);
     // Notify dialog
-    PMRASSERT(WinPostMsg(GetHwnd(), UM_STATUS, MPFROMLONG(CurrentItem), MPFROMLONG(rc)));
+    PostMsg(UM_STATUS, MPFROMLONG(CurrentItem), MPFROMLONG(rc));
     if (Cancel)
       return;
     // wait for acknowledge
@@ -768,7 +772,7 @@ void InfoDialog::MetaWriteDlg::Worker()
     } else
       ++CurrentItem;
   }
-  WinPostMsg(GetHwnd(), UM_STATUS, MPFROMLONG(-1), MPFROMLONG(0));
+  PostMsg(UM_STATUS, MPFROMLONG(-1), MPFROMLONG(0));
   DEBUGLOG(("InfoDialog::MetaWriteDlg(%p)::Worker completed\n", this));
 }
 
@@ -778,39 +782,16 @@ void TFNENTRY InfoDialogMetaWriteWorkerStub(void* arg)
 
 
 InfoDialog::InfoDialog(const KeyType& key)
-: AInfoDialog(DLG_INFO, NULLHANDLE),
-  inst_index<InfoDialog, const KeyType>(key),
-  PageTech(*this),
-  PageMeta(*this),
-  Pages(Page_ItemInfo + 1) // Reserve optimal space for all cases.
+: AInfoDialog(DLG_INFO, NULLHANDLE)
+, inst_index<InfoDialog, const AInfoDialog::KeyType, &AInfoDialog::KeyType::compare>(key)
 { DEBUGLOG(("InfoDialog(%p)::InfoDialog({%u, %s}) - {%u, %s}\n", this,
     key.size(), key.debug_dump().cdata(), Key.size(), Key.debug_dump().cdata()));
-  Pages.append() = &PageMeta;
-  Pages.append() = &PageTech;
+  Pages.append() = new PageMetaInfo(*this);
+  Pages.append() = new PageTechInfo(*this);
 }
 
 InfoDialog::~InfoDialog()
 { DEBUGLOG(("InfoDialog(%p)::~InfoDialog()\n", this));
-}
-
-void InfoDialog::StartDialog()
-{ DEBUGLOG(("InfoDialog(%p)::StartDialog()\n", this));
-  ManagedDialogBase::StartDialog(HWND_DESKTOP);
-  // setup notebook windows
-  PageMeta.StartDialog();
-  PageTech.StartDialog();
-  HWND book = WinWindowFromID(GetHwnd(), NB_INFO);
-  PageMeta.PageID = nb_append_tab(book, PageMeta.GetHwnd(), "Meta info", NULL, 0);
-  PMASSERT(PageMeta.PageID != 0);
-  PageTech.PageID = nb_append_tab(book, PageTech.GetHwnd(), "Tech. info", NULL, 0);
-  PMASSERT(PageTech.PageID != 0);
-}
-
-InfoDialog::PageBase* InfoDialog::PageFromID(ULONG pageid)
-{ for (PageBase*const* pp = Pages.begin(); pp != Pages.end(); ++pp)
-    if ((*pp)->PageID == pageid)
-      return *pp;
-  return NULL;
 }
 
 void InfoDialog::RequestPage(PageBase* page)
@@ -827,7 +808,7 @@ MRESULT InfoDialog::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
   {case WM_INITDLG:
     { // initial position
       SWP swp;
-      PMXASSERT(WinQueryTaskSizePos(amp_player_hab(), 0, &swp), == 0);
+      PMXASSERT(WinQueryTaskSizePos(amp_player_hab, 0, &swp), == 0);
       PMRASSERT(WinSetWindowPos(GetHwnd(), NULLHANDLE, swp.x,swp.y, 0,0, SWP_MOVE));
     }
     do_warpsans(GetHwnd());
@@ -858,38 +839,23 @@ MRESULT InfoDialog::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
       return 0;
     }
     break;
+
+    // does funny things
+    //case WM_WINDOWPOSCHANGED:
+    // if(((SWP*)mp1)[0].fl & SWP_SIZE)
+    //   nb_adjust(GetHwnd());
+    // break;
   }
-  return ManagedDialogBase::DlgProc(msg, mp1, mp2);
+  return AInfoDialog::DlgProc(msg, mp1, mp2);
 }
 
 void InfoDialog::ShowPage(PageNo page)
 { ASSERT((size_t)page < Pages.size());
-  PageBase* pp = Pages[page];
+  PageBase* pp = (PageBase*)Pages[page];
   ASSERT(pp);
   RequestPage(pp);
-  WinSendDlgItemMsg(GetHwnd(), NB_INFO, BKM_TURNTOPAGE, MPFROMLONG(pp->PageID), 0);
+  SendItemMsg(NB_INFO, BKM_TURNTOPAGE, MPFROMLONG(pp->GetPageID()), 0);
   SetVisible(true);
-}
-
-int InfoDialog::compareTo(const KeyType& r) const
-{ if (&r == &Key)
-    return 0; // Comparison to itself
-  size_t p1 = 0;
-  size_t p2 = 0;
-  for (;;)
-  { // termination condition
-    if (p2 == r.size())
-      return p1 != Key.size();
-    else if (p1 == Key.size())
-      return -1;
-    // compare content
-    if (Key[p1] > r[p2])
-      return 1;
-    if (Key[p1] < r[p2])
-      return -1;
-    ++p1;
-    ++p2;
-  }
 }
 
 
@@ -967,11 +933,13 @@ const struct InfoDialog::Data& SingleInfoDialog::GetData()
 void SingleInfoDialog::ContentChangeEvent(const PlayableChangeArgs& args)
 { DEBUGLOG(("SingleInfoDialog(%p)::ContentChangeEvent({&%p, %x, %x})\n",
     this, &args.Instance, args.Changed, args.Loaded));
-  for (PageBase** pp = Pages.begin(); pp != Pages.end(); ++pp)
-    if (*pp && (args.Changed & (*pp)->GetRequestFlags()))
+  for (AInfoDialog::PageBase** pp = Pages.begin(); pp != Pages.end(); ++pp)
+  { PageBase* p = (PageBase*)pp;
+    if (p && (args.Changed & p->GetRequestFlags()))
       { DataCacheValid = false;
         WinPostMsg((*pp)->GetHwnd(), PageBase::UM_UPDATE, MPFROMLONG(args.Changed), 0);
       }
+  }
 }
 
 
@@ -985,7 +953,8 @@ MRESULT MultipleInfoDialog::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
 { switch (msg)
   {case WM_INITDLG:
     // Since we are _Multiple_InfoDialog there are at least two items.
-    SetTitle(xstring::sprintf("PM123 - %u objects: %s, %s ...", Key.size(), Key[0]->GetPlayable().URL.getShortName().cdata(), Key[1]->GetPlayable().URL.getShortName().cdata()));
+    SetTitle(xstring::sprintf("PM123 - %u objects: %s, %s ...", Key.size(),
+      Key[0]->GetPlayable().URL.getShortName().cdata(), Key[1]->GetPlayable().URL.getShortName().cdata()));
     break;
   }
   return InfoDialog::DlgProc(msg, mp1, mp2);
@@ -996,7 +965,7 @@ const struct InfoDialog::Data& MultipleInfoDialog::GetData()
   if (!DataCacheValid)
   { // Initial Data
     Playable* pp = &Key[0]->GetPlayable();
-    
+
     DataCacheValid = true;
     DataCache.Info    = pp->GetInfo();// TODO: &MergedInfo;
     DataCache.Enabled = ~F_none;
@@ -1146,17 +1115,17 @@ void PlayableInstanceInfoDialog::PageItemInfo::Save()
     WinQueryDlgItemText(GetHwnd(), EF_INFOGAIN, sizeof buffer, buffer) == 0
     || (sscanf(buffer, "%f%n", &item.gain, &len) == 1 && len == strlen(buffer)) );
 
-  attr.ploptions = PLO_ALTERNATION * WinQueryButtonCheckstate(GetHwnd(), CB_INFOALTERNATION)
-      | PLO_SHUFFLE * WinSendDlgItemMsg(GetHwnd(), RB_INFOPLSHINHERIT, BM_QUERYCHECKINDEX, 0, 0) ;
+  attr.ploptions = PLO_ALTERNATION * QueryButtonCheckstate(CB_INFOALTERNATION)
+      | PLO_SHUFFLE * SendItemMsg(RB_INFOPLSHINHERIT, BM_QUERYCHECKINDEX, 0, 0) ;
 
   if (!valid)
     return;
 
   // Save
-  PlayableInstance* pi = (PlayableInstance*)Parent.Key[0];
+  PlayableInstance* pi = (PlayableInstance*)GetParent().Key[0];
   if (&pi->GetPlayable() != pp)
   { // URL has changed
-    Playable& list = (Playable&)*Parent.Key[1];
+    Playable& list = *GetParent().Key.Parent;
     Mutex::Lock(list.Mtx);
     PlayableInstance* pi2 = list.InsertItem(*pp, pi);
     if (pi2 == NULL)
@@ -1177,10 +1146,10 @@ MRESULT PlayableInstanceInfoDialog::PageItemInfo::DlgProc(ULONG msg, MPARAM mp1,
       DEBUGLOG(("PlayableInstanceInfoDialog(%p)::PageItemInfo::DlgProc: UM_UPDATE\n", &Parent));
       InUpdate = true; // Disable change notifications
       char buffer[32];
-      const struct Data& data = Parent.GetData();
+      const struct Data& data = GetParent().GetData();
       Enabled = data.Enabled;
       Valid = data.Valid;
-      PMRASSERT(WinSetDlgItemText(GetHwnd(), EF_INFOURL, data.URL));
+      SetItemText(EF_INFOURL, data.URL);
       { const ITEM_INFO& item = data.Info.Item;
         SetCtrlText(EF_INFOALIAS,   F_ITEM_INFO, item.alias);
         SetCtrlText(EF_INFOSTART,   F_ITEM_INFO, item.start);
@@ -1197,8 +1166,8 @@ MRESULT PlayableInstanceInfoDialog::PageItemInfo::DlgProc(ULONG msg, MPARAM mp1,
         SetCtrlCB(CB_INFOALTERNATION, F_ATTR_INFO, (attr.ploptions & PLO_ALTERNATION) != 0);
         SetCtrlRB(RB_INFOPLSHINHERIT, F_ATTR_INFO, (attr.ploptions & (PLO_SHUFFLE|PLO_NO_SHUFFLE)) / PLO_SHUFFLE);
       }
-      PMRASSERT(WinEnableControl(GetHwnd(), PB_APPLY, FALSE));
-      PMRASSERT(WinEnableControl(GetHwnd(), PB_UNDO, FALSE));
+      EnableControl(PB_APPLY, FALSE);
+      EnableControl(PB_UNDO, FALSE);
       Modified = false;
       InUpdate = false;
       return 0;
@@ -1233,7 +1202,7 @@ MRESULT PlayableInstanceInfoDialog::PageItemInfo::DlgProc(ULONG msg, MPARAM mp1,
     DEBUGLOG(("PlayableInstanceInfoDialog(%p)::PageItemInfo::DlgProc: WM_COMMAND %u\n", &Parent, SHORT1FROMMP(mp1)));
     switch (SHORT1FROMMP(mp1))
     {case PB_UNDO:
-      WinPostMsg(GetHwnd(), UM_UPDATE, 0, 0);
+      PostMsg(UM_UPDATE, 0, 0);
       return 0;
 
      case PB_APPLY:
@@ -1246,18 +1215,9 @@ MRESULT PlayableInstanceInfoDialog::PageItemInfo::DlgProc(ULONG msg, MPARAM mp1,
 
 
 PlayableInstanceInfoDialog::PlayableInstanceInfoDialog(const KeyType& key)
-: SingleInfoDialog(key),
-  PageItem(*this)
-{ ASSERT(Key.size() == 2);
-  DEBUGLOG(("PlayableInstanceInfoDialog(%p)::PlayableInstanceInfoDialog({%p,%p})", this, Key[0], Key[1]));
-  Pages.append() = &PageItem;
-}
-
-void PlayableInstanceInfoDialog::StartDialog()
-{ SingleInfoDialog::StartDialog();
-  PageItem.StartDialog();
-  HWND book = WinWindowFromID(GetHwnd(), NB_INFO);
-  PageItem.PageID = nb_append_tab(book, PageItem.GetHwnd(), "Playlist item", NULL, 0);
-  PMASSERT(PageItem.PageID != 0);
+: SingleInfoDialog(key)
+{ ASSERT(Key.Parent && Key.size() == 1);
+  DEBUGLOG(("PlayableInstanceInfoDialog(%p)::PlayableInstanceInfoDialog({%p,%p})", this, Key.Parent.get(), Key[0]));
+  Pages.append() = new PageItemInfo(*this);
 }
 

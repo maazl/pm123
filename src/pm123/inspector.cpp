@@ -32,6 +32,8 @@
 #include "pm123.h"
 #include "properties.h"
 #include "controller.h"
+#include "location.h"
+#include "playable.h"
 #include <os2.h>
 
 #include <math.h>
@@ -43,7 +45,7 @@
 
 
 InspectorDialog::InspectorDialog()
-: DialogBase(DLG_INSPECTOR, NULLHANDLE)
+: DialogBase(DLG_INSPECTOR, NULLHANDLE, DF_AutoResize)
 { DEBUGLOG(("InspectorDialog(%p)::InspectorDialog()\n", this));
   StartDialog(HWND_DESKTOP);
 }
@@ -73,7 +75,7 @@ MRESULT InspectorDialog::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
     { BOOL ret = LONGFROMMR(DialogBase::DlgProc(msg, mp1, mp2));
       // initial position
       SWP swp;
-      PMXASSERT(WinQueryTaskSizePos(amp_player_hab(), 0, &swp), == 0);
+      PMXASSERT(WinQueryTaskSizePos(amp_player_hab, 0, &swp), == 0);
       PMRASSERT(WinSetWindowPos(GetHwnd(), NULLHANDLE, swp.x,swp.y, 0,0, SWP_MOVE));
     
       do_warpsans(GetHwnd());
@@ -113,7 +115,7 @@ MRESULT InspectorDialog::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
         if (WinQueryButtonCheckstate(GetHwnd(), CB_AUTOREFRESH))
           PMRASSERT(WinPostMsg(GetHwnd(), UM_REFRESH, 0, 0));
         else
-          WinStopTimer(amp_player_hab(), GetHwnd(), TID_INSP_AUTOREFR);
+          WinStopTimer(amp_player_hab, GetHwnd(), TID_INSP_AUTOREFR);
       }
       break;     
     }
@@ -131,8 +133,8 @@ MRESULT InspectorDialog::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
     { QMSG qmsg;
      case TID_INSP_AUTOREFR:
       // Avoid overruns
-      WinStopTimer(amp_player_hab(), GetHwnd(), TID_INSP_AUTOREFR);
-      while (WinPeekMsg(amp_player_hab(), &qmsg, GetHwnd(), WM_TIMER, WM_TIMER, PM_REMOVE));
+      WinStopTimer(amp_player_hab, GetHwnd(), TID_INSP_AUTOREFR);
+      while (WinPeekMsg(amp_player_hab, &qmsg, GetHwnd(), WM_TIMER, WM_TIMER, PM_REMOVE));
       Refresh();
     }
     return 0;
@@ -259,25 +261,17 @@ static void WorkerQCB(APlayable* entry, Priority pri, bool svc, void* arg)
   { result.append() = strdup(" NULL");
   } else
   { char buf[1024];
-    InfoFlags low, high, insvc;
-    entry->GetInfoState().PeekRequest(low, high, insvc);
-    Playable& p = entry->GetPlayable();
-    if (&p != entry)
-    { InfoFlags low2, high2, insvc2;
-      p.GetInfoState().PeekRequest(low2, high2, insvc2);
-      low |= low2;
-      high |= high2;
-      insvc |= insvc2;
-    }
-    DEBUGLOG(("InspectorDialog:WorkerQCB %x,%x, %x\n", low, high, insvc));
+    RequestState req;
+    entry->PeekRequest(req);
+    DEBUGLOG(("InspectorDialog:WorkerQCB %x,%x, %x\n", req.ReqLow, req.ReqHigh, req.InService));
     static const char prefixchar[2][2] = { { '-', '=' }, { '+', '#' } };
     buf[0] = prefixchar[svc][pri == PRI_Normal];
     char rqstr[11] = "----------";
-    PlayableFlagsMapper(rqstr, low, "ptomacrdis");
-    PlayableFlagsMapper(rqstr, high, "PTOMACRDIS");
+    PlayableFlagsMapper(rqstr, req.ReqLow, "ptomacrdis");
+    PlayableFlagsMapper(rqstr, req.ReqHigh, "PTOMACRDIS");
     char isstr[11] = "----------";
-    PlayableFlagsMapper(isstr, insvc, "PTOMACRDIS");
-    snprintf(buf+1, sizeof buf -1, "[%s -> %s] %s", rqstr, isstr, p.URL.cdata());
+    PlayableFlagsMapper(isstr, req.InService, "PTOMACRDIS");
+    snprintf(buf+1, sizeof buf -1, "[%s -> %s] %s", rqstr, isstr, entry->GetPlayable().URL.cdata());
     result.append() = strdup(buf);
   }
 }
@@ -314,7 +308,7 @@ void InspectorDialog::Refresh()
   LONG value;
   if ( WinQueryButtonCheckstate(GetHwnd(), CB_AUTOREFRESH)
     && WinSendDlgItemMsg(GetHwnd(), SB_AUTOREFRESH, SPBM_QUERYVALUE, MPFROMP(&value), MPFROM2SHORT(0, SPBQ_DONOTUPDATE)) )
-    PMXASSERT(WinStartTimer(amp_player_hab(), GetHwnd(), TID_INSP_AUTOREFR, value), != 0);
+    PMXASSERT(WinStartTimer(amp_player_hab, GetHwnd(), TID_INSP_AUTOREFR, value), != 0);
 }
 
 void InspectorDialog::DiscardData(vector<char>& data)

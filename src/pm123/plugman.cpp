@@ -40,8 +40,10 @@
 #include "dialog.h"
 #include "properties.h"
 #include "pm123.rc.h"
+#include "pipe.h"
 #include <utilfct.h>
 #include <fileutil.h>
+#include <vdelegate.h>
 #include <cpp/mutex.h>
 #include <cpp/url123.h>
 #include <cpp/container/stringmap.h>
@@ -91,15 +93,31 @@ PluginList  VisualsSkinned(PLUGIN_VISUAL, ""); // visual plug-ins loaded by skin
 *
 ****************************************************************************/
 
+/// Private implementation of class Module
+class ModuleImp : public Module
+{ friend class Module;
+ /*private: // Static storage for plugin_init.
+  PLUGIN_API               PluginApi;
+  static const DSTRING_API DstringApi;
+  PLUGIN_CONTEXT           Context;*/
+ private:
+  /// Entry point of the configure dialog (if any).
+  //void DLLENTRYP(plugin_configure)(HWND hwnd, HMODULE module);
+  sco_ptr<ACommandProcessor> CommandInstance;
+  VDELEGATE                vd_exec_command, vd_query_profile, vd_write_profile;
+ private:
+  /// Load the DLL.
+  //bool LoadModule();
+  /// Unload the DLL.
+  //bool UnloadModule();
+  // Proxy functions for PLUGIN_CONTEXT
+  PROXYFUNCDEF const char* DLLENTRY proxy_exec_command ( ModuleImp* mp, const char* cmd );
+  PROXYFUNCDEF int         DLLENTRY proxy_query_profile( ModuleImp* mp, const char* key, void* data, int maxlength );
+  PROXYFUNCDEF int         DLLENTRY proxy_write_profile( ModuleImp* mp, const char* key, const void* data, int length );
+ private:
+  ModuleImp(const xstring& name) : Module(name) {}
+};
 
-Module* Module::ModuleFactory::operator()(const xstring& key)
-{ Module* pm = new Module(key);
-  if (!pm->Load())
-  { delete pm;
-    return NULL;
-  } else
-    return pm;
-}
 
 const DSTRING_API Module::DstringApi =
 { (DSTRING DLLENTRYP()(const char*))&dstring_create,
@@ -118,23 +136,28 @@ const DSTRING_API Module::DstringApi =
 };
 
 Module::Module(const xstring& name)
-: inst_index<Module, const xstring>(name),
-  HModule(NULLHANDLE),
-  plugin_configure(NULL)
+: inst_index<Module, const xstring, &xstring::compare>(url123(name).getShortName())
+, HModule(NULLHANDLE)
+, ModuleName(name)
+, plugin_configure(NULL)
 { DEBUGLOG(("Module(%p)::Module(%s)\n", this, name.cdata()));
   memset(&QueryParam, 0, sizeof QueryParam);
 }
 
+Module* Module::Factory(const xstring& key)
+{ Module* pm = new ModuleImp(key);
+  if (!pm->Load())
+  { delete pm;
+    return NULL;
+  } else
+    return pm;
+}
+
 Module::~Module()
-{ DEBUGLOG(("Module(%p{%s})::~Module()\n", this, GetModuleName().cdata()));
+{ DEBUGLOG(("Module(%p{%s})::~Module()\n", this, Key.cdata()));
   ASSERT(RefCountIsUnmanaged()); // Module must not be in use!
   UnloadModule();
   DEBUGLOG(("Module::~Module() completed\n"));
-}
-
-int Module::compareTo(const xstring& key) const
-{ DEBUGLOG(("Module(%p{%s})::compareTo(&%s)\n", this, GetModuleName().cdata(), key.cdata()));
-  return stricmp(sfnameext2(GetModuleName()), sfnameext2(key));
 }
 
 /* Assigns the address of the specified procedure within a plug-in. */
@@ -159,7 +182,7 @@ bool Module::LoadFunction(void* function, const char* function_name) const
 bool Module::LoadModule()
 { char load_error[_MAX_PATH];
   *load_error = 0;
-  DEBUGLOG(("Module(%p{%s})::LoadModule()\n", this, GetModuleName().cdata()));
+  DEBUGLOG(("Module(%p{%s})::LoadModule()\n", this, Key.cdata()));
   APIRET rc = DosLoadModule(load_error, sizeof load_error, GetModuleName(), &HModule);
   DEBUGLOG(("Module::LoadModule: %p - %u - %s\n", HModule, rc, load_error));
   // For some reason the API sometimes returns ERROR_INVALID_PARAMETER when loading oggplay.dll.
@@ -172,13 +195,13 @@ bool Module::LoadModule()
                      GetModuleName().cdata(), load_error, rc, os2_strerror(rc, error, sizeof error));
     return false;
   }
-  DEBUGLOG(("Module({%p,%s})::LoadModule: TRUE\n", HModule, GetModuleName().cdata()));
+  DEBUGLOG(("Module({%p,%s})::LoadModule: TRUE\n", HModule, Key.cdata()));
   return true;
 }
 
 /* Unloads a plug-in dynamic link module. */
 bool Module::UnloadModule()
-{ DEBUGLOG(("Module(%p{%p,%s}))::UnloadModule()\n", this, HModule, GetModuleName().cdata()));
+{ DEBUGLOG(("Module(%p{%p,%s}))::UnloadModule()\n", this, HModule, Key.cdata()));
   if (HModule == NULLHANDLE)
     return true;
   APIRET rc = DosFreeModule(HModule);
@@ -192,17 +215,16 @@ bool Module::UnloadModule()
   return true;
 }
 
-PROXYFUNCIMP(const char* DLLENTRY, Module)
-proxy_exec_command( Module* mp, const char* cmd )
+PROXYFUNCIMP(const char* DLLENTRY, ModuleImp)
+proxy_exec_command( ModuleImp* mp, const char* cmd )
 { // Initialize command processor oon demand.
   if (mp->CommandInstance == NULL)
     mp->CommandInstance = ACommandProcessor::Create();
-  mp->CommandInstance->Execute(mp->CommandReply, cmd);
-  return mp->CommandReply.cdata();
+  return mp->CommandInstance->Execute(cmd);
 }
 
-PROXYFUNCIMP(int DLLENTRY, Module)
-proxy_query_profile( Module* mp, const char* key, void* data, int maxlength )
+PROXYFUNCIMP(int DLLENTRY, ModuleImp)
+proxy_query_profile( ModuleImp* mp, const char* key, void* data, int maxlength )
 { ULONG len = maxlength;
   const char* const app = sfnameext2(mp->GetModuleName());
   return PrfQueryProfileData(amp_hini, app, key, data, &len)
@@ -210,8 +232,8 @@ proxy_query_profile( Module* mp, const char* key, void* data, int maxlength )
     ? (int)len : -1;
 }
 
-PROXYFUNCIMP(int DLLENTRY, Module)
-proxy_write_profile( Module* mp, const char* key, const void* data, int length )
+PROXYFUNCIMP(int DLLENTRY, ModuleImp)
+proxy_write_profile( ModuleImp* mp, const char* key, const void* data, int length )
 { const char* const app = sfnameext2(mp->GetModuleName());
   return PrfWriteProfileData(amp_hini, app, key, (PVOID)data, length);
 }
@@ -224,7 +246,7 @@ proxy_write_profile( Module* mp, const char* key, const void* data, int length )
          plugin_configure output
    return FALSE = error */
 bool Module::Load()
-{ DEBUGLOG(("Module(%p{%s})::Load()\n", this, GetModuleName().cdata()));
+{ DEBUGLOG(("Module(%p{%s})::Load()\n", this, Key.cdata()));
 
   int DLLENTRYP(pquery)(PLUGIN_QUERYPARAM *param);
   if (!LoadModule() || !LoadFunction(&pquery, "plugin_query"))
@@ -249,9 +271,9 @@ bool Module::Load()
   if (pinit)
   { PluginApi.error_display = &pm123_display_error;
     PluginApi.info_display  = &pm123_display_info;
-    PluginApi.exec_command  = vdelegate(&vd_exec_command,  &proxy_exec_command,  this);
-    PluginApi.profile_query = vdelegate(&vd_query_profile, &proxy_query_profile, this);
-    PluginApi.profile_write = vdelegate(&vd_write_profile, &proxy_write_profile, this);
+    PluginApi.exec_command  = vdelegate(&((ModuleImp*)this)->vd_exec_command,  &PROXYFUNCREF(ModuleImp)proxy_exec_command,  (ModuleImp*)this);
+    PluginApi.profile_query = vdelegate(&((ModuleImp*)this)->vd_query_profile, &PROXYFUNCREF(ModuleImp)proxy_query_profile, (ModuleImp*)this);
+    PluginApi.profile_write = vdelegate(&((ModuleImp*)this)->vd_write_profile, &PROXYFUNCREF(ModuleImp)proxy_write_profile, (ModuleImp*)this);
     Context.plugin_api  = &PluginApi;
     Context.dstring_api = &DstringApi;
     
@@ -286,7 +308,7 @@ Plugin::Plugin(Module* mod, PLUGIN_TYPE type)
 {}
 
 Plugin::~Plugin()
-{ DEBUGLOG(("Plugin(%p{%s})::~Plugin\n", this, GetModuleName().cdata()));
+{ DEBUGLOG(("Plugin(%p{%s})::~Plugin\n", this, GetModule().Key.cdata()));
 }
 
 void Plugin::SetEnabled(bool enabled)
@@ -329,7 +351,7 @@ void Plugin::DestroyProxyWindow(HWND hwnd)
 }
 
 void Plugin::Init()
-{ PMRASSERT(WinRegisterClass(amp_player_hab(), "CL_MODULE_SERVICE", &cl_plugin_winfn, 0, 0));
+{ PMRASSERT(WinRegisterClass(amp_player_hab, "CL_MODULE_SERVICE", &cl_plugin_winfn, 0, 0));
   ServiceHwnd = WinCreateWindow(HWND_OBJECT, "CL_MODULE_SERVICE", "", 0, 0,0, 0,0, HWND_DESKTOP, HWND_BOTTOM, 42, NULL, NULL);
   PMASSERT(ServiceHwnd != NULLHANDLE);
 }
@@ -340,7 +362,7 @@ void Plugin::Uninit()
 
 
 Plugin* Plugin::Instantiate(Module* mod, Plugin* (*factory)(Module* mod), PluginList& list, const char* params)
-{ DEBUGLOG(("Plugin::Instantiate(%p{%s}, %p, %p, %s)\n", mod, mod->GetModuleName().cdata(), factory, &list, params ? params : "<null>"));
+{ DEBUGLOG(("Plugin::Instantiate(%p{%s}, %p, %p, %s)\n", mod, mod->Key.cdata(), factory, &list, params ? params : "<null>"));
 
   if (list.find(mod) != -1)
   { pm123_display_error( xstring::sprintf("Tried to load the plug-in %s twice.\n", mod->GetModuleName().cdata()) );
@@ -400,7 +422,7 @@ xstring Plugin::Serialize() const
 { stringmap_own sm(20);
   GetParams(sm);
   const xstring& params = url123::makeParameter(sm);
-  xstring modulename = GetModuleName();
+  xstring modulename = GetModule().GetModuleName();
   if (modulename.startsWithI(amp_startpath))
     modulename.assign(modulename, amp_startpath.length());
   return params ? xstring::sprintf("%s?%s", modulename.cdata(), params.cdata()) : modulename;
@@ -419,11 +441,11 @@ int Plugin::Deserialize(const char* str, int mask, bool skinned)
         break;
       *cp++ = '\\';
   } }
-  if (strchr(modulename, ':') == NULL && modulename[0U] != '\\' && modulename[0U] != '/')
+  if (url123::isAbsolute(modulename))
     // relative path
     modulename = amp_startpath + modulename;
   // load module
-  int_ptr<Module> pm = Module::GetByKey(modulename);
+  int_ptr<Module> pm = Module::GetByKey(url123(modulename).getShortName());
   if (pm == NULL)
     return 0;
   // load as plugin
@@ -479,7 +501,7 @@ Plugin* PluginList::erase(size_t i)
     return NULL;
   }
   if ((*this)[i]->IsInitialized() && !(*this)[i]->UninitPlugin())
-  { DEBUGLOG(("PluginList::erase: plugin %s failed to uninitialize.\n", (*this)[i]->GetModuleName().cdata()));
+  { DEBUGLOG(("PluginList::erase: plugin %s failed to uninitialize.\n", (*this)[i]->GetModule().Key.cdata()));
     return NULL;
   }
   Plugin* plugin = vector_own<Plugin>::erase(i);
@@ -513,8 +535,10 @@ int PluginList::find(const char* module) const
 { DEBUGLOG(("PluginList(%p)::find(%s)\n", this, module));
   if (module)
   { module = sfnameext2(module);
+    char* cp = strrchr(module, '.');
+    size_t len = cp ? cp - module : strlen(module)+1;
     for (size_t i = 0; i < size(); ++i)
-      if (stricmp(sfnameext2((*this)[i]->GetModuleName()), module) == 0)
+      if (strnicmp((*this)[i]->GetModule().Key, module, len) == 0)
         return i;
   }
   return -1;
@@ -522,10 +546,11 @@ int PluginList::find(const char* module) const
 
 const xstring PluginList::Serialize() const
 { DEBUGLOG(("PluginList::Serialize() - %u\n", size()));
-  xstring result = xstring::empty;
+  xstringbuilder result;
   for (Plugin*const* pp = begin(); pp < end(); ++pp)
-    // TODO: again a stringbuilder would be nice
-    result = result + (*pp)->Serialize() + "\n";
+  { result += (*pp)->Serialize();
+    result += '\n';
+  }
   return result;
 }
 
@@ -630,7 +655,7 @@ int PluginList1::SetActive(int i)
 const xstring PluginList1::Serialize() const
 { DEBUGLOG(("PluginList1::Serialize() - %p\n", Active));
   const xstring& ret = PluginList::Serialize();
-  return Active ? ret + Active->GetModuleName() : ret;
+  return Active ? ret + Active->GetModule().GetModuleName() : ret;
 }
 
 PluginList::RC PluginList1::Deserialize(const xstring& str)
@@ -778,7 +803,7 @@ dec_append_load_menu( HWND hMenu, ULONG id_base, SHORT where, DECODER_WIZARD_FUN
   { const Decoder* dec = (Decoder*)Decoders[i];
     if (dec->GetEnabled() && dec->GetProcs().decoder_getwizard)
     { const DECODER_WIZARD* da = (*dec->GetProcs().decoder_getwizard)();
-      DEBUGLOG(("dec_append_load_menu: %s - %p\n", dec->GetModuleName().cdata(), da));
+      DEBUGLOG(("dec_append_load_menu: %s - %p\n", dec->GetModule().Key.cdata(), da));
       MENUITEM mi = {0};
       mi.iPosition   = where;
       mi.afStyle     = MIS_TEXT;
@@ -816,7 +841,7 @@ void dec_append_accel_table( HACCEL& haccel, ULONG id_base, LONG offset, DECODER
   { Decoder* dec = (Decoder*)Decoders[i];
     if (dec->GetEnabled() && dec->GetProcs().decoder_getwizard)
     { const DECODER_WIZARD* da = (*dec->GetProcs().decoder_getwizard)();
-      DEBUGLOG(("dec_append_accel_table: %s - %p\n", dec->GetModuleName().cdata(), da));
+      DEBUGLOG(("dec_append_accel_table: %s - %p\n", dec->GetModule().Key.cdata(), da));
       for (; da != NULL; da = da->link, ++id_base)
       { if (size-- == 0)
           goto nomore; // too many entries, can't help
@@ -846,7 +871,7 @@ void dec_append_accel_table( HACCEL& haccel, ULONG id_base, LONG offset, DECODER
  nomore:
   if (modified)
   { PMRASSERT(WinDestroyAccelTable(haccel));
-    haccel = WinCreateAccelTable(amp_player_hab(), paccel);
+    haccel = WinCreateAccelTable(amp_player_hab, paccel);
     PMASSERT(haccel != NULLHANDLE);
   }
 }

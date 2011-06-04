@@ -348,11 +348,11 @@ dk_try_to_dock_window( DK_DATA* window, PSWP swp )
         if( dk_adjust_window( child, window, swp )) {
           // Docks the master window only if its movement it is finished.
           if( swp->fl & SWP_ACTIVATE ) {
-            WinPostMsg( window->hwnd, WM_DOCKWINDOW,
+            WinPostMsg( window->hwnd, UM_DOCKWINDOW,
                         MPFROMHWND( child->hwnd ), MPFROMLONG( TRUE  ));
           }
         } else {
-          WinPostMsg( window->hwnd, WM_DOCKWINDOW,
+          WinPostMsg( window->hwnd, UM_DOCKWINDOW,
                       MPFROMHWND( child->hwnd ), MPFROMLONG( FALSE ));
         }
       }
@@ -367,14 +367,14 @@ dk_try_to_dock_window( DK_DATA* window, PSWP swp )
           && WinIsWindowVisible( child->hwnd ))
       {
         if( dk_adjust_window( child, window, swp )) {
-          WinPostMsg( child->hwnd, WM_DOCKWINDOW,
+          WinPostMsg( child->hwnd, UM_DOCKWINDOW,
                       MPFROMHWND( window->hwnd ), MPFROMLONG( TRUE  ));
         } else {
-          WinPostMsg( child->hwnd, WM_DOCKWINDOW,
+          WinPostMsg( child->hwnd, UM_DOCKWINDOW,
                       MPFROMHWND( window->hwnd ), MPFROMLONG( FALSE ));
 
           if( dk_is_docked( window, child )) {
-            WinPostMsg( window->hwnd, WM_DOCKWINDOW,
+            WinPostMsg( window->hwnd, UM_DOCKWINDOW,
                         MPFROMHWND( child->hwnd ), MPFROMLONG( FALSE ));
           }
         }
@@ -473,7 +473,7 @@ dk_win_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
       }
       break;
 
-    case WM_DOCKWINDOW:
+    case UM_DOCKWINDOW:
     {
       DK_DATA* dock = dk_request_window((HWND)mp1);
       window = dk_get_window( hwnd );
@@ -650,7 +650,7 @@ dk_arrange( HWND hwnd )
   }
 
   while( WinPeekMsg( hab, &msg, NULLHANDLE,
-                     WM_DOCKWINDOW, WM_DOCKWINDOW, PM_REMOVE )) {}
+                     UM_DOCKWINDOW, UM_DOCKWINDOW, PM_REMOVE )) {}
 
   while( window->childs_count ) {
     dk_undock( window, window->childs[0] );

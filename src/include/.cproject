@@ -34,6 +34,7 @@
 									<listOptionValue builtIn="false" value="PM123_CORE=1"/>
 									<listOptionValue builtIn="false" value="OUTPUT_PLUGIN_LEVEL=2"/>
 									<listOptionValue builtIn="false" value="INLINE"/>
+									<listOptionValue builtIn="false" value="INCL_ERRORS=1"/>
 								</option>
 								<option id="gnu.cpp.compiler.option.include.paths.270600187" name="Include paths (-I)" superClass="gnu.cpp.compiler.option.include.paths" valueType="includePath">
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/include}&quot;"/>

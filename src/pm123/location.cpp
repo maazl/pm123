@@ -437,11 +437,11 @@ Location::NavigationResult Location::Navigate(PM123_TIME offset, JobSet& job)
           cur->GetPlayable().URL.cdata());
       if (offset >= songlen)
         return xstring::sprintf("Time index -%f is before the start of the song %s with length %f.",
-          offset, cur->GetPlayable().URL.cdata(), songlen); 
+          offset, cur->GetPlayable().URL.cdata(), songlen);
       offset = songlen - offset;
     } else if (songlen >= 0 && offset >= songlen)
     { return xstring::sprintf("Time index %f is behind the end of the song %s at %f.",
-        offset, cur->GetPlayable().URL.cdata(), songlen); 
+        offset, cur->GetPlayable().URL.cdata(), songlen);
     }
     // TODO: start and stop slice
     Position = offset;
@@ -664,7 +664,17 @@ int Location::CompareTo(const Location& r, unsigned level, bool withpos) const
   }
 }
 
-const volatile AggregateInfo& Location::AggregateHelper::FetchAI(APlayable& p)
+struct AggregateHelper
+{ const InfoFlags           What;
+  const Priority            Pri;
+  InfoFlags                 Complete;
+  PlayableSet               Exclude;
+  AggregateHelper(InfoFlags what, Priority pri) : What(what), Pri(pri), Complete(what) {}
+  const volatile AggregateInfo& FetchAI(APlayable& p);
+  InfoFlags                 GetIncomplete() const { return What & ~Complete; }
+};
+
+const volatile AggregateInfo& AggregateHelper::FetchAI(APlayable& p)
 { DEBUGLOG(("Location::AggregateHelper({%x, %u, %x, {%u,}})::FetchAI(&%p)", What, Pri, Complete, Exclude.size(), &p));
   InfoFlags what2 = What;
   const volatile AggregateInfo& ai = p.RequestAggregateInfo(Exclude, what2, Pri);
@@ -717,51 +727,3 @@ InfoFlags Location::AddFrontAggregate(AggregateInfo& dest, InfoFlags what, Prior
   return agg.GetIncomplete();
 }
 
-
-/****************************************************************************
-*
-*  class SongIterator
-*
-****************************************************************************/
-
-SongIterator::OffsetInfo& SongIterator::OffsetInfo::operator+=(const OffsetInfo& r)
-{ if (Index >= 0)
-  { if (r.Index >= 0)
-      Index += r.Index;
-    else
-      Index = -1;
-  }
-  if (Time >= 0)
-  { if (r.Time >= 0)
-      Time += r.Time;
-    else
-      Time = -1;
-  }
-  return *this;
-}
-
-void SongIterator::SetRoot(Playable* root)
-{ int_ptr<Playable> ptr(root);
-  ptr.toCptr();
-  ptr.fromCptr(GetRoot());
-  Location::SetRoot(root);
-}
-
-SongIterator& SongIterator::operator=(const SongIterator& r)
-{ DEBUGLOG(("SongIterator(%p)::operator=(&%p)\n", this, &r));
-  int_ptr<Playable> ptr(r.GetRoot());
-  ptr.toCptr();
-  ptr.fromCptr(GetRoot());
-  Location::operator=(r);
-  return *this;
-}
-
-SongIterator::OffsetInfo SongIterator::CalcOffsetInfo(size_t level)
-{ DEBUGLOG(("SongIterator(%p)::GetOffsetInfo(%u)\n", this, level));
-  ASSERT(level <= GetLevel());
-  if (level == GetLevel())
-    return OffsetInfo(0, GetPosition());
-  OffsetInfo off = CalcOffsetInfo(level+1);
-
-  return off;
-}

@@ -1,5 +1,5 @@
 /*
- * Copyright 2007-2009 Marcel Mueller
+ * Copyright 2007-2011 Marcel Mueller
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -49,9 +49,10 @@
 ****************************************************************************/
 //static MRESULT EXPENTRY DlgProcStub(HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2);
 
-class PlaylistView : public PlaylistRepository<PlaylistView>
-{ friend class PlaylistRepository<PlaylistView>;
- public:
+class PlaylistView
+: public PlaylistBase
+, public inst_index<PlaylistView, Playable*const, &ComparePtr<Playable> >
+{public:
   //struct Record;
   typedef CPDataBase CPData;
   /*struct CPData : public CPDataBase
@@ -103,8 +104,15 @@ class PlaylistView : public PlaylistRepository<PlaylistView>
   HWND              RecMenu;
 
  private:
+ private:
   /// Create a playlist manager window for an URL, but don't open it.
-  PlaylistView(Playable& obj, const xstring& alias);
+  PlaylistView(Playable& obj);
+  static PlaylistView* Factory(Playable*const& key);
+ public:
+  static int_ptr<PlaylistView> GetByKey(Playable& key) { return inst_index<PlaylistView, Playable*const, &ComparePtr<Playable> >::GetByKey(&key, &PlaylistView::Factory); }
+  // Get an instance of the same type as the current instance for URL.
+  virtual const int_ptr<PlaylistBase> GetSame(Playable& obj);
+  static void       DestroyAll();
 
  private:
   /// Post record update message, filtered.

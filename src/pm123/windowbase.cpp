@@ -48,17 +48,18 @@
 *
 ****************************************************************************/
 
-DialogBase::DialogBase(ULONG rid, HMODULE module)
+DialogBase::DialogBase(ULONG rid, HMODULE module, DlgFlags flags)
 : DlgRID(rid),
   ResModule(module),
+  Flags(flags),
   HwndFrame(NULLHANDLE),
   InitialVisible(false),
   Initialized(0)
-{ DEBUGLOG(("DialogBase(%p)::DialogBase(%u, %p)\n", this, rid, module));
+{ DEBUGLOG(("DialogBase(%p)::DialogBase(%u, %p, %x)\n", this, rid, module, flags));
 }
 
 DialogBase::~DialogBase()
-{ DEBUGLOG(("DialogBase(%p{%u,%s})::~DialogBase()\n", this, DlgRID, Title.cdata()));
+{ DEBUGLOG(("DialogBase(%p{%u})::~DialogBase()\n", this, DlgRID));
   if (HwndFrame != NULLHANDLE)
     WinDestroyWindow(GetHwnd());
 }
@@ -100,30 +101,49 @@ MRESULT EXPENTRY wb_DlgProcStub(HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2)
    case WM_DESTROY:
     pb->OnDestroy();
     break;
-  } 
+  }
   return r;
 }
 
 MRESULT DialogBase::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
-{ return WinDefDlgProc(HwndFrame, msg, mp1, mp2);
+{
+  switch (msg)
+  {case WM_ADJUSTWINDOWPOS:
+    { SWP* pswp = (SWP*)PVOIDFROMMP(mp1);
+      if ((Flags & DF_AutoSizeConstr) && pswp->fl & SWP_SIZE)
+        dlg_adjust_resize(GetHwnd(), pswp);
+    }
+    break;
+
+   case WM_WINDOWPOSCHANGED:
+    { SWP* pswp = (SWP*)PVOIDFROMMP(mp1);
+      if ((Flags & DF_AutoResize) && pswp->fl & SWP_SIZE)
+        dlg_do_resize(GetHwnd(), pswp, pswp+1);
+    }
+    break;
+  }
+
+  return WinDefDlgProc(HwndFrame, msg, mp1, mp2);
 }
 
 void DialogBase::OnInit()
 { // Attach the class instance to the window.
-  DEBUGLOG(("DialogBase(%p{%u,%s})::OnInit()\n", this, DlgRID, Title.cdata()));
+  DEBUGLOG(("DialogBase(%p{%u})::OnInit()\n", this, DlgRID));
   PMRASSERT(WinSetWindowPtr(HwndFrame, QWL_USER, this));
 }
 
 void DialogBase::OnDestroy()
-{ DEBUGLOG(("DialogBase(%p{%u,%s})::OnDestroy()\n", this, DlgRID, Title.cdata()));
+{ DEBUGLOG(("DialogBase(%p{%u})::OnDestroy()\n", this, DlgRID));
   // Keep instance no longer alive
-  PMRASSERT(WinSetWindowPtr(HwndFrame, QWL_USER, NULL));
   Initialized = 0;
-  HwndFrame = NULLHANDLE;
+  if (HwndFrame != NULLHANDLE)
+  { PMRASSERT(WinSetWindowPtr(HwndFrame, QWL_USER, NULL));
+    HwndFrame = NULLHANDLE;
+  }
 }
 
 void DialogBase::SetVisible(bool show)
-{ DEBUGLOG(("DialogBase(%p{%s})::SetVisible(%u)\n", this, Title.cdata(), show));
+{ DEBUGLOG(("DialogBase(%p{%u})::SetVisible(%u)\n", this, DlgRID, show));
 
   if (Initialized == 0) // double check
   { CritSect cs;
@@ -144,12 +164,65 @@ bool DialogBase::GetVisible() const
   return WinIsWindowVisible(HwndFrame);
 }
 
-void DialogBase::SetTitle(const xstring& title)
-{ DEBUGLOG(("DialogBase(%p)::SetTitle(%s)\n", this, title.cdata()));
-  // Update Window Title
-  PMRASSERT(WinSetWindowText(HwndFrame, (char*)title.cdata()));
-  // now free the old title
-  Title = title;
+xstring DialogBase::GetTitle() const
+{ size_t len = WinQueryWindowTextLength(HwndFrame);
+  xstring ret;
+  return WinQueryWindowText(HwndFrame, len+1, ret.allocate(len)) ? ret : xstring();
+}
+
+void DialogBase::SetTitle(const char* title)
+{ DEBUGLOG(("DialogBase(%p)::SetTitle(%s)\n", this, title));
+  PMRASSERT(WinSetWindowText(HwndFrame, title));
+}
+
+void DialogBase::PostMsg(ULONG msg, MPARAM mp1, MPARAM mp2)
+{ DEBUGLOG(("DialogBase(%p)::PostMsg(%lu, %p, %p)\n", this, msg, mp1, mp2));
+  PMRASSERT(WinPostMsg(HwndFrame, msg, mp1, mp2));
+}
+
+void DialogBase::EnableControl(ULONG item, bool check)
+{ WinEnableControl(HwndFrame, item, check);
+}
+
+void DialogBase::SetItemText(ULONG item, const char* text)
+{ WinSetDlgItemText(HwndFrame, item, text);
+}
+
+bool DialogBase::QueryButtonCheckstate(ULONG item)
+{ return WinQueryButtonCheckstate(HwndFrame, item);
+}
+void DialogBase::CheckButton(ULONG item, bool check)
+{ WinCheckButton(HwndFrame, item, check);
+}
+ULONG DialogBase::QuerySelectedRadiobutton(ULONG id)
+{ HWND cur = WinWindowFromID(HwndFrame, id);
+  PMASSERT(cur);
+  HWND first = cur;
+  HWND prev = cur; // Work around for PM bug
+  cur = WinEnumDlgItem(HwndFrame, cur, EDI_FIRSTGROUPITEM);
+  do
+  { if (WinSendMsg(cur, BM_QUERYCHECK, 0, 0))
+      return WinQueryWindowUShort(cur, QWS_ID);
+    prev = cur;
+    cur = WinEnumDlgItem(HwndFrame, cur, EDI_NEXTGROUPITEM);
+  } while (cur != first && cur != prev);
+  return 0;
+}
+
+void DialogBase::SetSpinbuttonLimits(ULONG id, LONG low, LONG high, USHORT len)
+{ HWND sb = WinWindowFromID(HwndFrame, id);
+  if (sb != NULLHANDLE)
+  { PMRASSERT(WinSendMsg(sb, SPBM_SETLIMITS, MPFROMLONG(high), MPFROMLONG(low)));
+    PMRASSERT(WinSendMsg(sb, SPBM_SETTEXTLIMIT, MPFROMSHORT(len), 0));
+  }
+}
+LONG DialogBase::QuerySpinbuttonValue(ULONG id)
+{ LONG ret;
+  PMRASSERT(SendItemMsg(id, SPBM_QUERYVALUE, MPFROMP(&ret), MPFROM2SHORT(0, SPBQ_DONOTUPDATE)));
+  return ret;
+}
+void DialogBase::SetSpinbuttomValue(ULONG id, LONG value)
+{ SendItemMsg(id, SPBM_SETCURRENTVALUE, MPFROMLONG(value), 0);
 }
 
 void DialogBase::SetHelpMgr(HWND hhelp)
@@ -158,14 +231,48 @@ void DialogBase::SetHelpMgr(HWND hhelp)
 }
 
 
-void ManagedDialogBase::OnInit()
-{ DEBUGLOG(("ManagedDialogBase(%p)::OnInit()\n", this));
-  DialogBase::OnInit();
-  Self = this;
+/****************************************************************************
+*
+*  class NotebookDialogBase
+*
+****************************************************************************/
+
+NotebookDialogBase::PageBase::PageBase(NotebookDialogBase& parent, ULONG rid, HMODULE module, DlgFlags flags)
+: DialogBase(rid, module, flags),
+  Parent(parent)
+{}
+
+void NotebookDialogBase::StartDialog(HWND owner, USHORT nbid, HWND parent)
+{ DEBUGLOG(("NotebookDialogBase(%p)::StartDialog(%p, %i, %p)\n", this, owner, nbid, parent));
+  DialogBase::StartDialog(owner, parent);
+  // setup notebook windows
+  HWND book = WinWindowFromID(GetHwnd(), nbid);
+  int index = 0;
+  int total = 0;
+  for (PageBase*const* pp = Pages.begin(); pp != Pages.end(); ++pp)
+  { PageBase* p = *pp;
+    DEBUGLOG(("NotebookDialogBase::StartDialog Page %p {%s,%s}\n", p, p->MajorTitle.cdata(), p->MinorTitle.cdata()));
+    p->StartDialog();
+    // Count index totals
+    if (p->MajorTitle != NULL)
+    { index = total = 0;
+      if (p->MinorTitle != NULL)
+      { PageBase*const* pp2 = pp;
+        while (++pp2 != Pages.end() && (*pp2)->MajorTitle == NULL && (*pp2)->MinorTitle != NULL)
+          ++total;
+      }
+    }
+    if (total)
+      ++index;
+    p->PageID = nb_append_tab(book, p->GetHwnd(), p->MajorTitle.cdata(), p->MinorTitle.cdata(), MPFROM2SHORT(index,total));
+    PMASSERT(p->PageID != 0);
+  }
 }
 
-void ManagedDialogBase::OnDestroy()
-{ DEBUGLOG(("ManagedDialogBase(%p)::OnDestroy()\n", this));
-  DialogBase::OnDestroy();
-  Self = NULL; // this may get invalid here
+NotebookDialogBase::PageBase* NotebookDialogBase::PageFromID(ULONG pageid)
+{ for (PageBase*const* pp = Pages.begin(); pp != Pages.end(); ++pp)
+    if ((*pp)->PageID == pageid)
+      return *pp;
+  return NULL;
 }
+

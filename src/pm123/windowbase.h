@@ -33,6 +33,7 @@
 
 #include <cpp/smartptr.h>
 #include <cpp/xstring.h>
+#include <cpp/container/vector.h>
 
 #include <os2.h>
 
@@ -45,7 +46,13 @@
 *
 ****************************************************************************/
 class DialogBase
-{private:
+{public:
+  enum DlgFlags
+  { DF_None           = 0x00,
+    DF_AutoResize     = 0x01,
+    DF_AutoSizeConstr = 0x02
+  };
+ private:
   // wrap pointer to keep PM happy
   struct init_dlg_struct
   { USHORT      size;
@@ -55,11 +62,12 @@ class DialogBase
  protected: // content
   const ULONG       DlgRID;        // Resource ID of the dialog template
   const HMODULE     ResModule;     // Module handle for the above resource
+  const DlgFlags    Flags;
  private:
   HWND              HwndFrame;     // Frame window handle
   bool              InitialVisible;
   int               Initialized;
-  xstring           Title;         // Keep the window title storage
+  //xstring           Title;         // Keep the window title storage
 
  private:
   // Static members must not use EXPENTRY linkage with IBM VACPP.
@@ -71,9 +79,9 @@ class DialogBase
 
  protected:
   // Create a playlist manager window for an object, but don't open it.
-  DialogBase(ULONG rid, HMODULE module);
+  DialogBase(ULONG rid, HMODULE module, DlgFlags flags = DF_None);
 
-  // load dialog ressources and create window
+  // load dialog resources and create window
   void              StartDialog(HWND owner, HWND parent = HWND_DESKTOP);
   // Dialog procedure, called by DlgProcStub
   virtual MRESULT   DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2);
@@ -83,9 +91,22 @@ class DialogBase
   virtual void      OnDestroy();
 
   // Get the window title
-  xstring           GetTitle() const { return Title; };
+  xstring           GetTitle() const;
   // Set the window title
-  void              SetTitle(const xstring& title);
+  void              SetTitle(const char* title);
+
+  void              PostMsg(ULONG msg, MPARAM mp1, MPARAM mp2);
+  // Dialog item functions
+  MRESULT           SendItemMsg(ULONG id, ULONG msg, MPARAM mp1, MPARAM mp2)
+                    { return WinSendDlgItemMsg(HwndFrame, id, msg, mp1, mp2); }
+  void              EnableControl(ULONG id, bool check);
+  void              SetItemText(ULONG id, const char* text);
+  bool              QueryButtonCheckstate(ULONG id);
+  void              CheckButton(ULONG id, bool check);
+  ULONG             QuerySelectedRadiobutton(ULONG id);
+  void              SetSpinbuttonLimits(ULONG id, LONG low, LONG high, USHORT len);
+  LONG              QuerySpinbuttonValue(ULONG id);
+  void              SetSpinbuttomValue(ULONG id, LONG value);
 
   // Set Help Manager
   void              SetHelpMgr(HWND hhelp);
@@ -97,21 +118,72 @@ class DialogBase
   // Make the window visible (or not)
   virtual void      SetVisible(bool show);
   bool              GetVisible() const;
+  void              Process()       { WinProcessDlg(HwndFrame); }
   // Force the window to close
-  void              Destroy() { WinDestroyWindow(HwndFrame); }
+  void              Destroy()       { WinDestroyWindow(HwndFrame); }
 };
 
 
-class ManagedDialogBase : public DialogBase, public Iref_count
+class NotebookDialogBase : public DialogBase
+{protected:
+  // Base class for notebook pages
+  class PageBase;
+  friend class PageBase;
+  class PageBase : public DialogBase
+  { friend class NotebookDialogBase;
+   protected:
+    NotebookDialogBase& Parent;
+    xstring         MajorTitle;
+    xstring         MinorTitle;
+   private:
+    ULONG           PageID;  // PM Notebook page ID from.
+   protected:
+                    PageBase(NotebookDialogBase& parent, ULONG rid, HMODULE module, DlgFlags flags = DF_None);
+    virtual void    StartDialog()   { DialogBase::StartDialog(Parent.GetHwnd(), Parent.GetHwnd()); }
+   public:
+    /// Return the InfoFlags to be requested
+    const xstring&  GetMajorTitle() { return MajorTitle; }
+    const xstring&  GetMinorTitle() { return MinorTitle; }
+    ULONG           GetPageID()     { return PageID; }
+  };
+
+ protected:
+  vector_own<PageBase> Pages;
+
+ protected:
+  NotebookDialogBase(ULONG rid, HMODULE module, DlgFlags flags = DF_None) : DialogBase(rid, module, flags) {}
+  void              StartDialog(HWND owner, USHORT nbid, HWND parent = HWND_DESKTOP);
+  PageBase*         PageFromID(ULONG pageid);
+};
+
+/** Wrapper class for dialog base classes to tie the object lifetime
+ * to the lifetime of the window.
+ */
+template <class BASE>
+class ManagedDialog : public BASE, public IVref_count
 {private:
-  int_ptr<ManagedDialogBase> Self;
+  int_ptr<IVref_count> Self;
  protected:
   virtual void      OnInit();
   // If you overload OnDestroy you must not access *this after ManagedDialogBase::OnDestroy returned.
   virtual void      OnDestroy();
  public:
-  ManagedDialogBase(ULONG rid, HMODULE module) : DialogBase(rid, module) {}
+  ManagedDialog(ULONG rid, HMODULE module, DialogBase::DlgFlags flags = DF_None) : BASE(rid, module, flags) {}
 };
+
+template <class BASE>
+void ManagedDialog<BASE>::OnInit()
+{ DEBUGLOG(("ManagedDialog(%p)::OnInit()\n", this));
+  DialogBase::OnInit();
+  Self = this;
+}
+
+template <class BASE>
+void ManagedDialog<BASE>::OnDestroy()
+{ DEBUGLOG(("ManagedDialog(%p)::OnDestroy()\n", this));
+  DialogBase::OnDestroy();
+  Self = NULL; // this may get invalid here
+}
 
 
 /****************************************************************************

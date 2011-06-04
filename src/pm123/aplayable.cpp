@@ -1,5 +1,5 @@
 /*
- * Copyright 2009-2009 M.Mueller
+ * Copyright 2009-2011 M.Mueller
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -72,8 +72,18 @@ InfoFlags APlayable::RequestInfo(InfoFlags what, Priority pri, Reliability rel)
 { DEBUGLOG(("APlayable(%p{%s})::RequestInfo(%x, %d, %d)\n", this, GetPlayable().URL.getShortName().cdata(), what, pri, rel));
   InfoFlags rq = what;
   InfoFlags async = DoRequestInfo(rq, pri, rel);
-  DEBUGLOG(("APlayable::RequestInfo: %x\n", async));
+  DEBUGLOG(("APlayable::RequestInfo rq = %x, async = %x\n", rq, async));
   ASSERT(async == IF_None || pri != PRI_None);
+  #ifdef DEBUG
+  if (pri != PRI_None && rq)
+  { RequestState req;
+    PeekRequest(req);
+    if (pri == PRI_Low)
+      req.ReqHigh |= req.ReqLow;
+    DoRequestInfo(rq, PRI_None, rel);
+    ASSERT((~req.ReqHigh & rq) == 0);
+  }
+  #endif
   // what  - requested information
   // rq    - missing information, subset of what
   // async - asynchronously requested information, subset of rq
@@ -115,6 +125,18 @@ volatile const AggregateInfo& APlayable::RequestAggregateInfo(
   AggregateInfo& ai = DoAILookup(exclude);
   InfoFlags rq = what;
   InfoFlags async = DoRequestAI(ai, rq, pri, rel);
+  DEBUGLOG(("APlayable::RequestAggregateInfo rq = %x, async = %x\n", rq, async));
+  ASSERT(async == IF_None || pri != PRI_None);
+  #ifdef DEBUG
+  if (pri != PRI_None && rq)
+  { RequestState req;
+    PeekRequest(req);
+    if (pri == PRI_Low)
+      req.ReqHigh |= req.ReqLow;
+    DoRequestAI(ai, rq, PRI_None, rel);
+    ASSERT((~req.ReqHigh & rq) == 0);
+  }
+  #endif
   // what  - requested information
   // rq    - missing information, subset of what
   // async - asynchronously requested information, subset of rq
@@ -184,14 +206,17 @@ void RescheduleWorker::OnCompleted()
 
 void APlayable::ScheduleRequest(Priority pri)
 { DEBUGLOG(("APlayable(%p)::ScheduleRequest(%u)\n", this, pri));
-  if (InfoStat.RequestAsync(pri))
+  if (!AsyncRequest.bitset(pri == PRI_Low))
     WQueue.Write(new QEntry(this), pri == PRI_Low);
 }
 
 void APlayable::HandleRequest(Priority pri)
 { DEBUGLOG(("APlayable(%p)::HandleRequest(%u)\n", this, pri));
   JobSet job(pri);
-  InfoStat.ResetAsync(pri);
+  if (pri == PRI_Low)
+    AsyncRequest.bitrst(1);
+  else
+    AsyncRequest = 0;
   DoLoadInfo(job);
   // reschedule required later?
   if (job.AllDepends.Size())
@@ -266,7 +291,7 @@ void APlayable::Uninit()
   WQueue.Write(new QEntry(NULL), false); // deadly pill
   // Synchronize worker threads
   for (WInit* wp = WItems + WNumWorkers; wp != WItems; )
-    wait_thread_pm(amp_player_hab(), (--wp)->TID, 60000);
+    wait_thread_pm(amp_player_hab, (--wp)->TID, 60000);
   // Now remove the deadly pill from the queue
   WQueue.Purge();
   delete[] WItems;

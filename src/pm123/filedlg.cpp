@@ -1,6 +1,6 @@
 /*
  * Copyright 2004-2008 Dmitry A.Steklenev <glass@ptv.ru>
- *           2009-2010 Marcel Mueller
+ *           2009-2011 Marcel Mueller
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -60,8 +60,9 @@ APSZ_list::operator APSZ*() const
 
 
 typedef strmapentry<stringset_own> AggregateEntry;
+typedef sorted_vector<AggregateEntry,xstring,&AggregateEntry::compare> Aggregate;
 
-static void do_aggregate(sorted_vector<AggregateEntry,xstring>& dest, const char* key, const char* types)
+static void do_aggregate(Aggregate& dest, const char* key, const char* types)
 { if (types == NULL || *types == 0)
     return;
   AggregateEntry*& agg = dest.get(key);
@@ -71,9 +72,9 @@ static void do_aggregate(sorted_vector<AggregateEntry,xstring>& dest, const char
   { const char* cp = strchr(types, ';');
     xstring val(types, cp ? cp-types: strlen(types));
     DEBUGLOG(("filedlg:do_aggregate: %s\n", val.cdata()));
-    strkey*& elem = agg->Value.get(val);
+    xstring*& elem = agg->Value.get(val);
     if (elem == NULL)
-      elem = new strkey(val); // new entry
+      elem = new xstring(val); // new entry
     if (cp == NULL)
       return;
     types = cp+1;
@@ -82,7 +83,7 @@ static void do_aggregate(sorted_vector<AggregateEntry,xstring>& dest, const char
 
 APSZ_list* amp_file_types(DECODER_TYPE flagsreq)
 { // Create aggregate[EA type][extension]
-  sorted_vector_own<AggregateEntry,xstring> aggregate;
+  Aggregate aggregate;
   
   sco_ptr<IFileTypesEnumerator> en(dec_filetypes(flagsreq));
   while (en->Next())
@@ -102,8 +103,8 @@ APSZ_list* amp_file_types(DECODER_TYPE flagsreq)
     // Calculate length
     // The calculated length may be a few byte more than required, if either eatype or extensions are missing. 
     size_t len = (*app)->Key.length() + 3 + set.size()-1 +1; // EAtype + " ()" + delimiters + '\0'
-    for (strkey*const* xpp = set.end(); xpp-- != set.begin();)
-      len += (*xpp)->Key.length();
+    for (xstring*const* xpp = set.end(); xpp-- != set.begin();)
+      len += (*xpp)->length();
     char* dp = new char[len];
     result->append() = dp;
     // Store EA type
@@ -118,13 +119,13 @@ APSZ_list* amp_file_types(DECODER_TYPE flagsreq)
     if (set.size())
     {both:
       *dp++ = '(';
-      strkey*const* xpp = set.begin();
+      xstring*const* xpp = set.begin();
       goto start; // 1st item
       while (++xpp != set.end())
       { *dp++ = ';';
        start:
-        memcpy(dp, (*xpp)->Key.cdata(), (*xpp)->Key.length());
-        dp += (*xpp)->Key.length();
+        memcpy(dp, (*xpp)->cdata(), (*xpp)->length());
+        dp += (*xpp)->length();
       }
       *dp++ = ')';
     }
@@ -174,7 +175,7 @@ int amp_decoder_by_type(DECODER_TYPE flagsreq, const char* filter, xstring& form
 }
 
 
-static BOOL init_done = FALSE;
+/*static BOOL init_done = FALSE;
 static SWP  init_file_dlg;
 static SWP  init_text_filename;
 static SWP  init_edit_filename;
@@ -187,10 +188,10 @@ static SWP  init_text_directory;
 static SWP  init_lbox_directory;
 static SWP  init_lbox_files;
 static SWP  init_cbox_recurse;
-static SWP  init_cbox_relative;
+static SWP  init_cbox_relative;*/
 
 /* Resizes the file dialog controls. */
-static void
+/*static void
 amp_file_dlg_resize( HWND hwnd, SHORT cx, SHORT cy )
 {
   SWP swp[12];
@@ -282,7 +283,7 @@ amp_file_dlg_resize( HWND hwnd, SHORT cx, SHORT cy )
 
   WinSetMultWindowPos( WinQueryAnchorBlock( hwnd ), swp,
                                             sizeof( swp ) / sizeof( swp[0] ));
-}
+}*/
 
 /* Default dialog procedure for the file dialog. */
 static MRESULT EXPENTRY
@@ -295,7 +296,7 @@ amp_file_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
   switch( msg )
   {
     case WM_INITDLG:
-      // At the first activation of the first file dialog it is necessary to
+      /*// At the first activation of the first file dialog it is necessary to
       // save its layout. In the further it will be used as a template
       // at formatting all subsequent dialogues.
       if( !init_done ) {
@@ -313,7 +314,7 @@ amp_file_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
         WinQueryWindowPos( WinWindowFromID( hwnd, CB_RECURSE        ), &init_cbox_recurse   );
         WinQueryWindowPos( WinWindowFromID( hwnd, CB_RELATIVE       ), &init_cbox_relative  );
         init_done = TRUE;
-      }
+      }*/
 
       if( filedialog && !(filedialog->ulUser & FDU_RECURSEBTN )) {
         WinShowWindow( WinWindowFromID( hwnd, CB_RECURSE ), FALSE );
@@ -336,8 +337,19 @@ amp_file_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
       save_window_pos( hwnd );
       break;
 
+    case WM_ADJUSTWINDOWPOS:
+      { SWP* pswp = (SWP*)PVOIDFROMMP(mp1);
+        if (pswp->fl & SWP_SIZE)
+          dlg_adjust_resize(hwnd, pswp);
+      }
+      break;
+
     case WM_WINDOWPOSCHANGED:
-      amp_file_dlg_resize( hwnd, ((PSWP)mp1)[0].cx, ((PSWP)mp1)[0].cy );
+      { SWP* pswp = (SWP*)PVOIDFROMMP(mp1);
+        if (pswp->fl & SWP_SIZE)
+          dlg_do_resize(hwnd, pswp, pswp+1);
+      }
+      //amp_file_dlg_resize( hwnd, ((PSWP)mp1)[0].cx, ((PSWP)mp1)[0].cy );
       break;
 
     case WM_CONTROL:

@@ -1,5 +1,5 @@
 /*
- * Copyright 2008-2009 M.Mueller
+ * Copyright 2008-2011 M.Mueller
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -62,21 +62,21 @@ bool EmptyPlayableSet::contains(const Playable&) const
 static const EmptyPlayableSet EmptySet;
 const PlayableSetBase& PlayableSetBase::Empty(EmptySet);
 
-int PlayableSetBase::compareTo(const PlayableSetBase& r) const
-{ DEBUGLOG(("PlayableSetBase(%p{%u,...})::compareTo(&%p{%u,...})\n", this, size(), &r, r.size()));
-  if (&r == this)
+int PlayableSetBase::compare(const PlayableSetBase& l, const PlayableSetBase& r)
+{ DEBUGLOG(("PlayableSetBase::compare(&%p{%u,...}, &%p{%u,...})\n", &l, l.size(), &r, r.size()));
+  if (&l == &r)
     return 0; // Comparison to itself
   size_t p1 = 0;
   size_t p2 = 0;
   for (;;)
   { // termination condition
     if (p2 == r.size())
-      return p1 != size();
-    else if (p1 == size())
+      return p1 != l.size();
+    else if (p1 == l.size())
       return -1;
     // compare content
-    int ret = (*this)[p1]->compareTo(*r[p2]);
-    DEBUGLOG2(("PlayableSetBase::compareTo %p <=> %p = %i\n", (*this)[p1], r[p2], ret));
+    int ret = CompareInstance(*l[p1], *r[p2]);
+    DEBUGLOG2(("PlayableSetBase::compareTo %p <=> %p = %i\n", l[p1], r[p2], ret));
     if (ret)
       return ret;
     ++p1;
@@ -96,7 +96,7 @@ bool PlayableSetBase::isSubsetOf(const PlayableSetBase& r) const
   size_t p2 = 0;
   for (;;)
   { // compare content
-    int ret = (*this)[p1]->compareTo(*r[p2]);
+    int ret = CompareInstance(*(*this)[p1], *r[p2]);
     DEBUGLOG2(("PlayableSetBase::isSubsetOf %p <=> %p = %i\n", (*this)[p1], r[p2], ret));
     if (ret > 0)
       return false; // no match for **ppp1
@@ -113,17 +113,17 @@ bool PlayableSetBase::isSubsetOf(const PlayableSetBase& r) const
 
 
 PlayableSet::PlayableSet(size_t size)
-: sorted_vector<Playable, Playable>(size)
+: sorted_vector<Playable, Playable, &CompareInstance<Playable> >(size)
 { DEBUGLOG(("PlayableSet(%p)::PlayableSet(%u)\n", this, size));
 }
 PlayableSet::PlayableSet(const PlayableSetBase& r)
-: sorted_vector<Playable, Playable>(r.size())
+: sorted_vector<Playable, Playable, &CompareInstance<Playable> >(r.size())
 { DEBUGLOG(("PlayableSet(%p)::PlayableSet(const PlayableSetBase&{%u...})\n", this, r.size()));
   for (size_t i = 0; i != r.size(); ++i)
     append() = r[i];
 }
 PlayableSet::PlayableSet(const PlayableSet& r)
-: sorted_vector<Playable, Playable>(r)
+: sorted_vector<Playable, Playable, &CompareInstance<Playable> >(r)
 { DEBUGLOG(("PlayableSet(%p)::PlayableSet(const PlayableSet&{%u...})\n", this, r.size()));
 }
 
@@ -132,7 +132,7 @@ PlayableSet::~PlayableSet()
 }
 
 bool PlayableSet::contains(const Playable& key) const
-{ return sorted_vector<Playable, Playable>::find(key) != NULL;
+{ return sorted_vector<Playable, Playable, &CompareInstance<Playable> >::find(key) != NULL;
 }
 
 bool PlayableSet::add(Playable& p)
@@ -145,17 +145,17 @@ bool PlayableSet::add(Playable& p)
 
 
 OwnedPlayableSet::OwnedPlayableSet()
-: sorted_vector_int<Playable, Playable>(8)
+: sorted_vector_int<Playable, Playable, &CompareInstance<Playable> >(8)
 { DEBUGLOG(("OwnedPlayableSet(%p)::OwnedPlayableSet()\n", this));
 }
 OwnedPlayableSet::OwnedPlayableSet(const PlayableSetBase& r)
-: sorted_vector_int<Playable, Playable>(r.size())
+: sorted_vector_int<Playable, Playable, &CompareInstance<Playable> >(r.size())
 { DEBUGLOG(("OwnedPlayableSet(%p)::OwnedPlayableSet(const PlayableSetBase&{%u...})\n", this, r.size()));
   for (size_t i = 0; i != r.size(); ++i)
     append() = r[i];
 }
 OwnedPlayableSet::OwnedPlayableSet(const OwnedPlayableSet& r)
-: sorted_vector_int<Playable, Playable>(r)
+: sorted_vector_int<Playable, Playable, &CompareInstance<Playable> >(r)
 { DEBUGLOG(("OwnedPlayableSet(%p)::OwnedPlayableSet(const OwnedPlayableSet&{%u...})\n", this, r.size()));
 }
 
@@ -164,7 +164,7 @@ OwnedPlayableSet::~OwnedPlayableSet()
 }
 
 bool OwnedPlayableSet::contains(const Playable& key) const
-{ return sorted_vector_int<Playable, Playable>::find(key) != NULL;
+{ return sorted_vector_int<Playable, Playable, &CompareInstance<Playable> >::find(key) != NULL;
 }
 
 bool OwnedPlayableSet::add(Playable& p)

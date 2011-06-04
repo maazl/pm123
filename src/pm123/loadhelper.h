@@ -53,7 +53,7 @@ class LoadHelper// : public Iref_count
   const Options         Opt;
   vector_int<APlayable> Items;
  protected:
-  // Returns /one/ PlayableRefs that represents all the objects in the list.
+  // Returns /one/ APlayable that represents all the objects in the list.
   virtual APlayable*    ToAPlayable();
  public:
   // Initialize LoadHelper

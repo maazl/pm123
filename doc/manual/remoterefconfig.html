@@ -1,88 +1,107 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
-<html sublinks="*"><head>
-<meta http-equiv="Content-Type" content="text/html;charset=ISO-8859-1">
-
-<title>Configuration control commands</title>
-<link type="text/css" href="../common/infstyle.css" rel="stylesheet"></head>
+<html sublinks="*">
+<head>
+  <meta http-equiv="Content-Type" content="text/html;charset=ISO-8859-1">
+  <title>Configuration control commands</title>
+  <link type="text/css" href="../common/infstyle.css" rel="stylesheet">
+</head>
 <body>
 <h2>PM123's Remote command reference - Configuration control</h2>
 <table border="1" cellpadding="5" cellspacing="0">
-<tbody>
-<tr>
-<th>Command</th>
-<th>Description</th>
-<th>Reply</th>
-</tr>
-<tr>
-<td><tt><a name="set"></a>set </tt>[<tt><var>&lt;plug-in&gt;</var>:</tt>]<tt><var>&lt;option&gt;</var>
-</tt>[<var><tt>&lt;new&nbsp;value&gt;</tt></var>]</td>
-<td>Sets or queries an option value.&nbsp;If <var><tt>&lt;new value&gt;</tt></var> is missing only the current value is returned.<br>To access plug-in specific options precede the option with name of the plug-in and a colon. e.g. <tt>mp123:</tt> </td>
-<td>Previous setting or empty string on error.</td>
-</tr>
-<tr valign="baseline">
-<td><tt><a name="autouse"></a>autouse
-</tt>[<tt>on</tt>|<tt>off</tt>|<tt>toggle</tt>]<sup><a href="#note1">(1)</a></sup></td>
-<td>Toggles or (re)sets '<i>auto use playlist on add</i>'.<br>
+  <tbody>
+    <tr>
+      <th>Command</th>
+      <th>Description</th>
+      <th>Reply</th>
+    </tr>
+    <tr>
+      <td><tt><a name="optio"></a>option </tt>[<tt><var>&lt;plug-in&gt;</var>:</tt>]<tt><var>&lt;name&gt;</var>
+      </tt>[<var><tt>&lt;new&nbsp;value&gt;</tt></var>]</td>
+      <td>Sets or queries an <a href="#options">option value</a>.&nbsp;If
+      <var><tt>&lt;new
+value&gt;</tt></var> is missing only the current value is returned.<br>
+To access plug-in specific options precede the option with name of the
+plug-in and a colon. e.g. <tt>mp123:</tt> </td>
+      <td>Previous setting or empty string on error.</td>
+    </tr>
+    <tr valign="baseline">
+      <td><tt><a name="autouse"></a>autouse </tt>[<tt>on</tt>|<tt>off</tt>|<tt>toggle</tt>]<sup><a
+ href="#note1">(1)</a></sup></td>
+      <td>Toggles or (re)sets '<i>auto use playlist on add</i>'.<br>
 Without an argument only the current setting is returned.</td>
-<td>Previous setting or empty string on error.</td>
-</tr>
-<tr valign="baseline">
-<td><tt><a name="playonload"></a>playonload
-</tt>[<tt>on</tt>|<tt>off</tt>|<tt>toggle</tt>]<sup><a href="#note1">(1)</a></sup></td>
-<td>Toggles or (re)sets '<i>auto play on load</i>'.<br>
+      <td>Previous setting or empty string on error.</td>
+    </tr>
+    <tr valign="baseline">
+      <td><tt><a name="playonload"></a>playonload </tt>[<tt>on</tt>|<tt>off</tt>|<tt>toggle</tt>]<sup><a
+ href="#note1">(1)</a></sup></td>
+      <td>Toggles or (re)sets '<i>auto play on load</i>'.<br>
 Without an argument only the current setting is returned.</td>
-<td>Previous setting or empty string on error.</td>
-</tr>
-<tr valign="baseline">
-<td><tt><a name="float"></a>float </tt>[<tt>on</tt>|<tt>off</tt>|<tt>toggle</tt>]<sup><a href="#note1">(1)</a></sup></td>
-<td>Toggles or (re)sets '<i>float on top</i>'.<br>
+      <td>Previous setting or empty string on error.</td>
+    </tr>
+    <tr valign="baseline">
+      <td><tt><a name="float"></a>float </tt>[<tt>on</tt>|<tt>off</tt>|<tt>toggle</tt>]<sup><a
+ href="#note1">(1)</a></sup></td>
+      <td>Toggles or (re)sets '<i>float on top</i>'.<br>
 Without an argument only the current setting is returned.</td>
-<td>Previous setting or empty string on error.</td>
-</tr>
-</tbody>
+      <td>Previous setting or empty string on error.</td>
+    </tr>
+  </tbody>
 </table>
-<h3>PM123 Options</h3>
+<h3><a name="options"></a>PM123 Options</h3>
 <table border="1" cellpadding="3" cellspacing="0">
-<tbody>
-<tr>
-<th>Option</th>
-<th>Data type</th>
-<th>Description</th>
-</tr>
-<tr>
-<td>autouse</td>
-<td>boolean<sup><a href="remoterefconfig.html#note1">(1)</a></sup></td>
-<td>auto use playlist on add</td>
-</tr>
-<tr>
-<td>playonload</td>
-<td></td>
-<td></td>
-</tr>
-<tr>
-<td></td>
-<td></td>
-<td></td>
-</tr>
-<tr>
-<td></td>
-<td></td>
-<td></td>
-</tr>
-<tr>
-<td></td>
-<td></td>
-<td></td>
-</tr>
-</tbody>
+  <tbody>
+    <tr>
+      <th>Option</th>
+      <th>Data type</th>
+      <th>Description</th>
+    </tr>
+    <tr>
+      <td>autouse</td>
+      <td>boolean<sup><a href="remoterefconfig.html#note1">(1)</a></sup></td>
+      <td>auto use playlist on add</td>
+    </tr>
+    <tr>
+      <td>playonload</td>
+      <td><br>
+      </td>
+      <td><br>
+      </td>
+    </tr>
+    <tr>
+      <td><br>
+      </td>
+      <td><br>
+      </td>
+      <td><br>
+      </td>
+    </tr>
+    <tr>
+      <td><br>
+      </td>
+      <td><br>
+      </td>
+      <td><br>
+      </td>
+    </tr>
+    <tr>
+      <td><br>
+      </td>
+      <td><br>
+      </td>
+      <td><br>
+      </td>
+    </tr>
+  </tbody>
 </table>
 <h3>Notes&nbsp;</h3>
 <ol>
-<li>
-<p><a name="note1"></a>All boolean
-parameters may use '<tt>on</tt>', '<tt>1</tt>',
-'<tt>true</tt>' or '<tt>yes</tt>' for the
-logical value <em>true</em> and '<tt>off</tt>',
-'<tt>0</tt>',
-'<tt>false</tt>' or '<tt>no</tt>' for <em>false</em>.</p></li></ol>
-</body></html>
+  <li>
+    <p><a name="note1"></a>All boolean
+parameters may use <tt>on</tt>, <tt>1</tt>, <tt>true</tt> or <tt>yes</tt>
+for the
+logical value <em>true</em> and <tt>off</tt>, <tt>0</tt>, <tt>false</tt>
+or <tt>no</tt> for <em>false</em>.</p>
+  </li>
+</ol>
+</body>
+</html>
