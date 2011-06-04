@@ -103,7 +103,7 @@ ULONG DLLENTRY
 decoder_fileinfo(const char* url, int* what, const INFO_BUNDLE* info,
                  DECODER_INFO_ENUMERATION_CB cb, void* param)
 {
-  *what |= INFO_PHYS|INFO_META|INFO_OBJ; // always inclusive
+  *what |= INFO_PHYS|INFO_META; // always inclusive
  
   XFILE* file = xio_fopen(url, "rU");
   if (file == NULL)
@@ -116,8 +116,8 @@ decoder_fileinfo(const char* url, int* what, const INFO_BUNDLE* info,
     info->phys->attributes |= PATTR_WRITABLE; // TODO: read-only flag
 
   ULONG ret = PLUGIN_OK;
-  if (*what & (INFO_CHILD|INFO_TECH))
-  { *what |= INFO_CHILD|INFO_TECH;
+  if (*what & (INFO_CHILD|INFO_TECH|INFO_OBJ))
+  { *what |= INFO_CHILD|INFO_TECH|INFO_OBJ;
     sco_ptr<PlaylistReader> reader(PlaylistReader::SnifferFactory(url, file));
     if (reader == NULL)
     { info->tech->info = "Unrecognized playlist type.";
@@ -127,6 +127,8 @@ decoder_fileinfo(const char* url, int* what, const INFO_BUNDLE* info,
       info->tech->format = reader->GetFormat();
       if (!reader->Parse(cb, param))
         ret = PLUGIN_GO_FAILED;
+      else
+        info->obj->num_items = reader->GetCount();
     }
   }
   

@@ -44,6 +44,7 @@ class PlaylistReader
  protected: // Destination
   DECODER_INFO_ENUMERATION_CB Cb;
   void*                     CbParam;
+  int                       Count;
  protected: // State
   DSTRING                   Url;
   PHYS_INFO                 Phys;
@@ -62,9 +63,9 @@ class PlaylistReader
  protected:
                             PlaylistReader(const char* url, XFILE* source);
   virtual bool              ParseLine(char* line) = 0;
-  static void               ParseInt(int& dst, const char* str)
+  static  void              ParseInt(int& dst, const char* str)
                             { if (str) dst = atoi(str); }
-  static void               ParseFloat(double& dst, const char* str)
+  static  void              ParseFloat(double& dst, const char* str)
                             { if (str) dst = atof(str); }
  public:
   /** Identify the playlist type and return a reader.
@@ -73,6 +74,7 @@ class PlaylistReader
    */
   static PlaylistReader*    SnifferFactory(const char* url, XFILE* source);
   virtual const DSTRING&    GetFormat() const = 0;
+          int               GetCount() const  { return Count; }
   virtual bool              Parse(DECODER_INFO_ENUMERATION_CB cb, void* param);
   virtual                   ~PlaylistReader() { Create(); }
 };

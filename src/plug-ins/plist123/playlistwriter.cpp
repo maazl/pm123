@@ -89,7 +89,8 @@ bool PlaylistWriter::Init(const INFO_BUNDLE* info, int valid, XFILE* stream)
 }
 
 void PlaylistWriter::Write(const char* data)
-{ OK &= xio_fputs(data, Stream) >= 0;
+{ if (data)
+    OK &= xio_fputs(data, Stream) >= 0;
 }
 
 PlaylistWriter* PlaylistWriter::FormatFactory(const char* list, const char* format)
@@ -339,9 +340,10 @@ bool M3U8Writer::Init(const INFO_BUNDLE* info, int valid, XFILE* stream)
 
 void M3U8Writer::Write(const char* data)
 { // convert to UTF-8
-  if (ch_convert(0, data, 1208, EncodedLine, sizeof EncodedLine, 0) == NULL)
-    OK = false;
-  else
-    M3UWriter::Write(EncodedLine);
+  if (data)
+    if (ch_convert(0, data, 1208, EncodedLine, sizeof EncodedLine, 0) == NULL)
+      OK = false;
+    else
+      M3UWriter::Write(EncodedLine);
 }
 

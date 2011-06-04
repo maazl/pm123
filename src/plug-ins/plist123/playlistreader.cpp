@@ -113,6 +113,7 @@ PlaylistReader::PlaylistReader(const char* url, XFILE* source)
 bool PlaylistReader::Parse(DECODER_INFO_ENUMERATION_CB cb, void* param)
 { Cb = cb;
   CbParam = param;
+  Count = 0;
   Reset();
 
   char line[4096];
@@ -164,6 +165,7 @@ void PlaylistReader::Create()
 { DEBUGLOG(("plist123:PlaylistReader::Create() - %s, %x/%x\n", Url.cdata(), Cached, Override));
   if (Url)
   { (*Cb)(CbParam, Url, &Info, Cached, Override);
+    ++Count;
   }
 }
 
