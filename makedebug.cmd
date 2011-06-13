@@ -1,0 +1,1 @@
+@nmake DEBUG=1 DEBUG_ALLOC=1 %1 %2 %3 %4 %6 %7 %8 %9
