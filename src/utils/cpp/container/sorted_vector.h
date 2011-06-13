@@ -1,5 +1,5 @@
 /*
- * Copyright 2007-2008 M.Mueller
+ * Copyright 2007-2011 M.Mueller
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -74,8 +74,7 @@ int sorted_vector_comparer<T,K>::cmp(const void* elem, const void* key)
 { return ((T*)elem)->compareTo(*(const K*)key);
 }*/
 
-/* Sorted variant of vector using the key type K.
- * Object in this container must implement IComparableTo<K>
+/** Sorted variant of vector using the logical key type \a K.
  */
 template <class T, class K, int (*C)(const T& e, const K& k)>
 class sorted_vector : public vector<T>
@@ -132,11 +131,10 @@ inline T* sorted_vector<T,K,C>::erase(const K& key)
 }
 
 
-/* Sorted variant of vector_own using the key type K.
- * Object in this container must implement IComparableTo<K>
- * The class owns the referenced objects.
- * But only the function that delete or copy the entire container are different.
- * To erase an elemet you must use "delete erase(...)".
+/** Sorted variant of vector_own using the key type \a K.
+ * The class owns the referenced objects exclusively.
+ * But only the functions that delete or copy the entire container are different.
+ * To erase an elemet you must use <tt>delete erase(...)</tt>.
  * The class methods are not synchronized.
  */
 template <class T, class K, int (*C)(const T& e, const K& k)>
@@ -168,8 +166,7 @@ class sorted_vector_own : public sorted_vector<T,K,C>
 };
 
 
-/* Sorted vector of objects with members with intrusive reference counter.
- * Objects in this container must implement Iref_count and IComparableTo<K>
+/** Sorted vector of objects with members with intrusive reference counter.
  */
 template <class T, class K, int (*C)(const T& e, const K& k)>
 class sorted_vector_int : public vector_int<T>

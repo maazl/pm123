@@ -61,17 +61,20 @@
 *
 ****************************************************************************/
 
-PlaylistManager* PlaylistManager::Factory(Playable*const& key)
-{ return new PlaylistManager(*key);
-}
-
 PlaylistManager::PlaylistManager(Playable& content)
 : PlaylistBase(content, DLG_PM)
-, inst_index<PlaylistManager, Playable*const, &ComparePtr<Playable> >(&content)
 , MainMenu(NULLHANDLE)
 , RecMenu(NULLHANDLE)
 { DEBUGLOG(("PlaylistManager(%p)::PlaylistManager(&%p)\n", this, &content));
   StartDialog();
+}
+
+PlaylistManager* PlaylistManager::Factory(Playable& key)
+{ return new PlaylistManager(key);
+}
+
+int PlaylistManager::Comparer(const PlaylistManager& pl, const Playable& key)
+{ return CompareInstance(*pl.Content, key);
 }
 
 const int_ptr<PlaylistBase> PlaylistManager::GetSame(Playable& obj)
@@ -79,7 +82,7 @@ const int_ptr<PlaylistBase> PlaylistManager::GetSame(Playable& obj)
 }
 
 void PlaylistManager::DestroyAll()
-{ IXAccess index;
+{ RepositoryType::IXAccess index;
   DEBUGLOG(("PlaylistManager::DestroyAll() - %d\n", index->size()));
   // The instances deregister itself from the repository.
   // Starting at the end avoids the memcpy calls for shrinking the vector.

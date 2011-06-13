@@ -36,22 +36,16 @@
 
 /** @brief Class to implement a repository of all objects instances of a certain type
  * identified by a key \c K.
- * @details The Instances of type T must implement \c Iref_Count and \c ICompareable<K>
- * and both must be \e before \c inst_index in the base class list to avoid undefined behavior.
- * Classes of type \c T must inherit from \c inst_index<T,K> to implement this feature.
- * You must redefine the static function GetByKey to provide a suitable factory
- * for new \c T instances. In the easiest case this is simply a call to new \c T(key).
+ * @details The Instances of type T must implement \c Iref_Count.
+ * Classes of type \c T should inherit from \c inst_index<T,K,C> to implement this feature.
  * The repository below does not handle the ownership of to the \c T instances.
- * The class instances also do not hold the ownership of the keys.
  * The lifetime management must be done somewhere else.
  * The class is thread-safe.
  */
-template <class T, class K, int (*C)(const K&, const K&)>
+template <class T, class K, int (*C)(const T&, const K&)>
 class inst_index
-{private:
-  static int        compare(const T& l, const K& r);
-  typedef sorted_vector<T,K,&inst_index<T,K,C>::compare> IndexType;
- public:
+{public:
+  typedef sorted_vector<T,K,C> IndexType;
   /// Requests an exclusive read-only access to the index repository.
   class IXAccess;
   friend class IXAccess;
@@ -59,82 +53,48 @@ class inst_index
   {private:
     IndexType&      IX;
    public:
-    IXAccess() : Mutex::Lock(inst_index<T,K,C>::Mtx), IX(inst_index<T,K,C>::Index) {};
-    operator const IndexType*() const { return &IX; };
-    const IndexType& operator*() const { return IX; };
+    IXAccess()      : Mutex::Lock(inst_index<T,K,C>::Mtx), IX(inst_index<T,K,C>::Index) {};
+    operator const IndexType*() const   { return &IX; };
+    const IndexType& operator*() const  { return IX; };
     const IndexType* operator->() const { return &IX; };
   };
 
- public:
-  /// The primary key of this object.
-  const  K          Key;
  private:
   static IndexType  Index;
   static Mutex      Mtx; // protect the index above
+ private:
+  inst_index();     // No instances of this type
 
- protected: // It does not make sense to create objects of this type directly.
-  inst_index(const K& key) : Key(key) {}
-  ~inst_index();
-  /// @brief Get an existing instance of \c T or create a new one.
-  /// @details Subclasses usually should provide a method that provides
-  /// an appropriate factory. Therefore tie method is protected.
-  static int_ptr<T> GetByKey(K& key, T* (*factory)(K&));
  public:
   /// Get an existing instance of \c T or return \c NULL.
   static int_ptr<T> FindByKey(const K& key);
+  /// @brief Get an existing instance of \c T or create a new one.
+  static int_ptr<T> GetByKey(K& key, T* (*factory)(K&, void*), void* param);
+  static int_ptr<T> GetByKey(K& key, T* (*factory)(K&)) { return GetByKey(key, (T* (*)(K&, void*))factory, NULL); }
+  /// Remove the current object from the repository, but only if
+  /// it is still registered with this key.
+  static T*         RemoveWithKey(const T& elem, K& key);
 };
 
-template <class T, class K, int (*C)(const K&, const K&)>
-int inst_index<T,K,C>::compare(const T& l, const K& r)
-{ return C(l.Key, r);
-}
-
-template <class T, class K, int (*C)(const K&, const K&)>
-inst_index<T,K,C>::~inst_index()
-{ //DEBUGLOG(("inst_index<%p>(%p)::~inst_index()\n", &Index, this));
-  // Deregister from the repository
-  // The deregistration is a bit too late, because destructors from the derived
-  // class may already be called. But the objects T must be reference counted.
-  // And FindByKey/GetByKey checks for the reference counter before it takes
-  // T in the repository as a valid object. Furthermore we must check that the
-  // instance to remove is really our own one.
-  Mutex::Lock lock(Mtx);
-  size_t pos;
-  if (Index.binary_search(Key, pos))
-  { //DEBUGLOG(("inst_index::~inst_index: found at %i - %p\n", pos, Index[pos]));
-    if (Index[pos] == this)
-      Index.erase(pos);
-    // else => another instance is already in the index.
-  } //else
-    //DEBUGLOG(("inst_index::~inst_index: not found at %i\n", pos));
-    // else => there is no matching instance
-    // This may happen if the reference count on a T instance goes to zero and
-    // while the instance is not yet deregistered a new instance is created
-    // in the index and it's inst_index destructor is already called.
-}
-
-template <class T, class K, int (*C)(const K&, const K&)>
+template <class T, class K, int (*C)(const T&, const K&)>
 int_ptr<T> inst_index<T,K,C>::FindByKey(const K& key)
 { //DEBUGLOG(("inst_index<>(%p)::FindByKey(&%p)\n", &Index, &key));
   Mutex::Lock lock(Mtx);
   T* p = Index.find(key);
-  CritSect cs;
   return p && !p->RefCountIsUnmanaged() ? p : NULL;
 }
 
-template <class T, class K, int (*C)(const K&, const K&)>
-int_ptr<T> inst_index<T,K,C>::GetByKey(K& key, T* (*factory)(K&))
+template <class T, class K, int (*C)(const T&, const K&)>
+int_ptr<T> inst_index<T,K,C>::GetByKey(K& key, T* (*factory)(K&, void*), void* param)
 { //DEBUGLOG(("inst_index<>(%p)::GetByKey(&%p,)\n", &Index, &key));
   Mutex::Lock lock(Mtx);
   T*& p = Index.get(key);
-  { CritSect cs;
-    if (p && !p->RefCountIsUnmanaged())
-      return p;
-  }
+  if (p && !p->RefCountIsUnmanaged())
+    return p;
   // We must not assign p directly because the factory might have destroyed *p already
   // by deleting the newly created item. Also the factory might never have created an item of
   // type T. In this case we have to destroy the entry.
-  p = factory(key);
+  p = factory(key, param);
   if (p == NULL)
   { // Factory failed => remove the slot immediately if not yet done.
     // There is nothing to delete since we did not yet assign anything.
@@ -147,11 +107,37 @@ int_ptr<T> inst_index<T,K,C>::GetByKey(K& key, T* (*factory)(K&))
   }
 }
 
-template <class T, class K, int (*C)(const K&, const K&)>
+template <class T, class K, int (*C)(const T&, const K&)>
+T* inst_index<T,K,C>::RemoveWithKey(const T& elem, K& key)
+{ DEBUGLOG(("inst_index<%p>::RemoveWithKey(&%p, &%p)\n", &Index, &elem, &key));
+  // Deregister from the repository
+  // The deregistration is a bit too late, because destructors from the derived
+  // class may already be called. But the objects T must be reference counted.
+  // And FindByKey/GetByKey checks for the reference counter before it takes
+  // T in the repository as a valid object. Furthermore we must check that the
+  // instance to remove is really our own one.
+  Mutex::Lock lock(Mtx);
+  size_t pos;
+  if (Index.binary_search(key, pos))
+  { //DEBUGLOG(("inst_index::~inst_index: found at %i - %p\n", pos, Index[pos]));
+    if (Index[pos] == &elem)
+      return Index.erase(pos);
+    // else => another instance is already in the index.
+  } //else
+    //DEBUGLOG(("inst_index::~inst_index: not found at %i\n", pos));
+    // else => there is no matching instance
+    // This may happen if the reference count on a T instance goes to zero and
+    // while the instance is not yet deregistered a new instance is created
+    // in the index and it's inst_index destructor is already called.
+  return NULL;
+}
+
+template <class T, class K, int (*C)(const T&, const K&)>
 inst_index<T,K,C>::IndexType inst_index<T,K,C>::Index;
-template <class T, class K, int (*C)(const K&, const K&)>
+template <class T, class K, int (*C)(const T&, const K&)>
 Mutex inst_index<T,K,C>::Mtx;
-// Due to the nature of the repository comparing instances is equivalent
+
+/*// Due to the nature of the repository comparing instances is equivalent
 // to comparing the pointers, because the key of different instances
 // MUST be different and there are no two instances with the same key.
 template <class T, class K, int (*C)(const K&, const K&)>
@@ -161,6 +147,19 @@ inline bool operator==(const inst_index<T,K,C>& l, const inst_index<T,K,C>& r)
 template <class T, class K, int (*C)(const K&, const K&)>
 inline bool operator!=(const inst_index<T,K,C>& l, const inst_index<T,K,C>& r)
 { return &l != &r;
+}*/
+
+
+/** Same as inst_index but with strongly typed factory */
+template <class T, class K, int (*C)(const T&, const K&), class P>
+class inst_index2 : public inst_index<T,K,C>
+{public:
+  static int_ptr<T> GetByKey(K& key, T* (*factory)(K&, P&), P& param);
+};
+
+template <class T, class K, int (*C)(const T&, const K&), class P>
+int_ptr<T> inst_index2<T,K,C,P>::GetByKey(K& key, T* (*factory)(K&, P&), P& param)
+{ return inst_index<T,K,C>::GetByKey(key, (T* (*)(K&, void*))factory, (void*)&param);
 }
 
 #endif

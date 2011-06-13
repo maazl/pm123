@@ -156,7 +156,7 @@ bool Decoder::AfterLoad()
     && ( !decoder_init || !decoder_uninit || !decoder_command
       || !decoder_status || !decoder_length || !decoder_event ))
     amp_player_error("Could not load decoder %s\nThe plug-in does not export the playback interface completly.",
-      GetModule().GetModuleName().cdata());
+      GetModule().ModuleName.cdata());
 
   FillFileTypeCache();
   return true;
@@ -1638,7 +1638,7 @@ Plugin* Visual::Factory(Module* mod)
   { pm123_display_error(xstring::sprintf(
       "Could not load visual plug-in %s because it is designed for PM123 before vesion 1.32\n"
       "Please get a newer version of this plug-in which supports at least interface revision 1.",
-      mod->GetModuleName().cdata()));
+      mod->ModuleName.cdata()));
     return NULL;
   }
   return new Visual(mod);

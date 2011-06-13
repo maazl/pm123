@@ -55,25 +55,28 @@
 #include <debuglog.h>
 
 
-PlaylistView* PlaylistView::Factory(Playable*const& key)
-{ return new PlaylistView(*key);
-}
-
 PlaylistView::PlaylistView(Playable& obj)
 : PlaylistBase(obj, DLG_PLAYLIST)
-, inst_index<PlaylistView, Playable*const, &ComparePtr<Playable> >(&obj)
 , MainMenu(NULLHANDLE)
 , RecMenu(NULLHANDLE)
 { DEBUGLOG(("PlaylistView::PlaylistView(&%p)\n", &obj));
   StartDialog();
 }
 
+PlaylistView* PlaylistView::Factory(Playable& key)
+{ return new PlaylistView(key);
+}
+
 const int_ptr<PlaylistBase> PlaylistView::GetSame(Playable& obj)
 { return &*GetByKey(obj);
 }
 
+int PlaylistView::Comparer(const PlaylistView& pl, const Playable& key)
+{ return CompareInstance(*pl.Content, key);
+}
+
 void PlaylistView::DestroyAll()
-{ IXAccess index;
+{ RepositoryType::IXAccess index;
   DEBUGLOG(("PlaylistView::DestroyAll() - %d\n", index->size()));
   // The instances deregister itself from the repository.
   // Starting at the end avoids the memcpy calls for shrinking the vector.

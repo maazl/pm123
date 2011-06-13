@@ -34,7 +34,6 @@
 
 #include <plugin.h>
 #include <decoder_plug.h>
-#include <cpp/container/inst_index.h>
 #include <cpp/event.h>
 #include <cpp/xstring.h>
 #include <cpp/container/stringmap.h>
@@ -56,10 +55,11 @@ typedef struct
  ***************************************************************************/
 class Module
 : public Iref_count
-, public inst_index<Module, const xstring, &xstring::compare>
-{protected:
+{public:
+  const xstring            Key;
+  const xstring            ModuleName;
+ protected:
   HMODULE                  HModule;
-  xstring                  ModuleName;
   PLUGIN_QUERYPARAM        QueryParam;
  private: // Static storage for plugin_init.
   PLUGIN_API               PluginApi;
@@ -68,23 +68,15 @@ class Module
  private:
   /// Entry point of the configure dialog (if any).
   void DLLENTRYP(plugin_configure)(HWND hwnd, HMODULE module);
- private: // non-copyable
-  Module(const Module&);
-  void operator=(const Module&);
- private:
+ protected:
   /// Load the DLL.
   bool LoadModule();
   /// Unload the DLL.
   bool UnloadModule();
- protected:
   /// Create a Module object from the module file name.
-  Module(const xstring& name);
- private:
-  static Module* Factory(const xstring& key);
+  Module(const xstring& key, const xstring& name);
  public:
   ~Module();
-  /// Return full qualified module name.
-  const xstring& GetModuleName() const       { return ModuleName; }
   /// Return reply of \c plugin_query.
   const PLUGIN_QUERYPARAM& GetParams() const { return QueryParam; }
   /// Load the address of a DLL entry point.
@@ -101,9 +93,16 @@ class Module
   void    Config(HWND hwnd) const            { DEBUGLOG(("Module(%p{%s})::Config(%p) - %p\n", this, Key.cdata(), hwnd, plugin_configure));
                                                if (plugin_configure != NULL) (*plugin_configure)(hwnd, HModule); }
 
+ private: // non-copyable
+  Module(const Module&);
+  void operator=(const Module&);
+ public: // Repository
+  /// Check whether a module is loaded and return a strong reference if so.
+  /// @return The function returns \c NULL if the module is not loaded.
+  static int_ptr<Module> FindByKey(const xstring& name);
   /// Ensure access to a Module.
   /// @return The function returns \c NULL if the module cannot be instantiated.
-  static int_ptr<Module> GetByKey(const xstring& name) { return inst_index<Module, const xstring, &xstring::compare>::GetByKey(name, &Module::Factory); }
+  static int_ptr<Module> GetByKey(const xstring& name);
 };
 
 
@@ -317,11 +316,13 @@ class PluginList1 : public PluginList
 ****************************************************************************/
 
 /// Plug-in menu in the main pop-up menu.
-void  load_plugin_menu( HWND hmenu );
+void load_plugin_menu(HWND hmenu );
+/// Invoke plug-in configuration menu.
+bool plugin_configure(HWND owner, int index);
 /// Add additional entries in load/add menu in the main and the playlist's pop-up menu.
-void  dec_append_load_menu( HWND hMenu, ULONG id_base, SHORT where, DECODER_WIZARD_FUNC* callbacks, size_t size );
+void dec_append_load_menu(HWND hMenu, ULONG id_base, SHORT where, DECODER_WIZARD_FUNC* callbacks, size_t size);
 /// Append accelerator table with plug-in specific entries.
-void  dec_append_accel_table( HACCEL& haccel, ULONG id_base, LONG offset, DECODER_WIZARD_FUNC* callbacks, size_t size );
+void dec_append_accel_table(HACCEL& haccel, ULONG id_base, LONG offset, DECODER_WIZARD_FUNC* callbacks, size_t size);
 
 
 /****************************************************************************

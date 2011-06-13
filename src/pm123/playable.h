@@ -39,7 +39,7 @@
 #include <cpp/mutex.h>
 #include <cpp/smartptr.h>
 #include <cpp/cpputil.h>
-//#include <cpp/container/inst_index.h>
+#include <cpp/container/inst_index.h>
 #include <cpp/container/sorted_vector.h>
 #include <cpp/container/list.h>
 #include <cpp/url123.h>
@@ -289,11 +289,10 @@ class Playable
   virtual int_ptr<Location> GetStopLoc() const;
 
  // Repository
- public:
-  static  int               compare(const Playable& l, const xstring& r);
  private:
-  static  sorted_vector<Playable, xstring, &Playable::compare> RPInst;
-  static  Mutex             RPMutex;
+  static  Playable*         Factory(const xstring& url);
+  static  int               Comparer(const Playable& l, const xstring& r);
+  typedef inst_index<Playable, const xstring, &Playable::Comparer> Repository;
   static  clock_t           LastCleanup;   // Time index of last cleanup run
           clock_t           LastAccess;    // Time index of last access to this instance (used by Cleanup)
  private:
@@ -302,16 +301,13 @@ class Playable
   #endif
   static  void              DetachObjects(const vector<Playable>& list);
  public:
-  /*virtual int               compareTo(const char*const& str) const;
-  // ICC don't know using
-  int                       compareTo(const Playable& r) const { return InstanceCompareable<Playable>::compareTo(r); }*/
   // Seek whether an URL is already loaded.
   static  int_ptr<Playable> FindByURL(const xstring& url);
   // FACTORY! Get a new or an existing instance of this URL.
   // The optional parameters ca_* are preloaded informations.
   // This is returned by the appropriate Get* functions without the need to access the underlying data source.
   // This is used to speed up large playlists.
-  static  int_ptr<Playable> GetByURL(const url123& URL);
+  static  int_ptr<Playable> GetByURL(const url123& url);
   // Cleanup unused items from the repository
   // One call to Cleanup deletes all unused items that are not requested since the /last/ call to Cleanup.
   // So the distance between the calls to Cleanup defines the minimum cache lifetime.

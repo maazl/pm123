@@ -85,7 +85,7 @@ class url123 : public xstring
                 url123(const xstring& r) : xstring(r) {}
   explicit      url123(const char* r)    : xstring(r) {}
 
-  /// Returns the path component of the url including a trailing slash. (Including protocol)
+  /// Returns the path component of the url including protocol and a trailing slash.
   const xstring getBasePath() const;
   /// Returns only the object name with extension
   /// This is the part after the basepath and before any query parameters (if any)

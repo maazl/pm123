@@ -87,7 +87,6 @@ int AInfoDialog::KeyType::compare(const KeyType& l, const KeyType& r)
 ****************************************************************************/
 class InfoDialog
 : public AInfoDialog
-, public inst_index<InfoDialog, const AInfoDialog::KeyType, &AInfoDialog::KeyType::compare>
 {protected:
   enum Fields
   { F_none        = 0x00000000,
@@ -229,8 +228,8 @@ class InfoDialog
   };
   friend void TFNENTRY InfoDialogMetaWriteWorkerStub(void*);
 
- private:
-  static InfoDialog* Factory(const KeyType& key);
+ public:
+  const   KeyType   Key;
 
  private: // non copyable
                     InfoDialog(const InfoDialog&);
@@ -248,9 +247,14 @@ class InfoDialog
   virtual void      ShowPage(PageNo page);
   virtual const struct Data& GetData() = 0;
 
+ private: // Repository
+  static InfoDialog* Factory(const KeyType& key);
+  static int        Comparer(const InfoDialog& inst, const KeyType& key);
+  typedef inst_index<InfoDialog, const KeyType, &InfoDialog::Comparer> Repository;
+ public:
   // Factory method. Returns always the same instance for the same set of objects.
   static int_ptr<InfoDialog> GetByKey(const KeyType& obj)
-                    { return inst_index<InfoDialog, const AInfoDialog::KeyType, &AInfoDialog::KeyType::compare>::GetByKey(obj, &InfoDialog::Factory); }
+                    { return Repository::GetByKey(obj, &InfoDialog::Factory); }
 };
 
 /****************************************************************************
@@ -355,6 +359,10 @@ InfoDialog* InfoDialog::Factory(const KeyType& key)
   // Go!
   ret->StartDialog();
   return ret;
+}
+
+int InfoDialog::Comparer(const InfoDialog& inst, const KeyType& key)
+{ return KeyType::compare(inst.Key, key);
 }
 
 int_ptr<AInfoDialog> AInfoDialog::GetByKey(const KeyType& set)
@@ -783,7 +791,7 @@ void TFNENTRY InfoDialogMetaWriteWorkerStub(void* arg)
 
 InfoDialog::InfoDialog(const KeyType& key)
 : AInfoDialog(DLG_INFO, NULLHANDLE)
-, inst_index<InfoDialog, const AInfoDialog::KeyType, &AInfoDialog::KeyType::compare>(key)
+, Key(key)
 { DEBUGLOG(("InfoDialog(%p)::InfoDialog({%u, %s}) - {%u, %s}\n", this,
     key.size(), key.debug_dump().cdata(), Key.size(), Key.debug_dump().cdata()));
   Pages.append() = new PageMetaInfo(*this);
@@ -792,6 +800,7 @@ InfoDialog::InfoDialog(const KeyType& key)
 
 InfoDialog::~InfoDialog()
 { DEBUGLOG(("InfoDialog(%p)::~InfoDialog()\n", this));
+  Repository::RemoveWithKey(*this, Key);
 }
 
 void InfoDialog::RequestPage(PageBase* page)

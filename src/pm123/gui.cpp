@@ -551,15 +551,7 @@ MRESULT GUI::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
     { USHORT cmd = SHORT1FROMMP(mp1);
       DEBUGLOG(("GUI::DlgProc: WM_COMMAND(%u, %u, %u)\n", cmd, SHORT1FROMMP(mp2), SHORT2FROMMP(mp2)));
       if (cmd > IDM_M_PLUG && cmd <= IDM_M_PLUG_E)
-      { cmd -= IDM_M_PLUG+1;
-        // atomic plug-in request
-        Module* plug;
-        { const Module::IXAccess ix;
-          if (cmd >= ix->size())
-            return 0;
-          plug = (*ix)[cmd];
-        }
-        plug->Config(HPlayer);
+      { plugin_configure(HPlayer, cmd - IDM_M_PLUG+1);
         return 0;
       }
       if ( cmd >= IDM_M_LOADFILE && cmd < IDM_M_LOADFILE + sizeof LoadWizards / sizeof *LoadWizards

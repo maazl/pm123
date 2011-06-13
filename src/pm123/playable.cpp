@@ -889,43 +889,41 @@ int_ptr<Location> Playable::GetStopLoc() const
 *
 ****************************************************************************/
 
-int Playable::compare(const Playable& l, const xstring& r)
+Playable* Playable::Factory(const xstring& url)
+{ int_ptr<Playable> ppf = new Playable(url);
+  // keep reference count alive
+  // The opposite function is at Cleanup().
+  return ppf.toCptr();
+}
+
+int Playable::Comparer(const Playable& l, const xstring& r)
 { return l.URL.compareToI(r);
 }
 
-sorted_vector<Playable, xstring, &Playable::compare> Playable::RPInst(RP_INITIAL_SIZE);
-Mutex   Playable::RPMutex;
 clock_t Playable::LastCleanup = 0;
 
 #ifdef DEBUG_LOG
 void Playable::RPDebugDump()
-{ for (Playable*const* ppp = RPInst.begin(); ppp != RPInst.end(); ++ppp)
+{ Repository::IXAccess rp;
+  for (Playable*const* ppp = rp->begin(); ppp != rp->end(); ++ppp)
     DEBUGLOG(("Playable::RPDump: %p{%s}\n", *ppp, (*ppp)->URL.cdata()));
 }
 #endif
 
 int_ptr<Playable> Playable::FindByURL(const xstring& url)
 { DEBUGLOG(("Playable::FindByURL(%s)\n", url.cdata()));
-  Mutex::Lock lock(RPMutex);
-  return RPInst.find(url);
+  int_ptr<Playable> ret = Repository::FindByKey(url);
+  if (ret)
+    ret->LastAccess = clock();
+  return ret;
 }
 
-int_ptr<Playable> Playable::GetByURL(const url123& URL)
-{ DEBUGLOG(("Playable::GetByURL(%s)\n", URL.cdata()));
+int_ptr<Playable> Playable::GetByURL(const url123& url)
+{ DEBUGLOG(("Playable::GetByURL(%s)\n", url.cdata()));
   // Repository lookup
-  Mutex::Lock lock(RPMutex);
-  Playable*& ppn = RPInst.get(URL);
-  if (ppn == NULL)
-  { // no match => factory
-    int_ptr<Playable> ppf = new Playable(URL);
-    ppn = ppf.toCptr(); // keep reference count alive
-                        // The opposite function is at Cleanup().
-    DEBUGLOG(("Playable::GetByURL: factory &%p{%p}\n", &ppn, ppn));
-    return ppn;
-  }
-  // else match
-  ppn->LastAccess = clock();
-  return ppn;
+  int_ptr<Playable> ret = Repository::GetByKey(url, &Playable::Factory);
+  ret->LastAccess = clock();
+  return ret;
 }
 
 void Playable::DetachObjects(const vector<Playable>& list)
@@ -942,10 +940,10 @@ void Playable::Cleanup()
   // Keep destructor calls out of the mutex
   vector<Playable> todelete(32);
   // serach for unused items
-  { Mutex::Lock lock(RPMutex);
-    for (Playable*const* ppp = RPInst.end(); --ppp != RPInst.begin(); )
+  { Repository::IXAccess rp;
+    for (Playable*const* ppp = rp->end(); --ppp != rp->begin(); )
     { if ((*ppp)->RefCountIsUnique() && (long)((*ppp)->LastAccess - LastCleanup) <= 0)
-        todelete.append() = RPInst.erase(ppp);
+        todelete.append() = Repository::RemoveWithKey(**ppp, (*ppp)->URL);
     }
   }
   // Destroy items
@@ -959,14 +957,15 @@ void Playable::Uninit()
   APlayable::Uninit();
   LastCleanup = clock();
   // Keep destructor calls out of the mutex
-  static sorted_vector<Playable, xstring, &Playable::compare> rp;
-  { // detach all items
-    Mutex::Lock lock(RPMutex);
-    rp.swap(RPInst);
+  vector<Playable> todelete(32);
+  // serach for unused items
+  { Repository::IXAccess rp;
+    for (Playable*const* ppp = rp->end(); --ppp != rp->begin(); )
+      todelete.append() = Repository::RemoveWithKey(**ppp, (*ppp)->URL);
   }
   // Detach items
-  DetachObjects(rp);
-  DEBUGLOG(("Playable::Uninit - complete - %u\n", RPInst.size()));
+  DetachObjects(todelete);
+  DEBUGLOG(("Playable::Uninit - complete - %u\n", todelete.size()));
 }
 
 

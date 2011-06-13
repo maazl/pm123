@@ -33,6 +33,7 @@
 
 #include <cpp/smartptr.h>
 #include <cpp/xstring.h>
+#include <cpp/container/inst_index.h>
 
 #include "playable.h"
 #include "playlistbase.h"
@@ -51,7 +52,6 @@
 
 class PlaylistView
 : public PlaylistBase
-, public inst_index<PlaylistView, Playable*const, &ComparePtr<Playable> >
 {public:
   //struct Record;
   typedef CPDataBase CPData;
@@ -107,11 +107,14 @@ class PlaylistView
  private:
   /// Create a playlist manager window for an URL, but don't open it.
   PlaylistView(Playable& obj);
-  static PlaylistView* Factory(Playable*const& key);
+  static PlaylistView* Factory(Playable& key);
+  static int        Comparer(const PlaylistView& pl, const Playable& key);
+  typedef inst_index<PlaylistView, Playable, &PlaylistView::Comparer> RepositoryType;
  public:
-  static int_ptr<PlaylistView> GetByKey(Playable& key) { return inst_index<PlaylistView, Playable*const, &ComparePtr<Playable> >::GetByKey(&key, &PlaylistView::Factory); }
+  static int_ptr<PlaylistView> GetByKey(Playable& key) { return RepositoryType::GetByKey(key, &PlaylistView::Factory); }
   // Get an instance of the same type as the current instance for URL.
   virtual const int_ptr<PlaylistBase> GetSame(Playable& obj);
+                    ~PlaylistView() { RepositoryType::RemoveWithKey(*this, *Content); }
   static void       DestroyAll();
 
  private:

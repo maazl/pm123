@@ -47,6 +47,7 @@
 #include <cpp/mutex.h>
 #include <cpp/url123.h>
 #include <cpp/container/stringmap.h>
+#include <cpp/container/inst_index.h>
 #include <os2.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -115,7 +116,13 @@ class ModuleImp : public Module
   PROXYFUNCDEF int         DLLENTRY proxy_query_profile( ModuleImp* mp, const char* key, void* data, int maxlength );
   PROXYFUNCDEF int         DLLENTRY proxy_write_profile( ModuleImp* mp, const char* key, const void* data, int length );
  private:
-  ModuleImp(const xstring& name) : Module(name) {}
+  ModuleImp(const xstring& key, const xstring& name) : Module(key, name) {}
+ private: // Repository
+  typedef char KeyType; // Hack! We use /references/ to const char as strings for optimum performance.
+  static Module* Factory(const KeyType& key, const xstring& name);
+  static int     Comparer(const Module& module, const KeyType& key);
+ public:
+  typedef inst_index2<Module, const KeyType, &ModuleImp::Comparer, const xstring> Repository;
 };
 
 
@@ -135,17 +142,17 @@ const DSTRING_API Module::DstringApi =
   &dstring_vsprintf
 };
 
-Module::Module(const xstring& name)
-: inst_index<Module, const xstring, &xstring::compare>(url123(name).getShortName())
-, HModule(NULLHANDLE)
+Module::Module(const xstring& key, const xstring& name)
+: Key(key)
 , ModuleName(name)
+, HModule(NULLHANDLE)
 , plugin_configure(NULL)
 { DEBUGLOG(("Module(%p)::Module(%s)\n", this, name.cdata()));
   memset(&QueryParam, 0, sizeof QueryParam);
 }
 
-Module* Module::Factory(const xstring& key)
-{ Module* pm = new ModuleImp(key);
+Module* ModuleImp::Factory(const KeyType& key, const xstring& name)
+{ Module* pm = new ModuleImp(&key, name);
   if (!pm->Load())
   { delete pm;
     return NULL;
@@ -153,11 +160,23 @@ Module* Module::Factory(const xstring& key)
     return pm;
 }
 
+int ModuleImp::Comparer(const Module& module, const KeyType& key)
+{ return module.Key.compareToI(&key);
+}
+
 Module::~Module()
 { DEBUGLOG(("Module(%p{%s})::~Module()\n", this, Key.cdata()));
-  ASSERT(RefCountIsUnmanaged()); // Module must not be in use!
   UnloadModule();
+  ModuleImp::Repository::RemoveWithKey(*this, *Key.cdata());
   DEBUGLOG(("Module::~Module() completed\n"));
+}
+
+int_ptr<Module> Module::GetByKey(const xstring& name)
+{ return ModuleImp::Repository::GetByKey(*sfnameext2(name), &ModuleImp::Factory, name);
+}
+
+int_ptr<Module> Module::FindByKey(const xstring& name)
+{ return ModuleImp::Repository::FindByKey(*sfnameext2(name));
 }
 
 /* Assigns the address of the specified procedure within a plug-in. */
@@ -172,7 +191,7 @@ bool Module::LoadFunction(void* function, const char* function_name) const
   { char error[1024];
     *((ULONG*)function) = 0;
     amp_player_error("Could not load \"%s\" from %s\n%s", function_name,
-                     GetModuleName().cdata(), os2_strerror(rc, error, sizeof error));
+                     ModuleName.cdata(), os2_strerror(rc, error, sizeof error));
     return FALSE;
   }
   return TRUE;
@@ -183,7 +202,7 @@ bool Module::LoadModule()
 { char load_error[_MAX_PATH];
   *load_error = 0;
   DEBUGLOG(("Module(%p{%s})::LoadModule()\n", this, Key.cdata()));
-  APIRET rc = DosLoadModule(load_error, sizeof load_error, GetModuleName(), &HModule);
+  APIRET rc = DosLoadModule(load_error, sizeof load_error, ModuleName, &HModule);
   DEBUGLOG(("Module::LoadModule: %p - %u - %s\n", HModule, rc, load_error));
   // For some reason the API sometimes returns ERROR_INVALID_PARAMETER when loading oggplay.dll.
   // However, the module is loaded successfully.
@@ -192,7 +211,7 @@ bool Module::LoadModule()
   if (rc != NO_ERROR && !(HModule != NULLHANDLE && (rc == ERROR_INVALID_PARAMETER || rc == ERROR_INIT_ROUTINE_FAILED)))
   { char error[1024];
     amp_player_error("Could not load %s, %s. Error %d at %s",
-                     GetModuleName().cdata(), load_error, rc, os2_strerror(rc, error, sizeof error));
+                     ModuleName.cdata(), load_error, rc, os2_strerror(rc, error, sizeof error));
     return false;
   }
   DEBUGLOG(("Module({%p,%s})::LoadModule: TRUE\n", HModule, Key.cdata()));
@@ -208,7 +227,7 @@ bool Module::UnloadModule()
   if (rc != NO_ERROR && rc != ERROR_INVALID_ACCESS)
   { char  error[1024];
     amp_player_error("Could not unload %s. Error %d\n%s",
-                     GetModuleName().cdata(), rc, os2_strerror(rc, error, sizeof error));
+                     ModuleName.cdata(), rc, os2_strerror(rc, error, sizeof error));
     return false;
   }
   HModule = NULLHANDLE;
@@ -216,7 +235,7 @@ bool Module::UnloadModule()
 }
 
 PROXYFUNCIMP(const char* DLLENTRY, ModuleImp)
-proxy_exec_command( ModuleImp* mp, const char* cmd )
+proxy_exec_command(ModuleImp* mp, const char* cmd)
 { // Initialize command processor oon demand.
   if (mp->CommandInstance == NULL)
     mp->CommandInstance = ACommandProcessor::Create();
@@ -224,18 +243,16 @@ proxy_exec_command( ModuleImp* mp, const char* cmd )
 }
 
 PROXYFUNCIMP(int DLLENTRY, ModuleImp)
-proxy_query_profile( ModuleImp* mp, const char* key, void* data, int maxlength )
+proxy_query_profile(ModuleImp* mp, const char* key, void* data, int maxlength)
 { ULONG len = maxlength;
-  const char* const app = sfnameext2(mp->GetModuleName());
-  return PrfQueryProfileData(amp_hini, app, key, data, &len)
-      && PrfQueryProfileSize(amp_hini, app, key, &len)
+  return PrfQueryProfileData(amp_hini, mp->Key, key, data, &len)
+      && PrfQueryProfileSize(amp_hini, mp->Key, key, &len)
     ? (int)len : -1;
 }
 
 PROXYFUNCIMP(int DLLENTRY, ModuleImp)
-proxy_write_profile( ModuleImp* mp, const char* key, const void* data, int length )
-{ const char* const app = sfnameext2(mp->GetModuleName());
-  return PrfWriteProfileData(amp_hini, app, key, (PVOID)data, length);
+proxy_write_profile(ModuleImp* mp, const char* key, const void* data, int length)
+{ return PrfWriteProfileData(amp_hini, mp->Key, key, (PVOID)data, length);
 }
 
 
@@ -263,7 +280,7 @@ bool Module::Load()
     #define toconststring(x) #x
     amp_player_error( "Could not load plug-in %s because it requires a newer version of the PM123 core\n"
                       "Requested interface revision: %d, max. supported: " toconststring(PLUGIN_INTERFACE_LEVEL),
-                      GetModuleName().cdata(), QueryParam.interface);
+                      ModuleName.cdata(), QueryParam.interface);
     #undef toconststring
     return false;
   }
@@ -280,7 +297,7 @@ bool Module::Load()
     int rc = (*pinit)(&Context);
     if (rc)
     { amp_player_error( "Plugin %s returned an error at initialization. Code %d.",
-                        GetModuleName().cdata(), rc);
+                        ModuleName.cdata(), rc);
       return false;
     }
   }
@@ -365,7 +382,7 @@ Plugin* Plugin::Instantiate(Module* mod, Plugin* (*factory)(Module* mod), Plugin
 { DEBUGLOG(("Plugin::Instantiate(%p{%s}, %p, %p, %s)\n", mod, mod->Key.cdata(), factory, &list, params ? params : "<null>"));
 
   if (list.find(mod) != -1)
-  { pm123_display_error( xstring::sprintf("Tried to load the plug-in %s twice.\n", mod->GetModuleName().cdata()) );
+  { pm123_display_error(xstring::sprintf("Tried to load the plug-in %s twice.\n", mod->ModuleName.cdata()));
     return NULL;
   }
   Plugin* pp = (*factory)(mod);
@@ -422,7 +439,7 @@ xstring Plugin::Serialize() const
 { stringmap_own sm(20);
   GetParams(sm);
   const xstring& params = url123::makeParameter(sm);
-  xstring modulename = GetModule().GetModuleName();
+  xstring modulename = GetModule().ModuleName;
   if (modulename.startsWithI(amp_startpath))
     modulename.assign(modulename, amp_startpath.length());
   return params ? xstring::sprintf("%s?%s", modulename.cdata(), params.cdata()) : modulename;
@@ -431,21 +448,22 @@ xstring Plugin::Serialize() const
 int Plugin::Deserialize(const char* str, int mask, bool skinned)
 { DEBUGLOG(("Plugin::Deserialize(%s, %x)\n", str, mask));
   const char* params = strchr(str, '?');
-  // make absolute path
   xstring modulename;
   char* cp = modulename.allocate(params ? params-str : strlen(str), str);
   // replace '/'
-  { for(;;)
-    { cp = strchr(cp, '/');
-      if (cp == NULL)
-        break;
-      *cp++ = '\\';
-  } }
-  if (url123::isAbsolute(modulename))
+  for(;;)
+  { cp = strchr(cp, '/');
+    if (cp == NULL)
+      break;
+    *cp++ = '\\';
+  }
+  // make absolute path
+  cp = strchr(modulename, '\\');
+  if (cp == NULL || (cp != modulename.cdata() && cp[-1] != ':'))
     // relative path
     modulename = amp_startpath + modulename;
   // load module
-  int_ptr<Module> pm = Module::GetByKey(url123(modulename).getShortName());
+  int_ptr<Module> pm = Module::GetByKey(modulename);
   if (pm == NULL)
     return 0;
   // load as plugin
@@ -655,7 +673,7 @@ int PluginList1::SetActive(int i)
 const xstring PluginList1::Serialize() const
 { DEBUGLOG(("PluginList1::Serialize() - %p\n", Active));
   const xstring& ret = PluginList::Serialize();
-  return Active ? ret + Active->GetModule().GetModuleName() : ret;
+  return Active ? ret + Active->GetModule().ModuleName : ret;
 }
 
 PluginList::RC PluginList1::Deserialize(const xstring& str)
@@ -691,11 +709,9 @@ typedef struct {
 static sco_arr<PLUGIN_ENTRY> entries;
 static size_t num_entries;
 
-void
-load_plugin_menu( HWND hMenu )
+void load_plugin_menu(HWND hMenu)
 {
   char     buffer[2048];
-  char     file[_MAX_PATH];
   MENUITEM mi;
   size_t   i;
   DEBUGLOG(("load_plugin_menu(%p)\n", hMenu));
@@ -707,14 +723,13 @@ load_plugin_menu( HWND hMenu )
     WinSendMsg( hMenu, MM_DELETEITEM, MPFROM2SHORT( item, FALSE ), 0);
   }
   { // Fetch list of plug-ins atomically
-    const Module::IXAccess ix;
+    const ModuleImp::Repository::IXAccess ix;
     num_entries = ix->size();
     entries = new PLUGIN_ENTRY[num_entries];
 
     for( i = 0; i < num_entries; i++ )
     { Module* plug = (*ix)[i];
-      sprintf( buffer, "%s (%s)", plug->GetParams().desc,
-               sfname( file, plug->GetModuleName(), sizeof( file )));
+      sprintf( buffer, "%s (%s)", plug->GetParams().desc, plug->Key.cdata());
 
       entries[i].filename     = buffer;
       entries[i].type         = plug->GetParams().type;
@@ -783,6 +798,18 @@ load_plugin_menu( HWND hMenu )
   }
 
   return;
+}
+
+bool plugin_configure(HWND owner, int index)
+{ // atomic plug-in request
+  Module* plug;
+  { const ModuleImp::Repository::IXAccess ix;
+    if (index >= ix->size())
+      return false;
+    plug = (*ix)[index];
+  }
+  plug->Config(owner);
+  return true;
 }
 
 void

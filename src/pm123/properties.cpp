@@ -464,6 +464,13 @@ static void migrate_ini(const char* inipath, const char* app)
     return; // Data already there
 
   xstring inifile = xstring::sprintf("%s\\%s.ini", inipath, app);
+  // Check if file exists
+  HFILE fh;
+  if ( DosOpen(inifile, &fh, &len, 0, 0, OPEN_ACTION_FAIL_IF_NEW|OPEN_ACTION_OPEN_IF_EXISTS,
+               OPEN_FLAGS_NOINHERIT|OPEN_SHARE_DENYNONE|OPEN_ACCESS_READONLY, NULL) != NO_ERROR )
+    return;
+  DosClose(fh);
+  // Read old ini
   HINI hini = PrfOpenProfile(amp_player_hab, inifile);
   if (hini == NULLHANDLE)
     return;
