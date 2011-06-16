@@ -400,7 +400,7 @@ decoder_length( void* arg )
   DECODER_STRUCT* w = arg;
 
   if( w->sfinfo.samplerate ) {
-    return 1000.0 * w->sfinfo.frames / w->sfinfo.samplerate + .5;
+    return 1000.0 * w->sfinfo.frames / w->sfinfo.samplerate +.5;
   }
   return 0;
 }
@@ -433,14 +433,16 @@ decoder_fileinfo( const char* filename, DECODER_INFO* info )
     info->format.channels   = w.sfinfo.channels;
     info->format.samplerate = w.sfinfo.samplerate;
     info->mode              = info->format.channels == 1 ? 3 : 0;
-    info->songlength        = 1000.0 * w.sfinfo.frames / w.sfinfo.samplerate;
+    if( w.sfinfo.samplerate ) {
+      info->songlength        = 1000.0 * w.sfinfo.frames / w.sfinfo.samplerate +.5;
+    }
 
     if( info->size >= INFO_SIZE_2 ) {
       info->filesize = xio_fsize( w.file );
     }
 
     if( w.sfinfo.frames ) {
-      info->bitrate = 8.0 * info->filesize * w.sfinfo.samplerate / w.sfinfo.frames / 1000;
+      info->bitrate = 8.0 * info->filesize * w.sfinfo.samplerate / w.sfinfo.frames / 1000 +.5;
     }
 
     format_info.format = w.sfinfo.format & SF_FORMAT_TYPEMASK;
@@ -449,24 +451,30 @@ decoder_fileinfo( const char* filename, DECODER_INFO* info )
     sf_command( w.sndfile, SFC_GET_FORMAT_INFO, &format_more, sizeof( format_more ));
 
     snprintf( info->tech_info, sizeof( info->tech_info ), "%s, %s, %.1f kHz, %s",
-              format_info.name, format_more.name, (float)info->format.samplerate / 1000,
+              format_info.name, format_more.name, info->format.samplerate / 1000.,
               info->format.channels == 1 ? "Mono" : "Stereo" );
 
     copy_string( w.sndfile, info->title,   SF_STR_TITLE,   sizeof( info->title   ));
     copy_string( w.sndfile, info->artist,  SF_STR_ARTIST,  sizeof( info->artist  ));
+    copy_string( w.sndfile, info->album,   SF_STR_ALBUM,   sizeof( info->album   ));
     copy_string( w.sndfile, info->year,    SF_STR_DATE,    sizeof( info->year    ));
     copy_string( w.sndfile, info->comment, SF_STR_COMMENT, sizeof( info->comment ));
+    copy_string( w.sndfile, info->genre,   SF_STR_GENRE,   sizeof( info->genre   ));
 
     if( info->size >= INFO_SIZE_2 )
     {
       copy_string( w.sndfile, info->copyright, SF_STR_COPYRIGHT, sizeof( info->copyright ));
+      copy_string( w.sndfile, info->track, SF_STR_TRACKNUMBER, sizeof( info->track ));
 
       info->saveinfo = FALSE;
       info->haveinfo = DECODER_HAVE_TITLE    |
                        DECODER_HAVE_ARTIST   |
+                       DECODER_HAVE_ALBUM    |
                        DECODER_HAVE_YEAR     |
                        DECODER_HAVE_COMMENT  |
-                       DECODER_HAVE_COPYRIGHT;
+                       DECODER_HAVE_COPYRIGHT|
+                       DECODER_HAVE_GENRE    |
+                       DECODER_HAVE_TRACK;
     }
     snd_close( &w );
   }
@@ -523,8 +531,8 @@ int DLLENTRY
 plugin_query( PLUGIN_QUERYPARAM* param )
 {
   param->type         = PLUGIN_DECODER;
-  param->author       = "Dmitry A.Steklenev";
-  param->desc         = "WAV Play 2.00";
+  param->author       = "Dmitry A.Steklenev, M.Mueller";
+  param->desc         = "WAV Play 2.01";
   param->configurable = FALSE;
   return 0;
 }

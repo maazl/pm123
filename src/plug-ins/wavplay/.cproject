@@ -27,6 +27,7 @@
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/xio123}&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${PM123_SRC}/fft123/api&quot;"/>
 									<listOptionValue builtIn="false" value="/data/devel/os2tk45/h"/>
+									<listOptionValue builtIn="false" value="&quot;${PM123_SRC}/snd123/src&quot;"/>
 								</option>
 								<option id="gnu.c.compiler.option.preprocessor.def.symbols.714285815" name="Defined symbols (-D)" superClass="gnu.c.compiler.option.preprocessor.def.symbols" valueType="definedSymbols">
 									<listOptionValue builtIn="false" value="_System"/>
