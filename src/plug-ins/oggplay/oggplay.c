@@ -153,9 +153,9 @@ ogg_open( DECODER_STRUCT* w, int read_ahead )
     return -1;
   }
 
-  w->songlength  = ov_time_total( &w->vrbfile, -1 ) * 1000.0;
+  w->songlength  = ov_time_total( &w->vrbfile, -1 ) * 1000. +.5;
   w->comment     = ov_comment( &w->vrbfile, -1 );
-  w->bitrate     = ov_bitrate( &w->vrbfile, -1 ) / 1000;
+  w->bitrate     = (ov_bitrate( &w->vrbfile, -1 ) + 500) / 1000;
   w->played_pcms = 0;
   w->played_secs = 0;
 
