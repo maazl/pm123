@@ -26,6 +26,7 @@
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/include}&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/utils}&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/xio123}&quot;"/>
+									<listOptionValue builtIn="false" value="/data/devel/os2tk45/h"/>
 								</option>
 								<inputType id="cdt.managedbuild.tool.gnu.cpp.compiler.input.1966020844" superClass="cdt.managedbuild.tool.gnu.cpp.compiler.input"/>
 							</tool>
@@ -40,6 +41,7 @@
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/include}&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/utils}&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/xio123}&quot;"/>
+									<listOptionValue builtIn="false" value="/data/devel/os2tk45/h"/>
 								</option>
 								<inputType id="cdt.managedbuild.tool.gnu.c.compiler.input.1168340237" superClass="cdt.managedbuild.tool.gnu.c.compiler.input"/>
 							</tool>

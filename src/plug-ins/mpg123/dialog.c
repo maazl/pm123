@@ -590,25 +590,25 @@ static const char* id3_validatedate( HWND hwnd )
   { // second try with d.m.y
     cnt = sscanf(buf, "%u.%u.%u%n", &d, &m, &y, &n);
     if (n != len)
-      return MRFROMP("The date syntax is not valid.\n"
-                     "Accepted formats are yyyy, yyyy-mm, yyyy-mm-dd and dd.mm.yyyy.");
+      return "The date syntax is not valid.\n"
+             "Accepted formats are yyyy, yyyy-mm, yyyy-mm-dd and dd.mm.yyyy.";
   }
   // date values
   switch (cnt)
   {case 3:
     if ( d < 1 || d > 31
-      || ((((9*m) >> 3) ^ d) & 1)
+      || (d == 30 && !(((9*m)>>3)&1))
       || (m == 2 && (d & 3) > !(y & 3)) )
-      return MRFROMP("The date does not exist.\n"
-                     "Accepted formats are yyyy, yyyy-mm, yyyy-mm-dd and dd.mm.yyyy.");
+      return "The date does not exist.\n"
+             "Accepted formats are yyyy, yyyy-mm, yyyy-mm-dd and dd.mm.yyyy.";
    case 2:
     if (m < 1 || m > 12)
-      return MRFROMP("The month is out of range.\n"
-                     "Accepted formats are yyyy, yyyy-mm, yyyy-mm-dd and dd.mm.yyyy.");
+      return "The month is out of range.\n"
+             "Accepted formats are yyyy, yyyy-mm, yyyy-mm-dd and dd.mm.yyyy.";
    case 1:
     if (y < 100 || y > 9999)
-      return MRFROMP("The release year is invalid. Remeber to use four digits.\n"
-                     "Accepted formats are yyyy, yyyy-mm, yyyy-mm-dd and dd.mm.yyyy.");
+      return "The release year is invalid. Remember to use four digits.\n"
+             "Accepted formats are yyyy, yyyy-mm, yyyy-mm-dd and dd.mm.yyyy.";
   }
   // write date
   sprintf(buf, formats[cnt-1], y, m, d);
