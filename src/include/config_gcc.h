@@ -1,8 +1,6 @@
 #ifndef PM123_CONFIG_GCC_H
 #define PM123_CONFIG_GCC_H
 
-#include <stddef.h>
-
 #define CCNAME "GNU C++"
 
 #define TFNENTRY
@@ -14,6 +12,9 @@
 #define DLLENTRYPF2() DLLENTRY(*)
 
 /* Fix warnings with offsetof */
+#ifndef ASSEMBLER
+#include <stddef.h>
+#endif
 #undef offsetof
 #define offsetof(TYPE, MEMBER) ((unsigned long)&((TYPE*)4)->MEMBER -4)
 
@@ -41,6 +42,7 @@
 #define HAVE_VSNPRINTF    1 /* Define to 1 if you have the `vsnprintf' function. */
 #define HAVE_GETTIMEOFDAY 1 /* Define to 1 if you have the `gettimeofday' function. */
 #define HAVE_FSYNC        1 /* Define to 1 if you have the `fsync' function. */
+#define HAVE_STRERROR     1 /* Define to 1 if you have the `strerror' function. */
 #define HAVE_UINTPTR_T    1 /* Define to 1 if the system has the type `uintptr_t'. */
 #define HAVE_DECL_S_IRGRP 1 /* Define to 1 if S_IRGRP is defined. */
 #define HAVE_FTRUNCATE    1 /* Define to 1 if you have the `ftruncate' function. */
@@ -98,7 +100,7 @@
 #define SELECT_TYPE_ARG5          
 
 /* for libsndfile */
-typedef long long sf_count_t;
+#define sf_count_t long long
 #define SF_COUNT_MAX 0x7fffffffffffffffll
 #define SIZEOF_SF_COUNT_T 8
 

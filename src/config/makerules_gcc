@@ -1,6 +1,6 @@
 # GCC with EMX
 
-.SUFFIXES: .c .cpp .e .asm .o .obj .rc .res
+.SUFFIXES: .c .cpp .e .asm .S .o .obj .rc .res
 
 MFLAGS     = -nologo
 MDUMMY     =
@@ -13,6 +13,9 @@ RES        = .res
 
 AS         = nasm
 AFLAGS     = -fobj -DUNDERSCORE
+
+GAS        = as
+GAFLAGS    =
 
 CC         = g++
 CFLAGS     = $(CFLAGS_USR) -Zcrtdll -Wall -fmessage-length=132 -DOS2 -DOS2EMX_PLAIN_CHAR
@@ -95,6 +98,10 @@ MFLAGS = $(MFLAGS) DEBUG_LOG=$(DEBUG_LOG)
 
 .asm.obj:
    $(AS) $(AFLAGS) $<
+
+.S.o:
+   gcc -I$(TOPDIR) -DASSEMBLER -E $< -o $<.e
+   $(GAS) $(GAFLAGS) $<.e -o $@
 
 .c.e:
    $(CC) $(CFLAGS) -E -x c -c $< -o $@

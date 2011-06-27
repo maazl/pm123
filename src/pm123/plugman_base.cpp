@@ -222,18 +222,17 @@ bool Decoder::LoadPlugin()
 
 bool Decoder::InitPlugin()
 { DEBUGLOG(("Decoder(%p{%s})::InitPlugin()\n", this, GetModule().Key.cdata()));
-
   if ((*decoder_init)(&W) == -1)
   { W = NULL;
     return false;
   }
+  DEBUGLOG(("Decoder::InitPlugin: %p\n", W));
   RaisePluginChange(EventArgs::Init);
   return true;
 }
 
 bool Decoder::UninitPlugin()
 { DEBUGLOG(("Decoder(%p{%s})::UninitPlugin()\n", this, GetModule().Key.cdata()));
-
   if (IsInitialized())
   { (*decoder_uninit)( xchg(W, (void*)NULL));
     RaisePluginChange(EventArgs::Uninit);
@@ -625,8 +624,8 @@ proxy_1_decoder_command( DecoderProxy1* op, void* w, ULONG msg, DECODER_PARAMS2*
       } else
         par1.other = params->URL;
 
-      par1.jumpto = (int)floor(params->jumpto*1000 + .5);
-      op->temppos = params->jumpto;
+      par1.jumpto = (int)floor(params->JumpTo*1000 + .5);
+      op->temppos = params->JumpTo;
       op->juststarted = 2;
       op->url = params->URL; // keep URL
     }
@@ -648,10 +647,10 @@ proxy_1_decoder_command( DecoderProxy1* op, void* w, ULONG msg, DECODER_PARAMS2*
     par1.error_display       = &pm123_display_error;
     par1.info_display        = &pm123_display_info;
 
-    op->voutput_request_buffer = params->output_request_buffer;
-    op->voutput_commit_buffer  = params->output_commit_buffer;
-    op->voutput_event          = params->output_event;
-    op->a                      = params->a;
+    op->voutput_request_buffer = params->OutRequestBuffer;
+    op->voutput_commit_buffer  = params->OutCommitBuffer;
+    op->voutput_event          = params->DecEvent;
+    op->a                      = params->A;
 
     op->temppos  = -1;
     op->lastfast = DECFAST_NORMAL_PLAY;
@@ -667,30 +666,30 @@ proxy_1_decoder_command( DecoderProxy1* op, void* w, ULONG msg, DECODER_PARAMS2*
 
    case DECODER_FFWD:
    case DECODER_REW:
-    DEBUGLOG(("proxy_1_decoder_command:DECODER_FFWD: %u\n", params->fast));
-    if (op->lastfast && params->fast)
+    DEBUGLOG(("proxy_1_decoder_command:DECODER_FFWD: %u\n", params->Fast));
+    if (op->lastfast && params->Fast)
     { // changing direction requires two commands
       msg = op->lastfast == DECFAST_REWIND ? DECODER_REW : DECODER_FFWD;
       par1.ffwd              = FALSE;
       par1.rew               = FALSE;
       (*op->vdecoder_command)(w, msg, &par1);
-      op->lastfast = params->fast;
+      op->lastfast = params->Fast;
     }
-    par1.ffwd                = params->fast == DECFAST_FORWARD;
-    par1.rew                 = params->fast == DECFAST_REWIND;
-    msg = (op->lastfast|params->fast) == DECFAST_REWIND ? DECODER_REW : DECODER_FFWD;
+    par1.ffwd                = params->Fast == DECFAST_FORWARD;
+    par1.rew                 = params->Fast == DECFAST_REWIND;
+    msg = (op->lastfast|params->Fast) == DECFAST_REWIND ? DECODER_REW : DECODER_FFWD;
     op->temppos  = out_playing_pos();
-    op->lastfast = params->fast;
+    op->lastfast = params->Fast;
     break;
 
    case DECODER_JUMPTO:
-    DEBUGLOG(("proxy_1_decoder_command:DECODER_JUMPTO: %g\n", params->jumpto));
-    par1.jumpto              = (int)floor(params->jumpto*1000 +.5);
-    op->temppos = params->jumpto;
+    DEBUGLOG(("proxy_1_decoder_command:DECODER_JUMPTO: %g\n", params->JumpTo));
+    par1.jumpto              = (int)floor(params->JumpTo*1000 +.5);
+    op->temppos = params->JumpTo;
     break;
 
    case DECODER_SAVEDATA:
-    par1.save_filename       = params->save_filename;
+    par1.save_filename       = params->SaveFilename;
     break;
   }
 
@@ -1155,7 +1154,7 @@ proxy_1_output_command( OutputProxy1* op, void* a, ULONG msg, OUTPUT_PARAMS2* in
     op->voutput_hwnd = OutputProxy1::CreateProxyWindow("OutputProxy1", op);
    case OUTPUT_OPEN:
     { // convert DECODER_INFO2 to DECODER_INFO
-      DecoderProxy1::ConvertINFO_BUNDLE(&dinfo, info->info);
+      DecoderProxy1::ConvertINFO_BUNDLE(&dinfo, info->Info);
       params.formatinfo        = dinfo.format;
       params.info              = &dinfo;
       params.hwnd              = op->voutput_hwnd;
@@ -1170,17 +1169,17 @@ proxy_1_output_command( OutputProxy1* op, void* a, ULONG msg, OUTPUT_PARAMS2* in
   params.nobuffermode          = FALSE;
   params.error_display         = &pm123_display_error;
   params.info_display          = &pm123_display_info;
-  params.volume                = (char)(info->volume*100+.5);
-  params.amplifier             = info->amplifier;
-  params.pause                 = info->pause;
-  params.temp_playingpos       = tstmp_f2i(info->playingpos);
+  params.volume                = (char)(info->Volume*100+.5);
+  params.amplifier             = info->Amplifier;
+  params.pause                 = info->Pause;
+  params.temp_playingpos       = tstmp_f2i(info->PlayingPos);
 
-  if (info->URI != NULL && strnicmp(info->URI, "file:", 5) == 0)
-  { char* fname = (char*)alloca(strlen(info->URI)+1);
-    strcpy(fname, info->URI);
+  if (info->URL != NULL && strnicmp(info->URL, "file:", 5) == 0)
+  { char* fname = (char*)alloca(strlen(info->URL)+1);
+    strcpy(fname, info->URL);
     params.filename            = convert_file_url(fname);
   } else
-    params.filename            = info->URI;
+    params.filename            = info->URL;
 
   // call plug-in
   int r = (*op->voutput_command)(a, msg, &params);
@@ -1192,8 +1191,8 @@ proxy_1_output_command( OutputProxy1* op, void* a, ULONG msg, OUTPUT_PARAMS2* in
     op->voutput_trash_buffer   = FALSE;
     op->voutput_flush_request  = FALSE;
     op->voutput_always_hungry  = params.always_hungry;
-    op->voutput_event          = info->output_event;
-    op->voutput_w              = info->w;
+    op->voutput_event          = info->OutEvent;
+    op->voutput_w              = info->W;
     op->voutput_format.bits    = 16;
     op->voutput_format.format  = WAVE_FORMAT_PCM;
     break;

@@ -33,6 +33,7 @@
 #define HAVE_VSNPRINTF    1 /* Define to 1 if you have the `vsnprintf' function. */
 #define HAVE_GETTIMEOFDAY 1 /* Define to 1 if you have the `gettimeofday' function. */
 #define HAVE_FSYNC        1 /* Define to 1 if you have the `fsync' function. */
+#define HAVE_STRERROR     1 /* Define to 1 if you have the `strerror' function. */
 #define HAVE_UINTPTR_T    1 /* Define to 1 if the system has the type `uintptr_t'. */
 #define HAVE_DECL_S_IRGRP 1 /* Define to 1 if S_IRGRP is defined. */
 #undef  HAVE_FTRUNCATE      /* Define to 1 if you have the `ftruncate' function. */

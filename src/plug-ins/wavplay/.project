@@ -4,6 +4,7 @@
 	<comment></comment>
 	<projects>
 		<project>include</project>
+		<project>libsndfile</project>
 		<project>utils</project>
 		<project>xio123</project>
 	</projects>

@@ -1,7 +1,7 @@
 # Open Watcom C++
 
 .SUFFIXES:
-.SUFFIXES: .res .rc .obj .asm .c .cpp
+.SUFFIXES: .res .rc .obj .asm .S .c .cpp
 
 MFLAGS     = -h
 MDUMMY     = .SYMBOLIC
@@ -86,6 +86,9 @@ MFLAGS = $(MFLAGS) DEBUG_LOG=$(DEBUG_LOG)
    $(RC) $(RFLAGS) -r $<
 
 .asm.obj:
+   $(AS) $(AFLAGS) $<
+
+.S.obj:
    $(AS) $(AFLAGS) $<
 
 all:    $(TARGET) $(MDUMMY)

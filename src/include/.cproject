@@ -27,14 +27,13 @@
 								<option id="gnu.cpp.compiler.option.preprocessor.def.1958904251" name="Defined symbols (-D)" superClass="gnu.cpp.compiler.option.preprocessor.def" valueType="definedSymbols">
 									<listOptionValue builtIn="false" value="_System"/>
 									<listOptionValue builtIn="false" value="DLLENTRYP(x)=(*x)"/>
-									<listOptionValue builtIn="false" value="DECODER_PLUGIN_LEVEL=2"/>
 									<listOptionValue builtIn="false" value="INCL_PM=1"/>
 									<listOptionValue builtIn="false" value="INCL_DOS=1"/>
 									<listOptionValue builtIn="false" value="DLLENTRY"/>
 									<listOptionValue builtIn="false" value="PM123_CORE=1"/>
-									<listOptionValue builtIn="false" value="OUTPUT_PLUGIN_LEVEL=2"/>
 									<listOptionValue builtIn="false" value="INLINE"/>
 									<listOptionValue builtIn="false" value="INCL_ERRORS=1"/>
+									<listOptionValue builtIn="false" value="PLUGIN_INTERFACE_LEVEL=2"/>
 								</option>
 								<option id="gnu.cpp.compiler.option.include.paths.270600187" name="Include paths (-I)" superClass="gnu.cpp.compiler.option.include.paths" valueType="includePath">
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/include}&quot;"/>

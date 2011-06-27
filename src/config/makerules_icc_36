@@ -1,6 +1,6 @@
 # IBM Visualage C++ 3.6
 
-.SUFFIXES: .res .rc .obj .asm .c .cpp
+.SUFFIXES: .res .rc .obj .asm .S .c .cpp
 
 MFLAGS     = -nologo
 MDUMMY     =
@@ -94,6 +94,9 @@ MFLAGS = $(MFLAGS) DEBUG_LOG=$(DEBUG_LOG)
 	$(RC) $(RFLAGS) -r $<
 
 .asm.obj:
+	$(AS) $(AFLAGS) $<
+
+.S.obj:
 	$(AS) $(AFLAGS) $<
 
 all:    $(TARGET) $(MDUMMY)

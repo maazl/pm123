@@ -168,5 +168,15 @@ playlist even when not enabled globally.</li>
   <li><tt>noshuffle</tt> - Resets shuffle when descending to this
 nested playlist even when enabled globally.</li>
 </ul>
+<h3><tt><a name="info_refresh"></a>info refresh </tt>[<tt><var>&lt;url&gt;</var></tt>]</h3>
+<p>Refresh all meta information for the given <a href="urlformat.html">file
+or URL</a>. The URL may be enclosed in double quotes (<tt>"</tt>). If
+no <tt>&lt;url&gt;</tt> is specified, the current song is refreshed.
+This will not impact any playback.<br>
+This command always returns an empty line, but this is not done before
+the information is really available.</p>
+<p>Note that the command will discard any unsaved changes if applied to
+playlists.<br>
+</p>
 </body>
 </html>

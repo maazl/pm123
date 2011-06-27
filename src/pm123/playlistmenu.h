@@ -62,52 +62,54 @@ class PlaylistMenu
 {public:
   enum EntryFlags
   { None            = 0x00,
-    DummyIfEmpty    = 0x01,      // Create dummy entry if content is empty.
-    Enumerate       = 0x02,      // Enumerate items
-    Separator       = 0x04,      // Place separator before and after the generated entries unless it's the beginning/end
-    Recursive       = 0x10,      // create sub menus for playlist or folder items
-    SkipInvalid     = 0x20,      // exclude invalid entries.
-    Prefetch        = 0x40       // Prefetch list content of next menu level.
+    DummyIfEmpty    = 0x01,     // Create dummy entry if content is empty.
+    Enumerate       = 0x02,     // Enumerate items
+    Separator       = 0x04,     // Place separator before and after the generated entries unless it's the beginning/end
+    Recursive       = 0x10,     // create sub menus for playlist or folder items
+    SkipInvalid     = 0x20,     // exclude invalid entries.
+    Prefetch        = 0x40      // Prefetch list content of next menu level.
   };
-  enum // The ID's here must be distinct from the user messages of any other window.
-  { // This message is internally used by this class to notify changes of the selected items.
-    // mp1 id of the sub item
-    // mp2 MapEntry* for the ID. This is used for validation.
-    UM_UPDATELIST = WM_USER+0x201,
-    // Status of the underlying Playable object of a menu item arrived.
-    // mp1 id of the sub item
-    // mp2 MapEntry* for the ID. This is used for validation.
-    UM_UPDATESTAT,
-    // This message is send to the owner of the menu when a generated subitem of the menu is selected.
-    // mp1 is set to a pointer to APlayable. The pointer is only valid while the message is sent.
-    // mp2 is the user parameter passed to AttachMenu.
-    UM_SELECTED,
-    // This message is posted to ourself to delay the destruction of the menu items
-    // until WM_COMMAND arrives.
-    // mp1 id of the sub item
-    // mp2 MapEntry* for the ID. This is used for validation.
+  /// Window messages related to the PlaylistMenu.
+  /// @remarks The ID's here must be distinct from the user messages of any other window.
+  enum
+  { /// This message is send to the owner of the menu when a generated subitem of the menu is selected.
+    /// mp1 is set to a pointer to APlayable. The pointer is only valid while the message is sent.
+    /// mp2 is the user parameter passed to AttachMenu.
+    UM_SELECTED = WM_USER+0x201,
+    /// This message is internally used by this class to notify changes of the selected items.
+    /// mp1 id of the sub item
+    /// mp2 MapEntry* for the ID. This is used for validation.
+    UM_UPDATELIST,
+    /// Status or text of the underlying Playable object of a menu item arrived.
+    /// mp1 id of the sub item
+    /// mp2 MapEntry* for the ID. This is used for validation.
+    UM_UPDATEITEM,
+    /// This message is posted to ourself to delay the destruction of the menu items
+    /// until WM_COMMAND arrives.
+    /// mp1 id of the sub item
+    /// mp2 MapEntry* for the ID. This is used for validation.
     UM_MENUEND
   };
 
  private:
   enum EntryStatus
-  { StatusRequest   = 0x01,      // A status update has been placed for this item.
-    UpdateRequest   = 0x02,      // An update has been requested for this item.
-    InUse           = 0x10,      // Entry is currently instantiated (WM_INITMENU).
-    InUpdate        = 0x20,      // Entry is currently updated (UM_LATEUPDATE).
-    InDestroy       = 0x40       // Entry is currently destroyed (UM_MENUEND).
+  { StatusRequest   = 0x01,     // A status update has been placed for this item.
+    UpdateRequest   = 0x02,     // An update has been requested for this item.
+    InUse           = 0x10,     // Entry is currently instantiated (WM_INITMENU).
+    InUpdate        = 0x20,     // Entry is currently updated (UM_LATEUPDATE).
+    InDestroy       = 0x40      // Entry is currently destroyed (UM_MENUEND).
   };
   CLASSFLAGSATTRIBUTE(PlaylistMenu::EntryStatus);
   struct MapEntry
-  { const USHORT    IDMenu;      // Menu item ID, primary key
-    EntryFlags      Flags;
-    MapEntry*       Parent;      // Parent Menu item or NULL in case of root.
-    HWND            HwndSub;     // Sub menu window handle. Not valid until WM_INITMENU of the submenu if any.
-    int_ptr<APlayable> Data;     // Backend data
-    AtomicUnsigned  Status;      // See EntryStatus
-    const MPARAM    User;        // User param from AttachMenu. Inherited to submenus.
-    USHORT          ID1;         // First generated item ID or MID_NONE (if none)
-    USHORT          Pos;         // ID of the first object after the last generated entry or MIT_END if this is the end of the menu.
+  { const USHORT    IDMenu;     // Menu item ID, primary key
+    EntryFlags      Flags;      // See EntryFlags
+    MapEntry*       Parent;     // Parent menu item or NULL in case of root.
+    HWND            HwndSub;    // Sub menu window handle.
+    int_ptr<APlayable> Data;    // Backend data
+    AtomicUnsigned  Status;     // See EntryStatus
+    const MPARAM    User;       // User param from AttachMenu. Inherited to submenus.
+    USHORT          ID1;        // First generated item ID or MID_NONE (if none)
+    USHORT          Pos;        // ID of the first object after the last generated entry or MIT_END if this is the end of the menu.
     class_delegate2<PlaylistMenu, const PlayableChangeArgs, MapEntry> InfoDelegate;
 
     MapEntry(USHORT id, MapEntry* parent, APlayable& data, EntryFlags flags, MPARAM user, SHORT pos, PlaylistMenu& owner, void (PlaylistMenu::*infochg)(const PlayableChangeArgs&, MapEntry*));
@@ -133,11 +135,14 @@ class PlaylistMenu
   /// @brief Fetch and reserve free menu ID
   USHORT            AllocateID();
   /// Create a sub menu for \a mi.
-  void              CreateSubMenu(MENUITEM& mi, HWND parent);
+  HWND              CreateSubMenu(MENUITEM& mi, HWND parent);
   /// Insert a menu separator at position \a where.
   USHORT            InsertSeparator(HWND menu, SHORT where);
   /// Create a dummy entry at position \a where into a \a menu.
+  /// @return The ID of the created dummy.
   USHORT            InsertDummy(HWND menu, SHORT where, const char* text);
+  /// Insert a new entry in a menu.
+  MapEntry*         InsertEntry(MapEntry* parent, SHORT where, APlayable& data, size_t index);
   /// Create/refresh the content of a sub menu from the playlist data.
   void              UpdateSubItems(MapEntry* mapp);
   /// Removes all matching items from the menu
@@ -166,7 +171,7 @@ class PlaylistMenu
   /// by the content of the playlist. Nested playlists will show as submenus.
   /// If the IDs are not sufficient the content is truncated. But the IDs to nested items
   /// are only assigned if a submenu is opened.
-  bool              AttachMenu(USHORT menuid, APlayable& data, EntryFlags flags, MPARAM user, USHORT pos = (USHORT)MID_NONE);
+  bool              AttachMenu(HWND menu, USHORT menuid, APlayable& data, EntryFlags flags, MPARAM user, USHORT pos = (USHORT)MID_NONE);
 
  public:
   /// Maximum number of menu items in one sub menu. Larger playlists are truncated.

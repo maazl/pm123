@@ -31,7 +31,7 @@
 #define PACKAGE_STRING PACKAGE" "VERSION
 
 /* booleans for C */
-#ifndef __cplusplus
+#if !defined(__cplusplus) && !defined(ASSEMBLER)
   typedef unsigned char bool;
   #define true  1
   #define false 0

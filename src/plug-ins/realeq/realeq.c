@@ -953,18 +953,18 @@ filter_command(REALEQ_STRUCT* f, ULONG msg, OUTPUT_PARAMS2* info)
 { ULONG rc;
   INFO_BUNDLE_CV ib;
   TECH_INFO ti;
-  INFO_BUNDLE_CV* old_info = info->info;
+  const INFO_BUNDLE_CV* old_info = info->Info;
   DEBUGLOG(("realeq:filter_command(%p, %u, %p)\n", f, msg, info));
   if (old_info && old_info->tech->channels == 1 && eqenabled)
   { ib = *old_info;
     ti = *ib.tech;
     ti.channels = 2;
     ib.tech = &ti;
-    info->info = &ib;
+    info->Info = &ib;
   }
   switch (msg)
   {case OUTPUT_TRASH_BUFFERS:
-    f->temppos = info->playingpos;
+    f->temppos = info->PlayingPos;
     f->discard = TRUE;
     break;
    case OUTPUT_CLOSE:
@@ -974,7 +974,7 @@ filter_command(REALEQ_STRUCT* f, ULONG msg, OUTPUT_PARAMS2* info)
   }
   rc = (*f->output_command)(f->a, msg, info);
   // restore info to keep upstream filters consistent.
-  info->info = old_info;
+  info->Info = old_info;
   return rc;
 }
 

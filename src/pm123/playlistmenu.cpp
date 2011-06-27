@@ -115,9 +115,9 @@ static void menutest(HWND menu)
  * WM_INITMENU     | . . . | children available | ensure sub menu         | u . .
  *                 |       |                    |  update sub items       |
  * ----------------+-------+--------------------+-------------------------+-------
- * UM_UPDATE       | . ? ? |                    | no-op                   | . ? ?
+ * UM_UPDATELIST   | . ? ? |                    | no-op                   | . ? ?
  * ----------------+-------+--------------------+-------------------------+-------
- * UM_UPDATE       | u . . |                    | no-op                   | . ? ?
+ * UM_UPDATELIST   | u . . |                    | no-op                   | . ? ?
  * ----------------+-------+--------------------+-------------------------+-------
  * WM_MENUEND      | u . . |                    | post UM_MENUEND         | . . .
  * ----------------+-------+--------------------+-------------------------+-------
@@ -146,8 +146,9 @@ MRESULT PlaylistMenu::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
       MapEntry* mapp = MenuMap.find(SHORT1FROMMP(mp1));
       if (mapp == NULL)
         break; // No registered map entry, continue default processing.
-      DEBUGLOG(("PlaylistMenu::DlgProc: WM_INITMENU: %p{%u, %x,...}\n", mapp, mapp->IDMenu, mapp->HwndSub));
-      mapp->HwndSub = HWNDFROMMP(mp2);
+      DEBUGLOG(("PlaylistMenu::DlgProc: WM_INITMENU: %p{%u, %p, %x,...}\n", mapp,
+          mapp->IDMenu, mapp->Parent, mapp->HwndSub));
+      ASSERT(mapp->HwndSub == HWNDFROMMP(mp2));
       mapp->Status |= InUse;
       if ((mapp->Status & (InUpdate|InDestroy)) == 0)
         UpdateSubItems(mapp);
@@ -187,41 +188,33 @@ MRESULT PlaylistMenu::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
 
    case UM_MENUEND:
     { MapEntry* mapp = MenuMap.find(SHORT1FROMMP(mp1));
-      DEBUGLOG(("PlaylistMenu(%p)::DlgProc: UM_MENUEND(%u, %x) - %p\n",
+      DEBUGLOG(("PlaylistMenu(%p)::DlgProc: UM_MENUEND(%u, %p) - %p\n",
         this, SHORT1FROMMP(mp1), PVOIDFROMMP(mp2), mapp));
       // delete old stuff, but only if still valid.
       if (mapp == PVOIDFROMMP(mp2) && !(mapp->Status & InUse))
-      { mapp->Status |= InDestroy;
         RemoveSubItems(mapp);
-        mapp->Status &= ~InDestroy;
-      }
     }
     return 0;
 
-   case UM_UPDATESTAT:
+   case UM_UPDATEITEM:
     { MapEntry* mapp = MenuMap.find(SHORT1FROMMP(mp1));
-      DEBUGLOG(("PlaylistMenu(%p)::DlgProc: UM_UPDATESTAT(%u, %p) - %p\n",
+      DEBUGLOG(("PlaylistMenu(%p)::DlgProc: UM_UPDATEITEM(%u, %p) - %p\n",
         this, SHORT1FROMMP(mp1), PVOIDFROMMP(mp2), mapp));
       // ID known and valid and not root?
       if (mapp == PVOIDFROMMP(mp2) && mapp->Parent && mapp->Status.bitrst(0))
-      { mapp->Status |= InUpdate;
         UpdateItem(mapp);
-        mapp->Status &= ~InUpdate;
-    } }
+    }
     break;
 
    case UM_UPDATELIST:
     { MapEntry* mapp = MenuMap.find(SHORT1FROMMP(mp1));
-      DEBUGLOG(("PlaylistMenu(%p)::DlgProc: UM_UPDATE(%u, %p) - %p\n",
+      DEBUGLOG(("PlaylistMenu(%p)::DlgProc: UM_UPDATELIST(%u, %p) - %p\n",
         this, SHORT1FROMMP(mp1), PVOIDFROMMP(mp2), mapp));
       // Update content, but only for visible items.
       if (mapp == PVOIDFROMMP(mp2) && (mapp->Status & InUse) && mapp->Status.bitrst(1))
-      { mapp->Status |= InUpdate;
         UpdateSubItems(mapp);
-        mapp->Status &= ~InUpdate;
-    } }
+    }
     break;
-
   }
   // Call chained dialog procedure
   return (*Old_DlgProc)(HwndOwner, msg, mp1, mp2);
@@ -247,7 +240,7 @@ USHORT PlaylistMenu::AllocateID()
   return (USHORT)MID_NONE;
 }
 
-void PlaylistMenu::CreateSubMenu(MENUITEM& mi, HWND parent)
+HWND PlaylistMenu::CreateSubMenu(MENUITEM& mi, HWND parent)
 { DEBUGLOG(("PlaylistMenu::CreateSubMenu({%u,...}, %x)\n", mi.id, parent));
   mi.afStyle |= MIS_SUBMENU;
   mi.hwndSubMenu = WinLoadMenu(parent, NULLHANDLE, MNU_SUBFOLDER);
@@ -256,11 +249,12 @@ void PlaylistMenu::CreateSubMenu(MENUITEM& mi, HWND parent)
   PMRASSERT(WinSetWindowUShort(mi.hwndSubMenu, QWS_ID, mi.id));
   PMRASSERT(WinSetWindowBits(mi.hwndSubMenu, QWL_STYLE, MS_CONDITIONALCASCADE, MS_CONDITIONALCASCADE));
   PMRASSERT(WinSendMsg(mi.hwndSubMenu, MM_SETDEFAULTITEMID, MPFROMLONG(mi.id), 0));
+  return mi.hwndSubMenu;
 }
 
 USHORT PlaylistMenu::InsertSeparator(HWND menu, SHORT where)
 { DEBUGLOG(("PlaylistMenu::InsertSeparator(%x, %i)\n", menu, where));
-MENUITEM mi = {0};
+  MENUITEM mi = {0};
   mi.iPosition = where;
   mi.afStyle = MIS_SEPARATOR;
   mi.id = AllocateID();
@@ -280,11 +274,50 @@ USHORT PlaylistMenu::InsertDummy(HWND menu, SHORT where, const char* text)
   return mi.id;
 }
 
+PlaylistMenu::MapEntry* PlaylistMenu::InsertEntry(MapEntry* parent, SHORT where, APlayable& data, size_t index)
+{ DEBUGLOG(("PlaylistMenu::InsertEntry(%p{%u, %x}, %i, &%p{%s}, %i)\n", parent, parent->IDMenu, parent->HwndSub, where, &data, data.GetDisplayName().cdata(), index));
+  MENUITEM mi = {0};
+  mi.id          = AllocateID();
+  mi.iPosition   = where;
+  if (mi.id == (USHORT)MID_NONE)
+    return NULL; // can't help
+  if (parent->ID1 == (USHORT)MID_NONE)
+    parent->ID1 = mi.id;
+  mi.afStyle     = MIS_TEXT;
+  mi.afAttribute = 0;
+  mi.hwndSubMenu = NULLHANDLE;
+  // Add map entry.
+  MapEntry*& subp = MenuMap.get(mi.id);
+  ASSERT(subp == NULL);
+  subp = new MapEntry(mi.id, parent, data, parent->Flags, parent->User, MIT_END, *this, &PlaylistMenu::InfoChangeHandler);
+
+  const unsigned tattr = data.GetInfo().tech->attributes;
+  const bool invalid = (data.GetInfo().phys->attributes & PATTR_INVALID) || (tattr & TATTR_INVALID);
+  DEBUGLOG(("PlaylistMenu::InsertEntry: %i\n", mi.id));
+  // Invalid?
+  if (invalid)
+    mi.afAttribute |= MIA_DISABLED;
+  // with submenu?
+  else if ((parent->Flags & Recursive) && (tattr & TATTR_PLAYLIST))
+  { subp->HwndSub = CreateSubMenu(mi, parent->HwndSub);
+    // OS/2 does not call WM_INITMENU for sub menus with no children, so insert a dummy.
+    // (Note that the real content is added later.)
+    subp->ID1 = InsertDummy(subp->HwndSub, subp->Pos, "- loading -");
+  }
+  // Add menu item
+  const xstring& text = MakeMenuItemText(subp, index);
+  SHORT rs = SHORT1FROMMR(WinSendMsg(parent->HwndSub, MM_INSERTITEM, MPFROMP(&mi), MPFROMP(text.cdata())));
+  DEBUGLOG(("PlaylistMenu::InsertEntry: new item %s - %i\n", text.cdata(), rs));
+  return subp;
+}
+
 void PlaylistMenu::UpdateItem(MapEntry* mapp)
 { DEBUGLOG(("PlaylistMenu::UpdateItem(%p{%u, %x, %p{%s}})\n",
     mapp, mapp->IDMenu, mapp->HwndSub, mapp->Data.get(), mapp->Data->GetPlayable().URL.getDisplayName().cdata()));
   MapEntry* parp = mapp->Parent;
   ASSERT(parp);
+
+  mapp->Status |= InUpdate;
 
   Playable& p = mapp->Data->GetPlayable();
   const unsigned tattr = p.GetInfo().tech->attributes;
@@ -292,6 +325,7 @@ void PlaylistMenu::UpdateItem(MapEntry* mapp)
   // remove invalid?
   if (invalid && (mapp->Flags & SkipInvalid))
   { RemoveMapEntry(mapp);
+    mapp->Status &= ~InUpdate;
     return;
   }
   PMRASSERT(WinSendMsg(parp->HwndSub, MM_SETITEMATTR,
@@ -299,27 +333,36 @@ void PlaylistMenu::UpdateItem(MapEntry* mapp)
   MENUITEM mi;
   PMRASSERT(WinSendMsg(parp->HwndSub, MM_QUERYITEM, MPFROM2SHORT(mapp->IDMenu, FALSE), MPFROMP(&mi)));
   DEBUGLOG(("PlaylistMenu::UpdateItem: %x - %p\n", tattr, mi.hwndSubMenu));
-  HWND oldmenu = NULLHANDLE;
   if (!invalid && (mapp->Flags & Recursive) && (tattr & TATTR_PLAYLIST)) // with submenu?
-  { if (mi.hwndSubMenu != NULLHANDLE)
-      return;
-    CreateSubMenu(mi, parp->HwndSub);
-    // OS/2 seems to dislike empty submenues and does not send WM_INITMENU for them.
-    // So create dummy.
-    //mapp->ID1 = InsertDummy(mi.hwndSubMenu, MIT_END, "- loading -");
-    //mapp->Pos = MIT_END;
+  { if (mi.hwndSubMenu == NULLHANDLE)
+    { mapp->HwndSub = CreateSubMenu(mi, parp->HwndSub);
+      // OS/2 does not call WM_INITMENU for sub menus with no children, so insert a dummy.
+      // (Note that the real content is added later.)
+      mapp->ID1 = InsertDummy(mapp->HwndSub, mapp->Pos, "- loading -");
+      PMRASSERT(WinSendMsg(parp->HwndSub, MM_SETITEM, MPFROM2SHORT(0, FALSE), MPFROMP(&mi)));
+    }
   } else
   { // No Playlist
-    if (mi.hwndSubMenu == NULLHANDLE)
-      return;
-    RemoveSubItems(mapp);
-    mi.afStyle &= ~MIS_SUBMENU;
-    oldmenu = mi.hwndSubMenu;
-    mi.hwndSubMenu = NULLHANDLE;
+    if (mi.hwndSubMenu != NULLHANDLE)
+    { RemoveSubItems(mapp);
+      mi.afStyle &= ~MIS_SUBMENU;
+      HWND oldmenu = mi.hwndSubMenu;
+      mi.hwndSubMenu = NULLHANDLE;
+      PMRASSERT(WinSendMsg(parp->HwndSub, MM_SETITEM, MPFROM2SHORT(0, FALSE), MPFROMP(&mi)));
+      if (oldmenu)
+        PMRASSERT(WinDestroyWindow(oldmenu));
+    }
   }
-  PMRASSERT(WinSendMsg(parp->HwndSub, MM_SETITEM, MPFROM2SHORT(0, FALSE), MPFROMP(&mi)));
-  if (oldmenu)
-    PMRASSERT(WinDestroyWindow(oldmenu));
+
+  // Update Text
+  // Get item index in the menu.
+  SHORT ix = SHORT1FROMMR(WinSendMsg(parp->HwndSub, MM_ITEMPOSITIONFROMID, MPFROM2SHORT(mapp->IDMenu, FALSE), 0));
+  SHORT ix1 = SHORT1FROMMR(WinSendMsg(parp->HwndSub, MM_ITEMPOSITIONFROMID, MPFROM2SHORT(parp->ID1, FALSE), 0));
+  size_t pos = ix == MIT_NONE || ix1 == MIT_NONE ? (size_t)-1 : ix - ix1;
+  const xstring& text = MakeMenuItemText(mapp, pos);
+  PMRASSERT(WinSendMsg(parp->HwndSub, MM_SETITEMTEXT, MPFROMSHORT(mapp->IDMenu), MPFROMP(text.cdata())));
+
+  mapp->Status &= ~InUpdate;
 }
 
 void PlaylistMenu::UpdateSubItems(MapEntry* const mapp)
@@ -329,6 +372,7 @@ void PlaylistMenu::UpdateSubItems(MapEntry* const mapp)
   // is enumerable?
   if (!(mapp->Data->GetInfo().tech->attributes & TATTR_PLAYLIST))
     return;
+  mapp->Status |= InUpdate;
 
   const char* dummy = NULL; // Dummy Entry (if any)
   vector_int<PlayableInstance> children; // New menu content
@@ -354,7 +398,7 @@ void PlaylistMenu::UpdateSubItems(MapEntry* const mapp)
       // Prefetch nested playlist content?
       if (mapp->Flags & Prefetch)
         pi->RequestInfo(IF_Child, PRI_Low);
-      pi->RequestInfo(IF_Tech, PRI_Normal);
+      pi->RequestInfo(IF_Tech|IF_Display, PRI_Normal);
       // remove invalid items?
       if ( (mapp->Flags & SkipInvalid) &&
         ((pi->GetInfo().phys->attributes & PATTR_INVALID) || (pi->GetInfo().tech->attributes & TATTR_INVALID)) )
@@ -365,6 +409,7 @@ void PlaylistMenu::UpdateSubItems(MapEntry* const mapp)
     if (children.size() == 0)
     { if (!(mapp->Flags & DummyIfEmpty))
       { RemoveSubItems(mapp);
+        mapp->Status &= ~InUpdate;
         return;
       }
       dummy = "- none -";
@@ -410,6 +455,7 @@ void PlaylistMenu::UpdateSubItems(MapEntry* const mapp)
       } else if (dummy)
       { // Dummy and dummy still required
         PMRASSERT(WinSendMsg(mapp->HwndSub, MM_SETITEMTEXT, MPFROMSHORT(id), MPFROMP(dummy)));
+        mapp->Status &= ~InUpdate;
         return; // This is necessarily the last action, because dummy entries and normal entries are mutually exclusive.
       } else
         // Dummy and no dummy required
@@ -457,6 +503,7 @@ void PlaylistMenu::UpdateSubItems(MapEntry* const mapp)
   { id = InsertDummy(mapp->HwndSub, position, dummy);
     if (mapp->ID1 == (USHORT)MID_NONE)
       mapp->ID1 = id;
+    mapp->Status &= ~InUpdate;
     return;
   }
 
@@ -508,46 +555,20 @@ void PlaylistMenu::UpdateSubItems(MapEntry* const mapp)
     }
     DEBUGLOG(("PlaylistMenu::UpdateSubItems: Update no match\n"));
     // No-match => insert
-    { MENUITEM mi = {0};
-      mi.id          = AllocateID();
-      mi.iPosition   = position;
-      if (mi.id == (USHORT)MID_NONE)
-        break; // can't help
-      if (mapp->ID1 == (USHORT)MID_NONE)
-        mapp->ID1 = mi.id;
-      mi.afStyle     = MIS_TEXT;
-      mi.afAttribute = 0;
-      mi.hwndSubMenu = NULLHANDLE;
-      // Add map entry.
-      MapEntry*& subp = MenuMap.get(mi.id);
-      ASSERT(subp == NULL);
-      subp = new MapEntry(mi.id, mapp, pi, mapp->Flags, mapp->User, MIT_END, *this, &PlaylistMenu::InfoChangeHandler);
-
-      const unsigned tattr = pi.GetInfo().tech->attributes;
-      const bool invalid = (pi.GetInfo().phys->attributes & PATTR_INVALID) || (tattr & TATTR_INVALID);
-      DEBUGLOG(("PlaylistMenu::UpdateSubItems: Update insert %p{%s}, %i\n", &pi, pi.GetPlayable().URL.getShortName().cdata(), (SHORT)mapp->ID1));
-      // Invalid?
-      if (invalid)
-        mi.afAttribute |= MIA_DISABLED;
-      // with submenu?
-      else if ((mapp->Flags & Recursive) && (tattr & TATTR_PLAYLIST))
-        CreateSubMenu(mi, mapp->HwndSub);
-      // Add menu item
-      const xstring& text = MakeMenuItemText(subp, i);
-      SHORT rs = SHORT1FROMMR(WinSendMsg(mapp->HwndSub, MM_INSERTITEM, MPFROMP(&mi), MPFROMP(text.cdata())));
-      if (position != MIT_END)
-        ++position;
-      DEBUGLOG(("PlaylistMenu::UpdateSubItems: Update new item %u->%s - %i\n", mi.id, text.cdata(), rs));
-    }
+    InsertEntry(mapp, position, pi, i);
+    if (position != MIT_END)
+      ++position;
    nextmenu:;
   }
+  mapp->Status &= ~InUpdate;
 }
 
 void PlaylistMenu::RemoveSubItems(MapEntry* mapp)
 { DEBUGLOG(("PlaylistMenu(%p)::RemoveSubItems(%p{%u,%x,%x,%u,%u})\n", this,
     mapp, mapp->Flags, mapp->IDMenu, mapp->HwndSub, mapp->ID1, mapp->Pos));
-  if (mapp->ID1 == (USHORT)MID_NONE || mapp->HwndSub == NULLHANDLE)
-    return; // no sub items or not yet initialized
+  if (mapp->ID1 == (USHORT)MID_NONE || (mapp->Status & InDestroy))
+    return; // no sub items, not yet initialized or already in destroy
+  mapp->Status |= InDestroy;
 
   SHORT i = SHORT1FROMMR(WinSendMsg(mapp->HwndSub, MM_ITEMPOSITIONFROMID, MPFROM2SHORT(mapp->ID1, FALSE), 0));
   PMASSERT(i != MIT_NONE);
@@ -563,10 +584,11 @@ void PlaylistMenu::RemoveSubItems(MapEntry* mapp)
     // - WM_INITMENU called for the item while we clean up
     //   In this case an UM_UPDATE later will restor the content
     if (id == MIT_ERROR || id == 0 || id == mapp->Pos || (mapp->Status & InUse))
-      return; // end of menu or range
+      break; // end of menu or range
     RemoveMapEntry(id);
     WinSendMsg(mapp->HwndSub, MM_DELETEITEM, MPFROM2SHORT(id, FALSE), 0);
   }
+  mapp->Status &= ~InDestroy;
 }
 
 void PlaylistMenu::RemoveMapEntry(MapEntry* mapp)
@@ -576,15 +598,8 @@ void PlaylistMenu::RemoveMapEntry(MapEntry* mapp)
   // delete children recursively
   RemoveSubItems(mapp);
   // now destroy the submenu if any
-  if (mapp->HwndSub) // only if menu has been shown already
-  { /*MapEntry* parp = mapp->Parent;
-    ASSERT(parp);
-    MENUITEM mi;
-    PMRASSERT(WinSendMsg(parp->HwndSub, MM_QUERYITEM, MPFROM2SHORT(mapp->IDMenu, FALSE), MPFROMP(&mi)));
-    if (mi.hwndSubMenu)
-      PMRASSERT(WinDestroyWindow(mi.hwndSubMenu));*/
+  if (mapp->HwndSub != NULLHANDLE)
     PMRASSERT(WinDestroyWindow(mapp->HwndSub));
-  }
   // update first free ID (optimization)
   if (mapp->IDMenu < ID1stfree)
     ID1stfree = mapp->IDMenu;
@@ -609,16 +624,17 @@ xstring PlaylistMenu::MakeMenuItemText(MapEntry* mapp, size_t index)
 }
 
 void PlaylistMenu::InfoChangeHandler(const PlayableChangeArgs& args, MapEntry* mapp)
-{ DEBUGLOG(("PlaylistMenu(%p)::InfoChangeHandler({%p,%x,%x}, %p) {%u, %x, %p}\n", this,
-    &args.Instance, args.Changed, args.Loaded, mapp, mapp->IDMenu, mapp->HwndSub, mapp->Data.get()));
-  if ((args.Changed & (IF_Phys|IF_Tech)) && !mapp->Status.bitset(0))
-    PMASSERT(WinPostMsg(HwndOwner, UM_UPDATESTAT, MPFROMSHORT(mapp->IDMenu), MPFROMP(mapp)));
+{ DEBUGLOG(("PlaylistMenu(%p)::InfoChangeHandler({%p{%s},%x,%x}, %p) {%u, %x, %p}\n", this,
+    &args.Instance, args.Instance.GetPlayable().URL.cdata(), args.Changed, args.Loaded, mapp, mapp->IDMenu, mapp->HwndSub, mapp->Data.get()));
+  if ((args.Changed & (IF_Phys|IF_Tech|IF_Display)) && !mapp->Status.bitset(0))
+    PMASSERT(WinPostMsg(HwndOwner, UM_UPDATEITEM, MPFROMSHORT(mapp->IDMenu), MPFROMP(mapp)));
   if ((args.Changed & IF_Child) && !mapp->Status.bitset(1))
     PMRASSERT(WinPostMsg(HwndOwner, UM_UPDATELIST, MPFROMSHORT(mapp->IDMenu), MPFROMP(mapp)));
 }
 
-bool PlaylistMenu::AttachMenu(USHORT menuid, APlayable& data, EntryFlags flags, MPARAM user, USHORT pos)
-{ DEBUGLOG(("PlaylistMenu(%p)::AttachMenu(%u, &%p{%s}, %x, %p, %u)\n", this, menuid, &data, data.GetPlayable().URL.getShortName().cdata(), flags, user, pos));
+bool PlaylistMenu::AttachMenu(HWND menu, USHORT menuid, APlayable& data, EntryFlags flags, MPARAM user, USHORT pos)
+{ DEBUGLOG(("PlaylistMenu(%p)::AttachMenu(%x, %u, &%p{%s}, %x, %p, %u)\n", this,
+    menu, menuid, &data, data.GetPlayable().URL.getShortName().cdata(), flags, user, pos));
 
   MapEntry*& mapp = MenuMap.get(menuid);
   if (mapp)
@@ -627,7 +643,13 @@ bool PlaylistMenu::AttachMenu(USHORT menuid, APlayable& data, EntryFlags flags, 
    else
     // new map item
     mapp = new MapEntry(menuid, NULL, data, flags, user, pos, *this, &PlaylistMenu::InfoChangeHandler);
+  mapp->HwndSub = menu;
 
+  // Fetch sub menu handle
+  MENUITEM mi;
+  PMRASSERT(WinSendMsg(menu, MM_QUERYITEM, MPFROM2SHORT(menuid, TRUE), MPFROMP(&mi)));
+  ASSERT(mi.hwndSubMenu != NULLHANDLE); // Must be a submenu
+  mapp->HwndSub = mi.hwndSubMenu;
   return true;
 }
 

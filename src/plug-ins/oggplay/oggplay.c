@@ -604,7 +604,7 @@ decoder_fileinfo( const char* filename, DECODER_INFO* info )
     info->songlength = -1;
   }
 
-  snprintf( info->tech_info, sizeof( info->tech_info ), "%u kbs, %.1f kHz, %s",
+  snprintf( info->tech_info, sizeof( info->tech_info ), "%u kbps, %.1f kHz, %s",
             info->bitrate, ( info->format.samplerate / 1000.0 ),
             info->format.channels == 1 ? "Mono" : "Stereo" );
 

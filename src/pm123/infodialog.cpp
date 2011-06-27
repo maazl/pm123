@@ -707,7 +707,7 @@ MRESULT InfoDialog::MetaWriteDlg::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
         PMRASSERT(WinSetWindowPos(WinWindowFromID(GetHwnd(), SB_WMBARFG), NULLHANDLE, 0,0, swp.cx,swp.cy, SWP_SIZE));
       }
 
-      if (mp2 == PLUGIN_OK)
+      if (LONGFROMMP(mp2) == PLUGIN_OK)
       { // Everything fine, next item
         SetItemText(EF_WMSTATUS, "");
         ++i; // next item (if any)

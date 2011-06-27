@@ -1,7 +1,8 @@
 /**/
 pipe = VALUE('PIPE',,'OS2ENVIRONMENT')
 
-IF STREAM(pipe, 'c', 'open') \= 'READY:' THEN
-  EXIT 'Cannot open pipe 'pipe
+rc = STREAM(pipe, 'c', 'open')
+IF \ABBREV(rc, 'READY') THEN
+  EXIT 'Cannot open pipe 'pipe': 'rc
 EXIT
 

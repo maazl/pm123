@@ -38,6 +38,7 @@
 #include "properties.h"
 #include "controller.h"
 #include "123_util.h"
+#include "copyright.h"
 #include "plugman.h"
 #include <fileutil.h>
 #include <cpp/xstring.h>
@@ -199,6 +200,7 @@ class CommandProcessor : public ACommandProcessor
   void CmdInfoMeta();
   void CmdInfoPlaylist();
   void CmdInfoPlItem();
+  void CmdInfoRefresh();
 
   // GUI
   void CmdShow();
@@ -208,6 +210,7 @@ class CommandProcessor : public ACommandProcessor
   void CmdSkin();
 
   // CONFIGURATION
+  void CmdVersion();
   void CmdOption();
   void CmdSize();
   void CmdFont();
@@ -225,52 +228,54 @@ class CommandProcessor : public ACommandProcessor
 
 
 const CommandProcessor::CmdEntry CommandProcessor::CmdList[] = // list must be sorted!!!
-{ { "add",          &CommandProcessor::CmdAdd         },
-  { "autouse",      &CommandProcessor::CmdAutouse     },
-  { "cd",           &CommandProcessor::CmdCd          },
-  { "clear",        &CommandProcessor::CmdClear       },
-  { "current",      &CommandProcessor::CmdCurrent     },
-  { "dir",          &CommandProcessor::CmdDir         },
-  { "float",        &CommandProcessor::CmdFloat       },
-  { "font",         &CommandProcessor::CmdFont        },
-  { "forward",      &CommandProcessor::CmdForward     },
-  { "hide",         &CommandProcessor::CmdHide        },
-  { "info format",  &CommandProcessor::CmdInfoFormat  },
-  { "info meta",    &CommandProcessor::CmdInfoMeta    },
-  { "info pl_item", &CommandProcessor::CmdInfoPlItem  },
-  { "info playlist",&CommandProcessor::CmdInfoPlaylist},
-  { "jump",         &CommandProcessor::CmdJump        },
-  { "load",         &CommandProcessor::CmdLoad        },
-  { "location",     &CommandProcessor::CmdLocation    },
-  { "next",         &CommandProcessor::CmdNext        },
-  { "open",         &CommandProcessor::CmdOpen        },
-  { "option",       &CommandProcessor::CmdOption      },
-  { "pause",        &CommandProcessor::CmdPause       },
-  { "pl_current",   &CommandProcessor::CmdPlCurrent   },
-  { "pl_item",      &CommandProcessor::CmdPlItem      },
-  { "pl_next",      &CommandProcessor::CmdPlNext      },
-  { "pl_prev",      &CommandProcessor::CmdPlPrev      },
-  { "pl_reset",     &CommandProcessor::CmdPlReset     },
-  { "play",         &CommandProcessor::CmdPlay        },
-  { "playlist",     &CommandProcessor::CmdPlaylist    },
-  { "playonload",   &CommandProcessor::CmdPlayonload  },
-  { "prev",         &CommandProcessor::CmdPrev        },
-  { "previous",     &CommandProcessor::CmdPrev        },
-  { "query",        &CommandProcessor::CmdQuery       },
-  { "rdir",         &CommandProcessor::CmdRdir        },
-  { "remove",       &CommandProcessor::CmdRemove      },
-  { "repeat",       &CommandProcessor::CmdRepeat      },
-  { "rewind",       &CommandProcessor::CmdRewind      },
-  { "save",         &CommandProcessor::CmdSave        },
-  { "savestream",   &CommandProcessor::CmdSavestream  },
-  { "show",         &CommandProcessor::CmdShow        },
-  { "shuffle",      &CommandProcessor::CmdShuffle     },
-  { "size",         &CommandProcessor::CmdSize        },
-  { "skin",         &CommandProcessor::CmdSkin        },
-  { "status",       &CommandProcessor::CmdStatus      },
-  { "stop",         &CommandProcessor::CmdStop        },
-  { "use",          &CommandProcessor::CmdUse         },
-  { "volume",       &CommandProcessor::CmdVolume      }
+{ { "add",          &CommandProcessor::CmdAdd         }
+, { "autouse",      &CommandProcessor::CmdAutouse     }
+, { "cd",           &CommandProcessor::CmdCd          }
+, { "clear",        &CommandProcessor::CmdClear       }
+, { "current",      &CommandProcessor::CmdCurrent     }
+, { "dir",          &CommandProcessor::CmdDir         }
+, { "float",        &CommandProcessor::CmdFloat       }
+, { "font",         &CommandProcessor::CmdFont        }
+, { "forward",      &CommandProcessor::CmdForward     }
+, { "hide",         &CommandProcessor::CmdHide        }
+, { "info format",  &CommandProcessor::CmdInfoFormat  }
+, { "info meta",    &CommandProcessor::CmdInfoMeta    }
+, { "info pl_item", &CommandProcessor::CmdInfoPlItem  }
+, { "info playlist",&CommandProcessor::CmdInfoPlaylist}
+, { "info refresh" ,&CommandProcessor::CmdInfoRefresh }
+, { "jump",         &CommandProcessor::CmdJump        }
+, { "load",         &CommandProcessor::CmdLoad        }
+, { "location",     &CommandProcessor::CmdLocation    }
+, { "next",         &CommandProcessor::CmdNext        }
+, { "open",         &CommandProcessor::CmdOpen        }
+, { "option",       &CommandProcessor::CmdOption      }
+, { "pause",        &CommandProcessor::CmdPause       }
+, { "pl_current",   &CommandProcessor::CmdPlCurrent   }
+, { "pl_item",      &CommandProcessor::CmdPlItem      }
+, { "pl_next",      &CommandProcessor::CmdPlNext      }
+, { "pl_prev",      &CommandProcessor::CmdPlPrev      }
+, { "pl_reset",     &CommandProcessor::CmdPlReset     }
+, { "play",         &CommandProcessor::CmdPlay        }
+, { "playlist",     &CommandProcessor::CmdPlaylist    }
+, { "playonload",   &CommandProcessor::CmdPlayonload  }
+, { "prev",         &CommandProcessor::CmdPrev        }
+, { "previous",     &CommandProcessor::CmdPrev        }
+, { "query",        &CommandProcessor::CmdQuery       }
+, { "rdir",         &CommandProcessor::CmdRdir        }
+, { "remove",       &CommandProcessor::CmdRemove      }
+, { "repeat",       &CommandProcessor::CmdRepeat      }
+, { "rewind",       &CommandProcessor::CmdRewind      }
+, { "save",         &CommandProcessor::CmdSave        }
+, { "savestream",   &CommandProcessor::CmdSavestream  }
+, { "show",         &CommandProcessor::CmdShow        }
+, { "shuffle",      &CommandProcessor::CmdShuffle     }
+, { "size",         &CommandProcessor::CmdSize        }
+, { "skin",         &CommandProcessor::CmdSkin        }
+, { "status",       &CommandProcessor::CmdStatus      }
+, { "stop",         &CommandProcessor::CmdStop        }
+, { "use",          &CommandProcessor::CmdUse         }
+, { "version",      &CommandProcessor::CmdVersion     }
+, { "volume",       &CommandProcessor::CmdVolume      }
 };
 
 const char* ACommandProcessor::Execute(const char* cmd)
@@ -973,6 +978,21 @@ void CommandProcessor::CmdInfoPlItem()
   }
 }
 
+void CommandProcessor::CmdInfoRefresh()
+{ // get the song object
+  int_ptr<APlayable> song;
+  if (*Request == 0)
+    song = Ctrl::GetCurrentSong();
+  else
+  { const url123& url = ParseURL(Request);
+    if (url)
+      song = Playable::GetByURL(url);
+  }
+  if (song == NULL)
+    return;
+  song->RequestInfo(~IF_None, PRI_Sync, REL_Reload);
+}
+
 
 // GUI
 
@@ -1032,6 +1052,10 @@ void CommandProcessor::CmdSkin()
 }
 
 // CONFIGURATION
+
+void CommandProcessor::CmdVersion()
+{ Reply.append(AMP_VERSION);
+}
 
 void CommandProcessor::CmdOption()
 {

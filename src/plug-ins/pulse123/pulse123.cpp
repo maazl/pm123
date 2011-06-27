@@ -82,22 +82,22 @@ output_command(void* A, ULONG msg, OUTPUT_PARAMS2* info)
 
   switch (msg)
   { case OUTPUT_OPEN:
-      return a->Open(info->URI, info->info, info->playingpos, info->output_event, info->w);
+      return a->Open(info->URL, info->Info, info->PlayingPos, info->OutEvent, info->W);
 
     case OUTPUT_CLOSE:
       return a->Close();
 
     case OUTPUT_VOLUME:
-      return a->SetVolume(info->volume);
+      return a->SetVolume(info->Volume);
 
     case OUTPUT_PAUSE:
-      return a->SetPause(info->pause);
+      return a->SetPause(info->Pause);
 
     case OUTPUT_SETUP:
       return 0;
 
     case OUTPUT_TRASH_BUFFERS:
-      return a->TrashBuffers(info->playingpos);
+      return a->TrashBuffers(info->PlayingPos);
   }
   return PLUGIN_ERROR;
 }

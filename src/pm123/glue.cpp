@@ -143,7 +143,7 @@ const dec_event_args Glue::ev_playstop = { DECEVENT_PLAYSTOP, NULL };
 BOOL              Glue::initialized = false;
 OutputProcs       Glue::procs;
 OUTPUT_PARAMS2    Glue::params = {0};
-DECODER_PARAMS2   Glue::dparams = {0};
+DECODER_PARAMS2   Glue::dparams = {(const char*)NULL};
 xstring           Glue::url;
 PM123_TIME        Glue::stoptime;
 volatile unsigned Glue::playstopsent;
@@ -153,7 +153,7 @@ PM123_TIME        Glue::minpos;
 PM123_TIME        Glue::maxpos;
 
 void Glue::virtualize(int i)
-{ DEBUGLOG(("Glue::virtualize(%d) - %p\n", i, params.info));
+{ DEBUGLOG(("Glue::virtualize(%d) - %p\n", i, params.Info));
 
   if (i < 0)
     return;
@@ -172,8 +172,8 @@ void Glue::virtualize(int i)
   par.output_playing_pos     = procs.output_playing_pos;
   par.output_playing_data    = procs.output_playing_data;
   par.a                      = procs.A;
-  par.output_event           = params.output_event;
-  par.w                      = params.w;
+  par.output_event           = params.OutEvent;
+  par.w                      = params.W;
   if (!fil->Initialize(&par))
   { pm123_display_info(xstring::sprintf("The filter plug-in %s failed to initialize.", fil->GetModule().Key.cdata()));
     virtualize(i-1);
@@ -187,19 +187,19 @@ void Glue::virtualize(int i)
   procs.output_playing_pos     = par.output_playing_pos;
   procs.output_playing_data    = par.output_playing_data;
   procs.A                      = fil->GetProcs().F;
-  void DLLENTRYP(last_output_event)(void* w, OUTEVENTTYPE event) = params.output_event;
+  void DLLENTRYP(last_output_event)(void* w, OUTEVENTTYPE event) = params.OutEvent;
   // next filter
   virtualize(i-1);
   // store new callback if virtualized by the plug-in.
   BOOL vcallback = par.output_event != last_output_event;
-  last_output_event     = par.output_event; // swap...
-  par.output_event      = params.output_event;
-  par.w                 = params.w;
+  last_output_event = par.output_event; // swap...
+  par.output_event  = params.OutEvent;
+  par.w             = params.W;
   if (vcallback)
   { // set params for next instance.
-    params.output_event = last_output_event;
-    params.w            = fil->GetProcs().F;
-    DEBUGLOG(("Glue::virtualize: callback virtualized: %p %p\n", params.output_event, params.w));
+    params.OutEvent = last_output_event;
+    params.W        = fil->GetProcs().F;
+    DEBUGLOG(("Glue::virtualize: callback virtualized: %p %p\n", params.OutEvent, params.W));
   }
   if (par.output_event != last_output_event)
   { // now update the decoder event
@@ -212,16 +212,13 @@ void Glue::virtualize(int i)
 ULONG Glue::init()
 { DEBUGLOG(("Glue::init\n"));
 
-  params.size          = sizeof params;
   // setup callback handlers
-  params.output_event  = &out_event_handler;
-  params.w             = NULL; // not required
+  params.OutEvent  = &out_event_handler;
+  //params.W         = NULL; // not required
 
-  memset(&dparams, 0, sizeof dparams);
-  dparams.size            = sizeof dparams;
   // setup callback handlers
-  dparams.output_event    = &dec_event_handler;
-  dparams.save_filename   = NULL;
+  dparams.DecEvent = &dec_event_handler;
+  //dparams.save_filename   = NULL;
 
   Output* op = (Output*)Outputs.Current();
   if ( op == NULL )
@@ -234,7 +231,7 @@ ULONG Glue::init()
   // setup filters
   virtualize(Filters.size()-1);
   // setup output
-  ULONG rc = out_command( OUTPUT_SETUP );
+  ULONG rc = out_command(OUTPUT_SETUP);
   if (rc == 0)
     initialized = TRUE;
   else
@@ -270,11 +267,11 @@ int Glue::dec_set_active( const char* name )
 ULONG Glue::dec_command( ULONG msg )
 { DEBUGLOG(("dec_command(%d)\n", msg));
   Decoder* dp = (Decoder*)Decoders.Current();
-  if ( dp == NULL )
+  if (dp == NULL)
     return 3; // no decoder active
 
   const DecoderProcs& procs = dp->GetProcs();
-  ULONG ret = (*procs.decoder_command)( procs.W, msg, &dparams );
+  ULONG ret = (*procs.decoder_command)(procs.W, msg, &dparams);
   DEBUGLOG(("dec_command: %lu\n", ret));
   return ret;
 }
@@ -295,47 +292,47 @@ ULONG dec_play( const APlayable& song, PM123_TIME offset, PM123_TIME start, PM12
   Glue::minpos       = 1E99;
   Glue::maxpos       = 0;
 
-  Glue::dparams.URL                   = url;
-  Glue::dparams.jumpto                = start;
-  Glue::dparams.output_request_buffer = &PROXYFUNCREF(Glue)glue_request_buffer;
-  Glue::dparams.output_commit_buffer  = &PROXYFUNCREF(Glue)glue_commit_buffer;
-  Glue::dparams.a                     = Glue::procs.A;
+  Glue::dparams.URL              = url;
+  Glue::dparams.JumpTo           = start;
+  Glue::dparams.OutRequestBuffer = &PROXYFUNCREF(Glue)glue_request_buffer;
+  Glue::dparams.OutCommitBuffer  = &PROXYFUNCREF(Glue)glue_commit_buffer;
+  Glue::dparams.A                = Glue::procs.A;
 
-  rc = Glue::dec_command( DECODER_SETUP );
+  rc = Glue::dec_command(DECODER_SETUP);
   if ( rc != 0 )
     return rc;
   Glue::url = url;
 
-  Glue::dec_command( DECODER_SAVEDATA );
+  Glue::dec_command(DECODER_SAVEDATA);
 
-  return Glue::dec_command( DECODER_PLAY );
+  return Glue::dec_command(DECODER_PLAY);
 }
 
 /* stop the current decoder immediately */
-ULONG dec_stop( void )
+ULONG dec_stop()
 { Glue::url = NULL;
-  ULONG rc = Glue::dec_command( DECODER_STOP );
+  ULONG rc = Glue::dec_command(DECODER_STOP);
   if (rc == 0)
-    Glue::dec_set_active( -1 );
+    Glue::dec_set_active(-1);
   return rc;
 }
 
 /* set fast forward/rewind mode */
-ULONG dec_fast( DECFASTMODE mode )
-{ Glue::dparams.fast = mode;
-  return Glue::dec_command( DECODER_FFWD );
+ULONG dec_fast(DECFASTMODE mode)
+{ Glue::dparams.Fast = mode;
+  return Glue::dec_command(DECODER_FFWD);
 }
 
 /* jump to absolute position */
-ULONG dec_jump( PM123_TIME location )
+ULONG dec_jump(PM123_TIME location)
 { // Discard stop time if we seek beyond this point.
   if (location >= Glue::stoptime)
     Glue::stoptime = 1E99;
-  Glue::dparams.jumpto = location;
-  ULONG rc = Glue::dec_command( DECODER_JUMPTO );
+  Glue::dparams.JumpTo = location;
+  ULONG rc = Glue::dec_command(DECODER_JUMPTO);
   if (rc == 0 && Glue::initialized)
-  { Glue::params.playingpos = location;
-    Glue::out_command( OUTPUT_TRASH_BUFFERS );
+  { Glue::params.PlayingPos = location;
+    Glue::out_command(OUTPUT_TRASH_BUFFERS);
   }
   return rc;
 }
@@ -344,7 +341,7 @@ ULONG dec_jump( PM123_TIME location )
 ULONG dec_save( const char* file )
 { if (file != NULL && *file == 0)
     file = NULL;
-  Glue::dparams.save_filename = file;
+  Glue::dparams.SaveFilename = file;
   ULONG status = dec_status();
   return status == DECODER_PLAYING || status == DECODER_STARTING || status == DECODER_PAUSED
    ? Glue::dec_command( DECODER_SAVEDATA )
@@ -365,17 +362,17 @@ ULONG out_setup( const APlayable& song )
 { const INFO_BUNDLE_CV& info = song.GetInfo();
   DEBUGLOG(("out_setup(&%p{%s,{%i,%i,%x...}})\n",
     &song, song.GetPlayable().URL.cdata(), info.tech->samplerate, info.tech->channels, info.tech->attributes));
-  Glue::params.URI        = song.GetPlayable().URL;
-  Glue::params.info       = &info;
+  Glue::params.URL        = song.GetPlayable().URL;
+  Glue::params.Info       = &info;
   // TODO: is this position correct?
-  Glue::params.playingpos = Glue::posoffset;
+  Glue::params.PlayingPos = Glue::posoffset;
   
   if (!Glue::initialized)
   { ULONG rc = Glue::init(); // here we initiate the setup of the filter chain
     if (rc != 0)
       return rc;
   }
-  DEBUGLOG(("out_setup before out_command %p\n", Glue::params.info));
+  DEBUGLOG(("out_setup before out_command %p\n", Glue::params.Info));
   return Glue::out_command( OUTPUT_OPEN );
 }
 
@@ -383,7 +380,7 @@ ULONG out_setup( const APlayable& song )
 ULONG out_close()
 { if (!Glue::initialized)
     return (ULONG)-1;
-  Glue::params.playingpos = (*Glue::procs.output_playing_pos)( Glue::procs.A );
+  Glue::params.PlayingPos = (*Glue::procs.output_playing_pos)( Glue::procs.A );
   Glue::initialized = FALSE; // Disconnect decoder
   Glue::out_command( OUTPUT_TRASH_BUFFERS );
   ULONG rc = Glue::out_command( OUTPUT_CLOSE );
@@ -395,15 +392,15 @@ ULONG out_close()
 void out_set_volume( double volume )
 { if (!Glue::initialized)
     return; // can't help
-  Glue::params.volume = volume;
-  Glue::params.amplifier = 1.0;
+  Glue::params.Volume = volume;
+  Glue::params.Amplifier = 1.0;
   Glue::out_command( OUTPUT_VOLUME );
 }
 
 ULONG out_pause( BOOL pause )
 { if (!Glue::initialized)
     return (ULONG)-1; // error
-  Glue::params.pause = pause;
+  Glue::params.Pause = pause;
   return Glue::out_command( OUTPUT_PAUSE );
 }
 
@@ -497,7 +494,7 @@ dec_event_handler( void* a, DECEVENTTYPE event, void* param )
 { DEBUGLOG(("plugman:dec_event_handler(%p, %d, %p)\n", a, event, param));
   // We handle some event here immediately.
   switch (event)
-  {case DEVEVENT_CHANGETECH:
+  {case DECEVENT_CHANGEOBJ:
     /*if (Glue::url)
     { int_ptr<Playable> pp = Playable::FindByURL(Glue::url);
       if (pp)

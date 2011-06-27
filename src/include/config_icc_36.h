@@ -42,6 +42,7 @@ void _CRT_term( void );
 #define HAVE_SETLOCALE    1 /* Define to 1 if you have the `setlocale' function. */
 #define HAVE_SNPRINTF     1 /* Define to 1 if you have the `snprintf' function. */
 #define HAVE_VSNPRINTF    1 /* Define to 1 if you have the `vsnprintf' function. */
+#define HAVE_STRERROR     1 /* Define to 1 if you have the `strerror' function. */
 #undef  HAVE_GETTIMEOFDAY   /* Define to 1 if you have the `gettimeofday' function. */
 #undef  HAVE_FSYNC          /* Define to 1 if you have the `fsync' function. */
 #undef  HAVE_UINTPTR_T      /* Define to 1 if the system has the type `uintptr_t'. */

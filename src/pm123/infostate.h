@@ -62,8 +62,6 @@ enum InfoFlags // must be aligned to INFOTYPE in format.h
   IF_Display = 0x2000, // applies to GetDisplayName()
   // The following flags are for events only.
   IF_Usage   = 0x4000 // applies to IsInUse() and IsModified()
-  // INTERNAL USE ONLY
-  //IF_Async   = 0x80000000 // Queued request on the way
 };
 FLAGSATTRIBUTE(InfoFlags);
 

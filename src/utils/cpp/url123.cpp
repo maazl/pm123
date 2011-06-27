@@ -362,7 +362,7 @@ const url123 url123::makeAbsolute(const char* rel) const
   const char* cp = strrchr(*this, '/');
   DEBUGLOG2(("url123::makeAbsolute - %p %s %s\n", rel, rel, cp));
   // join strings
-  size_t len1 = cp ? cp - cdata() -1 : length();
+  size_t len1 = cp ? cp - cdata() +1 : length();
   size_t len2 = strlen(rel);
   sco_arr<char> dp(new char[len1+len2+1]);
   memcpy(dp.get(), cdata(), len1);

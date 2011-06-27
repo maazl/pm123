@@ -26,7 +26,7 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-pipe = '\pipe\pm123test'
+pipe = '\pipe\pm123'
 CALL VALUE 'PIPE',pipe,'OS2ENVIRONMENT'
 
 IF RxFuncAdd('SysLoadFuncs', 'RexxUtil', 'SysLoadFuncs') = 0 THEN
@@ -60,7 +60,7 @@ DoInit: PROCEDURE EXPOSE summary.
   RETURN
 
 DoTest: PROCEDURE EXPOSE summary.
-  testcase = SUBSTR(FILESPEC('N', ARG(1)), 6)
+  testcase = TRANSLATE(SUBSTR(FILESPEC('N', ARG(1)), 6), ' ', '_')
   CALL CHAROUT , 'Testing' testcase '... '
   /* setup */
   CALL 'setup'
@@ -92,3 +92,4 @@ Error: PROCEDURE
   EXIT ARG(1)
 
 
+

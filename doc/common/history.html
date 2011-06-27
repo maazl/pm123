@@ -7,12 +7,19 @@
 <h2>PM123's History</h2>
 <h3>PM123 1.41 (alpha 1)</h3>
 <ul>
-  <li><em>Pulseaudio</em> client support.</li>
+  <li>Added <em>Pulseaudio</em> client support.</li>
   <li>Added <em>playlist plug-in</em> support.</li>
   <li>Upgrade to libsndfile 1.0.23</li>
   <li>Access to meta data through pipe interface.</li>
   <li>Switched to dynamic string library with shared storage to save memory.</li>
   <li>Removed most length restrictions of meta data and reduced memory footprint of song and playlist objects in PM123.</li>
+</ul>
+<blockquote>
+  <h4>MPG123</h4>
+</blockquote>
+<ul>
+  <li>Rewrote MPG123 plugin. Now uses libmpg123 1.13.3</li>
+  <li>Gapless playback support.</li>
 </ul>
 <h3>PM123 1.40 (up to alpha 4)</h3>
 <ul>
@@ -66,7 +73,8 @@ per sample to reduce complexity of code and plug-ins.</li>
   <li>Ported resizable file dialog from PM123 1.33.</li>
   <li>Now it is possible to control the wait period in seconds
 when a new stream connection is requested. (Port from PM123 1.33).</li>
-  <li>Wrap around scroller.</li><li>XIO123: properly handling of TCP/IP receive timeouts.</li>
+  <li>Wrap around scroller.</li>
+  <li>XIO123: properly handling of TCP/IP receive timeouts.</li>
 </ul>
 <blockquote>
   <h4>REALEQ</h4>

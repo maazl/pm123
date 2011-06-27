@@ -43,7 +43,7 @@ typedef enum
 { TATTR_NONE     = 0x00,
   TATTR_SONG     = 0x01, /* The item is playable by this decoder. */
   TATTR_PLAYLIST = 0x02, /* The item can have sub entries. */
-  TATTR_WRITABLE = 0x10, /* This file is writable (decoder_saveinfo). */
+  TATTR_WRITABLE = 0x10, /* This format is writable (decoder_saveinfo). */
   TATTR_STORABLE = 0x20, /* This stream is saveable (DECODER_SAVEDATA). */
   TATTR_INVALID  = 0x80  /* The item is logically invalid. (Should not be set by a decoder.) */
 } TECH_ATTRIBUTES;

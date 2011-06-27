@@ -1185,12 +1185,12 @@ void GUI::ShowContextMenu()
     mn_make_conditionalcascade(context_menu, IDM_M_HELP,   IDH_MAIN);
 
     MenuWorker = new PlaylistMenu(HPlayer, IDM_M_LAST, IDM_M_LAST_E);
-    MenuWorker->AttachMenu(IDM_M_BOOKMARKS, *DefaultBM, PlaylistMenu::DummyIfEmpty|PlaylistMenu::Recursive|PlaylistMenu::Enumerate, 0);
-    MenuWorker->AttachMenu(IDM_M_LOAD, *LoadMRU, PlaylistMenu::Enumerate|PlaylistMenu::Separator, 0);
+    MenuWorker->AttachMenu(context_menu, IDM_M_BOOKMARKS, *DefaultBM, PlaylistMenu::DummyIfEmpty|PlaylistMenu::Recursive|PlaylistMenu::Enumerate, 0);
+    MenuWorker->AttachMenu(context_menu, IDM_M_LOAD, *LoadMRU, PlaylistMenu::Enumerate|PlaylistMenu::Separator, 0);
     new_menu = true;
   }
 
-  POINTL   pos;
+  POINTL pos;
   WinQueryPointerPos(HWND_DESKTOP, &pos);
   WinMapWindowPoints(HWND_DESKTOP, HPlayer, &pos, 1);
 

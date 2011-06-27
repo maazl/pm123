@@ -53,7 +53,7 @@ typedef struct _DECODER_STRUCT
 
    HEV    play;       // For internal use to sync the decoder thread.
    HMTX   mutex;      // For internal use to sync the decoder thread.
-   int    decodertid; // Decoder thread indentifier.
+   int    decodertid; // Decoder thread identifier.
    BOOL   stop;
    BOOL   frew;
    BOOL   ffwd;
