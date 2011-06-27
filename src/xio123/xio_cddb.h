@@ -1,4 +1,5 @@
 /*
+ * Copyright 2008-2011 M.Mueller
  * Copyright 2007 Dmitry A.Steklenev
  *
  * Redistribution and use in source and binary forms, with or without
@@ -97,6 +98,7 @@ class XIOcddb : public XIOreadonly
   virtual long tell( long* offset64 = NULL );
   virtual long seek( long offset, int origin, long* offset64 = NULL );
   virtual long getsize( long* offset64 = NULL );
+  virtual int getstat( XSTAT* st );
   virtual XSFLAGS supports() const;
 
   /* Maps the error number in errnum to an error message string. */

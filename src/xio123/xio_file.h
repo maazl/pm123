@@ -1,4 +1,5 @@
 /*
+ * Copyright 2008-2011 M.Mueller
  * Copyright 2006 Dmitry A.Steklenev
  *
  * Redistribution and use in source and binary forms, with or without
@@ -50,6 +51,7 @@ class XIOfile : public XPROTOCOL
   virtual long tell( long* offset64 = NULL );
   virtual long seek( long offset, int origin, long* offset64 = NULL );
   virtual long getsize( long* offset64 = NULL );
+  virtual int getstat( XSTAT* st );
   virtual int chsize( long size, long offset64 = 0 );
   virtual XSFLAGS supports() const;
 };

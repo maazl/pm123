@@ -44,3 +44,4 @@ EXPORT xio_ftruncate            .53
 EXPORT xio_feof                 .54
 EXPORT xio_ferror               .55
 EXPORT xio_clearerr             .56
+EXPORT xio_fstat                .57

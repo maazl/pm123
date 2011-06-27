@@ -1,4 +1,5 @@
 /*
+ * Copyright 2008-2011 M.Mueller
  * Copyright 2006 Dmitry A.Steklenev
  *
  * Redistribution and use in source and binary forms, with or without
@@ -378,6 +379,39 @@ long XIOfile::getsize( long* offset64 )
       *offset64 = 0;
     return fi.cbFile;
   }
+}
+
+static time_t convert_OS2_ftime(FDATE date, FTIME time)
+{ struct tm value = {0};
+  value.tm_year = date.year + 80;
+  value.tm_mon = date.month -1;
+  value.tm_mday = date.day;
+  value.tm_hour = time.hours;
+  value.tm_min = time.minutes;
+  value.tm_sec = time.twosecs << 1;
+  return mktime(&value);
+}
+
+int XIOfile::getstat( XSTAT* st )
+{ APIRET rc;
+  FILESTATUS3 fi;
+
+  FILE_REQUEST_DISK(this);
+  rc = DosQueryFileInfo( s_handle, FIL_STANDARD, &fi, sizeof fi );
+  FILE_RELEASE_DISK(this);
+
+  if ( rc != NO_ERROR )
+  { errno = map_os2_errors( rc );
+    return -1L;
+  }
+  // TODO: 64 bit support
+
+  st->size = fi.cbFile;
+  st->atime = convert_OS2_ftime(fi.fdateLastAccess, fi.ftimeLastAccess);
+  st->mtime = convert_OS2_ftime(fi.fdateLastWrite, fi.ftimeLastWrite);
+  st->ctime = convert_OS2_ftime(fi.fdateCreation, fi.ftimeCreation);
+  st->attr = fi.attrFile; // This ftp client is always read only
+  return 0;
 }
 
 /* Lengthens or cuts off the file to the length specified by size.

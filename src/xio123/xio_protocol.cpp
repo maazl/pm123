@@ -1,4 +1,5 @@
 /*
+ * Copyright 2008-2011 M.Mueller
  * Copyright 2008 M.Mueller
  *
  * Redistribution and use in source and binary forms, with or without
@@ -132,7 +133,7 @@ int XPROTOCOL::puts( const char* string )
     const char* cp = strchr(string, '\n');
     if (cp == NULL)
     { // write the remaining part of string.
-      size_t len = strlen(string);
+      int len = strlen(string);
       if (write( string, len ) == len)
         rc = -1;
       else
@@ -140,7 +141,7 @@ int XPROTOCOL::puts( const char* string )
       break;
     }
     // write leading part before \n and \r\n
-    size_t len = cp - string;
+    int len = cp - string;
     if ( write( string, len ) != len
       || write( "\r\n", 2 ) != 2 )
     { rc = -1;

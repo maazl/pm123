@@ -1,4 +1,5 @@
 /*
+ * Copyright 2008-2010 M.Mueller
  * Copyright 2006 Dmitry A.Steklenev
  *
  * Redistribution and use in source and binary forms, with or without
@@ -29,7 +30,6 @@
 #define  INCL_DOS
 #define  INCL_ERRORS
 #include <stdlib.h>
-//#include <stdio.h>
 #include <memory.h>
 #include <process.h>
 #include <errno.h>

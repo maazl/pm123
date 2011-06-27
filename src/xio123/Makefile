@@ -26,13 +26,13 @@ xio123$(LBI): $(DEF)
 clean:  $(MDUMMY)
 	-@del xio123$(LBI) xio123.dll $(OBJECTS) 2> nul
 
-xio.cpp:	..\utils\utilfct.h ..\include\decoder_plug.h ..\utils\debuglog.h xio.h xio_protocol.h xio_file.h xio_ftp.h xio_http.h xio_cddb.h xio_syncbuffer.h xio_asyncbuffer.h xio_socket.h
-xio_protocol.h:	..\include\config.h ..\utils\cpp/cpputil.h ..\utils\cpp/mutex.h
+xio.cpp:	..\utils\utilfct.h ..\include\plugin.h ..\utils\debuglog.h xio.h xio_protocol.h xio_file.h xio_ftp.h xio_http.h xio_cddb.h xio_syncbuffer.h xio_asyncbuffer.h xio_socket.h
+xio_protocol.h:	..\include\config.h ..\utils\cpp\cpputil.h ..\utils\cpp\mutex.h
 xio_buffer.h:	xio_protocol.h
 xio_file.h:	xio.h xio_protocol.h
-xio_ftp.h:	xio.h xio_protocol.h
-xio_http.h:	xio.h xio_protocol.h
-xio_cddb.h:	xio.h xio_protocol.h
+xio_ftp.h:	xio.h xio_protocol.h xio_socket.h
+xio_http.h:	xio.h xio_protocol.h xio_socket.h
+xio_cddb.h:	xio.h xio_protocol.h xio_socket.h
 xio_buffer.cpp:	..\utils\utilfct.h ..\utils\debuglog.h xio_buffer.h xio_protocol.h xio.h
 xio_cddb.cpp:	..\utils\snprintf.h xio_cddb.h xio_url.h xio_socket.h ..\utils\debuglog.h
 xio_file.cpp:	xio_file.h xio_url.h ..\utils\debuglog.h
@@ -42,7 +42,16 @@ xio_socket.cpp:	xio_socket.h xio.h ..\utils\debuglog.h
 xio_url.cpp:	xio_url.h ..\utils\utilfct.h ..\utils\debuglog.h
 xio.h:		..\include\config.h
 xio_syncbuffer.h:	xio_buffer.h
-xio_asyncbuffer.h:	xio_buffer.h ..\utils\cpp/mutex.h
+xio_asyncbuffer.h:	xio_buffer.h
 xio_asyncbuffer.cpp:	..\utils\utilfct.h ..\utils\debuglog.h xio_protocol.h xio_asyncbuffer.h xio.h
 xio_protocol.cpp:	xio_protocol.h xio_buffer.h ..\utils\utilfct.h
 xio_syncbuffer.cpp:	..\utils\utilfct.h ..\utils\debuglog.h xio_syncbuffer.h xio_protocol.h xio.h
+..\utils\utilfct.h:	..\include\config.h ..\utils\errorstr.h ..\utils\minmax.h ..\utils\strutils.h
+..\include\config.h:	..\include\config_gcc.h ..\include\config_wcc.h ..\include\config_icc_36.h ..\include\config_icc_30.h
+..\include\plugin.h:	..\include\config.h ..\utils\cpp\xstring.h
+..\utils\cpp\xstring.h:	..\utils\cpp\smartptr.h
+..\utils\cpp\smartptr.h:	..\include\config.h ..\utils\cpp\cpputil.h ..\utils\cpp\mutex.h ..\utils\debuglog.h
+..\utils\cpp\mutex.h:	..\include\config.h ..\utils\interlocked.h ..\utils\debuglog.h
+..\utils\interlocked.h:	..\include\config.h
+..\utils\debuglog.h:	..\utils\errorstr.h
+xio_socket.h:	xio_protocol.h

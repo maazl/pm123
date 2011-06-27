@@ -1,4 +1,5 @@
 /*
+ * Copyright 2008-2011 M.Mueller
  * Copyright 2006 Dmitry A.Steklenev
  *
  * Redistribution and use in source and binary forms, with or without
@@ -32,6 +33,7 @@
 #include <config.h>
 
 #include <stdlib.h>
+#include <time.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -121,6 +123,30 @@ xio_rewind( XFILE* x );
 long DLLENTRY
 xio_fsize( XFILE* x );
 
+typedef struct _XSTAT
+{ long     size;    /* -1 if not available */
+  time_t   atime;   /* -1 if not available */
+  time_t   mtime;   /* -1 if not available */
+  time_t   ctime;   /* -1 if not available */
+  unsigned attr;    /* see S_IA... */
+} XSTAT;
+
+enum
+{ S_IAREAD = 0x01 /* File is marked as read-only */
+, S_IAHID  = 0x02 /* File is marked as hidden */
+, S_IASYS  = 0x04 /* File is marked as a system file */
+, S_IADIR  = 0x10 /* File is a directory */
+, S_IAARCH = 0x20 /* File needs backup ('archive' bit) */
+};
+
+/** Stat the current file.
+ * @param x XFILE desrciptor
+ * @param st [out] The stat result is written to this structure.
+ * @return 0 => OK, else see xio_ferrno.
+ */
+int DLLENTRY
+xio_fstat( XFILE* x, XSTAT* st );
+
 /** @brief Lengthens or cuts off the file to the length specified by size.
  * @details You must open the file in a mode that permits writing. Adds null
  * characters when it lengthens the file. When cuts off the file, it
@@ -201,8 +227,8 @@ xio_set_metacallback( XFILE* x, void DLLENTRYP(callback)(int type, const char* m
 char* DLLENTRY
 xio_get_metainfo( XFILE* x, int type, char* result, int size );
 
-/** DEPRECTATED - use xio_set_metacallback instead.
- * Sets a handle of a window that are to be notified of changes
+/** @deprecated use xio_set_metacallback instead.
+ * @details Sets a handle of a window that are to be notified of changes
  * in the state of the library. set_observer is mutually exlusive
  * with xio_set_metacallback.
  */
@@ -215,6 +241,7 @@ xio_set_observer( XFILE* x, unsigned long window,
  * \a XIO_CAN_SEEK_FAST (2) on streams capable of fast seeking. */
 int DLLENTRY
 xio_can_seek( XFILE* x );
+
 
 /** Returns the read-ahead buffer size. */
 int DLLENTRY

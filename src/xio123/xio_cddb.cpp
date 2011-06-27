@@ -1,4 +1,5 @@
 /*
+ * Copyright 2008-2011 M.Mueller
  * Copyright 2007 Dmitry A.Steklenev
  *
  * Redistribution and use in source and binary forms, with or without
@@ -248,6 +249,11 @@ long XIOcddb::seek( long offset, int origin, long* offset64 )
 long XIOcddb::getsize( long* offset64 ) {
   if (offset64)
     *offset64 = -1;
+  return -1;
+}
+
+int XIOcddb::getstat( XSTAT* st )
+{ errno = EINVAL;
   return -1;
 }
 

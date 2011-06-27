@@ -1,4 +1,5 @@
 /*
+ * Copyright 2008-2011 M.Mueller
  * Copyright 2006 Dmitry A.Steklenev
  *
  * Redistribution and use in source and binary forms, with or without
@@ -350,6 +351,16 @@ long XIOftp::getsize( long* offset64 )
   if (offset64)
     *offset64 = 0;
   return size;
+}
+
+int XIOftp::getstat( XSTAT* st )
+{ // TODO: support file meta infos, at least DIR attribute
+  st->size = getsize();
+  st->atime = -1;
+  st->mtime = -1;
+  st->ctime = -1;
+  st->attr = S_IAREAD; // This ftp client is always read only
+  return 0;
 }
 
 XSFLAGS XIOftp::supports() const

@@ -413,9 +413,15 @@ long XIOsocket::seek(long offset, int origin, long* offset64)
 }
 
 long XIOsocket::getsize(long* offset64)
-{ if (offset64)
+{ errno = EINVAL;
+  if (offset64)
     *offset64 = -1L;
   return -1L;
+}
+
+int XIOsocket::getstat(XSTAT* st)
+{ errno = EINVAL;
+  return -1;
 }
 
 int XIOsocket::chsize(long size, long offset64)

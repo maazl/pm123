@@ -1,4 +1,5 @@
 /*
+ * Copyright 2008-2011 M.Mueller
  * Copyright 2006 Dmitry A.Steklenev
  *
  * Redistribution and use in source and binary forms, with or without
@@ -33,6 +34,8 @@
 
 #include <cpp/cpputil.h>
 #include <cpp/mutex.h>
+
+struct _XSTAT;
 
 enum XOFLAGS
 { XO_NONE          = 0x0000,
@@ -155,6 +158,9 @@ class XPROTOCOL {
      changes the file size. A return value of -1 shows an error.
      Precondition: XO_WRITE */
   virtual int     chsize( long size, long offset64 = 0 ) = 0;
+
+  /* Retrieve stat information of the current file */
+  virtual int     getstat( _XSTAT* st ) = 0;
 
   /* Returns a specified meta information if it is provided by associated stream.
      The default implementation always return "".

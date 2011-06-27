@@ -1,4 +1,5 @@
 /*
+ * Copyright 2008-2011 M.Mueller
  * Copyright 2006 Dmitry A.Steklenev
  *
  * Redistribution and use in source and binary forms, with or without
@@ -87,6 +88,8 @@ class XIOsocket : public XPROTOCOL
   virtual long    seek( long offset, int origin, long* offset64 = NULL );
   // Unsupported. Always returns an error (-1L).
   virtual long    getsize( long* offset64 = NULL );
+  // Unsupported. Always returns an error (-1).
+  virtual int     getstat( _XSTAT* st );
   // Unsupported. Always returns an error (-1).
   virtual int     chsize( long size, long offset64 = 0 );
   // Return the supported properties of the current protocol

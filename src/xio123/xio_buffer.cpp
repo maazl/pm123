@@ -1,4 +1,5 @@
 /*
+ * Copyright 2008-2011 M.Mueller
  * Copyright 2006 Dmitry A.Steklenev
  *
  * Redistribution and use in source and binary forms, with or without
@@ -115,6 +116,10 @@ long XIObuffer::getsize( long* offset64 )
   { eof = false;
   }
   return ret;
+}
+
+int XIObuffer::getstat( XSTAT* st )
+{ return chain->getstat(st);
 }
 
 /* Moves any file pointer to a new location that is offset bytes from

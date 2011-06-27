@@ -1,4 +1,5 @@
 /*
+ * Copyright 2008-2011 M.Mueller
  * Copyright 2006 Dmitry A.Steklenev
  *
  * Redistribution and use in source and binary forms, with or without
@@ -130,6 +131,23 @@ skip_space( char* p )
   return p;
 }
 
+static time_t parse_datetime( const char* cp )
+{ size_t len;
+  char buffer[32];
+  // Skip weekday
+  if (!sscanf(cp, "%31s%n,%n", buffer, &len, &len))
+    return -1;
+  cp += len;
+  // try different formats
+  struct tm value;
+  if ( !strptime(cp, "%d %b %Y %T", &value) // RFC 822, RFC 1123
+    && !strptime(cp, "%d-%b-%y %T", &value) // RFC 850
+    && !strptime(cp, "%b %d %T %Y", &value) ) // asctime
+    return -1;
+  // convert time
+  return mktime(&value);
+}
+
 /* Opens the file specified by filename for reading. Returns 0 if it
    successfully opens the file. A return value of -1 shows an error. */
 int XIOhttp::read_file( const char* filename, unsigned long range )
@@ -160,7 +178,8 @@ int XIOhttp::read_file( const char* filename, unsigned long range )
 
   for( redirect = 0; redirect < HTTP_MAX_REDIRECT; redirect++ )
   {
-    unsigned long r_size     = 0;
+    unsigned long r_size     = (unsigned long)-1;
+    time_t        r_mtime    = -1;
     int           r_metaint  = 0;
     XSFLAGS       r_supports = support & ~XS_CAN_SEEK;
     unsigned long r_pos      = 0;
@@ -258,6 +277,8 @@ int XIOhttp::read_file( const char* filename, unsigned long range )
         r_size  = strtoul( p, &p, 10 ); ++p;
         r_size  = strtoul( p, &p, 10 );
         r_supports |= XS_CAN_SEEK;
+      } else if( strnicmp( request, "Last-Modified:", 14 ) == 0 ) {
+        r_mtime = parse_datetime( request + 14 );
       } else if( strnicmp( request, "icy-metaint:", 12 ) == 0 ) {
         r_metaint = atol( skip_space( request + 12 ));
       } else if( strnicmp( request, "x-audiocast-name:", 17 ) == 0 ) {
@@ -294,6 +315,7 @@ int XIOhttp::read_file( const char* filename, unsigned long range )
       support   = r_supports;
       s_pos     = r_pos;
       s_size    = r_size;
+      s_mtime   = r_mtime;
       s_metaint = r_metaint;
       s_metapos = r_metaint;
 
@@ -454,7 +476,7 @@ int XIOhttp::close()
 {
   s_pos     = (unsigned long)-1;
   s_size    = (unsigned long)-1;
-
+  s_mtime   = -1;
   return s_socket.close();
 }
 
@@ -494,15 +516,17 @@ long XIOhttp::seek( long offset, int origin, long* offset64 )
         range = s_pos  + offset;
         break;
       case XIO_SEEK_END:
-        range = s_size + offset;
-        break;
+        if (s_size >= 0)
+        { range = s_size + offset;
+          break;
+        }
       default:
         errno = EINVAL;
         return -1;
     }
 
-    if( range <= s_size &&
-        s_location      &&
+    if( (s_size < 0 || range <= s_size) &&
+        s_location &&
         close() == 0 )
     {
       // TODO: 64 bit
@@ -541,6 +565,16 @@ long XIOhttp::getsize( long* offset64 )
   return size;
 }
 
+int XIOhttp::getstat( XSTAT* st )
+{ // TODO: support file meta infos, modification time
+  st->size = getsize();
+  st->atime = -1;
+  st->mtime = s_mtime;
+  st->ctime = -1;
+  st->attr = S_IAREAD; // The http client is always read only
+  return 0;
+}
+
 char* XIOhttp::get_metainfo( int type, char* result, int size )
 {
   Mutex::Lock lock(mtx_access);
@@ -574,6 +608,7 @@ XIOhttp::XIOhttp()
 : support(XS_CAN_READ | XS_CAN_SEEK),
   s_pos((unsigned long)-1),
   s_size((unsigned long)-1),
+  s_mtime(-1),
   s_metaint(0),
   s_metapos(0),
   s_location(NULL)

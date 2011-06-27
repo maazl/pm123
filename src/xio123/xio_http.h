@@ -1,4 +1,5 @@
 /*
+ * Copyright 2008-2011 M.Mueller
  * Copyright 2006 Dmitry A.Steklenev
  *
  * Redistribution and use in source and binary forms, with or without
@@ -86,6 +87,7 @@ class XIOhttp : public XIOreadonly
   XIOsocket     s_socket;   /* Connection class.                             */
   unsigned long s_pos;      /* Current position of the stream pointer.       */
   unsigned long s_size;     /* Size of the accociated file.                  */
+  time_t        s_mtime;    /* modification time of the associated file.     */
   int           s_metaint;  /* How often the metadata is sent in the stream. */
   int           s_metapos;  /* Used by Shoutcast and Icecast protocols.      */
   char*         s_location; /* Saved resource location. */
@@ -120,6 +122,7 @@ class XIOhttp : public XIOreadonly
   virtual long tell( long* offset64 = NULL );
   virtual long seek( long offset, int origin, long* offset64 = NULL );
   virtual long getsize( long* offset64 = NULL );
+  virtual int getstat( XSTAT* st );
   virtual char* get_metainfo( int type, char* result, int size );
   virtual Iobserver* set_observer( Iobserver* observer );
   virtual XSFLAGS supports() const;

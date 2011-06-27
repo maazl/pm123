@@ -1,4 +1,5 @@
 /*
+ * Copyright 2008-2010 M.Mueller
  * Copyright 2006 Dmitry A.Steklenev
  *
  * Redistribution and use in source and binary forms, with or without
@@ -30,7 +31,6 @@
 #define XIO_ASYNCBUFFER_H
 
 #include "xio_buffer.h"
-#include <cpp/mutex.h>
 
 class XIOasyncbuffer : public XIObuffer
 {private:

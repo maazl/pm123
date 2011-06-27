@@ -45,3 +45,4 @@ EXPORTS
   xio_feof                 @54
   xio_ferror               @55
   xio_clearerr             @56
+  xio_fstat                @57

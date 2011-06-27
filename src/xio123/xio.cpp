@@ -1,4 +1,5 @@
 /*
+ * Copyright 2008-2011 M.Mueller
  * Copyright 2006 Dmitry A.Steklenev
  *
  * Redistribution and use in source and binary forms, with or without
@@ -380,6 +381,22 @@ xio_fsize( XFILE* x )
   return ret;
 }
 
+int DLLENTRY
+xio_fstat( XFILE* x, XSTAT* st )
+{
+  DEBUGLOG(("xio_fstat(%p)\n", x));
+  ASSERT(x && x->serial == XIO_SERIAL);
+  #ifdef NDEBUG
+  if( !x || x->serial != XIO_SERIAL ) {
+    errno = EBADF;
+    return -1;
+  }
+  #endif
+  int ret = x->protocol->getstat( st );
+  DEBUGLOG(("xio_fstat: %li\n", ret));
+  return ret;
+}
+
 /* Lengthens or cuts off the file to the length specified by size.
    You must open the file in a mode that permits writing. Adds null
    characters when it lengthens the file. When cuts off the file, it
@@ -582,7 +599,7 @@ xio_strerror( int errnum )
 // C-API for 32 bit callbacks.
 class XIOmetacallback32 : public XPROTOCOL::Iobserver
 {private:
-  void DLLENTRYP(const Callback)(int type, const char* metabuff, long pos, void* arg);
+  void DLLENTRYP2(const Callback)(int type, const char* metabuff, long pos, void* arg);
   void* const Arg;
  public:
   XIOmetacallback32(void DLLENTRYP(callback)(int type, const char* metabuff, long pos, void* arg), void* arg)
