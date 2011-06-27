@@ -23,8 +23,6 @@
 #ifndef ID3V2_HEADER_H
 #define ID3V2_HEADER_H
 
-#define  INCL_DOS
-#include <os2.h>
 
 /*
  * Layout for the ID3 tag header.

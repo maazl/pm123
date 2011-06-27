@@ -29,6 +29,14 @@
 
 #include <stdlib.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 extern const char *genres[];
 
 extern const size_t GENRE_LARGEST;
+
+#ifdef __cplusplus
+}
+#endif

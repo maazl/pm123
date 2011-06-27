@@ -3,6 +3,10 @@
 	<name>mpg123</name>
 	<comment></comment>
 	<projects>
+		<project>include</project>
+		<project>libmpg123</project>
+		<project>utils</project>
+		<project>xio123</project>
 	</projects>
 	<buildSpec>
 		<buildCommand>

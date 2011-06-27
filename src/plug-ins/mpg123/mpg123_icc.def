@@ -10,11 +10,11 @@ EXPORTS
    decoder_length    @5
    decoder_fileinfo  @6
    decoder_support   @7
-   decoder_trackinfo @8
-   decoder_cdinfo    @9
+   decoder_event     @8
    decoder_saveinfo  @10
    decoder_editmeta  @11
 
    plugin_query      @20
    plugin_init       @21
    plugin_configure  @22
+   plugin_deinit     @23

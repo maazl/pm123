@@ -9,11 +9,11 @@ EXPORT decoder_status    .4
 EXPORT decoder_length    .5
 EXPORT decoder_fileinfo  .6
 EXPORT decoder_support   .7
-EXPORT decoder_trackinfo .8
-EXPORT decoder_cdinfo    .9
+EXPORT decoder_event     .8
 EXPORT decoder_saveinfo  .10
 EXPORT decoder_editmeta  .11
 
 EXPORT plugin_query      .20
 EXPORT plugin_init       .21
 EXPORT plugin_configure  .22
+EXPORT plugin_deinit     .23
