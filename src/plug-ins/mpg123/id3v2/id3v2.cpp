@@ -217,7 +217,7 @@ id3v2_read_tag( ID3V2_TAG* id3 )
   }
 
   // Read ID3 tag-header.
-  buf = (char*)id3->id3_read( id3, NULL, ID3V2_TAGHDR_SIZE );
+  buf = (char*)(*id3->id3_read)( id3, NULL, ID3V2_TAGHDR_SIZE );
   if( buf == NULL ) {
     return -1;
   }

@@ -319,7 +319,7 @@ void static copy_id3v1_string(const mpg123_id3v1* tag, ID3V1_TAG_COMP id, DSTRIN
     ((ID3V1_TAG*)tag)->GetField(id, result, codepage);
 }
 
-void static copy_id3v1_tag( META_INFO& info, const mpg123_id3v1* tag )
+void static copy_id3v1_tag(META_INFO& info, const mpg123_id3v1* tag)
 { if (!tag)
     return;
 
@@ -336,7 +336,7 @@ void static copy_id3v1_tag( META_INFO& info, const mpg123_id3v1* tag )
   copy_id3v1_string(tag, ID3V1_TRACK,   info.track,   codepage);
 }
 
-static void copy_id3v2_string( ID3V2_TAG* tag, ID3V2_ID id, DSTRING& result )
+static void copy_id3v2_string(const ID3V2_TAG* tag, ID3V2_ID id, DSTRING& result)
 {
   ID3V2_FRAME* frame = NULL;
   char buffer[256];
@@ -347,7 +347,7 @@ static void copy_id3v2_string( ID3V2_TAG* tag, ID3V2_ID id, DSTRING& result )
     result = buffer;
 }
 
-static void copy_id3v2_tag( META_INFO& info, ID3V2_TAG* tag )
+static void copy_id3v2_tag(META_INFO& info, const ID3V2_TAG* tag)
 { if (!tag)
     return;
 
@@ -427,8 +427,8 @@ static void copy_id3v2_tag( META_INFO& info, ID3V2_TAG* tag )
     }
   }
 }
-static void copy_id3v2_tag( META_INFO& info, mpg123_id3v2* tagv2 )
-{ if (!tagv2)
+static void copy_id3v2_tag(META_INFO& info, const mpg123_id3v2* tagv2)
+{ if (!tagv2 || !tagv2->taglen)
     return;
   ID3V2_TAG* tag = id3v2_load_tag((char*)tagv2->tagdata, tagv2->taglen, ID3V2_GET_NOCHECK);
   copy_id3v2_tag(info, tag);
