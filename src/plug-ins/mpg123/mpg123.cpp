@@ -327,13 +327,13 @@ void static copy_id3v1_tag( META_INFO& info, const mpg123_id3v1* tag )
     ? ((ID3V1_TAG*)tag)->DetectCodepage(tag_id3v1_charset)
     : tag_id3v1_charset;
 
-  copy_id3v1_string( tag, ID3V1_TITLE,   info.title,   codepage);
-  copy_id3v1_string( tag, ID3V1_ARTIST,  info.artist,  codepage);
-  copy_id3v1_string( tag, ID3V1_ALBUM,   info.album,   codepage);
-  copy_id3v1_string( tag, ID3V1_YEAR,    info.year,    codepage);
-  copy_id3v1_string( tag, ID3V1_COMMENT, info.comment, codepage);
-  copy_id3v1_string( tag, ID3V1_GENRE,   info.genre,   codepage);
-  copy_id3v1_string( tag, ID3V1_TRACK,   info.track,   codepage);
+  copy_id3v1_string(tag, ID3V1_TITLE,   info.title,   codepage);
+  copy_id3v1_string(tag, ID3V1_ARTIST,  info.artist,  codepage);
+  copy_id3v1_string(tag, ID3V1_ALBUM,   info.album,   codepage);
+  copy_id3v1_string(tag, ID3V1_YEAR,    info.year,    codepage);
+  copy_id3v1_string(tag, ID3V1_COMMENT, info.comment, codepage);
+  copy_id3v1_string(tag, ID3V1_GENRE,   info.genre,   codepage);
+  copy_id3v1_string(tag, ID3V1_TRACK,   info.track,   codepage);
 }
 
 static void copy_id3v2_string( ID3V2_TAG* tag, ID3V2_ID id, DSTRING& result )
@@ -547,84 +547,105 @@ PROXYFUNCIMP(void TFNENTRY, Decoder)ThreadStub(void* arg)
 { ((Decoder*)arg)->ThreadFunc();
 }
 
+enum localstate
+{ ST_READY,
+  ST_EOF,
+  ST_ERROR
+};
+
 void Decoder::ThreadFunc()
 {
-  for(;;)
-  {
-    DecEvent.Wait();
-    DecEvent.Reset();
+  localstate state = ST_READY;
+  goto start;
 
-    DecMutex.Request();
-    if ((Status & 3) == 0)
-      break;
+ done:
+  DecMutex.Release();
+  return;
 
+ wait:
+  DecMutex.Release();
+ start:
+  DecEvent.Wait();
+  DecEvent.Reset();
+  DecMutex.Request();
+
+  if ((Status & 3) == 0)
+    goto done;
+  if (state == ST_ERROR)
+    goto wait; // Error => wait until we receive DECODER_STOP
+
+  if (Status == DECODER_STARTING)
     Status = DECODER_PLAYING;
 
-    do {
-      if (JumpTo >= 0)
-      { mpg123_seek(MPEG, Time2Sample(JumpTo), SEEK_SET);
-        JumpTo = -1;
-        (*OutEvent)(OutParam, DECEVENT_SEEKSTOP, NULL);
-      } else if (Fast == DECFAST_FORWARD)
-        mpg123_seek(MPEG, Time2Sample(.25), SEEK_CUR);
-      else if (Fast == DECFAST_REWIND)
-        mpg123_seek(MPEG, Time2Sample(-.3), SEEK_CUR);
+ nextblock:
+  // Handle seek command
+  if (JumpTo >= 0)
+  { mpg123_seek(MPEG, Time2Sample(JumpTo), SEEK_SET);
+    JumpTo = -1;
+    (*OutEvent)(OutParam, DECEVENT_SEEKSTOP, NULL);
+  } else if (Fast == DECFAST_FORWARD)
+    mpg123_seek(MPEG, Time2Sample(.25), SEEK_CUR);
+  else if (state == ST_EOF)
+    goto wait;
+  else if (Fast == DECFAST_REWIND)
+    mpg123_seek(MPEG, Time2Sample(-.3), SEEK_CUR);
+  state = ST_READY; // Recover from ST_EOF in case of seek
 
-      DecMutex.Release();
-
-      short* buffer;
-      int count = (*OutRequestBuffer)(OutParam, &Tech, &buffer);
-      if (count <= 0)
-      { // Error
-        (*OutEvent)(OutParam, DECEVENT_PLAYERROR, NULL);
-        break;
-      }
-
-      Mutex::Lock lock(this->DecMutex);
-      size_t done;
-      int rc = mpg123_read(MPEG, (unsigned char*)buffer, count * sizeof(*buffer) * Tech.channels, &done);
-      DEBUGLOG(("mpg123:Decoder::ThreadFunc mpg123_read -> %i, %u\n", rc, done));
-      switch (rc != 0)
-      {case MPG123_DONE:
-        if (done)
-        { PM123_TIME pos = (double)(mpg123_tell(MPEG) - done) / Tech.samplerate;
-          (*OutCommitBuffer)(OutParam, done / sizeof(*buffer) / Tech.channels, pos);
-        }
-        continue;
-       default:
-        LastError = mpg123_strerror(MPEG);
-        (*OutEvent)(OutParam, DECEVENT_PLAYERROR, (void*)LastError.cdata());
-        continue;
-       case MPG123_NEW_FORMAT:
-        // fetch format
-        ReadTechInfo();
-       case MPG123_OK:;
-         PM123_TIME pos = (double)(mpg123_tell(MPEG) - done) / Tech.samplerate;
-         (*OutCommitBuffer)(OutParam, done / sizeof(*buffer) / Tech.channels, pos);
-      }
-      // Update stream length?
-      if (UpdateStreamLength())
-      { OBJ_INFO obj = OBJ_INFO_INIT;
-        obj.songlength = StreamLength();
-        mpg123_frameinfo info;
-        if (mpg123_info(MPEG, &info) == MPG123_OK)
-          obj.bitrate = info.bitrate;
-        (*OutEvent)(OutParam, DECEVENT_CHANGEOBJ, &obj);
-      }
-      // Update meta info?
-      // The flag my be set while executing mpg123_read
-      if (UpdateMeta)
-      { UpdateMeta = false;
-        META_INFO meta;
-        FillMetaInfo(meta);
-        (*OutEvent)(OutParam, DECEVENT_CHANGEMETA, &meta);
-      }
-
-    } while ((Status & 3) != 0);
-
-    (*OutEvent)(OutParam, DECEVENT_PLAYSTOP, NULL);
+  short* buffer;
+  DecMutex.Release();
+  int count = (*OutRequestBuffer)(OutParam, &Tech, &buffer);
+  DecMutex.Request();
+  if ((Status & 3) == 0)
+    goto done;
+  if (count <= 0)
+  { // Error
+    (*OutEvent)(OutParam, DECEVENT_PLAYERROR, NULL);
+    state = ST_ERROR;
+    goto wait;
   }
-  //_endthread(); // implicit on return
+
+  size_t done;
+  int rc = mpg123_read(MPEG, (unsigned char*)buffer, count * sizeof(*buffer) * Tech.channels, &done);
+  DEBUGLOG(("mpg123:Decoder::ThreadFunc mpg123_read -> %i, %u\n", rc, done));
+  switch (rc)
+  {case MPG123_DONE:
+    if (done)
+    { PM123_TIME pos = (double)(mpg123_tell(MPEG) - done) / Tech.samplerate;
+      (*OutCommitBuffer)(OutParam, done / sizeof(*buffer) / Tech.channels, pos);
+    }
+    (*OutEvent)(OutParam, DECEVENT_PLAYSTOP, NULL);
+    state = ST_EOF;
+    goto wait;
+   default:
+    LastError = mpg123_strerror(MPEG);
+    (*OutEvent)(OutParam, DECEVENT_PLAYERROR, (void*)LastError.cdata());
+    state = ST_ERROR;
+    goto wait;
+   case MPG123_NEW_FORMAT:
+    // fetch format
+    ReadTechInfo();
+   case MPG123_OK:
+     PM123_TIME pos = (double)(mpg123_tell(MPEG) - done) / Tech.samplerate;
+     (*OutCommitBuffer)(OutParam, done / sizeof(*buffer) / Tech.channels, pos);
+  }
+  // Update stream length?
+  if (UpdateStreamLength())
+  { OBJ_INFO obj = OBJ_INFO_INIT;
+    obj.songlength = StreamLength();
+    mpg123_frameinfo info;
+    if (mpg123_info(MPEG, &info) == MPG123_OK)
+      obj.bitrate = info.bitrate;
+    (*OutEvent)(OutParam, DECEVENT_CHANGEOBJ, &obj);
+  }
+  // Update meta info?
+  // The flag my be set while executing mpg123_read
+  if (UpdateMeta)
+  { UpdateMeta = false;
+    META_INFO meta;
+    FillMetaInfo(meta);
+    (*OutEvent)(OutParam, DECEVENT_CHANGEMETA, &meta);
+  }
+  goto nextblock;
 }
 
 
@@ -668,13 +689,11 @@ PLUGIN_RC Decoder::Stop()
   if (Status == DECODER_STOPPED)
     return PLUGIN_GO_ALREADY;
 
-  Mutex::Lock lock(DecMutex);
-
   Status = DECODER_STOPPING;
   DecEvent.Set();
-
   wait_thread(DecTID, 5000);
 
+  Mutex::Lock lock(DecMutex);
   Status = DECODER_STOPPED;
   DecTID = -1;
 
