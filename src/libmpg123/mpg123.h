@@ -871,11 +871,11 @@ typedef struct
  *  All text is encoded in UTF-8. */
 typedef struct
 {
-	unsigned char version; /**< 3 or 4 for ID3v2.3 or ID3v2.4. */
 #ifdef ID3V2_RAW
 	unsigned char* tagdata;
 	unsigned int   taglen;
 #else
+    unsigned char version; /**< 3 or 4 for ID3v2.3 or ID3v2.4. */
 	mpg123_string *title;   /**< Title string (pointer into text_list). */
 	mpg123_string *artist;  /**< Artist string (pointer into text_list). */
 	mpg123_string *album;   /**< Album string (pointer into text_list). */

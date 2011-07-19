@@ -614,19 +614,28 @@ int parse_new_id3(mpg123_handle *fr, unsigned long first4bytes)
 	else
 	{
 		unsigned char* tagdata = NULL;
-		fr->id3v2.version = major;
-		/* try to interpret that beast */
-		if((tagdata = (unsigned char*) malloc(length+1)) != NULL)
-		{
-			debug("ID3v2: analysing frames...");
-			if((ret2 = fr->rd->read_frame_body(fr,tagdata,length)) > 0)
-			{
 #ifdef ID3V2_RAW
-			    free(fr->id3v2.tagdata);
-			    fr->id3v2.tagdata = tagdata;
-			    fr->id3v2.taglen = length;
-			    tagdata = NULL;
+		if((tagdata = (unsigned char*) malloc(length+11)) != NULL)
+        {
+            if((ret2 = fr->rd->read_frame_body(fr,tagdata+10,length)) > 0)
+            {
+              tagdata[0] = first4bytes >> 24;
+              tagdata[1] = first4bytes >> 16;
+              tagdata[2] = first4bytes >> 8;
+              tagdata[3] = first4bytes;
+              memcpy(tagdata+4, buf, 6);
+              fr->id3v2.tagdata = tagdata;
+              fr->id3v2.taglen = length + 10;
+              tagdata = NULL;
+            }
 #else
+        /* try to interpret that beast */
+        fr->id3v2.version = major;
+		if((tagdata = (unsigned char*) malloc(length+1)) != NULL)
+        {
+            debug("ID3v2: analysing frames...");
+            if((ret2 = fr->rd->read_frame_body(fr,tagdata,length)) > 0)
+            {
 				unsigned long tagpos = 0;
 				debug1("ID3v2: have read at all %lu bytes for the tag now", (unsigned long)length+6);
 				/* going to apply strlen for strings inside frames, make sure that it doesn't overflow! */
@@ -814,8 +823,8 @@ int parse_new_id3(mpg123_handle *fr, unsigned long first4bytes)
 						#undef KNOWN_FRAMES
 					}
 				}
+            }
 #endif /* ID3V2_RAW */
-			}
 			else
 			{
 				/* There are tags with zero length. Strictly not an error, then. */
