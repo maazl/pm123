@@ -16,10 +16,10 @@ IF POS('song', data.flags) = 0 THEN
   EXIT 'File flags should contain ''song'': 'data.flags
 IF \ABBREV(TRANSLATE(data.decoder), 'OGGPLAY') THEN
   EXIT 'Decoder should be oggplay: 'data.decoder
-IF data.songlength \= 0.045 & FORMAT(data.songlength*44100,,0) \= 1982 THEN
-  EXIT 'The song length should be equivalent to 1982 samples or approx. 45ms: 'data.songlength
-IF data.bitrate < 62834 | data.bitrate > 63000 THEN
-  EXIT 'The bit rate should be 62834...63000: 'data.bitrate
+IF FORMAT(data.songlength,,3) \= 17.777 & FORMAT(data.songlength*44100,,0) \= 783955 THEN
+  EXIT 'The song length should be equivalent to 783955 samples or approx. 17.777s: 'data.songlength
+IF data.bitrate < 12000 | data.bitrate > 13701 THEN
+  EXIT 'The bit rate should be 12000...13701: 'data.bitrate
 
 EXIT
 

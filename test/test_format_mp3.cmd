@@ -1,7 +1,7 @@
 /**/
 dir = DIRECTORY()
 
-CALL 'pipecmd' 'info format 'dir'\data\test.wav'
+CALL 'pipecmd' 'info format 'dir'\data\test.mp3'
 CALL Parse result
 IF VERIFY(data.filesize, '0123456789') \= 0 THEN
   EXIT 'Valid file size expected: 'data.filesize
@@ -14,12 +14,12 @@ IF data.channels \= 1 THEN
   EXIT 'Number of channels should be 1: 'data.channels
 IF POS('song', data.flags) = 0 THEN
   EXIT 'File flags should contain ''song'': 'data.flags
-IF \ABBREV(TRANSLATE(data.decoder), 'WAVPLAY') THEN
-  EXIT 'Decoder should be wavplay: 'data.decoder
+IF \ABBREV(TRANSLATE(data.decoder), 'MPG123') THEN
+  EXIT 'Decoder should be mpg123: 'data.decoder
 IF FORMAT(data.songlength,,3) \= 17.777 & FORMAT(data.songlength*44100,,0) \= 783955 THEN
   EXIT 'The song length should be equivalent to 783955 samples or approx. 17.777s: 'data.songlength
-IF data.bitrate \= 705600 & data.bitrate \= 706000 THEN
-  EXIT 'The bit rate should be 705600: 'data.bitrate
+IF data.bitrate < 32000 | data.bitrate > 32235 THEN
+  EXIT 'The bit rate should be 32000...32235: 'data.bitrate
 
 EXIT
 
