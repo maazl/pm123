@@ -541,6 +541,14 @@ const char* sfnameext2( const char* file )
   return cp;
 }
 
+const char* surl2file( const char* location )
+{ if (strnicmp(location, "file:", 5) == 0)
+    location += 5;
+  if (memcmp(location, "///", 3) == 0)
+    location += 3;
+  return location;
+}
+
 /* Returns TRUE if the specified location is a root directory. */
 unsigned char is_root( const char* location )
 {
@@ -555,10 +563,6 @@ unsigned char is_root( const char* location )
 unsigned char is_dir( const char* location )
 {
   struct stat fi;
-  if (strnicmp(location, "file:", 5) == 0)
-    location += 5;
-  if (memcmp(location, "///", 3) == 0)
-    location += 3;
-  return stat( location, &fi ) == 0 && fi.st_mode & S_IFDIR;
+  return stat( surl2file(location), &fi ) == 0 && fi.st_mode & S_IFDIR;
 }
 

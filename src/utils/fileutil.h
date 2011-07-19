@@ -59,10 +59,12 @@ char* sdnameext( char* result, const char* location, size_t size );
    in location. */
 char* sdrivedir( char* result, const char* location, size_t size );
 char* sdecode  ( char* result, const char* location, size_t size );
-// Normalize an URL: enforce scheme, convert slashes
+/* Normalize an URL: enforce scheme, convert slashes */
 char* snormal  ( char* result, const char* location, size_t size );
-// Fast in place version of sfname aliasing, cannot deal with ? parameters.
+/* Fast in place version of sfname aliasing, cannot deal with ? parameters. */
 const char* sfnameext2( const char* file );
+/* Strip file:// from file URLs */
+const char* surl2file( const char* location );
 
 /** rel2abs: convert a relative path name into absolute.
  * @param path    relative path
