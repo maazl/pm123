@@ -319,8 +319,8 @@ ID3V2_TAG* id3v2_load_tag( char* tagdata, size_t taglen, int flags )
   id3->id3_read    = id3v2_mem_read;
   id3->id3_oflags  = flags;
   id3->id3_pos     = 0;
-  id3->id3_file    = tagdata;
-  id3->id3_totalsize = taglen;
+  id3->id3_file    = tagdata+3; // without ID3 header magic
+  id3->id3_totalsize = taglen-3;
   //id3->id3_started = xio_ftell( file );
 
   // Allocate buffer to hold read data.

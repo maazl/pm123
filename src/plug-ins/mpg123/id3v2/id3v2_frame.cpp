@@ -371,7 +371,7 @@ id3v2_read_frame_v22( ID3V2_TAG* id3 )
 }
 
 /* Read next frame from the indicated ID3 tag. Return 0 upon
-   success, or -1 if an error occured. */
+   success, or -1 if an error occurred. */
 int
 id3v2_read_frame( ID3V2_TAG* id3 )
 {
@@ -504,7 +504,7 @@ id3v2_get_frame( const ID3V2_TAG* id3, ID3V2_ID type, int num )
 }
 
 /* Check if frame is compressed, and uncompress if necessary.
-   Return 0 upon success, or -1 if an error occured. */
+   Return 0 upon success, or -1 if an error occurred. */
 int
 id3v2_decompress_frame( ID3V2_FRAME* frame )
 {
@@ -611,7 +611,7 @@ error_init:
   return -1;
 }
 
-/* Remove frame from ID3 tag and release memory ocupied by it. */
+/* Remove frame from ID3 tag and release memory occupied by it. */
 int
 id3v2_delete_frame( ID3V2_FRAME* frame )
 {
@@ -645,7 +645,7 @@ id3v2_delete_frame( ID3V2_FRAME* frame )
 }
 
 /* Add a new frame to the ID3 tag. Return a pointer to the new
-   frame, or NULL if an error occured. */
+   frame, or NULL if an error occurred. */
 ID3V2_FRAME*
 id3v2_add_frame( ID3V2_TAG* id3, ID3V2_ID type )
 {

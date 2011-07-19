@@ -237,7 +237,7 @@ static inline const char* vbr_mode(mpg123_vbr mode)
 int MPG123::ReadTechInfo()
 { mpg123_frameinfo info;
   int rc = mpg123_info(MPEG, &info);
-  DEBUGLOG(("MPG123::FillTechInfo - mpg123_info: %i\n", rc));
+  DEBUGLOG(("MPG123::ReadTechInfo - mpg123_info: %i\n", rc));
   if (rc != MPG123_OK)
   { LastError = mpg123_strerror(MPEG);
     return -1;
@@ -354,7 +354,8 @@ off_t MPG123::FSeek(void* that, off_t offset, int seekmode)
 }
 
 void MPG123::FillPhysInfo(PHYS_INFO& phys)
-{ phys.filesize = LastSize;
+{ DEBUGLOG(("MPG123(%p{%s})::FillPhysInfo(&%p)\n", this, Filename.cdata(), &phys));
+  phys.filesize = LastSize;
   XSTAT st;
   if (xio_fstat(XFile, &st) == 0)
   { phys.tstmp = st.mtime;
@@ -364,7 +365,8 @@ void MPG123::FillPhysInfo(PHYS_INFO& phys)
 }
 
 inline bool MPG123::FillTechInfo(TECH_INFO& tech, OBJ_INFO& obj)
-{ obj.bitrate = ReadTechInfo();
+{ DEBUGLOG(("MPG123(%p{%s})::FillTechInfo(&%p, &%p)\n", this, Filename.cdata(), &tech, &obj));
+  obj.bitrate = ReadTechInfo();
   if (obj.bitrate < 0)
   { tech.info = LastError;
     return false;
@@ -401,7 +403,7 @@ static void copy_id3v2_string(const ID3V2_TAG* tag, ID3V2_ID id, DSTRING& result
   ID3V2_FRAME* frame = NULL;
   char buffer[256];
 
-  if ( !*result
+  if ( (!result || !*result)
       && ( frame = id3v2_get_frame( tag, id, 1 )) != NULL
       && id3v2_get_string_ex( frame, buffer, sizeof buffer, cfg.tag_read_id3v2_charset ) )
     result = buffer;
@@ -495,7 +497,7 @@ static void copy_id3v2_tag(META_INFO& info, const mpg123_id3v2* tagv2)
 }
 
 void MPG123::FillMetaInfo(META_INFO& meta)
-{
+{ DEBUGLOG(("MPG123(%p{%s})::FillMetaInfo(&%p)\n", this, Filename.cdata(), &meta));
   char buffer[256];
   if (xio_get_metainfo(XFile, XIO_META_TITLE, buffer, sizeof buffer))
     meta.title = buffer;
@@ -895,7 +897,7 @@ PM123_TIME DLLENTRY decoder_length( void* arg )
 ULONG DLLENTRY decoder_fileinfo( const char* url, int* what, const INFO_BUNDLE* info,
                                  DECODER_INFO_ENUMERATION_CB, void* )
 {
-  DEBUGLOG(("mpg123:decoder_fileinfo(%s, %x, %p)\n", url, *what, info));
+  DEBUGLOG(("mpg123:decoder_fileinfo(%s, *%x, %p)\n", url, *what, info));
   *what |= INFO_ATTR|INFO_CHILD;
   MPG123 w(url);
 
