@@ -36,14 +36,14 @@
 #include <debuglog.h>
 #include <minmax.h>
 
+#include "../mpg123.h"
 #include "id3v2/id3v2.h"
 #include "id3v2/id3v2_header.h"
 
 
 /* Seek `offset' bytes forward in the indicated ID3-tag. Return 0
-   upon success, or -1 if an error occured. */
-static int
-id3v2_seek( ID3V2_TAG* id3, int offset )
+   upon success, or -1 if an error occurred. */
+static int id3v2_seek( ID3V2_TAG* id3, int offset )
 {
   // Check boundary.
   if(( id3->id3_pos + offset > id3->id3_totalsize ) ||
@@ -55,7 +55,6 @@ id3v2_seek( ID3V2_TAG* id3, int offset )
   {
     // If offset is positive, we use fread() instead of fseek(). This
     // is more robust with respect to streams.
-
     char buf[64];
     int  r, remain = offset;
 
@@ -74,7 +73,6 @@ id3v2_seek( ID3V2_TAG* id3, int offset )
   {
     // If offset is negative, we ahve to use fseek(). Let us hope
     // that it works.
-
     if( xio_fseek( (XFILE*)id3->id3_file, offset, XIO_SEEK_CUR ) == -1 ) {
       id3->id3_error_msg = "Seeking beyond tag boundary.";
       return -1;
@@ -116,7 +114,7 @@ static void* id3v2_read( ID3V2_TAG* id3, void* buf, int size )
 }
 
 /* Seek `offset' bytes forward in the indicated ID3-tag. Return 0
-   upon success, or -1 if an error occured. */
+   upon success, or -1 if an error occurred. */
 static int id3v2_mem_seek( ID3V2_TAG* id3, int offset )
 {
   int newpos = id3->id3_pos + offset;
@@ -153,8 +151,7 @@ static void* id3v2_mem_read( ID3V2_TAG* id3, void* buf, int size )
 
 
 /* Initialize an empty ID3 tag. */
-static void
-id3v2_init_tag( ID3V2_TAG* id3 )
+static void id3v2_init_tag( ID3V2_TAG* id3 )
 {
   // Initialize header.
   id3->id3_version   = ID3V2_VERSION;
@@ -175,8 +172,7 @@ id3v2_init_tag( ID3V2_TAG* id3 )
 
 /* Creates a new ID3 tag structure. Useful for creating
    a new tag. */
-ID3V2_TAG*
-id3v2_new_tag( void )
+ID3V2_TAG* id3v2_new_tag( void )
 {
   ID3V2_TAG* id3;
 
@@ -192,9 +188,8 @@ id3v2_new_tag( void )
 
 /* Read the ID3 tag from the input stream. The start of the tag
    must be positioned in the next tag in the stream.  Return 0 upon
-   success, or -1 if an error occured. */
-static int
-id3v2_read_tag( ID3V2_TAG* id3 )
+   success, or -1 if an error occurred. */
+static int id3v2_read_tag( ID3V2_TAG* id3 )
 {
   char*   buf;
   uint8_t padding;
@@ -256,7 +251,7 @@ id3v2_read_tag( ID3V2_TAG* id3 )
     }
   }
 
-  // Like id3lib, we try to find unstandard padding (not within
+  // Like id3lib, we try to find non-standard padding (not within
   // the tag size). This is important to know when we strip
   // the tag or replace it. Another option might be looking for
   // an MPEG sync, but we don't do it.
@@ -284,8 +279,7 @@ id3v2_read_tag( ID3V2_TAG* id3 )
 
 /* Read an ID3 tag using a file pointer. Return a pointer to a
    structure describing the ID3 tag, or NULL if an error occured. */
-ID3V2_TAG*
-id3v2_get_tag( XFILE* file, int flags )
+ID3V2_TAG* id3v2_get_tag( XFILE* file, int flags )
 {
   // Allocate ID3 structure.
   ID3V2_TAG* id3 = (ID3V2_TAG*)calloc( 1, sizeof( ID3V2_TAG ));
@@ -362,7 +356,6 @@ int id3v2_alter_tag( ID3V2_TAG* id3 )
 {
   // List of frame classes that should be discarded whenever the
   // file is altered.
-
   static const ID3V2_ID discard_list[] = {
     ID3V2_ETCO, ID3V2_EQUA, ID3V2_MLLT, ID3V2_POSS, ID3V2_SYLT,
     ID3V2_SYTC, ID3V2_RVAD, ID3V2_TENC, ID3V2_TLEN, ID3V2_TSIZ,
@@ -384,8 +377,7 @@ int id3v2_alter_tag( ID3V2_TAG* id3 )
 
 /* Remove the ID3 tag from the file. Returns 0 upon success,
    or -1 if an error occured. */
-int
-id3v2_wipe_tag( XFILE* file, const char* savename )
+int id3v2_wipe_tag( XFILE* file, const char* savename )
 {
   ID3V2_TAG* old_id3;
   int        old_totalsize;
@@ -433,9 +425,8 @@ id3v2_wipe_tag( XFILE* file, const char* savename )
 }
 
 /* Write the ID3 tag to the indicated file descriptor. Return 0
-   upon success, or -1 if an error occured. */
-static int
-id3v2_write_tag( XFILE* file, ID3V2_TAG* id3 )
+   upon success, or -1 if an error occurred. */
+static int id3v2_write_tag( XFILE* file, ID3V2_TAG* id3 )
 {
   int  i;
   char buf[ID3V2_TAGHDR_SIZE];
@@ -500,9 +491,8 @@ id3v2_write_tag( XFILE* file, ID3V2_TAG* id3 )
 }
 
 /* Writes the ID3 tag to the file. Returns 0 upon success, returns 1 if
-   the ID3 tag is saved to savename or returns -1 if an error occured. */
-int
-id3v2_set_tag( XFILE* file, ID3V2_TAG* id3, const char* savename )
+   the ID3 tag is saved to savename or returns -1 if an error occurred. */
+int id3v2_set_tag( XFILE* file, ID3V2_TAG* id3, const char* savename )
 {
   ID3V2_TAG* old_id3;
   int        old_totalsize;
@@ -568,7 +558,7 @@ id3v2_set_tag( XFILE* file, ID3V2_TAG* id3, const char* savename )
       return -1;
     }
     // Use padding.
-    new_totalsize += 1024;
+    new_totalsize += cfg.tag_save_id3v2_padding;
   }
 
   // Zero-out the ID3v2 tag area.

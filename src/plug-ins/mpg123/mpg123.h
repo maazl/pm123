@@ -63,6 +63,11 @@
 #include <cpp/container/vector.h>
 #include <os2.h>
 
+
+/** Basic class to handle tags of MPEG audio files.
+ * This class provides only support for ID3 tag access (all versions).
+ * The class does \e not use libmpg123.
+ */
 class ID3
 {protected:
   /// Stream associated with filename, NULL = none
@@ -102,6 +107,10 @@ class ID3
   PLUGIN_RC     UpdateTags(ID3V1_TAG* tagv1, ID3V2_TAG* tagv2, DSTRING& savename);
 };
 
+/** Class to extract all meta information from an MPEG audio file or stream.
+ * Additionally to class ID3 provides access to stream information
+ * like bit rate, layer and so on.
+ */
 class MPG123 : public ID3
 {protected:
   /// Current mpg123 decoder instance, NULL = none
@@ -113,7 +122,8 @@ class MPG123 : public ID3
 
   TECH_INFO     Tech;
  private:
-  PM123_TIME    LastLength;
+  unsigned      FirstFrameLen;
+  off_t         LastLength;
   long          LastSize;
 
  private: // Repository
@@ -146,7 +156,7 @@ class MPG123 : public ID3
   void          Close();
 
   /// Return most recent stream length or -1 if not available.
-  PM123_TIME    StreamLength() const { return LastLength; }
+  PM123_TIME    StreamLength() const { return (double)LastLength / Tech.samplerate; }
 
   void          FillPhysInfo(PHYS_INFO& phys);
   bool          FillTechInfo(TECH_INFO& tech, OBJ_INFO& obj);
@@ -165,6 +175,9 @@ class MPG123 : public ID3
   static DSTRING ReplaceFile(const char* srcfile, const char* dstfile);
 };
 
+/** Full MPG audio decoder class.
+ * This class handles a decoder thread to decode the stream data.
+ */
 class Decoder : public MPG123
 {private:
   /// File name used to save stream data
@@ -196,8 +209,11 @@ class Decoder : public MPG123
   void* OutParam;
 
  private:
+  /// Call back function, invoked by XIO library when meta data arrives.
   PROXYFUNCDEF void DLLENTRY MetaCallback(int type, const char* metabuff, long pos, void* arg);
+  /// Stub to get the right calling convention.
   PROXYFUNCDEF void TFNENTRY ThreadStub(void* arg);
+  /// Worker thread
   void          ThreadFunc();
 
  public:
@@ -218,8 +234,6 @@ class Decoder : public MPG123
 
 /* Check whether a string entirely contains ASCII characters in the range [32,126]. */
 BOOL ascii_check(const char* str);
-
-void save_ini( void );
 
 
 // Settings
@@ -246,13 +260,27 @@ typedef enum
   TAG_SAVE_ID3V2_ONDEMANDSPC
 } save_id3v2_type;
 
-extern read_type       tag_read_type;
-extern ULONG           tag_id3v1_charset;
-extern BOOL            tag_read_id3v1_autoch;
-extern save_id3v1_type tag_save_id3v1_type;
-extern save_id3v2_type tag_save_id3v2_type;
-extern ULONG           tag_read_id3v2_charset;
-extern uint8_t         tag_save_id3v2_encoding;
+class Config
+{public:
+  read_type       tag_read_type;
+  ULONG           tag_id3v1_charset;
+  BOOL            tag_read_id3v1_autoch;
+  save_id3v1_type tag_save_id3v1_type;
+  save_id3v2_type tag_save_id3v2_type;
+  ULONG           tag_read_id3v2_charset;
+  uint8_t         tag_save_id3v2_encoding;
+  unsigned        tag_save_id3v2_padding;
+
+ private:
+  static const Config def;
+
+ public:
+  void reset()    { *this = def; }
+  void load();
+  void save() const;
+};
+
+extern Config cfg;
 
 
 #endif /* RC_INVOKED */
@@ -307,6 +335,5 @@ extern uint8_t         tag_save_id3v2_encoding;
 #define RB_CLEAN2          337
 #define RB_DELETE2         338
 #define CB_AUTOWRITE2      339
-
 
 #endif

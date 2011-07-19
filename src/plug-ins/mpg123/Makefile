@@ -38,7 +38,6 @@ depend: $(MDUMMY)
 	@$(TOPDIR)\config\makedep.cmd *.c* id3v1\*.c* id3v2\*.c* -r -x -I$(INCDIR)
 
 dialog.cpp:	dialog.h mpg123.h ..\..\utils\charset.h ..\..\utils\utilfct.h ..\..\utils\fileutil.h ..\..\include\decoder_plug.h ..\..\utils\debuglog.h ..\..\utils\snprintf.h ..\..\utils\eautils.h
-mpg123.h:	..\..\utils\utilfct.h ..\..\include\plugin.h ..\..\include\decoder_plug.h ..\..\xio123\xio.h ..\..\libmpg123\config.h ..\..\libmpg123\mpg123.h ..\..\utils\cpp\mutex.h ..\..\utils\cpp\container\vector.h
 ..\..\utils\utilfct.h:	..\..\include\config.h ..\..\utils\errorstr.h ..\..\utils\minmax.h ..\..\utils\strutils.h
 ..\..\include\config.h:	..\..\include\config_gcc.h ..\..\include\config_wcc.h ..\..\include\config_icc_36.h ..\..\include\config_icc_30.h
 ..\..\include\plugin.h:	..\..\include\config.h ..\..\utils\cpp\xstring.h
@@ -55,8 +54,9 @@ id3v1\id3v1.h:	..\..\xio123\xio.h
 id3v2\id3v2.h:	..\..\xio123\xio.h
 ..\..\utils\cpp\container\vector.h:	..\..\utils\cpp\mutex.h ..\..\utils\cpp\smartptr.h ..\..\utils\cpp\xstring.h
 ..\..\utils\fileutil.h:	..\..\include\config.h
-mpg123.cpp:	mpg123.h dialog.h ..\..\utils\charset.h ..\..\include\decoder_plug.h ..\..\utils\debuglog.h ..\..\utils\snprintf.h ..\..\utils\eautils.h
 common.c:	tables.h ..\..\utils\debuglog.h ..\..\utils\strutils.h ..\..\utils\minmax.h
 dxhead.c:	dxhead.h
 layer3.c:	..\..\utils\debuglog.h huffman.h
 ..\..\libmpg123\config.h:	..\..\include\config.h
+mpg123.h:	..\..\utils\utilfct.h ..\..\include\plugin.h ..\..\include\decoder_plug.h ..\..\xio123\xio.h ..\..\libmpg123\config.h ..\..\libmpg123\mpg123.h ..\..\utils\cpp\mutex.h ..\..\utils\cpp\container\vector.h
+mpg123.cpp:	mpg123.h dialog.h ..\..\utils\charset.h ..\..\include\decoder_plug.h ..\..\utils\debuglog.h ..\..\utils\snprintf.h ..\..\utils\eautils.h ..\..\utils\fileutil.h

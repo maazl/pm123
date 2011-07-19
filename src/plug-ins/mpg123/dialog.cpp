@@ -117,7 +117,7 @@ cfg_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
   {
     case WM_INITDLG:
     {
-      switch (tag_read_type)
+      switch (cfg.tag_read_type)
       {case TAG_READ_ID3V2_AND_ID3V1:
         WinCheckButton( hwnd, RB_2R_PREFER, TRUE );
         goto both;
@@ -140,14 +140,17 @@ cfg_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
         break;
       }
 
-      WinCheckButton( hwnd, CB_1R_AUTOENCODING, tag_read_id3v1_autoch );
-      WinCheckButton( hwnd, RB_1W_UNCHANGED + tag_save_id3v1_type, TRUE );
-      dlg_populate_charset_listbox( WinWindowFromID( hwnd, CO_1_ENCODING ), ch_list, ch_list_size - ch_list_dbcs, tag_id3v1_charset );
+      WinCheckButton( hwnd, CB_1R_AUTOENCODING, cfg.tag_read_id3v1_autoch );
+      WinCheckButton( hwnd, RB_1W_UNCHANGED + cfg.tag_save_id3v1_type, TRUE );
+      dlg_populate_charset_listbox( WinWindowFromID( hwnd, CO_1_ENCODING ),
+          ch_list, ch_list_size - ch_list_dbcs, cfg.tag_id3v1_charset );
 
-      WinCheckButton( hwnd, RB_2W_UNCHANGED + tag_save_id3v2_type, TRUE );
-      dlg_populate_charset_listbox( WinWindowFromID( hwnd, CO_2R_ENCODING ), ch_list, ch_list_size - ch_list_dbcs, tag_read_id3v2_charset );
-      dlg_populate_charset_listbox( WinWindowFromID( hwnd, CO_2W_ENCODING ), id3v2_ch_list, sizeof id3v2_ch_list / sizeof *id3v2_ch_list, 0 );
-      PMRASSERT( lb_select( hwnd, CO_2W_ENCODING, tag_save_id3v2_encoding ));
+      WinCheckButton( hwnd, RB_2W_UNCHANGED + cfg.tag_save_id3v2_type, TRUE );
+      dlg_populate_charset_listbox( WinWindowFromID( hwnd, CO_2R_ENCODING ),
+          ch_list, ch_list_size - ch_list_dbcs, cfg.tag_read_id3v2_charset );
+      dlg_populate_charset_listbox( WinWindowFromID( hwnd, CO_2W_ENCODING ),
+          id3v2_ch_list, sizeof id3v2_ch_list / sizeof *id3v2_ch_list, 0 );
+      PMRASSERT( lb_select( hwnd, CO_2W_ENCODING, cfg.tag_save_id3v2_encoding ));
 
       do_warpsans( hwnd );
       break;
@@ -192,32 +195,32 @@ cfg_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
           SHORT val;
           switch( WinQueryButtonCheckstate( hwnd, CB_1R_READ ) + 2*WinQueryButtonCheckstate( hwnd, CB_2R_READ ))
           {case 0:
-            tag_read_type = TAG_READ_NONE;
+            cfg.tag_read_type = TAG_READ_NONE;
             break;
            case 1:
-            tag_read_type = TAG_READ_ID3V1_ONLY;
+             cfg.tag_read_type = TAG_READ_ID3V1_ONLY;
             break;
            case 2:
-            tag_read_type = TAG_READ_ID3V2_ONLY;
+             cfg.tag_read_type = TAG_READ_ID3V2_ONLY;
             break;
            default:
-            tag_read_type = WinQueryButtonCheckstate( hwnd, RB_1R_PREFER ) ? TAG_READ_ID3V1_AND_ID3V2 : TAG_READ_ID3V2_AND_ID3V1;
+             cfg.tag_read_type = WinQueryButtonCheckstate( hwnd, RB_1R_PREFER ) ? TAG_READ_ID3V1_AND_ID3V2 : TAG_READ_ID3V2_AND_ID3V1;
             break;
           }
           chp = dlg_query_charset_listbox( WinWindowFromID( hwnd, CO_1_ENCODING ));
           if (chp) // Retain old invalid values
-            tag_id3v1_charset       = chp->codepage;
-          tag_read_id3v1_autoch   = WinQueryButtonCheckstate( hwnd, CB_1R_AUTOENCODING );
-          tag_save_id3v1_type     = (save_id3v1_type)(rb_selected( hwnd, RB_1W_UNCHANGED ) - RB_1W_UNCHANGED);
-          tag_save_id3v2_type     = (save_id3v2_type)(rb_selected( hwnd, RB_2W_UNCHANGED ) - RB_2W_UNCHANGED);
+            cfg.tag_id3v1_charset       = chp->codepage;
+          cfg.tag_read_id3v1_autoch   = WinQueryButtonCheckstate( hwnd, CB_1R_AUTOENCODING );
+          cfg.tag_save_id3v1_type     = (save_id3v1_type)(rb_selected( hwnd, RB_1W_UNCHANGED ) - RB_1W_UNCHANGED);
+          cfg.tag_save_id3v2_type     = (save_id3v2_type)(rb_selected( hwnd, RB_2W_UNCHANGED ) - RB_2W_UNCHANGED);
           chp = dlg_query_charset_listbox( WinWindowFromID( hwnd, CO_2R_ENCODING ));
           if (chp) // Retain old invalid values
-            tag_read_id3v2_charset  = chp->codepage;
+            cfg.tag_read_id3v2_charset  = chp->codepage;
           val = lb_selected( hwnd, CO_2W_ENCODING, LIT_FIRST );
           if (val != LIT_NONE) // Retain old invalid values
-            tag_save_id3v2_encoding = val;
+            cfg.tag_save_id3v2_encoding = val;
 
-          save_ini();
+          cfg.save();
         }
         break;
       }
@@ -410,7 +413,7 @@ static void update_id3v2_string( HWND hwnd, SHORT id, ID3V2_TAG* tag, ID3V2_ID t
   { int i = 1;
     while ( frame
       && (descr = id3v2_get_description(frame, buf, sizeof buf)) != NULL
-      && strnicmp( buf, "iTun", 4 ) != 0 )
+      && strnicmp( buf, "iTun", 4 ) == 0 )
       frame = id3v2_get_frame(tag, type, ++i);
   }
   if (WinQueryWindowText(ctrl, sizeof buf, buf))
@@ -446,7 +449,7 @@ static void id3v2_store( HWND hwnd, ID3V2_TAG* tag, unsigned what, uint8_t encod
 }
 
 static write_mode automode_id3v1(HWND hwnd)
-{ switch (tag_save_id3v1_type)
+{ switch (cfg.tag_save_id3v1_type)
   {case TAG_SAVE_ID3V1_UNCHANGED:
     return WR_UNCHANGED;
     
@@ -465,21 +468,23 @@ static write_mode automode_id3v1(HWND hwnd)
       }
     }    
    default: //case TAG_SAVE_ID3V1_WRITE:
-    return WinQueryDlgItemTextLength(hwnd, EN_TITLE)
-        || WinQueryDlgItemTextLength(hwnd, EN_ARTIST)
-        || WinQueryDlgItemTextLength(hwnd, EN_ALBUM)
-        || WinQueryDlgItemTextLength(hwnd, EN_COMMENT)
-        || WinQueryDlgItemTextLength(hwnd, EN_TRACK)
-        || WinQueryDlgItemTextLength(hwnd, EN_DATE)
-        || WinQueryDlgItemTextLength(hwnd, CO_GENRE)
-      ? WR_UPDATE : WR_CLEAN;
+    if ( !WinQueryDlgItemTextLength(hwnd, EN_TITLE)
+      && !WinQueryDlgItemTextLength(hwnd, EN_ARTIST)
+      && !WinQueryDlgItemTextLength(hwnd, EN_ALBUM)
+      && !WinQueryDlgItemTextLength(hwnd, EN_COMMENT)
+      && !WinQueryDlgItemTextLength(hwnd, EN_TRACK)
+      && !WinQueryDlgItemTextLength(hwnd, EN_DATE)
+      && !WinQueryDlgItemTextLength(hwnd, CO_GENRE) )
+      return WR_CLEAN;
+    ID3_EDIT_TAGINFO* data = (ID3_EDIT_TAGINFO*)WinQueryWindowPtr( hwnd, QWL_USER );
+    return data->modified || data->tagv1.IsValid() ? WR_UPDATE : WR_UNCHANGED;
   }
 }
 
 static write_mode automode_id3v2(HWND hwnd)
 { char buf[32];
   ULONG len, len2;
-  switch (tag_save_id3v2_type)
+  switch (cfg.tag_save_id3v2_type)
   {case TAG_SAVE_ID3V2_UNCHANGED:
     return WR_UNCHANGED;
 
@@ -591,9 +596,7 @@ static const char* id3_validatedate( HWND hwnd )
   // date values
   switch (cnt)
   {case 3:
-    if ( d < 1 || d > 31
-      || (d == 30 && !(((9*m)>>3)&1))
-      || (m == 2 && (d & 3) > !(y & 3)) )
+    if (d < 1 || d > 30 + (((9*m)>>3)&1) || (m == 2 && d > 29 - (y&3)))
       return "The date does not exist.\n"
              "Accepted formats are yyyy, yyyy-mm, yyyy-mm-dd and dd.mm.yyyy.";
    case 2:
@@ -765,16 +768,16 @@ id3all_page_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
         break;
        case 2: // reset
         tagv1 = NULL;
-        encv1 = tag_id3v1_charset;
+        encv1 = cfg.tag_id3v1_charset;
         tagv2 = NULL;
-        encv2 = tag_read_id3v2_charset;
+        encv2 = cfg.tag_read_id3v2_charset;
         data->modified = ~0;
         WinCheckButton(hwnd, RB_DELETE, TRUE);
         WinCheckButton(hwnd, RB_CLEAN2, TRUE);
         WinEnableControl(hwnd, RB_UPDATE, FALSE);
         WinEnableControl(hwnd, RB_UPDATE2, FALSE);
       }
-      switch (tag_read_type)
+      switch (cfg.tag_read_type)
       {case TAG_READ_ID3V2_AND_ID3V1:
         id3v2_load( hwnd, tagv2, encv2 );
        case TAG_READ_ID3V1_ONLY:
@@ -805,9 +808,6 @@ id3all_page_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
       msg = id3_validatedate( hwnd );
       if (msg)
         return MRFROMP(msg);
-      // store
-      id3v1_store( hwnd, &data->tagv1, data->modified, data->encoding_tagv1 );
-      id3v2_store( hwnd, data->tagv2,  data->modified, tag_save_id3v2_encoding );
       // store control infos
       s = SHORT1FROMMR(WinSendDlgItemMsg(hwnd, RB_UPDATE, BM_QUERYCHECKINDEX, 0, 0));
       PMASSERT(s != -1);
@@ -817,6 +817,23 @@ id3all_page_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
       data->write_tagv2 = (write_mode)s;
       data->autowrite_tagv1 = WinQueryButtonCheckstate(hwnd, CB_AUTOWRITE);
       data->autowrite_tagv2 = WinQueryButtonCheckstate(hwnd, CB_AUTOWRITE2);
+      // store data
+      if (data->write_tagv1 == WR_UPDATE)
+      { unsigned what = data->modified;
+        // if the ID3V1 tag is new always store all fields
+        if (what && !data->tagv1.IsValid())
+        { what = ~0;
+          data->tagv1.MakeValid();
+        }
+        id3v1_store( hwnd, &data->tagv1, what, data->encoding_tagv1 );
+      }
+      if (data->write_tagv2 == WR_UPDATE)
+      { unsigned what = data->modified;
+        // if the ID3V2 tag is new always store all fields
+        if (what && !data->tagv2->id3_frames_count)
+          what = ~0;
+        id3v2_store( hwnd, data->tagv2, what, cfg.tag_save_id3v2_encoding );
+      }
       return 0; // OK
     }
     case UM_AUTOMODE:
@@ -835,7 +852,8 @@ id3v1_page_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
   switch( msg )
   { case WM_INITDLG:
       id3v1_populate_genres( hwnd );
-      dlg_populate_charset_listbox( WinWindowFromID( hwnd, CO_ENCODING ),  ch_list, ch_list_size - ch_list_dbcs, 0 );
+      dlg_populate_charset_listbox( WinWindowFromID( hwnd, CO_ENCODING ),
+          ch_list, ch_list_size - ch_list_dbcs, 0 );
       break;
 
     case WM_CONTROL:
@@ -901,7 +919,7 @@ id3v1_page_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
         WinCheckButton(hwnd, RB_DELETE, TRUE);
         data->autowrite_tagv1 = FALSE;
         tagv1 = NULL;
-        encv1 = tag_id3v1_charset;
+        encv1 = cfg.tag_id3v1_charset;
         dlg_set_charset_listbox(WinWindowFromID(hwnd, CO_ENCODING), encv1);
         break;
        case 3: // copy
@@ -958,7 +976,8 @@ id3v2_page_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
 { DEBUGLOG2(("mpg123:id3v1_page_dlg_proc(%p, %d, %p, %p)\n", hwnd, msg, mp1, mp2));
   switch( msg )
   { case WM_INITDLG:
-      dlg_populate_charset_listbox( WinWindowFromID( hwnd, CO_ENCODING ), ch_list, ch_list_size - ch_list_dbcs, tag_read_id3v2_charset );
+      dlg_populate_charset_listbox( WinWindowFromID( hwnd, CO_ENCODING ),
+          ch_list, ch_list_size - ch_list_dbcs, cfg.tag_read_id3v2_charset );
       break;
 
     case WM_CONTROL:
@@ -1026,7 +1045,7 @@ id3v2_page_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
         WinCheckButton(hwnd, RB_DELETE2, TRUE);
         data->autowrite_tagv2 = FALSE;
         tagv2 = NULL;
-        encv2 = tag_read_id3v2_charset;
+        encv2 = cfg.tag_read_id3v2_charset;
         dlg_set_charset_listbox(WinWindowFromID(hwnd, CO_ENCODING), encv2);
         break;
        case 3: // copy
@@ -1058,7 +1077,7 @@ id3v2_page_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
       s = SHORT1FROMMR(WinSendDlgItemMsg(hwnd, RB_UPDATE2, BM_QUERYCHECKINDEX, 0, 0));
       PMASSERT(s != -1);
       data->write_tagv2 = (write_mode)s;
-      id3v2_store( hwnd, data->tagv2, ~0, tag_save_id3v2_encoding );
+      id3v2_store( hwnd, data->tagv2, ~0, cfg.tag_save_id3v2_encoding );
       return 0; // OK
     }
   }
@@ -1168,14 +1187,14 @@ ULONG DLLENTRY decoder_editmeta( HWND owner, const char* filename )
   { workarea.tagv1_old = &tagv1data;
     workarea.tagv1 = *workarea.tagv1_old;
     workarea.write_tagv1 = WR_UPDATE;
-    workarea.encoding_tagv1_old = tag_read_id3v1_autoch
-      ? workarea.tagv1_old->DetectCodepage(tag_id3v1_charset)
-      : tag_id3v1_charset;
+    workarea.encoding_tagv1_old = cfg.tag_read_id3v1_autoch
+      ? workarea.tagv1_old->DetectCodepage(cfg.tag_id3v1_charset)
+      : cfg.tag_id3v1_charset;
   } else
   { workarea.tagv1_old = NULL;
     workarea.tagv1.Clean();
     workarea.write_tagv1 = WR_CLEAN;
-    workarea.encoding_tagv1_old = tag_id3v1_charset;
+    workarea.encoding_tagv1_old = cfg.tag_id3v1_charset;
   }
   workarea.encoding_tagv1 = workarea.encoding_tagv1_old;
   workarea.autowrite_tagv1 = TRUE;
@@ -1204,7 +1223,7 @@ ULONG DLLENTRY decoder_editmeta( HWND owner, const char* filename )
     workarea.tagv2_old = NULL;
     workarea.write_tagv2 = WR_UNCHANGED;
   }
-  workarea.encoding_tagv2_old = tag_read_id3v2_charset;
+  workarea.encoding_tagv2_old = cfg.tag_read_id3v2_charset;
   workarea.encoding_tagv2 = workarea.encoding_tagv2_old;
   workarea.autowrite_tagv2 = TRUE;
   

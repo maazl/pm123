@@ -43,11 +43,12 @@
 #include <os2.h>
 
 #include <stdio.h>
+#include <unistd.h>
 #include <malloc.h>
 #include <process.h>
 #include <errno.h>
 #include <ctype.h>
-
+#include <fileutil.h>
 
 PLUGIN_CONTEXT Ctx = {0};
 
@@ -57,19 +58,41 @@ PLUGIN_CONTEXT Ctx = {0};
 #define save_prf_value(var) \
   Ctx.plugin_api->profile_write(#var, &var, sizeof var)
 
-read_type       tag_read_type          = TAG_READ_ID3V2_AND_ID3V1;
-ULONG           tag_id3v1_charset      = 1004; // ISO8859-1
-BOOL            tag_read_id3v1_autoch  = TRUE;
-save_id3v1_type tag_save_id3v1_type    = TAG_SAVE_ID3V1_WRITE;
-save_id3v2_type tag_save_id3v2_type    = TAG_SAVE_ID3V2_WRITE;
-ULONG           tag_read_id3v2_charset = 1004; // ISO8859-1
-uint8_t         tag_save_id3v2_encoding= ID3V2_ENCODING_UTF8;
 
+Config cfg;
 
-#define modes(i) ( i == 0 ? "Stereo"         : \
-                 ( i == 1 ? "Joint-Stereo"   : \
-                 ( i == 2 ? "Dual-Channel"   : \
-                 ( i == 3 ? "Single-Channel" : "" ))))
+const Config Config::def =
+{ TAG_READ_ID3V2_AND_ID3V1
+, 1004 // ISO8859-1
+, TRUE
+, TAG_SAVE_ID3V1_WRITE
+, TAG_SAVE_ID3V2_ONDEMANDSPC
+, 1004
+, ID3V2_ENCODING_UTF8
+, 512
+};
+
+void Config::load()
+{ reset();
+  load_prf_value( tag_read_type           );
+  load_prf_value( tag_id3v1_charset       );
+  load_prf_value( tag_read_id3v1_autoch   );
+  load_prf_value( tag_save_id3v1_type     );
+  load_prf_value( tag_save_id3v2_type     );
+  load_prf_value( tag_read_id3v2_charset  );
+  load_prf_value( tag_save_id3v2_encoding );
+}
+
+void Config::save() const
+{ save_prf_value( tag_read_type           );
+  save_prf_value( tag_id3v1_charset       );
+  save_prf_value( tag_read_id3v1_autoch   );
+  save_prf_value( tag_save_id3v1_type     );
+  save_prf_value( tag_save_id3v2_type     );
+  save_prf_value( tag_read_id3v2_charset  );
+  save_prf_value( tag_save_id3v2_encoding );
+}
+
 
 /***************************************************************************************
  *
@@ -176,6 +199,7 @@ MPG123::MPG123(const DSTRING& filename)
 : ID3(filename)
 , MPEG(NULL)
 , XSave(NULL)
+, FirstFrameLen(0)
 , LastLength(-1)
 , LastSize(-1)
 {}
@@ -200,6 +224,16 @@ inline off_t MPG123::Time2Sample(PM123_TIME time)
 { return (off_t)(floor(time * Tech.samplerate + .5));
 }
 
+static const char* const ch_modes[] = { "Stereo", "Joint-Stereo", "Dual-Channel", "Mono" };
+static inline const char* ch_mode(mpg123_mode mode)
+{ return (unsigned)mode < sizeof ch_modes / sizeof *ch_modes ? ch_modes[mode] : "?";
+}
+
+static const char vbr_modes[][4] = { "CBR", "VBR", "ABR" };
+static inline const char* vbr_mode(mpg123_vbr mode)
+{ return (unsigned)mode < sizeof vbr_modes / sizeof *vbr_modes ? vbr_modes[mode] : "";
+}
+
 int MPG123::ReadTechInfo()
 { mpg123_frameinfo info;
   int rc = mpg123_info(MPEG, &info);
@@ -208,12 +242,34 @@ int MPG123::ReadTechInfo()
   { LastError = mpg123_strerror(MPEG);
     return -1;
   }
+  int bitrate = info.bitrate * 1000;
+  if (FirstFrameLen == 0)
+    FirstFrameLen = info.framesize;
+  switch (info.vbr)
+  {case MPG123_VBR:
+    if (LastSize >= 0 && LastLength >= 0)
+    { long size = LastSize - FirstFrameLen; // Do not count info frame
+      mpg123_id3v1* tagv1;
+      mpg123_id3v2* tagv2;
+      if (mpg123_id3(MPEG, &tagv1, &tagv2) == MPG123_OK)
+      { if (tagv1 && ((ID3V1_TAG*)tagv1)->IsValid())
+          size -= sizeof(ID3V1_TAG); // Do not count ID3V1 tag size
+        if (tagv2)
+          size -= tagv2->taglen; // Do not count ID3V2 tag size
+      }
+      bitrate = (int)floor(size * 8. / LastLength * info.rate + .5);
+    }
+    break;
+   case MPG123_ABR:
+    bitrate = info.abr_rate * 1000;
+   default:;
+  }
   Tech.samplerate = info.rate;
   Tech.channels = (info.mode != MPG123_M_MONO) +1;
   Tech.attributes = TATTR_SONG|TATTR_WRITABLE|TATTR_STORABLE;
-  Tech.info.sprintf("%u kbs, %.1f kHz, %s", info.bitrate, info.rate/1000., modes(info.mode));
+  Tech.info.sprintf("%i kb/s %s, %.1f kHz, %s", bitrate/1000, vbr_mode(info.vbr), info.rate/1000., ch_mode(info.mode));
   Tech.format.sprintf("MP%u", info.layer);
-  return info.bitrate;
+  return bitrate;
 }
 
 bool MPG123::UpdateStreamLength()
@@ -222,7 +278,7 @@ bool MPG123::UpdateStreamLength()
   { LastSize = size;
     if (size > 0)
     { mpg123_set_filesize(MPEG, size);
-      PM123_TIME length = (double)mpg123_length(MPEG) / Tech.samplerate;
+      off_t length = mpg123_length(MPEG);
       if (LastLength != length)
       { LastLength = length;
         return true;
@@ -245,7 +301,11 @@ PLUGIN_RC MPG123::Open(const char* mode)
     // TODO: Map Error codes?
     return PLUGIN_ERROR;
   }
+
   RASSERT(mpg123_replace_reader_handle(MPEG, &Decoder::FRead, &Decoder::FSeek, NULL) == MPG123_OK);
+  // set some options
+  RASSERT(mpg123_param(MPEG, MPG123_ADD_FLAGS, MPG123_FUZZY|MPG123_PLAIN_ID3TEXT, 0) == MPG123_OK);
+  // now open the stream
   TrackInstance();
   if ((rc = mpg123_open_handle(MPEG, this)) != 0)
   { Close();
@@ -259,8 +319,8 @@ PLUGIN_RC MPG123::Open(const char* mode)
   { LastError.sprintf("Unable read source with mpg123:\n%s\n%s", Filename.cdata(), mpg123_strerror(MPEG));
     return PLUGIN_NO_PLAY;
   }
-  ReadTechInfo();
   UpdateStreamLength();
+  ReadTechInfo();
 
   return PLUGIN_OK;
 }
@@ -310,7 +370,7 @@ inline bool MPG123::FillTechInfo(TECH_INFO& tech, OBJ_INFO& obj)
     return false;
   }
   tech = Tech;
-  obj.songlength = LastLength;
+  obj.songlength = (double)LastLength / Tech.samplerate;
   return true;
 }
 
@@ -323,9 +383,9 @@ void static copy_id3v1_tag(META_INFO& info, const mpg123_id3v1* tag)
 { if (!tag)
     return;
 
-  ULONG codepage = tag_read_id3v1_autoch
-    ? ((ID3V1_TAG*)tag)->DetectCodepage(tag_id3v1_charset)
-    : tag_id3v1_charset;
+  ULONG codepage = cfg.tag_read_id3v1_autoch
+    ? ((ID3V1_TAG*)tag)->DetectCodepage(cfg.tag_id3v1_charset)
+    : cfg.tag_id3v1_charset;
 
   copy_id3v1_string(tag, ID3V1_TITLE,   info.title,   codepage);
   copy_id3v1_string(tag, ID3V1_ARTIST,  info.artist,  codepage);
@@ -343,7 +403,7 @@ static void copy_id3v2_string(const ID3V2_TAG* tag, ID3V2_ID id, DSTRING& result
 
   if ( !*result
       && ( frame = id3v2_get_frame( tag, id, 1 )) != NULL
-      && id3v2_get_string_ex( frame, buffer, sizeof buffer, tag_read_id3v2_charset ) )
+      && id3v2_get_string_ex( frame, buffer, sizeof buffer, cfg.tag_read_id3v2_charset ) )
     result = buffer;
 }
 
@@ -368,7 +428,7 @@ static void copy_id3v2_tag(META_INFO& info, const ID3V2_TAG* tag)
 
       // Skip iTunes specific comment tags.
       if( strnicmp( buffer, "iTun", 4 ) != 0 ) {
-        if (id3v2_get_string_ex( frame, buffer, sizeof buffer, tag_read_id3v2_charset ))
+        if (id3v2_get_string_ex( frame, buffer, sizeof buffer, cfg.tag_read_id3v2_charset ))
           info.comment = buffer;
         break;
       }
@@ -444,7 +504,7 @@ void MPG123::FillMetaInfo(META_INFO& meta)
   if (xio_get_metainfo(XFile, XIO_META_NAME, buffer, sizeof buffer))
     meta.comment = buffer;
 
-  if (tag_read_type == TAG_READ_NONE)
+  if (cfg.tag_read_type == TAG_READ_NONE)
     return;
 
   mpg123_id3v1* tagv1;
@@ -452,7 +512,7 @@ void MPG123::FillMetaInfo(META_INFO& meta)
   if (mpg123_id3(MPEG, &tagv1, &tagv2) != MPG123_OK)
     return;
 
-  switch (tag_read_type)
+  switch (cfg.tag_read_type)
   { case TAG_READ_ID3V2_AND_ID3V1:
       copy_id3v2_tag(meta, tagv2);
       copy_id3v1_tag(meta, tagv1);
@@ -496,14 +556,16 @@ DSTRING MPG123::ReplaceFile(const char* srcfile, const char* dstfile)
   }
 
   // Replace file.
-  if (remove(dstfile) == 0)
+  srcfile = surl2file(srcfile);
+  dstfile = surl2file(dstfile);
+  if (unlink(dstfile) == 0)
   { DEBUGLOG(("mpg123:Decoder::ReplaceFile: deleted %s, replacing by %s\n", dstfile, srcfile));
     if (rename(srcfile, dstfile) != 0)
       errmsg = "Critical error! Failed to rename temporary file.";
   } else
   { errmsg = "Failed to delete old file.";
-    DEBUGLOG(("mpg123:Decoder::ReplaceFile: failed to delete %s (rc = %), rollback %s\n", dstfile, errno, srcfile));
-    remove(srcfile);
+    DEBUGLOG(("mpg123:Decoder::ReplaceFile: failed to delete %s (rc = %i), rollback %s\n", dstfile, errno, srcfile));
+    unlink(srcfile);
   }
 
   // Resume all suspended instances of the updated file.
@@ -607,6 +669,7 @@ void Decoder::ThreadFunc()
   size_t done;
   int rc = mpg123_read(MPEG, (unsigned char*)buffer, count * sizeof(*buffer) * Tech.channels, &done);
   DEBUGLOG(("mpg123:Decoder::ThreadFunc mpg123_read -> %i, %u\n", rc, done));
+  bool upd_len = UpdateStreamLength(); // Update stream length before ReadTechInfo
   switch (rc)
   {case MPG123_DONE:
     if (done)
@@ -629,7 +692,7 @@ void Decoder::ThreadFunc()
      (*OutCommitBuffer)(OutParam, done / sizeof(*buffer) / Tech.channels, pos);
   }
   // Update stream length?
-  if (UpdateStreamLength())
+  if (upd_len)
   { OBJ_INFO obj = OBJ_INFO_INIT;
     obj.songlength = StreamLength();
     mpg123_frameinfo info;
@@ -891,7 +954,7 @@ replace_id3v2_string( ID3V2_TAG* tag, ID3V2_ID id, const char* string )
   } else
   { if( frame == NULL )
       frame = id3v2_add_frame( tag, id );
-    id3v2_set_string( frame, string, tag_save_id3v2_encoding );
+    id3v2_set_string( frame, string, cfg.tag_save_id3v2_encoding );
   }
 }
 
@@ -913,7 +976,7 @@ ULONG DLLENTRY decoder_saveinfo(const char* url, const META_INFO* info, int have
   { *errortext = id3file.GetLastError();
     return ret;
   }
-  
+
   // read tags
   ID3V2_TAG* tagv2;
   ID3V1_TAG tagv1data = ID3V1_TAG::CleanTag;
@@ -928,37 +991,37 @@ ULONG DLLENTRY decoder_saveinfo(const char* url, const META_INFO* info, int have
   // Apply changes to the tags. Note that they are not necessarily written.
   if (haveinfo & DECODER_HAVE_TITLE)
   { replace_id3v2_string( tagv2, ID3V2_TIT2, info->title);
-    tagv1data.SetField(ID3V1_TITLE, info->title, tag_id3v1_charset);
+    tagv1data.SetField(ID3V1_TITLE, info->title, cfg.tag_id3v1_charset);
   }
   if (haveinfo & DECODER_HAVE_ARTIST)
   { replace_id3v2_string( tagv2, ID3V2_TPE1, info->artist);
-    tagv1data.SetField(ID3V1_ARTIST, info->artist, tag_id3v1_charset);
+    tagv1data.SetField(ID3V1_ARTIST, info->artist, cfg.tag_id3v1_charset);
   }
   if (haveinfo & DECODER_HAVE_ALBUM)
   { replace_id3v2_string( tagv2, ID3V2_TALB, info->album);
-    tagv1data.SetField(ID3V1_ALBUM, info->album, tag_id3v1_charset);
+    tagv1data.SetField(ID3V1_ALBUM, info->album, cfg.tag_id3v1_charset);
   }
   if (haveinfo & DECODER_HAVE_YEAR)
   { replace_id3v2_string( tagv2, ID3V2_TDRC, info->year);
-    tagv1data.SetField(ID3V1_YEAR, info->year, tag_id3v1_charset);
+    tagv1data.SetField(ID3V1_YEAR, info->year, cfg.tag_id3v1_charset);
   }
   if (haveinfo & DECODER_HAVE_GENRE)
   { replace_id3v2_string( tagv2, ID3V2_TCON, info->genre);
-    tagv1data.SetField(ID3V1_GENRE, info->genre, tag_id3v1_charset);
+    tagv1data.SetField(ID3V1_GENRE, info->genre, cfg.tag_id3v1_charset);
   }
   if (haveinfo & DECODER_HAVE_COPYRIGHT)
   { replace_id3v2_string( tagv2, ID3V2_TCOP, info->copyright);
   }
   if (haveinfo & DECODER_HAVE_TRACK)
   { replace_id3v2_string( tagv2, ID3V2_TRCK, info->track);
-    tagv1data.SetField(ID3V1_TRACK, info->track, tag_id3v1_charset);
+    tagv1data.SetField(ID3V1_TRACK, info->track, cfg.tag_id3v1_charset);
   }
   // FIX ME: Replay gain info also must be saved.
 
   // Determine save mode
   META_INFO new_tag_info;
   size_t i;
-  switch (tag_save_id3v2_type)
+  switch (cfg.tag_save_id3v2_type)
   { case TAG_SAVE_ID3V2_ONDEMANDSPC:
       copy_id3v2_tag(new_tag_info, tagv2);
       if ( ascii_check(new_tag_info.title  )
@@ -1009,10 +1072,10 @@ ULONG DLLENTRY decoder_saveinfo(const char* url, const META_INFO* info, int have
   }
 
   ID3V1_TAG* tagv1;
-  switch (tag_save_id3v1_type)
+  switch (cfg.tag_save_id3v1_type)
   { case TAG_SAVE_ID3V1_NOID3V2:
       if (have_tagv2)
-        goto del; 
+        goto del;
     case TAG_SAVE_ID3V1_WRITE:
       if (!tagv1data.IsClean())
       { tagv1 = &tagv1data;
@@ -1025,7 +1088,7 @@ ULONG DLLENTRY decoder_saveinfo(const char* url, const META_INFO* info, int have
         break;
       }
     default: // case TAG_SAVE_ID3V1_UNCHANGED:
-      tagv1 = NULL;    
+      tagv1 = NULL;
   }
 
   // Now start the transaction.
@@ -1054,36 +1117,6 @@ ULONG DLLENTRY decoder_support(const DECODER_FILETYPE** types, int* count)
   return DECODER_FILENAME|DECODER_URL|DECODER_SONG|DECODER_METAINFO;
 }
 
-void save_ini( void )
-{
-  save_prf_value( tag_read_type           );
-  save_prf_value( tag_id3v1_charset       );
-  save_prf_value( tag_read_id3v1_autoch   );
-  save_prf_value( tag_save_id3v1_type     );
-  save_prf_value( tag_save_id3v2_type     );
-  save_prf_value( tag_read_id3v2_charset  );
-  save_prf_value( tag_save_id3v2_encoding );
-}
-
-static void load_ini( void )
-{
-  tag_read_type          = TAG_READ_ID3V2_AND_ID3V1;
-  tag_id3v1_charset      = 1004;  // ISO8859-1
-  tag_read_id3v1_autoch  = TRUE;
-  tag_save_id3v1_type    = TAG_SAVE_ID3V1_WRITE;
-  tag_save_id3v2_type    = TAG_SAVE_ID3V2_WRITE;
-  tag_read_id3v2_charset = 1004;  // ISO8859-1
-  tag_save_id3v2_encoding= ID3V2_ENCODING_UTF8;
-
-  load_prf_value( tag_read_type           );
-  load_prf_value( tag_id3v1_charset       );
-  load_prf_value( tag_read_id3v1_autoch   );
-  load_prf_value( tag_save_id3v1_type     );
-  load_prf_value( tag_save_id3v2_type     );
-  load_prf_value( tag_read_id3v2_charset  );
-  load_prf_value( tag_save_id3v2_encoding );
-}
-
 /* Returns information about plug-in. */
 int DLLENTRY plugin_query( PLUGIN_QUERYPARAM* param )
 { param->type         = PLUGIN_DECODER;
@@ -1098,7 +1131,7 @@ int DLLENTRY plugin_query( PLUGIN_QUERYPARAM* param )
 int DLLENTRY plugin_init( const PLUGIN_CONTEXT* ctx )
 { Ctx = *ctx;
   dialog_init();
-  load_ini();
+  cfg.load();
   mpg123_init();
   return PLUGIN_OK;
 }

@@ -66,15 +66,18 @@ struct ID3V1_TAG
  public:
   static const ID3V1_TAG CleanTag;
 
+  /// Check for semantic equality (does not check validity)
+  bool Equals(const ID3V1_TAG& r) const;
+
   /// Cleanups of a ID3v1 tag structure. Results in an invalid tag.
   void Clean()                  { *this = CleanTag; }
   /// Check whether TAG is clean
-  bool IsClean() const          { return memcmp(title, CleanTag.title, sizeof *this - offsetof(ID3V1_TAG, title)) == 0; }
+  bool IsClean() const          { return Equals(CleanTag); }
 
   /// Ensure that the tag has a valid signature
   void MakeValid()              { memcpy(id, "TAG", 3); }
   /// Check whether the tag has a valid signature
-  bool IsValid() const          { return memcmp( id, "TAG", 3 ) == 0; }
+  bool IsValid() const          { return memcmp(id, "TAG", 3) == 0; }
 
   /// Places a specified field of the given tag in result.
   /// @param charset Source charset of the tag.

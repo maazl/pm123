@@ -48,20 +48,49 @@
 
 
 /* Fetch string from tag. */
-static void safecopy( char* target, const char* source, int size )
-{ while (size && source[size-1] == ' ')
+static void safecopy(char* target, const char* source, size_t size)
+{ size = strnlen(source, size);
+  while (size && source[size-1] == ' ')
     --size;
   memcpy(target, source, size);
-  target[ size ] = 0;
+  target[size] = 0;
 }
 
 /* Store string to tag. */
-static void spacecopy( char* target, const char* source, int size )
-{ memset ( target, 0, size );
-  strncpy( target, source, size );
+static void spacecopy(char* target, const char* source, size_t size)
+{ memset (target, 0, size);
+  strncpy(target, source, size);
 }
 
+static bool spaceequals(const char* s1, const char* s2, size_t size)
+{ // skip equal part
+  while (size && *s1 == *s2)
+  { ++s1;
+    ++s2;
+    --size;
+  }
+  return memcmp(s1, &ID3V1_TAG::CleanTag, strnlen(s1, size)) == 0
+      && memcmp(s2, &ID3V1_TAG::CleanTag, strnlen(s2, size)) == 0;
+}
+
+
 const ID3V1_TAG ID3V1_TAG::CleanTag = *(ID3V1_TAG*)"                                                                                                                             \0\0\xff";
+
+bool ID3V1_TAG::Equals(const ID3V1_TAG& r) const
+{ if ( genre != r.genre
+  || !spaceequals(title, r.title, sizeof title)
+  || !spaceequals(artist, r.artist, sizeof artist)
+  || !spaceequals(album, r.album, sizeof album)
+  || !spaceequals(year, r.year, sizeof year) )
+    return false;
+  if (empty == 0 && track)
+  { if (r.empty == 0 && r.track)
+      return track == r.track && spaceequals(comment, r.comment, sizeof comment);
+  } else
+    if (r.empty != 0 || !r.track)
+      return spaceequals(comment, r.comment, 30);
+  return false; // different ID3V1 version
+}
 
 /* Returns a specified field of the given tag. */
 bool ID3V1_TAG::GetField(ID3V1_TAG_COMP type, DSTRING& result, int charset) const
