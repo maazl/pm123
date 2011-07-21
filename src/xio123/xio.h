@@ -284,16 +284,16 @@ xio_http_proxy_addr( void );
 
 /** Sets the name of the proxy server. */
 void DLLENTRY
-xio_set_http_proxy_host( char* hostname );
+xio_set_http_proxy_host( const char* hostname );
 /** Sets the port number of the proxy server. */
 void DLLENTRY
 xio_set_http_proxy_port( int port );
 /** Sets the user name of the proxy server. */
 void DLLENTRY
-xio_set_http_proxy_user( char* username );
+xio_set_http_proxy_user( const char* username );
 /** Sets the user password of the proxy server. */
 void DLLENTRY
-xio_set_http_proxy_pass( char* password );
+xio_set_http_proxy_pass( const char* password );
 
 /** Returns the TCP/IP connection timeout. */
 int DLLENTRY
