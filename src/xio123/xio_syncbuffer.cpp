@@ -205,15 +205,15 @@ long XIOsyncbuffer::do_seek( long offset, long* offset64 )
       data_size = 0;
       data_read = 0;
       // Reset error flags
-      error = false;
-      eof   = false;
+      error = 0;
+      eof   = chain->eof;
     } else
     { error = chain->error;
       return -1L;
     }
   }
 
-  return read_pos = offset; // implicitely atomic
+  return read_pos = offset; // implicitly atomic
 }
 
 /* Lengthens or cuts off the file to the length specified by size.

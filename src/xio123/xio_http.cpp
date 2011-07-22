@@ -296,7 +296,7 @@ int XIOhttp::read_file( const char* filename, unsigned long range )
         rc == HTTP_MOVED_TEMP ||
         rc == HTTP_SEE_OTHER  )
     {
-      continue;
+      continue; // Redirect
     }
 
     if( rc == HTTP_OK     ||
@@ -323,8 +323,8 @@ int XIOhttp::read_file( const char* filename, unsigned long range )
       strcpy( s_name,  r_name );
       strcpy( s_title, r_title);
 
-    } else {
-      s_socket.close();
+    } else
+    { s_socket.close();
     }
     break;
   }
@@ -334,9 +334,13 @@ int XIOhttp::read_file( const char* filename, unsigned long range )
 
   if( rc == HTTP_OK     ||
       rc == HTTP_PARTIAL )
-  {
-    error = 0;
+  { error = 0;
     eof = false;
+    return 0;
+  }
+  else if (rc == HTTP_BAD_RANGE)
+  { error = 0;
+    eof = true;
     return 0;
   }
 
@@ -525,10 +529,9 @@ long XIOhttp::seek( long offset, int origin, long* offset64 )
         return -1;
     }
 
-    if( (s_size < 0 || range <= s_size) &&
-        s_location &&
-        close() == 0 )
+    if( (s_size < 0 || range <= s_size) && s_location )
     {
+      s_socket.close();
       // TODO: 64 bit
       if (offset64)
         *offset64 = 0;
