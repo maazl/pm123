@@ -126,6 +126,12 @@
  say 'finished; elapsed time = 'elapsed%3600':'elapsed%60':'trunc(elapsed//60,1);
  DateTime = Date(n)', 'Time(c);
  call logError '--- ['DateTime'] conversion finished';
+
+ DO i = 1 TO Global.LinkID
+   IF \Global.LinkID.i.Resolved THEN
+     SAY 'Unresolved internal link:' Global.LinkID.i
+   END;
+
 exit;
 
 AnalyseOptions:
@@ -297,6 +303,7 @@ ParseFile:
  procedure expose Global.;
  parse arg fName, DeepLevel;
  call SetColor Cyan;
+ say
  call charout ,'Parsing 'fName' ...';
 
  Global.CurrentDir = '';
@@ -320,7 +327,7 @@ ParseFile:
  Global.Article.line.0 = 0;                      /* count of lines in Article */
  Global.Article.Hidden = 0;  /* Is current article hidden from book contents? */
  Global.Article.ResId  = 0;                    /* Article resource identifier */
- Global.Article.Level = 0;        /* Overide automatic detection of deeplevel */ 
+ Global.Article.Level = 0;        /* Overide automatic detection of deeplevel */
  Global.OpenTag.0 = 0;  /* keep track of open tags to close at end of chapter */
  Global.RefEndTag = '';       /* end tag to put at next end-of-reference <\a> */
  Global.IsTable = 0;               /* We`re inside a <TABLE>...</TABLE> pair? */
@@ -448,7 +455,7 @@ ResolveLinks:
    Links.j = Global.LinkID.id.RealName;
    Global.LinkID.id.Resolved = 1;
   end;
-  
+
  drop Global.PageLinks.;
  drop Global.SubLinks.;
  drop Global.NoSubLinks.;
@@ -476,7 +483,7 @@ SortLinks:
   do while Links.Right > MidVar;
    Right = Right - 1;
   end;
- 
+
   if Left <= Right
    then do
          tmp = Links.Left;
@@ -548,7 +555,7 @@ ParseContents:
   Token = GetToken();
   if left(Token, 1) = d2c(0)
    then do
-         Token = strip(substr(Token, 2));
+         Token = translate(strip(substr(Token, 2)),,'0A'x);
       /* assume everything starting with <! is not important */
          if left(Token, 1) = '!'
           then iterate;
@@ -645,14 +652,13 @@ ParseContents:
          when TextHandler = 'EMPTY'	then call doTextEMPTY;
          when TextHandler = 'HEAD'	then call doTextHEAD;
          when TextHandler = 'BODY'	then call doTextBODY;
-	end;
+        end;
  end;
 return;
 
 ParseTag:
  procedure expose Global.;
- parse arg Tag;
- parse var Tag Prefix Tag
+ parse arg Prefix Tag
  Prefix = translate(Prefix);
  do while length(Tag) > 0
   parse value translate(Tag, ' ', Global.EOL) with subTag '=' Tag;
@@ -671,20 +677,20 @@ ParseTag:
          end;
    when Prefix = 'IMG'
     then select
-	  when subTag = 'SRC'		then call doTagIMG_SRC;
-	  when subTag = 'ALT'		then call doTagIMG_ALT;
-	  when subTag = 'ALIGN'		then call doTagIMG_ALIGN;
-	  when subTag = 'WIDTH'		then call doTagIMG_WIDTH;
-	  when subTag = 'HEIGHT'	then call doTagIMG_HEIGHT;
+          when subTag = 'SRC'		then call doTagIMG_SRC;
+          when subTag = 'ALT'		then call doTagIMG_ALT;
+          when subTag = 'ALIGN'		then call doTagIMG_ALIGN;
+          when subTag = 'WIDTH'		then call doTagIMG_WIDTH;
+          when subTag = 'HEIGHT'	then call doTagIMG_HEIGHT;
           otherwise call logError 'Unexpected subTag 'subTag'="'subTagValue'"';
          end;
    when Prefix = 'HTML'
     then select
-	  when subTag = 'HIDDEN'     then call doTagHTML_HIDDEN;
-	  when subTag = 'SUBLINKS'   then call doTagHTML_SUBLINKS;
-	  when subTag = 'NOSUBLINKS' then call doTagHTML_NOSUBLINKS;
-	  when subTag = 'RESID'      then call doTagHTML_RESID;
-	  when subTag = 'LEVEL'      then call doTagHTML_LEVEL;
+          when subTag = 'HIDDEN'     then call doTagHTML_HIDDEN;
+          when subTag = 'SUBLINKS'   then call doTagHTML_SUBLINKS;
+          when subTag = 'NOSUBLINKS' then call doTagHTML_NOSUBLINKS;
+          when subTag = 'RESID'      then call doTagHTML_RESID;
+          when subTag = 'LEVEL'      then call doTagHTML_LEVEL;
           otherwise call logError 'Unexpected subTag 'subTag'="'subTagValue'"';
          end;
   end;
@@ -711,7 +717,7 @@ doTagHTML_LEVEL:
  Global.Article.Level = SubTagValue;
 return 0;
 
-doTagHTML_SUBLINKS:
+doTagHTML_SUBLINKS: PROCEDURE EXPOSE Global. SubTagValue
  Global.SubLinks = Global.SubLinks + 1;
  i = Global.SubLinks;
  Global.SubLinks.i = translate(SubTagValue);
@@ -964,7 +970,7 @@ return 0;
 doTag!DL:
  if Global.IsTable
   then return 0;
- if \Global.DLDescDefined 
+ if \Global.DLDescDefined
   then call doTagDD;
  call doCloseTag ':edl.';
 return 0;
@@ -1006,6 +1012,7 @@ return 0;
 doTagA_HREF:
  /* create link */
  i = GetLinkID(subTagValue);
+ /*SAY "Link:" subtagvalue "->" i*/
  if i > 0
   then do
         call PutToken ':link reftype=hd refid='i'.';
@@ -1339,7 +1346,7 @@ doOpenP:
     call PutToken '.br';
     call NewLine;
     end;
-   else 
+   else
     call PutToken ':p.';
    Global.HasText = 0;
    Global.Paragraph = 'Inc';
@@ -1414,7 +1421,7 @@ return PictName||'*'||tmp;
 FindFile:
  procedure expose Global.;
  fName = ARG(1);
- 
+
  /* Skips full qualified URLs. */
  if pos( "://", fName ) > 0 then
     return fName;
@@ -1500,9 +1507,9 @@ PutToken:
  else do
     i = Global.Article.line.0;
     if length(Global.Article.line.i) + length(Output) > Global.maxLineLength
-      then do; 
-        call PutToken Global.EOL; 
-        i = Global.Article.line.0; 
+      then do;
+        call PutToken Global.EOL;
+        i = Global.Article.line.0;
       end;
     Global.Article.line.i = Global.Article.line.i||Output;
     Global.NewLine = 0;
@@ -1533,7 +1540,7 @@ PutText:
         else Output = left(Output, curpos)||substr(Output, endpos)
     end;
  end
-  
+
  do while length(Output) > 0
 
   EOLpos = pos(Global.EOL, Output);
@@ -1578,7 +1585,7 @@ PutText:
                   curpos = curpos + 1; tmpS = substr(tmpS, 2);
                  end;
                 end;
-          Output = left(Output, tabpos - 1)||copies(' ', 
+          Output = left(Output, tabpos - 1)||copies(' ',
            ,8 - (curpos + tabpos - 1)//8)||substr(Output, tabpos + 1);
          end;
         /* SubDivide Output string if it is too long */
@@ -1887,7 +1894,7 @@ NoQuotes:
   text = left(text, cPos - 1)||cvttext||Token||substr(text, qPos+1);
   cPos = cPos + length(cvttext) + length(Token);
  end;
- 
+
 return left(text, cPos - 1)||IPFstring(substr(text, cPos));
 
 replace:
@@ -1903,5 +1910,5 @@ replace:
 
      i = pos( string, translate(source), i + length(substitute))
   end
-     
+
 return source;
