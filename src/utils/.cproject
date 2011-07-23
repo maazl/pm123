@@ -32,6 +32,9 @@
 									<listOptionValue builtIn="false" value="INCL_DOS=1"/>
 									<listOptionValue builtIn="false" value="DEBUG=1"/>
 									<listOptionValue builtIn="false" value="_System"/>
+									<listOptionValue builtIn="false" value="__BEGIN_NAMESPACE_STD"/>
+									<listOptionValue builtIn="false" value="__END_NAMESPACE_STD"/>
+									<listOptionValue builtIn="false" value="__USING_NAMESPACE_STD(x)"/>
 									<listOptionValue builtIn="false" value="strnicmp=strncmp"/>
 									<listOptionValue builtIn="false" value="stricmp=strcmp"/>
 									<listOptionValue builtIn="false" value="INCL_ERRORS=1"/>
@@ -45,6 +48,9 @@
 							<tool id="cdt.managedbuild.tool.gnu.c.linker.base.1880649598" name="GCC C Linker" superClass="cdt.managedbuild.tool.gnu.c.linker.base"/>
 							<tool id="cdt.managedbuild.tool.gnu.cpp.compiler.base.1135654393" name="GCC C++ Compiler" superClass="cdt.managedbuild.tool.gnu.cpp.compiler.base">
 								<option id="gnu.cpp.compiler.option.preprocessor.def.992320787" name="Defined symbols (-D)" superClass="gnu.cpp.compiler.option.preprocessor.def" valueType="definedSymbols">
+									<listOptionValue builtIn="false" value="__BEGIN_NAMESPACE_STD"/>
+									<listOptionValue builtIn="false" value="__END_NAMESPACE_STD"/>
+									<listOptionValue builtIn="false" value="__USING_NAMESPACE_STD(x)"/>
 									<listOptionValue builtIn="false" value="INCL_WIN=1"/>
 									<listOptionValue builtIn="false" value="INCL_DOS=1"/>
 									<listOptionValue builtIn="false" value="DEBUG=1"/>

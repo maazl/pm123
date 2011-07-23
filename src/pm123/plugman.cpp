@@ -1,9 +1,9 @@
 /*
+ * Copyright 2006-2011 Marcel Mueller
+ * Copyright 2004-2006 Dmitry A.Steklenev <glass@ptv.ru>
  * Copyright 1997-2003 Samuel Audet  <guardia@step.polymtl.ca>
  *                     Taneli Lepp�  <rosmo@sektori.com>
  *
- * Copyright 2004-2006 Dmitry A.Steklenev <glass@ptv.ru>
- * Copyright 2006-2009 Marcel Mueller
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -38,7 +38,7 @@
 #include "dstring.h"
 #include "pm123.h" // for startpath
 #include "dialog.h"
-#include "properties.h"
+#include "configuration.h"
 #include "pm123.rc.h"
 #include "pipe.h"
 #include <utilfct.h>
@@ -73,13 +73,15 @@
 
 PluginList1 Decoders(PLUGIN_DECODER, // only decoders
   "oggplay.dll?enabled=true&filetypes=OGG\n"
-  "mpg123.dll?enabled=true&filetypes=MP2;MP3\n"
+  "mpg123.dll?enabled=true&filetypes=MP1;MP2;MP3\n"
   "wavplay.dll?enabled=true&filetypes=Digital Audio\n"
+  "plist123.dll?enabled=true&filetypes=Playlist\n"
   "cddaplay.dll?enabled=true\n"
   "os2rec.dll?enabled=true\n");
 PluginList1 Outputs(PLUGIN_OUTPUT,   // only outputs
   "os2audio.dll?enabled=true\n"
   "wavout.dll?enabled=true\n"
+  "pulse123.dll?enabled=true\n"
   "os2audio.dll"); // active output
 PluginList  Filters(PLUGIN_FILTER,   // only filters
   "realeq.dll?enabled=true\n"
@@ -147,6 +149,7 @@ Module::Module(const xstring& key, const xstring& name)
 , ModuleName(name)
 , HModule(NULLHANDLE)
 , plugin_configure(NULL)
+, plugin_option(NULL)
 { DEBUGLOG(("Module(%p)::Module(%s)\n", this, name.cdata()));
   memset(&QueryParam, 0, sizeof QueryParam);
 }
@@ -245,14 +248,14 @@ proxy_exec_command(ModuleImp* mp, const char* cmd)
 PROXYFUNCIMP(int DLLENTRY, ModuleImp)
 proxy_query_profile(ModuleImp* mp, const char* key, void* data, int maxlength)
 { ULONG len = maxlength;
-  return PrfQueryProfileData(amp_hini, mp->Key, key, data, &len)
-      && PrfQueryProfileSize(amp_hini, mp->Key, key, &len)
+  return PrfQueryProfileData(Cfg::GetHIni(), mp->Key, key, data, &len)
+      && PrfQueryProfileSize(Cfg::GetHIni(), mp->Key, key, &len)
     ? (int)len : -1;
 }
 
 PROXYFUNCIMP(int DLLENTRY, ModuleImp)
 proxy_write_profile(ModuleImp* mp, const char* key, const void* data, int length)
-{ return PrfWriteProfileData(amp_hini, mp->Key, key, (PVOID)data, length);
+{ return PrfWriteProfileData(Cfg::GetHIni(), mp->Key, key, (PVOID)data, length);
 }
 
 
@@ -302,6 +305,7 @@ bool Module::Load()
     }
   }
 
+  LoadOptionalFunction(&plugin_option, "plugin_option");
   return !QueryParam.configurable || LoadFunction(&plugin_configure, "plugin_configure");
 }
 

@@ -34,6 +34,7 @@
 #include "dialog.h"
 #include "filedlg.h"
 #include "properties.h"
+#include "configuration.h"
 #include "pm123.h"
 #include "pm123.rc.h"
 #include "123_util.h"
@@ -51,6 +52,7 @@
 #include "copyright.h"
 
 #include <utilfct.h>
+#include <fileutil.h>
 #include <cpp/pmutils.h>
 #include <cpp/showaccel.h>
 
@@ -96,6 +98,7 @@ delegate<const void, const Plugin::EventArgs>  GUI::PluginDeleg    (&GUI::Plugin
 delegate<const void, const Ctrl::EventFlags>   GUI::ControllerDeleg(&GUI::ControllerNotification, NULL);
 delegate<const void, const PlayableChangeArgs> GUI::RootDeleg      (&GUI::PlayableNotification,   NULL);
 delegate<const void, const PlayableChangeArgs> GUI::CurrentDeleg   (&GUI::PlayableNotification,   NULL);
+delegate<const void, const CfgChangeArgs>      GUI::ConfigDeleg    (&GUI::ConfigNotification,     NULL);
 
 
 class PostMsgWorker : public DependencyInfoWorker
@@ -144,7 +147,7 @@ MRESULT GUI::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
       WinPostMsg(HPlayer, WMP_RELOADSKIN, 0, 0);
 
       HAB hab = amp_player_hab;
-      if (cfg.floatontop)
+      if (Cfg::Get().floatontop)
         WinStartTimer(hab, HPlayer, TID_ONTOP, 100 );
 
       WinStartTimer(hab, HPlayer, TID_UPDATE_TIMERS, 90);
@@ -195,7 +198,7 @@ MRESULT GUI::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
       switch (type)
       { case DLT_INFOEDIT:
         { // TODO: ensure Decoder availability
-          ULONG rc = dec_editmeta(HFrame, pp->URL, xstring(pp->GetInfo().tech->decoder));
+          ULONG rc = dec_editmeta(HFrame, pp->URL, DSTRING(pp->GetInfo().tech->decoder));
           DEBUGLOG(("GUI::DlgProc: WMP_SHOW_DIALOG rc = %u\n", rc));
           switch (rc)
           { default:
@@ -234,25 +237,23 @@ MRESULT GUI::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
    case WMP_DISPLAY_MESSAGE:
     { xstring text;
       text.fromCstr((const char*)mp1); 
-      if( mp2 ) {
+      if (mp2)
         amp_error(HPlayer, "%s", text.cdata() );
-      } else {
+      else
         amp_info (HPlayer, "%s", text.cdata() );
-      }
       return 0;
     }
    case WMP_DISPLAY_MODE:
-      if (cfg.viewmode == CFG_DISP_FILEINFO) {
+    { Cfg::ChangeAccess cfg;
+      if (cfg.viewmode == CFG_DISP_FILEINFO)
         cfg.viewmode = CFG_DISP_FILENAME;
-      } else {
-        cfg.viewmode++;
-      }
-      Invalidate(UPD_TEXT, true);
+      else
+        cfg.viewmode = (cfg_disp)(cfg.viewmode+1);
       return 0;
-
+    }
    case WMP_RELOADSKIN:
     { PresentationSpace hps(HPlayer);
-      bmp_load_skin(cfg.defskin, HPlayer, hps);
+      bmp_load_skin(xstring(Cfg::Get().defskin), HPlayer, hps);
       Invalidate(UPD_WINDOW, true);
       return 0;
     }
@@ -264,7 +265,7 @@ MRESULT GUI::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
       {case Ctrl::Cmd_Load:
         // Successful? if not display error.
         if (cmd->Flags != Ctrl::RC_OK)
-          amp_player_error("Error loading %s\n%s", cmd->StrArg.cdata(), xstring(Playable::GetByURL(cmd->StrArg)->GetInfo().tech->info).cdata());
+          amp_player_error("Error loading %s\n%s", cmd->StrArg.cdata(), DSTRING(Playable::GetByURL(cmd->StrArg)->GetInfo().tech->info).cdata());
         break;
        case Ctrl::Cmd_Skip:
         WinSendDlgItemMsg(HPlayer, BMP_PREV, WM_DEPRESS, 0, 0);
@@ -309,7 +310,7 @@ MRESULT GUI::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
           // Redraws
           UpdateFlags upd = UpdAtLocMsg;
           UpdAtLocMsg = UPD_NONE;
-          if (cfg.mode == CFG_MODE_REGULAR)
+          if (Cfg::Get().mode == CFG_MODE_REGULAR)
               upd |= UPD_TIMERS;
           Invalidate(upd, true);
           break;
@@ -416,16 +417,17 @@ MRESULT GUI::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
         if (changed & IF_Obj)
           upd |= UPD_TIMERS|UPD_RATE;
         if (changed & IF_Tech)
-          upd |= cfg.viewmode == CFG_DISP_FILEINFO ? UPD_CHANNELS|UPD_TEXT : UPD_CHANNELS;
-        if (changed & IF_Meta && cfg.viewmode == CFG_DISP_ID3TAG)
+          upd |= Cfg::Get().viewmode == CFG_DISP_FILEINFO ? UPD_CHANNELS|UPD_TEXT : UPD_CHANNELS;
+        if (changed & IF_Meta && Cfg::Get().viewmode == CFG_DISP_ID3TAG)
           upd |= UPD_TEXT;
       }
 
-      switch (cfg.mode)
+      switch (Cfg::Get().mode)
       {case	CFG_MODE_TINY:
         return 0; // No updates in tiny mode
        case CFG_MODE_SMALL:
         upd &= UPD_TEXT; // reduced update in small mode
+       default:;
       }
       Invalidate(upd, true);
     }
@@ -551,13 +553,14 @@ MRESULT GUI::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
     { USHORT cmd = SHORT1FROMMP(mp1);
       DEBUGLOG(("GUI::DlgProc: WM_COMMAND(%u, %u, %u)\n", cmd, SHORT1FROMMP(mp2), SHORT2FROMMP(mp2)));
       if (cmd > IDM_M_PLUG && cmd <= IDM_M_PLUG_E)
-      { plugin_configure(HPlayer, cmd - IDM_M_PLUG+1);
+      { // TODO: wrong plug-in number
+        plugin_configure(HPlayer, cmd - IDM_M_PLUG+1);
         return 0;
       }
       if ( cmd >= IDM_M_LOADFILE && cmd < IDM_M_LOADFILE + sizeof LoadWizards / sizeof *LoadWizards
         && LoadWizards[cmd-IDM_M_LOADFILE] )
       { // TODO: create temporary playlist
-        LoadHelper lh(cfg.playonload*LoadHelper::LoadPlay | LoadHelper::LoadRecall);
+        LoadHelper lh(Cfg::Get().playonload*LoadHelper::LoadPlay | LoadHelper::LoadRecall);
         if ((*LoadWizards[cmd-IDM_M_LOADFILE])(HPlayer, "Load%s", &GUI_LoadFileCallback, &lh) == 0)
           Ctrl::PostCommand(lh.ToCommand(), &GUI::ControllerEventCB);
         return 0;
@@ -685,38 +688,21 @@ MRESULT GUI::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
         }
 
         case IDM_M_FLOAT:
+        { Cfg::ChangeAccess cfg;
           cfg.floatontop = !cfg.floatontop;
-          if (!cfg.floatontop)
-            WinStopTimer(amp_player_hab, HPlayer, TID_ONTOP );
-          else
-            WinStartTimer(amp_player_hab, HPlayer, TID_ONTOP, 100);
           break;
-
+        }
         case IDM_M_FONT1:
-          cfg.font = 0;
-          cfg.font_skinned = true;
-          Invalidate(UPD_TEXT, false);
-          break;
-
         case IDM_M_FONT2:
-          cfg.font = 1;
+        { Cfg::ChangeAccess cfg;
+          cfg.font = cmd - IDM_M_FONT1;
           cfg.font_skinned = true;
-          Invalidate(UPD_TEXT, false);
           break;
-
-        case IDM_M_TINY:
-          cfg.mode = CFG_MODE_TINY;
-          bmp_reflow_and_resize(HFrame);
-          break;
-
+        }
         case IDM_M_NORMAL:
-          cfg.mode = CFG_MODE_REGULAR;
-          bmp_reflow_and_resize(HFrame);
-          break;
-
         case IDM_M_SMALL:
-          cfg.mode = CFG_MODE_SMALL;
-          bmp_reflow_and_resize(HFrame);
+        case IDM_M_TINY:
+          Cfg::ChangeAccess().mode = (cfg_mode)(cmd - IDM_M_NORMAL);
           break;
 
         case IDM_M_MINIMIZE:
@@ -725,8 +711,7 @@ MRESULT GUI::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
           break;
 
         case IDM_M_SKINLOAD:
-          if (amp_loadskin());
-            WinPostMsg(HFrame, WMP_RELOADSKIN, 0, 0);
+          amp_loadskin();
           break;
 
         case IDM_M_CFG:
@@ -814,7 +799,7 @@ MRESULT GUI::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
    case PlaylistMenu::UM_SELECTED:
     { DEBUGLOG(("GUI::DlgProc: UM_SELECTED(%p, %p)\n", mp1, mp2));
       // bookmark is selected
-      LoadHelper* lhp = new LoadHelper(cfg.playonload*LoadHelper::LoadPlay);
+      LoadHelper* lhp = new LoadHelper(Cfg::Get().playonload*LoadHelper::LoadPlay);
       lhp->AddItem((APlayable*)PVOIDFROMMP(mp1));
       Load(lhp);
     }
@@ -890,7 +875,8 @@ MRESULT GUI::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
 
    case WM_BUTTON2MOTIONSTART:
     WinSendMsg(HFrame, WM_TRACKFRAME, MPFROMSHORT(TF_MOVE|TF_STANDARD), 0);
-    WinQueryWindowPos(HFrame, &cfg.main);
+    //WinQueryWindowPos(HFrame, &cfg.main);
+    Cfg::SaveWindowPos(HFrame);
     return 0;
 
    case WM_CHAR:
@@ -957,7 +943,7 @@ MRESULT GUI::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
         if (CurrentSong().GetInfo().obj->songlength <= 0)
           return 0;
         CurrentIter->Navigate(relpos * CurrentSong().GetInfo().obj->songlength, job);
-      } else switch (cfg.altnavig)
+      } else switch (Cfg::Get().altnavig)
       {case CFG_ANAV_TIME:
         // Navigate only at the time scale
         if (root->GetInfo().drpl->totallength > 0)
@@ -981,7 +967,7 @@ MRESULT GUI::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
           bool r = CurrentIter->NavigateCount((int)floor(relpos), TATTR_SONG, job);
           DEBUGLOG(("GUI::DlgProc: AMP_SLIDERDRAG: CFG_ANAV_SONG: %f, %u\n", relpos, r));
           // navigate within the song
-          if (cfg.altnavig != CFG_ANAV_SONG && CurrentSong().GetInfo().obj->songlength > 0)
+          if (Cfg::Get().altnavig != CFG_ANAV_SONG && CurrentSong().GetInfo().obj->songlength > 0)
           { relpos -= floor(relpos);
             CurrentIter->Navigate(relpos * CurrentSong().GetInfo().obj->songlength, job);
           }
@@ -1003,7 +989,7 @@ MRESULT GUI::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
     return 0;
 
    case WMP_ARRANGEDOCKING:
-    if (cfg.dock_windows)
+    if (Cfg::Get().dock_windows)
       dk_arrange(HPlayer); // TODO: frame window???
     else
       dk_cleanup(HPlayer);
@@ -1103,11 +1089,35 @@ void GUI::PluginNotification(const void*, const Plugin::EventArgs& args)
   }
 }
 
-/*Playable& GUI::EnsurePlaylist(Playable& list)
+void GUI::ConfigNotification(const void*, const CfgChangeArgs& args)
 {
-  list.RequestInfo(IF_Child, PRI_Sync);
+  if (args.New.floatontop != args.Old.floatontop)
+  { if (!args.New.floatontop)
+      WinStopTimer(amp_player_hab, HPlayer, TID_ONTOP);
+    else
+      WinStartTimer(amp_player_hab, HPlayer, TID_ONTOP, 100);
+  }
 
-}*/
+  if (args.New.defskin != args.Old.defskin)
+    PMRASSERT(WinPostMsg(HPlayer, WMP_RELOADSKIN, 0, 0));
+
+  if (args.New.mode != args.Old.mode)
+  { bmp_reflow_and_resize(HFrame);
+    Invalidate(UPD_ALL, true);
+  } else if ( args.New.scroll != args.Old.scroll
+    || args.New.scroll_around != args.Old.scroll_around
+    || args.New.viewmode != args.Old.viewmode
+    || args.New.font_skinned != args.Old.font_skinned
+    || ( args.New.font_skinned
+      && args.New.font != args.Old.font )
+    || ( !args.New.font_skinned
+      && (args.New.font_size != args.Old.font_size || memcmp(&args.New.font_attrs, &args.Old.font_attrs, sizeof args.New.font_attrs) != 0) ))
+    Invalidate(UPD_TEXT, true);
+
+  if ( args.New.dock_windows != args.Old.dock_windows
+    || args.New.dock_margin != args.Old.dock_margin )
+    PMRASSERT(WinPostMsg(HPlayer, WMP_ARRANGEDOCKING, 0, 0));
+}
 
 void GUI::Add2MRU(Playable& list, size_t max, APlayable& ps)
 { DEBUGLOG(("GUI::Add2MRU(&%p{%s}, %u, %s)\n", &list, list.URL.cdata(), max, ps.GetPlayable().URL.cdata()));
@@ -1139,9 +1149,10 @@ void GUI::SaveStream(HWND hwnd, BOOL enable)
     filedialog.fl         = FDS_CENTER | FDS_SAVEAS_DIALOG | FDS_ENABLEFILELB;
     filedialog.pszTitle   = "Save stream as";
 
-    if (cfg.savedir.length() > 8)
+    xstring savedir = Cfg::Get().savedir;
+    if (savedir.length() > 8)
       // strip file:///
-      strlcpy(filedialog.szFullFile, cfg.savedir+8, sizeof filedialog.szFullFile);
+      strlcpy(filedialog.szFullFile, surl2file(savedir), sizeof filedialog.szFullFile);
     else
       filedialog.szFullFile[0] = 0;
     amp_file_dlg(HWND_DESKTOP, hwnd, &filedialog);
@@ -1150,7 +1161,7 @@ void GUI::SaveStream(HWND hwnd, BOOL enable)
     { if (amp_warn_if_overwrite( hwnd, filedialog.szFullFile ))
       { url123 url = url123::normalizeURL(filedialog.szFullFile);
         Ctrl::PostCommand(Ctrl::MkSave(url), &GUI::ControllerEventCB);
-        cfg.savedir = url.getBasePath();
+        Cfg::ChangeAccess().savedir = url.getBasePath();
       }
     }
   } else
@@ -1228,25 +1239,25 @@ void GUI::ShowContextMenu()
   mn_enable_item(context_menu, IDM_M_SMALL,   bmp_is_mode_supported(CFG_MODE_SMALL));
   mn_enable_item(context_menu, IDM_M_NORMAL,  bmp_is_mode_supported(CFG_MODE_REGULAR));
   mn_enable_item(context_menu, IDM_M_TINY,    bmp_is_mode_supported(CFG_MODE_TINY));
-  mn_enable_item(context_menu, IDM_M_FONT,    cfg.font_skinned );
+  mn_enable_item(context_menu, IDM_M_FONT,    Cfg::Get().font_skinned );
   mn_enable_item(context_menu, IDM_M_FONT1,   bmp_is_font_supported(0));
   mn_enable_item(context_menu, IDM_M_FONT2,   bmp_is_font_supported(1));
   mn_enable_item(context_menu, IDM_M_ADDBOOK, CurrentIter && CurrentIter->GetRoot());
 
-  mn_check_item(context_menu, IDM_M_FLOAT,  cfg.floatontop);
+  mn_check_item(context_menu, IDM_M_FLOAT,  Cfg::Get().floatontop);
   mn_check_item(context_menu, IDM_M_SAVE,   !!Ctrl::GetSavename());
-  mn_check_item(context_menu, IDM_M_FONT1,  cfg.font == 0);
-  mn_check_item(context_menu, IDM_M_FONT2,  cfg.font == 1);
-  mn_check_item(context_menu, IDM_M_SMALL,  cfg.mode == CFG_MODE_SMALL);
-  mn_check_item(context_menu, IDM_M_NORMAL, cfg.mode == CFG_MODE_REGULAR);
-  mn_check_item(context_menu, IDM_M_TINY,   cfg.mode == CFG_MODE_TINY);
+  mn_check_item(context_menu, IDM_M_FONT1,  Cfg::Get().font == 0);
+  mn_check_item(context_menu, IDM_M_FONT2,  Cfg::Get().font == 1);
+  mn_check_item(context_menu, IDM_M_NORMAL, Cfg::Get().mode == CFG_MODE_REGULAR);
+  mn_check_item(context_menu, IDM_M_SMALL,  Cfg::Get().mode == CFG_MODE_SMALL);
+  mn_check_item(context_menu, IDM_M_TINY,   Cfg::Get().mode == CFG_MODE_TINY);
 
   WinPopupMenu(HPlayer, HPlayer, context_menu, pos.x, pos.y, 0,
                PU_HCONSTRAIN|PU_VCONSTRAIN|PU_MOUSEBUTTON1|PU_MOUSEBUTTON2|PU_KEYBOARD);
 }
 
 void GUI::RefreshTimers(HPS hps)
-{ DEBUGLOG(("GUI::RefreshTimers(%p) - %i %i\n", hps, cfg.mode, IsSeeking));
+{ DEBUGLOG(("GUI::RefreshTimers(%p) - %i %i\n", hps, Cfg::Get().mode, IsSeeking));
 
   Playable* root = CurrentIter->GetRoot();
   if (root == NULL)
@@ -1276,7 +1287,7 @@ void GUI::RefreshTimers(HPS hps)
   if (!IsAltSlider)
   { if (total_song > 0)
       pos = CurrentIter->GetPosition()/total_song;
-  } else switch (cfg.altnavig)
+  } else switch (Cfg::Get().altnavig)
   {case CFG_ANAV_SONG:
     if (is_playlist)
     { int total_items = root->GetInfo().rpl->songs;
@@ -1317,17 +1328,16 @@ void GUI::RefreshTimers(HPS hps)
 void GUI::PrepareText()
 {
   if (CurrentRoot() == NULL)
-  { DEBUGLOG(("GUI::PrepareText() NULL %u\n", cfg.viewmode));
+  { DEBUGLOG(("GUI::PrepareText() NULL %u\n", Cfg::Get().viewmode));
     bmp_set_text( "- no file loaded -" );
     return;
   }
-  DEBUGLOG(("GUI::PrepareText() %p %u\n", &CurrentSong(), cfg.viewmode));
+  DEBUGLOG(("GUI::PrepareText() %p %u\n", &CurrentSong(), Cfg::Get().viewmode));
 
   xstring text;
   const INFO_BUNDLE_CV& info = CurrentSong().GetInfo();
-  switch( cfg.viewmode )
-  {
-    case CFG_DISP_ID3TAG:
+  switch (Cfg::Get().viewmode)
+  { case CFG_DISP_ID3TAG:
       text = amp_construct_tag_string(&info);
       if (text.length())
         break;
@@ -1339,14 +1349,14 @@ void GUI::PrepareText()
         text = CurrentSong().GetPlayable().URL.getShortName();
       // In case of an invalid item display an error message.
       if (info.tech->attributes & TATTR_INVALID)
-        text = text + " - " + xstring(info.tech->info);
+        text = text + " - " + DSTRING(info.tech->info);
       break;
 
     case CFG_DISP_FILEINFO:
       text = info.tech->info;
       break;
   }
-  bmp_set_text(text);
+  bmp_set_text(!text ? "" : text);
 }
 
 void GUI::AutoSave(Playable& list)
@@ -1366,35 +1376,12 @@ void GUI::ViewMessage(xstring info, bool error)
 
 void GUI::Show(bool visible)
 { if (visible)
-  { WinSetWindowPos(HFrame, HWND_TOP,
-                    cfg.main.x, cfg.main.y, 0, 0, SWP_ACTIVATE|SWP_MOVE|SWP_SHOW);
+  { Cfg::RestWindowPos(HFrame);
+    //WinSetWindowPos(HFrame, HWND_TOP,
+    //                cfg.main.x, cfg.main.y, 0, 0, SWP_ACTIVATE|SWP_MOVE|SWP_SHOW);
+    WinSetWindowPos(HFrame, HWND_TOP, 0,0, 0,0, SWP_ACTIVATE|SWP_SHOW);
   } else
     WinSendMsg(HPlayer, WM_COMMAND, MPFROMSHORT(IDM_M_MINIMIZE), 0);
-}
-
-void GUI::SetWindowMode(cfg_mode mode)
-{ MPARAM mp1;
-  switch (mode)
-  {default:
-    return;
-   case CFG_MODE_REGULAR:
-    mp1 = MPFROMSHORT(IDM_M_NORMAL);
-    break;
-   case CFG_MODE_SMALL:
-    mp1 = MPFROMSHORT(IDM_M_SMALL);
-    break;
-   case CFG_MODE_TINY:
-    mp1 = MPFROMSHORT(IDM_M_TINY);
-    break;
-  } 
-  WinSendMsg(HPlayer, WM_COMMAND, mp1, 0);
-}
-
-void GUI::SetWindowFloat(bool flag)
-{ // TODO: not atomic
-  if (flag == cfg.floatontop)
-    return;
-  WinSendMsg(HPlayer, WM_COMMAND, MPFROMSHORT(IDM_M_FLOAT), 0);
 }
 
 /*struct dialog_show;
@@ -1498,7 +1485,7 @@ MRESULT GUI::DragDrop(PDRAGINFO pdinfo)
   DEBUGLOG(("amp_drag_drop: {,%u,%x,%p, %u,%u, %u,}\n",
     pdinfo->cbDragitem, pdinfo->usOperation, pdinfo->hwndSource, pdinfo->xDrop, pdinfo->yDrop, pdinfo->cditem));
 
-  sco_ptr<LoadHelper> lhp(new LoadHelper(cfg.playonload*LoadHelper::LoadPlay | cfg.append_dnd*LoadHelper::LoadAppend));
+  sco_ptr<LoadHelper> lhp(new LoadHelper(Cfg::Get().playonload*LoadHelper::LoadPlay | Cfg::Get().append_dnd*LoadHelper::LoadAppend));
   ULONG reply = DMFL_TARGETFAIL;
 
   for( int i = 0; i < pdinfo->cditem; i++ )
@@ -1571,7 +1558,7 @@ MRESULT GUI::DragDrop(PDRAGINFO pdinfo)
         // Hopefully this criterion is sufficient to identify folders.
         if (pditem->fsControl & DC_CONTAINER)
         { // TODO: should be alterable
-          if (cfg.recurse_dnd)
+          if (Cfg::Get().recurse_dnd)
             fullname = fullname + "/?Recursive";
           else
             fullname = fullname + "/";
@@ -1681,7 +1668,7 @@ void GUI::Init()
 
   // Init skin
   { PresentationSpace hps(HPlayer);
-    bmp_load_skin(cfg.defskin, HPlayer, hps);
+    bmp_load_skin(xstring(Cfg::Get().defskin), HPlayer, hps);
   }
 
   // Init default lists
@@ -1700,6 +1687,9 @@ void GUI::Init()
     LoadMRU->RequestInfo(IF_Child, PRI_Normal);
     UrlMRU->RequestInfo(IF_Child, PRI_Normal);
   }
+
+  // Keep track of configuration changes.
+  Cfg::GetChange() += ConfigDeleg;
 
   // Keep track of plug-in changes.
   Plugin::ChangeEvent += PluginDeleg;
@@ -1737,7 +1727,7 @@ void GUI::Init()
   // Docking...
   dk_init();
   dk_add_window(HFrame, DK_IS_MASTER);
-  if (cfg.dock_windows)
+  if (Cfg::Get().dock_windows)
     dk_arrange(HFrame);
 
   // initialize non-skin related visual plug-ins

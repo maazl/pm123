@@ -44,31 +44,26 @@
 #include "plugman.h"
 #include "button95.h"
 #include "gui.h"
-#include "properties.h"
+#include "configuration.h"
 #include "controller.h"
 #include "loadhelper.h"
 #include "pipe.h"
 
 #include <fileutil.h>
 #include <utilfct.h>
+#include <xio.h>
 
 #include <stdio.h>
 
 #include <debuglog.h>
 
 
-// Cache lifetime of unused playable objects in seconds
-// Objects are removed after [CLEANUP_INTERVALL, 2*CLEANUP_INTERVALL].
-// However, since the romoved objects may hold references to other objects,
-// only one generation is cleand up per time.
-#define  CLEANUP_INTERVALL 10
-
-/* file dialog additional flags */
+/* file dialog additional flags
 #define  FDU_DIR_ENABLE   0x0001
 #define  FDU_RECURSEBTN   0x0002
 #define  FDU_RECURSE_ON   0x0004
 #define  FDU_RELATIVBTN   0x0008
-#define  FDU_RELATIV_ON   0x0010
+#define  FDU_RELATIV_ON   0x0010*/
 
 
 static xstring StartPath;
@@ -95,6 +90,48 @@ static char* fetcharg(char**& argv, const char* opt)
     amp_fail("The option -%s requires an argument.", opt);
   return *argv;
 }
+
+static void config_change(const void*, const CfgChangeArgs& args)
+{
+  if (args.New.proxy != args.Old.proxy || args.New.auth != args.Old.auth)
+  { // set proxy and buffer settings statically in the xio library, not that nice, but working.
+    char buffer[1024];
+    char* cp = strchr(args.New.proxy, ':');
+    if (cp == NULL)
+    { xio_set_http_proxy_host(args.New.proxy);
+    } else
+    { size_t l = cp - args.New.proxy +1;
+      strlcpy(buffer, args.New.proxy, min(l, sizeof buffer));
+      xio_set_http_proxy_host(buffer);
+      xio_set_http_proxy_port(atoi(cp+1));
+    }
+    cp = strchr(args.New.auth, ':');
+    if (cp == NULL)
+    { xio_set_http_proxy_user(args.New.auth);
+    } else
+    { size_t l = cp - args.New.proxy +1;
+      strlcpy( buffer, args.New.proxy, min(l, sizeof buffer));
+      xio_set_http_proxy_user(buffer);
+      xio_set_http_proxy_pass(cp +1);
+    }
+  }
+  if ( args.New.buff_size != args.Old.buff_size
+    || args.New.buff_wait != args.Old.buff_wait
+    || args.New.buff_fill != args.Old.buff_fill
+    || args.New.conn_timeout != args.Old.conn_timeout )
+  { xio_set_buffer_size(args.New.buff_size * 1024);
+    xio_set_buffer_wait(args.New.buff_wait);
+    xio_set_buffer_fill(args.New.buff_fill);
+    xio_set_connect_timeout(args.New.conn_timeout);
+  }
+
+  if (args.New.pipe_name != args.Old.pipe_name)
+  { amp_pipe_destroy();
+    amp_pipe_create();
+  }
+  // TODO: adjust the number of worker threads
+}
+static delegate<const void, const CfgChangeArgs> config_deleg(&config_change);
 
 int main(int argc, char** argv)
 {
@@ -175,9 +212,11 @@ int main(int argc, char** argv)
   PMASSERT(hmq != NULLHANDLE);
 
   // initialize properties
-  cfg_init();
+  Cfg::Init();
   if (pipename)
-    cfg.pipe_name = pipename;
+    Cfg::ChangeAccess().pipe_name = pipename;
+  config_change(NULL, CfgChangeArgs((const amp_cfg&)Cfg::Get(), Cfg::Default));
+  Cfg::GetChange() += config_deleg;
 
   // Command line args?
   if (files.size())
@@ -192,10 +231,11 @@ int main(int argc, char** argv)
       cmd.append(*spp);
     }
     // Pipe command
-    if (amp_pipe_open_and_write(cfg.pipe_name, cmd.cdata(), cmd.length()))
+    xstring pipe_name(Cfg::Get().pipe_name);
+    if (amp_pipe_open_and_write(pipe_name, cmd.cdata(), cmd.length()))
       return 0;
     if (command && !start)
-      amp_fail("Cannot write command to pipe %s.", cfg.pipe_name.cdata());
+      amp_fail("Cannot write command to pipe %s.", pipe_name.cdata());
   }
   else if (start && amp_pipe_check())
     return 0;
@@ -226,7 +266,7 @@ int main(int argc, char** argv)
   { // Files passed at command line => load them initially.
     // TODO: do not load last used file in this case!
     const url123& cwd = amp_get_cwd();
-    LoadHelper* lhp = new LoadHelper(cfg.playonload*LoadHelper::LoadPlay | LoadHelper::LoadRecall);
+    LoadHelper* lhp = new LoadHelper(Cfg::Get().playonload*LoadHelper::LoadPlay | LoadHelper::LoadRecall);
     const char*const*const epp = files.end();
     const char*const* spp = files.begin();
     do
@@ -257,17 +297,16 @@ int main(int argc, char** argv)
   ///////////////////////////////////////////////////////////////////////////
   GUI::Uninit();
 
+  Cfg::SaveIni();
   // TODO: save volume
   Ctrl::Uninit();
-
-  save_ini();
 
   ///////////////////////////////////////////////////////////////////////////
   // Uninitialize infrastructure
   ///////////////////////////////////////////////////////////////////////////
   Playable::Uninit();
   plugman_uninit();
-  cfg_uninit();
+  Cfg::Uninit();
 
   WinDestroyMsgQueue(hmq);
   WinTerminate(Hab);

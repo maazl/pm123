@@ -35,7 +35,7 @@
 #include <stdio.h>
 
 #include "dialog.h" // for amp_player_error
-#include "properties.h"
+#include "configuration.h"
 #include "docking.h"
 #include <utilfct.h>
 
@@ -219,7 +219,7 @@ dk_adjust_window( DK_DATA* anchor, DK_DATA* window, PSWP swp )
 {
   SWP  swp_anchor;
   SWP  swp_window;
-  LONG margin = cfg.dock_margin;
+  LONG margin = Cfg::Get().dock_margin;
   BOOL docked = FALSE;
 
   WinQueryWindowPos( anchor->hwnd, &swp_anchor );
@@ -465,7 +465,7 @@ dk_win_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
       return 0;
 
     case WM_ACTIVATE:
-      if( mp1 && cfg.dock_windows ) {
+      if( mp1 && Cfg::Get().dock_windows ) {
         if(( window = dk_request_window( hwnd )) != NULL ) {
           dk_move_window( window, NULL, SWP_ZORDER );
           dk_release();
@@ -495,7 +495,7 @@ dk_win_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
     {
       PSWP swp = (PSWP)mp1;
 
-      if( cfg.dock_windows ) {
+      if( Cfg::Get().dock_windows ) {
         if(( window = dk_request_window( hwnd )) != NULL ) {
           if( swp->fl & ( SWP_MAXIMIZE )) {
             // Cleanups all relationships with this window.
@@ -523,7 +523,7 @@ dk_win_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
     {
       PSWP swp = (PSWP)mp1;
 
-      if( cfg.dock_windows ) {
+      if( Cfg::Get().dock_windows ) {
         if(( window = dk_request_window( hwnd )) != NULL ) {
           if( swp->fl & ( SWP_MOVE | SWP_SIZE )) {
             dk_try_to_dock_window( window, swp );

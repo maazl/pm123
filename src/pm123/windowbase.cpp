@@ -261,6 +261,8 @@ void NotebookDialogBase::StartDialog(HWND owner, USHORT nbid, HWND parent)
         while (++pp2 != Pages.end() && (*pp2)->MajorTitle == NULL && (*pp2)->MinorTitle != NULL)
           ++total;
       }
+      if (total)
+        ++total;
     }
     if (total)
       ++index;

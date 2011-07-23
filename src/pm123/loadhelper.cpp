@@ -28,7 +28,7 @@
 
 
 #include "loadhelper.h"
-#include "properties.h"
+#include "configuration.h"
 #include "gui.h"
 
 
@@ -44,7 +44,7 @@ APlayable* LoadHelper::ToAPlayable()
     return NULL;
    case 1:
     if (Opt & LoadRecall)
-      GUI::Add2MRU(GUI::GetLoadMRU(), cfg.max_recall, *Items[0]);
+      GUI::Add2MRU(GUI::GetLoadMRU(), Cfg::Get().max_recall, *Items[0]);
     if (!(Opt & LoadAppend))
       return Items[0];
    default:

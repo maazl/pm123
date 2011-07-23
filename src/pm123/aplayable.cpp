@@ -27,12 +27,12 @@
  */
 
 
-#include "properties.h"
 #include "aplayable.h"
 #include "playable.h"
 #include "playableset.h"
 #include "waitinfo.h"
 #include "pm123.h"
+#include "configuration.h"
 #include <utilfct.h>
 
 #include <debuglog.h>
@@ -274,8 +274,8 @@ void APlayable::Init()
   // start the worker threads
   ASSERT(WItems == NULL);
   WTermRq = false;
-  WNumWorkers = cfg.num_workers;     // sample this atomically
-  WNumDlgWorkers = cfg.num_dlg_workers; // sample this atomically
+  WNumWorkers = Cfg::Get().num_workers;     // sample this atomically
+  WNumDlgWorkers = Cfg::Get().num_dlg_workers; // sample this atomically
   WItems = new WInit[WNumWorkers+WNumDlgWorkers];
   for (WInit* wp = WItems + WNumWorkers+WNumDlgWorkers; wp-- != WItems; )
   { wp->Pri = wp >= WItems + WNumDlgWorkers ? PRI_Low : PRI_Normal;

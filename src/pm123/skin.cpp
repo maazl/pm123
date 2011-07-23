@@ -35,7 +35,7 @@
 #define  INCL_BITMAPFILEFORMAT
 
 #include "skin.h"
-#include "properties.h"
+#include "configuration.h"
 #include "glue.h"
 #include "pm123.h"
 #include "dialog.h"
@@ -482,9 +482,10 @@ bmp_draw_background( HPS hps, HWND hwnd )
 
   WinQueryWindowRect( hwnd, &rcl );
 
-  if( cfg.mode == CFG_MODE_SMALL && bmp_cache[BMP_S_BGROUND] ) {
+  cfg_mode mode = Cfg::Get().mode;
+  if( mode == CFG_MODE_SMALL && bmp_cache[BMP_S_BGROUND] ) {
     bmp_draw_bitmap( hps, 0, 0, BMP_S_BGROUND );
-  } else if( cfg.mode == CFG_MODE_TINY && bmp_cache[BMP_T_BGROUND] ) {
+  } else if( mode == CFG_MODE_TINY && bmp_cache[BMP_T_BGROUND] ) {
     bmp_draw_bitmap( hps, 0, 0, BMP_T_BGROUND );
   } else {
     bmp_draw_bitmap( hps, 0, 0, BMP_R_BGROUND );
@@ -502,14 +503,14 @@ bmp_draw_background( HPS hps, HWND hwnd )
                          bmp_ulong[ UL_SHADE_DARK   ]  );
   }
 
-  if( cfg.mode == CFG_MODE_REGULAR && bmp_ulong[ UL_SHADE_VOLUME ] )
+  if( mode == CFG_MODE_REGULAR && bmp_ulong[ UL_SHADE_VOLUME ] )
   {
     bmp_draw_shade( hps, 7, 36, 13, 50,
                          bmp_ulong[ UL_SHADE_DARK   ],
                          bmp_ulong[ UL_SHADE_BRIGHT ]  );
   }
 
-  if( cfg.mode == CFG_MODE_REGULAR && bmp_ulong[ UL_SHADE_STAT ] )
+  if( mode == CFG_MODE_REGULAR && bmp_ulong[ UL_SHADE_STAT ] )
   {
     rcl.yBottom += 36;
     rcl.xLeft   += 26;
@@ -524,7 +525,7 @@ bmp_draw_background( HPS hps, HWND hwnd )
                          bmp_ulong[ UL_SHADE_BRIGHT ]  );
   }
 
-  if( cfg.mode == CFG_MODE_SMALL && bmp_ulong[ UL_SHADE_STAT ] )
+  if( mode == CFG_MODE_SMALL && bmp_ulong[ UL_SHADE_STAT ] )
   {
     rcl.yBottom += 36;
     rcl.xLeft   +=  6;
@@ -539,7 +540,7 @@ bmp_draw_background( HPS hps, HWND hwnd )
                          bmp_ulong[ UL_SHADE_BRIGHT ]  );
   }
 
-  if( cfg.mode == CFG_MODE_REGULAR && bmp_ulong[ UL_SHADE_SLIDER ] )
+  if( mode == CFG_MODE_REGULAR && bmp_ulong[ UL_SHADE_SLIDER ] )
   {
     pos.x  = bmp_pos[ POS_SLIDER ].x - 1;
     pos.y  = bmp_pos[ POS_SLIDER ].y - 1;
@@ -567,9 +568,10 @@ bmp_draw_part_bg_to( HPS hps, int x1_1, int y1_1, int x1_2, int y1_2,
       return;
     }
 
-    if( cfg.mode == CFG_MODE_SMALL && bmp_cache[ BMP_S_BGROUND ] ) {
+    cfg_mode mode = Cfg::Get().mode;
+    if( mode == CFG_MODE_SMALL && bmp_cache[ BMP_S_BGROUND ] ) {
       bg_id = BMP_S_BGROUND;
-    } else if( cfg.mode == CFG_MODE_TINY && bmp_cache[ BMP_T_BGROUND ] ) {
+    } else if( mode == CFG_MODE_TINY && bmp_cache[ BMP_T_BGROUND ] ) {
       bg_id = BMP_T_BGROUND;
     }
 
@@ -615,7 +617,7 @@ bmp_draw_part_bg_to( HPS hps, int x1_1, int y1_1, int x1_2, int y1_2,
 }
 
 /* Draws the specified part of the player background. */
-static void
+static inline void
 bmp_draw_part_bg( HPS hps, int x1, int y1, int x2, int y2 )
 {
   bmp_draw_part_bg_to( hps, x1, y1, x2, y2, x1, y1 );
@@ -627,7 +629,7 @@ bmp_draw_led( HPS hps, int active )
 {
   DEBUGLOG(("bmp_draw_led(%p, %i) %i,%i\n", hps, active, bmp_pos[ POS_N_LED ].x, bmp_pos[ POS_N_LED ].x));
 
-  if( cfg.mode != CFG_MODE_TINY )
+  if( Cfg::Get().mode != CFG_MODE_TINY )
   {
     if( active ) {
       if( bmp_pos[ POS_LED ].x != POS_UNDEF &&
@@ -648,28 +650,18 @@ bmp_draw_led( HPS hps, int active )
 }
 
 /* Returns a resource id of the first symbol of current the selected font. */
-static int
-bmp_font( void )
-{
-  if( cfg.font == 0 ) {
-    return BMP_FONT1;
-  } else {
-    return BMP_FONT2;
-  }
+static inline int bmp_font()
+{ return Cfg::Get().font == 0 ? BMP_FONT1 : BMP_FONT2;
 }
 
 /* Returns a width of the first symbol of the current selected font. */
-static int
-bmp_char_cx( void )
-{
-  return bmp_cx( bmp_font());
+static inline int bmp_char_cx()
+{ return bmp_cx(bmp_font());
 }
 
 /* Returns a height of the first symbol of the current selected font. */
-static int
-bmp_char_cy( void )
-{
-  return bmp_cy( bmp_font());
+static inline int bmp_char_cy()
+{ return bmp_cy(bmp_font());
 }
 
 /* Returns a bitmap identifier of the specified character
@@ -700,7 +692,7 @@ bmp_text_length( const char* string )
 {
   int len = 0;
 
-  if( cfg.font_skinned ) {
+  if( Cfg::Get().font_skinned ) {
     while( *string ) {
       len += bmp_cx( bmp_char_id( *string++ ));
     }
@@ -720,7 +712,7 @@ bmp_text_rect( void )
 {
   RECTL rect;
 
-  switch( cfg.mode ) {
+  switch( Cfg::Get().mode ) {
     case CFG_MODE_REGULAR:
 
       rect.xLeft   = bmp_pos[ POS_R_TEXT ].x;
@@ -783,7 +775,7 @@ bmp_draw_text( HPS hps )
   bmp_draw_part_bg_to( s_buffer, 0, 0, size.cx, size.cy,
                        rect.xLeft, rect.yBottom );
 
-  if( cfg.font_skinned )
+  if( Cfg::Get().font_skinned )
   {
     char* p =  s_display;
     int   x =  s_offset;
@@ -892,7 +884,7 @@ bmp_set_text( const char* string )
   s_pause  = 0;
   s_done   = false;
 
-  if( cfg.mode != CFG_MODE_TINY ) {
+  if( Cfg::Get().mode != CFG_MODE_TINY ) {
     if( !s_buffer ) {
       bmp_create_text_buffer();
     }
@@ -901,14 +893,14 @@ bmp_set_text( const char* string )
       GpiSetCharSet ( s_buffer, LCID_DEFAULT );
       GpiDeleteSetId( s_buffer, LCID_FONT );
     }
-    if( !cfg.font_skinned )
+    if( !Cfg::Get().font_skinned )
     {
       GpiSetColor     ( s_buffer, bmp_ulong[ UL_FG_MSG_COLOR ]);
       GpiSetBackMix   ( s_buffer, BM_LEAVEALONE );
-      GpiCreateLogFont( s_buffer, NULL, LCID_FONT, &cfg.font_attrs );
+      GpiCreateLogFont( s_buffer, NULL, LCID_FONT, (const FATTRS*)&Cfg::Get().font_attrs );
       GpiSetCharSet   ( s_buffer, LCID_FONT );
 
-      if( cfg.font_attrs.fsFontUse & FATTR_FONTUSE_OUTLINE )
+      if( Cfg::Get().font_attrs.fsFontUse & FATTR_FONTUSE_OUTLINE )
       {
         HPS   ps   = WinGetPS( HWND_DESKTOP );
         HDC   dc   = GpiQueryDevice( ps );
@@ -919,8 +911,8 @@ bmp_set_text( const char* string )
         DevQueryCaps( dc, CAPS_HORIZONTAL_FONT_RES, 1L, &hres );
         DevQueryCaps( dc, CAPS_VERTICAL_FONT_RES  , 1L, &vres );
 
-        size.cx = ( MAKEFIXED( cfg.font_size, 0 ) / 72 ) * hres;
-        size.cy = ( MAKEFIXED( cfg.font_size, 0 ) / 72 ) * vres;
+        size.cx = ( MAKEFIXED( Cfg::Get().font_size, 0 ) / 72 ) * hres;
+        size.cy = ( MAKEFIXED( Cfg::Get().font_size, 0 ) / 72 ) * vres;
 
         GpiSetCharBox( s_buffer, &size );
         WinReleasePS ( ps );
@@ -959,8 +951,9 @@ bmp_query_text( void )
 BOOL
 bmp_scroll_text( void )
 {
-  if( cfg.scroll == CFG_SCROLL_NONE ||
-      cfg.mode   == CFG_MODE_TINY   || s_inc == 0 )
+  cfg_scroll scroll = Cfg::Get().scroll;
+  if( scroll == CFG_SCROLL_NONE ||
+      Cfg::Get().mode   == CFG_MODE_TINY   || s_inc == 0 )
   {
     return FALSE;
   }
@@ -970,14 +963,14 @@ bmp_scroll_text( void )
     return FALSE;
   }
   
-  if (s_done && cfg.scroll == CFG_SCROLL_ONCE)
+  if (s_done && scroll == CFG_SCROLL_ONCE)
     return FALSE;
 
   s_offset += s_inc;
 
   if( s_inc < 0 )
   { // Currently forward
-    if (cfg.scroll_around)
+    if (Cfg::Get().scroll_around)
     { if ( s_len2 + s_offset <= 1 )
       { s_offset = 0;
         s_done  = true;
@@ -1046,7 +1039,7 @@ void
 bmp_draw_timer( HPS hps, double time )
 { DEBUGLOG(("bmp_draw_timer(%p, %g)\n", hps, time));
 
-  if( cfg.mode != CFG_MODE_REGULAR ) {
+  if( Cfg::Get().mode != CFG_MODE_REGULAR ) {
     return;
   }
 
@@ -1095,7 +1088,7 @@ void
 bmp_draw_tiny_timer( HPS hps, int pos_id, double time )
 { DEBUGLOG(("bmp_draw_tiny_timer(%p, %i, %g)\n", hps, pos_id, time));
 
-  if( cfg.mode != CFG_MODE_REGULAR ) {
+  if( Cfg::Get().mode != CFG_MODE_REGULAR ) {
     return;
   }
 
@@ -1144,7 +1137,7 @@ bmp_draw_channels( HPS hps, int channels )
   int     id;
   POINTL* pos;
 
-  if( cfg.mode != CFG_MODE_REGULAR ) {
+  if( Cfg::Get().mode != CFG_MODE_REGULAR ) {
     return;
   }
 
@@ -1207,7 +1200,7 @@ bmp_draw_volume( HPS hps, double volume )
   int y = bmp_pos[ POS_VOLBAR ].y;
   int xo, yo;
 
-  if( cfg.mode != CFG_MODE_REGULAR ) {
+  if( Cfg::Get().mode != CFG_MODE_REGULAR ) {
     return;
   }
 
@@ -1251,7 +1244,7 @@ bmp_draw_volume( HPS hps, double volume )
 BOOL
 bmp_pt_in_volume( POINTL pos )
 {
-  if( cfg.mode != CFG_MODE_REGULAR ) {
+  if( Cfg::Get().mode != CFG_MODE_REGULAR ) {
     return FALSE;
   }
 
@@ -1296,7 +1289,7 @@ bmp_draw_rate( HPS hps, int rate )
   size_t index = 0;
   DEBUGLOG(("bmp_draw_rate(%p, %d)\n", hps, rate));
 
-  if( cfg.mode != CFG_MODE_REGULAR )
+  if( Cfg::Get().mode != CFG_MODE_REGULAR )
     return;
 
   rate /= 1000; // kbps
@@ -1357,7 +1350,7 @@ bmp_draw_plmode( HPS hps, bool valid, bool enumerable )
 {
   DEBUGLOG(("bmp_draw_plmode(%p, %d, %d)\n", hps, valid, enumerable));
 
-  if( cfg.mode != CFG_MODE_REGULAR )
+  if( Cfg::Get().mode != CFG_MODE_REGULAR )
     return;
 
   if( bmp_pos[ POS_PL_MODE ].x != POS_UNDEF && bmp_pos[ POS_PL_MODE ].y != POS_UNDEF )
@@ -1392,7 +1385,7 @@ bmp_draw_plind( HPS hps, int index, int total )
 {
   DEBUGLOG(("bmp_draw_plind(%p, %i, %i)\n", hps, index, total));
 
-  if( cfg.mode != CFG_MODE_REGULAR ) {
+  if( Cfg::Get().mode != CFG_MODE_REGULAR ) {
     return;
   }
 
@@ -1460,7 +1453,7 @@ void
 bmp_draw_slider( HPS hps, double location, bool alt )
 { DEBUGLOG(("bmp_draw_slider(%p, %f)\n", hps, location));
 
-  if( cfg.mode == CFG_MODE_REGULAR )
+  if( Cfg::Get().mode == CFG_MODE_REGULAR )
   {
     if( bmp_cache[ BMP_SLIDER_SHAFT ]   != 0 &&
         bmp_pos  [ POS_SLIDER_SHAFT ].x != POS_UNDEF &&
@@ -1508,7 +1501,7 @@ bmp_calc_time( POINTL pos )
 BOOL
 bmp_pt_in_slider( POINTL pos )
 {
-  if( cfg.mode != CFG_MODE_REGULAR ) {
+  if( Cfg::Get().mode != CFG_MODE_REGULAR ) {
     return FALSE;
   }
 
@@ -2100,7 +2093,7 @@ bmp_load_skin( const char *filename, HWND hplayer, HPS hps )
           case UL_R_MSG_LEN:      bmp_ulong[ UL_R_MSG_LEN      ] = atoi(p); break;
           case UL_SLIDER_WIDTH:   bmp_ulong[ UL_SLIDER_WIDTH   ] = atoi(p); break;
           case UL_S_MSG_LEN:      bmp_ulong[ UL_S_MSG_LEN      ] = atoi(p); break;
-          case UL_FONT:           cfg.font = atoi(p); break;
+          case UL_FONT:           Cfg::ChangeAccess().font = atoi(p); break;
           case UL_TIMER_SPACE:    bmp_ulong[ UL_TIMER_SPACE    ] = atoi(p); break;
           case UL_TIMER_SEPARATE: bmp_ulong[ UL_TIMER_SEPARATE ] = FALSE;   break;
           case UL_VOLUME_HRZ:     bmp_ulong[ UL_VOLUME_HRZ     ] = TRUE;    break;
@@ -2154,6 +2147,7 @@ bmp_load_skin( const char *filename, HWND hplayer, HPS hps )
     bmp_init_default_skin( hps );
   }
 
+  Cfg::ChangeAccess cfg;
   if( cfg.mode != CFG_MODE_REGULAR && !bmp_is_mode_supported( cfg.mode )) {
     cfg.mode = CFG_MODE_REGULAR;
   }
@@ -2169,10 +2163,7 @@ bmp_load_skin( const char *filename, HWND hplayer, HPS hps )
     if( !amp_query( hplayer, "Some bitmaps of this skin was not found. "
                              "Would you like to continue the loading of this skin? "
                              "(if you select No, default skin will be used)" ))
-    {
-      strcpy( cfg.defskin, "" );
-      return bmp_load_skin( "", hplayer, hps );
-    }
+      cfg.defskin = xstring::empty;
   }
 
   return TRUE;
@@ -2189,7 +2180,7 @@ bmp_init_button( HWND hwnd, BMPBUTTON* button )
   int    pressed;
   int    release;
 
-  switch( cfg.mode )
+  switch( Cfg::Get().mode )
   {
     case CFG_MODE_REGULAR:
 
@@ -2263,7 +2254,7 @@ bmp_reflow_and_resize( HWND hplayer )
   HWND hframe = WinQueryWindow( hplayer, QW_PARENT );
   PMASSERT(hframe != NULLHANDLE);
 
-  switch( cfg.mode )
+  switch( Cfg::Get().mode )
   {
     case CFG_MODE_SMALL:
     {

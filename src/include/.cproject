@@ -25,6 +25,10 @@
 							</builder>
 							<tool id="cdt.managedbuild.tool.gnu.cpp.compiler.base.354827394" name="GCC C++ Compiler" superClass="cdt.managedbuild.tool.gnu.cpp.compiler.base">
 								<option id="gnu.cpp.compiler.option.preprocessor.def.1958904251" name="Defined symbols (-D)" superClass="gnu.cpp.compiler.option.preprocessor.def" valueType="definedSymbols">
+									<listOptionValue builtIn="false" value="__OS2__"/>
+									<listOptionValue builtIn="false" value="__BEGIN_NAMESPACE_STD"/>
+									<listOptionValue builtIn="false" value="__END_NAMESPACE_STD"/>
+									<listOptionValue builtIn="false" value="__USING_NAMESPACE_STD(x)"/>
 									<listOptionValue builtIn="false" value="_System"/>
 									<listOptionValue builtIn="false" value="DLLENTRYP(x)=(*x)"/>
 									<listOptionValue builtIn="false" value="INCL_PM=1"/>

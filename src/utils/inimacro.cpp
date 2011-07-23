@@ -1,6 +1,6 @@
 /*
  * Copyright 1997-2003 Samuel Audet <guardia@step.polymtl.ca>
- *                     Taneli Lepp„ <rosmo@sektori.com>
+ *                     Taneli Leppï¿½ <rosmo@sektori.com>
  *
  * Copyright 2006 Dmitry A.Steklenev <glass@ptv.ru>
  *
@@ -32,6 +32,9 @@
 #include "inimacro.h"
 #include "fileutil.h"
 #include "utilfct.h"
+#include <string.h>
+
+#include "debuglog.h"
 
 /* Opens the specified profile file. */
 HINI
@@ -59,19 +62,19 @@ open_module_ini( void )
 }
 
 /* Closes a opened profile file. */
-BOOL
-close_ini( HINI hini ) {
+BOOL close_ini( HINI hini ) {
   return PrfCloseProfile( hini );
 }
 
-void load_ini_bool_core( HINI hini, const char* section, const char* key, bool* dst )
-{ ULONG datasize = 0;
+void load_ini_int_core( HINI hini, const char* section, const char* key, void* dst, size_t size )
+{ ASSERT(size <= sizeof(int));
+  ULONG datasize = 0;
   PrfQueryProfileSize( hini, section, key, &datasize );
-  switch (datasize)
-  {case sizeof(int):
-    datasize = 1;
-   case 1:
-    *dst = 0;
+  if (datasize <= sizeof(int))
+  { if (datasize > size)
+      datasize = size;
+    else
+      memset(dst, 0, size);
     PrfQueryProfileData( hini, section, key, dst, &datasize );
   }
 }

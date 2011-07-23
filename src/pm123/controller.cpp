@@ -31,7 +31,7 @@
 #include "plugman.h"
 #include "waitinfo.h"
 #include "controller.h"
-#include "properties.h"
+#include "configuration.h"
 #include "gui.h"
 #include "glue.h"
 #include "pm123.h"
@@ -49,12 +49,12 @@
 
 struct ctrl_state
 { double  volume;        // Position of the volume slider
-  BOOL    shf;           // The state of the "Shuffle" button.
-  BOOL    rpt;           // The state of the "Repeat" button.
   xstring current_root;  // The currently loaded root.
   xstring current_iter;  // The current location within the root.
-  BOOL    was_playing;   // Restart playback on start-up
-  ctrl_state() : volume(-1), shf(FALSE), rpt(FALSE) {}
+  bool    shf;           // The state of the "Shuffle" button.
+  bool    rpt;           // The state of the "Repeat" button.
+  bool    was_playing;   // Restart playback on start-up
+  ctrl_state() : volume(-1), shf(false), rpt(false), was_playing(false) {}
 };
 
 
@@ -486,7 +486,7 @@ void CtrlImp::CheckPrefetch(double pos)
 
       // delete iterators and remove from play queue (if desired)
       Playable* plp = NULL;
-      if (cfg.queue_mode)
+      if (Cfg::Get().queue_mode)
       { plp = Current()->Loc.GetRoot();
         if (plp != &GUI::GetDefaultPL())
           plp = NULL;
@@ -668,7 +668,7 @@ Ctrl::RC CtrlImp::MsgPlayStop(Op op)
 
   if (Playing)
   { // Set new playing position
-    if ( cfg.retainonstop && op != Op_Reset
+    if ( Cfg::Get().retainonstop && op != Op_Reset
       && Current()->Loc.GetCurrent().GetInfo().obj->songlength > 0 )
     { PM123_TIME time = FetchCurrentSongTime();
       Current()->Loc.Navigate(time, JobSet::SyncJob);
@@ -788,7 +788,7 @@ Ctrl::RC CtrlImp::MsgSkip(int count, bool relative)
   // Navigation
   Location si = Current()->Loc; // work on a temporary object => copy constructor
   if (!SkipCore(si, count, relative))
-  { if (cfg.autoturnaround)
+  { if (Cfg::Get().autoturnaround)
     { si.Reset();
       switch (count)
       {case 1:
@@ -964,7 +964,7 @@ Ctrl::RC CtrlImp::MsgOutStop()
 { DEBUGLOG(("Ctrl::MsgOutStop()\n"));
   // Check whether we have to remove items in queue mode
   Playable& plp = *Current()->Loc.GetRoot();
-  if (cfg.queue_mode && PrefetchList.size() && &plp == &GUI::GetDefaultPL())
+  if (Cfg::Get().queue_mode && PrefetchList.size() && &plp == &GUI::GetDefaultPL())
     plp.RemoveItem(Current()->Loc.GetCallstack()[0]);
   // In any case stop the engine
   return MsgPlayStop(Op_Reset);
@@ -1108,12 +1108,12 @@ void Ctrl::Init()
   ASSERT((int)CtrlImp::WorkerTID != -1);
   // load the state
   ctrl_state state;
-  load_ini_value(amp_hini, state.volume);
-  load_ini_value(amp_hini, state.shf);
-  load_ini_value(amp_hini, state.rpt);
-  load_ini_xstring(amp_hini, state.current_root);
-  load_ini_xstring(amp_hini, state.current_iter);
-  load_ini_value(amp_hini, state.was_playing);
+  load_ini_value(Cfg::GetHIni(), state.volume);
+  load_ini_int(Cfg::GetHIni(), state.shf);
+  load_ini_int(Cfg::GetHIni(), state.rpt);
+  load_ini_xstring(Cfg::GetHIni(), state.current_root);
+  load_ini_xstring(Cfg::GetHIni(), state.current_iter);
+  load_ini_int(Cfg::GetHIni(), state.was_playing);
   PostCommand(MkShuffle(state.shf ? Op_Set : Op_Clear));
   PostCommand(MkRepeat(state.rpt ? Op_Set : Op_Clear));
   if (state.volume >= 0)
@@ -1123,7 +1123,7 @@ void Ctrl::Init()
     ControlCommand* tail = head;
     if (state.current_iter)
       tail = tail->Link = MkNavigate(state.current_iter, 0, true, true);
-    if (cfg.restartonstart && state.was_playing)
+    if (Cfg::Get().restartonstart && state.was_playing)
       tail = tail->Link = MkPlayStop(Op_Set);
     PostCommand(head);
   }
@@ -1151,15 +1151,15 @@ void Ctrl::Uninit()
   if (!!last)
   { state.current_root = last.GetRoot()->URL;
     // save location only if the current item has definite length.
-    state.current_iter = last.Serialize(cfg.retainonexit && last.GetCurrent().GetInfo().obj->songlength >= 0);
+    state.current_iter = last.Serialize(Cfg::Get().retainonexit && last.GetCurrent().GetInfo().obj->songlength >= 0);
     DEBUGLOG(("last_loc: %s %s\n", state.current_root.cdata(), state.current_iter.cdata()));
   }
-  save_ini_value(amp_hini, state.volume);
-  save_ini_value(amp_hini, state.shf);
-  save_ini_value(amp_hini, state.rpt);
-  save_ini_string(amp_hini, state.current_root);
-  save_ini_string(amp_hini, state.current_iter);
-  save_ini_value(amp_hini, state.was_playing);
+  save_ini_value(Cfg::GetHIni(), state.volume);
+  save_ini_value(Cfg::GetHIni(), state.shf);
+  save_ini_value(Cfg::GetHIni(), state.rpt);
+  save_ini_xstring(Cfg::GetHIni(), state.current_root);
+  save_ini_xstring(Cfg::GetHIni(), state.current_iter);
+  save_ini_value(Cfg::GetHIni(), state.was_playing);
 
   // Now delete everything
   CtrlImp::PrefetchClear(false);

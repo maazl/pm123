@@ -38,7 +38,7 @@
 #include "playlistmanager.h"
 #include "gui.h"
 #include "dialog.h"
-#include "properties.h"
+#include "configuration.h"
 #include "pm123.rc.h"
 #include "docking.h"
 #include "playable.h"
@@ -196,12 +196,18 @@ MRESULT PlaylistManager::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
     break;
 
    case WM_WINDOWPOSCHANGED:
-    // TODO: Bl�dsinn
-    { SWP* pswp = (SWP*)PVOIDFROMMP(mp1);
+    // TODO: nonsense?
+    { bool show = Cfg::Get().show_plman;
+      SWP* pswp = (SWP*)PVOIDFROMMP(mp1);
       if( pswp[0].fl & SWP_SHOW )
-        cfg.show_plman = TRUE;
+        show = TRUE;
       if( pswp[0].fl & SWP_HIDE )
-        cfg.show_plman = FALSE;
+        show = FALSE;
+      if (show != Cfg::Get().show_plman)
+      { Cfg::ChangeAccess cfg;
+        cfg.show_plman = show;
+        Cfg::Set(cfg);
+      }
       break;
     }
 

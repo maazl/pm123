@@ -47,7 +47,7 @@
 #include "pm123.h"
 #include "gui.h"
 #include "dialog.h"
-#include "properties.h"
+#include "configuration.h"
 #include "123_util.h"
 #include "pm123.rc.h"
 #include "docking.h"
@@ -215,11 +215,6 @@ void PlaylistBase::InitDlg()
   HPOINTER hicon = WinLoadPointer(HWND_DESKTOP, 0, ICO_MAIN);
   PMASSERT(hicon != NULLHANDLE);
   PMRASSERT(WinSendMsg(GetHwnd(), WM_SETICON, (MPARAM)hicon, 0));
-  { // initial position
-    SWP swp;
-    PMXASSERT(WinQueryTaskSizePos(amp_player_hab, 0, &swp), == 0);
-    PMRASSERT(WinSetWindowPos(GetHwnd(), NULLHANDLE, swp.x,swp.y, 0,0, SWP_MOVE));
-  }
   do_warpsans(GetHwnd());
   { // set colors. PRESPARAMS in the RC file seems not to work for some reason.
     LONG     color;
@@ -237,7 +232,7 @@ void PlaylistBase::InitDlg()
     PMXASSERT(WinQueryTaskSizePos(amp_player_hab, 0, &swp), == 0);
     PMRASSERT(WinSetWindowPos(GetHwnd(), NULLHANDLE, swp.x,swp.y, 0,0, SWP_MOVE));
   }
-  rest_window_pos(GetHwnd(), Content->URL);
+  Cfg::RestWindowPos(GetHwnd(), Content->URL);
 
   dk_add_window(GetHwnd(), 0);
 
@@ -268,7 +263,7 @@ MRESULT PlaylistBase::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
       // delete all records
       RemoveChildren(NULL);
       // save position
-      save_window_pos(GetHwnd(), Content->URL);
+      Cfg::SaveWindowPos(GetHwnd(), Content->URL);
 
       // process outstanding UM_DELETERECORD messages before we quit to ensure that all records are back to the PM before we die.
       QMSG qmsg;
@@ -472,13 +467,13 @@ MRESULT PlaylistBase::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
         }
 
        case IDM_PL_USEALL:
-        { LoadHelper* lhp = new LoadHelper(cfg.playonload*LoadHelper::LoadPlay | LoadHelper::LoadRecall);
+        { LoadHelper* lhp = new LoadHelper(Cfg::Get().playonload*LoadHelper::LoadPlay | LoadHelper::LoadRecall);
           lhp->AddItem(Content);
           GUI::Load(lhp);
           break;
         }
        case IDM_PL_USE:
-        { LoadHelper* lhp = new LoadHelper(cfg.playonload*LoadHelper::LoadPlay | LoadHelper::LoadRecall);
+        { LoadHelper* lhp = new LoadHelper(Cfg::Get().playonload*LoadHelper::LoadPlay | LoadHelper::LoadRecall);
           for (RecordBase** rpp = Source.begin(); rpp != Source.end(); ++rpp)
             lhp->AddItem((*rpp)->Data->Content);
           GUI::Load(lhp);
@@ -1464,7 +1459,7 @@ void PlaylistBase::DragDrop(DRAGINFO* pdinfo, RecordBase* target)
         // Hopefully this criterion is sufficient to identify folders.
         if (pditem->fsControl & DC_CONTAINER)
         { // TODO: should be alterable
-          if (cfg.recurse_dnd)
+          if (Cfg::Get().recurse_dnd)
             fullname = fullname + "/?Recursive";
           else
             fullname = fullname + "/";

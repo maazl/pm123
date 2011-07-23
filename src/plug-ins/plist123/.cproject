@@ -29,6 +29,8 @@
 								</option>
 								<option id="gnu.cpp.compiler.option.preprocessor.def.1219768365" name="Defined symbols (-D)" superClass="gnu.cpp.compiler.option.preprocessor.def" valueType="definedSymbols">
 									<listOptionValue builtIn="false" value="_System"/>
+									<listOptionValue builtIn="false" value="INCL_DOS=1"/>
+									<listOptionValue builtIn="false" value="INCL_WIN=1"/>
 									<listOptionValue builtIn="false" value="PM123_CORE=1"/>
 									<listOptionValue builtIn="false" value="DECODER_PLUGIN_LEVEL=2"/>
 								</option>

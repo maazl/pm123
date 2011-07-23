@@ -13,7 +13,7 @@ all2: cpputil$(LBO) $(MDUMMY)
 
 OBJECTS = showaccel$(CO) event$(CO) mutex$(CO) queue$(CO) priority_queue$(CO) algorithm$(CO)
 OBJECTS = $(OBJECTS) xstring$(CO) xstringbuilder$(CO) url123$(CO) container\stringmap$(CO)
-OBJECTS = $(OBJECTS) container\vector$(CO) container\list$(CO)
+OBJECTS = $(OBJECTS) container\vector$(CO) container\list$(CO) pmutils$(CO)
 #OBJECTS = $(OBJECTS) PM\PMMenu$(CO)
 
 cpputil$(LBO): $(OBJECTS)

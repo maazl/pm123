@@ -230,10 +230,8 @@ cfg_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
 }
 
 // Configure plug-in.
-int DLLENTRY
-plugin_configure( HWND hwnd, HMODULE module ) {
+void DLLENTRY plugin_configure( HWND hwnd, HMODULE module ) {
   WinDlgBox( HWND_DESKTOP, hwnd, cfg_dlg_proc, module, DLG_CONFIGURE, NULL );
-  return 0;
 }
 
 /****************************************************************************

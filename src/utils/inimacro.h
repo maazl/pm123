@@ -1,6 +1,6 @@
 /*
  * Copyright 1997-2003 Samuel Audet <guardia@step.polymtl.ca>
- *                     Taneli Lepp„ <rosmo@sektori.com>
+ *                     Taneli Leppï¿½ <rosmo@sektori.com>
  *
  * Copyright 2006 Dmitry A.Steklenev <glass@ptv.ru>
  *
@@ -54,21 +54,21 @@ BOOL close_ini( HINI hini );
 
 /* Saves a binary data to the specified profile file. */
 #define save_ini_data( hini, var, size ) \
-  PrfWriteProfileData( hini, INI_SECTION, #var, var, size )
+  PrfWriteProfileData( hini, INI_SECTION, #var, (void*)var, size )
 
 /* Saves a generic value binary to the specified profile file. */
 #define save_ini_value( hini, var ) \
-  PrfWriteProfileData ( hini, INI_SECTION, #var, &var, sizeof var )
+  PrfWriteProfileData ( hini, INI_SECTION, #var, (void*)&var, sizeof var )
 
 /* Saves a generic value binary to the specified profile file. */
 #ifdef __cplusplus
 #define save_ini_bool( hini, var ) \
-  PrfWriteProfileData( hini, INI_SECTION, #var, &var, 1 )
+  PrfWriteProfileData( hini, INI_SECTION, #var, (void*)&var, 1 )
 #endif
 
 /* Saves a characters string to the specified profile file. */
 #define save_ini_string( hini, var ) \
-  PrfWriteProfileString( hini, INI_SECTION, #var, var )
+  PrfWriteProfileString( hini, INI_SECTION, #var, (char*)var )
 
 /* Querys a size of the binary data saved to the specified profile file. */
 #define load_ini_data_size( hini, var, size )                        \
@@ -87,11 +87,9 @@ void load_ini_data_core( HINI hini, const char* section, const char* key, void* 
   load_ini_data_core( hini, INI_SECTION, #var, &var, sizeof var );
 
 /* Loads a generic value binary from the specified profile file. */
-#ifdef __cplusplus
-void load_ini_bool_core( HINI hini, const char* section, const char* key, bool* dst );
-#define load_ini_bool( hini, var )                                   \
-  load_ini_bool_core( hini, INI_SECTION, #var, &var );
-#endif
+void load_ini_int_core( HINI hini, const char* section, const char* key, void* dst, size_t size );
+#define load_ini_int( hini, var )                                   \
+  load_ini_int_core( hini, INI_SECTION, #var, &var, sizeof var );
 
 /* Loads a characters string from the specified profile file. */
 #define load_ini_string( hini, var, size ) \

@@ -74,9 +74,9 @@
 #define IDM_M_CFG           507
 #define IDM_M_PLAYLIST      509
 #define IDM_M_MINIMIZE      510
-#define IDM_M_SMALL         511
-#define IDM_M_TINY          512
-#define IDM_M_NORMAL        513
+#define IDM_M_NORMAL        511
+#define IDM_M_SMALL         512
+#define IDM_M_TINY          513
 #define IDM_M_FONT1         515
 #define IDM_M_FONT2         516
 #define IDM_M_FONT          517

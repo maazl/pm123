@@ -35,7 +35,7 @@
 #include "dialog.h"
 #include "gui.h"
 #include "loadhelper.h"
-#include "properties.h"
+#include "configuration.h"
 #include "controller.h"
 #include "123_util.h"
 #include "copyright.h"
@@ -47,6 +47,7 @@
 #include <os2.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <time.h>
 
 
 #define PIPE_BUFFER_SIZE 65536
@@ -125,7 +126,7 @@ bool URLTokenizer::Next(const char*& url)
 ****************************************************************************/
 class CommandProcessor : public ACommandProcessor
 {private:
-  typedef strmap<14, void (CommandProcessor::*)()> CmdEntry;
+  typedef strmap<16, void (CommandProcessor::*)()> CmdEntry;
   /// Command dispatch table, sorted
   static const CmdEntry       CmdList[];
 
@@ -138,6 +139,14 @@ class CommandProcessor : public ACommandProcessor
   url123                      CurDir;
 
  private: // Helper functions
+  void DoOption(bool amp_cfg::* option);
+  void DoOption(int amp_cfg::* option);
+  void DoOption(xstring amp_cfg::* option);
+  void DoOption(cfg_anav amp_cfg::* option);
+  void DoOption(cfg_disp amp_cfg::* option);
+  void DoOption(cfg_scroll amp_cfg::* option);
+  void DoOption(cfg_mode amp_cfg::* option);
+  void DoFontOption(void*);
   /// Parse and normalize one URL according to CurDir.
   url123 ParseURL(const char* url);
   /// Execute a controller command and return the reply as string.
@@ -188,7 +197,7 @@ class CommandProcessor : public ACommandProcessor
   // METADATA
   void AppendIntAttribute(const char* fmt, int value);
   void AppendFloatAttribute(const char* fmt, double value);
-  void AppendStringAttribute(const char* name, xstring value);
+  void AppendStringAttribute(const char* name, DSTRING value);
   typedef strmap<10, unsigned> FlagsEntry;
   void AppendFlagsAttribute(const char* name, unsigned flags, const FlagsEntry* map, size_t map_size);
   static const FlagsEntry PhysFlagsMap[];
@@ -225,6 +234,224 @@ class CommandProcessor : public ACommandProcessor
  public:
   CommandProcessor();
 };
+
+
+static bool parse_int(const char* arg, int& val)
+{ int v;
+  size_t n;
+  if (sscanf(arg, "%i%n", &v, &n) == 1 && n == strlen(arg))
+  { val = v;
+    return true;
+  } else
+    return false;
+}
+
+static bool parse_double(const char* arg, double& val)
+{ double v;
+  size_t n;
+  if (sscanf(arg, "%lf%n", &v, &n) == 1 && n == strlen(arg))
+  { val = v;
+    return true;
+  } else
+    return false;
+}
+
+static const strmap<7,Ctrl::Op> opmap[] =
+{ { "",       Ctrl::Op_Toggle },
+  { "0",      Ctrl::Op_Clear },
+  { "1",      Ctrl::Op_Set },
+  { "false",  Ctrl::Op_Clear },
+  { "no",     Ctrl::Op_Clear },
+  { "off",    Ctrl::Op_Clear },
+  { "on",     Ctrl::Op_Set },
+  { "toggle", Ctrl::Op_Toggle },
+  { "true",   Ctrl::Op_Set },
+  { "yes",    Ctrl::Op_Set }
+};
+
+/* parse operator with default toggle */
+inline static const strmap<7, Ctrl::Op>* parse_op1(const char* arg)
+{ return mapsearch(opmap, arg);
+}
+/* parse operator without default */
+inline static const strmap<7,Ctrl::Op>* parse_op2(const char* arg)
+{ return mapsearch2(opmap+1, (sizeof opmap / sizeof *opmap)-1, arg);
+}
+
+static const strmap<5,cfg_disp> dispmap[] =
+{ { "file", CFG_DISP_FILENAME }
+, { "info", CFG_DISP_FILEINFO }
+, { "tag",  CFG_DISP_ID3TAG   }
+, { "url",  CFG_DISP_FILENAME }
+};
+
+void CommandProcessor::DoOption(bool amp_cfg::* option)
+{ Reply.append(Cfg::Get().*option ? "on" : "off");
+  if (*Request)
+  { const strmap<7,Ctrl::Op>* op = parse_op2(Request);
+    if (op)
+    { Cfg::ChangeAccess cfg;
+      switch (op->Val)
+      {case Ctrl::Op_Set:
+        cfg.*option = true;
+        break;
+       case Ctrl::Op_Toggle:
+        cfg.*option = !(cfg.*option);
+        break;
+       default: // Op_Clear
+        cfg.*option = false;
+        break;
+      }
+    } else
+      Reply.clear(); // error
+  }
+}
+void CommandProcessor::DoOption(int amp_cfg::* option)
+{ Reply.appendf("%i", Cfg::Get().*option);
+  if (*Request)
+  { int val;
+    size_t n = 0;
+    sscanf(Request, "%i%n", &val, &n);
+    if (n == strlen(Request))
+      Cfg::ChangeAccess().*option = val;
+    else
+      Reply.clear();
+  }
+}
+void CommandProcessor::DoOption(xstring amp_cfg::* option)
+{ Reply.append(xstring(Cfg::Get().*option));
+  if (*Request)
+    Cfg::ChangeAccess().*option = Request;
+}
+void CommandProcessor::DoOption(cfg_anav amp_cfg::* option)
+{ static const strmap<10,cfg_anav> map[] =
+  { { "song",      CFG_ANAV_SONG     }
+  , { "song,time", CFG_ANAV_SONGTIME }
+  , { "time",      CFG_ANAV_TIME     }
+  , { "time,song", CFG_ANAV_SONGTIME }
+  };
+  Reply.append(map[Cfg::Get().*option].Str);
+  if (*Request)
+  { const strmap<10,cfg_anav>* mp = mapsearch(map, Request);
+    if (mp)
+      Cfg::ChangeAccess().*option = mp->Val;
+    else
+      Reply.clear(); // Error
+  }
+}
+void CommandProcessor::DoOption(cfg_disp amp_cfg::* option)
+{ Reply.append(dispmap[3 - Cfg::Get().*option].Str);
+  if (*Request)
+  { const strmap<5,cfg_disp>* mp = mapsearch(dispmap, Request);
+    if (mp)
+      Cfg::ChangeAccess().*option = mp->Val;
+    else
+      Reply.clear(); // Error
+  }
+}
+void CommandProcessor::DoOption(cfg_scroll amp_cfg::* option)
+{ static const strmap<9,cfg_scroll> map[] =
+  { { "infinite", CFG_SCROLL_INFINITE }
+  , { "none",     CFG_SCROLL_NONE     }
+  , { "once",     CFG_SCROLL_ONCE     }
+  };
+  Reply.append(map[Cfg::Get().*option * 5 % 3].Str);
+  if (*Request)
+  { const strmap<9,cfg_scroll>* mp = mapsearch(map, Request);
+    if (mp)
+      Cfg::ChangeAccess().*option = mp->Val;
+    else
+      Reply.clear(); // Error
+  }
+}
+void CommandProcessor::DoOption(cfg_mode amp_cfg::* option)
+{ // old value
+  Reply.append(Cfg::Get().*option);
+  static const strmap<8,cfg_mode> map[] =
+  { { "0",       CFG_MODE_REGULAR }
+  , { "1",       CFG_MODE_SMALL }
+  , { "2",       CFG_MODE_TINY }
+  , { "normal",  CFG_MODE_REGULAR }
+  , { "regular", CFG_MODE_REGULAR }
+  , { "small",   CFG_MODE_SMALL }
+  , { "tiny",    CFG_MODE_TINY }
+  };
+  if (*Request)
+  { const strmap<8,cfg_mode>* mp = mapsearch(map, Request);
+    if (mp)
+      Cfg::ChangeAccess().*option = mp->Val;
+    else
+      Reply.clear(); // error
+  }
+};
+
+void CommandProcessor::DoFontOption(void*)
+{ // old value
+  if (Cfg::Get().font_skinned)
+    Reply.append(Cfg::Get().font+1);
+  else
+    Reply.appendf("%i.%s", Cfg::Get().font_size, Cfg::Get().font_attrs.szFacename);
+
+  if (*Request)
+  { // set new value
+    int font = 0;
+    char* cp = strchr(Request, '.');
+    if (cp)
+      *cp++ = 0;
+    if (!parse_int(Request, font))
+    { Reply.clear(); // error
+      return;
+    }
+    if (cp)
+    { // non skinned font
+      FATTRS fattrs = { sizeof(FATTRS), 0, 0, "", 0, 0, 16, 7, 0, 0 };
+      strlcpy(fattrs.szFacename, cp, sizeof fattrs.szFacename);
+      Cfg::ChangeAccess cfg;
+      cfg.font_skinned = false;
+      cfg.font_attrs   = fattrs;
+      cfg.font_size    = font;
+      // TODO: we should validate the font here.
+    } else
+    { switch (font)
+      {case 1:
+       case 2:
+        { Cfg::ChangeAccess cfg;
+          cfg.font_skinned = true;
+          cfg.font         = font;
+          break;
+        }
+       default:
+        Reply.clear(); // error
+      }
+    }
+  }
+}
+
+url123 CommandProcessor::ParseURL(const char* url)
+{ url123 ret = CurDir ? CurDir.makeAbsolute(url) : url123::normalizeURL(url);
+  // Directory?
+  if (ret && ret[ret.length()-1] != '/' && is_dir(ret))
+    ret = ret + "/";
+  return ret;
+}
+
+void CommandProcessor::SendCtrlCommand(Ctrl::ControlCommand* cmd)
+{ cmd = Ctrl::SendCommand(cmd);
+  Reply.append(cmd->Flags);
+  cmd->Destroy();
+}
+
+bool CommandProcessor::FillLoadHelper(LoadHelper& lh, char* args)
+{ URLTokenizer tok(args);
+  const char* url;
+  // Tokenize args
+  while (tok.Next(url))
+  { if (!url)
+      return false; // Bad URL
+    lh.AddItem(Playable::GetByURL(ParseURL(url)));
+  }
+  return true;
+}
 
 
 const CommandProcessor::CmdEntry CommandProcessor::CmdList[] = // list must be sorted!!!
@@ -323,97 +550,6 @@ void CommandProcessor::Exec()
   }
 }
 
-url123 CommandProcessor::ParseURL(const char* url)
-{ url123 ret = CurDir ? CurDir.makeAbsolute(url) : url123::normalizeURL(url);
-  // Directory?
-  if (ret && ret[ret.length()-1] != '/' && is_dir(ret))
-    ret = ret + "/";
-  return ret;
-}
-
-void CommandProcessor::SendCtrlCommand(Ctrl::ControlCommand* cmd)
-{ cmd = Ctrl::SendCommand(cmd);
-  Reply.append(cmd->Flags);
-  cmd->Destroy();
-}
-
-bool CommandProcessor::FillLoadHelper(LoadHelper& lh, char* args)
-{ URLTokenizer tok(args);
-  const char* url;
-  // Tokenize args
-  while (tok.Next(url))
-  { if (!url)
-      return false; // Bad URL
-    lh.AddItem(Playable::GetByURL(ParseURL(url)));
-  }
-  return true;
-}
-
-
-static bool parse_int(const char* arg, int& val)
-{ int v;
-  size_t n;
-  if (sscanf(arg, "%i%n", &v, &n) == 1 && n == strlen(arg))
-  { val = v;
-    return true;
-  } else
-    return false;
-}
-
-static bool parse_double(const char* arg, double& val)
-{ double v;
-  size_t n;
-  if (sscanf(arg, "%lf%n", &v, &n) == 1 && n == strlen(arg))
-  { val = v;
-    return true;
-  } else
-    return false;
-}
-
-static const strmap<8, Ctrl::Op> opmap[] =
-{ { "",       Ctrl::Op_Toggle },
-  { "0",      Ctrl::Op_Clear },
-  { "1",      Ctrl::Op_Set },
-  { "false",  Ctrl::Op_Clear },
-  { "no",     Ctrl::Op_Clear },
-  { "off",    Ctrl::Op_Clear },
-  { "on",     Ctrl::Op_Set },
-  { "toggle", Ctrl::Op_Toggle },
-  { "true",   Ctrl::Op_Set },
-  { "yes",    Ctrl::Op_Set }
-};
-
-/* parse operator with default toggle */
-inline static const strmap<8, Ctrl::Op>* parse_op1(const char* arg)
-{ return mapsearch(opmap, arg);
-}
-/* parse operator without default */
-inline static const strmap<8, Ctrl::Op>* parse_op2(const char* arg)
-{ return mapsearch2(opmap+1, (sizeof opmap / sizeof *opmap)-1, arg);
-}
-
-static const char* cmd_op_bool(const char* arg, bool& val)
-{ const char* ret = val ? "on" : "off";
-  if (*arg)
-  { const strmap<8, Ctrl::Op>* op = parse_op2(arg);
-    if (op)
-    { switch (op->Val)
-      {case Ctrl::Op_Set:
-        val = true;
-        break;
-       case Ctrl::Op_Toggle:
-        val = !val;
-        break;
-       default:
-        val = false;
-        break;
-      }
-    } else
-      return ""; // error
-  }
-  return ret;
-}
-
 
 /****************************************************************************
 *
@@ -433,12 +569,12 @@ void CommandProcessor::CmdCd()
 
 
 void CommandProcessor::CmdLoad()
-{ LoadHelper lh(cfg.playonload*LoadHelper::LoadPlay | cfg.append_cmd*LoadHelper::LoadAppend);
+{ LoadHelper lh(Cfg::Get().playonload*LoadHelper::LoadPlay | Cfg::Get().append_cmd*LoadHelper::LoadAppend);
   Reply.append(!FillLoadHelper(lh, Request) ? Ctrl::RC_BadArg : lh.SendCommand());
 }
 
 void CommandProcessor::CmdPlay()
-{ ExtLoadHelper lh( cfg.playonload*LoadHelper::LoadPlay | cfg.append_cmd*LoadHelper::LoadAppend,
+{ ExtLoadHelper lh( Cfg::Get().playonload*LoadHelper::LoadPlay | Cfg::Get().append_cmd*LoadHelper::LoadAppend,
                     Ctrl::MkPlayStop(Ctrl::Op_Set) );
   Reply.append(!FillLoadHelper(lh, Request) ? Ctrl::RC_BadArg : lh.SendCommand());
 }
@@ -448,7 +584,7 @@ void CommandProcessor::CmdStop()
 }
 
 void CommandProcessor::CmdPause()
-{ const strmap<8, Ctrl::Op>* op = parse_op1(Request);
+{ const strmap<7,Ctrl::Op>* op = parse_op1(Request);
   if (!op)
     Reply.append(Ctrl::RC_BadArg);
   else
@@ -472,7 +608,7 @@ void CommandProcessor::CmdPrev()
 }
 
 void CommandProcessor::CmdRewind()
-{ const strmap<8, Ctrl::Op>* op = parse_op1(Request);
+{ const strmap<7,Ctrl::Op>* op = parse_op1(Request);
   if (!op)
     Reply.append(Ctrl::RC_BadArg);
   else
@@ -480,7 +616,7 @@ void CommandProcessor::CmdRewind()
 }
 
 void CommandProcessor::CmdForward()
-{ const strmap<8, Ctrl::Op>* op = parse_op1(Request);
+{ const strmap<7,Ctrl::Op>* op = parse_op1(Request);
   if (!op)
     Reply.append(Ctrl::RC_BadArg);
   else
@@ -515,7 +651,7 @@ void CommandProcessor::CmdVolume()
 }
 
 void CommandProcessor::CmdShuffle()
-{ const strmap<8, Ctrl::Op>* op = parse_op1(Request);
+{ const strmap<7,Ctrl::Op>* op = parse_op1(Request);
   if (!op)
     Reply.append(Ctrl::RC_BadArg);
   else
@@ -523,7 +659,7 @@ void CommandProcessor::CmdShuffle()
 }
 
 void CommandProcessor::CmdRepeat()
-{ const strmap<8, Ctrl::Op>* op = parse_op1(Request);
+{ const strmap<7,Ctrl::Op>* op = parse_op1(Request);
   if (!op)
     Reply.append(Ctrl::RC_BadArg);
   else
@@ -551,12 +687,12 @@ void CommandProcessor::CmdQuery()
 }
 
 void CommandProcessor::CmdCurrent()
-{ static const strmap<5, char> map[] =
+{ static const strmap<5,char> map[] =
   { { "",     0 },
     { "root", 1 },
     { "song", 0 }
   };
-  const strmap<5, char>* op = mapsearch(map, Request);
+  const strmap<5,char>* op = mapsearch(map, Request);
   if (op)
   { int_ptr<APlayable> cur;
     switch (op->Val)
@@ -573,12 +709,7 @@ void CommandProcessor::CmdCurrent()
 }
 
 void CommandProcessor::CmdStatus()
-{ static const strmap<6, cfg_disp> map[] =
-  { { "file", CFG_DISP_FILENAME },
-    { "info", CFG_DISP_FILEINFO },
-    { "tag",  CFG_DISP_ID3TAG }
-  };
-  const strmap<6, cfg_disp>* op = mapsearch(map, Request);
+{ const strmap<5,cfg_disp>* op = mapsearch(dispmap, Request);
   if (op)
   { int_ptr<APlayable> song = Ctrl::GetCurrentSong();
     if (song)
@@ -593,7 +724,7 @@ void CommandProcessor::CmdStatus()
         break;
 
        case CFG_DISP_FILEINFO:
-        Reply.append(xstring(song->GetInfo().tech->info));
+        Reply.append(DSTRING(song->GetInfo().tech->info));
         break;
       }
     }
@@ -684,7 +815,7 @@ void CommandProcessor::CmdPlIndex()
 
 void CommandProcessor::CmdUse()
 { if (CurPlaylist)
-  { LoadHelper lh(cfg.playonload*LoadHelper::LoadPlay | cfg.append_cmd*LoadHelper::LoadAppend);
+  { LoadHelper lh(Cfg::Get().playonload*LoadHelper::LoadPlay | Cfg::Get().append_cmd*LoadHelper::LoadAppend);
     lh.AddItem(CurPlaylist);
     Reply.append(lh.SendCommand());
   } else
@@ -785,7 +916,7 @@ inline void CommandProcessor::AppendFloatAttribute(const char* fmt, double value
     Reply.appendf(fmt, value);
 }
 
-void CommandProcessor::AppendStringAttribute(const char* name, xstring value)
+void CommandProcessor::AppendStringAttribute(const char* name, DSTRING value)
 { if (value)
   { Reply.append(name);
     Reply.append('=');
@@ -1014,7 +1145,7 @@ void CommandProcessor::CmdOpen()
   { *arg2++ = 0;
     arg2 += strspn(arg2, " \t");
   }
-  static const strmap<12, int> map[] =
+  static const strmap<12,int> map[] =
   { { "detailed",   GUI::DLT_PLAYLIST },
     { "metainfo",   GUI::DLT_METAINFO },
     { "playlist",   GUI::DLT_PLAYLIST },
@@ -1023,7 +1154,7 @@ void CommandProcessor::CmdOpen()
     { "tagedit",    GUI::DLT_INFOEDIT },
     { "tree",       GUI::DLT_PLAYLISTTREE }
   };
-  const strmap<12, int>* op = mapsearch(map, Request);
+  const strmap<12,int>* op = mapsearch(map, Request);
   if (op)
   { if (op->Val >= 0)
     { if (*arg2 == 0)
@@ -1044,11 +1175,9 @@ void CommandProcessor::CmdOpen()
 }
 
 void CommandProcessor::CmdSkin()
-{ Reply.append(cfg.defskin);
+{ Reply.append(xstring(Cfg::Get().defskin));
   if (*Request)
-  { strlcpy(cfg.defskin, Request, sizeof cfg.defskin);
-    GUI::ReloadSkin();
-  }
+    Cfg::ChangeAccess().defskin = Request;
 }
 
 // CONFIGURATION
@@ -1057,101 +1186,104 @@ void CommandProcessor::CmdVersion()
 { Reply.append(AMP_VERSION);
 }
 
-void CommandProcessor::CmdOption()
-{
-  // TODO:
-}
-
-void CommandProcessor::CmdSize()
-{ // old value
-  Reply.append(cfg.mode);
-  static const strmap<8, cfg_mode> map[] =
-  { { "0",       CFG_MODE_REGULAR },
-    { "1",       CFG_MODE_SMALL },
-    { "2",       CFG_MODE_TINY },
-    { "normal",  CFG_MODE_REGULAR },
-    { "regular", CFG_MODE_REGULAR },
-    { "small",   CFG_MODE_SMALL },
-    { "tiny",    CFG_MODE_TINY }
-  };
-  if (*Request)
-  { const strmap<8, cfg_mode>* mp = mapsearch(map, Request);
-    if (mp)
-      GUI::SetWindowMode(mp->Val);
-    else
-      Reply.clear(); // error
+class option
+{ void (CommandProcessor::*Handler)(void* arg);
+  void* Arg;
+ public:
+  option(void (CommandProcessor::*handler)(void*), void* arg = NULL)
+  : Handler(handler)
+  , Arg(arg)
+  {}
+  template <class T>
+  option(T amp_cfg::* option, void (CommandProcessor::*handler)(T amp_cfg::*))
+  : Handler((void (CommandProcessor::*)(void*))handler)
+  , Arg((void*)option)
+  {}
+  template <class T>
+  option(T amp_cfg::* option)
+  : Handler((void (CommandProcessor::*)(void*))(void (CommandProcessor::*)(T amp_cfg::*))&CommandProcessor::DoOption)
+  , Arg((void*)option)
+  {}
+  void operator()(CommandProcessor& cp) const
+  { (cp.*Handler)(Arg);
   }
 };
 
-void CommandProcessor::CmdFont()
-{ // old value
-  if (cfg.font_skinned)
-    Reply.append(cfg.font+1);
-  else
-    Reply.appendf("%i.%s", cfg.font_size, cfg.font_attrs.szFacename);
-
-  if (*Request)
-  { // set new value
-    int font = 0;
-    char* cp = strchr(Request, '.');
-    if (cp)
-      *cp++ = 0;
-    if (!parse_int(Request, font))
-    { Reply.clear(); // error
-      return;
-    }
-    if (cp)
-    { // non skinned font
-      FATTRS fattrs = { sizeof(FATTRS), 0, 0, "", 0, 0, 16, 7, 0, 0 };
-      strlcpy(fattrs.szFacename, cp, sizeof fattrs.szFacename);
-      cfg.font_skinned = false;
-      cfg.font_attrs   = fattrs;
-      cfg.font_size    = font;
-      // TODO: we should validate the font here.
-      //amp_invalidate(UPD_FILENAME);
-    } else
-    { switch (font)
-      {case 1:
-       case 2:
-        cfg.font_skinned = true;
-        cfg.font         = font;
-        //amp_invalidate(UPD_FILENAME);
-        break;
-       default:
-        Reply.clear(); // error
-      }
-    }
+void CommandProcessor::CmdOption()
+{
+  size_t len = strcspn(Request, " \t");
+  Request[len] = 0;
+  char* cp = strchr(Request, ':');
+  if (cp)
+  { // Plug-in option
+    *cp = 0;
+    int_ptr<Module> plugin(Module::FindByKey(Request));
+    if (!plugin)
+      return; // Plug-in not found.
+    // Call plug-in function
+    xstring result;
+    plugin->Option(cp+1, result);
+    Reply.append(result);
+    return;
   }
+
+  // PM123 option
+  static const strmap<16,option> map[] =
+  { { "altslider",       option(&amp_cfg::altnavig)       }
+  , { "autouse",         option(&amp_cfg::autouse)        }
+  , { "bufferlevel",     option(&amp_cfg::buff_fill)      }
+  , { "buffersize",      option(&amp_cfg::buff_size)      }
+  , { "bufferwait",      option(&amp_cfg::buff_wait)      }
+  , { "conntimeout",     option(&amp_cfg::conn_timeout)   }
+  , { "dndrecurse",      option(&amp_cfg::recurse_dnd)    }
+  , { "dockmargin",      option(&amp_cfg::dock_margin)    }
+  , { "dockwindows",     option(&amp_cfg::dock_windows)   }
+  , { "folderautosort",  option(&amp_cfg::sort_folders)   }
+  , { "foldersfirst",    option(&amp_cfg::folders_first)  }
+  , { "font",            option(&CommandProcessor::DoFontOption, NULL) }
+  , { "pipe",            option(&amp_cfg::pipe_name)      }
+  , { "playonload",      option(&amp_cfg::playonload)     }
+  , { "playlistwrap",    option(&amp_cfg::autoturnaround) }
+  , { "proxyserver",     option(&amp_cfg::proxy)          }
+  , { "proxyauth",       option(&amp_cfg::auth)           }
+  , { "queueatcommand",  option(&amp_cfg::append_cmd)     }
+  , { "queueatdnd",      option(&amp_cfg::append_dnd)     }
+  , { "queuedelplayed",  option(&amp_cfg::queue_mode)     }
+  , { "resumeatstartup", option(&amp_cfg::restartonstart) }
+  , { "retainposonexit", option(&amp_cfg::retainonexit)   }
+  , { "retainposonstop", option(&amp_cfg::retainonstop)   }
+  , { "scrollmode",      option(&amp_cfg::scroll)         }
+  , { "scrollaround",    option(&amp_cfg::scroll_around)  }
+  , { "skin",            option(&amp_cfg::defskin)        }
+  , { "textdisplay",     option(&amp_cfg::viewmode)       }
+  , { "windowposbyobj",  option(&amp_cfg::win_pos_by_obj) }
+  , { "workersdlg",      option(&amp_cfg::num_dlg_workers)}
+  , { "workersnorm",     option(&amp_cfg::num_workers)    }
+  };
+
+  const strmap<16,option>* op = mapsearch(map, Request);
+  if (op)
+    op->Val(*this);
+}
+
+void CommandProcessor::CmdSize()
+{ DoOption(&amp_cfg::mode);
+};
+
+void CommandProcessor::CmdFont()
+{ DoFontOption(NULL);
 }
 
 void CommandProcessor::CmdFloat()
-{ // old value
-  Reply.append(cfg.floatontop ? "on" : "off");
-  if (*Request)
-  { const strmap<8, Ctrl::Op>* op = parse_op2(Request);
-    if (op)
-    { switch (op->Val)
-      {case Ctrl::Op_Clear:
-        if (!cfg.floatontop)
-          return;
-        break;
-       case Ctrl::Op_Set:
-        if (cfg.floatontop)
-          return;
-       default:;
-      }
-      GUI::SetWindowFloat(!cfg.floatontop);
-    } else
-      Reply.clear();
-  }
+{ DoOption(&amp_cfg::floatontop);
 }
 
 void CommandProcessor::CmdAutouse()
-{ Reply.append(cmd_op_bool(Request, cfg.autouse));
+{ DoOption(&amp_cfg::autouse);
 }
 
 void CommandProcessor::CmdPlayonload()
-{ Reply.append(cmd_op_bool(Request, cfg.playonload));
+{ DoOption(&amp_cfg::playonload);
 }
 
 
@@ -1253,12 +1385,13 @@ static void TFNENTRY pipe_thread(void*)
    intances. */
 bool amp_pipe_create( void )
 { DEBUGLOG(("amp_pipe_create() - %p\n", HPipe));
-  ULONG rc = DosCreateNPipe( cfg.pipe_name, &HPipe,
+  xstring pipe_name(Cfg::Get().pipe_name);
+  ULONG rc = DosCreateNPipe( pipe_name, &HPipe,
                              NP_ACCESS_DUPLEX, NP_WAIT|NP_TYPE_BYTE|NP_READMODE_BYTE | 1,
                              2048, 2048, 500 );
 
-  if( rc != 0 && rc != ERROR_PIPE_BUSY ) {
-    amp_player_error( "Could not create pipe %s, rc = %d.", cfg.pipe_name.cdata(), rc );
+  if (rc != 0 && rc != ERROR_PIPE_BUSY)
+  { amp_player_error("Could not create pipe %s, rc = %d.", pipe_name.cdata(), rc);
     return false;
   }
 
@@ -1275,7 +1408,7 @@ void amp_pipe_destroy()
 }
 
 bool amp_pipe_check()
-{ APIRET rc = DosWaitNPipe(cfg.pipe_name, 50);
+{ APIRET rc = DosWaitNPipe(xstring(Cfg::Get().pipe_name), 50);
   DEBUGLOG(("amp_pipe_check() : %lu\n", rc));
   return rc == NO_ERROR || rc == ERROR_PIPE_BUSY;
 }

@@ -33,7 +33,7 @@
 
 #include "filedlg.h"
 #include "pm123.rc.h"
-#include "properties.h"
+#include "configuration.h"
 #include "dialog.h"
 #include "glue.h"
 #include <utilfct.h>
@@ -319,22 +319,22 @@ amp_file_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
       if( filedialog && !(filedialog->ulUser & FDU_RECURSEBTN )) {
         WinShowWindow( WinWindowFromID( hwnd, CB_RECURSE ), FALSE );
       } else {
-        WinCheckButton( hwnd, CB_RECURSE, cfg.add_recursive );
+        WinCheckButton( hwnd, CB_RECURSE, Cfg::Get().add_recursive );
       }
       if( filedialog && !(filedialog->ulUser & FDU_RELATIVBTN )) {
         WinShowWindow( WinWindowFromID( hwnd, CB_RELATIVE ), FALSE );
       } else {
-        WinCheckButton( hwnd, CB_RELATIVE, cfg.save_relative );
+        WinCheckButton( hwnd, CB_RELATIVE, Cfg::Get().save_relative );
       }
       if( filedialog && filedialog->ulUser & FDU_DIR_ENABLE ) {
         WinEnableControl( hwnd, DID_OK, TRUE  );
       }
       do_warpsans( hwnd );
-      rest_window_pos( hwnd );
+      Cfg::RestWindowPos( hwnd );
       break;
 
     case WM_DESTROY:
-      save_window_pos( hwnd );
+      Cfg::SaveWindowPos( hwnd );
       break;
 
     case WM_ADJUSTWINDOWPOS:
@@ -381,14 +381,10 @@ amp_file_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
         // Retrieve selected file type
         WinQueryDlgItemText( hwnd, DID_FILTER_CB, _MAX_PATH, filedialog->pszIType );
 
+        Cfg::ChangeAccess cfg;
         if( filedialog->ulUser & FDU_RELATIVBTN ) {
-          if( !WinQueryButtonCheckstate( hwnd, CB_RELATIVE )) {
-            filedialog->ulUser &= ~FDU_RELATIV_ON;
-            cfg.save_relative = FALSE;
-          } else {
-            filedialog->ulUser |=  FDU_RELATIV_ON;
-            cfg.save_relative = TRUE;
-          }
+          cfg.save_relative = WinQueryButtonCheckstate( hwnd, CB_RELATIVE );
+          filedialog->ulUser = (filedialog->ulUser & ~FDU_RELATIV_ON) | FDU_RELATIV_ON*cfg.save_relative;
         }
 
         if( filedialog->ulUser & FDU_DIR_ENABLE )
@@ -408,13 +404,8 @@ amp_file_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
             filedialog->ulFQFCount = 1;
 
             if( filedialog->ulUser & FDU_RECURSEBTN ) {
-              if( !WinQueryButtonCheckstate( hwnd, CB_RECURSE )) {
-                filedialog->ulUser &= ~FDU_RECURSE_ON;
-                cfg.add_recursive = FALSE;
-              } else {
-                filedialog->ulUser |=  FDU_RECURSE_ON;
-                cfg.add_recursive = TRUE;
-              }
+              cfg.add_recursive = WinQueryButtonCheckstate( hwnd, CB_RECURSE );
+              filedialog->ulUser = (filedialog->ulUser & ~FDU_RECURSE_ON) | FDU_RECURSE_ON*cfg.add_recursive;
             }
 
             WinDismissDlg( hwnd, DID_OK );

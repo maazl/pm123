@@ -32,7 +32,6 @@
 #define INCL_WIN
 #include "controller.h"
 #include "songiterator.h"
-#include "properties.h"
 #include "plugman.h"
 #include "playable.h"
 #include "pm123.rc.h"
@@ -46,6 +45,7 @@
 class Module;
 class LoadHelper;
 class PlaylistMenu;
+struct CfgChangeArgs;
 
 class GUI
 {public:
@@ -129,6 +129,7 @@ class GUI
   static delegate<const void, const Ctrl::EventFlags>   ControllerDeleg;
   static delegate<const void, const PlayableChangeArgs> RootDeleg;
   static delegate<const void, const PlayableChangeArgs> CurrentDeleg;
+  static delegate<const void, const CfgChangeArgs>      ConfigDeleg;
   
  private:
   // Static members must not use EXPENTRY linkage with IBM VACPP.
@@ -144,6 +145,7 @@ class GUI
   static void      ControllerNotification(const void*, const Ctrl::EventFlags& flags);
   static void      PlayableNotification(const void*, const PlayableChangeArgs& args);
   static void      PluginNotification(const void*, const Plugin::EventArgs& args);
+  static void      ConfigNotification(const void*, const CfgChangeArgs& args);
 
   static Playable* CurrentRoot()             { return CurrentIter->GetRoot(); }
   static APlayable& CurrentSong()            { return CurrentIter->GetCurrent(); }
@@ -182,7 +184,8 @@ class GUI
  public: // Manipulating interface   
   static void      ViewMessage(xstring info, bool error);
   // Tells the help manager to display a specific help window.
-  static bool      ShowHelp(SHORT resid)  { DEBUGLOG(("amp_show_help(%u)\n", resid));
+  // TODO: should move to dialog.cpp
+  static bool      ShowHelp(SHORT resid)  { DEBUGLOG(("ShowHelp(%u)\n", resid));
                                             return WinSendMsg(HHelp, HM_DISPLAY_HELP, MPFROMSHORT(resid), MPFROMSHORT(HM_RESOURCEID)) == 0; }
   // Opens dialog for the specified object.
   static void      ShowDialog(Playable& item, DialogType dlg);
@@ -191,11 +194,6 @@ class GUI
   
   static void      Show(bool visible = true);
   static void      Quit()                 { WinSendMsg(HPlayer, WM_COMMAND, MPFROMSHORT(BMP_POWER), 0); }
-  static void      SetWindowMode(cfg_mode mode);
-  static void      SetWindowFloat(bool flag);
-  static void      ReloadSkin()           { PMRASSERT(WinPostMsg(HPlayer, WMP_RELOADSKIN, 0, 0)); }
-  static void      RefreshDisplay()       { PrepareText(); PMRASSERT(WinPostMsg(HPlayer, WMP_PAINT, MPFROMLONG(UPD_ALL), 0)); }
-  static void      RearrangeDocking()     { PMRASSERT(WinPostMsg(HPlayer, WMP_ARRANGEDOCKING, 0, 0)); }
 
   // Load objects into the player.
   // Attention!!! Load takes the exclusive ownership of lhp and deletes it afterwards.

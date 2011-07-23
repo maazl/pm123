@@ -46,7 +46,7 @@
 #include "pm123.h" // for hab
 #include "dstring.h"
 #include "dialog.h"
-#include "properties.h"
+#include "configuration.h"
 #include "123_util.h"
 #include "playable.h"
 #include "controller.h" // for starting position work around
@@ -603,6 +603,8 @@ proxy_1_decoder_command( DecoderProxy1* op, void* w, ULONG msg, DECODER_PARAMS2*
   memset(&par1, 0, sizeof par1);
   par1.size = sizeof par1;
   // preprocessing
+  xstring proxy; // keep strong references
+  xstring auth;
   switch (msg)
   {case DECODER_PLAY:
     // decompose URL for old interface
@@ -636,11 +638,11 @@ proxy_1_decoder_command( DecoderProxy1* op, void* w, ULONG msg, DECODER_PARAMS2*
 
     par1.output_play_samples = (int DLLENTRYPF()(void*, const FORMAT_INFO*, const char*, int, int))&PROXYFUNCREF(DecoderProxy1)proxy_1_decoder_play_samples;
     par1.a                   = op;
-    par1.proxyurl            = cfg.proxy;
-    par1.httpauth            = cfg.auth;
+    par1.proxyurl            = proxy = Cfg::Get().proxy;
+    par1.httpauth            = auth  = Cfg::Get().auth;
     par1.hwnd                = op->hwnd;
-    par1.buffersize          = cfg.buff_size;
-    par1.bufferwait          = cfg.buff_wait;
+    par1.buffersize          = Cfg::Get().buff_size;
+    par1.bufferwait          = Cfg::Get().buff_wait;
     par1.metadata_buffer     = op->metadata_buffer;
     par1.metadata_size       = sizeof(op->metadata_buffer);
     par1.audio_buffersize    = BUFSIZE;

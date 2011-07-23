@@ -1,7 +1,10 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
-<html><head><title>PM123 Plug-in Developer's Guide</title>
-
-<link rel="stylesheet" href="../common/infstyle.css" type="text/css"></head><body>
+<html>
+<head>
+  <title>PM123 Plug-in Developer's Guide</title>
+  <link rel="stylesheet" href="../common/infstyle.css" type="text/css">
+</head>
+<body>
 <h2>Developing PM123 Plug-ins</h2>
 <p>PM123 supports four kinds of plug-ins: visual, decoder,
 output and filter. Visual plug-ins are used to peek at the data
@@ -29,36 +32,42 @@ They can of course be loaded when loading a new skin.</p>
 <p><tt>plugin.h</tt> contains the necessary structures
 for all PM123 plug-ins.
 All exported and callback functions must use the calling convention <code>_cdecl</code>.</p>
-<p>Before you include any file from the PDK you should define the macro <tt>PLUGIN_INTERFACE_LEVEL</tt> to the apropriate value matching the <a href="#interface_level">interface compatibility</a> of your plugin. Example:</p>
+<p>Before you include any file from the PDK you should define the macro
+<tt>PLUGIN_INTERFACE_LEVEL</tt> to the apropriate value matching the <a
+ href="#interface_level">interface compatibility</a> of your plugin.
+Example:</p>
 <blockquote>
-  <pre>#define PLUGIN_INTERFACE_LEVEL 2<br>#include &lt;plugin.h&gt;<br>#include &lt;decoder_plug.h&gt;<br></pre>
+  <pre>#define PLUGIN_INTERFACE_LEVEL 2<br>#include &lt;plugin.h&gt;<br>#include &lt;decoder_plug.h&gt;</pre>
 </blockquote>
-
 <h4>Initialization</h4>
-<p><a name="plugin_query"></a>A plug-in must have a function that identifies it as a
+<p><a name="plugin_query"></a>A plug-in must have a function that
+identifies it as a
 plug-in:
 </p>
 <blockquote>
-<pre>int DLLENTRY <b>plugin_query</b>(PPLUGIN_QUERYPARAM <var>param</var>);</pre>
+  <pre>int DLLENTRY <b>plugin_query</b>(PPLUGIN_QUERYPARAM <var>param</var>);</pre>
 </blockquote>
 <tt>plugin_query</tt> is called before any other function
 and exactly once by PM123. The plug-in will then have to fill the
 variables in the <i>param</i> structure, for example:
 <blockquote>
-<pre>param-&gt;type = PLUGIN_VISUAL;<br>/* Identify the plug-in as visual plug-in. Types can be ORred to<br>include multiple plug-in types in the same DLL. */<br>param-&gt;author = "Matti Meikäläinen";<br>/* Author of the plug-in */<br>param-&gt;desc = "Example plug-in";<br>/* A short description of the plug-in */<br>param-&gt;configurable = TRUE;<br>/* Toggles plug-in configurability via PM123 Properties dialog */<br>param-&gt;interface = PLUGIN_INTERFACE_LEVEL;<br>/* This is the required <a href="#interface_level">interface revision level</a>.<br> * This parameter defaults to 0 which is the same as before this field existed.<br> * Plug-ins with Level 0 <em>must not</em> access this field to be compatible with older<br> * versions of PM123. */<br>return 0;</pre>
+  <pre>param-&gt;type = PLUGIN_VISUAL;<br>/* Identify the plug-in as visual plug-in. Types can be ORred to<br>include multiple plug-in types in the same DLL. */<br>param-&gt;author = "Matti Meikäläinen";<br>/* Author of the plug-in */<br>param-&gt;desc = "Example plug-in";<br>/* A short description of the plug-in */<br>param-&gt;configurable = TRUE;<br>/* Toggles plug-in configurability via PM123 Properties dialog */<br>param-&gt;interface = PLUGIN_INTERFACE_LEVEL;<br>/* This is the required <a
+ href="#interface_level">interface revision level</a>.<br> * This parameter defaults to 0 which is the same as before this field existed.<br> * Plug-ins with Level 0 <em>must not</em> access this field to be compatible with older<br> * versions of PM123. */<br>return 0;</pre>
 </blockquote>
 <p><a name="plugin_init"></a>A second initialization function, <tt>plugin_init</tt>,
 is called by the plug-in manager once per plug-in after <tt>plugin_query</tt>.</p>
 <blockquote>
-<pre>int DLLENTRY <b>plugin_init</b>(const PLUGIN_CONTEXT* <var>ctx</var>);</pre>
+  <pre>int DLLENTRY <b>plugin_init</b>(const PLUGIN_CONTEXT* <var>ctx</var>);</pre>
 </blockquote>
-<p>The export of this function is optional but level 2 plug-ins most likely will require it. It provides some
+<p>The export of this function is optional but level 2 plug-ins most
+likely will require it. It provides some
 global entry points of PM123. They might
 be used to handle asynchronous events or requests. The structure and
 the functions must
-not be used after <a href="#plugin_deinit"><tt>plugin_deninit</tt></a> returned.</p>
+not be used after <a href="#plugin_deinit"><tt>plugin_deninit</tt></a>
+returned.</p>
 <blockquote>
-<pre>/* Error message function. */<br>void DLLENTRY (*<b>error_display</b>)( const char* <var>msg</var> );<br>/* Info message function */<br>/* This information is always displayed to the user right away. */<br>void DLLENTRY (*<b>info_display</b>)( const char* <var>msg</var> );<br><br>/* Execute remote command */<br>/* See the documentation of remote commands for a description. */<br>const char* DLLENTRY (*<b>exec_command</b>)( const char* <var>cmd</var> );<br><br>/* retrieve configuration setting */<br>int DLLENTRY (*<b>query_profile</b>)( const char* <var>key</var>, void* <var>buffer</var>, int <var>maxlength</var> );<br>/* store configuration setting */<br>int DLLENTRY (*<b>write_profile</b>)( const char* <var>key</var>, const void* <var>buffer</var>, int <var>length</var> );<br><br>/* Allocate dynamic string. Any previous content is discarded first.<br> * The returned memory can be written up to len bytes until the next<br> * dstring_* function call on dst. The return value is the same than<br> * dst-&gt;cstr except for constness. */<br>char* DLLENTRY (*<b>dstring_alloc</b>)( DSTRING* dst, unsigned int len );<br>/* Deallocate dynamic string. This will change the pointer to NULL. */<br>void DLLENTRY (*<b>dstring_free</b>)( volatile DSTRING* dst );<br>/* Return the length of a dynamic string */<br>unsigned DLLENTRY (*<b>dstring_length</b>)( const DSTRING* src );<br>/* Compare two DSTRINGs for (binary!) equality. NULL allowed. */<br>int DLLENTRY (*<b>dstring_equal</b>)( const DSTRING* src1, const DSTRING* src2 );<br>/* Reassing dynamic string from C string. Any previous content is discarded first. */<br>void DLLENTRY (*<b>dstring_assign</b>)( volatile DSTRING* dst, const char* cstr );<br>/* Copy dynamic string to another one. Any previous content is discarded first.<br> * This function will not copy the string itself. It only creates an additional reference to the content. */<br>void DLLENTRY (*<b>dstring_copy</b>)( volatile DSTRING* dst, const DSTRING* src );<br>/* Strongly thread safe version of dstring_copy. */<br>void DLLENTRY (*<b>dstring_copy_safe</b>)( volatile DSTRING* dst, volatile const DSTRING* src );<br>/* Append to DSTRING. The source may also be from a DSTRING.<br> * If dst is NULL a new string is created */ <br>void DLLENTRY (*<b>dstring_append</b>)( DSTRING* dst, const char* cstr ); <br>/* printf into a DSTRING. Any previous content is discarded first. */<br>void DLLENTRY (*<b>dstring_sprintf</b>)( volatile DSTRING* dst, const char* fmt, ... );<br>void DLLENTRY (*<b>dstring_vsprintf</b>)( volatile DSTRING* dst, const char* fmt, va_list va );</pre>
+  <pre>/* Error message function. */<br>void DLLENTRY (*<b>error_display</b>)( const char* <var>msg</var> );<br>/* Info message function */<br>/* This information is always displayed to the user right away. */<br>void DLLENTRY (*<b>info_display</b>)( const char* <var>msg</var> );<br><br>/* Execute remote command */<br>/* See the documentation of remote commands for a description. */<br>const char* DLLENTRY (*<b>exec_command</b>)( const char* <var>cmd</var> );<br><br>/* retrieve configuration setting */<br>int DLLENTRY (*<b>query_profile</b>)( const char* <var>key</var>, void* <var>buffer</var>, int <var>maxlength</var> );<br>/* store configuration setting */<br>int DLLENTRY (*<b>write_profile</b>)( const char* <var>key</var>, const void* <var>buffer</var>, int <var>length</var> );<br><br>/* Allocate dynamic string. Any previous content is discarded first.<br> * The returned memory can be written up to len bytes until the next<br> * dstring_* function call on dst. The return value is the same than<br> * dst-&gt;cstr except for constness. */<br>char* DLLENTRY (*<b>dstring_alloc</b>)( DSTRING* dst, unsigned int len );<br>/* Deallocate dynamic string. This will change the pointer to NULL. */<br>void DLLENTRY (*<b>dstring_free</b>)( volatile DSTRING* dst );<br>/* Return the length of a dynamic string */<br>unsigned DLLENTRY (*<b>dstring_length</b>)( const DSTRING* src );<br>/* Compare two DSTRINGs for (binary!) equality. NULL allowed. */<br>int DLLENTRY (*<b>dstring_equal</b>)( const DSTRING* src1, const DSTRING* src2 );<br>/* Reassing dynamic string from C string. Any previous content is discarded first. */<br>void DLLENTRY (*<b>dstring_assign</b>)( volatile DSTRING* dst, const char* cstr );<br>/* Copy dynamic string to another one. Any previous content is discarded first.<br> * This function will not copy the string itself. It only creates an additional reference to the content. */<br>void DLLENTRY (*<b>dstring_copy</b>)( volatile DSTRING* dst, const DSTRING* src );<br>/* Strongly thread safe version of dstring_copy. */<br>void DLLENTRY (*<b>dstring_copy_safe</b>)( volatile DSTRING* dst, volatile const DSTRING* src );<br>/* Append to DSTRING. The source may also be from a DSTRING.<br> * If dst is NULL a new string is created */ <br>void DLLENTRY (*<b>dstring_append</b>)( DSTRING* dst, const char* cstr ); <br>/* printf into a DSTRING. Any previous content is discarded first. */<br>void DLLENTRY (*<b>dstring_sprintf</b>)( volatile DSTRING* dst, const char* fmt, ... );<br>void DLLENTRY (*<b>dstring_vsprintf</b>)( volatile DSTRING* dst, const char* fmt, va_list va );</pre>
 </blockquote>
 <p>The <b><tt>exec_command</tt></b>
 function causes
@@ -84,36 +93,54 @@ characters are stored in <var><tt>buffer</tt></var>.
 If you pass <tt>NULL</tt> as <var><tt>key</tt></var>,
 a list of <tt>'\0'</tt> delimited keys is
 returned.&nbsp;<tt>write_profile</tt> returns <tt>TRUE</tt>
-on success and <tt>FALSE</tt> on error.</p><p>The <a href="dstring.html"><b><tt>dstring_</tt>*</b> API functions</a> are used to manipulate dynamic strings of type <b><tt>DSTRING</tt></b>.</p>
+on success and <tt>FALSE</tt> on error.</p>
+<p>The <a href="dstring.html"><b><tt>dstring_</tt>*</b> API functions</a>
+are used to manipulate dynamic strings of type <b><tt>DSTRING</tt></b>.</p>
 <h4>Configuration</h4>
-<p><a name="plugin_configure"></a>If you set <tt>param-&gt;configurable = TRUE</tt>
+<p><a name="plugin_configure"></a>If you set <tt>param-&gt;configurable
+= TRUE</tt>
 in <tt>plugin_query</tt>,
 a configuration dialog
 should appear when PM123 calls
 </p>
 <blockquote>
-<pre>void DLLENTRY <b>plugin_configure</b>(HWND <var>hwnd</var>, HMODULE <var>module</var>);</pre>
+  <pre>void DLLENTRY <b>plugin_configure</b>(HWND <var>hwnd</var>, HMODULE <var>module</var>);</pre>
 </blockquote>
 <p>where <i>hwnd</i> is the notebook or player
 window so that you can "lock" your
 window on it if you want and where <i>module</i> can be
 used to load a resource from your DLL.</p>
+<p><a name="plugin_option"></a>The export of <tt>plugin_option</tt> is
+optional. If the symbol is exported, the
+plug-in can be cunfigured by the <a
+ href="../manual/remoterefconfig.html#option"><tt>option</tt> command</a>
+of the <a href="../manual/remote.html">remote interface</a>.</p>
+<blockquote>
+  <pre>void DLLENTRY <b>plugin_option</b>(const char* <var>command</var>, <a
+ href="dstring.html">DSTRING</a>* <var>result</var>);</pre>
+</blockquote>
+<p>The parameter <var><tt>command</tt></var> takes any string
+following <tt>option <var>plug-in-name</var>:</tt>. <var><tt>result</tt></var>
+should be assigned by the old option value. The implementation must be
+thread-safe and if the implementation makes
+use of <tt>exec_command</tt> also reentrant.</p>
 <h4>Unload</h4>
-<p><a name="plugin_deinit"></a>Plug-ins should deinitialize and destroy their windows and
+<p><a name="plugin_deinit"></a>Plug-ins should deinitialize and destroy
+their windows and
 free allocated
 memory when receiving a</p>
 <blockquote>
-<pre>int DLLENTRY <b>plugin_deinit</b>(int <var>unload</var>);</pre>
+  <pre>int DLLENTRY <b>plugin_deinit</b>(int <var>unload</var>);</pre>
 </blockquote>
 <p>It can also be used to save settings in your INI file for
 other sort of plug-ins.</p>
 <h3>Plugin types</h3>
 <p>Now, which type of plug-in to you want to program?</p>
 <ul>
-
-<li><a href="source_plug.html">Visual Plug-ins</a></li><li><a href="decoder_plug.html">Decoder Plug-ins</a></li>
-<li><a href="output_plug.html">Output Plug-ins</a></li>
-<li><a href="filter_plug.html">Filter Plug-ins</a></li>
+  <li><a href="source_plug.html">Visual Plug-ins</a></li>
+  <li><a href="decoder_plug.html">Decoder Plug-ins</a></li>
+  <li><a href="output_plug.html">Output Plug-ins</a></li>
+  <li><a href="filter_plug.html">Filter Plug-ins</a></li>
 </ul>
 <h3><a name="interface_level"></a>Interface
 levels</h3>
@@ -131,54 +158,55 @@ type.<br>
 A new plugin is not necessarily required to use the most recent
 interface level.</p>
 <ul>
-<li>PM123 will refuse to load plug-ins with a higher interface
+  <li>PM123 will refuse to load plug-ins with a higher interface
 level than the one PM123 was compiled with.</li>
-<li>PM123 will handle older plug-ins in a compatibility mode as
+  <li>PM123 will handle older plug-ins in a compatibility mode as
 far as possible.</li>
 </ul>
 <p>Overview:
 <table border="1" cellpadding="3" cellspacing="0">
-<tbody>
-<tr>
-<th>Interface-Level</th>
-<th>PM123 version</th>
-<th>Visual</th>
-
-<th>Decoder</th>
-<th>Output</th><th>Filter</th>
-</tr>
-<tr>
-<td>0</td>
-<td>n/a</td>
-<td><em>no longer supported!</em></td>
-
-<td>supported</td>
-<td>supported but deprecated</td><td>supported</td>
-</tr>
-<tr>
-<td>1</td>
-<td>&#8805; 1.32 <font size="-1"><sup><a href="#note1">1</a></sup></font></td>
-<td>recent</td>
-
-<td>supported,<br>
+  <tbody>
+    <tr>
+      <th>Level</th>
+      <th>PM123 version</th>
+      <th>Visual</th>
+      <th>Decoder</th>
+      <th>Output</th>
+      <th>Filter</th>
+    </tr>
+    <tr>
+      <td>0</td>
+      <td>n/a <font size="-1"><sup><a href="index.html#note1">1</a></sup></font></td>
+      <td><em>no longer supported!</em></td>
+      <td>supported</td>
+      <td>supported but deprecated</td>
+      <td>supported</td>
+    </tr>
+    <tr>
+      <td>1</td>
+      <td>&#8805; 1.32 <font size="-1"><sup><a href="#note1">1</a></sup></font></td>
+      <td>recent</td>
+      <td>supported,<br>
 same as level 0</td>
-<td>supported but deprecated,<br>
-same as level 0</td><td>suppoerted,<br>same as level 0</td>
-</tr>
-<tr>
-<td>2</td>
-<td>&#8805; 1.4</td>
-<td>recent,<br>
+      <td>supported but deprecated,<br>
+same as level 0</td>
+      <td>suppoerted,<br>
+same as level 0</td>
+    </tr>
+    <tr>
+      <td>2</td>
+      <td>&#8805; 1.4</td>
+      <td>recent,<br>
 same as level 1</td>
-
-<td>recent redesign</td>
-<td>recent redesign</td><td>recent, completely new interface</td>
-</tr>
-</tbody>
+      <td>recent redesign</td>
+      <td>recent redesign</td>
+      <td>recent, completely new interface</td>
+    </tr>
+  </tbody>
 </table>
 </p>
 <ol>
-<li><a name="note1"></a>PM123 version 1.32
+  <li><a name="note1"></a>PM123 up to version 1.32
 does not check for the compatibility of plug-ins. When a wrong plug-in
 is used, the application will most likely crash.</li>
 </ol>
@@ -186,32 +214,32 @@ is used, the application will most likely crash.</li>
 interface level by a PM123 instance with interface level 2 (compile
 time constant) in the following way:
 <table border="1" cellpadding="3" cellspacing="0">
-<tbody>
-<tr>
-<th>Interface level</th>
-<th>Action taken</th>
-</tr>
-<tr>
-<td>2</td>
-<td>Loaded native</td>
-</tr>
-<tr>
-<td>1</td>
-<td>Loaded via a proxy in compatibility mode.</td>
-</tr>
-<tr>
-<td>0</td>
-<td>Loaded via a proxy in compatibility mode.<br>
+  <tbody>
+    <tr>
+      <th>Interface level</th>
+      <th>Action taken</th>
+    </tr>
+    <tr>
+      <td>2</td>
+      <td>Loaded native</td>
+    </tr>
+    <tr>
+      <td>1</td>
+      <td>Loaded via a proxy in compatibility mode.</td>
+    </tr>
+    <tr>
+      <td>0</td>
+      <td>Loaded via a proxy in compatibility mode.<br>
 Level 0 is identical to level 1 with respect to the filter plug-in
 interface.</td>
-</tr>
-<tr>
-<td>&gt;2</td>
-<td>Error, because the interface is potentially
-incompatible and not supported by this PM123 core.<br>
-</td>
-</tr>
-</tbody>
+    </tr>
+    <tr>
+      <td>&gt;2</td>
+      <td>Error, because the interface is potentially
+incompatible and not supported by this PM123 core. </td>
+    </tr>
+  </tbody>
 </table>
 </p>
-</body></html>
+</body>
+</html>

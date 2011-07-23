@@ -2,6 +2,7 @@
 #define PM123_PLUGIN_H
 
 #define INCL_WIN
+#define INCL_BASE
 #include <config.h>
 #include <stdlib.h>
 #include <stdarg.h>
@@ -124,7 +125,7 @@ typedef struct _PLUGIN_QUERYPARAM
   int   configurable; /* Is the plug-in configurable  */
   int   interface;    /* Interface revision           */
 
-} PLUGIN_QUERYPARAM, *PPLUGIN_QUERYPARAM;
+} PLUGIN_QUERYPARAM;
 
 /* Common services of the PM123 core for plug-ins. */
 typedef struct
@@ -190,7 +191,8 @@ typedef struct
 /* returns 0 -> ok */
 int DLLENTRY plugin_query(PLUGIN_QUERYPARAM* param);
 int DLLENTRY plugin_init(const PLUGIN_CONTEXT* ctx); // Optional
-int DLLENTRY plugin_configure(HWND hwnd, HMODULE module);
+void DLLENTRY plugin_configure(HWND hwnd, HMODULE module);
+void DLLENTRY plugin_option(const char* command, DSTRING* result);
 int DLLENTRY plugin_deinit(int unload);
 
 #pragma pack()

@@ -499,11 +499,11 @@ static void copy_id3v2_tag(META_INFO& info, const mpg123_id3v2* tagv2)
 void MPG123::FillMetaInfo(META_INFO& meta)
 { DEBUGLOG(("MPG123(%p{%s})::FillMetaInfo(&%p)\n", this, Filename.cdata(), &meta));
   char buffer[256];
-  if (xio_get_metainfo(XFile, XIO_META_TITLE, buffer, sizeof buffer))
+  if (xio_get_metainfo(XFile, XIO_META_TITLE, buffer, sizeof buffer) && *buffer)
     meta.title = buffer;
-  if (xio_get_metainfo(XFile, XIO_META_GENRE, buffer, sizeof buffer))
+  if (xio_get_metainfo(XFile, XIO_META_GENRE, buffer, sizeof buffer) && *buffer)
     meta.genre = buffer;
-  if (xio_get_metainfo(XFile, XIO_META_NAME, buffer, sizeof buffer))
+  if (xio_get_metainfo(XFile, XIO_META_NAME, buffer, sizeof buffer) && *buffer)
     meta.comment = buffer;
 
   if (cfg.tag_read_type == TAG_READ_NONE)
@@ -898,7 +898,7 @@ ULONG DLLENTRY decoder_fileinfo( const char* url, int* what, const INFO_BUNDLE* 
                                  DECODER_INFO_ENUMERATION_CB, void* )
 {
   DEBUGLOG(("mpg123:decoder_fileinfo(%s, *%x, %p)\n", url, *what, info));
-  *what |= INFO_ATTR|INFO_CHILD;
+  *what |= INFO_PHYS|INFO_ATTR|INFO_CHILD;
   MPG123 w(url);
 
   PLUGIN_RC rc = w.Open("rbU");
@@ -907,15 +907,13 @@ ULONG DLLENTRY decoder_fileinfo( const char* url, int* what, const INFO_BUNDLE* 
     return rc;
   }
 
-  if (*what & INFO_PHYS)
-    w.FillPhysInfo(*info->phys);
-  if (*what & (INFO_TECH|INFO_OBJ))
-  { *what |= INFO_TECH|INFO_OBJ;
+  w.FillPhysInfo(*info->phys);
+  if (*what & (INFO_TECH|INFO_OBJ|INFO_META))
+  { *what |= INFO_TECH|INFO_OBJ|INFO_META;
     if (!w.FillTechInfo(*info->tech, *info->obj))
       return PLUGIN_NO_PLAY;
-  }
-  if (*what & INFO_META)
     w.FillMetaInfo(*info->meta);
+  }
 
   DEBUGLOG(("mpg123:decoder_fileinfo: {%.0f,%i,%x}, {%i,%i,%x,%s,%s,}, {%.3f,%i,},\n"
             "\t{%s,%s,%s,%s, %s,%s,%s,%s, %.1f,%.1f,%.1f,%.1f}\n",

@@ -47,9 +47,6 @@ class Playable;
  * Not valid until dlg_init(). */
 //HWND amp_help_mgr();
 
-/// Get window text as xstring without length limitation.
-xstring amp_get_window_text( HWND hwnd );
-
 /// Creates and displays a error message window.
 void amp_error( HWND owner, const char* format, ... );
 //void amp_verror( HWND owner, const char* format, va_list va );

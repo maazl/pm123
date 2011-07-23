@@ -29,548 +29,73 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#define  INCL_DOS
 #define  INCL_WIN
 #define  INCL_ERRORS
-#include <stdio.h>
-#include <memory.h>
-
 #include "properties.h"
-#include "pm123.h"
-#include "gui.h"
-#include "dialog.h"
+#include "configuration.h"
 #include "windowbase.h"
-#include "docking.h"
 #include "pm123.rc.h"
-#include "plugman.h"
-#include "plugman_base.h"
+#include "dialog.h"
+#include "filedlg.h"
+#include "gui.h" // ShowHelp
 #include "controller.h"
 #include "copyright.h"
+#include "plugman.h"
+#include "plugman_base.h"
 #include "123_util.h"
-#include "pipe.h"
-#include "filedlg.h"
+#include "pm123.h"
 #include <utilfct.h>
-#include <minmax.h>
-#include <errorstr.h>
-#include <inimacro.h>
-#include <xio.h>
-#include <snprintf.h>
-#include <cpp/url123.h>
-#include <cpp/container/stringmap.h>
+#include <cpp/pmutils.h>
 #include <os2.h>
-
-
-// support xstring
-const bool ini_query_xstring(HINI hini, const char* app, const char* key, xstring& dst)
-{ ULONG len;
-  if (PrfQueryProfileSize(hini, app, key, &len))
-  { char* data = dst.allocate(len);
-    if (PrfQueryProfileData(hini, app, key, data, &len))
-      return true;
-    dst = NULL;
-  }
-  return false;
-}
-
-
-#define  CFG_REFRESH_LIST (WM_USER+1)
-#define  CFG_REFRESH_INFO (WM_USER+2)
-#define  CFG_GLOB_BUTTON  (WM_USER+3)
-#define  CFG_CHANGE       (WM_USER+5)
-
-// The properties!
-const amp_cfg cfg_default =
-{ "",
-  true,
-  false,
-  true,
-  false,
-  false,
-  CFG_ANAV_SONG,
-  true,
-  true, // recurse_dnd
-  true,
-  false,
-  false,
-  false,
-  true,
-  2, // num_workers
-  1,
-
-  1, // font
-  false,
-  { sizeof(FATTRS), 0, 0, "WarpSans Bold", 0, 0, 16, 7, 0, 0 },
-  9,
-
-  false, // float on top
-  CFG_SCROLL_INFINITE,
-  true,
-  CFG_DISP_ID3TAG,
-  9,
-  "", // Proxy
-  "",
-  false,
-  128,
-  30,
-  15,
-  "\\PIPE\\PM123",
-  true, // dock
-  10,
-  false,
-  30,
-  500,
-  true,
-// state
-  "",
-  "",
-  "",
-  CFG_MODE_REGULAR,
-  false,
-  false,
-  false,
-  true, // add recursive
-  true, // save relative
-  { 0, 0,0, 1,1, 0, 0, 0, 0 }
-};
-
-amp_cfg cfg = cfg_default;
-static HINI INIhandle;
-const HINI& amp_hini = INIhandle;
-
-struct ext_pos
-{ POINTL pos[2];
-  time_t tstmp; // Time stamp when the information has been saved.
-};
-
-// Purge outdated ini locations in the profile
-static void clean_ini_positions(HINI hini)
-{ ULONG size;
-  if (!PrfQueryProfileSize(hini, "Positions", NULL, &size))
-    return;
-  char* names = new char[size+2];
-  names[size] = names[size+1] = 0; // ensure termination
-  PrfQueryProfileData(hini, "Positions", NULL, names, &size);
-  const time_t limit = time(NULL) - cfg.win_pos_max_age * 86400;
-  for (char* cp = names; *cp; cp += strlen(cp)+1)
-  { if (!memcmp(cp, "POS_", 4))
-      continue;
-    ext_pos pos;
-    pos.tstmp = 0;
-    size = sizeof(pos);
-    if (PrfQueryProfileData(hini, "Positions", cp, &pos, &size) && pos.tstmp < limit)
-    { // Purge this entry
-      PrfWriteProfileData(hini, "Positions", cp, NULL, 0);
-      memcpy(cp, "WIN", 3);
-      PrfWriteProfileData(hini, "Positions", cp, NULL, 0);
-    }
-  }
-  delete names;
-}
-
-void
-load_ini( void )
-{
-  xstring tmp;
-
-  cfg = cfg_default;
-
-  load_ini_bool ( INIhandle, cfg.playonload );
-  load_ini_bool ( INIhandle, cfg.autouse );
-  load_ini_bool ( INIhandle, cfg.retainonexit );
-  load_ini_bool ( INIhandle, cfg.retainonstop );
-  load_ini_bool ( INIhandle, cfg.restartonstart );
-  load_ini_value( INIhandle, cfg.altnavig );
-  load_ini_bool ( INIhandle, cfg.autoturnaround );
-  load_ini_bool ( INIhandle, cfg.recurse_dnd );
-  load_ini_bool ( INIhandle, cfg.sort_folders );
-  load_ini_bool ( INIhandle, cfg.folders_first );
-  load_ini_bool ( INIhandle, cfg.append_dnd );
-  load_ini_bool ( INIhandle, cfg.append_cmd );
-  load_ini_bool ( INIhandle, cfg.queue_mode );
-  load_ini_value( INIhandle, cfg.num_workers );
-  load_ini_value( INIhandle, cfg.num_dlg_workers );
-  load_ini_value( INIhandle, cfg.mode );
-  load_ini_value( INIhandle, cfg.font );
-  load_ini_bool ( INIhandle, cfg.floatontop );
-  load_ini_value( INIhandle, cfg.scroll );
-  load_ini_value( INIhandle, cfg.viewmode );
-  load_ini_value( INIhandle, cfg.max_recall );
-  load_ini_value( INIhandle, cfg.buff_wait );
-  load_ini_value( INIhandle, cfg.buff_size );
-  load_ini_value( INIhandle, cfg.buff_fill );
-  load_ini_value( INIhandle, cfg.conn_timeout );
-  load_ini_xstring( INIhandle, cfg.pipe_name );
-  load_ini_bool ( INIhandle, cfg.add_recursive );
-  load_ini_bool ( INIhandle, cfg.save_relative );
-  load_ini_bool ( INIhandle, cfg.show_playlist );
-  load_ini_bool ( INIhandle, cfg.show_bmarks );
-  load_ini_bool ( INIhandle, cfg.show_plman );
-  load_ini_value( INIhandle, cfg.dock_margin );
-  load_ini_bool ( INIhandle, cfg.dock_windows );
-  load_ini_bool ( INIhandle, cfg.win_pos_by_obj );
-  load_ini_value( INIhandle, cfg.win_pos_max_age );
-  load_ini_value( INIhandle, cfg.insp_autorefresh );
-  load_ini_bool ( INIhandle, cfg.insp_autorefresh_on );
-  load_ini_bool ( INIhandle, cfg.font_skinned );
-  load_ini_value( INIhandle, cfg.font_attrs );
-  load_ini_value( INIhandle, cfg.font_size );
-  load_ini_value( INIhandle, cfg.main );
-
-  load_ini_xstring( INIhandle, cfg.filedir);
-  load_ini_xstring( INIhandle, cfg.listdir);
-  load_ini_xstring( INIhandle, cfg.savedir);
-  load_ini_string( INIhandle, cfg.proxy,    sizeof( cfg.proxy ));
-  load_ini_string( INIhandle, cfg.auth,     sizeof( cfg.auth ));
-  load_ini_string( INIhandle, cfg.defskin,  sizeof( cfg.defskin ));
-
-  if (!ini_query_xstring(INIhandle, INI_SECTION, "decoders_list", tmp) || Decoders.Deserialize(tmp) == PluginList::RC_Error)
-    Decoders.LoadDefaults();
-  if (!ini_query_xstring(INIhandle, INI_SECTION, "outputs_list", tmp) || Outputs.Deserialize(tmp) == PluginList::RC_Error)
-    Outputs.LoadDefaults();
-  if (!ini_query_xstring(INIhandle, INI_SECTION, "filters_list", tmp) || Filters.Deserialize(tmp) == PluginList::RC_Error)
-    Filters.LoadDefaults();
-  if (!ini_query_xstring(INIhandle, INI_SECTION, "visuals_list", tmp) || Visuals.Deserialize(tmp) == PluginList::RC_Error)
-    Visuals.LoadDefaults();
-}
-
-void
-save_ini( void )
-{
-  save_ini_bool ( INIhandle, cfg.playonload );
-  save_ini_bool ( INIhandle, cfg.autouse );
-  save_ini_bool ( INIhandle, cfg.retainonexit );
-  save_ini_bool ( INIhandle, cfg.retainonstop );
-  save_ini_bool ( INIhandle, cfg.restartonstart );
-  save_ini_value( INIhandle, cfg.altnavig );
-  save_ini_bool ( INIhandle, cfg.autoturnaround );
-  save_ini_bool ( INIhandle, cfg.recurse_dnd );
-  save_ini_bool ( INIhandle, cfg.sort_folders );
-  save_ini_bool ( INIhandle, cfg.folders_first );
-  save_ini_bool ( INIhandle, cfg.append_dnd );
-  save_ini_bool ( INIhandle, cfg.append_cmd );
-  save_ini_bool ( INIhandle, cfg.queue_mode );
-  save_ini_value( INIhandle, cfg.num_workers );
-  save_ini_value( INIhandle, cfg.num_dlg_workers );
-  save_ini_value( INIhandle, cfg.mode );
-  save_ini_value( INIhandle, cfg.font );
-  save_ini_bool ( INIhandle, cfg.floatontop );
-  save_ini_value( INIhandle, cfg.scroll );
-  save_ini_value( INIhandle, cfg.viewmode );
-  save_ini_value( INIhandle, cfg.max_recall );
-  save_ini_value( INIhandle, cfg.buff_wait );
-  save_ini_value( INIhandle, cfg.buff_size );
-  save_ini_value( INIhandle, cfg.buff_fill );
-  save_ini_value( INIhandle, cfg.conn_timeout );
-  save_ini_xstring( INIhandle, cfg.pipe_name );
-  save_ini_bool ( INIhandle, cfg.add_recursive );
-  save_ini_bool ( INIhandle, cfg.save_relative );
-  save_ini_bool ( INIhandle, cfg.show_playlist );
-  save_ini_bool ( INIhandle, cfg.show_bmarks );
-  save_ini_bool ( INIhandle, cfg.show_plman );
-  save_ini_bool ( INIhandle, cfg.dock_windows );
-  save_ini_value( INIhandle, cfg.dock_margin );
-  save_ini_bool ( INIhandle, cfg.win_pos_by_obj );
-  save_ini_value( INIhandle, cfg.win_pos_max_age );
-  save_ini_value( INIhandle, cfg.insp_autorefresh );
-  save_ini_bool ( INIhandle, cfg.insp_autorefresh_on );
-  save_ini_bool ( INIhandle, cfg.font_skinned );
-  save_ini_value( INIhandle, cfg.font_attrs );
-  save_ini_value( INIhandle, cfg.font_size );
-  save_ini_value( INIhandle, cfg.main );
-
-  save_ini_xstring( INIhandle, cfg.filedir );
-  save_ini_xstring( INIhandle, cfg.listdir );
-  save_ini_xstring( INIhandle, cfg.savedir );
-  save_ini_string( INIhandle, cfg.proxy );
-  save_ini_string( INIhandle, cfg.auth );
-  save_ini_string( INIhandle, cfg.defskin );
-
-  ini_write_xstring(INIhandle, INI_SECTION, "decoders_list", Decoders.Serialize());
-  ini_write_xstring(INIhandle, INI_SECTION, "outputs_list",  Outputs.Serialize());
-  ini_write_xstring(INIhandle, INI_SECTION, "filters_list",  Filters.Serialize());
-  ini_write_xstring(INIhandle, INI_SECTION, "visuals_list",  Visuals.Serialize());
-
-  clean_ini_positions(INIhandle);
-}
-
-/* Copies the specified data from one profile to another. */
-static BOOL
-copy_ini_data( HINI ini_from, char* app_from, char* key_from,
-               HINI ini_to,   char* app_to,   char* key_to )
-{
-  ULONG size;
-  PVOID data;
-  BOOL  rc = FALSE;
-
-  if( PrfQueryProfileSize( ini_from, app_from, key_from, &size )) {
-    data = malloc( size );
-    if( data ) {
-      if( PrfQueryProfileData( ini_from, app_from, key_from, data, &size )) {
-        if( PrfWriteProfileData( ini_to, app_to, key_to, data, size )) {
-          rc = TRUE;
-        }
-      }
-      free( data );
-    }
-  }
-
-  return rc;
-}
-
-/* Saves the current size and position of the window specified by hwnd.
-   This function will also save the presentation parameters. */
-BOOL
-save_window_pos( HWND hwnd, const char* extkey )
-{
-  char   key1st[32];
-  char   key2[16];
-  char   key3[300];
-  PPIB   ppib;
-  PTIB   ptib;
-  SHORT  id   = WinQueryWindowUShort( hwnd, QWS_ID );
-  BOOL   rc   = FALSE;
-  SWP    swp;
-  ext_pos pos;
-
-  DEBUGLOG(("save_window_pos(%p{%u}, %s)\n", hwnd, id, extkey ? extkey : "<null>" ));
-
-  DosGetInfoBlocks( &ptib, &ppib );
-
-  sprintf( key1st, "WIN_%08lX_%08lX", ppib->pib_ulpid, ptib->tib_ptib2->tib2_ultid );
-  sprintf( key2, "WIN_%08X", id );
-  if (extkey && cfg.win_pos_by_obj)
-  { strcpy( key3, key2 );
-    key3[12] = '_';
-    strlcpy( key3+13, extkey, sizeof key3 -13 );
-  } else
-    *key3 = 0;
-
-  if( !WinStoreWindowPos( "PM123", key1st, hwnd ))
-    return false;
-
-  rc = copy_ini_data( HINI_PROFILE, "PM123", key1st, INIhandle, "Positions", key2 );
-  if (*key3)
-    rc &= copy_ini_data( HINI_PROFILE, "PM123", key1st, INIhandle, "Positions", key3 );
-  PrfWriteProfileData( HINI_PROFILE, "PM123", key1st, NULL, 0 );
-
-  if( rc && WinQueryWindowPos( hwnd, &swp )) {
-    pos.pos[0].x = swp.x;
-    pos.pos[0].y = swp.y;
-    pos.pos[1].x = swp.x + swp.cx;
-    pos.pos[1].y = swp.y + swp.cy;
-    WinMapDlgPoints( hwnd, pos.pos, 2, FALSE );
-    time(&pos.tstmp);
-    memcpy(key2, "POS", 3);
-    rc = PrfWriteProfileData( INIhandle, "Positions", key2, &pos, sizeof( pos ));
-    if (*key3)
-    { memcpy(key3, "POS", 3);
-      rc &= PrfWriteProfileData( INIhandle, "Positions", key3, &pos, sizeof( pos ));
-    }
-  }
-  return rc;
-}
-
-/* Restores the size and position of the window specified by hwnd to
-   the state it was in when save_window_pos was last called.
-   This function will also restore presentation parameters. */
-BOOL
-rest_window_pos( HWND hwnd, const char* extkey )
-{
-  char   key1st[32];
-  char   key2[16];
-  char   key3[300];
-  PPIB   ppib;
-  PTIB   ptib;
-  SHORT  id   = WinQueryWindowUShort( hwnd, QWS_ID );
-  BOOL   rc   = FALSE;
-  POINTL pos[2];
-  SWP    swp;
-  SWP    desktop;
-  ULONG  len  = sizeof(pos);
-
-  DEBUGLOG(("rest_window_pos(%p{%u}, %s)\n", hwnd, id, extkey ? extkey : "<null>" ));
-
-  DosGetInfoBlocks( &ptib, &ppib );
-
-  if (!WinQueryWindowPos( hwnd, &swp ))
-    return FALSE;
-
-  sprintf( key1st, "WIN_%08lX_%08lX", ppib->pib_ulpid, ptib->tib_ptib2->tib2_ultid );
-  sprintf( key2, "WIN_%08X", id );
-  if (extkey && cfg.win_pos_by_obj)
-  { strcpy( key3, key2 );
-    key3[12] = '_';
-    strlcpy( key3+13, extkey, sizeof key3 -13 );
-  } else
-    *key3 = 0;
-
-  if( (*key3 && copy_ini_data( INIhandle, "Positions", key3, HINI_PROFILE, "PM123", key1st ))
-    || copy_ini_data( INIhandle, "Positions", key2, HINI_PROFILE, "PM123", key1st ) ) {
-    rc = WinRestoreWindowPos( "PM123", key1st, hwnd );
-    PrfWriteProfileData( HINI_PROFILE, "PM123", key1st, NULL, 0 );
-  }
-  if (!rc)
-    return FALSE;
-
-  // rc = TRUE
-  if (*key3)
-  { memcpy(key3, "POS", 3);
-    if (!PrfQueryProfileData( INIhandle, "Positions", key3, &pos, &len ) || len < sizeof pos)
-      *key3 = 0; // not found
-  }
-  if (!*key3)
-  { memcpy(key2, "POS", 3);
-    rc = PrfQueryProfileData( INIhandle, "Positions", key2, &pos, &len ) && len >= sizeof pos;
-  }
-  if (rc)
-  { WinMapDlgPoints( hwnd, pos, 2, TRUE );
-    if (!extkey || *key3)
-    { swp.x = pos[0].x;
-      swp.y = pos[0].y;
-    }
-    swp.cx = pos[1].x - pos[0].x;
-    swp.cy = pos[1].y - pos[0].y;
-  } else {
-    rc = FALSE;
-  }
-
-  if( WinQueryWindowPos( HWND_DESKTOP, &desktop ))
-  { // clip right
-    if( swp.x > desktop.cx - 8 )
-      swp.x = desktop.cx - 8;
-    // clip left
-    else if( swp.x + swp.cx < 8 )
-      swp.x = 8 - swp.cx;
-    // clip top
-    if( swp.y + swp.cy > desktop.cy )
-      swp.y = desktop.cy - swp.cy;
-    // clip bottom
-    else if( swp.y + swp.cy < 8 )
-      swp.y = 8 - swp.cy;
-  }
-
-  WinSetWindowPos( hwnd, 0, swp.x, swp.y, swp.cx, swp.cy, SWP_MOVE|SWP_SIZE );
-  return rc;
-}
-
-
-// migrate plug-in configuration
-static void migrate_ini(const char* inipath, const char* app)
-{
-  ULONG len;
-  char module[16];
-  snprintf(module, sizeof module, "%s.dll", app);
-  if (PrfQueryProfileSize(INIhandle, module, NULL, &len) && len)
-    return; // Data already there
-
-  xstring inifile = xstring::sprintf("%s\\%s.ini", inipath, app);
-  // Check if file exists
-  HFILE fh;
-  if ( DosOpen(inifile, &fh, &len, 0, 0, OPEN_ACTION_FAIL_IF_NEW|OPEN_ACTION_OPEN_IF_EXISTS,
-               OPEN_FLAGS_NOINHERIT|OPEN_SHARE_DENYNONE|OPEN_ACCESS_READONLY, NULL) != NO_ERROR )
-    return;
-  DosClose(fh);
-  // Read old ini
-  HINI hini = PrfOpenProfile(amp_player_hab, inifile);
-  if (hini == NULLHANDLE)
-    return;
-
-  if (PrfQueryProfileSize(hini, "Settings", NULL, &len))
-  { char* names = (char*)alloca(len);
-    if (PrfQueryProfileData(hini, "Settings", NULL, names, &len))
-    { while (*names)
-      { char buf[1024];
-        len = sizeof buf;
-        if (PrfQueryProfileData(hini, "Settings", names, buf, &len))
-          PrfWriteProfileData(INIhandle, module, names, buf, len);
-        names += strlen(names)+1;
-      }
-    }
-  }
-
-  close_ini(hini);
-}
-
-/* Initialize properties, called from main. */
-void cfg_init()
-{
-  // Open profile
-  xstring inipath = amp_basepath + "\\PM123.INI"; // TODO: command line option
-  INIhandle = PrfOpenProfile(amp_player_hab, inipath);
-  if (INIhandle == NULLHANDLE)
-    amp_fail("Failed to access PM123 configuration file %s.", inipath.cdata());
-
-  load_ini();
-  // set proxy and buffer settings statically in the xio library, not that nice, but working.
-  char buffer[1024];
-  char* cp = strchr(cfg.proxy, ':');
-  if (cp == NULL)
-  { xio_set_http_proxy_host( cfg.proxy );
-  } else
-  { size_t l = cp - cfg.proxy +1;
-    strlcpy( buffer, cfg.proxy, min( l, sizeof buffer ));
-    xio_set_http_proxy_host( buffer );
-    xio_set_http_proxy_port( atoi(cp+1) );
-  }
-  cp = strchr(cfg.auth, ':');
-  if (cp == NULL)
-  { xio_set_http_proxy_user( cfg.auth );
-  } else
-  { size_t l = cp - cfg.proxy +1;
-    strlcpy( buffer, cfg.proxy, min( l, sizeof buffer ));
-    xio_set_http_proxy_user( buffer );
-    xio_set_http_proxy_pass( cp +1 );
-  }
-  xio_set_buffer_size( cfg.buff_size * 1024 );
-  xio_set_buffer_wait( cfg.buff_wait );
-  xio_set_buffer_fill( cfg.buff_fill );
-  xio_set_connect_timeout( cfg.conn_timeout );
-
-  migrate_ini(amp_basepath, "analyzer");
-  migrate_ini(amp_basepath, "mpg123");
-  migrate_ini(amp_basepath, "os2audio");
-  migrate_ini(amp_basepath, "realeq");
-}
-
-void cfg_uninit()
-{ if (!PrfCloseProfile(INIhandle))
-  { char buf[1024];
-    os2pm_strerror(buf, sizeof(buf));
-    amp_error(HWND_DESKTOP, "PM123 failed to write its profile: %s", buf);
-  }
-}
+#include <stdio.h>
 
 
 class PropertyDialog : public NotebookDialogBase
-{private:
-  class Settings1Page : public PageBase
+{public:
+  enum
+  { CFG_REFRESH_LIST = WM_USER+1
+  , CFG_REFRESH_INFO = WM_USER+2
+  , CFG_GLOB_BUTTON  = WM_USER+3
+  , CFG_CHANGE       = WM_USER+5
+  , CFG_SAVE         = WM_USER+6
+  };
+
+ private:
+  class SettingsPageBase : public PageBase
+  {public:
+    SettingsPageBase(PropertyDialog& parent, USHORT id)
+    : PageBase(parent, id, NULLHANDLE)//, DF_AutoResize)
+    {}
+    virtual MRESULT DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2);
+  };
+  class Settings1Page : public SettingsPageBase
   {public:
     Settings1Page(PropertyDialog& parent)
-    : PageBase(parent, CFG_SETTINGS1, NULLHANDLE)//, DF_AutoResize)
+    : SettingsPageBase(parent, CFG_SETTINGS1)
     { MajorTitle = "~Behavior"; MinorTitle = "General behavior"; }
    protected:
     virtual MRESULT DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2);
   };
-  class Settings2Page : public PageBase
+  class Settings2Page : public SettingsPageBase
   {public:
     Settings2Page(PropertyDialog& parent)
-    : PageBase(parent, CFG_SETTINGS2, NULLHANDLE)//, DF_AutoResize)
+    : SettingsPageBase(parent, CFG_SETTINGS2)
     { MinorTitle = "Playlist behavior"; }
    protected:
     virtual MRESULT DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2);
   };
-  class SystemSettingsPage : public PageBase
+  class SystemSettingsPage : public SettingsPageBase
   {public:
     SystemSettingsPage(PropertyDialog& parent)
-    : PageBase(parent, CFG_IOSETTINGS, NULLHANDLE)//, DF_AutoResize)
+    : SettingsPageBase(parent, CFG_IOSETTINGS)
     { MajorTitle = "~System settings"; }
    protected:
     virtual MRESULT DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2);
   };
-  class DisplaySettingsPage : public PageBase
+  class DisplaySettingsPage : public SettingsPageBase
   {public:
     DisplaySettingsPage(PropertyDialog& parent)
-    : PageBase(parent, CFG_DISPLAY1, NULLHANDLE)//, DF_AutoResize)
+    : SettingsPageBase(parent, CFG_DISPLAY1)
     { MajorTitle = "~Display"; }
    protected:
     virtual MRESULT DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2);
@@ -642,21 +167,40 @@ class PropertyDialog : public NotebookDialogBase
 
  public:
   PropertyDialog(HWND owner);
+  void Process();
  protected:
-  virtual MRESULT   DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2);
+  virtual MRESULT DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2);
 };
 
 
-/* Processes messages of the setings page of the setup notebook. */
-MRESULT PropertyDialog::Settings1Page::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
-{
-  switch( msg ) {
-    case WM_INITDLG:
+/* Processes messages of the display page of the setup notebook. */
+MRESULT PropertyDialog::SettingsPageBase::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
+{ switch (msg)
+  { case WM_INITDLG:
       do_warpsans(GetHwnd());
-      PostMsg(CFG_CHANGE, MPFROMP(&cfg), 0);
+      PostMsg(CFG_CHANGE, MPFROMP(&Cfg::Get()), 0);
       break;
 
-    case CFG_CHANGE:
+    case CFG_GLOB_BUTTON:
+    { volatile const amp_cfg* data = &Cfg::Get();
+      switch (SHORT1FROMMP(mp1))
+      {case PB_DEFAULT:
+        data = &Cfg::Default;
+       case PB_UNDO:
+        PostMsg(CFG_CHANGE, MPFROMP(data), 0);
+      }
+    }
+    case WM_COMMAND:
+    case WM_CONTROL:
+      return 0;
+  }
+  return PageBase::DlgProc(msg, mp1, mp2);
+}
+
+/* Processes messages of the setings page of the setup notebook. */
+MRESULT PropertyDialog::Settings1Page::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
+{ switch (msg)
+  { case CFG_CHANGE:
     { const amp_cfg& cfg = *(const amp_cfg*)PVOIDFROMMP(mp1);
 
       CheckButton(CB_PLAYONLOAD,    cfg.playonload   );
@@ -671,17 +215,18 @@ MRESULT PropertyDialog::Settings1Page::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2
     }
 
     case CFG_GLOB_BUTTON:
-    { const amp_cfg* data = &cfg;
+    { volatile const amp_cfg* data = &Cfg::Get();
       switch (SHORT1FROMMP(mp1))
       {case PB_DEFAULT:
-        data = &cfg_default;
+        data = &Cfg::Default;
        case PB_UNDO:
         PostMsg(CFG_CHANGE, MPFROMP(data), 0);
       }
       return 0;
     }
 
-    case WM_DESTROY:
+    case CFG_SAVE:
+    { amp_cfg& cfg = *(amp_cfg*)PVOIDFROMMP(mp1);
       cfg.playonload  = QueryButtonCheckstate(CB_PLAYONLOAD   );
       cfg.retainonexit= QueryButtonCheckstate(CB_RETAINONEXIT );
       cfg.retainonstop= QueryButtonCheckstate(CB_RETAINONSTOP );
@@ -694,22 +239,14 @@ MRESULT PropertyDialog::Settings1Page::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2
         cfg.altnavig = CFG_ANAV_SONGTIME;
       else if (QueryButtonCheckstate(RB_TIMEONLY ))
         cfg.altnavig = CFG_ANAV_TIME;
-
-    case WM_COMMAND:
-    case WM_CONTROL:
-      return 0;
+    }
   }
-  return PageBase::DlgProc(msg, mp1, mp2);
+  return SettingsPageBase::DlgProc(msg, mp1, mp2);
 }
 
 MRESULT PropertyDialog::Settings2Page::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
-{ switch( msg ) {
-    case WM_INITDLG:
-      do_warpsans( GetHwnd() );
-      PostMsg(CFG_CHANGE, MPFROMP(&cfg), 0);
-      break;
-
-    case CFG_CHANGE:
+{ switch (msg)
+  { case CFG_CHANGE:
     { const amp_cfg& cfg = *(const amp_cfg*)PVOIDFROMMP(mp1);
       CheckButton(CB_AUTOUSEPL,     cfg.autouse      );
       CheckButton(CB_RECURSEDND,    cfg.recurse_dnd  );
@@ -722,22 +259,18 @@ MRESULT PropertyDialog::Settings2Page::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2
     }
 
     case CFG_GLOB_BUTTON:
-    { const amp_cfg* data = &cfg;
+    { volatile const amp_cfg* data = &Cfg::Get();
       switch (SHORT1FROMMP(mp1))
       {case PB_DEFAULT:
-        data = &cfg_default;
+        data = &Cfg::Default;
        case PB_UNDO:
         PostMsg(CFG_CHANGE, MPFROMP(data), 0);
       }
       return 0;
     }
 
-    case WM_CONTROL:
-    case WM_COMMAND:
-      return 0;
-
-    case WM_DESTROY:
-    {
+    case CFG_SAVE:
+    { amp_cfg& cfg = *(amp_cfg*)PVOIDFROMMP(mp1);
       cfg.autouse      = QueryButtonCheckstate(CB_AUTOUSEPL    );
       cfg.recurse_dnd  = QueryButtonCheckstate(CB_RECURSEDND   );
       cfg.sort_folders = QueryButtonCheckstate(CB_SORTFOLDERS  );
@@ -745,25 +278,20 @@ MRESULT PropertyDialog::Settings2Page::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2
       cfg.append_dnd   = QueryButtonCheckstate(CB_AUTOAPPENDDND);
       cfg.append_cmd   = QueryButtonCheckstate(CB_AUTOAPPENDCMD);
       cfg.queue_mode   = QueryButtonCheckstate(CB_QUEUEMODE    );
-
       return 0;
     }
   }
-  return PageBase::DlgProc(msg, mp1, mp2);
+  return SettingsPageBase::DlgProc(msg, mp1, mp2);
 }
 
 MRESULT PropertyDialog::SystemSettingsPage::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
-{ switch( msg ) {
-    case WM_INITDLG:
-      do_warpsans( GetHwnd() );
+{ switch (msg)
+  { case WM_INITDLG:
       SetSpinbuttonLimits(SB_TIMEOUT,    1,  300, 4 );
       SetSpinbuttonLimits(SB_BUFFERSIZE, 0, 2048, 4 );
       SetSpinbuttonLimits(SB_FILLBUFFER, 1,  100, 4 );
-
       SetSpinbuttonLimits(SB_NUMWORKERS, 1,    9, 1 );
       SetSpinbuttonLimits(SB_DLGWORKERS, 0,    9, 1 );
-
-      PostMsg(CFG_CHANGE, MPFROMP(&cfg), 0);
       break;
 
     case CFG_CHANGE:
@@ -811,71 +339,48 @@ MRESULT PropertyDialog::SystemSettingsPage::DlgProc(ULONG msg, MPARAM mp1, MPARA
       return 0;
     }
 
-    case CFG_GLOB_BUTTON:
-    { const amp_cfg* data = &cfg;
-      switch (SHORT1FROMMP(mp1))
-      {case PB_DEFAULT:
-        data = &cfg_default;
-       case PB_UNDO:
-        PostMsg(CFG_CHANGE, MPFROMP(data), 0);
-      }
-      return 0;
-    }
-
     case WM_CONTROL:
       if( SHORT1FROMMP(mp1) == CB_FILLBUFFER &&
         ( SHORT2FROMMP(mp1) == BN_CLICKED || SHORT2FROMMP(mp1) == BN_DBLCLICKED ))
       {
         BOOL fill = QueryButtonCheckstate(CB_FILLBUFFER );
-
         EnableControl(SB_FILLBUFFER, fill );
       }
-    case WM_COMMAND:
       return 0;
 
-    case WM_DESTROY:
-    {
-      size_t i;
+    case CFG_SAVE:
+    { amp_cfg& cfg = *(amp_cfg*)PVOIDFROMMP(mp1);
 
-      char buf[_MAX_PATH];
-      *buf = 0;
-      WinQueryDlgItemText( GetHwnd(), EF_PIPE, sizeof buf, buf );
-      if (cfg.pipe_name.compareToI(buf) != 0)
-      { cfg.pipe_name = buf;
-      }
+      cfg.pipe_name = WinQueryDlgItemXText(GetHwnd(), EF_PIPE);
 
       cfg.buff_size = QuerySpinbuttonValue(SB_BUFFERSIZE);
       cfg.buff_fill = QuerySpinbuttonValue(SB_FILLBUFFER);
+      cfg.buff_wait = QueryButtonCheckstate(CB_FILLBUFFER);
       cfg.conn_timeout = QuerySpinbuttonValue(SB_TIMEOUT);
 
-      WinQueryDlgItemText( GetHwnd(), EF_PROXY_HOST, sizeof cfg.proxy, cfg.proxy );
-      xio_set_http_proxy_host( cfg.proxy );
-      i = strlen( cfg.proxy );
-      if ( i < sizeof cfg.proxy - 1 ) {
-        cfg.proxy[i++] = ':'; // delimiter
-        WinQueryDlgItemText( GetHwnd(), EF_PROXY_PORT, sizeof cfg.proxy - i, cfg.proxy + i );
-        xio_set_http_proxy_port( atoi( cfg.proxy + i ));
-        if ( cfg.proxy[i] == 0 )
-          cfg.proxy[i-1] = 0; // remove delimiter
+      size_t len1 = WinQueryDlgItemTextLength(GetHwnd(), EF_PROXY_HOST);
+      size_t len2 = WinQueryDlgItemTextLength(GetHwnd(), EF_PROXY_PORT);
+      if (len2)
+        ++len2;
+      char* cp = cfg.proxy.allocate(len1+len2);
+      WinQueryDlgItemText(GetHwnd(), EF_PROXY_HOST, len1+1, cp);
+      if (len2 > 1)
+      { cp += len1;
+        *cp++ = ':';
+        WinQueryDlgItemText(GetHwnd(), EF_PROXY_PORT, len2, cp);
       }
 
-      WinQueryDlgItemText( GetHwnd(), EF_PROXY_USER, sizeof cfg.auth, cfg.auth );
-      xio_set_http_proxy_user( cfg.auth );
-      i = strlen( cfg.auth );
-      if ( i < sizeof cfg.auth - 1 ) {
-        cfg.auth[i++] = ':'; // delimiter
-        WinQueryDlgItemText( GetHwnd(), EF_PROXY_PASS, sizeof cfg.auth - i, cfg.auth + i );
-        xio_set_http_proxy_pass( cfg.auth + i );
-        if ( cfg.auth[i] == 0 )
-          cfg.auth[i-1] = 0; // remove delimiter
+      len1 = WinQueryDlgItemTextLength(GetHwnd(), EF_PROXY_USER);
+      len2 = WinQueryDlgItemTextLength(GetHwnd(), EF_PROXY_PASS);
+      if (len2)
+        ++len2;
+      cp = cfg.auth.allocate(len1+len2);
+      WinQueryDlgItemText(GetHwnd(), EF_PROXY_USER, len1+1, cp);
+      if (len2 > 1)
+      { cp += len1;
+        *cp++ = ':';
+        WinQueryDlgItemText(GetHwnd(), EF_PROXY_PASS, len2, cp);
       }
-
-      cfg.buff_wait = QueryButtonCheckstate(CB_FILLBUFFER );
-
-      xio_set_buffer_size( cfg.buff_size * 1024 );
-      xio_set_buffer_wait( cfg.buff_wait );
-      xio_set_buffer_fill( cfg.buff_fill );
-      xio_set_connect_timeout( cfg.conn_timeout );
 
       cfg.num_workers = QuerySpinbuttonValue(SB_NUMWORKERS);
       cfg.num_dlg_workers = QuerySpinbuttonValue(SB_DLGWORKERS);
@@ -883,7 +388,7 @@ MRESULT PropertyDialog::SystemSettingsPage::DlgProc(ULONG msg, MPARAM mp1, MPARA
       return 0;
     }
   }
-  return PageBase::DlgProc(msg, mp1, mp2);
+  return SettingsPageBase::DlgProc(msg, mp1, mp2);
 }
 
 /* Processes messages of the display page of the setup notebook. */
@@ -892,11 +397,9 @@ MRESULT PropertyDialog::DisplaySettingsPage::DlgProc(ULONG msg, MPARAM mp1, MPAR
   static FATTRS  font_attrs;
   static LONG    font_size;
 
-  switch( msg ) {
-    case WM_INITDLG:
-      do_warpsans( GetHwnd() );
+  switch (msg)
+  { case WM_INITDLG:
       SetSpinbuttonLimits(SB_DOCK, 0, 30, 2);
-      PostMsg(CFG_CHANGE, MPFROMP(&cfg), 0);
       break;
 
     case CFG_CHANGE:
@@ -923,17 +426,6 @@ MRESULT PropertyDialog::DisplaySettingsPage::DlgProc(ULONG msg, MPARAM mp1, MPAR
       xstring font_name  = amp_font_attrs_to_string( font_attrs, font_size );
       SetItemText(ST_FONT_SAMPLE, font_name );
       WinSetPresParam(WinWindowFromID( GetHwnd(), ST_FONT_SAMPLE ), PP_FONTNAMESIZE, font_name.length() +1, (PVOID)font_name.cdata() );
-      return 0;
-    }
-
-    case CFG_GLOB_BUTTON:
-    { const amp_cfg* data = &cfg;
-      switch (SHORT1FROMMP(mp1))
-      {case PB_DEFAULT:
-        data = &cfg_default;
-       case PB_UNDO:
-        PostMsg(CFG_CHANGE, MPFROMP(data), 0);
-      }
       return 0;
     }
 
@@ -983,26 +475,23 @@ MRESULT PropertyDialog::DisplaySettingsPage::DlgProc(ULONG msg, MPARAM mp1, MPAR
       }
       return 0;
 
-    case WM_DESTROY:
-    {
+    case CFG_SAVE:
+    { amp_cfg& cfg = *(amp_cfg*)PVOIDFROMMP(mp1);
       cfg.dock_windows  = QueryButtonCheckstate(CB_DOCK);
       cfg.dock_margin   = QuerySpinbuttonValue(SB_DOCK);
       cfg.win_pos_by_obj= QueryButtonCheckstate(CB_SAVEWNDPOSBYOBJ);
 
-      cfg.scroll        = QuerySelectedRadiobutton(RB_SCROLL_INFINITE) - RB_SCROLL_INFINITE;
+      cfg.scroll        = (cfg_scroll)(QuerySelectedRadiobutton(RB_SCROLL_INFINITE) - RB_SCROLL_INFINITE);
       cfg.scroll_around = QueryButtonCheckstate(CB_SCROLL_AROUND);
-      cfg.viewmode      = QuerySelectedRadiobutton(RB_DISP_FILENAME) - RB_DISP_FILENAME;
+      cfg.viewmode      = (cfg_disp)(QuerySelectedRadiobutton(RB_DISP_FILENAME) - RB_DISP_FILENAME);
 
       cfg.font_skinned  = QueryButtonCheckstate(CB_USE_SKIN_FONT);
       cfg.font_size     = font_size;
       cfg.font_attrs    = font_attrs;
-
-      GUI::RefreshDisplay();
-      GUI::RearrangeDocking();
       return 0;
     }
   }
-  return PageBase::DlgProc(msg, mp1, mp2);
+  return SettingsPageBase::DlgProc(msg, mp1, mp2);
 }
 
 PropertyDialog::PluginPageBase::PluginPageBase(PropertyDialog& parent, ULONG resid,
@@ -1036,11 +525,11 @@ Plugin* PropertyDialog::PluginPageBase::RefreshInfo(const size_t i)
   if (i >= List->size())
   { // The following functions give an error if no such buttons. This is ignored.
     SetItemText(PB_PLG_ENABLE, "~Enable");
-    EnableControl (PB_PLG_UNLOAD, FALSE);
-    EnableControl (PB_PLG_UP,     FALSE);
-    EnableControl (PB_PLG_DOWN,   FALSE);
-    EnableControl (PB_PLG_ENABLE, FALSE);
-    EnableControl (PB_PLG_ACTIVATE, FALSE);
+    EnableControl(PB_PLG_UNLOAD, FALSE);
+    EnableControl(PB_PLG_UP,     FALSE);
+    EnableControl(PB_PLG_DOWN,   FALSE);
+    EnableControl(PB_PLG_ENABLE, FALSE);
+    EnableControl(PB_PLG_ACTIVATE, FALSE);
     // decoder specific stuff
     if (List->Type == PLUGIN_DECODER)
     { HWND ctrl = WinWindowFromID(GetHwnd(), ML_DEC_FILETYPES);
@@ -1357,7 +846,7 @@ MRESULT PropertyDialog::PluginPageBase::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp
 
        case PB_PLG_ACTIVATE:
         if ( i != LIT_NONE && (Flags & CF_List1) && OnPluginEnable(i, true)
-          && ((PluginList1*)List)->SetActive(i) )
+          && ((PluginList1*)List)->SetActive(i) == 0 )
         { PostMsg(CFG_REFRESH_INFO, 0, MPFROMSHORT(i));
           EnableControl(PB_PLG_ACTIVATE, FALSE);
         }
@@ -1427,8 +916,7 @@ PropertyDialog::PropertyDialog(HWND owner)
 MRESULT PropertyDialog::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
 {
   switch( msg )
-  {
-    case WM_COMMAND:
+  { case WM_COMMAND:
       switch (SHORT1FROMMP(mp1))
       {
         case PB_UNDO:
@@ -1449,12 +937,11 @@ MRESULT PropertyDialog::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
       return 0;
 
     case WM_INITDLG:
-      rest_window_pos( GetHwnd() );
+      Cfg::RestWindowPos(GetHwnd());
       break;
 
     case WM_DESTROY:
-      save_ini();
-      save_window_pos( GetHwnd() );
+      Cfg::SaveWindowPos(GetHwnd());
       break;
 
     case WM_WINDOWPOSCHANGED:
@@ -1466,20 +953,21 @@ MRESULT PropertyDialog::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
   return NotebookDialogBase::DlgProc(msg, mp1, mp2);
 }
 
+void PropertyDialog::Process()
+{
+  NotebookDialogBase::Process();
+  // Save settings
+  { Cfg::ChangeAccess cfg;
+    for (PageBase*const* pp = Pages.begin(); pp != Pages.end(); ++pp)
+      WinSendMsg((*pp)->GetHwnd(), CFG_SAVE, MPFROMP(&cfg), 0);
+  }
+  Cfg::SaveIni();
+}
+
 /* Creates the properties dialog. */
-void
-cfg_properties( HWND owner )
+void cfg_properties(HWND owner)
 {
   PropertyDialog dialog(owner);
-
   // TODO? WinSetFocus( HWND_DESKTOP, book );
-
   dialog.Process();
-
-  // TODO: only in case of a change!
-  // TODO: move to system settings page
-  amp_pipe_destroy();
-  amp_pipe_create();
-  
-  // TODO: adjust the number of worker threads
 }

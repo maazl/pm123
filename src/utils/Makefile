@@ -35,7 +35,7 @@ charset.c:	charset.h strutils.h debuglog.h utilfct.h
 utilfct.h:	..\include\config.h .\errorstr.h .\minmax.h .\strutils.h
 errorstr.c:	strutils.h snprintf.h
 fileutil.c:	fileutil.h strutils.h minmax.h
-inimacro.cpp:	inimacro.h fileutil.h utilfct.h
+inimacro.cpp:	inimacro.h fileutil.h utilfct.h debuglog.h
 memcmpcpy.c:	strutils.h
 queue.c:	queue.h
 strnchr.c:	strutils.h
@@ -67,7 +67,7 @@ utilfct_slider.c:	utilfct.h debuglog.h
 ..\include\config.h:	..\include\config_gcc.h ..\include\config_wcc.h ..\include\config_icc_36.h ..\include\config_icc_30.h
 strutils.c:	strutils.h
 ..\include\format.h:	..\include\plugin.h
-..\include\plugin.h:	..\include\config.h .\cpp/xstring.h
+..\include\plugin.h:	..\include\config.h .\cpp\xstring.h
 .\cpp/xstring.h:	.\cpp/smartptr.h
 .\cpp/smartptr.h:	..\include\config.h .\cpp/cpputil.h .\cpp/mutex.h .\debuglog.h
 .\cpp/mutex.h:	..\include\config.h .\interlocked.h .\debuglog.h
@@ -75,3 +75,7 @@ strutils.c:	strutils.h
 .\debuglog.h:	.\errorstr.h
 abs2rel.c:	fileutil.h
 rel2abs.c:	fileutil.h
+utilfct_dlg.cpp:	utilfct.h debuglog.h
+.\cpp\xstring.h:	.\cpp\smartptr.h
+.\cpp\smartptr.h:	..\include\config.h .\cpp\cpputil.h .\cpp\mutex.h .\debuglog.h
+.\cpp\mutex.h:	..\include\config.h .\interlocked.h .\debuglog.h

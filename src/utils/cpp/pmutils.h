@@ -30,9 +30,20 @@
 #define  PMUTILS_H
 
 #define INCL_WIN
+#include <cpp/xstring.h>
+#include <debuglog.h>
 #include <os2.h>
 
-/* Smart accessor for presentation space. */
+
+/// Get window text as xstring without length limitation.
+xstring WinQueryWindowXText(HWND hwnd);
+
+inline xstring WinQueryDlgItemXText(HWND hwnd, USHORT id)
+{ return WinQueryWindowXText(WinWindowFromID(hwnd, id));
+}
+
+
+/** Smart accessor for presentation space. */
 class PresentationSpace
 {private:
   const HPS     Hps;

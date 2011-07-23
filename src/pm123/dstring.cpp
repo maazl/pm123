@@ -51,7 +51,7 @@ void DLLENTRY dstring_free( volatile DSTRING* dst )
 { dst->reset();
 }
 
-unsigned DLLENTRY dstring_length( DSTRING* dst )
+unsigned DLLENTRY dstring_length( const DSTRING* dst )
 { return dst->length();
 }
 

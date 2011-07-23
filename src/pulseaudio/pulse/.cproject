@@ -35,6 +35,9 @@
 								</option>
 								<option id="gnu.c.compiler.option.preprocessor.def.symbols.1053245929" name="Defined symbols (-D)" superClass="gnu.c.compiler.option.preprocessor.def.symbols" valueType="definedSymbols">
 									<listOptionValue builtIn="false" value="HAVE_CONFIG_H"/>
+									<listOptionValue builtIn="false" value="__OS2__"/>
+									<listOptionValue builtIn="false" value="INCL_PM=1"/>
+									<listOptionValue builtIn="false" value="INCL_DOS=1"/>
 								</option>
 								<inputType id="cdt.managedbuild.tool.gnu.c.compiler.input.519522574" superClass="cdt.managedbuild.tool.gnu.c.compiler.input"/>
 							</tool>

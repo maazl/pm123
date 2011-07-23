@@ -30,7 +30,7 @@
 #include "inspector.h"
 #include "pm123.rc.h"
 #include "pm123.h"
-#include "properties.h"
+#include "configuration.h"
 #include "controller.h"
 #include "location.h"
 #include "playable.h"
@@ -80,13 +80,14 @@ MRESULT InspectorDialog::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
     
       do_warpsans(GetHwnd());
       sb_setnumlimits(GetHwnd(), SB_AUTOREFRESH, 30, 9999, 4);
-      WinSendDlgItemMsg(GetHwnd(), SB_AUTOREFRESH, SPBM_SETCURRENTVALUE, MPFROMLONG(cfg.insp_autorefresh), 0);
-      WinSendDlgItemMsg(GetHwnd(), CB_AUTOREFRESH, BM_SETCHECK, MPFROMSHORT(cfg.insp_autorefresh_on), 0);
+      WinSendDlgItemMsg(GetHwnd(), SB_AUTOREFRESH, SPBM_SETCURRENTVALUE, MPFROMLONG(Cfg::Get().insp_autorefresh), 0);
+      WinSendDlgItemMsg(GetHwnd(), CB_AUTOREFRESH, BM_SETCHECK, MPFROMSHORT(Cfg::Get().insp_autorefresh_on), 0);
       return MRFROMLONG(ret);
     }
 
    case WM_DESTROY:
-    { cfg.insp_autorefresh_on = WinQueryButtonCheckstate(GetHwnd(), CB_AUTOREFRESH);
+    { Cfg::ChangeAccess cfg;
+      cfg.insp_autorefresh_on = WinQueryButtonCheckstate(GetHwnd(), CB_AUTOREFRESH);
       LONG value;
       if(WinSendDlgItemMsg(GetHwnd(), SB_AUTOREFRESH, SPBM_QUERYVALUE, MPFROMP(&value), MPFROM2SHORT(0, SPBQ_DONOTUPDATE)))
         cfg.insp_autorefresh = (int)value;

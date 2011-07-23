@@ -33,13 +33,7 @@
 #define  INCL_DOS
 #include "dialog.h"
 
-#include <string.h>
-#include <stdarg.h>
-#include <stdio.h>
-#include <sys/stat.h>
-#include <math.h>
-
-#include "properties.h"
+#include "configuration.h"
 #include "controller.h"
 #include "copyright.h"
 #include "skin.h"
@@ -48,10 +42,17 @@
 #include "filedlg.h"
 #include <utilfct.h>
 #include <fileutil.h>
+#include <cpp/pmutils.h>
 #include <xio.h>
 #include <cpp/xstring.h>
 #include <cpp/container/stringmap.h>
 #include <os2.h>
+#include <string.h>
+#include <stdarg.h>
+#include <stdio.h>
+#include <sys/stat.h>
+#include <math.h>
+
 #include "pm123.rc.h"
 
 #include <debuglog.h>
@@ -66,13 +67,6 @@
 /*HWND amp_help_mgr()
 { return hhelp;
 }*/
-
-xstring amp_get_window_text( HWND hwnd )
-{ xstring ret;
-  char* dst = ret.allocate(WinQueryWindowTextLength(hwnd));
-  PMXASSERT(WinQueryWindowText(hwnd, ret.length()+1, dst), == ret.length());
-  return ret;
-}
 
 /*static xstring joinstringset(const stringset& set, char delim)
 { size_t len = 0;
@@ -112,9 +106,10 @@ ULONG DLLENTRY amp_file_wizard( HWND owner, const char* title, DECODER_INFO_ENUM
   char type[_MAX_PATH] = FDT_ALL;
   filedialog.pszIType       = type;
 
-  if (cfg.filedir.length() > 8)
+  xstring filedir(Cfg::Get().filedir);
+  if (filedir.length() > 8)
     // strip file:///
-    strlcpy(filedialog.szFullFile, cfg.filedir+8, sizeof filedialog.szFullFile);
+    strlcpy(filedialog.szFullFile, filedir+8, sizeof filedialog.szFullFile);
   else
     filedialog.szFullFile[0] = 0;
   PMRASSERT(amp_file_dlg( HWND_DESKTOP, owner, &filedialog ));
@@ -156,7 +151,7 @@ ULONG DLLENTRY amp_file_wizard( HWND owner, const char* title, DECODER_INFO_ENUM
       { size_t p = strlen(fileurl);
         while (p && fileurl[p] != '/')
           --p;
-        cfg.filedir.assign(fileurl, p);
+        Cfg::ChangeAccess().filedir.assign(fileurl, p);
       }
       // Callback
       (*callback)(param, fileurl, NULL, IF_None, IF_None);
@@ -190,7 +185,7 @@ static MRESULT EXPENTRY amp_url_dlg_proc(HWND hwnd, ULONG msg, MPARAM mp1, MPARA
     break;
 
    case WM_INITDLG:
-    { rest_window_pos(hwnd);
+    { Cfg::RestWindowPos(hwnd);
       // populate drop down list
       Playable& mru = GUI::GetUrlMRU();
       HWND ctrl = WinWindowFromID(hwnd, ENT_URL);
@@ -206,14 +201,14 @@ static MRESULT EXPENTRY amp_url_dlg_proc(HWND hwnd, ULONG msg, MPARAM mp1, MPARA
     }
    
    case WM_DESTROY:
-    save_window_pos(hwnd);
+    Cfg::SaveWindowPos(hwnd);
     break;
 
    case WM_COMMAND:
     DEBUGLOG(("amp_url_dlg_proc: WM_COMMAND: %i\n", SHORT1FROMMP(mp1)));
     if (SHORT1FROMMP(mp1) == DID_OK)
     { HWND ent = WinWindowFromID(hwnd, ENT_URL);
-      const xstring& text = amp_get_window_text(ent);
+      const xstring& text = WinQueryWindowXText(ent);
       const url123& url = amp_get_cwd().makeAbsolute(text);
       if (!url)
       { WinMessageBox(HWND_DESKTOP, hwnd, xstring::sprintf("The URL \"%s\" is not well formed.", text.cdata()),
@@ -248,10 +243,10 @@ ULONG DLLENTRY amp_url_wizard( HWND owner, const char* title, DECODER_INFO_ENUME
 
   ULONG ret = 300;
   if (WinProcessDlg(hwnd) == DID_OK)
-  { const xstring& url = amp_get_window_text(WinWindowFromID(hwnd, ENT_URL));
+  { const xstring& url = WinQueryDlgItemXText(hwnd, ENT_URL);
     DEBUGLOG(("amp_url_wizard: %s\n", url.cdata()));
     (*callback)(param, url, NULL, IF_None, IF_None);
-    GUI::Add2MRU(GUI::GetUrlMRU(), cfg.max_recall, *Playable::GetByURL(url));
+    GUI::Add2MRU(GUI::GetUrlMRU(), Cfg::Get().max_recall, *Playable::GetByURL(url));
     ret = 0;
   }
   WinDestroyWindow(hwnd);
@@ -271,9 +266,10 @@ url123 amp_playlist_select(HWND owner, const char* title)
   filedialog.pszIType       = type;
   filedialog.ulUser         = FDU_RECURSEBTN|FDU_DIR_ENABLE;
 
-  if (cfg.listdir.length() > 8)
+  xstring listdir(Cfg::Get().listdir);
+  if (listdir.length() > 8)
     // strip file:///
-    strlcpy(filedialog.szFullFile, cfg.listdir+8, sizeof filedialog.szFullFile);
+    strlcpy(filedialog.szFullFile, listdir+8, sizeof filedialog.szFullFile);
   else
     filedialog.szFullFile[0] = 0;
   PMXASSERT(amp_file_dlg(HWND_DESKTOP, owner, &filedialog), != NULLHANDLE);
@@ -297,7 +293,7 @@ url123 amp_playlist_select(HWND owner, const char* title)
     { size_t p = url.length();
       while (p && url[p] != '/')
         --p;
-      cfg.filedir.assign(url.cdata(), p);
+      Cfg::ChangeAccess().filedir.assign(url.cdata(), p);
     }
     return url;
   } else
@@ -310,11 +306,11 @@ static MRESULT EXPENTRY amp_bookmark_dlg_proc(HWND hwnd, ULONG msg, MPARAM mp1, 
 { switch (msg)
   {case WM_INITDLG:
     do_warpsans(hwnd);
-    rest_window_pos(hwnd);
+    Cfg::RestWindowPos(hwnd);
     break;
   
    case WM_DESTROY:
-    save_window_pos(hwnd);
+    Cfg::SaveWindowPos(hwnd);
     break;
   }
   return WinDefDlgProc(hwnd, msg, mp1, mp2);
@@ -330,7 +326,7 @@ void amp_add_bookmark(HWND owner, APlayable& item)
   WinSetDlgItemText(hdlg, EF_BM_DESC, desc);
 
   if (WinProcessDlg(hdlg) == DID_OK)
-  { const xstring& alias = amp_get_window_text(WinWindowFromID(hdlg, EF_BM_DESC));
+  { const xstring& alias = WinQueryDlgItemXText(hdlg, EF_BM_DESC);
     // TODO: kein synchrones Wait!!!
     Playable& p = GUI::GetDefaultBM();
     /* TODO: SetAlias gibt es nicht mehr
@@ -381,7 +377,7 @@ url123 amp_save_playlist(HWND owner, Playable& playlist, bool saveas)
       { // Playlist => save in place allowed => preselect our own file name
         path = playlist.URL;
         // preselect file type
-        filedialog.pszIType = (PSZ)xstring(playlist.GetInfo().tech->format).cdata();
+        filedialog.pszIType = (PSZ)DSTRING(playlist.GetInfo().tech->format).cdata();
       } else
       { // not mutable => only save as allowed
         path = playlist.URL.getBasePath();
@@ -438,11 +434,11 @@ bool amp_loadskin()
   char type[_MAX_PATH] = "PM123 Skin File";
   filedialog.pszIType       = type;
 
-  sdrivedir( filedialog.szFullFile, cfg.defskin, sizeof( filedialog.szFullFile ));
+  sdrivedir( filedialog.szFullFile, xstring(Cfg::Get().defskin), sizeof( filedialog.szFullFile ));
   amp_file_dlg( HWND_DESKTOP, HWND_DESKTOP, &filedialog );
 
   if( filedialog.lReturn == DID_OK ) {
-    strcpy( cfg.defskin, filedialog.szFullFile );
+    Cfg::ChangeAccess().defskin = filedialog.szFullFile;
     return true;
   }
   return false;
