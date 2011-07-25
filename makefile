@@ -414,3 +414,8 @@ distclean: $(MDUMMY)
 	-@del dist\pm123-$(VERSION).exe 2> nul
 	-@del dist\pm123-$(VERSION).zip 2> nul
 	-@del dist\pm123-$(VERSION).wpi 2> nul
+
+test: distfiles
+	cd test
+	@$(MAKE) $(MFLAGS)
+	@cd ..
