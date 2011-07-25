@@ -553,8 +553,7 @@ MRESULT GUI::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
     { USHORT cmd = SHORT1FROMMP(mp1);
       DEBUGLOG(("GUI::DlgProc: WM_COMMAND(%u, %u, %u)\n", cmd, SHORT1FROMMP(mp2), SHORT2FROMMP(mp2)));
       if (cmd > IDM_M_PLUG && cmd <= IDM_M_PLUG_E)
-      { // TODO: wrong plug-in number
-        plugin_configure(HPlayer, cmd - IDM_M_PLUG+1);
+      { plugin_configure(HPlayer, cmd - (IDM_M_PLUG+1));
         return 0;
       }
       if ( cmd >= IDM_M_LOADFILE && cmd < IDM_M_LOADFILE + sizeof LoadWizards / sizeof *LoadWizards
@@ -1404,17 +1403,6 @@ struct dialog_show
 { if (args.Changed & IF_Other)
   { iep->InfoDelegate.detach();
     PMRASSERT(WinPostMsg(hframe, AMP_SHOW_DIALOG, iep, 0));
-  }
-}
-
-void GUI::ShowDialog(Playable& item, DialogType dlg)
-{ DEBUGLOG(("GUI::ShowDialog(&%p, %u)\n", &item, dlg));
-  dialog_show* iep = new dialog_show(HPlayer, item, dlg);
-  // At least we need the decoder to process this request.
-  if (item->EnsureInfoAsync(Playable::IF_Other, false))
-  { // Information immediately available => post message
-    iep->InfoDelegate.detach(); // do no longer wait for the event
-    PMRASSERT(WinPostMsg(HFrame, AMP_SHOW_DIALOG, iep, 0));
   }
 }*/
 
