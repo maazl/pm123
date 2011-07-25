@@ -1285,7 +1285,7 @@ ConfigureDlgProc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
           break;
         }
       }
-      break;
+      return 0;
 
     case WM_CONTROL:
     {
@@ -1519,7 +1519,7 @@ ConfigureDlgProc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
   return WinDefDlgProc( hwnd, msg, mp1, mp2 );
 }
 
-int DLLENTRY
+void DLLENTRY
 plugin_configure( HWND hwnd, HMODULE module )
 {
   init_request();
@@ -1531,6 +1531,5 @@ plugin_configure( HWND hwnd, HMODULE module )
 
   WinShowWindow( hdialog, TRUE );
   WinSetFocus  ( HWND_DESKTOP, WinWindowFromID( hdialog, EQ_ENABLED ));
-  return 0;
 }
 
