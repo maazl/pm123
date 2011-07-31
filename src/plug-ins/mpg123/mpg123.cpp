@@ -927,43 +927,38 @@ ULONG DLLENTRY decoder_fileinfo( const char* url, int* what, const INFO_BUNDLE* 
   return PLUGIN_OK;
 }
 
-static void
-replace_id3v2_string( ID3V2_TAG* tag, ID3V2_ID id, const char* string )
+static void replace_id3v2_string(ID3V2_TAG* tag, ID3V2_ID id, const char* string)
 {
   ID3V2_FRAME* frame;
-  char buffer[128];
-  int  i;
-
-  if( id == ID3V2_COMM ) {
-    for( i = 1; ( frame = id3v2_get_frame( tag, ID3V2_COMM, i )) != NULL ; i++ )
-    {
-      id3v2_get_description( frame, buffer, sizeof( buffer ));
+  if (id == ID3V2_COMM)
+  { for (int i = 1; (frame = id3v2_get_frame(tag, ID3V2_COMM, i)) != NULL; i++)
+    { char buffer[128];
+      id3v2_get_description(frame, buffer, sizeof buffer);
       // Skip iTunes specific comment tags.
-      if( strnicmp( buffer, "iTun", 4 ) != 0 ) {
+      if (strnicmp( buffer, "iTun", 4) != 0)
         break;
-      }
     }
-  } else {
-    frame = id3v2_get_frame( tag, id, 1 );
-  }
+  } else
+    frame = id3v2_get_frame(tag, id, 1);
 
   // update frame
-  if ( string == NULL || *string == 0 )
+  if (string == NULL)
   { if (frame)
-      id3v2_delete_frame( frame );
+      id3v2_delete_frame(frame);
   } else
-  { if( frame == NULL )
-      frame = id3v2_add_frame( tag, id );
-    id3v2_set_string( frame, string, cfg.tag_save_id3v2_encoding );
+  { if (frame == NULL)
+      frame = id3v2_add_frame(tag, id);
+    id3v2_set_string(frame, string, cfg.tag_save_id3v2_encoding);
   }
 }
 
 BOOL ascii_check(const char* str)
-{ while (*str)
-  { if (*str < 0x20 || *str > 0x7E)
-      return FALSE;
-    ++str;
-  }
+{ if (str)
+    while (*str)
+    { if (*str < 0x20 || *str > 0x7E)
+        return FALSE;
+      ++str;
+    }
   return TRUE;
 }
 
@@ -1009,6 +1004,10 @@ ULONG DLLENTRY decoder_saveinfo(const char* url, const META_INFO* info, int have
   { replace_id3v2_string( tagv2, ID3V2_TCON, info->genre);
     tagv1data.SetField(ID3V1_GENRE, info->genre, cfg.tag_id3v1_charset);
   }
+  if (haveinfo & DECODER_HAVE_COMMENT)
+  { replace_id3v2_string( tagv2, ID3V2_COMM, info->comment);
+    tagv1data.SetField(ID3V1_COMMENT, info->comment, cfg.tag_id3v1_charset);
+  }
   if (haveinfo & DECODER_HAVE_COPYRIGHT)
   { replace_id3v2_string( tagv2, ID3V2_TCOP, info->copyright);
   }
@@ -1038,15 +1037,16 @@ ULONG DLLENTRY decoder_saveinfo(const char* url, const META_INFO* info, int have
     case TAG_SAVE_ID3V2_ONDEMAND:
       copy_id3v2_tag(new_tag_info, tagv2);
     cont:
-      if ( strlen(new_tag_info.title  ) > 30
-        || strlen(new_tag_info.artist ) > 30
-        || strlen(new_tag_info.album  ) > 30
-        || strlen(new_tag_info.year   ) > 4
-        || (*new_tag_info.genre && ID3V1_TAG::GetGenre(new_tag_info.genre) == -1)
-        || *new_tag_info.copyright
-        || strchr(new_tag_info.track, '/')
-        || (i = strlen(new_tag_info.comment)) > 30
-        || (i > 28 && *new_tag_info.track) )
+      i = 0;
+      if ( (new_tag_info.title   && strlen(new_tag_info.title ) > 30)
+        || (new_tag_info.artist  && strlen(new_tag_info.artist) > 30)
+        || (new_tag_info.album   && strlen(new_tag_info.album ) > 30)
+        || (new_tag_info.year    && strlen(new_tag_info.year  ) > 4 )
+        || (new_tag_info.genre   && *new_tag_info.genre && ID3V1_TAG::GetGenre(new_tag_info.genre) == -1)
+        || (new_tag_info.copyright && *new_tag_info.copyright)
+        || (new_tag_info.comment && (i = strlen(new_tag_info.comment)) > 30)
+        || (new_tag_info.track   && ( strlen(new_tag_info.track) > strspn(new_tag_info.track, "0123456789")
+                                   || (i > 28 && *new_tag_info.track) )))
         goto write;
       // Purge ID3v2 metadata
       replace_id3v2_string( tagv2, ID3V2_TIT2, NULL );

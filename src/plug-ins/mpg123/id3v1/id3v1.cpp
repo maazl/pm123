@@ -162,6 +162,8 @@ bool ID3V1_TAG::GetField(ID3V1_TAG_COMP type, DSTRING& result, int charset) cons
 /* Sets a specified field of the given tag. */
 void ID3V1_TAG::SetField(ID3V1_TAG_COMP type, const char* source, int charset)
 {
+  if (!source) // cannot remove components of ID3V1 tags
+    source = "";
   char encoded[32];
 
   switch( type )
