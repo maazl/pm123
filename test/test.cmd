@@ -32,6 +32,14 @@ CALL VALUE 'PIPE',pipe,'OS2ENVIRONMENT'
 IF RxFuncAdd('SysLoadFuncs', 'RexxUtil', 'SysLoadFuncs') = 0 THEN
   CALL SysLoadFuncs
 
+/* parse command line */
+args = ARG(1)
+DO i = 1
+  PARSE VAR args args.i args
+  IF args.i = '' THEN LEAVE
+  END
+args.0 = i - 1
+
 /* init */
 CALL DoInit
 
@@ -39,6 +47,16 @@ CALL DoInit
 CALL SysFileTree 'test_*.cmd', files, 'FO'
 DO i = 1 TO files.0
   file = FILESPEC('N', files.i)
+  IF args.0 > 0 THEN DO
+    include = 0
+    DO j = 1 TO args.0
+      IF POS(args.j, file) \= 0 THEN DO
+        include = 1
+        LEAVE
+        END
+      END
+    IF \include THEN ITERATE
+    END
   file = SUBSTR(file, 1, LENGTH(file)-4)
   CALL DoTest file
   END

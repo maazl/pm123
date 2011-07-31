@@ -1,8 +1,8 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
-<html sublinks="*">
+<html sublinks="remoterefmetawrite.html">
 <head>
   <meta content="text/html;charset=ISO-8859-1" http-equiv="Content-Type">
-  <title>Metadata access commands</title>
+  <title>Meta data access commands</title>
   <link rel="stylesheet" href="../common/infstyle.css" type="text/css">
 </head>
 <body>
@@ -10,17 +10,21 @@
 </h2>
 <p>PM123 currently understands the following
 commands for accessing meta information of songs, playlists or folders.
+See <a href="remoterefmetawrite.html">writing meta data</a> to modify
+the meta data of a song.
 Optional parameters are
-enclosed in square brackets.</p>
-<p>All info commands return an empty line terminated sequence of lines.
+enclosed in square brackets.
+</p>
+<p>All info commands return a&nbsp; sequence of lines terminated by an
+empty line.
 Each line except for the terminating empty line has the format <tt><var>KEY</var>=<var>value</var></tt>.
-Newline characters in string values are escaped by <tt>&lt;ESC&gt;</tt>r
-and <tt>&lt;ESC&gt;</tt>n respectively to
+Newline characters in string values are escaped by <i><tt>&lt;ESC&gt;</tt></i>r
+and <i><tt>&lt;ESC&gt;</tt></i>n respectively to
 keep the value in one line. The escape character itself (27) is escaped
-by two escape characters <tt>&lt;ESC&gt;&lt;ESC&gt;</tt>.
+by two escape characters <i><tt>&lt;ESC&gt;&lt;ESC&gt;</tt></i>.
 Every other character is returned as it is. This includes 8 bit
 characters as well as other control characters like backspace and null
-bytes. The strings are returned in the OS/2 system codepage.<br>
+bytes. The strings are returned in the OS/2 system codepage.
 </p>
 <p>Note that the requests may take a moment to complete if the
 information has to
@@ -98,8 +102,7 @@ what is going on.</p>
   <tt>GENRE=<var>Dance &amp; DJ</var></tt><br>
   <tt>TRACK=4</tt><br>
   <tt>COPYRIGHT=<var>2003 Superstition...</var><br>
-REPLAYGAIN=-<var>3.1,0.5,-2.8,0<br>
-  </var></tt> <tt><var></var></tt></blockquote>
+REPLAYGAIN=-<var>3.1,0.5,-2.8,0 </var></tt> <tt><var></var></tt></blockquote>
 <tt><var></var></tt>
 <p>The list is terminated by an empty line. All of the above tags are
 optional.</p>
@@ -176,7 +179,7 @@ This will not impact any playback.<br>
 This command always returns an empty line, but this is not done before
 the information is really available.</p>
 <p>Note that the command will discard any unsaved changes if applied to
-playlists.<br>
+playlists.
 </p>
 </body>
 </html>

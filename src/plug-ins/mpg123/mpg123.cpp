@@ -403,7 +403,7 @@ static void copy_id3v2_string(const ID3V2_TAG* tag, ID3V2_ID id, DSTRING& result
   ID3V2_FRAME* frame = NULL;
   char buffer[256];
 
-  if ( (!result || !*result)
+  if ( !result
       && ( frame = id3v2_get_frame( tag, id, 1 )) != NULL
       && id3v2_get_string_ex( frame, buffer, sizeof buffer, cfg.tag_read_id3v2_charset ) )
     result = buffer;

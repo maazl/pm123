@@ -1,0 +1,82 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html sublinks="*">
+<head>
+  <meta content="text/html;charset=ISO-8859-1" http-equiv="Content-Type">
+  <title>Writing meta data commands</title>
+  <link rel="stylesheet" href="../common/infstyle.css" type="text/css">
+</head>
+<body>
+<h2>PM123's Remote command reference - Writing meta data
+</h2>
+<p>Writing meta data over a remote command instance is done in two
+steps. First you have to transfer the meta informations to an internal
+buffer using <tt><a href="#write_meta_set">write meta set</a></tt>
+commands. Once you have done this, you can apply the changes to one or
+more songs using the <tt><a href="#write_meta_to">write meta to</a></tt>
+command. Only fields that have been set using <tt><a
+ href="#write_meta_set">write meta set</a></tt> are overwritten. All
+other fields are unchanged. Use <tt><a href="#meta_write_rst">meta
+write rst</a></tt> to start over.</p>
+<h3><tt><a name="meta_write_set"></a>write meta set <var>&lt;key&gt;</var></tt>[<tt>=</tt><tt><var>&lt;value&gt;</var></tt>]</h3>
+<p>Transfers a meta data field value to the internal buffer of the
+remote command engine. This field value will be applied at the next <tt><a
+ href="#write_meta_to">write meta to</a></tt> command. If you ommit the
+value, the field will be set to an empty string; if you ommit the value
+and the equal sign, the tag component key will be removed. This might
+be something different on e.g. ID3V2 tags.</p>
+<p><var><tt>key</tt></var> must be one of</p>
+<blockquote>
+  <ul>
+    <li><tt>TITLE</tt></li>
+    <li><tt>ARTIST</tt></li>
+    <li> <tt>ALBUM</tt></li>
+    <li> <tt>YEAR</tt></li>
+    <li> <tt>COMMENT</tt></li>
+    <li> <tt>GENRE</tt></li>
+    <li> <tt>TRACK</tt></li>
+    <li> <tt>COPYRIGHT</tt><tt><var></var><var> </var></tt> </li>
+  </ul>
+</blockquote>
+<tt><var></var></tt>
+<p>Escape characters (27) in the value are treated special. <tt><i>&lt;ESC&gt;</i>r</tt>
+is replaced by carriage return (13) and <tt><i>&lt;ESC&gt;</i>n</tt>
+is replaced by a newline (10). All other characters after <i><tt>&lt;ESC&gt;</tt></i>
+are left as they are, including <i><tt>&lt;ESC&gt;</tt></i> itself. So
+<i><tt>&lt;ESC&gt;&lt;ESC&gt;</tt></i> is replaced by a single <i><tt>&lt;ESC&gt;</tt></i>.</p>
+<p>If you are unsure whether another application could have left some
+old values in the buffer, call <a href="#write_meta_rst"><tt>write
+meta rst</tt></a> first. In doubt this is always a good idea, even if
+you intend to overwrite all meta data keys, because future PM123
+releases might support additional tags.</p>
+<h3><tt><a name="write_meta_to"></a>write meta to <var>&lt;url&gt;</var></tt></h3>
+<p>Apply the meta data changes previously prepared using <a
+ href="#wrrite_meta_set"><tt>write meta set</tt></a> to <var><tt>&lt;url&gt;</tt></var>.
+Keys that have not been set so far or since the last <a
+ href="#write_meta_rst"><tt>write meta rst</tt></a> command are left
+unchanged. They are not removed from the meta info tag.</p>
+<p><tt>write meta to</tt> might be used multiple times on different
+targets, to change multiple files, e.g to write the album name of
+several files in a folder. But you must not use wildcards.</p>
+<p>The command returns a success indicator, optionally followed by a
+human readable error text.<br>
+</p>
+<blockquote>
+  <p><tt>0</tt> - OK, meta data changed<br>
+  <tt>400</tt> - Cannot modify meta data of this object, because it
+does not exist or is not writable.<br>
+  <tt>500</tt> - Plug-in faild to write meta data.</p>
+</blockquote>
+<h3><tt><a name="write_meta_rst"></a>wrire meta rst </tt>[<tt>purge</tt>]<tt><br>
+</tt></h3>
+<p>This command clears all meta data values in the internal buffer and
+resets all keys to 'do not change'. This is the only way to turn a key
+set by <a href="#write_meta_set"><tt>write meta set</tt></a> into to
+neutral state.</p>
+<p>With the <tt>purge</tt> option, the information is marked to be
+purged rather than marked to be unchanged on the <a
+ href="#write_meta_to"><tt>write meta to</tt></a> command.<br>
+</p>
+<p>The command returns the previously set values in the same format as <a
+ href="remoterefmeta.html#info_meta"><tt>info meta</tt></a>.</p>
+</body>
+</html>

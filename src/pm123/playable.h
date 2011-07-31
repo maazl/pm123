@@ -231,7 +231,7 @@ class Playable
   /// @details The information is taken over if and only if the specified information is currently in virgin state.
   void                      SetCachedInfo(const INFO_BUNDLE& info, InfoFlags what);
 
-  /// Set meta information.
+  /// Set new meta information.
   /// @param meta Calling this function with NULL deletes the meta information.
   void                      SetMetaInfo(const META_INFO* meta);
  
@@ -248,6 +248,11 @@ class Playable
   xstring                   SerializeItem(const PlayableInstance* item, SerializationOptions opt) const;
 
  public: // Editor functions
+  /// Change meta information of an object.
+  /// @param meta Calling this function with NULL deletes the meta information.
+  /// @return returns 0 on success.
+  int                       SaveMetaInfo(const META_INFO& meta, DECODERMETA haveinfo, xstring& errortxt);
+
   /// Insert a new item before the item \a before.
   /// @param before If the parameter before is \c NULL the item is appended.
   /// @return The function fails with returning \c NULL if the PlayableInstance before is no longer valid

@@ -56,7 +56,7 @@ typedef struct
   DSTRING    format;     /* File format (if any) */
   DSTRING    decoder;    /* Decoder name, filled by PM123 core */
 } TECH_INFO;
-#define TECH_INFO_INIT { -1, -1, TATTR_NONE, {NULL}, {NULL}, {NULL} }
+#define TECH_INFO_INIT { -1, -1, TATTR_NONE, (const char*)NULL, (const char*)NULL, (const char*)NULL }
 
 /** Detailed song info for level 2 plug-in interfaces */
 typedef struct
@@ -81,7 +81,7 @@ typedef struct
   float      album_gain;
   float      album_peak;
 } META_INFO;
-#define META_INFO_INIT { {NULL}, {NULL}, {NULL}, {NULL}, {NULL}, {NULL}, {NULL}, {NULL}, -1000, -1000, -1000, -1000 }
+#define META_INFO_INIT { (const char*)NULL, (const char*)NULL, (const char*)NULL, (const char*)NULL, (const char*)NULL, (const char*)NULL, (const char*)NULL, (const char*)NULL, -1000, -1000, -1000, -1000 }
 
 /** Playlist options for ATTR_INFO */
 typedef enum
@@ -100,7 +100,7 @@ typedef struct
 { unsigned   ploptions;  /* Playlist options, bit vector of PL_OPTIONS */
   DSTRING    at;         /* Last playing position. */
 } ATTR_INFO;
-#define ATTR_INFO_INIT { PLO_NONE, {NULL} }
+#define ATTR_INFO_INIT { PLO_NONE, (const char*)NULL }
 
 /** @brief Aggregate information on recursive playlist items
  * @details This information is not an aggregate of information of the immediate subitems,
@@ -136,7 +136,7 @@ typedef struct
   float      postgap;    /* Gap after playing this item */
   float      gain;       /* Additional playback gain in dB */
 } ITEM_INFO;
-#define ITEM_INFO_INIT { {NULL}, {NULL}, {NULL}, -1, -1, -1000 }
+#define ITEM_INFO_INIT { (const char*)NULL, (const char*)NULL, (const char*)NULL, -1, -1, -1000 }
 
 /** Information types for \c INFO_BUNDLE */
 typedef enum

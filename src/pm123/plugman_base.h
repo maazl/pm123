@@ -86,20 +86,20 @@
 // Set of entry points related to decoder plug-ins.
 struct DecoderProcs
 { void*  W;
-  int    DLLENTRYP(decoder_init     )( void** w );
-  BOOL   DLLENTRYP(decoder_uninit   )( void*  w );
-  ULONG  DLLENTRYP(decoder_command  )( void*  w, ULONG msg, DECODER_PARAMS2* params );
-  void   DLLENTRYP(decoder_event    )( void*  w, OUTEVENTTYPE event );
-  ULONG  DLLENTRYP(decoder_status   )( void*  w );
-  double DLLENTRYP(decoder_length   )( void*  w );
-  ULONG  DLLENTRYP(decoder_fileinfo )( const char* url, int* what, const INFO_BUNDLE* info,
-                                       DECODER_INFO_ENUMERATION_CB cb, void* param );
-  ULONG  DLLENTRYP(decoder_saveinfo )( const char* url, const META_INFO* info, int haveinfo );
-  ULONG  DLLENTRYP(decoder_savefile )( const char* url, const char* format, int* what, const INFO_BUNDLE* info,
-                                       DECODER_SAVE_ENUMERATION_CB cb, void* param );
-  ULONG  DLLENTRYP(decoder_editmeta )( HWND owner, const char* url );
+  int    DLLENTRYP(decoder_init     )(void** w);
+  BOOL   DLLENTRYP(decoder_uninit   )(void*  w);
+  ULONG  DLLENTRYP(decoder_command  )(void*  w, ULONG msg, DECODER_PARAMS2* params);
+  void   DLLENTRYP(decoder_event    )(void*  w, OUTEVENTTYPE event);
+  ULONG  DLLENTRYP(decoder_status   )(void*  w);
+  double DLLENTRYP(decoder_length   )(void*  w);
+  ULONG  DLLENTRYP(decoder_fileinfo )(const char* url, int* what, const INFO_BUNDLE* info,
+                                      DECODER_INFO_ENUMERATION_CB cb, void* param);
+  ULONG  DLLENTRYP(decoder_saveinfo )(const char* url, const META_INFO* info, int haveinfo, DSTRING* errortxt);
+  ULONG  DLLENTRYP(decoder_savefile )(const char* url, const char* format, int* what, const INFO_BUNDLE* info,
+                                      DECODER_SAVE_ENUMERATION_CB cb, void* param);
+  ULONG  DLLENTRYP(decoder_editmeta )(HWND owner, const char* url);
   const  DECODER_WIZARD*
-         DLLENTRYP(decoder_getwizard)( );
+         DLLENTRYP(decoder_getwizard)();
   // Init structure
          DecoderProcs()              { memset(this, 0, sizeof *this); } // Uh, well, allowed for PODs
 };

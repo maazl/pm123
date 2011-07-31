@@ -135,6 +135,13 @@ ULONG DLLENTRY decoder_command(void* w, ULONG msg, DECODER_PARAMS* params);
 /* the decoder should keep in memory a last valid length so the call  */
 /* remains valid even if decoder_status() == DECODER_STOPPED          */
 ULONG DLLENTRY decoder_length(void* w);
+
+/* These modes are from the MPEG Audio specification and only used for old plug-ins. */
+#define DECODER_MODE_STEREO         0
+#define DECODER_MODE_JOINT_STEREO   1
+#define DECODER_MODE_DUAL_CHANNEL   2
+#define DECODER_MODE_SINGLE_CHANNEL 3
+
 #else
 ULONG DLLENTRY decoder_command(void* w, DECMSGTYPE msg, const DECODER_PARAMS2* params);
 void  DLLENTRY decoder_event  (void* w, OUTEVENTTYPE event);
@@ -155,25 +162,22 @@ typedef enum
 
 ULONG DLLENTRY decoder_status(void* w);
 
-/* These modes are from the MPEG Audio specification and only used for old plug-ins. */
-#define DECODER_MODE_STEREO         0
-#define DECODER_MODE_JOINT_STEREO   1
-#define DECODER_MODE_DUAL_CHANNEL   2
-#define DECODER_MODE_SINGLE_CHANNEL 3
-
 /* See haveinfo field of the DECODER_INFO structure. */
-#define DECODER_HAVE_TITLE      0x0001
-#define DECODER_HAVE_ARTIST     0x0002
-#define DECODER_HAVE_ALBUM      0x0004
-#define DECODER_HAVE_YEAR       0x0008
-#define DECODER_HAVE_COMMENT    0x0010
-#define DECODER_HAVE_GENRE      0x0020
-#define DECODER_HAVE_TRACK      0x0040
-#define DECODER_HAVE_COPYRIGHT  0x0080
-#define DECODER_HAVE_TRACK_GAIN 0x0100
-#define DECODER_HAVE_TRACK_PEAK 0x0200
-#define DECODER_HAVE_ALBUM_GAIN 0x0400
-#define DECODER_HAVE_ALBUM_PEAK 0x0800
+typedef enum
+{ DECODER_HAVE_NONE       = 0x0000
+, DECODER_HAVE_TITLE      = 0x0001
+, DECODER_HAVE_ARTIST     = 0x0002
+, DECODER_HAVE_ALBUM      = 0x0004
+, DECODER_HAVE_YEAR       = 0x0008
+, DECODER_HAVE_COMMENT    = 0x0010
+, DECODER_HAVE_GENRE      = 0x0020
+, DECODER_HAVE_TRACK      = 0x0040
+, DECODER_HAVE_COPYRIGHT  = 0x0080
+, DECODER_HAVE_TRACK_GAIN = 0x0100
+, DECODER_HAVE_TRACK_PEAK = 0x0200
+, DECODER_HAVE_ALBUM_GAIN = 0x0400
+, DECODER_HAVE_ALBUM_PEAK = 0x0800
+} DECODERMETA;
 
 #define INFO_SIZE_1  976  /* size of the DECODER_INFO structure prior PM123 1.32 */
 #define INFO_SIZE_2 1264  /* size of the DECODER_INFO structure since PM123 1.32 */

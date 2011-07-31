@@ -16,17 +16,17 @@
       <th>Reply</th>
     </tr>
     <tr>
-      <td><tt><a name="playlist"></a>playlist
-      <var>&lt;url&gt;</var></tt></td>
+      <td><tt><a name="playlist"></a>playlist <var>&lt;url&gt;</var></tt></td>
       <td>Select a playlist or a folder. This setting only
 affects the pipe
 interface. To play a playlist use the <a
- href="remoterefplayback.html#load"><tt>load</tt></a> command.<br>
-      </td>
+ href="remoterefplayback.html#load"><tt>load</tt></a> command.interface.
+To play a playlist use the <a href="remoterefplayback.html#load"><tt>load</tt></a>
+command. </td>
       <td>URL or empty string on error.</td>
     </tr>
     <tr>
-      <td><tt><a name="pl_next"></a>pl_next </tt>[<var><tt>&lt;count&gt;</tt></var>]<sup><a
+      <td><tt><a name="pl_next"></a>pl next </tt>[<var><tt>&lt;count&gt;</tt></var>]<sup><a
  href="#note2">(2)</a></sup></td>
       <td>Navigate to the next item in the current
 playlist.&nbsp;If <var><tt>&lt;count&gt;</tt></var>
@@ -35,7 +35,7 @@ is specified, you can skip more than one item at once.</td>
 list.</td>
     </tr>
     <tr>
-      <td><tt><a name="pl_previous"></a>pl_previous</tt>
+      <td><tt><a name="pl_previous"></a>pl previous</tt>
 [<var><tt>&lt;count&gt;</tt></var>]<sup><a href="#note2">(2)</a></sup></td>
       <td>Navigate to the previous item in the current
 playlist.&nbsp;If <var><tt>&lt;count&gt;</tt></var>
@@ -44,23 +44,23 @@ is specified, you can skip more than one item at once.</td>
 list.</td>
     </tr>
     <tr>
-      <td><tt><a name="pl_reset"></a>pl_reset</tt><sup><a href="#note2">(2)</a></sup></td>
+      <td><tt><a name="pl_reset"></a>pl reset</tt><sup><a href="#note2">(2)</a></sup></td>
       <td>Reset the current item of the playlist. The current
 location is now before the start or past the end respectively.</td>
       <td>&nbsp;</td>
     </tr>
     <tr>
-      <td><tt><a name="pl_current"></a>pl_current</tt></td>
+      <td><tt><a name="pl_current"></a>pl current</tt></td>
       <td>Query the current playlist.</td>
       <td>URL of the item or an empty string if none.</td>
     </tr>
     <tr>
-      <td><tt><a name="pl_current"></a>pl_item</tt></td>
+      <td><tt><a name="pl_current"></a>pl item</tt></td>
       <td>Query the current item in the current playlist.</td>
       <td>URL of the item or an empty string if none.</td>
     </tr>
     <tr>
-      <td><tt><a name="pl_index"></a>pl_index</tt></td>
+      <td><tt><a name="pl_index"></a>pl index</tt></td>
       <td>Query the index of the current item within the current
 playlist.<br>
 Be careful, because the index changes when the playlist is modified and
@@ -69,8 +69,8 @@ you might be not the only one that modifies a playlist.</td>
     </tr>
     <tr>
       <td><tt><a name="use"></a>use</tt></td>
-      <td>Use the current playlist. This is equivalent to '<tt>load
-      <var>&lt;URL to current playlist&gt;</var></tt>'.</td>
+      <td>Use the current playlist. This is equivalent to '<tt>load <var>&lt;URL
+to current playlist&gt;</var></tt>'.</td>
       <td>Result code, non-zero = <a href="remotereferror.html">error</a>.</td>
     </tr>
     <tr>

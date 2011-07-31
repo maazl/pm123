@@ -43,10 +43,12 @@
 
 class PlayableSetBase;
 
-FLAGSATTRIBUTE(DECODERSTATE);
 FLAGSATTRIBUTE(PHYS_ATTRIBUTES);
 FLAGSATTRIBUTE(TECH_ATTRIBUTES);
 FLAGSATTRIBUTE(PL_OPTIONS);
+FLAGSATTRIBUTE(INFOTYPE);
+FLAGSATTRIBUTE(DECODERSTATE);
+FLAGSATTRIBUTE(DECODERMETA);
 
 struct PM123Time
 { PM123_TIME     Value;
@@ -61,14 +63,15 @@ struct PM123Time
 /** C++ version of INFO_BUNDLE and it's sub structures
  */
 struct PhysInfo : public PHYS_INFO
-{ PhysInfo()                                      { Reset(); }
+{ static const PHYS_INFO Empty;
+  PhysInfo()                                      : PHYS_INFO(Empty) {}
   PhysInfo(const PhysInfo& r)                     : PHYS_INFO(r) {} // = delete would be nice
   PhysInfo(const PHYS_INFO& r)                    : PHYS_INFO(r) {}
   PhysInfo(const volatile PHYS_INFO& r)           { Assign(r); }
   PhysInfo& operator=(const PhysInfo& r)          { Assign(r); return *this; } // = delete would be nice
   PhysInfo& operator=(const PHYS_INFO& r)         { Assign(r); return *this; }
   PhysInfo& operator=(const volatile PHYS_INFO& r){ Assign(r); return *this; }
-  void Reset()                                    { static const PHYS_INFO init = PHYS_INFO_INIT; (PHYS_INFO&)*this = init; }
+  void Reset()                                    { (PHYS_INFO&)*this = Empty; }
   void Assign(const PHYS_INFO& r)                 { (PHYS_INFO&)*this = r; }
   void Assign(const volatile PHYS_INFO& r);
   // Assign and return true on change.
@@ -76,7 +79,8 @@ struct PhysInfo : public PHYS_INFO
 };
 
 struct TechInfo : public TECH_INFO
-{ TechInfo()                                      { Reset(); }
+{ static const TECH_INFO Empty;
+  TechInfo()                                      : TECH_INFO(Empty) {}
   TechInfo(const TechInfo& r)                     { Assign(r); } // = delete would be nice
   TechInfo(const TECH_INFO& r)                    { Assign(r); }
   TechInfo(const volatile TECH_INFO& r)           { Assign(r); }
@@ -91,14 +95,15 @@ struct TechInfo : public TECH_INFO
 };
 
 struct ObjInfo : public OBJ_INFO
-{ ObjInfo()                                       { Reset(); }
-  ObjInfo(const ObjInfo& r)                       { Assign(r); } // = delete would be nice
-  ObjInfo(const OBJ_INFO& r)                      { Assign(r); }
+{ static const OBJ_INFO Empty;
+  ObjInfo()                                       : OBJ_INFO(Empty) {}
+  ObjInfo(const ObjInfo& r)                       : OBJ_INFO(r) {} // = delete would be nice
+  ObjInfo(const OBJ_INFO& r)                      : OBJ_INFO(r) {}
   ObjInfo(const volatile OBJ_INFO& r)             { Assign(r); }
   ObjInfo& operator=(const ObjInfo& r)            { Assign(r); return *this; } // = delete would be nice
   ObjInfo& operator=(const OBJ_INFO& r)           { Assign(r); return *this; }
   ObjInfo& operator=(const volatile OBJ_INFO& r)  { Assign(r); return *this; }
-  void Reset()                                    { static const OBJ_INFO init = OBJ_INFO_INIT; (OBJ_INFO&)*this = init; }
+  void Reset()                                    { (OBJ_INFO&)*this = Empty; }
   void Assign(const OBJ_INFO& r)                  { (OBJ_INFO&)*this = r; }
   void Assign(const volatile OBJ_INFO& r);
   // Assign and return true on change.
@@ -106,7 +111,8 @@ struct ObjInfo : public OBJ_INFO
 };
 
 struct MetaInfo : public META_INFO
-{ MetaInfo()                                      { Reset(); }
+{ static const META_INFO Empty;
+  MetaInfo()                                      : META_INFO(Empty) {}
   MetaInfo(const MetaInfo& r)                     { Assign(r); } // = delete would be nice
   MetaInfo(const META_INFO& r)                    { Assign(r); }
   MetaInfo(const volatile META_INFO& r)           { Assign(r); }
@@ -125,16 +131,17 @@ bool operator==(const META_INFO& l, const META_INFO& r);
 inline bool operator!=(const META_INFO& l, const META_INFO& r) { return !(l == r); }
 
 struct AttrInfo : public ATTR_INFO
-{ AttrInfo()                                      { Reset(); }
-  AttrInfo(const AttrInfo& r)                     { Assign(r); } // = delete would be nice
-  AttrInfo(const ATTR_INFO& r)                    { Assign(r); }
+{ static const ATTR_INFO Empty;
+  AttrInfo()                                      : ATTR_INFO(Empty) {}
+  AttrInfo(const AttrInfo& r)                     : ATTR_INFO(r) {} // = delete would be nice
+  AttrInfo(const ATTR_INFO& r)                    : ATTR_INFO(r) {}
   AttrInfo(const volatile ATTR_INFO& r)           { Assign(r); }
   AttrInfo& operator=(const AttrInfo& r)          { Assign(r); return *this; } // = delete would be nice
   AttrInfo& operator=(const ATTR_INFO& r)         { Assign(r); return *this; }
   AttrInfo& operator=(const volatile ATTR_INFO& r){ Assign(r); return *this; }
   bool IsInitial() const                          { return !ploptions && !at; }
   bool Equals(const ATTR_INFO& r) const           { return ploptions == r.ploptions && at == r.at; }
-  void Reset();
+  void Reset()                                    { (ATTR_INFO&)*this = Empty; }
   void Assign(const ATTR_INFO& r)                 { (ATTR_INFO&)*this = r; }
   void Assign(const volatile ATTR_INFO& r);
   // Assign and return true on change.
@@ -144,14 +151,15 @@ inline bool operator==(const ATTR_INFO& l, const ATTR_INFO& r) { return l.plopti
 inline bool operator!=(const ATTR_INFO& l, const ATTR_INFO& r) { return !(l == r); }
 
 struct RplInfo : public RPL_INFO
-{ RplInfo()                                       { Reset(); }
-  RplInfo(const RplInfo& r)                       { Assign(r); } // = delete would be nice
-  RplInfo(const RPL_INFO& r)                      { Assign(r); }
+{ static const RPL_INFO Empty;
+  RplInfo()                                       : RPL_INFO(Empty) {}
+  RplInfo(const RplInfo& r)                       : RPL_INFO(r) {} // = delete would be nice
+  RplInfo(const RPL_INFO& r)                      : RPL_INFO(r) {}
   RplInfo(const volatile RPL_INFO& r)             { Assign(r); }
   RplInfo& operator=(const RplInfo& r)            { Assign(r); return *this; } // = delete would be nice
   RplInfo& operator=(const RPL_INFO& r)           { Assign(r); return *this; }
   RplInfo& operator=(const volatile RPL_INFO& r)  { Assign(r); return *this; }
-  void Reset()                                    { static const RPL_INFO init = RPL_INFO_INIT; (RPL_INFO&)*this = init; }
+  void Reset()                                    { (RPL_INFO&)*this = Empty; }
   void Assign(const RPL_INFO& r)                  { (RPL_INFO&)*this = r; }
   void Assign(const volatile RPL_INFO& r);
   // Assign and return true on change.
@@ -165,14 +173,15 @@ struct RplInfo : public RPL_INFO
 };
 
 struct DrplInfo : public DRPL_INFO
-{ DrplInfo()                                      { Reset(); }
-  DrplInfo(const DrplInfo& r)                     { Assign(r); } // = delete would be nice
-  DrplInfo(const DRPL_INFO& r)                    { Assign(r); }
+{ static const DRPL_INFO Empty;
+  DrplInfo()                                      : DRPL_INFO(Empty) {}
+  DrplInfo(const DrplInfo& r)                     : DRPL_INFO(r) {} // = delete would be nice
+  DrplInfo(const DRPL_INFO& r)                    : DRPL_INFO(r) {}
   DrplInfo(const volatile DRPL_INFO& r)           { Assign(r); }
   DrplInfo& operator=(const DrplInfo& r)          { Assign(r); return *this; } // = delete would be nice
   DrplInfo& operator=(const DRPL_INFO& r)         { Assign(r); return *this; }
   DrplInfo& operator=(const volatile DRPL_INFO& r){ Assign(r); return *this; }
-  void      Reset()                               { static const DRPL_INFO init = DRPL_INFO_INIT; (DRPL_INFO&)*this = init; }
+  void      Reset()                               { (DRPL_INFO&)*this = Empty; }
   void      Assign(const DRPL_INFO& r)            { (DRPL_INFO&)*this = r; }
   void      Assign(const volatile DRPL_INFO& r);
   // Assign and return true on change.
@@ -185,7 +194,8 @@ struct DrplInfo : public DRPL_INFO
 };
 
 struct ItemInfo : public ITEM_INFO
-{ ItemInfo()                                      { Reset(); }
+{ static const ITEM_INFO Empty;
+  ItemInfo()                                      { Reset(); }
   ItemInfo(const ItemInfo& r)                     { Assign(r); } // = delete would be nice
   ItemInfo(const ITEM_INFO& r)                    { Assign(r); }
   ItemInfo(const volatile ITEM_INFO& r)           { Assign(r); }

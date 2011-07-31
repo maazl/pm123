@@ -45,6 +45,7 @@
 #include <utilfct.h>
 
 #include <cpp/container/inst_index.h>
+#include <cpp/pmutils.h>
 
 #include <stdio.h>
 #include <time.h>
@@ -186,10 +187,11 @@ class InfoDialog
   friend class PageMetaInfo;
   class PageMetaInfo : public PageBase
   {private:
-    bool            MetaWrite; // Valid only while UM_UPDATE
+    bool            MetaWrite;  // Valid only while UM_UPDATE
    private:
     // Dialog procedure
     HWND            SetEFText(USHORT id, Fields fld, const char* text);
+    inline bool     FetchField(USHORT idcb, USHORT idef, DSTRING& field);
     virtual MRESULT DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2);
    public:
     PageMetaInfo(InfoDialog& parent) : PageBase(parent, DLG_METAINFO, "Meta info") {}
@@ -198,31 +200,33 @@ class InfoDialog
  protected:
   // Progress window for meta data writes
   class MetaWriteDlg : private DialogBase
-  {private: // Work order!
-    const META_INFO& MetaData; // Information to write
-    const int       MetaFlags; // Parts of MetaData to write
-    const PlayableSetBase& Dest;// Write to this songs
+  {public:
+    META_INFO       MetaData;  // Information to write
+    DECODERMETA     MetaFlags;// Parts of MetaData to write
+    const vector<APlayable>& Dest;// Write to this songs
    private:
+    struct StatusReport
+    { int           RC;
+      xstring       Text;
+    };
     enum
-    { UM_START = WM_USER+1,    // Start the worker thread
-      UM_STATUS                // Worker thread reports: at item #(ULONG)mp1, status (ULONG)mp2
+    { UM_START = WM_USER+1,     // Start the worker thread
+      UM_STATUS                 // Worker thread reports: at item #(ULONG)mp1, status (StatusReport)mp2
     };
     bool            SkipErrors;
-   private:
    private: // Worker thread
     TID             WorkerTID;
     unsigned        CurrentItem;
     bool            Cancel;
     Event           ResumeSignal;
-   private:
-    // Worker thread
+   private: // Worker thread
     void            Worker();
     friend void TFNENTRY InfoDialogMetaWriteWorkerStub(void*);
    protected:
     // Dialog procedure
     virtual MRESULT DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2);
    public:
-    MetaWriteDlg(const META_INFO& info, int flags, const PlayableSetBase& dest);
+    MetaWriteDlg(const vector<APlayable>& dest);
     ~MetaWriteDlg();
     ULONG           DoDialog(HWND owner);
   };
@@ -551,6 +555,16 @@ HWND InfoDialog::PageMetaInfo::SetEFText(USHORT id, Fields fld, const char* text
   return ctrl;
 }
 
+inline bool InfoDialog::PageMetaInfo::FetchField(USHORT idcb, USHORT idef, DSTRING& field)
+{ if (SHORT1FROMMR(WinQueryButtonCheckstate(GetHwnd(), idcb)))
+  { field = WinQueryDlgItemXText(GetHwnd(), idef);
+    if (!*field)
+      field.reset();
+    return true;
+  }
+  return false;
+}
+
 MRESULT InfoDialog::PageMetaInfo::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
 { switch (msg)
   {//case WM_INITDLG:
@@ -619,30 +633,19 @@ MRESULT InfoDialog::PageMetaInfo::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
       return 0;
      case PB_APPLY:
       { // fetch meta data
-        META_INFO info;
-        /* TODO:   char buffer[12];
-        WinQueryDlgItemText(GetHwnd(), EF_METATITLE,    sizeof info.title,    info.title.cdata()    );
-        WinQueryDlgItemText(GetHwnd(), EF_METAARTIST,   sizeof info.artist,   info.artist.cdata()   );
-        WinQueryDlgItemText(GetHwnd(), EF_METAALBUM,    sizeof info.album,    info.album.cdata()    );
-        WinQueryDlgItemText(GetHwnd(), EF_METATRACK,    sizeof buffer, buffer);
-        // TODO: info.track = *buffer ? atoi(buffer) : -1;
-        WinQueryDlgItemText(GetHwnd(), EF_METADATE,     sizeof info.year,     info.year.cdata()     );
-        WinQueryDlgItemText(GetHwnd(), EF_METAGENRE,    sizeof info.genre,    info.genre.cdata()    );
-        WinQueryDlgItemText(GetHwnd(), EF_METACOMMENT,  sizeof info.comment,  info.comment.cdata()  );
-        WinQueryDlgItemText(GetHwnd(), EF_METACOPYRIGHT,sizeof info.copyright,info.copyright.cdata());
-        // Setup flags
-        int flags =
-          DECODER_HAVE_TITLE    * SHORT1FROMMR(WinQueryButtonCheckstate(GetHwnd(), CB_METATITLE    )) |
-          DECODER_HAVE_ARTIST   * SHORT1FROMMR(WinQueryButtonCheckstate(GetHwnd(), CB_METAARTIST   )) |
-          DECODER_HAVE_ALBUM    * SHORT1FROMMR(WinQueryButtonCheckstate(GetHwnd(), CB_METAALBUM    )) |
-          DECODER_HAVE_TRACK    * SHORT1FROMMR(WinQueryButtonCheckstate(GetHwnd(), CB_METATRACK    )) |
-          DECODER_HAVE_YEAR     * SHORT1FROMMR(WinQueryButtonCheckstate(GetHwnd(), CB_METADATE     )) |
-          DECODER_HAVE_GENRE    * SHORT1FROMMR(WinQueryButtonCheckstate(GetHwnd(), CB_METAGENRE    )) |
-          DECODER_HAVE_COMMENT  * SHORT1FROMMR(WinQueryButtonCheckstate(GetHwnd(), CB_METACOMMENT  )) |
-          DECODER_HAVE_COPYRIGHT* SHORT1FROMMR(WinQueryButtonCheckstate(GetHwnd(), CB_METACOPYRIGHT));
+        MetaWriteDlg wdlg(GetParent().Key);
+        wdlg.MetaFlags =
+            DECODER_HAVE_TITLE    * FetchField(CB_METATITLE,    EF_METATITLE,    wdlg.MetaData.title    )
+          | DECODER_HAVE_ARTIST   * FetchField(CB_METAARTIST,   EF_METAARTIST,   wdlg.MetaData.artist   )
+          | DECODER_HAVE_ALBUM    * FetchField(CB_METAALBUM,    EF_METAALBUM,    wdlg.MetaData.album    )
+          | DECODER_HAVE_TRACK    * FetchField(CB_METATRACK,    EF_METATRACK,    wdlg.MetaData.track    )
+          | DECODER_HAVE_YEAR     * FetchField(CB_METADATE,     EF_METADATE,     wdlg.MetaData.year     )
+          | DECODER_HAVE_GENRE    * FetchField(CB_METAGENRE,    EF_METAGENRE,    wdlg.MetaData.genre    )
+          | DECODER_HAVE_COMMENT  * FetchField(CB_METACOMMENT,  EF_METACOMMENT,  wdlg.MetaData.comment  )
+          | DECODER_HAVE_COPYRIGHT* FetchField(CB_METACOPYRIGHT,EF_METACOPYRIGHT,wdlg.MetaData.copyright);
         // Invoke worker dialog
-        MetaWriteDlg(info, flags, *Parent.Key).DoDialog(GetHwnd());
-        DEBUGLOG(("InfoDialog(%p)::PageMetaInfo::DlgProc: PB_APPLY - after DoDialog\n", &Parent));*/
+        wdlg.DoDialog(GetHwnd());
+        DEBUGLOG(("InfoDialog(%p)::PageMetaInfo::DlgProc: PB_APPLY - after DoDialog\n", &Parent));
         return 0;
       }
     }
@@ -655,15 +658,14 @@ InfoFlags InfoDialog::PageMetaInfo::GetRequestFlags()
 }
 
 
-InfoDialog::MetaWriteDlg::MetaWriteDlg(const META_INFO& info, int flags, const PlayableSetBase& dest)
-: DialogBase(DLG_WRITEMETA, NULLHANDLE),
-  MetaData(info),
-  MetaFlags(flags),
-  Dest(dest),
-  SkipErrors(false),
-  WorkerTID(0),
-  Cancel(false)
-{ DEBUGLOG(("InfoDialog::MetaWriteDlg(%p)::MetaWriteDlg(, %x, {%u,})\n", this, flags, dest.size()));
+InfoDialog::MetaWriteDlg::MetaWriteDlg(const vector<APlayable>& dest)
+: DialogBase(DLG_WRITEMETA, NULLHANDLE)
+, MetaFlags(DECODER_HAVE_NONE)
+, Dest(dest)
+, SkipErrors(false)
+, WorkerTID(0)
+, Cancel(false)
+{ DEBUGLOG(("InfoDialog::MetaWriteDlg(%p)::MetaWriteDlg({%u,})\n", this, dest.size()));
 }
 
 InfoDialog::MetaWriteDlg::~MetaWriteDlg()
@@ -680,7 +682,7 @@ MRESULT InfoDialog::MetaWriteDlg::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
 { switch (msg)
   {case WM_INITDLG:
     // setup first destination
-    SetItemText(EF_WMURL, Dest[0]->URL.cdata());
+    SetItemText(EF_WMURL, Dest[0]->GetPlayable().URL.cdata());
     PostMsg(UM_START, 0, 0);
     break;
 
@@ -707,16 +709,17 @@ MRESULT InfoDialog::MetaWriteDlg::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
         PMRASSERT(WinSetWindowPos(WinWindowFromID(GetHwnd(), SB_WMBARFG), NULLHANDLE, 0,0, swp.cx,swp.cy, SWP_SIZE));
       }
 
-      if (LONGFROMMP(mp2) == PLUGIN_OK)
+      StatusReport* rep = (StatusReport*)PVOIDFROMMP(mp2);
+      if (rep->RC == PLUGIN_OK)
       { // Everything fine, next item
         SetItemText(EF_WMSTATUS, "");
         ++i; // next item (if any)
-        SetItemText(EF_WMURL, (size_t)i < Dest.size() ? Dest[i]->URL.cdata() : "");
+        SetItemText(EF_WMURL, (size_t)i < Dest.size() ? Dest[i]->GetPlayable().URL.cdata() : "");
         return 0;
       }
       // Error, worker halted
-      // TODO:    sprintf(buffer, "%s failed to write meta info. Error %lu - %s", Dest[i]->GetDecoder(), LONGFROMMP(mp2), xio_strerror(LONGFROMMP(mp2)));
-      // PMRASSERT(WinSetDlgItemText(GetHwnd(), EF_WMSTATUS, buffer));
+      const xstring& errortext = xstring::sprintf("Error %lu - %s", rep->RC, rep->Text.cdata());
+      PMRASSERT(WinSetDlgItemText(GetHwnd(), EF_WMSTATUS, errortext));
       // 'skip all' was pressed? => continue immediately
       if (SkipErrors)
       { ResumeSignal.Set();
@@ -757,7 +760,7 @@ MRESULT InfoDialog::MetaWriteDlg::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
 
 ULONG InfoDialog::MetaWriteDlg::DoDialog(HWND owner)
 { DEBUGLOG(("InfoDialog::MetaWriteDlg(%p)::DoDialog() - %u %x\n", this, Dest.size(), MetaFlags));
-  if (Dest.size() == 0 || MetaFlags == 0)
+  if (Dest.size() == 0 || MetaFlags == DECODER_HAVE_NONE)
     return DID_OK;
   StartDialog(owner);
   return WinProcessDlg(GetHwnd());
@@ -765,16 +768,17 @@ ULONG InfoDialog::MetaWriteDlg::DoDialog(HWND owner)
 
 void InfoDialog::MetaWriteDlg::Worker()
 { while (!Cancel && CurrentItem < Dest.size())
-  { Playable& song = *Dest[CurrentItem];
+  { Playable& song = Dest[CurrentItem]->GetPlayable();
     DEBUGLOG(("InfoDialog::MetaWriteDlg(%p)::Worker - %u %s\n", this, CurrentItem, song.URL.cdata()));
     // Write info
-    ULONG rc = 0; // TODO:   song.SaveMetaInfo(MetaData, MetaFlags);
+    StatusReport rep;
+    rep.RC = song.SaveMetaInfo(MetaData, MetaFlags, rep.Text);
     // Notify dialog
-    PostMsg(UM_STATUS, MPFROMLONG(CurrentItem), MPFROMLONG(rc));
+    PostMsg(UM_STATUS, MPFROMLONG(CurrentItem), MPFROMLONG(&rep));
     if (Cancel)
       return;
     // wait for acknowledge
-    if (rc != PLUGIN_OK)
+    if (rep.RC != PLUGIN_OK)
     { ResumeSignal.Wait();
       ResumeSignal.Reset();
     } else

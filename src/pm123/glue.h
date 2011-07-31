@@ -1,8 +1,8 @@
 /*
+ * Copyright 2006-2010 Marcel Mueller
+ * Copyright 2004-2006 Dmitry A.Steklenev <glass@ptv.ru>
  * Copyright 1997-2003 Samuel Audet  <guardia@step.polymtl.ca>
  *                     Taneli Lepp�  <rosmo@sektori.com>
- * Copyright 2004-2006 Dmitry A.Steklenev <glass@ptv.ru>
- * Copyright 2006-2009 Marcel Mueller
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -32,13 +32,11 @@
 #ifndef PM123_GLUE_H
 #define PM123_GLUE_H
 
-//#include "plugman.h"
 
 #define INCL_PM
 #include <output_plug.h>
 #include <decoder_plug.h>
 #include "playable.h"
-//#include <cpp/constainer/stringmap.h>
 #include <os2.h>
 
 
@@ -59,7 +57,7 @@ ULONG dec_jump(PM123_TIME location);
 /// Set savefilename to save the raw stream data
 ULONG dec_save(const char* file);
 /// Save ID3-data to the given file
-ULONG dec_saveinfo(const char* url, const META_INFO* info, int haveinfo, const char* decoder);
+ULONG dec_saveinfo(const char* url, const META_INFO* info, DECODERMETA haveinfo, const char* decoder, xstring& errortxt);
 /// Save Playlist to file
 ULONG dec_saveplaylist(const char* url, Playable& playlist, const char* decoder, const char* format, bool relative);
 /// call special decoder dialog to edit ID3-data of the given file

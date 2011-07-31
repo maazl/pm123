@@ -172,6 +172,7 @@ class InfoState
   /// during the update process.
   InfoFlags      EndUpdate(InfoFlags what);
   /// Revoke update request but do not revoke an outstanding request.
+  /// @return return the Flags that actually have been canceled.
   InfoFlags      CancelUpdate(InfoFlags what) { return (InfoFlags)InService.maskreset(what); }
   
   /// Invalidate some kind of information and return the bits that caused

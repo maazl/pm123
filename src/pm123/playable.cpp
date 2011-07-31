@@ -468,7 +468,7 @@ Playable_DecoderEnumCb(void* param, const char* url, const INFO_BUNDLE* info, in
 void Playable::ChildChangeNotification(const PlayableChangeArgs& args)
 { DEBUGLOG(("Playable(%p{%s})::ChildChangeNotification({%p{%s}, %p, %x,%x, %x})\n", this, URL.getShortName().cdata(),
     &args.Instance, args.Instance.GetPlayable().URL.getShortName().cdata(), args.Origin, args.Loaded, args.Changed, args.Invalidated));
-  /*  InfoFlags f = args.Changed & (IF_Tech|IF_Rpl);
+  /* TODO: InfoFlags f = args.Changed & (IF_Tech|IF_Rpl);
     if (f)
     { // Invalidate dependent info and reload if already known
       InvalidateInfo(f, true);
@@ -482,6 +482,26 @@ void Playable::ChildChangeNotification(const PlayableChangeArgs& args)
       // Same as TechInfoChange => emulate another event
       ChildInfoChange(Playable::change_args(*args.Instance.GetPlayable(), IF_Tech, IF_Tech));
   }*/
+}
+
+void Playable::SetMetaInfo(const META_INFO* meta)
+{ DEBUGLOG(("Playable(%p)::SetMetaInfo({...})\n", this));
+  Mutex::Lock lock(Mtx);
+  PlayableChangeArgs change(*this);
+  if (Info.InfoStat.BeginUpdate(IF_Meta))
+  { if (meta == NULL)
+      meta = &MetaInfo::Empty;
+    change.Loaded = IF_Meta;
+    change.Changed = IF_Meta * Info.Meta.CmpAssign(*meta);
+    // This kind of update never changes the state of the information,
+    // because it does not set all fields.
+    Info.InfoStat.EndUpdate(IF_Meta);
+  } else
+    // cannot lock meta info => invalidate instead
+    change.Invalidated = Info.InfoStat.Invalidate(IF_Meta);
+  // Fire change event if any
+  if (!change.IsInitial())
+    InfoChange(change);
 }
 
 void Playable::EnsurePlaylist()
@@ -830,15 +850,47 @@ bool Playable::Save(const url123& dest, const char* decoder, const char* format,
   return dest;
 }
 
-void Playable::SetMetaInfo(const META_INFO* meta)
-{ DEBUGLOG(("Playable(%p)::SetMetaInfo({...})\n", this));
-  /* TODO: Write meta Info by plugin
-  Lock lock(*this);
-  InfoFlags what = BeginUpdate(IF_Meta);
-  if (what & IF_Meta)
-    UpdateMeta(meta);
-  // TODO: We cannot simply ignore update requests in case of concurrency issues.
-  EndUpdate(what);*/
+int Playable::SaveMetaInfo(const META_INFO& meta, DECODERMETA haveinfo, xstring& errortxt)
+{ DEBUGLOG(("Playable(%p)::SaveMetaInfo({...}, %x,)\n", this, haveinfo));
+  // Write meta Info by plugin
+  int rc = dec_saveinfo(URL, &meta, haveinfo, Info.Tech.decoder, errortxt);
+  if (rc != 0)
+    return rc;
+  // adjust local meta info too.
+  Mutex::Lock lock(Mtx);
+  if (Info.InfoStat.Check(IF_Meta, REL_Cached))
+    return 0;
+  PlayableChangeArgs change(*this);
+  if (!Info.InfoStat.BeginUpdate(IF_Meta))
+  { // cannot lock meta info => invalidate instead
+    change.Invalidated = Info.InfoStat.Invalidate(IF_Meta);
+  } else
+  { MetaInfo new_info(Info.Meta); // copy
+    if (haveinfo & DECODER_HAVE_TITLE)
+      new_info.title = meta.title;
+    if (haveinfo & DECODER_HAVE_ARTIST)
+      new_info.artist = meta.artist;
+    if (haveinfo & DECODER_HAVE_ALBUM)
+      new_info.album = meta.album;
+    if (haveinfo & DECODER_HAVE_TRACK)
+      new_info.track = meta.track;
+    if (haveinfo & DECODER_HAVE_YEAR)
+      new_info.year = meta.year;
+    if (haveinfo & DECODER_HAVE_GENRE)
+      new_info.genre = meta.genre;
+    if (haveinfo & DECODER_HAVE_COMMENT)
+      new_info.comment = meta.comment;
+    if (haveinfo & DECODER_HAVE_COPYRIGHT)
+      new_info.copyright = meta.copyright;
+    change.Changed = IF_Meta * Info.Meta.CmpAssign(new_info);
+    // This kind of update never changes the state of the information,
+    // because it does not set all fields.
+    Info.InfoStat.CancelUpdate(IF_Meta);
+  }
+  // Fire change event if any
+  if (!change.IsInitial())
+    InfoChange(change);
+  return 0;
 }
 
 /*void Playable::SetTechInfo(const TECH_INFO* tech)
@@ -967,75 +1019,3 @@ void Playable::Uninit()
   DetachObjects(todelete);
   DEBUGLOG(("Playable::Uninit - complete - %u\n", todelete.size()));
 }
-
-
-/****************************************************************************
-*
-*  class Song
-*
-****************************************************************************/
-
-/*Song::Song(const url123& URL, const INFO_BUNDLE* ca)
-: Playable(URL, ca)
-{ DEBUGLOG(("Song(%p)::Song(%s, %p)\n", this, URL.cdata(), ca));
-  // Always overwrite RplInfo
-  static const RPL_INFO defrpl = { sizeof(RPL_INFO), 1, 0 };
-  UpdateRpl(&defrpl, true);
-}
-
-Playable::InfoFlags Song::DoLoadInfo(InfoFlags what)
-{ DEBUGLOG(("Song(%p)::DoLoadInfo(%x) - %s\n", this, what, GetDecoder()));
-  what |= BeginUpdate(IF_Other); // IF_Other always inclusive when we call dec_fileinfo
-  // get information
-  sco_ptr<DecoderInfo> info(new DecoderInfo()); // a bit much for the stack
-  INFOTYPE what2 = (INFOTYPE)((int)what & INFO_ALL); // inclompatible types
-  DecoderName decoder = "";
-  int rc = dec_fileinfo(GetURL(), &what2, info.get(), decoder, sizeof decoder);
-  InfoFlags done = (InfoFlags)what2 | IF_All;
-  what |= BeginUpdate(done);
-  DEBUGLOG(("Song::LoadInfo - rc = %i\n", rc));
-  // update information
-  Lock lock(*this);
-  bool valid = rc == 0;
-  if (!valid)
-  { if (*info->tech->info == 0)
-      sprintf(info->tech->info, "Decoder error %i", rc);
-  }
-  UpdateInfo(valid ? STA_Valid : STA_Invalid, info.get(), decoder, what, valid); // Reset fields
-  return what;
-}
-
-ULONG Song::SaveMetaInfo(const META_INFO& info, int haveinfo)
-{ DEBUGLOG(("Song(%p{%s})::SaveMetaInfo(, %x)\n", this, GetURL().cdata(), haveinfo));
-  haveinfo &= DECODER_HAVE_TITLE|DECODER_HAVE_ARTIST|DECODER_HAVE_ALBUM  |DECODER_HAVE_TRACK
-             |DECODER_HAVE_YEAR |DECODER_HAVE_GENRE |DECODER_HAVE_COMMENT|DECODER_HAVE_COPYRIGHT;
-  EnsureInfo(Playable::IF_Other);
-  ULONG rc = dec_saveinfo(GetURL(), &info, haveinfo, GetDecoder());
-  if (rc == 0)
-  { Lock lock(*this);
-    if (BeginUpdate(IF_Meta))
-    { META_INFO new_info = *GetInfo().meta; // copy
-      if (haveinfo & DECODER_HAVE_TITLE)
-        strlcpy(new_info.title,    info.title,      sizeof new_info.title);
-      if (haveinfo & DECODER_HAVE_ARTIST)
-        strlcpy(new_info.artist,   info.artist,     sizeof new_info.artist);
-      if (haveinfo & DECODER_HAVE_ALBUM)
-        strlcpy(new_info.album,    info.album,      sizeof new_info.album);
-      if (haveinfo & DECODER_HAVE_TRACK)
-        new_info.track = info.track;
-      if (haveinfo & DECODER_HAVE_YEAR)
-        strlcpy(new_info.year,      info.year,      sizeof new_info.year);
-      if (haveinfo & DECODER_HAVE_GENRE)
-        strlcpy(new_info.genre,     info.genre,     sizeof new_info.genre);
-      if (haveinfo & DECODER_HAVE_COMMENT)
-        strlcpy(new_info.comment,   info.comment,   sizeof new_info.comment);
-      if (haveinfo & DECODER_HAVE_COPYRIGHT)
-        strlcpy(new_info.copyright, info.copyright, sizeof new_info.copyright);
-      UpdateMeta(&new_info);
-      EndUpdate(IF_Meta);
-    }
-  }
-  return rc;
-}*/
-
-

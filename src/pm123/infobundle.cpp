@@ -79,6 +79,8 @@ char* PM123Time::toString(char* buf, PM123_TIME time)
 *
 ****************************************************************************/
 
+const PHYS_INFO PhysInfo::Empty = PHYS_INFO_INIT;
+
 void PhysInfo::Assign(const volatile PHYS_INFO& r)
 { filesize   = r.filesize;
   tstmp      = r.tstmp;
@@ -90,6 +92,8 @@ void PhysInfo::Assign(const volatile PHYS_INFO& r)
 *  class TechInfo
 *
 ****************************************************************************/
+
+const TECH_INFO TechInfo::Empty = TECH_INFO_INIT;
 
 void TechInfo::Reset()
 { samplerate = -1;
@@ -126,6 +130,8 @@ bool TechInfo::CmpAssign(const TECH_INFO& r)
 *
 ****************************************************************************/
 
+const OBJ_INFO ObjInfo::Empty = OBJ_INFO_INIT;
+
 void ObjInfo::Assign(const volatile OBJ_INFO& r)
 { songlength = r.songlength;
   bitrate    = r.bitrate;
@@ -137,6 +143,8 @@ void ObjInfo::Assign(const volatile OBJ_INFO& r)
 *  class MetaInfo
 *
 ****************************************************************************/
+
+const META_INFO MetaInfo::Empty = META_INFO_INIT;
 
 bool MetaInfo::IsInitial() const
 { return !title && !artist && !album && !year && !comment && !genre && !copyright
@@ -217,10 +225,7 @@ bool operator==(const META_INFO& l, const META_INFO& r)
 *
 ****************************************************************************/
 
-void AttrInfo::Reset()
-{ ploptions = PLO_NONE;
-  at.reset();
-}
+const ATTR_INFO AttrInfo::Empty = ATTR_INFO_INIT;
 
 void AttrInfo::Assign(const volatile ATTR_INFO& r)
 { ploptions = r.ploptions;
@@ -240,6 +245,8 @@ bool AttrInfo::CmpAssign(const ATTR_INFO& r)
 *  class RplInfo
 *
 ****************************************************************************/
+
+const RPL_INFO RplInfo::Empty = RPL_INFO_INIT;
 
 RplInfo& RplInfo::operator+=(const volatile RPL_INFO& r)
 { songs   += r.songs;
@@ -271,6 +278,8 @@ void RplInfo::Assign(const volatile RPL_INFO& r)
 *
 ****************************************************************************/
 
+const DRPL_INFO DrplInfo::Empty = DRPL_INFO_INIT;
+
 DrplInfo& DrplInfo::operator+=(const volatile DRPL_INFO& r)
 { totallength += r.totallength;
   unk_length  += r.unk_length;
@@ -300,6 +309,8 @@ void DrplInfo::Assign(const volatile DRPL_INFO& r)
 *  class ItemInfo
 *
 ****************************************************************************/
+
+const ITEM_INFO ItemInfo::Empty = ITEM_INFO_INIT;
 
 bool ItemInfo::IsInitial() const
 { return !alias && !start && !stop && pregap == 0 && postgap == 0 && gain == 0;

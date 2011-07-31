@@ -147,6 +147,17 @@ class CommandProcessor : public ACommandProcessor
   void DoOption(cfg_scroll amp_cfg::* option);
   void DoOption(cfg_mode amp_cfg::* option);
   void DoFontOption(void*);
+  /*// Capture and convert the next string at \c Request.
+  /// The Parser will either stop at
+  /// <ul><li>the next tab ('\t'),</li>
+  /// <li>at the end of the string,</li>
+  /// <li>if the string does not start with a quote, at the next whitespace or</li>
+  /// <li>if the string starts with a quote, at the next quote that is not doubled</li></ul>
+  /// Quoted strings are returned without the quotes.
+  /// Doubled quotes in quoted strings are converted to a single quote char.
+  /// When there is nothing to capture, The function returns NULL.
+  /// When the function returned non NULL, \c Request is advanced behind the string.
+  char* ParseQuotedString();*/
   /// Parse and normalize one URL according to CurDir.
   url123 ParseURL(const char* url);
   /// Execute a controller command and return the reply as string.
@@ -211,6 +222,12 @@ class CommandProcessor : public ACommandProcessor
   void CmdInfoPlItem();
   void CmdInfoRefresh();
 
+  MetaInfo    Meta;
+  DECODERMETA MetaFlags;
+  void CmdWriteMetaSet();
+  void CmdWriteMetaTo();
+  void CmdWriteMetaRst();
+
   // GUI
   void CmdShow();
   void CmdHide();
@@ -235,6 +252,64 @@ class CommandProcessor : public ACommandProcessor
   CommandProcessor();
 };
 
+const CommandProcessor::CmdEntry CommandProcessor::CmdList[] = // list must be sorted!!!
+{ { "add",           &CommandProcessor::CmdAdd         }
+, { "autouse",       &CommandProcessor::CmdAutouse     }
+, { "cd",            &CommandProcessor::CmdCd          }
+, { "clear",         &CommandProcessor::CmdClear       }
+, { "current",       &CommandProcessor::CmdCurrent     }
+, { "dir",           &CommandProcessor::CmdDir         }
+, { "float",         &CommandProcessor::CmdFloat       }
+, { "font",          &CommandProcessor::CmdFont        }
+, { "forward",       &CommandProcessor::CmdForward     }
+, { "hide",          &CommandProcessor::CmdHide        }
+, { "info format",   &CommandProcessor::CmdInfoFormat  }
+, { "info meta",     &CommandProcessor::CmdInfoMeta    }
+, { "info pl_item",  &CommandProcessor::CmdInfoPlItem  }
+, { "info playlist", &CommandProcessor::CmdInfoPlaylist}
+, { "info refresh" , &CommandProcessor::CmdInfoRefresh }
+, { "jump",          &CommandProcessor::CmdJump        }
+, { "load",          &CommandProcessor::CmdLoad        }
+, { "location",      &CommandProcessor::CmdLocation    }
+, { "next",          &CommandProcessor::CmdNext        }
+, { "open",          &CommandProcessor::CmdOpen        }
+, { "option",        &CommandProcessor::CmdOption      }
+, { "pause",         &CommandProcessor::CmdPause       }
+, { "pl current",    &CommandProcessor::CmdPlCurrent   }
+, { "pl item",       &CommandProcessor::CmdPlItem      }
+, { "pl next",       &CommandProcessor::CmdPlNext      }
+, { "pl prev",       &CommandProcessor::CmdPlPrev      }
+, { "pl reset",      &CommandProcessor::CmdPlReset     }
+, { "pl_current",    &CommandProcessor::CmdPlCurrent   }
+, { "pl_item",       &CommandProcessor::CmdPlItem      }
+, { "pl_next",       &CommandProcessor::CmdPlNext      }
+, { "pl_prev",       &CommandProcessor::CmdPlPrev      }
+, { "pl_reset",      &CommandProcessor::CmdPlReset     }
+, { "play",          &CommandProcessor::CmdPlay        }
+, { "playlist",      &CommandProcessor::CmdPlaylist    }
+, { "playonload",    &CommandProcessor::CmdPlayonload  }
+, { "prev",          &CommandProcessor::CmdPrev        }
+, { "previous",      &CommandProcessor::CmdPrev        }
+, { "query",         &CommandProcessor::CmdQuery       }
+, { "rdir",          &CommandProcessor::CmdRdir        }
+, { "remove",        &CommandProcessor::CmdRemove      }
+, { "repeat",        &CommandProcessor::CmdRepeat      }
+, { "rewind",        &CommandProcessor::CmdRewind      }
+, { "save",          &CommandProcessor::CmdSave        }
+, { "savestream",    &CommandProcessor::CmdSavestream  }
+, { "show",          &CommandProcessor::CmdShow        }
+, { "shuffle",       &CommandProcessor::CmdShuffle     }
+, { "size",          &CommandProcessor::CmdSize        }
+, { "skin",          &CommandProcessor::CmdSkin        }
+, { "status",        &CommandProcessor::CmdStatus      }
+, { "stop",          &CommandProcessor::CmdStop        }
+, { "use",           &CommandProcessor::CmdUse         }
+, { "version",       &CommandProcessor::CmdVersion     }
+, { "volume",        &CommandProcessor::CmdVolume      }
+, { "write meta rst",&CommandProcessor::CmdWriteMetaRst}
+, { "write meta set",&CommandProcessor::CmdWriteMetaSet}
+, { "write meta to", &CommandProcessor::CmdWriteMetaTo }
+};
 
 static bool parse_int(const char* arg, int& val)
 { int v;
@@ -284,6 +359,11 @@ static const strmap<5,cfg_disp> dispmap[] =
 , { "tag",  CFG_DISP_ID3TAG   }
 , { "url",  CFG_DISP_FILENAME }
 };
+
+CommandProcessor::CommandProcessor()
+: CurPlaylist(&GUI::GetDefaultPL())
+, MetaFlags(DECODER_HAVE_NONE)
+{}
 
 void CommandProcessor::DoOption(bool amp_cfg::* option)
 { Reply.append(Cfg::Get().*option ? "on" : "off");
@@ -427,6 +507,27 @@ void CommandProcessor::DoFontOption(void*)
   }
 }
 
+/*char* CommandProcessor::ParseQuotedString()
+{ char* result;
+  switch (*Request)
+  {case 0:
+    return NULL;
+
+   default: // unquoted string
+    result = Request;
+    Request += strcspn(Request, " \t");
+    *Request = 0;
+    break;
+
+   case '\'': // quoted string
+   case '\"':
+    char quotechar = *Request++;
+    result = Request;
+
+  }
+  return result;
+}*/
+
 url123 CommandProcessor::ParseURL(const char* url)
 { url123 ret = CurDir ? CurDir.makeAbsolute(url) : url123::normalizeURL(url);
   // Directory?
@@ -454,57 +555,6 @@ bool CommandProcessor::FillLoadHelper(LoadHelper& lh, char* args)
 }
 
 
-const CommandProcessor::CmdEntry CommandProcessor::CmdList[] = // list must be sorted!!!
-{ { "add",          &CommandProcessor::CmdAdd         }
-, { "autouse",      &CommandProcessor::CmdAutouse     }
-, { "cd",           &CommandProcessor::CmdCd          }
-, { "clear",        &CommandProcessor::CmdClear       }
-, { "current",      &CommandProcessor::CmdCurrent     }
-, { "dir",          &CommandProcessor::CmdDir         }
-, { "float",        &CommandProcessor::CmdFloat       }
-, { "font",         &CommandProcessor::CmdFont        }
-, { "forward",      &CommandProcessor::CmdForward     }
-, { "hide",         &CommandProcessor::CmdHide        }
-, { "info format",  &CommandProcessor::CmdInfoFormat  }
-, { "info meta",    &CommandProcessor::CmdInfoMeta    }
-, { "info pl_item", &CommandProcessor::CmdInfoPlItem  }
-, { "info playlist",&CommandProcessor::CmdInfoPlaylist}
-, { "info refresh" ,&CommandProcessor::CmdInfoRefresh }
-, { "jump",         &CommandProcessor::CmdJump        }
-, { "load",         &CommandProcessor::CmdLoad        }
-, { "location",     &CommandProcessor::CmdLocation    }
-, { "next",         &CommandProcessor::CmdNext        }
-, { "open",         &CommandProcessor::CmdOpen        }
-, { "option",       &CommandProcessor::CmdOption      }
-, { "pause",        &CommandProcessor::CmdPause       }
-, { "pl_current",   &CommandProcessor::CmdPlCurrent   }
-, { "pl_item",      &CommandProcessor::CmdPlItem      }
-, { "pl_next",      &CommandProcessor::CmdPlNext      }
-, { "pl_prev",      &CommandProcessor::CmdPlPrev      }
-, { "pl_reset",     &CommandProcessor::CmdPlReset     }
-, { "play",         &CommandProcessor::CmdPlay        }
-, { "playlist",     &CommandProcessor::CmdPlaylist    }
-, { "playonload",   &CommandProcessor::CmdPlayonload  }
-, { "prev",         &CommandProcessor::CmdPrev        }
-, { "previous",     &CommandProcessor::CmdPrev        }
-, { "query",        &CommandProcessor::CmdQuery       }
-, { "rdir",         &CommandProcessor::CmdRdir        }
-, { "remove",       &CommandProcessor::CmdRemove      }
-, { "repeat",       &CommandProcessor::CmdRepeat      }
-, { "rewind",       &CommandProcessor::CmdRewind      }
-, { "save",         &CommandProcessor::CmdSave        }
-, { "savestream",   &CommandProcessor::CmdSavestream  }
-, { "show",         &CommandProcessor::CmdShow        }
-, { "shuffle",      &CommandProcessor::CmdShuffle     }
-, { "size",         &CommandProcessor::CmdSize        }
-, { "skin",         &CommandProcessor::CmdSkin        }
-, { "status",       &CommandProcessor::CmdStatus      }
-, { "stop",         &CommandProcessor::CmdStop        }
-, { "use",          &CommandProcessor::CmdUse         }
-, { "version",      &CommandProcessor::CmdVersion     }
-, { "volume",       &CommandProcessor::CmdVolume      }
-};
-
 const char* ACommandProcessor::Execute(const char* cmd)
 { char* buffer = Request = strdup(cmd);
   Reply.clear();
@@ -516,10 +566,6 @@ const char* ACommandProcessor::Execute(const char* cmd)
 ACommandProcessor* ACommandProcessor::Create()
 { return new CommandProcessor();
 }
-
-CommandProcessor::CommandProcessor()
-: CurPlaylist(&GUI::GetDefaultPL())
-{}
 
 void CommandProcessor::Exec()
 { DEBUGLOG(("CommandProcessor::Exec() %s\n", Request));
@@ -917,15 +963,15 @@ inline void CommandProcessor::AppendFloatAttribute(const char* fmt, double value
 }
 
 void CommandProcessor::AppendStringAttribute(const char* name, DSTRING value)
-{ if (value)
-  { Reply.append(name);
-    Reply.append('=');
+{ Reply.append(name);
+  if (value)
+  { Reply.append('=');
     if (value.length() != 0)
     { size_t pos = Reply.length();
       Reply.append(value);
       // escape some special characters
       while (true)
-      { pos = Reply.find("\r\n\x1b", pos);
+      { pos = Reply.find_any("\r\n\x1b", pos);
         if (pos >= Reply.length())
           break;
         switch(Reply[pos])
@@ -938,8 +984,8 @@ void CommandProcessor::AppendStringAttribute(const char* name, DSTRING value)
         Reply.insert(pos, '\x1b');
         pos += 2;
     } }
-    Reply.append('\n');
   }
+  Reply.append('\n');
 }
 
 void CommandProcessor::AppendFlagsAttribute(const char* name, unsigned flags, const FlagsEntry* map, size_t map_size)
@@ -1124,6 +1170,104 @@ void CommandProcessor::CmdInfoRefresh()
   song->RequestInfo(~IF_None, PRI_Sync, REL_Reload);
 }
 
+struct meta_val
+{ xstring META_INFO::* Field;
+  DECODERMETA          Flag;
+};
+void CommandProcessor::CmdWriteMetaSet()
+{
+  static const strmap<12,meta_val> map[] =
+  { { "ALBUM",     { &META_INFO::album    , DECODER_HAVE_ALBUM    } }
+  , { "ARTIST",    { &META_INFO::artist   , DECODER_HAVE_ARTIST   } }
+  , { "COMMENT",   { &META_INFO::comment  , DECODER_HAVE_COMMENT  } }
+  , { "COPYRIGHT", { &META_INFO::copyright, DECODER_HAVE_COPYRIGHT} }
+  , { "GENRE",     { &META_INFO::genre    , DECODER_HAVE_GENRE    } }
+  , { "TITLE",     { &META_INFO::title    , DECODER_HAVE_TITLE    } }
+  , { "TRACK",     { &META_INFO::track    , DECODER_HAVE_TRACK    } }
+  , { "YEAR",      { &META_INFO::year     , DECODER_HAVE_YEAR     } }
+  };
+
+  char* cp = strchr(Request, '=');
+  if (cp)
+    *cp = 0;
+
+  const strmap<12,meta_val>* op = mapsearch(map, Request);
+  if (!op)
+    return;
+
+  DSTRING& val = Meta.*op->Val.Field;
+  // return old value
+  if ((MetaFlags & op->Val.Flag) && val)
+    Reply.append(val);
+
+  MetaFlags |= op->Val.Flag;
+  if (!cp)
+    val.reset();
+  else
+  { // Value given => replace escape sequences
+    Request = ++cp;
+    while ((cp = strchr(cp, 27)) != NULL)
+    { strcpy(cp, cp+1); // remove <ESC>
+      switch (*cp)
+      {case 0:
+        goto done;
+       case 'r':
+        *cp = '\r';
+        break;
+       case 'n':
+        *cp = '\n';
+      }
+      ++cp;
+    }
+   done:
+    val = Request;
+    DEBUGLOG(("CommandProcessor::CmdWriteMetaSet: %s = %s\n", op->Str, Request));
+  }
+}
+
+void CommandProcessor::CmdWriteMetaTo()
+{ if (*Request == 0)
+    return;
+  const url123& url = ParseURL(Request);
+  if (!url)
+    return;
+  int_ptr<Playable> song = Playable::GetByURL(url);
+  if (song == NULL)
+    return;
+  // Write meta
+  song->RequestInfo(IF_Tech, PRI_Sync);
+  xstring errortxt;
+  Reply.appendf("%i", song->SaveMetaInfo(Meta, MetaFlags, errortxt));
+  if (errortxt)
+  { Reply.append(' ');
+    Reply.append(errortxt);
+  }
+}
+
+void CommandProcessor::CmdWriteMetaRst()
+{ // return old values
+  if (MetaFlags & DECODER_HAVE_TITLE)
+    AppendStringAttribute("TITLE", Meta.title);
+  if (MetaFlags & DECODER_HAVE_ARTIST)
+    AppendStringAttribute("ARTIST", Meta.artist);
+  if (MetaFlags & DECODER_HAVE_ALBUM)
+    AppendStringAttribute("ALBUM", Meta.album);
+  if (MetaFlags & DECODER_HAVE_YEAR)
+    AppendStringAttribute("YEAR", Meta.year);
+  if (MetaFlags & DECODER_HAVE_COMMENT)
+    AppendStringAttribute("COMMENT", Meta.comment);
+  if (MetaFlags & DECODER_HAVE_GENRE)
+    AppendStringAttribute("GENRE", Meta.genre);
+  if (MetaFlags & DECODER_HAVE_TRACK)
+    AppendStringAttribute("TRACK", Meta.track);
+  if (MetaFlags & DECODER_HAVE_COPYRIGHT)
+    AppendStringAttribute("COPYRIGHT", Meta.copyright);
+  // and clear
+  Meta.Reset();
+  MetaFlags = stricmp(Request, "purge") != 0
+    ? DECODER_HAVE_NONE
+    : DECODER_HAVE_TITLE|DECODER_HAVE_ARTIST|DECODER_HAVE_ALBUM|DECODER_HAVE_YEAR|DECODER_HAVE_COMMENT|DECODER_HAVE_GENRE|DECODER_HAVE_TRACK|DECODER_HAVE_COPYRIGHT;
+}
 
 // GUI
 

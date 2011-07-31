@@ -761,28 +761,30 @@ IFileTypesEnumerator* dec_filetypes(DECODER_TYPE flagsreq)
 }
 
 
-ULONG dec_saveinfo(const char* url, const META_INFO* info, int haveinfo, const char* decoder_name )
+ULONG dec_saveinfo(const char* url, const META_INFO* info, DECODERMETA haveinfo, const char* decoder_name, xstring& errortxt)
 { DEBUGLOG(("dec_saveinfo(%s, %p, %x, %s)\n", url, info, haveinfo, decoder_name));
   xio_clearerr(NULL);
-  ULONG rc = PLUGIN_FAILED;
+  ULONG rc;
   // find decoder
   int i = Decoders.find(decoder_name);
-  if (i >= 0)
-  // get entry points
-  { Decoder* dec = (Decoder*)Decoders[i];
+  if (i < 0)
+  { rc = PLUGIN_FAILED;
+    errortxt = xstring::sprintf("Plug-in %s does not exist or is not enabled.", decoder_name);
+  } else
+  { // get entry points
+    Decoder* dec = (Decoder*)Decoders[i];
     const DecoderProcs& procs = dec->GetProcs();
     if (!procs.decoder_saveinfo)
-      rc = PLUGIN_NO_USABLE;
-    else
-      // detach configure
-      rc = (*procs.decoder_saveinfo)(url, info, haveinfo);
+    { rc = PLUGIN_NO_USABLE;
+      errortxt = xstring::sprintf("The plug-in %s cannot save meta information.", decoder_name);
+    } else
+      rc = (*procs.decoder_saveinfo)(url, info, haveinfo, &errortxt);
   }
-  DEBUGLOG(("dec_saveinfo: %d\n", rc));
+  DEBUGLOG(("dec_saveinfo: %d - %s\n", rc, errortxt.cdata()));
   return rc;
 }
 
-ULONG
-dec_editmeta( HWND owner, const char* url, const char* decoder_name )
+ULONG dec_editmeta(HWND owner, const char* url, const char* decoder_name)
 { DEBUGLOG(("dec_editmeta(%x, %s, %s)\n", owner, url, decoder_name));
   ULONG rc;
   xio_clearerr(NULL);

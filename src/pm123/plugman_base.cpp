@@ -359,7 +359,7 @@ class DecoderProxy1 : public Decoder
   PROXYFUNCDEF void   DLLENTRY proxy_1_decoder_event       ( DecoderProxy1* op, void* w, OUTEVENTTYPE event );
   PROXYFUNCDEF ULONG  DLLENTRY proxy_1_decoder_fileinfo    ( DecoderProxy1* op, const char* url, int* what, const INFO_BUNDLE* info,
                                                                                 DECODER_INFO_ENUMERATION_CB cb, void* param );
-  PROXYFUNCDEF ULONG  DLLENTRY proxy_1_decoder_saveinfo    ( DecoderProxy1* op, const char* url, const META_INFO* info, int haveinfo );
+  PROXYFUNCDEF ULONG  DLLENTRY proxy_1_decoder_saveinfo    ( DecoderProxy1* op, const char* url, const META_INFO* info, int haveinfo, DSTRING* errortxt );
   PROXYFUNCDEF int    DLLENTRY proxy_1_decoder_play_samples( DecoderProxy1* op, const FORMAT_INFO* format, const char* buf, int len, int posmarker );
   PROXYFUNCDEF double DLLENTRY proxy_1_decoder_length      ( DecoderProxy1* op, void* w );
   PROXYFUNCDEF ULONG  DLLENTRY proxy_1_decoder_editmeta    ( DecoderProxy1* op, HWND owner, const char* url );
@@ -822,8 +822,8 @@ proxy_1_decoder_fileinfo( DecoderProxy1* op, const char* filename, int* what, co
 }
 
 PROXYFUNCIMP(ULONG DLLENTRY, DecoderProxy1)
-proxy_1_decoder_saveinfo( DecoderProxy1* op, const char* url, const META_INFO* info, int haveinfo )
-{ DEBUGLOG(("proxy_1_decoder_saveinfo(%p, %s, {%s,%s,%s,%s,%s,%s,%i,%s}, %x)\n", op, url, 
+proxy_1_decoder_saveinfo(DecoderProxy1* op, const char* url, const META_INFO* info, int haveinfo, DSTRING* errortxt)
+{ DEBUGLOG(("proxy_1_decoder_saveinfo(%p, %s, {%s,%s,%s,%s,%s,%s,%i,%s}, %x, )\n", op, url,
     info->title.cdata(),info->artist.cdata(),info->album.cdata(),info->year.cdata(),info->comment.cdata(),info->genre.cdata(),info->track.cdata(),info->copyright.cdata(),
     haveinfo));
 
@@ -993,17 +993,26 @@ void DecoderProxy1::ConvertDECODER_INFO(const INFO_BUNDLE* info, const DECODER_I
 { info->tech->samplerate = dinfo->format.samplerate;
   info->tech->channels   = dinfo->format.channels;
   info->tech->attributes = TATTR_SONG | TATTR_STORABLE | TATTR_WRITABLE * (dinfo->saveinfo != 0);
-  info->tech->info       = dinfo->tech_info;
+  if (*dinfo->tech_info)
+    info->tech->info     = dinfo->tech_info;
   info->obj->songlength  = dinfo->songlength < 0 ? -1 : dinfo->songlength / 1000.;
   info->obj->bitrate     = dinfo->bitrate    < 0 ? -1 : dinfo->bitrate * 1000;
-  info->meta->title      = dinfo->title;
-  info->meta->artist     = dinfo->artist;
-  info->meta->album      = dinfo->album;
-  info->meta->year       = dinfo->year;
-  info->meta->comment    = dinfo->comment;
-  info->meta->genre      = dinfo->genre;
-  info->meta->track      = dinfo->track;
-  info->meta->copyright  = dinfo->copyright;
+  if (*dinfo->title)
+    info->meta->title    = dinfo->title;
+  if (*dinfo->artist)
+    info->meta->artist   = dinfo->artist;
+  if (*dinfo->album)
+    info->meta->album    = dinfo->album;
+  if (*dinfo->year)
+    info->meta->year     = dinfo->year;
+  if (*dinfo->comment)
+    info->meta->comment  = dinfo->comment;
+  if (*dinfo->genre)
+    info->meta->genre    = dinfo->genre;
+  if (*dinfo->track)
+    info->meta->track    = dinfo->track;
+  if (*dinfo->copyright)
+    info->meta->copyright= dinfo->copyright;
   // Mask out zero values because they mean most likely 'undefined'. 
   if (dinfo->track_gain != 0.)
     info->meta->track_gain = dinfo->track_gain; 
