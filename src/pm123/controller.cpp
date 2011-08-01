@@ -103,6 +103,9 @@ class CtrlImp : public Ctrl
   // Returns the current PrefetchEntry. I.e. the currently playing (or not playing) iterator.
   // Precondition: an object must have been loaded.
   static PrefetchEntry* Current() { return PrefetchList[0]; }
+  /// Raise any pending controller events.
+  static void  RaiseControlEvents();
+
   // Applies the operator op to flag and returns true if the flag has been changed.
   static bool  SetFlag(bool& flag, Op op);
   // Sets the volume according to this->Volume and the scan mode.
@@ -162,6 +165,7 @@ class CtrlImp : public Ctrl
   static void  CurrentRootEventHandler(void*, const PlayableChangeArgs& args);
   // Event handler for asynchronuous changes to the songiterator (not any prefetched one).
   //static void  SongIteratorEventHandler(void*, const CallstackEntry& ce);
+
  private: // messages handlers, not thread safe
   // The messages are descibed above before the class header.
   static RC    MsgPause(Op op);
@@ -239,6 +243,14 @@ int_ptr<APlayable> Ctrl::GetRoot()
 /*bool Ctrl::IsEnumerable()
 { return PrefetchList.size() && (Current()->Iter.GetRoot()->GetPlayable()->GetFlags() & Playable::Enumerable);
 }*/
+
+void CtrlImp::RaiseControlEvents()
+{ EventFlags events = (EventFlags)Pending.swap(EV_None);
+  DEBUGLOG(("CtrlImp::RaiseControlEvents: %x\n", events));
+  if (events)
+    ChangeEvent(events);
+}
+
 
 bool CtrlImp::SetFlag(bool& flag, Op op)
 { switch (op)
@@ -822,22 +834,27 @@ Ctrl::RC CtrlImp::MsgLoad(const xstring& url, int flags)
 
   if (url)
   { int_ptr<Playable> play = Playable::GetByURL(url);
+    { Mutex::Lock lock(PLMtx);
+      PrefetchList.append() = new PrefetchEntry(0, SongIterator(play));
+      // assign change event handler
+      //Current()->Iter.Change += SongIteratorDelegate;
+      Pending |= EV_Root|EV_Song;
+      // Raise events early, because load may take some time.
+      RaiseControlEvents();
+    }
+    play->SetInUse(true);
     // Only load items that have a minimum of well known properties.
     // In case of enumerable items the content is required, in case of songs the decoder.
     // Both is related to IF_Other. The other informations are prefetched too.
     play->RequestInfo(IF_Tech, PRI_Sync);
     if (play->GetInfo().tech->attributes & TATTR_INVALID)
+    { play->SetInUse(false);
       return RC_InvalidItem;
+    }
     // Load the required information as fast as possible
     play->RequestInfo(IF_Tech|IF_Obj|IF_Meta|IF_Child, PRI_Normal);
     // Verify all information
     play->RequestInfo(IF_Tech|IF_Obj|IF_Meta|IF_Child|IF_Aggreg, PRI_Low, REL_Confirmed);
-    { Mutex::Lock lock(PLMtx);
-      PrefetchList.append() = new PrefetchEntry(0, SongIterator(play));
-      // assign change event handler
-      //Current()->Iter.Change += SongIteratorDelegate;
-    }
-    play->SetInUse(true);
     // Track root changes
     play->GetInfoChange() += CurrentRootDelegate;
     // Move always to the first element if a playlist.
@@ -847,7 +864,7 @@ Ctrl::RC CtrlImp::MsgLoad(const xstring& url, int flags)
       //AttachCurrentSong(ps);
     }
   }
-  Pending |= EV_Root|EV_Song;
+  Pending |= EV_Song;
   DEBUGLOG(("Ctrl::MsgLoad - attached\n"));
 
   return RC_OK;
@@ -1076,11 +1093,7 @@ void CtrlImp::Worker()
     } while (CurCmd);
 
     // done, raise control event
-    EventFlags events = (EventFlags)Pending.swap(EV_None);
-
-    DEBUGLOG(("Ctrl::Worker raising events %x\n", events));
-    if (events)
-      ChangeEvent(events);
+    RaiseControlEvents();
   }
   WinDestroyMsgQueue(hmq);
   WinTerminate(hab);

@@ -59,7 +59,7 @@
 
 Playable::Entry::Entry(Playable& parent, APlayable& refto, IDType::func_type ifn)
 // The implementation always refers to the underlying playable object.
-// But the overrideable properties are copied.
+// But the overridable properties are copied.
 : PlayableInstance(parent, refto.GetPlayable()),
   InstDelegate(parent, ifn)
 { DEBUGLOG(("Playable::Entry(%p)::Entry(&%p, &%p, &%p)\n", this, &parent, &refto, &ifn));

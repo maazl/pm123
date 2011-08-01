@@ -37,6 +37,10 @@ pm123.exe: $(OBJECTS) $(RESOURCE) $(DEF) $(LIBS)
 clean: $(MDUMMY)
 	-@del pm123.exe $(OBJECTS) $(RESOURCE) 2> nul
 
+todo.txt: $(MDUMMY)
+	grep -i -A 5 TODO *.cpp *.h >todo.txt
+
+
 # DO NOT DELETE
 
 # include depenencies

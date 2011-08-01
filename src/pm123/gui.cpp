@@ -370,7 +370,16 @@ MRESULT GUI::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
           song->GetInfoChange() += CurrentDeleg;
         // Refresh display text
         UpdAtLocMsg |= UPD_TIMERS|UPD_PLINDEX|UPD_RATE|UPD_CHANNELS|UPD_TEXT;
-        ForceLocationMsg();
+        // Execute update immediately if no location message is on the way
+        if (!IsLocMsg)
+        { // Update current location immediately
+          SongIterator& nsi = IterBuffer[CurrentIter == IterBuffer];
+          nsi.SetRoot(root ? &root->GetPlayable() : NULL);
+          CurrentIter = &nsi;
+          // immediate update
+          inval = UpdAtLocMsg;
+          UpdAtLocMsg = UPD_NONE;
+        }
       }
 
       if (flags & Ctrl::EV_Volume)
@@ -445,6 +454,7 @@ MRESULT GUI::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
     if (!Terminate)
     { UpdateFlags mask = (UpdateFlags)LONGFROMMP(mp1) & UpdFlags;
       UpdFlags &= ~mask;
+      DEBUGLOG(("GUI::DlgProc: WMP_PAINT %x\n", mask));
       // is there anything to draw with HPS?
       if (mask & ~UPD_WINDOW)
       { // TODO: optimize redundant redraws?
@@ -509,9 +519,9 @@ MRESULT GUI::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
 
      case TID_UPDATE_TIMERS:
       if (Ctrl::IsPlaying())
-      // We must not mask this message request further, because the controller relies on that polling
-      // to update it's internal status.
-         ForceLocationMsg();
+        // We must not mask this message request further, because the controller relies on that polling
+        // to update it's internal status.
+        ForceLocationMsg();
       DEBUGLOG2(("GUI::DlgProc: WM_TIMER done\n"));
       return 0;
 
@@ -1328,7 +1338,7 @@ void GUI::PrepareText()
 {
   if (CurrentRoot() == NULL)
   { DEBUGLOG(("GUI::PrepareText() NULL %u\n", Cfg::Get().viewmode));
-    bmp_set_text( "- no file loaded -" );
+    bmp_set_text("- no file loaded -");
     return;
   }
   DEBUGLOG(("GUI::PrepareText() %p %u\n", &CurrentSong(), Cfg::Get().viewmode));

@@ -227,7 +227,8 @@ static MRESULT EXPENTRY amp_url_dlg_proc(HWND hwnd, ULONG msg, MPARAM mp1, MPARA
 ULONG DLLENTRY amp_url_wizard( HWND owner, const char* title, DECODER_INFO_ENUMERATION_CB callback, void* param )
 { DEBUGLOG(("amp_url_wizard(%x, %s, %p, %p)\n", owner, title, callback, param));
 
-  // TODO: das geht gar nicht!
+  // TODO: we should not wait synchronously on the data.
+  // We should update the combo box list on change instead.
   GUI::GetUrlMRU().RequestInfo(IF_Child, PRI_Sync);
 
   HWND hwnd = WinLoadDlg( HWND_DESKTOP, owner, amp_url_dlg_proc, NULLHANDLE, DLG_URL, 0 );
@@ -239,8 +240,6 @@ ULONG DLLENTRY amp_url_wizard( HWND owner, const char* title, DECODER_INFO_ENUME
   xstring wintitle = xstring::sprintf(title, " URL");
   WinSetWindowText(hwnd, (PSZ)&*wintitle);
   
-  // TODO: last URL
-
   ULONG ret = 300;
   if (WinProcessDlg(hwnd) == DID_OK)
   { const xstring& url = WinQueryDlgItemXText(hwnd, ENT_URL);
@@ -322,20 +321,21 @@ void amp_add_bookmark(HWND owner, APlayable& item)
 
   HWND hdlg = WinLoadDlg(HWND_DESKTOP, owner, &amp_bookmark_dlg_proc, NULLHANDLE, DLG_BM_ADD, NULL);
   // TODO: !!!!!! request information before
-  xstring desc = item.GetDisplayName();
+  const xstring& desc = item.GetDisplayName();
   WinSetDlgItemText(hdlg, EF_BM_DESC, desc);
 
   if (WinProcessDlg(hdlg) == DID_OK)
   { const xstring& alias = WinQueryDlgItemXText(hdlg, EF_BM_DESC);
-    // TODO: kein synchrones Wait!!!
     Playable& p = GUI::GetDefaultBM();
-    /* TODO: SetAlias gibt es nicht mehr
+    p.RequestInfo(IF_Child, PRI_Sync);
     if (alias != desc) // Don't set alias if not required.
     { // We have to copy the PlayableRef to modify it.
-      PlayableRef ps(item);
-      ps.SetAlias(alias);
-      p.InsertItem(ps);
-    } else */
+      PlayableSlice ps(item);
+      ItemInfo ii;
+      ii.alias = alias;
+      ps.OverrideItem(&ii);
+      p.InsertItem(ps, NULL);
+    } else
       p.InsertItem(item, NULL);
     // TODO: Save
     //p.Save(PlayableCollection::SaveRelativePath);

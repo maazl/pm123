@@ -56,17 +56,6 @@ size_t APlayable::WNumWorkers    = 0;
 size_t APlayable::WNumDlgWorkers = 0;
 bool   APlayable::WTermRq        = false;
 
-/*#ifdef DEBUG_LOG
-void worker_queue::DumpQ() const
-{ DEBUGLOG(("Playable::worker_queue::DumpQ - %p, %p, %p\n", Head, HPTail, Tail));
-  qentry* cur = (qentry*)Head;
-  while (cur)
-  { DEBUGLOG(("Playable::worker_queue::DumpQ %p{%p}\n", cur, cur->Data.get()));
-    cur = (qentry*)cur->Next;
-  }
-}
-#endif*/
-
 
 InfoFlags APlayable::RequestInfo(InfoFlags what, Priority pri, Reliability rel)
 { DEBUGLOG(("APlayable(%p{%s})::RequestInfo(%x, %d, %d)\n", this, GetPlayable().URL.getShortName().cdata(), what, pri, rel));
@@ -89,33 +78,30 @@ InfoFlags APlayable::RequestInfo(InfoFlags what, Priority pri, Reliability rel)
   // async - asynchronously requested information, subset of rq
   //         because the information may be on the way by another thread.
   
+  if (pri != PRI_Sync)
+  { if (async != IF_None)
+      ScheduleRequest(pri);
+    return rq;
+  }
+  // PRI_Sync
+  if (rq == IF_None)
+    return IF_None;
+  // Execute immediately
+  HandleRequest(PRI_Sync);
+  DoRequestInfo(rq, PRI_None, rel);
+  if (rq == IF_None)
+    return IF_None;
+  // Synchronous processing failed because of dependencies or concurrency
+  // => execute asynchronously
+  WaitLoadInfo waitinfo(*this, rq);
+  // Double check because some information can be valid now.
   // Restrict rel to avoid to load an information twice.
   if (rel == REL_Reload)
     rel = REL_Confirmed;
-
-  if (async != IF_None)
-  { // Something to do
-    if (pri != PRI_Sync)
-    { // Asynchronous request => Schedule request
-      ScheduleRequest(pri);
-      return rq;
-    } else
-      // Synchronous request => use the current thread
-      HandleRequest(PRI_Sync);
-
-  } else if (pri != PRI_Sync)
-    return rq;
-  // PRI_Sync
-  if (rq != IF_None)
-  { // Synchronous processing failed because of dependencies or concurrency
-    // => execute asynchronously
-    WaitLoadInfo waitinfo(*this, rq);
-    // Double check because some information can be valid now.
-    DoRequestInfo(rq, PRI_None, rel);
-    waitinfo.CommitInfo(~rq);
-    // Wait for information currently in service (if any).
-    waitinfo.Wait();
-  }
+  DoRequestInfo(rq, PRI_None, rel);
+  waitinfo.CommitInfo(~rq);
+  // Wait for information currently in service (if any).
+  waitinfo.Wait();
   return IF_None;
 }
 
