@@ -181,5 +181,18 @@ the information is really available.</p>
 <p>Note that the command will discard any unsaved changes if applied to
 playlists.
 </p>
+<h3><tt><a name="info_invalidate"></a>info invalidate </tt>[<tt><var>&lt;url&gt;</var></tt>]</h3>
+<p>Invalidates all meta information for the given <a
+ href="urlformat.html">file
+or URL</a>. This is similar to <a href="#info_refresh"><tt>info refresh</tt></a>,
+but it does not reload any information unless it is really needed and
+it does not wait for that.<br>
+</p>
+<p>The URL may be enclosed in double quotes (<tt>"</tt>). If
+no <tt>&lt;url&gt;</tt> is specified, the current song is invalidated.
+This will not impact any playback.<br>
+This command always returns an empty line.</p>
+<p>Note that the command will discard any unsaved changes if applied to
+playlists.</p>
 </body>
 </html>

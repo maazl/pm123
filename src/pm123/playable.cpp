@@ -167,6 +167,16 @@ InfoFlags Playable::GetOverridden() const
 { return IF_None;
 }
 
+InfoFlags Playable::Invalidate(InfoFlags what)
+{ what = Info.InfoStat.Invalidate(what);
+  // TODO: invalidate CIC also.
+  if (what)
+  { Mutex::Lock lock(Mtx);
+    InfoChange(PlayableChangeArgs(*this, this, IF_None, IF_None, what));
+  }
+  return what;
+}
+
 void Playable::PeekRequest(RequestState& req) const
 { DEBUGLOG(("Playable(%p)::PeekRequest({%x,%x, %x})\n", this, req.ReqLow, req.ReqHigh, req.InService));
   Info.InfoStat.PeekRequest(req);

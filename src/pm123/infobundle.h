@@ -195,7 +195,7 @@ struct DrplInfo : public DRPL_INFO
 
 struct ItemInfo : public ITEM_INFO
 { static const ITEM_INFO Empty;
-  ItemInfo()                                      { Reset(); }
+  ItemInfo()                                      : ITEM_INFO(Empty) {}
   ItemInfo(const ItemInfo& r)                     { Assign(r); } // = delete would be nice
   ItemInfo(const ITEM_INFO& r)                    { Assign(r); }
   ItemInfo(const volatile ITEM_INFO& r)           { Assign(r); }

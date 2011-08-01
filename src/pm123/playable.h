@@ -224,6 +224,14 @@ class Playable
   /// Check whether the current Collection is a modified shadow of an unmodified backend.
   bool                      IsModified() const { return Modified; }
 
+  /// Invalidate some infos, but do not reload unless this is required.
+  /// @param what The kind of information that is to be invalidated.
+  /// @return Return the bits in what that really caused an information to be invalidated,
+  /// i.e. that have been valid before.
+  /// @remarks It might look that you get not the desired result if some consumer has registered
+  /// to the invalidate event and requests the information as soon as it has been invalidated.
+  virtual InfoFlags         Invalidate(InfoFlags what);
+
   /// Access to request state for diagnostic purposes (may be slow).
   virtual void              PeekRequest(RequestState& req) const;
 

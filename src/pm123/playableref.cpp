@@ -202,6 +202,16 @@ void PlayableSlice::OverrideItem(const ITEM_INFO* item)
   InfoChange(args);
 }
 
+InfoFlags PlayableSlice::Invalidate(InfoFlags what)
+{ InfoFlags ret = RefTo->Invalidate(what);
+  if (CIC)
+    ret |= CIC->DefaultInfo.InfoStat.Invalidate(what);
+    // TODO: invalidate CIC entries also
+  if (ret)
+    InfoChange(PlayableChangeArgs(*this, this, IF_None, IF_None, ret));
+  return ret;
+}
+
 void PlayableSlice::PeekRequest(RequestState& req) const
 { DEBUGLOG(("PlayableSlice(%p)::PeekRequest({%x,%x, %x})\n", this, req.ReqLow, req.ReqHigh, req.InService));
   if (CIC)

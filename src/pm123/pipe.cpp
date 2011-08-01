@@ -160,6 +160,9 @@ class CommandProcessor : public ACommandProcessor
   char* ParseQuotedString();*/
   /// Parse and normalize one URL according to CurDir.
   url123 ParseURL(const char* url);
+  /// Parse the optional string as URL and return the playable object.
+  /// If \a url is empty the current song is returned.
+  int_ptr<APlayable> ParseAPlayable(const char* url);
   /// Execute a controller command and return the reply as string.
   void SendCtrlCommand(Ctrl::ControlCommand* cmd);
   /// Add a set of URLs to a LoadHelper object.
@@ -221,6 +224,7 @@ class CommandProcessor : public ACommandProcessor
   void CmdInfoPlaylist();
   void CmdInfoPlItem();
   void CmdInfoRefresh();
+  void CmdInfoInvalidate();
 
   MetaInfo    Meta;
   DECODERMETA MetaFlags;
@@ -253,62 +257,63 @@ class CommandProcessor : public ACommandProcessor
 };
 
 const CommandProcessor::CmdEntry CommandProcessor::CmdList[] = // list must be sorted!!!
-{ { "add",           &CommandProcessor::CmdAdd         }
-, { "autouse",       &CommandProcessor::CmdAutouse     }
-, { "cd",            &CommandProcessor::CmdCd          }
-, { "clear",         &CommandProcessor::CmdClear       }
-, { "current",       &CommandProcessor::CmdCurrent     }
-, { "dir",           &CommandProcessor::CmdDir         }
-, { "float",         &CommandProcessor::CmdFloat       }
-, { "font",          &CommandProcessor::CmdFont        }
-, { "forward",       &CommandProcessor::CmdForward     }
-, { "hide",          &CommandProcessor::CmdHide        }
-, { "info format",   &CommandProcessor::CmdInfoFormat  }
-, { "info meta",     &CommandProcessor::CmdInfoMeta    }
-, { "info pl_item",  &CommandProcessor::CmdInfoPlItem  }
-, { "info playlist", &CommandProcessor::CmdInfoPlaylist}
-, { "info refresh" , &CommandProcessor::CmdInfoRefresh }
-, { "jump",          &CommandProcessor::CmdJump        }
-, { "load",          &CommandProcessor::CmdLoad        }
-, { "location",      &CommandProcessor::CmdLocation    }
-, { "next",          &CommandProcessor::CmdNext        }
-, { "open",          &CommandProcessor::CmdOpen        }
-, { "option",        &CommandProcessor::CmdOption      }
-, { "pause",         &CommandProcessor::CmdPause       }
-, { "pl current",    &CommandProcessor::CmdPlCurrent   }
-, { "pl item",       &CommandProcessor::CmdPlItem      }
-, { "pl next",       &CommandProcessor::CmdPlNext      }
-, { "pl prev",       &CommandProcessor::CmdPlPrev      }
-, { "pl reset",      &CommandProcessor::CmdPlReset     }
-, { "pl_current",    &CommandProcessor::CmdPlCurrent   }
-, { "pl_item",       &CommandProcessor::CmdPlItem      }
-, { "pl_next",       &CommandProcessor::CmdPlNext      }
-, { "pl_prev",       &CommandProcessor::CmdPlPrev      }
-, { "pl_reset",      &CommandProcessor::CmdPlReset     }
-, { "play",          &CommandProcessor::CmdPlay        }
-, { "playlist",      &CommandProcessor::CmdPlaylist    }
-, { "playonload",    &CommandProcessor::CmdPlayonload  }
-, { "prev",          &CommandProcessor::CmdPrev        }
-, { "previous",      &CommandProcessor::CmdPrev        }
-, { "query",         &CommandProcessor::CmdQuery       }
-, { "rdir",          &CommandProcessor::CmdRdir        }
-, { "remove",        &CommandProcessor::CmdRemove      }
-, { "repeat",        &CommandProcessor::CmdRepeat      }
-, { "rewind",        &CommandProcessor::CmdRewind      }
-, { "save",          &CommandProcessor::CmdSave        }
-, { "savestream",    &CommandProcessor::CmdSavestream  }
-, { "show",          &CommandProcessor::CmdShow        }
-, { "shuffle",       &CommandProcessor::CmdShuffle     }
-, { "size",          &CommandProcessor::CmdSize        }
-, { "skin",          &CommandProcessor::CmdSkin        }
-, { "status",        &CommandProcessor::CmdStatus      }
-, { "stop",          &CommandProcessor::CmdStop        }
-, { "use",           &CommandProcessor::CmdUse         }
-, { "version",       &CommandProcessor::CmdVersion     }
-, { "volume",        &CommandProcessor::CmdVolume      }
-, { "write meta rst",&CommandProcessor::CmdWriteMetaRst}
-, { "write meta set",&CommandProcessor::CmdWriteMetaSet}
-, { "write meta to", &CommandProcessor::CmdWriteMetaTo }
+{ { "add",            &CommandProcessor::CmdAdd           }
+, { "autouse",        &CommandProcessor::CmdAutouse       }
+, { "cd",             &CommandProcessor::CmdCd            }
+, { "clear",          &CommandProcessor::CmdClear         }
+, { "current",        &CommandProcessor::CmdCurrent       }
+, { "dir",            &CommandProcessor::CmdDir           }
+, { "float",          &CommandProcessor::CmdFloat         }
+, { "font",           &CommandProcessor::CmdFont          }
+, { "forward",        &CommandProcessor::CmdForward       }
+, { "hide",           &CommandProcessor::CmdHide          }
+, { "info format",    &CommandProcessor::CmdInfoFormat    }
+, { "info invalidate",&CommandProcessor::CmdInfoInvalidate}
+, { "info meta",      &CommandProcessor::CmdInfoMeta      }
+, { "info pl_item",   &CommandProcessor::CmdInfoPlItem    }
+, { "info playlist",  &CommandProcessor::CmdInfoPlaylist  }
+, { "info refresh" ,  &CommandProcessor::CmdInfoRefresh   }
+, { "jump",           &CommandProcessor::CmdJump          }
+, { "load",           &CommandProcessor::CmdLoad          }
+, { "location",       &CommandProcessor::CmdLocation      }
+, { "next",           &CommandProcessor::CmdNext          }
+, { "open",           &CommandProcessor::CmdOpen          }
+, { "option",         &CommandProcessor::CmdOption        }
+, { "pause",          &CommandProcessor::CmdPause         }
+, { "pl current",     &CommandProcessor::CmdPlCurrent     }
+, { "pl item",        &CommandProcessor::CmdPlItem        }
+, { "pl next",        &CommandProcessor::CmdPlNext        }
+, { "pl prev",        &CommandProcessor::CmdPlPrev        }
+, { "pl reset",       &CommandProcessor::CmdPlReset       }
+, { "pl_current",     &CommandProcessor::CmdPlCurrent     }
+, { "pl_item",        &CommandProcessor::CmdPlItem        }
+, { "pl_next",        &CommandProcessor::CmdPlNext        }
+, { "pl_prev",        &CommandProcessor::CmdPlPrev        }
+, { "pl_reset",       &CommandProcessor::CmdPlReset       }
+, { "play",           &CommandProcessor::CmdPlay          }
+, { "playlist",       &CommandProcessor::CmdPlaylist      }
+, { "playonload",     &CommandProcessor::CmdPlayonload    }
+, { "prev",           &CommandProcessor::CmdPrev          }
+, { "previous",       &CommandProcessor::CmdPrev          }
+, { "query",          &CommandProcessor::CmdQuery         }
+, { "rdir",           &CommandProcessor::CmdRdir          }
+, { "remove",         &CommandProcessor::CmdRemove        }
+, { "repeat",         &CommandProcessor::CmdRepeat        }
+, { "rewind",         &CommandProcessor::CmdRewind        }
+, { "save",           &CommandProcessor::CmdSave          }
+, { "savestream",     &CommandProcessor::CmdSavestream    }
+, { "show",           &CommandProcessor::CmdShow          }
+, { "shuffle",        &CommandProcessor::CmdShuffle       }
+, { "size",           &CommandProcessor::CmdSize          }
+, { "skin",           &CommandProcessor::CmdSkin          }
+, { "status",         &CommandProcessor::CmdStatus        }
+, { "stop",           &CommandProcessor::CmdStop          }
+, { "use",            &CommandProcessor::CmdUse           }
+, { "version",        &CommandProcessor::CmdVersion       }
+, { "volume",         &CommandProcessor::CmdVolume        }
+, { "write meta rst", &CommandProcessor::CmdWriteMetaRst  }
+, { "write meta set", &CommandProcessor::CmdWriteMetaSet  }
+, { "write meta to",  &CommandProcessor::CmdWriteMetaTo   }
 };
 
 static bool parse_int(const char* arg, int& val)
@@ -535,6 +540,15 @@ url123 CommandProcessor::ParseURL(const char* url)
     ret = ret + "/";
   return ret;
 }
+
+int_ptr<APlayable> CommandProcessor::ParseAPlayable(const char* url)
+{ if (*url == 0)
+    return Ctrl::GetCurrentSong();
+  const url123& parsed_url = ParseURL(url);
+  if (url)
+    return Playable::GetByURL(parsed_url).get();
+  return NULL;
+};
 
 void CommandProcessor::SendCtrlCommand(Ctrl::ControlCommand* cmd)
 { cmd = Ctrl::SendCommand(cmd);
@@ -1042,14 +1056,7 @@ void CommandProcessor::AppendReplayGain(float tg, float tp, float ag, float ap)
 
 void CommandProcessor::CmdInfoFormat()
 { // get song object
-  int_ptr<APlayable> song;
-  if (*Request == 0)
-    song = Ctrl::GetCurrentSong();
-  else
-  { const url123& url = ParseURL(Request);
-    if (url)
-      song = Playable::GetByURL(url);
-  }
+  int_ptr<APlayable> song(ParseAPlayable(Request));
   if (song == NULL)
     return;
   // get info
@@ -1088,14 +1095,7 @@ void CommandProcessor::CmdInfoFormat()
 
 void CommandProcessor::CmdInfoMeta()
 { // get the song object
-  int_ptr<APlayable> song;
-  if (*Request == 0)
-    song = Ctrl::GetCurrentSong();
-  else
-  { const url123& url = ParseURL(Request);
-    if (url)
-      song = Playable::GetByURL(url);
-  }
+  int_ptr<APlayable> song(ParseAPlayable(Request));
   if (song == NULL)
     return;
   // get info
@@ -1157,17 +1157,18 @@ void CommandProcessor::CmdInfoPlItem()
 
 void CommandProcessor::CmdInfoRefresh()
 { // get the song object
-  int_ptr<APlayable> song;
-  if (*Request == 0)
-    song = Ctrl::GetCurrentSong();
-  else
-  { const url123& url = ParseURL(Request);
-    if (url)
-      song = Playable::GetByURL(url);
-  }
+  int_ptr<APlayable> song(ParseAPlayable(Request));
   if (song == NULL)
     return;
   song->RequestInfo(~IF_None, PRI_Sync, REL_Reload);
+}
+
+void CommandProcessor::CmdInfoInvalidate()
+{ // get the song object
+  int_ptr<APlayable> song(ParseAPlayable(Request));
+  if (song == NULL)
+    return;
+  song->Invalidate(~IF_None);
 }
 
 struct meta_val
@@ -1232,8 +1233,6 @@ void CommandProcessor::CmdWriteMetaTo()
   if (!url)
     return;
   int_ptr<Playable> song = Playable::GetByURL(url);
-  if (song == NULL)
-    return;
   // Write meta
   song->RequestInfo(IF_Tech, PRI_Sync);
   xstring errortxt;

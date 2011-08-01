@@ -147,13 +147,10 @@ class InfoState
   /// Place a request and return the bits that were not a no-op (atomic).
   InfoFlags      Request(InfoFlags what, Priority pri);
 
-  //bool           RequestAsync(Priority pri);
-
  public: // [ Worker Interface ]
   /// Return request state for a priority.
   InfoFlags      GetRequest(Priority pri) const;
 
-  //void           ResetAsync(Priority pri);
   /// Check what kind of information is currently in service.
   InfoFlags      InfoInService() const        { return (InfoFlags)+InService; }
   /// Request informations for update. This sets the appropriate bits in InfoInService.
@@ -178,10 +175,10 @@ class InfoState
   /// Invalidate some kind of information and return the bits that caused
   /// the information to degrade.
   InfoFlags      Invalidate(InfoFlags what);
-  /// Invalidate some kind of information and return the invalidated infos,
+  /*/// Invalidate some kind of information and return the invalidated infos,
   /// but only if the specified info is not currently in service.
   /// This function should be called in synchronized context.
-  InfoFlags      InvalidateSync(InfoFlags what);
+  InfoFlags      InvalidateSync(InfoFlags what);*/
   /// Mark information as outdated.
   void           Outdate(InfoFlags what);
   /// Mark information as cached if virgin and return the Cache flags set.

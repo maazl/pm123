@@ -64,15 +64,15 @@ InfoFlags InfoState::Check(InfoFlags what, Reliability rel) const
 
 InfoFlags InfoState::Invalidate(InfoFlags what)
 { InService &= ~what;
-  Available |= what;
+  //Available |= what;
   return (InfoFlags)(Valid.maskreset(what) | Confirmed.maskreset(what));
 }
 
-InfoFlags InfoState::InvalidateSync(InfoFlags what)
+/*InfoFlags InfoState::InvalidateSync(InfoFlags what)
 { what &= (InfoFlags)~InService;
   Available |= what;
   return (InfoFlags)(Valid.maskreset(what) | Confirmed.maskreset(what));
-}
+}*/
 
 void InfoState::Outdate(InfoFlags what)
 { what &= (InfoFlags)+Confirmed;

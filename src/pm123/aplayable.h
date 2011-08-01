@@ -187,6 +187,14 @@ class APlayable
   volatile const AggregateInfo& RequestAggregateInfo(const PlayableSetBase& excluding,
                               InfoFlags& what, Priority pri, Reliability rel = REL_Cached);
 
+  /// Invalidate some infos, but do not reload unless this is required.
+  /// @param what The kind of information that is to be invalidated.
+  /// @return Return the bits in what that really caused an information to be invalidated,
+  /// i.e. that have been valid before.
+  /// @remarks It might look that you get not the desired result if some consumer has registered
+  /// to the invalidate event and requests the information as soon as it has been invalidated.
+  virtual InfoFlags           Invalidate(InfoFlags what) = 0;
+
   /// Return the currently valid types of information.
           InfoFlags           GetValid(Reliability rel = REL_Cached) { return ~RequestInfo(~IF_None, PRI_None, rel); }
   /// Return the overridden information.

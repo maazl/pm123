@@ -2,7 +2,7 @@
 dir = DIRECTORY()
 
 '@copy 'dir'\data\test.mp3 work >nul'
-CALL 'pipecmd' 'info refresh 'dir'\work\test.mp3'
+CALL 'pipecmd' 'info invalidate 'dir'\work\test.mp3'
 step = 1
 CALL 'pipecmd' 'write meta rst'
 CALL 'pipecmd' 'write meta set title=testtitle'
