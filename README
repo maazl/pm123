@@ -55,6 +55,8 @@ distfiles:   will copy all the needed binaries and files from "src", "doc" and
 distpackage: will build the WarpIN packages from the files in "dist\files"
 distzip:     will build the ZIP file from the files in "dist\files"
 distclean:   will clean everything made by "dist"
+test:        will run some test cases against the PM123 core engine and it's
+             plug-ins.
 
 You can also use all of the individual makefiles in each of the subdirectories
 of the "src" directory. Each of them contain an "all" and "clean" command.
@@ -96,16 +98,18 @@ the source code of PM123.
 |  +- irc
 |  +- slider
 +- src                  All PM123 source codes
-|  +- config            Common configuration data for the build process
+|  +- config            Common platform specific configuration data for build
 |  +- fft123            Port of libfftw, used by analyzer and realeq
 |  |  +- ...
 |  +- gbm123            Port of libgbm, used by PM123 and skinutil
 |  +- include           Common includes (only the most important ones)
+|  +- libmpg123         Port of libmpg123, used by mpg123 plug-in
+|  |  +- ...
 |  +- logformater       Perl scripts to analyze PM123 debug logs
-|  +- ogg123            Port of libogg, used by oggplay
+|  +- ogg123            Port of libogg, used by oggplay plug-in
 |  |  +- ...
 |  +- plug-ins          Source code of PM123 plug-ins
-|  |  +- analyzer	Visual spectrum analyzer
+|  |  +- analyzer       Visual spectrum analyzer
 |  |  +- cddaplay       CD playback with CDDB support
 |  |  +- logvolum       Make linear volume control logarithmic
 |  |  +- mpg123         MPEG audio decoder
@@ -123,7 +127,7 @@ the source code of PM123.
 |  |  |  +- font1
 |  |  |  +- font2
 |  |  +- ico            Icon ressources
-|  +- pulseaudio        Port of PulseAudio
+|  +- pulseaudio        OS/2 port of PulseAudio
 |  |  +- libspeex       libspeex, required to build PulseAudio
 |  |  +- pulse          PulseAudio API
 |  |  +- pulsecore      PulseAudio core
@@ -134,11 +138,15 @@ the source code of PM123.
 |  |  +- cpp            General utility functions for C++ only
 |  |     +- container   Container classes for C++
 |  +- vrb123            Port of libvorbis, used by oggplay
+|  |  +- ...
 |  +- WPS               Installer for PMShell folder
 |  |  +- icons          Neat icons for PMShell
 |  +- xio123            Generic I/O module of PM123 and plug-ins
 |  +- zlb123            Port of zlib
 +- test                 Test suite for PM123
+   +- data              Test data
+   +- temp              make test places temporary files here
+   +- work              make test places the executables here
 
 In the "extra" directory, there "irc" has some scripts for BitchX and ircii
 to display the playing songs in the IRC client window. "slider" is a small
@@ -160,4 +168,4 @@ September 2003
 Dmitry A.Steklenev
 November 2007
 Marcel MÅller
-January 2011
+July 2011
