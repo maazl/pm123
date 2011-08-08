@@ -192,7 +192,7 @@ typedef struct
 int DLLENTRY plugin_query(PLUGIN_QUERYPARAM* param);
 int DLLENTRY plugin_init(const PLUGIN_CONTEXT* ctx); // Optional
 void DLLENTRY plugin_configure(HWND hwnd, HMODULE module);
-void DLLENTRY plugin_option(const char* command, DSTRING* result);
+void DLLENTRY plugin_command(const char* command, DSTRING* result);
 int DLLENTRY plugin_deinit(int unload);
 
 #pragma pack()

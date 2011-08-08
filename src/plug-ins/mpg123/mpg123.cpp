@@ -724,7 +724,7 @@ PLUGIN_RC Decoder::Setup(const DECODER_PARAMS2& par)
   OutParam = par.A;
   Filename = par.URL;
   // Init
-  PLUGIN_RC rc = rc = Open("rbXU");
+  PLUGIN_RC rc = Open("rbXU");
   if (rc != PLUGIN_OK)
     return rc;
   xio_set_metacallback(XFile, &Decoder::MetaCallback, this);

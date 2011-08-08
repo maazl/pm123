@@ -69,7 +69,7 @@ class Module
   /// Entry point of the configure dialog (if any).
   void DLLENTRYP(plugin_configure)(HWND hwnd, HMODULE module);
   /// Entry point of the configure dialog (if any).
-  void DLLENTRYP(plugin_option)(const char* command, DSTRING* result);
+  void DLLENTRYP(plugin_command)(const char* command, DSTRING* result);
  protected:
   /// Load the DLL.
   bool LoadModule();
@@ -94,8 +94,10 @@ class Module
   /// @param hwnd Parent window.
   void    Config(HWND hwnd) const            { DEBUGLOG(("Module(%p{%s})::Config(%p) - %p\n", this, Key.cdata(), hwnd, plugin_configure));
                                                if (plugin_configure) (*plugin_configure)(hwnd, HModule); }
-  void    Option(const char* command, xstring& result)
-                                             { if (plugin_option) (*plugin_option)(command, &result); }
+  /// Handle plug-in specific command if the plug-in exports plugin_command.
+  /// Otherwise the function is a no-op, result is unchanged.
+  void    Command(const char* command, xstring& result)
+                                             { if (plugin_command) (*plugin_command)(command, &result); }
 
  private: // non-copyable
   Module(const Module&);

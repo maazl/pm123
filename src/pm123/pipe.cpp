@@ -130,6 +130,29 @@ class CommandProcessor : public ACommandProcessor
   /// Command dispatch table, sorted
   static const CmdEntry       CmdList[];
 
+  class Option
+  { void (CommandProcessor::*Handler)(void* arg);
+    void* Arg;
+   public:
+    Option(void (CommandProcessor::*handler)(void*), void* arg = NULL)
+    : Handler(handler)
+    , Arg(arg)
+    {}
+    template <class T>
+    Option(T amp_cfg::* option, void (CommandProcessor::*handler)(T amp_cfg::*))
+    : Handler((void (CommandProcessor::*)(void*))handler)
+    , Arg((void*)option)
+    {}
+    template <class T>
+    Option(T amp_cfg::* option)
+    : Handler((void (CommandProcessor::*)(void*))(void (CommandProcessor::*)(T amp_cfg::*))&CommandProcessor::DoOption)
+    , Arg((void*)option)
+    {}
+    void operator()(CommandProcessor& cp) const
+    { (cp.*Handler)(Arg);
+    }
+  };
+
  private: // state
   /// playlist where we currently operate
   int_ptr<Playable>           CurPlaylist;
@@ -139,6 +162,13 @@ class CommandProcessor : public ACommandProcessor
   url123                      CurDir;
 
  private: // Helper functions
+  /// Tag for Request: Query the default value of an option
+  static char Cmd_QueryDefault[];
+  /// Tag for Request: Set the default value of an option
+  static char Cmd_SetDefault[];
+  static const strmap<16,Option> OptionMap[];
+
+  const volatile amp_cfg& ReadCfg() { return Request == Cmd_QueryDefault ? Cfg::Default : Cfg::Get(); }
   void DoOption(bool amp_cfg::* option);
   void DoOption(int amp_cfg::* option);
   void DoOption(xstring amp_cfg::* option);
@@ -242,6 +272,7 @@ class CommandProcessor : public ACommandProcessor
   // CONFIGURATION
   void CmdVersion();
   void CmdOption();
+  void CmdDefault();
   void CmdSize();
   void CmdFont();
   void CmdFloat();
@@ -262,6 +293,7 @@ const CommandProcessor::CmdEntry CommandProcessor::CmdList[] = // list must be s
 , { "cd",             &CommandProcessor::CmdCd            }
 , { "clear",          &CommandProcessor::CmdClear         }
 , { "current",        &CommandProcessor::CmdCurrent       }
+, { "default",        &CommandProcessor::CmdDefault       }
 , { "dir",            &CommandProcessor::CmdDir           }
 , { "float",          &CommandProcessor::CmdFloat         }
 , { "font",           &CommandProcessor::CmdFont          }
@@ -315,6 +347,9 @@ const CommandProcessor::CmdEntry CommandProcessor::CmdList[] = // list must be s
 , { "write meta set", &CommandProcessor::CmdWriteMetaSet  }
 , { "write meta to",  &CommandProcessor::CmdWriteMetaTo   }
 };
+
+char CommandProcessor::Cmd_QueryDefault[] = ""; // This object is identified by instance
+char CommandProcessor::Cmd_SetDefault[] = ""; // This object is identified by instance
 
 static bool parse_int(const char* arg, int& val)
 { int v;
@@ -371,8 +406,10 @@ CommandProcessor::CommandProcessor()
 {}
 
 void CommandProcessor::DoOption(bool amp_cfg::* option)
-{ Reply.append(Cfg::Get().*option ? "on" : "off");
-  if (*Request)
+{ Reply.append(ReadCfg().*option ? "on" : "off");
+  if (Request == Cmd_SetDefault)
+    Cfg::ChangeAccess().*option = Cfg::Default.*option;
+  else if (*Request)
   { const strmap<7,Ctrl::Op>* op = parse_op2(Request);
     if (op)
     { Cfg::ChangeAccess cfg;
@@ -392,8 +429,10 @@ void CommandProcessor::DoOption(bool amp_cfg::* option)
   }
 }
 void CommandProcessor::DoOption(int amp_cfg::* option)
-{ Reply.appendf("%i", Cfg::Get().*option);
-  if (*Request)
+{ Reply.appendf("%i", ReadCfg().*option);
+  if (Request == Cmd_SetDefault)
+    Cfg::ChangeAccess().*option = Cfg::Default.*option;
+  else if (*Request)
   { int val;
     size_t n = 0;
     sscanf(Request, "%i%n", &val, &n);
@@ -404,8 +443,10 @@ void CommandProcessor::DoOption(int amp_cfg::* option)
   }
 }
 void CommandProcessor::DoOption(xstring amp_cfg::* option)
-{ Reply.append(xstring(Cfg::Get().*option));
-  if (*Request)
+{ Reply.append(xstring(ReadCfg().*option));
+  if (Request == Cmd_SetDefault)
+    Cfg::ChangeAccess().*option = Cfg::Default.*option;
+  else if (*Request)
     Cfg::ChangeAccess().*option = Request;
 }
 void CommandProcessor::DoOption(cfg_anav amp_cfg::* option)
@@ -415,8 +456,10 @@ void CommandProcessor::DoOption(cfg_anav amp_cfg::* option)
   , { "time",      CFG_ANAV_TIME     }
   , { "time,song", CFG_ANAV_SONGTIME }
   };
-  Reply.append(map[Cfg::Get().*option].Str);
-  if (*Request)
+  Reply.append(map[ReadCfg().*option].Str);
+  if (Request == Cmd_SetDefault)
+    Cfg::ChangeAccess().*option = Cfg::Default.*option;
+  else if (*Request)
   { const strmap<10,cfg_anav>* mp = mapsearch(map, Request);
     if (mp)
       Cfg::ChangeAccess().*option = mp->Val;
@@ -425,8 +468,10 @@ void CommandProcessor::DoOption(cfg_anav amp_cfg::* option)
   }
 }
 void CommandProcessor::DoOption(cfg_disp amp_cfg::* option)
-{ Reply.append(dispmap[3 - Cfg::Get().*option].Str);
-  if (*Request)
+{ Reply.append(dispmap[3 - ReadCfg().*option].Str);
+  if (Request == Cmd_SetDefault)
+    Cfg::ChangeAccess().*option = Cfg::Default.*option;
+  else if (*Request)
   { const strmap<5,cfg_disp>* mp = mapsearch(dispmap, Request);
     if (mp)
       Cfg::ChangeAccess().*option = mp->Val;
@@ -440,8 +485,10 @@ void CommandProcessor::DoOption(cfg_scroll amp_cfg::* option)
   , { "none",     CFG_SCROLL_NONE     }
   , { "once",     CFG_SCROLL_ONCE     }
   };
-  Reply.append(map[Cfg::Get().*option * 5 % 3].Str);
-  if (*Request)
+  Reply.append(map[ReadCfg().*option * 5 % 3].Str);
+  if (Request == Cmd_SetDefault)
+    Cfg::ChangeAccess().*option = Cfg::Default.*option;
+  else if (*Request)
   { const strmap<9,cfg_scroll>* mp = mapsearch(map, Request);
     if (mp)
       Cfg::ChangeAccess().*option = mp->Val;
@@ -451,7 +498,7 @@ void CommandProcessor::DoOption(cfg_scroll amp_cfg::* option)
 }
 void CommandProcessor::DoOption(cfg_mode amp_cfg::* option)
 { // old value
-  Reply.append(Cfg::Get().*option);
+  Reply.append(ReadCfg().*option);
   static const strmap<8,cfg_mode> map[] =
   { { "0",       CFG_MODE_REGULAR }
   , { "1",       CFG_MODE_SMALL }
@@ -461,7 +508,9 @@ void CommandProcessor::DoOption(cfg_mode amp_cfg::* option)
   , { "small",   CFG_MODE_SMALL }
   , { "tiny",    CFG_MODE_TINY }
   };
-  if (*Request)
+  if (Request == Cmd_SetDefault)
+    Cfg::ChangeAccess().*option = Cfg::Default.*option;
+  else if (*Request)
   { const strmap<8,cfg_mode>* mp = mapsearch(map, Request);
     if (mp)
       Cfg::ChangeAccess().*option = mp->Val;
@@ -472,12 +521,19 @@ void CommandProcessor::DoOption(cfg_mode amp_cfg::* option)
 
 void CommandProcessor::DoFontOption(void*)
 { // old value
-  if (Cfg::Get().font_skinned)
-    Reply.append(Cfg::Get().font+1);
+  const volatile amp_cfg& rcfg = ReadCfg();
+  if (rcfg.font_skinned)
+    Reply.append(rcfg.font+1);
   else
-    Reply.appendf("%i.%s", Cfg::Get().font_size, Cfg::Get().font_attrs.szFacename);
+    Reply.appendf("%i.%s", rcfg.font_size, rcfg.font_attrs.szFacename);
 
-  if (*Request)
+  if (Request == Cmd_SetDefault)
+  { Cfg::ChangeAccess cfg;
+    cfg.font_skinned = Cfg::Default.font_skinned;
+    cfg.font_attrs   = Cfg::Default.font_attrs;
+    cfg.font_size    = Cfg::Default.font_size;
+    cfg.font         = Cfg::Default.font;
+  } else if (*Request)
   { // set new value
     int font = 0;
     char* cp = strchr(Request, '.');
@@ -595,6 +651,22 @@ void CommandProcessor::Exec()
   else
   { ++Request;
     Request += strspn(Request, " \t"); // skip leading blanks
+    // check for plug-in specific commands
+    size_t len = strcspn(Request, " \t:");
+    if (Request[len] == ':')
+    { // Plug-in option
+      Request[len] = 0;
+      int_ptr<Module> plugin(Module::FindByKey(Request));
+      if (!plugin)
+        return; // Plug-in not found.
+      Request += len+1;
+      Request += strspn(Request, " \t"); // skip leading blanks
+      // Call plug-in function
+      xstring result;
+      plugin->Command(Request, result);
+      Reply.append(result);
+      return;
+    }
     // Search command handler ...
     const CmdEntry* cep = mapsearcha(CmdList, Request);
     DEBUGLOG(("execute_command: %s -> %p(%s)\n", Request, cep, cep));
@@ -1329,84 +1401,72 @@ void CommandProcessor::CmdVersion()
 { Reply.append(AMP_VERSION);
 }
 
-class option
-{ void (CommandProcessor::*Handler)(void* arg);
-  void* Arg;
- public:
-  option(void (CommandProcessor::*handler)(void*), void* arg = NULL)
-  : Handler(handler)
-  , Arg(arg)
-  {}
-  template <class T>
-  option(T amp_cfg::* option, void (CommandProcessor::*handler)(T amp_cfg::*))
-  : Handler((void (CommandProcessor::*)(void*))handler)
-  , Arg((void*)option)
-  {}
-  template <class T>
-  option(T amp_cfg::* option)
-  : Handler((void (CommandProcessor::*)(void*))(void (CommandProcessor::*)(T amp_cfg::*))&CommandProcessor::DoOption)
-  , Arg((void*)option)
-  {}
-  void operator()(CommandProcessor& cp) const
-  { (cp.*Handler)(Arg);
-  }
+// PM123 option
+const strmap<16,CommandProcessor::Option> CommandProcessor::OptionMap[] =
+{ { "altslider",       &amp_cfg::altnavig       }
+, { "autouse",         &amp_cfg::autouse        }
+, { "bufferlevel",     &amp_cfg::buff_fill      }
+, { "buffersize",      &amp_cfg::buff_size      }
+, { "bufferwait",      &amp_cfg::buff_wait      }
+, { "conntimeout",     &amp_cfg::conn_timeout   }
+, { "dndrecurse",      &amp_cfg::recurse_dnd    }
+, { "dockmargin",      &amp_cfg::dock_margin    }
+, { "dockwindows",     &amp_cfg::dock_windows   }
+, { "foldersautosort", &amp_cfg::sort_folders   }
+, { "foldersfirst",    &amp_cfg::folders_first  }
+, { "font",            &CommandProcessor::DoFontOption }
+, { "pipe",            &amp_cfg::pipe_name      }
+, { "playonload",      &amp_cfg::playonload     }
+, { "playlistwrap",    &amp_cfg::autoturnaround }
+, { "proxyserver",     &amp_cfg::proxy          }
+, { "proxyauth",       &amp_cfg::auth           }
+, { "queueatcommand",  &amp_cfg::append_cmd     }
+, { "queueatdnd",      &amp_cfg::append_dnd     }
+, { "queuedelplayed",  &amp_cfg::queue_mode     }
+, { "resumeatstartup", &amp_cfg::restartonstart }
+, { "retainposonexit", &amp_cfg::retainonexit   }
+, { "retainposonstop", &amp_cfg::retainonstop   }
+, { "scrollmode",      &amp_cfg::scroll         }
+, { "scrollaround",    &amp_cfg::scroll_around  }
+, { "skin",            &amp_cfg::defskin        }
+, { "textdisplay",     &amp_cfg::viewmode       }
+, { "windowposbyobj",  &amp_cfg::win_pos_by_obj }
+, { "workersdlg",      &amp_cfg::num_dlg_workers}
+, { "workersnorm",     &amp_cfg::num_workers    }
 };
 
 void CommandProcessor::CmdOption()
 {
   size_t len = strcspn(Request, " \t");
   Request[len] = 0;
-  char* cp = strchr(Request, ':');
-  if (cp)
-  { // Plug-in option
-    *cp = 0;
-    int_ptr<Module> plugin(Module::FindByKey(Request));
-    if (!plugin)
-      return; // Plug-in not found.
-    // Call plug-in function
-    xstring result;
-    plugin->Option(cp+1, result);
-    Reply.append(result);
-    return;
-  }
 
-  // PM123 option
-  static const strmap<16,option> map[] =
-  { { "altslider",       option(&amp_cfg::altnavig)       }
-  , { "autouse",         option(&amp_cfg::autouse)        }
-  , { "bufferlevel",     option(&amp_cfg::buff_fill)      }
-  , { "buffersize",      option(&amp_cfg::buff_size)      }
-  , { "bufferwait",      option(&amp_cfg::buff_wait)      }
-  , { "conntimeout",     option(&amp_cfg::conn_timeout)   }
-  , { "dndrecurse",      option(&amp_cfg::recurse_dnd)    }
-  , { "dockmargin",      option(&amp_cfg::dock_margin)    }
-  , { "dockwindows",     option(&amp_cfg::dock_windows)   }
-  , { "folderautosort",  option(&amp_cfg::sort_folders)   }
-  , { "foldersfirst",    option(&amp_cfg::folders_first)  }
-  , { "font",            option(&CommandProcessor::DoFontOption, NULL) }
-  , { "pipe",            option(&amp_cfg::pipe_name)      }
-  , { "playonload",      option(&amp_cfg::playonload)     }
-  , { "playlistwrap",    option(&amp_cfg::autoturnaround) }
-  , { "proxyserver",     option(&amp_cfg::proxy)          }
-  , { "proxyauth",       option(&amp_cfg::auth)           }
-  , { "queueatcommand",  option(&amp_cfg::append_cmd)     }
-  , { "queueatdnd",      option(&amp_cfg::append_dnd)     }
-  , { "queuedelplayed",  option(&amp_cfg::queue_mode)     }
-  , { "resumeatstartup", option(&amp_cfg::restartonstart) }
-  , { "retainposonexit", option(&amp_cfg::retainonexit)   }
-  , { "retainposonstop", option(&amp_cfg::retainonstop)   }
-  , { "scrollmode",      option(&amp_cfg::scroll)         }
-  , { "scrollaround",    option(&amp_cfg::scroll_around)  }
-  , { "skin",            option(&amp_cfg::defskin)        }
-  , { "textdisplay",     option(&amp_cfg::viewmode)       }
-  , { "windowposbyobj",  option(&amp_cfg::win_pos_by_obj) }
-  , { "workersdlg",      option(&amp_cfg::num_dlg_workers)}
-  , { "workersnorm",     option(&amp_cfg::num_workers)    }
-  };
-
-  const strmap<16,option>* op = mapsearch(map, Request);
+  const strmap<16,Option>* op = mapsearch(OptionMap, Request);
   if (op)
+  { Request += len;
+    Request += strspn(Request, " \t");
     op->Val(*this);
+  }
+}
+
+void CommandProcessor::CmdDefault()
+{
+  size_t len = strcspn(Request, " \t");
+  Request[len] = 0;
+
+  const strmap<16,Option>* op = mapsearch(OptionMap, Request);
+  if (op)
+  { Request += len;
+    Request += strspn(Request, " \t");
+
+    if (stricmp(Request, "query") == 0)
+      Request = Cmd_QueryDefault;
+    else if (stricmp(Request, "set") == 0)
+      Request = Cmd_SetDefault;
+    else
+      return;
+
+    op->Val(*this);
+  }
 }
 
 void CommandProcessor::CmdSize()

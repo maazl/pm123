@@ -397,7 +397,7 @@ int id3v2_wipe_tag( XFILE* file, const char* savename )
     return 0;
   }
 
-  if(( buffer = (char*)calloc( 1, ID3V2_FILE_BUFSIZE )) == NULL ) {
+  if(( buffer = (char*)malloc( ID3V2_FILE_BUFSIZE )) == NULL ) {
     return -1;
   }
 

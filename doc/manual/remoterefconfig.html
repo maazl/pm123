@@ -20,14 +20,22 @@
       <td valign="top"><tt>1.41 alpha 4 </tt>(for example) </td>
     </tr>
     <tr>
-      <td><tt><a name="option"></a>option </tt>[<tt><var>&lt;plug-in&gt;</var>:</tt>]<tt><var>&lt;name&gt;</var>
+      <td><tt><a name="option"></a>option&nbsp;</tt><tt><var>&lt;name&gt;</var>
       </tt>[<var><tt>&lt;new&nbsp;value&gt;</tt></var>]</td>
       <td>Sets or queries an <a href="remoterefoptions.html">option
 value</a>.&nbsp;If <var><tt>&lt;new
-value&gt;</tt></var> is missing only the current value is returned.<br>
-To access plug-in specific options precede the option with name of the
-plug-in and a colon. e.g. <tt>mp123:</tt> </td>
+value&gt;</tt></var> is missing only the current value is returned. </td>
       <td>Previous setting or empty string on error.</td>
+    </tr>
+    <tr>
+      <td valign="top"><tt><a name="default"></a>default</tt><tt> </tt><tt><var>&lt;name&gt;</var>
+      </tt>[<tt>set</tt>|<tt>query</tt>]<tt><var></var></tt></td>
+      <td valign="top"><tt>set</tt> or no subcomman: resets an <a
+ href="remoterefoptions.html">option
+value</a> to ist default.<br>
+      <tt>query</tt>: return the default value.</td>
+      <td valign="top">Previous setting, default value in case of sub
+command <tt>query</tt> or empty string on error.</td>
     </tr>
     <tr valign="baseline">
       <td><tt><a name="autouse"></a>autouse </tt>[<tt>on</tt>|<tt>off</tt>|<tt>toggle</tt>]<small><sup><a

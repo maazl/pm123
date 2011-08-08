@@ -167,7 +167,7 @@ int XIOfile::open( const char* filename, XOFLAGS oflags )
     flags |= OPEN_ACTION_OPEN_IF_EXISTS;
   }
   
-  if( !(oflags & XO_NOBUFFER) )
+  if( !(oflags & XO_NOBUFFER) && (oflags & (XO_READ|XO_WRITE)) != (XO_READ|XO_WRITE) )
     omode |= OPEN_FLAGS_SEQUENTIAL;
   
   if( strnicmp( filename, "file:", 5 ) == 0 )
@@ -244,14 +244,15 @@ int XIOfile::open( const char* filename, XOFLAGS oflags )
 int XIOfile::read( void* result, unsigned int count )
 {
   APIRET rc;
-  ULONG actual;
+  ULONG actual = 0; // DosRead seems to dislike random numbers
 
   FILE_REQUEST_DISK(this);
   rc = DosRead( s_handle, result, count, &actual );
   FILE_RELEASE_DISK(this);
 
   if ( rc != NO_ERROR )
-  { errno = error = map_os2_errors( rc );
+  { DEBUGLOG(("XIOfile::read: failed %lu\n", rc));
+    errno = error = map_os2_errors( rc );
     return -1;
   } else if (actual == 0) {
     eof = true;

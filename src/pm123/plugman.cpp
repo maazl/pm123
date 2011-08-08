@@ -149,7 +149,7 @@ Module::Module(const xstring& key, const xstring& name)
 , ModuleName(name)
 , HModule(NULLHANDLE)
 , plugin_configure(NULL)
-, plugin_option(NULL)
+, plugin_command(NULL)
 { DEBUGLOG(("Module(%p)::Module(%s)\n", this, name.cdata()));
   memset(&QueryParam, 0, sizeof QueryParam);
 }
@@ -305,7 +305,7 @@ bool Module::Load()
     }
   }
 
-  LoadOptionalFunction(&plugin_option, "plugin_option");
+  LoadOptionalFunction(&plugin_command, "plugin_command");
   return !QueryParam.configurable || LoadFunction(&plugin_configure, "plugin_configure");
 }
 

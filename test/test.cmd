@@ -45,6 +45,7 @@ CALL DoInit
 
 /* execute test cases */
 CALL SysFileTree 'test_*.cmd', files, 'FO'
+CALL QSort files
 DO i = 1 TO files.0
   file = FILESPEC('N', files.i)
   IF args.0 > 0 THEN DO
@@ -105,9 +106,55 @@ DoFinish: PROCEDURE EXPOSE summary.
   SAY "Failed: "summary.failed", passed: "summary.passed", total: "sum
   RETURN
 
+/* sort stem variable
+   call qsort stem[, first][, last]
+   stem
+     stem variable name to sort
+   first, last (optional)
+     sort range tree.index.first to tree.index.last
+   This function calls itself recursively.
+*/
+QSort:
+  stem = TRANSLATE(ARG(1))
+  IF ARG(2,'e') THEN DO
+    IF ARG(3,'e') THEN
+      CALL DoQSort ARG(2), ARG(3)
+    ELSE
+      CALL DoQSort ARG(2), VALUE(stem'.'0)
+    END
+  ELSE IF ARG(3,'e') THEN
+    CALL DoQSort 1, ARG(3)
+  ELSE    
+    CALL DoQSort 1, VALUE(stem'.'0)
+  RETURN
+
+DoQSort: PROCEDURE EXPOSE stem (stem)
+  lo = ARG(1)
+  hi = ARG(2)
+  mi = (hi + lo) %2
+  m = VALUE(stem'.'mi)
+  /*SAY lo hi mi m*/
+  DO WHILE hi >= lo
+    DO WHILE VALUE(stem'.'lo) < m
+      lo = lo +1
+      END
+    DO WHILE VALUE(stem'.'hi) > m
+      hi = hi -1
+      END
+    IF hi >= lo THEN DO
+      tmp = VALUE(stem'.'lo)
+      CALL VALUE stem'.'lo, VALUE(stem'.'hi)
+      CALL VALUE stem'.'hi, tmp
+      lo = lo +1
+      hi = hi -1
+      END
+    END
+  IF hi > ARG(1) THEN
+    CALL DoQSort ARG(1), hi
+  IF ARG(2) > lo THEN
+    CALL DoQSort lo, ARG(2)
+  RETURN
+
 Error: PROCEDURE
   CALL LINEOUT STDERR, ARG(2)
   EXIT ARG(1)
-
-
-

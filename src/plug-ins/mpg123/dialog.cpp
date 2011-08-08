@@ -1333,7 +1333,10 @@ ULONG DLLENTRY decoder_editmeta( HWND owner, const char* filename )
     
     if (errmsg)
     { // Error message
-      switch (WinMessageBox(HWND_DESKTOP, hwnd, errmsg, NULL, 0, MB_YESNOCANCEL|MB_ERROR|MB_MOVEABLE))
+      errmsg = errmsg + "\nRetry?";
+      ULONG btn = WinMessageBox(HWND_DESKTOP, hwnd, errmsg, NULL, 0, MB_YESNOCANCEL|MB_ERROR|MB_MOVEABLE);
+      errmsg.reset();
+      switch (btn)
       { case MBID_CANCEL:
           goto cont_edit;
 

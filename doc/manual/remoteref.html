@@ -8,18 +8,23 @@
 <h2>PM123's Remote Command Reference</h2>
 <p>PM123 currently understands the following
 commands through the <a href="remote.html">remote interface</a>.
-The commands are grouped into five categories: <a
+The commands are grouped into the categories: <a
  href="remoterefplayback.html">playback control</a>, <a
  href="remoterefplaylist.html">playlists</a>, <a
  href="remoterefgui.html">user interface</a>, <a
  href="remoterefmeta.html">meta data</a> and <a
  href="remoterefconfig.html">configuration</a>.</p>
-<p>Many commands return <a href="remotereferror.html">common error
+<p>Some commands return <a href="remotereferror.html">common error
 codes</a>. All commands renturn an <em>empty line at the end</em>.
 This is different from PM123 up to version 1.40. However, unless you
 send no more than one command per pipe instance it makes no difference.</p>
+<p>Commands that start with a plug-in name followed by a colon are
+plug-in specific and do only work if the specified plug-in is loaded.<br>
+</p>
 <p><strong>Note that the commands must have an asterisk (<tt>*</tt>) as
-prefix if the are sent through the pipe.</strong></p>
+prefix if the are sent through the pipe.</strong> This is a tribute to
+compatibility with older PM123 versions.<strong><br>
+</strong></p>
 <h3>Alphabetical list of all commands</h3>
 <ul>
   <li><a href="remoterefplaylist.html#add"><tt>add</tt></a>
@@ -32,6 +37,9 @@ prefix if the are sent through the pipe.</strong></p>
 - clear playlist</li>
   <li><a href="remoterefplayback.html#current"><tt>current</tt></a>
 - query current song or playlist</li>
+  <li><a href="remoterefconfig.html#option"><tt>default</tt></a> -
+reset an option to its default value.<br>
+  </li>
   <li><a href="remoterefplaylist.html#dir"><tt>dir</tt></a>
 - add directory to playlist (<i>deprecated</i>, use <a
  href="remoterefplaylist.html#add"><tt>add</tt></a>)</li>

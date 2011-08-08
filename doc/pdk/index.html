@@ -110,20 +110,19 @@ should appear when PM123 calls
 window so that you can "lock" your
 window on it if you want and where <i>module</i> can be
 used to load a resource from your DLL.</p>
-<p><a name="plugin_option"></a>The export of <tt>plugin_option</tt> is
+<p><a name="plugin_option"></a>The export of <tt>plugin_ocommand</tt>
+is
 optional. If the symbol is exported, the
-plug-in can be cunfigured by the <a
- href="../manual/remoterefconfig.html#option"><tt>option</tt> command</a>
-of the <a href="../manual/remote.html">remote interface</a>.</p>
+plug-in can receive <a href="../manual/remote.html">remote commands</a>.</p>
 <blockquote>
-  <pre>void DLLENTRY <b>plugin_option</b>(const char* <var>command</var>, <a
+  <pre>void DLLENTRY <b>plugin_command</b>(const char* <var>command</var>, <a
  href="dstring.html">DSTRING</a>* <var>result</var>);</pre>
 </blockquote>
-<p>The parameter <var><tt>command</tt></var> takes any string
-following <tt>option <var>plug-in-name</var>:</tt>. <var><tt>result</tt></var>
-should be assigned by the old option value. The implementation must be
-thread-safe and if the implementation makes
-use of <tt>exec_command</tt> also reentrant.</p>
+<p>The <var><tt>command</tt></var> parameter receives the command
+passed to the remote interface without the astrisk and plug-in name
+prefix. The handling is plug-in specific. <var><tt>result</tt></var>
+should be assigned with the result of the command if any.<br>
+</p>
 <h4>Unload</h4>
 <p><a name="plugin_deinit"></a>Plug-ins should deinitialize and destroy
 their windows and

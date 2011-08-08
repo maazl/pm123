@@ -48,7 +48,7 @@ extern "C" {
 #define ID3V2_GET_CREATE  0x0002
 
 /* The size of the read/write buffer used by file operations. */
-#define ID3V2_FILE_BUFSIZE  8192
+#define ID3V2_FILE_BUFSIZE  32768
 
 
 /* Structure describing the ID3 tag. */
