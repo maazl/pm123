@@ -409,7 +409,7 @@ void CommandProcessor::DoOption(bool amp_cfg::* option)
 { Reply.append(ReadCfg().*option ? "on" : "off");
   if (Request == Cmd_SetDefault)
     Cfg::ChangeAccess().*option = Cfg::Default.*option;
-  else if (*Request)
+  else if (Request)
   { const strmap<7,Ctrl::Op>* op = parse_op2(Request);
     if (op)
     { Cfg::ChangeAccess cfg;
@@ -432,7 +432,7 @@ void CommandProcessor::DoOption(int amp_cfg::* option)
 { Reply.appendf("%i", ReadCfg().*option);
   if (Request == Cmd_SetDefault)
     Cfg::ChangeAccess().*option = Cfg::Default.*option;
-  else if (*Request)
+  else if (Request)
   { int val;
     size_t n = 0;
     sscanf(Request, "%i%n", &val, &n);
@@ -446,7 +446,7 @@ void CommandProcessor::DoOption(xstring amp_cfg::* option)
 { Reply.append(xstring(ReadCfg().*option));
   if (Request == Cmd_SetDefault)
     Cfg::ChangeAccess().*option = Cfg::Default.*option;
-  else if (*Request)
+  else if (Request)
     Cfg::ChangeAccess().*option = Request;
 }
 void CommandProcessor::DoOption(cfg_anav amp_cfg::* option)
@@ -459,7 +459,7 @@ void CommandProcessor::DoOption(cfg_anav amp_cfg::* option)
   Reply.append(map[ReadCfg().*option].Str);
   if (Request == Cmd_SetDefault)
     Cfg::ChangeAccess().*option = Cfg::Default.*option;
-  else if (*Request)
+  else if (Request)
   { const strmap<10,cfg_anav>* mp = mapsearch(map, Request);
     if (mp)
       Cfg::ChangeAccess().*option = mp->Val;
@@ -471,7 +471,7 @@ void CommandProcessor::DoOption(cfg_disp amp_cfg::* option)
 { Reply.append(dispmap[3 - ReadCfg().*option].Str);
   if (Request == Cmd_SetDefault)
     Cfg::ChangeAccess().*option = Cfg::Default.*option;
-  else if (*Request)
+  else if (Request)
   { const strmap<5,cfg_disp>* mp = mapsearch(dispmap, Request);
     if (mp)
       Cfg::ChangeAccess().*option = mp->Val;
@@ -488,7 +488,7 @@ void CommandProcessor::DoOption(cfg_scroll amp_cfg::* option)
   Reply.append(map[ReadCfg().*option * 5 % 3].Str);
   if (Request == Cmd_SetDefault)
     Cfg::ChangeAccess().*option = Cfg::Default.*option;
-  else if (*Request)
+  else if (Request)
   { const strmap<9,cfg_scroll>* mp = mapsearch(map, Request);
     if (mp)
       Cfg::ChangeAccess().*option = mp->Val;
@@ -510,7 +510,7 @@ void CommandProcessor::DoOption(cfg_mode amp_cfg::* option)
   };
   if (Request == Cmd_SetDefault)
     Cfg::ChangeAccess().*option = Cfg::Default.*option;
-  else if (*Request)
+  else if (Request)
   { const strmap<8,cfg_mode>* mp = mapsearch(map, Request);
     if (mp)
       Cfg::ChangeAccess().*option = mp->Val;
@@ -533,7 +533,7 @@ void CommandProcessor::DoFontOption(void*)
     cfg.font_attrs   = Cfg::Default.font_attrs;
     cfg.font_size    = Cfg::Default.font_size;
     cfg.font         = Cfg::Default.font;
-  } else if (*Request)
+  } else if (Request)
   { // set new value
     int font = 0;
     char* cp = strchr(Request, '.');
@@ -669,12 +669,12 @@ void CommandProcessor::Exec()
     }
     // Search command handler ...
     const CmdEntry* cep = mapsearcha(CmdList, Request);
-    DEBUGLOG(("execute_command: %s -> %p(%s)\n", Request, cep, cep));
+    DEBUGLOG(("CommandProcessor::Exec: %s -> %p(%s)\n", Request, cep, cep));
     if (cep)
     { size_t len = strlen(cep->Str);
       len += strspn(Request + len, " \t");
       Request += len;
-      DEBUGLOG(("execute_command: %u %s\n", len, Request));
+      DEBUGLOG(("CommandProcessor::Exec: %u %s\n", len, Request));
       if (len || *Request == 0)
         // ... and execute
         (this->*cep->Val)();
@@ -1416,8 +1416,8 @@ const strmap<16,CommandProcessor::Option> CommandProcessor::OptionMap[] =
 , { "foldersfirst",    &amp_cfg::folders_first  }
 , { "font",            &CommandProcessor::DoFontOption }
 , { "pipe",            &amp_cfg::pipe_name      }
-, { "playonload",      &amp_cfg::playonload     }
 , { "playlistwrap",    &amp_cfg::autoturnaround }
+, { "playonload",      &amp_cfg::playonload     }
 , { "proxyserver",     &amp_cfg::proxy          }
 , { "proxyauth",       &amp_cfg::auth           }
 , { "queueatcommand",  &amp_cfg::append_cmd     }
@@ -1437,13 +1437,13 @@ const strmap<16,CommandProcessor::Option> CommandProcessor::OptionMap[] =
 
 void CommandProcessor::CmdOption()
 {
-  size_t len = strcspn(Request, " \t");
-  Request[len] = 0;
+  char* cp = strchr(Request, '=');
+  if (cp)
+    *cp++ = 0;
 
   const strmap<16,Option>* op = mapsearch(OptionMap, Request);
   if (op)
-  { Request += len;
-    Request += strspn(Request, " \t");
+  { Request = cp;
     op->Val(*this);
   }
 }
@@ -1460,33 +1460,43 @@ void CommandProcessor::CmdDefault()
 
     if (stricmp(Request, "query") == 0)
       Request = Cmd_QueryDefault;
-    else if (stricmp(Request, "set") == 0)
-      Request = Cmd_SetDefault;
-    else
+    else if (*Request && stricmp(Request, "reset") != 0)
       return;
+    else
+      Request = Cmd_SetDefault;
 
     op->Val(*this);
   }
 }
 
 void CommandProcessor::CmdSize()
-{ DoOption(&amp_cfg::mode);
+{ if (!*Request)
+    Request = NULL;
+  DoOption(&amp_cfg::mode);
 };
 
 void CommandProcessor::CmdFont()
-{ DoFontOption(NULL);
+{ if (!*Request)
+    Request = NULL;
+  DoFontOption(NULL);
 }
 
 void CommandProcessor::CmdFloat()
-{ DoOption(&amp_cfg::floatontop);
+{ if (!*Request)
+    Request = NULL;
+  DoOption(&amp_cfg::floatontop);
 }
 
 void CommandProcessor::CmdAutouse()
-{ DoOption(&amp_cfg::autouse);
+{ if (!*Request)
+    Request = NULL;
+  DoOption(&amp_cfg::autouse);
 }
 
 void CommandProcessor::CmdPlayonload()
-{ DoOption(&amp_cfg::playonload);
+{ if (!*Request)
+    Request = NULL;
+  DoOption(&amp_cfg::playonload);
 }
 
 
