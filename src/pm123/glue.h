@@ -76,11 +76,12 @@ extern event<const dec_event_args> dec_event;
 /// Output events
 extern event<const OUTEVENTTYPE> out_event;
 
+class Decoder;
 class IFileTypesEnumerator
 {public:
   virtual ~IFileTypesEnumerator() {}
   virtual const DECODER_FILETYPE* GetCurrent() const = 0;
-  virtual int GetDecoder() const = 0;
+  virtual int_ptr<Decoder> GetDecoder() const = 0;
   virtual bool Next() = 0;
 };
 IFileTypesEnumerator* dec_filetypes(DECODER_TYPE flagsreq);  
@@ -91,9 +92,6 @@ IFileTypesEnumerator* dec_filetypes(DECODER_TYPE flagsreq);
 *  Thread safe
 *
 ****************************************************************************/
-/* check whether the specified decoder is currently in use */
-BOOL  dec_is_active( int number );
-
 ULONG DLLENTRY dec_fileinfo( const char* filename, int* what, INFO_BUNDLE* info,
                              DECODER_INFO_ENUMERATION_CB cb, void* param );
 
@@ -124,24 +122,9 @@ BOOL  out_trash( void );
 *  Thread safe
 *
 ****************************************************************************/
-/*ULONG DLLENTRY out_playing_samples( FORMAT_INFO* info, char* buf, int len );*/
+ULONG DLLENTRY out_playing_samples( FORMAT_INFO* info, char* buf, int len );
 double DLLENTRY out_playing_pos( void );
 BOOL  DLLENTRY out_playing_data( void );
-
-/****************************************************************************
-*
-*  Control interface for the visual plug-ins
-*  Not thread safe
-*
-****************************************************************************/
-/* initialize non-skinned visual plug-in */
-bool  vis_init(HWND owner, size_t i);
-/* initialize all skinned/non-skinned visual plug-ins */
-void  vis_init_all(HWND owner, bool skin);
-void  vis_broadcast( ULONG msg, MPARAM mp1, MPARAM mp2 );
-/* deinitialize visual plug-in */
-bool  vis_deinit(size_t i);
-void  vis_deinit_all(bool skin);
 
 
 #endif /* PM123_GLUE_H */

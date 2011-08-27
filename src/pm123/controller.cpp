@@ -28,10 +28,10 @@
 
 #define INCL_WIN
 #define INCL_BASE
-#include "plugman.h"
-#include "waitinfo.h"
 #include "controller.h"
+#include "waitinfo.h"
 #include "configuration.h"
+#include "decoder.h"
 #include "gui.h"
 #include "glue.h"
 #include "pm123.h"
@@ -310,13 +310,6 @@ ULONG CtrlImp::DecoderStart(APlayable& ps, PM123_TIME offset)
   ULONG rc = dec_play(ps, offset, start, stop);
   if (rc != 0)
     return rc;
-
-  // TODO: I hate this delay with a spinlock.
-  int cnt = 0;
-  while (dec_status() == DECODER_STARTING)
-  { DEBUGLOG(("Ctrl::DecoderStart - waiting for Spinlock\n"));
-    DosSleep( ++cnt > 10 );
-  }
 
   if (Scan != DECFAST_NORMAL_PLAY)
     dec_fast(Scan);
@@ -884,7 +877,7 @@ Ctrl::RC CtrlImp::MsgSave(const xstring& filename)
   Pending |= EV_Savename;
   Savename = filename;
 
-  if (Playing && dec_status() == DECODER_PLAYING)
+  if (Playing)
     dec_save(Savename);
   // TODO: is it really a good idea to save different streams into the same file???
   return RC_OK;

@@ -102,7 +102,7 @@ typedef struct _OUTPUT_PARAMS2
   PM123_TIME  PlayingPos; // related playing position
 
   /* --- OUTPUT_SETUP and OUTPUT_OPEN */
-  DSTRING URL;            // filename, URL or track now being played,
+  xstring URL;            // filename, URL or track now being played,
                           // useful for disk output
                           
   const INFO_BUNDLE_CV* Info;// Information on the object to play.

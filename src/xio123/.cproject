@@ -36,6 +36,7 @@
 									<listOptionValue builtIn="false" value="__USING_NAMESPACE_STD(x)"/>
 									<listOptionValue builtIn="false" value="stricmp=strcmp"/>
 									<listOptionValue builtIn="false" value="strnicmp=strncmp"/>
+									<listOptionValue builtIn="false" value="PM123_CORE=1"/>
 								</option>
 								<inputType id="cdt.managedbuild.tool.gnu.cpp.compiler.input.1064498119" superClass="cdt.managedbuild.tool.gnu.cpp.compiler.input"/>
 							</tool>

@@ -28,8 +28,8 @@ value&gt;</tt></var> is missing only the current value is returned. </td>
     </tr>
     <tr>
       <td valign="top"><tt><a name="default"></a>default</tt><tt> </tt><tt><var>&lt;name&gt;</var>
-      </tt>[<tt>set</tt>|<tt>query</tt>]<tt><var></var></tt></td>
-      <td valign="top"><tt>set</tt> or no subcomman: resets an <a
+      </tt>[<tt>reset</tt>|<tt>query</tt>]<tt><var></var></tt></td>
+      <td valign="top"><tt>reset</tt> or no subcommand: resets an <a
  href="remoterefoptions.html">option
 value</a> to ist default.<br>
       <tt>query</tt>: return the default value.</td>
@@ -39,22 +39,28 @@ command <tt>query</tt> or empty string on error.</td>
     <tr valign="baseline">
       <td><tt><a name="autouse"></a>autouse </tt>[<tt>on</tt>|<tt>off</tt>|<tt>toggle</tt>]
       <small><sup><a href="#note1">(1.)</a></sup></small></td>
-      <td>Toggles or (re)sets '<i>auto use playlist on add</i>'.<br>
-Without an argument only the current setting is returned.</td>
+      <td><i>Deprecated</i>, use <a href="remoterefoptions.html"><tt>option
+autouse</tt></a>.<br>
+Reads or sets '<i>auto use playlist on add</i>'. Without an argument
+only the current setting is returned.</td>
       <td>Previous setting or empty string on error.</td>
     </tr>
     <tr valign="baseline">
       <td><tt><a name="playonload"></a>playonload </tt>[<tt>on</tt>|<tt>off</tt>|<tt>toggle</tt>]
       <small><sup><a href="#note1">(1.)</a></sup></small></td>
-      <td>Toggles or (re)sets '<i>auto play on load</i>'.<br>
-Without an argument only the current setting is returned.</td>
+      <td><i>Deprecated</i>, use <a href="remoterefoptions.html"><tt>option
+playonload</tt></a>.<br>
+Reads or sets '<i>auto play on load</i>'. Without an argument only the
+current setting is returned.</td>
       <td>Previous setting or empty string on error.</td>
     </tr>
     <tr valign="baseline">
       <td><tt><a name="float"></a>float </tt>[<tt>on</tt>|<tt>off</tt>|<tt>toggle</tt>]
       <small><sup><a href="#note1">(1.)</a></sup></small></td>
-      <td>Toggles or (re)sets '<i>float on top</i>'.<br>
-Without an argument only the current setting is returned.</td>
+      <td><i>Deprecated</i>, use <a href="remoterefoptions.html"><tt>option
+floatontop</tt></a>.<br>
+Reads or sets '<i>float on top</i>'. Without an argument only the
+current setting is returned.</td>
       <td>Previous setting or empty string on error.</td>
     </tr>
   </tbody>
@@ -68,6 +74,11 @@ for the
 logical value <em>true</em> and <tt>off</tt>, <tt>0</tt>, <tt>false</tt>
 or <tt>no</tt> for <em>false</em>. The token <tt>toggle</tt> flips
 the current setting.</p>
+  </li>
+  <li>
+    <p><a name="note2"></a>Plug-in types are <tt>decoder</tt>, <tt>filter</tt>,
+    <tt>output</tt> and <tt>visual</tt>. More than one type can be
+specified separated by comma.</p>
   </li>
 </ol>
 </body>

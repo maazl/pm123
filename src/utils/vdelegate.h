@@ -43,40 +43,57 @@
 #define _VDELEGATE_H
 
 // for DLLENTRYP
-#include <format.h>
+#include <config.h>
 
+#define VDELEGATE_LEN 0x1B
+#define VREPLACE1_LEN 0x0E
 #ifdef __cplusplus
+class VDELEGATE
+{ unsigned char buffer[VDELEGATE_LEN];
+  // non-copyable
+  VDELEGATE(const VDELEGATE&);
+  void operator=(const VDELEGATE&);
+ public:
+  VDELEGATE() {}
+};
+class VREPLACE1
+{ unsigned char buffer[VREPLACE1_LEN];
+  // non-copyable
+  VREPLACE1(const VREPLACE1&);
+  void operator=(const VREPLACE1&);
+ public:
+  VREPLACE1() {}
+};
 extern "C" {
+#else
+/* YOU MUST NOT COPY OBJECTS OF THIS TYPE. They are not POD like. */
+typedef unsigned char VDELEGATE[VDELEGATE_LEN];
+/* YOU MUST NOT COPY OBJECTS OF THIS TYPE. They are not POD like. */
+typedef unsigned char VREPLACE1[VREPLACE1_LEN];
 #endif
 
 typedef int DLLENTRYP(V_FUNC)();
 
-#define VDELEGATE_LEN 0x1B
-/* YOU MUST NOT COPY OBJECTS OF THIS TYPE. They are not POD like. */
-typedef unsigned char VDELEGATE[VDELEGATE_LEN];
-/* Generate proxy function which prepends an additional parameter at each function call.
- * dg     VDELEGATE structure. The lifetime of this structure must exceed the lifetime
- *        of the returned function pointer.
- * func   function to call. The function must have count +1 arguments.
- * count  number of arguments of the returned function.
- * ptr    pointer to pass as first argument to func.
- * return generated function with count arguments.
- * Once created the returned function is thread-safe and reentrant as far as the called
- * function is. Updating an existing object is generally not thread-safe.
+/** Generate proxy function which prepends an additional parameter at each function call.
+ * @param dg    VDELEGATE structure. The lifetime of this structure must exceed the lifetime
+ *              of the returned function pointer.
+ * @param func  function to call. The function must have count +1 arguments.
+ * @param count number of arguments of the returned function.
+ * @param ptr   pointer to pass as first argument to func.
+ * @return      generated function with count arguments.
+ * @remarks Once created the returned function is thread-safe and reentrant as far as the called
+ * function is. Updating an existing VDELEGATE object is generally not thread-safe.
  */
 V_FUNC mkvdelegate(VDELEGATE* dg, V_FUNC func, int count, void* ptr);
 
-#define VREPLACE1_LEN 0x0E
-/* YOU MUST NOT COPY OBJECTS OF THIS TYPE. They are not POD like. */
-typedef unsigned char VREPLACE1[VREPLACE1_LEN];
-/* Generate proxy function that replaces the first argument of the function call.
- * dg     VDELEGATE structure. The lifetime of this structure must exceed the lifetime
- *        of the returned function pointer.
- * func   function to call.
- * ptr    pointer to pass as first argument to func.
- * return generated function.
- * Once created the returned function is thread-safe and reentrant as far as the called
- * function is. Updating an existing object is generally not thread-safe.
+/** Generate proxy function that replaces the first argument of the function call.
+ * @param dg     VDELEGATE structure. The lifetime of this structure must exceed the lifetime
+ *               of the returned function pointer.
+ * @param func   function to call.
+ * @param ptr    pointer to pass as first argument to func.
+ * @return       generated function.
+ * @remarks Once created the returned function is thread-safe and reentrant as far as the called
+ * function is. Updating an existing VREPLACE1 object is generally not thread-safe.
  */
 V_FUNC mkvreplace1(VREPLACE1* rp, V_FUNC func, void* ptr);
 
@@ -86,57 +103,57 @@ V_FUNC mkvreplace1(VREPLACE1* rp, V_FUNC func, void* ptr);
 
 #define PARSIZE(type) ((sizeof(type)+sizeof(int)-1)&-sizeof(int))
 template <class R, class P>
-R DLLENTRYP2(vdelegate(VDELEGATE* dg, R DLLENTRYP(func)(P*), P* ptr))()
+inline R DLLENTRYP2(vdelegate(VDELEGATE* dg, R DLLENTRYP(func)(P*), P* ptr))()
 { return (R DLLENTRYPF()())mkvdelegate(dg, (V_FUNC)func, 0, ptr);
 }
 template <class R, class P, class P1>
-R DLLENTRYP2(vdelegate(VDELEGATE* dg, R DLLENTRYP(func)(P*,P1), P* ptr))(P1)
+inline R DLLENTRYP2(vdelegate(VDELEGATE* dg, R DLLENTRYP(func)(P*,P1), P* ptr))(P1)
 { return (R DLLENTRYPF()(P1))mkvdelegate(dg, (V_FUNC)func, PARSIZE(P1), ptr);
 }
 template <class R, class P, class P1, class P2>
-R DLLENTRYP2(vdelegate(VDELEGATE* dg, R DLLENTRYP(func)(P*,P1,P2), P* ptr))(P1,P2)
+inline R DLLENTRYP2(vdelegate(VDELEGATE* dg, R DLLENTRYP(func)(P*,P1,P2), P* ptr))(P1,P2)
 { return (R DLLENTRYPF()(P1,P2))mkvdelegate(dg, (V_FUNC)func, PARSIZE(P1)+PARSIZE(P2), ptr);
 }
 template <class R, class P, class P1, class P2, class P3>
-R DLLENTRYP2(vdelegate(VDELEGATE* dg, R DLLENTRYP(func)(P*,P1,P2,P3), P* ptr))(P1,P2,P3)
+inline R DLLENTRYP2(vdelegate(VDELEGATE* dg, R DLLENTRYP(func)(P*,P1,P2,P3), P* ptr))(P1,P2,P3)
 { return (R DLLENTRYPF()(P1,P2,P3))mkvdelegate(dg, (V_FUNC)func, PARSIZE(P1)+PARSIZE(P2)+PARSIZE(P3), ptr);
 }
 template <class R, class P, class P1, class P2, class P3, class P4>
-R DLLENTRYP2(vdelegate(VDELEGATE* dg, R DLLENTRYP(func)(P*,P1,P2,P3,P4), P* ptr))(P1,P2,P3,P4)
+inline R DLLENTRYP2(vdelegate(VDELEGATE* dg, R DLLENTRYP(func)(P*,P1,P2,P3,P4), P* ptr))(P1,P2,P3,P4)
 { return (R DLLENTRYPF()(P1,P2,P3,P4))mkvdelegate(dg, (V_FUNC)func, PARSIZE(P1)+PARSIZE(P2)+PARSIZE(P3)+PARSIZE(P4), ptr);
 }
 template <class R, class P, class P1, class P2, class P3, class P4, class P5>
-R DLLENTRYP2(vdelegate(VDELEGATE* dg, R DLLENTRYP(func)(P*,P1,P2,P3,P4,P5), P* ptr))(P1,P2,P3,P4,P5)
+inline R DLLENTRYP2(vdelegate(VDELEGATE* dg, R DLLENTRYP(func)(P*,P1,P2,P3,P4,P5), P* ptr))(P1,P2,P3,P4,P5)
 { return (R DLLENTRYPF()(P1,P2,P3,P4,P5))mkvdelegate(dg, (V_FUNC)func, PARSIZE(P1)+PARSIZE(P2)+PARSIZE(P3)+PARSIZE(P4)+PARSIZE(P5), ptr);
 }
 template <class R, class P, class P1, class P2, class P3, class P4, class P5, class P6>
-R DLLENTRYP2(vdelegate(VDELEGATE* dg, R DLLENTRYP(func)(P*,P1,P2,P3,P4,P5,P6), P* ptr))(P1,P2,P3,P4,P5,P6)
+inline R DLLENTRYP2(vdelegate(VDELEGATE* dg, R DLLENTRYP(func)(P*,P1,P2,P3,P4,P5,P6), P* ptr))(P1,P2,P3,P4,P5,P6)
 { return (R DLLENTRYPF()(P1,P2,P3,P4,P5,P6))mkvdelegate(dg, (V_FUNC)func, PARSIZE(P1)+PARSIZE(P2)+PARSIZE(P3)+PARSIZE(P4)+PARSIZE(P5)+PARSIZE(P6), ptr);
 }
 #undef PARSIZE
 
 template <class R, class P>
-R DLLENTRYP2(vreplace1(VREPLACE1* rp, R DLLENTRYP(func)(P*), P* ptr))(P*)
+inline R DLLENTRYP2(vreplace1(VREPLACE1* rp, R DLLENTRYP(func)(P*), P* ptr))(P*)
 { return (R DLLENTRYPF()(P*))mkvreplace1(rp, (V_FUNC)func, ptr);
 }
 template <class R, class P, class P2>
-R DLLENTRYP2(vreplace1(VREPLACE1* rp, R DLLENTRYP(func)(P*,P2), P* ptr))(P*,P2)
+inline R DLLENTRYP2(vreplace1(VREPLACE1* rp, R DLLENTRYP(func)(P*,P2), P* ptr))(P*,P2)
 { return (R DLLENTRYPF()(P*,P2))mkvreplace1(rp, (V_FUNC)func, ptr);
 }
 template <class R, class P, class P2, class P3>
-R DLLENTRYP2(vreplace1(VREPLACE1* rp, R DLLENTRYP(func)(P*,P2,P3), P* ptr))(P*,P2,P3)
+inline R DLLENTRYP2(vreplace1(VREPLACE1* rp, R DLLENTRYP(func)(P*,P2,P3), P* ptr))(P*,P2,P3)
 { return (R DLLENTRYPF()(P*,P2,P3))mkvreplace1(rp, (V_FUNC)func, ptr);
 }
 template <class R, class P, class P2, class P3, class P4>
-R DLLENTRYP2(vreplace1(VREPLACE1* rp, R DLLENTRYP(func)(P*,P2,P3,P4), P* ptr))(P*,P2,P3,P4)
+inline R DLLENTRYP2(vreplace1(VREPLACE1* rp, R DLLENTRYP(func)(P*,P2,P3,P4), P* ptr))(P*,P2,P3,P4)
 { return (R DLLENTRYPF()(P*,P2,P3,P4))mkvreplace1(rp, (V_FUNC)func, ptr);
 }
 template <class R, class P, class P2, class P3, class P4, class P5>
-R DLLENTRYP2(vreplace1(VREPLACE1* rp, R DLLENTRYP(func)(P*,P2,P3,P4,P5), P* ptr))(P*,P2,P3,P4,P5)
+inline R DLLENTRYP2(vreplace1(VREPLACE1* rp, R DLLENTRYP(func)(P*,P2,P3,P4,P5), P* ptr))(P*,P2,P3,P4,P5)
 { return (R DLLENTRYPF()(P*,P2,P3,P4,P5))mkvreplace1(rp, (V_FUNC)func, ptr);
 }
 template <class R, class P, class P2, class P3, class P4, class P5, class P6>
-R DLLENTRYP2(vreplace1(VREPLACE1* rp, R DLLENTRYP(func)(P*,P2,P3,P4,P5,P6), P* ptr))(P*,P2,P3,P4,P5,P6)
+inline R DLLENTRYP2(vreplace1(VREPLACE1* rp, R DLLENTRYP(func)(P*,P2,P3,P4,P5,P6), P* ptr))(P*,P2,P3,P4,P5,P6)
 { return (R DLLENTRYPF()(P*,P2,P3,P4,P5,P6))mkvreplace1(rp, (V_FUNC)func, ptr);
 }
 #endif

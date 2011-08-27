@@ -296,7 +296,7 @@ static void dlg_set_text_if_empty( HWND hwnd, SHORT id, const char* text )
 
 // Load the data from a V1.x tag into the dialog page.
 static void id3v1_load( HWND hwnd, const ID3V1_TAG* data, ULONG codepage )
-{ DSTRING buf;
+{ xstring buf;
   if (data)
   { if (data->GetField(ID3V1_TITLE, buf, codepage))
       dlg_set_text_if_empty(hwnd, EN_TITLE, buf);
@@ -1228,7 +1228,7 @@ ULONG DLLENTRY decoder_editmeta( HWND owner, const char* filename )
   DosQueryModFromEIP( &module, &rc, 0, NULL, &rc, (ULONG)&decoder_editmeta ); 
   HWND hwnd = WinLoadDlg( HWND_DESKTOP, owner, id3_dlg_proc, module, DLG_ID3TAG, 0 );
   DEBUGLOG(("mpg123:decoder_editmeta: WinLoadDlg: %p (%p) - %p\n", hwnd, WinGetLastError(0), module));
-  DSTRING caption;
+  xstring caption;
   caption.sprintf("ID3 Tag Editor - %s", sfnameext2(filename));
   WinSetWindowText( hwnd, caption );
 
@@ -1318,8 +1318,8 @@ ULONG DLLENTRY decoder_editmeta( HWND owner, const char* filename )
     
     // Now start the transaction.
   retry:
-    DSTRING savename;
-    DSTRING errmsg;
+    xstring savename;
+    xstring errmsg;
     if (id3file.UpdateTags(tagv1, tagv2, savename) != PLUGIN_OK)
       errmsg = id3file.GetLastError();
     id3file.Close();
@@ -1333,7 +1333,7 @@ ULONG DLLENTRY decoder_editmeta( HWND owner, const char* filename )
     
     if (errmsg)
     { // Error message
-      errmsg = errmsg + "\nRetry?";
+      errmsg.sprintf("%s\nRetry?", errmsg);
       ULONG btn = WinMessageBox(HWND_DESKTOP, hwnd, errmsg, NULL, 0, MB_YESNOCANCEL|MB_ERROR|MB_MOVEABLE);
       errmsg.reset();
       switch (btn)

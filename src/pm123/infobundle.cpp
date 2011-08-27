@@ -31,7 +31,7 @@
 #include "infobundle.h"
 #include "playableset.h"
 #include "playable.h"
-#include "dstring.h"
+#include "xstring_api.h"
 
 #include <stddef.h>
 #include <stdio.h>
@@ -118,9 +118,9 @@ void TechInfo::Assign(const volatile TECH_INFO& r)
 
 bool TechInfo::CmpAssign(const TECH_INFO& r)
 { return memcmpcpy(this, &r, offsetof(TECH_INFO, info)) != ~0U
-    | dstring_cmpassign(&info,    r.info.cdata())
-    | dstring_cmpassign(&format,  r.format.cdata())
-    | dstring_cmpassign(&decoder, r.decoder.cdata());
+    | xstring_cmpassign(&info,    r.info.cdata())
+    | xstring_cmpassign(&format,  r.format.cdata())
+    | xstring_cmpassign(&decoder, r.decoder.cdata());
 }
 
 
@@ -192,14 +192,14 @@ void MetaInfo::Assign(const volatile META_INFO& r)
 }
 
 bool MetaInfo::CmpAssign(const META_INFO& r)
-{ return dstring_cmpassign(&title,     r.title.cdata())
-       | dstring_cmpassign(&artist,    r.artist.cdata())
-       | dstring_cmpassign(&album,     r.album.cdata())
-       | dstring_cmpassign(&year,      r.year.cdata())
-       | dstring_cmpassign(&comment,   r.comment.cdata())
-       | dstring_cmpassign(&genre,     r.genre.cdata())
-       | dstring_cmpassign(&track,     r.track.cdata())
-       | dstring_cmpassign(&copyright, r.copyright.cdata())
+{ return xstring_cmpassign(&title,     r.title.cdata())
+       | xstring_cmpassign(&artist,    r.artist.cdata())
+       | xstring_cmpassign(&album,     r.album.cdata())
+       | xstring_cmpassign(&year,      r.year.cdata())
+       | xstring_cmpassign(&comment,   r.comment.cdata())
+       | xstring_cmpassign(&genre,     r.genre.cdata())
+       | xstring_cmpassign(&track,     r.track.cdata())
+       | xstring_cmpassign(&copyright, r.copyright.cdata())
        | memcmpcpy(&track_gain, &r.track_gain, sizeof *this - offsetof(META_INFO, track_gain)) != ~0U;
 }
 
@@ -234,7 +234,7 @@ void AttrInfo::Assign(const volatile ATTR_INFO& r)
 
 bool AttrInfo::CmpAssign(const ATTR_INFO& r)
 { bool ret = ploptions != r.ploptions
-           | dstring_cmpassign(&at, r.at.cdata());
+           | xstring_cmpassign(&at, r.at.cdata());
   ploptions = r.ploptions;
   return ret;
 }
@@ -338,9 +338,9 @@ void ItemInfo::Assign(const volatile ITEM_INFO& r)
 }
 
 bool ItemInfo::CmpAssign(const ITEM_INFO& r)
-{ bool ret = dstring_cmpassign(&alias, r.alias.cdata())
-           | dstring_cmpassign(&start, r.start.cdata())
-           | dstring_cmpassign(&stop,  r.stop.cdata())
+{ bool ret = xstring_cmpassign(&alias, r.alias.cdata())
+           | xstring_cmpassign(&start, r.start.cdata())
+           | xstring_cmpassign(&stop,  r.stop.cdata())
            | pregap  != r.pregap
            | postgap != r.postgap
            | gain    != r.gain;

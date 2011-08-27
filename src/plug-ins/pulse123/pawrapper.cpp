@@ -260,7 +260,7 @@ throw(PAContextException)
 
   Stream = pa_stream_new_with_proplist(context.GetContext(), name, ss, map, props);
   if (!Stream)
-    throw PAContextException(context.GetContext(), DSTRING().sprintf("Failed to initialize stream %s for context: %s", name, pa_strerror(pa_context_errno(context.GetContext()))));
+    throw PAContextException(context.GetContext(), xstring().sprintf("Failed to initialize stream %s for context: %s", name, pa_strerror(pa_context_errno(context.GetContext()))));
   pa_stream_set_state_callback(Stream, &PAStream::StateCB, this);
 }
 
@@ -341,7 +341,7 @@ throw(PAContextException)
 
   PAContext::Lock lock;
   if (pa_stream_connect_playback(Stream, device, &Attr, flags, volume, sync_stream) != 0)
-    throw PAStreamException(Stream, DSTRING().sprintf("Failed to connect playback stream %s", name));
+    throw PAStreamException(Stream, xstring().sprintf("Failed to connect playback stream %s", name));
 }
 
 /*void PASinkInput::WaitWritable()

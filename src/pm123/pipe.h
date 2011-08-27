@@ -32,9 +32,7 @@
 #ifndef  PIPE_H
 #define  PIPE_H
 
-#include <config.h>
 #include <stdlib.h>
-#include <cpp/xstring.h>
 
 
 /** Create main pipe with only one instance possible since these pipe
@@ -48,30 +46,6 @@ bool amp_pipe_check();
 
 /** Opens specified pipe and writes data to it. */
 bool amp_pipe_open_and_write(const char* pipename, const char* data, size_t size);
-
-
-/** Class to execute pipe commands with a local context. */
-class ACommandProcessor
-{protected: // working set
-  char*          Request;
-  xstringbuilder Reply;
-
- protected:
-  ACommandProcessor() {}
-  /// Executes the Command \c Request and return a value in \c Reply.
-  /// Note that \c Request is mutable. The referenced buffer content will be destroyed.
-  virtual void Exec() = 0;
- public:
-  virtual ~ACommandProcessor() {}
-  /// Executes the Command \a cmd and return a value in \a ret.
-  /// Note that \a cmd is mutable. The buffer content will be destroyed.
-  const char* Execute(char* cmd) { Request = cmd; Reply.clear(); Exec(); return Reply.cdata(); }
-  /// Same as above, but copies the command buffer first.
-  const char* Execute(const char* cmd);
-
-  /// Use this factory method to create instances.
-  static ACommandProcessor* Create();
-};
 
 #endif
 

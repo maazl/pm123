@@ -33,12 +33,13 @@
 #include <charset.h>
 #include <xio.h>
 #include <stdio.h>
+#include <ctype.h>
 
-/// Work-Around to avoid static initializers for DSTRING
+/// Work-Around to avoid static initializers for xstring
 /*
 template <const char C[]>
-const DSTRING& DSTRINGconst()
-{ static DSTRING value;
+const xstring& xstringconst()
+{ static xstring value;
   if (!value)
     value = C;
   return value;
@@ -54,7 +55,7 @@ class LSTReader : public PlaylistReader
 {public:
   LSTReader(const char* url, XFILE* source) : PlaylistReader(url, source) {}
   static LSTReader*         Sniffer(const char* url, XFILE* source);
-  virtual const DSTRING&    GetFormat() const;
+  virtual const xstring&    GetFormat() const;
  protected:
   virtual bool              ParseLine(char* line);
 };
@@ -63,7 +64,7 @@ class PLSReader : public PlaylistReader
 {public:
   PLSReader(const char* url, XFILE* source) : PlaylistReader(url, source) {}
   static PLSReader*         Sniffer(const char* url, XFILE* source);
-  virtual const DSTRING&    GetFormat() const;
+  virtual const xstring&    GetFormat() const;
  protected:
   virtual bool              ParseLine(char* line);
 };
@@ -72,7 +73,7 @@ class M3UReader : public PlaylistReader
 {public:
   M3UReader(const char* url, XFILE* source) : PlaylistReader(url, source) {}
   static M3UReader*         Sniffer(const char* url, XFILE* source);
-  virtual const DSTRING&    GetFormat() const;
+  virtual const xstring&    GetFormat() const;
  protected:
   virtual bool              ParseLine(char* line);
 };
@@ -84,7 +85,7 @@ class M3U8Reader : public M3UReader
  public:
   M3U8Reader(const char* url, XFILE* source)              : M3UReader(url, source) {}
   static M3U8Reader*        Sniffer(const char* url, XFILE* source);
-  virtual const DSTRING&    GetFormat() const;
+  virtual const xstring&    GetFormat() const;
  protected:
   virtual bool              ParseLine(char* line);
 };
@@ -200,8 +201,8 @@ PlaylistReader* PlaylistReader::SnifferFactory(const char* url, XFILE* source)
 
 /* class LSTReader */
 
-const DSTRING& LSTReader::GetFormat() const
-{ static const DSTRING format(EATYPE_PM123);
+const xstring& LSTReader::GetFormat() const
+{ static const xstring format(EATYPE_PM123);
   return format;
 }
 
@@ -316,8 +317,8 @@ bool LSTReader::ParseLine(char* line)
 
 /* class PLSReader */
 
-const DSTRING& PLSReader::GetFormat() const
-{ static const DSTRING format(EATYPE_WVISION);
+const xstring& PLSReader::GetFormat() const
+{ static const xstring format(EATYPE_WVISION);
   return format;
 }
 
@@ -357,8 +358,8 @@ bool PLSReader::ParseLine(char* line)
 
 /* class M3UReader */
 
-const DSTRING& M3UReader::GetFormat() const
-{ static const DSTRING format(EATYPE_WINAMP);
+const xstring& M3UReader::GetFormat() const
+{ static const xstring format(EATYPE_WINAMP);
   return format;
 }
 
@@ -402,8 +403,8 @@ bool M3UReader::ParseLine(char* line)
 
 /* class M3U8Reader */
 
-const DSTRING& M3U8Reader::GetFormat() const
-{ static const DSTRING format(EATYPE_WINAMPU);
+const xstring& M3U8Reader::GetFormat() const
+{ static const xstring format(EATYPE_WINAMPU);
   return format;
 }
 

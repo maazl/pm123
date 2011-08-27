@@ -41,7 +41,7 @@ class PlaylistWriter
 {public:
   /// Structure to hold all properties of a playlist item to save.
   struct Item
-  { DSTRING                 Url;
+  { xstring                 Url;
     const INFO_BUNDLE*      Info;
     int                     Valid;
     int                     Override;

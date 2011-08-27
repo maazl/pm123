@@ -73,14 +73,14 @@ class ID3
   /// Stream associated with filename, NULL = none
   XFILE*        XFile;
   /// Currently handled file name
-  DSTRING       Filename;
+  xstring       Filename;
   /// Last error text
-  DSTRING       LastError;
+  xstring       LastError;
 
  protected:
   ID3() : XFile(NULL) {}
  public:
-  ID3(const DSTRING& filename) : XFile(NULL), Filename(filename) {}
+  ID3(const xstring& filename) : XFile(NULL), Filename(filename) {}
   /// Open MPEG file. Returns 0 if it successfully opens the file.
   /// @return A nonzero return value indicates an error. A -1 return value
   /// indicates an unsupported format of the file.
@@ -88,7 +88,7 @@ class ID3
   /// Closes the MPEG file.
   void          Close();
   /// Get last error text.
-  const DSTRING& GetLastError() const { return LastError; }
+  const xstring& GetLastError() const { return LastError; }
 
   /// Read the ID3 tags of the current source and place the result in
   /// \a tagv1 and \a tagv2. Note that \a tagv1 is the tag structure itself,
@@ -104,7 +104,7 @@ class ID3
   /// filename in savename. This temporary file contains a copy of the file with
   /// the new tag information. You must replace the existing file by this one
   /// on your own. If the operation completed in place savename is empty. */
-  PLUGIN_RC     UpdateTags(ID3V1_TAG* tagv1, ID3V2_TAG* tagv2, DSTRING& savename);
+  PLUGIN_RC     UpdateTags(ID3V1_TAG* tagv1, ID3V2_TAG* tagv2, xstring& savename);
 };
 
 /** Class to extract all meta information from an MPEG audio file or stream.
@@ -144,7 +144,7 @@ class MPG123 : public ID3
  protected:
   MPG123();
  public:
-  MPG123(const DSTRING& filename);
+  MPG123(const xstring& filename);
   ~MPG123();
 
   /// Open MPEG file. Returns 0 if it successfully opens the file.
@@ -172,7 +172,7 @@ class MPG123 : public ID3
   /// of the active decoder instances if the header length changed.
   /// The function returns 0 on success or errno on error. Additionally the
   /// an error message is assigned to *errmsg if not NULL.
-  static DSTRING ReplaceFile(const char* srcfile, const char* dstfile);
+  static xstring ReplaceFile(const char* srcfile, const char* dstfile);
 };
 
 /** Full MPG audio decoder class.
@@ -181,7 +181,7 @@ class MPG123 : public ID3
 class Decoder : public MPG123
 {private:
   /// File name used to save stream data
-  DSTRING       Savename;
+  xstring       Savename;
 
  private:
   /// For internal use to sync the decoder thread.
@@ -228,7 +228,7 @@ class Decoder : public MPG123
   PLUGIN_RC     SetFast(DECFASTMODE fast);
   PLUGIN_RC     Jump(PM123_TIME pos);
 
-  PLUGIN_RC     Save(const DSTRING& savename);
+  PLUGIN_RC     Save(const xstring& savename);
 };
 
 

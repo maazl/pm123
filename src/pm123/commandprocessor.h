@@ -1,5 +1,5 @@
 /*
- * Copyright 2009-2010 M.Mueller
+ * Copyright 2008-2011 M.Mueller
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -26,49 +26,38 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef  DSTRING_H
-#define  DSTRING_H
+#ifndef  COMMANDPROCESSOR_H
+#define  COMMANDPROCESSOR_H
 
 #include <config.h>
-
-#include <format.h>
 #include <cpp/xstring.h>
 
-#include <stdarg.h>
 
+/** Class to execute pipe commands with a local context. */
+class ACommandProcessor
+{protected: // working set
+  char*          Request;
+  xstringbuilder Reply;
 
-/****************************************************************************
-*
-*  Public DSTRING API functions.
-*
-****************************************************************************/
+ private: // non-copyable
+  ACommandProcessor(const ACommandProcessor&);
+  void operator=(const ACommandProcessor&);
+ protected:
+  ACommandProcessor() {}
+  /// Executes the Command \c Request and return a value in \c Reply.
+  /// Note that \c Request is mutable. The referenced buffer content will be destroyed.
+  virtual void Exec() = 0;
+ public:
+  virtual ~ACommandProcessor() {}
+  /// Executes the Command \a cmd and return a value in \a ret.
+  /// Note that \a cmd is mutable. The buffer content will be destroyed.
+  const char* Execute(char* cmd) { Request = cmd; Reply.clear(); Exec(); return Reply.cdata(); }
+  /// Same as above, but copies the command buffer first.
+  const char* Execute(const char* cmd);
 
-const char* DLLENTRY dstring_create( const char* cstr );
-
-void DLLENTRY dstring_free( volatile DSTRING* dst );
-
-unsigned DLLENTRY dstring_length( const DSTRING* src );
-
-char DLLENTRY dstring_equal( const DSTRING* src1, const DSTRING* src2 );
-
-int DLLENTRY dstring_compare( const DSTRING* src1, const DSTRING* src2 );
-
-void DLLENTRY dstring_copy( volatile DSTRING* dst, const DSTRING* src );
-
-void DLLENTRY dstring_copy_safe( volatile DSTRING* dst, volatile const DSTRING* src );
-
-void DLLENTRY dstring_assign( volatile DSTRING* dst, const char* cstr );
-
-char DLLENTRY dstring_cmpassign( DSTRING* dst, const char* cstr );
-
-void DLLENTRY dstring_append( DSTRING* dst, const char* cstr );
-
-char* DLLENTRY dstring_allocate( DSTRING* dst, unsigned int len );
-
-void DLLENTRY dstring_sprintf( volatile DSTRING* dst, const char* fmt, ... );
-
-void DLLENTRY dstring_vsprintf( volatile DSTRING* dst, const char* fmt, va_list va );
-
+  /// Use this factory method to create instances.
+  static ACommandProcessor* Create();
+};
 
 #endif
 

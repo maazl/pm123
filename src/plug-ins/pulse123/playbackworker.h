@@ -64,7 +64,7 @@ class PlaybackWorker
   };
 
  private:
-  DSTRING            Server;
+  xstring            Server;
  private:
   PAContext          Context;
   PASampleSpec       SS;

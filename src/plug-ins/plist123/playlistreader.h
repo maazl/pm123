@@ -32,7 +32,6 @@
 #include <decoder_plug.h>
 #include <strutils.h>
 #include <xio.h>
-#include <cpp/xstring.h>
 
 #include <debuglog.h>
 
@@ -46,7 +45,7 @@ class PlaylistReader
   void*                     CbParam;
   int                       Count;
  protected: // State
-  DSTRING                   Url;
+  xstring                   Url;
   PHYS_INFO                 Phys;
   TECH_INFO                 Tech;
   OBJ_INFO                  Obj;
@@ -73,7 +72,7 @@ class PlaylistReader
    * @return Reader to handle the playlist or NULL if the file seems not to be supported.
    */
   static PlaylistReader*    SnifferFactory(const char* url, XFILE* source);
-  virtual const DSTRING&    GetFormat() const = 0;
+  virtual const xstring&    GetFormat() const = 0;
           int               GetCount() const  { return Count; }
   virtual bool              Parse(DECODER_INFO_ENUMERATION_CB cb, void* param);
   virtual                   ~PlaylistReader() { Create(); }

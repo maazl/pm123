@@ -25,6 +25,7 @@
 									<listOptionValue builtIn="false" value="_System"/>
 									<listOptionValue builtIn="false" value="INCL_PM=1"/>
 									<listOptionValue builtIn="false" value="INCL_DOS=1"/>
+									<listOptionValue builtIn="false" value="INCL_WIN=1"/>
 								</option>
 								<option id="gnu.c.compiler.option.include.paths.1934113892" name="Include paths (-I)" superClass="gnu.c.compiler.option.include.paths" valueType="includePath">
 									<listOptionValue builtIn="false" value="/data/devel/os2tk45/h"/>

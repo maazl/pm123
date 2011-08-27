@@ -52,9 +52,9 @@ typedef struct
 { int        samplerate; /* sampling rate in Hz, < 0 -> unknown */
   int        channels;   /* number of channels, < 0 -> unknown */
   unsigned   attributes; /* Bit vector of TECH_ATTRIBUTES */
-  DSTRING    info;       /* general technical information string */
-  DSTRING    format;     /* File format (if any) */
-  DSTRING    decoder;    /* Decoder name, filled by PM123 core */
+  xstring    info;       /* general technical information string */
+  xstring    format;     /* File format (if any) */
+  xstring    decoder;    /* Decoder name, filled by PM123 core */
 } TECH_INFO;
 #define TECH_INFO_INIT { -1, -1, TATTR_NONE, (const char*)NULL, (const char*)NULL, (const char*)NULL }
 
@@ -68,14 +68,14 @@ typedef struct
 
 /** Logical information about the data source */
 typedef struct
-{ DSTRING    title;      /* Use the dstring_* functions to manipulate these objects. */
-  DSTRING    artist;
-  DSTRING    album;
-  DSTRING    year;
-  DSTRING    comment;
-  DSTRING    genre;
-  DSTRING    track;
-  DSTRING    copyright;
+{ xstring    title;      /* Use the xstring_* functions to manipulate these objects. */
+  xstring    artist;
+  xstring    album;
+  xstring    year;
+  xstring    comment;
+  xstring    genre;
+  xstring    track;
+  xstring    copyright;
   float      track_gain; /* Defines Replay Gain values as specified at */
   float      track_peak; /* http://www.replaygain.org/ */
   float      album_gain;
@@ -98,7 +98,7 @@ typedef enum
 /** Additional attributes */
 typedef struct
 { unsigned   ploptions;  /* Playlist options, bit vector of PL_OPTIONS */
-  DSTRING    at;         /* Last playing position. */
+  xstring    at;         /* Last playing position. */
 } ATTR_INFO;
 #define ATTR_INFO_INIT { PLO_NONE, (const char*)NULL }
 
@@ -127,10 +127,10 @@ typedef struct
 /** @brief Info about a referenced item in a playlist.
  * @details This kind of information is only used in conjunction with DECODER_INFO_ENUMERATION_CB / DECODER_SAVE_ENUMERATION_CB. */
 typedef struct
-{ DSTRING    alias;      /* Alias name for a object reference or NULL on default. */
-  DSTRING    start;      /* Start location in the referenced object as PM123 location string.
+{ xstring    alias;      /* Alias name for a object reference or NULL on default. */
+  xstring    start;      /* Start location in the referenced object as PM123 location string.
                           * NULL = the beginning of the object. */
-  DSTRING    stop;       /* Stop location in the referenced object as PM123 location string.
+  xstring    stop;       /* Stop location in the referenced object as PM123 location string.
                           * NULL = until the end of the object. */
   float      pregap;     /* Gap before playing this item */
   float      postgap;    /* Gap after playing this item */

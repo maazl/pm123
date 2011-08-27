@@ -44,24 +44,24 @@
 class PAException
 {protected:
   int       Error;
-  DSTRING   Message;
+  xstring   Message;
  protected:
   PAException()                                 {}
  public:
   explicit PAException(int err)                 : Error(err) { if (err) Message = pa_strerror(err); }
-  PAException(int err, const DSTRING& message)  : Error(err), Message(message) {}
+  PAException(int err, const xstring& message)  : Error(err), Message(message) {}
   int            GetError() const               { return Error; }
-  const DSTRING& GetMessage() const             { return Message; }
+  const xstring& GetMessage() const             { return Message; }
 };
 
 class PAStateException : public PAException
 {public:
-  explicit PAStateException(const DSTRING& message)  : PAException(PA_ERR_BADSTATE, message) {}
+  explicit PAStateException(const xstring& message)  : PAException(PA_ERR_BADSTATE, message) {}
 };
 
 class PAInternalException : public PAException
 {public:
-  PAInternalException(const DSTRING& message)   : PAException(PA_ERR_INTERNAL, message) {}
+  PAInternalException(const xstring& message)   : PAException(PA_ERR_INTERNAL, message) {}
 };
 
 class PAContextException : public PAException
@@ -69,30 +69,30 @@ class PAContextException : public PAException
   PAContextException()                          {}
  public:
   explicit PAContextException(pa_context* c)    : PAException(pa_context_errno(c)) {}
-  PAContextException(pa_context* c, const DSTRING& message)
+  PAContextException(pa_context* c, const xstring& message)
                                                 : PAException(pa_context_errno(c), message) {}
-  PAContextException(int err, const DSTRING& message) : PAException(err, message) {}
+  PAContextException(int err, const xstring& message) : PAException(err, message) {}
 };
 
 class PAConnectException : public PAContextException
 {public:
-  PAConnectException(pa_context* c)             : PAContextException(c, DSTRING().sprintf("Failed to connect to server %s: %s", pa_context_get_server(c), pa_strerror(pa_context_errno(c)))) {}
-  PAConnectException(pa_context* c, int err)    : PAContextException(err, DSTRING().sprintf("Failed to connect to server %s: %s", pa_context_get_server(c), pa_strerror(err))) {}
-  //PAConnectException(int err, const DSTRING& message) : PAContextException(err, message) {}
+  PAConnectException(pa_context* c)             : PAContextException(c, xstring().sprintf("Failed to connect to server %s: %s", pa_context_get_server(c), pa_strerror(pa_context_errno(c)))) {}
+  PAConnectException(pa_context* c, int err)    : PAContextException(err, xstring().sprintf("Failed to connect to server %s: %s", pa_context_get_server(c), pa_strerror(err))) {}
+  //PAConnectException(int err, const xstring& message) : PAContextException(err, message) {}
 };
 
 class PAStreamException : public PAContextException
 {public:
   PAStreamException(pa_stream* s, const char* msg);
   PAStreamException(pa_stream* s, int err, const char* msg);
-  //PAStreamException(pa_stream* c, int err)      : PAContextException(err, DSTRING::sprintf("Failed to connect stream %s: %s", err, pa_strerror(err))) {}
+  //PAStreamException(pa_stream* c, int err)      : PAContextException(err, xstring::sprintf("Failed to connect stream %s: %s", err, pa_strerror(err))) {}
 };
 
 /*class PAStreamConnectException : public PAContextException
 {public:
-  PAStreamConnectException(pa_context* c)       : PAContextException(c, DSTRING::sprintf("Failed to connect stream %s: %s", pa_context_get_server(c), pa_strerror(pa_context_errno(c)))) {}
-  PAStreamConnectException(pa_context* c, int err) : PAContextException(err, DSTRING::sprintf("Failed to connect stream %s: %s", err, pa_strerror(err))) {}
-  //PAConnectException(int err, const DSTRING& message) : PAContextException(err, message) {}
+  PAStreamConnectException(pa_context* c)       : PAContextException(c, xstring::sprintf("Failed to connect stream %s: %s", pa_context_get_server(c), pa_strerror(pa_context_errno(c)))) {}
+  PAStreamConnectException(pa_context* c, int err) : PAContextException(err, xstring::sprintf("Failed to connect stream %s: %s", err, pa_strerror(err))) {}
+  //PAConnectException(int err, const xstring& message) : PAContextException(err, message) {}
 };*/
 
 

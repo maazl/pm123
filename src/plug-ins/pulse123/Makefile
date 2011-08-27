@@ -9,7 +9,7 @@ TARGET   = pulse123.dll
 !include $(TOPDIR)\config\makerules
 
 OBJECTS  = pulse123$(CO) playbackworker$(CO) pawrapper$(CO)
-LIBS     = $(TOPDIR)\utils\utilfct$(LBO) $(TOPDIR)\utils\cpp\cpputil$(LBO)
+LIBS     = $(TOPDIR)\utils\utilfct$(LBO)
 LIBS     = $(LIBS) $(TOPDIR)\snd123\src\sndfile$(LBO)
 LIBS     = $(LIBS) $(TOPDIR)\snd123\src\G72x\g72x$(LBO)
 LIBS     = $(LIBS) $(TOPDIR)\snd123\src\GSM610\gsm610$(LBO)
@@ -18,6 +18,7 @@ LIBS     = $(LIBS) $(TOPDIR)\pulseaudio\pulsecore\libpulsecore$(LBO)
 LIBS     = $(LIBS) $(TOPDIR)\pulseaudio\pulse\libpulse$(LBO)
 LIBS     = $(LIBS) $(TOPDIR)\fft123\fft123$(LBI)
 LIBS     = $(LIBS) $(TOPDIR)\xio123\xio123$(LBI)
+LIBS     = $(LIBS) $(TOPDIR)\utils\cpp\cpputil$(LBO)
 DEF      = pulse123$(LDEF_SUFFX)
 
 $(TARGET): $(OBJECTS) $(DEF) $(LIBS)

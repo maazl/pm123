@@ -31,7 +31,6 @@
 #define INCL_BASE
 #include "playable.h"
 #include "properties.h"
-#include "dstring.h"
 #include "glue.h"
 #include "waitinfo.h"
 #include "location.h"

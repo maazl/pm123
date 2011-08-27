@@ -65,9 +65,9 @@ APSZ_list* amp_file_types(DECODER_TYPE flagsreq);
 /** Search for a decoder that supports the specified file type.
  * @param flags Only search for decoders that have this flags.
  * @param filter File type to search for. Syntax: "EA Type (File mask)".
- * @return Number of the matching decoder or -1 of none is found.
+ * @return Name of the matching decoder or NULL of none is found.
  */
-int amp_decoder_by_type(DECODER_TYPE flagsreq, const char* filter, xstring& format);
+xstring amp_decoder_by_type(DECODER_TYPE flagsreq, const char* filter, xstring& format);
 
 /** This function creates and displays the file dialog
  * and returns the user's selection or selections.

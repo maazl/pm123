@@ -191,7 +191,7 @@ class InfoDialog
    private:
     // Dialog procedure
     HWND            SetEFText(USHORT id, Fields fld, const char* text);
-    inline bool     FetchField(USHORT idcb, USHORT idef, DSTRING& field);
+    inline bool     FetchField(USHORT idcb, USHORT idef, xstring& field);
     virtual MRESULT DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2);
    public:
     PageMetaInfo(InfoDialog& parent) : PageBase(parent, DLG_METAINFO, "Meta info") {}
@@ -341,9 +341,17 @@ class PlayableInstanceInfoDialog
 
 
 // Implementations
+#ifdef DEBUG_LOG
+static xstring debug_dump(const AInfoDialog::KeyType& key)
+{ xstringbuilder sb;
+  for (size_t i = 0; i < key.size(); ++i)
+    sb.appendf(sb.length() ? ", %p" : "%p", key[i]);
+  return sb;
+}
+#endif
 
 InfoDialog* InfoDialog::Factory(const KeyType& key)
-{ DEBUGLOG(("InfoDialog::Factory({%u, %s})\n", key.size(), key.debug_dump().cdata()));
+{ DEBUGLOG(("InfoDialog::Factory({%u, %s})\n", key.size(), debug_dump(key).cdata()));
   InfoDialog* ret;
   #ifdef DEBUG // Check content
   if (key.Parent)
@@ -555,7 +563,7 @@ HWND InfoDialog::PageMetaInfo::SetEFText(USHORT id, Fields fld, const char* text
   return ctrl;
 }
 
-inline bool InfoDialog::PageMetaInfo::FetchField(USHORT idcb, USHORT idef, DSTRING& field)
+inline bool InfoDialog::PageMetaInfo::FetchField(USHORT idcb, USHORT idef, xstring& field)
 { if (SHORT1FROMMR(WinQueryButtonCheckstate(GetHwnd(), idcb)))
   { field = WinQueryDlgItemXText(GetHwnd(), idef);
     if (!*field)
@@ -797,7 +805,7 @@ InfoDialog::InfoDialog(const KeyType& key)
 : AInfoDialog(DLG_INFO, NULLHANDLE)
 , Key(key)
 { DEBUGLOG(("InfoDialog(%p)::InfoDialog({%u, %s}) - {%u, %s}\n", this,
-    key.size(), key.debug_dump().cdata(), Key.size(), Key.debug_dump().cdata()));
+    key.size(), debug_dump(key).cdata(), Key.size(), debug_dump(Key).cdata()));
   Pages.append() = new PageMetaInfo(*this);
   Pages.append() = new PageTechInfo(*this);
 }
@@ -959,7 +967,7 @@ void SingleInfoDialog::ContentChangeEvent(const PlayableChangeArgs& args)
 MultipleInfoDialog::MultipleInfoDialog(const KeyType& key)
 : InfoDialog(key),
   DataCacheValid(false)
-{ DEBUGLOG(("MultipleInfoDialog(%p)::MultipleInfoDialog({%u %s})\n", this, key.size(), key.debug_dump().cdata()));
+{ DEBUGLOG(("MultipleInfoDialog(%p)::MultipleInfoDialog({%u %s})\n", this, key.size(), debug_dump(key).cdata()));
 }
 
 MRESULT MultipleInfoDialog::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
@@ -974,7 +982,7 @@ MRESULT MultipleInfoDialog::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
 }
 
 const struct InfoDialog::Data& MultipleInfoDialog::GetData()
-{ DEBUGLOG(("MultipleInfoDialog(%p)::GetData() %u - %u %s\n", this, DataCacheValid, Key.size(), Key.debug_dump().cdata()));
+{ DEBUGLOG(("MultipleInfoDialog(%p)::GetData() %u - %u %s\n", this, DataCacheValid, Key.size(), debug_dump(Key).cdata()));
   if (!DataCacheValid)
   { // Initial Data
     Playable* pp = &Key[0]->GetPlayable();

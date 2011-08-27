@@ -32,6 +32,8 @@
 #define INCL_ERRORS
 #include "configuration.h"
 #include "plugman.h"
+#include "visual.h"
+#include "123_util.h"
 #include "pm123.h"
 #include "dialog.h"
 #include <inimacro.h>
@@ -52,7 +54,6 @@ const bool ini_query_xstring(HINI hini, const char* app, const char* key, xstrin
   }
   return false;
 }
-
 
 // The properties!
 const amp_cfg Cfg::Default =
@@ -96,6 +97,19 @@ const amp_cfg Cfg::Default =
 , 30
 , 500
 , true
+
+, "oggplay.dll?enabled=true&filetypes=OGG\n"
+  "mpg123.dll?enabled=true&filetypes=MP1;MP2;MP3\n"
+  "wavplay.dll?enabled=true&filetypes=Digital Audio\n"
+  "plist123.dll?enabled=true&filetypes=Playlist\n"
+  "cddaplay.dll?enabled=true\n"
+  "os2rec.dll?enabled=true\n"
+, "realeq.dll?enabled=true\n"
+  "logvolum.dll?enabled=false\n"
+, "os2audio.dll?enabled=true\n"
+  "wavout.dll?enabled=false\n"
+  "pulse123.dll?enabled=false\n"
+, ""
   // state
 , ""
 , ""
@@ -106,21 +120,52 @@ const amp_cfg Cfg::Default =
 , false
 , true // add recursive
 , true // save relative
-  //{ 0, 0,0, 1,1, 0, 0, 0, 0 }
 };
 
 Mutex Cfg::Mtx;
 amp_cfg Cfg::Current = Cfg::Default;
+event<CfgValidateArgs> Cfg::Validate;
 event<const CfgChangeArgs> Cfg::Change;
 HINI Cfg::HIni;
 
 
+void Cfg::LoadPlugins(const char* key, xstring amp_cfg::*cfg, PLUGIN_TYPE type)
+{ PluginList list(type);
+  if (ini_query_xstring(HIni, INI_SECTION, key, Current.*cfg))
+  { xstring err = list.Deserialize(Current.*cfg);
+    if (err)
+    { pm123_display_error(err);
+      if (!list.size())
+        goto fail;
+    }
+  } else
+  {fail:
+    list.LoadDefaults();
+  }
+  Plugin::SetPluginList(list);
+}
+
+void Cfg::SavePlugins(const char* key, xstring amp_cfg::*cfg, PLUGIN_TYPE type)
+{
+  PluginList list(type);
+  Plugin::GetPlugins(list, false);
+  // do not save skinned visuals
+  if (type == PLUGIN_VISUAL)
+  { const int_ptr<Plugin>* ppp = list.begin();
+    while (ppp != list.end())
+      if (((Visual&)**ppp).GetProperties().skin)
+        list.erase(ppp);
+      else
+        ++ppp;
+  }
+  ini_write_xstring(HIni, INI_SECTION, key, Current.*cfg = list.Serialize());
+}
+
 void Cfg::LoadIni()
 {
   xstring tmp;
+  // We are not yet multi-threaded, so access is not serialized.
   amp_cfg& cfg = Current;
-
-  Mutex::Lock lock(Mtx);
 
   load_ini_int(HIni, cfg.playonload);
   load_ini_int(HIni, cfg.autouse);
@@ -171,75 +216,72 @@ void Cfg::LoadIni()
   load_ini_xstring(HIni, cfg.auth);
   load_ini_xstring(HIni, cfg.defskin);
 
-  if (!ini_query_xstring(HIni, INI_SECTION, "decoders_list", tmp) || Decoders.Deserialize(tmp) == PluginList::RC_Error)
-    Decoders.LoadDefaults();
-  if (!ini_query_xstring(HIni, INI_SECTION, "outputs_list", tmp) || Outputs.Deserialize(tmp) == PluginList::RC_Error)
-    Outputs.LoadDefaults();
-  if (!ini_query_xstring(HIni, INI_SECTION, "filters_list", tmp) || Filters.Deserialize(tmp) == PluginList::RC_Error)
-    Filters.LoadDefaults();
-  if (!ini_query_xstring(HIni, INI_SECTION, "visuals_list", tmp) || Visuals.Deserialize(tmp) == PluginList::RC_Error)
-    Visuals.LoadDefaults();
+  LoadPlugins("decoders_list", &amp_cfg::decoders_list, PLUGIN_DECODER);
+  LoadPlugins("outputs_list",  &amp_cfg::outputs_list,  PLUGIN_OUTPUT);
+  LoadPlugins("filters_list",  &amp_cfg::filters_list,  PLUGIN_FILTER);
+  LoadPlugins("visuals_list",  &amp_cfg::visuals_list,  PLUGIN_VISUAL);
 }
 
 void Cfg::SaveIni()
 {
   const amp_cfg& cfg = Current;
 
-  Mutex::Lock lock(Mtx);
+  { Mutex::Lock lock(Mtx);
 
-  save_ini_bool ( HIni, cfg.playonload );
-  save_ini_bool ( HIni, cfg.autouse );
-  save_ini_bool ( HIni, cfg.retainonexit );
-  save_ini_bool ( HIni, cfg.retainonstop );
-  save_ini_bool ( HIni, cfg.restartonstart );
-  save_ini_value( HIni, cfg.altnavig );
-  save_ini_bool ( HIni, cfg.autoturnaround );
-  save_ini_bool ( HIni, cfg.recurse_dnd );
-  save_ini_bool ( HIni, cfg.sort_folders );
-  save_ini_bool ( HIni, cfg.folders_first );
-  save_ini_bool ( HIni, cfg.append_dnd );
-  save_ini_bool ( HIni, cfg.append_cmd );
-  save_ini_bool ( HIni, cfg.queue_mode );
-  save_ini_value( HIni, cfg.num_workers );
-  save_ini_value( HIni, cfg.num_dlg_workers );
-  save_ini_value( HIni, cfg.mode );
-  save_ini_value( HIni, cfg.font );
-  save_ini_bool ( HIni, cfg.floatontop );
-  save_ini_value( HIni, cfg.scroll );
-  save_ini_value( HIni, cfg.viewmode );
-  save_ini_value( HIni, cfg.max_recall );
-  save_ini_value( HIni, cfg.buff_wait );
-  save_ini_value( HIni, cfg.buff_size );
-  save_ini_value( HIni, cfg.buff_fill );
-  save_ini_value( HIni, cfg.conn_timeout );
-  save_ini_xstring( HIni, cfg.pipe_name );
-  save_ini_bool ( HIni, cfg.add_recursive );
-  save_ini_bool ( HIni, cfg.save_relative );
-  save_ini_bool ( HIni, cfg.show_playlist );
-  save_ini_bool ( HIni, cfg.show_bmarks );
-  save_ini_bool ( HIni, cfg.show_plman );
-  save_ini_bool ( HIni, cfg.dock_windows );
-  save_ini_value( HIni, cfg.dock_margin );
-  save_ini_bool ( HIni, cfg.win_pos_by_obj );
-  save_ini_value( HIni, cfg.win_pos_max_age );
-  save_ini_value( HIni, cfg.insp_autorefresh );
-  save_ini_bool ( HIni, cfg.insp_autorefresh_on );
-  save_ini_bool ( HIni, cfg.font_skinned );
-  save_ini_value( HIni, cfg.font_attrs );
-  save_ini_value( HIni, cfg.font_size );
-  //save_ini_value( HIni, cfg.main );
+    save_ini_bool (HIni, cfg.playonload);
+    save_ini_bool (HIni, cfg.autouse);
+    save_ini_bool (HIni, cfg.retainonexit);
+    save_ini_bool (HIni, cfg.retainonstop);
+    save_ini_bool (HIni, cfg.restartonstart);
+    save_ini_value(HIni, cfg.altnavig);
+    save_ini_bool (HIni, cfg.autoturnaround);
+    save_ini_bool (HIni, cfg.recurse_dnd);
+    save_ini_bool (HIni, cfg.sort_folders);
+    save_ini_bool (HIni, cfg.folders_first);
+    save_ini_bool (HIni, cfg.append_dnd);
+    save_ini_bool (HIni, cfg.append_cmd);
+    save_ini_bool (HIni, cfg.queue_mode);
+    save_ini_value(HIni, cfg.num_workers);
+    save_ini_value(HIni, cfg.num_dlg_workers);
+    save_ini_value(HIni, cfg.mode);
+    save_ini_value(HIni, cfg.font);
+    save_ini_bool (HIni, cfg.floatontop);
+    save_ini_value(HIni, cfg.scroll);
+    save_ini_value(HIni, cfg.viewmode);
+    save_ini_value(HIni, cfg.max_recall);
+    save_ini_value(HIni, cfg.buff_wait);
+    save_ini_value(HIni, cfg.buff_size);
+    save_ini_value(HIni, cfg.buff_fill);
+    save_ini_value(HIni, cfg.conn_timeout);
+    save_ini_xstring(HIni, cfg.pipe_name);
+    save_ini_bool (HIni, cfg.add_recursive);
+    save_ini_bool (HIni, cfg.save_relative);
+    save_ini_bool (HIni, cfg.show_playlist);
+    save_ini_bool (HIni, cfg.show_bmarks);
+    save_ini_bool (HIni, cfg.show_plman);
+    save_ini_bool (HIni, cfg.dock_windows);
+    save_ini_value(HIni, cfg.dock_margin);
+    save_ini_bool (HIni, cfg.win_pos_by_obj);
+    save_ini_value(HIni, cfg.win_pos_max_age);
+    save_ini_value(HIni, cfg.insp_autorefresh);
+    save_ini_bool (HIni, cfg.insp_autorefresh_on);
+    save_ini_bool (HIni, cfg.font_skinned);
+    save_ini_value(HIni, cfg.font_attrs);
+    save_ini_value(HIni, cfg.font_size);
+    //save_ini_value(HIni, cfg.main );
 
-  save_ini_xstring( HIni, cfg.filedir );
-  save_ini_xstring( HIni, cfg.listdir );
-  save_ini_xstring( HIni, cfg.savedir );
-  save_ini_xstring( HIni, cfg.proxy );
-  save_ini_xstring( HIni, cfg.auth );
-  save_ini_xstring( HIni, cfg.defskin );
+    save_ini_xstring(HIni, cfg.filedir);
+    save_ini_xstring(HIni, cfg.listdir);
+    save_ini_xstring(HIni, cfg.savedir);
+    save_ini_xstring(HIni, cfg.proxy);
+    save_ini_xstring(HIni, cfg.auth);
+    save_ini_xstring(HIni, cfg.defskin);
 
-  ini_write_xstring(HIni, INI_SECTION, "decoders_list", Decoders.Serialize());
-  ini_write_xstring(HIni, INI_SECTION, "outputs_list",  Outputs.Serialize());
-  ini_write_xstring(HIni, INI_SECTION, "filters_list",  Filters.Serialize());
-  ini_write_xstring(HIni, INI_SECTION, "visuals_list",  Visuals.Serialize());
+    SavePlugins("decoders_list", &amp_cfg::decoders_list, PLUGIN_DECODER);
+    SavePlugins("outputs_list",  &amp_cfg::outputs_list,  PLUGIN_OUTPUT);
+    SavePlugins("filters_list",  &amp_cfg::filters_list,  PLUGIN_FILTER);
+    SavePlugins("visuals_list",  &amp_cfg::visuals_list,  PLUGIN_VISUAL);
+  }
 
   CleanIniPositions();
 }
@@ -447,11 +489,20 @@ void Cfg::MigrateIni(const char* inipath, const char* app)
   close_ini(hini);
 }
 
-void Cfg::Set(const amp_cfg& settings)
+bool Cfg::Set(amp_cfg& settings, xstring* error)
 { Mutex::Lock lock(Mtx);
-  amp_cfg old = Current;
-  Current = settings;
-  Change(CfgChangeArgs(Current, old));
+  { CfgValidateArgs val(settings, Current);
+    Validate(val);
+    if (error)
+      *error = val.Message;
+    if (val.Fail)
+      return false;
+  }
+  { amp_cfg old = Current;
+    Current = settings;
+    Change(CfgChangeArgs(Current, old));
+  }
+  return true;
 }
 
 /* Initialize properties, called from main. */

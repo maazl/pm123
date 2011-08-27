@@ -36,6 +36,8 @@
 #include "configuration.h"
 #include "dialog.h"
 #include "glue.h"
+#include "plugman.h"
+#include "decoder.h"
 #include <utilfct.h>
 #include <snprintf.h>
 #include <fileutil.h>
@@ -136,23 +138,26 @@ APSZ_list* amp_file_types(DECODER_TYPE flagsreq)
   return result; 
 }
 
-int amp_decoder_by_type(DECODER_TYPE flagsreq, const char* filter, xstring& format)
+xstring amp_decoder_by_type(DECODER_TYPE flagsreq, const char* filter, xstring& format)
 { DEBUGLOG(("amp_decoder_by_type(%x, %s, )\n", flagsreq, filter));
-  int decoder = -1;
-  if (filter && *filter)
-  { // Parse filter string
-    size_t typelen = strlen(filter);
-    { const char* cp = strchr(filter, '(');
-      if (cp)
-      { typelen = cp - filter;
-        while (typelen && isblank(filter[typelen-1]))
-          --typelen;
-      }
-    }
-    DEBUGLOG(("amp_decoder_by_type %i (->%x)\n", typelen, filter[typelen-1]));
+  if (!filter || !*filter)
+    return xstring();
 
-    //int matchlevel = 0; // 0 => no match, 1 => Category match, 2 => Exact match
-    sco_ptr<IFileTypesEnumerator> en(dec_filetypes(flagsreq));
+  // Parse filter string
+  size_t typelen = strlen(filter);
+  { const char* cp = strchr(filter, '(');
+    if (cp)
+    { typelen = cp - filter;
+      while (typelen && isblank(filter[typelen-1]))
+        --typelen;
+    }
+  }
+  DEBUGLOG(("amp_decoder_by_type %i (->%x)\n", typelen, filter[typelen-1]));
+
+  //int matchlevel = 0; // 0 => no match, 1 => Category match, 2 => Exact match
+  int_ptr<Decoder> decoder;
+  //Mutex::Lock lock(PluginMtx);
+  { sco_ptr<IFileTypesEnumerator> en(dec_filetypes(flagsreq));
     while (en->Next())
     { const DECODER_FILETYPE* ft = en->GetCurrent();
       DEBUGLOG(("amp_decoder_by_type %s %s %s\n", ft->eatype, ft->category, ft->extension));
@@ -160,7 +165,7 @@ int amp_decoder_by_type(DECODER_TYPE flagsreq, const char* filter, xstring& form
       if (strnicmp(ft->eatype, filter, typelen) == 0)
       { decoder = en->GetDecoder();
         format = ft->eatype;
-        goto end;
+        break;
       }
       // Category match?
       if (strnicmp(ft->category, filter, typelen) == 0)
@@ -169,121 +174,9 @@ int amp_decoder_by_type(DECODER_TYPE flagsreq, const char* filter, xstring& form
       }
     }
   }
- end:
-  DEBUGLOG(("amp_decoder_by_type: %i %s\n", decoder, format.cdata()));
-  return decoder;
+  DEBUGLOG(("amp_decoder_by_type: %i %s\n", decoder->ModRef.Key.cdata(), format.cdata()));
+  return decoder >= 0 ? decoder->ModRef.Key : xstring();
 }
-
-
-/*static BOOL init_done = FALSE;
-static SWP  init_file_dlg;
-static SWP  init_text_filename;
-static SWP  init_edit_filename;
-static SWP  init_text_filter;
-static SWP  init_cbox_filter;
-static SWP  init_text_drive;
-static SWP  init_text_files;
-static SWP  init_cbox_drive;
-static SWP  init_text_directory;
-static SWP  init_lbox_directory;
-static SWP  init_lbox_files;
-static SWP  init_cbox_recurse;
-static SWP  init_cbox_relative;*/
-
-/* Resizes the file dialog controls. */
-/*static void
-amp_file_dlg_resize( HWND hwnd, SHORT cx, SHORT cy )
-{
-  SWP swp[12];
-  memset( &swp, 0, sizeof( swp ));
-
-  swp[ 0].hwnd = WinWindowFromID( hwnd, DID_FILENAME_TXT );
-  swp[ 0].x    = init_text_filename.x;
-  swp[ 0].y    = cy - init_file_dlg.cy + init_text_filename.y;
-  swp[ 0].cy   = init_text_filename.cy;
-  swp[ 0].cx   = cx - init_file_dlg.cx + init_text_filename.cx;
-  swp[ 0].fl   = SWP_MOVE | SWP_SIZE;
-
-  swp[ 1].hwnd = WinWindowFromID( hwnd, DID_FILENAME_ED );
-  swp[ 1].x    = init_edit_filename.x  + 3;
-  swp[ 1].y    = cy - init_file_dlg.cy + init_edit_filename.y  + 3;
-  swp[ 1].cy   = init_edit_filename.cy - 6;
-  swp[ 1].cx   = cx - init_file_dlg.cx + init_edit_filename.cx - 6;
-  swp[ 1].fl   = SWP_MOVE | SWP_SIZE;
-
-  swp[ 2].hwnd = WinWindowFromID( hwnd, DID_FILTER_TXT );
-  swp[ 2].x    = init_text_filter.x;
-  swp[ 2].y    = cy - init_file_dlg.cy + init_text_filter.y;
-  swp[ 2].cy   = init_text_filter.cy;
-  swp[ 2].cx   = cx - init_file_dlg.cx + init_text_filter.cx;
-  swp[ 2].fl   = SWP_MOVE | SWP_SIZE;
-
-  swp[ 3].hwnd = WinWindowFromID( hwnd, DID_FILTER_CB );
-  swp[ 3].x    = init_cbox_filter.x;
-  swp[ 3].y    = cy - init_file_dlg.cy + init_cbox_filter.y;
-  swp[ 3].cy   = init_cbox_filter.cy;
-  swp[ 3].cx   = cx - init_file_dlg.cx + init_cbox_filter.cx;
-  swp[ 3].fl   = SWP_MOVE | SWP_SIZE;
-
-  swp[ 4].hwnd = WinWindowFromID( hwnd, DID_DRIVE_TXT );
-  swp[ 4].x    = init_text_drive.x;
-  swp[ 4].y    = cy - init_file_dlg.cy + init_text_drive.y;
-  swp[ 4].cy   = init_text_drive.cy;
-  swp[ 4].cx   = (LONG)(init_text_drive.cx * ((float)cx / init_file_dlg.cx ));
-  swp[ 4].fl   = SWP_MOVE | SWP_SIZE;
-
-  swp[ 5].hwnd = WinWindowFromID( hwnd, DID_FILES_TXT );
-  swp[ 5].x    = swp[4].x + swp[4].cx  + init_text_files.x - init_text_drive.x - init_text_drive.cx;
-  swp[ 5].y    = cy - init_file_dlg.cy + init_text_files.y;
-  swp[ 5].cy   = init_text_files.cy;
-  swp[ 5].cx   = cx - swp[5].x - init_file_dlg.cx + init_text_files.cx + init_text_files.x;
-  swp[ 5].fl   = SWP_MOVE | SWP_SIZE;
-
-  swp[ 6].hwnd = WinWindowFromID( hwnd, DID_DRIVE_CB );
-  swp[ 6].x    = init_cbox_drive.x;
-  swp[ 6].y    = cy - init_file_dlg.cy + init_cbox_drive.y;
-  swp[ 6].cy   = init_cbox_drive.cy;
-  swp[ 6].cx   = (LONG)(init_cbox_drive.cx * ((float)cx / init_file_dlg.cx ));
-  swp[ 6].fl   = SWP_MOVE | SWP_SIZE;
-
-  swp[ 7].hwnd = WinWindowFromID( hwnd, DID_DIRECTORY_TXT );
-  swp[ 7].x    = init_text_directory.x;
-  swp[ 7].y    = cy - init_file_dlg.cy + init_text_directory.y;
-  swp[ 7].cy   = init_text_directory.cy;
-  swp[ 7].cx   = (LONG)(init_text_directory.cx * ((float)cx / init_file_dlg.cx ));
-  swp[ 7].fl   = SWP_MOVE | SWP_SIZE;
-
-  swp[ 8].hwnd = WinWindowFromID( hwnd, DID_DIRECTORY_LB );
-  swp[ 8].x    = init_lbox_directory.x;
-  swp[ 8].y    = init_lbox_directory.y;
-  swp[ 8].cy   = cy - swp[8].y - init_file_dlg.cy + init_lbox_directory.cy + init_lbox_directory.y;
-  swp[ 8].cx   = (LONG)(init_lbox_directory.cx * ((float)cx / init_file_dlg.cx ));
-  swp[ 8].fl   = SWP_MOVE | SWP_SIZE;
-
-  swp[ 9].hwnd = WinWindowFromID( hwnd, DID_FILES_LB );
-  swp[ 9].x    = swp[8].x + swp[8].cx  + init_lbox_files.x - init_lbox_directory.x - init_lbox_directory.cx;
-  swp[ 9].y    = init_lbox_files.y;
-  swp[ 9].cy   = cy - swp[9].y - init_file_dlg.cy + init_lbox_files.cy + init_lbox_files.y;
-  swp[ 9].cx   = cx - swp[9].x - init_file_dlg.cx + init_lbox_files.cx + init_lbox_files.x;
-  swp[ 9].fl   = SWP_MOVE | SWP_SIZE;
-
-  swp[10].hwnd = WinWindowFromID( hwnd, CB_RELATIVE );
-  swp[10].x    = init_cbox_relative.x;
-  swp[10].y    = init_cbox_relative.y;
-  swp[10].cy   = init_cbox_relative.cy;
-  swp[10].cx   = cx - init_file_dlg.cx + init_cbox_relative.cx;
-  swp[10].fl   = SWP_MOVE | SWP_SIZE;
-
-  swp[11].hwnd = WinWindowFromID( hwnd, CB_RECURSE );
-  swp[11].x    = init_cbox_recurse.x;
-  swp[11].y    = init_cbox_recurse.y;;
-  swp[11].cy   = init_cbox_recurse.cy;
-  swp[11].cx   = cx - init_file_dlg.cx + init_cbox_recurse.cx;
-  swp[11].fl   = SWP_MOVE | SWP_SIZE;
-
-  WinSetMultWindowPos( WinQueryAnchorBlock( hwnd ), swp,
-                                            sizeof( swp ) / sizeof( swp[0] ));
-}*/
 
 /* Default dialog procedure for the file dialog. */
 static MRESULT EXPENTRY
@@ -296,26 +189,6 @@ amp_file_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
   switch( msg )
   {
     case WM_INITDLG:
-      /*// At the first activation of the first file dialog it is necessary to
-      // save its layout. In the further it will be used as a template
-      // at formatting all subsequent dialogues.
-      if( !init_done ) {
-        WinQueryWindowPos( hwnd, &init_file_dlg );
-        WinQueryWindowPos( WinWindowFromID( hwnd, DID_FILENAME_TXT  ), &init_text_filename  );
-        WinQueryWindowPos( WinWindowFromID( hwnd, DID_FILENAME_ED   ), &init_edit_filename  );
-        WinQueryWindowPos( WinWindowFromID( hwnd, DID_FILTER_TXT    ), &init_text_filter    );
-        WinQueryWindowPos( WinWindowFromID( hwnd, DID_FILTER_CB     ), &init_cbox_filter    );
-        WinQueryWindowPos( WinWindowFromID( hwnd, DID_DRIVE_TXT     ), &init_text_drive     );
-        WinQueryWindowPos( WinWindowFromID( hwnd, DID_DRIVE_CB      ), &init_cbox_drive     );
-        WinQueryWindowPos( WinWindowFromID( hwnd, DID_FILES_TXT     ), &init_text_files     );
-        WinQueryWindowPos( WinWindowFromID( hwnd, DID_DIRECTORY_TXT ), &init_text_directory );
-        WinQueryWindowPos( WinWindowFromID( hwnd, DID_DIRECTORY_LB  ), &init_lbox_directory );
-        WinQueryWindowPos( WinWindowFromID( hwnd, DID_FILES_LB      ), &init_lbox_files     );
-        WinQueryWindowPos( WinWindowFromID( hwnd, CB_RECURSE        ), &init_cbox_recurse   );
-        WinQueryWindowPos( WinWindowFromID( hwnd, CB_RELATIVE       ), &init_cbox_relative  );
-        init_done = TRUE;
-      }*/
-
       if( filedialog && !(filedialog->ulUser & FDU_RECURSEBTN )) {
         WinShowWindow( WinWindowFromID( hwnd, CB_RECURSE ), FALSE );
       } else {
@@ -349,7 +222,6 @@ amp_file_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
         if (pswp->fl & SWP_SIZE)
           dlg_do_resize(hwnd, pswp, pswp+1);
       }
-      //amp_file_dlg_resize( hwnd, ((PSWP)mp1)[0].cx, ((PSWP)mp1)[0].cy );
       break;
 
     case WM_CONTROL:

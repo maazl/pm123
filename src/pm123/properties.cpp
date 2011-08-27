@@ -41,7 +41,8 @@
 #include "controller.h"
 #include "copyright.h"
 #include "plugman.h"
-#include "plugman_base.h"
+#include "decoder.h"
+#include "visual.h"
 #include "123_util.h"
 #include "pm123.h"
 #include <utilfct.h>
@@ -53,11 +54,10 @@
 class PropertyDialog : public NotebookDialogBase
 {public:
   enum
-  { CFG_REFRESH_LIST = WM_USER+1
-  , CFG_REFRESH_INFO = WM_USER+2
-  , CFG_GLOB_BUTTON  = WM_USER+3
-  , CFG_CHANGE       = WM_USER+5
-  , CFG_SAVE         = WM_USER+6
+  { CFG_REFRESH      = WM_USER+1 // /
+  , CFG_GLOB_BUTTON  = WM_USER+3 // Button-ID
+  , CFG_CHANGE       = WM_USER+5 // &const amp_cfg
+  , CFG_SAVE         = WM_USER+6 // &amp_cfg
   };
 
  private:
@@ -100,61 +100,37 @@ class PropertyDialog : public NotebookDialogBase
    protected:
     virtual MRESULT DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2);
   };
-  class PluginPageBase : public PageBase
+  class PluginPage : public PageBase
   {protected: // Configuration
-    PluginList*const List;    // List to visualize
-    PluginList*const List2;   // Secondary List for visual Plug-Ins
-    const int    RecentLevel; // Most recent interface level
-    enum CtrlFlags            // Cotrol flags
-    { CF_None    = 0,
-      CF_List1   = 1  // List is of type PluginList1
-    } const      Flags;
+    PluginList   List;        // List to visualize
+    int_ptr<Plugin> Selected; // currently selected plugin
    private:
     xstring      UndoCfg;
+    AtomicUnsigned Requests;
+    class_delegate<PluginPage, const PluginEventArgs> PlugmanDeleg;
 
    public:
-    PluginPageBase(PropertyDialog& parent, ULONG resid, PluginList* list1, PluginList* list2, int level, CtrlFlags flags);
+    PluginPage(PropertyDialog& parent, ULONG resid, PLUGIN_TYPE type,
+                   const char* minor, const char* major = NULL);
    protected:
     virtual MRESULT DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2);
+    void         RequestList() { if (!Requests.bitset(0)) PostMsg(CFG_REFRESH, 0, 0); }
+    void         RequestInfo() { if (!Requests.bitset(1)) PostMsg(CFG_REFRESH, 0, 0); }
+    virtual void RefreshList();
+    virtual void RefreshInfo();
+    virtual void SetParams(Plugin* pp);
    private:
-    void         RefreshList();
-    Plugin*      RefreshInfo(const size_t i);
     ULONG        AddPlugin();
-    bool         Configure(size_t i);
-    bool         SetParams(size_t i);
-    virtual bool OnPluginEnable(size_t i, bool enable) = 0;
+    void         PlugmanNotification(const PluginEventArgs& args);
   };
-  class DecoderPage : public PluginPageBase
+  class DecoderPage : public PluginPage
   {public:
     DecoderPage(PropertyDialog& parent)
-    : PluginPageBase(parent, CFG_DEC_CONFIG, &Decoders, NULL, PLUGIN_INTERFACE_LEVEL, CF_None)
-    { MajorTitle = "~Plug-ins"; MinorTitle = "Decoder Plug-ins"; }
+    : PluginPage(parent, CFG_DEC_CONFIG, PLUGIN_DECODER, "Decoder Plug-ins", "~Plug-ins")
+    {}
    protected:
-    virtual bool OnPluginEnable(size_t i, bool enable);
-  };
-  class FilterPage : public PluginPageBase
-  {public:
-    FilterPage(PropertyDialog& parent)
-    : PluginPageBase(parent, CFG_FIL_CONFIG, &Filters, NULL, PLUGIN_INTERFACE_LEVEL, CF_None)
-    { MinorTitle = "Filter Plug-ins"; }
-   protected:
-    virtual bool OnPluginEnable(size_t i, bool enable);
-  };
-  class OutputPage : public PluginPageBase
-  {public:
-    OutputPage(PropertyDialog& parent)
-    : PluginPageBase(parent, CFG_OUT_CONFIG, &Outputs, NULL, PLUGIN_INTERFACE_LEVEL, CF_List1)
-    { MinorTitle = "Output Plug-ins"; }
-   protected:
-    virtual bool OnPluginEnable(size_t i, bool enable);
-  };
-  class VisualPage : public PluginPageBase
-  {public:
-    VisualPage(PropertyDialog& parent)
-    : PluginPageBase(parent, CFG_VIS_CONFIG, &Visuals, &VisualsSkinned, PLUGIN_INTERFACE_LEVEL, CF_None)
-    { MinorTitle = "Visual Plug-ins"; }
-   protected:
-    virtual bool OnPluginEnable(size_t i, bool enable);
+    virtual void RefreshInfo();
+    virtual void SetParams(Plugin* pp);
   };
   class AboutPage : public PageBase
   {public:
@@ -494,125 +470,84 @@ MRESULT PropertyDialog::DisplaySettingsPage::DlgProc(ULONG msg, MPARAM mp1, MPAR
   return SettingsPageBase::DlgProc(msg, mp1, mp2);
 }
 
-PropertyDialog::PluginPageBase::PluginPageBase(PropertyDialog& parent, ULONG resid,
-           PluginList* list1, PluginList* list2, int level, CtrlFlags flags)
-: PageBase(parent, resid, NULLHANDLE, DF_AutoResize),
-  List(list1),
-  List2(list2),
-  RecentLevel(level),
-  Flags(flags),
-  UndoCfg(list1->Serialize())
-{}
+PropertyDialog::PluginPage::PluginPage
+  (PropertyDialog& parent, ULONG resid, PLUGIN_TYPE type, const char* minor, const char* major)
+: PageBase(parent, resid, NULLHANDLE, DF_AutoResize)
+, List(type)
+, PlugmanDeleg(*this, &PluginPage::PlugmanNotification)
+{ MajorTitle = major;
+  MinorTitle = minor;
+  Plugin::GetPlugins(List);
+  UndoCfg = List.Serialize();
+  Plugin::GetChangeEvent() += PlugmanDeleg;
+}
 
-void PropertyDialog::PluginPageBase::RefreshList()
-{ DEBUGLOG(("PropertyDialog::PluginPageBase::RefreshList()\n"));
+void PropertyDialog::PluginPage::RefreshList()
+{ DEBUGLOG(("PropertyDialog::PluginPage::RefreshList()\n"));
   HWND lb = WinWindowFromID(GetHwnd(), LB_PLUGINS);
   PMASSERT(lb != NULLHANDLE);
   WinSendMsg(lb, LM_DELETEALL, 0, 0);
 
-  Plugin*const* ppp;
-  for (ppp = List->begin(); ppp != List->end(); ++ppp)
-    WinSendMsg(lb, LM_INSERTITEM, MPFROMSHORT(LIT_END), MPFROMP((*ppp)->GetModule().Key.cdata()));
-  if (List2 == NULL)
-    return;
-  for (ppp = List2->begin(); ppp != List2->end(); ++ppp)
-    WinSendMsg(lb, LM_INSERTITEM, MPFROMSHORT(LIT_END), MPFROMP(((*ppp)->GetModule().Key+" (Skin)").cdata()));
+  Plugin::GetPlugins(List, false);
+  int_ptr<Plugin> const* ppp;
+  int selected = LIT_NONE;
+  for (ppp = List.begin(); ppp != List.end(); ++ppp)
+  { Plugin* pp = *ppp;
+    if (pp == Selected)
+      selected = ppp - List.begin();
+    xstring title = pp->ModRef.Key;
+    if (List.Type == PLUGIN_VISUAL && ((Visual*)pp)->GetProperties().skin)
+      title = title + " (Skin)";
+    WinSendMsg(lb, LM_INSERTITEM, MPFROMSHORT(LIT_END), MPFROMP(title.cdata()));
+  }
+  if (selected != LIT_NONE)
+    lb_select(GetHwnd(), LB_PLUGINS, selected);
+  else
+  { Selected.reset();
+    RequestInfo();
+  }
 }
 
-Plugin* PropertyDialog::PluginPageBase::RefreshInfo(const size_t i)
-{ DEBUGLOG(("PropertyDialog::PluginPageBase::RefreshInfo(%i)\n", i));
-  Plugin* pp = NULL;
-  if (i >= List->size())
+void PropertyDialog::PluginPage::RefreshInfo()
+{ DEBUGLOG(("PropertyDialog::PluginPage::RefreshInfo() - %p\n", Selected.get()));
+  if ( Selected == NULL
+    || (List.Type == PLUGIN_VISUAL && ((Visual&)*Selected).GetProperties().skin) )
   { // The following functions give an error if no such buttons. This is ignored.
-    SetItemText(PB_PLG_ENABLE, "~Enable");
+    if (List.Type != PLUGIN_OUTPUT)
+      SetItemText(PB_PLG_ENABLE, "~Enable");
     EnableControl(PB_PLG_UNLOAD, FALSE);
     EnableControl(PB_PLG_UP,     FALSE);
     EnableControl(PB_PLG_DOWN,   FALSE);
     EnableControl(PB_PLG_ENABLE, FALSE);
-    EnableControl(PB_PLG_ACTIVATE, FALSE);
-    // decoder specific stuff
-    if (List->Type == PLUGIN_DECODER)
-    { HWND ctrl = WinWindowFromID(GetHwnd(), ML_DEC_FILETYPES);
-      WinSetWindowText(ctrl, "");
-      WinEnableWindow (ctrl, FALSE);
-      ctrl = WinWindowFromID(GetHwnd(), CB_DEC_TRYOTHER);
-      WinSendMsg      (ctrl, BM_SETCHECK, MPFROMSHORT(FALSE), 0);
-      WinEnableWindow (ctrl, FALSE);
-      ctrl = WinWindowFromID(GetHwnd(), CB_DEC_SERIALIZE);
-      WinSendMsg      (ctrl, BM_SETCHECK, MPFROMSHORT(FALSE), 0);
-      WinEnableWindow (ctrl, FALSE);
-      EnableControl(PB_PLG_SET, FALSE);
-    }
   } else
-  { pp = (*List)[i];
-    SetItemText(PB_PLG_ENABLE, pp->GetEnabled() ? "Disabl~e" : "~Enable");
-    EnableControl(PB_PLG_UNLOAD, TRUE);
-    EnableControl(PB_PLG_UP,     i > 0);
-    EnableControl(PB_PLG_DOWN,   i < List->size()-1);
-    EnableControl(PB_PLG_ENABLE, TRUE);
-    if (Flags & CF_List1)
-      EnableControl (PB_PLG_ACTIVATE, ((PluginList1*)List)->GetActive() != i);
-    // decode specific stuff
-    if (List->Type == PLUGIN_DECODER)
-    { stringmap_own sm(20);
-      pp->GetParams(sm);
-      // TODO: Decoder supported file types vs. user file types.
-      { const vector<const DECODER_FILETYPE>& filetypes = ((Decoder*)pp)->GetFileTypes();
-        size_t len = 0;
-        for (const DECODER_FILETYPE*const* ftp = filetypes.begin(); ftp != filetypes.end(); ++ftp)
-          if ((*ftp)->eatype)
-            len += strlen((*ftp)->eatype) +1;
-        char* cp = (char*)alloca(len);
-        char* cp2 = cp;
-        for (const DECODER_FILETYPE*const* ftp = filetypes.begin(); ftp != filetypes.end(); ++ftp)
-          if ((*ftp)->eatype)
-          { strcpy(cp2, (*ftp)->eatype);
-            cp2 += strlen((*ftp)->eatype);
-            *cp2++ = '\n';
-          }
-        if (cp2 != cp)
-          cp2[-1] = 0;
-        else
-          cp = "";
-        HWND ctrl = WinWindowFromID(GetHwnd(), ML_DEC_FILETYPES);
-        WinSetWindowText(ctrl, cp);
-        WinEnableWindow (ctrl, TRUE);
-      }
-      stringmapentry* smp; // = sm.find("filetypes");
-      smp = sm.find("tryothers");
-      bool* b = smp && smp->Value ? url123::parseBoolean(smp->Value) : NULL;
-      HWND ctrl = WinWindowFromID(GetHwnd(), CB_DEC_TRYOTHER);
-      WinSendMsg      (ctrl, BM_SETCHECK, MPFROMSHORT(b && *b), 0);
-      WinEnableWindow (ctrl, !!b);
-      smp = sm.find("serializeinfo");
-      b = smp && smp->Value ? url123::parseBoolean(smp->Value) : NULL;
-      ctrl = WinWindowFromID(GetHwnd(), CB_DEC_SERIALIZE);
-      WinSendMsg      (ctrl, BM_SETCHECK, MPFROMSHORT(b && *b), 0);
-      WinEnableWindow (ctrl, !!b);
-      EnableControl(PB_PLG_SET, FALSE);
+  { if (List.Type == PLUGIN_OUTPUT)
+      EnableControl(PB_PLG_ENABLE, !Selected->GetEnabled());
+    else
+    { SetItemText(PB_PLG_ENABLE, Selected->GetEnabled() ? "Disabl~e" : "~Enable");
+      EnableControl(PB_PLG_ENABLE, TRUE);
     }
+    EnableControl(PB_PLG_UNLOAD, TRUE);
+    EnableControl(PB_PLG_UP,     Selected != List[0]);
+    EnableControl(PB_PLG_DOWN,   Selected != List[List.size()-1]);
   }
-  if (pp == NULL && i >= 0 && List2 && i < List->size() + List2->size())
-    pp = (*List2)[i - List->size()];
-  if (pp == NULL)
+  if (Selected == NULL)
   { SetItemText(ST_PLG_AUTHOR, "");
     SetItemText(ST_PLG_DESC,   "");
     SetItemText(ST_PLG_LEVEL,  "");
-    EnableControl (PB_PLG_CONFIG, FALSE);
+    EnableControl(PB_PLG_CONFIG, FALSE);
   } else
   { char buffer[64];
-    const PLUGIN_QUERYPARAM& params = pp->GetModule().GetParams();
+    const PLUGIN_QUERYPARAM& params = Selected->ModRef.GetParams();
     SetItemText(ST_PLG_AUTHOR, params.author);
     SetItemText(ST_PLG_DESC,   params.desc);
     snprintf(buffer, sizeof buffer,        "Interface level %i%s",
-      params.interface, params.interface >= RecentLevel ? "" : " (virtualized)");
+      params.interface, params.interface >= PLUGIN_INTERFACE_LEVEL ? "" : " (virtualized)");
     SetItemText(ST_PLG_LEVEL,  buffer);
-    EnableControl (PB_PLG_CONFIG, params.configurable && pp->GetEnabled());
+    EnableControl(PB_PLG_CONFIG, params.configurable);
   }
-  return pp;
 }
 
-ULONG PropertyDialog::PluginPageBase::AddPlugin()
+ULONG PropertyDialog::PluginPage::AddPlugin()
 {
   FILEDLG filedialog;
   ULONG   rc = 0;
@@ -631,125 +566,145 @@ ULONG PropertyDialog::PluginPageBase::AddPlugin()
   amp_file_dlg(HWND_DESKTOP, GetHwnd(), &filedialog);
 
   if (filedialog.lReturn == DID_OK)
-  { rc = Plugin::Deserialize(filedialog.szFullFile, List->Type);
-    /* TODO: still required?
-    if (rc & PLUGIN_VISUAL)
-      vis_init(List->size()-1);*/
-    if (rc & PLUGIN_FILTER && Ctrl::IsPlaying())
-      amp_info(GetHwnd(), "This filter will only be enabled after playback stops.");
-    if (rc)
-      WinSendMsg(GetHwnd(), CFG_REFRESH_LIST, 0, MPFROMSHORT(List->size()-1));
+  { try
+    { int_ptr<Plugin> pp(Plugin::Deserialize(filedialog.szFullFile, List.Type));
+      Plugin::AppendPlugin(pp);
+      Selected = pp;
+      /* TODO: still required?
+      if (rc & PLUGIN_VISUAL)
+        vis_init(List->size()-1);*/
+      if ((List.Type & PLUGIN_FILTER) && Ctrl::IsPlaying())
+        amp_info(GetHwnd(), "This filter will only be enabled after playback stops.");
+      RequestList();
+    } catch (const ModuleException& ex)
+    { pm123_display_error(ex.GetErrorText());
+    }
   }
   return rc;
 }
 
-bool PropertyDialog::PluginPageBase::Configure(size_t i)
-{ Plugin* pp = NULL;
-  if (i < List->size())
-    pp = (*List)[i];
-  else if (List2 && i < List->size() + List2->size())
-    pp = (*List2)[i - List->size()];
-
-  if (pp)
-  { pp->GetModule().Config(GetHwnd());
-    return true;
-  } else
-    return false;
+void PropertyDialog::PluginPage::SetParams(Plugin* pp)
+{ EnableControl(PB_PLG_SET, FALSE);
 }
 
-bool PropertyDialog::PluginPageBase::SetParams(size_t i)
-{ if (i >= List->size())
-    return false;
-  Plugin* pp = (*List)[i];
-
-  if (List->Type == PLUGIN_DECODER)
-  { HWND ctrl = WinWindowFromID(GetHwnd(), ML_DEC_FILETYPES);
-    ULONG len = WinQueryWindowTextLength(ctrl) +1;
-    char* filetypes = (char*)alloca(len);
-    WinQueryWindowText(ctrl, len, filetypes);
-    char* cp2 = filetypes;
-    while ( *cp2)
-    { switch (*cp2)
-      {case '\r':
-        strcpy(cp2, cp2+1);
-        continue;
-       case '\n':
-        *cp2 = ';';
-      }
-      ++cp2;
+void PropertyDialog::PluginPage::PlugmanNotification(const PluginEventArgs& args)
+{ if (args.Plug.PluginType == List.Type)
+  { switch (args.Operation)
+    {case PluginEventArgs::Enable:
+     case PluginEventArgs::Disable:
+      if (&args.Plug == Selected)
+        RequestInfo();
+      break;
+     case PluginEventArgs::Load:
+     case PluginEventArgs::Unload:
+      RequestList();
+     default:;
     }
-    pp->SetParam("filetypes", filetypes);
-    pp->SetParam("tryothers", QueryButtonCheckstate(CB_DEC_TRYOTHER) ? "1" : "0");
-    pp->SetParam("serializeinfo", QueryButtonCheckstate(CB_DEC_SERIALIZE) ? "1" : "0");
   }
-  EnableControl(PB_PLG_SET, FALSE);
-  return true;
 }
 
-bool PropertyDialog::VisualPage::OnPluginEnable(size_t i, bool enable)
-{ /* TODO: required?
-  if (enable)
-    vis_init(i);
-  else
-    vis_deinit(i);*/
-  return true;
-}
-
-bool PropertyDialog::DecoderPage::OnPluginEnable(size_t i, bool enable)
-{ // This query is non-atomic, but nothing strange will happen anyway.
-  if (i > Decoders.size())
-    return false;
-  if (!enable && Decoders[i]->IsInitialized())
-  { amp_error(GetHwnd(), "Cannot disable currently in use decoder.");
-    return false;
+void PropertyDialog::DecoderPage::RefreshInfo()
+{ PluginPage::RefreshInfo();
+  if (Selected == NULL)
+  { HWND ctrl = WinWindowFromID(GetHwnd(), ML_DEC_FILETYPES);
+    WinSetWindowText(ctrl, "");
+    WinEnableWindow (ctrl, FALSE);
+    ctrl = WinWindowFromID(GetHwnd(), CB_DEC_TRYOTHER);
+    WinSendMsg      (ctrl, BM_SETCHECK, MPFROMSHORT(FALSE), 0);
+    WinEnableWindow (ctrl, FALSE);
+    ctrl = WinWindowFromID(GetHwnd(), CB_DEC_SERIALIZE);
+    WinSendMsg      (ctrl, BM_SETCHECK, MPFROMSHORT(FALSE), 0);
+    WinEnableWindow (ctrl, FALSE);
+    EnableControl(PB_PLG_SET, FALSE);
+  } else
+  { stringmap_own sm(20);
+    Selected->GetParams(sm);
+    // TODO: Decoder supported file types vs. user file types.
+    { const vector<const DECODER_FILETYPE>& filetypes = ((Decoder*)Selected.get())->GetFileTypes();
+      size_t len = 0;
+      for (const DECODER_FILETYPE*const* ftp = filetypes.begin(); ftp != filetypes.end(); ++ftp)
+        if ((*ftp)->eatype)
+          len += strlen((*ftp)->eatype) +1;
+      char* cp = (char*)alloca(len);
+      char* cp2 = cp;
+      for (const DECODER_FILETYPE*const* ftp = filetypes.begin(); ftp != filetypes.end(); ++ftp)
+        if ((*ftp)->eatype)
+        { strcpy(cp2, (*ftp)->eatype);
+          cp2 += strlen((*ftp)->eatype);
+          *cp2++ = '\n';
+        }
+      if (cp2 != cp)
+        cp2[-1] = 0;
+      else
+        cp = "";
+      HWND ctrl = WinWindowFromID(GetHwnd(), ML_DEC_FILETYPES);
+      WinSetWindowText(ctrl, cp);
+      WinEnableWindow (ctrl, TRUE);
+    }
+    stringmapentry* smp; // = sm.find("filetypes");
+    smp = sm.find("tryothers");
+    bool* b = smp && smp->Value ? url123::parseBoolean(smp->Value) : NULL;
+    HWND ctrl = WinWindowFromID(GetHwnd(), CB_DEC_TRYOTHER);
+    WinSendMsg     (ctrl, BM_SETCHECK, MPFROMSHORT(b && *b), 0);
+    WinEnableWindow(ctrl, !!b);
+    smp = sm.find("serializeinfo");
+    b = smp && smp->Value ? url123::parseBoolean(smp->Value) : NULL;
+    ctrl = WinWindowFromID(GetHwnd(), CB_DEC_SERIALIZE);
+    WinSendMsg     (ctrl, BM_SETCHECK, MPFROMSHORT(b && *b), 0);
+    WinEnableWindow(ctrl, !!b);
+    EnableControl(PB_PLG_SET, FALSE);
   }
-  return true;
 }
 
-bool PropertyDialog::OutputPage::OnPluginEnable(size_t i, bool enable)
-{ if (Ctrl::IsPlaying())
-  { amp_error(GetHwnd(), "Cannot change active output while playing.");
-    return false;
+void PropertyDialog::DecoderPage::SetParams(Plugin* pp)
+{ HWND ctrl = WinWindowFromID(GetHwnd(), ML_DEC_FILETYPES);
+  ULONG len = WinQueryWindowTextLength(ctrl) +1;
+  char* filetypes = (char*)alloca(len);
+  WinQueryWindowText(ctrl, len, filetypes);
+  char* cp2 = filetypes;
+  while ( *cp2)
+  { switch (*cp2)
+    {case '\r':
+      strcpy(cp2, cp2+1);
+      continue;
+     case '\n':
+      *cp2 = ';';
+    }
+    ++cp2;
   }
-  return true;
-}
-
-bool PropertyDialog::FilterPage::OnPluginEnable(size_t i, bool enable)
-{ if (Ctrl::IsPlaying() && i < List->size() && (*List)[i]->IsInitialized())
-    amp_info(GetHwnd(), enable
-      ? "This filter will only be enabled after playback stops."
-      : "This filter will only be disabled after playback stops.");
-  return true;
+  pp->SetParam("filetypes", filetypes);
+  pp->SetParam("tryothers", QueryButtonCheckstate(CB_DEC_TRYOTHER) ? "1" : "0");
+  pp->SetParam("serializeinfo", QueryButtonCheckstate(CB_DEC_SERIALIZE) ? "1" : "0");
 }
 
 /* Processes messages of the plug-ins pages of the setup notebook. */
-MRESULT PropertyDialog::PluginPageBase::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
-{ DEBUGLOG2(("PropertyDialog::PluginPageBase::DlgProc(%p, %x, %x, %x)\n", hwnd, msg, mp1, mp2));
-  SHORT i;
-
-  switch( msg )
-  { case CFG_REFRESH_LIST:
-      RefreshList();
-      lb_select(GetHwnd(), LB_PLUGINS, SHORT1FROMMP(mp2));
+MRESULT PropertyDialog::PluginPage::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
+{ DEBUGLOG2(("PropertyDialog::PluginPage::DlgProc(%p, %x, %x, %x)\n", hwnd, msg, mp1, mp2));
+  LONG i;
+  switch (msg)
+  { case CFG_REFRESH:
+    { unsigned req = Requests.swap(0);
+      if (req & 1)
+        RefreshList();
+      if (req & 2)
+        RefreshInfo();
       return 0;
-
-    case CFG_REFRESH_INFO:
-      RefreshInfo(SHORT1FROMMP(mp2));
-      return 0;
-
+    }
     case CFG_GLOB_BUTTON:
     { switch (SHORT1FROMMP(mp1))
       {case PB_DEFAULT:
-        if (Ctrl::IsPlaying())
-          amp_error(GetHwnd(), "Cannot load defaults while playing.");
-        else
-          List->LoadDefaults();
-        PostMsg(CFG_REFRESH_LIST, 0, MPFROMSHORT(LIT_NONE));
+        { PluginList def(List.Type);
+          def.LoadDefaults();
+          Plugin::SetPluginList(def);
+          // The GUI is updated by the PluginChange event.
+        }
         break;
        case PB_UNDO:
-        // TODO: The used plug-ins may have changed meanwhile causing Deserialize to fail.
-        if (List->Deserialize(UndoCfg) == PluginList::RC_OK)
-          PostMsg(CFG_REFRESH_LIST, 0, MPFROMSHORT(LIT_NONE));
+        { PluginList list(List.Type);
+          list.Deserialize(UndoCfg);
+          Plugin::SetPluginList(list);
+          // The GUI is updated by the PluginChange event.
+        }
         break;
       }
       return 0;
@@ -757,10 +712,8 @@ MRESULT PropertyDialog::PluginPageBase::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp
 
     case WM_INITDLG:
       do_warpsans(GetHwnd());
-      PostMsg(CFG_REFRESH_LIST, 0, MPFROMSHORT(LIT_NONE));
+      RequestList();
       return 0;
-
-    // TODO: undo/default
 
     case WM_CONTROL:
       switch (SHORT1FROMMP(mp1))
@@ -768,11 +721,13 @@ MRESULT PropertyDialog::PluginPageBase::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp
         switch (SHORT2FROMMP(mp1))
         {case LN_SELECT:
           i = WinQueryLboxSelectedItem(HWNDFROMMP(mp2));
-          PostMsg(CFG_REFRESH_INFO, 0, MPFROMSHORT(i));
+          Selected = (size_t)i < List.size() ? List[i] : NULL;
+          RequestInfo();
           break;
          case LN_ENTER:
           i = WinQueryLboxSelectedItem(HWNDFROMMP(mp2));
-          Configure(i);
+          if ((size_t)i < List.size())
+            List[i]->ModRef.Config(GetHwnd());
           break;
         }
         break;
@@ -799,19 +754,9 @@ MRESULT PropertyDialog::PluginPageBase::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp
       i = lb_cursored(GetHwnd(), LB_PLUGINS);
       switch (SHORT1FROMMP(mp1))
       {case PB_PLG_UNLOAD:
-        if (i >= 0 && i < List->size())
-        { if ((*List)[i]->IsInitialized())
-            amp_error(GetHwnd(), "Cannot unload currently used plug-in.");
-          else if (lb_remove_item(GetHwnd(), LB_PLUGINS, i) == 0)
-          { // something wrong => reload list
-            PostMsg(CFG_REFRESH_LIST, 0, MPFROMSHORT(i));
-          } else
-          { List->remove(i);
-            if (i >= lb_size(GetHwnd(), LB_PLUGINS))
-              PostMsg(CFG_REFRESH_INFO, 0, MPFROMSHORT(LIT_NONE));
-            else
-              lb_select(GetHwnd(), LB_PLUGINS, i);
-          }
+        if ((size_t)i < List.size())
+        { List.erase(i);
+          Plugin::SetPluginList(List);
         }
         break;
 
@@ -820,44 +765,34 @@ MRESULT PropertyDialog::PluginPageBase::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp
         break;
 
        case PB_PLG_UP:
-        if (i != LIT_NONE && i > 0 && i < List->size())
-        { List->move(i, i-1);
-          PostMsg(CFG_REFRESH_LIST, 0, MPFROMSHORT(i-1));
+        if (i > 0 && (size_t)i < List.size())
+        { List.move(i, i-1);
+          Plugin::SetPluginList(List);
         }
         break;
 
        case PB_PLG_DOWN:
-        if (i != LIT_NONE && i < List->size()-1)
-        { List->move(i, i+1);
-          PostMsg(CFG_REFRESH_LIST, 0, MPFROMSHORT(i+1));
+        if ((size_t)i < List.size()-1)
+        { List.move(i, i+1);
+          Plugin::SetPluginList(List);
         }
         break;
 
        case PB_PLG_ENABLE:
-        if (i >= 0 && i < List->size())
-        { Plugin* pp = (*List)[i];
-          bool enable = !pp->GetEnabled();
-          if (OnPluginEnable(i, enable))
-          { pp->SetEnabled(enable);
-            PostMsg(CFG_REFRESH_INFO, 0, MPFROMSHORT(i));
-          }
-        }
-        break;
-
-       case PB_PLG_ACTIVATE:
-        if ( i != LIT_NONE && (Flags & CF_List1) && OnPluginEnable(i, true)
-          && ((PluginList1*)List)->SetActive(i) == 0 )
-        { PostMsg(CFG_REFRESH_INFO, 0, MPFROMSHORT(i));
-          EnableControl(PB_PLG_ACTIVATE, FALSE);
+        if ((size_t)i < List.size())
+        { Plugin* pp = List[i];
+          pp->SetEnabled(!pp->GetEnabled());
         }
         break;
 
        case PB_PLG_CONFIG:
-        Configure(i);
+        if ((size_t)i < List.size())
+          List[i]->ModRef.Config(GetHwnd());
         break;
 
        case PB_PLG_SET:
-        SetParams(i);
+        if ((size_t)i < List.size())
+          SetParams(List[i]);
         break;
       }
       return 0;
@@ -905,9 +840,9 @@ PropertyDialog::PropertyDialog(HWND owner)
   Pages.append() = new SystemSettingsPage(*this);
   Pages.append() = new DisplaySettingsPage(*this);
   Pages.append() = new DecoderPage(*this);
-  Pages.append() = new FilterPage(*this);
-  Pages.append() = new OutputPage(*this);
-  Pages.append() = new VisualPage(*this);
+  Pages.append() = new PluginPage(*this, CFG_FIL_CONFIG, PLUGIN_FILTER, "Filter Plug-ins");
+  Pages.append() = new PluginPage(*this, CFG_OUT_CONFIG, PLUGIN_OUTPUT, "Output Plug-ins");
+  Pages.append() = new PluginPage(*this, CFG_VIS_CONFIG, PLUGIN_VISUAL, "Visual Plug-ins");
   Pages.append() = new AboutPage(*this);
   StartDialog(owner, NB_CONFIG);
 }

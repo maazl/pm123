@@ -377,7 +377,7 @@ url123 amp_save_playlist(HWND owner, Playable& playlist, bool saveas)
       { // Playlist => save in place allowed => preselect our own file name
         path = playlist.URL;
         // preselect file type
-        filedialog.pszIType = (PSZ)DSTRING(playlist.GetInfo().tech->format).cdata();
+        filedialog.pszIType = (PSZ)xstring(playlist.GetInfo().tech->format).cdata();
       } else
       { // not mutable => only save as allowed
         path = playlist.URL.getBasePath();
@@ -399,16 +399,15 @@ url123 amp_save_playlist(HWND owner, Playable& playlist, bool saveas)
     if (!amp_warn_if_overwrite(owner, cp))
       goto retry;
 
+    relative = (filedialog.ulUser & FDU_RELATIV_ON) != 0;
+
     // Deduce decoder and format from file dialog format.
-    int dec = amp_decoder_by_type(DECODER_PLAYLIST|DECODER_WRITABLE, filedialog.pszIType, format);
-    if (dec == -1)
+    decoder = amp_decoder_by_type(DECODER_PLAYLIST|DECODER_WRITABLE, filedialog.pszIType, format);
+    if (decoder == NULL)
     { amp_info(owner, "The format to save cannot be guessed. "
                       "Please select an appropriate format to save in the file dialog.");
       goto retry;
     }
-    decoder = Decoders[dec]->GetModule().Key;
-
-    relative = (filedialog.ulUser & FDU_RELATIV_ON) != 0;
   }
 
   if (!playlist.Save(dest, decoder, format, relative))

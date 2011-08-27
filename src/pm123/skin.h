@@ -167,6 +167,7 @@ typedef struct _BMPBUTTON
 
 } BMPBUTTON, *PBMPBUTTON;
 
+
 #ifdef __cplusplus
 // Function no longer supported in C mode
 
@@ -217,7 +218,7 @@ double bmp_calc_time( POINTL pos );
 /* Deallocates all resources used by current loaded skin. */
 void bmp_clean_skin( void );
 /* Loads specified skin. */
-BOOL bmp_load_skin( const char *filename, HWND hplayer, HPS hps );
+bool bmp_load_skin( const char *filename, HWND hplayer );
 /* Adjusts current skin to the selected size of the player window. */
 void bmp_reflow_and_resize( HWND hframe );
 

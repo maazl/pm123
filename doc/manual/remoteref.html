@@ -12,18 +12,21 @@ The commands are grouped into the categories: <a
  href="remoterefplayback.html">playback control</a>, <a
  href="remoterefplaylist.html">playlists</a>, <a
  href="remoterefgui.html">user interface</a>, <a
- href="remoterefmeta.html">meta data</a> and <a
- href="remoterefconfig.html">configuration</a>.</p>
+ href="remoterefmeta.html">meta data</a>, <a
+ href="remoterefconfig.html">configuration</a> and <a
+ href="remoterefplugin.html">plug-ins</a>.</p>
 <p>Some commands return <a href="remotereferror.html">common error
 codes</a>. All commands renturn an <em>empty line at the end</em>.
 This is different from PM123 up to version 1.40. However, unless you
 send no more than one command per pipe instance it makes no difference.</p>
-<p>Commands that start with a plug-in name followed by a colon are
-plug-in specific and do only work if the specified plug-in is loaded.<br>
+<p>Commands that start with a <em><tt><var>plug-in name</var>:</tt></em>
+are
+plug-in specific commands and do only work if the specified plug-in is
+loaded.
 </p>
 <p><strong>Note that the commands must have an asterisk (<tt>*</tt>) as
 prefix if the are sent through the pipe.</strong> This is a tribute to
-compatibility with older PM123 versions.<strong><br>
+compatibility with older PM123 versions.<strong>
 </strong></p>
 <h3>Alphabetical list of all commands</h3>
 <ul>
@@ -38,8 +41,7 @@ compatibility with older PM123 versions.<strong><br>
   <li><a href="remoterefplayback.html#current"><tt>current</tt></a>
 - query current song or playlist</li>
   <li><a href="remoterefconfig.html#option"><tt>default</tt></a> -
-reset an option to its default value.<br>
-  </li>
+reset an option to its default value. </li>
   <li><a href="remoterefplaylist.html#dir"><tt>dir</tt></a>
 - add directory to playlist (<i>deprecated</i>, use <a
  href="remoterefplaylist.html#add"><tt>add</tt></a>)</li>
@@ -95,6 +97,16 @@ reset an option to its default value.<br>
 - select playlist</li>
   <li><a href="remoterefconfig.html#playonload"><tt>playonload</tt></a>
 - start playing on load</li>
+  <li><a href="remoterefplugin.html#plugin_active"><tt>plugin active
+decoder</tt></a> - activate a decoder plug-in</li>
+  <li><a href="remoterefplugin.html#plugin_list"><tt>plugin list</tt></a>
+- query or set the list of loaded plug-ins</li>
+  <li><a href="remoterefplugin.html#plugin_load"><tt>plugin load</tt></a>
+- load a plug-in into the player</li>
+  <li><a href="remoterefplugin.html#plugin_params"><tt>plugin params</tt></a>
+- query or set plug-in parameters</li>
+  <li><a href="remoterefplugin.html#plugin_unload"><tt>plugin unload</tt></a>
+- unload a plug-in</li>
   <li><a href="remoterefplayback.html#prev"><tt>prev</tt>, <tt>previous</tt></a>
 - skip previous</li>
   <li><a href="remoterefplayback.html#query"><tt>query</tt></a> - query

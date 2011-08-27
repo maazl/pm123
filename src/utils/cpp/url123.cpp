@@ -1,5 +1,5 @@
 /*
- * Copyright 2007-2007 M.Mueller
+ * Copyright 2007-2011 M.Mueller
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -144,35 +144,20 @@ void url123::parseParameter(stringmap& dest, const char* params)
   }
 }
 
-const xstring url123::makeParameter(const stringmap& params)
-{ xstring ret;
-  stringmapentry*const* p;
-  // calculate string length
-  size_t len = 0;
-  for (p = params.begin(); p != params.end(); ++p)
-  { len += (*p)->Key.length() +1;
+void url123::appendParameter(xstringbuilder& target, const stringmap& params)
+{ stringmapentry*const* p;
+  // make parameter string
+  p = params.begin();
+  for (;;)
+  { target.append((*p)->Key);
     if ((*p)->Value)
-      len += (*p)->Value.length() +1;
-  }
-  if (len != 0)
-  { --len;
-    // make parameter string
-    char* cp = ret.allocate(len);
-    p = params.begin();
-    for (;;)
-    { memcpy(cp, (*p)->Key.cdata(), (*p)->Key.length()+1);
-      cp += (*p)->Key.length();
-      if ((*p)->Value)
-      { *cp++ = '=';
-        memcpy(cp, (*p)->Value.cdata(), (*p)->Value.length()+1);
-        cp += (*p)->Value.length();
-      }
-      if (++p == params.end())
-        break;
-      *cp++ = '&'; // delimiter
+    { target.append('=');
+      target.append((*p)->Value);
     }
+    if (++p == params.end())
+      break;
+    target.append('&'); // delimiter
   }
-  return ret;
 }
 
 bool* url123::parseBoolean(const char* val)
@@ -364,11 +349,11 @@ const url123 url123::makeAbsolute(const char* rel) const
   // join strings
   size_t len1 = cp ? cp - cdata() +1 : length();
   size_t len2 = strlen(rel);
-  sco_arr<char> dp(new char[len1+len2+1]);
-  memcpy(dp.get(), cdata(), len1);
-  memcpy(dp.get() + len1, rel, len2);
+  char* dp = (char*)alloca(len1+len2+1);
+  memcpy(dp, cdata(), len1);
+  memcpy(dp + len1, rel, len2);
   dp[len1+len2] = 0;
-  return normalizeURL(dp.get());
+  return normalizeURL(dp);
 }
 
 const xstring url123::makeRelative(const char* root, bool useupdir) const

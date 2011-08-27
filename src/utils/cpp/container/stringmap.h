@@ -33,15 +33,6 @@
 #include <cpp/container/sorted_vector.h>
 
 
-/* Element class to provide a string repository with a sorted_vector<> as storage container.
- * This class should be extended to provide a mapping to a target type.
- */
-/*struct strkey : public IComparableTo<xstring>
-{ const xstring Key;
-  strkey(const xstring& key) : Key(key) {}
-  virtual int compareTo(const xstring& key) const;
-};*/
-
 typedef sorted_vector<xstring, xstring, &xstring::compare> stringset;
 
 class stringset_own : public stringset
@@ -56,7 +47,8 @@ class stringset_own : public stringset
  public:
   stringset_own() : stringset() {}
   stringset_own(size_t capacity) : stringset(capacity) {}
-  ~stringset_own();
+  void          clear() { vector_own_base_destroy(*this); }
+  ~stringset_own() { clear(); }
 };
 
 
@@ -80,7 +72,8 @@ typedef sorted_vector<stringmapentry, xstring, &strmapentry<xstring>::compare> s
 class stringmap_own : public stringmap
 {public:
   stringmap_own(size_t capacity) : stringmap(capacity) {}
-  ~stringmap_own();
+  void          clear() { vector_own_base_destroy(*this); }
+  ~stringmap_own() { clear(); }
 };
 
 

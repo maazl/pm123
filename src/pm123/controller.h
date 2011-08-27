@@ -43,7 +43,7 @@
 
 class SongIterator;
 
-/* PM123 controller class.
+/** PM123 controller class.
  * All playback activities are controlled by this class.
  * This class is static (singleton).
 
@@ -203,7 +203,7 @@ class Ctrl
     EV_Root     = 0x00001000, // The currently loaded root object has changed. This Always implies EV_Song.
     EV_Song     = 0x00100000, // The current song has changed.
   };
-  
+
  protected:
   struct QEntry : qentry
   { ControlCommand*           Cmd;
@@ -211,23 +211,23 @@ class Ctrl
   };
 
  private: // working set
-  static bool                 Playing;               // True if a song is currently playing (not decoding)
-  static bool                 Paused;                // True if the current song is paused
-  static DECFASTMODE          Scan;                  // Current scan mode
-  static double               Volume;                // Current volume setting
-  static xstring              Savename;              // Current save file name (for the decoder)
-  static bool                 Shuffle;               // Shuffle flag
-  static bool                 Repeat;                // Repeat flag
+  static bool          Playing;               // True if a song is currently playing (not decoding)
+  static bool          Paused;                // True if the current song is paused
+  static DECFASTMODE   Scan;                  // Current scan mode
+  static double        Volume;                // Current volume setting
+  static xstring       Savename;              // Current save file name (for the decoder)
+  static bool          Shuffle;               // Shuffle flag
+  static bool          Repeat;                // Repeat flag
 
-  static queue<QEntry>        Queue;                 // Command queue of the controller (all messages pass this queue)
+  static queue<QEntry> Queue;                 // Command queue of the controller (all messages pass this queue)
 
   static event<const EventFlags> ChangeEvent;
 
  public: // management interface, not thread safe
   // initialize controller
-  static void  Init();
+  static void          Init();
   // uninitialize controller
-  static void  Uninit();
+  static void          Uninit();
 
  public: // properties, thread safe
   // While the functions below are atomic their return values are not reliable because they can change everytime.

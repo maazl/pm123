@@ -34,10 +34,12 @@
 
 #define INCL_WIN
 #include <config.h>
+#include <plugin.h>
 #include <cpp/xstring.h>
 #include <cpp/cpputil.h>
 #include <cpp/mutex.h>
 #include <cpp/event.h>
+#include <cpp/container/vector.h>
 #include <stdlib.h>
 #include <os2.h>
 
@@ -128,6 +130,12 @@ struct amp_cfg
   int     insp_autorefresh;   // Auto refresh rate of inspector dialog
   bool    insp_autorefresh_on;// Auto refresh rate of inspector dialog
 
+  // plug-in lists, not necessarily up to date, not changeable this way
+  xstring decoders_list;      // Serialized decoders
+  xstring filters_list;       // Serialized filters
+  xstring outputs_list;       // Serialized outputs
+  xstring visuals_list;       // Serialized visual plug-ins
+
   // Player state
   xstring filedir;            // The last directory used for addition of files.
   xstring listdir;            // The last directory used for access to a playlist.
@@ -140,7 +148,14 @@ struct amp_cfg
   bool    show_plman;         // Show playlist manager
   bool    add_recursive;      // Enable recursive addition
   bool    save_relative;      // Use relative paths in saved playlists
-  //SWP     main;               // Position of the player
+};
+
+struct CfgValidateArgs
+{       amp_cfg& New;
+  const amp_cfg& Old;
+        xstring  Message;
+        bool     Fail;
+  CfgValidateArgs(amp_cfg& n, const amp_cfg& o) : New(n), Old(o), Fail(false) {}
 };
 
 struct CfgChangeArgs
@@ -153,6 +168,7 @@ class Cfg
 {private:
   static Mutex                Mtx;
   static amp_cfg              Current;
+  static event<CfgValidateArgs> Validate;
   static event<const CfgChangeArgs> Change;
   static HINI                 HIni;
  public:
@@ -160,6 +176,12 @@ class Cfg
 
  private:
   Cfg(); // static class
+  /// Helper to LoadIni. Loads the plug-in type \a type from the ini key \a key.
+  static void LoadPlugins(const char* key, xstring amp_cfg::*cfg, PLUGIN_TYPE type);
+  /// Helper to SaveIni. Saves the list of plug-ins of type \a type to the ini key \a key.
+  static void SavePlugins(const char* key, xstring amp_cfg::*cfg, PLUGIN_TYPE type);
+
+  /// Load configuration from ini file.
   static void LoadIni();
   /// migrate plug-in configuration
   static void MigrateIni(const char* inipath, const char* app);
@@ -180,8 +202,10 @@ class Cfg
   static volatile const amp_cfg& Get()         { return Current; }
   /// Change the configuration.
   /// @remarks It is recommended to call this function from synchronized context.
-  static void Set(const amp_cfg& settings);
+  static bool Set(amp_cfg& settings, xstring* error = NULL);
 
+  /// Configuration change event, fires when the configuration changes (call to \c Set).
+  static event_pub<CfgValidateArgs>& GetValidate()   { return Validate; }
   /// Configuration change event, fires when the configuration changes (call to \c Set).
   static event_pub<const CfgChangeArgs>& GetChange() { return Change; }
 
@@ -208,8 +232,13 @@ class Cfg
   };
   struct ChangeAccess : private Access, public amp_cfg
   { ChangeAccess()                             : amp_cfg(**this) {}
-    ~ChangeAccess()                            { Cfg::Set(*this); }
+    bool Commit(xstring* error = NULL)         { return Cfg::Set(*this, error); }
+    //~ChangeAccess()                            { Cfg::Set(*this); }
   };
+  /*struct EasyChangeAccess : private Access, public amp_cfg
+  { EasyChangeAccess()                         : amp_cfg(**this) {}
+    ~EasyChangeAccess()                        { Cfg::Set(*this); }
+  };*/
 };
 
 

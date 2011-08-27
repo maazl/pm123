@@ -214,7 +214,7 @@ ULONG PlaybackWorker::Open(const char* uri, const INFO_BUNDLE_CV* info, PM123_TI
     }
 
     PAProplist pl;
-    { DSTRING tmp; // Temporary object for strongly thread safe access to *info.
+    { xstring tmp; // Temporary object for strongly thread safe access to *info.
       char buf[1024];
       volatile const META_INFO* meta = info->meta;
       pl[PA_PROP_MEDIA_FILENAME]   = ToUTF8(buf, sizeof buf, uri);
@@ -377,7 +377,7 @@ ULONG PlaybackWorker::GetCurrentSamples(FORMAT_INFO* info, char* buf, int len) t
 void PlaybackWorker::Error(const char* fmt, ...) throw()
 { va_list va;
   va_start(va, fmt);
-  DSTRING err;
+  xstring err;
   err.vsprintf(fmt, va);
   (*Ctx.plugin_api->error_display)(err);
   va_end(va);

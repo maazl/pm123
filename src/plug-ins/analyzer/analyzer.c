@@ -731,7 +731,7 @@ static void update_analyzer(void)
 
 /* Returns information about plug-in. */
 int DLLENTRY
-plugin_query( PPLUGIN_QUERYPARAM query )
+plugin_query(PLUGIN_QUERYPARAM* query)
 {
   query->type         = PLUGIN_VISUAL;
   query->author       = "Samuel Audet, Dmitry A.Steklenev, Marcel Mueller";
@@ -819,11 +819,10 @@ cfg_dlg_proc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
 }
 
 /* Configure plug-in. */
-int DLLENTRY
+void DLLENTRY
 plugin_configure( HWND hwnd, HMODULE module )
 {
   WinDlgBox( HWND_DESKTOP, hwnd, cfg_dlg_proc, module, DLG_CONFIGURE, NULL );
-  return 0;
 }
 
 static MRESULT EXPENTRY

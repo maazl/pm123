@@ -36,7 +36,7 @@
 #include <string.h>
 
 
-class DSTRING;
+class xstring;
 
 enum ID3V1_TAG_COMP
 { ID3V1_TITLE = 1,
@@ -82,7 +82,7 @@ struct ID3V1_TAG
   /// Places a specified field of the given tag in result.
   /// @param charset Source charset of the tag.
   /// @return Returns true if the tag has a non blank value.
-  bool GetField(ID3V1_TAG_COMP type, DSTRING& result, int charset) const;
+  bool GetField(ID3V1_TAG_COMP type, xstring& result, int charset) const;
   /// Sets a specified field of the given tag to the value \a source.
   /// @param charset Destination charset of the tag.
   /// @remarks During assignment the values might be silently truncated

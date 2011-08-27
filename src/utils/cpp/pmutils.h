@@ -30,14 +30,22 @@
 #define  PMUTILS_H
 
 #define INCL_WIN
-#include <cpp/xstring.h>
 #include <debuglog.h>
 #include <os2.h>
 
+#ifdef PM123_CORE
+#include <cpp/xstring.h>
+#else
+#include <plugin.h>
+#endif
 
 /// Get window text as xstring without length limitation.
-xstring WinQueryWindowXText(HWND hwnd);
-
+inline xstring WinQueryWindowXText(HWND hwnd)
+{ xstring ret;
+  char* dst = ret.allocate(WinQueryWindowTextLength(hwnd));
+  PMXASSERT(WinQueryWindowText(hwnd, ret.length()+1, dst), == ret.length());
+  return ret;
+}
 inline xstring WinQueryDlgItemXText(HWND hwnd, USHORT id)
 { return WinQueryWindowXText(WinWindowFromID(hwnd, id));
 }

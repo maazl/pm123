@@ -29,7 +29,7 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "dstring.h"
+#include "xstring_api.h"
 
 #include <interlocked.h>
 #include <cpp/xstring.h>
@@ -39,50 +39,50 @@
 
 /****************************************************************************
 *
-*  Proxy functions to interface between xstring and DSTRING
+*  Proxy functions to export xstring to plug-ins.
 *
 ****************************************************************************/
 
-const char* DLLENTRY dstring_create( const char* cstr )
+const char* DLLENTRY xstring_create( const char* cstr )
 { return xstring(cstr).toCstr();
 }
 
-void DLLENTRY dstring_free( volatile DSTRING* dst )
+void DLLENTRY xstring_free( volatile xstring* dst )
 { dst->reset();
 }
 
-unsigned DLLENTRY dstring_length( const DSTRING* dst )
+unsigned DLLENTRY xstring_length( const xstring* dst )
 { return dst->length();
 }
 
-char DLLENTRY dstring_equal( const DSTRING* src1, const DSTRING* src2 )
+char DLLENTRY xstring_equal( const xstring* src1, const xstring* src2 )
 { return *src1 == *src2;
 }
 
-int DLLENTRY dstring_compare( const DSTRING* src1, const DSTRING* src2 )
+int DLLENTRY xstring_compare( const xstring* src1, const xstring* src2 )
 { return src1->compareTo(*src2);
 }
 
-void DLLENTRY dstring_copy( volatile DSTRING* dst, const DSTRING* src )
+void DLLENTRY xstring_copy( volatile xstring* dst, const xstring* src )
 { *dst = *src; 
 }
 
-void DLLENTRY dstring_copy_safe( volatile DSTRING* dst, volatile const DSTRING* src )
+void DLLENTRY xstring_copy_safe( volatile xstring* dst, volatile const xstring* src )
 { *dst = *src;
 }
 
-void DLLENTRY dstring_assign( volatile DSTRING* dst, const char* cstr )
+void DLLENTRY xstring_assign( volatile xstring* dst, const char* cstr )
 { *dst = cstr;
 }
 
-char dstring_cmpassign( DSTRING* dst, const char* cstr )
+char xstring_cmpassign( xstring* dst, const char* cstr )
 { if (*dst == cstr)
     return false;
   *dst = cstr;
   return true;
 }
 
-void DLLENTRY dstring_append( DSTRING* dst, const char* cstr )
+void DLLENTRY xstring_append( xstring* dst, const char* cstr )
 { if (*dst == NULL)
     *dst = cstr;
   else
@@ -95,18 +95,18 @@ void DLLENTRY dstring_append( DSTRING* dst, const char* cstr )
   }
 }
 
-char* DLLENTRY dstring_allocate( DSTRING* dst, unsigned int len )
+char* DLLENTRY xstring_allocate( xstring* dst, unsigned int len )
 { return dst->allocate(len);
 }
 
-void DLLENTRY dstring_sprintf( volatile DSTRING* dst, const char* fmt, ... )
+void DLLENTRY xstring_sprintf( volatile xstring* dst, const char* fmt, ... )
 { va_list va;
   va_start(va, fmt);
-  dstring_vsprintf( dst, fmt, va );
+  xstring_vsprintf( dst, fmt, va );
   va_end(va);
 }
 
-void DLLENTRY dstring_vsprintf( volatile DSTRING* dst, const char* fmt, va_list va )
+void DLLENTRY xstring_vsprintf( volatile xstring* dst, const char* fmt, va_list va )
 { *dst = xstring::vsprintf(fmt, va);
 }
 

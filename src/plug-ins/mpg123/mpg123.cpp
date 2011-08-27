@@ -124,7 +124,7 @@ void ID3::ReadTags(ID3V1_TAG& tagv1, ID3V2_TAG*& tagv2)
   tagv1.ReadTag(XFile);
 }
 
-PLUGIN_RC ID3::UpdateTags(ID3V1_TAG* tagv1, ID3V2_TAG* tagv2, DSTRING& savename)
+PLUGIN_RC ID3::UpdateTags(ID3V1_TAG* tagv1, ID3V2_TAG* tagv2, xstring& savename)
 {
   size_t len = Filename.length();
   char* savename2 = savename.allocate(len);
@@ -195,7 +195,7 @@ MPG123::MPG123()
 , LastLength(-1)
 , LastSize(-1)
 {}
-MPG123::MPG123(const DSTRING& filename)
+MPG123::MPG123(const xstring& filename)
 : ID3(filename)
 , MPEG(NULL)
 , XSave(NULL)
@@ -376,7 +376,7 @@ inline bool MPG123::FillTechInfo(TECH_INFO& tech, OBJ_INFO& obj)
   return true;
 }
 
-void static copy_id3v1_string(const mpg123_id3v1* tag, ID3V1_TAG_COMP id, DSTRING& result, ULONG codepage)
+void static copy_id3v1_string(const mpg123_id3v1* tag, ID3V1_TAG_COMP id, xstring& result, ULONG codepage)
 { if (!result)
     ((ID3V1_TAG*)tag)->GetField(id, result, codepage);
 }
@@ -398,7 +398,7 @@ void static copy_id3v1_tag(META_INFO& info, const mpg123_id3v1* tag)
   copy_id3v1_string(tag, ID3V1_TRACK,   info.track,   codepage);
 }
 
-static void copy_id3v2_string(const ID3V2_TAG* tag, ID3V2_ID id, DSTRING& result)
+static void copy_id3v2_string(const ID3V2_TAG* tag, ID3V2_ID id, xstring& result)
 {
   ID3V2_FRAME* frame = NULL;
   char buffer[256];
@@ -533,9 +533,9 @@ void MPG123::FillMetaInfo(META_INFO& meta)
   }
 }
 
-DSTRING MPG123::ReplaceFile(const char* srcfile, const char* dstfile)
+xstring MPG123::ReplaceFile(const char* srcfile, const char* dstfile)
 {
-  DSTRING errmsg;
+  xstring errmsg;
 
   // Suspend all active instances of the updated file.
   Mutex::Lock lock(InstMutex);
@@ -797,7 +797,7 @@ PLUGIN_RC Decoder::Jump(PM123_TIME pos)
   }
 }
 
-PLUGIN_RC Decoder::Save(const DSTRING& savename)
+PLUGIN_RC Decoder::Save(const xstring& savename)
 { Mutex::Lock lock(DecMutex);
   if (!savename)
   { // Disable save
@@ -962,7 +962,7 @@ BOOL ascii_check(const char* str)
   return TRUE;
 }
 
-ULONG DLLENTRY decoder_saveinfo(const char* url, const META_INFO* info, int haveinfo, DSTRING* errortext)
+ULONG DLLENTRY decoder_saveinfo(const char* url, const META_INFO* info, int haveinfo, xstring* errortext)
 {
   // open file
   ID3 id3file(url);
@@ -1092,7 +1092,7 @@ ULONG DLLENTRY decoder_saveinfo(const char* url, const META_INFO* info, int have
   }
 
   // Now start the transaction.
-  DSTRING savename;
+  xstring savename;
   if (id3file.UpdateTags(tagv1, tagv2, savename) != PLUGIN_OK)
     *errortext = id3file.GetLastError();
   id3file.Close();

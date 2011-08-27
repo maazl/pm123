@@ -42,6 +42,7 @@
 #include "pm123.rc.h"
 #include "button95.h"
 #include "plugman.h"
+#include "visual.h"
 
 #include <gbm.h>
 #include <gbmerr.h>
@@ -51,6 +52,8 @@
 #include <minmax.h>
 #include <strutils.h>
 #include <fileutil.h>
+#include <cpp/pmutils.h>
+#include <cpp/cpputil.h>
 #include <os2.h>
 
 #include <stdio.h>
@@ -68,7 +71,6 @@
 static HBITMAP bmp_cache[3000];
 static POINTL  bmp_pos  [POS__MAX];
 static ULONG   bmp_ulong[UL__MAX];
-static char    visual_param[256];
 
 #define POS_UNDEF -1
 #define LCID_FONT  1L
@@ -937,7 +939,7 @@ bmp_set_text( const char* string )
     s_len    = 0;
   }
 
-  vis_broadcast( WM_PLUGIN_CONTROL, MPFROMLONG( PN_TEXTCHANGED ), 0 );
+  Visual::BroadcastMsg(WM_PLUGIN_CONTROL, MPFROMLONG(PN_TEXTCHANGED), 0);
 }
 
 /* Returns a pointer to the current selected text. */
@@ -1693,9 +1695,13 @@ bmp_init_skin_positions( void )
   bmp_pos[ POS_SLIDER_SHAFT].x = POS_UNDEF; bmp_pos[ POS_SLIDER_SHAFT].y = POS_UNDEF;
 }
 
+struct SkinnedVisual : public VISUAL_PROPERTIES
+{ /// File name of the plug-in.
+  xstring plugin;
+};
+
 /* Loads default PM123 skin. */
-static void
-bmp_init_default_skin( HPS hps )
+static void bmp_init_default_skin(HPS hps, vector_own<SkinnedVisual>& visuals)
 {
   int    i;
 
@@ -1729,16 +1735,17 @@ bmp_init_default_skin( HPS hps )
   bmp_ulong[ UL_HI_BG_COLOR  ] = DEF_HI_BG_COLOR;;
   bmp_ulong[ UL_BPS_DIGITS   ] = TRUE;
 
-  VISUAL_PROPERTIES visual;
-  visual.skin = TRUE;
-  visual.x    = 32;
-  visual.y    = 49;
-  visual.cx   = 95;
-  visual.cy   = 30;
-  strlcpy( visual.param, visual_param, sizeof visual.param );
+  SkinnedVisual* visual = new SkinnedVisual();
+  visual->skin = TRUE;
+  visual->x    = 32;
+  visual->y    = 49;
+  visual->cx   = 95;
+  visual->cy   = 30;
+  visual->param = "";
+  visual->plugin = amp_basepath + "visplug\\analyzer.dll";
   
-  Plugin::VisualProps = visual;
-  Plugin::Deserialize(amp_basepath + "visplug\\analyzer.dll", PLUGIN_VISUAL, true);
+  visuals.clear();
+  visuals.append() = visual;
 }
 
 static void
@@ -1912,261 +1919,309 @@ bmp_clean_skin( void )
   bmp_delete_text_buffer();
 }
 
+
+static void bmp_disable_visuals()
+{ // disable skinned visuals
+  Mutex::Lock lock(Module::Mtx);
+  PluginList vpl(PLUGIN_VISUAL);
+  Plugin::GetPlugins(vpl, false);
+  // remove current skinned plug-ins from list
+  foreach (const int_ptr<Plugin>*, ppp, vpl)
+    if (((Visual*)(*ppp).get())->GetProperties().skin)
+      (*ppp)->SetEnabled(false);
+  // now replace the list
+  Plugin::SetPluginList(vpl);
+  // The plug-ins will get deactivated automatically.
+}
+
+static void bmp_enable_visuals()
+{ // enable skinned visuals
+  Mutex::Lock lock(Module::Mtx);
+  PluginList vpl(PLUGIN_VISUAL);
+  Plugin::GetPlugins(vpl, false);
+  // remove current skinned plug-ins from list
+  foreach (const int_ptr<Plugin>*, ppp, vpl)
+    if (((Visual*)(*ppp).get())->GetProperties().skin)
+      (*ppp)->SetEnabled(true);
+  // now replace the list
+  Plugin::SetPluginList(vpl);
+  // The plug-ins will get activated automatically.
+}
+
 /* Loads specified skin. */
-BOOL
-bmp_load_skin( const char *filename, HWND hplayer, HPS hps )
-{
+bool bmp_load_skin(const char *filename, HWND hplayer)
+{ DEBUGLOG(("bmp_load_skin(%s, %x)\n", filename, hplayer));
   unsigned int   i;
   FILE* file;
   char  line[256];
   char  path[_MAX_PATH];
   int   errors = 0;
-  BOOL  empty  = TRUE;
-  DEBUGLOG(("bmp_load_skin(%s, %x, %x)\n", filename, hplayer, hps ));
+  bool  empty  = TRUE;
+  bool  result = TRUE;
+  vector_own<SkinnedVisual> visuals;
+
+  bmp_disable_visuals();
 
   sdrivedir( path, filename, sizeof( path ));
-
   file = fopen( filename, "r" );
-  if( !file && strlen( filename ) > 0 ) {
+  if( !file && strlen( filename ) > 0 )
     amp_player_error( "Unable open skin %s, %s", filename, strerror( errno ));
-  }
 
-  // Free loaded visual plugins.
-  VisualsSkinned.clear();
+  { PresentationSpace hps(hplayer);
+    bmp_clean_skin();
+    bmp_init_skin_positions();
 
-  bmp_clean_skin();
-  bmp_init_skin_positions();
-  *visual_param = 0;
+    bmp_ulong[ UL_SHADE_BRIGHT   ] = 0x00FFFFFFUL;
+    bmp_ulong[ UL_SHADE_DARK     ] = 0x00404040UL;
+    bmp_ulong[ UL_SLIDER_COLOR   ] = 0x00007F00UL;
+    bmp_ulong[ UL_SHADE_STAT     ] = TRUE;
+    bmp_ulong[ UL_SHADE_SLIDER   ] = TRUE;
+    bmp_ulong[ UL_SHADE_PLAYER   ] = TRUE;
+    bmp_ulong[ UL_SHADE_VOLUME   ] = TRUE;
+    bmp_ulong[ UL_SLIDER_WIDTH   ] = 242;
+    bmp_ulong[ UL_TIMER_SPACE    ] = 1;
+    bmp_ulong[ UL_TIMER_SEPARATE ] = TRUE;
+    bmp_ulong[ UL_VOLUME_SLIDER  ] = FALSE;
+    bmp_ulong[ UL_VOLUME_HRZ     ] = FALSE;
+    bmp_ulong[ UL_BPS_DIGITS     ] = FALSE;
+    bmp_ulong[ UL_PL_COLOR       ] = 0x0000FF00UL;
+    bmp_ulong[ UL_R_MSG_LEN      ] = 25;
+    bmp_ulong[ UL_R_MSG_HEIGHT   ] = 0;
+    bmp_ulong[ UL_S_MSG_LEN      ] = 25;
+    bmp_ulong[ UL_S_MSG_HEIGHT   ] = 0;
+    bmp_ulong[ UL_FG_MSG_COLOR   ] = 0x00FFFFFFUL;
+    bmp_ulong[ UL_FG_COLOR       ] = 0xFFFFFFFFUL;
+    bmp_ulong[ UL_BG_COLOR       ] = 0xFFFFFFFFUL;
+    bmp_ulong[ UL_HI_FG_COLOR    ] = 0xFFFFFFFFUL;
+    bmp_ulong[ UL_HI_BG_COLOR    ] = 0xFFFFFFFFUL;
+    bmp_ulong[ UL_PL_INDEX       ] = 0;
+    bmp_ulong[ UL_FONT           ] = 0;
+    bmp_ulong[ UL_ONE_FONT       ] = FALSE;
+    bmp_ulong[ UL_IN_PIXELS      ] = FALSE;
 
-  bmp_ulong[ UL_SHADE_BRIGHT   ] = 0x00FFFFFFUL;
-  bmp_ulong[ UL_SHADE_DARK     ] = 0x00404040UL;
-  bmp_ulong[ UL_SLIDER_COLOR   ] = 0x00007F00UL;
-  bmp_ulong[ UL_SHADE_STAT     ] = TRUE;
-  bmp_ulong[ UL_SHADE_SLIDER   ] = TRUE;
-  bmp_ulong[ UL_SHADE_PLAYER   ] = TRUE;
-  bmp_ulong[ UL_SHADE_VOLUME   ] = TRUE;
-  bmp_ulong[ UL_SLIDER_WIDTH   ] = 242;
-  bmp_ulong[ UL_TIMER_SPACE    ] = 1;
-  bmp_ulong[ UL_TIMER_SEPARATE ] = TRUE;
-  bmp_ulong[ UL_VOLUME_SLIDER  ] = FALSE;
-  bmp_ulong[ UL_VOLUME_HRZ     ] = FALSE;
-  bmp_ulong[ UL_BPS_DIGITS     ] = FALSE;
-  bmp_ulong[ UL_PL_COLOR       ] = 0x0000FF00UL;
-  bmp_ulong[ UL_R_MSG_LEN      ] = 25;
-  bmp_ulong[ UL_R_MSG_HEIGHT   ] = 0;
-  bmp_ulong[ UL_S_MSG_LEN      ] = 25;
-  bmp_ulong[ UL_S_MSG_HEIGHT   ] = 0;
-  bmp_ulong[ UL_FG_MSG_COLOR   ] = 0x00FFFFFFUL;
-  bmp_ulong[ UL_FG_COLOR       ] = 0xFFFFFFFFUL;
-  bmp_ulong[ UL_BG_COLOR       ] = 0xFFFFFFFFUL;
-  bmp_ulong[ UL_HI_FG_COLOR    ] = 0xFFFFFFFFUL;
-  bmp_ulong[ UL_HI_BG_COLOR    ] = 0xFFFFFFFFUL;
-  bmp_ulong[ UL_PL_INDEX       ] = 0;
-  bmp_ulong[ UL_FONT           ] = 0;
-  bmp_ulong[ UL_ONE_FONT       ] = FALSE;
-  bmp_ulong[ UL_IN_PIXELS      ] = FALSE;
+    if( !file )
+    {
+      bmp_init_skins_bitmaps( hps );
+      bmp_init_default_skin ( hps, visuals );
+      bmp_init_colors();
 
-  if( !file )
-  {
-    bmp_init_skins_bitmaps( hps );
-    bmp_init_default_skin ( hps );
-    bmp_init_colors();
-    bmp_reflow_and_resize ( hplayer );
-
-    vis_init_all( hplayer, TRUE );
-
-    return FALSE;
-  }
-
-  while( !feof( file ) &&  fgets( line, 256, file ))
-  {
-    blank_strip( line );
-
-    if( *line == '#' || *line == ';' ) {
-      continue;
+      result = false;
+      goto finish;
     }
 
-    for( i = 0; line[i]; i++ ) {
-      if( strchr( ",:=", line[i] )) {
-        break;
+    while( !feof( file ) &&  fgets( line, 256, file ))
+    {
+      blank_strip( line );
+
+      if( *line == '#' || *line == ';' ) {
+        continue;
       }
-    }
 
-    switch( line[i] ) {
-      case '=': // plug-in
-      {
-        VISUAL_PROPERTIES visual;
-        char module_name[_MAX_PATH];
-        char*  p = strtok( line + i + 1, "," );
-        char   param[_MAX_PATH];
-        struct stat fi;
+      for( i = 0; line[i]; i++ ) {
+        if( strchr( ",:=", line[i] )) {
+          break;
+        }
+      }
 
-        if( p == NULL ) {
+      switch( line[i] ) {
+        case '=': // plug-in
+        { char*  p = strtok( line + i + 1, "," );
+          char   param[_MAX_PATH];
+
+          if (p == NULL)
+            break;
+
+          SkinnedVisual* visual = new SkinnedVisual();
+          visual->plugin = p;
+          visual->skin = true;
+
+          if(( p = strtok( NULL, "," )) != NULL )
+            visual->x  = atoi(p);
+          if(( p = strtok( NULL, "," )) != NULL )
+            visual->y  = atoi(p);
+          if(( p = strtok( NULL, "," )) != NULL )
+            visual->cx = atoi(p);
+          if(( p = strtok( NULL, "," )) != NULL )
+            visual->cy = atoi(p);
+          if(( p = strtok( NULL, "," )) != NULL )
+          { rel2abs( path, p, param, sizeof( param ));
+            DEBUGLOG(("bmp_load_skin: %s => %s\n", p, param));
+            struct stat fi;
+            if (stat(param, &fi) == 0)
+              visual->param = param;
+            else
+              visual->param = p;
+          }
+
+          visuals.append() = visual;
           break;
         }
 
-        rel2abs( amp_basepath, p,
-                 module_name, sizeof( module_name ));
-
-        if(( p = strtok( NULL, "," )) != NULL ) {
-          visual.x  = atoi(p);
-        }
-        if(( p = strtok( NULL, "," )) != NULL ) {
-          visual.y  = atoi(p);
-        }
-        if(( p = strtok( NULL, "," )) != NULL ) {
-          visual.cx = atoi(p);
-        }
-        if(( p = strtok( NULL, "," )) != NULL ) {
-          visual.cy = atoi(p);
-        }
-        if(( p = strtok( NULL, "," )) != NULL ) {
-          rel2abs( path, p, param, sizeof( param ));
-          DEBUGLOG(("bmp_load_skin: %s => %s\n", p, param));
-          if( stat( param, &fi ) == 0 ) {
-            strlcpy( visual_param, param, sizeof visual_param );
-          } else {
-            strlcpy( visual_param, p, sizeof visual_param );
-          }
-        }
-
-        visual.skin = TRUE;
-        strlcpy( visual.param, visual_param, sizeof visual.param );
-        Plugin::VisualProps = visual;
-        Plugin::Deserialize(module_name, PLUGIN_VISUAL, true);
-        break;
-      }
-
-      case ':': // position
-      {
-        int x = POS_UNDEF;
-        int y = POS_UNDEF;
-        int i =  0;
-
-        sscanf( line, "%d:%d,%d", &i, &x, &y );
-        if (i < POS__MAX)
-        { bmp_pos[ i ].x = x;
-          bmp_pos[ i ].y = y;
-        }
-        break;
-      }
-
-      case ',': // bitmap
-      {
-        char* p = line + i + 1;
-        int   i = atoi( line );
-        int   r, g, b;
-
-        if( i == UL_SHADE_BRIGHT  ||
-            i == UL_SHADE_DARK    ||
-            i == UL_SLIDER_BRIGHT ||
-            i == UL_SLIDER_COLOR  ||
-            i == UL_PL_COLOR      ||
-            i == UL_FG_COLOR      ||
-            i == UL_BG_COLOR      ||
-            i == UL_HI_FG_COLOR   ||
-            i == UL_HI_BG_COLOR   ||
-            i == UL_FG_MSG_COLOR   )
+        case ':': // position
         {
-          sscanf( p, "%d/%d/%d", &r, &g, &b );
-          bmp_ulong[ i ] = r << 16 | g << 8 | b;
+          int x = POS_UNDEF;
+          int y = POS_UNDEF;
+          int i =  0;
+
+          sscanf( line, "%d:%d,%d", &i, &x, &y );
+          if (i < POS__MAX)
+          { bmp_pos[ i ].x = x;
+            bmp_pos[ i ].y = y;
+          }
           break;
         }
-        switch( i ) {
-          case UL_SHADE_STAT:    bmp_ulong[ UL_SHADE_STAT    ] = FALSE;   break;
-          case UL_SHADE_VOLUME:  bmp_ulong[ UL_SHADE_VOLUME  ] = FALSE;   break;
 
-          case UL_DISPLAY_MSG:
-            // Not supported since 1.32
-            // if( amp_playmode == AMP_NOFILE ) {
-            //  bmp_set_text( p );
-            // }
-            break;
+        case ',': // bitmap
+        {
+          char* p = line + i + 1;
+          int   i = atoi( line );
+          int   r, g, b;
 
-          case UL_TIMER_SEPSPACE:
-            // Not supported since 1.32
-            // bmp_ulong[ UL_TIMER_SEPSPACE ] = atoi(p);
-            break;
-
-          case UL_SHADE_PLAYER:   bmp_ulong[ UL_SHADE_PLAYER   ] = FALSE;   break;
-          case UL_SHADE_SLIDER:   bmp_ulong[ UL_SHADE_SLIDER   ] = FALSE;   break;
-          case UL_R_MSG_LEN:      bmp_ulong[ UL_R_MSG_LEN      ] = atoi(p); break;
-          case UL_SLIDER_WIDTH:   bmp_ulong[ UL_SLIDER_WIDTH   ] = atoi(p); break;
-          case UL_S_MSG_LEN:      bmp_ulong[ UL_S_MSG_LEN      ] = atoi(p); break;
-          case UL_FONT:           Cfg::ChangeAccess().font = atoi(p); break;
-          case UL_TIMER_SPACE:    bmp_ulong[ UL_TIMER_SPACE    ] = atoi(p); break;
-          case UL_TIMER_SEPARATE: bmp_ulong[ UL_TIMER_SEPARATE ] = FALSE;   break;
-          case UL_VOLUME_HRZ:     bmp_ulong[ UL_VOLUME_HRZ     ] = TRUE;    break;
-          case UL_VOLUME_SLIDER:  bmp_ulong[ UL_VOLUME_SLIDER  ] = TRUE;    break;
-          case UL_BPS_DIGITS:     bmp_ulong[ UL_BPS_DIGITS     ] = TRUE;    break;
-          case UL_PL_INDEX:       bmp_ulong[ UL_PL_INDEX       ] = atoi(p); break;
-          case UL_ONE_FONT:       bmp_ulong[ UL_ONE_FONT       ] = TRUE;    break;
-          case UL_IN_PIXELS:      bmp_ulong[ UL_IN_PIXELS      ] = TRUE;    break;
-          case UL_R_MSG_HEIGHT:   bmp_ulong[ UL_R_MSG_HEIGHT   ] = atoi(p); break;
-          case UL_S_MSG_HEIGHT:   bmp_ulong[ UL_S_MSG_HEIGHT   ] = atoi(p); break;
-
-          case UL_BUNDLE:
+          if( i == UL_SHADE_BRIGHT  ||
+              i == UL_SHADE_DARK    ||
+              i == UL_SLIDER_BRIGHT ||
+              i == UL_SLIDER_COLOR  ||
+              i == UL_PL_COLOR      ||
+              i == UL_FG_COLOR      ||
+              i == UL_BG_COLOR      ||
+              i == UL_HI_FG_COLOR   ||
+              i == UL_HI_BG_COLOR   ||
+              i == UL_FG_MSG_COLOR   )
           {
-            char bundle[_MAX_PATH];
-
-            rel2abs( path, p, bundle, sizeof( bundle ));
-            bmp_load_packfile( bundle );
+            sscanf( p, "%d/%d/%d", &r, &g, &b );
+            bmp_ulong[ i ] = r << 16 | g << 8 | b;
             break;
           }
+          switch( i ) {
+            case UL_SHADE_STAT:    bmp_ulong[ UL_SHADE_STAT    ] = FALSE;   break;
+            case UL_SHADE_VOLUME:  bmp_ulong[ UL_SHADE_VOLUME  ] = FALSE;   break;
 
-          default:
-          { char image[_MAX_PATH];
-            // decouple skin IDs from internal IDs
-            i = bmp_map_bitmap_id(i);
-            if (i)
-            { rel2abs( path, p, image, sizeof( image ));
-              bmp_cache[ i ] = bmp_load_bitmap( image );
-              if( bmp_cache[ i ] == NULLHANDLE ) {
-                ++errors;
-              }
+            case UL_DISPLAY_MSG:
+              // Not supported since 1.32
+              // if( amp_playmode == AMP_NOFILE ) {
+              //  bmp_set_text( p );
+              // }
+              break;
+
+            case UL_TIMER_SEPSPACE:
+              // Not supported since 1.32
+              // bmp_ulong[ UL_TIMER_SEPSPACE ] = atoi(p);
+              break;
+
+            case UL_SHADE_PLAYER:   bmp_ulong[ UL_SHADE_PLAYER   ] = FALSE;   break;
+            case UL_SHADE_SLIDER:   bmp_ulong[ UL_SHADE_SLIDER   ] = FALSE;   break;
+            case UL_R_MSG_LEN:      bmp_ulong[ UL_R_MSG_LEN      ] = atoi(p); break;
+            case UL_SLIDER_WIDTH:   bmp_ulong[ UL_SLIDER_WIDTH   ] = atoi(p); break;
+            case UL_S_MSG_LEN:      bmp_ulong[ UL_S_MSG_LEN      ] = atoi(p); break;
+            case UL_FONT:           Cfg::ChangeAccess().font = atoi(p); break;
+            case UL_TIMER_SPACE:    bmp_ulong[ UL_TIMER_SPACE    ] = atoi(p); break;
+            case UL_TIMER_SEPARATE: bmp_ulong[ UL_TIMER_SEPARATE ] = FALSE;   break;
+            case UL_VOLUME_HRZ:     bmp_ulong[ UL_VOLUME_HRZ     ] = TRUE;    break;
+            case UL_VOLUME_SLIDER:  bmp_ulong[ UL_VOLUME_SLIDER  ] = TRUE;    break;
+            case UL_BPS_DIGITS:     bmp_ulong[ UL_BPS_DIGITS     ] = TRUE;    break;
+            case UL_PL_INDEX:       bmp_ulong[ UL_PL_INDEX       ] = atoi(p); break;
+            case UL_ONE_FONT:       bmp_ulong[ UL_ONE_FONT       ] = TRUE;    break;
+            case UL_IN_PIXELS:      bmp_ulong[ UL_IN_PIXELS      ] = TRUE;    break;
+            case UL_R_MSG_HEIGHT:   bmp_ulong[ UL_R_MSG_HEIGHT   ] = atoi(p); break;
+            case UL_S_MSG_HEIGHT:   bmp_ulong[ UL_S_MSG_HEIGHT   ] = atoi(p); break;
+
+            case UL_BUNDLE:
+            {
+              char bundle[_MAX_PATH];
+
+              rel2abs( path, p, bundle, sizeof( bundle ));
+              bmp_load_packfile( bundle );
+              break;
             }
-            break;
+
+            default:
+            { char image[_MAX_PATH];
+              // decouple skin IDs from internal IDs
+              i = bmp_map_bitmap_id(i);
+              if (i)
+              { rel2abs( path, p, image, sizeof( image ));
+                bmp_cache[ i ] = bmp_load_bitmap( image );
+                if( bmp_cache[ i ] == NULLHANDLE ) {
+                  ++errors;
+                }
+              }
+              break;
+            }
           }
         }
       }
     }
-  }
 
-  fclose( file );
+    fclose( file );
 
-  DEBUGLOG(("bmp_load_skin: plugin loaded\n"));
+    DEBUGLOG(("bmp_load_skin: plugin loaded\n"));
 
-  for( i = 0; i < sizeof( bmp_cache ) / sizeof( HBITMAP ); i++ ) {
-    if( bmp_cache[ i ] ) {
-      empty = FALSE;
-      break;
+    for( i = 0; i < sizeof( bmp_cache ) / sizeof( HBITMAP ); i++ ) {
+      if( bmp_cache[ i ] ) {
+        empty = false;
+        break;
+      }
+    }
+
+    if (empty)
+      bmp_init_default_skin( hps, visuals );
+
+    { Cfg::ChangeAccess cfg;
+      if (cfg.mode != CFG_MODE_REGULAR && !bmp_is_mode_supported(cfg.mode))
+        cfg.mode = CFG_MODE_REGULAR;
+      if (bmp_ulong[UL_ONE_FONT])
+        cfg.font = 0;
+
+      bmp_init_skins_bitmaps( hps );
+      bmp_init_colors();
+
+      if( errors > 0 ) {
+        if( !amp_query( hplayer, "Some bitmaps of this skin was not found. "
+                                 "Would you like to continue the loading of this skin? "
+                                 "(if you select No, default skin will be used)" ))
+          cfg.defskin = xstring::empty;
+      }
     }
   }
 
-  if( empty ) {
-    bmp_init_default_skin( hps );
-  }
+ finish:
 
-  Cfg::ChangeAccess cfg;
-  if( cfg.mode != CFG_MODE_REGULAR && !bmp_is_mode_supported( cfg.mode )) {
-    cfg.mode = CFG_MODE_REGULAR;
-  }
-  if( bmp_ulong[ UL_ONE_FONT ] ) {
-    cfg.font = 0;
-  }
-
-  bmp_init_skins_bitmaps( hps );
-  bmp_init_colors();
   bmp_reflow_and_resize ( hplayer );
 
-  if( errors > 0 ) {
-    if( !amp_query( hplayer, "Some bitmaps of this skin was not found. "
-                             "Would you like to continue the loading of this skin? "
-                             "(if you select No, default skin will be used)" ))
-      cfg.defskin = xstring::empty;
+  // reinit skinned plug-ins
+  PluginList vpl(PLUGIN_VISUAL);
+  foreach (SkinnedVisual*const*, svpp, visuals)
+    try
+    { int_ptr<Visual> pp((Visual*)Plugin::Deserialize((*svpp)->plugin, PLUGIN_VISUAL).get());
+      pp->SetProperties(*svpp);
+      pp->SetEnabled(false);
+      vpl.append() = pp;
+    } catch (const ModuleException& ex)
+    { amp_player_error("Skinned plug-in %s failed to load: %s", (*svpp)->plugin.cdata(), ex.GetErrorText().cdata());
+    }
+  // replace skinned visual plug-ins
+  { Mutex::Lock lock(Module::Mtx);
+    PluginList new_vpl(PLUGIN_VISUAL);
+    Plugin::GetPlugins(new_vpl, false);
+    // remove current skinned plug-ins from list
+    const int_ptr<Plugin>* ppp = new_vpl.begin();
+    while (ppp != new_vpl.end())
+      if (((Visual*)(*ppp).get())->GetProperties().skin)
+        new_vpl.erase(ppp);
+      else
+        ++ppp;
+    // append new ones
+    foreach (, ppp, vpl)
+      new_vpl.append() = *ppp;
+    // now replace the list
+    Plugin::SetPluginList(new_vpl);
+    // The plug-ins will get activated automatically.
   }
 
-  return TRUE;
+  if (Cfg::Get().mode == CFG_MODE_REGULAR)
+    bmp_enable_visuals();
+
+  return result;
 }
 
 /* Initializes specified skin button. */
@@ -2254,36 +2309,29 @@ bmp_reflow_and_resize( HWND hplayer )
   HWND hframe = WinQueryWindow( hplayer, QW_PARENT );
   PMASSERT(hframe != NULLHANDLE);
 
-  switch( Cfg::Get().mode )
-  {
-    case CFG_MODE_SMALL:
-    {
-      vis_deinit_all(TRUE);
+  cfg_mode mode = Cfg::Get().mode;
 
-      WinSetWindowPos( hframe, HWND_TOP, 0, 0,
-                       bmp_pos[POS_S_SIZE].x, bmp_pos[POS_S_SIZE].y, SWP_SIZE );
+  if (mode != CFG_MODE_REGULAR)
+    bmp_disable_visuals();
+
+  POINTL size;
+  switch( Cfg::Get().mode )
+  { case CFG_MODE_SMALL:
+      size = bmp_pos[POS_S_SIZE];
       break;
-    }
 
     case CFG_MODE_TINY:
-    {
-      vis_deinit_all(TRUE);
-
-      WinSetWindowPos( hframe, HWND_TOP, 0, 0,
-                       bmp_pos[POS_T_SIZE].x, bmp_pos[POS_T_SIZE].y, SWP_SIZE );
+      size = bmp_pos[POS_T_SIZE];
       break;
-    }
 
     default:
-    {
-      WinSetWindowPos( hframe, HWND_TOP, 0, 0,
-                       bmp_pos[POS_R_SIZE].x, bmp_pos[POS_R_SIZE].y, SWP_SIZE );
-
-      vis_init_all(hplayer, TRUE);
-
+      size = bmp_pos[POS_R_SIZE];
       break;
-    }
   }
+  WinSetWindowPos( hframe, HWND_TOP, 0, 0, size.x, size.y, SWP_SIZE );
+
+  if (mode == CFG_MODE_REGULAR)
+    bmp_enable_visuals();
 
   bmp_init_button( hplayer, &btn_play    );
   bmp_init_button( hplayer, &btn_pause   );
@@ -2299,6 +2347,4 @@ bmp_reflow_and_resize( HWND hplayer )
   bmp_init_button( hplayer, &btn_fload   );
 
   bmp_delete_text_buffer();
-  // TODO: Callback not nice!!
-  // GUI::RefreshDisplay();
 }

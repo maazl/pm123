@@ -44,14 +44,25 @@ interface</a></li>
 interface</h3>
 <h4>decoder_init, decoder_uninit</h4>
 <blockquote>
-  <pre>int DLLENTRY <b>decoder_init</b> ( void **<var>w</var> )<br>BOOL DLLENTRY <b>decoder_uninit</b>( void *<var>w</var> )</pre>
+  <pre>int DLLENTRY <b>decoder_init</b> ( void **<var>w</var> )</pre>
 </blockquote>
 <ul>
   <li><tt><var>w</var></tt> - Allocate
 any chunk of memory necessary for the decoder's function. This pointer
 will be passed to the other functions.</li>
-  <li>return value - <tt>PLUGIN_FAILED</tt> (<tt>-1</tt>)
+  <li>return value:<br>
+    <tt>PLUGIN_OK</tt> (<tt>0</tt>)
+means success.<br>
+    <tt>PLUGIN_FAILED</tt> (<tt>-1</tt>)
 means the decoder was not initialized successfully.</li>
+</ul>
+<blockquote>
+  <pre>BOOL DLLENTRY <b>decoder_uninit</b>( void *<var>w</var> )</pre>
+</blockquote>
+<ul>
+  <li><tt><var>w</var></tt> - The pointer received by <tt>decoder_init</tt>.<br>
+  </li>
+  <li>return value: <tt>TRUE</tt> = success</li>
 </ul>
 <p>Init function is called when PM123 needs the specified decoder
 to play the stream demanded by the user. So only one decoder plug-in is
@@ -502,7 +513,7 @@ information types that are neither set in <var><tt>cached</tt></var>
 nor in <var><tt>override</tt></var> may be <tt>NULL</tt>.
 <h4><a name="decoder_saveinfo"></a>decoder_saveinfo</h4>
 <blockquote>
-  <pre>ULONG DLLENTRY <b>decoder_saveinfo</b>( char* <var>url</var>, const META_INFO* <var>info</var>, int <var>haveinfo</var>, DSTRING* <var>errortext</var> )</pre>
+  <pre>ULONG DLLENTRY <b>decoder_saveinfo</b>( char* <var>url</var>, const META_INFO* <var>info</var>, int <var>haveinfo</var>, xstring* <var>errortext</var> )</pre>
 </blockquote>
 <ul>
   <li><code><var>url</var></code> - URI
@@ -526,7 +537,7 @@ Calling the function should succeed even if the file is currently
 playing.</p>
 <h4><a name="decoder_savefile"></a>decoder_savefile</h4>
 <blockquote>
-  <pre>ULONG DLLENTRY <b>decoder_savefile</b>( const char* <var>url</var>, const char* format, int* <var>what</var>, const INFO_BUNDLE* <var>info</var>,<br>                                DECODER_SAVE_ENUMERATION_CB <var>cb</var>, void* <var>param</var><var></var>, DSTRING* <var>errortext</var> )</pre>
+  <pre>ULONG DLLENTRY <b>decoder_savefile</b>( const char* <var>url</var>, const char* format, int* <var>what</var>, const INFO_BUNDLE* <var>info</var>,<br>                                DECODER_SAVE_ENUMERATION_CB <var>cb</var>, void* <var>param</var><var></var>, xstring* <var>errortext</var> )</pre>
 </blockquote>
 <ul>
   <li><code><var>url</var></code> - URI
@@ -578,7 +589,7 @@ place. It is currently only used to save playlists.</p>
 <h5><a name="DECODER_SAVE_ENUMERATION_CB"></a>DECODER_SAVE_ENUMERATION_CB</h5>
 <blockquote>
   <pre>int (DLLENTRY* <b>cb</b>)( void* <var>param</var>, <a
- href="dstring.html">DSTRING</a>* <var>url</var>, const <a
+ href="xstring_api.html">xstring</a>* <var>url</var>, const <a
  href="datatype.html#INFO_BUNDLE">INFO_BUNDLE</a>** <var>info</var>, int* <var>valid</var>, int* <var>override</var> )</pre>
 </blockquote>
 <ul>
@@ -588,7 +599,7 @@ Arbitrary parameter from&nbsp;<code>decoder_savelist</code>.</li>
 Return URI
 of the sub item. The URI may be absolute or relative. In case of
 relative URIs the context of the enclosing playlist is used for URI
-resolution. <em>Note that the <a href="dstring.html"><tt>DSTRING</tt>
+resolution. <em>Note that the <a href="xstring_api.html"><tt>xstring</tt>
 structure</a> must be initialized</em> when the function is called.</li>
   <li><code><var>info</var></code>
 (out)

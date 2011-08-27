@@ -464,7 +464,7 @@ DLGTEMPLATE CFG_OUT_CONFIG
     LTEXT      "",                        ST_PLG_AUTHOR,   100, 32, 144,  8, DT_VCENTER
     LTEXT      "",                        ST_PLG_DESC,     100, 40, 144,  8, DT_VCENTER
     LTEXT      "",                        ST_PLG_LEVEL,    100, 24, 144,  8, DT_VCENTER
-    PUSHBUTTON "~Activate",               PB_PLG_ACTIVATE, 100, 10,  44, 12, WS_GROUP|WS_DISABLED
+    PUSHBUTTON "~Activate",               PB_PLG_ENABLE,   100, 10,  44, 12, WS_GROUP|WS_DISABLED
     PUSHBUTTON "~Configure",              PB_PLG_CONFIG,   148, 10,  44, 12, WS_DISABLED
   }
 }

@@ -72,7 +72,8 @@ class url123 : public xstring
   static bool   hasScheme(const char* str);
   static bool   isAbsolute(const char* str);
   static void   parseParameter(stringmap& dest, const char* params);
-  static const xstring makeParameter(const stringmap& params); 
+  static void   appendParameter(xstringbuilder& target, const stringmap& params);
+  static const xstring makeParameter(const stringmap& params) { xstringbuilder ret; appendParameter(ret, params); return ret; }
   static bool*  parseBoolean(const char* val);
   /// Normalize the given URL.
   /// @param str URL to normalize. This may be either a file name or any URI scheme.

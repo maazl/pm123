@@ -12,13 +12,13 @@
 <h1>PM123 common plug-in data types</h1>
 
 <p><tt><a href="#ATTR_INFO">ATTR_INFO</a> <a href="#DRPL_INFO">DRPL_INFO</a>
-<a href="dstring.html">DSTRING</a> <a href="#INFO_BUNDLE">INFO_BUNDLE</a>
+<a href="xstring_api.html">xstring</a> <a href="#INFO_BUNDLE">INFO_BUNDLE</a>
 <a href="#INFOTYPE">INFOTYPE</a> <a href="#ITEM_INFO">ITEM_INFO</a> <a href="#META_INFO">META_INFO</a> <a href="#OBJ_INFO">OBJ_INFO</a> <a href="#PHYS_INFO">PHYS_INFO</a><a href="#PL_OPTIONS">PL_OPTIONS</a> <a href="#PM123_SIZE">PM123_SIZE</a> <a href="#PM123_TIME">PM123_TIME</a>
 <a href="#RPL_INFO">RPL_INFO</a> <a href="#TECH_INFO">TECH_INFO</a> <a href="#TECH_ATTRIBUTES">TECH_ATTRIBUTES</a></tt> </p>
 
-<h3><a name="DSTRING"></a>DSTRING</h3>
+<h3><a name="xstring"></a>xstring</h3>
 
-<a href="dstring.html">See separate document</a>.
+<a href="xstring_api.html">See separate document</a>.
 <h3><tt><a name="INFOTYPE"></a></tt>INFOTYPE</h3>
 
 <p><code>INFOTYPE</code> is an enumeration type. It
@@ -125,11 +125,11 @@ about an
 object.</h3>
 
 <blockquote>
-  <pre>typedef struct<br>{ int        samplerate;<br>  int        channels;<br>  unsigned   attributes;<br>  <a href="dstring.html">DSTRING</a>    info;<br>  <a href="dstring.html">DSTRING</a>    format;<br>  <a href="dstring.html">DSTRING</a>    decoder;<br>} <b>TECH_INFO</b>;</pre>
+  <pre>typedef struct<br>{ int        samplerate;<br>  int        channels;<br>  unsigned   attributes;<br>  <a href="xstring_api.html">xstring</a>    info;<br>  <a href="xstring_api.html">xstring</a>    format;<br>  <a href="xstring_api.html">xstring</a>    decoder;<br>} <b>TECH_INFO</b>;</pre>
 </blockquote>
 
 <p>Note that objects of type <tt>TECH_INFO</tt> should not be copied
-binary by value because of the embedded <tt><a href="dstring.html">DSTRING</a></tt>s.</p>
+binary by value because of the embedded <tt><a href="xstring_api.html">xstring</a></tt>s.</p>
 
 <table border="1" cellpadding="3" cellspacing="0">
 
@@ -262,11 +262,11 @@ for an 128kbps MP3.</td>
 information</h3>
 
 <blockquote>
-  <pre>typedef struct<br>{ <a href="dstring.html">DSTRING</a>    title;<br>  <a href="dstring.html">DSTRING</a>    artist;<br>  <a href="dstring.html">DSTRING</a>    album;<br>  <a href="dstring.html">DSTRING</a>    year;<br>  <a href="dstring.html">DSTRING</a>    comment;<br>  <a href="dstring.html">DSTRING</a>    genre;<br>  <a href="dstring.html">DSTRING</a>    track;<br>  <a href="dstring.html">DSTRING</a>    copyright;<br>  float      track_gain;<br>  float      track_peak;<br>  float      album_gain;<br>  float      album_peak;<br>} <b>META_INFO</b>;</pre>
+  <pre>typedef struct<br>{ <a href="xstring_api.html">xstring</a>    title;<br>  <a href="xstring_api.html">xstring</a>    artist;<br>  <a href="xstring_api.html">xstring</a>    album;<br>  <a href="xstring_api.html">xstring</a>    year;<br>  <a href="xstring_api.html">xstring</a>    comment;<br>  <a href="xstring_api.html">xstring</a>    genre;<br>  <a href="xstring_api.html">xstring</a>    track;<br>  <a href="xstring_api.html">xstring</a>    copyright;<br>  float      track_gain;<br>  float      track_peak;<br>  float      album_gain;<br>  float      album_peak;<br>} <b>META_INFO</b>;</pre>
 </blockquote>
 
 <p>Note that objects of type META_INFO should not be copied
-binary by value because of the embedded&nbsp;<tt><a href="dstring.html">DSTRING</a></tt>.</p>
+binary by value because of the embedded&nbsp;<tt><a href="xstring_api.html">xstring</a></tt>.</p>
 
 <table border="1" cellpadding="3" cellspacing="0">
 
@@ -344,11 +344,11 @@ explicitly set to blank. In fact this will rarely make a difference.
 -&nbsp;Object attributes.</h3>
 
 <blockquote>
-  <pre>typedef struct<br>{ unsigned   ploptions;<br>  <a href="dstring.html">DSTRING</a>    at;<br>}<b> ATTR_INFO</b>;</pre>
+  <pre>typedef struct<br>{ unsigned   ploptions;<br>  <a href="xstring_api.html">xstring</a>    at;<br>}<b> ATTR_INFO</b>;</pre>
 </blockquote>
 
 Note that objects of type ATTR_INFO should not be copied
-binary by value because of the embedded <tt><a href="dstring.html">DSTRING</a></tt>.
+binary by value because of the embedded <tt><a href="xstring_api.html">xstring</a></tt>.
 <table border="1" cellpadding="3" cellspacing="0">
 
   <tbody>
@@ -532,11 +532,11 @@ size. If this is non-zero the <tt>totalsize</tt> is incomplete.<br>
 item information.</h3>
 
 <blockquote>
-  <pre>typedef struct<br>{ <a href="dstring.html">DSTRING</a>      alias;<br>  <a href="dstring.html">DSTRING</a>      start;<br>  <a href="dstring.html">DSTRING</a>      stop;<br>  float        pregap;<br>  float        postgap;<br>  float        gain;<br>} <b>ITEM_INFO</b>;</pre>
+  <pre>typedef struct<br>{ <a href="xstring_api.html">xstring</a>      alias;<br>  <a href="xstring_api.html">xstring</a>      start;<br>  <a href="xstring_api.html">xstring</a>      stop;<br>  float        pregap;<br>  float        postgap;<br>  float        gain;<br>} <b>ITEM_INFO</b>;</pre>
 </blockquote>
 
 <p>Note that objects of type ITEM_INFO should not be copied
-binary by value because of the embedded&nbsp;<tt><a href="dstring.html">DSTRING</a></tt>s.</p>
+binary by value because of the embedded&nbsp;<tt><a href="xstring_api.html">xstring</a></tt>s.</p>
 
 <table border="1" cellpadding="3" cellspacing="0">
 

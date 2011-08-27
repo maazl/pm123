@@ -107,7 +107,7 @@ typedef struct _DECODER_PARAMS
 typedef struct _DECODER_PARAMS2
 {
   /* --- DECODER_PLAY, STOP */
-  DSTRING      URL;
+  xstring      URL;
 
   /* --- DECODER_REW, FFWD and JUMPTO */
   PM123_TIME   JumpTo;      /* absolute positioning in seconds */
@@ -122,7 +122,7 @@ typedef struct _DECODER_PARAMS2
   void* A;                  /* only to be used with the precedent functions */
 
   /* --- DECODER_SAVEDATA */
-  DSTRING      SaveFilename;
+  xstring      SaveFilename;
 
 } DECODER_PARAMS2;
 
@@ -249,7 +249,7 @@ typedef void DLLENTRYP(DECODER_INFO_ENUMERATION_CB)(void* param, const char* url
 
 /* Callback of decoder_savelist. Called once per item.
  */
-typedef int DLLENTRYP(DECODER_SAVE_ENUMERATION_CB)(void* param, DSTRING* url,
+typedef int DLLENTRYP(DECODER_SAVE_ENUMERATION_CB)(void* param, xstring* url,
   const INFO_BUNDLE** info, int* valid, int* override);
 
 /* CD info structure for old style plug-ins.
@@ -278,10 +278,10 @@ typedef struct _DECODER_CDINFO
 ULONG DLLENTRY decoder_fileinfo (const char* url, int* what, const INFO_BUNDLE* info,
                                  DECODER_INFO_ENUMERATION_CB cb, void* param);
 
-ULONG DLLENTRY decoder_saveinfo (const char* url, const META_INFO* info, int haveinfo, DSTRING* errortext);
+ULONG DLLENTRY decoder_saveinfo (const char* url, const META_INFO* info, int haveinfo, xstring* errortext);
 
 ULONG DLLENTRY decoder_savefile (const char* url, const char* format, int* what, const INFO_BUNDLE* info,
-                                 DECODER_SAVE_ENUMERATION_CB cb, void* param, DSTRING* errortext);
+                                 DECODER_SAVE_ENUMERATION_CB cb, void* param, xstring* errortext);
 #else
 ULONG DLLENTRY decoder_fileinfo (const char* filename, DECODER_INFO* info);
 ULONG DLLENTRY decoder_trackinfo(const char* drive, int track, DECODER_INFO* info);

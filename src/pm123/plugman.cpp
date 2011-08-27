@@ -33,208 +33,126 @@
 #define  INCL_PM
 #define  INCL_ERRORS
 #include "plugman.h"
-#include "plugman_base.h"
-#include "123_util.h"
-#include "dstring.h"
-#include "pm123.h" // for startpath
-#include "dialog.h"
+#include "decoder.h"
+#include "filter.h"
+#include "output.h"
+#include "visual.h"
+#include "commandprocessor.h"
 #include "configuration.h"
+#include "xstring_api.h"
+#include "dialog.h"
+#include "123_util.h"
+#include "pm123.h" // for startpath
 #include "pm123.rc.h"
-#include "pipe.h"
-#include <utilfct.h>
-#include <fileutil.h>
-#include <vdelegate.h>
-#include <cpp/mutex.h>
-#include <cpp/url123.h>
-#include <cpp/container/stringmap.h>
 #include <cpp/container/inst_index.h>
-#include <os2.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
+#include <fileutil.h>
+#include <charset.h>
+#include <utilfct.h>
+#include <math.h>
+#include <limits.h>
 #include <stdarg.h>
-#include <malloc.h>
 
 //#define DEBUG_LOG 1
 #include <debuglog.h>
 
-/* thread priorities for decoder thread */
-#define  DECODER_HIGH_PRIORITY_CLASS PRTYC_FOREGROUNDSERVER // sorry, we should not lockup the system with time-critical priority
-#define  DECODER_HIGH_PRIORITY_DELTA 20
-#define  DECODER_LOW_PRIORITY_CLASS  PRTYC_REGULAR
-#define  DECODER_LOW_PRIORITY_DELTA  1
 
-
-/****************************************************************************
-*
-* global lists
-*
-****************************************************************************/
-
-PluginList1 Decoders(PLUGIN_DECODER, // only decoders
-  "oggplay.dll?enabled=true&filetypes=OGG\n"
-  "mpg123.dll?enabled=true&filetypes=MP1;MP2;MP3\n"
-  "wavplay.dll?enabled=true&filetypes=Digital Audio\n"
-  "plist123.dll?enabled=true&filetypes=Playlist\n"
-  "cddaplay.dll?enabled=true\n"
-  "os2rec.dll?enabled=true\n");
-PluginList1 Outputs(PLUGIN_OUTPUT,   // only outputs
-  "os2audio.dll?enabled=true\n"
-  "wavout.dll?enabled=true\n"
-  "pulse123.dll?enabled=true\n"
-  "os2audio.dll"); // active output
-PluginList  Filters(PLUGIN_FILTER,   // only filters
-  "realeq.dll?enabled=true\n"
-  "logvolum.dll\n");
-PluginList  Visuals(PLUGIN_VISUAL, ""); // only visuals
-PluginList  VisualsSkinned(PLUGIN_VISUAL, ""); // visual plug-ins loaded by skin
-
-
-/****************************************************************************
-*
-* Module - object representing a plugin-DLL
-*
-****************************************************************************/
-
-/// Private implementation of class Module
-class ModuleImp : public Module
-{ friend class Module;
- /*private: // Static storage for plugin_init.
-  PLUGIN_API               PluginApi;
-  static const DSTRING_API DstringApi;
-  PLUGIN_CONTEXT           Context;*/
- private:
-  /// Entry point of the configure dialog (if any).
-  //void DLLENTRYP(plugin_configure)(HWND hwnd, HMODULE module);
-  sco_ptr<ACommandProcessor> CommandInstance;
-  VDELEGATE                vd_exec_command, vd_query_profile, vd_write_profile;
- private:
-  /// Load the DLL.
-  //bool LoadModule();
-  /// Unload the DLL.
-  //bool UnloadModule();
-  // Proxy functions for PLUGIN_CONTEXT
-  PROXYFUNCDEF const char* DLLENTRY proxy_exec_command ( ModuleImp* mp, const char* cmd );
-  PROXYFUNCDEF int         DLLENTRY proxy_query_profile( ModuleImp* mp, const char* key, void* data, int maxlength );
-  PROXYFUNCDEF int         DLLENTRY proxy_write_profile( ModuleImp* mp, const char* key, const void* data, int length );
- private:
-  ModuleImp(const xstring& key, const xstring& name) : Module(key, name) {}
- private: // Repository
-  typedef char KeyType; // Hack! We use /references/ to const char as strings for optimum performance.
-  static Module* Factory(const KeyType& key, const xstring& name);
-  static int     Comparer(const Module& module, const KeyType& key);
- public:
-  typedef inst_index2<Module, const KeyType, &ModuleImp::Comparer, const xstring> Repository;
-};
-
-
-const DSTRING_API Module::DstringApi =
-{ (DSTRING DLLENTRYP()(const char*))&dstring_create,
-  &dstring_free,
-  &dstring_length,
-  &dstring_equal,
-  &dstring_compare,
-  &dstring_copy,
-  &dstring_copy_safe,
-  &dstring_assign,
-  &dstring_cmpassign,
-  &dstring_append,
-  &dstring_allocate,
-  &dstring_sprintf,
-  &dstring_vsprintf
-};
-
-Module::Module(const xstring& key, const xstring& name)
-: Key(key)
-, ModuleName(name)
-, HModule(NULLHANDLE)
-, plugin_configure(NULL)
-, plugin_command(NULL)
-{ DEBUGLOG(("Module(%p)::Module(%s)\n", this, name.cdata()));
-  memset(&QueryParam, 0, sizeof QueryParam);
+ModuleException::ModuleException(const char* fmt, ...)
+{ va_list va;
+  va_start(va, fmt);
+  Error = xstring::vsprintf(fmt, va);
+  va_end(va);
 }
 
+
+/****************************************************************************
+*
+* ModuleImp - Private implementation of class Module
+*
+****************************************************************************/
+class ModuleImp : private Module
+{private: // Static storage for plugin_init.
+  PLUGIN_API               PluginApi;
+  static const XSTRING_API XstringApi;
+  PLUGIN_CONTEXT           Context;
+ private:
+  sco_ptr<ACommandProcessor> CommandInstance;
+  VDELEGATE                vd_exec_command, vd_query_profile, vd_write_profile;
+
+ private:
+  // Proxy functions for PLUGIN_CONTEXT
+  PROXYFUNCDEF const char* DLLENTRY proxy_exec_command (ModuleImp* mp, const char* cmd);
+  PROXYFUNCDEF int         DLLENTRY proxy_query_profile(ModuleImp* mp, const char* key, void* data, int maxlength);
+  PROXYFUNCDEF int         DLLENTRY proxy_write_profile(ModuleImp* mp, const char* key, const void* data, int length);
+ private:
+  ModuleImp(const xstring& key, const xstring& name) : Module(key, name) {}
+  /// Load a new DLL as plug-in. The plug-in flavor is specialized later.
+  /// @exception ModuleException Something went wrong.
+  void           Load();
+ public:
+  virtual        ~ModuleImp();
+
+ private: // Repository
+  typedef char KeyType; // Hack! We use /references/ to const char as strings for optimum performance.
+  static int     Comparer(const Module& module, const KeyType& key);
+ public:
+  static Module* Factory(const KeyType& key, const xstring& name);
+  class Repository : public inst_index2<Module, const KeyType, &ModuleImp::Comparer, const xstring>
+  {public:
+    static Mutex& GetMtx()                  { return Mtx; }
+    static const vector<Module>& GetIndex() { return Index; }
+  };
+};
+
+
+const XSTRING_API ModuleImp::XstringApi =
+{ (xstring DLLENTRYP()(const char*))&xstring_create,
+  &xstring_free,
+  &xstring_length,
+  &xstring_equal,
+  &xstring_compare,
+  &xstring_copy,
+  &xstring_copy_safe,
+  &xstring_assign,
+  &xstring_cmpassign,
+  &xstring_append,
+  &xstring_allocate,
+  &xstring_sprintf,
+  &xstring_vsprintf
+};
+
 Module* ModuleImp::Factory(const KeyType& key, const xstring& name)
-{ Module* pm = new ModuleImp(&key, name);
-  if (!pm->Load())
+{ ModuleImp* pm = new ModuleImp(&key, name);
+  try
+  { pm->Load();
+  } catch (...)
   { delete pm;
-    return NULL;
-  } else
-    return pm;
+    throw;
+  }
+  return pm;
 }
 
 int ModuleImp::Comparer(const Module& module, const KeyType& key)
 { return module.Key.compareToI(&key);
 }
 
-Module::~Module()
-{ DEBUGLOG(("Module(%p{%s})::~Module()\n", this, Key.cdata()));
-  UnloadModule();
+ModuleImp::~ModuleImp()
+{ DEBUGLOG(("ModuleImp(%p{%s})::~ModuleImp()\n", this, Key.cdata()));
+  if (HModule)
+  {
+    #ifdef DEBUG_LOG
+    APIRET rc = DosFreeModule(HModule);
+    if (rc != NO_ERROR && rc != ERROR_INVALID_ACCESS)
+    { char error[1024];
+      DEBUGLOG(("ModuleImp::~ModuleImp: Could not unload %s. Error %d\n%s\n",
+        ModuleName.cdata(), rc, os2_strerror(rc, error, sizeof error)));
+    }
+    #else
+    DosFreeModule(HModule);
+    #endif
+    HModule = NULLHANDLE;
+  }
   ModuleImp::Repository::RemoveWithKey(*this, *Key.cdata());
-  DEBUGLOG(("Module::~Module() completed\n"));
-}
-
-int_ptr<Module> Module::GetByKey(const xstring& name)
-{ return ModuleImp::Repository::GetByKey(*sfnameext2(name), &ModuleImp::Factory, name);
-}
-
-int_ptr<Module> Module::FindByKey(const xstring& name)
-{ return ModuleImp::Repository::FindByKey(*sfnameext2(name));
-}
-
-/* Assigns the address of the specified procedure within a plug-in. */
-bool Module::LoadOptionalFunction(void* function, const char* function_name) const
-{ return DosQueryProcAddr(HModule, 0L, (PSZ)function_name, (PFN*)function) == NO_ERROR;
-}
-
-/* Assigns the address of the specified procedure within a plug-in. */
-bool Module::LoadFunction(void* function, const char* function_name) const
-{ ULONG rc = DosQueryProcAddr(HModule, 0L, (PSZ)function_name, (PFN*)function);
-  if (rc != NO_ERROR)
-  { char error[1024];
-    *((ULONG*)function) = 0;
-    amp_player_error("Could not load \"%s\" from %s\n%s", function_name,
-                     ModuleName.cdata(), os2_strerror(rc, error, sizeof error));
-    return FALSE;
-  }
-  return TRUE;
-}
-
-/* Loads a plug-in dynamic link module. */
-bool Module::LoadModule()
-{ char load_error[_MAX_PATH];
-  *load_error = 0;
-  DEBUGLOG(("Module(%p{%s})::LoadModule()\n", this, Key.cdata()));
-  APIRET rc = DosLoadModule(load_error, sizeof load_error, ModuleName, &HModule);
-  DEBUGLOG(("Module::LoadModule: %p - %u - %s\n", HModule, rc, load_error));
-  // For some reason the API sometimes returns ERROR_INVALID_PARAMETER when loading oggplay.dll.
-  // However, the module is loaded successfully.
-  // Furthermore, once Firefox 3.5 has beed started at least once on the system loading os2audio.dll
-  // or other MMOS2 related plug-ins fails with ERROR_INIT_ROUTINE_FAILED.
-  if (rc != NO_ERROR && !(HModule != NULLHANDLE && (rc == ERROR_INVALID_PARAMETER || rc == ERROR_INIT_ROUTINE_FAILED)))
-  { char error[1024];
-    amp_player_error("Could not load %s, %s. Error %d at %s",
-                     ModuleName.cdata(), load_error, rc, os2_strerror(rc, error, sizeof error));
-    return false;
-  }
-  DEBUGLOG(("Module({%p,%s})::LoadModule: TRUE\n", HModule, Key.cdata()));
-  return true;
-}
-
-/* Unloads a plug-in dynamic link module. */
-bool Module::UnloadModule()
-{ DEBUGLOG(("Module(%p{%p,%s}))::UnloadModule()\n", this, HModule, Key.cdata()));
-  if (HModule == NULLHANDLE)
-    return true;
-  APIRET rc = DosFreeModule(HModule);
-  if (rc != NO_ERROR && rc != ERROR_INVALID_ACCESS)
-  { char  error[1024];
-    amp_player_error("Could not unload %s. Error %d\n%s",
-                     ModuleName.cdata(), rc, os2_strerror(rc, error, sizeof error));
-    return false;
-  }
-  HModule = NULLHANDLE;
-  return true;
+  DEBUGLOG(("ModuleImp::~ModuleImp() completed\n"));
 }
 
 PROXYFUNCIMP(const char* DLLENTRY, ModuleImp)
@@ -259,21 +177,27 @@ proxy_write_profile(ModuleImp* mp, const char* key, const void* data, int length
 }
 
 
-/* Fills the basic properties of any plug-in.
-         module:      input
-         ModuleName: input
-         query_param  output
-         plugin_configure output
-   return FALSE = error */
-bool Module::Load()
-{ DEBUGLOG(("Module(%p{%s})::Load()\n", this, Key.cdata()));
+void ModuleImp::Load()
+{ DEBUGLOG(("ModuleImp(%p{%s})::Load()\n", this, Key.cdata()));
+
+  char load_error[_MAX_PATH];
+  *load_error = 0;
+  APIRET rc = DosLoadModule(load_error, sizeof load_error, ModuleName, &HModule);
+  DEBUGLOG(("ModuleImp::Load: %p - %u - %s\n", HModule, rc, load_error));
+  // For some reason the API sometimes returns ERROR_INVALID_PARAMETER when loading oggplay.dll.
+  // However, the module is loaded successfully.
+  // Furthermore, once Firefox 3.5 has beed started at least once on the system loading os2audio.dll
+  // or other MMOS2 related plug-ins fails with ERROR_INIT_ROUTINE_FAILED.
+  if (rc != NO_ERROR && !(HModule != NULLHANDLE && (rc == ERROR_INVALID_PARAMETER || rc == ERROR_INIT_ROUTINE_FAILED)))
+  { char error[1024];
+    throw ModuleException("Could not load %s, %s. Error %d at %s",
+      ModuleName.cdata(), load_error, rc, os2_strerror(rc, error, sizeof error));
+  }
 
   int DLLENTRYP(pquery)(PLUGIN_QUERYPARAM *param);
-  if (!LoadModule() || !LoadFunction(&pquery, "plugin_query"))
-    return false;
+  LoadMandatoryFunction(&pquery, "plugin_query");
   int DLLENTRYP(pinit)(const PLUGIN_CONTEXT* ctx);
-  if (!LoadOptionalFunction(&pinit, "plugin_init"))
-    pinit = NULL;
+  LoadOptionalFunction(&pinit, "plugin_init");
 
   QueryParam.interface = 0; // unchanged by old plug-ins
   (*pquery)(&QueryParam);
@@ -281,11 +205,10 @@ bool Module::Load()
   if (QueryParam.interface > PLUGIN_INTERFACE_LEVEL)
   {
     #define toconststring(x) #x
-    amp_player_error( "Could not load plug-in %s because it requires a newer version of the PM123 core\n"
-                      "Requested interface revision: %d, max. supported: " toconststring(PLUGIN_INTERFACE_LEVEL),
-                      ModuleName.cdata(), QueryParam.interface);
+    throw ModuleException("Could not load plug-in %s because it requires a newer version of the PM123 core\n"
+                          "Requested interface revision: %d, max. supported: " toconststring(PLUGIN_INTERFACE_LEVEL),
+                          ModuleName.cdata(), QueryParam.interface);
     #undef toconststring
-    return false;
   }
 
   if (pinit)
@@ -295,18 +218,82 @@ bool Module::Load()
     PluginApi.profile_query = vdelegate(&((ModuleImp*)this)->vd_query_profile, &PROXYFUNCREF(ModuleImp)proxy_query_profile, (ModuleImp*)this);
     PluginApi.profile_write = vdelegate(&((ModuleImp*)this)->vd_write_profile, &PROXYFUNCREF(ModuleImp)proxy_write_profile, (ModuleImp*)this);
     Context.plugin_api  = &PluginApi;
-    Context.dstring_api = &DstringApi;
+    Context.xstring_api = &XstringApi;
     
     int rc = (*pinit)(&Context);
     if (rc)
-    { amp_player_error( "Plugin %s returned an error at initialization. Code %d.",
-                        ModuleName.cdata(), rc);
-      return false;
-    }
+      throw ModuleException("Plugin %s returned an error at initialization. Code %d.",
+                            ModuleName.cdata(), rc);
   }
 
   LoadOptionalFunction(&plugin_command, "plugin_command");
-  return !QueryParam.configurable || LoadFunction(&plugin_configure, "plugin_configure");
+  if (QueryParam.configurable)
+    LoadMandatoryFunction(&plugin_configure, "plugin_configure");
+}
+
+
+/****************************************************************************
+*
+* Module - object representing a plugin-DLL
+*
+****************************************************************************/
+
+Mutex& Module::Mtx = ModuleImp::Repository::GetMtx();
+
+Module::Module(const xstring& key, const xstring& name)
+: Key(key)
+, ModuleName(name)
+, HModule(NULLHANDLE)
+, plugin_configure(NULL)
+, plugin_command(NULL)
+{ DEBUGLOG(("Module(%p)::Module(%s)\n", this, name.cdata()));
+  memset(&QueryParam, 0, sizeof QueryParam);
+}
+
+void Module::LoadMandatoryFunction(void* function, const char* function_name) const
+{ APIRET rc = LoadOptionalFunction(function, function_name);
+  if (rc != NO_ERROR)
+  { char error[1024];
+    throw ModuleException("Could not load \"%s\" from %s\n%s", function_name,
+      ModuleName.cdata(), os2_strerror(rc, error, sizeof error));
+  }
+}
+
+int_ptr<Module> Module::FindByKey(const char* name)
+{ return ModuleImp::Repository::FindByKey(*sfnameext2(name));
+}
+
+int_ptr<Module> Module::GetByKey(const char* name)
+{ xstring modulename;
+  char* cp = modulename.allocate(strlen(name), name);
+  // replace '/'
+  for(;;)
+  { cp = strchr(cp, '/');
+    if (cp == NULL)
+      break;
+    *cp++ = '\\';
+  }
+  // make absolute path
+  cp = strchr(modulename, '\\');
+  if (cp == NULL || (cp != modulename.cdata() && cp[-1] != ':'))
+    // relative path
+    modulename = amp_startpath + modulename;
+  // load module
+  return ModuleImp::Repository::GetByKey(*sfnameext2(modulename), &ModuleImp::Factory, modulename);
+}
+
+void Module::CopyAllInstancesTo(vector_int<Module>& target)
+{ target.clear();
+  const vector<Module>& modules = ModuleImp::Repository::GetIndex();
+  Mutex::Lock lock(ModuleImp::Repository::GetMtx());
+  target.reserve(modules.size());
+  Module*const* mpp = modules.begin();
+  Module*const*const mpe = modules.end();
+  while (mpp != mpe)
+  { Module* mp = *mpp++;
+    if (mp && !mp->RefCountIsUnmanaged())
+      target.append() = mp;
+  }
 }
 
 
@@ -316,91 +303,46 @@ bool Module::Load()
 *
 ****************************************************************************/
 
-// statics
-event<const Plugin::EventArgs> Plugin::ChangeEvent;
-VISUAL_PROPERTIES Plugin::VisualProps;
-HWND Plugin::ServiceHwnd = NULLHANDLE;
+event<const PluginEventArgs> Plugin::ChangeEvent;
+
+PluginList Plugin::Decoders(PLUGIN_DECODER); // only decoders
+PluginList Plugin::Outputs (PLUGIN_OUTPUT);  // only outputs
+PluginList Plugin::Filters (PLUGIN_FILTER);  // only filters
+PluginList Plugin::Visuals (PLUGIN_VISUAL);  // only visuals
 
 
-Plugin::Plugin(Module* mod, PLUGIN_TYPE type)
-: ModRef(mod),
-  Enabled(true),
-  PluginType(type)
+Plugin::Plugin(Module& mod, PLUGIN_TYPE type)
+: ModRef(*int_ptr<Module>(&mod).toCptr())
+, PluginType(type)
+, Enabled(true)
 {}
 
 Plugin::~Plugin()
-{ DEBUGLOG(("Plugin(%p{%s})::~Plugin\n", this, GetModule().Key.cdata()));
+{ DEBUGLOG(("Plugin(%p{%s})::~Plugin\n", this, ModRef.Key.cdata()));
+  int_ptr<Module>().fromCptr(&ModRef);
 }
 
 void Plugin::SetEnabled(bool enabled)
 { if (Enabled == enabled)
     return;
   Enabled = enabled;
-  RaisePluginChange(enabled ? EventArgs::Enable : EventArgs::Disable);
+  RaisePluginChange(enabled ? PluginEventArgs::Enable : PluginEventArgs::Disable);
 }
 
-void Plugin::RaisePluginChange(EventArgs::event ev)
-{ const EventArgs ea = { *this, ev };
+void Plugin::RaisePluginChange(PluginEventArgs::event ev)
+{ const PluginEventArgs ea = { *this, ev };
   ChangeEvent(ea);
 }
 
-MRESULT EXPENTRY cl_plugin_winfn(HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2)
-{ DEBUGLOG(("cl_plugin_winfn(%p, %u, %p, %p)\n", hwnd, msg, mp1, mp2));
-  switch (msg)
-  {case Plugin::UM_CREATEPROXYWINDOW:
-    { HWND proxyhwnd = WinCreateWindow(hwnd, (PSZ)PVOIDFROMMP(mp1), "", 0, 0,0, 0,0, NULLHANDLE, HWND_BOTTOM, 42, NULL, NULL);
-      PMASSERT(proxyhwnd != NULLHANDLE);
-      PMRASSERT(WinSetWindowPtr(proxyhwnd, QWL_USER, PVOIDFROMMP(mp2)));
-      return (MRESULT)proxyhwnd;
-    }
-   case Plugin::UM_DESTROYPROXYWINDOW:
-    WinDestroyWindow(HWNDFROMMP(mp1));
-    return 0;
-   case WM_DESTROY:
-    Plugin::ServiceHwnd = NULLHANDLE;
-    break;
-  }
-  return WinDefWindowProc(hwnd, msg, mp1, mp2);
-}
+/*bool Plugin::Instantiate(Plugin* plugin, PluginList& list, const char* params)
+{ DEBUGLOG(("Plugin::Instantiate(%p, %p, %s)\n", plugin, &list, params));
+  plugin->SetParams(params);
+  if (!list.contains(plugin))
+    list.append() = plugin;
+  return true;
+}*/
 
-HWND Plugin::CreateProxyWindow(const char* cls, void* ptr)
-{ return (HWND)WinSendMsg(ServiceHwnd, UM_CREATEPROXYWINDOW, MPFROMP(cls), MPFROMP(ptr));
-}
-
-void Plugin::DestroyProxyWindow(HWND hwnd)
-{ WinSendMsg(ServiceHwnd, UM_DESTROYPROXYWINDOW, MPFROMHWND(hwnd), 0);
-}
-
-void Plugin::Init()
-{ PMRASSERT(WinRegisterClass(amp_player_hab, "CL_MODULE_SERVICE", &cl_plugin_winfn, 0, 0));
-  ServiceHwnd = WinCreateWindow(HWND_OBJECT, "CL_MODULE_SERVICE", "", 0, 0,0, 0,0, HWND_DESKTOP, HWND_BOTTOM, 42, NULL, NULL);
-  PMASSERT(ServiceHwnd != NULLHANDLE);
-}
-
-void Plugin::Uninit()
-{ WinDestroyWindow(ServiceHwnd);
-}
-
-
-Plugin* Plugin::Instantiate(Module* mod, Plugin* (*factory)(Module* mod), PluginList& list, const char* params)
-{ DEBUGLOG(("Plugin::Instantiate(%p{%s}, %p, %p, %s)\n", mod, mod->Key.cdata(), factory, &list, params ? params : "<null>"));
-
-  if (list.find(mod) != -1)
-  { pm123_display_error(xstring::sprintf("Tried to load the plug-in %s twice.\n", mod->ModuleName.cdata()));
-    return NULL;
-  }
-  Plugin* pp = (*factory)(mod);
-  if (!pp || !pp->LoadPlugin())
-  { delete pp;
-    DEBUGLOG(("Plugin::Instantiate: failed.\n"));
-    return NULL;
-  }
-  list.append(pp);
-  pp->SetParams(params);
-  return pp;
-}
-
-void Plugin::GetParams(stringmap& params) const
+void Plugin::GetParams(stringmap_own& params) const
 { static const xstring enparam = "enabled";
   params.get(enparam) = new stringmapentry(enparam, Enabled ? "yes" : "no");
 }
@@ -422,86 +364,139 @@ void Plugin::SetParams(stringmap_own& params)
   while (p != params.end())
   { DEBUGLOG(("Plugin::SetParams: %s -> %s\n", (*p)->Key.cdata(), (*p)->Value ? (*p)->Value.cdata() : "<null>"));
     if (SetParam((*p)->Key, (*p)->Value))
-      delete params.erase(p);
+      delete params.erase(p); // Implicitly updates p
     else
       ++p;
   }
 }
 
-void Plugin::SetParams(const char* params)
-{ // TODO: a on the fly parser would be better.
-  stringmap_own sm(20);
-  url123::parseParameter(sm, params);
-  SetParams(sm);
-  #ifdef DEBUG_LOG
-  for (stringmapentry** p = sm.begin(); p != sm.end(); ++p)
-    DEBUGLOG(("Plugin::SetParams: invalid parameter %s -> %s\n", (*p)->Key.cdata(), (*p)->Value ? (*p)->Value.cdata() : "<null>"));
-  #endif
-}
-
-xstring Plugin::Serialize() const
-{ stringmap_own sm(20);
-  GetParams(sm);
-  const xstring& params = url123::makeParameter(sm);
-  xstring modulename = GetModule().ModuleName;
+void Plugin::Serialize(xstringbuilder& target) const
+{ size_t start = target.length();
+  const xstring& modulename = ModRef.ModuleName;
+  target.append(modulename);
   if (modulename.startsWithI(amp_startpath))
-    modulename.assign(modulename, amp_startpath.length());
-  return params ? xstring::sprintf("%s?%s", modulename.cdata(), params.cdata()) : modulename;
+    target.erase(start, amp_startpath.length());
+  stringmap_own sm(20);
+  GetParams(sm);
+  if (sm.size())
+  { target.append('?');
+    start = target.length();
+    url123::appendParameter(target, sm);
+  }
 }
 
-int Plugin::Deserialize(const char* str, int mask, bool skinned)
-{ DEBUGLOG(("Plugin::Deserialize(%s, %x)\n", str, mask));
+PluginList& Plugin::GetPluginList(PLUGIN_TYPE type)
+{ switch(type)
+  {case PLUGIN_DECODER:
+    return Decoders;
+   case PLUGIN_FILTER:
+    return Filters;
+   case PLUGIN_OUTPUT:
+    return Outputs;
+   case PLUGIN_VISUAL:
+    return Visuals;
+   default:;
+  }
+  ASSERT(false);
+  return *(PluginList*)NULL; // This must never happen!
+}
+
+int_ptr<Plugin> Plugin::GetInstance(Module& module, PLUGIN_TYPE type)
+{ switch (type)
+  {case PLUGIN_DECODER:
+    return Decoder::GetInstance(module).get();
+   case PLUGIN_FILTER:
+    return Filter::GetInstance(module).get();
+   case PLUGIN_OUTPUT:
+    return Output::GetInstance(module).get();
+   case PLUGIN_VISUAL:
+    return Visual::GetInstance(module).get();
+   default:;
+  }
+  ASSERT(false);
+  return NULL;
+}
+
+int_ptr<Plugin> Plugin::Deserialize(const char* str, PLUGIN_TYPE type)
+{ DEBUGLOG(("Plugin::Deserialize(%s, %x)\n", str, type));
   const char* params = strchr(str, '?');
-  xstring modulename;
-  char* cp = modulename.allocate(params ? params-str : strlen(str), str);
-  // replace '/'
-  for(;;)
-  { cp = strchr(cp, '/');
-    if (cp == NULL)
-      break;
-    *cp++ = '\\';
+  if (params)
+  { const size_t len = params-str;
+    char* const tmp = (char*)alloca(len+1);
+    memcpy(tmp, str, len);
+    tmp[len] = 0;
+    str = tmp;
   }
-  // make absolute path
-  cp = strchr(modulename, '\\');
-  if (cp == NULL || (cp != modulename.cdata() && cp[-1] != ':'))
-    // relative path
-    modulename = amp_startpath + modulename;
   // load module
-  int_ptr<Module> pm = Module::GetByKey(modulename);
-  if (pm == NULL)
-    return 0;
-  // load as plugin
-  int result = 0;
-  mask &= pm->GetParams().type;
-  // decoder
-  if ((mask & PLUGIN_DECODER) && Instantiate(pm, &Decoder::Factory, Decoders, params))
-    result |= PLUGIN_DECODER;
-  // output
-  if ((mask & PLUGIN_OUTPUT) && Instantiate(pm, &Output::Factory, Outputs, params))
-    result |= PLUGIN_OUTPUT;
-  // filter
-  if ((mask & PLUGIN_FILTER) && Instantiate(pm, &Filter::Factory, Filters, params))
-    result |= PLUGIN_FILTER;
-  // visual
-  if (mask & PLUGIN_VISUAL)
-  { PluginList& list = skinned ? VisualsSkinned : Visuals;
-    int q = list.find(pm.get());
-    DEBUGLOG(("Plugin::Deserialize: visuals.find returned %i\n", q));
-    if (q != -1)
-    { // existing plugin. update some values
-      ((Visual*)list[q])->SetProperties(&VisualProps);
-    } else
-    { Plugin* pp = Instantiate(pm, &Visual::Factory, list, params);
-      if (pp)
-      { ((Visual*)pp)->SetProperties(&VisualProps);
-        result |= PLUGIN_VISUAL;
-      }
-    }
+  int_ptr<Module> pm = Module::GetByKey(str);
+  int_ptr<Plugin> pp = Plugin::GetInstance(*pm, type);
+  if (params)
+  { stringmap_own sm(20);
+    url123::parseParameter(sm, params+1);
+    pp->SetParams(sm);
+    #ifdef DEBUG_LOG
+    for (stringmapentry** p = sm.begin(); p != sm.end(); ++p)
+      DEBUGLOG(("Plugin::SetParams: invalid parameter %s -> %s\n", (*p)->Key.cdata(), (*p)->Value.cdata()));
+    #endif
   }
-
-  DEBUGLOG(("Plugin::Deserialize: %x\n", result));
-  return result;
+  return pp;
 }
+
+void Plugin::GetPlugins(PluginList& target, bool enabled)
+{ const PluginList& source = GetPluginList(target.Type);
+  Mutex::Lock lock(Module::Mtx);
+  if (enabled)
+  { target.clear();
+    const int_ptr<Plugin>* ppp = source.begin();
+    const int_ptr<Plugin>*const ppe = source.end();
+    while (ppp != ppe)
+    { if ((*ppp)->Enabled)
+        target.append() = *ppp;
+      ++ppp;
+    }
+  } else
+    target = source;
+}
+
+void Plugin::AppendPlugin(Plugin* plugin)
+{ PluginList& target = GetPluginList(plugin->PluginType);
+  Mutex::Lock lock(Module::Mtx);
+  if (target.contains(plugin))
+    throw ModuleException("Tried to load the plug-in %s twice.", plugin->ModRef.Key.cdata());
+  plugin->RaisePluginChange(PluginEventArgs::Load);
+  target.append() = plugin;
+}
+
+void Plugin::SetPluginList(PluginList& source)
+{ PluginList& target = GetPluginList(source.Type);
+  Mutex::Lock lock(Module::Mtx);
+  // check what's removed
+  const int_ptr<Plugin>* ppp = target.begin();
+  const int_ptr<Plugin>* ppe = target.end();
+  while (ppp != ppe)
+  { if (!source.contains(*ppp))
+      (*ppp)->RaisePluginChange(PluginEventArgs::Unload);
+    ++ppp;
+  }
+  // assign
+  target.swap(source);
+  // check what's new
+  ppp = target.begin();
+  ppe = target.end();
+  while (ppp != ppe)
+  { if (!source.contains(*ppp))
+      (*ppp)->RaisePluginChange(PluginEventArgs::Load);
+    ++ppp;
+  }
+}
+
+/*void Plugin::Init()
+{ Cfg::GetChange() += ConfigDelegate;
+}
+
+void Plugin::Uninit()
+{ ConfigDelegate.detach();
+}*/
 
 
 /****************************************************************************
@@ -510,401 +505,240 @@ int Plugin::Deserialize(const char* str, int mask, bool skinned)
 *
 ****************************************************************************/
 
-void PluginList::append(Plugin* plugin)
-{ vector_own<Plugin>::append() = plugin;
-  plugin->RaisePluginChange(Plugin::EventArgs::Load);
-}
-
-Plugin* PluginList::erase(size_t i)
-{ DEBUGLOG(("PluginList(%p)::erase(%u)\n", this, i));
-
-  if (i > size())
-  { DEBUGLOG(("PluginList::erase: index out of range\n"));
-    return NULL;
-  }
-  if ((*this)[i]->IsInitialized() && !(*this)[i]->UninitPlugin())
-  { DEBUGLOG(("PluginList::erase: plugin %s failed to uninitialize.\n", (*this)[i]->GetModule().Key.cdata()));
-    return NULL;
-  }
-  Plugin* plugin = vector_own<Plugin>::erase(i);
-  plugin->RaisePluginChange(Plugin::EventArgs::Unload);
-  return plugin;
-}
-
-bool PluginList::remove(int i)
-{ Plugin* pp = erase(i);
-  delete pp;
-  return pp != NULL;
-}
-
-int PluginList::find(const Plugin* plugin) const
-{ DEBUGLOG(("PluginList(%p)::find(Plugin* %p)\n", this, plugin));
-  if (plugin)
-    for (size_t i = 0; i < size(); ++i)
-      if ((*this)[i] == plugin)
-        return i;
-  return -1;
-}
-int PluginList::find(const Module* module) const
-{ DEBUGLOG(("PluginList(%p)::find(Module* %p)\n", this, module));
-  if (module)
-    for (size_t i = 0; i < size(); ++i)
-      if (&(*this)[i]->GetModule() == module)
-        return i;
-  return -1;
-}
-int PluginList::find(const char* module) const
-{ DEBUGLOG(("PluginList(%p)::find(%s)\n", this, module));
-  if (module)
-  { module = sfnameext2(module);
-    char* cp = strrchr(module, '.');
-    size_t len = cp ? cp - module : strlen(module)+1;
-    for (size_t i = 0; i < size(); ++i)
-      if (strnicmp((*this)[i]->GetModule().Key, module, len) == 0)
-        return i;
-  }
-  return -1;
+bool PluginList::remove(Plugin* plugin)
+{ DEBUGLOG(("PluginList(%p)::remove(%p)\n", this, plugin));
+  const int_ptr<Plugin>* ppp = find(plugin);
+  if (!ppp)
+    return false;
+  erase(ppp);
+  return true;
 }
 
 const xstring PluginList::Serialize() const
 { DEBUGLOG(("PluginList::Serialize() - %u\n", size()));
   xstringbuilder result;
-  for (Plugin*const* pp = begin(); pp < end(); ++pp)
-  { result += (*pp)->Serialize();
+  const int_ptr<Plugin>* ppp = begin();
+  const int_ptr<Plugin>* const ppe = end();
+  while (ppp != ppe)
+  { (*ppp)->Serialize(result);
     result += '\n';
+    ++ppp;
   }
   return result;
 }
 
-PluginList::RC PluginList::Deserialize(const xstring& str)
-{ // Check which plug-ins are no longer in the list.
+xstring PluginList::Deserialize(const char* str)
+{ clear();
+  xstringbuilder err;
+  // Now parse the string to create the new plug-in list.
   const char* sp = str;
-  { sco_arr<bool> keep(new bool[size()]);
-    memset(keep.get(), false, size() * sizeof(bool));
-    for(;;)
-    { const char* cp = strchr(sp, '\n');
-      if (cp == NULL)
-        break;
-      const char* cp2 = strnchr(sp, '?', cp-sp);
-      if (cp2 == NULL)
-        cp2 = cp;
-      // now [sp..cp2) is the module name.
-      int i = find(xstring(sp, cp2-sp));
-      if (i >= 0)
-      { if (keep[i])
-          return RC_Error;
-        keep[i] = true;
-      }
-      sp = cp +1;
-    }
-    // Check if all plug-ins with keep = false are unused.
-    // TODO: there is a threading issung for decoder plug-ins when working in playlist mode.
-    unsigned i;
-    for (i = 0; i < size(); ++i)
-      if (!keep[i] && (*this)[i]->IsInitialized())
-        return RC_InUse;
-    // delete unused plug-ins
-    // We do this back to front to avoid inconsistencies.
-    for (i = size(); i-- != 0; )
-      if (!keep[i])
-        remove(i);
-  }
-  // parse new plug-ins
-  sp = str;
-  for(int i = 0; ; ++i)
+  while (*sp)
   { const char* cp = strchr(sp, '\n');
     if (cp == NULL)
-      return RC_OK; // ignore incomplete lines
-    const char* cp2 = strnchr(sp, '?', cp-sp);
-    if (cp2 == NULL)
-      cp2 = cp;
-    // now [sp..cp2) is the module name.
-    // search for existing ones
-    int j = find(xstring(sp, cp2-sp));
-    if (j >= 0)
-    { // match! => move an set parameters
-      move(j, i);
-      if (cp != cp2)
-        (*this)[i]->SetParams(xstring(cp2+1, cp-cp2-1));
-    } else if (Plugin::Deserialize(xstring(sp, cp-sp), Type) == 0)
-      return RC_Error;
+      cp = sp + strlen(sp);
+    try
+    { int_ptr<Plugin> pp = Plugin::Deserialize(xstring(sp, cp-sp), Type);
+      if (contains(pp))
+      { err.appendf("Tried to load plug-in %s twice.\n", pp->ModRef.Key.cdata());
+        goto next;
+      }
+      append() = pp;
+    } catch (const ModuleException& ex)
+    { err.append(ex.GetErrorText());
+      err.append('\n');
+    }
+   next:
+    if (*cp == NULL)
+      break;
     sp = cp +1;
   }
+  return err.length() ? err : xstring();
 }
 
-/****************************************************************************
-*
-* PluginList1 - collection with one active plugin
-*
-****************************************************************************/
-
-Plugin* PluginList1::erase(size_t i)
-{ Plugin* pp = PluginList::erase(i);
-  if ( pp == Active )
-  { pp->RaisePluginChange(Plugin::EventArgs::Inactive);
-    Active = NULL;
-  }
-  return pp;
-}
-
-int PluginList1::SetActive(int i)
-{ if ( i >= (int)size() || i < -1 )
-    return -1;
-
-  Plugin* pp = i == -1 ? NULL : (*this)[i];
-  if (pp == Active)
-    return 0;
-
-  if (Active != NULL)
-  { Plugin* ppold = xchg(Active, (Plugin*)NULL);
-    if (ppold)
-    { ppold->RaisePluginChange(Plugin::EventArgs::Inactive);
-      ppold->UninitPlugin();
-    }
-  }
-
-  if (pp != NULL)
-  { if (!pp->GetEnabled())
-      return -2;
-    if (!pp->InitPlugin())
-      return -1;
-    pp->RaisePluginChange(Plugin::EventArgs::Active);
-  }
-  Active = pp;
-  return 0;
-}
-
-const xstring PluginList1::Serialize() const
-{ DEBUGLOG(("PluginList1::Serialize() - %p\n", Active));
-  const xstring& ret = PluginList::Serialize();
-  return Active ? ret + Active->GetModule().ModuleName : ret;
-}
-
-PluginList::RC PluginList1::Deserialize(const xstring& str)
-{ const char* cp = strrchr(str, '\n');
-  if (cp == NULL)
-    return RC_Error;
-  SetActive(-1);
-  RC r = PluginList::Deserialize(str);
-  if (r != RC_OK)
-    return r;
-  int i = find(cp+1);
-  if (i >= 0)
-    SetActive(i);
-  return RC_OK;
-}
-
-
-/****************************************************************************
-*
-* GUI stuff
-*
-****************************************************************************/
-
-/* Plug-in menu in the main pop-up menu */
-typedef struct {
-   xstring filename;
-   int   type;
-   int   i;
-   int   configurable;
-   int   enabled;
-} PLUGIN_ENTRY;
-
-static sco_arr<PLUGIN_ENTRY> entries;
-static size_t num_entries;
-
-void load_plugin_menu(HWND hMenu)
-{
-  char     buffer[2048];
-  MENUITEM mi;
-  size_t   i;
-  DEBUGLOG(("load_plugin_menu(%p)\n", hMenu));
-
-  // Delete all
-  size_t count = LONGFROMMR( WinSendMsg( hMenu, MM_QUERYITEMCOUNT, 0, 0 ));
-  for( i = 0; i < count; i++ ) {
-    short item = LONGFROMMR( WinSendMsg( hMenu, MM_ITEMIDFROMPOSITION, MPFROMSHORT(0), 0 ));
-    WinSendMsg( hMenu, MM_DELETEITEM, MPFROM2SHORT( item, FALSE ), 0);
-  }
-  { // Fetch list of plug-ins atomically
-    const ModuleImp::Repository::IXAccess ix;
-    num_entries = ix->size();
-    entries = new PLUGIN_ENTRY[num_entries];
-
-    for( i = 0; i < num_entries; i++ )
-    { Module* plug = (*ix)[i];
-      sprintf( buffer, "%s (%s)", plug->GetParams().desc, plug->Key.cdata());
-
-      entries[i].filename     = buffer;
-      entries[i].type         = plug->GetParams().type;
-      entries[i].i            = i;
-      entries[i].configurable = plug->GetParams().configurable;
-      entries[i].enabled      = FALSE;
-      if (plug->GetParams().type & PLUGIN_VISUAL)
-      { int p = Visuals.find(plug);
-        if (p != -1 && Visuals[p]->GetEnabled())
-        { entries[i].enabled = TRUE;
-          continue;
-        }
-      }
-      if (plug->GetParams().type & PLUGIN_DECODER)
-      { int p = Decoders.find(plug);
-        if (p != -1 && Decoders[p]->GetEnabled())
-        { entries[i].enabled = TRUE;
-          continue;
-        }
-      }
-      if (plug->GetParams().type & PLUGIN_OUTPUT)
-      { if (Outputs.Current() != NULL && &Outputs.Current()->GetModule() == plug)
-        { entries[i].enabled = TRUE;
-          continue;
-        }
-      }
-      if (plug->GetParams().type & PLUGIN_FILTER)
-      { int p = Filters.find(plug);
-        if (p != -1 && Filters[p]->GetEnabled())
-        { entries[i].enabled = TRUE;
-          continue;
-        }
-      }
-    }
-  }
-
-  for( i = 0; i < num_entries; i++ )
-  {
-    mi.iPosition = MIT_END;
-    mi.afStyle = MIS_TEXT;
-    mi.afAttribute = 0;
-
-    if( !entries[i].configurable ) {
-      mi.afAttribute |= MIA_DISABLED;
-    }
-    if( entries[i].enabled ) {
-      mi.afAttribute |= MIA_CHECKED;
-    }
-
-    mi.id = IDM_M_PLUG + i + 1;
-    mi.hwndSubMenu = (HWND)NULLHANDLE;
-    mi.hItem = 0;
-    WinSendMsg( hMenu, MM_INSERTITEM, MPFROMP(&mi), MPFROMP( entries[i].filename.cdata() ));
-    DEBUGLOG2(("load_plugin_menu: add \"%s\"\n", entries[i].filename.cdata()));
-  }
-
-  if( num_entries == 0 )
-  { mi.iPosition   = MIT_END;
-    mi.afStyle     = MIS_TEXT;
-    mi.afAttribute = MIA_DISABLED;
-    mi.id          = IDM_M_BOOKMARKS + 1;
-    mi.hwndSubMenu = (HWND)NULLHANDLE;
-    mi.hItem       = 0;
-    WinSendMsg( hMenu, MM_INSERTITEM, MPFROMP( &mi ), MPFROMP( "No plug-ins" ));
+void PluginList::LoadDefaults()
+{ const char* def;
+  switch (Type)
+  {default:
+    clear();
     return;
+   case PLUGIN_DECODER:
+    def = Cfg::Default.decoders_list;
+    break;
+   case PLUGIN_FILTER:
+    def = Cfg::Default.filters_list;
+    break;
+   case PLUGIN_OUTPUT:
+    def = Cfg::Default.outputs_list;
+    break;
+   case PLUGIN_VISUAL:
+    def = Cfg::Default.visuals_list;
+    break;
   }
-
-  return;
+  Deserialize(def);
 }
 
-bool plugin_configure(HWND owner, int index)
-{ // atomic plug-in request
-  Module* plug;
-  { const ModuleImp::Repository::IXAccess ix;
-    if (index >= ix->size())
-      return false;
-    plug = (*ix)[index];
-  }
-  plug->Config(owner);
-  return true;
-}
 
-void
-dec_append_load_menu( HWND hMenu, ULONG id_base, SHORT where, DECODER_WIZARD_FUNC* callbacks, size_t size )
-{ DEBUGLOG(("dec_append_load_menu(%p, %d, %d, %p, %d)\n", hMenu, id_base, callbacks, size));
-  size_t i;
-  // cleanup
-  SHORT lastcount = -1;
-  for (i = 0; i < size; ++i)
-  { SHORT newcount = SHORT1FROMMP(WinSendMsg(hMenu, MM_DELETEITEM, MPFROM2SHORT(id_base+i, FALSE), 0));
-    DEBUGLOG(("dec_append_load_menu - %i %i\n", i, newcount));
-    if (newcount == lastcount)
-      break;
-    lastcount = newcount;
-  }
-  // for all decoder plug-ins...
-  for (i = 0; i < Decoders.size(); ++i)
-  { const Decoder* dec = (Decoder*)Decoders[i];
-    if (dec->GetEnabled() && dec->GetProcs().decoder_getwizard)
-    { const DECODER_WIZARD* da = (*dec->GetProcs().decoder_getwizard)();
-      DEBUGLOG(("dec_append_load_menu: %s - %p\n", dec->GetModule().Key.cdata(), da));
-      MENUITEM mi = {0};
-      mi.iPosition   = where;
-      mi.afStyle     = MIS_TEXT;
-      //mi.afAttribute = 0;
-      //mi.hwndSubMenu = NULLHANDLE;
-      //mi.hItem       = 0;
-      for (; da != NULL; da = da->link, ++id_base)
-      { if (size-- == 0)
-          return; // too many entries, can't help
-        // Add menu item
-        mi.id        = id_base;
-        SHORT pos = SHORT1FROMMR(WinSendMsg(hMenu, MM_INSERTITEM, MPFROMP(&mi), MPFROMP(da->prompt)));
-        DEBUGLOG(("dec_append_load_menu: add %u: %s -> %p => %u\n", id_base, da->prompt, da->wizard, pos));
-        // Add callback function
-        *callbacks++ = da->wizard;
-        if (mi.iPosition != MIT_END)
-          ++mi.iPosition;
+/****************************************************************************
+*
+* class ProxyHelper
+*
+****************************************************************************/
+
+HWND ProxyHelper::ServiceHwnd = NULLHANDLE;
+
+const char* ProxyHelper::ConvertUrl2File(char* url)
+{
+  if (strnicmp(url, "file:", 5) == 0)
+  { url += 5;
+    { char* cp = strchr(url, '/');
+      while (cp)
+      { *cp = '\\';
+        cp = strchr(cp+1, '/');
       }
     }
-  }
-}
-
-void dec_append_accel_table( HACCEL& haccel, ULONG id_base, LONG offset, DECODER_WIZARD_FUNC* callbacks, size_t size )
-{ DEBUGLOG(("dec_append_accel_table(%p, %u, %u, %p, %u)\n", haccel, id_base, offset, callbacks, size));
-  // Fetch content
-  ULONG accelsize = WinCopyAccelTable(haccel, NULL, 0);
-  PMASSERT(accelsize);
-  accelsize += (size << (offset != 0)) * sizeof(ACCEL); // space for plug-in entries
-  ACCELTABLE* paccel = (ACCELTABLE*)alloca(accelsize);
-  PMRASSERT(WinCopyAccelTable(haccel, paccel, accelsize));
-  DEBUGLOG(("dec_append_accel_table: %i\n", paccel->cAccel));
-  bool modified = false;
-  // Append plug-in accelerators
-  for (size_t i = 0; i < Decoders.size(); ++i)
-  { Decoder* dec = (Decoder*)Decoders[i];
-    if (dec->GetEnabled() && dec->GetProcs().decoder_getwizard)
-    { const DECODER_WIZARD* da = (*dec->GetProcs().decoder_getwizard)();
-      DEBUGLOG(("dec_append_accel_table: %s - %p\n", dec->GetModule().Key.cdata(), da));
-      for (; da != NULL; da = da->link, ++id_base)
-      { if (size-- == 0)
-          goto nomore; // too many entries, can't help
-        DEBUGLOG(("dec_append_accel_table: at %u: %s -> %x -> %p\n", id_base, da->prompt, da->accel_key, da->wizard));
-        *callbacks++ = da->wizard;
-        if (da->accel_key)
-        { // Add table entry
-          ACCEL& accel = paccel->aaccel[paccel->cAccel++];
-          accel.fs  = da->accel_opt;
-          accel.key = da->accel_key;
-          accel.cmd = id_base;
-          DEBUGLOG(("dec_append_accel_table: add {%x, %x, %i}\n", accel.fs, accel.key, accel.cmd));
-          modified = true;
-        }
-        if (da->accel_key2 && offset)
-        { // Add table entry
-          ACCEL& accel = paccel->aaccel[paccel->cAccel++];
-          accel.fs  = da->accel_opt2;
-          accel.key = da->accel_key2;
-          accel.cmd = id_base + offset;
-          DEBUGLOG(("dec_append_accel_table: add {%x, %x, %i}\n", accel.fs, accel.key, accel.cmd));
-          modified = true;
-        }
-      }
+    if (strncmp(url, "\\\\\\", 3) == 0)
+    { url += 3;
+      if (url[1] == '|')
+        url[1] = ':';
     }
   }
- nomore:
-  if (modified)
-  { PMRASSERT(WinDestroyAccelTable(haccel));
-    haccel = WinCreateAccelTable(amp_player_hab, paccel);
-    PMASSERT(haccel != NULLHANDLE);
+  return url;
+}
+
+int ProxyHelper::TstmpF2I(double pos)
+{ DEBUGLOG(("ProxyHelper::TstmpF2I(%g)\n", pos));
+  // We cast to unsigned first to ensure that the range of the int is fully used.
+  return pos >= 0 ? (int)(unsigned)(fmod(pos*1000., UINT_MAX+1.) + .5) : -1;
+}
+
+double ProxyHelper::TstmpI2F(int pos, double context)
+{ DEBUGLOG(("ProxyHelper::TstmpI2F(%i, %g)\n", pos, context));
+  if (pos < 0)
+    return -1;
+  double r = pos / 1000.;
+  return r + (UINT_MAX+1.) * floor((context - r + UINT_MAX/2) / (UINT_MAX+1.));
+}
+
+void ProxyHelper::ConvertMETA_INFO(DECODER_INFO* dinfo, const volatile META_INFO* meta)
+{
+  if (!!meta->title)
+    strlcpy(dinfo->title,    xstring(meta->title),    sizeof dinfo->title);
+  if (!!meta->artist)
+    strlcpy(dinfo->artist,   xstring(meta->artist),   sizeof dinfo->artist);
+  if (!!meta->album)
+    strlcpy(dinfo->album,    xstring(meta->album),    sizeof dinfo->album);
+  if (!!meta->year)
+    strlcpy(dinfo->year,     xstring(meta->year),     sizeof dinfo->year);
+  if (!!meta->comment)
+    strlcpy(dinfo->comment,  xstring(meta->comment),  sizeof dinfo->comment);
+  if (!!meta->genre)
+    strlcpy(dinfo->genre,    xstring(meta->genre),    sizeof dinfo->genre);
+  if (!!meta->track)
+    strlcpy(dinfo->track,    xstring(meta->track),    sizeof dinfo->track);
+  if (!!meta->copyright)
+    strlcpy(dinfo->copyright,xstring(meta->copyright),sizeof dinfo->copyright);
+
+  dinfo->codepage = ch_default();
+
+  if (meta->track_gain > -1000)
+    dinfo->track_gain = meta->track_gain;
+  if (meta->track_peak > -1000)
+    dinfo->track_peak = meta->track_peak;
+  if (meta->album_gain > -1000)
+    dinfo->album_gain = meta->album_gain;
+  if (meta->album_peak > -1000)
+    dinfo->album_peak = meta->album_peak;
+}
+
+void ProxyHelper::ConvertINFO_BUNDLE(DECODER_INFO* dinfo, const INFO_BUNDLE_CV* info)
+{
+  dinfo->format.samplerate = info->tech->samplerate;
+  dinfo->format.channels   = info->tech->channels;
+  dinfo->format.bits       = 16;
+  dinfo->format.format     = WAVE_FORMAT_PCM;
+
+  dinfo->songlength = info->obj->songlength < 0 ? -1 : (int)(info->obj->songlength * 1000.);
+  dinfo->junklength = -1;
+  dinfo->bitrate    = info->obj->bitrate    < 0 ? -1 : info->obj->bitrate / 1000;
+  if (!!info->tech->info)
+    strlcpy(dinfo->tech_info, xstring(info->tech->info), sizeof dinfo->tech_info);
+
+  ConvertMETA_INFO(dinfo, info->meta);
+
+  dinfo->saveinfo   = (info->tech->attributes & TATTR_WRITABLE) != 0;
+  dinfo->filesize   = (int)info->phys->filesize;
+}
+
+void ProxyHelper::ConvertDECODER_INFO(const INFO_BUNDLE* info, const DECODER_INFO* dinfo)
+{ info->tech->samplerate = dinfo->format.samplerate;
+  info->tech->channels   = dinfo->format.channels;
+  info->tech->attributes = TATTR_SONG | TATTR_STORABLE | TATTR_WRITABLE * (dinfo->saveinfo != 0);
+  if (*dinfo->tech_info)
+    info->tech->info     = dinfo->tech_info;
+  info->obj->songlength  = dinfo->songlength < 0 ? -1 : dinfo->songlength / 1000.;
+  info->obj->bitrate     = dinfo->bitrate    < 0 ? -1 : dinfo->bitrate * 1000;
+  if (*dinfo->title)
+    info->meta->title    = dinfo->title;
+  if (*dinfo->artist)
+    info->meta->artist   = dinfo->artist;
+  if (*dinfo->album)
+    info->meta->album    = dinfo->album;
+  if (*dinfo->year)
+    info->meta->year     = dinfo->year;
+  if (*dinfo->comment)
+    info->meta->comment  = dinfo->comment;
+  if (*dinfo->genre)
+    info->meta->genre    = dinfo->genre;
+  if (*dinfo->track)
+    info->meta->track    = dinfo->track;
+  if (*dinfo->copyright)
+    info->meta->copyright= dinfo->copyright;
+  // Mask out zero values because they mean most likely 'undefined'.
+  if (dinfo->track_gain != 0.)
+    info->meta->track_gain = dinfo->track_gain;
+  if (dinfo->track_peak != 0.)
+    info->meta->track_peak = dinfo->track_peak;
+  if (dinfo->album_gain != 0.)
+    info->meta->album_gain = dinfo->album_gain;
+  if (dinfo->album_peak != 0.)
+    info->meta->album_peak = dinfo->album_peak;
+}
+
+MRESULT EXPENTRY ProxyHelperWinFn(HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2)
+{ DEBUGLOG(("ProxyHelperWinFn(%p, %u, %p, %p)\n", hwnd, msg, mp1, mp2));
+  switch (msg)
+  {case ProxyHelper::UM_CREATEPROXYWINDOW:
+    { HWND proxyhwnd = WinCreateWindow(hwnd, (PSZ)PVOIDFROMMP(mp1), "", 0, 0,0, 0,0, NULLHANDLE, HWND_BOTTOM, 42, NULL, NULL);
+      PMASSERT(proxyhwnd != NULLHANDLE);
+      PMRASSERT(WinSetWindowPtr(proxyhwnd, QWL_USER, PVOIDFROMMP(mp2)));
+      return (MRESULT)proxyhwnd;
+    }
+   case ProxyHelper::UM_DESTROYPROXYWINDOW:
+    WinDestroyWindow(HWNDFROMMP(mp1));
+    return 0;
+   case WM_DESTROY:
+     ProxyHelper::ServiceHwnd = NULLHANDLE;
+    break;
   }
+  return WinDefWindowProc(hwnd, msg, mp1, mp2);
+}
+
+HWND ProxyHelper::CreateProxyWindow(const char* cls, void* ptr)
+{ return (HWND)WinSendMsg(ServiceHwnd, UM_CREATEPROXYWINDOW, MPFROMP(cls), MPFROMP(ptr));
+}
+
+void ProxyHelper::DestroyProxyWindow(HWND hwnd)
+{ WinSendMsg(ServiceHwnd, UM_DESTROYPROXYWINDOW, MPFROMHWND(hwnd), 0);
+}
+
+void ProxyHelper::Init()
+{ PMRASSERT(WinRegisterClass(amp_player_hab, "CL_MODULE_SERVICE", &ProxyHelperWinFn, 0, 0));
+  ServiceHwnd = WinCreateWindow(HWND_OBJECT, "CL_MODULE_SERVICE", "", 0, 0,0, 0,0, HWND_DESKTOP, HWND_BOTTOM, 42, NULL, NULL);
+  PMASSERT(ServiceHwnd != NULLHANDLE);
+}
+
+void ProxyHelper::Uninit()
+{ WinDestroyWindow(ServiceHwnd);
 }
 
 
@@ -915,22 +749,26 @@ void dec_append_accel_table( HACCEL& haccel, ULONG id_base, LONG offset, DECODER
 ****************************************************************************/
 
 void plugman_init()
-{ Plugin::Init();
+{ ProxyHelper::Init();
   Decoder::Init();
   Output::Init();
-  if (Outputs.Current() == NULL && Outputs.size())
-    Outputs.SetActive(1);
+  /* TODO!
+   * if (Outputs.Current() == NULL && Outputs.size())
+    Outputs.SetActive(1);*/
+  //Plugin::Init();
 }
 
 void plugman_uninit()
 { // remove all plugins
-  VisualsSkinned.clear();
-  Visuals.clear();
+  /* TODO!
+   *
+   Visuals.clear();
   Decoders.clear();
   Filters.clear();
-  Outputs.clear();
+  Outputs.clear();*/
   // deinitialize framework
+  //Plugin::Uninit();
   Output::Uninit();
   Decoder::Uninit();
-  Plugin::Uninit();
+  ProxyHelper::Uninit();
 }

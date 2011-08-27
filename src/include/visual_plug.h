@@ -59,12 +59,12 @@ typedef struct _PLUGIN_PROCS
 
 typedef struct _VISPLUGININIT
 {
-  int           x, y, cx, cy;   /* Input        */
-  HWND          hwnd;           /* Input/Output */
-  PPLUGIN_PROCS procs;          /* Input        */
-  int           id;             /* Input        */
-  char*         param;          /* Input        */
-  HAB           hab;            /* Input        */
+  int                 x, y, cx, cy;   /* Input        */
+  HWND                hwnd;           /* Input/Output */
+  const PLUGIN_PROCS* procs;          /* Input        */
+  int                 id;             /* Input        */
+  const char*         param;          /* Input        */
+  HAB                 hab;            /* Input        */
 
 } VISPLUGININIT, *PVISPLUGININIT;
 

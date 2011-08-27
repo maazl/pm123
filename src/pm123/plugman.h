@@ -36,15 +36,80 @@
 #include <decoder_plug.h>
 #include <cpp/event.h>
 #include <cpp/xstring.h>
-#include <cpp/container/stringmap.h>
+#include <cpp/container/vector.h>
 
 
-typedef struct
-{ int     x, y, cx, cy;
-  BOOL    skin;
-  char    param[256];
-} VISUAL_PROPERTIES;
+/****************************************************************************
+*
+* Class tree:
+*
+* Module
+*  <- Plugin              (n Plugins share the same Module instance)
+*      +- Decoder
+*      |   +- DecoderImp  (private implementation)
+*      |       +- proxy classes ...
+*      +- Output
+*      |   +- OutputImp   (private implementation)
+*      |       +- proxy classes ...
+*      +- Filter
+*      |   +- FilterImp   (private implementation)
+*      |       +- proxy classes ...
+*      +- Visual
+*          +- VisualImp   (private implementation)
+*              +- proxy classes ...
+*
+****************************************************************************/
 
+/* Buffer size for compatibility interface */
+#define BUFSIZE 16384
+
+/* thread priorities for decoder thread */
+#define DECODER_HIGH_PRIORITY_CLASS PRTYC_TIMECRITICAL
+#define DECODER_HIGH_PRIORITY_DELTA 0
+#define DECODER_LOW_PRIORITY_CLASS  PRTYC_FOREGROUNDSERVER
+#define DECODER_LOW_PRIORITY_DELTA  0
+
+
+class Plugin;
+class PluginList;
+class stringmap_own;
+
+FLAGSATTRIBUTE(PLUGIN_TYPE);
+
+
+class ModuleException
+{ xstring Error;
+ public:
+  ModuleException(const char* fmt, ...);
+  const xstring GetErrorText() const { return Error; }
+};
+
+// Hack to selectively grant access rights to the plug-in classes.
+// Each plug-in class has its own slot in class \c Module.
+class DecoderInstance
+{ friend class Decoder;
+  Decoder*                 Dec;
+ public:
+  DecoderInstance()        : Dec(NULL) {}
+};
+class FilterInstance
+{ friend class Filter;
+  Filter*                  Fil;
+ public:
+  FilterInstance()         : Fil(NULL) {}
+};
+class OutputInstance
+{ friend class Output;
+  Output*                  Out;
+ public:
+  OutputInstance()         : Out(NULL) {}
+};
+class VisualInstance
+{ friend class Visual;
+  Visual*                  Vis;
+ public:
+  VisualInstance()         : Vis(NULL) {}
+};
 
 /****************************************************************************
  *
@@ -55,144 +120,116 @@ typedef struct
  ***************************************************************************/
 class Module
 : public Iref_count
+, public DecoderInstance
+, public FilterInstance
+, public OutputInstance
+, public VisualInstance
 {public:
   const xstring            Key;
   const xstring            ModuleName;
  protected:
   HMODULE                  HModule;
   PLUGIN_QUERYPARAM        QueryParam;
- private: // Static storage for plugin_init.
-  PLUGIN_API               PluginApi;
-  static const DSTRING_API DstringApi;
-  PLUGIN_CONTEXT           Context;
- private:
   /// Entry point of the configure dialog (if any).
   void DLLENTRYP(plugin_configure)(HWND hwnd, HMODULE module);
   /// Entry point of the configure dialog (if any).
-  void DLLENTRYP(plugin_command)(const char* command, DSTRING* result);
+  void DLLENTRYP(plugin_command)(const char* command, xstring* result);
+
  protected:
-  /// Load the DLL.
-  bool LoadModule();
-  /// Unload the DLL.
-  bool UnloadModule();
   /// Create a Module object from the module file name.
   Module(const xstring& key, const xstring& name);
  public:
-  ~Module();
+  virtual ~Module()                          {}
   /// Return reply of \c plugin_query.
   const PLUGIN_QUERYPARAM& GetParams() const { return QueryParam; }
   /// Load the address of a DLL entry point.
-  /// @return Return \c true on success.
-  bool    LoadOptionalFunction(void* function, const char* function_name) const;
-  /// Same as \c LoadOptionalFunction, but raise \c amp_player_error in case of an error.
-  bool    LoadFunction(void* function, const char* function_name) const;
-  /// Load a new DLL as plug-in. The plug-in flavor is specialized later.
-  /// @return Returns \c true on success, otherwise return \c false
-  /// and call \c amp_player_error.
-  bool    Load();
+  /// @param function Here is the entry point placed. On error this is set to \c NULL.
+  /// @return 0 on success, OS/2 error code otherwise.
+  APIRET  LoadOptionalFunction(void* function, const char* function_name) const
+                                             { *(int(**)())function = NULL; return DosQueryProcAddr(HModule, 0L, (PSZ)function_name, (PFN*)function); }
+  /// Load the address of a DLL entry point.
+  /// @param function Here is the entry point placed. On error this is set to \c NULL.
+  /// @exception ModuleException Something went wrong.
+  void    LoadMandatoryFunction(void* function, const char* function_name) const;
   /// Launch the configure dialog.
   /// @param hwnd Parent window.
   void    Config(HWND hwnd) const            { DEBUGLOG(("Module(%p{%s})::Config(%p) - %p\n", this, Key.cdata(), hwnd, plugin_configure));
                                                if (plugin_configure) (*plugin_configure)(hwnd, HModule); }
   /// Handle plug-in specific command if the plug-in exports plugin_command.
   /// Otherwise the function is a no-op, result is unchanged.
-  void    Command(const char* command, xstring& result)
+  void    Command(const char* command, xstring& result) const
                                              { if (plugin_command) (*plugin_command)(command, &result); }
 
  private: // non-copyable
   Module(const Module&);
   void operator=(const Module&);
  public: // Repository
+  static Mutex&          Mtx;
   /// Check whether a module is loaded and return a strong reference if so.
-  /// @return The function returns \c NULL if the module is not loaded.
-  static int_ptr<Module> FindByKey(const xstring& name);
+  /// @return The function returns \c NULL if the module is not yet loaded.
+  static int_ptr<Module> FindByKey(const char* name);
   /// Ensure access to a Module.
-  /// @return The function returns \c NULL if the module cannot be instantiated.
-  static int_ptr<Module> GetByKey(const xstring& name);
+  /// @exception ModuleException Something went wrong.
+  static int_ptr<Module> GetByKey(const char* name);
+  /// Gets a snapshot of all currently active plug-in instances.
+  static void            CopyAllInstancesTo(vector_int<Module>& target);
 };
 
 
-class PluginList;
+/// Arguments of PluginChange event
+struct PluginEventArgs
+{ Plugin& Plug;
+  enum event
+  { /// The plug-in is unloaded by the user
+    Unload,
+    /// The plug-in is loaded by the user
+    Load,
+    /// The plug-in is enabled by the user
+    Disable,
+    /// The plug-in is instantiated by the plug-in manager
+    Enable,
+    /// The plug-in instance is destroyed by the plug-in manager
+    Uninit,
+    /// The plug-in is disabled by the user
+    Init
+  } Operation;
+};
+
 /****************************************************************************
 *
-* @brief Plugin - abstract object representing a plug-in instance.
+* @brief Plug-in - abstract object representing a plug-in instance.
+* A single module can have multiple plug-in instances of different type.
 *
 * This class is thread-safe on per instance basis.
 *
 ****************************************************************************/
-class Plugin
+class Plugin : public Iref_count
 {public:
-  /// Arguments of PluginChange event
-  struct EventArgs
-  { Plugin&     Plug;
-    enum event
-    { /// The plug-in is loaded by the user
-      Load,
-      /// The plug-in is unloaded by the user
-      Unload,
-      /// The plug-in is enabled by the user
-      Enable,
-      /// The plug-in is disabled by the user
-      Disable,
-      /// The plug-in is instantiated by the plug-in manager
-      Init,
-      /// The plug-in instance is destroyed by the plug-in manager
-      Uninit,
-      /// The plug-in is activated (outputs and decoders only)
-      Active,
-      /// The plug-in is deactivated (outputs and decoders only)
-      Inactive
-    }           Operation;
-  };
-
- public:
-  static VISUAL_PROPERTIES VisualProps;
-  /// Notify changes to the plug-in lists.
-  static event<const EventArgs> ChangeEvent;
-
- protected:
   /// Strong reference to the underlying module.
-  const int_ptr<Module> ModRef;
+  Module&      ModRef;
+  /// Kind of plug-in handled by the class instance.
+  const PLUGIN_TYPE PluginType;
+ protected:
   /// Enabled flag. \c true in doubt.
+  /// @remarks Strictly speaking this property is a property o a plug-in list entry.
+  /// But since a \c Plugin instance can only exist in a single PluginList,
+  /// it is stored here to prevent further complexity.
   bool         Enabled;
  private:
-  const PLUGIN_TYPE PluginType;
- private: // non-copyable
-               Plugin(const Plugin&);
-  void         operator=(const Plugin&);
+  //static delegate<void, const CfgChangeArgs> ConfigDelegate;
  private:
-  static Plugin* Instantiate(Module* mod, Plugin* (*factory)(Module*), PluginList& list, const char* params);
-
+  //static bool  Instantiate(Plugin* plugin, PluginList& list, const char* params);
+  //static void  ConfigNotification(void*, const CfgChangeArgs& args);
  protected:
   /// Instantiate a new plug-in.
-               Plugin(Module* mod, PLUGIN_TYPE type);
+               Plugin(Module& mod, PLUGIN_TYPE type);
+  /// Raise plugin_event
+  void         RaisePluginChange(PluginEventArgs::event ev);
  public:
   /// @brief Destroy the current plug-in.
   /// @details This will implicitly deregister it from the plug-in list.
   /// If the module is not used by another plug-in it will be unloaded.
   virtual      ~Plugin();
-  /// Getter to the underlying module.
-  Module&      GetModule() const  { return *ModRef; }
-  /// Return kind of plug-in handled by the class instance.
-  PLUGIN_TYPE  GetType() const    { return PluginType; }
-  /// Raise plugin_event
-  void         RaisePluginChange(EventArgs::event ev);
-
-  /// @brief Load the current plug-in.
-  /// @return Return \c true on success.
-  /// @details To be implemented by the particular plug-in flavor.
-  virtual bool LoadPlugin() = 0;
-  /// @brief Initialize the current plug-in.
-  /// @return Return \c true on success.
-  /// @details To be implemented by the particular plug-in flavor.
-  virtual bool InitPlugin() = 0;
-  /// Deinitialize the current plug-in.
-  /// @return Return \c true on success.
-  /// @details To be implemented by the particular plug-in flavor.
-  virtual bool UninitPlugin() = 0;
-  /// Tell whether the plug-in is currently initialized.
-  /// @details To be implemented by the particular plug-in flavor.
-  virtual bool IsInitialized() const = 0;
 
   /// Getter to the enabled state.
   bool         GetEnabled() const { return Enabled; }
@@ -200,7 +237,7 @@ class Plugin
   virtual void SetEnabled(bool enabled);
 
   /// Retrieve plug-in configuration parameters
-  virtual void GetParams(stringmap& map) const;
+  virtual void GetParams(stringmap_own& map) const;
   /// @brief Set the parameter \a param to value.
   /// @return Return \c true if \a param is known and valid.
   /// @details By overloading this function specific plug-ins may take individual parameters.
@@ -210,13 +247,119 @@ class Plugin
   /// @details All identified keys are removed from map.
   /// The remaining keys are unknown.
   void         SetParams(stringmap_own& map);
-  /// Parse parameter string and call SetParam for each parameter.
-  void         SetParams(const char* params);
-  /// Serialize current configuration and name to a string.
-  xstring      Serialize() const;
+  /// Serialize current configuration and name and append it to \a target.
+  void         Serialize(xstringbuilder& target) const;
+
+ protected:
+   // The lists are protected by Module::Mtx.
+   static PluginList Decoders; // only decoders
+   static PluginList Outputs;  // only outputs
+   static PluginList Filters;  // only filters
+   static PluginList Visuals;  // only visuals
+ private:
+   /// Notify changes to the plug-in lists.
+   static event<const PluginEventArgs> ChangeEvent;
+
+ protected:
+  static PluginList& GetPluginList(PLUGIN_TYPE type);
+ public:
+  /// Access plug-in change event.
+  static event_pub<const PluginEventArgs>& GetChangeEvent() { return ChangeEvent; }
+
+  /// Return the \c plug-in instance of the requested type on \a module. Create a new one if required.
+  /// @exception ModuleException Something went wrong.
+  static int_ptr<Plugin> GetInstance(Module& module, PLUGIN_TYPE type);
   /// @brief Create or update a plug-in from a string.
-  /// @return Deserialize returns the real types of the loaded plug-in.
-  static int   Deserialize(const char* str, int type = PLUGIN_VISUAL|PLUGIN_FILTER|PLUGIN_DECODER|PLUGIN_OUTPUT, bool skinned = false);
+  /// @exception ModuleException Something went wrong.
+  /// @remarks Note that the function does not add the plug-in
+  /// to any list. But the parameters in the string are applied immediately,
+  /// if the plug-in \e is already in a list.
+  static int_ptr<Plugin> Deserialize(const char* str, PLUGIN_TYPE type);
+
+  /// Put the list of enabled plug-ins into \a target.
+  /// The plug-in type is detected automatically from the type of \a target.
+  /// @param enabled Return only enabled plug-ins (default).
+  static void  GetPlugins(PluginList& target, bool enabled = true);
+
+  /// Append the plugin to the appropriate list.
+  /// @exception ModuleException Something went wrong.
+  static void  AppendPlugin(Plugin* plugin);
+  /// Replace a plug-in list. This activates changes.
+  /// The plug-in type is detected automatically from the type of \a source.
+  /// @param source New plug-in list. Assigned by the old value on return.
+  static void  SetPluginList(PluginList& source);
+
+/*  static void  Init();
+  static void  Uninit();*/
+};
+
+
+/***************************************************************************
+ *
+ * Collection of plug-ins of any kind.
+ *
+ * This class is not thread-safe.
+ *
+ ***************************************************************************/
+class PluginList : public vector_int<Plugin>
+{public:
+  /// Type of the plug-ins in this list instance.
+  const PLUGIN_TYPE Type;
+
+ public:
+  PluginList(PLUGIN_TYPE type) : Type(type) {}
+  PluginList(const PluginList& r) : vector_int<Plugin>(r), Type(r.Type) {}
+  PluginList&     operator=(const PluginList& r) { ASSERT(Type == r.Type); vector_int<Plugin>::operator=(r); return *this; }
+
+  /*/// Append a new plug-in to the list.
+  void            append(Plugin* plugin);*/
+  /// Check whether a plug-in is already in the list.
+  bool            contains(const Plugin* plugin) const { return find(plugin) != NULL; }
+
+  /// Remove the plug-in from the list.
+  /// @return true on success.
+  bool            remove(Plugin* plugin);
+
+  /// @brief Serialize plug-in list to a string.
+  /// @details This implicitly calls Serialize for each plug-in in the list.
+  const xstring   Serialize() const;
+  /// Deserialize plug-in list from a string.
+  /// @return \c NULL on success and an error text on error.
+  xstring         Deserialize(const char* str);
+
+  /// Reset the list to the default of this plug-in flavor.
+  void            LoadDefaults();
+};
+
+
+/****************************************************************************
+*
+*  Helper class for plug-in virtualization proxies
+*
+****************************************************************************/
+
+struct ProxyHelper
+{protected:
+  /// Convert file URL
+  /// - discard file: prefix,
+  /// - replace '/' by '\'
+  /// - replace "X|" by "X:"
+  /// The string url is modified in place
+  static const char* ConvertUrl2File(char* url);
+
+  /// Convert time stamp in seconds to an integer in milliseconds.
+  /// Truncate leading bits in case of an overflow.
+  static int    TstmpF2I(double pos);
+  /// Convert possibly truncated time stamp in milliseconds to seconds.
+  /// The missing bits are taken from a context time stamp which has to be sufficiently close
+  /// to the original time stamp. Sufficient is about 24 days.
+  static double TstmpI2F(int pos, double context);
+
+  /// convert META_INFO into DECODER_INFO
+  static void ConvertMETA_INFO(DECODER_INFO* dinfo, const volatile META_INFO* meta);
+  /// convert DECODER_INFO2 to DECODER_INFO
+  static void ConvertINFO_BUNDLE(DECODER_INFO* dinfo, const INFO_BUNDLE_CV* info);
+  static void ConvertDECODER_INFO(const INFO_BUNDLE* info, const DECODER_INFO* dinfo);
 
   // global services
  protected:
@@ -226,7 +369,7 @@ class Plugin
   };
  private:
   static HWND ServiceHwnd;
-  friend MRESULT EXPENTRY cl_plugin_winfn(HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2);
+  friend MRESULT EXPENTRY ProxyHelperWinFn(HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2);
  protected:
   static HWND CreateProxyWindow(const char* cls, void* ptr);
   static void DestroyProxyWindow(HWND hwnd);
@@ -237,122 +380,14 @@ class Plugin
 
 
 /****************************************************************************
- *
- * Collection of plug-ins of any kind.
- *
- ***************************************************************************/
-class PluginList : public vector_own<Plugin>
-{public:
-  enum RC
-  { RC_OK,
-    RC_InUse,
-    RC_Error
-  };
- public:
-  /// Type of the plug-ins in this list instance.
-  const PLUGIN_TYPE Type;
- protected:
-  const char* const Defaults;
-
- private: // non-copyable
-  PluginList(const PluginList&);
-  void operator=(const PluginList&);
- public:
-                  PluginList(PLUGIN_TYPE type, const char* def) : vector_own<Plugin>(20), Type(type), Defaults(def) {}
-  /// Append a new plug-in to the list.
-  virtual void    append(Plugin* plugin);
-  /// Remove the i-th plug-in from the list.
-  /// @return Return a pointer to the removed plugin.
-  virtual Plugin* erase(size_t i);
-  /// Destroy the i-th plug-in in the list.
-  /// @return Return \c true on success.
-  virtual bool    remove(int i);
-  /// @return Return index of plug-in or -1 if not found.
-  int             find(const Plugin* plugin) const;
-  /// @return Return index of plug-in or -1 if not found.
-  int             find(const Module* module) const;
-  /// @return Return index of plug-in or -1 if not found.
-  int             find(const char* module) const;
-  /// @brief Serialize plug-in list to a string.
-  /// @details This implicitly calls Serialize for each plug-in in the list.
-  virtual const xstring Serialize() const;
-  /// Deserialzie plug-in list from a string.
-  /// @return Return false on error.
-  virtual RC      Deserialize(const xstring& str);
-  /// Load default plug-ins
-  void            LoadDefaults() { Deserialize(Defaults); }
-};
-
-/****************************************************************************
- *
- * Specialized version of PluinList that keep track of exactly one activated plug-in.
- *
- ***************************************************************************/
-class PluginList1 : public PluginList
-{private:
-  /// Current active plug-in.
-  Plugin*         Active;
- public:
-                  PluginList1(PLUGIN_TYPE type, const char* def) : PluginList(type, def), Active(NULL) {}
-  /// Remove the i-th plug-in from the list and return a pointer to it.
-  /// If it was the activated one it is deactivated (uninit) first.
-  virtual Plugin* erase(size_t i);
-  /// Return the index of the currently active plug-in.
-  /// @return Returns -1 if no plug-in is active.
-  int             GetActive() const   { return Active ? find(Active) : -1; }
-  /// @brief Change the currently activated plug-in.
-  /// @details If there is another plug-in active it is deactivated (uninit) first.
-  /// If the desired plug-in is already active this is a no-op.
-  /// @return Return 0 on success.
-  int             SetActive(int i);
-  /// Get the currently active plug-in or \c NULL if none.
-  Plugin*         Current() const     { return Active; }
-  /// Serialize plug-in list to a string
-  virtual const xstring Serialize() const;
-  /// Deserialzie plug-in list from a string.
-  /// @return Return \c false on error.
-  virtual RC      Deserialize(const xstring& str);
-};
-
-
-/****************************************************************************
-*
-*  GUI extension interface of the plug-ins
-*
-****************************************************************************/
-
-/// Plug-in menu in the main pop-up menu.
-void load_plugin_menu(HWND hmenu );
-/// Invoke plug-in configuration menu.
-bool plugin_configure(HWND owner, int index);
-/// Add additional entries in load/add menu in the main and the playlist's pop-up menu.
-void dec_append_load_menu(HWND hMenu, ULONG id_base, SHORT where, DECODER_WIZARD_FUNC* callbacks, size_t size);
-/// Append accelerator table with plug-in specific entries.
-void dec_append_accel_table(HACCEL& haccel, ULONG id_base, LONG offset, DECODER_WIZARD_FUNC* callbacks, size_t size);
-
-
-/****************************************************************************
-*
-* global lists
-*
-****************************************************************************/
-
-extern PluginList1 Decoders;       // only decoders
-extern PluginList1 Outputs;        // only outputs
-extern PluginList  Filters;        // only filters
-extern PluginList  Visuals;        // only visuals
-extern PluginList  VisualsSkinned; // visual plug-ins loaded by skin
-
-
-/****************************************************************************
 *
 *  Global initialization functions
 *
 ****************************************************************************/
 
 /// Initialize plug-in manager.
-void  plugman_init();
+void plugman_init();
 /// Deinitialize plug-in manager.
-void  plugman_uninit();
+void plugman_uninit();
 
 #endif /* PM123_PLUGMAN_H */

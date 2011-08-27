@@ -34,7 +34,6 @@
 #include "windowbase.h"
 #include "playable.h"
 #include "infodialog.h"
-#include "plugman.h"
 #include "controller.h"
 #include <decoder_plug.h>
 
@@ -55,6 +54,8 @@
 
 #include <debuglog.h>
 
+
+class PluginEventArgs;
 
 /****************************************************************************
 *
@@ -237,7 +238,7 @@ class PlaylistBase
   int_ptr<PlaylistBase> Self;      // We hold a reference to ourself as long as the current window is open.
   class_delegate2<PlaylistBase, const PlayableChangeArgs, RecordBase> RootInfoDelegate;
   class_delegate<PlaylistBase, const Ctrl::EventFlags> RootPlayStatusDelegate;
-  class_delegate<PlaylistBase, const Plugin::EventArgs> PluginDelegate;
+  class_delegate<PlaylistBase, const PluginEventArgs> PluginDelegate;
 
  protected:
   // Create a playlist manager window for an object, but don't open it.
@@ -345,7 +346,7 @@ class PlaylistBase
   // This function is called when playing starts or stops.
   void              PlayStatEvent(const Ctrl::EventFlags& flags);
   // This function is called when the list of enabled plug-ins changed.
-  void              PluginEvent(const Plugin::EventArgs& args);
+  void              PluginEvent(const PluginEventArgs& args);
 
  protected: // User actions
   // Add Item
@@ -422,85 +423,6 @@ inline PlaylistBase::CPDataBase::CPDataBase(
 : Content(&content),
   InfoChange(pm, infochangefn, rec)
 {}
-
-
-/****************************************************************************
-*
-*  Template class to assist the implementation of an instance repository
-*  of type T. T must derive from PlaylistBase.
-*
-****************************************************************************
-template <class T>
-class PlaylistRepository : public PlaylistBase
-{private:
-  static sorted_vector<T, Playable> RPInst;
-  static Mutex      RPMutex;
- public:
-  // currently a no-op
-  static void       Init() {}
-  static void       UnInit();
-  // Lookup wether an object is already in the repository. 
-  static const int_ptr<T> Find(Playable& obj);
-  // Factory method. Returns always the same instance for the same Playable.
-  // If the specified instance already exists the parameter alias is ignored.
-  static const int_ptr<T> Get(Playable& obj, const xstring& alias = xstring());
-  // Get an instance of the same type as the current instance for URL.
-  virtual const int_ptr<PlaylistBase> GetSame(Playable& obj) { return &*Get(obj); }
- protected:
-  // Forward Constructor
-  PlaylistRepository(Playable& content, const xstring& alias, ULONG rid) : PlaylistBase(content, alias, rid) {}
-  // Unregister from the repository automatically
-  ~PlaylistRepository();
-};
-
-template <class T>
-sorted_vector<T, Playable> PlaylistRepository<T>::RPInst(8);
-template <class T>
-Mutex PlaylistRepository<T>::RPMutex;
-
-// Implementations
-template <class T>
-void PlaylistRepository<T>::UnInit()
-{ DEBUGLOG(("PlaylistRepository::UnInit() - %d\n", RPInst.size()));
-  // Close all windows.
-  // The instances deregister itself from the repository.
-  // Starting at the end avoids the memcpy calls for shrinking the vector.
-  size_t n = RPInst.size();
-  while (n)
-    RPInst[--n]->Destroy();
-}
-
-template <class T>
-const int_ptr<T> PlaylistRepository<T>::Find(Playable& obj)
-{ DEBUGLOG(("PlaylistRepository<T>::Find(&%p)\n", &obj));
-  Mutex::Lock lock(RPMutex);
-  T* pp = RPInst.find(obj);
-  CritSect cs;
-  return pp && !pp->RefCountIsUnmanaged() ? pp : NULL;
-}
-
-template <class T>
-const int_ptr<T> PlaylistRepository<T>::Get(Playable& obj, const xstring& alias)
-{ DEBUGLOG(("PlaylistRepository<T>::Get(&%p, %s)\n", &obj, alias ? alias.cdata() : "<NULL>"));
-  Mutex::Lock lock(RPMutex);
-  T*& pp = RPInst.get(obj);
-  { CritSect cs;
-    if (pp && !pp->RefCountIsUnmanaged())
-      return pp;
-  }
-  pp = new T(obj, alias);
-  return pp;
-}
-
-template <class T>
-PlaylistRepository<T>::~PlaylistRepository()
-{ Mutex::Lock lock(RPMutex);
-  #ifdef DEBUG_LOG
-  ASSERT(RPInst.erase(*Content) != NULL);
-  #else
-  RPInst.erase(*Content);
-  #endif
-}*/
 
 
 #endif

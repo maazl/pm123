@@ -158,7 +158,7 @@ PlaylistBase::PlaylistBase(Playable& content, ULONG rid)
   DecChanged(false),
   RootInfoDelegate(*this, &PlaylistBase::InfoChangeEvent, NULL),
   RootPlayStatusDelegate(*this, &PlaylistBase::PlayStatEvent),
-  PluginDelegate(Plugin::ChangeEvent, *this, &PlaylistBase::PluginEvent)
+  PluginDelegate(Plugin::GetChangeEvent(), *this, &PlaylistBase::PluginEvent)
 { DEBUGLOG(("PlaylistBase(%p)::PlaylistBase(&%p{%s}, %u)\n", this, &content, content.URL.cdata(), rid));
   static bool first = true;
   if (first)
@@ -1070,14 +1070,14 @@ void PlaylistBase::PlayStatEvent(const Ctrl::EventFlags& flags)
   }
 }
 
-void PlaylistBase::PluginEvent(const Plugin::EventArgs& args)
+void PlaylistBase::PluginEvent(const PluginEventArgs& args)
 { DEBUGLOG(("PlaylistBase(%p)::PluginEvent({&%p{%s}, %i})\n", this,
-    &args.Plug, args.Plug.GetModule().Key.cdata(), args.Operation));
-  if (args.Plug.GetType() == PLUGIN_DECODER)
+    &args.Plug, args.Plug.ModRef.Key.cdata(), args.Operation));
+  if (args.Plug.PluginType == PLUGIN_DECODER)
   { switch (args.Operation)
-    {case Plugin::EventArgs::Enable:
-     case Plugin::EventArgs::Disable:
-     case Plugin::EventArgs::Unload:
+    {case PluginEventArgs::Enable:
+     case PluginEventArgs::Disable:
+     case PluginEventArgs::Unload:
       WinPostMsg(GetHwnd(), UM_UPDATEDEC, 0, 0);
      default:; // avoid warnings
     }

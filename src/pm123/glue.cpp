@@ -1,9 +1,9 @@
 /*
+ * Copyright 2006-2011 Marcel Mueller
+ * Copyright 2004-2006 Dmitry A.Steklenev <glass@ptv.ru>
  * Copyright 1997-2003 Samuel Audet  <guardia@step.polymtl.ca>
  *                     Taneli Lepp�  <rosmo@sektori.com>
  *
- * Copyright 2004-2006 Dmitry A.Steklenev <glass@ptv.ru>
- * Copyright 2006-2011 Marcel Mueller
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -32,11 +32,13 @@
 
 #define  INCL_PM
 #include "glue.h"
-#include "plugman_base.h"
+#include "decoder.h"
+#include "filter.h"
+#include "output.h"
+#include "visual.h"
 #include "123_util.h"
 #include "properties.h"
 #include "pm123.h"
-#include "dstring.h"
 #include <fileutil.h>
 #include <eautils.h>
 #include <xio.h>
@@ -46,12 +48,6 @@
 
 //#define DEBUG 1
 #include <debuglog.h>
-
-/* thread priorities for decoder thread */
-#define  DECODER_HIGH_PRIORITY_CLASS PRTYC_FOREGROUNDSERVER // sorry, we should not lockup the system with time-critical priority
-#define  DECODER_HIGH_PRIORITY_DELTA 20
-#define  DECODER_LOW_PRIORITY_CLASS  PRTYC_REGULAR
-#define  DECODER_LOW_PRIORITY_DELTA  1
 
 
 /****************************************************************************
@@ -80,33 +76,34 @@ class Glue
   static OUTPUT_PARAMS2    params;            // parameters for output_command
   static DECODER_PARAMS2   dparams;           // parameters for decoder_command
   static xstring           url;               // current URL
-  static PM123_TIME        stoptime;          // timeindex where to stop the current playback
+  static PM123_TIME        stoptime;          // time index where to stop the current playback
   static volatile unsigned playstopsent;      // DECEVENT_PLAYSTOP has been sent. May be set to 0 to discard samples.
   static PM123_TIME        posoffset;         // Offset to posmarker parameter to make the output timeline monotonic
   static TechInfo          last_format;       // Format of last request_buffer
   static PM123_TIME        minpos;            // minimum sample position of a block from the decoder since the last dec_play
   static PM123_TIME        maxpos;            // maximum sample position of a block from the decoder since the last dec_play
+  static int_ptr<Output>   output;            // currently initialized output plug-in.
+  static PluginList        filters;           // List of initialized visual plug-ins.
+  static int_ptr<Decoder>  decoder;           // currently active decoder plug-in.
+  static delegate<void,const PluginEventArgs> plugin_deleg;
 
  private:
-  // Virtualize output procedures by invoking the filter plugin no. i.
-  static void              virtualize         ( int i );
+  /// Virtualize output procedures by invoking the filter plug-in no \a i.
+  static void              virtualize         (int i);
   // setup the entire filter chain
   static ULONG             init();
   // uninitialize the filter chain
   static void              uninit();
-  // Select decoder by index.
-  static int               dec_set_active     ( int number )
-                                              { return Decoders.SetActive(number); }
-  // Select decoder by name.
-  // Returns -1 if a error occured,
-  // returns -2 if can't find nothing,
-  // returns 0  if succesful.
-  static int               dec_set_active     ( const char* name );
+  /// Select the currently active decoder
+  /// @exception ModuleException Something went wrong.
+  static void              dec_set_active     (const char* name);
   // Send command to the current decoder using the current content of dparams.
-  static ULONG             dec_command        ( ULONG msg );
+  static ULONG             dec_command        ( DECMSGTYPE msg );
   // Send command to the current output and filter chain using the current content of params.
   static ULONG             out_command        ( ULONG msg )
                                               { return (*procs.output_command)( procs.A, msg, &params ); }
+  /// Handle plug-in changes while playing.
+  static void              plugin_notification(void*, const PluginEventArgs& args);
  public:
   // output control interface (C style)
   friend ULONG             out_setup          ( const APlayable& song );
@@ -124,6 +121,8 @@ class Glue
   friend ULONG             dec_save           ( const char* file );
   friend PM123_TIME        dec_minpos         ();
   friend PM123_TIME        dec_maxpos         ();
+  friend ULONG DLLENTRY    dec_status         ();
+  friend PM123_TIME DLLENTRY dec_length       ();
   // 4 visual interface (C style)
   friend PM123_TIME DLLENTRY out_playing_pos  ();
   friend BOOL   DLLENTRY   out_playing_data   ();
@@ -151,17 +150,18 @@ PM123_TIME        Glue::posoffset;
 TechInfo          Glue::last_format;
 PM123_TIME        Glue::minpos;
 PM123_TIME        Glue::maxpos;
+int_ptr<Output>   Glue::output;
+PluginList        Glue::filters(PLUGIN_FILTER);
+int_ptr<Decoder>  Glue::decoder;
+delegate<void,const PluginEventArgs> Glue::plugin_deleg(&Glue::plugin_notification);
+
 
 void Glue::virtualize(int i)
-{ DEBUGLOG(("Glue::virtualize(%d) - %p\n", i, params.Info));
-
+{ DEBUGLOG(("Glue::virtualize(%i) - %p\n", i, params.Info));
   if (i < 0)
     return;
-  Filter* fil = (Filter*)Filters[i];
-  if (!fil->GetEnabled())
-  { virtualize(i-1);
-    return;
-  }
+
+  Filter& fil = (Filter&)*filters[i];
   // virtualize procedures
   FILTER_PARAMS2 par;
   par.size                   = sizeof par;
@@ -174,8 +174,9 @@ void Glue::virtualize(int i)
   par.a                      = procs.A;
   par.output_event           = params.OutEvent;
   par.w                      = params.W;
-  if (!fil->Initialize(&par))
-  { pm123_display_info(xstring::sprintf("The filter plug-in %s failed to initialize.", fil->GetModule().Key.cdata()));
+  if (!fil.Initialize(&par))
+  { pm123_display_info(xstring::sprintf("The filter plug-in %s failed to initialize.", fil.ModRef.Key.cdata()));
+    filters.erase(i);
     virtualize(i-1);
     return;
   }
@@ -186,7 +187,7 @@ void Glue::virtualize(int i)
   procs.output_commit_buffer   = par.output_commit_buffer;
   procs.output_playing_pos     = par.output_playing_pos;
   procs.output_playing_data    = par.output_playing_data;
-  procs.A                      = fil->GetProcs().F;
+  procs.A                      = fil.GetProcs().F;
   void DLLENTRYP(last_output_event)(void* w, OUTEVENTTYPE event) = params.OutEvent;
   // next filter
   virtualize(i-1);
@@ -198,12 +199,12 @@ void Glue::virtualize(int i)
   if (vcallback)
   { // set params for next instance.
     params.OutEvent = last_output_event;
-    params.W        = fil->GetProcs().F;
+    params.W        = fil.GetProcs().F;
     DEBUGLOG(("Glue::virtualize: callback virtualized: %p %p\n", params.OutEvent, params.W));
   }
   if (par.output_event != last_output_event)
   { // now update the decoder event
-    (*fil->GetProcs().filter_update)(fil->GetProcs().F, &par);
+    (*fil.GetProcs().filter_update)(fil.GetProcs().F, &par);
     DEBUGLOG(("Glue::virtualize: callback update: %p %p\n", par.output_event, par.w));
   }
 }
@@ -211,6 +212,8 @@ void Glue::virtualize(int i)
 // setup filter chain
 ULONG Glue::init()
 { DEBUGLOG(("Glue::init\n"));
+
+  Plugin::GetChangeEvent() += plugin_deleg;
 
   // setup callback handlers
   params.OutEvent  = &out_event_handler;
@@ -220,16 +223,23 @@ ULONG Glue::init()
   dparams.DecEvent = &dec_event_handler;
   //dparams.save_filename   = NULL;
 
-  Output* op = (Output*)Outputs.Current();
-  if ( op == NULL )
-  { pm123_display_error( "There is no active output plug-in." );
-    return (ULONG)-1;  // ??
+  // Fetch current active output
+  { PluginList outputs(PLUGIN_OUTPUT);
+    Plugin::GetPlugins(outputs);
+    if (outputs.size() == 0)
+    { pm123_display_error("There is no active output plug-in.");
+      return (ULONG)-1;  // ??
+    }
+    ASSERT(outputs.size() == 1);
+    output = (Output*)outputs[0].get();
   }
 
   // initially only the output plugin
-  procs = op->GetProcs();
+  output->InitPlugin();
+  procs = output->GetProcs();
   // setup filters
-  virtualize(Filters.size()-1);
+  Plugin::GetPlugins(filters);
+  virtualize(filters.size()-1);
   // setup output
   ULONG rc = out_command(OUTPUT_SETUP);
   if (rc == 0)
@@ -242,49 +252,57 @@ ULONG Glue::init()
 void Glue::uninit()
 { DEBUGLOG(("Glue::uninit\n"));
 
+  plugin_deleg.detach();
+
   initialized = FALSE;
   // uninitialize filter chain
-  for (size_t i = 0; i < Filters.size(); ++i)
-    if (Filters[i]->IsInitialized())
-      Filters[i]->UninitPlugin();
-}
-
-/* Returns -1 if a error occured,
-   returns -2 if can't find nothing,
-   returns 0  if succesful. */
-int Glue::dec_set_active( const char* name )
-{
-  if( name == NULL ) {
-    return dec_set_active( -1 );
+  foreach (const int_ptr<Plugin>*, fpp, filters)
+  { Filter& fil = (Filter&)**fpp;
+    if (fil.IsInitialized())
+      fil.UninitPlugin();
   }
-
-  int i = Decoders.find(name);
-  return i < 0
-   ? -2
-   : dec_set_active( i );
+  // Uninitialize output
+  output->UninitPlugin();
+  output.reset();
 }
 
-ULONG Glue::dec_command( ULONG msg )
-{ DEBUGLOG(("dec_command(%d)\n", msg));
-  Decoder* dp = (Decoder*)Decoders.Current();
-  if (dp == NULL)
-    return 3; // no decoder active
+void Glue::dec_set_active(const char* name)
+{ // Uninit current decoder if any
+  if (decoder && decoder->IsInitialized())
+  { int_ptr<Decoder> dp(decoder);
+    decoder.reset();
+    dp->UninitPlugin();
+  }
+  if (name == NULL)
+    return;
+  // Find new decoder
+  int_ptr<Decoder> pd(Decoder::GetDecoder(name));
+  pd->InitPlugin();
+  decoder = pd;
+}
 
-  const DecoderProcs& procs = dp->GetProcs();
-  ULONG ret = (*procs.decoder_command)(procs.W, msg, &dparams);
+ULONG Glue::dec_command(DECMSGTYPE msg)
+{ DEBUGLOG(("dec_command(%d)\n", msg));
+  if (decoder == NULL)
+    return 3; // no decoder active
+  ULONG ret = decoder->DecoderCommand(msg, &dparams);
   DEBUGLOG(("dec_command: %lu\n", ret));
   return ret;
 }
 
 /* invoke decoder to play an URL */
-ULONG dec_play( const APlayable& song, PM123_TIME offset, PM123_TIME start, PM123_TIME stop )
+ULONG dec_play(const APlayable& song, PM123_TIME offset, PM123_TIME start, PM123_TIME stop)
 {
   const xstring& url = song.GetPlayable().URL;
   DEBUGLOG(("dec_play(&%p{%s}, %f, %f,%g)\n", &song, url.cdata(), offset, start, stop));
   ASSERT((song.GetInfo().tech->attributes & TATTR_SONG));
-  ULONG rc = Glue::dec_set_active(xstring(song.GetInfo().tech->decoder));
-  if ( rc != 0 )
-    return rc;
+  // set active decoder
+  try
+  { Glue::dec_set_active(xstring(song.GetInfo().tech->decoder));
+  } catch (const ModuleException& ex)
+  { pm123_display_error(ex.GetErrorText());
+    return (ULONG)-2;
+  }
 
   Glue::stoptime     = stop;
   Glue::playstopsent = FALSE;
@@ -298,22 +316,33 @@ ULONG dec_play( const APlayable& song, PM123_TIME offset, PM123_TIME start, PM12
   Glue::dparams.OutCommitBuffer  = &PROXYFUNCREF(Glue)glue_commit_buffer;
   Glue::dparams.A                = Glue::procs.A;
 
-  rc = Glue::dec_command(DECODER_SETUP);
-  if ( rc != 0 )
+  ULONG rc = Glue::dec_command(DECODER_SETUP);
+  if (rc != 0)
+  { Glue::dec_set_active(NULL);
     return rc;
+  }
   Glue::url = url;
 
   Glue::dec_command(DECODER_SAVEDATA);
 
-  return Glue::dec_command(DECODER_PLAY);
+  rc = Glue::dec_command(DECODER_PLAY);
+  if (rc != 0)
+    Glue::dec_set_active(NULL);
+  else
+  { // TODO: I hate this delay with a spinlock.
+    int cnt = 0;
+    while (Glue::decoder->DecoderStatus() == DECODER_STARTING)
+    { DEBUGLOG(("dec_play - waiting for Spinlock\n"));
+      DosSleep(++cnt > 10);
+  } }
+  return rc;
 }
 
 /* stop the current decoder immediately */
 ULONG dec_stop()
 { Glue::url = NULL;
   ULONG rc = Glue::dec_command(DECODER_STOP);
-  if (rc == 0)
-    Glue::dec_set_active(-1);
+  Glue::dec_set_active(NULL);
   return rc;
 }
 
@@ -338,11 +367,11 @@ ULONG dec_jump(PM123_TIME location)
 }
 
 /* set savefilename to save the raw stream data */
-ULONG dec_save( const char* file )
+ULONG dec_save(const char* file)
 { if (file != NULL && *file == 0)
     file = NULL;
   Glue::dparams.SaveFilename = file;
-  ULONG status = dec_status();
+  ULONG status = Glue::decoder ? Glue::decoder->DecoderStatus() : 0;
   return status == DECODER_PLAYING || status == DECODER_STARTING || status == DECODER_PAUSED
    ? Glue::dec_command( DECODER_SAVEDATA )
    : 0;
@@ -535,9 +564,8 @@ out_event_handler( void* w, OUTEVENTTYPE event )
   switch (event)
   {case OUTEVENT_LOW_WATER:
    case OUTEVENT_HIGH_WATER:
-    { Decoder* dp = (Decoder*)Decoders.Current();
-      if (dp != NULL && dp->GetProcs().W != NULL)
-        dp->GetProcs().decoder_event(dp->GetProcs().W, event);
+    { if (decoder != NULL)
+        decoder->DecoderEvent(event);
       break;
     }
    default: // avoid warnings
@@ -553,15 +581,17 @@ ULONG DLLENTRY dec_fileinfo( const char* url, int* what, INFO_BUNDLE* info,
 { DEBUGLOG(("dec_fileinfo(%s, *%x, %p{...}, %p, %p)\n", url, *what, info, cb, param));
   xio_clearerr(NULL);
   ASSERT(*what);
-  bool* checked = (bool*)alloca(sizeof(bool) * Decoders.size());
-  const Decoder* dp;
+  PluginList decoders(PLUGIN_DECODER);
+  Plugin::GetPlugins(decoders);
+  bool* checked = (bool*)alloca(sizeof(bool) * decoders.size());
+  Decoder* dp;
   int what2;
   const char* file = NULL;
   char* eadata = NULL;
   ULONG rc;
   size_t i;
 
-  memset(checked, 0, sizeof *checked * Decoders.size());
+  memset(checked, 0, sizeof *checked * decoders.size());
 
   int type_mask;
   if (is_cdda(url))
@@ -589,15 +619,15 @@ ULONG DLLENTRY dec_fileinfo( const char* url, int* what, INFO_BUNDLE* info,
     type_mask = DECODER_OTHER;
 
   // First checks decoders supporting the specified type of files.
-  for (i = 0; i < Decoders.size(); i++)
-  { dp = (Decoder*)Decoders[i];
-    DEBUGLOG(("dec_fileinfo: %s -> %u %x/%x\n", dp->GetModule().Key.cdata(),
+  for (i = 0; i < decoders.size(); i++)
+  { dp = (Decoder*)decoders[i].get();
+    DEBUGLOG(("dec_fileinfo: %s -> %u %x/%x\n", dp->ModRef.Key.cdata(),
       dp->GetEnabled(), dp->GetObjectTypes(), type_mask));
     if (dp->GetEnabled() && (dp->GetObjectTypes() & type_mask))
     { if (file && !dp->IsFileSupported(file, eadata))
         continue;
       what2 = *what;
-      rc = (*dp->GetProcs().decoder_fileinfo)(url, &what2, info, cb, param);
+      rc = dp->Fileinfo(url, &what2, info, cb, param);
       if (rc != PLUGIN_NO_PLAY)
         goto ok; // This also happens in case of a plug-in independent error
     }
@@ -605,14 +635,14 @@ ULONG DLLENTRY dec_fileinfo( const char* url, int* what, INFO_BUNDLE* info,
   }
 
   // Next checks the rest decoders.
-  for (i = 0; i < Decoders.size(); i++)
+  for (i = 0; i < decoders.size(); i++)
   { if (checked[i])
       continue;
-    dp = (Decoder*)Decoders[i];
+    dp = (Decoder*)decoders[i].get();
     if (!dp->TryOthers)
       continue;
     what2 = *what;
-    rc = (*dp->GetProcs().decoder_fileinfo)(url, &what2, info, cb, param);
+    rc = dp->Fileinfo(url, &what2, info, cb, param);
     if (rc != PLUGIN_NO_PLAY)
       goto ok; // This also happens in case of a plug-in independent error
   }
@@ -624,7 +654,7 @@ ULONG DLLENTRY dec_fileinfo( const char* url, int* what, INFO_BUNDLE* info,
   info->tech->attributes = TATTR_INVALID;
   return PLUGIN_NO_PLAY;
  ok:
-  info->tech->decoder = dp->GetModule().Key;
+  info->tech->decoder = dp->ModRef.Key;
   if (rc != 0)
   { info->phys->attributes |= PATTR_INVALID;
     if (info->tech->info == 0)
@@ -644,81 +674,32 @@ ULONG DLLENTRY dec_fileinfo( const char* url, int* what, INFO_BUNDLE* info,
   return rc;
 }
 
-ULONG DLLENTRY dec_status( void )
-{
-  const Decoder* dp = (Decoder*)Decoders.Current();
-  // TODO: this check is still not 100% thread safe
-  if (dp != NULL && dp->GetProcs().W != NULL)
-    return (*dp->GetProcs().decoder_status)( dp->GetProcs().W );
-  else
-    return DECODER_ERROR;
-}
-
-/* Length in ms, should still be valid if decoder stops. */
-PM123_TIME DLLENTRY dec_length( void )
-{
-  const Decoder* dp = (Decoder*)Decoders.Current();
-  // TODO: this check is still not 100% thread safe
-  if (dp != NULL && dp->GetProcs().W != NULL)
-    return dp->GetProcs().decoder_length( dp->GetProcs().W );
-  else
-    return 0; // bah??
-}
-
-// merge semicolon separated entries into a stringset
-/*static void merge_ssv_list(stringset& dest, const char* entries)
-{ DEBUGLOG(("merge_ssv_list(&%p, %s)\n", &dest, entries ? entries : "<null>"));
-  if (entries == NULL)
-    return;
-  for (;;)
-  { const char* cp = strchr(entries, ';');
-    xstring val(entries, cp ? cp-entries : strlen(entries));
-    DEBUGLOG(("glue:merge_ssv_list: %s\n", val.cdata()));
-    strkey*& elem = dest.get(val);
-    if (elem == NULL)
-      elem = new strkey(val); // new entry
-    if (cp == NULL)
-      return;
-    entries = cp+1;
-  }
-}
-
-void dec_merge_extensions(stringset& list)
-{ DEBUGLOG(("dec_merge_extensions()\n"));
-  for (size_t i = 0; i < Decoders.size(); ++i)
-  { const Decoder* dp = (const Decoder*)Decoders[i];
-    if (dp->GetEnabled())
-      merge_ssv_list(list, dp->GetExtensions());
-  }
-}
-
-void dec_merge_file_types(stringset& list)
-{ DEBUGLOG(("dec_merge_file_types()\n"));
-  for (size_t i = 0; i < Decoders.size(); ++i)
-  { const Decoder* dp = (const Decoder*)Decoders[i];
-    if (dp->GetEnabled())
-      merge_ssv_list(list, dp->GetFileTypes());
-  }
-}*/
 
 class FileTypesEnumerator : public IFileTypesEnumerator
 {private:
+  PluginList              Decoders;
   size_t                  DecNo;
   const vector<const DECODER_FILETYPE>* Current;
   size_t                  Item;
  public:
-                          FileTypesEnumerator() : Current(NULL) {}
+  FileTypesEnumerator();
   virtual const DECODER_FILETYPE* GetCurrent() const;
-  virtual int GetDecoder() const;
+  virtual int_ptr<Decoder> GetDecoder() const;
   virtual bool            Next();
 };
+
+FileTypesEnumerator::FileTypesEnumerator()
+: Decoders(PLUGIN_DECODER)
+, Current(NULL)
+{ Plugin::GetPlugins(Decoders);
+}
 
 const DECODER_FILETYPE* FileTypesEnumerator::GetCurrent() const
 { return (*Current)[Item];
 }
 
-int FileTypesEnumerator::GetDecoder() const
-{ return DecNo;
+int_ptr<Decoder> FileTypesEnumerator::GetDecoder() const
+{ return (Decoder*)Decoders[DecNo];
 }
 
 bool FileTypesEnumerator::Next()
@@ -726,7 +707,7 @@ bool FileTypesEnumerator::Next()
   if (!Current)
   { DecNo = 0;
    load_decoder:
-    Current = &((const Decoder*)Decoders[DecNo])->GetFileTypes();
+    Current = &((const Decoder&)*Decoders[DecNo]).GetFileTypes();
     Item = 0;
   } else
     ++Item;
@@ -765,20 +746,12 @@ ULONG dec_saveinfo(const char* url, const META_INFO* info, DECODERMETA haveinfo,
 { DEBUGLOG(("dec_saveinfo(%s, %p, %x, %s)\n", url, info, haveinfo, decoder_name));
   xio_clearerr(NULL);
   ULONG rc;
-  // find decoder
-  int i = Decoders.find(decoder_name);
-  if (i < 0)
+  try
+  { int_ptr<Decoder> dp = Decoder::GetDecoder(decoder_name);
+    rc = dp->SaveInfo(url, info, haveinfo, errortxt);
+  } catch (const ModuleException& ex)
   { rc = PLUGIN_FAILED;
-    errortxt = xstring::sprintf("Plug-in %s does not exist or is not enabled.", decoder_name);
-  } else
-  { // get entry points
-    Decoder* dec = (Decoder*)Decoders[i];
-    const DecoderProcs& procs = dec->GetProcs();
-    if (!procs.decoder_saveinfo)
-    { rc = PLUGIN_NO_USABLE;
-      errortxt = xstring::sprintf("The plug-in %s cannot save meta information.", decoder_name);
-    } else
-      rc = (*procs.decoder_saveinfo)(url, info, haveinfo, &errortxt);
+    errortxt = ex.GetErrorText();
   }
   DEBUGLOG(("dec_saveinfo: %d - %s\n", rc, errortxt.cdata()));
   return rc;
@@ -788,19 +761,11 @@ ULONG dec_editmeta(HWND owner, const char* url, const char* decoder_name)
 { DEBUGLOG(("dec_editmeta(%x, %s, %s)\n", owner, url, decoder_name));
   ULONG rc;
   xio_clearerr(NULL);
-  // find decoder
-  int i = Decoders.find(decoder_name);
-  if (i == -1)
+  try
+  { int_ptr<Decoder> dp = Decoder::GetDecoder(decoder_name);
+    rc = dp->EditMeta(owner, url);
+  } catch (const ModuleException&)
   { rc = 100;
-  } else
-  { // get entry points
-    Decoder* dec = (Decoder*)Decoders[i];
-    const DecoderProcs& procs = dec->GetProcs();
-    if (!procs.decoder_editmeta)
-    { rc = 400;
-    } else
-    { rc = (*procs.decoder_editmeta)(owner, url);
-    }
   }
   DEBUGLOG(("dec_editmeta: %d\n", rc));
   return rc;
@@ -816,7 +781,7 @@ struct save_cb_data
   { Info.Assign(parent.GetInfo()); }
 };
 
-static int DLLENTRY save_callback(void* param, DSTRING* url,
+static int DLLENTRY save_callback(void* param, xstring* url,
   const INFO_BUNDLE** info, int* valid, int* override)
 { save_cb_data& cbd = *(save_cb_data*)param;
   // TODO: This is a race condition, because the exact content that is saved is not
@@ -838,86 +803,52 @@ ULONG dec_saveplaylist(const char* url, Playable& playlist, const char* decoder,
 { DEBUGLOG(("dec_saveplaylist(%s, {%s}, %s, %s, %u)\n", url, playlist.URL.cdata(), decoder, format, relative));
   ULONG rc;
   xio_clearerr(NULL);
-  // Find decoder
-  int i = Decoders.find(decoder);
-  if (i == -1)
+  try
+  { int_ptr<Decoder> dp = Decoder::GetDecoder(decoder);
+    save_cb_data cbd(playlist, relative);
+    int what = IF_Child;
+    rc = dp->SaveFile(url, format, &what, &cbd.Info, &save_callback, &cbd);
+  } catch (const ModuleException&)
   { rc = PLUGIN_FAILED;
-  } else
-  { Decoder* dec = (Decoder*)Decoders[i];
-    const DecoderProcs& procs = dec->GetProcs();
-    if (!procs.decoder_savefile)
-    { rc = PLUGIN_NO_USABLE;
-    } else
-    { save_cb_data cbd(playlist, relative);
-      int what = IF_Child;
-      rc = (*procs.decoder_savefile)(url, format, &what, &cbd.Info, &save_callback, &cbd);
-    }
   }
   DEBUGLOG(("dec_editmeta: %d\n", rc));
   return rc;
 }
 
-
-static bool vis_init_core(HWND owner, Visual* vis, int id)
-{
-  if (!vis->GetEnabled() || vis->IsInitialized())
-    return false;
-
-  PLUGIN_PROCS  procs;
-  procs.output_playing_samples = out_playing_samples;
-  procs.decoder_playing        = out_playing_data;
-  procs.output_playing_pos     = out_playing_pos;
-  procs.decoder_status         = dec_status;
-  procs.pm123_getstring        = pm123_getstring;
-  procs.pm123_control          = pm123_control;
-  procs.decoder_length         = dec_length;
-
-  return vis->Initialize(owner, &procs, id);
+ULONG DLLENTRY dec_status()
+{ // TODO: this copy is still not 100% thread safe
+  int_ptr<Decoder> dp(Glue::decoder);
+  return dp ? dp->DecoderStatus() : DECODER_ERROR;
 }
 
-/* Initializes the specified visual plug-in. */
-bool vis_init(HWND owner, size_t i)
-{ DEBUGLOG(("plugman:vis_init(%d)\n", i));
-
-  if (i < 0 || i >= Visuals.size())
-    return false;
-
-  return vis_init_core(owner, (Visual*)Visuals[i], i);
+PM123_TIME DLLENTRY dec_length()
+{ // TODO: this copy is still not 100% thread safe
+  int_ptr<Decoder> dp(Glue::decoder);
+  return dp ? dp->DecoderLength() : -1;
 }
 
+static time_t nomsgtill = 0;
 
-void vis_init_all(HWND owner, bool skin)
-{ PluginList& list = skin ? VisualsSkinned : Visuals;
-  for (size_t i = 0; i < list.size(); i++)
-    if (list[i]->GetEnabled())
-      vis_init_core(owner, (Visual*)list[i], i + 16*skin);
-}
-
-/* Terminates the specified visual plug-in. */
-bool vis_deinit(size_t i)
-{ if (i >= Visuals.size())
-    return false;
-  return Visuals[i]->UninitPlugin();
-}
-
-void vis_deinit_all(bool skin)
-{ PluginList& list = skin ? VisualsSkinned : Visuals;
-  for (size_t i = 0; i < list.size(); i++)
-    list[i]->UninitPlugin();
-}
-
-/* Broadcats specified message to all enabled visual plug-ins. */
-void vis_broadcast(ULONG msg, MPARAM mp1, MPARAM mp2)
-{ size_t i;
-  for( i = 0; i < Visuals.size(); i++ ) {
-    Visual* vis = (Visual*)Visuals[i];
-    if( vis->GetEnabled() && vis->IsInitialized() )
-      WinSendMsg( vis->GetHwnd(), msg, mp1, mp2 );
-  }
-  for( i = 0; i < VisualsSkinned.size(); i++ ) {
-    Visual* vis = (Visual*)VisualsSkinned[i];
-    if( vis->GetEnabled() && vis->IsInitialized() )
-      WinSendMsg( vis->GetHwnd(), msg, mp1, mp2 );
+void Glue::plugin_notification(void*, const PluginEventArgs& args)
+{ DEBUGLOG(("Glue::plugin_notification(, {&%p{%s}, %i})\n", &args.Plug, args.Plug.ModRef.Key.cdata(), args.Operation));
+  switch (args.Operation)
+  {case PluginEventArgs::Load:
+   case PluginEventArgs::Unload:
+    if (!args.Plug.GetEnabled())
+      break;
+   case PluginEventArgs::Enable:
+   case PluginEventArgs::Disable:
+    switch (args.Plug.PluginType)
+    {case PLUGIN_DECODER:
+     case PLUGIN_FILTER:
+     case PLUGIN_OUTPUT:
+      { time_t t = time(NULL);
+        if (t > nomsgtill)
+          pm123_display_info("Changes to decoder, filter or output plug-in will not take effect until playback stops.");
+        nomsgtill = t + 15; // disable the message for a few seconds.
+      }
+     default:; // avoid warnings
+    }
+   default:; // avoid warnings
   }
 }
-

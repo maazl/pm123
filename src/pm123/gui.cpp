@@ -50,6 +50,10 @@
 #include "playlistmenu.h"
 #include "button95.h"
 #include "copyright.h"
+#include "decoder.h"
+#include "filter.h"
+#include "output.h"
+#include "visual.h"
 
 #include <utilfct.h>
 #include <fileutil.h>
@@ -61,44 +65,162 @@
 #include <stdio.h>
 
 
+/*static void LoadModuleTest()
+{
+  DEBUGLOG(("LoadModuleTest"));
+  char load_error[_MAX_PATH];
+  *load_error = 0;
+  HMODULE module;
+  APIRET rc = DosLoadModule(load_error, sizeof load_error, "visplug\analyzer.dll", &module);
+  DEBUGLOG(("LoadModuleTest: %i", rc));
+  void* ptr;
+  rc = DosQueryProcAddr(module, 0, "plugin_query", (PFN*)&ptr);
+
+}*/
+
+static void vis_InitAll(HWND owner)
+{ PluginList visuals(PLUGIN_VISUAL);
+  Plugin::GetPlugins(visuals);
+  for (size_t i = 0; i < visuals.size(); i++)
+  { Visual& vis = (Visual&)*visuals[i];
+    if (vis.GetEnabled() && !vis.IsInitialized())
+      vis.InitPlugin(owner);
+  }
+}
+
+static void vis_UninitAll()
+{ PluginList visuals(PLUGIN_VISUAL);
+  Plugin::GetPlugins(visuals, false);
+  for (size_t i = 0; i < visuals.size(); i++)
+  { Visual& vis = (Visual&)*visuals[i];
+    if (vis.IsInitialized())
+      vis.UninitPlugin();
+  }
+}
+
+
 /****************************************************************************
 *
-*  class GUI
+*  Private Implementation of class GUI
 *
 ****************************************************************************/
+class GUIImp : private GUI
+{private:
+  enum UpdateFlags
+  { UPD_NONE             = 0
+  , UPD_TIMERS           = 0x0001         // Current time index, remaining time and slider
+  , UPD_TOTALS           = 0x0002         // Total playing time, total number of songs
+  , UPD_PLMODE           = 0x0004         // Playlist mode icons
+  , UPD_PLINDEX          = 0x0008         // Playlist index
+  , UPD_RATE             = 0x0010         // Bit rate
+  , UPD_CHANNELS         = 0x0020         // Number of channels
+  , UPD_VOLUME           = 0x0040         // Volume slider
+  , UPD_TEXT             = 0x0080         // Text in scroller
+  , UPD_ALL              = 0x00ff         // All the above
+  , UPD_WINDOW           = 0x0100         // Whole window redraw
+  };
+  CLASSFLAGSATTRIBUTE(UpdateFlags);
 
-int_ptr<Playable> GUI::DefaultPL;
-int_ptr<Playable> GUI::DefaultPM;
-int_ptr<Playable> GUI::DefaultBM;
-int_ptr<Playable> GUI::LoadMRU;
-int_ptr<Playable> GUI::UrlMRU;
+  /// Cache lifetime of unused playable objects in seconds
+  /// Objects are removed after [CLEANUP_INTERVALL, 2*CLEANUP_INTERVALL].
+  /// However, since the removed objects may hold references to other objects,
+  /// only one generation is cleaned up per time.
+  static const int CLEANUP_INTERVAL = 10;
 
-HWND              GUI::HFrame  = NULLHANDLE;
-HWND              GUI::HPlayer = NULLHANDLE;
-HWND              GUI::HHelp   = NULLHANDLE;
-bool              GUI::Terminate = false;
-DECODER_WIZARD_FUNC GUI::LoadWizards[16];
-SongIterator      GUI::IterBuffer[2];
-HWND              GUI::ContextMenu = NULLHANDLE;
-PlaylistMenu*     GUI::MenuWorker  = NULL;
+ private: // Working set
+  static bool              Terminate;     // True when WM_QUIT arrived
+  static DECODER_WIZARD_FUNC LoadWizards[16]; // Current load wizards
+  static HWND              ContextMenu;   // Window handle of the PM123 main context menu
+  static PlaylistMenu*     MenuWorker;    // Instance of PlaylistMenu to handle events of the context menu.
+  static sco_arr<xstring>  PluginMenuContent; // Plug-ins in the context menu
 
-SongIterator*     GUI::CurrentIter = IterBuffer;
-bool              GUI::IsLocMsg        = false;
-GUI::UpdateFlags  GUI::UpdFlags        = UPD_NONE;
-GUI::UpdateFlags  GUI::UpdAtLocMsg     = UPD_NONE;
-bool              GUI::IsHaveFocus     = false;
-int               GUI::IsSeeking       = 0;
-bool              GUI::IsVolumeDrag    = false;
-bool              GUI::IsSliderDrag    = false;
-bool              GUI::IsAltSlider     = false;
-bool              GUI::IsAccelChanged  = false;
-bool              GUI::IsPluginChanged = false;
+  static bool              IsLocMsg;      // true if a MsgLocation to the controller is on the way
+  static UpdateFlags       UpdFlags;      // Pending window updates.
+  static UpdateFlags       UpdAtLocMsg;   // Update this fields at the next location message.
+  static bool              IsHaveFocus;   // PM123 main window currently has the focus.
+  static int               IsSeeking;     // A number of seek operations is currently on the way.
+  static bool              IsVolumeDrag;  // We currently drag the volume bar.
+  static bool              IsSliderDrag;  // We currently drag the navigation slider.
+  static bool              IsAltSlider;   // Alternate Slider currently active
+  static bool              IsAccelChanged;// Flag whether the accelerators have changed since the last context menu invocation.
+  static bool              IsPluginChanged;// Flag whether the plug-in list has changed since the last context menu invocation.
 
-delegate<const void, const Plugin::EventArgs>  GUI::PluginDeleg    (&GUI::PluginNotification,     NULL);
-delegate<const void, const Ctrl::EventFlags>   GUI::ControllerDeleg(&GUI::ControllerNotification, NULL);
-delegate<const void, const PlayableChangeArgs> GUI::RootDeleg      (&GUI::PlayableNotification,   NULL);
-delegate<const void, const PlayableChangeArgs> GUI::CurrentDeleg   (&GUI::PlayableNotification,   NULL);
-delegate<const void, const CfgChangeArgs>      GUI::ConfigDeleg    (&GUI::ConfigNotification,     NULL);
+  static delegate<const void, const PluginEventArgs>    PluginDeleg;
+  static delegate<const void, const Ctrl::EventFlags>   ControllerDeleg;
+  static delegate<const void, const PlayableChangeArgs> RootDeleg;
+  static delegate<const void, const PlayableChangeArgs> CurrentDeleg;
+  static delegate<const void, const CfgChangeArgs>      ConfigDeleg;
+
+ private:
+  // Static members must not use EXPENTRY linkage with IBM VACPP.
+  friend MRESULT EXPENTRY GUI_DlgProcStub(HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2);
+  static MRESULT   DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2);
+
+  static void      Invalidate(UpdateFlags what, bool immediate);
+  static void      SetAltSlider(bool alt);
+
+  /// Ensure that a MsgLocation message is processed by the controller
+  static void      ForceLocationMsg();
+  static void      ControllerEventCB(Ctrl::ControlCommand* cmd);
+  static void      ControllerNotification(const void*, const Ctrl::EventFlags& flags);
+  static void      PlayableNotification(const void*, const PlayableChangeArgs& args);
+  static void      PluginNotification(const void*, const PluginEventArgs& args);
+  static void      ConfigNotification(const void*, const CfgChangeArgs& args);
+
+  static Playable* CurrentRoot()             { return CurrentIter->GetRoot(); }
+  static APlayable& CurrentSong()            { return CurrentIter->GetCurrent(); }
+
+  static void      PostCtrlCommand(Ctrl::ControlCommand* cmd) { Ctrl::PostCommand(cmd, &GUIImp::ControllerEventCB); }
+
+  //static Playable& EnsurePlaylist(Playable& list);
+
+  static void      SaveStream(HWND hwnd, BOOL enable);
+  friend BOOL EXPENTRY GUI_HelpHook(HAB hab, ULONG usMode, ULONG idTopic, ULONG idSubTopic, PRECTL prcPosition);
+
+  static void      LoadAccel();           // (Re-)Loads the accelerator table and modifies it by the plug-ins.
+  /// Refresh plug-in menu in the main pop-up menu.
+  static void      LoadPluginMenu(HWND hmenu);
+  static void      ShowContextMenu();     // View to context menu
+  static void      RefreshTimers(HPS hps);// Refresh current playing time, remaining time and slider.
+  static void      PrepareText();         // Constructs a information text for currently loaded file and selects it for displaying.
+
+  friend void DLLENTRY GUI_LoadFileCallback(void* param, const char* url, const INFO_BUNDLE* info, int cached, int override);
+
+  static void      AutoSave(Playable& list);
+
+  // Drag & drop
+  static MRESULT   DragOver(DRAGINFO* pdinfo);
+  static MRESULT   DragDrop(PDRAGINFO pdinfo);
+  static MRESULT   DragRenderDone(PDRAGTRANSFER pdtrans, USHORT rc);
+
+ public: // Initialization interface
+  static void      Init();
+  static void      Uninit();
+};
+
+
+bool                GUIImp::Terminate = false;
+DECODER_WIZARD_FUNC GUIImp::LoadWizards[16];
+HWND                GUIImp::ContextMenu = NULLHANDLE;
+PlaylistMenu*       GUIImp::MenuWorker  = NULL;
+sco_arr<xstring>    GUIImp::PluginMenuContent;
+
+bool                GUIImp::IsLocMsg        = false;
+GUIImp::UpdateFlags GUIImp::UpdFlags        = UPD_NONE;
+GUIImp::UpdateFlags GUIImp::UpdAtLocMsg     = UPD_NONE;
+bool                GUIImp::IsHaveFocus     = false;
+int                 GUIImp::IsSeeking       = 0;
+bool                GUIImp::IsVolumeDrag    = false;
+bool                GUIImp::IsSliderDrag    = false;
+bool                GUIImp::IsAltSlider     = false;
+bool                GUIImp::IsAccelChanged  = false;
+bool                GUIImp::IsPluginChanged = false;
+
+delegate<const void, const PluginEventArgs>    GUIImp::PluginDeleg    (&GUIImp::PluginNotification);
+delegate<const void, const Ctrl::EventFlags>   GUIImp::ControllerDeleg(&GUIImp::ControllerNotification);
+delegate<const void, const PlayableChangeArgs> GUIImp::RootDeleg      (&GUIImp::PlayableNotification);
+delegate<const void, const PlayableChangeArgs> GUIImp::CurrentDeleg   (&GUIImp::PlayableNotification);
+delegate<const void, const CfgChangeArgs>      GUIImp::ConfigDeleg    (&GUIImp::ConfigNotification);
 
 
 class PostMsgWorker : public DependencyInfoWorker
@@ -135,14 +257,14 @@ MRESULT EXPENTRY GUI_DlgProcStub(HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2)
 { // Adjust calling convention
   if (msg == WM_CREATE)
     GUI::HPlayer = hwnd; // we have to assign the window handle early, because WinCreateStdWindow does not have returned now.
-  return GUI::DlgProc(msg, mp1, mp2);
+  return GUIImp::DlgProc(msg, mp1, mp2);
 }
 
-MRESULT GUI::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
-{ DEBUGLOG2(("GUI::DlgProc(%p, %p, %p)\n", msg, mp1, mp2));
+MRESULT GUIImp::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
+{ DEBUGLOG2(("GUIImp::DlgProc(%p, %p, %p)\n", msg, mp1, mp2));
   switch (msg)
   { case WM_CREATE:
-    { DEBUGLOG(("GUI::DlgProc: WM_CREATE\n"));
+    { DEBUGLOG(("GUIImp::DlgProc: WM_CREATE\n"));
 
       WinPostMsg(HPlayer, WMP_RELOADSKIN, 0, 0);
 
@@ -178,13 +300,11 @@ MRESULT GUI::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
     return 0;
 
    case WMP_LOAD:
-    { DEBUGLOG(("GUI::DlgProc: WMP_LOAD %p\n", mp1));
+    { DEBUGLOG(("GUIImp::DlgProc: WMP_LOAD %p\n", mp1));
       LoadHelper* lhp = (LoadHelper*)mp1;
       Ctrl::ControlCommand* cmd = lhp->ToCommand();
       if (cmd)
-      { cmd->Callback = &GUI::ControllerEventCB;
-        Ctrl::PostCommand(cmd);
-      }
+        PostCtrlCommand(cmd);
       delete lhp;
       return 0;
     }
@@ -194,12 +314,12 @@ MRESULT GUI::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
       int_ptr<Playable> pp;
       pp.fromCptr((Playable*)mp1);
       DialogType type = (DialogType)SHORT1FROMMP(mp2);
-      DEBUGLOG(("GUI::DlgProc: WMP_SHOW_DIALOG %p, %u\n", pp.get(), type));
+      DEBUGLOG(("GUIImp::DlgProc: WMP_SHOW_DIALOG %p, %u\n", pp.get(), type));
       switch (type)
       { case DLT_INFOEDIT:
         { // TODO: ensure Decoder availability
-          ULONG rc = dec_editmeta(HFrame, pp->URL, DSTRING(pp->GetInfo().tech->decoder));
-          DEBUGLOG(("GUI::DlgProc: WMP_SHOW_DIALOG rc = %u\n", rc));
+          ULONG rc = dec_editmeta(HFrame, pp->URL, xstring(pp->GetInfo().tech->decoder));
+          DEBUGLOG(("GUIImp::DlgProc: WMP_SHOW_DIALOG rc = %u\n", rc));
           switch (rc)
           { default:
               amp_error(HFrame, "Cannot edit tag of file:\n%s", pp->URL.cdata());
@@ -252,20 +372,27 @@ MRESULT GUI::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
       return 0;
     }
    case WMP_RELOADSKIN:
-    { PresentationSpace hps(HPlayer);
-      bmp_load_skin(xstring(Cfg::Get().defskin), HPlayer, hps);
+    { bmp_load_skin(xstring(Cfg::Get().defskin), HPlayer);
       Invalidate(UPD_WINDOW, true);
+      return 0;
+    }
+
+   case WMP_LOAD_VISUAL:
+    { int_ptr<Visual> vp;
+      vp.fromCptr((Visual*)PVOIDFROMMR(mp1));
+      if (vp->GetEnabled() && !vp->IsInitialized())
+        vp->InitPlugin(HPlayer);
       return 0;
     }
 
    case WMP_CTRL_EVENT_CB:
     { Ctrl::ControlCommand* cmd = (Ctrl::ControlCommand*)PVOIDFROMMP(mp1);
-      DEBUGLOG(("GUI::DlgProc: AMP_CTRL_EVENT_CB %p{%i, %x}\n", cmd, cmd->Cmd, cmd->Flags));
+      DEBUGLOG(("GUIImp::DlgProc: AMP_CTRL_EVENT_CB %p{%i, %x}\n", cmd, cmd->Cmd, cmd->Flags));
       switch (cmd->Cmd)
       {case Ctrl::Cmd_Load:
         // Successful? if not display error.
         if (cmd->Flags != Ctrl::RC_OK)
-          amp_player_error("Error loading %s\n%s", cmd->StrArg.cdata(), DSTRING(Playable::GetByURL(cmd->StrArg)->GetInfo().tech->info).cdata());
+          amp_player_error("Error loading %s\n%s", cmd->StrArg.cdata(), xstring(Playable::GetByURL(cmd->StrArg)->GetInfo().tech->info).cdata());
         break;
        case Ctrl::Cmd_Skip:
         WinSendDlgItemMsg(HPlayer, BMP_PREV, WM_DEPRESS, 0, 0);
@@ -326,7 +453,7 @@ MRESULT GUI::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
    case WMP_CTRL_EVENT:
     { // Event from the controller
       Ctrl::EventFlags flags = (Ctrl::EventFlags)LONGFROMMP(mp1);
-      DEBUGLOG(("GUI::DlgProc: AMP_CTRL_EVENT %x\n", flags));
+      DEBUGLOG(("GUIImp::DlgProc: AMP_CTRL_EVENT %x\n", flags));
       UpdateFlags inval = UPD_NONE;
       if (flags & Ctrl::EV_PlayStop)
       { if (Ctrl::IsPlaying())
@@ -357,7 +484,7 @@ MRESULT GUI::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
         if (flags & Ctrl::EV_Root)
         { // New root => attach observer
           RootDeleg.detach();
-          DEBUGLOG(("GUI::DlgProc: AMP_CTRL_EVENT new root: %p\n", root.get()));
+          DEBUGLOG(("GUIImp::DlgProc: AMP_CTRL_EVENT new root: %p\n", root.get()));
           if (root)
             root->GetInfoChange() += RootDeleg;
           UpdAtLocMsg |= UPD_TIMERS|UPD_TOTALS|UPD_PLMODE|UPD_PLINDEX|UPD_RATE|UPD_CHANNELS|UPD_TEXT;
@@ -365,13 +492,13 @@ MRESULT GUI::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
         // New song => attach observer
         CurrentDeleg.detach();
         int_ptr<APlayable> song = Ctrl::GetCurrentSong();
-        DEBUGLOG(("GUI::DlgProc: AMP_CTRL_EVENT new song: %p\n", song.get()));
+        DEBUGLOG(("GUIImp::DlgProc: AMP_CTRL_EVENT new song: %p\n", song.get()));
         if (song && song != root) // Do not observe song items twice.
           song->GetInfoChange() += CurrentDeleg;
         // Refresh display text
         UpdAtLocMsg |= UPD_TIMERS|UPD_PLINDEX|UPD_RATE|UPD_CHANNELS|UPD_TEXT;
         // Execute update immediately if no location message is on the way
-        if (!IsLocMsg)
+        if (!IsLocMsg && !Ctrl::IsPlaying())
         { // Update current location immediately
           SongIterator& nsi = IterBuffer[CurrentIter == IterBuffer];
           nsi.SetRoot(root ? &root->GetPlayable() : NULL);
@@ -392,7 +519,7 @@ MRESULT GUI::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
     
    case WMP_PLAYABLE_EVENT:
     { Playable* root = CurrentRoot();
-      DEBUGLOG(("GUI::DlgProc: WMP_PLAYABLE_EVENT %p %x\n", mp1, SHORT1FROMMP(mp2)));
+      DEBUGLOG(("GUIImp::DlgProc: WMP_PLAYABLE_EVENT %p %x\n", mp1, SHORT1FROMMP(mp2)));
       if (!root)
         return 0;
       APlayable* ap = (APlayable*)mp1;
@@ -432,7 +559,7 @@ MRESULT GUI::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
       }
 
       switch (Cfg::Get().mode)
-      {case	CFG_MODE_TINY:
+      {case CFG_MODE_TINY:
         return 0; // No updates in tiny mode
        case CFG_MODE_SMALL:
         upd &= UPD_TEXT; // reduced update in small mode
@@ -454,7 +581,7 @@ MRESULT GUI::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
     if (!Terminate)
     { UpdateFlags mask = (UpdateFlags)LONGFROMMP(mp1) & UpdFlags;
       UpdFlags &= ~mask;
-      DEBUGLOG(("GUI::DlgProc: WMP_PAINT %x\n", mask));
+      DEBUGLOG(("GUIImp::DlgProc: WMP_PAINT %x\n", mask));
       // is there anything to draw with HPS?
       if (mask & ~UPD_WINDOW)
       { // TODO: optimize redundant redraws?
@@ -501,11 +628,11 @@ MRESULT GUI::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
     break;
 
    case WM_TIMER:
-    DEBUGLOG2(("GUI::DlgProc: WM_TIMER - %x\n", LONGFROMMP(mp1)));
+    DEBUGLOG2(("GUIImp::DlgProc: WM_TIMER - %x\n", LONGFROMMP(mp1)));
     switch (LONGFROMMP(mp1))
     {case TID_ONTOP:
       WinSetWindowPos(HFrame, HWND_TOP, 0, 0, 0, 0, SWP_ZORDER);
-      DEBUGLOG2(("GUI::DlgProc: WM_TIMER done\n"));
+      DEBUGLOG2(("GUIImp::DlgProc: WM_TIMER done\n"));
       return 0;
 
      case TID_UPDATE_PLAYER:
@@ -514,7 +641,7 @@ MRESULT GUI::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
           bmp_draw_text(hps);
         }
       }
-      DEBUGLOG2(("GUI::DlgProc: WM_TIMER done\n"));
+      DEBUGLOG2(("GUIImp::DlgProc: WM_TIMER done\n"));
       return 0;
 
      case TID_UPDATE_TIMERS:
@@ -522,7 +649,7 @@ MRESULT GUI::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
         // We must not mask this message request further, because the controller relies on that polling
         // to update it's internal status.
         ForceLocationMsg();
-      DEBUGLOG2(("GUI::DlgProc: WM_TIMER done\n"));
+      DEBUGLOG2(("GUIImp::DlgProc: WM_TIMER done\n"));
       return 0;
 
      case TID_CLEANUP:
@@ -535,7 +662,7 @@ MRESULT GUI::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
     return 0;
 
    case WM_REALIZEPALETTE:
-    vis_broadcast( msg, mp1, mp2 );
+    Visual::BroadcastMsg(msg, mp1, mp2);
     break;
 
    case WM_PAINT:
@@ -563,7 +690,10 @@ MRESULT GUI::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
     { USHORT cmd = SHORT1FROMMP(mp1);
       DEBUGLOG(("GUI::DlgProc: WM_COMMAND(%u, %u, %u)\n", cmd, SHORT1FROMMP(mp2), SHORT2FROMMP(mp2)));
       if (cmd > IDM_M_PLUG && cmd <= IDM_M_PLUG_E)
-      { plugin_configure(HPlayer, cmd - (IDM_M_PLUG+1));
+      { ASSERT((size_t)(cmd-(IDM_M_PLUG+1)) < PluginMenuContent.size());
+        const int_ptr<Module>& mp = Module::FindByKey(PluginMenuContent[cmd-(IDM_M_PLUG+1)]);
+        if (mp) // Does the plug-in still exist?
+          mp->Config(HPlayer);
         return 0;
       }
       if ( cmd >= IDM_M_LOADFILE && cmd < IDM_M_LOADFILE + sizeof LoadWizards / sizeof *LoadWizards
@@ -571,7 +701,7 @@ MRESULT GUI::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
       { // TODO: create temporary playlist
         LoadHelper lh(Cfg::Get().playonload*LoadHelper::LoadPlay | LoadHelper::LoadRecall);
         if ((*LoadWizards[cmd-IDM_M_LOADFILE])(HPlayer, "Load%s", &GUI_LoadFileCallback, &lh) == 0)
-          Ctrl::PostCommand(lh.ToCommand(), &GUI::ControllerEventCB);
+          PostCtrlCommand(lh.ToCommand());
         return 0;
       }
 
@@ -770,11 +900,11 @@ MRESULT GUI::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
           break;
 
         case BMP_PLAY:
-          Ctrl::PostCommand(Ctrl::MkPlayStop(Ctrl::Op_Toggle), &GUI::ControllerEventCB);
+          PostCtrlCommand(Ctrl::MkPlayStop(Ctrl::Op_Toggle));
           break;
 
         case BMP_PAUSE:
-          Ctrl::PostCommand(Ctrl::MkPause(Ctrl::Op_Toggle), &GUI::ControllerEventCB);
+          PostCtrlCommand(Ctrl::MkPause(Ctrl::Op_Toggle));
           break;
 
         case BMP_FLOAD:
@@ -787,26 +917,26 @@ MRESULT GUI::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
           break;
 
         case BMP_NEXT:
-          Ctrl::PostCommand(Ctrl::MkSkip(1, true), &GUI::ControllerEventCB);
+          PostCtrlCommand(Ctrl::MkSkip(1, true));
           break;
 
         case BMP_PREV:
-          Ctrl::PostCommand(Ctrl::MkSkip(-1, true), &GUI::ControllerEventCB);
+          PostCtrlCommand(Ctrl::MkSkip(-1, true));
           break;
 
         case BMP_FWD:
-          Ctrl::PostCommand(Ctrl::MkScan(Ctrl::Op_Toggle), &GUI::ControllerEventCB);
+          PostCtrlCommand(Ctrl::MkScan(Ctrl::Op_Toggle));
           break;
 
         case BMP_REW:
-          Ctrl::PostCommand(Ctrl::MkScan(Ctrl::Op_Toggle|Ctrl::Op_Rewind), &GUI::ControllerEventCB);
+          PostCtrlCommand(Ctrl::MkScan(Ctrl::Op_Toggle|Ctrl::Op_Rewind));
           break;
       }
       return 0;
     }
 
    case PlaylistMenu::UM_SELECTED:
-    { DEBUGLOG(("GUI::DlgProc: UM_SELECTED(%p, %p)\n", mp1, mp2));
+    { DEBUGLOG(("GUIImp::DlgProc: UM_SELECTED(%p, %p)\n", mp1, mp2));
       // bookmark is selected
       LoadHelper* lhp = new LoadHelper(Cfg::Get().playonload*LoadHelper::LoadPlay);
       lhp->AddItem((APlayable*)PVOIDFROMMP(mp1));
@@ -815,7 +945,7 @@ MRESULT GUI::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
     return 0;
 
    case WM_HELP:
-    DEBUGLOG(("GUI::DlgProc: WM_HELP(%u, %u, %u)\n", SHORT1FROMMP(mp1), SHORT1FROMMP(mp2), SHORT2FROMMP(mp2)));
+    DEBUGLOG(("GUIImp::DlgProc: WM_HELP(%u, %u, %u)\n", SHORT1FROMMP(mp1), SHORT1FROMMP(mp2), SHORT2FROMMP(mp2)));
     switch (SHORT1FROMMP(mp2))
     {case CMDSRC_MENU:
       // The default menu processing seems to call the help hook with unreasonable values for SubTopic.
@@ -843,7 +973,7 @@ MRESULT GUI::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
     { POINTL pos;
       pos.x = SHORT1FROMMP(mp1);
       pos.y = SHORT2FROMMP(mp1);
-      Ctrl::PostCommand(Ctrl::MkVolume(bmp_calc_volume(pos), false), &GUI::ControllerEventCB);
+      PostCtrlCommand(Ctrl::MkVolume(bmp_calc_volume(pos), false));
     }
     if (IsSliderDrag)
       WinPostMsg(HPlayer, WMP_SLIDERDRAG, mp1, MPFROMSHORT(FALSE));
@@ -891,7 +1021,7 @@ MRESULT GUI::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
    case WM_CHAR:
     { // Force heap dumps by the D key
       USHORT fsflags = SHORT1FROMMP(mp1);
-      DEBUGLOG(("GUI::DlgProc: WM_CHAR: %x, %u, %u, %x, %x\n", fsflags,
+      DEBUGLOG(("GUIImp::DlgProc: WM_CHAR: %x, %u, %u, %x, %x\n", fsflags,
         SHORT2FROMMP(mp1)&0xff, SHORT2FROMMP(mp1)>>8, SHORT1FROMMP(mp2), SHORT2FROMMP(mp2)));
       if (fsflags & KC_VIRTUALKEY)
       { switch (SHORT2FROMMP(mp2))
@@ -917,7 +1047,7 @@ MRESULT GUI::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
    case WM_TRANSLATEACCEL:
     { /* WM_CHAR with VK_ALT and KC_KEYUP does not survive this message, so we catch it before. */
       QMSG* pqmsg = (QMSG*)mp1;
-      DEBUGLOG(("GUI::DlgProc: WM_TRANSLATEACCEL: %x, %x, %x\n", pqmsg->msg, pqmsg->mp1, pqmsg->mp2));
+      DEBUGLOG(("GUIImp::DlgProc: WM_TRANSLATEACCEL: %x, %x, %x\n", pqmsg->msg, pqmsg->mp1, pqmsg->mp2));
       if (pqmsg->msg == WM_CHAR)
       { USHORT fsflags = SHORT1FROMMP(pqmsg->mp1);
         if (fsflags & KC_VIRTUALKEY)
@@ -958,7 +1088,7 @@ MRESULT GUI::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
         if (root->GetInfo().drpl->totallength > 0)
         { CurrentIter->Reset();
           bool r = CurrentIter->Navigate(relpos * root->GetInfo().drpl->totallength, job);
-          DEBUGLOG(("GUI::DlgProc: AMP_SLIDERDRAG: CFG_ANAV_TIME: %u\n", r));
+          DEBUGLOG(("GUIImp::DlgProc: AMP_SLIDERDRAG: CFG_ANAV_TIME: %u\n", r));
           break;
         }
         // else if no total time is availabe use song time navigation
@@ -974,7 +1104,7 @@ MRESULT GUI::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
             relpos = num_items;
           CurrentIter->Reset();
           bool r = CurrentIter->NavigateCount((int)floor(relpos), TATTR_SONG, job);
-          DEBUGLOG(("GUI::DlgProc: AMP_SLIDERDRAG: CFG_ANAV_SONG: %f, %u\n", relpos, r));
+          DEBUGLOG(("GUIImp::DlgProc: AMP_SLIDERDRAG: CFG_ANAV_SONG: %f, %u\n", relpos, r));
           // navigate within the song
           if (Cfg::Get().altnavig != CFG_ANAV_SONG && CurrentSong().GetInfo().obj->songlength > 0)
           { relpos -= floor(relpos);
@@ -989,7 +1119,7 @@ MRESULT GUI::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
         DelayedAltSliderDragWorker.Start(job.AllDepends, HPlayer, WMP_SLIDERDRAG, mp1, mp2);
       } else if (SHORT1FROMMP(mp2))
       { // Set new position
-        Ctrl::PostCommand(Ctrl::MkJump(new SongIterator(*CurrentIter)), &GUI::ControllerEventCB);
+        PostCtrlCommand(Ctrl::MkJump(new SongIterator(*CurrentIter)));
         IsSliderDrag = false;
       } else
         // Show new position
@@ -1020,12 +1150,12 @@ MRESULT GUI::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
       break;*/
   }
 
-  DEBUGLOG2(("GUI::DlgProc: before WinDefWindowProc\n"));
+  DEBUGLOG2(("GUIImp::DlgProc: before WinDefWindowProc\n"));
   return WinDefWindowProc(HPlayer, msg, mp1, mp2);
 }
 
-void GUI::Invalidate(UpdateFlags what, bool immediate)
-{ DEBUGLOG(("GUI::Invalidate(%x, %u)\n", what, immediate));
+void GUIImp::Invalidate(UpdateFlags what, bool immediate)
+{ DEBUGLOG(("GUIImp::Invalidate(%x, %u)\n", what, immediate));
   if (immediate && (what & UPD_WINDOW))
   { WinInvalidateRect(HPlayer, NULL, 1);
     what &= ~UPD_WINDOW;
@@ -1038,67 +1168,78 @@ void GUI::Invalidate(UpdateFlags what, bool immediate)
 }
 
 /* set alternate navigation status to 'alt'. */
-void GUI::SetAltSlider(bool alt)
-{ DEBUGLOG(("GUI::SetAltSlider(%u) - %u\n", alt, IsAltSlider));
+void GUIImp::SetAltSlider(bool alt)
+{ DEBUGLOG(("GUIImp::SetAltSlider(%u) - %u\n", alt, IsAltSlider));
   if (IsAltSlider != alt)
   { IsAltSlider = alt;
     Invalidate(UPD_TIMERS, true);
   }
 }
 
-void GUI::ForceLocationMsg()
+void GUIImp::ForceLocationMsg()
 { if (!IsLocMsg)
   { IsLocMsg = true;
     // Hack: the Location messages always writes to an iterator that is currently not in use by CurrentIter
     // to avoid threading problems.
-    Ctrl::PostCommand(Ctrl::MkLocation(IterBuffer + (CurrentIter == IterBuffer), 0), &GUI::ControllerEventCB);
+    PostCtrlCommand(Ctrl::MkLocation(IterBuffer + (CurrentIter == IterBuffer), 0));
   }
 }
 
-void GUI::ControllerEventCB(Ctrl::ControlCommand* cmd)
-{ DEBUGLOG(("GUI::ControllerEventCB(%p{%i, ...)\n", cmd, cmd->Cmd));
+void GUIImp::ControllerEventCB(Ctrl::ControlCommand* cmd)
+{ DEBUGLOG(("GUIImp::ControllerEventCB(%p{%i, ...)\n", cmd, cmd->Cmd));
   WinPostMsg(HFrame, WMP_CTRL_EVENT_CB, MPFROMP(cmd), 0);
 }
 
-void GUI::ControllerNotification(const void* rcv, const Ctrl::EventFlags& flags)
-{ DEBUGLOG(("GUI::ControllerNotification(, %x)\n", flags));
+void GUIImp::ControllerNotification(const void* rcv, const Ctrl::EventFlags& flags)
+{ DEBUGLOG(("GUIImp::ControllerNotification(, %x)\n", flags));
   Ctrl::EventFlags flg = flags;
   QMSG msg;
   if (WinPeekMsg(amp_player_hab, &msg, HFrame, WMP_CTRL_EVENT, WMP_CTRL_EVENT, PM_REMOVE))
-  { DEBUGLOG(("GUI::ControllerNotification - hit: %x\n", msg.mp1));
+  { DEBUGLOG(("GUIImp::ControllerNotification - hit: %x\n", msg.mp1));
     // join messages
     flg |= (Ctrl::EventFlags)LONGFROMMP(msg.mp1);
   }
   WinPostMsg(HFrame, WMP_CTRL_EVENT, MPFROMLONG(flg), 0);
 }
 
-void GUI::PlayableNotification(const void* rcv, const PlayableChangeArgs& args)
-{ DEBUGLOG(("GUI::PlayableNotification(, {&%p, %p, %x, %x, %x})\n",
+void GUIImp::PlayableNotification(const void* rcv, const PlayableChangeArgs& args)
+{ DEBUGLOG(("GUIImp::PlayableNotification(, {&%p, %p, %x, %x, %x})\n",
     &args.Instance, args.Origin, args.Changed, args.Loaded, args.Invalidated));
   // TODO: Filter to improve performance
   WinPostMsg(HFrame, WMP_PLAYABLE_EVENT, MPFROMP(&args.Instance), MPFROM2SHORT(args.Changed, args.Loaded));
 }
 
-void GUI::PluginNotification(const void*, const Plugin::EventArgs& args)
-{ DEBUGLOG(("GUI::PluginNotification(, {&%p{%s}, %i})\n", &args.Plug, args.Plug.GetModule().Key.cdata(), args.Operation));
+void GUIImp::PluginNotification(const void*, const PluginEventArgs& args)
+{ DEBUGLOG(("GUIImp::PluginNotification(, {&%p{%s}, %i})\n", &args.Plug, args.Plug.ModRef.Key.cdata(), args.Operation));
   switch (args.Operation)
-  {case Plugin::EventArgs::Enable:
-   case Plugin::EventArgs::Disable:
-   case Plugin::EventArgs::Load:
-   case Plugin::EventArgs::Unload:
-    if (args.Plug.GetType() == PLUGIN_DECODER)
+  {case PluginEventArgs::Load:
+   case PluginEventArgs::Unload:
+    if (!args.Plug.GetEnabled())
+      break;
+   case PluginEventArgs::Enable:
+   case PluginEventArgs::Disable:
+    switch (args.Plug.PluginType)
+    {case PLUGIN_DECODER:
       WinPostMsg(HPlayer, WMP_REFRESH_ACCEL, 0, 0);
+      break;
+     case PLUGIN_VISUAL:
+      { int_ptr<Visual> vis = &(Visual&)args.Plug;
+        if (args.Operation & 1)
+          // activate visual, delayed
+          PMRASSERT(WinPostMsg(HPlayer, WMP_LOAD_VISUAL, MPFROMP(vis.toCptr()), MPFROMLONG(TRUE)));
+        else
+          // deactivate visual
+          vis->UninitPlugin();
+      }
+      break;
+     default:; // avoid warnings
+    }
     IsPluginChanged = true;
-    break;
-   case Plugin::EventArgs::Active:
-   case Plugin::EventArgs::Inactive:
-    if (args.Plug.GetType() == PLUGIN_OUTPUT)
-      IsPluginChanged = true;
    default:; // avoid warnings
   }
 }
 
-void GUI::ConfigNotification(const void*, const CfgChangeArgs& args)
+void GUIImp::ConfigNotification(const void*, const CfgChangeArgs& args)
 {
   if (args.New.floatontop != args.Old.floatontop)
   { if (!args.New.floatontop)
@@ -1128,22 +1269,6 @@ void GUI::ConfigNotification(const void*, const CfgChangeArgs& args)
     PMRASSERT(WinPostMsg(HPlayer, WMP_ARRANGEDOCKING, 0, 0));
 }
 
-void GUI::Add2MRU(Playable& list, size_t max, APlayable& ps)
-{ DEBUGLOG(("GUI::Add2MRU(&%p{%s}, %u, %s)\n", &list, list.URL.cdata(), max, ps.GetPlayable().URL.cdata()));
-  list.RequestInfo(IF_Child, PRI_Sync);
-  Mutex::Lock lock(list.Mtx);
-  int_ptr<PlayableInstance> pi;
-  // remove the desired item from the list and limit the list size
-  while ((pi = list.GetNext(pi)) != NULL)
-  { DEBUGLOG(("GUI::Add2MRU - %p{%s}\n", pi.get(), pi->GetPlayable().URL.cdata()));
-    if (max == 0 || pi->GetPlayable() == ps.GetPlayable()) // Instance equality of Playable is sufficient
-      list.RemoveItem(pi);
-     else
-      --max;
-  }
-  // prepend list with new item
-  list.InsertItem(ps, list.GetNext(NULL));
-}
 
 void DLLENTRY GUI_LoadFileCallback(void* param, const char* url)
 { DEBUGLOG(("GUI_LoadFileCallback(%p, %s)\n", param, url));
@@ -1151,7 +1276,7 @@ void DLLENTRY GUI_LoadFileCallback(void* param, const char* url)
 }
 
 /* Returns TRUE if the save stream feature has been enabled. */
-void GUI::SaveStream(HWND hwnd, BOOL enable)
+void GUIImp::SaveStream(HWND hwnd, BOOL enable)
 {
   if( enable )
   { FILEDLG filedialog = { sizeof(FILEDLG) };
@@ -1169,7 +1294,7 @@ void GUI::SaveStream(HWND hwnd, BOOL enable)
     if (filedialog.lReturn == DID_OK)
     { if (amp_warn_if_overwrite( hwnd, filedialog.szFullFile ))
       { url123 url = url123::normalizeURL(filedialog.szFullFile);
-        Ctrl::PostCommand(Ctrl::MkSave(url), &GUI::ControllerEventCB);
+        PostCtrlCommand(Ctrl::MkSave(url));
         Cfg::ChangeAccess().savedir = url.getBasePath();
       }
     }
@@ -1177,14 +1302,14 @@ void GUI::SaveStream(HWND hwnd, BOOL enable)
     Ctrl::PostCommand(Ctrl::MkSave(xstring()));
 }
 
-void GUI::LoadAccel()
+void GUIImp::LoadAccel()
 { DEBUGLOG(("GUI::LoadAccel()\n"));
   const HAB hab = amp_player_hab;
   // Generate new accelerator table.
   HACCEL haccel = WinLoadAccelTable(hab, NULLHANDLE, ACL_MAIN);
   PMASSERT(haccel != NULLHANDLE);
   memset(LoadWizards+2, 0, sizeof LoadWizards - 2*sizeof *LoadWizards ); // You never know...
-  dec_append_accel_table( haccel, IDM_M_LOADOTHER, 0, LoadWizards + 2, sizeof LoadWizards / sizeof *LoadWizards - 2);
+  Decoder::AppendAccelTable(haccel, IDM_M_LOADOTHER, 0, LoadWizards + 2, sizeof LoadWizards / sizeof *LoadWizards - 2);
   // Replace table of current window.
   HACCEL haccel_old = WinQueryAccelTable(hab, HFrame);
   PMRASSERT(WinSetAccelTable(hab, haccel, HFrame));
@@ -1194,7 +1319,93 @@ void GUI::LoadAccel()
   IsAccelChanged = true;
 }
 
-void GUI::ShowContextMenu()
+void GUIImp::LoadPluginMenu(HWND hMenu)
+{
+  size_t   i;
+  DEBUGLOG(("GUIImp::LoadPluginMenu(%p)\n", hMenu));
+
+  // Delete all
+  size_t count = LONGFROMMR( WinSendMsg( hMenu, MM_QUERYITEMCOUNT, 0, 0 ));
+  for( i = 0; i < count; i++ ) {
+    short item = LONGFROMMR( WinSendMsg( hMenu, MM_ITEMIDFROMPOSITION, MPFROMSHORT(0), 0 ));
+    WinSendMsg( hMenu, MM_DELETEITEM, MPFROM2SHORT( item, FALSE ), 0);
+  }
+  // Fetch list of plug-ins atomically
+  vector_int<Module> plugins;
+  Module::CopyAllInstancesTo(plugins);
+  // Extract only the relevant informations.
+  // I.e. do not keep strong references to the plug-ins.
+  const int_ptr<Module>* mpp = plugins.begin();
+  const int_ptr<Module>*const mpe = plugins.end();
+  xstring* ep = new xstring[plugins.size()];
+  PluginMenuContent.assign(ep, plugins.size());
+  MENUITEM mi;
+  USHORT id = IDM_M_PLUG;
+  while (mpp != mpe)
+  { Module& plug = **mpp++;
+    *ep++ = plug.Key;
+    // Check for enabled plug-in instances
+    // Set the mark if any plug-in flavor of the module is enabled.
+    int type = plug.GetParams().type;
+    bool enabled = false;
+    if (type & PLUGIN_DECODER)
+    { const int_ptr<Decoder>& plg = Decoder::FindInstance(plug);
+      if (plg && plg->GetEnabled())
+      { enabled = true;
+        goto en;
+      }
+    }
+    if (type & PLUGIN_OUTPUT)
+    { const int_ptr<Output>& plg = Output::FindInstance(plug);
+      if (plg && plg->GetEnabled())
+      { enabled = true;
+        goto en;
+      }
+    }
+    if (type & PLUGIN_FILTER)
+    { const int_ptr<Filter>& plg = Filter::FindInstance(plug);
+      if (plg && plg->GetEnabled())
+      { enabled = true;
+        goto en;
+      }
+    }
+    if (type & PLUGIN_VISUAL)
+    { const int_ptr<Visual>& plg = Visual::FindInstance(plug);
+      if (plg && plg->GetEnabled())
+      { enabled = true;
+        goto en;
+      }
+    }
+   en:
+
+    mi.iPosition   = MIT_END;
+    mi.afStyle     = MIS_TEXT;
+    mi.afAttribute = 0;
+    if (!plug.GetParams().configurable)
+      mi.afAttribute |= MIA_DISABLED;
+    if (enabled)
+      mi.afAttribute |= MIA_CHECKED;
+
+    mi.id          = ++id;
+    mi.hwndSubMenu = (HWND)NULLHANDLE;
+    mi.hItem = 0;
+    const xstring& title = xstring::sprintf("%s (%s)", plug.GetParams().desc, plug.Key.cdata());
+    WinSendMsg(hMenu, MM_INSERTITEM, MPFROMP(&mi), MPFROMP(title.cdata()));
+    DEBUGLOG2(("GUIImp::LoadPluginMenu: add \"%s\"\n", title.cdata()));
+  }
+
+  if (plugins.size() == 0)
+  { mi.iPosition   = MIT_END;
+    mi.afStyle     = MIS_TEXT;
+    mi.afAttribute = MIA_DISABLED;
+    mi.id          = ++id;
+    mi.hwndSubMenu = (HWND)NULLHANDLE;
+    mi.hItem       = 0;
+    WinSendMsg(hMenu, MM_INSERTITEM, MPFROMP(&mi), MPFROMP("- No plug-ins -"));
+  }
+}
+
+void GUIImp::ShowContextMenu()
 {
   static HWND context_menu = NULLHANDLE;
   bool new_menu = false;
@@ -1227,7 +1438,7 @@ void GUI::ShowContextMenu()
     MENUITEM mi;
     PMRASSERT(WinSendMsg(context_menu, MM_QUERYITEM, MPFROM2SHORT(IDM_M_PLUG, TRUE), MPFROMP(&mi)));
     IsPluginChanged = false;
-    load_plugin_menu(mi.hwndSubMenu);
+    LoadPluginMenu(mi.hwndSubMenu);
   }
 
   if (IsAccelChanged || new_menu)
@@ -1236,7 +1447,7 @@ void GUI::ShowContextMenu()
     // Append asisstents from decoder plug-ins
     memset(LoadWizards+2, 0, sizeof LoadWizards - 2*sizeof *LoadWizards); // You never know...
     IsAccelChanged = false;
-    dec_append_load_menu(mi.hwndSubMenu, IDM_M_LOADOTHER, 2, LoadWizards + 2, sizeof LoadWizards / sizeof *LoadWizards - 2);
+    Decoder::AppendLoadMenu(mi.hwndSubMenu, IDM_M_LOADOTHER, 2, LoadWizards + 2, sizeof LoadWizards / sizeof *LoadWizards - 2);
     (MenuShowAccel(WinQueryAccelTable(amp_player_hab, HFrame))).ApplyTo(new_menu ? context_menu : mi.hwndSubMenu);
   }
 
@@ -1265,7 +1476,7 @@ void GUI::ShowContextMenu()
                PU_HCONSTRAIN|PU_VCONSTRAIN|PU_MOUSEBUTTON1|PU_MOUSEBUTTON2|PU_KEYBOARD);
 }
 
-void GUI::RefreshTimers(HPS hps)
+void GUIImp::RefreshTimers(HPS hps)
 { DEBUGLOG(("GUI::RefreshTimers(%p) - %i %i\n", hps, Cfg::Get().mode, IsSeeking));
 
   Playable* root = CurrentIter->GetRoot();
@@ -1334,7 +1545,7 @@ void GUI::RefreshTimers(HPS hps)
 
 /* Constructs a information text for currently loaded file
    and selects it for displaying. */
-void GUI::PrepareText()
+void GUIImp::PrepareText()
 {
   if (CurrentRoot() == NULL)
   { DEBUGLOG(("GUI::PrepareText() NULL %u\n", Cfg::Get().viewmode));
@@ -1358,7 +1569,7 @@ void GUI::PrepareText()
         text = CurrentSong().GetPlayable().URL.getShortName();
       // In case of an invalid item display an error message.
       if (info.tech->attributes & TATTR_INVALID)
-        text = text + " - " + DSTRING(info.tech->info);
+        text = text + " - " + xstring(info.tech->info);
       break;
 
     case CFG_DISP_FILEINFO:
@@ -1368,69 +1579,14 @@ void GUI::PrepareText()
   bmp_set_text(!text ? "" : text);
 }
 
-void GUI::AutoSave(Playable& list)
+void GUIImp::AutoSave(Playable& list)
 { if (list.IsModified())
     list.Save(list.URL, "plist123.dll", NULL, false);
 }
 
-/*void GUI::RefreshTotals(HPS hps)
-{	DEBUGLOG(("GUI::RefreshTotals()\n"));
-  // Currently a NOP
-}*/
-
-void GUI::ViewMessage(xstring info, bool error)
-{ if (info)
-    WinPostMsg(HPlayer, WMP_DISPLAY_MESSAGE, MPFROMP(info.toCstr()), MPFROMLONG(error));
-}
-
-void GUI::Show(bool visible)
-{ if (visible)
-  { Cfg::RestWindowPos(HFrame);
-    //WinSetWindowPos(HFrame, HWND_TOP,
-    //                cfg.main.x, cfg.main.y, 0, 0, SWP_ACTIVATE|SWP_MOVE|SWP_SHOW);
-    WinSetWindowPos(HFrame, HWND_TOP, 0,0, 0,0, SWP_ACTIVATE|SWP_SHOW);
-  } else
-    WinSendMsg(HPlayer, WM_COMMAND, MPFROMSHORT(IDM_M_MINIMIZE), 0);
-}
-
-/*struct dialog_show;
-static void amp_dlg_event(dialog_show* iep, const PlayableChangeArgs& args);
-
-struct dialog_show
-{ HWND              Owner;
-  int_ptr<Playable> Item;
-  GUI::DialogType   Type;
-  //delegate<dialog_show, const PlayableChangeArgs> InfoDelegate;
-  dialog_show(HWND owner, Playable& item, GUI::DialogType type)
-  : Owner(owner)
-  , Item(&item)
-  , Type(type)
-  //, InfoDelegate(item->InfoChange, &amp_dlg_event, this)
-  {}
-};*/
-
-/*static void amp_dlg_event(dialog_show* iep, const PlayableChangeArgs& args)
-{ if (args.Changed & IF_Other)
-  { iep->InfoDelegate.detach();
-    PMRASSERT(WinPostMsg(hframe, AMP_SHOW_DIALOG, iep, 0));
-  }
-}*/
-
-void GUI::ShowDialog(Playable& item, DialogType dlg)
-{ DEBUGLOG(("GUI::ShowDialog(&%p, %u)\n", &item, dlg));
-  int_ptr<Playable> pp(&item);
-  PMRASSERT(WinPostMsg(HFrame, WMP_SHOW_DIALOG, MPFROMP(pp.toCptr()), MPFROMSHORT(dlg)));
-}
-
-BOOL EXPENTRY GUI_HelpHook(HAB hab, ULONG usMode, ULONG idTopic, ULONG idSubTopic, PRECTL prcPosition)
-{ DEBUGLOG(("HelpHook(%p, %x, %x, %x, {%li,%li, %li,%li})\n", hab,
-    usMode, idTopic, idSubTopic, prcPosition->xLeft, prcPosition->yBottom, prcPosition->xRight, prcPosition->yTop));
-  return FALSE;
-}
-
 /* Prepares the player to the drop operation. */
-MRESULT GUI::DragOver(DRAGINFO* pdinfo)
-{ DEBUGLOG(("amp_drag_over(%p)\n", pdinfo));
+MRESULT GUIImp::DragOver(DRAGINFO* pdinfo)
+{ DEBUGLOG(("GUIImp::DragOver(%p)\n", pdinfo));
 
   PDRAGITEM pditem;
   int       i;
@@ -1440,7 +1596,7 @@ MRESULT GUI::DragOver(DRAGINFO* pdinfo)
   if (!DrgAccessDraginfo(pdinfo))
     return MRFROM2SHORT(DOR_NEVERDROP, 0);
 
-  DEBUGLOG(("amp_drag_over(%p{,,%x, %p, %i,%i, %u,})\n",
+  DEBUGLOG(("GUIImp::DragOver(%p{,,%x, %p, %i,%i, %u,})\n",
     pdinfo, pdinfo->usOperation, pdinfo->hwndSource, pdinfo->xDrop, pdinfo->yDrop, pdinfo->cditem));
 
   for( i = 0; i < pdinfo->cditem; i++ )
@@ -1474,13 +1630,13 @@ struct DropInfo
 };
 
 /* Receives dropped files or playlist records. */
-MRESULT GUI::DragDrop(PDRAGINFO pdinfo)
-{ DEBUGLOG(("amp_drag_drop(%p)\n", pdinfo));
+MRESULT GUIImp::DragDrop(PDRAGINFO pdinfo)
+{ DEBUGLOG(("GUIImp::DragDrop(%p)\n", pdinfo));
 
   if (!DrgAccessDraginfo(pdinfo))
     return 0;
 
-  DEBUGLOG(("amp_drag_drop: {,%u,%x,%p, %u,%u, %u,}\n",
+  DEBUGLOG(("GUIImp::DragDrop: {,%u,%x,%p, %u,%u, %u,}\n",
     pdinfo->cbDragitem, pdinfo->usOperation, pdinfo->hwndSource, pdinfo->xDrop, pdinfo->yDrop, pdinfo->cditem));
 
   sco_ptr<LoadHelper> lhp(new LoadHelper(Cfg::Get().playonload*LoadHelper::LoadPlay | Cfg::Get().append_dnd*LoadHelper::LoadAppend));
@@ -1489,7 +1645,7 @@ MRESULT GUI::DragDrop(PDRAGINFO pdinfo)
   for( int i = 0; i < pdinfo->cditem; i++ )
   {
     DRAGITEM* pditem = DrgQueryDragitemPtr( pdinfo, i );
-    DEBUGLOG(("amp_drag_drop: item {%p, %p, %s, %s, %s, %s, %s, %i,%i, %x, %x}\n",
+    DEBUGLOG(("GUIImp::DragDrop: item {%p, %p, %s, %s, %s, %s, %s, %i,%i, %x, %x}\n",
       pditem->hwndItem, pditem->ulItemID, amp_string_from_drghstr(pditem->hstrType).cdata(), amp_string_from_drghstr(pditem->hstrRMF).cdata(),
       amp_string_from_drghstr(pditem->hstrContainerName).cdata(), amp_string_from_drghstr(pditem->hstrSourceName).cdata(), amp_string_from_drghstr(pditem->hstrTargetName).cdata(),
       pditem->cxOffset, pditem->cyOffset, pditem->fsControl, pditem->fsSupportedOps));
@@ -1563,7 +1719,7 @@ MRESULT GUI::DragDrop(PDRAGINFO pdinfo)
         }
 
         const url123& url = url123::normalizeURL(fullname);
-        DEBUGLOG(("amp_drag_drop: url=%s\n", url ? url.cdata() : "<null>"));
+        DEBUGLOG(("GUIImp::DragDrop: url=%s\n", url ? url.cdata() : "<null>"));
         if (url)
         { lhp->AddItem(Playable::GetByURL(url));
           reply = DMFL_TARGETSUCCESSFUL;
@@ -1614,7 +1770,7 @@ MRESULT GUI::DragDrop(PDRAGINFO pdinfo)
 }
 
 /* Receives dropped and rendered files and urls. */
-MRESULT GUI::DragRenderDone(PDRAGTRANSFER pdtrans, USHORT rc)
+MRESULT GUIImp::DragRenderDone(PDRAGTRANSFER pdtrans, USHORT rc)
 {
   DropInfo* pdsource = (DropInfo*)pdtrans->ulTargetInfo;
 
@@ -1629,7 +1785,7 @@ MRESULT GUI::DragRenderDone(PDRAGTRANSFER pdtrans, USHORT rc)
 
     if (fullname)
     { const url123& url = url123::normalizeURL(fullname);
-      DEBUGLOG(("amp_drag_render_done: url=%s\n", url ? url.cdata() : "<null>"));
+      DEBUGLOG(("GUIImp::DragRenderDone: url=%s\n", url ? url.cdata() : "<null>"));
       if (url)
       { pdsource->LH->AddItem(Playable::GetByURL(url));
         reply = DMFL_TARGETSUCCESSFUL;
@@ -1638,20 +1794,18 @@ MRESULT GUI::DragRenderDone(PDRAGTRANSFER pdtrans, USHORT rc)
   }
 
   // Tell the source you're done.
-  DrgSendTransferMsg( pdsource->hwndItem, DM_ENDCONVERSATION,
-                     (MPARAM)pdsource->ulItemID, (MPARAM)reply);
+  DrgSendTransferMsg(pdsource->hwndItem, DM_ENDCONVERSATION, (MPARAM)pdsource->ulItemID, (MPARAM)reply);
 
   delete pdsource;
-  DrgDeleteStrHandle ( pdtrans->hstrSelectedRMF );
-  DrgDeleteStrHandle ( pdtrans->hstrRenderToName );
-  DrgFreeDragtransfer( pdtrans );
+  DrgDeleteStrHandle(pdtrans->hstrSelectedRMF);
+  DrgDeleteStrHandle(pdtrans->hstrRenderToName);
+  DrgFreeDragtransfer(pdtrans);
   return 0;
 }
 
 
-
-void GUI::Init()
-{ DEBUGLOG(("GUI::Init()\n"));
+void GUIImp::Init()
+{ DEBUGLOG(("GUIImp::Init()\n"));
 
   // these two are always constant
   LoadWizards[0] = amp_file_wizard;
@@ -1662,12 +1816,10 @@ void GUI::Init()
   HFrame = WinCreateStdWindow(HWND_DESKTOP, 0, &flCtlData, "PM123",
                               AMP_FULLNAME, 0, NULLHANDLE, WIN_MAIN, &HPlayer);
   PMASSERT(HFrame != NULLHANDLE);
-  DEBUGLOG(("GUI::Init: window created: frame = %x, player = %x\n", HFrame, HPlayer));
+  DEBUGLOG(("GUIImp::Init: window created: frame = %x, player = %x\n", HFrame, HPlayer));
 
   // Init skin
-  { PresentationSpace hps(HPlayer);
-    bmp_load_skin(xstring(Cfg::Get().defskin), HPlayer, hps);
-  }
+  bmp_load_skin(xstring(Cfg::Get().defskin), HPlayer);
 
   // Init default lists
   { const url123& path = url123::normalizeURL(amp_basepath);
@@ -1690,7 +1842,7 @@ void GUI::Init()
   Cfg::GetChange() += ConfigDeleg;
 
   // Keep track of plug-in changes.
-  Plugin::ChangeEvent += PluginDeleg;
+  Plugin::GetChangeEvent() += PluginDeleg;
   PMRASSERT( WinPostMsg(HFrame, WMP_REFRESH_ACCEL, 0, 0 )); // load accelerators
 
   // register control event handler
@@ -1719,7 +1871,7 @@ void GUI::Init()
     amp_error(HFrame, "Error create help instance: %s", infname.cdata());
   else
     PMRASSERT(WinAssociateHelpInstance(HHelp, HPlayer));
-    
+
   WinSetHook(amp_player_hab, HMQ_CURRENT, HK_HELP, (PFN)&GUI_HelpHook, 0);
 
   // Docking...
@@ -1728,25 +1880,24 @@ void GUI::Init()
   if (Cfg::Get().dock_windows)
     dk_arrange(HFrame);
 
-  // initialize non-skin related visual plug-ins
-  vis_init_all( HPlayer, FALSE );
+  // initialize visual plug-ins
+  vis_InitAll(HPlayer);
 
-  DEBUGLOG(("GUI::Init: complete\n"));
+  DEBUGLOG(("GUIImp::Init: complete\n"));
 }
 
-void GUI::Uninit()
-{ DEBUGLOG(("GUI::Uninit()\n"));
- 
+void GUIImp::Uninit()
+{ DEBUGLOG(("GUIImp::Uninit()\n"));
+
   PlaylistManager::DestroyAll();
   PlaylistView::DestroyAll();
   InspectorDialog::UnInit();
 
-  // deinitialize all visual plug-ins
-  vis_deinit_all( TRUE );
-  vis_deinit_all( FALSE );
-
   ControllerDeleg.detach();
   PluginDeleg.detach();
+  // deinitialize all visual plug-ins
+  vis_UninitAll();
+
   delete MenuWorker;
 
   if (HHelp != NULLHANDLE)
@@ -1777,5 +1928,105 @@ void GUI::Uninit()
   DefaultBM = NULL;
   DefaultPM = NULL;
   DefaultPL = NULL;
+}
+
+/****************************************************************************
+*
+*  class GUI
+*
+****************************************************************************/
+
+int_ptr<Playable> GUI::DefaultPL;
+int_ptr<Playable> GUI::DefaultPM;
+int_ptr<Playable> GUI::DefaultBM;
+int_ptr<Playable> GUI::LoadMRU;
+int_ptr<Playable> GUI::UrlMRU;
+
+HWND              GUI::HFrame  = NULLHANDLE;
+HWND              GUI::HPlayer = NULLHANDLE;
+HWND              GUI::HHelp   = NULLHANDLE;
+SongIterator      GUI::IterBuffer[2];
+SongIterator*     GUI::CurrentIter = GUI::IterBuffer;
+
+
+void GUI::Add2MRU(Playable& list, size_t max, APlayable& ps)
+{ DEBUGLOG(("GUI::Add2MRU(&%p{%s}, %u, %s)\n", &list, list.URL.cdata(), max, ps.GetPlayable().URL.cdata()));
+  list.RequestInfo(IF_Child, PRI_Sync);
+  Mutex::Lock lock(list.Mtx);
+  int_ptr<PlayableInstance> pi;
+  // remove the desired item from the list and limit the list size
+  while ((pi = list.GetNext(pi)) != NULL)
+  { DEBUGLOG(("GUI::Add2MRU - %p{%s}\n", pi.get(), pi->GetPlayable().URL.cdata()));
+    if (max == 0 || pi->GetPlayable() == ps.GetPlayable()) // Instance equality of Playable is sufficient
+      list.RemoveItem(pi);
+     else
+      --max;
+  }
+  // prepend list with new item
+  list.InsertItem(ps, list.GetNext(NULL));
+}
+
+/*void GUI::RefreshTotals(HPS hps)
+{	DEBUGLOG(("GUI::RefreshTotals()\n"));
+  // Currently a NOP
+}*/
+
+void GUI::ViewMessage(xstring info, bool error)
+{ if (info)
+    WinPostMsg(HPlayer, WMP_DISPLAY_MESSAGE, MPFROMP(info.toCstr()), MPFROMLONG(error));
+}
+
+void GUI::Show(bool visible)
+{ if (visible)
+  { Cfg::RestWindowPos(HFrame);
+    //WinSetWindowPos(HFrame, HWND_TOP,
+    //                cfg.main.x, cfg.main.y, 0, 0, SWP_ACTIVATE|SWP_MOVE|SWP_SHOW);
+    WinSetWindowPos(HFrame, HWND_TOP, 0,0, 0,0, SWP_ACTIVATE|SWP_SHOW);
+  } else
+    WinSendMsg(HPlayer, WM_COMMAND, MPFROMSHORT(IDM_M_MINIMIZE), 0);
+}
+
+/*struct dialog_show;
+static void amp_dlg_event(dialog_show* iep, const PlayableChangeArgs& args);
+
+struct dialog_show
+{ HWND              Owner;
+  int_ptr<Playable> Item;
+  GUI::DialogType   Type;
+  //delegate<dialog_show, const PlayableChangeArgs> InfoDelegate;
+  dialog_show(HWND owner, Playable& item, GUI::DialogType type)
+  : Owner(owner)
+  , Item(&item)
+  , Type(type)
+  //, InfoDelegate(item->InfoChange, &amp_dlg_event, this)
+  {}
+};*/
+
+/*static void amp_dlg_event(dialog_show* iep, const PlayableChangeArgs& args)
+{ if (args.Changed & IF_Other)
+  { iep->InfoDelegate.detach();
+    PMRASSERT(WinPostMsg(hframe, AMP_SHOW_DIALOG, iep, 0));
+  }
+}*/
+
+void GUI::ShowDialog(Playable& item, DialogType dlg)
+{ DEBUGLOG(("GUI::ShowDialog(&%p, %u)\n", &item, dlg));
+  int_ptr<Playable> pp(&item);
+  PMRASSERT(WinPostMsg(HFrame, WMP_SHOW_DIALOG, MPFROMP(pp.toCptr()), MPFROMSHORT(dlg)));
+}
+
+BOOL EXPENTRY GUI_HelpHook(HAB hab, ULONG usMode, ULONG idTopic, ULONG idSubTopic, PRECTL prcPosition)
+{ DEBUGLOG(("HelpHook(%p, %x, %x, %x, {%li,%li, %li,%li})\n", hab,
+    usMode, idTopic, idSubTopic, prcPosition->xLeft, prcPosition->yBottom, prcPosition->xRight, prcPosition->yTop));
+  return FALSE;
+}
+
+
+void GUI::Init()
+{ GUIImp::Init();
+}
+
+void GUI::Uninit()
+{ GUIImp::Uninit();
 }
 

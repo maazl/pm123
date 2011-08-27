@@ -47,14 +47,14 @@ class sco_ptr
   sco_ptr(const sco_ptr<T>&); // non-copyable
  public:
   // Store a new object under control or initialize a NULL pointer.
-  sco_ptr(T* ptr = NULL) : Ptr(ptr)          { DEBUGLOG2(("sco_ptr(%p)::sco_ptr(%p)\n", this, ptr)); };
+  sco_ptr(T* ptr = NULL) : Ptr(ptr)     { DEBUGLOG2(("sco_ptr(%p)::sco_ptr(%p)\n", this, ptr)); };
   // Destructor, frees the stored object.
   ~sco_ptr();
   // Basic operators
-  T* get() const                             { return Ptr; }
-  operator unspecified*() const              { return (unspecified*)Ptr; }
-  T& operator*()  const                      { ASSERT(Ptr); return *Ptr; }
-  T* operator->() const                      { ASSERT(Ptr); return Ptr; }
+  T* get() const                        { return Ptr; }
+  operator unspecified*() const         { return (unspecified*)Ptr; }
+  T& operator*()  const                 { ASSERT(Ptr); return *Ptr; }
+  T* operator->() const                 { ASSERT(Ptr); return Ptr; }
   sco_ptr<T>& operator=(T* ptr);
   // Swap two pointers
   void swap(sco_ptr<T>& r);
@@ -105,7 +105,7 @@ class Iref_count
  private:
   volatile unsigned Count;
   // This function is the interface to int_ptr<T>
-  volatile unsigned& access_counter()        { return Count; }
+  volatile unsigned& access_counter()   { return Count; }
  private: // non-copyable
   Iref_count(const Iref_count&);
   void operator=(const Iref_count&);
@@ -116,12 +116,12 @@ class Iref_count
   // Checks whether the object is currently unique. If you currently hold an int_ptr with the object
   // you can safely assume that it is your's, unless you pass the reference explicitely or implicitly
   // to another thread or int_ptr instance.
-  bool RefCountIsUnique() const              { return (Count & ~INT_PTR_ALIGNMENT) == 0; }
+  bool RefCountIsUnique() const         { return (Count & ~INT_PTR_ALIGNMENT) == 0; }
   // Checks whether the object is not under control of a int_ptr.
   // This is the case when the object is just constructed and not yet assigned to an int_ptr instance or
   // if the object is about to be deleted. You should be able to distinguish thes two cases
   // from the context of the call. Be very careful in multi-threaded environments.
-  bool RefCountIsUnmanaged() const           { return Count == 0; }
+  bool RefCountIsUnmanaged() const      { return Count == 0; }
 
 #if INT_PTR_ALIGNMENT > CLIB_ALIGNMENT
  private:
@@ -179,10 +179,10 @@ class int_ptr
   static unsigned transfer(unsigned data);
 
   // Raw initialization
-  explicit    int_ptr(unsigned data)         : Data(data) {}
+  explicit    int_ptr(unsigned data)    : Data(data) {}
  public:
   // Initialize a NULL pointer.
-              int_ptr()                      : Data(0) {}
+              int_ptr()                 : Data(0) {}
   // Store a new object under reference count control.
               int_ptr(T* ptr);
   // Helper to disambiguate calls.
@@ -194,7 +194,7 @@ class int_ptr
   // Destructor, frees the stored object if this is the last reference.
               ~int_ptr();
   // swap instances (not thread safe)
-  void        swap(int_ptr<T>& r)            { unsigned temp = r.Data; r.Data = Data; Data = temp; }
+  void        swap(int_ptr<T>& r)       { unsigned temp = r.Data; r.Data = Data; Data = temp; }
   // Strongly thread safe swap
   void        swap(volatile int_ptr<T>& r);
   // Strongly thread safe swap
@@ -203,11 +203,11 @@ class int_ptr
   void        reset();
   void        reset() volatile;
   // Basic operators
-  T*          get()         const            { return (T*)Data; }
-              operator T*() const            { return (T*)Data; }
-  bool        operator!()   const volatile   { return !Data; }
-  T&          operator*()   const            { ASSERT(Data); return *(T*)Data; }
-  T*          operator->()  const            { ASSERT(Data); return (T*)Data; }
+  T*          get()         const       { return (T*)Data; }
+              operator T*() const       { return (T*)Data; }
+  bool        operator!()   const volatile { return !Data; }
+  T&          operator*()   const       { ASSERT(Data); return *(T*)Data; }
+  T*          operator->()  const       { ASSERT(Data); return (T*)Data; }
   // assignment
   int_ptr<T>& operator=(T* ptr);
   int_ptr<T>& operator=(int_ptr<T>& r);      // Helper to disambiguate calls.
@@ -217,14 +217,17 @@ class int_ptr
   void        operator=(int_ptr<T>& r) volatile; // Helper to disambiguate calls.
   void        operator=(const int_ptr<T>& r) volatile;
   void        operator=(volatile const int_ptr<T>& r) volatile;
+  /*// equality
+  friend bool operator==(const int_ptr<T>& l, const int_ptr& r);
+  friend bool operator!=(const int_ptr<T>& l, const int_ptr& r);*/
   // manual resource management for adaption of C libraries.
-  T*          toCptr()                       { T* ret = (T*)Data; Data = 0; return ret; }
+  T*          toCptr()                  { T* ret = (T*)Data; Data = 0; return ret; }
   T*          toCptr() volatile;
   int_ptr<T>& fromCptr(T* ptr);
   void        fromCptr(T* ptr) volatile;
   //T*          swapCptr(T* ptr);
   #ifdef DEBUG_LOG
-  volatile T* debug() volatile const         { return (T*)(Data & INT_PTR_POINTER_MASK); }
+  volatile T* debug() volatile const    { return (T*)(Data & INT_PTR_POINTER_MASK); }
   #endif
 };
 
@@ -386,23 +389,36 @@ inline void int_ptr<T>::fromCptr(T* ptr) volatile
 }
 
 
-/* Scoped array class, non-copyable */
+/// Scoped array class, non-copyable
 template <class T>
 class sco_arr
 {private:
-  T* Ptr;
- private:
-  sco_arr(const sco_arr<T>&); // non-copyable
+  T*     Ptr;
+  size_t Size;
+ private: // non-copyable
+  sco_arr(const sco_arr<T>&);
+  void operator=(const sco_arr<T>&);
  public:
-  // Store a new object under control or initialize a NULL pointer.
-  sco_arr(T* ptr = NULL) : Ptr(ptr) {};
-  // Destructor, frees the stored object.
-  ~sco_arr()                                 { delete[] Ptr; }
-  // Basic operators
-  T* get() const                             { return Ptr; }
-  T& operator[](size_t idx) const            { return Ptr[idx]; }
-  void assign(T* ptr)                        { delete[] Ptr; Ptr = ptr; }
-  sco_arr<T>& operator=(T* ptr)              { assign(ptr); return *this; }
+  /// Initialze a empty array.
+  sco_arr()                             : Ptr(NULL), Size(0) {};
+  /// Allocates an array of size.
+  sco_arr(size_t size)                  : Ptr(new T[size]), Size(size) {};
+  /// Store a new object under control.
+  sco_arr(T* ptr, size_t size)          : Ptr(ptr), Size(size) {};
+  /// Destructor, frees the stored object if any.
+  ~sco_arr()                            { delete[] Ptr; }
+  /// Gets a pointer to the first array element.
+  T*     get() const                    { return Ptr; }
+  /// Gets the number of array elements.
+  size_t size() const                   { return Size; }
+  /// Access the i-th array element.
+  T&     operator[](size_t idx) const   { ASSERT(idx < Size); return Ptr[idx]; }
+  /// Frees the stored array (if any) and sets size to 0,
+  void   reset()                        { delete[] Ptr; Ptr = NULL; Size = 0; }
+  /// Frees the stored array (if any) and allocates a new array of size.
+  void   reset(size_t size)             { delete[] Ptr; Ptr = new T[size]; Size = size; }
+  /// Frees the stored array (if any) and assigns a new array.
+  void   assign(T* ptr, size_t size)    { delete[] Ptr; Ptr = ptr; Size = size; }
 };
 
 #endif

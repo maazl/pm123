@@ -93,7 +93,7 @@ bool ID3V1_TAG::Equals(const ID3V1_TAG& r) const
 }
 
 /* Returns a specified field of the given tag. */
-bool ID3V1_TAG::GetField(ID3V1_TAG_COMP type, DSTRING& result, int charset) const
+bool ID3V1_TAG::GetField(ID3V1_TAG_COMP type, xstring& result, int charset) const
 {
   result.reset();
   char buffer[32];

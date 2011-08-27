@@ -366,7 +366,6 @@
 #define PB_PLG_UP          1514
 #define PB_PLG_DOWN        1515
 #define PB_PLG_ENABLE      1516
-#define PB_PLG_ACTIVATE    1517
 #define PB_PLG_CONFIG      1518
 #define ST_PLG_AUTHOR      1519
 #define ST_PLG_DESC        1520

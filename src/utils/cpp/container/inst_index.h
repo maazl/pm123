@@ -59,7 +59,7 @@ class inst_index
     const IndexType* operator->() const { return &IX; };
   };
 
- private:
+ protected:
   static IndexType  Index;
   static Mutex      Mtx; // protect the index above
  private:
@@ -94,7 +94,15 @@ int_ptr<T> inst_index<T,K,C>::GetByKey(K& key, T* (*factory)(K&, void*), void* p
   // We must not assign p directly because the factory might have destroyed *p already
   // by deleting the newly created item. Also the factory might never have created an item of
   // type T. In this case we have to destroy the entry.
-  p = factory(key, param);
+  try
+  { p = factory(key, param);
+  } catch (...)
+  { // Factory failed => remove the slot immediately if not yet done.
+    // There is nothing to delete since we did not yet assign anything.
+    T*const* p2 = &p;
+    Index.erase(p2);
+    throw;
+  }
   if (p == NULL)
   { // Factory failed => remove the slot immediately if not yet done.
     // There is nothing to delete since we did not yet assign anything.

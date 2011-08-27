@@ -46,6 +46,7 @@
 #include "pm123.rc.h"
 #include "docking.h"
 #include "playable.h"
+#include "decoder.h"
 #include <cpp/showaccel.h>
 #include <utilfct.h>
 
@@ -380,7 +381,7 @@ HWND PlaylistView::InitContextMenu()
       MENUITEM item;
       PMRASSERT(WinSendMsg(hwndMenu, MM_QUERYITEM, MPFROM2SHORT(IDM_PL_APPENDALL, TRUE), MPFROMP(&item)));
       memset(LoadWizards+2, 0, sizeof LoadWizards - 2*sizeof *LoadWizards ); // You never know...
-      dec_append_load_menu(item.hwndSubMenu, IDM_PL_APPOTHERALL, 2, LoadWizards+2, sizeof LoadWizards/sizeof *LoadWizards - 2);
+      Decoder::AppendLoadMenu(item.hwndSubMenu, IDM_PL_APPOTHERALL, 2, LoadWizards+2, sizeof LoadWizards/sizeof *LoadWizards - 2);
       (MenuShowAccel(WinQueryAccelTable(WinQueryAnchorBlock(GetHwnd()), GetHwnd()))).ApplyTo(new_menu ? hwndMenu : item.hwndSubMenu);
     }
   } else
@@ -412,7 +413,7 @@ void PlaylistView::UpdateAccelTable()
   AccelTable = WinLoadAccelTable( WinQueryAnchorBlock( GetHwnd() ), NULLHANDLE, ACL_PLAYLIST );
   PMASSERT(AccelTable != NULLHANDLE);
   memset( LoadWizards+2, 0, sizeof LoadWizards - 2*sizeof *LoadWizards); // You never know...
-  dec_append_accel_table( AccelTable, IDM_PL_APPOTHERALL, 0, LoadWizards+2, sizeof LoadWizards/sizeof *LoadWizards - 2);
+  Decoder::AppendAccelTable( AccelTable, IDM_PL_APPOTHERALL, 0, LoadWizards+2, sizeof LoadWizards/sizeof *LoadWizards - 2);
 }
 
 PlaylistBase::ICP PlaylistView::GetPlaylistType(const RecordBase* rec) const

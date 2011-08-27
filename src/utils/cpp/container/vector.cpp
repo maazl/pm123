@@ -36,12 +36,12 @@
 
 
 vector_base::vector_base(size_t capacity)
-: Data((void**)malloc(capacity * sizeof *Data)),
+: Data(capacity ? (void**)malloc(capacity * sizeof *Data) : NULL),
   Size(0),
   Capacity(capacity)
 {}
 vector_base::vector_base(size_t size, void* elem, size_t spare)
-: Data((void**)malloc((size + spare) * sizeof *Data)),
+: Data(size + spare ? (void**)malloc((size + spare) * sizeof *Data) : NULL),
   Size(size),
   Capacity(size + spare)
 { void** dp = Data;
@@ -51,7 +51,7 @@ vector_base::vector_base(size_t size, void* elem, size_t spare)
   }
 }
 vector_base::vector_base(const vector_base& r, size_t spare)
-: Data((void**)malloc((r.Size + spare) * sizeof *Data)),
+: Data(r.Size + spare ? (void**)malloc((r.Size + spare) * sizeof *Data) : NULL),
   Size(r.Size),
   Capacity(r.Size + spare)
 { DEBUGLOG(("vector_base(%p)::vector_base(&%p, %u)\n", this, &r, spare));
@@ -72,6 +72,17 @@ void vector_base::swap(vector_base& r)
 { ::swap(Data, r.Data);
   ::swap(Size, r.Size);
   ::swap(Capacity, r.Capacity);
+}
+
+void** vector_base::find(const void* elem) const
+{ void** dp = Data;
+  void**const ep = dp + Size;
+  while (dp != ep)
+  { if (*dp == elem)
+      return dp;
+    ++dp;
+  }
+  return NULL;
 }
 
 void vector_base::set_size(size_t size)
@@ -133,7 +144,7 @@ void vector_base::move(size_t from, size_t to)
 void vector_base::reserve(size_t size)
 { ASSERT(size >= Size);
   Capacity = size;
-  Data = (void**)realloc(Data, Capacity * sizeof *Data);
+  Data = size ? (void**)realloc(Data, Capacity * sizeof *Data) : NULL;
   ASSERT(Data != NULL || Capacity == 0);
 }
 
@@ -148,7 +159,7 @@ void vector_base::prepare_assign(size_t size)
   Size = size;
 }
 
-#ifdef DEBUG_LOG
+/*#ifdef DEBUG_LOG
 xstring vector_base::debug_dump() const
 { xstring r = xstring::empty;
   for (size_t i = 0; i != size(); ++i)
@@ -158,6 +169,6 @@ xstring vector_base::debug_dump() const
       r = xstring::sprintf("%p", at(i));
   return r;
 }
-#endif
+#endif*/
 
 
