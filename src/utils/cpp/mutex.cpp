@@ -35,6 +35,7 @@
 
 #include <debuglog.h>
 #include <string.h>
+#include <alloca.h>
 
 
 bool Mutex::Lock::Request(long ms)

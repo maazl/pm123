@@ -43,7 +43,7 @@ priority_queue_base::~priority_queue_base()
 { delete[] PriEntries;
 }
 
-#ifdef DEBUG
+#ifdef DEBUG_LOG
 void priority_queue_base::Dump() const
 { char buf[1024];
   char* cp = buf;
@@ -60,7 +60,9 @@ void priority_queue_base::Dump() const
   }
   DEBUGLOG(("priority_queue_base::Dump Content: %s\n", buf));
 }
+#endif
 
+#ifdef DEBUG
 void priority_queue_base::Fail(const char* file, int line, const char* msg) const
 { Dump();
   dassert(file, line, msg);

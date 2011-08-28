@@ -39,49 +39,43 @@ unittest.exe: $(OBJECTS3) $(LIBS3)
 	$(CL) $(LFLAGS) $(LFLAGS_OUT)$@ $(LOBJ_PREFX)$(OBJECTS3) $(LIBS3) $(STDLIBS)$(LOBJ_SUFFX)
 	$(POSTLINKCMD)
 
+# Keep wmake happy
+container\vector$(CO) : container\vector.cpp
+	$(CC) $(CFLAGS) -c $[@ -fo=$@
+container\list$(CO) : container\list.cpp
+	$(CC) $(CFLAGS) -c $[@ -fo=$@
+container\stringmap$(CO) : container\stringmap.cpp
+	$(CC) $(CFLAGS) -c $[@ -fo=$@
+
 algorithm.cpp:	algorithm.h ..\debuglog.h
 algorithm.h:	container\vector.h
+container\vector.h:	mutex.h smartptr.h
+mutex.h:	..\..\include\config.h ..\interlocked.h ..\debuglog.h
+..\..\include\config.h:	..\..\include\config_gcc.h ..\..\include\config_wcc.h ..\..\include\config_icc_36.h ..\..\include\config_icc_30.h
+..\interlocked.h:	..\..\include\config.h
+..\debuglog.h:	..\errorstr.h
+smartptr.h:	..\..\include\config.h cpputil.h mutex.h ..\debuglog.h
 event.cpp:	event.h cpputil.h ..\debuglog.h
 event.h:	..\..\include\config.h mutex.h ..\debuglog.h
 mutex.cpp:	mutex.h ..\debuglog.h
-mutex.h:	..\..\include\config.h ..\interlocked.h ..\debuglog.h
-priority_queue.cpp:	queue.h ..\debuglog.h ..\snprintf.h
-queue.h:	..\..\include\config.h mutex.h smartptr.h ..\debuglog.h
 queue.cpp:	queue.h ..\debuglog.h
-showaccel.cpp:	showaccel.h ..\snprintf.h
-showaccel.h:	container\sorted_vector.h
-simplestr.cpp:	simplestr.h
-simplestr.h:	..\cpp/smartptr.h
-smartptr.cpp:	mutex.h smartptr.h ..\debuglog.h
-smartptr.h:	..\..\include\config.h cpputil.h mutex.h ..\debuglog.h
-stringmap.cpp:	stringmap.h
-stringmap.h:	..\cpp/xstring.h ..\cpp/container/sorted_vector.h
+queue.h:	..\..\include\config.h mutex.h smartptr.h ..\debuglog.h
 unittest.cpp:	..\..\include\config.h event.h
 url123.cpp:	url123.h ..\strutils.h ..\debuglog.h
 url123.h:	xstring.h container\stringmap.h
-xstring.cpp:	xstring.h ..\snprintf.h ..\debuglog.h
 xstring.h:	smartptr.h
+container\stringmap.h:	xstring.h container\sorted_vector.h
+container\sorted_vector.h:	smartptr.h algorithm.h container\vector.h
+xstring.cpp:	xstring.h ..\snprintf.h ..\debuglog.h
+xstringbuilder.cpp:	xstring.h ..\snprintf.h ..\debuglog.h
+priority_queue.cpp:	queue.h ..\debuglog.h ..\snprintf.h
+showaccel.cpp:	showaccel.h ..\snprintf.h
+showaccel.h:	container\sorted_vector.h
 container/list.cpp:	container/list.h ..\debuglog.h
 container/list.h:	smartptr.h cpputil.h
-container/stringmap.cpp:	container/stringmap.h
-container/stringmap.h:	xstring.h container\sorted_vector.h
 container/vector.cpp:	container/vector.h cpputil.h ..\debuglog.h
 container/vector.h:	mutex.h smartptr.h
+container/stringmap.cpp:	container/stringmap.h
+container/stringmap.h:	xstring.h container\sorted_vector.h
 container/iterator.cpp:	container\iterator.h
-..\cpp/container/vector.h:	..\cpp/mutex.h ..\cpp/smartptr.h
-..\cpp/mutex.h:	..\..\include\config.h ..\interlocked.h ..\debuglog.h
-..\interlocked.h:	..\..\include\config.h
-..\debuglog.h:	..\errorstr.h
-..\cpp/smartptr.h:	..\..\include\config.h ..\cpp/cpputil.h ..\cpp/mutex.h ..\debuglog.h
-..\cpp/container/sorted_vector.h:	..\cpp/smartptr.h ..\cpp/algorithm.h ..\cpp/container/vector.h
-..\cpp/algorithm.h:	..\cpp/container/vector.h
-..\cpp/xstring.h:	..\cpp/smartptr.h
-..\cpp/container/stringmap.h:	..\cpp/xstring.h ..\cpp/container/sorted_vector.h
-container\vector.h:	mutex.h smartptr.h
-..\..\include\config.h:	..\..\include\config_gcc.h ..\..\include\config_wcc.h ..\..\include\config_icc_36.h ..\..\include\config_icc_30.h
-pmutils.cpp:	pmutils.h
-pmutils.h:	..\debuglog.h
-container\sorted_vector.h:	smartptr.h algorithm.h container\vector.h
-container\stringmap.h:	xstring.h container\sorted_vector.h
-xstringbuilder.cpp:	xstring.h ..\snprintf.h ..\debuglog.h
 container\iterator.h:	container\vector.h

@@ -143,9 +143,13 @@ class priority_queue_base
   Mutex        Mtx;
 
  protected:
+  #ifdef DEBUG_LOG
+  void         Dump() const;
+  #else
+  void         Dump() {}
+  #endif
   #ifdef DEBUG
   void         Check() const;
-  void         Dump() const;
   void         Fail(const char* file, int line, const char* msg) const;
   #else
   void         Check() {}

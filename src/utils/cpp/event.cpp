@@ -124,7 +124,7 @@ void delegate_base::rebind(func_type fn, const void* rcv)
   sync();
   CritSect cs;
   Fn  = fn;
-  Rcv = Rcv;
+  Rcv = rcv;
 }
 
 void delegate_base::swap_rcv(delegate_base& r)
