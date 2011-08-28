@@ -25,12 +25,10 @@ OBJECTS = fft$(CO)
 
 all2: fft123.dll fft123$(LBI) $(MDUMMY)
 
-fft123.dll: $(OBJECTS) $(LIBS) $(DEF)
+fft123.dll fft123$(LBI): $(OBJECTS) $(LIBS) $(DEF)
 	$(CL) $(LFLAGS) $(LFLAGS_DLL) $(LFLAGS_OUT)$@ $(LOBJ_PREFX)$(OBJECTS)$(LOBJ_SUFFX) $(LLIB_PREFX)$(LIBS)$(LLIB_SUFFX) $(LDEF_PREFX)$(DEF)
+	$(LI) $(IFLAGS_OUT)fft123$(LBI) fft123.dll
 	$(POSTLINKCMD)
-
-fft123$(LBI): $(DEF)
-	$(LI) $(IFLAGS_OUT)$@ fft123.dll
 
 kernel\kernel$(LBO):
 	cd kernel
