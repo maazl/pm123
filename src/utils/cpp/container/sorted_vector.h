@@ -35,20 +35,6 @@
 #include <cpp/container/vector.h>
 
 
-/* @brief Interface for comparable objects.
- * @details A class that implements this interface with the template parameter \a K is comparable to \c const&nbsp;K&.
- * The type \a K may be the same as the class that implements this interface or not.
- * @remarks Note: you may implement \c IComparableTo<const\ char*> to be comparable to ordinary C strings.
- *
-template <class K>
-struct IComparableTo
-{ virtual int compareTo(const K& key) const = 0;
- protected:
-  // protect destructor to avoid that someone deletes an object of this type through the interface
-  // without having a virtual destructor.
-                     ~IComparableTo() {}
-};*/
-
 /** @brief Function to compare instances of a type.
  * @details The comparer provides an unspecified but stable order.
  */
@@ -64,19 +50,18 @@ int ComparePtr(T*const& l, T*const& r)
 { return (char*)l - (char*)r; // Dirty but working unless the virtual address space is larger than 2 GiB, which is not the case on OS/2.
 }
 
-
-/*template <class T, class K>
-struct sorted_vector_comparer
-{ static int cmp(const void* elem, const void* key);
-};
-template <class T, class K>
-int sorted_vector_comparer<T,K>::cmp(const void* elem, const void* key)
-{ return ((T*)elem)->compareTo(*(const K*)key);
-}*/
+#ifdef __GNUC__
+#define sorted_vector_comparer int (*C)(const T& e, const K& k)
+#else
+// Watcom C++ and IBM C++ seem not to support template parameters that depend on previous template args.
+// So we fall back to an unchecked pointer in this case.
+// But keep in mind that the implementation will sadly fail on anything but the above.
+#define sorted_vector_comparer void* C
+#endif
 
 /** Sorted variant of vector using the logical key type \a K.
  */
-template <class T, class K, int (*C)(const T& e, const K& k)>
+template <class T, class K, sorted_vector_comparer>
 class sorted_vector : public vector<T>
 {public:
   // Create a new vector with a given initial capacity.
@@ -112,19 +97,19 @@ class sorted_vector : public vector<T>
 
 
 /* Template implementations */
-template <class T, class K, int (*C)(const T& e, const K& k)>
+template <class T, class K, sorted_vector_comparer>
 inline T* sorted_vector<T,K,C>::find(const K& key) const
 { size_t pos;
   return binary_search(key, pos) ? (*this)[pos] : NULL;
 }
 
-template <class T, class K, int (*C)(const T& e, const K& k)>
+template <class T, class K, sorted_vector_comparer>
 inline T*& sorted_vector<T,K,C>::get(const K& key)
 { size_t pos;
   return binary_search(key, pos) ? (*this)[pos] : (insert(pos) = NULL);
 }
 
-template <class T, class K, int (*C)(const T& e, const K& k)>
+template <class T, class K, sorted_vector_comparer>
 inline T* sorted_vector<T,K,C>::erase(const K& key)
 { size_t pos;
   return binary_search(key, pos) ? vector<T>::erase(pos) : NULL;
@@ -137,7 +122,7 @@ inline T* sorted_vector<T,K,C>::erase(const K& key)
  * To erase an elemet you must use <tt>delete erase(...)</tt>.
  * The class methods are not synchronized.
  */
-template <class T, class K, int (*C)(const T& e, const K& k)>
+template <class T, class K, sorted_vector_comparer>
 class sorted_vector_own : public sorted_vector<T,K,C>
 {protected:
   // Copy constructor
@@ -168,7 +153,7 @@ class sorted_vector_own : public sorted_vector<T,K,C>
 
 /** Sorted vector of objects with members with intrusive reference counter.
  */
-template <class T, class K, int (*C)(const T& e, const K& k)>
+template <class T, class K, sorted_vector_comparer>
 class sorted_vector_int : public vector_int<T>
 {public:
   // Create a new vector with a given initial capacity.
@@ -202,19 +187,19 @@ class sorted_vector_int : public vector_int<T>
 };
 
 /* Template implementations */
-template <class T, class K, int (*C)(const T& e, const K& k)>
+template <class T, class K, sorted_vector_comparer>
 inline int_ptr<T> sorted_vector_int<T,K,C>::find(const K& key) const
 { size_t pos;
   return binary_search(key, pos) ? (*this)[pos] : NULL;
 }
 
-template <class T, class K, int (*C)(const T& e, const K& k)>
+template <class T, class K, sorted_vector_comparer>
 inline int_ptr<T>& sorted_vector_int<T,K,C>::get(const K& key)
 { size_t pos;
   return binary_search(key, pos) ? (*this)[pos] : insert(pos);
 }
 
-template <class T, class K, int (*C)(const T& e, const K& k)>
+template <class T, class K, sorted_vector_comparer>
 int_ptr<T> sorted_vector_int<T,K,C>::erase(const K& key)
 { size_t pos;
   int_ptr<T> ret;
