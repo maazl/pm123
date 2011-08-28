@@ -5,6 +5,7 @@
 TOPDIR   = ..\..
 INCDIR   = $(TOPDIR)\utils;$(TOPDIR)\include;$(TOPDIR)\xio123;$(TOPDIR)\libmpg123;$(TOPDIR)\zlb123;
 TARGET   = mpg123.dll
+SRCFIL   = *.c* id3v1\*.c* id3v2\*.c*
 
 !include $(TOPDIR)\config\makerules
 
@@ -33,9 +34,6 @@ mpg123$(RES): mpg123.rc mpg123.h
 
 clean: $(MDUMMY)
 	-@del mpg123$(LBI) mpg123.dll $(OBJECTS) $(RESOURCE) 2> nul
-
-depend: $(MDUMMY)
-	@$(TOPDIR)\config\makedep.cmd *.c* id3v1\*.c* id3v2\*.c* -r -x -I$(INCDIR)
 
 dialog.cpp:	dialog.h mpg123.h ..\..\utils\charset.h ..\..\utils\utilfct.h ..\..\utils\fileutil.h ..\..\include\decoder_plug.h ..\..\utils\debuglog.h ..\..\utils\snprintf.h ..\..\utils\eautils.h
 ..\..\utils\utilfct.h:	..\..\include\config.h ..\..\utils\errorstr.h ..\..\utils\minmax.h ..\..\utils\strutils.h

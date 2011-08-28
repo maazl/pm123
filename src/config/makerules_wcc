@@ -93,8 +93,10 @@ MFLAGS = $(MFLAGS) DEBUG_LOG=$(DEBUG_LOG)
 
 all:    $(TARGET) $(MDUMMY)
 
+!ifdef INCDIR
 !ifndef SRCFIL
 SRCFIL = *.cpp *.c
 !endif
 depend:
 	$(TOPDIR)\config\makedep.cmd $(SRCFIL) -R -x -I$(INCDIR) -s -c
+!endif

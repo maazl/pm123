@@ -4,11 +4,9 @@
 
 TOPDIR   = ..
 INCDIR   = $(TOPDIR)\include;.
-TARGET   = all2
+TARGET   = utilfct$(LBO)
 
 !include $(TOPDIR)\config\makerules
-
-all2: utilfct$(LBO) $(MDUMMY)
 
 OBJECTS = utilfct$(CO) utilfct_listbox$(CO) utilfct_menu$(CO) utilfct_notebook$(CO)
 OBJECTS = $(OBJECTS) utilfct_dlg$(CO) utilfct_pm_misc$(CO) utilfct_thread$(CO) utilfct_slider$(CO)
