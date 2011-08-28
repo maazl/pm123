@@ -13,8 +13,8 @@ LBO        = .lib
 RES        = .res
 
 CC         = wcl386
-CFLAGS     = $(CFLAGS_USR) -zq -zro -zm -bm -ei -dOS2 -w3 -sg
-CFLAGS_DBG = -d2 -dDEBUG=$(DEBUG)
+CFLAGS     = $(CFLAGS_USR) -zq -zro -zm -bm -ei -dOS2 -wx -wcd=004 -sg
+CFLAGS_DBG = -d2 -dDEBUG=$(DEBUG) -5
 CFLAGS_OPT = -otexan -5r -fp5
 
 CL         = wlink
