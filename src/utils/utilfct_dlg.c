@@ -58,8 +58,8 @@ typedef struct
  * @param factor  Rational resize factor.
  * @return        Size change to be applied to the child control.
  */
-INLINE int calc_delta(SHORT oldsize, SHORT& newsize, PPResizeFactor factor)
-{ return newsize*factor.Numerator/factor.Denominator - oldsize*factor.Numerator/factor.Denominator;
+INLINE int calc_delta(SHORT oldsize, SHORT newsize, PPResizeFactor factor)
+{ return newsize * factor.Numerator / factor.Denominator - oldsize * factor.Numerator / factor.Denominator;
 }
 /** Caluate the resize delta from old and new size with min size constraint.
  * @param oldsize Size of the owner before resizing
@@ -69,10 +69,11 @@ INLINE int calc_delta(SHORT oldsize, SHORT& newsize, PPResizeFactor factor)
  * @param factor  Rational resize factor.
  * @return        New size of the owner.
  */
-INLINE int calc_newsize(SHORT oldsize, int& delta, PPResizeFactor factor)
-{ if (delta > 0)
-    delta = 0;
-  int new_scaled = oldsize*factor.Numerator/factor.Denominator + delta;
+INLINE int calc_newsize(SHORT oldsize, int* delta, PPResizeFactor factor)
+{ int new_scaled;
+  if (*delta > 0)
+    *delta = 0;
+  new_scaled = oldsize*factor.Numerator/factor.Denominator + *delta;
   return new_scaled*factor.Denominator/factor.Numerator;
 }
 
@@ -91,35 +92,43 @@ INLINE int calc_newsize(SHORT oldsize, int& delta, PPResizeFactor factor)
  * should be done in \c WM_ADJUSTWINDOWPOS processing, while the second pass should be done
  * in \c WM_WINDOWPOSCHANGED processing.
  */
-static void apply_resize(SWP& pos, const PPResizeParams& rsinfo, SWRS& resize)
+static void apply_resize(SWP* pos, const PPResizeParams* rsinfo, SWRS* resize)
 { // x resize
-  int delta = calc_delta(resize.cxold, resize.cxnew, rsinfo.rs.cx_resize);
-  if (delta < 0 && pos.cx + delta < rsinfo.cs.cx_min)
-    // Violated min constraint => adjust cxnew
-    resize.cxnew = calc_newsize(resize.cxold, delta = rsinfo.cs.cx_min - pos.cx, rsinfo.rs.cx_resize);
-  pos.cx += delta;
-  pos.x += calc_delta(resize.cxold, resize.cxnew, rsinfo.rs.x_resize);
+  int delta = calc_delta(resize->cxold, resize->cxnew, rsinfo->rs.cx_resize);
+  if (delta < 0 && pos->cx + delta < rsinfo->cs.cx_min)
+  { // Violated min constraint => adjust cxnew
+    delta = rsinfo->cs.cx_min - pos->cx;
+    resize->cxnew = calc_newsize(resize->cxold, &delta, rsinfo->rs.cx_resize);
+  }
+  pos->cx += delta;
+  pos->x += calc_delta(resize->cxold, resize->cxnew, rsinfo->rs.x_resize);
   // y resize
-  delta = calc_delta(resize.cyold, resize.cynew, rsinfo.rs.cy_resize);
-  if (delta < 0 && pos.cy + delta < rsinfo.cs.cy_min)
-    // Violated min constraint => adjust cynew
-    resize.cynew = calc_newsize(resize.cyold, delta = rsinfo.cs.cy_min - pos.cy, rsinfo.rs.cy_resize);
-  pos.cy += delta;
-  pos.y += calc_delta(resize.cyold, resize.cynew, rsinfo.rs.y_resize);
+  delta = calc_delta(resize->cyold, resize->cynew, rsinfo->rs.cy_resize);
+  if (delta < 0 && pos->cy + delta < rsinfo->cs.cy_min)
+  { // Violated min constraint => adjust cynew
+    delta = rsinfo->cs.cy_min - pos->cy;
+    resize->cynew = calc_newsize(resize->cyold, &delta, rsinfo->rs.cy_resize);
+  }
+  pos->cy += delta;
+  pos->y += calc_delta(resize->cyold, resize->cynew, rsinfo->rs.y_resize);
   // identify move operation
-  pos.fl |= SWP_MOVE|SWP_SIZE;
+  pos->fl |= SWP_MOVE|SWP_SIZE;
 }
 
 void dlg_adjust_resize(HWND hwnd, SWP* pswp)
-{ DEBUGLOG(("dlg_adjust_resize(%p, {%x, %i,%i, %i,%i})\n", hwnd,
+{ SWP cursize;
+  SWRS sizechg;
+  DEBUGLOG(("dlg_adjust_resize(%p, {%x, %i,%i, %i,%i})\n", hwnd,
     pswp->fl, pswp->cx, pswp->cy, pswp->x, pswp->y));
 
   // query current size
-  SWP cursize;
   PMRASSERT(WinQueryWindowPos(hwnd, &cursize));
   if (cursize.cx == pswp->cx && cursize.cy == pswp->cy)
     return;
-  SWRS sizechg = { cursize.cx, cursize.cy, pswp->cx, pswp->cy };
+  sizechg.cxold = cursize.cx;
+  sizechg.cyold = cursize.cy;
+  sizechg.cxnew = pswp->cx;
+  sizechg.cynew = pswp->cy;
 
   // Apply size constraint of the frame
   if (sizechg.cxnew < sizechg.cxold || sizechg.cynew < sizechg.cyold)
@@ -136,22 +145,22 @@ void dlg_adjust_resize(HWND hwnd, SWP* pswp)
 
   // for all children
   { HENUM en = WinBeginEnumWindows(hwnd);
-    PMASSERT(en != NULLHANDLE);
     HWND child;
+    PMASSERT(en != NULLHANDLE);
     while ((child = WinGetNextWindow(en)) != NULLHANDLE)
     { // find PPU_RESIZEINFO
       PPResizeParams rsinfo = {{0},{1,1}};
+      SWP childpos;
       if (WinQueryPresParam(child, PPU_RESIZEINFO, 0, NULL, sizeof rsinfo.rs, &rsinfo.rs, QPF_NOINHERIT) == 0)
         continue;
       WinQueryPresParam(child, PPU_RESIZECONSTR, 0, NULL, sizeof rsinfo.cs, &rsinfo.cs, QPF_NOINHERIT);
-      SWP childpos;
       PMRASSERT(WinQueryWindowPos(child, &childpos));
       DEBUGLOG(("dlg_adjust_resize: {%i/%i,%i/%i, %i/%i,%i/%i, %i,%i} :> %p {%x, %i,%i, %i,%i}\n",
         rsinfo.rs.x_resize.Numerator, rsinfo.rs.x_resize.Denominator, rsinfo.rs.y_resize.Numerator, rsinfo.rs.y_resize.Denominator,
         rsinfo.rs.cx_resize.Numerator, rsinfo.rs.cx_resize.Denominator, rsinfo.rs.cy_resize.Numerator, rsinfo.rs.cy_resize.Denominator,
         rsinfo.cs.cx_min, rsinfo.cs.cy_min,
         child, childpos.fl, childpos.x, childpos.y, childpos.cx, childpos.cy));
-      apply_resize(childpos, rsinfo, sizechg);
+      apply_resize(&childpos, &rsinfo, &sizechg);
     }
     PMRASSERT(WinEndEnumWindows(en));
   }
@@ -164,18 +173,22 @@ void dlg_adjust_resize(HWND hwnd, SWP* pswp)
 }
 
 void dlg_do_resize(HWND hwnd, SWP* pswpnew, SWP* pswpold)
-{ DEBUGLOG(("dlg_do_resize(%p, {%x, %i,%i, %i,%i}, {%x, %i,%i, %i,%i})\n", hwnd,
+{ SWRS sizechg = { pswpold->cx, pswpold->cy, pswpnew->cx, pswpnew->cy };
+  HENUM en;
+  HWND child;
+  size_t count;
+  SWP* childpos_list;
+  PPResizeParams rsinfo = {{0},{1,1}};
+
+  DEBUGLOG(("dlg_do_resize(%p, {%x, %i,%i, %i,%i}, {%x, %i,%i, %i,%i})\n", hwnd,
     pswpnew->fl, pswpnew->cx, pswpnew->cy, pswpnew->x, pswpnew->y,
     pswpold->fl, pswpold->cx, pswpold->cy, pswpold->x, pswpold->y));
   if (pswpold->cx == pswpnew->cx && pswpold->cy == pswpnew->cy)
     return;
-  SWRS sizechg = { pswpold->cx, pswpold->cy, pswpnew->cx, pswpnew->cy };
   // for all children
-  HENUM en = WinBeginEnumWindows(hwnd);
+  en = WinBeginEnumWindows(hwnd);
   PMASSERT(en != NULLHANDLE);
-  HWND child;
   // count the children with PPU_RESIZEINFO first.
-  size_t count;
   while ((child = WinGetNextWindow(en)) != NULLHANDLE)
   { ULONG found = 0;
     WinQueryPresParam(child, PPU_RESIZEINFO, 0, &found, 0, NULL, QPF_NOINHERIT);
@@ -187,21 +200,21 @@ void dlg_do_resize(HWND hwnd, SWP* pswpnew, SWP* pswpold)
     return;
   }
   // Allocate target structure.
-  SWP* childpos_list = (SWP*)malloc(count * sizeof(SWP));
+  childpos_list = (SWP*)malloc(count * sizeof(SWP));
   count = 0;
-  PPResizeParams rsinfo = {{0},{1,1}};
   while ((child = WinGetNextWindow(en)) != NULLHANDLE)
-  { // find PPU_RESIZEINFO, but do not load size constraints.
+  { SWP* childpos;
+    // find PPU_RESIZEINFO, but do not load size constraints.
     if (WinQueryPresParam(child, PPU_RESIZEINFO, 0, NULL, sizeof rsinfo.rs, &rsinfo.rs, QPF_NOINHERIT) == 0)
       continue;
-    SWP* childpos = childpos_list + count++;
+    childpos = childpos_list + count++;
     PMRASSERT(WinQueryWindowPos(child, childpos));
     DEBUGLOG(("dlg_do_resize: {%i/%i,%i/%i, %i/%i,%i/%i, } :> {%x, %i,%i, %i,%i}\n",
       rsinfo.rs.x_resize.Numerator, rsinfo.rs.x_resize.Denominator, rsinfo.rs.y_resize.Numerator, rsinfo.rs.y_resize.Denominator,
       rsinfo.rs.cx_resize.Numerator, rsinfo.rs.cx_resize.Denominator, rsinfo.rs.cy_resize.Numerator, rsinfo.rs.cy_resize.Denominator,
       childpos->fl, childpos->x, childpos->y, childpos->cx, childpos->cy));
     childpos->fl = SWP_NOADJUST; // Fix: entry fields otherwise grow unlimited. (Probably PM bug.)
-    apply_resize(*childpos, rsinfo, sizechg);
+    apply_resize(childpos, &rsinfo, &sizechg);
     DEBUGLOG(("dlg_do_resize: -> {%x, %i,%i, %i,%i}\n",
       childpos->fl, childpos->x, childpos->y, childpos->cx, childpos->cy));
   }

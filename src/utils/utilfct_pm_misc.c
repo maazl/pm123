@@ -72,9 +72,9 @@ do_warpsans( HWND hwnd )
 SHORT rb_selected(HWND hwnd, SHORT id)
 {
   HWND cur = WinWindowFromID(hwnd, id);
-  PMASSERT(cur);
   HWND first = cur;
   HWND prev = cur; // Work around for PM bug
+  PMASSERT(cur);
   cur = WinEnumDlgItem(hwnd, cur, EDI_FIRSTGROUPITEM);
   do
   { if (WinSendMsg(cur, BM_QUERYCHECK, 0, 0))

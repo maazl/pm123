@@ -100,8 +100,8 @@ void cassert(const char* file, int line, const char* msg)
 void oassert(unsigned long apiret, const char* file, int line, const char* msg)
 { if (apiret)
   { char buf[1024];
-    os2_strerror(apiret, buf, sizeof(buf));
     PTIB ptib;
+    os2_strerror(apiret, buf, sizeof(buf));
     DosGetInfoBlocks(&ptib, NULL);
     fprintf(stderr, "Assertion at %s line %i thread %04ld failed: %s\n%s\n", file, line, ptib->tib_ptib2->tib2_ultid, msg, buf);
     DosResetBuffer(2);

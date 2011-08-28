@@ -30,6 +30,7 @@
 #define FILEUTIL_H
 
 #include <config.h>
+#include <stdlib.h>
 
 #ifdef __cplusplus
 extern "C" {
