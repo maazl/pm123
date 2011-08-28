@@ -173,7 +173,7 @@ void dlg_adjust_resize(HWND hwnd, SWP* pswp)
 }
 
 void dlg_do_resize(HWND hwnd, SWP* pswpnew, SWP* pswpold)
-{ SWRS sizechg = { pswpold->cx, pswpold->cy, pswpnew->cx, pswpnew->cy };
+{ SWRS sizechg;
   HENUM en;
   HWND child;
   size_t count;
@@ -202,6 +202,10 @@ void dlg_do_resize(HWND hwnd, SWP* pswpnew, SWP* pswpold)
   // Allocate target structure.
   childpos_list = (SWP*)malloc(count * sizeof(SWP));
   count = 0;
+  sizechg.cxold = pswpold->cx;
+  sizechg.cyold = pswpold->cy;
+  sizechg.cxnew = pswpnew->cx;
+  sizechg.cynew = pswpnew->cy;
   while ((child = WinGetNextWindow(en)) != NULLHANDLE)
   { SWP* childpos;
     // find PPU_RESIZEINFO, but do not load size constraints.
@@ -228,8 +232,12 @@ void dlg_do_resize(HWND hwnd, SWP* pswpnew, SWP* pswpold)
 HWND dlg_addcontrol( HWND hwnd, PSZ cls, PSZ text, ULONG style,
                      LONG x, LONG y, LONG cx, LONG cy, SHORT after,
                      USHORT id, PVOID ctldata, PVOID presparams )
-{ POINTL pos[2] = {{ x, y }, { x + cx, y + cy }};
+{ POINTL pos[2];
   HWND behind;
+  pos[0].x = x;
+  pos[0].y = y;
+  pos[1].x = x + cx;
+  pos[1].y = y + cy;
   if (!WinMapDlgPoints( hwnd, pos, 2, TRUE ))
     return NULLHANDLE;
   behind = after == NULLHANDLE ? HWND_BOTTOM : WinWindowFromID( hwnd, after );

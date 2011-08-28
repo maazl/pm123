@@ -101,7 +101,12 @@ inline void sco_ptr<T>::swap(sco_ptr<T>& r)
 template <class T> class int_ptr;
 /* Interface to make a class reference countable */
 class Iref_count
-{ template <class T> friend class int_ptr;
+{ 
+  #ifndef __WATCOMC__
+  template <class T>
+  #endif
+  friend class int_ptr;
+  //  template <class T> friend class int_ptr;
  private:
   volatile unsigned Count;
   // This function is the interface to int_ptr<T>

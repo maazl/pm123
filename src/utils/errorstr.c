@@ -252,7 +252,7 @@ static void make_os2pm_error(char* result, size_t size, ERRINFO* perr)
 }
 
 char* os2pm_strerror( char* result, size_t size )
-{ ERRINFO* perr = WinGetErrorInfo(NULL); // Well a NULL-HAB is not as documented, but it is working.
+{ ERRINFO* perr = WinGetErrorInfo(NULLHANDLE); // Well a NULL-HAB is not as documented, but it is working.
   if (!perr)
   { if (size)
       *result = 0;

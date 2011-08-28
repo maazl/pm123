@@ -28,16 +28,13 @@ charset.exe:	charset.obj
 clean: $(MDUMMY)
 	-@del utilfct$(LBO) $(OBJECTS) 2> nul
 
-inimacro.cpp:	inimacro.h fileutil.h utilfct.h debuglog.h
-inimacro.h:	..\include\config.h
-fileutil.h:	..\include\config.h
-utilfct.h:	..\include\config.h .\errorstr.h .\minmax.h .\strutils.h
-debuglog.h:	.\errorstr.h
-interlocked.cpp:	interlocked.h
-interlocked.h:	..\include\config.h
 abs2rel.c:	fileutil.h
+fileutil.h:	..\include\config.h
+..\include\config.h:	..\include\config_gcc.h ..\include\config_wcc.h ..\include\config_icc_36.h ..\include\config_icc_30.h
 bufstream.c:	bufstream.h
 charset.c:	charset.h strutils.h debuglog.h utilfct.h
+debuglog.h:	.\errorstr.h
+utilfct.h:	..\include\config.h .\errorstr.h .\minmax.h .\strutils.h
 debuglog.c:	debuglog.h snprintf.h
 eautils.c:	debuglog.h
 errorstr.c:	strutils.h snprintf.h
@@ -46,6 +43,13 @@ fileutil.c:	fileutil.h strutils.h minmax.h
 memcmpcpy.c:	strutils.h
 pcmfloat2int.c:	pcmconvert.h utilfct.h debuglog.h
 pcmconvert.h:	..\include\format.h
+..\include\format.h:	..\include\plugin.h
+..\include\plugin.h:	..\include\config.h .\cpp\xstring.h
+.\cpp\xstring.h:	.\cpp\smartptr.h
+.\cpp\smartptr.h:	..\include\config.h .\cpp\cpputil.h .\cpp\mutex.h .\debuglog.h
+.\cpp\mutex.h:	..\include\config.h .\interlocked.h .\debuglog.h
+.\interlocked.h:	..\include\config.h
+.\debuglog.h:	.\errorstr.h
 pcmfloat2int_merge.c:	pcmconvert.h utilfct.h debuglog.h
 pcmint2float.c:	pcmconvert.h .\debuglog.h
 pcmint2float_extract.c:	pcmconvert.h .\debuglog.h
@@ -64,13 +68,9 @@ utilfct_thread.c:	utilfct.h debuglog.h
 vdelegate.c:	vdelegate.h
 vdelegate.h:	..\include\config.h
 wildcards.c:	wildcards.h .\debuglog.h
+inimacro.c:	inimacro.h fileutil.h utilfct.h debuglog.h
+inimacro.h:	..\include\config.h
 strutils.c:	strutils.h
 utilfct_dlg.c:	utilfct.h debuglog.h
-..\include\config.h:	..\include\config_gcc.h ..\include\config_wcc.h ..\include\config_icc_36.h ..\include\config_icc_30.h
-..\include\format.h:	..\include\plugin.h
-..\include\plugin.h:	..\include\config.h .\cpp\xstring.h
-.\cpp\xstring.h:	.\cpp\smartptr.h
-.\cpp\smartptr.h:	..\include\config.h .\cpp\cpputil.h .\cpp\mutex.h .\debuglog.h
-.\cpp\mutex.h:	..\include\config.h .\interlocked.h .\debuglog.h
-.\interlocked.h:	..\include\config.h
-.\debuglog.h:	.\errorstr.h
+interlocked.c:	interlocked.h
+interlocked.h:	..\include\config.h
