@@ -34,6 +34,7 @@
 
 #include <string.h>
 #include <ctype.h>
+#include <alloca.h>
 
 
 int MenuShowAccel::CompareAccel(const ACCEL& l, const ACCEL& r)
@@ -173,7 +174,7 @@ void MenuShowAccel::Accel2Text(char* text, ACCEL as)
   {case AF_CHAR:
     if (as.key != ' ')
     { if (isalpha(as.key))
-        as.key = toupper(as.key);
+        as.key = (char)toupper(as.key);
       *text++ = (char)as.key;
       *text = 0;
       break;

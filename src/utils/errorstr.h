@@ -42,10 +42,13 @@ extern "C" {
 const char* sock_strerror( int socket_errno );
 #endif
 
+#ifdef __IBMC__
+#include <errno.h>
 #define strerror( n ) clib_strerror( n )
+char* clib_strerror( int clib_errno   );
+#endif
 
 const char* h_strerror   ( int tcpip_errno  );
-char* clib_strerror( int clib_errno   );
 
 char* os2_strerror( unsigned long os2_errno,
                     char* result, size_t size );

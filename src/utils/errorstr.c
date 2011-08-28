@@ -124,76 +124,73 @@ h_strerror( int tcpip_errno )
   }
 }
 
+#ifdef __IBMC__
 /* Primary purpose of this function is replacement of strerror()
    to avoid problems with usage of a message file at compiling by the
    IBM VAC++. */
 const char*
 clib_strerror( int clib_errno )
 {
-  #if defined(__IBMC__)
-    switch( clib_errno )
-    {
-      case EDOM           : return "Domain error.";
-      case ERANGE         : return "Range error.";
-      case EBADMODE       : return "The file mode parameter is not correct.";
-      case EBADNAME       : return "The file name is "", a null pointer, or an invalid DDNAME.";
-      case EISTEMPMEM     : return "Temporary memory files cannot be reopened.";
-      case EBADSHARE      : return "The file sharing mode specified is not correct.";
-      case EBUFMODE       : return "The buffering mode specified is not correct.";
-      case EERRSET        : return "A previous error has occurred on the stream.";
-      case EISOPEN        : return "The file is open.";
-      case ENOTEXIST      : return "The file cannot be found.";
-      case ENOTINIT       : return "This operation must be done before any reads, writes, or repositions.";
-      case ENULLFCB       : return "The stream pointer is NULL.";
-      case EOUTOFMEM      : return "There is not enough memory available to complete the operation.";
-      case ESMALLBF       : return "The specified buffer size is too small.";
-      case EEXIST         : return "The file already exists.";
-      case ENOGEN         : return "A unique file name could not be generated.";
-      case ENOSEEK        : return "The seek operation is not valid for this stream.";
-      case EBADPOS        : return "The file position for the file is not valid.";
-      case EBADSEEK       : return "Attempted to seek to an invalid file position.";
-      case ENOENT         : return "The file or directory specified cannot be found.";
-      case EACCESS        : return "The file or directory specified is read-only.";
-      case EMFILE         : return "Too many open files.";
-      case ENOCMD         : return "A command processor could not be found.";
-      case EGETANDPUT     : return "A read operation cannot immediately follow a write operation.";
-      case EPASTEOF       : return "Attempted to read past end-of-file.";
-      case ENOTREAD       : return "The file is not open for reading.";
-      case ETOOMANYUNGETC : return "Too many consecutive calls to ungetc.";
-      case EUNGETEOF      : return "Cannot put EOF back to the stream.";
-      case EPUTUNGET      : return "Cannot put a character back to the stream immediately "  \
-                                   "following a write operation on the stream.";
-      case ECHILD         : return "The process identifier specified for the child process " \
-                                   "is not valid.";
-      case EINTR          : return "The child process ended abnormally.";
-      case EINVAL         : return "The action code specified is not correct.";
-      case ENOEXEC        : return "Cannot run the specified file.";
-      case EAGAIN         : return "Cannot start another process.";
-      case EBADTYPE       : return "The stream specified is the wrong type for the operation.";
-      case ENOTWRITE      : return "The file is not opened for writing.";
-      case EPUTANDGET     : return "A write operation must not immediately follow a read operation.";
-      case ELARGEBF       : return "The specified buffer length is too large.";
-      case EBADF          : return "The file handle is not valid.";
-      case EXDEV          : return "Cannot rename a file to a different device.";
-      case ENOSPC         : return "There is no space left on the device.";
-      case EMATH          : return "An unrecognized exception occurred in a math routine.";
-      case EMODNAME       : return "The DLL specified cannot be found.";
-      case EMAXATTR       : return "The value specified for blksize or lrecl is too large.";
-      case EREADERROR     : return "Error in reading the C Locale Description (CLD) file.";
-      case EBADATTR       : return "The value specified for blksize or lrecl conflicts  with " \
-                                   "a previously set value.";
-      case EILSEQ         : return "An encoding error was detected.";
-      case E2BIG          : return "Argument list too long.";
-      case EOS2ERR        : return "Operating system error.";
+  switch( clib_errno )
+  {
+    case EDOM           : return "Domain error.";
+    case ERANGE         : return "Range error.";
+    case EBADMODE       : return "The file mode parameter is not correct.";
+    case EBADNAME       : return "The file name is "", a null pointer, or an invalid DDNAME.";
+    case EISTEMPMEM     : return "Temporary memory files cannot be reopened.";
+    case EBADSHARE      : return "The file sharing mode specified is not correct.";
+    case EBUFMODE       : return "The buffering mode specified is not correct.";
+    case EERRSET        : return "A previous error has occurred on the stream.";
+    case EISOPEN        : return "The file is open.";
+    case ENOTEXIST      : return "The file cannot be found.";
+    case ENOTINIT       : return "This operation must be done before any reads, writes, or repositions.";
+    case ENULLFCB       : return "The stream pointer is NULL.";
+    case EOUTOFMEM      : return "There is not enough memory available to complete the operation.";
+    case ESMALLBF       : return "The specified buffer size is too small.";
+    case EEXIST         : return "The file already exists.";
+    case ENOGEN         : return "A unique file name could not be generated.";
+    case ENOSEEK        : return "The seek operation is not valid for this stream.";
+    case EBADPOS        : return "The file position for the file is not valid.";
+    case EBADSEEK       : return "Attempted to seek to an invalid file position.";
+    case ENOENT         : return "The file or directory specified cannot be found.";
+    case EACCESS        : return "The file or directory specified is read-only.";
+    case EMFILE         : return "Too many open files.";
+    case ENOCMD         : return "A command processor could not be found.";
+    case EGETANDPUT     : return "A read operation cannot immediately follow a write operation.";
+    case EPASTEOF       : return "Attempted to read past end-of-file.";
+    case ENOTREAD       : return "The file is not open for reading.";
+    case ETOOMANYUNGETC : return "Too many consecutive calls to ungetc.";
+    case EUNGETEOF      : return "Cannot put EOF back to the stream.";
+    case EPUTUNGET      : return "Cannot put a character back to the stream immediately "  \
+                                 "following a write operation on the stream.";
+    case ECHILD         : return "The process identifier specified for the child process " \
+                                 "is not valid.";
+    case EINTR          : return "The child process ended abnormally.";
+    case EINVAL         : return "The action code specified is not correct.";
+    case ENOEXEC        : return "Cannot run the specified file.";
+    case EAGAIN         : return "Cannot start another process.";
+    case EBADTYPE       : return "The stream specified is the wrong type for the operation.";
+    case ENOTWRITE      : return "The file is not opened for writing.";
+    case EPUTANDGET     : return "A write operation must not immediately follow a read operation.";
+    case ELARGEBF       : return "The specified buffer length is too large.";
+    case EBADF          : return "The file handle is not valid.";
+    case EXDEV          : return "Cannot rename a file to a different device.";
+    case ENOSPC         : return "There is no space left on the device.";
+    case EMATH          : return "An unrecognized exception occurred in a math routine.";
+    case EMODNAME       : return "The DLL specified cannot be found.";
+    case EMAXATTR       : return "The value specified for blksize or lrecl is too large.";
+    case EREADERROR     : return "Error in reading the C Locale Description (CLD) file.";
+    case EBADATTR       : return "The value specified for blksize or lrecl conflicts  with " \
+                                 "a previously set value.";
+    case EILSEQ         : return "An encoding error was detected.";
+    case E2BIG          : return "Argument list too long.";
+    case EOS2ERR        : return "Operating system error.";
 
-      default:
-        return "Unknown error.";
-    }
-  #else
-    #undef strerror
-    return strerror( clib_errno );
-  #endif
+    default:
+      return "Unknown error.";
+  }
 }
+#endif
 
 char* os2_strerror( unsigned long os2_errno, char* result, size_t size )
 { ULONG  ulMessageLength;
