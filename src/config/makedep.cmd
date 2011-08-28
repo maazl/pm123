@@ -251,6 +251,7 @@ WriteRules: PROCEDURE EXPOSE opt. rule.
 DoFile: PROCEDURE EXPOSE opt. rule.
    /* Do nothing if the file is already known */
    symname = SymName(ARG(1))
+   /*SAY 'DoFile: 'ARG(1) SYMBOL(symname)*/
    IF SYMBOL(symname) = 'VAR' THEN
       RETURN ''
    CALL VALUE symname, ''
@@ -391,7 +392,11 @@ DoInclude: PROCEDURE EXPOSE opt. rule.
  * ARG(1)  file name
  */
 CheckRec: PROCEDURE EXPOSE opt. rule. stack.
-   dep = VALUE(SymName(ARG(1)))
+   sym = SymName(ARG(1))
+   IF SYMBOL(sym) \= 'VAR' THEN
+      /* No infos for this file => skip */
+      RETURN
+   dep = VALUE(sym)
    /* push */
    depth = stack.0 +1
    /*SAY 'D:' depth ARG(1) dep*/
