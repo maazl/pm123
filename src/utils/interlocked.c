@@ -28,90 +28,80 @@
 
 #include "interlocked.h"
 
-#if !defined(__GNUC__)
-const unsigned char InterlockedXchCode[] = 
+#if defined(__IBMC__)
+const unsigned char InterlockedXchCode[] =
 { 0x87, 0x10              // xchg [eax], edx
 , 0x89, 0xd0              // mov eax, edx
-, 0xC3                    // ret 
-};
-
-#if defined(__WATCOMC__)
-/* Watcom uses EAX EDX EBX for arguments */
-const unsigned char InterlockedCxcCode[] = 
-{ 0x93                    // xchg eax, ebx
-, 0xF0, 0x0F, 0xB1, 0x13  // lock cmpxchg [ebx], edx  
 , 0xC3                    // ret
 };
-#else
-/* All others use EAX EDX ECX for arguments */
-const unsigned char InterlockedCxcCode[] = 
+
+const unsigned char InterlockedCxcCode[] =
 { 0x91                    // xchg eax, ecx
-, 0xF0, 0x0F, 0xB1, 0x11  // lock cmpxchg [ecx], edx  
+, 0xF0, 0x0F, 0xB1, 0x11  // lock cmpxchg [ecx], edx
 , 0xC3                    // ret
 };
-#endif
 
-const unsigned char InterlockedIncCode[] = 
+const unsigned char InterlockedIncCode[] =
 { 0xF0, 0xFF, 0x00        // lock inc dword [eax]
 , 0xC3                    // ret
 };
 
-const unsigned char InterlockedDecCode[] = 
+const unsigned char InterlockedDecCode[] =
 { 0xF0, 0xFF, 0x08        // lock dec dword [eax]
 , 0x0F, 0x95, 0xC0        // setnz al
 , 0xC3                    // ret
 };
 
-const unsigned char InterlockedAddCode[] = 
+const unsigned char InterlockedAddCode[] =
 { 0xF0, 0x01, 0x10        // lock add [eax], edx
-, 0xC3                    // ret 
+, 0xC3                    // ret
 };
 
-const unsigned char InterlockedSubCode[] = 
+const unsigned char InterlockedSubCode[] =
 { 0xF0, 0x29, 0x10        // lock sub [eax], edx
 , 0x0F, 0x95, 0xC0        // setnz al
-, 0xC3                    // ret 
+, 0xC3                    // ret
 };
 
-const unsigned char InterlockedXadCode[] = 
+const unsigned char InterlockedXadCode[] =
 { 0xF0, 0x0F, 0xC1, 0x10  // lock xadd [eax], edx
 , 0x89, 0xD0              // mov eax, edx
-, 0xC3                    // ret 
+, 0xC3                    // ret
 };
 
-const unsigned char InterlockedAndCode[] = 
+const unsigned char InterlockedAndCode[] =
 { 0xF0, 0x21, 0x10        // lock and [eax], edx
 , 0x0F, 0x95, 0xC0        // setnz al
-, 0xC3                    // ret 
+, 0xC3                    // ret
 };
 
-const unsigned char InterlockedOrCode[] = 
+const unsigned char InterlockedOrCode[] =
 { 0xF0, 0x09, 0x10        // lock or [eax], edx
-, 0xC3                    // ret 
+, 0xC3                    // ret
 };
 
-const unsigned char InterlockedXorCode[] = 
+const unsigned char InterlockedXorCode[] =
 { 0xF0, 0x31, 0x10        // lock xor [eax], edx
 , 0x0F, 0x95, 0xC0        // setnz al
-, 0xC3                    // ret 
+, 0xC3                    // ret
 };
 
-const unsigned char InterlockedBtsCode[] = 
+const unsigned char InterlockedBtsCode[] =
 { 0xF0, 0x0F, 0xAB, 0x10  // lock bts [eax], edx
 , 0x0F, 0x92, 0xC0        // setc al
-, 0xC3                    // ret 
+, 0xC3                    // ret
 };
 
-const unsigned char InterlockedBtrCode[] = 
+const unsigned char InterlockedBtrCode[] =
 { 0xF0, 0x0F, 0xB3, 0x10  // lock btr [eax], edx
 , 0x0F, 0x92, 0xC0        // setc al
-, 0xC3                    // ret 
+, 0xC3                    // ret
 };
 
-const unsigned char InterlockedBtcCode[] = 
+const unsigned char InterlockedBtcCode[] =
 { 0xF0, 0x0F, 0xBB, 0x10  // lock btr [eax], edx
 , 0x0F, 0x92, 0xC0        // setc al
-, 0xC3                    // ret 
+, 0xC3                    // ret
 };
 #endif
 

@@ -38,6 +38,12 @@
 extern "C" {
 #endif
 
+#ifndef HAVE_STRPTIME
+#include <time.h>
+char* strptime(const char* buf, const char* format, struct tm* tm);
+#endif
+
+
 /** Return the length of a string excluding \0 but at most siz.
  * The function does not read any data from beyond src + size -1
  * even if the string is unterminated.

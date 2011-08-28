@@ -59,7 +59,7 @@ bool     InterlockedSub(volatile unsigned* dst, unsigned src);
 unsigned InterlockedXad(volatile unsigned* dst, unsigned src);
 
 // *dst &= src. Return true if the result is non-zero.
-bool     InterlockedAdd(volatile unsigned* dst, unsigned src);
+bool     InterlockedAnd(volatile unsigned* dst, unsigned src);
 // *dst |= src.
 void     InterlockedOr (volatile unsigned* dst, unsigned src);
 // *dst ^= src. Return true if the result is non-zero.
@@ -203,36 +203,93 @@ unsigned InterlockedRst(volatile unsigned* dst, unsigned src);
   #define REGCALL __attribute__((regparm(2)))
   #define InterlockedSet(x,n) (*(unsigned REGCALL(*)(volatile unsigned*,unsigned))InterlockedSetCode)((x),(n))
   #define InterlockedRst(x,n) (*(unsigned REGCALL(*)(volatile unsigned*,unsigned))InterlockedRstCode)((x),(n))
+
 #elif defined(__WATCOMC__)
-  // TODO: Watcom C provides a much more efficient inline assembly way.
-  extern const unsigned char InterlockedXchCode[];
-  extern const unsigned char InterlockedCxcCode[];
-  extern const unsigned char InterlockedIncCode[];
-  extern const unsigned char InterlockedDecCode[];
-  extern const unsigned char InterlockedAddCode[];
-  extern const unsigned char InterlockedSubCode[];
-  extern const unsigned char InterlockedXadCode[];
-  extern const unsigned char InterlockedAndCode[];
-  extern const unsigned char InterlockedOrCode [];
-  extern const unsigned char InterlockedXorCode[];
-  extern const unsigned char InterlockedBtsCode[];
-  extern const unsigned char InterlockedBtrCode[];
-  extern const unsigned char InterlockedBtcCode[];
+  unsigned InterlockedXch(volatile unsigned* dst, unsigned src);
+  #pragma aux InterlockedXch = \
+    "xchg [eax], edx" \
+    parm  [eax] [edx] \
+    value [edx];
+
+  unsigned InterlockedCxc(volatile unsigned* dst, unsigned old, unsigned new_);
+  #pragma aux InterlockedCxc = \
+    "lock cmpxchg [ebx], edx" \
+    parm  [ebx] [edx] [eax] \
+    value [eax];
+
+  void     InterlockedInc(volatile unsigned* dst);
+  #pragma aux InterlockedInc = \
+    "lock inc dword ptr [eax]" \
+    parm  [eax];
+
+  bool     InterlockedDec(volatile unsigned* dst);
+  #pragma aux InterlockedDec = \
+    "lock dec dword ptr [eax]" \
+    "setnz al" \
+    parm  [eax] \
+    value [al];
+
+  void     InterlockedAdd(volatile unsigned* dst, unsigned src);
+  #pragma aux InterlockedAdd = \
+    "lock add [eax], edx" \
+    parm  [eax] [edx];
+
+  bool     InterlockedSub(volatile unsigned* dst, unsigned src);
+  #pragma aux InterlockedSub = \
+    "lock sub [eax], edx" \
+    "setnz al" \
+    parm  [eax] [edx] \
+    value [al];
+
+  unsigned InterlockedXad(volatile unsigned* dst, unsigned src);
+  #pragma aux InterlockedXad = \
+    "lock xadd [eax], edx" \
+    parm  [eax] [edx] \
+    value [edx];
+
+  bool     InterlockedAnd(volatile unsigned* dst, unsigned src);
+  #pragma aux InterlockedAnd = \
+    "lock and [eax], edx" \
+    "setnz al" \
+    parm  [eax] [edx] \
+    value [al];
+
+  void     InterlockedOr (volatile unsigned* dst, unsigned src);
+  #pragma aux InterlockedOr = \
+    "lock or [eax], edx" \
+    "setnz al" \
+    parm  [eax] [edx];
+
+  bool     InterlockedXor(volatile unsigned* dst, unsigned src);
+  #pragma aux InterlockedXor = \
+    "lock xor [eax], edx" \
+    "setnz al" \
+    parm  [eax] [edx] \
+    value [al];
+
+  bool     InterlockedBts(volatile unsigned* dst, unsigned src);
+  #pragma aux InterlockedBts = \
+    "lock bts [eax], edx" \
+    "setc al" \
+    parm  [eax] [edx] \
+    value [al];
+
+  bool     InterlockedBtr(volatile unsigned* dst, unsigned src);
+  #pragma aux InterlockedBtr = \
+    "lock btr [eax], edx" \
+    "setc al" \
+    parm  [eax] [edx] \
+    value [al];
+
+  bool     InterlockedBtc(volatile unsigned* dst, unsigned src);
+  #pragma aux InterlockedBtc = \
+    "lock btc [eax], edx" \
+    "setc al" \
+    parm  [eax] [edx] \
+    value [al];
+
   extern const unsigned char InterlockedSetCode[];
   extern const unsigned char InterlockedRstCode[];
-  #define InterlockedXch(x,n) (*(unsigned(*)(volatile unsigned*,unsigned))InterlockedXchCode)((x),(n))
-  #define InterlockedCxc(x,n,c)(*(unsigned(*)(volatile unsigned*,unsigned,unsigned))InterlockedCxcCode)((x),(n),(c))
-  #define InterlockedInc(x)   (*(void    (*)(volatile unsigned*))InterlockedIncCode)((x))
-  #define InterlockedDec(x)   (*(bool    (*)(volatile unsigned*))InterlockedDecCode)((x))
-  #define InterlockedAdd(x,n) (*(void    (*)(volatile unsigned*,unsigned))InterlockedAddCode)((x),(n))
-  #define InterlockedSub(x,n) (*(bool    (*)(volatile unsigned*,unsigned))InterlockedSubCode)((x),(n))
-  #define InterlockedXad(x,n) (*(unsigned(*)(volatile unsigned*,unsigned))InterlockedXadCode)((x),(n))
-  #define InterlockedAnd(x,n) (*(bool    (*)(volatile unsigned*,unsigned))InterlockedAndCode)((x),(n))
-  #define InterlockedOr(x,n)  (*(void    (*)(volatile unsigned*,unsigned))InterlockedOrCode) ((x),(n))
-  #define InterlockedXor(x,n) (*(bool    (*)(volatile unsigned*,unsigned))InterlockedXorCode)((x),(n))
-  #define InterlockedBts(x,n) (*(bool    (*)(volatile unsigned*,unsigned))InterlockedBtsCode)((x),(n))
-  #define InterlockedBtr(x,n) (*(bool    (*)(volatile unsigned*,unsigned))InterlockedBtrCode)((x),(n))
-  #define InterlockedBtc(x,n) (*(bool    (*)(volatile unsigned*,unsigned))InterlockedBtcCode)((x),(n))
   #define InterlockedSet(x,n) (*(unsigned(*)(volatile unsigned*,unsigned))InterlockedSetCode)((x),(n))
   #define InterlockedRst(x,n) (*(unsigned(*)(volatile unsigned*,unsigned))InterlockedRstCode)((x),(n))
 #elif defined(__IBMC__) || defined(__IBMCPP__)
