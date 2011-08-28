@@ -1477,7 +1477,7 @@ MRESULT EXPENTRY ConfigureDlgProc(HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2)
 #define FONT1 "9.WarpSans"
 #define FONT2 "8.Helv"
 
-int DLLENTRY plugin_configure(HWND hwnd, HMODULE module)
+void DLLENTRY plugin_configure(HWND hwnd, HMODULE module)
 {
    if(dlghwnd == 0)
    {
@@ -1495,8 +1495,6 @@ int DLLENTRY plugin_configure(HWND hwnd, HMODULE module)
    }
    else
       WinFocusChange(HWND_DESKTOP, dlghwnd, 0);
-
-   return 0;
 }
 
 int DLLENTRY plugin_query(PLUGIN_QUERYPARAM *param)
