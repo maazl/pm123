@@ -333,7 +333,7 @@ MRESULT GUIImp::DlgProc(ULONG msg, MPARAM mp1, MPARAM mp2)
               AInfoDialog::GetByKey(*pp)->ShowPage(AInfoDialog::Page_MetaInfo);
               break;
             case 500:
-              amp_error(HFrame, "Unable write tag to file:\n%s\n%s", pp->URL.cdata(), clib_strerror(errno));
+              amp_error(HFrame, "Unable write tag to file:\n%s\n%s", pp->URL.cdata(), strerror(errno));
               break;
           }
           break;
