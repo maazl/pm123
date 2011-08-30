@@ -4,70 +4,23 @@
 
 TOPDIR   = ..
 INCDIR   = $(TOPDIR)\include;.
-TARGET   = all2
+TARGET   = libmpg123$(LBO)
 
 !include $(TOPDIR)\config\makerules
 
 # C files
-OBJECTS=compat$(CO) \
-dct64$(CO) \
-dct64_i386$(CO) \
-#dct64_i486$(CO) \
-dither$(CO) \
-equalizer$(CO) \
-feature$(CO) \
-format$(CO) \
-frame$(CO) \
-#icy$(CO) \
-#icy2utf8$(CO) \
-id3$(CO) \
-index$(CO) \
-layer1$(CO) \
-layer2$(CO) \
-layer3$(CO) \
-#lfs_alias$(CO) \
-#lfs_wrap$(CO) \
-libmpg123$(CO) \
-#ntom$(CO) \
-optimize$(CO) \
-parse$(CO) \
-readers$(CO) \
-stringbuf$(CO) \
-synth$(CO) \
-#synth_8bit$(CO) \
-#synth_i486$(CO) \
-synth_real$(CO) \
-#synth_s32$(CO) \
-tabinit$(CO) \
-tabinit_mmx$(CO) \
-testcpu$(CO)
+OBJECTS=compat$(CO) dct64$(CO) dct64_i386$(CO) dither$(CO) equalizer$(CO) feature$(CO)
+OBJECTS=$(OBJECTS) format$(CO) frame$(CO) id3$(CO) index$(CO) layer1$(CO) layer2$(CO)
+OBJECTS=$(OBJECTS) layer3$(CO) libmpg123$(CO) optimize$(CO) parse$(CO) readers$(CO)
+OBJECTS=$(OBJECTS) stringbuf$(CO) synth$(CO) synth_real$(CO) tabinit$(CO) tabinit_mmx$(CO)
+OBJECTS=$(OBJECTS) testcpu$(CO)
 
 # Assembler files
-OBJECTS=$(OBJECTS) \
-dct36_3dnow$(CO) \
-dct36_3dnowext$(CO) \
-dct64_3dnow$(CO) \
-dct64_3dnowext$(CO) \
-#dct64_mmx$(CO) \
-dct64_sse$(CO) \
-dct64_sse_float$(CO) \
-equalizer_3dnow$(CO) \
-getcpuflags$(CO) \
-synth_3dnow$(CO) \
-synth_3dnowext$(CO) \
-synth_i586$(CO) \
-synth_i586_dither$(CO) \
-#synth_mmx$(CO) \
-synth_sse$(CO) \
-synth_sse_accurate$(CO) \
-synth_sse_float$(CO) \
-synth_sse_s32$(CO) \
-synth_stereo_sse_accurate$(CO) \
-synth_stereo_sse_float$(CO) \
-synth_stereo_sse_s32$(CO) \
-#tabinit_mmx$(CO)
-
-all2: libmpg123$(LBO) $(MDUMMY)
+OBJECTS=$(OBJECTS) dct36_3dnow$(CO) dct36_3dnowext$(CO) dct64_3dnow$(CO) dct64_3dnowext$(CO)
+OBJECTS=$(OBJECTS) dct64_sse$(CO) dct64_sse_float$(CO) equalizer_3dnow$(CO) getcpuflags$(CO)
+OBJECTS=$(OBJECTS) synth_3dnow$(CO) synth_3dnowext$(CO) synth_i586$(CO) synth_i586_dither$(CO)
+OBJECTS=$(OBJECTS) synth_sse$(CO) synth_sse_accurate$(CO) synth_sse_float$(CO) synth_sse_s32$(CO)
+OBJECTS=$(OBJECTS) synth_stereo_sse_accurate$(CO) synth_stereo_sse_float$(CO) synth_stereo_sse_s32$(CO)
 
 libmpg123$(LBO): $(OBJECTS) $(LIBS)
         if exist $@ del $@
