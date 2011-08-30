@@ -92,7 +92,7 @@ void dassert(const char* file, int line, const char* msg)
 void cassert(const char* file, int line, const char* msg)
 { PTIB ptib;
   DosGetInfoBlocks(&ptib, NULL);
-  fprintf(stderr, "Assertion at %s line %i thread %04ld failed: %s\n%s (%i)\n", file, line, ptib->tib_ptib2->tib2_ultid, msg, clib_strerror(errno), errno);
+  fprintf(stderr, "Assertion at %s line %i thread %04ld failed: %s\n%s (%i)\n", file, line, ptib->tib_ptib2->tib2_ultid, msg, strerror(errno), errno);
   DosResetBuffer(2);
   abort();
 }
